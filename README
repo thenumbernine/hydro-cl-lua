@@ -1,0 +1,6 @@
+HydroJS was the first
+then Hydro, a C++/multithread version of HydroJS
+then HydroGPU, a OpenCL version of Hydro
+then with Lua script config, 
+then the Lua got out of hand until the C++ was doing nothing but managing strings
+now this project, lua-hydro-cl, pushes the middleman (C++) out completely
