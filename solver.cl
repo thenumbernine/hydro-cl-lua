@@ -80,38 +80,31 @@ prim_t primFromCons(cons_t U) {
 __kernel void convertToTex(
 	__write_only dstimage_t tex,
 	int displayVar,
-	const __global real* UBuf,
-	const __global real* waveBuf,
-	const __global real* eigenBuf,
-	const __global real* deltaUTildeBuf,
-	const __global real* rTildeBuf,
-	const __global real* fluxBuf
-//	const __global real* derivBuf
+	const __global real* buf
 ) {
 	SETBOUNDS(0,0);
 	real value = 0;
 	int intindex = dim * index;	//side 0
 	if (displayVar >= display_wave_0 && displayVar < display_wave_0 + numWaves) {
-		const __global real* wave = waveBuf + intindex * numWaves;
+		const __global real* wave = buf + intindex * numWaves;
 		value = wave[displayVar - display_wave_0];
 	} else if (displayVar >= display_eigen_0 && displayVar < display_eigen_0 + numEigen) {
-		const __global real* eigen = eigenBuf + intindex * numEigen;
+		const __global real* eigen = buf + intindex * numEigen;
 		value = eigen[displayVar - display_eigen_0];
 	} else if (displayVar >= display_deltaUTilde_0 && displayVar < display_deltaUTilde_0 + numWaves) {
-		const __global real* deltaUTilde = deltaUTildeBuf + intindex * numWaves;
+		const __global real* deltaUTilde = buf + intindex * numWaves;
 		value = deltaUTilde[displayVar - display_deltaUTilde_0];
 	} else if (displayVar >= display_rTilde_0 && displayVar < display_rTilde_0 + numWaves) {
-		const __global real* rTilde = rTildeBuf + intindex * numWaves;
+		const __global real* rTilde = buf + intindex * numWaves;
 		value = rTilde[displayVar - display_rTilde_0];
 	} else if (displayVar >= display_flux_0 && displayVar < display_flux_0 + numStates) {
-		const __global real* flux = fluxBuf + intindex * numStates;
+		const __global real* flux = buf + intindex * numStates;
 		value = flux[displayVar - display_flux_0];
-	/*} else if (displayVar >= display_deriv_0 && displayVar < display_deriv_0 + numStates) {
-		const __global real* deriv = derivBuf + index * numStates;
+	} else if (displayVar >= display_deriv_0 && displayVar < display_deriv_0 + numStates) {
+		const __global real* deriv = buf + index * numStates;
 		value = deriv[displayVar - display_deriv_0];
-	*/
 	} else {
-		cons_t U = *(const __global cons_t*)(UBuf + index * numStates);
+		cons_t U = *(const __global cons_t*)(buf + index * numStates);
 		prim_t W = primFromCons(U);
 		real rho = W.rho;
 		real vx = W.vx;

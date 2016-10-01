@@ -132,7 +132,6 @@ function HydroCLApp:initGL(...)
 	end))
 	
 	
-	
 	lines:insert'#include "solver.cl"'	
 	
 	local code = lines:concat'\n'
@@ -189,16 +188,7 @@ function HydroCLApp:initGL(...)
 	local ImageGL = require 'cl.imagegl'
 	self.texCLMem = ImageGL{context=self.ctx, tex=self.tex, write=true}
 
-	self.convertToTexKernel = self.program:kernel(
-		'convertToTex', 
-		self.texCLMem, 
-		ffi.new('int[1]'), 
-		self.UBuf, 
-		self.waveBuf, 
-		self.eigenBuf, 
-		self.deltaUTildeBuf,
-		self.rTildeBuf,
-		self.fluxBuf)
+	self.convertToTexKernel = self.program:kernel('convertToTex', self.texCLMem)
 
 	local GLProgram = require 'gl.program'
 	local graphShaderCode = file['graph.shader']
@@ -304,18 +294,19 @@ function HydroCLApp:update(...)
 
 	for i,var in ipairs(self.displayVars) do
 		if var.enabled[0] then
-			self:renderDisplayVar(i, var.color)
+			self:renderDisplayVar(i, var)
 		end
 	end
 
 	HydroCLApp.super.update(self, ...)
 end
 
-function HydroCLApp:renderDisplayVar(i, color)
+function HydroCLApp:renderDisplayVar(i, var)
 	-- copy to GL
 	gl.glFinish()
 	self.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
 	self.convertToTexKernel:setArg(1, ffi.new('int[1]', i))
+	self.convertToTexKernel:setArg(2, self[var.buffer..'Buf'])
 	self.cmds:enqueueNDRangeKernel{kernel=self.convertToTexKernel, dim=dim, globalSize=gridSize:ptr(), localSize=localSize:ptr()}
 	self.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
 	self.cmds:finish()
@@ -325,7 +316,7 @@ function HydroCLApp:renderDisplayVar(i, color)
 	self.graphShader:use()
 	self.tex:bind()
 
-	gl.glColor3f(table.unpack(color))
+	gl.glColor3f(table.unpack(var.color))
 	gl.glBegin(gl.GL_LINE_STRIP)
 	local step = 1
 	for i=2,tonumber(gridSize.x)-2,step do
