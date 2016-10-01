@@ -13,7 +13,6 @@ local vec3sz = require 'ffi.vec.create_ffi'(3,'size_t','sz')
 local gridSize = vec3sz(256,1,1)
 local volume = tonumber(gridSize:volume())
 local dim = 1
-local cfl = .5
 local numStates = 3
 local numWaves = 3
 local numEigen = 2 * 3 * 3
@@ -51,8 +50,6 @@ ffi.cdef(consTypeCode)
 local consSize = ffi.sizeof(consType)
 assert(realSize * numStates == consSize)
 
-local displayVars = table{'rho', 'vx', 'P', 'eInt', 'eKin', 'eTotal'}
-
 local function clnumber(x)
 	local s = tostring(x)
 	if s:find'e' then return s end
@@ -61,6 +58,8 @@ local function clnumber(x)
 end
 
 local HydroCLApp = class(ImGuiApp)
+
+HydroCLApp.title = 'Hydrodynamics in OpenCL'
 
 function HydroCLApp:initGL(...)
 	HydroCLApp.super.initGL(self, ...)
@@ -106,9 +105,34 @@ function HydroCLApp:initGL(...)
 	if dim > 2 then lines:insert('|| i.z < lhs || i.z >= gridSize_z - rhs \\') end
 	lines:insert') return; \\'
 	lines:insert'int index = INDEXV(i);'
-	lines:append(displayVars:map(function(var,i)
-		return '#define display_'..var..' '..i
+	
+
+	self.displayVars = table()
+	local vec3 = require 'vec.vec3'
+	local function makevars(buffer, ...)
+		for i=1,select('#',...) do
+			local name = tostring(select(i,...))
+			self.displayVars:insert{
+				buffer = buffer,
+				name = buffer..'_'..name,
+				enabled = ffi.new('bool[1]', false),
+				color = vec3(math.random(), math.random(), math.random()):normalize(),
+			}
+		end
+	end
+	makevars('U', 'rho', 'vx', 'P', 'eInt', 'eKin', 'eTotal')
+	makevars('wave', range(0,numWaves-1):unpack())
+	makevars('eigen', range(0,numEigen-1):unpack())
+	makevars('deltaUTilde', range(0,numWaves-1):unpack())
+	makevars('rTilde', range(0,numWaves-1):unpack())
+	makevars('flux', range(0,numStates-1):unpack())
+
+	lines:append(self.displayVars:map(function(var,i)
+		return '#define display_'..var.name..' '..i
 	end))
+	
+	
+	
 	lines:insert'#include "solver.cl"'	
 	
 	local code = lines:concat'\n'
@@ -165,7 +189,16 @@ function HydroCLApp:initGL(...)
 	local ImageGL = require 'cl.imagegl'
 	self.texCLMem = ImageGL{context=self.ctx, tex=self.tex, write=true}
 
-	self.convertToTexKernel = self.program:kernel('convertToTex', self.texCLMem, self.UBuf)
+	self.convertToTexKernel = self.program:kernel(
+		'convertToTex', 
+		self.texCLMem, 
+		ffi.new('int[1]'), 
+		self.UBuf, 
+		self.waveBuf, 
+		self.eigenBuf, 
+		self.deltaUTildeBuf,
+		self.rTildeBuf,
+		self.fluxBuf)
 
 	local GLProgram = require 'gl.program'
 	local graphShaderCode = file['graph.shader']
@@ -231,31 +264,33 @@ end
 function HydroCLApp:integrate(x, dx_dt, dt)
 	-- forward Euler
 	self.multAddToKernel:setArgs(x, dx_dt, ffi.new('real[1]', dt))
-	self.cmds:enqueueNDRangeKernel{kernel=self.multAddToKernel, dim=dim, globalSize=gridSize:ptr(), localSize=localSize:ptr()}
+	self.cmds:enqueueNDRangeKernel{kernel=self.multAddToKernel, globalSize=volume*numStates, localSize=localSize1d}
 end
 
-local vec3 = require 'vec.vec3'
-local displayVarInfo = displayVars:map(function(var,i)
-	return {
-		enabled = ffi.new('bool[1]', i==1),
-		color = vec3(math.random(), math.random(), math.random()):normalize(),
-	}
-end)
+local yScale = ffi.new('float[1]', .5)
+local xScale = ffi.new('float[1]', 1)
+
+local useFixedDT = ffi.new('bool[1]', true)
+local fixedDT = ffi.new('float[1]', 0)
+local currentDT = ffi.new('float[1]', 0)
+local cfl = ffi.new('float[1]', .5)
 
 function HydroCLApp:update(...)
 
 	-- calc cell wavespeeds -> dts
-	local dt = self.fixedDT
-	if not dt then
+	if useFixedDT[0] then
+		dt = tonumber(fixedDT[0])
+	else
 		self.cmds:enqueueNDRangeKernel{kernel=self.calcDTKernel, dim=dim, globalSize=gridSize:ptr(), localSize=localSize:ptr()}
-		dt = cfl * self:reduceMinDT()
+		dt = tonumber(cfl[0]) * self:reduceMinDT()
 	end
-
+	currentDT[0] = dt
+	
 	-- integrate flux to state by dt
 	self:calcDeriv(self.derivBuf, dt)
 	self:integrate(self.UBuf, self.derivBuf, dt)
 
-	gl.glClearColor(0,0,0,1)
+	gl.glClearColor(.3,.2,.5,1)
 	gl.glClear(gl.GL_COLOR_BUFFER_BIT)
 	
 	local ar = self.width / self.height
@@ -265,22 +300,22 @@ function HydroCLApp:update(...)
 
 	gl.glMatrixMode(gl.GL_MODELVIEW)
 	gl.glLoadIdentity()
-	gl.glScalef(1, 1/2, 1)
+	gl.glScalef(xScale[0], yScale[0], 1)
 
-	for i,info in ipairs(displayVarInfo) do
-		if info.enabled[0] then
-			self:graphVar(i, info.color)
+	for i,var in ipairs(self.displayVars) do
+		if var.enabled[0] then
+			self:renderDisplayVar(i, var.color)
 		end
 	end
 
 	HydroCLApp.super.update(self, ...)
 end
 
-function HydroCLApp:graphVar(i, color)
+function HydroCLApp:renderDisplayVar(i, color)
 	-- copy to GL
 	gl.glFinish()
 	self.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
-	self.convertToTexKernel:setArg(2, ffi.new('int[1]', i))
+	self.convertToTexKernel:setArg(1, ffi.new('int[1]', i))
 	self.cmds:enqueueNDRangeKernel{kernel=self.convertToTexKernel, dim=dim, globalSize=gridSize:ptr(), localSize=localSize:ptr()}
 	self.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
 	self.cmds:finish()
@@ -312,9 +347,27 @@ function HydroCLApp:graphVar(i, color)
 end
 
 function HydroCLApp:updateGUI()
-	ig.igText('variables:')
-	for i,var in ipairs(displayVars) do
-		ig.igCheckbox(var, displayVarInfo[i].enabled)
+	ig.igCheckbox('use fixed dt', useFixedDT)
+	ig.igInputFloat('fixed dt', fixedDT)
+	ig.igInputFloat('current dt', currentDT)
+	ig.igInputFloat('cfl', cfl)
+
+	ig.igSliderFloat('x scale', xScale, 0, 100, '%.3f', 10)
+	ig.igSliderFloat('y scale', yScale, 0, 100, '%.3f', 10)
+	
+	if ig.igCollapsingHeader'variables:' then
+		local lastSection
+		local sectionEnabled
+		for i,var in ipairs(self.displayVars) do
+			local section = var.buffer
+			if section ~= lastSection then
+				sectionEnabled = ig.igCollapsingHeader(section..' variables:')
+			end
+			if sectionEnabled then
+				ig.igCheckbox(var.name, var.enabled)
+			end
+			lastSection = section
+		end
 	end
 end
 

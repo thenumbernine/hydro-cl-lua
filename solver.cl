@@ -53,6 +53,10 @@ real calc_hTotal(real rho, real P, real ETotal) {
 
 constant int4 gridSize = (int4)(gridSize_x, gridSize_y, gridSize_z, 0);
 constant real4 dxs = (real4)(dx, 0, 0, 0);
+constant int4 stepsize = (int4)(1, 
+	gridSize_x, 
+	gridSize_x * gridSize_y, 
+	gridSize_x * gridSize_y * gridSize_z);
 
 real slopeLimiter(real r) { return 0; }
 	
@@ -75,24 +79,51 @@ prim_t primFromCons(cons_t U) {
 
 __kernel void convertToTex(
 	__write_only dstimage_t tex,
-	const __global cons_t* UBuf,
-	int displayVar
+	int displayVar,
+	const __global real* UBuf,
+	const __global real* waveBuf,
+	const __global real* eigenBuf,
+	const __global real* deltaUTildeBuf,
+	const __global real* rTildeBuf,
+	const __global real* fluxBuf
+//	const __global real* derivBuf
 ) {
 	SETBOUNDS(0,0);
-	cons_t U = UBuf[index];
-	prim_t W = primFromCons(U);
-	real rho = W.rho;
-	real vx = W.vx;
-	real P = W.P;
-	
 	real value = 0;
-	switch (displayVar) {
-	case display_rho: value = rho; break;
-	case display_vx: value = vx; break;
-	case display_P: value = P; break;
-	case display_eInt: value = P / (rho * gamma_1); break;
-	case display_eKin: value = .5 * vx * vx; break;
-	case display_eTotal: value = U.ETotal / rho; break;
+	int intindex = dim * index;	//side 0
+	if (displayVar >= display_wave_0 && displayVar < display_wave_0 + numWaves) {
+		const __global real* wave = waveBuf + intindex * numWaves;
+		value = wave[displayVar - display_wave_0];
+	} else if (displayVar >= display_eigen_0 && displayVar < display_eigen_0 + numEigen) {
+		const __global real* eigen = eigenBuf + intindex * numEigen;
+		value = eigen[displayVar - display_eigen_0];
+	} else if (displayVar >= display_deltaUTilde_0 && displayVar < display_deltaUTilde_0 + numWaves) {
+		const __global real* deltaUTilde = deltaUTildeBuf + intindex * numWaves;
+		value = deltaUTilde[displayVar - display_deltaUTilde_0];
+	} else if (displayVar >= display_rTilde_0 && displayVar < display_rTilde_0 + numWaves) {
+		const __global real* rTilde = rTildeBuf + intindex * numWaves;
+		value = rTilde[displayVar - display_rTilde_0];
+	} else if (displayVar >= display_flux_0 && displayVar < display_flux_0 + numStates) {
+		const __global real* flux = fluxBuf + intindex * numStates;
+		value = flux[displayVar - display_flux_0];
+	/*} else if (displayVar >= display_deriv_0 && displayVar < display_deriv_0 + numStates) {
+		const __global real* deriv = derivBuf + index * numStates;
+		value = deriv[displayVar - display_deriv_0];
+	*/
+	} else {
+		cons_t U = *(const __global cons_t*)(UBuf + index * numStates);
+		prim_t W = primFromCons(U);
+		real rho = W.rho;
+		real vx = W.vx;
+		real P = W.P;
+		switch (displayVar) {
+		case display_U_rho: value = rho; break;
+		case display_U_vx: value = vx; break;
+		case display_U_P: value = P; break;
+		case display_U_eInt: value = P / (rho * gamma_1); break;
+		case display_U_eKin: value = .5 * vx * vx; break;
+		case display_U_eTotal: value = U.ETotal / rho; break;
+		}
 	}
 	write_imagef(tex, WRITEIMAGEARGS, (float4)(value, 0., 0., 0.));
 }
@@ -155,10 +186,10 @@ __kernel void calcDT(
 	dtBuf[index] = dx / (fabs(lambda.max - lambda.min) + 1e-9);
 }
 
-void fill3(__global real* ptr, real a, real b, real c) {
-	ptr[0] = a;
-	ptr[1] = b;
-	ptr[2] = c;
+void fillRow(__global real* ptr, int step, real a, real b, real c) {
+	ptr[0*step] = a;
+	ptr[1*step] = b;
+	ptr[2*step] = c;
 }
 	
 __kernel void calcEigenBasis(
@@ -169,9 +200,7 @@ __kernel void calcEigenBasis(
 	SETBOUNDS(2,1);
 	int indexR = index;
 	for (int side = 0; side < dim; ++side) {
-		int4 iL = i;
-		iL[side] = (iL[side]-1+gridSize[side]) % gridSize[side];
-		int indexL = INDEXV(iL);
+		int indexL = index - stepsize[side];
 		
 		Roe_t roe = calcEigenBasisSide(UBuf[indexL], UBuf[indexR]);
 		real vx = roe.vx;
@@ -183,7 +212,7 @@ __kernel void calcEigenBasis(
 	
 		int intindex = side + dim * index;	
 		__global real* wave = waveBuf + numWaves * intindex;
-		fill3(wave, vx - Cs, vx, vx + Cs);
+		fillRow(wave, 1, vx - Cs, vx, vx + Cs);
 
 		/*
 		fill(dF_dU[1], 0, 									1, 							0			)
@@ -191,16 +220,16 @@ __kernel void calcEigenBasis(
 		fill(dF_dU[3], vx * (.5 * gamma_1 * vxSq - hTotal), hTotal - gamma_1 * vxSq,	gamma*vx	)
 		*/
 
-		__global real* evL = eigenBuf + numEigen * intindex;	
+		__global real* evL = eigenBuf + intindex * numEigen;
 		__global real* evR = evL + 3*3;
 
-		fill3(evL+0, (.5 * gamma_1 * vxSq + Cs * vx) / (2. * CsSq),	-(Cs + gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
-		fill3(evL+3, 1. - gamma_1 * vxSq / (2. * CsSq),				gamma_1 * vx / CsSq,				-gamma_1 / CsSq			);
-		fill3(evL+6, (.5 * gamma_1 * vxSq - Cs * vx) / (2. * CsSq),	(Cs - gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
+		fillRow(evL+0, 3, (.5 * gamma_1 * vxSq + Cs * vx) / (2. * CsSq),	-(Cs + gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
+		fillRow(evL+1, 3, 1. - gamma_1 * vxSq / (2. * CsSq),				gamma_1 * vx / CsSq,				-gamma_1 / CsSq			);
+		fillRow(evL+2, 3, (.5 * gamma_1 * vxSq - Cs * vx) / (2. * CsSq),	(Cs - gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
 
-		fill3(evR+0, 1., 				1., 		1.				);
-		fill3(evR+3, vx - Cs, 			vx, 		vx + Cs			);
-		fill3(evR+6, hTotal - Cs * vx, .5 * vxSq, 	hTotal + Cs * vx);
+		fillRow(evR+0, 3, 1., 				1., 		1.				);
+		fillRow(evR+1, 3, vx - Cs, 			vx, 		vx + Cs			);
+		fillRow(evR+2, 3, hTotal - Cs * vx, .5 * vxSq, 	hTotal + Cs * vx);
 	}
 }
 
@@ -241,12 +270,10 @@ __kernel void calcDeltaUTilde(
 	SETBOUNDS(2,1);	
 	int indexR = index;
 	for (int side = 0; side < dim; ++side) {
-		int4 iL = i;
-		iL[side] = (iL[side]-1+gridSize[side]) % gridSize[side];
-		int indexL = INDEXV(iL);
+		int indexL = index - stepsize[side];
 	
-		const __global real* UL = (const __global real*)(UBuf + indexL);
-		const __global real* UR = (const __global real*)(UBuf + indexR);
+		const __global real* UL = UBuf + indexL * numStates;
+		const __global real* UR = UBuf + indexR * numStates;
 	
 		real deltaU[numStates];
 		for (int j = 0; j < numStates; ++j) {
@@ -261,17 +288,13 @@ __kernel void calcDeltaUTilde(
 			deltaU);
 	
 		__global real* deltaUTilde_ = deltaUTildeBuf + intindex * numWaves;
+		
 		//TODO memcpy
 		for (int j = 0; j < numWaves; ++j) {
 			deltaUTilde_[j] = deltaUTilde[j];
 		}
 	}
 }
-
-constant int4 stepsize = (int4)(1, 
-	gridSize_x, 
-	gridSize_x * gridSize_y, 
-	gridSize_x * gridSize_y * gridSize_z);
 
 __kernel void calcRTilde(
 	__global real* rTildeBuf,
@@ -305,8 +328,8 @@ __kernel void calcRTilde(
 }
 
 __kernel void calcFlux(
-	__global cons_t* fluxBuf,
-	const __global cons_t* UBuf,
+	__global real* fluxBuf,
+	const __global real* UBuf,
 	const __global real* waveBuf, 
 	const __global real* eigenBuf, 
 	const __global real* deltaUTildeBuf,
@@ -319,8 +342,8 @@ __kernel void calcFlux(
 		
 		int indexL = index - stepsize[side];
 		int indexR = index;
-		const __global real* UL = (const __global real*)(UBuf + indexL);
-		const __global real* UR = (const __global real*)(UBuf + indexR);
+		const __global real* UL = UBuf + indexL * numStates;
+		const __global real* UR = UBuf + indexR * numStates;
 		
 		real UAvg[numStates];
 		for (int j = 0; j < numStates; ++j) {
@@ -350,7 +373,7 @@ __kernel void calcFlux(
 		real flux[numStates];
 		eigenRightTransform(flux, eigen, fluxTilde);
 
-		__global real* flux_ = (__global real*)(fluxBuf + intindex);
+		__global real* flux_ = fluxBuf + intindex * numStates;
 		for (int j = 0; j < numStates; ++j) {
 			flux_[j] = flux[j];
 		}
