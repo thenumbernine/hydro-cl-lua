@@ -58,11 +58,13 @@ constant int4 stepsize = (int4)(1,
 	gridSize_x * gridSize_y, 
 	gridSize_x * gridSize_y * gridSize_z);
 
+//donor cell
+//real slopeLimiter(real r) { return 0.; }
+//Lax-Wendroff:
+//real slopeLimiter(real r) { return 1.; }
 //Superbee
-real slopeLimiter(real r) { 
-	return max(0., max(min(1., 2. * r), min(2., r)));
-}
-	
+real slopeLimiter(real r) { return max(0., max(min(1., 2. * r), min(2., r))); }
+
 cons_t consFromPrim(prim_t W) {
 	return (cons_t){
 		.rho = W.rho,
@@ -376,9 +378,9 @@ __kernel void calcRTilde(
 				rTilde[j] = 0;
 			} else {
 				if (wave[j] >= 0) {
-					rTilde[j] = deltaUTildeR[j] / deltaUTilde[j];
-				} else {
 					rTilde[j] = deltaUTildeL[j] / deltaUTilde[j];
+				} else {
+					rTilde[j] = deltaUTildeR[j] / deltaUTilde[j];
 				}
 			}
 		}
@@ -414,15 +416,15 @@ __kernel void calcFlux(
 		real fluxTilde[numWaves];
 		eigenLeftTransform(fluxTilde, eigen, UAvg);
 
-		const __global real* lambdas = waveBuf + intindex * numWaves;
-		const __global real* deltaUTilde = deltaUTildeBuf + intindex * numWaves;
+		const __global real* lambdas = waveBuf + numWaves * intindex;
+		const __global real* deltaUTilde = deltaUTildeBuf + numWaves * intindex;
+		const __global real* rTilde = rTildeBuf + numWaves * intindex;
 
 		for (int j = 0; j < numWaves; ++j) {
 			real lambda = lambdas[j];
 			fluxTilde[j] *= lambda;
-			real rTilde = rTildeBuf[j + numWaves * intindex];
 			real theta = lambda >= 0 ? 1 : -1;
-			real phi = slopeLimiter(rTilde);
+			real phi = slopeLimiter(rTilde[j]);
 			real epsilon = lambda * dt_dx;
 			real deltaFluxTilde = lambda * deltaUTilde[j];
 			fluxTilde[j] -= .5 * deltaFluxTilde * (theta + phi * (epsilon - theta));
