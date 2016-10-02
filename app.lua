@@ -14,13 +14,12 @@ local vec3sz = require 'ffi.vec.create_ffi'(3,'size_t','sz')
 local gridSize = vec3sz(256,1,1)
 local volume = tonumber(gridSize:volume())
 local dim = 1
-local numStates = 3
-local numWaves = 3
-local numEigen = 2 * 3 * 3
+local numGhost = 2
 
 local xmin = -1
 local xmax = 1
-local gamma = 7/5
+
+local eqn = require 'euler1d'()
 
 local offset = vec3sz(0,0,0)
 local localSize1d = 16
@@ -30,26 +29,15 @@ local real = 'float'
 local realSize = ffi.sizeof(real)
 ffi.cdef('typedef '..real..' real;')
 
-local primType = 'prim_t'
-local primTypeCode = [[
-typedef struct {
-	real rho;
-	real vx;
-	real P;
-} ]]..primType..';\n'
-ffi.cdef(primTypeCode)
-local primSize = ffi.sizeof(primType)
+local eqnTypeCode = eqn:getTypeCode()
+ffi.cdef(eqnTypeCode)
 
-local consType = 'cons_t'
-local consTypeCode = [[
-typedef struct {
-	real rho;
-	real mx;
-	real ETotal;
-} ]]..consType..';\n'
-ffi.cdef(consTypeCode)
-local consSize = ffi.sizeof(consType)
-assert(realSize * numStates == consSize)
+local consSize = ffi.sizeof(eqn.consType)
+assert(realSize * eqn.numStates == consSize)
+
+local boundaryMethods = table{'freeflow', 'periodic', 'mirror'}
+local xs = {'x', 'y', 'z'}
+local minmaxs = {'min', 'max'}
 
 local function clnumber(x)
 	local s = tostring(x)
@@ -80,23 +68,31 @@ function HydroCLApp:initGL(...)
 	
 	lines:append{
 		'#define dim 1',
-		'#define numStates '..numStates,
-		'#define numWaves '..numWaves,
-		'#define numEigen '..numEigen,
+		'#define numGhost '..numGhost,
 		'#define xmin '..clnumber(xmin),
 		'#define xmax '..clnumber(xmax),
 		'#define dx ((xmax-xmin)/(real)gridSize_x)',
 		'#define INDEX(a,b,c)	((a) + gridSize_x * ((b) + gridSize_y * (c)))',
 		'#define INDEXV(i)		INDEX((i).x, (i).y, (i).z)',
-		'#define gamma '..clnumber(gamma),
 		'#define WRITEIMAGEARGS '..(dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)'),
 		'typedef '..(dim == 3 and 'image3d_t' or 'image2d_t')..' dstimage_t;',
 	}
 	lines:append(table{'',2,4,8}:map(function(n)
 		return 'typedef '..real..n..' real'..n..';'
 	end))
-	lines:insert(primTypeCode)
-	lines:insert(consTypeCode)
+
+	lines:append{
+		'#define numStates '..eqn.numStates,
+		'#define numWaves '..eqn.numWaves,
+		'#define numEigen '..eqn.numEigen,
+		'constant int4 gridSize = (int4)(gridSize_x, gridSize_y, gridSize_z, 0);',
+		'constant real4 dxs = (real4)(dx, 0, 0, 0);',
+		'constant int4 stepsize = (int4)(1, gridSize_x, gridSize_x * gridSize_y, gridSize_x * gridSize_y * gridSize_z);',
+	}
+
+	lines:insert(eqn:header(clnumber))
+	
+	lines:insert(eqnTypeCode)
 
 	-- define i, index, and bounds-check
 	lines:insert'#define SETBOUNDS(lhs,rhs)	\\'
@@ -121,25 +117,34 @@ function HydroCLApp:initGL(...)
 			}
 		end
 	end
-	makevars('U', 'rho', 'vx', 'P', 'eInt', 'eKin', 'eTotal')
-	makevars('wave', range(0,numWaves-1):unpack())
-	makevars('eigen', range(0,numEigen-1):unpack())
+	
+	makevars('U', eqn.displayVars:unpack())
+	makevars('wave', range(0,eqn.numWaves-1):unpack())
+	
+	-- TODO should I allow this?
+	-- it restricts the eigen struct to only contain reals ...
+	makevars('eigen', range(0,eqn.numEigen-1):unpack())
+	
 	makevars('dt', '0')
-	makevars('deltaUTilde', range(0,numWaves-1):unpack())
-	makevars('rTilde', range(0,numWaves-1):unpack())
-	makevars('flux', range(0,numStates-1):unpack())
-	makevars('deriv', range(0,numStates-1):unpack())
+	makevars('deltaUTilde', range(0,eqn.numWaves-1):unpack())
+	makevars('rTilde', range(0,eqn.numWaves-1):unpack())
+	makevars('flux', range(0,eqn.numStates-1):unpack())
+	makevars('deriv', range(0,eqn.numStates-1):unpack())
 	makevars('orthoError', '0')
 	makevars('fluxError', '0')
 
 	lines:append(self.displayVars:map(function(var,i)
 		return '#define display_'..var.name..' '..i
 	end))
-	
-	
-	lines:insert'#include "solver.cl"'	
-	
-	local code = lines:concat'\n'
+
+	-- used for min/max eigenvalues
+	lines:insert'typedef struct { real min, max; } range_t;'
+
+	self.codePrefix = lines:concat'\n'
+
+	local code = self.codePrefix .. '\n'
+		.. eqn:solverCode() .. '\n'
+		.. '#include "solver.cl"'
 
 	self.platform, self.device, self.ctx, self.cmds, self.program
 	= require 'cl'{
@@ -148,19 +153,19 @@ function HydroCLApp:initGL(...)
 		program={code=code},
 	}
 
-	self.UBuf = self.ctx:buffer{rw=true, size=volume*consSize}
+	self.UBuf = self.ctx:buffer{rw=true, size=volume*eqn.numStates*realSize}
 	self.dtBuf = self.ctx:buffer{rw=true, size=volume*realSize}
-	self.reduceFinalMem = ffi.new('real[1]', 0)
+	self.reduceMinResultPtr = ffi.new('real[1]', 0)
 	self.dtSwapBuf = self.ctx:buffer{rw=true, size=volume*realSize/localSize1d}
-	self.waveBuf = self.ctx:buffer{rw=true, size=volume*dim*numWaves*realSize}
-	self.eigenBuf = self.ctx:buffer{rw=true, size=volume*dim*numEigen*realSize}
-	self.deltaUTildeBuf = self.ctx:buffer{rw=true, size=volume*dim*numWaves*realSize}
-	self.rTildeBuf = self.ctx:buffer{rw=true, size=volume*dim*numWaves*realSize}
-	self.fluxBuf = self.ctx:buffer{rw=true, size=volume*dim*consSize}
-	self.derivBuf = self.ctx:buffer{rw=true, size=volume*consSize}
+	self.waveBuf = self.ctx:buffer{rw=true, size=volume*dim*eqn.numWaves*realSize}
+	self.eigenBuf = self.ctx:buffer{rw=true, size=volume*dim*eqn.numEigen*realSize}
+	self.deltaUTildeBuf = self.ctx:buffer{rw=true, size=volume*dim*eqn.numWaves*realSize}
+	self.rTildeBuf = self.ctx:buffer{rw=true, size=volume*dim*eqn.numWaves*realSize}
+	self.fluxBuf = self.ctx:buffer{rw=true, size=volume*dim*eqn.numStates*realSize}
+	self.derivBuf = self.ctx:buffer{rw=true, size=volume*eqn.numStates*realSize}
 	
 	-- debug only
-	self.fluxMatrixBuf = self.ctx:buffer{rw=true, size=volume*dim*numStates*numStates*realSize}
+	self.fluxMatrixBuf = self.ctx:buffer{rw=true, size=volume*dim*eqn.numStates*eqn.numStates*realSize}
 	self.orthoErrorBuf = self.ctx:buffer{rw=true, size=volume*dim*realSize}
 	self.fluxErrorBuf = self.ctx:buffer{rw=true, size=volume*dim*realSize}
 
@@ -181,9 +186,24 @@ function HydroCLApp:initGL(...)
 
 	self.calcErrorsKernel = self.program:kernel('calcErrors', self.orthoErrorBuf, self.fluxErrorBuf, self.waveBuf, self.eigenBuf, self.fluxMatrixBuf)
 
+	-- boundary code
+
+	self.boundaryMethods = {}
+	for i=1,dim do
+		for _,minmax in ipairs(minmaxs) do
+			local var = xs[i]..minmax
+			self.boundaryMethods[var] = ffi.new('int[1]', boundaryMethods:find'freeflow'-1)
+		end
+	end
+	self:refreshBoundaryMethods()
+
+	-- init state
+
 	self.initStateKernel = self.program:kernel('initState', self.UBuf)
 	self:resetState()
-	
+
+	-- CL/GL interop
+
 	local GLTex2D = require 'gl.tex2d'
 	self.tex = GLTex2D{
 		width = gridSize.x,
@@ -234,6 +254,50 @@ function HydroCLApp:resetState()
 	self.cmds:finish()
 end
 
+function HydroCLApp:refreshBoundaryMethods()
+	local lines = table()
+	lines:insert(self.codePrefix)
+	lines:insert[[
+__kernel void boundary(
+	__global cons_t* UBuf
+) {
+	int i = get_global_id(0);
+	if (i >= numGhost) return;
+]]
+	lines:insert(({
+		periodic = [[
+	UBuf[i] = UBuf[gridSize_x-2*numGhost+i];
+]],
+		mirror = [[
+	UBuf[i] = UBuf[2*numGhost-1-i];
+	UBuf[i].mx = -UBuf[i].mx;
+]],
+		freeflow = [[
+	UBuf[i] = UBuf[numGhost];
+]],
+	})[boundaryMethods[1+self.boundaryMethods.xmin[0]]])
+
+	lines:insert(({
+		periodic = [[
+	UBuf[gridSize_x-numGhost+i] = UBuf[numGhost+i];
+]],
+		mirror = [[
+	UBuf[gridSize_x-numGhost+i] = UBuf[gridSize_x-numGhost-1-i];
+	UBuf[gridSize_x-numGhost+i].mx = -UBuf[gridSize_x-numGhost+i].mx; 
+]],
+		freeflow = [[
+	UBuf[gridSize_x-numGhost+i] = UBuf[gridSize_x-numGhost-1];
+]],
+	})[boundaryMethods[1+self.boundaryMethods.xmax[0]]])
+	lines:insert'}'
+
+	local code = lines:concat'\n'
+	
+	self.cmds:finish()
+	self.boundaryProgram = require 'cl.program'{context=self.ctx, devices={self.device}, code=code} 
+	self.boundaryKernel = self.boundaryProgram:kernel('boundary', self.UBuf);
+end
+
 function HydroCLApp:reduceMinDT()
 	local reduceSize = volume
 	local dst = self.dtSwapBuf
@@ -254,8 +318,8 @@ function HydroCLApp:reduceMinDT()
 		dst, src = src, dst
 		reduceSize = nextSize
 	end
-	self.cmds:enqueueReadBuffer{buffer=src, block=true, size=realSize, ptr=self.reduceFinalMem}
-	return self.reduceFinalMem[0]
+	self.cmds:enqueueReadBuffer{buffer=src, block=true, size=realSize, ptr=self.reduceMinResultPtr}
+	return self.reduceMinResultPtr[0]
 end
 
 function HydroCLApp:calcDeriv(derivBuf, dt)
@@ -272,7 +336,7 @@ end
 function HydroCLApp:integrate(derivBuf, dt)
 	-- forward Euler
 	self.multAddKernel:setArgs(self.UBuf, self.UBuf, derivBuf, ffi.new('real[1]', dt))
-	self.cmds:enqueueNDRangeKernel{kernel=self.multAddKernel, globalSize=volume*numStates, localSize=localSize1d}
+	self.cmds:enqueueNDRangeKernel{kernel=self.multAddKernel, globalSize=volume*eqn.numStates, localSize=localSize1d}
 end
 
 local xScale = ffi.new('float[1]', 1)
@@ -281,21 +345,17 @@ local yScale = ffi.new('float[1]', .5)
 local updateMethod
 local useFixedDT = ffi.new('bool[1]', false)
 local fixedDT = ffi.new('float[1]', 0)
-local currentDT = ffi.new('float[1]', 0)
 local cfl = ffi.new('float[1]', .5)
 
 function HydroCLApp:update(...)
-
-	if updateMethod == 'reset' then
-		self:resetState()
-		updateMethod = nil 
-	end
 
 	if updateMethod then
 		if updateMethod == 'step' then 
 			print('performing single step...')
 			updateMethod = nil 
 		end
+
+		self:boundary()
 
 		-- calc cell wavespeeds -> dts
 		if useFixedDT[0] then
@@ -304,7 +364,7 @@ function HydroCLApp:update(...)
 			self.cmds:enqueueNDRangeKernel{kernel=self.calcDTKernel, dim=dim, globalSize=gridSize:ptr(), localSize=localSize:ptr()}
 			dt = tonumber(cfl[0]) * self:reduceMinDT()
 		end
-		currentDT[0] = dt
+		fixedDT[0] = dt
 		
 		-- integrate flux to state by dt
 		self:calcDeriv(self.derivBuf, dt)
@@ -332,6 +392,11 @@ function HydroCLApp:update(...)
 	HydroCLApp.super.update(self, ...)
 end
 
+function HydroCLApp:boundary()
+	-- 1D:
+	self.cmds:enqueueNDRangeKernel{kernel=self.boundaryKernel, globalSize=localSize1d, localSize=localSize1d}
+end
+
 function HydroCLApp:renderDisplayVar(i, var)
 	-- copy to GL
 	gl.glFinish()
@@ -355,14 +420,6 @@ function HydroCLApp:renderDisplayVar(i, var)
 		gl.glVertex2f(x, 0)
 	end
 	gl.glEnd()
-	--[[
-	gl.glBegin(gl.GL_QUADS)
-	for k,v in ipairs{{0,0}, {1,0}, {1,1}, {0,1}} do
-		gl.glTexCoord2f(table.unpack(v))
-		gl.glVertex2f(v[1]*2-1, v[2]*2-1)
-	end
-	gl.glEnd()
-	--]]
 	
 	self.tex:unbind()
 	self.graphShader:useNone()
@@ -375,14 +432,27 @@ function HydroCLApp:updateGUI()
 	if ig.igButton'Step' then
 		updateMethod = 'step'
 	end
-	
+	if ig.igButton'Reset' then
+		print'resetting...'
+		self:resetState()
+		updateMethod = nil
+	end
+
 	ig.igCheckbox('use fixed dt', useFixedDT)
 	ig.igInputFloat('fixed dt', fixedDT)
-	ig.igInputFloat('current dt', currentDT)
-	ig.igInputFloat('cfl', cfl)
+	ig.igInputFloat('CFL', cfl)
 
 	ig.igSliderFloat('x scale', xScale, 0, 100, '%.3f', 10)
 	ig.igSliderFloat('y scale', yScale, 0, 100, '%.3f', 10)
+
+	for i=1,dim do
+		for _,minmax in ipairs(minmaxs) do
+			local var = xs[i]..minmax
+			if ig.igCombo(var, self.boundaryMethods[var], boundaryMethods) then
+				self:refreshBoundaryMethods()
+			end
+		end
+	end
 
 	if ig.igCollapsingHeader'variables:' then
 		local lastSection
@@ -410,7 +480,8 @@ function HydroCLApp:event(event, ...)
 			updateMethod = 'step'
 		elseif event.key.keysym.sym == ('r'):byte() then
 			print'resetting...'
-			updateMethod = 'reset'
+			self:resetState()
+			updateMethod = nil
 		end
 	end
 end

@@ -1,9 +1,3 @@
-// common types:
-
-typedef struct {
-	real min, max;
-} range_t;
-
 // common:
 
 //http://developer.amd.com/resources/documentation-articles/articles-whitepapers/opencl-optimization-case-study-simple-reductions/
@@ -41,23 +35,6 @@ __kernel void reduceMin(
 	}
 }
 
-// private:
-
-constant real gamma_1 = gamma - 1;
-constant real gamma_3 = gamma - 3;
-real calc_hTotal(real rho, real P, real ETotal) {
-	return (P + ETotal) / rho;
-}
-
-// equation/solver API: 
-
-constant int4 gridSize = (int4)(gridSize_x, gridSize_y, gridSize_z, 0);
-constant real4 dxs = (real4)(dx, 0, 0, 0);
-constant int4 stepsize = (int4)(1, 
-	gridSize_x, 
-	gridSize_x * gridSize_y, 
-	gridSize_x * gridSize_y * gridSize_z);
-
 //donor cell
 //real slopeLimiter(real r) { return 0.; }
 //Lax-Wendroff:
@@ -65,22 +42,7 @@ constant int4 stepsize = (int4)(1,
 //Superbee
 real slopeLimiter(real r) { return max(0., max(min(1., 2. * r), min(2., r))); }
 
-cons_t consFromPrim(prim_t W) {
-	return (cons_t){
-		.rho = W.rho,
-		.mx = W.rho * W.vx,
-		.ETotal = .5 * W.rho * W.vx * W.vx + W.P / (gamma - 1),
-	};
-}
-
-prim_t primFromCons(cons_t U) {
-	real EInt = U.ETotal - .5 * U.mx * U.mx / U.rho;
-	return (prim_t){
-		.rho = U.rho,
-		.vx = U.mx / U.rho,
-		.P = EInt / (gamma - 1),
-	};
-}
+// private:
 
 __kernel void convertToTex(
 	__write_only dstimage_t tex,
@@ -113,69 +75,12 @@ __kernel void convertToTex(
 	} else if (displayVar == display_orthoError_0) {
 		value = buf[intindex];
 	} else {
-		cons_t U = *(const __global cons_t*)(buf + index * numStates);
-		prim_t W = primFromCons(U);
-		real rho = W.rho;
-		real vx = W.vx;
-		real P = W.P;
-		switch (displayVar) {
-		case display_U_rho: value = rho; break;
-		case display_U_vx: value = vx; break;
-		case display_U_P: value = P; break;
-		case display_U_eInt: value = P / (rho * gamma_1); break;
-		case display_U_eKin: value = .5 * vx * vx; break;
-		case display_U_eTotal: value = U.ETotal / rho; break;
-		}
+		value = convertToTex_UBuf(displayVar, buf + numStates * index);
 	}
 	write_imagef(tex, WRITEIMAGEARGS, (float4)(value, 0., 0., 0.));
 }
 
-range_t calcCellMinMaxEigenvalues(cons_t U) {
-	prim_t W = primFromCons(U);
-	real Cs = sqrt(gamma * W.P / W.rho);
-	return (range_t){
-		.min = W.vx - Cs,
-		.max = W.vx + Cs,
-	};
-}
-
-typedef struct {
-	real rho, vx, hTotal;
-} Roe_t;
-
-Roe_t calcEigenBasisSide(cons_t UL, cons_t UR) {
-	prim_t WL = primFromCons(UL);
-	real sqrtRhoL = sqrt(WL.rho);
-	real vxL = WL.vx;
-	real hTotalL = calc_hTotal(WL.rho, WL.P, UL.ETotal);
-
-	prim_t WR = primFromCons(UR);
-	real sqrtRhoR = sqrt(UR.rho);
-	real vxR = WR.vx;
-	real hTotalR = calc_hTotal(WR.rho, WR.P, UR.ETotal);
-
-	real invDenom = 1./(sqrtRhoL + sqrtRhoR);
-
-	return (Roe_t){
-		.rho = sqrtRhoL * sqrtRhoR,
-		.vx = invDenom * (sqrtRhoL * vxL + sqrtRhoR * vxR),
-		.hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR),
-	};	
-}
-
 // Roe solver:
-
-__kernel void initState(
-	__global cons_t* UBuf
-) {
-	SETBOUNDS(0,0);
-	real x = (real)(i.x + .5) * dx + xmin;
-	UBuf[index] = consFromPrim((prim_t){
-		.rho = x < 0 ? 1 : .125,
-		.vx = 0,
-		.P = x < 0 ? 1 : .1,
-	}); 
-}
 
 __kernel void calcDT(
 	__global real* dtBuf,
@@ -200,51 +105,7 @@ __kernel void calcDT(
 	dtBuf[index] = dx / (fabs(lambda.max - lambda.min) + 1e-9);
 }
 
-void fillRow(__global real* ptr, int step, real a, real b, real c) {
-	ptr[0*step] = a;
-	ptr[1*step] = b;
-	ptr[2*step] = c;
-}
-	
-__kernel void calcEigenBasis(
-	__global real* waveBuf,			//[volume][dim][numWaves]
-	__global real* eigenBuf,		//[volume][dim][numEigen]
-	__global real* fluxMatrixBuf,	//[volume][dim][numStates][numStates]
-	const __global cons_t *UBuf		//[volume]
-) {
-	SETBOUNDS(2,1);
-	int indexR = index;
-	for (int side = 0; side < dim; ++side) {
-		int indexL = index - stepsize[side];
-		
-		Roe_t roe = calcEigenBasisSide(UBuf[indexL], UBuf[indexR]);
-		real vx = roe.vx;
-		real hTotal = roe.hTotal;
-		
-		real vxSq = vx * vx;	
-		real CsSq = gamma_1 * (hTotal - .5 * vx * vx);
-		real Cs = sqrt(CsSq);
-	
-		int intindex = side + dim * index;	
-		__global real* wave = waveBuf + numWaves * intindex;
-		fillRow(wave, 1, vx - Cs, vx, vx + Cs);
-
-		__global real* fluxMatrix = fluxMatrixBuf + numStates * numStates * intindex;
-		fillRow(fluxMatrix+0, 3,	0, 									1, 							0			);
-		fillRow(fluxMatrix+1, 3,	.5 * gamma_3 * vxSq, 				-gamma_3 * vx, 				gamma_1		);
-		fillRow(fluxMatrix+2, 3, 	vx * (.5 * gamma_1 * vxSq - hTotal), hTotal - gamma_1 * vxSq,	gamma*vx	);
-
-		__global real* evL = eigenBuf + intindex * numEigen;
-		fillRow(evL+0, 3, (.5 * gamma_1 * vxSq + Cs * vx) / (2. * CsSq),	-(Cs + gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
-		fillRow(evL+1, 3, 1. - gamma_1 * vxSq / (2. * CsSq),				gamma_1 * vx / CsSq,				-gamma_1 / CsSq			);
-		fillRow(evL+2, 3, (.5 * gamma_1 * vxSq - Cs * vx) / (2. * CsSq),	(Cs - gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
-
-		__global real* evR = evL + 3*3;
-		fillRow(evR+0, 3, 1., 				1., 		1.				);
-		fillRow(evR+1, 3, vx - Cs, 			vx, 		vx + Cs			);
-		fillRow(evR+2, 3, hTotal - Cs * vx, .5 * vxSq, 	hTotal + Cs * vx);
-	}
-}
+// the default eigen transforms, using eigen struct as a dense matrix:
 
 void eigenLeftTransform(
 	real* y,
