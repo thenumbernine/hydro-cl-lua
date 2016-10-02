@@ -1,10 +1,11 @@
 #!/usr/bin/env luajit
 local class = require 'ext.class'
 local ImGuiApp = require 'imguiapp'
+local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
 local gl = require 'ffi.OpenGL'
 local cl = require 'ffi.OpenCL'
-local ffi = require 'ffi'
+local sdl = require 'ffi.sdl'
 local bit = require 'bit'
 local glreport = require 'gl.report'
 
@@ -115,7 +116,7 @@ function HydroCLApp:initGL(...)
 			self.displayVars:insert{
 				buffer = buffer,
 				name = buffer..'_'..name,
-				enabled = ffi.new('bool[1]', false),
+				enabled = ffi.new('bool[1]', buffer == 'U' and i <= 2),
 				color = vec3(math.random(), math.random(), math.random()):normalize(),
 			}
 		end
@@ -123,9 +124,13 @@ function HydroCLApp:initGL(...)
 	makevars('U', 'rho', 'vx', 'P', 'eInt', 'eKin', 'eTotal')
 	makevars('wave', range(0,numWaves-1):unpack())
 	makevars('eigen', range(0,numEigen-1):unpack())
+	makevars('dt', '0')
 	makevars('deltaUTilde', range(0,numWaves-1):unpack())
 	makevars('rTilde', range(0,numWaves-1):unpack())
 	makevars('flux', range(0,numStates-1):unpack())
+	makevars('deriv', range(0,numStates-1):unpack())
+	makevars('orthoError', '0')
+	makevars('fluxError', '0')
 
 	lines:append(self.displayVars:map(function(var,i)
 		return '#define display_'..var.name..' '..i
@@ -145,7 +150,7 @@ function HydroCLApp:initGL(...)
 
 	self.UBuf = self.ctx:buffer{rw=true, size=volume*consSize}
 	self.dtBuf = self.ctx:buffer{rw=true, size=volume*realSize}
-	self.reduceFinalMem = ffi.new(real..'[1]', 0)
+	self.reduceFinalMem = ffi.new('real[1]', 0)
 	self.dtSwapBuf = self.ctx:buffer{rw=true, size=volume*realSize/localSize1d}
 	self.waveBuf = self.ctx:buffer{rw=true, size=volume*dim*numWaves*realSize}
 	self.eigenBuf = self.ctx:buffer{rw=true, size=volume*dim*numEigen*realSize}
@@ -153,6 +158,11 @@ function HydroCLApp:initGL(...)
 	self.rTildeBuf = self.ctx:buffer{rw=true, size=volume*dim*numWaves*realSize}
 	self.fluxBuf = self.ctx:buffer{rw=true, size=volume*dim*consSize}
 	self.derivBuf = self.ctx:buffer{rw=true, size=volume*consSize}
+	
+	-- debug only
+	self.fluxMatrixBuf = self.ctx:buffer{rw=true, size=volume*dim*numStates*numStates*realSize}
+	self.orthoErrorBuf = self.ctx:buffer{rw=true, size=volume*dim*realSize}
+	self.fluxErrorBuf = self.ctx:buffer{rw=true, size=volume*dim*realSize}
 
 	self.calcDTKernel = self.program:kernel('calcDT', self.dtBuf, self.UBuf);
 	self.reduceMinKernel = self.program:kernel('reduceMin',
@@ -162,16 +172,17 @@ function HydroCLApp:initGL(...)
 		ffi.new('int[1]', volume),
 		self.dtSwapBuf)
 
-	self.calcEigenBasisKernel = self.program:kernel('calcEigenBasis', self.waveBuf, self.eigenBuf, self.UBuf)
+	self.calcEigenBasisKernel = self.program:kernel('calcEigenBasis', self.waveBuf, self.eigenBuf, self.fluxMatrixBuf, self.UBuf)
 	self.calcDeltaUTildeKernel = self.program:kernel('calcDeltaUTilde', self.deltaUTildeBuf, self.UBuf, self.eigenBuf)
 	self.calcRTildeKernel = self.program:kernel('calcRTilde', self.rTildeBuf, self.deltaUTildeBuf, self.waveBuf)
 	self.calcFluxKernel = self.program:kernel('calcFlux', self.fluxBuf, self.UBuf, self.waveBuf, self.eigenBuf, self.deltaUTildeBuf, self.rTildeBuf)
 	self.calcDerivFromFluxKernel = self.program:kernel('calcDerivFromFlux', self.derivBuf, self.fluxBuf)
-	self.multAddToKernel = self.program:kernel'multAddTo'
+	self.multAddKernel = self.program:kernel'multAdd'
 
-	local initStateKernel = self.program:kernel('initState', self.UBuf)
-	self.cmds:enqueueNDRangeKernel{kernel=initStateKernel, dim=dim, globalSize=gridSize:ptr(), localSize=localSize:ptr()}
-	self.cmds:finish()
+	self.calcErrorsKernel = self.program:kernel('calcErrors', self.orthoErrorBuf, self.fluxErrorBuf, self.waveBuf, self.eigenBuf, self.fluxMatrixBuf)
+
+	self.initStateKernel = self.program:kernel('initState', self.UBuf)
+	self:resetState()
 	
 	local GLTex2D = require 'gl.tex2d'
 	self.tex = GLTex2D{
@@ -217,6 +228,12 @@ function HydroCLApp:initGL(...)
 	self.graphShader:useNone()
 end
 
+function HydroCLApp:resetState()
+	self.cmds:finish()
+	self.cmds:enqueueNDRangeKernel{kernel=self.initStateKernel, dim=dim, globalSize=gridSize:ptr(), localSize=localSize:ptr()}
+	self.cmds:finish()
+end
+
 function HydroCLApp:reduceMinDT()
 	local reduceSize = volume
 	local dst = self.dtSwapBuf
@@ -243,6 +260,7 @@ end
 
 function HydroCLApp:calcDeriv(derivBuf, dt)
 	self.cmds:enqueueNDRangeKernel{kernel=self.calcEigenBasisKernel, dim=dim, globalSize=gridSize:ptr(), localSize=localSize:ptr()}
+	self.cmds:enqueueNDRangeKernel{kernel=self.calcErrorsKernel, dim=dim, globalSize=gridSize:ptr(), localSize=localSize:ptr()}
 	self.cmds:enqueueNDRangeKernel{kernel=self.calcDeltaUTildeKernel, dim=dim, globalSize=gridSize:ptr(), localSize=localSize:ptr()}
 	self.cmds:enqueueNDRangeKernel{kernel=self.calcRTildeKernel, dim=dim, globalSize=gridSize:ptr(), localSize=localSize:ptr()}
 	self.calcFluxKernel:setArg(6, ffi.new('real[1]', dt))
@@ -251,34 +269,47 @@ function HydroCLApp:calcDeriv(derivBuf, dt)
 	self.cmds:enqueueNDRangeKernel{kernel=self.calcDerivFromFluxKernel, dim=dim, globalSize=gridSize:ptr(), localSize=localSize:ptr()}
 end
 
-function HydroCLApp:integrate(x, dx_dt, dt)
+function HydroCLApp:integrate(derivBuf, dt)
 	-- forward Euler
-	self.multAddToKernel:setArgs(x, dx_dt, ffi.new('real[1]', dt))
-	self.cmds:enqueueNDRangeKernel{kernel=self.multAddToKernel, globalSize=volume*numStates, localSize=localSize1d}
+	self.multAddKernel:setArgs(self.UBuf, self.UBuf, derivBuf, ffi.new('real[1]', dt))
+	self.cmds:enqueueNDRangeKernel{kernel=self.multAddKernel, globalSize=volume*numStates, localSize=localSize1d}
 end
 
-local yScale = ffi.new('float[1]', .5)
 local xScale = ffi.new('float[1]', 1)
+local yScale = ffi.new('float[1]', .5)
 
-local useFixedDT = ffi.new('bool[1]', true)
+local updateMethod
+local useFixedDT = ffi.new('bool[1]', false)
 local fixedDT = ffi.new('float[1]', 0)
 local currentDT = ffi.new('float[1]', 0)
 local cfl = ffi.new('float[1]', .5)
 
 function HydroCLApp:update(...)
 
-	-- calc cell wavespeeds -> dts
-	if useFixedDT[0] then
-		dt = tonumber(fixedDT[0])
-	else
-		self.cmds:enqueueNDRangeKernel{kernel=self.calcDTKernel, dim=dim, globalSize=gridSize:ptr(), localSize=localSize:ptr()}
-		dt = tonumber(cfl[0]) * self:reduceMinDT()
+	if updateMethod == 'reset' then
+		self:resetState()
+		updateMethod = nil 
 	end
-	currentDT[0] = dt
-	
-	-- integrate flux to state by dt
-	self:calcDeriv(self.derivBuf, dt)
-	self:integrate(self.UBuf, self.derivBuf, dt)
+
+	if updateMethod then
+		if updateMethod == 'step' then 
+			print('performing single step...')
+			updateMethod = nil 
+		end
+
+		-- calc cell wavespeeds -> dts
+		if useFixedDT[0] then
+			dt = tonumber(fixedDT[0])
+		else
+			self.cmds:enqueueNDRangeKernel{kernel=self.calcDTKernel, dim=dim, globalSize=gridSize:ptr(), localSize=localSize:ptr()}
+			dt = tonumber(cfl[0]) * self:reduceMinDT()
+		end
+		currentDT[0] = dt
+		
+		-- integrate flux to state by dt
+		self:calcDeriv(self.derivBuf, dt)
+		self:integrate(self.derivBuf, dt)
+	end
 
 	gl.glClearColor(.3,.2,.5,1)
 	gl.glClear(gl.GL_COLOR_BUFFER_BIT)
@@ -338,6 +369,13 @@ function HydroCLApp:renderDisplayVar(i, var)
 end
 
 function HydroCLApp:updateGUI()
+	if ig.igButton(updateMethod and 'Stop' or 'Start') then
+		updateMethod = not updateMethod
+	end
+	if ig.igButton'Step' then
+		updateMethod = 'step'
+	end
+	
 	ig.igCheckbox('use fixed dt', useFixedDT)
 	ig.igInputFloat('fixed dt', fixedDT)
 	ig.igInputFloat('current dt', currentDT)
@@ -345,7 +383,7 @@ function HydroCLApp:updateGUI()
 
 	ig.igSliderFloat('x scale', xScale, 0, 100, '%.3f', 10)
 	ig.igSliderFloat('y scale', yScale, 0, 100, '%.3f', 10)
-	
+
 	if ig.igCollapsingHeader'variables:' then
 		local lastSection
 		local sectionEnabled
@@ -358,6 +396,21 @@ function HydroCLApp:updateGUI()
 				ig.igCheckbox(var.name, var.enabled)
 			end
 			lastSection = section
+		end
+	end
+end
+
+function HydroCLApp:event(event, ...)
+	HydroCLApp.super.event(self, event, ...)
+	if ig.igGetIO()[0].WantCaptureKeyboard then return end
+	if event.type == sdl.SDL_KEYDOWN then
+		if event.key.keysym.sym == sdl.SDLK_SPACE then
+			updateMethod = not updateMethod
+		elseif event.key.keysym.sym == ('u'):byte() then
+			updateMethod = 'step'
+		elseif event.key.keysym.sym == ('r'):byte() then
+			print'resetting...'
+			updateMethod = 'reset'
 		end
 	end
 end

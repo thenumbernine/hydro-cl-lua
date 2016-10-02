@@ -58,7 +58,10 @@ constant int4 stepsize = (int4)(1,
 	gridSize_x * gridSize_y, 
 	gridSize_x * gridSize_y * gridSize_z);
 
-real slopeLimiter(real r) { return 0; }
+//Superbee
+real slopeLimiter(real r) { 
+	return max(0., max(min(1., 2. * r), min(2., r)));
+}
 	
 cons_t consFromPrim(prim_t W) {
 	return (cons_t){
@@ -103,6 +106,10 @@ __kernel void convertToTex(
 	} else if (displayVar >= display_deriv_0 && displayVar < display_deriv_0 + numStates) {
 		const __global real* deriv = buf + index * numStates;
 		value = deriv[displayVar - display_deriv_0];
+	} else if (displayVar == display_dt_0) {
+		value = buf[index];
+	} else if (displayVar == display_orthoError_0) {
+		value = buf[intindex];
 	} else {
 		cons_t U = *(const __global cons_t*)(buf + index * numStates);
 		prim_t W = primFromCons(U);
@@ -160,7 +167,7 @@ __kernel void initState(
 	__global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
-	real x = (real)(i.x + .5) / (real)gridSize_x * (xmax - xmin) + xmin;
+	real x = (real)(i.x + .5) * dx + xmin;
 	UBuf[index] = consFromPrim((prim_t){
 		.rho = x < 0 ? 1 : .125,
 		.vx = 0,
@@ -172,7 +179,19 @@ __kernel void calcDT(
 	__global real* dtBuf,
 	const __global cons_t* UBuf
 ) {
-	SETBOUNDS(2,2);
+	SETBOUNDS(0,0);
+	if (i.x < 2 || i.x >= gridSize_x - 2 
+#if dim > 1
+		|| i.y < 2 || i.y >= gridSize_y - 2
+#endif
+#if dim > 2
+		|| i.z < 2 || i.z >= gridSize_z - 2
+#endif
+	) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+	
 	range_t lambda = calcCellMinMaxEigenvalues(UBuf[index]); 
 	lambda.min = min(0., lambda.min);
 	lambda.max = max(0., lambda.max);
@@ -186,9 +205,10 @@ void fillRow(__global real* ptr, int step, real a, real b, real c) {
 }
 	
 __kernel void calcEigenBasis(
-	__global real* waveBuf,	// wave buffer, size [volume][dim][numWaves]
-	__global real* eigenBuf,	// eigen buffer, size [volume][dim][numEigen]
-	const __global cons_t *UBuf
+	__global real* waveBuf,			//[volume][dim][numWaves]
+	__global real* eigenBuf,		//[volume][dim][numEigen]
+	__global real* fluxMatrixBuf,	//[volume][dim][numStates][numStates]
+	const __global cons_t *UBuf		//[volume]
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -207,19 +227,17 @@ __kernel void calcEigenBasis(
 		__global real* wave = waveBuf + numWaves * intindex;
 		fillRow(wave, 1, vx - Cs, vx, vx + Cs);
 
-		/*
-		fill(dF_dU[1], 0, 									1, 							0			)
-		fill(dF_dU[2], .5 * gamma_3 * vxSq, 				-gamma_3 * vx, 				gamma_1		)
-		fill(dF_dU[3], vx * (.5 * gamma_1 * vxSq - hTotal), hTotal - gamma_1 * vxSq,	gamma*vx	)
-		*/
+		__global real* fluxMatrix = fluxMatrixBuf + numStates * numStates * intindex;
+		fillRow(fluxMatrix+0, 3,	0, 									1, 							0			);
+		fillRow(fluxMatrix+1, 3,	.5 * gamma_3 * vxSq, 				-gamma_3 * vx, 				gamma_1		);
+		fillRow(fluxMatrix+2, 3, 	vx * (.5 * gamma_1 * vxSq - hTotal), hTotal - gamma_1 * vxSq,	gamma*vx	);
 
 		__global real* evL = eigenBuf + intindex * numEigen;
-		__global real* evR = evL + 3*3;
-
 		fillRow(evL+0, 3, (.5 * gamma_1 * vxSq + Cs * vx) / (2. * CsSq),	-(Cs + gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
 		fillRow(evL+1, 3, 1. - gamma_1 * vxSq / (2. * CsSq),				gamma_1 * vx / CsSq,				-gamma_1 / CsSq			);
 		fillRow(evL+2, 3, (.5 * gamma_1 * vxSq - Cs * vx) / (2. * CsSq),	(Cs - gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
 
+		__global real* evR = evL + 3*3;
 		fillRow(evR+0, 3, 1., 				1., 		1.				);
 		fillRow(evR+1, 3, vx - Cs, 			vx, 		vx + Cs			);
 		fillRow(evR+2, 3, hTotal - Cs * vx, .5 * vxSq, 	hTotal + Cs * vx);
@@ -244,8 +262,8 @@ void eigenLeftTransform(
 void eigenRightTransform(
 	real* y,
 	const __global real* eigen,
-	real* x)
-{
+	real* x
+) {
 	const __global real* A = eigen + numStates * numWaves;
 	for (int i = 0; i < numWaves; ++i) {
 		real sum = 0;
@@ -255,6 +273,54 @@ void eigenRightTransform(
 		y[i] = sum;
 	}
 }
+
+__kernel void calcErrors(
+	__global real* orthoErrorBuf,
+	__global real* fluxErrorBuf,
+	const __global real* waveBuf,
+	const __global real* eigenBuf,
+	const __global real* fluxMatrixBuf
+) {
+	SETBOUNDS(2,1);
+	for (int side = 0; side < dim; ++side) {
+		int intindex = side + dim * index;
+		const __global real* wave = waveBuf + numWaves * intindex;
+		const __global real* eigen = eigenBuf + numEigen * intindex;
+		const __global real* fluxMatrix = fluxMatrixBuf + numStates * numStates * intindex;
+
+		real orthoError = 0;
+		real fluxError = 0;
+		for (int k = 0; k < numStates; ++k) {
+			
+			real src[numStates];
+			for (int j = 0; j < numStates; ++j) {
+				src[j] = k == j ? 1 : 0;
+			}
+			
+			real mid[numWaves];
+			eigenLeftTransform(mid, eigen, src);
+			
+			real scaled[numWaves];
+			for (int j = 0; j < numWaves; ++j) {
+				scaled[j] = mid[j] * wave[j];
+			}
+			
+			real identCheck[numStates];
+			eigenRightTransform(identCheck, eigen, mid);
+			
+			real fluxCheck[numStates];
+			eigenRightTransform(fluxCheck, eigen, scaled);
+			
+			for (int j = 0; j < numStates; ++j) {
+				orthoError += fabs(identCheck[j] - src[j]);
+				fluxError += fabs(fluxCheck[j] - fluxMatrix[j + numStates * k]);
+			}
+		}
+		orthoErrorBuf[intindex] = log(orthoError) / log(10.);
+		fluxErrorBuf[intindex] = log(fluxError) / log(10.);
+	}
+}
+
 __kernel void calcDeltaUTilde(
 	__global real* deltaUTildeBuf,
 	const __global real* UBuf,
@@ -280,9 +346,8 @@ __kernel void calcDeltaUTilde(
 			eigenBuf + intindex * numEigen,
 			deltaU);
 	
-		__global real* deltaUTilde_ = deltaUTildeBuf + intindex * numWaves;
-		
 		//TODO memcpy
+		__global real* deltaUTilde_ = deltaUTildeBuf + intindex * numWaves;
 		for (int j = 0; j < numWaves; ++j) {
 			deltaUTilde_[j] = deltaUTilde[j];
 		}
@@ -377,8 +442,24 @@ __kernel void calcDerivFromFlux(
 	__global real* derivBuf,
 	const __global real* fluxBuf
 ) {
-	SETBOUNDS(2,2);
-	__global real* deriv = derivBuf + numStates * index;	
+	SETBOUNDS(0,0);
+	
+	__global real* deriv = derivBuf + numStates * index;
+	for (int j = 0; j < numStates; ++j) {
+		deriv[j] = 0;
+	}
+	
+	if (i.x < 2 || i.x >= gridSize_x - 2 
+#if dim > 1
+		|| i.y < 2 || i.y >= gridSize_y - 2
+#endif
+#if dim > 2
+		|| i.z < 2 || i.z >= gridSize_z - 2
+#endif
+	) {
+		return;
+	}
+	
 	for (int side = 0; side < dim; ++side) {
 		int intindexL = side + dim * index;
 		int intindexR = intindexL + dim * stepsize[side]; 
@@ -391,12 +472,13 @@ __kernel void calcDerivFromFlux(
 	}
 }
 
-__kernel void multAddTo(
+__kernel void multAdd(
 	__global real* a,
 	const __global real* b,
-	real c
+	const __global real* c,
+	real d
 ) {
 	size_t i = get_global_id(0);
 	if (i >= get_global_size(0)) return;
-	a[i] += b[i] * c;
+	a[i] = b[i] + c[i] * d;
 }
