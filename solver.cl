@@ -35,13 +35,6 @@ __kernel void reduceMin(
 	}
 }
 
-//donor cell
-//real slopeLimiter(real r) { return 0.; }
-//Lax-Wendroff:
-//real slopeLimiter(real r) { return 1.; }
-//Superbee
-real slopeLimiter(real r) { return max(0., max(min(1., 2. * r), min(2., r))); }
-
 // private:
 
 __kernel void convertToTex(

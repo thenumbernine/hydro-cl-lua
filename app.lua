@@ -29,15 +29,37 @@ local real = 'float'
 local realSize = ffi.sizeof(real)
 ffi.cdef('typedef '..real..' real;')
 
-local eqnTypeCode = eqn:getTypeCode()
-ffi.cdef(eqnTypeCode)
-
-local consSize = ffi.sizeof(eqn.consType)
-assert(realSize * eqn.numStates == consSize)
-
 local boundaryMethods = table{'freeflow', 'periodic', 'mirror'}
 local xs = {'x', 'y', 'z'}
 local minmaxs = {'min', 'max'}
+
+local slopeLimiters = table{
+	{name='DonorCell', code='return 0.;'},
+	{name='LaxWendroff', code='return 1.;'},
+	{name='BeamWarming', code='return r;'},
+	{name='Fromm', code='return .5 * (1. + r);'},
+	{name='CHARM', code='return max(0., r) * (3. * r + 1.) / ((r + 1.) * (r + 1.));'},
+	{name='HCUS', code='return max(0., 1.5 * (r + fabs(r)) / (r + 2.));'},
+	{name='HQUICK', code='return max(0., 2. * (r + fabs(r)) / (r + 3.));'},
+	{name='Koren', code='return max(0., min(2. * r, min((1. + 2. * r) / 3., 2.)));'},
+	{name='MinMod', code='return max(0., min(r, 1.));'},
+	{name='Oshker', code='return max(0., min(r, 1.5));	//replace 1.5 with 1 <= beta <= 2'},
+	{name='Ospre', code='return .5 * (r * r + r) / (r * r + r + 1.);'},
+	{name='Smart', code='return max(0., min(2. * r, min(.25 + .75 * r, 4.)));'},
+	{name='Sweby', code='return max(0., max(min(1.5 * r, 1.), min(r, 1.5)));	//replace 1.5 with 1 <= beta <= 2'},
+	{name='UMIST', code='return max(0., min(min(2. * r, .75 + .25 * r), min(.25 + .75 * r, 2.)));'},
+	{name='VanAlbada1', code='return (r * r + r) / (r * r + 1.);'},
+	{name='VanAlbada2', code='return 2. * r / (r * r + 1.);'},
+
+	--Why isn't this working like it is in the JavaScript code?
+	--return (r + fabs(r)) / (1. + fabs(r));
+	{name='VanLeer', code='return max(0., r) * 2. / (1. + r);'},
+	
+	{name='MonotizedCentral', code='return max(0., min(2., min(.5 * (1. + r), 2. * r)));'},
+	{name='Superbee', code='return max(0., max(min(1., 2. * r), min(2., r)));'},
+	{name='BarthJespersen', code='return .5 * (r + 1.) * min(1., min(4. * r / (r + 1.), 4. / (r + 1.)));'},
+}
+local slopeLimiterNames = slopeLimiters:map(function(limiter) return limiter.name end)
 
 local function clnumber(x)
 	local s = tostring(x)
@@ -52,6 +74,13 @@ HydroCLApp.title = 'Hydrodynamics in OpenCL'
 
 function HydroCLApp:initGL(...)
 	HydroCLApp.super.initGL(self, ...)
+
+	self.platform, self.device, self.ctx, self.cmds
+	= require 'cl'{
+		device={gpu=true}, 
+		context={glSharing=true}, 
+	}
+
 
 	-- TODO generate the codeprogram
 	local lines = table()
@@ -92,7 +121,7 @@ function HydroCLApp:initGL(...)
 
 	lines:insert(eqn:header(clnumber))
 	
-	lines:insert(eqnTypeCode)
+	lines:insert(eqn:getTypeCode())
 
 	-- define i, index, and bounds-check
 	lines:insert'#define SETBOUNDS(lhs,rhs)	\\'
@@ -142,17 +171,6 @@ function HydroCLApp:initGL(...)
 
 	self.codePrefix = lines:concat'\n'
 
-	local code = self.codePrefix .. '\n'
-		.. eqn:solverCode() .. '\n'
-		.. '#include "solver.cl"'
-
-	self.platform, self.device, self.ctx, self.cmds, self.program
-	= require 'cl'{
-		device={gpu=true}, 
-		context={glSharing=true}, 
-		program={code=code},
-	}
-
 	self.UBuf = self.ctx:buffer{rw=true, size=volume*eqn.numStates*realSize}
 	self.dtBuf = self.ctx:buffer{rw=true, size=volume*realSize}
 	self.reduceMinResultPtr = ffi.new('real[1]', 0)
@@ -169,24 +187,11 @@ function HydroCLApp:initGL(...)
 	self.orthoErrorBuf = self.ctx:buffer{rw=true, size=volume*dim*realSize}
 	self.fluxErrorBuf = self.ctx:buffer{rw=true, size=volume*dim*realSize}
 
-	self.calcDTKernel = self.program:kernel('calcDT', self.dtBuf, self.UBuf);
-	self.reduceMinKernel = self.program:kernel('reduceMin',
-		self.dtBuf, 
-		-- hmm, how to handle local space declarations?
-		{ptr=nil, size=localSize1d*realSize},
-		ffi.new('int[1]', volume),
-		self.dtSwapBuf)
+	-- main program
+	self.slopeLimiter = ffi.new('int[1]', slopeLimiterNames:find'Superbee'-1)
+	
+	self:refreshSolverProgram()
 
-	self.calcEigenBasisKernel = self.program:kernel('calcEigenBasis', self.waveBuf, self.eigenBuf, self.fluxMatrixBuf, self.UBuf)
-	self.calcDeltaUTildeKernel = self.program:kernel('calcDeltaUTilde', self.deltaUTildeBuf, self.UBuf, self.eigenBuf)
-	self.calcRTildeKernel = self.program:kernel('calcRTilde', self.rTildeBuf, self.deltaUTildeBuf, self.waveBuf)
-	self.calcFluxKernel = self.program:kernel('calcFlux', self.fluxBuf, self.UBuf, self.waveBuf, self.eigenBuf, self.deltaUTildeBuf, self.rTildeBuf)
-	self.calcDerivFromFluxKernel = self.program:kernel('calcDerivFromFlux', self.derivBuf, self.fluxBuf)
-	self.multAddKernel = self.program:kernel'multAdd'
-
-	self.calcErrorsKernel = self.program:kernel('calcErrors', self.orthoErrorBuf, self.fluxErrorBuf, self.waveBuf, self.eigenBuf, self.fluxMatrixBuf)
-
-	-- boundary code
 
 	self.boundaryMethods = {}
 	for i=1,dim do
@@ -195,11 +200,10 @@ function HydroCLApp:initGL(...)
 			self.boundaryMethods[var] = ffi.new('int[1]', boundaryMethods:find'freeflow'-1)
 		end
 	end
-	self:refreshBoundaryMethods()
+	self:refreshBoundaryProgram()
 
 	-- init state
 
-	self.initStateKernel = self.program:kernel('initState', self.UBuf)
 	self:resetState()
 
 	-- CL/GL interop
@@ -219,7 +223,7 @@ function HydroCLApp:initGL(...)
 	local ImageGL = require 'cl.imagegl'
 	self.texCLMem = ImageGL{context=self.ctx, tex=self.tex, write=true}
 
-	self.convertToTexKernel = self.program:kernel('convertToTex', self.texCLMem)
+	self.convertToTexKernel = self.solverProgram:kernel('convertToTex', self.texCLMem)
 
 	local GLProgram = require 'gl.program'
 	local graphShaderCode = file['graph.shader']
@@ -254,7 +258,42 @@ function HydroCLApp:resetState()
 	self.cmds:finish()
 end
 
-function HydroCLApp:refreshBoundaryMethods()
+-- depends on buffers
+function HydroCLApp:refreshSolverProgram()
+	
+	local slopeLimiterCode = 'real slopeLimiter(real r) {'
+		.. slopeLimiters[1+self.slopeLimiter[0]].code .. '\n'
+		.. '}'
+	
+	local code = self.codePrefix .. '\n'
+		.. slopeLimiterCode .. '\n'
+		.. eqn:solverCode() .. '\n'
+		.. '#include "solver.cl"'
+
+	local CLProgram = require 'cl.program'
+	self.solverProgram = CLProgram{context=self.ctx, devices={self.device}, code=code}
+
+	self.initStateKernel = self.solverProgram:kernel('initState', self.UBuf)
+
+	self.calcDTKernel = self.solverProgram:kernel('calcDT', self.dtBuf, self.UBuf);
+	self.reduceMinKernel = self.solverProgram:kernel('reduceMin',
+		self.dtBuf, 
+		-- hmm, how to handle local space declarations?
+		{ptr=nil, size=localSize1d*realSize},
+		ffi.new('int[1]', volume),
+		self.dtSwapBuf)
+
+	self.calcEigenBasisKernel = self.solverProgram:kernel('calcEigenBasis', self.waveBuf, self.eigenBuf, self.fluxMatrixBuf, self.UBuf)
+	self.calcDeltaUTildeKernel = self.solverProgram:kernel('calcDeltaUTilde', self.deltaUTildeBuf, self.UBuf, self.eigenBuf)
+	self.calcRTildeKernel = self.solverProgram:kernel('calcRTilde', self.rTildeBuf, self.deltaUTildeBuf, self.waveBuf)
+	self.calcFluxKernel = self.solverProgram:kernel('calcFlux', self.fluxBuf, self.UBuf, self.waveBuf, self.eigenBuf, self.deltaUTildeBuf, self.rTildeBuf)
+	self.calcDerivFromFluxKernel = self.solverProgram:kernel('calcDerivFromFlux', self.derivBuf, self.fluxBuf)
+	self.multAddKernel = self.solverProgram:kernel'multAdd'
+
+	self.calcErrorsKernel = self.solverProgram:kernel('calcErrors', self.orthoErrorBuf, self.fluxErrorBuf, self.waveBuf, self.eigenBuf, self.fluxMatrixBuf)
+end
+
+function HydroCLApp:refreshBoundaryProgram()
 	local lines = table()
 	lines:insert(self.codePrefix)
 	lines:insert[[
@@ -294,7 +333,9 @@ __kernel void boundary(
 	local code = lines:concat'\n'
 	
 	self.cmds:finish()
-	self.boundaryProgram = require 'cl.program'{context=self.ctx, devices={self.device}, code=code} 
+	
+	local CLProgram = require 'cl.program'
+	self.boundaryProgram = CLProgram{context=self.ctx, devices={self.device}, code=code} 
 	self.boundaryKernel = self.boundaryProgram:kernel('boundary', self.UBuf);
 end
 
@@ -445,11 +486,15 @@ function HydroCLApp:updateGUI()
 	ig.igSliderFloat('x scale', xScale, 0, 100, '%.3f', 10)
 	ig.igSliderFloat('y scale', yScale, 0, 100, '%.3f', 10)
 
+	if ig.igCombo('slope limiter', self.slopeLimiter, slopeLimiterNames) then
+		self:refreshSolverProgram()
+	end
+
 	for i=1,dim do
 		for _,minmax in ipairs(minmaxs) do
 			local var = xs[i]..minmax
 			if ig.igCombo(var, self.boundaryMethods[var], boundaryMethods) then
-				self:refreshBoundaryMethods()
+				self:refreshBoundaryProgram()
 			end
 		end
 	end
