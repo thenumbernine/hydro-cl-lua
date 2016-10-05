@@ -1,5 +1,5 @@
-constant real gamma_1 = gamma - 1;
-constant real gamma_3 = gamma - 3;
+#define gamma_1 (gamma-1.)
+#define gamma_3 (gamma-3.)
 
 real calc_hTotal(real rho, real P, real ETotal) {
 	return (P + ETotal) / rho;
@@ -11,6 +11,26 @@ cons_t consFromPrim(prim_t W) {
 		.mx = W.rho * W.vx,
 		.ETotal = .5 * W.rho * W.vx * W.vx + W.P / (gamma - 1),
 	};
+}
+
+__kernel void initState(
+	__global cons_t* UBuf
+) {
+	SETBOUNDS(0,0);
+	real x = (real)(i.x + .5) * dx + xmin;
+	prim_t W;
+#if defined(initState_Sod)
+	W.rho = x < 0 ? 1 : .125;
+	W.vx = 0;
+	W.P = x < 0 ? 1 : .1;
+#elif defined(initState_linear)
+	W.rho = 2 + x;
+	W.vx = 0;
+	W.P = 1 + x;
+#else
+#error "unknown initState"
+#endif
+	UBuf[index] = consFromPrim(W);
 }
 
 prim_t primFromCons(cons_t U) {
@@ -74,18 +94,6 @@ Roe_t calcEigenBasisSide(cons_t UL, cons_t UR) {
 	};	
 }
 
-__kernel void initState(
-	__global cons_t* UBuf
-) {
-	SETBOUNDS(0,0);
-	real x = (real)(i.x + .5) * dx + xmin;
-	UBuf[index] = consFromPrim((prim_t){
-		.rho = x < 0 ? 1 : .125,
-		.vx = 0,
-		.P = x < 0 ? 1 : .1,
-	}); 
-}
-
 void fillRow(__global real* ptr, int step, real a, real b, real c) {
 	ptr[0*step] = a;
 	ptr[1*step] = b;
@@ -131,5 +139,3 @@ __kernel void calcEigenBasis(
 		fillRow(evR+2, 3, hTotal - Cs * vx, .5 * vxSq, 	hTotal + Cs * vx);
 	}
 }
-
-

@@ -12,6 +12,8 @@ Euler1D.displayVars = table()
 	:append(Euler1D.primVars)
 	:append{'eInt', 'eKin', 'eTotal'} 
 
+Euler1D.initStates = table{'Sod', 'linear'}
+
 function Euler1D:header(clnumber)
 	return '#define gamma '..clnumber(self.gamma)
 end
