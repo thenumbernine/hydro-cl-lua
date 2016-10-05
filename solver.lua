@@ -43,12 +43,12 @@ function Solver:init(args)
 	self.color = vec3(math.random(), math.random(), math.random()):normalize()
 	self.volume = tonumber(self.gridSize:volume())
 
-	self.xmin = -1
-	self.xmax = 1
+	self.xmin = args.xmin or {-1, -1, -1}
+	self.xmax = args.xmax or {1, 1, 1}
 	self.t = 0
 	
-	self.eqn = require 'euler1d'()
-	self.name = 'Euler1D '..self.name
+	self.eqn = assert(args.eqn)
+	self.name = self.eqn.name..' '..self.name
 
 	self.offset = vec3sz(0,0,0)
 	self.localSize1d = 16
@@ -60,7 +60,7 @@ function Solver:init(args)
 	self.fixedDT = ffi.new('float[1]', 0)
 	self.cfl = ffi.new('float[1]', .5)
 	
-	self.initState = ffi.new('int[1]', (self.eqn.initStates:find(args.initState) or 1)-1)
+	self.initState = ffi.new('int[1]', (table.find(self.eqn.initStates, args.initState) or 1)-1)
 	self.slopeLimiter = ffi.new('int[1]', (self.app.slopeLimiterNames:find(args.slopeLimiter) or 1)-1)
 
 	self.boundaryMethods = {}
@@ -116,7 +116,7 @@ function Solver:createDisplayVars()
 	
 	-- TODO should I allow this?
 	-- it restricts the eigen struct to only contain reals ...
-	makevars('eigen', range(0,self.eqn.numEigen-1):unpack())
+--	makevars('eigen', range(0,self.eqn.numEigen-1):unpack())
 	
 	makevars('dt', '0')
 	makevars('deltaUTilde', range(0,self.eqn.numWaves-1):unpack())
@@ -131,12 +131,14 @@ function Solver:createBuffers()
 	local ctx = self.app.ctx
 	local realSize = ffi.sizeof(self.app.real)
 
+	ffi.cdef(self.eqn:getEigenTypeCode())
+
 	self.UBuf = ctx:buffer{rw=true, size=self.volume * self.eqn.numStates * realSize}
 	self.reduceBuf = ctx:buffer{rw=true, size=self.volume * realSize}
 	self.reduceResultPtr = ffi.new('real[1]', 0)
 	self.reduceSwapBuf = ctx:buffer{rw=true, size=self.volume * realSize / self.localSize1d}
 	self.waveBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numWaves * realSize}
-	self.eigenBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numEigen * realSize}
+	self.eigenBuf = ctx:buffer{rw=true, size=self.volume * self.dim * ffi.sizeof(self.eqn.eigenType)}
 	self.deltaUTildeBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numWaves * realSize}
 	self.rTildeBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numWaves * realSize}
 	self.fluxBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numStates * realSize}
@@ -181,8 +183,12 @@ function Solver:createCodePrefix()
 	lines:append{
 		'#define dim 1',
 		'#define numGhost '..self.numGhost,
-		'#define xmin '..clnumber(self.xmin),
-		'#define xmax '..clnumber(self.xmax),
+		'#define xmin '..clnumber(self.xmin[1]),
+		'#define xmax '..clnumber(self.xmax[1]),
+		'#define ymin '..clnumber(self.xmin[2]),
+		'#define ymax '..clnumber(self.xmax[2]),
+		'#define zmin '..clnumber(self.xmin[3]),
+		'#define zmax '..clnumber(self.xmax[3]),
 		'#define dx ((xmax-xmin)/(real)gridSize_x)',
 		'#define INDEX(a,b,c)	((a) + gridSize_x * ((b) + gridSize_y * (c)))',
 		'#define INDEXV(i)		INDEX((i).x, (i).y, (i).z)',
@@ -200,9 +206,10 @@ function Solver:createCodePrefix()
 		'constant int4 stepsize = (int4)(1, gridSize_x, gridSize_x * gridSize_y, gridSize_x * gridSize_y * gridSize_z);',
 	}
 
-	lines:insert(self.eqn:header(clnumber))
-	
-	lines:insert(self.eqn:getTypeCode())
+	if self.eqn.getTypeCode then lines:insert(self.eqn:getTypeCode()) end
+
+	-- run here for teh code, and in buffer for the sizeof()
+	lines:insert(self.eqn:getEigenTypeCode())
 
 	-- define i, index, and bounds-check
 	lines:insert'#define SETBOUNDS(lhs,rhs)	\\'
@@ -273,28 +280,32 @@ __kernel void multAdd(
 	
 	self.multAddKernel = self.commonProgram:kernel'multAdd'
 
-
-
+	
 	local slopeLimiterCode = 'real slopeLimiter(real r) {'
-		.. self.app.slopeLimiters[1+self.slopeLimiter[0]].code .. '\n'
+		.. self.app.slopeLimiters[1+self.slopeLimiter[0]].code 
 		.. '}'
 	
 	local code = table{
 		self.codePrefix,
-		'#define initState_'..self.eqn.initStates[self.initState[0]+1],
 		slopeLimiterCode,
-		self.eqn:solverCode(),
+		self.eqn:getEigenCode() or '',
+		
+		'#define initState_'..self.eqn.initStates[self.initState[0]+1],
+		self.eqn:solverCode(clnumber) or '',
+		
+		'#define calcDisplayVar_dstImage_t '..(self.dim == 3 and 'image3d_t' or 'image2d_t'),
+		'#define calcDisplayVar_writeImageArgs '..(dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)'),
 	
 		'#define calcDisplayVar_name calcDisplayVarToTex',
 		'#define calcDisplayVar_output_tex',
-		'#define calcDisplayVar_dstImage_t '..(self.dim == 3 and 'image3d_t' or 'image2d_t'),
-		'#define calcDisplayVar_writeImageArgs '..(dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)'),
 		'#include "calcDisplayVar.cl"',
+		'#undef calcDisplayVar_name',
 		'#undef calcDisplayVar_output_tex',
 		
 		'#define calcDisplayVar_name calcDisplayVarToBuffer',
 		'#define calcDisplayVar_output_buffer',
 		'#include "calcDisplayVar.cl"',
+		'#undef calcDisplayVar_name',
 		'#undef calcDisplayVar_output_buffer',
 
 		'#include "solver.cl"',

@@ -4,7 +4,11 @@ local Equation = class()
 
 function Equation:init()
 	-- default # states is # of conservative variables
-	self.numStates = #self.consVars
+	if not self.numStates then 
+		self.numStates = #self.consVars 
+	else
+		assert(self.numStates == #self.consVars)
+	end
 	-- default # waves is the # of states
 	if not self.numWaves then self.numWaves = self.numStates end 
 	-- default size of eigen transform struct is two matrices, one from state->wave, one from wave->state
@@ -13,10 +17,18 @@ function Equation:init()
 	end
 end
 
-Equation.consType = 'cons_t'
--- separate of header() so it can be executed by ffi.cdef and by OpenCL
 function Equation:getTypeCode()
-	return require 'makestruct'(self.consType, self.consVars)
+	return require 'makestruct'('cons_t', self.consVars)
 end
+
+Equation.eigenType = 'eigen_t'
+function Equation:getEigenTypeCode()
+	return 'typedef struct { real evL[' .. (self.numStates * self.numWaves) .. '], evR[' .. (self.numStates * self.numWaves) .. ']; } ' .. self.eigenType .. ';'
+end
+
+function Equation:getEigenCode()
+	return '#include "eigen.cl"'
+end
+
 
 return Equation

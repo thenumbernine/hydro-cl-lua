@@ -13,9 +13,11 @@ __kernel void calcDisplayVar_name(
 	if (displayVar >= display_wave_0 && displayVar < display_wave_0 + numWaves) {
 		const __global real* wave = buf + intindex * numWaves;
 		value = wave[displayVar - display_wave_0];
+#if 0
 	} else if (displayVar >= display_eigen_0 && displayVar < display_eigen_0 + numEigen) {
 		const __global real* eigen = buf + intindex * numEigen;
 		value = eigen[displayVar - display_eigen_0];
+#endif
 	} else if (displayVar >= display_deltaUTilde_0 && displayVar < display_deltaUTilde_0 + numWaves) {
 		const __global real* deltaUTilde = buf + intindex * numWaves;
 		value = deltaUTilde[displayVar - display_deltaUTilde_0];

@@ -99,7 +99,22 @@ self.ctx:printInfo()
 
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	self.solver = Solver{app=self, gridSize=256, slopeLimiter='Superbee'}
+	self.solver = Solver{
+		app=self, 
+		gridSize=256, 
+		slopeLimiter='Superbee', 
+		
+		--[[
+		eqn=require 'euler1d'(),
+		xmin={-1,-1,-1},
+		xmax={1,1,1},
+		--]]
+		
+		eqn=require 'adm1d3to5var'(),
+		xmin={0,0,0},
+		xmax={300,300,300},
+	}
+	
 	self.solvers = table{self.solver}
 	
 	local GLProgram = require 'gl.program'
@@ -196,7 +211,7 @@ function HydroCLApp:update(...)
 					end
 				end
 
-				local solverxmin, solverxmax = solver.xmin, solver.xmax
+				local solverxmin, solverxmax = solver.xmin[1], solver.xmax[1]
 				solverxmin, solverxmax = 1.1 * solverxmin - .1 * solverxmax, 1.1 * solverxmax - .1 * solverxmin
 				
 				xmin = xmin or solverxmin
@@ -345,8 +360,8 @@ function HydroCLApp:renderDisplayVar(solver, varIndex)
 	self.graphShader:use()
 	solver.tex:bind()
 
-	gl.glUniform2f(self.graphShader.uniforms.xmin, solver.xmin, 0)
-	gl.glUniform2f(self.graphShader.uniforms.xmax, solver.xmax, 0)
+	gl.glUniform2f(self.graphShader.uniforms.xmin, solver.xmin[1], 0)
+	gl.glUniform2f(self.graphShader.uniforms.xmax, solver.xmax[1], 0)
 	gl.glUniform1i(self.graphShader.uniforms.axis, solver.dim)
 	gl.glUniform2f(self.graphShader.uniforms.size, solver.gridSize.x, solver.gridSize.y)
 

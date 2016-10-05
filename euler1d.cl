@@ -44,8 +44,8 @@ prim_t primFromCons(cons_t U) {
 
 //called from calcDisplayVar
 real calcDisplayVar_UBuf(int displayVar, const __global real* U_) {
-	cons_t U = *(const __global cons_t*)U_;
-	prim_t W = primFromCons(U);
+	const __global cons_t* U = (const __global cons_t*)U_;
+	prim_t W = primFromCons(*U);
 	real rho = W.rho;
 	real vx = W.vx;
 	real P = W.P;
@@ -55,7 +55,7 @@ real calcDisplayVar_UBuf(int displayVar, const __global real* U_) {
 	case display_U_P: return P;
 	case display_U_eInt: return P / (rho * gamma_1);
 	case display_U_eKin: return .5 * vx * vx;
-	case display_U_eTotal: return U.ETotal / rho;
+	case display_U_eTotal: return U->ETotal / rho;
 	}
 	return 0;
 }
@@ -125,7 +125,7 @@ __kernel void calcEigenBasis(
 		fillRow(fluxMatrix+1, 3,	.5 * gamma_3 * vxSq, 				-gamma_3 * vx, 				gamma_1		);
 		fillRow(fluxMatrix+2, 3, 	vx * (.5 * gamma_1 * vxSq - hTotal), hTotal - gamma_1 * vxSq,	gamma*vx	);
 
-		__global real* evL = eigenBuf + intindex * numEigen;
+		__global real* evL = eigenBuf + numEigen * intindex;
 		fillRow(evL+0, 3, (.5 * gamma_1 * vxSq + Cs * vx) / (2. * CsSq),	-(Cs + gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
 		fillRow(evL+1, 3, 1. - gamma_1 * vxSq / (2. * CsSq),				gamma_1 * vx / CsSq,				-gamma_1 / CsSq			);
 		fillRow(evL+2, 3, (.5 * gamma_1 * vxSq - Cs * vx) / (2. * CsSq),	(Cs - gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);

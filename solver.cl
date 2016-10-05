@@ -25,50 +25,18 @@ __kernel void calcDT(
 	dtBuf[index] = dx / (fabs(lambdaMax - lambdaMin) + 1e-9);
 }
 
-// the default eigen transforms, using eigen struct as a dense matrix:
-
-void eigenLeftTransform(
-	real* y,
-	const __global real* eigen,
-	real* x)
-{
-	const __global real* A = eigen;
-	for (int i = 0; i < numWaves; ++i) {
-		real sum = 0;
-		for (int j = 0; j < numStates; ++j) {
-			sum += A[i+numWaves*j] * x[j];
-		}
-		y[i] = sum;
-	}
-}
-
-void eigenRightTransform(
-	real* y,
-	const __global real* eigen,
-	real* x
-) {
-	const __global real* A = eigen + numStates * numWaves;
-	for (int i = 0; i < numWaves; ++i) {
-		real sum = 0;
-		for (int j = 0; j < numStates; ++j) {
-			sum += A[i+numWaves*j] * x[j];
-		}
-		y[i] = sum;
-	}
-}
-
 __kernel void calcErrors(
 	__global real* orthoErrorBuf,
 	__global real* fluxErrorBuf,
 	const __global real* waveBuf,
-	const __global real* eigenBuf,
+	const __global eigen_t* eigenBuf,
 	const __global real* fluxMatrixBuf
 ) {
 	SETBOUNDS(2,1);
 	for (int side = 0; side < dim; ++side) {
 		int intindex = side + dim * index;
 		const __global real* wave = waveBuf + numWaves * intindex;
-		const __global real* eigen = eigenBuf + numEigen * intindex;
+		const __global eigen_t* eigen = eigenBuf + intindex;
 		const __global real* fluxMatrix = fluxMatrixBuf + numStates * numStates * intindex;
 
 		real orthoError = 0;
@@ -107,7 +75,7 @@ __kernel void calcErrors(
 __kernel void calcDeltaUTilde(
 	__global real* deltaUTildeBuf,
 	const __global real* UBuf,
-	const __global real* eigenBuf
+	const __global eigen_t* eigenBuf
 ) {
 	SETBOUNDS(2,1);	
 	int indexR = index;
@@ -126,7 +94,7 @@ __kernel void calcDeltaUTilde(
 		real deltaUTilde[numWaves];
 		eigenLeftTransform(
 			deltaUTilde,
-			eigenBuf + intindex * numEigen,
+			eigenBuf + intindex,
 			deltaU);
 	
 		//TODO memcpy
@@ -172,7 +140,7 @@ __kernel void calcFlux(
 	__global real* fluxBuf,
 	const __global real* UBuf,
 	const __global real* waveBuf, 
-	const __global real* eigenBuf, 
+	const __global eigen_t* eigenBuf, 
 	const __global real* deltaUTildeBuf,
 	const __global real* rTildeBuf,
 	real dt
@@ -192,7 +160,7 @@ __kernel void calcFlux(
 		}
 		
 		int intindex = side + dim * index;
-		const __global real* eigen = eigenBuf + intindex * numEigen;
+		const __global real* eigen = eigenBuf + intindex;
 
 		real fluxTilde[numWaves];
 		eigenLeftTransform(fluxTilde, eigen, UAvg);
