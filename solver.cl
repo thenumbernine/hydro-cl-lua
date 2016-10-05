@@ -1,83 +1,8 @@
-// common:
-
-//http://developer.amd.com/resources/documentation-articles/articles-whitepapers/opencl-optimization-case-study-simple-reductions/
-//calculate min of all elements on buffer[0..length-1]
-__kernel void reduceMin(
-	const __global real* buffer,
-	__local real* scratch,
-	__const int length,
-	__global real* result)
-{
-	int global_index = get_global_id(0);
-	real accumulator = INFINITY;
-	
-	// Loop sequentially over chunks of input vector
-	while (global_index < length) {
-		real element = buffer[global_index];
-		accumulator = (accumulator < element) ? accumulator : element;
-		global_index += get_global_size(0);
-	}
-
-	// Perform parallel reduction
-	int local_index = get_local_id(0);
-	scratch[local_index] = accumulator;
-	barrier(CLK_LOCAL_MEM_FENCE);
-	for (int offset = get_local_size(0) / 2; offset > 0; offset = offset / 2) {
-		if (local_index < offset) {
-			real other = scratch[local_index + offset];
-			real mine = scratch[local_index];
-			scratch[local_index] = (mine < other) ? mine : other;
-		}
-		barrier(CLK_LOCAL_MEM_FENCE);
-	}
-	if (local_index == 0) {
-		result[get_group_id(0)] = scratch[0];
-	}
-}
-
-// private:
-
-__kernel void convertToTex(
-	__write_only dstimage_t tex,
-	int displayVar,
-	const __global real* buf
-) {
-	SETBOUNDS(0,0);
-	real value = 0;
-	int intindex = dim * index;	//side 0
-	if (displayVar >= display_wave_0 && displayVar < display_wave_0 + numWaves) {
-		const __global real* wave = buf + intindex * numWaves;
-		value = wave[displayVar - display_wave_0];
-	} else if (displayVar >= display_eigen_0 && displayVar < display_eigen_0 + numEigen) {
-		const __global real* eigen = buf + intindex * numEigen;
-		value = eigen[displayVar - display_eigen_0];
-	} else if (displayVar >= display_deltaUTilde_0 && displayVar < display_deltaUTilde_0 + numWaves) {
-		const __global real* deltaUTilde = buf + intindex * numWaves;
-		value = deltaUTilde[displayVar - display_deltaUTilde_0];
-	} else if (displayVar >= display_rTilde_0 && displayVar < display_rTilde_0 + numWaves) {
-		const __global real* rTilde = buf + intindex * numWaves;
-		value = rTilde[displayVar - display_rTilde_0];
-	} else if (displayVar >= display_flux_0 && displayVar < display_flux_0 + numStates) {
-		const __global real* flux = buf + intindex * numStates;
-		value = flux[displayVar - display_flux_0];
-	} else if (displayVar >= display_deriv_0 && displayVar < display_deriv_0 + numStates) {
-		const __global real* deriv = buf + index * numStates;
-		value = deriv[displayVar - display_deriv_0];
-	} else if (displayVar == display_dt_0) {
-		value = buf[index];
-	} else if (displayVar == display_orthoError_0) {
-		value = buf[intindex];
-	} else {
-		value = convertToTex_UBuf(displayVar, buf + numStates * index);
-	}
-	write_imagef(tex, WRITEIMAGEARGS, (float4)(value, 0., 0., 0.));
-}
-
 // Roe solver:
 
 __kernel void calcDT(
 	__global real* dtBuf,
-	const __global cons_t* UBuf
+	const __global real* UBuf
 ) {
 	SETBOUNDS(0,0);
 	if (i.x < 2 || i.x >= gridSize_x - 2 
@@ -92,10 +17,12 @@ __kernel void calcDT(
 		return;
 	}
 	
-	range_t lambda = calcCellMinMaxEigenvalues(UBuf[index]); 
-	lambda.min = min(0., lambda.min);
-	lambda.max = max(0., lambda.max);
-	dtBuf[index] = dx / (fabs(lambda.max - lambda.min) + 1e-9);
+	real2 lambdaMinMax = calcCellMinMaxEigenvalues(UBuf + numStates * index); 
+	real lambdaMin = lambdaMinMax.x;
+	real lambdaMax = lambdaMinMax.y;
+	lambdaMin = min(0., lambdaMin);
+	lambdaMax = max(0., lambdaMax);
+	dtBuf[index] = dx / (fabs(lambdaMax - lambdaMin) + 1e-9);
 }
 
 // the default eigen transforms, using eigen struct as a dense matrix:
@@ -326,15 +253,4 @@ __kernel void calcDerivFromFlux(
 			deriv[j] -= deltaFlux / dxs[side];
 		}
 	}
-}
-
-__kernel void multAdd(
-	__global real* a,
-	const __global real* b,
-	const __global real* c,
-	real d
-) {
-	size_t i = get_global_id(0);
-	if (i >= get_global_size(0)) return;
-	a[i] = b[i] + c[i] * d;
 }

@@ -42,8 +42,8 @@ prim_t primFromCons(cons_t U) {
 	};
 }
 
-//called from convertToTex
-real convertToTex_UBuf(int displayVar, const __global real* U_) {
+//called from calcDisplayVar
+real calcDisplayVar_UBuf(int displayVar, const __global real* U_) {
 	cons_t U = *(const __global cons_t*)U_;
 	prim_t W = primFromCons(U);
 	real rho = W.rho;
@@ -61,13 +61,10 @@ real convertToTex_UBuf(int displayVar, const __global real* U_) {
 }
 
 //called from calcDT
-range_t calcCellMinMaxEigenvalues(cons_t U) {
-	prim_t W = primFromCons(U);
+real2 calcCellMinMaxEigenvalues(const __global real* U) {
+	prim_t W = primFromCons(*(const __global cons_t*)U);
 	real Cs = sqrt(gamma * W.P / W.rho);
-	return (range_t){
-		.min = W.vx - Cs,
-		.max = W.vx + Cs,
-	};
+	return (real2)(W.vx - Cs, W.vx + Cs);
 }
 
 typedef struct {

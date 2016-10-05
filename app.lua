@@ -99,8 +99,9 @@ self.ctx:printInfo()
 
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	self.solver = Solver{app=self, gridSize=256}
-
+	self.solver = Solver{app=self, gridSize=256, slopeLimiter='Superbee'}
+	self.solvers = table{self.solver}
+	
 	local GLProgram = require 'gl.program'
 	local graphShaderCode = file['graph.shader']
 	self.graphShader = GLProgram{
@@ -122,10 +123,22 @@ self.ctx:printInfo()
 	gl.glUniform1i(self.graphShader.uniforms.useLog, false)
 	gl.glUniform1f(self.graphShader.uniforms.ambient, 1)	
 	self.graphShader:useNone()
-end
 
-local xScale = ffi.new('float[1]', 1)
-local yScale = ffi.new('float[1]', .5)
+	-- [[ need to get image loading working
+	local fonttex = require 'gl.tex2d'{
+		filename = 'font.png',
+		minFilter = gl.GL_LINEAR_MIPMAP_LINEAR,
+		magFilter = gl.GL_LINEAR,
+	}
+	if not pcall(function()
+		gl.glGenerateMipmap(gl.GL_TEXTURE_2D) 
+	end) then
+		gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
+		gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR) 
+	end
+	self.font = require 'gui.font'{tex=fonttex}
+	--]]
+end
 
 local updateMethod
 
@@ -140,49 +153,213 @@ function HydroCLApp:update(...)
 		self.solver:update()
 	end
 
-	gl.glClearColor(.3,.2,.5,1)
 	gl.glClear(gl.GL_COLOR_BUFFER_BIT)
 	
-	local ar = self.width / self.height
-	gl.glMatrixMode(gl.GL_PROJECTION)
-	gl.glLoadIdentity()
-	gl.glOrtho(-ar, ar, -1, 1, -1, 1)
+	local w, h = self:size()
 
-	gl.glMatrixMode(gl.GL_MODELVIEW)
-	gl.glLoadIdentity()
-	gl.glScalef(xScale[0], yScale[0], 1)
-
+	local varNamesEnabled = table()
 	for i,var in ipairs(self.solver.displayVars) do
 		if var.enabled[0] then
-			self:renderDisplayVar(i, var)
+			varNamesEnabled:insert(var.name)
 		end
+	end
+
+	local graphsWide = math.ceil(math.sqrt(#varNamesEnabled))
+	local graphsHigh = math.ceil(#varNamesEnabled/graphsWide)
+	local graphCol = 0
+	local graphRow = 0
+
+	for _,varName in ipairs(varNamesEnabled) do
+		local xmin, xmax, ymin, ymax
+		for _,solver in ipairs(self.solvers) do
+			local varIndex = solver.displayVars:find(nil, function(var) return var.name == varName end)
+			if varIndex
+			--and solver.visiblePtr and solver.visiblePtr[0] 
+			then
+				local solverymin, solverymax = solver:calcDisplayVarRange(varIndex)
+
+				if not solverymin or not solverymax or solverymin ~= solverymin or solverymax ~= solverymax then
+				else	
+					local base = 10	-- round to nearest base-10
+					local scale = 10 -- ...with increments of 10
+					solverymin, solverymax = 1.1 * solverymin - .1 * solverymax, 1.1 * solverymax - .1 * solverymin
+					local newymin = (solverymin<0 and -1 or 1)*(math.abs(solverymin)==math.huge and 1e+100 or base^math.log(math.abs(solverymin),base))
+					local newymax = (solverymax<0 and -1 or 1)*(math.abs(solverymax)==math.huge and 1e+100 or base^math.log(math.abs(solverymax),base))
+					solverymin, solverymax = newymin, newymax
+					do
+						local minDeltaY = 1e-5
+						local deltaY = solverymax - solverymin
+						if deltaY < minDeltaY then
+							solverymax = solverymax + .5 * minDeltaY
+							solverymin = solverymin - .5 * minDeltaY
+						end
+					end
+				end
+
+				local solverxmin, solverxmax = solver.xmin, solver.xmax
+				solverxmin, solverxmax = 1.1 * solverxmin - .1 * solverxmax, 1.1 * solverxmax - .1 * solverxmin
+				
+				xmin = xmin or solverxmin
+				xmax = xmax or solverxmax
+				ymin = ymin or solverymin
+				ymax = ymax or solverymax
+					
+				if xmin and solverxmin then xmin = math.min(xmin, solverxmin) end
+				if xmax and solverxmax then xmax = math.max(xmax, solverxmax) end
+				if ymin and solverymin then ymin = math.min(ymin, solverymin) end
+				if ymax and solverymax then ymax = math.max(ymax, solverymax) end
+			end
+		end
+		
+		if not xmin or not xmax or xmin ~= xmin or xmax ~= xmax then
+			xmin = -5
+			xmax = 5
+		end
+		if not ymin or not ymax or ymin ~= ymin or ymax ~= ymax then
+			ymin = -5
+			ymax = 5
+		end
+
+		gl.glViewport(
+			graphCol / graphsWide * w,
+			(1 - (graphRow + 1) / graphsHigh) * h,
+			w / graphsWide,
+			h / graphsHigh)
+		gl.glMatrixMode(gl.GL_PROJECTION)
+		gl.glLoadIdentity()
+		gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
+		gl.glMatrixMode(gl.GL_MODELVIEW)
+		gl.glLoadIdentity()
+
+		gl.glColor3f(.1, .1, .1)
+		local xrange = xmax - xmin
+		local xstep = 10^math.floor(math.log(xrange, 10) - .5)
+		local xticmin = math.floor(xmin/xstep)
+		local xticmax = math.ceil(xmax/xstep)
+		gl.glBegin(gl.GL_LINES)
+		for x=xticmin,xticmax do
+			gl.glVertex2f(x*xstep,ymin)
+			gl.glVertex2f(x*xstep,ymax)
+		end
+		gl.glEnd()
+		local yrange = ymax - ymin
+		local ystep = 10^math.floor(math.log(yrange, 10) - .5)
+		local yticmin = math.floor(ymin/ystep)
+		local yticmax = math.ceil(ymax/ystep)
+		gl.glBegin(gl.GL_LINES)
+		for y=yticmin,yticmax do
+			gl.glVertex2f(xmin,y*ystep)
+			gl.glVertex2f(xmax,y*ystep)
+		end
+		gl.glEnd()
+			
+		gl.glColor3f(.5, .5, .5)
+		gl.glBegin(gl.GL_LINES)
+		gl.glVertex2f(xmin, 0)
+		gl.glVertex2f(xmax, 0)
+		gl.glVertex2f(0, ymin)
+		gl.glVertex2f(0, ymax)
+		gl.glEnd()
+
+		-- display here
+		for _,solver in ipairs(self.solvers) do
+			local varIndex = solver.displayVars:find(nil, function(var) return var.name == varName end)
+			if varIndex then
+				self:renderDisplayVar(solver, varIndex)
+			end
+
+			if self.font then
+				local fontSizeX = (xmax - xmin) * .05
+				local fontSizeY = (ymax - ymin) * .05
+				local ystep = ystep * 2
+				for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
+					self.font:draw{
+						pos={xmin * .9 + xmax * .1, y + fontSizeY * .5},
+						text=tostring(y),
+						color = {1,1,1,1},
+						fontSize={fontSizeX, -fontSizeY},
+						multiLine=false,
+					}
+				end
+				self.font:draw{
+					pos={xmin, ymax},
+					text=varName,
+					color = {1,1,1,1},
+					fontSize={fontSizeX, -fontSizeY},
+					multiLine=false,
+				}
+			end
+		end
+	
+		gl.glViewport(0,0,w,h)
+		gl.glMatrixMode(gl.GL_PROJECTION)
+		gl.glLoadIdentity()
+		gl.glOrtho(0, w/h, 0, 1, -1, 1)
+		gl.glMatrixMode(gl.GL_MODELVIEW)
+		gl.glLoadIdentity()
+
+		if self.font then
+			local solverNames = self.solvers:map(function(solver)
+				return {
+					text = ('(%.3f) '):format(solver.t)..solver.name,
+					color = solver.color,
+				}
+			end)
+			local fontSizeX = .02
+			local fontSizeY = .02
+			local maxlen = solverNames:map(function(solverName)
+				return self.font:draw{
+					text = solverName.text,
+					fontSize = {fontSizeX, -fontSizeY},
+					dontRender = true,
+					multiLine = false,
+				}
+			end):inf()
+			for i,solverName in ipairs(solverNames) do
+				self.font:draw{
+					pos = {w/h-maxlen,fontSizeY*(i+1)},
+					text = solverName.text,
+					color = {solverName.color[1], solverName.color[2], solverName.color[3],1},
+					fontSize = {fontSizeX, -fontSizeY},
+					multiLine = false,
+				}
+			end
+		end
+	
+		graphCol = graphCol + 1
+		if graphCol == graphsWide then
+			graphCol = 0
+			graphRow = graphRow + 1
+		end
+
 	end
 
 	HydroCLApp.super.update(self, ...)
 end
 
-function HydroCLApp:renderDisplayVar(i, var)
-	self.solver:convertToTex(i, var)	
+function HydroCLApp:renderDisplayVar(solver, varIndex)
+	local var = solver.displayVars[varIndex]
+	solver:calcDisplayVarToTex(varIndex, var)	
 	-- display
 
 	self.graphShader:use()
-	self.solver.tex:bind()
+	solver.tex:bind()
 
-	gl.glUniform2f(self.graphShader.uniforms.xmin, self.solver.xmin, 0)
-	gl.glUniform2f(self.graphShader.uniforms.xmax, self.solver.xmax, 0)
-	gl.glUniform1i(self.graphShader.uniforms.axis, self.solver.dim)
-	gl.glUniform2f(self.graphShader.uniforms.size, self.solver.gridSize.x, self.solver.gridSize.y)
+	gl.glUniform2f(self.graphShader.uniforms.xmin, solver.xmin, 0)
+	gl.glUniform2f(self.graphShader.uniforms.xmax, solver.xmax, 0)
+	gl.glUniform1i(self.graphShader.uniforms.axis, solver.dim)
+	gl.glUniform2f(self.graphShader.uniforms.size, solver.gridSize.x, solver.gridSize.y)
 
 	gl.glColor3f(table.unpack(var.color))
 	gl.glBegin(gl.GL_LINE_STRIP)
 	local step = 1
-	for i=2,tonumber(self.solver.gridSize.x)-2,step do
-		local x = (i+.5)/tonumber(self.solver.gridSize.x)
+	for i=2,tonumber(solver.gridSize.x)-2,step do
+		local x = (i+.5)/tonumber(solver.gridSize.x)
 		gl.glVertex2f(x, 0)
 	end
 	gl.glEnd()
 	
-	self.solver.tex:unbind()
+	solver.tex:unbind()
 	self.graphShader:useNone()
 end
 
@@ -202,9 +379,6 @@ function HydroCLApp:updateGUI()
 	ig.igCheckbox('use fixed dt', self.solver.useFixedDT)
 	ig.igInputFloat('fixed dt', self.solver.fixedDT)
 	ig.igInputFloat('CFL', self.solver.cfl)
-
-	ig.igSliderFloat('x scale', xScale, 0, 100, '%.3f', 10)
-	ig.igSliderFloat('y scale', yScale, 0, 100, '%.3f', 10)
 
 	if ig.igCombo('init state', self.solver.initState, self.solver.eqn.initStates) then
 		self.solver:refreshSolverProgram()
