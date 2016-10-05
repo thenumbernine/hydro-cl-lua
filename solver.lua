@@ -34,17 +34,19 @@ function Solver:init(args)
 		self.dim = assert(args.dim)
 	elseif type(gridSize) == 'table' then
 		self.gridSize = vec3sz(table.unpack(gridSize))
-		assert(not args.dim or args.dim == #gridSize)
-		self.dim = #gridSize
+		assert(not args.dim or args.dim <= #gridSize)
+		self.dim = args.dim or #gridSize
 	else
 		error("can't understand args.gridSize type "..type(args.gridsize).." value "..tostring(args.gridSize))
 	end
 
+	for i=self.dim,2 do self.gridSize:ptr()[i] = 1 end
+
 	self.color = vec3(math.random(), math.random(), math.random()):normalize()
 	self.volume = tonumber(self.gridSize:volume())
 
-	self.xmin = args.xmin or {-1, -1, -1}
-	self.xmax = args.xmax or {1, 1, 1}
+	self.mins = args.mins or {-1, -1, -1}
+	self.maxs = args.maxs or {1, 1, 1}
 	self.t = 0
 	
 	self.eqn = assert(args.eqn)
@@ -183,12 +185,12 @@ function Solver:createCodePrefix()
 	lines:append{
 		'#define dim 1',
 		'#define numGhost '..self.numGhost,
-		'#define xmin '..clnumber(self.xmin[1]),
-		'#define xmax '..clnumber(self.xmax[1]),
-		'#define ymin '..clnumber(self.xmin[2]),
-		'#define ymax '..clnumber(self.xmax[2]),
-		'#define zmin '..clnumber(self.xmin[3]),
-		'#define zmax '..clnumber(self.xmax[3]),
+		'#define xmin '..clnumber(self.mins[1]),
+		'#define xmax '..clnumber(self.maxs[1]),
+		'#define ymin '..clnumber(self.mins[2]),
+		'#define ymax '..clnumber(self.maxs[2]),
+		'#define zmin '..clnumber(self.mins[3]),
+		'#define zmax '..clnumber(self.maxs[3]),
 		'#define dx ((xmax-xmin)/(real)gridSize_x)',
 		'#define INDEX(a,b,c)	((a) + gridSize_x * ((b) + gridSize_y * (c)))',
 		'#define INDEXV(i)		INDEX((i).x, (i).y, (i).z)',
