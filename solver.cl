@@ -20,9 +20,9 @@ __kernel void calcDT(
 	real2 lambdaMinMax = calcCellMinMaxEigenvalues(UBuf + numStates * index); 
 	real lambdaMin = lambdaMinMax.x;
 	real lambdaMax = lambdaMinMax.y;
-	lambdaMin = min(0., lambdaMin);
-	lambdaMax = max(0., lambdaMax);
-	dtBuf[index] = dx / (fabs(lambdaMax - lambdaMin) + 1e-9);
+	lambdaMin = min((real)0., lambdaMin);
+	lambdaMax = max((real)0., lambdaMax);
+	dtBuf[index] = dx_min / (fabs(lambdaMax - lambdaMin) + 1e-9);
 }
 
 __kernel void calcErrors(

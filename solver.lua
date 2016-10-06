@@ -1,6 +1,7 @@
 local ffi = require 'ffi'
 local gl = require 'ffi.OpenGL'
 local class = require 'ext.class'
+local string = require 'ext.string'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local vec3sz = require 'vec3sz'
@@ -47,6 +48,9 @@ function Solver:init(args)
 
 	self.mins = args.mins or {-1, -1, -1}
 	self.maxs = args.maxs or {1, 1, 1}
+	assert(#self.mins >= 3)
+	assert(#self.maxs >= 3)
+	
 	self.t = 0
 	
 	self.eqn = assert(args.eqn)
@@ -116,9 +120,8 @@ function Solver:createDisplayVars()
 	makevars('U', self.eqn.displayVars:unpack())
 	makevars('wave', range(0,self.eqn.numWaves-1):unpack())
 	
-	-- TODO should I allow this?
-	-- it restricts the eigen struct to only contain reals ...
---	makevars('eigen', range(0,self.eqn.numEigen-1):unpack())
+	-- TODO a better job for this 
+	--makevars('eigen', range(0,self.eqn.numEigen-1):unpack())
 	
 	makevars('dt', '0')
 	makevars('deltaUTilde', range(0,self.eqn.numWaves-1):unpack())
@@ -165,48 +168,71 @@ function Solver:createBuffers()
 		wrap = {s=gl.GL_REPEAT, t=gl.GL_REPEAT},
 	}
 
-	local ImageGL = require 'cl.imagegl'
-	self.texCLMem = ImageGL{context=ctx, tex=self.tex, write=true}
+	if self.app.useGLSharing then
+		local ImageGL = require 'cl.imagegl'
+		self.texCLMem = ImageGL{context=ctx, tex=self.tex, write=true}
+	else
+		self.calcDisplayVarToTexMem = ffi.new(self.app.real..'[?]', self.volume)
+		
+		--[[ PBOs?
+		self.calcDisplayVarToTexPBO = ffi.new('gl_int[1]', 0)
+		gl.glGenBuffers(1, self.calcDisplayVarToTexPBO)
+		gl.glBindBuffer(gl.GL_PIXEL_UNPACK_BUFFER, self.calcDisplayVarToTexPBO[0])
+		gl.glBufferData(gl.GL_PIXEL_UNPACK_BUFFER, self.tex.width * self.tex.height * ffi.sizeof(self.app.real) * 4, nil, gl.GL_STREAM_READ)
+		gl.glBindBuffer(gl.GL_PIXEL_UNPACK_BUFFER, 0)
+		--]]
+	end
 end
 
 function Solver:createCodePrefix()
 	local lines = table()
-	if dim == 3 then
+	if self.dim == 3 then
 		lines:insert'#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable'
 	end
 	if self.app.real == 'double' then
 		lines:insert'#pragma OPENCL EXTENSION cl_khr_fp64 : enable'
 	end
-	
-	lines:append(xs:map(function(name,i)
+
+	self.dxs = range(3):map(function(i)
+		return (self.maxs[i] - self.mins[i]) / tonumber(self.gridSize:ptr()[i-1])	
+	end)
+
+	lines
+	:append(table{'',2,4,8}:map(function(n)
+		return 'typedef '..self.app.real..n..' real'..n..';'
+	end)
+	:append(xs:map(function(name,i)
 		return '#define gridSize_'..name..' '..tonumber(self.gridSize[name])
-	end))
-	
-	lines:append{
-		'#define dim 1',
+	end)
+	):append{
+		'#define dim '..self.dim,
 		'#define numGhost '..self.numGhost,
-		'#define xmin '..clnumber(self.mins[1]),
-		'#define xmax '..clnumber(self.maxs[1]),
-		'#define ymin '..clnumber(self.mins[2]),
-		'#define ymax '..clnumber(self.maxs[2]),
-		'#define zmin '..clnumber(self.mins[3]),
-		'#define zmax '..clnumber(self.maxs[3]),
-		'#define dx ((xmax-xmin)/(real)gridSize_x)',
+	}:append(xs:map(function(x,i)
+		return '#define mins_'..x..' '..clnumber(self.mins[i])..'\n'
+			.. '#define maxs_'..x..' '..clnumber(self.maxs[i])..'\n'
+			.. '#define d'..x..' '..clnumber(self.dxs[i])
+	end)):append{
+		'constant real4 mins = (real4)(mins_x, '..(self.dim<2 and '0' or 'mins_y')..', '..(self.dim<3 and '0' or 'mins_z')..', 0);', 
+		'constant real4 maxs = (real4)(maxs_x, '..(self.dim<2 and '0' or 'maxs_y')..', '..(self.dim<3 and '0' or 'maxs_z')..', 0);', 
 		'#define INDEX(a,b,c)	((a) + gridSize_x * ((b) + gridSize_y * (c)))',
 		'#define INDEXV(i)		INDEX((i).x, (i).y, (i).z)',
 	}
-	lines:append(table{'',2,4,8}:map(function(n)
-		return 'typedef '..self.app.real..n..' real'..n..';'
-	end))
-
+	)
 	lines:append{
 		'#define numStates '..self.eqn.numStates,
 		'#define numWaves '..self.eqn.numWaves,
-		'#define numEigen '..self.eqn.numEigen,
 		'constant int4 gridSize = (int4)(gridSize_x, gridSize_y, gridSize_z, 0);',
-		'constant real4 dxs = (real4)(dx, 0, 0, 0);',
+		'constant real4 dxs = (real4)(dx, dy, dz, 0);',
+		'#define dx_min '..clnumber(math.min(table.unpack(self.dxs))),
 		'constant int4 stepsize = (int4)(1, gridSize_x, gridSize_x * gridSize_y, gridSize_x * gridSize_y * gridSize_z);',
 	}
+
+	lines:insert(
+		'#define CELL_X(i) (real4)('
+		..'(real)(i.x + .5) * dx + mins_x, '
+		..(self.dim<2 and '0,' or '(real)(i.y + .5) * dy + mins_y, ')
+		..(self.dim<3 and '0,' or '(real)(i.z + .5) * dz + mins_z, ')
+		..'0);')
 
 	if self.eqn.getTypeCode then lines:insert(self.eqn:getTypeCode()) end
 
@@ -243,6 +269,11 @@ function Solver:refreshSolverProgram()
 	-- TODO move to app
 
 	local commonCode = table{
+		
+		self.app.real == 'double'
+			and '#pragma OPENCL EXTENSION cl_khr_fp64 : enable'
+			or '',
+		
 		'typedef '..self.app.real..' real;',
 		
 		'#define reduce_accum_init INFINITY',
@@ -313,7 +344,15 @@ __kernel void multAdd(
 		'#include "solver.cl"',
 	}:concat'\n'
 
-	self.solverProgram = require 'cl.program'{context=self.app.ctx, devices={self.app.device}, code=code}
+	self.solverProgram = require 'cl.program'{context=self.app.ctx, code=code}
+	local success, message = self.solverProgram:build({self.app.device})
+	if not success then
+		-- show code
+		print(string.split(string.trim(code),'\n'):map(function(l,i) return i..':'..l end):concat'\n')
+		-- show errors
+--		message = string.split(string.trim(message),'\n'):filter(function(line) return line:find'error' end):concat'\n'
+		error(message)	
+	end
 
 	self.initStateKernel = self.solverProgram:kernel('initState', self.UBuf)
 
@@ -325,7 +364,9 @@ __kernel void multAdd(
 	self.calcFluxKernel = self.solverProgram:kernel('calcFlux', self.fluxBuf, self.UBuf, self.waveBuf, self.eigenBuf, self.deltaUTildeBuf, self.rTildeBuf)
 	self.calcDerivFromFluxKernel = self.solverProgram:kernel('calcDerivFromFlux', self.derivBuf, self.fluxBuf)
 
-	self.calcDisplayVarToTexKernel = self.solverProgram:kernel('calcDisplayVarToTex', self.texCLMem)
+	if self.app.useGLSharing then
+		self.calcDisplayVarToTexKernel = self.solverProgram:kernel('calcDisplayVarToTex', self.texCLMem)
+	end
 	self.calcDisplayVarToBufferKernel = self.solverProgram:kernel('calcDisplayVarToBuffer', self.reduceBuf)
 
 	self.calcErrorsKernel = self.solverProgram:kernel('calcErrors', self.orthoErrorBuf, self.fluxErrorBuf, self.waveBuf, self.eigenBuf, self.fluxMatrixBuf)
@@ -402,7 +443,7 @@ function Solver:reduce(kernel)
 		kernel:setArg(2, ffi.new('int[1]', reduceSize))
 		kernel:setArg(3, dst)
 		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, dim=1, globalSize=reduceGlobalSize, localSize=math.min(reduceGlobalSize, self.localSize1d)}
-		self.app.cmds:finish()
+		--self.app.cmds:finish()
 		dst, src = src, dst
 		reduceSize = nextSize
 	end
@@ -453,14 +494,33 @@ end
 
 function Solver:calcDisplayVarToTex(varIndex)
 	local var = self.displayVars[varIndex]
-	-- copy to GL
-	gl.glFinish()
-	self.app.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
-	self.calcDisplayVarToTexKernel:setArg(1, ffi.new('int[1]', varIndex))
-	self.calcDisplayVarToTexKernel:setArg(2, self[var.buffer..'Buf'])
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDisplayVarToTexKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-	self.app.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
-	self.app.cmds:finish()
+	if self.app.useGLSharing then
+		-- copy to GL using cl_*_gl_sharing
+		gl.glFinish()
+		self.app.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
+		self.calcDisplayVarToTexKernel:setArg(1, ffi.new('int[1]', varIndex))
+		self.calcDisplayVarToTexKernel:setArg(2, self[var.buffer..'Buf'])
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDisplayVarToTexKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
+		self.app.cmds:finish()
+	else
+		-- download to CPU then upload with glTexSubImage2D
+		local ptr = self.calcDisplayVarToTexMem
+		local tex = self.tex
+		self.calcDisplayVarToBufferKernel:setArg(1, ffi.new('int[1]', varIndex))
+		self.calcDisplayVarToBufferKernel:setArg(2, self[var.buffer..'Buf'])
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(self.app.real) * self.volume, ptr=ptr}
+		if self.app.is64bit then
+			for i=0,self.volume-1 do
+				ffi.cast('float*',ptr)[i] = ffi.cast('double*',ptr)[i]
+			end
+		end
+		tex:bind()
+		gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, tex.width, tex.height, gl.GL_RED, gl.GL_FLOAT, ptr)
+		tex:unbind()
+		require 'gl.report' 'here'
+	end
 end
 
 function Solver:calcDisplayVarRange(varIndex)

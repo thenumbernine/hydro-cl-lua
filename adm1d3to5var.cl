@@ -44,7 +44,8 @@ __kernel void initState(
 	__global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
-	real x = (real)(i.x + .5) * dx + xmin;	//TODO this is here and euler1d.cl
+	real4 xs = CELL_X(i);
+	real x = xs[0];
 	__global cons_t* U = UBuf + index;
 	U->alpha = init_calc_alpha(x);
 	U->gamma_xx = init_calc_gamma_xx(x);

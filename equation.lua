@@ -11,10 +11,6 @@ function Equation:init()
 	end
 	-- default # waves is the # of states
 	if not self.numWaves then self.numWaves = self.numStates end 
-	-- default size of eigen transform struct is two matrices, one from state->wave, one from wave->state
-	if not self.numEigen then
-		self.numEigen = 2 * self.numWaves * self.numStates
-	end
 end
 
 function Equation:getTypeCode()

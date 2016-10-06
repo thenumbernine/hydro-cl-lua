@@ -17,16 +17,25 @@ __kernel void initState(
 	__global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
-	real x = (real)(i.x + .5) * dx + xmin;
+	real4 x = CELL_X(i);
+	real4 mids = (real).5 * (mins + maxs);
+	bool lhs = x[0] < mids[0]
+#if dim > 1
+		&& x[1] < mids[1]
+#endif
+#if dim > 2
+		&& x[2] < mids[2]
+#endif
+	;
 	prim_t W;
 #if defined(initState_Sod)
-	W.rho = x < 0 ? 1 : .125;
+	W.rho = lhs ? 1 : .125;
 	W.vx = 0;
-	W.P = x < 0 ? 1 : .1;
+	W.P = lhs ? 1 : .1;
 #elif defined(initState_linear)
-	W.rho = 2 + x;
+	W.rho = 2 + x.x;
 	W.vx = 0;
-	W.P = 1 + x;
+	W.P = 1 + x.x;
 #else
 #error "unknown initState"
 #endif
@@ -99,7 +108,7 @@ void fillRow(__global real* ptr, int step, real a, real b, real c) {
 	
 __kernel void calcEigenBasis(
 	__global real* waveBuf,			//[volume][dim][numWaves]
-	__global real* eigenBuf,		//[volume][dim][numEigen]
+	__global eigen_t* eigenBuf,		//[volume][dim]
 	__global real* fluxMatrixBuf,	//[volume][dim][numStates][numStates]
 	const __global cons_t *UBuf		//[volume]
 ) {
@@ -125,12 +134,12 @@ __kernel void calcEigenBasis(
 		fillRow(fluxMatrix+1, 3,	.5 * gamma_3 * vxSq, 				-gamma_3 * vx, 				gamma_1		);
 		fillRow(fluxMatrix+2, 3, 	vx * (.5 * gamma_1 * vxSq - hTotal), hTotal - gamma_1 * vxSq,	gamma*vx	);
 
-		__global real* evL = eigenBuf + numEigen * intindex;
+		__global eigen_t* eigen = eigenBuf + intindex;
+		__global real* evL = eigen->evL; 
 		fillRow(evL+0, 3, (.5 * gamma_1 * vxSq + Cs * vx) / (2. * CsSq),	-(Cs + gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
 		fillRow(evL+1, 3, 1. - gamma_1 * vxSq / (2. * CsSq),				gamma_1 * vx / CsSq,				-gamma_1 / CsSq			);
 		fillRow(evL+2, 3, (.5 * gamma_1 * vxSq - Cs * vx) / (2. * CsSq),	(Cs - gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
-
-		__global real* evR = evL + 3*3;
+		__global real* evR = eigen->evR;
 		fillRow(evR+0, 3, 1., 				1., 		1.				);
 		fillRow(evR+1, 3, vx - Cs, 			vx, 		vx + Cs			);
 		fillRow(evR+2, 3, hTotal - Cs * vx, .5 * vxSq, 	hTotal + Cs * vx);

@@ -13,11 +13,6 @@ __kernel void calcDisplayVar_name(
 	if (displayVar >= display_wave_0 && displayVar < display_wave_0 + numWaves) {
 		const __global real* wave = buf + intindex * numWaves;
 		value = wave[displayVar - display_wave_0];
-#if 0
-	} else if (displayVar >= display_eigen_0 && displayVar < display_eigen_0 + numEigen) {
-		const __global real* eigen = buf + intindex * numEigen;
-		value = eigen[displayVar - display_eigen_0];
-#endif
 	} else if (displayVar >= display_deltaUTilde_0 && displayVar < display_deltaUTilde_0 + numWaves) {
 		const __global real* deltaUTilde = buf + intindex * numWaves;
 		value = deltaUTilde[displayVar - display_deltaUTilde_0];
@@ -34,6 +29,12 @@ __kernel void calcDisplayVar_name(
 		value = buf[index];
 	} else if (displayVar == display_orthoError_0) {
 		value = buf[intindex];
+	} else if (displayVar == display_fluxError_0) {
+		value = buf[intindex];
+// now is custom per solver
+//	} else if (displayVar >= display_eigen_0 && displayVar < display_eigen_0 + numEigen) {
+//		const __global real* eigen = buf + intindex * numEigen;
+//		value = eigen[displayVar - display_eigen_0];
 	} else {
 		value = calcDisplayVar_UBuf(displayVar, buf + numStates * index);
 	}

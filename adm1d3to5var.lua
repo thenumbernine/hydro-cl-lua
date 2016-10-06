@@ -6,7 +6,6 @@ local ADM1D3to5Var = class(Equation)
 ADM1D3to5Var.name = 'ADM1D3to5Var' 
 
 ADM1D3to5Var.numStates = 5
-ADM1D3to5Var.numEigen = 1	-- num eigen variables / eigen struct size
 
 ADM1D3to5Var.consVars = {'alpha', 'gamma_xx', 'a_x', 'd_xxx', 'KTilde_xx'}
 ADM1D3to5Var.initStates = {'gaussianWave'}
