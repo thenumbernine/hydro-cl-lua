@@ -71,19 +71,32 @@ real calcDisplayVar_UBuf(int displayVar, const __global real* U_) {
 	case display_U_vx: return W.vx;
 	case display_U_vy: return W.vy;
 	case display_U_vz: return W.vz;
+	case display_U_v: return sqrt(W.vx * W.vx + W.vy * W.vz + W.vz * W.vz);
+	case display_U_mx: return U->mx;
+	case display_U_my: return U->my;
+	case display_U_mz: return U->mz;
+	case display_U_m: return sqrt(U->mx * U->mx + U->my * U->mz + U->mz * U->mz);
 	case display_U_P: return W.P;
 	case display_U_eInt: return calc_eInt(W);
 	case display_U_eKin: return calc_eKin(W);
 	case display_U_eTotal: return U->ETotal / W.rho;
+	case display_U_EInt: return calc_EInt(W);
+	case display_U_EKin: return calc_EKin(W);
+	case display_U_ETotal: return U->ETotal;
+	case display_U_S: return W.P / pow(W.rho, (real)gamma);
+	case display_U_H: return W.P * gamma / gamma_1;
+	case display_U_h: return W.P * gamma / gamma_1 / W.rho;
+	case display_U_HTotal: return W.P * gamma / gamma_1 + .5 * W.rho * (W.vx * W.vx + W.vy * W.vy + W.vz * W.vz);
+	case display_U_hTotal: return W.P * gamma / gamma_1 / W.rho + .5 * (W.vx * W.vx + W.vy * W.vy + W.vz * W.vz);
 	}
 	return 0;
 }
 
 //called from calcDT
-range_t calcCellMinMaxEigenvalues(const __global cons_t* U, side) {
+range_t calcCellMinMaxEigenvalues(const __global cons_t* U, int side) {
 	prim_t W = primFromCons(*U);
 	real Cs = sqrt(gamma * W.P / W.rho);
-	real v = W.v[side];
+	real v = W.v.v[side];
 	return (range_t){.min = v - Cs, .max = v + Cs};
 }
 
@@ -101,7 +114,7 @@ Roe_t calcEigenBasisSide(cons_t UL, cons_t UR) {
 
 	prim_t WR = primFromCons(UR);
 	real sqrtRhoR = sqrt(UR.rho);
-	real vR = WR.v;
+	real3 vR = WR.v;
 	real hTotalR = calc_hTotal(WR.rho, WR.P, UR.ETotal);
 
 	real invDenom = 1./(sqrtRhoL + sqrtRhoR);
@@ -117,12 +130,12 @@ Roe_t calcEigenBasisSide(cons_t UL, cons_t UR) {
 	};	
 }
 
-void fill(__global real* ptr, int step, real a, real b, real c) {
+void fill(__global real* ptr, int step, real a, real b, real c, real d, real e) {
 	ptr[0*step] = a;
 	ptr[1*step] = b;
 	ptr[2*step] = c;
-	ptr[3*step] = c;
-	ptr[4*step] = c;
+	ptr[3*step] = d;
+	ptr[4*step] = e;
 }
 	
 __kernel void calcEigenBasis(
@@ -137,9 +150,9 @@ __kernel void calcEigenBasis(
 		int indexL = index - stepsize[side];
 		
 		Roe_t roe = calcEigenBasisSide(UBuf[indexL], UBuf[indexR]);
-		real3 vx = roe.v.x;
-		real3 vy = roe.v.y;
-		real3 vz = roe.v.z;
+		real vx = roe.v.x;
+		real vy = roe.v.y;
+		real vz = roe.v.z;
 		real hTotal = roe.hTotal;
 	
 		real vSq = vx * vx + vy * vy + vz * vz;

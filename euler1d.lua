@@ -7,8 +7,8 @@ Euler1D.name = 'Euler1D'
 
 Euler1D.numStates = 3
 
-Euler1D.consVars = table{'rho', 'mx', 'ETotal'}
-Euler1D.primVars = table{'rho', 'vx', 'P'}
+Euler1D.consVars = {'rho', 'mx', 'ETotal'}
+Euler1D.primVars = {'rho', 'vx', 'P'}
 Euler1D.displayVars = {
 	'rho',
 	'vx',

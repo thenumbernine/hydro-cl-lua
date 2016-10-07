@@ -9,9 +9,23 @@ Euler3D.numStates = 5
 
 Euler3D.consVars = table{'rho', 'mx', 'my', 'mz', 'ETotal'}
 Euler3D.primVars = table{'rho', 'vx', 'vy', 'vz', 'P'}
-Euler3D.displayVars = table()
-	:append(Euler3D.primVars)
-	:append{'eInt', 'eKin', 'eTotal'} 
+Euler3D.displayVars = {
+	'rho',
+	'vx', 'vy', 'vz', 'v',
+	'mx', 'my', 'mz', 'm',
+	'eInt',
+	'eKin', 
+	'eTotal', 
+	'EInt', 
+	'EKin', 
+	'ETotal', 
+	'P',
+	'S', 
+	'h',
+	'H', 
+	'hTotal',
+	'HTotal',
+} 
 
 Euler3D.initStates = {'Sod', 'linear'}
 
@@ -51,7 +65,7 @@ end
 function Euler3D:solverCode(clnumber)
 	return table{
 		'#define gamma '..clnumber(self.gamma),
-		'#include "euler1d.cl"',
+		'#include "euler3d.cl"',
 	}:concat'\n'
 end
 

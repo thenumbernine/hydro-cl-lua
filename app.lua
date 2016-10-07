@@ -103,7 +103,6 @@ self.ctx:printInfo()
 	self.real = self.is64bit and 'double' or 'float'
 	ffi.cdef('typedef '..self.real..' real;')
 
-
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
 	self.solver = require 'solver'{
@@ -113,7 +112,7 @@ self.ctx:printInfo()
 		slopeLimiter = 'Superbee',
 		
 		-- [[
-		eqn = require 'euler1d'(),
+		eqn = require 'euler3d'(),
 		mins = {-1, -1, -1},
 		maxs = {1, 1, 1},
 		--]]
