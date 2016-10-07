@@ -22,6 +22,8 @@ symmath.tostring = require 'symmath.tostring.SingleLine'
 	local xc = 150
 	local H = 5
 	local sigma = 10
+	
+	--if self.initState[0] == 0 then ...
 	local h = H * symmath.exp(-(x - xc)^2 / sigma^2)
 	
 	local alpha = 1
@@ -45,22 +47,33 @@ symmath.tostring = require 'symmath.tostring.SingleLine'
 
 	local function compileC(expr, args)
 print('compile',expr,table.map(args,tostring):concat', ')
-		local code = require 'symmath.tostring.Lua'(expr, args)
+		local code = require 'symmath.tostring.C':compile(expr, args)
 print('...to',code)
 		return code
 	end
 
-	local calc = exprs:map(function(expr, name)
+	local codes = exprs:map(function(expr, name)
+print(name)		
 		return compileC(expr, {x}), name
 	end)
 	
 	f = makesym(f)
-	calc.f = compileC(f, {alphaVar})
-	
-	local dalpha_f = f:diff(alphaVar):simplify()
-	calc.dalpha_f = compileC(dalpha_f, {alphaVar})
+print'f'
+	codes.f = compileC(f, {alphaVar})
 
-	return '#include "adm1d3to5var.cl"'
+print'dalpha_f'
+	local dalpha_f = f:diff(alphaVar):simplify()
+	codes.dalpha_f = compileC(dalpha_f, {alphaVar})
+
+	for name,code in pairs(codes) do
+	end
+
+	return table()
+	:append(codes:map(function(code,name,t)
+		return 'real init_calc_'..name..code, #t+1
+	end)):append{
+		'#include "adm1d3to5var.cl"',
+	}:concat'\n'
 end
 
 function ADM1D3to5Var:getEigenTypeCode()

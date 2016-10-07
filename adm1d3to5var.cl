@@ -1,36 +1,3 @@
-#ifdef initState_gaussianWave
-real init_calc_alpha(real x) { return 1.; }
-real init_calc_dx_alpha(real x) { return 0.; }
-constant real xc = 150.;
-constant real H = 5.;
-constant real sigma = 10.;
-real init_calc_h(real x) {
-	real x_sigma = (x - xc) / sigma;
-	return H * exp(-x_sigma * x_sigma); 
-}
-real init_calc_dx_h(real x) {
-	real h = init_calc_h(x);
-	return -2. * (x - xc) / (sigma * sigma) * h;
-}
-real init_calc_dx2_h(real x) {
-	real h = init_calc_h(x);
-	real dx_h = init_calc_dx_h(x);
-	return -2. / (sigma * sigma) * (h + (x - xc) * dx_h);
-}
-real init_calc_gamma_xx(real x) { 
-	real dx_h = init_calc_dx_h(x);
-	return 1. - dx_h * dx_h;
-}
-real init_calc_dx_gamma_xx(real x) {
-	real dx_h = init_calc_dx_h(x);
-	real dx2_h = init_calc_dx2_h(x);
-	return -2. * dx_h * dx2_h;
-}
-real init_calc_K_xx(real x) {
-	return -init_calc_dx2_h(x) / sqrt(init_calc_gamma_xx(x));
-}
-#endif
-
 //TODO make parameters out of this somehow:
 //real calc_f(alpha) { return 1.; }
 //real calc_f(alpha) { return .49; }
