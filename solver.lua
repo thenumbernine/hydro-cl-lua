@@ -70,14 +70,16 @@ function Solver:init(args)
 	self.fixedDT = ffi.new('float[1]', 0)
 	self.cfl = ffi.new('float[1]', .5)
 	
-	self.initStatePtr = ffi.new('int[1]', (table.find(self.eqn.initStates, args.initState) or 1)-1)
+	self.initStatePtr = ffi.new('int[1]', (table.find(self.eqn.initStateNames, args.initState) or 1)-1)
 	self.slopeLimiter = ffi.new('int[1]', (self.app.slopeLimiterNames:find(args.slopeLimiter) or 1)-1)
 
 	self.boundaryMethods = {}
 	for i=1,self.dim do
 		for _,minmax in ipairs(minmaxs) do
 			local var = xs[i]..minmax
-			self.boundaryMethods[var] = ffi.new('int[1]', self.app.boundaryMethods:find'freeflow'-1)
+			self.boundaryMethods[var] = ffi.new('int[1]', self.app.boundaryMethods:find(
+					(args.boundary or {})[var] or 'freeflow'
+				)-1)
 		end
 	end
 
@@ -262,9 +264,6 @@ function Solver:createCodePrefix()
 	end
 
 	self.codePrefix = lines:concat'\n'
-print()
-print'codePrefix'
-print(self.codePrefix)
 end
 
 function Solver:resetState()
@@ -339,13 +338,12 @@ __kernel void multAdd(
 		slopeLimiterCode,
 		self.eqn:getEigenInfo().code or '',
 		
-		'#define initState_'..self.eqn.initStates[self.initStatePtr[0]+1],
 		'typedef struct { real min, max; } range_t;',
 		errorTypeCode,	
-		self.eqn:solverCode(clnumber) or '',
+		self.eqn:solverCode(clnumber, self) or '',
 	}:append(self.app.useGLSharing and {
 		'#define calcDisplayVar_dstImage_t '..(self.dim == 3 and 'image3d_t' or 'image2d_t'),
-		'#define calcDisplayVar_writeImageArgs '..(dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)'),
+		'#define calcDisplayVar_writeImageArgs '..(self.dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)'),
 		
 		'#define calcDisplayVar_name calcDisplayVarToTex',
 		'#define calcDisplayVar_output_tex',
@@ -423,9 +421,9 @@ __kernel void boundary(
 
 		if self.dim == 2 then
 			if side == 1 then
-				lines:insert'\tif (i < gridSize_x) {'
-			elseif side == 2 then
 				lines:insert'\tif (i < gridSize_y) {'
+			elseif side == 2 then
+				lines:insert'\tif (i < gridSize_x) {'
 			end
 		end
 
@@ -434,29 +432,30 @@ __kernel void boundary(
 				return j
 			elseif self.dim == 2 then
 				if side == 1 then
-					return 'INDEX(i,'..j..',0)'
-				elseif side == 2 then
 					return 'INDEX('..j..',i,0)'
+				elseif side == 2 then
+					return 'INDEX(i,'..j..',0)'
 				end
 			else
 				error'TODO'
 			end
 		end
-	
+
+		local x = xs[side]
+
 		lines:insert(({
 			periodic = '\t\tUBuf['..index'j'..'] = UBuf['..index'gridSize_x-2*numGhost+j'..'];',
 			mirror = '\t\tUBuf['..index'j'..'] = UBuf['..index'2*numGhost-1-j'..'];\n'..
-					'\t\tUBuf['..index'j'..'].mx = -UBuf['..index'j'..'].mx;',
+					'\t\tUBuf['..index'j'..'].m'..x..' = -UBuf['..index'j'..'].m'..x..';',
 			freeflow = '\t\tUBuf['..index'j'..'] = UBuf['..index'numGhost'..'];',
-		})[self.app.boundaryMethods[1+self.boundaryMethods.xmin[0]]])
+		})[self.app.boundaryMethods[1+self.boundaryMethods[x..'min'][0]]])
 
 		lines:insert(({
 			periodic = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'numGhost+j'..'];',
 			mirror = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'gridSize_x-numGhost-1-j'..'];\n'..
-					'\t\tUBuf['..index'gridSize_x-numGhost+j'..'].mx = -UBuf['..index'gridSize_x-numGhost+j'..'].mx;',
+					'\t\tUBuf['..index'gridSize_x-numGhost+j'..'].m'..x..' = -UBuf['..index'gridSize_x-numGhost+j'..'].m'..x..';',
 			freeflow = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'gridSize_x-numGhost-1'..'];',
-		})[self.app.boundaryMethods[1+self.boundaryMethods.xmax[0]]])
-		
+		})[self.app.boundaryMethods[1+self.boundaryMethods[x..'max'][0]]])
 	
 		if self.dim == 2 then
 			lines:insert'\t}'

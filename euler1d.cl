@@ -27,56 +27,13 @@ __kernel void initState(
 		&& x[2] < mids[2]
 #endif
 	;
-	prim_t W;
-#if defined(initState_constant)
-	W.rho = 1;
-	W.vx = 0;
-	W.P = 1;
-#elif defined(initState_linear)
-	W.rho = 2 + x.x;
-	W.vx = 0;
-	W.P = 1;
-#elif defined(initState_gaussian)
-	real sigma = 1. / sqrt(10.);
-	W.rho = exp(-x.x*x.x / (sigma*sigma)) + .1;
-	W.vx = 0;
-	W.P = 1 + .1 * (exp(-x.x*x.x / (sigma*sigma)) + 1) / (gamma_1 * W.rho);
-#elif defined(initState_rarefaction_wave)
-	real delta = .1;
-	W.rho = 1;	// lhs ? .2 : .8;
-	W.vx = lhs ? .5 - delta : .5 + delta;
-	W.P = 1;
-#elif defined(initState_Sod)
-	W.rho = lhs ? 1 : .125;
-	W.vx = 0;
-	W.P = lhs ? 1 : .1;
-#elif defined(initState_Sedov)
-	W.rho = 1;
-	W.vx = 0;
-	W.P = (i.x == gridSize.x/2 && i.y == gridSize.y/2 && i.z == gridSize.z/2) ? 1e+3 : 1;
+	real rho = 0;
+	real vx = 0;
+	real P = 0;
 
-//from SRHD Marti & Muller 2000
-#elif defined(initState_shock_wave)	
-	W.rho = 1;
-	W.vx = lhs ? .5 : 0;
-	W.P = lhs ? 1e+3 : 1;
-#elif defined(initState_relativistic_blast_wave_interaction)
-	real xL = .9 * mins_x + .1 * maxs_x;
-	real xR = .1 * mins_x + .9 * maxs_x;
-	W.rho = 1;
-	W.vx = 0;
-	W.P = x.x < xL ? 1000 : (x.x > xR ? 100 : .01);
-#elif defined(initState_relativistic_blast_wave_test_problem_1)
-	//TODO gamma = 5/3
-	//that means initState should be autogen'd
-	W.rho = lhs ? 10 : 1;
-	W.vx = 0;
-	W.P = gamma_1 * W.rho * (lhs ? 2 : 1e-6);
+	INIT_STATE_CODE
 
-#else
-#error "unknown initState"
-#endif
-	UBuf[index] = consFromPrim(W);
+	UBuf[index] = consFromPrim((prim_t){.rho=rho, .vx=vx, .P=P});
 }
 
 prim_t primFromCons(cons_t U) {

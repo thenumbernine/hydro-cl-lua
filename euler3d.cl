@@ -32,23 +32,15 @@ __kernel void initState(
 		&& x[2] < mids[2]
 #endif
 	;
-	prim_t W;
-#if defined(initState_Sod)
-	W.rho = lhs ? 1 : .125;
-	W.vx = 0;
-	W.vy = 0;
-	W.vz = 0;
-	W.P = lhs ? 1 : .1;
-#elif defined(initState_linear)
-	W.rho = 2 + x.x;
-	W.vx = 0;
-	W.vy = 0;
-	W.vz = 0;
-	W.P = 1 + x.x;
-#else
-#error "unknown initState"
-#endif
-	UBuf[index] = consFromPrim(W);
+	real rho = 0;
+	real vx = 0;
+	real vy = 0;
+	real vz = 0;
+	real P = 0;
+	
+	INIT_STATE_CODE
+	
+	UBuf[index] = consFromPrim((prim_t){.rho=rho, .vx=vx, .vy=vy, .vz=vz, .P=P});
 }
 
 prim_t primFromCons(cons_t U) {

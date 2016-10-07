@@ -81,6 +81,7 @@ end
 	-- TODO favor cl_khr_fp64, cl_khr_3d_image_writes, cl_khr_gl_sharing
 
 	self.device, self.is64bit = get64bit(self.platform:getDevices{gpu=true})
+self.is64bit = false
 print('is 64 bit?',self.is64bit)
 print()
 self.device:printInfo()
@@ -107,11 +108,13 @@ self.ctx:printInfo()
 	--  specifically the call to 'refreshGridSize' within it
 	self.solver = require 'solver'{
 		app = self, 
-		dim = 1,
+		dim = 2,
 		gridSize = {256, 256, 256},
+		boundary = {xmin='mirror', xmax='mirror', ymin='mirror', ymax='mirror'},
 		slopeLimiter = 'Superbee',
 		
 		-- [[
+		--eqn = require 'euler1d'(),
 		eqn = require 'euler3d'(),
 		mins = {-1, -1, -1},
 		maxs = {1, 1, 1},
@@ -169,7 +172,13 @@ self.ctx:printInfo()
 	gl.glUniform1f(self.heatMap2DShader.uniforms.alpha, 1)
 	self.heatMap2DShader:useNone()
 	
-	self.hsvTex = require 'gl.hsvtex'(1024)
+	self.hsvTex = require 'gl.gradienttex'(1024, {
+	{0,0,.5,1},
+	{0,0,1,1},
+	{0,1,1,1},
+	{1,1,0,1},
+	{1,0,0,1},
+}, false)
 
 	-- [[ need to get image loading working
 	local fonttex = require 'gl.tex2d'{
@@ -490,7 +499,7 @@ function HydroCLApp:updateGUI()
 	ig.igInputFloat('fixed dt', self.solver.fixedDT)
 	ig.igInputFloat('CFL', self.solver.cfl)
 
-	if ig.igCombo('init state', self.solver.initStatePtr, self.solver.eqn.initStates) then
+	if ig.igCombo('init state', self.solver.initStatePtr, self.solver.eqn.initStateNames) then
 		self.solver:refreshSolverProgram()
 	end
 
