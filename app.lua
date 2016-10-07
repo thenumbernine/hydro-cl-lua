@@ -112,13 +112,13 @@ self.ctx:printInfo()
 		gridSize = {256, 256, 256},
 		slopeLimiter = 'Superbee',
 		
-		--[[
+		-- [[
 		eqn = require 'euler1d'(),
 		mins = {-1, -1, -1},
 		maxs = {1, 1, 1},
 		--]]
 		
-		-- [[
+		--[[
 		eqn = require 'adm1d3to5var'(),
 		mins = {0, 0, 0},
 		maxs = {300, 300, 300},

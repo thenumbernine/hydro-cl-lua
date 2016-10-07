@@ -1,6 +1,6 @@
 // the default eigen transforms, using eigen struct as a dense matrix:
 
-void eigenLeftTransform(
+void eigen_leftTransform(
 	real* y,
 	const __global eigen_t* eigen,
 	real* x
@@ -15,7 +15,7 @@ void eigenLeftTransform(
 	}
 }
 
-void eigenRightTransform(
+void eigen_rightTransform(
 	real* y,
 	const __global eigen_t* eigen,
 	real* x
@@ -28,4 +28,15 @@ void eigenRightTransform(
 		}
 		y[i] = sum;
 	}
+}
+
+real eigen_calcDisplayVar(
+	int displayVar,
+	const __global eigen_t* eigen
+) {
+	displayVar -= displayFirst_eigen;
+	if (displayVar < numStates * numWaves) return eigen->evL[displayVar];
+	displayVar -= numStates * numWaves;
+	if (displayVar < numStates * numWaves) return eigen->evR[displayVar];
+	return 0.;
 }

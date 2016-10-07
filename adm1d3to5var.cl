@@ -87,7 +87,7 @@ __kernel void calcEigenBasis(
 	}
 }
 
-void eigenLeftTransform(
+void eigen_leftTransform(
 	real* y,
 	const __global eigen_t* eigen,
 	real* x
@@ -101,7 +101,7 @@ void eigenLeftTransform(
 	y[4] = x[2] / (2. * f) + x[4] / (2. * sqrt_f);
 }
 
-void eigenRightTransform(
+void eigen_rightTransform(
 	real* y,
 	const __global eigen_t* eigen,
 	real* x
@@ -112,4 +112,11 @@ void eigenRightTransform(
 	y[2] = (x[0] + x[4]) * f;
 	y[3] = 2. * x[0] + x[3] + 2. * x[4];
 	y[4] = sqrt(f) * (x[4] - x[0]);
+}
+
+real eigen_calcDisplayVar(
+	int displayVar,
+	const __global eigen_t* eigen
+) {
+	return eigen->f;
 }

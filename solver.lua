@@ -119,10 +119,7 @@ function Solver:createDisplayVars()
 	
 	makevars('U', self.eqn.displayVars:unpack())
 	makevars('wave', range(0,self.eqn.numWaves-1):unpack())
-	
-	-- TODO a better job for this 
-	--makevars('eigen', range(0,self.eqn.numEigen-1):unpack())
-	
+	makevars('eigen', table.unpack(self.eqn:getEigenInfo().displayVars))
 	makevars('dt', '0')
 	makevars('deltaUTilde', range(0,self.eqn.numWaves-1):unpack())
 	makevars('rTilde', range(0,self.eqn.numWaves-1):unpack())
@@ -136,14 +133,14 @@ function Solver:createBuffers()
 	local ctx = self.app.ctx
 	local realSize = ffi.sizeof(self.app.real)
 
-	ffi.cdef(self.eqn:getEigenTypeCode())
+	ffi.cdef(self.eqn:getEigenInfo().typeCode)
 
 	self.UBuf = ctx:buffer{rw=true, size=self.volume * self.eqn.numStates * realSize}
 	self.reduceBuf = ctx:buffer{rw=true, size=self.volume * realSize}
 	self.reduceResultPtr = ffi.new('real[1]', 0)
 	self.reduceSwapBuf = ctx:buffer{rw=true, size=self.volume * realSize / self.localSize1d}
 	self.waveBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numWaves * realSize}
-	self.eigenBuf = ctx:buffer{rw=true, size=self.volume * self.dim * ffi.sizeof(self.eqn.eigenType)}
+	self.eigenBuf = ctx:buffer{rw=true, size=self.volume * self.dim * ffi.sizeof(self.eqn:getEigenInfo().type)}
 	self.deltaUTildeBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numWaves * realSize}
 	self.rTildeBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numWaves * realSize}
 	self.fluxBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numStates * realSize}
@@ -221,6 +218,7 @@ function Solver:createCodePrefix()
 	lines:append{
 		'#define numStates '..self.eqn.numStates,
 		'#define numWaves '..self.eqn.numWaves,
+		'#define numEigenDisplayVars '..#self.eqn:getEigenInfo().displayVars,
 		'constant int4 gridSize = (int4)(gridSize_x, gridSize_y, gridSize_z, 0);',
 		'constant real4 dxs = (real4)(dx, dy, dz, 0);',
 		'#define dx_min '..clnumber(math.min(table.unpack(self.dxs))),
@@ -237,7 +235,7 @@ function Solver:createCodePrefix()
 	if self.eqn.getTypeCode then lines:insert(self.eqn:getTypeCode()) end
 
 	-- run here for teh code, and in buffer for the sizeof()
-	lines:insert(self.eqn:getEigenTypeCode())
+	lines:insert(self.eqn:getEigenInfo().typeCode)
 
 	-- define i, index, and bounds-check
 	lines:insert'#define SETBOUNDS(lhs,rhs)	\\'
@@ -252,6 +250,16 @@ function Solver:createCodePrefix()
 	lines:append(self.displayVars:map(function(var,i)
 		return '#define display_'..var.name..' '..i
 	end))
+
+	local buffers = table()
+	for _,var in ipairs(self.displayVars) do
+		buffers[var.buffer] = buffers[var.buffer] or table()
+		buffers[var.buffer]:insert(var)
+	end
+	for buffer,vars in pairs(buffers) do
+		lines:insert('#define displayFirst_'..buffer..' display_'..vars[1].name)
+		lines:insert('#define displayLast_'..buffer..' display_'..vars:last().name)
+	end
 
 	self.codePrefix = lines:concat'\n'
 end
@@ -321,20 +329,20 @@ __kernel void multAdd(
 	local code = table{
 		self.codePrefix,
 		slopeLimiterCode,
-		self.eqn:getEigenCode() or '',
+		self.eqn:getEigenInfo().code or '',
 		
 		'#define initState_'..self.eqn.initStates[self.initState[0]+1],
 		self.eqn:solverCode(clnumber) or '',
-		
+	}:append(self.app.useGLSharing and {
 		'#define calcDisplayVar_dstImage_t '..(self.dim == 3 and 'image3d_t' or 'image2d_t'),
 		'#define calcDisplayVar_writeImageArgs '..(dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)'),
-	
+		
 		'#define calcDisplayVar_name calcDisplayVarToTex',
 		'#define calcDisplayVar_output_tex',
 		'#include "calcDisplayVar.cl"',
 		'#undef calcDisplayVar_name',
 		'#undef calcDisplayVar_output_tex',
-		
+	} or {}):append{	
 		'#define calcDisplayVar_name calcDisplayVarToBuffer',
 		'#define calcDisplayVar_output_buffer',
 		'#include "calcDisplayVar.cl"',

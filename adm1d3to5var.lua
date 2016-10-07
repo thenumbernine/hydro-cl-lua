@@ -76,10 +76,16 @@ print'dalpha_f'
 	}:concat'\n'
 end
 
-function ADM1D3to5Var:getEigenTypeCode()
-	return require 'makestruct'(self.eigenType, {'f'})
+ADM1D3to5Var.eigenVars = {'f'}
+function ADM1D3to5Var:getEigenInfo()
+	local eigenType = 'eigen_t'
+	return {
+		type = eigenType,
+		typeCode = require 'makestruct'(eigenType, self.eigenVars),
+		-- don't use the default matrix stuff. instead it'll be provided in adm1d3to5var.cl
+		code = nil,
+		displayVars = self.eigenVars,
+	}
 end
--- override / don't use the default matrix stuff
-function ADM1D3to5Var:getEigenCode() end
 
 return ADM1D3to5Var 

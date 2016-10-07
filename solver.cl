@@ -49,7 +49,7 @@ __kernel void calcErrors(
 			}
 			
 			real mid[numWaves];
-			eigenLeftTransform(mid, eigen, src);
+			eigen_leftTransform(mid, eigen, src);
 			
 			real scaled[numWaves];
 			for (int j = 0; j < numWaves; ++j) {
@@ -57,10 +57,10 @@ __kernel void calcErrors(
 			}
 			
 			real identCheck[numStates];
-			eigenRightTransform(identCheck, eigen, mid);
+			eigen_rightTransform(identCheck, eigen, mid);
 			
 			real fluxCheck[numStates];
-			eigenRightTransform(fluxCheck, eigen, scaled);
+			eigen_rightTransform(fluxCheck, eigen, scaled);
 			
 			for (int j = 0; j < numStates; ++j) {
 				orthoError += fabs(identCheck[j] - src[j]);
@@ -92,7 +92,7 @@ __kernel void calcDeltaUTilde(
 	
 		int intindex = side + dim * index;	
 		real deltaUTilde[numWaves];
-		eigenLeftTransform(
+		eigen_leftTransform(
 			deltaUTilde,
 			eigenBuf + intindex,
 			deltaU);
@@ -163,7 +163,7 @@ __kernel void calcFlux(
 		const __global real* eigen = eigenBuf + intindex;
 
 		real fluxTilde[numWaves];
-		eigenLeftTransform(fluxTilde, eigen, UAvg);
+		eigen_leftTransform(fluxTilde, eigen, UAvg);
 
 		const __global real* lambdas = waveBuf + numWaves * intindex;
 		const __global real* deltaUTilde = deltaUTildeBuf + numWaves * intindex;
@@ -180,7 +180,7 @@ __kernel void calcFlux(
 		}
 
 		real flux[numStates];
-		eigenRightTransform(flux, eigen, fluxTilde);
+		eigen_rightTransform(flux, eigen, fluxTilde);
 
 		__global real* flux_ = fluxBuf + intindex * numStates;
 		for (int j = 0; j < numStates; ++j) {

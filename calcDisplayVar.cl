@@ -10,31 +10,29 @@ __kernel void calcDisplayVar_name(
 	SETBOUNDS(0,0);
 	real value = 0;
 	int intindex = dim * index;	//side 0
-	if (displayVar >= display_wave_0 && displayVar < display_wave_0 + numWaves) {
+	if (displayVar >= displayFirst_wave && displayVar <= displayLast_wave) {
 		const __global real* wave = buf + intindex * numWaves;
-		value = wave[displayVar - display_wave_0];
-	} else if (displayVar >= display_deltaUTilde_0 && displayVar < display_deltaUTilde_0 + numWaves) {
+		value = wave[displayVar - displayFirst_wave];
+	} else if (displayVar >= displayFirst_deltaUTilde && displayVar <= displayLast_deltaUTilde) {
 		const __global real* deltaUTilde = buf + intindex * numWaves;
-		value = deltaUTilde[displayVar - display_deltaUTilde_0];
-	} else if (displayVar >= display_rTilde_0 && displayVar < display_rTilde_0 + numWaves) {
+		value = deltaUTilde[displayVar - displayFirst_deltaUTilde];
+	} else if (displayVar >= displayFirst_rTilde && displayVar <= displayLast_rTilde) {
 		const __global real* rTilde = buf + intindex * numWaves;
-		value = rTilde[displayVar - display_rTilde_0];
-	} else if (displayVar >= display_flux_0 && displayVar < display_flux_0 + numStates) {
+		value = rTilde[displayVar - displayFirst_rTilde];
+	} else if (displayVar >= displayFirst_flux && displayVar <= displayLast_flux) {
 		const __global real* flux = buf + intindex * numStates;
-		value = flux[displayVar - display_flux_0];
-	} else if (displayVar >= display_deriv_0 && displayVar < display_deriv_0 + numStates) {
+		value = flux[displayVar - displayFirst_flux];
+	} else if (displayVar >= displayFirst_deriv && displayVar <= displayLast_deriv) {
 		const __global real* deriv = buf + index * numStates;
-		value = deriv[displayVar - display_deriv_0];
+		value = deriv[displayVar - displayFirst_deriv];
 	} else if (displayVar == display_dt_0) {
 		value = buf[index];
 	} else if (displayVar == display_orthoError_0) {
 		value = buf[intindex];
 	} else if (displayVar == display_fluxError_0) {
 		value = buf[intindex];
-// now is custom per solver
-//	} else if (displayVar >= display_eigen_0 && displayVar < display_eigen_0 + numEigen) {
-//		const __global real* eigen = buf + intindex * numEigen;
-//		value = eigen[displayVar - display_eigen_0];
+	} else if (displayVar >= displayFirst_eigen && displayVar <= displayLast_eigen) {
+		value = eigen_calcDisplayVar(displayVar, (const __global eigen_t*)buf + intindex);
 	} else {
 		value = calcDisplayVar_UBuf(displayVar, buf + numStates * index);
 	}
