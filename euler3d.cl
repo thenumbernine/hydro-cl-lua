@@ -71,11 +71,11 @@ real calcDisplayVar_UBuf(int displayVar, const __global real* U_) {
 	case display_U_vx: return W.vx;
 	case display_U_vy: return W.vy;
 	case display_U_vz: return W.vz;
-	case display_U_v: return sqrt(W.vx * W.vx + W.vy * W.vz + W.vz * W.vz);
+	case display_U_v: return sqrt(W.vx * W.vx + W.vy * W.vy + W.vz * W.vz);
 	case display_U_mx: return U->mx;
 	case display_U_my: return U->my;
 	case display_U_mz: return U->mz;
-	case display_U_m: return sqrt(U->mx * U->mx + U->my * U->mz + U->mz * U->mz);
+	case display_U_m: return sqrt(U->mx * U->mx + U->my * U->my + U->mz * U->mz);
 	case display_U_P: return W.P;
 	case display_U_eInt: return calc_eInt(W);
 	case display_U_eKin: return calc_eKin(W);
@@ -150,8 +150,15 @@ __kernel void calcEigenBasis(
 	int indexR = index;
 	for (int side = 0; side < dim; ++side) {
 		int indexL = index - stepsize[side];
-		
-		Roe_t roe = calcEigenBasisSide(UBuf[indexL], UBuf[indexR]);
+	
+		cons_t UL = UBuf[indexL];
+		cons_t UR = UBuf[indexR];
+
+		real tmp;
+		tmp = UL.mx; UL.mx = UL.m[side]; UL.m[side] = tmp;
+		tmp = UR.mx; UR.mx = UR.m[side]; UR.m[side] = tmp;
+
+		Roe_t roe = calcEigenBasisSide(UL, UR);
 		real vx = roe.vx;
 		real vy = roe.vy;
 		real vz = roe.vz;
@@ -188,5 +195,35 @@ __kernel void calcEigenBasis(
 		fill(evR+2,5,vy, 				vy, 		1, 	0, 	vy				);
 		fill(evR+3,5,vz, 				vz, 		0, 	1, 	vz				);
 		fill(evR+4,5,hTotal - Cs * vx, .5 * vSq, 	vy, vz, hTotal + Cs * vx);
+
+#if dim > 1
+	if (side == 1) {
+		for (int i = 0; i < numStates; ++i) {
+			real tmp;
+			//each row's xy <- yx
+			tmp = evL[i + numStates * cons_mx];
+			evL[i + numStates * cons_mx] = evL[i + numStates * cons_my];
+			evL[i + numStates * cons_my] = tmp;
+			//each column's xy <- yx
+			tmp = evR[cons_mx + numStates * i];
+			evR[cons_mx + numStates * i] = evR[cons_my + numStates * i];
+			evR[cons_my + numStates * i] = tmp;
+		}
+	}
+#endif
+#if dim > 2
+	else if (side == 2) {
+		for (int i = 0; i < numStates; ++i) {
+			real tmp;
+			tmp = evL[i + numStates * cons_mx];
+			evL[i + numStates * cons_mx] = evL[i + numStates * cons_mz];
+			evL[i + numStates * cons_mz] = tmp;
+			tmp = evR[cons_mx + numStates * i];
+			evR[cons_mx + numStates * i] = evR[cons_mz + numStates * i];
+			evR[cons_mz + numStates * i] = tmp;
+		}
+	}
+#endif
+
 	}
 }

@@ -397,34 +397,73 @@ function Solver:refreshBoundaryProgram()
 __kernel void boundary(
 	__global cons_t* UBuf
 ) {
-	int i = get_global_id(0);
-	if (i >= numGhost) return;
 ]]
-	lines:insert(({
-		periodic = [[
-	UBuf[i] = UBuf[gridSize_x-2*numGhost+i];
-]],
-		mirror = [[
-	UBuf[i] = UBuf[2*numGhost-1-i];
-	UBuf[i].mx = -UBuf[i].mx;
-]],
-		freeflow = [[
-	UBuf[i] = UBuf[numGhost];
-]],
-	})[self.app.boundaryMethods[1+self.boundaryMethods.xmin[0]]])
+	if self.dim == 1 then 
+		lines:insert[[
+	if (get_global_id(0) != 0) return;
+]]
+	elseif self.dim == 2 then
+		lines:insert[[
+	int i = get_global_id(0);
+]]
+	elseif self.dim == 3 then
+		lines:insert[[
+	int2 i = (int2)(get_global_id(0), get_global_id(1));
+]]
+	end
+	
+	-- 1D: use a small 1D kernel and just run once 
+	-- 2D: use a 1D kernel the size of the max dim 
+		
+	lines:insert[[
+	for (int j = 0; j < numGhost; ++j) {
+]]
 
-	lines:insert(({
-		periodic = [[
-	UBuf[gridSize_x-numGhost+i] = UBuf[numGhost+i];
-]],
-		mirror = [[
-	UBuf[gridSize_x-numGhost+i] = UBuf[gridSize_x-numGhost-1-i];
-	UBuf[gridSize_x-numGhost+i].mx = -UBuf[gridSize_x-numGhost+i].mx; 
-]],
-		freeflow = [[
-	UBuf[gridSize_x-numGhost+i] = UBuf[gridSize_x-numGhost-1];
-]],
-	})[self.app.boundaryMethods[1+self.boundaryMethods.xmax[0]]])
+	for side=1,self.dim do
+
+		if self.dim == 2 then
+			if side == 1 then
+				lines:insert'\tif (i < gridSize_x) {'
+			elseif side == 2 then
+				lines:insert'\tif (i < gridSize_y) {'
+			end
+		end
+
+		local function index(j)
+			if self.dim == 1 then
+				return j
+			elseif self.dim == 2 then
+				if side == 1 then
+					return 'INDEX(i,'..j..',0)'
+				elseif side == 2 then
+					return 'INDEX('..j..',i,0)'
+				end
+			else
+				error'TODO'
+			end
+		end
+	
+		lines:insert(({
+			periodic = '\t\tUBuf['..index'j'..'] = UBuf['..index'gridSize_x-2*numGhost+j'..'];',
+			mirror = '\t\tUBuf['..index'j'..'] = UBuf['..index'2*numGhost-1-j'..'];\n'..
+					'\t\tUBuf['..index'j'..'].mx = -UBuf['..index'j'..'].mx;',
+			freeflow = '\t\tUBuf['..index'j'..'] = UBuf['..index'numGhost'..'];',
+		})[self.app.boundaryMethods[1+self.boundaryMethods.xmin[0]]])
+
+		lines:insert(({
+			periodic = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'numGhost+j'..'];',
+			mirror = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'gridSize_x-numGhost-1-j'..'];\n'..
+					'\t\tUBuf['..index'gridSize_x-numGhost+j'..'].mx = -UBuf['..index'gridSize_x-numGhost+j'..'].mx;',
+			freeflow = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'gridSize_x-numGhost-1'..'];',
+		})[self.app.boundaryMethods[1+self.boundaryMethods.xmax[0]]])
+		
+	
+		if self.dim == 2 then
+			lines:insert'\t}'
+		end
+	end
+	
+	lines:insert'\t}'
 	lines:insert'}'
 
 	local code = lines:concat'\n'
@@ -433,6 +472,19 @@ __kernel void boundary(
 	
 	self.boundaryProgram = require 'cl.program'{context=self.app.ctx, devices={self.app.device}, code=code} 
 	self.boundaryKernel = self.boundaryProgram:kernel('boundary', self.UBuf);
+end
+
+function Solver:boundary()
+	-- 1D:
+	if self.dim == 1 then
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.boundaryKernel, globalSize=self.localSize1d, localSize=self.localSize1d}
+	elseif self.dim == 2 then
+		local maxSize = math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y))
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.boundaryKernel, globalSize=maxSize, localSize=self.localSize1d}
+	elseif self.dim == 3 then
+	else
+		error("can't run boundary for dim "..tonumber(self.dim))
+	end
 end
 
 function Solver:reduceMin()
@@ -484,11 +536,6 @@ function Solver:integrate(derivBuf, dt)
 	-- forward Euler
 	self.multAddKernel:setArgs(self.UBuf, self.UBuf, derivBuf, ffi.new('real[1]', dt))
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.multAddKernel, globalSize=self.volume * self.eqn.numStates, localSize=self.localSize1d}
-end
-
-function Solver:boundary()
-	-- 1D:
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.boundaryKernel, globalSize=self.localSize1d, localSize=self.localSize1d}
 end
 
 function Solver:update()

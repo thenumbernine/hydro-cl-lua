@@ -43,6 +43,14 @@ typedef struct {
 	real P;
 } prim_t;
 
+enum {
+	cons_rho,
+	cons_mx,
+	cons_my,
+	cons_mz,
+	cons_ETotal,
+};
+
 typedef struct {
 	real rho;
 	union {

@@ -107,7 +107,7 @@ self.ctx:printInfo()
 	--  specifically the call to 'refreshGridSize' within it
 	self.solver = require 'solver'{
 		app = self, 
-		dim = 1,
+		dim = 2,
 		gridSize = {256, 256, 256},
 		slopeLimiter = 'Superbee',
 		
