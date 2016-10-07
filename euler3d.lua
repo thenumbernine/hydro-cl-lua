@@ -34,18 +34,11 @@ Euler3D.gamma = 7/5
 function Euler3D:getTypeCode()
 	return [[
 
-typedef union {
-	struct {
-		real x, y, z;
-	};
-	real v[3];
-} real3;
-
 typedef struct { 
 	real rho;
 	union {
 		struct { real vx, vy, vz; };
-		real3 v;
+		real v[3];
 	};
 	real P;
 } prim_t;
@@ -54,7 +47,7 @@ typedef struct {
 	real rho;
 	union {
 		struct { real mx, my, mz; };
-		real3 m;
+		real m[3];
 	};
 	real ETotal;
 } cons_t;

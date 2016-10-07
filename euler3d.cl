@@ -96,36 +96,38 @@ real calcDisplayVar_UBuf(int displayVar, const __global real* U_) {
 range_t calcCellMinMaxEigenvalues(const __global cons_t* U, int side) {
 	prim_t W = primFromCons(*U);
 	real Cs = sqrt(gamma * W.P / W.rho);
-	real v = W.v.v[side];
+	real v = W.v[side];
 	return (range_t){.min = v - Cs, .max = v + Cs};
 }
 
 typedef struct {
 	real rho;
-	real3 v;
+	real vx, vy, vz;
 	real hTotal;
 } Roe_t;
 
 Roe_t calcEigenBasisSide(cons_t UL, cons_t UR) {
 	prim_t WL = primFromCons(UL);
 	real sqrtRhoL = sqrt(WL.rho);
-	real3 vL = WL.v;
+	real vxL = WL.vx;
+	real vyL = WL.vy;
+	real vzL = WL.vz;
 	real hTotalL = calc_hTotal(WL.rho, WL.P, UL.ETotal);
 
 	prim_t WR = primFromCons(UR);
 	real sqrtRhoR = sqrt(UR.rho);
-	real3 vR = WR.v;
+	real vxR = WR.vx;
+	real vyR = WR.vy;
+	real vzR = WR.vz;
 	real hTotalR = calc_hTotal(WR.rho, WR.P, UR.ETotal);
 
 	real invDenom = 1./(sqrtRhoL + sqrtRhoR);
 
 	return (Roe_t){
 		.rho = sqrtRhoL * sqrtRhoR,
-		.v = (real3){
-			.x = invDenom * (sqrtRhoL * vL.x + sqrtRhoR * vR.x),
-			.y = invDenom * (sqrtRhoL * vL.y + sqrtRhoR * vR.y),
-			.z = invDenom * (sqrtRhoL * vL.z + sqrtRhoR * vR.z),
-		},
+		.vx = invDenom * (sqrtRhoL * vxL + sqrtRhoR * vxR),
+		.vy = invDenom * (sqrtRhoL * vyL + sqrtRhoR * vyR),
+		.vz = invDenom * (sqrtRhoL * vzL + sqrtRhoR * vzR),
 		.hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR),
 	};	
 }
@@ -150,9 +152,9 @@ __kernel void calcEigenBasis(
 		int indexL = index - stepsize[side];
 		
 		Roe_t roe = calcEigenBasisSide(UBuf[indexL], UBuf[indexR]);
-		real vx = roe.v.x;
-		real vy = roe.v.y;
-		real vz = roe.v.z;
+		real vx = roe.vx;
+		real vy = roe.vy;
+		real vz = roe.vz;
 		real hTotal = roe.hTotal;
 	
 		real vSq = vx * vx + vy * vy + vz * vz;
