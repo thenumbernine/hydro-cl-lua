@@ -31,8 +31,10 @@ __kernel void calcDisplayVar_name(
 		value = ((const __global error_t*)buf)[intindex].ortho;
 	} else if (displayVar == display_error_flux) {
 		value = ((const __global error_t*)buf)[intindex].flux;
+#ifdef displayFirst_eigen
 	} else if (displayVar >= displayFirst_eigen && displayVar <= displayLast_eigen) {
 		value = eigen_calcDisplayVar(displayVar, (const __global eigen_t*)buf + intindex);
+#endif	
 	} else {
 		value = calcDisplayVar_UBuf(displayVar, buf + numStates * index);
 	}

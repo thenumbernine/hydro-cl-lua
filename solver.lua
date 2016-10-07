@@ -445,15 +445,21 @@ __kernel void boundary(
 
 		lines:insert(({
 			periodic = '\t\tUBuf['..index'j'..'] = UBuf['..index'gridSize_x-2*numGhost+j'..'];',
-			mirror = '\t\tUBuf['..index'j'..'] = UBuf['..index'2*numGhost-1-j'..'];\n'..
-					'\t\tUBuf['..index'j'..'].m'..x..' = -UBuf['..index'j'..'].m'..x..';',
+			mirror = table{
+				'\t\tUBuf['..index'j'..'] = UBuf['..index'2*numGhost-1-j'..'];',
+			}:append(table.map(self.eqn.mirrorVars, function(var)
+				return '\t\tUBuf['..index'j'..'].'..var..x..' = -UBuf['..index'j'..'].'..var..x..';'
+			end)):concat'\n',
 			freeflow = '\t\tUBuf['..index'j'..'] = UBuf['..index'numGhost'..'];',
 		})[self.app.boundaryMethods[1+self.boundaryMethods[x..'min'][0]]])
 
 		lines:insert(({
 			periodic = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'numGhost+j'..'];',
-			mirror = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'gridSize_x-numGhost-1-j'..'];\n'..
-					'\t\tUBuf['..index'gridSize_x-numGhost+j'..'].m'..x..' = -UBuf['..index'gridSize_x-numGhost+j'..'].m'..x..';',
+			mirror = table{
+				'\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'gridSize_x-numGhost-1-j'..'];',
+			}:append(table.map(self.eqn.mirrorVars, function(var)
+				return '\t\tUBuf['..index'gridSize_x-numGhost+j'..'].'..var..x..' = -UBuf['..index'gridSize_x-numGhost+j'..'].'..var..x..';'
+			end)):concat'\n',
 			freeflow = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'gridSize_x-numGhost-1'..'];',
 		})[self.app.boundaryMethods[1+self.boundaryMethods[x..'max'][0]]])
 	

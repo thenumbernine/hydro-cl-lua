@@ -27,7 +27,7 @@ Euler1D.displayVars = {
 	'HTotal',
 } 
 
-Euler1D.initStateInfos = {
+Euler1D.initStates = {
 	{
 		name='Sod',
 		code=[[
@@ -96,7 +96,7 @@ Euler1D.initStateInfos = {
 	},
 }
 
-Euler1D.initStateNames = table.map(Euler1D.initStateInfos, function(info) return info.name end)
+Euler1D.initStateNames = table.map(Euler1D.initStates, function(info) return info.name end)
 
 function Euler1D:getTypeCode()
 	return 
@@ -105,7 +105,7 @@ function Euler1D:getTypeCode()
 end
 
 function Euler1D:solverCode(clnumber, solver)
-	local initState = self.initStateInfos[1+solver.initStatePtr[0]]
+	local initState = self.initStates[1+solver.initStatePtr[0]]
 	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
 	local initStateDefLines = '#define INIT_STATE_CODE \\\n'
 		.. initState.code:gsub('\n', '\\\n')

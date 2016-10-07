@@ -7,8 +7,9 @@ Euler3D.name = 'Euler3D'
 
 Euler3D.numStates = 5
 
-Euler3D.consVars = table{'rho', 'mx', 'my', 'mz', 'ETotal'}
-Euler3D.primVars = table{'rho', 'vx', 'vy', 'vz', 'P'}
+Euler3D.consVars = {'rho', 'mx', 'my', 'mz', 'ETotal'}
+Euler3D.primVars = {'rho', 'vx', 'vy', 'vz', 'P'}
+Euler3D.mirrorVars = {'m'}
 Euler3D.displayVars = {
 	'rho',
 	'vx', 'vy', 'vz', 'v',
@@ -27,7 +28,7 @@ Euler3D.displayVars = {
 	'HTotal',
 } 
 
-Euler3D.initStateInfos = {
+Euler3D.initStates = {
 	{
 		name='Sod',
 		code=[[
@@ -96,7 +97,7 @@ Euler3D.initStateInfos = {
 	},
 }
 
-Euler3D.initStateNames = table.map(Euler3D.initStateInfos, function(info) return info.name end)
+Euler3D.initStateNames = table.map(Euler3D.initStates, function(info) return info.name end)
 
 function Euler3D:getTypeCode()
 	return [[
@@ -131,7 +132,7 @@ typedef struct {
 end
 
 function Euler3D:solverCode(clnumber, solver)
-	local initState = self.initStateInfos[1+solver.initStatePtr[0]]
+	local initState = self.initStates[1+solver.initStatePtr[0]]
 	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
 	local initStateDefLines = '#define INIT_STATE_CODE \\\n'
 		.. initState.code:gsub('\n', '\\\n')

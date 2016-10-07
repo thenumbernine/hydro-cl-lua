@@ -26,13 +26,28 @@ symmath.tostring = require 'symmath.tostring.SingleLine'
 	--if self.initState[0] == 0 then ...
 	local h = H * symmath.exp(-(x - xc)^2 / sigma^2)
 	
+	local kappa = 1
 	local alpha = 1
+	--[=[
+	alpha = 1/2 * (
+		(1 + symmath.sqrt(1 + kappa))
+		* symmath.sqrt((1-h:diff(x))/(1+h:diff(x)))
+		- 
+		kappa / (1 + symmath.sqrt(1 + kappa))
+		* symmath.sqrt((1+h:diff(x))/(1-h:diff(x)))
+	),
+	--]=]
 	local gamma_xx = 1 - h:diff(x)^2
 	local K_xx = -h:diff(x,x) / gamma_xx^.5
 
-	local kappa = 1
+	--local f = 1
+	--local f = 1.69
+	--local f = .49
 	local f = 1 + kappa / alphaVar^2
-	
+
+	-- above this line is the initial condition expressions
+	-- below is the symmath codegen
+
 	local function makesym(expr, k)
 		return symmath.clone(expr):simplify(), k
 	end

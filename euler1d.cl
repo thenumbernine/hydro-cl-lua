@@ -46,7 +46,10 @@ prim_t primFromCons(cons_t U) {
 }
 
 //called from calcDisplayVar
-real calcDisplayVar_UBuf(int displayVar, const __global real* U_) {
+real calcDisplayVar_UBuf(
+	int displayVar,
+	const __global real* U_
+) {
 	const __global cons_t* U = (const __global cons_t*)U_;
 	prim_t W = primFromCons(*U);
 	switch (displayVar) {
@@ -100,7 +103,7 @@ Roe_t calcEigenBasisSide(cons_t UL, cons_t UR) {
 	};	
 }
 
-void fillRow(__global real* ptr, int step, real a, real b, real c) {
+void fill(__global real* ptr, int step, real a, real b, real c) {
 	ptr[0*step] = a;
 	ptr[1*step] = b;
 	ptr[2*step] = c;
@@ -127,21 +130,21 @@ __kernel void calcEigenBasis(
 	
 		int intindex = side + dim * index;	
 		__global real* wave = waveBuf + numWaves * intindex;
-		fillRow(wave, 1, vx - Cs, vx, vx + Cs);
+		fill(wave, 1, vx - Cs, vx, vx + Cs);
 
 		__global real* dF_dU = fluxMatrixBuf + numStates * numStates * intindex;
-		fillRow(dF_dU+0,3,	0, 									1, 							0			);
-		fillRow(dF_dU+1,3,	.5 * gamma_3 * vxSq, 				-gamma_3 * vx, 				gamma_1		);
-		fillRow(dF_dU+2,3, 	vx * (.5 * gamma_1 * vxSq - hTotal), hTotal - gamma_1 * vxSq,	gamma*vx	);
+		fill(dF_dU+0,3,	0, 									1, 							0			);
+		fill(dF_dU+1,3,	.5 * gamma_3 * vxSq, 				-gamma_3 * vx, 				gamma_1		);
+		fill(dF_dU+2,3, 	vx * (.5 * gamma_1 * vxSq - hTotal), hTotal - gamma_1 * vxSq,	gamma*vx	);
 
 		__global eigen_t* eigen = eigenBuf + intindex;
 		__global real* evL = eigen->evL; 
-		fillRow(evL+0, 3, (.5 * gamma_1 * vxSq + Cs * vx) / (2. * CsSq),	-(Cs + gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
-		fillRow(evL+1, 3, 1. - gamma_1 * vxSq / (2. * CsSq),				gamma_1 * vx / CsSq,				-gamma_1 / CsSq			);
-		fillRow(evL+2, 3, (.5 * gamma_1 * vxSq - Cs * vx) / (2. * CsSq),	(Cs - gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
+		fill(evL+0, 3, (.5 * gamma_1 * vxSq + Cs * vx) / (2. * CsSq),	-(Cs + gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
+		fill(evL+1, 3, 1. - gamma_1 * vxSq / (2. * CsSq),				gamma_1 * vx / CsSq,				-gamma_1 / CsSq			);
+		fill(evL+2, 3, (.5 * gamma_1 * vxSq - Cs * vx) / (2. * CsSq),	(Cs - gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
 		__global real* evR = eigen->evR;
-		fillRow(evR+0, 3, 1., 				1., 		1.				);
-		fillRow(evR+1, 3, vx - Cs, 			vx, 		vx + Cs			);
-		fillRow(evR+2, 3, hTotal - Cs * vx, .5 * vxSq, 	hTotal + Cs * vx);
+		fill(evR+0, 3, 1., 				1., 		1.				);
+		fill(evR+1, 3, vx - Cs, 			vx, 		vx + Cs			);
+		fill(evR+2, 3, hTotal - Cs * vx, .5 * vxSq, 	hTotal + Cs * vx);
 	}
 }
