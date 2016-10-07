@@ -70,7 +70,7 @@ function Solver:init(args)
 	self.fixedDT = ffi.new('float[1]', 0)
 	self.cfl = ffi.new('float[1]', .5)
 	
-	self.initState = ffi.new('int[1]', (table.find(self.eqn.initStates, args.initState) or 1)-1)
+	self.initStatePtr = ffi.new('int[1]', (table.find(self.eqn.initStates, args.initState) or 1)-1)
 	self.slopeLimiter = ffi.new('int[1]', (self.app.slopeLimiterNames:find(args.slopeLimiter) or 1)-1)
 
 	self.boundaryMethods = {}
@@ -113,8 +113,7 @@ function Solver:createDisplayVars()
 				name = buffer..'_'..name,
 				enabled = ffi.new('bool[1]', 
 					buffer == 'U' and (self.dim==1 or i==1)
-					or (buffer == 'fluxError' and self.dim==1)
-					or (buffer == 'orthoError' and self.dim==1)
+					or (buffer == 'error' and self.dim==1)
 				),
 				color = vec3(math.random(), math.random(), math.random()):normalize(),
 			}
@@ -129,9 +128,11 @@ function Solver:createDisplayVars()
 	makevars('rTilde', range(0,self.eqn.numWaves-1):unpack())
 	makevars('flux', range(0,self.eqn.numStates-1):unpack())
 	makevars('deriv', range(0,self.eqn.numStates-1):unpack())
-	makevars('orthoError', '0')
-	makevars('fluxError', '0')
+	makevars('error', 'ortho', 'flux')
 end
+
+local errorType = 'error_t'
+local errorTypeCode = 'typedef struct { real ortho, flux; } '..errorType..';'
 
 function Solver:createBuffers()
 	local ctx = self.app.ctx
@@ -139,6 +140,8 @@ function Solver:createBuffers()
 
 	-- to get sizeof
 	ffi.cdef(self.eqn:getEigenInfo().typeCode)
+	
+	ffi.cdef(errorTypeCode)
 
 	self.UBuf = ctx:buffer{rw=true, size=self.volume * self.eqn.numStates * realSize}
 	self.reduceBuf = ctx:buffer{rw=true, size=self.volume * realSize}
@@ -153,8 +156,8 @@ function Solver:createBuffers()
 	
 	-- debug only
 	self.fluxMatrixBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numStates * self.eqn.numStates * realSize}
-	self.orthoErrorBuf = ctx:buffer{rw=true, size=self.volume * self.dim * realSize}
-	self.fluxErrorBuf = ctx:buffer{rw=true, size=self.volume * self.dim * realSize}
+	local errorTypeSize = ffi.sizeof(errorType)
+	self.errorBuf = ctx:buffer{rw=true, size=self.volume * self.dim * errorTypeSize}
 
 	-- CL/GL interop
 
@@ -330,14 +333,15 @@ __kernel void multAdd(
 	local slopeLimiterCode = 'real slopeLimiter(real r) {'
 		.. self.app.slopeLimiters[1+self.slopeLimiter[0]].code 
 		.. '}'
-	
+		
 	local code = table{
 		self.codePrefix,
 		slopeLimiterCode,
 		self.eqn:getEigenInfo().code or '',
 		
-		'#define initState_'..self.eqn.initStates[self.initState[0]+1],
+		'#define initState_'..self.eqn.initStates[self.initStatePtr[0]+1],
 		'typedef struct { real min, max; } range_t;',
+		errorTypeCode,	
 		self.eqn:solverCode(clnumber) or '',
 	}:append(self.app.useGLSharing and {
 		'#define calcDisplayVar_dstImage_t '..(self.dim == 3 and 'image3d_t' or 'image2d_t'),
@@ -383,7 +387,7 @@ __kernel void multAdd(
 	end
 	self.calcDisplayVarToBufferKernel = self.solverProgram:kernel('calcDisplayVarToBuffer', self.reduceBuf)
 
-	self.calcErrorsKernel = self.solverProgram:kernel('calcErrors', self.orthoErrorBuf, self.fluxErrorBuf, self.waveBuf, self.eigenBuf, self.fluxMatrixBuf)
+	self.calcErrorsKernel = self.solverProgram:kernel('calcErrors', self.errorBuf, self.waveBuf, self.eigenBuf, self.fluxMatrixBuf)
 end
 
 function Solver:refreshBoundaryProgram()

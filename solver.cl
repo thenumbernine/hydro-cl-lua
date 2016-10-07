@@ -33,8 +33,7 @@ __kernel void calcDT(
 #define _1_LN_10 0.4342944819032517611567811854911269620060920715332
 
 __kernel void calcErrors(
-	__global real* orthoErrorBuf,
-	__global real* fluxErrorBuf,
+	__global error_t* errorBuf,
 	const __global real* waveBuf,
 	const __global eigen_t* eigenBuf,
 	const __global real* fluxMatrixBuf
@@ -74,8 +73,10 @@ __kernel void calcErrors(
 				fluxError += fabs(fluxCheck[j] - fluxMatrix[j + numStates * k]);
 			}
 		}
-		orthoErrorBuf[intindex] = log(orthoError) * _1_LN_10;
-		fluxErrorBuf[intindex] = log(fluxError) * _1_LN_10;
+		errorBuf[intindex] = (error_t){
+			.ortho = log(orthoError) * _1_LN_10,
+			.flux = log(fluxError) * _1_LN_10,
+		};
 	}
 }
 
