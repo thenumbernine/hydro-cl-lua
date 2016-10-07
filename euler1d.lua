@@ -9,11 +9,35 @@ Euler1D.numStates = 3
 
 Euler1D.consVars = table{'rho', 'mx', 'ETotal'}
 Euler1D.primVars = table{'rho', 'vx', 'P'}
-Euler1D.displayVars = table()
-	:append(Euler1D.primVars)
-	:append{'eInt', 'eKin', 'eTotal'} 
+Euler1D.displayVars = {
+	'rho',
+	'vx',
+	'mx',
+	'eInt',
+	'eKin', 
+	'eTotal', 
+	'EInt', 
+	'EKin', 
+	'ETotal', 
+	'P',
+	'S', 
+	'h',
+	'H', 
+	'hTotal',
+	'HTotal',
+} 
 
-Euler1D.initStates = {'Sod', 'linear'}
+Euler1D.initStates = {
+	'constant',
+	'linear',
+	'gaussian',
+	'rarefaction_wave',
+	'Sod',
+	'Sedov',
+	'shock_wave',
+	'relativistic_blast_wave_interaction',
+	'relativistic_blast_wave_test_problem_1',
+}
 
 Euler1D.gamma = 7/5
 

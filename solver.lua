@@ -50,7 +50,11 @@ function Solver:init(args)
 	self.maxs = args.maxs or {1, 1, 1}
 	assert(#self.mins >= 3)
 	assert(#self.maxs >= 3)
-	
+
+	self.dxs = range(3):map(function(i)
+		return (self.maxs[i] - self.mins[i]) / tonumber(self.gridSize:ptr()[i-1])	
+	end)
+
 	self.t = 0
 	
 	self.eqn = assert(args.eqn)
@@ -108,16 +112,16 @@ function Solver:createDisplayVars()
 				buffer = buffer,
 				name = buffer..'_'..name,
 				enabled = ffi.new('bool[1]', 
-					buffer == 'U'
-					or buffer == 'fluxError'
-					or buffer == 'orthoError'
+					buffer == 'U' and (self.dim==1 or i==1)
+					or (buffer == 'fluxError' and self.dim==1)
+					or (buffer == 'orthoError' and self.dim==1)
 				),
 				color = vec3(math.random(), math.random(), math.random()):normalize(),
 			}
 		end
 	end
 	
-	makevars('U', self.eqn.displayVars:unpack())
+	makevars('U', table.unpack(self.eqn.displayVars))
 	makevars('wave', range(0,self.eqn.numWaves-1):unpack())
 	makevars('eigen', table.unpack(self.eqn:getEigenInfo().displayVars))
 	makevars('dt', '0')
@@ -133,6 +137,7 @@ function Solver:createBuffers()
 	local ctx = self.app.ctx
 	local realSize = ffi.sizeof(self.app.real)
 
+	-- to get sizeof
 	ffi.cdef(self.eqn:getEigenInfo().typeCode)
 
 	self.UBuf = ctx:buffer{rw=true, size=self.volume * self.eqn.numStates * realSize}
@@ -169,7 +174,7 @@ function Solver:createBuffers()
 		local ImageGL = require 'cl.imagegl'
 		self.texCLMem = ImageGL{context=ctx, tex=self.tex, write=true}
 	else
-		self.calcDisplayVarToTexMem = ffi.new(self.app.real..'[?]', self.volume)
+		self.calcDisplayVarToTexPtr = ffi.new(self.app.real..'[?]', self.volume)
 		
 		--[[ PBOs?
 		self.calcDisplayVarToTexPBO = ffi.new('gl_int[1]', 0)
@@ -190,67 +195,59 @@ function Solver:createCodePrefix()
 		lines:insert'#pragma OPENCL EXTENSION cl_khr_fp64 : enable'
 	end
 
-	self.dxs = range(3):map(function(i)
-		return (self.maxs[i] - self.mins[i]) / tonumber(self.gridSize:ptr()[i-1])	
-	end)
-
-	lines
-	:append(table{'',2,4,8}:map(function(n)
+	lines:append(table{'',2,4,8}:map(function(n)
 		return 'typedef '..self.app.real..n..' real'..n..';'
-	end)
-	:append(xs:map(function(name,i)
-		return '#define gridSize_'..name..' '..tonumber(self.gridSize[name])
-	end)
-	):append{
+	end)):append{
 		'#define dim '..self.dim,
 		'#define numGhost '..self.numGhost,
+		'#define numStates '..self.eqn.numStates,
+		'#define numWaves '..self.eqn.numWaves,
 	}:append(xs:map(function(x,i)
 		return '#define mins_'..x..' '..clnumber(self.mins[i])..'\n'
 			.. '#define maxs_'..x..' '..clnumber(self.maxs[i])..'\n'
-			.. '#define d'..x..' '..clnumber(self.dxs[i])
 	end)):append{
 		'constant real4 mins = (real4)(mins_x, '..(self.dim<2 and '0' or 'mins_y')..', '..(self.dim<3 and '0' or 'mins_z')..', 0);', 
 		'constant real4 maxs = (real4)(maxs_x, '..(self.dim<2 and '0' or 'maxs_y')..', '..(self.dim<3 and '0' or 'maxs_z')..', 0);', 
+	}:append(xs:map(function(x,i)
+		return '#define d'..x..' '..clnumber(self.dxs[i])
+	end)):append{
+		'constant real4 dxs = (real4)(dx, dy, dz, 0);',
+		'#define dx_min '..clnumber(math.min(table.unpack(self.dxs, 1, self.dim))),
+	}:append(xs:map(function(name,i)
+		return '#define gridSize_'..name..' '..tonumber(self.gridSize[name])
+	end)):append{
+		'constant int4 gridSize = (int4)(gridSize_x, gridSize_y, gridSize_z, 0);',
+		'constant int4 stepsize = (int4)(1, gridSize_x, gridSize_x * gridSize_y, gridSize_x * gridSize_y * gridSize_z);',
+	}:append{
 		'#define INDEX(a,b,c)	((a) + gridSize_x * ((b) + gridSize_y * (c)))',
 		'#define INDEXV(i)		INDEX((i).x, (i).y, (i).z)',
-	}
-	)
-	lines:append{
-		'#define numStates '..self.eqn.numStates,
-		'#define numWaves '..self.eqn.numWaves,
-		'#define numEigenDisplayVars '..#self.eqn:getEigenInfo().displayVars,
-		'constant int4 gridSize = (int4)(gridSize_x, gridSize_y, gridSize_z, 0);',
-		'constant real4 dxs = (real4)(dx, dy, dz, 0);',
-		'#define dx_min '..clnumber(math.min(table.unpack(self.dxs))),
-		'constant int4 stepsize = (int4)(1, gridSize_x, gridSize_x * gridSize_y, gridSize_x * gridSize_y * gridSize_z);',
-	}
-
-	lines:insert(
+	}:append{
 		'#define CELL_X(i) (real4)('
-		..'(real)(i.x + .5) * dx + mins_x, '
-		..(self.dim<2 and '0,' or '(real)(i.y + .5) * dy + mins_y, ')
-		..(self.dim<3 and '0,' or '(real)(i.z + .5) * dz + mins_z, ')
-		..'0);')
-
-	if self.eqn.getTypeCode then lines:insert(self.eqn:getTypeCode()) end
-
-	-- run here for teh code, and in buffer for the sizeof()
-	lines:insert(self.eqn:getEigenInfo().typeCode)
-
+			..'(real)(i.x + .5) * dx + mins_x, '
+			..(self.dim < 2 and '0,' or '(real)(i.y + .5) * dy + mins_y, ')
+			..(self.dim < 3 and '0,' or '(real)(i.z + .5) * dz + mins_z, ')
+			..'0);',
+	}:append{
+		self.eqn.getTypeCode and self.eqn:getTypeCode() or nil
+	}:append{
+		-- run here for the code, and in buffer for the sizeof()
+		self.eqn:getEigenInfo().typeCode
+	}:append{
 	-- define i, index, and bounds-check
-	lines:insert'#define SETBOUNDS(lhs,rhs)	\\'
-	lines:insert'int4 i = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0); \\'
-	lines:insert'if (i.x < lhs || i.x >= gridSize_x - rhs \\'
-	if self.dim > 1 then lines:insert('|| i.y < lhs || i.y >= gridSize_y - rhs \\') end
-	if self.dim > 2 then lines:insert('|| i.z < lhs || i.z >= gridSize_z - rhs \\') end
-	lines:insert') return; \\'
-	lines:insert'int index = INDEXV(i);'
-	
+		'#define SETBOUNDS(lhs,rhs)	\\',
+		'int4 i = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0); \\',
+		'if (i.x < lhs || i.x >= gridSize_x - rhs'
+			.. (self.dim < 2 and '' or ' || i.y < lhs || i.y >= gridSize_y - rhs')
+			.. (self.dim < 3 and '' or ' || i.z < lhs || i.z >= gridSize_z - rhs')
+			.. ') return; \\',
+		'int index = INDEXV(i);',
+	}
 
 	lines:append(self.displayVars:map(function(var,i)
 		return '#define display_'..var.name..' '..i
 	end))
 
+	-- output the first and last indexes of display vars associated with each buffer
 	local buffers = table()
 	for _,var in ipairs(self.displayVars) do
 		buffers[var.buffer] = buffers[var.buffer] or table()
@@ -262,6 +259,9 @@ function Solver:createCodePrefix()
 	end
 
 	self.codePrefix = lines:concat'\n'
+print()
+print'codePrefix'
+print(self.codePrefix)
 end
 
 function Solver:resetState()
@@ -273,26 +273,30 @@ end
 -- depends on buffers
 function Solver:refreshSolverProgram()
 
-	-- depend on real and nothing else
-	-- TODO move to app
+	-- code that depend on real and nothing else
+	-- TODO move to app, along with reduceBuf
 
-	local commonCode = table{
-		
-		self.app.real == 'double'
-			and '#pragma OPENCL EXTENSION cl_khr_fp64 : enable'
-			or '',
-		
+	local commonCode = table():append
+		{self.app.is64bit and '#pragma OPENCL EXTENSION cl_khr_fp64 : enable' or nil
+	}:append{
 		'typedef '..self.app.real..' real;',
-		
+	
+		--templates in C ...
 		'#define reduce_accum_init INFINITY',
 		'#define reduce_operation(x,y) min(x,y)',
 		'#define reduce_name reduceMin',
 		'#include "reduce.cl"',
-		
+		'#undef reduce_accum_init',
+		'#undef reduce_operation',
+		'#undef reduce_name',
+
 		'#define reduce_accum_init -INFINITY',
 		'#define reduce_operation(x,y) max(x,y)',
 		'#define reduce_name reduceMax',
 		'#include "reduce.cl"',
+		'#undef reduce_accum_init',
+		'#undef reduce_operation',
+		'#undef reduce_name',
 	
 		[[
 __kernel void multAdd(
@@ -313,13 +317,14 @@ __kernel void multAdd(
 	for _,name in ipairs{'Min', 'Max'} do
 		self['reduce'..name..'Kernel'] = self.commonProgram:kernel(
 			'reduce'..name,
-			self.reduceBuf, 
+			self.reduceBuf,
 			{ptr=nil, size=self.localSize1d * ffi.sizeof(self.app.real)},
 			ffi.new('int[1]', self.volume),
 			self.reduceSwapBuf)
 	end
 	
 	self.multAddKernel = self.commonProgram:kernel'multAdd'
+
 
 	
 	local slopeLimiterCode = 'real slopeLimiter(real r) {'
@@ -332,6 +337,7 @@ __kernel void multAdd(
 		self.eqn:getEigenInfo().code or '',
 		
 		'#define initState_'..self.eqn.initStates[self.initState[0]+1],
+		'typedef struct { real min, max; } range_t;',
 		self.eqn:solverCode(clnumber) or '',
 	}:append(self.app.useGLSharing and {
 		'#define calcDisplayVar_dstImage_t '..(self.dim == 3 and 'image3d_t' or 'image2d_t'),
@@ -513,7 +519,7 @@ function Solver:calcDisplayVarToTex(varIndex)
 		self.app.cmds:finish()
 	else
 		-- download to CPU then upload with glTexSubImage2D
-		local ptr = self.calcDisplayVarToTexMem
+		local ptr = self.calcDisplayVarToTexPtr
 		local tex = self.tex
 		self.calcDisplayVarToBufferKernel:setArg(1, ffi.new('int[1]', varIndex))
 		self.calcDisplayVarToBufferKernel:setArg(2, self[var.buffer..'Buf'])

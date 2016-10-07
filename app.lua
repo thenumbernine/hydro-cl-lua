@@ -104,6 +104,7 @@ self.ctx:printInfo()
 	self.real = self.is64bit and 'double' or 'float'
 	ffi.cdef('typedef '..self.real..' real;')
 
+
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
 	self.solver = require 'solver'{
@@ -203,6 +204,8 @@ function HydroCLApp:update(...)
 	
 	local w, h = self:size()
 
+	local ar = w / h
+
 	local varNamesEnabled = table()
 	for i,var in ipairs(self.solver.displayVars) do
 		if var.enabled[0] then
@@ -222,28 +225,38 @@ function HydroCLApp:update(...)
 			if varIndex
 			--and solver.visiblePtr and solver.visiblePtr[0] 
 			then
-				local solverymin, solverymax = solver:calcDisplayVarRange(varIndex)
+				local solverxmin, solverxmax = solver.mins[1], solver.maxs[1]
+				solverxmin, solverxmax = 1.1 * solverxmin - .1 * solverxmax, 1.1 * solverxmax - .1 * solverxmin
+				if solver.dim > 1 then
+					local center = .5 * (solverxmin + solverxmax)
+					solverxmin = (solverxmin - center) * ar + center
+					solverxmax = (solverxmax - center) * ar + center
+				end
 
-				if not solverymin or not solverymax or solverymin ~= solverymin or solverymax ~= solverymax then
-				else	
-					local base = 10	-- round to nearest base-10
-					local scale = 10 -- ...with increments of 10
+				local solverymin, solverymax
+				if solver.dim > 1 then
+					solverymin, solverymax = solver.mins[2], solver.maxs[2]
 					solverymin, solverymax = 1.1 * solverymin - .1 * solverymax, 1.1 * solverymax - .1 * solverymin
-					local newymin = (solverymin<0 and -1 or 1)*(math.abs(solverymin)==math.huge and 1e+100 or base^math.log(math.abs(solverymin),base))
-					local newymax = (solverymax<0 and -1 or 1)*(math.abs(solverymax)==math.huge and 1e+100 or base^math.log(math.abs(solverymax),base))
-					solverymin, solverymax = newymin, newymax
-					do
-						local minDeltaY = 1e-5
-						local deltaY = solverymax - solverymin
-						if deltaY < minDeltaY then
-							solverymax = solverymax + .5 * minDeltaY
-							solverymin = solverymin - .5 * minDeltaY
+				else
+					solverymin, solverymax = solver:calcDisplayVarRange(varIndex)
+
+					if solverymin and solverymax and solverymin == solverymin and solverymax == solverymax then
+						local base = 10	-- round to nearest base-10
+						local scale = 10 -- ...with increments of 10
+						solverymin, solverymax = 1.1 * solverymin - .1 * solverymax, 1.1 * solverymax - .1 * solverymin
+						local newymin = (solverymin<0 and -1 or 1)*(math.abs(solverymin)==math.huge and 1e+100 or base^math.log(math.abs(solverymin),base))
+						local newymax = (solverymax<0 and -1 or 1)*(math.abs(solverymax)==math.huge and 1e+100 or base^math.log(math.abs(solverymax),base))
+						solverymin, solverymax = newymin, newymax
+						do
+							local minDeltaY = 1e-5
+							local deltaY = solverymax - solverymin
+							if deltaY < minDeltaY then
+								solverymax = solverymax + .5 * minDeltaY
+								solverymin = solverymin - .5 * minDeltaY
+							end
 						end
 					end
 				end
-
-				local solverxmin, solverxmax = solver.mins[1], solver.maxs[1]
-				solverxmin, solverxmax = 1.1 * solverxmin - .1 * solverxmax, 1.1 * solverxmax - .1 * solverxmin
 				
 				xmin = xmin or solverxmin
 				xmax = xmax or solverxmax
@@ -273,9 +286,9 @@ function HydroCLApp:update(...)
 			h / graphsHigh)
 		
 		if self.solver.dim == 1 then
-			self:render1D(self.solvers, varName, xmin, ymin, xmax, ymax)
+			self:display1D(self.solvers, varName, xmin, ymin, xmax, ymax)
 		elseif self.solver.dim == 2 then
-			self:render2D(self.solvers, varName, xmin, ymin, xmax, ymax)
+			self:display2D(self.solvers, varName, xmin, ymin, xmax, ymax)
 		end
 	
 		graphCol = graphCol + 1
@@ -288,7 +301,7 @@ function HydroCLApp:update(...)
 	HydroCLApp.super.update(self, ...)
 end
 
-function HydroCLApp:render1D(solvers, varName, xmin, ymin, xmax, ymax)
+function HydroCLApp:display1D(solvers, varName, xmin, ymin, xmax, ymax)
 	local w, h = self:size()
 
 	gl.glMatrixMode(gl.GL_PROJECTION)
@@ -331,7 +344,7 @@ function HydroCLApp:render1D(solvers, varName, xmin, ymin, xmax, ymax)
 	for _,solver in ipairs(solvers) do
 		local varIndex = solver.displayVars:find(nil, function(var) return var.name == varName end)
 		if varIndex then
-			self:renderDisplayVar(solver, varIndex)
+			self:showDisplayVar(solver, varIndex)
 		end
 
 		if self.font then
@@ -393,7 +406,7 @@ function HydroCLApp:render1D(solvers, varName, xmin, ymin, xmax, ymax)
 	end
 end
 
-function HydroCLApp:render2D(solvers, varName, xmin, ymin, xmax, ymax)
+function HydroCLApp:display2D(solvers, varName, xmin, ymin, xmax, ymax)
 	local w, h = self:size()
 
 	gl.glMatrixMode(gl.GL_PROJECTION)
@@ -402,22 +415,32 @@ function HydroCLApp:render2D(solvers, varName, xmin, ymin, xmax, ymax)
 	
 	gl.glMatrixMode(gl.GL_MODELVIEW)
 	gl.glLoadIdentity()
+
+	for _,solver in ipairs(solvers) do 
+		local varIndex = solver.displayVars:find(nil, function(var) return var.name == varName end)
+		if varIndex then
+			local var = solver.displayVars[varIndex]
+			solver:calcDisplayVarToTex(varIndex, var)	
 	
-	self.heatMap2DShader:use()
-	self.solver.tex:bind(0)
-	self.hsvTex:bind(1)
-	gl.glBegin(gl.GL_QUADS)
-	for _,v in ipairs{{0,0},{1,0},{1,1},{0,1}} do
-		gl.glTexCoord2f(v[1], v[2])
-		gl.glVertex2f(v[1], v[2])
+			self.heatMap2DShader:use()
+			self.solver.tex:bind(0)
+			self.hsvTex:bind(1)
+			gl.glBegin(gl.GL_QUADS)
+			for _,v in ipairs{{0,0},{1,0},{1,1},{0,1}} do
+				gl.glTexCoord2f(v[1], v[2])
+				gl.glVertex2f(
+					v[1] * solver.maxs[1] + (1 - v[1]) * solver.mins[1],
+					v[2] * solver.maxs[2] + (1 - v[2]) * solver.mins[2])
+			end
+			gl.glEnd()
+			self.hsvTex:unbind(1)
+			self.solver.tex:unbind(0)
+			self.heatMap2DShader:useNone()
+		end
 	end
-	gl.glEnd()
-	self.hsvTex:unbind(1)
-	self.solver.tex:unbind(0)
-	self.heatMap2DShader:useNone()
 end
 
-function HydroCLApp:renderDisplayVar(solver, varIndex)
+function HydroCLApp:showDisplayVar(solver, varIndex)
 	local var = solver.displayVars[varIndex]
 	solver:calcDisplayVarToTex(varIndex, var)	
 	-- display

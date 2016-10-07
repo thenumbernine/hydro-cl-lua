@@ -2,7 +2,7 @@
 
 __kernel void calcDT(
 	__global real* dtBuf,
-	const __global real* UBuf
+	const __global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
 	if (i.x < 2 || i.x >= gridSize_x - 2 
@@ -16,14 +16,21 @@ __kernel void calcDT(
 		dtBuf[index] = INFINITY;
 		return;
 	}
-	
-	real2 lambdaMinMax = calcCellMinMaxEigenvalues(UBuf + numStates * index); 
-	real lambdaMin = lambdaMinMax.x;
-	real lambdaMax = lambdaMinMax.y;
-	lambdaMin = min((real)0., lambdaMin);
-	lambdaMax = max((real)0., lambdaMax);
-	dtBuf[index] = dx_min / (fabs(lambdaMax - lambdaMin) + 1e-9);
+		
+	const __global cons_t* U = UBuf + index;
+
+	real dt = INFINITY;
+	for (int side = 0; side < dim; ++side) {
+		range_t lambda = calcCellMinMaxEigenvalues(U, side); 
+		lambda.min = min((real)0., lambda.min);
+		lambda.max = max((real)0., lambda.max);
+		dt = min(dt, dxs[side] / (fabs(lambda.max - lambda.min) + (real)1e-9));
+	}
+	dtBuf[index] = dt; 
 }
+
+//1/log(10)
+#define _1_LN_10 0.4342944819032517611567811854911269620060920715332
 
 __kernel void calcErrors(
 	__global real* orthoErrorBuf,
@@ -67,8 +74,8 @@ __kernel void calcErrors(
 				fluxError += fabs(fluxCheck[j] - fluxMatrix[j + numStates * k]);
 			}
 		}
-		orthoErrorBuf[intindex] = log(orthoError) / log(10.);
-		fluxErrorBuf[intindex] = log(fluxError) / log(10.);
+		orthoErrorBuf[intindex] = log(orthoError) * _1_LN_10;
+		fluxErrorBuf[intindex] = log(fluxError) * _1_LN_10;
 	}
 }
 
@@ -160,7 +167,7 @@ __kernel void calcFlux(
 		}
 		
 		int intindex = side + dim * index;
-		const __global real* eigen = eigenBuf + intindex;
+		const __global eigen_t* eigen = eigenBuf + intindex;
 
 		real fluxTilde[numWaves];
 		eigen_leftTransform(fluxTilde, eigen, UAvg);

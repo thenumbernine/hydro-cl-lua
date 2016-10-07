@@ -28,14 +28,51 @@ __kernel void initState(
 #endif
 	;
 	prim_t W;
-#if defined(initState_Sod)
-	W.rho = lhs ? 1 : .125;
+#if defined(initState_constant)
+	W.rho = 1;
 	W.vx = 0;
-	W.P = lhs ? 1 : .1;
+	W.P = 1;
 #elif defined(initState_linear)
 	W.rho = 2 + x.x;
 	W.vx = 0;
-	W.P = 1 + x.x;
+	W.P = 1;
+#elif defined(initState_gaussian)
+	real sigma = 1. / sqrt(10.);
+	W.rho = exp(-x.x*x.x / (sigma*sigma)) + .1;
+	W.vx = 0;
+	W.P = 1 + .1 * (exp(-x.x*x.x / (sigma*sigma)) + 1) / (gamma_1 * W.rho);
+#elif defined(initState_rarefaction_wave)
+	real delta = .1;
+	W.rho = 1;	// lhs ? .2 : .8;
+	W.vx = lhs ? .5 - delta : .5 + delta;
+	W.P = 1;
+#elif defined(initState_Sod)
+	W.rho = lhs ? 1 : .125;
+	W.vx = 0;
+	W.P = lhs ? 1 : .1;
+#elif defined(initState_Sedov)
+	W.rho = 1;
+	W.vx = 0;
+	W.P = (i.x == gridSize.x/2 && i.y == gridSize.y/2 && i.z == gridSize.z/2) ? 1e+3 : 1;
+
+//from SRHD Marti & Muller 2000
+#elif defined(initState_shock_wave)	
+	W.rho = 1;
+	W.vx = lhs ? .5 : 0;
+	W.P = lhs ? 1e+3 : 1;
+#elif defined(initState_relativistic_blast_wave_interaction)
+	real xL = .9 * mins_x + .1 * maxs_x;
+	real xR = .1 * mins_x + .9 * maxs_x;
+	W.rho = 1;
+	W.vx = 0;
+	W.P = x.x < xL ? 1000 : (x.x > xR ? 100 : .01);
+#elif defined(initState_relativistic_blast_wave_test_problem_1)
+	//TODO gamma = 5/3
+	//that means initState should be autogen'd
+	W.rho = lhs ? 10 : 1;
+	W.vx = 0;
+	W.P = gamma_1 * W.rho * (lhs ? 2 : 1e-6);
+
 #else
 #error "unknown initState"
 #endif
@@ -55,25 +92,31 @@ prim_t primFromCons(cons_t U) {
 real calcDisplayVar_UBuf(int displayVar, const __global real* U_) {
 	const __global cons_t* U = (const __global cons_t*)U_;
 	prim_t W = primFromCons(*U);
-	real rho = W.rho;
-	real vx = W.vx;
-	real P = W.P;
 	switch (displayVar) {
-	case display_U_rho: return rho;
-	case display_U_vx: return vx;
-	case display_U_P: return P;
-	case display_U_eInt: return P / (rho * gamma_1);
-	case display_U_eKin: return .5 * vx * vx;
-	case display_U_eTotal: return U->ETotal / rho;
+	case display_U_rho: return W.rho;
+	case display_U_vx: return W.vx;
+	case display_U_P: return W.P;
+	case display_U_mx: return U->mx;
+	case display_U_eInt: return W.P / (W.rho * gamma_1);
+	case display_U_eKin: return .5 * W.vx * W.vx;
+	case display_U_eTotal: return U->ETotal / W.rho;
+	case display_U_EInt: return W.P / gamma_1;
+	case display_U_EKin: return .5 * W.rho * W.vx * W.vx;
+	case display_U_ETotal: return U->ETotal;
+	case display_U_S: return W.P / pow(W.rho, (real)gamma);
+	case display_U_H: return W.P * gamma / gamma_1;
+	case display_U_h: return W.P * gamma / gamma_1 / W.rho;
+	case display_U_HTotal: return W.P * gamma / gamma_1 + .5 * W.rho * W.vx * W.vx;
+	case display_U_hTotal: return W.P * gamma / gamma_1 / W.rho + .5 * W.vx * W.vx;
 	}
 	return 0;
 }
 
 //called from calcDT
-real2 calcCellMinMaxEigenvalues(const __global real* U) {
-	prim_t W = primFromCons(*(const __global cons_t*)U);
+range_t calcCellMinMaxEigenvalues(const __global cons_t* U, int side) {
+	prim_t W = primFromCons(*U);
 	real Cs = sqrt(gamma * W.P / W.rho);
-	return (real2)(W.vx - Cs, W.vx + Cs);
+	return (range_t){.min=W.vx - Cs, .max=W.vx + Cs};
 }
 
 typedef struct {
@@ -129,10 +172,10 @@ __kernel void calcEigenBasis(
 		__global real* wave = waveBuf + numWaves * intindex;
 		fillRow(wave, 1, vx - Cs, vx, vx + Cs);
 
-		__global real* fluxMatrix = fluxMatrixBuf + numStates * numStates * intindex;
-		fillRow(fluxMatrix+0, 3,	0, 									1, 							0			);
-		fillRow(fluxMatrix+1, 3,	.5 * gamma_3 * vxSq, 				-gamma_3 * vx, 				gamma_1		);
-		fillRow(fluxMatrix+2, 3, 	vx * (.5 * gamma_1 * vxSq - hTotal), hTotal - gamma_1 * vxSq,	gamma*vx	);
+		__global real* dF_dU = fluxMatrixBuf + numStates * numStates * intindex;
+		fillRow(dF_dU+0,3,	0, 									1, 							0			);
+		fillRow(dF_dU+1,3,	.5 * gamma_3 * vxSq, 				-gamma_3 * vx, 				gamma_1		);
+		fillRow(dF_dU+2,3, 	vx * (.5 * gamma_1 * vxSq - hTotal), hTotal - gamma_1 * vxSq,	gamma*vx	);
 
 		__global eigen_t* eigen = eigenBuf + intindex;
 		__global real* evL = eigen->evL; 
