@@ -107,7 +107,7 @@ self.ctx:printInfo()
 	--  specifically the call to 'refreshGridSize' within it
 	self.solver = require 'solver'{
 		app = self, 
-		dim = 2,
+		dim = 1,
 		gridSize = {256, 256, 256},
 		slopeLimiter = 'Superbee',
 		
@@ -153,7 +153,8 @@ self.ctx:printInfo()
 		fragmentCode = '#define FRAGMENT_SHADER\n'..code,
 		uniforms = {
 			'useLog',
-			'scale',
+			'valueMin',
+			'valueMax',
 			'tex',
 			'gradient',
 			'alpha',
@@ -161,7 +162,8 @@ self.ctx:printInfo()
 	}
 	self.heatMap2DShader:use()
 	gl.glUniform1i(self.heatMap2DShader.uniforms.useLog, 0)
-	gl.glUniform1f(self.heatMap2DShader.uniforms.scale, 1)
+	gl.glUniform1f(self.heatMap2DShader.uniforms.valueMin, 0)
+	gl.glUniform1f(self.heatMap2DShader.uniforms.valueMax, 0)
 	gl.glUniform1i(self.heatMap2DShader.uniforms.tex, 0)
 	gl.glUniform1i(self.heatMap2DShader.uniforms.gradient, 1)
 	gl.glUniform1f(self.heatMap2DShader.uniforms.alpha, 1)
@@ -288,11 +290,46 @@ function HydroCLApp:update(...)
 		elseif self.solver.dim == 2 then
 			self:display2D(self.solvers, varName, xmin, ymin, xmax, ymax)
 		end
-	
+
 		graphCol = graphCol + 1
 		if graphCol == graphsWide then
 			graphCol = 0
 			graphRow = graphRow + 1
+		end
+	end
+
+	gl.glViewport(0,0,w,h)
+	gl.glMatrixMode(gl.GL_PROJECTION)
+	gl.glLoadIdentity()
+	gl.glOrtho(0, w/h, 0, 1, -1, 1)
+	gl.glMatrixMode(gl.GL_MODELVIEW)
+	gl.glLoadIdentity()
+
+	if self.font then
+		local solverNames = self.solvers:map(function(solver)
+			return {
+				text = ('(%.3f) '):format(solver.t)..solver.name,
+				color = solver.color,
+			}
+		end)
+		local fontSizeX = .02
+		local fontSizeY = .02
+		local maxlen = solverNames:map(function(solverName)
+			return self.font:draw{
+				text = solverName.text,
+				fontSize = {fontSizeX, -fontSizeY},
+				dontRender = true,
+				multiLine = false,
+			}
+		end):inf()
+		for i,solverName in ipairs(solverNames) do
+			self.font:draw{
+				pos = {w/h-maxlen,fontSizeY*(i+1)},
+				text = solverName.text,
+				color = {solverName.color[1], solverName.color[2], solverName.color[3],1},
+				fontSize = {fontSizeX, -fontSizeY},
+				multiLine = false,
+			}
 		end
 	end
 
@@ -367,44 +404,10 @@ function HydroCLApp:display1D(solvers, varName, xmin, ymin, xmax, ymax)
 			}
 		end
 	end
-
-	gl.glViewport(0,0,w,h)
-	gl.glMatrixMode(gl.GL_PROJECTION)
-	gl.glLoadIdentity()
-	gl.glOrtho(0, w/h, 0, 1, -1, 1)
-	gl.glMatrixMode(gl.GL_MODELVIEW)
-	gl.glLoadIdentity()
-
-	if self.font then
-		local solverNames = solvers:map(function(solver)
-			return {
-				text = ('(%.3f) '):format(solver.t)..solver.name,
-				color = solver.color,
-			}
-		end)
-		local fontSizeX = .02
-		local fontSizeY = .02
-		local maxlen = solverNames:map(function(solverName)
-			return self.font:draw{
-				text = solverName.text,
-				fontSize = {fontSizeX, -fontSizeY},
-				dontRender = true,
-				multiLine = false,
-			}
-		end):inf()
-		for i,solverName in ipairs(solverNames) do
-			self.font:draw{
-				pos = {w/h-maxlen,fontSizeY*(i+1)},
-				text = solverName.text,
-				color = {solverName.color[1], solverName.color[2], solverName.color[3],1},
-				fontSize = {fontSizeX, -fontSizeY},
-				multiLine = false,
-			}
-		end
-	end
 end
 
 function HydroCLApp:display2D(solvers, varName, xmin, ymin, xmax, ymax)
+						
 	local w, h = self:size()
 
 	gl.glMatrixMode(gl.GL_PROJECTION)
@@ -414,13 +417,19 @@ function HydroCLApp:display2D(solvers, varName, xmin, ymin, xmax, ymax)
 	gl.glMatrixMode(gl.GL_MODELVIEW)
 	gl.glLoadIdentity()
 
+	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
+	-- I've got to rethink the visualization
 	for _,solver in ipairs(solvers) do 
 		local varIndex = solver.displayVars:find(nil, function(var) return var.name == varName end)
 		if varIndex then
+			local valueMin, valueMax = solver:calcDisplayVarRange(varIndex)
+			
 			local var = solver.displayVars[varIndex]
 			solver:calcDisplayVarToTex(varIndex, var)	
 	
 			self.heatMap2DShader:use()
+			gl.glUniform1f(self.heatMap2DShader.uniforms.valueMin, valueMin)
+			gl.glUniform1f(self.heatMap2DShader.uniforms.valueMax, valueMax)
 			self.solver.tex:bind(0)
 			self.hsvTex:bind(1)
 			gl.glBegin(gl.GL_QUADS)

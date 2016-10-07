@@ -123,10 +123,10 @@ function Solver:createDisplayVars()
 	makevars('U', table.unpack(self.eqn.displayVars))
 	makevars('wave', range(0,self.eqn.numWaves-1):unpack())
 	makevars('eigen', table.unpack(self.eqn:getEigenInfo().displayVars))
-	makevars('dt', '0')
 	makevars('deltaUTilde', range(0,self.eqn.numWaves-1):unpack())
 	makevars('rTilde', range(0,self.eqn.numWaves-1):unpack())
 	makevars('flux', range(0,self.eqn.numStates-1):unpack())
+	makevars('reduce', '0')	-- might contain nonsense :-p
 	makevars('deriv', range(0,self.eqn.numStates-1):unpack())
 	makevars('error', 'ortho', 'flux')
 end

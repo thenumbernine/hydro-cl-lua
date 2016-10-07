@@ -25,7 +25,7 @@ __kernel void calcDisplayVar_name(
 	} else if (displayVar >= displayFirst_deriv && displayVar <= displayLast_deriv) {
 		const __global real* deriv = buf + index * numStates;
 		value = deriv[displayVar - displayFirst_deriv];
-	} else if (displayVar == display_dt_0) {
+	} else if (displayVar == display_reduce_0) {
 		value = buf[index];
 	} else if (displayVar == display_error_ortho) {
 		value = ((const __global error_t*)buf)[intindex].ortho;
