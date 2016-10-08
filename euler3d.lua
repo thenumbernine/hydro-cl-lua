@@ -10,7 +10,7 @@ Euler3D.numStates = 5
 
 Euler3D.consVars = {'rho', 'mx', 'my', 'mz', 'ETotal'}
 Euler3D.primVars = {'rho', 'vx', 'vy', 'vz', 'P'}
-Euler3D.mirrorVars = {'m'}
+Euler3D.mirrorVars = {{'mx'}, {'my'}, {'mz'}}
 Euler3D.displayVars = {
 	'rho',
 	'vx', 'vy', 'vz', 'v',

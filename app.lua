@@ -111,12 +111,12 @@ self.ctx:printInfo()
 	--  specifically the call to 'refreshGridSize' within it
 	self.solver = require 'solver'{
 		app = self, 
-		dim = 1,
+		dim = 2,
 		gridSize = {256, 256, 256},
 		boundary = {xmin='mirror', xmax='mirror', ymin='mirror', ymax='mirror'},
 		slopeLimiter = 'Superbee',
 		
-		--[[
+		-- [[
 		--eqn = require 'euler1d'(),
 		eqn = require 'euler3d'(),
 		mins = {-1, -1, -1},
@@ -129,7 +129,7 @@ self.ctx:printInfo()
 		maxs = {1, 1, 1},
 		--]]
 
-		-- [[
+		--[[
 		eqn = require 'adm1d3to5var'(),
 		mins = {0, 0, 0},
 		maxs = {300, 300, 300},
@@ -425,15 +425,43 @@ function HydroCLApp:display1D(solvers, varName, xmin, ymin, xmax, ymax)
 end
 
 function HydroCLApp:display2D(solvers, varName, xmin, ymin, xmax, ymax)
-						
 	local w, h = self:size()
 
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
-	gl.glOrtho(xmin, xmax, ymin, ymax, -100, 100)
-	
+	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
 	gl.glMatrixMode(gl.GL_MODELVIEW)
 	gl.glLoadIdentity()
+
+	gl.glColor3f(.1, .1, .1)
+	local xrange = xmax - xmin
+	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
+	local xticmin = math.floor(xmin/xstep)
+	local xticmax = math.ceil(xmax/xstep)
+	gl.glBegin(gl.GL_LINES)
+	for x=xticmin,xticmax do
+		gl.glVertex2f(x*xstep,ymin)
+		gl.glVertex2f(x*xstep,ymax)
+	end
+	gl.glEnd()
+	local yrange = ymax - ymin
+	local ystep = 10^math.floor(math.log(yrange, 10) - .5)
+	local yticmin = math.floor(ymin/ystep)
+	local yticmax = math.ceil(ymax/ystep)
+	gl.glBegin(gl.GL_LINES)
+	for y=yticmin,yticmax do
+		gl.glVertex2f(xmin,y*ystep)
+		gl.glVertex2f(xmax,y*ystep)
+	end
+	gl.glEnd()
+	
+	gl.glColor3f(.5, .5, .5)
+	gl.glBegin(gl.GL_LINES)
+	gl.glVertex2f(xmin, 0)
+	gl.glVertex2f(xmax, 0)
+	gl.glVertex2f(0, ymin)
+	gl.glVertex2f(0, ymax)
+	gl.glEnd()
 
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
@@ -461,6 +489,29 @@ function HydroCLApp:display2D(solvers, varName, xmin, ymin, xmax, ymax)
 			self.hsvTex:unbind(1)
 			self.solver.tex:unbind(0)
 			self.heatMap2DShader:useNone()
+
+			if self.font then
+				local fontSizeX = (xmax - xmin) * .025
+				local fontSizeY = (ymax - ymin) * .025
+				local ystep = ystep * 2
+				for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
+					local value = (y - ymin) * (valueMax - valueMin) / (ymax - ymin)
+					self.font:draw{
+						pos={xmin * .99 + xmax * .01, y + fontSizeY * .5},
+						text=('%.5f'):format(value),
+						color = {1,1,1,1},
+						fontSize={fontSizeX, -fontSizeY},
+						multiLine=false,
+					}
+				end
+				self.font:draw{
+					pos={xmin, ymax},
+					text=varName,
+					color = {1,1,1,1},
+					fontSize={fontSizeX, -fontSizeY},
+					multiLine=false,
+				}
+			end
 		end
 	end
 end

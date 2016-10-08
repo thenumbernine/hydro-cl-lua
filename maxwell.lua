@@ -8,7 +8,7 @@ Maxwell.name = 'Maxwell'
 
 Maxwell.numStates = 6
 Maxwell.consVars = {'epsEx', 'epsEy', 'epsEz', 'Bx', 'By', 'Bz'}
-Maxwell.mirrorVars = {'epsE', 'B'}
+Maxwell.mirrorVars = {{'epsEx', 'Bx'}, {'epsEy', 'By'}, {'epsEz', 'Bz'}}
 Maxwell.displayVars = {
 	'Ex', 'Ey', 'Ez', 'E',
 	'Bx', 'By', 'Bz', 'B',

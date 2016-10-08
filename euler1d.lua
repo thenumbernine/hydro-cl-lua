@@ -15,7 +15,7 @@ Euler1D.primVars = {'rho', 'vx', 'P'}
 -- but in 1D, there is only 'mx', not 'my' or 'mz'
 -- soo... the system will break for 2D and 3D. 
 -- soo ... fix the system
-Euler1D.mirrorVars = {'m'}
+Euler1D.mirrorVars = {{'mx'}, {}, {}}
 
 Euler1D.displayVars = {
 	'rho',
