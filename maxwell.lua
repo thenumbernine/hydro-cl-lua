@@ -1,6 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'equation'
+local clnumber = require 'clnumber'
 
 local Maxwell = class(Equation)
 Maxwell.name = 'Maxwell'
@@ -18,7 +19,7 @@ Maxwell.initStateNames = {'default'}
 
 Maxwell.eps0 = 1
 Maxwell.mu0 = 1
-function Maxwell:getInitStateCode(solver, clnumber)
+function Maxwell:getInitStateCode(solver)
 	return table{
 		'#define eps0 '..clnumber(self.eps0),
 		'#define mu0 '..clnumber(self.mu0),
@@ -49,7 +50,7 @@ __kernel void initState(
 	}:concat'\n'
 end
 
-function Maxwell:solverCode(clnumber, solver)
+function Maxwell:solverCode(solver)
 	return table{ 
 		'#define eps0 '..clnumber(self.eps0),
 		'#define mu0 '..clnumber(self.mu0),

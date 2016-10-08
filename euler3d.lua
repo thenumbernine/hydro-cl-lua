@@ -1,6 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'equation'
+local clnumber = require 'clnumber'
 
 local Euler3D = class(Equation)
 Euler3D.name = 'Euler3D'
@@ -152,7 +153,7 @@ typedef struct {
 ]]
 end
 
-function Euler3D:getInitStateCode(solver, clnumber)
+function Euler3D:getInitStateCode(solver)
 	local initState = self.initStates[1+solver.initStatePtr[0]]
 	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
 	local initStateDefLines = '#define INIT_STATE_CODE \\\n'
@@ -213,7 +214,7 @@ __kernel void initState(
 	}:concat'\n'
 end
 
-function Euler3D:solverCode(clnumber, solver)	
+function Euler3D:solverCode(solver)	
 	return table{
 		'#define gamma '..clnumber(self.gamma),
 		'#include "euler3d.cl"',

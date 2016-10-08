@@ -6,6 +6,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local vec3sz = require 'vec3sz'
 local vec3 = require 'vec.vec3'
+local clnumber = require 'clnumber'
 
 local xs = table{'x', 'y', 'z'}
 local minmaxs = table{'min', 'max'}
@@ -84,13 +85,6 @@ function Solver:init(args)
 	end
 
 	self:refreshGridSize()
-end
-
-local function clnumber(x)
-	local s = tostring(x)
-	if s:find'e' then return s end
-	if not s:find('%.') then s = s .. '.' end
-	return s
 end
 
 function Solver:refreshGridSize()
@@ -353,7 +347,7 @@ __kernel void multAdd(
 		
 		'typedef struct { real min, max; } range_t;',
 		errorTypeCode,	
-		self.eqn:solverCode(clnumber, self) or '',
+		self.eqn:solverCode(self) or '',
 	}:append(self.app.useGLSharing and {
 		'#define calcDisplayVar_dstImage_t '..(self.dim == 3 and 'image3d_t' or 'image2d_t'),
 		'#define calcDisplayVar_writeImageArgs '..(self.dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)'),

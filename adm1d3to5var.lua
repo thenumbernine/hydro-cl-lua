@@ -15,7 +15,7 @@ ADM1D3to5Var.displayVars = table()
 	:append(ADM1D3to5Var.consVars)
 	:append{'K_xx', 'volume'}
 
-function ADM1D3to5Var:getInitStateCode(solver, clnumber)
+function ADM1D3to5Var:getInitStateCode(solver)
 	local symmath = require 'symmath'
 symmath.tostring = require 'symmath.tostring.SingleLine'		
 	local x = symmath.var'x'
@@ -104,9 +104,7 @@ __kernel void initState(
 	]]}:concat'\n'
 end
 
-function ADM1D3to5Var:solverCode(clnumber)
-
-
+function ADM1D3to5Var:solverCode()
 	return table()
 	:append(self.codes:map(function(code,name,t)
 		return 'real init_calc_'..name..code, #t+1

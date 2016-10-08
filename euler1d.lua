@@ -1,6 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'equation'
+local clnumber = require 'clnumber'
 
 local Euler1D = class(Equation)
 Euler1D.name = 'Euler1D'
@@ -114,7 +115,7 @@ function Euler1D:getTypeCode()
 		Euler1D.super.getTypeCode(self) 
 end
 
-function Euler1D:getInitStateCode(solver, clnumber)
+function Euler1D:getInitStateCode(solver)
 	local initState = self.initStates[1+solver.initStatePtr[0]]
 	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
 	local initStateDefLines = '#define INIT_STATE_CODE \\\n'
@@ -163,7 +164,7 @@ __kernel void initState(
 	}:concat'\n'
 end
 
-function Euler1D:solverCode(clnumber, solver)	
+function Euler1D:solverCode(solver)	
 	return table{
 		'#define gamma '..clnumber(self.gamma),
 		'#include "euler1d.cl"',
