@@ -9,6 +9,13 @@ Euler1D.numStates = 3
 
 Euler1D.consVars = {'rho', 'mx', 'ETotal'}
 Euler1D.primVars = {'rho', 'vx', 'P'}
+
+-- notice the current cheap system just appends the dim to mirror on the var prefix
+-- but in 1D, there is only 'mx', not 'my' or 'mz'
+-- soo... the system will break for 2D and 3D. 
+-- soo ... fix the system
+Euler1D.mirrorVars = {'m'}
+
 Euler1D.displayVars = {
 	'rho',
 	'vx',
@@ -98,24 +105,67 @@ Euler1D.initStates = {
 
 Euler1D.initStateNames = table.map(Euler1D.initStates, function(info) return info.name end)
 
+-- TODO make this a gui variable, and modifyable in realtime?
+Euler1D.gamma = 7/5
+
 function Euler1D:getTypeCode()
 	return 
 		require 'makestruct'('prim_t', self.primVars) .. '\n' ..
 		Euler1D.super.getTypeCode(self) 
 end
 
-function Euler1D:solverCode(clnumber, solver)
+function Euler1D:getInitStateCode(solver, clnumber)
 	local initState = self.initStates[1+solver.initStatePtr[0]]
 	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
 	local initStateDefLines = '#define INIT_STATE_CODE \\\n'
 		.. initState.code:gsub('\n', '\\\n')
 	
-	-- TODO make this a gui variable, and modifyable in realtime?
-	local gamma = initState.gamma or 7/5
+	self.gamma = initState.gamma
 	
 	return table{
-		'#define gamma '..clnumber(gamma),
+		'#define gamma '..clnumber(self.gamma),
 		initStateDefLines,
+		[[
+#define gamma_1 (gamma-1.)
+#define gamma_3 (gamma-3.)
+
+cons_t consFromPrim(prim_t W) {
+	return (cons_t){
+		.rho = W.rho,
+		.mx = W.rho * W.vx,
+		.ETotal = .5 * W.rho * W.vx * W.vx + W.P / gamma_1,
+	};
+}
+
+__kernel void initState(
+	__global cons_t* UBuf
+) {
+	SETBOUNDS(0,0);
+	real4 x = CELL_X(i);
+	real4 mids = (real).5 * (mins + maxs);
+	bool lhs = x[0] < mids[0]
+#if dim > 1
+		&& x[1] < mids[1]
+#endif
+#if dim > 2
+		&& x[2] < mids[2]
+#endif
+	;
+	real rho = 0;
+	real vx = 0;
+	real P = 0;
+
+	INIT_STATE_CODE
+
+	UBuf[index] = consFromPrim((prim_t){.rho=rho, .vx=vx, .P=P});
+}
+]]
+	}:concat'\n'
+end
+
+function Euler1D:solverCode(clnumber, solver)	
+	return table{
+		'#define gamma '..clnumber(self.gamma),
 		'#include "euler1d.cl"',
 	}:concat'\n'
 end

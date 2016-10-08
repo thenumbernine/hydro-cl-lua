@@ -1,41 +1,6 @@
 #define gamma_1 (gamma-1.)
 #define gamma_3 (gamma-3.)
 
-real calc_hTotal(real rho, real P, real ETotal) {
-	return (P + ETotal) / rho;
-}
-
-cons_t consFromPrim(prim_t W) {
-	return (cons_t){
-		.rho = W.rho,
-		.mx = W.rho * W.vx,
-		.ETotal = .5 * W.rho * W.vx * W.vx + W.P / (gamma - 1),
-	};
-}
-
-__kernel void initState(
-	__global cons_t* UBuf
-) {
-	SETBOUNDS(0,0);
-	real4 x = CELL_X(i);
-	real4 mids = (real).5 * (mins + maxs);
-	bool lhs = x[0] < mids[0]
-#if dim > 1
-		&& x[1] < mids[1]
-#endif
-#if dim > 2
-		&& x[2] < mids[2]
-#endif
-	;
-	real rho = 0;
-	real vx = 0;
-	real P = 0;
-
-	INIT_STATE_CODE
-
-	UBuf[index] = consFromPrim((prim_t){.rho=rho, .vx=vx, .P=P});
-}
-
 prim_t primFromCons(cons_t U) {
 	real EInt = U.ETotal - .5 * U.mx * U.mx / U.rho;
 	return (prim_t){
@@ -77,6 +42,10 @@ range_t calcCellMinMaxEigenvalues(const __global cons_t* U, int side) {
 	prim_t W = primFromCons(*U);
 	real Cs = sqrt(gamma * W.P / W.rho);
 	return (range_t){.min=W.vx - Cs, .max=W.vx + Cs};
+}
+
+real calc_hTotal(real rho, real P, real ETotal) {
+	return (P + ETotal) / rho;
 }
 
 typedef struct {

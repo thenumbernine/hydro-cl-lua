@@ -99,6 +99,7 @@ function Solver:refreshGridSize()
 	self:createBuffers()		-- depends on eqn & gridsize
 	self:createCodePrefix()		-- depends on eqn, gridsize, displayvars
 
+	self:refreshInitStateProgram()
 	self:refreshSolverProgram()
 	self:refreshBoundaryProgram()
 
@@ -266,6 +267,15 @@ function Solver:createCodePrefix()
 	self.codePrefix = lines:concat'\n'
 end
 
+function Solver:refreshInitStateProgram()
+	local initStateCode = table{
+		self.codePrefix,
+		self.eqn:getInitStateCode(self, clnumber),
+	}:concat'\n'
+	self.initStateProgram = require 'cl.program'{context=self.app.ctx, devices={self.app.device}, code=initStateCode}
+	self.initStateKernel = self.initStateProgram:kernel('initState', self.UBuf)
+end
+
 function Solver:resetState()
 	self.app.cmds:finish()
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.initStateKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
@@ -277,6 +287,7 @@ function Solver:refreshSolverProgram()
 
 	-- code that depend on real and nothing else
 	-- TODO move to app, along with reduceBuf
+
 
 	local commonCode = table():append
 		{self.app.is64bit and '#pragma OPENCL EXTENSION cl_khr_fp64 : enable' or nil
@@ -328,7 +339,9 @@ __kernel void multAdd(
 	self.multAddKernel = self.commonProgram:kernel'multAdd'
 
 
-	
+	-- solver code
+
+
 	local slopeLimiterCode = 'real slopeLimiter(real r) {'
 		.. self.app.slopeLimiters[1+self.slopeLimiter[0]].code 
 		.. '}'
@@ -369,8 +382,6 @@ __kernel void multAdd(
 --		message = string.split(string.trim(message),'\n'):filter(function(line) return line:find'error' end):concat'\n'
 		error(message)	
 	end
-
-	self.initStateKernel = self.solverProgram:kernel('initState', self.UBuf)
 
 	self.calcDTKernel = self.solverProgram:kernel('calcDT', self.reduceBuf, self.UBuf);
 	
@@ -447,7 +458,7 @@ __kernel void boundary(
 			periodic = '\t\tUBuf['..index'j'..'] = UBuf['..index'gridSize_x-2*numGhost+j'..'];',
 			mirror = table{
 				'\t\tUBuf['..index'j'..'] = UBuf['..index'2*numGhost-1-j'..'];',
-			}:append(table.map(self.eqn.mirrorVars, function(var)
+			}:append(table.map(self.eqn.mirrorVars or {}, function(var)
 				return '\t\tUBuf['..index'j'..'].'..var..x..' = -UBuf['..index'j'..'].'..var..x..';'
 			end)):concat'\n',
 			freeflow = '\t\tUBuf['..index'j'..'] = UBuf['..index'numGhost'..'];',
@@ -457,7 +468,7 @@ __kernel void boundary(
 			periodic = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'numGhost+j'..'];',
 			mirror = table{
 				'\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'gridSize_x-numGhost-1-j'..'];',
-			}:append(table.map(self.eqn.mirrorVars, function(var)
+			}:append(table.map(self.eqn.mirrorVars or {}, function(var)
 				return '\t\tUBuf['..index'gridSize_x-numGhost+j'..'].'..var..x..' = -UBuf['..index'gridSize_x-numGhost+j'..'].'..var..x..';'
 			end)):concat'\n',
 			freeflow = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'gridSize_x-numGhost-1'..'];',

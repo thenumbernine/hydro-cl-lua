@@ -1,26 +1,6 @@
-//TODO make parameters out of this somehow:
-//real calc_f(alpha) { return 1.; }
-//real calc_f(alpha) { return .49; }
-//real calc_f(alpha) { return 1.69; }
-//real calc_dalpha_f(alpha) { return 0.; }
 constant real kappa = 1.;
 real calc_f(alpha) { return 1. + kappa / (alpha * alpha); }
 real calc_dalpha_f(alpha) { return -kappa / (alpha * alpha * alpha); }
-
-__kernel void initState(
-	__global cons_t* UBuf
-) {
-	SETBOUNDS(0,0);
-	real4 xs = CELL_X(i);
-	real x = xs[0];
-	__global cons_t* U = UBuf + index;
-	U->alpha = init_calc_alpha(x);
-	U->gamma_xx = init_calc_gamma_xx(x);
-	U->a_x = init_calc_dx_alpha(x) / init_calc_alpha(x);
-	U->d_xxx = .5 * init_calc_dx_gamma_xx(x);
-	real K_xx = init_calc_K_xx(x);
-	U->KTilde_xx = K_xx / sqrt(U->gamma_xx);
-}
 
 real calcDisplayVar_UBuf(int displayVar, const __global real* U_) {
 	const __global cons_t* U = (const __global cons_t*)U_;
@@ -42,10 +22,13 @@ real calcMaxEigenvalue(real alpha, real gamma_xx) {
 	return lambda;
 }
 
-real2 calcCellMinMaxEigenvalues(const __global real* U_) {
+range_t calcCellMinMaxEigenvalues(
+	const __global real* U_,
+	int side
+) {
 	const __global cons_t* U = (const __global cons_t*)U_;
 	real lambda = calcMaxEigenvalue(U->alpha, U->gamma_xx);
-	return (real2)(-lambda, lambda);
+	return (range_t){.min=-lambda, .max=lambda};
 }
 
 typedef struct {

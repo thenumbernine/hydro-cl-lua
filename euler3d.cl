@@ -8,41 +8,6 @@ real calc_EInt(prim_t W) { return W.P / gamma_1; }
 real calc_eInt(prim_t W) { return calc_EInt(W) / W.rho; }
 real calc_ETotal(prim_t W) { return calc_EKin(W) + calc_EInt(W); }
 
-cons_t consFromPrim(prim_t W) {
-	return (cons_t){
-		.rho = W.rho,
-		.mx = W.rho * W.vx,
-		.my = W.rho * W.vy,
-		.mz = W.rho * W.vz,
-		.ETotal = calc_ETotal(W),
-	};
-}
-
-__kernel void initState(
-	__global cons_t* UBuf
-) {
-	SETBOUNDS(0,0);
-	real4 x = CELL_X(i);
-	real4 mids = (real).5 * (mins + maxs);
-	bool lhs = x[0] < mids[0]
-#if dim > 1
-		&& x[1] < mids[1]
-#endif
-#if dim > 2
-		&& x[2] < mids[2]
-#endif
-	;
-	real rho = 0;
-	real vx = 0;
-	real vy = 0;
-	real vz = 0;
-	real P = 0;
-	
-	INIT_STATE_CODE
-	
-	UBuf[index] = consFromPrim((prim_t){.rho=rho, .vx=vx, .vy=vy, .vz=vz, .P=P});
-}
-
 prim_t primFromCons(cons_t U) {
 	real EInt = U.ETotal - .5 * (U.mx * U.mx + U.my * U.my + U.mz * U.mz) / U.rho;
 	return (prim_t){

@@ -8,13 +8,14 @@ ADM1D3to5Var.name = 'ADM1D3to5Var'
 ADM1D3to5Var.numStates = 5
 
 ADM1D3to5Var.consVars = {'alpha', 'gamma_xx', 'a_x', 'd_xxx', 'KTilde_xx'}
+
 ADM1D3to5Var.initStateNames = {'gaussianWave'}
 
 ADM1D3to5Var.displayVars = table()
 	:append(ADM1D3to5Var.consVars)
 	:append{'K_xx', 'volume'}
 
-function ADM1D3to5Var:solverCode(clnumber)
+function ADM1D3to5Var:getInitStateCode(solver, clnumber)
 	local symmath = require 'symmath'
 symmath.tostring = require 'symmath.tostring.SingleLine'		
 	local x = symmath.var'x'
@@ -80,11 +81,34 @@ print'dalpha_f'
 	local dalpha_f = f:diff(alphaVar):simplify()
 	codes.dalpha_f = compileC(dalpha_f, {alphaVar})
 
-	for name,code in pairs(codes) do
-	end
+	self.codes = codes
 
 	return table()
 	:append(codes:map(function(code,name,t)
+		return 'real init_calc_'..name..code, #t+1
+	end)):append{[[
+__kernel void initState(
+	__global cons_t* UBuf
+) {
+	SETBOUNDS(0,0);
+	real4 xs = CELL_X(i);
+	real x = xs[0];
+	__global cons_t* U = UBuf + index;
+	U->alpha = init_calc_alpha(x);
+	U->gamma_xx = init_calc_gamma_xx(x);
+	U->a_x = init_calc_dx_alpha(x) / init_calc_alpha(x);
+	U->d_xxx = .5 * init_calc_dx_gamma_xx(x);
+	real K_xx = init_calc_K_xx(x);
+	U->KTilde_xx = K_xx / sqrt(U->gamma_xx);
+}
+	]]}:concat'\n'
+end
+
+function ADM1D3to5Var:solverCode(clnumber)
+
+
+	return table()
+	:append(self.codes:map(function(code,name,t)
 		return 'real init_calc_'..name..code, #t+1
 	end)):append{
 		'#include "adm1d3to5var.cl"',

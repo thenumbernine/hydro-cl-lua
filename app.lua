@@ -81,7 +81,10 @@ end
 	-- TODO favor cl_khr_fp64, cl_khr_3d_image_writes, cl_khr_gl_sharing
 
 	self.device, self.is64bit = get64bit(self.platform:getDevices{gpu=true})
-self.is64bit = false
+
+	-- TODO override with cmd-line?
+	self.is64bit = false
+
 print('is 64 bit?',self.is64bit)
 print()
 self.device:printInfo()
@@ -108,12 +111,12 @@ self.ctx:printInfo()
 	--  specifically the call to 'refreshGridSize' within it
 	self.solver = require 'solver'{
 		app = self, 
-		dim = 2,
+		dim = 1,
 		gridSize = {256, 256, 256},
 		boundary = {xmin='mirror', xmax='mirror', ymin='mirror', ymax='mirror'},
 		slopeLimiter = 'Superbee',
 		
-		-- [[
+		--[[
 		--eqn = require 'euler1d'(),
 		eqn = require 'euler3d'(),
 		mins = {-1, -1, -1},
@@ -126,7 +129,7 @@ self.ctx:printInfo()
 		maxs = {1, 1, 1},
 		--]]
 
-		--[[
+		-- [[
 		eqn = require 'adm1d3to5var'(),
 		mins = {0, 0, 0},
 		maxs = {300, 300, 300},
@@ -506,7 +509,7 @@ function HydroCLApp:updateGUI()
 	ig.igInputFloat('CFL', self.solver.cfl)
 
 	if ig.igCombo('init state', self.solver.initStatePtr, self.solver.eqn.initStateNames) then
-		self.solver:refreshSolverProgram()
+		self.solver:refreshInitStateProgram()
 	end
 
 	if ig.igCombo('slope limiter', self.solver.slopeLimiter, self.slopeLimiterNames) then

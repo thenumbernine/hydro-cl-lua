@@ -16,13 +16,45 @@ Maxwell.displayVars = {
 
 Maxwell.initStateNames = {'default'}
 
+Maxwell.eps0 = 1
+Maxwell.mu0 = 1
+function Maxwell:getInitStateCode(solver, clnumber)
+	return table{
+		'#define eps0 '..clnumber(self.eps0),
+		'#define mu0 '..clnumber(self.mu0),
+		[[
+__kernel void initState(
+	__global cons_t* UBuf
+) {
+	SETBOUNDS(0,0);
+	real4 x = CELL_X(i);
+	real4 mids = (real).5 * (mins + maxs);
+	bool lhs = x[0] < mids[0]
+#if dim > 1
+		&& x[1] < mids[1]
+#endif
+#if dim > 2
+		&& x[2] < mids[2]
+#endif
+	;
+	__global cons_t* U = UBuf + index;
+	U->epsEx = 0;
+	U->epsEy = 0;
+	U->epsEz = 1 * eps0;
+	U->Bx = 1;
+	U->By = lhs ? 1 : -1;
+	U->Bz = 0;
+}
+]],
+	}:concat'\n'
+end
+
 function Maxwell:solverCode(clnumber, solver)
-	local eps0 = 1
-	local mu0 = 1
-	return 
-		'#define eps0 '..clnumber(eps0)..'\n'..
-		'#define mu0 '..clnumber(mu0)..'\n'..
-		'#include "maxwell.cl"'
+	return table{ 
+		'#define eps0 '..clnumber(self.eps0),
+		'#define mu0 '..clnumber(self.mu0),
+		'#include "maxwell.cl"',
+	}:concat'\n'
 end
 
 function Maxwell:getEigenInfo()
