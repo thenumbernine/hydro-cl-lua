@@ -460,7 +460,7 @@ end
 function ADM_BonaMasso_1D_3Var:solverCode()
 	return table{
 		self:codePrefix(),
-		'#include "adm1d3to5var.cl"',
+		'#include "adm1d3var.cl"',
 	}:concat'\n'
 end
 
@@ -471,7 +471,7 @@ function ADM_BonaMasso_1D_3Var:getEigenInfo()
 		typeCode =
 			makeStruct('eigen_t', self.eigenVars) .. '\n' ..
 			makeStruct('fluxXform_t', {'alpha', 'gamma_xx', 'f'}),
-		-- don't use the default matrix stuff. instead it'll be provided in adm1d3to5var.cl
+		-- don't use the default matrix stuff. instead it'll be provided in adm1d3var.cl
 		code = nil,
 		displayVars = self.eigenVars,
 	}

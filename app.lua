@@ -84,7 +84,7 @@ end
 	self.device, self.is64bit = get64bit(self.platform:getDevices{gpu=true})
 
 	-- TODO override with cmd-line?
-	self.is64bit = false
+--	self.is64bit = false
 
 print('is 64 bit?',self.is64bit)
 print()
@@ -132,7 +132,7 @@ self.ctx:printInfo()
 		--]]
 
 		--[[
-		eqn = require 'adm1d3to5var'(),
+		eqn = require 'adm1d3var'(),
 		mins = {0, 0, 0},
 		maxs = {300, 300, 300},
 		--]]
