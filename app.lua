@@ -114,18 +114,18 @@ self.ctx:printInfo()
 		app = self, 
 		dim = 1,
 		gridSize = {256, 256, 256},
-		boundary = {xmin='mirror', xmax='mirror', ymin='mirror', ymax='mirror'},
-		integrator = 'Runge-Kutta 4',
+		boundary = {xmin='freeflow', xmax='freeflow', ymin='freeflow', ymax='freeflow'},
+		integrator = 'Runge-Kutta 4, TVD',
 		slopeLimiter = 'superbee',
 		
-		-- [[
-		eqn = require 'euler1d'(),
-		--eqn = require 'euler3d'(),
+		--[[
+		--eqn = require 'euler1d'(),
+		eqn = require 'euler3d'(),
 		mins = {-1, -1, -1},
 		maxs = {1, 1, 1},
 		--]]
 	
-		--[[
+		-- [[
 		eqn = require 'maxwell'(),
 		mins = {-1, -1, -1},
 		maxs = {1, 1, 1},
@@ -565,10 +565,6 @@ function HydroCLApp:updateGUI()
 		self.solver:refreshIntegrator()
 	end
 
-	if ig.igCombo('init state', self.solver.initStatePtr, self.solver.eqn.initStateNames) then
-		self.solver:refreshInitStateProgram()
-	end
-
 	if ig.igCombo('slope limiter', self.solver.slopeLimiterPtr, self.slopeLimiterNames) then
 		self.solver:refreshSolverProgram()
 	end
@@ -581,6 +577,30 @@ function HydroCLApp:updateGUI()
 			end
 		end
 	end
+
+	-- equation-specific:
+
+	local eqn = self.solver.eqn
+
+	if ig.igCombo('init state', self.solver.initStatePtr, eqn.initStateNames) then
+		self.solver:refreshInitStateProgram()
+	end
+
+	if ig.igCollapsingHeader'equation:' then
+		local f = ffi.new'float[1]'
+		for _,var in ipairs(eqn.guiVars) do
+			f[0]=  eqn[var]
+			if ig.igInputFloat(var, f, 0, 0, -1, ig.ImGuiInputTextFlags_EnterReturnsTrue) then
+				if eqn[var] ~= f[0] then
+					eqn[var] = f[0]
+					print('refreshing '..var..' = '..eqn[var])
+					self.solver:refreshSolverProgram()
+				end
+			end
+		end
+	end
+
+	-- display vars:
 
 	if ig.igCollapsingHeader'variables:' then
 		local lastSection

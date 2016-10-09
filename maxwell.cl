@@ -1,3 +1,5 @@
+#define sqrt_1_2 0.70710678118654757273731092936941422522068023681641
+
 real ESq(cons_t U) { 
 	return (U.epsEx * U.epsEx + U.epsEy * U.epsEy + U.epsEz * U.epsEz) / (eps0 * eps0);
 }
@@ -46,7 +48,7 @@ void fill(__global real* ptr, int step, real a, real b, real c, real d, real e, 
 __kernel void calcEigenBasis(
 	__global real* waveBuf,
 	__global eigen_t* eigenBuf,
-	__global real* fluxMatrixBuf,
+	__global fluxXform_t* fluxXformBuf,
 	const __global cons_t* UBuf
 ) {
 	SETBOUNDS(2,1);
@@ -60,27 +62,49 @@ __kernel void calcEigenBasis(
 		fill(wave, 1, -lambda, -lambda, 0, 0, lambda, lambda);
 	
 		//no eigenbuf info since waves are unrelated to state
-		
-		//the flux is for the x-direction only
-		//be sure to swap dimensions in the lhs and rhs eigen transform
+	}
+}
 
-		__global real* dF_dU = fluxMatrixBuf + numStates * numStates * intindex;;
-		fill(dF_dU+0,6,	0, 0, 0, 0, 0, 0);
-		fill(dF_dU+1,6,	0, 0, 0, 0, 0, 1/mu0);
-		fill(dF_dU+2,6,	0, 0, 0, 0, -1/mu0, 0);
-		fill(dF_dU+3,6,	0, 0, 0, 0, 0, 0);
-		fill(dF_dU+4,6,	0, 0, -1/eps0, 0, 0, 0);
-		fill(dF_dU+5,6,	0, 1/eps0, 0, 0, 0, 0);
+void fluxTransform(
+	real* y,
+	const __global fluxXform_t* flux,
+	const real* x,
+	int side
+) {
+	//swap input dim x<->side
+	real4 epsE = (real4)(x[0], x[1], x[2], 0);
+	real4 B = (real4)(x[3], x[4], x[5], 0);
 	
-		__global eigen_t* eigen = eigenBuf + intindex;
-#define sqrt_1_2 0.70710678118654757273731092936941422522068023681641
+	if (side == 1) {
+		epsE.xy = epsE.yx;
+		B.xy = B.yx;
+	} else if (side == 2) {
+		epsE.xz = epsE.zx;
+		B.xz = B.zx;
+	}
+
+	y[0] = 0;
+	y[1] = B.z / mu0;
+	y[2] = -B.y / mu0;
+	y[3] = 0;
+	y[4] = -epsE.z / eps0;
+	y[5] = epsE.y / eps0;
+
+	//swap output dim x<->side
+	real tmp;
+	if (side == 1) {
+		tmp = y[0]; y[0] = y[1]; y[1] = tmp;
+		tmp = y[3]; y[3] = y[4]; y[4] = tmp;
+	} else if (side == 2) {
+		tmp = y[0]; y[0] = y[4]; y[4] = tmp;
+		tmp = y[3]; y[3] = y[5]; y[5] = tmp;
 	}
 }
 
 void eigen_leftTransform(
 	real* y,
 	const __global eigen_t* eigen,
-	real* x,
+	const real* x,
 	int side
 ) {
 	const real se = sqrt_1_2 * sqrt_eps0;
@@ -111,7 +135,7 @@ void eigen_leftTransform(
 void eigen_rightTransform(
 	real* y,
 	const __global eigen_t* eigen,
-	real* x,
+	const real* x,
 	int side
 ) {
 	const real se = sqrt_1_2 * sqrt_eps0;
@@ -135,7 +159,7 @@ void eigen_rightTransform(
 	}
 }
 
-__kernel void calcSourceTerm(
+__kernel void addSourceTerm(
 	__global cons_t* derivBuf,
 	const __global cons_t* UBuf
 ) {

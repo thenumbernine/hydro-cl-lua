@@ -31,9 +31,8 @@ range_t calcCellMinMaxEigenvalues(
 	return (range_t){.min=-lambda, .max=lambda};
 }
 
-typedef struct {
-	real alpha, gamma_xx, f;
-} Roe_t;
+//alpha, gamma_xx, f
+typedef fluxXform_t Roe_t;
 
 Roe_t calcEigenBasisSide(cons_t UL, cons_t UR) {
 	real alpha = .5 * (UL.alpha + UR.alpha);
@@ -45,7 +44,7 @@ Roe_t calcEigenBasisSide(cons_t UL, cons_t UR) {
 __kernel void calcEigenBasis(
 	__global real* waveBuf,
 	__global eigen_t* eigenBuf,
-	__global real* fluxMatrixBuf,
+	__global fluxXform_t* fluxXformBuf,
 	const __global cons_t* UBuf
 ) {
 	SETBOUNDS(2,1);
@@ -60,43 +59,51 @@ __kernel void calcEigenBasis(
 		real lambda = calcMaxEigenvalue(roe.alpha, roe.gamma_xx); 
 		wave[0] = -lambda;
 		wave[1] = 0;
-		wave[2] = 0;
-		wave[3] = 0;
-		wave[4] = lambda;
+		wave[2] = lambda;
 	
 		eigenBuf[intindex].f = roe.f;	
-	
-		// flux matrix? fill with alpha, gamma_xx, f
+
+		//only used for eigen basis reconstruction validity testing
+		fluxXformBuf[intindex] = roe;
 	}
+}
+
+void fluxTransform(
+	real* y,
+	const __global fluxXform_t* flux,
+	const real* x,
+	int side
+) {
+	y[0] = 0;
+	y[1] = 0;
+	y[2] = x[4] * flux->alpha * flux->f / sqrt(flux->gamma_xx);
+	y[3] = x[4] * 2. * flux->alpha / sqrt(flux->gamma_xx);
+	y[4] = x[2] * flux->alpha / sqrt(flux->gamma_xx);
 }
 
 void eigen_leftTransform(
 	real* y,
 	const __global eigen_t* eigen,
-	real* x,
+	const real* x,
 	int side
 ) {
-	real f = eigen->f;
-	real sqrt_f = sqrt(f);
-	y[0] = x[2] / (2. * f) - x[4] / (2. * sqrt_f);
-	y[1] = x[0];
-	y[2] = x[1];
-	y[3] = -2. * x[2] / f + x[3];
-	y[4] = x[2] / (2. * f) + x[4] / (2. * sqrt_f);
+	real sqrt_f = sqrt(eigen->f);
+	y[0] = x[2] / (2. * eigen->f) - x[4] / (2. * sqrt_f);
+	y[1] = -2. * x[2] / eigen->f + x[3];
+	y[2] = x[2] / (2. * eigen->f) + x[4] / (2. * sqrt_f);
 }
 
 void eigen_rightTransform(
 	real* y,
 	const __global eigen_t* eigen,
-	real* x,
+	const real* x,
 	int side
 ) {
-	real f = eigen->f;
-	y[0] = x[1];
-	y[1] = x[2];
-	y[2] = (x[0] + x[4]) * f;
-	y[3] = 2. * x[0] + x[3] + 2. * x[4];
-	y[4] = sqrt(f) * (x[4] - x[0]);
+	y[0] = 0;
+	y[1] = 0;
+	y[2] = (x[0] + x[2]) * eigen->f;
+	y[3] = 2. * x[0] + x[1] + 2. * x[2];
+	y[4] = sqrt(eigen->f) * (x[2] - x[0]);
 }
 
 real eigen_calcDisplayVar(
@@ -104,4 +111,17 @@ real eigen_calcDisplayVar(
 	const __global eigen_t* eigen
 ) {
 	return eigen->f;
+}
+
+kernel void addSourceTerm(
+	__global cons_t* derivBuf,
+	const __global cons_t* UBuf
+) {
+	SETBOUNDS(0,0);
+	const __global cons_t* U = UBuf + index;
+	__global cons_t* deriv = derivBuf + index;
+	real f = calc_f(U->alpha);
+	real K_xx = U->KTilde_xx / sqrt(U->gamma_xx);
+	//deriv->alpha -= U->alpha * U->alpha * f * K_xx / U->gamma_xx;
+	//deriv->gamma_xx -= 2. * U->alpha * K_xx;
 }

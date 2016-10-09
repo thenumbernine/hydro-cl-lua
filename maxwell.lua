@@ -19,7 +19,7 @@ Maxwell.useSourceTerm = true
 
 Maxwell.initStateNames = {'default'}
 
--- gui vars:
+Maxwell.guiVars = {'eps0', 'mu0', 'sigma'}
 Maxwell.eps0 = 1	-- permittivity
 Maxwell.mu0 = 1		-- permeability
 Maxwell.sigma = 1	-- conductivity
@@ -57,8 +57,8 @@ __kernel void initState(
 	U->epsEy = 0;
 	U->epsEz = 1 * eps0;
 	U->Bx = 1;
-	U->By = 0;
-	U->Bz = lhs ? 1 : -1;
+	U->By = lhs ? 1 : -1;
+	U->Bz = 0;
 }
 ]],
 	}:concat'\n'
@@ -72,10 +72,11 @@ function Maxwell:solverCode(solver)
 end
 
 function Maxwell:getEigenInfo()
-	local eigenType = 'eigen_t'
 	return {
-		type = eigenType,
-		typeCode = 'typedef struct { char mustbesomething; } eigen_t;',	-- can it be zero sized?
+		typeCode = 
+			-- can it be zero sized?
+			'typedef struct { char mustbesomething; } eigen_t;\n'..	
+			'typedef struct { char mustbesomething; } fluxXform_t;',
 		code = nil,
 		displayVars = {},
 	}

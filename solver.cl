@@ -36,41 +36,44 @@ __kernel void calcErrors(
 	__global error_t* errorBuf,
 	const __global real* waveBuf,
 	const __global eigen_t* eigenBuf,
-	const __global real* fluxMatrixBuf
+	const __global fluxXform_t* fluxXformBuf
 ) {
 	SETBOUNDS(2,1);
 	for (int side = 0; side < dim; ++side) {
 		int intindex = side + dim * index;
 		const __global real* wave = waveBuf + numWaves * intindex;
 		const __global eigen_t* eigen = eigenBuf + intindex;
-		const __global real* fluxMatrix = fluxMatrixBuf + numStates * numStates * intindex;
+		const __global fluxXform_t* fluxXform = fluxXformBuf + intindex;
 
 		real orthoError = 0;
 		real fluxError = 0;
 		for (int k = 0; k < numStates; ++k) {
 			
-			real src[numStates];
+			real basis[numStates];
 			for (int j = 0; j < numStates; ++j) {
-				src[j] = k == j ? 1 : 0;
+				basis[j] = k == j ? 1 : 0;
 			}
+	
+			real eigenCoords[numWaves];
+			eigen_leftTransform(eigenCoords, eigen, basis, side);
 			
-			real mid[numWaves];
-			eigen_leftTransform(mid, eigen, src, side);
-			
-			real scaled[numWaves];
+			real eigenScaled[numWaves];
 			for (int j = 0; j < numWaves; ++j) {
-				scaled[j] = mid[j] * wave[j];
+				eigenScaled[j] = eigenCoords[j] * wave[j];
 			}
 			
-			real identCheck[numStates];
-			eigen_rightTransform(identCheck, eigen, mid, side);
+			real newbasis[numStates];
+			eigen_rightTransform(newbasis, eigen, eigenCoords, side);
 			
-			real fluxCheck[numStates];
-			eigen_rightTransform(fluxCheck, eigen, scaled, side);
+			real newtransformed[numStates];
+			eigen_rightTransform(newtransformed, eigen, eigenScaled, side);
+			
+			real transformed[numStates];
+			fluxTransform(transformed, fluxXform, basis, side);
 			
 			for (int j = 0; j < numStates; ++j) {
-				orthoError += fabs(identCheck[j] - src[j]);
-				fluxError += fabs(fluxCheck[j] - fluxMatrix[j + numStates * k]);
+				orthoError += fabs(newbasis[j] - basis[j]);
+				fluxError += fabs(newtransformed[j] - transformed[j]);
 			}
 		}
 		errorBuf[intindex] = (error_t){

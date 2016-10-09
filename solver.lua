@@ -329,10 +329,8 @@ function Solver:init(args)
 
 	self.color = vec3(math.random(), math.random(), math.random()):normalize()
 
-	self.mins = args.mins or {-1, -1, -1}
-	self.maxs = args.maxs or {1, 1, 1}
-	assert(#self.mins >= 3)
-	assert(#self.maxs >= 3)
+	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
+	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
 
 	self.t = 0
 	
@@ -356,7 +354,7 @@ function Solver:init(args)
 	self.slopeLimiterPtr = ffi.new('int[1]', (self.app.slopeLimiterNames:find(args.slopeLimiter) or 1)-1)
 
 	self.boundaryMethods = {}
-	for i=1,self.dim do
+	for i=1,3 do
 		for _,minmax in ipairs(minmaxs) do
 			local var = xs[i]..minmax
 			self.boundaryMethods[var] = ffi.new('int[1]', self.app.boundaryMethods:find(
@@ -371,9 +369,9 @@ end
 function Solver:refreshGridSize()
 
 	self.volume = tonumber(self.gridSize:volume())
-	self.dxs = range(3):map(function(i)
+	self.dxs = vec3(range(3):map(function(i)
 		return (self.maxs[i] - self.mins[i]) / tonumber(self.gridSize:ptr()[i-1])	
-	end)
+	end):unpack())
 
 	self:refreshIntegrator()	-- depends on eqn & gridSize
 
@@ -437,13 +435,13 @@ function Solver:createBuffers()
 	self.reduceResultPtr = ffi.new('real[1]', 0)
 	self.reduceSwapBuf = ctx:buffer{rw=true, size=self.volume * realSize / self.localSize1d}
 	self.waveBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numWaves * realSize}
-	self.eigenBuf = ctx:buffer{rw=true, size=self.volume * self.dim * ffi.sizeof(self.eqn:getEigenInfo().type)}
+	self.eigenBuf = ctx:buffer{rw=true, size=self.volume * self.dim * ffi.sizeof'eigen_t'}
 	self.deltaUTildeBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numWaves * realSize}
 	self.rTildeBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numWaves * realSize}
 	self.fluxBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numStates * realSize}
 	
 	-- debug only
-	self.fluxMatrixBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numStates * self.eqn.numStates * realSize}
+	self.fluxXformBuf = ctx:buffer{rw=true, size=self.volume * self.dim * ffi.sizeof'fluxXform_t'}
 	local errorTypeSize = ffi.sizeof(errorType)
 	self.errorBuf = ctx:buffer{rw=true, size=self.volume * self.dim * errorTypeSize}
 
@@ -672,7 +670,7 @@ __kernel void multAdd(
 
 	self.calcDTKernel = self.solverProgram:kernel('calcDT', self.reduceBuf, self.UBuf);
 	
-	self.calcEigenBasisKernel = self.solverProgram:kernel('calcEigenBasis', self.waveBuf, self.eigenBuf, self.fluxMatrixBuf, self.UBuf)
+	self.calcEigenBasisKernel = self.solverProgram:kernel('calcEigenBasis', self.waveBuf, self.eigenBuf, self.fluxXformBuf, self.UBuf)
 	self.calcDeltaUTildeKernel = self.solverProgram:kernel('calcDeltaUTilde', self.deltaUTildeBuf, self.UBuf, self.eigenBuf)
 	self.calcRTildeKernel = self.solverProgram:kernel('calcRTilde', self.rTildeBuf, self.deltaUTildeBuf, self.waveBuf)
 	self.calcFluxKernel = self.solverProgram:kernel('calcFlux', self.fluxBuf, self.UBuf, self.waveBuf, self.eigenBuf, self.deltaUTildeBuf, self.rTildeBuf)
@@ -680,8 +678,8 @@ __kernel void multAdd(
 	self.calcDerivFromFluxKernel = self.solverProgram:kernel'calcDerivFromFlux'
 	self.calcDerivFromFluxKernel:setArg(1, self.fluxBuf)
 	if self.eqn.useSourceTerm then
-		self.calcSourceTermKernel = self.solverProgram:kernel'calcSourceTerm'
-		self.calcSourceTermKernel:setArg(1, self.UBuf)
+		self.addSourceTermKernel = self.solverProgram:kernel'addSourceTerm'
+		self.addSourceTermKernel:setArg(1, self.UBuf)
 	end
 
 	if self.app.useGLSharing then
@@ -689,7 +687,7 @@ __kernel void multAdd(
 	end
 	self.calcDisplayVarToBufferKernel = self.solverProgram:kernel('calcDisplayVarToBuffer', self.reduceBuf)
 
-	self.calcErrorsKernel = self.solverProgram:kernel('calcErrors', self.errorBuf, self.waveBuf, self.eigenBuf, self.fluxMatrixBuf)	
+	self.calcErrorsKernel = self.solverProgram:kernel('calcErrors', self.errorBuf, self.waveBuf, self.eigenBuf, self.fluxXformBuf)	
 end
 
 function Solver:refreshBoundaryProgram()
@@ -846,10 +844,10 @@ function Solver:calcDeriv(derivBuf, dt)
 	self.calcDerivFromFluxKernel:setArg(0, derivBuf)
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDerivFromFluxKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 
-	-- calcSourceTerm adds to the derivative buffer
+	-- addSourceTerm adds to the derivative buffer
 	if self.eqn.useSourceTerm then
-		self.calcSourceTermKernel:setArg(0, derivBuf)
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcSourceTermKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		self.addSourceTermKernel:setArg(0, derivBuf)
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.addSourceTermKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	end
 end
 

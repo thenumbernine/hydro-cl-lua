@@ -90,7 +90,7 @@ void fill(__global real* ptr, int step, real a, real b, real c, real d, real e) 
 __kernel void calcEigenBasis(
 	__global real* waveBuf,			//[volume][dim][numWaves]
 	__global eigen_t* eigenBuf,		//[volume][dim]
-	__global real* fluxMatrixBuf,	//[volume][dim][numStates][numStates]
+	__global fluxXform_t* fluxXformBuf,	//[volume][dim]
 	const __global cons_t *UBuf		//[volume]
 ) {
 	SETBOUNDS(2,1);
@@ -119,7 +119,7 @@ __kernel void calcEigenBasis(
 		__global real* wave = waveBuf + numWaves * intindex;
 		fill(wave, 1, vx - Cs, vx, vx, vx, vx + Cs);
 
-		__global real* dF_dU = fluxMatrixBuf + numStates * numStates * intindex;
+		__global real* dF_dU = fluxXformBuf[intindex].A;
 		fill(dF_dU+0,5,	0, 									1, 								0, 					0, 					0			);
 		fill(dF_dU+1,5,	-vx * vx + .5 * gamma_1 * vSq,		-vx * gamma_3,					-vy * gamma_1,		-vz * gamma_1,		gamma - 1	);
 		fill(dF_dU+2,5,	-vx * vy,							vy, 							vx, 				0, 					0			);
