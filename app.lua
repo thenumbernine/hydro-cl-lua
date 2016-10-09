@@ -20,30 +20,31 @@ HydroCLApp.title = 'Hydrodynamics in OpenCL'
 
 HydroCLApp.boundaryMethods = table{'freeflow', 'periodic', 'mirror'}
 
+-- list from https://en.wikipedia.org/wiki/Flux_limiter
 HydroCLApp.slopeLimiters = table{
-	{name='DonorCell', code='return 0.;'},
-	{name='LaxWendroff', code='return 1.;'},
-	{name='BeamWarming', code='return r;'},
+	{name='donor cell', code='return 0.;'},
+	{name='Lax-Wendroff', code='return 1.;'},
+	{name='Beam-Warming', code='return r;'},
 	{name='Fromm', code='return .5 * (1. + r);'},
 	{name='CHARM', code='return max(0., r) * (3. * r + 1.) / ((r + 1.) * (r + 1.));'},
 	{name='HCUS', code='return max(0., 1.5 * (r + fabs(r)) / (r + 2.));'},
 	{name='HQUICK', code='return max(0., 2. * (r + fabs(r)) / (r + 3.));'},
 	{name='Koren', code='return max(0., min(2. * r, min((1. + 2. * r) / 3., 2.)));'},
-	{name='MinMod', code='return max(0., min(r, 1.));'},
+	{name='minmod', code='return max(0., min(r, 1.));'},
 	{name='Oshker', code='return max(0., min(r, 1.5));	//replace 1.5 with 1 <= beta <= 2'},
-	{name='Ospre', code='return .5 * (r * r + r) / (r * r + r + 1.);'},
-	{name='Smart', code='return max(0., min(2. * r, min(.25 + .75 * r, 4.)));'},
+	{name='ospre', code='return .5 * (r * r + r) / (r * r + r + 1.);'},
+	{name='smart', code='return max(0., min(2. * r, min(.25 + .75 * r, 4.)));'},
 	{name='Sweby', code='return max(0., max(min(1.5 * r, 1.), min(r, 1.5)));	//replace 1.5 with 1 <= beta <= 2'},
 	{name='UMIST', code='return max(0., min(min(2. * r, .75 + .25 * r), min(.25 + .75 * r, 2.)));'},
-	{name='VanAlbada1', code='return (r * r + r) / (r * r + 1.);'},
-	{name='VanAlbada2', code='return 2. * r / (r * r + 1.);'},
+	{name='van Albada 1', code='return (r * r + r) / (r * r + 1.);'},
+	{name='van Albada 2', code='return 2. * r / (r * r + 1.);'},
 
 	--return (r + fabs(r)) / (1. + fabs(r));
-	{name='VanLeer', code='return max(0., r) * 2. / (1. + r);'},
+	{name='van Leer', code='return max(0., r) * 2. / (1. + r);'},
 	
-	{name='MonotizedCentral', code='return max(0., min(2., min(.5 * (1. + r), 2. * r)));'},
-	{name='Superbee', code='return max((real)0., (real)max((real)min((real)1., (real)2. * r), (real)min((real)2., r)));'},
-	{name='BarthJespersen', code='return .5 * (r + 1.) * min(1., min(4. * r / (r + 1.), 4. / (r + 1.)));'},
+	{name='monotized central', code='return max(0., min(2., min(.5 * (1. + r), 2. * r)));'},
+	{name='superbee', code='return max((real)0., (real)max((real)min((real)1., (real)2. * r), (real)min((real)2., r)));'},
+	{name='Barth-Jespersen', code='return .5 * (r + 1.) * min(1., min(4. * r / (r + 1.), 4. / (r + 1.)));'},
 }
 HydroCLApp.slopeLimiterNames = HydroCLApp.slopeLimiters:map(function(limiter) return limiter.name end)
 
@@ -114,11 +115,12 @@ self.ctx:printInfo()
 		dim = 1,
 		gridSize = {256, 256, 256},
 		boundary = {xmin='mirror', xmax='mirror', ymin='mirror', ymax='mirror'},
-		slopeLimiter = 'Superbee',
+		integrator = 'Runge-Kutta 4',
+		slopeLimiter = 'superbee',
 		
 		-- [[
-		--eqn = require 'euler1d'(),
-		eqn = require 'euler3d'(),
+		eqn = require 'euler1d'(),
+		--eqn = require 'euler3d'(),
 		mins = {-1, -1, -1},
 		maxs = {1, 1, 1},
 		--]]
@@ -559,12 +561,16 @@ function HydroCLApp:updateGUI()
 	ig.igInputFloat('fixed dt', self.solver.fixedDT)
 	ig.igInputFloat('CFL', self.solver.cfl)
 
+	if ig.igCombo('integrator', self.solver.integratorPtr, self.solver.integratorNames) then
+		self.solver:refreshIntegrator()
+	end
+
 	if ig.igCombo('init state', self.solver.initStatePtr, self.solver.eqn.initStateNames) then
 		self.solver:refreshInitStateProgram()
 	end
 
-	if ig.igCombo('slope limiter', self.solver.slopeLimiter, self.slopeLimiterNames) then
-		self:refreshSolverProgram()
+	if ig.igCombo('slope limiter', self.solver.slopeLimiterPtr, self.slopeLimiterNames) then
+		self.solver:refreshSolverProgram()
 	end
 
 	for i=1,self.solver.dim do

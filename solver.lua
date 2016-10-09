@@ -8,6 +8,273 @@ local vec3sz = require 'vec3sz'
 local vec3 = require 'vec.vec3'
 local clnumber = require 'clnumber'
 
+
+
+local Integrator = class()
+
+
+local ForwardEuler = class(Integrator)
+ForwardEuler.name = 'forward Euler'
+
+function ForwardEuler:init(solver)
+	self.solver = solver
+	self.derivBuf = solver.app.ctx:buffer{rw=true, size=solver.volume * solver.eqn.numStates * ffi.sizeof(solver.app.real)}
+end
+
+function ForwardEuler:integrate(dt, callback)
+	local solver = self.solver
+	callback(self.derivBuf)
+	solver.multAddKernel:setArgs(solver.UBuf, solver.UBuf, self.derivBuf, ffi.new('real[1]', dt))
+	solver.app.cmds:enqueueNDRangeKernel{kernel=solver.multAddKernel, globalSize=solver.volume * solver.eqn.numStates, localSize=solver.localSize1d}
+end
+
+local RungeKutta = class(Integrator)
+
+function RungeKutta:init(solver)
+	self.solver = solver
+	self.order = #self.alphas
+	assert(#self.betas == self.order)
+	for i=1,self.order do
+		assert(#self.alphas[i] == self.order)
+		assert(#self.betas[i] == self.order)
+	end
+
+	self.UBufs = {}
+	self.derivBufs = {}
+	for i=1,self.order do
+		local needed = false
+		for m=i,self.order do
+			needed = needed or self.alphas[m][i] ~= 0
+		end
+		if needed then
+			self.UBufs[i] = solver.app.ctx:buffer{rw=true, size=solver.volume * solver.eqn.numStates * ffi.sizeof(solver.app.real)}
+		end
+	
+		local needed = false
+		for m=i,self.order do
+			needed = needed or self.betas[m][i] ~= 0
+		end
+		if needed then
+			self.derivBufs[i] = solver.app.ctx:buffer{rw=true, size=solver.volume * solver.eqn.numStates * ffi.sizeof(solver.app.real)}
+		end
+	end
+end
+
+function RungeKutta:integrate(dt, callback)
+	local solver = self.solver
+	local realSize = ffi.sizeof(solver.app.real)
+	local length = solver.volume * solver.eqn.numStates
+	local bufferSize = length * realSize
+	
+	solver.multAddKernel:setArgs(solver.UBuf, solver.UBuf)
+	
+	--u(0) = u^n
+	local needed = false
+	for m=1,self.order do
+		needed = needed or self.alphas[m][1] ~= 0
+	end
+	if needed then
+		solver.app.cmds:enqueueCopyBuffer{src=solver.UBuf, dst=self.UBufs[1], size=bufferSize}
+	end
+
+	--L(u^(0))
+	local needed = false
+	for m=1,self.order do
+		needed = needed or self.betas[m][1] ~= 0
+	end
+	if needed then
+		solver.app.cmds:enqueueFillBuffer{buffer=self.derivBufs[1], size=bufferSize}
+	end
+
+	for i=2,self.order+1 do
+		--u^(i) = sum k=0 to i-1 of (alpha_ik u^(k) + dt beta_ik L(u^(k)) )
+		solver.app.cmds:enqueueFillBuffer{buffer=solver.UBuf, size=bufferSize}
+		for k=1,i-1 do
+			if self.alphas[i-1][k] ~= 0 then
+				solver.multAddKernel:setArg(2, self.UBufs[k])
+				solver.multAddKernel:setArg(3, ffi.new('real[1]', self.alphas[i-1][k]))
+				solver.app.cmds:enqueueNDRangeKernel{kernel=solver.multAddKernel, globalSize=length, localSize=solver.localSize1d}
+			end
+			if self.betas[i-1][k] ~= 0 then
+				solver.multAddKernel:setArg(2, self.derivBufs[k])
+				solver.multAddKernel:setArg(3, ffi.new('real[1]', self.betas[i-1][k] * dt))
+				solver.app.cmds:enqueueNDRangeKernel{kernel=solver.multAddKernel, globalSize=length, localSize=solver.localSize1d}
+			end
+		end
+	
+		if i <= self.order then
+			--only do this if alpha_mi != 0 for any m
+			--otherwise there's no need to store this buffer
+			local needed = false
+			for m=i,self.order do
+				needed = needed or self.alphas[m][i] ~= 0
+			end
+			if needed then
+				solver.app.cmds:enqueueCopyBuffer{src=solver.UBuf, dst=self.UBufs[i], size=bufferSize}
+			end
+		
+			--likewise here, only if beta_mi != 0 for any m
+			--with that in mind, no need to allocate these buffers unless they are needed.
+			local needed = false
+			for m=i,self.order do
+				needed = needed or self.betas[m][i] ~= 0
+			end
+			if needed then
+				solver.app.cmds:enqueueFillBuffer{buffer=self.derivBufs[i], size=bufferSize}
+				callback(self.derivBufs[i])
+			end
+		end
+		--else just leave the state in there
+	end
+end
+
+--the following are from https://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods#Classic_fourth-order_method
+
+local RungeKutta2 = class(RungeKutta)
+RungeKutta2.name = 'Runge-Kutta 2'
+RungeKutta2.alphas = {
+	{1,0},
+	{1,0},
+}
+RungeKutta2.betas = {
+	{.5, 0},
+	{0, 1},
+}
+
+local RungeKutta2Heun = class(RungeKutta)
+RungeKutta2Heun.name = 'Runge-Kutta 2 Heun'
+RungeKutta2Heun.alphas = { 
+	{1, 0},
+	{1, 0},
+}
+RungeKutta2Heun.betas = {
+	{1, 0},
+	{.5, .5},
+}
+
+local RungeKutta2Ralston = class(RungeKutta)
+RungeKutta2Ralston.name = 'Runge-Kutta 2 Ralston'
+RungeKutta2Ralston.alphas = {
+	{1, 0},
+	{1, 0},
+}
+RungeKutta2Ralston.betas = {
+	{2./3., 0},
+	{1./4., 3./4.},
+}
+
+local RungeKutta3 = class(RungeKutta)
+RungeKutta3.name = 'Runge-Kutta 3'
+RungeKutta3.alphas = {
+	{1, 0, 0},
+	{1, 0, 0},
+	{1, 0, 0},
+}
+RungeKutta3.betas = {
+	{.5, 0, 0},
+	{-1, 2, 0},
+	{1./6., 2./6., 1./6.},
+}
+
+local RungeKutta4 = class(RungeKutta)
+RungeKutta4.name = 'Runge-Kutta 4'
+RungeKutta4.alphas = {
+	{1, 0, 0, 0},
+	{1, 0, 0, 0},
+	{1, 0, 0, 0},
+	{1, 0, 0, 0},
+}
+RungeKutta4.betas = {
+	{.5, 0, 0, 0},
+	{0, .5, 0, 0},
+	{0, 0, 1, 0},
+	{1./6., 2./6., 2./6., 1./6.},
+}
+
+local RungeKutta4_3_8thsRule = class(RungeKutta)
+RungeKutta4_3_8thsRule.name = 'Runge-Kutta 4, 3/8ths rule'
+RungeKutta4_3_8thsRule.alphas = {
+	{1, 0, 0, 0},
+	{1, 0, 0, 0},
+	{1, 0, 0, 0},
+	{1, 0, 0, 0},
+}
+RungeKutta4_3_8thsRule.betas = {
+	{1./3., 0, 0, 0},
+	{-1./3., 0, 0, 0},
+	{1, -1, 1, 0},
+	{1./8., 3./8., 3./8., 1./8.},
+}
+
+--the following are from http://www.ams.org/journals/mcom/1998-67-221/S0025-5718-98-00913-2/S0025-5718-98-00913-2.pdf
+
+local RungeKutta2TVD = class(RungeKutta)
+RungeKutta2TVD.name = 'Runge-Kutta 2, TVD'
+RungeKutta2TVD.alphas = {
+	{1, 0},
+	{.5, .5},
+}
+RungeKutta2TVD.betas = {
+	{1, 0},
+	{0, .5},
+}
+
+local RungeKutta2NonTVD = class(RungeKutta)
+RungeKutta2NonTVD.name = 'Runge-Kutta 2, non-TVD'
+RungeKutta2NonTVD.alphas = {
+	{1, 0},
+	{1, 0},
+}
+RungeKutta2NonTVD.betas = {
+	{-20, 0},
+	{41./40., -1./40.},
+}
+
+local RungeKutta3TVD = class(RungeKutta)
+RungeKutta3TVD.name = 'Runge-Kutta 3, TVD'
+RungeKutta3TVD.alphas = {
+	{1, 0, 0},
+	{3./4., 1./4., 0},
+	{1./3., 2./3., 0},
+}
+RungeKutta3TVD.betas = {
+	{1, 0, 0},
+	{0, 1./4., 0},
+	{0, 0, 2./3.},
+}
+
+local RungeKutta4TVD = class(RungeKutta)
+RungeKutta4TVD.name = 'Runge-Kutta 4, TVD'
+RungeKutta4TVD.alphas = {
+	{1, 0, 0, 0},
+	{649./1600., 951./1600., 0, 0},
+	{53989./2500000., 4806213./20000000., 23619./32000., 0},
+	{1./5., 6127./30000., 7873./30000., 1./3.},
+}
+RungeKutta4TVD.betas = {
+	{.5, 0, 0, 0},
+	{-10890423./25193600., 5000./7873, 0, 0},
+	{-102261./5000000., -5121./20000., 7873./10000., 0},
+	{1./10., 1./6., 0, 1./6.},
+}
+
+-- this one is from http://lsec.cc.ac.cn/lcfd/DEWENO/paper/WENO_1996.pdf
+
+local RungeKutta4NonTVD = class(RungeKutta)
+RungeKutta4NonTVD.name = 'Runge-Kutta 4, non-TVD'
+RungeKutta4NonTVD.alphas = {
+	{1, 0, 0, 0},
+	{1, 0, 0, 0},
+	{1, 0, 0, 0},
+	{-1./3., 1./3., 2./3., 1./3.},
+}
+RungeKutta4NonTVD.betas = {
+	{.5, 0, 0, 0},
+	{0, .5, 0, 0},
+	{0, 0, 1, 0},
+	{0, 0, 0, 1./6.},
+}
+
 local xs = table{'x', 'y', 'z'}
 local minmaxs = table{'min', 'max'}
 
@@ -15,6 +282,22 @@ local Solver = class()
 
 Solver.name = 'Roe'
 Solver.numGhost = 2
+
+Solver.integrators = {
+	ForwardEuler,
+	RungeKutta2,
+	RungeKutta2Heun,
+	RungeKutta2Ralston,
+	RungeKutta3,
+	RungeKutta4,
+	RungeKutta4_3_8thsRule,
+	RungeKutta2TVD,
+	RungeKutta2NonTVD,
+	RungeKutta3TVD,
+	RungeKutta4TVD,
+	RungeKutta4NonTVD,
+}
+Solver.integratorNames = table.map(Solver.integrators, function(integrator) return integrator.name end)
 
 --[[
 args:
@@ -39,22 +322,17 @@ function Solver:init(args)
 		assert(not args.dim or args.dim <= #gridSize)
 		self.dim = args.dim or #gridSize
 	else
-		error("can't understand args.gridSize type "..type(args.gridsize).." value "..tostring(args.gridSize))
+		error("can't understand args.gridSize type "..type(args.gridSize).." value "..tostring(args.gridSize))
 	end
 
 	for i=self.dim,2 do self.gridSize:ptr()[i] = 1 end
 
 	self.color = vec3(math.random(), math.random(), math.random()):normalize()
-	self.volume = tonumber(self.gridSize:volume())
 
 	self.mins = args.mins or {-1, -1, -1}
 	self.maxs = args.maxs or {1, 1, 1}
 	assert(#self.mins >= 3)
 	assert(#self.maxs >= 3)
-
-	self.dxs = range(3):map(function(i)
-		return (self.maxs[i] - self.mins[i]) / tonumber(self.gridSize:ptr()[i-1])	
-	end)
 
 	self.t = 0
 	
@@ -72,7 +350,10 @@ function Solver:init(args)
 	self.cfl = ffi.new('float[1]', .5)
 	
 	self.initStatePtr = ffi.new('int[1]', (table.find(self.eqn.initStateNames, args.initState) or 1)-1)
-	self.slopeLimiter = ffi.new('int[1]', (self.app.slopeLimiterNames:find(args.slopeLimiter) or 1)-1)
+	
+	self.integratorPtr = ffi.new('int[1]', (self.integratorNames:find(args.integrator) or 1)-1)
+	
+	self.slopeLimiterPtr = ffi.new('int[1]', (self.app.slopeLimiterNames:find(args.slopeLimiter) or 1)-1)
 
 	self.boundaryMethods = {}
 	for i=1,self.dim do
@@ -89,15 +370,26 @@ end
 
 function Solver:refreshGridSize()
 
+	self.volume = tonumber(self.gridSize:volume())
+	self.dxs = range(3):map(function(i)
+		return (self.maxs[i] - self.mins[i]) / tonumber(self.gridSize:ptr()[i-1])	
+	end)
+
+	self:refreshIntegrator()	-- depends on eqn & gridSize
+
 	self:createDisplayVars()	-- depends on eqn
-	self:createBuffers()		-- depends on eqn & gridsize
-	self:createCodePrefix()		-- depends on eqn, gridsize, displayvars
+	self:createBuffers()		-- depends on eqn & gridSize
+	self:createCodePrefix()		-- depends on eqn, gridSize, displayVars
 
 	self:refreshInitStateProgram()
 	self:refreshSolverProgram()
 	self:refreshBoundaryProgram()
 
 	self:resetState()
+end
+
+function Solver:refreshIntegrator()
+	self.integrator = self.integrators[self.integratorPtr[0]+1](self)
 end
 
 function Solver:createDisplayVars()
@@ -149,7 +441,6 @@ function Solver:createBuffers()
 	self.deltaUTildeBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numWaves * realSize}
 	self.rTildeBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numWaves * realSize}
 	self.fluxBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numStates * realSize}
-	self.derivBuf = ctx:buffer{rw=true, size=self.volume * self.eqn.numStates * realSize}
 	
 	-- debug only
 	self.fluxMatrixBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numStates * self.eqn.numStates * realSize}
@@ -339,7 +630,7 @@ __kernel void multAdd(
 
 
 	local slopeLimiterCode = 'real slopeLimiter(real r) {'
-		.. self.app.slopeLimiters[1+self.slopeLimiter[0]].code 
+		.. self.app.slopeLimiters[1+self.slopeLimiterPtr[0]].code 
 		.. '}'
 		
 	local code = table{
@@ -370,7 +661,7 @@ __kernel void multAdd(
 	}:concat'\n'
 
 	self.solverProgram = require 'cl.program'{context=self.app.ctx, code=code}
-	local success, message = self.solverProgram:build({self.app.device})
+	local success, message = self.solverProgram:build{self.app.device}
 	if not success then
 		-- show code
 		print(string.split(string.trim(code),'\n'):map(function(l,i) return i..':'..l end):concat'\n')
@@ -385,10 +676,12 @@ __kernel void multAdd(
 	self.calcDeltaUTildeKernel = self.solverProgram:kernel('calcDeltaUTilde', self.deltaUTildeBuf, self.UBuf, self.eigenBuf)
 	self.calcRTildeKernel = self.solverProgram:kernel('calcRTilde', self.rTildeBuf, self.deltaUTildeBuf, self.waveBuf)
 	self.calcFluxKernel = self.solverProgram:kernel('calcFlux', self.fluxBuf, self.UBuf, self.waveBuf, self.eigenBuf, self.deltaUTildeBuf, self.rTildeBuf)
-	self.calcDerivFromFluxKernel = self.solverProgram:kernel('calcDerivFromFlux', self.derivBuf, self.fluxBuf)
 	
+	self.calcDerivFromFluxKernel = self.solverProgram:kernel'calcDerivFromFlux'
+	self.calcDerivFromFluxKernel:setArg(1, self.fluxBuf)
 	if self.eqn.useSourceTerm then
-		self.calcSourceTermKernel = self.solverProgram:kernel('calcSourceTerm', self.derivBuf, self.UBuf)
+		self.calcSourceTermKernel = self.solverProgram:kernel'calcSourceTerm'
+		self.calcSourceTermKernel:setArg(1, self.UBuf)
 	end
 
 	if self.app.useGLSharing then
@@ -396,7 +689,7 @@ __kernel void multAdd(
 	end
 	self.calcDisplayVarToBufferKernel = self.solverProgram:kernel('calcDisplayVarToBuffer', self.reduceBuf)
 
-	self.calcErrorsKernel = self.solverProgram:kernel('calcErrors', self.errorBuf, self.waveBuf, self.eigenBuf, self.fluxMatrixBuf)
+	self.calcErrorsKernel = self.solverProgram:kernel('calcErrors', self.errorBuf, self.waveBuf, self.eigenBuf, self.fluxMatrixBuf)	
 end
 
 function Solver:refreshBoundaryProgram()
@@ -555,6 +848,7 @@ function Solver:calcDeriv(derivBuf, dt)
 
 	-- calcSourceTerm adds to the derivative buffer
 	if self.eqn.useSourceTerm then
+		self.calcSourceTermKernel:setArg(0, derivBuf)
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcSourceTermKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	end
 end
@@ -576,10 +870,10 @@ function Solver:update()
 		dt = tonumber(self.cfl[0]) * self:reduceMin()
 	end
 	self.fixedDT[0] = dt
-
-	-- integrate flux to state by dt
-	self:calcDeriv(self.derivBuf, dt)
-	self:integrate(self.derivBuf, dt)
+	
+	self.integrator:integrate(dt, function(derivBuf)
+		self:calcDeriv(derivBuf, dt)
+	end)
 
 	self.t = self.t + dt
 end

@@ -1,3 +1,5 @@
+-- based on the book "Introduction to 3+1 Numerical Relativity" and on the paper "Introduction to Numerical Relativity", both by Alcubierre
+
 local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'equation'
