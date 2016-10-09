@@ -434,11 +434,11 @@ __kernel void initState(
 	real z = 0;
 	__global cons_t* U = UBuf + index;
 	
-	U->alpha = init_calc_alpha(x,y,z);
-	U->gamma_xx = init_calc_gamma_xx(x,y,z);
-	U->a_x = init_calc_a_x(x,y,z);
-	U->d_xxx = init_calc_d_xxx(x,y,z);
-	real K_xx = init_calc_K_xx(x,y,z);
+	U->alpha = calc_alpha(x,y,z);
+	U->gamma_xx = calc_gamma_xx(x,y,z);
+	U->a_x = calc_a_x(x,y,z);
+	U->d_xxx = calc_d_xxx(x,y,z);
+	real K_xx = calc_K_xx(x,y,z);
 	U->KTilde_xx = K_xx / sqrt(U->gamma_xx);
 }
 ]],
@@ -453,7 +453,7 @@ so this will all only work right so long as solverCode() is only ever called aft
 --]]
 function ADM_BonaMasso_1D_3Var:codePrefix()
 	return table.map(self.codes, function(code,name,t)
-		return 'real init_calc_'..name..code, #t+1
+		return 'real calc_'..name..code, #t+1
 	end):concat'\n'
 end
 

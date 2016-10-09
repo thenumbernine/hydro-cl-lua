@@ -1,7 +1,3 @@
-constant real kappa = 1.;
-real calc_f(alpha) { return 1. + kappa / (alpha * alpha); }
-real calc_dalpha_f(alpha) { return -kappa / (alpha * alpha * alpha); }
-
 real calcDisplayVar_UBuf(int displayVar, const __global real* U_) {
 	const __global cons_t* U = (const __global cons_t*)U_;
 	switch (displayVar) {
@@ -122,6 +118,6 @@ kernel void addSourceTerm(
 	__global cons_t* deriv = derivBuf + index;
 	real f = calc_f(U->alpha);
 	real K_xx = U->KTilde_xx / sqrt(U->gamma_xx);
-	//deriv->alpha -= U->alpha * U->alpha * f * K_xx / U->gamma_xx;
-	//deriv->gamma_xx -= 2. * U->alpha * K_xx;
+	deriv->alpha -= U->alpha * U->alpha * f * K_xx / U->gamma_xx;
+	deriv->gamma_xx -= 2. * U->alpha * K_xx;
 }

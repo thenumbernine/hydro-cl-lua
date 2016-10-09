@@ -125,13 +125,13 @@ self.ctx:printInfo()
 		maxs = {1, 1, 1},
 		--]]
 	
-		-- [[
+		--[[
 		eqn = require 'maxwell'(),
 		mins = {-1, -1, -1},
 		maxs = {1, 1, 1},
 		--]]
 
-		--[[
+		-- [[
 		eqn = require 'adm1d3var'(),
 		mins = {0, 0, 0},
 		maxs = {300, 300, 300},
