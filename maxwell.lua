@@ -15,14 +15,20 @@ Maxwell.displayVars = {
 	'energy',
 }
 
+Maxwell.useSourceTerm = true
+
 Maxwell.initStateNames = {'default'}
 
-Maxwell.eps0 = 1
-Maxwell.mu0 = 1
+-- gui vars:
+Maxwell.eps0 = 1	-- permittivity
+Maxwell.mu0 = 1		-- permeability
+Maxwell.sigma = 1	-- conductivity
+
 function Maxwell:getInitStateCode(solver)
 	return table{
 		'#define eps0 '..clnumber(self.eps0),
 		'#define mu0 '..clnumber(self.mu0),
+		'#define sigma '..clnumber(self.sigma),
 		[[
 __kernel void initState(
 	__global cons_t* UBuf
@@ -43,8 +49,8 @@ __kernel void initState(
 	U->epsEy = 0;
 	U->epsEz = 1 * eps0;
 	U->Bx = 1;
-	U->By = lhs ? 1 : -1;
-	U->Bz = 0;
+	U->By = 0;
+	U->Bz = lhs ? 1 : -1;
 }
 ]],
 	}:concat'\n'
@@ -54,6 +60,7 @@ function Maxwell:solverCode(solver)
 	return table{ 
 		'#define eps0 '..clnumber(self.eps0),
 		'#define mu0 '..clnumber(self.mu0),
+		'#define sigma '..clnumber(self.sigma),
 		'#include "maxwell.cl"',
 	}:concat'\n'
 end

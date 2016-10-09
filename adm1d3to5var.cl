@@ -73,7 +73,8 @@ __kernel void calcEigenBasis(
 void eigen_leftTransform(
 	real* y,
 	const __global eigen_t* eigen,
-	real* x
+	real* x,
+	int side
 ) {
 	real f = eigen->f;
 	real sqrt_f = sqrt(f);
@@ -87,7 +88,8 @@ void eigen_leftTransform(
 void eigen_rightTransform(
 	real* y,
 	const __global eigen_t* eigen,
-	real* x
+	real* x,
+	int side
 ) {
 	real f = eigen->f;
 	y[0] = x[1];

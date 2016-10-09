@@ -2,21 +2,21 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'equation'
 
-local ADM1D3to5Var = class(Equation)
-ADM1D3to5Var.name = 'ADM1D3to5Var' 
+local BonaMassoADM1D3to5Var = class(Equation)
+BonaMassoADM1D3to5Var.name = 'BonaMassoADM1D3to5Var' 
 
-ADM1D3to5Var.numStates = 5
+BonaMassoADM1D3to5Var.numStates = 5
 
-ADM1D3to5Var.consVars = {'alpha', 'gamma_xx', 'a_x', 'd_xxx', 'KTilde_xx'}
-ADM1D3to5Var.mirrorVars = {{'gamma_xx', 'a_x', 'd_xxx', 'KTilde_xx'}}
+BonaMassoADM1D3to5Var.consVars = {'alpha', 'gamma_xx', 'a_x', 'd_xxx', 'KTilde_xx'}
+BonaMassoADM1D3to5Var.mirrorVars = {{'gamma_xx', 'a_x', 'd_xxx', 'KTilde_xx'}}
 
-ADM1D3to5Var.initStateNames = {'gaussianWave'}
+BonaMassoADM1D3to5Var.initStateNames = {'gaussianWave'}
 
-ADM1D3to5Var.displayVars = table()
-	:append(ADM1D3to5Var.consVars)
+BonaMassoADM1D3to5Var.displayVars = table()
+	:append(BonaMassoADM1D3to5Var.consVars)
 	:append{'K_xx', 'volume'}
 
-function ADM1D3to5Var:getInitStateCode(solver)
+function BonaMassoADM1D3to5Var:getInitStateCode(solver)
 	local symmath = require 'symmath'
 symmath.tostring = require 'symmath.tostring.SingleLine'		
 	local x = symmath.var'x'
@@ -105,7 +105,7 @@ __kernel void initState(
 	]]}:concat'\n'
 end
 
-function ADM1D3to5Var:solverCode()
+function BonaMassoADM1D3to5Var:solverCode()
 	return table()
 	:append(self.codes:map(function(code,name,t)
 		return 'real init_calc_'..name..code, #t+1
@@ -114,8 +114,8 @@ function ADM1D3to5Var:solverCode()
 	}:concat'\n'
 end
 
-ADM1D3to5Var.eigenVars = {'f'}
-function ADM1D3to5Var:getEigenInfo()
+BonaMassoADM1D3to5Var.eigenVars = {'f'}
+function BonaMassoADM1D3to5Var:getEigenInfo()
 	local eigenType = 'eigen_t'
 	return {
 		type = eigenType,
@@ -126,4 +126,4 @@ function ADM1D3to5Var:getEigenInfo()
 	}
 end
 
-return ADM1D3to5Var 
+return BonaMassoADM1D3to5Var 

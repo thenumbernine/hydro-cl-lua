@@ -3,7 +3,8 @@
 void eigen_leftTransform(
 	real* y,
 	const __global eigen_t* eigen,
-	real* x
+	real* x,
+	int side
 ) {
 	const __global real* A = eigen->evL;
 	for (int i = 0; i < numWaves; ++i) {
@@ -18,7 +19,8 @@ void eigen_leftTransform(
 void eigen_rightTransform(
 	real* y,
 	const __global eigen_t* eigen,
-	real* x
+	real* x,
+	int side
 ) {
 	const __global real* A = eigen->evR;
 	for (int i = 0; i < numWaves; ++i) {

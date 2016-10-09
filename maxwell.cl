@@ -60,6 +60,10 @@ __kernel void calcEigenBasis(
 		fill(wave, 1, -lambda, -lambda, 0, 0, lambda, lambda);
 	
 		//no eigenbuf info since waves are unrelated to state
+		
+		//the flux is for the x-direction only
+		//be sure to swap dimensions in the lhs and rhs eigen transform
+
 		__global real* dF_dU = fluxMatrixBuf + numStates * numStates * intindex;;
 		fill(dF_dU+0,6,	0, 0, 0, 0, 0, 0);
 		fill(dF_dU+1,6,	0, 0, 0, 0, 0, 1/mu0);
@@ -76,31 +80,69 @@ __kernel void calcEigenBasis(
 void eigen_leftTransform(
 	real* y,
 	const __global eigen_t* eigen,
-	real* x
+	real* x,
+	int side
 ) {
-	real se = _2 * sqrt(eps0);
-	real ise = 1./se;
-	real su = _2 * sqrt(mu0);
-	real isu = 1./su;
-	y[0] = ise * x[2] + isu * x[4];
-	y[1] = -ise * x[1] + isu * x[5];
-	y[2] = -ise * x[0] + isu * x[3];
-	y[3] = ise * x[0] + isu * x[3];
-	y[4] = ise * x[1] + isu * x[5];
-	y[5] = -ise * x[2] + isu * x[4];
+	const real se = _2 * sqrt(eps0);
+	const real ise = 1./se;
+	const real su = _2 * sqrt(mu0);
+	const real isu = 1./su;
+	
+	//swap input dim x<->side
+	real4 epsE = (real4)(x[0], x[1], x[2], 0);
+	real4 B = (real4)(x[3], x[4], x[5], 0);
+	
+	if (side == 1) {
+		epsE.xy = epsE.yx;
+		B.xy = B.yx;
+	} else if (side == 2) {
+		epsE.xz = epsE.zx;
+		B.xz = B.zx;
+	}
+
+	y[0] = epsE.z * ise + B.y * isu;
+	y[1] = epsE.y * -ise + B.z * isu;
+	y[2] = epsE.x * -ise + B.x * isu;
+	y[3] = epsE.x * ise + B.x * isu;
+	y[4] = epsE.y * ise + B.z * isu;
+	y[5] = epsE.z * -ise + B.y * isu;
 }
 
 void eigen_rightTransform(
 	real* y,
 	const __global eigen_t* eigen,
-	real* x
+	real* x,
+	int side
 ) {
-	real se = _2 * sqrt(eps0);
-	real su = _2 * sqrt(mu0);
+	const real se = _2 * sqrt(eps0);
+	const real su = _2 * sqrt(mu0);
+
 	y[0] = -se * x[2] + se * x[3];
 	y[1] = -se * x[1] + se * x[4];
 	y[2] = se * x[0] - se * x[5];
 	y[3] = su * x[2] + su * x[3];
 	y[4] = su * x[0] + su * x[5];
 	y[5] = su * x[1] + su * x[4];
+
+	//swap output dim x<->side
+	real tmp;
+	if (side == 1) {
+		tmp = y[0]; y[0] = y[1]; y[1] = tmp;
+		tmp = y[3]; y[3] = y[4]; y[4] = tmp;
+	} else if (side == 2) {
+		tmp = y[0]; y[0] = y[4]; y[4] = tmp;
+		tmp = y[3]; y[3] = y[5]; y[5] = tmp;
+	}
+}
+
+__kernel void calcSourceTerm(
+	__global cons_t* derivBuf,
+	const __global cons_t* UBuf
+) {
+	SETBOUNDS(0,0);
+	const __global cons_t* U = UBuf + index;
+	__global cons_t* deriv = derivBuf + index;
+	deriv->epsEx -= U->epsEx / eps0 * sigma;
+	deriv->epsEy -= U->epsEy / eps0 * sigma;
+	deriv->epsEz -= U->epsEz / eps0 * sigma;
 }

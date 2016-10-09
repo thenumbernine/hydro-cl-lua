@@ -218,14 +218,16 @@ function Solver:createCodePrefix()
 	end)):append{
 		'constant int4 gridSize = (int4)(gridSize_x, gridSize_y, gridSize_z, 0);',
 		'constant int4 stepsize = (int4)(1, gridSize_x, gridSize_x * gridSize_y, gridSize_x * gridSize_y * gridSize_z);',
-	}:append{
 		'#define INDEX(a,b,c)	((a) + gridSize_x * ((b) + gridSize_y * (c)))',
 		'#define INDEXV(i)		INDEX((i).x, (i).y, (i).z)',
-	}:append{
 		'#define CELL_X(i) (real4)('
 			..'(real)(i.x + .5) * dx + mins_x, '
-			..(self.dim < 2 and '0,' or '(real)(i.y + .5) * dy + mins_y, ')
-			..(self.dim < 3 and '0,' or '(real)(i.z + .5) * dz + mins_z, ')
+			..(--self.dim < 2 and '0,' or 
+				'(real)(i.y + .5) * dy + mins_y, '
+			)
+			..(--self.dim < 3 and '0,' or 
+				'(real)(i.z + .5) * dz + mins_z, '
+			)
 			..'0);',
 	}:append{
 		self.eqn.getTypeCode and self.eqn:getTypeCode() or nil
@@ -235,12 +237,12 @@ function Solver:createCodePrefix()
 	}:append{
 	-- define i, index, and bounds-check
 		'#define SETBOUNDS(lhs,rhs)	\\',
-		'int4 i = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0); \\',
-		'if (i.x < lhs || i.x >= gridSize_x - rhs'
+		'\tint4 i = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0); \\',
+		'\tif (i.x < lhs || i.x >= gridSize_x - rhs'
 			.. (self.dim < 2 and '' or ' || i.y < lhs || i.y >= gridSize_y - rhs')
 			.. (self.dim < 3 and '' or ' || i.z < lhs || i.z >= gridSize_z - rhs')
 			.. ') return; \\',
-		'int index = INDEXV(i);',
+		'\tint index = INDEXV(i);',
 	}
 
 	lines:append(self.displayVars:map(function(var,i)
@@ -384,6 +386,10 @@ __kernel void multAdd(
 	self.calcRTildeKernel = self.solverProgram:kernel('calcRTilde', self.rTildeBuf, self.deltaUTildeBuf, self.waveBuf)
 	self.calcFluxKernel = self.solverProgram:kernel('calcFlux', self.fluxBuf, self.UBuf, self.waveBuf, self.eigenBuf, self.deltaUTildeBuf, self.rTildeBuf)
 	self.calcDerivFromFluxKernel = self.solverProgram:kernel('calcDerivFromFlux', self.derivBuf, self.fluxBuf)
+	
+	if self.eqn.useSourceTerm then
+		self.calcSourceTermKernel = self.solverProgram:kernel('calcSourceTerm', self.derivBuf, self.UBuf)
+	end
 
 	if self.app.useGLSharing then
 		self.calcDisplayVarToTexKernel = self.solverProgram:kernel('calcDisplayVarToTex', self.texCLMem)
@@ -542,8 +548,15 @@ function Solver:calcDeriv(derivBuf, dt)
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcRTildeKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	self.calcFluxKernel:setArg(6, ffi.new('real[1]', dt))
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcFluxKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+
+	-- calcDerivFromFlux zeroes the derivative buffer
 	self.calcDerivFromFluxKernel:setArg(0, derivBuf)
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDerivFromFluxKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+
+	-- calcSourceTerm adds to the derivative buffer
+	if self.eqn.useSourceTerm then
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcSourceTermKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	end
 end
 
 function Solver:integrate(derivBuf, dt)
