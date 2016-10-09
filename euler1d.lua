@@ -1,3 +1,10 @@
+--[[
+this has so much in common with Euler3D ...
+and I don't want to keep updating the both of them ...
+and I don't really care about this as much as the 3D version ...
+so maybe I should have this subclass / steal from Euler3D?
+--]]
+
 local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'equation'
@@ -109,6 +116,14 @@ Euler1D.initStateNames = table.map(Euler1D.initStates, function(info) return inf
 -- TODO make this a gui variable, and modifyable in realtime?
 Euler1D.gamma = 7/5
 
+function Euler1D:getCodePrefix()
+	return table{
+		'#define gamma '..clnumber(self.gamma),
+		'#define gamma_1 (gamma-1.)',
+		'#define gamma_3 (gamma-3.)',
+	}:concat'\n'
+end
+
 function Euler1D:getTypeCode()
 	return 
 		require 'makestruct'('prim_t', self.primVars) .. '\n' ..
@@ -118,18 +133,12 @@ end
 function Euler1D:getInitStateCode(solver)
 	local initState = self.initStates[1+solver.initStatePtr[0]]
 	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
-	local initStateDefLines = '#define INIT_STATE_CODE \\\n'
-		.. initState.code:gsub('\n', '\\\n')
 	
 	self.gamma = initState.gamma
 	
 	return table{
-		'#define gamma '..clnumber(self.gamma),
-		initStateDefLines,
+		self:getCodePrefix(),
 		[[
-#define gamma_1 (gamma-1.)
-#define gamma_3 (gamma-3.)
-
 cons_t consFromPrim(prim_t W) {
 	return (cons_t){
 		.rho = W.rho,
@@ -156,17 +165,17 @@ __kernel void initState(
 	real vx = 0;
 	real P = 0;
 
-	INIT_STATE_CODE
+]] .. initState.code .. [[
 
 	UBuf[index] = consFromPrim((prim_t){.rho=rho, .vx=vx, .P=P});
 }
-]]
+]],
 	}:concat'\n'
 end
 
 function Euler1D:solverCode(solver)	
 	return table{
-		'#define gamma '..clnumber(self.gamma),
+		self:getCodePrefix(),
 		'#include "euler1d.cl"',
 	}:concat'\n'
 end

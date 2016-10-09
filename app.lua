@@ -111,19 +111,19 @@ self.ctx:printInfo()
 	--  specifically the call to 'refreshGridSize' within it
 	self.solver = require 'solver'{
 		app = self, 
-		dim = 2,
+		dim = 1,
 		gridSize = {256, 256, 256},
 		boundary = {xmin='mirror', xmax='mirror', ymin='mirror', ymax='mirror'},
 		slopeLimiter = 'Superbee',
 		
-		--[[
+		-- [[
 		--eqn = require 'euler1d'(),
 		eqn = require 'euler3d'(),
 		mins = {-1, -1, -1},
 		maxs = {1, 1, 1},
 		--]]
 	
-		-- [[
+		--[[
 		eqn = require 'maxwell'(),
 		mins = {-1, -1, -1},
 		maxs = {1, 1, 1},

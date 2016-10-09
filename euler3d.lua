@@ -277,6 +277,23 @@ typedef struct {
 ]]
 end
 
+function Euler3D:codePrefix()
+	return table{
+		'#define gamma '..clnumber(self.gamma),
+		[[
+#define gamma_1 (gamma-1.)
+#define gamma_3 (gamma-3.)
+
+real calc_hTotal(real rho, real P, real ETotal) { return (P + ETotal) / rho; }
+real calc_eKin(prim_t W) { return .5 * (W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); }
+real calc_EKin(prim_t W) { return W.rho * calc_eKin(W); }
+real calc_EInt(prim_t W) { return W.P / gamma_1; }
+real calc_eInt(prim_t W) { return calc_EInt(W) / W.rho; }
+real calc_ETotal(prim_t W) { return calc_EKin(W) + calc_EInt(W); }
+]],
+	}:concat'\n'
+end
+
 function Euler3D:getInitStateCode(solver)
 	local initState = self.initStates[1+solver.initStatePtr[0]]
 	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
@@ -302,18 +319,8 @@ function Euler3D:getInitStateCode(solver)
 	end
 
 	return table{
-		'#define gamma '..clnumber(self.gamma),
+		self:codePrefix(),
 		[[
-#define gamma_1 (gamma-1.)
-#define gamma_3 (gamma-3.)
-
-real calc_hTotal(real rho, real P, real ETotal) { return (P + ETotal) / rho; }
-real calc_eKin(prim_t W) { return .5 * (W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); }
-real calc_EKin(prim_t W) { return W.rho * calc_eKin(W); }
-real calc_EInt(prim_t W) { return W.P / gamma_1; }
-real calc_eInt(prim_t W) { return calc_EInt(W) / W.rho; }
-real calc_ETotal(prim_t W) { return calc_EKin(W) + calc_EInt(W); }
-
 cons_t consFromPrim(prim_t W) {
 	return (cons_t){
 		.rho = W.rho,
@@ -354,7 +361,7 @@ end
 
 function Euler3D:solverCode(solver)	
 	return table{
-		'#define gamma '..clnumber(self.gamma),
+		self:codePrefix(),
 		'#include "euler3d.cl"',
 	}:concat'\n'
 end

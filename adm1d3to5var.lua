@@ -84,10 +84,9 @@ print'dalpha_f'
 
 	self.codes = codes
 
-	return table()
-	:append(codes:map(function(code,name,t)
-		return 'real init_calc_'..name..code, #t+1
-	end)):append{[[
+	return table{
+		self:codePrefix(),
+		[[
 __kernel void initState(
 	__global cons_t* UBuf
 ) {
@@ -102,14 +101,25 @@ __kernel void initState(
 	real K_xx = init_calc_K_xx(x);
 	U->KTilde_xx = K_xx / sqrt(U->gamma_xx);
 }
-	]]}:concat'\n'
+]],
+	}:concat'\n'
+end
+
+--[[
+this is called by getInitStateCode and by solverCode
+getInitStateCode is called when initState changes, which rebuilds this, since it is dependent on initState (even though I only have one right now)
+solverCode also uses this, but doesn't calculate it
+so this will all only work right so long as solverCode() is only ever called after getInitStateCode()
+--]]
+function BonaMassoADM1D3to5Var:codePrefix()
+	return self.codes:map(function(code,name,t)
+		return 'real init_calc_'..name..code, #t+1
+	end):concat'\n'
 end
 
 function BonaMassoADM1D3to5Var:solverCode()
-	return table()
-	:append(self.codes:map(function(code,name,t)
-		return 'real init_calc_'..name..code, #t+1
-	end)):append{
+	return table{
+		self:codePrefix(),
 		'#include "adm1d3to5var.cl"',
 	}:concat'\n'
 end

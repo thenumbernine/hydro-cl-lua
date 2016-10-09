@@ -1,13 +1,3 @@
-#define gamma_1 (gamma-1.)
-#define gamma_3 (gamma-3.)
-
-real calc_hTotal(real rho, real P, real ETotal) { return (P + ETotal) / rho; }
-real calc_eKin(prim_t W) { return .5 * (W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); }
-real calc_EKin(prim_t W) { return W.rho * calc_eKin(W); }
-real calc_EInt(prim_t W) { return W.P / gamma_1; }
-real calc_eInt(prim_t W) { return calc_EInt(W) / W.rho; }
-real calc_ETotal(prim_t W) { return calc_EKin(W) + calc_EInt(W); }
-
 prim_t primFromCons(cons_t U) {
 	real EInt = U.ETotal - .5 * (U.mx * U.mx + U.my * U.my + U.mz * U.mz) / U.rho;
 	return (prim_t){

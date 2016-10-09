@@ -1,9 +1,9 @@
 real ESq(cons_t U) { 
-	return sqrt(U.epsEx*U.epsEx + U.epsEy*U.epsEy + U.epsEz*U.epsEz) / eps0;
+	return (U.epsEx * U.epsEx + U.epsEy * U.epsEy + U.epsEz * U.epsEz) / (eps0 * eps0);
 }
 
 real BSq(cons_t U) {
-	return sqrt(U.Bx*U.Bx + U.By*U.By + U.Bz*U.Bz);
+	return U.Bx * U.Bx + U.By * U.By + U.Bz * U.Bz;
 }
 
 real calcDisplayVar_UBuf(
@@ -15,18 +15,18 @@ real calcDisplayVar_UBuf(
 	case display_U_Ex: return U->epsEx / eps0;
 	case display_U_Ey: return U->epsEy / eps0;
 	case display_U_Ez: return U->epsEz / eps0;
-	case display_U_E: return ESq(*U);
+	case display_U_E: return sqrt(ESq(*U));
 	case display_U_Bx: return U->Bx;
 	case display_U_By: return U->By;
 	case display_U_Bz: return U->Bz;
-	case display_U_B: return BSq(*U);
+	case display_U_B: return sqrt(BSq(*U));
 	case display_U_energy: return .5 * (ESq(*U) * eps0 + BSq(*U) / mu0);
 	}
 	return 0;
 }
 
 real calcEigenvalue() { 
-	return 1./sqrt(eps0 * mu0);
+	return 1./(sqrt_eps0 * sqrt_mu0);
 }
 
 range_t calcCellMinMaxEigenvalues(const __global cons_t* U, int side) {
@@ -73,7 +73,7 @@ __kernel void calcEigenBasis(
 		fill(dF_dU+5,6,	0, 1/eps0, 0, 0, 0, 0);
 	
 		__global eigen_t* eigen = eigenBuf + intindex;
-#define _2 0.70710678118654757273731092936941422522068023681641
+#define sqrt_1_2 0.70710678118654757273731092936941422522068023681641
 	}
 }
 
@@ -83,9 +83,9 @@ void eigen_leftTransform(
 	real* x,
 	int side
 ) {
-	const real se = _2 * sqrt(eps0);
+	const real se = sqrt_1_2 * sqrt_eps0;
 	const real ise = 1./se;
-	const real su = _2 * sqrt(mu0);
+	const real su = sqrt_1_2 * sqrt_mu0;
 	const real isu = 1./su;
 	
 	//swap input dim x<->side
@@ -114,8 +114,8 @@ void eigen_rightTransform(
 	real* x,
 	int side
 ) {
-	const real se = _2 * sqrt(eps0);
-	const real su = _2 * sqrt(mu0);
+	const real se = sqrt_1_2 * sqrt_eps0;
+	const real su = sqrt_1_2 * sqrt_mu0;
 
 	y[0] = -se * x[2] + se * x[3];
 	y[1] = -se * x[1] + se * x[4];

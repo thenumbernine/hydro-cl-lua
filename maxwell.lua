@@ -24,11 +24,19 @@ Maxwell.eps0 = 1	-- permittivity
 Maxwell.mu0 = 1		-- permeability
 Maxwell.sigma = 1	-- conductivity
 
-function Maxwell:getInitStateCode(solver)
+function Maxwell:codePrefix()
 	return table{
 		'#define eps0 '..clnumber(self.eps0),
 		'#define mu0 '..clnumber(self.mu0),
 		'#define sigma '..clnumber(self.sigma),
+		'#define sqrt_eps0 '..clnumber(math.sqrt(self.eps0)),
+		'#define sqrt_mu0 '..clnumber(math.sqrt(self.mu0)),
+	}:concat'\n'
+end
+
+function Maxwell:getInitStateCode(solver)
+	return table{
+		self:codePrefix(),
 		[[
 __kernel void initState(
 	__global cons_t* UBuf
@@ -58,9 +66,7 @@ end
 
 function Maxwell:solverCode(solver)
 	return table{ 
-		'#define eps0 '..clnumber(self.eps0),
-		'#define mu0 '..clnumber(self.mu0),
-		'#define sigma '..clnumber(self.sigma),
+		self:codePrefix(),
 		'#include "maxwell.cl"',
 	}:concat'\n'
 end
