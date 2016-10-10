@@ -1,4 +1,36 @@
-#!/usr/bin/env luajit
+--[[
+predefined vars:
+	dim=
+	gridSize=
+	slopeLimiter=
+	boundary=
+	integrator=
+	eqn=
+	mins=
+	maxs=
+	float= set to false to override double precision
+--]]
+local cmdline = {}
+--[[
+for _,k in ipairs{
+	'dim', 'gridSize', 'slopeLimiter', 'boundary', 
+	'integrator', 'eqn', 'mins', 'maxs', 'float'
+} do
+	cmdline[k] = _G[k]
+	_G[k] = nil
+	if cmdline[k] == nil then 
+		cmdline[k] = _G[k:lower()] 
+		_G[k:lower()] = nil
+	end
+end
+--]]
+for _,w in ipairs(arg) do
+	local k,v = w:match'^(.-)=(.*)$'
+	if k then
+		cmdline[k] = assert(loadstring('return '..v))()
+	end
+end
+
 local bit = require 'bit'
 local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
@@ -83,9 +115,11 @@ end
 
 	self.device, self.is64bit = get64bit(self.platform:getDevices{gpu=true})
 
-	-- TODO override with cmd-line?
---	self.is64bit = false
-
+	-- cmd-line override
+	if cmdline.float then
+		self.is64bit = false
+	end
+	
 print('is 64 bit?',self.is64bit)
 print()
 self.device:printInfo()
@@ -112,11 +146,23 @@ self.ctx:printInfo()
 	--  specifically the call to 'refreshGridSize' within it
 	self.solver = require 'solver'{
 		app = self, 
-		dim = 1,
-		gridSize = {256, 256, 256},
-		boundary = {xmin='freeflow', xmax='freeflow', ymin='freeflow', ymax='freeflow'},
-		integrator = 'Runge-Kutta 4, TVD',
-		slopeLimiter = 'superbee',
+		dim = cmdline.dim or 2,
+		gridSize = {cmdline.gridSize or 256, cmdline.gridSize or 256, cmdline.gridSize or 256},
+		boundary = {
+			xmin=cmdline.boundary or 'freeflow',
+			xmax=cmdline.boundary or 'freeflow',
+			ymin=cmdline.boundary or 'freeflow',
+			ymax=cmdline.boundary or 'freeflow',
+			zmin=cmdline.boundary or 'freeflow',
+			zmax=cmdline.boundary or 'freeflow',
+		},
+		integrator = cmdline.integrator or 'Runge-Kutta 4, TVD',
+		slopeLimiter = cmdline.slopeLimiter or 'superbee',
+		
+		-- [[ default:
+		eqn = require(cmdline.eqn or 'maxwell')(),
+		mins = cmdline.mins or {-1, -1, -1},
+		maxs = cmdline.maxs or {1, 1, 1},
 		
 		--[[
 		--eqn = require 'euler1d'(),
@@ -131,7 +177,7 @@ self.ctx:printInfo()
 		maxs = {1, 1, 1},
 		--]]
 
-		-- [[
+		--[[
 		eqn = require 'adm1d3var'(),
 		mins = {0, 0, 0},
 		maxs = {300, 300, 300},

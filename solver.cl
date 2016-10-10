@@ -47,23 +47,41 @@ __kernel void calcErrors(
 
 		real orthoError = 0;
 		real fluxError = 0;
-		for (int k = 0; k < numStates; ++k) {
+		
+		//the flux transform is F v = R Lambda L v, I = R L
+		//but if numWaves < numStates then certain v will map to the nullspace 
+		//so to test orthogonality for only numWaves dimensions, I will verify that Qinv Q v = v 
+		//I = L R
+		for (int k = 0; k < numWaves; ++k) {
+			real basis[numWaves];
+			for (int j = 0; j < numWaves; ++j) {
+				basis[j] = k == j ? 1 : 0;
+			}
 			
+			real eigenInvCoords[numStates];
+			eigen_rightTransform(eigenInvCoords, eigen, basis, side);
+		
+			real newbasis[numWaves];
+			eigen_leftTransform(newbasis, eigen, eigenInvCoords, side);
+			
+			for (int j = 0; j < numWaves; ++j) {
+				orthoError += fabs(newbasis[j] - basis[j]);
+			}
+		}
+		
+		for (int k = 0; k < numStates; ++k) {
 			real basis[numStates];
 			for (int j = 0; j < numStates; ++j) {
 				basis[j] = k == j ? 1 : 0;
 			}
-	
+
 			real eigenCoords[numWaves];
 			eigen_leftTransform(eigenCoords, eigen, basis, side);
-			
+
 			real eigenScaled[numWaves];
 			for (int j = 0; j < numWaves; ++j) {
 				eigenScaled[j] = eigenCoords[j] * wave[j];
 			}
-			
-			real newbasis[numStates];
-			eigen_rightTransform(newbasis, eigen, eigenCoords, side);
 			
 			real newtransformed[numStates];
 			eigen_rightTransform(newtransformed, eigen, eigenScaled, side);
@@ -72,10 +90,10 @@ __kernel void calcErrors(
 			fluxTransform(transformed, fluxXform, basis, side);
 			
 			for (int j = 0; j < numStates; ++j) {
-				orthoError += fabs(newbasis[j] - basis[j]);
 				fluxError += fabs(newtransformed[j] - transformed[j]);
 			}
 		}
+		
 		errorBuf[intindex] = (error_t){
 			.ortho = log(orthoError) * _1_LN_10,
 			.flux = log(fluxError) * _1_LN_10,

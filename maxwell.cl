@@ -75,30 +75,32 @@ void fluxTransform(
 	real4 epsE = (real4)(x[0], x[1], x[2], 0);
 	real4 B = (real4)(x[3], x[4], x[5], 0);
 	
-	if (side == 1) {
-		epsE.xy = epsE.yx;
-		B.xy = B.yx;
-	} else if (side == 2) {
-		epsE.xz = epsE.zx;
-		B.xz = B.zx;
-	}
-
-	y[0] = 0;
-	y[1] = B.z / mu0;
-	y[2] = -B.y / mu0;
-	y[3] = 0;
-	y[4] = -epsE.z / eps0;
-	y[5] = epsE.y / eps0;
-
-	//swap output dim x<->side
-	real tmp;
-	if (side == 1) {
-		tmp = y[0]; y[0] = y[1]; y[1] = tmp;
-		tmp = y[3]; y[3] = y[4]; y[4] = tmp;
-	} else if (side == 2) {
-		tmp = y[0]; y[0] = y[4]; y[4] = tmp;
-		tmp = y[3]; y[3] = y[5]; y[5] = tmp;
-	}
+	switch (side) {
+	case 0:
+		y[0] = 0;
+		y[1] = B.z / mu0;
+		y[2] = -B.y / mu0;
+		y[3] = 0;
+		y[4] = -epsE.z / eps0;
+		y[5] = epsE.y / eps0;
+		break;
+	case 1:
+		y[0] = -B.z / mu0;
+		y[1] = 0;
+		y[2] = B.x / mu0;
+		y[3] = epsE.z / eps0;
+		y[4] = 0;
+		y[5] = -epsE.x / eps0;
+		break;
+	case 2:
+		y[0] = B.y / mu0;
+		y[1] = -B.x / mu0;
+		y[2] = 0;
+		y[3] = -epsE.y / eps0;
+		y[4] = epsE.x / eps0;
+		y[5] = 0;
+		break;
+	} 
 }
 
 void eigen_leftTransform(
@@ -107,29 +109,24 @@ void eigen_leftTransform(
 	const real* x,
 	int side
 ) {
-	const real se = sqrt_1_2 * sqrt_eps0;
-	const real ise = 1./se;
-	const real su = sqrt_1_2 * sqrt_mu0;
-	const real isu = 1./su;
+	const real ise = sqrt_1_2/sqrt_eps0;
+	const real isu = sqrt_1_2/sqrt_mu0;
 	
 	//swap input dim x<->side
 	real4 epsE = (real4)(x[0], x[1], x[2], 0);
 	real4 B = (real4)(x[3], x[4], x[5], 0);
 	
-	if (side == 1) {
-		epsE.xy = epsE.yx;
-		B.xy = B.yx;
-	} else if (side == 2) {
-		epsE.xz = epsE.zx;
-		B.xz = B.zx;
+	switch (side) {
+	default:
+	case 0:
+		y[0] = epsE.z * ise + B.y * isu;
+		y[1] = epsE.y * -ise + B.z * isu;
+		y[2] = epsE.x * -ise + B.x * isu;
+		y[3] = epsE.x * ise + B.x * isu;
+		y[4] = epsE.y * ise + B.z * isu;
+		y[5] = epsE.z * -ise + B.y * isu;
+		break;
 	}
-
-	y[0] = epsE.z * ise + B.y * isu;
-	y[1] = epsE.y * -ise + B.z * isu;
-	y[2] = epsE.x * -ise + B.x * isu;
-	y[3] = epsE.x * ise + B.x * isu;
-	y[4] = epsE.y * ise + B.z * isu;
-	y[5] = epsE.z * -ise + B.y * isu;
 }
 
 void eigen_rightTransform(
@@ -141,21 +138,16 @@ void eigen_rightTransform(
 	const real se = sqrt_1_2 * sqrt_eps0;
 	const real su = sqrt_1_2 * sqrt_mu0;
 
-	y[0] = -se * x[2] + se * x[3];
-	y[1] = -se * x[1] + se * x[4];
-	y[2] = se * x[0] - se * x[5];
-	y[3] = su * x[2] + su * x[3];
-	y[4] = su * x[0] + su * x[5];
-	y[5] = su * x[1] + su * x[4];
-
-	//swap output dim x<->side
-	real tmp;
-	if (side == 1) {
-		tmp = y[0]; y[0] = y[1]; y[1] = tmp;
-		tmp = y[3]; y[3] = y[4]; y[4] = tmp;
-	} else if (side == 2) {
-		tmp = y[0]; y[0] = y[4]; y[4] = tmp;
-		tmp = y[3]; y[3] = y[5]; y[5] = tmp;
+	switch (side) {
+	default:
+	case 0:
+		y[0] = -se * x[2] + se * x[3];
+		y[1] = -se * x[1] + se * x[4];
+		y[2] = se * x[0] - se * x[5];
+		y[3] = su * x[2] + su * x[3];
+		y[4] = su * x[0] + su * x[5];
+		y[5] = su * x[1] + su * x[4];
+		break;
 	}
 }
 

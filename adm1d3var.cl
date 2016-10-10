@@ -4,8 +4,10 @@ real calcDisplayVar_UBuf(int displayVar, const __global real* U_) {
 	case display_U_alpha: return U->alpha;
 	case display_U_gamma_xx: return U->gamma_xx;
 	case display_U_a_x: return U->a_x;
-	case display_U_d_xxx: return U->d_xxx;
+	case display_U_D_g: return U->D_g;
 	case display_U_KTilde_xx: return U->KTilde_xx;
+	case display_U_dx_alpha: return U->alpha * U->a_x;
+	case display_U_dx_gamma_xx: return U->gamma_xx * U->D_g;
 	case display_U_K_xx: return U->KTilde_xx * sqrt(U->gamma_xx);
 	case display_U_volume: return U->alpha * sqrt(U->gamma_xx);
 	}
@@ -70,11 +72,12 @@ void fluxTransform(
 	const real* x,
 	int side
 ) {
+	real alpha_sqrt_gamma_xx = flux->alpha / sqrt(flux->gamma_xx);
 	y[0] = 0;
 	y[1] = 0;
-	y[2] = x[4] * flux->alpha * flux->f / sqrt(flux->gamma_xx);
-	y[3] = x[4] * 2. * flux->alpha / sqrt(flux->gamma_xx);
-	y[4] = x[2] * flux->alpha / sqrt(flux->gamma_xx);
+	y[2] = x[4] * flux->f / alpha_sqrt_gamma_xx;
+	y[3] = x[4] * 2. * alpha_sqrt_gamma_xx;
+	y[4] = x[2] * alpha_sqrt_gamma_xx;
 }
 
 void eigen_leftTransform(
@@ -84,9 +87,9 @@ void eigen_leftTransform(
 	int side
 ) {
 	real sqrt_f = sqrt(eigen->f);
-	y[0] = x[2] / (2. * eigen->f) - x[4] / (2. * sqrt_f);
+	y[0] = (x[2] / eigen->f - x[4] / sqrt_f) / 2.;
 	y[1] = -2. * x[2] / eigen->f + x[3];
-	y[2] = x[2] / (2. * eigen->f) + x[4] / (2. * sqrt_f);
+	y[2] = (x[2] / eigen->f + x[4] / sqrt_f) / 2.;
 }
 
 void eigen_rightTransform(
@@ -116,8 +119,22 @@ kernel void addSourceTerm(
 	SETBOUNDS(0,0);
 	const __global cons_t* U = UBuf + index;
 	__global cons_t* deriv = derivBuf + index;
-	real f = calc_f(U->alpha);
-	real K_xx = U->KTilde_xx / sqrt(U->gamma_xx);
-	deriv->alpha -= U->alpha * U->alpha * f * K_xx / U->gamma_xx;
-	deriv->gamma_xx -= 2. * U->alpha * K_xx;
+	
+	real alpha = U->alpha;
+	real gamma_xx = U->gamma_xx;
+	real a_x = U->a_x;
+	real D_g = U->D_g;
+	real KTilde_xx = U->KTilde_xx;
+	
+	real sqrt_gamma_xx = sqrt(gamma_xx);
+	real K_xx = KTilde_xx / sqrt_gamma_xx;
+	
+	real f = calc_f(alpha);
+	real dalpha_f = calc_dalpha_f(alpha);
+	
+	deriv->alpha -= alpha * alpha * f * K_xx / gamma_xx;
+	deriv->gamma_xx -= 2. * alpha * K_xx;
+	deriv->a_x -= alpha * K_xx * (f * (.5 * D_g - a_x) - a_x * alpha * dalpha_f);
+	deriv->D_g -= 2. * alpha * K_xx * (.5 * D_g - a_x);
+	deriv->KTilde_xx -= alpha * a_x / sqrt_gamma_xx * (.5 * D_g - a_x);
 }
