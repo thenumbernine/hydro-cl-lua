@@ -160,7 +160,7 @@ self.ctx:printInfo()
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
 		
 		-- [[ default:
-		eqn = require(cmdline.eqn or 'adm1d3var')(),
+		eqn = require(cmdline.eqn or 'adm1d_v1')(),
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		
@@ -634,12 +634,23 @@ function HydroCLApp:updateGUI()
 
 	if ig.igCollapsingHeader'equation:' then
 		local f = ffi.new'float[1]'
+		local i = ffi.new'int[1]'
 		for _,var in ipairs(eqn.guiVars) do
-			f[0]=  eqn[var]
-			if ig.igInputFloat(var, f, 0, 0, -1, ig.ImGuiInputTextFlags_EnterReturnsTrue) then
-				if eqn[var] ~= f[0] then
-					eqn[var] = f[0]
-					print('refreshing '..var..' = '..eqn[var])
+			local eqn_var = eqn[var]
+			if type(eqn_var) == 'number' then
+				f[0] = eqn_var 
+				if ig.igInputFloat(var, f, 0, 0, -1, ig.ImGuiInputTextFlags_EnterReturnsTrue) then
+					if eqn_var ~= f[0] then
+						eqn[var] = f[0]
+						print('refreshing '..var..' = '..eqn[var])
+						self.solver:refreshSolverProgram()
+					end
+				end
+			elseif type(eqn_var) == 'table' then
+				i[0] = eqn_var.value
+				if ig.igCombo(eqn[var].name, i, eqn[var].options) then
+					eqn[var].value = i[0]
+					print('refreshing '..var..' = '..eqn[var].options[eqn[var].value+1])
 					self.solver:refreshSolverProgram()
 				end
 			end

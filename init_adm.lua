@@ -205,7 +205,7 @@ end
 return {
 	{
 		name = 'gauge shock wave',
-		init = function(solver)
+		init = function(solver, args)
 			local var = symmath.var
 			
 			local xNames = table{'x', 'y', 'z'}
@@ -222,13 +222,10 @@ return {
 
 			-- lapse function
 
-			local alphaVar = var'alpha'
-
-			local kappa = 1
-			local f = symmath.clone(1)
-			--local f = 1.69
-			--local f = .49
-			--local f = 1 + kappa / alphaVar^2
+			local alphaVar = args.alphaVar or var'alpha'
+			--local kappa = 1 -- TODO specify this? or should I bother?
+			local f = symmath.clone(args.f or 1)
+			
 			local dalpha_f = f:diff(alphaVar)()
 	
 			-- the rest
@@ -268,24 +265,16 @@ local d2h = Tensor('_ij', function(i,j) return h:diff(xs[i],xs[j])() end)
 --os.exit()
 
 			local deltaLL = Tensor('_ij', function(i,j) return i == j and 1 or 0 end)
-
-			local gammaLL = Tensor'_ij'
-			gammaLL['_ij'] = (deltaLL'_ij' - dh'_i' * dh'_j')()
-			local gammaLLSym = symNames:map(function(xij,ij) return gammaLL[{from6to3x3(ij)}] end)
-		
-			local div_h = (dh'_i' * dh'_i')()
-			local K_denom = (1 - div_h)^.5
-			local KLL = Tensor'_ij'
-			KLL['_ij'] = (-d2h'_ij' / K_denom)()
-			local KLLSym = symNames:map(function(xij,ij) return KLL[{from6to3x3(ij)}] end)
+			local gammaLL = (deltaLL'_ij' - dh'_i' * dh'_j')()
+			local KLL = (-d2h'_ij' / (1 - (dh'_k' * dh'_k')() )^.5 )()
 			
 			print('...done deriving and compiling.')
 			
 			local codes = initNumRel{
 				vars = xs,
 				alpha = alpha,
-				gammaLL = gammaLLSym,
-				K = KLLSym,
+				gammaLL = symNames:map(function(xij,ij) return gammaLL[{from6to3x3(ij)}] end),
+				K = symNames:map(function(xij,ij) return KLL[{from6to3x3(ij)}] end),
 			}
 	
 			codes.f = require 'symmath.tostring.C':compile(f, {alphaVar})

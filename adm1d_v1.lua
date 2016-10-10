@@ -6,6 +6,11 @@ conservative variables:
 a_x = (ln alpha),x = alpha,x / alpha
 D_g = (ln gamma_xx),x = gamma_xx,x / gamma_xx
 KTilde_xx = sqrt(gamma_xx) K_xx
+
+d_xxx = 1/2 gamma_xx,x
+D_g = 2 d_xxx / gamma_xx
+d_xxx = 1/2 D_g gamma_xx
+
 K_xx = KTilde_xx / sqrt(gamma_xx)
 KTilde_xx,x = K_xx,x sqrt(gamma_xx) + 1/2 sqrt(gamma_xx) K_xx gamma_xx,x / gamma_xx
 	= K_xx,x sqrt(gamma_xx) + 1/2 KTilde_xx D_g
@@ -26,9 +31,9 @@ D_g,t + 2 alpha / sqrt(gamma_xx) KTilde_xx,x = 2 alpha KTilde_xx / sqrt(gamma_xx
 KTilde_xx,t + alpha,x a_x / sqrt(gamma_xx) + alpha a_x,x / sqrt(gamma_xx) + alpha a_x * -1/2 1/sqrt(gamma_xx)^3 gamma_xx,x = 0
 KTilde_xx,t + alpha / sqrt(gamma_xx) a_x,x = alpha a_x / sqrt(gamma_xx) (1/2 D_g - a_x)
 
-[   a_x   ]     [         0,              0, alpha f / sqrt(gamma_xx) ] [ a_x ]     [ alpha KTilde_xx / sqrt(gamma_xx) (f (1/2 D_g - a_x) - a_x alpha f') ]
-[   D_g   ]   + [         0,              0, 2 alpha / sqrt(gamma_xx) ] [d_xxx]   = [        2 alpha KTilde_xx / sqrt(gamma_xx) (1/2 D_g - a_x)           ]
-[KTilde_xx],t   [ alpha / sqrt(gamma_xx), 0,            0             ] [ K_xx],x   [           alpha a_x / sqrt(gamma_xx) (1/2 D_g - a_x)                ]
+[   a_x   ]     [         0,              0, alpha f / sqrt(gamma_xx) ] [a_x ]     [ alpha KTilde_xx / sqrt(gamma_xx) (f (1/2 D_g - a_x) - a_x alpha f') ]
+[   D_g   ]   + [         0,              0, 2 alpha / sqrt(gamma_xx) ] [D_g ]   = [        2 alpha KTilde_xx / sqrt(gamma_xx) (1/2 D_g - a_x)           ]
+[KTilde_xx],t   [ alpha / sqrt(gamma_xx), 0,            0             ] [K_xx],x   [           alpha a_x / sqrt(gamma_xx) (1/2 D_g - a_x)                ]
 
 ... has eigenvalues ...
 
@@ -43,49 +48,6 @@ Q = [     2,    1,    2    ]
        [ 1/(2f), 0, -1/(2 sqrt(f)) ]
 Q^-1 = [ -2/f,   1,        0       ]
        [ 1/(2f), 0,  1/(2 sqrt(f)) ]
-
-
-
-TODO implement this elsewhere:
-from the 1998 "appearance of coorindate shocks" Alcubierre paper, which uses this system:
-
-d_xxx = 1/2 g_xx,x
-
-a_x,t + (alpha f K_xx / gamma_xx),x = 0
-d_xxx,t + (alpha K_xx),x = 0
-K_xx,t + (alpha a_x),x = (alpha / gamma_xx) (a_x d_xxx - K_xx^2)
-
-expanded:
-
-a_x,t + alpha,x f K_xx / gamma_xx + alpha f,x K_xx / gamma_xx + alpha f K_xx,x / gamma_xx - alpha f K_xx / gamma_xx^2 gamma_xx,x = 0
-a_x,t + alpha f / gamma_xx K_xx,x = alpha K_xx / gamma_xx (f (2 d_xxx / gamma_xx - a_x) - alpha a_x f')
-
-d_xxx,t + alpha,x K_xx + alpha K_xx,x = 0
-d_xxx,t + alpha K_xx,x = -alpha a_x K_xx
-
-K_xx,t + alpha,x a_x + alpha a_x,x = alpha / gamma_xx (a_x d_xxx - K_xx^2)
-K_xx,t + alpha a_x,x = alpha ((a_x d_xxx - K_xx^2) / gamma_xx - a_x^2)
-
-[ a_x ]     [   0,   0, alpha f / gamma_xx ] [ a_x ]     [ alpha K_xx / gamma_xx (f (2 d_xxx / gamma_xx - a_x) - alpha a_x f') ]
-[d_xxx]   + [   0,   0,        alpha       ] [d_xxx]   = [ -alpha a_x K_xx                                                     ]
-[ K_xx],t   [ alpha, 0,          0         ] [ K_xx],x   [ alpha ((a_x d_xxx - K_xx^2) / gamma_xx - a_x^2)                     ]
-
-... has eigenvalues ...
-
-Lambda = {-alpha sqrt(f/gamma_xx), 0, alpha sqrt(f/gamma_xx)}
-   
-... and eigenvectors ...
-
-	[ sqrt(f/gamma_xx), 0, sqrt(f/gamma_xx) ]
-Q = [ sqrt(gamma_xx/f), 1, sqrt(gamma_xx/f) ]
-    [       -1,         0,         1        ]
-
-       [ sqrt(gamma_xx/f)/2, 0, -1/2 ]
-Q^-1 = [     -gamma_xx/f,    1,   0  ]
-       [ sqrt(gamma_xx/f)/2, 0,  1/2 ]
-
-
-
 
 --]]
 
@@ -104,31 +66,36 @@ ADM_BonaMasso_1D_Alcubierre2008.mirrorVars = {{'gamma_xx', 'a_x', 'D_g', 'KTilde
 
 ADM_BonaMasso_1D_Alcubierre2008.useSourceTerm = true
 
-ADM_BonaMasso_1D_Alcubierre2008.initStateNames = {'gaussianWave'}
-
 ADM_BonaMasso_1D_Alcubierre2008.displayVars = table()
 	:append(ADM_BonaMasso_1D_Alcubierre2008.consVars)
-	:append{'dx_alpha', 'dx_gamma_xx', 'K_xx', 'volume'}
+	:append{'dx_alpha', 'dx_gamma_xx', 'd_xxx', 'K_xx', 'volume'}
 
 ADM_BonaMasso_1D_Alcubierre2008.initStates = require 'init_adm'
-ADM_BonaMasso_1D_Alcubierre2008.initStateNames = table.map(ADM_BonaMasso_1D_Alcubierre2008.initStates, function(initState) return initState.name end)
+ADM_BonaMasso_1D_Alcubierre2008.initStateNames = table.map(ADM_BonaMasso_1D_Alcubierre2008.initStates, function(state) return state.name end)
 
---[[
-this is called by getInitStateCode and by solverCode
-getInitStateCode is called when initState changes, which rebuilds this, since it is dependent on initState (even though I only have one right now)
-solverCode also uses this, but doesn't calculate it
-so this will all only work right so long as solverCode() is only ever called after getInitStateCode()
---]]
 function ADM_BonaMasso_1D_Alcubierre2008:codePrefix()
 	return table.map(self.codes, function(code,name,t)
 		return 'real calc_'..name..code, #t+1
 	end):concat'\n'
 end
 
-function ADM_BonaMasso_1D_Alcubierre2008:getInitStateCode(solver)
+ADM_BonaMasso_1D_Alcubierre2008.guiVars = {'f'}
+ADM_BonaMasso_1D_Alcubierre2008.f = {
+	value = 0,	-- 0-based index into options
+	name = 'f',
+	options = {'1', '1.69', '.49', '1 + 1/alpha^2'},
+}
 
+function ADM_BonaMasso_1D_Alcubierre2008:getInitStateCode(solver)
 	local initState = self.initStates[solver.initStatePtr[0]+1]
-	self.codes = initState.init(solver)
+	
+	local alphaVar = require 'symmath'.var'alpha'
+	self.codes = initState.init(solver, ({
+		{f = 1},
+		{f = 1.69},
+		{f = 1.49},
+		{f = 1 + 1/alphaVar^2, alphaVar=alphaVar},
+	})[self.f.value+1])
 
 	return table{
 		self:codePrefix(),
@@ -153,7 +120,7 @@ end
 function ADM_BonaMasso_1D_Alcubierre2008:solverCode()
 	return table{
 		self:codePrefix(),
-		'#include "adm1d3var.cl"',
+		'#include "adm1d_v1.cl"',
 	}:concat'\n'
 end
 
