@@ -5,14 +5,7 @@ __kernel void calcDT(
 	const __global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
-	if (i.x < 2 || i.x >= gridSize_x - 2 
-#if dim > 1
-		|| i.y < 2 || i.y >= gridSize_y - 2
-#endif
-#if dim > 2
-		|| i.z < 2 || i.z >= gridSize_z - 2
-#endif
-	) {
+	if (OOB(2,2)) {
 		dtBuf[index] = INFINITY;
 		return;
 	}
@@ -38,7 +31,8 @@ __kernel void calcErrors(
 	const __global eigen_t* eigenBuf,
 	const __global fluxXform_t* fluxXformBuf
 ) {
-	SETBOUNDS(2,1);
+	SETBOUNDS(0,0);
+
 	for (int side = 0; side < dim; ++side) {
 		int intindex = side + dim * index;
 		const __global real* wave = waveBuf + numWaves * intindex;
@@ -224,22 +218,14 @@ __kernel void calcDerivFromFlux(
 	const __global real* fluxBuf
 ) {
 	SETBOUNDS(0,0);
-	
+
+	//would it be faster to fill the buffer with zeros beforehand?
 	__global real* deriv = derivBuf + numStates * index;
 	for (int j = 0; j < numStates; ++j) {
 		deriv[j] = 0;
 	}
 	
-	if (i.x < 2 || i.x >= gridSize_x - 2 
-#if dim > 1
-		|| i.y < 2 || i.y >= gridSize_y - 2
-#endif
-#if dim > 2
-		|| i.z < 2 || i.z >= gridSize_z - 2
-#endif
-	) {
-		return;
-	}
+	if (OOB(2,2)) return;
 	
 	for (int side = 0; side < dim; ++side) {
 		int intindexL = side + dim * index;

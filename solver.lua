@@ -524,13 +524,15 @@ function Solver:createCodePrefix()
 		-- run here for the code, and in buffer for the sizeof()
 		self.eqn:getEigenInfo().typeCode
 	}:append{
-	-- define i, index, and bounds-check
-		'#define SETBOUNDS(lhs,rhs)	\\',
-		'\tint4 i = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0); \\',
-		'\tif (i.x < lhs || i.x >= gridSize_x - rhs'
+		-- bounds-check macro
+		'#define OOB(lhs,rhs) (i.x < lhs || i.x >= gridSize_x - rhs'
 			.. (self.dim < 2 and '' or ' || i.y < lhs || i.y >= gridSize_y - rhs')
 			.. (self.dim < 3 and '' or ' || i.z < lhs || i.z >= gridSize_z - rhs')
-			.. ') return; \\',
+			.. ')',
+		-- define i, index, and bounds-check
+		'#define SETBOUNDS(lhs,rhs)	\\',
+		'\tint4 i = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0); \\',
+		'\tif (OOB(lhs,rhs)) return; \\',
 		'\tint index = INDEXV(i);',
 	}
 

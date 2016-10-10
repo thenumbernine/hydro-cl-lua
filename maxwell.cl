@@ -109,22 +109,33 @@ void eigen_leftTransform(
 	const real* x,
 	int side
 ) {
-	const real ise = sqrt_1_2/sqrt_eps0;
-	const real isu = sqrt_1_2/sqrt_mu0;
-	
-	//swap input dim x<->side
-	real4 epsE = (real4)(x[0], x[1], x[2], 0);
-	real4 B = (real4)(x[3], x[4], x[5], 0);
+	const real ise = sqrt_1_2 / sqrt_eps0;
+	const real isu = sqrt_1_2 / sqrt_mu0;
 	
 	switch (side) {
-	default:
 	case 0:
-		y[0] = epsE.z * ise + B.y * isu;
-		y[1] = epsE.y * -ise + B.z * isu;
-		y[2] = epsE.x * -ise + B.x * isu;
-		y[3] = epsE.x * ise + B.x * isu;
-		y[4] = epsE.y * ise + B.z * isu;
-		y[5] = epsE.z * -ise + B.y * isu;
+		y[0] = x[2] *  ise + x[4] * isu;
+		y[1] = x[1] * -ise + x[5] * isu;
+		y[2] = x[0] * -ise + x[3] * isu;
+		y[3] = x[0] *  ise + x[3] * isu;
+		y[4] = x[1] *  ise + x[5] * isu;
+		y[5] = x[2] * -ise + x[4] * isu;
+		break;
+	case 1:
+		y[0] = x[0] *  ise + x[5] * isu;
+		y[1] = x[2] * -ise + x[3] * isu;
+		y[2] = x[1] * -ise + x[4] * isu;
+		y[3] = x[1] *  ise + x[4] * isu;
+		y[4] = x[2] *  ise + x[3] * isu;
+		y[5] = x[0] * -ise + x[5] * isu;
+		break;
+	case 2:
+		y[0] = x[1] *  ise + x[3] * isu;
+		y[1] = x[0] * -ise + x[4] * isu;
+		y[2] = x[2] * -ise + x[5] * isu;
+		y[3] = x[2] *  ise + x[5] * isu;
+		y[4] = x[0] *  ise + x[4] * isu;
+		y[5] = x[1] * -ise + x[3] * isu;
 		break;
 	}
 }
@@ -141,12 +152,54 @@ void eigen_rightTransform(
 	switch (side) {
 	default:
 	case 0:
-		y[0] = -se * x[2] + se * x[3];
-		y[1] = -se * x[1] + se * x[4];
-		y[2] = se * x[0] - se * x[5];
-		y[3] = su * x[2] + su * x[3];
-		y[4] = su * x[0] + su * x[5];
-		y[5] = su * x[1] + su * x[4];
+/*
+z, -y, -x, x, y, -z
+y,  z,  x, x, z, y
+*/
+		y[0] = se * (-x[2] + x[3]);
+		y[1] = se * (-x[1] + x[4]);
+		y[2] = se * (x[0] + -x[5]);
+		y[3] = su * (x[2] + x[3]);
+		y[4] = su * (x[0] + x[5]);
+		y[5] = su * (x[1] + x[4]);
+		break;
+	case 1:
+/*
+x, -z, -y, y, z, -x
+z,  x,  y, y, x,  z
+
+1  0  0 0 0 -1
+0  0 -1 1 0  0
+0 -1  0 0 1  0
+0  1  0 0 1  0
+0  0  1 1 0  0
+1  0  0 0 0  1
+*/
+		y[0] = se * (x[0] - x[5]);
+		y[1] = se * (-x[2] + x[3]);
+		y[2] = se * (-x[1] + x[4]);
+		y[3] = su * (x[1] + x[4]);
+		y[4] = su * (x[2] + x[3]);
+		y[5] = su * (x[0] + x[5]);
+		break;
+	case 2:
+/*
+y, -x, -z, z, x, -y
+x,  y,  z, z,  y,  x
+
+0 -1  0 0 1  0
+1  0  0 0 0 -1
+0  0 -1 1 0  0
+1  0  0 0 0  1
+0  1  0 0 1  0
+0  0  1 1 0  0
+*/
+		y[0] = se * (-x[1] + x[4]);
+		y[1] = se * (x[0] - x[5]);
+		y[2] = se * (-x[2] + x[3]);
+		y[3] = su * (x[0] + x[5]);
+		y[4] = su * (x[1] + x[4]);
+		y[5] = su * (x[2] + x[3]);
 		break;
 	}
 }

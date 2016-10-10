@@ -146,7 +146,7 @@ self.ctx:printInfo()
 	--  specifically the call to 'refreshGridSize' within it
 	self.solver = require 'solver'{
 		app = self, 
-		dim = cmdline.dim or 2,
+		dim = cmdline.dim or 1,
 		gridSize = {cmdline.gridSize or 256, cmdline.gridSize or 256, cmdline.gridSize or 256},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -160,7 +160,7 @@ self.ctx:printInfo()
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
 		
 		-- [[ default:
-		eqn = require(cmdline.eqn or 'maxwell')(),
+		eqn = require(cmdline.eqn or 'adm1d3var')(),
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		
