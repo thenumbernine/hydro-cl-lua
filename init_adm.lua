@@ -12,6 +12,8 @@ end
 -- I'm working on a unified initial condition code for 1D and 3D NR problems:
 --[[
 args:
+	solver = the solver
+
 	args = {x,y,z} spatial basis variables
 	alpha = lapse expression
 	(beta isn't used yet)
@@ -61,30 +63,28 @@ local function initNumRel(args)
 	end
 	
 	-- ADM
---	if solverName == 'ADM1DRoe' then
-		exprs.gammaLL = exprs.gammaLL[1]	-- only need g_xx
-		exprs.a = (exprs.alpha:diff(vars[1]) / exprs.alpha)()	-- only need a_x
-		exprs.d = (exprs.gammaLL:diff(vars[1])/2)()	-- only need D_xxx
-		exprs.K = exprs.K[1]	-- only need K_xx
+	
+	-- assuming this is one of the ADM 1D solvers
+	if args.solver.eqn.numWaves == 3 then
 		print('compiling expressions...')
-		local codes = table.map(exprs, compileC)
+		local codes = table{
+			alpha  = exprs.alpha,
+			gamma_xx = exprs.gammaLL[1],	-- only need g_xx
+			a_x = (exprs.alpha:diff(vars[1]) / exprs.alpha)(),	-- only need a_x
+			d_xxx = (exprs.gammaLL[1]:diff(vars[1])/2)(),	-- only need D_xxx
+			K_xx = exprs.K[1],	-- only need K_xx
+		}:map(compileC)
 		print('...done compiling expressions')
-		
-		return {
-			alpha = codes.alpha,
-			gamma_xx = codes.gammaLL,
-			a_x = codes.a,
-			d_xxx = codes.d,
-			K_xx = codes.K
-		}
---[[	
-	elseif solverName == 'ADM3DRoe' then
+		return codes
+
+	-- assuming this is an ADM 3D solver
+	elseif args.solver.eqn.numWaves == 37 then 
 		
 		-- for complex computations it might be handy to extract the determinant first ...
 		-- or even just perform a numerical inverse ...
 		if not args.useNumericInverse then
 			print('inverting spatial metric...')
-			exprs.gammaU = {mat33.inv(exprs.gammaLL:unpack())}
+			exprs.gammaUU = {mat33.inv(exprs.gammaLL:unpack())}
 			print('...done inverting spatial metric')
 		end
 
@@ -103,103 +103,21 @@ local function initNumRel(args)
 			return (exprs.alpha:diff(var) / exprs.alpha)()
 		end)
 		print('...done building lapse partials')
-		
-		print('compiling expressions...')
-		local calc = table.map(exprs, buildCalc)
-		print('...done compiling expressions')
 	
-		local densityFunc = args.density or 0
-		if symmath.Expression.is(densityFunc) then
-			densityFunc = densityFunc():compile(vars)
-		end
+		-- this requires turning D from sym into a Tensor
+		--  and requires gammaUU being stored as the Tensor metric inverse
+		--exprs.V = (D'_ik^k' - D'^k_ki')()
 
-		local pressureFunc = args.pressure or 0
-		if symmath.Expression.is(pressureFunc) then
-			pressureFunc = pressureFunc():compile(vars)
-		end
+		print('compiling expressions...')
+		local codes = table.map(exprs, compileC)
+		print('...done compiling expressions')
 
-		initState = function(x,y,z)
-		
-			local alpha = calc.alpha(x,y,z)
-			local gammaLL = calc.gammaLL:map(function(g_ij) return g_ij(x,y,z) end)
-			local A = calc.A:map(function(A_i) return A_i(x,y,z) end)
-			local D = calc.D:map(function(D_i) return D_i:map(function(D_ijk) return D_ijk(x,y,z) end) end)
-			local gammaU = args.useNumericInverse and table{mat33.inv(gammaLL:unpack())} or calc.gammaU:map(function(gammaUij) return gammaUij(x,y,z) end) 
-			
-			local function sym3x3(m,i,j)
-				local m_xx, m_xy, m_xz, m_yy, m_yz, m_zz = m:unpack()
-				if i==1 then
-					if j==1 then return m_xx end
-					if j==2 then return m_xy end
-					if j==3 then return m_xz end
-				elseif i==2 then
-					if j==1 then return m_xy end
-					if j==2 then return m_yy end
-					if j==3 then return m_yz end
-				elseif i==3 then
-					if j==1 then return m_xz end
-					if j==2 then return m_yz end
-					if j==3 then return m_zz end
-				end
-				error'here'
-			end
-			local V = range(3):map(function(i)
-				local s = 0
-				for j=1,3 do
-					for k=1,3 do
-						local D_ijk = sym3x3(D[i],j,k)
-						local D_kji = sym3x3(D[k],j,i)
-						local gammaUjk = sym3x3(gammaU,j,k)
-						local dg = (D_ijk - D_kji) * gammaUjk
-						s = s + dg
-					end
-				end
-				return s
-			end)
-			local K = {}
-			for i=1,6 do
-				K[i] = calc.K[i](x,y,z)
-			end
+		-- TODO if useNumericInverse is true then add a gammaUij that's based on Cramer's rule
 
-			local density = 0
-			if type(densityFunc) == 'number' then
-				density = densityFunc
-			elseif type(densityFunc) == 'function' then
-				density = densityFunc(x,y,z)
-			elseif densityFunc ~= nil then
-				error("don't know how to handle density")
-			end
-			
-			local pressure = 0
-			if type(pressureFunc) == 'number' then
-				pressure = pressureFunc
-			elseif type(pressureFunc) == 'function' then
-				pressure = pressureFunc(x,y,z)
-			elseif pressureFunc ~= nil then
-				error("don't know how to handle pressure")
-			end
-		
-			local velocityX, velocityY, velocityZ
-			if args.velocity then velocityX, velocityY, velocityZ = args.velocity(x,y,z) end
-			velocityX = velocityX or 0
-			velocityY = velocityY or 0
-			velocityZ = velocityZ or 0
-
-			return
-				alpha,
-				gammaLL[1], gammaLL[2], gammaLL[3], gammaLL[4], gammaLL[5], gammaLL[6],
-				A[1], A[2], A[3],
-				D[1][1], D[1][2], D[1][3], D[1][4], D[1][5], D[1][6],
-				D[2][1], D[2][2], D[2][3], D[2][4], D[2][5], D[2][6],
-				D[3][1], D[3][2], D[3][3], D[3][4], D[3][5], D[3][6],
-				K[1], K[2], K[3], K[4], K[5], K[6],
-				V[1], V[2], V[3],
-				density,
-				velocityX, velocityY, velocityZ,
-				pressure
-		end
+		return codes
+	else
+		error "don't have support for this ADM solver yet"
 	end
---]]
 end
 
 return {
@@ -271,6 +189,7 @@ local d2h = Tensor('_ij', function(i,j) return h:diff(xs[i],xs[j])() end)
 			print('...done deriving and compiling.')
 			
 			local codes = initNumRel{
+				solver = solver,
 				vars = xs,
 				alpha = alpha,
 				gammaLL = symNames:map(function(xij,ij) return gammaLL[{from6to3x3(ij)}] end),

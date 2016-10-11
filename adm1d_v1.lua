@@ -1,6 +1,5 @@
 --[[
-based on the book "Introduction to 3+1 Numerical Relativity" 2008
-chapter on Toy 1+1 spacetimes
+Based on Alcubierre 2008 "Introduction to 3+1 Numerical Relativity" 2008 chapter on Toy 1+1 spacetimes.
 
 conservative variables:
 a_x = (ln alpha),x = alpha,x / alpha

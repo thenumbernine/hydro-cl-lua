@@ -4,3 +4,27 @@ then HydroGPU, a OpenCL version of Hydro
 then with Lua script config, 
 then the Lua got out of hand until the C++ was doing nothing but managing strings
 now this project, lua-hydro-cl, pushes the middleman (C++) out completely
+
+
+Features:
+- Roe solver in 1D, 2D, 3D
+- various flux limiters
+- various boundary conditions
+- script-generated OpenCL code regenerated on the fly as soon as you change GUI options
+- GUI-driven everything.  no more restarting the program to switch solvers.
+- Euler equations, in 1D and 3D, from Toro's book
+- ADM in 1D via the Bona-Masso formalism described in Alcubierre 1997 and Alcubierre's 2008 book
+- Maxwell equations from Trangenstein's book
+
+TODO:
+- change dimension, gridsize, equation, ... solver?
+- add Bona-Masso ADM in 3D (Alcubierre's 2008 book)
+- add SRHD (Marti & Muller, and sort of Alcubierre's 2008 book)
+- add ideal MHD (based on Athena)
+- add EMHD by that one paper that just combines Maxwell & Euler
+- add SREMHD by mixing and matching SRHD and EMHD
+- add GREMHD by winning
+- add potential forces for Euler equations
+- add self-gravitation for Euler equations
+- implement Navier-Stokes
+- rename 'adm_' prefixes to 'nr_' or 'gr_' or something else ...

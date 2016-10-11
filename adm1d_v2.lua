@@ -1,5 +1,6 @@
 --[[
-based on the 1997 "The appearance of coorindate shocks in hyperbolic formalisms of General Relativity" by Alcubierre, which uses this system:
+Based on the Alcubierre 1997 "The appearance of coorindate shocks in hyperbolic formalisms of General Relativity".
+This is also a 1D version of the 3D formalism in the Alcubierre 2008 book "Introduction to 3+1 Numerical Relativity" on the chapter on hyperbolic formalisms. 
 
 a_x,t + (alpha f K_xx / gamma_xx),x = 0
 d_xxx,t + (alpha K_xx),x = 0
