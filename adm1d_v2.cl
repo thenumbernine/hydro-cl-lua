@@ -27,10 +27,9 @@ real calcMaxEigenvalue(real alpha, real gamma_xx) {
 }
 
 range_t calcCellMinMaxEigenvalues(
-	const __global real* U_,
+	const __global cons_t* U,
 	int side
 ) {
-	const __global cons_t* U = (const __global cons_t*)U_;
 	real lambda = calcMaxEigenvalue(U->alpha, U->gamma_xx);
 	return (range_t){.min=-lambda, .max=lambda};
 }

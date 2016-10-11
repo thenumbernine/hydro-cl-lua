@@ -28,3 +28,4 @@ TODO:
 - add self-gravitation for Euler equations
 - implement Navier-Stokes
 - rename 'adm_' prefixes to 'nr_' or 'gr_' or something else ...
+- add divergence constraints to maxwell

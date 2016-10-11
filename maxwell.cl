@@ -31,7 +31,10 @@ real calcEigenvalue() {
 	return 1./(sqrt_eps0 * sqrt_mu0);
 }
 
-range_t calcCellMinMaxEigenvalues(const __global cons_t* U, int side) {
+range_t calcCellMinMaxEigenvalues(
+	const __global cons_t* U,
+	int side
+) {
 	real lambda = calcEigenvalue();
 	return (range_t){-lambda, lambda};
 }

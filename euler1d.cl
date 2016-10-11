@@ -38,7 +38,10 @@ real calcDisplayVar_UBuf(
 }
 
 //called from calcDT
-range_t calcCellMinMaxEigenvalues(const __global cons_t* U, int side) {
+range_t calcCellMinMaxEigenvalues(
+	const __global cons_t* U,
+	int side
+) {
 	prim_t W = primFromCons(*U);
 	real Cs = sqrt(gamma * W.P / W.rho);
 	return (range_t){.min=W.vx - Cs, .max=W.vx + Cs};
