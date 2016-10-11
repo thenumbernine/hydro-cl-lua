@@ -128,7 +128,7 @@ real calcDisplayVar_UBuf(
 	switch (displayVar) {
 	case display_U_volume: return U->alpha * sqrt(symMatDet_prefix(U->gamma_));
 ]]
-	}:append(self.consVars:map(function(var)
+	}:append(table.map(self.consVars, function(var)
 		return '	case display_U_'..var..': return U->'..var..';'
 	end)):append{
 [[
@@ -145,19 +145,22 @@ real calcDisplayVar_UBuf(
 	}:concat'\n'
 end
 
-ADM_BonaMasso_3D.eigenVars = {'alpha', 'gammaUxx', 'f'}
+ADM_BonaMasso_3D.eigenVars = {'alpha', 'gammaUxx', 'gammaUxy', 'gammaUxz', 'gammaUyy', 'gammaUyz', 'gammaUzz', 'f'}
 function ADM_BonaMasso_3D:getEigenInfo()
 	local makeStruct = require 'makestruct'
 	return {
 		typeCode = [[
 typedef struct {
-	cons_t U;
-	real gamma;
-	real gammaUxx, gammaUxy, gammaUxz, gammaUyy, gammaUyz, gammaUzz;
+	union {
+		struct {
+			real gammaUxx, gammaUxy, gammaUxz, gammaUyy, gammaUyz, gammaUzz;
+		};
+		real gammaU[6];
+	};
 	real f;
 } eigen_t;
 typedef eigen_t fluxXform_t;	// I've thought of merging these two ... this is more proof
-]]
+]],
 		code = nil,
 		displayVars = {} -- working on this one
 	}

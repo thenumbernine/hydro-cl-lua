@@ -160,7 +160,7 @@ self.ctx:printInfo()
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
 		
 		-- [[ default:
-		eqn = require(cmdline.eqn or 'adm1d_v1')(),
+		eqn = require(cmdline.eqn or 'adm3d')(),
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		

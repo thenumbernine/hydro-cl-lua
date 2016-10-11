@@ -755,7 +755,7 @@ __kernel void boundary(
 			periodic = '\t\tUBuf['..index'j'..'] = UBuf['..index'gridSize_x-2*numGhost+j'..'];',
 			mirror = table{
 				'\t\tUBuf['..index'j'..'] = UBuf['..index'2*numGhost-1-j'..'];',
-			}:append(table.map(self.eqn.mirrorVars[side] or {}, function(var)
+			}:append(table.map((self.eqn.mirrorVars or {})[side] or {}, function(var)
 				return '\t\tUBuf['..index'j'..'].'..var..' = -UBuf['..index'j'..'].'..var..';'
 			end)):concat'\n',
 			freeflow = '\t\tUBuf['..index'j'..'] = UBuf['..index'numGhost'..'];',
@@ -765,7 +765,7 @@ __kernel void boundary(
 			periodic = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'numGhost+j'..'];',
 			mirror = table{
 				'\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'gridSize_x-numGhost-1-j'..'];',
-			}:append(table.map(self.eqn.mirrorVars[side] or {}, function(var)
+			}:append(table.map((self.eqn.mirrorVars or {})[side] or {}, function(var)
 				return '\t\tUBuf['..index'gridSize_x-numGhost+j'..'].'..var..' = -UBuf['..index'gridSize_x-numGhost+j'..'].'..var..';'
 			end)):concat'\n',
 			freeflow = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'gridSize_x-numGhost-1'..'];',

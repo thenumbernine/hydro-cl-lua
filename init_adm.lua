@@ -8,6 +8,36 @@ local function from6to3x3(i)
 	return table.unpack(from6to3x3_table[i])
 end
 
+local xNames = table{'x', 'y', 'z'}
+
+-- symmetric indexes: xx xy xz yy yz zz
+local symNames = table()
+for i,xi in ipairs(xNames) do
+	for j=i,3 do
+		local xj = xNames[j]
+		symNames:insert(xi..xj)
+	end
+end
+
+local function symMat33Det(xx, xy, xz, yy, yz, zz)
+	return xx * yy * zz
+		+ xy * yz * xz
+		+ xz * xy * yz
+		- xz * yy * xz
+		- yz * yz * xx
+		- zz * xy * xy
+end
+
+local function symMat33Inv(xx, xy, xz, yy, yz, zz)
+	local d = symMat33Det(xx, xy, xz, yy, yz, zz)
+	return (yy * zz - yz * yz) / d,		-- xx
+			(xz * yz - xy * zz) / d,	-- xy
+			(xy * yz - xz * yy) / d,	-- xz
+			(xx * zz - xz * xz) / d,	-- yy
+			(xz * xy - xx * yz) / d,	-- yz
+			(xx * yy - xy * xy) / d		-- zz
+end
+
 
 -- I'm working on a unified initial condition code for 1D and 3D NR problems:
 --[[
@@ -53,7 +83,7 @@ local function initNumRel(args)
 	print('...done converting everything to expressions')
 	
 	local function compileC(expr, name)
-		assert(type(expr) == 'table')
+		assert(type(expr) == 'table', "expected table, found "..type(expr))
 		if symmath.Expression.is(expr) then 
 			expr = expr()
 			print('compiling '..expr)
@@ -78,38 +108,58 @@ local function initNumRel(args)
 		return codes
 
 	-- assuming this is an ADM 3D solver
-	elseif args.solver.eqn.numWaves == 37 then 
-		
+	elseif args.solver.eqn.numWaves == 30 then 
+
 		-- for complex computations it might be handy to extract the determinant first ...
 		-- or even just perform a numerical inverse ...
 		if not args.useNumericInverse then
 			print('inverting spatial metric...')
-			exprs.gammaUU = {mat33.inv(exprs.gammaLL:unpack())}
+			exprs.gammaUU = {symMat33Inv(exprs.gammaLL:unpack())}
 			print('...done inverting spatial metric')
 		end
 
 		-- this takes forever.  why is that?  differentiation?
 		print('building metric partials...')
-		exprs.D = table.map(vars, function(x_k)
-			return table.map(exprs.gammaLL, function(g_ij)
-				print('differentiating '..g_ij)
-				return (g_ij:diff(x_k)/2)()
+		exprs.d = table.map(vars, function(xk)
+			return table.map(exprs.gammaLL, function(gamma_ij)
+				print('differentiating '..gamma_ij)
+				return (gamma_ij:diff(xk)/2)()
 			end)
 		end)
 		print('...done building metric partials')
 	
 		print('building lapse partials...')
-		exprs.A = table.map(vars, function(var)
+		exprs.a = table.map(vars, function(var)
 			return (exprs.alpha:diff(var) / exprs.alpha)()
 		end)
 		print('...done building lapse partials')
 	
-		-- this requires turning D from sym into a Tensor
+		-- this requires turning d from sym into a Tensor
 		--  and requires gammaUU being stored as the Tensor metric inverse
-		--exprs.V = (D'_ik^k' - D'^k_ki')()
+		--exprs.V = (d'_ik^k' - d'^k_ki')()
 
 		print('compiling expressions...')
-		local codes = table.map(exprs, compileC)
+		local codes = {}
+		local codes = table(
+			--f = exprs.f,
+			--dalpha_f = exprs.dalpha_f,
+			{alpha = exprs.alpha},
+			symNames:map(function(xij,ij)
+				return exprs.gammaLL[ij], 'gamma_'..xij
+			end),
+			xNames:map(function(xi,i)
+				return exprs.a[i], 'a_'..xi
+			end),
+			table(xNames:map(function(xk,k,t)
+				return symNames:map(function(xij,ij)
+					return exprs.d[k][ij], 'd_'..xk..xij
+				end), #t+1
+			end):unpack()),
+			symNames:map(function(xij,ij)
+				return exprs.K[ij], 'K_'..xij
+			end)
+		):map(compileC)
+
 		print('...done compiling expressions')
 
 		-- TODO if useNumericInverse is true then add a gammaUij that's based on Cramer's rule
@@ -126,18 +176,6 @@ return {
 		init = function(solver, args)
 			local var = symmath.var
 			
-			local xNames = table{'x', 'y', 'z'}
-	
-			-- symmetric indexes: xx xy xz yy yz zz
-			local symNames = table()
-			for i,xi in ipairs(xNames) do
-				for j=i,3 do
-					local xj = xNames[j]
-					symNames:insert(xi..xj)
-				end
-			end
-
-
 			-- lapse function
 
 			local alphaVar = args.alphaVar or var'alpha'
