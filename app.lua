@@ -109,11 +109,17 @@ end
 	end
 
 
-	self.platform = get64bit(require 'cl.platform'.getAll())
 
 	-- TODO favor cl_khr_fp64, cl_khr_3d_image_writes, cl_khr_gl_sharing
 
-	self.device, self.is64bit = get64bit(self.platform:getDevices{gpu=true})
+	if ffi.os == 'Windows' then
+		self.platform = require 'cl.platform'.getAll()[1]
+		self.device = self.platform:getDevices{gpu=true}[1]
+		self.is64bit = false--self.device:getExtensions():lower():match'cl_%2+_fp64'
+	else
+		self.platform = get64bit(require 'cl.platform'.getAll())
+		self.device, self.is64bit = get64bit(self.platform:getDevices{gpu=true})
+	end
 
 	-- cmd-line override
 	if cmdline.float then
@@ -146,7 +152,6 @@ self.ctx:printInfo()
 	--  specifically the call to 'refreshGridSize' within it
 	self.solver = require 'solver'{
 		app = self, 
-		dim = cmdline.dim or 1,
 		gridSize = {cmdline.gridSize or 256, cmdline.gridSize or 256, cmdline.gridSize or 256},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -160,7 +165,8 @@ self.ctx:printInfo()
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
 		
 		-- [[ default:
-		eqn = require(cmdline.eqn or 'adm3d')(),
+		dim = cmdline.dim or 2,
+		eqn = require(cmdline.eqn or 'euler3d')(),
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		
