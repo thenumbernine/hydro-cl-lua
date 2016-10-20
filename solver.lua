@@ -337,11 +337,32 @@ function Solver:init(args)
 	self.eqn = assert(args.eqn)
 	self.name = self.eqn.name..' '..self.name
 
-	self.offset = vec3sz(0,0,0)
-	self.localSize1d = 16
-	self.localSize = self.dim < 3 and vec3sz(16,16,16) or vec3sz(8,8,8)
-
 	self.app = assert(args.app)
+	
+	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
+	-- product of all local sizes must be <= max workgroup size
+	local maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
+
+	self.offset = vec3sz(0,0,0)
+	self.localSize1d = maxWorkGroupSize 
+	
+--	self.localSize = self.dim < 3 and vec3sz(16,16,16) or vec3sz(4,4,4)
+print('maxWorkGroupSize',maxWorkGroupSize)
+	self.localSize = vec3sz(1,1,1)
+	local rest = maxWorkGroupSize
+	local localSizeX = math.min(gridSize[1], 2^math.ceil(math.log(rest^(1/self.dim),2)))
+	self.localSize.x = localSizeX
+	rest = rest / localSizeX
+	if self.dim == 2 then
+		self.localSize.y = rest
+		self.localSize.z = 1
+	elseif self.dim == 3 then
+		local localSizeY = math.min(gridSize[2], 2^math.ceil(math.log(math.sqrt(rest),2)))
+		self.localSize.y = localSizeY
+		local localSizeZ = rest / localSizeY
+		self.localSize.z = localSizeZ
+	end
+print('self.localSize',self.localSize)
 
 	self.useFixedDT = ffi.new('bool[1]', false)
 	self.fixedDT = ffi.new('float[1]', 0)
@@ -403,6 +424,10 @@ function Solver:createDisplayVars()
 					or (buffer == 'error' and self.dim==1)
 				),
 				color = vec3(math.random(), math.random(), math.random()):normalize(),
+				--heatMapTexPtr = ffi.new('int[1]', 0),	-- hsv, isobar, etc ...
+				heatMapFixedRangePtr = ffi.new('bool[1]', true),
+				heatMapValueMinPtr = ffi.new('float[1]', 0),
+				heatMapValueMaxPtr = ffi.new('float[1]', 1),
 			}
 		end
 	end
@@ -733,6 +758,20 @@ __kernel void boundary(
 	if (i < gridSize_x) {
 ]]
 			end
+		elseif self.dim == 3 then
+			if side == 1 then
+				lines:insert[[
+	if (i.x < gridSize_y && i.y < gridSize_z) {
+]]
+			elseif side == 2 then
+				lines:insert[[
+	if (i.x < gridSize_x && i.y < gridSize_z) {
+]]
+			elseif side == 3 then
+				lines:insert[[
+	if (i.x < gridSize_x && i.y < gridSize_y) {
+]]
+			end
 		end
 
 		local function index(j)
@@ -744,9 +783,16 @@ __kernel void boundary(
 				elseif side == 2 then
 					return 'INDEX(i,'..j..',0)'
 				end
-			else
-				error'TODO'
+			elseif self.dim == 3 then
+				if side == 1 then
+					return 'INDEX('..j..',i.x,i.y)'
+				elseif side == 2 then
+					return 'INDEX(i.x,'..j..',i.y)'
+				elseif side == 3 then
+					return 'INDEX(i.x,i.y,'..j..')'
+				end
 			end
+			error'TODO'
 		end
 
 		local x = xs[side]
@@ -813,19 +859,22 @@ function Solver:reduce(kernel)
 	local dst = self.reduceSwapBuf
 	local src = self.reduceBuf
 	local iter = 0
+
+	local reduceLocalSize1D = 16
+	
 	while reduceSize > 1 do
 		iter = iter + 1
-		--TODO instead of >> 4, make sure it matches whatever localSize1d is
+		--TODO instead of >> 4, make sure it matches whatever reduceLocalSize1D is
 		-- ... which just so happens to be 16 (i.e. 1 << 4) at the moment
 		local nextSize = bit.rshift(reduceSize, 4)
 		if 0 ~= bit.band(reduceSize, bit.lshift(1, 4) - 1) then 
 			nextSize = nextSize + 1 
 		end
-		local reduceGlobalSize = math.max(reduceSize, self.localSize1d)
+		local reduceGlobalSize = math.max(reduceSize, reduceLocalSize1D)
 		kernel:setArg(0, src)
 		kernel:setArg(2, ffi.new('int[1]', reduceSize))
 		kernel:setArg(3, dst)
-		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, dim=1, globalSize=reduceGlobalSize, localSize=math.min(reduceGlobalSize, self.localSize1d)}
+		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, dim=1, globalSize=reduceGlobalSize, localSize=math.min(reduceGlobalSize, reduceLocalSize1D)}
 		--self.app.cmds:finish()
 		dst, src = src, dst
 		reduceSize = nextSize

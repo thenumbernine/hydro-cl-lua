@@ -221,11 +221,15 @@ local initStates = {
 #if dim == 3
 	theta *= (x.z - mins.z) / (maxs.z - mins.z);
 #endif
-	real noise = (maxs.x - mins.x) * 2e-5;
+	real noise = (maxs.x - mins.x) * 1e-4;
 	rho = inside ? 2 : 1;
 	vx = cos(theta) * noise + (inside ? -.5 : .5);
+#if dim == 2
 	vy = sin(theta) * noise;
+#endif
+#if dim == 3
 	vz = sin(theta) * noise;
+#endif
 	P = 2.5;
 ]]
 		end,

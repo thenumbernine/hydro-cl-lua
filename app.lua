@@ -108,11 +108,9 @@ end
 		return best.item, best.fp64
 	end
 
-
-
 	-- TODO favor cl_khr_fp64, cl_khr_3d_image_writes, cl_khr_gl_sharing
 
-	if ffi.os == 'Windows' then
+	if true then --ffi.os == 'Windows' then
 		self.platform = require 'cl.platform'.getAll()[1]
 		self.device = self.platform:getDevices{gpu=true}[1]
 		self.is64bit = false--self.device:getExtensions():lower():match'cl_%2+_fp64'
@@ -120,7 +118,7 @@ end
 		self.platform = get64bit(require 'cl.platform'.getAll())
 		self.device, self.is64bit = get64bit(self.platform:getDevices{gpu=true})
 	end
-
+	
 	-- cmd-line override
 	if cmdline.float then
 		self.is64bit = false
@@ -163,31 +161,18 @@ self.ctx:printInfo()
 		},
 		integrator = cmdline.integrator or 'Runge-Kutta 4, TVD',
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
-		
-		-- [[ default:
 		dim = cmdline.dim or 2,
-		eqn = require(cmdline.eqn or 'euler3d')(),
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		
-		--[[
+		--eqn = require(cmdline.eqn or 'euler3d')(),
+		--eqn = require 'adm1d_v1'(),
+		--eqn = require 'adm1d_v2'(),
+		--eqn = require 'adm3d'(),
 		--eqn = require 'euler1d'(),
 		eqn = require 'euler3d'(),
-		mins = {-1, -1, -1},
-		maxs = {1, 1, 1},
-		--]]
-	
-		--[[
-		eqn = require 'maxwell'(),
-		mins = {-1, -1, -1},
-		maxs = {1, 1, 1},
-		--]]
+		--eqn = require 'maxwell'(),
 
-		--[[
-		eqn = require 'adm1d3var'(),
-		mins = {0, 0, 0},
-		maxs = {300, 300, 300},
-		--]]
 	}
 	
 	self.solvers = table{self.solver}
@@ -259,14 +244,65 @@ self.ctx:printInfo()
 	--]]
 end
 
-local updateMethod
+
+--[[
+rendering:
+graph variables - many - 1D and 2D ... and hypercoordinates in 3D?
+heatmap variable - 2D only
+volumetric variable - 3D only 
+point cloud? i.e. cheap volumetric?
+slices? another cheap volumetric?
+--]]
+
+--[[
+
+display options
+	ortho vs frustum for 2D, (ortho only for 1D, frustum-only for 3D?)
+	graph variable(s?) for 1D and 2D
+	1D graph: whether the y axis is auto-scaling or fixed
+	heatmap variable(s?) for 2D
+	2D heatmap: whether the color range is auto-scaling or fixed
+	2D graph: whether the z-axis is auto-scaling or fixed
+	volumetric variable(s?) for 3D
+	3D volumetric: whether the color range is auto-scaling or fixed
+	3D volumetric alpha / gamma values
+
+gui:
+	checkbox next to each variable for quickly adding and removing views (based on the first / primary var in the view)
+	list of views, with their details next to them, for adding and removing more variables
+
+--]]
+
+local View = class()
+
+local Display = class()
+
+function Display:init(args)
+	self.ortho = true
+
+	self.mins = vec3(-1,-1,-1)
+	self.maxs = vec3(1,1,1)
+	
+	--[[
+	var name, does it contribute to the graph space autoscale range? 
+	--]]
+	self.graphVars = table()
+	
+	--[[
+	var name, heatmap scale min/max, heatmap autoscale? texture, alpha
+	--]]
+	self.heatMapVars = table()
+end
+
+
+HydroCLApp.updateMethod = nil
 
 function HydroCLApp:update(...)
 
-	if updateMethod then
-		if updateMethod == 'step' then 
+	if self.updateMethod then
+		if self.updateMethod == 'step' then 
 			print('performing single step...')
-			updateMethod = nil 
+			self.updateMethod = nil 
 		end
 
 		self.solver:update()
@@ -481,11 +517,17 @@ end
 function HydroCLApp:display2D(solvers, varName, xmin, ymin, xmax, ymax)
 	local w, h = self:size()
 
+	-- [[ ortho
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
 	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
 	gl.glMatrixMode(gl.GL_MODELVIEW)
 	gl.glLoadIdentity()
+	--]]
+
+	--[[ frustum
+	
+	--]]
 
 	gl.glColor3f(.1, .1, .1)
 	local xrange = xmax - xmin
@@ -520,11 +562,17 @@ function HydroCLApp:display2D(solvers, varName, xmin, ymin, xmax, ymax)
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
 	for _,solver in ipairs(solvers) do 
-		local varIndex = solver.displayVars:find(nil, function(var) return var.name == varName end)
+		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
 		if varIndex then
-			local valueMin, valueMax = solver:calcDisplayVarRange(varIndex)
-			
-			local var = solver.displayVars[varIndex]
+			-- TODO allow a fixed, manual colormap range
+			local valueMin, valueMax
+			if var.heatMapFixedRangePtr[0] then
+				valueMin, valueMax = var.heatMapValueMinPtr[0], var.heatMapValueMaxPtr[0]
+			else
+				valueMin, valueMax = solver:calcDisplayVarRange(varIndex)
+				var.heatMapValueMinPtr[0], var.heatMapValueMaxPtr[0] = valueMin, valueMax
+			end
+
 			solver:calcDisplayVarToTex(varIndex, var)	
 	
 			self.heatMap2DShader:use()
@@ -597,16 +645,16 @@ function HydroCLApp:showDisplayVar(solver, varIndex)
 end
 
 function HydroCLApp:updateGUI()
-	if ig.igButton(updateMethod and 'Stop' or 'Start') then
-		updateMethod = not updateMethod
+	if ig.igButton(self.updateMethod and 'Stop' or 'Start') then
+		self.updateMethod = not self.updateMethod
 	end
 	if ig.igButton'Step' then
-		updateMethod = 'step'
+		self.updateMethod = 'step'
 	end
 	if ig.igButton'Reset' then
 		print'resetting...'
 		self.solver:resetState()
-		updateMethod = nil
+		self.updateMethod = nil
 	end
 
 	ig.igCheckbox('use fixed dt', self.solver.useFixedDT)
@@ -663,7 +711,7 @@ function HydroCLApp:updateGUI()
 		end
 	end
 
-	-- display vars:
+	-- display vars: TODO graph vars
 
 	if ig.igCollapsingHeader'variables:' then
 		local lastSection
@@ -674,11 +722,26 @@ function HydroCLApp:updateGUI()
 				sectionEnabled = ig.igCollapsingHeader(section..' variables:')
 			end
 			if sectionEnabled then
+				ig.igPushIdStr(i..' '..var.name)
 				ig.igCheckbox(var.name, var.enabled)
+				ig.igSameLine()
+				if ig.igCollapsingHeader'' then	
+					ig.igPushIdStr'heatmap'
+					ig.igCheckbox('fixed range', var.heatMapFixedRangePtr)
+					ig.igInputFloat('value min', var.heatMapValueMinPtr)
+					ig.igInputFloat('value max', var.heatMapValueMaxPtr)
+					ig.igPopId()
+				end
+			
+				ig.igPopId()
 			end
 			lastSection = section
 		end
 	end
+
+	-- heat map var
+
+	-- TODO volumetric var
 end
 
 function HydroCLApp:event(event, ...)
@@ -686,13 +749,13 @@ function HydroCLApp:event(event, ...)
 	if ig.igGetIO()[0].WantCaptureKeyboard then return end
 	if event.type == sdl.SDL_KEYDOWN then
 		if event.key.keysym.sym == sdl.SDLK_SPACE then
-			updateMethod = not updateMethod
+			self.updateMethod = not self.updateMethod
 		elseif event.key.keysym.sym == ('u'):byte() then
-			updateMethod = 'step'
+			self.updateMethod = 'step'
 		elseif event.key.keysym.sym == ('r'):byte() then
 			print'resetting...'
 			self.solver:resetState()
-			updateMethod = nil
+			self.updateMethod = nil
 		end
 	end
 end
