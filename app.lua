@@ -148,7 +148,7 @@ self.ctx:printInfo()
 
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	self.solver = require 'solver'{
+	local args = {
 		app = self, 
 		gridSize = {cmdline.gridSize or 256, cmdline.gridSize or 256, cmdline.gridSize or 256},
 		boundary = {
@@ -159,12 +159,20 @@ self.ctx:printInfo()
 			zmin=cmdline.boundary or 'freeflow',
 			zmax=cmdline.boundary or 'freeflow',
 		},
-		integrator = cmdline.integrator or 'Runge-Kutta 4, TVD',
+		integrator = cmdline.integrator or 'forward Euler',	--'Runge-Kutta 4, TVD',
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
-		dim = cmdline.dim or 2,
+		dim = cmdline.dim or 1,
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
-		
+	}
+
+	--[[
+	self.solver = require 'srhd-roe'(table(args, {
+		initState = 'relativistic shock wave',
+	}))
+	--]]
+	-- [[
+	self.solver = require 'solver'(table(args, {
 		--eqn = require(cmdline.eqn or 'euler3d')(),
 		--eqn = require 'adm1d_v1'(),
 		--eqn = require 'adm1d_v2'(),
@@ -172,9 +180,9 @@ self.ctx:printInfo()
 		--eqn = require 'euler1d'(),
 		eqn = require 'euler3d'(),
 		--eqn = require 'maxwell'(),
+	}))
+	--]]
 
-	}
-	
 	self.solvers = table{self.solver}
 	
 	local graphShaderCode = file['graph.shader']
@@ -219,14 +227,34 @@ self.ctx:printInfo()
 	gl.glUniform1i(self.heatMap2DShader.uniforms.gradient, 1)
 	gl.glUniform1f(self.heatMap2DShader.uniforms.alpha, 1)
 	self.heatMap2DShader:useNone()
-	
+
+	--[[
+	local code = file['volumetric.shader']
+	self.volumetricShader = require 'gl.program'{
+		vertexCode = '#define VERTEX_SHADER\n'..code,
+		fragmentCode = '#define FRAGMENT_SHADER\n'..code,
+		uniforms = {
+			'tex',
+			'gradient',
+			'maxiter',
+			'oneOverDx',
+		},
+	}
+	self.volumetricShader:use()
+	gl.glUniform1i(self.volumetricShader.uniforms.tex, 0)
+	gl.glUniform1i(self.volumetricShader.uniforms.gradient, 1)
+	gl.glUniform1i(self.volumetricShader.uniforms.maxiter, math.max(self.gridSize:unpack()))
+	gl.glUniform1f(self.volumetricShader.uniforms.maxiter, math.max((self.maxs - self.mins):unpack()))
+	self.volumetricShader:useNone()
+	--]]
+
 	self.hsvTex = require 'gl.gradienttex'(1024, {
-	{0,0,.5,1},
-	{0,0,1,1},
-	{0,1,1,1},
-	{1,1,0,1},
-	{1,0,0,1},
-}, false)
+		{0,0,.5,1},
+		{0,0,1,1},
+		{0,1,1,1},
+		{1,1,0,1},
+		{1,0,0,1},
+	}, false)
 
 	-- [[ need to get image loading working
 	local fonttex = require 'gl.tex2d'{
@@ -316,6 +344,7 @@ function HydroCLApp:update(...)
 
 	local varNamesEnabled = table()
 	for i,var in ipairs(self.solver.displayVars) do
+if not var.enabled then error("var "..require 'ext.tolua'(self.solver.displayVars,{indent=true})) end
 		if var.enabled[0] then
 			varNamesEnabled:insert(var.name)
 		end
@@ -397,6 +426,8 @@ function HydroCLApp:update(...)
 			self:display1D(self.solvers, varName, xmin, ymin, xmax, ymax)
 		elseif self.solver.dim == 2 then
 			self:display2D(self.solvers, varName, xmin, ymin, xmax, ymax)
+		elseif self.solver.dim == 3 then
+			self:display3D(self.solvers, varName, xmin, ymin, xmax, ymax)
 		end
 
 		graphCol = graphCol + 1
@@ -618,6 +649,86 @@ function HydroCLApp:display2D(solvers, varName, xmin, ymin, xmax, ymax)
 	end
 end
 
+--[[
+function HydroCLApp:display3D(solvers, varName, xmin, ymin, xmax, ymax)
+	local vertexes = {
+		0,0,0,
+		1,0,0,
+		0,1,0,
+		1,1,0,
+		0,0,1,
+		1,0,1,
+		0,1,1,
+		1,1,1,
+	}
+
+	local quads = {
+		0,1,3,2,
+		4,6,7,5,
+		1,5,7,3,
+		0,2,6,4,
+		0,4,5,1,
+		2,3,7,6,
+	}
+	
+	local w, h = self:size()
+
+	gl.glMatrixMode(gl.GL_PROJECTION)
+	gl.glLoadIdentity()
+	local znear, zfar = .1, 1000
+	gl.glFrustum(xmin * znear, xmax * znear, ymin * znear, ymax * znear, znear, zfar) 
+	gl.glMatrixMode(gl.GL_MODELVIEW)
+	gl.glLoadIdentity()
+
+	gl.glColor3f(1,1,1)
+	for pass=0,1 do
+		if pass == 0 then
+			gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+		else
+			gl.glEnable(gl.GL_CULL_FACE)
+			gl.glCullFace(gl.GL_FRONT)
+			gl.glEnable(gl.GL_DEPTH_TEST)
+			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+			gl.glEnable(gl.GL_BLEND)
+			shader:use()
+			gl.glUniform1f(shader.uniforms.scale, 1)--scale)
+			gl.glUniform1i(shader.uniforms.useLog, 0)
+			gl.glUniform1f(shader.uniforms.alpha, 1)--alpha)
+			gl.glActiveTexture(gl.GL_TEXTURE0)
+			gl.glBindTexture(gl.GL_TEXTURE_3D, app->plot->getTex())
+			gl.glActiveTexture(gl.GL_TEXTURE1)
+			gl.glBindTexture(gl.GL_TEXTURE_1D, app->gradientTex)
+		end
+		gl.glBegin(gl.GL_QUADS)
+		for i=1,24 do
+			local x = vertexes[quads[i] * 3 + 0 - 1]
+			local y = vertexes[quads[i] * 3 + 1 - 1]
+			local z = vertexes[quads[i] * 3 + 2 - 1]
+			gl.glTexCoord3f(x, y, z)
+			x = x * (app.xmax.s[0] - app.xmin.s[0]) + app.xmin.s[0];
+			y = y * (app.xmax.s[1] - app.xmin.s[1]) + app.xmin.s[1];
+			z = z * (app.xmax.s[2] - app.xmin.s[2]) + app.xmin.s[2];
+			glVertex3f(x, y, z);
+		end
+		gl.glEnd()
+		if pass == 0 then
+			gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
+		else
+			gl.glActiveTexture(gl.GL_TEXTURE1)
+			gl.glBindTexture(gl.GL_TEXTURE_1D, 0)
+			gl.glActiveTexture(gl.GL_TEXTURE0)
+			gl.glBindTexture(gl.GL_TEXTURE_3D, 0)
+			gl.glUseProgram(0)
+			gl.glDisable(gl.GL_BLEND)
+			gl.glDisable(gl.GL_DEPTH_TEST)
+			gl.glCullFace(gl.GL_BACK)
+			gl.glDisable(gl.GL_CULL_FACE)
+		end
+	end
+
+end
+--]]
+
 function HydroCLApp:showDisplayVar(solver, varIndex)
 	local var = solver.displayVars[varIndex]
 	solver:calcDisplayVarToTex(varIndex, var)	
@@ -683,7 +794,16 @@ function HydroCLApp:updateGUI()
 	local eqn = self.solver.eqn
 
 	if ig.igCombo('init state', self.solver.initStatePtr, eqn.initStateNames) then
+		
 		self.solver:refreshInitStateProgram()
+		
+		-- TODO changing the init state program might also change the boundary methods
+		-- ... but I don't want it to change the settings for the running scheme (or do I?)
+		-- ... but I don't want it to not change the settings ...
+		-- so maybe refreshing the init state program should just refresh everything?
+		-- or maybe just the boundaries too?
+		-- hack for now:
+		self.solver:refreshBoundaryProgram()
 	end
 
 	if ig.igCollapsingHeader'equation:' then

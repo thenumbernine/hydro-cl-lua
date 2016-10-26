@@ -36,7 +36,7 @@ __kernel void calcDisplayVar_name(
 		value = eigen_calcDisplayVar(displayVar, (const __global eigen_t*)buf + intindex);
 #endif	
 	} else {
-		value = calcDisplayVar_UBuf(displayVar, buf + numStates * index);
+		calcDisplayVar_Body
 	}
 #if defined(calcDisplayVar_output_tex) 
 	write_imagef(tex, calcDisplayVar_writeImageArgs, (float4)(value, 0., 0., 0.));
@@ -44,4 +44,3 @@ __kernel void calcDisplayVar_name(
 	dest[index] = value;
 #endif
 }
-

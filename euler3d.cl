@@ -94,7 +94,7 @@ __kernel void calcEigenBasis(
 	__global real* waveBuf,			//[volume][dim][numWaves]
 	__global eigen_t* eigenBuf,		//[volume][dim]
 	__global fluxXform_t* fluxXformBuf,	//[volume][dim]
-	const __global cons_t *UBuf		//[volume]
+	const __global cons_t* UBuf		//[volume]
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;

@@ -1,3 +1,4 @@
+local bit = require 'bit'
 local ffi = require 'ffi'
 local gl = require 'ffi.OpenGL'
 local class = require 'ext.class'
@@ -9,9 +10,7 @@ local vec3 = require 'vec.vec3'
 local clnumber = require 'clnumber'
 
 
-
 local Integrator = class()
-
 
 local ForwardEuler = class(Integrator)
 ForwardEuler.name = 'forward Euler'
@@ -334,34 +333,36 @@ function Solver:init(args)
 
 	self.t = 0
 	
-	self.eqn = assert(args.eqn)
+	self.eqn = assert(args.eqn or self.eqn)
 	self.name = self.eqn.name..' '..self.name
 
 	self.app = assert(args.app)
 	
 	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
 	-- product of all local sizes must be <= max workgroup size
-	local maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
+	self.maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
 
 	self.offset = vec3sz(0,0,0)
-	self.localSize1d = maxWorkGroupSize 
+	self.localSize1d = self.maxWorkGroupSize 
 	
 --	self.localSize = self.dim < 3 and vec3sz(16,16,16) or vec3sz(4,4,4)
-print('maxWorkGroupSize',maxWorkGroupSize)
+	-- TODO better than constraining by math.min(gridSize),
+	-- look at which gridSizes have the most room, and double them accordingly, until all of maxWorkGroupSize is taken up
 	self.localSize = vec3sz(1,1,1)
-	local rest = maxWorkGroupSize
+	local rest = self.maxWorkGroupSize
 	local localSizeX = math.min(gridSize[1], 2^math.ceil(math.log(rest^(1/self.dim),2)))
 	self.localSize.x = localSizeX
-	rest = rest / localSizeX
-	if self.dim == 2 then
-		self.localSize.y = rest
-		self.localSize.z = 1
-	elseif self.dim == 3 then
-		local localSizeY = math.min(gridSize[2], 2^math.ceil(math.log(math.sqrt(rest),2)))
-		self.localSize.y = localSizeY
-		local localSizeZ = rest / localSizeY
-		self.localSize.z = localSizeZ
+	if self.dim > 1 then
+		rest = rest / localSizeX
+		if self.dim == 2 then
+			self.localSize.y = math.min(gridSize[2], rest)
+		elseif self.dim == 3 then
+			local localSizeY = math.min(gridSize[2], 2^math.ceil(math.log(math.sqrt(rest),2)))
+			self.localSize.y = localSizeY
+			self.localSize.z = math.min(gridSize[3], rest / localSizeY)
+		end
 	end
+print('maxWorkGroupSize',self.maxWorkGroupSize)
 print('self.localSize',self.localSize)
 
 	self.useFixedDT = ffi.new('bool[1]', false)
@@ -411,36 +412,36 @@ function Solver:refreshIntegrator()
 	self.integrator = self.integrators[self.integratorPtr[0]+1](self)
 end
 
+function Solver:addDisplayVarSet(buffer, ...)
+	for i=1,select('#',...) do
+		local name = tostring(select(i,...))
+		self.displayVars:insert{
+			buffer = buffer,
+			name = buffer..'_'..name,
+			enabled = ffi.new('bool[1]', 
+				buffer == 'U' and (self.dim==1 or i==1)
+				or (buffer == 'error' and self.dim==1)
+			),
+			color = vec3(math.random(), math.random(), math.random()):normalize(),
+			--heatMapTexPtr = ffi.new('int[1]', 0),	-- hsv, isobar, etc ...
+			heatMapFixedRangePtr = ffi.new('bool[1]', true),
+			heatMapValueMinPtr = ffi.new('float[1]', 0),
+			heatMapValueMaxPtr = ffi.new('float[1]', 1),
+		}
+	end
+end
+	
 function Solver:createDisplayVars()
 	self.displayVars = table()
-	local function makevars(buffer, ...)
-		for i=1,select('#',...) do
-			local name = tostring(select(i,...))
-			self.displayVars:insert{
-				buffer = buffer,
-				name = buffer..'_'..name,
-				enabled = ffi.new('bool[1]', 
-					buffer == 'U' and (self.dim==1 or i==1)
-					or (buffer == 'error' and self.dim==1)
-				),
-				color = vec3(math.random(), math.random(), math.random()):normalize(),
-				--heatMapTexPtr = ffi.new('int[1]', 0),	-- hsv, isobar, etc ...
-				heatMapFixedRangePtr = ffi.new('bool[1]', true),
-				heatMapValueMinPtr = ffi.new('float[1]', 0),
-				heatMapValueMaxPtr = ffi.new('float[1]', 1),
-			}
-		end
-	end
-	
-	makevars('U', table.unpack(self.eqn.displayVars))
-	makevars('wave', range(0,self.eqn.numWaves-1):unpack())
-	makevars('eigen', table.unpack(self.eqn:getEigenInfo().displayVars))
-	makevars('deltaUTilde', range(0,self.eqn.numWaves-1):unpack())
-	makevars('rTilde', range(0,self.eqn.numWaves-1):unpack())
-	makevars('flux', range(0,self.eqn.numStates-1):unpack())
-	makevars('reduce', '0')	-- might contain nonsense :-p
-	makevars('deriv', range(0,self.eqn.numStates-1):unpack())
-	makevars('error', 'ortho', 'flux')
+	self:addDisplayVarSet('U', table.unpack(self.eqn.displayVars))
+	self:addDisplayVarSet('wave', range(0,self.eqn.numWaves-1):unpack())
+	self:addDisplayVarSet('eigen', table.unpack(self.eqn:getEigenInfo().displayVars))
+	self:addDisplayVarSet('deltaUTilde', range(0,self.eqn.numWaves-1):unpack())
+	self:addDisplayVarSet('rTilde', range(0,self.eqn.numWaves-1):unpack())
+	self:addDisplayVarSet('flux', range(0,self.eqn.numStates-1):unpack())
+	self:addDisplayVarSet('reduce', '0')	-- might contain nonsense :-p
+	self:addDisplayVarSet('deriv', range(0,self.eqn.numStates-1):unpack())
+	self:addDisplayVarSet('error', 'ortho', 'flux')
 end
 
 local errorType = 'error_t'
@@ -594,12 +595,19 @@ function Solver:resetState()
 	self.app.cmds:finish()
 end
 
+function Solver:getCalcDisplayVarBody()
+	return 'value = calcDisplayVar_UBuf(displayVar, buf + numStates * index);'
+end
+
+function Solver:getCalcDTCode()
+	return '#include "calcDT.cl"'
+end
+
 -- depends on buffers
 function Solver:refreshSolverProgram()
 
 	-- code that depend on real and nothing else
 	-- TODO move to app, along with reduceBuf
-
 
 	local commonCode = table():append
 		{self.app.is64bit and '#pragma OPENCL EXTENSION cl_khr_fp64 : enable' or nil
@@ -666,10 +674,13 @@ __kernel void multAdd(
 		'typedef struct { real min, max; } range_t;',
 		errorTypeCode,	
 		self.eqn:solverCode(self) or '',
+		
+	-- begin display code
+		'#define calcDisplayVar_Body '
+		..self:getCalcDisplayVarBody():gsub('\n', '\\\n'),
 	}:append(self.app.useGLSharing and {
 		'#define calcDisplayVar_dstImage_t '..(self.dim == 3 and 'image3d_t' or 'image2d_t'),
 		'#define calcDisplayVar_writeImageArgs '..(self.dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)'),
-		
 		'#define calcDisplayVar_name calcDisplayVarToTex',
 		'#define calcDisplayVar_output_tex',
 		'#include "calcDisplayVar.cl"',
@@ -681,7 +692,8 @@ __kernel void multAdd(
 		'#include "calcDisplayVar.cl"',
 		'#undef calcDisplayVar_name',
 		'#undef calcDisplayVar_output_buffer',
-
+	-- end display code
+		self:getCalcDTCode() or '',
 		'#include "solver.cl"',
 	}:concat'\n'
 
@@ -695,7 +707,7 @@ __kernel void multAdd(
 		error(message)	
 	end
 
-	self.calcDTKernel = self.solverProgram:kernel('calcDT', self.reduceBuf, self.UBuf);
+	self.calcDTKernel = self.solverProgram:kernel('calcDT', self.reduceBuf, self.UBuf)
 	
 	self.calcEigenBasisKernel = self.solverProgram:kernel('calcEigenBasis', self.waveBuf, self.eigenBuf, self.fluxXformBuf, self.UBuf)
 	self.calcDeltaUTildeKernel = self.solverProgram:kernel('calcDeltaUTilde', self.deltaUTildeBuf, self.UBuf, self.eigenBuf)
@@ -817,7 +829,7 @@ __kernel void boundary(
 			freeflow = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'gridSize_x-numGhost-1'..'];',
 		})[self.app.boundaryMethods[1+self.boundaryMethods[x..'max'][0]]])
 	
-		if self.dim == 2 then
+		if self.dim > 1 then
 			lines:insert'\t}'
 		end
 	end
@@ -860,14 +872,13 @@ function Solver:reduce(kernel)
 	local src = self.reduceBuf
 	local iter = 0
 
-	local reduceLocalSize1D = 16
+	-- TODO should be the min of the rounded-up/down? power-of-2 of reduceSize
+	local reduceLocalSize1D = math.min(reduceSize, self.maxWorkGroupSize)
 	
 	while reduceSize > 1 do
 		iter = iter + 1
-		--TODO instead of >> 4, make sure it matches whatever reduceLocalSize1D is
-		-- ... which just so happens to be 16 (i.e. 1 << 4) at the moment
-		local nextSize = bit.rshift(reduceSize, 4)
-		if 0 ~= bit.band(reduceSize, bit.lshift(1, 4) - 1) then 
+		local nextSize = math.floor(reduceSize / reduceLocalSize1D)
+		if 0 ~= bit.band(reduceSize, reduceLocalSize1D - 1) then 
 			nextSize = nextSize + 1 
 		end
 		local reduceGlobalSize = math.max(reduceSize, reduceLocalSize1D)

@@ -125,7 +125,7 @@ __kernel void initState(
 	
 	UBuf[index] = consFromPrim((prim_t){.rho=rho, .vx=vx, .vy=vy, .vz=vz, .P=P});
 }
-]]
+]],
 	}:concat'\n'
 end
 
