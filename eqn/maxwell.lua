@@ -1,6 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local Equation = require 'equation'
+local Equation = require 'eqn.eqn'
 local clnumber = require 'clnumber'
 
 local Maxwell = class(Equation)
@@ -67,7 +67,7 @@ end
 function Maxwell:solverCode(solver)
 	return table{ 
 		self:codePrefix(),
-		'#include "maxwell.cl"',
+		'#include "eqn/maxwell.cl"',
 	}:concat'\n'
 end
 

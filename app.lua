@@ -110,7 +110,7 @@ end
 
 	-- TODO favor cl_khr_fp64, cl_khr_3d_image_writes, cl_khr_gl_sharing
 
-	if true then --ffi.os == 'Windows' then
+	if ffi.os == 'Windows' then
 		self.platform = require 'cl.platform'.getAll()[1]
 		self.device = self.platform:getDevices{gpu=true}[1]
 		self.is64bit = false--self.device:getExtensions():lower():match'cl_%2+_fp64'
@@ -150,7 +150,11 @@ self.ctx:printInfo()
 	--  specifically the call to 'refreshGridSize' within it
 	local args = {
 		app = self, 
-		gridSize = {cmdline.gridSize or 256, cmdline.gridSize or 256, cmdline.gridSize or 256},
+		gridSize = {
+			cmdline.gridSize or 256, 
+			cmdline.gridSize or 256, 
+			cmdline.gridSize or 256,
+		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
 			xmax=cmdline.boundary or 'freeflow',
@@ -166,20 +170,20 @@ self.ctx:printInfo()
 		maxs = cmdline.maxs or {1, 1, 1},
 	}
 
-	--[[
-	self.solver = require 'srhd-roe'(table(args, {
+	-- [[
+	self.solver = require 'solver.srhd-roe'(table(args, {
 		initState = 'relativistic shock wave',
 	}))
 	--]]
-	-- [[
-	self.solver = require 'solver'(table(args, {
-		--eqn = require(cmdline.eqn or 'euler3d')(),
-		--eqn = require 'adm1d_v1'(),
-		--eqn = require 'adm1d_v2'(),
-		--eqn = require 'adm3d'(),
-		--eqn = require 'euler1d'(),
-		eqn = require 'euler3d'(),
-		--eqn = require 'maxwell'(),
+	--[[
+	self.solver = require 'solver.roe'(table(args, {
+		--eqn = require(cmdline.eqn or 'eqn.euler3d')(),
+		--eqn = require 'eqn.adm1d_v1'(),
+		--eqn = require 'eqn.adm1d_v2'(),
+		--eqn = require 'eqn.adm3d'(),
+		--eqn = require 'eqn.euler1d'(),
+		--eqn = require 'eqn.euler3d'(),
+		eqn = require 'eqn.maxwell'(),
 	}))
 	--]]
 
@@ -192,7 +196,8 @@ self.ctx:printInfo()
 		uniforms = {
 			'tex', 
 			'scale', 
-			'xmin', 'xmax', 
+			'xmin',
+			'xmax', 
 			'useLog', 
 			'axis', 
 			'ambient',

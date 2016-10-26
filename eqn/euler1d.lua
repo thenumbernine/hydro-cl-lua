@@ -7,7 +7,7 @@ so maybe I should have this subclass / steal from Euler3D?
 
 local class = require 'ext.class'
 local table = require 'ext.table'
-local Equation = require 'equation'
+local Equation = require 'eqn.eqn'
 local clnumber = require 'clnumber'
 
 local Euler1D = class(Equation)
@@ -42,7 +42,7 @@ Euler1D.displayVars = {
 	'HTotal',
 } 
 
-Euler1D.initStates = require 'init_euler'
+Euler1D.initStates = require 'eqn.init_euler'
 Euler1D.initStateNames = table.map(Euler1D.initStates, function(info) return info.name end)
 
 Euler1D.guiVars = {'gamma'}
@@ -58,7 +58,7 @@ end
 
 function Euler1D:getTypeCode()
 	return 
-		require 'makestruct'('prim_t', self.primVars) .. '\n' ..
+		require 'eqn.makestruct'('prim_t', self.primVars) .. '\n' ..
 		Euler1D.super.getTypeCode(self) 
 end
 
@@ -107,7 +107,7 @@ end
 function Euler1D:solverCode(solver)	
 	return table{
 		self:getCodePrefix(),
-		'#include "euler1d.cl"',
+		'#include "eqn/euler1d.cl"',
 	}:concat'\n'
 end
 

@@ -52,7 +52,7 @@ Q^-1 = [ -2/f,   1,        0       ]
 
 local class = require 'ext.class'
 local table = require 'ext.table'
-local Equation = require 'equation'
+local Equation = require 'eqn.eqn'
 
 local ADM_BonaMasso_1D_Alcubierre2008 = class(Equation)
 ADM_BonaMasso_1D_Alcubierre2008.name = 'ADM_BonaMasso_1D_Alcubierre2008' 
@@ -69,7 +69,7 @@ ADM_BonaMasso_1D_Alcubierre2008.displayVars = table()
 	:append(ADM_BonaMasso_1D_Alcubierre2008.consVars)
 	:append{'dx_alpha', 'dx_gamma_xx', 'd_xxx', 'K_xx', 'volume'}
 
-ADM_BonaMasso_1D_Alcubierre2008.initStates = require 'init_adm'
+ADM_BonaMasso_1D_Alcubierre2008.initStates = require 'eqn.init_adm'
 ADM_BonaMasso_1D_Alcubierre2008.initStateNames = table.map(ADM_BonaMasso_1D_Alcubierre2008.initStates, function(state) return state.name end)
 
 function ADM_BonaMasso_1D_Alcubierre2008:codePrefix()
@@ -119,13 +119,13 @@ end
 function ADM_BonaMasso_1D_Alcubierre2008:solverCode()
 	return table{
 		self:codePrefix(),
-		'#include "adm1d_v1.cl"',
+		'#include "eqn/adm1d_v1.cl"',
 	}:concat'\n'
 end
 
 ADM_BonaMasso_1D_Alcubierre2008.eigenVars = {'f'}
 function ADM_BonaMasso_1D_Alcubierre2008:getEigenInfo()
-	local makeStruct = require 'makestruct'
+	local makeStruct = require 'eqn.makestruct'
 	return {
 		typeCode =
 			makeStruct('eigen_t', self.eigenVars) .. '\n' ..

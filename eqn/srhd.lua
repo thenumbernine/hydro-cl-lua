@@ -1,6 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local Equation = require 'equation'
+local Equation = require 'eqn.eqn'
 local clnumber = require 'clnumber'
 
 local SRHD = class(Equation)
@@ -26,7 +26,7 @@ SRHD.primDisplayVars = {
 	'h',
 }
 
-SRHD.initStates = require 'init_euler'
+SRHD.initStates = require 'eqn.init_euler'
 SRHD.initStateNames = table.map(SRHD.initStates, function(info) return info.name end)
 
 SRHD.guiVars = {
@@ -179,7 +179,7 @@ end
 function SRHD:solverCode(solver)
 	return table{
 		self:codePrefix(),
-		'#include "srhd.cl"',
+		'#include "eqn/srhd.cl"',
 	}:concat'\n'
 end
 

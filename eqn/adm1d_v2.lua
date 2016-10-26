@@ -59,7 +59,7 @@ sqrt(f) / gamma_xx K_xx,a + 1 / sqrt(gamma_xx) a_x,a	<- check
 
 local class = require 'ext.class'
 local table = require 'ext.table'
-local Equation = require 'equation'
+local Equation = require 'eqn.eqn'
 
 local ADM_BonaMasso_1D_Alcubierre1997 = class(Equation)
 ADM_BonaMasso_1D_Alcubierre1997.name = 'ADM_BonaMasso_1D_Alcubierre1997'
@@ -76,7 +76,7 @@ ADM_BonaMasso_1D_Alcubierre1997.displayVars = table()
 	:append(ADM_BonaMasso_1D_Alcubierre1997.consVars)
 	:append{'dx_alpha', 'dx_gamma_xx', 'D_g', 'KTilde_xx', 'volume'}
 
-ADM_BonaMasso_1D_Alcubierre1997.initStates = require 'init_adm'
+ADM_BonaMasso_1D_Alcubierre1997.initStates = require 'eqn.init_adm'
 ADM_BonaMasso_1D_Alcubierre1997.initStateNames = table.map(ADM_BonaMasso_1D_Alcubierre1997.initStates, function(state) return state.name end)
 
 function ADM_BonaMasso_1D_Alcubierre1997:codePrefix()
@@ -126,13 +126,13 @@ end
 function ADM_BonaMasso_1D_Alcubierre1997:solverCode()
 	return table{
 		self:codePrefix(),
-		'#include "adm1d_v2.cl"',
+		'#include "eqn/adm1d_v2.cl"',
 	}:concat'\n'
 end
 
 ADM_BonaMasso_1D_Alcubierre1997.eigenVars = {'sqrt_g_xx_over_f'}
 function ADM_BonaMasso_1D_Alcubierre1997:getEigenInfo()
-	local makeStruct = require 'makestruct'
+	local makeStruct = require 'eqn.makestruct'
 	return {
 		typeCode =
 			makeStruct('eigen_t', self.eigenVars) .. '\n' ..

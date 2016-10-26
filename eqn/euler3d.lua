@@ -1,6 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local Equation = require 'equation'
+local Equation = require 'eqn.eqn'
 local clnumber = require 'clnumber'
 
 local Euler3D = class(Equation)
@@ -29,7 +29,7 @@ Euler3D.displayVars = {
 	'HTotal',
 } 
 
-Euler3D.initStates = require 'init_euler'
+Euler3D.initStates = require 'eqn.init_euler'
 Euler3D.initStateNames = table.map(Euler3D.initStates, function(info) return info.name end)
 
 Euler3D.guiVars = {'gamma'}
@@ -132,7 +132,7 @@ end
 function Euler3D:solverCode(solver)	
 	return table{
 		self:codePrefix(),
-		'#include "euler3d.cl"',
+		'#include "eqn/euler3d.cl"',
 	}:concat'\n'
 end
 

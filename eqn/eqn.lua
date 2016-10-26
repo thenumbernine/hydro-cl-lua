@@ -15,7 +15,7 @@ function Equation:init()
 end
 
 function Equation:getTypeCode()
-	return require 'makestruct'('cons_t', self.consVars)
+	return require 'eqn.makestruct'('cons_t', self.consVars)
 end
 
 function Equation:getEigenInfo()
@@ -24,7 +24,7 @@ function Equation:getEigenInfo()
 		typeCode =
 			'typedef struct { real evL[' .. (self.numStates * self.numWaves) .. '], evR[' .. (self.numStates * self.numWaves) .. ']; } eigen_t;\n'..
 			'typedef struct { real A[' .. (self.numStates * self.numStates) .. ']; } fluxXform_t;',
-		code = '#include "eigen.cl"',
+		code = '#include "solver/eigen.cl"',
 		displayVars = range(self.numStates * self.numWaves):map(function(i)
 			local row = (i-1)%self.numWaves
 			local col = (i-1-row)/self.numWaves

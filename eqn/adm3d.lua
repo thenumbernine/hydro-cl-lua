@@ -5,7 +5,7 @@ The first Bona-Masso formalism.
 
 local class = require 'ext.class'
 local table = require 'ext.table'
-local Equation = require 'equation'
+local Equation = require 'eqn.eqn'
 
 local ADM_BonaMasso_3D = class(Equation)
 ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
@@ -30,7 +30,7 @@ ADM_BonaMasso_3D.displayVars = table()
 
 ADM_BonaMasso_3D.useSourceTerm = true
 
-ADM_BonaMasso_3D.initStates = require 'init_adm'
+ADM_BonaMasso_3D.initStates = require 'eqn.init_adm'
 ADM_BonaMasso_3D.initStateNames = table.map(ADM_BonaMasso_3D.initStates, function(state) return state.name end)
 
 function ADM_BonaMasso_3D:codePrefix()
@@ -141,13 +141,13 @@ real calcDisplayVar_UBuf(
 	return table{
 		self:codePrefix(),
 		calcDisplayVarCode,
-		'#include "adm3d.cl"',
+		'#include "eqn/adm3d.cl"',
 	}:concat'\n'
 end
 
 ADM_BonaMasso_3D.eigenVars = {'alpha', 'gammaUxx', 'gammaUxy', 'gammaUxz', 'gammaUyy', 'gammaUyz', 'gammaUzz', 'f'}
 function ADM_BonaMasso_3D:getEigenInfo()
-	local makeStruct = require 'makestruct'
+	local makeStruct = require 'eqn.makestruct'
 	return {
 		typeCode = [[
 typedef struct {
