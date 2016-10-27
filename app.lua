@@ -179,8 +179,8 @@ self.ctx:printInfo()
 	self.solver = require 'solver.roe'(table(args, {
 		--eqn = require(cmdline.eqn or 'eqn.euler3d')(),
 		-- fluids
-		--eqn = require 'eqn.euler1d'(),
-		eqn = require 'eqn.euler3d'(),
+		eqn = require 'eqn.euler1d'(),
+		--eqn = require 'eqn.euler3d'(),
 		-- electromagnetism
 		--eqn = require 'eqn.maxwell'(),
 		-- geometrodynamics
@@ -612,7 +612,7 @@ function HydroCLApp:display2D(solvers, varName, xmin, ymin, xmax, ymax)
 				var.heatMapValueMinPtr[0], var.heatMapValueMaxPtr[0] = valueMin, valueMax
 			end
 
-			solver:calcDisplayVarToTex(varIndex, var)	
+			solver:calcDisplayVarToTex(varIndex, var)
 	
 			self.heatMap2DShader:use()
 			gl.glUniform1f(self.heatMap2DShader.uniforms.valueMin, valueMin)

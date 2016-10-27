@@ -300,9 +300,14 @@ function Solver:refreshIntegrator()
 end
 
 function Solver:addDisplayVarSet(buffer, ...)
+	local set = {
+		name = buffer,
+		vars = table(),
+	}
 	for i=1,select('#',...) do
 		local name = tostring(select(i,...))
-		self.displayVars:insert{
+		set.vars:insert{
+			set = set,
 			buffer = buffer,
 			name = buffer..'_'..name,
 			enabled = ffi.new('bool[1]', 
@@ -316,10 +321,11 @@ function Solver:addDisplayVarSet(buffer, ...)
 			heatMapValueMaxPtr = ffi.new('float[1]', 1),
 		}
 	end
+	self.displayVarSets:insert(set)
 end
 	
 function Solver:createDisplayVars()
-	self.displayVars = table()
+	self.displayVarSets = table()
 	self:addDisplayVarSet('U', table.unpack(self.eqn.displayVars))
 	self:addDisplayVarSet('wave', range(0,self.eqn.numWaves-1):unpack())
 	self:addDisplayVarSet('eigen', table.unpack(self.eqn:getEigenInfo().displayVars))
@@ -329,6 +335,11 @@ function Solver:createDisplayVars()
 	self:addDisplayVarSet('reduce', '0')	-- might contain nonsense :-p
 	self:addDisplayVarSet('deriv', range(0,self.eqn.numStates-1):unpack())
 	self:addDisplayVarSet('error', 'ortho', 'flux')
+	
+	self.displayVars = table()
+	for _,set in ipairs(self.displayVarSets) do
+		self.displayVars:append(set.vars)
+	end
 end
 
 local errorType = 'error_t'
@@ -454,14 +465,9 @@ function Solver:createCodePrefix()
 	end))
 
 	-- output the first and last indexes of display vars associated with each buffer
-	local buffers = table()
-	for _,var in ipairs(self.displayVars) do
-		buffers[var.buffer] = buffers[var.buffer] or table()
-		buffers[var.buffer]:insert(var)
-	end
-	for buffer,vars in pairs(buffers) do
-		lines:insert('#define displayFirst_'..buffer..' display_'..vars[1].name)
-		lines:insert('#define displayLast_'..buffer..' display_'..vars:last().name)
+	for _,set in ipairs(self.displayVarSets) do
+		lines:insert('#define displayFirst_'..set.name..' display_'..set.vars[1].name)
+		lines:insert('#define displayLast_'..set.name..' display_'..set.vars:last().name)
 	end
 
 	lines:append{
@@ -639,20 +645,26 @@ __kernel void {name}(
 }
 ]]
 
-	local code = table{
-		self.codePrefix,
-	}:append(self.app.useGLSharing and {
-		(calcDisplayVarCode
-			:gsub('{name}', 'calcDisplayVarToTex')
-			:gsub('{input}', '__write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex')
-			:gsub('{output}', '	write_imagef(tex, '
-				..(self.dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)')
-				..', (float4)(value, 0., 0., 0.));')
-		
-			:gsub('{body}', self.eqn:getCalcDisplayVarCode())
-			:gsub('{eigenBody}', self.eqn:getCalcDisplayVarEigenCode())
-		)
-	} or {}):append{
+	local lines = table{
+		self.codePrefix
+	}
+
+	if self.app.useGLSharing then
+		lines:append{
+			(calcDisplayVarCode
+				:gsub('{name}', 'calcDisplayVarToTex')
+				:gsub('{input}', '__write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex')
+				:gsub('{output}', '	write_imagef(tex, '
+					..(self.dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)')
+					..', (float4)(value, 0., 0., 0.));')
+			
+				:gsub('{body}', self.eqn:getCalcDisplayVarCode())
+				:gsub('{eigenBody}', self.eqn:getCalcDisplayVarEigenCode())
+			)
+		}
+	end
+	
+	lines:append{
 		(calcDisplayVarCode
 			:gsub('{name}', 'calcDisplayVarToBuffer')
 			:gsub('{input}', '__global real* dest')
@@ -662,8 +674,9 @@ __kernel void {name}(
 			:gsub('{eigenBody}', self.eqn:getCalcDisplayVarEigenCode())
 		)
 	-- end display code
-	}:concat'\n'
+	}
 
+	local code = lines:concat'\n'
 	self.displayProgram = require 'cl.program'{context=self.app.ctx, code=code}
 	local success, message = self.displayProgram:build{self.app.device}
 	if not success then
@@ -672,9 +685,14 @@ __kernel void {name}(
 	end
 
 	if self.app.useGLSharing then
-		self.calcDisplayVarToTexKernel = self.displayProgram:kernel('calcDisplayVarToTex', self.texCLMem)
+		for _,set in ipairs(self.displayVarSets) do
+			set.calcDisplayVarToTexKernel = self.displayProgram:kernel('calcDisplayVarToTex' --[['_'..set.name ]], self.texCLMem)
+		end
 	end
-	self.calcDisplayVarToBufferKernel = self.displayProgram:kernel('calcDisplayVarToBuffer', self.reduceBuf)
+
+	for _,set in ipairs(self.displayVarSets) do
+		set.calcDisplayVarToBufferKernel = self.displayProgram:kernel('calcDisplayVarToBuffer' --[['_'..set.name ]], self.reduceBuf)
+	end
 end
 
 function Solver:refreshBoundaryProgram()
@@ -888,22 +906,23 @@ end
 
 function Solver:calcDisplayVarToTex(varIndex)
 	local var = self.displayVars[varIndex]
+	local set = var.set
 	if self.app.useGLSharing then
 		-- copy to GL using cl_*_gl_sharing
 		gl.glFinish()
 		self.app.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
-		self.calcDisplayVarToTexKernel:setArg(1, ffi.new('int[1]', varIndex))
-		self.calcDisplayVarToTexKernel:setArg(2, self[var.buffer..'Buf'])
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDisplayVarToTexKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		set.calcDisplayVarToTexKernel:setArg(1, ffi.new('int[1]', varIndex))
+		set.calcDisplayVarToTexKernel:setArg(2, self[var.buffer..'Buf'])
+		self.app.cmds:enqueueNDRangeKernel{kernel=set.calcDisplayVarToTexKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 		self.app.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
 		self.app.cmds:finish()
 	else
 		-- download to CPU then upload with glTexSubImage2D
 		local ptr = self.calcDisplayVarToTexPtr
 		local tex = self.tex
-		self.calcDisplayVarToBufferKernel:setArg(1, ffi.new('int[1]', varIndex))
-		self.calcDisplayVarToBufferKernel:setArg(2, self[var.buffer..'Buf'])
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		set.calcDisplayVarToBufferKernel:setArg(1, ffi.new('int[1]', varIndex))
+		set.calcDisplayVarToBufferKernel:setArg(2, self[var.buffer..'Buf'])
+		self.app.cmds:enqueueNDRangeKernel{kernel=set.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 		self.app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(self.app.real) * self.volume, ptr=ptr}
 		if self.app.is64bit then
 			for i=0,self.volume-1 do
@@ -919,11 +938,12 @@ end
 
 function Solver:calcDisplayVarRange(varIndex)
 	local var = self.displayVars[varIndex]
-	self.calcDisplayVarToBufferKernel:setArg(1, ffi.new('int[1]', varIndex))
-	self.calcDisplayVarToBufferKernel:setArg(2, self[var.buffer..'Buf'])
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	local set = var.set
+	set.calcDisplayVarToBufferKernel:setArg(1, ffi.new('int[1]', varIndex))
+	set.calcDisplayVarToBufferKernel:setArg(2, self[var.buffer..'Buf'])
+	self.app.cmds:enqueueNDRangeKernel{kernel=set.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	local ymin = self:reduceMin()
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=set.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	local ymax = self:reduceMax()
 	return ymin, ymax
 end
