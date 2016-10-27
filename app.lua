@@ -844,28 +844,22 @@ function HydroCLApp:updateGUI()
 	-- display vars: TODO graph vars
 
 	if ig.igCollapsingHeader'variables:' then
-		local lastSection
-		local sectionEnabled
-		for i,var in ipairs(self.solver.displayVars) do
-			local section = var.buffer
-			if section ~= lastSection then
-				sectionEnabled = ig.igCollapsingHeader(section..' variables:')
-			end
-			if sectionEnabled then
-				ig.igPushIdStr(i..' '..var.name)
-				ig.igCheckbox(var.name, var.enabled)
-				ig.igSameLine()
-				if ig.igCollapsingHeader'' then	
-					ig.igPushIdStr'heatmap'
-					ig.igCheckbox('fixed range', var.heatMapFixedRangePtr)
-					ig.igInputFloat('value min', var.heatMapValueMinPtr)
-					ig.igInputFloat('value max', var.heatMapValueMaxPtr)
+		for _,set in ipairs(self.solver.displayVarSets) do
+			if ig.igCollapsingHeader(set.name..' variables:') then
+				for _,var in ipairs(set.vars) do
+					ig.igPushIdStr(set.name..' '..var.name)
+					ig.igCheckbox(var.name, var.enabled)
+					ig.igSameLine()
+					if ig.igCollapsingHeader'' then	
+						ig.igPushIdStr'heatmap'
+						ig.igCheckbox('fixed range', var.heatMapFixedRangePtr)
+						ig.igInputFloat('value min', var.heatMapValueMinPtr)
+						ig.igInputFloat('value max', var.heatMapValueMaxPtr)
+						ig.igPopId()
+					end
 					ig.igPopId()
 				end
-			
-				ig.igPopId()
 			end
-			lastSection = section
 		end
 	end
 

@@ -41,15 +41,15 @@ Equation.getCalcDisplayVarCode = nil
 
 function Equation:getCalcDisplayVarEigenCode()
 	return [[
-		int i = displayVar - displayFirst_eigen;
-		if (i < numStates * numWaves) {
-			value = eigen->evL[i];
-		} else {
-			i -= numStates * numWaves;
-			if (i < numStates * numWaves) {
-				value = eigen->evR[i];
-			}
+	int k = displayVar - displayFirst_eigen;
+	if (k < numStates * numWaves) {
+		value = eigen->evL[k];
+	} else {
+		k -= numStates * numWaves;
+		if (k < numStates * numWaves) {
+			value = eigen->evR[k];
 		}
+	}
 ]]
 end
 

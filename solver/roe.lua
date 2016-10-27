@@ -299,20 +299,20 @@ function Solver:refreshIntegrator()
 	self.integrator = self.integrators[self.integratorPtr[0]+1](self)
 end
 
-function Solver:addDisplayVarSet(buffer, ...)
+function Solver:addDisplayVarSet(args)
 	local set = {
-		name = buffer,
+		name = args.name,
 		vars = table(),
+		displayCode = args.displayCode,
 	}
-	for i=1,select('#',...) do
-		local name = tostring(select(i,...))
+	for i,name in ipairs(args.vars) do
 		set.vars:insert{
 			set = set,
-			buffer = buffer,
-			name = buffer..'_'..name,
+			buffer = set.name,
+			name = set.name..'_'..name,
 			enabled = ffi.new('bool[1]', 
-				buffer == 'U' and (self.dim==1 or i==1)
-				or (buffer == 'error' and self.dim==1)
+				set.name == 'U' and (self.dim==1 or i==1)
+				or (set.name == 'error' and self.dim==1)
 			),
 			color = vec3(math.random(), math.random(), math.random()):normalize(),
 			--heatMapTexPtr = ffi.new('int[1]', 0),	-- hsv, isobar, etc ...
@@ -326,15 +326,78 @@ end
 	
 function Solver:createDisplayVars()
 	self.displayVarSets = table()
-	self:addDisplayVarSet('U', table.unpack(self.eqn.displayVars))
-	self:addDisplayVarSet('wave', range(0,self.eqn.numWaves-1):unpack())
-	self:addDisplayVarSet('eigen', table.unpack(self.eqn:getEigenInfo().displayVars))
-	self:addDisplayVarSet('deltaUTilde', range(0,self.eqn.numWaves-1):unpack())
-	self:addDisplayVarSet('rTilde', range(0,self.eqn.numWaves-1):unpack())
-	self:addDisplayVarSet('flux', range(0,self.eqn.numStates-1):unpack())
-	self:addDisplayVarSet('reduce', '0')	-- might contain nonsense :-p
-	self:addDisplayVarSet('deriv', range(0,self.eqn.numStates-1):unpack())
-	self:addDisplayVarSet('error', 'ortho', 'flux')
+	self:addDisplayVarSet{
+		name = 'U',
+		vars = assert(self.eqn.displayVars),
+		displayCode = [[
+	const __global cons_t* U = (const __global cons_t*)buf + index;
+]]..self.eqn:getCalcDisplayVarCode(),
+	}
+	self:addDisplayVarSet{
+		name = 'wave',
+		vars = range(0, self.eqn.numWaves-1),
+		displayCode = [[
+	const __global real* wave = buf + intindex * numWaves;
+	value = wave[displayVar - displayFirst_wave];
+]],
+	}
+	self:addDisplayVarSet{
+		name = 'eigen',
+		vars = self.eqn:getEigenInfo().displayVars,
+		displayCode = [[
+	const __global eigen_t* eigen = (const __global eigen_t*)buf + intindex;
+]]..self.eqn:getCalcDisplayVarEigenCode(),
+	}
+	self:addDisplayVarSet{
+		name = 'deltaUTilde', 
+		vars = range(0,self.eqn.numWaves-1),
+		displayCode = [[
+	const __global real* deltaUTilde = buf + intindex * numWaves;
+	value = deltaUTilde[displayVar - displayFirst_deltaUTilde];
+]],
+	}
+	self:addDisplayVarSet{
+		name = 'rTilde',
+		vars = range(0,self.eqn.numWaves-1),
+		displayCode = [[
+	const __global real* rTilde = buf + intindex * numWaves;
+	value = rTilde[displayVar - displayFirst_rTilde];
+]],
+	}
+	self:addDisplayVarSet{
+		name = 'flux', 
+		vars = range(0,self.eqn.numStates-1),
+		displayCode = [[
+	const __global real* flux = buf + intindex * numStates;
+	value = flux[displayVar - displayFirst_flux];
+]],
+	}
+	self:addDisplayVarSet{
+		name = 'deriv',
+		vars = range(0,self.eqn.numStates-1),
+		displayCode = [[
+	const __global real* deriv = buf + index * numStates;
+	value = deriv[displayVar - displayFirst_deriv];
+]],
+	}
+	self:addDisplayVarSet{
+		name = 'reduce', 
+		vars = {'0'},
+		displayCode = [[
+	value = buf[index];
+]],
+	}	-- might contain nonsense :-p
+	self:addDisplayVarSet{
+		name = 'error', 
+		vars = {'ortho', 'flux'},
+		displayCode = [[
+	if (displayVar == display_error_ortho) {
+		value = ((const __global error_t*)buf)[intindex].ortho;
+	} else if (displayVar == display_error_flux) {
+		value = ((const __global error_t*)buf)[intindex].flux;
+	}
+]],
+	}
 	
 	self.displayVars = table()
 	for _,set in ipairs(self.displayVarSets) do
@@ -608,39 +671,10 @@ __kernel void {name}(
 	const __global real* buf
 ) {
 	SETBOUNDS(0,0);
+	int side = 0;
+	int intindex = side + dim * index;
 	real value = 0;
-	int intindex = dim * index;	//side 0
-	if (displayVar >= displayFirst_wave && displayVar <= displayLast_wave) {
-		const __global real* wave = buf + intindex * numWaves;
-		value = wave[displayVar - displayFirst_wave];
-	} else if (displayVar >= displayFirst_deltaUTilde && displayVar <= displayLast_deltaUTilde) {
-		const __global real* deltaUTilde = buf + intindex * numWaves;
-		value = deltaUTilde[displayVar - displayFirst_deltaUTilde];
-	} else if (displayVar >= displayFirst_rTilde && displayVar <= displayLast_rTilde) {
-		const __global real* rTilde = buf + intindex * numWaves;
-		value = rTilde[displayVar - displayFirst_rTilde];
-	} else if (displayVar >= displayFirst_flux && displayVar <= displayLast_flux) {
-		const __global real* flux = buf + intindex * numStates;
-		value = flux[displayVar - displayFirst_flux];
-	} else if (displayVar >= displayFirst_deriv && displayVar <= displayLast_deriv) {
-		const __global real* deriv = buf + index * numStates;
-		value = deriv[displayVar - displayFirst_deriv];
-	} else if (displayVar == display_reduce_0) {
-		value = buf[index];
-	} else if (displayVar == display_error_ortho) {
-		value = ((const __global error_t*)buf)[intindex].ortho;
-	} else if (displayVar == display_error_flux) {
-		value = ((const __global error_t*)buf)[intindex].flux;
-#ifdef displayFirst_eigen
-	} else if (displayVar >= displayFirst_eigen && displayVar <= displayLast_eigen) {
-		const __global eigen_t* eigen = (const __global eigen_t*)buf + intindex;
-{eigenBody}
-#endif	
-	} else {
-		const __global cons_t* U = (const __global cons_t*)buf + index;
 {body}
-	}
-	
 {output}
 }
 ]]
@@ -650,31 +684,35 @@ __kernel void {name}(
 	}
 
 	if self.app.useGLSharing then
+		for _,set in ipairs(self.displayVarSets) do
+			lines:append{
+				(calcDisplayVarCode
+					:gsub('{name}', 'calcDisplayVarToTex_'..set.name)
+					:gsub('{input}', '__write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex')
+					:gsub('{output}', '	write_imagef(tex, '
+						..(self.dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)')
+						..', (float4)(value, 0., 0., 0.));')
+					:gsub('{body}', set.displayCode)
+				
+					:gsub('{eigenBody}', self.eqn:getCalcDisplayVarEigenCode())
+				)
+			}
+		end
+	end
+
+	for _,set in ipairs(self.displayVarSets) do
 		lines:append{
 			(calcDisplayVarCode
-				:gsub('{name}', 'calcDisplayVarToTex')
-				:gsub('{input}', '__write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex')
-				:gsub('{output}', '	write_imagef(tex, '
-					..(self.dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)')
-					..', (float4)(value, 0., 0., 0.));')
-			
-				:gsub('{body}', self.eqn:getCalcDisplayVarCode())
+				:gsub('{name}', 'calcDisplayVarToBuffer_'..set.name)
+				:gsub('{input}', '__global real* dest')
+				:gsub('{output}', '	dest[index] = value;')
+				:gsub('{body}', set.displayCode)
+				
 				:gsub('{eigenBody}', self.eqn:getCalcDisplayVarEigenCode())
 			)
+		-- end display code
 		}
 	end
-	
-	lines:append{
-		(calcDisplayVarCode
-			:gsub('{name}', 'calcDisplayVarToBuffer')
-			:gsub('{input}', '__global real* dest')
-			:gsub('{output}', '	dest[index] = value;')
-			
-			:gsub('{body}', self.eqn:getCalcDisplayVarCode())
-			:gsub('{eigenBody}', self.eqn:getCalcDisplayVarEigenCode())
-		)
-	-- end display code
-	}
 
 	local code = lines:concat'\n'
 	self.displayProgram = require 'cl.program'{context=self.app.ctx, code=code}
@@ -686,12 +724,12 @@ __kernel void {name}(
 
 	if self.app.useGLSharing then
 		for _,set in ipairs(self.displayVarSets) do
-			set.calcDisplayVarToTexKernel = self.displayProgram:kernel('calcDisplayVarToTex' --[['_'..set.name ]], self.texCLMem)
+			set.calcDisplayVarToTexKernel = self.displayProgram:kernel('calcDisplayVarToTex_'..set.name, self.texCLMem)
 		end
 	end
 
 	for _,set in ipairs(self.displayVarSets) do
-		set.calcDisplayVarToBufferKernel = self.displayProgram:kernel('calcDisplayVarToBuffer' --[['_'..set.name ]], self.reduceBuf)
+		set.calcDisplayVarToBufferKernel = self.displayProgram:kernel('calcDisplayVarToBuffer_'..set.name, self.reduceBuf)
 	end
 end
 
