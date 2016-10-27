@@ -1,37 +1,3 @@
-real calcDisplayVar_primBuf(
-	int displayVar,
-	const __global real* prim_
-) {
-	const __global prim_t* prim = (const __global prim_t*)prim_;
-	switch (displayVar) {
-	case display_prim_rho: return prim->rho;
-	case display_prim_vx: return prim->vx;
-	case display_prim_vy: return prim->vy;
-	case display_prim_vz: return prim->vz;
-	case display_prim_eInt: return prim->eInt;
-	case display_prim_P: return calc_P(prim->rho, prim->eInt);
-	case display_prim_h: return calc_h(prim->rho, calc_P(prim->rho, prim->eInt), prim->eInt);
-	}
-	return 0;
-}
-
-real calcDisplayVar_UBuf(
-	int displayVar,
-	const __global real* U_
-) {
-	const __global cons_t* U = (const __global cons_t*)U_;
-	switch (displayVar) {
-	case display_U_D: return U->D;
-	case display_U_Sx: return U->Sx;
-	case display_U_Sy: return U->Sy;
-	case display_U_Sz: return U->Sz;
-	case display_U_tau: return U->tau;
-	//case display_U_W: return U->D / prim->rho;	// hmm. .. looks like I need prim as wellj
-	//case display_U_primitive_reconstruction_error: // and here too ..
-	}
-	return 0;
-}
-
 range_t calcCellMinMaxEigenvalues(
 	const __global cons_t* U,
 	const __global prim_t* prim,

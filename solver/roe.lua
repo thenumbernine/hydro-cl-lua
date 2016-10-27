@@ -488,10 +488,6 @@ function Solver:resetState()
 	self.app.cmds:finish()
 end
 
-function Solver:getCalcDisplayVarBody()
-	return self.eqn:getCalcDisplayVarCode()
-end
-
 function Solver:getCalcDTCode()
 	return '#include "solver/calcDT.cl"'
 end
@@ -599,28 +595,72 @@ end
 
 function Solver:refreshDisplayProgram()
 
+	local calcDisplayVarCode = [[
+__kernel void {name}(
+	{input},
+	int displayVar,
+	const __global real* buf
+) {
+	SETBOUNDS(0,0);
+	real value = 0;
+	int intindex = dim * index;	//side 0
+	if (displayVar >= displayFirst_wave && displayVar <= displayLast_wave) {
+		const __global real* wave = buf + intindex * numWaves;
+		value = wave[displayVar - displayFirst_wave];
+	} else if (displayVar >= displayFirst_deltaUTilde && displayVar <= displayLast_deltaUTilde) {
+		const __global real* deltaUTilde = buf + intindex * numWaves;
+		value = deltaUTilde[displayVar - displayFirst_deltaUTilde];
+	} else if (displayVar >= displayFirst_rTilde && displayVar <= displayLast_rTilde) {
+		const __global real* rTilde = buf + intindex * numWaves;
+		value = rTilde[displayVar - displayFirst_rTilde];
+	} else if (displayVar >= displayFirst_flux && displayVar <= displayLast_flux) {
+		const __global real* flux = buf + intindex * numStates;
+		value = flux[displayVar - displayFirst_flux];
+	} else if (displayVar >= displayFirst_deriv && displayVar <= displayLast_deriv) {
+		const __global real* deriv = buf + index * numStates;
+		value = deriv[displayVar - displayFirst_deriv];
+	} else if (displayVar == display_reduce_0) {
+		value = buf[index];
+	} else if (displayVar == display_error_ortho) {
+		value = ((const __global error_t*)buf)[intindex].ortho;
+	} else if (displayVar == display_error_flux) {
+		value = ((const __global error_t*)buf)[intindex].flux;
+#ifdef displayFirst_eigen
+	} else if (displayVar >= displayFirst_eigen && displayVar <= displayLast_eigen) {
+		const __global eigen_t* eigen = (const __global eigen_t*)buf + intindex;
+{eigenBody}
+#endif	
+	} else {
+		const __global cons_t* U = (const __global cons_t*)buf + index;
+{body}
+	}
+	
+{output}
+}
+]]
+
 	local code = table{
 		self.codePrefix,
-		
-	-- begin display code
-		'#define calcDisplayVar_Body '
-			..self:getCalcDisplayVarBody():gsub('\n', '\\\n'),
-		'#define calcDisplayVar_eigenBody '
-			..self.eqn:getCalcDisplayVarEigenCode():gsub('\n', '\\\n'),
 	}:append(self.app.useGLSharing and {
-		'#define calcDisplayVar_dstImage_t '..(self.dim == 3 and 'image3d_t' or 'image2d_t'),
-		'#define calcDisplayVar_writeImageArgs '..(self.dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)'),
-		'#define calcDisplayVar_name calcDisplayVarToTex',
-		'#define calcDisplayVar_output_tex',
-		'#include "solver/calcDisplayVar.cl"',
-		'#undef calcDisplayVar_name',
-		'#undef calcDisplayVar_output_tex',
-	} or {}):append{	
-		'#define calcDisplayVar_name calcDisplayVarToBuffer',
-		'#define calcDisplayVar_output_buffer',
-		'#include "solver/calcDisplayVar.cl"',
-		'#undef calcDisplayVar_name',
-		'#undef calcDisplayVar_output_buffer',
+		(calcDisplayVarCode
+			:gsub('{name}', 'calcDisplayVarToTex')
+			:gsub('{input}', '__write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex')
+			:gsub('{output}', '	write_imagef(tex, '
+				..(self.dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)')
+				..', (float4)(value, 0., 0., 0.));')
+		
+			:gsub('{body}', self.eqn:getCalcDisplayVarCode())
+			:gsub('{eigenBody}', self.eqn:getCalcDisplayVarEigenCode())
+		)
+	} or {}):append{
+		(calcDisplayVarCode
+			:gsub('{name}', 'calcDisplayVarToBuffer')
+			:gsub('{input}', '__global real* dest')
+			:gsub('{output}', '	dest[index] = value;')
+			
+			:gsub('{body}', self.eqn:getCalcDisplayVarCode())
+			:gsub('{eigenBody}', self.eqn:getCalcDisplayVarEigenCode())
+		)
 	-- end display code
 	}:concat'\n'
 

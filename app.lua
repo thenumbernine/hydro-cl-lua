@@ -180,13 +180,13 @@ self.ctx:printInfo()
 		--eqn = require(cmdline.eqn or 'eqn.euler3d')(),
 		-- fluids
 		--eqn = require 'eqn.euler1d'(),
-		--eqn = require 'eqn.euler3d'(),
+		eqn = require 'eqn.euler3d'(),
 		-- electromagnetism
 		--eqn = require 'eqn.maxwell'(),
 		-- geometrodynamics
 		--eqn = require 'eqn.adm1d_v1'(),
 		--eqn = require 'eqn.adm1d_v2'(),
-		eqn = require 'eqn.adm3d'(),
+		--eqn = require 'eqn.adm3d'(),
 	}))
 	--]]
 

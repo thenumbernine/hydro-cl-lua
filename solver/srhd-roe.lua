@@ -28,16 +28,6 @@ function SRHDRoe:refreshInitStateProgram()
 	self.initStateKernel:setArg(1, self.primBuf)
 end
 
-function SRHDRoe:getCalcDisplayVarBody()
-	return [[
-	if (displayVar >= displayFirst_prim && displayVar <= displayLast_prim) {
-		value = calcDisplayVar_primBuf(displayVar, buf + numStates * index);
-	} else {
-		]]..SRHDRoe.super.getCalcDisplayVarBody(self)..[[
-	}
-]]
-end
-
 function SRHDRoe:getCalcDTCode() end
 
 function SRHDRoe:refreshSolverProgram()
