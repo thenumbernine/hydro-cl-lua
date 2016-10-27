@@ -72,7 +72,17 @@ ADM_BonaMasso_1D_Alcubierre2008.displayVars = table()
 ADM_BonaMasso_1D_Alcubierre2008.initStates = require 'eqn.init_adm'
 ADM_BonaMasso_1D_Alcubierre2008.initStateNames = table.map(ADM_BonaMasso_1D_Alcubierre2008.initStates, function(state) return state.name end)
 
-function ADM_BonaMasso_1D_Alcubierre2008:codePrefix()
+function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix(solver)
+	local initState = self.initStates[solver.initStatePtr[0]+1]
+	
+	local alphaVar = require 'symmath'.var'alpha'
+	self.codes = initState.init(solver, ({
+		{f = 1},
+		{f = 1.69},
+		{f = 1.49},
+		{f = 1 + 1/alphaVar^2, alphaVar=alphaVar},
+	})[self.f.value+1])
+	
 	return table.map(self.codes, function(code,name,t)
 		return 'real calc_'..name..code, #t+1
 	end):concat'\n'
@@ -86,18 +96,7 @@ ADM_BonaMasso_1D_Alcubierre2008.f = {
 }
 
 function ADM_BonaMasso_1D_Alcubierre2008:getInitStateCode(solver)
-	local initState = self.initStates[solver.initStatePtr[0]+1]
-	
-	local alphaVar = require 'symmath'.var'alpha'
-	self.codes = initState.init(solver, ({
-		{f = 1},
-		{f = 1.69},
-		{f = 1.49},
-		{f = 1 + 1/alphaVar^2, alphaVar=alphaVar},
-	})[self.f.value+1])
-
 	return table{
-		self:codePrefix(),
 		[[
 __kernel void initState(
 	__global cons_t* UBuf
@@ -116,9 +115,8 @@ __kernel void initState(
 	}:concat'\n'
 end
 
-function ADM_BonaMasso_1D_Alcubierre2008:solverCode()
+function ADM_BonaMasso_1D_Alcubierre2008:getSolverCode()
 	return table{
-		self:codePrefix(),
 		'#include "eqn/adm1d_v1.cl"',
 	}:concat'\n'
 end
@@ -135,4 +133,34 @@ function ADM_BonaMasso_1D_Alcubierre2008:getEigenInfo()
 	}
 end
 
-return ADM_BonaMasso_1D_Alcubierre2008 
+function ADM_BonaMasso_1D_Alcubierre2008:getCalcDisplayVarCode()
+	-- this is put in a macro, so no // comments
+	-- TODO replace it in the code, so you can use //'s
+	return [[
+		switch (displayVar) {
+		/* source-only: */
+		case display_U_alpha: value = U->alpha; break;
+		case display_U_gamma_xx: value = U->gamma_xx; break;
+		/* both 1998 and 2008 cons vars: */
+		case display_U_a_x: value = U->a_x; break;
+		/* 1998-only cons vars: */
+		case display_U_d_xxx: value = .5 * U->D_g * U->gamma_xx; break;
+		case display_U_K_xx: value = U->KTilde_xx * sqrt(U->gamma_xx); break;
+		/* 2008-only cons vars:	*/
+		case display_U_D_g: value = U->D_g; break;
+		case display_U_KTilde_xx: value = U->KTilde_xx; break;
+		/* aux: */
+		case display_U_dx_alpha: value = U->alpha * U->a_x; break;
+		case display_U_dx_gamma_xx: value = U->gamma_xx * U->D_g; break;
+		case display_U_volume: value = U->alpha * sqrt(U->gamma_xx); break;
+		}
+]]
+end
+
+function ADM_BonaMasso_1D_Alcubierre2008:getCalcDisplayVarEigenCode()
+	return [[
+		value = eigen->f;
+]]
+end
+
+return ADM_BonaMasso_1D_Alcubierre2008

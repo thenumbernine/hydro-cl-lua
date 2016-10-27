@@ -289,6 +289,7 @@ function Solver:refreshGridSize()
 
 	self:refreshInitStateProgram()
 	self:refreshSolverProgram()
+	self:refreshDisplayProgram()
 	self:refreshBoundaryProgram()
 
 	self:resetState()
@@ -463,13 +464,19 @@ function Solver:createCodePrefix()
 		lines:insert('#define displayLast_'..buffer..' display_'..vars:last().name)
 	end
 
+	lines:append{
+		errorTypeCode,
+		self.eqn:getEigenInfo().code or '',
+		self.eqn:getCodePrefix(self),
+	}
+	
 	self.codePrefix = lines:concat'\n'
 end
 
 function Solver:refreshInitStateProgram()
 	local initStateCode = table{
 		self.codePrefix,
-		self.eqn:getInitStateCode(self, clnumber),
+		self.eqn:getInitStateCode(self),
 	}:concat'\n'
 	self.initStateProgram = require 'cl.program'{context=self.app.ctx, devices={self.app.device}, code=initStateCode}
 	self.initStateKernel = self.initStateProgram:kernel('initState', self.UBuf)
@@ -482,7 +489,7 @@ function Solver:resetState()
 end
 
 function Solver:getCalcDisplayVarBody()
-	return 'value = calcDisplayVar_UBuf(displayVar, buf + numStates * index);'
+	return self.eqn:getCalcDisplayVarCode()
 end
 
 function Solver:getCalcDTCode()
@@ -555,30 +562,10 @@ __kernel void multAdd(
 	local code = table{
 		self.codePrefix,
 		slopeLimiterCode,
-		self.eqn:getEigenInfo().code or '',
 		
 		'typedef struct { real min, max; } range_t;',
-		errorTypeCode,	
-		self.eqn:solverCode(self) or '',
-		
-	-- begin display code
-		'#define calcDisplayVar_Body '
-		..self:getCalcDisplayVarBody():gsub('\n', '\\\n'),
-	}:append(self.app.useGLSharing and {
-		'#define calcDisplayVar_dstImage_t '..(self.dim == 3 and 'image3d_t' or 'image2d_t'),
-		'#define calcDisplayVar_writeImageArgs '..(self.dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)'),
-		'#define calcDisplayVar_name calcDisplayVarToTex',
-		'#define calcDisplayVar_output_tex',
-		'#include "solver/calcDisplayVar.cl"',
-		'#undef calcDisplayVar_name',
-		'#undef calcDisplayVar_output_tex',
-	} or {}):append{	
-		'#define calcDisplayVar_name calcDisplayVarToBuffer',
-		'#define calcDisplayVar_output_buffer',
-		'#include "solver/calcDisplayVar.cl"',
-		'#undef calcDisplayVar_name',
-		'#undef calcDisplayVar_output_buffer',
-	-- end display code
+		self.eqn:getSolverCode(self) or '',
+
 		self:getCalcDTCode() or '',
 		'#include "solver/solver.cl"',
 	}:concat'\n'
@@ -607,12 +594,47 @@ __kernel void multAdd(
 		self.addSourceTermKernel:setArg(1, self.UBuf)
 	end
 
-	if self.app.useGLSharing then
-		self.calcDisplayVarToTexKernel = self.solverProgram:kernel('calcDisplayVarToTex', self.texCLMem)
-	end
-	self.calcDisplayVarToBufferKernel = self.solverProgram:kernel('calcDisplayVarToBuffer', self.reduceBuf)
-
 	self.calcErrorsKernel = self.solverProgram:kernel('calcErrors', self.errorBuf, self.waveBuf, self.eigenBuf, self.fluxXformBuf)	
+end
+
+function Solver:refreshDisplayProgram()
+
+	local code = table{
+		self.codePrefix,
+		
+	-- begin display code
+		'#define calcDisplayVar_Body '
+			..self:getCalcDisplayVarBody():gsub('\n', '\\\n'),
+		'#define calcDisplayVar_eigenBody '
+			..self.eqn:getCalcDisplayVarEigenCode():gsub('\n', '\\\n'),
+	}:append(self.app.useGLSharing and {
+		'#define calcDisplayVar_dstImage_t '..(self.dim == 3 and 'image3d_t' or 'image2d_t'),
+		'#define calcDisplayVar_writeImageArgs '..(self.dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)'),
+		'#define calcDisplayVar_name calcDisplayVarToTex',
+		'#define calcDisplayVar_output_tex',
+		'#include "solver/calcDisplayVar.cl"',
+		'#undef calcDisplayVar_name',
+		'#undef calcDisplayVar_output_tex',
+	} or {}):append{	
+		'#define calcDisplayVar_name calcDisplayVarToBuffer',
+		'#define calcDisplayVar_output_buffer',
+		'#include "solver/calcDisplayVar.cl"',
+		'#undef calcDisplayVar_name',
+		'#undef calcDisplayVar_output_buffer',
+	-- end display code
+	}:concat'\n'
+
+	self.displayProgram = require 'cl.program'{context=self.app.ctx, code=code}
+	local success, message = self.displayProgram:build{self.app.device}
+	if not success then
+		print(string.split(string.trim(code),'\n'):map(function(l,i) return i..':'..l end):concat'\n')
+		error(message)	
+	end
+
+	if self.app.useGLSharing then
+		self.calcDisplayVarToTexKernel = self.displayProgram:kernel('calcDisplayVarToTex', self.texCLMem)
+	end
+	self.calcDisplayVarToBufferKernel = self.displayProgram:kernel('calcDisplayVarToBuffer', self.reduceBuf)
 end
 
 function Solver:refreshBoundaryProgram()

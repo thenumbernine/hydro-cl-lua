@@ -1,28 +1,3 @@
-real calcDisplayVar_UBuf(
-	int displayVar,
-	const __global real* U_
-) {
-	const __global cons_t* U = (const __global cons_t*)U_;
-	switch (displayVar) {
-	//source-only:
-	case display_U_alpha: return U->alpha;
-	case display_U_gamma_xx: return U->gamma_xx;
-	//both 1998 and 2008 cons vars:
-	case display_U_a_x: return U->a_x;
-	//1998-only cons vars:
-	case display_U_d_xxx: return .5 * U->D_g * U->gamma_xx;
-	case display_U_K_xx: return U->KTilde_xx * sqrt(U->gamma_xx);
-	//2008-only cons vars:	
-	case display_U_D_g: return U->D_g;
-	case display_U_KTilde_xx: return U->KTilde_xx;
-	//aux:
-	case display_U_dx_alpha: return U->alpha * U->a_x;
-	case display_U_dx_gamma_xx: return U->gamma_xx * U->D_g;
-	case display_U_volume: return U->alpha * sqrt(U->gamma_xx);
-	}
-	return 0;
-}
-
 real calcMaxEigenvalue(real alpha, real gamma_xx) {
 	real f = calc_f(alpha);
 	real lambda = alpha * sqrt(f / gamma_xx);
@@ -111,13 +86,6 @@ void eigen_rightTransform(
 	y[2] = (x[0] + x[2]) * eigen->f;
 	y[3] = 2. * x[0] + x[1] + 2. * x[2];
 	y[4] = sqrt(eigen->f) * (x[2] - x[0]);
-}
-
-real eigen_calcDisplayVar(
-	int displayVar,
-	const __global eigen_t* eigen
-) {
-	return eigen->f;
 }
 
 kernel void addSourceTerm(

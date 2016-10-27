@@ -99,7 +99,7 @@ function SRHD:codePrefix()
 	return table()
 	:append(table.map(self.guiVars, function(var)
 		local value = self[var] 
-		-- the only integer ... TODO type info
+		-- the only integer ... TODO type info for the gui and the defs, plz
 		if var ~= 'solvePrimMaxIter' then
 			value = clnumber(value)
 		end

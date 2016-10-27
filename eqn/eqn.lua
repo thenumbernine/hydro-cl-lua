@@ -33,8 +33,24 @@ function Equation:getEigenInfo()
 			local row = (i-1)%self.numStates
 			local col = (i-1-row)/self.numStates
 			return 'evR_'..row..'_'..col
-		end))
+		end)),
 	}
+end
+
+Equation.getCalcDisplayVarCode = nil
+
+function Equation:getCalcDisplayVarEigenCode()
+	return [[
+		int i = displayVar - displayFirst_eigen;
+		if (i < numStates * numWaves) {
+			value = eigen->evL[i];
+		} else {
+			i -= numStates * numWaves;
+			if (i < numStates * numWaves) {
+				value = eigen->evR[i];
+			}
+		}
+]]
 end
 
 return Equation

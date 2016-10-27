@@ -48,14 +48,3 @@ void eigen_rightTransform(
 		y[i] = sum;
 	}
 }
-
-real eigen_calcDisplayVar(
-	int displayVar,
-	const __global eigen_t* eigen
-) {
-	displayVar -= displayFirst_eigen;
-	if (displayVar < numStates * numWaves) return eigen->evL[displayVar];
-	displayVar -= numStates * numWaves;
-	if (displayVar < numStates * numWaves) return eigen->evR[displayVar];
-	return 0.;
-}

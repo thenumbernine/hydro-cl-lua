@@ -67,7 +67,7 @@ typedef struct {
 ]]
 end
 
-function Euler3D:codePrefix()
+function Euler3D:getCodePrefix()
 	return table{
 		'#define gamma '..clnumber(self.gamma),
 		[[
@@ -80,6 +80,17 @@ real calc_EKin(prim_t W) { return W.rho * calc_eKin(W); }
 real calc_EInt(prim_t W) { return W.P / gamma_1; }
 real calc_eInt(prim_t W) { return calc_EInt(W) / W.rho; }
 real calc_ETotal(prim_t W) { return calc_EKin(W) + calc_EInt(W); }
+
+prim_t primFromCons(cons_t U) {
+	real EInt = U.ETotal - .5 * (U.mx * U.mx + U.my * U.my + U.mz * U.mz) / U.rho;
+	return (prim_t){
+		.rho = U.rho,
+		.vx = U.mx / U.rho,
+		.vy = U.my / U.rho,
+		.vz = U.mz / U.rho,
+		.P = EInt / gamma_1,
+	};
+}
 ]],
 	}:concat'\n'
 end
@@ -89,7 +100,6 @@ function Euler3D:getInitStateCode(solver)
 	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
 	local code = initState.init(solver)	
 	return table{
-		self:codePrefix(),
 		[[
 cons_t consFromPrim(prim_t W) {
 	return (cons_t){
@@ -128,14 +138,40 @@ __kernel void initState(
 ]],
 	}:concat'\n'
 end
-
-function Euler3D:solverCode(solver)	
+	
+function Euler3D:getSolverCode(solver)	
 	return table{
-		self:codePrefix(),
 		'#include "eqn/euler3d.cl"',
 	}:concat'\n'
 end
 
--- TODO boundary methods, esp how to handle mirror
+function Euler3D:getCalcDisplayVarCode()
+	return [[
+		prim_t W = primFromCons(*U);
+		switch (displayVar) {
+		case display_U_rho: value = W.rho; break;
+		case display_U_vx: value = W.vx; break;
+		case display_U_vy: value = W.vy; break;
+		case display_U_vz: value = W.vz; break;
+		case display_U_v: value = sqrt(W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); break;
+		case display_U_mx: value = U->mx; break;
+		case display_U_my: value = U->my; break;
+		case display_U_mz: value = U->mz; break;
+		case display_U_m: value = sqrt(U->mx * U->mx + U->my * U->my + U->mz * U->mz); break;
+		case display_U_P: value = W.P; break;
+		case display_U_eInt: value = calc_eInt(W); break;
+		case display_U_eKin: value = calc_eKin(W); break;
+		case display_U_eTotal: value = U->ETotal / W.rho; break;
+		case display_U_EInt: value = calc_EInt(W); break;
+		case display_U_EKin: value = calc_EKin(W); break;
+		case display_U_ETotal: value = U->ETotal; break;
+		case display_U_S: value = W.P / pow(W.rho, (real)gamma); break;
+		case display_U_H: value = W.P * gamma / gamma_1; break;
+		case display_U_h: value = W.P * gamma / gamma_1 / W.rho; break;
+		case display_U_HTotal: value = W.P * gamma / gamma_1 + .5 * W.rho * (W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); break;
+		case display_U_hTotal: value = W.P * gamma / gamma_1 / W.rho + .5 * (W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); break;
+		}
+]]
+end
 
 return Euler3D

@@ -24,19 +24,27 @@ Maxwell.eps0 = 1	-- permittivity
 Maxwell.mu0 = 1		-- permeability
 Maxwell.sigma = 1	-- conductivity
 
-function Maxwell:codePrefix()
+function Maxwell:getCodePrefix()
 	return table{
 		'#define eps0 '..clnumber(self.eps0),
 		'#define mu0 '..clnumber(self.mu0),
 		'#define sigma '..clnumber(self.sigma),
 		'#define sqrt_eps0 '..clnumber(math.sqrt(self.eps0)),
 		'#define sqrt_mu0 '..clnumber(math.sqrt(self.mu0)),
+		[[
+real ESq(cons_t U) { 
+	return (U.epsEx * U.epsEx + U.epsEy * U.epsEy + U.epsEz * U.epsEz) / (eps0 * eps0);
+}
+
+real BSq(cons_t U) {
+	return U.Bx * U.Bx + U.By * U.By + U.Bz * U.Bz;
+}
+]]
 	}:concat'\n'
 end
 
 function Maxwell:getInitStateCode(solver)
 	return table{
-		self:codePrefix(),
 		[[
 __kernel void initState(
 	__global cons_t* UBuf
@@ -64,9 +72,8 @@ __kernel void initState(
 	}:concat'\n'
 end
 
-function Maxwell:solverCode(solver)
+function Maxwell:getSolverCode(solver)
 	return table{ 
-		self:codePrefix(),
 		'#include "eqn/maxwell.cl"',
 	}:concat'\n'
 end
@@ -80,6 +87,22 @@ function Maxwell:getEigenInfo()
 		code = nil,
 		displayVars = {},
 	}
+end
+
+function Maxwell:getCalcDisplayVarCode()
+	return [[
+		switch (displayVar) {
+		case display_U_Ex: value = U->epsEx / eps0; break;
+		case display_U_Ey: value = U->epsEy / eps0; break;
+		case display_U_Ez: value = U->epsEz / eps0; break;
+		case display_U_E: value = sqrt(ESq(*U)); break;
+		case display_U_Bx: value = U->Bx; break;
+		case display_U_By: value = U->By; break;
+		case display_U_Bz: value = U->Bz; break;
+		case display_U_B: value = sqrt(BSq(*U)); break;
+		case display_U_energy: value = .5 * (ESq(*U) * eps0 + BSq(*U) / mu0); break;
+		}
+]]
 end
 
 return Maxwell

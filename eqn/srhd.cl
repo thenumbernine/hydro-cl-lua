@@ -84,9 +84,7 @@ __kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-typedef prim_t Roe_t;
-
-Roe_t calcEigenBasisSide(prim_t primL, prim_t primR) {
+prim_t calcEigenBasisSide(prim_t primL, prim_t primR) {
 	return (prim_t){
 		.rho = .5 * (primL.rho + primR.rho),
 		.vx = .5 * (primL.vx + primR.vx),
@@ -110,11 +108,11 @@ __kernel void calcEigenBasis(
 		prim_t primL = primBuf[indexL];
 		prim_t primR = primBuf[indexR];
 
-		Roe_t roe = calcEigenBasisSide(primL, primR);
+		prim_t avg = calcEigenBasisSide(primL, primR);
 
-		real rho = roe.rho;
-		real4 v = (real4)(roe.vx, roe.vy, roe.vz, 0);
-		real eInt = roe.eInt;
+		real rho = avg.rho;
+		real4 v = (real4)(avg.vx, avg.vy, avg.vz, 0);
+		real eInt = avg.eInt;
 		
 #if dim > 1
 		if (side == 1) {
@@ -265,7 +263,6 @@ __kernel void calcEigenBasis(
 			}
 		}
 #endif
-
 	}
 }
 

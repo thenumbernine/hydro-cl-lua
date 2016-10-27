@@ -33,9 +33,11 @@ __kernel void calcDisplayVar_name(
 		value = ((const __global error_t*)buf)[intindex].flux;
 #ifdef displayFirst_eigen
 	} else if (displayVar >= displayFirst_eigen && displayVar <= displayLast_eigen) {
-		value = eigen_calcDisplayVar(displayVar, (const __global eigen_t*)buf + intindex);
+		const __global eigen_t* eigen = (const __global eigen_t*)buf + intindex;
+		calcDisplayVar_eigenBody
 #endif	
 	} else {
+		const __global cons_t* U = (const __global cons_t*)buf + index;
 		calcDisplayVar_Body
 	}
 #if defined(calcDisplayVar_output_tex) 

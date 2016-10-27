@@ -170,20 +170,23 @@ self.ctx:printInfo()
 		maxs = cmdline.maxs or {1, 1, 1},
 	}
 
-	-- [[
+	--[[
 	self.solver = require 'solver.srhd-roe'(table(args, {
 		initState = 'relativistic shock wave',
 	}))
 	--]]
-	--[[
+	-- [[
 	self.solver = require 'solver.roe'(table(args, {
 		--eqn = require(cmdline.eqn or 'eqn.euler3d')(),
-		--eqn = require 'eqn.adm1d_v1'(),
-		--eqn = require 'eqn.adm1d_v2'(),
-		--eqn = require 'eqn.adm3d'(),
+		-- fluids
 		--eqn = require 'eqn.euler1d'(),
 		--eqn = require 'eqn.euler3d'(),
-		eqn = require 'eqn.maxwell'(),
+		-- electromagnetism
+		--eqn = require 'eqn.maxwell'(),
+		-- geometrodynamics
+		--eqn = require 'eqn.adm1d_v1'(),
+		--eqn = require 'eqn.adm1d_v2'(),
+		eqn = require 'eqn.adm3d'(),
 	}))
 	--]]
 
@@ -823,6 +826,7 @@ function HydroCLApp:updateGUI()
 						eqn[var] = f[0]
 						print('refreshing '..var..' = '..eqn[var])
 						self.solver:refreshSolverProgram()
+						self.solver:refreshDisplayProgram()
 					end
 				end
 			elseif type(eqn_var) == 'table' then
@@ -831,6 +835,7 @@ function HydroCLApp:updateGUI()
 					eqn[var].value = i[0]
 					print('refreshing '..var..' = '..eqn[var].options[eqn[var].value+1])
 					self.solver:refreshSolverProgram()
+					self.solver:refreshDisplayProgram()
 				end
 			end
 		end

@@ -1,32 +1,5 @@
 #define sqrt_1_2 0.70710678118654757273731092936941422522068023681641
 
-real ESq(cons_t U) { 
-	return (U.epsEx * U.epsEx + U.epsEy * U.epsEy + U.epsEz * U.epsEz) / (eps0 * eps0);
-}
-
-real BSq(cons_t U) {
-	return U.Bx * U.Bx + U.By * U.By + U.Bz * U.Bz;
-}
-
-real calcDisplayVar_UBuf(
-	int displayVar, 
-	const __global real* U_
-) {
-	const __global cons_t* U = (const __global cons_t*)U_;
-	switch (displayVar) {
-	case display_U_Ex: return U->epsEx / eps0;
-	case display_U_Ey: return U->epsEy / eps0;
-	case display_U_Ez: return U->epsEz / eps0;
-	case display_U_E: return sqrt(ESq(*U));
-	case display_U_Bx: return U->Bx;
-	case display_U_By: return U->By;
-	case display_U_Bz: return U->Bz;
-	case display_U_B: return sqrt(BSq(*U));
-	case display_U_energy: return .5 * (ESq(*U) * eps0 + BSq(*U) / mu0);
-	}
-	return 0;
-}
-
 real calcEigenvalue() { 
 	return 1./(sqrt_eps0 * sqrt_mu0);
 }
