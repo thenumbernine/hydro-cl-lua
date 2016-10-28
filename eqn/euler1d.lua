@@ -42,7 +42,7 @@ Euler1D.displayVars = {
 	'HTotal',
 } 
 
-Euler1D.initStates = require 'eqn.init_euler'
+Euler1D.initStates = require 'init.euler'
 Euler1D.initStateNames = table.map(Euler1D.initStates, function(info) return info.name end)
 
 Euler1D.guiVars = {'gamma'}

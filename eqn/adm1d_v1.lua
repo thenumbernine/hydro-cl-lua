@@ -69,7 +69,7 @@ ADM_BonaMasso_1D_Alcubierre2008.displayVars = table()
 	:append(ADM_BonaMasso_1D_Alcubierre2008.consVars)
 	:append{'dx_alpha', 'dx_gamma_xx', 'd_xxx', 'K_xx', 'volume'}
 
-ADM_BonaMasso_1D_Alcubierre2008.initStates = require 'eqn.init_adm'
+ADM_BonaMasso_1D_Alcubierre2008.initStates = require 'init.adm'
 ADM_BonaMasso_1D_Alcubierre2008.initStateNames = table.map(ADM_BonaMasso_1D_Alcubierre2008.initStates, function(state) return state.name end)
 
 function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix(solver)

@@ -25,7 +25,7 @@ SRHD.primDisplayVars = {
 	'h',
 }
 
-SRHD.initStates = require 'eqn.init_euler'
+SRHD.initStates = require 'init.euler'
 SRHD.initStateNames = table.map(SRHD.initStates, function(info) return info.name end)
 
 SRHD.guiVars = {

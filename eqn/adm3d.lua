@@ -30,7 +30,7 @@ ADM_BonaMasso_3D.displayVars = table()
 
 ADM_BonaMasso_3D.useSourceTerm = true
 
-ADM_BonaMasso_3D.initStates = require 'eqn.init_adm'
+ADM_BonaMasso_3D.initStates = require 'init.adm'
 ADM_BonaMasso_3D.initStateNames = table.map(ADM_BonaMasso_3D.initStates, function(state) return state.name end)
 
 function ADM_BonaMasso_3D:getCodePrefix(solver)

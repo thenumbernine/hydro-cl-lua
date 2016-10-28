@@ -36,7 +36,7 @@ end
 local initStates = {
 	{
 		name = 'Sod',
-		init = function()
+		init = function(solver)
 			solver.gamma = 7/5
 			return [[
 	rho = lhs ? 1 : .125;
@@ -46,7 +46,7 @@ local initStates = {
 	},
 	{
 		name = 'Sedov',
-		init = function()
+		init = function(solver)
 			return [[
 	rho = 1;
 	P = (i.x == gridSize.x/2 && i.y == gridSize.y/2 && i.z == gridSize.z/2) ? 1e+3 : 1;
@@ -55,19 +55,19 @@ local initStates = {
 	},
 	{
 		name = 'constant',
-		init = function() 
+		init = function(solver) 
 			return '	rho=1; vx=1; vy=1; vz=1; P=1;'
 		end,
 	},
 	{
 		name = 'linear',
-		init = function()
+		init = function(solver)
 			return '	rho=2+x.x; P=1;'
 		end,
 	},
 	{
 		name = 'gaussian',
-		init = function()
+		init = function(solver)
 			return [[
 	real sigma = 1. / sqrt(10.);
 	real xSq = dot(x,x);
@@ -78,7 +78,7 @@ local initStates = {
 	},
 	{
 		name = 'advect wave',
-		init = function()
+		init = function(solver)
 			return [[
 	real rSq = dot(x,x);
 	rho = exp(-100*rSq) + 1.;
@@ -90,7 +90,7 @@ local initStates = {
 	-- http://www.cfd-online.com/Wiki/Explosion_test_in_2-D
 	{
 		name = 'sphere',
-		init = function()
+		init = function(solver)
 			return [[
 	real rSq = dot(x,x);
 	bool inside = rSq < .2*.2;
@@ -101,7 +101,7 @@ local initStates = {
 	},
 	{
 		name = 'rarefaction wave',
-		init = function()
+		init = function(solver)
 			return [[
 	real delta = .1;
 	rho = 1;	// lhs ? .2 : .8;
@@ -190,7 +190,7 @@ local initStates = {
 	},
 	{
 		name = 'relativistic blast wave interaction',
-		init = function()
+		init = function(solver)
 			return [[
 	real xL = .9 * mins_x + .1 * maxs_x;
 	real xR = .1 * mins_x + .9 * maxs_x;
