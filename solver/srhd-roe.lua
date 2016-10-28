@@ -18,14 +18,15 @@ function SRHDRoe:createBuffers()
 	self.primBuf = ctx:buffer{rw=true, size=self.volume * self.dim * primSize}
 end
 
-function SRHDRoe:addDisplayVarSets()
-	SRHDRoe.super.addDisplayVarSets(self)
+function SRHDRoe:addConvertToTexs()
+	SRHDRoe.super.addConvertToTexs(self)
 	
-	self:addDisplayVarSet{
+	self.convertToTexs:insert(self.ConvertToTex{
 		name = 'prim', 
+		type = 'prim_t',
 		vars = self.eqn.primDisplayVars,
-		displayCode = [[
-	const __global prim_t* prim = (const __global prim_t*)buf + index;
+		displayBodyCode = [[
+	const __global prim_t* prim = buf + index;
 	switch (displayVar) {
 	case display_prim_rho: value = prim->rho; break;
 	case display_prim_vx: value = prim->vx; break;
@@ -36,7 +37,7 @@ function SRHDRoe:addDisplayVarSets()
 	case display_prim_h: value = calc_h(prim->rho, calc_P(prim->rho, prim->eInt), prim->eInt); break;
 	}
 ]],
-	}	
+	})	
 end
 
 function SRHDRoe:refreshInitStateProgram()

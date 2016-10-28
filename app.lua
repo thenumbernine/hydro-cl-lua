@@ -170,16 +170,16 @@ self.ctx:printInfo()
 		maxs = cmdline.maxs or {1, 1, 1},
 	}
 
-	--[[
+	-- [[
 	self.solver = require 'solver.srhd-roe'(table(args, {
 		initState = 'relativistic shock wave',
 	}))
 	--]]
-	-- [[
+	--[[
 	self.solver = require 'solver.roe'(table(args, {
 		--eqn = require(cmdline.eqn or 'eqn.euler3d')(),
 		-- fluids
-		eqn = require 'eqn.euler1d'(),
+		--eqn = require 'eqn.euler1d'(),
 		--eqn = require 'eqn.euler3d'(),
 		-- electromagnetism
 		--eqn = require 'eqn.maxwell'(),
@@ -844,10 +844,10 @@ function HydroCLApp:updateGUI()
 	-- display vars: TODO graph vars
 
 	if ig.igCollapsingHeader'variables:' then
-		for _,set in ipairs(self.solver.displayVarSets) do
-			if ig.igCollapsingHeader(set.name..' variables:') then
-				for _,var in ipairs(set.vars) do
-					ig.igPushIdStr(set.name..' '..var.name)
+		for _,convertToTex in ipairs(self.solver.convertToTexs) do
+			if ig.igCollapsingHeader(convertToTex.name..' variables:') then
+				for _,var in ipairs(convertToTex.vars) do
+					ig.igPushIdStr(convertToTex.name..' '..var.name)
 					ig.igCheckbox(var.name, var.enabled)
 					ig.igSameLine()
 					if ig.igCollapsingHeader'' then	
