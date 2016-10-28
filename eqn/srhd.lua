@@ -183,28 +183,14 @@ end
 
 function SRHD:getCalcDisplayVarCode()
 	return [[
-	if (displayVar >= displayFirst_prim && displayVar <= displayLast_prim) {
-		const __global prim_t* prim = (const __global prim_t*)buf + index;
-		switch (displayVar) {
-		case display_prim_rho: value = prim->rho; break;
-		case display_prim_vx: value = prim->vx; break;
-		case display_prim_vy: value = prim->vy; break;
-		case display_prim_vz: value = prim->vz; break;
-		case display_prim_eInt: value = prim->eInt; break;
-		case display_prim_P: value = calc_P(prim->rho, prim->eInt); break;
-		case display_prim_h: value = calc_h(prim->rho, calc_P(prim->rho, prim->eInt), prim->eInt); break;
-		}
-	} else {
-		const __global cons_t* U = (const __global cons_t*)buf + index;
-		switch (displayVar) {
-		case display_U_D: value = U->D; break;
-		case display_U_Sx: value = U->Sx; break;
-		case display_U_Sy: value = U->Sy; break;
-		case display_U_Sz: value = U->Sz; break;
-		case display_U_tau: value = U->tau; break;
-		//case display_U_W: value = U->D / prim->rho; break; // hmm. .. looks like I need prim as well
-		//case display_U_primitive_reconstruction_error: // and here too ..
-		}
+	switch (displayVar) {
+	case display_U_D: value = U->D; break;
+	case display_U_Sx: value = U->Sx; break;
+	case display_U_Sy: value = U->Sy; break;
+	case display_U_Sz: value = U->Sz; break;
+	case display_U_tau: value = U->tau; break;
+	//case display_U_W: value = U->D / prim->rho; break; // hmm. .. looks like I need prim as well
+	//case display_U_primitive_reconstruction_error: // and here too ..
 	}
 ]]
 end

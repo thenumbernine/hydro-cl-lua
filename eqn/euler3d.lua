@@ -147,30 +147,30 @@ end
 
 function Euler3D:getCalcDisplayVarCode()
 	return [[
-		prim_t W = primFromCons(*U);
-		switch (displayVar) {
-		case display_U_rho: value = W.rho; break;
-		case display_U_vx: value = W.vx; break;
-		case display_U_vy: value = W.vy; break;
-		case display_U_vz: value = W.vz; break;
-		case display_U_v: value = sqrt(W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); break;
-		case display_U_mx: value = U->mx; break;
-		case display_U_my: value = U->my; break;
-		case display_U_mz: value = U->mz; break;
-		case display_U_m: value = sqrt(U->mx * U->mx + U->my * U->my + U->mz * U->mz); break;
-		case display_U_P: value = W.P; break;
-		case display_U_eInt: value = calc_eInt(W); break;
-		case display_U_eKin: value = calc_eKin(W); break;
-		case display_U_eTotal: value = U->ETotal / W.rho; break;
-		case display_U_EInt: value = calc_EInt(W); break;
-		case display_U_EKin: value = calc_EKin(W); break;
-		case display_U_ETotal: value = U->ETotal; break;
-		case display_U_S: value = W.P / pow(W.rho, (real)gamma); break;
-		case display_U_H: value = W.P * gamma / gamma_1; break;
-		case display_U_h: value = W.P * gamma / gamma_1 / W.rho; break;
-		case display_U_HTotal: value = W.P * gamma / gamma_1 + .5 * W.rho * (W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); break;
-		case display_U_hTotal: value = W.P * gamma / gamma_1 / W.rho + .5 * (W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); break;
-		}
+	prim_t W = primFromCons(*U);
+	switch (displayVar) {
+	case display_U_rho: value = W.rho; break;
+	case display_U_vx: value = W.vx; break;
+	case display_U_vy: value = W.vy; break;
+	case display_U_vz: value = W.vz; break;
+	case display_U_v: value = sqrt(W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); break;
+	case display_U_mx: value = U->mx; break;
+	case display_U_my: value = U->my; break;
+	case display_U_mz: value = U->mz; break;
+	case display_U_m: value = sqrt(U->mx * U->mx + U->my * U->my + U->mz * U->mz); break;
+	case display_U_P: value = W.P; break;
+	case display_U_eInt: value = calc_eInt(W); break;
+	case display_U_eKin: value = calc_eKin(W); break;
+	case display_U_eTotal: value = U->ETotal / W.rho; break;
+	case display_U_EInt: value = calc_EInt(W); break;
+	case display_U_EKin: value = calc_EKin(W); break;
+	case display_U_ETotal: value = U->ETotal; break;
+	case display_U_S: value = W.P / pow(W.rho, (real)gamma); break;
+	case display_U_H: value = W.P * gamma / gamma_1; break;
+	case display_U_h: value = W.P * gamma / gamma_1 / W.rho; break;
+	case display_U_HTotal: value = W.P * gamma / gamma_1 + .5 * W.rho * (W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); break;
+	case display_U_hTotal: value = W.P * gamma / gamma_1 / W.rho + .5 * (W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); break;
+	}
 ]]
 end
 

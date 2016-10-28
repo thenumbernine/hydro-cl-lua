@@ -18,9 +18,25 @@ function SRHDRoe:createBuffers()
 	self.primBuf = ctx:buffer{rw=true, size=self.volume * self.dim * primSize}
 end
 
-function SRHDRoe:createDisplayVars()
-	SRHDRoe.super.createDisplayVars(self)
-	self:addDisplayVarSet('prim', table.unpack(self.eqn.primDisplayVars))
+function SRHDRoe:addDisplayVarSets()
+	SRHDRoe.super.addDisplayVarSets(self)
+	
+	self:addDisplayVarSet{
+		name = 'prim', 
+		vars = self.eqn.primDisplayVars,
+		displayCode = [[
+	const __global prim_t* prim = (const __global prim_t*)buf + index;
+	switch (displayVar) {
+	case display_prim_rho: value = prim->rho; break;
+	case display_prim_vx: value = prim->vx; break;
+	case display_prim_vy: value = prim->vy; break;
+	case display_prim_vz: value = prim->vz; break;
+	case display_prim_eInt: value = prim->eInt; break;
+	case display_prim_P: value = calc_P(prim->rho, prim->eInt); break;
+	case display_prim_h: value = calc_h(prim->rho, calc_P(prim->rho, prim->eInt), prim->eInt); break;
+	}
+]],
+	}	
 end
 
 function SRHDRoe:refreshInitStateProgram()

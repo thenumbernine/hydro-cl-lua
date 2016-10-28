@@ -122,24 +122,24 @@ end
 
 function Euler1D:getCalcDisplayVarCode()
 	return [[
-		prim_t W = primFromCons(*U);
-		switch (displayVar) {
-		case display_U_rho: value = W.rho; break;
-		case display_U_vx: value = W.vx; break;
-		case display_U_P: value = W.P; break;
-		case display_U_mx: value = U->mx; break;
-		case display_U_eInt: value = W.P / (W.rho * gamma_1); break;
-		case display_U_eKin: value = .5 * W.vx * W.vx; break;
-		case display_U_eTotal: value = U->ETotal / W.rho; break;
-		case display_U_EInt: value = W.P / gamma_1; break;
-		case display_U_EKin: value = .5 * W.rho * W.vx * W.vx; break;
-		case display_U_ETotal: value = U->ETotal; break;
-		case display_U_S: value = W.P / pow(W.rho, (real)gamma); break;
-		case display_U_H: value = W.P * gamma / gamma_1; break;
-		case display_U_h: value = W.P * gamma / gamma_1 / W.rho; break;
-		case display_U_HTotal: value = W.P * gamma / gamma_1 + .5 * W.rho * W.vx * W.vx; break;
-		case display_U_hTotal: value = W.P * gamma / gamma_1 / W.rho + .5 * W.vx * W.vx; break;
-		}
+	prim_t W = primFromCons(*U);
+	switch (displayVar) {
+	case display_U_rho: value = W.rho; break;
+	case display_U_vx: value = W.vx; break;
+	case display_U_P: value = W.P; break;
+	case display_U_mx: value = U->mx; break;
+	case display_U_eInt: value = W.P / (W.rho * gamma_1); break;
+	case display_U_eKin: value = .5 * W.vx * W.vx; break;
+	case display_U_eTotal: value = U->ETotal / W.rho; break;
+	case display_U_EInt: value = W.P / gamma_1; break;
+	case display_U_EKin: value = .5 * W.rho * W.vx * W.vx; break;
+	case display_U_ETotal: value = U->ETotal; break;
+	case display_U_S: value = W.P / pow(W.rho, (real)gamma); break;
+	case display_U_H: value = W.P * gamma / gamma_1; break;
+	case display_U_h: value = W.P * gamma / gamma_1 / W.rho; break;
+	case display_U_HTotal: value = W.P * gamma / gamma_1 + .5 * W.rho * W.vx * W.vx; break;
+	case display_U_hTotal: value = W.P * gamma / gamma_1 / W.rho + .5 * W.vx * W.vx; break;
+	}
 ]]
 end
 

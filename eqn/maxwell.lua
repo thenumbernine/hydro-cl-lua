@@ -91,17 +91,17 @@ end
 
 function Maxwell:getCalcDisplayVarCode()
 	return [[
-		switch (displayVar) {
-		case display_U_Ex: value = U->epsEx / eps0; break;
-		case display_U_Ey: value = U->epsEy / eps0; break;
-		case display_U_Ez: value = U->epsEz / eps0; break;
-		case display_U_E: value = sqrt(ESq(*U)); break;
-		case display_U_Bx: value = U->Bx; break;
-		case display_U_By: value = U->By; break;
-		case display_U_Bz: value = U->Bz; break;
-		case display_U_B: value = sqrt(BSq(*U)); break;
-		case display_U_energy: value = .5 * (ESq(*U) * eps0 + BSq(*U) / mu0); break;
-		}
+	switch (displayVar) {
+	case display_U_Ex: value = U->epsEx / eps0; break;
+	case display_U_Ey: value = U->epsEy / eps0; break;
+	case display_U_Ez: value = U->epsEz / eps0; break;
+	case display_U_E: value = sqrt(ESq(*U)); break;
+	case display_U_Bx: value = U->Bx; break;
+	case display_U_By: value = U->By; break;
+	case display_U_Bz: value = U->Bz; break;
+	case display_U_B: value = sqrt(BSq(*U)); break;
+	case display_U_energy: value = .5 * (ESq(*U) * eps0 + BSq(*U) / mu0); break;
+	}
 ]]
 end
 

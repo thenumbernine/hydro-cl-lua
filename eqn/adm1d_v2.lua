@@ -142,29 +142,29 @@ end
 
 function ADM_BonaMasso_1D_Alcubierre1997:getCalcDisplayVarCode()
 	return [[
-		switch (displayVar) {
-		/* source-only: */
-		case display_U_alpha: value = U->alpha; break;
-		case display_U_gamma_xx: value = U->gamma_xx; break;
-		/* both 1998 and 2008 cons vars: */
-		case display_U_a_x: value = U->a_x; break;
-		/* 1998-only cons vars: */
-		case display_U_d_xxx: value = U->d_xxx; break;
-		case display_U_K_xx: value = U->K_xx; break;
-		/* 2008-only cons vars:	*/
-		case display_U_D_g: value = 2. * U->d_xxx / U->gamma_xx; break;
-		case display_U_KTilde_xx: value = U->K_xx * sqrt(U->gamma_xx); break;
-		/* aux: */
-		case display_U_dx_alpha: value = U->alpha * U->a_x; break;
-		case display_U_dx_gamma_xx: value = 2. * U->d_xxx; break;
-		case display_U_volume: value = U->alpha * sqrt(U->gamma_xx); break;
-		}
+	switch (displayVar) {
+	// source-only:
+	case display_U_alpha: value = U->alpha; break;
+	case display_U_gamma_xx: value = U->gamma_xx; break;
+	// both 1998 and 2008 cons vars:
+	case display_U_a_x: value = U->a_x; break;
+	// 1998-only cons vars:
+	case display_U_d_xxx: value = U->d_xxx; break;
+	case display_U_K_xx: value = U->K_xx; break;
+	// 2008-only cons vars:
+	case display_U_D_g: value = 2. * U->d_xxx / U->gamma_xx; break;
+	case display_U_KTilde_xx: value = U->K_xx * sqrt(U->gamma_xx); break;
+	// aux:
+	case display_U_dx_alpha: value = U->alpha * U->a_x; break;
+	case display_U_dx_gamma_xx: value = 2. * U->d_xxx; break;
+	case display_U_volume: value = U->alpha * sqrt(U->gamma_xx); break;
+	}
 ]]
 end
 
 function ADM_BonaMasso_1D_Alcubierre1997:getCalcDisplayVarEigenCode()
 	return [[
-		value = eigen->sqrt_g_xx_over_f;
+	value = eigen->sqrt_g_xx_over_f;
 ]]
 end
 

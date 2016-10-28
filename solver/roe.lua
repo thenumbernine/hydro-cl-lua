@@ -326,6 +326,14 @@ end
 	
 function Solver:createDisplayVars()
 	self.displayVarSets = table()
+	self:addDisplayVarSets()
+	self.displayVars = table()
+	for _,set in ipairs(self.displayVarSets) do
+		self.displayVars:append(set.vars)
+	end
+end
+
+function Solver:addDisplayVarSets()
 	self:addDisplayVarSet{
 		name = 'U',
 		vars = assert(self.eqn.displayVars),
@@ -341,13 +349,18 @@ function Solver:createDisplayVars()
 	value = wave[displayVar - displayFirst_wave];
 ]],
 	}
-	self:addDisplayVarSet{
-		name = 'eigen',
-		vars = self.eqn:getEigenInfo().displayVars,
-		displayCode = [[
+	
+	local eigenDisplayVars = self.eqn:getEigenInfo().displayVars
+	if eigenDisplayVars and #eigenDisplayVars > 0 then
+		self:addDisplayVarSet{
+			name = 'eigen',
+			vars = eigenDisplayVars,
+			displayCode = [[
 	const __global eigen_t* eigen = (const __global eigen_t*)buf + intindex;
 ]]..self.eqn:getCalcDisplayVarEigenCode(),
-	}
+		}
+	end
+
 	self:addDisplayVarSet{
 		name = 'deltaUTilde', 
 		vars = range(0,self.eqn.numWaves-1),
@@ -398,11 +411,6 @@ function Solver:createDisplayVars()
 	}
 ]],
 	}
-	
-	self.displayVars = table()
-	for _,set in ipairs(self.displayVarSets) do
-		self.displayVars:append(set.vars)
-	end
 end
 
 local errorType = 'error_t'
@@ -529,6 +537,7 @@ function Solver:createCodePrefix()
 
 	-- output the first and last indexes of display vars associated with each buffer
 	for _,set in ipairs(self.displayVarSets) do
+		assert(set.vars[1], "failed to find vars for set "..set.name)
 		lines:insert('#define displayFirst_'..set.name..' display_'..set.vars[1].name)
 		lines:insert('#define displayLast_'..set.name..' display_'..set.vars:last().name)
 	end

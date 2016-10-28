@@ -1,8 +1,3 @@
-real calcDisplayVar_UBuf(int displayVar, const __global real* U_) {
-	const __global cons_t* U = (const __global cons_t*)U_;
-	return 0;
-}
-
 real calcMaxEigenvalue(real alpha, real gamma_xx) {
 	real f = calc_f(alpha);
 	real lambda = alpha * sqrt(f / gamma_xx);

@@ -148,11 +148,11 @@ end
 
 function ADM_BonaMasso_3D:getCalcDisplayVarCode()
 	return table{[[
-		switch (displayVar) {
-		case display_U_volume: value = U->alpha * sqrt(symMatDet_prefix(U->gamma_)); break;
+	switch (displayVar) {
+	case display_U_volume: value = U->alpha * sqrt(symMatDet_prefix(U->gamma_)); break;
 ]]
 	}:append(table.map(self.consVars, function(var)
-		return '		case display_U_'..var..': value = U->'..var..'; break;'
+		return '	case display_U_'..var..': value = U->'..var..'; break;'
 	end)):append{
 [[
 		}
