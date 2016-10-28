@@ -172,7 +172,7 @@ self.ctx:printInfo()
 
 	-- [[
 	self.solver = require 'solver.srhd-roe'(table(args, {
-		initState = 'relativistic shock wave',
+		initState = 'relativistic blast wave test problem 1',
 	}))
 	--]]
 	--[[

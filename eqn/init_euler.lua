@@ -37,6 +37,7 @@ local initStates = {
 	{
 		name = 'Sod',
 		init = function()
+			solver.gamma = 7/5
 			return [[
 	rho = lhs ? 1 : .125;
 	P = lhs ? 1 : .1;
@@ -157,12 +158,33 @@ local initStates = {
 	},
 	--from SRHD Marti & Muller 2000
 	{
-		name = 'relativistic shock wave',
-		init = function()
+		name = 'relativistic shock reflection',
+		init = function(solver)
+			solver.gamma = 4/3
 			return [[
 	rho = 1;
-	vx = lhs ? .5 : 0;
-	P = lhs ? 1e+3 : 1;
+	vx = 1. - 1e-5;
+	P = gamma_1 * rho * (1e-7 / sqrt(1. - vx * vx));
+]]
+		end,
+	},
+	{
+		name = 'relativistic blast wave test problem 1',
+		init = function(solver)
+			solver.gamma = 5/3
+			return [[
+	rho = lhs ? 10 : 1;
+	P = gamma_1 * rho * (lhs ? 2 : 1e-6);
+]]
+		end,
+	},
+	{
+		name = 'relativistic blast wave test problem 2',
+		init = function(solver)
+			solver.gamma = 5/3
+			return [[
+	rho = 1;
+	P = lhs ? 1000 : 1;
 ]]
 		end,
 	},
@@ -177,16 +199,7 @@ local initStates = {
 ]]
 		end,
 	},
-	{
-		name = 'relativistic blast wave test problem 1',
-		init = function(solver)
-			solver.gamma = 5/3
-			return [[
-	rho = lhs ? 10 : 1;
-	P = gamma_1 * rho * (lhs ? 2 : 1e-6);
-]]
-		end,
-	},
+
 	{
 		name = 'Colella-Woodward',
 		init = function(solver)
