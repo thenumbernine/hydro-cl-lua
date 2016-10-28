@@ -14,9 +14,8 @@ SRHD.displayVars = {
 	'D',
 	'Sx','Sy','Sz',
 	'tau',
-	--TODO:
-	--'W',
-	--'primitive_reconstruction_error',
+	'W',
+	'primitive_reconstruction_error',
 }
 SRHD.primDisplayVars = {
 	'rho',
@@ -113,16 +112,7 @@ real calc_dP_drho(real rho, real eInt) { return gamma_1 * eInt; }	//chi in most 
 real calc_dP_deInt(real rho, real eInt) { return gamma_1 * rho; }	//kappa in most papers
 real calc_eInt_from_P(real rho, real P) { return P / (gamma_1 * rho); }
 real calc_h(real rho, real P, real eInt) { return 1. + eInt + P / rho; }
-]],
-	}:concat'\n'
-end
 
-function SRHD:getInitStateCode(solver)
-	local initState = self.initStates[1+solver.initStatePtr[0]]
-	assert(initState, "couldn't find initState "..(solver.initStatePtr[0]+1))
-	local code = initState.init(solver)
-	return table{
-		[[
 cons_t consFromPrim(prim_t prim) {
 	real rho = prim.rho;
 	real vx = prim.vx, vy = prim.vy, vz = prim.vz; 
@@ -139,7 +129,16 @@ cons_t consFromPrim(prim_t prim) {
 	real tau = rho * h * WSq - P - D;	
 	return (cons_t){.D=D, .Sx=Sx, .Sy=Sy, .Sz=Sz, .tau=tau};
 }
+]],
+	}:concat'\n'
+end
 
+function SRHD:getInitStateCode(solver)
+	local initState = self.initStates[1+solver.initStatePtr[0]]
+	assert(initState, "couldn't find initState "..(solver.initStatePtr[0]+1))
+	local code = initState.init(solver)
+	return table{
+		[[
 __kernel void initState(
 	__global cons_t* consBuf,
 	__global prim_t* primBuf
@@ -181,18 +180,7 @@ function SRHD:getSolverCode(solver)
 	}:concat'\n'
 end
 
-function SRHD:getCalcDisplayVarCode()
-	return [[
-	switch (displayVar) {
-	case display_U_D: value = U->D; break;
-	case display_U_Sx: value = U->Sx; break;
-	case display_U_Sy: value = U->Sy; break;
-	case display_U_Sz: value = U->Sz; break;
-	case display_U_tau: value = U->tau; break;
-	//case display_U_W: value = U->D / prim->rho; break; // hmm. .. looks like I need prim as well
-	//case display_U_primitive_reconstruction_error: // and here too ..
-	}
-]]
-end
+-- handled by the SRHDRoe solver, so it can accept UBuf and primBuf
+SRHD.getCalcDisplayVarCode = nil
 
 return SRHD

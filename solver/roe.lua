@@ -302,7 +302,7 @@ end
 local ConvertToTex = class()
 Solver.ConvertToTex = ConvertToTex
 
-ConvertToTex.bufferType = 'real'	-- default
+ConvertToTex.type = 'real'	-- default
 
 ConvertToTex.displayCode = [[
 __kernel void {name}(
@@ -320,18 +320,20 @@ __kernel void {name}(
 ]]
 
 function ConvertToTex:init(args)
+	local solver = assert(args.solver)	
 	self.name = assert(args.name)
+	self.solver = solver
 	self.type = args.type	-- or self.type
 	self.displayCode = args.displayCode	-- or self.displayCode
 	self.displayBodyCode = args.displayBodyCode
-	
+	self.vars = table()
 	for i,name in ipairs(args.vars) do
 		self.vars:insert{
 			convertToTex = self,
 			name = self.name..'_'..name,
 			enabled = ffi.new('bool[1]', 
-				self.name == 'U' and (self.dim==1 or i==1)
-				or (self.name == 'error' and self.dim==1)
+				self.name == 'U' and (solver.dim==1 or i==1)
+				or (self.name == 'error' and solver.dim==1)
 			),
 			color = vec3(math.random(), math.random(), math.random()):normalize(),
 			--heatMapTexPtr = ffi.new('int[1]', 0),	-- hsv, isobar, etc ...
@@ -346,6 +348,28 @@ function ConvertToTex:getCode()
 	return self.displayCode 
 end
 
+function ConvertToTex:setArgs(kernel, var)
+	kernel:setArg(1, ffi.new('int[1]', var.globalIndex))
+	kernel:setArg(2, self.solver[var.convertToTex.name..'Buf'])
+end
+
+function ConvertToTex:setToTexArgs(var)
+	self:setArgs(self.calcDisplayVarToTexKernel, var)
+end
+
+function ConvertToTex:setToBufferArgs(var)
+	self:setArgs(self.calcDisplayVarToBufferKernel, var)
+end
+
+function Solver:addConvertToTex(args, class)
+	class = class or ConvertToTex
+	self.convertToTexs:insert(class(
+		table(args, {
+			solver = self,
+		})
+	))
+end
+
 function Solver:createDisplayVars()
 	self.convertToTexs = table()
 	self:addConvertToTexs()
@@ -353,78 +377,86 @@ function Solver:createDisplayVars()
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		self.displayVars:append(convertToTex.vars)
 	end
+	-- set the index in the master list of all display vars
+	for i,var in ipairs(self.displayVars) do
+		var.globalIndex = i
+	end
 end
 
-function Solver:addConvertToTexs()
-	self.convertToTexs:insert(ConvertToTex{
+function Solver:addConvertToTexUBuf()
+	self:addConvertToTex{
 		name = 'U',
 		type = 'cons_t',
 		displayBodyCode = [[
 	const __global cons_t* U = buf + index;
 ]]..self.eqn:getCalcDisplayVarCode(),
 		vars = assert(self.eqn.displayVars),
-	})
-	self.convertToTexs:insert(ConvertToTex{
+	}
+end
+
+function Solver:addConvertToTexs()
+	self:addConvertToTexUBuf()
+	self:addConvertToTex{
 		name = 'wave',
 		vars = range(0, self.eqn.numWaves-1),
 		displayBodyCode = [[
 	const __global real* wave = buf + intindex * numWaves;
 	value = wave[displayVar - displayFirst_wave];
 ]],
-	})
+	}
 	
 	local eigenDisplayVars = self.eqn:getEigenInfo().displayVars
 	if eigenDisplayVars and #eigenDisplayVars > 0 then
-		self.convertToTexs:insert(ConvertToTex{
+		self:addConvertToTex{
 			name = 'eigen',
 			type = 'eigen_t',
 			vars = eigenDisplayVars,
 			displayBodyCode = [[
 	const __global eigen_t* eigen = buf + intindex;
 ]]..self.eqn:getCalcDisplayVarEigenCode(),
-		})
+		}
 	end
 
-	self.convertToTexs:insert(ConvertToTex{
+	self:addConvertToTex{
 		name = 'deltaUTilde', 
 		vars = range(0,self.eqn.numWaves-1),
 		displayBodyCode = [[
 	const __global real* deltaUTilde = buf + intindex * numWaves;
 	value = deltaUTilde[displayVar - displayFirst_deltaUTilde];
 ]],
-	})
-	self.convertToTexs:insert(ConvertToTex{
+	}
+	self:addConvertToTex{
 		name = 'rTilde',
 		vars = range(0,self.eqn.numWaves-1),
 		displayBodyCode = [[
 	const __global real* rTilde = buf + intindex * numWaves;
 	value = rTilde[displayVar - displayFirst_rTilde];
 ]],
-	})
-	self.convertToTexs:insert(ConvertToTex{
+	}
+	self:addConvertToTex{
 		name = 'flux', 
 		vars = range(0,self.eqn.numStates-1),
 		displayBodyCode = [[
 	const __global real* flux = buf + intindex * numStates;
 	value = flux[displayVar - displayFirst_flux];
 ]],
-	})
-	self.convertToTexs:insert(ConvertToTex{
+	}
+	self:addConvertToTex{
 		name = 'deriv',
 		vars = range(0,self.eqn.numStates-1),
 		displayBodyCode = [[
 	const __global real* deriv = buf + index * numStates;
 	value = deriv[displayVar - displayFirst_deriv];
 ]],
-	})
-	self.convertToTexs:insert(ConvertToTex{
+	}
+	self:addConvertToTex{
 		name = 'reduce', 
 		vars = {'0'},
 		displayBodyCode = [[
 	value = buf[index];
 ]],
-	})	-- might contain nonsense :-p
-	self.convertToTexs:insert(ConvertToTex{
+	}	-- might contain nonsense :-p
+	self:addConvertToTex{
 		name = 'error', 
 		type = 'error_t',
 		vars = {'ortho', 'flux'},
@@ -435,7 +467,7 @@ function Solver:addConvertToTexs()
 		value = buf[intindex].flux;
 	}
 ]],
-	})
+	}
 end
 
 local errorType = 'error_t'
@@ -711,8 +743,8 @@ function Solver:refreshDisplayProgram()
 					:gsub('{output}', '	write_imagef(tex, '
 						..(self.dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)')
 						..', (float4)(value, 0., 0., 0.));')
-					:gsub('{body}', convertToTex.displayBodyCode)
-					:gsub('{type}', convertToTex.bufferType)
+					:gsub('{body}', convertToTex.displayBodyCode or '')
+					:gsub('{type}', convertToTex.type)
 
 					:gsub('{eigenBody}', self.eqn:getCalcDisplayVarEigenCode())
 				)
@@ -726,8 +758,8 @@ function Solver:refreshDisplayProgram()
 				:gsub('{name}', 'calcDisplayVarToBuffer_'..convertToTex.name)
 				:gsub('{input}', '__global real* dest')
 				:gsub('{output}', '	dest[index] = value;')
-				:gsub('{body}', convertToTex.displayBodyCode)
-				:gsub('{type}', convertToTex.bufferType)
+				:gsub('{body}', convertToTex.displayBodyCode or '')
+				:gsub('{type}', convertToTex.type)
 				
 				:gsub('{eigenBody}', self.eqn:getCalcDisplayVarEigenCode())
 			)
@@ -970,8 +1002,8 @@ function Solver:calcDisplayVarToTex(varIndex)
 		-- copy to GL using cl_*_gl_sharing
 		gl.glFinish()
 		self.app.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
-		convertToTex.calcDisplayVarToTexKernel:setArg(1, ffi.new('int[1]', varIndex))
-		convertToTex.calcDisplayVarToTexKernel:setArg(2, self[var.convertToTex.name..'Buf'])
+	
+		convertToTex:setToTexArgs(var)
 		self.app.cmds:enqueueNDRangeKernel{kernel=convertToTex.calcDisplayVarToTexKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 		self.app.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
 		self.app.cmds:finish()
@@ -979,8 +1011,8 @@ function Solver:calcDisplayVarToTex(varIndex)
 		-- download to CPU then upload with glTexSubImage2D
 		local ptr = self.calcDisplayVarToTexPtr
 		local tex = self.tex
-		convertToTex.calcDisplayVarToBufferKernel:setArg(1, ffi.new('int[1]', varIndex))
-		convertToTex.calcDisplayVarToBufferKernel:setArg(2, self[var.convertToTex.name..'Buf'])
+		
+		convertToTex:setToBufferArgs(var)
 		self.app.cmds:enqueueNDRangeKernel{kernel=convertToTex.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 		self.app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(self.app.real) * self.volume, ptr=ptr}
 		if self.app.is64bit then
@@ -998,8 +1030,11 @@ end
 function Solver:calcDisplayVarRange(varIndex)
 	local var = self.displayVars[varIndex]
 	local convertToTex = var.convertToTex
+	
+	convertToTex:setToBufferArgs(var)
 	convertToTex.calcDisplayVarToBufferKernel:setArg(1, ffi.new('int[1]', varIndex))
 	convertToTex.calcDisplayVarToBufferKernel:setArg(2, self[var.convertToTex.name..'Buf'])
+	
 	self.app.cmds:enqueueNDRangeKernel{kernel=convertToTex.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	local ymin = self:reduceMin()
 	self.app.cmds:enqueueNDRangeKernel{kernel=convertToTex.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
