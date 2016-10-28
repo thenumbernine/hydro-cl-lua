@@ -188,12 +188,12 @@ print()
 		maxs = cmdline.maxs or {1, 1, 1},
 	}
 
-	-- [[
+	--[[
 	self.solver = SRHDRoeSolver(table(args, {
 		initState = 'relativistic blast wave test problem 2',
 	}))
 	--]]
-	--[[
+	-- [[
 	self.solver = RoeSolver(table(args, {
 		--eqn = (cmdline.eqn and require('eqn.'..cmdline.eqn) or Euler3DEqn)(),
 		-- fluids
@@ -202,7 +202,7 @@ print()
 		-- electromagnetism
 		--eqn = MaxwellEqn(),
 		-- geometrodynamics
-		--eqn = ADM1Dv1Eqn(),
+		eqn = ADM1Dv1Eqn(),
 		--eqn = ADM1Dv2Eqn(),
 		--eqn = ADM3DEqn(),
 	}))
@@ -857,26 +857,11 @@ function HydroCLApp:updateGUI()
 		local f = ffi.new'float[1]'
 		local i = ffi.new'int[1]'
 		for _,var in ipairs(eqn.guiVars) do
-			local eqn_var = eqn[var]
-			if type(eqn_var) == 'number' then
-				f[0] = eqn_var 
-				if ig.igInputFloat(var, f, 0, 0, -1, ig.ImGuiInputTextFlags_EnterReturnsTrue) then
-					if eqn_var ~= f[0] then
-						eqn[var] = f[0]
-						print('refreshing '..var..' = '..eqn[var])
-						self.solver:refreshSolverProgram()
-						self.solver:refreshDisplayProgram()
-					end
-				end
+			var:updateGUI(self.solver)
+			--[[
 			elseif type(eqn_var) == 'table' then
-				i[0] = eqn_var.value
-				if ig.igCombo(eqn[var].name, i, eqn[var].options) then
-					eqn[var].value = i[0]
-					print('refreshing '..var..' = '..eqn[var].options[eqn[var].value+1])
-					self.solver:refreshSolverProgram()
-					self.solver:refreshDisplayProgram()
-				end
 			end
+			--]]
 		end
 	end
 

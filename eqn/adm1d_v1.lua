@@ -76,24 +76,28 @@ function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix(solver)
 	local initState = self.initStates[solver.initStatePtr[0]+1]
 	
 	local alphaVar = require 'symmath'.var'alpha'
-	self.codes = initState.init(solver, ({
-		{f = 1},
-		{f = 1.69},
-		{f = 1.49},
-		{f = 1 + 1/alphaVar^2, alphaVar=alphaVar},
-	})[self.f.value+1])
+	
+	local fGuiVar = self.guiVarsForName.f
+	local fCode = fGuiVar.options[fGuiVar.value[0]+1]
+	local fExpr = assert(loadstring('local alpha = ... return '..fCode))(alphaVar)
+	
+	self.codes = initState.init(solver, {
+		f = fExpr,
+		alphaVar = alphaVar,
+	})
 	
 	return table.map(self.codes, function(code,name,t)
 		return 'real calc_'..name..code, #t+1
 	end):concat'\n'
 end
 
-ADM_BonaMasso_1D_Alcubierre2008.guiVars = {'f'}
-ADM_BonaMasso_1D_Alcubierre2008.f = {
-	value = 0,	-- 0-based index into options
-	name = 'f',
-	options = {'1', '1.69', '.49', '1 + 1/alpha^2'},
+ADM_BonaMasso_1D_Alcubierre2008.guiVars = table{
+	require 'guivar.combo'{
+		name = 'f',
+		options = {'1', '1.69', '.49', '1 + 1/alpha^2'},
+	}
 }
+ADM_BonaMasso_1D_Alcubierre2008.guiVarsForName = ADM_BonaMasso_1D_Alcubierre2008.guiVars:map(function(var) return var, var.name end)
 
 function ADM_BonaMasso_1D_Alcubierre2008:getInitStateCode(solver)
 	return table{

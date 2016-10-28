@@ -1,6 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'eqn.eqn'
+local GuiFloat = require 'guivar.float'
 local clnumber = require 'clnumber'
 
 local Maxwell = class(Equation)
@@ -19,18 +20,18 @@ Maxwell.useSourceTerm = true
 
 Maxwell.initStateNames = {'default'}
 
-Maxwell.guiVars = {'eps0', 'mu0', 'sigma'}
-Maxwell.eps0 = 1	-- permittivity
-Maxwell.mu0 = 1		-- permeability
-Maxwell.sigma = 1	-- conductivity
+Maxwell.guiVars = table{
+	GuiFloat{name='eps0', value=1},	-- permittivity
+	GuiFloat{name='mu0', value=1},	-- permeability
+	GuiFloat{name='sigma', value=1},-- conductivity
+}
+Maxwell.guiVarsForName = Maxwell.guiVars:map(function(var) return var, var.name end)
 
 function Maxwell:getCodePrefix()
 	return table{
-		'#define eps0 '..clnumber(self.eps0),
-		'#define mu0 '..clnumber(self.mu0),
-		'#define sigma '..clnumber(self.sigma),
-		'#define sqrt_eps0 '..clnumber(math.sqrt(self.eps0)),
-		'#define sqrt_mu0 '..clnumber(math.sqrt(self.mu0)),
+		Maxwell.super.getCodePrefix(self),
+		'#define sqrt_eps0 '..clnumber(math.sqrt(self.guiVarsForName.eps0.value[0])),
+		'#define sqrt_mu0 '..clnumber(math.sqrt(self.guiVarsForName.mu0.value[0])),
 		[[
 real ESq(cons_t U) { 
 	return (U.epsEx * U.epsEx + U.epsEy * U.epsEy + U.epsEz * U.epsEz) / (eps0 * eps0);

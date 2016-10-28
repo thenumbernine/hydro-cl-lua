@@ -8,7 +8,6 @@ so maybe I should have this subclass / steal from Euler3D?
 local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'eqn.eqn'
-local clnumber = require 'clnumber'
 
 local Euler1D = class(Equation)
 Euler1D.name = 'Euler1D'
@@ -45,12 +44,14 @@ Euler1D.displayVars = {
 Euler1D.initStates = require 'init.euler'
 Euler1D.initStateNames = table.map(Euler1D.initStates, function(info) return info.name end)
 
-Euler1D.guiVars = {'gamma'}
-Euler1D.gamma = 7/5
+Euler1D.guiVars = table{
+	require 'guivar.float'{name='gamma', value=7/5}
+}
+Euler1D.guiVarsForName = Euler1D.guiVars:map(function(var) return var, var.name end)
 
 function Euler1D:getCodePrefix()
 	return table{
-		'#define gamma '..clnumber(self.gamma),
+		Euler1D.super.getCodePrefix(self),
 		[[
 #define gamma_1 (gamma-1.)
 #define gamma_3 (gamma-3.)
@@ -60,7 +61,7 @@ prim_t primFromCons(cons_t U) {
 	return (prim_t){
 		.rho = U.rho,
 		.vx = U.mx / U.rho,
-		.P = EInt / (gamma - 1),
+		.P = EInt / gamma_1,
 	};
 }
 ]]

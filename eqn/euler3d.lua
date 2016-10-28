@@ -32,8 +32,10 @@ Euler3D.displayVars = {
 Euler3D.initStates = require 'init.euler'
 Euler3D.initStateNames = table.map(Euler3D.initStates, function(info) return info.name end)
 
-Euler3D.guiVars = {'gamma'}
-Euler3D.gamma = 7/5
+Euler3D.guiVars = table{
+	require 'guivar.float'{name='gamma', value=7/5}
+}
+Euler3D.guiVarsForName = Euler3D.guiVars:map(function(var) return var, var.name end)
 
 function Euler3D:getTypeCode()
 	return [[
@@ -63,13 +65,12 @@ typedef struct {
 	};
 	real ETotal;
 } cons_t;
-
 ]]
 end
 
 function Euler3D:getCodePrefix()
 	return table{
-		'#define gamma '..clnumber(self.gamma),
+		Euler3D.super.getCodePrefix(self),
 		[[
 #define gamma_1 (gamma-1.)
 #define gamma_3 (gamma-3.)

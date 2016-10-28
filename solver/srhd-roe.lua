@@ -32,9 +32,7 @@ function SRHDRoe:addConvertToTexUBuf()
 		name = 'U',
 		type = 'cons_t',
 		vars = assert(self.eqn.displayVars),
---[[
-the index vs dstindex stuff is shared in common with the main display code
---]]
+-- the index vs dstindex stuff is shared in common with the main display code
 		displayCode = [[
 __kernel void {name}(
 	{input},
@@ -47,15 +45,15 @@ __kernel void {name}(
 	int4 dsti = i;
 
 	//now constrain
-	if (i.x < 3) i.x = 3;
-	if (i.x > gridSize_x - 3) i.x = gridSize_x - 3;
-#if dim >= 3
-	if (i.y < 3) i.y = 3;
-	if (i.y > gridSize_y - 3) i.y = gridSize_y - 3;
+	if (i.x < 2) i.x = 2;
+	if (i.x > gridSize_x - 2) i.x = gridSize_x - 2;
+#if dim >= 2
+	if (i.y < 2) i.y = 2;
+	if (i.y > gridSize_y - 2) i.y = gridSize_y - 2;
 #endif
 #if dim >= 3
-	if (i.z < 3) i.z = 3;
-	if (i.z > gridSize_z - 3) i.z = gridSize_z - 3;
+	if (i.z < 2) i.z = 2;
+	if (i.z > gridSize_z - 2) i.z = gridSize_z - 2;
 #endif
 	//and recalculate read index
 	index = INDEXV(i);
@@ -71,6 +69,7 @@ __kernel void {name}(
 	case display_U_Sx: value = U->Sx; break;
 	case display_U_Sy: value = U->Sy; break;
 	case display_U_Sz: value = U->Sz; break;
+	case display_U_S: value = sqrt(U->Sx*U->Sx + U->Sy*U->Sy + U->Sz*U->Sz); break;
 	case display_U_tau: value = U->tau; break;
 	case display_U_W: value = U->D / prim->rho; break;
 	case display_U_primitive_reconstruction_error: 
@@ -108,6 +107,7 @@ function SRHDRoe:addConvertToTexs()
 	case display_prim_vx: value = prim->vx; break;
 	case display_prim_vy: value = prim->vy; break;
 	case display_prim_vz: value = prim->vz; break;
+	case display_prim_v: value = sqrt(prim->vx*prim->vx + prim->vy*prim->vy + prim->vz*prim->vz); break;
 	case display_prim_eInt: value = prim->eInt; break;
 	case display_prim_P: value = calc_P(prim->rho, prim->eInt); break;
 	case display_prim_h: value = calc_h(prim->rho, calc_P(prim->rho, prim->eInt), prim->eInt); break;
@@ -139,6 +139,15 @@ function SRHDRoe:update()
 
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.updatePrimsKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+end
+
+function SRHDRoe:boundary()
+	-- U boundary
+	SRHDRoe.super.boundary(self)
+	-- prim boundary
+	self.boundaryKernel:setArg(0, self.primBuf)
+	SRHDRoe.super.boundary(self)
+	self.boundaryKernel:setArg(0, self.UBuf)
 end
 
 return SRHDRoe

@@ -12,14 +12,14 @@ SRHD.primVars = {'rho', 'vx', 'vy', 'vz', 'eInt'}
 SRHD.mirrorVars = {{'Sx'}, {'Sy'}, {'Sz'}}
 SRHD.displayVars = {
 	'D',
-	'Sx','Sy','Sz',
+	'Sx', 'Sy', 'Sz', 'S',
 	'tau',
 	'W',
 	'primitive_reconstruction_error',
 }
 SRHD.primDisplayVars = {
 	'rho',
-	'vx', 'vy', 'vz',
+	'vx', 'vy', 'vz', 'v',
 	'eInt',
 	'P',
 	'h',

@@ -37,7 +37,7 @@ local initStates = {
 	{
 		name = 'Sod',
 		init = function(solver)
-			solver.gamma = 7/5
+			solver.eqn.guiVarsForName.gamma.value[0] = 7/5
 			return [[
 	rho = lhs ? 1 : .125;
 	P = lhs ? 1 : .1;
@@ -160,7 +160,7 @@ local initStates = {
 	{
 		name = 'relativistic shock reflection',
 		init = function(solver)
-			solver.gamma = 4/3
+			solver.eqn.guiVarsForName.gamma.value[0] = 4/3
 			return [[
 	rho = 1;
 	vx = 1. - 1e-5;
@@ -171,7 +171,7 @@ local initStates = {
 	{
 		name = 'relativistic blast wave test problem 1',
 		init = function(solver)
-			solver.gamma = 5/3
+			solver.eqn.guiVarsForName.gamma.value[0] = 5/3
 			return [[
 	rho = lhs ? 10 : 1;
 	P = gamma_1 * rho * (lhs ? 2 : 1e-6);
@@ -181,7 +181,7 @@ local initStates = {
 	{
 		name = 'relativistic blast wave test problem 2',
 		init = function(solver)
-			solver.gamma = 5/3
+			solver.eqn.guiVarsForName.gamma.value[0] = 5/3
 			return [[
 	rho = 1;
 	P = lhs ? 1000 : .01;

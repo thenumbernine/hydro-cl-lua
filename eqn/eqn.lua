@@ -14,6 +14,12 @@ function Equation:init()
 	if not self.numWaves then self.numWaves = self.numStates end 
 end
 
+function Equation:getCodePrefix()
+	return (self.guiVars and self.guiVars:map(function(var) 
+		return var:getCode()
+	end) or table()):concat'\n'
+end
+
 function Equation:getTypeCode()
 	return require 'eqn.makestruct'('cons_t', self.consVars)
 end
