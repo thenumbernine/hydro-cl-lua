@@ -41,7 +41,23 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local string = require 'ext.string'
 local file = require 'ext.file'
+local tolua = require 'ext.tolua'
 local ImGuiApp = require 'imguiapp'
+local CLPlatform = require 'cl.platform'
+local CLContext = require 'cl.context'
+local CLCommandQueue = require 'cl.commandqueue'
+local GLProgram = require 'gl.program'
+local GLGradientTex = require 'gl.gradienttex'
+local GLTex2D = require 'gl.tex2d'
+local Font = require 'gui.font'
+local RoeSolver = require 'solver.roe'
+local SRHDRoeSolver = require 'solver.srhd-roe'
+local Euler1DEqn = require 'eqn.euler1d'
+local Euler3DEqn = require 'eqn.euler3d'
+local MaxwellEqn = require 'eqn.maxwell'
+local ADM1Dv1Eqn = require 'eqn.adm1d_v1'
+local ADM1Dv2Eqn = require 'eqn.adm1d_v2'
+local ADM3DEqn = require 'eqn.adm3d'
 
 local xs = table{'x', 'y', 'z'}
 local minmaxs = table{'min', 'max'}
@@ -85,7 +101,7 @@ function HydroCLApp:initGL(...)
 
 	-- TODO favor cl_khr_fp64, cl_khr_3d_image_writes, cl_khr_gl_sharing
 -- [[
-for i,platform in ipairs(require 'cl.platform'.getAll()) do
+for i,platform in ipairs(CLPlatform.getAll()) do
 	print()
 	print('platform '..i)
 	platform:printInfo()
@@ -101,7 +117,7 @@ end
 	local function get64bit(list)
 		local best = list:map(function(item)
 			local exts = string.trim(item:getExtensions():lower())
-			return {item=item, fp64=exts:match'cl_%w+_fp64'}
+			return {item=item, fp64=not not exts:match'cl_%w+_fp64'}
 		end):sort(function(a,b)
 			return (a.fp64 and 1 or 0) > (b.fp64 and 1 or 0)
 		end)[1]
@@ -111,11 +127,11 @@ end
 	-- TODO favor cl_khr_fp64, cl_khr_3d_image_writes, cl_khr_gl_sharing
 
 	if ffi.os == 'Windows' then
-		self.platform = require 'cl.platform'.getAll()[1]
+		self.platform = CLPlatform.getAll()[1]
 		self.device = self.platform:getDevices{gpu=true}[1]
 		self.is64bit = false--self.device:getExtensions():lower():match'cl_%2+_fp64'
 	else
-		self.platform = get64bit(require 'cl.platform'.getAll())
+		self.platform = get64bit(CLPlatform.getAll())
 		self.device, self.is64bit = get64bit(self.platform:getDevices{gpu=true})
 	end
 	
@@ -124,21 +140,22 @@ end
 		self.is64bit = false
 	end
 	
-print('is 64 bit?',self.is64bit)
-print()
 self.device:printInfo()
 	local exts = string.split(string.trim(self.device:getExtensions()):lower(),'%s+')
 	self.useGLSharing = exts:find(nil, function(ext) return ext:match'cl_%w+_gl_sharing' end)
 	
-	self.ctx = require 'cl.context'{
+	self.ctx = CLContext{
 		platform = self.platform,
 		device = self.device,
 		glSharing = self.useGLSharing,
 	}
 print()
 self.ctx:printInfo()
+print()
+print('is 64 bit?',self.is64bit)
+print()
 
-	self.cmds = require 'cl.commandqueue'{context=self.ctx, device=self.device}
+	self.cmds = CLCommandQueue{context=self.ctx, device=self.device}
 
 	-- making 'real' a parameter of solver would be clever
 	-- but because it is using ffi.ctype it might be tough ...
@@ -171,29 +188,29 @@ self.ctx:printInfo()
 	}
 
 	-- [[
-	self.solver = require 'solver.srhd-roe'(table(args, {
-		initState = 'relativistic blast wave test problem 1',
+	self.solver = SRHDRoeSolver(table(args, {
+		initState = 'relativistic blast wave test problem 2',
 	}))
 	--]]
 	--[[
-	self.solver = require 'solver.roe'(table(args, {
-		--eqn = require(cmdline.eqn or 'eqn.euler3d')(),
+	self.solver = RoeSolver(table(args, {
+		--eqn = (cmdline.eqn and require('eqn.'..cmdline.eqn) or Euler3DEqn)(),
 		-- fluids
-		--eqn = require 'eqn.euler1d'(),
-		--eqn = require 'eqn.euler3d'(),
+		--eqn = Euler1DEqn(),
+		--eqn = Euler3DEqn(),
 		-- electromagnetism
-		--eqn = require 'eqn.maxwell'(),
+		--eqn = MaxwellEqn(),
 		-- geometrodynamics
-		--eqn = require 'eqn.adm1d_v1'(),
-		--eqn = require 'eqn.adm1d_v2'(),
-		--eqn = require 'eqn.adm3d'(),
+		--eqn = ADM1Dv1Eqn(),
+		--eqn = ADM1Dv2Eqn(),
+		--eqn = ADM3DEqn(),
 	}))
 	--]]
 
 	self.solvers = table{self.solver}
 	
 	local graphShaderCode = file['graph.shader']
-	self.graphShader = require 'gl.program'{
+	self.graphShader = GLProgram{
 		vertexCode = '#define VERTEX_SHADER\n'..graphShaderCode,
 		fragmentCode = '#define FRAGMENT_SHADER\n'..graphShaderCode,
 		uniforms = {
@@ -215,7 +232,7 @@ self.ctx:printInfo()
 	self.graphShader:useNone()
 
 	local code = file['heatmap2d.shader']
-	self.heatMap2DShader = require 'gl.program'{
+	self.heatMap2DShader = GLProgram{
 		vertexCode = '#define VERTEX_SHADER\n'..code,
 		fragmentCode = '#define FRAGMENT_SHADER\n'..code,
 		uniforms = {
@@ -238,7 +255,7 @@ self.ctx:printInfo()
 
 	--[[
 	local code = file['volumetric.shader']
-	self.volumetricShader = require 'gl.program'{
+	self.volumetricShader = GLProgram{
 		vertexCode = '#define VERTEX_SHADER\n'..code,
 		fragmentCode = '#define FRAGMENT_SHADER\n'..code,
 		uniforms = {
@@ -256,7 +273,7 @@ self.ctx:printInfo()
 	self.volumetricShader:useNone()
 	--]]
 
-	self.hsvTex = require 'gl.gradienttex'(1024, {
+	self.hsvTex = GLGradientTex(1024, {
 		{0,0,.5,1},
 		{0,0,1,1},
 		{0,1,1,1},
@@ -265,7 +282,7 @@ self.ctx:printInfo()
 	}, false)
 
 	-- [[ need to get image loading working
-	local fonttex = require 'gl.tex2d'{
+	local fonttex = GLTex2D{
 		filename = 'font.png',
 		minFilter = gl.GL_LINEAR_MIPMAP_LINEAR,
 		magFilter = gl.GL_LINEAR,
@@ -276,7 +293,7 @@ self.ctx:printInfo()
 		gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
 		gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR) 
 	end
-	self.font = require 'gui.font'{tex = fonttex}
+	self.font = Font{tex = fonttex}
 	--]]
 end
 
@@ -352,7 +369,7 @@ function HydroCLApp:update(...)
 
 	local varNamesEnabled = table()
 	for i,var in ipairs(self.solver.displayVars) do
-if not var.enabled then error("var "..require 'ext.tolua'(self.solver.displayVars,{indent=true})) end
+if not var.enabled then error("var "..tolua(self.solver.displayVars,{indent=true})) end
 		if var.enabled[0] then
 			varNamesEnabled:insert(var.name)
 		end

@@ -43,7 +43,8 @@ SRHD.guiVars = {
 	'tauMax',
 }
 SRHD.gamma = 7/5
-SRHD.solvePrimMaxIter = 3	--1000	-- this isn't working
+-- setting max iter to 100+ makes it freeze initially -- meaning the initial cons to prim or something is taking too long ...
+SRHD.solvePrimMaxIter = 10	--1000	
 SRHD.solvePrimStopEpsilon = 1e-7
 
 -- used by pressure solver

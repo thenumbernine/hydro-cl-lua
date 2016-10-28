@@ -184,7 +184,7 @@ local initStates = {
 			solver.gamma = 5/3
 			return [[
 	rho = 1;
-	P = lhs ? 1000 : 1;
+	P = lhs ? 1000 : .01;
 ]]
 		end,
 	},
