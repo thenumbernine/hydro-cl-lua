@@ -1,6 +1,10 @@
 --[[
 Based on Alcubierre 2008 "Introduction to 3+1 Numerical Relativity" 2008 chapter on Toy 1+1 spacetimes.
 
+I got the ADM code working before, I think from using the provided eigenvectors (from the eigenfields) and eigenvalues
+and throwing away the rest of the source terms that the flux would otherwise generate
+unless specified by the equation.
+
 conservative variables:
 a_x = (ln alpha),x = alpha,x / alpha
 D_g = (ln gamma_xx),x = gamma_xx,x / gamma_xx

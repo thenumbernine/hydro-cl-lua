@@ -169,8 +169,8 @@ print()
 	local args = {
 		app = self, 
 		gridSize = {
-			cmdline.gridSize or 256, 
-			cmdline.gridSize or 256, 
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
 			cmdline.gridSize or 256,
 		},
 		boundary = {
@@ -183,7 +183,7 @@ print()
 		},
 		integrator = cmdline.integrator or 'forward Euler',	--'Runge-Kutta 4, TVD',
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
-		dim = cmdline.dim or 1,
+		dim = cmdline.dim or 2,
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 	}
@@ -198,11 +198,11 @@ print()
 		--eqn = (cmdline.eqn and require('eqn.'..cmdline.eqn) or Euler3DEqn)(),
 		-- fluids
 		--eqn = Euler1DEqn(),
-		--eqn = Euler3DEqn(),
+		eqn = Euler3DEqn(),
 		-- electromagnetism
 		--eqn = MaxwellEqn(),
 		-- geometrodynamics
-		eqn = ADM1Dv1Eqn(),
+		--eqn = ADM1Dv1Eqn(),
 		--eqn = ADM1Dv2Eqn(),
 		--eqn = ADM3DEqn(),
 	}))
@@ -252,27 +252,34 @@ print()
 	gl.glUniform1f(self.heatMap2DShader.uniforms.alpha, 1)
 	self.heatMap2DShader:useNone()
 
-	--[[
-	local code = file['volumetric.shader']
-	self.volumetricShader = GLProgram{
-		vertexCode = '#define VERTEX_SHADER\n'..code,
-		fragmentCode = '#define FRAGMENT_SHADER\n'..code,
-		uniforms = {
-			'tex',
-			'gradient',
-			'maxiter',
-			'oneOverDx',
-		},
-	}
-	self.volumetricShader:use()
-	gl.glUniform1i(self.volumetricShader.uniforms.tex, 0)
-	gl.glUniform1i(self.volumetricShader.uniforms.gradient, 1)
-	gl.glUniform1i(self.volumetricShader.uniforms.maxiter, math.max(self.gridSize:unpack()))
-	gl.glUniform1f(self.volumetricShader.uniforms.maxiter, math.max((self.maxs - self.mins):unpack()))
-	self.volumetricShader:useNone()
-	--]]
+	if self.solver.dim == 3 then
+		local code = file['volumetric.shader']
+		self.volumetricShader = GLProgram{
+			vertexCode = '#define VERTEX_SHADER\n'..code,
+			fragmentCode = '#define FRAGMENT_SHADER\n'..code,
+			uniforms = {
+				'tex',
+				'gradient',
+				'maxiter',
+	--			'oneOverDx',
+				'scale',
+				'useLog',
+				'alpha',
+			},
+		}
+		self.volumetricShader:use()
+		gl.glUniform1i(self.volumetricShader.uniforms.tex, 0)
+		gl.glUniform1i(self.volumetricShader.uniforms.gradient, 1)
+		do
+			local maxiter = math.max(tonumber(self.solver.gridSize.x), tonumber(self.solver.gridSize.y), tonumber(self.solver.gridSize.z))
+			print('volumetric shader raycast maxiter',maxiter)
+			gl.glUniform1i(self.volumetricShader.uniforms.maxiter, maxiter)
+		end
+		--gl.glUniform3f(self.volumetricShader.uniforms.oneOverDx, (self.solver.maxs - self.solver.mins):unpack())
+		self.volumetricShader:useNone()
+	end
 
-	self.hsvTex = GLGradientTex(1024, {
+	self.gradientTex = GLGradientTex(1024, {
 		{0,0,.5,1},
 		{0,0,1,1},
 		{0,1,1,1},
@@ -350,7 +357,6 @@ end
 HydroCLApp.updateMethod = nil
 
 function HydroCLApp:update(...)
-
 	if self.updateMethod then
 		if self.updateMethod == 'step' then 
 			print('performing single step...')
@@ -368,7 +374,6 @@ function HydroCLApp:update(...)
 
 	local varNamesEnabled = table()
 	for i,var in ipairs(self.solver.displayVars) do
-if not var.enabled then error("var "..tolua(self.solver.displayVars,{indent=true})) end
 		if var.enabled[0] then
 			varNamesEnabled:insert(var.name)
 		end
@@ -656,7 +661,7 @@ function HydroCLApp:display2D(solvers, varName, xmin, ymin, xmax, ymax)
 			gl.glUniform1f(self.heatMap2DShader.uniforms.valueMin, valueMin)
 			gl.glUniform1f(self.heatMap2DShader.uniforms.valueMax, valueMax)
 			self.solver.tex:bind(0)
-			self.hsvTex:bind(1)
+			self.gradientTex:bind(1)
 			gl.glBegin(gl.GL_QUADS)
 			for _,v in ipairs{{0,0},{1,0},{1,1},{0,1}} do
 				gl.glTexCoord2f(v[1], v[2])
@@ -665,7 +670,7 @@ function HydroCLApp:display2D(solvers, varName, xmin, ymin, xmax, ymax)
 					v[2] * solver.maxs[2] + (1 - v[2]) * solver.mins[2])
 			end
 			gl.glEnd()
-			self.hsvTex:unbind(1)
+			self.gradientTex:unbind(1)
 			self.solver.tex:unbind(0)
 			self.heatMap2DShader:useNone()
 
@@ -695,8 +700,7 @@ function HydroCLApp:display2D(solvers, varName, xmin, ymin, xmax, ymax)
 	end
 end
 
---[[
-function HydroCLApp:display3D(solvers, varName, xmin, ymin, xmax, ymax)
+function HydroCLApp:display3D(solvers, varName, xmin, ymin, xmax, ymax, useLog)
 	local vertexes = {
 		0,0,0,
 		1,0,0,
@@ -726,6 +730,8 @@ function HydroCLApp:display3D(solvers, varName, xmin, ymin, xmax, ymax)
 	gl.glMatrixMode(gl.GL_MODELVIEW)
 	gl.glLoadIdentity()
 
+	gl.glTranslatef(0,0,-2)
+
 	gl.glColor3f(1,1,1)
 	for pass=0,1 do
 		if pass == 0 then
@@ -736,35 +742,31 @@ function HydroCLApp:display3D(solvers, varName, xmin, ymin, xmax, ymax)
 			gl.glEnable(gl.GL_DEPTH_TEST)
 			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 			gl.glEnable(gl.GL_BLEND)
-			shader:use()
-			gl.glUniform1f(shader.uniforms.scale, 1)--scale)
-			gl.glUniform1i(shader.uniforms.useLog, 0)
-			gl.glUniform1f(shader.uniforms.alpha, 1)--alpha)
-			gl.glActiveTexture(gl.GL_TEXTURE0)
-			gl.glBindTexture(gl.GL_TEXTURE_3D, app->plot->getTex())
-			gl.glActiveTexture(gl.GL_TEXTURE1)
-			gl.glBindTexture(gl.GL_TEXTURE_1D, app->gradientTex)
+			self.volumetricShader:use()
+			gl.glUniform1f(self.volumetricShader.uniforms.scale, 1)--scale)
+			gl.glUniform1i(self.volumetricShader.uniforms.useLog, useLog and 1 or 0)
+			gl.glUniform1f(self.volumetricShader.uniforms.alpha, 1)--alpha)
+			self.solver.tex:bind(0)
+			self.gradientTex:bind(1)
 		end
 		gl.glBegin(gl.GL_QUADS)
 		for i=1,24 do
-			local x = vertexes[quads[i] * 3 + 0 - 1]
-			local y = vertexes[quads[i] * 3 + 1 - 1]
-			local z = vertexes[quads[i] * 3 + 2 - 1]
+			local x = vertexes[quads[i] * 3 + 0 + 1]
+			local y = vertexes[quads[i] * 3 + 1 + 1]
+			local z = vertexes[quads[i] * 3 + 2 + 1]
 			gl.glTexCoord3f(x, y, z)
-			x = x * (app.xmax.s[0] - app.xmin.s[0]) + app.xmin.s[0];
-			y = y * (app.xmax.s[1] - app.xmin.s[1]) + app.xmin.s[1];
-			z = z * (app.xmax.s[2] - app.xmin.s[2]) + app.xmin.s[2];
-			glVertex3f(x, y, z);
+			x = x * (self.solver.maxs[1] - self.solver.mins[1]) + self.solver.mins[1]
+			y = y * (self.solver.maxs[2] - self.solver.mins[2]) + self.solver.mins[2]
+			z = z * (self.solver.maxs[3] - self.solver.mins[3]) + self.solver.mins[3]
+			gl.glVertex3f(x, y, z)
 		end
 		gl.glEnd()
 		if pass == 0 then
 			gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 		else
-			gl.glActiveTexture(gl.GL_TEXTURE1)
-			gl.glBindTexture(gl.GL_TEXTURE_1D, 0)
-			gl.glActiveTexture(gl.GL_TEXTURE0)
-			gl.glBindTexture(gl.GL_TEXTURE_3D, 0)
-			gl.glUseProgram(0)
+			self.gradientTex:unbind(1)
+			self.solver.tex:unbind(0)
+			self.volumetricShader:useNone()
 			gl.glDisable(gl.GL_BLEND)
 			gl.glDisable(gl.GL_DEPTH_TEST)
 			gl.glCullFace(gl.GL_BACK)
@@ -773,7 +775,6 @@ function HydroCLApp:display3D(solvers, varName, xmin, ymin, xmax, ymax)
 	end
 
 end
---]]
 
 function HydroCLApp:showDisplayVar(solver, varIndex)
 	local var = solver.displayVars[varIndex]

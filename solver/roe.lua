@@ -11,6 +11,7 @@ local clnumber = require 'clnumber'
 local CLImageGL = require 'cl.imagegl'
 local CLProgram = require 'cl.program'
 local GLTex2D = require 'gl.tex2d'
+local GLTex3D = require 'gl.tex2d'
 local glreport = require 'gl.report'
 
 local ForwardEuler = require 'int.fe'
@@ -521,15 +522,16 @@ function Solver:createBuffers()
 
 	-- CL/GL interop
 
-	self.tex = GLTex2D{
+	self.tex = (self.dim < 3 and GLTex2D or GLTex3D){
 		width = self.gridSize.x,
 		height = self.gridSize.y,
+		depth = self.gridSize.z,
 		internalFormat = gl.GL_RGBA32F,
 		format = gl.GL_RGBA,
 		type = gl.GL_FLOAT,
 		minFilter = gl.GL_NEAREST,
 		magFilter = gl.GL_LINEAR,
-		wrap = {s=gl.GL_REPEAT, t=gl.GL_REPEAT},
+		wrap = {s=gl.GL_REPEAT, t=gl.GL_REPEAT, r=gl.GL_REPEAT},
 	}
 
 	if self.app.useGLSharing then
@@ -1042,7 +1044,13 @@ function Solver:calcDisplayVarToTex(varIndex)
 			end
 		end
 		tex:bind()
-		gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, tex.width, tex.height, gl.GL_RED, gl.GL_FLOAT, ptr)
+		if self.dim < 3 then
+			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, tex.width, tex.height, gl.GL_RED, gl.GL_FLOAT, ptr)
+		else
+			for z=0,tex.depth-1 do
+				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, tex.width, tex.height, 1, gl.GL_RED, gl.GL_FLOAT, ptr + tex.width * tex.height * z)
+			end
+		end
 		tex:unbind()
 		glreport'here'
 	end

@@ -20,7 +20,7 @@ void main() {
 uniform sampler3D tex;
 uniform sampler1D gradient;
 uniform int maxiter;
-uniform vec3 oneOverDx;
+//uniform vec3 oneOverDx;
 uniform float scale;
 uniform bool useLog;
 uniform float alpha;
