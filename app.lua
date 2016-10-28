@@ -38,6 +38,7 @@ local gl = require 'ffi.OpenGL'
 local cl = require 'ffi.OpenCL'
 local sdl = require 'ffi.sdl'
 local class = require 'ext.class'
+local math = require 'ext.math'
 local table = require 'ext.table'
 local string = require 'ext.string'
 local file = require 'ext.file'
@@ -227,7 +228,6 @@ print()
 	self.graphShader:use()
 	gl.glUniform1i(self.graphShader.uniforms.tex, 0)
 	gl.glUniform1f(self.graphShader.uniforms.scale, 1)
-	gl.glUniform1i(self.graphShader.uniforms.useLog, false)
 	gl.glUniform1f(self.graphShader.uniforms.ambient, 1)	
 	self.graphShader:useNone()
 
@@ -245,7 +245,6 @@ print()
 		},
 	}
 	self.heatMap2DShader:use()
-	gl.glUniform1i(self.heatMap2DShader.uniforms.useLog, 0)
 	gl.glUniform1f(self.heatMap2DShader.uniforms.valueMin, 0)
 	gl.glUniform1f(self.heatMap2DShader.uniforms.valueMax, 0)
 	gl.glUniform1i(self.heatMap2DShader.uniforms.tex, 0)
@@ -380,10 +379,14 @@ if not var.enabled then error("var "..tolua(self.solver.displayVars,{indent=true
 	local graphCol = 0
 	local graphRow = 0
 
+	local useLog
 	for _,varName in ipairs(varNamesEnabled) do
 		local xmin, xmax, ymin, ymax
 		for _,solver in ipairs(self.solvers) do
-			local varIndex = solver.displayVars:find(nil, function(var) return var.name == varName end)
+			local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
+			
+			useLog = var.useLogPtr[0]
+			
 			if varIndex
 			--and solver.visiblePtr and solver.visiblePtr[0] 
 			then
@@ -401,13 +404,27 @@ if not var.enabled then error("var "..tolua(self.solver.displayVars,{indent=true
 					solverymin, solverymax = 1.1 * solverymin - .1 * solverymax, 1.1 * solverymax - .1 * solverymin
 				else
 					solverymin, solverymax = solver:calcDisplayVarRange(varIndex)
-
-					if solverymin and solverymax and solverymin == solverymin and solverymax == solverymax then
+		
+					if useLog then
+						solverymin = math.log(solverymin, 10)
+						solverymax = math.log(solverymax, 10)
+						if not math.isfinite(solverymin) then solverymin = -math.huge end
+						if not math.isfinite(solverymax) then solverymax = -math.huge end
+						solverymin = math.max(-30, solverymin)
+						solverymax = math.max(-30, solverymax)
+						solverymax = math.max(solverymax, solverymin + 1e-5)
+					end			
+					
+					if solverymin
+					and solverymax 
+					and solverymin == solverymin 
+					and solverymax == solverymax 
+					then
 						local base = 10	-- round to nearest base-10
 						local scale = 10 -- ...with increments of 10
 						solverymin, solverymax = 1.1 * solverymin - .1 * solverymax, 1.1 * solverymax - .1 * solverymin
-						local newymin = (solverymin<0 and -1 or 1)*(math.abs(solverymin)==math.huge and 1e+100 or base^math.log(math.abs(solverymin),base))
-						local newymax = (solverymax<0 and -1 or 1)*(math.abs(solverymax)==math.huge and 1e+100 or base^math.log(math.abs(solverymax),base))
+						local newymin = (solverymin < 0 and -1 or 1) * (math.abs(solverymin) == math.huge and 1e+100 or base ^ math.log(math.abs(solverymin), base))
+						local newymax = (solverymax < 0 and -1 or 1) * (math.abs(solverymax) == math.huge and 1e+100 or base ^ math.log(math.abs(solverymax), base))
 						solverymin, solverymax = newymin, newymax
 						do
 							local minDeltaY = 1e-5
@@ -424,7 +441,7 @@ if not var.enabled then error("var "..tolua(self.solver.displayVars,{indent=true
 				xmax = xmax or solverxmax
 				ymin = ymin or solverymin
 				ymax = ymax or solverymax
-					
+				
 				if xmin and solverxmin then xmin = math.min(xmin, solverxmin) end
 				if xmax and solverxmax then xmax = math.max(xmax, solverxmax) end
 				if ymin and solverymin then ymin = math.min(ymin, solverymin) end
@@ -448,7 +465,7 @@ if not var.enabled then error("var "..tolua(self.solver.displayVars,{indent=true
 			h / graphsHigh)
 		
 		if self.solver.dim == 1 then
-			self:display1D(self.solvers, varName, xmin, ymin, xmax, ymax)
+			self:display1D(self.solvers, varName, xmin, ymin, xmax, ymax, useLog)
 		elseif self.solver.dim == 2 then
 			self:display2D(self.solvers, varName, xmin, ymin, xmax, ymax)
 		elseif self.solver.dim == 3 then
@@ -500,9 +517,9 @@ if not var.enabled then error("var "..tolua(self.solver.displayVars,{indent=true
 	HydroCLApp.super.update(self, ...)
 end
 
-function HydroCLApp:display1D(solvers, varName, xmin, ymin, xmax, ymax)
+function HydroCLApp:display1D(solvers, varName, xmin, ymin, xmax, ymax, useLog)
 	local w, h = self:size()
-
+	
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
 	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
@@ -530,7 +547,7 @@ function HydroCLApp:display1D(solvers, varName, xmin, ymin, xmax, ymax)
 		gl.glVertex2f(xmax,y*ystep)
 	end
 	gl.glEnd()
-	
+
 	gl.glColor3f(.5, .5, .5)
 	gl.glBegin(gl.GL_LINES)
 	gl.glVertex2f(xmin, 0)
@@ -551,9 +568,10 @@ function HydroCLApp:display1D(solvers, varName, xmin, ymin, xmax, ymax)
 			local fontSizeY = (ymax - ymin) * .05
 			local ystep = ystep * 2
 			for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
+				local realY = useLog and 10^y or y
 				self.font:draw{
 					pos={xmin * .9 + xmax * .1, y + fontSizeY * .5},
-					text=tostring(y),
+					text=tostring(realY),
 					color = {1,1,1,1},
 					fontSize={fontSizeX, -fontSizeY},
 					multiLine=false,
@@ -623,15 +641,18 @@ function HydroCLApp:display2D(solvers, varName, xmin, ymin, xmax, ymax)
 			-- TODO allow a fixed, manual colormap range
 			local valueMin, valueMax
 			if var.heatMapFixedRangePtr[0] then
-				valueMin, valueMax = var.heatMapValueMinPtr[0], var.heatMapValueMaxPtr[0]
+				valueMin = var.heatMapValueMinPtr[0]
+				valueMax = var.heatMapValueMaxPtr[0]
 			else
 				valueMin, valueMax = solver:calcDisplayVarRange(varIndex)
-				var.heatMapValueMinPtr[0], var.heatMapValueMaxPtr[0] = valueMin, valueMax
+				var.heatMapValueMinPtr[0] = valueMin
+				var.heatMapValueMaxPtr[0] = valueMax
 			end
 
 			solver:calcDisplayVarToTex(varIndex, var)
 	
 			self.heatMap2DShader:use()
+			gl.glUniform1i(self.heatMap2DShader.uniforms.useLog, var.useLogPtr[0])
 			gl.glUniform1f(self.heatMap2DShader.uniforms.valueMin, valueMin)
 			gl.glUniform1f(self.heatMap2DShader.uniforms.valueMax, valueMax)
 			self.solver.tex:bind(0)
@@ -762,6 +783,7 @@ function HydroCLApp:showDisplayVar(solver, varIndex)
 	self.graphShader:use()
 	solver.tex:bind()
 
+	gl.glUniform1i(self.graphShader.uniforms.useLog, var.useLogPtr[0])
 	gl.glUniform2f(self.graphShader.uniforms.xmin, solver.mins[1], 0)
 	gl.glUniform2f(self.graphShader.uniforms.xmax, solver.maxs[1], 0)
 	gl.glUniform1i(self.graphShader.uniforms.axis, solver.dim)
@@ -868,11 +890,10 @@ function HydroCLApp:updateGUI()
 					ig.igCheckbox(var.name, var.enabled)
 					ig.igSameLine()
 					if ig.igCollapsingHeader'' then	
-						ig.igPushIdStr'heatmap'
+						ig.igCheckbox('log', var.useLogPtr)
 						ig.igCheckbox('fixed range', var.heatMapFixedRangePtr)
 						ig.igInputFloat('value min', var.heatMapValueMinPtr)
 						ig.igInputFloat('value max', var.heatMapValueMaxPtr)
-						ig.igPopId()
 					end
 					ig.igPopId()
 				end

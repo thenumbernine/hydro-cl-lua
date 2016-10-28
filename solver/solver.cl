@@ -1,8 +1,5 @@
 // Roe solver:
 
-//1/log(10)
-#define _1_LN_10 0.4342944819032517611567811854911269620060920715332
-
 __kernel void calcErrors(
 	__global error_t* errorBuf,
 	const __global real* waveBuf,
@@ -67,8 +64,8 @@ __kernel void calcErrors(
 		}
 		
 		errorBuf[intindex] = (error_t){
-			.ortho = log(orthoError) * _1_LN_10,
-			.flux = log(fluxError) * _1_LN_10,
+			.ortho = orthoError,
+			.flux = fluxError,
 		};
 	}
 }

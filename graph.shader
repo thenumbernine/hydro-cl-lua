@@ -19,7 +19,9 @@ vec3 func(vec3 src) {
 	vertex.x = vertex.x * (xmax.x - xmin.x) + xmin.x;
 	vertex.y = vertex.y * (xmax.y - xmin.y) + xmin.y;
 	vertex[axis] = texture2D(tex, src.xy).r * scale;
-	if (useLog) vertex[axis] = log(1. + abs(vertex[axis])) * _1_LN_10;
+	if (useLog) {
+		vertex[axis] = log(max(0., vertex[axis])) * _1_LN_10;
+	}
 	return vertex;
 }
 

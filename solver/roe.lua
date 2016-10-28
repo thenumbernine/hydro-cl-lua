@@ -8,7 +8,10 @@ local range = require 'ext.range'
 local vec3sz = require 'solver.vec3sz'
 local vec3 = require 'vec.vec3'
 local clnumber = require 'clnumber'
-
+local CLImageGL = require 'cl.imagegl'
+local CLProgram = require 'cl.program'
+local GLTex2D = require 'gl.tex2d'
+local glreport = require 'gl.report'
 
 local ForwardEuler = require 'int.fe'
 local RungeKutta = require 'int.rk'
@@ -311,6 +314,23 @@ __kernel void {name}(
 	const __global {type}* buf
 ) {
 	SETBOUNDS(0,0);
+	int dstindex = index;
+	int4 dsti = i;
+	
+	//now constrain
+	if (i.x < 2) i.x = 2;
+	if (i.x > gridSize_x - 2) i.x = gridSize_x - 2;
+#if dim >= 2
+	if (i.y < 2) i.y = 2;
+	if (i.y > gridSize_y - 2) i.y = gridSize_y - 2;
+#endif
+#if dim >= 3
+	if (i.z < 2) i.z = 2;
+	if (i.z > gridSize_z - 2) i.z = gridSize_z - 2;
+#endif
+	//and recalculate read index
+	index = INDEXV(i);
+	
 	int side = 0;
 	int intindex = side + dim * index;
 	real value = 0;
@@ -335,6 +355,7 @@ function ConvertToTex:init(args)
 				self.name == 'U' and (solver.dim==1 or i==1)
 				or (self.name == 'error' and solver.dim==1)
 			),
+			useLogPtr = ffi.new('bool[1]', args.useLog or false),
 			color = vec3(math.random(), math.random(), math.random()):normalize(),
 			--heatMapTexPtr = ffi.new('int[1]', 0),	-- hsv, isobar, etc ...
 			heatMapFixedRangePtr = ffi.new('bool[1]', true),
@@ -458,8 +479,9 @@ function Solver:addConvertToTexs()
 	}	-- might contain nonsense :-p
 	self:addConvertToTex{
 		name = 'error', 
-		type = 'error_t',
 		vars = {'ortho', 'flux'},
+		type = 'error_t',
+		useLog = true,
 		displayBodyCode = [[
 	if (displayVar == display_error_ortho) {
 		value = buf[intindex].ortho;
@@ -499,7 +521,6 @@ function Solver:createBuffers()
 
 	-- CL/GL interop
 
-	local GLTex2D = require 'gl.tex2d'
 	self.tex = GLTex2D{
 		width = self.gridSize.x,
 		height = self.gridSize.y,
@@ -512,7 +533,7 @@ function Solver:createBuffers()
 	}
 
 	if self.app.useGLSharing then
-		local ImageGL = require 'cl.imagegl'
+		local ImageGL = CLImageGL
 		self.texCLMem = ImageGL{context=ctx, tex=self.tex, write=true}
 	else
 		self.calcDisplayVarToTexPtr = ffi.new(self.app.real..'[?]', self.volume)
@@ -613,7 +634,7 @@ function Solver:refreshInitStateProgram()
 		self.codePrefix,
 		self.eqn:getInitStateCode(self),
 	}:concat'\n'
-	self.initStateProgram = require 'cl.program'{context=self.app.ctx, devices={self.app.device}, code=initStateCode}
+	self.initStateProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=initStateCode}
 	self.initStateKernel = self.initStateProgram:kernel('initState', self.UBuf)
 end
 
@@ -669,7 +690,7 @@ __kernel void multAdd(
 ]],
 	}:concat'\n'
 
-	self.commonProgram = require 'cl.program'{context=self.app.ctx, devices={self.app.device}, code=commonCode}
+	self.commonProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=commonCode}
 
 	for _,name in ipairs{'Min', 'Max'} do
 		self['reduce'..name..'Kernel'] = self.commonProgram:kernel(
@@ -701,7 +722,7 @@ __kernel void multAdd(
 		'#include "solver/solver.cl"',
 	}:concat'\n'
 
-	self.solverProgram = require 'cl.program'{context=self.app.ctx, code=code}
+	self.solverProgram = CLProgram{context=self.app.ctx, code=code}
 	local success, message = self.solverProgram:build{self.app.device}
 	if not success then
 		-- show code
@@ -741,7 +762,7 @@ function Solver:refreshDisplayProgram()
 					:gsub('{name}', 'calcDisplayVarToTex_'..convertToTex.name)
 					:gsub('{input}', '__write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex')
 					:gsub('{output}', '	write_imagef(tex, '
-						..(self.dim == 3 and '(int4)(i.x, i.y, i.z, 0)' or '(int2)(i.x, i.y)')
+						..(self.dim == 3 and '(int4)(dsti.x, dsti.y, dsti.z, 0)' or '(int2)(dsti.x, dsti.y)')
 						..', (float4)(value, 0., 0., 0.));')
 					:gsub('{body}', convertToTex.displayBodyCode or '')
 					:gsub('{type}', convertToTex.type)
@@ -757,7 +778,7 @@ function Solver:refreshDisplayProgram()
 			(convertToTex:getCode()
 				:gsub('{name}', 'calcDisplayVarToBuffer_'..convertToTex.name)
 				:gsub('{input}', '__global real* dest')
-				:gsub('{output}', '	dest[index] = value;')
+				:gsub('{output}', '	dest[dstindex] = value;')
 				:gsub('{body}', convertToTex.displayBodyCode or '')
 				:gsub('{type}', convertToTex.type)
 				
@@ -768,7 +789,7 @@ function Solver:refreshDisplayProgram()
 	end
 
 	local code = lines:concat'\n'
-	self.displayProgram = require 'cl.program'{context=self.app.ctx, code=code}
+	self.displayProgram = CLProgram{context=self.app.ctx, code=code}
 	local success, message = self.displayProgram:build{self.app.device}
 	if not success then
 		print(string.split(string.trim(code),'\n'):map(function(l,i) return i..':'..l end):concat'\n')
@@ -898,7 +919,7 @@ __kernel void boundary(
 	
 	self.app.cmds:finish()
 	
-	self.boundaryProgram = require 'cl.program'{context=self.app.ctx, devices={self.app.device}, code=code} 
+	self.boundaryProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code} 
 	self.boundaryKernel = self.boundaryProgram:kernel('boundary', self.UBuf);
 end
 
@@ -1023,7 +1044,7 @@ function Solver:calcDisplayVarToTex(varIndex)
 		tex:bind()
 		gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, tex.width, tex.height, gl.GL_RED, gl.GL_FLOAT, ptr)
 		tex:unbind()
-		require 'gl.report' 'here'
+		glreport'here'
 	end
 end
 
@@ -1032,8 +1053,6 @@ function Solver:calcDisplayVarRange(varIndex)
 	local convertToTex = var.convertToTex
 	
 	convertToTex:setToBufferArgs(var)
-	convertToTex.calcDisplayVarToBufferKernel:setArg(1, ffi.new('int[1]', varIndex))
-	convertToTex.calcDisplayVarToBufferKernel:setArg(2, self[var.convertToTex.name..'Buf'])
 	
 	self.app.cmds:enqueueNDRangeKernel{kernel=convertToTex.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	local ymin = self:reduceMin()

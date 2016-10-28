@@ -22,7 +22,7 @@ local ConvertToTex_SRHD_U = class(SRHDRoe.ConvertToTex)
 
 function ConvertToTex_SRHD_U:setArgs(kernel, var)
 	kernel:setArg(1, ffi.new('int[1]', var.globalIndex))
-	kernel:setArg(3, self.solver.UBuf)
+	kernel:setArg(2, self.solver.UBuf)
 	kernel:setArg(3, self.solver.primBuf)
 end
 
@@ -32,6 +32,9 @@ function SRHDRoe:addConvertToTexUBuf()
 		name = 'U',
 		type = 'cons_t',
 		vars = assert(self.eqn.displayVars),
+--[[
+the index vs dstindex stuff is shared in common with the main display code
+--]]
 		displayCode = [[
 __kernel void {name}(
 	{input},
@@ -40,6 +43,23 @@ __kernel void {name}(
 	const __global prim_t* primBuf
 ) {
 	SETBOUNDS(0,0);
+	int dstindex = index;
+	int4 dsti = i;
+
+	//now constrain
+	if (i.x < 3) i.x = 3;
+	if (i.x > gridSize_x - 3) i.x = gridSize_x - 3;
+#if dim >= 3
+	if (i.y < 3) i.y = 3;
+	if (i.y > gridSize_y - 3) i.y = gridSize_y - 3;
+#endif
+#if dim >= 3
+	if (i.z < 3) i.z = 3;
+	if (i.z > gridSize_z - 3) i.z = gridSize_z - 3;
+#endif
+	//and recalculate read index
+	index = INDEXV(i);
+	
 	int side = 0;
 	real value = 0;
 
