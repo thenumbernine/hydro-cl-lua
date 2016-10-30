@@ -25,8 +25,10 @@ Roe_t calcEigenBasisSide(cons_t UL, cons_t UR) {
 __kernel void calcEigenBasis(
 	__global real* waveBuf,
 	__global eigen_t* eigenBuf,
-	__global fluxXform_t* fluxXformBuf,
 	const __global cons_t* UBuf
+#if defined(checkFluxError)
+	, __global fluxXform_t* fluxXformBuf
+#endif
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -44,8 +46,10 @@ __kernel void calcEigenBasis(
 	
 		eigenBuf[intindex].f = roe.f;	
 
+#if defined(checkFluxError)
 		//only used for eigen basis reconstruction validity testing
 		fluxXformBuf[intindex] = roe;
+#endif
 	}
 }
 

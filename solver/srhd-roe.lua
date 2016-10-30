@@ -128,8 +128,11 @@ function SRHDRoe:refreshSolverProgram()
 	SRHDRoe.super.refreshSolverProgram(self)
 
 	self.calcDTKernel:setArg(2, self.primBuf)
-	self.calcEigenBasisKernel:setArg(3, self.primBuf)
-	
+	self.calcEigenBasisKernel:setArg(2, self.primBuf)
+	if self.checkFluxError then
+		self.calcEigenBasisKernel:setArg(3, self.fluxXformBuf)
+	end
+
 	self.constrainUKernel = self.solverProgram:kernel('constrainU', self.UBuf)
 	self.updatePrimsKernel = self.solverProgram:kernel('updatePrims', self.primBuf, self.UBuf)
 end

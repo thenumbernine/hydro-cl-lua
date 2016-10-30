@@ -28,42 +28,36 @@ SRHD.primDisplayVars = {
 SRHD.initStates = require 'init.euler'
 SRHD.initStateNames = table.map(SRHD.initStates, function(info) return info.name end)
 
-SRHD.guiVars = {
-	'gamma',
-	'solvePrimMaxIter',
-	'solvePrimStopEpsilon',
-	'solvePrimVelEpsilon',
-	'solvePrimPMinEpsilon',
-	'rhoMin',
-	'rhoMax',
-	'eIntMax',
-	'DMin',
-	'DMax',
-	'tauMin',
-	'tauMax',
+local GuiFloat = require 'guivar.float'
+local GuiInt = require 'guivar.int'
+SRHD.guiVars = table{
+	GuiFloat{name='gamma', value=7/5},
+
+	-- setting max iter to 100+ makes it freeze initially -- meaning the initial cons to prim or something is taking too long ...
+	GuiInt{name='solvePrimMaxIter', value=10},	-- value=1000},
+	
+	GuiFloat{name='solvePrimStopEpsilon', value=1e-7},
+	
+	-- used by pressure solver
+	-- velocity epsilon is how close we can get to the speed of light
+	-- set ylabel "Lorentz factor"; set xlabel "velocity epsilon -log10"; set log xy; plot [1:10] 1/sqrt(1-(1-10**(-x))**2);
+	--velEpsilon = 1e-5	-- <=> handles up to W = 500
+	--velEpsilon = 1e-6	-- <=> handles up to W = 600
+	--velEpsilon = 1e-7	-- <=> handles up to W = 2,000
+	--velEpsilon = 1e-10	-- <=> handles up to W = 100,000
+	GuiFloat{name='solvePrimVelEpsilon', value=1e-15},	-- <=> smaller than 1e-15 gnuplot x11 terminal breaks down past W = 1e+7 ...
+	
+	GuiFloat{name='solvePrimPMinEpsilon', value=1e-16},
+	
+	GuiFloat{name='rhoMin', value=1e-15},
+	GuiFloat{name='rhoMax', value=1e+20},
+	GuiFloat{name='eIntMax', value=1e+20},
+	GuiFloat{name='DMin', value=1e-15},
+	GuiFloat{name='DMax', value=1e+20},
+	GuiFloat{name='tauMin', value=1e-15},
+	GuiFloat{name='tauMax', value=1e+20},
 }
-SRHD.gamma = 7/5
--- setting max iter to 100+ makes it freeze initially -- meaning the initial cons to prim or something is taking too long ...
-SRHD.solvePrimMaxIter = 10	--1000	
-SRHD.solvePrimStopEpsilon = 1e-7
-
--- used by pressure solver
--- velocity epsilon is how close we can get to the speed of light
--- set ylabel "Lorentz factor"; set xlabel "velocity epsilon -log10"; set log xy; plot [1:10] 1/sqrt(1-(1-10**(-x))**2);
---SRHD.velEpsilon = 1e-5	-- <=> handles up to W = 500
---SRHD.velEpsilon = 1e-6	-- <=> handles up to W = 600
---SRHD.velEpsilon = 1e-7	-- <=> handles up to W = 2,000
---SRHD.velEpsilon = 1e-10	-- <=> handles up to W = 100,000
-SRHD.solvePrimVelEpsilon = 1e-15	-- <=> smaller than 1e-15 gnuplot x11 terminal breaks down past W = 1e+7 ...
-SRHD.solvePrimPMinEpsilon = 1e-16
-
-SRHD.rhoMin = 1e-15
-SRHD.rhoMax = 1e+20
-SRHD.eIntMax = 1e+20
-SRHD.DMin = 1e-15
-SRHD.DMax = 1e+20
-SRHD.tauMin = 1e-15
-SRHD.tauMax = 1e+20
+SRHD.guiVarsForName = SRHD.guiVars:map(function(var) return var, var.name end)
 
 function SRHD:getTypeCode()
 	return [[
@@ -96,15 +90,8 @@ typedef struct {
 end
 
 function SRHD:getCodePrefix()
-	return table()
-	:append(table.map(self.guiVars, function(var)
-		local value = self[var] 
-		-- the only integer ... TODO type info for the gui and the defs, plz
-		if var ~= 'solvePrimMaxIter' then
-			value = clnumber(value)
-		end
-		return '#define '..var..' '..value
-	end)):append{
+	return table{
+		SRHD.super.getCodePrefix(self),
 		[[
 #define gamma_1 (gamma-1.)
 

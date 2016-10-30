@@ -45,8 +45,10 @@ void fill(__global real* ptr, int step, real a, real b, real c) {
 __kernel void calcEigenBasis(
 	__global real* waveBuf,			//[volume][dim][numWaves]
 	__global eigen_t* eigenBuf,		//[volume][dim]
-	__global fluxXform_t* fluxXformBuf,	//[volume][dim]
 	const __global cons_t *UBuf		//[volume]
+#if defined(checkFluxError)
+	, __global fluxXform_t* fluxXformBuf	//[volume][dim]
+#endif
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -65,11 +67,6 @@ __kernel void calcEigenBasis(
 		__global real* wave = waveBuf + numWaves * intindex;
 		fill(wave, 1, vx - Cs, vx, vx + Cs);
 
-		__global real* dF_dU = fluxXformBuf[intindex].A;
-		fill(dF_dU+0,3,	0, 									1, 							0			);
-		fill(dF_dU+1,3,	.5 * gamma_3 * vxSq, 				-gamma_3 * vx, 				gamma_1		);
-		fill(dF_dU+2,3, 	vx * (.5 * gamma_1 * vxSq - hTotal), hTotal - gamma_1 * vxSq,	gamma*vx	);
-
 		__global eigen_t* eigen = eigenBuf + intindex;
 		__global real* evL = eigen->evL; 
 		fill(evL+0, 3, (.5 * gamma_1 * vxSq + Cs * vx) / (2. * CsSq),	-(Cs + gamma_1 * vx) / (2. * CsSq),	gamma_1 / (2. * CsSq)	);
@@ -79,5 +76,12 @@ __kernel void calcEigenBasis(
 		fill(evR+0, 3, 1., 				1., 		1.				);
 		fill(evR+1, 3, vx - Cs, 			vx, 		vx + Cs			);
 		fill(evR+2, 3, hTotal - Cs * vx, .5 * vxSq, 	hTotal + Cs * vx);
+
+#if defined(checkFluxError)
+		__global real* dF_dU = fluxXformBuf[intindex].A;
+		fill(dF_dU+0,3,	0, 									1, 							0			);
+		fill(dF_dU+1,3,	.5 * gamma_3 * vxSq, 				-gamma_3 * vx, 				gamma_1		);
+		fill(dF_dU+2,3, 	vx * (.5 * gamma_1 * vxSq - hTotal), hTotal - gamma_1 * vxSq,	gamma*vx	);
+#endif
 	}
 }

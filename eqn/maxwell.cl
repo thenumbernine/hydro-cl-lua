@@ -24,8 +24,10 @@ void fill(__global real* ptr, int step, real a, real b, real c, real d, real e, 
 __kernel void calcEigenBasis(
 	__global real* waveBuf,
 	__global eigen_t* eigenBuf,
-	__global fluxXform_t* fluxXformBuf,
 	const __global cons_t* UBuf
+#if defined(checkFluxError)
+	, __global fluxXform_t* fluxXformBuf
+#endif
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;

@@ -22,6 +22,11 @@ local Solver = class()
 Solver.name = 'Roe'
 Solver.numGhost = 2
 
+-- enable these to verify accuracy
+-- disable these to save on allocation / speed
+Solver.checkFluxError = false
+Solver.checkOrthoError = false
+
 Solver.integrators = require 'int.all'
 Solver.integratorNames = Solver.integrators:map(function(integrator) return integrator.name end)
 
@@ -300,34 +305,29 @@ function Solver:addConvertToTexs()
 	value = flux[displayVar - displayFirst_flux];
 ]],
 	}
-	self:addConvertToTex{
-		name = 'deriv',
-		vars = range(0,self.eqn.numStates-1),
-		displayBodyCode = [[
-	const __global real* deriv = buf + index * numStates;
-	value = deriv[displayVar - displayFirst_deriv];
-]],
-	}
+	-- might contain nonsense :-p
 	self:addConvertToTex{
 		name = 'reduce', 
 		vars = {'0'},
 		displayBodyCode = [[
 	value = buf[index];
 ]],
-	}	-- might contain nonsense :-p
-	self:addConvertToTex{
-		name = 'error', 
-		vars = {'ortho', 'flux'},
-		type = 'error_t',
-		useLog = true,
-		displayBodyCode = [[
+	}
+	if self.checkFluxError or self.checkOrthoError then	
+		self:addConvertToTex{
+			name = 'error', 
+			vars = {'ortho', 'flux'},
+			type = 'error_t',
+			useLog = true,
+			displayBodyCode = [[
 	if (displayVar == display_error_ortho) {
 		value = buf[intindex].ortho;
 	} else if (displayVar == display_error_flux) {
 		value = buf[intindex].flux;
 	}
 ]],
-	}
+		}
+	end
 end
 
 local errorType = 'error_t'
@@ -339,23 +339,34 @@ function Solver:createBuffers()
 
 	-- to get sizeof
 	ffi.cdef(self.eqn:getEigenInfo().typeCode)
-	
 	ffi.cdef(errorTypeCode)
 
-	self.UBuf = ctx:buffer{rw=true, size=self.volume * self.eqn.numStates * realSize}
-	self.reduceBuf = ctx:buffer{rw=true, size=self.volume * realSize}
+	local total = 0
+	local function alloc(size, name)
+		total = total + size
+		print('allocating '..tostring(name)..' size '..size..' total '..total)
+		return ctx:buffer{rw=true, size=size}
+	end
+
+
+	self.UBuf = alloc(self.volume * self.eqn.numStates * realSize, 'U')
+	self.reduceBuf = alloc(self.volume * realSize, 'reduce')
 	self.reduceResultPtr = ffi.new('real[1]', 0)
-	self.reduceSwapBuf = ctx:buffer{rw=true, size=self.volume * realSize / self.localSize1d}
-	self.waveBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numWaves * realSize}
-	self.eigenBuf = ctx:buffer{rw=true, size=self.volume * self.dim * ffi.sizeof'eigen_t'}
-	self.deltaUTildeBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numWaves * realSize}
-	self.rTildeBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numWaves * realSize}
-	self.fluxBuf = ctx:buffer{rw=true, size=self.volume * self.dim * self.eqn.numStates * realSize}
+	self.reduceSwapBuf = alloc(self.volume * realSize / self.localSize1d, 'reduceSwap')
+	self.waveBuf = alloc(self.volume * self.dim * self.eqn.numWaves * realSize, 'wave')
+	self.eigenBuf = alloc(self.volume * self.dim * ffi.sizeof'eigen_t', 'eigen')
+	self.deltaUTildeBuf = alloc(self.volume * self.dim * self.eqn.numWaves * realSize, 'deltaUTilde')
+	self.rTildeBuf = alloc(self.volume * self.dim * self.eqn.numWaves * realSize, 'rTilde')
+	self.fluxBuf = alloc(self.volume * self.dim * self.eqn.numStates * realSize, 'flux')
 	
 	-- debug only
-	self.fluxXformBuf = ctx:buffer{rw=true, size=self.volume * self.dim * ffi.sizeof'fluxXform_t'}
-	local errorTypeSize = ffi.sizeof(errorType)
-	self.errorBuf = ctx:buffer{rw=true, size=self.volume * self.dim * errorTypeSize}
+	if self.checkFluxError then
+		self.fluxXformBuf = alloc(self.volume * self.dim * ffi.sizeof'fluxXform_t', 'fluxXform')
+	end	
+	if self.checkFluxError or self.checkOrthoError then
+		local errorTypeSize = ffi.sizeof(errorType)
+		self.errorBuf = alloc(self.volume * self.dim * errorTypeSize, 'error')
+	end
 
 	-- CL/GL interop
 
@@ -460,6 +471,8 @@ function Solver:createCodePrefix()
 	end
 
 	lines:append{
+		self.checkFluxError and '#define checkFluxError' or '',
+		self.checkOrthoError and '#define checkOrthoError' or '',
 		errorTypeCode,
 		self.eqn:getEigenInfo().code or '',
 		self.eqn:getCodePrefix(self),
@@ -573,7 +586,7 @@ __kernel void multAdd(
 
 	self.calcDTKernel = self.solverProgram:kernel('calcDT', self.reduceBuf, self.UBuf)
 	
-	self.calcEigenBasisKernel = self.solverProgram:kernel('calcEigenBasis', self.waveBuf, self.eigenBuf, self.fluxXformBuf, self.UBuf)
+	self.calcEigenBasisKernel = self.solverProgram:kernel('calcEigenBasis', self.waveBuf, self.eigenBuf, self.UBuf, self.fluxXformBuf)
 	self.calcDeltaUTildeKernel = self.solverProgram:kernel('calcDeltaUTilde', self.deltaUTildeBuf, self.UBuf, self.eigenBuf)
 	self.calcRTildeKernel = self.solverProgram:kernel('calcRTilde', self.rTildeBuf, self.deltaUTildeBuf, self.waveBuf)
 	self.calcFluxKernel = self.solverProgram:kernel('calcFlux', self.fluxBuf, self.UBuf, self.waveBuf, self.eigenBuf, self.deltaUTildeBuf, self.rTildeBuf)
@@ -585,7 +598,9 @@ __kernel void multAdd(
 		self.addSourceTermKernel:setArg(1, self.UBuf)
 	end
 
-	self.calcErrorsKernel = self.solverProgram:kernel('calcErrors', self.errorBuf, self.waveBuf, self.eigenBuf, self.fluxXformBuf)	
+	if self.checkFluxError or self.checkOrthoError then
+		self.calcErrorsKernel = self.solverProgram:kernel('calcErrors', self.errorBuf, self.waveBuf, self.eigenBuf, self.fluxXformBuf)	
+	end
 end
 
 function Solver:refreshDisplayProgram()
@@ -813,7 +828,9 @@ end
 
 function Solver:calcDeriv(derivBuf, dt)
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcEigenBasisKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcErrorsKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	if self.checkFluxError or self.checkOrthoError then
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcErrorsKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	end
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDeltaUTildeKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcRTildeKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	self.calcFluxKernel:setArg(6, ffi.new('real[1]', dt))

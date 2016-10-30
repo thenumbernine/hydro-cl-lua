@@ -1,5 +1,6 @@
 // Roe solver:
 
+#if defined(checkFluxError) || defined(checkOrthoError)
 __kernel void calcErrors(
 	__global error_t* errorBuf,
 	const __global real* waveBuf,
@@ -69,6 +70,7 @@ __kernel void calcErrors(
 		};
 	}
 }
+#endif	//defined(checkFluxError) || defined(checkOrthoError)
 
 __kernel void calcDeltaUTilde(
 	__global real* deltaUTildeBuf,

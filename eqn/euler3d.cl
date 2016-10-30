@@ -52,8 +52,10 @@ void fill(__global real* ptr, int step, real a, real b, real c, real d, real e) 
 __kernel void calcEigenBasis(
 	__global real* waveBuf,			//[volume][dim][numWaves]
 	__global eigen_t* eigenBuf,		//[volume][dim]
-	__global fluxXform_t* fluxXformBuf,	//[volume][dim]
 	const __global cons_t* UBuf		//[volume]
+#if defined(checkFluxError)
+	, __global fluxXform_t* fluxXformBuf	//[volume][dim]
+#endif
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -81,13 +83,6 @@ __kernel void calcEigenBasis(
 		__global real* wave = waveBuf + numWaves * intindex;
 		fill(wave, 1, vx - Cs, vx, vx, vx, vx + Cs);
 
-		__global real* dF_dU = fluxXformBuf[intindex].A;
-		fill(dF_dU+0,5,	0, 									1, 								0, 					0, 					0			);
-		fill(dF_dU+1,5,	-vx * vx + .5 * gamma_1 * vSq,		-vx * gamma_3,					-vy * gamma_1,		-vz * gamma_1,		gamma - 1	);
-		fill(dF_dU+2,5,	-vx * vy,							vy, 							vx, 				0, 					0			);
-		fill(dF_dU+3,5,	-vx * vz, 							vz, 							0, 					vx, 				0			);
-		fill(dF_dU+4,5,	vx * (.5 * vSq * gamma_1 - hTotal),	-gamma_1 * vx * vx + hTotal,	-gamma_1 * vx * vy,	-gamma_1 * vx * vz,	gamma * vx	);
-
 		__global eigen_t* eigen = eigenBuf + intindex;
 		
 		__global real* evL = eigen->evL; 
@@ -105,6 +100,15 @@ __kernel void calcEigenBasis(
 		fill(evR+3,5,vz, 				vz, 		0, 	1, 	vz				);
 		fill(evR+4,5,hTotal - Cs * vx, .5 * vSq, 	vy, vz, hTotal + Cs * vx);
 
+#if defined(checkFluxError)
+		__global real* dF_dU = fluxXformBuf[intindex].A;
+		fill(dF_dU+0,5,	0, 									1, 								0, 					0, 					0			);
+		fill(dF_dU+1,5,	-vx * vx + .5 * gamma_1 * vSq,		-vx * gamma_3,					-vy * gamma_1,		-vz * gamma_1,		gamma - 1	);
+		fill(dF_dU+2,5,	-vx * vy,							vy, 							vx, 				0, 					0			);
+		fill(dF_dU+3,5,	-vx * vz, 							vz, 							0, 					vx, 				0			);
+		fill(dF_dU+4,5,	vx * (.5 * vSq * gamma_1 - hTotal),	-gamma_1 * vx * vx + hTotal,	-gamma_1 * vx * vy,	-gamma_1 * vx * vz,	gamma * vx	);
+#endif
+
 #if dim > 1
 	if (side == 1) {
 		for (int i = 0; i < numStates; ++i) {
@@ -117,9 +121,17 @@ __kernel void calcEigenBasis(
 			tmp = evR[cons_mx + numStates * i];
 			evR[cons_mx + numStates * i] = evR[cons_my + numStates * i];
 			evR[cons_my + numStates * i] = tmp;
+#if defined(checkFluxError)
+			tmp = dF_dU[i + numStates * cons_mx];
+			dF_dU[i + numStates * cons_mx] = dF_dU[i + numStates * cons_my];
+			dF_dU[i + numStates * cons_my] = tmp;
+			tmp = dF_dU[cons_mx + numStates * i];
+			dF_dU[cons_mx + numStates * i] = dF_dU[cons_my + numStates * i];
+			dF_dU[cons_my + numStates * i] = tmp;
+#endif
 		}
 	}
-#endif
+#endif	//dim > 1
 #if dim > 2
 	else if (side == 2) {
 		for (int i = 0; i < numStates; ++i) {
@@ -130,8 +142,16 @@ __kernel void calcEigenBasis(
 			tmp = evR[cons_mx + numStates * i];
 			evR[cons_mx + numStates * i] = evR[cons_mz + numStates * i];
 			evR[cons_mz + numStates * i] = tmp;
+#if defined(checkFluxError)
+			tmp = dF_dU[i + numStates * cons_mx];
+			dF_dU[i + numStates * cons_mx] = dF_dU[i + numStates * cons_mz];
+			dF_dU[i + numStates * cons_mz] = tmp;
+			tmp = dF_dU[cons_mx + numStates * i];
+			dF_dU[cons_mx + numStates * i] = dF_dU[cons_mz + numStates * i];
+			dF_dU[cons_mz + numStates * i] = tmp;
+#endif
 		}
 	}
-#endif
+#endif	//dim > 2
 	}
 }

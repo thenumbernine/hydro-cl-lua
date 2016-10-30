@@ -51,8 +51,6 @@ local GLProgram = require 'gl.program'
 local GLGradientTex = require 'gl.gradienttex'
 local GLTex2D = require 'gl.tex2d'
 local Font = require 'gui.font'
-local RoeSolver = require 'solver.roe'
-local SRHDRoeSolver = require 'solver.srhd-roe'
 
 local xs = table{'x', 'y', 'z'}
 local minmaxs = table{'min', 'max'}
@@ -177,18 +175,18 @@ print()
 		},
 		integrator = cmdline.integrator or 'forward Euler',	--'Runge-Kutta 4, TVD',
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
-		dim = cmdline.dim or 2,
+		dim = cmdline.dim or 1,
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 	}
 
-	--[[
-	self.solver = SRHDRoeSolver(table(args, {
+	-- [[
+	self.solver = require 'solver.srhd-roe'(table(args, {
 		initState = 'relativistic blast wave test problem 2',
 	}))
 	--]]
-	-- [[
-	self.solver = RoeSolver(table(args, {
+	--[[
+	self.solver = require 'solver.roe'(table(args, {
 		--eqn = require(cmdline.eqn and 'eqn.'..cmdline.eqn or 'eqn.euler3d')(),
 		-- fluids
 		--eqn = require 'eqn.euler1d'(),
