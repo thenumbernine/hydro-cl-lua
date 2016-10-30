@@ -133,6 +133,5 @@ __kernel void calcEigenBasis(
 		}
 	}
 #endif
-
 	}
 }

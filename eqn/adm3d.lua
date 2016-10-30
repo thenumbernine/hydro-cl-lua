@@ -37,15 +37,16 @@ function ADM_BonaMasso_3D:getCodePrefix(solver)
 	local initState = self.initStates[solver.initStatePtr[0]+1]
 	
 	local alphaVar = require 'symmath'.var'alpha'
-	self.codes = initState.init(solver, ({
-		{f = 1},
-		{f = 1.69},
-		{f = 1.49},
-		{f = 1 + 1/alphaVar^2, alphaVar=alphaVar},
-	})[self.f.value+1])
 
+	local fGuiVar = self.guiVarsForName.f
+	local fCode = fGuiVar.options[fGuiVar.value[0]+1]
+	local fExpr = assert(loadstring('local alpha = ... return '..fCode))(alphaVar)
 
-
+	self.codes = initState.init(solver, {
+		f = fExpr,
+		alphaVar = alphaVar,
+	})
+	
 	return [[
 real symMatDet(
 	real xx, real xy, real xz, 
@@ -82,12 +83,14 @@ void symMatInv(
 	end):concat'\n'
 end
 
-ADM_BonaMasso_3D.guiVars = {'f'}
-ADM_BonaMasso_3D.f = {
-	value = 0,	-- 0-based index into options
-	name = 'f',
-	options = {'1', '1.69', '.49', '1 + 1/alpha^2'},
+
+ADM_BonaMasso_3D.guiVars = table{
+	require 'guivar.combo'{
+		name = 'f',
+		options = {'1', '1.69', '.49', '1 + 1/alpha^2'},
+	}
 }
+ADM_BonaMasso_3D.guiVarsForName = ADM_BonaMasso_3D.guiVars:map(function(var) return var, var.name end)
 
 function ADM_BonaMasso_3D:getInitStateCode(solver)
 	local lines = table{

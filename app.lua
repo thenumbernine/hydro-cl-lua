@@ -53,12 +53,6 @@ local GLTex2D = require 'gl.tex2d'
 local Font = require 'gui.font'
 local RoeSolver = require 'solver.roe'
 local SRHDRoeSolver = require 'solver.srhd-roe'
-local Euler1DEqn = require 'eqn.euler1d'
-local Euler3DEqn = require 'eqn.euler3d'
-local MaxwellEqn = require 'eqn.maxwell'
-local ADM1Dv1Eqn = require 'eqn.adm1d_v1'
-local ADM1Dv2Eqn = require 'eqn.adm1d_v2'
-local ADM3DEqn = require 'eqn.adm3d'
 
 local xs = table{'x', 'y', 'z'}
 local minmaxs = table{'min', 'max'}
@@ -195,16 +189,16 @@ print()
 	--]]
 	-- [[
 	self.solver = RoeSolver(table(args, {
-		--eqn = (cmdline.eqn and require('eqn.'..cmdline.eqn) or Euler3DEqn)(),
+		--eqn = require(cmdline.eqn and 'eqn.'..cmdline.eqn or 'eqn.euler3d')(),
 		-- fluids
-		--eqn = Euler1DEqn(),
-		eqn = Euler3DEqn(),
+		--eqn = require 'eqn.euler1d'(),
+		eqn = require 'eqn.euler3d'(),
 		-- electromagnetism
-		--eqn = MaxwellEqn(),
+		--eqn = require 'eqn.maxwell'(),
 		-- geometrodynamics
-		--eqn = ADM1Dv1Eqn(),
-		--eqn = ADM1Dv2Eqn(),
-		--eqn = ADM3DEqn(),
+		--eqn = require 'eqn.adm1d_v1'(),
+		--eqn = require 'eqn.adm1d_v2'(),
+		--eqn = require 'eqn.adm3d'(),
 	}))
 	--]]
 
@@ -348,6 +342,8 @@ void main() {
 	end
 	self.font = Font{tex = fonttex}
 	--]]
+
+	self.view = require 'view.ortho'()
 end
 
 
@@ -640,20 +636,17 @@ function HydroCLApp:display1D(solvers, varName, xmin, ymin, xmax, ymax, useLog)
 	end
 end
 
-function HydroCLApp:display2D(solvers, varName, xmin, ymin, xmax, ymax)
+function HydroCLApp:display2D(solvers, varName, graph_xmin, graph_ymin, graph_xmax, graph_ymax)
 	local w, h = self:size()
+	local ar = w / h
 
-	-- [[ ortho
-	gl.glMatrixMode(gl.GL_PROJECTION)
-	gl.glLoadIdentity()
-	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
-	gl.glMatrixMode(gl.GL_MODELVIEW)
-	gl.glLoadIdentity()
-	--]]
-
-	--[[ frustum
-	
-	--]]
+	self.view:projection(self:size())
+	self.view:modelview()
+	if self.view.getOrthoBounds then
+		xmin, xmax, ymin, ymax = self.view:getOrthoBounds(ar)
+	else
+		xmin, xmax, ymin, ymax = graph_xmin, graph_ymin, graph_xmax, graph_ymax
+	end
 
 	gl.glColor3f(.1, .1, .1)
 	local xrange = xmax - xmin
@@ -724,7 +717,7 @@ function HydroCLApp:display2D(solvers, varName, xmin, ymin, xmax, ymax)
 			if self.font then
 				local fontSizeX = (xmax - xmin) * .025
 				local fontSizeY = (ymax - ymin) * .025
-				local ystep = ystep * 2
+				local ystep = 10^(math.log(ymax - ymin, 10) - 1.5)
 				for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
 					local value = (y - ymin) * (valueMax - valueMin) / (ymax - ymin)
 					self.font:draw{
@@ -754,16 +747,8 @@ function HydroCLApp:display3D_Slice(solvers, varName, xmin, ymin, xmax, ymax, us
 	local w, h = self:size()
 	local ar = w / h
 
-	gl.glMatrixMode(gl.GL_PROJECTION)
-	gl.glLoadIdentity()
-	local znear, zfar = .1, 1000
-	gl.glFrustum(xmin * znear * ar, xmax * znear * ar, ymin * znear, ymax * znear, znear, zfar) 
-
-	gl.glMatrixMode(gl.GL_MODELVIEW)
-	gl.glLoadIdentity()
-	gl.glTranslatef(0,0,-2)
-
-
+	self.view:projection(self:size())
+	self.view:modelview()
 	
 	self.volumeSliceShader:use()
 	self.solver.tex:bind(0)
@@ -839,15 +824,8 @@ function HydroCLApp:display3D_Ray(solvers, varName, xmin, ymin, xmax, ymax, useL
 	local w, h = self:size()
 	local ar = w / h
 
-	gl.glMatrixMode(gl.GL_PROJECTION)
-	gl.glLoadIdentity()
-	local znear, zfar = .1, 1000
-	gl.glFrustum(xmin * znear * ar, xmax * znear * ar, ymin * znear, ymax * znear, znear, zfar) 
-
-	gl.glMatrixMode(gl.GL_MODELVIEW)
-	gl.glLoadIdentity()
-	gl.glTranslatef(0,0,-2)
-
+	self.view:projection(self:size())
+	self.view:modelview()
 
 	local vertexes = {
 		0,0,0,
@@ -1027,18 +1005,75 @@ function HydroCLApp:updateGUI()
 	-- TODO volumetric var
 end
 
+local leftButtonDown
+local rightButtonDown
+local leftShiftDown
+local rightShiftDown
+local leftGuiDown
+local rightGuiDown
 function HydroCLApp:event(event, ...)
 	HydroCLApp.super.event(self, event, ...)
-	if ig.igGetIO()[0].WantCaptureKeyboard then return end
-	if event.type == sdl.SDL_KEYDOWN then
-		if event.key.keysym.sym == sdl.SDLK_SPACE then
-			self.updateMethod = not self.updateMethod
-		elseif event.key.keysym.sym == ('u'):byte() then
-			self.updateMethod = 'step'
-		elseif event.key.keysym.sym == ('r'):byte() then
-			print'resetting...'
-			self.solver:resetState()
-			self.updateMethod = nil
+	local canHandleMouse = not ig.igGetIO()[0].WantCaptureMouse
+	local canHandleKeyboard = not ig.igGetIO()[0].WantCaptureKeyboard
+	local shiftDown = leftShiftDown or rightShiftDown
+	local guiDown = leftGuiDown or rightGuiDown
+	if event.type == sdl.SDL_MOUSEMOTION then
+		if canHandleMouse then
+			local dx = event.motion.xrel
+			local dy = event.motion.yrel
+			if leftButtonDown and not guiDown then
+				if shiftDown then
+					if dx ~= 0 or dy ~= 0 then
+						self.view:mouseZoom(dx, dy)
+					end
+				else
+					if dx ~= 0 or dy ~= 0 then
+						self.view:mousePan(dx, dy, self:size())
+					end
+				end
+			end
+		end
+	elseif event.type == sdl.SDL_MOUSEBUTTONDOWN then
+		if event.button.button == sdl.SDL_BUTTON_LEFT then
+			leftButtonDown = true
+		elseif event.button.button == sdl.SDL_BUTTON_RIGHT then
+			rightButtonDown = true
+		end
+	elseif event.type == sdl.SDL_MOUSEBUTTONUP then
+		if event.button.button == sdl.SDL_BUTTON_LEFT then
+			leftButtonDown = false
+		elseif event.button.button == sdl.SDL_BUTTON_RIGHT then
+			rightButtonDown = false
+		end
+	elseif event.type == sdl.SDL_KEYDOWN then
+		if event.key.keysym.sym == sdl.SDLK_LSHIFT then
+			leftShiftDown = true
+		elseif event.key.keysym.sym == sdl.SDLK_RSHIFT then
+			rightShiftDown = true
+		elseif event.key.keysym.sym == sdl.SDLK_LGUI then
+			leftGuiDown = true
+		elseif event.key.keysym.sym == sdl.SDLK_RGUI then
+			rightGuiDown = true
+		end
+	elseif event.type == sdl.SDL_KEYUP then
+		if event.key.keysym.sym == sdl.SDLK_LSHIFT then
+			leftShiftDown = false
+		elseif event.key.keysym.sym == sdl.SDLK_RSHIFT then
+			rightShiftDown = false
+		elseif event.key.keysym.sym == sdl.SDLK_LGUI then
+			leftGuiDown = false
+		elseif event.key.keysym.sym == sdl.SDLK_RGUI then
+			rightGuiDown = false
+		elseif canHandleKeyboard then
+			if event.key.keysym.sym == sdl.SDLK_SPACE then
+				self.updateMethod = not self.updateMethod
+			elseif event.key.keysym.sym == ('u'):byte() then
+				self.updateMethod = 'step'
+			elseif event.key.keysym.sym == ('r'):byte() then
+				print'resetting...'
+				self.solver:resetState()
+				self.updateMethod = nil
+			end
 		end
 	end
 end

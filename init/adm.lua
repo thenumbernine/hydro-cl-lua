@@ -186,7 +186,7 @@ return {
 	
 			-- the rest
 
-			local Tensor = require 'symmath.Tensor'
+			local Tensor = symmath.Tensor
 			local xs = xNames:map(function(x) return var(x) end)
 			Tensor.coords{{variables=xs}}
 			local x,y,z = xs:unpack()
