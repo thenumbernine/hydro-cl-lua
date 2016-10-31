@@ -3,15 +3,15 @@ local table = require 'ext.table'
 local Equation = require 'eqn.eqn'
 local clnumber = require 'clnumber'
 
-local Euler3D = class(Equation)
-Euler3D.name = 'Euler3D'
+local Euler = class(Equation)
+Euler.name = 'Euler'
 
-Euler3D.numStates = 5
+Euler.numStates = 5
 
-Euler3D.consVars = {'rho', 'mx', 'my', 'mz', 'ETotal'}
-Euler3D.primVars = {'rho', 'vx', 'vy', 'vz', 'P'}
-Euler3D.mirrorVars = {{'mx'}, {'my'}, {'mz'}}
-Euler3D.displayVars = {
+Euler.consVars = {'rho', 'mx', 'my', 'mz', 'ETotal'}
+Euler.primVars = {'rho', 'vx', 'vy', 'vz', 'P'}
+Euler.mirrorVars = {{'mx'}, {'my'}, {'mz'}}
+Euler.displayVars = {
 	'rho',
 	'vx', 'vy', 'vz', 'v',
 	'mx', 'my', 'mz', 'm',
@@ -29,15 +29,15 @@ Euler3D.displayVars = {
 	'HTotal',
 } 
 
-Euler3D.initStates = require 'init.euler'
-Euler3D.initStateNames = table.map(Euler3D.initStates, function(info) return info.name end)
+Euler.initStates = require 'init.euler'
+Euler.initStateNames = table.map(Euler.initStates, function(info) return info.name end)
 
-Euler3D.guiVars = table{
+Euler.guiVars = table{
 	require 'guivar.float'{name='gamma', value=7/5}
 }
-Euler3D.guiVarsForName = Euler3D.guiVars:map(function(var) return var, var.name end)
+Euler.guiVarsForName = Euler.guiVars:map(function(var) return var, var.name end)
 
-function Euler3D:getTypeCode()
+function Euler:getTypeCode()
 	return [[
 
 typedef struct { 
@@ -68,9 +68,9 @@ typedef struct {
 ]]
 end
 
-function Euler3D:getCodePrefix()
+function Euler:getCodePrefix()
 	return table{
-		Euler3D.super.getCodePrefix(self),
+		Euler.super.getCodePrefix(self),
 		[[
 #define gamma_1 (gamma-1.)
 #define gamma_3 (gamma-3.)
@@ -96,7 +96,7 @@ prim_t primFromCons(cons_t U) {
 	}:concat'\n'
 end
 
-function Euler3D:getInitStateCode(solver)
+function Euler:getInitStateCode(solver)
 	local initState = self.initStates[1+solver.initStatePtr[0]]
 	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
 	local code = initState.init(solver)	
@@ -140,13 +140,13 @@ __kernel void initState(
 	}:concat'\n'
 end
 	
-function Euler3D:getSolverCode(solver)	
+function Euler:getSolverCode(solver)	
 	return table{
 		'#include "eqn/euler.cl"',
 	}:concat'\n'
 end
 
-function Euler3D:getCalcDisplayVarCode()
+function Euler:getCalcDisplayVarCode()
 	return [[
 	prim_t W = primFromCons(*U);
 	switch (displayVar) {
@@ -175,4 +175,4 @@ function Euler3D:getCalcDisplayVarCode()
 ]]
 end
 
-return Euler3D
+return Euler

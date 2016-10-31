@@ -178,30 +178,19 @@ print()
 		dim = cmdline.dim or 1,
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
+		eqn = cmdline.eqn,
 	}
 
-	--[[
-	self.solver = require 'solver.srhd-roe'(table(args, {
-		initState = 'relativistic blast wave test problem 2',
-	}))
-	--]]
-	-- [[
+	--self.solver = require 'solver.srhd-roe'(table(args, {initState = 'relativistic blast wave test problem 2'}))
+	-- fluid
+	--self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
 	self.solver = require 'solver.euler-roe'(args)
-	--]]
-	--[[
-	self.solver = require 'solver.roe'(table(args, {
-		--eqn = require(cmdline.eqn and 'eqn.'..cmdline.eqn or 'eqn.euler')(),
-		-- fluids
-		eqn = require 'eqn.euler1d'(),
-		--eqn = require 'eqn.euler'(),
-		-- electromagnetism
-		--eqn = require 'eqn.maxwell'(),
-		-- geometrodynamics
-		--eqn = require 'eqn.adm1d_v1'(),
-		--eqn = require 'eqn.adm1d_v2'(),
-		--eqn = require 'eqn.adm3d'(),
-	}))
-	--]]
+	-- EM
+	--self.solver = require 'solver.roe'(table(args, {eqn='maxwell'}))
+	-- geometrodynamics
+	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v1'}))
+	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v2'}))
+	--self.solver = require 'solver.roe'(table(args, {eqn='adm3d'}))
 
 	self.solvers = table{self.solver}
 	

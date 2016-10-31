@@ -64,8 +64,9 @@ function Solver:init(args)
 	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
 
 	self.t = 0
+
+	self:createEqn(args.eqn)
 	
-	self.eqn = assert(args.eqn or self.eqn)
 	self.name = self.eqn.name..' '..self.name
 
 	self.app = assert(args.app)
@@ -120,6 +121,12 @@ print('self.localSize',self.localSize)
 	self:refreshGridSize()
 end
 
+-- this is the general function - which just assigns the eqn provided by the arg
+-- but it can be overridden for specific equations
+function Solver:createEqn(eqn)
+	self.eqn = require('eqn.'..assert(eqn))(self)
+end
+
 function Solver:refreshGridSize()
 
 	self.volume = tonumber(self.gridSize:volume())
@@ -130,10 +137,16 @@ function Solver:refreshGridSize()
 	self:refreshIntegrator()	-- depends on eqn & gridSize
 
 	self:createDisplayVars()	-- depends on eqn
-	self:createBuffers()		-- depends on eqn & gridSize
+	
+	-- depends on eqn & gridSize
+	self.buffers = table()
+	self:createBuffers()
+	self:finalizeCLAllocs()
+	
 	self:createCodePrefix()		-- depends on eqn, gridSize, displayVars
 
 	self:refreshInitStateProgram()
+	self:refreshCommonProgram()
 	self:refreshSolverProgram()
 	self:refreshDisplayProgram()
 	self:refreshBoundaryProgram()
@@ -333,56 +346,54 @@ end
 local errorType = 'error_t'
 local errorTypeCode = 'typedef struct { real ortho, flux; } '..errorType..';'
 
+-- my best idea to work around the stupid 8-arg max kernel restriction
 Solver.allocateOneBigStructure = false
 
+function Solver:clalloc(name, size)
+	self.buffers:insert{name=name, size=size}	
+end
+
+function Solver:finalizeCLAllocs()
+	local total = 0
+	for _,buffer in ipairs(self.buffers) do
+		buffer.offset = total
+		local name = buffer.name
+		local size = buffer.size
+		total = total + size
+		print('allocating '..name..' size '..size..' total '..total)
+		if not self.allocateOneBigStructure then
+			self[name] = self.app.ctx:buffer{rw=true, size=size}
+		end
+	end
+	if self.allocateOneBigStructure then
+		self.oneBigBuf = self.app.ctx:buffer{rw=true, size=total}
+	end
+end
+
 function Solver:createBuffers()
-	local ctx = self.app.ctx
 	local realSize = ffi.sizeof(self.app.real)
 
 	-- to get sizeof
 	ffi.cdef(self.eqn:getEigenInfo().typeCode)
 	ffi.cdef(errorTypeCode)
-
-	self.buffers = table()
-	local function alloc(name, size)
-		self.buffers:insert{name=name, size=size}	
-	end
-	local function finalizeAllocs()
-		local total = 0
-		for _,buffer in ipairs(self.buffers) do
-			buffer.offset = total
-			local name = buffer.name
-			local size = buffer.size
-			total = total + size
-			print('allocating '..name..' size '..size..' total '..total)
-			if not self.allocateOneBigStructure then
-				self[name] = ctx:buffer{rw=true, size=size}
-			end
-		end
-		if self.allocateOneBigStructure then
-			self.oneBigBuf = ctx:buffer{rw=true, size=total}
-		end
-	end
 	
-	alloc('UBuf', self.volume * self.eqn.numStates * realSize)
-	alloc('reduceBuf', self.volume * realSize)
-	alloc('reduceSwapBuf', self.volume * realSize / self.localSize1d)
-	alloc('waveBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
-	alloc('eigenBuf', self.volume * self.dim * ffi.sizeof'eigen_t')
-	alloc('deltaUTildeBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
-	alloc('rTildeBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
-	alloc('fluxBuf', self.volume * self.dim * self.eqn.numStates * realSize)
+	self:clalloc('UBuf', self.volume * self.eqn.numStates * realSize)
+	self:clalloc('reduceBuf', self.volume * realSize)
+	self:clalloc('reduceSwapBuf', self.volume * realSize / self.localSize1d)
+	self:clalloc('waveBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
+	self:clalloc('eigenBuf', self.volume * self.dim * ffi.sizeof'eigen_t')
+	self:clalloc('deltaUTildeBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
+	self:clalloc('rTildeBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
+	self:clalloc('fluxBuf', self.volume * self.dim * self.eqn.numStates * realSize)
 	
 	-- debug only
 	if self.checkFluxError then
-		alloc('fluxXformBuf', self.volume * self.dim * ffi.sizeof'fluxXform_t')
+		self:clalloc('fluxXformBuf', self.volume * self.dim * ffi.sizeof'fluxXform_t')
 	end	
 	if self.checkFluxError or self.checkOrthoError then
 		local errorTypeSize = ffi.sizeof(errorType)
-		alloc('errorBuf', self.volume * self.dim * errorTypeSize)
+		self:clalloc('errorBuf', self.volume * self.dim * errorTypeSize)
 	end
-
-	finalizeAllocs()
 
 	self.reduceResultPtr = ffi.new('real[1]', 0)
 
@@ -402,7 +413,7 @@ function Solver:createBuffers()
 
 	if self.app.useGLSharing then
 		local ImageGL = CLImageGL
-		self.texCLMem = ImageGL{context=ctx, tex=self.tex, write=true}
+		self.texCLMem = ImageGL{context=self.app.ctx, tex=self.tex, write=true}
 	else
 		self.calcDisplayVarToTexPtr = ffi.new(self.app.real..'[?]', self.volume)
 		
@@ -519,9 +530,7 @@ function Solver:getCalcDTCode()
 	return '#include "solver/calcDT.cl"'
 end
 
--- depends on buffers
-function Solver:refreshSolverProgram()
-
+function Solver:refreshCommonProgram()
 	-- code that depend on real and nothing else
 	-- TODO move to app, along with reduceBuf
 
@@ -577,16 +586,14 @@ __kernel void multAdd(
 
 	-- used by the integrators
 	self.multAddKernel = self.commonProgram:kernel'multAdd'
+end
 
-
-	-- solver code
-
-
+function Solver:getSolverCode()
 	local slopeLimiterCode = 'real slopeLimiter(real r) {'
 		.. self.app.slopeLimiters[1+self.slopeLimiterPtr[0]].code 
 		.. '}'
 		
-	local code = table{
+	return table{
 		self.codePrefix,
 		slopeLimiterCode,
 		
@@ -596,7 +603,11 @@ __kernel void multAdd(
 		self:getCalcDTCode() or '',
 		'#include "solver/solver.cl"',
 	}:concat'\n'
+end
 
+-- depends on buffers
+function Solver:refreshSolverProgram()
+	local code = self:getSolverCode()
 	self.solverProgram = CLProgram{context=self.app.ctx, code=code}
 	local success, message = self.solverProgram:build{self.app.device}
 	if not success then
@@ -684,14 +695,16 @@ function Solver:refreshDisplayProgram()
 	end
 end
 
-function Solver:refreshBoundaryProgram()
+function Solver:createBoundaryProgramAndKernel(args)
+	local bufType = assert(args.type)
+	
 	local lines = table()
 	lines:insert(self.codePrefix)
-	lines:insert[[
+	lines:insert((([[
 __kernel void boundary(
-	__global cons_t* UBuf
+	__global {type}* buf
 ) {
-]]
+]]):gsub('{type}', bufType)))
 	if self.dim == 1 then 
 		lines:insert[[
 	if (get_global_id(0) != 0) return;
@@ -765,24 +778,24 @@ __kernel void boundary(
 		local x = xs[side]
 
 		lines:insert(({
-			periodic = '\t\tUBuf['..index'j'..'] = UBuf['..index'gridSize_x-2*numGhost+j'..'];',
+			periodic = '\t\tbuf['..index'j'..'] = buf['..index'gridSize_x-2*numGhost+j'..'];',
 			mirror = table{
-				'\t\tUBuf['..index'j'..'] = UBuf['..index'2*numGhost-1-j'..'];',
-			}:append(table.map((self.eqn.mirrorVars or {})[side] or {}, function(var)
-				return '\t\tUBuf['..index'j'..'].'..var..' = -UBuf['..index'j'..'].'..var..';'
+				'\t\tbuf['..index'j'..'] = buf['..index'2*numGhost-1-j'..'];',
+			}:append(table.map((args.mirrorVars or {})[side] or {}, function(var)
+				return '\t\tbuf['..index'j'..'].'..var..' = -buf['..index'j'..'].'..var..';'
 			end)):concat'\n',
-			freeflow = '\t\tUBuf['..index'j'..'] = UBuf['..index'numGhost'..'];',
-		})[self.app.boundaryMethods[1+self.boundaryMethods[x..'min'][0]]])
+			freeflow = '\t\tbuf['..index'j'..'] = buf['..index'numGhost'..'];',
+		})[args.methods[x..'min']])
 
 		lines:insert(({
-			periodic = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'numGhost+j'..'];',
+			periodic = '\t\tbuf['..index'gridSize_x-numGhost+j'..'] = buf['..index'numGhost+j'..'];',
 			mirror = table{
-				'\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'gridSize_x-numGhost-1-j'..'];',
-			}:append(table.map((self.eqn.mirrorVars or {})[side] or {}, function(var)
-				return '\t\tUBuf['..index'gridSize_x-numGhost+j'..'].'..var..' = -UBuf['..index'gridSize_x-numGhost+j'..'].'..var..';'
+				'\t\tbuf['..index'gridSize_x-numGhost+j'..'] = buf['..index'gridSize_x-numGhost-1-j'..'];',
+			}:append(table.map((args.mirrorVars or {})[side] or {}, function(var)
+				return '\t\tbuf['..index'gridSize_x-numGhost+j'..'].'..var..' = -buf['..index'gridSize_x-numGhost+j'..'].'..var..';'
 			end)):concat'\n',
-			freeflow = '\t\tUBuf['..index'gridSize_x-numGhost+j'..'] = UBuf['..index'gridSize_x-numGhost-1'..'];',
-		})[self.app.boundaryMethods[1+self.boundaryMethods[x..'max'][0]]])
+			freeflow = '\t\tbuf['..index'gridSize_x-numGhost+j'..'] = buf['..index'gridSize_x-numGhost-1'..'];',
+		})[args.methods[x..'max']])
 	
 		if self.dim > 1 then
 			lines:insert'\t}'
@@ -794,23 +807,42 @@ __kernel void boundary(
 
 	local code = lines:concat'\n'
 	
-	self.app.cmds:finish()
-	
-	self.boundaryProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code} 
-	self.boundaryKernel = self.boundaryProgram:kernel('boundary', self.UBuf);
+	local boundaryProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code} 
+	local boundaryKernel = boundaryProgram:kernel'boundary'
+	return boundaryProgram, boundaryKernel
 end
 
-function Solver:boundary()
+function Solver:refreshBoundaryProgram()
+	self.boundaryProgram, self.boundaryKernel = 
+		self:createBoundaryProgramAndKernel{
+			type = 'cons_t',
+			-- remap from enum/combobox int values to names
+			methods = table.map(self.boundaryMethods, function(v,k)
+				return self.app.boundaryMethods[1+v], k
+			end),
+			mirrorVars = self.eqn.mirrorVars,
+		}
+	self.boundaryKernel:setArg(0, self.UBuf)
+end
+
+-- assumes the buffer is already in the kernel's arg
+function Solver:applyBoundaryToBuffer(kernel)
 	-- 1D:
 	if self.dim == 1 then
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.boundaryKernel, globalSize=self.localSize1d, localSize=self.localSize1d}
+		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=self.localSize1d, localSize=self.localSize1d}
 	elseif self.dim == 2 then
 		local maxSize = math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y))
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.boundaryKernel, globalSize=maxSize, localSize=self.localSize1d}
+		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=maxSize, localSize=self.localSize1d}
 	elseif self.dim == 3 then
+		print'TODO'
 	else
 		error("can't run boundary for dim "..tonumber(self.dim))
 	end
+
+end
+
+function Solver:boundary()
+	self:applyBoundaryToBuffer(self.boundaryKernel)
 end
 
 function Solver:reduceMin()

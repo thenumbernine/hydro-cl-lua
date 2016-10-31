@@ -2,20 +2,17 @@ local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local Roe = require 'solver.roe'
-local SRHDEqn = require 'eqn.srhd'
 
 local SRHDRoe = class(Roe)
 
-SRHDRoe.eqn = SRHDEqn()
+function SRHDRoe:createEqn()
+	self.eqn = require 'eqn.srhd'(self)
+end
 
 function SRHDRoe:createBuffers()
 	SRHDRoe.super.createBuffers(self)
-	
 	ffi.cdef(self.eqn:getTypeCode())
-	local primSize = ffi.sizeof'prim_t'
-	
-	local ctx = self.app.ctx
-	self.primBuf = ctx:buffer{rw=true, size=self.volume * self.dim * primSize}
+	self:clalloc('primBuf', self.volume * self.dim * ffi.sizeof'prim_t')
 end
 
 local ConvertToTex_SRHD_U = class(SRHDRoe.ConvertToTex)

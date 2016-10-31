@@ -3,7 +3,9 @@ local range = require 'ext.range'
 
 local Equation = class()
 
-function Equation:init()
+function Equation:init(solver)
+	self.solver = assert(solver)
+
 	-- default # states is # of conservative variables
 	if not self.numStates then 
 		self.numStates = #self.consVars 
