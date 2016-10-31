@@ -190,10 +190,10 @@ print()
 	--]]
 	--[[
 	self.solver = require 'solver.roe'(table(args, {
-		--eqn = require(cmdline.eqn and 'eqn.'..cmdline.eqn or 'eqn.euler3d')(),
+		--eqn = require(cmdline.eqn and 'eqn.'..cmdline.eqn or 'eqn.euler')(),
 		-- fluids
 		eqn = require 'eqn.euler1d'(),
-		--eqn = require 'eqn.euler3d'(),
+		--eqn = require 'eqn.euler'(),
 		-- electromagnetism
 		--eqn = require 'eqn.maxwell'(),
 		-- geometrodynamics

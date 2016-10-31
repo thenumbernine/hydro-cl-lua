@@ -142,7 +142,7 @@ end
 	
 function Euler3D:getSolverCode(solver)	
 	return table{
-		'#include "eqn/euler3d.cl"',
+		'#include "eqn/euler.cl"',
 	}:concat'\n'
 end
 
