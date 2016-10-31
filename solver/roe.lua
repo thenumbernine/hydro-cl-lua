@@ -24,8 +24,8 @@ Solver.numGhost = 2
 
 -- enable these to verify accuracy
 -- disable these to save on allocation / speed
-Solver.checkFluxError = false
-Solver.checkOrthoError = false
+Solver.checkFluxError = true 
+Solver.checkOrthoError = true 
 
 Solver.integrators = require 'int.all'
 Solver.integratorNames = Solver.integrators:map(function(integrator) return integrator.name end)
@@ -333,6 +333,8 @@ end
 local errorType = 'error_t'
 local errorTypeCode = 'typedef struct { real ortho, flux; } '..errorType..';'
 
+Solver.allocateOneBigStructure = false
+
 function Solver:createBuffers()
 	local ctx = self.app.ctx
 	local realSize = ffi.sizeof(self.app.real)
@@ -341,32 +343,48 @@ function Solver:createBuffers()
 	ffi.cdef(self.eqn:getEigenInfo().typeCode)
 	ffi.cdef(errorTypeCode)
 
-	local total = 0
-	local function alloc(size, name)
-		total = total + size
-		print('allocating '..tostring(name)..' size '..size..' total '..total)
-		return ctx:buffer{rw=true, size=size}
+	self.buffers = table()
+	local function alloc(name, size)
+		self.buffers:insert{name=name, size=size}	
 	end
-
-
-	self.UBuf = alloc(self.volume * self.eqn.numStates * realSize, 'U')
-	self.reduceBuf = alloc(self.volume * realSize, 'reduce')
-	self.reduceResultPtr = ffi.new('real[1]', 0)
-	self.reduceSwapBuf = alloc(self.volume * realSize / self.localSize1d, 'reduceSwap')
-	self.waveBuf = alloc(self.volume * self.dim * self.eqn.numWaves * realSize, 'wave')
-	self.eigenBuf = alloc(self.volume * self.dim * ffi.sizeof'eigen_t', 'eigen')
-	self.deltaUTildeBuf = alloc(self.volume * self.dim * self.eqn.numWaves * realSize, 'deltaUTilde')
-	self.rTildeBuf = alloc(self.volume * self.dim * self.eqn.numWaves * realSize, 'rTilde')
-	self.fluxBuf = alloc(self.volume * self.dim * self.eqn.numStates * realSize, 'flux')
+	local function finalizeAllocs()
+		local total = 0
+		for _,buffer in ipairs(self.buffers) do
+			buffer.offset = total
+			local name = buffer.name
+			local size = buffer.size
+			total = total + size
+			print('allocating '..name..' size '..size..' total '..total)
+			if not self.allocateOneBigStructure then
+				self[name] = ctx:buffer{rw=true, size=size}
+			end
+		end
+		if self.allocateOneBigStructure then
+			self.oneBigBuf = ctx:buffer{rw=true, size=total}
+		end
+	end
+	
+	alloc('UBuf', self.volume * self.eqn.numStates * realSize)
+	alloc('reduceBuf', self.volume * realSize)
+	alloc('reduceSwapBuf', self.volume * realSize / self.localSize1d)
+	alloc('waveBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
+	alloc('eigenBuf', self.volume * self.dim * ffi.sizeof'eigen_t')
+	alloc('deltaUTildeBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
+	alloc('rTildeBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
+	alloc('fluxBuf', self.volume * self.dim * self.eqn.numStates * realSize)
 	
 	-- debug only
 	if self.checkFluxError then
-		self.fluxXformBuf = alloc(self.volume * self.dim * ffi.sizeof'fluxXform_t', 'fluxXform')
+		alloc('fluxXformBuf', self.volume * self.dim * ffi.sizeof'fluxXform_t')
 	end	
 	if self.checkFluxError or self.checkOrthoError then
 		local errorTypeSize = ffi.sizeof(errorType)
-		self.errorBuf = alloc(self.volume * self.dim * errorTypeSize, 'error')
+		alloc('errorBuf', self.volume * self.dim * errorTypeSize)
 	end
+
+	finalizeAllocs()
+
+	self.reduceResultPtr = ffi.new('real[1]', 0)
 
 	-- CL/GL interop
 
@@ -473,6 +491,7 @@ function Solver:createCodePrefix()
 	lines:append{
 		self.checkFluxError and '#define checkFluxError' or '',
 		self.checkOrthoError and '#define checkOrthoError' or '',
+		self.allocateOneBigStructure and '#define allocateOneBigStructure' or '',
 		errorTypeCode,
 		self.eqn:getEigenInfo().code or '',
 		self.eqn:getCodePrefix(self),
@@ -511,7 +530,8 @@ function Solver:refreshSolverProgram()
 	}:append{
 		'typedef '..self.app.real..' real;',
 	
-		--templates in C ...
+		-- used to find the min/max of a buffer
+		
 		'#define reduce_accum_init INFINITY',
 		'#define reduce_operation(x,y) min(x,y)',
 		'#define reduce_name reduceMin',
@@ -527,7 +547,9 @@ function Solver:refreshSolverProgram()
 		'#undef reduce_accum_init',
 		'#undef reduce_operation',
 		'#undef reduce_name',
-	
+
+		-- used by the integrators
+		
 		[[
 __kernel void multAdd(
 	__global real* a,
@@ -552,7 +574,8 @@ __kernel void multAdd(
 			ffi.new('int[1]', self.volume),
 			self.reduceSwapBuf)
 	end
-	
+
+	-- used by the integrators
 	self.multAddKernel = self.commonProgram:kernel'multAdd'
 
 
@@ -847,12 +870,6 @@ function Solver:calcDeriv(derivBuf, dt)
 	end
 end
 
-function Solver:integrate(derivBuf, dt)
-	-- forward Euler
-	self.multAddKernel:setArgs(self.UBuf, self.UBuf, derivBuf, ffi.new('real[1]', dt))
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.multAddKernel, globalSize=self.volume * self.eqn.numStates, localSize=self.localSize1d}
-end
-
 function Solver:update()
 	self:boundary()
 
@@ -864,7 +881,11 @@ function Solver:update()
 		dt = tonumber(self.cfl[0]) * self:reduceMin()
 	end
 	self.fixedDT[0] = dt
-	
+
+	self:step(dt)
+end
+
+function Solver:step(dt)
 	self.integrator:integrate(dt, function(derivBuf)
 		self:calcDeriv(derivBuf, dt)
 	end)

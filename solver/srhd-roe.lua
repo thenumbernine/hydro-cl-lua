@@ -137,8 +137,8 @@ function SRHDRoe:refreshSolverProgram()
 	self.updatePrimsKernel = self.solverProgram:kernel('updatePrims', self.primBuf, self.UBuf)
 end
 
-function SRHDRoe:update()
-	SRHDRoe.super.update(self)
+function SRHDRoe:step(dt)
+	SRHDRoe.super.step(self, dt)
 
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.updatePrimsKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}

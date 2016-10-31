@@ -180,17 +180,20 @@ print()
 		maxs = cmdline.maxs or {1, 1, 1},
 	}
 
-	-- [[
+	--[[
 	self.solver = require 'solver.srhd-roe'(table(args, {
 		initState = 'relativistic blast wave test problem 2',
 	}))
+	--]]
+	-- [[
+	self.solver = require 'solver.euler-roe'(args)
 	--]]
 	--[[
 	self.solver = require 'solver.roe'(table(args, {
 		--eqn = require(cmdline.eqn and 'eqn.'..cmdline.eqn or 'eqn.euler3d')(),
 		-- fluids
-		--eqn = require 'eqn.euler1d'(),
-		eqn = require 'eqn.euler3d'(),
+		eqn = require 'eqn.euler1d'(),
+		--eqn = require 'eqn.euler3d'(),
 		-- electromagnetism
 		--eqn = require 'eqn.maxwell'(),
 		-- geometrodynamics
