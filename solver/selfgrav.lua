@@ -5,7 +5,7 @@ local SelfGravitationBehavior = function(parent)
 	local template = class(parent)
 
 	function template:init(args)
-		self.selfGravEnabledPtr = ffi.new('bool[1]', not not args.selfGravEnabled)
+		self.useGravity = not not args.useGravity
 		template.super.init(self, args)
 	end
 
@@ -37,7 +37,7 @@ __kernel void initPotential(
 	ePotBuf[index] = -UBuf[index].rho;
 }
 ]],
-			'#define gravitationalConstant 1',		-- 6.67384e-11 m^3 / (kg s^2)
+			'#define gravitationalConstant 1.',		-- 6.67384e-11 m^3 / (kg s^2)
 			'#include "solver/selfgrav.cl"',
 		}:concat'\n'
 	end
@@ -70,11 +70,7 @@ __kernel void initPotential(
 	function template:resetState()
 		template.super.resetState(self)
 
-		if not self.selfGravEnabledPtr[0] then 
-			-- TODO intialize potential buffer from initState ... somehow ...
-			-- makes me think I should be putting it into the cons_t 
-			-- (and renaming cons_t to state_t and UBuf to stateBuf)
-		else
+		if self.useGravity then 
 			self.app.cmds:enqueueNDRangeKernel{kernel=self.initPotentialKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 			self:potentialBoundary()
 			for i=1,20 do
@@ -93,7 +89,7 @@ __kernel void initPotential(
 		
 
 		self.integrator:integrate(dt, function(derivBuf)
-			if self.selfGravEnabledPtr[0] then
+			if self.useGravity then
 				for i=1,20 do
 					self:potentialBoundary()
 					self.app.cmds:enqueueNDRangeKernel{kernel=self.solvePoissonKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}

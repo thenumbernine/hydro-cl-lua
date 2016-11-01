@@ -33,6 +33,37 @@ local function quadrantProblem(args)
 	return args
 end
 
+local function selfGravProblem(args)
+	return function(solver)
+		solver.useGravity = true
+		solver.boundaryMethods.xmin[0] = solver.app.boundaryMethods:find'freeflow'-1
+		solver.boundaryMethods.xmax[0] = solver.app.boundaryMethods:find'freeflow'-1
+		solver.boundaryMethods.ymin[0] = solver.app.boundaryMethods:find'freeflow'-1
+		solver.boundaryMethods.ymax[0] = solver.app.boundaryMethods:find'freeflow'-1
+		solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'freeflow'-1
+		solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'freeflow'-1
+
+		return table{[[
+	real distSq;
+	rho = .1;
+	P = 1;
+	//v[i] = .1 * noise * crand();
+]],	
+			table.map(args.sources, function(source,i)
+				local center = '(real4)('
+					..range(3):map(function(i)
+						return clnumber(source.center[i])
+					end):concat', '..')'
+				return ([[
+	distSq = dot(x - center, x - center);
+	if (dist < radius * radius) rho = 1; 
+]]):gsub('center', center)
+		:gsub('radius', tostring(source.radius))
+			end),
+		}:concat'\n'
+	end
+end
+
 local initStates = {
 	{
 		name = 'Sod',
@@ -246,6 +277,156 @@ local initStates = {
 	P = 2.5;
 ]]
 		end,
+	},
+	
+	--http://www.astro.virginia.edu/VITA/ATHENA/dmr.html
+	{
+		name = 'double mach reflection',
+		init = function(solver)
+			-- I am not correctly modeling the top boundary
+			solver.mins = vec3(0,0,0)
+			solver.maxs = vec3(4,1,1)
+			solver.boundaryMethods.xmin[0] = solver.app.boundaryMethods:find'freeflow'-1
+			solver.boundaryMethods.xmax[0] = solver.app.boundaryMethods:find'freeflow'-1
+			solver.boundaryMethods.ymin[0] = solver.app.boundaryMethods:find'mirror'-1
+			solver.boundaryMethods.ymax[0] = solver.app.boundaryMethods:find'freeflow'-1
+			solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'mirror'-1
+			solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'mirror'-1
+			solver.guiVarsForName.gamma.value[0] = 7/5
+			return table{
+	'#define sqrt1_3 '..clnumber(math.sqrt(1/3)),
+	[[
+	bool inside = x.x < x.y * sqrt1_3;
+	if (inside) {
+		rho = 8;
+		P = 116.5;
+		vx = 8.25 * cos(30. * M_PI / 180.),
+		vy = -8.25 * sin(30. * M_PI / 180.),
+	} else {
+		rho = 1.4;
+		P = 1;
+	}
+]],
+			}:concat'\n'
+		end,
+	},
+
+	-- http://www.cfd-online.com/Wiki/2-D_laminar/turbulent_driven_square_cavity_flow
+	{
+		name = 'square cavity',
+		init = function(solver)
+			solver.boundaryMethods.xmin[0] = solver.app.boundaryMethods:find'mirror'-1
+			solver.boundaryMethods.xmax[0] = solver.app.boundaryMethods:find'mirror'-1
+			solver.boundaryMethods.ymin[0] = solver.app.boundaryMethods:find'mirror'-1
+			solver.boundaryMethods.ymax[0] = solver.app.boundaryMethods:find'freeflow'-1	-- TODO none
+			solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'mirror'-1
+			solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'mirror'-1
+			return [[
+	rho = 1;
+	vx = x.y > .45 ? 1 : 0;
+	P = 1;
+]]
+		end,
+	},
+
+	{
+		name='shock bubble interaction',
+		init = function(solver)
+			solver.boundaryMethods.xmin[0] = solver.app.boundaryMethods:find'freeflow'-1
+			solver.boundaryMethods.xmax[0] = solver.app.boundaryMethods:find'freeflow'-1
+			solver.boundaryMethods.ymin[0] = solver.app.boundaryMethods:find'freeflow'-1
+			solver.boundaryMethods.ymax[0] = solver.app.boundaryMethods:find'freeflow'-1
+			solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'freeflow'-1
+			solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'freeflow'-1
+			return [[
+	const real waveX = .45;
+	const real2 bubbleCenter = (real2)(0,0);
+	real bubbleRadius = .2;
+	real bubbleRSq = dot(x - bubbleCenter, x - bubbleCenter);
+	rho = x.x < waveX ? 1. : (bubbleRSq < bubbleRadius*bubbleRadius ? .1 : 1);
+	P = x.x < waveX ? 1 : .1;
+	vx = x.x < waveX ? 0 : -.5;
+]]
+		end,
+	},
+
+	-- gravity potential test - equilibrium - Rayleigh-Taylor (still has an shock wave ... need to fix initial conditions?)
+
+	{
+		name = 'self-gravitation test 1',
+		init = selfGravProblem{
+			solver = solver,
+			sources={
+				{center={0, 0, 0}, radius = .2},
+			},
+		},
+	},
+
+	{
+		name = 'self-gravitation test 1 spinning',
+		init = selfGravProblem{
+			sources={
+				{
+					center={0, 0, 0}, 
+					radius = .2,
+					inside = function(dx,dy,dz)
+						return buildStateEuler{
+							x=x, y=y, z=z,
+							velocityX = -10 * dy,
+							velocityY = 10 * dx,
+							pressure = 1,
+							density = 1,
+						}
+					end},
+			},
+		},
+	},
+
+	{
+		name = 'self-gravitation test 2',
+		init = selfGravProblem{ 
+			sources={
+				{
+					center = {-.25, 0, 0},
+					radius = .1,
+					inside = function(dx,dy,dz)
+						return buildStateEuler{
+							x=x, y=y, z=z,
+							pressure = 1,
+							density = 1,
+						}
+					end,
+				},
+				{
+					center = {.25, 0, 0},
+					radius = .1,
+					inside = function(dx,dy,dz)
+						return buildStateEuler{
+							x=x, y=y, z=z,
+							pressure = 1,
+							density = 1,
+						}
+					end,
+				},
+			},
+		},
+		--[[ TODO
+		mx = -5 * rho * y
+		my = 5 * rho * x
+		return rho,mx,my,mz,eTotal,bx,by,bz
+		--]]
+	},
+
+	{
+		name = 'self-gravitation test 4',
+		init =  selfGravProblem{
+			sources={
+				{center={.25, .25, 0}, radius = .1},
+				{center={-.25, .25, 0}, radius = .1},
+				{center={.25, -.25, 0}, radius = .1},
+				{center={-.25, -.25, 0}, radius = .1},
+			},
+		},
 	},
 }
 

@@ -76,7 +76,7 @@ function Solver:init(args)
 	self.maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
 
 	self.offset = vec3sz(0,0,0)
-	self.localSize1d = self.maxWorkGroupSize 
+	self.localSize1d = math.min(self.maxWorkGroupSize, tonumber(self.gridSize:volume()))
 	
 --	self.localSize = self.dim < 3 and vec3sz(16,16,16) or vec3sz(4,4,4)
 	-- TODO better than constraining by math.min(gridSize),
