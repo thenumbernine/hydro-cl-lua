@@ -897,7 +897,7 @@ function HydroCLApp:showDisplayVar(solver, varIndex)
 	gl.glUniform1i(self.graphShader.uniforms.axis, solver.dim)
 	gl.glUniform2f(self.graphShader.uniforms.size, solver.gridSize.x, solver.gridSize.y)
 
-	gl.glColor3f(table.unpack(var.color))
+	gl.glColor3f(table.unpack((#self.solvers > 1 and solver or var).color))
 	gl.glBegin(gl.GL_LINE_STRIP)
 	local step = 1
 	for i=2,tonumber(solver.gridSize.x)-2,step do

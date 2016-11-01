@@ -38,6 +38,13 @@ KTilde_xx,t + alpha / sqrt(gamma_xx) a_x,x = alpha a_x / sqrt(gamma_xx) (1/2 D_g
 [   D_g   ]   + [         0,              0, 2 alpha / sqrt(gamma_xx) ] [D_g ]   = [        2 alpha KTilde_xx / sqrt(gamma_xx) (1/2 D_g - a_x)           ]
 [KTilde_xx],t   [ alpha / sqrt(gamma_xx), 0,            0             ] [K_xx],x   [           alpha a_x / sqrt(gamma_xx) (1/2 D_g - a_x)                ]
 
+... favoring flux terms ...
+
+(TODO finishme...)
+[   a_x   ]     [         0,              0, alpha f / sqrt(gamma_xx) ] [a_x ]     [ alpha KTilde_xx / sqrt(gamma_xx) (1/2 f D_g - a_x f - a_x alpha f') ]
+[   D_g   ]   + [         0,              0, 2 alpha / sqrt(gamma_xx) ] [D_g ]   = [        2 alpha KTilde_xx / sqrt(gamma_xx) (1/2 D_g - a_x)           ]
+[KTilde_xx],t   [ alpha / sqrt(gamma_xx), 0,            0             ] [K_xx],x   [           alpha a_x / sqrt(gamma_xx) (1/2 D_g - a_x)                ]
+
 ... has eigenvalues ...
 
 Lambda = {-alpha sqrt(f/gamma_xx), 0, alpha sqrt(f/gamma_xx)}

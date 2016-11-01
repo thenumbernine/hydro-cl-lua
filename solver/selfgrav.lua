@@ -4,15 +4,20 @@ local class = require 'ext.class'
 local SelfGravitationBehavior = function(parent)
 	local template = class(parent)
 
+	function template:init(args)
+		self.selfGravEnabledPtr = ffi.new('bool[1]', not not args.selfGravEnabled)
+		template.super.init(self, args)
+	end
+
 	function template:createBuffers()
 		template.super.createBuffers(self)
-		self:clalloc('potentialBuf', self.volume * ffi.sizeof(self.app.real))
+		self:clalloc('ePotBuf', self.volume * ffi.sizeof(self.app.real))
 	end
 
 	function template:addConvertToTexs()
 		template.super.addConvertToTexs(self)
 		self:addConvertToTex{
-			name = 'potential',
+			name = 'ePot',
 			vars = {'0'},
 			displayBodyCode = [[
 		value = buf[index];
@@ -25,11 +30,11 @@ local SelfGravitationBehavior = function(parent)
 			template.super.getSolverCode(self),
 			[[
 __kernel void initPotential(
-	__global real* potentialBuf,
+	__global real* ePotBuf,
 	const __global cons_t* UBuf)
 {
 	SETBOUNDS(0,0);
-	potentialBuf[index] = -UBuf[index].rho;
+	ePotBuf[index] = -UBuf[index].rho;
 }
 ]],
 			'#define gravitationalConstant 1',		-- 6.67384e-11 m^3 / (kg s^2)
@@ -40,13 +45,13 @@ __kernel void initPotential(
 	function template:refreshSolverProgram()
 		template.super.refreshSolverProgram(self)
 
-		self.initPotentialKernel = self.solverProgram:kernel('initPotential', self.potentialBuf, self.UBuf)
+		self.initPotentialKernel = self.solverProgram:kernel('initPotential', self.ePotBuf, self.UBuf)
 
-		self.solvePoissonKernel = self.solverProgram:kernel('solvePoisson', self.potentialBuf, self.UBuf)
+		self.solvePoissonKernel = self.solverProgram:kernel('solvePoisson', self.ePotBuf, self.UBuf)
 		
 		self.calcGravityDerivKernel = self.solverProgram:kernel'calcGravityDeriv'
 		self.calcGravityDerivKernel:setArg(1, self.UBuf)
-		self.calcGravityDerivKernel:setArg(2, self.potentialBuf)	
+		self.calcGravityDerivKernel:setArg(2, self.ePotBuf)	
 	end
 
 	function template:refreshBoundaryProgram()
@@ -59,17 +64,23 @@ __kernel void initPotential(
 					return self.app.boundaryMethods[1+v], k
 				end),
 			}
-		self.potentialBoundaryKernel:setArg(0, self.potentialBuf)
+		self.potentialBoundaryKernel:setArg(0, self.ePotBuf)
 	end
 
 	function template:resetState()
 		template.super.resetState(self)
 
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.initPotentialKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-		self:potentialBoundary()
-		for i=1,20 do
-			self.app.cmds:enqueueNDRangeKernel{kernel=self.solvePoissonKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		if not self.selfGravEnabledPtr[0] then 
+			-- TODO intialize potential buffer from initState ... somehow ...
+			-- makes me think I should be putting it into the cons_t 
+			-- (and renaming cons_t to state_t and UBuf to stateBuf)
+		else
+			self.app.cmds:enqueueNDRangeKernel{kernel=self.initPotentialKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 			self:potentialBoundary()
+			for i=1,20 do
+				self.app.cmds:enqueueNDRangeKernel{kernel=self.solvePoissonKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+				self:potentialBoundary()
+			end
 		end
 		
 		-- TODO
@@ -79,11 +90,14 @@ __kernel void initPotential(
 
 	function template:step(dt)
 		template.super.step(self, dt)
+		
 
 		self.integrator:integrate(dt, function(derivBuf)
-			for i=1,20 do
-				self:potentialBoundary()
-				self.app.cmds:enqueueNDRangeKernel{kernel=self.solvePoissonKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+			if self.selfGravEnabledPtr[0] then
+				for i=1,20 do
+					self:potentialBoundary()
+					self.app.cmds:enqueueNDRangeKernel{kernel=self.solvePoissonKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+				end
 			end
 			
 			self.calcGravityDerivKernel:setArg(0, derivBuf)

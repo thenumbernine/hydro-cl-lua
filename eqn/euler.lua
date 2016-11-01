@@ -17,9 +17,11 @@ Euler.displayVars = {
 	'mx', 'my', 'mz', 'm',
 	'eInt',
 	'eKin', 
+	'ePot',
 	'eTotal', 
 	'EInt', 
 	'EKin', 
+	'EPot',
 	'ETotal', 
 	'P',
 	'S', 
@@ -80,10 +82,12 @@ real calc_eKin(prim_t W) { return .5 * (W.vx * W.vx + W.vy * W.vy + W.vz * W.vz)
 real calc_EKin(prim_t W) { return W.rho * calc_eKin(W); }
 real calc_EInt(prim_t W) { return W.P / gamma_1; }
 real calc_eInt(prim_t W) { return calc_EInt(W) / W.rho; }
-real calc_ETotal(prim_t W) { return calc_EKin(W) + calc_EInt(W); }
+real calc_ETotal(prim_t W, real ePot) { return calc_EKin(W) + calc_EInt(W) + W.rho * ePot; }
 
-prim_t primFromCons(cons_t U) {
-	real EInt = U.ETotal - .5 * (U.mx * U.mx + U.my * U.my + U.mz * U.mz) / U.rho;
+prim_t primFromCons(cons_t U, real ePot) {
+	real EPot = ePot * U.rho;
+	real EKin = .5 * (U.mx * U.mx + U.my * U.my + U.mz * U.mz) / U.rho;
+	real EInt = U.ETotal - EPot - EKin;
 	return (prim_t){
 		.rho = U.rho,
 		.vx = U.mx / U.rho,
@@ -102,18 +106,19 @@ function Euler:getInitStateCode(solver)
 	local code = initState.init(solver)	
 	return table{
 		[[
-cons_t consFromPrim(prim_t W) {
+cons_t consFromPrim(prim_t W, real ePot) {
 	return (cons_t){
 		.rho = W.rho,
 		.mx = W.rho * W.vx,
 		.my = W.rho * W.vy,
 		.mz = W.rho * W.vz,
-		.ETotal = calc_ETotal(W),
+		.ETotal = calc_ETotal(W, ePot),
 	};
 }
 
 __kernel void initState(
-	__global cons_t* UBuf
+	__global cons_t* UBuf,
+	__global real* ePotBuf
 ) {
 	SETBOUNDS(0,0);
 	real4 x = CELL_X(i);
@@ -131,10 +136,13 @@ __kernel void initState(
 	real vy = 0;
 	real vz = 0;
 	real P = 0;
-	
+	real ePot = 0;
+
 ]]..code..[[
-	
-	UBuf[index] = consFromPrim((prim_t){.rho=rho, .vx=vx, .vy=vy, .vz=vz, .P=P});
+
+	prim_t W = {.rho=rho, .vx=vx, .vy=vy, .vz=vz, .P=P};
+	UBuf[index] = consFromPrim(W, ePot);
+	ePotBuf[index] = ePot;
 }
 ]],
 	}:concat'\n'
@@ -148,24 +156,27 @@ end
 
 function Euler:getCalcDisplayVarCode()
 	return [[
-	prim_t W = primFromCons(*U);
+	prim_t W = primFromCons(U, ePot);
+	//switch (displayVar) {
 	switch (displayVar) {
 	case display_U_rho: value = W.rho; break;
 	case display_U_vx: value = W.vx; break;
 	case display_U_vy: value = W.vy; break;
 	case display_U_vz: value = W.vz; break;
 	case display_U_v: value = sqrt(W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); break;
-	case display_U_mx: value = U->mx; break;
-	case display_U_my: value = U->my; break;
-	case display_U_mz: value = U->mz; break;
-	case display_U_m: value = sqrt(U->mx * U->mx + U->my * U->my + U->mz * U->mz); break;
+	case display_U_mx: value = U.mx; break;
+	case display_U_my: value = U.my; break;
+	case display_U_mz: value = U.mz; break;
+	case display_U_m: value = sqrt(U.mx * U.mx + U.my * U.my + U.mz * U.mz); break;
 	case display_U_P: value = W.P; break;
 	case display_U_eInt: value = calc_eInt(W); break;
 	case display_U_eKin: value = calc_eKin(W); break;
-	case display_U_eTotal: value = U->ETotal / W.rho; break;
+	case display_U_ePot: value = ePot; break;
+	case display_U_eTotal: value = U.ETotal / W.rho; break;
 	case display_U_EInt: value = calc_EInt(W); break;
 	case display_U_EKin: value = calc_EKin(W); break;
-	case display_U_ETotal: value = U->ETotal; break;
+	case display_U_EPot: value = W.rho * ePot; break;
+	case display_U_ETotal: value = U.ETotal; break;
 	case display_U_S: value = W.P / pow(W.rho, (real)gamma); break;
 	case display_U_H: value = W.P * gamma / gamma_1; break;
 	case display_U_h: value = W.P * gamma / gamma_1 / W.rho; break;

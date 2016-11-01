@@ -376,10 +376,9 @@ function Solver:createBuffers()
 	-- to get sizeof
 	ffi.cdef(self.eqn:getEigenInfo().typeCode)
 	ffi.cdef(errorTypeCode)
-	
+
+	-- should I put these all in one AoS?
 	self:clalloc('UBuf', self.volume * self.eqn.numStates * realSize)
-	self:clalloc('reduceBuf', self.volume * realSize)
-	self:clalloc('reduceSwapBuf', self.volume * realSize / self.localSize1d)
 	self:clalloc('waveBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
 	self:clalloc('eigenBuf', self.volume * self.dim * ffi.sizeof'eigen_t')
 	self:clalloc('deltaUTildeBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
@@ -394,7 +393,9 @@ function Solver:createBuffers()
 		local errorTypeSize = ffi.sizeof(errorType)
 		self:clalloc('errorBuf', self.volume * self.dim * errorTypeSize)
 	end
-
+	
+	self:clalloc('reduceBuf', self.volume * realSize)
+	self:clalloc('reduceSwapBuf', self.volume * realSize / self.localSize1d)
 	self.reduceResultPtr = ffi.new('real[1]', 0)
 
 	-- CL/GL interop
@@ -412,8 +413,7 @@ function Solver:createBuffers()
 	}
 
 	if self.app.useGLSharing then
-		local ImageGL = CLImageGL
-		self.texCLMem = ImageGL{context=self.app.ctx, tex=self.tex, write=true}
+		self.texCLMem = CLImageGL{context=self.app.ctx, tex=self.tex, write=true}
 	else
 		self.calcDisplayVarToTexPtr = ffi.new(self.app.real..'[?]', self.volume)
 		

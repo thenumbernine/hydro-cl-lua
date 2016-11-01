@@ -1,12 +1,38 @@
 //called from calcDT
 range_t calcCellMinMaxEigenvalues(
-	const __global cons_t* U,
+	cons_t U,
+	real ePot,
 	int side
 ) {
-	prim_t W = primFromCons(*U);
+	prim_t W = primFromCons(U, ePot);
 	real Cs = sqrt(gamma * W.P / W.rho);
 	real v = W.v[side];
 	return (range_t){.min = v - Cs, .max = v + Cs};
+}
+
+//everything matches the default except the params passed through to calcCellMinMaxEigenvalues
+__kernel void calcDT(
+	__global real* dtBuf,
+	const __global cons_t* UBuf,
+	const __global real* ePotBuf 
+) {
+	SETBOUNDS(0,0);
+	if (OOB(2,2)) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+	
+	cons_t U = UBuf[index];
+	real ePot = ePotBuf[index];
+
+	real dt = INFINITY;
+	for (int side = 0; side < dim; ++side) {
+		range_t lambda = calcCellMinMaxEigenvalues(U, ePot, side); 
+		lambda.min = min((real)0., lambda.min);
+		lambda.max = max((real)0., lambda.max);
+		dt = min(dt, dxs[side] / (fabs(lambda.max - lambda.min) + (real)1e-9));
+	}
+	dtBuf[index] = dt; 
 }
 
 typedef struct {
@@ -15,15 +41,20 @@ typedef struct {
 	real hTotal;
 } Roe_t;
 
-Roe_t calcEigenBasisSide(cons_t UL, cons_t UR) {
-	prim_t WL = primFromCons(UL);
+Roe_t calcEigenBasisSide(
+	cons_t UL,
+	real ePotL, 
+	cons_t UR,
+	real ePotR
+) {
+	prim_t WL = primFromCons(UL, ePotL);
 	real sqrtRhoL = sqrt(WL.rho);
 	real vxL = WL.vx;
 	real vyL = WL.vy;
 	real vzL = WL.vz;
 	real hTotalL = calc_hTotal(WL.rho, WL.P, UL.ETotal);
 
-	prim_t WR = primFromCons(UR);
+	prim_t WR = primFromCons(UR, ePotR);
 	real sqrtRhoR = sqrt(UR.rho);
 	real vxR = WR.vx;
 	real vyR = WR.vy;
@@ -52,7 +83,8 @@ void fill(__global real* ptr, int step, real a, real b, real c, real d, real e) 
 __kernel void calcEigenBasis(
 	__global real* waveBuf,			//[volume][dim][numWaves]
 	__global eigen_t* eigenBuf,		//[volume][dim]
-	const __global cons_t* UBuf		//[volume]
+	const __global cons_t* UBuf,	//[volume]
+	const __global real* ePotBuf
 #if defined(checkFluxError)
 	, __global fluxXform_t* fluxXformBuf	//[volume][dim]
 #endif
@@ -69,7 +101,10 @@ __kernel void calcEigenBasis(
 		tmp = UL.mx; UL.mx = UL.m[side]; UL.m[side] = tmp;
 		tmp = UR.mx; UR.mx = UR.m[side]; UR.m[side] = tmp;
 
-		Roe_t roe = calcEigenBasisSide(UL, UR);
+		real ePotL = ePotBuf[indexL];
+		real ePotR = ePotBuf[indexR];
+
+		Roe_t roe = calcEigenBasisSide(UL, ePotL, UR, ePotR);
 		real vx = roe.vx;
 		real vy = roe.vy;
 		real vz = roe.vz;

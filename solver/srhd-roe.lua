@@ -58,28 +58,28 @@ __kernel void {name}(
 	int side = 0;
 	real value = 0;
 
-	const __global cons_t* U = UBuf + index;
-	const __global prim_t* prim = primBuf + index;
+	cons_t U = UBuf[index];
+	prim_t prim = primBuf[index];
 	
 	switch (displayVar) {
-	case display_U_D: value = U->D; break;
-	case display_U_Sx: value = U->Sx; break;
-	case display_U_Sy: value = U->Sy; break;
-	case display_U_Sz: value = U->Sz; break;
-	case display_U_S: value = sqrt(U->Sx*U->Sx + U->Sy*U->Sy + U->Sz*U->Sz); break;
-	case display_U_tau: value = U->tau; break;
-	case display_U_W: value = U->D / prim->rho; break;
+	case display_U_D: value = U.D; break;
+	case display_U_Sx: value = U.Sx; break;
+	case display_U_Sy: value = U.Sy; break;
+	case display_U_Sz: value = U.Sz; break;
+	case display_U_S: value = sqrt(U.Sx*U.Sx + U.Sy*U.Sy + U.Sz*U.Sz); break;
+	case display_U_tau: value = U.tau; break;
+	case display_U_W: value = U.D / prim.rho; break;
 	case display_U_primitive_reconstruction_error: 
 		//prim have just been reconstructed from cons
 		//so reconstruct cons from prims again and calculate the difference
 		{
-			cons_t U2 = consFromPrim(*prim);
+			cons_t U2 = consFromPrim(prim);
 			value = 0;
-			value += fabs(U->D - U2.D);
-			value += fabs(U->Sx - U2.Sx);
-			value += fabs(U->Sy - U2.Sy);
-			value += fabs(U->Sz - U2.Sz);
-			value += fabs(U->tau - U2.tau);
+			value += fabs(U.D - U2.D);
+			value += fabs(U.Sx - U2.Sx);
+			value += fabs(U.Sy - U2.Sy);
+			value += fabs(U.Sz - U2.Sz);
+			value += fabs(U.tau - U2.tau);
 		}
 		break;
 	}
@@ -98,16 +98,16 @@ function SRHDRoe:addConvertToTexs()
 		type = 'prim_t',
 		vars = self.eqn.primDisplayVars,
 		displayBodyCode = [[
-	const __global prim_t* prim = buf + index;
+	prim_t prim = buf[index];
 	switch (displayVar) {
-	case display_prim_rho: value = prim->rho; break;
-	case display_prim_vx: value = prim->vx; break;
-	case display_prim_vy: value = prim->vy; break;
-	case display_prim_vz: value = prim->vz; break;
-	case display_prim_v: value = sqrt(prim->vx*prim->vx + prim->vy*prim->vy + prim->vz*prim->vz); break;
-	case display_prim_eInt: value = prim->eInt; break;
-	case display_prim_P: value = calc_P(prim->rho, prim->eInt); break;
-	case display_prim_h: value = calc_h(prim->rho, calc_P(prim->rho, prim->eInt), prim->eInt); break;
+	case display_prim_rho: value = prim.rho; break;
+	case display_prim_vx: value = prim.vx; break;
+	case display_prim_vy: value = prim.vy; break;
+	case display_prim_vz: value = prim.vz; break;
+	case display_prim_v: value = sqrt(prim.vx*prim.vx + prim.vy*prim.vy + prim.vz*prim.vz); break;
+	case display_prim_eInt: value = prim.eInt; break;
+	case display_prim_P: value = calc_P(prim.rho, prim.eInt); break;
+	case display_prim_h: value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt); break;
 	}
 ]],
 	}

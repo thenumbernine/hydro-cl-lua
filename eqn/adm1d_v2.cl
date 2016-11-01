@@ -109,7 +109,12 @@ kernel void addSourceTerm(
 	
 	deriv->alpha -= alpha * alpha * f * K_xx / gamma_xx;
 	deriv->gamma_xx -= 2. * alpha * K_xx;
+	deriv->K_xx += alpha / gamma_xx * (a_x * d_xxx - K_xx * K_xx);
+// terms that mysteriously disappear when you compare the linearized flux matrix terms moved to source, vs the source that Alcubierre uses in his 1997 paper
+// adding these neglected terms back in make things blow up
+#if 0 
 	deriv->a_x += alpha * K_xx / gamma_xx * (f * (2. * d_xxx / gamma_xx - a_x) - a_x * alpha * dalpha_f);
 	deriv->d_xxx -= alpha * a_x * K_xx; 
-	deriv->K_xx += alpha * ((a_x * d_xxx - K_xx * K_xx) / gamma_xx - a_x * a_x); 
+	deriv->K_xx -= alpha * a_x * a_x; 
+#endif
 }
