@@ -118,6 +118,79 @@ print('self.localSize',self.localSize)
 		end
 	end
 
+
+	if false then
+		local symmath = require 'symmath'
+		local var = symmath.var
+		local vars = symmath.vars
+		local Matrix = symmath.Matrix
+		local Tensor = symmath.Tensor
+		
+		local x,y,z = vars('x', 'y', 'z')
+		local r,theta,z = vars('r', 'theta', 'z')
+		
+		local flatMetric = Matrix:lambda({self.dim, self.dim}, function(i,j) return i==j and 1 or 0 end)
+		local coords = table.sub({r,theta,z}, 1, self.dim)
+		local embedded = table.sub({x,y,z}, 1, self.dim)
+		
+		Tensor.coords{
+			{variables=coords},
+			{variables=embedded, symbols='IJKLMN', metric=flatMetric},
+		}
+		
+		print('coordinates:', table.unpack(coords))
+		print('embedding:', table.unpack(embedded))
+		
+		local eta = Tensor('_IJ', table.unpack(flatMetric)) 
+		print'flat metric:'
+		print(var'\\eta''_IJ':eq(eta'_IJ'()))
+		print()
+		
+		local u = ({
+			Tensor('^I', r),
+			Tensor('^I', r * symmath.cos(theta), r * symmath.sin(theta)),
+			Tensor('^I', r * symmath.cos(theta), r * symmath.sin(theta), z),
+		})[self.dim]
+		print'coordinate chart:'
+		print(var'u''^I':eq(u'^I'()))
+		print()
+		
+		local e = Tensor'_u^I'
+		e['_u^I'] = u'^I_,u'()
+		print'embedded:'
+		print(var'e''_u^I':eq(var'u''^I_,u'):eq(e'_u^I'()))
+		print()
+	
+		local g = (e'_u^I' * e'_v^J' * eta'_IJ')()
+		-- TODO automatically do this ...
+		g = g:map(function(expr)
+			if symmath.powOp.is(expr)
+			and expr[2] == symmath.Constant(2)
+			and symmath.cos.is(expr[1])
+			then
+				return 1 - symmath.sin(expr[1][1]:clone())^2
+			end
+		end)()
+		print'metric:'
+		print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
+		local basis = Tensor.metric(g)
+		print('rank g',g:rank())
+		print('dim g',g:dim())
+		local gU = basis.metricInverse
+		print('rank gU',gU:rank())
+		print('dim gU',gU:dim())
+
+		local GammaL = Tensor'_abc'
+		GammaL['_abc'] = ((g'_ab,c' + g'_ac,b' - g'_bc,a') / 2)()
+		print'1st kind Christoffel:'
+		print(var'\\Gamma''_abc':eq(symmath.divOp(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(GammaL'_abc'()))
+
+		local Gamma = Tensor'^a_bc'
+		Gamma['^a_bc'] = GammaL'^a_bc'()
+		print'connection:'
+		print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()))
+	end
+
 	self:refreshGridSize()
 end
 
@@ -628,8 +701,8 @@ function Solver:refreshSolverProgram()
 	self.calcDerivFromFluxKernel = self.solverProgram:kernel'calcDerivFromFlux'
 	self.calcDerivFromFluxKernel:setArg(1, self.fluxBuf)
 	if self.eqn.useSourceTerm then
-		self.addSourceTermKernel = self.solverProgram:kernel'addSourceTerm'
-		self.addSourceTermKernel:setArg(1, self.UBuf)
+		self.addSourceKernel = self.solverProgram:kernel'addSource'
+		self.addSourceKernel:setArg(1, self.UBuf)
 	end
 
 	if self.checkFluxError or self.checkOrthoError then
@@ -806,7 +879,6 @@ __kernel void boundary(
 	lines:insert'}'
 
 	local code = lines:concat'\n'
-	
 	local boundaryProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code} 
 	local boundaryKernel = boundaryProgram:kernel'boundary'
 	return boundaryProgram, boundaryKernel
@@ -818,7 +890,7 @@ function Solver:refreshBoundaryProgram()
 			type = 'cons_t',
 			-- remap from enum/combobox int values to names
 			methods = table.map(self.boundaryMethods, function(v,k)
-				return self.app.boundaryMethods[1+v], k
+				return self.app.boundaryMethods[1+v[0]], k
 			end),
 			mirrorVars = self.eqn.mirrorVars,
 		}
@@ -832,13 +904,12 @@ function Solver:applyBoundaryToBuffer(kernel)
 		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=self.localSize1d, localSize=self.localSize1d}
 	elseif self.dim == 2 then
 		local maxSize = math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y))
-		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=maxSize, localSize=self.localSize1d}
+		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=maxSize, localSize=math.min(self.localSize1d, maxSize)}
 	elseif self.dim == 3 then
 		print'TODO'
 	else
 		error("can't run boundary for dim "..tonumber(self.dim))
 	end
-
 end
 
 function Solver:boundary()
@@ -895,10 +966,10 @@ function Solver:calcDeriv(derivBuf, dt)
 	self.calcDerivFromFluxKernel:setArg(0, derivBuf)
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDerivFromFluxKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 
-	-- addSourceTerm adds to the derivative buffer
+	-- addSource adds to the derivative buffer
 	if self.eqn.useSourceTerm then
-		self.addSourceTermKernel:setArg(0, derivBuf)
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.addSourceTermKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		self.addSourceKernel:setArg(0, derivBuf)
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.addSourceKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	end
 end
 

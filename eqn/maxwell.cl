@@ -182,7 +182,7 @@ x,  y,  z, z,  y,  x
 	}
 }
 
-__kernel void addSourceTerm(
+__kernel void addSource(
 	__global cons_t* derivBuf,
 	const __global cons_t* UBuf
 ) {

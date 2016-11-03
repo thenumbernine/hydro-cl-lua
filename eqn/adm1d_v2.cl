@@ -90,7 +90,7 @@ void eigen_rightTransform(
 	y[4] = x[2] - x[0];
 }
 
-kernel void addSourceTerm(
+kernel void addSource(
 	__global cons_t* derivBuf,
 	const __global cons_t* UBuf
 ) {
