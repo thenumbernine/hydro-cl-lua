@@ -176,8 +176,17 @@ print()
 		integrator = cmdline.integrator or 'forward Euler',	--'Runge-Kutta 4, TVD',
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
 		dim = cmdline.dim or 2,
+	
+		--[[ cartesian
+		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
+		--]]
+		-- [[ cylindrical
+		geometry = 'cylinder',
+		mins = cmdline.mins or {.1, 0, -1},
+		maxs = cmdline.maxs or {1, 2*math.pi, 1},
+		--]]
 		eqn = cmdline.eqn,
 	}
 
@@ -217,7 +226,11 @@ print()
 
 	local code = file['heatmap2d.shader']
 	self.heatMap2DShader = GLProgram{
-		vertexCode = '#define VERTEX_SHADER\n'..code,
+		vertexCode = table{
+			'#define VERTEX_SHADER',
+			self.solver:getCoordGLSLCode(),
+			code,
+		}:concat'\n',
 		fragmentCode = '#define FRAGMENT_SHADER\n'..code,
 		uniforms = {
 			'useLog',
@@ -692,14 +705,26 @@ function HydroCLApp:display2D(solvers, varName, graph_xmin, graph_ymin, graph_xm
 			gl.glUniform1f(self.heatMap2DShader.uniforms.valueMax, valueMax)
 			self.solver.tex:bind(0)
 			self.gradientTex:bind(1)
-			gl.glBegin(gl.GL_QUADS)
-			for _,v in ipairs{{0,0},{1,0},{1,1},{0,1}} do
-				gl.glTexCoord2f(v[1], v[2])
-				gl.glVertex2f(
-					v[1] * solver.maxs[1] + (1 - v[1]) * solver.mins[1],
-					v[2] * solver.maxs[2] + (1 - v[2]) * solver.mins[2])
+		
+			local gridScale = 4
+			local udivs = math.ceil(tonumber(solver.gridSize.x)/gridScale)
+			local vdivs = math.ceil(tonumber(solver.gridSize.y)/gridScale)
+			for vbase=0,vdivs-1 do
+				gl.glBegin(gl.GL_TRIANGLE_STRIP)
+				for ui=0,udivs do
+					for vofs=1,0,-1 do
+						local vi = vbase+vofs
+						local u = ui/udivs
+						local v = vi/vdivs
+						gl.glTexCoord2d(u,v)
+						gl.glVertex2d(
+							u * solver.maxs[1] + (1 - u) * solver.mins[1],
+							v * solver.maxs[2] + (1 - v) * solver.mins[2])
+					end
+				end
+				gl.glEnd()
 			end
-			gl.glEnd()
+			
 			self.gradientTex:unbind(1)
 			self.solver.tex:unbind(0)
 			self.heatMap2DShader:useNone()

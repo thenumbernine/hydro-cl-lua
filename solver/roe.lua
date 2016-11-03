@@ -95,8 +95,6 @@ function Solver:init(args)
 			self.localSize.z = math.min(gridSize[3], rest / localSizeY)
 		end
 	end
-print('maxWorkGroupSize',self.maxWorkGroupSize)
-print('self.localSize',self.localSize)
 
 	self.useFixedDT = ffi.new('bool[1]', false)
 	self.fixedDT = ffi.new('float[1]', 0)
@@ -113,13 +111,13 @@ print('self.localSize',self.localSize)
 		for _,minmax in ipairs(minmaxs) do
 			local var = xs[i]..minmax
 			self.boundaryMethods[var] = ffi.new('int[1]', self.app.boundaryMethods:find(
-					(args.boundary or {})[var] or 'freeflow'
-				)-1)
+				(args.boundary or {})[var] or 'freeflow'
+			)-1)
 		end
 	end
 
 
-	if false then
+	do	--if false then
 		local symmath = require 'symmath'
 		local var = symmath.var
 		local vars = symmath.vars
@@ -130,8 +128,21 @@ print('self.localSize',self.localSize)
 		local r,theta,z = vars('r', 'theta', 'z')
 		
 		local flatMetric = Matrix:lambda({self.dim, self.dim}, function(i,j) return i==j and 1 or 0 end)
+
+		-- [[ cartesian
+		local coords = table.sub({x,y,z}, 1, self.dim)
+		local embedded = table.sub({x,y,z}, 1, self.dim)
+		local u = Tensor('^I', coords:unpack())
+		--]]
+		--[[ cylinder
 		local coords = table.sub({r,theta,z}, 1, self.dim)
 		local embedded = table.sub({x,y,z}, 1, self.dim)
+		local u = ({
+			Tensor('^I', r),
+			Tensor('^I', r * symmath.cos(theta), r * symmath.sin(theta)),
+			Tensor('^I', r * symmath.cos(theta), r * symmath.sin(theta), z),
+		})[self.dim]
+		--]]
 		
 		Tensor.coords{
 			{variables=coords},
@@ -145,12 +156,7 @@ print('self.localSize',self.localSize)
 		print'flat metric:'
 		print(var'\\eta''_IJ':eq(eta'_IJ'()))
 		print()
-		
-		local u = ({
-			Tensor('^I', r),
-			Tensor('^I', r * symmath.cos(theta), r * symmath.sin(theta)),
-			Tensor('^I', r * symmath.cos(theta), r * symmath.sin(theta), z),
-		})[self.dim]
+	
 		print'coordinate chart:'
 		print(var'u''^I':eq(u'^I'()))
 		print()
@@ -173,12 +179,7 @@ print('self.localSize',self.localSize)
 		end)()
 		print'metric:'
 		print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
-		local basis = Tensor.metric(g)
-		print('rank g',g:rank())
-		print('dim g',g:dim())
-		local gU = basis.metricInverse
-		print('rank gU',gU:rank())
-		print('dim gU',gU:dim())
+		Tensor.metric(g)
 
 		local GammaL = Tensor'_abc'
 		GammaL['_abc'] = ((g'_ab,c' + g'_ac,b' - g'_bc,a') / 2)()
@@ -189,9 +190,32 @@ print('self.localSize',self.localSize)
 		Gamma['^a_bc'] = GammaL'^a_bc'()
 		print'connection:'
 		print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()))
+
+		self.uCode = range(self.dim):map(function(i)
+			return (require 'symmath.tostring.C'
+				:compile(u[i], 
+					table.map(coords, function(coord, i)
+						return {[coord] = 'x_'..xs[i]}
+					end)
+				)
+				:match'return (.*);')
+		end)
 	end
 
 	self:refreshGridSize()
+end
+
+function Solver:getCoordGLSLCode()
+	return table{
+		'vec4 coordMap(vec4 r) {',
+		'	return vec4(',
+	}:append(range(3):map(function(i)
+		return '		'..(self.uCode[i] or 'r.'..xs[i]):gsub('x_', 'r.')..','
+	end)):append{
+		'		r.w);',
+		'}',
+		self.uInvGLSLCode,
+	}:concat'\n'
 end
 
 -- this is the general function - which just assigns the eqn provided by the arg
