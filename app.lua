@@ -177,12 +177,12 @@ print()
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
 		dim = cmdline.dim or 2,
 	
-		--[[ cartesian
+		-- [[ cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		--]]
-		-- [[ cylindrical
+		--[[ cylinder
 		geometry = 'cylinder',
 		mins = cmdline.mins or {.1, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},

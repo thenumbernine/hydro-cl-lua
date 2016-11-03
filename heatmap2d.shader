@@ -4,8 +4,8 @@ varying vec2 texCoord;
 
 void main() {
 	texCoord = gl_MultiTexCoord0.xy;
-	gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
-	gl_Position = coordMap(gl_Position);
+	vec4 x = coordMap(gl_Vertex);
+	gl_Position = gl_ModelViewProjectionMatrix * x;
 }
 
 #endif	//VERTEX_SHADER
