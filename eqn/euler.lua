@@ -122,10 +122,7 @@ prim_t primFromCons(cons_t U, real ePot) {
 	real EInt = U.ETotal - EPot - EKin;
 	return (prim_t){
 		.rho = U.rho,
-		.v = _real3(
-			U.m.x / U.rho,
-			U.m.y / U.rho,
-			U.m.z / U.rho),
+		.v = real3_scale(U.m, 1./U.rho),
 		.P = EInt / gamma_1,
 	};
 }
@@ -142,10 +139,7 @@ function Euler:getInitStateCode(solver)
 cons_t consFromPrim(prim_t W, real ePot) {
 	return (cons_t){
 		.rho = W.rho,
-		.m = _real3(
-			W.v.x * W.rho,
-			W.v.y * W.rho,
-			W.v.z * W.rho),
+		.m = real3_scale(W.v, W.rho),
 		.ETotal = calc_ETotal(W, ePot),
 	};
 }
@@ -159,10 +153,7 @@ __kernel void initState(
 	//TODO should 'x' be in embedded or coordinate space? coordinate 
 	//should 'v0 v1 v2' be embedded or coordinate space? coordinate
 	real3 x = CELL_X(i);
-	real3 mids = _real3(
-		.5 * (mins.x + maxs.x),
-		.5 * (mins.y + maxs.y),
-		.5 * (mins.z + maxs.z));
+	real3 mids = real3_scale(real3_add(mins, maxs), .5);
 	bool lhs = x.s0 < mids.s0
 #if dim > 1
 		&& x.s1 < mids.s1

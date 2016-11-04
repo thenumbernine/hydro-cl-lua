@@ -494,6 +494,15 @@ typedef union {
 } real3;
 
 #define _real3(a,b,c) (real3){.ptr={a,b,c}}
+
+static inline real3 real3_scale(real3 a, real s) {
+	return _real3(a.x * s, a.y * s, a.z * s);
+}
+
+static inline real3 real3_add(real3 a, real3 b) {
+	return _real3(a.x + b.x, a.y + b.y, a.z + b.z);
+}
+
 ]]
 
 	lines:append{

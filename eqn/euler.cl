@@ -61,10 +61,9 @@ Roe_t calcEigenBasisSide(
 
 	return (Roe_t){
 		.rho = sqrtRhoL * sqrtRhoR,
-		.v = _real3(
-			(vL.x * sqrtRhoL + vR.x * sqrtRhoR) * invDenom,
-			(vL.y * sqrtRhoL + vR.y * sqrtRhoR) * invDenom,
-			(vL.z * sqrtRhoL + vR.z * sqrtRhoR) * invDenom),
+		.v = real3_add(
+			real3_scale(vL, sqrtRhoL * invDenom),
+			real3_scale(vR, sqrtRhoR * invDenom)),
 		.hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR),
 	};	
 }
