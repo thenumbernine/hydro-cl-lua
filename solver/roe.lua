@@ -515,10 +515,8 @@ static inline real3 real3_sub(real3 a, real3 b) {
 	end)):append{
 		'constant real3 mins = _real3(mins_x, '..(self.dim<2 and '0' or 'mins_y')..', '..(self.dim<3 and '0' or 'mins_z')..');', 
 		'constant real3 maxs = _real3(maxs_x, '..(self.dim<2 and '0' or 'maxs_y')..', '..(self.dim<3 and '0' or 'maxs_z')..');', 
-	}:append(xs:map(function(x,i)
-		return '#define d'..x..' '..clnumber(self.dxs[i])
-	end)):append{
-		'constant real3 dxs = _real3(dx, dy, dz);',
+	}:append{
+		'constant real3 dxs = _real3('..table(self.dxs):map(clnumber):concat', '..');',
 		'#define dx_min '..clnumber(math.min(table.unpack(self.dxs, 1, self.dim))),
 	}:append(xs:map(function(name,i)
 		return '#define gridSize_'..name..' '..tonumber(self.gridSize[name])
@@ -528,12 +526,12 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		'#define INDEX(a,b,c)	((a) + gridSize_x * ((b) + gridSize_y * (c)))',
 		'#define INDEXV(i)		INDEX((i).x, (i).y, (i).z)',
 		'#define CELL_X(i) _real3('
-			..'(real)(i.x + .5) * dx + mins_x, '
+			..'(real)(i.x + .5) * dx_at(i,0) + mins_x, '
 			..(--self.dim < 2 and '0,' or 
-				'(real)(i.y + .5) * dy + mins_y, '
+				'(real)(i.y + .5) * dx_at(i,1) + mins_y, '
 			)
 			..(--self.dim < 3 and '0' or 
-				'(real)(i.z + .5) * dz + mins_z'
+				'(real)(i.z + .5) * dx_at(i,2) + mins_z'
 			)
 			..');',
 	}:append{
@@ -553,7 +551,12 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		'\tif (OOB(lhs,rhs)) return; \\',
 		'\tint index = INDEXV(i);',
 	}
-	
+
+	-- TODO replace this with geom code
+	lines:insert[[
+#define dx_at(i, side) dxs.s[side]
+]]
+
 	lines:append(self.displayVars:map(function(var,i)
 		return '#define display_'..var.name..' '..i
 	end))

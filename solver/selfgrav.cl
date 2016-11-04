@@ -9,6 +9,14 @@ __kernel void solvePoisson(
 {
 	SETBOUNDS(2,2);
 
+	real dx = dx_at(i,0);
+#if dim > 1
+	real dy = dx_at(i,1);
+#endif
+#if dim > 2
+	real dz = dx_at(i,2);
+#endif
+
 	real skewSum = 0;
 	if (i.x < gridSize_x-3) skewSum += potentialBuf[index + stepsize.x] / (dx * dx);
 	if (i.x > 2) skewSum += potentialBuf[index - stepsize.x] / (dx * dx);
@@ -48,7 +56,7 @@ __kernel void calcGravityDeriv(
 		int indexL = index - stepsize[side];
 		int indexR = index + stepsize[side];
 	
-		real gradient = (potentialBuf[indexR] - potentialBuf[indexL]) / (2. * dxs.s[side]);
+		real gradient = (potentialBuf[indexR] - potentialBuf[indexL]) / (2. * dx_at(i,side));
 		real gravity = -gradient;
 
 		deriv->m.s[side] -= U->rho * gravity;

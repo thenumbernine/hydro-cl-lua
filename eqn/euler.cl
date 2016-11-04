@@ -30,7 +30,7 @@ __kernel void calcDT(
 		range_t lambda = calcCellMinMaxEigenvalues(U, ePot, side);
 		lambda.min = min((real)0., lambda.min);
 		lambda.max = max((real)0., lambda.max);
-		dt = min(dt, dxs.s[side] / (fabs(lambda.max - lambda.min) + (real)1e-9));
+		dt = min(dt, dx_at(i,side) / (fabs(lambda.max - lambda.min) + (real)1e-9));
 	}
 	dtBuf[index] = dt; 
 }

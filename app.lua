@@ -170,30 +170,30 @@ typedef union {
 	local args = {
 		app = self, 
 		gridSize = {
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
+			cmdline.gridSize or 32,
+			cmdline.gridSize or 512,
+			cmdline.gridSize or 1,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
 			xmax=cmdline.boundary or 'freeflow',
-			ymin=cmdline.boundary or 'freeflow',
-			ymax=cmdline.boundary or 'freeflow',
+			ymin=cmdline.boundary or 'periodic',
+			ymax=cmdline.boundary or 'periodic',
 			zmin=cmdline.boundary or 'freeflow',
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		integrator = cmdline.integrator or 'forward Euler',	--'Runge-Kutta 4, TVD',
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
-		dim = cmdline.dim or 1,
+		dim = cmdline.dim or 2,
 	
-		-- [[ cartesian
+		--[[ cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		--]]
-		--[[ cylinder
+		-- [[ cylinder
 		geometry = 'cylinder',
-		mins = cmdline.mins or {.1, 0, -1},
+		mins = cmdline.mins or {.5, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
 		--]]
 		eqn = cmdline.eqn,

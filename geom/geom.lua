@@ -25,9 +25,6 @@ function Geometry:init(args)
 	local Matrix = symmath.Matrix
 	local Tensor = symmath.Tensor
 	
-	local x,y,z = vars('x', 'y', 'z')
-	local r,theta,z = vars('r', 'theta', 'z')
-	
 	local flatMetric = Matrix:lambda({dim, dim}, function(i,j) return i==j and 1 or 0 end)
 
 	local coords = args.coords
