@@ -30,7 +30,7 @@ __kernel void calcDT(
 		range_t lambda = calcCellMinMaxEigenvalues(U, ePot, side);
 		lambda.min = min((real)0., lambda.min);
 		lambda.max = max((real)0., lambda.max);
-		dt = min(dt, dxs[side] / (fabs(lambda.max - lambda.min) + (real)1e-9));
+		dt = min(dt, dxs.ptr[side] / (fabs(lambda.max - lambda.min) + (real)1e-9));
 	}
 	dtBuf[index] = dt; 
 }
@@ -61,11 +61,10 @@ Roe_t calcEigenBasisSide(
 
 	return (Roe_t){
 		.rho = sqrtRhoL * sqrtRhoR,
-		.v = (real3){
-			.x = (vL.x * sqrtRhoL + vR.x * sqrtRhoR) * invDenom,
-			.y = (vL.y * sqrtRhoL + vR.y * sqrtRhoR) * invDenom,
-			.z = (vL.z * sqrtRhoL + vR.z * sqrtRhoR) * invDenom,
-		},
+		.v = _real3(
+			(vL.x * sqrtRhoL + vR.x * sqrtRhoR) * invDenom,
+			(vL.y * sqrtRhoL + vR.y * sqrtRhoR) * invDenom,
+			(vL.z * sqrtRhoL + vR.z * sqrtRhoR) * invDenom),
 		.hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR),
 	};	
 }

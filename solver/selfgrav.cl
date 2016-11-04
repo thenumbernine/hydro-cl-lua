@@ -48,7 +48,7 @@ __kernel void calcGravityDeriv(
 		int indexL = index - stepsize[side];
 		int indexR = index + stepsize[side];
 	
-		real gradient = (potentialBuf[indexR] - potentialBuf[indexL]) / (2. * dxs[side]);
+		real gradient = (potentialBuf[indexR] - potentialBuf[indexL]) / (2. * dxs.ptr[side]);
 		real gravity = -gradient;
 
 		deriv->m.ptr[side] -= U->rho * gravity;

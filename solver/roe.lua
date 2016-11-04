@@ -505,12 +505,12 @@ typedef union {
 		return '#define mins_'..x..' '..clnumber(self.mins[i])..'\n'
 			.. '#define maxs_'..x..' '..clnumber(self.maxs[i])..'\n'
 	end)):append{
-		'constant real4 mins = (real4)(mins_x, '..(self.dim<2 and '0' or 'mins_y')..', '..(self.dim<3 and '0' or 'mins_z')..', 0);', 
-		'constant real4 maxs = (real4)(maxs_x, '..(self.dim<2 and '0' or 'maxs_y')..', '..(self.dim<3 and '0' or 'maxs_z')..', 0);', 
+		'constant real3 mins = _real3(mins_x, '..(self.dim<2 and '0' or 'mins_y')..', '..(self.dim<3 and '0' or 'mins_z')..');', 
+		'constant real3 maxs = _real3(maxs_x, '..(self.dim<2 and '0' or 'maxs_y')..', '..(self.dim<3 and '0' or 'maxs_z')..');', 
 	}:append(xs:map(function(x,i)
 		return '#define d'..x..' '..clnumber(self.dxs[i])
 	end)):append{
-		'constant real4 dxs = (real4)(dx, dy, dz, 0);',
+		'constant real3 dxs = _real3(dx, dy, dz);',
 		'#define dx_min '..clnumber(math.min(table.unpack(self.dxs, 1, self.dim))),
 	}:append(xs:map(function(name,i)
 		return '#define gridSize_'..name..' '..tonumber(self.gridSize[name])
@@ -519,7 +519,7 @@ typedef union {
 		'constant int4 stepsize = (int4)(1, gridSize_x, gridSize_x * gridSize_y, gridSize_x * gridSize_y * gridSize_z);',
 		'#define INDEX(a,b,c)	((a) + gridSize_x * ((b) + gridSize_y * (c)))',
 		'#define INDEXV(i)		INDEX((i).x, (i).y, (i).z)',
-		'#define CELL_X(i) (real4)('
+		'#define CELL_X(i) _real3('
 			..'(real)(i.x + .5) * dx + mins_x, '
 			..(--self.dim < 2 and '0,' or 
 				'(real)(i.y + .5) * dy + mins_y, '
@@ -527,7 +527,7 @@ typedef union {
 			..(--self.dim < 3 and '0' or 
 				'(real)(i.z + .5) * dz + mins_z'
 			)
-			..', 0);',
+			..');',
 	}:append{
 		self.eqn.getTypeCode and self.eqn:getTypeCode() or nil
 	}:append{
