@@ -93,14 +93,14 @@ __kernel void initState(
 	__global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
-	real4 x = CELL_X(i);
-	real4 mids = (real).5 * (mins + maxs);
-	bool lhs = x[0] < mids[0]
+	real3 x = CELL_X(i);
+	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	bool lhs = x.x < mids.x
 #if dim > 1
-		&& x[1] < mids[1]
+		&& x.y < mids.y
 #endif
 #if dim > 2
-		&& x[2] < mids[2]
+		&& x.z < mids.z
 #endif
 	;
 	real rho = 0;

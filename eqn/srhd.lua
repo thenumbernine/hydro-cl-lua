@@ -7,19 +7,19 @@ local SRHD = class(Equation)
 SRHD.name = 'SRHD'
 SRHD.numStates = 5
 
-SRHD.consVars = {'D', 'Sx', 'Sy', 'Sz', 'tau'}
-SRHD.primVars = {'rho', 'vx', 'vy', 'vz', 'eInt'}
-SRHD.mirrorVars = {{'Sx'}, {'Sy'}, {'Sz'}}
+SRHD.consVars = {'D', 'S0', 'S1', 'S2', 'tau'}
+SRHD.primVars = {'rho', 'v0', 'v1', 'v2', 'eInt'}
+SRHD.mirrorVars = {{'S.s0'}, {'S.s1'}, {'S.s2'}}
 SRHD.displayVars = {
 	'D',
-	'Sx', 'Sy', 'Sz', 'S',
+	'S0', 'S1', 'S2', 'S',
 	'tau',
 	'W',
 	'primitive_reconstruction_error',
 }
 SRHD.primDisplayVars = {
 	'rho',
-	'vx', 'vy', 'vz', 'v',
+	'v0', 'v1', 'v2', 'v',
 	'eInt',
 	'P',
 	'h',
@@ -63,27 +63,21 @@ function SRHD:getTypeCode()
 	return [[
 typedef struct {
 	real rho;
-	union {
-		struct { real vx, vy, vz; };
-		real v[3];
-	};
+	real3 v;
 	real eInt;
 } prim_t;
 
 enum {
 	cons_D,
-	cons_Sx,
-	cons_Sy,
-	cons_Sz,
+	cons_S0,
+	cons_S1,
+	cons_S2,
 	cons_tau,
 };
 
 typedef struct {
 	real D;
-	union {
-		struct { real Sx, Sy, Sz; };
-		real S[3];
-	};
+	real3 S;
 	real tau;
 } cons_t;
 ]]
@@ -95,27 +89,39 @@ function SRHD:getCodePrefix()
 		[[
 #define gamma_1 (gamma-1.)
 
-real calc_P(real rho, real eInt) { return gamma_1 * rho * eInt; }	//pressure function for ideal gas
-real calc_dP_drho(real rho, real eInt) { return gamma_1 * eInt; }	//chi in most papers
-real calc_dP_deInt(real rho, real eInt) { return gamma_1 * rho; }	//kappa in most papers
-real calc_eInt_from_P(real rho, real P) { return P / (gamma_1 * rho); }
-real calc_h(real rho, real P, real eInt) { return 1. + eInt + P / rho; }
+//pressure function for ideal gas
+real calc_P(real rho, real eInt) {
+	return gamma_1 * rho * eInt;
+}	
+
+//chi in most papers
+real calc_dP_drho(real rho, real eInt) {
+	return gamma_1 * eInt;
+}
+
+//kappa in most papers
+real calc_dP_deInt(real rho, real eInt) {
+	return gamma_1 * rho;
+}
+
+real calc_eInt_from_P(real rho, real P) {
+	return P / (gamma_1 * rho);
+}
+
+real calc_h(real rho, real P, real eInt) {
+	return 1. + eInt + P / rho;
+}
 
 cons_t consFromPrim(prim_t prim) {
-	real rho = prim.rho;
-	real vx = prim.vx, vy = prim.vy, vz = prim.vz; 
-	real eInt = prim.eInt;
-	real vSq = vx*vx + vy*vy + vz*vz;
+	real vSq = coordLenSq(prim.v);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
-	real P = calc_P(rho, eInt);
-	real h = calc_h(rho, P, eInt);
-	real D = rho * W;	//rest-mass density
-	real Sx = rho * h * WSq * vx;
-	real Sy = rho * h * WSq * vy;
-	real Sz = rho * h * WSq * vz;
-	real tau = rho * h * WSq - P - D;	
-	return (cons_t){.D=D, .Sx=Sx, .Sy=Sy, .Sz=Sz, .tau=tau};
+	real P = calc_P(prim.rho, prim.eInt);
+	real h = calc_h(prim.rho, P, prim.eInt);
+	real D = prim.rho * W;	//rest-mass density
+	real3 S = real3_scale(prim.v, prim.rho * h * WSq);
+	real tau = prim.rho * h * WSq - P - D;	
+	return (cons_t){.D=D, .S=S, .tau=tau};
 }
 ]],
 	}:concat'\n'
@@ -132,29 +138,28 @@ __kernel void initState(
 	__global prim_t* primBuf
 ) {
 	SETBOUNDS(0,0);
-	real4 x = CELL_X(i);
-	real4 mids = (real).5 * (mins + maxs);
-	bool lhs = x[0] < mids[0]
+	real3 x = CELL_X(i);
+	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	bool lhs = x.x < mids.x
 #if dim > 1
-		&& x[1] < mids[1]
+		&& x.y < mids.y
 #endif
 #if dim > 2
-		&& x[2] < mids[2]
+		&& x.z < mids.z
 #endif
 	;
 	real rho = 0;
-	real vx = 0;
-	real vy = 0;
-	real vz = 0;
+	real3 v = _real3(0,0,0);
 	real P = 0;
 	
 ]]..code..[[
+	
 	real eInt = calc_eInt_from_P(rho, P);
-	real vSq = vx*vx + vy*vy + vz*vz;
+	real vSq = coordLenSq(v);
 	real W = 1./sqrt(1. - vSq);
 	real h = calc_h(rho, P, eInt);
 
-	prim_t prim = {.rho=rho, .vx=vx, .vy=vy, .vz=vz, .eInt=eInt};
+	prim_t prim = {.rho=rho, .v=v, .eInt=eInt};
 	primBuf[index] = prim;
 	consBuf[index] = consFromPrim(prim);
 }

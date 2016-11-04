@@ -486,14 +486,9 @@ function Solver:createCodePrefix()
 		return 'typedef '..self.app.real..n..' real'..n..';'
 	end))
 
+	lines:insert(self.app.real3TypeCode)
 	lines:insert[[
-typedef union {
-	real ptr[3];
-	struct { real s0, s1, s2; };
-	struct { real x, y, z; };
-} real3;
-
-#define _real3(a,b,c) (real3){.ptr={a,b,c}}
+#define _real3(a,b,c) (real3){.s={a,b,c}}
 
 static inline real3 real3_scale(real3 a, real s) {
 	return _real3(a.x * s, a.y * s, a.z * s);
@@ -501,6 +496,10 @@ static inline real3 real3_scale(real3 a, real s) {
 
 static inline real3 real3_add(real3 a, real3 b) {
 	return _real3(a.x + b.x, a.y + b.y, a.z + b.z);
+}
+
+static inline real3 real3_sub(real3 a, real3 b) {
+	return _real3(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 
 ]]

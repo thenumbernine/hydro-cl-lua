@@ -87,7 +87,7 @@ local initStates = {
 	{
 		name = 'constant',
 		init = function(solver) 
-			return '	rho=1; vx=1; vy=1; vz=1; P=1;'
+			return '	rho=1; v.x=1; v.y=1; v.z=1; P=1;'
 		end,
 	},
 	{
@@ -113,7 +113,7 @@ local initStates = {
 			return [[
 	real rSq = dot(x,x);
 	rho = exp(-100*rSq) + 1.;
-	vx = 1;
+	v.x = 1;
 	P = 1;
 ]]
 		end,
@@ -136,7 +136,7 @@ local initStates = {
 			return [[
 	real delta = .1;
 	rho = 1;	// lhs ? .2 : .8;
-	vx = lhs ? .5 - delta : .5 + delta;
+	v.x = lhs ? .5 - delta : .5 + delta;
 	P = 1;
 ]]
 		end,
@@ -147,45 +147,45 @@ local initStates = {
 	-- and I can't find that paper right now
 	quadrantProblem{
 		name = 'configuration 1',
-		{rho=1, P=1, vx=0, vy=0},
-		{rho=.5197, P=.4, vx=-.7259, vy=0},
-		{rho=.1072, P=.0439, vx=-.7259, vy=-1.4045},
-		{rho=.2579, P=.15, vx=0, vy=-1.4045},
+		{rho=1, P=1, ['v.x']=0, ['v.y']=0},
+		{rho=.5197, P=.4, ['v.x']=-.7259, ['v.y']=0},
+		{rho=.1072, P=.0439, ['v.x']=-.7259, ['v.y']=-1.4045},
+		{rho=.2579, P=.15, ['v.x']=0, ['v.y']=-1.4045},
 	},
 	quadrantProblem{
 		name = 'configuration 2',
-		{rho=1, P=1, vx=0, vy=0},
-		{rho=.5197, P=.4, vx=-.7259, vy=0},
-		{rho=1, P=1, vx=-.7259, vy=-.7259},
-		{rho=.5197, P=.4, vx=0, vy=-.7259},
+		{rho=1, P=1, ['v.x']=0, ['v.y']=0},
+		{rho=.5197, P=.4, ['v.x']=-.7259, ['v.y']=0},
+		{rho=1, P=1, ['v.x']=-.7259, ['v.y']=-.7259},
+		{rho=.5197, P=.4, ['v.x']=0, ['v.y']=-.7259},
 	},
 	quadrantProblem{
 		name = 'configuration 3',
-		{rho=1.5, P=1.5, vx=0, vy=0},
-		{rho=.5323, P=.3, vx=1.206, vy=0},
-		{rho=.138, P=.029, vx=1.206, vy=1.206},
-		{rho=.5323, P=.3, vx=0, vy=1.206},
+		{rho=1.5, P=1.5, ['v.x']=0, ['v.y']=0},
+		{rho=.5323, P=.3, ['v.x']=1.206, ['v.y']=0},
+		{rho=.138, P=.029, ['v.x']=1.206, ['v.y']=1.206},
+		{rho=.5323, P=.3, ['v.x']=0, ['v.y']=1.206},
 	},
 	quadrantProblem{
 		name = 'configuration 4',
-		{rho=1.1, P=1.1, vx=0, vy=0},
-		{rho=.5065, P=.35, vx=.8939, vy=0},
-		{rho=1.1, P=1.1, vx=.8939, vy=.8939},
-		{rho=.5065, P=.35, vx=0, vy=.8939},
+		{rho=1.1, P=1.1, ['v.x']=0, ['v.y']=0},
+		{rho=.5065, P=.35, ['v.x']=.8939, ['v.y']=0},
+		{rho=1.1, P=1.1, ['v.x']=.8939, ['v.y']=.8939},
+		{rho=.5065, P=.35, ['v.x']=0, ['v.y']=.8939},
 	},
 	quadrantProblem{
 		name = 'configuration 5',
-		{rho=1, P=1, vx=-.75, vy=-.5},
-		{rho=2, P=1, vx=-.75, vy=.5},
-		{rho=1, P=1, vx=.75, vy=.5},
-		{rho=3, P=1, vx=.75, vy=-.5},
+		{rho=1, P=1, ['v.x']=-.75, ['v.y']=-.5},
+		{rho=2, P=1, ['v.x']=-.75, ['v.y']=.5},
+		{rho=1, P=1, ['v.x']=.75, ['v.y']=.5},
+		{rho=3, P=1, ['v.x']=.75, ['v.y']=-.5},
 	},
 	quadrantProblem{
 		name = 'configuration 6',
-		{rho=1, P=1, vx=.75, vy=-.5},
-		{rho=2, P=1, vx=.75, vy=.5},
-		{rho=1, P=1, vx=-.75, vy=.5},
-		{rho=3, P=1, vx=-.75, vy=-.5},
+		{rho=1, P=1, ['v.x']=.75, ['v.y']=-.5},
+		{rho=2, P=1, ['v.x']=.75, ['v.y']=.5},
+		{rho=1, P=1, ['v.x']=-.75, ['v.y']=.5},
+		{rho=3, P=1, ['v.x']=-.75, ['v.y']=-.5},
 	},
 	--from SRHD Marti & Muller 2000
 	{
@@ -194,8 +194,8 @@ local initStates = {
 			solver.eqn.guiVarsForName.gamma.value[0] = 4/3
 			return [[
 	rho = 1;
-	vx = 1. - 1e-5;
-	P = gamma_1 * rho * (1e-7 / sqrt(1. - vx * vx));
+	v.x = 1. - 1e-5;
+	P = gamma_1 * rho * (1e-7 / sqrt(1. - v.x * v.x));
 ]]
 		end,
 	},
@@ -267,12 +267,12 @@ local initStates = {
 #endif
 	real noise = (maxs.x - mins.x) * 1e-4;
 	rho = inside ? 2 : 1;
-	vx = cos(theta) * noise + (inside ? -.5 : .5);
+	v.x = cos(theta) * noise + (inside ? -.5 : .5);
 #if dim == 2
-	vy = sin(theta) * noise;
+	v.y = sin(theta) * noise;
 #endif
 #if dim == 3
-	vz = sin(theta) * noise;
+	v.z = sin(theta) * noise;
 #endif
 	P = 2.5;
 ]]
@@ -300,8 +300,8 @@ local initStates = {
 	if (inside) {
 		rho = 8;
 		P = 116.5;
-		vx = 8.25 * cos(30. * M_PI / 180.),
-		vy = -8.25 * sin(30. * M_PI / 180.),
+		v.x = 8.25 * cos(30. * M_PI / 180.),
+		v.y = -8.25 * sin(30. * M_PI / 180.),
 	} else {
 		rho = 1.4;
 		P = 1;
@@ -323,7 +323,7 @@ local initStates = {
 			solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'mirror'-1
 			return [[
 	rho = 1;
-	vx = x.y > .45 ? 1 : 0;
+	v.x = x.y > .45 ? 1 : 0;
 	P = 1;
 ]]
 		end,
@@ -345,7 +345,7 @@ local initStates = {
 	real bubbleRSq = dot(x - bubbleCenter, x - bubbleCenter);
 	rho = x.x < waveX ? 1. : (bubbleRSq < bubbleRadius*bubbleRadius ? .1 : 1);
 	P = x.x < waveX ? 1 : .1;
-	vx = x.x < waveX ? 0 : -.5;
+	v.x = x.x < waveX ? 0 : -.5;
 ]]
 		end,
 	},

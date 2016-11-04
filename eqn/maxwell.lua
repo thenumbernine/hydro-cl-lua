@@ -8,11 +8,11 @@ local Maxwell = class(Equation)
 Maxwell.name = 'Maxwell'
 
 Maxwell.numStates = 6
-Maxwell.consVars = {'epsEx', 'epsEy', 'epsEz', 'Bx', 'By', 'Bz'}
-Maxwell.mirrorVars = {{'epsEx', 'Bx'}, {'epsEy', 'By'}, {'epsEz', 'Bz'}}
+Maxwell.consVars = {'epsE0', 'epsE0', 'epsE2', 'B0', 'B1', 'B2'}
+Maxwell.mirrorVars = {{'epsE.s0', 'B.s0'}, {'epsE.s1', 'B.s1'}, {'epsE.s2', 'B.s2'}}
 Maxwell.displayVars = {
-	'Ex', 'Ey', 'Ez', 'E',
-	'Bx', 'By', 'Bz', 'B',
+	'E0', 'E1', 'E2', 'E',
+	'B0', 'B1', 'B2', 'B',
 	'energy',
 }
 
@@ -27,6 +27,15 @@ Maxwell.guiVars = table{
 }
 Maxwell.guiVarsForName = Maxwell.guiVars:map(function(var) return var, var.name end)
 
+function Maxwell:getTypeCode()
+	return [[
+typedef struct {
+	real3 epsE;
+	real3 B;
+} cons_t;
+]]
+end
+
 function Maxwell:getCodePrefix()
 	return table{
 		Maxwell.super.getCodePrefix(self),
@@ -34,11 +43,11 @@ function Maxwell:getCodePrefix()
 		'#define sqrt_mu0 '..clnumber(math.sqrt(self.guiVarsForName.mu0.value[0])),
 		[[
 real ESq(cons_t U) { 
-	return (U.epsEx * U.epsEx + U.epsEy * U.epsEy + U.epsEz * U.epsEz) / (eps0 * eps0);
+	return coordLenSq(U.epsE) / (eps0 * eps0);
 }
 
 real BSq(cons_t U) {
-	return U.Bx * U.Bx + U.By * U.By + U.Bz * U.Bz;
+	return coordLenSq(U.B);
 }
 ]]
 	}:concat'\n'
@@ -51,23 +60,19 @@ __kernel void initState(
 	__global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
-	real4 x = CELL_X(i);
-	real4 mids = (real).5 * (mins + maxs);
-	bool lhs = x[0] < mids[0]
+	real3 x = CELL_X(i);
+	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	bool lhs = x.s0 < mids.s0
 #if dim > 1
-		&& x[1] < mids[1]
+		&& x.s1 < mids.s1
 #endif
 #if dim > 2
-		&& x[2] < mids[2]
+		&& x.s2 < mids.s2
 #endif
 	;
 	__global cons_t* U = UBuf + index;
-	U->epsEx = 0;
-	U->epsEy = 0;
-	U->epsEz = 1 * eps0;
-	U->Bx = 1;
-	U->By = lhs ? 1 : -1;
-	U->Bz = 0;
+	U->epsE = real3_scale(_real3(0,0,1), eps0);
+	U->B = _real3(1, lhs ? 1 : -1, 0);
 }
 ]],
 	}:concat'\n'
@@ -93,15 +98,15 @@ end
 function Maxwell:getCalcDisplayVarCode()
 	return [[
 	switch (displayVar) {
-	case display_U_Ex: value = U->epsEx / eps0; break;
-	case display_U_Ey: value = U->epsEy / eps0; break;
-	case display_U_Ez: value = U->epsEz / eps0; break;
+	case display_U_E0: value = U->epsE.s0 / eps0; break;
+	case display_U_E1: value = U->epsE.s1 / eps0; break;
+	case display_U_E2: value = U->epsE.s2 / eps0; break;
 	case display_U_E: value = sqrt(ESq(*U)); break;
-	case display_U_Bx: value = U->Bx; break;
-	case display_U_By: value = U->By; break;
-	case display_U_Bz: value = U->Bz; break;
+	case display_U_B0: value = U->B.s0; break;
+	case display_U_B1: value = U->B.s1; break;
+	case display_U_B2: value = U->B.s2; break;
 	case display_U_B: value = sqrt(BSq(*U)); break;
-	case display_U_energy: value = .5 * (ESq(*U) * eps0 + BSq(*U) / mu0); break;
+	case display_U_energy: value = .5 * (coordLen(U->epsE) + coordLen(U->B) / mu0); break;
 	}
 ]]
 end

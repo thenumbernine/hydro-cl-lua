@@ -46,12 +46,13 @@ __kernel void calcEigenBasis(
 void fluxTransform(
 	real* y,
 	const __global fluxXform_t* flux,
-	const real* x,
+	const real* x_,
 	int side
 ) {
 	//swap input dim x<->side
-	real4 epsE = (real4)(x[0], x[1], x[2], 0);
-	real4 B = (real4)(x[3], x[4], x[5], 0);
+	const cons_t* x = (const cons_t*)x_;
+	real3 epsE = x->epsE;
+	real3 B = x->B;
 	
 	switch (side) {
 	case 0:
@@ -189,7 +190,5 @@ __kernel void addSource(
 	SETBOUNDS(0,0);
 	const __global cons_t* U = UBuf + index;
 	__global cons_t* deriv = derivBuf + index;
-	deriv->epsEx -= U->epsEx / eps0 * sigma;
-	deriv->epsEy -= U->epsEy / eps0 * sigma;
-	deriv->epsEz -= U->epsEz / eps0 * sigma;
+	deriv->epsE = real3_sub(deriv->epsE, real3_scale(U->epsE, 1. / eps0 * sigma));
 }

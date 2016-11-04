@@ -42,15 +42,15 @@ __kernel void {name}(
 	int4 dsti = i;
 
 	//now constrain
-	if (i.x < 2) i.x = 2;
-	if (i.x > gridSize_x - 2) i.x = gridSize_x - 2;
+	if (i.s0 < 2) i.s0 = 2;
+	if (i.s0 > gridSize_x - 2) i.s0 = gridSize_x - 2;
 #if dim >= 2
-	if (i.y < 2) i.y = 2;
-	if (i.y > gridSize_y - 2) i.y = gridSize_y - 2;
+	if (i.s1 < 2) i.s1 = 2;
+	if (i.s1 > gridSize_y - 2) i.s1 = gridSize_y - 2;
 #endif
 #if dim >= 3
-	if (i.z < 2) i.z = 2;
-	if (i.z > gridSize_z - 2) i.z = gridSize_z - 2;
+	if (i.s2 < 2) i.s2 = 2;
+	if (i.s2 > gridSize_z - 2) i.s2 = gridSize_z - 2;
 #endif
 	//and recalculate read index
 	index = INDEXV(i);
@@ -63,10 +63,10 @@ __kernel void {name}(
 	
 	switch (displayVar) {
 	case display_U_D: value = U.D; break;
-	case display_U_Sx: value = U.Sx; break;
-	case display_U_Sy: value = U.Sy; break;
-	case display_U_Sz: value = U.Sz; break;
-	case display_U_S: value = sqrt(U.Sx*U.Sx + U.Sy*U.Sy + U.Sz*U.Sz); break;
+	case display_U_S0: value = U.S.s0; break;
+	case display_U_S1: value = U.S.s1; break;
+	case display_U_S2: value = U.S.s2; break;
+	case display_U_S: value = coordLen(U.S); break;
 	case display_U_tau: value = U.tau; break;
 	case display_U_W: value = U.D / prim.rho; break;
 	case display_U_primitive_reconstruction_error: 
@@ -76,9 +76,9 @@ __kernel void {name}(
 			cons_t U2 = consFromPrim(prim);
 			value = 0;
 			value += fabs(U.D - U2.D);
-			value += fabs(U.Sx - U2.Sx);
-			value += fabs(U.Sy - U2.Sy);
-			value += fabs(U.Sz - U2.Sz);
+			value += fabs(U.S.s0 - U2.S.s0);
+			value += fabs(U.S.s1 - U2.S.s1);
+			value += fabs(U.S.s2 - U2.S.s2);
 			value += fabs(U.tau - U2.tau);
 		}
 		break;
@@ -101,10 +101,10 @@ function SRHDRoe:addConvertToTexs()
 	prim_t prim = buf[index];
 	switch (displayVar) {
 	case display_prim_rho: value = prim.rho; break;
-	case display_prim_vx: value = prim.vx; break;
-	case display_prim_vy: value = prim.vy; break;
-	case display_prim_vz: value = prim.vz; break;
-	case display_prim_v: value = sqrt(prim.vx*prim.vx + prim.vy*prim.vy + prim.vz*prim.vz); break;
+	case display_prim_v0: value = prim.v.s0; break;
+	case display_prim_v1: value = prim.v.s1; break;
+	case display_prim_v2: value = prim.v.s2; break;
+	case display_prim_v: value = coordLen(prim.v); break;
 	case display_prim_eInt: value = prim.eInt; break;
 	case display_prim_P: value = calc_P(prim.rho, prim.eInt); break;
 	case display_prim_h: value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt); break;

@@ -4,15 +4,14 @@ range_t calcCellMinMaxEigenvalues(
 	int side
 ) {
 	real rho = prim->rho;
-	real vx = prim->vx, vy = prim->vy, vz = prim->vz;
 	real eInt = prim->eInt;
-	real vSq = vx * vx + vy * vy + vz * vz;
+	real vSq = coordLenSq(prim->v);
 	real P = calc_P(rho, eInt);
 	real h = calc_h(rho, P, eInt);
 	real csSq = gamma * P / (rho * h);
 	real cs = sqrt(csSq);
 	//for the particular direction
-	real vi = prim->v[side];
+	real vi = prim->v.s[side];
 	real viSq = vi * vi;
 
 	// Marti 1998 eqn 19
@@ -45,7 +44,7 @@ __kernel void calcDT(
 		range_t lambda = calcCellMinMaxEigenvalues(U, prim, side); 
 		lambda.min = min((real)0., lambda.min);
 		lambda.max = max((real)0., lambda.max);
-		dt = min(dt, dxs[side] / (fabs(lambda.max - lambda.min) + (real)1e-9));
+		dt = min(dt, dxs.s[side] / (fabs(lambda.max - lambda.min) + (real)1e-9));
 	}
 	dtBuf[index] = dt; 
 }
@@ -53,9 +52,7 @@ __kernel void calcDT(
 prim_t calcEigenBasisSide(prim_t primL, prim_t primR) {
 	return (prim_t){
 		.rho = .5 * (primL.rho + primR.rho),
-		.vx = .5 * (primL.vx + primR.vx),
-		.vy = .5 * (primL.vy + primR.vy),
-		.vz = .5 * (primL.vz + primR.vz),
+		.v = real3_scale(real3_add(primL.v, primR.v), .5),
 		.eInt = .5 * (primL.eInt + primR.eInt),
 	};
 }
@@ -79,21 +76,21 @@ __kernel void calcEigenBasis(
 		prim_t avg = calcEigenBasisSide(primL, primR);
 
 		real rho = avg.rho;
-		real4 v = (real4)(avg.vx, avg.vy, avg.vz, 0);
+		real3 v = avg.v;
 		real eInt = avg.eInt;
 		
 #if dim > 1
 		if (side == 1) {
-			v = (real4)(v.y, -v.x, v.z, 0.);	// -90' rotation to put the y axis contents into the x axis
+			v = _real3(v.y, -v.x, v.z);	// -90' rotation to put the y axis contents into the x axis
 		} 
 #endif
 #if dim > 2
 		else if (side == 2) {
-			v = (real4)(v.z, v.y, -v.x, 0.);	//-90' rotation to put the z axis in the x axis
+			v = _real3(v.z, v.y, -v.x);	//-90' rotation to put the z axis in the x axis
 		}
 #endif
 		
-		real vSq = dot(v,v);
+		real vSq = coordLenSq(v);
 		real oneOverW2 = 1. - vSq;
 		real oneOverW = sqrt(oneOverW2);
 		real W = 1. / oneOverW;
@@ -105,6 +102,7 @@ __kernel void calcEigenBasis(
 		real hW = h * W;
 		real hSq = h * h;
 
+		//TODO check out Font's paper on where the metric coefficients go ...
 		real vxSq = v.x * v.x;
 		real csSq = gamma * P_over_rho_h;
 		real cs = sqrt(csSq);
@@ -206,15 +204,15 @@ __kernel void calcEigenBasis(
 				// so a -90' rotation applied to the RHS of A is a +90' rotation applied to the RHS of Q-1 the left eigenvectors
 				//and while a rotation applied to the LHS of a vector rotates the elements of its column vectors, a rotation applied to the RHS rotates the elements of its row vectors 
 				//each row's y <- x, x <- -y
-				tmp = evL[i + numStates * cons_Sx];
-				evL[i + numStates * cons_Sx] = -evL[i + numStates * cons_Sy];
-				evL[i + numStates * cons_Sy] = tmp;
+				tmp = evL[i + numStates * cons_S0];
+				evL[i + numStates * cons_S0] = -evL[i + numStates * cons_S1];
+				evL[i + numStates * cons_S1] = tmp;
 				//a -90' rotation applied to the RHS of A must be corrected with a 90' rotation on the LHS of A
 				//this rotates the elements of the column vectors by 90'
 				//each column's x <- y, y <- -x
-				tmp = evR[cons_Sx + numStates * i];
-				evR[cons_Sx + numStates * i] = -evR[cons_Sy + numStates * i];
-				evR[cons_Sy + numStates * i] = tmp;
+				tmp = evR[cons_S0 + numStates * i];
+				evR[cons_S0 + numStates * i] = -evR[cons_S1 + numStates * i];
+				evR[cons_S1 + numStates * i] = tmp;
 			}
 		}
 #endif
@@ -222,12 +220,12 @@ __kernel void calcEigenBasis(
 		else if (side == 2) {
 			for (int i = 0; i < numStates; ++i) {
 				real tmp;
-				tmp = evL[i + numStates * cons_Sx];
-				evL[i + numStates * cons_Sx] = -evL[i + numStates * cons_Sz];
-				evL[i + numStates * cons_Sz] = tmp;
-				tmp = evR[cons_Sx + numStates * i];
-				evR[cons_Sx + numStates * i] = -evR[cons_Sz + numStates * i];
-				evR[cons_Sz + numStates * i] = tmp;
+				tmp = evL[i + numStates * cons_S0];
+				evL[i + numStates * cons_S0] = -evL[i + numStates * cons_S2];
+				evL[i + numStates * cons_S2] = tmp;
+				tmp = evR[cons_S0 + numStates * i];
+				evR[cons_S0 + numStates * i] = -evR[cons_S2 + numStates * i];
+				evR[cons_S2 + numStates * i] = tmp;
 			}
 		}
 #endif
@@ -256,13 +254,13 @@ __kernel void updatePrims(
 	
 	const __global cons_t* U = UBuf + index;
 	real D = U->D;
-	real4 S = (real4)(U->Sx, U->Sy, U->Sz, 0);
+	real3 S = U->S;
 	real tau = U->tau;
 
 	__global prim_t* prim = primBuf + index;
-	real4 v = (real4)(prim->vx, prim->vy, prim->vz, 0);
+	real3 v = prim->v;
 
-	real SLen = length(S);
+	real SLen = coordLen(S);
 	real PMin = max(SLen - tau - D + SLen * solvePrimVelEpsilon, solvePrimPMinEpsilon);
 	real PMax = gamma_1 * tau;
 	PMax = max(PMax, PMin);
@@ -282,17 +280,16 @@ __kernel void updatePrims(
 		real PError = fabs(1. - newP / P);
 		P = newP;
 		if (PError < solvePrimStopEpsilon) {
-			v = S / (tau + D + P);
-			W = 1. / sqrt(1. - dot(v,v));
+			v = real3_scale(S, 1. / (tau + D + P));
+			vSq = coordLenSq(v);
+			W = 1. / sqrt(1. - vSq);
 			rho = D / W;
 			rho = max(rho, (real)rhoMin);
 			rho = min(rho, (real)rhoMax);
 			eInt = P / (rho * gamma_1);
 			eInt = min(eInt, (real)eIntMax);
 			prim->rho = rho;
-			prim->vx = v.x;
-			prim->vy = v.y;
-			prim->vz = v.z;
+			prim->v = v;
 			prim->eInt = eInt;
 //printf("cell %d finished with prims = %f %f %f\n", index, rho, v.x, eInt);
 			return;

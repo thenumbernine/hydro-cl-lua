@@ -6,7 +6,7 @@ range_t calcCellMinMaxEigenvalues(
 ) {
 	prim_t W = primFromCons(U, ePot);
 	real Cs = calc_Cs(W);
-	real v = W.v.ptr[side];
+	real v = W.v.s[side];
 	return (range_t){.min = v - Cs, .max = v + Cs};
 }
 
@@ -30,7 +30,7 @@ __kernel void calcDT(
 		range_t lambda = calcCellMinMaxEigenvalues(U, ePot, side);
 		lambda.min = min((real)0., lambda.min);
 		lambda.max = max((real)0., lambda.max);
-		dt = min(dt, dxs.ptr[side] / (fabs(lambda.max - lambda.min) + (real)1e-9));
+		dt = min(dt, dxs.s[side] / (fabs(lambda.max - lambda.min) + (real)1e-9));
 	}
 	dtBuf[index] = dt; 
 }
@@ -94,8 +94,8 @@ __kernel void calcEigenBasis(
 		cons_t UR = UBuf[indexR];
 
 		real tmp;
-		tmp = UL.m.s0; UL.m.s0 = UL.m.ptr[side]; UL.m.ptr[side] = tmp;
-		tmp = UR.m.s0; UR.m.s0 = UR.m.ptr[side]; UR.m.ptr[side] = tmp;
+		tmp = UL.m.s0; UL.m.s0 = UL.m.s[side]; UL.m.s[side] = tmp;
+		tmp = UR.m.s0; UR.m.s0 = UR.m.s[side]; UR.m.s[side] = tmp;
 
 		real ePotL = ePotBuf[indexL];
 		real ePotR = ePotBuf[indexR];

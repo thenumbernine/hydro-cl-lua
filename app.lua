@@ -156,6 +156,15 @@ print()
 	self.real = self.is64bit and 'double' or 'float'
 	ffi.cdef('typedef '..self.real..' real;')
 
+	self.real3TypeCode = [[
+typedef union {
+	real s[3];
+	struct { real s0, s1, s2; };
+	struct { real x, y, z; };
+} real3;
+]]
+	ffi.cdef(self.real3TypeCode)
+
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
 	local args = {
@@ -175,7 +184,7 @@ print()
 		},
 		integrator = cmdline.integrator or 'forward Euler',	--'Runge-Kutta 4, TVD',
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
-		dim = cmdline.dim or 2,
+		dim = cmdline.dim or 1,
 	
 		-- [[ cartesian
 		geometry = 'cartesian',
@@ -190,10 +199,10 @@ print()
 		eqn = cmdline.eqn,
 	}
 
-	--self.solver = require 'solver.srhd-roe'(table(args, {initState = 'relativistic blast wave test problem 2'}))
 	-- fluid
 	--self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
 	self.solver = require 'solver.euler-roe'(args)
+	--self.solver = require 'solver.srhd-roe'(table(args, {initState = 'relativistic blast wave test problem 2'}))
 	-- EM
 	--self.solver = require 'solver.roe'(table(args, {eqn='maxwell'}))
 	-- geometrodynamics

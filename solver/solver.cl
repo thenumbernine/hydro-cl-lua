@@ -148,7 +148,7 @@ __kernel void calcFlux(
 ) {
 	SETBOUNDS(2,1);
 	for (int side = 0; side < dim; ++side) {
-		real dt_dx = dt / dxs.ptr[side];
+		real dt_dx = dt / dxs.s[side];
 		
 		int indexL = index - stepsize[side];
 		int indexR = index;
@@ -211,7 +211,7 @@ __kernel void calcDerivFromFlux(
 		const __global real* fluxR = fluxBuf + numStates * intindexR;
 		for (int j = 0; j < numStates; ++j) {
 			real deltaFlux = fluxR[j] - fluxL[j];
-			deriv[j] -= deltaFlux / dxs.ptr[side];
+			deriv[j] -= deltaFlux / dxs.s[side];
 		}
 	}
 }
