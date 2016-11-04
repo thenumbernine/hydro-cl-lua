@@ -8,13 +8,13 @@ Euler.name = 'Euler'
 
 Euler.numStates = 5
 
-Euler.consVars = {'rho', 'mx', 'my', 'mz', 'ETotal'}
-Euler.primVars = {'rho', 'vx', 'vy', 'vz', 'P'}
-Euler.mirrorVars = {{'mx'}, {'my'}, {'mz'}}
+Euler.consVars = {'rho', 'm0', 'm1', 'm2', 'ETotal'}
+Euler.primVars = {'rho', 'v0', 'v1', 'v2', 'P'}
+Euler.mirrorVars = {{'m.s0'}, {'m.s1'}, {'m.s2'}}
 Euler.displayVars = {
 	'rho',
-	'vx', 'vy', 'vz', 'v',
-	'mx', 'my', 'mz', 'm',
+	'v0', 'v1', 'v2', 'v',
+	'm0', 'm1', 'm2', 'm',
 	'eInt',
 	'eKin', 
 	'ePot',
@@ -44,27 +44,21 @@ function Euler:getTypeCode()
 
 typedef struct { 
 	real rho;
-	union {
-		struct { real vx, vy, vz; };
-		real v[3];
-	};
+	real3 v;
 	real P;
 } prim_t;
 
 enum {
 	cons_rho,
-	cons_mx,
-	cons_my,
-	cons_mz,
+	cons_m0,
+	cons_m1,
+	cons_m2,
 	cons_ETotal,
 };
 
 typedef struct {
 	real rho;
-	union {
-		struct { real mx, my, mz; };
-		real m[3];
-	};
+	real3 m;
 	real ETotal;
 } cons_t;
 ]]
@@ -77,22 +71,62 @@ function Euler:getCodePrefix()
 #define gamma_1 (gamma-1.)
 #define gamma_3 (gamma-3.)
 
-real calc_hTotal(real rho, real P, real ETotal) { return (P + ETotal) / rho; }
-real calc_eKin(prim_t W) { return .5 * (W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); }
-real calc_EKin(prim_t W) { return W.rho * calc_eKin(W); }
-real calc_EInt(prim_t W) { return W.P / gamma_1; }
-real calc_eInt(prim_t W) { return calc_EInt(W) / W.rho; }
-real calc_ETotal(prim_t W, real ePot) { return calc_EKin(W) + calc_EInt(W) + W.rho * ePot; }
+real calc_H(real P) {
+	return P * (gamma / gamma_1);
+}
+
+real calc_h(real rho, real P) {
+	return calc_H(P) / rho;
+}
+
+real calc_hTotal(real rho, real P, real ETotal) { 
+	return (P + ETotal) / rho;
+}
+
+real calc_HTotal(real P, real ETotal) {
+	return P + ETotal; 
+}
+
+real calc_eKin(prim_t W) { 
+	return .5 * (W.v.x*W.v.x + W.v.y*W.v.y + W.v.z*W.v.z);//coordLenSq(W.v);
+}
+
+real calc_EKin(prim_t W) {
+	return W.rho * calc_eKin(W);
+}
+
+real calc_EInt(prim_t W) {
+	return W.P / gamma_1;
+}
+
+real calc_eInt(prim_t W) {
+	return calc_EInt(W) / W.rho;
+}
+
+real calc_EKin_fromCons(cons_t U) {
+	return .5 * (U.m.x*U.m.x + U.m.y*U.m.y + U.m.z*U.m.z /*coordLenSq(U.m)*/ ) / U.rho;
+}
+
+real calc_ETotal(prim_t W, real ePot) {
+	real EPot = W.rho * ePot;
+	return calc_EKin(W) + calc_EInt(W) + EPot;
+}
+
+real calc_Cs(prim_t W) {
+	return sqrt(gamma * W.P / W.rho);
+}
 
 prim_t primFromCons(cons_t U, real ePot) {
-	real EPot = ePot * U.rho;
-	real EKin = .5 * (U.mx * U.mx + U.my * U.my + U.mz * U.mz) / U.rho;
+	real EPot = U.rho * ePot;
+	real EKin = calc_EKin_fromCons(U);
 	real EInt = U.ETotal - EPot - EKin;
 	return (prim_t){
 		.rho = U.rho,
-		.vx = U.mx / U.rho,
-		.vy = U.my / U.rho,
-		.vz = U.mz / U.rho,
+		.v = (real3){
+			.x = U.m.x / U.rho,
+			.y = U.m.y / U.rho,
+			.z = U.m.z / U.rho,
+		},
 		.P = EInt / gamma_1,
 	};
 }
@@ -109,9 +143,11 @@ function Euler:getInitStateCode(solver)
 cons_t consFromPrim(prim_t W, real ePot) {
 	return (cons_t){
 		.rho = W.rho,
-		.mx = W.rho * W.vx,
-		.my = W.rho * W.vy,
-		.mz = W.rho * W.vz,
+		.m = (real3){.ptr={
+			W.v.x * W.rho,
+			W.v.y * W.rho,
+			W.v.z * W.rho,
+		}},
 		.ETotal = calc_ETotal(W, ePot),
 	};
 }
@@ -121,26 +157,27 @@ __kernel void initState(
 	__global real* ePotBuf
 ) {
 	SETBOUNDS(0,0);
+	
+	//TODO should 'x' be in embedded or coordinate space? coordinate 
+	//should 'v0 v1 v2' be embedded or coordinate space? coordinate
 	real4 x = CELL_X(i);
-	real4 mids = (real).5 * (mins + maxs);
-	bool lhs = x[0] < mids[0]
+	real4 mids = (mins + maxs) * (real).5;
+	bool lhs = x.s0 < mids.s0
 #if dim > 1
-		&& x[1] < mids[1]
+		&& x.s1 < mids.s1
 #endif
 #if dim > 2
-		&& x[2] < mids[2]
+		&& x.s2 < mids.s2
 #endif
 	;
 	real rho = 0;
-	real vx = 0;
-	real vy = 0;
-	real vz = 0;
+	real3 v = (real3){.x=0,.y=0,.z=0};
 	real P = 0;
 	real ePot = 0;
 
 ]]..code..[[
 
-	prim_t W = {.rho=rho, .vx=vx, .vy=vy, .vz=vz, .P=P};
+	prim_t W = {.rho=rho, .v=v, .P=P};
 	UBuf[index] = consFromPrim(W, ePot);
 	ePotBuf[index] = ePot;
 }
@@ -160,14 +197,14 @@ function Euler:getCalcDisplayVarCode()
 	//switch (displayVar) {
 	switch (displayVar) {
 	case display_U_rho: value = W.rho; break;
-	case display_U_vx: value = W.vx; break;
-	case display_U_vy: value = W.vy; break;
-	case display_U_vz: value = W.vz; break;
-	case display_U_v: value = sqrt(W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); break;
-	case display_U_mx: value = U.mx; break;
-	case display_U_my: value = U.my; break;
-	case display_U_mz: value = U.mz; break;
-	case display_U_m: value = sqrt(U.mx * U.mx + U.my * U.my + U.mz * U.mz); break;
+	case display_U_v0: value = W.v.s0; break;
+	case display_U_v1: value = W.v.s1; break;
+	case display_U_v2: value = W.v.s2; break;
+	case display_U_v: value = sqrt(W.v.x*W.v.x + W.v.y*W.v.y + W.v.z*W.v.z); /*coordLen(W.v);*/ break;
+	case display_U_m0: value = U.m.s0; break;
+	case display_U_m1: value = U.m.s1; break;
+	case display_U_m2: value = U.m.s2; break;
+	case display_U_m: value = sqrt(U.m.x*U.m.x + U.m.y*U.m.y + U.m.z*U.m.z); /*coordLen(U.m);*/ break;
 	case display_U_P: value = W.P; break;
 	case display_U_eInt: value = calc_eInt(W); break;
 	case display_U_eKin: value = calc_eKin(W); break;
@@ -178,10 +215,10 @@ function Euler:getCalcDisplayVarCode()
 	case display_U_EPot: value = W.rho * ePot; break;
 	case display_U_ETotal: value = U.ETotal; break;
 	case display_U_S: value = W.P / pow(W.rho, (real)gamma); break;
-	case display_U_H: value = W.P * gamma / gamma_1; break;
-	case display_U_h: value = W.P * gamma / gamma_1 / W.rho; break;
-	case display_U_HTotal: value = W.P * gamma / gamma_1 + .5 * W.rho * (W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); break;
-	case display_U_hTotal: value = W.P * gamma / gamma_1 / W.rho + .5 * (W.vx * W.vx + W.vy * W.vy + W.vz * W.vz); break;
+	case display_U_H: value = calc_H(W.P); break;
+	case display_U_h: value = calc_h(W.rho, W.P); break;
+	case display_U_HTotal: value = calc_HTotal(W.P, U.ETotal); break;
+	case display_U_hTotal: value = calc_hTotal(W.rho, W.P, U.ETotal); break;
 	}
 ]]
 end

@@ -4,7 +4,7 @@ varying vec2 texCoord;
 
 void main() {
 	texCoord = gl_MultiTexCoord0.xy;
-	vec4 x = coordMap(gl_Vertex);
+	vec4 x = vec4(coordMap(gl_Vertex.xyz), gl_Vertex.w);
 	gl_Position = gl_ModelViewProjectionMatrix * x;
 }
 

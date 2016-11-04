@@ -51,7 +51,7 @@ __kernel void calcGravityDeriv(
 		real gradient = (potentialBuf[indexR] - potentialBuf[indexL]) / (2. * dxs[side]);
 		real gravity = -gradient;
 
-		deriv->m[side] -= U->rho * gravity;
-		deriv->ETotal -= U->rho * gravity * U->m[side];
+		deriv->m.ptr[side] -= U->rho * gravity;
+		deriv->ETotal -= U->rho * gravity * U->m.ptr[side];
 	}
 }

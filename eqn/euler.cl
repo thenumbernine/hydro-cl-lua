@@ -5,8 +5,8 @@ range_t calcCellMinMaxEigenvalues(
 	int side
 ) {
 	prim_t W = primFromCons(U, ePot);
-	real Cs = sqrt(gamma * W.P / W.rho);
-	real v = W.v[side];
+	real Cs = calc_Cs(W);
+	real v = W.v.ptr[side];
 	return (range_t){.min = v - Cs, .max = v + Cs};
 }
 
@@ -27,7 +27,7 @@ __kernel void calcDT(
 
 	real dt = INFINITY;
 	for (int side = 0; side < dim; ++side) {
-		range_t lambda = calcCellMinMaxEigenvalues(U, ePot, side); 
+		range_t lambda = calcCellMinMaxEigenvalues(U, ePot, side);
 		lambda.min = min((real)0., lambda.min);
 		lambda.max = max((real)0., lambda.max);
 		dt = min(dt, dxs[side] / (fabs(lambda.max - lambda.min) + (real)1e-9));
@@ -37,7 +37,7 @@ __kernel void calcDT(
 
 typedef struct {
 	real rho;
-	real vx, vy, vz;
+	real3 v;
 	real hTotal;
 } Roe_t;
 
@@ -49,25 +49,23 @@ Roe_t calcEigenBasisSide(
 ) {
 	prim_t WL = primFromCons(UL, ePotL);
 	real sqrtRhoL = sqrt(WL.rho);
-	real vxL = WL.vx;
-	real vyL = WL.vy;
-	real vzL = WL.vz;
+	real3 vL = WL.v;
 	real hTotalL = calc_hTotal(WL.rho, WL.P, UL.ETotal);
 
 	prim_t WR = primFromCons(UR, ePotR);
 	real sqrtRhoR = sqrt(UR.rho);
-	real vxR = WR.vx;
-	real vyR = WR.vy;
-	real vzR = WR.vz;
+	real3 vR = WR.v;
 	real hTotalR = calc_hTotal(WR.rho, WR.P, UR.ETotal);
 
 	real invDenom = 1./(sqrtRhoL + sqrtRhoR);
 
 	return (Roe_t){
 		.rho = sqrtRhoL * sqrtRhoR,
-		.vx = invDenom * (sqrtRhoL * vxL + sqrtRhoR * vxR),
-		.vy = invDenom * (sqrtRhoL * vyL + sqrtRhoR * vyR),
-		.vz = invDenom * (sqrtRhoL * vzL + sqrtRhoR * vzR),
+		.v = (real3){
+			.x = (vL.x * sqrtRhoL + vR.x * sqrtRhoR) * invDenom,
+			.y = (vL.y * sqrtRhoL + vR.y * sqrtRhoR) * invDenom,
+			.z = (vL.z * sqrtRhoL + vR.z * sqrtRhoR) * invDenom,
+		},
 		.hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR),
 	};	
 }
@@ -98,50 +96,48 @@ __kernel void calcEigenBasis(
 		cons_t UR = UBuf[indexR];
 
 		real tmp;
-		tmp = UL.mx; UL.mx = UL.m[side]; UL.m[side] = tmp;
-		tmp = UR.mx; UR.mx = UR.m[side]; UR.m[side] = tmp;
+		tmp = UL.m.s0; UL.m.s0 = UL.m.ptr[side]; UL.m.ptr[side] = tmp;
+		tmp = UR.m.s0; UR.m.s0 = UR.m.ptr[side]; UR.m.ptr[side] = tmp;
 
 		real ePotL = ePotBuf[indexL];
 		real ePotR = ePotBuf[indexR];
 
 		Roe_t roe = calcEigenBasisSide(UL, ePotL, UR, ePotR);
-		real vx = roe.vx;
-		real vy = roe.vy;
-		real vz = roe.vz;
+		real3 v = roe.v;
 		real hTotal = roe.hTotal;
 	
-		real vSq = vx * vx + vy * vy + vz * vz;
+		real vSq = v.x*v.x + v.y*v.y + v.z*v.z;//coordLenSq(v);
 		real CsSq = gamma_1 * (hTotal - .5 * vSq);
 		real Cs = sqrt(CsSq);
 	
 		int intindex = side + dim * index;	
 		__global real* wave = waveBuf + numWaves * intindex;
-		fill(wave, 1, vx - Cs, vx, vx, vx, vx + Cs);
+		fill(wave, 1, v.s0 - Cs, v.s0, v.s0, v.s0, v.s0 + Cs);
 
 		__global eigen_t* eigen = eigenBuf + intindex;
 		
 		__global real* evL = eigen->evL; 
 		real invDenom = .5 / CsSq;
-		fill(evL+0,5,(.5 * gamma_1 * vSq + Cs * vx) * invDenom,	-(Cs + gamma_1 * vx) * invDenom,	-gamma_1 * vy * invDenom,		-gamma_1 * vz * invDenom,		gamma_1 * invDenom		);
-		fill(evL+1,5,1 - gamma_1 * vSq * invDenom,				gamma_1 * vx * 2 * invDenom,		gamma_1 * vy * 2 * invDenom,	gamma_1 * vz * 2 * invDenom,	-gamma_1 * 2 * invDenom	);
-		fill(evL+2,5,-vy, 										0, 									1, 								0, 								0						);
-		fill(evL+3,5,-vz, 										0, 									0, 								1, 								0						);
-		fill(evL+4,5,(.5 * gamma_1 * vSq - Cs * vx) * invDenom,	(Cs - gamma_1 * vx) * invDenom,		-gamma_1 * vy * invDenom,		-gamma_1 * vz * invDenom,		gamma_1 * invDenom		);
+		fill(evL+0,5,	(.5 * gamma_1 * vSq + Cs * v.s0) * invDenom,	-(Cs + gamma_1 * v.s0) * invDenom,	-gamma_1 * v.s1 * invDenom,		-gamma_1 * v.s2 * invDenom,		gamma_1 * invDenom		);
+		fill(evL+1,5,	1 - gamma_1 * vSq * invDenom,					gamma_1 * v.s0 * 2 * invDenom,		gamma_1 * v.s1 * 2 * invDenom,	gamma_1 * v.s2 * 2 * invDenom,	-gamma_1 * 2 * invDenom	);
+		fill(evL+2,5,	-v.s1, 											0, 									1, 								0, 								0						);
+		fill(evL+3,5,	-v.s2, 											0, 									0, 								1, 								0						);
+		fill(evL+4,5,	(.5 * gamma_1 * vSq - Cs * v.s0) * invDenom,	(Cs - gamma_1 * v.s0) * invDenom,	-gamma_1 * v.s1 * invDenom,		-gamma_1 * v.s2 * invDenom,		gamma_1 * invDenom		);
 
 		__global real* evR = eigen->evR;
-		fill(evR+0,5,1, 				1, 			0, 	0, 	1				);
-		fill(evR+1,5,vx - Cs, 			vx, 		0, 	0, 	vx + Cs			);
-		fill(evR+2,5,vy, 				vy, 		1, 	0, 	vy				);
-		fill(evR+3,5,vz, 				vz, 		0, 	1, 	vz				);
-		fill(evR+4,5,hTotal - Cs * vx, .5 * vSq, 	vy, vz, hTotal + Cs * vx);
+		fill(evR+0,5,	1, 					1, 			0, 		0, 		1					);
+		fill(evR+1,5,	v.s0 - Cs, 			v.s0, 		0, 		0, 		v.s0 + Cs			);
+		fill(evR+2,5,	v.s1, 				v.s1, 		1, 		0, 		v.s1				);
+		fill(evR+3,5,	v.s2, 				v.s2, 		0, 		1, 		v.s2				);
+		fill(evR+4,5,	hTotal - Cs * v.s0,	.5 * vSq, 	v.s1,	v.s2,	hTotal + Cs * v.s0	);
 
 #if defined(checkFluxError)
 		__global real* dF_dU = fluxXformBuf[intindex].A;
-		fill(dF_dU+0,5,	0, 									1, 								0, 					0, 					0			);
-		fill(dF_dU+1,5,	-vx * vx + .5 * gamma_1 * vSq,		-vx * gamma_3,					-vy * gamma_1,		-vz * gamma_1,		gamma - 1	);
-		fill(dF_dU+2,5,	-vx * vy,							vy, 							vx, 				0, 					0			);
-		fill(dF_dU+3,5,	-vx * vz, 							vz, 							0, 					vx, 				0			);
-		fill(dF_dU+4,5,	vx * (.5 * vSq * gamma_1 - hTotal),	-gamma_1 * vx * vx + hTotal,	-gamma_1 * vx * vy,	-gamma_1 * vx * vz,	gamma * vx	);
+		fill(dF_dU+0,5,	0, 										1, 									0, 						0, 						0				);
+		fill(dF_dU+1,5,	-v.s0 * v.s0 + .5 * gamma_1 * vSq,		-v.s0 * gamma_3,					-v.s1 * gamma_1,		-v.s2 * gamma_1,		gamma - 1		);
+		fill(dF_dU+2,5,	-v.s0 * v.s1,							v.s1, 								v.s0, 					0, 						0				);
+		fill(dF_dU+3,5,	-v.s0 * v.s2, 							v.s2, 								0, 						v.s0, 					0				);
+		fill(dF_dU+4,5,	v.s0 * (.5 * vSq * gamma_1 - hTotal),	-gamma_1 * v.s0 * v.s0 + hTotal,	-gamma_1 * v.s0 * v.s1,	-gamma_1 * v.s0 * v.s2,	gamma * v.s0	);
 #endif
 
 #if dim > 1
@@ -149,20 +145,20 @@ __kernel void calcEigenBasis(
 		for (int i = 0; i < numStates; ++i) {
 			real tmp;
 			//each row's xy <- yx
-			tmp = evL[i + numStates * cons_mx];
-			evL[i + numStates * cons_mx] = evL[i + numStates * cons_my];
-			evL[i + numStates * cons_my] = tmp;
+			tmp = evL[i + numStates * cons_m0];
+			evL[i + numStates * cons_m0] = evL[i + numStates * cons_m1];
+			evL[i + numStates * cons_m1] = tmp;
 			//each column's xy <- yx
-			tmp = evR[cons_mx + numStates * i];
-			evR[cons_mx + numStates * i] = evR[cons_my + numStates * i];
-			evR[cons_my + numStates * i] = tmp;
+			tmp = evR[cons_m0 + numStates * i];
+			evR[cons_m0 + numStates * i] = evR[cons_m1 + numStates * i];
+			evR[cons_m1 + numStates * i] = tmp;
 #if defined(checkFluxError)
-			tmp = dF_dU[i + numStates * cons_mx];
-			dF_dU[i + numStates * cons_mx] = dF_dU[i + numStates * cons_my];
-			dF_dU[i + numStates * cons_my] = tmp;
-			tmp = dF_dU[cons_mx + numStates * i];
-			dF_dU[cons_mx + numStates * i] = dF_dU[cons_my + numStates * i];
-			dF_dU[cons_my + numStates * i] = tmp;
+			tmp = dF_dU[i + numStates * cons_m0];
+			dF_dU[i + numStates * cons_m0] = dF_dU[i + numStates * cons_m1];
+			dF_dU[i + numStates * cons_m1] = tmp;
+			tmp = dF_dU[cons_m0 + numStates * i];
+			dF_dU[cons_m0 + numStates * i] = dF_dU[cons_m1 + numStates * i];
+			dF_dU[cons_m1 + numStates * i] = tmp;
 #endif
 		}
 	}
@@ -171,19 +167,19 @@ __kernel void calcEigenBasis(
 	else if (side == 2) {
 		for (int i = 0; i < numStates; ++i) {
 			real tmp;
-			tmp = evL[i + numStates * cons_mx];
-			evL[i + numStates * cons_mx] = evL[i + numStates * cons_mz];
-			evL[i + numStates * cons_mz] = tmp;
-			tmp = evR[cons_mx + numStates * i];
-			evR[cons_mx + numStates * i] = evR[cons_mz + numStates * i];
-			evR[cons_mz + numStates * i] = tmp;
+			tmp = evL[i + numStates * cons_m0];
+			evL[i + numStates * cons_m0] = evL[i + numStates * cons_m2];
+			evL[i + numStates * cons_m2] = tmp;
+			tmp = evR[cons_m0 + numStates * i];
+			evR[cons_m0 + numStates * i] = evR[cons_m2 + numStates * i];
+			evR[cons_m2 + numStates * i] = tmp;
 #if defined(checkFluxError)
-			tmp = dF_dU[i + numStates * cons_mx];
-			dF_dU[i + numStates * cons_mx] = dF_dU[i + numStates * cons_mz];
-			dF_dU[i + numStates * cons_mz] = tmp;
-			tmp = dF_dU[cons_mx + numStates * i];
-			dF_dU[cons_mx + numStates * i] = dF_dU[cons_mz + numStates * i];
-			dF_dU[cons_mz + numStates * i] = tmp;
+			tmp = dF_dU[i + numStates * cons_m0];
+			dF_dU[i + numStates * cons_m0] = dF_dU[i + numStates * cons_m2];
+			dF_dU[i + numStates * cons_m2] = tmp;
+			tmp = dF_dU[cons_m0 + numStates * i];
+			dF_dU[cons_m0 + numStates * i] = dF_dU[cons_m2 + numStates * i];
+			dF_dU[cons_m2 + numStates * i] = tmp;
 #endif
 		}
 	}

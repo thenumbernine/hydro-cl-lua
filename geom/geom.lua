@@ -1,3 +1,16 @@
+--[[
+
+places where geometry is used
+
+- the initial conditions ... should params be specified in coordinate chart (r,theta,phi) or basis (x,y,z) ?   ... coordinate chart for now
+- the vector structures -- same question?  coordinate chart 
+- the flux
+- the calcDT
+- anything dealing with cell volume or surface
+- anything dealing with lengths
+- anything dealing with coordinates
+--]]
+
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
@@ -68,16 +81,29 @@ function Geometry:init(args)
 	print'connection:'
 	print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()))
 
-	local xs = table{'x','y','z'}
+	local toC = require 'symmath.tostring.C'
+	local toC_coordArgs = table.map(coords, function(coord, i)
+		return {[coord] = '{x'..i..'}'}	-- 1-based
+	end)	
+	
 	self.uCode = range(dim):map(function(i)
-		return (require 'symmath.tostring.C'
-			:compile(u[i], 
-				table.map(coords, function(coord, i)
-					return {[coord] = 'x_'..xs[i]}
-				end)
-			)
-			:match'return (.*);')
+		return toC:compile(u[i], toC_coordArgs)
+			:match'return (.*);'
 	end)
+
+	local coordU = Tensor('^a', function(a) return coords[a] end)
+
+	local lenSqExpr = (coordU'^a' * coordU'_a')()
+
+	self.uLenSqCode = toC:compile(
+		lenSqExpr,
+		toC_coordArgs)
+		:match'return (.*);'
+
+	self.uLenCode = toC:compile(
+		(symmath.sqrt(lenSqExpr))(),
+		toC_coordArgs)
+		:match'return (.*);'
 end
 
 return Geometry

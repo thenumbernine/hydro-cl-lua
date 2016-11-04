@@ -121,16 +121,48 @@ function Solver:init(args)
 	self:refreshGridSize()
 end
 
-function Solver:getCoordGLSLCode()
+local function xs_to_rs(code)
+	return code:gsub('{x(%d)}', function(i)
+		return 'r.'..xs[i+0]
+	end)
+end
+
+function Solver:getCoordMapCode()
 	return table{
-		'vec4 coordMap(vec4 r) {',
-		'	return vec4(',
+		'inline real3 coordMap(real3 r) {',
+		'	return _real3(',
 	}:append(range(3):map(function(i)
-		return '		'..(self.geometry.uCode[i] or 'r.'..xs[i]):gsub('x_', 'r.')..','
+		return '		'
+			..xs_to_rs(self.geometry.uCode[i] 
+				or ('{x'..i..'}')
+			)..(i<3 and ',' or '')
 	end)):append{
-		'		r.w);',
+		'	);',
 		'}',
-		self.uInvGLSLCode,
+		'',
+	}:concat'\n'
+end
+
+function Solver:getCoordMapGLSLCode()
+	return (self:getCoordMapCode()
+		:gsub('inline%S*', '')
+		:gsub('_real3', 'vec3')
+		:gsub('real3', 'vec3')
+	)
+end
+
+function Solver:getCoordLengthCode()
+	return table{
+		'inline real coordLenSq(real3 r) {',
+		'	return '..xs_to_rs(self.geometry.uLenSqCode)..';',
+		'}',
+		'',
+		'inline real coordLen(real3 r) {',
+		'	return sqrt(coordLenSq(r));',
+		-- TODO don't use this, because I'm pretty sure I simplify (x^2)^.5 to x ... instead of +-abs(x)
+		--'	return '..xs_to_rs(self.geometry.uLenCode)..';',
+		'}',
+		'',
 	}:concat'\n'
 end
 
@@ -449,9 +481,22 @@ function Solver:createCodePrefix()
 		lines:insert'#pragma OPENCL EXTENSION cl_khr_fp64 : enable'
 	end
 
+	-- real types in CL natives: 1,2,4,8
 	lines:append(table{'',2,4,8}:map(function(n)
 		return 'typedef '..self.app.real..n..' real'..n..';'
-	end)):append{
+	end))
+
+	lines:insert[[
+typedef union {
+	real ptr[3];
+	struct { real s0, s1, s2; };
+	struct { real x, y, z; };
+} real3;
+
+#define _real3(a,b,c) (real3){.ptr={a,b,c}}
+]]
+
+	lines:append{
 		'#define dim '..self.dim,
 		'#define numGhost '..self.numGhost,
 		'#define numStates '..self.eqn.numStates,
@@ -479,10 +524,10 @@ function Solver:createCodePrefix()
 			..(--self.dim < 2 and '0,' or 
 				'(real)(i.y + .5) * dy + mins_y, '
 			)
-			..(--self.dim < 3 and '0,' or 
-				'(real)(i.z + .5) * dz + mins_z, '
+			..(--self.dim < 3 and '0' or 
+				'(real)(i.z + .5) * dz + mins_z'
 			)
-			..'0);',
+			..', 0);',
 	}:append{
 		self.eqn.getTypeCode and self.eqn:getTypeCode() or nil
 	}:append{
@@ -500,7 +545,7 @@ function Solver:createCodePrefix()
 		'\tif (OOB(lhs,rhs)) return; \\',
 		'\tint index = INDEXV(i);',
 	}
-
+	
 	lines:append(self.displayVars:map(function(var,i)
 		return '#define display_'..var.name..' '..i
 	end))
@@ -516,9 +561,13 @@ function Solver:createCodePrefix()
 		self.checkFluxError and '#define checkFluxError' or '',
 		self.checkOrthoError and '#define checkOrthoError' or '',
 		self.allocateOneBigStructure and '#define allocateOneBigStructure' or '',
-		errorTypeCode,
+		errorTypeCode or '',
 		self.eqn:getEigenInfo().code or '',
-		self.eqn:getCodePrefix(self),
+		self:getCoordMapCode() or '',
+		self:getCoordLengthCode() or '',
+		
+		-- this is dependent on coord map / length code
+		self.eqn:getCodePrefix(self) or '',
 	}
 	
 	self.codePrefix = lines:concat'\n'

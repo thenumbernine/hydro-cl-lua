@@ -161,9 +161,9 @@ print()
 	local args = {
 		app = self, 
 		gridSize = {
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 128,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -228,7 +228,7 @@ print()
 	self.heatMap2DShader = GLProgram{
 		vertexCode = table{
 			'#define VERTEX_SHADER',
-			self.solver:getCoordGLSLCode(),
+			self.solver:getCoordMapGLSLCode(),
 			code,
 		}:concat'\n',
 		fragmentCode = '#define FRAGMENT_SHADER\n'..code,
