@@ -26,12 +26,13 @@ __kernel void calcDT(
 	real ePot = ePotBuf[index];
 
 	real dt = INFINITY;
-	for (int side = 0; side < dim; ++side) {
-		range_t lambda = calcCellMinMaxEigenvalues(U, ePot, side);
+
+	<? for side=0,solver.dim-1 do ?> {
+		range_t lambda = calcCellMinMaxEigenvalues(U, ePot, <?=side?>);
 		lambda.min = min((real)0., lambda.min);
 		lambda.max = max((real)0., lambda.max);
-		dt = min(dt, dx_at(i,side) / (fabs(lambda.max - lambda.min) + (real)1e-9));
-	}
+		dt = min(dt, dx_at<?=side?>(i) / (fabs(lambda.max - lambda.min) + (real)1e-9));
+	}<? end ?>
 	dtBuf[index] = dt; 
 }
 

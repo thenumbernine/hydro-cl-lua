@@ -2,6 +2,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'eqn.eqn'
 local clnumber = require 'clnumber'
+local file = require 'ext.file'
 
 local Euler = class(Equation)
 Euler.name = 'Euler'
@@ -176,10 +177,55 @@ __kernel void initState(
 ]],
 	}:concat'\n'
 end
+
+function Euler:processCL(code, solver)
+	local outputFunc = '__output'
+	local newcode = table{
+		'local '..outputFunc..', eqn, solver = ...\n',
+	}
+	local function addprint(from,to)
+		local block = code:sub(from,to)
+		local eq = ('='):rep(5)	-- TODO make sure no such [=..=[ appears in the code block
+		local nl = block:find'\n' and '\n' or ''
+		newcode:insert(outputFunc..' ['..eq..'['..nl..block..']'..eq..']\n')
+	end
+	local pos = 1
+	while true do
+		local start1, start2 = code:find('<%?', pos)
+		if not start1 then
+			addprint(pos, #code)
+			break
+		else
+			local ret
+			if code:sub(start2+1,start2+1) == '=' then 
+				ret = true
+				start2 = start2 + 1
+			end
+			local end1, end2 = code:find('%?>', start2+1)
+			end1 = end1 or #code+1
+			end2 = end2 or #code-1
+			addprint(pos, start1-1)
+			local block = code:sub(start2+1, end1-1)
+			if ret then
+				newcode:insert(outputFunc..'('..block..')\n')
+			else
+				newcode:insert(block..'\n')
+			end
+			pos = end2+1
+			if pos >= #code then break end
+		end
+	end
 	
+	local outputStrs = table()
+	assert(loadstring(newcode:concat()))(function(str)
+		outputStrs:insert(str)
+	end, self, solver)
+	return outputStrs:concat()
+end
+
 function Euler:getSolverCode(solver)	
 	return table{
-		'#include "eqn/euler.cl"',
+		self:processCL(assert(file['eqn/euler.cl']), solver),
 	}:concat'\n'
 end
 

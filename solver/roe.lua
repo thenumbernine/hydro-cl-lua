@@ -2,12 +2,12 @@ local bit = require 'bit'
 local ffi = require 'ffi'
 local gl = require 'ffi.OpenGL'
 local class = require 'ext.class'
-local string = require 'ext.string'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local vec3sz = require 'solver.vec3sz'
 local vec3 = require 'vec.vec3'
 local clnumber = require 'clnumber'
+local showcode = require 'showcode'
 local CLImageGL = require 'cl.imagegl'
 local CLProgram = require 'cl.program'
 local GLTex2D = require 'gl.tex2d'
@@ -553,9 +553,12 @@ static inline real3 real3_sub(real3 a, real3 b) {
 	}
 
 	-- TODO replace this with geom code
-	lines:insert[[
-#define dx_at(i, side) dxs.s[side]
-]]
+	lines:insert(
+		'#define dx_at(i, side) dxs.s[side]'-- * '..self.geom.eLenCode
+	)
+	lines:append(range(0,self.dim-1):map(function(i)
+		return '#define dx_at'..i..'(i) dxs.s['..i..']'
+	end))
 
 	lines:append(self.displayVars:map(function(var,i)
 		return '#define display_'..var.name..' '..i
@@ -685,7 +688,7 @@ function Solver:refreshSolverProgram()
 	local success, message = self.solverProgram:build{self.app.device}
 	if not success then
 		-- show code
-		print(string.split(string.trim(code),'\n'):map(function(l,i) return i..':'..l end):concat'\n')
+		print(showcode(code))
 		-- show errors
 --		message = string.split(string.trim(message),'\n'):filter(function(line) return line:find'error' end):concat'\n'
 		error(message)	
@@ -753,7 +756,7 @@ function Solver:refreshDisplayProgram()
 	self.displayProgram = CLProgram{context=self.app.ctx, code=code}
 	local success, message = self.displayProgram:build{self.app.device}
 	if not success then
-		print(string.split(string.trim(code),'\n'):map(function(l,i) return i..':'..l end):concat'\n')
+		print(showcode(code))
 		error(message)	
 	end
 
