@@ -91,16 +91,16 @@ function Geometry:init(args)
 	local coordU = Tensor('^a', function(a) return coords[a] end)
 
 	local lenSqExpr = (coordU'^a' * coordU'_a')()
+	self.uLenSqCode = toC:compile(lenSqExpr, toC_coordArgs):match'return (.*);'
+	self.uLenCode = toC:compile((symmath.sqrt(lenSqExpr))(), toC_coordArgs):match'return (.*);'
 
-	self.uLenSqCode = toC:compile(
-		lenSqExpr,
-		toC_coordArgs)
-		:match'return (.*);'
-
-	self.uLenCode = toC:compile(
-		(symmath.sqrt(lenSqExpr))(),
-		toC_coordArgs)
-		:match'return (.*);'
+	self.dxCodes = range(dim):map(function(i)
+		local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
+		local lenSqExpr = (dir'^a' * dir'_a')()
+		local lenSqCode = toC:compile(lenSqExpr, toC_coordArgs):match'return (.*);'
+		local lenCode = toC:compile((symmath.sqrt(lenSqExpr))(), toC_coordArgs):match'return (.*);'
+		return lenCode
+	end)
 end
 
 return Geometry

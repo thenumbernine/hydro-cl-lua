@@ -518,7 +518,6 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		'constant real3 mins = _real3(mins_x, '..(self.dim<2 and '0' or 'mins_y')..', '..(self.dim<3 and '0' or 'mins_z')..');', 
 		'constant real3 maxs = _real3(maxs_x, '..(self.dim<2 and '0' or 'maxs_y')..', '..(self.dim<3 and '0' or 'maxs_z')..');', 
 	}:append{
-		'constant real3 dxs = _real3('..table(self.dxs):map(clnumber):concat', '..');',
 		'#define dx_min '..clnumber(math.min(table.unpack(self.dxs, 1, self.dim))),
 	}:append(xs:map(function(name,i)
 		return '#define gridSize_'..name..' '..tonumber(self.gridSize[name])
@@ -527,26 +526,27 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		'constant int4 stepsize = (int4)(1, gridSize_x, gridSize_x * gridSize_y, gridSize_x * gridSize_y * gridSize_z);',
 		'#define INDEX(a,b,c)	((a) + gridSize_x * ((b) + gridSize_y * (c)))',
 		'#define INDEXV(i)		INDEX((i).x, (i).y, (i).z)',
-		'#define CELL_X(i) _real3('
-			..'(real)(i.x + .5) * dx_at0(i) + mins_x, '
-			..(self.dim < 2 and '(mins_y+maxs_y)*.5,' or 
-				'(real)(i.y + .5) * dx_at1(i) + mins_y, '
-			)
-			..(self.dim < 3 and '(mins_z+maxs_z)*.5' or 
-				'(real)(i.z + .5) * dx_at2(i) + mins_z'
-			)
-			..');',
-	}:append{
-		self.eqn.getTypeCode and self.eqn:getTypeCode() or nil
-	}:append{
+	}:append(range(3):map(function(i)
+		return (('#define grid_dx{i} ((maxs_{x} - mins_{x}) / (real)gridSize_{x})')
+			:gsub('{i}', i-1)
+			:gsub('{x}', xs[i]))
+	end)):append(range(3):map(function(i)
+		return (('#define cell_x{i}(i) ((real)(i + .5) * grid_dx{i} + mins_'..xs[i]..')')
+			:gsub('{i}', i-1))
+	end)):append{
+		'#define CELL_X(i) _real3(cell_x0(i.s0), cell_x1(i.s1), cell_x2(i.s2));',
+
+		self.eqn.getTypeCode and self.eqn:getTypeCode() or '',
+
 		-- run here for the code, and in buffer for the sizeof()
-		self.eqn:getEigenInfo().typeCode
-	}:append{
+		self.eqn:getEigenInfo().typeCode or '',
+		
 		-- bounds-check macro
 		'#define OOB(lhs,rhs) (i.x < lhs || i.x >= gridSize_x - rhs'
 			.. (self.dim < 2 and '' or ' || i.y < lhs || i.y >= gridSize_y - rhs')
 			.. (self.dim < 3 and '' or ' || i.z < lhs || i.z >= gridSize_z - rhs')
 			.. ')',
+		
 		-- define i, index, and bounds-check
 		'#define SETBOUNDS(lhs,rhs)	\\',
 		'\tint4 i = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0); \\',
@@ -555,8 +555,16 @@ static inline real3 real3_sub(real3 a, real3 b) {
 	}
 
 	-- TODO replace this with geom code
-	lines:append(range(0,self.dim-1):map(function(i)
-		return '#define dx_at'..i..'(i) dxs.s['..i..']'
+	lines:append(range(self.dim):map(function(i)
+		local x = xs[i]
+		local dxCode = self.geometry.dxCodes[i]
+		for j=1,self.dim do
+			dxCode = dxCode:gsub(
+				'{x'..j..'}',
+				'cell_x'..(j-1)..'(i.s'..(j-1)..')')
+		end
+		return (('#define dx_at{i}(i) (grid_dx{i} * ('..dxCode..'))')
+			:gsub('{i}', i-1))
 	end))
 
 	lines:append(self.displayVars:map(function(var,i)
