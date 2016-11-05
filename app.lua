@@ -184,12 +184,12 @@ typedef union {
 			cmdline.gridSize or 1,
 		},
 		boundary = {
-			xmin=cmdline.boundary or 'freeflow',
-			xmax=cmdline.boundary or 'freeflow',
-			ymin=cmdline.boundary or 'freeflow',
-			ymax=cmdline.boundary or 'freeflow',
-			zmin=cmdline.boundary or 'freeflow',
-			zmax=cmdline.boundary or 'freeflow',
+			xmin=cmdline.boundary or 'periodic',
+			xmax=cmdline.boundary or 'periodic',
+			ymin=cmdline.boundary or 'periodic',
+			ymax=cmdline.boundary or 'periodic',
+			zmin=cmdline.boundary or 'periodic',
+			zmax=cmdline.boundary or 'periodic',
 		},
 		--]]
 		-- [[ cylinder
@@ -197,17 +197,17 @@ typedef union {
 		mins = cmdline.mins or {.5, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
 		gridSize = {
-			cmdline.gridSize or 32,
-			cmdline.gridSize or 512,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 128,
 			cmdline.gridSize or 1,
 		},
 		boundary = {
-			xmin=cmdline.boundary or 'freeflow',
-			xmax=cmdline.boundary or 'freeflow',
+			xmin=cmdline.boundary or 'periodic',
+			xmax=cmdline.boundary or 'periodic',
 			ymin=cmdline.boundary or 'periodic',
 			ymax=cmdline.boundary or 'periodic',
-			zmin=cmdline.boundary or 'freeflow',
-			zmax=cmdline.boundary or 'freeflow',
+			zmin=cmdline.boundary or 'periodic',
+			zmax=cmdline.boundary or 'periodic',
 		},
 		--]]
 		eqn = cmdline.eqn,
@@ -739,7 +739,9 @@ function HydroCLApp:display2D(solvers, varName, graph_xmin, graph_ymin, graph_xm
 						local vi = vbase+vofs
 						local u = ui/udivs
 						local v = vi/vdivs
-						gl.glTexCoord2d(u,v)
+						gl.glTexCoord2d(
+							(u * (tonumber(solver.gridSize.x) - 2 * solver.numGhost) + solver.numGhost) / tonumber(solver.gridSize.x),
+							(v * (tonumber(solver.gridSize.y) - 2 * solver.numGhost) + solver.numGhost) / tonumber(solver.gridSize.y))
 						gl.glVertex2d(
 							u * solver.maxs[1] + (1 - u) * solver.mins[1],
 							v * solver.maxs[2] + (1 - v) * solver.mins[2])

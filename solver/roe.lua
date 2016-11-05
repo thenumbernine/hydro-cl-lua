@@ -527,11 +527,11 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		'#define INDEX(a,b,c)	((a) + gridSize_x * ((b) + gridSize_y * (c)))',
 		'#define INDEXV(i)		INDEX((i).x, (i).y, (i).z)',
 	}:append(range(3):map(function(i)
-		return (('#define grid_dx{i} ((maxs_{x} - mins_{x}) / (real)gridSize_{x})')
+		return (('#define grid_dx{i} ((maxs_{x} - mins_{x}) / (real)(gridSize_{x} - '..(2*self.numGhost)..'))')
 			:gsub('{i}', i-1)
 			:gsub('{x}', xs[i]))
 	end)):append(range(3):map(function(i)
-		return (('#define cell_x{i}(i) ((real)(i + .5) * grid_dx{i} + mins_'..xs[i]..')')
+		return (('#define cell_x{i}(i) ((real)(i + '..clnumber(.5-self.numGhost)..') * grid_dx{i} + mins_'..xs[i]..')')
 			:gsub('{i}', i-1))
 	end)):append{
 		'#define CELL_X(i) _real3(cell_x0(i.s0), cell_x1(i.s1), cell_x2(i.s2));',
