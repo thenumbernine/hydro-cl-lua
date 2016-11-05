@@ -9,12 +9,12 @@ __kernel void solvePoisson(
 {
 	SETBOUNDS(2,2);
 
-	real dx = dx_at(i,0);
+	real dx = dx_at0(i);
 #if dim > 1
-	real dy = dx_at(i,1);
+	real dy = dx_at1(i);
 #endif
 #if dim > 2
-	real dz = dx_at(i,2);
+	real dz = dx_at2(i);
 #endif
 
 	real skewSum = 0;
@@ -52,14 +52,16 @@ __kernel void calcGravityDeriv(
 	__global cons_t* deriv = derivBuffer + index;
 	const __global cons_t* U = UBuf + index;
 
-	for (int side = 0; side < dim; ++side) {
+	//for (int side = 0; side < dim; ++side) {
+	<? for side=0,solver.dim-1 do ?>{
+		int side = <?=side?>;
 		int indexL = index - stepsize[side];
 		int indexR = index + stepsize[side];
 	
-		real gradient = (potentialBuf[indexR] - potentialBuf[indexL]) / (2. * dx_at(i,side));
+		real gradient = (potentialBuf[indexR] - potentialBuf[indexL]) / (2. * dx_at<?=side?>(i));
 		real gravity = -gradient;
 
 		deriv->m.s[side] -= U->rho * gravity;
 		deriv->ETotal -= U->rho * gravity * U->m.s[side];
-	}
+	}<? end ?>
 }

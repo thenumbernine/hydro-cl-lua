@@ -1,6 +1,8 @@
 local table = require 'ext.table'
-local ffi = require 'ffi'
+local file = require 'ext.file'
 local class = require 'ext.class'
+local ffi = require 'ffi'
+
 local SelfGravitationBehavior = function(parent)
 	local template = class(parent)
 
@@ -38,7 +40,8 @@ __kernel void initPotential(
 }
 ]],
 			'#define gravitationalConstant 1.',		-- 6.67384e-11 m^3 / (kg s^2)
-			'#include "solver/selfgrav.cl"',
+			
+			require 'processcl'(assert(file['solver/selfgrav.cl']), {solver=self})
 		}:concat'\n'
 	end
 

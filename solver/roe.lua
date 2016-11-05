@@ -4,10 +4,12 @@ local gl = require 'ffi.OpenGL'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
+local file = require 'ext.file'
 local vec3sz = require 'solver.vec3sz'
 local vec3 = require 'vec.vec3'
 local clnumber = require 'clnumber'
 local showcode = require 'showcode'
+local processcl = require 'processcl'
 local CLImageGL = require 'cl.imagegl'
 local CLProgram = require 'cl.program'
 local GLTex2D = require 'gl.tex2d'
@@ -526,12 +528,12 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		'#define INDEX(a,b,c)	((a) + gridSize_x * ((b) + gridSize_y * (c)))',
 		'#define INDEXV(i)		INDEX((i).x, (i).y, (i).z)',
 		'#define CELL_X(i) _real3('
-			..'(real)(i.x + .5) * dx_at(i,0) + mins_x, '
-			..(--self.dim < 2 and '0,' or 
-				'(real)(i.y + .5) * dx_at(i,1) + mins_y, '
+			..'(real)(i.x + .5) * dx_at0(i) + mins_x, '
+			..(self.dim < 2 and '(mins_y+maxs_y)*.5,' or 
+				'(real)(i.y + .5) * dx_at1(i) + mins_y, '
 			)
-			..(--self.dim < 3 and '0' or 
-				'(real)(i.z + .5) * dx_at(i,2) + mins_z'
+			..(self.dim < 3 and '(mins_z+maxs_z)*.5' or 
+				'(real)(i.z + .5) * dx_at2(i) + mins_z'
 			)
 			..');',
 	}:append{
@@ -553,9 +555,6 @@ static inline real3 real3_sub(real3 a, real3 b) {
 	}
 
 	-- TODO replace this with geom code
-	lines:insert(
-		'#define dx_at(i, side) dxs.s[side]'-- * '..self.geom.eLenCode
-	)
 	lines:append(range(0,self.dim-1):map(function(i)
 		return '#define dx_at'..i..'(i) dxs.s['..i..']'
 	end))
@@ -603,7 +602,7 @@ function Solver:resetState()
 end
 
 function Solver:getCalcDTCode()
-	return '#include "solver/calcDT.cl"'
+	return processcl(assert(file['solver/calcDT.cl']), {solver=self})
 end
 
 function Solver:refreshCommonProgram()
@@ -677,7 +676,8 @@ function Solver:getSolverCode()
 		self.eqn:getSolverCode(self) or '',
 
 		self:getCalcDTCode() or '',
-		'#include "solver/solver.cl"',
+		
+		processcl(assert(file['solver/solver.cl'], {solver=self}))
 	}:concat'\n'
 end
 

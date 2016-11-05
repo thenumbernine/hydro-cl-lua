@@ -1,5 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
+local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local clnumber = require 'clnumber'
 
@@ -169,7 +170,7 @@ end
 
 function SRHD:getSolverCode(solver)
 	return table{
-		'#include "eqn/srhd.cl"',
+		require 'processcl'(assert(file['eqn/srhd.cl']), {solver=solver}),
 	}:concat'\n'
 end
 
