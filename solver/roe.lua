@@ -861,8 +861,9 @@ __kernel void boundary(
 
 		local x = xs[side]
 
+		local gridSizeSide = 'gridSize_'..xs[side]
 		lines:insert(({
-			periodic = '\t\tbuf['..index'j'..'] = buf['..index'gridSize_x-2*numGhost+j'..'];',
+			periodic = '\t\tbuf['..index'j'..'] = buf['..index(gridSizeSide..'-2*numGhost+j')..'];',
 			mirror = table{
 				'\t\tbuf['..index'j'..'] = buf['..index'2*numGhost-1-j'..'];',
 			}:append(table.map((args.mirrorVars or {})[side] or {}, function(var)
@@ -872,13 +873,13 @@ __kernel void boundary(
 		})[args.methods[x..'min']])
 
 		lines:insert(({
-			periodic = '\t\tbuf['..index'gridSize_x-numGhost+j'..'] = buf['..index'numGhost+j'..'];',
+			periodic = '\t\tbuf['..index(gridSizeSide..'-numGhost+j')..'] = buf['..index'numGhost+j'..'];',
 			mirror = table{
-				'\t\tbuf['..index'gridSize_x-numGhost+j'..'] = buf['..index'gridSize_x-numGhost-1-j'..'];',
+				'\t\tbuf['..index(gridSizeSide..'-numGhost+j')..'] = buf['..index(gridSizeSide..'-numGhost-1-j')..'];',
 			}:append(table.map((args.mirrorVars or {})[side] or {}, function(var)
-				return '\t\tbuf['..index'gridSize_x-numGhost+j'..'].'..var..' = -buf['..index'gridSize_x-numGhost+j'..'].'..var..';'
+				return '\t\tbuf['..index(gridSizeSide..'-numGhost+j')..'].'..var..' = -buf['..index(gridSizeSide..'-numGhost+j')..'].'..var..';'
 			end)):concat'\n',
-			freeflow = '\t\tbuf['..index'gridSize_x-numGhost+j'..'] = buf['..index'gridSize_x-numGhost-1'..'];',
+			freeflow = '\t\tbuf['..index(gridSizeSide..'-numGhost+j')..'] = buf['..index(gridSizeSide..'-numGhost-1')..'];',
 		})[args.methods[x..'max']])
 	
 		if self.dim > 1 then
@@ -890,6 +891,7 @@ __kernel void boundary(
 	lines:insert'}'
 
 	local code = lines:concat'\n'
+print(showcode(code))
 	local boundaryProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code} 
 	local boundaryKernel = boundaryProgram:kernel'boundary'
 	return boundaryProgram, boundaryKernel

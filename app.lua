@@ -176,11 +176,11 @@ typedef union {
 		
 		--[[ cartesian
 		geometry = 'cartesian',
-		mins = cmdline.mins or {-1, -1, -1},
-		maxs = cmdline.maxs or {1, 1, 1},
+		mins = cmdline.mins or {0, 0, 0},
+		maxs = cmdline.maxs or {128/128, 128/128, 1},
 		gridSize = {
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 128,
 			cmdline.gridSize or 1,
 		},
 		boundary = {
@@ -197,17 +197,17 @@ typedef union {
 		mins = cmdline.mins or {.5, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
 		gridSize = {
-			cmdline.gridSize or 128,
-			cmdline.gridSize or 128,
+			cmdline.gridSize or 32,
+			cmdline.gridSize or 256,
 			cmdline.gridSize or 1,
 		},
 		boundary = {
-			xmin=cmdline.boundary or 'periodic',
-			xmax=cmdline.boundary or 'periodic',
+			xmin=cmdline.boundary or 'mirror',
+			xmax=cmdline.boundary or 'mirror',
 			ymin=cmdline.boundary or 'periodic',
 			ymax=cmdline.boundary or 'periodic',
-			zmin=cmdline.boundary or 'periodic',
-			zmax=cmdline.boundary or 'periodic',
+			zmin=cmdline.boundary or 'freeflow',
+			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
 		eqn = cmdline.eqn,

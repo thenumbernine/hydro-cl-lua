@@ -64,7 +64,7 @@ __kernel void initPotential(
 			self:createBoundaryProgramAndKernel{
 				type = 'real',
 				methods = table.map(self.boundaryMethods, function(v,k)
-					return self.app.boundaryMethods[1+v], k
+					return self.app.boundaryMethods[1+v[0]], k
 				end),
 			}
 		self.potentialBoundaryKernel:setArg(0, self.ePotBuf)
