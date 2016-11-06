@@ -17,8 +17,7 @@ function OrthoView:getOrthoBounds(ar)
 		-1, 1
 end
 
-function OrthoView:projection(screenWidth, screenHeight)
-	local ar = screenWidth / screenHeight
+function OrthoView:projection(ar)
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
 	gl.glOrtho(self:getOrthoBounds(ar))

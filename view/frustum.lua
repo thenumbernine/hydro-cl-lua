@@ -13,8 +13,7 @@ end
 
 FrustumView.zFar = 10
 FrustumView.zNear = .001
-function FrustumView:projection(screenWidth, screenHeight)
-	local ar = screenWidth / screenHeight
+function FrustumView:projection(ar)
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
 	gl.glFrustum(

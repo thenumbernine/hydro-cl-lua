@@ -352,7 +352,7 @@ void main() {
 		{0,1,1,1},
 		{1,1,0,1},
 		{1,0,0,1},
-	}, false)
+	}, true)
 
 	-- [[ need to get image loading working
 	local fonttex = GLTex2D{
@@ -439,8 +439,6 @@ function HydroCLApp:update(...)
 	
 	local w, h = self:size()
 
-	local ar = w / h
-
 	local varNamesEnabled = table()
 	for i,var in ipairs(self.solver.displayVars) do
 		if var.enabled[0] then
@@ -452,6 +450,8 @@ function HydroCLApp:update(...)
 	local graphsHigh = math.ceil(#varNamesEnabled/graphsWide)
 	local graphCol = 0
 	local graphRow = 0
+	
+	local ar = (w / graphsWide) / (h / graphsHigh)
 
 	local useLog
 	for _,varName in ipairs(varNamesEnabled) do
@@ -539,11 +539,11 @@ function HydroCLApp:update(...)
 			h / graphsHigh)
 		
 		if self.solver.dim == 1 then
-			self:display1D(self.solvers, varName, xmin, ymin, xmax, ymax, useLog)
+			self:display1D(self.solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 		elseif self.solver.dim == 2 then
-			self:display2D(self.solvers, varName, xmin, ymin, xmax, ymax)
+			self:display2D(self.solvers, varName, ar, xmin, ymin, xmax, ymax)
 		elseif self.solver.dim == 3 then
-			self:display3D(self.solvers, varName, xmin, ymin, xmax, ymax)
+			self:display3D(self.solvers, varName, ar, xmin, ymin, xmax, ymax)
 		end
 
 		graphCol = graphCol + 1
@@ -592,8 +592,6 @@ function HydroCLApp:update(...)
 end
 
 function HydroCLApp:display1D(solvers, varName, xmin, ymin, xmax, ymax, useLog)
-	local w, h = self:size()
-	
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
 	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
@@ -662,11 +660,9 @@ function HydroCLApp:display1D(solvers, varName, xmin, ymin, xmax, ymax, useLog)
 	end
 end
 
-function HydroCLApp:display2D(solvers, varName, graph_xmin, graph_ymin, graph_xmax, graph_ymax)
-	local w, h = self:size()
-	local ar = w / h
+function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, graph_xmax, graph_ymax)
 
-	self.view:projection(self:size())
+	self.view:projection(ar)
 	self.view:modelview()
 	if self.view.getOrthoBounds then
 		xmin, xmax, ymin, ymax = self.view:getOrthoBounds(ar)
@@ -783,11 +779,9 @@ end
 local quat = require 'vec.quat'
 local viewAngle = quat()
 local vec4d = require 'ffi.vec.vec4d'
-function HydroCLApp:display3D_Slice(solvers, varName, xmin, ymin, xmax, ymax, useLog)
-	local w, h = self:size()
-	local ar = w / h
+function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 
-	self.view:projection(self:size())
+	self.view:projection(ar)
 	self.view:modelview()
 	
 	self.volumeSliceShader:use()
@@ -860,11 +854,8 @@ function HydroCLApp:display3D_Slice(solvers, varName, xmin, ymin, xmax, ymax, us
 	self.volumeSliceShader:useNone()
 end
 
-function HydroCLApp:display3D_Ray(solvers, varName, xmin, ymin, xmax, ymax, useLog)
-	local w, h = self:size()
-	local ar = w / h
-
-	self.view:projection(self:size())
+function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
+	self.view:projection(ar)
 	self.view:modelview()
 
 	local vertexes = {
@@ -932,6 +923,7 @@ function HydroCLApp:display3D_Ray(solvers, varName, xmin, ymin, xmax, ymax, useL
 end
 
 HydroCLApp.display3D = HydroCLApp.display3D_Slice
+HydroCLApp.display3D = HydroCLApp.display3D_Ray
 
 function HydroCLApp:showDisplayVar(solver, varIndex)
 	local var = solver.displayVars[varIndex]

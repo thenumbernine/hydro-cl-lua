@@ -99,51 +99,48 @@ function Geometry:init(args)
 			(a[1]*b[2]-b[1]*a[2])(),
 		}
 	end
-	
-	local e1, e2, e3
-	e1 = table{e[1][1] or const(0), e[1][2] or const(0), e[1][3] or const(0)}
+
+	-- extend 'e' to full R3 ... should I do this from the start?
+	local eExt = table()
+	eExt[1] = range(3):map(function(i) return e[1][i] or const(0) end)
 	if dim >= 2 then
-		e2 = table{e[2][1] or const(0), e[2][2] or const(0), e[2][3] or const(0)}
+		eExt[2] = range(3):map(function(i) return e[2][i] or const(0) end)
 	else
 		-- e2 is the maximal length orthogonal to e1
 		local found = false
 		for i =1,3 do
 			local n = table{0,0,0}:map(function(x) return const(x) end)
 			n[i] = 1
-			e2 = cross(n,e1)
-			local e2len = symmath.sqrt(e2:sum())()
+			eExt[2] = cross(n,eExt[1])
+			local e2len = symmath.sqrt(eExt[2]:sum())()
 			if e2len ~= const(0) then
 				found = true
 			end
 		end
 		if not found then
-			error("how can you not find a perpendicular basis for e1="..e1:map(tostring):concat', ')
+			error("how can you not find a perpendicular basis for e1="..eExt[1]:map(tostring):concat', ')
 		end
 	end
 	if dim >= 3 then
-		e3 = table{e[3][1] or const(0), e[3][2] or const(0), e[3][3] or const(0)}
+		eExt[3] = range(3):map(function(i) return e[3][i] or const(0) end)
 	else
-		e3 = cross(e1,e2)
+		eExt[3] = cross(eExt[1],eExt[2])
 	end
 
-	local e1len = symmath.sqrt(e1[1]^2 + e1[2]^2 + e1[3]^2)()
-	local e2len = symmath.sqrt(e2[1]^2 + e2[2]^2 + e2[3]^2)()
-	local e3len = symmath.sqrt(e3[1]^2 + e3[2]^2 + e3[3]^2)()
+	local eExtLen = eExt:map(function(ei,i)
+		return symmath.sqrt(ei:map(function(x) return x^2 end):sum())
+	end)
+	local eExtUnit = eExt:map(function(ei,i)
+		return ei:map(function(eij) return (eij/eExtLen[i])() end)
+	end)
 
-	local e1unit = e1:map(function(e1i) return (e1i/e1len)() end)
-	local e2unit = e2:map(function(e2i) return (e2i/e2len)() end)
-	local e3unit = e3:map(function(e3i) return (e3i/e3len)() end)
-	
-	local es = table{e1,e2,e3}
-	local eUnits = table{e1unit,e2unit,e3unit}
-
-	self.eCode = es:map(function(ei,i)
+	self.eCode = eExt:map(function(ei,i)
 		return ei:map(function(eij,j)
 			return toC:compile(eij, toC_coordArgs):match'return (.*);'
 		end)
 	end)
 
-	self.eUnitCode = eUnits:map(function(ei_unit,i)
+	self.eUnitCode = eExtUnit:map(function(ei_unit,i)
 		return ei_unit:map(function(eij_unit,j)
 			return toC:compile(eij_unit, toC_coordArgs):match'return (.*);'
 		end)

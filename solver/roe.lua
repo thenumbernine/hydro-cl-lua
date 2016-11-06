@@ -35,12 +35,11 @@ end
 
 local function getCode_define_i3_to_real3(name, exprs)
 	return '#define '..name..'(i) _real3('
-		..range(3):map(function(i)
-			local code = exprs[i]
+		..exprs:map(function(expr,i)
 			for j=1,3 do
-				code = code:gsub('{x'..j..'}', 'cell_x'..(j-1)..'(i.'..xs[j]..')')
+				expr = expr:gsub('{x'..j..'}', 'cell_x'..(j-1)..'(i.'..xs[j]..')')
 			end
-			return code
+			return expr
 		end):concat', '..')'
 end
 
@@ -251,15 +250,13 @@ function ConvertToTex:init(args)
 			convertToTex = self,
 			name = self.name..'_'..name,
 			enabled = ffi.new('bool[1]', 
---				self.name == 'U' and (solver.dim==1 or i==1)
---				or (self.name == 'error' and solver.dim==1)
-self.name == 'U' and ({rho=1,v0=1,v1=1,v2=1,P=1})[name]
-or self.name == 'error'
+				self.name == 'U' and (solver.dim==1 or table.find(solver.eqn.consVars,name))
+				or (self.name == 'error' and solver.dim==1)
 			),
 			useLogPtr = ffi.new('bool[1]', args.useLog or false),
 			color = vec3(math.random(), math.random(), math.random()):normalize(),
 			--heatMapTexPtr = ffi.new('int[1]', 0),	-- hsv, isobar, etc ...
-			heatMapFixedRangePtr = ffi.new('bool[1]', false),-- true),
+			heatMapFixedRangePtr = ffi.new('bool[1]', true),
 			heatMapValueMinPtr = ffi.new('float[1]', 0),
 			heatMapValueMaxPtr = ffi.new('float[1]', 1),
 		}
@@ -571,7 +568,8 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		return getCode_define_i3_to_real3(
 			'e'..(i-1)..'_at', 
 			range(3):map(function(j)
-				return (self.geometry.eCode[i] or {})[j] or '0'
+				local code = (self.geometry.eCode[i] or {})[j] or '0'
+				return code
 			end))
 	end)):append(range(3):map(function(i)
 		return getCode_define_i3_to_real3(
