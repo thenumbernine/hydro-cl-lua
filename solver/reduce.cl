@@ -1,18 +1,18 @@
 //http://developer.amd.com/resources/documentation-articles/articles-whitepapers/opencl-optimization-case-study-simple-reductions/
 //calculate min of all elements on buffer[0..length-1]
-__kernel void reduce_name(
+__kernel void <?=name?>(
 	const __global real* buffer,
 	__local real* scratch,
 	__const int length,
 	__global real* result)
 {
 	int global_index = get_global_id(0);
-	real accumulator = reduce_accum_init;
+	real accumulator = <?=initValue?>;
 	
 	// Loop sequentially over chunks of input vector
 	while (global_index < length) {
 		real element = buffer[global_index];
-		accumulator = reduce_operation(accumulator, element);
+		accumulator = <?=op('accumulator', 'element')?>;
 		global_index += get_global_size(0);
 	}
 
@@ -24,7 +24,7 @@ __kernel void reduce_name(
 		if (local_index < offset) {
 			real other = scratch[local_index + offset];
 			real mine = scratch[local_index];
-			scratch[local_index] = reduce_operation(mine, other);
+			scratch[local_index] = <?=op('mine', 'other')?>;
 		}
 		barrier(CLK_LOCAL_MEM_FENCE);
 	}

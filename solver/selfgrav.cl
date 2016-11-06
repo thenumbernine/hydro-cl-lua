@@ -54,7 +54,7 @@ __kernel void calcGravityDeriv(
 
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
-		int side = <?=side?>;
+		const int side = <?=side?>;
 		int indexL = index - stepsize[side];
 		int indexR = index + stepsize[side];
 	

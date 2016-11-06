@@ -129,20 +129,31 @@ local function xs_to_rs(code)
 	end)
 end
 
-function Solver:getCoordMapCode()
+local function getReal3FuncCode(name, exprs)
 	return table{
-		'inline real3 coordMap(real3 r) {',
+		'inline real3 '..name..'(real3 r) {',
 		'	return _real3(',
 	}:append(range(3):map(function(i)
 		return '		'
-			..xs_to_rs(self.geometry.uCode[i] 
-				or ('{x'..i..'}')
-			)..(i<3 and ',' or '')
+			..xs_to_rs(exprs[i])
+			..(i<3 and ',' or '')
 	end)):append{
 		'	);',
 		'}',
 		'',
 	}:concat'\n'
+end
+
+function Solver:getCoordMapCode()
+	return table{
+		getReal3FuncCode('coordMap', range(3):map(function(i)
+			return self.geometry.uCode[i] or '{x'..i..'}'
+		end)),
+	}:append(range(3):map(function(i)
+		getReal3FuncCode('e'..(i-1)..'_at', range(3):map(function(j)
+			return (self.geometry.eCode[i] or {})[j] or '0'
+		end))
+	end)):concat'\n'
 end
 
 function Solver:getCoordMapGLSLCode()
@@ -151,21 +162,6 @@ function Solver:getCoordMapGLSLCode()
 		:gsub('_real3', 'vec3')
 		:gsub('real3', 'vec3')
 	)
-end
-
-function Solver:getCoordLengthCode()
-	return table{
-		'inline real coordLenSq(real3 r) {',
-		'	return '..xs_to_rs(self.geometry.uLenSqCode)..';',
-		'}',
-		'',
-		'inline real coordLen(real3 r) {',
-		'	return sqrt(coordLenSq(r));',
-		-- TODO don't use this, because I'm pretty sure I simplify (x^2)^.5 to x ... instead of +-abs(x)
-		--'	return '..xs_to_rs(self.geometry.uLenCode)..';',
-		'}',
-		'',
-	}:concat'\n'
 end
 
 -- this is the general function - which just assigns the eqn provided by the arg
@@ -492,6 +488,10 @@ function Solver:createCodePrefix()
 	lines:insert[[
 #define _real3(a,b,c) (real3){.s={a,b,c}}
 
+static inline real real3_dot(real3 a, real3 b) {
+	return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
 static inline real3 real3_scale(real3 a, real s) {
 	return _real3(a.x * s, a.y * s, a.z * s);
 }
@@ -585,7 +585,6 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		errorTypeCode or '',
 		self.eqn:getEigenInfo().code or '',
 		self:getCoordMapCode() or '',
-		self:getCoordLengthCode() or '',
 		
 		-- this is dependent on coord map / length code
 		self.eqn:getCodePrefix(self) or '',
@@ -621,27 +620,18 @@ function Solver:refreshCommonProgram()
 		{self.app.is64bit and '#pragma OPENCL EXTENSION cl_khr_fp64 : enable' or nil
 	}:append{
 		'typedef '..self.app.real..' real;',
-	
 		-- used to find the min/max of a buffer
-		
-		'#define reduce_accum_init INFINITY',
-		'#define reduce_operation(x,y) min(x,y)',
-		'#define reduce_name reduceMin',
-		'#include "solver/reduce.cl"',
-		'#undef reduce_accum_init',
-		'#undef reduce_operation',
-		'#undef reduce_name',
-
-		'#define reduce_accum_init -INFINITY',
-		'#define reduce_operation(x,y) max(x,y)',
-		'#define reduce_name reduceMax',
-		'#include "solver/reduce.cl"',
-		'#undef reduce_accum_init',
-		'#undef reduce_operation',
-		'#undef reduce_name',
-
+		processcl(assert(file['solver/reduce.cl']), {
+			name = 'reduceMin',
+			initValue = 'INFINITY',
+			op = function(x,y) return 'min('..x..', '..y..')' end,
+		}),
+		processcl(assert(file['solver/reduce.cl']), {
+			name = 'reduceMax',
+			initValue = '-INFINITY',
+			op = function(x,y) return 'max('..x..', '..y..')' end,
+		}),	
 		-- used by the integrators
-		
 		[[
 __kernel void multAdd(
 	__global real* a,
@@ -862,6 +852,7 @@ __kernel void boundary(
 		local x = xs[side]
 
 		local gridSizeSide = 'gridSize_'..xs[side]
+		local rhs = gridSizeSide..'-numGhost+j'
 		lines:insert(({
 			periodic = '\t\tbuf['..index'j'..'] = buf['..index(gridSizeSide..'-2*numGhost+j')..'];',
 			mirror = table{
@@ -873,13 +864,13 @@ __kernel void boundary(
 		})[args.methods[x..'min']])
 
 		lines:insert(({
-			periodic = '\t\tbuf['..index(gridSizeSide..'-numGhost+j')..'] = buf['..index'numGhost+j'..'];',
+			periodic = '\t\tbuf['..index(rhs)..'] = buf['..index'numGhost+j'..'];',
 			mirror = table{
-				'\t\tbuf['..index(gridSizeSide..'-numGhost+j')..'] = buf['..index(gridSizeSide..'-numGhost-1-j')..'];',
+				'\t\tbuf['..index(rhs)..'] = buf['..index(gridSizeSide..'-numGhost-1-j')..'];',
 			}:append(table.map((args.mirrorVars or {})[side] or {}, function(var)
-				return '\t\tbuf['..index(gridSizeSide..'-numGhost+j')..'].'..var..' = -buf['..index(gridSizeSide..'-numGhost+j')..'].'..var..';'
+				return '\t\tbuf['..index(rhs)..'].'..var..' = -buf['..index(rhs)..'].'..var..';'
 			end)):concat'\n',
-			freeflow = '\t\tbuf['..index(gridSizeSide..'-numGhost+j')..'] = buf['..index(gridSizeSide..'-numGhost-1')..'];',
+			freeflow = '\t\tbuf['..index(rhs)..'] = buf['..index(gridSizeSide..'-numGhost-1')..'];',
 		})[args.methods[x..'max']])
 	
 		if self.dim > 1 then
@@ -891,7 +882,7 @@ __kernel void boundary(
 	lines:insert'}'
 
 	local code = lines:concat'\n'
-print(showcode(code))
+
 	local boundaryProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code} 
 	local boundaryKernel = boundaryProgram:kernel'boundary'
 	return boundaryProgram, boundaryKernel

@@ -88,6 +88,13 @@ function Geometry:init(args)
 			:match'return (.*);'
 	end)
 
+	self.eCode = range(#e):map(function(i)
+		return range(#e[1]):map(function(j)
+			print(i,j,e[i][j])
+			return toC:compile(e[i][j], toC_coordArgs):match'return (.*);'
+		end)
+	end)
+	
 	local coordU = Tensor('^a', function(a) return coords[a] end)
 
 	local lenSqExpr = (coordU'^a' * coordU'_a')()
@@ -101,6 +108,7 @@ function Geometry:init(args)
 		local lenCode = toC:compile((symmath.sqrt(lenSqExpr))(), toC_coordArgs):match'return (.*);'
 		return lenCode
 	end)
+
 end
 
 return Geometry

@@ -150,7 +150,7 @@ __kernel void calcFlux(
 
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
-		int side = <?=side?>;	
+		const int side = <?=side?>;	
 		real dt_dx = dt / dx_at<?=side?>(i);
 		
 		int indexL = index - stepsize[side];
@@ -209,7 +209,7 @@ __kernel void calcDerivFromFlux(
 	
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
-		int side = <?=side?>;
+		const int side = <?=side?>;
 		int intindexL = side + dim * index;
 		int intindexR = intindexL + dim * stepsize[side]; 
 		const __global real* fluxL = fluxBuf + numStates * intindexL;
