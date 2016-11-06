@@ -99,7 +99,7 @@ __kernel void calcEigenBasis(
 		cons_t UR = UBuf[indexR];
 
 		//TODO real3 n = normalForSide(side);
-#if 1
+#if 0
 		//normal
 		real3 n = _real3(0,0,0);
 		n.s[side] = 1;
