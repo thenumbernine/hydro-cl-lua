@@ -205,15 +205,15 @@ __kernel void calcEigenBasis(
 				// so a -90' rotation applied to the RHS of A is a +90' rotation applied to the RHS of Q-1 the left eigenvectors
 				//and while a rotation applied to the LHS of a vector rotates the elements of its column vectors, a rotation applied to the RHS rotates the elements of its row vectors 
 				//each row's y <- x, x <- -y
-				tmp = evL[i + numStates * cons_S0];
-				evL[i + numStates * cons_S0] = -evL[i + numStates * cons_S1];
-				evL[i + numStates * cons_S1] = tmp;
+				tmp = evL[i + numStates * cons_Sx];
+				evL[i + numStates * cons_Sx] = -evL[i + numStates * cons_Sy];
+				evL[i + numStates * cons_Sy] = tmp;
 				//a -90' rotation applied to the RHS of A must be corrected with a 90' rotation on the LHS of A
 				//this rotates the elements of the column vectors by 90'
 				//each column's x <- y, y <- -x
-				tmp = evR[cons_S0 + numStates * i];
-				evR[cons_S0 + numStates * i] = -evR[cons_S1 + numStates * i];
-				evR[cons_S1 + numStates * i] = tmp;
+				tmp = evR[cons_Sx + numStates * i];
+				evR[cons_Sx + numStates * i] = -evR[cons_Sy + numStates * i];
+				evR[cons_Sy + numStates * i] = tmp;
 			}
 		}
 #endif
@@ -221,12 +221,12 @@ __kernel void calcEigenBasis(
 		else if (side == 2) {
 			for (int i = 0; i < numStates; ++i) {
 				real tmp;
-				tmp = evL[i + numStates * cons_S0];
-				evL[i + numStates * cons_S0] = -evL[i + numStates * cons_S2];
-				evL[i + numStates * cons_S2] = tmp;
-				tmp = evR[cons_S0 + numStates * i];
-				evR[cons_S0 + numStates * i] = -evR[cons_S2 + numStates * i];
-				evR[cons_S2 + numStates * i] = tmp;
+				tmp = evL[i + numStates * cons_Sx];
+				evL[i + numStates * cons_Sx] = -evL[i + numStates * cons_Sz];
+				evL[i + numStates * cons_Sz] = tmp;
+				tmp = evR[cons_Sx + numStates * i];
+				evR[cons_Sx + numStates * i] = -evR[cons_Sz + numStates * i];
+				evR[cons_Sz + numStates * i] = tmp;
 			}
 		}
 #endif

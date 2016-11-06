@@ -8,11 +8,11 @@ local Maxwell = class(Equation)
 Maxwell.name = 'Maxwell'
 
 Maxwell.numStates = 6
-Maxwell.consVars = {'epsE0', 'epsE0', 'epsE2', 'B0', 'B1', 'B2'}
-Maxwell.mirrorVars = {{'epsE.s0', 'B.s0'}, {'epsE.s1', 'B.s1'}, {'epsE.s2', 'B.s2'}}
+Maxwell.consVars = {'epsEx', 'epsEx', 'epsEz', 'Bx', 'By', 'Bz'}
+Maxwell.mirrorVars = {{'epsE.x', 'B.x'}, {'epsE.y', 'B.y'}, {'epsE.z', 'B.z'}}
 Maxwell.displayVars = {
-	'E0', 'E1', 'E2', 'E',
-	'B0', 'B1', 'B2', 'B',
+	'Ex', 'Ey', 'Ez', 'E',
+	'Bx', 'By', 'Bz', 'B',
 	'energy',
 }
 
@@ -62,12 +62,12 @@ __kernel void initState(
 	SETBOUNDS(0,0);
 	real3 x = CELL_X(i);
 	real3 mids = real3_scale(real3_add(mins, maxs), .5);
-	bool lhs = x.s0 < mids.s0
+	bool lhs = x.x < mids.x
 #if dim > 1
-		&& x.s1 < mids.s1
+		&& x.y < mids.y
 #endif
 #if dim > 2
-		&& x.s2 < mids.s2
+		&& x.z < mids.z
 #endif
 	;
 	__global cons_t* U = UBuf + index;
@@ -98,13 +98,13 @@ end
 function Maxwell:getCalcDisplayVarCode()
 	return [[
 	switch (displayVar) {
-	case display_U_E0: value = U->epsE.s0 / eps0; break;
-	case display_U_E1: value = U->epsE.s1 / eps0; break;
-	case display_U_E2: value = U->epsE.s2 / eps0; break;
+	case display_U_Ex: value = U->epsE.x / eps0; break;
+	case display_U_Ey: value = U->epsE.y / eps0; break;
+	case display_U_Ez: value = U->epsE.z / eps0; break;
 	case display_U_E: value = sqrt(ESq(*U)); break;
-	case display_U_B0: value = U->B.s0; break;
-	case display_U_B1: value = U->B.s1; break;
-	case display_U_B2: value = U->B.s2; break;
+	case display_U_Bx: value = U->B.x; break;
+	case display_U_By: value = U->B.y; break;
+	case display_U_Bz: value = U->B.z; break;
 	case display_U_B: value = sqrt(BSq(*U)); break;
 	case display_U_energy: value = .5 * (coordLen(U->epsE) + coordLen(U->B) / mu0); break;
 	}

@@ -8,19 +8,19 @@ local SRHD = class(Equation)
 SRHD.name = 'SRHD'
 SRHD.numStates = 5
 
-SRHD.consVars = {'D', 'S0', 'S1', 'S2', 'tau'}
-SRHD.primVars = {'rho', 'v0', 'v1', 'v2', 'eInt'}
-SRHD.mirrorVars = {{'S.s0'}, {'S.s1'}, {'S.s2'}}
+SRHD.consVars = {'D', 'Sx', 'Sy', 'Sz', 'tau'}
+SRHD.primVars = {'rho', 'vx', 'vy', 'vz', 'eInt'}
+SRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
 SRHD.displayVars = {
 	'D',
-	'S0', 'S1', 'S2', 'S',
+	'Sx', 'Sy', 'Sz', 'S',
 	'tau',
 	'W',
 	'primitive_reconstruction_error',
 }
 SRHD.primDisplayVars = {
 	'rho',
-	'v0', 'v1', 'v2', 'v',
+	'vx', 'vy', 'vz', 'v',
 	'eInt',
 	'P',
 	'h',
@@ -70,9 +70,9 @@ typedef struct {
 
 enum {
 	cons_D,
-	cons_S0,
-	cons_S1,
-	cons_S2,
+	cons_Sx,
+	cons_Sy,
+	cons_Sz,
 	cons_tau,
 };
 

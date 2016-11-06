@@ -533,7 +533,7 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		return (('#define cell_x{i}(i) ((real)(i + '..clnumber(.5-self.numGhost)..') * grid_dx{i} + mins_'..xs[i]..')')
 			:gsub('{i}', i-1))
 	end)):append{
-		'#define CELL_X(i) _real3(cell_x0(i.s0), cell_x1(i.s1), cell_x2(i.s2));',
+		'#define CELL_X(i) _real3(cell_x0(i.x), cell_x1(i.y), cell_x2(i.z));',
 
 		self.eqn.getTypeCode and self.eqn:getTypeCode() or '',
 

@@ -9,13 +9,13 @@ Euler.name = 'Euler'
 
 Euler.numStates = 5
 
-Euler.consVars = {'rho', 'm0', 'm1', 'm2', 'ETotal'}
-Euler.primVars = {'rho', 'v0', 'v1', 'v2', 'P'}
-Euler.mirrorVars = {{'m.s0'}, {'m.s1'}, {'m.s2'}}
+Euler.consVars = {'rho', 'mx', 'my', 'mz', 'ETotal'}
+Euler.primVars = {'rho', 'vx', 'vy', 'vz', 'P'}
+Euler.mirrorVars = {{'m.x'}, {'m.y'}, {'m.z'}}
 Euler.displayVars = {
 	'rho',
-	'v0', 'v1', 'v2', 'v',
-	'm0', 'm1', 'm2', 'm',
+	'vx', 'vy', 'vz', 'v',
+	'mx', 'my', 'mz', 'm',
 	'eInt',
 	'eKin', 
 	'ePot',
@@ -51,9 +51,9 @@ typedef struct {
 
 enum {
 	cons_rho,
-	cons_m0,
-	cons_m1,
-	cons_m2,
+	cons_mx,
+	cons_my,
+	cons_mz,
 	cons_ETotal,
 };
 
@@ -152,15 +152,15 @@ __kernel void initState(
 	SETBOUNDS(0,0);
 	
 	//TODO should 'x' be in embedded or coordinate space? coordinate 
-	//should 'v0 v1 v2' be embedded or coordinate space? coordinate
+	//should 'vx vy vz' be embedded or coordinate space? coordinate
 	real3 x = CELL_X(i);
 	real3 mids = real3_scale(real3_add(mins, maxs), .5);
-	bool lhs = x.s0 < mids.s0
+	bool lhs = x.x < mids.x
 #if dim > 1
-		&& x.s1 < mids.s1
+		&& x.y < mids.y
 #endif
 #if dim > 2
-		&& x.s2 < mids.s2
+		&& x.z < mids.z
 #endif
 	;
 	real rho = 0;
@@ -190,13 +190,13 @@ function Euler:getCalcDisplayVarCode()
 	//switch (displayVar) {
 	switch (displayVar) {
 	case display_U_rho: value = W.rho; break;
-	case display_U_v0: value = W.v.s0; break;
-	case display_U_v1: value = W.v.s1; break;
-	case display_U_v2: value = W.v.s2; break;
+	case display_U_vx: value = W.v.x; break;
+	case display_U_vy: value = W.v.y; break;
+	case display_U_vz: value = W.v.z; break;
 	case display_U_v: value = sqrt(W.v.x*W.v.x + W.v.y*W.v.y + W.v.z*W.v.z); /*coordLen(W.v);*/ break;
-	case display_U_m0: value = U.m.s0; break;
-	case display_U_m1: value = U.m.s1; break;
-	case display_U_m2: value = U.m.s2; break;
+	case display_U_mx: value = U.m.x; break;
+	case display_U_my: value = U.m.y; break;
+	case display_U_mz: value = U.m.z; break;
 	case display_U_m: value = sqrt(U.m.x*U.m.x + U.m.y*U.m.y + U.m.z*U.m.z); /*coordLen(U.m);*/ break;
 	case display_U_P: value = W.P; break;
 	case display_U_eInt: value = calc_eInt(W); break;
