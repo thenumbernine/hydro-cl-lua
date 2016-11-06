@@ -130,9 +130,9 @@ function Geometry:init(args)
 	local e2len = symmath.sqrt(e2[1]^2 + e2[2]^2 + e2[3]^2)()
 	local e3len = symmath.sqrt(e3[1]^2 + e3[2]^2 + e3[3]^2)()
 
-	local e1unit = (e1/e1len)()
-	local e2unit = (e2/e2len)()
-	local e3unit = (e3/e3len)()
+	local e1unit = e1:map(function(e1i) return (e1i/e1len)() end)
+	local e2unit = e2:map(function(e2i) return (e2i/e2len)() end)
+	local e3unit = e3:map(function(e3i) return (e3i/e3len)() end)
 	
 	local es = table{e1,e2,e3}
 	local eUnits = table{e1unit,e2unit,e3unit}
