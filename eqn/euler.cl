@@ -32,7 +32,7 @@ __kernel void calcDT(
 		range_t lambda = calcCellMinMaxEigenvalues(U, ePot, <?=side?>);
 		lambda.min = min((real)0., lambda.min);
 		lambda.max = max((real)0., lambda.max);
-		dt = min(dt, dx_at<?=side?>(i) / (fabs(lambda.max - lambda.min) + (real)1e-9));
+		dt = min(dt, dx<?=side?>_at(i) / (fabs(lambda.max - lambda.min) + (real)1e-9));
 	}<? end ?>
 	dtBuf[index] = dt; 
 }
@@ -98,7 +98,7 @@ __kernel void calcEigenBasis(
 		cons_t UL = UBuf[indexL];
 		cons_t UR = UBuf[indexR];
 
-#if 1	//normal, and flux, and subsequently velocity coordinates, in grid basis 
+#if 1	//normal, flux, velocity in coordinate space 
 		//normal
 		real3 n = _real3(0,0,0);
 		n.s[side] = 1;
@@ -109,7 +109,7 @@ __kernel void calcEigenBasis(
 
 		real3 n2 = _real3(0,0,0);
 		n2.s[(side+2)%3] = 1;
-#else	//coordinates in embedded 
+#else	//coordinates in flat space
 		real3 n = e<?=side?>unit_at(i);
 		real3 n1 = e<?=(side+1)%3?>unit_at(i);
 		real3 n2 = e<?=(side+2)%3?>unit_at(i);

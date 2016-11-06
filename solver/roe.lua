@@ -478,11 +478,22 @@ function Solver:createCodePrefix()
 		lines:insert'#pragma OPENCL EXTENSION cl_khr_fp64 : enable'
 	end
 
+	lines:append(self.displayVars:map(function(var,i)
+		return '#define display_'..var.name..' '..i
+	end))
+	
+	-- output the first and last indexes of display vars associated with each buffer
+	for _,convertToTex in ipairs(self.convertToTexs) do
+		assert(convertToTex.vars[1], "failed to find vars for convertToTex "..convertToTex.name)
+		lines:insert('#define displayFirst_'..convertToTex.name..' display_'..convertToTex.vars[1].name)
+		lines:insert('#define displayLast_'..convertToTex.name..' display_'..convertToTex.vars:last().name)
+	end
+
 	-- real types in CL natives: 1,2,4,8
 	lines:append(table{'',2,4,8}:map(function(n)
 		return 'typedef '..self.app.real..n..' real'..n..';'
 	end))
-
+	
 	lines:insert(self.app.real3TypeCode)
 	lines:insert[[
 #define _real3(a,b,c) (real3){.s={a,b,c}}
@@ -533,7 +544,7 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		return (('#define cell_x{i}(i) ((real)(i + '..clnumber(.5-self.numGhost)..') * grid_dx{i} + mins_'..xs[i]..')')
 			:gsub('{i}', i-1))
 	end)):append{
-		'#define CELL_X(i) _real3(cell_x0(i.x), cell_x1(i.y), cell_x2(i.z));',
+		'#define cell_x(i) _real3(cell_x0(i.x), cell_x1(i.y), cell_x2(i.z));',
 
 		self.eqn.getTypeCode and self.eqn:getTypeCode() or '',
 
@@ -553,7 +564,7 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		'\tint index = INDEXV(i);',
 	}
 
-	-- TODO replace this with geom code
+	-- dx0, ...
 	lines:append(range(self.dim):map(function(i)
 		local code = self.geometry.dxCodes[i]
 		for j=1,3 do
@@ -561,9 +572,10 @@ static inline real3 real3_sub(real3 a, real3 b) {
 				'{x'..j..'}',
 				'cell_x'..(j-1)..'(i.'..xs[j]..')')
 		end
-		return '#define dx_at'..(i-1)..'(i) (grid_dx'..(i-1)..' * ('..code..'))'
+		return '#define dx'..(i-1)..'_at(i) (grid_dx'..(i-1)..' * ('..code..'))'
 	end))
 
+	-- e0, e0unit, ...
 	lines:append(range(3):map(function(i)
 		return getCode_define_i3_to_real3(
 			'e'..(i-1)..'_at', 
@@ -579,32 +591,40 @@ static inline real3 real3_sub(real3 a, real3 b) {
 			end))
 	end))
 
-	lines:append(self.displayVars:map(function(var,i)
-		return '#define display_'..var.name..' '..i
-	end))
-
-	-- output the first and last indexes of display vars associated with each buffer
-	for _,convertToTex in ipairs(self.convertToTexs) do
-		assert(convertToTex.vars[1], "failed to find vars for convertToTex "..convertToTex.name)
-		lines:insert('#define displayFirst_'..convertToTex.name..' display_'..convertToTex.vars[1].name)
-		lines:insert('#define displayLast_'..convertToTex.name..' display_'..convertToTex.vars:last().name)
-	end
-
+	-- coord len code:
+	lines:append{
+		'inline real coordLenSq(real3 r) {',
+		'	return '
+			..self.geometry.uLenSqCode:gsub('{x(%d)}', function(i)
+				return 'r.'..xs[i+0]
+			end)..';',
+		'}',
+		'',
+		'inline real coordLen(real3 r) {',
+		'	return sqrt(coordLenSq(r));',
+		'}',
+		'',
+	}
+	
 	lines:append{
 		self.checkFluxError and '#define checkFluxError' or '',
 		self.checkOrthoError and '#define checkOrthoError' or '',
+		
+		-- not messing with this one yet
 		self.allocateOneBigStructure and '#define allocateOneBigStructure' or '',
+		
 		errorTypeCode or '',
 		self.eqn:getEigenInfo().code or '',
 		self:getCoordMapCode() or '',
-		
 		-- this is dependent on coord map / length code
 		self.eqn:getCodePrefix(self) or '',
 	}
-	
+
+
 	self.codePrefix = lines:concat'\n'
 
-	print('codePrefix:\n',self.codePrefix)
+	print'codePrefix:'
+	print(self.codePrefix)
 end
 
 function Solver:refreshInitStateProgram()

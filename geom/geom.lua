@@ -78,15 +78,36 @@ function Geometry:init(args)
 	print'connection:'
 	print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()))
 
+
+	-- code generation
+
+	
 	local toC = require 'symmath.tostring.C'
 	local toC_coordArgs = table.map(coords, function(coord, i)
 		return {[coord] = '{x'..i..'}'}	-- 1-based
 	end)	
-	
-	self.uCode = range(dim):map(function(i)
-		return toC:compile(u[i], toC_coordArgs)
-			:match'return (.*);'
-	end)
+	local function compile(expr)
+		expr = expr:map(function(x)
+			if symmath.powOp.is(x) 
+			and symmath.Constant.is(x[2])
+			then
+				local value = assert(x[2].value)
+				if value > 0 and value == math.floor(value) then
+					if value == 1 then
+						return x[1]
+					else
+						return symmath.mulOp(range(value):map(function() 
+							return symmath.clone(x[1])
+						end):unpack())
+					end
+				end
+			end
+		end)
+		return toC:compile(expr, toC_coordArgs):match'return (.*);'
+	end
+
+
+	self.uCode = range(dim):map(function(i) return compile(u[i]) end)
 
 	-- just giving up and manually writing this out
 
@@ -135,28 +156,23 @@ function Geometry:init(args)
 	end)
 
 	self.eCode = eExt:map(function(ei,i)
-		return ei:map(function(eij,j)
-			return toC:compile(eij, toC_coordArgs):match'return (.*);'
-		end)
+		return ei:map(compile)
 	end)
 
 	self.eUnitCode = eExtUnit:map(function(ei_unit,i)
-		return ei_unit:map(function(eij_unit,j)
-			return toC:compile(eij_unit, toC_coordArgs):match'return (.*);'
-		end)
+		return ei_unit:map(compile)
 	end)
 
 	local coordU = Tensor('^a', function(a) return coords[a] end)
 	
 	local lenSqExpr = (coordU'^a' * coordU'_a')()
-	self.uLenSqCode = toC:compile(lenSqExpr, toC_coordArgs):match'return (.*);'
-	self.uLenCode = toC:compile((symmath.sqrt(lenSqExpr))(), toC_coordArgs):match'return (.*);'
+	self.uLenSqCode = compile(lenSqExpr)
+	self.uLenCode = compile((symmath.sqrt(lenSqExpr))())
 	
 	self.dxCodes = range(dim):map(function(i)
 		local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
 		local lenSqExpr = (dir'^a' * dir'_a')()
-		local lenSqCode = toC:compile(lenSqExpr, toC_coordArgs):match'return (.*);'
-		local lenCode = toC:compile((symmath.sqrt(lenSqExpr))(), toC_coordArgs):match'return (.*);'
+		local lenCode = compile((symmath.sqrt(lenSqExpr))())
 		return lenCode
 	end)
 

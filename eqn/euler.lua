@@ -89,7 +89,7 @@ real calc_HTotal(real P, real ETotal) {
 }
 
 real calc_eKin(prim_t W) { 
-	return .5 * (W.v.x*W.v.x + W.v.y*W.v.y + W.v.z*W.v.z);//coordLenSq(W.v);
+	return .5 * coordLenSq(W.v);
 }
 
 real calc_EKin(prim_t W) {
@@ -105,7 +105,7 @@ real calc_eInt(prim_t W) {
 }
 
 real calc_EKin_fromCons(cons_t U) {
-	return .5 * (U.m.x*U.m.x + U.m.y*U.m.y + U.m.z*U.m.z /*coordLenSq(U.m)*/ ) / U.rho;
+	return .5 * coordLenSq(U.m) / U.rho;
 }
 
 real calc_ETotal(prim_t W, real ePot) {
@@ -153,7 +153,7 @@ __kernel void initState(
 	
 	//TODO should 'x' be in embedded or coordinate space? coordinate 
 	//should 'vx vy vz' be embedded or coordinate space? coordinate
-	real3 x = CELL_X(i);
+	real3 x = cell_x(i);
 	real3 mids = real3_scale(real3_add(mins, maxs), .5);
 	bool lhs = x.x < mids.x
 #if dim > 1
@@ -193,11 +193,11 @@ function Euler:getCalcDisplayVarCode()
 	case display_U_vx: value = W.v.x; break;
 	case display_U_vy: value = W.v.y; break;
 	case display_U_vz: value = W.v.z; break;
-	case display_U_v: value = sqrt(W.v.x*W.v.x + W.v.y*W.v.y + W.v.z*W.v.z); /*coordLen(W.v);*/ break;
+	case display_U_v: value = coordLen(W.v); break;
 	case display_U_mx: value = U.m.x; break;
 	case display_U_my: value = U.m.y; break;
 	case display_U_mz: value = U.m.z; break;
-	case display_U_m: value = sqrt(U.m.x*U.m.x + U.m.y*U.m.y + U.m.z*U.m.z); /*coordLen(U.m);*/ break;
+	case display_U_m: value = coordLen(U.m); break;
 	case display_U_P: value = W.P; break;
 	case display_U_eInt: value = calc_eInt(W); break;
 	case display_U_eKin: value = calc_eKin(W); break;

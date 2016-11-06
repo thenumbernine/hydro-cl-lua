@@ -93,7 +93,7 @@ __kernel void initState(
 	__global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
-	real3 x = CELL_X(i);
+	real3 x = cell_x(i);
 	real3 mids = real3_scale(real3_add(mins, maxs), .5);
 	bool lhs = x.x < mids.x
 #if dim > 1

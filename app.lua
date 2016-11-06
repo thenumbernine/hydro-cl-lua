@@ -174,7 +174,7 @@ typedef union {
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
 		dim = cmdline.dim or 2,
 		
-		-- [[ cartesian
+		--[[ cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
@@ -192,7 +192,7 @@ typedef union {
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
-		--[[ cylinder
+		-- [[ cylinder
 		geometry = 'cylinder',
 		mins = cmdline.mins or {.5, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
@@ -202,10 +202,10 @@ typedef union {
 			cmdline.gridSize or 1,
 		},
 		boundary = {
-			xmin=cmdline.boundary or 'mirror', -- can't use mirror if coordinates are stored in xyz instead of r,theta,phi
-			xmax=cmdline.boundary or 'mirror', -- maybe I should use r,theta,phi ... but then I'd have to use the metric instead of delta
-			ymin=cmdline.boundary or 'periodic',	-- unless the system was normalized via anholonomic coordinates ... then I'd still have connections to deal with
-			ymax=cmdline.boundary or 'periodic',	-- and those would become source terms ...
+			xmin=cmdline.boundary or 'mirror',
+			xmax=cmdline.boundary or 'mirror',
+			ymin=cmdline.boundary or 'periodic',
+			ymax=cmdline.boundary or 'periodic',
 			zmin=cmdline.boundary or 'freeflow',
 			zmax=cmdline.boundary or 'freeflow',
 		},

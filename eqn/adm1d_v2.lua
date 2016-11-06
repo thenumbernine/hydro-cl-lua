@@ -133,7 +133,7 @@ __kernel void initState(
 	__global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
-	real3 x = CELL_X(i);
+	real3 x = cell_x(i);
 	__global cons_t* U = UBuf + index;
 	
 	U->alpha = calc_alpha(x.x, x.y, x.z);
