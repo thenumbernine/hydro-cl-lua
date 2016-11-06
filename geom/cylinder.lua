@@ -10,8 +10,15 @@ local Cylinder = class(geometry)
 
 function Cylinder:init(args)
 	args.embedded = table{symmath.vars('x', 'y', 'z')}:sub(1, args.solver.dim)
+	
 	local r, theta, z = symmath.vars('r', 'theta', 'z')
-	args.coords = table{r, theta, z}:sub(1, args.solver.dim)
+	
+	local thetaHat = symmath.var'thetaHat'
+	thetaHat.base = theta
+	function thetaHat:applyDiff(x) return x:diff(theta) / r end
+	
+	args.coords = table{r, thetaHat, z}:sub(1, args.solver.dim)
+	
 	args.chart = function() 
 		return ({
 			function() return Tensor('^I', r) end,
@@ -19,6 +26,7 @@ function Cylinder:init(args)
 			function() return Tensor('^I', r * cos(theta), r * sin(theta), z) end,
 		})[args.solver.dim]()
 	end
+	
 	Cylinder.super.init(self, args)
 end
 

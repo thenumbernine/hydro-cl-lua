@@ -197,23 +197,16 @@ __kernel void calcDerivFromFlux(
 	__global real* derivBuf,
 	const __global real* fluxBuf
 ) {
-	SETBOUNDS(0,0);
-
-	//would it be faster to fill the buffer with zeros beforehand?
+	SETBOUNDS(2,2);
 	__global real* deriv = derivBuf + numStates * index;
-	for (int j = 0; j < numStates; ++j) {
-		deriv[j] = 0;
-	}
-	
-	if (OOB(2,2)) return;
 	
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int intindexL = side + dim * index;
 		int intindexR = intindexL + dim * stepsize[side]; 
-		const __global real* fluxL = fluxBuf + numStates * intindexL;
-		const __global real* fluxR = fluxBuf + numStates * intindexR;
+		const __global real* fluxL = fluxBuf + intindexL * numStates;
+		const __global real* fluxR = fluxBuf + intindexR * numStates;
 		for (int j = 0; j < numStates; ++j) {
 			real deltaFlux = fluxR[j] - fluxL[j];
 			deriv[j] -= deltaFlux / dx<?=side?>_at(i);

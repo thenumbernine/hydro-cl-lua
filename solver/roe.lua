@@ -622,9 +622,6 @@ static inline real3 real3_sub(real3 a, real3 b) {
 
 
 	self.codePrefix = lines:concat'\n'
-
-	print'codePrefix:'
-	print(self.codePrefix)
 end
 
 function Solver:refreshInitStateProgram()

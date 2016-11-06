@@ -32,6 +32,9 @@ Euler.displayVars = {
 	'HTotal',
 } 
 
+-- only for geometry's sake ...
+Euler.useSourceTerm = true
+
 Euler.initStates = require 'init.euler'
 Euler.initStateNames = table.map(Euler.initStates, function(info) return info.name end)
 

@@ -403,9 +403,8 @@ __kernel void addSource(
 	const __global cons_t* UBuf)
 {
 	SETBOUNDS(2,2);
-	
-	__global cons_t* deriv = derivBuf + index;
 	const __global cons_t* U = UBuf + index;
+	__global cons_t* deriv = derivBuf + index;
 
 	real gamma = symMatDet_prefix(U->gamma_);
 	real gammaInv[6];
@@ -738,20 +737,8 @@ __kernel void constrain(
 	__global cons_t* UBuf
 ) {
 #if 0	//use constraints at all?
+	SETBOUNDS(2,2);	
 	
-	int4 i = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
-	if (i.x < 2 || i.x >= SIZE_X - 2 
-#if DIM > 1
-		|| i.y < 2 || i.y >= SIZE_Y - 2 
-#endif
-#if DIM > 2
-		|| i.z < 2 || i.z >= SIZE_Z - 2
-#endif
-	) {
-		return;
-	}
-	
-	int index = INDEXV(i);
 	__global cons_t* U = UBuf + index;
 
 	real gamma = symMatDet_prefix(U->gamma_);

@@ -18,15 +18,16 @@ local range = require 'ext.range'
 local Geometry = class()
 
 function Geometry:init(args)
-	local dim = args.solver.dim
 	local symmath = require 'symmath'
+	local const = symmath.Constant
+	
+	local dim = args.solver.dim
 	local var = symmath.var
 	local vars = symmath.vars
 	local Matrix = symmath.Matrix
 	local Tensor = symmath.Tensor
 	
 	local flatMetric = Matrix:lambda({dim, dim}, function(i,j) return i==j and 1 or 0 end)
-
 	local coords = args.coords
 	local embedded = args.embedded
 	
@@ -35,7 +36,12 @@ function Geometry:init(args)
 		{variables=embedded, symbols='IJKLMN', metric=flatMetric},
 	}
 
+	local baseCoords = table.map(coords, function(coord)
+		return coord.base or coord
+	end)
+
 	print('coordinates:', table.unpack(coords))
+	print('base coords:', table.unpack(baseCoords))
 	print('embedding:', table.unpack(embedded))
 	
 	local eta = Tensor('_IJ', table.unpack(flatMetric)) 
@@ -54,11 +60,44 @@ function Geometry:init(args)
 	print(var'e''_u^I':eq(var'u''^I_,u'):eq(e'_u^I'()))
 	print()
 
+	-- commutation coefficients
+	local c = Tensor'_ab^c'
+	print'connection coefficients:'
+	print(var'c''_uv^w' * var'e''_w','$=[ e_u, e_v ]$')
+	for i,ui in ipairs(coords) do
+		for j,uj in ipairs(coords) do
+			local psi = var('\\psi', baseCoords)
+			local diff = ui:applyDiff(uj:applyDiff(psi)) - uj:applyDiff(ui:applyDiff(psi))
+			local diffEval = diff()
+			if diffEval ~= const(0) then
+				print('$[',ui.name,',',uj.name,'] =$',diff:eq(diffEval))
+				diff = diff()
+				--print('factor division',diff)
+				local dpsi = table.map(baseCoords, function(uk) return psi:diff(uk) end)
+				--print('dpsi', dpsi:unpack())
+				local A,b = symmath.factorLinearSystem({diff}, dpsi)
+				-- now extract psi:diff(uk)
+				-- and divide by e_k to get the correct coefficient
+				-- TODO this assumes that e_a is only a function of partial_a
+				-- if e_a is a linear combination of e_a^b partial_b then you can work it out to find
+				-- c_ab^d = (e^-1)_c^d (e_a^r e_b^c_,r - e_b^r e_a^c_,r)
+				-- TODO put this somewhere else so everyone can use it
+				assert(b[1][1] == const(0))
+				for k,uk in ipairs(coords) do
+					local coeff = (A[1][k] * dpsi[k] / uk:applyDiff(psi))()
+					-- assert dphi is nowhere in coeff ...
+					c[i][j][k] = coeff 
+				end
+			end
+		end
+	end
+
 	local g = (e'_u^I' * e'_v^J' * eta'_IJ')()
+	
 	-- TODO automatically do this ...
 	g = g:map(function(expr)
 		if symmath.powOp.is(expr)
-		and expr[2] == symmath.Constant(2)
+		and expr[2] == const(2)
 		and symmath.cos.is(expr[1])
 		then
 			return 1 - symmath.sin(expr[1][1]:clone())^2
@@ -69,7 +108,7 @@ function Geometry:init(args)
 	Tensor.metric(g)
 
 	local GammaL = Tensor'_abc'
-	GammaL['_abc'] = ((g'_ab,c' + g'_ac,b' - g'_bc,a') / 2)()
+	GammaL['_abc'] = ((g'_ab,c' + g'_ac,b' - g'_bc,a' + c'_abc' + c'_acb' - c'_bca') / 2)()
 	print'1st kind Christoffel:'
 	print(var'\\Gamma''_abc':eq(symmath.divOp(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(GammaL'_abc'()))
 
@@ -83,13 +122,15 @@ function Geometry:init(args)
 
 	
 	local toC = require 'symmath.tostring.C'
-	local toC_coordArgs = table.map(coords, function(coord, i)
+	local toC_coordArgs = table.map(baseCoords, function(coord, i)
 		return {[coord] = '{x'..i..'}'}	-- 1-based
 	end)	
 	local function compile(expr)
+		
+		-- replace pow(x,2) with x*x
 		expr = expr:map(function(x)
 			if symmath.powOp.is(x) 
-			and symmath.Constant.is(x[2])
+			and const.is(x[2])
 			then
 				local value = assert(x[2].value)
 				if value > 0 and value == math.floor(value) then
@@ -103,15 +144,17 @@ function Geometry:init(args)
 				end
 			end
 		end)
-		return toC:compile(expr, toC_coordArgs):match'return (.*);'
+		
+		return toC:compile(
+			expr,
+			toC_coordArgs
+		):match'return (.*);'
 	end
 
 
 	self.uCode = range(dim):map(function(i) return compile(u[i]) end)
 
 	-- just giving up and manually writing this out
-
-	local const = symmath.Constant
 	
 	local function cross(a,b)
 		return table{
@@ -121,7 +164,9 @@ function Geometry:init(args)
 		}
 	end
 
-	-- extend 'e' to full R3 ... should I do this from the start?
+	-- extend 'e' to full R3 
+	-- TODO should I do this from the start?
+	-- just provide the full R3 coordinates, and make no 'eExt' struct
 	local eExt = table()
 	eExt[1] = range(3):map(function(i) return e[1][i] or const(0) end)
 	if dim >= 2 then
@@ -163,7 +208,7 @@ function Geometry:init(args)
 		return ei_unit:map(compile)
 	end)
 
-	local coordU = Tensor('^a', function(a) return coords[a] end)
+	local coordU = Tensor('^a', function(a) return baseCoords[a] end)
 	
 	local lenSqExpr = (coordU'^a' * coordU'_a')()
 	self.uLenSqCode = compile(lenSqExpr)
