@@ -206,10 +206,10 @@ Solver.ConvertToTex = ConvertToTex
 ConvertToTex.type = 'real'	-- default
 
 ConvertToTex.displayCode = [[
-__kernel void {name}(
-	{input},
+__kernel void <?=name?>(
+	<?=input?>,
 	int displayVar,
-	const __global {type}* buf
+	const __global <?=type?>* buf
 ) {
 	SETBOUNDS(0,0);
 	int dstindex = index;
@@ -232,8 +232,8 @@ __kernel void {name}(
 	int side = 0;
 	int intindex = side + dim * index;
 	real value = 0;
-{body}
-{output}
+<?=body?>
+<?=output?>
 }
 ]]
 
@@ -250,13 +250,13 @@ function ConvertToTex:init(args)
 			convertToTex = self,
 			name = self.name..'_'..name,
 			enabled = ffi.new('bool[1]', 
-				self.name == 'U' and (solver.dim==1 or table.find(solver.eqn.consVars,name))
+				self.name == 'U' and (solver.dim==1 or i==1)
 				or (self.name == 'error' and solver.dim==1)
 			),
 			useLogPtr = ffi.new('bool[1]', args.useLog or false),
 			color = vec3(math.random(), math.random(), math.random()):normalize(),
 			--heatMapTexPtr = ffi.new('int[1]', 0),	-- hsv, isobar, etc ...
-			heatMapFixedRangePtr = ffi.new('bool[1]', true),
+			heatMapFixedRangePtr = ffi.new('bool[1]', self.name ~= 'error'),
 			heatMapValueMinPtr = ffi.new('float[1]', 0),
 			heatMapValueMaxPtr = ffi.new('float[1]', 1),
 		}
@@ -734,32 +734,30 @@ function Solver:refreshDisplayProgram()
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do
 			lines:append{
-				(convertToTex:getCode()
-					:gsub('{name}', 'calcDisplayVarToTex_'..convertToTex.name)
-					:gsub('{input}', '__write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex')
-					:gsub('{output}', '	write_imagef(tex, '
+				processcl(convertToTex:getCode(), {
+					name = 'calcDisplayVarToTex_'..convertToTex.name,
+					input = '__write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex',
+					output = '	write_imagef(tex, '
 						..(self.dim == 3 and '(int4)(dsti.x, dsti.y, dsti.z, 0)' or '(int2)(dsti.x, dsti.y)')
-						..', (float4)(value, 0., 0., 0.));')
-					:gsub('{body}', convertToTex.displayBodyCode or '')
-					:gsub('{type}', convertToTex.type)
-
-					:gsub('{eigenBody}', self.eqn:getCalcDisplayVarEigenCode())
-				)
+						..', (float4)(value, 0., 0., 0.));',
+					body = convertToTex.displayBodyCode or '',
+					type = convertToTex.type,
+					eigenBody = self.eqn:getCalcDisplayVarEigenCode(),
+				})
 			}
 		end
 	end
 
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		lines:append{
-			(convertToTex:getCode()
-				:gsub('{name}', 'calcDisplayVarToBuffer_'..convertToTex.name)
-				:gsub('{input}', '__global real* dest')
-				:gsub('{output}', '	dest[dstindex] = value;')
-				:gsub('{body}', convertToTex.displayBodyCode or '')
-				:gsub('{type}', convertToTex.type)
-				
-				:gsub('{eigenBody}', self.eqn:getCalcDisplayVarEigenCode())
-			)
+			processcl(convertToTex:getCode(), {
+				name = 'calcDisplayVarToBuffer_'..convertToTex.name,
+				input = '__global real* dest',
+				output = '	dest[dstindex] = value;',
+				body = convertToTex.displayBodyCode or '',
+				type = convertToTex.type,
+				eigenBody = self.eqn:getCalcDisplayVarEigenCode(),
+			})
 		-- end display code
 		}
 	end

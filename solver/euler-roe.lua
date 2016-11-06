@@ -19,8 +19,8 @@ function EulerRoe:addConvertToTexUBuf()
 		type = 'cons_t',
 		vars = assert(self.eqn.displayVars),
 		displayCode = [[
-__kernel void {name}(
-	{input},
+__kernel void <?=name?>(
+	<?=input?>,
 	int displayVar,
 	const __global cons_t* UBuf,
 	const __global real* ePotBuf 
@@ -51,7 +51,7 @@ __kernel void {name}(
 	
 ]]..self.eqn:getCalcDisplayVarCode()..[[	
 
-{output}
+<?=output?>
 }
 ]],
 	}, ConvertToTex_EulerRoe_U)

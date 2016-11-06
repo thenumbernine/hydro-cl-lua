@@ -31,8 +31,8 @@ function SRHDRoe:addConvertToTexUBuf()
 		vars = assert(self.eqn.displayVars),
 -- the index vs dstindex stuff is shared in common with the main display code
 		displayCode = [[
-__kernel void {name}(
-	{input},
+__kernel void <?=name?>(
+	<?=input?>,
 	int displayVar,
 	const __global cons_t* UBuf,
 	const __global prim_t* primBuf
@@ -84,7 +84,7 @@ __kernel void {name}(
 		break;
 	}
 
-{output}
+<?=output?>
 }
 ]]
 	}, ConvertToTex_SRHD_U)

@@ -98,8 +98,7 @@ __kernel void calcEigenBasis(
 		cons_t UL = UBuf[indexL];
 		cons_t UR = UBuf[indexR];
 
-		//TODO real3 n = normalForSide(side);
-#if 0
+#if 1	//normal, and flux, and subsequently velocity coordinates, in grid basis 
 		//normal
 		real3 n = _real3(0,0,0);
 		n.s[side] = 1;
@@ -110,7 +109,7 @@ __kernel void calcEigenBasis(
 
 		real3 n2 = _real3(0,0,0);
 		n2.s[(side+2)%3] = 1;
-#else
+#else	//coordinates in embedded 
 		real3 n = e<?=side?>unit_at(i);
 		real3 n1 = e<?=(side+1)%3?>unit_at(i);
 		real3 n2 = e<?=(side+2)%3?>unit_at(i);
