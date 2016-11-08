@@ -36,7 +36,7 @@ local function processCL(code, args)
 			addprint(pos, start1-1)
 			local block = code:sub(start2+1, end1-1)
 			if ret then
-				newcode:insert(outputFunc..'('..block..')\n')
+				newcode:insert(outputFunc..'(tostring('..block..'))\n')
 			else
 				newcode:insert(block..'\n')
 			end

@@ -157,6 +157,12 @@ end
 
 function Euler:getCalcDisplayVarCode()
 	return [[
+	int side = 0;
+	real value = 0;
+
+	cons_t U = UBuf[index];
+	real ePot = ePotBuf[index];
+	
 	prim_t W = primFromCons(U, ePot);
 	switch (displayVar) {
 	case display_U_rho: value = W.rho; break;

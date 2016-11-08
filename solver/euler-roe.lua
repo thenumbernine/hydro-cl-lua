@@ -18,42 +18,8 @@ function EulerRoe:addConvertToTexUBuf()
 		name = 'U',
 		type = 'cons_t',
 		vars = assert(self.eqn.displayVars),
-		displayCode = [[
-__kernel void <?=name?>(
-	<?=input?>,
-	int displayVar,
-	const __global cons_t* UBuf,
-	const __global real* ePotBuf 
-) {
-	SETBOUNDS(0,0);
-	int dstindex = index;
-	int4 dsti = i;
-
-	//now constrain
-	if (i.x < 2) i.x = 2;
-	if (i.x > gridSize_x - 2) i.x = gridSize_x - 2;
-#if dim >= 2
-	if (i.y < 2) i.y = 2;
-	if (i.y > gridSize_y - 2) i.y = gridSize_y - 2;
-#endif
-#if dim >= 3
-	if (i.z < 2) i.z = 2;
-	if (i.z > gridSize_z - 2) i.z = gridSize_z - 2;
-#endif
-	//and recalculate read index
-	index = INDEXV(i);
-	
-	int side = 0;
-	real value = 0;
-
-	cons_t U = UBuf[index];
-	real ePot = ePotBuf[index];
-	
-]]..self.eqn:getCalcDisplayVarCode()..[[	
-
-<?=output?>
-}
-]],
+		extraArgs = {'const __global real* ePotBuf'},
+		displayBody = self.eqn:getCalcDisplayVarCode(),
 	}, ConvertToTex_EulerRoe_U)
 end
 

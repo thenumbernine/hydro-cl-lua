@@ -36,7 +36,9 @@ local GuiInt = require 'guivar.int'
 SRHD.guiVars = table{
 	GuiFloat{name='gamma', value=7/5},
 
-	-- setting max iter to 100+ makes it freeze initially -- meaning the initial cons to prim or something is taking too long ...
+	-- setting max iter to 100+ makes it freeze initially 
+	-- but setting it to 100 after the first iteration is fine ...
+	-- meaning the initial cons to prim is taking too long ...
 	GuiInt{name='solvePrimMaxIter', value=10},	-- value=1000},
 	
 	GuiFloat{name='solvePrimStopEpsilon', value=1e-7},
@@ -48,7 +50,8 @@ SRHD.guiVars = table{
 	--velEpsilon = 1e-6	-- <=> handles up to W = 600
 	--velEpsilon = 1e-7	-- <=> handles up to W = 2,000
 	--velEpsilon = 1e-10	-- <=> handles up to W = 100,000
-	GuiFloat{name='solvePrimVelEpsilon', value=1e-15},	-- <=> smaller than 1e-15 gnuplot x11 terminal breaks down past W = 1e+7 ...
+	-- <=> smaller than 1e-15 gnuplot x11 terminal breaks down past W = 1e+7 ...
+	GuiFloat{name='solvePrimVelEpsilon', value=1e-15},	
 	
 	GuiFloat{name='solvePrimPMinEpsilon', value=1e-16},
 	

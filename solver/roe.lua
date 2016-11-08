@@ -207,7 +207,10 @@ ConvertToTex.displayCode = [[
 __kernel void <?=name?>(
 	<?=input?>,
 	int displayVar,
-	const __global <?=type?>* buf
+	const __global <?= convertToTex.type ?>* buf
+	<?= #convertToTex.extraArgs > 0 
+		and ','..table.concat(convertToTex.extraArgs, ',\n\t')
+		or '' ?>
 ) {
 	SETBOUNDS(0,0);
 	int dstindex = index;
@@ -216,30 +219,33 @@ __kernel void <?=name?>(
 	//now constrain
 	if (i.x < 2) i.x = 2;
 	if (i.x > gridSize_x - 2) i.x = gridSize_x - 2;
-#if dim >= 2
+<? if solver.dim >= 2 then ?>
 	if (i.y < 2) i.y = 2;
 	if (i.y > gridSize_y - 2) i.y = gridSize_y - 2;
-#endif
-#if dim >= 3
+<? end
+if solver.dim >= 3 then ?>
 	if (i.z < 2) i.z = 2;
 	if (i.z > gridSize_z - 2) i.z = gridSize_z - 2;
-#endif
+<? end ?>
 	//and recalculate read index
 	index = INDEXV(i);
 	
 	int side = 0;
 	int intindex = side + dim * index;
 	real value = 0;
-<?=body?>
+<?= convertToTex.displayBodyCode or '' ?>
 <?=output?>
 }
 ]]
+
+ConvertToTex.extraArgs = {}
 
 function ConvertToTex:init(args)
 	local solver = assert(args.solver)	
 	self.name = assert(args.name)
 	self.solver = solver
 	self.type = args.type	-- or self.type
+	self.extraArgs = args.extraArgs
 	self.displayCode = args.displayCode	-- or self.displayCode
 	self.displayBodyCode = args.displayBodyCode
 	self.vars = table()
@@ -251,10 +257,14 @@ function ConvertToTex:init(args)
 				self.name == 'U' and (solver.dim==1 or i==1)
 				or (self.name == 'error' and solver.dim==1)
 			),
-			useLogPtr = ffi.new('bool[1]', args.useLog or false),
+			useLogPtr = ffi.new('bool[1]', 
+				args.useLog or false
+			),
 			color = vec3(math.random(), math.random(), math.random()):normalize(),
 			--heatMapTexPtr = ffi.new('int[1]', 0),	-- hsv, isobar, etc ...
-			heatMapFixedRangePtr = ffi.new('bool[1]', self.name ~= 'error'),
+			heatMapFixedRangePtr = ffi.new('bool[1]', 
+				self.name ~= 'error'
+			),
 			heatMapValueMinPtr = ffi.new('float[1]', 0),
 			heatMapValueMaxPtr = ffi.new('float[1]', 1),
 		}
@@ -749,13 +759,13 @@ function Solver:refreshDisplayProgram()
 		for _,convertToTex in ipairs(self.convertToTexs) do
 			lines:append{
 				processcl(convertToTex:getCode(), {
+					solver = self,
+					convertToTex = convertToTex,
 					name = 'calcDisplayVarToTex_'..convertToTex.name,
 					input = '__write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex',
 					output = '	write_imagef(tex, '
 						..(self.dim == 3 and '(int4)(dsti.x, dsti.y, dsti.z, 0)' or '(int2)(dsti.x, dsti.y)')
 						..', (float4)(value, 0., 0., 0.));',
-					body = convertToTex.displayBodyCode or '',
-					type = convertToTex.type,
 				})
 			}
 		end
@@ -764,11 +774,11 @@ function Solver:refreshDisplayProgram()
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		lines:append{
 			processcl(convertToTex:getCode(), {
+				solver = self,
+				convertToTex = convertToTex,
 				name = 'calcDisplayVarToBuffer_'..convertToTex.name,
 				input = '__global real* dest',
 				output = '	dest[dstindex] = value;',
-				body = convertToTex.displayBodyCode or '',
-				type = convertToTex.type,
 			})
 		-- end display code
 		}

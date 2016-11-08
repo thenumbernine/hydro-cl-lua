@@ -776,7 +776,7 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 					local value = (y - ymin) * (valueMax - valueMin) / (ymax - ymin)
 					self.font:draw{
 						pos={xmin * .99 + xmax * .01, y + fontSizeY * .5},
-						text=('%.5f'):format(value),
+						text=(math.abs(value) > 1e+5 and ('%.5e'):format(value) or ('%.5f'):format(value)),
 						color = {1,1,1,1},
 						fontSize={fontSizeX, -fontSizeY},
 						multiLine=false,
