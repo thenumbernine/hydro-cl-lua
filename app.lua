@@ -172,9 +172,9 @@ typedef union {
 		eqn = cmdline.eqn,
 		integrator = cmdline.integrator or 'forward Euler',	--'Runge-Kutta 4, TVD',
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
-		dim = cmdline.dim or 2,
+		dim = cmdline.dim or 1,
 		
-		--[[ cartesian
+		-- [[ cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
@@ -192,7 +192,7 @@ typedef union {
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
-		-- [[ cylinder
+		--[[ cylinder
 		geometry = 'cylinder',
 		mins = cmdline.mins or {.5, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
@@ -210,7 +210,7 @@ typedef union {
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
-		-- [[ sphere
+		--[[ sphere
 		geometry = 'sphere',
 		mins = cmdline.mins or {0, -math.pi, .5},
 		maxs = cmdline.maxs or {math.pi, math.pi, 1},
@@ -231,8 +231,8 @@ typedef union {
 	}
 
 	-- fluid
-	--self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
-	self.solver = require 'solver.euler-roe'(args)
+	self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
+	--self.solver = require 'solver.euler-roe'(args)
 	--self.solver = require 'solver.srhd-roe'(table(args, {initState = 'relativistic blast wave test problem 2'}))
 	-- EM
 	--self.solver = require 'solver.roe'(table(args, {eqn='maxwell'}))
@@ -610,7 +610,7 @@ function HydroCLApp:update(...)
 	HydroCLApp.super.update(self, ...)
 end
 
-function HydroCLApp:display1D(solvers, varName, xmin, ymin, xmax, ymax, useLog)
+function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
 	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
@@ -680,7 +680,6 @@ function HydroCLApp:display1D(solvers, varName, xmin, ymin, xmax, ymax, useLog)
 end
 
 function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, graph_xmax, graph_ymax)
-
 	self.view:projection(ar)
 	self.view:modelview()
 	if self.view.getOrthoBounds then

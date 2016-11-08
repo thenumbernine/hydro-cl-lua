@@ -5,7 +5,7 @@ local quat = require 'vec.quat'
 
 local FrustumView = class()
 
-function FrustumView::init()
+function FrustumView:init()
 	self.dist = 1
 	self.pos = vec3()
 	self.angle = quat()
