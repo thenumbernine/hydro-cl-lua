@@ -8,7 +8,7 @@ range_t calcCellMinMaxEigenvalues(
 	return (range_t){.min=W.vx - Cs, .max=W.vx + Cs};
 }
 
-real calc_hTotal(real rho, real P, real ETotal) {
+inline real calc_hTotal(real rho, real P, real ETotal) {
 	return (P + ETotal) / rho;
 }
 
@@ -76,8 +76,8 @@ __kernel void calcEigenBasis(
 		A[0+3*0] = 0;
 		A[0+3*1] = 1;
 		A[0+3*2] = 0;
-		A[1+3*0] = .5 * gamma_3 * vxSq;
-		A[1+3*1] = -gamma_3 * vx;
+		A[1+3*0] = .5 * (gamma-3.) * vxSq;
+		A[1+3*1] = -(gamma-3.) * vx;
 		A[1+3*2] = gamma_1;
 		A[2+3*0] = vx * (.5 * gamma_1 * vxSq - hTotal);
 		A[2+3*1] = hTotal - gamma_1 * vxSq;

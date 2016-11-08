@@ -75,54 +75,22 @@ function Euler:getCodePrefix()
 		Euler.super.getCodePrefix(self),
 		[[
 #define gamma_1 (gamma-1.)
-#define gamma_3 (gamma-3.)
 
-real calc_H(real P) {
-	return P * (gamma / gamma_1);
-}
-
-real calc_h(real rho, real P) {
-	return calc_H(P) / rho;
-}
-
-real calc_hTotal(real rho, real P, real ETotal) { 
-	return (P + ETotal) / rho;
-}
-
-real calc_HTotal(real P, real ETotal) {
-	return P + ETotal; 
-}
-
-real calc_eKin(prim_t W) { 
-	return .5 * coordLenSq(W.v);
-}
-
-real calc_EKin(prim_t W) {
-	return W.rho * calc_eKin(W);
-}
-
-real calc_EInt(prim_t W) {
-	return W.P / gamma_1;
-}
-
-real calc_eInt(prim_t W) {
-	return calc_EInt(W) / W.rho;
-}
-
-real calc_EKin_fromCons(cons_t U) {
-	return .5 * coordLenSq(U.m) / U.rho;
-}
-
-real calc_ETotal(prim_t W, real ePot) {
+inline real calc_H(real P) { return P * (gamma / gamma_1); }
+inline real calc_h(real rho, real P) { return calc_H(P) / rho; }
+inline real calc_hTotal(real rho, real P, real ETotal) { return (P + ETotal) / rho; }
+inline real calc_HTotal(real P, real ETotal) { return P + ETotal; }
+inline real calc_eKin(prim_t W) { return .5 * coordLenSq(W.v); }
+inline real calc_EKin(prim_t W) { return W.rho * calc_eKin(W); }
+inline real calc_EInt(prim_t W) { return W.P / gamma_1; }
+inline real calc_eInt(prim_t W) { return calc_EInt(W) / W.rho; }
+inline real calc_EKin_fromCons(cons_t U) { return .5 * coordLenSq(U.m) / U.rho; }
+inline real calc_ETotal(prim_t W, real ePot) {
 	real EPot = W.rho * ePot;
 	return calc_EKin(W) + calc_EInt(W) + EPot;
 }
-
-real calc_Cs(prim_t W) {
-	return sqrt(gamma * W.P / W.rho);
-}
-
-prim_t primFromCons(cons_t U, real ePot) {
+inline real calc_Cs(prim_t W) { return sqrt(gamma * W.P / W.rho); }
+inline prim_t primFromCons(cons_t U, real ePot) {
 	real EPot = U.rho * ePot;
 	real EKin = calc_EKin_fromCons(U);
 	real EInt = U.ETotal - EPot - EKin;
