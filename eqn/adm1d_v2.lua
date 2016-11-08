@@ -92,6 +92,7 @@ ADM_BonaMasso_1D_Alcubierre1997.numWaves = 3
 ADM_BonaMasso_1D_Alcubierre1997.consVars = {'alpha', 'gamma_xx', 'a_x', 'd_xxx', 'K_xx'}
 ADM_BonaMasso_1D_Alcubierre1997.mirrorVars = {{'gamma_xx', 'a_x', 'd_xxx', 'K_xx'}}
 
+ADM_BonaMasso_1D_Alcubierre1997.hasEigenCode = true
 ADM_BonaMasso_1D_Alcubierre1997.useSourceTerm = true
 
 ADM_BonaMasso_1D_Alcubierre1997.displayVars = table()
@@ -152,16 +153,6 @@ function ADM_BonaMasso_1D_Alcubierre1997:getSolverCode(solver)
 	return processcl(file['eqn/adm1d_v2.cl'], {solver=solver})
 end
 
-ADM_BonaMasso_1D_Alcubierre1997.eigenVars = {'alpha', 'sqrt_f_over_gamma_xx'}
-function ADM_BonaMasso_1D_Alcubierre1997:getEigenInfo(solver)
-	local makeStruct = require 'eqn.makestruct'
-	return {
-		typeCode = makeStruct('eigen_t', self.eigenVars),
-		code = nil,
-		displayVars = self.eigenVars,
-	}
-end
-
 function ADM_BonaMasso_1D_Alcubierre1997:getCalcDisplayVarCode()
 	return [[
 	switch (displayVar) {
@@ -184,7 +175,18 @@ function ADM_BonaMasso_1D_Alcubierre1997:getCalcDisplayVarCode()
 ]]
 end
 
-function ADM_BonaMasso_1D_Alcubierre1997:getCalcDisplayVarEigenCode()
+local makeStruct = require 'eqn.makestruct'
+local eigenVars = {'alpha', 'sqrt_f_over_gamma_xx'}
+
+function ADM_BonaMasso_1D_Alcubierre1997:getEigenTypeCode(solver)
+	return makeStruct('eigen_t', eigenVars)
+end
+
+function ADM_BonaMasso_1D_Alcubierre1997:getEigenDisplayVars(solver)
+	return eigenVars
+end
+
+function ADM_BonaMasso_1D_Alcubierre1997:getEigenCalcDisplayVarCode()
 	return [[
 	switch (displayVar) {
 	case display_eigen_alpha: value = eigen->alpha; break;

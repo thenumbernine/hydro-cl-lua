@@ -17,6 +17,7 @@ Maxwell.displayVars = {
 	'energy',
 }
 
+Maxwell.hasEigenCode = true
 Maxwell.useSourceTerm = true
 
 Maxwell.initStateNames = {'default'}
@@ -83,15 +84,6 @@ function Maxwell:getSolverCode(solver)
 	return require 'processcl'(file['eqn/maxwell.cl'], {solver=solver})
 end
 
-function Maxwell:getEigenInfo(solver)
-	return {
-			-- can it be zero sized?
-		typeCode = 'typedef struct { char mustbesomething; } eigen_t;',
-		code = nil,
-		displayVars = {},
-	}
-end
-
 function Maxwell:getCalcDisplayVarCode()
 	return [[
 	switch (displayVar) {
@@ -106,6 +98,15 @@ function Maxwell:getCalcDisplayVarCode()
 	case display_U_energy: value = .5 * (coordLen(U->epsE) + coordLen(U->B) / mu0); break;
 	}
 ]]
+end
+
+-- can it be zero sized?
+function Maxwell:getEigenTypeCode(solver)
+	return 'typedef struct { char mustbesomething; } eigen_t;'
+end
+
+function Maxwell:getEigenDisplayVars(solver)
+	return {}
 end
 
 return Maxwell

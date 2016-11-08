@@ -76,6 +76,7 @@ ADM_BonaMasso_1D_Alcubierre2008.numWaves = 3	-- alpha and gamma_xx are source-te
 ADM_BonaMasso_1D_Alcubierre2008.consVars = {'alpha', 'gamma_xx', 'a_x', 'D_g', 'KTilde_xx'}
 ADM_BonaMasso_1D_Alcubierre2008.mirrorVars = {{'gamma_xx', 'a_x', 'D_g', 'KTilde_xx'}}
 
+ADM_BonaMasso_1D_Alcubierre2008.hasEigenCode = true
 ADM_BonaMasso_1D_Alcubierre2008.useSourceTerm = true
 
 ADM_BonaMasso_1D_Alcubierre2008.displayVars = table()
@@ -136,23 +137,6 @@ function ADM_BonaMasso_1D_Alcubierre2008:getSolverCode(solver)
 	return processcl(file['eqn/adm1d_v1.cl'], {solver=solver})
 end
 
-ADM_BonaMasso_1D_Alcubierre2008.eigenVars = {'f'}
-function ADM_BonaMasso_1D_Alcubierre2008:getEigenInfo(solver)
-	local makeStruct = require 'eqn.makestruct'
-	return {
-		typeCode = processcl([[
-typedef struct {
-	real f;
-	<? if solver.checkFluxError then ?>
-	real alpha, gamma_xx;
-	<? end ?>
-} eigen_t;
-]], {solver=solver}),
-		code = nil,
-		displayVars = self.eigenVars,
-	}
-end
-
 function ADM_BonaMasso_1D_Alcubierre2008:getCalcDisplayVarCode()
 	return [[
 	switch (displayVar) {
@@ -175,7 +159,22 @@ function ADM_BonaMasso_1D_Alcubierre2008:getCalcDisplayVarCode()
 ]]
 end
 
-function ADM_BonaMasso_1D_Alcubierre2008:getCalcDisplayVarEigenCode()
+function ADM_BonaMasso_1D_Alcubierre2008:getEigenTypeCode(solver)
+	return processcl([[
+typedef struct {
+	real f;
+	<? if solver.checkFluxError then ?>
+	real alpha, gamma_xx;
+	<? end ?>
+} eigen_t;
+]], {solver=solver})
+end
+		
+function ADM_BonaMasso_1D_Alcubierre2008:getEigenDisplayVars(solver)
+	return {'f'}
+end
+
+function ADM_BonaMasso_1D_Alcubierre2008:getEigenCalcDisplayVarCode()
 	return [[
 	value = eigen->f;
 ]]

@@ -33,6 +33,7 @@ Euler.displayVars = {
 	'HTotal',
 } 
 
+Euler.hasEigenCode = true
 Euler.hasCalcDT = true
 -- only for geometry's sake ...
 Euler.useSourceTerm = true
@@ -47,7 +48,6 @@ Euler.guiVarsForName = Euler.guiVars:map(function(var) return var, var.name end)
 
 function Euler:getTypeCode()
 	return [[
-
 typedef struct { 
 	real rho;
 	real3 v;
@@ -187,26 +187,6 @@ function Euler:getSolverCode(solver)
 	return processcl(assert(file['eqn/euler.cl']), {eqn=self, solver=solver})
 end
 
-function Euler:getEigenInfo(solver)
-	return {
-		typeCode = [[
-typedef struct {
-	// Roe-averaged vars
-	real rho;
-	real3 v;
-	real hTotal;
-
-	// derived vars
-	real vSq;
-	real Cs;
-} eigen_t;
-
-]],
-		code = nil,
-		displayVars = table(),	-- TODO
-	}
-end
-
 function Euler:getCalcDisplayVarCode()
 	return [[
 	prim_t W = primFromCons(U, ePot);
@@ -234,6 +214,40 @@ function Euler:getCalcDisplayVarCode()
 	case display_U_h: value = calc_h(W.rho, W.P); break;
 	case display_U_HTotal: value = calc_HTotal(W.P, U.ETotal); break;
 	case display_U_hTotal: value = calc_hTotal(W.rho, W.P, U.ETotal); break;
+	}
+]]
+end
+
+function Euler:getEigenTypeCode(solver)
+	return [[
+typedef struct {
+	// Roe-averaged vars
+	real rho;
+	real3 v;
+	real hTotal;
+
+	// derived vars
+	real vSq;
+	real Cs;
+} eigen_t;
+]]
+end
+
+function Euler:getEigenDisplayVars(solver)
+	return {'rho', 'vx', 'vy', 'vz', 'v', 'hTotal', 'vSq', 'Cs'}
+end
+
+function Euler:getEigenCalcDisplayVarCode(solver)
+	return [[
+	switch (displayVar) {
+	case display_eigen_rho: value = eigen->rho; break;
+	case display_eigen_vx: value = eigen->v.x; break;
+	case display_eigen_vy: value = eigen->v.y; break;
+	case display_eigen_vz: value = eigen->v.z; break;
+	case display_eigen_v: value = coordLen(eigen->v); break;
+	case display_eigen_hTotal: value = eigen->hTotal; break;
+	case display_eigen_vSq: value = eigen->vSq; break;
+	case display_eigen_Cs: value = eigen->Cs; break;
 	}
 ]]
 end

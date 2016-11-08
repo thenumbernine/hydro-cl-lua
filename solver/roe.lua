@@ -322,7 +322,7 @@ function Solver:addConvertToTexs()
 ]],
 	}
 	
-	local eigenDisplayVars = self.eqn:getEigenInfo(self).displayVars
+	local eigenDisplayVars = self.eqn:getEigenDisplayVars(self)
 	if eigenDisplayVars and #eigenDisplayVars > 0 then
 		self:addConvertToTex{
 			name = 'eigen',
@@ -330,7 +330,7 @@ function Solver:addConvertToTexs()
 			vars = eigenDisplayVars,
 			displayBodyCode = [[
 	const __global eigen_t* eigen = buf + intindex;
-]]..(self.eqn:getCalcDisplayVarEigenCode() or ''),
+]]..(self.eqn:getEigenCalcDisplayVarCode() or ''),
 		}
 	end
 
@@ -415,7 +415,7 @@ function Solver:createBuffers()
 
 	-- to get sizeof
 	ffi.cdef(self.eqn:getTypeCode())
-	ffi.cdef(self.eqn:getEigenInfo(self).typeCode)
+	ffi.cdef(self.eqn:getEigenTypeCode(self))
 	ffi.cdef(errorTypeCode)
 
 	-- should I put these all in one AoS?
@@ -547,7 +547,7 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		self.eqn.getTypeCode and self.eqn:getTypeCode() or '',
 
 		-- run here for the code, and in buffer for the sizeof()
-		self.eqn:getEigenInfo(self).typeCode or '',
+		self.eqn:getEigenTypeCode(self) or '',
 		
 		-- bounds-check macro
 		'#define OOB(lhs,rhs) (i.x < lhs || i.x >= gridSize_x - rhs'
@@ -609,7 +609,7 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		self.allocateOneBigStructure and '#define allocateOneBigStructure' or '',
 		
 		errorTypeCode or '',
-		self.eqn:getEigenInfo(self).code or '',
+		self.eqn:getEigenCode(self) or '',
 		self:getCoordMapCode() or '',
 		-- this is dependent on coord map / length code
 		self.eqn:getCodePrefix(self) or '',

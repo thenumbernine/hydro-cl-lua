@@ -30,6 +30,7 @@ ADM_BonaMasso_3D.displayVars = table()
 	:append{'volume'}
 
 ADM_BonaMasso_3D.hasCalcDT = true
+ADM_BonaMasso_3D.hasEigenCode = true
 ADM_BonaMasso_3D.useSourceTerm = true
 
 ADM_BonaMasso_3D.initStates = require 'init.adm'
@@ -138,22 +139,6 @@ function ADM_BonaMasso_3D:getSolverCode(solver)
 	return require 'processcl'(file['eqn/adm3d.cl'], {solver=solver})
 end
 
-ADM_BonaMasso_3D.eigenVars = {'alpha', 'gammaUxx', 'gammaUxy', 'gammaUxz', 'gammaUyy', 'gammaUyz', 'gammaUzz', 'f'}
-function ADM_BonaMasso_3D:getEigenInfo(solver)
-	local makeStruct = require 'eqn.makestruct'
-	return {
-		typeCode = [[
-typedef struct {
-	symmat3 gammaU;
-	real f;
-} eigen_t;
-
-]],
-		code = nil,
-		displayVars = self.eigenVars,
-	}
-end
-
 function ADM_BonaMasso_3D:getCalcDisplayVarCode()
 	return table{[[
 	switch (displayVar) {
@@ -174,7 +159,34 @@ function ADM_BonaMasso_3D:getCalcDisplayVarCode()
 	}:concat'\n'
 end
 
-function ADM_BonaMasso_3D:getCalcDisplayVarEigenCode()
+local makeStruct = require 'eqn.makestruct'
+local eigenVars = {'alpha', 'f', 'gammaUxx', 'gammaUxy', 'gammaUxz', 'gammaUyy', 'gammaUyz', 'gammaUzz'}
+
+function ADM_BonaMasso_3D:getEigenTypeCode(solver)
+	return [[
+typedef struct {
+	symmat3 gammaU;
+	real f;
+} eigen_t;
+]]
+end
+
+function ADM_BonaMasso_3D:getEigenDisplayVars()
+	return eigenVars
+end
+
+function ADM_BonaMasso_3D:getEigenCalcDisplayVarCode()
+	return [[
+	switch (displayVar) {
+	case display_eigen_f: value = eigen->f; break;
+	case display_eigen_gammaUxx: value = eigen->gammaU.xx; break;
+	case display_eigen_gammaUxy: value = eigen->gammaU.xy; break;
+	case display_eigen_gammaUxz: value = eigen->gammaU.xz; break;
+	case display_eigen_gammaUyy: value = eigen->gammaU.yy; break;
+	case display_eigen_gammaUyz: value = eigen->gammaU.yz; break;
+	case display_eigen_gammaUzz: value = eigen->gammaU.zz; break;
+	}
+]]
 end
 
 return ADM_BonaMasso_3D
