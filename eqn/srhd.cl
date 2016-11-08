@@ -65,11 +65,10 @@ __kernel void calcEigenBasis(
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
+	prim_t primR = primBuf[indexR];
 	for (int side = 0; side < dim; ++side) {
 		int indexL = index - stepsize[side];
-	
 		prim_t primL = primBuf[indexL];
-		prim_t primR = primBuf[indexR];
 
 		prim_t avg = calcEigenBasisSide(primL, primR);
 
