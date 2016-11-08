@@ -80,6 +80,7 @@ why do I have to use a matrix that reconstructs without them?
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
+local processcl = require 'processcl'
 local Equation = require 'eqn.eqn'
 
 local ADM_BonaMasso_1D_Alcubierre1997 = class(Equation)
@@ -148,16 +149,14 @@ __kernel void initState(
 end
 
 function ADM_BonaMasso_1D_Alcubierre1997:getSolverCode(solver)
-	return require 'processcl'(file['eqn/adm1d_v2.cl'], {solver=solver})
+	return processcl(file['eqn/adm1d_v2.cl'], {solver=solver})
 end
 
-ADM_BonaMasso_1D_Alcubierre1997.eigenVars = {'sqrt_g_xx_over_f'}
+ADM_BonaMasso_1D_Alcubierre1997.eigenVars = {'alpha', 'sqrt_f_over_gamma_xx'}
 function ADM_BonaMasso_1D_Alcubierre1997:getEigenInfo(solver)
 	local makeStruct = require 'eqn.makestruct'
 	return {
-		typeCode =
-			makeStruct('eigen_t', self.eigenVars) .. '\n' ..
-			makeStruct('fluxXform_t', {'alpha', 'gamma_xx', 'f'}),
+		typeCode = makeStruct('eigen_t', self.eigenVars),
 		code = nil,
 		displayVars = self.eigenVars,
 	}
@@ -187,7 +186,10 @@ end
 
 function ADM_BonaMasso_1D_Alcubierre1997:getCalcDisplayVarEigenCode()
 	return [[
-	value = eigen->sqrt_g_xx_over_f;
+	switch (displayVar) {
+	case display_eigen_alpha: value = eigen->alpha; break;
+	case display_eigen_sqrt_f_over_gamma_xx: value = eigen->sqrt_f_over_gamma_xx; break;
+	}
 ]]
 end
 

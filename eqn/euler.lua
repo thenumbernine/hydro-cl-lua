@@ -1,8 +1,9 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local Equation = require 'eqn.eqn'
-local clnumber = require 'clnumber'
 local file = require 'ext.file'
+local processcl = require 'processcl'
+local clnumber = require 'clnumber'
+local Equation = require 'eqn.eqn'
 
 local Euler = class(Equation)
 Euler.name = 'Euler'
@@ -183,9 +184,7 @@ __kernel void initState(
 end
 
 function Euler:getSolverCode(solver)	
-	return table{
-		require 'processcl'(assert(file['eqn/euler.cl']), {eqn=self, solver=solver}),
-	}:concat'\n'
+	return processcl(assert(file['eqn/euler.cl']), {eqn=self, solver=solver})
 end
 
 function Euler:getEigenInfo(solver)
@@ -201,7 +200,7 @@ typedef struct {
 	real vSq;
 	real Cs;
 } eigen_t;
-typedef eigen_t fluxXform_t;
+
 ]],
 		code = nil,
 		displayVars = table(),	-- TODO
@@ -211,7 +210,6 @@ end
 function Euler:getCalcDisplayVarCode()
 	return [[
 	prim_t W = primFromCons(U, ePot);
-	//switch (displayVar) {
 	switch (displayVar) {
 	case display_U_rho: value = W.rho; break;
 	case display_U_vx: value = W.v.x; break;

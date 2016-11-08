@@ -64,6 +64,7 @@ Q^-1 = [ -2/f,   1,        0       ]
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
+local processcl = require 'processcl'
 local Equation = require 'eqn.eqn'
 
 local ADM_BonaMasso_1D_Alcubierre2008 = class(Equation)
@@ -132,16 +133,21 @@ __kernel void initState(
 end
 
 function ADM_BonaMasso_1D_Alcubierre2008:getSolverCode(solver)
-	return require 'processcl'(file['eqn/adm1d_v1.cl'], {solver=solver})
+	return processcl(file['eqn/adm1d_v1.cl'], {solver=solver})
 end
 
 ADM_BonaMasso_1D_Alcubierre2008.eigenVars = {'f'}
 function ADM_BonaMasso_1D_Alcubierre2008:getEigenInfo(solver)
 	local makeStruct = require 'eqn.makestruct'
 	return {
-		typeCode =
-			makeStruct('eigen_t', self.eigenVars) .. '\n' ..
-			makeStruct('fluxXform_t', {'alpha', 'gamma_xx', 'f'}),
+		typeCode = processcl([[
+typedef struct {
+	real f;
+	<? if solver.checkFluxError then ?>
+	real alpha, gamma_xx;
+	<? end ?>
+} eigen_t;
+]], {solver=solver}),
 		code = nil,
 		displayVars = self.eigenVars,
 	}

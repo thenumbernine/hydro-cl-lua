@@ -4,8 +4,7 @@
 __kernel void calcErrors(
 	__global error_t* errorBuf,
 	const __global real* waveBuf,
-	const __global eigen_t* eigenBuf,
-	const __global fluxXform_t* fluxXformBuf
+	const __global eigen_t* eigenBuf
 ) {
 	SETBOUNDS(0,0);
 
@@ -15,7 +14,6 @@ __kernel void calcErrors(
 		int intindex = side + dim * index;
 		const __global real* wave = waveBuf + numWaves * intindex;
 		const __global eigen_t* eigen = eigenBuf + intindex;
-		const __global fluxXform_t* fluxXform = fluxXformBuf + intindex;
 
 		real orthoError = 0;
 		real fluxError = 0;
@@ -59,7 +57,7 @@ __kernel void calcErrors(
 			eigen_rightTransform_<?=side?>(newtransformed, eigen, eigenScaled);
 			
 			real transformed[numStates];
-			fluxTransform_<?=side?>(transformed, fluxXform, basis);
+			fluxTransform_<?=side?>(transformed, eigen, basis);
 			
 			for (int j = 0; j < numStates; ++j) {
 				fluxError += fabs(newtransformed[j] - transformed[j]);

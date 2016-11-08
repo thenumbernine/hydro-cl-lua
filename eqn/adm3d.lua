@@ -148,12 +148,9 @@ typedef struct {
 	real f;
 } eigen_t;
 
-// I've thought of merging these two structures ... this is more proof
-typedef eigen_t fluxXform_t;
-
 ]],
 		code = nil,
-		displayVars = {} -- working on this one
+		displayVars = self.eigenVars,
 	}
 end
 
@@ -175,6 +172,9 @@ function ADM_BonaMasso_3D:getCalcDisplayVarCode()
 		}
 ]]
 	}:concat'\n'
+end
+
+function ADM_BonaMasso_3D:getCalcDisplayVarEigenCode()
 end
 
 return ADM_BonaMasso_3D

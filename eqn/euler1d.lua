@@ -7,6 +7,8 @@ so maybe I should have this subclass / steal from Euler3D?
 
 local class = require 'ext.class'
 local table = require 'ext.table'
+local file = require 'ext.file'
+local processcl = require 'processcl'
 local Equation = require 'eqn.eqn'
 
 local Euler1D = class(Equation)
@@ -116,9 +118,7 @@ __kernel void initState(
 end
 
 function Euler1D:getSolverCode(solver)	
-	return table{
-		'#include "eqn/euler1d.cl"',
-	}:concat'\n'
+	return processcl(file['eqn/euler1d.cl'], {solver=solver})
 end
 
 function Euler1D:getCalcDisplayVarCode()

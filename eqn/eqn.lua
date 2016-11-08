@@ -33,16 +33,16 @@ function Equation:getEigenInfo(solver)
 	return {
 		typeCode = processcl([[
 typedef struct {
-	real evL[<?=numStates*numWaves?>];
-	real evR[<?=numStates*numWaves?>];
+	real evL[<?=numStates * numWaves?>];
+	real evR[<?=numStates * numWaves?>];
+<? if solver.checkFluxError then ?>
+	real A[<?=numStates * numStates?>];
+<? end ?>
 } eigen_t;
-
-typedef struct {
-	real A[<?=numStates*numStates?>];
-} fluxXform_t;
 ]], {
 				numStates = self.numStates,
 				numWaves = self.numWaves,
+				solver = solver,
 			}),
 		code = processcl(file['solver/eigen.cl'], {solver=solver}),
 		displayVars = range(self.numStates * self.numWaves):map(function(i)
@@ -53,7 +53,11 @@ typedef struct {
 			local row = (i-1)%self.numStates
 			local col = (i-1-row)/self.numStates
 			return 'evR_'..row..'_'..col
-		end)),
+		end)):append(solver.checkFluxError and range(self.numStates * self.numStates):map(function(i)
+			local row = (i-1)%self.numStates
+			local col = (i-1-row)/self.numStates
+			return 'A_'..row..'_'..col
+		end) or nil),
 	}
 end
 
@@ -68,6 +72,8 @@ function Equation:getCalcDisplayVarEigenCode()
 		k -= numStates * numWaves;
 		if (k < numStates * numWaves) {
 			value = eigen->evR[k];
+		} else {
+			value = eigen->A[k];
 		}
 	}
 ]]

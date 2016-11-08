@@ -46,9 +46,6 @@ __kernel void calcEigenBasis(
 	__global real* waveBuf,			//[volume][dim][numWaves]
 	__global eigen_t* eigenBuf,		//[volume][dim]
 	const __global cons_t *UBuf		//[volume]
-#if defined(checkFluxError)
-	, __global fluxXform_t* fluxXformBuf	//[volume][dim]
-#endif
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -77,11 +74,11 @@ __kernel void calcEigenBasis(
 		fill(evR+1, 3, vx - Cs, 			vx, 		vx + Cs			);
 		fill(evR+2, 3, hTotal - Cs * vx, .5 * vxSq, 	hTotal + Cs * vx);
 
-#if defined(checkFluxError)
-		__global real* dF_dU = fluxXformBuf[intindex].A;
+<? if solver.checkFluxError then ?>
+		__global real* dF_dU = eigen->A;
 		fill(dF_dU+0,3,	0, 									1, 							0			);
 		fill(dF_dU+1,3,	.5 * gamma_3 * vxSq, 				-gamma_3 * vx, 				gamma_1		);
 		fill(dF_dU+2,3, 	vx * (.5 * gamma_1 * vxSq - hTotal), hTotal - gamma_1 * vxSq,	gamma*vx	);
-#endif
+<? end ?>
 	}
 }

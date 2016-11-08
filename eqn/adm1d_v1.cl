@@ -12,44 +12,39 @@ range_t calcCellMinMaxEigenvalues(
 	return (range_t){.min=-lambda, .max=lambda};
 }
 
-//alpha, gamma_xx, f
-typedef fluxXform_t Roe_t;
-
-Roe_t calcEigenBasisSide(cons_t UL, cons_t UR) {
+eigen_t calcEigenBasisSide(cons_t UL, cons_t UR) {
 	real alpha = .5 * (UL.alpha + UR.alpha);
 	real gamma_xx = .5 * (UL.gamma_xx + UR.gamma_xx);
 	real f = calc_f(alpha);
-	return (Roe_t){.alpha=alpha, .gamma_xx=gamma_xx, .f=f};
+	return (eigen_t){
+		.f = f,
+<? if solver.checkFluxError then ?>
+		.alpha = alpha,
+		.gamma_xx = gamma_xx,
+<? end ?>
+	};
 }
 
 __kernel void calcEigenBasis(
 	__global real* waveBuf,
 	__global eigen_t* eigenBuf,
 	const __global cons_t* UBuf
-#if defined(checkFluxError)
-	, __global fluxXform_t* fluxXformBuf
-#endif
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
 	for (int side = 0; side < dim; ++side) {
 		int indexL = index - stepsize[side];
 
-		Roe_t roe = calcEigenBasisSide(UBuf[indexL], UBuf[indexR]);
+		eigen_t eig = calcEigenBasisSide(UBuf[indexL], UBuf[indexR]);
 
 		int intindex = side + dim * index;	
 		__global real* wave = waveBuf + numWaves * intindex;
-		real lambda = calcMaxEigenvalue(roe.alpha, roe.gamma_xx); 
+		real lambda = calcMaxEigenvalue(eig.alpha, eig.gamma_xx); 
 		wave[0] = -lambda;
 		wave[1] = 0;
 		wave[2] = lambda;
 	
-		eigenBuf[intindex].f = roe.f;	
-
-#if defined(checkFluxError)
-		//only used for eigen basis reconstruction validity testing
-		fluxXformBuf[intindex] = roe;
-#endif
+		eigenBuf[intindex].f = eig.f;	
 	}
 }
 
@@ -78,20 +73,23 @@ void eigen_rightTransform_<?=side?>(
 	y[4] = sqrt(eigen->f) * (x[2] - x[0]);
 }
 
+<?	if solver.checkFluxError then ?>
 void fluxTransform_<?=side?>(
 	real* y,
-	const __global fluxXform_t* flux,
+	const __global eigen_t* eigen,
 	const real* x
 ) {
-	real alpha_sqrt_gamma_xx = flux->alpha / sqrt(flux->gamma_xx);
+	real alpha_sqrt_gamma_xx = eigen->alpha / sqrt(eigen->gamma_xx);
 	y[0] = 0;
 	y[1] = 0;
-	y[2] = x[4] * flux->f / alpha_sqrt_gamma_xx;
+	y[2] = x[4] * eigen->f / alpha_sqrt_gamma_xx;
 	y[3] = x[4] * 2. * alpha_sqrt_gamma_xx;
 	y[4] = x[2] * alpha_sqrt_gamma_xx;
 }
-
-<? end ?>
+<? 
+	end
+end
+?>
 
 kernel void addSource(
 	__global cons_t* derivBuf,

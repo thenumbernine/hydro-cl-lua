@@ -330,7 +330,7 @@ function Solver:addConvertToTexs()
 			vars = eigenDisplayVars,
 			displayBodyCode = [[
 	const __global eigen_t* eigen = buf + intindex;
-]]..self.eqn:getCalcDisplayVarEigenCode(),
+]]..(self.eqn:getCalcDisplayVarEigenCode() or ''),
 		}
 	end
 
@@ -427,9 +427,6 @@ function Solver:createBuffers()
 	self:clalloc('fluxBuf', self.volume * self.dim * self.eqn.numStates * realSize)
 	
 	-- debug only
-	if self.checkFluxError then
-		self:clalloc('fluxXformBuf', self.volume * self.dim * ffi.sizeof'fluxXform_t')
-	end	
 	if self.checkFluxError or self.checkOrthoError then
 		local errorTypeSize = ffi.sizeof(errorType)
 		self:clalloc('errorBuf', self.volume * self.dim * errorTypeSize)
@@ -728,7 +725,7 @@ function Solver:refreshSolverProgram()
 
 	self.calcDTKernel = self.solverProgram:kernel('calcDT', self.reduceBuf, self.UBuf)
 	
-	self.calcEigenBasisKernel = self.solverProgram:kernel('calcEigenBasis', self.waveBuf, self.eigenBuf, self.UBuf, self.fluxXformBuf)
+	self.calcEigenBasisKernel = self.solverProgram:kernel('calcEigenBasis', self.waveBuf, self.eigenBuf, self.UBuf)
 	self.calcDeltaUTildeKernel = self.solverProgram:kernel('calcDeltaUTilde', self.deltaUTildeBuf, self.UBuf, self.eigenBuf)
 	self.calcRTildeKernel = self.solverProgram:kernel('calcRTilde', self.rTildeBuf, self.deltaUTildeBuf, self.waveBuf)
 	self.calcFluxKernel = self.solverProgram:kernel('calcFlux', self.fluxBuf, self.UBuf, self.waveBuf, self.eigenBuf, self.deltaUTildeBuf, self.rTildeBuf)
@@ -741,7 +738,7 @@ function Solver:refreshSolverProgram()
 	end
 
 	if self.checkFluxError or self.checkOrthoError then
-		self.calcErrorsKernel = self.solverProgram:kernel('calcErrors', self.errorBuf, self.waveBuf, self.eigenBuf, self.fluxXformBuf)	
+		self.calcErrorsKernel = self.solverProgram:kernel('calcErrors', self.errorBuf, self.waveBuf, self.eigenBuf)
 	end
 end
 
@@ -762,7 +759,7 @@ function Solver:refreshDisplayProgram()
 						..', (float4)(value, 0., 0., 0.));',
 					body = convertToTex.displayBodyCode or '',
 					type = convertToTex.type,
-					eigenBody = self.eqn:getCalcDisplayVarEigenCode(),
+					eigenBody = self.eqn:getCalcDisplayVarEigenCode() or '',
 				})
 			}
 		end
@@ -776,7 +773,7 @@ function Solver:refreshDisplayProgram()
 				output = '	dest[dstindex] = value;',
 				body = convertToTex.displayBodyCode or '',
 				type = convertToTex.type,
-				eigenBody = self.eqn:getCalcDisplayVarEigenCode(),
+				eigenBody = self.eqn:getCalcDisplayVarEigenCode() or '',
 			})
 		-- end display code
 		}

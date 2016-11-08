@@ -62,9 +62,6 @@ __kernel void calcEigenBasis(
 	__global real* waveBuf,
 	__global eigen_t* eigenBuf,
 	const __global prim_t* primBuf
-#if defined(checkFluxError)
-	, __global fluxXform_t* fluxXformBuf
-#endif
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;

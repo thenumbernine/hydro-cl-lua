@@ -71,9 +71,6 @@ function EulerRoe:refreshSolverProgram()
 
 	self.calcDTKernel:setArg(2, self.ePotBuf)
 	self.calcEigenBasisKernel:setArg(3, self.ePotBuf)
-	if self.checkFluxError then
-		self.calcEigenBasisKernel:setArg(4, self.fluxXformBuf)
-	end
 	self.addSourceKernel:setArg(2, self.ePotBuf)
 end
 

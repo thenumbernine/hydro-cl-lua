@@ -85,10 +85,8 @@ end
 
 function Maxwell:getEigenInfo(solver)
 	return {
-		typeCode = 
 			-- can it be zero sized?
-			'typedef struct { char mustbesomething; } eigen_t;\n'..	
-			'typedef struct { char mustbesomething; } fluxXform_t;',
+		typeCode = 'typedef struct { char mustbesomething; } eigen_t;',
 		code = nil,
 		displayVars = {},
 	}

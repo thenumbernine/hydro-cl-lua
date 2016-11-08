@@ -34,10 +34,10 @@ void eigen_rightTransform_<?=side?>(
 
 void fluxTransform_<?=side?>(
 	real* y,
-	const __global fluxXform_t* f,
+	const __global eigen_t* eigen,
 	const real* x
 ) {
-	const __global real* A = f->A;
+	const __global real* A = eigen->A;
 	for (int i = 0; i < numStates; ++i) {
 		real sum = 0;
 		for (int j = 0; j < numStates; ++j) {

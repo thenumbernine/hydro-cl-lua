@@ -68,9 +68,6 @@ __kernel void calcEigenBasis(
 	__global eigen_t* eigenBuf,		//[volume][dim]
 	const __global cons_t* UBuf,	//[volume]
 	const __global real* ePotBuf
-#if defined(checkFluxError)
-	, __global fluxXform_t* fluxXformBuf	//[volume][dim]
-#endif
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -103,34 +100,35 @@ __kernel void calcEigenBasis(
 
 <? 
 for side=0,2 do 
-	local function prefix()
-		local always = [[
-	real3 v = eig->v;
-	real hTotal = eig->hTotal;
-	real vSq = eig->vSq;
-	real Cs = eig->Cs;
-
-]]		
-		if side == 0 then return always..[[
+	local prefix
+	if side == 0 then
+		prefix = [[
 	const real nx = 1, ny = 0, nz = 0;
 	const real n1x = 0, n1y = 1, n1z = 0;
 	const real n2x = 0, n2y = 0, n2z = 1;
 	real v_n = v.x, v_n1 = v.y, v_n2 = v.z;
-]] end
-		if side == 1 then return always..[[
+]] 
+	elseif side == 1 then
+		prefix = [[
 	const real nx = 0, ny = 1, nz = 0;
 	const real n1x = 0, n1y = 0, n1z = 1;
 	const real n2x = 1, n2y = 0, n2z = 0;
 	real v_n = v.y, v_n1 = v.z, v_n2 = v.x;
-]] end
-		if side == 2 then return always..[[
+]] 
+	elseif side == 2 then
+		prefix = [[
 	const real nx = 0, ny = 0, nz = 1;
 	const real n1x = 1, n1y = 0, n1z = 0;
 	const real n2x = 0, n2y = 1, n2z = 0;
 	real v_n = v.z, v_n1 = v.x, v_n2 = v.y;
 ]]
-		end
 	end
+	prefix = [[
+	real3 v = eig->v;
+	real hTotal = eig->hTotal;
+	real vSq = eig->vSq;
+	real Cs = eig->Cs;
+]] .. prefix	
 ?>
 
 void eigen_leftTransform_<?=side?>(
@@ -138,7 +136,7 @@ void eigen_leftTransform_<?=side?>(
 	const __global eigen_t* eig,
 	const real* x
 ) { 
-	<?=prefix()?>
+	<?=prefix?>
 
 	real invDenom = .5 / (Cs * Cs);
 	y[0] = (x[0] * (gamma_1 * .5 * vSq + Cs * v_n)
@@ -168,7 +166,7 @@ void eigen_rightTransform_<?=side?>(
 	const __global eigen_t* eig,
 	const real* x
 ) {
-	<?=prefix()?>
+	<?=prefix?>
 
 	y[0] = x[0] + x[1] + x[4];
 	y[1] = x[0] * (v.x - nx * Cs) + x[1] * v.x + x[2] * n1x + x[3] * n2x + x[4] * (v.x + nx * Cs);
@@ -177,12 +175,13 @@ void eigen_rightTransform_<?=side?>(
 	y[4] = x[0] * (hTotal - v_n * Cs) + x[1] * .5 * vSq + x[2] * v_n1 + x[3] * v_n2 + x[4] * (hTotal + v_n * Cs);
 }
 
+<?	if solver.checkFluxError then ?>
 void fluxTransform_<?=side?>(
 	real* y,
-	const __global fluxXform_t* eig,
+	const __global eigen_t* eig,
 	const real* x
 ) {
-	<?=prefix()?>
+	<?=prefix?>
 	y[0] = x[1] * nx + x[2] * ny + x[3] * nz;
 	y[1] = x[0] * (-v_n * v.x + gamma_1 * .5 * vSq * nx)
 		+ x[1] * (v.x * nx - gamma_1 * nx * v.x + v_n)
@@ -205,7 +204,7 @@ void fluxTransform_<?=side?>(
 		+ x[3] * (-gamma_1 * v_n * v.z + nz * hTotal)
 		+ x[4] * gamma * v_n;
 }
-
+<?	end ?>
 <? end ?>
 
 __kernel void addSource(

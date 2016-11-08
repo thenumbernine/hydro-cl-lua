@@ -25,9 +25,6 @@ __kernel void calcEigenBasis(
 	__global real* waveBuf,
 	__global eigen_t* eigenBuf,
 	const __global cons_t* UBuf
-#if defined(checkFluxError)
-	, __global fluxXform_t* fluxXformBuf
-#endif
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -44,46 +41,6 @@ __kernel void calcEigenBasis(
 }
 
 <? for side=0,2 do ?>
-
-void fluxTransform_<?=side?>(
-	real* y,
-	const __global fluxXform_t* flux,
-	const real* x_
-) {
-	//swap input dim x<->side
-	const cons_t* x = (const cons_t*)x_;
-	real3 epsE = x->epsE;
-	real3 B = x->B;
-
-	<? if side==0 then ?>
-	
-	y[0] = 0;
-	y[1] = B.z / mu0;
-	y[2] = -B.y / mu0;
-	y[3] = 0;
-	y[4] = -epsE.z / eps0;
-	y[5] = epsE.y / eps0;
-
-	<? elseif side==1 then ?>
-		
-	y[0] = -B.z / mu0;
-	y[1] = 0;
-	y[2] = B.x / mu0;
-	y[3] = epsE.z / eps0;
-	y[4] = 0;
-	y[5] = -epsE.x / eps0;
-		
-	<? elseif side==2 then ?>
-		
-	y[0] = B.y / mu0;
-	y[1] = -B.x / mu0;
-	y[2] = 0;
-	y[3] = -epsE.y / eps0;
-	y[4] = epsE.x / eps0;
-	y[5] = 0;
-		
-	<? end ?>
-}
 
 void eigen_leftTransform_<?=side?>(
 	real* y,
@@ -186,6 +143,47 @@ x,  y,  z, z,  y,  x
 	<? end ?>
 }
 
+<? if solver.checkFluxError then ?>
+void fluxTransform_<?=side?>(
+	real* y,
+	const __global eigen_t* eigen,
+	const real* x_
+) {
+	//swap input dim x<->side
+	const cons_t* x = (const cons_t*)x_;
+	real3 epsE = x->epsE;
+	real3 B = x->B;
+
+	<? if side==0 then ?>
+	
+	y[0] = 0;
+	y[1] = B.z / mu0;
+	y[2] = -B.y / mu0;
+	y[3] = 0;
+	y[4] = -epsE.z / eps0;
+	y[5] = epsE.y / eps0;
+
+	<? elseif side==1 then ?>
+		
+	y[0] = -B.z / mu0;
+	y[1] = 0;
+	y[2] = B.x / mu0;
+	y[3] = epsE.z / eps0;
+	y[4] = 0;
+	y[5] = -epsE.x / eps0;
+		
+	<? elseif side==2 then ?>
+		
+	y[0] = B.y / mu0;
+	y[1] = -B.x / mu0;
+	y[2] = 0;
+	y[3] = -epsE.y / eps0;
+	y[4] = epsE.x / eps0;
+	y[5] = 0;
+		
+	<? end ?>
+}
+<?	end ?>
 <? end ?>
 
 __kernel void addSource(
