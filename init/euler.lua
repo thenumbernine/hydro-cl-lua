@@ -87,7 +87,13 @@ local initStates = {
 	{
 		name = 'constant',
 		init = function(solver) 
-			return '	rho=1; v.x=1; v.y=1; v.z=1; P=1;'
+			return [[
+	rho=1;
+	v.x=1;
+	v.y=1;
+	v.z=1;
+	P=1;
+]]
 		end,
 	},
 	{

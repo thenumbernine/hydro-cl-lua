@@ -7,11 +7,12 @@ local sin, cos = symmath.sin, symmath.cos
 local Tensor = symmath.Tensor
 
 local Cylinder = class(geometry)
-
+Cylinder.name = 'cylinder' 
 function Cylinder:init(args)
-	args.embedded = table{symmath.vars('x', 'y', 'z')}:sub(1, args.solver.dim)
+	local x, y, z = symmath.vars('x', 'y', 'z')
+	args.embedded = table{x,y,z}:sub(1, args.solver.dim)
 	
-	local r, theta, z = symmath.vars('r', 'theta', 'z')
+	local r, theta = symmath.vars('r', 'theta')
 	
 	local thetaHat = symmath.var'thetaHat'
 	thetaHat.base = theta

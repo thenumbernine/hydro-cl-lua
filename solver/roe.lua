@@ -89,8 +89,6 @@ function Solver:init(args)
 	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
 	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
 
-	self.t = 0
-
 	self:createEqn(args.eqn)
 	
 	self.name = self.eqn.name..' '..self.name
@@ -489,6 +487,8 @@ function Solver:createCodePrefix()
 		lines:insert('#define displayLast_'..convertToTex.name..' display_'..convertToTex.vars:last().name)
 	end
 
+	lines:insert('#define geometry_'..self.geometry.name)
+
 	-- real types in CL natives: 1,2,4,8
 	lines:append(table{'',2,4,8}:map(function(n)
 		return 'typedef '..self.app.real..n..' real'..n..';'
@@ -637,6 +637,7 @@ function Solver:resetState()
 	self.app.cmds:finish()
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.initStateKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	self.app.cmds:finish()
+	self.t = 0
 end
 
 function Solver:getCalcDTCode()

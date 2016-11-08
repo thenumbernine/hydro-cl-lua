@@ -1,22 +1,11 @@
-//called from calcDT
-range_t calcCellMinMaxEigenvalues(
-	cons_t U,
-	real ePot,
-	int side
-) {
-	prim_t W = primFromCons(U, ePot);
-	real Cs = calc_Cs(W);
-	real v = W.v.s[side];
-	return (range_t){.min = v - Cs, .max = v + Cs};
-}
-
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 __kernel void calcDT(
 	__global real* dtBuf,
 	const __global cons_t* UBuf,
-	const __global real* ePotBuf 
+	const __global real* ePotBuf
 ) {
-	SETBOUNDS(0,0);
+	int4 i = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
+	int index = INDEXV(i);
 	if (OOB(2,2)) {
 		dtBuf[index] = INFINITY;
 		return;
@@ -24,17 +13,19 @@ __kernel void calcDT(
 	
 	cons_t U = UBuf[index];
 	real ePot = ePotBuf[index];
+	prim_t W = primFromCons(U, ePot);
+	real Cs = calc_Cs(W);
 
 	real dt = INFINITY;
 
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
-		range_t lambda = calcCellMinMaxEigenvalues(U, ePot, <?=side?>);
-		lambda.min = min((real)0., lambda.min);
-		lambda.max = max((real)0., lambda.max);
-		dt = min(dt, dx<?=side?>_at(i) / (fabs(lambda.max - lambda.min) + (real)1e-9));
+		const int side = <?=side?>;
+		real lambdaMin = min((real)0., W.v.s[side] - Cs);
+		real lambdaMax = max((real)0., W.v.s[side] + Cs);
+		dt = min(dt, dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9));
 	}<? end ?>
-	dtBuf[index] = dt; 
+	dtBuf[index] = dt;
 }
 
 typedef struct {
@@ -45,7 +36,7 @@ typedef struct {
 
 Roe_t calcEigenBasisSide(
 	cons_t UL,
-	real ePotL, 
+	real ePotL,
 	cons_t UR,
 	real ePotR
 ) {
@@ -162,28 +153,29 @@ __kernel void calcEigenBasis(
 	}<? end ?>
 }
 
-kernel void addSource(
+__kernel void addSource(
 	__global cons_t* derivBuf,
 	const __global cons_t* UBuf,
 	const __global real* ePotBuf
 ) {
-#if 1
+#if defined(geometry_cylinder)
 	SETBOUNDS(2,2);
 	__global cons_t* deriv = derivBuf + index;
 	cons_t U = UBuf[index];
 	prim_t W = primFromCons(U, ePotBuf[index]);
 
 	real3 x = cell_x(i);
+	real r = x.x;
 
 	//cylindrical geometry:
 	//covariant on the flux derivative index 
-	deriv->rho -= W.rho * W.v.x / x.x;
-	deriv->m.x -= (W.rho * W.v.x * W.v.x + W.P) / x.x;
-	deriv->m.y -= W.rho * W.v.x * W.v.y / x.x;
-	deriv->m.z -= W.rho * W.v.x * W.v.z / x.x;
-	deriv->ETotal -= W.v.x * calc_HTotal(W.P, U.ETotal) / x.x;
+	deriv->rho -= W.rho * W.v.x / r;
+	deriv->m.x -= (W.rho * W.v.x * W.v.x + W.P) / r;
+	deriv->m.y -= W.rho * W.v.x * W.v.y / r;
+	deriv->m.z -= W.rho * W.v.x * W.v.z / r;
+	deriv->ETotal -= W.v.x * calc_HTotal(W.P, U.ETotal) / r;
 	//covariant on the velocity index ... dies
-	//deriv->m.x += (W.rho * W.v.y * W.v.y + W.P) / x.x;
-	//deriv->m.y -= W.rho * W.v.x * W.v.y / x.x;
+	deriv->m.x += (W.rho * W.v.y * W.v.y + W.P) / r;
+	deriv->m.y -= W.rho * W.v.x * W.v.y / r;
 #endif
 }

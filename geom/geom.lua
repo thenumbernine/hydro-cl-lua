@@ -1,5 +1,10 @@
 --[[
 
+TODO
+charts per dimension
+that way every class isn't repeating 1D
+and that way we can have multiple 2D options per-permutation of 3D variables
+
 places where geometry is used
 
 - the initial conditions ... should params be specified in coordinate chart (r,theta,phi) or basis (x,y,z) ?   ... coordinate chart for now

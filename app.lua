@@ -169,7 +169,7 @@ typedef union {
 	--  specifically the call to 'refreshGridSize' within it
 	local args = {
 		app = self, 
-		
+		eqn = cmdline.eqn,
 		integrator = cmdline.integrator or 'forward Euler',	--'Runge-Kutta 4, TVD',
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
 		dim = cmdline.dim or 2,
@@ -210,7 +210,24 @@ typedef union {
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
-		eqn = cmdline.eqn,
+		-- [[ sphere
+		geometry = 'sphere',
+		mins = cmdline.mins or {0, -math.pi, .5},
+		maxs = cmdline.maxs or {math.pi, math.pi, 1},
+		gridSize = {
+			cmdline.gridSize or 64,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 64,
+		},
+		boundary = {
+			xmin=cmdline.boundary or 'periodic',
+			xmax=cmdline.boundary or 'periodic',
+			ymin=cmdline.boundary or 'periodic',
+			ymax=cmdline.boundary or 'periodic',
+			zmin=cmdline.boundary or 'freeflow',
+			zmax=cmdline.boundary or 'freeflow',
+		},
+		--]]
 	}
 
 	-- fluid
@@ -369,7 +386,9 @@ void main() {
 	self.font = Font{tex = fonttex}
 	--]]
 
-	self.view = require 'view.ortho'()
+	self.orthoView = require 'view.ortho'()
+	self.frustumView = require 'view.frustum'()
+	self.view = self.orthoView
 end
 
 
@@ -953,36 +972,44 @@ function HydroCLApp:showDisplayVar(solver, varIndex)
 end
 
 function HydroCLApp:updateGUI()
-	if ig.igButton(self.updateMethod and 'Stop' or 'Start') then
-		self.updateMethod = not self.updateMethod
-	end
-	if ig.igButton'Step' then
-		self.updateMethod = 'step'
-	end
-	if ig.igButton'Reset' then
-		print'resetting...'
-		self.solver:resetState()
-		self.updateMethod = nil
-	end
+	if ig.igCollapsingHeader'Controls' then
+		if ig.igButton(self.updateMethod and 'Stop' or 'Start') then
+			self.updateMethod = not self.updateMethod
+		end
+		if ig.igButton'Step' then
+			self.updateMethod = 'step'
+		end
+		if ig.igButton'Reset' then
+			print'resetting...'
+			self.solver:resetState()
+			self.updateMethod = nil
+		end
 
-	ig.igCheckbox('use fixed dt', self.solver.useFixedDT)
-	ig.igInputFloat('fixed dt', self.solver.fixedDT)
-	ig.igInputFloat('CFL', self.solver.cfl)
+		ig.igCheckbox('use fixed dt', self.solver.useFixedDT)
+		ig.igInputFloat('fixed dt', self.solver.fixedDT)
+		ig.igInputFloat('CFL', self.solver.cfl)
 
-	if ig.igCombo('integrator', self.solver.integratorPtr, self.solver.integratorNames) then
-		self.solver:refreshIntegrator()
-	end
+		if ig.igCombo('integrator', self.solver.integratorPtr, self.solver.integratorNames) then
+			self.solver:refreshIntegrator()
+		end
 
-	if ig.igCombo('slope limiter', self.solver.slopeLimiterPtr, self.slopeLimiterNames) then
-		self.solver:refreshSolverProgram()
-	end
+		if ig.igCombo('slope limiter', self.solver.slopeLimiterPtr, self.slopeLimiterNames) then
+			self.solver:refreshSolverProgram()
+		end
 
-	for i=1,self.solver.dim do
-		for _,minmax in ipairs(minmaxs) do
-			local var = xs[i]..minmax
-			if ig.igCombo(var, self.solver.boundaryMethods[var], self.boundaryMethods) then
-				self.solver:refreshBoundaryProgram()
+		for i=1,self.solver.dim do
+			for _,minmax in ipairs(minmaxs) do
+				local var = xs[i]..minmax
+				if ig.igCombo(var, self.solver.boundaryMethods[var], self.boundaryMethods) then
+					self.solver:refreshBoundaryProgram()
+				end
 			end
+		end
+
+		if ig.igRadioButtonBool('ortho', self.view == self.orthoView) then
+			self.view = self.orthoView
+		elseif ig.igRadioButtonBool('frustum', self.view == self.frustumView) then
+			self.view = self.frustumView
 		end
 	end
 
