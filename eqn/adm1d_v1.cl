@@ -55,19 +55,6 @@ __kernel void calcEigenBasis(
 
 <? for side=0,2 do ?>
 
-void fluxTransform_<?=side?>(
-	real* y,
-	const __global fluxXform_t* flux,
-	const real* x
-) {
-	real alpha_sqrt_gamma_xx = flux->alpha / sqrt(flux->gamma_xx);
-	y[0] = 0;
-	y[1] = 0;
-	y[2] = x[4] * flux->f / alpha_sqrt_gamma_xx;
-	y[3] = x[4] * 2. * alpha_sqrt_gamma_xx;
-	y[4] = x[2] * alpha_sqrt_gamma_xx;
-}
-
 void eigen_leftTransform_<?=side?>(
 	real* y,
 	const __global eigen_t* eigen,
@@ -89,6 +76,19 @@ void eigen_rightTransform_<?=side?>(
 	y[2] = (x[0] + x[2]) * eigen->f;
 	y[3] = 2. * x[0] + x[1] + 2. * x[2];
 	y[4] = sqrt(eigen->f) * (x[2] - x[0]);
+}
+
+void fluxTransform_<?=side?>(
+	real* y,
+	const __global fluxXform_t* flux,
+	const real* x
+) {
+	real alpha_sqrt_gamma_xx = flux->alpha / sqrt(flux->gamma_xx);
+	y[0] = 0;
+	y[1] = 0;
+	y[2] = x[4] * flux->f / alpha_sqrt_gamma_xx;
+	y[3] = x[4] * 2. * alpha_sqrt_gamma_xx;
+	y[4] = x[2] * alpha_sqrt_gamma_xx;
 }
 
 <? end ?>

@@ -172,16 +172,16 @@ typedef union {
 		eqn = cmdline.eqn,
 		integrator = cmdline.integrator or 'forward Euler',	--'Runge-Kutta 4, TVD',
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
-		dim = cmdline.dim or 1,
+		dim = cmdline.dim or 2,
 		
 		-- [[ cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 128,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -232,14 +232,14 @@ typedef union {
 
 	-- fluid
 	--self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
-	--self.solver = require 'solver.euler-roe'(args)
+	self.solver = require 'solver.euler-roe'(args)
 	--self.solver = require 'solver.srhd-roe'(table(args, {initState = 'relativistic blast wave test problem 2'}))
 	-- EM
 	--self.solver = require 'solver.roe'(table(args, {eqn='maxwell'}))
 	-- geometrodynamics
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v1'}))
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v2'}))
-	self.solver = require 'solver.roe'(table(args, {eqn='adm3d'}))
+	--self.solver = require 'solver.roe'(table(args, {eqn='adm3d'}))
 
 	self.solvers = table{self.solver}
 	

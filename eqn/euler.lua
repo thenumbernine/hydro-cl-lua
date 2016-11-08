@@ -188,6 +188,26 @@ function Euler:getSolverCode(solver)
 	}:concat'\n'
 end
 
+function Euler:getEigenInfo(solver)
+	return {
+		typeCode = [[
+typedef struct {
+	// Roe-averaged vars
+	real rho;
+	real3 v;
+	real hTotal;
+
+	// derived vars
+	real vSq;
+	real Cs;
+} eigen_t;
+typedef eigen_t fluxXform_t;
+]],
+		code = nil,
+		displayVars = table(),	-- TODO
+	}
+end
+
 function Euler:getCalcDisplayVarCode()
 	return [[
 	prim_t W = primFromCons(U, ePot);
