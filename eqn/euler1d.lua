@@ -25,24 +25,6 @@ Euler1D.primVars = {'rho', 'vx', 'P'}
 -- soo ... fix the system
 Euler1D.mirrorVars = {{'mx'}, {}, {}}
 
-Euler1D.displayVars = {
-	'rho',
-	'vx',
-	'mx',
-	'eInt',
-	'eKin', 
-	'eTotal', 
-	'EInt', 
-	'EKin', 
-	'ETotal', 
-	'P',
-	'S', 
-	'h',
-	'H', 
-	'hTotal',
-	'HTotal',
-} 
-
 Euler1D.initStates = require 'init.euler'
 Euler1D.initStateNames = table.map(Euler1D.initStates, function(info) return info.name end)
 
@@ -121,27 +103,27 @@ function Euler1D:getSolverCode(solver)
 	return processcl(file['eqn/euler1d.cl'], {solver=solver})
 end
 
-function Euler1D:getCalcDisplayVarCode()
-	return [[
-	prim_t W = primFromCons(*U);
-	switch (displayVar) {
-	case display_U_rho: value = W.rho; break;
-	case display_U_vx: value = W.vx; break;
-	case display_U_P: value = W.P; break;
-	case display_U_mx: value = U->mx; break;
-	case display_U_eInt: value = W.P / (W.rho * gamma_1); break;
-	case display_U_eKin: value = .5 * W.vx * W.vx; break;
-	case display_U_eTotal: value = U->ETotal / W.rho; break;
-	case display_U_EInt: value = W.P / gamma_1; break;
-	case display_U_EKin: value = .5 * W.rho * W.vx * W.vx; break;
-	case display_U_ETotal: value = U->ETotal; break;
-	case display_U_S: value = W.P / pow(W.rho, (real)gamma); break;
-	case display_U_H: value = W.P * gamma / gamma_1; break;
-	case display_U_h: value = W.P * gamma / gamma_1 / W.rho; break;
-	case display_U_HTotal: value = W.P * gamma / gamma_1 + .5 * W.rho * W.vx * W.vx; break;
-	case display_U_hTotal: value = W.P * gamma / gamma_1 / W.rho + .5 * W.vx * W.vx; break;
-	}
+Euler1D.displayVarCodePrefix = [[
+	cons_t U = buf[index];
+	prim_t W = primFromCons(U);
 ]]
-end
+
+Euler1D.displayVars = {
+	{rho = 'value = U.rho;'},
+	{vx = 'value = W.vx;'},
+	{P = 'value = W.P;'},
+	{mx = 'value = U.mx;'},
+	{eInt = 'value = W.P / (W.rho * gamma_1);'},
+	{eKin = 'value = .5 * W.vx * W.vx;'},
+	{eTotal = 'value = U.ETotal / W.rho;'},
+	{EInt = 'value = W.P / gamma_1;'},
+	{EKin = 'value = .5 * W.rho * W.vx * W.vx;'},
+	{ETotal = 'value = U.ETotal;'},
+	{S = 'value = W.P / pow(W.rho, (real)gamma);'},
+	{H = 'value = W.P * gamma / gamma_1;'},
+	{h = 'value = W.P * gamma / gamma_1 / W.rho;'},
+	{HTotal = 'value = W.P * gamma / gamma_1 + .5 * W.rho * W.vx * W.vx;'},
+	{hTotal = 'value = W.P * gamma / gamma_1 / W.rho + .5 * W.vx * W.vx;'},
+} 
 
 return Euler1D

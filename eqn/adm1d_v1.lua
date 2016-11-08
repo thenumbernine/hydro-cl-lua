@@ -79,10 +79,6 @@ ADM_BonaMasso_1D_Alcubierre2008.mirrorVars = {{'gamma_xx', 'a_x', 'D_g', 'KTilde
 ADM_BonaMasso_1D_Alcubierre2008.hasEigenCode = true
 ADM_BonaMasso_1D_Alcubierre2008.useSourceTerm = true
 
-ADM_BonaMasso_1D_Alcubierre2008.displayVars = table()
-	:append(ADM_BonaMasso_1D_Alcubierre2008.consVars)
-	:append{'dx_alpha', 'dx_gamma_xx', 'd_xxx', 'K_xx', 'volume'}
-
 ADM_BonaMasso_1D_Alcubierre2008.initStates = require 'init.adm'
 ADM_BonaMasso_1D_Alcubierre2008.initStateNames = table.map(ADM_BonaMasso_1D_Alcubierre2008.initStates, function(state) return state.name end)
 
@@ -137,27 +133,23 @@ function ADM_BonaMasso_1D_Alcubierre2008:getSolverCode(solver)
 	return processcl(file['eqn/adm1d_v1.cl'], {solver=solver})
 end
 
-function ADM_BonaMasso_1D_Alcubierre2008:getCalcDisplayVarCode()
-	return [[
-	switch (displayVar) {
-	// source-only:
-	case display_U_alpha: value = U->alpha; break;
-	case display_U_gamma_xx: value = U->gamma_xx; break;
-	// both 1998 and 2008 cons vars:
-	case display_U_a_x: value = U->a_x; break;
-	// 1998-only cons vars:
-	case display_U_d_xxx: value = .5 * U->D_g * U->gamma_xx; break;
-	case display_U_K_xx: value = U->KTilde_xx * sqrt(U->gamma_xx); break;
-	// 2008-only cons vars:
-	case display_U_D_g: value = U->D_g; break;
-	case display_U_KTilde_xx: value = U->KTilde_xx; break;
-	// aux:
-	case display_U_dx_alpha: value = U->alpha * U->a_x; break;
-	case display_U_dx_gamma_xx: value = U->gamma_xx * U->D_g; break;
-	case display_U_volume: value = U->alpha * sqrt(U->gamma_xx); break;
-	}
-]]
-end
+ADM_BonaMasso_1D_Alcubierre2008.displayVars = {
+	-- source-only:
+	{alpha = 'value = U->alpha;'},
+	{gamma_xx = 'value = U->gamma_xx;'},
+	-- both 1998 and 2008 cons vars:
+	{a_x = 'value = U->a_x;'},
+	-- 1998-only cons vars:
+	{d_xxx = 'value = .5 * U->D_g * U->gamma_xx;'},
+	{K_xx = 'value = U->KTilde_xx * sqrt(U->gamma_xx);'},
+	-- 2008-only cons vars:
+	{D_g = 'value = U->D_g;'},
+	{KTilde_xx = 'value = U->KTilde_xx;'},
+	-- aux:
+	{dx_alpha = 'value = U->alpha * U->a_x;'},
+	{dx_gamma_xx = 'value = U->gamma_xx * U->D_g;'},
+	{volume = 'value = U->alpha * sqrt(U->gamma_xx);'},
+}
 
 function ADM_BonaMasso_1D_Alcubierre2008:getEigenTypeCode(solver)
 	return processcl([[
@@ -171,13 +163,7 @@ typedef struct {
 end
 		
 function ADM_BonaMasso_1D_Alcubierre2008:getEigenDisplayVars(solver)
-	return {'f'}
-end
-
-function ADM_BonaMasso_1D_Alcubierre2008:getEigenCalcDisplayVarCode()
-	return [[
-	value = eigen->f;
-]]
+	return {{f = 'value = eigen->f;'}}
 end
 
 return ADM_BonaMasso_1D_Alcubierre2008

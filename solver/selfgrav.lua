@@ -20,10 +20,7 @@ local SelfGravitationBehavior = function(parent)
 		template.super.addConvertToTexs(self)
 		self:addConvertToTex{
 			name = 'ePot',
-			vars = {'0'},
-			displayBodyCode = [[
-		value = buf[index];
-]],
+			vars = {{['0'] = 'value = buf[index];'}},
 		}
 	end
 

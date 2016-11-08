@@ -95,10 +95,6 @@ ADM_BonaMasso_1D_Alcubierre1997.mirrorVars = {{'gamma_xx', 'a_x', 'd_xxx', 'K_xx
 ADM_BonaMasso_1D_Alcubierre1997.hasEigenCode = true
 ADM_BonaMasso_1D_Alcubierre1997.useSourceTerm = true
 
-ADM_BonaMasso_1D_Alcubierre1997.displayVars = table()
-	:append(ADM_BonaMasso_1D_Alcubierre1997.consVars)
-	:append{'dx_alpha', 'dx_gamma_xx', 'D_g', 'KTilde_xx', 'volume'}
-
 ADM_BonaMasso_1D_Alcubierre1997.initStates = require 'init.adm'
 ADM_BonaMasso_1D_Alcubierre1997.initStateNames = table.map(ADM_BonaMasso_1D_Alcubierre1997.initStates, function(state) return state.name end)
 
@@ -153,27 +149,23 @@ function ADM_BonaMasso_1D_Alcubierre1997:getSolverCode(solver)
 	return processcl(file['eqn/adm1d_v2.cl'], {solver=solver})
 end
 
-function ADM_BonaMasso_1D_Alcubierre1997:getCalcDisplayVarCode()
-	return [[
-	switch (displayVar) {
-	// source-only:
-	case display_U_alpha: value = U->alpha; break;
-	case display_U_gamma_xx: value = U->gamma_xx; break;
-	// both 1998 and 2008 cons vars:
-	case display_U_a_x: value = U->a_x; break;
-	// 1998-only cons vars:
-	case display_U_d_xxx: value = U->d_xxx; break;
-	case display_U_K_xx: value = U->K_xx; break;
-	// 2008-only cons vars:
-	case display_U_D_g: value = 2. * U->d_xxx / U->gamma_xx; break;
-	case display_U_KTilde_xx: value = U->K_xx * sqrt(U->gamma_xx); break;
-	// aux:
-	case display_U_dx_alpha: value = U->alpha * U->a_x; break;
-	case display_U_dx_gamma_xx: value = 2. * U->d_xxx; break;
-	case display_U_volume: value = U->alpha * sqrt(U->gamma_xx); break;
-	}
-]]
-end
+ADM_BonaMasso_1D_Alcubierre1997.displayVars = {
+	-- source-only:
+	{alpha = 'value = U->alpha;'},
+	{gamma_xx = 'value = U->gamma_xx;'},
+	-- both 1998 and 2008 cons vars:
+	{a_x = 'value = U->a_x;'},
+	-- 1998-only cons vars:
+	{d_xxx = 'value = U->d_xxx;'},
+	{K_xx = 'value = U->K_xx;'},
+	-- 2008-only cons vars:
+	{D_g = 'value = 2. * U->d_xxx / U->gamma_xx;'},
+	{KTilde_xx = 'value = U->K_xx * sqrt(U->gamma_xx);'},
+	-- aux:
+	{dx_alpha = 'value = U->alpha * U->a_x;'},
+	{dx_gamma_xx = 'value = 2. * U->d_xxx;'},
+	{volume = 'value = U->alpha * sqrt(U->gamma_xx);'},
+}
 
 local makeStruct = require 'eqn.makestruct'
 local eigenVars = {'alpha', 'sqrt_f_over_gamma_xx'}
@@ -183,16 +175,9 @@ function ADM_BonaMasso_1D_Alcubierre1997:getEigenTypeCode(solver)
 end
 
 function ADM_BonaMasso_1D_Alcubierre1997:getEigenDisplayVars(solver)
-	return eigenVars
-end
-
-function ADM_BonaMasso_1D_Alcubierre1997:getEigenCalcDisplayVarCode()
-	return [[
-	switch (displayVar) {
-	case display_eigen_alpha: value = eigen->alpha; break;
-	case display_eigen_sqrt_f_over_gamma_xx: value = eigen->sqrt_f_over_gamma_xx; break;
-	}
-]]
+	return table.map(eigenVars, function(var)
+		return {[var] = 'value = eigen->'..var..';'}
+	end)
 end
 
 return ADM_BonaMasso_1D_Alcubierre1997

@@ -32,7 +32,9 @@ function Equation:getTypeCode()
 	return require 'eqn.makestruct'('cons_t', self.consVars)
 end
 
-Equation.getCalcDisplayVarCode = nil
+Equation.displayVarCodePrefix = [[
+	const __global cons_t* U = buf + index;
+]]
 
 -- TODO autogen the name so multiple solvers don't collide
 function Equation:getEigenTypeCode(solver)
@@ -57,35 +59,19 @@ function Equation:getEigenCode(solver)
 end
 
 function Equation:getEigenDisplayVars(solver)
-	return  range(self.numStates * self.numWaves):map(function(i)
+	return range(self.numStates * self.numWaves):map(function(i)
 		local row = (i-1)%self.numWaves
 		local col = (i-1-row)/self.numWaves
-		return 'evL_'..row..'_'..col
+		return {['evL_'..row..'_'..col] = 'value = eigen->evL['..i..'];'}
 	end):append(range(self.numStates * self.numWaves):map(function(i)
 		local row = (i-1)%self.numStates
 		local col = (i-1-row)/self.numStates
-		return 'evR_'..row..'_'..col
+		return {['evR_'..row..'_'..col] = 'value = eigen->evR['..i..'];'}
 	end)):append(solver.checkFluxError and range(self.numStates * self.numStates):map(function(i)
 		local row = (i-1)%self.numStates
 		local col = (i-1-row)/self.numStates
-		return 'A_'..row..'_'..col
+		return {['A_'..row..'_'..col] = 'value = eigen->A['..i..'];'}
 	end) or nil)
-end
-
-function Equation:getEigenCalcDisplayVarCode()
-	return [[
-	int k = displayVar - displayFirst_eigen;
-	if (k < numStates * numWaves) {
-		value = eigen->evL[k];
-	} else {
-		k -= numStates * numWaves;
-		if (k < numStates * numWaves) {
-			value = eigen->evR[k];
-		} else {
-			value = eigen->A[k];
-		}
-	}
-]]
 end
 
 return Equation

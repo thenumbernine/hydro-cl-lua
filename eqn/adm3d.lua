@@ -25,9 +25,6 @@ ADM_BonaMasso_3D.numStates = 7 + 30	-- should equal # consVars
 ADM_BonaMasso_3D.numWaves = 30	-- skip alpha and gamma_ij
 
 ADM_BonaMasso_3D.numStates = #ADM_BonaMasso_3D.consVars
-ADM_BonaMasso_3D.displayVars = table()
-	:append(ADM_BonaMasso_3D.consVars)
-	:append{'volume'}
 
 ADM_BonaMasso_3D.hasCalcDT = true
 ADM_BonaMasso_3D.hasEigenCode = true
@@ -139,25 +136,19 @@ function ADM_BonaMasso_3D:getSolverCode(solver)
 	return require 'processcl'(file['eqn/adm3d.cl'], {solver=solver})
 end
 
-function ADM_BonaMasso_3D:getCalcDisplayVarCode()
-	return table{[[
-	switch (displayVar) {
-	case display_U_volume: value = U->alpha * sqrt(symmat3_det(U->gamma)); break;
-]]
-	}:append(table.map(self.consVars, function(var)
+ADM_BonaMasso_3D.displayVars = table()
+	:append(table.map(ADM_BonaMasso_3D.consVars, function(var)
 		local code = var:gsub('_', '.')
 		local dx, rest = code:match('^d%.([xyz])([xyz][xyz])$')
 		if dx then
 			local i = xNames:find(dx)
 			code = 'd['..(i-1)..'].'..rest
 		end
-		return '	case display_U_'..var..': value = U->'..code..'; break;'
-	end)):append{
-[[
-		}
-]]
-	}:concat'\n'
-end
+		return {[var] = 'value = U->'..code..';'}
+	end))
+	:append{
+		{volume = 'value = U->alpha * sqrt(symmat3_det(U->gamma));'}
+	}
 
 local makeStruct = require 'eqn.makestruct'
 local eigenVars = {'alpha', 'f', 'gammaUxx', 'gammaUxy', 'gammaUxz', 'gammaUyy', 'gammaUyz', 'gammaUzz'}
@@ -172,21 +163,15 @@ typedef struct {
 end
 
 function ADM_BonaMasso_3D:getEigenDisplayVars()
-	return eigenVars
-end
-
-function ADM_BonaMasso_3D:getEigenCalcDisplayVarCode()
-	return [[
-	switch (displayVar) {
-	case display_eigen_f: value = eigen->f; break;
-	case display_eigen_gammaUxx: value = eigen->gammaU.xx; break;
-	case display_eigen_gammaUxy: value = eigen->gammaU.xy; break;
-	case display_eigen_gammaUxz: value = eigen->gammaU.xz; break;
-	case display_eigen_gammaUyy: value = eigen->gammaU.yy; break;
-	case display_eigen_gammaUyz: value = eigen->gammaU.yz; break;
-	case display_eigen_gammaUzz: value = eigen->gammaU.zz; break;
+	return {
+		{f = 'value = eigen->f;'},
+		{gammaUxx = 'value = eigen->gammaU.xx;'},
+		{gammaUxy = 'value = eigen->gammaU.xy;'},
+		{gammaUxz = 'value = eigen->gammaU.xz;'},
+		{gammaUyy = 'value = eigen->gammaU.yy;'},
+		{gammaUyz = 'value = eigen->gammaU.yz;'},
+		{gammaUzz = 'value = eigen->gammaU.zz;'},
 	}
-]]
 end
 
 return ADM_BonaMasso_3D

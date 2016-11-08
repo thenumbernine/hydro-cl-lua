@@ -11,11 +11,6 @@ Maxwell.name = 'Maxwell'
 Maxwell.numStates = 6
 Maxwell.consVars = {'epsEx', 'epsEx', 'epsEz', 'Bx', 'By', 'Bz'}
 Maxwell.mirrorVars = {{'epsE.x', 'B.x'}, {'epsE.y', 'B.y'}, {'epsE.z', 'B.z'}}
-Maxwell.displayVars = {
-	'Ex', 'Ey', 'Ez', 'E',
-	'Bx', 'By', 'Bz', 'B',
-	'energy',
-}
 
 Maxwell.hasEigenCode = true
 Maxwell.useSourceTerm = true
@@ -84,21 +79,17 @@ function Maxwell:getSolverCode(solver)
 	return require 'processcl'(file['eqn/maxwell.cl'], {solver=solver})
 end
 
-function Maxwell:getCalcDisplayVarCode()
-	return [[
-	switch (displayVar) {
-	case display_U_Ex: value = U->epsE.x / eps0; break;
-	case display_U_Ey: value = U->epsE.y / eps0; break;
-	case display_U_Ez: value = U->epsE.z / eps0; break;
-	case display_U_E: value = sqrt(ESq(*U)); break;
-	case display_U_Bx: value = U->B.x; break;
-	case display_U_By: value = U->B.y; break;
-	case display_U_Bz: value = U->B.z; break;
-	case display_U_B: value = sqrt(BSq(*U)); break;
-	case display_U_energy: value = .5 * (coordLen(U->epsE) + coordLen(U->B) / mu0); break;
-	}
-]]
-end
+Maxwell.displayVars = {
+	{Ex = 'value = U->epsE.x / eps0;'},
+	{Ey = 'value = U->epsE.y / eps0;'},
+	{Ez = 'value = U->epsE.z / eps0;'},
+	{E = 'value = sqrt(ESq(*U));'},
+	{Bx = 'value = U->B.x;'},
+	{By = 'value = U->B.y;'},
+	{Bz = 'value = U->B.z;'},
+	{B = 'value = sqrt(BSq(*U));'},
+	{energy = 'value = .5 * (coordLen(U->epsE) + coordLen(U->B) / mu0);'},
+}
 
 -- can it be zero sized?
 function Maxwell:getEigenTypeCode(solver)

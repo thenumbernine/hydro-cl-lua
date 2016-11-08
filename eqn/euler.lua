@@ -12,26 +12,7 @@ Euler.numStates = 5
 
 Euler.consVars = {'rho', 'mx', 'my', 'mz', 'ETotal'}
 Euler.primVars = {'rho', 'vx', 'vy', 'vz', 'P'}
-Euler.mirrorVars = {{'m.x'}, {'m.y'}, {'m.z'}}
-Euler.displayVars = {
-	'rho',
-	'vx', 'vy', 'vz', 'v',
-	'mx', 'my', 'mz', 'm',
-	'eInt',
-	'eKin', 
-	'ePot',
-	'eTotal', 
-	'EInt', 
-	'EKin', 
-	'EPot',
-	'ETotal', 
-	'P',
-	'S', 
-	'h',
-	'H', 
-	'hTotal',
-	'HTotal',
-} 
+Euler.mirrorVars = {{'m.x'}, {'m.y'}, {'m.z'}} 
 
 Euler.hasEigenCode = true
 Euler.hasCalcDT = true
@@ -155,42 +136,37 @@ function Euler:getSolverCode(solver)
 	return processcl(assert(file['eqn/euler.cl']), {eqn=self, solver=solver})
 end
 
-function Euler:getCalcDisplayVarCode()
-	return [[
-	int side = 0;
-	real value = 0;
-
-	cons_t U = UBuf[index];
+Euler.displayVarCodePrefix = [[
+	cons_t U = buf[index];
 	real ePot = ePotBuf[index];
-	
 	prim_t W = primFromCons(U, ePot);
-	switch (displayVar) {
-	case display_U_rho: value = W.rho; break;
-	case display_U_vx: value = W.v.x; break;
-	case display_U_vy: value = W.v.y; break;
-	case display_U_vz: value = W.v.z; break;
-	case display_U_v: value = coordLen(W.v); break;
-	case display_U_mx: value = U.m.x; break;
-	case display_U_my: value = U.m.y; break;
-	case display_U_mz: value = U.m.z; break;
-	case display_U_m: value = coordLen(U.m); break;
-	case display_U_P: value = W.P; break;
-	case display_U_eInt: value = calc_eInt(W); break;
-	case display_U_eKin: value = calc_eKin(W); break;
-	case display_U_ePot: value = ePot; break;
-	case display_U_eTotal: value = U.ETotal / W.rho; break;
-	case display_U_EInt: value = calc_EInt(W); break;
-	case display_U_EKin: value = calc_EKin(W); break;
-	case display_U_EPot: value = W.rho * ePot; break;
-	case display_U_ETotal: value = U.ETotal; break;
-	case display_U_S: value = W.P / pow(W.rho, (real)gamma); break;
-	case display_U_H: value = calc_H(W.P); break;
-	case display_U_h: value = calc_h(W.rho, W.P); break;
-	case display_U_HTotal: value = calc_HTotal(W.P, U.ETotal); break;
-	case display_U_hTotal: value = calc_hTotal(W.rho, W.P, U.ETotal); break;
-	}
 ]]
-end
+
+Euler.displayVars = {
+	{rho = 'value = W.rho;'},
+	{vx = 'value = W.v.x;'},
+	{vy = 'value = W.v.y;'},
+	{vz = 'value = W.v.z;'},
+	{v = 'value = coordLen(W.v);'},
+	{mx = 'value = U.m.x;'},
+	{my = 'value = U.m.y;'},
+	{mz = 'value = U.m.z;'},
+	{m = 'value = coordLen(U.m);'},
+	{P = 'value = W.P;'},
+	{eInt = 'value = calc_eInt(W);'},
+	{eKin = 'value = calc_eKin(W);'},
+	{ePot = 'value = ePot;'},
+	{eTotal = 'value = U.ETotal / W.rho;'},
+	{EInt = 'value = calc_EInt(W);'},
+	{EKin = 'value = calc_EKin(W);'},
+	{EPot = 'value = W.rho * ePot;'},
+	{ETotal = 'value = U.ETotal;'},
+	{S = 'value = W.P / pow(W.rho, (real)gamma);'},
+	{H = 'value = calc_H(W.P);'},
+	{h = 'value = calc_h(W.rho, W.P);'},
+	{HTotal = 'value = calc_HTotal(W.P, U.ETotal);'},
+	{hTotal = 'value = calc_hTotal(W.rho, W.P, U.ETotal);'},
+}
 
 function Euler:getEigenTypeCode(solver)
 	return [[
@@ -208,22 +184,16 @@ typedef struct {
 end
 
 function Euler:getEigenDisplayVars(solver)
-	return {'rho', 'vx', 'vy', 'vz', 'v', 'hTotal', 'vSq', 'Cs'}
-end
-
-function Euler:getEigenCalcDisplayVarCode(solver)
-	return [[
-	switch (displayVar) {
-	case display_eigen_rho: value = eigen->rho; break;
-	case display_eigen_vx: value = eigen->v.x; break;
-	case display_eigen_vy: value = eigen->v.y; break;
-	case display_eigen_vz: value = eigen->v.z; break;
-	case display_eigen_v: value = coordLen(eigen->v); break;
-	case display_eigen_hTotal: value = eigen->hTotal; break;
-	case display_eigen_vSq: value = eigen->vSq; break;
-	case display_eigen_Cs: value = eigen->Cs; break;
+	return {
+		{rho = 'value = eigen->rho;'},
+		{vx = 'value = eigen->v.x;'},
+		{vy = 'value = eigen->v.y;'},
+		{vz = 'value = eigen->v.z;'},
+		{v = 'value = coordLen(eigen->v);'},
+		{hTotal = 'value = eigen->hTotal;'},
+		{vSq = 'value = eigen->vSq;'},
+		{Cs = 'value = eigen->Cs;'},
 	}
-]]
 end
 
 return Euler

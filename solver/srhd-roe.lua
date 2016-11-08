@@ -27,35 +27,10 @@ function SRHDRoe:addConvertToTexUBuf()
 	self:addConvertToTex({
 		name = 'U',
 		type = 'cons_t',
-		vars = assert(self.eqn.displayVars),
 		extraArgs = {'const __global prim_t* primBuf'},
 -- the index vs dstindex stuff is shared in common with the main display code
-		displayBodyCode = [[
-	cons_t U = buf[index];
-	prim_t prim = primBuf[index];
-	switch (displayVar) {
-	case display_U_D: value = U.D; break;
-	case display_U_Sx: value = U.S.x; break;
-	case display_U_Sy: value = U.S.y; break;
-	case display_U_Sz: value = U.S.z; break;
-	case display_U_S: value = coordLen(U.S); break;
-	case display_U_tau: value = U.tau; break;
-	case display_U_W: value = U.D / prim.rho; break;
-	case display_U_primitive_reconstruction_error: 
-		//prim have just been reconstructed from cons
-		//so reconstruct cons from prims again and calculate the difference
-		{
-			cons_t U2 = consFromPrim(prim);
-			value = 0;
-			value += fabs(U.D - U2.D);
-			value += fabs(U.S.x - U2.S.x);
-			value += fabs(U.S.y - U2.S.y);
-			value += fabs(U.S.z - U2.S.z);
-			value += fabs(U.tau - U2.tau);
-		}
-		break;
-	}
-]]
+		varCodePrefix = self.eqn.displayVarCodePrefix,
+		vars = self.eqn.displayVars,
 	}, ConvertToTex_SRHD_U)
 end
 
@@ -65,20 +40,8 @@ function SRHDRoe:addConvertToTexs()
 	self:addConvertToTex{
 		name = 'prim', 
 		type = 'prim_t',
+		varCodePrefix = self.eqn.primDisplayVarCodePrefix,
 		vars = self.eqn.primDisplayVars,
-		displayBodyCode = [[
-	prim_t prim = buf[index];
-	switch (displayVar) {
-	case display_prim_rho: value = prim.rho; break;
-	case display_prim_vx: value = prim.v.x; break;
-	case display_prim_vy: value = prim.v.y; break;
-	case display_prim_vz: value = prim.v.z; break;
-	case display_prim_v: value = coordLen(prim.v); break;
-	case display_prim_eInt: value = prim.eInt; break;
-	case display_prim_P: value = calc_P(prim.rho, prim.eInt); break;
-	case display_prim_h: value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt); break;
-	}
-]],
 	}
 end
 
