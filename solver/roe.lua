@@ -756,7 +756,6 @@ function Solver:refreshDisplayProgram()
 						..', (float4)(value, 0., 0., 0.));',
 					body = convertToTex.displayBodyCode or '',
 					type = convertToTex.type,
-					eigenBody = self.eqn:getCalcDisplayVarEigenCode() or '',
 				})
 			}
 		end
@@ -770,7 +769,6 @@ function Solver:refreshDisplayProgram()
 				output = '	dest[dstindex] = value;',
 				body = convertToTex.displayBodyCode or '',
 				type = convertToTex.type,
-				eigenBody = self.eqn:getCalcDisplayVarEigenCode() or '',
 			})
 		-- end display code
 		}
