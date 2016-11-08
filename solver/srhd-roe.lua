@@ -118,8 +118,6 @@ function SRHDRoe:refreshInitStateProgram()
 	self.initStateKernel:setArg(1, self.primBuf)
 end
 
-function SRHDRoe:getCalcDTCode() end
-
 function SRHDRoe:refreshSolverProgram()
 	-- createKernels in particular ...
 	SRHDRoe.super.refreshSolverProgram(self)

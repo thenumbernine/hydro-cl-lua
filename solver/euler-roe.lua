@@ -66,8 +66,6 @@ function EulerRoe:refreshInitStateProgram()
 	self.initStateKernel:setArg(1, self.ePotBuf)
 end
 
-function EulerRoe:getCalcDTCode() end
-
 function EulerRoe:refreshSolverProgram()
 	EulerRoe.super.refreshSolverProgram(self)
 

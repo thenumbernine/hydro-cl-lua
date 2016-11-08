@@ -26,6 +26,8 @@ SRHD.primDisplayVars = {
 	'h',
 }
 
+SRHD.hasCalcDT = true
+
 SRHD.initStates = require 'init.euler'
 SRHD.initStateNames = table.map(SRHD.initStates, function(info) return info.name end)
 

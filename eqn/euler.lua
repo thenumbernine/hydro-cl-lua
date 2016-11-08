@@ -32,6 +32,7 @@ Euler.displayVars = {
 	'HTotal',
 } 
 
+Euler.hasCalcDT = true
 -- only for geometry's sake ...
 Euler.useSourceTerm = true
 

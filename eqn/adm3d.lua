@@ -5,6 +5,7 @@ The first Bona-Masso formalism.
 
 local class = require 'ext.class'
 local table = require 'ext.table'
+local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 
 local ADM_BonaMasso_3D = class(Equation)
@@ -28,10 +29,60 @@ ADM_BonaMasso_3D.displayVars = table()
 	:append(ADM_BonaMasso_3D.consVars)
 	:append{'volume'}
 
+ADM_BonaMasso_3D.hasCalcDT = true
 ADM_BonaMasso_3D.useSourceTerm = true
 
 ADM_BonaMasso_3D.initStates = require 'init.adm'
 ADM_BonaMasso_3D.initStateNames = table.map(ADM_BonaMasso_3D.initStates, function(state) return state.name end)
+
+ADM_BonaMasso_3D.guiVars = table{
+	require 'guivar.combo'{
+		name = 'f',
+		options = {'1', '1.69', '.49', '1 + 1/alpha^2'},
+	}
+}
+ADM_BonaMasso_3D.guiVarsForName = ADM_BonaMasso_3D.guiVars:map(function(var) return var, var.name end)
+
+function ADM_BonaMasso_3D:getTypeCode()
+	return [[
+typedef union {
+	real s[6];
+	struct {
+		real xx, xy, xz, yy, yz, zz;
+	};
+} symmat3;
+
+real symmat3_det(symmat3 m) {
+	return m.xx * m.yy * m.zz
+		+ m.xy * m.yz * m.xz
+		+ m.xz * m.xy * m.yz
+		- m.xz * m.yy * m.xz
+		- m.yz * m.yz * m.xx
+		- m.zz * m.xy * m.xy;
+}
+
+symmat3 symmat3_inv(real d, symmat3 m) {
+	return (symmat3){
+		.xx = (m.yy * m.zz - m.yz * m.yz) / d,
+		.xy = (m.xz * m.yz - m.xy * m.zz) / d,
+		.xz = (m.xy * m.yz - m.xz * m.yy) / d,
+		.yy = (m.xx * m.zz - m.xz * m.xz) / d,
+		.yz = (m.xz * m.xy - m.xx * m.yz) / d,
+		.zz = (m.xx * m.yy - m.xy * m.xy) / d,
+	};
+}
+
+typedef struct {
+	real alpha;
+	symmat3 gamma;
+	real3 a;
+	symmat3 d[3];
+	symmat3 K;
+	real3 V;
+} cons_t;
+
+]]
+end
 
 function ADM_BonaMasso_3D:getCodePrefix(solver)
 	local initState = self.initStates[solver.initStatePtr[0]+1]
@@ -47,50 +98,13 @@ function ADM_BonaMasso_3D:getCodePrefix(solver)
 		alphaVar = alphaVar,
 	})
 	
-	return [[
-real symMatDet(
-	real xx, real xy, real xz, 
-	real yy, real yz, real zz
-) {
-	return xx * yy * zz
-		+ xy * yz * xz
-		+ xz * xy * yz
-		- xz * yy * xz
-		- yz * yz * xx
-		- zz * xy * xy;
-}
-
-#define symMatDet_prefix(prefix) symMatDet(prefix##xx, prefix##xy, prefix##xz, prefix##yy, prefix##yz, prefix##zz)
-
-void symMatInv(
-	real* y,
-	real d,
-	real xx, real xy, real xz, 
-	real yy, real yz, real zz
-) {
-	y[0] = (yy * zz - yz * yz) / d;	// xx
-	y[1] = (xz * yz - xy * zz) / d;	// xy
-	y[2] = (xy * yz - xz * yy) / d;	// xz
-	y[3] = (xx * zz - xz * xz) / d;	// yy
-	y[4] = (xz * xy - xx * yz) / d;	// yz
-	y[5] = (xx * yy - xy * xy) / d;	// zz
-}
-
-#define symMatInv_prefix(y, d, prefix) symMatInv(y, d, prefix##xx, prefix##xy, prefix##xz, prefix##yy, prefix##yz, prefix##zz)
-
-]] .. table.map(self.codes, function(code,name,t)
+	return table.map(self.codes, function(code,name,t)
 		return 'real calc_'..name..code, #t+1
 	end):concat'\n'
 end
-
-
-ADM_BonaMasso_3D.guiVars = table{
-	require 'guivar.combo'{
-		name = 'f',
-		options = {'1', '1.69', '.49', '1 + 1/alpha^2'},
-	}
-}
-ADM_BonaMasso_3D.guiVarsForName = ADM_BonaMasso_3D.guiVars:map(function(var) return var, var.name end)
+	
+local xNames = table{'x', 'y', 'z'}
+local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
 
 function ADM_BonaMasso_3D:getInitStateCode(solver)
 	local lines = table{
@@ -108,8 +122,6 @@ __kernel void initState(
 		return '\tU->'..var..' = calc_'..var..'(x.x, x.y, x.z);'
 	end
 
-	local xNames = table{'x', 'y', 'z'}
-	local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
 	build'alpha'
 	symNames:map(function(xij) build('gamma_'..xij) end)
 	xNames:map(function(xi) build('a_'..xi) end)	
@@ -122,10 +134,8 @@ __kernel void initState(
 	return lines:concat'\n'
 end
 
-function ADM_BonaMasso_3D:getSolverCode()
-	return table{
-		'#include "eqn/adm3d.cl"',
-	}:concat'\n'
+function ADM_BonaMasso_3D:getSolverCode(solver)
+	return require 'processcl'(file['eqn/adm3d.cl'], {solver=solver})
 end
 
 ADM_BonaMasso_3D.eigenVars = {'alpha', 'gammaUxx', 'gammaUxy', 'gammaUxz', 'gammaUyy', 'gammaUyz', 'gammaUzz', 'f'}
@@ -134,15 +144,13 @@ function ADM_BonaMasso_3D:getEigenInfo()
 	return {
 		typeCode = [[
 typedef struct {
-	union {
-		struct {
-			real gammaUxx, gammaUxy, gammaUxz, gammaUyy, gammaUyz, gammaUzz;
-		};
-		real gammaU[6];
-	};
+	symmat3 gammaU;
 	real f;
 } eigen_t;
-typedef eigen_t fluxXform_t;	// I've thought of merging these two ... this is more proof
+
+// I've thought of merging these two structures ... this is more proof
+typedef eigen_t fluxXform_t;
+
 ]],
 		code = nil,
 		displayVars = {} -- working on this one
@@ -152,10 +160,16 @@ end
 function ADM_BonaMasso_3D:getCalcDisplayVarCode()
 	return table{[[
 	switch (displayVar) {
-	case display_U_volume: value = U->alpha * sqrt(symMatDet_prefix(U->gamma_)); break;
+	case display_U_volume: value = U->alpha * sqrt(symmat3_det(U->gamma)); break;
 ]]
 	}:append(table.map(self.consVars, function(var)
-		return '	case display_U_'..var..': value = U->'..var..'; break;'
+		local code = var:gsub('_', '.')
+		local dx, rest = code:match('^d%.([xyz])([xyz][xyz])$')
+		if dx then
+			local i = xNames:find(dx)
+			code = 'd['..(i-1)..'].'..rest
+		end
+		return '	case display_U_'..var..': value = U->'..code..'; break;'
 	end)):append{
 [[
 		}

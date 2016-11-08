@@ -414,6 +414,7 @@ function Solver:createBuffers()
 	local realSize = ffi.sizeof(self.app.real)
 
 	-- to get sizeof
+	ffi.cdef(self.eqn:getTypeCode())
 	ffi.cdef(self.eqn:getEigenInfo().typeCode)
 	ffi.cdef(errorTypeCode)
 
@@ -641,6 +642,7 @@ function Solver:resetState()
 end
 
 function Solver:getCalcDTCode()
+	if self.eqn.hasCalcDT then return end
 	return processcl(assert(file['solver/calcDT.cl']), {solver=self})
 end
 

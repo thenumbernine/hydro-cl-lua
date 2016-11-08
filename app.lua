@@ -231,7 +231,7 @@ typedef union {
 	}
 
 	-- fluid
-	self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
+	--self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
 	--self.solver = require 'solver.euler-roe'(args)
 	--self.solver = require 'solver.srhd-roe'(table(args, {initState = 'relativistic blast wave test problem 2'}))
 	-- EM
@@ -239,7 +239,7 @@ typedef union {
 	-- geometrodynamics
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v1'}))
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v2'}))
-	--self.solver = require 'solver.roe'(table(args, {eqn='adm3d'}))
+	self.solver = require 'solver.roe'(table(args, {eqn='adm3d'}))
 
 	self.solvers = table{self.solver}
 	
