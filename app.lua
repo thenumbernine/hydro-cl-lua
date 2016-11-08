@@ -1044,7 +1044,9 @@ function HydroCLApp:updateGUI()
 			if ig.igCollapsingHeader(convertToTex.name..' variables:') then
 				for _,var in ipairs(convertToTex.vars) do
 					ig.igPushIdStr(convertToTex.name..' '..var.name)
-					ig.igCheckbox(var.name, var.enabled)
+					if ig.igCheckbox(var.name, var.enabled) then
+						self.solver:refreshDisplayProgram()
+					end
 					ig.igSameLine()
 					if ig.igCollapsingHeader'' then	
 						ig.igCheckbox('log', var.useLogPtr)

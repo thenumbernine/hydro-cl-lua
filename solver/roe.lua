@@ -756,34 +756,38 @@ function Solver:refreshDisplayProgram()
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do
 			for _,var in ipairs(convertToTex.vars) do
-				lines:append{
-					processcl(convertToTex.displayCode, {
-						solver = self,
-						var = var,
-						convertToTex = convertToTex,
-						name = 'calcDisplayVarToTex_'..var.name,
-						input = '__write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex',
-						output = '	write_imagef(tex, '
-							..(self.dim == 3 and '(int4)(dsti.x, dsti.y, dsti.z, 0)' or '(int2)(dsti.x, dsti.y)')
-							..', (float4)(value, 0., 0., 0.));',
-					})
-				}
+				if var.enabled[0] then
+					lines:append{
+						processcl(convertToTex.displayCode, {
+							solver = self,
+							var = var,
+							convertToTex = convertToTex,
+							name = 'calcDisplayVarToTex_'..var.name,
+							input = '__write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex',
+							output = '	write_imagef(tex, '
+								..(self.dim == 3 and '(int4)(dsti.x, dsti.y, dsti.z, 0)' or '(int2)(dsti.x, dsti.y)')
+								..', (float4)(value, 0., 0., 0.));',
+						})
+					}
+				end
 			end
 		end
 	end
 
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		for _,var in ipairs(convertToTex.vars) do
-			lines:append{
-				processcl(convertToTex.displayCode, {
-					solver = self,
-					var = var,
-					convertToTex = convertToTex,
-					name = 'calcDisplayVarToBuffer_'..var.name,
-					input = '__global real* dest',
-					output = '	dest[dstindex] = value;',
-				})
-			}
+			if var.enabled[0] then
+				lines:append{
+					processcl(convertToTex.displayCode, {
+						solver = self,
+						var = var,
+						convertToTex = convertToTex,
+						name = 'calcDisplayVarToBuffer_'..var.name,
+						input = '__global real* dest',
+						output = '	dest[dstindex] = value;',
+					})
+				}
+			end
 		end
 	end
 
@@ -798,14 +802,18 @@ function Solver:refreshDisplayProgram()
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do
 			for _,var in ipairs(convertToTex.vars) do
-				var.calcDisplayVarToTexKernel = self.displayProgram:kernel('calcDisplayVarToTex_'..var.name, self.texCLMem)
+				if var.enabled[0] then
+					var.calcDisplayVarToTexKernel = self.displayProgram:kernel('calcDisplayVarToTex_'..var.name, self.texCLMem)
+				end
 			end
 		end
 	end
 
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		for _,var in ipairs(convertToTex.vars) do
-			var.calcDisplayVarToBufferKernel = self.displayProgram:kernel('calcDisplayVarToBuffer_'..var.name, self.reduceBuf)
+			if var.enabled[0] then
+				var.calcDisplayVarToBufferKernel = self.displayProgram:kernel('calcDisplayVarToBuffer_'..var.name, self.reduceBuf)
+			end
 		end
 	end
 end
