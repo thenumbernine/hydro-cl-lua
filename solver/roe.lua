@@ -605,9 +605,6 @@ static inline real3 real3_sub(real3 a, real3 b) {
 	}
 	
 	lines:append{
-		self.checkFluxError and '#define checkFluxError' or '',
-		self.checkOrthoError and '#define checkOrthoError' or '',
-		
 		-- not messing with this one yet
 		self.allocateOneBigStructure and '#define allocateOneBigStructure' or '',
 		
