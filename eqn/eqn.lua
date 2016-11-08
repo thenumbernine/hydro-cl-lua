@@ -1,5 +1,7 @@
 local class = require 'ext.class'
 local range = require 'ext.range'
+local file = require 'ext.file'
+local processcl = require 'processcl'
 
 local Equation = class()
 
@@ -26,13 +28,23 @@ function Equation:getTypeCode()
 	return require 'eqn.makestruct'('cons_t', self.consVars)
 end
 
-function Equation:getEigenInfo()
+function Equation:getEigenInfo(solver)
 	-- TODO autogen the name so multiple solvers don't collide
 	return {
-		typeCode =
-			'typedef struct { real evL[' .. (self.numStates * self.numWaves) .. '], evR[' .. (self.numStates * self.numWaves) .. ']; } eigen_t;\n'..
-			'typedef struct { real A[' .. (self.numStates * self.numStates) .. ']; } fluxXform_t;',
-		code = '#include "solver/eigen.cl"',
+		typeCode = processcl([[
+typedef struct {
+	real evL[<?=numStates*numWaves?>];
+	real evR[<?=numStates*numWaves?>];
+} eigen_t;
+
+typedef struct {
+	real A[<?=numStates*numStates?>];
+} fluxXform_t;
+]], {
+				numStates = self.numStates,
+				numWaves = self.numWaves,
+			}),
+		code = processcl(file['solver/eigen.cl'], {solver=solver}),
 		displayVars = range(self.numStates * self.numWaves):map(function(i)
 			local row = (i-1)%self.numWaves
 			local col = (i-1-row)/self.numWaves

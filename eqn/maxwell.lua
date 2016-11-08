@@ -1,5 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
+local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local GuiFloat = require 'guivar.float'
 local clnumber = require 'clnumber'
@@ -79,12 +80,10 @@ __kernel void initState(
 end
 
 function Maxwell:getSolverCode(solver)
-	return table{ 
-		'#include "eqn/maxwell.cl"',
-	}:concat'\n'
+	return require 'processcl'(file['eqn/maxwell.cl'], {solver=solver})
 end
 
-function Maxwell:getEigenInfo()
+function Maxwell:getEigenInfo(solver)
 	return {
 		typeCode = 
 			-- can it be zero sized?

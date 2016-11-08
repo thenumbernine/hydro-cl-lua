@@ -53,11 +53,12 @@ __kernel void calcEigenBasis(
 	}
 }
 
-void fluxTransform(
+<? for side=0,2 do ?>
+
+void fluxTransform_<?=side?>(
 	real* y,
 	const __global fluxXform_t* flux,
-	const real* x,
-	int side
+	const real* x
 ) {
 	real alpha_sqrt_gamma_xx = flux->alpha / sqrt(flux->gamma_xx);
 	y[0] = 0;
@@ -67,11 +68,10 @@ void fluxTransform(
 	y[4] = x[2] * alpha_sqrt_gamma_xx;
 }
 
-void eigen_leftTransform(
+void eigen_leftTransform_<?=side?>(
 	real* y,
 	const __global eigen_t* eigen,
-	const real* x,
-	int side
+	const real* x
 ) {
 	real sqrt_f = sqrt(eigen->f);
 	y[0] = (x[2] / eigen->f - x[4] / sqrt_f) / 2.;
@@ -79,11 +79,10 @@ void eigen_leftTransform(
 	y[2] = (x[2] / eigen->f + x[4] / sqrt_f) / 2.;
 }
 
-void eigen_rightTransform(
+void eigen_rightTransform_<?=side?>(
 	real* y,
 	const __global eigen_t* eigen,
-	const real* x,
-	int side
+	const real* x
 ) {
 	y[0] = 0;
 	y[1] = 0;
@@ -91,6 +90,8 @@ void eigen_rightTransform(
 	y[3] = 2. * x[0] + x[1] + 2. * x[2];
 	y[4] = sqrt(eigen->f) * (x[2] - x[0]);
 }
+
+<? end ?>
 
 kernel void addSource(
 	__global cons_t* derivBuf,

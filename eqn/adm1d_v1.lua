@@ -63,6 +63,7 @@ Q^-1 = [ -2/f,   1,        0       ]
 
 local class = require 'ext.class'
 local table = require 'ext.table'
+local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 
 local ADM_BonaMasso_1D_Alcubierre2008 = class(Equation)
@@ -130,14 +131,12 @@ __kernel void initState(
 	}:concat'\n'
 end
 
-function ADM_BonaMasso_1D_Alcubierre2008:getSolverCode()
-	return table{
-		'#include "eqn/adm1d_v1.cl"',
-	}:concat'\n'
+function ADM_BonaMasso_1D_Alcubierre2008:getSolverCode(solver)
+	return require 'processcl'(file['eqn/adm1d_v1.cl'], {solver=solver})
 end
 
 ADM_BonaMasso_1D_Alcubierre2008.eigenVars = {'f'}
-function ADM_BonaMasso_1D_Alcubierre2008:getEigenInfo()
+function ADM_BonaMasso_1D_Alcubierre2008:getEigenInfo(solver)
 	local makeStruct = require 'eqn.makestruct'
 	return {
 		typeCode =

@@ -11,7 +11,6 @@ end
 
 function SRHDRoe:createBuffers()
 	SRHDRoe.super.createBuffers(self)
-	ffi.cdef(self.eqn:getTypeCode())
 	self:clalloc('primBuf', self.volume * self.dim * ffi.sizeof'prim_t')
 end
 

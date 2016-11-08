@@ -139,7 +139,7 @@ function ADM_BonaMasso_3D:getSolverCode(solver)
 end
 
 ADM_BonaMasso_3D.eigenVars = {'alpha', 'gammaUxx', 'gammaUxy', 'gammaUxz', 'gammaUyy', 'gammaUyz', 'gammaUzz', 'f'}
-function ADM_BonaMasso_3D:getEigenInfo()
+function ADM_BonaMasso_3D:getEigenInfo(solver)
 	local makeStruct = require 'eqn.makestruct'
 	return {
 		typeCode = [[

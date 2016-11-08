@@ -79,6 +79,7 @@ why do I have to use a matrix that reconstructs without them?
 
 local class = require 'ext.class'
 local table = require 'ext.table'
+local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 
 local ADM_BonaMasso_1D_Alcubierre1997 = class(Equation)
@@ -146,14 +147,12 @@ __kernel void initState(
 	}:concat'\n'
 end
 
-function ADM_BonaMasso_1D_Alcubierre1997:getSolverCode()
-	return table{
-		'#include "eqn/adm1d_v2.cl"',
-	}:concat'\n'
+function ADM_BonaMasso_1D_Alcubierre1997:getSolverCode(solver)
+	return require 'processcl'(file['eqn/adm1d_v2.cl'], {solver=solver})
 end
 
 ADM_BonaMasso_1D_Alcubierre1997.eigenVars = {'sqrt_g_xx_over_f'}
-function ADM_BonaMasso_1D_Alcubierre1997:getEigenInfo()
+function ADM_BonaMasso_1D_Alcubierre1997:getEigenInfo(solver)
 	local makeStruct = require 'eqn.makestruct'
 	return {
 		typeCode =
