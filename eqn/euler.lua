@@ -16,8 +16,6 @@ Euler.mirrorVars = {{'m.x'}, {'m.y'}, {'m.z'}}
 
 Euler.hasEigenCode = true
 Euler.hasCalcDT = true
--- only for geometry's sake ...
-Euler.useSourceTerm = true
 
 Euler.initStates = require 'init.euler'
 Euler.initStateNames = table.map(Euler.initStates, function(info) return info.name end)

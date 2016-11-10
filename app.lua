@@ -172,9 +172,9 @@ typedef union {
 		eqn = cmdline.eqn,
 		integrator = cmdline.integrator or 'forward Euler',	--'Runge-Kutta 4, TVD',
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
-		dim = cmdline.dim or 1,
+		dim = cmdline.dim or 2,
 		
-		-- [[ cartesian
+		--[[ cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
@@ -192,7 +192,7 @@ typedef union {
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
-		--[[ cylinder
+		-- [[ cylinder
 		geometry = 'cylinder',
 		mins = cmdline.mins or {.5, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
@@ -232,8 +232,8 @@ typedef union {
 
 	-- fluid
 	--self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
-	--self.solver = require 'solver.euler-roe'(args)
-	self.solver = require 'solver.srhd-roe'(table(args, {initState = 'relativistic blast wave test problem 2'}))
+	self.solver = require 'solver.euler-roe'(args)
+	--self.solver = require 'solver.srhd-roe'(table(args, {initState = 'relativistic blast wave test problem 2'}))
 	-- EM
 	--self.solver = require 'solver.roe'(table(args, {eqn='maxwell'}))
 	-- geometrodynamics

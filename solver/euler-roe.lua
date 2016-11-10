@@ -37,7 +37,6 @@ function EulerRoe:refreshSolverProgram()
 
 	self.calcDTKernel:setArg(2, self.ePotBuf)
 	self.calcEigenBasisKernel:setArg(3, self.ePotBuf)
-	self.addSourceKernel:setArg(2, self.ePotBuf)
 end
 
 return EulerRoe

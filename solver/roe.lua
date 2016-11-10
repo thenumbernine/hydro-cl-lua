@@ -26,6 +26,16 @@ local function xs_to_rs(code)
 	end))
 end
 
+local function xs_to_is(code)
+	return (code:gsub('{x(%d)}', function(i)
+		return 'cell_x'..(i-1)..'(i.'..xs[i+0]..')'
+	end))
+end
+
+local function getCode_real3_to_real(name, code)
+	return 'inline real '..name..'(real3 r) { return '..xs_to_rs(code)..'; }'
+end
+
 local function getCode_real3_to_real3(name, exprs)
 	return 'inline real3 '..name..'(real3 r) { return _real3('
 		..range(3):map(function(i)
@@ -33,13 +43,13 @@ local function getCode_real3_to_real3(name, exprs)
 		end):concat', '..'); }'
 end
 
-local function getCode_define_i3_to_real3(name, exprs)
+local function getCode_define_i3_to_real3(name, codes)
 	return '#define '..name..'(i) _real3('
-		..exprs:map(function(expr,i)
+		..codes:map(function(code,i)
 			for j=1,3 do
-				expr = expr:gsub('{x'..j..'}', 'cell_x'..(j-1)..'(i.'..xs[j]..')')
+				code = code:gsub('{x'..j..'}', 'cell_x'..(j-1)..'(i.'..xs[j]..')')
 			end
-			return expr
+			return code
 		end):concat', '..')'
 end
 
@@ -493,8 +503,6 @@ function Solver:createCodePrefix()
 		lines:insert('#define displayLast_'..convertToTex.name..' display_'..convertToTex.vars:last().name)
 	end
 
-	lines:insert('#define geometry_'..self.geometry.name)
-
 	-- real types in CL natives: 1,2,4,8
 	lines:append(table{'',2,4,8}:map(function(n)
 		return 'typedef '..self.app.real..n..' real'..n..';'
@@ -550,7 +558,7 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		return (('#define cell_x{i}(i) ((real)(i + '..clnumber(.5-self.numGhost)..') * grid_dx{i} + mins_'..xs[i]..')')
 			:gsub('{i}', i-1))
 	end)):append{
-		'#define cell_x(i) _real3(cell_x0(i.x), cell_x1(i.y), cell_x2(i.z));',
+		'#define cell_x(i) _real3(cell_x0(i.x), cell_x1(i.y), cell_x2(i.z))',
 
 		self.eqn.getTypeCode and self.eqn:getTypeCode() or '',
 
@@ -597,19 +605,13 @@ static inline real3 real3_sub(real3 a, real3 b) {
 			end))
 	end))
 
-	-- coord len code:
+	-- volume
+	lines:insert(getCode_real3_to_real('volume_at', self.geometry.volumeCode))
+
+	-- coord len code: l(v) = v^i v^j g_ij
 	lines:append{
-		'inline real coordLenSq(real3 r) {',
-		'	return '
-			..self.geometry.uLenSqCode:gsub('{x(%d)}', function(i)
-				return 'r.'..xs[i+0]
-			end)..';',
-		'}',
-		'',
-		'inline real coordLen(real3 r) {',
-		'	return sqrt(coordLenSq(r));',
-		'}',
-		'',
+		getCode_real3_to_real('coordLenSq', self.geometry.uLenSqCode),
+		'inline real coordLen(real3 r) { return sqrt(coordLenSq(r)); }',
 	}
 	
 	lines:append{

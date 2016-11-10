@@ -206,30 +206,3 @@ void fluxTransform_<?=side?>(
 }
 <?	end ?>
 <? end ?>
-
-__kernel void addSource(
-	__global cons_t* derivBuf,
-	const __global cons_t* UBuf,
-	const __global real* ePotBuf
-) {
-#if defined(geometry_cylinder)
-	SETBOUNDS(2,2);
-	__global cons_t* deriv = derivBuf + index;
-	cons_t U = UBuf[index];
-	prim_t W = primFromCons(U, ePotBuf[index]);
-
-	real3 x = cell_x(i);
-	real r = x.x;
-
-	//cylindrical geometry:
-	//covariant on the flux derivative index 
-	deriv->rho -= W.rho * W.v.x / r;
-	deriv->m.x -= (W.rho * W.v.x * W.v.x + W.P) / r;
-	deriv->m.y -= W.rho * W.v.x * W.v.y / r;
-	deriv->m.z -= W.rho * W.v.x * W.v.z / r;
-	deriv->ETotal -= W.v.x * calc_HTotal(W.P, U.ETotal) / r;
-	//covariant on the velocity index ... dies
-	deriv->m.x += (W.rho * W.v.y * W.v.y + W.P) / r;
-	deriv->m.y -= W.rho * W.v.x * W.v.y / r;
-#endif
-}

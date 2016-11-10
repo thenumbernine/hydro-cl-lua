@@ -131,7 +131,7 @@ function Geometry:init(args)
 		return {[coord] = '{x'..i..'}'}	-- 1-based
 	end)	
 	local function compile(expr)
-		
+		local orig = expr	
 		-- replace pow(x,2) with x*x
 		expr = expr:map(function(x)
 			if symmath.powOp.is(x) 
@@ -150,10 +150,17 @@ function Geometry:init(args)
 			end
 		end)
 		
-		return toC:compile(
+		local code = toC:compile(
 			expr,
 			toC_coordArgs
 		):match'return (.*);'
+	
+		print'compiling...'
+		print(orig)
+		print'...to...'
+		print(code)
+
+		return code
 	end
 
 
@@ -226,6 +233,8 @@ function Geometry:init(args)
 		return lenCode
 	end)
 
+	local volumeExpr = symmath.sqrt(symmath.Matrix.determinant(g))()
+	self.volumeCode = compile(volumeExpr)
 end
 
 return Geometry

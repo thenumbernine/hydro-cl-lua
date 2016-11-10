@@ -151,6 +151,7 @@ __kernel void calcFlux(
 ) {
 	SETBOUNDS(2,1);
 
+
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;	
@@ -189,9 +190,14 @@ __kernel void calcFlux(
 		real flux[numStates];
 		eigen_rightTransform_<?=side?>(flux, eigen, fluxTilde);
 
+		real3 interfaceI = _real3(i.x, i.y, i.z);
+		interfaceI.s[side] -= .5;
+		real3 interfaceX = cell_x(interfaceI);
+		real volume = volume_at(interfaceX);
+
 		__global real* flux_ = fluxBuf + intindex * numStates;
 		for (int j = 0; j < numStates; ++j) {
-			flux_[j] = flux[j];
+			flux_[j] = volume * flux[j];
 		}
 	}<? end ?>
 }
@@ -202,6 +208,8 @@ __kernel void calcDerivFromFlux(
 ) {
 	SETBOUNDS(2,2);
 	__global real* deriv = derivBuf + numStates * index;
+		
+	real volume = volume_at(cell_x(i));
 	
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
@@ -212,7 +220,7 @@ __kernel void calcDerivFromFlux(
 		const __global real* fluxR = fluxBuf + intindexR * numStates;
 		for (int j = 0; j < numStates; ++j) {
 			real deltaFlux = fluxR[j] - fluxL[j];
-			deriv[j] -= deltaFlux / dx<?=side?>_at(i);
+			deriv[j] -= deltaFlux / (volume * grid_dx<?=side?>);
 		}
 	}<? end ?>
 }
