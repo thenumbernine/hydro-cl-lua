@@ -114,27 +114,30 @@ __kernel void calcEigenBasis(
 
 		__global eigen_t* eigen = eigenBuf + intindex;
 	
-	
-		real LambdaMin = lambdaMin + betaUi / alpha;
-		real LambdaMax = lambdaMax + betaUi / alpha;
-		real AMinus = (gammaUx.x - vxSq) / (gammaUx.x - v.x * LambdaMin);
-		real APlus  = (gammaUx.x - vxSq) / (gammaUx.x - v.x * LambdaMax);
-		real CMinus = AMinus * lambdaMin;	//TODO 2008 Font eqn 112 
-		real CPlus = APlus * lambdaMax;		//TODO 2008 Font eqn 112 
-		real Kappa = h;		//TODO 2008 Font eqn 112.  Kappa = h approx for ideal gas
-		
 		real3 vL = _real3(
 			real3_dot(gamma_x, v),
 			real3_dot(gamma_y, v),
 			real3_dot(gamma_z, v));
 
+		real LambdaMin = (lambdaMin + betaUi) / alpha;	//2008 Font eqn 114
+		real LambdaMax = (lambdaMax + betaUi) / alpha;	//2008 Font eqn 114
+		real ATildeMinus = (gammaUx.x - vxSq) / (gammaUx.x - v.x * LambdaMin);	//2008 Font eqn 113
+		real ATildePlus  = (gammaUx.x - vxSq) / (gammaUx.x - v.x * LambdaMax);		//2008 Font eqn 113
+	
+		real VMinus = (v.x - LambdaMin) / (gammaUx.x - v.x * LambdaMin);	//2008 Font eqn 113
+		real VPlus = (v.x - LambdaMax) / (gammaUx.x - v.x * LambdaMax);	//2008 Font eqn 113
+		real CMinus = vL.x - VMinus;	//2008 Font eqn 112
+		real CPlus = vL.x - VPlus;	//2008 Font eqn 112
+		
+		real Kappa = h;		//TODO 2008 Font eqn 112.  Kappa = h approx for ideal gas
+		
 		__global real* evR = eigen->evR;
 		//min col	2008 Font eqn 111, r-
 		evR[0 + numStates * 0] = 1.;
 		evR[1 + numStates * 0] = hW * CMinus;
 		evR[2 + numStates * 0] = hW * vL.y;
 		evR[3 + numStates * 0] = hW * vL.z;
-		evR[4 + numStates * 0] = hW * AMinus - 1.;
+		evR[4 + numStates * 0] = hW * ATildeMinus - 1.;
 		//mid col (normal)  2008 Font eqn 108: r0,1
 		evR[0 + numStates * 1] = Kappa / hW;
 		evR[1 + numStates * 1] = vL.x;
@@ -158,45 +161,68 @@ __kernel void calcEigenBasis(
 		evR[1 + numStates * 4] = hW * CPlus;
 		evR[2 + numStates * 4] = hW * vL.y;
 		evR[3 + numStates * 4] = hW * vL.z;
-		evR[4 + numStates * 4] = hW * APlus - 1.;
+		evR[4 + numStates * 4] = hW * ATildePlus - 1.;
 
+		real Gamma_xx = gamma_y.y * gamma_z.z - gamma_y.z * gamma_y.z;	//2008 Font eqn 123. looks like gamma gamma^xx 
+		real Gamma_xy = gamma_y.z * gamma_x.z - gamma_x.y * gamma_z.z;	//2008 Font eqn 123. looks like gamma gamma^xx 
+		real Gamma_xz = gamma_x.y * gamma_y.z - gamma_x.z * gamma_y.y;	//2008 Font eqn 123. looks like gamma gamma^xx 
+		real xi = Gamma_xx - gammaDet * vxSq;//2008 Font eqn 121
+		real Delta = hSq * hW * (Kappa - 1.) * (CPlus - CMinus) * xi;	//2008 Font eqn 121
+		
 		__global real* evL = eigen->evL; 
-		real Delta = hSq * hW * (Kappa - 1.) * (1. - vxSq) * (APlus * lambdaMax - AMinus * lambdaMin);
-		//min row
+		//min row	2008 Font eqn 118
 		real scale;
 		scale = hSq / Delta;
-		evL[0 + numStates * 0] = scale * (hW * APlus * (v.x - lambdaMax) - v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - APlus * lambdaMax) + Kappa * APlus * lambdaMax);
-		evL[0 + numStates * 1] = scale * (1. + W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (1. - APlus) - Kappa * APlus);
-		evL[0 + numStates * 2] = scale * (W2 * v.y * (2. * Kappa - 1.) * APlus * (v.x - lambdaMax));
-		evL[0 + numStates * 3] = scale * (W2 * v.z * (2. * Kappa - 1.) * APlus * (v.x - lambdaMax));
-		evL[0 + numStates * 4] = scale * (-v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - APlus * lambdaMax) + Kappa * APlus * lambdaMax);
-		//mid normal row
+#if 1 // working, from SRHD papers Marti & Muller
+		evL[0 + numStates * 0] = scale * (hW * ATildePlus * (v.x - lambdaMax) - v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - ATildePlus * lambdaMax) + Kappa * ATildePlus * lambdaMax);
+		evL[0 + numStates * 1] = scale * (1. + W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (1. - ATildePlus) - Kappa * ATildePlus);
+		evL[0 + numStates * 2] = scale * (W2 * v.y * (2. * Kappa - 1.) * ATildePlus * (v.x - lambdaMax));
+		evL[0 + numStates * 3] = scale * (W2 * v.z * (2. * Kappa - 1.) * ATildePlus * (v.x - lambdaMax));
+		evL[0 + numStates * 4] = scale * (-v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - ATildePlus * lambdaMax) + Kappa * ATildePlus * lambdaMax);
+#else	//not working, from 2008 Font
+		real l5minus = (1 - Kappa) * (-gammaDet * v.x + VPlus * (W2 * xi - Gamma_xx)) - Kappa * W2 * VPlus * xi;
+		evL[0 + numStates * 0] = scale * (hW * VPlus * xi + l5minus);
+		evL[0 + numStates * 1] = scale * (Gamma_xx * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.x * xi - Gamma_xx * v.x));
+		evL[0 + numStates * 2] = scale * (Gamma_xy * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.y * xi - Gamma_xy * v.x));
+		evL[0 + numStates * 3] = scale * (Gamma_xz * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.z * xi - Gamma_xz * v.x));
+		evL[0 + numStates * 4] = scale * l5minus;
+#endif
+		//mid normal row	2008 Font eqn 115
 		scale = W / (Kappa - 1.);
 		evL[1 + numStates * 0] = scale * (h - W);
 		evL[1 + numStates * 1] = scale * (W * v.x);
 		evL[1 + numStates * 2] = scale * (W * v.y);
 		evL[1 + numStates * 3] = scale * (W * v.z);
 		evL[1 + numStates * 4] = scale * (-W);
-		//mid tangent A row
-		scale = 1. / (h * (1. - vxSq));
-		evL[2 + numStates * 0] = scale * (-v.y);
-		evL[2 + numStates * 1] = scale * (v.x * v.y);
-		evL[2 + numStates * 2] = scale * (1. - vxSq);
-		evL[2 + numStates * 3] = 0.;
-		evL[2 + numStates * 4] = scale * (-v.y);
-		//mid tangent B row
-		evL[3 + numStates * 0] = scale * (-v.z);
-		evL[3 + numStates * 1] = scale * (v.x * v.z);
-		evL[3 + numStates * 2] = 0.;
-		evL[3 + numStates * 3] = scale * (1. - vxSq);
-		evL[3 + numStates * 4] = scale * (-v.z);
-		//max row
+		//mid tangent A row	2008 Font eqn 116
+		scale = 1. / (h * xi);
+		evL[2 + numStates * 0] = scale * (-gamma_z.z * vL.y + gamma_y.z * vL.z);
+		evL[2 + numStates * 1] = scale * v.x * (gamma_z.z * vL.y - gamma_y.z * vL.z);
+		evL[2 + numStates * 2] = scale * (gamma_z.z * (1. - v.x * vL.x) + gamma_x.z * vL.z * v.x);
+		evL[2 + numStates * 3] = scale * (-gamma_y.z * (1. - vL.x * v.x) - gamma_x.z * vL.y * v.x);
+		evL[2 + numStates * 4] = scale * (-gamma_z.z * vL.y + gamma_y.z * vL.z);
+		//mid tangent B row	2008 Font eqn 117
+		evL[3 + numStates * 0] = scale * (-gamma_y.y * vL.z + gamma_y.z * vL.y);
+		evL[3 + numStates * 1] = scale * v.x * (gamma_y.y * vL.z - gamma_y.z * vL.y);
+		evL[3 + numStates * 2] = scale * (-gamma_y.z * (1. - vL.x * v.x) - gamma_x.y * vL.z * v.x);
+		evL[3 + numStates * 3] = scale * (gamma_y.y * (1. - vL.x * v.x) + gamma_x.y * vL.y * v.x);
+		evL[3 + numStates * 4] = scale * (-gamma_y.y * vL.z + gamma_y.z * vL.y);
+		//max row	2008 Font eqn 118
 		scale = -hSq / Delta;
-		evL[4 + numStates * 0] = scale * (hW * AMinus * (v.x - lambdaMin) - v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - AMinus * lambdaMin) + Kappa * AMinus * lambdaMin);
-		evL[4 + numStates * 1] = scale * (1. + W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (1. - AMinus) - Kappa * AMinus);
-		evL[4 + numStates * 2] = scale * (W2 * v.y * (2. * Kappa - 1.) * AMinus * (v.x - lambdaMin));
-		evL[4 + numStates * 3] = scale * (W2 * v.z * (2. * Kappa - 1.) * AMinus * (v.x - lambdaMin));
-		evL[4 + numStates * 4] = scale * (-v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - AMinus * lambdaMin) + Kappa * AMinus * lambdaMin);
+#if 1 //working, from Marti & Muller
+		evL[4 + numStates * 0] = scale * (hW * ATildeMinus * (v.x - lambdaMin) - v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - ATildeMinus * lambdaMin) + Kappa * ATildeMinus * lambdaMin);
+		evL[4 + numStates * 1] = scale * (1. + W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (1. - ATildeMinus) - Kappa * ATildeMinus);
+		evL[4 + numStates * 2] = scale * (W2 * v.y * (2. * Kappa - 1.) * ATildeMinus * (v.x - lambdaMin));
+		evL[4 + numStates * 3] = scale * (W2 * v.z * (2. * Kappa - 1.) * ATildeMinus * (v.x - lambdaMin));
+		evL[4 + numStates * 4] = scale * (-v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - ATildeMinus * lambdaMin) + Kappa * ATildeMinus * lambdaMin);
+#else	//not working, from 2008 Font
+		real l5plus = (1 - Kappa) * (-gammaDet * v.x + VMinus * (W2 * xi - Gamma_xx)) - Kappa * W2 * VMinus * xi;
+		evL[4 + numStates * 0] = scale * (h * W * VMinus * xi - l5plus);
+		evL[4 + numStates * 1] = scale * (Gamma_xx * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.x * xi - Gamma_xx * v.x));
+		evL[4 + numStates * 2] = scale * (Gamma_xy * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.y * xi - Gamma_xy * v.x));
+		evL[4 + numStates * 3] = scale * (Gamma_xz * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.z * xi - Gamma_xz * v.x));
+		evL[4 + numStates * 4] = scale * l5plus;
+#endif
 
 		<? if side == 1 then ?>
 		for (int i = 0; i < numStates; ++i) {
@@ -245,6 +271,7 @@ __kernel void constrainU(
 	U->tau = min(U->tau, (real)tauMax);
 }
 
+//TODO update to include alphas, betas, and gammas
 __kernel void updatePrims(
 	__global prim_t* primBuf,
 	const __global cons_t* UBuf
