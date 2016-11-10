@@ -94,6 +94,12 @@ constant const real3 gammaUy = _real3(0,1,0);
 constant const real3 gammaUz = _real3(0,0,1);
 constant const real gammaDet = 1;
 
+inline real3 lower(real3 vU) {
+	return _real3(
+		real3_dot(gamma_x, vU),
+		real3_dot(gamma_y, vU),
+		real3_dot(gamma_z, vU));
+}
 
 
 //pressure function for ideal gas
@@ -120,7 +126,8 @@ real calc_h(real rho, real P, real eInt) {
 }
 
 cons_t consFromPrim(prim_t prim) {
-	real vSq = coordLenSq(prim.v);
+	real3 vL = lower(prim.v);
+	real vSq = real3_dot(prim.v, vL);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
 	real P = calc_P(prim.rho, prim.eInt);
@@ -174,8 +181,9 @@ __kernel void initState(
 ]]..code..[[
 	
 	real eInt = calc_eInt_from_P(rho, P);
-	real vSq = coordLenSq(v);
-	real W = 1./sqrt(1. - vSq);
+	real3 vL = lower(v);
+	real vSq = real3_dot(v, vL);
+	real W = 1. / sqrt(1. - vSq);
 	real h = calc_h(rho, P, eInt);
 
 	prim_t prim = {.rho=rho, .v=v, .eInt=eInt};

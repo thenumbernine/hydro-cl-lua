@@ -18,7 +18,8 @@ __kernel void calcDT(
 	prim_t prim = primBuf[index];
 	real rho = prim.rho;
 	real eInt = prim.eInt;
-	real vSq = coordLenSq(prim.v);
+	real3 vL = lower(prim.v);
+	real vSq = real3_dot(prim.v, vL);
 	real P = calc_P(rho, eInt);
 	real h = calc_h(rho, P, eInt);
 	real csSq = gamma * P / (rho * h);
@@ -81,8 +82,9 @@ __kernel void calcEigenBasis(
 		<? elseif side == 2 then ?>
 		v = _real3(v.z, v.y, -v.x);	//-90' rotation to put the z axis in the x axis
 		<? end ?>
-		
-		real vSq = coordLenSq(v);
+	
+		real3 vL = lower(v);
+		real vSq = real3_dot(v, vL);
 		real oneOverW2 = 1. - vSq;
 		real oneOverW = sqrt(oneOverW2);
 		real W = 1. / oneOverW;
@@ -112,12 +114,7 @@ __kernel void calcEigenBasis(
 		wave[3] = v.x * alpha - betaUi;
 		wave[4] = lambdaMax;
 
-		__global eigen_t* eigen = eigenBuf + intindex;
-	
-		real3 vL = _real3(
-			real3_dot(gamma_x, v),
-			real3_dot(gamma_y, v),
-			real3_dot(gamma_z, v));
+		__global eigen_t* eigen = eigenBuf + intindex;	
 
 		real LambdaMin = (lambdaMin + betaUi) / alpha;	//2008 Font eqn 114
 		real LambdaMax = (lambdaMax + betaUi) / alpha;	//2008 Font eqn 114
@@ -286,7 +283,8 @@ __kernel void updatePrims(
 	__global prim_t* prim = primBuf + index;
 	real3 v = prim->v;
 
-	real SLen = coordLen(S);
+	real3 SL = lower(S);
+	real SLen = sqrt(real3_dot(S,SL));
 	real PMin = max(SLen - tau - D + SLen * solvePrimVelEpsilon, solvePrimPMinEpsilon);
 	real PMax = gamma_1 * tau;
 	PMax = max(PMax, PMin);
@@ -307,7 +305,8 @@ __kernel void updatePrims(
 		P = newP;
 		if (PError < solvePrimStopEpsilon) {
 			v = real3_scale(S, 1. / (tau + D + P));
-			vSq = coordLenSq(v);
+			real3 vL = lower(v);
+			vSq = real3_dot(v, vL);
 			W = 1. / sqrt(1. - vSq);
 			rho = D / W;
 			rho = max(rho, (real)rhoMin);
