@@ -81,6 +81,21 @@ function SRHD:getCodePrefix()
 		[[
 #define gamma_1 (gamma-1.)
 
+
+//I'm going to fix metric coordinates at first
+//then later the transition to the evolved metric will be easier
+constant const real alpha = 1;
+constant const real3 betaU = _real3(0,0,0);
+constant const real3 gamma_x = _real3(1,0,0);
+constant const real3 gamma_y = _real3(0,1,0);
+constant const real3 gamma_z = _real3(0,0,1);
+constant const real3 gammaUx = _real3(1,0,0);
+constant const real3 gammaUy = _real3(0,1,0);
+constant const real3 gammaUz = _real3(0,0,1);
+constant const real gammaDet = 1;
+
+
+
 //pressure function for ideal gas
 real calc_P(real rho, real eInt) {
 	return gamma_1 * rho * eInt;
@@ -110,9 +125,20 @@ cons_t consFromPrim(prim_t prim) {
 	real W = sqrt(WSq);
 	real P = calc_P(prim.rho, prim.eInt);
 	real h = calc_h(prim.rho, P, prim.eInt);
-	real D = prim.rho * W;	//rest-mass density
-	real3 S = real3_scale(prim.v, prim.rho * h * WSq);
-	real tau = prim.rho * h * WSq - P - D;	
+
+	//2008 Font, eqn 40-42:
+	
+	//rest-mass density = J^0 = rho u^0
+	real D = prim.rho * W;	
+	
+	//momentum = T^0i = rho h u^0 u^i + P g^0i
+	real3 S = real3_add(
+		real3_scale(prim.v, prim.rho * h * WSq),
+		real3_scale(betaU, P / (alpha * alpha)));
+	
+	//energy = T^00 = rho h u^0 u^0 + P g^00
+	real tau = prim.rho * h * WSq - D - P / (alpha * alpha);
+	
 	return (cons_t){.D=D, .S=S, .tau=tau};
 }
 ]],
@@ -125,6 +151,7 @@ function SRHD:getInitStateCode(solver)
 	local code = initState.init(solver)
 	return table{
 		[[
+
 __kernel void initState(
 	__global cons_t* consBuf,
 	__global prim_t* primBuf

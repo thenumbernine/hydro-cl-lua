@@ -174,7 +174,7 @@ typedef union {
 		slopeLimiter = cmdline.slopeLimiter or 'superbee',
 		dim = cmdline.dim or 2,
 		
-		--[[ cartesian
+		-- [[ cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
@@ -192,7 +192,7 @@ typedef union {
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
-		-- [[ cylinder
+		--[[ cylinder
 		geometry = 'cylinder',
 		mins = cmdline.mins or {.5, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
@@ -232,8 +232,8 @@ typedef union {
 
 	-- fluid
 	--self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
-	self.solver = require 'solver.euler-roe'(args)
-	--self.solver = require 'solver.srhd-roe'(table(args, {initState = 'relativistic blast wave test problem 2'}))
+	--self.solver = require 'solver.euler-roe'(args)
+	self.solver = require 'solver.srhd-roe'(table(args, {initState = 'relativistic blast wave test problem 2'}))
 	-- EM
 	--self.solver = require 'solver.roe'(table(args, {eqn='maxwell'}))
 	-- geometrodynamics
@@ -1010,26 +1010,28 @@ function HydroCLApp:updateGUI()
 		elseif ig.igRadioButtonBool('frustum', self.view == self.frustumView) then
 			self.view = self.frustumView
 		end
-	end
 
-	-- equation-specific:
 
-	local eqn = self.solver.eqn
-
-	if ig.igCombo('init state', self.solver.initStatePtr, eqn.initStateNames) then
-		
-		self.solver:refreshInitStateProgram()
-		
-		-- TODO changing the init state program might also change the boundary methods
-		-- ... but I don't want it to change the settings for the running scheme (or do I?)
-		-- ... but I don't want it to not change the settings ...
-		-- so maybe refreshing the init state program should just refresh everything?
-		-- or maybe just the boundaries too?
-		-- hack for now:
-		self.solver:refreshBoundaryProgram()
 	end
 
 	if ig.igCollapsingHeader'equation:' then
+		-- equation-specific:
+
+		local eqn = self.solver.eqn
+
+		if ig.igCombo('init state', self.solver.initStatePtr, eqn.initStateNames) then
+			
+			self.solver:refreshInitStateProgram()
+			
+			-- TODO changing the init state program might also change the boundary methods
+			-- ... but I don't want it to change the settings for the running scheme (or do I?)
+			-- ... but I don't want it to not change the settings ...
+			-- so maybe refreshing the init state program should just refresh everything?
+			-- or maybe just the boundaries too?
+			-- hack for now:
+			self.solver:refreshBoundaryProgram()
+		end	
+		
 		local f = ffi.new'float[1]'
 		local i = ffi.new'int[1]'
 		for _,var in ipairs(eqn.guiVars) do

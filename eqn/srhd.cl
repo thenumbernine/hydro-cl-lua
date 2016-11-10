@@ -1,3 +1,7 @@
+/*
+Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 2008 
+*/
+
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 __kernel void calcDT(
 	__global real* dtBuf,
@@ -9,7 +13,7 @@ __kernel void calcDT(
 		dtBuf[index] = INFINITY;
 		return;
 	}
-		
+	
 	cons_t U = UBuf[index];
 	prim_t prim = primBuf[index];
 	real rho = prim.rho;
@@ -19,24 +23,26 @@ __kernel void calcDT(
 	real h = calc_h(rho, P, eInt);
 	real csSq = gamma * P / (rho * h);
 	real cs = sqrt(csSq);
-
+	
 	real dt = INFINITY;
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		//for the particular direction
-		real vi = prim.v.s[<?=side?>];
+		real vi = prim.v.s<?=side?>;
 		real viSq = vi * vi;
-
+		
 		// Marti 1998 eqn 19
 		// also Marti & Muller 2008 eqn 68
 		// also Font 2008 eqn 106
-		real discr = sqrt((1. - vSq) * ((1. - vSq * csSq) - viSq * (1. - csSq)));
-		real lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq);
+		const real betaUi = betaU.s<?=side?>;
+		real discr = sqrt((1. - vSq) * (gammaUx.x * (1. - vSq * csSq) - viSq * (1. - csSq)));
+		real lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq) * alpha - betaUi;
+		real lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * alpha - betaUi;
 		lambdaMin = min((real)0., lambdaMin);
-		real lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq);
 		lambdaMax = max((real)0., lambdaMax);
 		dt = min(dt, dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9));
-	}<?end?>
+	}<? end ?>
+	
 	dtBuf[index] = dt; 
 }
 
@@ -57,11 +63,14 @@ __kernel void calcEigenBasis(
 		int indexL = index - stepsize[side];
 		prim_t primL = primBuf[indexL];
 
+<? if true then -- arithmetic averaging ?>
 		prim_t avg = (prim_t){
 			.rho = .5 * (primL.rho + primR.rho),
 			.v = real3_scale(real3_add(primL.v, primR.v), .5),
 			.eInt = .5 * (primL.eInt + primR.eInt),
 		};
+<? -- else -- Roe-averaging, Font 2008 eqn 38 ?>
+<? end ?>
 
 		real rho = avg.rho;
 		real3 v = avg.v;
@@ -90,53 +99,65 @@ __kernel void calcEigenBasis(
 		real csSq = gamma * P_over_rho_h;
 		real cs = sqrt(csSq);
 
+		const real betaUi = betaU.s<?=side?>;
 		real discr = sqrt((1. - vSq) * ((1. - vSq * csSq) - vxSq * (1. - csSq)));
-		real lambdaMin = (v.x * (1. - csSq) - cs * discr) / (1. - vSq * csSq);
-		real lambdaMax = (v.x * (1. - csSq) + cs * discr) / (1. - vSq * csSq);
+		real lambdaMin = (v.x * (1. - csSq) - cs * discr) / (1. - vSq * csSq) * alpha * alpha - betaUi;
+		real lambdaMax = (v.x * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * alpha * alpha - betaUi;
 
 		int intindex = side + dim * index;	
 		__global real* wave = waveBuf + numWaves * intindex;
 		wave[0] = lambdaMin;
-		wave[1] = v.x;
-		wave[2] = v.x;
-		wave[3] = v.x;
+		wave[1] = v.x * alpha - betaUi;
+		wave[2] = v.x * alpha - betaUi;
+		wave[3] = v.x * alpha - betaUi;
 		wave[4] = lambdaMax;
 
 		__global eigen_t* eigen = eigenBuf + intindex;
+	
+	
+		real LambdaMin = lambdaMin + betaUi / alpha;
+		real LambdaMax = lambdaMax + betaUi / alpha;
+		real AMinus = (gammaUx.x - vxSq) / (gammaUx.x - v.x * LambdaMin);
+		real APlus  = (gammaUx.x - vxSq) / (gammaUx.x - v.x * LambdaMax);
+		real CMinus = AMinus * lambdaMin;	//TODO 2008 Font eqn 112 
+		real CPlus = APlus * lambdaMax;		//TODO 2008 Font eqn 112 
+		real Kappa = h;		//TODO 2008 Font eqn 112.  Kappa = h approx for ideal gas
 		
-		real Kappa = h;	//true for ideal gas. otherwise the general equation for Kappa gets instable at high Lorentz factors 
-		real AMinus = (1. - vxSq) / (1. - v.x * lambdaMin);
-		real APlus  = (1. - vxSq) / (1. - v.x * lambdaMax);
+		real3 vL = _real3(
+			real3_dot(gamma_x, v),
+			real3_dot(gamma_y, v),
+			real3_dot(gamma_z, v));
+
 		__global real* evR = eigen->evR;
-		//min col
+		//min col	2008 Font eqn 111, r-
 		evR[0 + numStates * 0] = 1.;
-		evR[1 + numStates * 0] = hW * AMinus * lambdaMin;	//inf
-		evR[2 + numStates * 0] = hW * v.y;
-		evR[3 + numStates * 0] = hW * v.z;
+		evR[1 + numStates * 0] = hW * CMinus;
+		evR[2 + numStates * 0] = hW * vL.y;
+		evR[3 + numStates * 0] = hW * vL.z;
 		evR[4 + numStates * 0] = hW * AMinus - 1.;
-		//mid col (normal)
-		evR[0 + numStates * 1] = oneOverW;	// = Kappa / hW
-		evR[1 + numStates * 1] = v.x;
-		evR[2 + numStates * 1] = v.y;
-		evR[3 + numStates * 1] = v.z;
-		evR[4 + numStates * 1] = 1. - oneOverW;	// = 1. - Kappa / hW;
-		//mid col (tangent A)
-		evR[0 + numStates * 2] = W * v.y;
-		evR[1 + numStates * 2] = 2. * h * W2 * v.x * v.y;
-		evR[2 + numStates * 2] = h * (1. + 2. * W2 * v.y * v.y);
-		evR[3 + numStates * 2] = 2. * h * W2 * v.y * v.z;
-		evR[4 + numStates * 2] = (2. * hW - 1.) * W * v.y;
-		//mid col (tangent B)
-		evR[0 + numStates * 3] = W * v.z;
-		evR[1 + numStates * 3] = 2. * h * W2 * v.x * v.z;
-		evR[2 + numStates * 3] = 2. * h * W2 * v.y * v.z;
-		evR[3 + numStates * 3] = h * (1. + 2. * W2 * v.z * v.z);
-		evR[4 + numStates * 3] = (2. * hW - 1.) * W * v.z;
+		//mid col (normal)  2008 Font eqn 108: r0,1
+		evR[0 + numStates * 1] = Kappa / hW;
+		evR[1 + numStates * 1] = vL.x;
+		evR[2 + numStates * 1] = vL.y;
+		evR[3 + numStates * 1] = vL.z;
+		evR[4 + numStates * 1] = 1. - Kappa / hW;
+		//mid col (tangent A)	2008 Font eqn 109: r0,2
+		evR[0 + numStates * 2] = W * vL.y;
+		evR[1 + numStates * 2] = h * (gamma_y.x + 2. * W2 * vL.y * vL.x);
+		evR[2 + numStates * 2] = h * (gamma_y.y + 2. * W2 * vL.y * vL.y);
+		evR[3 + numStates * 2] = h * (gamma_y.z + 2. * W2 * vL.y * vL.z);
+		evR[4 + numStates * 2] = W * vL.y * (2. * hW - 1.);
+		//mid col (tangent B)	2008 Font eqn 110: r0,3
+		evR[0 + numStates * 3] = W * vL.z;
+		evR[1 + numStates * 3] = h * (gamma_z.x + 2. * W2 * vL.x * vL.z);
+		evR[2 + numStates * 3] = h * (gamma_z.y + 2. * W2 * vL.y * vL.z);
+		evR[3 + numStates * 3] = h * (gamma_z.z + 2. * W2 * vL.z * vL.z);
+		evR[4 + numStates * 3] = W * vL.z * (2. * hW - 1.);
 		//max col 
 		evR[0 + numStates * 4] = 1.;
-		evR[1 + numStates * 4] = hW * APlus * lambdaMax;	//inf
-		evR[2 + numStates * 4] = hW * v.y;
-		evR[3 + numStates * 4] = hW * v.z;
+		evR[1 + numStates * 4] = hW * CPlus;
+		evR[2 + numStates * 4] = hW * vL.y;
+		evR[3 + numStates * 4] = hW * vL.z;
 		evR[4 + numStates * 4] = hW * APlus - 1.;
 
 		__global real* evL = eigen->evL; 
