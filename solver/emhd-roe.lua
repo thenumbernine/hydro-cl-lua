@@ -1,4 +1,5 @@
 local class = require 'ext.class'
+local ig = require 'ffi.imgui'
 
 local EMHDRoe = class()
 
@@ -52,6 +53,15 @@ end
 function EMHDRoe:step(dt)
 	self:callAll('step', dt)
 	self.t = self.euler.t
+end
+
+function EMHDRoe:updateGUI()
+	ig.igPushIdStr('euler')
+	self.euler:updateGUI()
+	ig.igPopId()
+	ig.igPushIdStr('maxwell')
+	self.maxwell:updateGUI()
+	ig.igPopId()
 end
 
 function EMHDRoe:calcDisplayVarToTex(varIndex, var)

@@ -1,6 +1,7 @@
 local bit = require 'bit'
 local ffi = require 'ffi'
 local gl = require 'ffi.OpenGL'
+local ig = require 'ffi.imgui'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
@@ -1127,9 +1128,8 @@ function Solver:calcDisplayVarRange(varIndex)
 	return ymin, ymax
 end
 
-local ig = require 'ffi.imgui'
 function Solver:updateGUI()
-	if ig.igCollapsingHeader'solver' then
+	if ig.igCollapsingHeader'solver:' then
 		ig.igCheckbox('use fixed dt', self.useFixedDT)
 		ig.igInputFloat('fixed dt', self.fixedDT)
 		ig.igInputFloat('CFL', self.cfl)
@@ -1138,7 +1138,7 @@ function Solver:updateGUI()
 			self:refreshIntegrator()
 		end
 
-		if ig.igCombo('slope limiter', self.slopeLimiterPtr, self.slopeLimiterNames) then
+		if ig.igCombo('slope limiter', self.slopeLimiterPtr, self.app.slopeLimiterNames) then
 			self:refreshSolverProgram()
 		end
 
@@ -1150,15 +1150,12 @@ function Solver:updateGUI()
 				end
 			end
 		end
-
 	end
 
 	if ig.igCollapsingHeader'equation:' then
 		-- equation-specific:
 
-		local eqn = self.eqn
-
-		if ig.igCombo('init state', self.initStatePtr, eqn.initStateNames) then
+		if ig.igCombo('init state', self.initStatePtr, self.eqn.initStateNames) then
 			
 			self:refreshInitStateProgram()
 			
@@ -1173,7 +1170,7 @@ function Solver:updateGUI()
 		
 		local f = ffi.new'float[1]'
 		local i = ffi.new'int[1]'
-		for _,var in ipairs(eqn.guiVars) do
+		for _,var in ipairs(self.eqn.guiVars) do
 			var:updateGUI(self)
 		end
 	end

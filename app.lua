@@ -52,9 +52,6 @@ local GLGradientTex = require 'gl.gradienttex'
 local GLTex2D = require 'gl.tex2d'
 local Font = require 'gui.font'
 
-local xs = table{'x', 'y', 'z'}
-local minmaxs = table{'min', 'max'}
-
 local HydroCLApp = class(ImGuiApp)
 
 HydroCLApp.title = 'Hydrodynamics in OpenCL'
