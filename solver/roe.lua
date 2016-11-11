@@ -60,8 +60,8 @@ Solver.numGhost = 2
 
 -- enable these to verify accuracy
 -- disable these to save on allocation / speed
-Solver.checkFluxError = true 
-Solver.checkOrthoError = true 
+Solver.checkFluxError = false --true 
+Solver.checkOrthoError = false	--true 
 
 Solver.integrators = require 'int.all'
 Solver.integratorNames = Solver.integrators:map(function(integrator) return integrator.name end)
@@ -587,22 +587,6 @@ static inline real3 real3_sub(real3 a, real3 b) {
 				'cell_x'..(j-1)..'(i.'..xs[j]..')')
 		end
 		return '#define dx'..(i-1)..'_at(i) (grid_dx'..(i-1)..' * ('..code..'))'
-	end))
-
-	-- e0, e0unit, ...
-	lines:append(range(3):map(function(i)
-		return getCode_define_i3_to_real3(
-			'e'..(i-1)..'_at', 
-			range(3):map(function(j)
-				local code = (self.geometry.eCode[i] or {})[j] or '0'
-				return code
-			end))
-	end)):append(range(3):map(function(i)
-		return getCode_define_i3_to_real3(
-			'e'..(i-1)..'unit_at', 
-			range(3):map(function(j)
-				return (self.geometry.eUnitCode[i] or {})[j] or '0'
-			end))
 	end))
 
 	-- volume

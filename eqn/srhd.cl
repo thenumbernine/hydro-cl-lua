@@ -82,7 +82,9 @@ __kernel void calcEigenBasis(
 		<? elseif side == 2 then ?>
 		v = _real3(v.z, v.y, -v.x);	//-90' rotation to put the z axis in the x axis
 		<? end ?>
-	
+
+//TODO NOTE if you're swapping vector components, you have to swap metric components too 
+
 		real3 vL = lower(v);
 		real vSq = real3_dot(v, vL);
 		real oneOverW2 = 1. - vSq;
@@ -91,14 +93,19 @@ __kernel void calcEigenBasis(
 		real W2 = 1. / oneOverW2;
 		real P = gamma_1 * rho * eInt;
 		real h = 1. + eInt + P / rho;
-		real P_over_rho_h = P / (rho * h);
 
 		real hW = h * W;
 		real hSq = h * h;
 
-		//TODO check out Font's paper on where the metric coefficients go ...
+		//just after 2008 Font eqn 107:
+		//h cs^2 = chi + P / rho^2 kappa = dp/drho + p / rho^2 dp/deInt
+		// = (gamma-1) eInt + P/rho^2 (gamma-1) rho  for an ideal gas
+		// = (gamma-1) (eInt + P/rho)
+		// = 1/rho ( (gamma-1) rho eInt + (gamma-1) P )
+		// = 1/rho ( P + (gamma-1) P)
+		// = gamma P / rho
 		real vxSq = v.x * v.x;
-		real csSq = gamma * P_over_rho_h;
+		real csSq = gamma * P / (rho * h);
 		real cs = sqrt(csSq);
 
 		const real betaUi = betaU.s<?=side?>;
@@ -119,14 +126,16 @@ __kernel void calcEigenBasis(
 		real LambdaMin = (lambdaMin + betaUi) / alpha;	//2008 Font eqn 114
 		real LambdaMax = (lambdaMax + betaUi) / alpha;	//2008 Font eqn 114
 		real ATildeMinus = (gammaUx.x - vxSq) / (gammaUx.x - v.x * LambdaMin);	//2008 Font eqn 113
-		real ATildePlus  = (gammaUx.x - vxSq) / (gammaUx.x - v.x * LambdaMax);		//2008 Font eqn 113
-	
+		real ATildePlus  = (gammaUx.x - vxSq) / (gammaUx.x - v.x * LambdaMax);	//2008 Font eqn 113
 		real VMinus = (v.x - LambdaMin) / (gammaUx.x - v.x * LambdaMin);	//2008 Font eqn 113
 		real VPlus = (v.x - LambdaMax) / (gammaUx.x - v.x * LambdaMax);	//2008 Font eqn 113
 		real CMinus = vL.x - VMinus;	//2008 Font eqn 112
 		real CPlus = vL.x - VPlus;	//2008 Font eqn 112
-		
-		real Kappa = h;		//TODO 2008 Font eqn 112.  Kappa = h approx for ideal gas
+
+		real kappa = calc_dP_deInt(rho, eInt);	//2008 Font note just after eqn 107
+		real kappaTilde = kappa / rho;	//2008 Font eqn 112.  
+		real Kappa = kappaTilde / (kappaTilde - csSq);	//2008 Font eqn 112.  
+		//Kappa = h;	//approx for ideal gas
 		
 		__global real* evR = eigen->evR;
 		//min col	2008 Font eqn 111, r-
@@ -160,23 +169,25 @@ __kernel void calcEigenBasis(
 		evR[3 + numStates * 4] = hW * vL.z;
 		evR[4 + numStates * 4] = hW * ATildePlus - 1.;
 
-		real Gamma_xx = gamma_y.y * gamma_z.z - gamma_y.z * gamma_y.z;	//2008 Font eqn 123. looks like gamma gamma^xx 
-		real Gamma_xy = gamma_y.z * gamma_x.z - gamma_x.y * gamma_z.z;	//2008 Font eqn 123. looks like gamma gamma^xx 
-		real Gamma_xz = gamma_x.y * gamma_y.z - gamma_x.z * gamma_y.y;	//2008 Font eqn 123. looks like gamma gamma^xx 
+		real Gamma_xx = gamma_y.y * gamma_z.z - gamma_y.z * gamma_y.z;	//2008 Font eqn 123. looks like gamma gamma^xx.  srhd approx 1
+		real Gamma_xy = gamma_y.z * gamma_x.z - gamma_x.y * gamma_z.z;	//2008 Font eqn 123. looks like gamma gamma^xy.  srhd approx 0
+		real Gamma_xz = gamma_x.y * gamma_y.z - gamma_x.z * gamma_y.y;	//2008 Font eqn 123. looks like gamma gamma^xz.  srhd approx 0
 		real xi = Gamma_xx - gammaDet * vxSq;//2008 Font eqn 121
 		real Delta = hSq * hW * (Kappa - 1.) * (CPlus - CMinus) * xi;	//2008 Font eqn 121
 		
 		__global real* evL = eigen->evL; 
 		//min row	2008 Font eqn 118
 		real scale;
+#if 0 	//2008 Marti & Muller
 		scale = hSq / Delta;
-#if 1 // working, from SRHD papers Marti & Muller
 		evL[0 + numStates * 0] = scale * (hW * ATildePlus * (v.x - lambdaMax) - v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - ATildePlus * lambdaMax) + Kappa * ATildePlus * lambdaMax);
 		evL[0 + numStates * 1] = scale * (1. + W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (1. - ATildePlus) - Kappa * ATildePlus);
 		evL[0 + numStates * 2] = scale * (W2 * v.y * (2. * Kappa - 1.) * ATildePlus * (v.x - lambdaMax));
 		evL[0 + numStates * 3] = scale * (W2 * v.z * (2. * Kappa - 1.) * ATildePlus * (v.x - lambdaMax));
 		evL[0 + numStates * 4] = scale * (-v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - ATildePlus * lambdaMax) + Kappa * ATildePlus * lambdaMax);
-#else	//not working, from 2008 Font
+#endif
+#if 1	//2008 Font eqn 118
+		scale = hSq / Delta;
 		real l5minus = (1 - Kappa) * (-gammaDet * v.x + VPlus * (W2 * xi - Gamma_xx)) - Kappa * W2 * VPlus * xi;
 		evL[0 + numStates * 0] = scale * (hW * VPlus * xi + l5minus);
 		evL[0 + numStates * 1] = scale * (Gamma_xx * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.x * xi - Gamma_xx * v.x));
@@ -205,16 +216,18 @@ __kernel void calcEigenBasis(
 		evL[3 + numStates * 3] = scale * (gamma_y.y * (1. - vL.x * v.x) + gamma_x.y * vL.y * v.x);
 		evL[3 + numStates * 4] = scale * (-gamma_y.y * vL.z + gamma_y.z * vL.y);
 		//max row	2008 Font eqn 118
+#if 0 	//from 2008 Marti & Muller
 		scale = -hSq / Delta;
-#if 1 //working, from Marti & Muller
 		evL[4 + numStates * 0] = scale * (hW * ATildeMinus * (v.x - lambdaMin) - v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - ATildeMinus * lambdaMin) + Kappa * ATildeMinus * lambdaMin);
 		evL[4 + numStates * 1] = scale * (1. + W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (1. - ATildeMinus) - Kappa * ATildeMinus);
 		evL[4 + numStates * 2] = scale * (W2 * v.y * (2. * Kappa - 1.) * ATildeMinus * (v.x - lambdaMin));
 		evL[4 + numStates * 3] = scale * (W2 * v.z * (2. * Kappa - 1.) * ATildeMinus * (v.x - lambdaMin));
 		evL[4 + numStates * 4] = scale * (-v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - ATildeMinus * lambdaMin) + Kappa * ATildeMinus * lambdaMin);
-#else	//not working, from 2008 Font
+#endif
+#if 1	//2008 Font eqn 118
+		scale = -hSq / Delta;
 		real l5plus = (1 - Kappa) * (-gammaDet * v.x + VMinus * (W2 * xi - Gamma_xx)) - Kappa * W2 * VMinus * xi;
-		evL[4 + numStates * 0] = scale * (h * W * VMinus * xi - l5plus);
+		evL[4 + numStates * 0] = scale * (h * W * VMinus * xi + l5plus);
 		evL[4 + numStates * 1] = scale * (Gamma_xx * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.x * xi - Gamma_xx * v.x));
 		evL[4 + numStates * 2] = scale * (Gamma_xy * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.y * xi - Gamma_xy * v.x));
 		evL[4 + numStates * 3] = scale * (Gamma_xz * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.z * xi - Gamma_xz * v.x));

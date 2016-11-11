@@ -355,10 +355,8 @@ void fluxTransform_<?=side?>(
 		++y;
 	}
 }
-<?
-	end
-end
-?>
+<?	end
+end ?>
 
 __kernel void addSource(
 	__global cons_t* derivBuf,

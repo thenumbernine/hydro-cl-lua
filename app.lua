@@ -170,9 +170,13 @@ typedef union {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		integrator = cmdline.integrator or 'forward Euler',	--'Runge-Kutta 4, TVD',
-		slopeLimiter = cmdline.slopeLimiter or 'superbee',
 		dim = cmdline.dim or 2,
+		
+		integrator = cmdline.integrator or 'forward Euler',	
+		--integrator = 'Runge-Kutta 4, TVD',
+	
+		-- this is a flux limiter for the record.  TODO implement slope limiter.
+		slopeLimiter = cmdline.slopeLimiter or 'superbee',
 		
 		-- [[ cartesian
 		geometry = 'cartesian',
@@ -228,12 +232,20 @@ typedef union {
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
+
+		-- no initial state means use the first
+		-- initState = cmdline.initState,
+		-- euler / srhd initial states:
+		initState = 'Sod',
+		--initState = 'Sedov',
+		--initState = 'relativistic blast wave test problem 2',
+		--initState = 'Kelvin-Hemholtz',
 	}
 
 	-- fluid
 	--self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
 	--self.solver = require 'solver.euler-roe'(args)
-	self.solver = require 'solver.srhd-roe'(table(args, {initState = 'relativistic blast wave test problem 2'}))
+	self.solver = require 'solver.srhd-roe'(args)
 	-- EM
 	--self.solver = require 'solver.roe'(table(args, {eqn='maxwell'}))
 	-- geometrodynamics

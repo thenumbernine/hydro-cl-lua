@@ -32,6 +32,7 @@ void eigen_rightTransform_<?=side?>(
 	}
 }
 
+<? if solver.checkFluxError then ?>
 void fluxTransform_<?=side?>(
 	real* y,
 	const __global eigen_t* eigen,
@@ -46,5 +47,5 @@ void fluxTransform_<?=side?>(
 		y[i] = sum;
 	}
 }
-
+<?	end ?>
 <? end ?>
