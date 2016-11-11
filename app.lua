@@ -162,6 +162,27 @@ typedef union {
 ]]
 	ffi.cdef(self.real3TypeCode)
 
+	self.real3Code = [[
+#define _real3(a,b,c) (real3){.s={a,b,c}}
+
+static inline real real3_dot(real3 a, real3 b) {
+	return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+static inline real3 real3_scale(real3 a, real s) {
+	return _real3(a.x * s, a.y * s, a.z * s);
+}
+
+static inline real3 real3_add(real3 a, real3 b) {
+	return _real3(a.x + b.x, a.y + b.y, a.z + b.z);
+}
+
+static inline real3 real3_sub(real3 a, real3 b) {
+	return _real3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+]]
+
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
 	local args = {
@@ -241,12 +262,12 @@ typedef union {
 
 	-- fluid
 	--self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
-	self.solver = require 'solver.euler-roe'(args)
+	--self.solver = require 'solver.euler-roe'(args)
 	--self.solver = require 'solver.srhd-roe'(args)
 	-- EM
 	--self.solver = require 'solver.roe'(table(args, {eqn='maxwell'}))
 	-- EM+HD
-	--self.solver = require 'solver.twofluid-emhd-roe'(args)
+	self.solver = require 'solver.twofluid-emhd-roe'(args)
 	-- geometrodynamics
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v1'}))
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v2'}))

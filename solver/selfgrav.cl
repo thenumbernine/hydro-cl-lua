@@ -10,32 +10,32 @@ __kernel void solvePoisson(
 	SETBOUNDS(2,2);
 
 	real dx = dx0_at(i);
-#if dim > 1
+<? if solver.dim > 1 then ?>
 	real dy = dx1_at(i);
-#endif
-#if dim > 2
+<? end
+if solver.dim > 2 then ?>
 	real dz = dx2_at(i);
-#endif
+<? end ?>
 
 	real skewSum = 0;
 	if (i.x < gridSize_x-3) skewSum += potentialBuf[index + stepsize.x] / (dx * dx);
 	if (i.x > 2) skewSum += potentialBuf[index - stepsize.x] / (dx * dx);
-#if dim > 1
+<? if solver.dim > 1 then ?>
 	if (i.y < gridSize_y-3) skewSum += potentialBuf[index + stepsize.y] / (dy * dy);
 	if (i.y > 2) skewSum += potentialBuf[index - stepsize.y] / (dy * dy);
-#endif
-#if dim > 2
+<? end
+if solver.dim > 2 then ?>
 	if (i.z < gridSize_z-3) skewSum += potentialBuf[index + stepsize.z] / (dz * dz);
 	if (i.z > 2) skewSum += potentialBuf[index - stepsize.z] / (dz * dz);
-#endif
+<? end ?>
 
 	const real diag = -2. * (1. / (dx * dx)
-#if dim > 1
+<? if solver.dim > 1 then ?>
 		+ 1. / (dy * dy)
-#endif
-#if dim > 2
+<? end
+if solver.dim > 2 then ?>
 		+ 1. / (dz * dz)
-#endif
+<? end ?>
 	);
 
 	const __global cons_t* U = UBuf + index;

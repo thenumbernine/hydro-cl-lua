@@ -32,8 +32,6 @@ function TwoFluidEMHDRoe:init(args)
 	local maxwellArgs = table(args)
 	maxwellArgs.eqn = 'maxwell'
 	self.maxwell = require 'solver.roe'(maxwellArgs)
-	
-	self:replaceSourceKernels()
 
 	self.solvers = table{self.ion, self.electron, self.maxwell}
 
@@ -59,26 +57,46 @@ function TwoFluidEMHDRoe:init(args)
 	self.gridSize = vec3sz(self.ion.gridSize)
 	self.mins = vec3(self.ion.mins:unpack())
 	self.maxs = vec3(self.ion.maxs:unpack())
+		
+	-- only used by createCodePrefix
+	self.dxs = vec3(self.ion.dxs:unpack())
+	self.geometry = self.ion.geometry
+	self.eqn = {
+		numStates = self.solvers:map(function(solver) return solver.eqn.numStates end):sum(),
+		numWaves = self.solvers:map(function(solver) return solver.eqn.numWaves end):sum(),
+		getEigenTypeCode = function() end,
+		getCodePrefix = function() end,
+	}
+
+	-- call this after we've assigned 'self' all its fields
+	self:replaceSourceKernels()
 
 	self.t = 0
+end
+
+-- only used by createCodePrefix
+function TwoFluidEMHDRoe:getCoordMapCode() 
+	return self.ion:getCoordMapCode() 
 end
 
 local clnumber = require 'clnumber'
 function TwoFluidEMHDRoe:replaceSourceKernels()
 	local chargeMassRatio_ion = 1
-	local chargeMassRatio_ion = .01
+	local chargeMassRatio_electron = .01
+	local eps0 = 1
+
+	require 'solver.roe'.createCodePrefix(self)
 
 	local lines = table{
-		--self.ion.codePrefix,	-- all I want is real3
-
-		self.ion.eqn:getTypeCode(),
-		'typedef cons_t euler_cons_t;',
+		self.codePrefix,
 		
-		self.maxwell.eqn:getTypeCode(),
-		'typedef cons_t maxwell_cons_t;',
+		self.ion.eqn:getTypeCode():gsub('cons_t', 'euler_cons_t'),
+		
+		self.maxwell.eqn:getTypeCode():gsub('cons_t', 'maxwell_cons_t'),
 
 		'#define chargeMassRatio_ion '..clnumber(chargeMassRatio_ion),
 		'#define chargeMassRatio_electron '..clnumber(chargeMassRatio_electron),
+		'#define eps0 '..clnumber(eps0),
 		[[
 
 <? for _,species in ipairs{'ion', 'electron'} do ?>
@@ -89,12 +107,13 @@ __kernel void addSource_<?=species?>(
 	const __global maxwell_cons_t* maxwellUBuf
 ) {
 	SETBOUNDS(2,2);
+	__global euler_cons_t* deriv = derivBuf + index;
 	const __global euler_cons_t* U = UBuf + index;
 	const __global maxwell_cons_t* maxwellU = maxwellUBuf + index;
-	deriv.v.x += chargeMassRatio_<?=species?> * U->rho * (maxwellU->epsE.x / eps0 + U->v.y * maxwellU->B.z - U->v.z * maxwellU->B.y);
-	deriv.v.y += chargeMassRatio_<?=species?> * U->rho * (maxwellU->epsE.y / eps0 + U->v.z * maxwellU->B.x - U->v.x * maxwellU->B.z);
-	deriv.v.z += chargeMassRatio_<?=species?> * U->rho * (maxwellU->epsE.z / eps0 + U->v.x * maxwellU->B.y - U->v.y * maxwellU->B.x);
-	deriv.E += charegMassRatio_<?=species?> * U->rho * real3_dot(maxwellU->epsE, U->v) / eps0;
+	deriv->m.x += chargeMassRatio_<?=species?> * (maxwellU->epsE.x / eps0 + U->m.y * maxwellU->B.z - U->m.z * maxwellU->B.y);
+	deriv->m.y += chargeMassRatio_<?=species?> * (maxwellU->epsE.y / eps0 + U->m.z * maxwellU->B.x - U->m.x * maxwellU->B.z);
+	deriv->m.z += chargeMassRatio_<?=species?> * (maxwellU->epsE.z / eps0 + U->m.x * maxwellU->B.y - U->m.y * maxwellU->B.x);
+	deriv->ETotal += chargeMassRatio_<?=species?> * real3_dot(maxwellU->epsE, U->m) / eps0;
 }
 
 <? end ?>
@@ -108,8 +127,8 @@ __kernel void addSource_maxwell(
 	__global maxwell_cons_t* deriv = derivBuf + index;
 	const __global euler_cons_t* ionU = ionUBuf + index;
 	const __global euler_cons_t* electronU = electronUBuf + index;
-	deriv->epsE = real3_sub(deriv->epsE, chargeMassRatio_ion * ionU->rho * ionU->v);
-	deriv->epsE = real3_sub(deriv->epsE, chargeMassRatio_electron * electronU->rho * electronU->v);
+	deriv->epsE = real3_sub(deriv->epsE, real3_scale(ionU->m, chargeMassRatio_ion));
+	deriv->epsE = real3_sub(deriv->epsE, real3_scale(electronU->m, chargeMassRatio_electron));
 }
 ]]
 	}
@@ -129,10 +148,8 @@ print(require 'showcode'(code))
 	self.electron.eqn.useSourceTerm = true
 
 	self.maxwell.addSourceKernel = self.addSourceProgram:kernel'addSource_maxwell'
-	self.maxwell.addSourceKernel:setArg(1, self.maxwell.UBuf)
-	self.maxwell.addSourceKernel:setArg(2, self.ion.UBuf)
-	self.maxwell.addSourceKernel:setArg(3, self.electron.UBuf)
-
+	self.maxwell.addSourceKernel:setArg(1, self.ion.UBuf)
+	self.maxwell.addSourceKernel:setArg(2, self.electron.UBuf)
 end
 
 function TwoFluidEMHDRoe:callAll(name, ...)
@@ -185,11 +202,11 @@ end
 
 function TwoFluidEMHDRoe:updateGUI()
 	for i,solver in ipairs(self.solvers) do
+		ig.igPushIdStr('subsolver '..i)
 		if ig.igCollapsingHeader('sub-solver '..solver.name..':') then
-			ig.igPushIdStr('subsolver '..i)
 			self.ion:updateGUI()
-			ig.igPopId()
 		end
+		ig.igPopId()
 	end
 end
 
