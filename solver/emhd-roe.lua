@@ -1,113 +1,113 @@
+--[[
+using 2014 Abgrall, Kumar "Robust Finite Volume Schemes for Two-Fluid Plasma Equations
+--]]
+
 local class = require 'ext.class'
 local table = require 'ext.table'
 local ig = require 'ffi.imgui'
 local vec3sz = require 'solver.vec3sz'
 
-local EMHDRoe = class()
+local TwoFluidEMHDRoe = class()
 
-EMHDRoe.name = 'EMHD Roe'
+TwoFluidEMHDRoe.name = 'two-fluid EMHD Roe'
 
-function EMHDRoe:init(args)
+function TwoFluidEMHDRoe:init(args)
 	-- how to specify initial conditions for the both of them?
 	-- separate args? maxwellInitConds vs eulerInitConds?
 	-- same name in init/euler and init/maxwell?
 	-- both?
 
-	self.euler = require 'solver.euler-roe'(args)
-	
+	self.ion = require 'solver.euler-roe'(args)
+	self.electron = require 'solver.euler-roe'(args)
+
 	local maxwellArgs = table(args)
 	maxwellArgs.eqn = 'maxwell'
 	self.maxwell = require 'solver.roe'(maxwellArgs)
-	
-	self.displayVars = table():append(self.euler.displayVars, self.maxwell.displayVars)
-select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_Ex' end)).enabled[0] = false
-select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_Ez' end)).enabled[0] = true 
+
+	self.solvers = table{self.ion, self.electron, self.maxwell}
+
+	self.displayVars = table():append(self.solvers:map(function(solver) return solver.displayVars end):unpack())
+
+	-- change the default maxwell displayed variable
+	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_Ex' end)).enabled[0] = false
+	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_Ez' end)).enabled[0] = true 
 	self.maxwell:refreshDisplayProgram()
 
 	self.solverForDisplayVars = table()
-	for _,var in ipairs(self.euler.displayVars) do
-		self.solverForDisplayVars[var] = self.euler
-	end
-	for _,var in ipairs(self.maxwell.displayVars) do
-		self.solverForDisplayVars[var] = self.maxwell
+	for _,solver in ipairs(self.solvers) do
+		for _,var in ipairs(solver.displayVars) do
+			self.solverForDisplayVars[var] = solver 
+		end
 	end
 
-	self.numGhost = self.euler.numGhost
 	
 	self.color = vec3(math.random(), math.random(), math.random()):normalize()
 	
-	self.dim = self.euler.dim
-	self.gridSize = vec3sz(self.euler.gridSize)
-	self.mins = vec3(self.euler.mins:unpack())
-	self.maxs = vec3(self.euler.maxs:unpack())
-
---[[
-	self.tex = self.euler.tex
-	self.maxwell.tex = self.euler.tex
-	self.maxwell.texCLMem = self.euler.texCLMem
-	self.maxwell.calcDisplayVarToTexPtr = self.euler.calcDisplayVarToTexPtr
---]]
+	self.numGhost = self.ion.numGhost
+	self.dim = self.ion.dim
+	self.gridSize = vec3sz(self.ion.gridSize)
+	self.mins = vec3(self.ion.mins:unpack())
+	self.maxs = vec3(self.ion.maxs:unpack())
 
 	self.t = 0
 end
 
-function EMHDRoe:callAll(name, ...)
-	local res1 = self.euler[name](self.euler, ...)
-	local res2 = self.maxwell[name](self.maxwell, ...)
-	return res1, res2
+function TwoFluidEMHDRoe:callAll(name, ...)
+	local args = setmetatable({...}, table)
+	args.n = select('#',...)
+	return self.solvers:map(function(solver)
+		return solver[name](solver, args:unpack(1, args.n))
+	end):unpack()
 end
 
-function EMHDRoe:getCoordMapGLSLCode()
-	return self.euler:getCoordMapGLSLCode()
+function TwoFluidEMHDRoe:getCoordMapGLSLCode()
+	return self.ion:getCoordMapGLSLCode()
 end
 
-function EMHDRoe:createEqn()
+function TwoFluidEMHDRoe:createEqn()
 	self:callAll'createEqn'
 end
 
-function EMHDRoe:resetState()
+function TwoFluidEMHDRoe:resetState()
 	self:callAll'resetState'
-	self.t = self.euler.t
+	self.t = self.ion.t
 end
 
-function EMHDRoe:boundary()
+function TwoFluidEMHDRoe:boundary()
 	self:callAll'boundary'
 end
 
-function EMHDRoe:calcDT()
+function TwoFluidEMHDRoe:calcDT()
 	return math.min(self:callAll'calcDT')
 end
 
-function EMHDRoe:step(dt)
+function TwoFluidEMHDRoe:step(dt)
 	self:callAll('step', dt)
-	self.t = self.euler.t
+	self.t = self.ion.t
 end
 
-function EMHDRoe:update()
+function TwoFluidEMHDRoe:update()
 	self:boundary()
 	local dt = self:calcDT()
 	self:step(dt)
 end
 
-function EMHDRoe:getTex(var) 
+function TwoFluidEMHDRoe:getTex(var) 
 	return self.solverForDisplayVars[var].tex
 end
 
-function EMHDRoe:calcDisplayVarToTex(var)
+function TwoFluidEMHDRoe:calcDisplayVarToTex(var)
 	self.solverForDisplayVars[var]:calcDisplayVarToTex(var)
 end
 
-function EMHDRoe:updateGUI()
-	if ig.igCollapsingHeader'Euler Solver:' then
-		ig.igPushIdStr('euler')
-		self.euler:updateGUI()
-		ig.igPopId()
-	end
-	if ig.igCollapsingHeader'Maxwell Solver:' then
-		ig.igPushIdStr('maxwell')
-		self.maxwell:updateGUI()
-		ig.igPopId()
+function TwoFluidEMHDRoe:updateGUI()
+	for i,solver in ipairs(self.solvers) do
+		if ig.igCollapsingHeader('sub-solver '..solver.name..':') then
+			ig.igPushIdStr('subsolver '..i)
+			self.ion:updateGUI()
+			ig.igPopId()
+		end
 	end
 end
 
-return EMHDRoe
+return TwoFluidEMHDRoe
