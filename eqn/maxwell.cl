@@ -190,8 +190,8 @@ __kernel void addSource(
 	__global cons_t* derivBuf,
 	const __global cons_t* UBuf
 ) {
-	SETBOUNDS(0,0);
-	const __global cons_t* U = UBuf + index;
+	SETBOUNDS(2,2);
 	__global cons_t* deriv = derivBuf + index;
+	const __global cons_t* U = UBuf + index;
 	deriv->epsE = real3_sub(deriv->epsE, real3_scale(U->epsE, 1. / eps0 * sigma));
 }

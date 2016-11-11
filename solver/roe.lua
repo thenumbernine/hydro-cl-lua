@@ -641,7 +641,6 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		self.allocateOneBigStructure and '#define allocateOneBigStructure' or '',
 		
 		errorTypeCode or '',
-		self.eqn:getEigenCode(self) or '',
 		self:getCoordMapCode() or '',
 		-- this is dependent on coord map / length code
 		self.eqn:getCodePrefix(self) or '',
@@ -728,6 +727,7 @@ function Solver:getSolverCode()
 		
 	return table{
 		self.codePrefix,
+		self.eqn:getEigenCode(self) or '',
 		slopeLimiterCode,
 		
 		'typedef struct { real min, max; } range_t;',
@@ -742,15 +742,7 @@ end
 -- depends on buffers
 function Solver:refreshSolverProgram()
 	local code = self:getSolverCode()
-	self.solverProgram = CLProgram{context=self.app.ctx, code=code}
-	local success, message = self.solverProgram:build{self.app.device}
-	if not success then
-		-- show code
-		print(showcode(code))
-		-- show errors
---		message = string.split(string.trim(message),'\n'):filter(function(line) return line:find'error' end):concat'\n'
-		error(message)	
-	end
+	self.solverProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code}
 
 	self.calcDTKernel = self.solverProgram:kernel('calcDT', self.reduceBuf, self.UBuf)
 	
@@ -816,12 +808,7 @@ function Solver:refreshDisplayProgram()
 	end
 
 	local code = lines:concat'\n'
-	self.displayProgram = CLProgram{context=self.app.ctx, code=code}
-	local success, message = self.displayProgram:build{self.app.device}
-	if not success then
-		print(showcode(code))
-		error(message)	
-	end
+	self.displayProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code}
 
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do

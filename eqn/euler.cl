@@ -1,3 +1,4 @@
+
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 __kernel void calcDT(
 	__global real* dtBuf,
