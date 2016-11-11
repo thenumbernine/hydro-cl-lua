@@ -241,12 +241,12 @@ typedef union {
 
 	-- fluid
 	--self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
-	--self.solver = require 'solver.euler-roe'(args)
+	self.solver = require 'solver.euler-roe'(args)
 	--self.solver = require 'solver.srhd-roe'(args)
 	-- EM
 	--self.solver = require 'solver.roe'(table(args, {eqn='maxwell'}))
 	-- EM+HD
-	self.solver = require 'solver.twofluid-emhd-roe'(args)
+	--self.solver = require 'solver.twofluid-emhd-roe'(args)
 	-- geometrodynamics
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v1'}))
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v2'}))

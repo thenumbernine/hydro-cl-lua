@@ -10,9 +10,8 @@ EulerRoe.name = 'Euler Roe'
 local ConvertToTex_EulerRoe_U = class(EulerRoe.ConvertToTex)
 
 function ConvertToTex_EulerRoe_U:setArgs(kernel, var)
-	kernel:setArg(1, ffi.new('int[1]', var.globalIndex))
-	kernel:setArg(2, self.solver.UBuf)
-	kernel:setArg(3, self.solver.ePotBuf)
+	kernel:setArg(1, self.solver.UBuf)
+	kernel:setArg(2, self.solver.ePotBuf)
 end
 
 function EulerRoe:addConvertToTexUBuf()

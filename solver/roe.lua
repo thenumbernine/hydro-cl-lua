@@ -214,7 +214,6 @@ ConvertToTex.type = 'real'	-- default
 ConvertToTex.displayCode = [[
 __kernel void <?=name?>(
 	<?=input?>,
-	int displayVar,
 	const __global <?= convertToTex.type ?>* buf
 	<?= #convertToTex.extraArgs > 0 
 		and ','..table.concat(convertToTex.extraArgs, ',\n\t')
@@ -287,8 +286,7 @@ function ConvertToTex:init(args)
 end
 
 function ConvertToTex:setArgs(kernel, var)
-	kernel:setArg(1, ffi.new('int[1]', var.globalIndex))
-	kernel:setArg(2, self.solver[var.convertToTex.name..'Buf'])
+	kernel:setArg(1, self.solver[var.convertToTex.name..'Buf'])
 end
 
 function ConvertToTex:setToTexArgs(var)
@@ -488,17 +486,6 @@ function Solver:createCodePrefix()
 	end
 	if self.app.real == 'double' then
 		lines:insert'#pragma OPENCL EXTENSION cl_khr_fp64 : enable'
-	end
-
-	lines:append(self.displayVars:map(function(var,i)
-		return '#define display_'..var.name..' '..i
-	end))
-	
-	-- output the first and last indexes of display vars associated with each buffer
-	for _,convertToTex in ipairs(self.convertToTexs) do
-		assert(convertToTex.vars[1], "failed to find vars for convertToTex "..convertToTex.name)
-		lines:insert('#define displayFirst_'..convertToTex.name..' display_'..convertToTex.vars[1].name)
-		lines:insert('#define displayLast_'..convertToTex.name..' display_'..convertToTex.vars:last().name)
 	end
 
 	-- real types in CL natives: 1,2,4,8

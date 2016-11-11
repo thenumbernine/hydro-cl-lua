@@ -69,10 +69,11 @@ function TwoFluidEMHDRoe:replaceSourceKernels()
 	local chargeMassRatio_ion = .01
 
 	local lines = table{
-		self.ion.codePrefix,	-- all I want is real3
+		--self.ion.codePrefix,	-- all I want is real3
 
 		self.ion.eqn:getTypeCode(),
 		'typedef cons_t euler_cons_t;',
+		
 		self.maxwell.eqn:getTypeCode(),
 		'typedef cons_t maxwell_cons_t;',
 
