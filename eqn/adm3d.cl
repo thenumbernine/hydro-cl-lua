@@ -13,7 +13,7 @@ __kernel void calcDT(
 	}
 		
 	const __global cons_t* U = UBuf + index;
-	real gamma = symmat3_det(U->gamma);
+	real gamma = sym3_det(U->gamma);
 
 	real dt = INFINITY;
 	//for (int side = 0; side < dim; ++side) {
@@ -51,7 +51,7 @@ __kernel void calcEigenBasis(
 		const __global cons_t* UL = UBuf + indexL;
 		
 		real alpha = .5 * (UL->alpha + UR->alpha);
-		symmat3 avg_gamma = (symmat3){
+		sym3 avg_gamma = (sym3){
 			.xx = .5 * (UL->gamma.xx + UR->gamma.xx),
 			.xy = .5 * (UL->gamma.xy + UR->gamma.xy),
 			.xz = .5 * (UL->gamma.xz + UR->gamma.xz),
@@ -59,9 +59,9 @@ __kernel void calcEigenBasis(
 			.yz = .5 * (UL->gamma.yz + UR->gamma.yz),
 			.zz = .5 * (UL->gamma.zz + UR->gamma.zz),
 		};
-		real avg_gamma_det = symmat3_det(avg_gamma);
+		real avg_gamma_det = sym3_det(avg_gamma);
 		eigen_t eig = (eigen_t){
-			.gammaU = symmat3_inv(avg_gamma_det, avg_gamma),
+			.gammaU = sym3_inv(avg_gamma_det, avg_gamma),
 			.f = calc_f(alpha),
 		};
 
@@ -94,7 +94,7 @@ void eigen_leftTransform_<?=side?>(
 	const real* input
 ) {
 	real f = eigen->f;
-	symmat3 gammaU = eigen->gammaU;
+	sym3 gammaU = eigen->gammaU;
 	real sqrt_f = sqrt(f);
 	
 	//input of left eigenvectors is the state
@@ -218,7 +218,7 @@ void eigen_rightTransform_<?=side?>(
 	const real* input
 ) {
 	real f = eigen->f;
-	symmat3 gammaU = eigen->gammaU;
+	sym3 gammaU = eigen->gammaU;
 	real sqrt_f = sqrt(f);
 
 	//write zeros to the alpha and gammaLL terms
@@ -366,8 +366,8 @@ __kernel void addSource(
 	const __global cons_t* U = UBuf + index;
 	__global cons_t* deriv = derivBuf + index;
 
-	real gamma = symmat3_det(U->gamma);
-	symmat3 gammaU = symmat3_inv(gamma, U->gamma);
+	real gamma = sym3_det(U->gamma);
+	sym3 gammaU = sym3_inv(gamma, U->gamma);
 	real f = calc_f(U->alpha);	//could be based on alpha...
 
 real density = 0;//state[STATE_DENSITY];
@@ -699,8 +699,8 @@ __kernel void constrain(
 	
 	__global cons_t* U = UBuf + index;
 
-	real gamma = symmat3_det(U->gamma);
-	symmat3 gammaU = symmat3_inv(gamma, U->gamma);
+	real gamma = sym3_det(U->gamma);
+	sym3 gammaU = sym3_inv(gamma, U->gamma);
 
 	real D3_D1_x = 
 		(gammaU.xy * U->d[0].xy)

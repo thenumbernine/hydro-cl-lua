@@ -84,19 +84,12 @@ function SRHD:getCodePrefix()
 //then later the transition to the evolved metric will be easier
 constant const real alpha = 1;
 constant const real3 betaU = _real3(0,0,0);
-constant const real3 gamma_x = _real3(1,0,0);
-constant const real3 gamma_y = _real3(0,1,0);
-constant const real3 gamma_z = _real3(0,0,1);
-constant const real3 gammaUx = _real3(1,0,0);
-constant const real3 gammaUy = _real3(0,1,0);
-constant const real3 gammaUz = _real3(0,0,1);
+constant const sym3 gammaL = (sym3){.xx=1, .yy=1, .zz=1, .xy=0, .yz=0, .xz=0};
+constant const sym3 gammaU = (sym3){.xx=1, .yy=1, .zz=1, .xy=0, .yz=0, .xz=0};
 constant const real gammaDet = 1;
 
 inline real3 lower(real3 vU) {
-	return _real3(
-		real3_dot(gamma_x, vU),
-		real3_dot(gamma_y, vU),
-		real3_dot(gamma_z, vU));
+	return sym3_real3_mul(gammaL, vU);
 }
 
 

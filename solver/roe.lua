@@ -133,11 +133,8 @@ function Solver:init(args)
 	self.useFixedDT = ffi.new('bool[1]', false)
 	self.fixedDT = ffi.new('float[1]', 0)
 	self.cfl = ffi.new('float[1]', .5)
-	
 	self.initStatePtr = ffi.new('int[1]', (table.find(self.eqn.initStateNames, args.initState) or 1)-1)
-	
 	self.integratorPtr = ffi.new('int[1]', (self.integratorNames:find(args.integrator) or 1)-1)
-	
 	self.slopeLimiterPtr = ffi.new('int[1]', (self.app.slopeLimiterNames:find(args.slopeLimiter) or 1)-1)
 
 	self.boundaryMethods = {}
@@ -531,7 +528,7 @@ static inline real3 real3_sub(real3 a, real3 b) {
 
 ]]
 
-	-- symmat3
+	-- sym3
 	-- as I slowly add mesh geometry and work towards converting SRHD to GRHD, this will become more prevalent
 	lines:insert[[
 typedef union {
@@ -539,9 +536,9 @@ typedef union {
 	struct {
 		real xx, xy, xz, yy, yz, zz;
 	};
-} symmat3;
+} sym3;
 
-real symmat3_det(symmat3 m) {
+real sym3_det(sym3 m) {
 	return m.xx * m.yy * m.zz
 		+ m.xy * m.yz * m.xz
 		+ m.xz * m.xy * m.yz
@@ -550,8 +547,8 @@ real symmat3_det(symmat3 m) {
 		- m.zz * m.xy * m.xy;
 }
 
-symmat3 symmat3_inv(real d, symmat3 m) {
-	return (symmat3){
+sym3 sym3_inv(real d, sym3 m) {
+	return (sym3){
 		.xx = (m.yy * m.zz - m.yz * m.yz) / d,
 		.xy = (m.xz * m.yz - m.xy * m.zz) / d,
 		.xz = (m.xy * m.yz - m.xz * m.yy) / d,
@@ -559,6 +556,13 @@ symmat3 symmat3_inv(real d, symmat3 m) {
 		.yz = (m.xz * m.xy - m.xx * m.yz) / d,
 		.zz = (m.xx * m.yy - m.xy * m.xy) / d,
 	};
+}
+
+real3 sym3_real3_mul(sym3 m, real3 v) {
+	return _real3(
+		m.xx * v.x + m.xy * v.y + m.xz * v.z,
+		m.xy * v.y + m.yy * v.y + m.yz * v.z,
+		m.xz * v.z + m.yz * v.y + m.zz * v.z);
 }
 
 ]]
@@ -1045,18 +1049,22 @@ function Solver:calcDeriv(derivBuf, dt)
 	end
 end
 
-function Solver:update()
-	self:boundary()
-
+function Solver:calcDT()
+	local dt
 	-- calc cell wavespeeds -> dts
 	if self.useFixedDT[0] then
 		dt = tonumber(self.fixedDT[0])
 	else
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDTKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 		dt = tonumber(self.cfl[0]) * self:reduceMin()
+		self.fixedDT[0] = dt
 	end
-	self.fixedDT[0] = dt
+	return dt
+end
 
+function Solver:update()
+	self:boundary()
+	local dt = self:calcDT()
 	self:step(dt)
 end
 
@@ -1117,6 +1125,85 @@ function Solver:calcDisplayVarRange(varIndex)
 	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	local ymax = self:reduceMax()
 	return ymin, ymax
+end
+
+local ig = require 'ffi.imgui'
+function Solver:updateGUI()
+	if ig.igCollapsingHeader'solver' then
+		ig.igCheckbox('use fixed dt', self.useFixedDT)
+		ig.igInputFloat('fixed dt', self.fixedDT)
+		ig.igInputFloat('CFL', self.cfl)
+
+		if ig.igCombo('integrator', self.integratorPtr, self.integratorNames) then
+			self:refreshIntegrator()
+		end
+
+		if ig.igCombo('slope limiter', self.slopeLimiterPtr, self.slopeLimiterNames) then
+			self:refreshSolverProgram()
+		end
+
+		for i=1,self.dim do
+			for _,minmax in ipairs(minmaxs) do
+				local var = xs[i]..minmax
+				if ig.igCombo(var, self.boundaryMethods[var], self.app.boundaryMethods) then
+					self:refreshBoundaryProgram()
+				end
+			end
+		end
+
+	end
+
+	if ig.igCollapsingHeader'equation:' then
+		-- equation-specific:
+
+		local eqn = self.eqn
+
+		if ig.igCombo('init state', self.initStatePtr, eqn.initStateNames) then
+			
+			self:refreshInitStateProgram()
+			
+			-- TODO changing the init state program might also change the boundary methods
+			-- ... but I don't want it to change the settings for the running scheme (or do I?)
+			-- ... but I don't want it to not change the settings ...
+			-- so maybe refreshing the init state program should just refresh everything?
+			-- or maybe just the boundaries too?
+			-- hack for now:
+			self:refreshBoundaryProgram()
+		end	
+		
+		local f = ffi.new'float[1]'
+		local i = ffi.new'int[1]'
+		for _,var in ipairs(eqn.guiVars) do
+			var:updateGUI(self)
+		end
+	end
+
+	-- display vars: TODO graph vars
+
+	if ig.igCollapsingHeader'variables:' then
+		for _,convertToTex in ipairs(self.convertToTexs) do
+			if ig.igCollapsingHeader(convertToTex.name..' variables:') then
+				for _,var in ipairs(convertToTex.vars) do
+					ig.igPushIdStr(convertToTex.name..' '..var.name)
+					if ig.igCheckbox(var.name, var.enabled) then
+						self:refreshDisplayProgram()
+					end
+					ig.igSameLine()
+					if ig.igCollapsingHeader'' then	
+						ig.igCheckbox('log', var.useLogPtr)
+						ig.igCheckbox('fixed range', var.heatMapFixedRangePtr)
+						ig.igInputFloat('value min', var.heatMapValueMinPtr)
+						ig.igInputFloat('value max', var.heatMapValueMaxPtr)
+					end
+					ig.igPopId()
+				end
+			end
+		end
+	end
+
+	-- heat map var
+
+	-- TODO volumetric var
 end
 
 return Solver

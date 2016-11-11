@@ -5,6 +5,8 @@ local SelfGravitationBehavior = require 'solver.selfgrav'
 
 local EulerRoe = class(SelfGravitationBehavior(Roe))
 
+EulerRoe.name = 'Euler Roe'
+
 local ConvertToTex_EulerRoe_U = class(EulerRoe.ConvertToTex)
 
 function ConvertToTex_EulerRoe_U:setArgs(kernel, var)

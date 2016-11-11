@@ -983,100 +983,37 @@ function HydroCLApp:showDisplayVar(solver, varIndex)
 end
 
 function HydroCLApp:updateGUI()
-	if ig.igCollapsingHeader'Controls' then
+	if ig.igCollapsingHeader'simulation' then
 		if ig.igButton(self.updateMethod and 'Stop' or 'Start') then
 			self.updateMethod = not self.updateMethod
 		end
+		ig.igSameLine()
 		if ig.igButton'Step' then
 			self.updateMethod = 'step'
 		end
+		ig.igSameLine()
 		if ig.igButton'Reset' then
 			print'resetting...'
 			self.solver:resetState()
 			self.updateMethod = nil
 		end
-
-		ig.igCheckbox('use fixed dt', self.solver.useFixedDT)
-		ig.igInputFloat('fixed dt', self.solver.fixedDT)
-		ig.igInputFloat('CFL', self.solver.cfl)
-
-		if ig.igCombo('integrator', self.solver.integratorPtr, self.solver.integratorNames) then
-			self.solver:refreshIntegrator()
-		end
-
-		if ig.igCombo('slope limiter', self.solver.slopeLimiterPtr, self.slopeLimiterNames) then
-			self.solver:refreshSolverProgram()
-		end
-
-		for i=1,self.solver.dim do
-			for _,minmax in ipairs(minmaxs) do
-				local var = xs[i]..minmax
-				if ig.igCombo(var, self.solver.boundaryMethods[var], self.boundaryMethods) then
-					self.solver:refreshBoundaryProgram()
-				end
-			end
-		end
-
+	
 		if ig.igRadioButtonBool('ortho', self.view == self.orthoView) then
 			self.view = self.orthoView
-		elseif ig.igRadioButtonBool('frustum', self.view == self.frustumView) then
+		end
+		ig.igSameLine()
+		if ig.igRadioButtonBool('frustum', self.view == self.frustumView) then
 			self.view = self.frustumView
 		end
-
-
 	end
-
-	if ig.igCollapsingHeader'equation:' then
-		-- equation-specific:
-
-		local eqn = self.solver.eqn
-
-		if ig.igCombo('init state', self.solver.initStatePtr, eqn.initStateNames) then
-			
-			self.solver:refreshInitStateProgram()
-			
-			-- TODO changing the init state program might also change the boundary methods
-			-- ... but I don't want it to change the settings for the running scheme (or do I?)
-			-- ... but I don't want it to not change the settings ...
-			-- so maybe refreshing the init state program should just refresh everything?
-			-- or maybe just the boundaries too?
-			-- hack for now:
-			self.solver:refreshBoundaryProgram()
-		end	
-		
-		local f = ffi.new'float[1]'
-		local i = ffi.new'int[1]'
-		for _,var in ipairs(eqn.guiVars) do
-			var:updateGUI(self.solver)
-		end
+	
+	for i,solver in ipairs(self.solvers) do
+		ig.igPushIdStr('solver '..i)
+		ig.igText(solver.name)
+		-- TODO new window for each
+		solver:updateGUI()
+		ig.igPopId()
 	end
-
-	-- display vars: TODO graph vars
-
-	if ig.igCollapsingHeader'variables:' then
-		for _,convertToTex in ipairs(self.solver.convertToTexs) do
-			if ig.igCollapsingHeader(convertToTex.name..' variables:') then
-				for _,var in ipairs(convertToTex.vars) do
-					ig.igPushIdStr(convertToTex.name..' '..var.name)
-					if ig.igCheckbox(var.name, var.enabled) then
-						self.solver:refreshDisplayProgram()
-					end
-					ig.igSameLine()
-					if ig.igCollapsingHeader'' then	
-						ig.igCheckbox('log', var.useLogPtr)
-						ig.igCheckbox('fixed range', var.heatMapFixedRangePtr)
-						ig.igInputFloat('value min', var.heatMapValueMinPtr)
-						ig.igInputFloat('value max', var.heatMapValueMaxPtr)
-					end
-					ig.igPopId()
-				end
-			end
-		end
-	end
-
-	-- heat map var
-
-	-- TODO volumetric var
 end
 
 local leftButtonDown

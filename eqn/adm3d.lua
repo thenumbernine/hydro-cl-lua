@@ -45,10 +45,10 @@ function ADM_BonaMasso_3D:getTypeCode()
 	return [[
 typedef struct {
 	real alpha;
-	symmat3 gamma;
+	sym3 gamma;
 	real3 a;
-	symmat3 d[3];
-	symmat3 K;
+	sym3 d[3];
+	sym3 K;
 	real3 V;
 } cons_t;
 ]]
@@ -119,7 +119,7 @@ ADM_BonaMasso_3D.displayVars = table()
 		return {[var] = 'value = U->'..code..';'}
 	end))
 	:append{
-		{volume = 'value = U->alpha * sqrt(symmat3_det(U->gamma));'}
+		{volume = 'value = U->alpha * sqrt(sym3_det(U->gamma));'}
 	}
 
 local makeStruct = require 'eqn.makestruct'
@@ -128,7 +128,7 @@ local eigenVars = {'alpha', 'f', 'gammaUxx', 'gammaUxy', 'gammaUxz', 'gammaUyy',
 function ADM_BonaMasso_3D:getEigenTypeCode(solver)
 	return [[
 typedef struct {
-	symmat3 gammaU;
+	sym3 gammaU;
 	real f;
 } eigen_t;
 ]]
