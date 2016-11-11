@@ -20,6 +20,9 @@ function EMHDRoe:init(args)
 	self.maxwell = require 'solver.roe'(maxwellArgs)
 	
 	self.displayVars = table():append(self.euler.displayVars, self.maxwell.displayVars)
+select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_Ex' end)).enabled[0] = false
+select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_Ez' end)).enabled[0] = true 
+	self.maxwell:refreshDisplayProgram()
 
 	self.solverForDisplayVars = table()
 	for _,var in ipairs(self.euler.displayVars) do
