@@ -43,33 +43,6 @@ ADM_BonaMasso_3D.guiVarsForName = ADM_BonaMasso_3D.guiVars:map(function(var) ret
 
 function ADM_BonaMasso_3D:getTypeCode()
 	return [[
-typedef union {
-	real s[6];
-	struct {
-		real xx, xy, xz, yy, yz, zz;
-	};
-} symmat3;
-
-real symmat3_det(symmat3 m) {
-	return m.xx * m.yy * m.zz
-		+ m.xy * m.yz * m.xz
-		+ m.xz * m.xy * m.yz
-		- m.xz * m.yy * m.xz
-		- m.yz * m.yz * m.xx
-		- m.zz * m.xy * m.xy;
-}
-
-symmat3 symmat3_inv(real d, symmat3 m) {
-	return (symmat3){
-		.xx = (m.yy * m.zz - m.yz * m.yz) / d,
-		.xy = (m.xz * m.yz - m.xy * m.zz) / d,
-		.xz = (m.xy * m.yz - m.xz * m.yy) / d,
-		.yy = (m.xx * m.zz - m.xz * m.xz) / d,
-		.yz = (m.xz * m.xy - m.xx * m.yz) / d,
-		.zz = (m.xx * m.yy - m.xy * m.xy) / d,
-	};
-}
-
 typedef struct {
 	real alpha;
 	symmat3 gamma;
@@ -78,7 +51,6 @@ typedef struct {
 	symmat3 K;
 	real3 V;
 } cons_t;
-
 ]]
 end
 

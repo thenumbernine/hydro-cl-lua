@@ -21,7 +21,7 @@ Euler.initStates = require 'init.euler'
 Euler.initStateNames = table.map(Euler.initStates, function(info) return info.name end)
 
 Euler.guiVars = table{
-	require 'guivar.float'{name='gamma', value=7/5}
+	require 'guivar.float'{name='heatCapacityRatio', value=7/5}
 }
 Euler.guiVarsForName = Euler.guiVars:map(function(var) return var, var.name end)
 
@@ -53,22 +53,21 @@ function Euler:getCodePrefix()
 	return table{
 		Euler.super.getCodePrefix(self),
 		[[
-#define gamma_1 (gamma-1.)
 
-inline real calc_H(real P) { return P * (gamma / gamma_1); }
+inline real calc_H(real P) { return P * (heatCapacityRatio / (heatCapacityRatio - 1.)); }
 inline real calc_h(real rho, real P) { return calc_H(P) / rho; }
 inline real calc_hTotal(real rho, real P, real ETotal) { return (P + ETotal) / rho; }
 inline real calc_HTotal(real P, real ETotal) { return P + ETotal; }
 inline real calc_eKin(prim_t W) { return .5 * coordLenSq(W.v); }
 inline real calc_EKin(prim_t W) { return W.rho * calc_eKin(W); }
-inline real calc_EInt(prim_t W) { return W.P / gamma_1; }
+inline real calc_EInt(prim_t W) { return W.P / (heatCapacityRatio - 1.); }
 inline real calc_eInt(prim_t W) { return calc_EInt(W) / W.rho; }
 inline real calc_EKin_fromCons(cons_t U) { return .5 * coordLenSq(U.m) / U.rho; }
 inline real calc_ETotal(prim_t W, real ePot) {
 	real EPot = W.rho * ePot;
 	return calc_EKin(W) + calc_EInt(W) + EPot;
 }
-inline real calc_Cs(prim_t W) { return sqrt(gamma * W.P / W.rho); }
+inline real calc_Cs(prim_t W) { return sqrt(heatCapacityRatio * W.P / W.rho); }
 inline prim_t primFromCons(cons_t U, real ePot) {
 	real EPot = U.rho * ePot;
 	real EKin = calc_EKin_fromCons(U);
@@ -76,7 +75,7 @@ inline prim_t primFromCons(cons_t U, real ePot) {
 	return (prim_t){
 		.rho = U.rho,
 		.v = real3_scale(U.m, 1./U.rho),
-		.P = EInt / gamma_1,
+		.P = EInt / (heatCapacityRatio - 1.),
 	};
 }
 ]],
@@ -159,7 +158,7 @@ Euler.displayVars = {
 	{EKin = 'value = calc_EKin(W);'},
 	{EPot = 'value = W.rho * ePot;'},
 	{ETotal = 'value = U.ETotal;'},
-	{S = 'value = W.P / pow(W.rho, (real)gamma);'},
+	{S = 'value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
 	{H = 'value = calc_H(W.P);'},
 	{h = 'value = calc_h(W.rho, W.P);'},
 	{HTotal = 'value = calc_HTotal(W.P, U.ETotal);'},

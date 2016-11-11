@@ -51,7 +51,7 @@ eigen_t eigen_forSide(cons_t UL, real ePotL, cons_t UR, real ePotR) {
 	//derived:
 	real vSq = coordLenSq(v);
 	real eKin = .5 * vSq;
-	real CsSq = gamma_1 * (hTotal - eKin);
+	real CsSq = (heatCapacityRatio - 1.) * (hTotal - eKin);
 	real Cs = sqrt(CsSq);
 	
 	return (eigen_t){
@@ -139,25 +139,25 @@ void eigen_leftTransform_<?=side?>(
 	<?=prefix?>
 
 	real invDenom = .5 / (Cs * Cs);
-	y[0] = (x[0] * (gamma_1 * .5 * vSq + Cs * v_n)
-		+ x[1] * -(nx * Cs + gamma_1 * v.x) 
-		+ x[2] * -(ny * Cs + gamma_1 * v.y)
-		+ x[3] * -(nz * Cs + gamma_1 * v.z)
-		+ x[4] * gamma_1
+	y[0] = (x[0] * ((heatCapacityRatio - 1.) * .5 * vSq + Cs * v_n)
+		+ x[1] * -(nx * Cs + (heatCapacityRatio - 1.) * v.x) 
+		+ x[2] * -(ny * Cs + (heatCapacityRatio - 1.) * v.y)
+		+ x[3] * -(nz * Cs + (heatCapacityRatio - 1.) * v.z)
+		+ x[4] * (heatCapacityRatio - 1.)
 	) * invDenom;
-	y[1] = (x[0] * (2.*Cs*Cs - gamma_1 * vSq)
-		+ x[1] * gamma_1 * v.x * 2
-		+ x[2] * gamma_1 * v.y * 2
-		+ x[3] * gamma_1 * v.z * 2
-		+ x[4] * -gamma_1 * 2
+	y[1] = (x[0] * (2.*Cs*Cs - (heatCapacityRatio - 1.) * vSq)
+		+ x[1] * (heatCapacityRatio - 1.) * v.x * 2
+		+ x[2] * (heatCapacityRatio - 1.) * v.y * 2
+		+ x[3] * (heatCapacityRatio - 1.) * v.z * 2
+		+ x[4] * -(heatCapacityRatio - 1.) * 2
 	) * invDenom;
 	y[2] = x[0] * -v_n1 + x[1] * n1x + x[2] * n1y + x[3] * n1z;
 	y[3] = x[0] * -v_n2 + x[1] * n2x + x[2] * n2y + x[3] * n2z;
-	y[4] = (x[0] * (gamma_1 * .5 * vSq - Cs * v_n) 
-		+ x[1] * (nx * Cs - gamma_1 * v.x) 
-		+ x[2] * (ny * Cs - gamma_1 * v.y) 
-		+ x[3] * (nz * Cs - gamma_1 * v.z) 
-		+ x[4] * gamma_1
+	y[4] = (x[0] * ((heatCapacityRatio - 1.) * .5 * vSq - Cs * v_n) 
+		+ x[1] * (nx * Cs - (heatCapacityRatio - 1.) * v.x) 
+		+ x[2] * (ny * Cs - (heatCapacityRatio - 1.) * v.y) 
+		+ x[3] * (nz * Cs - (heatCapacityRatio - 1.) * v.z) 
+		+ x[4] * (heatCapacityRatio - 1.)
 	) * invDenom;
 }
 
@@ -183,26 +183,26 @@ void fluxTransform_<?=side?>(
 ) {
 	<?=prefix?>
 	y[0] = x[1] * nx + x[2] * ny + x[3] * nz;
-	y[1] = x[0] * (-v_n * v.x + gamma_1 * .5 * vSq * nx)
-		+ x[1] * (v.x * nx - gamma_1 * nx * v.x + v_n)
-		+ x[2] * (v.x * ny - gamma_1 * nx * v.y)
-		+ x[3] * (v.x * nz - gamma_1 * nx * v.z)
-		+ x[4] * gamma_1 * nx;
-	y[2] = x[0] * (-v_n * v.y + gamma_1 * .5 * vSq * ny)
-		+ x[1] * (v.y * nx - gamma_1 * ny * v.x)
-		+ x[2] * (v.y * ny - gamma_1 * ny * v.y + v_n)
-		+ x[3] * (v.y * nz - gamma_1 * ny * v.z)
-		+ x[4] * gamma_1 * ny;
-	y[3] = x[0] * (-v_n * v.z + gamma_1 * .5 * vSq * nz)
-		+ x[1] * (v.z * nx - gamma_1 * nz * v.x)
-		+ x[2] * (v.z * ny - gamma_1 * nz * v.y)
-		+ x[3] * (v.z * nz - gamma_1 * nz * v.z + v_n)
-		+ x[4] * gamma_1 * nz;
-	y[4] = x[0] * v_n * (gamma_1 * .5 * vSq - hTotal)
-		+ x[1] * (-gamma_1 * v_n * v.x + nx * hTotal)
-		+ x[2] * (-gamma_1 * v_n * v.y + ny * hTotal)
-		+ x[3] * (-gamma_1 * v_n * v.z + nz * hTotal)
-		+ x[4] * gamma * v_n;
+	y[1] = x[0] * (-v_n * v.x + (heatCapacityRatio - 1.) * .5 * vSq * nx)
+		+ x[1] * (v.x * nx - (heatCapacityRatio - 1.) * nx * v.x + v_n)
+		+ x[2] * (v.x * ny - (heatCapacityRatio - 1.) * nx * v.y)
+		+ x[3] * (v.x * nz - (heatCapacityRatio - 1.) * nx * v.z)
+		+ x[4] * (heatCapacityRatio - 1.) * nx;
+	y[2] = x[0] * (-v_n * v.y + (heatCapacityRatio - 1.) * .5 * vSq * ny)
+		+ x[1] * (v.y * nx - (heatCapacityRatio - 1.) * ny * v.x)
+		+ x[2] * (v.y * ny - (heatCapacityRatio - 1.) * ny * v.y + v_n)
+		+ x[3] * (v.y * nz - (heatCapacityRatio - 1.) * ny * v.z)
+		+ x[4] * (heatCapacityRatio - 1.) * ny;
+	y[3] = x[0] * (-v_n * v.z + (heatCapacityRatio - 1.) * .5 * vSq * nz)
+		+ x[1] * (v.z * nx - (heatCapacityRatio - 1.) * nz * v.x)
+		+ x[2] * (v.z * ny - (heatCapacityRatio - 1.) * nz * v.y)
+		+ x[3] * (v.z * nz - (heatCapacityRatio - 1.) * nz * v.z + v_n)
+		+ x[4] * (heatCapacityRatio - 1.) * nz;
+	y[4] = x[0] * v_n * ((heatCapacityRatio - 1.) * .5 * vSq - hTotal)
+		+ x[1] * (-(heatCapacityRatio - 1.) * v_n * v.x + nx * hTotal)
+		+ x[2] * (-(heatCapacityRatio - 1.) * v_n * v.y + ny * hTotal)
+		+ x[3] * (-(heatCapacityRatio - 1.) * v_n * v.z + nz * hTotal)
+		+ x[4] * heatCapacityRatio * v_n;
 }
 <?	end ?>
 <? end ?>

@@ -20,7 +20,7 @@ SRHD.initStateNames = table.map(SRHD.initStates, function(info) return info.name
 local GuiFloat = require 'guivar.float'
 local GuiInt = require 'guivar.int'
 SRHD.guiVars = table{
-	GuiFloat{name='gamma', value=7/5},
+	GuiFloat{name='heatCapacityRatio', value=7/5},
 
 	-- setting max iter to 100+ makes it freeze initially 
 	-- but setting it to 100 after the first iteration is fine ...
@@ -79,8 +79,6 @@ function SRHD:getCodePrefix()
 	return table{
 		SRHD.super.getCodePrefix(self),
 		[[
-#define gamma_1 (gamma-1.)
-
 
 //I'm going to fix metric coordinates at first
 //then later the transition to the evolved metric will be easier
@@ -104,21 +102,21 @@ inline real3 lower(real3 vU) {
 
 //pressure function for ideal gas
 real calc_P(real rho, real eInt) {
-	return gamma_1 * rho * eInt;
+	return (heatCapacityRatio - 1.) * rho * eInt;
 }	
 
 //chi in most papers
 real calc_dP_drho(real rho, real eInt) {
-	return gamma_1 * eInt;
+	return (heatCapacityRatio - 1.) * eInt;
 }
 
 //kappa in most papers
 real calc_dP_deInt(real rho, real eInt) {
-	return gamma_1 * rho;
+	return (heatCapacityRatio - 1.) * rho;
 }
 
 real calc_eInt_from_P(real rho, real P) {
-	return P / (gamma_1 * rho);
+	return P / ((heatCapacityRatio - 1.) * rho);
 }
 
 real calc_h(real rho, real P, real eInt) {

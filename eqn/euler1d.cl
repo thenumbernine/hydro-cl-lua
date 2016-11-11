@@ -4,7 +4,7 @@ range_t calcCellMinMaxEigenvalues(
 	int side
 ) {
 	prim_t W = primFromCons(*U);
-	real Cs = sqrt(gamma * W.P / W.rho);
+	real Cs = sqrt(heatCapacityRatio * W.P / W.rho);
 	return (range_t){.min=W.vx - Cs, .max=W.vx + Cs};
 }
 
@@ -41,7 +41,7 @@ __kernel void calcEigenBasis(
 		real hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR);
 		
 		real vxSq = vx * vx;	
-		real CsSq = gamma_1 * (hTotal - .5 * vx * vx);
+		real CsSq = (heatCapacityRatio - 1.) * (hTotal - .5 * vx * vx);
 		real Cs = sqrt(CsSq);
 	
 		int intindex = side + dim * index;	
@@ -62,26 +62,26 @@ __kernel void calcEigenBasis(
 		evR[1+3*2] = vx + Cs;
 		evR[2+3*2] = hTotal + Cs * vx;
 		__global real* evL = eigen->evL; 
-		evL[0+3*0] = (.5 * gamma_1 * vxSq + Cs * vx) / (2. * CsSq);
-		evL[0+3*1] = -(Cs + gamma_1 * vx) / (2. * CsSq);
-		evL[0+3*2] = gamma_1 / (2. * CsSq);
-		evL[1+3*0] = 1. - gamma_1 * vxSq / (2. * CsSq);
-		evL[1+3*1] = gamma_1 * vx / CsSq;
-		evL[1+3*2] = -gamma_1 / CsSq;
-		evL[2+3*0] = (.5 * gamma_1 * vxSq - Cs * vx) / (2. * CsSq);
-		evL[2+3*1] = (Cs - gamma_1 * vx) / (2. * CsSq);
-		evL[2+3*2] = gamma_1 / (2. * CsSq);
+		evL[0+3*0] = (.5 * (heatCapacityRatio - 1.) * vxSq + Cs * vx) / (2. * CsSq);
+		evL[0+3*1] = -(Cs + (heatCapacityRatio - 1.) * vx) / (2. * CsSq);
+		evL[0+3*2] = (heatCapacityRatio - 1.) / (2. * CsSq);
+		evL[1+3*0] = 1. - (heatCapacityRatio - 1.) * vxSq / (2. * CsSq);
+		evL[1+3*1] = (heatCapacityRatio - 1.) * vx / CsSq;
+		evL[1+3*2] = -(heatCapacityRatio - 1.) / CsSq;
+		evL[2+3*0] = (.5 * (heatCapacityRatio - 1.) * vxSq - Cs * vx) / (2. * CsSq);
+		evL[2+3*1] = (Cs - (heatCapacityRatio - 1.) * vx) / (2. * CsSq);
+		evL[2+3*2] = (heatCapacityRatio - 1.) / (2. * CsSq);
 <? if solver.checkFluxError then ?>
 		__global real* A = eigen->A;
 		A[0+3*0] = 0;
 		A[0+3*1] = 1;
 		A[0+3*2] = 0;
-		A[1+3*0] = .5 * (gamma-3.) * vxSq;
-		A[1+3*1] = -(gamma-3.) * vx;
-		A[1+3*2] = gamma_1;
-		A[2+3*0] = vx * (.5 * gamma_1 * vxSq - hTotal);
-		A[2+3*1] = hTotal - gamma_1 * vxSq;
-		A[2+3*2] = gamma*vx;
+		A[1+3*0] = .5 * (heatCapacityRatio-3.) * vxSq;
+		A[1+3*1] = -(heatCapacityRatio-3.) * vx;
+		A[1+3*2] = (heatCapacityRatio - 1.);
+		A[2+3*0] = vx * (.5 * (heatCapacityRatio - 1.) * vxSq - hTotal);
+		A[2+3*1] = hTotal - (heatCapacityRatio - 1.) * vxSq;
+		A[2+3*2] = heatCapacityRatio*vx;
 <? end ?>
 	}
 }

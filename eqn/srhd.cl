@@ -22,7 +22,7 @@ __kernel void calcDT(
 	real vSq = real3_dot(prim.v, vL);
 	real P = calc_P(rho, eInt);
 	real h = calc_h(rho, P, eInt);
-	real csSq = gamma * P / (rho * h);
+	real csSq = heatCapacityRatio * P / (rho * h);
 	real cs = sqrt(csSq);
 	
 	real dt = INFINITY;
@@ -91,7 +91,7 @@ __kernel void calcEigenBasis(
 		real oneOverW = sqrt(oneOverW2);
 		real W = 1. / oneOverW;
 		real W2 = 1. / oneOverW2;
-		real P = gamma_1 * rho * eInt;
+		real P = (heatCapacityRatio - 1.) * rho * eInt;
 		real h = 1. + eInt + P / rho;
 
 		real hW = h * W;
@@ -105,7 +105,7 @@ __kernel void calcEigenBasis(
 		// = 1/rho ( P + (gamma-1) P)
 		// = gamma P / rho
 		real vxSq = v.x * v.x;
-		real csSq = gamma * P / (rho * h);
+		real csSq = heatCapacityRatio * P / (rho * h);
 		real cs = sqrt(csSq);
 
 		const real betaUi = betaU.s<?=side?>;
@@ -178,15 +178,6 @@ __kernel void calcEigenBasis(
 		__global real* evL = eigen->evL; 
 		//min row	2008 Font eqn 118
 		real scale;
-#if 0 	//2008 Marti & Muller
-		scale = hSq / Delta;
-		evL[0 + numStates * 0] = scale * (hW * ATildePlus * (v.x - lambdaMax) - v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - ATildePlus * lambdaMax) + Kappa * ATildePlus * lambdaMax);
-		evL[0 + numStates * 1] = scale * (1. + W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (1. - ATildePlus) - Kappa * ATildePlus);
-		evL[0 + numStates * 2] = scale * (W2 * v.y * (2. * Kappa - 1.) * ATildePlus * (v.x - lambdaMax));
-		evL[0 + numStates * 3] = scale * (W2 * v.z * (2. * Kappa - 1.) * ATildePlus * (v.x - lambdaMax));
-		evL[0 + numStates * 4] = scale * (-v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - ATildePlus * lambdaMax) + Kappa * ATildePlus * lambdaMax);
-#endif
-#if 1	//2008 Font eqn 118
 		scale = hSq / Delta;
 		real l5minus = (1 - Kappa) * (-gammaDet * v.x + VPlus * (W2 * xi - Gamma_xx)) - Kappa * W2 * VPlus * xi;
 		evL[0 + numStates * 0] = scale * (hW * VPlus * xi + l5minus);
@@ -194,7 +185,6 @@ __kernel void calcEigenBasis(
 		evL[0 + numStates * 2] = scale * (Gamma_xy * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.y * xi - Gamma_xy * v.x));
 		evL[0 + numStates * 3] = scale * (Gamma_xz * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.z * xi - Gamma_xz * v.x));
 		evL[0 + numStates * 4] = scale * l5minus;
-#endif
 		//mid normal row	2008 Font eqn 115
 		scale = W / (Kappa - 1.);
 		evL[1 + numStates * 0] = scale * (h - W);
@@ -216,15 +206,6 @@ __kernel void calcEigenBasis(
 		evL[3 + numStates * 3] = scale * (gamma_y.y * (1. - vL.x * v.x) + gamma_x.y * vL.y * v.x);
 		evL[3 + numStates * 4] = scale * (-gamma_y.y * vL.z + gamma_y.z * vL.y);
 		//max row	2008 Font eqn 118
-#if 0 	//from 2008 Marti & Muller
-		scale = -hSq / Delta;
-		evL[4 + numStates * 0] = scale * (hW * ATildeMinus * (v.x - lambdaMin) - v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - ATildeMinus * lambdaMin) + Kappa * ATildeMinus * lambdaMin);
-		evL[4 + numStates * 1] = scale * (1. + W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (1. - ATildeMinus) - Kappa * ATildeMinus);
-		evL[4 + numStates * 2] = scale * (W2 * v.y * (2. * Kappa - 1.) * ATildeMinus * (v.x - lambdaMin));
-		evL[4 + numStates * 3] = scale * (W2 * v.z * (2. * Kappa - 1.) * ATildeMinus * (v.x - lambdaMin));
-		evL[4 + numStates * 4] = scale * (-v.x - W2 * (vSq - vxSq) * (2. * Kappa - 1.) * (v.x - ATildeMinus * lambdaMin) + Kappa * ATildeMinus * lambdaMin);
-#endif
-#if 1	//2008 Font eqn 118
 		scale = -hSq / Delta;
 		real l5plus = (1 - Kappa) * (-gammaDet * v.x + VMinus * (W2 * xi - Gamma_xx)) - Kappa * W2 * VMinus * xi;
 		evL[4 + numStates * 0] = scale * (h * W * VMinus * xi + l5plus);
@@ -232,7 +213,6 @@ __kernel void calcEigenBasis(
 		evL[4 + numStates * 2] = scale * (Gamma_xy * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.y * xi - Gamma_xy * v.x));
 		evL[4 + numStates * 3] = scale * (Gamma_xz * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.z * xi - Gamma_xz * v.x));
 		evL[4 + numStates * 4] = scale * l5plus;
-#endif
 
 		<? if side == 1 then ?>
 		for (int i = 0; i < numStates; ++i) {
@@ -299,7 +279,7 @@ __kernel void updatePrims(
 	real3 SL = lower(S);
 	real SLen = sqrt(real3_dot(S,SL));
 	real PMin = max(SLen - tau - D + SLen * solvePrimVelEpsilon, solvePrimPMinEpsilon);
-	real PMax = gamma_1 * tau;
+	real PMax = (heatCapacityRatio - 1.) * tau;
 	PMax = max(PMax, PMin);
 	real P = .5 * (PMin + PMax);
 
@@ -309,8 +289,8 @@ __kernel void updatePrims(
 		real W = 1. / sqrt(1. - vSq);
 		real eInt = (tau + D * (1. - W) + P * (1. - W*W)) / (D * W);
 		real rho = D / W;
-		real f = gamma_1 * rho * eInt - P;
-		real csSq = gamma_1 * (tau + D * (1. - W) + P) / (tau + D + P);
+		real f = (heatCapacityRatio - 1.) * rho * eInt - P;
+		real csSq = (heatCapacityRatio - 1.) * (tau + D * (1. - W) + P) / (tau + D + P);
 		real df_dP = vSq * csSq - 1.;
 		real newP = P - f / df_dP;
 		newP = max(newP, PMin);
@@ -324,7 +304,7 @@ __kernel void updatePrims(
 			rho = D / W;
 			rho = max(rho, (real)rhoMin);
 			rho = min(rho, (real)rhoMax);
-			eInt = P / (rho * gamma_1);
+			eInt = P / (rho * (heatCapacityRatio - 1.));
 			eInt = min(eInt, (real)eIntMax);
 			prim->rho = rho;
 			prim->v = v;

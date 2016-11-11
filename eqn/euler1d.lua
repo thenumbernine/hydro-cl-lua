@@ -29,7 +29,7 @@ Euler1D.initStates = require 'init.euler'
 Euler1D.initStateNames = table.map(Euler1D.initStates, function(info) return info.name end)
 
 Euler1D.guiVars = table{
-	require 'guivar.float'{name='gamma', value=7/5}
+	require 'guivar.float'{name='heatCapacityRatio', value=7/5}
 }
 Euler1D.guiVarsForName = Euler1D.guiVars:map(function(var) return var, var.name end)
 
@@ -37,15 +37,12 @@ function Euler1D:getCodePrefix()
 	return table{
 		Euler1D.super.getCodePrefix(self),
 		[[
-#define gamma_1 (gamma-1.)
-#define gamma_3 (gamma-3.)
-
 prim_t primFromCons(cons_t U) {
 	real EInt = U.ETotal - .5 * U.mx * U.mx / U.rho;
 	return (prim_t){
 		.rho = U.rho,
 		.vx = U.mx / U.rho,
-		.P = EInt / gamma_1,
+		.P = EInt / (heatCapacityRatio - 1.),
 	};
 }
 ]]
@@ -69,7 +66,7 @@ cons_t consFromPrim(prim_t W) {
 	return (cons_t){
 		.rho = W.rho,
 		.mx = W.rho * W.vx,
-		.ETotal = .5 * W.rho * W.vx * W.vx + W.P / gamma_1,
+		.ETotal = .5 * W.rho * W.vx * W.vx + W.P / (heatCapacityRatio - 1.),
 	};
 }
 
@@ -113,17 +110,17 @@ Euler1D.displayVars = {
 	{vx = 'value = W.vx;'},
 	{P = 'value = W.P;'},
 	{mx = 'value = U.mx;'},
-	{eInt = 'value = W.P / (W.rho * gamma_1);'},
+	{eInt = 'value = W.P / (W.rho * (heatCapacityRatio - 1.));'},
 	{eKin = 'value = .5 * W.vx * W.vx;'},
 	{eTotal = 'value = U.ETotal / W.rho;'},
-	{EInt = 'value = W.P / gamma_1;'},
+	{EInt = 'value = W.P / (heatCapacityRatio - 1.);'},
 	{EKin = 'value = .5 * W.rho * W.vx * W.vx;'},
 	{ETotal = 'value = U.ETotal;'},
-	{S = 'value = W.P / pow(W.rho, (real)gamma);'},
-	{H = 'value = W.P * gamma / gamma_1;'},
-	{h = 'value = W.P * gamma / gamma_1 / W.rho;'},
-	{HTotal = 'value = W.P * gamma / gamma_1 + .5 * W.rho * W.vx * W.vx;'},
-	{hTotal = 'value = W.P * gamma / gamma_1 / W.rho + .5 * W.vx * W.vx;'},
+	{S = 'value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
+	{H = 'value = W.P * heatCapacityRatio / (heatCapacityRatio - 1.);'},
+	{h = 'value = W.P * heatCapacityRatio / (heatCapacityRatio - 1.) / W.rho;'},
+	{HTotal = 'value = W.P * heatCapacityRatio / (heatCapacityRatio - 1.) + .5 * W.rho * W.vx * W.vx;'},
+	{hTotal = 'value = W.P * heatCapacityRatio / (heatCapacityRatio - 1.) / W.rho + .5 * W.vx * W.vx;'},
 } 
 
 return Euler1D

@@ -507,7 +507,8 @@ function Solver:createCodePrefix()
 	lines:append(table{'',2,4,8}:map(function(n)
 		return 'typedef '..self.app.real..n..' real'..n..';'
 	end))
-	
+
+	-- real3
 	lines:insert(self.app.real3TypeCode)
 	lines:insert[[
 #define _real3(a,b,c) (real3){.s={a,b,c}}
@@ -526,6 +527,38 @@ static inline real3 real3_add(real3 a, real3 b) {
 
 static inline real3 real3_sub(real3 a, real3 b) {
 	return _real3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+]]
+
+	-- symmat3
+	-- as I slowly add mesh geometry and work towards converting SRHD to GRHD, this will become more prevalent
+	lines:insert[[
+typedef union {
+	real s[6];
+	struct {
+		real xx, xy, xz, yy, yz, zz;
+	};
+} symmat3;
+
+real symmat3_det(symmat3 m) {
+	return m.xx * m.yy * m.zz
+		+ m.xy * m.yz * m.xz
+		+ m.xz * m.xy * m.yz
+		- m.xz * m.yy * m.xz
+		- m.yz * m.yz * m.xx
+		- m.zz * m.xy * m.xy;
+}
+
+symmat3 symmat3_inv(real d, symmat3 m) {
+	return (symmat3){
+		.xx = (m.yy * m.zz - m.yz * m.yz) / d,
+		.xy = (m.xz * m.yz - m.xy * m.zz) / d,
+		.xz = (m.xy * m.yz - m.xz * m.yy) / d,
+		.yy = (m.xx * m.zz - m.xz * m.xz) / d,
+		.yz = (m.xz * m.xy - m.xx * m.yz) / d,
+		.zz = (m.xx * m.yy - m.xy * m.xy) / d,
+	};
 }
 
 ]]
