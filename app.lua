@@ -242,9 +242,11 @@ typedef union {
 	-- fluid
 	--self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
 	--self.solver = require 'solver.euler-roe'(args)
-	self.solver = require 'solver.srhd-roe'(args)
+	--self.solver = require 'solver.srhd-roe'(args)
 	-- EM
-	--self.solver = require 'solver.roe'(table(args, {eqn='maxwell'}))
+	self.solver = require 'solver.roe'(table(args, {eqn='maxwell'}))
+	-- EM+HD
+	--self.solver = require 'solver.emhd-roe'(args)
 	-- geometrodynamics
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v1'}))
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v2'}))
@@ -743,13 +745,13 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 				var.heatMapValueMaxPtr[0] = valueMax
 			end
 
-			solver:calcDisplayVarToTex(varIndex, var)
+			solver:calcDisplayVarToTex(var)
 	
 			self.heatMap2DShader:use()
 			gl.glUniform1i(self.heatMap2DShader.uniforms.useLog, var.useLogPtr[0])
 			gl.glUniform1f(self.heatMap2DShader.uniforms.valueMin, valueMin)
 			gl.glUniform1f(self.heatMap2DShader.uniforms.valueMax, valueMax)
-			self.solver.tex:bind(0)
+			self.solver:getTex(var):bind(0)
 			self.gradientTex:bind(1)
 		
 			local gridScale = 4
@@ -774,7 +776,7 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 			end
 			
 			self.gradientTex:unbind(1)
-			self.solver.tex:unbind(0)
+			self.solver:getTex(var):unbind(0)
 			self.heatMap2DShader:useNone()
 
 			if self.font then
@@ -812,7 +814,7 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 	self.view:modelview()
 	
 	self.volumeSliceShader:use()
-	self.solver.tex:bind(0)
+	self.solver:getTex(var):bind(0)
 	self.gradientTex:bind(1)
 	gl.glUniform1f(self.volumeSliceShader.uniforms.alpha, .15)
 	gl.glUniform1f(self.volumeSliceShader.uniforms.alphaGamma, 1)
@@ -877,7 +879,7 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 	gl.glDisable(gl.GL_TEXTURE_GEN_R)
 
 	self.gradientTex:unbind(1)
-	self.solver.tex:unbind(0)
+	self.solver:getTex(var):unbind(0)
 	self.volumeSliceShader:useNone()
 end
 
@@ -920,7 +922,7 @@ function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, 
 			gl.glUniform1f(self.volumeRayShader.uniforms.scale, 1)--scale)
 			gl.glUniform1i(self.volumeRayShader.uniforms.useLog, useLog and 1 or 0)
 			gl.glUniform1f(self.volumeRayShader.uniforms.alpha, 1)--alpha)
-			self.solver.tex:bind(0)
+			self.solver:getTex(var):bind(0)
 			self.gradientTex:bind(1)
 		end
 		gl.glBegin(gl.GL_QUADS)
@@ -939,7 +941,7 @@ function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, 
 			gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 		else
 			self.gradientTex:unbind(1)
-			self.solver.tex:unbind(0)
+			self.solver:getTex(var):unbind(0)
 			self.volumeRayShader:useNone()
 			gl.glDisable(gl.GL_BLEND)
 			gl.glDisable(gl.GL_DEPTH_TEST)
@@ -954,11 +956,11 @@ HydroCLApp.display3D = HydroCLApp.display3D_Ray
 
 function HydroCLApp:showDisplayVar(solver, varIndex)
 	local var = solver.displayVars[varIndex]
-	solver:calcDisplayVarToTex(varIndex, var)	
+	solver:calcDisplayVarToTex(var)	
 	-- display
 
 	self.graphShader:use()
-	solver.tex:bind()
+	solver:getTex(var):bind()
 
 	gl.glUniform1i(self.graphShader.uniforms.useLog, var.useLogPtr[0])
 	gl.glUniform2f(self.graphShader.uniforms.xmin, solver.mins[1], 0)
@@ -975,7 +977,7 @@ function HydroCLApp:showDisplayVar(solver, varIndex)
 	end
 	gl.glEnd()
 	
-	solver.tex:unbind()
+	solver:getTex(var):unbind()
 	self.graphShader:useNone()
 end
 
@@ -1006,9 +1008,10 @@ function HydroCLApp:updateGUI()
 	
 	for i,solver in ipairs(self.solvers) do
 		ig.igPushIdStr('solver '..i)
-		ig.igText(solver.name)
-		-- TODO new window for each
-		solver:updateGUI()
+		if ig.igCollapsingHeader(solver.name) then
+			-- TODO new window for each
+			solver:updateGUI()
+		end
 		ig.igPopId()
 	end
 end

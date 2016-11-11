@@ -1,5 +1,7 @@
 local class = require 'ext.class'
+local table = require 'ext.table'
 local ig = require 'ffi.imgui'
+local vec3sz = require 'solver.vec3sz'
 
 local EMHDRoe = class()
 
@@ -14,27 +16,50 @@ function EMHDRoe:init(args)
 	self.euler = require 'solver.euler-roe'(args)
 	
 	local maxwellArgs = table(args)
-	maxwellArgs.eqn = require 'eqn.maxwell'()
-	self.maxwell = require 'solver.roe'(args)
+	maxwellArgs.eqn = 'maxwell'
+	self.maxwell = require 'solver.roe'(maxwellArgs)
 	
---self.numGhost = self.euler.numGhost
+	self.displayVars = table():append(self.euler.displayVars, self.maxwell.displayVars)
+
+	self.solverForDisplayVars = table()
+	for _,var in ipairs(self.euler.displayVars) do
+		self.solverForDisplayVars[var] = self.euler
+	end
+	for _,var in ipairs(self.maxwell.displayVars) do
+		self.solverForDisplayVars[var] = self.maxwell
+	end
+
+	self.numGhost = self.euler.numGhost
+	
+	self.color = vec3(math.random(), math.random(), math.random()):normalize()
+	
 	self.dim = self.euler.dim
 	self.gridSize = vec3sz(self.euler.gridSize)
 	self.mins = vec3(self.euler.mins:unpack())
 	self.maxs = vec3(self.euler.maxs:unpack())
 
-	self.displayVars = table():append(self.euler.displayVars, self.maxwell.displayVars)
-
-	-- honestly, does the solver need this?
-	-- I think the display should have this
-	-- which means put it in app
+--[[
 	self.tex = self.euler.tex
+	self.maxwell.tex = self.euler.tex
+	self.maxwell.texCLMem = self.euler.texCLMem
+	self.maxwell.calcDisplayVarToTexPtr = self.euler.calcDisplayVarToTexPtr
+--]]
+
+	self.t = 0
 end
 
 function EMHDRoe:callAll(name, ...)
 	local res1 = self.euler[name](self.euler, ...)
 	local res2 = self.maxwell[name](self.maxwell, ...)
 	return res1, res2
+end
+
+function EMHDRoe:getCoordMapGLSLCode()
+	return self.euler:getCoordMapGLSLCode()
+end
+
+function EMHDRoe:createEqn()
+	self:callAll'createEqn'
 end
 
 function EMHDRoe:resetState()
@@ -55,32 +80,31 @@ function EMHDRoe:step(dt)
 	self.t = self.euler.t
 end
 
-function EMHDRoe:updateGUI()
-	ig.igPushIdStr('euler')
-	self.euler:updateGUI()
-	ig.igPopId()
-	ig.igPushIdStr('maxwell')
-	self.maxwell:updateGUI()
-	ig.igPopId()
+function EMHDRoe:update()
+	self:boundary()
+	local dt = self:calcDT()
+	self:step(dt)
 end
 
-function EMHDRoe:calcDisplayVarToTex(varIndex, var)
-	-- by here varIndex will poitn to the index in the master list
-	-- so we have to find it in each sub-solver's list
-	
-	varIndex = self.euler.displayVars:find(nil, function(var) return var.name == varName end)
-	if varIndex then
-		self.euler:calcDisplayVarToTex(varIndex, var)
-		return
-	end
+function EMHDRoe:getTex(var) 
+	return self.solverForDisplayVars[var].tex
+end
 
-	varIndex = self.maxwell.displayVars:find(nil, function(var) return var.name == varName end)
-	if varIndex then
-		self.maxwell:calcDisplayVarToTex(varIndex, var)
-		return
-	end
+function EMHDRoe:calcDisplayVarToTex(var)
+	self.solverForDisplayVars[var]:calcDisplayVarToTex(var)
+end
 
-	error("tried to display an unknown var.  shouldn't have got here because varIndex says it's in our list")
+function EMHDRoe:updateGUI()
+	if ig.igCollapsingHeader'Euler Solver:' then
+		ig.igPushIdStr('euler')
+		self.euler:updateGUI()
+		ig.igPopId()
+	end
+	if ig.igCollapsingHeader'Maxwell Solver:' then
+		ig.igPushIdStr('maxwell')
+		self.maxwell:updateGUI()
+		ig.igPopId()
+	end
 end
 
 return EMHDRoe

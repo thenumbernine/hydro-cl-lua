@@ -6,16 +6,16 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
-local vec3sz = require 'solver.vec3sz'
 local vec3 = require 'vec.vec3'
-local clnumber = require 'clnumber'
-local showcode = require 'showcode'
-local processcl = require 'processcl'
 local CLImageGL = require 'cl.imagegl'
 local CLProgram = require 'cl.program'
 local GLTex2D = require 'gl.tex2d'
 local GLTex3D = require 'gl.tex2d'
 local glreport = require 'gl.report'
+local clnumber = require 'clnumber'
+local showcode = require 'showcode'
+local processcl = require 'processcl'
+local vec3sz = require 'solver.vec3sz'
 
 
 local xs = table{'x', 'y', 'z'}
@@ -1077,27 +1077,31 @@ function Solver:step(dt)
 	self.t = self.t + dt
 end
 
-function Solver:calcDisplayVarToTex(varIndex)
-	local var = self.displayVars[varIndex]
+function Solver:getTex(var) 
+	return self.tex
+end
+
+function Solver:calcDisplayVarToTex(var)
+	local app = self.app
 	local convertToTex = var.convertToTex
-	if self.app.useGLSharing then
+	if app.useGLSharing then
 		-- copy to GL using cl_*_gl_sharing
 		gl.glFinish()
-		self.app.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
+		app.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
 	
 		convertToTex:setToTexArgs(var)
-		self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToTexKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-		self.app.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
-		self.app.cmds:finish()
+		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToTexKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		app.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
+		app.cmds:finish()
 	else
 		-- download to CPU then upload with glTexSubImage2D
 		local ptr = self.calcDisplayVarToTexPtr
 		local tex = self.tex
 		
 		convertToTex:setToBufferArgs(var)
-		self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-		self.app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(self.app.real) * self.volume, ptr=ptr}
-		if self.app.is64bit then
+		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.volume, ptr=ptr}
+		if app.is64bit then
 			for i=0,self.volume-1 do
 				ffi.cast('float*',ptr)[i] = ffi.cast('double*',ptr)[i]
 			end
