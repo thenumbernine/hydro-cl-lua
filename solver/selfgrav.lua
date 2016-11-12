@@ -19,6 +19,15 @@ function GravityPotential:getCodeParams()
 	}
 end
 
+function GravityPotential:refreshSolverProgram()
+	GravityPotential.super.refreshSolverProgram(self)
+	
+	local solver = self.solver
+	solver.calcGravityDerivKernel = solver.solverProgram:kernel'calcGravityDeriv'
+	solver.calcGravityDerivKernel:setArg(1, solver.UBuf)
+	solver.calcGravityDerivKernel:setArg(2, solver.ePotBuf)	
+end
+
 GravityPotential.extraCode = [[
 
 __kernel void calcGravityDeriv(
@@ -46,4 +55,29 @@ __kernel void calcGravityDeriv(
 }
 ]]
 
-return GravityPotential:createBehavior('gravityPoisson', 'useGravity')
+function GravityPotential:step(dt)
+	local solver = self.solver
+	if not solver.useGravity then return end
+	solver.integrator:integrate(dt, function(derivBuf)
+		for i=1,20 do
+			solver:potentialBoundary()
+			solver.app.cmds:enqueueNDRangeKernel{kernel=solver.solvePoissonKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+		end
+		
+		solver.calcGravityDerivKernel:setArg(0, derivBuf)
+		solver.app.cmds:enqueueNDRangeKernel{kernel=solver.calcGravityDerivKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	end)
+end
+
+local field = 'gravityPoisson'
+local apply = GravityPotential:createBehavior(field, 'useGravity')
+return function(parent)
+	local template = apply(parent)
+
+	function template:step(dt)
+		template.super.step(self, dt)
+		self[field]:step(dt)	
+	end
+
+	return template
+end

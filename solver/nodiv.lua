@@ -14,7 +14,7 @@ function RemoveDivergence:getCodeParams()
 	real divB = .5 * ((U[stepsize.x].B.x - U[-stepsize.x].B.x) / grid_dx0
 					+ (U[stepsize.y].B.y - U[-stepsize.y].B.y) / grid_dx1,
 					+ (U[stepsize.z].B.z - U[-stepsize.z].B.z) / grid_dx2);
-	rho = divB;	//times 4 pi?
+	rho = divB;
 ]],
 	}
 end
@@ -25,6 +25,12 @@ __kernel void removeDiv(
 	__global cons_t* UBuf,
 	const __global real* ePotBuf
 ) {
+	SETBOUNDS(2,2);
+	__global cons_t* U = UBuf + index;
+	const __global real* ePot = ePotBuf + index;
+	U->ePot.x -= (ePot[stepsize.x] - ePot[-stepsize.x]) / (2. * grid_dx0);
+	U->ePot.y -= (ePot[stepsize.y] - ePot[-stepsize.y]) / (2. * grid_dx1);
+	U->ePot.z -= (ePot[stepsize.z] - ePot[-stepsize.z]) / (2. * grid_dx2);
 }
 
 ]]
