@@ -320,7 +320,7 @@ function Solver:addConvertToTexUBuf()
 		name = 'U',
 		type = 'cons_t',
 		varCodePrefix = self.eqn.displayVarCodePrefix,
-		vars = assert(self.eqn.displayVars),
+		vars = assert(self.eqn:getDisplayVars(self)),
 	}
 end
 
@@ -1084,7 +1084,7 @@ function Solver:calcDisplayVarRange(varIndex)
 end
 
 function Solver:updateGUI()
-	if ig.igCollapsingHeader'solver:' then
+	if ig.igCollapsingHeader'parameters:' then
 		ig.igCheckbox('use fixed dt', self.useFixedDT)
 		ig.igInputFloat('fixed dt', self.fixedDT)
 		ig.igInputFloat('CFL', self.cfl)
@@ -1107,7 +1107,7 @@ function Solver:updateGUI()
 		end
 	end
 
-	if ig.igCollapsingHeader'equation:' then
+	if ig.igCollapsingHeader'equation-specific:' then
 		-- equation-specific:
 
 		if ig.igCombo('init state', self.initStatePtr, self.eqn.initStateNames) then
@@ -1132,9 +1132,10 @@ function Solver:updateGUI()
 
 	-- display vars: TODO graph vars
 
-	if ig.igCollapsingHeader'variables:' then
-		for _,convertToTex in ipairs(self.convertToTexs) do
-			if ig.igCollapsingHeader(convertToTex.name..' variables:') then
+	if ig.igCollapsingHeader'display:' then
+		for i,convertToTex in ipairs(self.convertToTexs) do
+			ig.igPushIdStr('display '..i)
+			if ig.igCollapsingHeader(convertToTex.name) then
 				for _,var in ipairs(convertToTex.vars) do
 					ig.igPushIdStr(convertToTex.name..' '..var.name)
 					if ig.igCheckbox(var.name, var.enabled) then
@@ -1150,6 +1151,7 @@ function Solver:updateGUI()
 					ig.igPopId()
 				end
 			end
+			ig.igPopId()
 		end
 	end
 

@@ -1,111 +1,100 @@
+local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
-local class = require 'ext.class'
-local ffi = require 'ffi'
+local PoissonSolver = require 'solver.poisson'
 
-local SelfGravitationBehavior = function(parent)
-	local template = class(parent)
 
-	function template:init(args)
-		self.useGravity = not not args.useGravity
-		template.super.init(self, args)
-	end
+local RemoveDivergence = class(PoissonSolver)
 
-	function template:createBuffers()
-		template.super.createBuffers(self)
-		self:clalloc('ePotBuf', self.volume * ffi.sizeof(self.app.real))
-	end
-
-	function template:addConvertToTexs()
-		template.super.addConvertToTexs(self)
-		self:addConvertToTex{
-			name = 'ePot',
-			vars = {{['0'] = 'value = buf[index];'}},
-		}
-	end
-
-	function template:getSolverCode()
-		return table{
-			template.super.getSolverCode(self),
-			[[
-__kernel void initPotential(
-	__global real* ePotBuf,
-	const __global cons_t* UBuf)
-{
-	SETBOUNDS(0,0);
-	ePotBuf[index] = -UBuf[index].rho;
-}
+function RemoveDivergence:getCodeParams()
+	return {
+		args = 'const __global cons_t* UBuf',
+		calcRho = [[
+	//TODO make this modular
+	//4 pi G rho for gravity
+	//div(E) for electromagnetism
+	const __global cons_t* U = UBuf + index;
+	real divE = .5 * ((U[stepSize.x].epsE.x - U[-stepSize.x].epsE.x) / grid_dx0
+					+ (U[stepSize.y].epsE.y - U[-stepSize.y].epsE.y) / grid_dx1,
+					+ (U[stepSize.z].epsE.z - U[-stepSize.z].epsE.z) / grid_dx2);
+	rho = divE;	//times 4 pi?
 ]],
-			'#define gravitationalConstant 1.',		-- 6.67384e-11 m^3 / (kg s^2)
-			
-			require 'processcl'(assert(file['solver/selfgrav.cl']), {solver=self})
-		}:concat'\n'
-	end
-
-	function template:refreshSolverProgram()
-		template.super.refreshSolverProgram(self)
-
-		self.initPotentialKernel = self.solverProgram:kernel('initPotential', self.ePotBuf, self.UBuf)
-
-		self.solvePoissonKernel = self.solverProgram:kernel('solvePoisson', self.ePotBuf, self.UBuf)
-		
-		self.calcGravityDerivKernel = self.solverProgram:kernel'calcGravityDeriv'
-		self.calcGravityDerivKernel:setArg(1, self.UBuf)
-		self.calcGravityDerivKernel:setArg(2, self.ePotBuf)	
-	end
-
-	function template:refreshBoundaryProgram()
-		template.super.refreshBoundaryProgram(self)
-
-		self.potentialBoundaryProgram, self.potentialBoundaryKernel =
-			self:createBoundaryProgramAndKernel{
-				type = 'real',
-				methods = table.map(self.boundaryMethods, function(v,k)
-					return self.app.boundaryMethods[1+v[0]], k
-				end),
-			}
-		self.potentialBoundaryKernel:setArg(0, self.ePotBuf)
-	end
-
-	function template:resetState()
-		template.super.resetState(self)
-
-		if self.useGravity then 
-			self.app.cmds:enqueueNDRangeKernel{kernel=self.initPotentialKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-			self:potentialBoundary()
-			for i=1,20 do
-				self.app.cmds:enqueueNDRangeKernel{kernel=self.solvePoissonKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-				self:potentialBoundary()
-			end
-		end
-		
-		-- TODO
-		-- add potential energy into total energy
-		-- then MAKE SURE TO SUBTRACT IT OUT everywhere internal energy is used
-	end
-
-	function template:step(dt)
-		template.super.step(self, dt)
-		
-
-		self.integrator:integrate(dt, function(derivBuf)
-			if self.useGravity then
-				for i=1,20 do
-					self:potentialBoundary()
-					self.app.cmds:enqueueNDRangeKernel{kernel=self.solvePoissonKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-				end
-			end
-			
-			self.calcGravityDerivKernel:setArg(0, derivBuf)
-			self.app.cmds:enqueueNDRangeKernel{kernel=self.calcGravityDerivKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-		end)
-	end
-
-	function template:potentialBoundary()
-		self:applyBoundaryToBuffer(self.potentialBoundaryKernel)
-	end
-
-	return template
+	}
 end
 
-return SelfGravitationBehavior 
+
+local GravityPotential = class(PoissonSolver)
+
+GravityPotential.gravityConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
+
+function GravityPotential:getCodeParams()
+	return {
+		args = 'const __global cons_t* UBuf',
+		calcRho = '#define gravitationalConstant '..require 'clnumber'(self.gravityConstant)..'\n'..[[
+	//TODO make this modular
+	//4 pi G rho for gravity
+	//div(E) for electromagnetism
+	const __global cons_t* U = UBuf + index;
+	rho = 4. * M_PI * gravitationalConstant * U->rho;
+]],
+	}
+end
+
+local selfGravBehavior = function(field, poissonClass)
+	return function(parent)
+		local template = class(parent)
+
+		function template:init(args)
+			self.useGravity = not not args.useGravity
+			self[field] = potentialClass(self)
+			
+			-- init is gonna call
+			template.super.init(self, args)
+		end
+
+		function template:createBuffers()
+			template.super.createBuffers(self)
+			self[field]:createBuffers()
+		end
+
+		function template:addConvertToTexs()
+			template.super.addConvertToTexs(self)
+			self[field]:addConvertToTexs()
+		end
+
+		function template:getSolverCode()
+			return table{
+				template.super.getSolverCode(self),
+				self[field]:getSolverCode(),
+			}:concat'\n'
+		end
+
+		function template:refreshSolverProgram()
+			template.super.refreshSolverProgram(self)
+			self[field]:refreshSolverProgram()
+		end
+
+		function template:refreshBoundaryProgram()
+			template.super.refreshBoundaryProgram(self)
+			self[field]:refreshBoundaryProgram()
+		end
+
+		function template:resetState()
+			template.super.resetState(self)
+			self[field]:resetState()
+		end
+
+		function template:step(dt)
+			template.super.step(self, dt)
+			self[field]:step(dt)	
+		end
+
+		function template:potentialBoundary()
+			self:applyBoundaryToBuffer(self[field].potentialBoundaryKernel)
+		end
+
+		return template
+	end
+end
+
+return selfGravBehavior('gravityPoisson', GravityPotential) 

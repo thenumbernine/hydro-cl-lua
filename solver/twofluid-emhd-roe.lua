@@ -37,11 +37,6 @@ function TwoFluidEMHDRoe:init(args)
 
 	self.displayVars = table():append(self.solvers:map(function(solver) return solver.displayVars end):unpack())
 
-	-- change the default maxwell displayed variable
-	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_Ex' end)).enabled[0] = false
-	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_Ez' end)).enabled[0] = true 
-	self.maxwell:refreshDisplayProgram()
-
 	self.solverForDisplayVars = table()
 	for _,solver in ipairs(self.solvers) do
 		for _,var in ipairs(solver.displayVars) do

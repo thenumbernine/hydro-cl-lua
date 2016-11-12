@@ -3,10 +3,18 @@ used with Euler
 but works with anything that has a cons_t::rho, m[], ETotal
 */
 
-__kernel void solvePoisson(
-	__global real* potentialBuf,
+__kernel void initPotential(
+	__global real* ePotBuf,
 	const __global cons_t* UBuf)
 {
+	SETBOUNDS(0,0);
+	ePotBuf[index] = -UBuf[index].rho;
+}
+
+__kernel void solvePoisson(
+	__global real* potentialBuf,
+	<?=args?>
+) {
 	SETBOUNDS(2,2);
 
 	real dx = dx0_at(i);
@@ -38,8 +46,10 @@ if solver.dim > 2 then ?>
 <? end ?>
 	);
 
-	const __global cons_t* U = UBuf + index;
-	potentialBuf[index] = (4. * M_PI * gravitationalConstant * U->rho - skewSum) / diag;
+	real rho = 0;
+	<?=calcRho?>
+
+	potentialBuf[index] = (rho - skewSum) / diag;
 }
 
 __kernel void calcGravityDeriv(

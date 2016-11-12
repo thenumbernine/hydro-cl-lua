@@ -4,6 +4,7 @@ local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local GuiFloat = require 'guivar.float'
 local clnumber = require 'clnumber'
+local processcl = require 'processcl'
 
 local Maxwell = class(Equation)
 Maxwell.name = 'Maxwell'
@@ -68,28 +69,46 @@ __kernel void initState(
 #endif
 	;
 	__global cons_t* U = UBuf + index;
-	U->epsE = real3_scale(_real3(0,0,1), eps0);
-	U->B = _real3(1, lhs ? 1 : -1, 0);
+	U->epsE = real3_scale(_real3(1,0,0), eps0);
+	U->B = _real3(0, 1, lhs ? 1 : -1);
 }
 ]],
 	}:concat'\n'
 end
 
 function Maxwell:getSolverCode(solver)
-	return require 'processcl'(file['eqn/maxwell.cl'], {solver=solver})
+	return processcl(file['eqn/maxwell.cl'], {solver=solver})
 end
 
-Maxwell.displayVars = {
-	{Ex = 'value = U->epsE.x / eps0;'},
-	{Ey = 'value = U->epsE.y / eps0;'},
-	{Ez = 'value = U->epsE.z / eps0;'},
-	{E = 'value = sqrt(ESq(*U));'},
-	{Bx = 'value = U->B.x;'},
-	{By = 'value = U->B.y;'},
-	{Bz = 'value = U->B.z;'},
-	{B = 'value = sqrt(BSq(*U));'},
-	{energy = 'value = .5 * (coordLen(U->epsE) + coordLen(U->B) / mu0);'},
-}
+function Maxwell:getDisplayVars(solver)
+	return table{
+		{Ex = 'value = U->epsE.x / eps0;'},
+		{Ey = 'value = U->epsE.y / eps0;'},
+		{Ez = 'value = U->epsE.z / eps0;'},
+		{E = 'value = sqrt(ESq(*U));'},
+		{Bx = 'value = U->B.x;'},
+		{By = 'value = U->B.y;'},
+		{Bz = 'value = U->B.z;'},
+		{B = 'value = sqrt(BSq(*U));'},
+		{energy = 'value = .5 * (coordLen(U->epsE) + coordLen(U->B) / mu0);'},
+	}:append(table{'E','B'}:map(function(var,i)
+		local field = assert( ({E='epsE', B='B'})[var] )
+		return {['div_'..var] = processcl([[
+	int4 iL, iR;
+	value = 0;
+	<? for j=0,solver.dim-1 do ?>{
+		const int j = <?=j?>;
+		iL = iR = i;
+		iL.s<?=j?> = (iL.s<?=j?> + gridSize.s<?=j?> - 1) % gridSize.s<?=j?>; 
+		iR.s<?=j?> = (iR.s<?=j?> + 1) % gridSize.s<?=j?>; 
+		value += (buf[INDEXV(iR)].<?=field?>.s<?=j?> - buf[INDEXV(iL)].<?=field?>.s<?=j?>) / (2. * grid_dx<?=j?>);
+	}<? end ?>
+	<? if field == 'epsE' then ?>
+	value /= eps0;
+	<? end ?>
+]], {solver=solver, field=field})}
+	end))
+end
 
 -- can it be zero sized?
 function Maxwell:getEigenTypeCode(solver)

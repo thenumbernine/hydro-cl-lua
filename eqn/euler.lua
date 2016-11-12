@@ -131,31 +131,33 @@ Euler.displayVarCodePrefix = [[
 	prim_t W = primFromCons(U, ePot);
 ]]
 
-Euler.displayVars = {
-	{rho = 'value = W.rho;'},
-	{vx = 'value = W.v.x;'},
-	{vy = 'value = W.v.y;'},
-	{vz = 'value = W.v.z;'},
-	{v = 'value = coordLen(W.v);'},
-	{mx = 'value = U.m.x;'},
-	{my = 'value = U.m.y;'},
-	{mz = 'value = U.m.z;'},
-	{m = 'value = coordLen(U.m);'},
-	{P = 'value = W.P;'},
-	{eInt = 'value = calc_eInt(W);'},
-	{eKin = 'value = calc_eKin(W);'},
-	{ePot = 'value = ePot;'},
-	{eTotal = 'value = U.ETotal / W.rho;'},
-	{EInt = 'value = calc_EInt(W);'},
-	{EKin = 'value = calc_EKin(W);'},
-	{EPot = 'value = W.rho * ePot;'},
-	{ETotal = 'value = U.ETotal;'},
-	{S = 'value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
-	{H = 'value = calc_H(W.P);'},
-	{h = 'value = calc_h(W.rho, W.P);'},
-	{HTotal = 'value = calc_HTotal(W.P, U.ETotal);'},
-	{hTotal = 'value = calc_hTotal(W.rho, W.P, U.ETotal);'},
-}
+function Euler:getDisplayVars(solver)
+	return {
+		{rho = 'value = W.rho;'},
+		{vx = 'value = W.v.x;'},
+		{vy = 'value = W.v.y;'},
+		{vz = 'value = W.v.z;'},
+		{v = 'value = coordLen(W.v);'},
+		{mx = 'value = U.m.x;'},
+		{my = 'value = U.m.y;'},
+		{mz = 'value = U.m.z;'},
+		{m = 'value = coordLen(U.m);'},
+		{P = 'value = W.P;'},
+		{eInt = 'value = calc_eInt(W);'},
+		{eKin = 'value = calc_eKin(W);'},
+		{ePot = 'value = ePot;'},
+		{eTotal = 'value = U.ETotal / W.rho;'},
+		{EInt = 'value = calc_EInt(W);'},
+		{EKin = 'value = calc_EKin(W);'},
+		{EPot = 'value = W.rho * ePot;'},
+		{ETotal = 'value = U.ETotal;'},
+		{S = 'value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
+		{H = 'value = calc_H(W.P);'},
+		{h = 'value = calc_h(W.rho, W.P);'},
+		{HTotal = 'value = calc_HTotal(W.P, U.ETotal);'},
+		{hTotal = 'value = calc_hTotal(W.rho, W.P, U.ETotal);'},
+	}
+end
 
 function Euler:getEigenTypeCode(solver)
 	return [[

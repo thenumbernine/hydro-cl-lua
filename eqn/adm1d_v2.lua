@@ -149,23 +149,25 @@ function ADM_BonaMasso_1D_Alcubierre1997:getSolverCode(solver)
 	return processcl(file['eqn/adm1d_v2.cl'], {solver=solver})
 end
 
-ADM_BonaMasso_1D_Alcubierre1997.displayVars = {
-	-- source-only:
-	{alpha = 'value = U->alpha;'},
-	{gamma_xx = 'value = U->gamma_xx;'},
-	-- both 1998 and 2008 cons vars:
-	{a_x = 'value = U->a_x;'},
-	-- 1998-only cons vars:
-	{d_xxx = 'value = U->d_xxx;'},
-	{K_xx = 'value = U->K_xx;'},
-	-- 2008-only cons vars:
-	{D_g = 'value = 2. * U->d_xxx / U->gamma_xx;'},
-	{KTilde_xx = 'value = U->K_xx * sqrt(U->gamma_xx);'},
-	-- aux:
-	{dx_alpha = 'value = U->alpha * U->a_x;'},
-	{dx_gamma_xx = 'value = 2. * U->d_xxx;'},
-	{volume = 'value = U->alpha * sqrt(U->gamma_xx);'},
-}
+function ADM_BonaMasso_1D_Alcubierre1997:getDisplayVars(solver)
+	return {
+		-- source-only:
+		{alpha = 'value = U->alpha;'},
+		{gamma_xx = 'value = U->gamma_xx;'},
+		-- both 1998 and 2008 cons vars:
+		{a_x = 'value = U->a_x;'},
+		-- 1998-only cons vars:
+		{d_xxx = 'value = U->d_xxx;'},
+		{K_xx = 'value = U->K_xx;'},
+		-- 2008-only cons vars:
+		{D_g = 'value = 2. * U->d_xxx / U->gamma_xx;'},
+		{KTilde_xx = 'value = U->K_xx * sqrt(U->gamma_xx);'},
+		-- aux:
+		{dx_alpha = 'value = U->alpha * U->a_x;'},
+		{dx_gamma_xx = 'value = 2. * U->d_xxx;'},
+		{volume = 'value = U->alpha * sqrt(U->gamma_xx);'},
+	}
+end
 
 local makeStruct = require 'eqn.makestruct'
 local eigenVars = {'alpha', 'sqrt_f_over_gamma_xx'}

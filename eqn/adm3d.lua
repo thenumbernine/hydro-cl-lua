@@ -108,7 +108,8 @@ function ADM_BonaMasso_3D:getSolverCode(solver)
 	return require 'processcl'(file['eqn/adm3d.cl'], {solver=solver})
 end
 
-ADM_BonaMasso_3D.displayVars = table()
+function ADM_BonaMasso_3D:getDisplayVars(solver)
+	return table()
 	:append(table.map(ADM_BonaMasso_3D.consVars, function(var)
 		local code = var:gsub('_', '.')
 		local dx, rest = code:match('^d%.([xyz])([xyz][xyz])$')
@@ -121,6 +122,7 @@ ADM_BonaMasso_3D.displayVars = table()
 	:append{
 		{volume = 'value = U->alpha * sqrt(sym3_det(U->gamma));'}
 	}
+end
 
 local makeStruct = require 'eqn.makestruct'
 local eigenVars = {'alpha', 'f', 'gammaUxx', 'gammaUxy', 'gammaUxz', 'gammaUyy', 'gammaUyz', 'gammaUzz'}

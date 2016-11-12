@@ -191,41 +191,35 @@ function SRHD:getSolverCode(solver)
 	}:concat'\n'
 end
 
-SRHD.displayVars = {
-	'D',
-	'Sx', 'Sy', 'Sz', 'S',
-	'tau',
-	'W',
-	'primitive_reconstruction_error',
-}
-
 SRHD.displayVarCodePrefix = [[
 	cons_t U = buf[index];
 	prim_t prim = primBuf[index];
 ]]
 
-SRHD.displayVars = {
-	{D = 'value = U.D;'},
-	{Sx = 'value = U.S.x;'},
-	{Sy = 'value = U.S.y;'},
-	{Sz = 'value = U.S.z;'},
-	{S = 'value = coordLen(U.S);'},
-	{tau = 'value = U.tau;'},
-	{W = 'value = U.D / prim.rho;'},
-	{primitive_reconstruction_error = [[
-		//prim have just been reconstructed from cons
-		//so reconstruct cons from prims again and calculate the difference
-		{
-			cons_t U2 = consFromPrim(prim);
-			value = 0;
-			value += fabs(U.D - U2.D);
-			value += fabs(U.S.x - U2.S.x);
-			value += fabs(U.S.y - U2.S.y);
-			value += fabs(U.S.z - U2.S.z);
-			value += fabs(U.tau - U2.tau);
-		}
-]]},
-}
+function SRHD:getDisplayVars(solver)
+	return {
+		{D = 'value = U.D;'},
+		{Sx = 'value = U.S.x;'},
+		{Sy = 'value = U.S.y;'},
+		{Sz = 'value = U.S.z;'},
+		{S = 'value = coordLen(U.S);'},
+		{tau = 'value = U.tau;'},
+		{W = 'value = U.D / prim.rho;'},
+		{primitive_reconstruction_error = [[
+			//prim have just been reconstructed from cons
+			//so reconstruct cons from prims again and calculate the difference
+			{
+				cons_t U2 = consFromPrim(prim);
+				value = 0;
+				value += fabs(U.D - U2.D);
+				value += fabs(U.S.x - U2.S.x);
+				value += fabs(U.S.y - U2.S.y);
+				value += fabs(U.S.z - U2.S.z);
+				value += fabs(U.tau - U2.tau);
+			}
+	]]},
+	}
+end
 
 SRHD.primDisplayVarCodePrefix = [[
 	prim_t prim = buf[index];

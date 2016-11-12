@@ -105,22 +105,24 @@ Euler1D.displayVarCodePrefix = [[
 	prim_t W = primFromCons(U);
 ]]
 
-Euler1D.displayVars = {
-	{rho = 'value = U.rho;'},
-	{vx = 'value = W.vx;'},
-	{P = 'value = W.P;'},
-	{mx = 'value = U.mx;'},
-	{eInt = 'value = W.P / (W.rho * (heatCapacityRatio - 1.));'},
-	{eKin = 'value = .5 * W.vx * W.vx;'},
-	{eTotal = 'value = U.ETotal / W.rho;'},
-	{EInt = 'value = W.P / (heatCapacityRatio - 1.);'},
-	{EKin = 'value = .5 * W.rho * W.vx * W.vx;'},
-	{ETotal = 'value = U.ETotal;'},
-	{S = 'value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
-	{H = 'value = W.P * heatCapacityRatio / (heatCapacityRatio - 1.);'},
-	{h = 'value = W.P * heatCapacityRatio / (heatCapacityRatio - 1.) / W.rho;'},
-	{HTotal = 'value = W.P * heatCapacityRatio / (heatCapacityRatio - 1.) + .5 * W.rho * W.vx * W.vx;'},
-	{hTotal = 'value = W.P * heatCapacityRatio / (heatCapacityRatio - 1.) / W.rho + .5 * W.vx * W.vx;'},
-} 
+function Euler1D:getDisplayVars(solver)
+	return {
+		{rho = 'value = U.rho;'},
+		{vx = 'value = W.vx;'},
+		{P = 'value = W.P;'},
+		{mx = 'value = U.mx;'},
+		{eInt = 'value = W.P / (W.rho * (heatCapacityRatio - 1.));'},
+		{eKin = 'value = .5 * W.vx * W.vx;'},
+		{eTotal = 'value = U.ETotal / W.rho;'},
+		{EInt = 'value = W.P / (heatCapacityRatio - 1.);'},
+		{EKin = 'value = .5 * W.rho * W.vx * W.vx;'},
+		{ETotal = 'value = U.ETotal;'},
+		{S = 'value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
+		{H = 'value = W.P * heatCapacityRatio / (heatCapacityRatio - 1.);'},
+		{h = 'value = W.P * heatCapacityRatio / (heatCapacityRatio - 1.) / W.rho;'},
+		{HTotal = 'value = W.P * heatCapacityRatio / (heatCapacityRatio - 1.) + .5 * W.rho * W.vx * W.vx;'},
+		{hTotal = 'value = W.P * heatCapacityRatio / (heatCapacityRatio - 1.) / W.rho + .5 * W.vx * W.vx;'},
+	}
+end
 
 return Euler1D
