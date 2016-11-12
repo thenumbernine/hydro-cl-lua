@@ -46,8 +46,12 @@ local selfGravBehavior = function(field, poissonClass)
 
 		function template:init(args)
 			self.useGravity = not not args.useGravity
-			self[field] = potentialClass(self)
 			
+			-- TODO in refreshGrid
+			if not self.useGravity then
+				self[field] = poissonClass(self)
+			end
+
 			-- init is gonna call
 			template.super.init(self, args)
 		end
@@ -97,4 +101,4 @@ local selfGravBehavior = function(field, poissonClass)
 	end
 end
 
-return selfGravBehavior('gravityPoisson', GravityPotential) 
+return selfGravBehavior('gravityPoisson', GravityPotential)

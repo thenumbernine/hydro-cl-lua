@@ -5,8 +5,8 @@ but works with anything that has a cons_t::rho, m[], ETotal
 
 __kernel void initPotential(
 	__global real* ePotBuf,
-	const __global cons_t* UBuf)
-{
+	const __global cons_t* UBuf
+) {
 	SETBOUNDS(0,0);
 	ePotBuf[index] = -UBuf[index].rho;
 }

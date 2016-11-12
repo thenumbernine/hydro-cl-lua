@@ -18,7 +18,7 @@ function EulerRoe:addConvertToTexUBuf()
 		type = 'cons_t',
 		extraArgs = {'const __global real* ePotBuf'},	-- the code is in eqn/euler.lua, so maybe the 'addConvertToTexUBuf' function should be too?
 		varCodePrefix = self.eqn.displayVarCodePrefix,
-		vars = self.eqn.displayVars,
+		vars = self.eqn:getDisplayVars(self),
 	}, ConvertToTex_EulerRoe_U)
 end
 

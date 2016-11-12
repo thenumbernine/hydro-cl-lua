@@ -23,8 +23,8 @@ function PoissonSolver:addConvertToTexs()
 end
 
 function PoissonSolver:getSolverCode()
-	require 'processcl'(
-		assert(file['solver/selfgrav.cl']), 
+	return require 'processcl'(
+		file['solver/selfgrav.cl'], 
 		table(self:getCodeParams(), {
 			solver = self.solver,
 		})
