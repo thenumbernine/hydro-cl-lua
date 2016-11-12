@@ -26,8 +26,10 @@ function TwoFluidEMHDRoe:init(args)
 	-- both?
 
 	self.ion = require 'solver.euler-roe'(args)
+	self.ion.name = 'ion '..self.ion.name
 
 	self.electron = require 'solver.euler-roe'(args)
+	self.electron.name = 'electron '..self.electron.name
 
 	local maxwellArgs = table(args)
 	maxwellArgs.eqn = 'maxwell'
@@ -129,7 +131,6 @@ __kernel void addSource_maxwell(
 	}
 	local code = lines:concat'\n'
 	code = require 'processcl'(code, {solver=self})
-print(require 'showcode'(code))	
 	self.addSourceProgram = require 'cl.program'{context=self.app.ctx, devices={self.app.device}, code=code}
 	
 	self.ion.addSourceKernel = self.addSourceProgram:kernel'addSource_ion'
@@ -181,6 +182,7 @@ function TwoFluidEMHDRoe:step(dt)
 	self.t = self.ion.t
 end
 
+-- same as Solver.update
 function TwoFluidEMHDRoe:update()
 	self:boundary()
 	local dt = self:calcDT()
@@ -192,14 +194,18 @@ function TwoFluidEMHDRoe:getTex(var)
 end
 
 function TwoFluidEMHDRoe:calcDisplayVarToTex(var)
-	self.solverForDisplayVars[var]:calcDisplayVarToTex(var)
+	return self.solverForDisplayVars[var]:calcDisplayVarToTex(var)
+end
+
+function TwoFluidEMHDRoe:calcDisplayVarRange(var)
+	return self.solverForDisplayVars[var]:calcDisplayVarRange(var)
 end
 
 function TwoFluidEMHDRoe:updateGUI()
 	for i,solver in ipairs(self.solvers) do
 		ig.igPushIdStr('subsolver '..i)
 		if ig.igCollapsingHeader('sub-solver '..solver.name..':') then
-			self.ion:updateGUI()
+			solver:updateGUI()
 		end
 		ig.igPopId()
 	end

@@ -1070,8 +1070,7 @@ function Solver:calcDisplayVarToTex(var)
 	end
 end
 
-function Solver:calcDisplayVarRange(varIndex)
-	local var = self.displayVars[varIndex]
+function Solver:calcDisplayVarRange(var)
 	local convertToTex = var.convertToTex
 	
 	convertToTex:setToBufferArgs(var)

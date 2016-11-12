@@ -1,9 +1,9 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local Roe = require 'solver.roe'
-local SelfGravitationBehavior = require 'solver.selfgrav'
+local SelfGrav = require 'solver.selfgrav'
 
-local EulerRoe = class(SelfGravitationBehavior(Roe))
+local EulerRoe = class(SelfGrav(Roe))
 
 local ConvertToTex_EulerRoe_U = class(EulerRoe.ConvertToTex)
 

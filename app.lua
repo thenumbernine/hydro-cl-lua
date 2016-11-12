@@ -42,7 +42,6 @@ local math = require 'ext.math'
 local table = require 'ext.table'
 local string = require 'ext.string'
 local file = require 'ext.file'
-local tolua = require 'ext.tolua'
 local ImGuiApp = require 'imguiapp'
 local CLPlatform = require 'cl.platform'
 local CLContext = require 'cl.context'
@@ -265,7 +264,7 @@ static inline real3 real3_sub(real3 a, real3 b) {
 	self.solver = require 'solver.euler-roe'(args)
 	--self.solver = require 'solver.srhd-roe'(args)
 	-- EM
-	--self.solver = require 'solver.roe'(table(args, {eqn='maxwell'}))
+	--self.solver = require 'solver.maxwell-roe'(args)
 	-- EM+HD
 	--self.solver = require 'solver.twofluid-emhd-roe'(args)
 	-- geometrodynamics
@@ -528,7 +527,7 @@ function HydroCLApp:update(...)
 					solverymin, solverymax = solver.mins[2], solver.maxs[2]
 					solverymin, solverymax = 1.1 * solverymin - .1 * solverymax, 1.1 * solverymax - .1 * solverymin
 				else
-					solverymin, solverymax = solver:calcDisplayVarRange(varIndex)
+					solverymin, solverymax = solver:calcDisplayVarRange(var)
 		
 					if useLog then
 						solverymin = math.log(solverymin, 10)
@@ -761,7 +760,7 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 				valueMin = var.heatMapValueMinPtr[0]
 				valueMax = var.heatMapValueMaxPtr[0]
 			else
-				valueMin, valueMax = solver:calcDisplayVarRange(varIndex)
+				valueMin, valueMax = solver:calcDisplayVarRange(var)
 				var.heatMapValueMinPtr[0] = valueMin
 				var.heatMapValueMaxPtr[0] = valueMax
 			end

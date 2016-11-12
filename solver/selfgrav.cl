@@ -51,27 +51,3 @@ if solver.dim > 2 then ?>
 
 	potentialBuf[index] = (rho - skewSum) / diag;
 }
-
-__kernel void calcGravityDeriv(
-	__global cons_t* derivBuffer,
-	const __global cons_t* UBuf,
-	const __global real* potentialBuf)
-{
-	SETBOUNDS(2,2);
-	
-	__global cons_t* deriv = derivBuffer + index;
-	const __global cons_t* U = UBuf + index;
-
-	//for (int side = 0; side < dim; ++side) {
-	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
-		int indexL = index - stepsize[side];
-		int indexR = index + stepsize[side];
-	
-		real gradient = (potentialBuf[indexR] - potentialBuf[indexL]) / (2. * dx<?=side?>_at(i));
-		real gravity = -gradient;
-
-		deriv->m.s[side] -= U->rho * gravity;
-		deriv->ETotal -= U->rho * gravity * U->m.s[side];
-	}<? end ?>
-}

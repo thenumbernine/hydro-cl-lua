@@ -24,11 +24,11 @@ end
 
 function PoissonSolver:getSolverCode()
 	return require 'processcl'(
-		file['solver/selfgrav.cl'], 
-		table(self:getCodeParams(), {
-			solver = self.solver,
-		})
-	)
+		table{
+			file['solver/selfgrav.cl'],
+			self.extraCode or '',
+		}:concat'\n',
+		table(self:getCodeParams(), {solver=self.solver}))
 end
 
 function PoissonSolver:refreshSolverProgram()
@@ -83,6 +83,73 @@ function PoissonSolver:step(dt)
 		solver.calcGravityDerivKernel:setArg(0, derivBuf)
 		solver.app.cmds:enqueueNDRangeKernel{kernel=solver.calcGravityDerivKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
 	end)
+end
+
+-- static function
+-- called with : (to get the correct subclass)
+-- used as behavior template
+function PoissonSolver:createBehavior(field, enableField)
+	local subclass = self
+	return function(parent)
+		local template = class(parent)
+
+		function template:init(args)
+			if enableField then
+				self[enableField] = not not args[enableField]
+			end
+
+			-- TODO in refreshGrid
+			if not enableField or not self[enableField] then
+				self[field] = subclass(self)
+			end
+
+			-- init is gonna call
+			template.super.init(self, args)
+		end
+
+		function template:createBuffers()
+			template.super.createBuffers(self)
+			self[field]:createBuffers()
+		end
+
+		function template:addConvertToTexs()
+			template.super.addConvertToTexs(self)
+			self[field]:addConvertToTexs()
+		end
+
+		function template:getSolverCode()
+			return table{
+				template.super.getSolverCode(self),
+				self[field]:getSolverCode(),
+			}:concat'\n'
+		end
+
+		function template:refreshSolverProgram()
+			template.super.refreshSolverProgram(self)
+			self[field]:refreshSolverProgram()
+		end
+
+		function template:refreshBoundaryProgram()
+			template.super.refreshBoundaryProgram(self)
+			self[field]:refreshBoundaryProgram()
+		end
+
+		function template:resetState()
+			template.super.resetState(self)
+			self[field]:resetState()
+		end
+
+		function template:step(dt)
+			template.super.step(self, dt)
+			self[field]:step(dt)	
+		end
+
+		function template:potentialBoundary()
+			self:applyBoundaryToBuffer(self[field].potentialBoundaryKernel)
+		end
+
+		return template
+	end
 end
 
 return PoissonSolver

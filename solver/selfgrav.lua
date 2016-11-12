@@ -1,32 +1,11 @@
 local class = require 'ext.class'
-local table = require 'ext.table'
-local file = require 'ext.file'
 local PoissonSolver = require 'solver.poisson'
-
-
-local RemoveDivergence = class(PoissonSolver)
-
-function RemoveDivergence:getCodeParams()
-	return {
-		args = 'const __global cons_t* UBuf',
-		calcRho = [[
-	//TODO make this modular
-	//4 pi G rho for gravity
-	//div(E) for electromagnetism
-	const __global cons_t* U = UBuf + index;
-	real divE = .5 * ((U[stepSize.x].epsE.x - U[-stepSize.x].epsE.x) / grid_dx0
-					+ (U[stepSize.y].epsE.y - U[-stepSize.y].epsE.y) / grid_dx1,
-					+ (U[stepSize.z].epsE.z - U[-stepSize.z].epsE.z) / grid_dx2);
-	rho = divE;	//times 4 pi?
-]],
-	}
-end
-
 
 local GravityPotential = class(PoissonSolver)
 
 GravityPotential.gravityConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
 
+-- params for solver/selfgrav.cl 
 function GravityPotential:getCodeParams()
 	return {
 		args = 'const __global cons_t* UBuf',
@@ -40,65 +19,31 @@ function GravityPotential:getCodeParams()
 	}
 end
 
-local selfGravBehavior = function(field, poissonClass)
-	return function(parent)
-		local template = class(parent)
+GravityPotential.extraCode = [[
 
-		function template:init(args)
-			self.useGravity = not not args.useGravity
-			
-			-- TODO in refreshGrid
-			if not self.useGravity then
-				self[field] = poissonClass(self)
-			end
+__kernel void calcGravityDeriv(
+	__global cons_t* derivBuffer,
+	const __global cons_t* UBuf,
+	const __global real* potentialBuf)
+{
+	SETBOUNDS(2,2);
+	
+	__global cons_t* deriv = derivBuffer + index;
+	const __global cons_t* U = UBuf + index;
 
-			-- init is gonna call
-			template.super.init(self, args)
-		end
+	//for (int side = 0; side < dim; ++side) {
+	<? for side=0,solver.dim-1 do ?>{
+		const int side = <?=side?>;
+		int indexL = index - stepsize[side];
+		int indexR = index + stepsize[side];
+	
+		real gradient = (potentialBuf[indexR] - potentialBuf[indexL]) / (2. * dx<?=side?>_at(i));
+		real gravity = -gradient;
 
-		function template:createBuffers()
-			template.super.createBuffers(self)
-			self[field]:createBuffers()
-		end
+		deriv->m.s[side] -= U->rho * gravity;
+		deriv->ETotal -= U->rho * gravity * U->m.s[side];
+	}<? end ?>
+}
+]]
 
-		function template:addConvertToTexs()
-			template.super.addConvertToTexs(self)
-			self[field]:addConvertToTexs()
-		end
-
-		function template:getSolverCode()
-			return table{
-				template.super.getSolverCode(self),
-				self[field]:getSolverCode(),
-			}:concat'\n'
-		end
-
-		function template:refreshSolverProgram()
-			template.super.refreshSolverProgram(self)
-			self[field]:refreshSolverProgram()
-		end
-
-		function template:refreshBoundaryProgram()
-			template.super.refreshBoundaryProgram(self)
-			self[field]:refreshBoundaryProgram()
-		end
-
-		function template:resetState()
-			template.super.resetState(self)
-			self[field]:resetState()
-		end
-
-		function template:step(dt)
-			template.super.step(self, dt)
-			self[field]:step(dt)	
-		end
-
-		function template:potentialBoundary()
-			self:applyBoundaryToBuffer(self[field].potentialBoundaryKernel)
-		end
-
-		return template
-	end
-end
-
-return selfGravBehavior('gravityPoisson', GravityPotential)
+return GravityPotential:createBehavior('gravityPoisson', 'useGravity')

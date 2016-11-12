@@ -94,15 +94,13 @@ function Maxwell:getDisplayVars(solver)
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='epsE', B='B'})[var] )
 		return {['div_'..var] = processcl([[
-	int4 iL, iR;
 	value = 0;
 	<? for j=0,solver.dim-1 do ?>{
-		const int j = <?=j?>;
-		iL = iR = i;
-		iL.s<?=j?> = (iL.s<?=j?> + gridSize.s<?=j?> - 1) % gridSize.s<?=j?>; 
-		iR.s<?=j?> = (iR.s<?=j?> + 1) % gridSize.s<?=j?>; 
-		value += (buf[INDEXV(iR)].<?=field?>.s<?=j?> - buf[INDEXV(iL)].<?=field?>.s<?=j?>) / (2. * grid_dx<?=j?>);
+		value += (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 
+			- buf[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
+		) / grid_dx<?=j?>;
 	}<? end ?>
+	value *= .5;
 	<? if field == 'epsE' then ?>
 	value /= eps0;
 	<? end ?>
