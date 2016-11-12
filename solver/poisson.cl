@@ -12,7 +12,7 @@ __kernel void initPotential(
 }
 
 __kernel void solvePoisson(
-	__global real* potentialBuf,
+	__global real* ePotBuf,
 	<?=args?>
 ) {
 	SETBOUNDS(2,2);
@@ -26,15 +26,15 @@ if solver.dim > 2 then ?>
 <? end ?>
 
 	real skewSum = 0;
-	if (i.x < gridSize_x-3) skewSum += potentialBuf[index + stepsize.x] / (dx * dx);
-	if (i.x > 2) skewSum += potentialBuf[index - stepsize.x] / (dx * dx);
+	if (i.x < gridSize_x-3) skewSum += ePotBuf[index + stepsize.x] / (dx * dx);
+	if (i.x > 2) skewSum += ePotBuf[index - stepsize.x] / (dx * dx);
 <? if solver.dim > 1 then ?>
-	if (i.y < gridSize_y-3) skewSum += potentialBuf[index + stepsize.y] / (dy * dy);
-	if (i.y > 2) skewSum += potentialBuf[index - stepsize.y] / (dy * dy);
+	if (i.y < gridSize_y-3) skewSum += ePotBuf[index + stepsize.y] / (dy * dy);
+	if (i.y > 2) skewSum += ePotBuf[index - stepsize.y] / (dy * dy);
 <? end
 if solver.dim > 2 then ?>
-	if (i.z < gridSize_z-3) skewSum += potentialBuf[index + stepsize.z] / (dz * dz);
-	if (i.z > 2) skewSum += potentialBuf[index - stepsize.z] / (dz * dz);
+	if (i.z < gridSize_z-3) skewSum += ePotBuf[index + stepsize.z] / (dz * dz);
+	if (i.z > 2) skewSum += ePotBuf[index - stepsize.z] / (dz * dz);
 <? end ?>
 
 	const real diag = -2. * (1. / (dx * dx)
@@ -49,5 +49,5 @@ if solver.dim > 2 then ?>
 	real rho = 0;
 	<?=calcRho?>
 
-	potentialBuf[index] = (rho - skewSum) / diag;
+	ePotBuf[index] = (rho - skewSum) / diag;
 }

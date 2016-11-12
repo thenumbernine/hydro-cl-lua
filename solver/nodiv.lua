@@ -21,6 +21,11 @@ end
 
 RemoveDivergence.extraCode = [[
 
+__kernel void removeDiv(
+	__global cons_t* UBuf,
+	const __global real* ePotBuf
+) {
+}
 
 ]]
 

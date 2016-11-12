@@ -5,7 +5,7 @@ local GravityPotential = class(PoissonSolver)
 
 GravityPotential.gravityConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
 
--- params for solver/selfgrav.cl 
+-- params for solver/poisson.cl 
 function GravityPotential:getCodeParams()
 	return {
 		args = 'const __global cons_t* UBuf',
@@ -24,8 +24,8 @@ GravityPotential.extraCode = [[
 __kernel void calcGravityDeriv(
 	__global cons_t* derivBuffer,
 	const __global cons_t* UBuf,
-	const __global real* potentialBuf)
-{
+	const __global real* ePotBuf
+) {
 	SETBOUNDS(2,2);
 	
 	__global cons_t* deriv = derivBuffer + index;
@@ -37,7 +37,7 @@ __kernel void calcGravityDeriv(
 		int indexL = index - stepsize[side];
 		int indexR = index + stepsize[side];
 	
-		real gradient = (potentialBuf[indexR] - potentialBuf[indexL]) / (2. * dx<?=side?>_at(i));
+		real gradient = (ePotBuf[indexR] - ePotBuf[indexL]) / (2. * dx<?=side?>_at(i));
 		real gravity = -gradient;
 
 		deriv->m.s[side] -= U->rho * gravity;

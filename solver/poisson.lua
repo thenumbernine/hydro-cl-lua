@@ -25,7 +25,7 @@ end
 function PoissonSolver:getSolverCode()
 	return require 'processcl'(
 		table{
-			file['solver/selfgrav.cl'],
+			file['solver/poisson.cl'],
 			self.extraCode or '',
 		}:concat'\n',
 		table(self:getCodeParams(), {solver=self.solver}))
