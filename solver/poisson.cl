@@ -7,8 +7,10 @@ __kernel void initPotential(
 	__global real* ePotBuf,
 	const __global cons_t* UBuf
 ) {
-	SETBOUNDS(0,0);
-	ePotBuf[index] = -UBuf[index].rho;
+	SETBOUNDS(2,2);
+	real rho = 0;
+	<?=calcRho?>
+	ePotBuf[index] = -rho;
 }
 
 __kernel void solvePoisson(

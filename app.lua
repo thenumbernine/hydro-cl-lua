@@ -253,7 +253,7 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		-- no initial state means use the first
 		-- initState = cmdline.initState,
 		-- euler / srhd initial states:
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'Kelvin-Hemholtz',
@@ -261,10 +261,10 @@ static inline real3 real3_sub(real3 a, real3 b) {
 
 	-- fluid
 	--self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
-	self.solver = require 'solver.euler-roe'(args)
+	--self.solver = require 'solver.euler-roe'(args)
 	--self.solver = require 'solver.srhd-roe'(args)
 	-- EM
-	--self.solver = require 'solver.maxwell-roe'(args)
+	self.solver = require 'solver.maxwell-roe'(args)
 	-- EM+HD
 	--self.solver = require 'solver.twofluid-emhd-roe'(args)
 	-- geometrodynamics

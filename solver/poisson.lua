@@ -4,25 +4,27 @@ local class = require 'ext.class'
 local ffi = require 'ffi'
 
 
-local PoissonSolver = class()
+local Poisson = class()
 
-function PoissonSolver:init(solver)
+Poisson.gaussSeidelMaxIters = 20
+
+function Poisson:init(solver)
 	self.solver = solver
 end
 
-function PoissonSolver:createBuffers()
+function Poisson:createBuffers()
 	local solver = self.solver
 	solver:clalloc('ePotBuf', solver.volume * ffi.sizeof(solver.app.real))
 end
 
-function PoissonSolver:addConvertToTexs()
+function Poisson:addConvertToTexs()
 	self.solver:addConvertToTex{
 		name = 'ePot',
 		vars = {{['0'] = 'value = buf[index];'}},
 	}
 end
 
-function PoissonSolver:getSolverCode()
+function Poisson:getSolverCode()
 	return require 'processcl'(
 		table{
 			file['solver/poisson.cl'],
@@ -31,18 +33,14 @@ function PoissonSolver:getSolverCode()
 		table(self:getCodeParams(), {solver=self.solver}))
 end
 
-function PoissonSolver:refreshSolverProgram()
+function Poisson:refreshSolverProgram()
 	local solver = self.solver
 	solver.initPotentialKernel = solver.solverProgram:kernel('initPotential', solver.ePotBuf, solver.UBuf)
 
 	solver.solvePoissonKernel = solver.solverProgram:kernel('solvePoisson', solver.ePotBuf, solver.UBuf)
-	
-	solver.calcGravityDerivKernel = solver.solverProgram:kernel'calcGravityDeriv'
-	solver.calcGravityDerivKernel:setArg(1, solver.UBuf)
-	solver.calcGravityDerivKernel:setArg(2, solver.ePotBuf)	
 end
 
-function PoissonSolver:refreshBoundaryProgram()
+function Poisson:refreshBoundaryProgram()
 	local solver = self.solver
 	solver.potentialBoundaryProgram, solver.potentialBoundaryKernel =
 		solver:createBoundaryProgramAndKernel{
@@ -54,15 +52,12 @@ function PoissonSolver:refreshBoundaryProgram()
 	solver.potentialBoundaryKernel:setArg(0, solver.ePotBuf)
 end
 
-function PoissonSolver:resetState()
+function Poisson:resetState()
 	local solver = self.solver
 	if solver.useGravity then 
 		solver.app.cmds:enqueueNDRangeKernel{kernel=solver.initPotentialKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
 		solver:potentialBoundary()
-		for i=1,20 do
-			solver.app.cmds:enqueueNDRangeKernel{kernel=solver.solvePoissonKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
-			solver:potentialBoundary()
-		end
+		self:relax()
 	end
 	
 	-- TODO
@@ -70,25 +65,18 @@ function PoissonSolver:resetState()
 	-- then MAKE SURE TO SUBTRACT IT OUT everywhere internal energy is used
 end
 
-function PoissonSolver:step(dt)
+function Poisson:relax()
 	local solver = self.solver
-	solver.integrator:integrate(dt, function(derivBuf)
-		if solver.useGravity then
-			for i=1,20 do
-				solver:potentialBoundary()
-				solver.app.cmds:enqueueNDRangeKernel{kernel=solver.solvePoissonKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
-			end
-		end
-		
-		solver.calcGravityDerivKernel:setArg(0, derivBuf)
-		solver.app.cmds:enqueueNDRangeKernel{kernel=solver.calcGravityDerivKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
-	end)
+	for i=1,self.gaussSeidelMaxIters do
+		solver:potentialBoundary()
+		solver.app.cmds:enqueueNDRangeKernel{kernel=solver.solvePoissonKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	end
 end
 
 -- static function
 -- called with : (to get the correct subclass)
 -- used as behavior template
-function PoissonSolver:createBehavior(field, enableField)
+function Poisson:createBehavior(field, enableField)
 	local subclass = self
 	return function(parent)
 		local template = class(parent)
@@ -139,17 +127,12 @@ function PoissonSolver:createBehavior(field, enableField)
 			self[field]:resetState()
 		end
 
-		function template:step(dt)
-			template.super.step(self, dt)
-			self[field]:step(dt)	
-		end
-
 		function template:potentialBoundary()
-			self:applyBoundaryToBuffer(self[field].potentialBoundaryKernel)
+			self:applyBoundaryToBuffer(self.potentialBoundaryKernel)
 		end
 
 		return template
 	end
 end
 
-return PoissonSolver
+return Poisson

@@ -1,12 +1,12 @@
 local class = require 'ext.class'
-local PoissonSolver = require 'solver.poisson'
+local Poisson = require 'solver.poisson'
 
-local GravityPotential = class(PoissonSolver)
+local SelfGrav = class(Poisson)
 
-GravityPotential.gravityConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
+SelfGrav.gravityConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
 
 -- params for solver/poisson.cl 
-function GravityPotential:getCodeParams()
+function SelfGrav:getCodeParams()
 	return {
 		args = 'const __global cons_t* UBuf',
 		calcRho = '#define gravitationalConstant '..require 'clnumber'(self.gravityConstant)..'\n'..[[
@@ -19,16 +19,7 @@ function GravityPotential:getCodeParams()
 	}
 end
 
-function GravityPotential:refreshSolverProgram()
-	GravityPotential.super.refreshSolverProgram(self)
-	
-	local solver = self.solver
-	solver.calcGravityDerivKernel = solver.solverProgram:kernel'calcGravityDeriv'
-	solver.calcGravityDerivKernel:setArg(1, solver.UBuf)
-	solver.calcGravityDerivKernel:setArg(2, solver.ePotBuf)	
-end
-
-GravityPotential.extraCode = [[
+SelfGrav.extraCode = [[
 
 __kernel void calcGravityDeriv(
 	__global cons_t* derivBuffer,
@@ -55,28 +46,30 @@ __kernel void calcGravityDeriv(
 }
 ]]
 
-function GravityPotential:step(dt)
+function SelfGrav:refreshSolverProgram()
+	SelfGrav.super.refreshSolverProgram(self)
+	
 	local solver = self.solver
-	if not solver.useGravity then return end
-	solver.integrator:integrate(dt, function(derivBuf)
-		for i=1,20 do
-			solver:potentialBoundary()
-			solver.app.cmds:enqueueNDRangeKernel{kernel=solver.solvePoissonKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
-		end
-		
-		solver.calcGravityDerivKernel:setArg(0, derivBuf)
-		solver.app.cmds:enqueueNDRangeKernel{kernel=solver.calcGravityDerivKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
-	end)
+	solver.calcGravityDerivKernel = solver.solverProgram:kernel'calcGravityDeriv'
+	solver.calcGravityDerivKernel:setArg(1, solver.UBuf)
+	solver.calcGravityDerivKernel:setArg(2, solver.ePotBuf)	
 end
 
 local field = 'gravityPoisson'
-local apply = GravityPotential:createBehavior(field, 'useGravity')
+local enableField = 'useGravity'
+local apply = SelfGrav:createBehavior(field, enableField)
 return function(parent)
 	local template = apply(parent)
 
 	function template:step(dt)
 		template.super.step(self, dt)
-		self[field]:step(dt)	
+		
+		if not self[enableField] then return end
+		self.integrator:integrate(dt, function(derivBuf)
+			self[field]:relax()
+			self.calcGravityDerivKernel:setArg(0, derivBuf)
+			self.app.cmds:enqueueNDRangeKernel{kernel=self.calcGravityDerivKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		end)
 	end
 
 	return template
