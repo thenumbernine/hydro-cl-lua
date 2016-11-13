@@ -31,9 +31,7 @@ function TwoFluidEMHDRoe:init(args)
 	self.electron = require 'solver.euler-roe'(args)
 	self.electron.name = 'electron '..self.electron.name
 
-	local maxwellArgs = table(args)
-	maxwellArgs.eqn = 'maxwell'
-	self.maxwell = require 'solver.roe'(maxwellArgs)
+	self.maxwell = require 'solver.maxwell-roe'(args)
 
 	self.solvers = table{self.ion, self.electron, self.maxwell}
 
@@ -46,7 +44,15 @@ function TwoFluidEMHDRoe:init(args)
 		end
 	end
 
-	
+	select(2, self.ion.displayVars:find(nil, function(var) return var.name == 'U_rho' end)).enabled[0] = false 
+	self.ion:refreshDisplayProgram()
+	select(2, self.electron.displayVars:find(nil, function(var) return var.name == 'U_rho' end)).enabled[0] = false 
+	self.electron:refreshDisplayProgram()
+	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_Ex' end)).enabled[0] = false 
+	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_div_B' end)).enabled[0] = true
+	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_div_B' end)).heatMapFixedRangePtr[0] = false
+	self.maxwell:refreshDisplayProgram()
+
 	self.color = vec3(math.random(), math.random(), math.random()):normalize()
 	
 	self.numGhost = self.ion.numGhost
@@ -183,6 +189,8 @@ function TwoFluidEMHDRoe:step(dt)
 end
 
 -- same as Solver.update
+-- note this means sub-solvers' update() will be skipped
+-- so best to put update stuff in step()
 function TwoFluidEMHDRoe:update()
 	self:boundary()
 	local dt = self:calcDT()
