@@ -28,9 +28,9 @@ __kernel void noDiv(
 	SETBOUNDS(2,2);
 	__global cons_t* U = UBuf + index;
 	const __global real* ePot = ePotBuf + index;
-	U->B.x = -= (ePot[stepsize.x] - ePot[-stepsize.x]) / (2. * grid_dx0);
-	U->B.y = -= (ePot[stepsize.y] - ePot[-stepsize.y]) / (2. * grid_dx1);
-	U->B.z = -= (ePot[stepsize.z] - ePot[-stepsize.z]) / (2. * grid_dx2);
+	U->B.x -= (ePot[stepsize.x] - ePot[-stepsize.x]) / (2. * grid_dx0);
+	U->B.y -= (ePot[stepsize.y] - ePot[-stepsize.y]) / (2. * grid_dx1);
+	U->B.z -= (ePot[stepsize.z] - ePot[-stepsize.z]) / (2. * grid_dx2);
 }
 
 ]]
