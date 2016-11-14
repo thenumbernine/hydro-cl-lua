@@ -37,20 +37,27 @@ function TwoFluidEMHDRoe:init(args)
 
 	self.displayVars = table():append(self.solvers:map(function(solver) return solver.displayVars end):unpack())
 
+	select(2, self.ion.displayVars:find(nil, function(var) return var.name == 'U_rho' end)).enabled[0] = true 
+	select(2, self.electron.displayVars:find(nil, function(var) return var.name == 'U_rho' end)).enabled[0] = true 
+	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_Ex' end)).enabled[0] = false 
+	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_div_B' end)).enabled[0] = true
+	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_div_B' end)).heatMapFixedRangePtr[0] = false
+	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_div_E' end)).enabled[0] = true
+	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_div_E' end)).heatMapFixedRangePtr[0] = false
+	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'ePot_0' end)).enabled[0] = true
+	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'ePot_0' end)).heatMapFixedRangePtr[0] = false
+
+	-- make names unique so that stupid 1D var name-matching code doesn't complain
 	self.solverForDisplayVars = table()
 	for _,solver in ipairs(self.solvers) do
 		for _,var in ipairs(solver.displayVars) do
-			self.solverForDisplayVars[var] = solver 
+			self.solverForDisplayVars[var] = solver
+			var.name = solver.name:gsub('[%s]', '_')..'_'..var.name
 		end
 	end
 
-	select(2, self.ion.displayVars:find(nil, function(var) return var.name == 'U_rho' end)).enabled[0] = false 
 	self.ion:refreshDisplayProgram()
-	select(2, self.electron.displayVars:find(nil, function(var) return var.name == 'U_rho' end)).enabled[0] = false 
 	self.electron:refreshDisplayProgram()
-	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_Ex' end)).enabled[0] = false 
-	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_div_B' end)).enabled[0] = true
-	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_div_E' end)).heatMapFixedRangePtr[0] = false
 	self.maxwell:refreshDisplayProgram()
 
 	self.color = vec3(math.random(), math.random(), math.random()):normalize()

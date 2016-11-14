@@ -25,7 +25,6 @@ __kernel void noDiv(
 	__global cons_t* UBuf,
 	const __global real* ePotBuf
 ) {
-return;	
 	SETBOUNDS(2,2);
 	__global cons_t* U = UBuf + index;
 	const __global real* ePot = ePotBuf + index;
