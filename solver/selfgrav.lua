@@ -10,11 +10,8 @@ function SelfGrav:getCodeParams()
 	return {
 		args = 'const __global cons_t* UBuf',
 		calcRho = '#define gravitationalConstant '..require 'clnumber'(self.gravityConstant)..'\n'..[[
-	//TODO make this modular
-	//4 pi G rho for gravity
-	//div(E) for electromagnetism
 	const __global cons_t* U = UBuf + index;
-	rho = 4. * M_PI * gravitationalConstant * U->rho;
+	rho = gravitationalConstant * U->rho;	//maybe a 4pi?  or is that only in the continuous case?
 ]],
 	}
 end

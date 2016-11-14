@@ -6,16 +6,20 @@ local NoDiv = class(Poisson)
 function NoDiv:getCodeParams()
 	return {
 		args = 'const __global cons_t* UBuf',
-		calcRho = [[
-	//TODO make this modular
-	//4 pi G rho for gravity
-	//div(B) for electromagnetism
+		calcRho = require 'processcl'([[
 	const __global cons_t* U = UBuf + index;
-	real divB = .5 * ((U[stepsize.x].B.x - U[-stepsize.x].B.x) / grid_dx0
-					+ (U[stepsize.y].B.y - U[-stepsize.y].B.y) / grid_dx1
-					+ (U[stepsize.z].B.z - U[-stepsize.z].B.z) / grid_dx2);
-	rho = -4. * M_PI * divB;
-]],
+	real divB = .5 * (
+		(U[stepsize.x].B.x - U[-stepsize.x].B.x) / grid_dx0
+<? if solver.dim > 1 then ?>	
+		+ (U[stepsize.y].B.y - U[-stepsize.y].B.y) / grid_dx1
+<? end
+if solver.dim > 2 then ?>
+		+ (U[stepsize.z].B.z - U[-stepsize.z].B.z) / grid_dx2
+<? end ?>
+	);
+	//because this is the discrete case, no 4pi
+	rho = divB;
+]], {solver = self.solver}),
 	}
 end
 
@@ -25,12 +29,13 @@ __kernel void noDiv(
 	__global cons_t* UBuf,
 	const __global real* ePotBuf
 ) {
+return;	
 	SETBOUNDS(2,2);
 	__global cons_t* U = UBuf + index;
 	const __global real* ePot = ePotBuf + index;
-	U->B.x -= (ePot[stepsize.x] - ePot[-stepsize.x]) / (2. * grid_dx0);
-	U->B.y -= (ePot[stepsize.y] - ePot[-stepsize.y]) / (2. * grid_dx1);
-	U->B.z -= (ePot[stepsize.z] - ePot[-stepsize.z]) / (2. * grid_dx2);
+<? for i=0,solver.dim-1 do ?> 
+	U->B.s<?=i?> -= (ePot[stepsize.s<?=i?>] - ePot[-stepsize.s<?=i?>]) / (2. * grid_dx0);
+<? end ?>
 }
 
 ]]

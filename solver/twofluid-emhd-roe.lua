@@ -50,7 +50,7 @@ function TwoFluidEMHDRoe:init(args)
 	self.electron:refreshDisplayProgram()
 	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_Ex' end)).enabled[0] = false 
 	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_div_B' end)).enabled[0] = true
-	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_div_B' end)).heatMapFixedRangePtr[0] = false
+	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_div_E' end)).heatMapFixedRangePtr[0] = false
 	self.maxwell:refreshDisplayProgram()
 
 	self.color = vec3(math.random(), math.random(), math.random()):normalize()

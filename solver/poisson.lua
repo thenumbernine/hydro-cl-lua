@@ -36,7 +36,6 @@ end
 function Poisson:refreshSolverProgram()
 	local solver = self.solver
 	solver.initPotentialKernel = solver.solverProgram:kernel('initPotential', solver.ePotBuf, solver.UBuf)
-
 	solver.solvePoissonKernel = solver.solverProgram:kernel('solvePoisson', solver.ePotBuf, solver.UBuf)
 end
 
@@ -54,22 +53,16 @@ end
 
 function Poisson:resetState()
 	local solver = self.solver
-	if solver.useGravity then 
-		solver.app.cmds:enqueueNDRangeKernel{kernel=solver.initPotentialKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
-		solver:potentialBoundary()
-		self:relax()
-	end
-	
-	-- TODO
-	-- add potential energy into total energy
-	-- then MAKE SURE TO SUBTRACT IT OUT everywhere internal energy is used
+	solver.app.cmds:enqueueNDRangeKernel{kernel=solver.initPotentialKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	solver:potentialBoundary()
+	self:relax()
 end
 
 function Poisson:relax()
 	local solver = self.solver
 	for i=1,self.gaussSeidelMaxIters do
-		solver:potentialBoundary()
 		solver.app.cmds:enqueueNDRangeKernel{kernel=solver.solvePoissonKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+		solver:potentialBoundary()
 	end
 end
 
@@ -122,9 +115,14 @@ function Poisson:createBehavior(field, enableField)
 			self[field]:refreshBoundaryProgram()
 		end
 
+		-- TODO
+		-- for Euler, add potential energy into total energy
+		-- then MAKE SURE TO SUBTRACT IT OUT everywhere internal energy is used
 		function template:resetState()
 			template.super.resetState(self)
-			self[field]:resetState()
+			if not enableField or self[enableField] then
+				self[field]:resetState()
+			end
 		end
 
 		function template:potentialBoundary()
