@@ -44,12 +44,9 @@ __kernel void solvePoisson(
 	}
 <? end ?>
 
-	const real diag = -2. * (1. / (dx0 * dx0)
-<? if solver.dim > 1 then ?>
-		+ 1. / (dx1 * dx1)
-<? end
-if solver.dim > 2 then ?>
-		+ 1. / (dx2 * dx2)
+	const real diag = -2. * (0
+<? for j=0,solver.dim-1 do ?>
+		+ 1. / (dx<?=j?> * dx<?=j?>)
 <? end ?>
 	);
 

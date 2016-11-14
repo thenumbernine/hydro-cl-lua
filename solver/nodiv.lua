@@ -8,13 +8,9 @@ function NoDiv:getCodeParams()
 		args = 'const __global cons_t* UBuf',
 		calcRho = require 'processcl'([[
 	const __global cons_t* U = UBuf + index;
-	real divB = .5 * (
-		(U[stepsize.x].B.x - U[-stepsize.x].B.x) / grid_dx0
-<? if solver.dim > 1 then ?>	
-		+ (U[stepsize.y].B.y - U[-stepsize.y].B.y) / grid_dx1
-<? end
-if solver.dim > 2 then ?>
-		+ (U[stepsize.z].B.z - U[-stepsize.z].B.z) / grid_dx2
+	real divB = .5 * (0
+<? for j=0,solver.dim-1 do ?>
+		+ (U[stepsize.s<?=j?>].B.s<?=j?> - U[-stepsize.s<?=j?>].B.s<?=j?>) / grid_dx<?=j?>
 <? end ?>
 	);
 	//because this is the discrete case, no 4pi
@@ -33,8 +29,8 @@ return;
 	SETBOUNDS(2,2);
 	__global cons_t* U = UBuf + index;
 	const __global real* ePot = ePotBuf + index;
-<? for i=0,solver.dim-1 do ?> 
-	U->B.s<?=i?> -= (ePot[stepsize.s<?=i?>] - ePot[-stepsize.s<?=i?>]) / (2. * grid_dx0);
+<? for j=0,solver.dim-1 do ?> 
+	U->B.s<?=j?> -= (ePot[stepsize.s<?=j?>] - ePot[-stepsize.s<?=j?>]) / (2. * grid_dx<?=j?>);
 <? end ?>
 }
 
