@@ -92,6 +92,14 @@ inline real3 lower(real3 vU) {
 	return sym3_real3_mul(gammaL, vU);
 }
 
+inline real metricLenSq(real3 vU) {
+	real3 vL = lower(vU);
+	return real3_dot(vL, vU);
+}
+
+inline real metricLen(real3 vU) {
+	return sqrt(metricLenSq(vU));
+}
 
 //pressure function for ideal gas
 real calc_P(real rho, real eInt) {
@@ -117,8 +125,7 @@ real calc_h(real rho, real P, real eInt) {
 }
 
 cons_t consFromPrim(prim_t prim) {
-	real3 vL = lower(prim.v);
-	real vSq = real3_dot(prim.v, vL);
+	real vSq = metricLenSq(prim.v);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
 	real P = calc_P(prim.rho, prim.eInt);
@@ -172,8 +179,7 @@ __kernel void initState(
 ]]..code..[[
 	
 	real eInt = calc_eInt_from_P(rho, P);
-	real3 vL = lower(v);
-	real vSq = real3_dot(v, vL);
+	real vSq = metricLenSq(v);
 	real W = 1. / sqrt(1. - vSq);
 	real h = calc_h(rho, P, eInt);
 
@@ -202,7 +208,7 @@ function SRHD:getDisplayVars(solver)
 		{Sx = 'value = U.S.x;'},
 		{Sy = 'value = U.S.y;'},
 		{Sz = 'value = U.S.z;'},
-		{S = 'value = coordLen(U.S);'},
+		{S = 'value = metricLen(U.S);'},
 		{tau = 'value = U.tau;'},
 		{W = 'value = U.D / prim.rho;'},
 		{primitive_reconstruction_error = [[
@@ -230,7 +236,7 @@ SRHD.primDisplayVars = {
 	{vx = 'value = prim.v.x;'},
 	{vy = 'value = prim.v.y;'},
 	{vz = 'value = prim.v.z;'},
-	{v = 'value = coordLen(prim.v);'},
+	{v = 'value = metricLen(prim.v);'},
 	{eInt = 'value = prim.eInt;'},
 	{P = 'value = calc_P(prim.rho, prim.eInt);'},
 	{h = 'value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt);'},

@@ -18,8 +18,7 @@ __kernel void calcDT(
 	prim_t prim = primBuf[index];
 	real rho = prim.rho;
 	real eInt = prim.eInt;
-	real3 vL = lower(prim.v);
-	real vSq = real3_dot(prim.v, vL);
+	real vSq = metricLenSq(prim.v);
 	real P = calc_P(rho, eInt);
 	real h = calc_h(rho, P, eInt);
 	real csSq = heatCapacityRatio * P / (rho * h);
@@ -276,8 +275,7 @@ __kernel void updatePrims(
 	__global prim_t* prim = primBuf + index;
 	real3 v = prim->v;
 
-	real3 SL = lower(S);
-	real SLen = sqrt(real3_dot(S,SL));
+	real SLen = metricLen(S);
 	real PMin = max(SLen - tau - D + SLen * solvePrimVelEpsilon, solvePrimPMinEpsilon);
 	real PMax = (heatCapacityRatio - 1.) * tau;
 	PMax = max(PMax, PMin);
@@ -298,8 +296,7 @@ __kernel void updatePrims(
 		P = newP;
 		if (PError < solvePrimStopEpsilon) {
 			v = real3_scale(S, 1. / (tau + D + P));
-			real3 vL = lower(v);
-			vSq = real3_dot(v, vL);
+			vSq = metricLenSq(v);
 			W = 1. / sqrt(1. - vSq);
 			rho = D / W;
 			rho = max(rho, (real)rhoMin);

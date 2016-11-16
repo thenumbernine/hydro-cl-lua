@@ -3,6 +3,8 @@ local Poisson = require 'solver.poisson'
 
 local NoDiv = class(Poisson)
 
+NoDiv.gaussSeidelMaxIters = 20
+
 function NoDiv:getCodeParams()
 	return {
 		args = 'const __global cons_t* UBuf',
