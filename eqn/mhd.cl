@@ -10,7 +10,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real3 v = W.v;
 	real3 b = W.b;
 
-	real bSq = coordLenSq(b);
+	real bSq = real3_lenSq(b);
 	real invRho = 1./W.rho;
 
 	real aSq = heatCapacityRatio * W.P * invRho;
@@ -43,12 +43,12 @@ Roe_t calcRoeValues(cons_t UL, cons_t UR) {
 	// should I use bx, or bxL/R, for calculating the PMag at the L and R states?
 	prim_t WL = primFromCons(UL);
 	real sqrtRhoL = sqrt(UL.rho);
-	real PMagL = .5 * coordLenSq(UL.b);
+	real PMagL = .5 * real3_lenSq(UL.b);
 	real hTotalL = (UL.ETotal + WL.P + PMagL) / UL.rho;
 
 	prim_t WR = primFromCons(UR);;
 	real sqrtRhoR = sqrt(UR.rho);
-	real PMagR = .5 * coordLenSq(UR.b);
+	real PMagR = .5 * real3_lenSq(UR.b);
 	real hTotalR = (UR.ETotal + WR.P + PMagR) / UR.rho;
 	
 	real invDenom = 1 / (sqrtRhoL + sqrtRhoR);
@@ -63,7 +63,9 @@ Roe_t calcRoeValues(cons_t UL, cons_t UR) {
 	real bz = (sqrtRhoR * WL.b.z + sqrtRhoL * WR.b.z) * invDenom;
 	
 	real hTotal = (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR) * invDenom;
-	real X = .5 * (square(UL.b.y - UR.b.y) + square(UL.b.z - UR.b.z)) / (square(sqrtRhoL + sqrtRhoR));
+	real dby = WL.b.y - WR.b.y;
+	real dbz = WL.b.z - WR.b.z;
+	real X = .5 * (dby * dby + dbz * dbz) * invDenom * invDenom;
 	real Y = .5 * (UL.rho + UR.rho) / rho;
 	
 	return (Roe_t){
@@ -95,9 +97,9 @@ __kernel void calcEigenBasis(
 	int indexR = index;
 
 	const real gamma = heatCapacityRatio;
-	const real gamma_1 = gamma - 1;
-	const real gamma_2 = gamma - 2;
-	const real gamma_3 = gamma - 3;
+	const real gamma_1 = gamma - 1.;
+	const real gamma_2 = gamma - 2.;
+	const real gamma_3 = gamma - 3.;
 
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
@@ -131,7 +133,7 @@ __kernel void calcEigenBasis(
 		real Y = roe.Y;
 
 		real _1_rho = 1 / rho;
-		real vSq = coordLenSq(v);
+		real vSq = real3_lenSq(v);
 		real bDotV = real3_dot(b,v);
 		real bPerpSq = b.y*b.y + b.z*b.z;
 		real bStarPerpSq = (gamma_1 - gamma_2 * Y) * bPerpSq;
@@ -150,7 +152,7 @@ __kernel void calcEigenBasis(
 		real CStarSq = .5 * (CATildeSq + aTildeSq);
 		real CA_a_TildeSqDiff = .5 * (CATildeSq - aTildeSq);
 		real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * bStarPerpSq_rho);
-
+		
 		real CfSq = CStarSq + sqrtDiscr;
 		real Cf = sqrt(CfSq);
 
@@ -203,7 +205,17 @@ __kernel void calcEigenBasis(
 		int intindex = side + dim * index;
 		__global real* wave = waveBuf + numWaves * intindex;
 		
-		fill(wave, 1, v.x-Cf, v.x-CAx, v.x-Cs, v.x, v.x+Cs, v.x+CAx, v.x+Cf);
+		real lambdaFastMin = v.x - Cf;
+		real lambdaSlowMin = v.x - Cs;
+		real lambdaSlowMax = v.x + Cs;
+		real lambdaFastMax = v.x + Cf;
+		wave[0] = lambdaFastMin;
+		wave[1] = v.x - CAx;
+		wave[2] = lambdaSlowMin;
+		wave[3] = v.x;
+		wave[4] = lambdaSlowMax;
+		wave[5] = v.x + CAx;
+		wave[6] = lambdaFastMax;
 		
 		__global eigen_t* eig = eigenBuf + intindex;
 
@@ -235,14 +247,57 @@ __kernel void calcEigenBasis(
 		real r71 = As*betaStarZ;
 		real r72 = betaY*sbx*_1_sqrtRho;
 		real r73 = -Af*betaStarZ;
+		//rows
 		__global real* evR = eig->evR;
-		fill(evR+0,7,	alphaF, 										0,		alphaS,											1,							alphaS, 										0,		alphaF											);
-		fill(evR+1,7,	alphaF*wave[0], 								0,		alphaS*wave[2],									v.x,						alphaS*wave[4],									0,		alphaF*wave[6]									);
-		fill(evR+2,7,	qa3 + qc3, 										-betaZ,	qb3 - qd3,										v.y,						qb3 + qd3,										betaZ,	qa3 - qc3										);
-		fill(evR+3,7,	qa4 + qc4, 										betaY,	qb4 - qd4,										v.z,						qb4 + qd4, 										-betaY,	qa4 - qc4										);
-		fill(evR+4,7,	alphaF*(hHydro - v.x*Cf) + Qs*vDotBeta + Aspbb,	r52,	alphaS*(hHydro - v.x*Cs) - Qf*vDotBeta - Afpbb,	.5*vSq + gamma_2*X/gamma_1, alphaS*(hHydro + v.x*Cs) + Qf*vDotBeta - Afpbb,	-r52,	alphaF*(hHydro + v.x*Cf) - Qs*vDotBeta + Aspbb	);
-		fill(evR+5,7,	r61,											r62,	r63,											0,							r63,											r62,	r61												);
-		fill(evR+6,7,	r71,											r72,	r73,											0,							r73,											r72,	r71												);
+		evR[0 + numWaves * 0] = alphaF;
+		evR[0 + numWaves * 1] = 0.;
+		evR[0 + numWaves * 2] = alphaS;
+		evR[0 + numWaves * 3] = 1.;
+		evR[0 + numWaves * 4] = alphaS;
+		evR[0 + numWaves * 5] = 0.;
+		evR[0 + numWaves * 6] = alphaF;
+		evR[1 + numWaves * 0] = alphaF*lambdaFastMin;
+		evR[1 + numWaves * 1] = 0.;
+		evR[1 + numWaves * 2] = alphaS*lambdaSlowMin;
+		evR[1 + numWaves * 3] = v.x;
+		evR[1 + numWaves * 4] = alphaS*lambdaSlowMax;
+		evR[1 + numWaves * 5] = 0.;
+		evR[1 + numWaves * 6] = alphaF*lambdaFastMax;
+		evR[2 + numWaves * 0] = qa3 + qc3;
+		evR[2 + numWaves * 1] = -betaZ;
+		evR[2 + numWaves * 2] = qb3 - qd3;
+		evR[2 + numWaves * 3] = v.y;
+		evR[2 + numWaves * 4] = qb3 + qd3;
+		evR[2 + numWaves * 5] = betaZ;
+		evR[2 + numWaves * 6] = qa3 - qc3;
+		evR[3 + numWaves * 0] = qa4 + qc4;
+		evR[3 + numWaves * 1] = betaY;
+		evR[3 + numWaves * 2] = qb4 - qd4;
+		evR[3 + numWaves * 3] = v.z;
+		evR[3 + numWaves * 4] = qb4 + qd4;
+		evR[3 + numWaves * 5] = -betaY;
+		evR[3 + numWaves * 6] = qa4 - qc4;
+		evR[4 + numWaves * 0] = alphaF*(hHydro - v.x*Cf) + Qs*vDotBeta + Aspbb;
+		evR[4 + numWaves * 1] = r52;
+		evR[4 + numWaves * 2] = alphaS*(hHydro - v.x*Cs) - Qf*vDotBeta - Afpbb;
+		evR[4 + numWaves * 3] = .5*vSq + gamma_2*X/gamma_1;
+		evR[4 + numWaves * 4] = alphaS*(hHydro + v.x*Cs) + Qf*vDotBeta - Afpbb;
+		evR[4 + numWaves * 5] = -r52;
+		evR[4 + numWaves * 6] = alphaF*(hHydro + v.x*Cf) - Qs*vDotBeta + Aspbb;
+		evR[5 + numWaves * 0] = r61;
+		evR[5 + numWaves * 1] = r62;
+		evR[5 + numWaves * 2] = r63;
+		evR[5 + numWaves * 3] = 0.;
+		evR[5 + numWaves * 4] = r63;
+		evR[5 + numWaves * 5] = r62;
+		evR[5 + numWaves * 6] = r61;
+		evR[6 + numWaves * 0] = r71;
+		evR[6 + numWaves * 1] = r72;
+		evR[6 + numWaves * 2] = r73;
+		evR[6 + numWaves * 3] = 0.;
+		evR[6 + numWaves * 4] = r73;
+		evR[6 + numWaves * 5] = r72;
+		evR[6 + numWaves * 6] = r71;
 
 		// left eigenvectors
 		real norm = .5/aTildeSq;
@@ -261,24 +316,68 @@ __kernel void calcEigenBasis(
 		real QStarY = betaStarY/betaStarSq;
 		real QStarZ = betaStarZ/betaStarSq;
 		real vqstr = (v.y*QStarY + v.z*QStarZ);
-		norm = norm * 2;
+		norm = norm * 2.;
+		
 		real l16 = AHatS*QStarY - alphaF*b.y;
 		real l17 = AHatS*QStarZ - alphaF*b.z;
 		real l21 = .5*(v.y*betaZ - v.z*betaY);
-		real l23 = -.5*betaZ;
+		real l23 = .5*betaZ;
 		real l24 = .5*betaY;
 		real l26 = -.5*sqrtRho*betaZ*sbx;
 		real l27 = .5*sqrtRho*betaY*sbx;
 		real l36 = -AHatF*QStarY - alphaS*b.y;
 		real l37 = -AHatF*QStarZ - alphaS*b.z;
+		//rows
 		__global real* evL = eig->evL;
-		fill(evL+0,7, alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb, -alphaF*v.x - Cff, -alphaF*v.y + Qs*QStarY, -alphaF*v.z + Qs*QStarZ, alphaF, l16, l17);
-		fill(evL+1,7, l21, 0, l23, l24, 0, l26, l27);
-		fill(evL+2,7, alphaS*(vSq-hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb, -alphaS*v.x - Css, -alphaS*v.y - Qf*QStarY, -alphaS*v.z - Qf*QStarZ, alphaS, l36, l37);
-		fill(evL+3,7, 1 - norm*(.5*vSq - gamma_2*X/gamma_1) , norm*v.x, norm*v.y, norm*v.z, -norm, norm*b.y, norm*b.z);
-		fill(evL+4,7, alphaS*(vSq-hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb, -alphaS*v.x + Css, -alphaS*v.y + Qf*QStarY, -alphaS*v.z + Qf*QStarZ, alphaS, l36, l37);
-		fill(evL+5,7, -l21, 0, -l23, -l24, 0, l26, l27);
-		fill(evL+6,7, alphaF*(vSq-hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb, -alphaF*v.x + Cff, -alphaF*v.y - Qs*QStarY, -alphaF*v.z - Qs*QStarZ, alphaF, l16, l17);
+		evL[0 + numWaves * 0] = alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb;
+		evL[0 + numWaves * 1] = -alphaF*v.x - Cff;
+		evL[0 + numWaves * 2] = -alphaF*v.y + Qs*QStarY;
+		evL[0 + numWaves * 3] = -alphaF*v.z + Qs*QStarZ;
+		evL[0 + numWaves * 4] = alphaF;
+		evL[0 + numWaves * 5] = l16;
+		evL[0 + numWaves * 6] = l17;
+		evL[1 + numWaves * 0] = l21;
+		evL[1 + numWaves * 1] = 0.;
+		evL[1 + numWaves * 2] = -l23;
+		evL[1 + numWaves * 3] = l24;
+		evL[1 + numWaves * 4] = 0.;
+		evL[1 + numWaves * 5] = l26;
+		evL[1 + numWaves * 6] = l27;
+		evL[2 + numWaves * 0] = alphaS*(vSq-hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb;
+		evL[2 + numWaves * 1] = -alphaS*v.x - Css;
+		evL[2 + numWaves * 2] = -alphaS*v.y - Qf*QStarY;
+		evL[2 + numWaves * 3] = -alphaS*v.z - Qf*QStarZ;
+		evL[2 + numWaves * 4] = alphaS;
+		evL[2 + numWaves * 5] = l36;
+		evL[2 + numWaves * 6] = l37;
+		evL[3 + numWaves * 0] = 1. - norm*(.5*vSq - gamma_2*X/gamma_1);
+		evL[3 + numWaves * 1] = norm*v.x;
+		evL[3 + numWaves * 2] = norm*v.y;
+		evL[3 + numWaves * 3] = norm*v.z;
+		evL[3 + numWaves * 4] = -norm;
+		evL[3 + numWaves * 5] = norm*b.y;
+		evL[3 + numWaves * 6] = norm*b.z;
+		evL[4 + numWaves * 0] = alphaS*(vSq-hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb;
+		evL[4 + numWaves * 1] = -alphaS*v.x + Css;
+		evL[4 + numWaves * 2] = -alphaS*v.y + Qf*QStarY;
+		evL[4 + numWaves * 3] = -alphaS*v.z + Qf*QStarZ;
+		evL[4 + numWaves * 4] = alphaS;
+		evL[4 + numWaves * 5] = l36;
+		evL[4 + numWaves * 6] = l37;
+		evL[5 + numWaves * 0] = -l21;
+		evL[5 + numWaves * 1] = 0.;
+		evL[5 + numWaves * 2] = -l23;
+		evL[5 + numWaves * 3] = -l24;
+		evL[5 + numWaves * 4] = 0.;
+		evL[5 + numWaves * 5] = l26;
+		evL[5 + numWaves * 6] = l27;
+		evL[6 + numWaves * 0] = alphaF*(vSq-hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb;
+		evL[6 + numWaves * 1] = -alphaF*v.x + Cff;
+		evL[6 + numWaves * 2] = -alphaF*v.y - Qs*QStarY;
+		evL[6 + numWaves * 3] = -alphaF*v.z - Qs*QStarZ;
+		evL[6 + numWaves * 4] = alphaF;
+		evL[6 + numWaves * 5] = l16;
+		evL[6 + numWaves * 6] = l17;
 
 	}<? end ?>
 }

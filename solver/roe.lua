@@ -61,8 +61,8 @@ Solver.numGhost = 2
 
 -- enable these to verify accuracy
 -- disable these to save on allocation / speed
-Solver.checkFluxError = false --true 
-Solver.checkOrthoError = false	--true 
+Solver.checkFluxError = true 
+Solver.checkOrthoError = true 
 
 Solver.integrators = require 'int.all'
 Solver.integratorNames = Solver.integrators:map(function(integrator) return integrator.name end)

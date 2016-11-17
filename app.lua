@@ -168,6 +168,14 @@ static inline real real3_dot(real3 a, real3 b) {
 	return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
+static inline real real3_lenSq(real3 a) {
+	return real3_dot(a,a);
+}
+
+static inline real real3_len(real3 a) {
+	return sqrt(real3_lenSq(a));
+}
+
 static inline real3 real3_scale(real3 a, real s) {
 	return _real3(a.x * s, a.y * s, a.z * s);
 }
@@ -240,9 +248,9 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 128,
-			cmdline.gridSize or 128,
-			cmdline.gridSize or 128,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',

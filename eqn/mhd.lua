@@ -49,13 +49,13 @@ function MHD:getCodePrefix()
 	return table{
 		MHD.super.getCodePrefix(self),
 		[[
-inline real calc_eKin(prim_t W) { return .5 * coordLenSq(W.v); }
+inline real calc_eKin(prim_t W) { return .5 * real3_lenSq(W.v); }
 inline real calc_EKin(prim_t W) { return W.rho * calc_eKin(W); }
 inline real calc_EInt(prim_t W) { return W.P / (heatCapacityRatio - 1.); }
 inline real calc_eInt(prim_t W) { return calc_EInt(W) / W.rho; }
-inline real calc_EMag(prim_t W) { return .5 * coordLenSq(W.b); }
+inline real calc_EMag(prim_t W) { return .5 * real3_lenSq(W.b); }
 inline real calc_eMag(prim_t W) { return calc_EMag(W) / W.rho; }
-inline real calc_PMag(prim_t W) { return .5 * coordLenSq(W.b); }
+inline real calc_PMag(prim_t W) { return .5 * real3_lenSq(W.b); }
 inline real calc_EHydro(prim_t W) { return calc_EKin(W) + calc_EInt(W); }
 inline real calc_eHydro(prim_t W) { return calc_EHydro(W) / W.rho; }
 inline real calc_ETotal(prim_t W) { return calc_EKin(W) + calc_EInt(W) + calc_EMag(W); }
@@ -68,8 +68,8 @@ inline real calc_Cs(prim_t W) { return sqrt(heatCapacityRatio * W.P / W.rho); }
 
 inline prim_t primFromCons(cons_t U) {
 	real3 v = real3_scale(U.m, 1./U.rho);
-	real vSq = coordLenSq(v);
-	real bSq = coordLenSq(U.b);
+	real vSq = real3_lenSq(v);
+	real bSq = real3_lenSq(U.b);
 	real EKin = .5 * U.rho * vSq;
 	real EMag = .5 * bSq;
 	real P = (U.ETotal - EKin - EMag) * (heatCapacityRatio-1.);
@@ -85,9 +85,9 @@ inline prim_t primFromCons(cons_t U) {
 
 inline cons_t consFromPrim(prim_t W) {
 	real EInt = W.P / (heatCapacityRatio-1.);
-	real eKin = .5*coordLenSq(W.v);
+	real eKin = .5*real3_lenSq(W.v);
 	real EKin = W.rho * eKin;
-	real bSq = coordLenSq(W.b);
+	real bSq = real3_lenSq(W.b);
 	real EMag = .5*bSq;
 	real ETotal = EInt + EKin + EMag;
 	real3 m = real3_scale(W.v, W.rho);
@@ -149,31 +149,33 @@ function MHD:getDisplayVars(solver)
 		{vx = 'value = W.v.x;'},
 		{vy = 'value = W.v.y;'},
 		{vz = 'value = W.v.z;'},
-		{v = 'value = coordLen(W.v);'},
+		{v = 'value = real3_len(W.v);'},
 		{mx = 'value = U.m.x;'},
 		{my = 'value = U.m.y;'},
 		{mz = 'value = U.m.z;'},
-		{m = 'value = coordLen(U.m);'},
+		{m = 'value = real3_len(U.m);'},
 		{bx = 'value = W.b.x;'},
 		{by = 'value = W.b.y;'},
 		{bz = 'value = W.b.z;'},
-		{b = 'value = coordLen(W.b);'},
+		{b = 'value = real3_len(W.b);'},
 		{P = 'value = W.P;'},
-		{eInt = 'value = calc_eInt(W);'},
+		--{PMag = 'value = calc_PMag(W);'},
+		--{PTotal = 'value = W.P + calc_PMag(W);'},
+		--{eInt = 'value = calc_eInt(W);'},
 		{EInt = 'value = calc_EInt(W);'},
-		{eKin = 'value = calc_eKin(W);'},
+		--{eKin = 'value = calc_eKin(W);'},
 		{EKin = 'value = calc_EKin(W);'},
-		{eHydro = 'value = calc_eHydro(W);'},
+		--{eHydro = 'value = calc_eHydro(W);'},
 		{EHydro = 'value = calc_EHydro(W);'},
-		{eMag = 'value = calc_eMag(W);'},
+		--{eMag = 'value = calc_eMag(W);'},
 		{EMag = 'value = calc_EMag(W);'},
-		{eTotal = 'value = U.ETotal / W.rho;'},
+		--{eTotal = 'value = U.ETotal / W.rho;'},
 		{ETotal = 'value = U.ETotal;'},
 		{S = 'value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
 		{H = 'value = calc_H(W.P);'},
-		{h = 'value = calc_h(W.rho, W.P);'},
-		{HTotal = 'value = calc_HTotal(W, U.ETotal);'},
-		{hTotal = 'value = calc_hTotal(W, U.ETotal);'},
+		--{h = 'value = calc_H(W.P) / W.rho;'},
+		--{HTotal = 'value = calc_HTotal(W, U.ETotal);'},
+		--{hTotal = 'value = calc_hTotal(W, U.ETotal);'},
 	}
 end
 
