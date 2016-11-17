@@ -91,7 +91,7 @@ void fill(__global real* ptr, int step, real a, real b, real c, real d, real e, 
 __kernel void calcEigenBasis(
 	__global real* waveBuf,			//[volume][dim][numWaves]
 	__global eigen_t* eigenBuf,		//[volume][dim]
-	const __global cons_t* UBuf		//[volume]
+	const __global consLR_t* ULRBuf		//[volume][dim]
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -103,11 +103,9 @@ __kernel void calcEigenBasis(
 
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		
 		int indexL = index - stepsize[side];
-		
-		cons_t UR = UBuf[indexR];
-		cons_t UL = UBuf[indexL];
+		cons_t UL = ULRBuf[side + dim * indexL].R;
+		cons_t UR = ULRBuf[side + dim * indexR].L;
 
 		//swap the sides with x here
 		real tmp;

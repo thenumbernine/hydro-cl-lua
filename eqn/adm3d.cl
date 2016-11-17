@@ -16,7 +16,6 @@ __kernel void calcDT(
 	real gamma = sym3_det(U->gamma);
 
 	real dt = INFINITY;
-	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		<? if side==0 then ?>
 		real gammaUxx = (U->gamma.yy * U->gamma.zz - U->gamma.yz * U->gamma.yz) / gamma;
@@ -39,25 +38,24 @@ __kernel void calcDT(
 __kernel void calcEigenBasis(
 	__global real* waveBuf,
 	__global eigen_t* eigenBuf,
-	const __global cons_t* UBuf
+	const __global consLR_t* ULRBuf
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
-	const __global cons_t* UR = UBuf + indexR;
-	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexL = index - stepsize[side];
-		const __global cons_t* UL = UBuf + indexL;
+		cons_t UL = ULRBuf[side + dim * indexL].R;
+		cons_t UR = ULRBuf[side + dim * indexR].L;
 		
-		real alpha = .5 * (UL->alpha + UR->alpha);
+		real alpha = .5 * (UL.alpha + UR.alpha);
 		sym3 avg_gamma = (sym3){
-			.xx = .5 * (UL->gamma.xx + UR->gamma.xx),
-			.xy = .5 * (UL->gamma.xy + UR->gamma.xy),
-			.xz = .5 * (UL->gamma.xz + UR->gamma.xz),
-			.yy = .5 * (UL->gamma.yy + UR->gamma.yy),
-			.yz = .5 * (UL->gamma.yz + UR->gamma.yz),
-			.zz = .5 * (UL->gamma.zz + UR->gamma.zz),
+			.xx = .5 * (UL.gamma.xx + UR.gamma.xx),
+			.xy = .5 * (UL.gamma.xy + UR.gamma.xy),
+			.xz = .5 * (UL.gamma.xz + UR.gamma.xz),
+			.yy = .5 * (UL.gamma.yy + UR.gamma.yy),
+			.yz = .5 * (UL.gamma.yz + UR.gamma.yz),
+			.zz = .5 * (UL.gamma.zz + UR.gamma.zz),
 		};
 		real avg_gamma_det = sym3_det(avg_gamma);
 		eigen_t eig = (eigen_t){

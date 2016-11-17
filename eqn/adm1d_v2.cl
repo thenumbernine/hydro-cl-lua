@@ -26,14 +26,15 @@ eigen_t calcEigenBasisSide(cons_t UL, cons_t UR) {
 __kernel void calcEigenBasis(
 	__global real* waveBuf,
 	__global eigen_t* eigenBuf,
-	const __global cons_t* UBuf
+	const __global consLR_t* ULRBuf
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
 	for (int side = 0; side < dim; ++side) {
 		int indexL = index - stepsize[side];
-
-		eigen_t eig = calcEigenBasisSide(UBuf[indexL], UBuf[indexR]);
+		cons_t UL = ULRBuf[side + dim * indexL].R;
+		cons_t UR = ULRBuf[side + dim * indexR].L;
+		eigen_t eig = calcEigenBasisSide(UL, UR);
 
 		int intindex = side + dim * index;	
 		__global real* wave = waveBuf + numWaves * intindex;

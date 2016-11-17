@@ -49,7 +49,7 @@ __kernel void calcDT(
 __kernel void calcEigenBasis(
 	__global real* waveBuf,
 	__global eigen_t* eigenBuf,
-	const __global prim_t* primBuf
+	const __global prim_t* primBuf	//TODO turn this into a LR extrapolation
 ) {
 	SETBOUNDS(2,1);
 	

@@ -1,19 +1,33 @@
 // Roe solver:
 
+kernel void calcLR(
+	global consLR_t* ULRBuf,
+	const global cons_t* UBuf
+) {
+	SETBOUNDS(0,0);
+	
+	//TODO skip this lr stuff if we're doing piecewise-constant
+	//...and just use the original buffers
+	<? for side=0,solver.dim-1 do ?>{
+		int intindex = <?=side?> + dim * index;
+		//constant
+		ULRBuf[intindex].L = ULRBuf[intindex].R = UBuf[index];
+	}<? end ?>
+}
+
 <? if solver.checkFluxError or solver.checkOrthoError then ?>
-__kernel void calcErrors(
-	__global error_t* errorBuf,
-	const __global real* waveBuf,
-	const __global eigen_t* eigenBuf
+kernel void calcErrors(
+	global error_t* errorBuf,
+	const global real* waveBuf,
+	const global eigen_t* eigenBuf
 ) {
 	SETBOUNDS(0,0);
 
-	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int intindex = side + dim * index;
-		const __global real* wave = waveBuf + numWaves * intindex;
-		const __global eigen_t* eigen = eigenBuf + intindex;
+		const global real* wave = waveBuf + numWaves * intindex;
+		const global eigen_t* eigen = eigenBuf + intindex;
 
 		real orthoError = 0;
 		real fluxError = 0;
@@ -72,21 +86,20 @@ __kernel void calcErrors(
 }
 <? end ?>
 
-__kernel void calcDeltaUTilde(
-	__global real* deltaUTildeBuf,
-	const __global real* UBuf,
-	const __global eigen_t* eigenBuf
+kernel void calcDeltaUTilde(
+	global real* deltaUTildeBuf,
+	const global consLR_t* ULRBuf,
+	const global eigen_t* eigenBuf
 ) {
 	SETBOUNDS(2,1);	
 	int indexR = index;
-	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexL = index - stepsize[side];
-	
-		const __global real* UL = UBuf + indexL * numStates;
-		const __global real* UR = UBuf + indexR * numStates;
-	
+		
+		const global real* UL = (const global real*)&(ULRBuf + side + dim * indexL)->R;
+		const global real* UR = (const global real*)&(ULRBuf + side + dim * indexR)->L;
+
 		real deltaU[numStates];
 		for (int j = 0; j < numStates; ++j) {
 			deltaU[j] = UR[j] - UL[j];
@@ -100,20 +113,19 @@ __kernel void calcDeltaUTilde(
 			deltaU);
 	
 		//TODO memcpy
-		__global real* deltaUTilde_ = deltaUTildeBuf + intindex * numWaves;
+		global real* deltaUTilde_ = deltaUTildeBuf + intindex * numWaves;
 		for (int j = 0; j < numWaves; ++j) {
 			deltaUTilde_[j] = deltaUTilde[j];
 		}
 	}<? end ?>
 }
 
-__kernel void calcRTilde(
-	__global real* rTildeBuf,
-	const __global real* deltaUTildeBuf,
-	const __global real* waveBuf
+kernel void calcRTilde(
+	global real* rTildeBuf,
+	const global real* deltaUTildeBuf,
+	const global real* waveBuf
 ) {
 	SETBOUNDS(2,1);
-	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexL = index - stepsize[side];
@@ -121,11 +133,11 @@ __kernel void calcRTilde(
 		int intindex = side + dim * index;
 		int intindexL = side + dim * indexL;
 		int intindexR = side + dim * indexR;
-		__global real* rTilde = rTildeBuf + intindex * numWaves;
-		const __global real* deltaUTilde = deltaUTildeBuf + intindex * numWaves;
-		const __global real* deltaUTildeL = deltaUTildeBuf + intindexL * numWaves;
-		const __global real* deltaUTildeR = deltaUTildeBuf + intindexR * numWaves;
-		const __global real* wave = waveBuf + intindex * numWaves;
+		global real* rTilde = rTildeBuf + intindex * numWaves;
+		const global real* deltaUTilde = deltaUTildeBuf + intindex * numWaves;
+		const global real* deltaUTildeL = deltaUTildeBuf + intindexL * numWaves;
+		const global real* deltaUTildeR = deltaUTildeBuf + intindexR * numWaves;
+		const global real* wave = waveBuf + intindex * numWaves;
 		for (int j = 0; j < numWaves; ++j) {
 			if (deltaUTilde[j] == 0) {
 				rTilde[j] = 0;
@@ -140,27 +152,23 @@ __kernel void calcRTilde(
 	}<? end ?>
 }
 
-__kernel void calcFlux(
-	__global real* fluxBuf,
-	const __global real* UBuf,
-	const __global real* waveBuf, 
-	const __global eigen_t* eigenBuf, 
-	const __global real* deltaUTildeBuf,
-	const __global real* rTildeBuf,
+kernel void calcFlux(
+	global real* fluxBuf,
+	const global consLR_t* ULRBuf,
+	const global real* waveBuf, 
+	const global eigen_t* eigenBuf, 
+	const global real* deltaUTildeBuf,
+	const global real* rTildeBuf,	//not needed with slope limiters 
 	real dt
 ) {
 	SETBOUNDS(2,1);
-
-
-	//for (int side = 0; side < dim; ++side) {
+	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;	
 		real dt_dx = dt / dx<?=side?>_at(i);
-		
 		int indexL = index - stepsize[side];
-		int indexR = index;
-		const __global real* UL = UBuf + indexL * numStates;
-		const __global real* UR = UBuf + indexR * numStates;
+		const global real* UL = (const global real*)&(ULRBuf + side + dim * indexL)->R;
+		const global real* UR = (const global real*)&(ULRBuf + side + dim * indexR)->L;
 		
 		real UAvg[numStates];
 		for (int j = 0; j < numStates; ++j) {
@@ -168,14 +176,14 @@ __kernel void calcFlux(
 		}
 		
 		int intindex = side + dim * index;
-		const __global eigen_t* eigen = eigenBuf + intindex;
+		const global eigen_t* eigen = eigenBuf + intindex;
 
 		real fluxTilde[numWaves];
 		eigen_leftTransform_<?=side?>(fluxTilde, eigen, UAvg);
 
-		const __global real* lambdas = waveBuf + numWaves * intindex;
-		const __global real* deltaUTilde = deltaUTildeBuf + numWaves * intindex;
-		const __global real* rTilde = rTildeBuf + numWaves * intindex;
+		const global real* lambdas = waveBuf + numWaves * intindex;
+		const global real* deltaUTilde = deltaUTildeBuf + numWaves * intindex;
+		const global real* rTilde = rTildeBuf + numWaves * intindex;
 
 		for (int j = 0; j < numWaves; ++j) {
 			real lambda = lambdas[j];
@@ -195,29 +203,28 @@ __kernel void calcFlux(
 		real3 interfaceX = cell_x(interfaceI);
 		real volume = volume_at(interfaceX);
 
-		__global real* flux_ = fluxBuf + intindex * numStates;
+		global real* flux_ = fluxBuf + intindex * numStates;
 		for (int j = 0; j < numStates; ++j) {
 			flux_[j] = volume * flux[j];
 		}
 	}<? end ?>
 }
 
-__kernel void calcDerivFromFlux(
-	__global real* derivBuf,
-	const __global real* fluxBuf
+kernel void calcDerivFromFlux(
+	global real* derivBuf,
+	const global real* fluxBuf
 ) {
 	SETBOUNDS(2,2);
-	__global real* deriv = derivBuf + numStates * index;
+	global real* deriv = derivBuf + numStates * index;
 		
 	real volume = volume_at(cell_x(i));
 	
-	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int intindexL = side + dim * index;
 		int intindexR = intindexL + dim * stepsize[side]; 
-		const __global real* fluxL = fluxBuf + intindexL * numStates;
-		const __global real* fluxR = fluxBuf + intindexR * numStates;
+		const global real* fluxL = fluxBuf + intindexL * numStates;
+		const global real* fluxR = fluxBuf + intindexR * numStates;
 		for (int j = 0; j < numStates; ++j) {
 			real deltaFlux = fluxR[j] - fluxL[j];
 			deriv[j] -= deltaFlux / (volume * grid_dx<?=side?>);

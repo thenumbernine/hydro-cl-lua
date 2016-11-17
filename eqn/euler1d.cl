@@ -16,24 +16,26 @@ inline real calc_hTotal(real rho, real P, real ETotal) {
 __kernel void calcEigenBasis(
 	__global real* waveBuf,			//[volume][dim][numWaves]
 	__global eigen_t* eigenBuf,		//[volume][dim]
-	const __global cons_t *UBuf		//[volume]
+	const __global consLR_t *ULRBuf		//[volume][dim]
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
-	cons_t UR = UBuf[indexR];
-	prim_t WR = primFromCons(UR);
-	real sqrtRhoR = sqrt(UR.rho);
-	real vxR = WR.vx;
-	real hTotalR = calc_hTotal(WR.rho, WR.P, UR.ETotal);
 
-	for (int side = 0; side < dim; ++side) {
+	<? for side=0,solver.dim-1 do ?>{
+		const int side = <?=side?>;
 		int indexL = index - stepsize[side];
 
-		cons_t UL = UBuf[indexL];
+		cons_t UL = ULRBuf[side + dim * indexL].R;
 		prim_t WL = primFromCons(UL);
 		real sqrtRhoL = sqrt(WL.rho);
 		real vxL = WL.vx;
 		real hTotalL = calc_hTotal(WL.rho, WL.P, UL.ETotal);
+
+		cons_t UR = ULRBuf[side + dim * indexR].L;
+		prim_t WR = primFromCons(UR);
+		real sqrtRhoR = sqrt(UR.rho);
+		real vxR = WR.vx;
+		real hTotalR = calc_hTotal(WR.rho, WR.P, UR.ETotal);
 
 		real invDenom = 1./(sqrtRhoL + sqrtRhoR);
 
@@ -84,5 +86,5 @@ __kernel void calcEigenBasis(
 		A[2+3*1] = hTotal - (heatCapacityRatio - 1.) * vxSq;
 		A[2+3*2] = heatCapacityRatio*vx;
 <? end ?>
-	}
+	}<? end ?>
 }

@@ -66,20 +66,21 @@ eigen_t eigen_forSide(cons_t UL, real ePotL, cons_t UR, real ePotR) {
 __kernel void calcEigenBasis(
 	__global real* waveBuf,			//[volume][dim][numWaves]
 	__global eigen_t* eigenBuf,		//[volume][dim]
-	const __global cons_t* UBuf,	//[volume]
+	const __global consLR_t* ULRBuf,	//[volume]
 	const __global real* ePotBuf
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
-	cons_t UR = UBuf[indexR];
 	real ePotR = ePotBuf[indexR];
 	
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		
 		int indexL = index - stepsize[side];
-		cons_t UL = UBuf[indexL];
 		real ePotL = ePotBuf[indexL];
+		
+		cons_t UL = ULRBuf[side + dim * indexL].R;
+		cons_t UR = ULRBuf[side + dim * indexR].L;
 
 		eigen_t eig = eigen_forSide(UL, ePotL, UR, ePotR);
 		

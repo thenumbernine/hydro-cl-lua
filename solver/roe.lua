@@ -420,6 +420,15 @@ function Solver:finalizeCLAllocs()
 	end
 end
 
+local consLRTypeCode = [[
+typedef union {
+	cons_t LR[2];
+	struct {
+		cons_t L, R;
+	};
+} consLR_t;
+]]
+
 function Solver:createBuffers()
 	local realSize = ffi.sizeof(self.app.real)
 
@@ -427,9 +436,11 @@ function Solver:createBuffers()
 	ffi.cdef(self.eqn:getTypeCode())
 	ffi.cdef(self.eqn:getEigenTypeCode(self))
 	ffi.cdef(errorTypeCode)
+	ffi.cdef(consLRTypeCode)
 
 	-- should I put these all in one AoS?
-	self:clalloc('UBuf', self.volume * self.eqn.numStates * realSize)
+	self:clalloc('UBuf', self.volume * ffi.sizeof'cons_t')
+	self:clalloc('ULRBuf', self.volume * self.dim * ffi.sizeof'consLR_t')
 	self:clalloc('waveBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
 	self:clalloc('eigenBuf', self.volume * self.dim * ffi.sizeof'eigen_t')
 	self:clalloc('deltaUTildeBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
@@ -567,10 +578,11 @@ function Solver:createCodePrefix()
 		-- not messing with this one yet
 		self.allocateOneBigStructure and '#define allocateOneBigStructure' or '',
 		
-		errorTypeCode or '',
+		errorTypeCode,
 		self:getCoordMapCode() or '',
 		-- this is dependent on coord map / length code
 		self.eqn:getCodePrefix(self) or '',
+		consLRTypeCode,
 	}
 
 
@@ -673,10 +685,11 @@ function Solver:refreshSolverProgram()
 
 	self.calcDTKernel = self.solverProgram:kernel('calcDT', self.reduceBuf, self.UBuf)
 	
-	self.calcEigenBasisKernel = self.solverProgram:kernel('calcEigenBasis', self.waveBuf, self.eigenBuf, self.UBuf)
-	self.calcDeltaUTildeKernel = self.solverProgram:kernel('calcDeltaUTilde', self.deltaUTildeBuf, self.UBuf, self.eigenBuf)
+	self.calcLRKernel = self.solverProgram:kernel('calcLR', self.ULRBuf, self.UBuf)
+	self.calcEigenBasisKernel = self.solverProgram:kernel('calcEigenBasis', self.waveBuf, self.eigenBuf, self.ULRBuf)
+	self.calcDeltaUTildeKernel = self.solverProgram:kernel('calcDeltaUTilde', self.deltaUTildeBuf, self.ULRBuf, self.eigenBuf)
 	self.calcRTildeKernel = self.solverProgram:kernel('calcRTilde', self.rTildeBuf, self.deltaUTildeBuf, self.waveBuf)
-	self.calcFluxKernel = self.solverProgram:kernel('calcFlux', self.fluxBuf, self.UBuf, self.waveBuf, self.eigenBuf, self.deltaUTildeBuf, self.rTildeBuf)
+	self.calcFluxKernel = self.solverProgram:kernel('calcFlux', self.fluxBuf, self.ULRBuf, self.waveBuf, self.eigenBuf, self.deltaUTildeBuf, self.rTildeBuf)
 	
 	self.calcDerivFromFluxKernel = self.solverProgram:kernel'calcDerivFromFlux'
 	self.calcDerivFromFluxKernel:setArg(1, self.fluxBuf)
@@ -944,6 +957,8 @@ function Solver:reduce(kernel)
 end
 
 function Solver:calcDeriv(derivBuf, dt)
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcLRKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcEigenBasisKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	if self.checkFluxError or self.checkOrthoError then
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcErrorsKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}

@@ -16,7 +16,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 __kernel void calcEigenBasis(
 	__global real* waveBuf,
 	__global eigen_t* eigenBuf,
-	const __global cons_t* UBuf
+	const __global consLR_t* ULRBuf
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -31,7 +31,7 @@ __kernel void calcEigenBasis(
 		wave[2] = 0;
 		wave[3] = 0;
 		wave[4] = lambda;
-		wave[5] = lamdbda;
+		wave[5] = lambda;
 	
 		//no eigenbuf info since waves are unrelated to state
 	}
