@@ -2,7 +2,7 @@
 predefined vars:
 	dim=
 	gridSize=
-	slopeLimiter=
+	fluxLimiter=
 	boundary=
 	integrator=
 	eqn=
@@ -13,7 +13,7 @@ predefined vars:
 local cmdline = {}
 --[[
 for _,k in ipairs{
-	'dim', 'gridSize', 'slopeLimiter', 'boundary', 
+	'dim', 'gridSize', 'fluxLimiter', 'boundary', 
 	'integrator', 'eqn', 'mins', 'maxs', 'float'
 } do
 	cmdline[k] = _G[k]
@@ -58,7 +58,7 @@ HydroCLApp.title = 'Hydrodynamics in OpenCL'
 HydroCLApp.boundaryMethods = table{'freeflow', 'periodic', 'mirror'}
 
 -- list from https://en.wikipedia.org/wiki/Flux_limiter
-HydroCLApp.slopeLimiters = table{
+HydroCLApp.limiters = table{
 	{name='donor cell', code='return 0.;'},
 	{name='Lax-Wendroff', code='return 1.;'},
 	{name='Beam-Warming', code='return r;'},
@@ -83,7 +83,7 @@ HydroCLApp.slopeLimiters = table{
 	{name='superbee', code='return max((real)0., (real)max((real)min((real)1., (real)2. * r), (real)min((real)2., r)));'},
 	{name='Barth-Jespersen', code='return .5 * (r + 1.) * min(1., min(4. * r / (r + 1.), 4. / (r + 1.)));'},
 }
-HydroCLApp.slopeLimiterNames = HydroCLApp.slopeLimiters:map(function(limiter) return limiter.name end)
+HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limiter.name end)
 
 function HydroCLApp:initGL(...)
 	HydroCLApp.super.initGL(self, ...)
@@ -241,7 +241,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		--integrator = 'Runge-Kutta 4, TVD',
 	
 		-- this is a flux limiter for the record.  TODO implement slope limiter.
-		slopeLimiter = cmdline.slopeLimiter or 'superbee',
+		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		
 		-- [[ cartesian
 		geometry = 'cartesian',
@@ -306,7 +306,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'Kelvin-Hemholtz',
 		-- mhd init states:
-		initState = 'Brio-Wu',
+		--initState = 'Brio-Wu',	-- (still bugs)
 		--initState = 'Orszag-Tang',
 	}
 

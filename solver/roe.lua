@@ -136,7 +136,7 @@ function Solver:init(args)
 	self.cfl = ffi.new('float[1]', .5)
 	self.initStatePtr = ffi.new('int[1]', (table.find(self.eqn.initStateNames, args.initState) or 1)-1)
 	self.integratorPtr = ffi.new('int[1]', (self.integratorNames:find(args.integrator) or 1)-1)
-	self.slopeLimiterPtr = ffi.new('int[1]', (self.app.slopeLimiterNames:find(args.slopeLimiter) or 1)-1)
+	self.fluxLimiterPtr = ffi.new('int[1]', (self.app.limiterNames:find(args.fluxLimiter) or 1)-1)
 
 	self.boundaryMethods = {}
 	for i=1,3 do
@@ -648,14 +648,14 @@ __kernel void multAdd(
 end
 
 function Solver:getSolverCode()
-	local slopeLimiterCode = 'real slopeLimiter(real r) {'
-		.. self.app.slopeLimiters[1+self.slopeLimiterPtr[0]].code 
+	local fluxLimiterCode = 'real fluxLimiter(real r) {'
+		.. self.app.limiters[1+self.fluxLimiterPtr[0]].code 
 		.. '}'
 		
 	return table{
 		self.codePrefix,
 		self.eqn:getEigenCode(self) or '',
-		slopeLimiterCode,
+		fluxLimiterCode,
 		
 		'typedef struct { real min, max; } range_t;',
 		self.eqn:getSolverCode(self) or '',
@@ -1055,7 +1055,7 @@ function Solver:updateGUI()
 			self:refreshIntegrator()
 		end
 
-		if ig.igCombo('slope limiter', self.slopeLimiterPtr, self.app.slopeLimiterNames) then
+		if ig.igCombo('slope limiter', self.fluxLimiterPtr, self.app.limiterNames) then
 			self:refreshSolverProgram()
 		end
 

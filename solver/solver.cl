@@ -181,7 +181,7 @@ __kernel void calcFlux(
 			real lambda = lambdas[j];
 			fluxTilde[j] *= lambda;
 			real theta = lambda >= 0 ? 1 : -1;
-			real phi = slopeLimiter(rTilde[j]);
+			real phi = fluxLimiter(rTilde[j]);
 			real epsilon = lambda * dt_dx;
 			real deltaFluxTilde = lambda * deltaUTilde[j];
 			fluxTilde[j] -= .5 * deltaFluxTilde * (theta + phi * (epsilon - theta));
