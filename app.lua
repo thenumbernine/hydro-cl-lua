@@ -182,12 +182,52 @@ static inline real3 real3_sub(real3 a, real3 b) {
 
 ]]
 
+	self.sym3TypeCode = [[
+typedef union {
+	real s[6];
+	struct {
+		real xx, xy, xz, yy, yz, zz;
+	};
+} sym3;
+]]
+	ffi.cdef(self.sym3TypeCode)
+
+	self.sym3Code = [[
+real sym3_det(sym3 m) {
+	return m.xx * m.yy * m.zz
+		+ m.xy * m.yz * m.xz
+		+ m.xz * m.xy * m.yz
+		- m.xz * m.yy * m.xz
+		- m.yz * m.yz * m.xx
+		- m.zz * m.xy * m.xy;
+}
+
+sym3 sym3_inv(real d, sym3 m) {
+	return (sym3){
+		.xx = (m.yy * m.zz - m.yz * m.yz) / d,
+		.xy = (m.xz * m.yz - m.xy * m.zz) / d,
+		.xz = (m.xy * m.yz - m.xz * m.yy) / d,
+		.yy = (m.xx * m.zz - m.xz * m.xz) / d,
+		.yz = (m.xz * m.xy - m.xx * m.yz) / d,
+		.zz = (m.xx * m.yy - m.xy * m.xy) / d,
+	};
+}
+
+real3 sym3_real3_mul(sym3 m, real3 v) {
+	return _real3(
+		m.xx * v.x + m.xy * v.y + m.xz * v.z,
+		m.xy * v.y + m.yy * v.y + m.yz * v.z,
+		m.xz * v.z + m.yz * v.y + m.zz * v.z);
+}
+
+]]
+
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 2,
+		dim = cmdline.dim or 1,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 4, TVD',
@@ -257,17 +297,23 @@ static inline real3 real3_sub(real3 a, real3 b) {
 		--initState = 'Sedov',
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'Kelvin-Hemholtz',
+		-- mhd init states:
+		initState = 'Brio-Wu',
+		--initState = 'Orszag-Tang',
 	}
 
-	-- fluid
+	-- HD
 	--self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
 	--self.solver = require 'solver.euler-roe'(args)
-	self.solver = require 'solver.srhd-roe'(args)
+	-- SR+HD
+	--self.solver = require 'solver.srhd-roe'(args)
+	-- M+HD
+	self.solver = require 'solver.roe'(table(args, {eqn='mhd'}))
 	-- EM
 	--self.solver = require 'solver.maxwell-roe'(args)
 	-- EM+HD
 	--self.solver = require 'solver.twofluid-emhd-roe'(args)
-	-- geometrodynamics
+	-- GR 
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v1'}))
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v2'}))
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm3d'}))

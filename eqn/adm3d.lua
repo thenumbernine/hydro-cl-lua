@@ -31,7 +31,6 @@ ADM_BonaMasso_3D.hasEigenCode = true
 ADM_BonaMasso_3D.useSourceTerm = true
 
 ADM_BonaMasso_3D.initStates = require 'init.adm'
-ADM_BonaMasso_3D.initStateNames = table.map(ADM_BonaMasso_3D.initStates, function(state) return state.name end)
 
 ADM_BonaMasso_3D.guiVars = table{
 	require 'guivar.combo'{
@@ -39,7 +38,6 @@ ADM_BonaMasso_3D.guiVars = table{
 		options = {'1', '1.69', '.49', '1 + 1/alpha^2'},
 	}
 }
-ADM_BonaMasso_3D.guiVarsForName = ADM_BonaMasso_3D.guiVars:map(function(var) return var, var.name end)
 
 function ADM_BonaMasso_3D:getTypeCode()
 	return [[

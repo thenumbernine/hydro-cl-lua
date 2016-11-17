@@ -2,7 +2,6 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local processcl = require 'processcl'
-local clnumber = require 'clnumber'
 local Equation = require 'eqn.eqn'
 
 local Euler = class(Equation)
@@ -18,12 +17,10 @@ Euler.hasEigenCode = true
 Euler.hasCalcDT = true
 
 Euler.initStates = require 'init.euler'
-Euler.initStateNames = table.map(Euler.initStates, function(info) return info.name end)
 
-Euler.guiVars = table{
+Euler.guiVars = {
 	require 'guivar.float'{name='heatCapacityRatio', value=7/5}
 }
-Euler.guiVarsForName = Euler.guiVars:map(function(var) return var, var.name end)
 
 function Euler:getTypeCode()
 	return [[
@@ -78,8 +75,7 @@ function Euler:getInitStateCode(solver)
 	local initState = self.initStates[1+solver.initStatePtr[0]]
 	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
 	local code = initState.init(solver)	
-	return table{
-		[[
+	return [[
 cons_t consFromPrim(prim_t W, real ePot) {
 	return (cons_t){
 		.rho = W.rho,
@@ -93,9 +89,6 @@ __kernel void initState(
 	__global real* ePotBuf
 ) {
 	SETBOUNDS(0,0);
-	
-	//TODO should 'x' be in embedded or coordinate space? coordinate 
-	//should 'vx vy vz' be embedded or coordinate space? coordinate
 	real3 x = cell_x(i);
 	real3 mids = real3_scale(real3_add(mins, maxs), .5);
 	bool lhs = x.x < mids.x
@@ -117,12 +110,11 @@ __kernel void initState(
 	UBuf[index] = consFromPrim(W, ePot);
 	ePotBuf[index] = ePot;
 }
-]],
-	}:concat'\n'
+]]
 end
 
 function Euler:getSolverCode(solver)	
-	return processcl(assert(file['eqn/euler.cl']), {eqn=self, solver=solver})
+	return processcl(file['eqn/euler.cl'], {eqn=self, solver=solver})
 end
 
 Euler.displayVarCodePrefix = [[

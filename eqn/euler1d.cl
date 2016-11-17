@@ -1,12 +1,13 @@
 //called from calcDT
-range_t calcCellMinMaxEigenvalues(
-	const __global cons_t* U,
-	int side
+<? for side=0,solver.dim-1 do ?>
+range_t calcCellMinMaxEigenvalues_<?=side?>(
+	const __global cons_t* U
 ) {
 	prim_t W = primFromCons(*U);
 	real Cs = sqrt(heatCapacityRatio * W.P / W.rho);
 	return (range_t){.min=W.vx - Cs, .max=W.vx + Cs};
 }
+<? end ?>
 
 inline real calc_hTotal(real rho, real P, real ETotal) {
 	return (P + ETotal) / rho;

@@ -1,4 +1,5 @@
 local class = require 'ext.class'
+local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
 local processcl = require 'processcl'
@@ -20,10 +21,13 @@ function Equation:init(solver)
 	end
 	-- default # waves is the # of states
 	if not self.numWaves then self.numWaves = self.numStates end 
+
+	self.initStateNames = table.map(self.initStates, function(info) return info.name end)
+	self.guiVarsForName = table.map(self.guiVars, function(var) return var, var.name end)
 end
 
 function Equation:getCodePrefix()
-	return (self.guiVars and self.guiVars:map(function(var) 
+	return (self.guiVars and table.map(self.guiVars, function(var) 
 		return var:getCode()
 	end) or table()):concat'\n'
 end

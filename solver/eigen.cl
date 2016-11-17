@@ -1,7 +1,6 @@
 // the default eigen transforms, using eigen struct as a dense matrix:
 
 <? for side=0,2 do ?>
-
 void eigen_leftTransform_<?=side?>(
 	real* y,
 	const __global eigen_t* eigen,

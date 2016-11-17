@@ -84,6 +84,40 @@ local initStates = {
 ]]
 		end,
 	},
+	-- http://www.astro.uni-bonn.de/~jmackey/jmac/node7.html
+	-- http://www.astro.princeton.edu/~jstone/Athena/tests/brio-wu/Brio-Wu.html
+	{
+		name = 'Brio-Wu',
+		init = function(solver)
+			solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 2
+			return [[
+	rho = lhs ? 1 : .125;
+	P = lhs ? 1 : .1;
+	b.x = .75;
+	b.y = lhs ? 1 : -1;
+	b.z = 0;
+]]
+		end,
+	},
+	-- http://www.astro.virginia.edu/VITA/ATHENA/ot.html
+	-- http://www.astro.princeton.edu/~jstone/Athena/tests/orszag-tang/pagesource.html
+	{
+		name = 'Orszag-Tang',
+		init = function(solver)
+			solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
+			return [[
+	const real B0 = 1./sqrt(4. * M_PI);
+	rho = 25./(36.*M_PI);
+	v.x = -sin(2.*M_PI*(x.y+.5));
+	v.y = sin(2.*M_PI*(x.x+.5));
+	v.z = 0;
+	P = 5./(12.*M_PI);	// is this hydro pressure or total pressure?
+	b.x = -B0 * sin(2. * M_PI * (x.y+.5));
+	b.y = B0 * sin(4. * M_PI * (x.x+.5));
+	b.z = 0;
+]]
+		end,
+	},
 	{
 		name = 'constant',
 		init = function(solver) 

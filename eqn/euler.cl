@@ -1,4 +1,3 @@
-
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 __kernel void calcDT(
 	__global real* dtBuf,
@@ -75,7 +74,6 @@ __kernel void calcEigenBasis(
 	cons_t UR = UBuf[indexR];
 	real ePotR = ePotBuf[indexR];
 	
-	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		

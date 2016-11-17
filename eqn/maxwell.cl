@@ -4,22 +4,14 @@ real calcEigenvalue() {
 	return 1./(sqrt_eps0 * sqrt_mu0);
 }
 
-range_t calcCellMinMaxEigenvalues(
-	const __global cons_t* U,
-	int side
+<? for side=0,solver.dim-1 do ?>
+range_t calcCellMinMaxEigenvalues_<?=side?>(
+	const __global cons_t* U
 ) {
 	real lambda = calcEigenvalue();
 	return (range_t){-lambda, lambda};
 }
-
-void fill(__global real* ptr, int step, real a, real b, real c, real d, real e, real f) {
-	ptr[0*step] = a;
-	ptr[1*step] = b;
-	ptr[2*step] = c;
-	ptr[3*step] = d;
-	ptr[4*step] = e;
-	ptr[5*step] = f;
-}
+<? end ?>
 
 __kernel void calcEigenBasis(
 	__global real* waveBuf,
@@ -34,7 +26,12 @@ __kernel void calcEigenBasis(
 		
 		int intindex = side + dim * index;	
 		__global real* wave = waveBuf + numWaves * intindex;
-		fill(wave, 1, -lambda, -lambda, 0, 0, lambda, lambda);
+		wave[0] = -lambda;
+		wave[1] = -lambda;
+		wave[2] = 0;
+		wave[3] = 0;
+		wave[4] = lambda;
+		wave[5] = lamdbda;
 	
 		//no eigenbuf info since waves are unrelated to state
 	}

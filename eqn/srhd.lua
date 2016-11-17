@@ -15,7 +15,6 @@ SRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
 SRHD.hasCalcDT = true
 
 SRHD.initStates = require 'init.euler'
-SRHD.initStateNames = table.map(SRHD.initStates, function(info) return info.name end)
 
 local GuiFloat = require 'guivar.float'
 local GuiInt = require 'guivar.int'
@@ -49,7 +48,6 @@ SRHD.guiVars = table{
 	GuiFloat{name='tauMin', value=1e-15},
 	GuiFloat{name='tauMax', value=1e+20},
 }
-SRHD.guiVarsForName = SRHD.guiVars:map(function(var) return var, var.name end)
 
 function SRHD:getTypeCode()
 	return [[

@@ -492,45 +492,8 @@ function Solver:createCodePrefix()
 	-- real3
 	lines:insert(self.app.real3TypeCode)
 	lines:insert(self.app.real3Code)
-
-	-- sym3
-	-- as I slowly add mesh geometry and work towards converting SRHD to GRHD, this will become more prevalent
-	lines:insert[[
-typedef union {
-	real s[6];
-	struct {
-		real xx, xy, xz, yy, yz, zz;
-	};
-} sym3;
-
-real sym3_det(sym3 m) {
-	return m.xx * m.yy * m.zz
-		+ m.xy * m.yz * m.xz
-		+ m.xz * m.xy * m.yz
-		- m.xz * m.yy * m.xz
-		- m.yz * m.yz * m.xx
-		- m.zz * m.xy * m.xy;
-}
-
-sym3 sym3_inv(real d, sym3 m) {
-	return (sym3){
-		.xx = (m.yy * m.zz - m.yz * m.yz) / d,
-		.xy = (m.xz * m.yz - m.xy * m.zz) / d,
-		.xz = (m.xy * m.yz - m.xz * m.yy) / d,
-		.yy = (m.xx * m.zz - m.xz * m.xz) / d,
-		.yz = (m.xz * m.xy - m.xx * m.yz) / d,
-		.zz = (m.xx * m.yy - m.xy * m.xy) / d,
-	};
-}
-
-real3 sym3_real3_mul(sym3 m, real3 v) {
-	return _real3(
-		m.xx * v.x + m.xy * v.y + m.xz * v.z,
-		m.xy * v.y + m.yy * v.y + m.yz * v.z,
-		m.xz * v.z + m.yz * v.y + m.zz * v.z);
-}
-
-]]
+	lines:insert(self.app.sym3TypeCode)
+	lines:insert(self.app.sym3Code)
 
 	lines:append{
 		'#define dim '..self.dim,

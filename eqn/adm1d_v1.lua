@@ -83,7 +83,6 @@ ADM_BonaMasso_1D_Alcubierre2008.hasEigenCode = true
 ADM_BonaMasso_1D_Alcubierre2008.useSourceTerm = true
 
 ADM_BonaMasso_1D_Alcubierre2008.initStates = require 'init.adm'
-ADM_BonaMasso_1D_Alcubierre2008.initStateNames = table.map(ADM_BonaMasso_1D_Alcubierre2008.initStates, function(state) return state.name end)
 
 function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix(solver)
 	local initState = self.initStates[solver.initStatePtr[0]+1]
@@ -104,13 +103,12 @@ function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix(solver)
 	end):concat'\n'
 end
 
-ADM_BonaMasso_1D_Alcubierre2008.guiVars = table{
+ADM_BonaMasso_1D_Alcubierre2008.guiVars = {
 	require 'guivar.combo'{
 		name = 'f',
 		options = {'1', '1.69', '.49', '1 + 1/alpha^2'},
 	}
 }
-ADM_BonaMasso_1D_Alcubierre2008.guiVarsForName = ADM_BonaMasso_1D_Alcubierre2008.guiVars:map(function(var) return var, var.name end)
 
 function ADM_BonaMasso_1D_Alcubierre2008:getInitStateCode(solver)
 	return table{
@@ -159,10 +157,7 @@ end
 function ADM_BonaMasso_1D_Alcubierre2008:getEigenTypeCode(solver)
 	return processcl([[
 typedef struct {
-	real f;
-	<? if solver.checkFluxError then ?>
-	real alpha, gamma_xx;
-	<? end ?>
+	real f, alpha, gamma_xx;
 } eigen_t;
 ]], {solver=solver})
 end

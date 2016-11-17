@@ -26,12 +26,10 @@ Euler1D.primVars = {'rho', 'vx', 'P'}
 Euler1D.mirrorVars = {{'mx'}, {}, {}}
 
 Euler1D.initStates = require 'init.euler'
-Euler1D.initStateNames = table.map(Euler1D.initStates, function(info) return info.name end)
 
-Euler1D.guiVars = table{
+Euler1D.guiVars = {
 	require 'guivar.float'{name='heatCapacityRatio', value=7/5}
 }
-Euler1D.guiVarsForName = Euler1D.guiVars:map(function(var) return var, var.name end)
 
 function Euler1D:getCodePrefix()
 	return table{

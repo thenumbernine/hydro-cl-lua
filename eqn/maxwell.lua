@@ -16,14 +16,13 @@ Maxwell.mirrorVars = {{'epsE.x', 'B.x'}, {'epsE.y', 'B.y'}, {'epsE.z', 'B.z'}}
 Maxwell.hasEigenCode = true
 Maxwell.useSourceTerm = true
 
-Maxwell.initStateNames = {'default'}
+Maxwell.initStates= {{name='default'}}
 
 Maxwell.guiVars = table{
 	GuiFloat{name='eps0', value=1},	-- permittivity
 	GuiFloat{name='mu0', value=1},	-- permeability
 	GuiFloat{name='sigma', value=1},-- conductivity
 }
-Maxwell.guiVarsForName = Maxwell.guiVars:map(function(var) return var, var.name end)
 
 function Maxwell:getTypeCode()
 	return [[
@@ -53,6 +52,7 @@ end
 
 function Maxwell:getInitStateCode(solver)
 	return table{
+		processcl(
 		[[
 __kernel void initState(
 	__global cons_t* UBuf
@@ -61,18 +61,18 @@ __kernel void initState(
 	real3 x = cell_x(i);
 	real3 mids = real3_scale(real3_add(mins, maxs), .5);
 	bool lhs = x.x < mids.x
-#if dim > 1
+<? if solver.dim > 1 then ?>
 		&& x.y < mids.y
-#endif
-#if dim > 2
+<? end
+if solver.dim > 2 then ?>
 		&& x.z < mids.z
-#endif
+<? end ?>
 	;
 	__global cons_t* U = UBuf + index;
 	U->epsE = real3_scale(_real3(1,0,0), eps0);
 	U->B = _real3(0, 1, lhs ? 1 : -1);
 }
-]],
+]], {solver=solver}),
 	}:concat'\n'
 end
 

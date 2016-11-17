@@ -4,13 +4,14 @@ real calcMaxEigenvalue(real alpha, real gamma_xx) {
 	return lambda;
 }
 
-range_t calcCellMinMaxEigenvalues(
-	const __global cons_t* U,
-	int side
+<? for side=0,solver.dim-1 do ?>
+range_t calcCellMinMaxEigenvalues_<?=side?>(
+	const __global cons_t* U
 ) {
 	real lambda = calcMaxEigenvalue(U->alpha, U->gamma_xx);
 	return (range_t){.min=-lambda, .max=lambda};
 }
+<? end ?>
 
 eigen_t calcEigenBasisSide(cons_t UL, cons_t UR) {
 	real alpha = .5 * (UL.alpha + UR.alpha);
