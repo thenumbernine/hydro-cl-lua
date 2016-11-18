@@ -23,13 +23,15 @@ kernel void calcLR(
 <? else ?>
 
 		//piecewise-linear
+		//based on https://arxiv.org/pdf/0804.0402v1.pdf
 		
 		//calc eigen values and vectors at cell center
-		eigen_t eig = eigen_forCell(*U);
+		eigen_t eig;
+		eigen_forCell(&eig, U);
 		real wave[numWaves];
-		eigen_calcWaves_<?=side?>(eig, wave);
+		eigen_calcWaves_<?=side?>__(&eig, wave);
 		
-		//1) calc delta q's ... l r c
+		//1) calc delta q's ... l r c (eqn 36)
 		const global cons_t* UL = U - stepsize[side];
 		const global cons_t* UR = U + stepsize[side];
 		cons_t dUL, dUR, dUC;
@@ -39,13 +41,13 @@ kernel void calcLR(
 			dUC.ptr[j] = UR->ptr[j] - UL->ptr[j];
 		}
 
-		//2) calc eigenspace delta qs
+		//2) calc eigenspace delta qs (eqn 37)
 		real dULEig[numWaves], dUREig[numWaves], dUCEig[numWaves];
 		eigen_leftTransform_<?=side?>(dULEig, eig, dUL.ptr);
 		eigen_leftTransform_<?=side?>(dUREig, eig, dUR.ptr);
 		eigen_leftTransform_<?=side?>(dUCEig, eig, dUC.ptr);
 
-		//3) do the limiter
+		//3) do the limiter (eqn 38)
 		real dUMEig[numWaves];
 		for (int j = 0; j < numWaves; ++j) {
 			dUMEig[j] = min(
@@ -72,7 +74,6 @@ kernel void calcLR(
 		eigen_rightTransform_<?=side?>(qr.ptr, eig, pr);
 		
 		for (int j = 0; j < numStates; ++j) {
-			//Toro 13.24
 			ULR->L.ptr[j] = U->ptr[j] - qr.ptr[j];
 			ULR->R.ptr[j] = U->ptr[j] + ql.ptr[j];
 		}
