@@ -14,10 +14,11 @@ kernel void calcLR(
 		int intindex = side + dim * index;
 		global consLR_t* ULR = ULRBuf + intindex;	
 		
-#if 1	//constant
+<? if not self.usePLM then ?>
+		//constant
 		ULRBuf[intindex].L = ULRBuf[intindex].R = *U;
-#endif	
-#if 0	//linear
+<? else ?>
+		//piecewise-linear
 		//1) calc delta q's ... l r c
 		const global cons_t* UL = U - stepsize[side];
 		const global cons_t* UR = U + stepsize[side];
@@ -49,7 +50,7 @@ kernel void calcLR(
 			ULR->L.ptr[j] = U->ptr[j] - .5 * dUMEig[j];
 			ULR->R.ptr[j] = U->ptr[j] + .5 * dUMEig[j];
 		}
-#endif	
+<? end ?>
 	}<? end ?>
 }
 

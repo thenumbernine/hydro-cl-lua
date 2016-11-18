@@ -150,6 +150,8 @@ function Solver:init(args)
 
 	self.geometry = require('geom.'..args.geometry){solver=self}
 
+	self.usePLM = args.usePLM
+
 	self:refreshGridSize()
 end
 

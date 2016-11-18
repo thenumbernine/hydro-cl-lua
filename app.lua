@@ -317,17 +317,17 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='superbee'})))
 	self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='donor cell'})))
 	-- SR+HD
-	--self.solver = require 'solver.srhd-roe'(args)
+	--self.solvers:insert(require 'solver.srhd-roe'(args))
 	-- M+HD
-	--self.solver = require 'solver.roe'(table(args, {eqn='mhd'}))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 	-- EM
-	--self.solver = require 'solver.maxwell-roe'(args)
+	--self.solvers:insert(require 'solver.maxwell-roe'(args))
 	-- EM+HD
-	--self.solver = require 'solver.twofluid-emhd-roe'(args)
+	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
 	-- GR 
-	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v1'}))
-	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v2'}))
-	--self.solver = require 'solver.roe'(table(args, {eqn='adm3d'}))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 	
 	local graphShaderCode = file['graph.shader']
 	self.graphShader = GLProgram{
@@ -399,11 +399,11 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 			gl.glUniform1i(volumeRayShader.uniforms.tex, 0)
 			gl.glUniform1i(volumeRayShader.uniforms.gradient, 1)
 			do
-				local maxiter = math.max(tonumber(self.solver.gridSize.x), tonumber(self.solver.gridSize.y), tonumber(self.solver.gridSize.z))
+				local maxiter = math.max(tonumber(solver.gridSize.x), tonumber(solver.gridSize.y), tonumber(solver.gridSize.z))
 				print('volumetric shader raycast maxiter',maxiter)
 				gl.glUniform1i(volumeRayShader.uniforms.maxiter, maxiter)
 			end
-			--gl.glUniform3f(volumeRayShader.uniforms.oneOverDx, (self.solver.maxs - self.solver.mins):unpack())
+			--gl.glUniform3f(volumeRayShader.uniforms.oneOverDx, (solver.maxs - solver.mins):unpack())
 			volumeRayShader:useNone()
 
 			-- volume slices
@@ -1089,7 +1089,9 @@ function HydroCLApp:updateGUI()
 		ig.igSameLine()
 		if ig.igButton'Reset' then
 			print'resetting...'
-			self.solver:resetState()
+			for _,solver in ipairs(self.solvers) do
+				solver:resetState()
+			end
 			self.updateMethod = nil
 		end
 	
@@ -1178,7 +1180,9 @@ function HydroCLApp:event(event, ...)
 				self.updateMethod = 'step'
 			elseif event.key.keysym.sym == ('r'):byte() then
 				print'resetting...'
-				self.solver:resetState()
+				for _,solver in ipairs(self.solvers) do
+					solver:resetState()
+				end
 				self.updateMethod = nil
 			end
 		end
