@@ -314,8 +314,9 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	self.solvers = table()
 
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='superbee'})))
 	self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='donor cell'})))
+	self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='superbee'})))
+	self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='donor cell', usePLM=true})))
 	-- SR+HD
 	--self.solvers:insert(require 'solver.srhd-roe'(args))
 	-- M+HD

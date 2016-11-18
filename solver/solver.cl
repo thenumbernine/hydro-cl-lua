@@ -14,7 +14,7 @@ kernel void calcLR(
 		int intindex = side + dim * index;
 		global consLR_t* ULR = ULRBuf + intindex;	
 		
-<? if not self.usePLM then ?>
+<? if not solver.usePLM then ?>
 		//constant
 		ULRBuf[intindex].L = ULRBuf[intindex].R = *U;
 <? else ?>
