@@ -314,7 +314,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	self.solvers = table()
 
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='superbee'})))
+	self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='superbee'})))
 	self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='donor cell'})))
 	-- SR+HD
 	--self.solver = require 'solver.srhd-roe'(args)
@@ -554,10 +554,14 @@ function HydroCLApp:update(...)
 	local w, h = self:size()
 
 	local varNamesEnabled = table()
+	local varNamesEnabledByName = {}
 	for _,solver in ipairs(self.solvers) do
 		for i,var in ipairs(solver.displayVars) do
 			if var.enabled[0] then
-				varNamesEnabled:insert(var.name)
+				if not varNamesEnabledByName[var.name] then
+					varNamesEnabled:insert(var.name)
+					varNamesEnabledByName[var.name] = true
+				end
 			end
 		end
 	end
