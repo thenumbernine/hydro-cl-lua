@@ -125,13 +125,12 @@ function ADM_BonaMasso_3D:getDisplayVars(solver)
 	}
 end
 
-local eigenVars = {'alpha', 'f', 'gammaUxx', 'gammaUxy', 'gammaUxz', 'gammaUyy', 'gammaUyz', 'gammaUzz'}
-
 function ADM_BonaMasso_3D:getEigenTypeCode(solver)
 	return [[
 typedef struct {
-	sym3 gammaU;
+	real alpha;	//used only by eigen_calcWaves ... makes me think eigen_forCell / eigen_forSide should both calculate waves and basis variables in the same go
 	real f;
+	sym3 gammaU;
 } eigen_t;
 ]]
 end

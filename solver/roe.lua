@@ -151,6 +151,7 @@ function Solver:init(args)
 	self.geometry = require('geom.'..args.geometry){solver=self}
 
 	self.usePLM = args.usePLM
+	assert(not self.usePLM or args.fluxLimiter ~= 'donor cell', "are you sure you want to use flux and slope limiters at the same time?")
 
 	self:refreshGridSize()
 end

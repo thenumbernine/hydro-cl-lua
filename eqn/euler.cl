@@ -29,7 +29,8 @@ kernel void calcDT(
 }
 
 //used by PLM
-void eigen_forCell(
+<? for side=0,solver.dim-1 do ?>
+void eigen_forCell_<?=side?>(
 	eigen_t* eig,
 	const global cons_t* U
 ) {
@@ -46,13 +47,35 @@ void eigen_forCell(
 	eig->vSq = vSq;
 	eig->Cs = Cs;
 }
+<? end ?>
+
+//used by PLM
+<?
+for _,addr0 in ipairs{'', 'global'} do
+	for _,addr1 in ipairs{'', 'global'} do
+		for side=0,solver.dim-1 do
+?>
+void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
+	<?=addr0?> real* wave,
+	<?=addr1?> const eigen_t* eig
+) {
+	real v_n = eig->v.s[<?=side?>];
+	wave[0] = v_n - eig->Cs;
+	wave[1] = v_n;
+	wave[2] = v_n;
+	wave[3] = v_n;
+	wave[4] = v_n + eig->Cs;
+}
+<?		end
+	end
+end ?>
 
 //used for interface eigen basis
 void eigen_forSide(
 	global eigen_t* eig,
-	const global cons_t* UL, 
+	global const cons_t* UL, 
 	real ePotL, 
-	const global cons_t* UR, 
+	global const cons_t* UR, 
 	real ePotR
 ) {
 	prim_t WL = primFromCons(*UL, ePotL);
@@ -87,27 +110,6 @@ void eigen_forSide(
 	eig->Cs = Cs;
 }
 
-<?
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for side=0,solver.dim-1 do
-?>
-void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
-	<?=addr0?> eigen_t* eig,
-	<?=addr1?> real* wave
-) {
-	real v_n = eig->v.s[<?=side?>];
-	wave[0] = v_n - eig->Cs;
-	wave[1] = v_n;
-	wave[2] = v_n;
-	wave[3] = v_n;
-	wave[4] = v_n + eig->Cs;
-}
-<?		end
-	end
-end
-?>
-
 kernel void calcEigenBasis(
 	global real* waveBuf,			//[volume][dim][numWaves]
 	global eigen_t* eigenBuf,		//[volume][dim]
@@ -124,8 +126,8 @@ kernel void calcEigenBasis(
 		int indexL = index - stepsize[side];
 		real ePotL = ePotBuf[indexL];
 		
-		const global cons_t* UL = &ULRBuf[side + dim * indexL].R;
-		const global cons_t* UR = &ULRBuf[side + dim * indexR].L;
+		global const cons_t* UL = &ULRBuf[side + dim * indexL].R;
+		global const cons_t* UR = &ULRBuf[side + dim * indexR].L;
 		
 		int intindex = side + dim * index;	
 
@@ -133,7 +135,7 @@ kernel void calcEigenBasis(
 		eigen_forSide(eig, UL, ePotL, UR, ePotR);
 		
 		global real* wave = waveBuf + numWaves * intindex;
-		eigen_calcWaves_<?=side?>_global_global(eig, wave);
+		eigen_calcWaves_<?=side?>_global_global(wave, eig);
 	}<? end ?>
 }
 

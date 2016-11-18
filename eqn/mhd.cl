@@ -37,8 +37,6 @@ typedef struct {
 	real X, Y;
 } Roe_t;
 
-inline real square(real x) { return x * x; }
-
 Roe_t calcRoeValues(cons_t UL, cons_t UR) {
 	// should I use bx, or bxL/R, for calculating the PMag at the L and R states?
 	prim_t WL = primFromCons(UL);
@@ -380,11 +378,15 @@ kernel void calcEigenBasis(
 	}<? end ?>
 }
 
-<? for side=0,2 do ?>
-void eigen_leftTransform_<?=side?>(
-	real* y,
-	eigen_t eig,
-	const real* x_
+<?
+for _,addr0 in ipairs{'', 'global'} do
+	for _,addr1 in ipairs{'', 'global'} do
+		for _,addr2 in ipairs{'', 'global'} do
+			for side=0,2 do ?>
+void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	<?=addr0?> real* y,
+	<?=addr1?> const eigen_t* eig,
+	<?=addr2?> const real* x_
 ) {
 	real x[7] = {
 	//swap x and side, and get rid of bx
@@ -397,7 +399,7 @@ void eigen_leftTransform_<?=side?>(
 	<? end ?>
 	};
 
-	const real* A = eig.evL;
+	<?=addr1?> const real* A = eig->evL;
 	for (int i = 0; i < 7; ++i) {
 		real sum = 0;
 		for (int j = 0; j < 7; ++j) {
@@ -407,12 +409,12 @@ void eigen_leftTransform_<?=side?>(
 	}
 }
 
-void eigen_rightTransform_<?=side?>(
-	real* y,
-	eigen_t eig,
-	const real* x
+void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	<?=addr0?> real* y,
+	<?=addr1?> const eigen_t* eig,
+	<?=addr2?> const real* x
 ) {
-	const real* A = eig.evR;
+	<?=addr1?> const real* A = eig->evR;
 	for (int i = 0; i < 7; ++i) {
 		real sum = 0;
 		for (int j = 0; j < 7; ++j) {
@@ -436,11 +438,11 @@ void eigen_rightTransform_<?=side?>(
 	<? end ?>
 }
 
-<? if solver.checkFluxError then ?>
-void eigen_fluxTransform_<?=side?>(
-	real* y,
-	eigen_t eig,
-	const real* x_
+<? 				if solver.checkFluxError then ?>
+void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	<?=addr0?> real* y,
+	<?=addr1?> const eigen_t* eig,
+	<?=addr2?> const real* x_
 ) {
 	real x[7] = {
 	//swap x and side, and get rid of bx
@@ -453,7 +455,7 @@ void eigen_fluxTransform_<?=side?>(
 	<? end ?>
 	};
 
-	const real* A = eig.A;
+	<?=addr1?> const real* A = eig->A;
 	for (int i = 0; i < 7; ++i) {
 		real sum = 0;
 		for (int j = 0; j < 7; ++j) {
@@ -476,5 +478,8 @@ void eigen_fluxTransform_<?=side?>(
 		y[7] = 0;
 	<? end ?>
 }
-<?	end ?>
-<? end ?>
+<?				end
+			end
+		end
+	end
+end ?>

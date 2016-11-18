@@ -5,9 +5,6 @@ The provided eigenvectors and values match with those given from the flux matrix
 however (because of the lambda=0 x3) the matrix reconstructs to the flux without
 the alpha and gamma_xx contributions.
 
-I'm also adding a shift term for kicks, based on the Alcubierre 2008 source (i.e. just adding it to the source and the eigenvalues).
-
-
 conservative variables:
 a_x = (ln alpha),x = alpha,x / alpha
 D_g = (ln gamma_xx),x = gamma_xx,x / gamma_xx

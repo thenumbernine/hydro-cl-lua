@@ -241,12 +241,12 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		--integrator = 'Runge-Kutta 4, TVD',
 	
 		-- this is a flux limiter for the record.  TODO implement slope limiter.
-		--fluxLimiter = cmdline.fluxLimiter or 'superbee',
-		fluxLimiter = 'donor cell',
+		fluxLimiter = cmdline.fluxLimiter or 'superbee',
+		--fluxLimiter = 'donor cell',
 
 		-- don't forget to disable flux limiter when you do this
 		-- TODO if you're using PLM ... or if you're using donor cell ... then you don't need deltaUEigBuf and rEigBuf
-		usePLM = true,
+		--usePLM = true,
 
 		-- [[ cartesian
 		geometry = 'cartesian',
@@ -318,11 +318,11 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	self.solvers = table()
 
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 	-- SR+HD
 	--self.solvers:insert(require 'solver.srhd-roe'(args))
 	-- M+HD
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+	self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 	-- EM
 	--self.solvers:insert(require 'solver.maxwell-roe'(args))
 	-- EM+HD

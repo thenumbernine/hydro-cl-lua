@@ -35,6 +35,70 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
+//used by PLM
+<? for side=0,solver.dim-1 do ?>
+void eigen_forCell_<?=side?>(
+	eigen_t* eig,
+	const global cons_t* U
+) {
+	eig->alpha = U->alpha;
+	eig->f = calc_f(U->alpha);
+	real gamma_det = sym3_det(U->gamma);
+	eig->gammaU = sym3_inv(gamma_det, U->gamma);
+}
+<? end ?>
+
+//used by PLM
+<?
+for _,addr0 in ipairs{'', 'global'} do
+	for _,addr1 in ipairs{'', 'global'} do
+		for side=0,solver.dim-1 do
+?>
+void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
+	<?=addr0?> real* wave,
+	<?=addr1?> const eigen_t* eig
+) {
+	<? if side==0 then ?>
+	real lambdaLight = eig->alpha * sqrt(eig->gammaU.xx);
+	<? elseif side==1 then ?>
+	real lambdaLight = eig->alpha * sqrt(eig->gammaU.yy);
+	<? elseif side==2 then ?>
+	real lambdaLight = eig->alpha * sqrt(eig->gammaU.zz);
+	<? end ?>
+	real lambdaGauge = lambdaLight * sqrt(eig->f);
+			
+	wave[0] = -lambdaGauge;
+	<? for i=1,5 do ?> wave[<?=i?>] = -lambdaLight; <? end ?>
+	<? for i=6,23 do ?> wave[<?=i?>] = 0.; <? end ?>
+	<? for i=24,28 do ?> wave[<?=i?>] = lambdaLight; <? end ?>
+	wave[29] = lambdaGauge;
+}
+<?		end
+	end
+end ?>
+
+//used for interface eigen basis
+void eigen_forSide(
+	global eigen_t* eig,
+	global const cons_t* UL,
+	global const cons_t* UR
+) {
+	real alpha = .5 * (UL->alpha + UR->alpha);
+	sym3 avg_gamma = (sym3){
+		.xx = .5 * (UL->gamma.xx + UR->gamma.xx),
+		.xy = .5 * (UL->gamma.xy + UR->gamma.xy),
+		.xz = .5 * (UL->gamma.xz + UR->gamma.xz),
+		.yy = .5 * (UL->gamma.yy + UR->gamma.yy),
+		.yz = .5 * (UL->gamma.yz + UR->gamma.yz),
+		.zz = .5 * (UL->gamma.zz + UR->gamma.zz),
+	};
+	real avg_gamma_det = sym3_det(avg_gamma);
+	
+	eig->alpha = alpha;
+	eig->f = calc_f(alpha);
+	eig->gammaU = sym3_inv(avg_gamma_det, avg_gamma);
+}
+
 kernel void calcEigenBasis(
 	global real* waveBuf,
 	global eigen_t* eigenBuf,
@@ -45,54 +109,28 @@ kernel void calcEigenBasis(
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexL = index - stepsize[side];
-		cons_t UL = ULRBuf[side + dim * indexL].R;
-		cons_t UR = ULRBuf[side + dim * indexR].L;
-		
-		real alpha = .5 * (UL.alpha + UR.alpha);
-		sym3 avg_gamma = (sym3){
-			.xx = .5 * (UL.gamma.xx + UR.gamma.xx),
-			.xy = .5 * (UL.gamma.xy + UR.gamma.xy),
-			.xz = .5 * (UL.gamma.xz + UR.gamma.xz),
-			.yy = .5 * (UL.gamma.yy + UR.gamma.yy),
-			.yz = .5 * (UL.gamma.yz + UR.gamma.yz),
-			.zz = .5 * (UL.gamma.zz + UR.gamma.zz),
-		};
-		real avg_gamma_det = sym3_det(avg_gamma);
-		eigen_t eig = (eigen_t){
-			.gammaU = sym3_inv(avg_gamma_det, avg_gamma),
-			.f = calc_f(alpha),
-		};
-
-		<? if side==0 then ?>
-		real lambdaLight = alpha * sqrt(eig.gammaU.xx);
-		<? elseif side==1 then ?>
-		real lambdaLight = alpha * sqrt(eig.gammaU.yy);
-		<? elseif side==2 then ?>
-		real lambdaLight = alpha * sqrt(eig.gammaU.zz);
-		<? end ?>
-		real lambdaGauge = lambdaLight * sqrt(eig.f);
-		
+		global const cons_t* UL = &ULRBuf[side + dim * indexL].R;
+		global const cons_t* UR = &ULRBuf[side + dim * indexR].L;
 		int intindex = side + dim * index;	
+		global eigen_t* eig = eigenBuf + intindex;
+		eigen_forSide(eig, UL, UR);
 		global real* wave = waveBuf + numWaves * intindex;
-		wave[0] = -lambdaGauge;
-		<? for i=1,5 do ?> wave[<?=i?>] = -lambdaLight; <? end ?>
-		<? for i=6,23 do ?> wave[<?=i?>] = 0.; <? end ?>
-		<? for i=24,28 do ?> wave[<?=i?>] = lambdaLight; <? end ?>
-		wave[29] = lambdaGauge;
-
-		eigenBuf[intindex] = eig;
+		eigen_calcWaves_<?=side?>_global_global(wave, eig);
 	}<? end ?>
 }
 
-<? for side=0,solver.dim-1 do ?>
-
-void eigen_leftTransform_<?=side?>(
-	real* results,
-	eigen_t eig,
-	const real* input
+<?
+for _,addr0 in ipairs{'', 'global'} do
+	for _,addr1 in ipairs{'', 'global'} do
+		for _,addr2 in ipairs{'', 'global'} do
+			for side=0,solver.dim-1 do ?>
+void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	<?=addr0?> real* results,
+	<?=addr1?> const eigen_t* eig,
+	<?=addr2?> const real* input
 ) {
-	real f = eig.f;
-	sym3 gammaU = eig.gammaU;
+	real f = eig->f;
+	sym3 gammaU = eig->gammaU;
 	real sqrt_f = sqrt(f);
 	
 	//input of left eigenvectors is the state
@@ -210,13 +248,13 @@ void eigen_leftTransform_<?=side?>(
 	<? end ?>
 }
 
-void eigen_rightTransform_<?=side?>(
-	real* results,
-	eigen_t eig,
-	const real* input
+void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	<?=addr0?> real* results,
+	<?=addr1?> const eigen_t* eig,
+	<?=addr2?> const real* input
 ) {
-	real f = eig.f;
-	sym3 gammaU = eig.gammaU;
+	real f = eig->f;
+	sym3 gammaU = eig->gammaU;
 	real sqrt_f = sqrt(f);
 
 	//write zeros to the alpha and gammaLL terms
@@ -338,22 +376,21 @@ void eigen_rightTransform_<?=side?>(
 
 	<? end ?>
 }
-<?
-end
-if solver.checkFluxError then 
-	for side=0,2 do
-?>
-void eigen_fluxTransform_<?=side?>(
-	real* y,
-	eigen_t eig,
-	const real* x
+<?				if solver.checkFluxError then ?>
+void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	<?=addr0?> real* y,
+	<?=addr1?> const eigen_t* eig,
+	<?=addr2?> const real* x
 ) {
 	for (int i = 0; i < numStates; ++i) {
 		*y = 0;
 		++y;
 	}
 }
-<?	end
+<?				end
+			end
+		end
+	end
 end ?>
 
 kernel void addSource(

@@ -13,6 +13,39 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 <? end ?>
 
+//used by PLM
+<? for side=0,solver.dim-1 do ?>
+void eigen_forCell_<?=side?>(
+	eigen_t* eig,
+	const global cons_t* U
+) {
+}
+<? end ?>
+
+//used by PLM
+<?
+for _,addr0 in ipairs{'', 'global'} do
+	for _,addr1 in ipairs{'', 'global'} do
+		for side=0,solver.dim-1 do
+?>
+void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
+	<?=addr1?> real* wave,
+	const <?=addr0?> eigen_t* eig
+) {
+	real lambda = calcEigenvalue();
+	wave[0] = -lambda;
+	wave[1] = -lambda;
+	wave[2] = 0;
+	wave[3] = 0;
+	wave[4] = lambda;
+	wave[5] = lambda;
+}
+<?
+		end
+	end
+end
+?>
+
 kernel void calcEigenBasis(
 	global real* waveBuf,
 	global eigen_t* eigenBuf,
@@ -20,29 +53,29 @@ kernel void calcEigenBasis(
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
-	for (int side = 0; side < dim; ++side) {
+	<? for side=0,solver.dim-1 do ?>{
+		const int side = <?=side?>;
 		int indexL = index - stepsize[side];
-		real lambda = calcEigenvalue();
 		
 		int intindex = side + dim * index;	
 		global real* wave = waveBuf + numWaves * intindex;
-		wave[0] = -lambda;
-		wave[1] = -lambda;
-		wave[2] = 0;
-		wave[3] = 0;
-		wave[4] = lambda;
-		wave[5] = lambda;
+		eigen_calcWaves_<?=side?>_global_global(wave, NULL);
 	
 		//no eigenbuf info since waves are unrelated to state
-	}
+	}<? end ?>
 }
+		
+<? 
+for _,addr0 in ipairs{'', 'global'} do
+	for _,addr1 in ipairs{'', 'global'} do
+		for _,addr2 in ipairs{'', 'global'} do
+			for side=0,solver.dim-1 do 
+?>
 
-<? for side=0,2 do ?>
-
-void eigen_leftTransform_<?=side?>(
-	real* y,
-	eigen_t eig,
-	const real* x
+void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	<?=addr0?> real* y,
+	<?=addr1?> const eigen_t* eig,
+	<?=addr2?> const real* x
 ) {
 	const real ise = sqrt_1_2 / sqrt_eps0;
 	const real isu = sqrt_1_2 / sqrt_mu0;
@@ -77,10 +110,10 @@ void eigen_leftTransform_<?=side?>(
 	<? end ?>
 }
 
-void eigen_rightTransform_<?=side?>(
-	real* y,
-	eigen_t eig,
-	const real* x
+void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	<?=addr0?> real* y,
+	<?=addr1?> const eigen_t* eig,
+	<?=addr2?> const real* x
 ) {
 	const real se = sqrt_1_2 * sqrt_eps0;
 	const real su = sqrt_1_2 * sqrt_mu0;
@@ -140,14 +173,16 @@ x,  y,  z, z,  y,  x
 	<? end ?>
 }
 
-<? if solver.checkFluxError then ?>
-void eigen_fluxTransform_<?=side?>(
-	real* y,
-	eigen_t eig,
-	const real* x_
+<? 
+				if solver.checkFluxError then 
+?>
+void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	<?=addr0?> real* y,
+	<?=addr1?> const eigen_t* eig,
+	<?=addr2?> const real* x_
 ) {
 	//swap input dim x<->side
-	const cons_t* x = (const cons_t*)x_;
+	<?=addr2?> const cons_t* x = (<?=addr2?> const cons_t*)x_;
 	real3 epsE = x->epsE;
 	real3 B = x->B;
 
@@ -180,8 +215,13 @@ void eigen_fluxTransform_<?=side?>(
 		
 	<? end ?>
 }
-<?	end ?>
-<? end ?>
+<?
+				end
+			end
+		end
+	end
+end
+?>
 
 kernel void addSource(
 	global cons_t* derivBuf,

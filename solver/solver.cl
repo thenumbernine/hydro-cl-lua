@@ -27,9 +27,9 @@ kernel void calcLR(
 		
 		//calc eigen values and vectors at cell center
 		eigen_t eig;
-		eigen_forCell(&eig, U);
+		eigen_forCell_<?=side?>(&eig, U);
 		real wave[numWaves];
-		eigen_calcWaves_<?=side?>__(&eig, wave);
+		eigen_calcWaves_<?=side?>__(wave, &eig);
 		
 		//1) calc delta q's ... l r c (eqn 36)
 		const global cons_t* UL = U - stepsize[side];
