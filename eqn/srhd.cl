@@ -155,12 +155,12 @@ for _,field in ipairs(eqn.eigenStructFields) do
 for side=0,solver.dim-1 do 
 	local prefix = require 'ext.table'.map(eqn.eigenStructFields, function(field)
 		local name,ctype = next(field)
-		return '\t'..ctype..' '..name..' = eig->'..name..';\n'
+		return '\t'..ctype..' '..name..' = eig.'..name..';\n'
 	end):concat()
 ?>
 void eigen_leftTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eig,
+	eigen_t eig,
 	const real* x_
 ) { 
 	//rotate incoming v's in x
@@ -238,7 +238,7 @@ void eigen_leftTransform_<?=side?>(
 
 void eigen_rightTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eig,
+	eigen_t eig,
 	const real* x
 ) {
 	<?=prefix?>
@@ -283,9 +283,9 @@ void eigen_rightTransform_<?=side?>(
 }
 
 <?	if solver.checkFluxError then ?>
-void fluxTransform_<?=side?>(
+void eigen_fluxTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eig,
+	eigen_t eig,
 	const real* x_
 ) {
 	//rotate incoming v's in x

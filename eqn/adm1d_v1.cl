@@ -53,37 +53,37 @@ kernel void calcEigenBasis(
 
 void eigen_leftTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x
 ) {
-	real sqrt_f = sqrt(eigen->f);
-	y[0] = (x[2] / eigen->f - x[4] / sqrt_f) / 2.;
-	y[1] = -2. * x[2] / eigen->f + x[3];
-	y[2] = (x[2] / eigen->f + x[4] / sqrt_f) / 2.;
+	real sqrt_f = sqrt(eig.f);
+	y[0] = (x[2] / eig.f - x[4] / sqrt_f) / 2.;
+	y[1] = -2. * x[2] / eig.f + x[3];
+	y[2] = (x[2] / eig.f + x[4] / sqrt_f) / 2.;
 }
 
 void eigen_rightTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x
 ) {
 	y[0] = 0;
 	y[1] = 0;
-	y[2] = (x[0] + x[2]) * eigen->f;
+	y[2] = (x[0] + x[2]) * eig.f;
 	y[3] = 2. * x[0] + x[1] + 2. * x[2];
-	y[4] = sqrt(eigen->f) * (x[2] - x[0]);
+	y[4] = sqrt(eig.f) * (x[2] - x[0]);
 }
 
 <?	if solver.checkFluxError then ?>
-void fluxTransform_<?=side?>(
+void eigen_fluxTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x
 ) {
-	real alpha_sqrt_gamma_xx = eigen->alpha / sqrt(eigen->gamma_xx);
+	real alpha_sqrt_gamma_xx = eig.alpha / sqrt(eig.gamma_xx);
 	y[0] = 0;
 	y[1] = 0;
-	y[2] = x[4] * eigen->f / alpha_sqrt_gamma_xx;
+	y[2] = x[4] * eig.f / alpha_sqrt_gamma_xx;
 	y[3] = x[4] * 2. * alpha_sqrt_gamma_xx;
 	y[4] = x[2] * alpha_sqrt_gamma_xx;
 }

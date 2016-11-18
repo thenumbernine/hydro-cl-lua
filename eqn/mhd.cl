@@ -383,7 +383,7 @@ kernel void calcEigenBasis(
 <? for side=0,2 do ?>
 void eigen_leftTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x_
 ) {
 	real x[7] = {
@@ -397,7 +397,7 @@ void eigen_leftTransform_<?=side?>(
 	<? end ?>
 	};
 
-	const global real* A = eigen->evL;
+	const real* A = eig.evL;
 	for (int i = 0; i < 7; ++i) {
 		real sum = 0;
 		for (int j = 0; j < 7; ++j) {
@@ -409,10 +409,10 @@ void eigen_leftTransform_<?=side?>(
 
 void eigen_rightTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x
 ) {
-	const global real* A = eigen->evR;
+	const real* A = eig.evR;
 	for (int i = 0; i < 7; ++i) {
 		real sum = 0;
 		for (int j = 0; j < 7; ++j) {
@@ -437,9 +437,9 @@ void eigen_rightTransform_<?=side?>(
 }
 
 <? if solver.checkFluxError then ?>
-void fluxTransform_<?=side?>(
+void eigen_fluxTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x_
 ) {
 	real x[7] = {
@@ -453,7 +453,7 @@ void fluxTransform_<?=side?>(
 	<? end ?>
 	};
 
-	const global real* A = eigen->A;
+	const real* A = eig.A;
 	for (int i = 0; i < 7; ++i) {
 		real sum = 0;
 		for (int j = 0; j < 7; ++j) {

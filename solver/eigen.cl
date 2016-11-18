@@ -1,12 +1,12 @@
-// the default eigen transforms, using eigen struct as a dense matrix:
+// the default eig transforms, using eig struct as a dense matrix:
 
 <? for side=0,2 do ?>
 void eigen_leftTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x
 ) {
-	const global real* A = eigen->evL;
+	const real* A = eig.evL;
 	for (int i = 0; i < numWaves; ++i) {
 		real sum = 0;
 		for (int j = 0; j < numStates; ++j) {
@@ -18,10 +18,10 @@ void eigen_leftTransform_<?=side?>(
 
 void eigen_rightTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x
 ) {
-	const global real* A = eigen->evR;
+	const real* A = eig.evR;
 	for (int i = 0; i < numWaves; ++i) {
 		real sum = 0;
 		for (int j = 0; j < numStates; ++j) {
@@ -32,12 +32,12 @@ void eigen_rightTransform_<?=side?>(
 }
 
 <? if solver.checkFluxError then ?>
-void fluxTransform_<?=side?>(
+void eigen_fluxTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x
 ) {
-	const global real* A = eigen->A;
+	const real* A = eig.A;
 	for (int i = 0; i < numStates; ++i) {
 		real sum = 0;
 		for (int j = 0; j < numStates; ++j) {

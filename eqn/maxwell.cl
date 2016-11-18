@@ -41,7 +41,7 @@ kernel void calcEigenBasis(
 
 void eigen_leftTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x
 ) {
 	const real ise = sqrt_1_2 / sqrt_eps0;
@@ -79,7 +79,7 @@ void eigen_leftTransform_<?=side?>(
 
 void eigen_rightTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x
 ) {
 	const real se = sqrt_1_2 * sqrt_eps0;
@@ -141,9 +141,9 @@ x,  y,  z, z,  y,  x
 }
 
 <? if solver.checkFluxError then ?>
-void fluxTransform_<?=side?>(
+void eigen_fluxTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x_
 ) {
 	//swap input dim x<->side

@@ -88,11 +88,11 @@ kernel void calcEigenBasis(
 
 void eigen_leftTransform_<?=side?>(
 	real* results,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* input
 ) {
-	real f = eigen->f;
-	sym3 gammaU = eigen->gammaU;
+	real f = eig.f;
+	sym3 gammaU = eig.gammaU;
 	real sqrt_f = sqrt(f);
 	
 	//input of left eigenvectors is the state
@@ -212,11 +212,11 @@ void eigen_leftTransform_<?=side?>(
 
 void eigen_rightTransform_<?=side?>(
 	real* results,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* input
 ) {
-	real f = eigen->f;
-	sym3 gammaU = eigen->gammaU;
+	real f = eig.f;
+	sym3 gammaU = eig.gammaU;
 	real sqrt_f = sqrt(f);
 
 	//write zeros to the alpha and gammaLL terms
@@ -343,9 +343,9 @@ end
 if solver.checkFluxError then 
 	for side=0,2 do
 ?>
-void fluxTransform_<?=side?>(
+void eigen_fluxTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x
 ) {
 	for (int i = 0; i < numStates; ++i) {

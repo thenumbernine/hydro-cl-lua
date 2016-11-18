@@ -143,16 +143,16 @@ for side=0,solver.dim-1 do
 ]]
 	end
 	prefix = [[
-	real3 v = eig->v;
-	real hTotal = eig->hTotal;
-	real vSq = eig->vSq;
-	real Cs = eig->Cs;
+	real3 v = eig.v;
+	real hTotal = eig.hTotal;
+	real vSq = eig.vSq;
+	real Cs = eig.Cs;
 ]] .. prefix	
 ?>
 
 void eigen_leftTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eig,
+	eigen_t eig,
 	const real* x
 ) { 
 	<?=prefix?>
@@ -182,7 +182,7 @@ void eigen_leftTransform_<?=side?>(
 
 void eigen_rightTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eig,
+	eigen_t eig,
 	const real* x
 ) {
 	<?=prefix?>
@@ -195,9 +195,9 @@ void eigen_rightTransform_<?=side?>(
 }
 
 <?	if solver.checkFluxError then ?>
-void fluxTransform_<?=side?>(
+void eigen_fluxTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eig,
+	eigen_t eig,
 	const real* x
 ) {
 	<?=prefix?>

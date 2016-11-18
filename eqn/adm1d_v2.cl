@@ -51,40 +51,40 @@ kernel void calcEigenBasis(
 
 void eigen_leftTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x
 ) {
-	real gamma_xx_over_f = 1. / (eigen->sqrt_f_over_gamma_xx * eigen->sqrt_f_over_gamma_xx);
-	y[0] = .5 * (x[2] / eigen->sqrt_f_over_gamma_xx - x[4]);
+	real gamma_xx_over_f = 1. / (eig.sqrt_f_over_gamma_xx * eig.sqrt_f_over_gamma_xx);
+	y[0] = .5 * (x[2] / eig.sqrt_f_over_gamma_xx - x[4]);
 	y[1] = x[3] - x[2] * gamma_xx_over_f;
-	y[2] = .5 * (x[2] / eigen->sqrt_f_over_gamma_xx + x[4]);
+	y[2] = .5 * (x[2] / eig.sqrt_f_over_gamma_xx + x[4]);
 }
 
 void eigen_rightTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x
 ) {
 	y[0] = 0;
 	y[1] = 0;
-	y[2] = (x[0] + x[2]) * eigen->sqrt_f_over_gamma_xx;
-	y[3] = (x[0] + x[2]) / eigen->sqrt_f_over_gamma_xx + x[1]; 
+	y[2] = (x[0] + x[2]) * eig.sqrt_f_over_gamma_xx;
+	y[3] = (x[0] + x[2]) / eig.sqrt_f_over_gamma_xx + x[1]; 
 	y[4] = x[2] - x[0];
 }
 
 <?	if solver.checkFluxError then ?>
-void fluxTransform_<?=side?>(
+void eigen_fluxTransform_<?=side?>(
 	real* y,
-	const global eigen_t* eigen,
+	eigen_t eig,
 	const real* x
 ) {
-	real f_over_gamma_xx = eigen->sqrt_f_over_gamma_xx * eigen->sqrt_f_over_gamma_xx;
+	real f_over_gamma_xx = eig.sqrt_f_over_gamma_xx * eig.sqrt_f_over_gamma_xx;
 	
 	y[0] = 0;
 	y[1] = 0;
-	y[2] = x[4] * eigen->alpha * f_over_gamma_xx;
-	y[3] = x[4] * eigen->alpha; 
-	y[4] = x[2] * eigen->alpha;
+	y[2] = x[4] * eig.alpha * f_over_gamma_xx;
+	y[3] = x[4] * eig.alpha; 
+	y[4] = x[2] * eig.alpha;
 }
 <?
 	end
