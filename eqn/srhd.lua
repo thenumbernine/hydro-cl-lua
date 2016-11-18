@@ -12,6 +12,7 @@ SRHD.consVars = {'D', 'Sx', 'Sy', 'Sz', 'tau'}
 SRHD.primVars = {'rho', 'vx', 'vy', 'vz', 'eInt'}
 SRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
 
+SRHD.hasEigenCode = true
 SRHD.hasCalcDT = true
 
 SRHD.initStates = require 'init.euler'
@@ -194,7 +195,7 @@ end
 
 function SRHD:getSolverCode(solver)
 	return table{
-		require 'processcl'(assert(file['eqn/srhd.cl']), {solver=solver}),
+		require 'processcl'(assert(file['eqn/srhd.cl']), {eqn=self, solver=solver}),
 	}:concat'\n'
 end
 
@@ -242,5 +243,32 @@ SRHD.primDisplayVars = {
 	{P = 'value = calc_P(prim.rho, prim.eInt);'},
 	{h = 'value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt);'},
 }
+
+SRHD.eigenStructFields = {
+	{rho = 'real'},
+	{v = 'real3'},
+	{h = 'real'},
+	{W = 'real'},
+	{ATildeMinus = 'real'},
+	{ATildePlus = 'real'},
+	{VMinus = 'real'},
+	{VPlus = 'real'},
+	{CMinus = 'real'},
+	{CPlus = 'real'},
+	{Kappa = 'real'},
+}
+
+function SRHD:getEigenTypeCode(solver)
+	return 'typedef struct {\n'
+		..table.map(self.eigenStructFields, function(field)
+			local name, ctype = next(field)
+			return '\t'..ctype..' '..name..';\n'
+		end):concat'\n'
+		..'} eigen_t;\n'
+end
+
+function SRHD:getEigenDisplayVars(solver)
+	return {}
+end
 
 return SRHD

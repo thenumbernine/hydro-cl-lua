@@ -304,7 +304,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		-- euler / srhd initial states:
 		--initState = 'Sod',
 		--initState = 'Sedov',
-		--initState = 'relativistic blast wave test problem 2',
+		initState = 'relativistic blast wave test problem 2',
 		--initState = 'Kelvin-Hemholtz',
 		-- mhd init states:
 		--initState = 'Brio-Wu',	-- (still bugs)
@@ -312,9 +312,9 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	}
 
 	-- HD
-	self.solver = require 'solver.euler-roe'(args)
+	--self.solver = require 'solver.euler-roe'(args)
 	-- SR+HD
-	--self.solver = require 'solver.srhd-roe'(args)
+	self.solver = require 'solver.srhd-roe'(args)
 	-- M+HD
 	--self.solver = require 'solver.roe'(table(args, {eqn='mhd'}))
 	-- EM

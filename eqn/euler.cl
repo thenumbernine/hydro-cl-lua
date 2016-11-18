@@ -117,8 +117,8 @@ kernel void calcEigenBasis(
 	}<? end ?>
 }
 
-<? 
-for side=0,2 do 
+<?
+for side=0,solver.dim-1 do 
 	local prefix
 	if side == 0 then
 		prefix = [[
