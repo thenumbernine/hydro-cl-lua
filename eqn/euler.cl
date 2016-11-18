@@ -50,20 +50,20 @@ void eigen_forCell(
 //used for interface eigen basis
 void eigen_forSide(
 	global eigen_t* eig,
-	cons_t UL, 
+	const global cons_t* UL, 
 	real ePotL, 
-	cons_t UR, 
+	const global cons_t* UR, 
 	real ePotR
 ) {
-	prim_t WL = primFromCons(UL, ePotL);
+	prim_t WL = primFromCons(*UL, ePotL);
 	real sqrtRhoL = sqrt(WL.rho);
 	real3 vL = WL.v;
-	real hTotalL = calc_hTotal(WL.rho, WL.P, UL.ETotal);
+	real hTotalL = calc_hTotal(WL.rho, WL.P, UL->ETotal);
 	
-	prim_t WR = primFromCons(UR, ePotR);
-	real sqrtRhoR = sqrt(UR.rho);
+	prim_t WR = primFromCons(*UR, ePotR);
+	real sqrtRhoR = sqrt(UR->rho);
 	real3 vR = WR.v;
-	real hTotalR = calc_hTotal(WR.rho, WR.P, UR.ETotal);
+	real hTotalR = calc_hTotal(WR.rho, WR.P, UR->ETotal);
 	
 	real invDenom = 1./(sqrtRhoL + sqrtRhoR);
 	
@@ -124,8 +124,8 @@ kernel void calcEigenBasis(
 		int indexL = index - stepsize[side];
 		real ePotL = ePotBuf[indexL];
 		
-		cons_t UL = ULRBuf[side + dim * indexL].R;
-		cons_t UR = ULRBuf[side + dim * indexR].L;
+		const global cons_t* UL = &ULRBuf[side + dim * indexL].R;
+		const global cons_t* UR = &ULRBuf[side + dim * indexR].L;
 		
 		int intindex = side + dim * index;	
 
@@ -138,42 +138,45 @@ kernel void calcEigenBasis(
 }
 
 <?
-for side=0,solver.dim-1 do 
-	local prefix
-	if side == 0 then
-		prefix = [[
+for _,addr0 in ipairs{'', 'global'} do
+	for _,addr1 in ipairs{'', 'global'} do
+		for _,addr2 in ipairs{'', 'global'} do
+			for side=0,solver.dim-1 do 
+				local prefix
+				if side == 0 then
+					prefix = [[
 	const real nx = 1, ny = 0, nz = 0;
 	const real n1x = 0, n1y = 1, n1z = 0;
 	const real n2x = 0, n2y = 0, n2z = 1;
 	real v_n = v.x, v_n1 = v.y, v_n2 = v.z;
 ]] 
-	elseif side == 1 then
-		prefix = [[
+				elseif side == 1 then
+					prefix = [[
 	const real nx = 0, ny = 1, nz = 0;
 	const real n1x = 0, n1y = 0, n1z = 1;
 	const real n2x = 1, n2y = 0, n2z = 0;
 	real v_n = v.y, v_n1 = v.z, v_n2 = v.x;
 ]] 
-	elseif side == 2 then
-		prefix = [[
+				elseif side == 2 then
+					prefix = [[
 	const real nx = 0, ny = 0, nz = 1;
 	const real n1x = 1, n1y = 0, n1z = 0;
 	const real n2x = 0, n2y = 1, n2z = 0;
 	real v_n = v.z, v_n1 = v.x, v_n2 = v.y;
 ]]
-	end
-	prefix = [[
-	real3 v = eig.v;
-	real hTotal = eig.hTotal;
-	real vSq = eig.vSq;
-	real Cs = eig.Cs;
-]] .. prefix	
+				end
+				prefix = [[
+	real3 v = eig->v;
+	real hTotal = eig->hTotal;
+	real vSq = eig->vSq;
+	real Cs = eig->Cs;
+]] .. prefix
 ?>
 
-void eigen_leftTransform_<?=side?>(
-	real* y,
-	eigen_t eig,
-	const real* x
+void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	<?=addr0?> real* y,
+	<?=addr1?> const eigen_t* eig,
+	<?=addr2?> const real* x
 ) { 
 	<?=prefix?>
 
@@ -200,10 +203,10 @@ void eigen_leftTransform_<?=side?>(
 	) * invDenom;
 }
 
-void eigen_rightTransform_<?=side?>(
-	real* y,
-	eigen_t eig,
-	const real* x
+void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	<?=addr0?> real* y,
+	<?=addr1?> const eigen_t* eig,
+	<?=addr2?> const real* x
 ) {
 	<?=prefix?>
 
@@ -215,10 +218,10 @@ void eigen_rightTransform_<?=side?>(
 }
 
 <?	if solver.checkFluxError then ?>
-void eigen_fluxTransform_<?=side?>(
-	real* y,
-	eigen_t eig,
-	const real* x
+void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	<?=addr0?> real* y,
+	<?=addr1?> const eigen_t* eig,
+	<?=addr2?> const real* x
 ) {
 	<?=prefix?>
 	y[0] = x[1] * nx + x[2] * ny + x[3] * nz;
@@ -243,5 +246,10 @@ void eigen_fluxTransform_<?=side?>(
 		+ x[3] * (-(heatCapacityRatio - 1.) * v_n * v.z + nz * hTotal)
 		+ x[4] * heatCapacityRatio * v_n;
 }
-<?	end ?>
-<? end ?>
+<?
+				end
+			end
+		end
+	end
+end
+?>

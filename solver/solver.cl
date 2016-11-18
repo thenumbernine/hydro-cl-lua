@@ -43,9 +43,9 @@ kernel void calcLR(
 
 		//2) calc eigenspace delta qs (eqn 37)
 		real dULEig[numWaves], dUREig[numWaves], dUCEig[numWaves];
-		eigen_leftTransform_<?=side?>(dULEig, eig, dUL.ptr);
-		eigen_leftTransform_<?=side?>(dUREig, eig, dUR.ptr);
-		eigen_leftTransform_<?=side?>(dUCEig, eig, dUC.ptr);
+		eigen_leftTransform_<?=side?>___(dULEig, &eig, dUL.ptr);
+		eigen_leftTransform_<?=side?>___(dUREig, &eig, dUR.ptr);
+		eigen_leftTransform_<?=side?>___(dUCEig, &eig, dUC.ptr);
 
 		//3) do the limiter (eqn 38)
 		real dUMEig[numWaves];
@@ -70,8 +70,8 @@ kernel void calcLR(
 
 		//convert back
 		cons_t ql, qr;
-		eigen_rightTransform_<?=side?>(ql.ptr, eig, pl);
-		eigen_rightTransform_<?=side?>(qr.ptr, eig, pr);
+		eigen_rightTransform_<?=side?>___(ql.ptr, &eig, pl);
+		eigen_rightTransform_<?=side?>___(qr.ptr, &eig, pr);
 		
 		for (int j = 0; j < numStates; ++j) {
 			ULR->L.ptr[j] = U->ptr[j] - qr.ptr[j];
@@ -110,10 +110,10 @@ kernel void calcErrors(
 			}
 			
 			real eigenInvCoords[numStates];
-			eigen_rightTransform_<?=side?>(eigenInvCoords, *eig, basis);
+			eigen_rightTransform_<?=side?>__global_(eigenInvCoords, eig, basis);
 		
 			real newbasis[numWaves];
-			eigen_leftTransform_<?=side?>(newbasis, *eig, eigenInvCoords);
+			eigen_leftTransform_<?=side?>__global_(newbasis, eig, eigenInvCoords);
 			
 			for (int j = 0; j < numWaves; ++j) {
 				orthoError += fabs(newbasis[j] - basis[j]);
@@ -127,7 +127,7 @@ kernel void calcErrors(
 			}
 
 			real eigenCoords[numWaves];
-			eigen_leftTransform_<?=side?>(eigenCoords, *eig, basis);
+			eigen_leftTransform_<?=side?>__global_(eigenCoords, eig, basis);
 
 			real eigenScaled[numWaves];
 			for (int j = 0; j < numWaves; ++j) {
@@ -135,10 +135,10 @@ kernel void calcErrors(
 			}
 			
 			real newtransformed[numStates];
-			eigen_rightTransform_<?=side?>(newtransformed, *eig, eigenScaled);
+			eigen_rightTransform_<?=side?>__global_(newtransformed, eig, eigenScaled);
 			
 			real transformed[numStates];
-			eigen_fluxTransform_<?=side?>(transformed, *eig, basis);
+			eigen_fluxTransform_<?=side?>__global_(transformed, eig, basis);
 			
 			for (int j = 0; j < numStates; ++j) {
 				fluxError += fabs(newtransformed[j] - transformed[j]);
@@ -173,17 +173,11 @@ kernel void calcDeltaUEig(
 		}
 	
 		int intindex = side + dim * index;	
-		real deltaUEig[numWaves];
-		eigen_leftTransform_<?=side?>(
+		global real* deltaUEig = deltaUEigBuf + intindex * numWaves;
+		eigen_leftTransform_<?=side?>_global_global_(
 			deltaUEig,
-			eigenBuf[intindex],
+			eigenBuf + intindex,
 			deltaU);
-	
-		//TODO memcpy
-		global real* deltaUEig_ = deltaUEigBuf + intindex * numWaves;
-		for (int j = 0; j < numWaves; ++j) {
-			deltaUEig_[j] = deltaUEig[j];
-		}
 	}<? end ?>
 }
 
@@ -246,7 +240,7 @@ kernel void calcFlux(
 		const global eigen_t* eig = eigenBuf + intindex;
 
 		real fluxEig[numWaves];
-		eigen_leftTransform_<?=side?>(fluxEig, *eig, UAvg);
+		eigen_leftTransform_<?=side?>__global_(fluxEig, eig, UAvg);
 
 		const global real* lambdas = waveBuf + numWaves * intindex;
 		const global real* deltaUEig = deltaUEigBuf + numWaves * intindex;
@@ -262,17 +256,16 @@ kernel void calcFlux(
 			fluxEig[j] -= .5 * deltaFluxEig * (theta + phi * (epsilon - theta));
 		}
 
-		real flux[numStates];
-		eigen_rightTransform_<?=side?>(flux, *eig, fluxEig);
+		global real* flux = fluxBuf + intindex * numStates;
+		eigen_rightTransform_<?=side?>_global_global_(flux, eig, fluxEig);
 
 		real3 interfaceI = _real3(i.x, i.y, i.z);
 		interfaceI.s[side] -= .5;
 		real3 interfaceX = cell_x(interfaceI);
 		real volume = volume_at(interfaceX);
 
-		global real* flux_ = fluxBuf + intindex * numStates;
 		for (int j = 0; j < numStates; ++j) {
-			flux_[j] = volume * flux[j];
+			flux[j] *= volume;
 		}
 	}<? end ?>
 }
