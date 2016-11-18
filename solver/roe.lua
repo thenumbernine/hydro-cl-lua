@@ -349,21 +349,21 @@ function Solver:addConvertToTexs()
 	end
 
 	self:addConvertToTex{
-		name = 'deltaUTilde', 
+		name = 'deltaUEig', 
 		varCodePrefix = [[
-	const __global real* deltaUTilde = buf + intindex * numWaves;
+	const __global real* deltaUEig = buf + intindex * numWaves;
 ]],
 		vars = range(0,self.eqn.numWaves-1):map(function(i)
-			return {[tostring(i)] = 'value = deltaUTilde['..i..'];'}
+			return {[tostring(i)] = 'value = deltaUEig['..i..'];'}
 		end),
 	}
 	self:addConvertToTex{
-		name = 'rTilde',
+		name = 'rEig',
 		varCodePrefix = [[
-	const __global real* rTilde = buf + intindex * numWaves;
+	const __global real* rEig = buf + intindex * numWaves;
 ]],
 		vars = range(0,self.eqn.numWaves-1):map(function(i)
-			return {[tostring(i)] = 'value = rTilde['..i..'];'}
+			return {[tostring(i)] = 'value = rEig['..i..'];'}
 		end),
 	}
 	self:addConvertToTex{
@@ -443,8 +443,8 @@ function Solver:createBuffers()
 	self:clalloc('ULRBuf', self.volume * self.dim * ffi.sizeof'consLR_t')
 	self:clalloc('waveBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
 	self:clalloc('eigenBuf', self.volume * self.dim * ffi.sizeof'eigen_t')
-	self:clalloc('deltaUTildeBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
-	self:clalloc('rTildeBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
+	self:clalloc('deltaUEigBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
+	self:clalloc('rEigBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
 	self:clalloc('fluxBuf', self.volume * self.dim * self.eqn.numStates * realSize)
 	
 	-- debug only
@@ -687,9 +687,9 @@ function Solver:refreshSolverProgram()
 	
 	self.calcLRKernel = self.solverProgram:kernel('calcLR', self.ULRBuf, self.UBuf)
 	self.calcEigenBasisKernel = self.solverProgram:kernel('calcEigenBasis', self.waveBuf, self.eigenBuf, self.ULRBuf)
-	self.calcDeltaUTildeKernel = self.solverProgram:kernel('calcDeltaUTilde', self.deltaUTildeBuf, self.ULRBuf, self.eigenBuf)
-	self.calcRTildeKernel = self.solverProgram:kernel('calcRTilde', self.rTildeBuf, self.deltaUTildeBuf, self.waveBuf)
-	self.calcFluxKernel = self.solverProgram:kernel('calcFlux', self.fluxBuf, self.ULRBuf, self.waveBuf, self.eigenBuf, self.deltaUTildeBuf, self.rTildeBuf)
+	self.calcDeltaUEigKernel = self.solverProgram:kernel('calcDeltaUEig', self.deltaUEigBuf, self.ULRBuf, self.eigenBuf)
+	self.calcREigKernel = self.solverProgram:kernel('calcREig', self.rEigBuf, self.deltaUEigBuf, self.waveBuf)
+	self.calcFluxKernel = self.solverProgram:kernel('calcFlux', self.fluxBuf, self.ULRBuf, self.waveBuf, self.eigenBuf, self.deltaUEigBuf, self.rEigBuf)
 	
 	self.calcDerivFromFluxKernel = self.solverProgram:kernel'calcDerivFromFlux'
 	self.calcDerivFromFluxKernel:setArg(1, self.fluxBuf)
@@ -963,8 +963,8 @@ function Solver:calcDeriv(derivBuf, dt)
 	if self.checkFluxError or self.checkOrthoError then
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcErrorsKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	end
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDeltaUTildeKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcRTildeKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDeltaUEigKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcREigKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	self.calcFluxKernel:setArg(6, ffi.new('real[1]', dt))
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcFluxKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 

@@ -110,8 +110,8 @@ kernel void calcErrors(
 }
 <? end ?>
 
-kernel void calcDeltaUTilde(
-	global real* deltaUTildeBuf,
+kernel void calcDeltaUEig(
+	global real* deltaUEigBuf,
 	const global consLR_t* ULRBuf,
 	const global eigen_t* eigenBuf
 ) {
@@ -130,23 +130,23 @@ kernel void calcDeltaUTilde(
 		}
 	
 		int intindex = side + dim * index;	
-		real deltaUTilde[numWaves];
+		real deltaUEig[numWaves];
 		eigen_leftTransform_<?=side?>(
-			deltaUTilde,
+			deltaUEig,
 			eigenBuf + intindex,
 			deltaU);
 	
 		//TODO memcpy
-		global real* deltaUTilde_ = deltaUTildeBuf + intindex * numWaves;
+		global real* deltaUEig_ = deltaUEigBuf + intindex * numWaves;
 		for (int j = 0; j < numWaves; ++j) {
-			deltaUTilde_[j] = deltaUTilde[j];
+			deltaUEig_[j] = deltaUEig[j];
 		}
 	}<? end ?>
 }
 
-kernel void calcRTilde(
-	global real* rTildeBuf,
-	const global real* deltaUTildeBuf,
+kernel void calcREig(
+	global real* rEigBuf,
+	const global real* deltaUEigBuf,
 	const global real* waveBuf
 ) {
 	SETBOUNDS(2,1);
@@ -157,19 +157,19 @@ kernel void calcRTilde(
 		int intindex = side + dim * index;
 		int intindexL = side + dim * indexL;
 		int intindexR = side + dim * indexR;
-		global real* rTilde = rTildeBuf + intindex * numWaves;
-		const global real* deltaUTilde = deltaUTildeBuf + intindex * numWaves;
-		const global real* deltaUTildeL = deltaUTildeBuf + intindexL * numWaves;
-		const global real* deltaUTildeR = deltaUTildeBuf + intindexR * numWaves;
+		global real* rEig = rEigBuf + intindex * numWaves;
+		const global real* deltaUEig = deltaUEigBuf + intindex * numWaves;
+		const global real* deltaUEigL = deltaUEigBuf + intindexL * numWaves;
+		const global real* deltaUEigR = deltaUEigBuf + intindexR * numWaves;
 		const global real* wave = waveBuf + intindex * numWaves;
 		for (int j = 0; j < numWaves; ++j) {
-			if (deltaUTilde[j] == 0) {
-				rTilde[j] = 0;
+			if (deltaUEig[j] == 0) {
+				rEig[j] = 0;
 			} else {
 				if (wave[j] >= 0) {
-					rTilde[j] = deltaUTildeL[j] / deltaUTilde[j];
+					rEig[j] = deltaUEigL[j] / deltaUEig[j];
 				} else {
-					rTilde[j] = deltaUTildeR[j] / deltaUTilde[j];
+					rEig[j] = deltaUEigR[j] / deltaUEig[j];
 				}
 			}
 		}
@@ -181,8 +181,8 @@ kernel void calcFlux(
 	const global consLR_t* ULRBuf,
 	const global real* waveBuf, 
 	const global eigen_t* eigenBuf, 
-	const global real* deltaUTildeBuf,
-	const global real* rTildeBuf,	//not needed with slope limiters 
+	const global real* deltaUEigBuf,
+	const global real* rEigBuf,	//not needed with slope limiters 
 	real dt
 ) {
 	SETBOUNDS(2,1);
@@ -202,25 +202,25 @@ kernel void calcFlux(
 		int intindex = side + dim * index;
 		const global eigen_t* eigen = eigenBuf + intindex;
 
-		real fluxTilde[numWaves];
-		eigen_leftTransform_<?=side?>(fluxTilde, eigen, UAvg);
+		real fluxEig[numWaves];
+		eigen_leftTransform_<?=side?>(fluxEig, eigen, UAvg);
 
 		const global real* lambdas = waveBuf + numWaves * intindex;
-		const global real* deltaUTilde = deltaUTildeBuf + numWaves * intindex;
-		const global real* rTilde = rTildeBuf + numWaves * intindex;
+		const global real* deltaUEig = deltaUEigBuf + numWaves * intindex;
+		const global real* rEig = rEigBuf + numWaves * intindex;
 
 		for (int j = 0; j < numWaves; ++j) {
 			real lambda = lambdas[j];
-			fluxTilde[j] *= lambda;
+			fluxEig[j] *= lambda;
 			real theta = lambda >= 0 ? 1 : -1;
-			real phi = fluxLimiter(rTilde[j]);
+			real phi = fluxLimiter(rEig[j]);
 			real epsilon = lambda * dt_dx;
-			real deltaFluxTilde = lambda * deltaUTilde[j];
-			fluxTilde[j] -= .5 * deltaFluxTilde * (theta + phi * (epsilon - theta));
+			real deltaFluxEig = lambda * deltaUEig[j];
+			fluxEig[j] -= .5 * deltaFluxEig * (theta + phi * (epsilon - theta));
 		}
 
 		real flux[numStates];
-		eigen_rightTransform_<?=side?>(flux, eigen, fluxTilde);
+		eigen_rightTransform_<?=side?>(flux, eigen, fluxEig);
 
 		real3 interfaceI = _real3(i.x, i.y, i.z);
 		interfaceI.s[side] -= .5;
