@@ -311,8 +311,11 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		--initState = 'Orszag-Tang',
 	}
 
+	self.solvers = table()
+
 	-- HD
-	self.solver = require 'solver.euler-roe'(args)
+	--self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='superbee'})))
+	self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='donor cell'})))
 	-- SR+HD
 	--self.solver = require 'solver.srhd-roe'(args)
 	-- M+HD
@@ -325,8 +328,6 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v1'}))
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v2'}))
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm3d'}))
-
-	self.solvers = table{self.solver}
 	
 	local graphShaderCode = file['graph.shader']
 	self.graphShader = GLProgram{
@@ -350,62 +351,65 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	self.graphShader:useNone()
 
 	local code = file['heatmap2d.shader']
-	self.heatMap2DShader = GLProgram{
-		vertexCode = table{
-			'#define VERTEX_SHADER',
-			self.solver:getCoordMapGLSLCode(),
-			code,
-		}:concat'\n',
-		fragmentCode = '#define FRAGMENT_SHADER\n'..code,
-		uniforms = {
-			'useLog',
-			'valueMin',
-			'valueMax',
-			'tex',
-			'gradient',
-			'alpha',
-		},
-	}
-	self.heatMap2DShader:use()
-	gl.glUniform1f(self.heatMap2DShader.uniforms.valueMin, 0)
-	gl.glUniform1f(self.heatMap2DShader.uniforms.valueMax, 0)
-	gl.glUniform1i(self.heatMap2DShader.uniforms.tex, 0)
-	gl.glUniform1i(self.heatMap2DShader.uniforms.gradient, 1)
-	gl.glUniform1f(self.heatMap2DShader.uniforms.alpha, 1)
-	self.heatMap2DShader:useNone()
-
-	if self.solver.dim == 3 then
-		-- raytracing (stalling)
-		
-		local code = file['volumetric.shader']
-		self.volumeRayShader = GLProgram{
-			vertexCode = '#define VERTEX_SHADER\n'..code,
+	for _,solver in ipairs(self.solvers) do
+		local heatMap2DShader = GLProgram{
+			vertexCode = table{
+				'#define VERTEX_SHADER',
+				solver:getCoordMapGLSLCode(),
+				code,
+			}:concat'\n',
 			fragmentCode = '#define FRAGMENT_SHADER\n'..code,
 			uniforms = {
+				'useLog',
+				'valueMin',
+				'valueMax',
 				'tex',
 				'gradient',
-				'maxiter',
-	--			'oneOverDx',
-				'scale',
-				'useLog',
 				'alpha',
 			},
 		}
-		self.volumeRayShader:use()
-		gl.glUniform1i(self.volumeRayShader.uniforms.tex, 0)
-		gl.glUniform1i(self.volumeRayShader.uniforms.gradient, 1)
-		do
-			local maxiter = math.max(tonumber(self.solver.gridSize.x), tonumber(self.solver.gridSize.y), tonumber(self.solver.gridSize.z))
-			print('volumetric shader raycast maxiter',maxiter)
-			gl.glUniform1i(self.volumeRayShader.uniforms.maxiter, maxiter)
-		end
-		--gl.glUniform3f(self.volumeRayShader.uniforms.oneOverDx, (self.solver.maxs - self.solver.mins):unpack())
-		self.volumeRayShader:useNone()
+		solver.heatMap2DShader = heatMap2DShader 
+		heatMap2DShader:use()
+		gl.glUniform1f(heatMap2DShader.uniforms.valueMin, 0)
+		gl.glUniform1f(heatMap2DShader.uniforms.valueMax, 0)
+		gl.glUniform1i(heatMap2DShader.uniforms.tex, 0)
+		gl.glUniform1i(heatMap2DShader.uniforms.gradient, 1)
+		gl.glUniform1f(heatMap2DShader.uniforms.alpha, 1)
+		heatMap2DShader:useNone()
 
-		-- volume slices
+		if solver.dim == 3 then
+			-- raytracing (stalling)
+			
+			local code = file['volumetric.shader']
+			local volumeRayShader = GLProgram{
+				vertexCode = '#define VERTEX_SHADER\n'..code,
+				fragmentCode = '#define FRAGMENT_SHADER\n'..code,
+				uniforms = {
+					'tex',
+					'gradient',
+					'maxiter',
+		--			'oneOverDx',
+					'scale',
+					'useLog',
+					'alpha',
+				},
+			}
+			solver.volumeRayShader = volumeRayShader
+			volumeRayShader:use()
+			gl.glUniform1i(volumeRayShader.uniforms.tex, 0)
+			gl.glUniform1i(volumeRayShader.uniforms.gradient, 1)
+			do
+				local maxiter = math.max(tonumber(self.solver.gridSize.x), tonumber(self.solver.gridSize.y), tonumber(self.solver.gridSize.z))
+				print('volumetric shader raycast maxiter',maxiter)
+				gl.glUniform1i(volumeRayShader.uniforms.maxiter, maxiter)
+			end
+			--gl.glUniform3f(volumeRayShader.uniforms.oneOverDx, (self.solver.maxs - self.solver.mins):unpack())
+			volumeRayShader:useNone()
 
-		self.volumeSliceShader = GLProgram{
-		vertexCode = [[
+			-- volume slices
+
+			local volumeSliceShader = GLProgram{
+			vertexCode = [[
 varying vec3 pos;
 void main() {
 	pos = gl_Vertex.xyz;
@@ -434,18 +438,20 @@ void main() {
 	gl_FragColor = vec4(voxelColor.rgb, voxelColor.a * alpha);
 }
 ]],
-			uniforms = {
-				'volTex',
-				'hsvTex',
-				'normal',
-				'alpha',
-				'alphaGamma',
-			},
-		}
-		self.volumeSliceShader:use()
-		gl.glUniform1i(self.volumeSliceShader.uniforms.volTex, 0)
-		gl.glUniform1i(self.volumeSliceShader.uniforms.hsvTex, 1)
-		self.volumeSliceShader:useNone()
+				uniforms = {
+					'volTex',
+					'hsvTex',
+					'normal',
+					'alpha',
+					'alphaGamma',
+				},
+			}
+			solver.volumeSliceShader = volumeSliceShader
+			volumeSliceShader:use()
+			gl.glUniform1i(volumeSliceShader.uniforms.volTex, 0)
+			gl.glUniform1i(volumeSliceShader.uniforms.hsvTex, 1)
+			volumeSliceShader:useNone()
+		end
 	end
 
 	self.gradientTex = GLGradientTex(1024, {
@@ -536,7 +542,11 @@ function HydroCLApp:update(...)
 			self.updateMethod = nil 
 		end
 
-		self.solver:update()
+		-- update the one furthest behind
+		local oldestSolver = self.solvers:inf(function(a,b)
+			return a.t < b.t
+		end)
+		if oldestSolver then oldestSolver:update() end
 	end
 
 	gl.glClear(gl.GL_COLOR_BUFFER_BIT)
@@ -544,9 +554,11 @@ function HydroCLApp:update(...)
 	local w, h = self:size()
 
 	local varNamesEnabled = table()
-	for i,var in ipairs(self.solver.displayVars) do
-		if var.enabled[0] then
-			varNamesEnabled:insert(var.name)
+	for _,solver in ipairs(self.solvers) do
+		for i,var in ipairs(solver.displayVars) do
+			if var.enabled[0] then
+				varNamesEnabled:insert(var.name)
+			end
 		end
 	end
 
@@ -641,12 +653,14 @@ function HydroCLApp:update(...)
 			(1 - (graphRow + 1) / graphsHigh) * h,
 			w / graphsWide,
 			h / graphsHigh)
-		
-		if self.solver.dim == 1 then
+
+		-- TODO maybe find the first solver for this var and use it to choose 1D,2D,3D
+		local dim = self.solvers[1].dim
+		if dim == 1 then
 			self:display1D(self.solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
-		elseif self.solver.dim == 2 then
+		elseif dim == 2 then
 			self:display2D(self.solvers, varName, ar, xmin, ymin, xmax, ymax)
-		elseif self.solver.dim == 3 then
+		elseif dim == 3 then
 			self:display3D(self.solvers, varName, ar, xmin, ymin, xmax, ymax)
 		end
 
@@ -821,11 +835,11 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 
 			solver:calcDisplayVarToTex(var)
 	
-			self.heatMap2DShader:use()
-			gl.glUniform1i(self.heatMap2DShader.uniforms.useLog, var.useLogPtr[0])
-			gl.glUniform1f(self.heatMap2DShader.uniforms.valueMin, valueMin)
-			gl.glUniform1f(self.heatMap2DShader.uniforms.valueMax, valueMax)
-			self.solver:getTex(var):bind(0)
+			solver.heatMap2DShader:use()
+			gl.glUniform1i(solver.heatMap2DShader.uniforms.useLog, var.useLogPtr[0])
+			gl.glUniform1f(solver.heatMap2DShader.uniforms.valueMin, valueMin)
+			gl.glUniform1f(solver.heatMap2DShader.uniforms.valueMax, valueMax)
+			solver:getTex(var):bind(0)
 			self.gradientTex:bind(1)
 		
 			local gridScale = 4
@@ -850,8 +864,8 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 			end
 			
 			self.gradientTex:unbind(1)
-			self.solver:getTex(var):unbind(0)
-			self.heatMap2DShader:useNone()
+			solver:getTex(var):unbind(0)
+			solver.heatMap2DShader:useNone()
 
 			if self.font then
 				local fontSizeX = (xmax - xmin) * .025
@@ -886,75 +900,77 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 
 	self.view:projection(ar)
 	self.view:modelview()
-	
-	self.volumeSliceShader:use()
-	self.solver:getTex(var):bind(0)
-	self.gradientTex:bind(1)
-	gl.glUniform1f(self.volumeSliceShader.uniforms.alpha, .15)
-	gl.glUniform1f(self.volumeSliceShader.uniforms.alphaGamma, 1)
 
-	gl.glEnable(gl.GL_TEXTURE_GEN_S)
-	gl.glEnable(gl.GL_TEXTURE_GEN_T)
-	gl.glEnable(gl.GL_TEXTURE_GEN_R)
-	gl.glTexGeni(gl.GL_S, gl.GL_TEXTURE_GEN_MODE, gl.GL_OBJECT_LINEAR)
-	gl.glTexGeni(gl.GL_T, gl.GL_TEXTURE_GEN_MODE, gl.GL_OBJECT_LINEAR)
-	gl.glTexGeni(gl.GL_R, gl.GL_TEXTURE_GEN_MODE, gl.GL_OBJECT_LINEAR)
-	gl.glTexGendv(gl.GL_S, gl.GL_OBJECT_PLANE, vec4d(1,0,0,0):ptr())
-	gl.glTexGendv(gl.GL_T, gl.GL_OBJECT_PLANE, vec4d(0,1,0,0):ptr())
-	gl.glTexGendv(gl.GL_R, gl.GL_OBJECT_PLANE, vec4d(0,0,1,0):ptr())
+	for _,solver in ipairs(solvers) do
+		solver.volumeSliceShader:use()
+		solver:getTex(var):bind(0)
+		self.gradientTex:bind(1)
+		gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha, .15)
+		gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma, 1)
 
-	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-	gl.glEnable(gl.GL_BLEND)
+		gl.glEnable(gl.GL_TEXTURE_GEN_S)
+		gl.glEnable(gl.GL_TEXTURE_GEN_T)
+		gl.glEnable(gl.GL_TEXTURE_GEN_R)
+		gl.glTexGeni(gl.GL_S, gl.GL_TEXTURE_GEN_MODE, gl.GL_OBJECT_LINEAR)
+		gl.glTexGeni(gl.GL_T, gl.GL_TEXTURE_GEN_MODE, gl.GL_OBJECT_LINEAR)
+		gl.glTexGeni(gl.GL_R, gl.GL_TEXTURE_GEN_MODE, gl.GL_OBJECT_LINEAR)
+		gl.glTexGendv(gl.GL_S, gl.GL_OBJECT_PLANE, vec4d(1,0,0,0):ptr())
+		gl.glTexGendv(gl.GL_T, gl.GL_OBJECT_PLANE, vec4d(0,1,0,0):ptr())
+		gl.glTexGendv(gl.GL_R, gl.GL_OBJECT_PLANE, vec4d(0,0,1,0):ptr())
 
-	--[[ points
-	gl.glPointSize(2)
-	gl.glBegin(gl.GL_POINTS)
-	for _,pt in ipairs(self.pts) do
-		gl.glVertex3d( 
-			(pt[1] - .5)/(self.max[1] + 1),
-			(pt[2] - .5)/(self.max[2] + 1),
-			(pt[3] - .5)/(self.max[3] + 1))
-	end
-	gl.glEnd()
-	--]]
-	-- [[ slices
-	local n = 255
-	local fwd = -viewAngle:zAxis()
-	local fwddir = select(2, table(fwd):map(math.abs):sup())
-	local quad = {{0,0},{1,0},{1,1},{0,1}}
-	local jmin, jmax, jdir
-	if fwd[fwddir] < 0 then
-		jmin, jmax, jdir = 0, n, 1
-	else
-		jmin, jmax, jdir = n, 0, -1
-	end
-	gl.glUniform3f(self.volumeSliceShader.uniforms.normal, fwddir==1 and jdir or 0, fwddir==2 and jdir or 0, fwddir==3 and jdir or 0)
-	
-	gl.glBegin(gl.GL_QUADS)
-	for j=jmin,jmax,jdir do
-		local f = j/n
-		for _,vtx in ipairs(quad) do
-			if fwddir == 1 then
-				gl.glVertex3f(f, vtx[1], vtx[2])
-			elseif fwddir == 2 then
-				gl.glVertex3f(vtx[1], f, vtx[2])
-			elseif fwddir == 3 then
-				gl.glVertex3f(vtx[1], vtx[2], f)
+		gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+		gl.glEnable(gl.GL_BLEND)
+
+		--[[ points
+		gl.glPointSize(2)
+		gl.glBegin(gl.GL_POINTS)
+		for _,pt in ipairs(self.pts) do
+			gl.glVertex3d( 
+				(pt[1] - .5)/(self.max[1] + 1),
+				(pt[2] - .5)/(self.max[2] + 1),
+				(pt[3] - .5)/(self.max[3] + 1))
+		end
+		gl.glEnd()
+		--]]
+		-- [[ slices
+		local n = 255
+		local fwd = -viewAngle:zAxis()
+		local fwddir = select(2, table(fwd):map(math.abs):sup())
+		local quad = {{0,0},{1,0},{1,1},{0,1}}
+		local jmin, jmax, jdir
+		if fwd[fwddir] < 0 then
+			jmin, jmax, jdir = 0, n, 1
+		else
+			jmin, jmax, jdir = n, 0, -1
+		end
+		gl.glUniform3f(solver.volumeSliceShader.uniforms.normal, fwddir==1 and jdir or 0, fwddir==2 and jdir or 0, fwddir==3 and jdir or 0)
+		
+		gl.glBegin(gl.GL_QUADS)
+		for j=jmin,jmax,jdir do
+			local f = j/n
+			for _,vtx in ipairs(quad) do
+				if fwddir == 1 then
+					gl.glVertex3f(f, vtx[1], vtx[2])
+				elseif fwddir == 2 then
+					gl.glVertex3f(vtx[1], f, vtx[2])
+				elseif fwddir == 3 then
+					gl.glVertex3f(vtx[1], vtx[2], f)
+				end
 			end
 		end
+		gl.glEnd()
+		--]]
+		
+		gl.glDisable(gl.GL_BLEND)
+
+		gl.glDisable(gl.GL_TEXTURE_GEN_S)
+		gl.glDisable(gl.GL_TEXTURE_GEN_T)
+		gl.glDisable(gl.GL_TEXTURE_GEN_R)
+
+		self.gradientTex:unbind(1)
+		solver:getTex(var):unbind(0)
+		solver.volumeSliceShader:useNone()
 	end
-	gl.glEnd()
-	--]]
-	
-	gl.glDisable(gl.GL_BLEND)
-
-	gl.glDisable(gl.GL_TEXTURE_GEN_S)
-	gl.glDisable(gl.GL_TEXTURE_GEN_T)
-	gl.glDisable(gl.GL_TEXTURE_GEN_R)
-
-	self.gradientTex:unbind(1)
-	self.solver:getTex(var):unbind(0)
-	self.volumeSliceShader:useNone()
 end
 
 function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
@@ -981,46 +997,48 @@ function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, 
 		2,3,7,6,
 	}
 	
-
-	gl.glColor3f(1,1,1)
-	for pass=0,1 do
-		if pass == 0 then
-			gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
-		else
-			gl.glEnable(gl.GL_CULL_FACE)
-			gl.glCullFace(gl.GL_FRONT)
-			gl.glEnable(gl.GL_DEPTH_TEST)
-			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-			gl.glEnable(gl.GL_BLEND)
-			self.volumeRayShader:use()
-			gl.glUniform1f(self.volumeRayShader.uniforms.scale, 1)--scale)
-			gl.glUniform1i(self.volumeRayShader.uniforms.useLog, useLog and 1 or 0)
-			gl.glUniform1f(self.volumeRayShader.uniforms.alpha, 1)--alpha)
-			self.solver:getTex(var):bind(0)
-			self.gradientTex:bind(1)
-		end
-		gl.glBegin(gl.GL_QUADS)
-		for i=1,24 do
-			local x = vertexes[quads[i] * 3 + 0 + 1]
-			local y = vertexes[quads[i] * 3 + 1 + 1]
-			local z = vertexes[quads[i] * 3 + 2 + 1]
-			gl.glTexCoord3f(x, y, z)
-			x = x * (self.solver.maxs[1] - self.solver.mins[1]) + self.solver.mins[1]
-			y = y * (self.solver.maxs[2] - self.solver.mins[2]) + self.solver.mins[2]
-			z = z * (self.solver.maxs[3] - self.solver.mins[3]) + self.solver.mins[3]
-			gl.glVertex3f(x, y, z)
-		end
-		gl.glEnd()
-		if pass == 0 then
-			gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
-		else
-			self.gradientTex:unbind(1)
-			self.solver:getTex(var):unbind(0)
-			self.volumeRayShader:useNone()
-			gl.glDisable(gl.GL_BLEND)
-			gl.glDisable(gl.GL_DEPTH_TEST)
-			gl.glCullFace(gl.GL_BACK)
-			gl.glDisable(gl.GL_CULL_FACE)
+	for _,solver in ipairs(solvers) do
+		local volumeRayShader = solver.volumeRayShader
+		gl.glColor3f(1,1,1)
+		for pass=0,1 do
+			if pass == 0 then
+				gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+			else
+				gl.glEnable(gl.GL_CULL_FACE)
+				gl.glCullFace(gl.GL_FRONT)
+				gl.glEnable(gl.GL_DEPTH_TEST)
+				gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+				gl.glEnable(gl.GL_BLEND)
+				volumeRayShader:use()
+				gl.glUniform1f(volumeRayShader.uniforms.scale, 1)--scale)
+				gl.glUniform1i(volumeRayShader.uniforms.useLog, useLog and 1 or 0)
+				gl.glUniform1f(volumeRayShader.uniforms.alpha, 1)--alpha)
+				solver:getTex(var):bind(0)
+				self.gradientTex:bind(1)
+			end
+			gl.glBegin(gl.GL_QUADS)
+			for i=1,24 do
+				local x = vertexes[quads[i] * 3 + 0 + 1]
+				local y = vertexes[quads[i] * 3 + 1 + 1]
+				local z = vertexes[quads[i] * 3 + 2 + 1]
+				gl.glTexCoord3f(x, y, z)
+				x = x * (solver.maxs[1] - solver.mins[1]) + solver.mins[1]
+				y = y * (solver.maxs[2] - solver.mins[2]) + solver.mins[2]
+				z = z * (solver.maxs[3] - solver.mins[3]) + solver.mins[3]
+				gl.glVertex3f(x, y, z)
+			end
+			gl.glEnd()
+			if pass == 0 then
+				gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
+			else
+				self.gradientTex:unbind(1)
+				solver:getTex(var):unbind(0)
+				volumeRayShader:useNone()
+				gl.glDisable(gl.GL_BLEND)
+				gl.glDisable(gl.GL_DEPTH_TEST)
+				gl.glCullFace(gl.GL_BACK)
+				gl.glDisable(gl.GL_CULL_FACE)
+			end
 		end
 	end
 end
