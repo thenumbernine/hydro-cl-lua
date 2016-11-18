@@ -18,13 +18,27 @@ kernel void calcLR(
 		ULRBuf[intindex].L = ULRBuf[intindex].R = *U;
 #endif	
 #if 0	//linear
+		//1) calc delta q's ... l r c
 		const global cons_t* UL = U - stepsize[side];
 		const global cons_t* UR = U + stepsize[side];
+		cons_t dUL, dUR, dUC;
 		for (int j = 0; j < numStates; ++j) {
-			real dUL = U->ptr[j] - UL->ptr[j];
-			real dUR = UR->ptr[j] - U->ptr[j];
-			real dUC = UR->ptr[j] - UL->ptr[j];
-			real delta = min(
+			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
+			dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
+			dUC.ptr[j] = UR->ptr[j] - UL->ptr[j];
+		}
+
+		//2) calc eigenspace delta qs
+		eigen_t eig = eigen_forCell(*U);
+		real dULEig[numWaves], dUREig[numWaves], dUCEig[numWaves];
+		eigen_leftTransform_<?=side?>(dULEig, &eig, dUL.ptr);
+		eigen_leftTransform_<?=side?>(dUREig, &eig, dUR.ptr);
+		eigen_leftTransform_<?=side?>(dUCEig, &eig, dUC.ptr);
+
+		//3) do the limiter
+		real dUMEig[numWaves];	
+		for (int j = 0; j < numStates; ++j) {
+			dUMEig[j] = min(
 				min(2. * fabs(dUL),
 					2. * fabs(dUR)),
 				fabs(dUC)) 
@@ -32,8 +46,8 @@ kernel void calcLR(
 				//* max(dUL * dUR >= 0. ? 1. : -1., 0.)
 			;
 			//Toro 13.24
-			ULR->L.ptr[j] = U->ptr[j] - .5 * delta;
-			ULR->R.ptr[j] = U->ptr[j] + .5 * delta;
+			ULR->L.ptr[j] = U->ptr[j] - .5 * dUMEig[j];
+			ULR->R.ptr[j] = U->ptr[j] + .5 * dUMEig[j];
 		}
 #endif	
 	}<? end ?>

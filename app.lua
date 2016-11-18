@@ -312,7 +312,6 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	}
 
 	-- HD
-	--self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
 	self.solver = require 'solver.euler-roe'(args)
 	-- SR+HD
 	--self.solver = require 'solver.srhd-roe'(args)

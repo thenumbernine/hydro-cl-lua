@@ -28,19 +28,38 @@ kernel void calcDT(
 	dtBuf[index] = dt;
 }
 
+//used by PLM
+eigen_t eigen_forCell(cons_t U) {
+	real ePot = 0; //TODO need ePot...
+	prim_t W = primFromCons(U, ePot);
+	real vSq = coordLenSq(W.v);
+	real eKin = .5 * vSq;
+	real hTotal = calc_hTotal(W.rho, W.P, U.ETotal);
+	real CsSq = (heatCapacityRatio - 1.) * (hTotal - eKin);
+	real Cs = sqrt(CsSq);
+	return (eigen_t){
+		.rho = W.rho,
+		.v = W.v,
+		.hTotal = hTotal,
+		.vSq = vSq,
+		.Cs = Cs,
+	};
+}
+
+//used locally, for interface eigen basis
 eigen_t eigen_forSide(cons_t UL, real ePotL, cons_t UR, real ePotR) {
 	prim_t WL = primFromCons(UL, ePotL);
 	real sqrtRhoL = sqrt(WL.rho);
 	real3 vL = WL.v;
 	real hTotalL = calc_hTotal(WL.rho, WL.P, UL.ETotal);
-
+	
 	prim_t WR = primFromCons(UR, ePotR);
 	real sqrtRhoR = sqrt(UR.rho);
 	real3 vR = WR.v;
 	real hTotalR = calc_hTotal(WR.rho, WR.P, UR.ETotal);
-
+	
 	real invDenom = 1./(sqrtRhoL + sqrtRhoR);
-
+	
 	//Roe-averaged
 	real rho = sqrtRhoL * sqrtRhoR;
 	real3 v = real3_add(
