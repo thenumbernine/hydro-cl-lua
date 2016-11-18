@@ -6,17 +6,17 @@ real calcEigenvalue() {
 
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const __global cons_t* U
+	const global cons_t* U
 ) {
 	real lambda = calcEigenvalue();
 	return (range_t){-lambda, lambda};
 }
 <? end ?>
 
-__kernel void calcEigenBasis(
-	__global real* waveBuf,
-	__global eigen_t* eigenBuf,
-	const __global consLR_t* ULRBuf
+kernel void calcEigenBasis(
+	global real* waveBuf,
+	global eigen_t* eigenBuf,
+	const global consLR_t* ULRBuf
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -25,7 +25,7 @@ __kernel void calcEigenBasis(
 		real lambda = calcEigenvalue();
 		
 		int intindex = side + dim * index;	
-		__global real* wave = waveBuf + numWaves * intindex;
+		global real* wave = waveBuf + numWaves * intindex;
 		wave[0] = -lambda;
 		wave[1] = -lambda;
 		wave[2] = 0;
@@ -41,7 +41,7 @@ __kernel void calcEigenBasis(
 
 void eigen_leftTransform_<?=side?>(
 	real* y,
-	const __global eigen_t* eigen,
+	const global eigen_t* eigen,
 	const real* x
 ) {
 	const real ise = sqrt_1_2 / sqrt_eps0;
@@ -79,7 +79,7 @@ void eigen_leftTransform_<?=side?>(
 
 void eigen_rightTransform_<?=side?>(
 	real* y,
-	const __global eigen_t* eigen,
+	const global eigen_t* eigen,
 	const real* x
 ) {
 	const real se = sqrt_1_2 * sqrt_eps0;
@@ -143,7 +143,7 @@ x,  y,  z, z,  y,  x
 <? if solver.checkFluxError then ?>
 void fluxTransform_<?=side?>(
 	real* y,
-	const __global eigen_t* eigen,
+	const global eigen_t* eigen,
 	const real* x_
 ) {
 	//swap input dim x<->side
@@ -183,12 +183,12 @@ void fluxTransform_<?=side?>(
 <?	end ?>
 <? end ?>
 
-__kernel void addSource(
-	__global cons_t* derivBuf,
-	const __global cons_t* UBuf
+kernel void addSource(
+	global cons_t* derivBuf,
+	const global cons_t* UBuf
 ) {
 	SETBOUNDS(2,2);
-	__global cons_t* deriv = derivBuf + index;
-	const __global cons_t* U = UBuf + index;
+	global cons_t* deriv = derivBuf + index;
+	const global cons_t* U = UBuf + index;
 	deriv->epsE = real3_sub(deriv->epsE, real3_scale(U->epsE, 1. / eps0 * sigma));
 }

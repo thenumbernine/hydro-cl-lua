@@ -8,9 +8,9 @@ SelfGrav.gravityConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
 -- params for solver/poisson.cl 
 function SelfGrav:getCodeParams()
 	return {
-		args = 'const __global cons_t* UBuf',
+		args = 'const global cons_t* UBuf',
 		calcRho = '#define gravitationalConstant '..require 'clnumber'(self.gravityConstant)..'\n'..[[
-	const __global cons_t* U = UBuf + index;
+	const global cons_t* U = UBuf + index;
 	rho = gravitationalConstant * U->rho;	//maybe a 4pi?  or is that only in the continuous case?
 ]],
 	}
@@ -18,15 +18,15 @@ end
 
 SelfGrav.extraCode = [[
 
-__kernel void calcGravityDeriv(
-	__global cons_t* derivBuffer,
-	const __global cons_t* UBuf,
-	const __global real* ePotBuf
+kernel void calcGravityDeriv(
+	global cons_t* derivBuffer,
+	const global cons_t* UBuf,
+	const global real* ePotBuf
 ) {
 	SETBOUNDS(2,2);
 	
-	__global cons_t* deriv = derivBuffer + index;
-	const __global cons_t* U = UBuf + index;
+	global cons_t* deriv = derivBuffer + index;
+	const global cons_t* U = UBuf + index;
 
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{

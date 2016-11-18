@@ -3,10 +3,10 @@ Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 20
 */
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
-__kernel void calcDT(
-	__global real* dtBuf,
-	const __global cons_t* UBuf,
-	const __global prim_t* primBuf
+kernel void calcDT(
+	global real* dtBuf,
+	const global cons_t* UBuf,
+	const global prim_t* primBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(2,2)) {
@@ -46,10 +46,10 @@ __kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-__kernel void calcEigenBasis(
-	__global real* waveBuf,
-	__global eigen_t* eigenBuf,
-	const __global prim_t* primBuf	//TODO turn this into a LR extrapolation
+kernel void calcEigenBasis(
+	global real* waveBuf,
+	global eigen_t* eigenBuf,
+	const global prim_t* primBuf	//TODO turn this into a LR extrapolation
 ) {
 	SETBOUNDS(2,1);
 	
@@ -113,14 +113,14 @@ __kernel void calcEigenBasis(
 		real lambdaMax = (v.x * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * alpha * alpha - betaUi;
 
 		int intindex = side + dim * index;	
-		__global real* wave = waveBuf + numWaves * intindex;
+		global real* wave = waveBuf + numWaves * intindex;
 		wave[0] = lambdaMin;
 		wave[1] = v.x * alpha - betaUi;
 		wave[2] = v.x * alpha - betaUi;
 		wave[3] = v.x * alpha - betaUi;
 		wave[4] = lambdaMax;
 
-		__global eigen_t* eigen = eigenBuf + intindex;	
+		global eigen_t* eigen = eigenBuf + intindex;	
 
 		real LambdaMin = (lambdaMin + betaUi) / alpha;	//2008 Font eqn 114
 		real LambdaMax = (lambdaMax + betaUi) / alpha;	//2008 Font eqn 114
@@ -136,7 +136,7 @@ __kernel void calcEigenBasis(
 		real Kappa = kappaTilde / (kappaTilde - csSq);	//2008 Font eqn 112.  
 		//Kappa = h;	//approx for ideal gas
 		
-		__global real* evR = eigen->evR;
+		global real* evR = eigen->evR;
 		//min col	2008 Font eqn 111, r-
 		evR[0 + numStates * 0] = 1.;
 		evR[1 + numStates * 0] = hW * CMinus;
@@ -174,7 +174,7 @@ __kernel void calcEigenBasis(
 		real xi = gammaDet * (gammaU.xx - vxSq);//2008 Font eqn 121
 		real Delta = hSq * hW * (Kappa - 1.) * (CPlus - CMinus) * xi;	//2008 Font eqn 121
 		
-		__global real* evL = eigen->evL; 
+		global real* evL = eigen->evL; 
 		//min row	2008 Font eqn 118
 		real scale;
 		scale = hSq / Delta;
@@ -246,12 +246,12 @@ __kernel void calcEigenBasis(
 	}<? end ?>
 }
 
-__kernel void constrainU(
-	__global cons_t* UBuf
+kernel void constrainU(
+	global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
 
-	__global cons_t* U = UBuf + index;
+	global cons_t* U = UBuf + index;
 	
 	U->D = max(U->D, (real)DMin);
 	U->tau = max(U->tau, (real)tauMin);
@@ -261,18 +261,18 @@ __kernel void constrainU(
 }
 
 //TODO update to include alphas, betas, and gammas
-__kernel void updatePrims(
-	__global prim_t* primBuf,
-	const __global cons_t* UBuf
+kernel void updatePrims(
+	global prim_t* primBuf,
+	const global cons_t* UBuf
 ) {
 	SETBOUNDS(2,1);
 	
-	const __global cons_t* U = UBuf + index;
+	const global cons_t* U = UBuf + index;
 	real D = U->D;
 	real3 S = U->S;
 	real tau = U->tau;
 
-	__global prim_t* prim = primBuf + index;
+	global prim_t* prim = primBuf + index;
 	real3 v = prim->v;
 
 	real SLen = metricLen(S);

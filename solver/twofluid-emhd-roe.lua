@@ -109,15 +109,15 @@ function TwoFluidEMHDRoe:replaceSourceKernels()
 
 <? for _,species in ipairs{'ion', 'electron'} do ?>
 
-__kernel void addSource_<?=species?>(
-	__global euler_cons_t* derivBuf,
-	const __global euler_cons_t* UBuf,
-	const __global maxwell_cons_t* maxwellUBuf
+kernel void addSource_<?=species?>(
+	global euler_cons_t* derivBuf,
+	const global euler_cons_t* UBuf,
+	const global maxwell_cons_t* maxwellUBuf
 ) {
 	SETBOUNDS(2,2);
-	__global euler_cons_t* deriv = derivBuf + index;
-	const __global euler_cons_t* U = UBuf + index;
-	const __global maxwell_cons_t* maxwellU = maxwellUBuf + index;
+	global euler_cons_t* deriv = derivBuf + index;
+	const global euler_cons_t* U = UBuf + index;
+	const global maxwell_cons_t* maxwellU = maxwellUBuf + index;
 	deriv->m.x += chargeMassRatio_<?=species?> * (maxwellU->epsE.x / eps0 + U->m.y * maxwellU->B.z - U->m.z * maxwellU->B.y);
 	deriv->m.y += chargeMassRatio_<?=species?> * (maxwellU->epsE.y / eps0 + U->m.z * maxwellU->B.x - U->m.x * maxwellU->B.z);
 	deriv->m.z += chargeMassRatio_<?=species?> * (maxwellU->epsE.z / eps0 + U->m.x * maxwellU->B.y - U->m.y * maxwellU->B.x);
@@ -126,15 +126,15 @@ __kernel void addSource_<?=species?>(
 
 <? end ?>
 
-__kernel void addSource_maxwell(
-	__global maxwell_cons_t* derivBuf,
-	const __global euler_cons_t* ionUBuf,
-	const __global euler_cons_t* electronUBuf
+kernel void addSource_maxwell(
+	global maxwell_cons_t* derivBuf,
+	const global euler_cons_t* ionUBuf,
+	const global euler_cons_t* electronUBuf
 ) {
 	SETBOUNDS(2,2);
-	__global maxwell_cons_t* deriv = derivBuf + index;
-	const __global euler_cons_t* ionU = ionUBuf + index;
-	const __global euler_cons_t* electronU = electronUBuf + index;
+	global maxwell_cons_t* deriv = derivBuf + index;
+	const global euler_cons_t* ionU = ionUBuf + index;
+	const global euler_cons_t* electronU = electronUBuf + index;
 	deriv->epsE = real3_sub(deriv->epsE, real3_scale(ionU->m, chargeMassRatio_ion));
 	deriv->epsE = real3_sub(deriv->epsE, real3_scale(electronU->m, chargeMassRatio_electron));
 }

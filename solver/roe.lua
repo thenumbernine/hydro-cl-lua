@@ -212,9 +212,9 @@ Solver.ConvertToTex = ConvertToTex
 ConvertToTex.type = 'real'	-- default
 
 ConvertToTex.displayCode = [[
-__kernel void <?=name?>(
+kernel void <?=name?>(
 	<?=input?>,
-	const __global <?= convertToTex.type ?>* buf
+	const global <?= convertToTex.type ?>* buf
 	<?= #convertToTex.extraArgs > 0 
 		and ','..table.concat(convertToTex.extraArgs, ',\n\t')
 		or '' ?>
@@ -329,7 +329,7 @@ function Solver:addConvertToTexs()
 	self:addConvertToTex{
 		name = 'wave',
 		varCodePrefix = [[
-	const __global real* wave = buf + intindex * numWaves;
+	const global real* wave = buf + intindex * numWaves;
 ]],
 		vars = range(0, self.eqn.numWaves-1):map(function(i)
 			return {[tostring(i)] = 'value = wave['..i..'];'}
@@ -342,7 +342,7 @@ function Solver:addConvertToTexs()
 			name = 'eigen',
 			type = 'eigen_t',
 			varCodePrefix = [[
-	const __global eigen_t* eigen = buf + intindex;
+	const global eigen_t* eigen = buf + intindex;
 ]],
 			vars = eigenDisplayVars,
 		}
@@ -351,7 +351,7 @@ function Solver:addConvertToTexs()
 	self:addConvertToTex{
 		name = 'deltaUEig', 
 		varCodePrefix = [[
-	const __global real* deltaUEig = buf + intindex * numWaves;
+	const global real* deltaUEig = buf + intindex * numWaves;
 ]],
 		vars = range(0,self.eqn.numWaves-1):map(function(i)
 			return {[tostring(i)] = 'value = deltaUEig['..i..'];'}
@@ -360,7 +360,7 @@ function Solver:addConvertToTexs()
 	self:addConvertToTex{
 		name = 'rEig',
 		varCodePrefix = [[
-	const __global real* rEig = buf + intindex * numWaves;
+	const global real* rEig = buf + intindex * numWaves;
 ]],
 		vars = range(0,self.eqn.numWaves-1):map(function(i)
 			return {[tostring(i)] = 'value = rEig['..i..'];'}
@@ -369,7 +369,7 @@ function Solver:addConvertToTexs()
 	self:addConvertToTex{
 		name = 'flux', 
 		varCodePrefix = [[
-	const __global real* flux = buf + intindex * numStates;
+	const global real* flux = buf + intindex * numStates;
 ]],
 		vars = range(0,self.eqn.numStates-1):map(function(i)
 			return {[tostring(i)] = 'value = flux['..i..'];'}
@@ -631,10 +631,10 @@ function Solver:refreshCommonProgram()
 		}),	
 		-- used by the integrators
 		[[
-__kernel void multAdd(
-	__global real* a,
-	const __global real* b,
-	const __global real* c,
+kernel void multAdd(
+	global real* a,
+	const global real* b,
+	const global real* c,
 	real d
 ) {
 	size_t i = get_global_id(0);
@@ -739,7 +739,7 @@ function Solver:refreshDisplayProgram()
 						var = var,
 						convertToTex = convertToTex,
 						name = 'calcDisplayVarToBuffer_'..var.name,
-						input = '__global real* dest',
+						input = 'global real* dest',
 						output = '	dest[dstindex] = value;',
 					})
 				}
@@ -775,8 +775,8 @@ function Solver:createBoundaryProgramAndKernel(args)
 	local lines = table()
 	lines:insert(self.codePrefix)
 	lines:insert((([[
-__kernel void boundary(
-	__global {type}* buf
+kernel void boundary(
+	global {type}* buf
 ) {
 ]]):gsub('{type}', bufType)))
 	if self.dim == 1 then 

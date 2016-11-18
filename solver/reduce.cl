@@ -1,10 +1,10 @@
 //http://developer.amd.com/resources/documentation-articles/articles-whitepapers/opencl-optimization-case-study-simple-reductions/
 //calculate min of all elements on buffer[0..length-1]
-__kernel void <?=name?>(
-	const __global real* buffer,
-	__local real* scratch,
-	__const int length,
-	__global real* result)
+kernel void <?=name?>(
+	const global real* buffer,
+	local real* scratch,
+	const int length,
+	global real* result)
 {
 	int global_index = get_global_id(0);
 	real accumulator = <?=initValue?>;

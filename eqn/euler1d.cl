@@ -1,7 +1,7 @@
 //called from calcDT
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const __global cons_t* U
+	const global cons_t* U
 ) {
 	prim_t W = primFromCons(*U);
 	real Cs = sqrt(heatCapacityRatio * W.P / W.rho);
@@ -14,9 +14,9 @@ inline real calc_hTotal(real rho, real P, real ETotal) {
 }
 
 __kernel void calcEigenBasis(
-	__global real* waveBuf,			//[volume][dim][numWaves]
-	__global eigen_t* eigenBuf,		//[volume][dim]
-	const __global consLR_t *ULRBuf		//[volume][dim]
+	global real* waveBuf,			//[volume][dim][numWaves]
+	global eigen_t* eigenBuf,		//[volume][dim]
+	const global consLR_t *ULRBuf		//[volume][dim]
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -48,13 +48,13 @@ __kernel void calcEigenBasis(
 		real Cs = sqrt(CsSq);
 	
 		int intindex = side + dim * index;	
-		__global real* wave = waveBuf + numWaves * intindex;
+		global real* wave = waveBuf + numWaves * intindex;
 		wave[0] = vx - Cs;
 		wave[1] = vx;
 		wave[2] = vx + Cs;
 
-		__global eigen_t* eigen = eigenBuf + intindex;
-		__global real* evR = eigen->evR;
+		global eigen_t* eigen = eigenBuf + intindex;
+		global real* evR = eigen->evR;
 		evR[0+3*0] = 1.;
 		evR[1+3*0] = vx - Cs;
 		evR[2+3*0] = hTotal - Cs * vx;
@@ -64,7 +64,7 @@ __kernel void calcEigenBasis(
 		evR[0+3*2] = 1.;
 		evR[1+3*2] = vx + Cs;
 		evR[2+3*2] = hTotal + Cs * vx;
-		__global real* evL = eigen->evL; 
+		global real* evL = eigen->evL; 
 		evL[0+3*0] = (.5 * (heatCapacityRatio - 1.) * vxSq + Cs * vx) / (2. * CsSq);
 		evL[0+3*1] = -(Cs + (heatCapacityRatio - 1.) * vx) / (2. * CsSq);
 		evL[0+3*2] = (heatCapacityRatio - 1.) / (2. * CsSq);
@@ -75,7 +75,7 @@ __kernel void calcEigenBasis(
 		evL[2+3*1] = (Cs - (heatCapacityRatio - 1.) * vx) / (2. * CsSq);
 		evL[2+3*2] = (heatCapacityRatio - 1.) / (2. * CsSq);
 <? if solver.checkFluxError then ?>
-		__global real* A = eigen->A;
+		global real* A = eigen->A;
 		A[0+3*0] = 0;
 		A[0+3*1] = 1;
 		A[0+3*2] = 0;

@@ -1,6 +1,6 @@
-__kernel void calcDT(
-	__global real* dtBuf,
-	const __global cons_t* UBuf
+kernel void calcDT(
+	global real* dtBuf,
+	const global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(2,2)) {
@@ -8,7 +8,7 @@ __kernel void calcDT(
 		return;
 	}
 		
-	const __global cons_t* U = UBuf + index;
+	const global cons_t* U = UBuf + index;
 
 	real dt = INFINITY;
 	//for (int side = 0; side < dim; ++side) {

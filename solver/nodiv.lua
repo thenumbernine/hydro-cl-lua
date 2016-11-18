@@ -7,9 +7,9 @@ NoDiv.gaussSeidelMaxIters = 20
 
 function NoDiv:getCodeParams()
 	return {
-		args = 'const __global cons_t* UBuf',
+		args = 'const global cons_t* UBuf',
 		calcRho = require 'processcl'([[
-	const __global cons_t* U = UBuf + index;
+	const global cons_t* U = UBuf + index;
 	real divB = .5 * (0
 <? for j=0,solver.dim-1 do ?>
 		+ (U[stepsize.s<?=j?>].B.s<?=j?> - U[-stepsize.s<?=j?>].B.s<?=j?>) / grid_dx<?=j?>
@@ -23,13 +23,13 @@ end
 
 NoDiv.extraCode = [[
 
-__kernel void noDiv(
-	__global cons_t* UBuf,
-	const __global real* ePotBuf
+kernel void noDiv(
+	global cons_t* UBuf,
+	const global real* ePotBuf
 ) {
 	SETBOUNDS(2,2);
-	__global cons_t* U = UBuf + index;
-	const __global real* ePot = ePotBuf + index;
+	global cons_t* U = UBuf + index;
+	const global real* ePot = ePotBuf + index;
 <? for j=0,solver.dim-1 do ?> 
 	U->B.s<?=j?> -= (ePot[stepsize.s<?=j?>] - ePot[-stepsize.s<?=j?>]) / (2. * grid_dx<?=j?>);
 <? end ?>

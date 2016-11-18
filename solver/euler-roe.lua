@@ -16,7 +16,7 @@ function EulerRoe:addConvertToTexUBuf()
 	self:addConvertToTex({
 		name = 'U',
 		type = 'cons_t',
-		extraArgs = {'const __global real* ePotBuf'},	-- the code is in eqn/euler.lua, so maybe the 'addConvertToTexUBuf' function should be too?
+		extraArgs = {'const global real* ePotBuf'},	-- the code is in eqn/euler.lua, so maybe the 'addConvertToTexUBuf' function should be too?
 		varCodePrefix = self.eqn.displayVarCodePrefix,
 		vars = self.eqn:getDisplayVars(self),
 	}, ConvertToTex_EulerRoe_U)

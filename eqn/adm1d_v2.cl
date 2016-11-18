@@ -6,7 +6,7 @@ real calcMaxEigenvalue(real alpha, real gamma_xx) {
 
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const __global cons_t* U
+	const global cons_t* U
 ) {
 	real lambda = calcMaxEigenvalue(U->alpha, U->gamma_xx);
 	return (range_t){.min=-lambda, .max=lambda};
@@ -23,10 +23,10 @@ eigen_t calcEigenBasisSide(cons_t UL, cons_t UR) {
 	};
 }
 
-__kernel void calcEigenBasis(
-	__global real* waveBuf,
-	__global eigen_t* eigenBuf,
-	const __global consLR_t* ULRBuf
+kernel void calcEigenBasis(
+	global real* waveBuf,
+	global eigen_t* eigenBuf,
+	const global consLR_t* ULRBuf
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -37,7 +37,7 @@ __kernel void calcEigenBasis(
 		eigen_t eig = calcEigenBasisSide(UL, UR);
 
 		int intindex = side + dim * index;	
-		__global real* wave = waveBuf + numWaves * intindex;
+		global real* wave = waveBuf + numWaves * intindex;
 		real lambda = eig.alpha * eig.sqrt_f_over_gamma_xx;
 		wave[0] = -lambda;
 		wave[1] = 0;
@@ -51,7 +51,7 @@ __kernel void calcEigenBasis(
 
 void eigen_leftTransform_<?=side?>(
 	real* y,
-	const __global eigen_t* eigen,
+	const global eigen_t* eigen,
 	const real* x
 ) {
 	real gamma_xx_over_f = 1. / (eigen->sqrt_f_over_gamma_xx * eigen->sqrt_f_over_gamma_xx);
@@ -62,7 +62,7 @@ void eigen_leftTransform_<?=side?>(
 
 void eigen_rightTransform_<?=side?>(
 	real* y,
-	const __global eigen_t* eigen,
+	const global eigen_t* eigen,
 	const real* x
 ) {
 	y[0] = 0;
@@ -75,7 +75,7 @@ void eigen_rightTransform_<?=side?>(
 <?	if solver.checkFluxError then ?>
 void fluxTransform_<?=side?>(
 	real* y,
-	const __global eigen_t* eigen,
+	const global eigen_t* eigen,
 	const real* x
 ) {
 	real f_over_gamma_xx = eigen->sqrt_f_over_gamma_xx * eigen->sqrt_f_over_gamma_xx;
@@ -92,12 +92,12 @@ end
 ?>
 
 kernel void addSource(
-	__global cons_t* derivBuf,
-	const __global cons_t* UBuf
+	global cons_t* derivBuf,
+	const global cons_t* UBuf
 ) {
 	SETBOUNDS(2,2);
-	__global cons_t* deriv = derivBuf + index;
-	const __global cons_t* U = UBuf + index;
+	global cons_t* deriv = derivBuf + index;
+	const global cons_t* U = UBuf + index;
 	
 	real alpha = U->alpha;
 	real gamma_xx = U->gamma_xx;

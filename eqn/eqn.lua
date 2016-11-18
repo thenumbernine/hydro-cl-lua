@@ -44,7 +44,7 @@ function Equation:getTypeCode()
 end
 
 Equation.displayVarCodePrefix = [[
-	const __global cons_t* U = buf + index;
+	const global cons_t* U = buf + index;
 ]]
 
 -- TODO autogen the name so multiple solvers don't collide

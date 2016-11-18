@@ -158,9 +158,9 @@ function SRHD:getInitStateCode(solver)
 	return table{
 		[[
 
-__kernel void initState(
-	__global cons_t* consBuf,
-	__global prim_t* primBuf
+kernel void initState(
+	global cons_t* consBuf,
+	global prim_t* primBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);

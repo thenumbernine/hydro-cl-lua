@@ -4,7 +4,7 @@
 //called from calcDT
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const __global cons_t* U
+	const global cons_t* U
 ) {
 	prim_t W = primFromCons(*U);
 	real3 v = W.v;
@@ -78,7 +78,7 @@ Roe_t calcRoeValues(cons_t UL, cons_t UR) {
 	};
 };
 
-void fill(__global real* ptr, int step, real a, real b, real c, real d, real e, real f, real g) {
+void fill(global real* ptr, int step, real a, real b, real c, real d, real e, real f, real g) {
 	ptr[0*step] = a;
 	ptr[1*step] = b;
 	ptr[2*step] = c;
@@ -88,10 +88,10 @@ void fill(__global real* ptr, int step, real a, real b, real c, real d, real e, 
 	ptr[6*step] = g;
 }
 
-__kernel void calcEigenBasis(
-	__global real* waveBuf,			//[volume][dim][numWaves]
-	__global eigen_t* eigenBuf,		//[volume][dim]
-	const __global consLR_t* ULRBuf		//[volume][dim]
+kernel void calcEigenBasis(
+	global real* waveBuf,			//[volume][dim][numWaves]
+	global eigen_t* eigenBuf,		//[volume][dim]
+	const global consLR_t* ULRBuf		//[volume][dim]
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -201,7 +201,7 @@ __kernel void calcEigenBasis(
 		real CAx = sqrt(CAxSq);
 		
 		int intindex = side + dim * index;
-		__global real* wave = waveBuf + numWaves * intindex;
+		global real* wave = waveBuf + numWaves * intindex;
 		
 		real lambdaFastMin = v.x - Cf;
 		real lambdaSlowMin = v.x - Cs;
@@ -215,11 +215,11 @@ __kernel void calcEigenBasis(
 		wave[5] = v.x + CAx;
 		wave[6] = lambdaFastMax;
 		
-		__global eigen_t* eig = eigenBuf + intindex;
+		global eigen_t* eig = eigenBuf + intindex;
 
 		// dF/dU
 		<? if solver.checkFluxError then ?>
-		__global real* A = eig->A;
+		global real* A = eig->A;
 		fill(A+0,7,	0, 												1,											0,								0,								0,			0,								0								);
 		fill(A+1,7,	-v.x*v.x + .5*gamma_1*vSq - gamma_2*X,			-gamma_3*v.x,								-gamma_1*v.y,					-gamma_1*v.z,					gamma_1,	-gamma_2*Y*b.y,					-gamma_2*Y*b.z					);
 		fill(A+2,7,	-v.x*v.y,										v.y,										v.x,							0, 								0,			-b.x,							0								);
@@ -246,7 +246,7 @@ __kernel void calcEigenBasis(
 		real r72 = betaY*sbx*_1_sqrtRho;
 		real r73 = -Af*betaStarZ;
 		//rows
-		__global real* evR = eig->evR;
+		global real* evR = eig->evR;
 		evR[0 + numWaves * 0] = alphaF;
 		evR[0 + numWaves * 1] = 0.;
 		evR[0 + numWaves * 2] = alphaS;
@@ -326,7 +326,7 @@ __kernel void calcEigenBasis(
 		real l36 = -AHatF*QStarY - alphaS*b.y;
 		real l37 = -AHatF*QStarZ - alphaS*b.z;
 		//rows
-		__global real* evL = eig->evL;
+		global real* evL = eig->evL;
 		evL[0 + numWaves * 0] = alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb;
 		evL[0 + numWaves * 1] = -alphaF*v.x - Cff;
 		evL[0 + numWaves * 2] = -alphaF*v.y + Qs*QStarY;
@@ -383,7 +383,7 @@ __kernel void calcEigenBasis(
 <? for side=0,2 do ?>
 void eigen_leftTransform_<?=side?>(
 	real* y,
-	const __global eigen_t* eigen,
+	const global eigen_t* eigen,
 	const real* x_
 ) {
 	real x[7] = {
@@ -397,7 +397,7 @@ void eigen_leftTransform_<?=side?>(
 	<? end ?>
 	};
 
-	const __global real* A = eigen->evL;
+	const global real* A = eigen->evL;
 	for (int i = 0; i < 7; ++i) {
 		real sum = 0;
 		for (int j = 0; j < 7; ++j) {
@@ -409,10 +409,10 @@ void eigen_leftTransform_<?=side?>(
 
 void eigen_rightTransform_<?=side?>(
 	real* y,
-	const __global eigen_t* eigen,
+	const global eigen_t* eigen,
 	const real* x
 ) {
-	const __global real* A = eigen->evR;
+	const global real* A = eigen->evR;
 	for (int i = 0; i < 7; ++i) {
 		real sum = 0;
 		for (int j = 0; j < 7; ++j) {
@@ -439,7 +439,7 @@ void eigen_rightTransform_<?=side?>(
 <? if solver.checkFluxError then ?>
 void fluxTransform_<?=side?>(
 	real* y,
-	const __global eigen_t* eigen,
+	const global eigen_t* eigen,
 	const real* x_
 ) {
 	real x[7] = {
@@ -453,7 +453,7 @@ void fluxTransform_<?=side?>(
 	<? end ?>
 	};
 
-	const __global real* A = eigen->A;
+	const global real* A = eigen->A;
 	for (int i = 0; i < 7; ++i) {
 		real sum = 0;
 		for (int j = 0; j < 7; ++j) {

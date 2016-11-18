@@ -14,9 +14,9 @@ then phi = -4 pi del^-2 (rho delta3(r))
 
 */
 
-__kernel void initPotential(
-	__global real* ePotBuf,
-	const __global cons_t* UBuf
+kernel void initPotential(
+	global real* ePotBuf,
+	const global cons_t* UBuf
 ) {
 	SETBOUNDS(2,2);
 	real rho = 0;
@@ -24,8 +24,8 @@ __kernel void initPotential(
 	ePotBuf[index] = -rho;
 }
 
-__kernel void solvePoisson(
-	__global real* ePotBuf,
+kernel void solvePoisson(
+	global real* ePotBuf,
 	<?=args?>
 ) {
 	SETBOUNDS(2,2);

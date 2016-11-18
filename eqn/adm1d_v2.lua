@@ -126,12 +126,12 @@ ADM_BonaMasso_1D_Alcubierre1997.guiVars = {
 function ADM_BonaMasso_1D_Alcubierre1997:getInitStateCode(solver)
 	return table{
 		[[
-__kernel void initState(
-	__global cons_t* UBuf
+kernel void initState(
+	global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	__global cons_t* U = UBuf + index;
+	global cons_t* U = UBuf + index;
 	
 	U->alpha = calc_alpha(x.x, x.y, x.z);
 	U->gamma_xx = calc_gamma_xx(x.x, x.y, x.z);

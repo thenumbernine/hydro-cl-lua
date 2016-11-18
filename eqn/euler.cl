@@ -1,8 +1,8 @@
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
-__kernel void calcDT(
-	__global real* dtBuf,
-	const __global cons_t* UBuf,
-	const __global real* ePotBuf
+kernel void calcDT(
+	global real* dtBuf,
+	const global cons_t* UBuf,
+	const global real* ePotBuf
 ) {
 	int4 i = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
 	int index = INDEXV(i);
@@ -63,11 +63,11 @@ eigen_t eigen_forSide(cons_t UL, real ePotL, cons_t UR, real ePotR) {
 	};	
 }
 
-__kernel void calcEigenBasis(
-	__global real* waveBuf,			//[volume][dim][numWaves]
-	__global eigen_t* eigenBuf,		//[volume][dim]
-	const __global consLR_t* ULRBuf,	//[volume]
-	const __global real* ePotBuf
+kernel void calcEigenBasis(
+	global real* waveBuf,			//[volume][dim][numWaves]
+	global eigen_t* eigenBuf,		//[volume][dim]
+	const global consLR_t* ULRBuf,	//[volume]
+	const global real* ePotBuf
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -86,7 +86,7 @@ __kernel void calcEigenBasis(
 		
 		real v_n = eig.v.s[<?=side?>];
 		int intindex = side + dim * index;	
-		__global real* wave = waveBuf + numWaves * intindex;
+		global real* wave = waveBuf + numWaves * intindex;
 		wave[0] = v_n - eig.Cs;
 		wave[1] = v_n;
 		wave[2] = v_n;
@@ -133,7 +133,7 @@ for side=0,2 do
 
 void eigen_leftTransform_<?=side?>(
 	real* y,
-	const __global eigen_t* eig,
+	const global eigen_t* eig,
 	const real* x
 ) { 
 	<?=prefix?>
@@ -163,7 +163,7 @@ void eigen_leftTransform_<?=side?>(
 
 void eigen_rightTransform_<?=side?>(
 	real* y,
-	const __global eigen_t* eig,
+	const global eigen_t* eig,
 	const real* x
 ) {
 	<?=prefix?>
@@ -178,7 +178,7 @@ void eigen_rightTransform_<?=side?>(
 <?	if solver.checkFluxError then ?>
 void fluxTransform_<?=side?>(
 	real* y,
-	const __global eigen_t* eig,
+	const global eigen_t* eig,
 	const real* x
 ) {
 	<?=prefix?>

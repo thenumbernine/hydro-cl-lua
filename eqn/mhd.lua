@@ -110,8 +110,8 @@ function MHD:getInitStateCode(solver)
 	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
 	local code = initState.init(solver)	
 	return [[
-__kernel void initState(
-	__global cons_t* UBuf
+kernel void initState(
+	global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);

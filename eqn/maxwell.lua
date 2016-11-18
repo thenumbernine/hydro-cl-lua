@@ -57,8 +57,8 @@ function Maxwell:getInitStateCode(solver)
 	return table{
 		processcl(
 		[[
-__kernel void initState(
-	__global cons_t* UBuf
+kernel void initState(
+	global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
@@ -71,7 +71,7 @@ if solver.dim > 2 then ?>
 		&& x.z < mids.z
 <? end ?>
 	;
-	__global cons_t* U = UBuf + index;
+	global cons_t* U = UBuf + index;
 	U->epsE = real3_scale(_real3(1,0,0), eps0);
 	U->B = _real3(0, 1, lhs ? 1 : -1);
 }

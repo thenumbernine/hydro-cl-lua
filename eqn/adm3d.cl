@@ -2,9 +2,9 @@ inline real calcMaxEigenvalue(real alpha, real gammaUii) {
 	return alpha * sqrt(calc_f(alpha) * gammaUii);
 }
 
-__kernel void calcDT(
-	__global real* dtBuf,
-	const __global cons_t* UBuf
+kernel void calcDT(
+	global real* dtBuf,
+	const global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(2,2)) {
@@ -12,7 +12,7 @@ __kernel void calcDT(
 		return;
 	}
 		
-	const __global cons_t* U = UBuf + index;
+	const global cons_t* U = UBuf + index;
 	real gamma = sym3_det(U->gamma);
 
 	real dt = INFINITY;
@@ -35,10 +35,10 @@ __kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-__kernel void calcEigenBasis(
-	__global real* waveBuf,
-	__global eigen_t* eigenBuf,
-	const __global consLR_t* ULRBuf
+kernel void calcEigenBasis(
+	global real* waveBuf,
+	global eigen_t* eigenBuf,
+	const global consLR_t* ULRBuf
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -73,7 +73,7 @@ __kernel void calcEigenBasis(
 		real lambdaGauge = lambdaLight * sqrt(eig.f);
 		
 		int intindex = side + dim * index;	
-		__global real* wave = waveBuf + numWaves * intindex;
+		global real* wave = waveBuf + numWaves * intindex;
 		wave[0] = -lambdaGauge;
 		<? for i=1,5 do ?> wave[<?=i?>] = -lambdaLight; <? end ?>
 		<? for i=6,23 do ?> wave[<?=i?>] = 0.; <? end ?>
@@ -88,7 +88,7 @@ __kernel void calcEigenBasis(
 
 void eigen_leftTransform_<?=side?>(
 	real* results,
-	const __global eigen_t* eigen,
+	const global eigen_t* eigen,
 	const real* input
 ) {
 	real f = eigen->f;
@@ -212,7 +212,7 @@ void eigen_leftTransform_<?=side?>(
 
 void eigen_rightTransform_<?=side?>(
 	real* results,
-	const __global eigen_t* eigen,
+	const global eigen_t* eigen,
 	const real* input
 ) {
 	real f = eigen->f;
@@ -345,7 +345,7 @@ if solver.checkFluxError then
 ?>
 void fluxTransform_<?=side?>(
 	real* y,
-	const __global eigen_t* eigen,
+	const global eigen_t* eigen,
 	const real* x
 ) {
 	for (int i = 0; i < numStates; ++i) {
@@ -356,13 +356,13 @@ void fluxTransform_<?=side?>(
 <?	end
 end ?>
 
-__kernel void addSource(
-	__global cons_t* derivBuf,
-	const __global cons_t* UBuf)
+kernel void addSource(
+	global cons_t* derivBuf,
+	const global cons_t* UBuf)
 {
 	SETBOUNDS(2,2);
-	const __global cons_t* U = UBuf + index;
-	__global cons_t* deriv = derivBuf + index;
+	const global cons_t* U = UBuf + index;
+	global cons_t* deriv = derivBuf + index;
 
 	real gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(gamma, U->gamma);
@@ -688,14 +688,14 @@ GU0L[2] + AKL[2] - U->a.z * trK + K12D23L[2] + KD23L[2] - 2 * K12D12L[2] + 2 * K
 }
 
 // the 1D version has no problems, but at 2D we get instabilities ... 
-__kernel void constrain(
-	__global cons_t* UBuf
+kernel void constrain(
+	global cons_t* UBuf
 ) {
 <? if false then ?>
 #if 0	//use constraints at all?
 	SETBOUNDS(2,2);	
 	
-	__global cons_t* U = UBuf + index;
+	global cons_t* U = UBuf + index;
 
 	real gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(gamma, U->gamma);

@@ -87,9 +87,9 @@ cons_t consFromPrim(prim_t W, real ePot) {
 	};
 }
 
-__kernel void initState(
-	__global cons_t* UBuf,
-	__global real* ePotBuf
+kernel void initState(
+	global cons_t* UBuf,
+	global real* ePotBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);

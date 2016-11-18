@@ -121,8 +121,8 @@ kernel void calcDeltaUEig(
 		const int side = <?=side?>;
 		int indexL = index - stepsize[side];
 		
-		const global real* UL = (const global real*)&(ULRBuf + side + dim * indexL)->R;
-		const global real* UR = (const global real*)&(ULRBuf + side + dim * indexR)->L;
+		const global real* UL = ULRBuf[side + dim * indexL].R.ptr;
+		const global real* UR = ULRBuf[side + dim * indexR].L.ptr;
 
 		real deltaU[numStates];
 		for (int j = 0; j < numStates; ++j) {
@@ -191,8 +191,8 @@ kernel void calcFlux(
 		const int side = <?=side?>;	
 		real dt_dx = dt / dx<?=side?>_at(i);
 		int indexL = index - stepsize[side];
-		const global real* UL = (const global real*)&(ULRBuf + side + dim * indexL)->R;
-		const global real* UR = (const global real*)&(ULRBuf + side + dim * indexR)->L;
+		const global real* UL = ULRBuf[side + dim * indexL].R.ptr;
+		const global real* UR = ULRBuf[side + dim * indexR].L.ptr;
 		
 		real UAvg[numStates];
 		for (int j = 0; j < numStates; ++j) {

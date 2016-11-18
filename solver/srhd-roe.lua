@@ -26,7 +26,7 @@ function SRHDRoe:addConvertToTexUBuf()
 	self:addConvertToTex({
 		name = 'U',
 		type = 'cons_t',
-		extraArgs = {'const __global prim_t* primBuf'},
+		extraArgs = {'const global prim_t* primBuf'},
 -- the index vs dstindex stuff is shared in common with the main display code
 		varCodePrefix = self.eqn.displayVarCodePrefix,
 		vars = self.eqn:getDisplayVars(self),

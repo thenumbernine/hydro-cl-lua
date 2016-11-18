@@ -80,12 +80,12 @@ local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
 function ADM_BonaMasso_3D:getInitStateCode(solver)
 	local lines = table{
 		[[
-__kernel void initState(
-	__global cons_t* UBuf
+kernel void initState(
+	global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	__global cons_t* U = UBuf + index;
+	global cons_t* U = UBuf + index;
 ]]
 	}
 
