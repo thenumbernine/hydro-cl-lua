@@ -4,14 +4,38 @@ kernel void calcLR(
 	global consLR_t* ULRBuf,
 	const global cons_t* UBuf
 ) {
-	SETBOUNDS(0,0);
+	SETBOUNDS(1,1);
+	const global cons_t* U = UBuf + index;
 	
 	//TODO skip this lr stuff if we're doing piecewise-constant
 	//...and just use the original buffers
 	<? for side=0,solver.dim-1 do ?>{
-		int intindex = <?=side?> + dim * index;
-		//constant
-		ULRBuf[intindex].L = ULRBuf[intindex].R = UBuf[index];
+		const int side = <?=side?>;
+		int intindex = side + dim * index;
+		global consLR_t* ULR = ULRBuf + intindex;	
+		
+#if 0	//constant
+		ULRBuf[intindex].L = ULRBuf[intindex].R = *U;
+#endif	
+#if 1	//linear
+		const global cons_t* UL = U - stepsize[side];
+		const global cons_t* UR = U + stepsize[side];
+		for (int j = 0; j < numStates; ++j) {
+			real dUL = U->ptr[j] - UL->ptr[j];
+			real dUR = UR->ptr[j] - U->ptr[j];
+			real dUC = UR->ptr[j] - UL->ptr[j];
+			real delta = min(
+				min(2. * fabs(dUL),
+					2. * fabs(dUR)),
+				fabs(dUC)) 
+				* (dUC >= 0. ? 1. : -1.)
+				//* max(dUL * dUR >= 0. ? 1. : -1., 0.)
+			;
+			//Toro 13.24
+			ULR->L.ptr[j] = U->ptr[j] - .5 * delta;
+			ULR->R.ptr[j] = U->ptr[j] + .5 * delta;
+		}
+#endif	
 	}<? end ?>
 }
 

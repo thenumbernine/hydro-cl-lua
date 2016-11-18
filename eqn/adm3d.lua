@@ -122,7 +122,6 @@ function ADM_BonaMasso_3D:getDisplayVars(solver)
 	}
 end
 
-local makeStruct = require 'eqn.makestruct'
 local eigenVars = {'alpha', 'f', 'gammaUxx', 'gammaUxy', 'gammaUxz', 'gammaUyy', 'gammaUyz', 'gammaUzz'}
 
 function ADM_BonaMasso_3D:getEigenTypeCode(solver)

@@ -33,7 +33,14 @@ function Equation:getCodePrefix()
 end
 
 function Equation:getTypeCode()
-	return require 'eqn.makestruct'('cons_t', self.consVars)
+	return table{
+		'typedef union {',
+		'	real ptr['..self.numStates..'];',
+		'	struct {',
+		'		real '..table.concat(self.consVars, ', ')..';',
+		'	};',
+		'} cons_t;',
+	}:concat'\n'
 end
 
 Equation.displayVarCodePrefix = [[
