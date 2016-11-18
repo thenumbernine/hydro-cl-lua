@@ -241,8 +241,8 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		--integrator = 'Runge-Kutta 4, TVD',
 	
 		-- this is a flux limiter for the record.  TODO implement slope limiter.
-		--fluxLimiter = cmdline.fluxLimiter or 'superbee',
-		fluxLimiter = 'donor cell',
+		fluxLimiter = cmdline.fluxLimiter or 'superbee',
+		--fluxLimiter = 'donor cell',
 		
 		-- [[ cartesian
 		geometry = 'cartesian',
@@ -312,7 +312,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	}
 
 	-- HD
-	self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
+	--self.solver = require 'solver.roe'(table(args, {eqn='euler1d'}))
 	--self.solver = require 'solver.euler-roe'(args)
 	-- SR+HD
 	--self.solver = require 'solver.srhd-roe'(args)
@@ -325,7 +325,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	-- GR 
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v1'}))
 	--self.solver = require 'solver.roe'(table(args, {eqn='adm1d_v2'}))
-	--self.solver = require 'solver.roe'(table(args, {eqn='adm3d'}))
+	self.solver = require 'solver.roe'(table(args, {eqn='adm3d'}))
 
 	self.solvers = table{self.solver}
 	

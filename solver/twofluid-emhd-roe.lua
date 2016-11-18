@@ -92,6 +92,7 @@ function TwoFluidEMHDRoe:replaceSourceKernels()
 	local chargeMassRatio_electron = .01
 	local eps0 = 1
 
+	self.consLRTypeCode = ''
 	require 'solver.roe'.createCodePrefix(self)
 
 	local lines = table{

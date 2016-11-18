@@ -420,7 +420,7 @@ function Solver:finalizeCLAllocs()
 	end
 end
 
-local consLRTypeCode = [[
+Solver.consLRTypeCode = [[
 typedef union {
 	cons_t LR[2];
 	struct {
@@ -436,7 +436,7 @@ function Solver:createBuffers()
 	ffi.cdef(self.eqn:getTypeCode())
 	ffi.cdef(self.eqn:getEigenTypeCode(self))
 	ffi.cdef(errorTypeCode)
-	ffi.cdef(consLRTypeCode)
+	ffi.cdef(self.consLRTypeCode)
 
 	-- should I put these all in one AoS?
 	self:clalloc('UBuf', self.volume * ffi.sizeof'cons_t')
@@ -582,7 +582,7 @@ function Solver:createCodePrefix()
 		self:getCoordMapCode() or '',
 		-- this is dependent on coord map / length code
 		self.eqn:getCodePrefix(self) or '',
-		consLRTypeCode,
+		self.consLRTypeCode,
 	}
 
 

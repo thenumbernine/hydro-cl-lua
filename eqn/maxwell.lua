@@ -26,9 +26,12 @@ Maxwell.guiVars = table{
 
 function Maxwell:getTypeCode()
 	return [[
-typedef struct {
-	real3 epsE;
-	real3 B;
+typedef union {
+	real ptr[6];
+	struct {
+		real3 epsE;
+		real3 B;
+	};
 } cons_t;
 ]]
 end

@@ -41,13 +41,16 @@ ADM_BonaMasso_3D.guiVars = table{
 
 function ADM_BonaMasso_3D:getTypeCode()
 	return [[
-typedef struct {
-	real alpha;
-	sym3 gamma;
-	real3 a;
-	sym3 d[3];
-	sym3 K;
-	real3 V;
+typedef union {
+	real ptr[37];
+	struct {
+		real alpha;
+		sym3 gamma;
+		real3 a;
+		sym3 d[3];
+		sym3 K;
+		real3 V;
+	};
 } cons_t;
 ]]
 end

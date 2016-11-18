@@ -14,10 +14,10 @@ kernel void calcLR(
 		int intindex = side + dim * index;
 		global consLR_t* ULR = ULRBuf + intindex;	
 		
-#if 0	//constant
+#if 1	//constant
 		ULRBuf[intindex].L = ULRBuf[intindex].R = *U;
 #endif	
-#if 1	//linear
+#if 0	//linear
 		const global cons_t* UL = U - stepsize[side];
 		const global cons_t* UR = U + stepsize[side];
 		for (int j = 0; j < numStates; ++j) {

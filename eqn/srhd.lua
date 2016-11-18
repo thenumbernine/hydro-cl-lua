@@ -65,10 +65,13 @@ enum {
 	cons_tau,
 };
 
-typedef struct {
-	real D;
-	real3 S;
-	real tau;
+typedef union {
+	real ptr[5];
+	struct {
+		real D;
+		real3 S;
+		real tau;
+	};
 } cons_t;
 ]]
 end

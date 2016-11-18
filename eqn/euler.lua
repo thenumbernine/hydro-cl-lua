@@ -30,10 +30,13 @@ typedef struct {
 	real P;
 } prim_t;
 
-typedef struct {
-	real rho;
-	real3 m;
-	real ETotal;
+typedef union {
+	real ptr[5];
+	struct {
+		real rho;
+		real3 m;
+		real ETotal;
+	};
 } cons_t;
 ]]
 end
