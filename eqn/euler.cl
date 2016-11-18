@@ -46,8 +46,13 @@ eigen_t eigen_forCell(cons_t U) {
 	};
 }
 
-//used locally, for interface eigen basis
-eigen_t eigen_forSide(cons_t UL, real ePotL, cons_t UR, real ePotR) {
+//used for interface eigen basis
+eigen_t eigen_forSide(
+	cons_t UL, 
+	real ePotL, 
+	cons_t UR, 
+	real ePotR
+) {
 	prim_t WL = primFromCons(UL, ePotL);
 	real sqrtRhoL = sqrt(WL.rho);
 	real3 vL = WL.v;
@@ -82,6 +87,26 @@ eigen_t eigen_forSide(cons_t UL, real ePotL, cons_t UR, real ePotR) {
 	};	
 }
 
+<?
+for _,suffix in ipairs{'', 'global'} do
+	for side=0,solver.dim-1 do
+?>
+void eigen_calcWaves_<?=side?><?=suffix?>(
+	eigen_t eig,
+	<?=suffix?> real* wave
+) {
+	real v_n = eig.v.s[<?=side?>];
+	wave[0] = v_n - eig.Cs;
+	wave[1] = v_n;
+	wave[2] = v_n;
+	wave[3] = v_n;
+	wave[4] = v_n + eig.Cs;
+}
+<?
+	end
+end
+?>
+
 kernel void calcEigenBasis(
 	global real* waveBuf,			//[volume][dim][numWaves]
 	global eigen_t* eigenBuf,		//[volume][dim]
@@ -100,20 +125,15 @@ kernel void calcEigenBasis(
 		
 		cons_t UL = ULRBuf[side + dim * indexL].R;
 		cons_t UR = ULRBuf[side + dim * indexR].L;
+		
+		int intindex = side + dim * index;	
 
 		eigen_t eig = eigen_forSide(UL, ePotL, UR, ePotR);
-		
-		real v_n = eig.v.s[<?=side?>];
-		int intindex = side + dim * index;	
-		global real* wave = waveBuf + numWaves * intindex;
-		wave[0] = v_n - eig.Cs;
-		wave[1] = v_n;
-		wave[2] = v_n;
-		wave[3] = v_n;
-		wave[4] = v_n + eig.Cs;
-		
 		eigenBuf[intindex] = eig;
-
+		
+		global real* wave = waveBuf + numWaves * intindex;
+		
+		eigen_calcWaves_<?=side?>global(eig, wave);
 	}<? end ?>
 }
 

@@ -959,6 +959,7 @@ function Solver:reduce(kernel)
 end
 
 function Solver:calcDeriv(derivBuf, dt)
+	self.calcLRKernel:setArg(2, ffi.new('real[1]', dt))
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcLRKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcEigenBasisKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}

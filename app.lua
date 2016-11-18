@@ -314,9 +314,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	self.solvers = table()
 
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='donor cell'})))
-	self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='superbee'})))
-	self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='donor cell', usePLM=true})))
+	--self.solvers:insert(require 'solver.euler-roe'(args)
 	-- SR+HD
 	--self.solvers:insert(require 'solver.srhd-roe'(args))
 	-- M+HD
@@ -329,7 +327,13 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
-	
+
+	-- [[ donor cell vs flux-limiter superbee vs slope-limiter ???
+	--self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='donor cell'})))
+	--self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='superbee'})))
+	self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='donor cell', usePLM=true})))
+	--]]
+
 	local graphShaderCode = file['graph.shader']
 	self.graphShader = GLProgram{
 		vertexCode = '#define VERTEX_SHADER\n'..graphShaderCode,

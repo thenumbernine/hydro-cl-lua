@@ -2,7 +2,8 @@
 
 kernel void calcLR(
 	global consLR_t* ULRBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	real dt
 ) {
 	SETBOUNDS(1,1);
 	const global cons_t* U = UBuf + index;
@@ -15,10 +16,19 @@ kernel void calcLR(
 		global consLR_t* ULR = ULRBuf + intindex;	
 		
 <? if not solver.usePLM then ?>
+		
 		//constant
 		ULRBuf[intindex].L = ULRBuf[intindex].R = *U;
+
 <? else ?>
+
 		//piecewise-linear
+		
+		//calc eigen values and vectors at cell center
+		eigen_t eig = eigen_forCell(*U);
+		real wave[numWaves];
+		eigen_calcWaves_<?=side?>(eig, wave);
+		
 		//1) calc delta q's ... l r c
 		const global cons_t* UL = U - stepsize[side];
 		const global cons_t* UR = U + stepsize[side];
@@ -30,26 +40,43 @@ kernel void calcLR(
 		}
 
 		//2) calc eigenspace delta qs
-		eigen_t eig = eigen_forCell(*U);
 		real dULEig[numWaves], dUREig[numWaves], dUCEig[numWaves];
 		eigen_leftTransform_<?=side?>(dULEig, eig, dUL.ptr);
 		eigen_leftTransform_<?=side?>(dUREig, eig, dUR.ptr);
 		eigen_leftTransform_<?=side?>(dUCEig, eig, dUC.ptr);
 
 		//3) do the limiter
-		real dUMEig[numWaves];	
-		for (int j = 0; j < numStates; ++j) {
+		real dUMEig[numWaves];
+		for (int j = 0; j < numWaves; ++j) {
 			dUMEig[j] = min(
-				min(2. * fabs(dUL),
-					2. * fabs(dUR)),
-				fabs(dUC)) 
-				* (dUC >= 0. ? 1. : -1.)
-				//* max(dUL * dUR >= 0. ? 1. : -1., 0.)
+				min(2. * fabs(dULEig[j]),
+					2. * fabs(dUREig[j])),
+				fabs(dUCEig[j]))
+				* (dUCEig[j] >= 0. ? 1. : -1.)
+				* (dULEig[j] * dUREig[j] > 0. ? 1. : 0.)
 			;
-			//Toro 13.24
-			ULR->L.ptr[j] = U->ptr[j] - .5 * dUMEig[j];
-			ULR->R.ptr[j] = U->ptr[j] + .5 * dUMEig[j];
 		}
+	
+		real dx = dx<?=side?>_at(i);
+		real dt_dx = dt / dx;
+
+		real pl[numWaves], pr[numWaves];
+		for (int j = 0; j < numWaves; ++j) {
+			pl[j] = wave[j] >= 0 ? dUMEig[j] * .5 * (1. - dt_dx * wave[j]) : 0;
+			pr[j] = wave[j] <= 0 ? dUMEig[j] * .5 * (1. + dt_dx * wave[j]) : 0;
+		}
+
+		//convert back
+		cons_t ql, qr;
+		eigen_rightTransform_<?=side?>(ql.ptr, eig, pl);
+		eigen_rightTransform_<?=side?>(qr.ptr, eig, pr);
+		
+		for (int j = 0; j < numStates; ++j) {
+			//Toro 13.24
+			ULR->L.ptr[j] = U->ptr[j] - qr.ptr[j];
+			ULR->R.ptr[j] = U->ptr[j] + ql.ptr[j];
+		}
+
 <? end ?>
 	}<? end ?>
 }
