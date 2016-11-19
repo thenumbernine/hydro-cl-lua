@@ -37,17 +37,17 @@ typedef struct {
 	real X, Y;
 } Roe_t;
 
-Roe_t calcRoeValues(cons_t UL, cons_t UR) {
+void calcRoeValues(Roe_t* W, const cons_t* UL, const cons_t* UR) {
 	// should I use bx, or bxL/R, for calculating the PMag at the L and R states?
-	prim_t WL = primFromCons(UL);
-	real sqrtRhoL = sqrt(UL.rho);
-	real PMagL = .5 * real3_lenSq(UL.b);
-	real hTotalL = (UL.ETotal + WL.P + PMagL) / UL.rho;
+	prim_t WL = primFromCons(*UL);
+	real sqrtRhoL = sqrt(UL->rho);
+	real PMagL = .5 * real3_lenSq(UL->b);
+	real hTotalL = (UL->ETotal + WL.P + PMagL) / UL->rho;
 
-	prim_t WR = primFromCons(UR);;
-	real sqrtRhoR = sqrt(UR.rho);
-	real PMagR = .5 * real3_lenSq(UR.b);
-	real hTotalR = (UR.ETotal + WR.P + PMagR) / UR.rho;
+	prim_t WR = primFromCons(*UR);
+	real sqrtRhoR = sqrt(UR->rho);
+	real PMagR = .5 * real3_lenSq(UR->b);
+	real hTotalR = (UR->ETotal + WR.P + PMagR) / UR->rho;
 	
 	real invDenom = 1 / (sqrtRhoL + sqrtRhoR);
 	real rho  = sqrtRhoL * sqrtRhoR;
@@ -64,16 +64,14 @@ Roe_t calcRoeValues(cons_t UL, cons_t UR) {
 	real dby = WL.b.y - WR.b.y;
 	real dbz = WL.b.z - WR.b.z;
 	real X = .5 * (dby * dby + dbz * dbz) * invDenom * invDenom;
-	real Y = .5 * (UL.rho + UR.rho) / rho;
+	real Y = .5 * (UL->rho + UR->rho) / rho;
 	
-	return (Roe_t){
-		.rho=rho,
-		.v = v,
-		.hTotal = hTotal,
-		.b = _real3(bx,by,bz),
-		.X = X,
-		.Y = Y,
-	};
+	W->rho=rho;
+	W->v = v;
+	W->hTotal = hTotal;
+	W->b = _real3(bx,by,bz);
+	W->X = X;
+	W->Y = Y;
 };
 
 void fill(global real* ptr, int step, real a, real b, real c, real d, real e, real f, real g) {
@@ -89,7 +87,7 @@ void fill(global real* ptr, int step, real a, real b, real c, real d, real e, re
 kernel void calcEigenBasis(
 	global real* waveBuf,			//[volume][dim][numWaves]
 	global eigen_t* eigenBuf,		//[volume][dim]
-	const global consLR_t* ULRBuf		//[volume][dim]
+	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -102,9 +100,10 @@ kernel void calcEigenBasis(
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexL = index - stepsize[side];
-		cons_t UL = ULRBuf[side + dim * indexL].R;
-		cons_t UR = ULRBuf[side + dim * indexR].L;
+		
+		<?= solver.getULRCode ?>
 
+#if 0	//testing
 		//swap the sides with x here
 		real tmp;
 		<? if side == 1 then ?>
@@ -118,8 +117,10 @@ kernel void calcEigenBasis(
 		tmp = UL.b.x; UL.b.x = UL.b.z; UL.b.z = tmp;
 		tmp = UR.b.x; UR.b.x = UR.b.z; UR.b.z = tmp;
 		<? end ?>
+#endif
 
-		Roe_t roe = calcRoeValues(UL, UR);
+		Roe_t roe;
+		calcRoeValues(&roe, &UL, &UR);
 
 		real rho = roe.rho;
 		real3 v = roe.v;
@@ -245,55 +246,13 @@ kernel void calcEigenBasis(
 		real r73 = -Af*betaStarZ;
 		//rows
 		global real* evR = eig->evR;
-		evR[0 + numWaves * 0] = alphaF;
-		evR[0 + numWaves * 1] = 0.;
-		evR[0 + numWaves * 2] = alphaS;
-		evR[0 + numWaves * 3] = 1.;
-		evR[0 + numWaves * 4] = alphaS;
-		evR[0 + numWaves * 5] = 0.;
-		evR[0 + numWaves * 6] = alphaF;
-		evR[1 + numWaves * 0] = alphaF*lambdaFastMin;
-		evR[1 + numWaves * 1] = 0.;
-		evR[1 + numWaves * 2] = alphaS*lambdaSlowMin;
-		evR[1 + numWaves * 3] = v.x;
-		evR[1 + numWaves * 4] = alphaS*lambdaSlowMax;
-		evR[1 + numWaves * 5] = 0.;
-		evR[1 + numWaves * 6] = alphaF*lambdaFastMax;
-		evR[2 + numWaves * 0] = qa3 + qc3;
-		evR[2 + numWaves * 1] = -betaZ;
-		evR[2 + numWaves * 2] = qb3 - qd3;
-		evR[2 + numWaves * 3] = v.y;
-		evR[2 + numWaves * 4] = qb3 + qd3;
-		evR[2 + numWaves * 5] = betaZ;
-		evR[2 + numWaves * 6] = qa3 - qc3;
-		evR[3 + numWaves * 0] = qa4 + qc4;
-		evR[3 + numWaves * 1] = betaY;
-		evR[3 + numWaves * 2] = qb4 - qd4;
-		evR[3 + numWaves * 3] = v.z;
-		evR[3 + numWaves * 4] = qb4 + qd4;
-		evR[3 + numWaves * 5] = -betaY;
-		evR[3 + numWaves * 6] = qa4 - qc4;
-		evR[4 + numWaves * 0] = alphaF*(hHydro - v.x*Cf) + Qs*vDotBeta + Aspbb;
-		evR[4 + numWaves * 1] = r52;
-		evR[4 + numWaves * 2] = alphaS*(hHydro - v.x*Cs) - Qf*vDotBeta - Afpbb;
-		evR[4 + numWaves * 3] = .5*vSq + gamma_2*X/gamma_1;
-		evR[4 + numWaves * 4] = alphaS*(hHydro + v.x*Cs) + Qf*vDotBeta - Afpbb;
-		evR[4 + numWaves * 5] = -r52;
-		evR[4 + numWaves * 6] = alphaF*(hHydro + v.x*Cf) - Qs*vDotBeta + Aspbb;
-		evR[5 + numWaves * 0] = r61;
-		evR[5 + numWaves * 1] = r62;
-		evR[5 + numWaves * 2] = r63;
-		evR[5 + numWaves * 3] = 0.;
-		evR[5 + numWaves * 4] = r63;
-		evR[5 + numWaves * 5] = r62;
-		evR[5 + numWaves * 6] = r61;
-		evR[6 + numWaves * 0] = r71;
-		evR[6 + numWaves * 1] = r72;
-		evR[6 + numWaves * 2] = r73;
-		evR[6 + numWaves * 3] = 0.;
-		evR[6 + numWaves * 4] = r73;
-		evR[6 + numWaves * 5] = r72;
-		evR[6 + numWaves * 6] = r71;
+		fill(evR+0,7, alphaF, 0, alphaS, 1, alphaS, 0, alphaF);
+		fill(evR+1,7, alphaF*lambdaFastMin, 0, alphaS*lambdaSlowMin, v.x, alphaS*lambdaSlowMax, 0, alphaF*lambdaFastMax);
+		fill(evR+2,7, qa3 + qc3, -betaZ, qb3 - qd3, v.y, qb3 + qd3, betaZ, qa3 - qc3);
+		fill(evR+3,7, qa4 + qc4, betaY, qb4 - qd4, v.z, qb4 + qd4, -betaY, qa4 - qc4);
+		fill(evR+4,7, alphaF*(hHydro - v.x*Cf) + Qs*vDotBeta + Aspbb, r52, alphaS*(hHydro - v.x*Cs) - Qf*vDotBeta - Afpbb, .5*vSq + gamma_2*X/gamma_1, alphaS*(hHydro + v.x*Cs) + Qf*vDotBeta - Afpbb, -r52, alphaF*(hHydro + v.x*Cf) - Qs*vDotBeta + Aspbb);
+		fill(evR+5,7, r61, r62, r63, 0, r63, r62, r61);
+		fill(evR+6,7, r71, r72, r73, 0, r73, r72, r71);
 
 		// left eigenvectors
 		real norm = .5/aTildeSq;
@@ -325,56 +284,13 @@ kernel void calcEigenBasis(
 		real l37 = -AHatF*QStarZ - alphaS*b.z;
 		//rows
 		global real* evL = eig->evL;
-		evL[0 + numWaves * 0] = alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb;
-		evL[0 + numWaves * 1] = -alphaF*v.x - Cff;
-		evL[0 + numWaves * 2] = -alphaF*v.y + Qs*QStarY;
-		evL[0 + numWaves * 3] = -alphaF*v.z + Qs*QStarZ;
-		evL[0 + numWaves * 4] = alphaF;
-		evL[0 + numWaves * 5] = l16;
-		evL[0 + numWaves * 6] = l17;
-		evL[1 + numWaves * 0] = l21;
-		evL[1 + numWaves * 1] = 0.;
-		evL[1 + numWaves * 2] = -l23;
-		evL[1 + numWaves * 3] = l24;
-		evL[1 + numWaves * 4] = 0.;
-		evL[1 + numWaves * 5] = l26;
-		evL[1 + numWaves * 6] = l27;
-		evL[2 + numWaves * 0] = alphaS*(vSq-hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb;
-		evL[2 + numWaves * 1] = -alphaS*v.x - Css;
-		evL[2 + numWaves * 2] = -alphaS*v.y - Qf*QStarY;
-		evL[2 + numWaves * 3] = -alphaS*v.z - Qf*QStarZ;
-		evL[2 + numWaves * 4] = alphaS;
-		evL[2 + numWaves * 5] = l36;
-		evL[2 + numWaves * 6] = l37;
-		evL[3 + numWaves * 0] = 1. - norm*(.5*vSq - gamma_2*X/gamma_1);
-		evL[3 + numWaves * 1] = norm*v.x;
-		evL[3 + numWaves * 2] = norm*v.y;
-		evL[3 + numWaves * 3] = norm*v.z;
-		evL[3 + numWaves * 4] = -norm;
-		evL[3 + numWaves * 5] = norm*b.y;
-		evL[3 + numWaves * 6] = norm*b.z;
-		evL[4 + numWaves * 0] = alphaS*(vSq-hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb;
-		evL[4 + numWaves * 1] = -alphaS*v.x + Css;
-		evL[4 + numWaves * 2] = -alphaS*v.y + Qf*QStarY;
-		evL[4 + numWaves * 3] = -alphaS*v.z + Qf*QStarZ;
-		evL[4 + numWaves * 4] = alphaS;
-		evL[4 + numWaves * 5] = l36;
-		evL[4 + numWaves * 6] = l37;
-		evL[5 + numWaves * 0] = -l21;
-		evL[5 + numWaves * 1] = 0.;
-		evL[5 + numWaves * 2] = -l23;
-		evL[5 + numWaves * 3] = -l24;
-		evL[5 + numWaves * 4] = 0.;
-		evL[5 + numWaves * 5] = l26;
-		evL[5 + numWaves * 6] = l27;
-		evL[6 + numWaves * 0] = alphaF*(vSq-hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb;
-		evL[6 + numWaves * 1] = -alphaF*v.x + Cff;
-		evL[6 + numWaves * 2] = -alphaF*v.y - Qs*QStarY;
-		evL[6 + numWaves * 3] = -alphaF*v.z - Qs*QStarZ;
-		evL[6 + numWaves * 4] = alphaF;
-		evL[6 + numWaves * 5] = l16;
-		evL[6 + numWaves * 6] = l17;
-
+		fill(evL+0,7, alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb, -alphaF*v.x - Cff, -alphaF*v.y + Qs*QStarY, -alphaF*v.z + Qs*QStarZ, alphaF, l16, l17);
+		fill(evL+1,7, l21, 0, l23, l24, 0, l26, l27);
+		fill(evL+2,7, alphaS*(vSq-hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb, -alphaS*v.x - Css, -alphaS*v.y - Qf*QStarY, -alphaS*v.z - Qf*QStarZ, alphaS, l36, l37);
+		fill(evL+3,7, 1 - norm*(.5*vSq - gamma_2*X/gamma_1) , norm*v.x, norm*v.y, norm*v.z, -norm, norm*b.y, norm*b.z);
+		fill(evL+4,7, alphaS*(vSq-hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb, -alphaS*v.x + Css, -alphaS*v.y + Qf*QStarY, -alphaS*v.z + Qf*QStarZ, alphaS, l36, l37);
+		fill(evL+5,7, -l21, 0, -l23, -l24, 0, l26, l27);
+		fill(evL+6,7, alphaF*(vSq-hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb, -alphaF*v.x + Cff, -alphaF*v.y - Qs*QStarY, -alphaF*v.z - Qs*QStarZ, alphaF, l16, l17);
 	}<? end ?>
 }
 
@@ -388,8 +304,13 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr1?> const eigen_t* eig,
 	<?=addr2?> const real* x_
 ) {
-	real x[7] = {
 	//swap x and side, and get rid of bx
+#if 1	//testing
+	//ETotal 5th:
+	real x[7] = { x_[0], x_[1], x_[2], x_[3], x_[4], x_[6], x_[7] };
+	//ETotal last:
+	//real x[7] = { x_[0], x_[1], x_[2], x_[3], x_[8], x_[5], x_[6] };
+#else
 	<? if side == 0 then ?>
 		x_[0], x_[1], x_[2], x_[3], x_[4], x_[6], x_[7]
 	<? elseif side == 1 then ?>
@@ -398,6 +319,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		x_[0], x_[3], x_[2], x_[1], x_[4], x_[5], x_[6]
 	<? end ?>
 	};
+#endif
 
 	<?=addr1?> const real* A = eig->evL;
 	for (int i = 0; i < 7; ++i) {
@@ -424,18 +346,26 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	}
 
 	//swap x and side and insert 0 for bx
+#if 1	//testing
+	//ETotal 5th:
+	y[7] = y[6]; y[6] = y[5]; y[5] = 0;
+	//ETotal last:
+	//y[7] = y[4]; y[4] = 0;
+#else
+	//swap x and side and insert 0 for bx
 	<? if side == 0 then ?>
-		y[7] = y[6];
-		y[6] = y[5];
-		y[5] = 0;
+	y[7] = y[6];
+	y[6] = y[5];
+	y[5] = 0;
 	<? elseif side == 1 then ?>
-		real tmp = y[1]; y[1] = y[2]; y[2] = tmp;
-		y[7] = y[6];
-		y[6] = 0;
+	real tmp = y[1]; y[1] = y[2]; y[2] = tmp;
+	y[7] = y[6];
+	y[6] = 0;
 	<? elseif side == 2 then ?>
-		real tmp = y[1]; y[1] = y[3]; y[3] = tmp;
-		y[7] = 0;
+	real tmp = y[1]; y[1] = y[3]; y[3] = tmp;
+	y[7] = 0;
 	<? end ?>
+#endif
 }
 
 <? 				if solver.checkFluxError then ?>
@@ -444,8 +374,14 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr1?> const eigen_t* eig,
 	<?=addr2?> const real* x_
 ) {
-	real x[7] = {
 	//swap x and side, and get rid of bx
+#if 1	//testing
+	//ETotal 5th:
+	real x[7] = { x_[0], x_[1], x_[2], x_[3], x_[4], x_[6], x_[7] };
+	//ETotal last:
+	//real x[7] = { x_[0], x_[1], x_[2], x_[3], x_[8], x_[5], x_[6] };
+#else
+	real x[7] = {
 	<? if side == 0 then ?>
 		x_[0], x_[1], x_[2], x_[3], x_[4], x_[6], x_[7]
 	<? elseif side == 1 then ?>
@@ -454,7 +390,8 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		x_[0], x_[3], x_[2], x_[1], x_[4], x_[5], x_[6]
 	<? end ?>
 	};
-
+#endif
+	
 	<?=addr1?> const real* A = eig->A;
 	for (int i = 0; i < 7; ++i) {
 		real sum = 0;
@@ -465,6 +402,12 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	}
 
 	//swap x and side and insert 0 for bx
+#if 1	//testing
+	//ETotal 5th:
+	y[7] = y[6]; y[6] = y[5]; y[5] = 0;
+	//ETotal last:
+	//y[7] = y[4]; y[4] = 0;
+#else
 	<? if side == 0 then ?>
 		y[7] = y[6];
 		y[6] = y[5];
@@ -477,6 +420,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		real tmp = y[1]; y[1] = y[3]; y[3] = tmp;
 		y[7] = 0;
 	<? end ?>
+#endif
 }
 <?				end
 			end

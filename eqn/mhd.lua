@@ -70,36 +70,33 @@ inline real calc_hTotal(prim_t W, real ETotal) { return calc_HTotal(W, ETotal) /
 inline real calc_Cs(prim_t W) { return sqrt(heatCapacityRatio * W.P / W.rho); }
 
 inline prim_t primFromCons(cons_t U) {
-	real3 v = real3_scale(U.m, 1./U.rho);
-	real vSq = real3_lenSq(v);
-	real bSq = real3_lenSq(U.b);
+	prim_t W;
+	W.rho = U.rho;
+	W.v = real3_scale(U.m, 1./U.rho);
+	W.b = U.b;
+	real vSq = real3_lenSq(W.v);
+	real bSq = real3_lenSq(W.b);
 	real EKin = .5 * U.rho * vSq;
 	real EMag = .5 * bSq;
-	real P = (U.ETotal - EKin - EMag) * (heatCapacityRatio-1.);
-	real rho = max(U.rho, 1e-7);
-	P = max(P, 1e-7);
-	return (prim_t){
-		.rho = rho,
-		.v = v,
-		.P = P,
-		.b = U.b,
-	};
+	real EInt = U.ETotal - EKin - EMag;
+	W.P = EInt * (heatCapacityRatio - 1.);
+	//W.P = max(W.P, 1e-7);
+	//W.rho = max(W.rho, 1e-7);
+	return W;
 }
 
 inline cons_t consFromPrim(prim_t W) {
-	real EInt = W.P / (heatCapacityRatio-1.);
-	real eKin = .5*real3_lenSq(W.v);
-	real EKin = W.rho * eKin;
+	cons_t U;
+	U.rho = W.rho;
+	U.m = real3_scale(W.v, W.rho);
+	U.b = W.b;
+	real vSq = real3_lenSq(W.v);
 	real bSq = real3_lenSq(W.b);
-	real EMag = .5*bSq;
-	real ETotal = EInt + EKin + EMag;
-	real3 m = real3_scale(W.v, W.rho);
-	return (cons_t){
-		.rho = W.rho,
-		.m = m,
-		.ETotal = ETotal,
-		.b = W.b,
-	};
+	real EKin = .5 * W.rho * vSq;
+	real EMag = .5 * bSq;
+	real EInt = W.P / (heatCapacityRatio - 1.);
+	U.ETotal = EInt + EKin + EMag;
+	return U;
 }
 ]],
 	}:concat'\n'
@@ -179,6 +176,16 @@ function MHD:getDisplayVars(solver)
 		--{h = 'value = calc_H(W.P) / W.rho;'},
 		--{HTotal = 'value = calc_HTotal(W, U.ETotal);'},
 		--{hTotal = 'value = calc_hTotal(W, U.ETotal);'},
+		--{Cs = 'value = calc_Cs(W); },
+		{['primitive reconstruction error'] = [[
+		//prim have just been reconstructed from cons
+		//so reconstruct cons from prims again and calculate the difference
+		cons_t U2 = consFromPrim(W);
+		value = 0;
+		for (int j = 0; j < numStates; ++j) {
+			value += fabs(U.ptr[j] - U2.ptr[j]);
+		}
+]]},
 	}
 end
 

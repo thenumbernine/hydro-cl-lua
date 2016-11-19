@@ -58,14 +58,6 @@ typedef struct {
 	real eInt;
 } prim_t;
 
-enum {
-	cons_D,
-	cons_Sx,
-	cons_Sy,
-	cons_Sz,
-	cons_tau,
-};
-
 typedef union {
 	real ptr[5];
 	struct {
@@ -213,17 +205,15 @@ function SRHD:getDisplayVars(solver)
 		{S = 'value = metricLen(U.S);'},
 		{tau = 'value = U.tau;'},
 		{W = 'value = U.D / prim.rho;'},
-		{primitive_reconstruction_error = [[
+		{['primitive reconstruction error'] = [[
 			//prim have just been reconstructed from cons
 			//so reconstruct cons from prims again and calculate the difference
 			{
 				cons_t U2 = consFromPrim(prim);
 				value = 0;
-				value += fabs(U.D - U2.D);
-				value += fabs(U.S.x - U2.S.x);
-				value += fabs(U.S.y - U2.S.y);
-				value += fabs(U.S.z - U2.S.z);
-				value += fabs(U.tau - U2.tau);
+				for (int j = 0; j < numStates; ++j) {
+					value += fabs(U.ptr[j] - U2.ptr[j]);
+				}
 			}
 	]]},
 	}

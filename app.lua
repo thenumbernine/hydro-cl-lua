@@ -240,13 +240,9 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 4, TVD',
 	
-		-- this is a flux limiter for the record.  TODO implement slope limiter.
-		fluxLimiter = cmdline.fluxLimiter or 'superbee',
-		--fluxLimiter = 'donor cell',
+		--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
-		-- don't forget to disable flux limiter when you do this
-		-- TODO if you're using PLM ... or if you're using donor cell ... then you don't need deltaUEigBuf and rEigBuf
-		--usePLM = true,
+		usePLM = true,	-- piecewise-linear slope limiter
 
 		-- [[ cartesian
 		geometry = 'cartesian',
@@ -308,10 +304,10 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		-- euler / srhd initial states:
 		--initState = 'Sod',
 		--initState = 'Sedov',
-		--initState = 'relativistic blast wave test problem 2',
+		initState = 'relativistic blast wave test problem 2',
 		--initState = 'Kelvin-Hemholtz',
 		-- mhd init states:
-		--initState = 'Brio-Wu',	-- (still bugs)
+		--initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
 	}
 
@@ -322,21 +318,15 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	-- SR+HD
 	--self.solvers:insert(require 'solver.srhd-roe'(args))
 	-- M+HD
-	self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 	-- EM
 	--self.solvers:insert(require 'solver.maxwell-roe'(args))
 	-- EM+HD
 	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
 	-- GR 
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
+	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
-
-	--[[ donor cell vs flux-limiter superbee vs slope-limiter ???
-	--self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='donor cell'})))
-	self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='superbee'})))
-	self.solvers:insert(require 'solver.euler-roe'(table(args, {fluxLimiter='donor cell', usePLM=true})))
-	--]]
 
 	local graphShaderCode = file['graph.shader']
 	self.graphShader = GLProgram{

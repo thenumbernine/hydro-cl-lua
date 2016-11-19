@@ -74,8 +74,8 @@ end ?>
 void eigen_forSide(
 	global eigen_t* eig,
 	global const cons_t* UL, 
-	real ePotL, 
 	global const cons_t* UR, 
+	real ePotL, 
 	real ePotR
 ) {
 	prim_t WL = primFromCons(*UL, ePotL);
@@ -113,7 +113,7 @@ void eigen_forSide(
 kernel void calcEigenBasis(
 	global real* waveBuf,			//[volume][dim][numWaves]
 	global eigen_t* eigenBuf,		//[volume][dim]
-	const global consLR_t* ULRBuf,	//[volume]
+	<?= solver.getULRArg ?>,
 	const global real* ePotBuf
 ) {
 	SETBOUNDS(2,1);
@@ -125,14 +125,13 @@ kernel void calcEigenBasis(
 		
 		int indexL = index - stepsize[side];
 		real ePotL = ePotBuf[indexL];
-		
-		global const cons_t* UL = &ULRBuf[side + dim * indexL].R;
-		global const cons_t* UR = &ULRBuf[side + dim * indexR].L;
+	
+		<?= solver.getULRCode ?>
 		
 		int intindex = side + dim * index;	
 
 		global eigen_t* eig = eigenBuf + intindex;
-		eigen_forSide(eig, UL, ePotL, UR, ePotR);
+		eigen_forSide(eig, UL, UR, ePotL, ePotR);
 		
 		global real* wave = waveBuf + numWaves * intindex;
 		eigen_calcWaves_<?=side?>_global_global(wave, eig);

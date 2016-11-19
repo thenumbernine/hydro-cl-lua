@@ -49,7 +49,7 @@ end
 kernel void calcEigenBasis(
 	global real* waveBuf,
 	global eigen_t* eigenBuf,
-	const global consLR_t* ULRBuf
+	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;

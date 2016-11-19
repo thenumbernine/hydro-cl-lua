@@ -105,6 +105,7 @@ kernel void initState(
 	real rho = 0;
 	real3 v = _real3(0,0,0);
 	real P = 0;
+	real3 b = _real3(0,0,0);	//set for MHD / thrown away for pure Euler
 	real ePot = 0;
 
 ]]..code..[[

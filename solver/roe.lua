@@ -133,10 +133,10 @@ function Solver:init(args)
 
 	self.useFixedDT = ffi.new('bool[1]', false)
 	self.fixedDT = ffi.new('float[1]', 0)
-	self.cfl = ffi.new('float[1]', .5)
+	self.cfl = ffi.new('float[1]', 1)
 	self.initStatePtr = ffi.new('int[1]', (table.find(self.eqn.initStateNames, args.initState) or 1)-1)
 	self.integratorPtr = ffi.new('int[1]', (self.integratorNames:find(args.integrator) or 1)-1)
-	self.fluxLimiterPtr = ffi.new('int[1]', (self.app.limiterNames:find(args.fluxLimiter) or 1)-1)
+	self.fluxLimiter = ffi.new('int[1]', (self.app.limiterNames:find(args.fluxLimiter) or 1)-1)
 
 	self.boundaryMethods = {}
 	for i=1,3 do
@@ -151,7 +151,7 @@ function Solver:init(args)
 	self.geometry = require('geom.'..args.geometry){solver=self}
 
 	self.usePLM = args.usePLM
-	assert(not self.usePLM or args.fluxLimiter ~= 'donor cell', "are you sure you want to use flux and slope limiters at the same time?")
+	assert(not self.usePLM or self.fluxLimiter[0] == 0, "are you sure you want to use flux and slope limiters at the same time?")
 
 	self:refreshGridSize()
 end
@@ -247,7 +247,7 @@ if solver.dim >= 3 then ?>
 <?= convertToTex.varCodePrefix or '' ?>
 <?= var.code ?>
 
-<?=output?>
+<?= output ?>
 }
 ]]
 
@@ -441,13 +441,19 @@ function Solver:createBuffers()
 	ffi.cdef(errorTypeCode)
 	ffi.cdef(self.consLRTypeCode)
 
+assert(ffi.sizeof'cons_t' == self.eqn.numStates * ffi.sizeof'real')
+
 	-- should I put these all in one AoS?
 	self:clalloc('UBuf', self.volume * ffi.sizeof'cons_t')
-	self:clalloc('ULRBuf', self.volume * self.dim * ffi.sizeof'consLR_t')
+	if self.usePLM then
+		self:clalloc('ULRBuf', self.volume * self.dim * ffi.sizeof'consLR_t')
+	end
 	self:clalloc('waveBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
 	self:clalloc('eigenBuf', self.volume * self.dim * ffi.sizeof'eigen_t')
 	self:clalloc('deltaUEigBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
-	self:clalloc('rEigBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
+	if self.fluxLimiter[0] > 0 then
+		self:clalloc('rEigBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
+	end
 	self:clalloc('fluxBuf', self.volume * self.dim * self.eqn.numStates * realSize)
 	
 	-- debug only
@@ -604,6 +610,7 @@ end
 function Solver:resetState()
 	self.app.cmds:finish()
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.initStateKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	self:boundary()
 	self.app.cmds:finish()
 	self.t = 0
 end
@@ -664,7 +671,7 @@ end
 
 function Solver:getSolverCode()
 	local fluxLimiterCode = 'real fluxLimiter(real r) {'
-		.. self.app.limiters[1+self.fluxLimiterPtr[0]].code 
+		.. self.app.limiters[1+self.fluxLimiter[0]].code 
 		.. '}'
 		
 	return table{
@@ -683,17 +690,76 @@ end
 
 -- depends on buffers
 function Solver:refreshSolverProgram()
+
+
+	-- set pointer to the buffer holding the LR state information
+	-- for piecewise-constant that is the original UBuf
+	-- for piecewise-linear that is the ULRBuf
+	self.getULRBuf = self.usePLM and self.ULRBuf or self.UBuf
+
+	self.getULRArg = self.usePLM 
+		and 'const global consLR_t* ULRBuf'
+		or 'const global cons_t* UBuf' 
+
+	-- this code creates the const global cons_t* UL, UR variables
+	-- it assumes that indexL, indexR, and side are already defined
+	self.getULRCode = self.usePLM and [[
+	const global cons_t* UL = &ULRBuf[side + dim * indexL].R;
+	const global cons_t* UR = &ULRBuf[side + dim * indexR].L;
+]] or [[
+	const global cons_t* UL = UBuf + indexL;
+	const global cons_t* UR = UBuf + indexR;
+]]
+
+
+
 	local code = self:getSolverCode()
+	
 	self.solverProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code}
 
-	self.calcDTKernel = self.solverProgram:kernel('calcDT', self.reduceBuf, self.UBuf)
+	self.calcDTKernel = self.solverProgram:kernel(
+		'calcDT',
+		self.reduceBuf,
+		self.UBuf)
+
+	if self.usePLM then
+		self.calcLRKernel = self.solverProgram:kernel(
+			'calcLR',
+			self.ULRBuf,
+			self.UBuf)
+	end
+
+	self.calcEigenBasisKernel = self.solverProgram:kernel(
+		'calcEigenBasis',
+		self.waveBuf,
+		self.eigenBuf,
+		self.getULRBuf)
+		
+	self.calcDeltaUEigKernel = self.solverProgram:kernel(
+		'calcDeltaUEig',
+		self.deltaUEigBuf,
+		self.getULRBuf,
+		self.eigenBuf)
+
+	if self.fluxLimiter[0] > 0 then
+		self.calcREigKernel = self.solverProgram:kernel(
+			'calcREig',
+			self.rEigBuf,
+			self.deltaUEigBuf,
+			self.waveBuf)
+	end
 	
-	self.calcLRKernel = self.solverProgram:kernel('calcLR', self.ULRBuf, self.UBuf)
-	self.calcEigenBasisKernel = self.solverProgram:kernel('calcEigenBasis', self.waveBuf, self.eigenBuf, self.ULRBuf)
-	self.calcDeltaUEigKernel = self.solverProgram:kernel('calcDeltaUEig', self.deltaUEigBuf, self.ULRBuf, self.eigenBuf)
-	self.calcREigKernel = self.solverProgram:kernel('calcREig', self.rEigBuf, self.deltaUEigBuf, self.waveBuf)
-	self.calcFluxKernel = self.solverProgram:kernel('calcFlux', self.fluxBuf, self.ULRBuf, self.waveBuf, self.eigenBuf, self.deltaUEigBuf, self.rEigBuf)
-	
+	self.calcFluxKernel = self.solverProgram:kernel(
+		'calcFlux',
+		self.fluxBuf,
+		self.getULRBuf,
+		self.waveBuf,
+		self.eigenBuf,
+		self.deltaUEigBuf)
+	if self.fluxLimiter[0] > 0 then
+		self.calcFluxKernel:setArg(6, self.rEigBuf)
+	end
+
 	self.calcDerivFromFluxKernel = self.solverProgram:kernel'calcDerivFromFlux'
 	self.calcDerivFromFluxKernel:setArg(1, self.fluxBuf)
 	if self.eqn.useSourceTerm then
@@ -702,7 +768,11 @@ function Solver:refreshSolverProgram()
 	end
 
 	if self.checkFluxError or self.checkOrthoError then
-		self.calcErrorsKernel = self.solverProgram:kernel('calcErrors', self.errorBuf, self.waveBuf, self.eigenBuf)
+		self.calcErrorsKernel = self.solverProgram:kernel(
+			'calcErrors',
+			self.errorBuf,
+			self.waveBuf,
+			self.eigenBuf)
 	end
 end
 
@@ -711,6 +781,12 @@ function Solver:refreshDisplayProgram()
 	local lines = table{
 		self.codePrefix
 	}
+	
+	for _,convertToTex in ipairs(self.convertToTexs) do
+		for _,var in ipairs(convertToTex.vars) do
+			var.id = tostring(var):sub(10)
+		end
+	end
 
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do
@@ -721,11 +797,17 @@ function Solver:refreshDisplayProgram()
 							solver = self,
 							var = var,
 							convertToTex = convertToTex,
-							name = 'calcDisplayVarToTex_'..var.name,
-							input = '__write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex',
+							name = 'calcDisplayVarToTex_'..var.id,
+							input = '__write_only '
+								..(self.dim == 3 
+									and 'image3d_t' 
+									or 'image2d_t'
+								)..' tex',
 							output = '	write_imagef(tex, '
-								..(self.dim == 3 and '(int4)(dsti.x, dsti.y, dsti.z, 0)' or '(int2)(dsti.x, dsti.y)')
-								..', (float4)(value, 0., 0., 0.));',
+								..(self.dim == 3 
+									and '(int4)(dsti.x, dsti.y, dsti.z, 0)' 
+									or '(int2)(dsti.x, dsti.y)'
+								)..', (float4)(value, 0., 0., 0.));',
 						})
 					}
 				end
@@ -741,7 +823,7 @@ function Solver:refreshDisplayProgram()
 						solver = self,
 						var = var,
 						convertToTex = convertToTex,
-						name = 'calcDisplayVarToBuffer_'..var.name,
+						name = 'calcDisplayVarToBuffer_'..var.id,
 						input = 'global real* dest',
 						output = '	dest[dstindex] = value;',
 					})
@@ -757,7 +839,7 @@ function Solver:refreshDisplayProgram()
 		for _,convertToTex in ipairs(self.convertToTexs) do
 			for _,var in ipairs(convertToTex.vars) do
 				if var.enabled[0] then
-					var.calcDisplayVarToTexKernel = self.displayProgram:kernel('calcDisplayVarToTex_'..var.name, self.texCLMem)
+					var.calcDisplayVarToTexKernel = self.displayProgram:kernel('calcDisplayVarToTex_'..var.id, self.texCLMem)
 				end
 			end
 		end
@@ -766,7 +848,7 @@ function Solver:refreshDisplayProgram()
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		for _,var in ipairs(convertToTex.vars) do
 			if var.enabled[0] then
-				var.calcDisplayVarToBufferKernel = self.displayProgram:kernel('calcDisplayVarToBuffer_'..var.name, self.reduceBuf)
+				var.calcDisplayVarToBufferKernel = self.displayProgram:kernel('calcDisplayVarToBuffer_'..var.id, self.reduceBuf)
 			end
 		end
 	end
@@ -960,16 +1042,24 @@ function Solver:reduce(kernel)
 end
 
 function Solver:calcDeriv(derivBuf, dt)
-	self.calcLRKernel:setArg(2, ffi.new('real[1]', dt))
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcLRKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-	
+	if self.usePLM then
+		self.calcLRKernel:setArg(2, ffi.new('real[1]', dt))
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcLRKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	end
+
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcEigenBasisKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	
 	if self.checkFluxError or self.checkOrthoError then
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcErrorsKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	end
+
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDeltaUEigKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcREigKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-	self.calcFluxKernel:setArg(6, ffi.new('real[1]', dt))
+	
+	if self.fluxLimiter[0] > 0 then
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcREigKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	end
+
+	self.calcFluxKernel:setArg(5, ffi.new('real[1]', dt))
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcFluxKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 
 	-- calcDerivFromFlux zeroes the derivative buffer
@@ -997,7 +1087,6 @@ function Solver:calcDT()
 end
 
 function Solver:update()
-	self:boundary()
 	local dt = self:calcDT()
 	self:step(dt)
 end
@@ -1006,6 +1095,7 @@ function Solver:step(dt)
 	self.integrator:integrate(dt, function(derivBuf)
 		self:calcDeriv(derivBuf, dt)
 	end)
+	self:boundary()
 
 	self.t = self.t + dt
 end
@@ -1074,7 +1164,7 @@ function Solver:updateGUI()
 			self:refreshIntegrator()
 		end
 
-		if ig.igCombo('slope limiter', self.fluxLimiterPtr, self.app.limiterNames) then
+		if ig.igCombo('slope limiter', self.fluxLimiter, self.app.limiterNames) then
 			self:refreshSolverProgram()
 		end
 

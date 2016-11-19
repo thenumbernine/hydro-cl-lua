@@ -53,16 +53,15 @@ void eigen_forSide(
 kernel void calcEigenBasis(
 	global real* waveBuf,
 	global eigen_t* eigenBuf,
-	const global consLR_t* ULRBuf
+	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexL = index - stepsize[side];
-		
-		const global cons_t* UL = &ULRBuf[side + dim * indexL].R;
-		const global cons_t* UR = &ULRBuf[side + dim * indexR].L;
+	
+		<?= solver.getULRCode ?>
 		
 		int intindex = side + dim * index;
 		global eigen_t* eig = eigenBuf + intindex;

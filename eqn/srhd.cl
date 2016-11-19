@@ -5,7 +5,13 @@ Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 20
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
 	global real* dtBuf,
-	const global cons_t* UBuf,
+	
+	//TODO actually make use of PLM somehow 
+	//right now only primBuf is being used for getting neighbor values
+	//so SRHD should perform the PLM stuff on the primBuf instead of the UBUf?
+	// or do the PLM on the UBuf and do the cons->prim on the ULR edge values
+	<?= solver.getULRArg ?>,	
+	
 	const global prim_t* primBuf
 ) {
 	SETBOUNDS(0,0);
@@ -14,7 +20,6 @@ kernel void calcDT(
 		return;
 	}
 	
-	cons_t U = UBuf[index];
 	prim_t prim = primBuf[index];
 	real rho = prim.rho;
 	real eInt = prim.eInt;
@@ -49,7 +54,8 @@ kernel void calcDT(
 kernel void calcEigenBasis(
 	global real* waveBuf,
 	global eigen_t* eigenBuf,
-	const global prim_t* primBuf	//TODO turn this into a LR extrapolation
+	//TODO turn this into a LR extrapolation
+	const global prim_t* primBuf	
 ) {
 	SETBOUNDS(2,1);
 	
@@ -77,9 +83,9 @@ kernel void calcEigenBasis(
 		real eInt = avg.eInt;
 	
 		<? if side == 1 then ?>
-		v = _real3(v.y, -v.x, v.z);	// -90' rotation to put the y axis contents into the x axis
+		v = _real3(v.y, v.x, v.z);	// -90' rotation to put the y axis contents into the x axis
 		<? elseif side == 2 then ?>
-		v = _real3(v.z, v.y, -v.x);	//-90' rotation to put the z axis in the x axis
+		v = _real3(v.z, v.y, v.x);	//-90' rotation to put the z axis in the x axis
 		<? end ?>
 
 //TODO NOTE if you're swapping vector components, you have to swap metric components too 
@@ -152,21 +158,24 @@ for _,field in ipairs(eqn.eigenStructFields) do
 }
 
 <?
-for side=0,solver.dim-1 do 
-	local prefix = require 'ext.table'.map(eqn.eigenStructFields, function(field)
-		local name,ctype = next(field)
-		return '\t'..ctype..' '..name..' = eig.'..name..';\n'
-	end):concat()
+for _,addr0 in ipairs{'', 'global'} do
+	for _,addr1 in ipairs{'', 'global'} do
+		for _,addr2 in ipairs{'', 'global'} do
+			for side=0,solver.dim-1 do 
+				local prefix = require 'ext.table'.map(eqn.eigenStructFields, function(field)
+					local name,ctype = next(field)
+					return '\t'..ctype..' '..name..' = eig->'..name..';\n'
+				end):concat()
 ?>
-void eigen_leftTransform_<?=side?>(
-	real* y,
-	eigen_t eig,
-	const real* x_
+void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	<?=addr0?> real* y,
+	<?=addr1?> const eigen_t* eig,
+	<?=addr2?> const real* x_
 ) { 
 	//rotate incoming v's in x
 	//TODO do the same for gamma_ij
 	<? if side==0 then ?>
-	const real* x = x_;
+	<?=addr2?> const real* x = x_;
 	<? elseif side == 1 then ?>
 	real x[5] = {x_[0], x_[2], x_[1], x_[3], x_[4]};
 	<? elseif side == 2 then ?>
@@ -236,10 +245,10 @@ void eigen_leftTransform_<?=side?>(
 	) * scale;
 }
 
-void eigen_rightTransform_<?=side?>(
-	real* y,
-	eigen_t eig,
-	const real* x
+void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	<?=addr0?> real* y,
+	<?=addr1?> const eigen_t* eig,
+	<?=addr2?> const real* x
 ) {
 	<?=prefix?>
 	
@@ -283,29 +292,32 @@ void eigen_rightTransform_<?=side?>(
 }
 
 <?	if solver.checkFluxError then ?>
-void eigen_fluxTransform_<?=side?>(
-	real* y,
-	eigen_t eig,
-	const real* x_
+void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	<?=addr0?> real* y,
+	<?=addr1?> const eigen_t* eig,
+	<?=addr2?> const real* x_
 ) {
 	//rotate incoming v's in x
 	<? if side==0 then ?>
-	const real* x = x_;
+	<?=addr2?> const real* x = x_;
 	<? elseif side == 1 then ?>
-	real x[5] = {x_[0], x_[2], -x_[1], x_[3], x_[4]};
+	real x[5] = {x_[0], x_[2], x_[1], x_[3], x_[4]};
 	<? elseif side == 2 then ?>
-	real x[5] = {x_[0], x_[3], x_[2], -x_[1], x_[4]};
+	real x[5] = {x_[0], x_[3], x_[2], x_[1], x_[4]};
 	<? end ?>
 
 	//rotate outgoing y's x's into side
 	<? if side ~= 0 then ?>
 	real tmp = y[1];
-	y[1] = -y[1+<?=side?>];
+	y[1] = y[1+<?=side?>];
 	y[1+<?=side?>] = tmp;
 	<? end ?>
 }
-<?	end ?>
-<? end ?>
+<?				end
+			end
+		end
+	end
+end ?>
 
 kernel void constrainU(
 	global cons_t* UBuf

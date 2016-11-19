@@ -96,7 +96,7 @@ function Maxwell:getDisplayVars(solver)
 		{energy = 'value = .5 * (coordLen(U->epsE) + coordLen(U->B) / mu0);'},
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='epsE', B='B'})[var] )
-		return {['div_'..var] = processcl([[
+		return {['div '..var] = processcl([[
 	value = 0;
 	<? for j=0,solver.dim-1 do ?>{
 		value += (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 

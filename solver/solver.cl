@@ -155,7 +155,7 @@ kernel void calcErrors(
 
 kernel void calcDeltaUEig(
 	global real* deltaUEigBuf,
-	const global consLR_t* ULRBuf,
+	<?= solver.getULRArg ?>,
 	const global eigen_t* eigenBuf
 ) {
 	SETBOUNDS(2,1);	
@@ -163,24 +163,21 @@ kernel void calcDeltaUEig(
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexL = index - stepsize[side];
-		
-		const global real* UL = ULRBuf[side + dim * indexL].R.ptr;
-		const global real* UR = ULRBuf[side + dim * indexR].L.ptr;
+		<?= solver.getULRCode ?>
 
-		real deltaU[numStates];
+		cons_t deltaU;
 		for (int j = 0; j < numStates; ++j) {
-			deltaU[j] = UR[j] - UL[j];
+			deltaU.ptr[j] = UR->ptr[j] - UL->ptr[j];
 		}
 	
 		int intindex = side + dim * index;	
 		global real* deltaUEig = deltaUEigBuf + intindex * numWaves;
-		eigen_leftTransform_<?=side?>_global_global_(
-			deltaUEig,
-			eigenBuf + intindex,
-			deltaU);
+		const global eigen_t* eig = eigenBuf + intindex;
+		eigen_leftTransform_<?=side?>_global_global_(deltaUEig, eig, deltaU.ptr);
 	}<? end ?>
 }
 
+<? if solver.fluxLimiter[0] > 0 then ?>
 kernel void calcREig(
 	global real* rEigBuf,
 	const global real* deltaUEigBuf,
@@ -212,15 +209,18 @@ kernel void calcREig(
 		}
 	}<? end ?>
 }
+<? end ?>
 
 kernel void calcFlux(
 	global real* fluxBuf,
-	const global consLR_t* ULRBuf,
+	<?= solver.getULRArg ?>,
 	const global real* waveBuf, 
 	const global eigen_t* eigenBuf, 
 	const global real* deltaUEigBuf,
-	const global real* rEigBuf,	//not needed with slope limiters 
 	real dt
+<? if solver.fluxLimiter[0] > 0 then ?>
+	,const global real* rEigBuf
+<? end ?>
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
@@ -228,32 +228,42 @@ kernel void calcFlux(
 		const int side = <?=side?>;	
 		real dt_dx = dt / dx<?=side?>_at(i);
 		int indexL = index - stepsize[side];
-		const global real* UL = ULRBuf[side + dim * indexL].R.ptr;
-		const global real* UR = ULRBuf[side + dim * indexR].L.ptr;
-		
-		real UAvg[numStates];
+
+		<?= solver.getULRCode ?>
+
+		cons_t UAvg;
 		for (int j = 0; j < numStates; ++j) {
-			UAvg[j] = .5 * (UL[j] + UR[j]);
+			UAvg.ptr[j] = .5 * (UL->ptr[j] + UR->ptr[j]);
 		}
 		
 		int intindex = side + dim * index;
 		const global eigen_t* eig = eigenBuf + intindex;
 
 		real fluxEig[numWaves];
-		eigen_leftTransform_<?=side?>__global_(fluxEig, eig, UAvg);
+		eigen_leftTransform_<?=side?>__global_(fluxEig, eig, UAvg.ptr);
 
 		const global real* lambdas = waveBuf + numWaves * intindex;
 		const global real* deltaUEig = deltaUEigBuf + numWaves * intindex;
+<? if solver.fluxLimiter[0] > 0 then ?>
 		const global real* rEig = rEigBuf + numWaves * intindex;
+<? end ?>
 
 		for (int j = 0; j < numWaves; ++j) {
 			real lambda = lambdas[j];
 			fluxEig[j] *= lambda;
 			real theta = lambda >= 0 ? 1 : -1;
+		
+<? if solver.fluxLimiter[0] > 0 then ?>
 			real phi = fluxLimiter(rEig[j]);
+<? end ?>
+
 			real epsilon = lambda * dt_dx;
 			real deltaFluxEig = lambda * deltaUEig[j];
-			fluxEig[j] -= .5 * deltaFluxEig * (theta + phi * (epsilon - theta));
+			fluxEig[j] -= .5 * deltaFluxEig * (theta
+<? if solver.fluxLimiter[0] > 0 then ?>				
+				+ phi * (epsilon - theta)
+<? end ?>			
+			);
 		}
 
 		global real* flux = fluxBuf + intindex * numStates;
