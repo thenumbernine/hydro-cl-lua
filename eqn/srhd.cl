@@ -5,7 +5,6 @@ Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 20
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
 	global real* dtBuf,
-	const global cons_t* UBuf,
 	const global prim_t* primBuf
 ) {
 	SETBOUNDS(0,0);

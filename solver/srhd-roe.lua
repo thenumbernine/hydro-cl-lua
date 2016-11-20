@@ -53,7 +53,7 @@ function SRHDRoe:refreshSolverProgram()
 	-- createKernels in particular ...
 	SRHDRoe.super.refreshSolverProgram(self)
 
-	self.calcDTKernel:setArg(2, self.primBuf)
+	self.calcDTKernel:setArg(1, self.primBuf)
 	self.calcEigenBasisKernel:setArg(2, self.primBuf)
 
 	self.constrainUKernel = self.solverProgram:kernel('constrainU', self.UBuf)
