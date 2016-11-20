@@ -44,6 +44,12 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
+//used by PLM
+//TODO SRHD PLM needs to do this:
+//1) calcLR for the prim_t (that means put calcLR in its own file, and a new primLR buf)
+//2) have a new kernel for calc consLR from primLR, since calcDeltaUEig and calcFlux both need this
+//or does the eigenbasis need to be derived from the variables being transformed?
+//shoud I PLM the U's then converge the prims ... and therefore track the prims on edges as well?
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
 	eigen_t* eig,

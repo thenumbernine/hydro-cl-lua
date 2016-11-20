@@ -1,5 +1,6 @@
 // Roe solver:
 
+<? if solver.usePLM then ?>
 kernel void calcLR(
 	global consLR_t* ULRBuf,
 	const global cons_t* UBuf,
@@ -15,13 +16,6 @@ kernel void calcLR(
 		int intindex = side + dim * index;
 		global consLR_t* ULR = ULRBuf + intindex;	
 		
-<? if not solver.usePLM then ?>
-		
-		//constant
-		ULRBuf[intindex].L = ULRBuf[intindex].R = *U;
-
-<? else ?>
-
 		//piecewise-linear
 		//based on https://arxiv.org/pdf/0804.0402v1.pdf
 		
@@ -53,9 +47,10 @@ kernel void calcLR(
 			dUMEig[j] = min(
 				min(2. * fabs(dULEig[j]),
 					2. * fabs(dUREig[j])),
-				fabs(dUCEig[j]))
-				* (dUCEig[j] >= 0. ? 1. : -1.)
-				* (dULEig[j] * dUREig[j] > 0. ? 1. : 0.)
+				fabs(dUCEig[j])
+			)
+			* (dUCEig[j] >= 0. ? 1. : -1.)
+			* (dULEig[j] * dUREig[j] > 0. ? 1. : 0.)
 			;
 		}
 	
@@ -77,10 +72,9 @@ kernel void calcLR(
 			ULR->L.ptr[j] = U->ptr[j] - qr.ptr[j];
 			ULR->R.ptr[j] = U->ptr[j] + ql.ptr[j];
 		}
-
-<? end ?>
 	}<? end ?>
 }
+<? end ?>
 
 <? if solver.checkFluxError or solver.checkOrthoError then ?>
 kernel void calcErrors(
