@@ -157,8 +157,6 @@ kernel void calcEigenBasis(
 		
 		global eigen_t* eig = eigenBuf + intindex;	
 
-<? if eqn.linearSystemDirectApplication then ?> //linear system direct application
-
 <?
 for _,field in ipairs(eqn.eigenStructFields) do
 	local name,ctype = next(field)
@@ -166,125 +164,9 @@ for _,field in ipairs(eqn.eigenStructFields) do
 		eig-><?=name?> = <?=name?>;
 <? end ?>
 
-<? else ?>	//eigen left right matrices
-
-		real hSq = h * h;
-		
-		global real* evR = eig->evR;
-		//min col	2008 Font eqn 111, r-
-		evR[0 + numStates * 0] = 1.;
-		evR[1 + numStates * 0] = hW * CMinus;
-		evR[2 + numStates * 0] = hW * vL.y;
-		evR[3 + numStates * 0] = hW * vL.z;
-		evR[4 + numStates * 0] = hW * ATildeMinus - 1.;
-		//mid col (normal)  2008 Font eqn 108: r0,1
-		evR[0 + numStates * 1] = Kappa / hW;
-		evR[1 + numStates * 1] = vL.x;
-		evR[2 + numStates * 1] = vL.y;
-		evR[3 + numStates * 1] = vL.z;
-		evR[4 + numStates * 1] = 1. - Kappa / hW;
-		//mid col (tangent A)	2008 Font eqn 109: r0,2
-		evR[0 + numStates * 2] = W * vL.y;
-		evR[1 + numStates * 2] = h * (gammaL.xy + 2. * W2 * vL.y * vL.x);
-		evR[2 + numStates * 2] = h * (gammaL.yy + 2. * W2 * vL.y * vL.y);
-		evR[3 + numStates * 2] = h * (gammaL.yz + 2. * W2 * vL.y * vL.z);
-		evR[4 + numStates * 2] = W * vL.y * (2. * hW - 1.);
-		//mid col (tangent B)	2008 Font eqn 110: r0,3
-		evR[0 + numStates * 3] = W * vL.z;
-		evR[1 + numStates * 3] = h * (gammaL.xz + 2. * W2 * vL.x * vL.z);
-		evR[2 + numStates * 3] = h * (gammaL.yz + 2. * W2 * vL.y * vL.z);
-		evR[3 + numStates * 3] = h * (gammaL.zz + 2. * W2 * vL.z * vL.z);
-		evR[4 + numStates * 3] = W * vL.z * (2. * hW - 1.);
-		//max col 
-		evR[0 + numStates * 4] = 1.;
-		evR[1 + numStates * 4] = hW * CPlus;
-		evR[2 + numStates * 4] = hW * vL.y;
-		evR[3 + numStates * 4] = hW * vL.z;
-		evR[4 + numStates * 4] = hW * ATildePlus - 1.;
-
-		real gamma_gammaUxx = gammaDet * gammaU.xx;
-		real gamma_gammaUxy = gammaDet * gammaU.xy;
-		real gamma_gammaUxz = gammaDet * gammaU.xz;
-		real xi = gammaDet * (gammaU.xx - vxSq);//2008 Font eqn 121
-		real Delta = hSq * hW * (Kappa - 1.) * (CPlus - CMinus) * xi;	//2008 Font eqn 121
-		
-		global real* evL = eig->evL; 
-		//min row	2008 Font eqn 118
-		real scale;
-		scale = hSq / Delta;
-		real l5minus = (1 - Kappa) * (-gammaDet * v.x + VPlus * (W2 * xi - gamma_gammaUxx)) - Kappa * W2 * VPlus * xi;
-		evL[0 + numStates * 0] = scale * (hW * VPlus * xi + l5minus);
-		evL[0 + numStates * 1] = scale * (gamma_gammaUxx * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.x * xi - gamma_gammaUxx * v.x));
-		evL[0 + numStates * 2] = scale * (gamma_gammaUxy * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.y * xi - gamma_gammaUxy * v.x));
-		evL[0 + numStates * 3] = scale * (gamma_gammaUxz * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.z * xi - gamma_gammaUxz * v.x));
-		evL[0 + numStates * 4] = scale * l5minus;
-		//mid normal row	2008 Font eqn 115
-		scale = W / (Kappa - 1.);
-		evL[1 + numStates * 0] = scale * (h - W);
-		evL[1 + numStates * 1] = scale * (W * v.x);
-		evL[1 + numStates * 2] = scale * (W * v.y);
-		evL[1 + numStates * 3] = scale * (W * v.z);
-		evL[1 + numStates * 4] = scale * (-W);
-		//mid tangent A row	2008 Font eqn 116
-		scale = 1. / (h * xi);
-		evL[2 + numStates * 0] = scale * (-gammaL.zz * vL.y + gammaL.yz * vL.z);
-		evL[2 + numStates * 1] = scale * v.x * (gammaL.zz * vL.y - gammaL.yz * vL.z);
-		evL[2 + numStates * 2] = scale * (gammaL.zz * (1. - v.x * vL.x) + gammaL.xz * vL.z * v.x);
-		evL[2 + numStates * 3] = scale * (-gammaL.yz * (1. - vL.x * v.x) - gammaL.xz * vL.y * v.x);
-		evL[2 + numStates * 4] = scale * (-gammaL.zz * vL.y + gammaL.yz * vL.z);
-		//mid tangent B row	2008 Font eqn 117
-		evL[3 + numStates * 0] = scale * (-gammaL.yy * vL.z + gammaL.yz * vL.y);
-		evL[3 + numStates * 1] = scale * v.x * (gammaL.yy * vL.z - gammaL.yz * vL.y);
-		evL[3 + numStates * 2] = scale * (-gammaL.yz * (1. - vL.x * v.x) - gammaL.xy * vL.z * v.x);
-		evL[3 + numStates * 3] = scale * (gammaL.yy * (1. - vL.x * v.x) + gammaL.xy * vL.y * v.x);
-		evL[3 + numStates * 4] = scale * (-gammaL.yy * vL.z + gammaL.yz * vL.y);
-		//max row	2008 Font eqn 118
-		scale = -hSq / Delta;
-		real l5plus = (1 - Kappa) * (-gammaDet * v.x + VMinus * (W2 * xi - gamma_gammaUxx)) - Kappa * W2 * VMinus * xi;
-		evL[4 + numStates * 0] = scale * (h * W * VMinus * xi + l5plus);
-		evL[4 + numStates * 1] = scale * (gamma_gammaUxx * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.x * xi - gamma_gammaUxx * v.x));
-		evL[4 + numStates * 2] = scale * (gamma_gammaUxy * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.y * xi - gamma_gammaUxy * v.x));
-		evL[4 + numStates * 3] = scale * (gamma_gammaUxz * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.z * xi - gamma_gammaUxz * v.x));
-		evL[4 + numStates * 4] = scale * l5plus;
-
-		<? if side == 1 then ?>
-		for (int i = 0; i < numStates; ++i) {
-			real tmp;
-			//-90' rotation applied to the LHS of incoming velocity vectors, to move their y axis into the x axis
-			// is equivalent of a -90' rotation applied to the RHS of the flux jacobian A
-			// and A = Q V Q-1 for Q = the right eigenvectors and Q-1 the left eigenvectors
-			// so a -90' rotation applied to the RHS of A is a +90' rotation applied to the RHS of Q-1 the left eigenvectors
-			//and while a rotation applied to the LHS of a vector rotates the elements of its column vectors, a rotation applied to the RHS rotates the elements of its row vectors 
-			//each row's y <- x, x <- -y
-			tmp = evL[i + numStates * cons_Sx];
-			evL[i + numStates * cons_Sx] = -evL[i + numStates * cons_Sy];
-			evL[i + numStates * cons_Sy] = tmp;
-			//a -90' rotation applied to the RHS of A must be corrected with a 90' rotation on the LHS of A
-			//this rotates the elements of the column vectors by 90'
-			//each column's x <- y, y <- -x
-			tmp = evR[cons_Sx + numStates * i];
-			evR[cons_Sx + numStates * i] = -evR[cons_Sy + numStates * i];
-			evR[cons_Sy + numStates * i] = tmp;
-		}
-		<? elseif side == 2 then ?>
-		for (int i = 0; i < numStates; ++i) {
-			real tmp;
-			tmp = evL[i + numStates * cons_Sx];
-			evL[i + numStates * cons_Sx] = -evL[i + numStates * cons_Sz];
-			evL[i + numStates * cons_Sz] = tmp;
-			tmp = evR[cons_Sx + numStates * i];
-			evR[cons_Sx + numStates * i] = -evR[cons_Sz + numStates * i];
-			evR[cons_Sz + numStates * i] = tmp;
-		}
-		<? end ?>
-
-<? end ?>	//linear system direct application
-
 	}<? end ?>
 }
 
-
-<? if eqn.linearSystemDirectApplication then ?> //linear system direct application
 
 <?
 for _,addr0 in ipairs{'', 'global'} do
@@ -447,8 +329,6 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		end
 	end
 end ?>
-
-<? end ?>	//linear system direct application
 
 kernel void constrainU(
 	global cons_t* UBuf
