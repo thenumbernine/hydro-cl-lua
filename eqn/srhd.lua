@@ -12,7 +12,15 @@ SRHD.consVars = {'D', 'Sx', 'Sy', 'Sz', 'tau'}
 SRHD.primVars = {'rho', 'vx', 'vy', 'vz', 'eInt'}
 SRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
 
-SRHD.hasEigenCode = true
+-- debugging
+-- false is the original code
+-- true is where I want to get to
+-- neither is working?
+SRHD.linearSystemDirectApplication = false
+
+-- linear system direct application
+SRHD.hasEigenCode = SRHD.linearSystemDirectApplication 
+
 SRHD.hasCalcDT = true
 
 SRHD.initStates = require 'init.euler'
@@ -187,7 +195,7 @@ end
 
 function SRHD:getSolverCode(solver)
 	return table{
-		require 'processcl'(assert(file['eqn/srhd.cl']), {eqn=self, solver=solver}),
+		require 'processcl'(file['eqn/srhd.cl'], {eqn=self, solver=solver}),
 	}:concat'\n'
 end
 
@@ -248,6 +256,8 @@ SRHD.eigenStructFields = {
 	{Kappa = 'real'},
 }
 
+if SRHD.linearSystemDirectApplication then -- [[ linear system direct application
+
 function SRHD:getEigenTypeCode(solver)
 	return 'typedef struct {\n'
 		..table.map(self.eigenStructFields, function(field)
@@ -260,5 +270,7 @@ end
 function SRHD:getEigenDisplayVars(solver)
 	return {}
 end
+
+end --]]
 
 return SRHD
