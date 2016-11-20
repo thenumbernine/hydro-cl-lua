@@ -133,7 +133,7 @@ function Solver:init(args)
 
 	self.useFixedDT = ffi.new('bool[1]', false)
 	self.fixedDT = ffi.new('float[1]', 0)
-	self.cfl = ffi.new('float[1]', 1)
+	self.cfl = ffi.new('float[1]', 1/self.dim)
 	self.initStatePtr = ffi.new('int[1]', (table.find(self.eqn.initStateNames, args.initState) or 1)-1)
 	self.integratorPtr = ffi.new('int[1]', (self.integratorNames:find(args.integrator) or 1)-1)
 	self.fluxLimiter = ffi.new('int[1]', (self.app.limiterNames:find(args.fluxLimiter) or 1)-1)

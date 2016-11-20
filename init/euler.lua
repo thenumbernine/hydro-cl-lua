@@ -233,6 +233,7 @@ b = _real3(1,0,0);
 	{
 		name = 'relativistic shock reflection',
 		init = function(solver)
+			solver.cfl[0] = .5	-- needs a slower cfl
 			solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 4/3
 			return [[
 	rho = 1;
@@ -244,6 +245,7 @@ b = _real3(1,0,0);
 	{
 		name = 'relativistic blast wave test problem 1',
 		init = function(solver)
+			solver.cfl[0] = .5	-- needs a slower cfl
 			solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
 			return [[
 	rho = lhs ? 10 : 1;
@@ -254,6 +256,7 @@ b = _real3(1,0,0);
 	{
 		name = 'relativistic blast wave test problem 2',
 		init = function(solver)
+			solver.cfl[0] = .5	-- needs a slower cfl
 			solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
 			return [[
 	rho = 1;
@@ -264,6 +267,7 @@ b = _real3(1,0,0);
 	{
 		name = 'relativistic blast wave interaction',
 		init = function(solver)
+			solver.cfl[0] = .5	-- needs a slower cfl
 			return [[
 	real xL = .9 * mins_x + .1 * maxs_x;
 	real xR = .1 * mins_x + .9 * maxs_x;

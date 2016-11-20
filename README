@@ -18,7 +18,6 @@ Features:
 
 BUGS:
 - MHD isn't working with magnetic fields ... even though I copied the code from two different working solvers I have - gravitational-wave-sim and HydroGPU
-- ever since implementing PLM stuff with cell L/R values, SRHD is not working with flux limiter (and hasn't been implemented for slope limiter)
 
 TODO:
 - get two-fluid EMHD working
