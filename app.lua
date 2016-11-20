@@ -240,9 +240,9 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 4, TVD',
 	
-		fluxLimiter = cmdline.fluxLimiter or 'superbee',
+		--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
-		--usePLM = true,	-- piecewise-linear slope limiter
+		usePLM = true,	-- piecewise-linear slope limiter
 
 		-- [[ cartesian
 		geometry = 'cartesian',

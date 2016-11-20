@@ -59,7 +59,7 @@ inline real calc_ETotal(prim_t W, real ePot) {
 	real EPot = W.rho * ePot;
 	return calc_EKin(W) + calc_EInt(W) + EPot;
 }
-inline real calc_Cs(prim_t W) { return sqrt(heatCapacityRatio * W.P / W.rho); }
+inline real calc_Cs(const prim_t* W) { return sqrt(heatCapacityRatio * W->P / W->rho); }
 inline prim_t primFromCons(cons_t U, real ePot) {
 	real EPot = U.rho * ePot;
 	real EKin = calc_EKin_fromCons(U);
@@ -152,6 +152,8 @@ function Euler:getDisplayVars(solver)
 		{h = 'value = calc_h(W.rho, W.P);'},
 		{HTotal = 'value = calc_HTotal(W.P, U.ETotal);'},
 		{hTotal = 'value = calc_hTotal(W.rho, W.P, U.ETotal);'},
+		{['Speed of Sound'] = 'value = calc_Cs(&W);'},
+		{['Mach number'] = 'value = coordLen(W.v) / calc_Cs(&W);'},
 	}
 end
 

@@ -1,5 +1,15 @@
 // Roe solver:
 
+inline real minmod(real a, real b) {
+	if (a * b <= 0) return 0;
+	return fabs(a) < fabs(b) ? a : b;
+}
+
+inline real maxmod(real a, real b) {
+	if (a * b <= 0) return 0;
+	return fabs(a) > fabs(b) ? a : b;
+}
+
 <? if solver.usePLM then ?>
 kernel void calcLR(
 	global consLR_t* ULRBuf,
@@ -17,7 +27,6 @@ kernel void calcLR(
 		global consLR_t* ULR = ULRBuf + intindex;	
 		
 		//piecewise-linear
-		//based on https://arxiv.org/pdf/0804.0402v1.pdf
 		
 		//calc eigen values and vectors at cell center
 		eigen_t eig;
@@ -30,11 +39,55 @@ kernel void calcLR(
 		const global cons_t* UR = U + stepsize[side];
 		cons_t dUL, dUR, dUC;
 		for (int j = 0; j < numStates; ++j) {
+			//upwind slope / Beam-Warming method (Hydrodynamics II 4.23)
 			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
+			
+			//downwind slope / Lax-Wendroff method (Hydrodynamics II 4.24)
 			dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
-			dUC.ptr[j] = UR->ptr[j] - UL->ptr[j];
+			
+			//centered slope / Fromm's method (Hydrodynamics II 4.22)
+			dUC.ptr[j] = .5 * (UR->ptr[j] - UL->ptr[j]);
 		}
 
+#if 1	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
+
+		cons_t UHalfL, UHalfR;
+		for (int j = 0; j < numStates; ++j) {
+			
+			//minmod: (Hydrodynamics 4.28)
+			real sigma = minmod(dUL.ptr[j], dUR.ptr[j]);
+	
+			//superbee: (Hydrodynamics 4.30)
+			//real sigma = maxmod(minmod(dUR.ptr[j], 2.*dUL.ptr[j]), minmod(2.*dUR.ptr[j], dUL.ptr[j]));
+			//real sigma = minmod(maxmod(dUL.ptr[j], dUR.ptr[j]), 2*minmod(dUL.ptr[j], dUR.ptr[j]));
+
+			//q^n_i-1/2,R = q^n_i - 1/2 dx sigma	(Hydrodynamics II 6.58)
+			UHalfL.ptr[j] = U->ptr[j] - .5 * sigma; 
+
+			//q^n_i+1/2,L = q^n_i + 1/2 dx sigma	(Hydrodynamics II 6.59)
+			UHalfR.ptr[j] = U->ptr[j] + .5 * sigma;
+		}
+		
+		real dx = dx<?=side?>_at(i);
+		real dt_dx = dt / dx;
+
+		cons_t FHalfL = fluxForCons_<?=side?>(UHalfL);
+		cons_t FHalfR = fluxForCons_<?=side?>(UHalfR);
+		
+		for (int j = 0; j < numStates; ++j) {
+			real dF = FHalfR.ptr[j] - FHalfL.ptr[j];
+
+			//U-cell-L = q^n+1/2_i-1/2,R (Hydrodynamics II 6.62)
+			// = q^n_i-1/2,R + 1/2 dt/dx (f_k(q^n_i+1/2,L) - f_k(q_i-1/2,R))
+			ULR->L.ptr[j] = UHalfL.ptr[j] + .5 * dt_dx * dF;
+
+			//U-cell R = q^n+1/2_i+1/2,L (Hydrodynamics II 6.63)
+			// = q^n_i+1/2,L + 1/2 dt/dx (f_k(q^n_i+1/2,L) - f_k(q_i-1/2,R))
+			ULR->R.ptr[j] = UHalfR.ptr[j] + .5 * dt_dx * dF;
+		}
+
+#else	//based on https://arxiv.org/pdf/0804.0402v1.pdf
+		
 		//2) calc eigenspace delta qs (eqn 37)
 		real dULEig[numWaves], dUREig[numWaves], dUCEig[numWaves];
 		eigen_leftTransform_<?=side?>___(dULEig, &eig, dUL.ptr);
@@ -44,9 +97,8 @@ kernel void calcLR(
 		//3) do the limiter (eqn 38)
 		real dUMEig[numWaves];
 		for (int j = 0; j < numWaves; ++j) {
-			dUMEig[j] = min(
-				min(2. * fabs(dULEig[j]),
-					2. * fabs(dUREig[j])),
+			dUMEig[j] = 2. * min(
+				min(fabs(dULEig[j]), fabs(dUREig[j])),
 				fabs(dUCEig[j])
 			)
 			* (dUCEig[j] >= 0. ? 1. : -1.)
@@ -72,6 +124,8 @@ kernel void calcLR(
 			ULR->L.ptr[j] = U->ptr[j] - qr.ptr[j];
 			ULR->R.ptr[j] = U->ptr[j] + ql.ptr[j];
 		}
+#endif
+
 	}<? end ?>
 }
 <? end ?>

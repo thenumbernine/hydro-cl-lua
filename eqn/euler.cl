@@ -14,7 +14,7 @@ kernel void calcDT(
 	cons_t U = UBuf[index];
 	real ePot = ePotBuf[index];
 	prim_t W = primFromCons(U, ePot);
-	real Cs = calc_Cs(W);
+	real Cs = calc_Cs(&W);
 
 	real dt = INFINITY;
 
@@ -69,6 +69,24 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 <?		end
 	end
 end ?>
+
+//used by PLM
+<? for side=0,solver.dim-1 do ?>
+cons_t fluxForCons_<?=side?>(cons_t U) {
+	real ePot = 0;	//TODO
+	prim_t W = primFromCons(U, ePot);
+	real mi = U.m.s<?=side?>;
+	return (cons_t){
+		.rho = mi,
+		.m = (real3){
+			.x = mi * W.v.x<?= side==0 and ' + W.P' or ''?>,
+			.y = mi * W.v.y<?= side==1 and ' + W.P' or ''?>,
+			.z = mi * W.v.z<?= side==2 and ' + W.P' or ''?>,
+		},
+		.ETotal = (U.ETotal + W.P) * W.v.s<?=side?>,
+	};
+}
+<? end ?>
 
 //used for interface eigen basis
 void eigen_forSide(
