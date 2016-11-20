@@ -240,9 +240,9 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 4, TVD',
 	
-		--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
-		usePLM = true,	-- piecewise-linear slope limiter
+		--usePLM = true,	-- piecewise-linear slope limiter
 
 		-- [[ cartesian
 		geometry = 'cartesian',
@@ -316,7 +316,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	-- HD
 	--self.solvers:insert(require 'solver.euler-roe'(args))
 	-- SR+HD
-	--self.solvers:insert(require 'solver.srhd-roe'(args))
+	self.solvers:insert(require 'solver.srhd-roe'(args))
 	-- M+HD
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 	-- EM
@@ -324,7 +324,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	-- EM+HD
 	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
 	-- GR 
-	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 
@@ -578,11 +578,11 @@ function HydroCLApp:update(...)
 		for _,solver in ipairs(self.solvers) do
 			local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
 			
-			useLog = var.useLogPtr[0]
-			
 			if varIndex
 			--and solver.visiblePtr and solver.visiblePtr[0] 
 			then
+				useLog = var.useLogPtr[0]
+				
 				local solverxmin, solverxmax = solver.mins[1], solver.maxs[1]
 				solverxmin, solverxmax = 1.1 * solverxmin - .1 * solverxmax, 1.1 * solverxmax - .1 * solverxmin
 				if solver.dim > 1 then

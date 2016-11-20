@@ -5,13 +5,7 @@ Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 20
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
 	global real* dtBuf,
-	
-	//TODO actually make use of PLM somehow 
-	//right now only primBuf is being used for getting neighbor values
-	//so SRHD should perform the PLM stuff on the primBuf instead of the UBUf?
-	// or do the PLM on the UBuf and do the cons->prim on the ULR edge values
-	<?= solver.getULRArg ?>,	
-	
+	const global cons_t* UBuf,
 	const global prim_t* primBuf
 ) {
 	SETBOUNDS(0,0);
@@ -51,10 +45,26 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
+<? for side=0,solver.dim-1 do ?>
+void eigen_forCell_<?=side?>(
+	eigen_t* eig,
+	const global cons_t* U
+) {
+	
+}
+<? end ?>
+
+
 kernel void calcEigenBasis(
 	global real* waveBuf,
 	global eigen_t* eigenBuf,
-	//TODO turn this into a LR extrapolation
+		
+	//TODO 
+	//turn this into a LR extrapolation
+	//actually make use of PLM somehow 
+	//right now only primBuf is being used for getting neighbor values
+	//so SRHD should perform the PLM stuff on the primBuf instead of the UBUf?
+	// or do the PLM on the UBuf and do the cons->prim on the ULR edge values
 	const global prim_t* primBuf	
 ) {
 	SETBOUNDS(2,1);
