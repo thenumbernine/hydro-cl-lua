@@ -243,6 +243,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
 		usePLM = true,	-- piecewise-linear slope limiter
+		slopeLimiter = 'minmod',
 
 		-- [[ cartesian
 		geometry = 'cartesian',

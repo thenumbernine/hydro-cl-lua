@@ -28,46 +28,35 @@ kernel void calcLR(
 		
 		//piecewise-linear
 		
-		//calc eigen values and vectors at cell center
-		eigen_t eig;
-		eigen_forCell_<?=side?>(&eig, U);
-		real wave[numWaves];
-		eigen_calcWaves_<?=side?>__(wave, &eig);
-		
-		//1) calc delta q's ... l r c (eqn 36)
+#if 1	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
+		//and https://en.wikipedia.org/wiki/MUSCL_scheme
+
 		const global cons_t* UL = U - stepsize[side];
 		const global cons_t* UR = U + stepsize[side];
 		cons_t dUL, dUR, dUC;
 		for (int j = 0; j < numStates; ++j) {
-			//upwind slope / Beam-Warming method (Hydrodynamics II 4.23)
 			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
-			
-			//downwind slope / Lax-Wendroff method (Hydrodynamics II 4.24)
 			dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
-			
-			//centered slope / Fromm's method (Hydrodynamics II 4.22)
-			dUC.ptr[j] = .5 * (UR->ptr[j] - UL->ptr[j]);
 		}
-
-#if 1	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
 
 		cons_t UHalfL, UHalfR;
 		for (int j = 0; j < numStates; ++j) {
 			
-			//minmod: (Hydrodynamics 4.28)
-			real sigma = minmod(dUL.ptr[j], dUR.ptr[j]);
-	
-			//superbee: (Hydrodynamics 4.30)
-			//real sigma = maxmod(minmod(dUR.ptr[j], 2.*dUL.ptr[j]), minmod(2.*dUR.ptr[j], dUL.ptr[j]));
-			//real sigma = minmod(maxmod(dUL.ptr[j], dUR.ptr[j]), 2*minmod(dUL.ptr[j], dUR.ptr[j]));
-
+			//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)	
+			//https://en.wikipedia.org/wiki/MUSCL_scheme
+			
+			real r = dUR.ptr[j] == 0 ? 0 : (dUL.ptr[j] / dUR.ptr[j]);
+			real phi = slopeLimiter(r);
+			
+			real sigma = phi * dUR.ptr[j];
+			
 			//q^n_i-1/2,R = q^n_i - 1/2 dx sigma	(Hydrodynamics II 6.58)
-			UHalfL.ptr[j] = U->ptr[j] - .5 * sigma; 
-
+			UHalfL.ptr[j] = U->ptr[j] - .5 * sigma;
+			
 			//q^n_i+1/2,L = q^n_i + 1/2 dx sigma	(Hydrodynamics II 6.59)
 			UHalfR.ptr[j] = U->ptr[j] + .5 * sigma;
 		}
-		
+	
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
 
@@ -86,24 +75,44 @@ kernel void calcLR(
 			ULR->R.ptr[j] = UHalfR.ptr[j] + .5 * dt_dx * dF;
 		}
 
-#else	//based on https://arxiv.org/pdf/0804.0402v1.pdf
+#elif 0	//based on https://arxiv.org/pdf/0804.0402v1.pdf 
+		//and Trangenstein "Numeric Simulation of Hyperbolic Conservation Laws" section 6.2.5
+		//except I'm projecting the differences in conservative values instead of primitive values.
+		//This also needs slope limiters.
+
+		//1) calc delta q's ... l r c (eqn 36)
+		const global cons_t* UL = U - stepsize[side];
+		const global cons_t* UR = U + stepsize[side];
+		cons_t dUL, dUR, dUC;
+		for (int j = 0; j < numStates; ++j) {
+			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
+			dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
+			dUC.ptr[j] = UR->ptr[j] - UL->ptr[j];
+		}
+
+		//calc eigen values and vectors at cell center
+		eigen_t eig;
+		eigen_forCell_<?=side?>(&eig, U);
+		real wave[numWaves];
+		eigen_calcWaves_<?=side?>__(wave, &eig);
 		
-		//2) calc eigenspace delta qs (eqn 37)
 		real dULEig[numWaves], dUREig[numWaves], dUCEig[numWaves];
 		eigen_leftTransform_<?=side?>___(dULEig, &eig, dUL.ptr);
 		eigen_leftTransform_<?=side?>___(dUREig, &eig, dUR.ptr);
 		eigen_leftTransform_<?=side?>___(dUCEig, &eig, dUC.ptr);
 
-		//3) do the limiter (eqn 38)
 		real dUMEig[numWaves];
 		for (int j = 0; j < numWaves; ++j) {
-			dUMEig[j] = 2. * min(
-				min(fabs(dULEig[j]), fabs(dUREig[j])),
-				fabs(dUCEig[j])
-			)
-			* (dUCEig[j] >= 0. ? 1. : -1.)
-			* (dULEig[j] * dUREig[j] > 0. ? 1. : 0.)
-			;
+			//MUSCL slope of characteristic variables
+			dUMEig[j] = dULEig[j] * dUREig[j] < 0 ? 0 : (
+				(dUCEig[j] >= 0. ? 1. : -1.)
+				* min(
+					2. * min(
+						fabs(dULEig[j]),
+						fabs(dUREig[j])),
+					fabs(dUCEig[j])
+				)
+			);
 		}
 	
 		real dx = dx<?=side?>_at(i);
@@ -111,8 +120,10 @@ kernel void calcLR(
 
 		real pl[numWaves], pr[numWaves];
 		for (int j = 0; j < numWaves; ++j) {
-			pl[j] = wave[j] >= 0 ? dUMEig[j] * .5 * (1. - dt_dx * wave[j]) : 0;
-			pr[j] = wave[j] <= 0 ? dUMEig[j] * .5 * (1. + dt_dx * wave[j]) : 0;
+			pl[j] = wave[j] < 0 ? 0 : 
+				dUMEig[j] * .5 * (1. - wave[j] * dt_dx);
+			pr[j] = wave[j] > 0 ? 0 : 
+				dUMEig[j] * .5 * (1. + wave[j] * dt_dx);
 		}
 
 		//convert back
@@ -124,6 +135,92 @@ kernel void calcLR(
 			ULR->L.ptr[j] = U->ptr[j] - qr.ptr[j];
 			ULR->R.ptr[j] = U->ptr[j] + ql.ptr[j];
 		}
+#elif 0	//Trangenstein, Athena, etc, except working on primitives like it says to
+		
+		const real ePot = 0, ePotL = 0, ePotR = 0;	//TODO fixme
+		//this requires standardizing primFromCons (can't pass ePot so easily)
+		//...which might mean incorporating ePot into cons_t
+		//...which might mean some cons_t variables don't get integrated
+		//...which might mean custom mul & add functions for the integrators (to skip the non-integrated fields)
+		//...and will mean sizeof(cons_t) >= sizeof(real[numStates])
+
+		//1) calc delta q's ... l r c (eqn 36)
+		const global cons_t* UL = U - stepsize[side];
+		const global cons_t* UR = U + stepsize[side];
+		prim_t W = primFromCons(*U, ePot);
+		prim_t WL = primFromCons(*UL, ePotL);
+		prim_t WR = primFromCons(*UR, ePotR);
+		prim_t dWL, dWR, dWC;
+		for (int j = 0; j < numStates; ++j) {
+			dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
+			dWR.ptr[j] = WR.ptr[j] - W.ptr[j];
+			dWC.ptr[j] = WR.ptr[j] - WL.ptr[j];
+		}
+
+		//calc eigen values and vectors at cell center
+		eigen_t eig;
+		eigen_forCell_<?=side?>(&eig, U);
+		real wave[numWaves];
+		eigen_calcWaves_<?=side?>__(wave, &eig);
+	
+		//apply dU/dW before applying left/right eigenvectors so the eigenvectors are of the flux wrt primitives 
+		//RW = dW/dU RU, LW = LU dU/dW
+		cons_t tmp;
+		
+		apply_dU_dW(&tmp, &W, &dWL);
+		real dWLEig[numWaves];
+		eigen_leftTransform_<?=side?>___(dWLEig, &eig, tmp.ptr);
+		
+		apply_dU_dW(&tmp, &W, &dWR);
+		real dWREig[numWaves];
+		eigen_leftTransform_<?=side?>___(dWREig, &eig, tmp.ptr);
+		
+		apply_dU_dW(&tmp, &W, &dWC);
+		real dWCEig[numWaves];
+		eigen_leftTransform_<?=side?>___(dWCEig, &eig, tmp.ptr);
+
+		real dWMEig[numWaves];
+		for (int j = 0; j < numWaves; ++j) {
+			//MWSCL slope of characteristic variables
+			dWMEig[j] = dWLEig[j] * dWREig[j] < 0 ? 0 : (
+				(dWCEig[j] >= 0. ? 1. : -1.)
+				* min(
+					2. * min(
+						fabs(dWLEig[j]),
+						fabs(dWREig[j])),
+					fabs(dWCEig[j])
+				)
+			);
+		}
+	
+		real dx = dx<?=side?>_at(i);
+		real dt_dx = dt / dx;
+
+		real pl[numWaves], pr[numWaves];
+		for (int j = 0; j < numWaves; ++j) {
+			pl[j] = wave[j] < 0 ? 0 : 
+				dWMEig[j] * .5 * (1. - wave[j] * dt_dx);
+			pr[j] = wave[j] > 0 ? 0 : 
+				dWMEig[j] * .5 * (1. + wave[j] * dt_dx);
+		}
+
+		//convert back
+		
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pl);
+		prim_t ql;
+		apply_dW_dU(&ql, &W, &tmp);
+		
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pr);
+		prim_t qr;
+		apply_dW_dU(&qr, &W, &tmp);
+	
+		prim_t W2L, W2R;
+		for (int j = 0; j < numStates; ++j) {
+			W2L.ptr[j] = W.ptr[j] - qr.ptr[j];
+			W2R.ptr[j] = W.ptr[j] + ql.ptr[j];
+		}
+		ULR->L = consFromPrim(W2L, ePotL);
+		ULR->R = consFromPrim(W2R, ePotR);
 #endif
 
 	}<? end ?>

@@ -152,6 +152,7 @@ function Solver:init(args)
 
 	self.usePLM = args.usePLM
 	assert(not self.usePLM or self.fluxLimiter[0] == 0, "are you sure you want to use flux and slope limiters at the same time?")
+	self.slopeLimiter = ffi.new('int[1]', (self.app.limiterNames:find(args.slopeLimiter) or 1)-1)
 
 	self:refreshGridSize()
 end
@@ -673,11 +674,16 @@ function Solver:getSolverCode()
 	local fluxLimiterCode = 'real fluxLimiter(real r) {'
 		.. self.app.limiters[1+self.fluxLimiter[0]].code 
 		.. '}'
-		
+
+	local slopeLimiterCode = 'real slopeLimiter(real r) {'
+		.. self.app.limiters[1+self.slopeLimiter[0]].code 
+		.. '}'
+	
 	return table{
 		self.codePrefix,
 		self.eqn:getEigenCode(self) or '',
 		fluxLimiterCode,
+		slopeLimiterCode,
 		
 		'typedef struct { real min, max; } range_t;',
 		self.eqn:getSolverCode(self) or '',

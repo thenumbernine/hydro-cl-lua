@@ -24,10 +24,13 @@ Euler.guiVars = {
 
 function Euler:getTypeCode()
 	return [[
-typedef struct { 
-	real rho;
-	real3 v;
-	real P;
+typedef union {
+	real ptr[5];
+	struct { 
+		real rho;
+		real3 v;
+		real P;
+	};
 } prim_t;
 
 typedef union {
@@ -59,7 +62,11 @@ inline real calc_ETotal(prim_t W, real ePot) {
 	real EPot = W.rho * ePot;
 	return calc_EKin(W) + calc_EInt(W) + EPot;
 }
-inline real calc_Cs(const prim_t* W) { return sqrt(heatCapacityRatio * W->P / W->rho); }
+
+inline real calc_Cs(const prim_t* W) {
+	return sqrt(heatCapacityRatio * W->P / W->rho);
+}
+
 inline prim_t primFromCons(cons_t U, real ePot) {
 	real EPot = U.rho * ePot;
 	real EKin = calc_EKin_fromCons(U);
@@ -68,6 +75,14 @@ inline prim_t primFromCons(cons_t U, real ePot) {
 		.rho = U.rho,
 		.v = real3_scale(U.m, 1./U.rho),
 		.P = EInt / (heatCapacityRatio - 1.),
+	};
+}
+
+cons_t consFromPrim(prim_t W, real ePot) {
+	return (cons_t){
+		.rho = W.rho,
+		.m = real3_scale(W.v, W.rho),
+		.ETotal = calc_ETotal(W, ePot),
 	};
 }
 ]],
@@ -79,14 +94,6 @@ function Euler:getInitStateCode(solver)
 	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
 	local code = initState.init(solver)	
 	return [[
-cons_t consFromPrim(prim_t W, real ePot) {
-	return (cons_t){
-		.rho = W.rho,
-		.m = real3_scale(W.v, W.rho),
-		.ETotal = calc_ETotal(W, ePot),
-	};
-}
-
 kernel void initState(
 	global cons_t* UBuf,
 	global real* ePotBuf
