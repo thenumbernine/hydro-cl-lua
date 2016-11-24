@@ -28,8 +28,10 @@ kernel void calcLR(
 		
 		//piecewise-linear
 		
-#if 1	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
+#if 0	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
 		//and https://en.wikipedia.org/wiki/MUSCL_scheme
+		//Works for Euler Sod 1D and 2D
+		//Failing for adm1d_v1
 
 		const global cons_t* UL = U - stepsize[side];
 		const global cons_t* UR = U + stepsize[side];
@@ -46,7 +48,7 @@ kernel void calcLR(
 			//https://en.wikipedia.org/wiki/MUSCL_scheme
 			
 			real r = dUR.ptr[j] == 0 ? 0 : (dUL.ptr[j] / dUR.ptr[j]);
-			real phi = slopeLimiter(r);
+			real phi = slopeLimiter(r);	//works good with minmod, bad with superbee
 			
 			real sigma = phi * dUR.ptr[j];
 			
@@ -75,10 +77,12 @@ kernel void calcLR(
 			ULR->R.ptr[j] = UHalfR.ptr[j] + .5 * dt_dx * dF;
 		}
 
-#elif 0	//based on https://arxiv.org/pdf/0804.0402v1.pdf 
+#elif 1	//based on https://arxiv.org/pdf/0804.0402v1.pdf 
 		//and Trangenstein "Numeric Simulation of Hyperbolic Conservation Laws" section 6.2.5
 		//except I'm projecting the differences in conservative values instead of primitive values.
-		//This also needs slope limiters.
+		//This also needs modular slope limiter support.
+		//This works for adm1d_v1 and 1D Euler Sod 
+		//For 2D Euler Sod this gets strange behavior and slowly diverges.
 
 		//1) calc delta q's ... l r c (eqn 36)
 		const global cons_t* UL = U - stepsize[side];
@@ -112,7 +116,7 @@ kernel void calcLR(
 						fabs(dUREig[j])),
 					fabs(dUCEig[j])
 				)
-			);
+			);	
 		}
 	
 		real dx = dx<?=side?>_at(i);
@@ -181,7 +185,7 @@ kernel void calcLR(
 
 		real dWMEig[numWaves];
 		for (int j = 0; j < numWaves; ++j) {
-			//MWSCL slope of characteristic variables
+			//MUSCL slope of characteristic variables
 			dWMEig[j] = dWLEig[j] * dWREig[j] < 0 ? 0 : (
 				(dWCEig[j] >= 0. ? 1. : -1.)
 				* min(

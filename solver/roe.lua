@@ -10,7 +10,7 @@ local vec3 = require 'vec.vec3'
 local CLImageGL = require 'cl.imagegl'
 local CLProgram = require 'cl.program'
 local GLTex2D = require 'gl.tex2d'
-local GLTex3D = require 'gl.tex2d'
+local GLTex3D = require 'gl.tex3d'
 local glreport = require 'gl.report'
 local clnumber = require 'clnumber'
 local showcode = require 'showcode'
@@ -112,13 +112,19 @@ function Solver:init(args)
 
 	self.offset = vec3sz(0,0,0)
 	self.localSize1d = math.min(self.maxWorkGroupSize, tonumber(self.gridSize:volume()))
-	
+
+	if self.dim == 3 then
+		local localSizeX = math.min(gridSize[1], 2^math.ceil(math.log(self.maxWorkGroupSize,2)/2))
+		local localSizeY = self.maxWorkGroupSize / localSizeX
+		self.localSize2d = {localSizeX, localSizeY}
+	end
+
 --	self.localSize = self.dim < 3 and vec3sz(16,16,16) or vec3sz(4,4,4)
 	-- TODO better than constraining by math.min(gridSize),
 	-- look at which gridSizes have the most room, and double them accordingly, until all of maxWorkGroupSize is taken up
 	self.localSize = vec3sz(1,1,1)
 	local rest = self.maxWorkGroupSize
-	local localSizeX = math.min(gridSize[1], 2^math.ceil(math.log(rest^(1/self.dim),2)))
+	local localSizeX = math.min(gridSize[1], 2^math.ceil(math.log(rest,2)/self.dim))
 	self.localSize.x = localSizeX
 	if self.dim > 1 then
 		rest = rest / localSizeX
@@ -469,10 +475,11 @@ assert(ffi.sizeof'cons_t' == self.eqn.numStates * ffi.sizeof'real')
 
 	-- CL/GL interop
 
-	self.tex = (self.dim < 3 and GLTex2D or GLTex3D){
-		width = self.gridSize.x,
-		height = self.gridSize.y,
-		depth = self.gridSize.z,
+	local cl = self.dim < 3 and GLTex2D or GLTex3D
+	self.tex = cl{
+		width = tonumber(self.gridSize.x),
+		height = tonumber(self.gridSize.y),
+		depth = tonumber(self.gridSize.z),
 		internalFormat = gl.GL_RGBA32F,
 		format = gl.GL_RGBA,
 		type = gl.GL_FLOAT,
@@ -937,7 +944,6 @@ kernel void boundary(
 					return 'INDEX(i.x,i.y,'..j..')'
 				end
 			end
-			error'TODO'
 		end
 
 		local x = xs[side]
@@ -1001,7 +1007,17 @@ function Solver:applyBoundaryToBuffer(kernel)
 		local maxSize = math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y))
 		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=maxSize, localSize=math.min(self.localSize1d, maxSize)}
 	elseif self.dim == 3 then
-		print'TODO'
+		-- xy xz yz
+		local maxSizeX = math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y))
+		local maxSizeY = math.max(tonumber(self.gridSize.y), tonumber(self.gridSize.z))
+		self.app.cmds:enqueueNDRangeKernel{
+			kernel = kernel,
+			globalSize = {maxSizeX, maxSizeY},
+			localSize = {
+				math.min(self.localSize2d[1], maxSizeX),
+				math.min(self.localSize2d[2], maxSizeY),
+			},
+		}
 	else
 		error("can't run boundary for dim "..tonumber(self.dim))
 	end
@@ -1140,7 +1156,7 @@ function Solver:calcDisplayVarToTex(var)
 			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, tex.width, tex.height, gl.GL_RED, gl.GL_FLOAT, ptr)
 		else
 			for z=0,tex.depth-1 do
-				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, tex.width, tex.height, 1, gl.GL_RED, gl.GL_FLOAT, ptr + tex.width * tex.height * z)
+				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, tex.width, tex.height, 1, gl.GL_RED, gl.GL_FLOAT, ptr + tex.width * tex.height * z)		
 			end
 		end
 		tex:unbind()

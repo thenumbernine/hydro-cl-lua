@@ -23,7 +23,7 @@ kernel void calcDT(
 		const int side = <?=side?>;
 		real lambdaMin = min((real)0., W.v.s[side] - Cs);
 		real lambdaMax = max((real)0., W.v.s[side] + Cs);
-		dt = min(dt, dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9));
+		dt = min(dt, (real)dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9));
 	}<? end ?>
 	dtBuf[index] = dt;
 }
@@ -68,35 +68,10 @@ void eigen_forSide(
 	eig->Cs = Cs;
 }
 
-
-// ==========================================================================
-// BEGIN FUNCTIONS USED BY PLM 
-// which means I'm going to have to do better at standardizing these
-// either by making code/kernel args more modular for ePot
-// or by incorporating ePot into cons_t and not integrating over *all* fields
-// ==========================================================================
-
-
-<? for side=0,solver.dim-1 do ?>
-void eigen_forCell_<?=side?>(
-	eigen_t* eig,
-	global const cons_t* U
-) {
-	real ePot = 0; //TODO need ePot...
-	prim_t W = primFromCons(*U, ePot);
-	real vSq = coordLenSq(W.v);
-	real eKin = .5 * vSq;
-	real hTotal = calc_hTotal(W.rho, W.P, U->ETotal);
-	real CsSq = (heatCapacityRatio - 1.) * (hTotal - eKin);
-	real Cs = sqrt(CsSq);
-	eig->rho = W.rho;
-	eig->v = W.v;
-	eig->hTotal = hTotal;
-	eig->vSq = vSq;
-	eig->Cs = Cs;
-}
-<? end ?>
-
+//this is also used by PLM for cell-centered waves
+//that's why it is split out
+//its use there could replace calcCellMinMaxEigenvalues
+//which is called by the default calcDT
 <?
 for _,addr0 in ipairs{'', 'global'} do
 	for _,addr1 in ipairs{'', 'global'} do
@@ -115,49 +90,8 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 }
 <?		end
 	end
-end ?>
-
-<? for side=0,solver.dim-1 do ?>
-cons_t fluxForCons_<?=side?>(cons_t U) {
-	real ePot = 0;	//TODO
-	prim_t W = primFromCons(U, ePot);
-	real mi = U.m.s<?=side?>;
-	return (cons_t){
-		.rho = mi,
-		.m = (real3){
-			.x = mi * W.v.x<?= side==0 and ' + W.P' or ''?>,
-			.y = mi * W.v.y<?= side==1 and ' + W.P' or ''?>,
-			.z = mi * W.v.z<?= side==2 and ' + W.P' or ''?>,
-		},
-		.ETotal = (U.ETotal + W.P) * W.v.s<?=side?>,
-	};
-}
-<? end ?>
-
-void apply_dU_dW(cons_t* y, const prim_t* W, const prim_t* x) {
-	*y = (cons_t){
-		.rho = x->rho,
-		.m = real3_add(real3_scale(W->v, x->rho), real3_scale(x->v, W->rho)),
-		.ETotal = x->rho * .5 * coordLenSq(W->v) + W->rho * real3_dot(x->v, W->v) + x->P / (heatCapacityRatio - 1.),
-	};
-}
-
-void apply_dW_dU(prim_t* y, const prim_t* W, const cons_t* x) {
-	*y = (prim_t){
-		.rho = x->rho,
-		.v = real3_sub(real3_scale(x->m, 1./W->rho), real3_scale(W->v, x->rho / W->rho)),
-		.P = (heatCapacityRatio - 1.) * (x->ETotal + .5 * coordLenSq(W->v) * x->rho - real3_dot(x->m, W->v)),
-	};
-}
-
-
-// ==========================================================================
-// END FUNCTIONS USED BY PLM 
-// which means I'm going to have to do better at standardizing these
-// either by making code/kernel args more modular for ePot
-// or by incorporating ePot into cons_t and not integrating over *all* fields
-// ==========================================================================
-
+end
+?>
 
 kernel void calcEigenBasis(
 	global real* waveBuf,			//[volume][dim][numWaves]
@@ -303,3 +237,60 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	end
 end
 ?>
+
+
+// used by PLM
+
+
+<? for side=0,solver.dim-1 do ?>
+cons_t fluxForCons_<?=side?>(cons_t U) {
+	real ePot = 0;	//TODO
+	prim_t W = primFromCons(U, ePot);
+	real mi = U.m.s<?=side?>;
+	return (cons_t){
+		.rho = mi,
+		.m = (real3){
+			.x = mi * W.v.x<?= side==0 and ' + W.P' or ''?>,
+			.y = mi * W.v.y<?= side==1 and ' + W.P' or ''?>,
+			.z = mi * W.v.z<?= side==2 and ' + W.P' or ''?>,
+		},
+		.ETotal = (U.ETotal + W.P) * W.v.s<?=side?>,
+	};
+}
+<? end ?>
+
+<? for side=0,solver.dim-1 do ?>
+void eigen_forCell_<?=side?>(
+	eigen_t* eig,
+	global const cons_t* U
+) {
+	real ePot = 0; //TODO need ePot...
+	prim_t W = primFromCons(*U, ePot);
+	real vSq = coordLenSq(W.v);
+	real eKin = .5 * vSq;
+	real hTotal = calc_hTotal(W.rho, W.P, U->ETotal);
+	real CsSq = (heatCapacityRatio - 1.) * (hTotal - eKin);
+	real Cs = sqrt(CsSq);
+	eig->rho = W.rho;
+	eig->v = W.v;
+	eig->hTotal = hTotal;
+	eig->vSq = vSq;
+	eig->Cs = Cs;
+}
+<? end ?>
+
+void apply_dU_dW(cons_t* y, const prim_t* W, const prim_t* x) {
+	*y = (cons_t){
+		.rho = x->rho,
+		.m = real3_add(real3_scale(W->v, x->rho), real3_scale(x->v, W->rho)),
+		.ETotal = x->rho * .5 * coordLenSq(W->v) + W->rho * real3_dot(x->v, W->v) + x->P / (heatCapacityRatio - 1.),
+	};
+}
+
+void apply_dW_dU(prim_t* y, const prim_t* W, const cons_t* x) {
+	*y = (prim_t){
+		.rho = x->rho,
+		.v = real3_sub(real3_scale(x->m, 1./W->rho), real3_scale(W->v, x->rho / W->rho)),
+		.P = (heatCapacityRatio - 1.) * (x->ETotal + .5 * coordLenSq(W->v) * x->rho - real3_dot(x->m, W->v)),
+	};
+}

@@ -128,7 +128,7 @@ end
 	if cmdline.float then
 		self.is64bit = false
 	end
-	
+
 self.device:printInfo()
 	local exts = string.split(string.trim(self.device:getExtensions()):lower(),'%s+')
 	self.useGLSharing = exts:find(nil, function(ext) return ext:match'cl_%w+_gl_sharing' end)
@@ -235,24 +235,24 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 1,
+		dim = cmdline.dim or 3,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 4, TVD',
 	
-		--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
-		usePLM = true,	-- piecewise-linear slope limiter
-		slopeLimiter = 'minmod',
+		--usePLM = true,	-- piecewise-linear slope limiter
+		--slopeLimiter = 'minmod',
 
 		-- [[ cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
+			cmdline.gridSize or 8,
+			cmdline.gridSize or 8,
+			cmdline.gridSize or 8,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -400,7 +400,6 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 			gl.glUniform1i(volumeRayShader.uniforms.gradient, 1)
 			do
 				local maxiter = math.max(tonumber(solver.gridSize.x), tonumber(solver.gridSize.y), tonumber(solver.gridSize.z))
-				print('volumetric shader raycast maxiter',maxiter)
 				gl.glUniform1i(volumeRayShader.uniforms.maxiter, maxiter)
 			end
 			--gl.glUniform3f(volumeRayShader.uniforms.oneOverDx, (solver.maxs - solver.mins):unpack())
@@ -424,7 +423,6 @@ uniform vec3 normal;
 uniform float alpha;
 uniform float alphaGamma;
 void main() {
-
 	vec4 worldPos = gl_ModelViewMatrix * vec4(pos,1.);
 
 	float value = texture3D(volTex, pos).r;
@@ -448,8 +446,8 @@ void main() {
 			}
 			solver.volumeSliceShader = volumeSliceShader
 			volumeSliceShader:use()
-			gl.glUniform1i(volumeSliceShader.uniforms.volTex, 0)
-			gl.glUniform1i(volumeSliceShader.uniforms.hsvTex, 1)
+			if volumeSliceShader.uniforms.volTex then gl.glUniform1i(volumeSliceShader.uniforms.volTex, 0) end
+			if volumeSliceShader.uniforms.hsvTex then gl.glUniform1i(volumeSliceShader.uniforms.hsvTex, 1) end
 			volumeSliceShader:useNone()
 		end
 	end
@@ -479,7 +477,7 @@ void main() {
 
 	self.orthoView = require 'view.ortho'()
 	self.frustumView = require 'view.frustum'()
-	self.view = self.orthoView
+	self.view = self.solvers[1].dim == 3 and self.frustumView or self.orthoView
 end
 
 
@@ -754,7 +752,7 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 	for _,solver in ipairs(solvers) do
 		local varIndex = solver.displayVars:find(nil, function(var) return var.name == varName end)
 		if varIndex then
-			self:showDisplayVar(solver, varIndex)
+			self:showDisplayVar1D(solver, varIndex)
 		end
 
 		if self.font then
@@ -897,83 +895,87 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 	end
 end
 
-local quat = require 'vec.quat'
-local viewAngle = quat()
 local vec4d = require 'ffi.vec.vec4d'
 function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
-
 	self.view:projection(ar)
 	self.view:modelview()
+	
+	for _,solver in ipairs(solvers) do 
+		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
+		if varIndex then
 
-	for _,solver in ipairs(solvers) do
-		solver.volumeSliceShader:use()
-		solver:getTex(var):bind(0)
-		self.gradientTex:bind(1)
-		gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha, .15)
-		gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma, 1)
+			solver:calcDisplayVarToTex(var)	
 
-		gl.glEnable(gl.GL_TEXTURE_GEN_S)
-		gl.glEnable(gl.GL_TEXTURE_GEN_T)
-		gl.glEnable(gl.GL_TEXTURE_GEN_R)
-		gl.glTexGeni(gl.GL_S, gl.GL_TEXTURE_GEN_MODE, gl.GL_OBJECT_LINEAR)
-		gl.glTexGeni(gl.GL_T, gl.GL_TEXTURE_GEN_MODE, gl.GL_OBJECT_LINEAR)
-		gl.glTexGeni(gl.GL_R, gl.GL_TEXTURE_GEN_MODE, gl.GL_OBJECT_LINEAR)
-		gl.glTexGendv(gl.GL_S, gl.GL_OBJECT_PLANE, vec4d(1,0,0,0):ptr())
-		gl.glTexGendv(gl.GL_T, gl.GL_OBJECT_PLANE, vec4d(0,1,0,0):ptr())
-		gl.glTexGendv(gl.GL_R, gl.GL_OBJECT_PLANE, vec4d(0,0,1,0):ptr())
+			solver.volumeSliceShader:use()
+			solver:getTex(var):bind(0)
+			self.gradientTex:bind(1)
+			if solver.volumeSliceShader.uniforms.alpha then gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha, .15) end
+			if solver.volumeSliceShader.uniforms.alphaGamma then gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma, 1) end
+					
+			gl.glEnable(gl.GL_TEXTURE_GEN_S)
+			gl.glEnable(gl.GL_TEXTURE_GEN_T)
+			gl.glEnable(gl.GL_TEXTURE_GEN_R)
+			gl.glTexGeni(gl.GL_S, gl.GL_TEXTURE_GEN_MODE, gl.GL_OBJECT_LINEAR)
+			gl.glTexGeni(gl.GL_T, gl.GL_TEXTURE_GEN_MODE, gl.GL_OBJECT_LINEAR)
+			gl.glTexGeni(gl.GL_R, gl.GL_TEXTURE_GEN_MODE, gl.GL_OBJECT_LINEAR)
+			gl.glTexGendv(gl.GL_S, gl.GL_OBJECT_PLANE, vec4d(1,0,0,0):ptr())
+			gl.glTexGendv(gl.GL_T, gl.GL_OBJECT_PLANE, vec4d(0,1,0,0):ptr())
+			gl.glTexGendv(gl.GL_R, gl.GL_OBJECT_PLANE, vec4d(0,0,1,0):ptr())
 
-		gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-		gl.glEnable(gl.GL_BLEND)
+			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+			gl.glEnable(gl.GL_BLEND)
 
-		--[[ points
-		gl.glPointSize(2)
-		gl.glBegin(gl.GL_POINTS)
-		for _,pt in ipairs(self.pts) do
-			gl.glVertex3d( 
-				(pt[1] - .5)/(self.max[1] + 1),
-				(pt[2] - .5)/(self.max[2] + 1),
-				(pt[3] - .5)/(self.max[3] + 1))
-		end
-		gl.glEnd()
-		--]]
-		-- [[ slices
-		local n = 255
-		local fwd = -viewAngle:zAxis()
-		local fwddir = select(2, table(fwd):map(math.abs):sup())
-		local quad = {{0,0},{1,0},{1,1},{0,1}}
-		local jmin, jmax, jdir
-		if fwd[fwddir] < 0 then
-			jmin, jmax, jdir = 0, n, 1
-		else
-			jmin, jmax, jdir = n, 0, -1
-		end
-		gl.glUniform3f(solver.volumeSliceShader.uniforms.normal, fwddir==1 and jdir or 0, fwddir==2 and jdir or 0, fwddir==3 and jdir or 0)
-		
-		gl.glBegin(gl.GL_QUADS)
-		for j=jmin,jmax,jdir do
-			local f = j/n
-			for _,vtx in ipairs(quad) do
-				if fwddir == 1 then
-					gl.glVertex3f(f, vtx[1], vtx[2])
-				elseif fwddir == 2 then
-					gl.glVertex3f(vtx[1], f, vtx[2])
-				elseif fwddir == 3 then
-					gl.glVertex3f(vtx[1], vtx[2], f)
+			--[[ points
+			gl.glPointSize(2)
+			gl.glBegin(gl.GL_POINTS)
+			for _,pt in ipairs(self.pts) do
+				gl.glVertex3d( 
+					(pt[1] - .5)/(self.max[1] + 1),
+					(pt[2] - .5)/(self.max[2] + 1),
+					(pt[3] - .5)/(self.max[3] + 1))
+			end
+			gl.glEnd()
+			--]]
+			-- [[ slices
+			local n = 255
+			local fwd = -self.frustumView.angle:zAxis()
+			local fwddir = select(2, table(fwd):map(math.abs):sup())
+
+			local quad = {{0,0},{1,0},{1,1},{0,1}}
+			local jmin, jmax, jdir
+			if fwd[fwddir] < 0 then
+				jmin, jmax, jdir = 0, n, 1
+			else
+				jmin, jmax, jdir = n, 0, -1
+			end
+			if solver.volumeSliceShader.uniforms.normal then gl.glUniform3f(solver.volumeSliceShader.uniforms.normal, fwddir==1 and jdir or 0, fwddir==2 and jdir or 0, fwddir==3 and jdir or 0) end
+			
+			gl.glBegin(gl.GL_QUADS)
+			for j=jmin,jmax,jdir do
+				local f = j/n
+				for _,vtx in ipairs(quad) do
+					if fwddir == 1 then
+						gl.glVertex3f(f, vtx[1], vtx[2])
+					elseif fwddir == 2 then
+						gl.glVertex3f(vtx[1], f, vtx[2])
+					elseif fwddir == 3 then
+						gl.glVertex3f(vtx[1], vtx[2], f)
+					end
 				end
 			end
+			gl.glEnd()
+			--]]
+			
+			gl.glDisable(gl.GL_BLEND)
+
+			gl.glDisable(gl.GL_TEXTURE_GEN_S)
+			gl.glDisable(gl.GL_TEXTURE_GEN_T)
+			gl.glDisable(gl.GL_TEXTURE_GEN_R)
+
+			self.gradientTex:unbind(1)
+			solver:getTex(var):unbind(0)
+			solver.volumeSliceShader:useNone()
 		end
-		gl.glEnd()
-		--]]
-		
-		gl.glDisable(gl.GL_BLEND)
-
-		gl.glDisable(gl.GL_TEXTURE_GEN_S)
-		gl.glDisable(gl.GL_TEXTURE_GEN_T)
-		gl.glDisable(gl.GL_TEXTURE_GEN_R)
-
-		self.gradientTex:unbind(1)
-		solver:getTex(var):unbind(0)
-		solver.volumeSliceShader:useNone()
 	end
 end
 
@@ -1047,10 +1049,10 @@ function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, 
 	end
 end
 
+--HydroCLApp.display3D = HydroCLApp.display3D_Ray
 HydroCLApp.display3D = HydroCLApp.display3D_Slice
-HydroCLApp.display3D = HydroCLApp.display3D_Ray
 
-function HydroCLApp:showDisplayVar(solver, varIndex)
+function HydroCLApp:showDisplayVar1D(solver, varIndex)
 	local var = solver.displayVars[varIndex]
 	solver:calcDisplayVarToTex(var)	
 	-- display

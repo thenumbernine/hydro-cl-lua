@@ -8,19 +8,6 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 <? end ?>
 
-//used by PLM
-<? for side=0,solver.dim-1 do ?>
-void eigen_forCell_<?=side?>(
-	eigen_t* eig,
-	const global cons_t* U
-) {
-	eig->alpha = U->alpha;
-	eig->gamma_xx = U->gamma_xx;
-	eig->f = calc_f(U->alpha);
-}
-<? end ?>
-
-//used by PLM
 <?
 for _,addr0 in ipairs{'', 'global'} do
 	for _,addr1 in ipairs{'', 'global'} do
@@ -148,3 +135,34 @@ kernel void addSource(
 	deriv->D_g -= 2. * alpha * K_xx * (.5 * D_g - a_x);
 	deriv->KTilde_xx -= alpha * a_x / sqrt_gamma_xx * (.5 * D_g - a_x);
 }
+
+
+//used by PLM
+
+
+<? for side=0,solver.dim-1 do ?>
+void eigen_forCell_<?=side?>(
+	eigen_t* eig,
+	global const cons_t* U
+) {
+	eig->alpha = U->alpha;
+	eig->gamma_xx = U->gamma_xx;
+	eig->f = calc_f(U->alpha);
+}
+<? end ?>
+
+<? for side=0,solver.dim-1 do ?>
+cons_t fluxForCons_<?=side?>(cons_t U) {
+	real sqrt_gamma_xx = sqrt(U.gamma_xx);
+	real K_xx = U.KTilde_xx / sqrt_gamma_xx;
+	real f = calc_f(U.alpha);
+	return (cons_t){
+		.alpha = 0,
+		.gamma_xx = 0,
+		.a_x = U.alpha * f * K_xx,
+		.D_g = 2. * U.alpha * K_xx,
+		.KTilde_xx = U.alpha * U.a_x / sqrt_gamma_xx,
+	};
+}
+<? end ?>
+

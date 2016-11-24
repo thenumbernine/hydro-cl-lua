@@ -38,7 +38,7 @@ kernel void calcDT(
 		real lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * alpha - betaUi;
 		lambdaMin = min((real)0., lambdaMin);
 		lambdaMax = max((real)0., lambdaMax);
-		dt = min(dt, dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9));
+		dt = min(dt, (real)dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9));
 	}<? end ?>
 	
 	dtBuf[index] = dt; 

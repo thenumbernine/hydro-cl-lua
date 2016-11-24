@@ -16,7 +16,7 @@ kernel void calcDT(
 		range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(U); 
 		lambda.min = min((real)0., lambda.min);
 		lambda.max = max((real)0., lambda.max);
-		dt = min(dt, dx<?=side?>_at(i) / (fabs(lambda.max - lambda.min) + (real)1e-9));
+		dt = min(dt, (real)dx<?=side?>_at(i) / (fabs(lambda.max - lambda.min) + (real)1e-9));
 	}<? end ?>
 	dtBuf[index] = dt; 
 }
