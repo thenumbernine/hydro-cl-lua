@@ -323,6 +323,8 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real x[5] = {x_[0], x_[3], x_[2], -x_[1], x_[4]};
 	<? end ?>
 
+	//TODO do the matrix multiply here
+
 	//rotate outgoing y's x's into side
 	<? if side ~= 0 then ?>
 	real tmp = y[1];

@@ -2,7 +2,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
-local processcl = require 'processcl'
+local template = require 'template'
 
 local Equation = class()
 
@@ -49,7 +49,7 @@ Equation.displayVarCodePrefix = [[
 
 -- TODO autogen the name so multiple solvers don't collide
 function Equation:getEigenTypeCode(solver)
-	return processcl([[
+	return template([[
 typedef struct {
 	real evL[<?=numStates * numWaves?>];
 	real evR[<?=numStates * numWaves?>];
@@ -66,7 +66,7 @@ end
 
 function Equation:getEigenCode(solver)
 	if self.hasEigenCode then return end
-	return processcl(file['solver/eigen.cl'], {solver=solver})
+	return template(file['solver/eigen.cl'], {solver=solver})
 end
 
 function Equation:getEigenDisplayVars(solver)

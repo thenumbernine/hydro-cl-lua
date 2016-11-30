@@ -14,7 +14,7 @@ local GLTex3D = require 'gl.tex3d'
 local glreport = require 'gl.report'
 local clnumber = require 'clnumber'
 local showcode = require 'showcode'
-local processcl = require 'processcl'
+local template = require 'template'
 local vec3sz = require 'solver.vec3sz'
 
 
@@ -625,7 +625,7 @@ end
 
 function Solver:getCalcDTCode()
 	if self.eqn.hasCalcDT then return end
-	return processcl(assert(file['solver/calcDT.cl']), {solver=self})
+	return template(file['solver/calcDT.cl'], {solver=self})
 end
 
 function Solver:refreshCommonProgram()
@@ -637,12 +637,12 @@ function Solver:refreshCommonProgram()
 	}:append{
 		'typedef '..self.app.real..' real;',
 		-- used to find the min/max of a buffer
-		processcl(assert(file['solver/reduce.cl']), {
+		template(file['solver/reduce.cl'], {
 			name = 'reduceMin',
 			initValue = 'INFINITY',
 			op = function(x,y) return 'min('..x..', '..y..')' end,
 		}),
-		processcl(assert(file['solver/reduce.cl']), {
+		template(file['solver/reduce.cl'], {
 			name = 'reduceMax',
 			initValue = '-INFINITY',
 			op = function(x,y) return 'max('..x..', '..y..')' end,
@@ -697,7 +697,7 @@ function Solver:getSolverCode()
 
 		self:getCalcDTCode() or '',
 		
-		processcl(file['solver/solver.cl'], {solver=self})
+		template(file['solver/solver.cl'], {solver=self})
 	}:concat'\n'
 end
 
@@ -806,7 +806,7 @@ function Solver:refreshDisplayProgram()
 			for _,var in ipairs(convertToTex.vars) do
 				if var.enabled[0] then
 					lines:append{
-						processcl(convertToTex.displayCode, {
+						template(convertToTex.displayCode, {
 							solver = self,
 							var = var,
 							convertToTex = convertToTex,
@@ -832,7 +832,7 @@ function Solver:refreshDisplayProgram()
 		for _,var in ipairs(convertToTex.vars) do
 			if var.enabled[0] then
 				lines:append{
-					processcl(convertToTex.displayCode, {
+					template(convertToTex.displayCode, {
 						solver = self,
 						var = var,
 						convertToTex = convertToTex,

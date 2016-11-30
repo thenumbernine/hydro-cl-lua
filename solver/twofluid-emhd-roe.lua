@@ -141,7 +141,7 @@ kernel void addSource_maxwell(
 ]]
 	}
 	local code = lines:concat'\n'
-	code = require 'processcl'(code, {solver=self})
+	code = require 'template'(code, {solver=self})
 	self.addSourceProgram = require 'cl.program'{context=self.app.ctx, devices={self.app.device}, code=code}
 	
 	self.ion.addSourceKernel = self.addSourceProgram:kernel'addSource_ion'

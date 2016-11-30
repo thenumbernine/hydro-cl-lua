@@ -1,7 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
-local processcl = require 'processcl'
+local template = require 'template'
 local Equation = require 'eqn.eqn'
 
 local Euler = class(Equation)
@@ -125,7 +125,7 @@ kernel void initState(
 end
 
 function Euler:getSolverCode(solver)	
-	return processcl(file['eqn/euler.cl'], {eqn=self, solver=solver})
+	return template(file['eqn/euler.cl'], {eqn=self, solver=solver})
 end
 
 Euler.displayVarCodePrefix = [[

@@ -1,7 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
-local processcl = require 'processcl'
+local template = require 'template'
 local Equation = require 'eqn.eqn'
 
 local MHD = class(Equation)
@@ -135,7 +135,7 @@ kernel void initState(
 end
 
 function MHD:getSolverCode(solver)
-	return processcl(file['eqn/mhd.cl'], {eqn=self, solver=solver})
+	return template(file['eqn/mhd.cl'], {eqn=self, solver=solver})
 end
 
 MHD.displayVarCodePrefix = [[
@@ -190,7 +190,7 @@ function MHD:getDisplayVars(solver)
 end
 
 function Equation:getEigenTypeCode(solver)
-	return processcl([[
+	return template([[
 typedef struct {
 	real evL[7*7];
 	real evR[7*7];

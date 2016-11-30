@@ -106,7 +106,7 @@ kernel void initState(
 end
 
 function ADM_BonaMasso_3D:getSolverCode(solver)
-	return require 'processcl'(file['eqn/adm3d.cl'], {solver=solver})
+	return require 'template'(file['eqn/adm3d.cl'], {solver=solver})
 end
 
 function ADM_BonaMasso_3D:getDisplayVars(solver)

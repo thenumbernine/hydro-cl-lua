@@ -208,6 +208,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* x
 ) {
 	<?=prefix?>
+	
 	y[0] = x[1] * nx + x[2] * ny + x[3] * nz;
 	y[1] = x[0] * (-v_n * v.x + (heatCapacityRatio - 1.) * .5 * vSq * nx)
 		+ x[1] * (v.x * nx - (heatCapacityRatio - 1.) * nx * v.x + v_n)

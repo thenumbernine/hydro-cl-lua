@@ -8,7 +8,7 @@ NoDiv.gaussSeidelMaxIters = 20
 function NoDiv:getCodeParams()
 	return {
 		args = 'const global cons_t* UBuf',
-		calcRho = require 'processcl'([[
+		calcRho = require 'template'([[
 	const global cons_t* U = UBuf + index;
 	real divB = .5 * (0
 <? for j=0,solver.dim-1 do ?>

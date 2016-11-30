@@ -25,7 +25,7 @@ function Poisson:addConvertToTexs()
 end
 
 function Poisson:getSolverCode()
-	return require 'processcl'(
+	return require 'template'(
 		table{
 			file['solver/poisson.cl'],
 			self.extraCode or '',

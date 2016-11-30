@@ -4,7 +4,7 @@ local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local GuiFloat = require 'guivar.float'
 local clnumber = require 'clnumber'
-local processcl = require 'processcl'
+local template = require 'template'
 
 local Maxwell = class(Equation)
 Maxwell.name = 'Maxwell'
@@ -55,7 +55,7 @@ end
 
 function Maxwell:getInitStateCode(solver)
 	return table{
-		processcl(
+		template(
 		[[
 kernel void initState(
 	global cons_t* UBuf
@@ -80,7 +80,7 @@ if solver.dim > 2 then ?>
 end
 
 function Maxwell:getSolverCode(solver)
-	return processcl(file['eqn/maxwell.cl'], {solver=solver})
+	return template(file['eqn/maxwell.cl'], {solver=solver})
 end
 
 function Maxwell:getDisplayVars(solver)
@@ -96,7 +96,7 @@ function Maxwell:getDisplayVars(solver)
 		{energy = 'value = .5 * (coordLen(U->epsE) + coordLen(U->B) / mu0);'},
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='epsE', B='B'})[var] )
-		return {['div '..var] = processcl([[
+		return {['div '..var] = template([[
 	value = 0;
 	<? for j=0,solver.dim-1 do ?>{
 		value += (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 

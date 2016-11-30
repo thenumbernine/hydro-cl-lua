@@ -80,7 +80,7 @@ why do I have to use a matrix that reconstructs without them?
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
-local processcl = require 'processcl'
+local template = require 'template'
 local Equation = require 'eqn.eqn'
 
 local ADM_BonaMasso_1D_Alcubierre1997 = class(Equation)
@@ -144,7 +144,7 @@ kernel void initState(
 end
 
 function ADM_BonaMasso_1D_Alcubierre1997:getSolverCode(solver)
-	return processcl(file['eqn/adm1d_v2.cl'], {solver=solver})
+	return template(file['eqn/adm1d_v2.cl'], {solver=solver})
 end
 
 function ADM_BonaMasso_1D_Alcubierre1997:getDisplayVars(solver)

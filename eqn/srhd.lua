@@ -188,7 +188,7 @@ end
 
 function SRHD:getSolverCode(solver)
 	return table{
-		require 'processcl'(file['eqn/srhd.cl'], {eqn=self, solver=solver}),
+		require 'template'(file['eqn/srhd.cl'], {eqn=self, solver=solver}),
 	}:concat'\n'
 end
 
