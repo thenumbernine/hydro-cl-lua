@@ -13,7 +13,6 @@ local GLTex2D = require 'gl.tex2d'
 local GLTex3D = require 'gl.tex3d'
 local glreport = require 'gl.report'
 local clnumber = require 'clnumber'
-local showcode = require 'showcode'
 local template = require 'template'
 local vec3sz = require 'solver.vec3sz'
 
