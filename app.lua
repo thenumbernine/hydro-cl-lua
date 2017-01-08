@@ -237,10 +237,11 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or 1,
 		
-		integrator = cmdline.integrator or 'forward Euler',	
-		--integrator = 'Runge-Kutta 4, TVD',
+		--integrator = cmdline.integrator or 'forward Euler',	
+		integrator = 'Runge-Kutta 4, TVD',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
+		--fluxLimiter = cmdline.fluxLimiter or 'donor cell',
 
 		--usePLM = true,	-- piecewise-linear slope limiter
 		--slopeLimiter = 'minmod',
@@ -303,7 +304,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		-- no initial state means use the first
 		-- initState = cmdline.initState,
 		-- euler / srhd initial states:
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'Kelvin-Hemholtz',

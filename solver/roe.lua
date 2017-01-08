@@ -447,10 +447,20 @@ function Solver:createBuffers()
 	ffi.cdef(errorTypeCode)
 	ffi.cdef(self.consLRTypeCode)
 
-assert(ffi.sizeof'cons_t' == self.eqn.numStates * ffi.sizeof'real')
+	-- for twofluid, cons_t has been renamed to euler_maxwell_t and maxwell_cons_t
+	if ffi.sizeof'cons_t' ~= self.eqn.numStates * ffi.sizeof'real' then
+		   print('expected sizeof(cons_t) to be '
+				   ..self.eqn.numStates..' * sizeof(real) = '..(self.eqn.numStates * ffi.sizeof'real')
+				   ..' but found '..ffi.sizeof'cons_t')
+	end
 
 	-- should I put these all in one AoS?
+	
+	-- two fluid uses multiple solvers, each with their own cons_t ... 
+	-- but in ffi, typedefs can't be undefined / redefined
 	self:clalloc('UBuf', self.volume * ffi.sizeof'cons_t')
+	--self:clalloc('UBuf', self.volume * ffi.sizeof'real' * self.eqn.numStates)
+	
 	if self.usePLM then
 		self:clalloc('ULRBuf', self.volume * self.dim * ffi.sizeof'consLR_t')
 	end
