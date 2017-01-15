@@ -306,7 +306,9 @@ b = _real3(1,0,0);
 				end
 			end
 			return [[
-	bool inside = (x.y > -.25 && x.y < .25);
+	real yq1 = mins.y * .75 + maxs.y * .25;
+	real yq2 = mins.y * .25 + maxs.y * .75;
+	bool inside = (x.y > yq1 && x.y < yq2);
 	real theta = (x.x - mins.x) / (maxs.x - mins.x) * 2. * M_PI;
 #if dim == 3
 	theta *= (x.z - mins.z) / (maxs.z - mins.z);

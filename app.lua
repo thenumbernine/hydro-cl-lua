@@ -307,8 +307,8 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'relativistic blast wave test problem 1',
-		initState = 'relativistic blast wave test problem 2',
-		--initState = 'Kelvin-Hemholtz',
+		--initState = 'relativistic blast wave test problem 2',
+		initState = 'Kelvin-Hemholtz',
 		-- mhd init states:
 		--initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
