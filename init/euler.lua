@@ -89,15 +89,13 @@ local initStates = {
 	{
 		name = 'Brio-Wu',
 		init = function(solver)
---			solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 2
-solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
+			solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 2
 			return [[
 	rho = lhs ? 1 : .125;
 	P = lhs ? 1 : .1;
 	b.x = .75;
 	b.y = lhs ? 1 : -1;
 	b.z = 0;
-b = _real3(1,0,0);
 ]]
 		end,
 	},

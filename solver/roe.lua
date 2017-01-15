@@ -1079,11 +1079,12 @@ function Solver:calcDeriv(derivBuf, dt)
 	end
 
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcEigenBasisKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-	
+
 	if self.checkFluxError or self.checkOrthoError then
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcErrorsKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	end
 
+	-- technically, if flux limiter isn't used, this can be merged into calcFlux (since no left/right reads need to be done)
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDeltaUEigKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	
 	if self.fluxLimiter[0] > 0 then

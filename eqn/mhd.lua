@@ -23,7 +23,7 @@ MHD.initStates = require 'init.euler'
 local GuiFloat = require 'guivar.float'
 
 MHD.guiVars = table{
-	GuiFloat{name='heatCapacityRatio', value=5/3},
+	GuiFloat{name='heatCapacityRatio', value=2},	-- 5/3 for most problems, but 2 for Brio-Wu, so I will just set it here for now (in case something else is reading it before it is set there)
 	GuiFloat{name='mu0', value=1},
 }
 
@@ -80,8 +80,8 @@ inline prim_t primFromCons(cons_t U) {
 	real EMag = .5 * bSq;
 	real EInt = U.ETotal - EKin - EMag;
 	W.P = EInt * (heatCapacityRatio - 1.);
-	//W.P = max(W.P, 1e-7);
-	//W.rho = max(W.rho, 1e-7);
+W.P = max(W.P, 1e-7);
+W.rho = max(W.rho, 1e-7);
 	return W;
 }
 

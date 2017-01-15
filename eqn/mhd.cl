@@ -1,18 +1,27 @@
 // https://arxiv.org/pdf/0804.0402v1.pdf
 // based on Athena's version of eigenvectors of derivative of adiabatic MHD flux wrt primitives
 
+typedef struct {
+	real rho;
+	real3 v;
+	real hTotal;
+	real3 b;
+	real X, Y;
+} Roe_t;
+
 //called from calcDT
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const global cons_t* U
 ) {
+#if 0
 	prim_t W = primFromCons(*U);
 	real3 v = W.v;
 	real3 b = W.b;
-
+	
 	real bSq = real3_lenSq(b);
 	real invRho = 1./W.rho;
-
+	
 	real aSq = heatCapacityRatio * W.P * invRho;
 	real CaxSq = b.s<?=side?> * b.s<?=side?> * invRho;
 	real CaSq = bSq * invRho;
@@ -26,18 +35,111 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real Cf = sqrt(CfSq);
 	real Cs = sqrt(max(CsSq, 0.));
 	return (range_t){.min=v.s<?=side?> - Cf, .max=v.s<?=side?> + Cf};
+#else
+	const real gamma = heatCapacityRatio;
+	const real gamma_1 = gamma - 1.;
+	const real gamma_2 = gamma - 2.;
+	const real gamma_3 = gamma - 3.;
+	
+	prim_t W = primFromCons(*U);
+	
+	real rho = W.rho;
+	real3 v = W.v;
+	real hTotal = .5 * real3_lenSq(W.v) 
+			+ (W.P * gamma / gamma_1
+				+ real3_lenSq(W.b)) / W.rho;
+	real3 b = W.b;
+	real X = 0.;
+	real Y = 1.;
+
+	//the rest of this matches calcEigenBasis:
+
+	real _1_rho = 1. / rho;
+	real vSq = real3_lenSq(v);
+	real bDotV = real3_dot(b,v);
+	real bPerpSq = b.y*b.y + b.z*b.z;
+	real bStarPerpSq = (gamma_1 - gamma_2 * Y) * bPerpSq;
+	real CAxSq = b.x*b.x*_1_rho;
+	real CASq = CAxSq + bPerpSq * _1_rho;
+	real hHydro = hTotal - CASq;
+	// hTotal = (EHydro + EMag + P)/rho
+	// hHydro = hTotal - CASq, CASq = EMag/rho
+	// hHydro = eHydro + P/rho = eKin + eInt + P/rho
+	// hHydro - eKin = eInt + P/rho = (1./(gamma-1) + 1) P/rho = gamma/(gamma-1) P/rho
+	// a^2 = (gamma-1)(hHydro - eKin) = gamma P / rho
+	real aTildeSq = max((gamma_1 * (hHydro - .5 * vSq) - gamma_2 * X), 1e-20);
+
+	real bStarPerpSq_rho = bStarPerpSq * _1_rho;
+	real CATildeSq = CAxSq + bStarPerpSq_rho;
+	real CStarSq = .5 * (CATildeSq + aTildeSq);
+	real CA_a_TildeSqDiff = .5 * (CATildeSq - aTildeSq);
+	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * bStarPerpSq_rho);
+	
+	real CfSq = CStarSq + sqrtDiscr;
+	real Cf = sqrt(CfSq);
+
+	real CsSq = aTildeSq * CAxSq / CfSq;
+	real Cs = sqrt(CsSq);
+
+	real bPerpLen = sqrt(bPerpSq);
+	real bStarPerpLen = sqrt(bStarPerpSq);
+	real betaY, betaZ;
+	if (bPerpLen == 0) {
+		betaY = 1;
+		betaZ = 0;
+	} else {
+		betaY = b.y / bPerpLen;
+		betaZ = b.z / bPerpLen;
+	}
+	real betaStarY = betaY / sqrt(gamma_1 - gamma_2*Y);
+	real betaStarZ = betaZ / sqrt(gamma_1 - gamma_2*Y);
+	real betaStarSq = betaStarY*betaStarY + betaStarZ*betaStarZ;
+	real vDotBeta = v.y*betaStarY + v.z*betaStarZ;
+
+	real alphaF, alphaS;
+	if (CfSq - CsSq == 0) {
+		alphaF = 1;
+		alphaS = 0;
+	} else if (aTildeSq - CsSq <= 0) {
+		alphaF = 0;
+		alphaS = 1;
+	} else if (CfSq - aTildeSq <= 0) {
+		alphaF = 1;
+		alphaS = 0;
+	} else {
+		alphaF = sqrt((aTildeSq - CsSq) / (CfSq - CsSq));
+		alphaS = sqrt((CfSq - aTildeSq) / (CfSq - CsSq));
+	}
+
+	real sqrtRho = sqrt(rho);
+	real _1_sqrtRho = 1./sqrtRho;
+	real sbx = b.x >= 0 ? 1 : -1;
+	real aTilde = sqrt(aTildeSq);
+	real Qf = Cf*alphaF*sbx;
+	real Qs = Cs*alphaS*sbx;
+	real Af = aTilde*alphaF*_1_sqrtRho;
+	real As = aTilde*alphaS*_1_sqrtRho;
+	real Afpbb = Af*bStarPerpLen*betaStarSq;
+	real Aspbb = As*bStarPerpLen*betaStarSq;
+
+	real CAx = sqrt(CAxSq);
+
+	real lambdaFastMin = v.x - Cf;
+	real lambdaFastMax = v.x + Cf;
+	
+	return (range_t){
+		.min = lambdaFastMin,
+		.max = lambdaFastMax,
+	};
+#endif
 }
 <? end ?>
 
-typedef struct {
-	real rho;
-	real3 v;
-	real hTotal;
-	real3 b;
-	real X, Y;
-} Roe_t;
-
-void calcRoeValues(Roe_t* W, const cons_t* UL, const cons_t* UR) {
+void calcRoeValues(
+	Roe_t* W, 
+	global const cons_t* UL, 
+	global const cons_t* UR
+) {
 	// should I use bx, or bxL/R, for calculating the PMag at the L and R states?
 	prim_t WL = primFromCons(*UL);
 	real sqrtRhoL = sqrt(UL->rho);
@@ -120,7 +222,7 @@ kernel void calcEigenBasis(
 #endif
 
 		Roe_t roe;
-		calcRoeValues(&roe, &UL, &UR);
+		calcRoeValues(&roe, UL, UR);
 
 		real rho = roe.rho;
 		real3 v = roe.v;
@@ -129,7 +231,7 @@ kernel void calcEigenBasis(
 		real X = roe.X;
 		real Y = roe.Y;
 
-		real _1_rho = 1 / rho;
+		real _1_rho = 1. / rho;
 		real vSq = real3_lenSq(v);
 		real bDotV = real3_dot(b,v);
 		real bPerpSq = b.y*b.y + b.z*b.z;
@@ -213,7 +315,7 @@ kernel void calcEigenBasis(
 		wave[4] = lambdaSlowMax;
 		wave[5] = v.x + CAx;
 		wave[6] = lambdaFastMax;
-		
+
 		global eigen_t* eig = eigenBuf + intindex;
 
 		// dF/dU
@@ -246,13 +348,13 @@ kernel void calcEigenBasis(
 		real r73 = -Af*betaStarZ;
 		//rows
 		global real* evR = eig->evR;
-		fill(evR+0,7, alphaF, 0, alphaS, 1, alphaS, 0, alphaF);
-		fill(evR+1,7, alphaF*lambdaFastMin, 0, alphaS*lambdaSlowMin, v.x, alphaS*lambdaSlowMax, 0, alphaF*lambdaFastMax);
-		fill(evR+2,7, qa3 + qc3, -betaZ, qb3 - qd3, v.y, qb3 + qd3, betaZ, qa3 - qc3);
-		fill(evR+3,7, qa4 + qc4, betaY, qb4 - qd4, v.z, qb4 + qd4, -betaY, qa4 - qc4);
-		fill(evR+4,7, alphaF*(hHydro - v.x*Cf) + Qs*vDotBeta + Aspbb, r52, alphaS*(hHydro - v.x*Cs) - Qf*vDotBeta - Afpbb, .5*vSq + gamma_2*X/gamma_1, alphaS*(hHydro + v.x*Cs) + Qf*vDotBeta - Afpbb, -r52, alphaF*(hHydro + v.x*Cf) - Qs*vDotBeta + Aspbb);
-		fill(evR+5,7, r61, r62, r63, 0, r63, r62, r61);
-		fill(evR+6,7, r71, r72, r73, 0, r73, r72, r71);
+		fill(evR+0,7, 	alphaF, 0, alphaS, 1, alphaS, 0, alphaF);
+		fill(evR+1,7, 	alphaF*lambdaFastMin, 0, alphaS*lambdaSlowMin, v.x, alphaS*lambdaSlowMax, 0, alphaF*lambdaFastMax);
+		fill(evR+2,7, 	qa3 + qc3, -betaZ, qb3 - qd3, v.y, qb3 + qd3, betaZ, qa3 - qc3);
+		fill(evR+3,7, 	qa4 + qc4, betaY, qb4 - qd4, v.z, qb4 + qd4, -betaY, qa4 - qc4);
+		fill(evR+4,7, 	alphaF*(hHydro - v.x*Cf) + Qs*vDotBeta + Aspbb, r52, alphaS*(hHydro - v.x*Cs) - Qf*vDotBeta - Afpbb, .5*vSq + gamma_2*X/gamma_1, alphaS*(hHydro + v.x*Cs) + Qf*vDotBeta - Afpbb, -r52, alphaF*(hHydro + v.x*Cf) - Qs*vDotBeta + Aspbb);
+		fill(evR+5,7, 	r61, r62, r63, 0, r63, r62, r61);
+		fill(evR+6,7,	r71, r72, r73, 0, r73, r72, r71);
 
 		// left eigenvectors
 		real norm = .5/aTildeSq;
@@ -284,13 +386,13 @@ kernel void calcEigenBasis(
 		real l37 = -AHatF*QStarZ - alphaS*b.z;
 		//rows
 		global real* evL = eig->evL;
-		fill(evL+0,7, alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb, -alphaF*v.x - Cff, -alphaF*v.y + Qs*QStarY, -alphaF*v.z + Qs*QStarZ, alphaF, l16, l17);
-		fill(evL+1,7, l21, 0, l23, l24, 0, l26, l27);
-		fill(evL+2,7, alphaS*(vSq-hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb, -alphaS*v.x - Css, -alphaS*v.y - Qf*QStarY, -alphaS*v.z - Qf*QStarZ, alphaS, l36, l37);
-		fill(evL+3,7, 1 - norm*(.5*vSq - gamma_2*X/gamma_1) , norm*v.x, norm*v.y, norm*v.z, -norm, norm*b.y, norm*b.z);
-		fill(evL+4,7, alphaS*(vSq-hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb, -alphaS*v.x + Css, -alphaS*v.y + Qf*QStarY, -alphaS*v.z + Qf*QStarZ, alphaS, l36, l37);
-		fill(evL+5,7, -l21, 0, -l23, -l24, 0, l26, l27);
-		fill(evL+6,7, alphaF*(vSq-hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb, -alphaF*v.x + Cff, -alphaF*v.y - Qs*QStarY, -alphaF*v.z - Qs*QStarZ, alphaF, l16, l17);
+		fill(evL+0,7,	alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb, -alphaF*v.x - Cff, -alphaF*v.y + Qs*QStarY, -alphaF*v.z + Qs*QStarZ, alphaF, l16, l17);
+		fill(evL+1,7,	l21, 0, l23, l24, 0, l26, l27);
+		fill(evL+2,7,	alphaS*(vSq-hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb, -alphaS*v.x - Css, -alphaS*v.y - Qf*QStarY, -alphaS*v.z - Qf*QStarZ, alphaS, l36, l37);
+		fill(evL+3,7,	1 - norm*(.5*vSq - gamma_2*X/gamma_1) , norm*v.x, norm*v.y, norm*v.z, -norm, norm*b.y, norm*b.z);
+		fill(evL+4,7,	alphaS*(vSq-hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb, -alphaS*v.x + Css, -alphaS*v.y + Qf*QStarY, -alphaS*v.z + Qf*QStarZ, alphaS, l36, l37);
+		fill(evL+5,7,	-l21, 0, -l23, -l24, 0, l26, l27);
+		fill(evL+6,7,	alphaF*(vSq-hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb, -alphaF*v.x + Cff, -alphaF*v.y - Qs*QStarY, -alphaF*v.z - Qs*QStarZ, alphaF, l16, l17);
 	}<? end ?>
 }
 
@@ -306,7 +408,8 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 ) {
 	//swap x and side, and get rid of bx
 #if 1	//testing
-	//ETotal 5th:
+	// rho, mx, my, mz, ETotal, bx, by, bz 
+	//=> rho, mx, my, mz, ETotal, by, bz
 	real x[7] = { x_[0], x_[1], x_[2], x_[3], x_[4], x_[6], x_[7] };
 	//ETotal last:
 	//real x[7] = { x_[0], x_[1], x_[2], x_[3], x_[8], x_[5], x_[6] };
@@ -347,8 +450,11 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 	//swap x and side and insert 0 for bx
 #if 1	//testing
-	//ETotal 5th:
-	y[7] = y[6]; y[6] = y[5]; y[5] = 0;
+	//rho, mx, my, mz, ETotal, by, bz
+	// => rho, mx, my, mz, ETotal, bx, by, bz
+	y[7] = y[6];
+	y[6] = y[5];
+	y[5] = 0;
 	//ETotal last:
 	//y[7] = y[4]; y[4] = 0;
 #else
