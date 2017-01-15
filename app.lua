@@ -235,17 +235,17 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 1,
+		dim = cmdline.dim or 2,
 		
-		--integrator = cmdline.integrator or 'forward Euler',	
-		integrator = 'Runge-Kutta 4, TVD',
+		integrator = cmdline.integrator or 'forward Euler',	
+		--integrator = 'Runge-Kutta 4, TVD',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = cmdline.fluxLimiter or 'donor cell',
 
 		--usePLM = true,	-- piecewise-linear slope limiter
 		--slopeLimiter = 'minmod',
-
+		
 		-- [[ cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
@@ -304,9 +304,10 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		-- no initial state means use the first
 		-- initState = cmdline.initState,
 		-- euler / srhd initial states:
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
-		--initState = 'relativistic blast wave test problem 2',
+		--initState = 'relativistic blast wave test problem 1',
+		initState = 'relativistic blast wave test problem 2',
 		--initState = 'Kelvin-Hemholtz',
 		-- mhd init states:
 		--initState = 'Brio-Wu',
@@ -316,19 +317,19 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	self.solvers = table()
 
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 	-- SR+HD
-	--self.solvers:insert(require 'solver.srhd-roe'(args))
+	self.solvers:insert(require 'solver.srhd-roe'(args))	-- looks like something is wrong in 2D
 	-- M+HD
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 	-- EM
 	--self.solvers:insert(require 'solver.maxwell-roe'(args))
 	-- EM+HD
-	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
+	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
 	-- GR 
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 
 	local graphShaderCode = file['graph.shader']
 	self.graphShader = GLProgram{

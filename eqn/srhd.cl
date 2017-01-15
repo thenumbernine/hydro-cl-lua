@@ -303,7 +303,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//rotate outgoing y's x's into side
 	<? if side ~= 0 then ?>
 	real tmp = y[1];
-	y[1] = y[1+<?=side?>];
+	y[1] = -y[1+<?=side?>];
 	y[1+<?=side?>] = tmp;
 	<? end ?>
 }
