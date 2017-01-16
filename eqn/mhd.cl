@@ -61,7 +61,6 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const real gamma = heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
-	const real gamma_3 = gamma - 3.;
 	
 	prim_t W = primFromCons(*U);
 	
@@ -69,16 +68,13 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real3 v = W.v;
 	real hTotal = .5 * real3_lenSq(W.v) + (W.P * gamma / gamma_1 + real3_lenSq(W.b)) / W.rho;
 	real3 b = W.b;
-	real X = 0.;
-	real Y = 1.;
 
 	//the rest of this matches calcEigenBasis:
 
 	real _1_rho = 1. / rho;
 	real vSq = real3_lenSq(v);
-	real bDotV = real3_dot(b,v);
 	real bPerpSq = b.y*b.y + b.z*b.z;
-	real bStarPerpSq = (gamma_1 - gamma_2 * Y) * bPerpSq;
+	real bStarPerpSq = (gamma_1 - gamma_2) * bPerpSq;
 	real CAxSq = b.x*b.x*_1_rho;
 	real CASq = CAxSq + bPerpSq * _1_rho;
 	real hHydro = hTotal - CASq;
@@ -87,7 +83,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	// hHydro = eHydro + P/rho = eKin + eInt + P/rho
 	// hHydro - eKin = eInt + P/rho = (1./(gamma-1) + 1) P/rho = gamma/(gamma-1) P/rho
 	// a^2 = (gamma-1)(hHydro - eKin) = gamma P / rho
-	real aTildeSq = max((gamma_1 * (hHydro - .5 * vSq) - gamma_2 * X), 1e-20);
+	real aTildeSq = max((gamma_1 * (hHydro - .5 * vSq) - gamma_2), 1e-20);
 
 	real bStarPerpSq_rho = bStarPerpSq * _1_rho;
 	real CATildeSq = CAxSq + bStarPerpSq_rho;
@@ -100,49 +96,6 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 	real CsSq = aTildeSq * CAxSq / CfSq;
 	real Cs = sqrt(CsSq);
-
-	real bPerpLen = sqrt(bPerpSq);
-	real bStarPerpLen = sqrt(bStarPerpSq);
-	real betaY, betaZ;
-	if (bPerpLen == 0) {
-		betaY = 1;
-		betaZ = 0;
-	} else {
-		betaY = b.y / bPerpLen;
-		betaZ = b.z / bPerpLen;
-	}
-	real betaStarY = betaY / sqrt(gamma_1 - gamma_2*Y);
-	real betaStarZ = betaZ / sqrt(gamma_1 - gamma_2*Y);
-	real betaStarSq = betaStarY*betaStarY + betaStarZ*betaStarZ;
-	real vDotBeta = v.y*betaStarY + v.z*betaStarZ;
-
-	real alphaF, alphaS;
-	if (CfSq - CsSq == 0) {
-		alphaF = 1;
-		alphaS = 0;
-	} else if (aTildeSq - CsSq <= 0) {
-		alphaF = 0;
-		alphaS = 1;
-	} else if (CfSq - aTildeSq <= 0) {
-		alphaF = 1;
-		alphaS = 0;
-	} else {
-		alphaF = sqrt((aTildeSq - CsSq) / (CfSq - CsSq));
-		alphaS = sqrt((CfSq - aTildeSq) / (CfSq - CsSq));
-	}
-
-	real sqrtRho = sqrt(rho);
-	real _1_sqrtRho = 1./sqrtRho;
-	real sbx = b.x >= 0 ? 1 : -1;
-	real aTilde = sqrt(aTildeSq);
-	real Qf = Cf*alphaF*sbx;
-	real Qs = Cs*alphaS*sbx;
-	real Af = aTilde*alphaF*_1_sqrtRho;
-	real As = aTilde*alphaS*_1_sqrtRho;
-	real Afpbb = Af*bStarPerpLen*betaStarSq;
-	real Aspbb = As*bStarPerpLen*betaStarSq;
-
-	real CAx = sqrt(CAxSq);
 
 	real lambdaFastMin = v.x - Cf;
 	real lambdaFastMax = v.x + Cf;
@@ -157,8 +110,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 void calcRoeValues(
 	Roe_t* W, 
-	global const cons_t* UL, 
-	global const cons_t* UR
+	const cons_t* UL, 
+	const cons_t* UR
 ) {
 	// should I use bx, or bxL/R, for calculating the PMag at the L and R states?
 	prim_t WL = primFromCons(*UL);
@@ -221,24 +174,24 @@ kernel void calcEigenBasis(
 		
 		<?= solver.getULRCode ?>
 
-#if 0	//testing
-		//swap the sides with x here
+		//swap the sides with x here, so all the fluxes are in the 'x' direction
+		cons_t UL_ = *UL;
+		cons_t UR_ = *UR;
 		real tmp;
 		<? if side == 1 then ?>
-		tmp = UL.v.x; UL.v.x = UL.v.y; UL.v.y = tmp;
-		tmp = UR.v.x; UR.v.x = UR.v.y; UR.v.y = tmp;
-		tmp = UL.b.x; UL.b.x = UL.b.y; UL.b.y = tmp;
-		tmp = UR.b.x; UR.b.x = UR.b.y; UR.b.y = tmp;
+		UL_.v = _real3(UL.v.y, -UL.v.x, UL.v.z);
+		UR_.v = _real3(UR.v.y, -UR.v.x, UR.v.z);
+		UL_.b = _real3(UL.b.y, -UL.b.x, UL.b.z);
+		UR_.b = _real3(UR.b.y, -UR.b.x, UR.b.z);
 		<? elseif side == 2 then ?>
-		tmp = UL.v.x; UL.v.x = UL.v.z; UL.v.z = tmp;
-		tmp = UR.v.x; UR.v.x = UR.v.z; UR.v.z = tmp;
-		tmp = UL.b.x; UL.b.x = UL.b.z; UL.b.z = tmp;
-		tmp = UR.b.x; UR.b.x = UR.b.z; UR.b.z = tmp;
+		UL_.v = _real3(UL.v.z, UL.v.y, -UL.v.x);
+		UR_.v = _real3(UR.v.z, UR.v.y, -UR.v.x);
+		UL_.b = _real3(UL.b.z, UL.b.y, -UL.b.x);
+		UR_.b = _real3(UR.b.z, UR.b.y, -UR.b.x);
 		<? end ?>
-#endif
 
 		Roe_t roe;
-		calcRoeValues(&roe, UL, UR);
+		calcRoeValues(&roe, &UL_, &UR_);
 
 		real rho = roe.rho;
 		real3 v = roe.v;
@@ -391,7 +344,7 @@ kernel void calcEigenBasis(
 		real vqstr = (v.y*QStarY + v.z*QStarZ);
 		norm = norm * 2.;
 
-#if 0	//computing beforehand
+#if 1	//computing beforehand
 		real l16 = AHatS*QStarY - alphaF*b.y;
 		real l17 = AHatS*QStarZ - alphaF*b.z;
 		real l21 = .5*(v.y*betaZ - v.z*betaY);
@@ -410,7 +363,7 @@ kernel void calcEigenBasis(
 		fill(evL+4,7,	alphaS*(vSq-hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb, -alphaS*v.x + Css, -alphaS*v.y + Qf*QStarY, -alphaS*v.z + Qf*QStarZ, alphaS, l36, l37);
 		fill(evL+5,7,	-l21, 0, -l23, -l24, 0, l26, l27);
 		fill(evL+6,7,	alphaF*(vSq-hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb, -alphaF*v.x + Cff, -alphaF*v.y - Qs*QStarY, -alphaF*v.z - Qs*QStarZ, alphaF, l16, l17);
-#else		//self-referencing evL
+#else	//self-referencing evL
 		//rows
 		global real* evL = eig->evL;
 		fill(evL+0,7,	alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb, -alphaF*v.x - Cff, -alphaF*v.y + Qs*QStarY, -alphaF*v.z + Qs*QStarZ, alphaF, AHatS*QStarY - alphaF*b.y, AHatS*QStarZ - alphaF*b.z);
@@ -435,21 +388,18 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* x_
 ) {
 	//swap x and side, and get rid of bx
-#if 1	//testing
-	//ETotal 5th:
-	real x[7] = { x_[0], x_[1], x_[2], x_[3], x_[4], x_[6], x_[7] };
-	//ETotal last:
-	//real x[7] = { x_[0], x_[1], x_[2], x_[3], x_[7], x_[5], x_[6] };
-#else
+	real x[7] = {
 	<? if side == 0 then ?>
+		// rho mx my mz ETotal _ by bz
 		x_[0], x_[1], x_[2], x_[3], x_[4], x_[6], x_[7]
 	<? elseif side == 1 then ?>
-		x_[0], x_[2], x_[1], x_[3], x_[4], x_[5], x_[7]
+		// rho my -mx mz ETotal _ -bx bz
+		x_[0], x_[2], -x_[1], x_[3], x_[4], -x_[5], x_[7]
 	<? elseif side == 2 then ?>
-		x_[0], x_[3], x_[2], x_[1], x_[4], x_[5], x_[6]
+		// rho mz my -mx ETotal _ by -bx
+		x_[0], x_[3], x_[2], -x_[1], x_[4], x_[6], -x_[5]
 	<? end ?>
 	};
-#endif
 	
 	<?=addr1?> const real* A = eig->evL;
 	for (int i = 0; i < 7; ++i) {
@@ -476,26 +426,16 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	}
 	
 	//swap x and side and insert 0 for bx
-#if 1	//testing
-	//ETotal 5th:
-	y[7] = y[6]; y[6] = y[5]; y[5] = 0;
-	//ETotal last:
-	//y[7] = y[4]; y[4] = 0;
-#else
-	//swap x and side and insert 0 for bx
 	<? if side == 0 then ?>
-	y[7] = y[6];
-	y[6] = y[5];
-	y[5] = 0;
+	y[7] = y[6]; y[6] = y[5]; y[5] = 0;
 	<? elseif side == 1 then ?>
-	real tmp = y[1]; y[1] = y[2]; y[2] = tmp;
-	y[7] = y[6];
-	y[6] = 0;
+	real tmp = y[1]; y[1] = -y[2]; y[2] = tmp;
+	y[5] = -y[5]; y[7] = y[6]; y[6] = 0;
 	<? elseif side == 2 then ?>
-	real tmp = y[1]; y[1] = y[3]; y[3] = tmp;
+	real tmp = y[1]; y[1] = -y[3]; y[3] = tmp;
 	y[7] = 0;
+	tmp = y[5]; y[5] = -y[6]; y[6] = y[5];
 	<? end ?>
-#endif
 }
 
 <? 				if solver.checkFluxError then ?>
@@ -505,22 +445,18 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* x_
 ) {
 	//swap x and side, and get rid of bx
-#if 1	//testing
-	//ETotal 5th:
-	real x[7] = { x_[0], x_[1], x_[2], x_[3], x_[4], x_[6], x_[7] };
-	//ETotal last:
-	//real x[7] = { x_[0], x_[1], x_[2], x_[3], x_[7], x_[5], x_[6] };
-#else
 	real x[7] = {
 	<? if side == 0 then ?>
+		// rho mx my mz ETotal _ by bz
 		x_[0], x_[1], x_[2], x_[3], x_[4], x_[6], x_[7]
 	<? elseif side == 1 then ?>
-		x_[0], x_[2], x_[1], x_[3], x_[4], x_[5], x_[7]
+		// rho my -mx mz ETotal _ -bx bz
+		x_[0], x_[2], -x_[1], x_[3], x_[4], -x_[5], x_[7]
 	<? elseif side == 2 then ?>
-		x_[0], x_[3], x_[2], x_[1], x_[4], x_[5], x_[6]
+		// rho mz my -mx ETotal _ by -bx
+		x_[0], x_[3], x_[2], -x_[1], x_[4], x_[6], -x_[5]
 	<? end ?>
 	};
-#endif
 	
 	<?=addr1?> const real* A = eig->A;
 	for (int i = 0; i < 7; ++i) {
@@ -532,25 +468,16 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	}
 
 	//swap x and side and insert 0 for bx
-#if 1	//testing
-	//ETotal 5th:
-	y[7] = y[6]; y[6] = y[5]; y[5] = 0;
-	//ETotal last:
-	//y[7] = y[4]; y[4] = 0;
-#else
 	<? if side == 0 then ?>
-		y[7] = y[6];
-		y[6] = y[5];
-		y[5] = 0;
+	y[7] = y[6]; y[6] = y[5]; y[5] = 0;
 	<? elseif side == 1 then ?>
-		real tmp = y[1]; y[1] = y[2]; y[2] = tmp;
-		y[7] = y[6];
-		y[6] = 0;
+	real tmp = y[1]; y[1] = -y[2]; y[2] = tmp;
+	y[5] = -y[5]; y[7] = y[6]; y[6] = 0;
 	<? elseif side == 2 then ?>
-		real tmp = y[1]; y[1] = y[3]; y[3] = tmp;
-		y[7] = 0;
+	real tmp = y[1]; y[1] = -y[3]; y[3] = tmp;
+	y[7] = 0;
+	tmp = y[5]; y[5] = -y[6]; y[6] = y[5];
 	<? end ?>
-#endif
 }
 <?				end
 			end
