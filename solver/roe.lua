@@ -138,11 +138,11 @@ function Solver:init(args)
 
 	self.useFixedDT = ffi.new('bool[1]', false)
 	self.fixedDT = ffi.new('float[1]', 0)
-	self.cfl = ffi.new('float[1]', 1/self.dim)
+	self.cfl = ffi.new('float[1]', .5/self.dim)
 	self.initStatePtr = ffi.new('int[1]', (table.find(self.eqn.initStateNames, args.initState) or 1)-1)
 	self.integratorPtr = ffi.new('int[1]', (self.integratorNames:find(args.integrator) or 1)-1)
 	self.fluxLimiter = ffi.new('int[1]', (self.app.limiterNames:find(args.fluxLimiter) or 1)-1)
-
+	
 	self.boundaryMethods = {}
 	for i=1,3 do
 		for _,minmax in ipairs(minmaxs) do
@@ -186,9 +186,15 @@ end
 
 function Solver:refreshGridSize()
 
+	-- don't include the ghost cells as a part of the grid coordinate space
+	local sizeWithoutBorder = vec3sz(self.gridSize:unpack())
+	for i=0,self.dim-1 do
+		sizeWithoutBorder:ptr()[i] = sizeWithoutBorder:ptr()[i] - 2 * self.numGhost
+	end
+
 	self.volume = tonumber(self.gridSize:volume())
 	self.dxs = vec3(range(3):map(function(i)
-		return (self.maxs[i] - self.mins[i]) / tonumber(self.gridSize:ptr()[i-1])	
+		return (self.maxs[i] - self.mins[i]) / tonumber(sizeWithoutBorder:ptr()[i-1])
 	end):unpack())
 
 	self:refreshIntegrator()	-- depends on eqn & gridSize

@@ -361,7 +361,7 @@ kernel void calcREig(
 <? end ?>
 
 kernel void calcFlux(
-	global real* fluxBuf,
+	global cons_t* fluxBuf,
 	<?= solver.getULRArg ?>,
 	const global real* waveBuf, 
 	const global eigen_t* eigenBuf, 
@@ -379,17 +379,18 @@ kernel void calcFlux(
 		int indexL = index - stepsize[side];
 
 		<?= solver.getULRCode ?>
-
-		cons_t UAvg;
-		for (int j = 0; j < numStates; ++j) {
-			UAvg.ptr[j] = .5 * (UL->ptr[j] + UR->ptr[j]);
-		}
 		
 		int intindex = side + dim * index;
 		const global eigen_t* eig = eigenBuf + intindex;
 
 		real fluxEig[numWaves];
+<? if not solver.eqn.hasFluxFromCons then ?>
+		cons_t UAvg;
+		for (int j = 0; j < numStates; ++j) {
+			UAvg.ptr[j] = .5 * (UL->ptr[j] + UR->ptr[j]);
+		}
 		eigen_leftTransform_<?=side?>__global_(fluxEig, eig, UAvg.ptr);
+<? end ?>
 
 		const global real* lambdas = waveBuf + numWaves * intindex;
 		const global real* deltaUEig = deltaUEigBuf + numWaves * intindex;
@@ -399,7 +400,11 @@ kernel void calcFlux(
 
 		for (int j = 0; j < numWaves; ++j) {
 			real lambda = lambdas[j];
+<? if not solver.eqn.hasFluxFromCons then ?>
 			fluxEig[j] *= lambda;
+<? else ?>
+			fluxEig[j] = 0.;
+<? end ?>
 			real theta = lambda >= 0 ? 1 : -1;
 		
 <? if solver.fluxLimiter[0] > 0 then ?>
@@ -409,32 +414,40 @@ kernel void calcFlux(
 			real epsilon = lambda * dt_dx;
 			real deltaFluxEig = lambda * deltaUEig[j];
 			fluxEig[j] -= .5 * deltaFluxEig * (theta
-<? if solver.fluxLimiter[0] > 0 then ?>				
+<? if solver.fluxLimiter[0] > 0 then ?>
 				+ phi * (epsilon - theta)
 <? end ?>			
 			);
 		}
+		
+		global cons_t* flux = fluxBuf + intindex;
+		eigen_rightTransform_<?=side?>_global_global_(flux->ptr, eig, fluxEig);
 
-		global real* flux = fluxBuf + intindex * numStates;
-		eigen_rightTransform_<?=side?>_global_global_(flux, eig, fluxEig);
-
+<? if solver.eqn.hasFluxFromCons then ?>
+		cons_t FL = fluxFromCons_<?=side?>(*UL);
+		cons_t FR = fluxFromCons_<?=side?>(*UR);
+		for (int j = 0; j < numStates; ++j) {
+			flux->ptr[j] += .5 * (FL.ptr[j] + FR.ptr[j]);
+		}
+<? end ?>
+		
 		real3 interfaceI = _real3(i.x, i.y, i.z);
 		interfaceI.s[side] -= .5;
 		real3 interfaceX = cell_x(interfaceI);
 		real volume = volume_at(interfaceX);
-
+		
 		for (int j = 0; j < numStates; ++j) {
-			flux[j] *= volume;
+			flux->ptr[j] *= volume;
 		}
 	}<? end ?>
 }
 
 kernel void calcDerivFromFlux(
-	global real* derivBuf,
-	const global real* fluxBuf
+	global cons_t* derivBuf,
+	const global cons_t* fluxBuf
 ) {
 	SETBOUNDS(2,2);
-	global real* deriv = derivBuf + numStates * index;
+	global cons_t* deriv = derivBuf + index;
 		
 	real volume = volume_at(cell_x(i));
 	
@@ -442,11 +455,11 @@ kernel void calcDerivFromFlux(
 		const int side = <?=side?>;
 		int intindexL = side + dim * index;
 		int intindexR = intindexL + dim * stepsize[side]; 
-		const global real* fluxL = fluxBuf + intindexL * numStates;
-		const global real* fluxR = fluxBuf + intindexR * numStates;
+		const global cons_t* fluxL = fluxBuf + intindexL;
+		const global cons_t* fluxR = fluxBuf + intindexR;
 		for (int j = 0; j < numStates; ++j) {
-			real deltaFlux = fluxR[j] - fluxL[j];
-			deriv[j] -= deltaFlux / (volume * grid_dx<?=side?>);
+			real deltaFlux = fluxR->ptr[j] - fluxL->ptr[j];
+			deriv->ptr[j] -= deltaFlux / (volume * grid_dx<?=side?>);
 		}
 	}<? end ?>
 }

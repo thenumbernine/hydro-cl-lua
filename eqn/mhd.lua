@@ -16,6 +16,7 @@ MHD.primVars = {'rho', 'vx', 'vy', 'vz', 'P', 'bx', 'by', 'bz'}
 MHD.mirrorVars = {{'m.x', 'b.x'}, {'m.y', 'b.y'}, {'m.z', 'b.z'}}
 
 MHD.hasEigenCode = true
+MHD.hasFluxFromCons = true
 
 -- hmm, we want init.euler and init.mhd here ...
 MHD.initStates = require 'init.euler'
@@ -41,8 +42,8 @@ typedef union {
 	struct {
 		real rho;
 		real3 m;
-		real3 b;
 		real ETotal;
+		real3 b;
 	};
 } cons_t;
 ]]
@@ -80,10 +81,8 @@ inline prim_t primFromCons(cons_t U) {
 	real EMag = .5 * bSq;
 	real EInt = U.ETotal - EKin - EMag;
 	W.P = EInt * (heatCapacityRatio - 1.);
-//these are causing ETotal to get errors in prim reconstruction
-//but they're in the Lua version, which has no such problem
-W.P = max(W.P, 1e-7);
-W.rho = max(W.rho, 1e-7);
+	W.P = max(W.P, 1e-7);
+	W.rho = max(W.rho, 1e-7);
 	return W;
 }
 
@@ -146,7 +145,7 @@ MHD.displayVarCodePrefix = [[
 ]]
 
 function MHD:getDisplayVars(solver)
-	return table{
+	return {
 		{rho = 'value = W.rho;'},
 		{vx = 'value = W.v.x;'},
 		{vy = 'value = W.v.y;'},
@@ -188,15 +187,7 @@ function MHD:getDisplayVars(solver)
 			value += fabs(U.ptr[j] - U2.ptr[j]);
 		}
 ]]},
-	}:append(require 'ext.range'(8):map(function(i)
-		return {
-			['cons '..i..' primitive reconstruction error'] = template([[
-		cons_t U2 = consFromPrim(W);
-		value = U2.ptr[<?=i-1?>] - U.ptr[<?=i-1?>];
-]], {
-	i = i,
-})}
-	end))
+	}
 end
 
 function MHD:getEigenTypeCode(solver)

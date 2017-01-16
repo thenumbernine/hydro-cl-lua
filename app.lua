@@ -150,6 +150,7 @@ print()
 	-- but because it is using ffi.ctype it might be tough ...
 	-- then again, any solver ffi.ctype defined will potentially collide with other solvers ...
 	self.real = self.is64bit and 'double' or 'float'
+print('real', self.real)	
 	ffi.cdef('typedef '..self.real..' real;')
 
 	self.real3TypeCode = [[
