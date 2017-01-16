@@ -31,11 +31,90 @@ typedef struct {
 	real X, Y;
 } Roe_t;
 
+<? 
+
+-- [[ rotating using 2D rotations
+-- rotate 3D vectors into the x-is-fwd plane
+local function putXFwd(dst, src, side)
+	return ({
+		[0] = '',
+		[1] = 'dst = _real3(src.y, -src.x, src.z);',
+		[2] = 'dst = _real3(src.z, src.y, -src.x);',
+	})[side]:gsub('src', src):gsub('dst', dst)
+end 
+
+-- reverse the above rotation 
+local function putXBack(dst, src, side)
+	return ({
+		[0] = '',
+		[1] = 'dst = _real3(-src.y, src.x, src.z);',
+		[2] = 'dst = _real3(-src.z, src.y, src.x);',
+	})[side]:gsub('src', src):gsub('dst', dst)
+end 
+--]]
+--[[ rotate using 3-permutations
+-- rotate 3D vectors into the x-is-fwd plane
+local function putXFwd(dst, src, side)
+	return ({
+		[0] = '',
+		[1] = 'dst = _real3(src.y, src.z, src.x);',
+		[2] = 'dst = _real3(src.z, src.x, src.y);',
+	})[side]:gsub('src', src):gsub('dst', dst)
+end 
+
+-- reverse the above rotation 
+local function putXBack(dst, src, side)
+	return ({
+		[0] = '',
+		[1] = 'dst = _real3(src.z, src.x, src.y);',
+		[2] = 'dst = _real3(src.y, src.z, src.x);',
+	})[side]:gsub('src', src):gsub('dst', dst)
+end 
+--]]
+
+local function consPutXFwd(var, side)
+	return putXFwd(var..'.m', var..'.m', side)..'\n'
+		..putXFwd(var..'.b', var..'.b', side)
+end
+
+local function consPutXBack(var, side)
+	return putXBack(var..'.m', var..'.m', side)..'\n'
+		..putXBack(var..'.b', var..'.b', side)
+end
+
+-- rotate 3D vectors of a cons_t into the x-is-fwd plane, and remove the bx component 
+local function _7to8code(addr,side)
+	return [[
+	cons_t xU = *(]]..addr..[[ cons_t*)x_;
+	]]..consPutXFwd('xU', side)..[[
+	real x[7] = { xU.rho, xU.m.x, xU.m.y, xU.m.z, xU.ETotal, xU.b.y, xU.b.z }; 
+]]
+end
+
+-- re-insert bx=0 and rotate x back to its original direction
+local function _8to7code(addr, side)
+	return [[
+	cons_t yU = { 
+		.rho = y[0], 
+		.m = {.x = y[1], .y = y[2], .z = y[3] }, 
+		.ETotal = y[4], 
+		.b = {.x = 0, .y = y[5], .z = y[6] },
+	};
+	]]..consPutXBack('yU', side)..[[
+	*(]]..addr..[[ cons_t*)y = yU;
+]]
+end
+?>
+
 //called from calcDT
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const global cons_t* U
 ) {
+	cons_t U_ = *U;
+	<?=consPutXFwd('U_', side)?>
+	prim_t W = primFromCons(U_);
+	
 #if 0
 	prim_t W = primFromCons(*U);
 	real3 v = W.v;
@@ -61,17 +140,6 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const real gamma = heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
-
-	cons_t U_ = *U;
-	<? if side == 1 then ?>
-	U_.m = _real3(U->m.y, -U->m.x, U->m.z);
-	U_.b = _real3(U->b.y, -U->b.x, U->b.z);
-	<? elseif side == 2 then ?>
-	U_.m = _real3(U->m.z, U->m.y, -U->m.x);
-	U_.b = _real3(U->b.z, U->b.y, -U->b.x);
-	<? end ?>
-	
-	prim_t W = primFromCons(U_);
 	
 	real rho = W.rho;
 	real3 v = W.v;
@@ -181,23 +249,13 @@ kernel void calcEigenBasis(
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexL = index - stepsize[side];
-		
 		<?= solver.getULRCode ?>
 
 		//swap the sides with x here, so all the fluxes are in the 'x' direction
 		cons_t UL_ = *UL;
 		cons_t UR_ = *UR;
-		<? if side == 1 then ?>
-		UL_.m = _real3(UL->m.y, -UL->m.x, UL->m.z);
-		UR_.m = _real3(UR->m.y, -UR->m.x, UR->m.z);
-		UL_.b = _real3(UL->b.y, -UL->b.x, UL->b.z);
-		UR_.b = _real3(UR->b.y, -UR->b.x, UR->b.z);
-		<? elseif side == 2 then ?>
-		UL_.m = _real3(UL->m.z, UL->m.y, -UL->m.x);
-		UR_.m = _real3(UR->m.z, UR->m.y, -UR->m.x);
-		UL_.b = _real3(UL->b.z, UL->b.y, -UL->b.x);
-		UR_.b = _real3(UR->b.z, UR->b.y, -UR->b.x);
-		<? end ?>
+		<?=consPutXFwd('UL_',side)?>
+		<?=consPutXFwd('UR_',side)?>
 
 		Roe_t roe;
 		calcRoeValues(&roe, &UL_, &UR_);
@@ -286,13 +344,7 @@ kernel void calcEigenBasis(
 		real lambdaSlowMin = v.x - Cs;
 		real lambdaSlowMax = v.x + Cs;
 		real lambdaFastMax = v.x + Cf;
-		wave[0] = lambdaFastMin;
-		wave[1] = v.x - CAx;
-		wave[2] = lambdaSlowMin;
-		wave[3] = v.x;
-		wave[4] = lambdaSlowMax;
-		wave[5] = v.x + CAx;
-		wave[6] = lambdaFastMax;
+		fill(wave, 1, lambdaFastMin, v.x - CAx, lambdaSlowMin, v.x, lambdaSlowMax, v.x + CAx, lambdaFastMax);
 
 		global eigen_t* eig = eigenBuf + intindex;
 
@@ -386,29 +438,7 @@ kernel void calcEigenBasis(
 	}<? end ?>
 }
 
-<?
--- swap x and side, and get rid of bx
-local function _7to8code(side)
-	return ({
-		-- rho mx my mz ETotal (bx) by bz
-		[0] = [[ real x[7] = { x_[0], x_[1], x_[2], x_[3], x_[4], x_[6], x_[7] }; ]],
-		-- rho my -mx mz ETotal (by) -bx bz
-		[1] = [[ real x[7] = { x_[0], x_[2], -x_[1], x_[3], x_[4], -x_[5], x_[7] }; ]],
-		-- rho mz my -mx ETotal (bz) by -bx
-		[2] = [[ real x[7] = { x_[0], x_[3], x_[2], -x_[1], x_[4], x_[6], -x_[5] }; ]],
-	})[side]
-end
-
--- swap x and side and insert 0 for bx
-local function _8to7code(side)
-	return ({
-		[0] = [[ y[7] = y[6]; y[6] = y[5]; y[5] = 0; ]],
-		[1] = [[ real tmp = y[1]; y[1] = -y[2]; y[2] = tmp; y[5] = -y[5]; y[7] = y[6]; y[6] = 0; ]],
-		[2] = [[ real tmp = y[1]; y[1] = -y[3]; y[3] = tmp; y[7] = 0; tmp = y[5]; y[5] = -y[6]; y[6] = tmp; ]],
-	})[side]
-end
-
-for _,addr0 in ipairs{'', 'global'} do
+<? for _,addr0 in ipairs{'', 'global'} do
 	for _,addr1 in ipairs{'', 'global'} do
 		for _,addr2 in ipairs{'', 'global'} do
 			for side=0,2 do ?>
@@ -417,8 +447,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr1?> const eigen_t* eig,
 	<?=addr2?> const real* x_
 ) {
-	<?=_7to8code(side)?>
-	
+	<?=_7to8code(addr2,side)?>
 	<?=addr1?> const real* A = eig->evL;
 	for (int i = 0; i < 7; ++i) {
 		real sum = 0;
@@ -442,8 +471,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		}
 		y[i] = sum;
 	}
-
-	<?=_8to7code(side)?>
+	<?=_8to7code(addr0, side)?>
 }
 
 <? 				if solver.checkFluxError then ?>
@@ -452,8 +480,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr1?> const eigen_t* eig,
 	<?=addr2?> const real* x_
 ) {
-	<?=_7to8code(side)?>
-	
+	<?=_7to8code(addr2, side)?>
 	<?=addr1?> const real* A = eig->A;
 	for (int i = 0; i < 7; ++i) {
 		real sum = 0;
@@ -462,8 +489,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		}
 		y[i] = sum;
 	}
-
-	<?=_8to7code(side)?>
+	<?=_8to7code(addr0, side)?>
 }
 <?				end
 			end

@@ -12,25 +12,28 @@ Features:
 - various boundary conditions
 - script-generated OpenCL code regenerated on the fly as soon as you change GUI options
 - GUI-driven everything.  no more restarting the program to switch solvers.
-- Euler equations, in 1D and 3D, from Toro's book
-- ADM in 1D via the Bona-Masso formalism described in Alcubierre 1997 and Alcubierre's 2008 book
+- Euler equations from Toro's book
+- ADM via the Bona-Masso formalism described in Alcubierre 1997 and Alcubierre's 2008 book
 - Maxwell equations from Trangenstein's book
 
-BUGS:
-- MHD isn't working with magnetic fields ... even though I copied the code from two different working solvers I have - gravitational-wave-sim and HydroGPU
-
 TODO:
-- get two-fluid EMHD working
+- get two-fluid EMHD working (currently has 
 - get potential forces for Euler equations working
 - get self-gravitation for Euler equations working
+- add HLL / HLLC solvers
+- add Roe implicit GMRES
 - implement Navier-Stokes
-- rename 'adm_' prefixes to 'nr_' or 'gr_' or something else ...
+- rename 'adm\_' prefixes to 'nr\_' or 'gr\_' or something else ...
+- PLM support that works on a wide range of equations (currently have a few vying options)
 - higher-order polynomial stuff - WENO or whatever
 - initialize NR stuff to the geometry metric
 - add GR+HD by taking the SRHD and giving it the metric from GR (adm solver)
 - add EM+SRHD by mixing and matching SRHD and EMHD
 - add EM+GR+HD by winning
 
+Minor TODO:
+- get MHD working with Orszag-Tang 2D
+- get some 2D SRHD test-cases working
 
 ### Sources:
 
