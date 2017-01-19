@@ -115,7 +115,7 @@ kernel void initState(
 	
 	//TODO make this B for Maxwell
 	
-	real3 b = _real3(0,0,0);	//set for MHD / thrown away for pure Euler
+	real3 B = _real3(0,0,0);	//set for MHD / thrown away for pure Euler
 	real ePot = 0;
 
 ]]..code..[[

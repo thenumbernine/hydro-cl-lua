@@ -1245,6 +1245,18 @@ function Solver:updateGUI()
 		for i,convertToTex in ipairs(self.convertToTexs) do
 			ig.igPushIdStr('display '..i)
 			if ig.igCollapsingHeader(convertToTex.name) then
+				
+				-- do one for 'all'
+				local all = ffi.new('bool[1]', true)
+				for _,var in ipairs(convertToTex.vars) do
+					all[0] = all[0] and var.enabled[0]
+				end
+				if ig.igCheckbox('all', all) then
+					for _,var in ipairs(convertToTex.vars) do
+						var.enabled[0] = all[0]
+					end
+				end
+				
 				for _,var in ipairs(convertToTex.vars) do
 					ig.igPushIdStr(convertToTex.name..' '..var.name)
 					if ig.igCheckbox(var.name, var.enabled) then
