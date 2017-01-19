@@ -6,6 +6,7 @@ The first Bona-Masso formalism.
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
+local template = require 'template'
 local Equation = require 'eqn.eqn'
 
 local ADM_BonaMasso_3D = class(Equation)
@@ -24,7 +25,7 @@ ADM_BonaMasso_3D.consVars = {
 ADM_BonaMasso_3D.numStates = 7 + 30	-- should equal # consVars
 ADM_BonaMasso_3D.numWaves = 30	-- skip alpha and gamma_ij
 
-ADM_BonaMasso_3D.numStates = #ADM_BonaMasso_3D.consVars
+assert(ADM_BonaMasso_3D.numStates == #ADM_BonaMasso_3D.consVars)
 
 ADM_BonaMasso_3D.hasCalcDT = true
 ADM_BonaMasso_3D.hasEigenCode = true
@@ -40,7 +41,7 @@ ADM_BonaMasso_3D.guiVars = table{
 }
 
 function ADM_BonaMasso_3D:getTypeCode()
-	return [[
+	return template([[
 typedef union {
 	real ptr[37];
 	struct {
@@ -51,12 +52,14 @@ typedef union {
 		sym3 K;
 		real3 V;
 	};
-} cons_t;
-]]
+} <?=eqn.cons_t?>;
+]], {
+	eqn = self,
+})
 end
 
-function ADM_BonaMasso_3D:getCodePrefix(solver)
-	local initState = self.initStates[solver.initStatePtr[0]+1]
+function ADM_BonaMasso_3D:getCodePrefix()
+	local initState = self.initStates[self.solver.initStatePtr[0]+1]
 	
 	local alphaVar = require 'symmath'.var'alpha'
 
@@ -64,7 +67,7 @@ function ADM_BonaMasso_3D:getCodePrefix(solver)
 	local fCode = fGuiVar.options[fGuiVar.value[0]+1]
 	local fExpr = assert(loadstring('local alpha = ... return '..fCode))(alphaVar)
 
-	self.codes = initState.init(solver, {
+	self.codes = initState.init(self.solver, {
 		f = fExpr,
 		alphaVar = alphaVar,
 	})
@@ -77,16 +80,18 @@ end
 local xNames = table{'x', 'y', 'z'}
 local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
 
-function ADM_BonaMasso_3D:getInitStateCode(solver)
+function ADM_BonaMasso_3D:getInitStateCode()
 	local lines = table{
-		[[
+		template([[
 kernel void initState(
-	global cons_t* UBuf
+	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	global cons_t* U = UBuf + index;
-]]
+	global <?=eqn.cons_t?>* U = UBuf + index;
+]], {
+	eqn = self,
+}),
 	}
 
 	local function build(var)
@@ -105,11 +110,11 @@ kernel void initState(
 	return lines:concat'\n'
 end
 
-function ADM_BonaMasso_3D:getSolverCode(solver)
-	return require 'template'(file['eqn/adm3d.cl'], {solver=solver})
+function ADM_BonaMasso_3D:getSolverCode()
+	return require 'template'(file['eqn/adm3d.cl'], {eqn=self, solver=self.solver})
 end
 
-function ADM_BonaMasso_3D:getDisplayVars(solver)
+function ADM_BonaMasso_3D:getDisplayVars()
 	return table()
 	:append(table.map(ADM_BonaMasso_3D.consVars, function(var)
 		local code = var:gsub('_', '.')
@@ -125,7 +130,7 @@ function ADM_BonaMasso_3D:getDisplayVars(solver)
 	}
 end
 
-function ADM_BonaMasso_3D:getEigenTypeCode(solver)
+function ADM_BonaMasso_3D:getEigenTypeCode()
 	return [[
 typedef struct {
 	real alpha;	//used only by eigen_calcWaves ... makes me think eigen_forCell / eigen_forSide should both calculate waves and basis variables in the same go

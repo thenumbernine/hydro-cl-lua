@@ -4,7 +4,7 @@ inline real calcMaxEigenvalue(real alpha, real gammaUii) {
 
 kernel void calcDT(
 	global real* dtBuf,
-	const global cons_t* UBuf
+	const global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(2,2)) {
@@ -12,7 +12,7 @@ kernel void calcDT(
 		return;
 	}
 		
-	const global cons_t* U = UBuf + index;
+	const global <?=eqn.cons_t?>* U = UBuf + index;
 	real gamma = sym3_det(U->gamma);
 
 	real dt = INFINITY;
@@ -39,7 +39,7 @@ kernel void calcDT(
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
 	eigen_t* eig,
-	const global cons_t* U
+	const global <?=eqn.cons_t?>* U
 ) {
 	eig->alpha = U->alpha;
 	eig->f = calc_f(U->alpha);
@@ -80,8 +80,8 @@ end ?>
 //used for interface eigen basis
 void eigen_forSide(
 	global eigen_t* eig,
-	global const cons_t* UL,
-	global const cons_t* UR
+	global const <?=eqn.cons_t?>* UL,
+	global const <?=eqn.cons_t?>* UR
 ) {
 	real alpha = .5 * (UL->alpha + UR->alpha);
 	sym3 avg_gamma = (sym3){
@@ -393,12 +393,12 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 end ?>
 
 kernel void addSource(
-	global cons_t* derivBuf,
-	const global cons_t* UBuf)
+	global <?=eqn.cons_t?>* derivBuf,
+	const global <?=eqn.cons_t?>* UBuf)
 {
 	SETBOUNDS(2,2);
-	const global cons_t* U = UBuf + index;
-	global cons_t* deriv = derivBuf + index;
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 
 	real gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(gamma, U->gamma);
@@ -725,13 +725,13 @@ GU0L[2] + AKL[2] - U->a.z * trK + K12D23L[2] + KD23L[2] - 2 * K12D12L[2] + 2 * K
 
 // the 1D version has no problems, but at 2D we get instabilities ... 
 kernel void constrain(
-	global cons_t* UBuf
+	global <?=eqn.cons_t?>* UBuf
 ) {
 <? if false then ?>
 #if 0	//use constraints at all?
 	SETBOUNDS(2,2);	
 	
-	global cons_t* U = UBuf + index;
+	global <?=eqn.cons_t?>* U = UBuf + index;
 
 	real gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(gamma, U->gamma);
