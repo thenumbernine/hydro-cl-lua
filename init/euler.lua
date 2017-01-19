@@ -97,9 +97,9 @@ local initStates = {
 			return [[
 	rho = lhs ? 1 : .125;
 	P = lhs ? 1 : .1;
-	b.x = .75;
-	b.y = lhs ? 1 : -1;
-	b.z = 0;
+	B.x = .75;
+	B.y = lhs ? 1 : -1;
+	B.z = 0;
 ]]
 		end,
 	},
@@ -118,9 +118,9 @@ local initStates = {
 	v.y = sin(2.*M_PI*(x.x+.5));
 	v.z = 0;
 	P = 5./(12.*M_PI);	// is this hydro pressure or total pressure?
-	b.x = -B0 * sin(2. * M_PI * (x.y+.5));
-	b.y = B0 * sin(4. * M_PI * (x.x+.5));
-	b.z = 0;
+	B.x = -B0 * sin(2. * M_PI * (x.y+.5));
+	B.y = B0 * sin(4. * M_PI * (x.x+.5));
+	B.z = 0;
 ]]
 		end,
 	},

@@ -11,9 +11,9 @@ MHD.name = 'MHD'
 MHD.numStates = 8
 MHD.numWaves = 7
 
-MHD.consVars = {'rho', 'mx', 'my', 'mz', 'ETotal', 'bx', 'by', 'bz'}
-MHD.primVars = {'rho', 'vx', 'vy', 'vz', 'P', 'bx', 'by', 'bz'}
-MHD.mirrorVars = {{'m.x', 'b.x'}, {'m.y', 'b.y'}, {'m.z', 'b.z'}}
+MHD.consVars = {'rho', 'mx', 'my', 'mz', 'ETotal', 'Bx', 'By', 'Bz'}
+MHD.primVars = {'rho', 'vx', 'vy', 'vz', 'P', 'Bx', 'By', 'Bz'}
+MHD.mirrorVars = {{'m.x', 'B.x'}, {'m.y', 'B.y'}, {'m.z', 'B.z'}}
 
 MHD.hasEigenCode = true
 MHD.hasFluxFromCons = true
@@ -34,7 +34,7 @@ typedef struct {
 	real rho;
 	real3 v;
 	real P;
-	real3 b;
+	real3 B;
 } prim_t;
 
 typedef union {
@@ -43,7 +43,7 @@ typedef union {
 		real rho;
 		real3 m;
 		real ETotal;
-		real3 b;
+		real3 B;
 	};
 } cons_t;
 ]]
@@ -57,9 +57,9 @@ inline real calc_eKin(prim_t W) { return .5 * real3_lenSq(W.v); }
 inline real calc_EKin(prim_t W) { return W.rho * calc_eKin(W); }
 inline real calc_EInt(prim_t W) { return W.P / (heatCapacityRatio - 1.); }
 inline real calc_eInt(prim_t W) { return calc_EInt(W) / W.rho; }
-inline real calc_EMag(prim_t W) { return .5 * real3_lenSq(W.b); }
+inline real calc_EMag(prim_t W) { return .5 * real3_lenSq(W.B); }
 inline real calc_eMag(prim_t W) { return calc_EMag(W) / W.rho; }
-inline real calc_PMag(prim_t W) { return .5 * real3_lenSq(W.b); }
+inline real calc_PMag(prim_t W) { return .5 * real3_lenSq(W.B); }
 inline real calc_EHydro(prim_t W) { return calc_EKin(W) + calc_EInt(W); }
 inline real calc_eHydro(prim_t W) { return calc_EHydro(W) / W.rho; }
 inline real calc_ETotal(prim_t W) { return calc_EKin(W) + calc_EInt(W) + calc_EMag(W); }
@@ -74,11 +74,11 @@ inline prim_t primFromCons(cons_t U) {
 	prim_t W;
 	W.rho = U.rho;
 	W.v = real3_scale(U.m, 1./U.rho);
-	W.b = U.b;
+	W.B = U.B;
 	real vSq = real3_lenSq(W.v);
-	real bSq = real3_lenSq(W.b);
+	real BSq = real3_lenSq(W.B);
 	real EKin = .5 * U.rho * vSq;
-	real EMag = .5 * bSq;
+	real EMag = .5 * BSq;
 	real EInt = U.ETotal - EKin - EMag;
 	W.P = EInt * (heatCapacityRatio - 1.);
 	W.P = max(W.P, 1e-7);
@@ -90,11 +90,11 @@ inline cons_t consFromPrim(prim_t W) {
 	cons_t U;
 	U.rho = W.rho;
 	U.m = real3_scale(W.v, W.rho);
-	U.b = W.b;
+	U.B = W.B;
 	real vSq = real3_lenSq(W.v);
-	real bSq = real3_lenSq(W.b);
+	real BSq = real3_lenSq(W.B);
 	real EKin = .5 * W.rho * vSq;
-	real EMag = .5 * bSq;
+	real EMag = .5 * BSq;
 	real EInt = W.P / (heatCapacityRatio - 1.);
 	U.ETotal = EInt + EKin + EMag;
 	return U;
@@ -125,11 +125,11 @@ kernel void initState(
 	real rho = 0;
 	real3 v = _real3(0,0,0);
 	real P = 0;
-	real3 b = _real3(0,0,0);
+	real3 B = _real3(0,0,0);
 
 ]]..code..[[
 
-	prim_t W = {.rho=rho, .v=v, .P=P, .b=b};
+	prim_t W = {.rho=rho, .v=v, .P=P, .B=B};
 	UBuf[index] = consFromPrim(W);
 }
 ]]
@@ -155,10 +155,10 @@ function MHD:getDisplayVars(solver)
 		{my = 'value = U.m.y;'},
 		{mz = 'value = U.m.z;'},
 		{m = 'value = real3_len(U.m);'},
-		{bx = 'value = W.b.x;'},
-		{by = 'value = W.b.y;'},
-		{bz = 'value = W.b.z;'},
-		{b = 'value = real3_len(W.b);'},
+		{Bx = 'value = W.B.x;'},
+		{By = 'value = W.B.y;'},
+		{Bz = 'value = W.B.z;'},
+		{B = 'value = real3_len(W.B);'},
 		{P = 'value = W.P;'},
 		--{PMag = 'value = calc_PMag(W);'},
 		--{PTotal = 'value = W.P + calc_PMag(W);'},

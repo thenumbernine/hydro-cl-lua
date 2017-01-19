@@ -3,19 +3,19 @@
 cons_t fluxFromCons_<?=side?>(cons_t U) {
 	prim_t W = primFromCons(U);
 	real vj = W.v.s<?=side?>;
-	real bj = W.b.s<?=side?>;
-	real bSq = real3_lenSq(W.b);
-	real bDotV = real3_dot(W.b, W.v);
-	real PMag = .5 * bSq;
+	real Bj = W.B.s<?=side?>;
+	real BSq = real3_lenSq(W.B);
+	real BDotV = real3_dot(W.B, W.v);
+	real PMag = .5 * BSq;
 	real PTotal = W.P + PMag;
 	real HTotal = U.ETotal + PTotal;
 	
 	cons_t F;
 	F.rho = U.m.s<?=side?>;
-	F.m = real3_sub(real3_scale(U.m, vj), real3_scale(U.b, bj / mu0));
+	F.m = real3_sub(real3_scale(U.m, vj), real3_scale(U.B, Bj / mu0));
 	F.m.s<?=side?> += PTotal;
-	F.b = real3_sub(real3_scale(U.b, vj), real3_scale(W.v, bj));
-	F.ETotal = HTotal * vj - bDotV * bj / mu0;
+	F.B = real3_sub(real3_scale(U.B, vj), real3_scale(W.v, Bj));
+	F.ETotal = HTotal * vj - BDotV * Bj / mu0;
 	return F;
 }
 <? end ?>
@@ -27,7 +27,7 @@ typedef struct {
 	real rho;
 	real3 v;
 	real hTotal;
-	real3 b;
+	real3 B;
 	real X, Y;
 } Roe_t;
 
@@ -74,31 +74,31 @@ end
 
 local function consPutXFwd(var, side)
 	return putXFwd(var..'.m', var..'.m', side)..'\n'
-		..putXFwd(var..'.b', var..'.b', side)
+		..putXFwd(var..'.B', var..'.B', side)
 end
 
 local function consPutXBack(var, side)
 	return putXBack(var..'.m', var..'.m', side)..'\n'
-		..putXBack(var..'.b', var..'.b', side)
+		..putXBack(var..'.B', var..'.B', side)
 end
 
--- rotate 3D vectors of a cons_t into the x-is-fwd plane, and remove the bx component 
+-- rotate 3D vectors of a cons_t into the x-is-fwd plane, and remove the Bx component 
 local function _7to8code(addr,side)
 	return [[
 	cons_t xU = *(]]..addr..[[ cons_t*)x_;
 	]]..consPutXFwd('xU', side)..[[
-	real x[7] = { xU.rho, xU.m.x, xU.m.y, xU.m.z, xU.ETotal, xU.b.y, xU.b.z }; 
+	real x[7] = { xU.rho, xU.m.x, xU.m.y, xU.m.z, xU.ETotal, xU.B.y, xU.B.z }; 
 ]]
 end
 
--- re-insert bx=0 and rotate x back to its original direction
+-- re-insert Bx=0 and rotate x back to its original direction
 local function _8to7code(addr, side)
 	return [[
 	cons_t yU = { 
 		.rho = y[0], 
 		.m = {.x = y[1], .y = y[2], .z = y[3] }, 
 		.ETotal = y[4], 
-		.b = {.x = 0, .y = y[5], .z = y[6] },
+		.B = {.x = 0, .y = y[5], .z = y[6] },
 	};
 	]]..consPutXBack('yU', side)..[[
 	*(]]..addr..[[ cons_t*)y = yU;
@@ -118,14 +118,14 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 #if 0
 	prim_t W = primFromCons(*U);
 	real3 v = W.v;
-	real3 b = W.b;
+	real3 B = W.B;
 	
-	real bSq = real3_lenSq(b);
+	real BSq = real3_lenSq(B);
 	real invRho = 1./W.rho;
 	
 	real aSq = heatCapacityRatio * W.P * invRho;
-	real CaxSq = b.s<?=side?> * b.s<?=side?> * invRho;
-	real CaSq = bSq * invRho;
+	real CaxSq = B.s<?=side?> * B.s<?=side?> * invRho;
+	real CaSq = BSq * invRho;
 	
 	real CStarSq = .5 * (CaSq + aSq);
 	real sqrtCfsDiscr = sqrt(max(0., CStarSq * CStarSq - aSq * CaxSq));
@@ -143,17 +143,17 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	
 	real rho = W.rho;
 	real3 v = W.v;
-	real3 b = W.b;
-	real hTotal = .5 * real3_lenSq(W.v) + (W.P * gamma / gamma_1 + real3_lenSq(b)) / W.rho;
+	real3 B = W.B;
+	real hTotal = .5 * real3_lenSq(W.v) + (W.P * gamma / gamma_1 + real3_lenSq(B)) / W.rho;
 
 	//the rest of this matches calcEigenBasis:
 
 	real _1_rho = 1. / rho;
 	real vSq = real3_lenSq(v);
-	real bPerpSq = b.y*b.y + b.z*b.z;
-	real bStarPerpSq = (gamma_1 - gamma_2) * bPerpSq;
-	real CAxSq = b.x*b.x*_1_rho;
-	real CASq = CAxSq + bPerpSq * _1_rho;
+	real BPerpSq = B.y*B.y + B.z*B.z;
+	real BStarPerpSq = (gamma_1 - gamma_2) * BPerpSq;
+	real CAxSq = B.x*B.x*_1_rho;
+	real CASq = CAxSq + BPerpSq * _1_rho;
 	real hHydro = hTotal - CASq;
 	// hTotal = (EHydro + EMag + P)/rho
 	// hHydro = hTotal - CASq, CASq = EMag/rho
@@ -162,11 +162,11 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	// a^2 = (gamma-1)(hHydro - eKin) = gamma P / rho
 	real aTildeSq = max((gamma_1 * (hHydro - .5 * vSq) - gamma_2), 1e-20);
 
-	real bStarPerpSq_rho = bStarPerpSq * _1_rho;
-	real CATildeSq = CAxSq + bStarPerpSq_rho;
+	real BStarPerpSq_rho = BStarPerpSq * _1_rho;
+	real CATildeSq = CAxSq + BStarPerpSq_rho;
 	real CStarSq = .5 * (CATildeSq + aTildeSq);
 	real CA_a_TildeSqDiff = .5 * (CATildeSq - aTildeSq);
-	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * bStarPerpSq_rho);
+	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * BStarPerpSq_rho);
 	
 	real CfSq = CStarSq + sqrtDiscr;
 	real Cf = sqrt(CfSq);
@@ -191,19 +191,19 @@ void calcRoeValues(
 	const cons_t* UL, 
 	const cons_t* UR
 ) {
-	// should I use bx, or bxL/R, for calculating the PMag at the L and R states?
+	// should I use Bx, or BxL/R, for calculating the PMag at the L and R states?
 	prim_t WL = primFromCons(*UL);
 	real sqrtRhoL = sqrt(UL->rho);
-	real PMagL = .5 * real3_lenSq(UL->b);
+	real PMagL = .5 * real3_lenSq(UL->B);
 	real hTotalL = (UL->ETotal + WL.P + PMagL) / UL->rho;
 
 	prim_t WR = primFromCons(*UR);
 	real sqrtRhoR = sqrt(UR->rho);
-	real PMagR = .5 * real3_lenSq(UR->b);
+	real PMagR = .5 * real3_lenSq(UR->B);
 	real hTotalR = (UR->ETotal + WR.P + PMagR) / UR->rho;
 	
-	real dby = WL.b.y - WR.b.y;
-	real dbz = WL.b.z - WR.b.z;
+	real dby = WL.B.y - WR.B.y;
+	real dbz = WL.B.z - WR.B.z;
 	
 	real invDenom = 1 / (sqrtRhoL + sqrtRhoR);
 	
@@ -214,10 +214,10 @@ void calcRoeValues(
 	
 	W->hTotal = (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR) * invDenom;
 	
-	W->b.x = (sqrtRhoL * WL.b.x + sqrtRhoR * WR.b.x) * invDenom;
-	// why does athena switch the weights of the by and bz components?
-	W->b.y = (sqrtRhoR * WL.b.y + sqrtRhoL * WR.b.y) * invDenom;
-	W->b.z = (sqrtRhoR * WL.b.z + sqrtRhoL * WR.b.z) * invDenom;
+	W->B.x = (sqrtRhoL * WL.B.x + sqrtRhoR * WR.B.x) * invDenom;
+	// why does athena switch the weights of the By and Bz components?
+	W->B.y = (sqrtRhoR * WL.B.y + sqrtRhoL * WR.B.y) * invDenom;
+	W->B.z = (sqrtRhoR * WL.B.z + sqrtRhoL * WR.B.z) * invDenom;
 	
 	W->X = .5 * (dby * dby + dbz * dbz) * invDenom * invDenom;
 	W->Y = .5 * (UL->rho + UR->rho) / W->rho;
@@ -263,17 +263,17 @@ kernel void calcEigenBasis(
 		real rho = roe.rho;
 		real3 v = roe.v;
 		real hTotal = roe.hTotal;
-		real3 b = roe.b;
+		real3 B = roe.B;
 		real X = roe.X;
 		real Y = roe.Y;
 
 		real _1_rho = 1. / rho;
 		real vSq = real3_lenSq(v);
-		real bDotV = real3_dot(b,v);
-		real bPerpSq = b.y*b.y + b.z*b.z;
-		real bStarPerpSq = (gamma_1 - gamma_2 * Y) * bPerpSq;
-		real CAxSq = b.x*b.x*_1_rho;
-		real CASq = CAxSq + bPerpSq * _1_rho;
+		real BDotV = real3_dot(B,v);
+		real BPerpSq = B.y*B.y + B.z*B.z;
+		real BStarPerpSq = (gamma_1 - gamma_2 * Y) * BPerpSq;
+		real CAxSq = B.x*B.x*_1_rho;
+		real CASq = CAxSq + BPerpSq * _1_rho;
 		real hHydro = hTotal - CASq;
 		// hTotal = (EHydro + EMag + P)/rho
 		// hHydro = hTotal - CASq, CASq = EMag/rho
@@ -282,11 +282,11 @@ kernel void calcEigenBasis(
 		// a^2 = (gamma-1)(hHydro - eKin) = gamma P / rho
 		real aTildeSq = max((gamma_1 * (hHydro - .5 * vSq) - gamma_2 * X), 1e-20);
 
-		real bStarPerpSq_rho = bStarPerpSq * _1_rho;
-		real CATildeSq = CAxSq + bStarPerpSq_rho;
+		real BStarPerpSq_rho = BStarPerpSq * _1_rho;
+		real CATildeSq = CAxSq + BStarPerpSq_rho;
 		real CStarSq = .5 * (CATildeSq + aTildeSq);
 		real CA_a_TildeSqDiff = .5 * (CATildeSq - aTildeSq);
-		real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * bStarPerpSq_rho);
+		real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * BStarPerpSq_rho);
 		
 		real CfSq = CStarSq + sqrtDiscr;
 		real Cf = sqrt(CfSq);
@@ -294,15 +294,15 @@ kernel void calcEigenBasis(
 		real CsSq = aTildeSq * CAxSq / CfSq;
 		real Cs = sqrt(CsSq);
 		
-		real bPerpLen = sqrt(bPerpSq);
-		real bStarPerpLen = sqrt(bStarPerpSq);
+		real BPerpLen = sqrt(BPerpSq);
+		real BStarPerpLen = sqrt(BStarPerpSq);
 		real betaY, betaZ;
-		if (bPerpLen == 0) {
+		if (BPerpLen == 0) {
 			betaY = 1;
 			betaZ = 0;
 		} else {
-			betaY = b.y / bPerpLen;
-			betaZ = b.z / bPerpLen;
+			betaY = B.y / BPerpLen;
+			betaZ = B.z / BPerpLen;
 		}
 		real betaStarY = betaY / sqrt(gamma_1 - gamma_2*Y);
 		real betaStarZ = betaZ / sqrt(gamma_1 - gamma_2*Y);
@@ -326,14 +326,14 @@ kernel void calcEigenBasis(
 
 		real sqrtRho = sqrt(rho);
 		real _1_sqrtRho = 1./sqrtRho;
-		real sbx = b.x >= 0 ? 1 : -1;
+		real sbx = B.x >= 0 ? 1 : -1;
 		real aTilde = sqrt(aTildeSq);
 		real Qf = Cf*alphaF*sbx;
 		real Qs = Cs*alphaS*sbx;
 		real Af = aTilde*alphaF*_1_sqrtRho;
 		real As = aTilde*alphaS*_1_sqrtRho;
-		real Afpbb = Af*bStarPerpLen*betaStarSq;
-		real Aspbb = As*bStarPerpLen*betaStarSq;
+		real Afpbb = Af*BStarPerpLen*betaStarSq;
+		real Aspbb = As*BStarPerpLen*betaStarSq;
 
 		real CAx = sqrt(CAxSq);
 		
@@ -352,12 +352,12 @@ kernel void calcEigenBasis(
 		<? if solver.checkFluxError then ?>
 		global real* A = eig->A;
 		fill(A+0,7,	0, 												1,											0,								0,								0,			0,								0								);
-		fill(A+1,7,	-v.x*v.x + .5*gamma_1*vSq - gamma_2*X,			-gamma_3*v.x,								-gamma_1*v.y,					-gamma_1*v.z,					gamma_1,	-gamma_2*Y*b.y,					-gamma_2*Y*b.z					);
-		fill(A+2,7,	-v.x*v.y,										v.y,										v.x,							0, 								0,			-b.x,							0								);
-		fill(A+3,7,	-v.x*v.z,										v.z,										0,								v.x, 							0,			0,								-b.x							);
-		fill(A+4,7,	v.x*(.5*gamma_1*vSq - hTotal) + b.x*bDotV/rho,	-gamma_1*v.x*v.x + hTotal - b.x*b.x/rho,	-gamma_1*v.x*v.y - b.x*b.y/rho,	-gamma_1*v.x*v.z - b.x*b.z/rho,	gamma*v.x,	-gamma_2*Y*b.y*v.x - b.x*v.y,	-gamma_2*Y*b.z*v.x - b.x*v.z	);
-		fill(A+5,7,	(b.x*v.y - b.y*v.x)/rho,						b.y/rho,									-b.x/rho,						0, 								0,			v.x,							0								);
-		fill(A+6,7,	(b.x*v.z - b.z*v.x)/rho,						b.z/rho,									0,								-b.x/rho, 						0,			0,								v.x								);
+		fill(A+1,7,	-v.x*v.x + .5*gamma_1*vSq - gamma_2*X,			-gamma_3*v.x,								-gamma_1*v.y,					-gamma_1*v.z,					gamma_1,	-gamma_2*Y*B.y,					-gamma_2*Y*B.z					);
+		fill(A+2,7,	-v.x*v.y,										v.y,										v.x,							0, 								0,			-B.x,							0								);
+		fill(A+3,7,	-v.x*v.z,										v.z,										0,								v.x, 							0,			0,								-B.x							);
+		fill(A+4,7,	v.x*(.5*gamma_1*vSq - hTotal) + B.x*BDotV/rho,	-gamma_1*v.x*v.x + hTotal - B.x*B.x/rho,	-gamma_1*v.x*v.y - B.x*B.y/rho,	-gamma_1*v.x*v.z - B.x*B.z/rho,	gamma*v.x,	-gamma_2*Y*B.y*v.x - B.x*v.y,	-gamma_2*Y*B.z*v.x - B.x*v.z	);
+		fill(A+5,7,	(B.x*v.y - B.y*v.x)/rho,						B.y/rho,									-B.x/rho,						0, 								0,			v.x,							0								);
+		fill(A+6,7,	(B.x*v.z - B.z*v.x)/rho,						B.z/rho,									0,								-B.x/rho, 						0,			0,								v.x								);
 		<? end ?>
 
 		// right eigenvectors
@@ -394,8 +394,8 @@ kernel void calcEigenBasis(
 		Qs = Qs * norm;
 		real AHatF = norm*Af*rho;
 		real AHatS = norm*As*rho;
-		real afpb = norm*Af*bStarPerpLen;
-		real aspb = norm*As*bStarPerpLen;
+		real afpb = norm*Af*BStarPerpLen;
+		real aspb = norm*As*BStarPerpLen;
 
 		norm = norm * gamma_1;
 		alphaF = alphaF * norm;
@@ -406,31 +406,31 @@ kernel void calcEigenBasis(
 		norm = norm * 2.;
 
 #if 1	//computing beforehand
-		real l16 = AHatS*QStarY - alphaF*b.y;
-		real l17 = AHatS*QStarZ - alphaF*b.z;
+		real l16 = AHatS*QStarY - alphaF*B.y;
+		real l17 = AHatS*QStarZ - alphaF*B.z;
 		real l21 = .5*(v.y*betaZ - v.z*betaY);
 		real l23 = .5*betaZ;
 		real l24 = .5*betaY;
 		real l26 = -.5*sqrtRho*betaZ*sbx;
 		real l27 = .5*sqrtRho*betaY*sbx;
-		real l36 = -AHatF*QStarY - alphaS*b.y;
-		real l37 = -AHatF*QStarZ - alphaS*b.z;
+		real l36 = -AHatF*QStarY - alphaS*B.y;
+		real l37 = -AHatF*QStarZ - alphaS*B.z;
 		//rows
 		global real* evL = eig->evL;
 		fill(evL+0,7,	alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb, -alphaF*v.x - Cff, -alphaF*v.y + Qs*QStarY, -alphaF*v.z + Qs*QStarZ, alphaF, l16, l17);
 		fill(evL+1,7,	l21, 0, l23, l24, 0, l26, l27);
 		fill(evL+2,7,	alphaS*(vSq-hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb, -alphaS*v.x - Css, -alphaS*v.y - Qf*QStarY, -alphaS*v.z - Qf*QStarZ, alphaS, l36, l37);
-		fill(evL+3,7,	1. - norm*(.5*vSq - gamma_2*X/gamma_1) , norm*v.x, norm*v.y, norm*v.z, -norm, norm*b.y, norm*b.z);
+		fill(evL+3,7,	1. - norm*(.5*vSq - gamma_2*X/gamma_1) , norm*v.x, norm*v.y, norm*v.z, -norm, norm*B.y, norm*B.z);
 		fill(evL+4,7,	alphaS*(vSq-hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb, -alphaS*v.x + Css, -alphaS*v.y + Qf*QStarY, -alphaS*v.z + Qf*QStarZ, alphaS, l36, l37);
 		fill(evL+5,7,	-l21, 0, -l23, -l24, 0, l26, l27);
 		fill(evL+6,7,	alphaF*(vSq-hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb, -alphaF*v.x + Cff, -alphaF*v.y - Qs*QStarY, -alphaF*v.z - Qs*QStarZ, alphaF, l16, l17);
 #else	//self-referencing evL
 		//rows
 		global real* evL = eig->evL;
-		fill(evL+0,7,	alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb, -alphaF*v.x - Cff, -alphaF*v.y + Qs*QStarY, -alphaF*v.z + Qs*QStarZ, alphaF, AHatS*QStarY - alphaF*b.y, AHatS*QStarZ - alphaF*b.z);
+		fill(evL+0,7,	alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb, -alphaF*v.x - Cff, -alphaF*v.y + Qs*QStarY, -alphaF*v.z + Qs*QStarZ, alphaF, AHatS*QStarY - alphaF*B.y, AHatS*QStarZ - alphaF*B.z);
 		fill(evL+1,7,	.5*(v.y*betaZ - v.z*betaY), 0, -.5*betaZ, .5*betaY, 0, -.5*sqrtRho*betaZ*sbx, .5*sqrtRho*betaY*sbx);
-		fill(evL+2,7,	alphaS*(vSq-hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb, -alphaS*v.x - Css, -alphaS*v.y - Qf*QStarY, -alphaS*v.z - Qf*QStarZ, alphaS, -AHatF*QStarY - alphaS*b.y, -AHatF*QStarZ - alphaS*b.z);
-		fill(evL+3,7,	1. - norm*(.5*vSq - gamma_2*X/gamma_1) , norm*v.x, norm*v.y, norm*v.z, -norm, norm*b.y, norm*b.z);
+		fill(evL+2,7,	alphaS*(vSq-hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb, -alphaS*v.x - Css, -alphaS*v.y - Qf*QStarY, -alphaS*v.z - Qf*QStarZ, alphaS, -AHatF*QStarY - alphaS*B.y, -AHatF*QStarZ - alphaS*B.z);
+		fill(evL+3,7,	1. - norm*(.5*vSq - gamma_2*X/gamma_1) , norm*v.x, norm*v.y, norm*v.z, -norm, norm*B.y, norm*B.z);
 		fill(evL+4,7,	alphaS*(vSq-hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb, -alphaS*v.x + Css, -alphaS*v.y + Qf*QStarY, -alphaS*v.z + Qf*QStarZ, alphaS, evL[2+7*5], evL[2+7*6]);
 		fill(evL+5,7,	-evL[1+7*0], 0, -evL[1+7*2], -evL[1+7*3], 0, evL[1+7*5], evL[1+7*6]);
 		fill(evL+6,7,	alphaF*(vSq-hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb, -alphaF*v.x + Cff, -alphaF*v.y - Qs*QStarY, -alphaF*v.z - Qs*QStarZ, alphaF, evL[0+7*5], evL[0+7*6]);
