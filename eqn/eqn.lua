@@ -8,16 +8,26 @@ local Equation = class()
 
 Equation.hasEigenCode = nil
 Equation.hasCalcDT = nil
+Equation.hasFluxFromCons = nil
 Equation.useSourceTerm = nil
+
+-- TODO pass this to Equation from some way other than solver
+Equation.prim_t = 'prim_t'
+Equation.cons_t = 'cons_t'
+Equation.consLR_t = 'consLR_t'
 
 function Equation:init(solver)
 	self.solver = assert(solver)
 
+	-- TODO get rid of consVars and primVars
+	-- they're still used by ADM1D
 	-- default # states is # of conservative variables
 	if not self.numStates then 
 		self.numStates = #self.consVars 
 	else
-		assert(self.numStates == #self.consVars)
+		if self.consVars then
+			assert(self.numStates == #self.consVars)
+		end
 	end
 	-- default # waves is the # of states
 	if not self.numWaves then self.numWaves = self.numStates end 
@@ -33,19 +43,24 @@ function Equation:getCodePrefix()
 end
 
 function Equation:getTypeCode()
+	assert(self.consVars)
 	return table{
 		'typedef union {',
 		'	real ptr['..self.numStates..'];',
 		'	struct {',
 		'		real '..table.concat(self.consVars, ', ')..';',
 		'	};',
-		'} cons_t;',
+		'} '..self.cons_t..';',
 	}:concat'\n'
 end
 
-Equation.displayVarCodePrefix = [[
-	const global cons_t* U = buf + index;
-]]
+function Equation:getDisplayVarCodePrefix()
+	return template([[
+	const global <?=eqn.cons_t?>* U = buf + index;
+]], {
+	eqn = self,
+})
+end
 
 -- TODO autogen the name so multiple solvers don't collide
 function Equation:getEigenTypeCode(solver)

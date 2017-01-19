@@ -3,13 +3,12 @@ local table = require 'ext.table'
 local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local clnumber = require 'clnumber'
+local template = require 'template'
 
 local SRHD = class(Equation)
 SRHD.name = 'SRHD'
 SRHD.numStates = 5
 
-SRHD.consVars = {'D', 'Sx', 'Sy', 'Sz', 'tau'}
-SRHD.primVars = {'rho', 'vx', 'vy', 'vz', 'eInt'}
 SRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
 
 SRHD.hasEigenCode = true 
@@ -52,12 +51,12 @@ SRHD.guiVars = table{
 }
 
 function SRHD:getTypeCode()
-	return [[
+	return template([[
 typedef struct {
 	real rho;
 	real3 v;
 	real eInt;
-} prim_t;
+} <?=eqn.prim_t?>;
 
 typedef union {
 	real ptr[5];
@@ -66,14 +65,16 @@ typedef union {
 		real3 S;
 		real tau;
 	};
-} cons_t;
-]]
+} <?=eqn.cons_t?>;
+]], {
+	eqn = self,
+})
 end
 
 function SRHD:getCodePrefix()
 	return table{
 		SRHD.super.getCodePrefix(self),
-		[[
+		template([[
 
 //I'm going to fix metric coordinates at first
 //then later the transition to the evolved metric will be easier
@@ -119,7 +120,7 @@ real calc_h(real rho, real P, real eInt) {
 	return 1. + eInt + P / rho;
 }
 
-cons_t consFromPrim(prim_t prim) {
+<?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> prim) {
 	real vSq = metricLenSq(prim.v);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
@@ -139,9 +140,11 @@ cons_t consFromPrim(prim_t prim) {
 	//energy = T^00 = rho h u^0 u^0 + P g^00
 	real tau = prim.rho * h * WSq - D - P / (alpha * alpha);
 	
-	return (cons_t){.D=D, .S=S, .tau=tau};
+	return (<?=eqn.cons_t?>){.D=D, .S=S, .tau=tau};
 }
-]],
+]], {
+	eqn = self,
+}),
 	}:concat'\n'
 end
 
@@ -149,12 +152,11 @@ function SRHD:getInitStateCode(solver)
 	local initState = self.initStates[1+solver.initStatePtr[0]]
 	assert(initState, "couldn't find initState "..(solver.initStatePtr[0]+1))
 	local code = initState.init(solver)
-	return table{
-		[[
+	return template([[
 
 kernel void initState(
-	global cons_t* consBuf,
-	global prim_t* primBuf
+	global <?=eqn.cons_t?>* consBuf,
+	global <?=eqn.prim_t?>* primBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
@@ -170,7 +172,9 @@ kernel void initState(
 	real rho = 0;
 	real3 v = _real3(0,0,0);
 	real P = 0;
-	
+	//ignored:
+	real3 B = _real3(0,0,0);
+
 ]]..code..[[
 	
 	real eInt = calc_eInt_from_P(rho, P);
@@ -178,24 +182,30 @@ kernel void initState(
 	real W = 1. / sqrt(1. - vSq);
 	real h = calc_h(rho, P, eInt);
 
-	prim_t prim = {.rho=rho, .v=v, .eInt=eInt};
+	<?=eqn.prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
 	primBuf[index] = prim;
 	consBuf[index] = consFromPrim(prim);
 }
-]],
-	}:concat'\n'
+]], {
+	eqn = self,
+})
 end
 
 function SRHD:getSolverCode(solver)
-	return table{
-		require 'template'(file['eqn/srhd.cl'], {eqn=self, solver=solver}),
-	}:concat'\n'
+	return template(file['eqn/srhd.cl'], {
+		eqn = self,
+		solver = solver,
+	})
 end
 
-SRHD.displayVarCodePrefix = [[
-	cons_t U = buf[index];
-	prim_t prim = primBuf[index];
-]]
+function SRHD:getDisplayVarCodePrefix()
+	return template([[
+	<?=eqn.cons_t?> U = buf[index];
+	<?=eqn.prim_t?> prim = primBuf[index];
+]], {
+	eqn = self,
+})
+end
 
 function SRHD:getDisplayVars(solver)
 	return {
@@ -206,24 +216,28 @@ function SRHD:getDisplayVars(solver)
 		{S = 'value = metricLen(U.S);'},
 		{tau = 'value = U.tau;'},
 		{W = 'value = U.D / prim.rho;'},
-		{['primitive reconstruction error'] = [[
+		{['primitive reconstruction error'] = template([[
 			//prim have just been reconstructed from cons
 			//so reconstruct cons from prims again and calculate the difference
 			{
-				cons_t U2 = consFromPrim(prim);
+				<?=eqn.cons_t?> U2 = consFromPrim(prim);
 				value = 0;
 				for (int j = 0; j < numStates; ++j) {
 					value += fabs(U.ptr[j] - U2.ptr[j]);
 				}
 			}
-	]]},
+	]], {eqn=self})},
 	}
 end
 
-SRHD.primDisplayVarCodePrefix = [[
-	prim_t prim = buf[index];
-]]
-	
+function SRHD:getPrimDisplayVarCodePrefix()
+	return template([[
+	<?=eqn.prim_t?> prim = buf[index];
+]], {
+	eqn = self,
+})
+end
+
 SRHD.primDisplayVars = {
 	{rho = 'value = prim.rho;'},
 	{vx = 'value = prim.v.x;'},

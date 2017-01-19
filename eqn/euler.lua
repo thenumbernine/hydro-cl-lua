@@ -9,8 +9,6 @@ Euler.name = 'Euler'
 
 Euler.numStates = 5
 
-Euler.consVars = {'rho', 'mx', 'my', 'mz', 'ETotal'}
-Euler.primVars = {'rho', 'vx', 'vy', 'vz', 'P'}
 Euler.mirrorVars = {{'m.x'}, {'m.y'}, {'m.z'}} 
 
 Euler.hasEigenCode = true
@@ -23,7 +21,7 @@ Euler.guiVars = {
 }
 
 function Euler:getTypeCode()
-	return [[
+	return template([[
 typedef union {
 	real ptr[5];
 	struct { 
@@ -31,7 +29,7 @@ typedef union {
 		real3 v;
 		real P;
 	};
-} prim_t;
+} <?=eqn.prim_t?>;
 
 typedef union {
 	real ptr[5];
@@ -40,52 +38,56 @@ typedef union {
 		real3 m;
 		real ETotal;
 	};
-} cons_t;
-]]
+} <?=eqn.cons_t?>;
+]], {
+	eqn = self,
+})
 end
 
 function Euler:getCodePrefix()
 	return table{
 		Euler.super.getCodePrefix(self),
-		[[
+		template([[
 
 inline real calc_H(real P) { return P * (heatCapacityRatio / (heatCapacityRatio - 1.)); }
 inline real calc_h(real rho, real P) { return calc_H(P) / rho; }
 inline real calc_hTotal(real rho, real P, real ETotal) { return (P + ETotal) / rho; }
 inline real calc_HTotal(real P, real ETotal) { return P + ETotal; }
-inline real calc_eKin(prim_t W) { return .5 * coordLenSq(W.v); }
-inline real calc_EKin(prim_t W) { return W.rho * calc_eKin(W); }
-inline real calc_EInt(prim_t W) { return W.P / (heatCapacityRatio - 1.); }
-inline real calc_eInt(prim_t W) { return calc_EInt(W) / W.rho; }
-inline real calc_EKin_fromCons(cons_t U) { return .5 * coordLenSq(U.m) / U.rho; }
-inline real calc_ETotal(prim_t W, real ePot) {
+inline real calc_eKin(<?=eqn.prim_t?> W) { return .5 * coordLenSq(W.v); }
+inline real calc_EKin(<?=eqn.prim_t?> W) { return W.rho * calc_eKin(W); }
+inline real calc_EInt(<?=eqn.prim_t?> W) { return W.P / (heatCapacityRatio - 1.); }
+inline real calc_eInt(<?=eqn.prim_t?> W) { return calc_EInt(W) / W.rho; }
+inline real calc_EKin_fromCons(<?=eqn.cons_t?> U) { return .5 * coordLenSq(U.m) / U.rho; }
+inline real calc_ETotal(<?=eqn.prim_t?> W, real ePot) {
 	real EPot = W.rho * ePot;
 	return calc_EKin(W) + calc_EInt(W) + EPot;
 }
 
-inline real calc_Cs(const prim_t* W) {
+inline real calc_Cs(const <?=eqn.prim_t?>* W) {
 	return sqrt(heatCapacityRatio * W->P / W->rho);
 }
 
-inline prim_t primFromCons(cons_t U, real ePot) {
+inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real ePot) {
 	real EPot = U.rho * ePot;
 	real EKin = calc_EKin_fromCons(U);
 	real EInt = U.ETotal - EPot - EKin;
-	return (prim_t){
+	return (<?=eqn.prim_t?>){
 		.rho = U.rho,
 		.v = real3_scale(U.m, 1./U.rho),
 		.P = EInt / (heatCapacityRatio - 1.),
 	};
 }
 
-cons_t consFromPrim(prim_t W, real ePot) {
-	return (cons_t){
+<?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real ePot) {
+	return (<?=eqn.cons_t?>){
 		.rho = W.rho,
 		.m = real3_scale(W.v, W.rho),
 		.ETotal = calc_ETotal(W, ePot),
 	};
 }
-]],
+]], {
+	eqn = self,
+})
 	}:concat'\n'
 end
 
@@ -93,9 +95,9 @@ function Euler:getInitStateCode(solver)
 	local initState = self.initStates[1+solver.initStatePtr[0]]
 	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
 	local code = initState.init(solver)	
-	return [[
+	return template([[
 kernel void initState(
-	global cons_t* UBuf,
+	global <?=eqn.cons_t?>* UBuf,
 	global real* ePotBuf
 ) {
 	SETBOUNDS(0,0);
@@ -120,22 +122,28 @@ kernel void initState(
 
 ]]..code..[[
 
-	prim_t W = {.rho=rho, .v=v, .P=P};
+	<?=eqn.prim_t?> W = {.rho=rho, .v=v, .P=P};
 	UBuf[index] = consFromPrim(W, ePot);
 	ePotBuf[index] = ePot;
 }
-]]
+]], {
+	eqn = self,
+})
 end
 
 function Euler:getSolverCode(solver)	
 	return template(file['eqn/euler.cl'], {eqn=self, solver=solver})
 end
 
-Euler.displayVarCodePrefix = [[
-	cons_t U = buf[index];
+function Euler:getDisplayVarCodePrefix()
+	return template([[
+	<?=eqn.cons_t?> U = buf[index];
 	real ePot = ePotBuf[index];
-	prim_t W = primFromCons(U, ePot);
-]]
+	<?=eqn.prim_t?> W = primFromCons(U, ePot);
+]], {
+	eqn = self,
+})
+end
 
 function Euler:getDisplayVars(solver)
 	return {

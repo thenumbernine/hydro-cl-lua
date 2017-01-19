@@ -66,6 +66,13 @@ Solver.checkOrthoError = true
 Solver.integrators = require 'int.all'
 Solver.integratorNames = Solver.integrators:map(function(integrator) return integrator.name end)
 
+-- TODO this is redundant in Equation
+-- but I am passing them to Equation using self ...
+-- ... don't do this.
+Solver.prim_t = 'prim_t'
+Solver.cons_t = 'cons_t'
+Solver.consLR_t = 'consLR_t'
+
 --[[
 args:
 	app
@@ -98,6 +105,10 @@ function Solver:init(args)
 
 	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
 	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
+
+	self.prim_t = args.prim_t
+	self.cons_t = args.cons_t
+	self.consLR_t = args.consLR_t
 
 	self:createEqn(args.eqn)
 	
@@ -333,8 +344,8 @@ end
 function Solver:addConvertToTexUBuf()
 	self:addConvertToTex{
 		name = 'U',
-		type = 'cons_t',
-		varCodePrefix = self.eqn.displayVarCodePrefix,
+		type = self.eqn.cons_t,
+		varCodePrefix = self.eqn:getDisplayVarCodePrefix(),
 		vars = assert(self.eqn:getDisplayVars(self)),
 	}
 end
@@ -440,14 +451,16 @@ function Solver:finalizeCLAllocs()
 end
 
 function Solver:getConsLRTypeCode()
-	return [[
+	return template([[
 typedef union {
-	cons_t LR[2];
+	<?=eqn.cons_t?> LR[2];
 	struct {
-		cons_t L, R;
+		<?=eqn.cons_t?> L, R;
 	};
-} consLR_t;
-]]
+} <?=eqn.consLR_t?>;
+]], {
+	eqn = self.eqn,
+})
 end
 
 function Solver:createBuffers()
@@ -460,8 +473,8 @@ function Solver:createBuffers()
 	ffi.cdef(self:getConsLRTypeCode())
 
 	-- for twofluid, cons_t has been renamed to euler_maxwell_t and maxwell_cons_t
-	if ffi.sizeof'cons_t' ~= self.eqn.numStates * ffi.sizeof'real' then
-		   error('expected sizeof(cons_t) to be '
+	if ffi.sizeof(self.eqn.cons_t) ~= self.eqn.numStates * ffi.sizeof'real' then
+		   error('expected sizeof('..self.eqn.cons_t..') to be '
 				   ..self.eqn.numStates..' * sizeof(real) = '..(self.eqn.numStates * ffi.sizeof'real')
 				   ..' but found '..ffi.sizeof'cons_t')
 	end

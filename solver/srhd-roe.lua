@@ -11,7 +11,7 @@ end
 
 function SRHDRoe:createBuffers()
 	SRHDRoe.super.createBuffers(self)
-	self:clalloc('primBuf', self.volume * self.dim * ffi.sizeof'prim_t')
+	self:clalloc('primBuf', self.volume * self.dim * ffi.sizeof(self.eqn.prim_t))
 end
 
 local ConvertToTex_SRHD_U = class(SRHDRoe.ConvertToTex)
@@ -25,10 +25,10 @@ end
 function SRHDRoe:addConvertToTexUBuf()
 	self:addConvertToTex({
 		name = 'U',
-		type = 'cons_t',
-		extraArgs = {'const global prim_t* primBuf'},
+		type = self.eqn.cons_t,
+		extraArgs = {'const global '..self.eqn.prim_t..'* primBuf'},
 -- the index vs dstindex stuff is shared in common with the main display code
-		varCodePrefix = self.eqn.displayVarCodePrefix,
+		varCodePrefix = self.eqn:getDisplayVarCodePrefix(),
 		vars = self.eqn:getDisplayVars(self),
 	}, ConvertToTex_SRHD_U)
 end
@@ -38,8 +38,8 @@ function SRHDRoe:addConvertToTexs()
 
 	self:addConvertToTex{
 		name = 'prim', 
-		type = 'prim_t',
-		varCodePrefix = self.eqn.primDisplayVarCodePrefix,
+		type = self.eqn.prim_t,
+		varCodePrefix = self.eqn:getPrimDisplayVarCodePrefix(),
 		vars = self.eqn.primDisplayVars,
 	}
 end
