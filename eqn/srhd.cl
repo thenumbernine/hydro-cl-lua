@@ -5,7 +5,7 @@ Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 20
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
 	global real* dtBuf,
-	const global prim_t* primBuf
+	const global <?=eqn.prim_t?>* primBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(2,2)) {
@@ -13,7 +13,7 @@ kernel void calcDT(
 		return;
 	}
 	
-	prim_t prim = primBuf[index];
+	<?=eqn.prim_t?> prim = primBuf[index];
 	real rho = prim.rho;
 	real eInt = prim.eInt;
 	real vSq = metricLenSq(prim.v);
@@ -46,14 +46,14 @@ kernel void calcDT(
 
 //used by PLM
 //TODO SRHD PLM needs to do this:
-//1) calcLR for the prim_t (that means put calcLR in its own file, and a new primLR buf)
+//1) calcLR for the <?=eqn.prim_t?> (that means put calcLR in its own file, and a new primLR buf)
 //2) have a new kernel for calc consLR from primLR, since calcDeltaUEig and calcFlux both need this
 //or does the eigenbasis need to be derived from the variables being transformed?
 //shoud I PLM the U's then converge the prims ... and therefore track the prims on edges as well?
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
 	eigen_t* eig,
-	const global cons_t* U
+	const global <?=eqn.cons_t?>* U
 ) {
 	
 }
@@ -70,22 +70,22 @@ kernel void calcEigenBasis(
 	//right now only primBuf is being used for getting neighbor values
 	//so SRHD should perform the PLM stuff on the primBuf instead of the UBUf?
 	// or do the PLM on the UBuf and do the cons->prim on the ULR edge values
-	const global prim_t* primBuf	
+	const global <?=eqn.prim_t?>* primBuf	
 ) {
 	SETBOUNDS(2,1);
 	
 	int indexR = index;
-	prim_t primR = primBuf[indexR];
+	<?=eqn.prim_t?> primR = primBuf[indexR];
 	
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		
 		int indexL = index - stepsize[side];
-		prim_t primL = primBuf[indexL];
+		<?=eqn.prim_t?> primL = primBuf[indexL];
 
 <? if true then -- arithmetic averaging ?>
-		prim_t avg = (prim_t){
+		<?=eqn.prim_t?> avg = (<?=eqn.prim_t?>){
 			.rho = .5 * (primL.rho + primR.rho),
 			.v = real3_scale(real3_add(primL.v, primR.v), .5),
 			.eInt = .5 * (primL.eInt + primR.eInt),
@@ -339,11 +339,11 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 end ?>
 
 kernel void constrainU(
-	global cons_t* UBuf
+	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 
-	global cons_t* U = UBuf + index;
+	global <?=eqn.cons_t?>* U = UBuf + index;
 	
 	U->D = max(U->D, (real)DMin);
 	U->tau = max(U->tau, (real)tauMin);
@@ -354,17 +354,17 @@ kernel void constrainU(
 
 //TODO update to include alphas, betas, and gammas
 kernel void updatePrims(
-	global prim_t* primBuf,
-	const global cons_t* UBuf
+	global <?=eqn.prim_t?>* primBuf,
+	const global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(2,1);
 	
-	const global cons_t* U = UBuf + index;
+	const global <?=eqn.cons_t?>* U = UBuf + index;
 	real D = U->D;
 	real3 S = U->S;
 	real tau = U->tau;
 
-	global prim_t* prim = primBuf + index;
+	global <?=eqn.prim_t?>* prim = primBuf + index;
 	real3 v = prim->v;
 
 	real SLen = metricLen(S);

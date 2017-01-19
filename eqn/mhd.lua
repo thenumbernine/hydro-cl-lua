@@ -11,8 +11,6 @@ MHD.name = 'MHD'
 MHD.numStates = 8
 MHD.numWaves = 7
 
-MHD.consVars = {'rho', 'mx', 'my', 'mz', 'ETotal', 'Bx', 'By', 'Bz'}
-MHD.primVars = {'rho', 'vx', 'vy', 'vz', 'P', 'Bx', 'By', 'Bz'}
 MHD.mirrorVars = {{'m.x', 'B.x'}, {'m.y', 'B.y'}, {'m.z', 'B.z'}}
 
 MHD.hasEigenCode = true
@@ -29,13 +27,13 @@ MHD.guiVars = table{
 }
 
 function MHD:getTypeCode()
-	return [[
+	return template([[
 typedef struct {
 	real rho;
 	real3 v;
 	real P;
 	real3 B;
-} prim_t;
+} <?=eqn.prim_t?>;
 
 typedef union {
 	real ptr[8];
@@ -45,33 +43,35 @@ typedef union {
 		real ETotal;
 		real3 B;
 	};
-} cons_t;
-]]
+} <?=eqn.cons_t?>;
+]], {
+	eqn = self,
+})
 end
 
 function MHD:getCodePrefix()
 	return table{
 		MHD.super.getCodePrefix(self),
-		[[
-inline real calc_eKin(prim_t W) { return .5 * real3_lenSq(W.v); }
-inline real calc_EKin(prim_t W) { return W.rho * calc_eKin(W); }
-inline real calc_EInt(prim_t W) { return W.P / (heatCapacityRatio - 1.); }
-inline real calc_eInt(prim_t W) { return calc_EInt(W) / W.rho; }
-inline real calc_EMag(prim_t W) { return .5 * real3_lenSq(W.B); }
-inline real calc_eMag(prim_t W) { return calc_EMag(W) / W.rho; }
-inline real calc_PMag(prim_t W) { return .5 * real3_lenSq(W.B); }
-inline real calc_EHydro(prim_t W) { return calc_EKin(W) + calc_EInt(W); }
-inline real calc_eHydro(prim_t W) { return calc_EHydro(W) / W.rho; }
-inline real calc_ETotal(prim_t W) { return calc_EKin(W) + calc_EInt(W) + calc_EMag(W); }
-inline real calc_eTotal(prim_t W) { return calc_ETotal(W) / W.rho; }
+		template([[
+inline real calc_eKin(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.v); }
+inline real calc_EKin(<?=eqn.prim_t?> W) { return W.rho * calc_eKin(W); }
+inline real calc_EInt(<?=eqn.prim_t?> W) { return W.P / (heatCapacityRatio - 1.); }
+inline real calc_eInt(<?=eqn.prim_t?> W) { return calc_EInt(W) / W.rho; }
+inline real calc_EMag(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.B); }
+inline real calc_eMag(<?=eqn.prim_t?> W) { return calc_EMag(W) / W.rho; }
+inline real calc_PMag(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.B); }
+inline real calc_EHydro(<?=eqn.prim_t?> W) { return calc_EKin(W) + calc_EInt(W); }
+inline real calc_eHydro(<?=eqn.prim_t?> W) { return calc_EHydro(W) / W.rho; }
+inline real calc_ETotal(<?=eqn.prim_t?> W) { return calc_EKin(W) + calc_EInt(W) + calc_EMag(W); }
+inline real calc_eTotal(<?=eqn.prim_t?> W) { return calc_ETotal(W) / W.rho; }
 inline real calc_H(real P) { return P * (heatCapacityRatio / (heatCapacityRatio - 1.)); }
 inline real calc_h(real rho, real P) { return calc_H(P) / rho; }
-inline real calc_HTotal(prim_t W, real ETotal) { return W.P + calc_PMag(W) + ETotal; }
-inline real calc_hTotal(prim_t W, real ETotal) { return calc_HTotal(W, ETotal) / W.rho; }
-inline real calc_Cs(prim_t W) { return sqrt(heatCapacityRatio * W.P / W.rho); }
+inline real calc_HTotal(<?=eqn.prim_t?> W, real ETotal) { return W.P + calc_PMag(W) + ETotal; }
+inline real calc_hTotal(<?=eqn.prim_t?> W, real ETotal) { return calc_HTotal(W, ETotal) / W.rho; }
+inline real calc_Cs(<?=eqn.prim_t?> W) { return sqrt(heatCapacityRatio * W.P / W.rho); }
 
-inline prim_t primFromCons(cons_t U) {
-	prim_t W;
+inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U) {
+	<?=eqn.prim_t?> W;
 	W.rho = U.rho;
 	W.v = real3_scale(U.m, 1./U.rho);
 	W.B = U.B;
@@ -86,8 +86,8 @@ inline prim_t primFromCons(cons_t U) {
 	return W;
 }
 
-inline cons_t consFromPrim(prim_t W) {
-	cons_t U;
+inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W) {
+	<?=eqn.cons_t?> U;
 	U.rho = W.rho;
 	U.m = real3_scale(W.v, W.rho);
 	U.B = W.B;
@@ -99,17 +99,19 @@ inline cons_t consFromPrim(prim_t W) {
 	U.ETotal = EInt + EKin + EMag;
 	return U;
 }
-]],
+]], {
+	eqn = self,
+}),
 	}:concat'\n'
 end
 
-function MHD:getInitStateCode(solver)
-	local initState = self.initStates[1+solver.initStatePtr[0]]
-	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
-	local code = initState.init(solver)	
-	return [[
+function MHD:getInitStateCode()
+	local initState = self.initStates[1+self.solver.initStatePtr[0]]
+	assert(initState, "couldn't find initState "..self.solver.initStatePtr[0])	
+	local code = initState.init(self.solver)	
+	return template([[
 kernel void initState(
-	global cons_t* UBuf
+	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
@@ -129,22 +131,28 @@ kernel void initState(
 
 ]]..code..[[
 
-	prim_t W = {.rho=rho, .v=v, .P=P, .B=B};
+	<?=eqn.prim_t?> W = {.rho=rho, .v=v, .P=P, .B=B};
 	UBuf[index] = consFromPrim(W);
 }
-]]
+]], {
+	eqn = self,
+})
 end
 
-function MHD:getSolverCode(solver)
-	return template(file['eqn/mhd.cl'], {eqn=self, solver=solver})
+function MHD:getSolverCode()
+	return template(file['eqn/mhd.cl'], {eqn=self, solver=self.solver})
 end
 
-MHD.displayVarCodePrefix = [[
-	cons_t U = buf[index];
-	prim_t W = primFromCons(U);
-]]
+function MHD:getDisplayVarCodePrefix()
+	return template([[
+	<?=eqn.cons_t?> U = buf[index];
+	<?=eqn.prim_t?> W = primFromCons(U);
+]], {
+	eqn = self,
+})
+end
 
-function MHD:getDisplayVars(solver)
+function MHD:getDisplayVars()
 	return {
 		{rho = 'value = W.rho;'},
 		{vx = 'value = W.v.x;'},
@@ -178,19 +186,21 @@ function MHD:getDisplayVars(solver)
 		--{HTotal = 'value = calc_HTotal(W, U.ETotal);'},
 		--{hTotal = 'value = calc_hTotal(W, U.ETotal);'},
 		--{Cs = 'value = calc_Cs(W); },
-		{['primitive reconstruction error'] = [[
+		{['primitive reconstruction error'] = template([[
 		//prim have just been reconstructed from cons
 		//so reconstruct cons from prims again and calculate the difference
-		cons_t U2 = consFromPrim(W);
+		<?=eqn.cons_t?> U2 = consFromPrim(W);
 		value = 0;
 		for (int j = 0; j < numStates; ++j) {
 			value += fabs(U.ptr[j] - U2.ptr[j]);
 		}
-]]},
+]], {
+	eqn = self,
+})},
 	}
 end
 
-function MHD:getEigenTypeCode(solver)
+function MHD:getEigenTypeCode()
 	return template([[
 typedef struct {
 	real evL[7*7];
@@ -200,7 +210,7 @@ typedef struct {
 <? end ?>
 } eigen_t;
 ]], {
-		solver = solver,
+		solver = self.solver,
 	})
 end
 

@@ -1,7 +1,7 @@
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
 	global real* dtBuf,
-	global const cons_t* UBuf,
+	global const <?=eqn.cons_t?>* UBuf,
 	global const real* ePotBuf
 ) {
 	int4 i = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
@@ -11,9 +11,9 @@ kernel void calcDT(
 		return;
 	}
 	
-	global const cons_t* U = UBuf + index;
+	global const <?=eqn.cons_t?>* U = UBuf + index;
 	real ePot = ePotBuf[index];
-	prim_t W = primFromCons(*U, ePot);
+	<?=eqn.prim_t?> W = primFromCons(*U, ePot);
 	real Cs = calc_Cs(&W);
 
 	real dt = INFINITY;
@@ -31,17 +31,17 @@ kernel void calcDT(
 //used for interface eigen basis
 void eigen_forSide(
 	global eigen_t* eig,
-	global const cons_t* UL, 
-	global const cons_t* UR, 
+	global const <?=eqn.cons_t?>* UL, 
+	global const <?=eqn.cons_t?>* UR, 
 	real ePotL, 
 	real ePotR
 ) {
-	prim_t WL = primFromCons(*UL, ePotL);
+	<?=eqn.prim_t?> WL = primFromCons(*UL, ePotL);
 	real sqrtRhoL = sqrt(WL.rho);
 	real3 vL = WL.v;
 	real hTotalL = calc_hTotal(WL.rho, WL.P, UL->ETotal);
 	
-	prim_t WR = primFromCons(*UR, ePotR);
+	<?=eqn.prim_t?> WR = primFromCons(*UR, ePotR);
 	real sqrtRhoR = sqrt(UR->rho);
 	real3 vR = WR.v;
 	real hTotalR = calc_hTotal(WR.rho, WR.P, UR->ETotal);
@@ -244,11 +244,11 @@ end
 
 
 <? for side=0,solver.dim-1 do ?>
-cons_t fluxForCons_<?=side?>(cons_t U) {
+<?=eqn.cons_t?> fluxForCons_<?=side?>(<?=eqn.cons_t?> U) {
 	real ePot = 0;	//TODO
-	prim_t W = primFromCons(U, ePot);
+	<?=eqn.prim_t?> W = primFromCons(U, ePot);
 	real mi = U.m.s<?=side?>;
-	return (cons_t){
+	return (<?=eqn.cons_t?>){
 		.rho = mi,
 		.m = (real3){
 			.x = mi * W.v.x<?= side==0 and ' + W.P' or ''?>,
@@ -263,10 +263,10 @@ cons_t fluxForCons_<?=side?>(cons_t U) {
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
 	eigen_t* eig,
-	global const cons_t* U
+	global const <?=eqn.cons_t?>* U
 ) {
 	real ePot = 0; //TODO need ePot...
-	prim_t W = primFromCons(*U, ePot);
+	<?=eqn.prim_t?> W = primFromCons(*U, ePot);
 	real vSq = coordLenSq(W.v);
 	real eKin = .5 * vSq;
 	real hTotal = calc_hTotal(W.rho, W.P, U->ETotal);
@@ -280,16 +280,16 @@ void eigen_forCell_<?=side?>(
 }
 <? end ?>
 
-void apply_dU_dW(cons_t* y, const prim_t* W, const prim_t* x) {
-	*y = (cons_t){
+void apply_dU_dW(<?=eqn.cons_t?>* y, const <?=eqn.prim_t?>* W, const <?=eqn.prim_t?>* x) {
+	*y = (<?=eqn.cons_t?>){
 		.rho = x->rho,
 		.m = real3_add(real3_scale(W->v, x->rho), real3_scale(x->v, W->rho)),
 		.ETotal = x->rho * .5 * coordLenSq(W->v) + W->rho * real3_dot(x->v, W->v) + x->P / (heatCapacityRatio - 1.),
 	};
 }
 
-void apply_dW_dU(prim_t* y, const prim_t* W, const cons_t* x) {
-	*y = (prim_t){
+void apply_dW_dU(<?=eqn.prim_t?>* y, const <?=eqn.prim_t?>* W, const <?=eqn.cons_t?>* x) {
+	*y = (<?=eqn.prim_t?>){
 		.rho = x->rho,
 		.v = real3_sub(real3_scale(x->m, 1./W->rho), real3_scale(W->v, x->rho / W->rho)),
 		.P = (heatCapacityRatio - 1.) * (x->ETotal + .5 * coordLenSq(W->v) * x->rho - real3_dot(x->m, W->v)),

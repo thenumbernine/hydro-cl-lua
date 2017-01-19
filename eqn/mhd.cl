@@ -1,7 +1,7 @@
 //use Eqn.hasFluxFromCons to allow the calcFlux function to take advantage of this function
 <? for side=0,solver.dim-1 do ?>
-cons_t fluxFromCons_<?=side?>(cons_t U) {
-	prim_t W = primFromCons(U);
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U) {
+	<?=eqn.prim_t?> W = primFromCons(U);
 	real vj = W.v.s<?=side?>;
 	real Bj = W.B.s<?=side?>;
 	real BSq = real3_lenSq(W.B);
@@ -10,7 +10,7 @@ cons_t fluxFromCons_<?=side?>(cons_t U) {
 	real PTotal = W.P + PMag;
 	real HTotal = U.ETotal + PTotal;
 	
-	cons_t F;
+	<?=eqn.cons_t?> F;
 	F.rho = U.m.s<?=side?>;
 	F.m = real3_sub(real3_scale(U.m, vj), real3_scale(U.B, Bj / mu0));
 	F.m.s<?=side?> += PTotal;
@@ -85,7 +85,7 @@ end
 -- rotate 3D vectors of a cons_t into the x-is-fwd plane, and remove the Bx component 
 local function _7to8code(addr,side)
 	return [[
-	cons_t xU = *(]]..addr..[[ cons_t*)x_;
+	]]..eqn.cons_t..[[ xU = *(]]..addr..[[ ]]..eqn.cons_t..[[*)x_;
 	]]..consPutXFwd('xU', side)..[[
 	real x[7] = { xU.rho, xU.m.x, xU.m.y, xU.m.z, xU.ETotal, xU.B.y, xU.B.z }; 
 ]]
@@ -94,14 +94,14 @@ end
 -- re-insert Bx=0 and rotate x back to its original direction
 local function _8to7code(addr, side)
 	return [[
-	cons_t yU = { 
+	]]..eqn.cons_t..[[ yU = { 
 		.rho = y[0], 
 		.m = {.x = y[1], .y = y[2], .z = y[3] }, 
 		.ETotal = y[4], 
 		.B = {.x = 0, .y = y[5], .z = y[6] },
 	};
 	]]..consPutXBack('yU', side)..[[
-	*(]]..addr..[[ cons_t*)y = yU;
+	*(]]..addr..[[ ]]..eqn.cons_t..[[*)y = yU;
 ]]
 end
 ?>
@@ -109,14 +109,14 @@ end
 //called from calcDT
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const global cons_t* U
+	const global <?=eqn.cons_t?>* U
 ) {
-	cons_t U_ = *U;
+	<?=eqn.cons_t?> U_ = *U;
 	<?=consPutXFwd('U_', side)?>
-	prim_t W = primFromCons(U_);
+	<?=eqn.prim_t?> W = primFromCons(U_);
 	
 #if 0
-	prim_t W = primFromCons(*U);
+	<?=eqn.prim_t?> W = primFromCons(*U);
 	real3 v = W.v;
 	real3 B = W.B;
 	
@@ -188,16 +188,16 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 //assumes UL and UR are already rotated so the 'x' direction is our flux direction
 void calcRoeValues(
 	Roe_t* W, 
-	const cons_t* UL, 
-	const cons_t* UR
+	const <?=eqn.cons_t?>* UL, 
+	const <?=eqn.cons_t?>* UR
 ) {
 	// should I use Bx, or BxL/R, for calculating the PMag at the L and R states?
-	prim_t WL = primFromCons(*UL);
+	<?=eqn.prim_t?> WL = primFromCons(*UL);
 	real sqrtRhoL = sqrt(UL->rho);
 	real PMagL = .5 * real3_lenSq(UL->B);
 	real hTotalL = (UL->ETotal + WL.P + PMagL) / UL->rho;
 
-	prim_t WR = primFromCons(*UR);
+	<?=eqn.prim_t?> WR = primFromCons(*UR);
 	real sqrtRhoR = sqrt(UR->rho);
 	real PMagR = .5 * real3_lenSq(UR->B);
 	real hTotalR = (UR->ETotal + WR.P + PMagR) / UR->rho;
@@ -252,8 +252,8 @@ kernel void calcEigenBasis(
 		<?= solver.getULRCode ?>
 
 		//swap the sides with x here, so all the fluxes are in the 'x' direction
-		cons_t UL_ = *UL;
-		cons_t UR_ = *UR;
+		<?=eqn.cons_t?> UL_ = *UL;
+		<?=eqn.cons_t?> UR_ = *UR;
 		<?=consPutXFwd('UL_',side)?>
 		<?=consPutXFwd('UR_',side)?>
 

@@ -91,10 +91,10 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real ePot) {
 	}:concat'\n'
 end
 
-function Euler:getInitStateCode(solver)
-	local initState = self.initStates[1+solver.initStatePtr[0]]
-	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
-	local code = initState.init(solver)	
+function Euler:getInitStateCode()
+	local initState = self.initStates[1+self.solver.initStatePtr[0]]
+	assert(initState, "couldn't find initState "..self.solver.initStatePtr[0])	
+	local code = initState.init(self.solver)	
 	return template([[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf,
@@ -131,8 +131,8 @@ kernel void initState(
 })
 end
 
-function Euler:getSolverCode(solver)	
-	return template(file['eqn/euler.cl'], {eqn=self, solver=solver})
+function Euler:getSolverCode()
+	return template(file['eqn/euler.cl'], {eqn=self, solver=self.solver})
 end
 
 function Euler:getDisplayVarCodePrefix()
@@ -145,7 +145,7 @@ function Euler:getDisplayVarCodePrefix()
 })
 end
 
-function Euler:getDisplayVars(solver)
+function Euler:getDisplayVars()
 	return {
 		{rho = 'value = W.rho;'},
 		{vx = 'value = W.v.x;'},
@@ -175,7 +175,7 @@ function Euler:getDisplayVars(solver)
 	}
 end
 
-function Euler:getEigenTypeCode(solver)
+function Euler:getEigenTypeCode()
 	return [[
 typedef struct {
 	// Roe-averaged vars
@@ -190,7 +190,7 @@ typedef struct {
 ]]
 end
 
-function Euler:getEigenDisplayVars(solver)
+function Euler:getEigenDisplayVars()
 	return {
 		{rho = 'value = eigen->rho;'},
 		{vx = 'value = eigen->v.x;'},

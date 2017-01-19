@@ -314,7 +314,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'relativistic blast wave interaction',
 		-- MHD-only init states: (that use 'b')
-		--initState = 'Brio-Wu',
+		initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
 		-- EM:
 		--initState = 'Maxwell default',
@@ -337,7 +337,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	-- Orszag-Tang with forward Euler integrator fails at 64x64 around .7 or .8
 	-- 		but works with 'Runge-Kutta 4, TVD' integrator at 64x64
 	-- 		RK4-TVD fails at 256x256 at just after t=.5
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+	self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))
 	
 	-- EM
@@ -349,7 +349,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	-- GR 
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 
 	local graphShaderCode = file['graph.shader']
 	self.graphShader = GLProgram{

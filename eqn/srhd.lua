@@ -148,10 +148,10 @@ real calc_h(real rho, real P, real eInt) {
 	}:concat'\n'
 end
 
-function SRHD:getInitStateCode(solver)
-	local initState = self.initStates[1+solver.initStatePtr[0]]
-	assert(initState, "couldn't find initState "..(solver.initStatePtr[0]+1))
-	local code = initState.init(solver)
+function SRHD:getInitStateCode()
+	local initState = self.initStates[1+self.solver.initStatePtr[0]]
+	assert(initState, "couldn't find initState "..(self.solver.initStatePtr[0]+1))
+	local code = initState.init(self.solver)
 	return template([[
 
 kernel void initState(
@@ -191,10 +191,10 @@ kernel void initState(
 })
 end
 
-function SRHD:getSolverCode(solver)
+function SRHD:getSolverCode()
 	return template(file['eqn/srhd.cl'], {
 		eqn = self,
-		solver = solver,
+		solver = self.solver,
 	})
 end
 
@@ -207,7 +207,7 @@ function SRHD:getDisplayVarCodePrefix()
 })
 end
 
-function SRHD:getDisplayVars(solver)
+function SRHD:getDisplayVars()
 	return {
 		{D = 'value = U.D;'},
 		{Sx = 'value = U.S.x;'},
@@ -263,7 +263,7 @@ SRHD.eigenStructFields = {
 	{Kappa = 'real'},
 }
 
-function SRHD:getEigenTypeCode(solver)
+function SRHD:getEigenTypeCode()
 	return 'typedef struct {\n'
 		..table.map(self.eigenStructFields, function(field)
 			local name, ctype = next(field)
@@ -272,7 +272,7 @@ function SRHD:getEigenTypeCode(solver)
 		..'} eigen_t;\n'
 end
 
-function SRHD:getEigenDisplayVars(solver)
+function SRHD:getEigenDisplayVars()
 	return {}
 end
 
