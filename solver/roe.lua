@@ -408,8 +408,12 @@ function Solver:addConvertToTexs()
 	end
 end
 
+-- this can be put in app.lua
 local errorType = 'error_t'
-local errorTypeCode = 'typedef struct { real ortho, flux; } '..errorType..';'
+local errorTypeCode = [[
+typedef struct { 
+	real ortho, flux;
+} ]]..errorType..';'
 
 -- my best idea to work around the stupid 8-arg max kernel restriction
 Solver.allocateOneBigStructure = false
@@ -435,7 +439,8 @@ function Solver:finalizeCLAllocs()
 	end
 end
 
-Solver.consLRTypeCode = [[
+function Solver:getConsLRTypeCode()
+	return [[
 typedef union {
 	cons_t LR[2];
 	struct {
@@ -443,6 +448,7 @@ typedef union {
 	};
 } consLR_t;
 ]]
+end
 
 function Solver:createBuffers()
 	local realSize = ffi.sizeof(self.app.real)
@@ -451,11 +457,11 @@ function Solver:createBuffers()
 	ffi.cdef(self.eqn:getTypeCode())
 	ffi.cdef(self.eqn:getEigenTypeCode(self))
 	ffi.cdef(errorTypeCode)
-	ffi.cdef(self.consLRTypeCode)
+	ffi.cdef(self:getConsLRTypeCode())
 
 	-- for twofluid, cons_t has been renamed to euler_maxwell_t and maxwell_cons_t
 	if ffi.sizeof'cons_t' ~= self.eqn.numStates * ffi.sizeof'real' then
-		   print('expected sizeof(cons_t) to be '
+		   error('expected sizeof(cons_t) to be '
 				   ..self.eqn.numStates..' * sizeof(real) = '..(self.eqn.numStates * ffi.sizeof'real')
 				   ..' but found '..ffi.sizeof'cons_t')
 	end
@@ -614,7 +620,7 @@ function Solver:createCodePrefix()
 		self:getCoordMapCode() or '',
 		-- this is dependent on coord map / length code
 		self.eqn:getCodePrefix(self) or '',
-		self.consLRTypeCode,
+		self:getConsLRTypeCode(),
 	}
 
 

@@ -337,14 +337,14 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	-- Orszag-Tang with forward Euler integrator fails at 64x64 around .7 or .8
 	-- 		but works with 'Runge-Kutta 4, TVD' integrator at 64x64
 	-- 		RK4-TVD fails at 256x256 at just after t=.5
-	self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))
 	
 	-- EM
 	--self.solvers:insert(require 'solver.maxwell-roe'(args))
 	
 	-- EM+HD
-	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
+	self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
 	
 	-- GR 
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))

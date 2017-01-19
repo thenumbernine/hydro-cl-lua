@@ -25,13 +25,61 @@ function TwoFluidEMHDRoe:init(args)
 	-- same name in init/euler and init/maxwell?
 	-- both?
 
-	self.ion = require 'solver.euler-roe'(args)
-	self.ion.name = 'ion '..self.ion.name
+	local EulerIonEqn = class(require 'eqn.euler')
+	function EulerIonEqn:getTypeCode()
+		return (EulerIonEqn.super.getTypeCode(self)
+			:gsub('cons_t', 'euler_cons_t'))
+	end
+	local IonRoe = class(require 'solver.euler-roe')
+	function IonRoe:init(args)
+		IonRoe.super.init(self, args)
+		self.name = 'ion '..self.name
+	end
+	function IonRoe:createEqn(eqnName)
+		self.eqn = EulerIonEqn(self)
+	end
+	function IonRoe:getConsLRTypeCode()
+		return (IonRoe.super.getConsLRTypeCode(self)
+			:gsub('cons_t', 'euler_cons_t')
+			:gsub('consLR_t', 'euler_consLR_t'))
+	end
+	self.ion = IonRoe(args)
 
-	self.electron = require 'solver.euler-roe'(args)
-	self.electron.name = 'electron '..self.electron.name
+	local EulerElectronEqn = class(require 'eqn.euler')
+	function EulerElectronEqn:getTypeCode()
+		return (EulerElectornEqn.super.getTypeCode(self)
+			:gsub('cons_t', 'euler_cons_t'))
+	end
+	local ElectronRoe = class(require 'solver.euler-roe')
+	function ElectronRoe:init(args)
+		ElectronRoe.super.init(self, args)
+		self.name = 'electron '..self.name
+	end
+	function ElectronRoe:createEqn(eqnName)
+		self.eqn = EulerElectronEqn(self)
+	end
+	function ElectronRoe:getConsLRTypeCode()
+		return (ElectronRoe.super.getConsLRTypeCode(self)
+			:gsub('cons_t', 'euler_cons_t')
+			:gsub('consLR_t', 'euler_consLR_t'))
+	end
+	self.electron = ElectronRoe(args)
 
-	self.maxwell = require 'solver.maxwell-roe'(args)
+	local TwoFluidMaxwellEqn = class(require 'eqn.maxwell')
+	function TwoFluidMaxwellEqn:getTypeCode()
+		return (TwoFluidMaxwellEqn.super.getTypeCode(self)
+			:gsub('cons_t', 'maxwell_cons_t'))
+	end
+	local TwoFluidMaxwellRoe = class(require 'solver.maxwell-roe')
+	function TwoFluidMaxwellRoe:createEqn(eqnName)
+		self.eqn = TwoFluidMaxwellEqn(self)
+	end
+	function TwoFluidMaxwellRoe:getConsLRTypeCode()
+		return (TwoFluidMaxwellRoe.super.getConsLRTypeCode(self)
+			:gsub('cons_t', 'maxwell_cons_t')
+			:gsub('consLR_t', 'maxwell_consLR_t'))
+	end
+	self.maxwell = TwoFluidMaxwellRoe(args)
 
 	self.solvers = table{self.ion, self.electron, self.maxwell}
 
@@ -97,10 +145,8 @@ function TwoFluidEMHDRoe:replaceSourceKernels()
 
 	local lines = table{
 		self.codePrefix,
-		
-		self.ion.eqn:getTypeCode():gsub('cons_t', 'euler_cons_t'),
-		
-		self.maxwell.eqn:getTypeCode():gsub('cons_t', 'maxwell_cons_t'),
+		self.ion.eqn:getTypeCode(),
+		self.maxwell.eqn:getTypeCode(),
 
 		'#define chargeMassRatio_ion '..clnumber(chargeMassRatio_ion),
 		'#define chargeMassRatio_electron '..clnumber(chargeMassRatio_electron),
