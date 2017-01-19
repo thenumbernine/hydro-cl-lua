@@ -63,7 +63,7 @@ function Equation:getDisplayVarCodePrefix()
 end
 
 -- TODO autogen the name so multiple solvers don't collide
-function Equation:getEigenTypeCode(solver)
+function Equation:getEigenTypeCode()
 	return template([[
 typedef struct {
 	real evL[<?=numStates * numWaves?>];
@@ -75,16 +75,16 @@ typedef struct {
 ]], {
 		numStates = self.numStates,
 		numWaves = self.numWaves,
-		solver = solver,
+		solver = self.solver,
 	})
 end
 
-function Equation:getEigenCode(solver)
+function Equation:getEigenCode()
 	if self.hasEigenCode then return end
-	return template(file['solver/eigen.cl'], {solver=solver})
+	return template(file['solver/eigen.cl'], {solver=self.solver})
 end
 
-function Equation:getEigenDisplayVars(solver)
+function Equation:getEigenDisplayVars()
 	return range(self.numStates * self.numWaves):map(function(i)
 		local row = (i-1)%self.numWaves
 		local col = (i-1-row)/self.numWaves
@@ -93,7 +93,7 @@ function Equation:getEigenDisplayVars(solver)
 		local row = (i-1)%self.numStates
 		local col = (i-1-row)/self.numStates
 		return {['evR_'..row..'_'..col] = 'value = eigen->evR['..i..'];'}
-	end)):append(solver.checkFluxError and range(self.numStates * self.numStates):map(function(i)
+	end)):append(self.solver.checkFluxError and range(self.numStates * self.numStates):map(function(i)
 		local row = (i-1)%self.numStates
 		local col = (i-1-row)/self.numStates
 		return {['A_'..row..'_'..col] = 'value = eigen->A['..i..'];'}

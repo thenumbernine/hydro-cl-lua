@@ -323,14 +323,14 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	self.solvers = table()
 
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 	
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
 	-- int. shock wave works in 1D at 256 . fails at 1024. with superbee flux lim
 	-- rel blast wave 1 doesn't work in 64x64. with superbee flux lim
 	-- rel blast wave 2 works in 2D 64x64, but not 256x256. with superbee flux lim
-	self.solvers:insert(require 'solver.srhd-roe'(args))	-- looks like something is wrong in 2D
+	--self.solvers:insert(require 'solver.srhd-roe'(args))	-- looks like something is wrong in 2D
 	
 	-- M+HD. with superbee flux lim.  
 	-- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.  

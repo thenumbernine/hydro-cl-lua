@@ -369,7 +369,7 @@ function Solver:addConvertToTexs()
 		end),
 	}
 	
-	local eigenDisplayVars = self.eqn:getEigenDisplayVars(self)
+	local eigenDisplayVars = self.eqn:getEigenDisplayVars()
 	if eigenDisplayVars and #eigenDisplayVars > 0 then
 		self:addConvertToTex{
 			name = 'eigen',
@@ -475,7 +475,7 @@ function Solver:createBuffers()
 
 	-- to get sizeof
 	ffi.cdef(self.eqn:getTypeCode())
-	ffi.cdef(self.eqn:getEigenTypeCode(self))
+	ffi.cdef(self.eqn:getEigenTypeCode())
 	ffi.cdef(errorTypeCode)
 	ffi.cdef(self:getConsLRTypeCode())
 
@@ -597,7 +597,7 @@ function Solver:createCodePrefix()
 		self.eqn.getTypeCode and self.eqn:getTypeCode() or '',
 
 		-- run here for the code, and in buffer for the sizeof()
-		self.eqn:getEigenTypeCode(self) or '',
+		self.eqn:getEigenTypeCode() or '',
 		
 		-- bounds-check macro
 		'#define OOB(lhs,rhs) (i.x < lhs || i.x >= gridSize_x - rhs'
@@ -729,7 +729,7 @@ function Solver:getSolverCode()
 	
 	return table{
 		self.codePrefix,
-		self.eqn:getEigenCode(self) or '',
+		self.eqn:getEigenCode() or '',
 		fluxLimiterCode,
 		slopeLimiterCode,
 		
