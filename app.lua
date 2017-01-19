@@ -323,7 +323,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	self.solvers = table()
 
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 	
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
@@ -348,7 +348,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	
 	-- GR 
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
+	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 
 	local graphShaderCode = file['graph.shader']

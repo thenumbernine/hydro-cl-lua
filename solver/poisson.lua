@@ -30,7 +30,7 @@ function Poisson:getSolverCode()
 			file['solver/poisson.cl'],
 			self.extraCode or '',
 		}:concat'\n',
-		table(self:getCodeParams(), {solver=self.solver}))
+		table(self:getCodeParams(), {eqn=self.solver.eqn, solver=self.solver}))
 end
 
 function Poisson:refreshSolverProgram()
