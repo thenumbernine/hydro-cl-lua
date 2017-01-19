@@ -9,12 +9,16 @@ SelfGrav.gravityConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
 function SelfGrav:getCodeParams()
 	return {
 		args = 'const global '..self.solver.eqn.cons_t..'* UBuf',
-		calcRho = '#define gravitationalConstant '..require 'clnumber'(self.gravityConstant)..'\n'..[[
+		calcRho = require 'template'([[
+#define gravitationalConstant <?=clnumber(self.gravityConstant)?>
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	rho = gravitationalConstant * U->rho;	//maybe a 4pi?  or is that only in the continuous case?
-]],
-		solver = self.solver,
-		eqn = self.solver.eqn,
+]], {
+	self = self,
+	eqn = self.solver.eqn,
+	solver = self.solver,
+	clnumber = require 'clnumber',
+}),
 	}
 end
 

@@ -176,7 +176,7 @@ function Euler:getDisplayVars()
 end
 
 function Euler:getEigenTypeCode()
-	return [[
+	return template([[
 typedef struct {
 	// Roe-averaged vars
 	real rho;
@@ -186,8 +186,10 @@ typedef struct {
 	// derived vars
 	real vSq;
 	real Cs;
-} eigen_t;
-]]
+} <?=eqn.eigen_t?>;
+]], {
+	eqn = self,
+})
 end
 
 function Euler:getEigenDisplayVars()
