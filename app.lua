@@ -252,15 +252,15 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 64,
-			cmdline.gridSize or 64,
-			cmdline.gridSize or 64,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
 		},
 		boundary = {
-			xmin=cmdline.boundary or 'periodic',
-			xmax=cmdline.boundary or 'periodic',
-			ymin=cmdline.boundary or 'periodic',
-			ymax=cmdline.boundary or 'periodic',
+			xmin=cmdline.boundary or 'freeflow',
+			xmax=cmdline.boundary or 'freeflow',
+			ymin=cmdline.boundary or 'freeflow',
+			ymax=cmdline.boundary or 'freeflow',
 			zmin=cmdline.boundary or 'freeflow',
 			zmax=cmdline.boundary or 'freeflow',
 		},
@@ -304,36 +304,48 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 
 		-- no initial state means use the first
 		-- initState = cmdline.initState,
-		-- euler / srhd / mhd initial states:
+		-- Euler / SRHD / MHD initial states:
 		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
-		-- 	(those designed for srhd:)
+		-- (those designed for srhd:)
 		--initState = 'relativistic shock reflection',
 		--initState = 'relativistic blast wave test problem 1',
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'relativistic blast wave interaction',
-		-- mhd-only init states: (that use 'b')
+		-- MHD-only init states: (that use 'b')
 		--initState = 'Brio-Wu',
-		initState = 'Orszag-Tang',
+		--initState = 'Orszag-Tang',
+		-- EM:
+		--initState = 'Maxwell default',
 	}
 
 	self.solvers = table()
 
 	-- HD
 	--self.solvers:insert(require 'solver.euler-roe'(args))
+	
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
 	-- int. shock wave works in 1D at 256 . fails at 1024. with superbee flux lim
 	-- rel blast wave 1 doesn't work in 64x64. with superbee flux lim
 	-- rel blast wave 2 works in 2D 64x64, but not 256x256. with superbee flux lim
 	--self.solvers:insert(require 'solver.srhd-roe'(args))	-- looks like something is wrong in 2D
-	-- M+HD. with superbee flux lim.  Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.  Orszag-Tang is breaking ... at .8 with a 2D rotated face flux calculation, and at .7 with a 3-permuted face flux calculation.
-	self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+	
+	-- M+HD. with superbee flux lim.  
+	-- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.  
+	-- Orszag-Tang with forward Euler integrator fails at 64x64 around .7 or .8
+	-- 		but works with 'Runge-Kutta 4, TVD' integrator at 64x64
+	-- 		RK4-TVD fails at 256x256 at just after t=.5
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))
+	
 	-- EM
-	--self.solvers:insert(require 'solver.maxwell-roe'(args))
+	self.solvers:insert(require 'solver.maxwell-roe'(args))
+	
 	-- EM+HD
 	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
+	
 	-- GR 
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))

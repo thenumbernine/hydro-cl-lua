@@ -1,9 +1,10 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
-local Roe = require 'solver.roe'
 local SelfGrav = require 'solver.selfgrav'
 
-local EulerRoe = class(SelfGrav(Roe))
+-- TODO make this a behavior so Roe can be swapped with RoeImplicitLinear
+local EulerRoe = class(SelfGrav(require 'solver.roe'))
+--local EulerRoe = class(SelfGrav(require 'solver.roe_implicit_linearized'))
 
 local ConvertToTex_EulerRoe_U = class(EulerRoe.ConvertToTex)
 

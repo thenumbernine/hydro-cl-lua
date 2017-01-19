@@ -16,7 +16,7 @@ Maxwell.mirrorVars = {{'epsE.x', 'B.x'}, {'epsE.y', 'B.y'}, {'epsE.z', 'B.z'}}
 Maxwell.hasEigenCode = true
 Maxwell.useSourceTerm = true
 
-Maxwell.initStates= {{name='default'}}
+Maxwell.initStates = require 'init.euler'
 
 Maxwell.guiVars = table{
 	GuiFloat{name='eps0', value=1},	-- permittivity
@@ -54,9 +54,10 @@ real BSq(cons_t U) {
 end
 
 function Maxwell:getInitStateCode(solver)
-	return table{
-		template(
-		[[
+	local initState = self.initStates[1+solver.initStatePtr[0]]
+	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
+	local code = initState.init(solver)	
+	return [[
 kernel void initState(
 	global cons_t* UBuf
 ) {
@@ -64,19 +65,30 @@ kernel void initState(
 	real3 x = cell_x(i);
 	real3 mids = real3_scale(real3_add(mins, maxs), .5);
 	bool lhs = x.x < mids.x
-<? if solver.dim > 1 then ?>
+#if dim > 1
 		&& x.y < mids.y
-<? end
-if solver.dim > 2 then ?>
+#endif
+#if dim > 2
 		&& x.z < mids.z
-<? end ?>
+#endif
 	;
 	global cons_t* U = UBuf + index;
-	U->epsE = real3_scale(_real3(1,0,0), eps0);
-	U->B = _real3(0, 1, lhs ? 1 : -1);
+
+	//used
+	real3 E = _real3(0,0,0);
+	real3 B = _real3(0,0,0);
+	//throw-away
+	real rho = 0;
+	real3 v = _real3(0,0,0);
+	real P = 0;
+	real ePot = 0;
+
+]]..code..[[
+	
+	U->epsE = real3_scale(E, eps0);
+	U->B = B;
 }
-]], {solver=solver}),
-	}:concat'\n'
+]]
 end
 
 function Maxwell:getSolverCode(solver)

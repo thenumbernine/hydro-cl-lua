@@ -68,7 +68,9 @@ local initStates = {
 	{
 		name = 'Sod',
 		init = function(solver)
-			solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 7/5
+			if solver.eqn.guiVarsForName.heatCapacityRatio then	
+				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 7/5
+			end
 			return [[
 	rho = lhs ? 1 : .125;
 	P = lhs ? 1 : .1;
@@ -89,7 +91,9 @@ local initStates = {
 	{
 		name = 'Brio-Wu',
 		init = function(solver)
-			solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 2
+			if solver.eqn.guiVarsForName.heatCapacityRatio then	
+				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 2
+			end
 			return [[
 	rho = lhs ? 1 : .125;
 	P = lhs ? 1 : .1;
@@ -104,7 +108,9 @@ local initStates = {
 	{
 		name = 'Orszag-Tang',
 		init = function(solver)
-			solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
+			if solver.eqn.guiVarsForName.heatCapacityRatio then	
+				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
+			end
 			return [[
 	const real B0 = 1./sqrt(4. * M_PI);
 	rho = 25./(36.*M_PI);
@@ -232,7 +238,9 @@ local initStates = {
 		name = 'relativistic shock reflection',
 		init = function(solver)
 			solver.cfl[0] = .5	-- needs a slower cfl
-			solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 4/3
+			if solver.eqn.guiVarsForName.heatCapacityRatio then	
+				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 4/3
+			end
 			return [[
 	rho = 1;
 	v.x = 1. - 1e-5;
@@ -244,7 +252,9 @@ local initStates = {
 		name = 'relativistic blast wave test problem 1',
 		init = function(solver)
 			solver.cfl[0] = .5	-- needs a slower cfl
-			solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
+			if solver.eqn.guiVarsForName.heatCapacityRatio then	
+				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
+			end
 			return [[
 	rho = lhs ? 10 : 1;
 	P = (heatCapacityRatio - 1.) * rho * (lhs ? 2 : 1e-6);
@@ -255,7 +265,9 @@ local initStates = {
 		name = 'relativistic blast wave test problem 2',
 		init = function(solver)
 			solver.cfl[0] = .5	-- needs a slower cfl
-			solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
+			if solver.eqn.guiVarsForName.heatCapacityRatio then	
+				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
+			end
 			return [[
 	rho = 1;
 	P = lhs ? 1000 : .01;
@@ -338,7 +350,9 @@ local initStates = {
 			solver.boundaryMethods.ymax[0] = solver.app.boundaryMethods:find'freeflow'-1
 			solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'mirror'-1
 			solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'mirror'-1
-			solver.guiVarsForName.heatCapacityRatio.value[0] = 7/5
+			if solver.eqn.guiVarsForName.heatCapacityRatio then	
+				solver.guiVarsForName.heatCapacityRatio.value[0] = 7/5
+			end
 			return table{
 	'#define sqrt1_3 '..clnumber(math.sqrt(1/3)),
 	[[
@@ -474,6 +488,17 @@ local initStates = {
 			},
 		},
 	},
+
+	{
+		name = 'Maxwell default',
+		init = function(solver)
+			return [[
+	E = _real3(1,0,0);
+	B = _real3(0, 1, lhs ? 1 : -1);
+]]
+		end,
+	},
+
 }
 
 return initStates

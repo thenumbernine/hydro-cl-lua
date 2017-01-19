@@ -1,11 +1,12 @@
 local class = require 'ext.class'
 local Roe = require 'solver.roe'
+local ffi = require 'ffi'
 
 local RoeImplicitLinearized = class(Roe)
 
--- step contains integrating flux and source terms
--- but not post iterate
-function RoeImplicitLinearized:step(dt)
+function RoeImplicitLinearized:refreshGridSize(...)
+	RoeImplicitLinearized.super.refreshGridSize(self, ...)
+
 	-- the previous call in Solver:iterate is to self:calcDT
 	-- which calls self.equation:calcInterfaceEigenBasis, which fills the self.eigenvalues table
 
@@ -13,44 +14,24 @@ function RoeImplicitLinearized:step(dt)
 	local function calc_dU_dt(dUdtBuf, UBuf)
 		local oldUBuf = self.UBuf
 		self.UBuf = UBuf
-		self:calcDeriv(dUdtBuf, dt)
+		self:calcDeriv(dUdtBuf, self.linearSolverDT)
 		self.UBuf = oldUBuf
 	end
 
--- [[ implicit via some linear solver
-	local qs = self.qs
-
 	local linearSolverArgs = {
 		--maxiter = 1000,
-		x = qs:clone(),
-		epsilon = self.linearSolverEpsilon, 
-		maxiter = self.linearSolverMaxIter,
-		restart = self.linearSolverRestart,
-		--[=[ mostly true ... mostly ...
-		-- not true for any 2nd derivative terms
-		-- this method is only used for Jacobi method, so I don't really care
-		ADiag = (function()
-			local n = self:newState()
-			for i=1,self.gridsize do
-				for j=1,self.numStates do
-					n[i][j] = 1
-				end
-			end
-			return n
-		end)(),
-		--]=]
+		x = self.UBuf,
+		epsilon = 1e-10,
+		maxiter = self.volume * self.eqn.numStates,
+		restart = 10,
 		-- logging:
-		errorCallback = self.errorLogging and function(err, convergenceIteration)
-			print(self.t, convergenceIteration, err)
+		errorCallback = function(err, iter)
+			print(self.t, iter, err)
 		end,
 	}
 
-	--[=[ identity.  do nothing.
-	linearSolverArgs.b = qs:clone()
-	linearSolverArgs.A = function(qs) return qs end
-	--]=]
 	-- [=[ backward Euler
-	linearSolverArgs.b = qs:clone()
+	linearSolverArgs.b = self.lastUBuf
 	linearSolverArgs.A = function(UNextBuf, UBuf)
 		-- if this is a linearized implicit solver
 		-- then the matrix should be computed before invoking the iterative solver
@@ -59,35 +40,41 @@ function RoeImplicitLinearized:step(dt)
 		
 		--UBuf = UBuf - dt * calc_dU_dt(self.UBuf)
 		calc_dU_dt(dUdtbuf, self.UBuf)
-		mulAdd(UNextBuf, UBuf, dUdtbuf, -dt)
+		mulAdd(UNextBuf, UBuf, dUdtbuf, -self.linearSolverDT)
 		
 		-- ... but what about this?
 		--UBuf = UBuf - dt * calc_dU_dt(UBuf)
 		
-		--self.boundaryMethod(qs)
+		--self.boundaryMethod(UBuf)
 	end
 	--]=]
 	--[=[ crank-nicolson - converges faster
-	linearSolverArgs.b = (function(qs)
-		qs = qs + .5 * dt * calc_dU_dt(qs)
-		self.boundaryMethod(qs)
-		return qs
-	end)(qs)
-	linearSolverArgs.A = function(qs)
-		qs = qs - .5 * dt * calc_dU_dt(qs)
-		self.boundaryMethod(qs)
-		return qs
+	linearSolverArgs.b = (function(UBuf)
+		UBuf = UBuf + .5 * dt * calc_dU_dt(UBuf)
+		self.boundaryMethod(UBuf)
+		return UBuf
+	end)(UBuf)
+	linearSolverArgs.A = function(UBuf)
+		UBuf = UBuf - .5 * dt * calc_dU_dt(UBuf)
+		self.boundaryMethod(UBuf)
+		return UBuf
 	end
 	--]=]
 
-	self.qs = self.linearSolver(linearSolverArgs)
-	if self.errorLogging then
-		print()
-	end
---]]
---[[ explicit - forward Euler - for debugging
-	self.qs = self.qs + dt * calc_dU_dt(self.qs)
---]]
+	-- set up gmres solver here
+	self.linearSolver = require 'solver.cl.gmres'(linearSolverArgs)
+end
+
+function RoeImplicitLinearized:createBuffers()
+	RoeImplicitLinearized.super.createBuffers(self)
+	self:clalloc('lastUBuf', self.volume * ffi.sizeof'cons_t')
+end
+
+-- step contains integrating flux and source terms
+-- but not post iterate
+function RoeImplicitLinearized:step(dt)
+	self.linearSolverDT = dt
+	self.linearSolver()
 end
 
 return RoeImplicitLinearized

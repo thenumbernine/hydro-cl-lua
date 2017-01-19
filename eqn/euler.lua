@@ -112,6 +112,9 @@ kernel void initState(
 	real rho = 0;
 	real3 v = _real3(0,0,0);
 	real P = 0;
+	
+	//TODO make this B for Maxwell
+	
 	real3 b = _real3(0,0,0);	//set for MHD / thrown away for pure Euler
 	real ePot = 0;
 
