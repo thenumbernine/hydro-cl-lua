@@ -81,8 +81,8 @@ ADM_BonaMasso_1D_Alcubierre2008.useSourceTerm = true
 
 ADM_BonaMasso_1D_Alcubierre2008.initStates = require 'init.adm'
 
-function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix(solver)
-	local initState = self.initStates[solver.initStatePtr[0]+1]
+function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix()
+	local initState = self.initStates[self.solver.initStatePtr[0]+1]
 	
 	local alphaVar = require 'symmath'.var'alpha'
 	
@@ -90,7 +90,7 @@ function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix(solver)
 	local fCode = fGuiVar.options[fGuiVar.value[0]+1]
 	local fExpr = assert(loadstring('local alpha = ... return '..fCode))(alphaVar)
 	
-	self.codes = initState.init(solver, {
+	self.codes = initState.init(self.solver, {
 		f = fExpr,
 		alphaVar = alphaVar,
 	})
@@ -107,15 +107,14 @@ ADM_BonaMasso_1D_Alcubierre2008.guiVars = {
 	}
 }
 
-function ADM_BonaMasso_1D_Alcubierre2008:getInitStateCode(solver)
-	return table{
-		[[
+function ADM_BonaMasso_1D_Alcubierre2008:getInitStateCode()
+	return template([[
 kernel void initState(
-	global cons_t* UBuf
+	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	global cons_t* U = UBuf + index;
+	global <?=eqn.cons_t?>* U = UBuf + index;
 	
 	U->alpha = calc_alpha(x.x, x.y, x.z);
 	U->gamma_xx = calc_gamma_xx(x.x, x.y, x.z);
@@ -123,12 +122,13 @@ kernel void initState(
 	U->D_g = (2. * calc_d_xxx(x.x, x.y, x.z) / U->gamma_xx);
 	U->KTilde_xx = calc_K_xx(x.x, x.y, x.z) * sqrt(U->gamma_xx);
 }
-]],
-	}:concat'\n'
+]], {
+	eqn = self,
+})
 end
 
-function ADM_BonaMasso_1D_Alcubierre2008:getSolverCode(solver)
-	return template(file['eqn/adm1d_v1.cl'], {solver=solver})
+function ADM_BonaMasso_1D_Alcubierre2008:getSolverCode()
+	return template(file['eqn/adm1d_v1.cl'], {eqn=self, solver=self.solver})
 end
 
 function ADM_BonaMasso_1D_Alcubierre2008:getDisplayVars(solver)

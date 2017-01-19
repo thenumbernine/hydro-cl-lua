@@ -1,6 +1,6 @@
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const global cons_t* U
+	const global <?=eqn.cons_t?>* U
 ) {
 	real f = calc_f(U->alpha);
 	real lambda = U->alpha * sqrt(f / U->gamma_xx);
@@ -29,8 +29,8 @@ end
 
 void eigen_forSide(
 	global eigen_t* eig,
-	const global cons_t* UL,
-	const global cons_t* UR
+	const global <?=eqn.cons_t?>* UL,
+	const global <?=eqn.cons_t?>* UR
 ) {
 	eig->alpha = .5 * (UL->alpha + UR->alpha);
 	eig->gamma_xx = .5 * (UL->gamma_xx + UR->gamma_xx);
@@ -110,12 +110,12 @@ end
 ?>
 
 kernel void addSource(
-	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	global <?=eqn.cons_t?>* derivBuf,
+	const global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(2,2);
-	global cons_t* deriv = derivBuf + index;
-	const global cons_t* U = UBuf + index;
+	global <?=eqn.cons_t?>* deriv = derivBuf + index;
+	const global <?=eqn.cons_t?>* U = UBuf + index;
 	
 	real alpha = U->alpha;
 	real gamma_xx = U->gamma_xx;
@@ -143,7 +143,7 @@ kernel void addSource(
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
 	eigen_t* eig,
-	global const cons_t* U
+	global const <?=eqn.cons_t?>* U
 ) {
 	eig->alpha = U->alpha;
 	eig->gamma_xx = U->gamma_xx;
@@ -152,11 +152,11 @@ void eigen_forCell_<?=side?>(
 <? end ?>
 
 <? for side=0,solver.dim-1 do ?>
-cons_t fluxForCons_<?=side?>(cons_t U) {
+<?=eqn.cons_t?> fluxForCons_<?=side?>(<?=eqn.cons_t?> U) {
 	real sqrt_gamma_xx = sqrt(U.gamma_xx);
 	real K_xx = U.KTilde_xx / sqrt_gamma_xx;
 	real f = calc_f(U.alpha);
-	return (cons_t){
+	return (<?=eqn.cons_t?>){
 		.alpha = 0,
 		.gamma_xx = 0,
 		.a_x = U.alpha * f * K_xx,

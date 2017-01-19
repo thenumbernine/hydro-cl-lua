@@ -97,8 +97,8 @@ ADM_BonaMasso_1D_Alcubierre1997.useSourceTerm = true
 
 ADM_BonaMasso_1D_Alcubierre1997.initStates = require 'init.adm'
 
-function ADM_BonaMasso_1D_Alcubierre1997:getCodePrefix(solver)
-	local initState = self.initStates[solver.initStatePtr[0]+1]
+function ADM_BonaMasso_1D_Alcubierre1997:getCodePrefix()
+	local initState = self.initStates[self.solver.initStatePtr[0]+1]
 	
 	local alphaVar = require 'symmath'.var'alpha'
 	
@@ -106,7 +106,7 @@ function ADM_BonaMasso_1D_Alcubierre1997:getCodePrefix(solver)
 	local fCode = fGuiVar.options[fGuiVar.value[0]+1]
 	local fExpr = assert(loadstring('local alpha = ... return '..fCode))(alphaVar)
 	
-	self.codes = initState.init(solver, {
+	self.codes = initState.init(self.solver, {
 		f = fExpr,
 		alphaVar = alphaVar,
 	})
@@ -123,7 +123,7 @@ ADM_BonaMasso_1D_Alcubierre1997.guiVars = {
 	}
 }
 
-function ADM_BonaMasso_1D_Alcubierre1997:getInitStateCode(solver)
+function ADM_BonaMasso_1D_Alcubierre1997:getInitStateCode()
 	return table{
 		[[
 kernel void initState(
@@ -143,11 +143,11 @@ kernel void initState(
 	}:concat'\n'
 end
 
-function ADM_BonaMasso_1D_Alcubierre1997:getSolverCode(solver)
-	return template(file['eqn/adm1d_v2.cl'], {solver=solver})
+function ADM_BonaMasso_1D_Alcubierre1997:getSolverCode()
+	return template(file['eqn/adm1d_v2.cl'], {eqn=self, solver=self.solver})
 end
 
-function ADM_BonaMasso_1D_Alcubierre1997:getDisplayVars(solver)
+function ADM_BonaMasso_1D_Alcubierre1997:getDisplayVars()
 	return {
 		-- source-only:
 		{alpha = 'value = U->alpha;'},
@@ -169,11 +169,11 @@ end
 
 local eigenVars = {'alpha', 'sqrt_f_over_gamma_xx'}
 
-function ADM_BonaMasso_1D_Alcubierre1997:getEigenTypeCode(solver)
+function ADM_BonaMasso_1D_Alcubierre1997:getEigenTypeCode()
 	return require 'eqn.makestruct'('eigen_t', eigenVars)
 end
 
-function ADM_BonaMasso_1D_Alcubierre1997:getEigenDisplayVars(solver)
+function ADM_BonaMasso_1D_Alcubierre1997:getEigenDisplayVars()
 	return table.map(eigenVars, function(var)
 		return {[var] = 'value = eigen->'..var..';'}
 	end)

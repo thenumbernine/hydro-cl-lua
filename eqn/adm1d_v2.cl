@@ -1,6 +1,6 @@
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const global cons_t* U
+	const global <?=eqn.cons_t?>* U
 ) {
 	real f = calc_f(U->alpha);
 	real lambda = U->alpha * sqrt(f / U->gamma_xx);
@@ -12,7 +12,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
 	eigen_t* eig,
-	const global cons_t* U
+	const global <?=eqn.cons_t?>* U
 ) {
 	real f = calc_f(U->alpha);
 	eig->alpha = U->alpha;
@@ -43,8 +43,8 @@ end
 //used for interface eigen basis
 void eigen_forSide(
 	global eigen_t* eig,
-	global const cons_t* UL,
-	global const cons_t* UR
+	global const <?=eqn.cons_t?>* UL,
+	global const <?=eqn.cons_t?>* UR
 ) {
 	eig->alpha = .5 * (UL->alpha + UR->alpha);
 	real gamma_xx = .5 * (UL->gamma_xx + UR->gamma_xx);
@@ -126,12 +126,12 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 end ?>
 
 kernel void addSource(
-	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	global <?=eqn.cons_t?>* derivBuf,
+	const global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(2,2);
-	global cons_t* deriv = derivBuf + index;
-	const global cons_t* U = UBuf + index;
+	global <?=eqn.cons_t?>* deriv = derivBuf + index;
+	const global <?=eqn.cons_t?>* U = UBuf + index;
 	
 	real alpha = U->alpha;
 	real gamma_xx = U->gamma_xx;

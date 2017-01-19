@@ -106,11 +106,18 @@ function Solver:init(args)
 	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
 	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
 
+	-- these are *only* used for passing through to the eqn creation
+	-- which holds the *true* copy
 	self.prim_t = args.prim_t
 	self.cons_t = args.cons_t
 	self.consLR_t = args.consLR_t
 
 	self:createEqn(args.eqn)
+	
+	-- ... so delete them immediately after
+	self.prim_t = false
+	self.cons_t = false
+	self.consLR_t = false
 	
 	self.name = self.eqn.name..' '..self.name
 
@@ -476,18 +483,18 @@ function Solver:createBuffers()
 	if ffi.sizeof(self.eqn.cons_t) ~= self.eqn.numStates * ffi.sizeof'real' then
 		   error('expected sizeof('..self.eqn.cons_t..') to be '
 				   ..self.eqn.numStates..' * sizeof(real) = '..(self.eqn.numStates * ffi.sizeof'real')
-				   ..' but found '..ffi.sizeof'cons_t')
+				   ..' but found '..ffi.sizeof(self.eqn.cons_t))
 	end
 
 	-- should I put these all in one AoS?
 	
 	-- two fluid uses multiple solvers, each with their own cons_t ... 
 	-- but in ffi, typedefs can't be undefined / redefined
-	self:clalloc('UBuf', self.volume * ffi.sizeof'cons_t')
+	self:clalloc('UBuf', self.volume * ffi.sizeof(self.eqn.cons_t))
 	--self:clalloc('UBuf', self.volume * ffi.sizeof'real' * self.eqn.numStates)
 	
 	if self.usePLM then
-		self:clalloc('ULRBuf', self.volume * self.dim * ffi.sizeof'consLR_t')
+		self:clalloc('ULRBuf', self.volume * self.dim * ffi.sizeof(self.eqn.consLR_t))
 	end
 	self:clalloc('waveBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
 	self:clalloc('eigenBuf', self.volume * self.dim * ffi.sizeof'eigen_t')
@@ -745,18 +752,18 @@ function Solver:refreshSolverProgram()
 	self.getULRBuf = self.usePLM and self.ULRBuf or self.UBuf
 
 	self.getULRArg = self.usePLM 
-		and 'const global consLR_t* ULRBuf'
-		or 'const global cons_t* UBuf' 
+		and ('const global '..self.eqn.consLR_t..'* ULRBuf')
+		or ('const global '..self.eqn.cons_t..'* UBuf')
 
 	-- this code creates the const global cons_t* UL, UR variables
 	-- it assumes that indexL, indexR, and side are already defined
-	self.getULRCode = self.usePLM and [[
-	const global cons_t* UL = &ULRBuf[side + dim * indexL].R;
-	const global cons_t* UR = &ULRBuf[side + dim * indexR].L;
-]] or [[
-	const global cons_t* UL = UBuf + indexL;
-	const global cons_t* UR = UBuf + indexR;
-]]
+	self.getULRCode = self.usePLM and ([[
+	const global ]]..self.eqn.cons_t..[[* UL = &ULRBuf[side + dim * indexL].R;
+	const global ]]..self.eqn.cons_t..[[* UR = &ULRBuf[side + dim * indexR].L;
+]]) or ([[
+	const global ]]..self.eqn.cons_t..[[* UL = UBuf + indexL;
+	const global ]]..self.eqn.cons_t..[[* UR = UBuf + indexR;
+]])
 
 
 
@@ -1022,7 +1029,7 @@ end
 function Solver:refreshBoundaryProgram()
 	self.boundaryProgram, self.boundaryKernel = 
 		self:createBoundaryProgramAndKernel{
-			type = 'cons_t',
+			type = self.eqn.cons_t,
 			-- remap from enum/combobox int values to names
 			methods = table.map(self.boundaryMethods, function(v,k)
 				return self.app.boundaryMethods[1+v[0]], k
