@@ -1,6 +1,6 @@
 kernel void calcDT(
 	global real* dtBuf,
-	const global cons_t* UBuf
+	const global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(2,2)) {
@@ -8,7 +8,7 @@ kernel void calcDT(
 		return;
 	}
 		
-	const global cons_t* U = UBuf + index;
+	const global <?=eqn.cons_t?>* U = UBuf + index;
 
 	real dt = INFINITY;
 	//for (int side = 0; side < dim; ++side) {

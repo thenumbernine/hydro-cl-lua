@@ -16,7 +16,7 @@ then phi = -4 pi del^-2 (rho delta3(r))
 
 kernel void initPotential(
 	global real* ePotBuf,
-	const global cons_t* UBuf
+	const global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(2,2);
 	real rho = 0;

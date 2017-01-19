@@ -67,7 +67,7 @@ end
 
 function RoeImplicitLinearized:createBuffers()
 	RoeImplicitLinearized.super.createBuffers(self)
-	self:clalloc('lastUBuf', self.volume * ffi.sizeof'cons_t')
+	self:clalloc('lastUBuf', self.volume * ffi.sizeof(self.eqn.cons_t))
 end
 
 -- step contains integrating flux and source terms

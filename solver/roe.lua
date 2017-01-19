@@ -666,7 +666,7 @@ end
 
 function Solver:getCalcDTCode()
 	if self.eqn.hasCalcDT then return end
-	return template(file['solver/calcDT.cl'], {solver=self})
+	return template(file['solver/calcDT.cl'], {solver=self, eqn=self.eqn})
 end
 
 function Solver:refreshCommonProgram()
