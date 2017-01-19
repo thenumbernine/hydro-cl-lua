@@ -72,7 +72,7 @@ Solver.integratorNames = Solver.integrators:map(function(integrator) return inte
 Solver.prim_t = 'prim_t'
 Solver.cons_t = 'cons_t'
 Solver.consLR_t = 'consLR_t'
-
+Solver.eigen_t = 'eigen_t'
 --[[
 args:
 	app
@@ -373,9 +373,9 @@ function Solver:addConvertToTexs()
 	if eigenDisplayVars and #eigenDisplayVars > 0 then
 		self:addConvertToTex{
 			name = 'eigen',
-			type = 'eigen_t',
+			type = self.eqn.eigen_t,
 			varCodePrefix = [[
-	const global eigen_t* eigen = buf + intindex;
+	const global ]]..self.eqn.eigen_t..[[* eigen = buf + intindex;
 ]],
 			vars = eigenDisplayVars,
 		}
@@ -497,7 +497,7 @@ function Solver:createBuffers()
 		self:clalloc('ULRBuf', self.volume * self.dim * ffi.sizeof(self.eqn.consLR_t))
 	end
 	self:clalloc('waveBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
-	self:clalloc('eigenBuf', self.volume * self.dim * ffi.sizeof'eigen_t')
+	self:clalloc('eigenBuf', self.volume * self.dim * ffi.sizeof(self.eqn.eigen_t))
 	self:clalloc('deltaUEigBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
 	if self.fluxLimiter[0] > 0 then
 		self:clalloc('rEigBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
@@ -738,7 +738,7 @@ function Solver:getSolverCode()
 
 		self:getCalcDTCode() or '',
 		
-		template(file['solver/solver.cl'], {solver=self})
+		template(file['solver/solver.cl'], {solver=self, eqn=self.eqn})
 	}:concat'\n'
 end
 

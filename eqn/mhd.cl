@@ -235,7 +235,7 @@ void fill(global real* ptr, int step, real a, real b, real c, real d, real e, re
 
 kernel void calcEigenBasis(
 	global real* waveBuf,			//[volume][dim][numWaves]
-	global eigen_t* eigenBuf,		//[volume][dim]
+	global <?=eqn.eigen_t?>* eigenBuf,		//[volume][dim]
 	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(2,1);
@@ -346,7 +346,7 @@ kernel void calcEigenBasis(
 		real lambdaFastMax = v.x + Cf;
 		fill(wave, 1, lambdaFastMin, v.x - CAx, lambdaSlowMin, v.x, lambdaSlowMax, v.x + CAx, lambdaFastMax);
 
-		global eigen_t* eig = eigenBuf + intindex;
+		global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
 
 		// dF/dU
 		<? if solver.checkFluxError then ?>
@@ -444,7 +444,7 @@ kernel void calcEigenBasis(
 			for side=0,2 do ?>
 void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x_
 ) {
 	<?=_7to8code(addr2,side)?>
@@ -460,7 +460,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x
 ) {
 	<?=addr1?> const real* A = eig->evR;
@@ -477,7 +477,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 <? 				if solver.checkFluxError then ?>
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x_
 ) {
 	<?=_7to8code(addr2, side)?>

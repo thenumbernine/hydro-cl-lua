@@ -155,8 +155,8 @@ function ADM_BonaMasso_1D_Alcubierre2008:getEigenTypeCode()
 	return template([[
 typedef struct {
 	real f, alpha, gamma_xx;
-} eigen_t;
-]], {solver=self.solver})
+} <?=eqn.eigen_t?>;
+]], {eqn=self, solver=self.solver})
 end
 		
 function ADM_BonaMasso_1D_Alcubierre2008:getEigenDisplayVars()

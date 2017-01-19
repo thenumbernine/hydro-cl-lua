@@ -30,7 +30,7 @@ kernel void calcDT(
 
 //used for interface eigen basis
 void eigen_forSide(
-	global eigen_t* eig,
+	global <?=eqn.eigen_t?>* eig,
 	global const <?=eqn.cons_t?>* UL, 
 	global const <?=eqn.cons_t?>* UR, 
 	real ePotL, 
@@ -79,7 +79,7 @@ for _,addr0 in ipairs{'', 'global'} do
 ?>
 void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 	<?=addr0?> real* wave,
-	<?=addr1?> const eigen_t* eig
+	<?=addr1?> const <?=eqn.eigen_t?>* eig
 ) {
 	real v_n = eig->v.s[<?=side?>];
 	wave[0] = v_n - eig->Cs;
@@ -95,7 +95,7 @@ end
 
 kernel void calcEigenBasis(
 	global real* waveBuf,			//[volume][dim][numWaves]
-	global eigen_t* eigenBuf,		//[volume][dim]
+	global <?=eqn.eigen_t?>* eigenBuf,		//[volume][dim]
 	<?= solver.getULRArg ?>,
 	const global real* ePotBuf
 ) {
@@ -113,7 +113,7 @@ kernel void calcEigenBasis(
 		
 		int intindex = side + dim * index;	
 
-		global eigen_t* eig = eigenBuf + intindex;
+		global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
 		eigen_forSide(eig, UL, UR, ePotL, ePotR);
 		
 		global real* wave = waveBuf + numWaves * intindex;
@@ -159,7 +159,7 @@ for _,addr0 in ipairs{'', 'global'} do
 
 void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x
 ) { 
 	<?=prefix?>
@@ -189,7 +189,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x
 ) {
 	<?=prefix?>
@@ -204,7 +204,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 <?	if solver.checkFluxError then ?>
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x
 ) {
 	<?=prefix?>
@@ -262,7 +262,7 @@ end
 
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
-	eigen_t* eig,
+	<?=eqn.eigen_t?>* eig,
 	global const <?=eqn.cons_t?>* U
 ) {
 	real ePot = 0; //TODO need ePot...

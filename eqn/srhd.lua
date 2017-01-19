@@ -269,7 +269,7 @@ function SRHD:getEigenTypeCode()
 			local name, ctype = next(field)
 			return '\t'..ctype..' '..name..';\n'
 		end):concat'\n'
-		..'} eigen_t;\n'
+		..'} '..self.eigen_t..';\n'
 end
 
 function SRHD:getEigenDisplayVars()

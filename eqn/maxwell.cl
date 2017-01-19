@@ -16,7 +16,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 //used by PLM
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
-	eigen_t* eig,
+	<?=eqn.eigen_t?>* eig,
 	const global <?=eqn.cons_t?>* U
 ) {
 }
@@ -30,7 +30,7 @@ for _,addr0 in ipairs{'', 'global'} do
 ?>
 void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 	<?=addr1?> real* wave,
-	const <?=addr0?> eigen_t* eig
+	const <?=addr0?> <?=eqn.eigen_t?>* eig
 ) {
 	real lambda = calcEigenvalue();
 	wave[0] = -lambda;
@@ -48,7 +48,7 @@ end
 
 kernel void calcEigenBasis(
 	global real* waveBuf,
-	global eigen_t* eigenBuf,
+	global <?=eqn.eigen_t?>* eigenBuf,
 	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(2,1);
@@ -74,7 +74,7 @@ for _,addr0 in ipairs{'', 'global'} do
 
 void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x
 ) {
 	const real ise = sqrt_1_2 / sqrt_eps0;
@@ -112,7 +112,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x
 ) {
 	const real se = sqrt_1_2 * sqrt_eps0;
@@ -178,7 +178,7 @@ x,  y,  z, z,  y,  x
 ?>
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x_
 ) {
 	//swap input dim x<->side

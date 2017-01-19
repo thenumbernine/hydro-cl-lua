@@ -130,7 +130,7 @@ end
 
 -- can it be zero sized?
 function Maxwell:getEigenTypeCode()
-	return 'typedef struct { char mustbesomething; } eigen_t;'
+	return 'typedef struct { char mustbesomething; } '..self.eigen_t..';'
 end
 
 function Maxwell:getEigenDisplayVars()

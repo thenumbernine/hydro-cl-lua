@@ -12,19 +12,19 @@ inline real maxmod(real a, real b) {
 
 <? if solver.usePLM then ?>
 kernel void calcLR(
-	global consLR_t* ULRBuf,
-	const global cons_t* UBuf,
+	global <?=eqn.consLR_t?>* ULRBuf,
+	const global <?=eqn.cons_t?>* UBuf,
 	real dt
 ) {
 	SETBOUNDS(1,1);
-	const global cons_t* U = UBuf + index;
+	const global <?=eqn.cons_t?>* U = UBuf + index;
 	
 	//TODO skip this lr stuff if we're doing piecewise-constant
 	//...and just use the original buffers
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int intindex = side + dim * index;
-		global consLR_t* ULR = ULRBuf + intindex;	
+		global <?=eqn.consLR_t?>* ULR = ULRBuf + intindex;	
 		
 		//piecewise-linear
 		
@@ -33,15 +33,15 @@ kernel void calcLR(
 		//Works for Euler Sod 1D and 2D
 		//Failing for adm1d_v1
 
-		const global cons_t* UL = U - stepsize[side];
-		const global cons_t* UR = U + stepsize[side];
-		cons_t dUL, dUR, dUC;
+		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
+		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
+		<?=eqn.cons_t?> dUL, dUR, dUC;
 		for (int j = 0; j < numStates; ++j) {
 			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
 			dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
 		}
 
-		cons_t UHalfL, UHalfR;
+		<?=eqn.cons_t?> UHalfL, UHalfR;
 		for (int j = 0; j < numStates; ++j) {
 			
 			//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)	
@@ -62,8 +62,8 @@ kernel void calcLR(
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
 
-		cons_t FHalfL = fluxForCons_<?=side?>(UHalfL);
-		cons_t FHalfR = fluxForCons_<?=side?>(UHalfR);
+		<?=eqn.cons_t?> FHalfL = fluxForCons_<?=side?>(UHalfL);
+		<?=eqn.cons_t?> FHalfR = fluxForCons_<?=side?>(UHalfR);
 		
 		for (int j = 0; j < numStates; ++j) {
 			real dF = FHalfR.ptr[j] - FHalfL.ptr[j];
@@ -85,9 +85,9 @@ kernel void calcLR(
 		//For 2D Euler Sod this gets strange behavior and slowly diverges.
 
 		//1) calc delta q's ... l r c (eqn 36)
-		const global cons_t* UL = U - stepsize[side];
-		const global cons_t* UR = U + stepsize[side];
-		cons_t dUL, dUR, dUC;
+		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
+		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
+		<?=eqn.cons_t?> dUL, dUR, dUC;
 		for (int j = 0; j < numStates; ++j) {
 			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
 			dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
@@ -95,7 +95,7 @@ kernel void calcLR(
 		}
 
 		//calc eigen values and vectors at cell center
-		eigen_t eig;
+		<?=eqn.eigen_t?> eig;
 		eigen_forCell_<?=side?>(&eig, U);
 		real wave[numWaves];
 		eigen_calcWaves_<?=side?>__(wave, &eig);
@@ -131,7 +131,7 @@ kernel void calcLR(
 		}
 
 		//convert back
-		cons_t ql, qr;
+		<?=eqn.cons_t?> ql, qr;
 		eigen_rightTransform_<?=side?>___(ql.ptr, &eig, pl);
 		eigen_rightTransform_<?=side?>___(qr.ptr, &eig, pr);
 		
@@ -143,18 +143,18 @@ kernel void calcLR(
 		
 		const real ePot = 0, ePotL = 0, ePotR = 0;	//TODO fixme
 		//this requires standardizing primFromCons (can't pass ePot so easily)
-		//...which might mean incorporating ePot into cons_t
-		//...which might mean some cons_t variables don't get integrated
+		//...which might mean incorporating ePot into <?=eqn.cons_t?>
+		//...which might mean some <?=eqn.cons_t?> variables don't get integrated
 		//...which might mean custom mul & add functions for the integrators (to skip the non-integrated fields)
-		//...and will mean sizeof(cons_t) >= sizeof(real[numStates])
+		//...and will mean sizeof(<?=eqn.cons_t?>) >= sizeof(real[numStates])
 
 		//1) calc delta q's ... l r c (eqn 36)
-		const global cons_t* UL = U - stepsize[side];
-		const global cons_t* UR = U + stepsize[side];
-		prim_t W = primFromCons(*U, ePot);
-		prim_t WL = primFromCons(*UL, ePotL);
-		prim_t WR = primFromCons(*UR, ePotR);
-		prim_t dWL, dWR, dWC;
+		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
+		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
+		<?=eqn.prim_t?> W = primFromCons(*U, ePot);
+		<?=eqn.prim_t?> WL = primFromCons(*UL, ePotL);
+		<?=eqn.prim_t?> WR = primFromCons(*UR, ePotR);
+		<?=eqn.prim_t?> dWL, dWR, dWC;
 		for (int j = 0; j < numStates; ++j) {
 			dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
 			dWR.ptr[j] = WR.ptr[j] - W.ptr[j];
@@ -162,14 +162,14 @@ kernel void calcLR(
 		}
 
 		//calc eigen values and vectors at cell center
-		eigen_t eig;
+		<?=eqn.eigen_t?> eig;
 		eigen_forCell_<?=side?>(&eig, U);
 		real wave[numWaves];
 		eigen_calcWaves_<?=side?>__(wave, &eig);
 	
 		//apply dU/dW before applying left/right eigenvectors so the eigenvectors are of the flux wrt primitives 
 		//RW = dW/dU RU, LW = LU dU/dW
-		cons_t tmp;
+		<?=eqn.cons_t?> tmp;
 		
 		apply_dU_dW(&tmp, &W, &dWL);
 		real dWLEig[numWaves];
@@ -211,14 +211,14 @@ kernel void calcLR(
 		//convert back
 		
 		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pl);
-		prim_t ql;
+		<?=eqn.prim_t?> ql;
 		apply_dW_dU(&ql, &W, &tmp);
 		
 		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pr);
-		prim_t qr;
+		<?=eqn.prim_t?> qr;
 		apply_dW_dU(&qr, &W, &tmp);
 	
-		prim_t W2L, W2R;
+		<?=eqn.prim_t?> W2L, W2R;
 		for (int j = 0; j < numStates; ++j) {
 			W2L.ptr[j] = W.ptr[j] - qr.ptr[j];
 			W2R.ptr[j] = W.ptr[j] + ql.ptr[j];
@@ -235,7 +235,7 @@ kernel void calcLR(
 kernel void calcErrors(
 	global error_t* errorBuf,
 	const global real* waveBuf,
-	const global eigen_t* eigenBuf
+	const global <?=eqn.eigen_t?>* eigenBuf
 ) {
 	SETBOUNDS(0,0);
 
@@ -243,7 +243,7 @@ kernel void calcErrors(
 		const int side = <?=side?>;
 		int intindex = side + dim * index;
 		const global real* wave = waveBuf + numWaves * intindex;
-		const global eigen_t* eig = eigenBuf + intindex;
+		const global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
 
 		real orthoError = 0;
 		real fluxError = 0;
@@ -305,7 +305,7 @@ kernel void calcErrors(
 kernel void calcDeltaUEig(
 	global real* deltaUEigBuf,
 	<?= solver.getULRArg ?>,
-	const global eigen_t* eigenBuf
+	const global <?=eqn.eigen_t?>* eigenBuf
 ) {
 	SETBOUNDS(2,1);	
 	int indexR = index;
@@ -314,14 +314,14 @@ kernel void calcDeltaUEig(
 		int indexL = index - stepsize[side];
 		<?= solver.getULRCode ?>
 
-		cons_t deltaU;
+		<?=eqn.cons_t?> deltaU;
 		for (int j = 0; j < numStates; ++j) {
 			deltaU.ptr[j] = UR->ptr[j] - UL->ptr[j];
 		}
 	
 		int intindex = side + dim * index;	
 		global real* deltaUEig = deltaUEigBuf + intindex * numWaves;
-		const global eigen_t* eig = eigenBuf + intindex;
+		const global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
 		eigen_leftTransform_<?=side?>_global_global_(deltaUEig, eig, deltaU.ptr);
 	}<? end ?>
 }
@@ -361,10 +361,10 @@ kernel void calcREig(
 <? end ?>
 
 kernel void calcFlux(
-	global cons_t* fluxBuf,
+	global <?=eqn.cons_t?>* fluxBuf,
 	<?= solver.getULRArg ?>,
 	const global real* waveBuf, 
-	const global eigen_t* eigenBuf, 
+	const global <?=eqn.eigen_t?>* eigenBuf, 
 	const global real* deltaUEigBuf,
 	real dt
 <? if solver.fluxLimiter[0] > 0 then ?>
@@ -381,11 +381,11 @@ kernel void calcFlux(
 		<?= solver.getULRCode ?>
 		
 		int intindex = side + dim * index;
-		const global eigen_t* eig = eigenBuf + intindex;
+		const global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
 
 		real fluxEig[numWaves];
 <? if not solver.eqn.hasFluxFromCons then ?>
-		cons_t UAvg;
+		<?=eqn.cons_t?> UAvg;
 		for (int j = 0; j < numStates; ++j) {
 			UAvg.ptr[j] = .5 * (UL->ptr[j] + UR->ptr[j]);
 		}
@@ -420,12 +420,12 @@ kernel void calcFlux(
 			);
 		}
 		
-		global cons_t* flux = fluxBuf + intindex;
+		global <?=eqn.cons_t?>* flux = fluxBuf + intindex;
 		eigen_rightTransform_<?=side?>_global_global_(flux->ptr, eig, fluxEig);
 
 <? if solver.eqn.hasFluxFromCons then ?>
-		cons_t FL = fluxFromCons_<?=side?>(*UL);
-		cons_t FR = fluxFromCons_<?=side?>(*UR);
+		<?=eqn.cons_t?> FL = fluxFromCons_<?=side?>(*UL);
+		<?=eqn.cons_t?> FR = fluxFromCons_<?=side?>(*UR);
 		for (int j = 0; j < numStates; ++j) {
 			flux->ptr[j] += .5 * (FL.ptr[j] + FR.ptr[j]);
 		}
@@ -443,11 +443,11 @@ kernel void calcFlux(
 }
 
 kernel void calcDerivFromFlux(
-	global cons_t* derivBuf,
-	const global cons_t* fluxBuf
+	global <?=eqn.cons_t?>* derivBuf,
+	const global <?=eqn.cons_t?>* fluxBuf
 ) {
 	SETBOUNDS(2,2);
-	global cons_t* deriv = derivBuf + index;
+	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 		
 	real volume = volume_at(cell_x(i));
 	
@@ -455,8 +455,8 @@ kernel void calcDerivFromFlux(
 		const int side = <?=side?>;
 		int intindexL = side + dim * index;
 		int intindexR = intindexL + dim * stepsize[side]; 
-		const global cons_t* fluxL = fluxBuf + intindexL;
-		const global cons_t* fluxR = fluxBuf + intindexR;
+		const global <?=eqn.cons_t?>* fluxL = fluxBuf + intindexL;
+		const global <?=eqn.cons_t?>* fluxR = fluxBuf + intindexR;
 		for (int j = 0; j < numStates; ++j) {
 			real deltaFlux = fluxR->ptr[j] - fluxL->ptr[j];
 			deriv->ptr[j] -= deltaFlux / (volume * grid_dx<?=side?>);

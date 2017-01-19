@@ -131,13 +131,15 @@ function ADM_BonaMasso_3D:getDisplayVars()
 end
 
 function ADM_BonaMasso_3D:getEigenTypeCode()
-	return [[
+	return template([[
 typedef struct {
 	real alpha;	//used only by eigen_calcWaves ... makes me think eigen_forCell / eigen_forSide should both calculate waves and basis variables in the same go
 	real f;
 	sym3 gammaU;
-} eigen_t;
-]]
+} <?=eqn.eigen_t?>;
+]], {
+	eqn = self,
+})
 end
 
 function ADM_BonaMasso_3D:getEigenDisplayVars()

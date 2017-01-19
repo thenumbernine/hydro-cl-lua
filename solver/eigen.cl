@@ -7,7 +7,7 @@ for _,addr0 in ipairs{'', 'global'} do
 			for side=0,2 do ?>
 void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x
 ) {
 	<?=addr1?> const real* A = eig->evL;
@@ -22,7 +22,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x
 ) {
 	<?=addr1?> const real* A = eig->evR;
@@ -38,7 +38,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 <? 				if solver.checkFluxError then ?>
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x
 ) {
 	<?=addr1?> const real* A = eig->A;

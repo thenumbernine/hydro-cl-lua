@@ -15,9 +15,15 @@ Equation.useSourceTerm = nil
 Equation.prim_t = 'prim_t'
 Equation.cons_t = 'cons_t'
 Equation.consLR_t = 'consLR_t'
+Equation.eigen_t = 'eigen_t'
 
 function Equation:init(solver)
 	self.solver = assert(solver)
+
+	self.prim_t = solver.prim_t
+	self.cons_t = solver.cons_t
+	self.consLR_t = solver.consLR_t
+	self.eigen_t = solver.eigen_t
 
 	-- TODO get rid of consVars and primVars
 	-- they're still used by ADM1D
@@ -71,7 +77,7 @@ typedef struct {
 <? if solver.checkFluxError then ?>
 	real A[<?=numStates * numStates?>];
 <? end ?>
-} eigen_t;
+} <?=eqn.eigen_t?>;
 ]], {
 		numStates = self.numStates,
 		numWaves = self.numWaves,

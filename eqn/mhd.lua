@@ -208,8 +208,9 @@ typedef struct {
 <? if solver.checkFluxError then ?>
 	real A[7*7];
 <? end ?>
-} eigen_t;
+} <?=eqn.eigen_t?>;
 ]], {
+		eqn = self,
 		solver = self.solver,
 	})
 end

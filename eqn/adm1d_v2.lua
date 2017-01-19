@@ -170,7 +170,7 @@ end
 local eigenVars = {'alpha', 'sqrt_f_over_gamma_xx'}
 
 function ADM_BonaMasso_1D_Alcubierre1997:getEigenTypeCode()
-	return require 'eqn.makestruct'('eigen_t', eigenVars)
+	return require 'eqn.makestruct'(self.eigen_t, eigenVars)
 end
 
 function ADM_BonaMasso_1D_Alcubierre1997:getEigenDisplayVars()

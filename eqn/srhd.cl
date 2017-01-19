@@ -52,7 +52,7 @@ kernel void calcDT(
 //shoud I PLM the U's then converge the prims ... and therefore track the prims on edges as well?
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
-	eigen_t* eig,
+	<?=eqn.eigen_t?>* eig,
 	const global <?=eqn.cons_t?>* U
 ) {
 	
@@ -62,7 +62,7 @@ void eigen_forCell_<?=side?>(
 
 kernel void calcEigenBasis(
 	global real* waveBuf,
-	global eigen_t* eigenBuf,
+	global <?=eqn.eigen_t?>* eigenBuf,
 	
 	//TODO 
 	//turn this into a LR extrapolation
@@ -161,7 +161,7 @@ kernel void calcEigenBasis(
 		real Kappa = kappaTilde / (kappaTilde - csSq);	//2008 Font eqn 112.  
 		//Kappa = h;	//approx for ideal gas
 		
-		global eigen_t* eig = eigenBuf + intindex;	
+		global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;	
 
 <?
 for _,field in ipairs(eqn.eigenStructFields) do
@@ -186,7 +186,7 @@ for _,addr0 in ipairs{'', 'global'} do
 ?>
 void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x_
 ) { 
 	//rotate incoming v's in x
@@ -264,7 +264,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x
 ) {
 	<?=prefix?>
@@ -311,7 +311,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 <?	if solver.checkFluxError then ?>
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x_
 ) {
 	//rotate incoming v's in x

@@ -15,7 +15,7 @@ for _,addr0 in ipairs{'', 'global'} do
 ?>
 void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 	<?=addr1?> real* wave,
-	const <?=addr0?> eigen_t* eig
+	const <?=addr0?> <?=eqn.eigen_t?>* eig
 ) {
 	real lambda = eig->alpha * sqrt(eig->f / eig->gamma_xx);
 	wave[0] = -lambda;
@@ -28,7 +28,7 @@ end
 ?>
 
 void eigen_forSide(
-	global eigen_t* eig,
+	global <?=eqn.eigen_t?>* eig,
 	const global <?=eqn.cons_t?>* UL,
 	const global <?=eqn.cons_t?>* UR
 ) {
@@ -39,7 +39,7 @@ void eigen_forSide(
 
 kernel void calcEigenBasis(
 	global real* waveBuf,
-	global eigen_t* eigenBuf,
+	global <?=eqn.eigen_t?>* eigenBuf,
 	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(2,1);
@@ -51,7 +51,7 @@ kernel void calcEigenBasis(
 		<?= solver.getULRCode ?>
 		
 		int intindex = side + dim * index;
-		global eigen_t* eig = eigenBuf + intindex;
+		global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
 		eigen_forSide(eig, UL, UR);
 
 		global real* wave = waveBuf + numWaves * intindex;
@@ -68,7 +68,7 @@ for _,addr0 in ipairs{'', 'global'} do
 
 void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x
 ) {
 	real sqrt_f = sqrt(eig->f);
@@ -79,7 +79,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x
 ) {
 	y[0] = 0;
@@ -92,7 +92,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 <?				if solver.checkFluxError then ?>
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
-	<?=addr1?> const eigen_t* eig,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x
 ) {
 	real alpha_sqrt_gamma_xx = eig->alpha / sqrt(eig->gamma_xx);
@@ -142,7 +142,7 @@ kernel void addSource(
 
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
-	eigen_t* eig,
+	<?=eqn.eigen_t?>* eig,
 	global const <?=eqn.cons_t?>* U
 ) {
 	eig->alpha = U->alpha;
