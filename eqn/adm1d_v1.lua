@@ -131,7 +131,7 @@ function ADM_BonaMasso_1D_Alcubierre2008:getSolverCode()
 	return template(file['eqn/adm1d_v1.cl'], {eqn=self, solver=self.solver})
 end
 
-function ADM_BonaMasso_1D_Alcubierre2008:getDisplayVars(solver)
+function ADM_BonaMasso_1D_Alcubierre2008:getDisplayVars()
 	return {
 		-- source-only:
 		{alpha = 'value = U->alpha;'},
@@ -151,15 +151,15 @@ function ADM_BonaMasso_1D_Alcubierre2008:getDisplayVars(solver)
 	}
 end
 
-function ADM_BonaMasso_1D_Alcubierre2008:getEigenTypeCode(solver)
+function ADM_BonaMasso_1D_Alcubierre2008:getEigenTypeCode()
 	return template([[
 typedef struct {
 	real f, alpha, gamma_xx;
 } eigen_t;
-]], {solver=solver})
+]], {solver=self.solver})
 end
 		
-function ADM_BonaMasso_1D_Alcubierre2008:getEigenDisplayVars(solver)
+function ADM_BonaMasso_1D_Alcubierre2008:getEigenDisplayVars()
 	return {{f = 'value = eigen->f;'}}
 end
 

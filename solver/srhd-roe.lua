@@ -29,7 +29,7 @@ function SRHDRoe:addConvertToTexUBuf()
 		extraArgs = {'const global '..self.eqn.prim_t..'* primBuf'},
 -- the index vs dstindex stuff is shared in common with the main display code
 		varCodePrefix = self.eqn:getDisplayVarCodePrefix(),
-		vars = self.eqn:getDisplayVars(self),
+		vars = self.eqn:getDisplayVars(),
 	}, ConvertToTex_SRHD_U)
 end
 

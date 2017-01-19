@@ -6,7 +6,7 @@ real calcEigenvalue() {
 
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const global cons_t* U
+	const global <?=eqn.cons_t?>* U
 ) {
 	real lambda = calcEigenvalue();
 	return (range_t){-lambda, lambda};
@@ -17,7 +17,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
 	eigen_t* eig,
-	const global cons_t* U
+	const global <?=eqn.cons_t?>* U
 ) {
 }
 <? end ?>
@@ -182,7 +182,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* x_
 ) {
 	//swap input dim x<->side
-	<?=addr2?> const cons_t* x = (<?=addr2?> const cons_t*)x_;
+	<?=addr2?> const <?=eqn.cons_t?>* x = (<?=addr2?> const <?=eqn.cons_t?>*)x_;
 	real3 epsE = x->epsE;
 	real3 B = x->B;
 
@@ -224,11 +224,11 @@ end
 ?>
 
 kernel void addSource(
-	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	global <?=eqn.cons_t?>* derivBuf,
+	const global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(2,2);
-	global cons_t* deriv = derivBuf + index;
-	const global cons_t* U = UBuf + index;
+	global <?=eqn.cons_t?>* deriv = derivBuf + index;
+	const global <?=eqn.cons_t?>* U = UBuf + index;
 	deriv->epsE = real3_sub(deriv->epsE, real3_scale(U->epsE, 1. / eps0 * sigma));
 }

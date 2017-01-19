@@ -353,7 +353,7 @@ function Solver:addConvertToTexUBuf()
 		name = 'U',
 		type = self.eqn.cons_t,
 		varCodePrefix = self.eqn:getDisplayVarCodePrefix(),
-		vars = assert(self.eqn:getDisplayVars(self)),
+		vars = assert(self.eqn:getDisplayVars()),
 	}
 end
 
@@ -639,7 +639,7 @@ function Solver:createCodePrefix()
 		errorTypeCode,
 		self:getCoordMapCode() or '',
 		-- this is dependent on coord map / length code
-		self.eqn:getCodePrefix(self) or '',
+		self.eqn:getCodePrefix() or '',
 		self:getConsLRTypeCode(),
 	}
 
@@ -650,7 +650,7 @@ end
 function Solver:refreshInitStateProgram()
 	local initStateCode = table{
 		self.codePrefix,
-		self.eqn:getInitStateCode(self),
+		self.eqn:getInitStateCode(),
 	}:concat'\n'
 	self.initStateProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=initStateCode}
 	self.initStateKernel = self.initStateProgram:kernel('initState', self.UBuf)
@@ -734,7 +734,7 @@ function Solver:getSolverCode()
 		slopeLimiterCode,
 		
 		'typedef struct { real min, max; } range_t;',
-		self.eqn:getSolverCode(self) or '',
+		self.eqn:getSolverCode() or '',
 
 		self:getCalcDTCode() or '',
 		

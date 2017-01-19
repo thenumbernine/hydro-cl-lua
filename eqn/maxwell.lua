@@ -10,7 +10,6 @@ local Maxwell = class(Equation)
 Maxwell.name = 'Maxwell'
 
 Maxwell.numStates = 6
-Maxwell.consVars = {'epsEx', 'epsEx', 'epsEz', 'Bx', 'By', 'Bz'}
 Maxwell.mirrorVars = {{'epsE.x', 'B.x'}, {'epsE.y', 'B.y'}, {'epsE.z', 'B.z'}}
 
 Maxwell.hasEigenCode = true
@@ -25,15 +24,17 @@ Maxwell.guiVars = table{
 }
 
 function Maxwell:getTypeCode()
-	return [[
+	return template([[
 typedef union {
 	real ptr[6];
 	struct {
 		real3 epsE;
 		real3 B;
 	};
-} cons_t;
-]]
+} <?=eqn.cons_t?>;
+]], {
+	eqn = self,
+})
 end
 
 function Maxwell:getCodePrefix()
@@ -41,25 +42,27 @@ function Maxwell:getCodePrefix()
 		Maxwell.super.getCodePrefix(self),
 		'#define sqrt_eps0 '..clnumber(math.sqrt(self.guiVarsForName.eps0.value[0])),
 		'#define sqrt_mu0 '..clnumber(math.sqrt(self.guiVarsForName.mu0.value[0])),
-		[[
-real ESq(cons_t U) { 
+		template([[
+real ESq(<?=eqn.cons_t?> U) { 
 	return coordLenSq(U.epsE) / (eps0 * eps0);
 }
 
-real BSq(cons_t U) {
+real BSq(<?=eqn.cons_t?> U) {
 	return coordLenSq(U.B);
 }
-]]
+]], {
+	eqn = self,
+}),
 	}:concat'\n'
 end
 
-function Maxwell:getInitStateCode(solver)
-	local initState = self.initStates[1+solver.initStatePtr[0]]
-	assert(initState, "couldn't find initState "..solver.initStatePtr[0])	
-	local code = initState.init(solver)	
-	return [[
+function Maxwell:getInitStateCode()
+	local initState = self.initStates[1+self.solver.initStatePtr[0]]
+	assert(initState, "couldn't find initState "..self.solver.initStatePtr[0])	
+	local code = initState.init(self.solver)	
+	return template([[
 kernel void initState(
-	global cons_t* UBuf
+	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
@@ -72,7 +75,7 @@ kernel void initState(
 		&& x.z < mids.z
 #endif
 	;
-	global cons_t* U = UBuf + index;
+	global <?=eqn.cons_t?>* U = UBuf + index;
 
 	//used
 	real3 E = _real3(0,0,0);
@@ -88,14 +91,16 @@ kernel void initState(
 	U->epsE = real3_scale(E, eps0);
 	U->B = B;
 }
-]]
+]], {
+	eqn = self,
+})
 end
 
-function Maxwell:getSolverCode(solver)
-	return template(file['eqn/maxwell.cl'], {solver=solver})
+function Maxwell:getSolverCode()
+	return template(file['eqn/maxwell.cl'], {eqn=self, solver=self.solver})
 end
 
-function Maxwell:getDisplayVars(solver)
+function Maxwell:getDisplayVars()
 	return table{
 		{Ex = 'value = U->epsE.x / eps0;'},
 		{Ey = 'value = U->epsE.y / eps0;'},
@@ -119,16 +124,16 @@ function Maxwell:getDisplayVars(solver)
 	<? if field == 'epsE' then ?>
 	value /= eps0;
 	<? end ?>
-]], {solver=solver, field=field})}
+]], {solver=self.solver, field=field})}
 	end))
 end
 
 -- can it be zero sized?
-function Maxwell:getEigenTypeCode(solver)
+function Maxwell:getEigenTypeCode()
 	return 'typedef struct { char mustbesomething; } eigen_t;'
 end
 
-function Maxwell:getEigenDisplayVars(solver)
+function Maxwell:getEigenDisplayVars()
 	return {}
 end
 
