@@ -8,11 +8,11 @@ SelfGrav.gravityConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
 -- params for solver/poisson.cl 
 function SelfGrav:getCodeParams()
 	return {
-		args = 'const global '..self.solver.eqn.cons_t..'* UBuf',
+		args = 'global '..self.solver.eqn.cons_t..'* UBuf',
 		calcRho = require 'template'([[
 #define gravitationalConstant <?=clnumber(self.gravityConstant)?>
-	const global <?=eqn.cons_t?>* U = UBuf + index;
-	rho = gravitationalConstant * U->rho;	//maybe a 4pi?  or is that only in the continuous case?
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	rho = -gravitationalConstant * U->rho;	//maybe a 4pi?  or is that only in the continuous case?
 ]], {
 	self = self,
 	eqn = self.solver.eqn,
@@ -26,8 +26,7 @@ SelfGrav.extraCode = [[
 
 kernel void calcGravityDeriv(
 	global <?=eqn.cons_t?>* derivBuffer,
-	const global <?=eqn.cons_t?>* UBuf,
-	const global real* ePotBuf
+	global const <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(2,2);
 	
@@ -40,7 +39,7 @@ kernel void calcGravityDeriv(
 		int indexL = index - stepsize[side];
 		int indexR = index + stepsize[side];
 	
-		real gradient = (ePotBuf[indexR] - ePotBuf[indexL]) / (2. * dx<?=side?>_at(i));
+		real gradient = (UBuf[indexR].ePot - UBuf[indexL].ePot) / (2. * dx<?=side?>_at(i));
 		real gravity = -gradient;
 
 		deriv->m.s[side] -= U->rho * gravity;
@@ -55,7 +54,6 @@ function SelfGrav:refreshSolverProgram()
 	local solver = self.solver
 	solver.calcGravityDerivKernel = solver.solverProgram:kernel'calcGravityDeriv'
 	solver.calcGravityDerivKernel:setArg(1, solver.UBuf)
-	solver.calcGravityDerivKernel:setArg(2, solver.ePotBuf)	
 end
 
 local field = 'gravityPoisson'

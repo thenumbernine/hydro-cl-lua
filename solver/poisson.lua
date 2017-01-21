@@ -12,18 +12,6 @@ function Poisson:init(solver)
 	self.solver = solver
 end
 
-function Poisson:createBuffers()
-	local solver = self.solver
-	solver:clalloc('ePotBuf', solver.volume * ffi.sizeof(solver.app.real))
-end
-
-function Poisson:addConvertToTexs()
-	self.solver:addConvertToTex{
-		name = 'ePot',
-		vars = {{['0'] = 'value = buf[index];'}},
-	}
-end
-
 function Poisson:getSolverCode()
 	return require 'template'(
 		table{
@@ -38,20 +26,24 @@ end
 
 function Poisson:refreshSolverProgram()
 	local solver = self.solver
-	solver.initPotentialKernel = solver.solverProgram:kernel('initPotential', solver.ePotBuf, solver.UBuf)
-	solver.solvePoissonKernel = solver.solverProgram:kernel('solvePoisson', solver.ePotBuf, solver.UBuf)
+	solver.initPotentialKernel = solver.solverProgram:kernel('initPotential', solver.UBuf)
+	solver.solvePoissonKernel = solver.solverProgram:kernel('solvePoisson', solver.UBuf)
 end
 
 function Poisson:refreshBoundaryProgram()
 	local solver = self.solver
+	-- TODO only apply to the ePot field
 	solver.potentialBoundaryProgram, solver.potentialBoundaryKernel =
 		solver:createBoundaryProgramAndKernel{
-			type = 'real',
+			type = solver.eqn.cons_t,
 			methods = table.map(solver.boundaryMethods, function(v,k)
 				return solver.app.boundaryMethods[1+v[0]], k
 			end),
+			assign = function(a,b)
+				return a..'.ePot = '..b..'.ePot'
+			end,
 		}
-	solver.potentialBoundaryKernel:setArg(0, solver.ePotBuf)
+	solver.potentialBoundaryKernel:setArg(0, solver.UBuf)
 end
 
 function Poisson:resetState()
@@ -91,16 +83,6 @@ function Poisson:createBehavior(field, enableField)
 			template.super.init(self, args)
 		end
 
-		function template:createBuffers()
-			template.super.createBuffers(self)
-			self[field]:createBuffers()
-		end
-
-		function template:addConvertToTexs()
-			template.super.addConvertToTexs(self)
-			self[field]:addConvertToTexs()
-		end
-
 		function template:getSolverCode()
 			return table{
 				template.super.getSolverCode(self),
@@ -108,14 +90,14 @@ function Poisson:createBehavior(field, enableField)
 			}:concat'\n'
 		end
 
-		function template:refreshSolverProgram()
-			template.super.refreshSolverProgram(self)
-			self[field]:refreshSolverProgram()
-		end
-
 		function template:refreshBoundaryProgram()
 			template.super.refreshBoundaryProgram(self)
 			self[field]:refreshBoundaryProgram()
+		end
+
+		function template:refreshSolverProgram()
+			template.super.refreshSolverProgram(self)
+			self[field]:refreshSolverProgram()
 		end
 
 		-- TODO

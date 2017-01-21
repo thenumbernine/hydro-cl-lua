@@ -7,9 +7,9 @@ NoDiv.gaussSeidelMaxIters = 20
 
 function NoDiv:getCodeParams()
 	return {
-		args = 'const global '..self.solver.eqn.cons_t..'* UBuf',
+		args = 'global '..self.solver.eqn.cons_t..'* UBuf',
 		calcRho = require 'template'([[
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=eqn.cons_t?>* U = UBuf + index;
 	real divB = .5 * (0
 <? for j=0,solver.dim-1 do ?>
 		+ (U[stepsize.s<?=j?>].B.s<?=j?> - U[-stepsize.s<?=j?>].B.s<?=j?>) / grid_dx<?=j?>
@@ -27,14 +27,12 @@ end
 NoDiv.extraCode = [[
 
 kernel void noDiv(
-	global <?=eqn.cons_t?>* UBuf,
-	const global real* ePotBuf
+	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(2,2);
 	global <?=eqn.cons_t?>* U = UBuf + index;
-	const global real* ePot = ePotBuf + index;
 <? for j=0,solver.dim-1 do ?> 
-	U->B.s<?=j?> -= (ePot[stepsize.s<?=j?>] - ePot[-stepsize.s<?=j?>]) / (2. * grid_dx<?=j?>);
+	U->B.s<?=j?> -= (UBuf[stepsize.s<?=j?>].ePot - UBuf[-stepsize.s<?=j?>].ePot) / (2. * grid_dx<?=j?>);
 <? end ?>
 }
 
@@ -44,7 +42,7 @@ function NoDiv:refreshSolverProgram()
 	NoDiv.super.refreshSolverProgram(self)
 
 	local solver = self.solver
-	solver.noDivKernel = solver.solverProgram:kernel('noDiv', solver.UBuf, solver.ePotBuf)
+	solver.noDivKernel = solver.solverProgram:kernel('noDiv', solver.UBuf)
 end
 
 local field = 'noDivPoisson' 

@@ -7,12 +7,13 @@ local Equation = require 'eqn.eqn'
 local Euler = class(Equation)
 Euler.name = 'Euler'
 
-Euler.numStates = 5
+-- can I add ePot without much harm?
+Euler.numWaves = 5
+Euler.numStates = 6
 
 Euler.mirrorVars = {{'m.x'}, {'m.y'}, {'m.z'}} 
 
 Euler.hasEigenCode = true
-Euler.hasCalcDT = true
 
 Euler.initStates = require 'init.euler'
 
@@ -23,11 +24,12 @@ Euler.guiVars = {
 function Euler:getTypeCode()
 	return template([[
 typedef union {
-	real ptr[5];
+	real ptr[6];
 	struct { 
 		real rho;
 		real3 v;
 		real P;
+		real ePot;
 	};
 } <?=eqn.prim_t?>;
 
@@ -37,6 +39,7 @@ typedef union {
 		real rho;
 		real3 m;
 		real ETotal;
+		real ePot;
 	};
 } <?=eqn.cons_t?>;
 ]], {
@@ -58,8 +61,8 @@ inline real calc_EKin(<?=eqn.prim_t?> W) { return W.rho * calc_eKin(W); }
 inline real calc_EInt(<?=eqn.prim_t?> W) { return W.P / (heatCapacityRatio - 1.); }
 inline real calc_eInt(<?=eqn.prim_t?> W) { return calc_EInt(W) / W.rho; }
 inline real calc_EKin_fromCons(<?=eqn.cons_t?> U) { return .5 * coordLenSq(U.m) / U.rho; }
-inline real calc_ETotal(<?=eqn.prim_t?> W, real ePot) {
-	real EPot = W.rho * ePot;
+inline real calc_ETotal(<?=eqn.prim_t?> W) {
+	real EPot = W.rho * W.ePot;
 	return calc_EKin(W) + calc_EInt(W) + EPot;
 }
 
@@ -67,22 +70,24 @@ inline real calc_Cs(const <?=eqn.prim_t?>* W) {
 	return sqrt(heatCapacityRatio * W->P / W->rho);
 }
 
-inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real ePot) {
-	real EPot = U.rho * ePot;
+inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U) {
+	real EPot = U.rho * U.ePot;
 	real EKin = calc_EKin_fromCons(U);
 	real EInt = U.ETotal - EPot - EKin;
 	return (<?=eqn.prim_t?>){
 		.rho = U.rho,
 		.v = real3_scale(U.m, 1./U.rho),
 		.P = EInt / (heatCapacityRatio - 1.),
+		.ePot = U.ePot,
 	};
 }
 
-<?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real ePot) {
+<?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W) {
 	return (<?=eqn.cons_t?>){
 		.rho = W.rho,
 		.m = real3_scale(W.v, W.rho),
-		.ETotal = calc_ETotal(W, ePot),
+		.ETotal = calc_ETotal(W),
+		.ePot = W.ePot,
 	};
 }
 ]], {
@@ -97,8 +102,7 @@ function Euler:getInitStateCode()
 	local code = initState.init(self.solver)	
 	return template([[
 kernel void initState(
-	global <?=eqn.cons_t?>* UBuf,
-	global real* ePotBuf
+	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
@@ -122,9 +126,8 @@ kernel void initState(
 
 ]]..code..[[
 
-	<?=eqn.prim_t?> W = {.rho=rho, .v=v, .P=P};
-	UBuf[index] = consFromPrim(W, ePot);
-	ePotBuf[index] = ePot;
+	<?=eqn.prim_t?> W = {.rho=rho, .v=v, .P=P, .ePot=ePot};
+	UBuf[index] = consFromPrim(W);
 }
 ]], {
 	eqn = self,
@@ -138,8 +141,7 @@ end
 function Euler:getDisplayVarCodePrefix()
 	return template([[
 	<?=eqn.cons_t?> U = buf[index];
-	real ePot = ePotBuf[index];
-	<?=eqn.prim_t?> W = primFromCons(U, ePot);
+	<?=eqn.prim_t?> W = primFromCons(U);
 ]], {
 	eqn = self,
 })
@@ -159,11 +161,11 @@ function Euler:getDisplayVars()
 		{P = 'value = W.P;'},
 		{eInt = 'value = calc_eInt(W);'},
 		{eKin = 'value = calc_eKin(W);'},
-		{ePot = 'value = ePot;'},
+		{ePot = 'value = U.ePot;'},
 		{eTotal = 'value = U.ETotal / W.rho;'},
 		{EInt = 'value = calc_EInt(W);'},
 		{EKin = 'value = calc_EKin(W);'},
-		{EPot = 'value = W.rho * ePot;'},
+		{EPot = 'value = U.rho * U.ePot;'},
 		{ETotal = 'value = U.ETotal;'},
 		{S = 'value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
 		{H = 'value = calc_H(W.P);'},

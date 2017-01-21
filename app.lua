@@ -236,7 +236,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 1,
+		dim = cmdline.dim or 2,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 4, TVD',
@@ -252,9 +252,9 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
+			cmdline.gridSize or 64,
+			cmdline.gridSize or 64,
+			cmdline.gridSize or 64,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -313,17 +313,22 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		--initState = 'relativistic blast wave test problem 1',
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'relativistic blast wave interaction',
+		-- self-gravitation tests:
+		initState = 'self-gravitation test 1',
+		--initState = 'self-gravitation test 1 spinning',
+		--initState = 'self-gravitation test 2',
+		--initState = 'self-gravitation test 4',
 		-- MHD-only init states: (that use 'b')
-		initState = 'Brio-Wu',
+		--initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
 		-- EM:
 		--initState = 'Maxwell default',
 	}
-
+	
 	self.solvers = table()
-
+	
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 	
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
@@ -344,7 +349,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	--self.solvers:insert(require 'solver.maxwell-roe'(args))
 	
 	-- EM+HD
-	self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
+	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
 	
 	-- GR 
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))

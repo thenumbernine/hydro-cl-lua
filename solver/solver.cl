@@ -141,19 +141,12 @@ kernel void calcLR(
 		}
 #elif 0	//Trangenstein, Athena, etc, except working on primitives like it says to
 		
-		const real ePot = 0, ePotL = 0, ePotR = 0;	//TODO fixme
-		//this requires standardizing primFromCons (can't pass ePot so easily)
-		//...which might mean incorporating ePot into <?=eqn.cons_t?>
-		//...which might mean some <?=eqn.cons_t?> variables don't get integrated
-		//...which might mean custom mul & add functions for the integrators (to skip the non-integrated fields)
-		//...and will mean sizeof(<?=eqn.cons_t?>) >= sizeof(real[numStates])
-
 		//1) calc delta q's ... l r c (eqn 36)
 		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
 		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
-		<?=eqn.prim_t?> W = primFromCons(*U, ePot);
-		<?=eqn.prim_t?> WL = primFromCons(*UL, ePotL);
-		<?=eqn.prim_t?> WR = primFromCons(*UR, ePotR);
+		<?=eqn.prim_t?> W = primFromCons(*U);
+		<?=eqn.prim_t?> WL = primFromCons(*UL);
+		<?=eqn.prim_t?> WR = primFromCons(*UR);
 		<?=eqn.prim_t?> dWL, dWR, dWC;
 		for (int j = 0; j < numStates; ++j) {
 			dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
@@ -223,8 +216,8 @@ kernel void calcLR(
 			W2L.ptr[j] = W.ptr[j] - qr.ptr[j];
 			W2R.ptr[j] = W.ptr[j] + ql.ptr[j];
 		}
-		ULR->L = consFromPrim(W2L, ePotL);
-		ULR->R = consFromPrim(W2R, ePotR);
+		ULR->L = consFromPrim(W2L);
+		ULR->R = consFromPrim(W2R);
 #endif
 
 	}<? end ?>
@@ -384,7 +377,7 @@ kernel void calcFlux(
 		const global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
 
 		real fluxEig[numWaves];
-<? if not solver.eqn.hasFluxFromCons then ?>
+<? if not eqn.hasFluxFromCons then ?>
 		<?=eqn.cons_t?> UAvg;
 		for (int j = 0; j < numStates; ++j) {
 			UAvg.ptr[j] = .5 * (UL->ptr[j] + UR->ptr[j]);
@@ -400,7 +393,7 @@ kernel void calcFlux(
 
 		for (int j = 0; j < numWaves; ++j) {
 			real lambda = lambdas[j];
-<? if not solver.eqn.hasFluxFromCons then ?>
+<? if not eqn.hasFluxFromCons then ?>
 			fluxEig[j] *= lambda;
 <? else ?>
 			fluxEig[j] = 0.;
@@ -423,7 +416,7 @@ kernel void calcFlux(
 		global <?=eqn.cons_t?>* flux = fluxBuf + intindex;
 		eigen_rightTransform_<?=side?>_global_global_(flux->ptr, eig, fluxEig);
 
-<? if solver.eqn.hasFluxFromCons then ?>
+<? if eqn.hasFluxFromCons then ?>
 		<?=eqn.cons_t?> FL = fluxFromCons_<?=side?>(*UL);
 		<?=eqn.cons_t?> FR = fluxFromCons_<?=side?>(*UR);
 		for (int j = 0; j < numStates; ++j) {

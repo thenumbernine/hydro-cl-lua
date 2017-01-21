@@ -1,3 +1,7 @@
+local table = require 'ext.table'
+local range = require 'ext.range'
+local clnumber = require 'cl.obj.number'
+
 local function quadrantProblem(args)
 	args.init = function(solver)
 		solver.cfl[0] = .475
@@ -43,24 +47,22 @@ local function selfGravProblem(args)
 		solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'freeflow'-1
 		solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'freeflow'-1
 
-		return table{[[
-	real distSq;
+		return require 'template'([[
 	rho = .1;
 	P = 1;
 	//v[i] = .1 * noise * crand();
-]],	
-			table.map(args.sources, function(source,i)
-				local center = '(real4)('
-					..range(3):map(function(i)
-						return clnumber(source.center[i])
-					end):concat', '..')'
-				return ([[
-	distSq = dot(x - center, x - center);
-	if (dist < radius * radius) rho = 1; 
-]]):gsub('center', center)
-		:gsub('radius', tostring(source.radius))
-			end),
-		}:concat'\n'
+	<? for i,source in ipairs(sources) do ?>{
+		real3 delta = real3_sub(x, _real3(
+			<?=clnumber(source.center[1])?>,
+			<?=clnumber(source.center[2])?>,
+			<?=clnumber(source.center[3])?>));
+		real distSq = real3_lenSq(delta);
+		if (distSq < <?=clnumber(source.radius * source.radius)?>) rho = 1; 
+	}<? end ?>
+]], 	{
+			sources = args.sources,
+			clnumber = clnumber,
+		})
 	end
 end
 
@@ -493,12 +495,35 @@ local initStates = {
 		name = 'Maxwell default',
 		init = function(solver)
 			return [[
+	const real L = 12.;
 	E = _real3(1,0,0);
 	B = _real3(0, 1, lhs ? 1 : -1);
 ]]
 		end,
 	},
 
+	{
+		name = 'two-fluid EMHD soliton ion',
+		init = function(solver)
+			return [[
+	rho = 1. + exp(-25. * abs(x.x - L / 3.));
+]]
+		end,
+	},
+	{
+		name = 'two-fluid EMHD soliton electron',
+		init = function(solver)
+			return [[
+	const real L = 12.;
+	rho = 5. * (1. + exp(-25. * abs(x.x - L / 3.)));
+]]
+		end,
+	},
+	{
+		name = 'two-fluid EMHD soliton maxwell',
+		init = function(solver)
+		end,
+	},
 }
 
 return initStates

@@ -402,10 +402,10 @@ function Solver:addConvertToTexs()
 	self:addConvertToTex{
 		name = 'flux', 
 		varCodePrefix = [[
-	const global real* flux = buf + intindex * numStates;
+	const global ]]..self.eqn.cons_t..[[* flux = buf + intindex;
 ]],
 		vars = range(0,self.eqn.numStates-1):map(function(i)
-			return {[tostring(i)] = 'value = flux['..i..'];'}
+			return {[tostring(i)] = 'value = flux->ptr['..i..'];'}
 		end),
 	}
 	-- might contain nonsense :-p
@@ -491,7 +491,6 @@ function Solver:createBuffers()
 	-- two fluid uses multiple solvers, each with their own cons_t ... 
 	-- but in ffi, typedefs can't be undefined / redefined
 	self:clalloc('UBuf', self.volume * ffi.sizeof(self.eqn.cons_t))
-	--self:clalloc('UBuf', self.volume * ffi.sizeof'real' * self.eqn.numStates)
 	
 	if self.usePLM then
 		self:clalloc('ULRBuf', self.volume * self.dim * ffi.sizeof(self.eqn.consLR_t))
@@ -502,7 +501,7 @@ function Solver:createBuffers()
 	if self.fluxLimiter[0] > 0 then
 		self:clalloc('rEigBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
 	end
-	self:clalloc('fluxBuf', self.volume * self.dim * self.eqn.numStates * realSize)
+	self:clalloc('fluxBuf', self.volume * self.dim * ffi.sizeof(self.eqn.cons_t))
 	
 	-- debug only
 	if self.checkFluxError or self.checkOrthoError then
@@ -909,15 +908,17 @@ function Solver:refreshDisplayProgram()
 end
 
 function Solver:createBoundaryProgramAndKernel(args)
-	local bufType = assert(args.type)
+	local assign = args.assign or function(a, b) return a .. ' = ' .. b end
 	
 	local lines = table()
 	lines:insert(self.codePrefix)
-	lines:insert((([[
+	lines:insert(template([[
 kernel void boundary(
-	global {type}* buf
+	global <?=bufType?>* buf
 ) {
-]]):gsub('{type}', bufType)))
+]], {
+	bufType = args.type,
+}))
 	if self.dim == 1 then 
 		lines:insert[[
 	if (get_global_id(0) != 0) return;
@@ -992,23 +993,23 @@ kernel void boundary(
 		local gridSizeSide = 'gridSize_'..xs[side]
 		local rhs = gridSizeSide..'-numGhost+j'
 		lines:insert(({
-			periodic = '\t\tbuf['..index'j'..'] = buf['..index(gridSizeSide..'-2*numGhost+j')..'];',
+			periodic = '\t\t'..assign('buf['..index'j'..']', 'buf['..index(gridSizeSide..'-2*numGhost+j')..']')..';',
 			mirror = table{
-				'\t\tbuf['..index'j'..'] = buf['..index'2*numGhost-1-j'..'];',
+				'\t\t'..assign('buf['..index'j'..']', ' buf['..index'2*numGhost-1-j'..']')..';',
 			}:append(table.map((args.mirrorVars or {})[side] or {}, function(var)
-				return '\t\tbuf['..index'j'..'].'..var..' = -buf['..index'j'..'].'..var..';'
+				return '\t\t'..'buf['..index'j'..'].'..var..' = -buf['..index'j'..'].'..var..';'
 			end)):concat'\n',
-			freeflow = '\t\tbuf['..index'j'..'] = buf['..index'numGhost'..'];',
+			freeflow = '\t\t'..assign('buf['..index'j'..']', 'buf['..index'numGhost'..']')..';',
 		})[args.methods[x..'min']])
 
 		lines:insert(({
-			periodic = '\t\tbuf['..index(rhs)..'] = buf['..index'numGhost+j'..'];',
+			periodic = '\t\t'..assign('buf['..index(rhs)..']', 'buf['..index'numGhost+j'..']')..';',
 			mirror = table{
-				'\t\tbuf['..index(rhs)..'] = buf['..index(gridSizeSide..'-numGhost-1-j')..'];',
+				'\t\t'..assign('buf['..index(rhs)..']', 'buf['..index(gridSizeSide..'-numGhost-1-j')..']')..';',
 			}:append(table.map((args.mirrorVars or {})[side] or {}, function(var)
-				return '\t\tbuf['..index(rhs)..'].'..var..' = -buf['..index(rhs)..'].'..var..';'
+				return '\t\t'..'buf['..index(rhs)..'].'..var..' = -buf['..index(rhs)..'].'..var..';'
 			end)):concat'\n',
-			freeflow = '\t\tbuf['..index(rhs)..'] = buf['..index(gridSizeSide..'-numGhost-1')..'];',
+			freeflow = '\t\t'..assign('buf['..index(rhs)..']', 'buf['..index(gridSizeSide..'-numGhost-1')..']')..';',
 		})[args.methods[x..'max']])
 	
 		if self.dim > 1 then

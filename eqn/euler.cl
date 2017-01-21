@@ -1,47 +1,25 @@
-//everything matches the default except the params passed through to calcCellMinMaxEigenvalues
-kernel void calcDT(
-	global real* dtBuf,
-	global const <?=eqn.cons_t?>* UBuf,
-	global const real* ePotBuf
+<? for side=0,solver.dim-1 do ?>
+range_t calcCellMinMaxEigenvalues_<?=side?>(
+	const global <?=eqn.cons_t?>* U
 ) {
-	int4 i = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
-	int index = INDEXV(i);
-	if (OOB(2,2)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-	
-	global const <?=eqn.cons_t?>* U = UBuf + index;
-	real ePot = ePotBuf[index];
-	<?=eqn.prim_t?> W = primFromCons(*U, ePot);
+	<?=eqn.prim_t?> W = primFromCons(*U);
 	real Cs = calc_Cs(&W);
-
-	real dt = INFINITY;
-
-	//for (int side = 0; side < dim; ++side) {
-	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
-		real lambdaMin = min((real)0., W.v.s[side] - Cs);
-		real lambdaMax = max((real)0., W.v.s[side] + Cs);
-		dt = min(dt, (real)dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9));
-	}<? end ?>
-	dtBuf[index] = dt;
+	return (range_t){.min=W.v.s<?=side?> - Cs, .max=W.v.s<?=side?> + Cs};	
 }
+<? end ?>
 
 //used for interface eigen basis
 void eigen_forSide(
 	global <?=eqn.eigen_t?>* eig,
-	global const <?=eqn.cons_t?>* UL, 
-	global const <?=eqn.cons_t?>* UR, 
-	real ePotL, 
-	real ePotR
+	global const <?=eqn.cons_t?>* UL,
+	global const <?=eqn.cons_t?>* UR
 ) {
-	<?=eqn.prim_t?> WL = primFromCons(*UL, ePotL);
+	<?=eqn.prim_t?> WL = primFromCons(*UL);
 	real sqrtRhoL = sqrt(WL.rho);
 	real3 vL = WL.v;
 	real hTotalL = calc_hTotal(WL.rho, WL.P, UL->ETotal);
 	
-	<?=eqn.prim_t?> WR = primFromCons(*UR, ePotR);
+	<?=eqn.prim_t?> WR = primFromCons(*UR);
 	real sqrtRhoR = sqrt(UR->rho);
 	real3 vR = WR.v;
 	real hTotalR = calc_hTotal(WR.rho, WR.P, UR->ETotal);
@@ -96,25 +74,22 @@ end
 kernel void calcEigenBasis(
 	global real* waveBuf,			//[volume][dim][numWaves]
 	global <?=eqn.eigen_t?>* eigenBuf,		//[volume][dim]
-	<?= solver.getULRArg ?>,
-	const global real* ePotBuf
+	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
-	real ePotR = ePotBuf[indexR];
 	
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		
 		int indexL = index - stepsize[side];
-		real ePotL = ePotBuf[indexL];
 	
 		<?= solver.getULRCode ?>
 		
 		int intindex = side + dim * index;	
 
 		global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
-		eigen_forSide(eig, UL, UR, ePotL, ePotR);
+		eigen_forSide(eig, UL, UR);
 		
 		global real* wave = waveBuf + numWaves * intindex;
 		eigen_calcWaves_<?=side?>_global_global(wave, eig);
@@ -245,8 +220,7 @@ end
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxForCons_<?=side?>(<?=eqn.cons_t?> U) {
-	real ePot = 0;	//TODO
-	<?=eqn.prim_t?> W = primFromCons(U, ePot);
+	<?=eqn.prim_t?> W = primFromCons(U);
 	real mi = U.m.s<?=side?>;
 	return (<?=eqn.cons_t?>){
 		.rho = mi,
@@ -256,6 +230,7 @@ end
 			.z = mi * W.v.z<?= side==2 and ' + W.P' or ''?>,
 		},
 		.ETotal = (U.ETotal + W.P) * W.v.s<?=side?>,
+		.ePot = 0.,
 	};
 }
 <? end ?>
@@ -265,8 +240,7 @@ void eigen_forCell_<?=side?>(
 	<?=eqn.eigen_t?>* eig,
 	global const <?=eqn.cons_t?>* U
 ) {
-	real ePot = 0; //TODO need ePot...
-	<?=eqn.prim_t?> W = primFromCons(*U, ePot);
+	<?=eqn.prim_t?> W = primFromCons(*U);
 	real vSq = coordLenSq(W.v);
 	real eKin = .5 * vSq;
 	real hTotal = calc_hTotal(W.rho, W.P, U->ETotal);

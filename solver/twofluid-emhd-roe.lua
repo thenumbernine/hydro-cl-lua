@@ -31,7 +31,9 @@ function TwoFluidEMHDRoe:init(args)
 	TwoFluidIonEulerRoe.consLR_t = 'euler_consLR_t'
 	TwoFluidIonEulerRoe.eigen_T = 'euler_eigen_t'
 	function TwoFluidIonEulerRoe:init(args)
-		TwoFluidIonEulerRoe.super.init(self, args)
+		TwoFluidIonEulerRoe.super.init(self, table(args, {
+			initState = 'two-fluid EMHD soliton ion',
+		}))
 		self.name = 'ion '..self.name
 	end
 	self.ion = TwoFluidIonEulerRoe(args)
@@ -42,7 +44,9 @@ function TwoFluidEMHDRoe:init(args)
 	TwoFluidElectronEulerRoe.consLR_t = 'euler_consLR_t'
 	TwoFluidElectronEulerRoe.eigen_T = 'euler_eigen_t'
 	function TwoFluidElectronEulerRoe:init(args)
-		TwoFluidElectronEulerRoe.super.init(self, args)
+		TwoFluidElectronEulerRoe.super.init(self, table(args, {
+			initState = 'two-fluid EMHD soliton electron',
+		}))
 		self.name = 'electron '..self.name
 	end
 	self.electron = TwoFluidElectronEulerRoe(args)
@@ -52,19 +56,17 @@ function TwoFluidEMHDRoe:init(args)
 	TwoFluidMaxwellRoe.cons_t = 'maxwell_cons_t'
 	TwoFluidMaxwellRoe.consLR_t = 'maxwell_consLR_t'
 	TwoFluidMaxwellRoe.eigen_T = 'maxwell_eigen_t'
+	function TwoFluidMaxwellRoe:init(args)
+		TwoFluidMaxwellRoe.super.init(self, table(args, {
+			initState = 'two-fluid EMHD soliton maxwell',
+		}))
+	end
 	self.maxwell = TwoFluidMaxwellRoe(args)
-
+	
 	self.solvers = table{self.ion, self.electron, self.maxwell}
-
+	
 	self.displayVars = table():append(self.solvers:map(function(solver) return solver.displayVars end):unpack())
-
-	select(2, self.ion.displayVars:find(nil, function(var) return var.name == 'U_rho' end)).enabled[0] = true 
-	select(2, self.electron.displayVars:find(nil, function(var) return var.name == 'U_rho' end)).enabled[0] = true 
-	select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_Ex' end)).enabled[0] = false 
---	local var = select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_div_B' end)) var.enabled[0] = true var.heatMapFixedRangePtr[0] = false
---	local var = select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'U_div_E' end)) var.enabled[0] = true var.heatMapFixedRangePtr[0] = false
---	local var = select(2, self.maxwell.displayVars:find(nil, function(var) return var.name == 'ePot_0' end)) var.enabled[0] = true var.heatMapFixedRangePtr[0] = false
-
+	
 	-- make names unique so that stupid 1D var name-matching code doesn't complain
 	self.solverForDisplayVars = table()
 	for _,solver in ipairs(self.solvers) do

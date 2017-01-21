@@ -15,17 +15,15 @@ then phi = -4 pi del^-2 (rho delta3(r))
 */
 
 kernel void initPotential(
-	global real* ePotBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(2,2);
 	real rho = 0;
 	<?=calcRho?>
-	ePotBuf[index] = -rho;
+	UBuf[index].ePot = -rho;
 }
 
 kernel void solvePoisson(
-	global real* ePotBuf,
 	<?=args?>
 ) {
 	SETBOUNDS(2,2);
@@ -37,10 +35,10 @@ kernel void solvePoisson(
 	real skewSum = 0;
 <? for j=0,solver.dim-1 do ?>
 	if (i.s<?=j?> < gridSize.s<?=j?>-3) {
-		skewSum += ePotBuf[index + stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>);
+		skewSum += UBuf[index + stepsize.s<?=j?>].ePot / (dx<?=j?> * dx<?=j?>);
 	}
 	if (i.s<?=j?> > 2) {
-		skewSum += ePotBuf[index - stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>);
+		skewSum += UBuf[index - stepsize.s<?=j?>].ePot / (dx<?=j?> * dx<?=j?>);
 	}
 <? end ?>
 
@@ -53,5 +51,5 @@ kernel void solvePoisson(
 	real rho = 0;
 	<?=calcRho?>
 
-	ePotBuf[index] = (rho - skewSum) / diag;
+	UBuf[index].ePot = (rho - skewSum) / diag;
 }
