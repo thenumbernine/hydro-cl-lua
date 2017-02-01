@@ -7,13 +7,19 @@ local Equation = require 'eqn.eqn'
 local Euler = class(Equation)
 Euler.name = 'Euler'
 
--- can I add ePot without much harm?
 Euler.numWaves = 5
-Euler.numStates = 6
+
+-- ePot is the 6th param
+-- which means it's now in the derivBuf, but it is always zero
+-- so TODO a new variable for deriv size vs cons_t size?
+Euler.numStates = 6	
 
 Euler.mirrorVars = {{'m.x'}, {'m.y'}, {'m.z'}} 
 
 Euler.hasEigenCode = true
+
+-- this is working in the gravitation-waves simulation, but not here ...
+--Euler.hasFluxFromCons = true
 
 Euler.initStates = require 'init.euler'
 
@@ -34,7 +40,7 @@ typedef union {
 } <?=eqn.prim_t?>;
 
 typedef union {
-	real ptr[5];
+	real ptr[6];
 	struct {
 		real rho;
 		real3 m;
@@ -43,8 +49,8 @@ typedef union {
 	};
 } <?=eqn.cons_t?>;
 ]], {
-	eqn = self,
-})
+		eqn = self,
+	})
 end
 
 function Euler:getCodePrefix()
@@ -90,9 +96,9 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U) {
 		.ePot = W.ePot,
 	};
 }
-]], {
-	eqn = self,
-})
+]], 	{
+			eqn = self,
+		})
 	}:concat'\n'
 end
 
@@ -130,8 +136,8 @@ kernel void initState(
 	UBuf[index] = consFromPrim(W);
 }
 ]], {
-	eqn = self,
-})
+		eqn = self,
+	})
 end
 
 function Euler:getSolverCode()

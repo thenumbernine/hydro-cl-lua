@@ -68,7 +68,7 @@ Solver.integratorNames = Solver.integrators:map(function(integrator) return inte
 
 -- TODO this is redundant in Equation
 -- but I am passing them to Equation using self ...
--- ... don't do this.
+-- ... don't do this. just keep them in equation instead?
 Solver.prim_t = 'prim_t'
 Solver.cons_t = 'cons_t'
 Solver.consLR_t = 'consLR_t'

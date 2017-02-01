@@ -1,3 +1,19 @@
+//needs Eqn.hasFluxFromCons=true
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U) {
+	<?=eqn.prim_t?> W = primFromCons(U);
+	real vj = W.v.s<?=side?>;
+	real HTotal = U.ETotal + W.P;
+	
+	<?=eqn.cons_t?> F;
+	F.rho = U.m.s<?=side?>;
+	F.m = real3_scale(U.m, vj);
+	F.m.s<?=side?> += W.P;
+	F.ETotal = HTotal * vj;
+	return F;
+}
+<? end ?>
+
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const global <?=eqn.cons_t?>* U
