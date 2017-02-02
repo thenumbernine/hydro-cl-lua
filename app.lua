@@ -90,7 +90,7 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 function HydroCLApp:initGL(...)
 	HydroCLApp.super.initGL(self, ...)
 
-	-- TODO favor cl_khr_fp64, cl_khr_3d_image_writes, cl_khr_gl_sharing
+	-- TODO favor cl_khr_gl_sharing, cl_khr_fp64, cl_khr_3d_image_writes
 -- [[
 for i,platform in ipairs(CLPlatform.getAll()) do
 	print()
@@ -1128,6 +1128,39 @@ function HydroCLApp:updateGUI()
 				solver:resetState()
 			end
 			self.updateMethod = nil
+		end
+
+		if ig.igButton'Save' then
+			-- save as cfits 
+			for i,solver in ipairs(self.solvers) do
+				if solver.dim == 2 then
+					-- TODO add planes to image, then have the FITS module use planes and not channels
+					-- so the dimension layout of the buffer is [channels][width][height][planes]
+					local width = tonumber(solver.gridSize.x)
+					local height = tonumber(solver.gridSize.y)
+					local channels = solver.eqn.numStates
+					
+					local image = require 'image'(width, height, channels, assert(self.real))
+					self.cmds:enqueueReadBuffer{buffer=solver.UBuf, block=true, size=ffi.sizeof(self.real) * solver.volume, ptr=image.buffer}
+					
+					-- now convert from interleaved to planar
+					-- *OR* add planes to the FITS output
+					local tmp = ffi.new(self.real..'[?]', width * height * channels)
+					for ch=0,channels-1 do
+						for j=0,height-1 do
+							for i=0,width-1 do
+								tmp[i + width * (j + channels * ch)]
+									= image.buffer[ch + channels * (i + width * j)]
+							end
+						end
+					end
+					image.buffer = tmp
+					
+					image:save('output-'..i..'.fits')
+				else
+					print("haven't got support for saving dim="..solver.dim.." states")
+				end
+			end
 		end
 	
 		if ig.igRadioButtonBool('ortho', self.view == self.orthoView) then
