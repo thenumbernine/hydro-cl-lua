@@ -1,6 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
+local range = require 'ext.range'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
 
@@ -154,7 +155,31 @@ function Euler:getDisplayVarCodePrefix()
 end
 
 function Euler:getDisplayVars()
-	return {
+	-- k is 0,1,2
+	local function vorticity(k)
+		local xs = {'x','y','z'}
+		local i = (k+1)%3
+		local j = (i+1)%3
+		return {['vorticity '..xs[k+1]] = template([[
+	global const <?=eqn.cons_t?>* Uim = buf + index - stepsize.s<?=i?>;
+	global const <?=eqn.cons_t?>* Uip = buf + index + stepsize.s<?=i?>;
+	global const <?=eqn.cons_t?>* Ujm = buf + index - stepsize.s<?=j?>;
+	global const <?=eqn.cons_t?>* Ujp = buf + index + stepsize.s<?=j?>;
+	
+	real3 vim = real3_scale(Uim->m, 1. / Uim->rho);
+	real3 vip = real3_scale(Uip->m, 1. / Uip->rho);
+	real3 vjm = real3_scale(Ujm->m, 1. / Ujm->rho);
+	real3 vjp = real3_scale(Ujp->m, 1. / Ujp->rho);
+	
+	value = (vjp.s<?=i?> - vjm.s<?=i?>) / (2. * grid_dx<?=i?>)
+			- (vip.s<?=j?> - vim.s<?=j?>) / (2. * grid_dx<?=j?>);
+]], 	{
+			i = i,
+			j = j,
+			eqn = self,
+		})}
+	end
+	return table{
 		{rho = 'value = W.rho;'},
 		{vx = 'value = W.v.x;'},
 		{vy = 'value = W.v.y;'},
@@ -180,7 +205,14 @@ function Euler:getDisplayVars()
 		{hTotal = 'value = calc_hTotal(W.rho, W.P, U.ETotal);'},
 		{['Speed of Sound'] = 'value = calc_Cs(&W);'},
 		{['Mach number'] = 'value = coordLen(W.v) / calc_Cs(&W);'},
-	}
+	}:append( ({
+	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
+	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
+			[1] = {},
+			[2] = {vorticity(2)},
+			[3] = range(0,2):map(vorticity),
+
+	})[self.solver.dim] )
 end
 
 function Euler:getEigenTypeCode()

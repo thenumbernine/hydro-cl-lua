@@ -45,41 +45,41 @@ function Geometry:init(args)
 		return coord.base or coord
 	end)
 
-	print('coordinates:', table.unpack(coords))
-	print('base coords:', table.unpack(baseCoords))
-	print('embedding:', table.unpack(embedded))
+--print('coordinates:', table.unpack(coords))
+--print('base coords:', table.unpack(baseCoords))
+--print('embedding:', table.unpack(embedded))
 	
 	local eta = Tensor('_IJ', table.unpack(flatMetric)) 
-	print'flat metric:'
-	print(var'\\eta''_IJ':eq(eta'_IJ'()))
-	print()
+--print'flat metric:'
+--print(var'\\eta''_IJ':eq(eta'_IJ'()))
+--print()
 
 	local u = args.chart()
-	print'coordinate chart:'
-	print(var'u''^I':eq(u'^I'()))
-	print()
+--print'coordinate chart:'
+--print(var'u''^I':eq(u'^I'()))
+--print()
 	
 	local e = Tensor'_u^I'
 	e['_u^I'] = u'^I_,u'()
-	print'embedded:'
-	print(var'e''_u^I':eq(var'u''^I_,u'):eq(e'_u^I'()))
-	print()
+--print'embedded:'
+--print(var'e''_u^I':eq(var'u''^I_,u'):eq(e'_u^I'()))
+--print()
 
 	-- commutation coefficients
 	local c = Tensor'_ab^c'
-	print'connection coefficients:'
-	print(var'c''_uv^w' * var'e''_w','$=[ e_u, e_v ]$')
+--print'connection coefficients:'
+--print(var'c''_uv^w' * var'e''_w','$=[ e_u, e_v ]$')
 	for i,ui in ipairs(coords) do
 		for j,uj in ipairs(coords) do
 			local psi = var('\\psi', baseCoords)
 			local diff = ui:applyDiff(uj:applyDiff(psi)) - uj:applyDiff(ui:applyDiff(psi))
 			local diffEval = diff()
 			if diffEval ~= const(0) then
-				print('$[',ui.name,',',uj.name,'] =$',diff:eq(diffEval))
+--print('$[',ui.name,',',uj.name,'] =$',diff:eq(diffEval))
 				diff = diff()
-				--print('factor division',diff)
+--print('factor division',diff)
 				local dpsi = table.map(baseCoords, function(uk) return psi:diff(uk) end)
-				--print('dpsi', dpsi:unpack())
+--print('dpsi', dpsi:unpack())
 				local A,b = symmath.factorLinearSystem({diff}, dpsi)
 				-- now extract psi:diff(uk)
 				-- and divide by e_k to get the correct coefficient
@@ -108,19 +108,19 @@ function Geometry:init(args)
 			return 1 - symmath.sin(expr[1][1]:clone())^2
 		end
 	end)()
-	print'metric:'
-	print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
+--print'metric:'
+--print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
 	Tensor.metric(g)
 
 	local GammaL = Tensor'_abc'
 	GammaL['_abc'] = ((g'_ab,c' + g'_ac,b' - g'_bc,a' + c'_abc' + c'_acb' - c'_bca') / 2)()
-	print'1st kind Christoffel:'
-	print(var'\\Gamma''_abc':eq(symmath.divOp(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(GammaL'_abc'()))
+--print'1st kind Christoffel:'
+--print(var'\\Gamma''_abc':eq(symmath.divOp(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(GammaL'_abc'()))
 
 	local Gamma = Tensor'^a_bc'
 	Gamma['^a_bc'] = GammaL'^a_bc'()
-	print'connection:'
-	print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()))
+--print'connection:'
+--print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()))
 
 
 	-- code generation
@@ -155,10 +155,10 @@ function Geometry:init(args)
 			toC_coordArgs
 		):match'return (.*);'
 	
-		print'compiling...'
-		print(orig)
-		print'...to...'
-		print(code)
+--print'compiling...'
+--print(orig)
+--print'...to...'
+--print(code)
 
 		return code
 	end

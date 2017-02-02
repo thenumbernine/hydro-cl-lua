@@ -28,6 +28,8 @@ for _,w in ipairs(arg) do
 	local k,v = w:match'^(.-)=(.*)$'
 	if k then
 		cmdline[k] = assert(loadstring('return '..v))()
+	else
+		cmdline[w] = true
 	end
 end
 
@@ -150,7 +152,7 @@ print()
 	-- but because it is using ffi.ctype it might be tough ...
 	-- then again, any solver ffi.ctype defined will potentially collide with other solvers ...
 	self.real = self.is64bit and 'double' or 'float'
-print('real', self.real)	
+print('real', self.real)
 	ffi.cdef('typedef '..self.real..' real;')
 
 	self.real3TypeCode = [[
@@ -236,7 +238,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 1,
+		dim = cmdline.dim or 2,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 4, TVD',
@@ -305,9 +307,9 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		-- no initial state means use the first
 		-- initState = cmdline.initState,
 		-- Euler / SRHD / MHD initial states:
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
-		--initState = 'Kelvin-Hemholtz',
+		initState = 'Kelvin-Hemholtz',
 		-- (those designed for srhd:)
 		--initState = 'relativistic shock reflection',
 		--initState = 'relativistic blast wave test problem 1',
@@ -573,7 +575,9 @@ function HydroCLApp:update(...)
 		local oldestSolver = self.solvers:inf(function(a,b)
 			return a.t < b.t
 		end)
-		if oldestSolver then oldestSolver:update() end
+		if oldestSolver then 
+			oldestSolver:update() 
+		end
 	end
 
 	gl.glClear(gl.GL_COLOR_BUFFER_BIT)

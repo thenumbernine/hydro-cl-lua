@@ -339,6 +339,55 @@ local initStates = {
 		end,
 	},
 	
+	-- http://www.astro.princeton.edu/~jstone/Athena/tests/rt/rt.html
+	{
+		name = 'Rayleigh-Taylor',
+		init = function()
+			local xs = {'x', 'y', 'z'}
+			
+			local xmid = (solver.mins + solver.maxs) * .5
+			
+			-- triple the length along the interface dimension
+			local k = xs[solver.dim]
+			solver.mins[k] = xmid[k] + (solver.mins[k] - xmid[k]) * 3
+			solver.maxs[k] = xmid[k] + (solver.maxs[k] - xmid[k]) * 3
+
+			-- triple resolution along interface dimension
+			--size[k] = size[k] * 3
+			-- (can it handle npo2 sizes?)
+		
+			for i,x in ipairs(xs) do
+				for _,minmax in ipairs{'min', 'max'} do
+					solver.boundaryMethods[x..minmax][0] = 
+						i == solver.dim 
+						and solver.app.boundaryMethods:find'mirror'-1
+						or solver.app.boundaryMethods:find'periodic'-1
+				end
+			end
+		
+			-- TODO incorporate this into the Euler model ..
+			local externalForce = {0, 1, 0}
+			
+			initState = function(x,y,z)
+				local xs = {x,y,z}
+				local top = xs[k] > xmid[k]
+				local potentialEnergy = 0	-- minPotentialEnergy
+				for k=1,#size do
+					potentialEnergy = potentialEnergy + (xs[k] - xmin[k]) * externalForce[k]
+				end
+				local density = top and 2 or 1
+				return buildStateEuler{
+					noise = .001,
+					density = density,
+					potentialEnergy = potentialEnergy,
+					pressure = 2.5 - density * potentialEnergy,
+					-- or maybe it is ... pressure = (gamma - 1) * density * (2.5 - potentialEnergy)
+				}
+			end
+		end,
+	},
+
+
 	--http://www.astro.virginia.edu/VITA/ATHENA/dmr.html
 	{
 		name = 'double mach reflection',

@@ -10,6 +10,7 @@
 	F.m = real3_scale(U.m, vj);
 	F.m.s<?=side?> += W.P;
 	F.ETotal = HTotal * vj;
+	F.ePot = 0;
 	return F;
 }
 <? end ?>
