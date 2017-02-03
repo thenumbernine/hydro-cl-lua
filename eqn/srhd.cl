@@ -2,6 +2,7 @@
 Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 2008 
 */
 
+<? if eqn.hasFluxFromCons then ?>
 //Eqn.hasFluxFromCons
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U) {
@@ -15,6 +16,7 @@ Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 20
 	F.tau = U->tau * vi_shift + p * vi;
 	return F;
 }
+<? end ?>
 <? end ?>
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues

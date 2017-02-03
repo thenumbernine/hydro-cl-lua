@@ -49,6 +49,29 @@ function RoeImplicitLinearized:refreshGridSize(...)
 			return self.gridSize:ptr()[i+1]
 		end),
 	}
+	
+	local mul = fakeEnv:kernel{
+		argsOut = {
+			{name='y', type=self.type, obj=true},
+		},
+		argsIn = {
+			{name='a', type=self.type, obj=true},
+			{name='b', type=self.type, obj=true},
+		},
+		body = [[
+	if (OOB(numGhost, numGhost)) {
+		y[index] = 0.;
+	} else {
+		y[index] = a[index] * b[index];
+	}
+]],
+	}
+
+	local dot = fakeEnv:reduce{
+		size = fakeEnv.base.volume,
+		op = function(x,y) return x..' + '..y end,
+	}
+	
 	local linearSolverArgs = {
 		env = fakeEnv,
 		--maxiter = 1000,
@@ -59,6 +82,10 @@ function RoeImplicitLinearized:refreshGridSize(...)
 		-- logging:
 		errorCallback = function(err, iter)
 			print('gmres t', self.t, 'iter', iter, 'err', err)
+		end,
+		dot = function(a,b)
+			mul(dot.buffer, a, b)
+			return dot()
 		end,
 	}
 
