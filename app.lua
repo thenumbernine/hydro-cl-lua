@@ -238,10 +238,10 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 1,
+		dim = cmdline.dim or 2,
 		
-		integrator = cmdline.integrator or 'forward Euler',	
-		--integrator = 'Runge-Kutta 4, TVD',
+		--integrator = cmdline.integrator or 'forward Euler',	
+		integrator = 'Runge-Kutta 4, TVD',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = cmdline.fluxLimiter or 'donor cell',
@@ -307,9 +307,9 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		-- no initial state means use the first
 		-- initState = cmdline.initState,
 		-- Euler / SRHD / MHD initial states:
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
-		--initState = 'Kelvin-Hemholtz',
+		initState = 'Kelvin-Hemholtz',
 		-- (those designed for srhd:)
 		--initState = 'relativistic shock reflection',
 		--initState = 'relativistic blast wave test problem 1',
@@ -331,14 +331,14 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	
 	-- HD
 	--self.solvers:insert(require 'solver.euler-roe'(args))
-	self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
+	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 	
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
 	-- int. shock wave works in 1D at 256 . fails at 1024. with superbee flux lim
 	-- rel blast wave 1 doesn't work in 64x64. with superbee flux lim
 	-- rel blast wave 2 works in 2D 64x64, but not 256x256. with superbee flux lim
-	--self.solvers:insert(require 'solver.srhd-roe'(args))	-- looks like something is wrong in 2D
+	self.solvers:insert(require 'solver.srhd-roe'(args))	-- looks like something is wrong in 2D
 	
 	-- M+HD. with superbee flux lim.  
 	-- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.  

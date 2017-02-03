@@ -1154,15 +1154,14 @@ end
 function Solver:update()
 	local dt = self:calcDT()
 	self:step(dt)
+	self.t = self.t + dt
 end
 
 function Solver:step(dt)
 	self.integrator:integrate(dt, function(derivBuf)
+		self:boundary()
 		self:calcDeriv(derivBuf, dt)
 	end)
-	self:boundary()
-
-	self.t = self.t + dt
 end
 
 function Solver:getTex(var) 

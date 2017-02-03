@@ -58,11 +58,12 @@ function RoeImplicitLinearized:refreshGridSize(...)
 		restart = 10,
 		-- logging:
 		errorCallback = function(err, iter)
-			print(self.t, iter, err)
+			print('gmres t', self.t, 'iter', iter, 'err', err)
 		end,
 	}
 
 	-- [=[ backward Euler
+	self.app.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.lastUBuf, size=self.volume * self.eqn.numStates}
 	linearSolverArgs.b = self.lastUBuf
 	linearSolverArgs.A = function(UNextBuf, UBuf)
 		-- if this is a linearized implicit solver
@@ -95,7 +96,7 @@ function RoeImplicitLinearized:refreshGridSize(...)
 		return UBuf
 	end
 	--]=]
-
+	
 	-- set up gmres solver here
 	self.linearSolver = require 'solver.cl.gmres'(linearSolverArgs)
 end
@@ -108,6 +109,7 @@ end
 -- step contains integrating flux and source terms
 -- but not post iterate
 function RoeImplicitLinearized:step(dt)
+	print('step dt',dt)
 	self.linearSolverDT = dt
 	self.linearSolver()
 end
