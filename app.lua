@@ -313,7 +313,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		-- (those designed for srhd:)
 		--initState = 'relativistic shock reflection',
 		--initState = 'relativistic blast wave test problem 1',
-		--initState = 'relativistic blast wave test problem 2',
+		initState = 'relativistic blast wave test problem 2',
 		--initState = 'relativistic blast wave interaction',
 		-- self-gravitation tests:
 		--initState = 'self-gravitation test 1',
@@ -321,7 +321,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		--initState = 'self-gravitation test 2',
 		--initState = 'self-gravitation test 4',
 		-- MHD-only init states: (that use 'b')
-		initState = 'Brio-Wu',
+		--initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
 		-- EM:
 		--initState = 'Maxwell default',
@@ -339,14 +339,14 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	-- rel blast wave 1 doesn't work in 64x64. with superbee flux lim
 	-- rel blast wave 2 works in 2D 64x64, but not 256x256. with superbee flux lim
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-	--self.solvers:insert(require 'solver.srhd-roe'(args))
+	self.solvers:insert(require 'solver.srhd-roe'(args))
 	
 	-- M+HD. with superbee flux lim.  
 	-- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.  
 	-- Orszag-Tang with forward Euler integrator fails at 64x64 around .7 or .8
 	-- 		but works with 'Runge-Kutta 4, TVD' integrator at 64x64
 	-- 		RK4-TVD fails at 256x256 at just after t=.5
-	self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))
 	
 	-- EM
@@ -359,9 +359,9 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
-
+	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
-
+	
 	local graphShaderCode = file['graph.shader']
 	self.graphShader = GLProgram{
 		vertexCode = '#define VERTEX_SHADER\n'..graphShaderCode,
@@ -382,7 +382,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	gl.glUniform1f(self.graphShader.uniforms.scale, 1)
 	gl.glUniform1f(self.graphShader.uniforms.ambient, 1)	
 	self.graphShader:useNone()
-
+	
 	local code = file['heatmap2d.shader']
 	for _,solver in ipairs(self.solvers) do
 		local heatMap2DShader = GLProgram{
