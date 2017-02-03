@@ -81,8 +81,8 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U) {
 	real EMag = .5 * BSq;
 	real EInt = U.ETotal - EKin - EMag;
 	W.P = EInt * (heatCapacityRatio - 1.);
-	W.P = max(W.P, 1e-7);
-	W.rho = max(W.rho, 1e-7);
+	W.P = max(W.P, (real)1e-7);
+	W.rho = max(W.rho, (real)1e-7);
 	return W;
 }
 
