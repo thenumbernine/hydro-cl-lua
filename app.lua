@@ -238,7 +238,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 2,
+		dim = cmdline.dim or 1,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 4, TVD',
@@ -307,9 +307,9 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		-- no initial state means use the first
 		-- initState = cmdline.initState,
 		-- Euler / SRHD / MHD initial states:
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
-		initState = 'Kelvin-Hemholtz',
+		--initState = 'Kelvin-Hemholtz',
 		-- (those designed for srhd:)
 		--initState = 'relativistic shock reflection',
 		--initState = 'relativistic blast wave test problem 1',

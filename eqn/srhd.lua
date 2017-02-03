@@ -20,6 +20,7 @@ SRHD.initStates = require 'init.euler'
 local GuiFloat = require 'guivar.float'
 local GuiInt = require 'guivar.int'
 SRHD.guiVars = table{
+--[[ double precision
 	GuiFloat{name='heatCapacityRatio', value=7/5},
 
 	-- setting max iter to 100+ makes it freeze initially 
@@ -48,6 +49,21 @@ SRHD.guiVars = table{
 	GuiFloat{name='DMax', value=1e+20},
 	GuiFloat{name='tauMin', value=1e-15},
 	GuiFloat{name='tauMax', value=1e+20},
+--]]
+-- [[ single precision?
+	GuiFloat{name='heatCapacityRatio', value=7/5},
+	GuiInt{name='solvePrimMaxIter', value=10},	-- value=1000},
+	GuiFloat{name='solvePrimStopEpsilon', value=1e-7},
+	GuiFloat{name='solvePrimVelEpsilon', value=1e-7},	
+	GuiFloat{name='solvePrimPMinEpsilon', value=1e-7},
+	GuiFloat{name='rhoMin', value=1e-7},
+	GuiFloat{name='rhoMax', value=1e+20},
+	GuiFloat{name='eIntMax', value=1e+20},
+	GuiFloat{name='DMin', value=1e-7},
+	GuiFloat{name='DMax', value=1e+20},
+	GuiFloat{name='tauMin', value=1e-7},
+	GuiFloat{name='tauMax', value=1e+20},
+--]]
 }
 
 function SRHD:getTypeCode()
@@ -234,8 +250,8 @@ function SRHD:getPrimDisplayVarCodePrefix()
 	return template([[
 	<?=eqn.prim_t?> prim = buf[index];
 ]], {
-	eqn = self,
-})
+		eqn = self,
+	})
 end
 
 SRHD.primDisplayVars = {
