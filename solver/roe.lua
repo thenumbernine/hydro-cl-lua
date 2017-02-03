@@ -14,7 +14,7 @@ local GLTex3D = require 'gl.tex3d'
 local glreport = require 'gl.report'
 local clnumber = require 'clnumber'
 local template = require 'template'
-local vec3sz = require 'solver.vec3sz'
+local vec3sz = require 'ffi.vec.vec3sz'
 
 
 local xs = table{'x', 'y', 'z'}

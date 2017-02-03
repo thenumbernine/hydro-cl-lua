@@ -1,4 +1,5 @@
 local class = require 'ext.class'
+local table = require 'ext.table'
 local Roe = require 'solver.roe'
 local ffi = require 'ffi'
 
@@ -18,7 +19,38 @@ function RoeImplicitLinearized:refreshGridSize(...)
 		self.UBuf = oldUBuf
 	end
 
+	-- TODO needs env
+	-- for now I'll hack one into place from App and Solver
+	-- but I should really rewrite this whole code to use cl.obj.env
+	local fakeEnv = setmetatable({
+		platform = self.app.platform,
+		device = self.app.device,	
+		ctx = self.app.ctx,
+		cmds = self.app.cmds,
+		totalGPUMem = 0,
+		real = self.app.real,
+		code = table{
+			self.codePrefix,
+			[[
+//macro for the index
+#define globalInt4()	(int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0)
+
+//macros for arbitrary sizes
+#define indexForInt4ForSize(i, sx, sy, sz) (i.x + sx * (i.y + sy * i.z))
+#define initKernelForSize(sx, sy, sz) \
+	int4 i = globalInt4(); \
+	if (i.x >= sx || i.y >= sy || i.z >= sz) return; \
+	int index = indexForInt4ForSize(i, sx, sy, sz);
+]],
+		}:concat'\n',
+	}, require 'cl.obj.env')
+	fakeEnv.base = fakeEnv:domain{
+		size = require 'ext.range'(self.dim):map(function(i)
+			return self.gridSize:ptr()[i+1]
+		end),
+	}
 	local linearSolverArgs = {
+		env = fakeEnv,
 		--maxiter = 1000,
 		x = self.UBuf,
 		epsilon = 1e-10,
@@ -38,9 +70,12 @@ function RoeImplicitLinearized:refreshGridSize(...)
 		-- which means the matrix coeffiicents shouldn't be changing per-iteration
 		-- which means calc_dU_dt() should be based on the initial state and not the iterative state
 		
+		-- use the integrator's deriv buffer and don't use this?
+		local dUdtBuf = self.integrator.derivBuf
+		
 		--UBuf = UBuf - dt * calc_dU_dt(self.UBuf)
-		calc_dU_dt(dUdtbuf, self.UBuf)
-		mulAdd(UNextBuf, UBuf, dUdtbuf, -self.linearSolverDT)
+		calc_dU_dt(dUdtBuf, self.UBuf)
+		self.linearSolver.args.mulAdd(UNextBuf, UBuf, dUdtBuf, -self.linearSolverDT)
 		
 		-- ... but what about this?
 		--UBuf = UBuf - dt * calc_dU_dt(UBuf)

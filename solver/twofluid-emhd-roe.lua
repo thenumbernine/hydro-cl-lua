@@ -10,7 +10,7 @@ also puts ion pressure at 1/100'th the electron pressure
 local class = require 'ext.class'
 local table = require 'ext.table'
 local ig = require 'ffi.imgui'
-local vec3sz = require 'solver.vec3sz'
+local vec3sz = require 'ffi.vec.vec3sz'
 
 
 local TwoFluidEMHDRoe = class()
