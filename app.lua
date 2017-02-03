@@ -240,8 +240,8 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or 2,
 		
-		--integrator = cmdline.integrator or 'forward Euler',	
-		integrator = 'Runge-Kutta 4, TVD',
+		integrator = cmdline.integrator or 'forward Euler',	
+		--integrator = 'Runge-Kutta 4, TVD',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = cmdline.fluxLimiter or 'donor cell',
@@ -338,7 +338,8 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	-- int. shock wave works in 1D at 256 . fails at 1024. with superbee flux lim
 	-- rel blast wave 1 doesn't work in 64x64. with superbee flux lim
 	-- rel blast wave 2 works in 2D 64x64, but not 256x256. with superbee flux lim
-	self.solvers:insert(require 'solver.srhd-roe'(args))	-- looks like something is wrong in 2D
+	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
+	self.solvers:insert(require 'solver.srhd-roe'(args))
 	
 	-- M+HD. with superbee flux lim.  
 	-- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.  

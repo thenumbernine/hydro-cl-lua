@@ -212,16 +212,15 @@ end
 
 function TwoFluidEMHDRoe:step(dt)
 	self:callAll('step', dt)
-	self.t = self.ion.t
 end
 
 -- same as Solver.update
 -- note this means sub-solvers' update() will be skipped
 -- so best to put update stuff in step()
 function TwoFluidEMHDRoe:update()
-	self:boundary()
 	local dt = self:calcDT()
 	self:step(dt)
+	self.t = self.ion.t
 end
 
 function TwoFluidEMHDRoe:getTex(var) 

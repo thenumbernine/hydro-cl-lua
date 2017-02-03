@@ -312,9 +312,11 @@ local initStates = {
 	{
 		name = 'Kelvin-Hemholtz',
 		init = function(solver)
-			for _,x in ipairs{'x', 'y', 'z'} do
+			for i,x in ipairs{'x', 'y', 'z'} do
 				for _,minmax in ipairs{'min', 'max'} do
-					solver.boundaryMethods[x..minmax][0] = solver.app.boundaryMethods:find'periodic'-1
+					solver.boundaryMethods[x..minmax][0] = 
+						--i == solver.dim and solver.app.boundaryMethods:find'freeflow'-1 or 
+						solver.app.boundaryMethods:find'periodic'-1
 				end
 			end
 			return [[
