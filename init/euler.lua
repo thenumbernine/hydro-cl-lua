@@ -1,6 +1,7 @@
 local table = require 'ext.table'
 local range = require 'ext.range'
 local clnumber = require 'cl.obj.number'
+local template = require 'template'
 
 local function quadrantProblem(args)
 	args.init = function(solver)
@@ -47,7 +48,7 @@ local function selfGravProblem(args)
 		solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'freeflow'-1
 		solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'freeflow'-1
 
-		return require 'template'([[
+		return template([[
 	rho = .1;
 	P = 1;
 	//v[i] = .1 * noise * crand();
@@ -319,25 +320,47 @@ local initStates = {
 						solver.app.boundaryMethods:find'periodic'-1
 				end
 			end
-			return [[
-	real yq1 = mins.y * .75 + maxs.y * .25;
-	real yq2 = mins.y * .25 + maxs.y * .75;
-	bool inside = (x.y > yq1 && x.y < yq2);
-	real theta = (x.x - mins.x) / (maxs.x - mins.x) * 2. * M_PI;
-#if dim == 3
-	theta *= (x.z - mins.z) / (maxs.z - mins.z);
-#endif
+			
+			local moveAxis = 0
+			local sliceAxis = 1
+			
+			-- move around the cylinder
+			if solver.geometry.name == 'cylinder' then
+				moveAxis = 1
+				sliceAxis = 0
+			end
+			
+			return template([[
+	real yq1 = mins.s<?=sliceAxis?> * .75 + maxs.s<?=sliceAxis?> * .25;
+	real yq2 = mins.s<?=sliceAxis?> * .25 + maxs.s<?=sliceAxis?> * .75;
+	bool inside = (x.s<?=sliceAxis?> > yq1 && x.s<?=sliceAxis?> < yq2);
+
+	real theta = 2. * M_PI;
+<?
+for i=0,solver.dim-1 do 
+	if i ~= sliceAxis then
+?>	theta *= (x.s<?=i?> - mins.s<?=i?>) / (maxs.s<?=i?> - mins.s<?=i?>);
+<? 
+	end	
+end ?>
+
 	real noise = (maxs.x - mins.x) * 1e-4;
 	rho = inside ? 2 : 1;
-	v.x = cos(theta) * noise + (inside ? -.5 : .5);
+	v.x = cos(theta) * noise;
 #if dim == 2
 	v.y = sin(theta) * noise;
 #endif
 #if dim == 3
 	v.z = sin(theta) * noise;
 #endif
+	v.s<?=moveAxis?> += (inside ? -.5 : .5);
 	P = 2.5;
-]]
+]],				{
+					solver = solver,
+					sliceAxis = sliceAxis,
+					moveAxis = moveAxis,
+				}
+			)
 		end,
 	},
 	
@@ -557,7 +580,8 @@ local initStates = {
 		name = 'two-fluid EMHD soliton ion',
 		init = function(solver)
 			return [[
-	rho = 1. + exp(-25. * abs(x.x - L / 3.));
+	const real L = 12.;
+	rho = 1. + (real)exp((real)-25. * (real)abs(x.x - L / (real)3.));
 ]]
 		end,
 	},
@@ -566,7 +590,7 @@ local initStates = {
 		init = function(solver)
 			return [[
 	const real L = 12.;
-	rho = 5. * (1. + exp(-25. * abs(x.x - L / 3.)));
+	rho = 5. * (1. + (real)exp((real)-25. * (real)abs(x.x - L / (real)3.)));
 ]]
 		end,
 	},

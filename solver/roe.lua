@@ -6,6 +6,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
+local math = require 'ext.math'
 local vec3 = require 'vec.vec3'
 local CLImageGL = require 'cl.imagegl'
 local CLProgram = require 'cl.program'
@@ -1146,6 +1147,9 @@ function Solver:calcDT()
 	else
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDTKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 		dt = tonumber(self.cfl[0]) * self:reduceMin()
+		if not math.isfinite(dt) then
+			print("got a bad dt!") -- TODO dump all buffers
+		end
 		self.fixedDT[0] = dt
 	end
 	return dt

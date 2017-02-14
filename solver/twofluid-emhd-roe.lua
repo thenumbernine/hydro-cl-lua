@@ -32,7 +32,7 @@ function TwoFluidEMHDRoe:init(args)
 	TwoFluidIonEulerRoe.eigen_T = 'euler_eigen_t'
 	function TwoFluidIonEulerRoe:init(args)
 		TwoFluidIonEulerRoe.super.init(self, table(args, {
-			initState = 'two-fluid EMHD soliton ion',
+--			initState = 'two-fluid EMHD soliton ion',
 		}))
 		self.name = 'ion '..self.name
 	end
@@ -45,7 +45,7 @@ function TwoFluidEMHDRoe:init(args)
 	TwoFluidElectronEulerRoe.eigen_T = 'euler_eigen_t'
 	function TwoFluidElectronEulerRoe:init(args)
 		TwoFluidElectronEulerRoe.super.init(self, table(args, {
-			initState = 'two-fluid EMHD soliton electron',
+--			initState = 'two-fluid EMHD soliton electron',
 		}))
 		self.name = 'electron '..self.name
 	end
@@ -58,7 +58,7 @@ function TwoFluidEMHDRoe:init(args)
 	TwoFluidMaxwellRoe.eigen_T = 'maxwell_eigen_t'
 	function TwoFluidMaxwellRoe:init(args)
 		TwoFluidMaxwellRoe.super.init(self, table(args, {
-			initState = 'two-fluid EMHD soliton maxwell',
+--			initState = 'two-fluid EMHD soliton maxwell',
 		}))
 	end
 	self.maxwell = TwoFluidMaxwellRoe(args)

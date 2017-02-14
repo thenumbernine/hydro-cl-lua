@@ -8,8 +8,8 @@ local template = require 'template'
 
 local Maxwell = class(Equation)
 Maxwell.name = 'Maxwell'
-
-Maxwell.numStates = 6
+Maxwell.numWaves = 6
+Maxwell.numStates = 7
 Maxwell.mirrorVars = {{'epsE.x', 'B.x'}, {'epsE.y', 'B.y'}, {'epsE.z', 'B.z'}}
 
 Maxwell.hasEigenCode = true
@@ -26,10 +26,11 @@ Maxwell.guiVars = table{
 function Maxwell:getTypeCode()
 	return template([[
 typedef union {
-	real ptr[6];
+	real ptr[7];
 	struct {
 		real3 epsE;
 		real3 B;
+		real ePot;	//used to calculate the B potential & remove div
 	};
 } <?=eqn.cons_t?>;
 ]], {
@@ -90,6 +91,7 @@ kernel void initState(
 	
 	U->epsE = real3_scale(E, eps0);
 	U->B = B;
+	U->ePot = 0;
 }
 ]], {
 	eqn = self,
@@ -125,7 +127,9 @@ function Maxwell:getDisplayVars()
 	value /= eps0;
 	<? end ?>
 ]], {solver=self.solver, field=field})}
-	end))
+	end)):append{
+		{phi = 'value = U->BPot;'},
+	}
 end
 
 -- can it be zero sized?

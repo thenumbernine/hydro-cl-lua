@@ -95,12 +95,12 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* x
 ) {
-	real alpha_sqrt_gamma_xx = eig->alpha / sqrt(eig->gamma_xx);
+	real alpha_over_sqrt_gamma_xx = eig->alpha / sqrt(eig->gamma_xx);
 	y[0] = 0;
 	y[1] = 0;
-	y[2] = x[4] * eig->f * alpha_sqrt_gamma_xx;
-	y[3] = x[4] * 2. * alpha_sqrt_gamma_xx;
-	y[4] = x[2] * alpha_sqrt_gamma_xx;
+	y[2] = x[4] * eig->f * alpha_over_sqrt_gamma_xx;
+	y[3] = x[4] * 2. * alpha_over_sqrt_gamma_xx;
+	y[4] = x[2] * alpha_over_sqrt_gamma_xx;
 }
 <? 				end
 			end
@@ -121,19 +121,20 @@ kernel void addSource(
 	real gamma_xx = U->gamma_xx;
 	real a_x = U->a_x;
 	real D_g = U->D_g;
-	real KTilde_xx = U->KTilde_xx;
+	real KTilde = U->KTilde;
 	
 	real sqrt_gamma_xx = sqrt(gamma_xx);
-	real K_xx = KTilde_xx / sqrt_gamma_xx;
-	
+	real K_xx = KTilde / sqrt_gamma_xx;
+	real K = KTilde / sqrt_gamma_xx;
+
 	real f = calc_f(alpha);
 	real dalpha_f = calc_dalpha_f(alpha);
 	
-	deriv->alpha -= alpha * alpha * f * K_xx / gamma_xx;
-	deriv->gamma_xx -= 2. * alpha * K_xx;
-	deriv->a_x -= alpha * K_xx * (f * (.5 * D_g - a_x) - a_x * alpha * dalpha_f);
-	deriv->D_g -= 2. * alpha * K_xx * (.5 * D_g - a_x);
-	deriv->KTilde_xx -= alpha * a_x / sqrt_gamma_xx * (.5 * D_g - a_x);
+	deriv->alpha -= alpha * alpha * f * K;
+	deriv->gamma_xx -= 2. * alpha * gamma_xx * K;
+	deriv->a_x -= ((.5 * D_g - a_x) * f - alpha * dalpha_f * a_x) * alpha * K;
+	deriv->D_g -= (.5 * D_g - a_x) * 2 * alpha * K;
+	deriv->KTilde -= (.5 * D_g - a_x) * a_x * alpha / sqrt_gamma_xx;
 }
 
 
@@ -154,14 +155,14 @@ void eigen_forCell_<?=side?>(
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxForCons_<?=side?>(<?=eqn.cons_t?> U) {
 	real sqrt_gamma_xx = sqrt(U.gamma_xx);
-	real K_xx = U.KTilde_xx / sqrt_gamma_xx;
+	real K_xx = U.KTilde / sqrt_gamma_xx;
 	real f = calc_f(U.alpha);
 	return (<?=eqn.cons_t?>){
 		.alpha = 0,
 		.gamma_xx = 0,
 		.a_x = U.alpha * f * K_xx,
 		.D_g = 2. * U.alpha * K_xx,
-		.KTilde_xx = U.alpha * U.a_x / sqrt_gamma_xx,
+		.KTilde = U.alpha * U.a_x / sqrt_gamma_xx,
 	};
 }
 <? end ?>

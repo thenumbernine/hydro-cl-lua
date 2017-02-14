@@ -272,8 +272,8 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		mins = cmdline.mins or {.5, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
 		gridSize = {
-			cmdline.gridSize or 32,
-			cmdline.gridSize or 256,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 512,
 			cmdline.gridSize or 1,
 		},
 		boundary = {
@@ -307,7 +307,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		-- no initial state means use the first
 		-- initState = cmdline.initState,
 		-- Euler / SRHD / MHD initial states:
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		-- (those designed for srhd:)
@@ -331,7 +331,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	
 	-- HD
 	--self.solvers:insert(require 'solver.euler-roe'(args))
-	self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
+	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 	
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
@@ -356,7 +356,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
 	
 	-- GR
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
+	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 	
@@ -367,21 +367,11 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		vertexCode = '#define VERTEX_SHADER\n'..graphShaderCode,
 		fragmentCode = '#define FRAGMENT_SHADER\n'..graphShaderCode,
 		uniforms = {
-			'tex', 
-			'scale', 
-			'xmin',
-			'xmax', 
-			'useLog', 
-			'axis', 
-			'ambient',
-			'size', 
+			tex = 0,
+			scale = 1,
+			ambient = 1,
 		},
 	}
-	self.graphShader:use()
-	gl.glUniform1i(self.graphShader.uniforms.tex, 0)
-	gl.glUniform1f(self.graphShader.uniforms.scale, 1)
-	gl.glUniform1f(self.graphShader.uniforms.ambient, 1)	
-	self.graphShader:useNone()
 	
 	local code = file['heatmap2d.shader']
 	for _,solver in ipairs(self.solvers) do
@@ -393,50 +383,31 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 			}:concat'\n',
 			fragmentCode = '#define FRAGMENT_SHADER\n'..code,
 			uniforms = {
-				'useLog',
-				'valueMin',
-				'valueMax',
-				'tex',
-				'gradient',
-				'alpha',
+				valueMin = 0,
+				valueMax = 0,
+				tex = 0,
+				gradient = 1,
+				alpha = 1,
 			},
 		}
 		solver.heatMap2DShader = heatMap2DShader 
-		heatMap2DShader:use()
-		gl.glUniform1f(heatMap2DShader.uniforms.valueMin, 0)
-		gl.glUniform1f(heatMap2DShader.uniforms.valueMax, 0)
-		gl.glUniform1i(heatMap2DShader.uniforms.tex, 0)
-		gl.glUniform1i(heatMap2DShader.uniforms.gradient, 1)
-		gl.glUniform1f(heatMap2DShader.uniforms.alpha, 1)
-		heatMap2DShader:useNone()
 
 		if solver.dim == 3 then
 			-- raytracing (stalling)
 			
+			local maxiter = math.max(tonumber(solver.gridSize.x), tonumber(solver.gridSize.y), tonumber(solver.gridSize.z))
 			local code = file['volumetric.shader']
 			local volumeRayShader = GLProgram{
 				vertexCode = '#define VERTEX_SHADER\n'..code,
 				fragmentCode = '#define FRAGMENT_SHADER\n'..code,
 				uniforms = {
-					'tex',
-					'gradient',
-					'maxiter',
-		--			'oneOverDx',
-					'scale',
-					'useLog',
-					'alpha',
+					tex = 0,
+					gradient = 1,
+					maxiter = maxiter,
+					--oneOverDx = (solver.maxs - solver.mins):unpack(),
 				},
 			}
 			solver.volumeRayShader = volumeRayShader
-			volumeRayShader:use()
-			gl.glUniform1i(volumeRayShader.uniforms.tex, 0)
-			gl.glUniform1i(volumeRayShader.uniforms.gradient, 1)
-			do
-				local maxiter = math.max(tonumber(solver.gridSize.x), tonumber(solver.gridSize.y), tonumber(solver.gridSize.z))
-				gl.glUniform1i(volumeRayShader.uniforms.maxiter, maxiter)
-			end
-			--gl.glUniform3f(volumeRayShader.uniforms.oneOverDx, (solver.maxs - solver.mins):unpack())
-			volumeRayShader:useNone()
 
 			-- volume slices
 
@@ -470,18 +441,11 @@ void main() {
 }
 ]],
 				uniforms = {
-					'volTex',
-					'hsvTex',
-					'normal',
-					'alpha',
-					'alphaGamma',
+					volTex = 0,
+					hsvTex = 1,
 				},
 			}
 			solver.volumeSliceShader = volumeSliceShader
-			volumeSliceShader:use()
-			if volumeSliceShader.uniforms.volTex then gl.glUniform1i(volumeSliceShader.uniforms.volTex, 0) end
-			if volumeSliceShader.uniforms.hsvTex then gl.glUniform1i(volumeSliceShader.uniforms.hsvTex, 1) end
-			volumeSliceShader:useNone()
 		end
 	end
 
@@ -873,9 +837,9 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 			solver:calcDisplayVarToTex(var)
 	
 			solver.heatMap2DShader:use()
-			gl.glUniform1i(solver.heatMap2DShader.uniforms.useLog, var.useLogPtr[0])
-			gl.glUniform1f(solver.heatMap2DShader.uniforms.valueMin, valueMin)
-			gl.glUniform1f(solver.heatMap2DShader.uniforms.valueMax, valueMax)
+			gl.glUniform1i(solver.heatMap2DShader.uniforms.useLog.loc, var.useLogPtr[0])
+			gl.glUniform1f(solver.heatMap2DShader.uniforms.valueMin.loc, valueMin)
+			gl.glUniform1f(solver.heatMap2DShader.uniforms.valueMax.loc, valueMax)
 			solver:getTex(var):bind(0)
 			self.gradientTex:bind(1)
 		
@@ -944,8 +908,8 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 			solver.volumeSliceShader:use()
 			solver:getTex(var):bind(0)
 			self.gradientTex:bind(1)
-			if solver.volumeSliceShader.uniforms.alpha then gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha, .15) end
-			if solver.volumeSliceShader.uniforms.alphaGamma then gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma, 1) end
+			if solver.volumeSliceShader.uniforms.alpha then gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha.loc, .15) end
+			if solver.volumeSliceShader.uniforms.alphaGamma then gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, 1) end
 					
 			gl.glEnable(gl.GL_TEXTURE_GEN_S)
 			gl.glEnable(gl.GL_TEXTURE_GEN_T)
@@ -983,7 +947,7 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 			else
 				jmin, jmax, jdir = n, 0, -1
 			end
-			if solver.volumeSliceShader.uniforms.normal then gl.glUniform3f(solver.volumeSliceShader.uniforms.normal, fwddir==1 and jdir or 0, fwddir==2 and jdir or 0, fwddir==3 and jdir or 0) end
+			if solver.volumeSliceShader.uniforms.normal then gl.glUniform3f(solver.volumeSliceShader.uniforms.normal.loc, fwddir==1 and jdir or 0, fwddir==2 and jdir or 0, fwddir==3 and jdir or 0) end
 			
 			gl.glBegin(gl.GL_QUADS)
 			for j=jmin,jmax,jdir do
@@ -1051,9 +1015,9 @@ function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, 
 				gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 				gl.glEnable(gl.GL_BLEND)
 				volumeRayShader:use()
-				gl.glUniform1f(volumeRayShader.uniforms.scale, 1)--scale)
-				gl.glUniform1i(volumeRayShader.uniforms.useLog, useLog and 1 or 0)
-				gl.glUniform1f(volumeRayShader.uniforms.alpha, 1)--alpha)
+				gl.glUniform1f(volumeRayShader.uniforms.scale.loc, 1)--scale)
+				gl.glUniform1i(volumeRayShader.uniforms.useLog.loc, useLog and 1 or 0)
+				gl.glUniform1f(volumeRayShader.uniforms.alpha.loc, 1)--alpha)
 				solver:getTex(var):bind(0)
 				self.gradientTex:bind(1)
 			end
@@ -1095,11 +1059,11 @@ function HydroCLApp:showDisplayVar1D(solver, varIndex)
 	self.graphShader:use()
 	solver:getTex(var):bind()
 
-	gl.glUniform1i(self.graphShader.uniforms.useLog, var.useLogPtr[0])
-	gl.glUniform2f(self.graphShader.uniforms.xmin, solver.mins[1], 0)
-	gl.glUniform2f(self.graphShader.uniforms.xmax, solver.maxs[1], 0)
-	gl.glUniform1i(self.graphShader.uniforms.axis, solver.dim)
-	gl.glUniform2f(self.graphShader.uniforms.size, solver.gridSize.x, solver.gridSize.y)
+	gl.glUniform1i(self.graphShader.uniforms.useLog.loc, var.useLogPtr[0])
+	gl.glUniform2f(self.graphShader.uniforms.xmin.loc, solver.mins[1], 0)
+	gl.glUniform2f(self.graphShader.uniforms.xmax.loc, solver.maxs[1], 0)
+	gl.glUniform1i(self.graphShader.uniforms.axis.loc, solver.dim)
+	gl.glUniform2f(self.graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
 
 	gl.glColor3f(table.unpack((#self.solvers > 1 and solver or var).color))
 	gl.glBegin(gl.GL_LINE_STRIP)

@@ -171,6 +171,8 @@ x,  y,  z, z,  y,  x
 	y[5] = su * (x[2] + x[3]);
 	
 	<? end ?>
+	
+	y[6] = 0;	//BPot
 }
 
 <? 
@@ -214,6 +216,8 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	y[5] = 0;
 		
 	<? end ?>
+	
+	y[6] = 0;
 }
 <?
 				end
