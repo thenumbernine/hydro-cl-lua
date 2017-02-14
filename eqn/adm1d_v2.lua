@@ -159,11 +159,13 @@ function ADM_BonaMasso_1D_Alcubierre1997:getDisplayVars()
 		{K_xx = 'value = U->K_xx;'},
 		-- 2008-only cons vars:
 		{D_g = 'value = 2. * U->d_xxx / U->gamma_xx;'},
-		{KTilde_xx = 'value = U->K_xx * sqrt(U->gamma_xx);'},
+		{KTilde = 'value = U->K_xx / sqrt(U->gamma_xx);'},
 		-- aux:
 		{dx_alpha = 'value = U->alpha * U->a_x;'},
 		{dx_gamma_xx = 'value = 2. * U->d_xxx;'},
 		{volume = 'value = U->alpha * sqrt(U->gamma_xx);'},
+		{f = 'value = calc_f(U->alpha);'},
+		{['df/dalpha'] = 'value = calc_dalpha_f(U->alpha);'},
 	}
 end
 
