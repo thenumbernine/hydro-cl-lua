@@ -1285,6 +1285,7 @@ function Solver:updateGUI()
 					for _,var in ipairs(convertToTex.vars) do
 						var.enabled[0] = all[0]
 					end
+					self:refreshDisplayProgram()
 				end
 				
 				for _,var in ipairs(convertToTex.vars) do

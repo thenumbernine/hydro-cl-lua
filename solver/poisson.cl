@@ -20,7 +20,7 @@ kernel void initPotential(
 	SETBOUNDS(2,2);
 	real rho = 0;
 	<?=calcRho?>
-	UBuf[index].ePot = -rho;
+	UBuf[index].<?=potentialField?> = -rho;
 }
 
 kernel void solvePoisson(
@@ -35,10 +35,10 @@ kernel void solvePoisson(
 	real skewSum = 0;
 <? for j=0,solver.dim-1 do ?>
 	if (i.s<?=j?> < gridSize.s<?=j?>-3) {
-		skewSum += UBuf[index + stepsize.s<?=j?>].ePot / (dx<?=j?> * dx<?=j?>);
+		skewSum += UBuf[index + stepsize.s<?=j?>].<?=potentialField?> / (dx<?=j?> * dx<?=j?>);
 	}
 	if (i.s<?=j?> > 2) {
-		skewSum += UBuf[index - stepsize.s<?=j?>].ePot / (dx<?=j?> * dx<?=j?>);
+		skewSum += UBuf[index - stepsize.s<?=j?>].<?=potentialField?> / (dx<?=j?> * dx<?=j?>);
 	}
 <? end ?>
 
@@ -51,5 +51,5 @@ kernel void solvePoisson(
 	real rho = 0;
 	<?=calcRho?>
 
-	UBuf[index].ePot = (rho - skewSum) / diag;
+	UBuf[index].<?=potentialField?> = (rho - skewSum) / diag;
 }

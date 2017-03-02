@@ -3,9 +3,9 @@ local file = require 'ext.file'
 local class = require 'ext.class'
 local ffi = require 'ffi'
 
-
 local Poisson = class()
 
+Poisson.potentialField = 'ePot'
 Poisson.gaussSeidelMaxIters = 20
 
 function Poisson:init(solver)
@@ -21,6 +21,7 @@ function Poisson:getSolverCode()
 		table(self:getCodeParams(), {
 			eqn = self.solver.eqn,
 			solver = self.solver,
+			potentialField = self.potentialField,
 		}))
 end
 
@@ -40,7 +41,7 @@ function Poisson:refreshBoundaryProgram()
 				return solver.app.boundaryMethods[1+v[0]], k
 			end),
 			assign = function(a,b)
-				return a..'.ePot = '..b..'.ePot'
+				return a..'.'..self.potentialField..' = '..b..'.'..self.potentialField
 			end,
 		}
 	solver.potentialBoundaryKernel:setArg(0, solver.UBuf)
@@ -61,9 +62,13 @@ function Poisson:relax()
 	end
 end
 
--- static function
--- called with : (to get the correct subclass)
--- used as behavior template
+--[[
+static function
+called with : (to get the correct subclass)
+used as behavior template
+field - which field in 'self' to store this behavior object 
+enableField - which field in 'self' to toggle the behavior
+--]]
 function Poisson:createBehavior(field, enableField)
 	local subclass = self
 	return function(parent)

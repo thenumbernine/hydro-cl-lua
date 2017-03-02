@@ -30,7 +30,7 @@ typedef union {
 	struct {
 		real3 epsE;
 		real3 B;
-		real ePot;	//used to calculate the B potential & remove div
+		real BPot;	//used to calculate the B potential & remove div
 	};
 } <?=eqn.cons_t?>;
 ]], {
@@ -91,7 +91,7 @@ kernel void initState(
 	
 	U->epsE = real3_scale(E, eps0);
 	U->B = B;
-	U->ePot = 0;
+	U->BPot = 0;
 }
 ]], {
 	eqn = self,

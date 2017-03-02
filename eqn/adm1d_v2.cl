@@ -138,18 +138,18 @@ kernel void addSource(
 	real a_x = U->a_x;
 	real d_xxx = U->d_xxx;
 	real K_xx = U->K_xx;
-	
+	real K = K_xx / gamma_xx;	
 	real f = calc_f(alpha);
 	real dalpha_f = calc_dalpha_f(alpha);
 	
-	deriv->alpha -= alpha * alpha * f * K_xx / gamma_xx;
+	deriv->alpha -= alpha * alpha * f * K;
 	deriv->gamma_xx -= 2. * alpha * K_xx;
 	deriv->K_xx += alpha / gamma_xx * (a_x * d_xxx - K_xx * K_xx);
 // terms that mysteriously disappear when you compare the linearized flux matrix terms moved to source, vs the source that Alcubierre uses in his 1997 paper
 // adding these neglected terms back in make things blow up
 #if 0 
-	deriv->a_x += alpha * K_xx / gamma_xx * (f * (2. * d_xxx / gamma_xx - a_x) - a_x * alpha * dalpha_f);
-	deriv->d_xxx -= alpha * a_x * K_xx; 
+	deriv->a_x += ((2. * d_xxx / gamma_xx - a_x) * f - alpha * dalpha_f * a_x) * alpha * K;
+	deriv->d_xxx -= alpha * a_x * K_xx;
 	deriv->K_xx -= alpha * a_x * a_x; 
 #endif
 }

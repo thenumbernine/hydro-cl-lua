@@ -17,6 +17,8 @@ Features:
 - Maxwell equations from Trangenstein's book
 
 TODO:
+- get divergence-free on ideal MHD
+- why when you run Orszag-Tang in the Maxwell simulator does it explode at different random times? 
 - get two-fluid EMHD working (currently has 
 - get potential forces for Euler equations working
 - get self-gravitation for Euler equations working

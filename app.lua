@@ -238,10 +238,10 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 1,
+		dim = cmdline.dim or 2,
 		
-		integrator = cmdline.integrator or 'forward Euler',	
-		--integrator = 'Runge-Kutta 4, TVD',
+		--integrator = cmdline.integrator or 'forward Euler',	
+		integrator = 'Runge-Kutta 4, TVD',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = cmdline.fluxLimiter or 'donor cell',
@@ -254,9 +254,9 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
+			cmdline.gridSize or 64,
+			cmdline.gridSize or 64,
+			cmdline.gridSize or 64,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -324,7 +324,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		--initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
 		-- EM:
-		--initState = 'Maxwell default',
+		initState = 'Maxwell default',
 	}
 	
 	self.solvers = table()
@@ -350,13 +350,13 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))
 	
 	-- EM
-	--self.solvers:insert(require 'solver.maxwell-roe'(args))
+	self.solvers:insert(require 'solver.maxwell-roe'(args))
 	
 	-- EM+HD
 	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
 	
 	-- GR
-	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 	
