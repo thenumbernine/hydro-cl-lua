@@ -8,7 +8,7 @@ local MHD = class(Equation)
 
 MHD.name = 'MHD'
 
-MHD.numStates = 8
+MHD.numStates = 9
 MHD.numWaves = 7
 
 MHD.mirrorVars = {{'m.x', 'B.x'}, {'m.y', 'B.y'}, {'m.z', 'B.z'}}
@@ -29,19 +29,24 @@ MHD.guiVars = table{
 function MHD:getTypeCode()
 	return template([[
 typedef struct {
-	real rho;
-	real3 v;
-	real P;
-	real3 B;
+	real ptr[9];
+	struct {
+		real rho;
+		real3 v;
+		real P;
+		real3 B;
+		real BPot;
+	};
 } <?=eqn.prim_t?>;
 
 typedef union {
-	real ptr[8];
+	real ptr[9];
 	struct {
 		real rho;
 		real3 m;
 		real ETotal;
 		real3 B;
+		real BPot;
 	};
 } <?=eqn.cons_t?>;
 ]], {
@@ -83,6 +88,7 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U) {
 	W.P = EInt * (heatCapacityRatio - 1.);
 	W.P = max(W.P, (real)1e-7);
 	W.rho = max(W.rho, (real)1e-7);
+	W.BPot = U.BPot;
 	return W;
 }
 
@@ -97,6 +103,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W) {
 	real EMag = .5 * BSq;
 	real EInt = W.P / (heatCapacityRatio - 1.);
 	U.ETotal = EInt + EKin + EMag;
+	U.BPot = W.BPot;
 	return U;
 }
 ]], {
@@ -130,8 +137,8 @@ kernel void initState(
 	real3 B = _real3(0,0,0);
 
 ]]..code..[[
-
-	<?=eqn.prim_t?> W = {.rho=rho, .v=v, .P=P, .B=B};
+	
+	<?=eqn.prim_t?> W = {.rho=rho, .v=v, .P=P, .B=B, .BPot=0};
 	UBuf[index] = consFromPrim(W);
 }
 ]], {
@@ -145,8 +152,8 @@ end
 
 function MHD:getDisplayVarCodePrefix()
 	return template([[
-	<?=eqn.cons_t?> U = buf[index];
-	<?=eqn.prim_t?> W = primFromCons(U);
+	global const <?=eqn.cons_t?>* U = buf + index;
+	<?=eqn.prim_t?> W = primFromCons(*U);
 ]], {
 	eqn = self,
 })
@@ -159,10 +166,10 @@ function MHD:getDisplayVars()
 		{vy = 'value = W.v.y;'},
 		{vz = 'value = W.v.z;'},
 		{v = 'value = real3_len(W.v);'},
-		{mx = 'value = U.m.x;'},
-		{my = 'value = U.m.y;'},
-		{mz = 'value = U.m.z;'},
-		{m = 'value = real3_len(U.m);'},
+		{mx = 'value = U->m.x;'},
+		{my = 'value = U->m.y;'},
+		{mz = 'value = U->m.z;'},
+		{m = 'value = real3_len(U->m);'},
 		{Bx = 'value = W.B.x;'},
 		{By = 'value = W.B.y;'},
 		{Bz = 'value = W.B.z;'},
@@ -190,13 +197,13 @@ function MHD:getDisplayVars()
 		{EHydro = 'value = calc_EHydro(W);'},
 		--{eMag = 'value = calc_eMag(W);'},
 		{EMag = 'value = calc_EMag(W);'},
-		--{eTotal = 'value = U.ETotal / W.rho;'},
-		{ETotal = 'value = U.ETotal;'},
+		--{eTotal = 'value = U->ETotal / W.rho;'},
+		{ETotal = 'value = U->ETotal;'},
 		{S = 'value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
 		{H = 'value = calc_H(W.P);'},
 		--{h = 'value = calc_H(W.P) / W.rho;'},
-		--{HTotal = 'value = calc_HTotal(W, U.ETotal);'},
-		--{hTotal = 'value = calc_hTotal(W, U.ETotal);'},
+		--{HTotal = 'value = calc_HTotal(W, U->ETotal);'},
+		--{hTotal = 'value = calc_hTotal(W, U->ETotal);'},
 		--{Cs = 'value = calc_Cs(W); },
 		{['primitive reconstruction error'] = template([[
 		//prim have just been reconstructed from cons
@@ -204,7 +211,7 @@ function MHD:getDisplayVars()
 		<?=eqn.cons_t?> U2 = consFromPrim(W);
 		value = 0;
 		for (int j = 0; j < numStates; ++j) {
-			value += fabs(U.ptr[j] - U2.ptr[j]);
+			value += fabs(U->ptr[j] - U2.ptr[j]);
 		}
 ]], {
 	eqn = self,
