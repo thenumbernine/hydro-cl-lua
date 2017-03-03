@@ -44,12 +44,16 @@ function Maxwell:getCodePrefix()
 		'#define sqrt_eps0 '..clnumber(math.sqrt(self.guiVarsForName.eps0.value[0])),
 		'#define sqrt_mu0 '..clnumber(math.sqrt(self.guiVarsForName.mu0.value[0])),
 		template([[
+//hmm, for E and B, even if the coord is 2D, we need all 3D components ...
+
 real ESq(<?=eqn.cons_t?> U) { 
-	return coordLenSq(U.epsE) / (eps0 * eps0);
+	//return coordLenSq(U.epsE) / (eps0 * eps0);
+	return real3_lenSq(U.epsE) / (eps0 * eps0);
 }
 
 real BSq(<?=eqn.cons_t?> U) {
-	return coordLenSq(U.B);
+	//return coordLenSq(U.B);
+	return real3_lenSq(U.B);
 }
 ]], {
 	eqn = self,
@@ -112,7 +116,10 @@ function Maxwell:getDisplayVars()
 		{By = 'value = U->B.y;'},
 		{Bz = 'value = U->B.z;'},
 		{B = 'value = sqrt(BSq(*U));'},
-		{energy = 'value = .5 * (coordLen(U->epsE) + coordLen(U->B) / mu0);'},
+		{energy = [[
+	//value = .5 * (coordLen(U->epsE) + coordLen(U->B) / mu0);
+	value = .5 * (real3_len(U->epsE) + real3_len(U->B) / mu0);
+]]},
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='epsE', B='B'})[var] )
 		return {['div '..var] = template([[

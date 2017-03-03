@@ -240,8 +240,8 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or 2,
 		
-		--integrator = cmdline.integrator or 'forward Euler',	
-		integrator = 'Runge-Kutta 4, TVD',
+		integrator = cmdline.integrator or 'forward Euler',	
+		--integrator = 'Runge-Kutta 4, TVD',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = cmdline.fluxLimiter or 'donor cell',
@@ -259,12 +259,12 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 			cmdline.gridSize or 64,
 		},
 		boundary = {
-			xmin=cmdline.boundary or 'periodic',
-			xmax=cmdline.boundary or 'periodic',
-			ymin=cmdline.boundary or 'periodic',
-			ymax=cmdline.boundary or 'periodic',
-			zmin=cmdline.boundary or 'periodic',
-			zmax=cmdline.boundary or 'periodic',
+			xmin=cmdline.boundary or 'freeflow',
+			xmax=cmdline.boundary or 'freeflow',
+			ymin=cmdline.boundary or 'freeflow',
+			ymax=cmdline.boundary or 'freeflow',
+			zmin=cmdline.boundary or 'freeflow',
+			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
 		--[[ cylinder
@@ -322,9 +322,9 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		--initState = 'self-gravitation test 4',
 		-- MHD-only init states: (that use 'b')
 		--initState = 'Brio-Wu',
-		initState = 'Orszag-Tang',
+		--initState = 'Orszag-Tang',
 		-- EM:
-		--initState = 'Maxwell default',
+		initState = 'Maxwell default',
 	}
 	
 	self.solvers = table()
@@ -346,11 +346,11 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	-- Orszag-Tang with forward Euler integrator fails at 64x64 around .7 or .8
 	-- 		but works with 'Runge-Kutta 4, TVD' integrator at 64x64
 	-- 		RK4-TVD fails at 256x256 at just after t=.5
-	self.solvers:insert(require 'solver.mhd-roe'(args))
+	--self.solvers:insert(require 'solver.mhd-roe'(args))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))
 	
 	-- EM
-	--self.solvers:insert(require 'solver.maxwell-roe'(args))
+	self.solvers:insert(require 'solver.maxwell-roe'(args))
 	
 	-- EM+HD
 	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
