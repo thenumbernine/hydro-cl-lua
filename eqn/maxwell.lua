@@ -135,7 +135,7 @@ function Maxwell:getDisplayVars()
 	<? end ?>
 ]], {solver=self.solver, field=field})}
 	end)):append{
-		{phi = 'value = U->BPot;'},
+--		{phi = 'value = U->BPot;'},
 	}
 end
 

@@ -254,17 +254,17 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 64,
-			cmdline.gridSize or 64,
-			cmdline.gridSize or 64,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
 		},
 		boundary = {
-			xmin=cmdline.boundary or 'freeflow',
-			xmax=cmdline.boundary or 'freeflow',
-			ymin=cmdline.boundary or 'freeflow',
-			ymax=cmdline.boundary or 'freeflow',
-			zmin=cmdline.boundary or 'freeflow',
-			zmax=cmdline.boundary or 'freeflow',
+			xmin=cmdline.boundary or 'periodic',
+			xmax=cmdline.boundary or 'periodic',
+			ymin=cmdline.boundary or 'periodic',
+			ymax=cmdline.boundary or 'periodic',
+			zmin=cmdline.boundary or 'periodic',
+			zmax=cmdline.boundary or 'periodic',
 		},
 		--]]
 		--[[ cylinder
