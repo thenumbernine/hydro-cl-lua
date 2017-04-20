@@ -582,7 +582,7 @@ end ?>
 		init = function(solver)
 			return [[
 	const real L = 12.;
-	rho = 1. + (real)exp((real)-25. * (real)abs(x.x - L / (real)3.));
+	rho = 1. + (real)exp((real)-25. * (real)fabs(x.x - L / (real)3.));
 ]]
 		end,
 	},
@@ -591,13 +591,17 @@ end ?>
 		init = function(solver)
 			return [[
 	const real L = 12.;
-	rho = 5. * (1. + (real)exp((real)-25. * (real)abs(x.x - L / (real)3.)));
+	rho = 5. * (1. + (real)exp((real)-25. * (real)fabs(x.x - L / (real)3.)));
 ]]
 		end,
 	},
 	{
 		name = 'two-fluid EMHD soliton maxwell',
 		init = function(solver)
+-- TODO			
+			return [[
+
+]]
 		end,
 	},
 }

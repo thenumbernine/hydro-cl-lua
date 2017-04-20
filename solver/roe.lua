@@ -662,7 +662,6 @@ function Solver:resetState()
 	self:boundary()
 	self.app.cmds:finish()
 	self.t = 0
-	print('Solver:reset() self.t',self.t)
 end
 
 function Solver:getCalcDTCode()

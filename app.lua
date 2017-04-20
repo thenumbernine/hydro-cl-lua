@@ -353,15 +353,21 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	
 	-- EM
 	--self.solvers:insert(require 'solver.maxwell-roe'(args))
-	self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
+	--self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
 	
 	-- EM+HD
 	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
+	--self.solvers:insert(require 'solver.twofluid-emhd-roe_implicit_linearized'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
 	
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
+	-- still needs work ...
+	-- this doesn't work, even though RoeImplicitLinear works with adm-1d in the 1D grav wave sim
+	self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v1'})))
+	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
+	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 	
