@@ -45,6 +45,7 @@ function Maxwell:getCodePrefix()
 		'#define sqrt_mu0 '..clnumber(math.sqrt(self.guiVarsForName.mu0.value[0])),
 		template([[
 //hmm, for E and B, even if the coord is 2D, we need all 3D components ...
+//this means we need coordLen functions with guaranteed dimensions, including tangent spaces
 
 real ESq(<?=eqn.cons_t?> U) { 
 	//return coordLenSq(U.epsE) / (eps0 * eps0);

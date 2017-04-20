@@ -2,6 +2,35 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local Roe = require 'solver.roe'
 local ffi = require 'ffi'
+local math = require 'ext.math'
+
+local tolua = require 'ext.tolua'
+local function gputostr(self, x)
+	local ptr = ffi.new(self.eqn.cons_t..'['..self.volume..']')
+	self.app.cmds:enqueueReadBuffer{buffer=x, block=true, size=self.volume*ffi.sizeof(self.eqn.cons_t), ptr=ptr}
+	local t = table()
+	for i=0,self.volume-1 do
+		local t2 = table()
+		for j=0,self.eqn.numStates-1 do
+			t2:insert(ptr[i].ptr[j])
+		end
+		t:insert(t2)
+	end
+	return tolua(t)
+end
+
+local CLGMRES = require 'solver.cl.gmres'
+local ThisGMRES = class(CLGMRES)
+
+function ThisGMRES:newBuffer(name)
+	if not self.cache then self.cache = {} end
+	local cached = self.cache[name]
+	if cached then return cached end
+print('gmres solver allocating', name)
+	cached = ThisGMRES.super.newBuffer(self, name)
+	self.cache[name] = cached
+	return cached
+end
 
 local RoeImplicitLinearized = class(Roe)
 
@@ -50,48 +79,32 @@ function RoeImplicitLinearized:refreshGridSize(...)
 		end),
 	}
 	
-	local mul = fakeEnv:kernel{
-		argsOut = {
-			{name='y', type=self.type, obj=true},
-		},
-		argsIn = {
-			{name='a', type=self.type, obj=true},
-			{name='b', type=self.type, obj=true},
-		},
-		body = [[
-	if (OOB(numGhost, numGhost)) {
-		y[index] = 0.;
-	} else {
-		y[index] = a[index] * b[index];
-	}
-]],
-	}
-
-	local dot = fakeEnv:reduce{
-		size = fakeEnv.base.volume,
-		op = function(x,y) return x..' + '..y end,
-	}
+	local numreals = self.volume * self.eqn.numStates
 	
 	local linearSolverArgs = {
 		env = fakeEnv,
 		--maxiter = 1000,
 		x = self.UBuf,
+		size = numreals,
 		epsilon = 1e-10,
-		maxiter = self.volume * self.eqn.numStates,
+		maxiter = 10 * numreals,
 		restart = 10,
 		-- logging:
-		errorCallback = function(err, iter)
-			print('gmres t', self.t, 'iter', iter, 'err', err)
-		end,
-		dot = function(a,b)
-			mul(dot.buffer, a, b)
-			return dot()
+		errorCallback = function(err, iter, x, rLenSq, bLenSq)
+			print('t', self.t, 'iter', iter, 'err', err, 'rLenSq', rLenSq, 'bLenSq', bLenSq)
+			--print(' x', gputostr(self, x))
+			if not math.isfinite(err) then
+				error("got non-finite err: "..err)
+			end
 		end,
 	}
 
 	-- [=[ backward Euler
-	self.app.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.lastUBuf, size=self.volume * self.eqn.numStates}
+	self.app.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.lastUBuf, size=self.volume * ffi.sizeof(self.eqn.cons_t)}
 	linearSolverArgs.b = self.lastUBuf
+	-- usage of A:
+	-- A(r, x)
+	-- A(w, v[i])
 	linearSolverArgs.A = function(UNextBuf, UBuf)
 		-- if this is a linearized implicit solver
 		-- then the matrix should be computed before invoking the iterative solver
@@ -100,13 +113,12 @@ function RoeImplicitLinearized:refreshGridSize(...)
 		
 		-- use the integrator's deriv buffer and don't use this?
 		local dUdtBuf = self.integrator.derivBuf
+		calc_dU_dt(dUdtBuf, self.lastUBuf)
+		-- TODO add source terms if they exist in the equation
+		-- TODO incorporate source terms into eqn objects
 		
-		--UBuf = UBuf - dt * calc_dU_dt(self.UBuf)
-		calc_dU_dt(dUdtBuf, self.UBuf)
+		--UNextBuf = UBuf - dt * calc_dU_dt(self.UBuf)
 		self.linearSolver.args.mulAdd(UNextBuf, UBuf, dUdtBuf, -self.linearSolverDT)
-		
-		-- ... but what about this?
-		--UBuf = UBuf - dt * calc_dU_dt(UBuf)
 		
 		--self.boundaryMethod(UBuf)
 	end
@@ -123,9 +135,9 @@ function RoeImplicitLinearized:refreshGridSize(...)
 		return UBuf
 	end
 	--]=]
-	
+
 	-- set up gmres solver here
-	self.linearSolver = require 'solver.cl.gmres'(linearSolverArgs)
+	self.linearSolver = ThisGMRES(linearSolverArgs)
 end
 
 function RoeImplicitLinearized:createBuffers()
@@ -136,7 +148,7 @@ end
 -- step contains integrating flux and source terms
 -- but not post iterate
 function RoeImplicitLinearized:step(dt)
-	print('step dt',dt)
+	print('RoeImplicitLinearized:step() t',self.t,'dt',dt,'cfl',self.cfl)
 	self.linearSolverDT = dt
 	self.linearSolver()
 end

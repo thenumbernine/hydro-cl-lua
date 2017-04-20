@@ -156,8 +156,8 @@ function Solver:init(args)
 	end
 
 	self.useFixedDT = ffi.new('bool[1]', false)
-	self.fixedDT = ffi.new('float[1]', 0)
-	self.cfl = ffi.new('float[1]', .5/self.dim)
+	self.fixedDT = 0
+	self.cfl = .5/self.dim
 	self.initStatePtr = ffi.new('int[1]', (table.find(self.eqn.initStateNames, args.initState) or 1)-1)
 	self.integratorPtr = ffi.new('int[1]', (self.integratorNames:find(args.integrator) or 1)-1)
 	self.fluxLimiter = ffi.new('int[1]', (self.app.limiterNames:find(args.fluxLimiter) or 1)-1)
@@ -662,6 +662,7 @@ function Solver:resetState()
 	self:boundary()
 	self.app.cmds:finish()
 	self.t = 0
+	print('Solver:reset() self.t',self.t)
 end
 
 function Solver:getCalcDTCode()
@@ -1143,14 +1144,14 @@ function Solver:calcDT()
 	local dt
 	-- calc cell wavespeeds -> dts
 	if self.useFixedDT[0] then
-		dt = tonumber(self.fixedDT[0])
+		dt = self.fixedDT
 	else
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDTKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-		dt = tonumber(self.cfl[0]) * self:reduceMin()
+		dt = self.cfl * self:reduceMin()
 		if not math.isfinite(dt) then
 			print("got a bad dt!") -- TODO dump all buffers
 		end
-		self.fixedDT[0] = dt
+		self.fixedDT = dt
 	end
 	return dt
 end
@@ -1159,6 +1160,7 @@ function Solver:update()
 	local dt = self:calcDT()
 	self:step(dt)
 	self.t = self.t + dt
+	print('Solver:update() self.t',self.t)
 end
 
 function Solver:step(dt)
@@ -1222,11 +1224,18 @@ function Solver:calcDisplayVarRange(var)
 	return ymin, ymax
 end
 
+local float = ffi.new'float[1]'
 function Solver:updateGUI()
 	if ig.igCollapsingHeader'parameters:' then
 		ig.igCheckbox('use fixed dt', self.useFixedDT)
-		ig.igInputFloat('fixed dt', self.fixedDT)
-		ig.igInputFloat('CFL', self.cfl)
+		float[0] = self.fixedDT
+		if ig.igInputFloat('fixed dt', float) then 
+			self.fixedDT = float[0] 
+		end
+		float[0] = self.cfl
+		if ig.igInputFloat('CFL', float) then 
+			self.cfl = float[0] 
+		end
 
 		if ig.igCombo('integrator', self.integratorPtr, self.integratorNames) then
 			self:refreshIntegrator()

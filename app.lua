@@ -238,7 +238,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 2,
+		dim = cmdline.dim or 1,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 4, TVD',
@@ -259,12 +259,12 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 			cmdline.gridSize or 256,
 		},
 		boundary = {
-			xmin=cmdline.boundary or 'periodic',
-			xmax=cmdline.boundary or 'periodic',
-			ymin=cmdline.boundary or 'periodic',
-			ymax=cmdline.boundary or 'periodic',
-			zmin=cmdline.boundary or 'periodic',
-			zmax=cmdline.boundary or 'periodic',
+			xmin=cmdline.boundary or 'freeflow',
+			xmax=cmdline.boundary or 'freeflow',
+			ymin=cmdline.boundary or 'freeflow',
+			ymax=cmdline.boundary or 'freeflow',
+			zmin=cmdline.boundary or 'freeflow',
+			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
 		--[[ cylinder
@@ -307,7 +307,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		-- no initial state means use the first
 		-- initState = cmdline.initState,
 		-- Euler / SRHD / MHD initial states:
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		-- (those designed for srhd:)
@@ -324,14 +324,14 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		--initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
 		-- EM:
-		initState = 'Maxwell default',
+		--initState = 'Maxwell default',
 	}
 	
 	self.solvers = table()
 	
 	-- HD
 	--self.solvers:insert(require 'solver.euler-roe'(args))
-	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
+	self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 	
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
@@ -350,7 +350,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))
 	
 	-- EM
-	self.solvers:insert(require 'solver.maxwell-roe'(args))
+	--self.solvers:insert(require 'solver.maxwell-roe'(args))
 	
 	-- EM+HD
 	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t

@@ -5,7 +5,7 @@ local template = require 'template'
 
 local function quadrantProblem(args)
 	args.init = function(solver)
-		solver.cfl[0] = .475
+		solver.cfl = .475
 		for _,x in ipairs{'x', 'y', 'z'} do
 			for _,minmax in ipairs{'min', 'max'} do
 				solver.boundaryMethods[x..minmax][0] = solver.app.boundaryMethods:find'freeflow'-1
@@ -240,7 +240,7 @@ local initStates = {
 	{
 		name = 'relativistic shock reflection',
 		init = function(solver)
-			solver.cfl[0] = .5	-- needs a slower cfl
+			solver.cfl = .5	-- needs a slower cfl
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
 				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 4/3
 			end
@@ -254,7 +254,7 @@ local initStates = {
 	{
 		name = 'relativistic blast wave test problem 1',
 		init = function(solver)
-			solver.cfl[0] = .5	-- needs a slower cfl
+			solver.cfl = .5	-- needs a slower cfl
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
 				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
 			end
@@ -267,7 +267,7 @@ local initStates = {
 	{
 		name = 'relativistic blast wave test problem 2',
 		init = function(solver)
-			solver.cfl[0] = .5	-- needs a slower cfl
+			solver.cfl = .5	-- needs a slower cfl
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
 				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
 			end
@@ -280,7 +280,7 @@ local initStates = {
 	{
 		name = 'relativistic blast wave interaction',
 		init = function(solver)
-			solver.cfl[0] = .5	-- needs a slower cfl
+			solver.cfl = .5	-- needs a slower cfl
 			return [[
 	real xL = .9 * mins_x + .1 * maxs_x;
 	real xR = .1 * mins_x + .9 * maxs_x;

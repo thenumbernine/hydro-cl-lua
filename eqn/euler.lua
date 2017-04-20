@@ -25,7 +25,10 @@ Euler.hasEigenCode = true
 Euler.initStates = require 'init.euler'
 
 Euler.guiVars = {
-	require 'guivar.float'{name='heatCapacityRatio', value=7/5}
+	require 'guivar.float'{name='heatCapacityRatio', 
+		--value=7/5,
+		value=5/3,
+	}
 }
 
 function Euler:getTypeCode()

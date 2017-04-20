@@ -17,7 +17,7 @@ Features:
 - Maxwell equations from Trangenstein's book
 
 TODO:
-- get divergence-free working with periodic boundary conditions 
+- something is causing divergence-free to explode 
 - why when you run Orszag-Tang in the Maxwell simulator does it explode at different random times? 
 - get two-fluid EMHD working (currently has 
 - get potential forces for Euler equations working
