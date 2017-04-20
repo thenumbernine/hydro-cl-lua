@@ -259,12 +259,12 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 			cmdline.gridSize or 256,
 		},
 		boundary = {
-			xmin=cmdline.boundary or 'mirror',
-			xmax=cmdline.boundary or 'mirror',
-			ymin=cmdline.boundary or 'mirror',
-			ymax=cmdline.boundary or 'mirror',
-			zmin=cmdline.boundary or 'mirror',
-			zmax=cmdline.boundary or 'mirror',
+			xmin=cmdline.boundary or 'freeflow',
+			xmax=cmdline.boundary or 'freeflow',
+			ymin=cmdline.boundary or 'freeflow',
+			ymax=cmdline.boundary or 'freeflow',
+			zmin=cmdline.boundary or 'freeflow',
+			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
 		--[[ cylinder
@@ -307,7 +307,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		-- no initial state means use the first
 		-- initState = cmdline.initState,
 		-- Euler / SRHD / MHD initial states:
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		-- (those designed for srhd:)
@@ -321,7 +321,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		--initState = 'self-gravitation test 2',
 		--initState = 'self-gravitation test 4',
 		-- MHD-only init states: (that use 'b')
-		--initState = 'Brio-Wu',
+		initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
 		-- EM:
 		--initState = 'Maxwell default',
@@ -331,7 +331,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	
 	-- HD
 	--self.solvers:insert(require 'solver.euler-roe'(args))
-	self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
+	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 	
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
@@ -340,6 +340,8 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	-- rel blast wave 2 works in 2D 64x64, but not 256x256. with superbee flux lim
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
 	--self.solvers:insert(require 'solver.srhd-roe'(args))
+	-- not working just yet, still needs some behavior modifications:
+	--self.solvers:insert(require 'solver.srhd-roe_implicit_linearized'(args))
 	
 	-- M+HD. with superbee flux lim.  
 	-- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.  
@@ -351,6 +353,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	
 	-- EM
 	--self.solvers:insert(require 'solver.maxwell-roe'(args))
+	self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
 	
 	-- EM+HD
 	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t

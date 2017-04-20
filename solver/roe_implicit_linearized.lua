@@ -3,7 +3,9 @@ local table = require 'ext.table'
 local Roe = require 'solver.roe'
 local ffi = require 'ffi'
 local math = require 'ext.math'
+local CLGMRES = require 'solver.cl.gmres'
 
+--[[
 local tolua = require 'ext.tolua'
 local gputostr_n
 local gputostr_cmds
@@ -17,8 +19,8 @@ function gputostr(x)
 	end
 	return s 
 end
+--]]
 
-local CLGMRES = require 'solver.cl.gmres'
 local ThisGMRES = class(CLGMRES)
 
 function ThisGMRES:newBuffer(name)
@@ -84,8 +86,6 @@ function RoeImplicitLinearized:refreshGridSize(...)
 			return self.gridSize:ptr()[i+1]
 		end),
 	}
-gputostr_cmds = self.app.cmds
-gputostr_n = self.volume * self.eqn.numStates
 
 	local numreals = self.volume * self.eqn.numStates
 
@@ -113,8 +113,7 @@ gputostr_n = self.volume * self.eqn.numStates
 		restart = 10,
 		-- logging:
 		errorCallback = function(err, iter, x, rLenSq, bLenSq)
---print('t', self.t, 'iter', iter, 'err', err, 'rLenSq', rLenSq, 'bLenSq', bLenSq)
-			--print(' x', gputostr(x))
+			--print('t', self.t, 'iter', iter, 'err', err, 'rLenSq', rLenSq, 'bLenSq', bLenSq)
 			if not math.isfinite(err) then
 				error("got non-finite err: "..err)
 			end
@@ -131,19 +130,14 @@ gputostr_n = self.volume * self.eqn.numStates
 		-- then the matrix should be computed before invoking the iterative solver
 		-- which means the matrix coeffiicents shouldn't be changing per-iteration
 		-- which means calc_dU_dt() should be based on the initial state and not the iterative state
---print('A begin UBuf', gputostr(UBuf.obj))
---print('A self.qs / RoeImplicitLinear_b', gputostr(self.RoeImplicitLinear_bObj.obj))
 		-- use the integrator's deriv buffer and don't use this?
 		local dUdtBuf = self.integrator.derivBuf
 		calc_dU_dt(dUdtBuf, self.RoeImplicitLinear_bObj)
---print('A dq/dt / dUdtBuf', gputostr(dUdtBuf))
 		
 		--UNextBuf = UBuf - dt * calc_dU_dt(self.UBuf)
---print('A dt',self.linearSolverDT)		
 		self.linearSolver.args.mulAdd(UNextBuf, UBuf, dUdtBuf, -self.linearSolverDT)
 		
 		--self.boundaryMethod(UBuf)
---print('A end UBuf', gputostr(UNextBuf.obj))		
 	end
 	--]=]
 	--[=[ crank-nicolson - converges faster
@@ -172,16 +166,13 @@ end
 -- step contains integrating flux and source terms
 -- but not post iterate
 function RoeImplicitLinearized:step(dt)
---print('RoeImplicitLinearized:step() t',self.t,'dt',dt,'cfl',self.cfl,'gamma',self.eqn.guiVarsForName.heatCapacityRatio.value[0])
 	self.linearSolverDT = dt
-	
 	-- UBuf needs to be overwritten to pass on to the calcFluxDeriv
 	-- (TODO make calcFluxDeriv accept a parameter)
 	self.RoeImplicitLinear_bObj:copyFrom(self.UBufObj)
 	self.RoeImplicitLinear_xBufObj:copyFrom(self.UBufObj)
 	self.linearSolver()
 	self.UBufObj:copyFrom(self.RoeImplicitLinear_xBufObj)
---print('step done')
 end
 
 return RoeImplicitLinearized
