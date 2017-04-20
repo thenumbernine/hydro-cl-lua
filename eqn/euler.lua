@@ -26,6 +26,9 @@ Euler.initStates = require 'init.euler'
 
 Euler.guiVars = {
 	require 'guivar.float'{name='heatCapacityRatio', 
+--in order to make things work, gamma needs to be set *HERE AND IN INIT/EULER*
+-- which means it is being read and written in multiple places
+-- TODO consolidate that
 		--value=7/5,
 		value=5/3,
 	}
@@ -87,7 +90,7 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U) {
 	return (<?=eqn.prim_t?>){
 		.rho = U.rho,
 		.v = real3_scale(U.m, 1./U.rho),
-		.P = EInt / (heatCapacityRatio - 1.),
+		.P = (heatCapacityRatio - 1.) * EInt,
 		.ePot = U.ePot,
 	};
 }

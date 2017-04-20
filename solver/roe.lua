@@ -155,7 +155,7 @@ function Solver:init(args)
 		end
 	end
 
-	self.useFixedDT = ffi.new('bool[1]', false)
+	self.useFixedDT = false
 	self.fixedDT = 0
 	self.cfl = .5/self.dim
 	self.initStatePtr = ffi.new('int[1]', (table.find(self.eqn.initStateNames, args.initState) or 1)-1)
@@ -1107,6 +1107,7 @@ function Solver:reduce(kernel)
 	return self.reduceResultPtr[0]
 end
 
+-- NOTICE this adds the contents of derivBuf and does not clear it
 function Solver:calcDeriv(derivBuf, dt)
 	if self.usePLM then
 		self.calcLRKernel:setArg(2, ffi.new('real[1]', dt))
@@ -1143,7 +1144,7 @@ end
 function Solver:calcDT()
 	local dt
 	-- calc cell wavespeeds -> dts
-	if self.useFixedDT[0] then
+	if self.useFixedDT then
 		dt = self.fixedDT
 	else
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDTKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
@@ -1160,7 +1161,6 @@ function Solver:update()
 	local dt = self:calcDT()
 	self:step(dt)
 	self.t = self.t + dt
-	print('Solver:update() self.t',self.t)
 end
 
 function Solver:step(dt)
@@ -1225,9 +1225,13 @@ function Solver:calcDisplayVarRange(var)
 end
 
 local float = ffi.new'float[1]'
+local bool = ffi.new'bool[1]'
 function Solver:updateGUI()
 	if ig.igCollapsingHeader'parameters:' then
-		ig.igCheckbox('use fixed dt', self.useFixedDT)
+		bool[0] = self.useFixedDT
+		if ig.igCheckbox('use fixed dt', bool) then
+			self.useFixedDT = bool[0]
+		end
 		float[0] = self.fixedDT
 		if ig.igInputFloat('fixed dt', float) then 
 			self.fixedDT = float[0] 
