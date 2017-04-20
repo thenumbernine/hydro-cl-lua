@@ -166,10 +166,6 @@ end
 -- step contains integrating flux and source terms
 -- but not post iterate
 function RoeImplicitLinearized:step(dt)
-do
-	RoeImplicitLinearized.super.step(self, dt)
-	return
-end
 	self.linearSolverDT = dt
 	-- UBuf needs to be overwritten to pass on to the calcFluxDeriv
 	-- (TODO make calcFluxDeriv accept a parameter)

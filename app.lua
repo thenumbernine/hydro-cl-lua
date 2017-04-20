@@ -330,6 +330,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	self.solvers = table()
 	
 	-- HD
+	-- TODO fix error of using these both at the same time
 	--self.solvers:insert(require 'solver.euler-roe'(args))
 	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 	
