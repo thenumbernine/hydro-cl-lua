@@ -1158,6 +1158,7 @@ function Solver:calcDT()
 end
 
 function Solver:update()
+	self:boundary()
 	local dt = self:calcDT()
 	self:step(dt)
 	self.t = self.t + dt
@@ -1165,7 +1166,7 @@ end
 
 function Solver:step(dt)
 	self.integrator:integrate(dt, function(derivBuf)
-		self:boundary()
+		--self:boundary()
 		self:calcDeriv(derivBuf, dt)
 	end)
 end
