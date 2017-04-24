@@ -332,6 +332,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	-- HD
 	-- TODO fix error of using these both at the same time
 	--self.solvers:insert(require 'solver.euler-roe'(args))
+	-- implicit works with 1D, but fails for 2D for grid sizes > 32^2
 	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 	
 	-- SR+HD.  

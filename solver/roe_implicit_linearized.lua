@@ -81,13 +81,45 @@ function RoeImplicitLinearized:refreshGridSize(...)
 ]],
 		}:concat'\n',
 	}, require 'cl.obj.env')
+	
+	local sizeArg = require 'ext.range'(self.dim):map(function(i)
+		return self.gridSize:ptr()[i-1]
+	end)
 	fakeEnv.base = fakeEnv:domain{
-		size = require 'ext.range'(self.dim):map(function(i)
-			return self.gridSize:ptr()[i+1]
-		end),
+		size = sizeArg,
 	}
 
 	local numreals = self.volume * self.eqn.numStates
+
+	local mulWithoutBorder = fakeEnv:kernel{
+		domain = fakeEnv.base,
+		argsOut = {
+			{name='y', type=self.eqn.cons_t, obj=true},
+		},
+		argsIn = {
+			{name='a', type=self.eqn.cons_t, obj=true},
+			{name='b', type=self.eqn.cons_t, obj=true},
+		},
+		body = [[	
+	if (OOB(numGhost, numGhost)) {
+		for (int j = 0; j < numStates; ++j) {
+			y[index].ptr[j] = 0;
+		}
+		return;
+	}
+	for (int j = 0; j < numStates; ++j) {
+		y[index].ptr[j] = a[index].ptr[j] * b[index].ptr[j];
+	}
+]],
+	}
+	local sum = fakeEnv:reduce{
+		size = numreals,
+		op = function(x,y) return x..' + '..y end,
+	}
+	local dotWithoutBorder = function(a,b)
+		mulWithoutBorder(sum.buffer, a, b)
+		return sum()
+	end
 
 	local function wrapBufferObj(field)
 		return setmetatable({
@@ -105,10 +137,10 @@ function RoeImplicitLinearized:refreshGridSize(...)
 
 	local linearSolverArgs = {
 		env = fakeEnv,
-		--maxiter = 1000,
 		x = self.RoeImplicitLinear_xBufObj,
 		size = numreals,
 		epsilon = 1e-10,
+		--maxiter = 1000,
 		maxiter = 10 * numreals,
 		restart = 10,
 		-- logging:
@@ -118,6 +150,7 @@ function RoeImplicitLinearized:refreshGridSize(...)
 				error("got non-finite err: "..err)
 			end
 		end,
+		dot = dotWithoutBorder,
 	}
 
 	-- [=[ backward Euler
@@ -125,19 +158,23 @@ function RoeImplicitLinearized:refreshGridSize(...)
 	-- usage of A:
 	-- A(r, x)
 	-- A(w, v[i])
-	linearSolverArgs.A = function(UNextBuf, UBuf)
+	linearSolverArgs.A = function(UNext, U)
 		-- if this is a linearized implicit solver
 		-- then the matrix should be computed before invoking the iterative solver
 		-- which means the matrix coeffiicents shouldn't be changing per-iteration
 		-- which means calc_dU_dt() should be based on the initial state and not the iterative state
 		-- use the integrator's deriv buffer and don't use this?
-		local dUdtBuf = self.integrator.derivBuf
-		calc_dU_dt(dUdtBuf, self.RoeImplicitLinear_bObj)
+		local dUdt = self.integrator.derivBuf
+		calc_dU_dt(dUdt, self.RoeImplicitLinear_bObj)
 		
-		--UNextBuf = UBuf - dt * calc_dU_dt(self.UBuf)
-		self.linearSolver.args.mulAdd(UNextBuf, UBuf, dUdtBuf, -self.linearSolverDT)
-		
-		--self.boundaryMethod(UBuf)
+		--UNext = U - dt * calc_dU_dt(lastU)
+		self.linearSolver.args.mulAdd(UNext, U, dUdt, -self.linearSolverDT)
+	
+		--[[ do I need to apply the boundary?
+		self.UBufObj:copyFrom(UNextBuf)
+		self:boundary()
+		UNextBuf:copyFrom(self.UBufObj)
+		--]]
 	end
 	--]=]
 	--[=[ crank-nicolson - converges faster
