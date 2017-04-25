@@ -1,5 +1,5 @@
 local class = require 'ext.class'
-local gl = require 'ffi.OpenGL'
+local gl = require 'gl'
 local vec3 = require 'vec.vec3'
 local quat = require 'vec.quat'
 

@@ -1,6 +1,6 @@
 local bit = require 'bit'
 local ffi = require 'ffi'
-local gl = require 'ffi.OpenGL'
+local gl = require 'gl'
 local ig = require 'ffi.imgui'
 local class = require 'ext.class'
 local table = require 'ext.table'

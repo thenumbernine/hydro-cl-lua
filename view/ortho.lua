@@ -1,5 +1,5 @@
 local class = require 'ext.class'
-local gl = require 'ffi.OpenGL'
+local gl = require 'gl'
 local vec2 = require 'vec.vec2'
 
 local OrthoView = class()
