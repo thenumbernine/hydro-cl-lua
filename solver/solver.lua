@@ -10,6 +10,7 @@ local math = require 'ext.math'
 local vec3 = require 'vec.vec3'
 local CLImageGL = require 'cl.imagegl'
 local CLProgram = require 'cl.program'
+local CLBuffer = require 'cl.obj.buffer'
 local GLTex2D = require 'gl.tex2d'
 local GLTex3D = require 'gl.tex3d'
 local glreport = require 'gl.report'
@@ -387,7 +388,6 @@ function Solver:finalizeCLAllocs()
 		total = total + size
 		print('allocating '..name..' size '..size..' total '..total)
 		if not self.allocateOneBigStructure then
-			local CLBuffer = require 'cl.obj.buffer'
 			local bufObj = CLBuffer{
 				env = self.app.env,
 				name = name,
@@ -395,7 +395,7 @@ function Solver:finalizeCLAllocs()
 				size = size / ffi.sizeof(self.app.env.real),
 			}
 			self[name..'Obj'] = bufObj
-			self[name] = self[name..'Obj'].obj
+			self[name] = bufObj.obj
 		end
 	end
 	if self.allocateOneBigStructure then
@@ -605,17 +605,6 @@ function Solver:refreshCommonProgram()
 		{self.app.is64bit and '#pragma OPENCL EXTENSION cl_khr_fp64 : enable' or nil
 	}:append{
 		'typedef '..self.app.real..' real;',
-		-- used to find the min/max of a buffer
-		template(file['solver/reduce.cl'], {
-			name = 'reduceMin',
-			initValue = 'INFINITY',
-			op = function(x,y) return 'min('..x..', '..y..')' end,
-		}),
-		template(file['solver/reduce.cl'], {
-			name = 'reduceMax',
-			initValue = '-INFINITY',
-			op = function(x,y) return 'max('..x..', '..y..')' end,
-		}),	
 		-- used by the integrators
 		[[
 kernel void multAdd(
@@ -633,17 +622,25 @@ kernel void multAdd(
 
 	self.commonProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=commonCode}
 
-	for _,name in ipairs{'Min', 'Max'} do
-		self['reduce'..name..'Kernel'] = self.commonProgram:kernel(
-			'reduce'..name,
-			self.reduceBuf,
-			{ptr=nil, size=self.localSize1d * ffi.sizeof(self.app.real)},
-			ffi.new('int[1]', self.volume),
-			self.reduceSwapBuf)
-	end
-
 	-- used by the integrators
 	self.multAddKernel = self.commonProgram:kernel'multAdd'
+
+	self.reduceMin = self.app.env:reduce{
+		size = self.volume,
+		op = function(x,y) return 'min('..x..', '..y..')' end,
+		initValue = 'INFINITY',
+		buffer = self.reduceBuf,
+		swapBuffer = self.reduceSwapBuf,
+		result = self.reduceResultPtr,
+	}
+	self.reduceMax = self.app.env:reduce{
+		size = self.volume,
+		op = function(x,y) return 'max('..x..', '..y..')' end,
+		initValue = '-INFINITY',
+		buffer = self.reduceBuf,
+		swapBuffer = self.reduceSwapBuf,
+		result = self.reduceResultPtr,
+	}
 end
 
 function Solver:getSolverCode()
@@ -952,42 +949,6 @@ function Solver:boundary()
 	self:applyBoundaryToBuffer(self.boundaryKernel)
 end
 
-function Solver:reduceMin()
-	return self:reduce(self.reduceMinKernel)
-end
-
-function Solver:reduceMax()
-	return self:reduce(self.reduceMaxKernel)
-end
-
-function Solver:reduce(kernel)
-	local reduceSize = self.volume
-	local dst = self.reduceSwapBuf
-	local src = self.reduceBuf
-	local iter = 0
-
-	-- TODO should be the min of the rounded-up/down? power-of-2 of reduceSize
-	local reduceLocalSize1D = math.min(reduceSize, self.maxWorkGroupSize)
-	
-	while reduceSize > 1 do
-		iter = iter + 1
-		local nextSize = math.floor(reduceSize / reduceLocalSize1D)
-		if 0 ~= bit.band(reduceSize, reduceLocalSize1D - 1) then 
-			nextSize = nextSize + 1 
-		end
-		local reduceGlobalSize = math.max(reduceSize, reduceLocalSize1D)
-		kernel:setArg(0, src)
-		kernel:setArg(2, ffi.new('int[1]', reduceSize))
-		kernel:setArg(3, dst)
-		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, dim=1, globalSize=reduceGlobalSize, localSize=math.min(reduceGlobalSize, reduceLocalSize1D)}
-		--self.app.cmds:finish()
-		dst, src = src, dst
-		reduceSize = nextSize
-	end
-	self.app.cmds:enqueueReadBuffer{buffer=src, block=true, size=ffi.sizeof(self.app.real), ptr=self.reduceResultPtr}
-	return self.reduceResultPtr[0]
-end
-
 function Solver:calcDT()
 	local dt
 	-- calc cell wavespeeds -> dts
@@ -995,7 +956,7 @@ function Solver:calcDT()
 		dt = self.fixedDT
 	else
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDTKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-		dt = self.cfl * self:reduceMin()
+		dt = self.cfl * self.reduceMin()
 		if not math.isfinite(dt) then
 			print("got a bad dt!") -- TODO dump all buffers
 		end
@@ -1066,9 +1027,9 @@ function Solver:calcDisplayVarRange(var)
 	convertToTex:setToBufferArgs(var)
 	
 	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-	local ymin = self:reduceMin()
+	local ymin = self.reduceMin()
 	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-	local ymax = self:reduceMax()
+	local ymax = self.reduceMax()
 	return ymin, ymax
 end
 
