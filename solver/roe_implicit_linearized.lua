@@ -59,16 +59,8 @@ function RoeImplicitLinearized:refreshGridSize(...)
 		self:calcDeriv(dUdtBuf, self.linearSolverDT)
 	end
 
-	local size = require 'ext.range'(self.dim):map(function(i)
-		return self.gridSize:ptr()[i-1]
-	end)
-	local env = self.app.env
-	
-	local domain = env:domain{size = size}
-
-	local mulWithoutBorder = domain:kernel{
+	local mulWithoutBorder = self.domain:kernel{
 		header = self.codePrefix,
-		size = size,
 		argsOut = {
 			{name='y', type=self.eqn.cons_t, obj=true},
 		},
@@ -89,7 +81,7 @@ function RoeImplicitLinearized:refreshGridSize(...)
 ]],
 	}
 	local numreals = self.volume * self.eqn.numStates
-	local sum = env:reduce{
+	local sum = self.app.env:reduce{
 		size = numreals,
 		op = function(x,y) return x..' + '..y end,
 	}
@@ -98,23 +90,9 @@ function RoeImplicitLinearized:refreshGridSize(...)
 		return sum()
 	end
 
-	local function wrapBufferObj(field)
-		return setmetatable({
-			env = env,
-			name = field,
-			type = 'real',
-			size = numreals,
-			obj = self[field],
-		}, require 'cl.obj.buffer')
-	end
-
-	self.UBufObj = wrapBufferObj'UBuf'
-	self.RoeImplicitLinear_bObj = wrapBufferObj'RoeImplicitLinear_b'
-	self.RoeImplicitLinear_xBufObj = wrapBufferObj'RoeImplicitLinear_x'
-
 	local linearSolverArgs = {
-		env = env,
-		x = self.RoeImplicitLinear_xBufObj,
+		env = self.app.env,
+		x = self.RoeImplicitLinear_xObj,
 		size = numreals,
 		epsilon = 1e-10,
 		--maxiter = 1000,
@@ -184,9 +162,9 @@ function RoeImplicitLinearized:step(dt)
 	-- UBuf needs to be overwritten to pass on to the calcFluxDeriv
 	-- (TODO make calcFluxDeriv accept a parameter)
 	self.RoeImplicitLinear_bObj:copyFrom(self.UBufObj)
-	self.RoeImplicitLinear_xBufObj:copyFrom(self.UBufObj)
+	self.RoeImplicitLinear_xObj:copyFrom(self.UBufObj)
 	self.linearSolver()
-	self.UBufObj:copyFrom(self.RoeImplicitLinear_xBufObj)
+	self.UBufObj:copyFrom(self.RoeImplicitLinear_xObj)
 end
 
 return RoeImplicitLinearized

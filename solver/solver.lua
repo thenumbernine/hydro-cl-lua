@@ -193,6 +193,11 @@ end
 
 function Solver:refreshGridSize()
 
+	self.domain = self.app.env:domain{
+		size = {self.gridSize:unpack()},
+		dim = dim,
+	}
+
 	-- don't include the ghost cells as a part of the grid coordinate space
 	local sizeWithoutBorder = vec3sz(self.gridSize:unpack())
 	for i=0,self.dim-1 do
@@ -382,7 +387,15 @@ function Solver:finalizeCLAllocs()
 		total = total + size
 		print('allocating '..name..' size '..size..' total '..total)
 		if not self.allocateOneBigStructure then
-			self[name] = self.app.ctx:buffer{rw=true, size=size}
+			local CLBuffer = require 'cl.obj.buffer'
+			local bufObj = CLBuffer{
+				env = self.app.env,
+				name = name,
+				type = 'real',
+				size = size / ffi.sizeof(self.app.env.real),
+			}
+			self[name..'Obj'] = bufObj
+			self[name] = self[name..'Obj'].obj
 		end
 	end
 	if self.allocateOneBigStructure then
