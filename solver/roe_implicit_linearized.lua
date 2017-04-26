@@ -33,6 +33,8 @@ function ThisGMRES:newBuffer(name)
 	return cached
 end
 
+-- technically this backwards Euler integrator works on any solver with calcDeriv implemented
+-- which means maybe I could implement it as an integrator instead of a solver ...
 local RoeImplicitLinearized = class(Roe)
 
 function RoeImplicitLinearized:refreshGridSize(...)

@@ -331,7 +331,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	
 	-- HD
 	-- TODO fix error of using these both at the same time
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 	-- implicit works with 1D, but fails for 2D for grid sizes > 32^2
 	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 	
@@ -367,7 +367,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 	-- still needs work ...
 	-- this doesn't work, even though RoeImplicitLinear works with adm-1d in the 1D grav wave sim
-	self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v1'})))
+	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 	
