@@ -12,6 +12,7 @@ typedef struct {
 } ]]..errorType..';'
 
 local Roe = class(Solver)
+Roe.name = 'Roe'
 
 -- enable these to verify accuracy
 -- disable these to save on allocation / speed
@@ -190,6 +191,5 @@ function Roe:calcDeriv(derivBuf, dt)
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.addSourceKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	end
 end
-
 
 return Roe

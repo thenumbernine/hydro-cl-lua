@@ -48,6 +48,7 @@ local ImGuiApp = require 'imguiapp'
 local CLPlatform = require 'cl.platform'
 local CLContext = require 'cl.context'
 local CLCommandQueue = require 'cl.commandqueue'
+local CLEnv = require 'cl.obj.env'
 local GLProgram = require 'gl.program'
 local GLGradientTex = require 'gl.gradienttex'
 local GLTex2D = require 'gl.tex2d'
@@ -91,68 +92,18 @@ function HydroCLApp:initGL(...)
 	HydroCLApp.super.initGL(self, ...)
 
 	-- TODO favor cl_khr_gl_sharing, cl_khr_fp64, cl_khr_3d_image_writes
--- [[
-for i,platform in ipairs(CLPlatform.getAll()) do
-	print()
-	print('platform '..i)
-	platform:printInfo()
-
-	for j,device in ipairs(platform:getDevices()) do
-		print()
-		print('device '..j)
-		device:printInfo()
-	end
-end
---]]	
-
-	local function get64bit(list)
-		local best = list:map(function(item)
-			local exts = string.trim(item:getExtensions():lower())
-			return {item=item, fp64=not not exts:match'cl_%w+_fp64'}
-		end):sort(function(a,b)
-			return (a.fp64 and 1 or 0) > (b.fp64 and 1 or 0)
-		end)[1]
-		return best.item, best.fp64
-	end
-
-	-- TODO favor cl_khr_fp64, cl_khr_3d_image_writes, cl_khr_gl_sharing
-
-	if ffi.os == 'Windows' then
-		self.platform = CLPlatform.getAll()[1]
-		self.device = self.platform:getDevices{gpu=true}[1]
-		self.is64bit = false--self.device:getExtensions():lower():match'cl_%2+_fp64'
-	else
-		self.platform = get64bit(CLPlatform.getAll())
-		self.device, self.is64bit = get64bit(self.platform:getDevices{gpu=true})
-	end
-	
-	-- cmd-line override
-	if cmdline.float then
-		self.is64bit = false
-	end
-
-self.device:printInfo()
-	local exts = string.split(string.trim(self.device:getExtensions()):lower(),'%s+')
-	self.useGLSharing = exts:find(nil, function(ext) return ext:match'cl_%w+_gl_sharing' end)
-	
-	self.ctx = CLContext{
-		platform = self.platform,
-		device = self.device,
-		glSharing = self.useGLSharing,
+	self.env = CLEnv{
+		verbose = true,
+		precision = cmdline.float and 'float' or nil, -- cmd-line override
 	}
-print()
-self.ctx:printInfo()
-print()
-print('is 64 bit?',self.is64bit)
-print()
 
-	self.cmds = CLCommandQueue{context=self.ctx, device=self.device}
+	self.is64bit = self.env.real == 'double'
+	self.useGLSharing = self.env.useGLSharing
+	self.device = self.env.device
+	self.ctx = self.env.ctx
+	self.cmds = self.env.cmds
+	self.real = self.env.real
 
-	-- making 'real' a parameter of solver would be clever
-	-- but because it is using ffi.ctype it might be tough ...
-	-- then again, any solver ffi.ctype defined will potentially collide with other solvers ...
-	self.real = self.is64bit and 'double' or 'float'
-print('real', self.real)
 	ffi.cdef('typedef '..self.real..' real;')
 
 	self.real3TypeCode = [[
@@ -307,7 +258,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		-- no initial state means use the first
 		-- initState = cmdline.initState,
 		-- Euler / SRHD / MHD initial states:
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		-- (those designed for srhd:)
@@ -321,7 +272,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		--initState = 'self-gravitation test 2',
 		--initState = 'self-gravitation test 4',
 		-- MHD-only init states: (that use 'b')
-		initState = 'Brio-Wu',
+		--initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
 		-- EM:
 		--initState = 'Maxwell default',
@@ -330,10 +281,10 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	self.solvers = table()
 	
 	-- HD
-	-- TODO fix error of using these both at the same time
+	-- TODO BUG: implicit also fails when run alongside an explicit solver
 	self.solvers:insert(require 'solver.euler-roe'(args))
 	-- implicit works with 1D, but fails for 2D for grid sizes > 32^2
-	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
+	self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 	
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
@@ -350,6 +301,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	-- Orszag-Tang with forward Euler integrator fails at 64x64 around .7 or .8
 	-- 		but works with 'Runge-Kutta 4, TVD' integrator at 64x64
 	-- 		RK4-TVD fails at 256x256 at just after t=.5
+	-- TODO BUG: fails when run alongside HD Roe solver
 	--self.solvers:insert(require 'solver.mhd-roe'(args))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))
 	
@@ -358,6 +310,7 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	--self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
 	
 	-- EM+HD
+	-- I broke this when I moved the cons_t type defs from solver to equation
 	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
 	--self.solvers:insert(require 'solver.twofluid-emhd-roe_implicit_linearized'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
 	

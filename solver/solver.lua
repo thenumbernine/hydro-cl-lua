@@ -56,19 +56,12 @@ end
 
 local Solver = class()
 
-Solver.name = 'Roe'
+Solver.name = 'Solver'
 Solver.numGhost = 2
 
 Solver.integrators = require 'int.all'
 Solver.integratorNames = Solver.integrators:map(function(integrator) return integrator.name end)
 
--- TODO this is redundant in Equation
--- but I am passing them to Equation using self ...
--- ... don't do this. just keep them in equation instead?
-Solver.prim_t = 'prim_t'
-Solver.cons_t = 'cons_t'
-Solver.consLR_t = 'consLR_t'
-Solver.eigen_t = 'eigen_t'
 --[[
 args:
 	app
@@ -77,6 +70,7 @@ args:
 --]]
 function Solver:init(args)
 	assert(args)
+	
 	local gridSize = assert(args.gridSize)
 	if type(gridSize) == 'number' then 
 		self.gridSize = vec3sz(gridSize,1,1)
@@ -102,13 +96,12 @@ function Solver:init(args)
 	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
 	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
 
-	-- these are *only* used for passing through to the eqn creation
-	-- which holds the *true* copy
-	self.prim_t = args.prim_t
-	self.cons_t = args.cons_t
-	self.consLR_t = args.consLR_t
-
 	self:createEqn(args.eqn)
+	
+	self.prim_t = self.eqn.prim_t
+	self.cons_t = self.eqn.cons_t
+	self.consLR_t = self.eqn.consLR_t
+	self.eigen_t = self.eqn.eigen_t
 	
 	-- ... so delete them immediately after
 	self.prim_t = false

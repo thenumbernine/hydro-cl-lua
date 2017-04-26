@@ -30,10 +30,6 @@ local function TwoFluidEMHDBehavior(parent)
 		-- both?
 
 		local IonSolver = class(require 'solver.euler-behavior'(parent))
-		IonSolver.prim_t = 'euler_prim_t'
-		IonSolver.cons_t = 'euler_cons_t'
-		IonSolver.consLR_t = 'euler_consLR_t'
-		IonSolver.eigen_T = 'euler_eigen_t'
 		function IonSolver:init(args)
 			IonSolver.super.init(self, table(args, {
 --				initState = 'two-fluid EMHD soliton ion',
@@ -43,10 +39,6 @@ local function TwoFluidEMHDBehavior(parent)
 		self.ion = IonSolver(args)
 
 		local ElectronSolver = class(require 'solver.euler-behavior'(parent))
-		ElectronSolver.prim_t = 'euler_prim_t'
-		ElectronSolver.cons_t = 'euler_cons_t'
-		ElectronSolver.consLR_t = 'euler_consLR_t'
-		ElectronSolver.eigen_T = 'euler_eigen_t'
 		function ElectronSolver:init(args)
 			ElectronSolver.super.init(self, table(args, {
 --				initState = 'two-fluid EMHD soliton electron',
@@ -56,10 +48,6 @@ local function TwoFluidEMHDBehavior(parent)
 		self.electron = ElectronSolver(args)
 
 		local MaxwellSolver = class(require 'solver.maxwell-behavior'(parent))
-		MaxwellSolver.prim_t = 'maxwell_prim_t'
-		MaxwellSolver.cons_t = 'maxwell_cons_t'
-		MaxwellSolver.consLR_t = 'maxwell_consLR_t'
-		MaxwellSolver.eigen_T = 'maxwell_eigen_t'
 		function MaxwellSolver:init(args)
 			MaxwellSolver.super.init(self, table(args, {
 --				initState = 'two-fluid EMHD soliton maxwell',
@@ -125,6 +113,7 @@ local function TwoFluidEMHDBehavior(parent)
 
 		local lines = table{
 			self.codePrefix,
+			self.electron.eqn:getTypeCode(),
 			self.ion.eqn:getTypeCode(),
 			self.maxwell.eqn:getTypeCode(),
 
@@ -132,42 +121,46 @@ local function TwoFluidEMHDBehavior(parent)
 			'#define chargeMassRatio_electron '..clnumber(chargeMassRatio_electron),
 			'#define eps0 '..clnumber(eps0),
 			[[
+<? for _,species in ipairs{'ion', 'electron'} do ?>
 
-	<? for _,species in ipairs{'ion', 'electron'} do ?>
+kernel void addSource_<?=species?>(
+	global <?=euler_cons_t?>* derivBuf,
+	const global <?=euler_cons_t?>* UBuf,
+	const global <?=maxwell_cons_t?>* maxwellUBuf
+) {
+	SETBOUNDS(2,2);
+	global <?=euler_cons_t?>* deriv = derivBuf + index;
+	const global <?=euler_cons_t?>* U = UBuf + index;
+	const global <?=maxwell_cons_t?>* maxwellU = maxwellUBuf + index;
+	deriv->m.x += chargeMassRatio_<?=species?> * (maxwellU->epsE.x / eps0 + U->m.y * maxwellU->B.z - U->m.z * maxwellU->B.y);
+	deriv->m.y += chargeMassRatio_<?=species?> * (maxwellU->epsE.y / eps0 + U->m.z * maxwellU->B.x - U->m.x * maxwellU->B.z);
+	deriv->m.z += chargeMassRatio_<?=species?> * (maxwellU->epsE.z / eps0 + U->m.x * maxwellU->B.y - U->m.y * maxwellU->B.x);
+	deriv->ETotal += chargeMassRatio_<?=species?> * real3_dot(maxwellU->epsE, U->m) / eps0;
+}
 
-	kernel void addSource_<?=species?>(
-		global euler_cons_t* derivBuf,
-		const global euler_cons_t* UBuf,
-		const global maxwell_cons_t* maxwellUBuf
-	) {
-		SETBOUNDS(2,2);
-		global euler_cons_t* deriv = derivBuf + index;
-		const global euler_cons_t* U = UBuf + index;
-		const global maxwell_cons_t* maxwellU = maxwellUBuf + index;
-		deriv->m.x += chargeMassRatio_<?=species?> * (maxwellU->epsE.x / eps0 + U->m.y * maxwellU->B.z - U->m.z * maxwellU->B.y);
-		deriv->m.y += chargeMassRatio_<?=species?> * (maxwellU->epsE.y / eps0 + U->m.z * maxwellU->B.x - U->m.x * maxwellU->B.z);
-		deriv->m.z += chargeMassRatio_<?=species?> * (maxwellU->epsE.z / eps0 + U->m.x * maxwellU->B.y - U->m.y * maxwellU->B.x);
-		deriv->ETotal += chargeMassRatio_<?=species?> * real3_dot(maxwellU->epsE, U->m) / eps0;
-	}
+<? end ?>
 
-	<? end ?>
+kernel void addSource_maxwell(
+	global <?=maxwell_cons_t?>* derivBuf,
+	const global <?=euler_cons_t?>* ionUBuf,
+	const global <?=euler_cons_t?>* electronUBuf
+) {
+	SETBOUNDS(2,2);
+	global <?=maxwell_cons_t?>* deriv = derivBuf + index;
+	const global <?=euler_cons_t?>* ionU = ionUBuf + index;
+	const global <?=euler_cons_t?>* electronU = electronUBuf + index;
+	deriv->epsE = real3_sub(deriv->epsE, real3_scale(ionU->m, chargeMassRatio_ion));
+	deriv->epsE = real3_sub(deriv->epsE, real3_scale(electronU->m, chargeMassRatio_electron));
+}
 
-	kernel void addSource_maxwell(
-		global maxwell_cons_t* derivBuf,
-		const global euler_cons_t* ionUBuf,
-		const global euler_cons_t* electronUBuf
-	) {
-		SETBOUNDS(2,2);
-		global maxwell_cons_t* deriv = derivBuf + index;
-		const global euler_cons_t* ionU = ionUBuf + index;
-		const global euler_cons_t* electronU = electronUBuf + index;
-		deriv->epsE = real3_sub(deriv->epsE, real3_scale(ionU->m, chargeMassRatio_ion));
-		deriv->epsE = real3_sub(deriv->epsE, real3_scale(electronU->m, chargeMassRatio_electron));
-	}
-	]]
+]]
 		}
 		local code = lines:concat'\n'
-		code = template(code, {solver=self})
+		code = template(code, {
+			solver = self,
+			euler_cons_t = self.electron.eqn.cons_t,
+			maxwell_cons_t = self.maxwell.eqn.cons_t,
+		})
 		self.addSourceProgram = require 'cl.program'{context=self.app.ctx, devices={self.app.device}, code=code}
 		
 		self.ion.addSourceKernel = self.addSourceProgram:kernel'addSource_ion'

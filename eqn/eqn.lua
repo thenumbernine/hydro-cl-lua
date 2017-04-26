@@ -11,19 +11,19 @@ Equation.hasCalcDT = nil
 Equation.hasFluxFromCons = nil
 Equation.useSourceTerm = nil
 
--- TODO pass this to Equation from some way other than solver
-Equation.prim_t = 'prim_t'
-Equation.cons_t = 'cons_t'
-Equation.consLR_t = 'consLR_t'
-Equation.eigen_t = 'eigen_t'
+local uid = 0
+local function unique(name)
+	uid = uid + 1
+	return name..'_'..uid
+end
 
 function Equation:init(solver)
 	self.solver = assert(solver)
 
-	self.prim_t = solver.prim_t
-	self.cons_t = solver.cons_t
-	self.consLR_t = solver.consLR_t
-	self.eigen_t = solver.eigen_t
+	self.prim_t = unique 'prim_t'
+	self.cons_t = unique 'cons_t'
+	self.consLR_t = unique 'consLR_t'
+	self.eigen_t = unique 'eigen_t'
 
 	-- TODO get rid of consVars and primVars
 	-- they're still used by ADM1D
