@@ -59,43 +59,16 @@ function RoeImplicitLinearized:refreshGridSize(...)
 		self:calcDeriv(dUdtBuf, self.linearSolverDT)
 	end
 
-	-- TODO needs env
-	-- for now I'll hack one into place from App and Solver
-	-- but I should really rewrite this whole code to use cl.obj.env
-	local fakeEnv = setmetatable({
-		platform = self.app.platform,
-		device = self.app.device,	
-		ctx = self.app.ctx,
-		cmds = self.app.cmds,
-		totalGPUMem = 0,
-		real = self.app.real,
-		code = table{
-			self.codePrefix,
-			[[
-//macro for the index
-#define globalInt4()	(int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0)
-
-//macros for arbitrary sizes
-#define indexForInt4ForSize(i, sx, sy, sz) (i.x + sx * (i.y + sy * i.z))
-#define initKernelForSize(sx, sy, sz) \
-	int4 i = globalInt4(); \
-	if (i.x >= sx || i.y >= sy || i.z >= sz) return; \
-	int index = indexForInt4ForSize(i, sx, sy, sz);
-]],
-		}:concat'\n',
-	}, require 'cl.obj.env')
-	
-	local sizeArg = require 'ext.range'(self.dim):map(function(i)
+	local size = require 'ext.range'(self.dim):map(function(i)
 		return self.gridSize:ptr()[i-1]
 	end)
-	fakeEnv.base = fakeEnv:domain{
-		size = sizeArg,
-	}
+	local env = self.app.env
+	
+	local domain = env:domain{size = size}
 
-	local numreals = self.volume * self.eqn.numStates
-
-	local mulWithoutBorder = fakeEnv:kernel{
-		domain = fakeEnv.base,
+	local mulWithoutBorder = domain:kernel{
+		header = self.codePrefix,
+		size = size,
 		argsOut = {
 			{name='y', type=self.eqn.cons_t, obj=true},
 		},
@@ -115,7 +88,8 @@ function RoeImplicitLinearized:refreshGridSize(...)
 	}
 ]],
 	}
-	local sum = fakeEnv:reduce{
+	local numreals = self.volume * self.eqn.numStates
+	local sum = env:reduce{
 		size = numreals,
 		op = function(x,y) return x..' + '..y end,
 	}
@@ -126,10 +100,10 @@ function RoeImplicitLinearized:refreshGridSize(...)
 
 	local function wrapBufferObj(field)
 		return setmetatable({
-			env = fakeEnv,
+			env = env,
 			name = field,
 			type = 'real',
-			size = self.volume * self.eqn.numStates,
+			size = numreals,
 			obj = self[field],
 		}, require 'cl.obj.buffer')
 	end
@@ -139,7 +113,7 @@ function RoeImplicitLinearized:refreshGridSize(...)
 	self.RoeImplicitLinear_xBufObj = wrapBufferObj'RoeImplicitLinear_x'
 
 	local linearSolverArgs = {
-		env = fakeEnv,
+		env = env,
 		x = self.RoeImplicitLinear_xBufObj,
 		size = numreals,
 		epsilon = 1e-10,

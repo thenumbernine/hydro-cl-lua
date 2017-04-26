@@ -109,7 +109,7 @@ local function TwoFluidEMHDBehavior(parent)
 		local chargeMassRatio_electron = .01
 		local eps0 = 1
 
-		require 'solver.roe'.createCodePrefix(self)
+		require 'solver.solver'.createCodePrefix(self)
 
 		local lines = table{
 			self.codePrefix,
