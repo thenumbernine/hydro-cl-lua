@@ -108,19 +108,19 @@ function Geometry:init(args)
 			return 1 - symmath.sin(expr[1][1]:clone())^2
 		end
 	end)()
---print'metric:'
---print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
+print'metric:'
+print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
 	Tensor.metric(g)
 
 	local GammaL = Tensor'_abc'
 	GammaL['_abc'] = ((g'_ab,c' + g'_ac,b' - g'_bc,a' + c'_abc' + c'_acb' - c'_bca') / 2)()
---print'1st kind Christoffel:'
---print(var'\\Gamma''_abc':eq(symmath.divOp(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(GammaL'_abc'()))
+print'1st kind Christoffel:'
+print(var'\\Gamma''_abc':eq(symmath.divOp(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(GammaL'_abc'()))
 
 	local Gamma = Tensor'^a_bc'
 	Gamma['^a_bc'] = GammaL'^a_bc'()
---print'connection:'
---print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()))
+print'connection:'
+print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()))
 
 
 	-- code generation
@@ -235,6 +235,7 @@ function Geometry:init(args)
 
 	local volumeExpr = symmath.sqrt(symmath.Matrix.determinant(g))()
 	self.volumeCode = compile(volumeExpr)
+print('volume code',self.volumeCode)
 end
 
 return Geometry

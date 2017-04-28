@@ -108,7 +108,9 @@ local function initNumRel(args)
 		return codes
 
 	-- assuming this is an ADM 3D solver
-	elseif args.solver.eqn.numWaves == 30 then 
+	elseif args.solver.eqn.numWaves == 30
+	or args.solver.eqn.numWaves == 45
+	then 
 
 		-- for complex computations it might be handy to extract the determinant first ...
 		-- or even just perform a numerical inverse ...

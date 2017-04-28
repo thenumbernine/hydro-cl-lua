@@ -52,6 +52,7 @@ function Roe:createCodePrefix()
 	}:concat'\n'
 end
 
+-- all these are found eqn's cl code
 function Roe:refreshSolverProgram()
 	Roe.super.refreshSolverProgram(self)
 

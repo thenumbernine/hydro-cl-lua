@@ -182,6 +182,34 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		m.xz * v.z + m.yz * v.y + m.zz * v.z);
 }
 
+sym3 sym3_add(sym3 a, sym3 b) {
+	return (sym3){
+		.xx = a.xx + b.xx,
+		.xy = a.xy + b.xy,
+		.xz = a.xz + b.xz,
+		.yy = a.yy + b.yy,
+		.yz = a.yz + b.yz,
+		.zz = a.zz + b.zz,
+	};
+}
+
+sym3 sym3_scale(sym3 a, real s) {
+	return (sym3){
+		.xx = a.xx + s,
+		.xy = a.xy + s,
+		.xz = a.xz + s,
+		.yy = a.yy + s,
+		.yz = a.yz + s,
+		.zz = a.zz + s,
+	};
+}
+
+//computes a^ij b_ij
+real sym3_dot(sym3 a, sym3 b) {
+	return a.xx * b.xx + a.yy * b.yy + a.zz * b.zz
+		+ 2. * (a.xy * b.xy + a.xz * b.xz + a.yz * b.yz);
+}
+
 ]]
 
 	-- create this after 'real' is defined
@@ -254,10 +282,29 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
-
+		--[[ sphere1d
+		geometry = 'sphere1d',
+		mins = cmdline.mins or {1, -math.pi, .5},
+		maxs = cmdline.maxs or {100, math.pi, 1},
+		gridSize = {
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 64,
+		},
+		boundary = {
+			xmin=cmdline.boundary or 'freeflow',
+			xmax=cmdline.boundary or 'freeflow',
+			ymin=cmdline.boundary or 'freeflow',
+			ymax=cmdline.boundary or 'freeflow',
+			zmin=cmdline.boundary or 'freeflow',
+			zmax=cmdline.boundary or 'freeflow',
+		},
+		--]]
+		
 		-- no initial state means use the first
 		-- initState = cmdline.initState,
 		-- Euler / SRHD / MHD initial states:
+		initState = 'constant',
 		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
@@ -281,9 +328,9 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	self.solvers = table()
 	
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 	-- implicit works with 1D, but fails for 2D for grid sizes > 32^2
-	self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
+	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 	
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
@@ -322,6 +369,8 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
+	-- then there's the BSSNOK finite-difference solver
+	--self.solvers:insert(require 'solver.bssnok-fd-fe'(args))	-- goes really sloooow, same with HydroGPU on this graphics card
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 	

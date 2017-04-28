@@ -82,12 +82,16 @@ typedef struct {
 		numStates = self.numStates,
 		numWaves = self.numWaves,
 		solver = self.solver,
+		eqn = self,
 	})
 end
 
 function Equation:getEigenCode()
 	if self.hasEigenCode then return end
-	return template(file['solver/eigen.cl'], {solver=self.solver})
+	return template(file['solver/eigen.cl'], {
+		solver = self.solver,
+		eqn = self,
+	})
 end
 
 function Equation:getEigenDisplayVars()

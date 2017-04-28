@@ -26,6 +26,7 @@ ADM_BonaMasso_1D_Alcubierre2008.initStates = require 'init.adm'
 
 function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix()
 	local initState = self.initStates[self.solver.initStatePtr[0]+1]
+	assert(initState, "couldn't find initState "..self.solver.initStatePtr[0])	
 	
 	local alphaVar = require 'symmath'.var'alpha'
 	

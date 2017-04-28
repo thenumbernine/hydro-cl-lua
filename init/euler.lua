@@ -69,11 +69,22 @@ end
 
 local initStates = {
 	{
+		name = 'constant',
+		init = function(solver)
+			if solver.eqn.guiVarsForName.heatCapacityRatio then	
+				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 7/5
+			end
+			return [[
+	rho = 1;
+	P = 1;
+]]
+		end,
+	},
+	{
 		name = 'Sod',
 		init = function(solver)
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
 				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 7/5
-solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
 			end
 			return [[
 	rho = lhs ? 1 : .125;

@@ -145,7 +145,7 @@ function Solver:init(args)
 	end
 
 	self.useFixedDT = false
-	self.fixedDT = 0
+	self.fixedDT = .001
 	self.cfl = .5/self.dim
 	self.initStatePtr = ffi.new('int[1]', (table.find(self.eqn.initStateNames, args.initState) or 1)-1)
 	self.integratorPtr = ffi.new('int[1]', (self.integratorNames:find(args.integrator) or 1)-1)
@@ -386,7 +386,6 @@ function Solver:finalizeCLAllocs()
 		local name = buffer.name
 		local size = buffer.size
 		total = total + size
-		print('allocating '..name..' size '..size..' total '..total)
 		if not self.allocateOneBigStructure then
 			local bufObj = CLBuffer{
 				env = self.app.env,
@@ -425,9 +424,9 @@ function Solver:createBuffers()
 
 	-- for twofluid, cons_t has been renamed to euler_maxwell_t and maxwell_cons_t
 	if ffi.sizeof(self.eqn.cons_t) ~= self.eqn.numStates * ffi.sizeof'real' then
-		   error('expected sizeof('..self.eqn.cons_t..') to be '
-				   ..self.eqn.numStates..' * sizeof(real) = '..(self.eqn.numStates * ffi.sizeof'real')
-				   ..' but found '..ffi.sizeof(self.eqn.cons_t))
+	   error('expected sizeof('..self.eqn.cons_t..') to be '
+		   ..self.eqn.numStates..' * sizeof(real) = '..(self.eqn.numStates * ffi.sizeof'real')
+		   ..' but found '..ffi.sizeof(self.eqn.cons_t))
 	end
 
 	-- should I put these all in one AoS?
@@ -439,7 +438,9 @@ function Solver:createBuffers()
 	if self.usePLM then
 		self:clalloc('ULRBuf', self.volume * self.dim * ffi.sizeof(self.eqn.consLR_t))
 	end
-	
+
+	-- used both by reduceMin and reduceMax
+	-- (and TODO use this by sum() in implicit solver as well?)
 	self:clalloc('reduceBuf', self.volume * realSize)
 	self:clalloc('reduceSwapBuf', self.volume * realSize / self.localSize1d)
 	self.reduceResultPtr = ffi.new('real[1]', 0)
@@ -552,10 +553,10 @@ function Solver:createCodePrefix()
 		end
 		return '#define dx'..(i-1)..'_at(i) (grid_dx'..(i-1)..' * ('..code..'))'
 	end))
-
+	
 	-- volume
 	lines:insert(getCode_real3_to_real('volume_at', self.geometry.volumeCode))
-
+	
 	-- coord len code: l(v) = v^i v^j g_ij
 	lines:append{
 		getCode_real3_to_real('coordLenSq', self.geometry.uLenSqCode),
@@ -654,7 +655,10 @@ function Solver:getSolverCode()
 	
 	return table{
 		self.codePrefix,
+		
+		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
 		self.eqn:getEigenCode() or '',
+		
 		fluxLimiterCode,
 		slopeLimiterCode,
 		
@@ -669,8 +673,6 @@ end
 
 -- depends on buffers
 function Solver:refreshSolverProgram()
-
-
 	-- set pointer to the buffer holding the LR state information
 	-- for piecewise-constant that is the original UBuf
 	-- for piecewise-linear that is the ULRBuf
@@ -690,16 +692,11 @@ function Solver:refreshSolverProgram()
 	const global ]]..self.eqn.cons_t..[[* UR = UBuf + indexR;
 ]])
 
-
-
 	local code = self:getSolverCode()
 	
 	self.solverProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code}
 
-	self.calcDTKernel = self.solverProgram:kernel(
-		'calcDT',
-		self.reduceBuf,
-		self.UBuf)
+	self:refreshCalcDTKernel()
 
 	if self.usePLM then
 		self.calcLRKernel = self.solverProgram:kernel(
@@ -707,6 +704,14 @@ function Solver:refreshSolverProgram()
 			self.ULRBuf,
 			self.UBuf)
 	end
+end
+
+-- for solvers who don't rely on calcDT
+function Solver:refreshCalcDTKernel()
+	self.calcDTKernel = self.solverProgram:kernel(
+		'calcDT',
+		self.reduceBuf,
+		self.UBuf)
 end
 
 function Solver:refreshDisplayProgram()
@@ -974,7 +979,6 @@ end
 
 function Solver:step(dt)
 	self.integrator:integrate(dt, function(derivBuf)
-		--self:boundary()
 		self:calcDeriv(derivBuf, dt)
 	end)
 end
