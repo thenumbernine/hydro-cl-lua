@@ -6,6 +6,7 @@ local BSSNOKFiniteDifferenceForwardEulerSolver = class(Solver)
 BSSNOKFiniteDifferenceForwardEulerSolver.name = 'BSSNOKFiniteDifferenceForwardEulerSolver'
 
 function BSSNOKFiniteDifferenceForwardEulerSolver:refreshSolverProgram()
+	BSSNOKFiniteDifferenceForwardEulerSolver.super.refreshSolverProgram(self)
 	self.calcDerivKernel = self.solverProgram:kernel'calcDeriv'
 	self.calcDerivKernel:setArg(1, self.UBuf)
 end

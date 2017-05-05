@@ -24,7 +24,7 @@ for _,k in ipairs{
 	end
 end
 --]]
-for _,w in ipairs(arg) do
+for _,w in ipairs(arg or {}) do
 	local k,v = w:match'^(.-)=(.*)$'
 	if k then
 		cmdline[k] = assert(loadstring('return '..v))()
@@ -193,6 +193,18 @@ sym3 sym3_add(sym3 a, sym3 b) {
 	};
 }
 
+sym3 sym3_sub(sym3 a, sym3 b) {
+	return (sym3){
+		.xx = a.xx - b.xx,
+		.xy = a.xy - b.xy,
+		.xz = a.xz - b.xz,
+		.yy = a.yy - b.yy,
+		.yz = a.yz - b.yz,
+		.zz = a.zz - b.zz,
+	};
+}
+
+
 sym3 sym3_scale(sym3 a, real s) {
 	return (sym3){
 		.xx = a.xx + s,
@@ -233,9 +245,9 @@ real sym3_dot(sym3 a, sym3 b) {
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
+			cmdline.gridSize or 8,
+			cmdline.gridSize or 8,
+			cmdline.gridSize or 8,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -328,7 +340,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	self.solvers = table()
 	
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 	-- implicit works with 1D, but fails for 2D for grid sizes > 32^2
 	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 	
@@ -370,7 +382,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 	-- then there's the BSSNOK finite-difference solver
-	--self.solvers:insert(require 'solver.bssnok-fd-fe'(args))	-- goes really sloooow, same with HydroGPU on this graphics card
+	self.solvers:insert(require 'solver.bssnok-fd-fe'(args))	-- goes really sloooow, same with HydroGPU on this graphics card
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 	

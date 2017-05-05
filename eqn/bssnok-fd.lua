@@ -22,7 +22,7 @@ typedef union {
 		sym3 gammaTilde;	//6: gammaTilde_ij, only 5 dof since det gammaTilde_ij = 1
 	
 		real phi;			//1
-		real K;				//1
+		real tr_K;			//1
 		real3 Gamma;		//3: Gamma^i
 		sym3 ATilde;		//6: ATilde_ij, only 5 dof since ATilde^k_k = 0
 ]]--[[		
@@ -102,8 +102,8 @@ kernel void initState(
 ?>		.<?=xij?> = calc_K_<?=xij?>(x.x, x.y, x.z),
 <? end	
 ?>	};
-	real tr_K = sym3_dot(K, gammaU);
-	sym3 A = sym3_add(K, sym3_scale(gamma, -1./3. * tr_K));
+	U->tr_K = sym3_dot(K, gammaU);
+	sym3 A = sym3_add(K, sym3_scale(gamma, -1./3. * U->tr_K));
 	U->ATilde = sym3_scale(A, exp_neg4phi);
 }
 ]], {
@@ -114,7 +114,12 @@ kernel void initState(
 end
 
 function BSSNOKFiniteDifferenceEquation:getSolverCode()
-	return template(file['eqn/bssnok-fd.cl'], {eqn=self, solver=self.solver})
+	return template(file['eqn/bssnok-fd.cl'], {
+		eqn = self,
+		solver = self.solver,
+		xNames = xNames,
+		symNames = symNames,
+	})
 end
 
 function BSSNOKFiniteDifferenceEquation:getDisplayVarCodePrefix()

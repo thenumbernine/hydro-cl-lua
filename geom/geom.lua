@@ -101,7 +101,7 @@ function Geometry:init(args)
 	
 	-- TODO automatically do this ...
 	g = g:map(function(expr)
-		if symmath.powOp.is(expr)
+		if symmath.op.pow.is(expr)
 		and expr[2] == const(2)
 		and symmath.cos.is(expr[1])
 		then
@@ -115,7 +115,7 @@ print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'())
 	local GammaL = Tensor'_abc'
 	GammaL['_abc'] = ((g'_ab,c' + g'_ac,b' - g'_bc,a' + c'_abc' + c'_acb' - c'_bca') / 2)()
 print'1st kind Christoffel:'
-print(var'\\Gamma''_abc':eq(symmath.divOp(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(GammaL'_abc'()))
+print(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(GammaL'_abc'()))
 
 	local Gamma = Tensor'^a_bc'
 	Gamma['^a_bc'] = GammaL'^a_bc'()
@@ -134,7 +134,7 @@ print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()
 		local orig = expr	
 		-- replace pow(x,2) with x*x
 		expr = expr:map(function(x)
-			if symmath.powOp.is(x) 
+			if symmath.op.pow.is(x) 
 			and const.is(x[2])
 			then
 				local value = assert(x[2].value)
@@ -142,7 +142,7 @@ print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()
 					if value == 1 then
 						return x[1]
 					else
-						return symmath.mulOp(range(value):map(function() 
+						return symmath.op.mul(range(value):map(function() 
 							return symmath.clone(x[1])
 						end):unpack())
 					end
