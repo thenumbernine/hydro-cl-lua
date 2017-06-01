@@ -18,8 +18,8 @@ Maxwell.useSourceTerm = true
 Maxwell.initStates = require 'init.euler'
 
 Maxwell.guiVars = table{
-	GuiFloat{name='eps0', value=1},	-- permittivity
-	GuiFloat{name='mu0', value=1},	-- permeability
+	GuiFloat{name='eps0', value=1 / (4 * math.pi)},	-- permittivity
+	GuiFloat{name='mu0', value=4 * math.pi},	-- permeability
 	GuiFloat{name='sigma', value=1},-- conductivity
 }
 

@@ -364,8 +364,8 @@ real sym3_dot(sym3 a, sym3 b) {
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))	-- TODO what about removing divergence?
 	
 	-- EM
-	--self.solvers:insert(require 'solver.maxwell-roe'(args))
-	self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
+	self.solvers:insert(require 'solver.maxwell-roe'(args))
+	--self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
 	
 	-- EM+HD
 	-- I broke this when I moved the cons_t type defs from solver to equation

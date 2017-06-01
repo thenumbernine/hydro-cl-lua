@@ -1125,7 +1125,6 @@ do
 			for i,convertToTex in ipairs(self.convertToTexs) do
 				ig.igPushIdStr('display '..i)
 				if ig.igCollapsingHeader(convertToTex.name) then				
-					--[=[
 					for i=1,#fields do
 						all[fields[i]][0] = defaults[i]
 					end
@@ -1148,7 +1147,6 @@ do
 							end
 						end
 					end
-					--]=]
 
 					for _,var in ipairs(convertToTex.vars) do
 						if handle(var, convertToTex.name..' '..var.name) then

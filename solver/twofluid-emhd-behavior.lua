@@ -107,7 +107,7 @@ local function TwoFluidEMHDBehavior(parent)
 	function templateClass:replaceSourceKernels()
 		local chargeMassRatio_ion = 1
 		local chargeMassRatio_electron = .01
-		local eps0 = 1
+		local eps0 = 1 / (4 * math.pi)
 
 		require 'solver.solver'.createCodePrefix(self)
 
