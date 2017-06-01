@@ -317,7 +317,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		-- initState = cmdline.initState,
 		-- Euler / SRHD / MHD initial states:
 		--initState = 'constant',
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		-- (those designed for srhd:)
@@ -334,7 +334,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
 		-- EM:
-		initState = 'Maxwell default',
+		--initState = 'Maxwell default',
 	}
 	
 	self.solvers = table()
@@ -342,7 +342,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	-- HD
 	--self.solvers:insert(require 'solver.euler-roe'(args))
 	-- implicit works with 1D, but fails for 2D for grid sizes > 32^2
-	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
+	self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 	
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
@@ -364,7 +364,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))	-- TODO what about removing divergence?
 	
 	-- EM
-	self.solvers:insert(require 'solver.maxwell-roe'(args))
+	--self.solvers:insert(require 'solver.maxwell-roe'(args))
 	--self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
 	
 	-- EM+HD

@@ -375,6 +375,15 @@ function Solver:finalizeCLAllocs()
 		buffer.offset = total
 		local name = buffer.name
 		local size = buffer.size
+		if not self.allocateOneBigStructure then
+			if size % ffi.sizeof(self.app.env.real) ~= 0 then
+				print()
+				print'!!!!!!!!!!! WARNING !!!!!!!!!!!'
+				print(' unaligned buffer: '..name)
+				print()
+				size = size + ffi.sizeof(self.app.env.real)
+			end
+		end
 		total = total + size
 		if not self.allocateOneBigStructure then
 			local bufObj = CLBuffer{
@@ -467,17 +476,10 @@ end
 
 function Solver:createCodePrefix()
 	local lines = table()
+
 	if self.dim == 3 then
 		lines:insert'#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable'
 	end
-	if self.app.real == 'double' then
-		lines:insert'#pragma OPENCL EXTENSION cl_khr_fp64 : enable'
-	end
-
-	-- real types in CL natives: 1,2,4,8
-	lines:append(table{'',2,4,8}:map(function(n)
-		return 'typedef '..self.app.real..n..' real'..n..';'
-	end))
 
 	-- real3
 	lines:insert(self.app.real3TypeCode)
@@ -504,7 +506,7 @@ function Solver:createCodePrefix()
 		'constant int4 gridSize = (int4)(gridSize_x, gridSize_y, gridSize_z, 0);',
 		'constant int4 stepsize = (int4)(1, gridSize_x, gridSize_x * gridSize_y, gridSize_x * gridSize_y * gridSize_z);',
 		'#define INDEX(a,b,c)	((a) + gridSize_x * ((b) + gridSize_y * (c)))',
-		'#define INDEXV(i)		INDEX((i).x, (i).y, (i).z)',
+		'#define INDEXV(i)		indexForInt4ForSize(i, gridSize_x, gridSize_y, gridSize_z)',
 	}:append(range(3):map(function(i)
 		return (('#define grid_dx{i} ((maxs_{x} - mins_{x}) / (real)(gridSize_{x} - '..(2*self.numGhost)..'))')
 			:gsub('{i}', i-1)
@@ -528,7 +530,7 @@ function Solver:createCodePrefix()
 		
 		-- define i, index, and bounds-check
 		'#define SETBOUNDS(lhs,rhs)	\\',
-		'\tint4 i = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0); \\',
+		'\tint4 i = globalInt4(); \\',
 		'\tif (OOB(lhs,rhs)) return; \\',
 		'\tint index = INDEXV(i);',
 	}
@@ -568,6 +570,7 @@ end
 
 function Solver:refreshInitStateProgram()
 	local initStateCode = table{
+		self.app.env.code,
 		self.codePrefix,
 		self.eqn:getInitStateCode(),
 	}:concat'\n'
@@ -644,6 +647,7 @@ function Solver:getSolverCode()
 		.. '}'
 	
 	return table{
+		self.app.env.code,
 		self.codePrefix,
 		
 		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
@@ -707,7 +711,8 @@ end
 function Solver:refreshDisplayProgram()
 
 	local lines = table{
-		self.codePrefix
+		self.app.env.code,
+		self.codePrefix,
 	}
 	
 	for _,convertToTex in ipairs(self.convertToTexs) do
@@ -786,6 +791,7 @@ function Solver:createBoundaryProgramAndKernel(args)
 	local assign = args.assign or function(a, b) return a .. ' = ' .. b end
 	
 	local lines = table()
+	lines:insert(self.app.env.code)
 	lines:insert(self.codePrefix)
 	lines:insert(template([[
 kernel void boundary(

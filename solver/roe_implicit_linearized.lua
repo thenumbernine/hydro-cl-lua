@@ -60,6 +60,7 @@ function RoeImplicitLinearized:refreshGridSize(...)
 	end
 
 	local mulWithoutBorder = self.domain:kernel{
+		name = 'RoeImplicitLinearized_mulWithoutBorder',
 		header = self.codePrefix,
 		argsOut = {
 			{name='y', type=self.eqn.cons_t, obj=true},

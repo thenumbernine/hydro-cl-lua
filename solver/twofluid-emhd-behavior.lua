@@ -112,6 +112,7 @@ local function TwoFluidEMHDBehavior(parent)
 		require 'solver.solver'.createCodePrefix(self)
 
 		local lines = table{
+			self.app.env.code,
 			self.codePrefix,
 			self.electron.eqn:getTypeCode(),
 			self.ion.eqn:getTypeCode(),

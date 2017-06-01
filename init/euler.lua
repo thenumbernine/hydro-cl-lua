@@ -87,8 +87,10 @@ local initStates = {
 				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 7/5
 			end
 			return [[
-	rho = lhs ? 1 : .125;
-	P = lhs ? 1 : .1;
+//1D Sod test on 2D grid
+lhs = x.x < mids.x;
+	rho = lhs ? 1. : .125;
+	P = lhs ? 1. : .1;
 ]]
 		end,
 	},

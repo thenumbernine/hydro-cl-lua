@@ -17,14 +17,12 @@ Features:
 - Maxwell equations from Trangenstein's book
 
 TODO:
-- implicit isn't working in 2D
-- something is causing divergence-free to explode 
+- implicit has some bugs 
 - why when you run Orszag-Tang in the Maxwell simulator does it explode at different random times? 
-- get two-fluid EMHD working (currently has 
+- get two-fluid EMHD working (currently has nans)
 - get potential forces for Euler equations working
 - get self-gravitation for Euler equations working
 - add HLL / HLLC solvers
-- add Roe implicit GMRES
 - implement Navier-Stokes
 - rename 'adm\_' prefixes to 'nr\_' or 'gr\_' or something else ...
 - PLM support that works on a wide range of equations (currently have a few vying options)
@@ -36,7 +34,7 @@ TODO:
 
 Minor TODO:
 - get MHD working with Orszag-Tang 2D
-- get some 2D SRHD test-cases working
+- get implicit SRHD working
 
 ### Sources:
 
