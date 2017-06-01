@@ -99,16 +99,6 @@ function Solver:init(args)
 
 	self:createEqn(args.eqn)
 	
-	self.prim_t = self.eqn.prim_t
-	self.cons_t = self.eqn.cons_t
-	self.consLR_t = self.eqn.consLR_t
-	self.eigen_t = self.eqn.eigen_t
-	
-	-- ... so delete them immediately after
-	self.prim_t = false
-	self.cons_t = false
-	self.consLR_t = false
-	
 	self.name = self.eqn.name..' '..self.name
 
 	self.app = assert(args.app)
@@ -1039,7 +1029,8 @@ end
 
 local float = ffi.new'float[1]'
 local bool = ffi.new'bool[1]'
-function Solver:updateGUI()
+
+function Solver:updateGUIParams()
 	if ig.igCollapsingHeader'parameters:' then
 		bool[0] = self.useFixedDT
 		if ig.igCheckbox('use fixed dt', bool) then
@@ -1071,7 +1062,9 @@ function Solver:updateGUI()
 			end
 		end
 	end
+end
 
+function Solver:updateGUIEqnSpecific()
 	if ig.igCollapsingHeader'equation-specific:' then
 		-- equation-specific:
 
@@ -1094,44 +1087,85 @@ function Solver:updateGUI()
 			var:updateGUI(self)
 		end
 	end
+end
 
+do
 	-- display vars: TODO graph vars
+	local function handle(var, title)
+		ig.igPushIdStr(title)
+		local enableChanged = ig.igCheckbox(var.name, var.enabled) 
+		ig.igSameLine()
+		if ig.igCollapsingHeader'' then	
+			ig.igCheckbox('log', var.useLogPtr)
+			ig.igCheckbox('fixed range', var.heatMapFixedRangePtr)
+			ig.igInputFloat('value min', var.heatMapValueMinPtr)
+			ig.igInputFloat('value max', var.heatMapValueMaxPtr)
+		end
+		ig.igPopId()
+		return enableChanged 
+	end
 
-	if ig.igCollapsingHeader'display:' then
-		for i,convertToTex in ipairs(self.convertToTexs) do
-			ig.igPushIdStr('display '..i)
-			if ig.igCollapsingHeader(convertToTex.name) then
-				
-				-- do one for 'all'
-				local all = ffi.new('bool[1]', true)
-				for _,var in ipairs(convertToTex.vars) do
-					all[0] = all[0] and var.enabled[0]
-				end
-				if ig.igCheckbox('all', all) then
+	-- do one for 'all'
+	local function _and(a,b) return a and b end
+	local fields = {'enabled', 'useLogPtr', 'heatMapFixedRangePtr', 'heatMapValueMinPtr', 'heatMapValueMaxPtr'}
+	local types = {'bool', 'bool', 'bool', 'float', 'float'}
+	local defaults = {true, true, true, math.huge, -math.huge}
+	local combines = {_and, _and, _and, math.min, math.max}
+	local all = {name='all'}
+	for i=1,#fields do
+		all[fields[i]] = ffi.new(types[i]..'[1]')
+	end
+	local original = {}
+	for i,field in ipairs(fields) do
+		original[field] = ffi.new(types[i]..'[1]')
+	end
+
+	function Solver:updateGUIDisplay()
+		if ig.igCollapsingHeader'display:' then
+			for i,convertToTex in ipairs(self.convertToTexs) do
+				ig.igPushIdStr('display '..i)
+				if ig.igCollapsingHeader(convertToTex.name) then				
+					--[=[
+					for i=1,#fields do
+						all[fields[i]][0] = defaults[i]
+					end
 					for _,var in ipairs(convertToTex.vars) do
-						var.enabled[0] = all[0]
+						for i,field in ipairs(fields) do
+							all[field][0] = combines[i](all[field][0], var[field][0])
+						end
 					end
-					self:refreshDisplayProgram()
+					for _,field in ipairs(fields) do
+						original[field][0] = all[field][0]
+					end
+					handle(all, 'all')
+					for _,field in ipairs(fields) do
+						if all[field][0] ~= original[field][0] then
+							for _,var in ipairs(convertToTex.vars) do
+								var[field][0] = all[field][0]
+							end
+							if field == 'enabled' then
+								self:refreshDisplayProgram()
+							end
+						end
+					end
+					--]=]
+
+					for _,var in ipairs(convertToTex.vars) do
+						if handle(var, convertToTex.name..' '..var.name) then
+							self:refreshDisplayProgram()
+						end
+					end
 				end
-				
-				for _,var in ipairs(convertToTex.vars) do
-					ig.igPushIdStr(convertToTex.name..' '..var.name)
-					if ig.igCheckbox(var.name, var.enabled) then
-						self:refreshDisplayProgram()
-					end
-					ig.igSameLine()
-					if ig.igCollapsingHeader'' then	
-						ig.igCheckbox('log', var.useLogPtr)
-						ig.igCheckbox('fixed range', var.heatMapFixedRangePtr)
-						ig.igInputFloat('value min', var.heatMapValueMinPtr)
-						ig.igInputFloat('value max', var.heatMapValueMaxPtr)
-					end
-					ig.igPopId()
-				end
+				ig.igPopId()
 			end
-			ig.igPopId()
 		end
 	end
+end
+
+function Solver:updateGUI()
+	self:updateGUIParams()
+	self:updateGUIEqnSpecific()
+	self:updateGUIDisplay()
 
 	-- heat map var
 
@@ -1139,4 +1173,3 @@ function Solver:updateGUI()
 end
 
 return Solver
-

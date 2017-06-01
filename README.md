@@ -17,6 +17,7 @@ Features:
 - Maxwell equations from Trangenstein's book
 
 TODO:
+- implicit isn't working in 2D
 - something is causing divergence-free to explode 
 - why when you run Orszag-Tang in the Maxwell simulator does it explode at different random times? 
 - get two-fluid EMHD working (currently has 

@@ -229,7 +229,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 1,
+		dim = cmdline.dim or 2,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 4, TVD',
@@ -245,9 +245,9 @@ real sym3_dot(sym3 a, sym3 b) {
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 8,
-			cmdline.gridSize or 8,
-			cmdline.gridSize or 8,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -316,8 +316,8 @@ real sym3_dot(sym3 a, sym3 b) {
 		-- no initial state means use the first
 		-- initState = cmdline.initState,
 		-- Euler / SRHD / MHD initial states:
-		initState = 'constant',
-		initState = 'Sod',
+		--initState = 'constant',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		-- (those designed for srhd:)
@@ -334,7 +334,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
 		-- EM:
-		--initState = 'Maxwell default',
+		initState = 'Maxwell default',
 	}
 	
 	self.solvers = table()
@@ -361,11 +361,11 @@ real sym3_dot(sym3 a, sym3 b) {
 	-- 		RK4-TVD fails at 256x256 at just after t=.5
 	-- TODO BUG: fails when run alongside HD Roe solver
 	--self.solvers:insert(require 'solver.mhd-roe'(args))
-	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))
+	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))	-- TODO what about removing divergence?
 	
 	-- EM
 	--self.solvers:insert(require 'solver.maxwell-roe'(args))
-	--self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
+	self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
 	
 	-- EM+HD
 	-- I broke this when I moved the cons_t type defs from solver to equation
@@ -382,7 +382,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 	-- then there's the BSSNOK finite-difference solver
-	self.solvers:insert(require 'solver.bssnok-fd-fe'(args))	-- goes really sloooow, same with HydroGPU on this graphics card
+	--self.solvers:insert(require 'solver.bssnok-fd-fe'(args))	-- goes really sloooow, same with HydroGPU on this graphics card
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 	
