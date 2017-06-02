@@ -136,7 +136,7 @@ function Solver:init(args)
 
 	self.useFixedDT = false
 	self.fixedDT = .001
-	self.cfl = .5/self.dim
+	self.cfl = .5	--/self.dim
 	self.initStatePtr = ffi.new('int[1]', (table.find(self.eqn.initStateNames, args.initState) or 1)-1)
 	self.integratorPtr = ffi.new('int[1]', (self.integratorNames:find(args.integrator) or 1)-1)
 	self.fluxLimiter = ffi.new('int[1]', (self.app.limiterNames:find(args.fluxLimiter) or 1)-1)
@@ -190,14 +190,14 @@ function Solver:refreshGridSize()
 	}
 
 	-- don't include the ghost cells as a part of the grid coordinate space
-	local sizeWithoutBorder = vec3sz(self.gridSize:unpack())
+	self.sizeWithoutBorder = vec3sz(self.gridSize:unpack())
 	for i=0,self.dim-1 do
-		sizeWithoutBorder:ptr()[i] = sizeWithoutBorder:ptr()[i] - 2 * self.numGhost
+		self.sizeWithoutBorder:ptr()[i] = self.sizeWithoutBorder:ptr()[i] - 2 * self.numGhost
 	end
 
 	self.volume = tonumber(self.gridSize:volume())
 	self.dxs = vec3(range(3):map(function(i)
-		return (self.maxs[i] - self.mins[i]) / tonumber(sizeWithoutBorder:ptr()[i-1])
+		return (self.maxs[i] - self.mins[i]) / tonumber(self.sizeWithoutBorder:ptr()[i-1])
 	end):unpack())
 
 	self:refreshIntegrator()	-- depends on eqn & gridSize
@@ -967,8 +967,36 @@ function Solver:calcDT()
 end
 
 function Solver:update()
+local before = self.UBufObj:toCPU()
+--print'\nself.UBufObj before boundary:' self:printBuf(self.UBufObj) print(debug.traceback(),'\n\n')	
 	self:boundary()
+--[[
+local after = self.UBufObj:toCPU()
+print'\nself.UBufObj after boundary:' self:printBuf(self.UBufObj) print(debug.traceback(),'\n\n')	
+if self.app.dim == 2 then
+	for i=0,tonumber(self.gridSize.x)-1 do
+		for j=0,self.numGhost-1 do
+			for _,s in ipairs{0,4} do
+				for _,offset in ipairs{
+					s + self.eqn.numStates * (i + self.gridSize.x * j),
+					s + self.eqn.numStates * (j + self.gridSize.x * i),
+					s + self.eqn.numStates * (i + self.gridSize.x * (self.gridSize.y - 1 - j)),
+					s + self.eqn.numStates * ((self.gridSize.x - 1 - j) + self.gridSize.x * i),
+				} do
+					if after[offset] < 0 then
+						local msg = "negative found in boundary after :boundary() was called"
+						msg = msg .. "\nat position " .. tostring(offset / self.eqn.numStates)
+						msg = msg .. '\nit was '..(before[offset] < 0 and 'negative' or 'positive')..' before the boundary update'
+						error(msg)
+					end
+				end
+			end
+		end
+	end
+end
+--]]	
 	local dt = self:calcDT()
+--print('dt',dt)	
 	self:step(dt)
 	self.t = self.t + dt
 end
@@ -977,6 +1005,35 @@ function Solver:step(dt)
 	self.integrator:integrate(dt, function(derivBuf)
 		self:calcDeriv(derivBuf, dt)
 	end)
+end
+
+function Solver:printBuf(buf, ptr)
+	ptr = ptr or buf:toCPU()
+	local max = #tostring(self.volume-1)
+	for i=0,self.volume-1 do
+		io.write((' '):rep(max-#tostring(i)), i,':')
+		for j=0,self.eqn.numStates-1 do
+			io.write(' ', ptr[j + self.eqn.numStates * i])
+		end 
+		print()
+	end
+end
+
+-- check for nans
+-- expects buf to be of type cons_t, made up of numStates real variables
+function Solver:checkFinite(buf)
+	local ptr = buf:toCPU()
+	local found
+	for i=0,self.volume * self.eqn.numStates - 1 do
+		if not math.isfinite(ptr[i]) then
+			found = found or table()
+			found:insert(i)
+		end
+	end
+	if not found then return end
+	self:printBuf(nil, ptr)
+	print(found:map(tostring):concat', ')
+	error'found non-finite numbers'
 end
 
 function Solver:getTex(var) 
