@@ -17,8 +17,8 @@ Features:
 - Maxwell equations from Trangenstein's book
 
 TODO:
-- implicit has some bugs 
 - why when you run Orszag-Tang in the Maxwell simulator does it explode at different random times? 
+- 2D MHD seems to have nonzero div B ...
 - get two-fluid EMHD working (currently has nans)
 - get potential forces for Euler equations working
 - get self-gravitation for Euler equations working
@@ -34,7 +34,7 @@ TODO:
 
 Minor TODO:
 - get MHD working with Orszag-Tang 2D
-- get implicit SRHD working
+- finish implicit SRHD
 
 ### Sources:
 

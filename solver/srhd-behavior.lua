@@ -52,7 +52,7 @@ local function SRHDBehavior(parent)
 	--[[
 	calcDT, calcEigenBasis use primBuf
 	so for the Roe implicit linearized solver,
-	primBuf must be push/pop'd as well as UBuf
+	(TODO?) primBuf must be push/pop'd as well as UBuf
 	--]]
 	function template:refreshSolverProgram()
 		-- createKernels in particular ...

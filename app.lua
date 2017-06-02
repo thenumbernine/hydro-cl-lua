@@ -229,7 +229,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 2,
+		dim = cmdline.dim or 1,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 4, TVD',
@@ -341,8 +341,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	
 	-- HD
 	--self.solvers:insert(require 'solver.euler-roe'(args))
-	-- implicit works with 1D, but fails for 2D for grid sizes > 32^2
-	self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
+	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 	
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
@@ -354,12 +353,14 @@ real sym3_dot(sym3 a, sym3 b) {
 	-- not working just yet, still needs some behavior modifications:
 	--self.solvers:insert(require 'solver.srhd-roe_implicit_linearized'(args))
 	
-	-- M+HD. with superbee flux lim.  
-	-- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.  
+	-- M+HD. 
+	-- with superbee flux lim:  
+	-- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.
 	-- Orszag-Tang with forward Euler integrator fails at 64x64 around .7 or .8
 	-- 		but works with 'Runge-Kutta 4, TVD' integrator at 64x64
 	-- 		RK4-TVD fails at 256x256 at just after t=.5
-	-- TODO BUG: fails when run alongside HD Roe solver
+	-- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
+	-- also div B is nonzero.  in fact it's pretty big.
 	--self.solvers:insert(require 'solver.mhd-roe'(args))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))	-- TODO what about removing divergence?
 	
@@ -376,9 +377,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
-	-- still needs work ...
-	-- this doesn't work, even though RoeImplicitLinear works with adm-1d in the 1D grav wave sim
-	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v1'})))
+	self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 	-- then there's the BSSNOK finite-difference solver
@@ -498,7 +497,7 @@ void main() {
 
 	self.orthoView = require 'view.ortho'()
 	self.frustumView = require 'view.frustum'()
-	self.view = self.solvers[1].dim == 3 and self.frustumView or self.orthoView
+	self.view = (#self.solvers > 0 and self.solvers[1].dim == 3) and self.frustumView or self.orthoView
 end
 
 

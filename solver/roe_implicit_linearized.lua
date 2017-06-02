@@ -110,6 +110,8 @@ function RoeImplicitLinearized:refreshGridSize(...)
 		--]]
 		-- [[ scale down dot and let norm be sqrt(dot(v,v))
 		dot = function(a,b)
+			-- EMHD got an error here: "attempted to perform arithmetic on a nil value"
+			-- ...which means there are oob writes going on somewhere
 			return dotWithoutBorder(a,b) / numRealsWithoutBorder
 		end,
 		--]]

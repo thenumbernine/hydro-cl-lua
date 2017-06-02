@@ -14,10 +14,7 @@ this will be ugly, and require a separate new class for each parent class the be
 --]]
 
 local function EulerBehavior(parent)
-	local template = class(
-		--SelfGrav(
-		parent)
-		--)
+	local template = class(SelfGrav(parent))
 
 	function template:createEqn()
 		self.eqn = EulerEqn(self)
