@@ -15,13 +15,13 @@ Features:
 - Euler equations from Toro's book
 - ADM via the Bona-Masso formalism described in Alcubierre 1997 and Alcubierre's 2008 book
 - Maxwell equations from Trangenstein's book
+- self-gravitation for Euler equations
 
 TODO:
 - why when you run Orszag-Tang in the Maxwell simulator does it explode at different random times? 
 - 2D MHD seems to have nonzero div B ...
 - get two-fluid EMHD working (currently has nans)
 - get potential forces for Euler equations working
-- get self-gravitation for Euler equations working
 - add HLL / HLLC solvers
 - implement Navier-Stokes
 - rename 'adm\_' prefixes to 'nr\_' or 'gr\_' or something else ...

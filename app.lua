@@ -224,15 +224,25 @@ real sym3_dot(sym3 a, sym3 b) {
 
 ]]
 
+	--[[
+	cmdline = {
+		dim = 1,
+		--mins = {-6e+6},
+		--maxs = {6e+6},
+		gridSize = 256,
+		initState = 'self-gravitation test 1',
+	}
+	--]]
+
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 1,
+		dim = cmdline.dim or 2,
 		
-		integrator = cmdline.integrator or 'forward Euler',	
-		--integrator = 'Runge-Kutta 4, TVD',
+		--integrator = cmdline.integrator or 'forward Euler',	
+		integrator = 'Runge-Kutta 4, TVD',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = cmdline.fluxLimiter or 'donor cell',
@@ -245,17 +255,17 @@ real sym3_dot(sym3 a, sym3 b) {
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 128,
 		},
 		boundary = {
-			xmin=cmdline.boundary or 'freeflow',
-			xmax=cmdline.boundary or 'freeflow',
-			ymin=cmdline.boundary or 'freeflow',
-			ymax=cmdline.boundary or 'freeflow',
-			zmin=cmdline.boundary or 'freeflow',
-			zmax=cmdline.boundary or 'freeflow',
+			xmin=cmdline.boundary or 'periodic',
+			xmax=cmdline.boundary or 'periodic',
+			ymin=cmdline.boundary or 'periodic',
+			ymax=cmdline.boundary or 'periodic',
+			zmin=cmdline.boundary or 'periodic',
+			zmax=cmdline.boundary or 'periodic',
 		},
 		--]]
 		--[[ cylinder
@@ -314,10 +324,10 @@ real sym3_dot(sym3 a, sym3 b) {
 		--]]
 		
 		-- no initial state means use the first
-		-- initState = cmdline.initState,
+		--initState = cmdline.initState,
 		-- Euler / SRHD / MHD initial states:
 		--initState = 'constant',
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		-- (those designed for srhd:)
@@ -326,10 +336,12 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'relativistic blast wave interaction',
 		-- self-gravitation tests:
-		--initState = 'self-gravitation test 1',
+		initState = 'self-gravitation test 1',
 		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
+		--initState = 'self-gravitation test 2 orbiting',
 		--initState = 'self-gravitation test 4',
+		--initState = 'self-gravitation soup',
 		-- MHD-only init states: (that use 'b')
 		--initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
@@ -340,9 +352,14 @@ real sym3_dot(sym3 a, sym3 b) {
 	self.solvers = table()
 	
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
-	
+
+	-- the same as solver.euler-roe:
+	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe')(table(args, {eqn='euler'})))
+	-- the same as solver.euler-roe_implicit_linearized
+	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe_implicit_linearized')(table(args, {eqn='euler'})))
+
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
 	-- int. shock wave works in 1D at 256 . fails at 1024. with superbee flux lim
@@ -377,7 +394,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
-	self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v1'})))
+	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 	-- then there's the BSSNOK finite-difference solver

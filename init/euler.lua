@@ -58,7 +58,9 @@ local function selfGravProblem(args)
 			<?=clnumber(source.center[2])?>,
 			<?=clnumber(source.center[3])?>));
 		real distSq = real3_lenSq(delta);
-		if (distSq < <?=clnumber(source.radius * source.radius)?>) rho = 1; 
+		if (distSq < <?=clnumber(source.radius * source.radius)?>) {
+			<?=source.inside or 'rho = P = 1;'?>
+		}
 	}<? end ?>
 ]], 	{
 			sources = args.sources,
@@ -517,15 +519,13 @@ end ?>
 				{
 					center={0, 0, 0}, 
 					radius = .2,
-					inside = function(dx,dy,dz)
-						return buildStateEuler{
-							x=x, y=y, z=z,
-							velocityX = -10 * dy,
-							velocityY = 10 * dx,
-							pressure = 1,
-							density = 1,
-						}
-					end},
+					inside = [[
+						v.x = -10 * delta.y;
+						v.y = 10 * delta.x;
+						rho = 1.;
+						P = 1.;
+					]],
+				},
 			},
 		},
 	},
@@ -537,34 +537,44 @@ end ?>
 				{
 					center = {-.25, 0, 0},
 					radius = .1,
-					inside = function(dx,dy,dz)
-						return buildStateEuler{
-							x=x, y=y, z=z,
-							pressure = 1,
-							density = 1,
-						}
-					end,
 				},
 				{
 					center = {.25, 0, 0},
 					radius = .1,
-					inside = function(dx,dy,dz)
-						return buildStateEuler{
-							x=x, y=y, z=z,
-							pressure = 1,
-							density = 1,
-						}
-					end,
 				},
 			},
 		},
-		--[[ TODO
-		mx = -5 * rho * y
-		my = 5 * rho * x
-		return rho,mx,my,mz,eTotal,bx,by,bz
-		--]]
 	},
 
+	{
+		-- TODO add tidal-locked rotations
+		name = 'self-gravitation test 2 orbiting',
+		init = selfGravProblem{ 
+			sources = {
+				{
+					center = {-.25, 0, 0},
+					radius = .1,
+					inside = [[
+						v.x = -1 * x.y;
+						v.y = 1 * x.x;
+						rho = 1;
+						P = 1;
+					]],
+				},
+				{
+					center = {.25, 0, 0},
+					radius = .1,
+					inside = [[
+						v.x = -1 * x.y;
+						v.y = 1 * x.x;
+						rho = 1;
+						P = 1;
+					]],
+				},
+			},
+		},
+	},
+	
 	{
 		name = 'self-gravitation test 4',
 		init =  selfGravProblem{
@@ -575,6 +585,31 @@ end ?>
 				{center={-.25, -.25, 0}, radius = .1},
 			},
 		},
+	},
+
+	{
+		name = 'self-gravitation soup',
+		init = function(solver)
+			return [[
+	int q = index;
+	for (int i = 0; i < 20; ++i) {
+		q = (int)floor((float)0x7fffffff * fabs(sin(2. * M_PI * (float)q / (float)0x7fffffff)));
+	}
+	rho = .1 * (float)(q & 0xff) / (float)0xff + .1;
+	
+	q = (int)floor((float)0x7fffffff * fabs(sin(2. * M_PI * (float)q / (float)0x7fffffff)));
+	P = .1 * (float)(q & 0xff) / (float)0xff + .1;
+
+	q = (int)floor((float)0x7fffffff * fabs(sin(2. * M_PI * (float)q / (float)0x7fffffff)));
+	v.x = .2 * (float)(q & 0xff) / (float)0xff - .1;
+	
+	q = (int)floor((float)0x7fffffff * fabs(sin(2. * M_PI * (float)q / (float)0x7fffffff)));
+	v.y = .2 * (float)(q & 0xff) / (float)0xff - .1;
+	
+	q = (int)floor((float)0x7fffffff * fabs(sin(2. * M_PI * (float)q / (float)0x7fffffff)));
+	v.z = .2 * (float)(q & 0xff) / (float)0xff - .1;
+]]
+		end,
 	},
 
 	{

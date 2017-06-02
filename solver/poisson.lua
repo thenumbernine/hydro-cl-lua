@@ -16,7 +16,7 @@ function Poisson:getSolverCode()
 	return require 'template'(
 		table{
 			file['solver/poisson.cl'],
-			self.extraCode or '',
+			self:getPoissonCode() or '',
 		}:concat'\n',
 		table(self:getCodeParams(), {
 			eqn = self.solver.eqn,

@@ -1,28 +1,37 @@
 local class = require 'ext.class'
+local template = require 'template'
 local Poisson = require 'solver.poisson'
 
 local SelfGrav = class(Poisson)
 
-SelfGrav.gravityConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
+SelfGrav.gravitationConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
+SelfGrav.selfGrav_matterField = 'rho'
+SelfGrav.selfGrav_momentumField = 'm'
+SelfGrav.selfGrav_totalEnergyField = 'ETotal'
 
 -- params for solver/poisson.cl 
 function SelfGrav:getCodeParams()
 	return {
 		args = 'global '..self.solver.eqn.cons_t..'* UBuf',
-		calcRho = require 'template'([[
-#define gravitationalConstant <?=clnumber(self.gravityConstant)?>
+		calcRho = template([[
+#define gravitationalConstant <?=clnumber(self.gravitationConstant)?>
 	global <?=eqn.cons_t?>* U = UBuf + index;
-	rho = -gravitationalConstant * U->rho;	//maybe a 4pi?  or is that only in the continuous case?
-]], {
-	self = self,
-	eqn = self.solver.eqn,
-	solver = self.solver,
-	clnumber = require 'clnumber',
-}),
+	//maybe a 4pi?  or is that only in the continuous case?
+	rho = -gravitationalConstant * U-><?=self.selfGrav_matterField?>;
+]], 
+		{
+			self = self,
+			solver = self.solver,
+			eqn = self.solver.eqn,
+			clnumber = require 'clnumber',
+		}),
 	}
 end
 
-SelfGrav.extraCode = [[
+--should this be scaled by gravitationalConstant too?
+function SelfGrav:getPoissonCode()
+	return template(
+		[[
 
 kernel void calcGravityDeriv(
 	global <?=eqn.cons_t?>* derivBuffer,
@@ -39,14 +48,21 @@ kernel void calcGravityDeriv(
 		int indexL = index - stepsize[side];
 		int indexR = index + stepsize[side];
 	
-		real gradient = (UBuf[indexR].ePot - UBuf[indexL].ePot) / (2. * dx<?=side?>_at(i));
+		real gradient = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * dx<?=side?>_at(i));
 		real gravity = -gradient;
 
-		deriv->m.s[side] -= U->rho * gravity;
-		deriv->ETotal -= U->rho * gravity * U->m.s[side];
+		deriv-><?=self.selfGrav_momentumField?>.s[side] -= U-><?=self.selfGrav_matterField?> * gravity;
+		deriv-><?=self.selfGrav_totalEnergyField?> -= U-><?=self.selfGrav_matterField?> * gravity * U-><?=self.selfGrav_momentumField?>.s[side];
 	}<? end ?>
 }
-]]
+
+]],
+	{
+		self = self,
+		solver = self.solver,
+		eqn = self.solver.eqn,
+	})
+end
 
 function SelfGrav:refreshSolverProgram()
 	SelfGrav.super.refreshSolverProgram(self)

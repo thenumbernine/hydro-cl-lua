@@ -19,14 +19,16 @@ function NoDiv:getCodeParams()
 	);
 	//because this is the discrete case, no 4pi
 	rho = divB;
-]], {
-	eqn = self.solver.eqn,
-	solver = self.solver,
-}),
+]], 
+		{
+			eqn = self.solver.eqn,
+			solver = self.solver,
+		}),
 	}
 end
 
-NoDiv.extraCode = [[
+function NoDiv:getPoissonCode()
+	return [[
 
 kernel void noDiv(
 	global <?=eqn.cons_t?>* UBuf
@@ -39,6 +41,7 @@ kernel void noDiv(
 }
 
 ]]
+end
 
 function NoDiv:refreshSolverProgram()
 	NoDiv.super.refreshSolverProgram(self)
