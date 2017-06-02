@@ -504,12 +504,29 @@ end ?>
 
 	{
 		name = 'self-gravitation test 1',
-		init = selfGravProblem{
-			solver = solver,
-			sources={
-				{center={0, 0, 0}, radius = .2},
-			},
-		},
+		init = function(solver)
+			local f = selfGravProblem{
+				solver = solver,
+				sources={
+					{center={0, 0, 0}, radius = .2},
+				},
+			}
+			if solver.geometry.name == 'cylinder' then
+				solver.useGravity = true
+				solver.boundaryMethods.xmin[0] = solver.app.boundaryMethods:find'freeflow'-1
+				solver.boundaryMethods.xmax[0] = solver.app.boundaryMethods:find'freeflow'-1
+				solver.boundaryMethods.ymin[0] = solver.app.boundaryMethods:find'periodic'-1
+				solver.boundaryMethods.ymax[0] = solver.app.boundaryMethods:find'periodic'-1
+				solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'freeflow'-1
+				solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'freeflow'-1
+				return [[
+	P = 1;
+	rho = x.s[0] < .2 ? 1 : .1;
+]]
+			else
+				return f(solver)
+			end
+		end
 	},
 
 	{

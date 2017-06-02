@@ -224,11 +224,11 @@ real sym3_dot(sym3 a, sym3 b) {
 
 ]]
 
-	--[[
+	--[[ self-gravitation simulation of planet earth?
 	cmdline = {
 		dim = 1,
-		--mins = {-6e+6},
-		--maxs = {6e+6},
+		mins = {-12e+6},
+		maxs = {12e+6},
 		gridSize = 256,
 		initState = 'self-gravitation test 1',
 	}
@@ -241,8 +241,8 @@ real sym3_dot(sym3 a, sym3 b) {
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or 2,
 		
-		--integrator = cmdline.integrator or 'forward Euler',	
-		integrator = 'Runge-Kutta 4, TVD',
+		integrator = cmdline.integrator or 'forward Euler',	
+		--integrator = 'Runge-Kutta 4, TVD',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = cmdline.fluxLimiter or 'donor cell',
@@ -250,7 +250,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--usePLM = true,	-- piecewise-linear slope limiter
 		--slopeLimiter = 'minmod',
 		
-		-- [[ cartesian
+		--[[ cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
@@ -268,13 +268,13 @@ real sym3_dot(sym3 a, sym3 b) {
 			zmax=cmdline.boundary or 'periodic',
 		},
 		--]]
-		--[[ cylinder
+		-- [[ cylinder
 		geometry = 'cylinder',
-		mins = cmdline.mins or {.5, 0, -1},
+		mins = cmdline.mins or {0, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
 		gridSize = {
+			cmdline.gridSize or 32,
 			cmdline.gridSize or 128,
-			cmdline.gridSize or 512,
 			cmdline.gridSize or 1,
 		},
 		boundary = {
