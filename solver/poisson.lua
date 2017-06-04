@@ -89,6 +89,7 @@ function Poisson:createBehavior(field, enableField)
 		end
 
 		function template:getSolverCode()
+			print(field, self[field])
 			return table{
 				template.super.getSolverCode(self),
 				self[field]:getSolverCode(),
