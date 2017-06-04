@@ -199,12 +199,12 @@ kernel void calcFlux(
 			flux->ptr[j] += .5 * (FL.ptr[j] + FR.ptr[j]);
 		}
 <? end ?>
-		
+
 		real3 interfaceI = _real3(i.x, i.y, i.z);
 		interfaceI.s[side] -= .5;
 		real3 interfaceX = cell_x(interfaceI);
 		real volume = volume_at(interfaceX);
-		
+
 		for (int j = 0; j < numStates; ++j) {
 			flux->ptr[j] *= volume;
 		}

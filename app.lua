@@ -322,11 +322,14 @@ real sym3_dot(sym3 a, sym3 b) {
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
-		
+	
+		useGravity = true,
+
 		-- no initial state means use the first
 		--initState = cmdline.initState,
 		-- Euler / SRHD / MHD initial states:
-		--initState = 'constant',
+		initState = 'constant',
+		--initState = 'linear',
 		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
@@ -336,7 +339,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'relativistic blast wave interaction',
 		-- self-gravitation tests:
-		initState = 'self-gravitation test 1',
+		--initState = 'self-gravitation test 1',
 		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
 		--initState = 'self-gravitation test 2 orbiting',
@@ -352,8 +355,8 @@ real sym3_dot(sym3 a, sym3 b) {
 	self.solvers = table()
 	
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
-	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 
 	-- the same as solver.euler-roe:
 	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe')(table(args, {eqn='euler'})))
@@ -426,7 +429,7 @@ real sym3_dot(sym3 a, sym3 b) {
 				valueMin = 0,
 				valueMax = 0,
 				tex = 0,
-				gradient = 1,
+				gradientTex = 1,
 				alpha = 1,
 			},
 		}
@@ -462,7 +465,7 @@ void main() {
 			fragmentCode = [[
 varying vec3 pos;
 uniform sampler3D volTex;
-uniform sampler2D hsvTex;
+uniform sampler2D gradientTex;
 uniform vec3 normal;
 uniform float alpha;
 uniform float alphaGamma;
@@ -470,7 +473,7 @@ void main() {
 	vec4 worldPos = gl_ModelViewMatrix * vec4(pos,1.);
 
 	float value = texture3D(volTex, pos).r;
-	vec4 voxelColor = vec4(texture2D(hsvTex, vec2(value, .5)).rgb, pow(alpha, alphaGamma));
+	vec4 voxelColor = vec4(texture2D(gradientTex, vec2(value, .5)).rgb, pow(alpha, alphaGamma));
 	
 	//calculate normal in screen coordinates
 	vec4 n = gl_ModelViewProjectionMatrix * vec4(normal, 0.);
@@ -482,7 +485,7 @@ void main() {
 ]],
 				uniforms = {
 					volTex = 0,
-					hsvTex = 1,
+					gradientTex = 1,
 				},
 			}
 			solver.volumeSliceShader = volumeSliceShader
@@ -490,12 +493,15 @@ void main() {
 	end
 
 	self.gradientTex = GLGradientTex(1024, {
-		{0,0,.5,1},
-		{0,0,1,1},
-		{0,1,1,1},
-		{1,1,0,1},
-		{1,0,0,1},
-	}, true)
+		{0,0,0,1},	-- black
+		{0,0,1,1},	-- blue
+		{0,1,1,1},	-- cyan
+		{0,1,0,1},	-- green
+		{1,1,0,1},	-- yellow
+		{1,.5,0,1},	-- orange
+		{1,0,0,1},	-- red
+		{1,1,1,1},	-- white
+	}, false)
 
 	-- [[ need to get image loading working
 	local fonttex = GLTex2D{

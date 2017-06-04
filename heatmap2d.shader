@@ -19,7 +19,7 @@ float logmap(float x) { return log(1. + abs(x)) * _1_LN_10; }
 uniform bool useLog;
 uniform float valueMin, valueMax;
 uniform sampler2D tex;
-uniform sampler1D gradient;
+uniform sampler1D gradientTex;
 uniform float alpha;
 
 void main() {
@@ -32,7 +32,8 @@ void main() {
 	} else {
 		value = (value - valueMin) / (valueMax - valueMin);
 	}
-	gl_FragColor = vec4(texture1D(gradient, value).rgb, alpha);
+	value = value * 1023. / 1024.;
+	gl_FragColor = vec4(texture1D(gradientTex, value).rgb, alpha);
 }
 
 #endif	//FRAGMENT_SHADER

@@ -5,9 +5,9 @@ local Poisson = require 'solver.poisson'
 local SelfGrav = class(Poisson)
 
 SelfGrav.gravitationConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
-SelfGrav.selfGrav_matterField = 'rho'
-SelfGrav.selfGrav_momentumField = 'm'
-SelfGrav.selfGrav_totalEnergyField = 'ETotal'
+SelfGrav.matterField = 'rho'
+SelfGrav.momentumField = 'm'
+SelfGrav.totalEnergyField = 'ETotal'
 
 -- params for solver/poisson.cl 
 function SelfGrav:getCodeParams()
@@ -17,7 +17,7 @@ function SelfGrav:getCodeParams()
 #define gravitationalConstant <?=clnumber(self.gravitationConstant)?>
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	//maybe a 4pi?  or is that only in the continuous case?
-	rho = -gravitationalConstant * U-><?=self.selfGrav_matterField?>;
+	rho = -gravitationalConstant * U-><?=self.matterField?>;
 ]], 
 		{
 			self = self,
@@ -51,8 +51,8 @@ kernel void calcGravityDeriv(
 		real gradient = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * dx<?=side?>_at(i));
 		real gravity = -gradient;
 
-		deriv-><?=self.selfGrav_momentumField?>.s[side] -= U-><?=self.selfGrav_matterField?> * gravity;
-		deriv-><?=self.selfGrav_totalEnergyField?> -= U-><?=self.selfGrav_matterField?> * gravity * U-><?=self.selfGrav_momentumField?>.s[side];
+		deriv-><?=self.momentumField?>.s[side] -= U-><?=self.matterField?> * gravity;
+		deriv-><?=self.totalEnergyField?> -= U-><?=self.matterField?> * gravity * U-><?=self.momentumField?>.s[side];
 	}<? end ?>
 }
 
