@@ -294,9 +294,7 @@ function ConvertToTex:init(args)
 			),
 			color = vec3(math.random(), math.random(), math.random()):normalize(),
 			--heatMapTexPtr = ffi.new('int[1]', 0),	-- hsv, isobar, etc ...
-			heatMapFixedRangePtr = ffi.new('bool[1]', 
-				self.name ~= 'error'
-			),
+			heatMapFixedRangePtr = ffi.new('bool[1]', false),	-- self.name ~= 'error'
 			heatMapValueMinPtr = ffi.new('float[1]', 0),
 			heatMapValueMaxPtr = ffi.new('float[1]', 1),
 		}
@@ -493,14 +491,16 @@ function Solver:createCodePrefix()
 		'#define numStates '..self.eqn.numStates,
 		'#define numWaves '..self.eqn.numWaves,
 	}:append(xs:map(function(x,i)
+	-- coordinate space = u,v,w
+	-- cartesian space = x,y,z
+	-- min and max in coordinate space
 		return '#define mins_'..x..' '..clnumber(self.mins[i])..'\n'
 			.. '#define maxs_'..x..' '..clnumber(self.maxs[i])..'\n'
 	end)):append{
 		'constant real3 mins = _real3(mins_x, '..(self.dim<2 and '0' or 'mins_y')..', '..(self.dim<3 and '0' or 'mins_z')..');', 
 		'constant real3 maxs = _real3(maxs_x, '..(self.dim<2 and '0' or 'maxs_y')..', '..(self.dim<3 and '0' or 'maxs_z')..');', 
-	}:append{
-		'#define dx_min '..clnumber(math.min(table.unpack(self.dxs, 1, self.dim))),
 	}:append(xs:map(function(name,i)
+	-- grid size
 		return '#define gridSize_'..name..' '..tonumber(self.gridSize[name])
 	end)):append{
 		'constant int4 gridSize = (int4)(gridSize_x, gridSize_y, gridSize_z, 0);',
@@ -508,10 +508,12 @@ function Solver:createCodePrefix()
 		'#define INDEX(a,b,c)	((a) + gridSize_x * ((b) + gridSize_y * (c)))',
 		'#define INDEXV(i)		indexForInt4ForSize(i, gridSize_x, gridSize_y, gridSize_z)',
 	}:append(range(3):map(function(i)
+	-- delta in coordinate space along one grid cell
 		return (('#define grid_dx{i} ((maxs_{x} - mins_{x}) / (real)(gridSize_{x} - '..(2*self.numGhost)..'))')
 			:gsub('{i}', i-1)
 			:gsub('{x}', xs[i]))
 	end)):append(range(3):map(function(i)
+	-- mapping from cell index space to coordinate space	
 		return (('#define cell_x{i}(i) ((real)(i + '..clnumber(.5-self.numGhost)..') * grid_dx{i} + mins_'..xs[i]..')')
 			:gsub('{i}', i-1))
 	end)):append{
@@ -547,19 +549,24 @@ function Solver:createCodePrefix()
 	end))
 	
 	-- volume
-	lines:insert(getCode_real3_to_real('volume_at', self.geometry.volumeCode))
+	local volumeCode = '(' .. self.geometry.volumeCode .. ')'
+	for i=1,self.dim do
+		volumeCode = volumeCode .. ' * grid_dx'..(i-1)
+	end
+	lines:insert(getCode_real3_to_real('volume_at', volumeCode))
 	
 	-- coord len code: l(v) = v^i v^j g_ij
 	lines:append{
 		getCode_real3_to_real('coordLenSq', self.geometry.uLenSqCode),
 		'inline real coordLen(real3 r) { return sqrt(coordLenSq(r)); }',
 	}
-	
+
 	lines:append{
 		-- not messing with this one yet
 		self.allocateOneBigStructure and '#define allocateOneBigStructure' or '',
 		
 		self:getCoordMapCode() or '',
+		
 		-- this is dependent on coord map / length code
 		self.eqn:getCodePrefix() or '',
 		self:getConsLRTypeCode(),
@@ -661,7 +668,10 @@ function Solver:getSolverCode()
 
 		self:getCalcDTCode() or '',
 		
-		template(file['solver/solver.cl'], {solver=self, eqn=self.eqn})
+		template(file['solver/solver.cl'], {solver=self, eqn=self.eqn}),
+	
+		-- messing with this ...
+		self.usePLM and template(file['solver/plm.cl'], {solver=self, eqn=self.eqn}) or '',
 	}:concat'\n'
 end
 

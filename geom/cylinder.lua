@@ -14,15 +14,23 @@ function Cylinder:init(args)
 	
 	local r, theta = symmath.vars('r', 'theta')
 
-	--[[ holonomic (explodes, probably because it still need to include g^ij into P and v_i)
+	-- [[ holonomic (explodes, probably because it still need to include g^ij into P and v_i)
 	args.coords = table{r, theta, z}:sub(1, args.solver.dim)
 	--]]
-	-- [[ anholonomic
+	--[[ anholonomic
 	local thetaHat = symmath.var'thetaHat'
 	thetaHat.base = theta
 	function thetaHat:applyDiff(x) return x:diff(theta) / r end
 	args.coords = table{r, thetaHat, z}:sub(1, args.solver.dim)
 	--]]
+	-- the problem with anholonomic is that 
+	-- dx_at is always 1
+	-- and volume is always 1
+	-- so we never consider ds = r dtheta
+	-- and therefore the flux never gets perturbed
+
+	-- TODO https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19870019781.pdf
+	-- it looks like all I need is the volume and I'm fine
 
 	args.chart = function() 
 		return ({
@@ -36,3 +44,17 @@ function Cylinder:init(args)
 end
 
 return Cylinder
+
+--[[
+exact volume: 
+int(theta=theta1,theta2 int(r=r1,r2 r dr) dtheta)
+= 1/2 (theta2-theta1) (r2^2 - r1^2)
+
+volume element: 
+r dr dtheta
+= r (r2 - r1) (theta2 - theta1)
+= (r2+r1)/2 (r2 - r1) (theta2 - theta1)
+= 1/2 (r2^2 - r1^2) (theta2 - theta1)
+
+same thing, good thing
+--]]

@@ -38,6 +38,7 @@ local function quadrantProblem(args)
 	return args
 end
 
+-- right now 'center' is provided in cartesian coordinates (i.e. post-applying coordMap)
 local function selfGravProblem(args)
 	return function(solver)
 		solver.useGravity = true
@@ -53,7 +54,8 @@ local function selfGravProblem(args)
 	P = 1;
 	//v[i] = .1 * noise * crand();
 	<? for i,source in ipairs(sources) do ?>{
-		real3 delta = real3_sub(x, _real3(
+		real3 xc = coordMap(x);
+		real3 delta = real3_sub(xc, _real3(
 			<?=clnumber(source.center[1])?>,
 			<?=clnumber(source.center[2])?>,
 			<?=clnumber(source.center[3])?>));
@@ -500,7 +502,7 @@ end ?>
 		end,
 	},
 
-	-- gravity potential test - equilibrium - Rayleigh-Taylor (still has an shock wave ... need to fix initial conditions?)
+	-- gravity potential test - equilibrium - Rayleigh-Taylor ... or is it Jeans? (still has an shock wave ... need to fix initial conditions?)
 
 	{
 		name = 'self-gravitation test 1',

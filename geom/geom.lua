@@ -55,15 +55,15 @@ function Geometry:init(args)
 --print()
 
 	local u = args.chart()
---print'coordinate chart:'
---print(var'u''^I':eq(u'^I'()))
---print()
+print'coordinate chart:'
+print(var'u''^I':eq(u'^I'()))
+print()
 	
 	local e = Tensor'_u^I'
 	e['_u^I'] = u'^I_,u'()
---print'embedded:'
---print(var'e''_u^I':eq(var'u''^I_,u'):eq(e'_u^I'()))
---print()
+print'embedded:'
+print(var'e''_u^I':eq(var'u''^I_,u'):eq(e'_u^I'()))
+print()
 
 	-- commutation coefficients
 	local c = Tensor'_ab^c'
@@ -111,6 +111,9 @@ function Geometry:init(args)
 print'metric:'
 print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
 	Tensor.metric(g)
+
+print'commutation:'
+print(var'c''_uv^w':eq(c'_uv^w'()))
 
 	local GammaL = Tensor'_abc'
 	GammaL['_abc'] = ((g'_ab,c' + g'_ac,b' - g'_bc,a' + c'_abc' + c'_acb' - c'_bca') / 2)()
