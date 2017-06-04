@@ -5,6 +5,14 @@ local ffi = require 'ffi'
 
 local Poisson = class()
 
+function Poisson:getPotBufType()
+	return self.solver.eqn.cons_t
+end
+
+function Poisson:getPotBuf()
+	return self.solver.UBuf
+end
+
 Poisson.potentialField = 'ePot'
 Poisson.gaussSeidelMaxIters = 20
 
@@ -27,8 +35,8 @@ end
 
 function Poisson:refreshSolverProgram()
 	local solver = self.solver
-	solver.initPotentialKernel = solver.solverProgram:kernel('initPotential', solver.UBuf)
-	solver.solvePoissonKernel = solver.solverProgram:kernel('solvePoisson', solver.UBuf)
+	solver.initPotentialKernel = solver.solverProgram:kernel('initPotential', self:getPotBuf())
+	solver.solvePoissonKernel = solver.solverProgram:kernel('solvePoisson', self:getPotBuf())
 end
 
 function Poisson:refreshBoundaryProgram()
@@ -36,7 +44,7 @@ function Poisson:refreshBoundaryProgram()
 	-- TODO only apply to the ePot field
 	solver.potentialBoundaryProgram, solver.potentialBoundaryKernel =
 		solver:createBoundaryProgramAndKernel{
-			type = solver.eqn.cons_t,
+			type = self:getPotBufType(),
 			methods = table.map(solver.boundaryMethods, function(v,k)
 				return solver.app.boundaryMethods[1+v[0]], k
 			end),
@@ -44,7 +52,7 @@ function Poisson:refreshBoundaryProgram()
 				return a..'.'..self.potentialField..' = '..b..'.'..self.potentialField
 			end,
 		}
-	solver.potentialBoundaryKernel:setArg(0, solver.UBuf)
+	solver.potentialBoundaryKernel:setArg(0, self:getPotBuf())
 end
 
 function Poisson:resetState()

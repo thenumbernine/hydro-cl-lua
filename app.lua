@@ -255,9 +255,9 @@ real sym3_dot(sym3 a, sym3 b) {
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 128,
-			cmdline.gridSize or 128,
-			cmdline.gridSize or 128,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -322,7 +322,9 @@ real sym3_dot(sym3 a, sym3 b) {
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
-	
+
+		--useGravity = true,
+
 		-- no initial state means use the first
 		--initState = cmdline.initState,
 		-- Euler / SRHD / MHD initial states:
@@ -353,7 +355,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	self.solvers = table()
 	
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 
 	-- the same as solver.euler-roe:
@@ -367,7 +369,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	-- rel blast wave 1 doesn't work in 64x64. with superbee flux lim
 	-- rel blast wave 2 works in 2D 64x64, but not 256x256. with superbee flux lim
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-	--self.solvers:insert(require 'solver.srhd-roe'(args))
+	self.solvers:insert(require 'solver.srhd-roe'(args))
 	-- not working just yet, still needs some behavior modifications:
 	--self.solvers:insert(require 'solver.srhd-roe_implicit_linearized'(args))
 	
@@ -926,6 +928,7 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 			self.gradientTex:enable()
 			self.gradientTex:bind()
 			gl.glBegin(gl.GL_QUADS)
+			gl.glColor3f(1,1,1)
 			gl.glTexCoord1f(0) gl.glVertex2f(xmin, ymin)
 			gl.glTexCoord1f(0) gl.glVertex2f(xmin + palwidth, ymin)
 			gl.glTexCoord1f(1) gl.glVertex2f(xmin + palwidth, ymax)

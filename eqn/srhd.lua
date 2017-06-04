@@ -7,7 +7,8 @@ local template = require 'template'
 
 local SRHD = class(Equation)
 SRHD.name = 'SRHD'
-SRHD.numStates = 5
+SRHD.numStates = 6
+SRHD.numWaves = 5
 
 SRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
 
@@ -75,6 +76,7 @@ typedef struct {
 	real rho;
 	real3 v;
 	real eInt;
+	real ePot;
 } <?=eqn.prim_t?>;
 
 typedef union {
@@ -83,6 +85,10 @@ typedef union {
 		real D;
 		real3 S;
 		real tau;
+		
+		// TODO fix this.
+		// it is here because prim_t is expected to be the same size as cons_t
+		real unused;
 	};
 } <?=eqn.cons_t?>;
 ]], {
@@ -264,6 +270,7 @@ SRHD.primDisplayVars = {
 	{vz = 'value = prim.v.z;'},
 	{v = 'value = metricLen(prim.v);'},
 	{eInt = 'value = prim.eInt;'},
+	{ePot = 'value = prim.ePot;'},
 	{P = 'value = calc_P(prim.rho, prim.eInt);'},
 	{h = 'value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt);'},
 }

@@ -550,9 +550,10 @@ end ?>
 				{
 					center={0, 0, 0}, 
 					radius = .2,
+					-- srhd solver requires the max velocity not to exceed 1 ...
 					inside = [[
-						v.x = -10 * delta.y;
-						v.y = 10 * delta.x;
+						v.x = -4 * delta.y;
+						v.y = 4 * delta.x;
 						rho = 1.;
 						P = 1.;
 					]],

@@ -22,7 +22,7 @@ discrete evaluation:
 */
 
 kernel void initPotential(
-	global <?=eqn.cons_t?>* UBuf
+	<?=args?>
 ) {
 	SETBOUNDS(2,2);
 	real rho = 0;

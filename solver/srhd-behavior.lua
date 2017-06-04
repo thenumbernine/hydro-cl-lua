@@ -1,9 +1,10 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local SRHDEqn = require 'eqn.srhd'
+local SRHDSelfGrav = require 'solver.srhd-selfgrav'
 
 local function SRHDBehavior(parent)
-	local template = class(parent)
+	local template = class(SRHDSelfGrav(parent))
 
 	function template:createEqn()
 		self.eqn = SRHDEqn(self)
@@ -53,6 +54,7 @@ local function SRHDBehavior(parent)
 	calcDT, calcEigenBasis use primBuf
 	so for the Roe implicit linearized solver,
 	(TODO?) primBuf must be push/pop'd as well as UBuf
+	(or am I safe just using the last iteration's prim values, and doing the newton descent to update them?)
 	--]]
 	function template:refreshSolverProgram()
 		-- createKernels in particular ...

@@ -5,9 +5,6 @@ local Poisson = require 'solver.poisson'
 local SelfGrav = class(Poisson)
 
 SelfGrav.gravitationConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
-SelfGrav.matterField = 'rho'
-SelfGrav.momentumField = 'm'
-SelfGrav.totalEnergyField = 'ETotal'
 
 -- params for solver/poisson.cl 
 function SelfGrav:getCodeParams()
@@ -17,7 +14,7 @@ function SelfGrav:getCodeParams()
 #define gravitationalConstant <?=clnumber(self.gravitationConstant)?>
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	//maybe a 4pi?  or is that only in the continuous case?
-	rho = -gravitationalConstant * U-><?=self.matterField?>;
+	rho = -gravitationalConstant * U->rho;
 ]], 
 		{
 			self = self,
@@ -28,7 +25,6 @@ function SelfGrav:getCodeParams()
 	}
 end
 
---should this be scaled by gravitationalConstant too?
 function SelfGrav:getPoissonCode()
 	return template(
 		[[
@@ -51,8 +47,8 @@ kernel void calcGravityDeriv(
 		real gradient = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * dx<?=side?>_at(i));
 		real gravity = -gradient;
 
-		deriv-><?=self.momentumField?>.s[side] -= U-><?=self.matterField?> * gravity;
-		deriv-><?=self.totalEnergyField?> -= U-><?=self.matterField?> * gravity * U-><?=self.momentumField?>.s[side];
+		deriv->m.s[side] -= U->rho * gravity;
+		deriv->ETotal -= U->rho * gravity * U->m.s[side];
 	}<? end ?>
 }
 
@@ -74,20 +70,24 @@ end
 
 local field = 'gravityPoisson'
 local enableField = 'useGravity'
-local apply = SelfGrav:createBehavior(field, enableField)
-return function(parent)
-	local template = apply(parent)
+return setmetatable({
+	class = SelfGrav,
+}, {
+	__call = function(reqWrapper, parent)
+		local apply = reqWrapper.class:createBehavior(field, enableField)
+		local template = apply(parent)
 
-	function template:step(dt)
-		template.super.step(self, dt)
-		
-		if not self[enableField] then return end
-		self.integrator:integrate(dt, function(derivBuf)
-			self[field]:relax()
-			self.calcGravityDerivKernel:setArg(0, derivBuf)
-			self.app.cmds:enqueueNDRangeKernel{kernel=self.calcGravityDerivKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-		end)
-	end
+		function template:step(dt)
+			template.super.step(self, dt)
+			
+			if not self[enableField] then return end
+			self.integrator:integrate(dt, function(derivBuf)
+				self[field]:relax()
+				self.calcGravityDerivKernel:setArg(0, derivBuf)
+				self.app.cmds:enqueueNDRangeKernel{kernel=self.calcGravityDerivKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+			end)
+		end
 
-	return template
-end
+		return template
+	end,
+})
