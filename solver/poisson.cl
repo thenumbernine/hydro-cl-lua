@@ -1,8 +1,5 @@
 /*
-used with Euler
-but works with anything that has a cons_t::rho, m[], ETotal
-
-rho is a delta function
+rho is a Dirac delta function
 
 -4 pi rho delta3(r) = del^2 rho/|r| = del^2 phi
 del rho/|r| = del phi = -rho r/|r|  points inwards towards the rho
@@ -22,16 +19,16 @@ discrete evaluation:
 */
 
 kernel void initPotential(
-	<?=args?>
+	global <?=poisson:getPotBufType()?>* UBuf
 ) {
 	SETBOUNDS(2,2);
 	real rho = 0;
 	<?=calcRho?>
-	UBuf[index].<?=potentialField?> = -rho;
+	UBuf[index].<?=poisson.potentialField?> = -rho;
 }
 
 kernel void solvePoisson(
-	<?=args?>
+	global <?=poisson:getPotBufType()?>* UBuf
 ) {
 	SETBOUNDS(2,2);
 
@@ -43,10 +40,10 @@ kernel void solvePoisson(
 	real skewSum = 0;
 <? for j=0,solver.dim-1 do ?>
 	if (i.s<?=j?> < gridSize.s<?=j?>-3) {
-		skewSum += UBuf[index + stepsize.s<?=j?>].<?=potentialField?> / (dx<?=j?> * dx<?=j?>);
+		skewSum += UBuf[index + stepsize.s<?=j?>].<?=poisson.potentialField?> / (dx<?=j?> * dx<?=j?>);
 	}
 	if (i.s<?=j?> > 2) {
-		skewSum += UBuf[index - stepsize.s<?=j?>].<?=potentialField?> / (dx<?=j?> * dx<?=j?>);
+		skewSum += UBuf[index - stepsize.s<?=j?>].<?=poisson.potentialField?> / (dx<?=j?> * dx<?=j?>);
 	}
 <? end ?>
 
@@ -65,5 +62,5 @@ kernel void solvePoisson(
 	real rho = 0;
 	<?=calcRho?>
 
-	UBuf[index].<?=potentialField?> = (rho - skewSum) / diag;
+	UBuf[index].<?=poisson.potentialField?> = (rho - skewSum) / diag;
 }

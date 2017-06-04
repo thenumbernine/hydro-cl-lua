@@ -9,7 +9,6 @@ NoDiv.gaussSeidelMaxIters = 20
 
 function NoDiv:getCodeParams()
 	return {
-		args = 'global '..self.solver.eqn.cons_t..'* UBuf',
 		calcRho = require 'template'([[
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	real divB = .5 * (0

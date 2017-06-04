@@ -27,9 +27,9 @@ function Poisson:getSolverCode()
 			self:getPoissonCode() or '',
 		}:concat'\n',
 		table(self:getCodeParams(), {
-			eqn = self.solver.eqn,
+			poisson = self,
 			solver = self.solver,
-			potentialField = self.potentialField,
+			eqn = self.solver.eqn,
 		}))
 end
 

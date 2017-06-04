@@ -9,7 +9,6 @@ SelfGrav.gravitationConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
 -- params for solver/poisson.cl 
 function SelfGrav:getCodeParams()
 	return {
-		args = 'global '..self.solver.eqn.cons_t..'* UBuf',
 		calcRho = template([[
 #define gravitationalConstant <?=clnumber(self.gravitationConstant)?>
 	global <?=eqn.cons_t?>* U = UBuf + index;

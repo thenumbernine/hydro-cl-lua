@@ -26,9 +26,6 @@ function SRHDSelfGrav:getCodeParams()
 		-- because solver/poisson.cl assumes it's UBuf, 
 		-- we gotta keep the name 'UBuf'
 		-- even though it's the primBuf ...
-		-- TODO if args overrides the same thing that getPotBufType does
-		--  then just use that.
-		args = 'global '..self.solver.eqn.prim_t..'* UBuf',
 		calcRho = template([[
 #define gravitationalConstant <?=clnumber(self.gravitationConstant)?>
 	global <?=eqn.prim_t?>* prim = UBuf + index;
