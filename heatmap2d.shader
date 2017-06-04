@@ -20,7 +20,6 @@ uniform bool useLog;
 uniform float valueMin, valueMax;
 uniform sampler2D tex;
 uniform sampler1D gradientTex;
-uniform float alpha;
 
 void main() {
 	float value = texture2D(tex, texCoord).r;
@@ -33,7 +32,7 @@ void main() {
 		value = (value - valueMin) / (valueMax - valueMin);
 	}
 	value = value * 1023. / 1024.;
-	gl_FragColor = vec4(texture1D(gradientTex, value).rgb, alpha);
+	gl_FragColor = texture1D(gradientTex, value);
 }
 
 #endif	//FRAGMENT_SHADER

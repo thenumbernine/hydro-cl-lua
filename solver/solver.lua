@@ -573,7 +573,6 @@ function Solver:createCodePrefix()
 	}
 
 	self.codePrefix = lines:concat'\n'
-print(self.codePrefix)
 end
 
 function Solver:refreshInitStateProgram()

@@ -79,17 +79,17 @@ function Poisson:createBehavior(field, enableField)
 				self[enableField] = not not args[enableField]
 			end
 
-			-- TODO in refreshGrid
-			if not enableField or not self[enableField] then
-				self[field] = subclass(self)
-			end
+			-- TODO in refreshGrid?
+			-- or should I always build one of these? 
+			--if not enableField or not self[enableField] then
+			self[field] = subclass(self)
+			--end
 
 			-- init is gonna call
 			template.super.init(self, args)
 		end
 
 		function template:getSolverCode()
-			print(field, self[field])
 			return table{
 				template.super.getSolverCode(self),
 				self[field]:getSolverCode(),

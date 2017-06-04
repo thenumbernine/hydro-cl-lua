@@ -323,12 +323,10 @@ real sym3_dot(sym3 a, sym3 b) {
 		},
 		--]]
 	
-		useGravity = true,
-
 		-- no initial state means use the first
 		--initState = cmdline.initState,
 		-- Euler / SRHD / MHD initial states:
-		initState = 'constant',
+		--initState = 'constant',
 		--initState = 'linear',
 		--initState = 'Sod',
 		--initState = 'Sedov',
@@ -340,7 +338,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'relativistic blast wave interaction',
 		-- self-gravitation tests:
 		--initState = 'self-gravitation test 1',
-		--initState = 'self-gravitation test 1 spinning',
+		initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
 		--initState = 'self-gravitation test 2 orbiting',
 		--initState = 'self-gravitation test 4',
@@ -355,8 +353,8 @@ real sym3_dot(sym3 a, sym3 b) {
 	self.solvers = table()
 	
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
-	self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 
 	-- the same as solver.euler-roe:
 	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe')(table(args, {eqn='euler'})))
@@ -430,7 +428,6 @@ real sym3_dot(sym3 a, sym3 b) {
 				valueMax = 0,
 				tex = 0,
 				gradientTex = 1,
-				alpha = 1,
 			},
 		}
 		solver.heatMap2DShader = heatMap2DShader 
@@ -493,7 +490,7 @@ void main() {
 	end
 
 	self.gradientTex = GLGradientTex(1024, {
-		{0,0,0,1},	-- black
+		{0,0,0,.5},	-- black
 		{0,0,1,1},	-- blue
 		{0,1,1,1},	-- cyan
 		{0,1,0,1},	-- green
@@ -592,7 +589,7 @@ function HydroCLApp:update(...)
 		end
 	end
 
-	gl.glClear(gl.GL_COLOR_BUFFER_BIT)
+	gl.glClear(bit.bor(gl.GL_COLOR_BUFFER_BIT, gl.GL_DEPTH_BUFFER_BIT))
 	
 	local w, h = self:size()
 
@@ -834,6 +831,10 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 		xmin, xmax, ymin, ymax = graph_xmin, graph_ymin, graph_xmax, graph_ymax
 	end
 
+--	gl.glEnable(gl.GL_DEPTH_TEST)
+	
+	local gridz = 0	--.1
+
 	gl.glColor3f(.1, .1, .1)
 	local xrange = xmax - xmin
 	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
@@ -841,8 +842,8 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 	local xticmax = math.ceil(xmax/xstep)
 	gl.glBegin(gl.GL_LINES)
 	for x=xticmin,xticmax do
-		gl.glVertex2f(x*xstep,ymin)
-		gl.glVertex2f(x*xstep,ymax)
+		gl.glVertex3f(x*xstep,ymin, gridz)
+		gl.glVertex3f(x*xstep,ymax, gridz)
 	end
 	gl.glEnd()
 	local yrange = ymax - ymin
@@ -851,19 +852,19 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 	local yticmax = math.ceil(ymax/ystep)
 	gl.glBegin(gl.GL_LINES)
 	for y=yticmin,yticmax do
-		gl.glVertex2f(xmin,y*ystep)
-		gl.glVertex2f(xmax,y*ystep)
+		gl.glVertex3f(xmin,y*ystep, gridz)
+		gl.glVertex3f(xmax,y*ystep, gridz)
 	end
 	gl.glEnd()
 	
 	gl.glColor3f(.5, .5, .5)
 	gl.glBegin(gl.GL_LINES)
-	gl.glVertex2f(xmin, 0)
-	gl.glVertex2f(xmax, 0)
-	gl.glVertex2f(0, ymin)
-	gl.glVertex2f(0, ymax)
+	gl.glVertex3f(xmin, 0, gridz)
+	gl.glVertex3f(xmax, 0, gridz)
+	gl.glVertex3f(0, ymin, gridz)
+	gl.glVertex3f(0, ymax, gridz)
 	gl.glEnd()
-
+			
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
 	for _,solver in ipairs(solvers) do 
@@ -888,6 +889,9 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 			gl.glUniform1f(solver.heatMap2DShader.uniforms.valueMax.loc, valueMax)
 			solver:getTex(var):bind(0)
 			self.gradientTex:bind(1)
+	
+			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+			gl.glEnable(gl.GL_BLEND)
 		
 			local gridScale = 4
 			local udivs = math.ceil(tonumber(solver.gridSize.x)/gridScale)
@@ -909,11 +913,27 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 				end
 				gl.glEnd()
 			end
+	
+			gl.glDisable(gl.GL_BLEND)
 			
 			self.gradientTex:unbind(1)
 			solver:getTex(var):unbind(0)
 			solver.heatMap2DShader:useNone()
+			
+--			gl.glDisable(gl.GL_DEPTH_TEST)
 
+			local palwidth = (xmax - xmin) * .15 
+			self.gradientTex:enable()
+			self.gradientTex:bind()
+			gl.glBegin(gl.GL_QUADS)
+			gl.glTexCoord1f(0) gl.glVertex2f(xmin, ymin)
+			gl.glTexCoord1f(0) gl.glVertex2f(xmin + palwidth, ymin)
+			gl.glTexCoord1f(1) gl.glVertex2f(xmin + palwidth, ymax)
+			gl.glTexCoord1f(1) gl.glVertex2f(xmin, ymax)
+			gl.glEnd()
+			self.gradientTex:unbind()
+			self.gradientTex:disable()
+	
 			if self.font then
 				local fontSizeX = (xmax - xmin) * .025
 				local fontSizeY = (ymax - ymin) * .025
@@ -929,15 +949,19 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 					}
 				end
 				self.font:draw{
-					pos={xmin, ymax},
+					pos={xmin, ymax, gridz},
 					text=varName,
 					color = {1,1,1,1},
 					fontSize={fontSizeX, -fontSizeY},
 					multiLine=false,
 				}
 			end
+			
+--			gl.glEnable(gl.GL_DEPTH_TEST)
 		end
 	end
+	
+--	gl.glDisable(gl.GL_DEPTH_TEST)
 end
 
 local vec4d = require 'ffi.vec.vec4d'
