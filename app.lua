@@ -242,7 +242,17 @@ real sym3_dot(sym3 a, sym3 b) {
 		dim = cmdline.dim or 2,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
+		--integrator = 'Runge-Kutta 2',
+		--integrator = 'Runge-Kutta 2 Heun',
+		--integrator = 'Runge-Kutta 2 Ralston',
+		--integrator = 'Runge-Kutta 3',
+		--integrator = 'Runge-Kutta 4',
+		--integrator = 'Runge-Kutta 4, 3/8ths rule',
+		--integrator = 'Runge-Kutta 2, TVD',
+		--integrator = 'Runge-Kutta 2, non-TVD',
+		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
+		--integrator = 'Runge-Kutta 4, non-TVD',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = cmdline.fluxLimiter or 'donor cell',
@@ -365,9 +375,12 @@ real sym3_dot(sym3 a, sym3 b) {
 
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
-	-- int. shock wave works in 1D at 256 . fails at 1024. with superbee flux lim
+	-- int. shock wave  with superbee flux lim in 1D works at 256, fails at 1024 with float (works with double)
+	-- 	256x256 double fails with F.E., RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths,
 	-- rel blast wave 1 doesn't work in 64x64. with superbee flux lim
-	-- rel blast wave 2 works in 2D 64x64, but not 256x256. with superbee flux lim
+	-- rel blast wave 2 with superbee flux lim, Roe solver, works at 64x64 with forward euler
+	-- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
+	--    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
 	self.solvers:insert(require 'solver.srhd-roe'(args))
 	-- not working just yet, still needs some behavior modifications:

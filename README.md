@@ -31,10 +31,10 @@ TODO:
 - add GR+HD by taking the SRHD and giving it the metric from GR (adm solver)
 - add EM+SRHD by mixing and matching SRHD and EMHD
 - add EM+GR+HD by winning
+- for 2D SRHD, it looks like my W = U.D / prim.rho is drifting from W = 1 / sqrt(1 - prim.v^2)
 
 Minor TODO:
 - get MHD working with Orszag-Tang 2D
-- finish implicit SRHD
 
 ### Sources:
 

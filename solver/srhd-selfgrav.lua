@@ -96,6 +96,7 @@ kernel void calcGravityDeriv(
 	real h = 1. + heatCapacityRatio * prim->eInt;
 
 	//why am I integrating negative again?
+	//why does "Hydrodynamics II" say to integrate negative for the Euler equations?	
 
 	//D = W rho
 	//D,t = W,t rho

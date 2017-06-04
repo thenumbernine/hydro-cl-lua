@@ -309,12 +309,21 @@ local initStates = {
 		name = 'relativistic blast wave interaction',
 		init = function(solver)
 			solver.cfl = .5	-- needs a slower cfl
-			return [[
-	real xL = .9 * mins_x + .1 * maxs_x;
-	real xR = .1 * mins_x + .9 * maxs_x;
+			return template([[
+	
+	bool wave1 = true
+<? for i=0,solver.dim-1 do ?>
+		&& x.s<?=i?> < .9 * mins.s<?=i?> + .1 * maxs.s<?=i?>
+<? end ?>;
+	bool wave2 = true
+<? for i=0,solver.dim-1 do ?>
+		&& x.s<?=i?> > .1 * mins.s<?=i?> + .9 * maxs.s<?=i?>
+<? end ?>;
 	rho = 1;
-	P = x.x < xL ? 1000 : (x.x > xR ? 100 : .01);
-]]
+	P = wave1 ? 1000 : (wave2 ? 100 : .01);
+]], 		{
+				solver = solver,
+			})
 		end,
 	},
 
