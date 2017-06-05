@@ -58,48 +58,73 @@ function Geometry:init(args)
 print'coordinate chart:'
 print(var'u''^I':eq(u'^I'()))
 print()
-	
+
 	local e = Tensor'_u^I'
 	e['_u^I'] = u'^I_,u'()
 print'embedded:'
 print(var'e''_u^I':eq(var'u''^I_,u'):eq(e'_u^I'()))
 print()
 
+	local anholonomic
+	for i=1,#coords do
+		if coords[i].base then
+			anholonomic = true
+			break
+		end
+	end
+print('is anholonomic? '..tostring(anholonomic))
+
+	-- for the sake of grid lengths, 
+	-- I will need the basis and metric of the holonomic version as well
+	local eHol
+	if not anholonomic then
+		eHol = e
+	else
+		eHol = Tensor('_u^I', function(a,I)
+			return u[I]:diff(baseCoords[a])()
+		end)
+print'holonomic embedded:'
+print(var'e''_u^I':eq(var'u''^I_,u'):eq(eHol'_u^I'()))
+	end
+
 	-- commutation coefficients
 	local c = Tensor'_ab^c'
+	if anholonomic then
 --print'connection coefficients:'
 --print(var'c''_uv^w' * var'e''_w','$=[ e_u, e_v ]$')
-	for i,ui in ipairs(coords) do
-		for j,uj in ipairs(coords) do
-			local psi = var('\\psi', baseCoords)
-			local diff = ui:applyDiff(uj:applyDiff(psi)) - uj:applyDiff(ui:applyDiff(psi))
-			local diffEval = diff()
-			if diffEval ~= const(0) then
+		for i,ui in ipairs(coords) do
+			for j,uj in ipairs(coords) do
+				local psi = var('\\psi', baseCoords)
+				local diff = ui:applyDiff(uj:applyDiff(psi)) - uj:applyDiff(ui:applyDiff(psi))
+				local diffEval = diff()
+				if diffEval ~= const(0) then
 --print('$[',ui.name,',',uj.name,'] =$',diff:eq(diffEval))
-				diff = diff()
+					diff = diff()
 --print('factor division',diff)
-				local dpsi = table.map(baseCoords, function(uk) return psi:diff(uk) end)
+					local dpsi = table.map(baseCoords, function(uk) return psi:diff(uk) end)
 --print('dpsi', dpsi:unpack())
-				local A,b = symmath.factorLinearSystem({diff}, dpsi)
-				-- now extract psi:diff(uk)
-				-- and divide by e_k to get the correct coefficient
-				-- TODO this assumes that e_a is only a function of partial_a
-				-- if e_a is a linear combination of e_a^b partial_b then you can work it out to find
-				-- c_ab^d = (e^-1)_c^d (e_a^r e_b^c_,r - e_b^r e_a^c_,r)
-				-- TODO put this somewhere else so everyone can use it
-				assert(b[1][1] == const(0))
-				for k,uk in ipairs(coords) do
-					local coeff = (A[1][k] * dpsi[k] / uk:applyDiff(psi))()
-					-- assert dphi is nowhere in coeff ...
-					c[i][j][k] = coeff 
+					local A,b = symmath.factorLinearSystem({diff}, dpsi)
+					-- now extract psi:diff(uk)
+					-- and divide by e_k to get the correct coefficient
+					-- TODO this assumes that e_a is only a function of partial_a
+					-- if e_a is a linear combination of e_a^b partial_b then you can work it out to find
+					-- c_ab^d = (e^-1)_c^d (e_a^r e_b^c_,r - e_b^r e_a^c_,r)
+					-- TODO put this somewhere else so everyone can use it
+					assert(b[1][1] == const(0))
+					for k,uk in ipairs(coords) do
+						local coeff = (A[1][k] * dpsi[k] / uk:applyDiff(psi))()
+						-- assert dphi is nowhere in coeff ...
+						c[i][j][k] = coeff 
+					end
 				end
 			end
 		end
 	end
+print'commutation:'
+print(var'c''_uv^w':eq(c'_uv^w'()))
 
 	local g = (e'_u^I' * e'_v^J' * eta'_IJ')()
-	
-	-- TODO automatically do this ...
+	--[[ TODO automatically do this ...
 	g = g:map(function(expr)
 		if symmath.op.pow.is(expr)
 		and expr[2] == const(2)
@@ -108,12 +133,20 @@ print()
 			return 1 - symmath.sin(expr[1][1]:clone())^2
 		end
 	end)()
+	--]]
 print'metric:'
 print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
-	Tensor.metric(g)
 
-print'commutation:'
-print(var'c''_uv^w':eq(c'_uv^w'()))
+	local gHol
+	if not anholonomic then
+		gHol = g
+	else
+		gHol = (eHol'_u^I' * eHol'_v^J' * eta'_IJ')()
+print'holonomic metric:'
+print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(gHol'_uv'()))
+	end	
+
+	Tensor.metric(g)
 
 	local GammaL = Tensor'_abc'
 	GammaL['_abc'] = ((g'_ab,c' + g'_ac,b' - g'_bc,a' + c'_abc' + c'_acb' - c'_bca') / 2)()
@@ -166,11 +199,16 @@ print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()
 		return code
 	end
 
-
-	self.uCode = range(dim):map(function(i) return compile(u[i]) end)
+	-- uCode is used to project the grid for displaying
+	self.uCode = range(dim):map(function(i) 
+		local uCode = compile(u[i])
+print('uCode['..i..']: '..uCode)
+		return uCode
+	end)
 
 	-- just giving up and manually writing this out
 	
+--[=[ not being used
 	local function cross(a,b)
 		return table{
 			(a[2]*b[3]-b[2]*a[3])(),
@@ -211,34 +249,38 @@ print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()
 	local eExtLen = eExt:map(function(ei,i)
 		return symmath.sqrt(ei:map(function(x) return x^2 end):sum())
 	end)
+	self.eCode = eExt:map(function(ei,i) return ei:map(compile) end)
+print('eCode', tolua(self.eCode, {indent=true}))
+
 	local eExtUnit = eExt:map(function(ei,i)
 		return ei:map(function(eij) return (eij/eExtLen[i])() end)
 	end)
-
-	self.eCode = eExt:map(function(ei,i)
-		return ei:map(compile)
-	end)
-
-	self.eUnitCode = eExtUnit:map(function(ei_unit,i)
-		return ei_unit:map(compile)
-	end)
+	self.eUnitCode = eExtUnit:map(function(ei_unit,i) return ei_unit:map(compile) end)
+print('eUnitCode:', tolua(self.eUnitCode, {indent=true}))
+--]=]
 
 	local coordU = Tensor('^a', function(a) return baseCoords[a] end)
 	
 	local lenSqExpr = (coordU'^a' * coordU'_a')()
 	self.uLenSqCode = compile(lenSqExpr)
+print('uLenSqCodes: '..self.uLenSqCode)
 	self.uLenCode = compile((symmath.sqrt(lenSqExpr))())
-	
+print('uLenCode: '..self.uLenCode)
+
+	-- dx is the change across the grid
+	-- therefore it is based on the holonomic metric
 	self.dxCodes = range(dim):map(function(i)
 		local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
-		local lenSqExpr = (dir'^a' * dir'_a')()
+		local lenSqExpr = (dir'^a' * dir'^b' * gHol'_ab')()
 		local lenCode = compile((symmath.sqrt(lenSqExpr))())
+print('dxCode['..i..']: '..lenCode)
 		return lenCode
 	end)
 
 	local volumeExpr = symmath.sqrt(symmath.Matrix.determinant(g))()
 	self.volumeCode = compile(volumeExpr)
-print('volume code',self.volumeCode)
+print('volumeCode: '..self.volumeCode)
+
 end
 
 return Geometry

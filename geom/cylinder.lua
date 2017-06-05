@@ -14,10 +14,10 @@ function Cylinder:init(args)
 	
 	local r, theta = symmath.vars('r', 'theta')
 
-	-- [[ holonomic (explodes, probably because it still need to include g^ij into P and v_i)
+	--[[ holonomic (explodes, probably because it still need to include g^ij into P and v_i)
 	args.coords = table{r, theta, z}:sub(1, args.solver.dim)
 	--]]
-	--[[ anholonomic
+	-- [[ anholonomic.  g^ij = delta^ij, so the Euler fluid equations match those in flat space (except the source term) 
 	local thetaHat = symmath.var'thetaHat'
 	thetaHat.base = theta
 	function thetaHat:applyDiff(x) return x:diff(theta) / r end
@@ -28,6 +28,10 @@ function Cylinder:init(args)
 	-- and volume is always 1
 	-- so we never consider ds = r dtheta
 	-- and therefore the flux never gets perturbed
+	-- so TODO dx should be based on the holonomic metric?
+	-- (i.e. the coordinates of the grid breakdown)?
+	-- while the vector units are based on the anholonomic metri?
+	-- (i.e. those with unit metric)
 
 	-- TODO https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19870019781.pdf
 	-- it looks like all I need is the volume and I'm fine

@@ -554,21 +554,34 @@ end ?>
 
 	{
 		name = 'self-gravitation test 1 spinning',
-		init = selfGravProblem{
-			sources={
-				{
-					center={0, 0, 0}, 
-					radius = .2,
-					-- srhd solver requires the max velocity not to exceed 1 ...
-					inside = [[
-						v.x = -4 * delta.y;
-						v.y = 4 * delta.x;
-						rho = 1.;
-						P = 1.;
-					]],
+		init = function(solver)
+-- TODO always specify initial conditions in cartesian?
+-- or should I always store coordinates in cartesian, despite grid breakdown?
+			local inside = 	
+				require 'geom.cylinder'.is(solver.geometry)
+				and [[
+	v.x = 1.;
+	v.y = -4.;
+	rho = 1.;
+	P = 1.;
+]] or [[
+	v.x = -4 * delta.y;
+	v.y = 4 * delta.x;
+	rho = 1.;
+	P = 1.;
+]]
+
+			return selfGravProblem{
+				sources={
+					{
+						center={0, 0, 0}, 
+						radius = .2,
+						-- srhd solver requires the max velocity not to exceed 1 ...
+						inside = inside,
+					},
 				},
-			},
-		},
+			}(solver)
+		end,
 	},
 
 	{

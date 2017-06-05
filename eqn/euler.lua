@@ -170,7 +170,9 @@ function Euler:getDisplayVars()
 	global const <?=eqn.cons_t?>* Uip = buf + index + stepsize.s<?=i?>;
 	global const <?=eqn.cons_t?>* Ujm = buf + index - stepsize.s<?=j?>;
 	global const <?=eqn.cons_t?>* Ujp = buf + index + stepsize.s<?=j?>;
-	
+
+	//TODO incorporate metric
+
 	real3 vim = real3_scale(Uim->m, 1. / Uim->rho);
 	real3 vip = real3_scale(Uip->m, 1. / Uip->rho);
 	real3 vjm = real3_scale(Ujm->m, 1. / Ujm->rho);
