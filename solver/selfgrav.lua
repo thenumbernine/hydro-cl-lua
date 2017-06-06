@@ -13,7 +13,7 @@ function SelfGrav:getCodeParams()
 #define gravitationalConstant <?=clnumber(self.gravitationConstant)?>
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	//maybe a 4pi?  or is that only in the continuous case?
-	rho = -gravitationalConstant * U->rho;
+	rho = gravitationalConstant * U->rho;
 ]], 
 		{
 			self = self,
@@ -43,8 +43,7 @@ kernel void calcGravityDeriv(
 		int indexL = index - stepsize[side];
 		int indexR = index + stepsize[side];
 	
-		real gradient = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * dx<?=side?>_at(i));
-		real gravity = -gradient;
+		real gravity = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * dx<?=side?>_at(i));
 
 		deriv->m.s[side] -= U->rho * gravity;
 		deriv->ETotal -= U->rho * gravity * U->m.s[side];

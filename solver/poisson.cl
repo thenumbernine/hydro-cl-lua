@@ -47,7 +47,7 @@ kernel void solvePoisson(
 	}
 <? end ?>
 
-	const real diag = -2. * (0
+	const real diag = -2. * (0.
 <? for j=0,solver.dim-1 do ?>
 		+ 1. / (dx<?=j?> * dx<?=j?>)
 <? end ?>
