@@ -580,7 +580,10 @@ real3 cartesianToGrid(real3 v, real3 x) {
 	<? for i=0,solver.dim-1 do ?>{
 		real3 e = coordBasis<?=i?>(x);
 		vCoord.s<?=i?> = real3_dot(e, v) / real3_lenSq(e);
-	}<? end ?>
+	}<? end
+	for i=solver.dim,2 do ?>
+	vCoord.s<?=i?> = 0.;
+	<? end ?>
 	return vCoord;
 }
 ]], {

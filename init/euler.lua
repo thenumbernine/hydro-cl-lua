@@ -112,6 +112,48 @@ local initStates = {
 		end,
 	},
 	{
+		name = 'constant with motion',
+		init = function(solver) 
+			return [[
+	rho=1;
+	v.x=1;
+	v.y=1;
+	v.z=1;
+	P=1;
+]]
+		end,
+	},
+	{
+		name = 'linear',
+		init = function(solver)
+			return '	rho=2+x.x; P=1;'
+		end,
+	},
+	{
+		name = 'gaussian',
+		init = function(solver)
+			return [[
+	real sigma = 1. / sqrt(10.);
+	real xSq = real3_dot(x,x);
+	rho = exp(-xSq / (sigma*sigma)) + .1;
+	P = 1 + .1 * (exp(-xSq / (sigma*sigma)) + 1) / ((heatCapacityRatio - 1.) * rho);
+]]
+		end,
+	},
+	{
+		name = 'advect wave',
+		init = function(solver)
+			return [[
+	real rSq = real3_dot(x,x);
+	rho = exp(-100*rSq) + 1.;
+	v.x = 1;
+	P = 1;
+]]
+		end,
+	},
+
+	
+	{
 		name = 'Sod',
 		init = function(solver)
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
@@ -170,52 +212,12 @@ local initStates = {
 ]]
 		end,
 	},
-	{
-		name = 'constant',
-		init = function(solver) 
-			return [[
-	rho=1;
-	v.x=1;
-	v.y=1;
-	v.z=1;
-	P=1;
-]]
-		end,
-	},
-	{
-		name = 'linear',
-		init = function(solver)
-			return '	rho=2+x.x; P=1;'
-		end,
-	},
-	{
-		name = 'gaussian',
-		init = function(solver)
-			return [[
-	real sigma = 1. / sqrt(10.);
-	real xSq = dot(x,x);
-	rho = exp(-xSq / (sigma*sigma)) + .1;
-	P = 1 + .1 * (exp(-xSq / (sigma*sigma)) + 1) / ((heatCapacityRatio - 1.) * rho);
-]]
-		end,
-	},
-	{
-		name = 'advect wave',
-		init = function(solver)
-			return [[
-	real rSq = dot(x,x);
-	rho = exp(-100*rSq) + 1.;
-	v.x = 1;
-	P = 1;
-]]
-		end,
-	},
 	-- http://www.cfd-online.com/Wiki/Explosion_test_in_2-D
 	{
 		name = 'sphere',
 		init = function(solver)
 			return [[
-	real rSq = dot(x,x);
+	real rSq = real3_dot(x,x);
 	bool inside = rSq < .2*.2;
 	rho = inside ? 1 : .1;
 	P = inside ? 1 : .1;
@@ -528,9 +530,10 @@ end ?>
 			solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'freeflow'-1
 			return [[
 	const real waveX = .45;
-	const real2 bubbleCenter = (real2)(0,0);
+	real3 bubbleCenter = _real3(0,0,0);
 	real bubbleRadius = .2;
-	real bubbleRSq = dot(x - bubbleCenter, x - bubbleCenter);
+	real3 delta = real3_sub(x, bubbleCenter);
+	real bubbleRSq = real3_lenSq(delta);
 	rho = x.x < waveX ? 1. : (bubbleRSq < bubbleRadius*bubbleRadius ? .1 : 1);
 	P = x.x < waveX ? 1 : .1;
 	v.x = x.x < waveX ? 0 : -.5;

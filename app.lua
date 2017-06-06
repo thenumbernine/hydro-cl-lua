@@ -42,6 +42,7 @@ local sdl = require 'ffi.sdl'
 local class = require 'ext.class'
 local math = require 'ext.math'
 local table = require 'ext.table'
+local range = require 'ext.range'
 local string = require 'ext.string'
 local file = require 'ext.file'
 local ImGuiApp = require 'imguiapp'
@@ -254,20 +255,20 @@ real sym3_dot(sym3 a, sym3 b) {
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
 	
-		--fluxLimiter = cmdline.fluxLimiter or 'superbee',
-		fluxLimiter = cmdline.fluxLimiter or 'donor cell',
+		fluxLimiter = cmdline.fluxLimiter or 'superbee',
+		--fluxLimiter = cmdline.fluxLimiter or 'donor cell',
 
 		--usePLM = true,	-- piecewise-linear slope limiter
 		--slopeLimiter = 'minmod',
 		
-		--[[ cartesian
+		-- [[ cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 64,
-			cmdline.gridSize or 64,
-			cmdline.gridSize or 64,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -278,7 +279,7 @@ real sym3_dot(sym3 a, sym3 b) {
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
-		-- [[ cylinder
+		--[[ cylinder
 		geometry = 'cylinder',
 		mins = cmdline.mins or {0, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
@@ -337,29 +338,55 @@ real sym3_dot(sym3 a, sym3 b) {
 
 		-- no initial state means use the first
 		--initState = cmdline.initState,
+		
 		-- Euler / SRHD / MHD initial states:
 		--initState = 'constant',
+		--initState = 'constant with motion',
 		--initState = 'linear',
+		--initState = 'gaussian',
+		--initState = 'advect wave',
+		--initState = 'sphere',
+		--initState = 'rarefaction wave',
+		
 		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
-		-- (those designed for srhd:)
-		--initState = 'relativistic shock reflection',
-		--initState = 'relativistic blast wave test problem 1',
-		--initState = 'relativistic blast wave test problem 2',
-		--initState = 'relativistic blast wave interaction',
+		--initState = 'Rayleigh-Taylor',
+		--initState = 'Colella-Woodward',
+		--initState = 'double mach reflection',
+		--initState = 'square cavity',
+		initState = 'shock bubble interaction',
+
+		--initState = 'configuration 1',
+		--initState = 'configuration 2',
+		--initState = 'configuration 3',
+		--initState = 'configuration 4',
+		--initState = 'configuration 5',
+		--initState = 'configuration 6',
+
 		-- self-gravitation tests:
-		initState = 'self-gravitation test 1',
+		--initState = 'self-gravitation test 1',
 		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
 		--initState = 'self-gravitation test 2 orbiting',
 		--initState = 'self-gravitation test 4',
 		--initState = 'self-gravitation soup',
+		
+		-- those designed for srhd:
+		--initState = 'relativistic shock reflection',
+		--initState = 'relativistic blast wave test problem 1',
+		--initState = 'relativistic blast wave test problem 2',
+		--initState = 'relativistic blast wave interaction',
+	
 		-- MHD-only init states: (that use 'b')
 		--initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
 		-- EM:
 		--initState = 'Maxwell default',
+		
+		--initState = 'two-fluid EMHD soliton ion',
+		--initState = 'two-fluid EMHD soliton electron',
+		--initState = 'two-fluid EMHD soliton maxwell',
 	}
 	
 	self.solvers = table()
@@ -505,6 +532,7 @@ void main() {
 	end
 
 	self.gradientTex = GLGradientTex(1024, {
+	-- [[ white, rainbow, black
 		{0,0,0,.5},	-- black
 		{0,0,1,1},	-- blue
 		{0,1,1,1},	-- cyan
@@ -513,6 +541,15 @@ void main() {
 		{1,.5,0,1},	-- orange
 		{1,0,0,1},	-- red
 		{1,1,1,1},	-- white
+	--]]
+	--[[ stripes 
+		range(32):map(function(i)
+			return ({
+				{0,0,0,0},
+				{1,1,1,1},
+			})[i%2+1]
+		end):unpack()
+	--]]
 	}, false)
 
 	-- [[ need to get image loading working
@@ -955,7 +992,7 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 				local fontSizeY = (ymax - ymin) * .025
 				local ystep = 10^(math.log(ymax - ymin, 10) - 1.5)
 				for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
-					local value = (y - ymin) * (valueMax - valueMin) / (ymax - ymin)
+					local value = (y - ymin) * (valueMax - valueMin) / (ymax - ymin) + valueMin
 					self.font:draw{
 						pos={xmin * .99 + xmax * .01, y + fontSizeY * .5},
 						text=(math.abs(value) > 1e+5 and ('%.5e'):format(value) or ('%.5f'):format(value)),
@@ -965,11 +1002,11 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 					}
 				end
 				self.font:draw{
-					pos={xmin, ymax, gridz},
+					pos = {xmin, ymax, gridz},
 					text=varName,
 					color = {1,1,1,1},
-					fontSize={fontSizeX, -fontSizeY},
-					multiLine=false,
+					fontSize = {fontSizeX, -fontSizeY},
+					multiLine = false,
 				}
 			end
 			
