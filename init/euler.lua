@@ -54,12 +54,14 @@ end
 function SelfGravProblem:__call(solver)
 	local args = self.args
 	solver.useGravity = true
+	--[[ the boundary might not be necessary/appropriate, esp for cylindrical geometry
 	solver.boundaryMethods.xmin[0] = solver.app.boundaryMethods:find'freeflow'-1
 	solver.boundaryMethods.xmax[0] = solver.app.boundaryMethods:find'freeflow'-1
 	solver.boundaryMethods.ymin[0] = solver.app.boundaryMethods:find'freeflow'-1
 	solver.boundaryMethods.ymax[0] = solver.app.boundaryMethods:find'freeflow'-1
 	solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'freeflow'-1
 	solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'freeflow'-1
+	--]]
 
 	return template([[
 	rho = .1;

@@ -2,6 +2,8 @@ local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
+local file = require 'ext.file'
+local template = require 'template'
 local Solver = require 'solver.solver'
 
 -- this can be put in app.lua
@@ -49,6 +51,15 @@ function Roe:createCodePrefix()
 	self.codePrefix = table{	
 		self.codePrefix,
 		errorTypeCode,
+	}:concat'\n'
+end
+
+function Roe:getSolverCode()
+	return table{
+		Roe.super.getSolverCode(self),
+	
+		-- before this went above solver/plm.cl, now it's going after it ...
+		template(file['solver/roe.cl'], {solver=self, eqn=self.eqn}),
 	}:concat'\n'
 end
 

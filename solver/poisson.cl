@@ -37,15 +37,12 @@ kernel void solvePoisson(
 	real dx<?=j?> = dx<?=j?>_at(i);
 <? end ?>
 
-	real skewSum = 0;
+	real skewSum = 0.
 <? for j=0,solver.dim-1 do ?>
-	if (i.s<?=j?> < gridSize.s<?=j?>-3) {
-		skewSum += UBuf[index + stepsize.s<?=j?>].<?=poisson.potentialField?> / (dx<?=j?> * dx<?=j?>);
-	}
-	if (i.s<?=j?> > 2) {
-		skewSum += UBuf[index - stepsize.s<?=j?>].<?=poisson.potentialField?> / (dx<?=j?> * dx<?=j?>);
-	}
-<? end ?>
+		+ UBuf[index + stepsize.s<?=j?>].<?=poisson.potentialField?> / (dx<?=j?> * dx<?=j?>)
+		+ UBuf[index - stepsize.s<?=j?>].<?=poisson.potentialField?> / (dx<?=j?> * dx<?=j?>)
+<? end 
+?>	;
 
 	const real diag = -2. * (0.
 <? for j=0,solver.dim-1 do ?>

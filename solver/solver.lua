@@ -691,8 +691,6 @@ function Solver:getSolverCode()
 		self.eqn:getSolverCode() or '',
 
 		self:getCalcDTCode() or '',
-		
-		template(file['solver/solver.cl'], {solver=self, eqn=self.eqn}),
 	
 		-- messing with this ...
 		self.usePLM and template(file['solver/plm.cl'], {solver=self, eqn=self.eqn}) or '',

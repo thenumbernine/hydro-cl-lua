@@ -41,7 +41,7 @@ end
 
 function Poisson:refreshBoundaryProgram()
 	local solver = self.solver
-	-- TODO only apply to the ePot field
+	-- only applies the boundary conditions to Poisson:potentialField
 	solver.potentialBoundaryProgram, solver.potentialBoundaryKernel =
 		solver:createBoundaryProgramAndKernel{
 			type = self:getPotBufType(),
