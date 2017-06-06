@@ -529,7 +529,7 @@ end ?>
 			solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'freeflow'-1
 			solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'freeflow'-1
 			return [[
-	const real waveX = .45;
+	const real waveX = -.45;
 	real3 bubbleCenter = _real3(0,0,0);
 	real bubbleRadius = .2;
 	real3 delta = real3_sub(x, bubbleCenter);
