@@ -147,8 +147,6 @@ kernel void initState(
 		.ePot = ePot,
 	};
 	UBuf[index] = consFromPrim(W);
-
-UBuf[index].rho = 2. + x.x;
 }
 ]], {
 		eqn = self,

@@ -355,7 +355,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'Colella-Woodward',
 		--initState = 'double mach reflection',
 		--initState = 'square cavity',
-		initState = 'shock bubble interaction',
+		--initState = 'shock bubble interaction',
 
 		--initState = 'configuration 1',
 		--initState = 'configuration 2',
@@ -365,7 +365,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'configuration 6',
 
 		-- self-gravitation tests:
-		--initState = 'self-gravitation test 1',
+		initState = 'self-gravitation test 1',
 		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
 		--initState = 'self-gravitation test 2 orbiting',

@@ -52,6 +52,23 @@ kernel void calcGravityDeriv(
 	}<? end ?>
 }
 
+kernel void findMinPotential(
+	global real* reduceBuf,
+	global const <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(0,0);
+	reduceBuf[index] = UBuf[index].ePot;
+}
+
+kernel void offsetPotentialAndAddToTotal(
+	global <?=eqn.cons_t?>* UBuf,
+	real ePotMin
+) {
+	SETBOUNDS(0,0);
+	UBuf[index].ePot += 1. - ePotMin;
+	UBuf[index].ETotal += UBuf[index].rho * UBuf[index].ePot;
+}
+
 ]],
 	{
 		self = self,
@@ -64,8 +81,25 @@ function SelfGrav:refreshSolverProgram()
 	SelfGrav.super.refreshSolverProgram(self)
 	
 	local solver = self.solver
-	solver.calcGravityDerivKernel = solver.solverProgram:kernel'calcGravityDeriv'
-	solver.calcGravityDerivKernel:setArg(1, solver.UBuf)
+	self.calcGravityDerivKernel = solver.solverProgram:kernel'calcGravityDeriv'
+	self.calcGravityDerivKernel:setArg(1, solver.UBuf)
+
+	self.findMinPotentialKernel = solver.solverProgram:kernel('findMinPotential', solver.reduceBuf, solver.UBuf)
+	self.offsetPotentialAndAddToTotalKernel = solver.solverProgram:kernel('offsetPotentialAndAddToTotal', solver.UBuf)
+end
+
+local ffi = require 'ffi'
+function SelfGrav:resetState()
+	SelfGrav.super.resetState(self)
+
+	local solver = self.solver
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.findMinPotentialKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	local ePotMin = solver.reduceMin()
+	self.offsetPotentialAndAddToTotalKernel:setArg(1, ffi.new('real[1]', ePotMin))
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.offsetPotentialAndAddToTotalKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.findMinPotentialKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	local new_ePotMin = solver.reduceMin()
+print('offsetting potential energy from '..ePotMin..' to '..new_ePotMin)
 end
 
 local field = 'gravityPoisson'
@@ -83,8 +117,8 @@ return setmetatable({
 			if not self[enableField] then return end
 			self.integrator:integrate(dt, function(derivBuf)
 				self[field]:relax()
-				self.calcGravityDerivKernel:setArg(0, derivBuf)
-				self.app.cmds:enqueueNDRangeKernel{kernel=self.calcGravityDerivKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+				self[field].calcGravityDerivKernel:setArg(0, derivBuf)
+				self.app.cmds:enqueueNDRangeKernel{kernel=self[field].calcGravityDerivKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 			end)
 		end
 
