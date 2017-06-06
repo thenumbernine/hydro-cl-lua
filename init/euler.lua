@@ -1,3 +1,4 @@
+local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local clnumber = require 'cl.obj.number'
@@ -39,17 +40,28 @@ local function quadrantProblem(args)
 end
 
 -- right now 'center' is provided in cartesian coordinates (i.e. post-applying coordMap)
-local function selfGravProblem(args)
-	return function(solver)
-		solver.useGravity = true
-		solver.boundaryMethods.xmin[0] = solver.app.boundaryMethods:find'freeflow'-1
-		solver.boundaryMethods.xmax[0] = solver.app.boundaryMethods:find'freeflow'-1
-		solver.boundaryMethods.ymin[0] = solver.app.boundaryMethods:find'freeflow'-1
-		solver.boundaryMethods.ymax[0] = solver.app.boundaryMethods:find'freeflow'-1
-		solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'freeflow'-1
-		solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'freeflow'-1
+local SelfGravProblem = class()
 
-		return template([[
+function SelfGravProblem:getRadiusCode(source)
+	return clnumber(source.radius)
+end
+
+function SelfGravProblem:init(args)
+	self.args = args
+	self.getRadiusCode = args.getRadiusCode
+end
+
+function SelfGravProblem:__call(solver)
+	local args = self.args
+	solver.useGravity = true
+	solver.boundaryMethods.xmin[0] = solver.app.boundaryMethods:find'freeflow'-1
+	solver.boundaryMethods.xmax[0] = solver.app.boundaryMethods:find'freeflow'-1
+	solver.boundaryMethods.ymin[0] = solver.app.boundaryMethods:find'freeflow'-1
+	solver.boundaryMethods.ymax[0] = solver.app.boundaryMethods:find'freeflow'-1
+	solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'freeflow'-1
+	solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'freeflow'-1
+
+	return template([[
 	rho = .1;
 	P = 1;
 	//v[i] = .1 * noise * crand();
@@ -60,15 +72,16 @@ local function selfGravProblem(args)
 			<?=clnumber(source.center[2])?>,
 			<?=clnumber(source.center[3])?>));
 		real distSq = real3_lenSq(delta);
-		if (distSq < <?=clnumber(source.radius * source.radius)?>) {
+		real radius = <?=self:getRadiusCode(source)?>;
+		if (distSq < radius * radius) {
 			<?=source.inside or 'rho = P = 1;'?>
 		}
 	}<? end ?>
-]], 	{
-			sources = args.sources,
-			clnumber = clnumber,
-		})
-	end
+]], {
+		self = self,
+		sources = args.sources,
+		clnumber = clnumber,
+	})
 end
 
 local initStates = {
@@ -528,7 +541,7 @@ end ?>
 	{
 		name = 'self-gravitation test 1',
 		init = function(solver)
-			local f = selfGravProblem{
+			local f = SelfGravProblem{
 				solver = solver,
 				sources={
 					{center={0, 0, 0}, radius = .2},
@@ -555,23 +568,27 @@ end ?>
 	{
 		name = 'self-gravitation test 1 spinning',
 		init = function(solver)
--- TODO always specify initial conditions in cartesian?
--- or should I always store coordinates in cartesian, despite grid breakdown?
+-- TODO always specify initial conditions in cartesian
+-- then reproject back on to dx^i's after init()			
 			local inside = 	
 				require 'geom.cylinder'.is(solver.geometry)
 				and [[
-	v.x = 1.;
-	v.y = -4.;
+	v.y = 2.; 
 	rho = 1.;
 	P = 1.;
 ]] or [[
-	v.x = -4 * delta.y;
-	v.y = 4 * delta.x;
+	v.x = -2 * delta.y;
+	v.y = 2 * delta.x;
 	rho = 1.;
 	P = 1.;
 ]]
 
-			return selfGravProblem{
+			return SelfGravProblem{
+				getRadiusCode = function(source)
+					-- TODO compute dr's component in each dx^i's, and scale our random number by that
+					-- add some noise
+					return '.2 - .01 * cos(1.+2.*M_PI*cos(1.+2.*M_PI*cos(1.+2.*M_PI*x.y/x.x)))'
+				end,
 				sources={
 					{
 						center={0, 0, 0}, 
@@ -586,7 +603,7 @@ end ?>
 
 	{
 		name = 'self-gravitation test 2',
-		init = selfGravProblem{ 
+		init = SelfGravProblem{ 
 			sources={
 				{
 					center = {-.25, 0, 0},
@@ -603,7 +620,7 @@ end ?>
 	{
 		-- TODO add tidal-locked rotations
 		name = 'self-gravitation test 2 orbiting',
-		init = selfGravProblem{ 
+		init = SelfGravProblem{ 
 			sources = {
 				{
 					center = {-.25, 0, 0},
@@ -631,7 +648,7 @@ end ?>
 	
 	{
 		name = 'self-gravitation test 4',
-		init =  selfGravProblem{
+		init =  SelfGravProblem{
 			sources={
 				{center={.25, .25, 0}, radius = .1},
 				{center={-.25, .25, 0}, radius = .1},

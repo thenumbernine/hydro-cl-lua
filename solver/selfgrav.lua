@@ -2,6 +2,8 @@ local class = require 'ext.class'
 local template = require 'template'
 local Poisson = require 'solver.poisson'
 
+-- TODO guarantee all potential values are initially positive (and from then on?)
+
 local SelfGrav = class(Poisson)
 
 SelfGrav.gravitationConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
