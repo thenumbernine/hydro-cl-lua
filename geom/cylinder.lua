@@ -7,7 +7,9 @@ local sin, cos = symmath.sin, symmath.cos
 local Tensor = symmath.Tensor
 
 local Cylinder = class(geometry)
+
 Cylinder.name = 'cylinder' 
+
 function Cylinder:init(args)
 	local x, y, z = symmath.vars('x', 'y', 'z')
 	args.embedded = table{x,y,z}:sub(1, args.solver.dim)
@@ -24,6 +26,8 @@ function Cylinder:init(args)
 	-- however the Conn^k_jk terms still match up with the holonomic terms
 	-- and the grid itself is still the holonomic coordinate system
 	-- so dx's are based on the holonomic coordinate system
+	-- ... other adjustments have to be made elsewhere as well 
+	-- (like the extra scaling term next to the volume scale within the flux) 
 	local thetaHat = symmath.var'thetaHat'
 	thetaHat.base = theta
 	function thetaHat:applyDiff(x) return x:diff(theta) / r end

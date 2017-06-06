@@ -486,6 +486,7 @@ function Solver:createCodePrefix()
 	lines:insert(self.app.sym3Code)
 
 	lines:append{
+		'#define geometry_'..self.geometry.name..' 1',
 		'#define dim '..self.dim,
 		'#define numGhost '..self.numGhost,
 		'#define numStates '..self.eqn.numStates,

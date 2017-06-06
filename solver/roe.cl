@@ -142,7 +142,7 @@ kernel void calcFlux(
 ) {
 	SETBOUNDS(2,1);
 	int indexR = index;
-//	real3 x = cell_x(i);
+	real3 x = cell_x(i);
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;	
 		real dt_dx = dt / dx<?=side?>_at(i);//grid_dx<?=side?>;
@@ -207,11 +207,12 @@ kernel void calcFlux(
 		real volume = volume_at(interfaceX);
 
 		for (int j = 0; j < numStates; ++j) {
-			flux->ptr[j] *= volume;
-//NOTICE
-//you only need to do this if you are going to represent your state coordinates in anholonomic normalized vectors
-//if you're going to represent them as holonomic coordinate system vector components then don't worry, volume is enough.
-//			flux->ptr[j] /= coordHolBasisLen<?=side?>(x);
+			flux->ptr[j] *= volume
+//if you're using anholonomic normalized vector components
+// on a holonomic grid
+// then you have to incorporate the ratio between basii here:
+				/ coordHolBasisLen<?=side?>(x)
+			;
 		}
 	}<? end ?>
 }

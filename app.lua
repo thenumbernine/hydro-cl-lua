@@ -288,7 +288,7 @@ real sym3_dot(sym3 a, sym3 b) {
 			cmdline.gridSize or 1,
 		},
 		boundary = {
-			xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
+			xmin=cmdline.boundary or 'freeflow',		-- hmm, how to treat the r=0 boundary ...
 			xmax=cmdline.boundary or 'freeflow',
 			ymin=cmdline.boundary or 'periodic',
 			ymax=cmdline.boundary or 'periodic',
@@ -349,8 +349,8 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'relativistic blast wave interaction',
 		-- self-gravitation tests:
-		--initState = 'self-gravitation test 1',
-		initState = 'self-gravitation test 1 spinning',
+		initState = 'self-gravitation test 1',
+		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
 		--initState = 'self-gravitation test 2 orbiting',
 		--initState = 'self-gravitation test 4',
