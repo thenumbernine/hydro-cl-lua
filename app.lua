@@ -260,7 +260,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--usePLM = true,	-- piecewise-linear slope limiter
 		--slopeLimiter = 'minmod',
 		
-		-- [[ cartesian
+		--[[ cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
@@ -278,7 +278,7 @@ real sym3_dot(sym3 a, sym3 b) {
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
-		--[[ cylinder
+		-- [[ cylinder
 		geometry = 'cylinder',
 		mins = cmdline.mins or {0, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
@@ -365,7 +365,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	self.solvers = table()
 	
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 
 	-- the same as solver.euler-roe:
@@ -382,7 +382,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	-- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 	--    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-	self.solvers:insert(require 'solver.srhd-roe'(args))
+	--self.solvers:insert(require 'solver.srhd-roe'(args))
 	-- not working just yet, still needs some behavior modifications:
 	--self.solvers:insert(require 'solver.srhd-roe_implicit_linearized'(args))
 	

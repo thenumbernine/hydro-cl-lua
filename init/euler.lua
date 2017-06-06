@@ -570,13 +570,7 @@ end ?>
 		init = function(solver)
 -- TODO always specify initial conditions in cartesian
 -- then reproject back on to dx^i's after init()			
-			local inside = 	
-				require 'geom.cylinder'.is(solver.geometry)
-				and [[
-	v.y = 2.; 
-	rho = 1.;
-	P = 1.;
-]] or [[
+			local inside = [[
 	v.x = -2 * delta.y;
 	v.y = 2 * delta.x;
 	rho = 1.;
@@ -587,7 +581,7 @@ end ?>
 				getRadiusCode = function(source)
 					-- TODO compute dr's component in each dx^i's, and scale our random number by that
 					-- add some noise
-					return '.2 - .01 * cos(1.+2.*M_PI*cos(1.+2.*M_PI*cos(1.+2.*M_PI*x.y/x.x)))'
+					return '.2 - .003 * cos(1.+2.*M_PI*cos(1.+2.*M_PI*cos(1.+2.*M_PI*x.y/x.x)))'
 				end,
 				sources={
 					{

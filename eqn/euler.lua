@@ -138,7 +138,9 @@ kernel void initState(
 
 ]]..code..[[
 
-	<?=eqn.prim_t?> W = {.rho=rho, .v=v, .P=P, .ePot=ePot};
+	//v's are vectors which need to be transformed from cartesian to our geometry
+
+	<?=eqn.prim_t?> W = {.rho=rho, .v=cartesianToGrid(v, x), .P=P, .ePot=ePot};
 	UBuf[index] = consFromPrim(W);
 }
 ]], {

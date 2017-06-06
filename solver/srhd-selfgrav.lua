@@ -30,7 +30,7 @@ function SRHDSelfGrav:getCodeParams()
 #define gravitationalConstant <?=clnumber(self.gravitationConstant)?>
 	global <?=eqn.prim_t?>* prim = UBuf + index;
 	//maybe a 4pi?  or is that only in the continuous case?
-	rho = -gravitationalConstant * prim->rho;
+	rho = gravitationalConstant * prim->rho;
 ]], 
 		{
 			self = self,
@@ -63,8 +63,7 @@ kernel void calcGravityDeriv(
 		int indexL = index - stepsize[side];
 		int indexR = index + stepsize[side];
 
-		real gradient = (primBuf[indexR].<?=self.potentialField?> - primBuf[indexL].<?=self.potentialField?>) / (2. * dx<?=side?>_at(i));
-		du_dt.s<?=side?> = -gradient;
+		du_dt.s<?=side?> = (primBuf[indexR].<?=self.potentialField?> - primBuf[indexL].<?=self.potentialField?>) / (2. * dx<?=side?>_at(i));
 	}<? end ?>
 
 	//u = W v

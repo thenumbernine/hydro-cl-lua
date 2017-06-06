@@ -561,6 +561,27 @@ function Solver:createCodePrefix()
 		'inline real coordLen(real3 r) { return sqrt(coordLenSq(r)); }',
 	}
 
+	for i,eiCode in ipairs(self.geometry.eCode) do
+		lines:insert(getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
+	end
+
+	lines:insert(template([[
+
+//converts a vector from cartesian coordinates to grid coordinates
+//by projecting the vector into the grid basis vectors 
+//at x, which is in grid coordinates
+real3 cartesianToGrid(real3 v, real3 x) {
+	real3 vCoord;
+	<? for i=0,solver.dim-1 do ?>{
+		real3 e = coordBasis<?=i?>(x);
+		vCoord.s<?=i?> = real3_dot(e, v) / real3_lenSq(e);
+	}<? end ?>
+	return vCoord;
+}
+]], {
+		solver = self,
+	}))
+
 	lines:append{
 		-- not messing with this one yet
 		self.allocateOneBigStructure and '#define allocateOneBigStructure' or '',
@@ -573,6 +594,9 @@ function Solver:createCodePrefix()
 	}
 
 	self.codePrefix = lines:concat'\n'
+
+print'solver.codePrefix:'
+print(self.codePrefix)
 end
 
 function Solver:refreshInitStateProgram()

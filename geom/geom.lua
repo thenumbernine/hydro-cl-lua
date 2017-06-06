@@ -202,13 +202,12 @@ print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()
 	-- uCode is used to project the grid for displaying
 	self.uCode = range(dim):map(function(i) 
 		local uCode = compile(u[i])
-print('uCode['..i..']: '..uCode)
+print('uCode['..i..'] = '..uCode)
 		return uCode
 	end)
 
 	-- just giving up and manually writing this out
 	
---[=[ not being used
 	local function cross(a,b)
 		return table{
 			(a[2]*b[3]-b[2]*a[3])(),
@@ -246,26 +245,32 @@ print('uCode['..i..']: '..uCode)
 		eExt[3] = cross(eExt[1],eExt[2])
 	end
 
+	self.eCode = eExt:map(function(ei,i) 
+		return ei:map(function(eij,j)
+			local eijCode = compile(eij) 
+print('eCode['..i..']['..j..'] = ' .. tostring(eijCode))
+			return eijCode 
+		end)
+	end)
+
+--[=[ not being used
 	local eExtLen = eExt:map(function(ei,i)
 		return symmath.sqrt(ei:map(function(x) return x^2 end):sum())
 	end)
-	self.eCode = eExt:map(function(ei,i) return ei:map(compile) end)
-print('eCode', tolua(self.eCode, {indent=true}))
-
 	local eExtUnit = eExt:map(function(ei,i)
 		return ei:map(function(eij) return (eij/eExtLen[i])() end)
 	end)
 	self.eUnitCode = eExtUnit:map(function(ei_unit,i) return ei_unit:map(compile) end)
-print('eUnitCode:', tolua(self.eUnitCode, {indent=true}))
+print('eUnitCode = ', tolua(self.eUnitCode, {indent=true}))
 --]=]
 
 	local coordU = Tensor('^a', function(a) return baseCoords[a] end)
 	
 	local lenSqExpr = (coordU'^a' * coordU'_a')()
 	self.uLenSqCode = compile(lenSqExpr)
-print('uLenSqCodes: '..self.uLenSqCode)
+print('uLenSqCodes = '..self.uLenSqCode)
 	self.uLenCode = compile((symmath.sqrt(lenSqExpr))())
-print('uLenCode: '..self.uLenCode)
+print('uLenCode = '..self.uLenCode)
 
 	-- dx is the change across the grid
 	-- therefore it is based on the holonomic metric
@@ -273,13 +278,13 @@ print('uLenCode: '..self.uLenCode)
 		local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
 		local lenSqExpr = (dir'^a' * dir'^b' * gHol'_ab')()
 		local lenCode = compile((symmath.sqrt(lenSqExpr))())
-print('dxCode['..i..']: '..lenCode)
+print('dxCode['..i..'] = '..lenCode)
 		return lenCode
 	end)
 
 	local volumeExpr = symmath.sqrt(symmath.Matrix.determinant(g))()
 	self.volumeCode = compile(volumeExpr)
-print('volumeCode: '..self.volumeCode)
+print('volumeCode = '..self.volumeCode)
 
 end
 
