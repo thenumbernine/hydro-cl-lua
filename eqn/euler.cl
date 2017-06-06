@@ -275,7 +275,7 @@ void apply_dU_dW(<?=eqn.cons_t?>* y, const <?=eqn.prim_t?>* W, const <?=eqn.prim
 	*y = (<?=eqn.cons_t?>){
 		.rho = x->rho,
 		.m = real3_add(real3_scale(W->v, x->rho), real3_scale(x->v, W->rho)),
-		.ETotal = x->rho * .5 * coordLenSq(W->v) + W->rho * real3_dot(x->v, W->v) + x->P / (heatCapacityRatio - 1.),
+		.ETotal = x->rho * .5 * coordLenSq(W->v) + W->rho * real3_dot(x->v, W->v) + x->P / (heatCapacityRatio - 1.) + x->ePot,
 	};
 }
 
@@ -283,6 +283,6 @@ void apply_dW_dU(<?=eqn.prim_t?>* y, const <?=eqn.prim_t?>* W, const <?=eqn.cons
 	*y = (<?=eqn.prim_t?>){
 		.rho = x->rho,
 		.v = real3_sub(real3_scale(x->m, 1./W->rho), real3_scale(W->v, x->rho / W->rho)),
-		.P = (heatCapacityRatio - 1.) * (x->ETotal + .5 * coordLenSq(W->v) * x->rho - real3_dot(x->m, W->v)),
+		.P = (heatCapacityRatio - 1.) * (x->ETotal + .5 * coordLenSq(W->v) * x->rho - real3_dot(x->m, W->v) - x->ePot),
 	};
 }
