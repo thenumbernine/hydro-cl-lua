@@ -561,6 +561,10 @@ function Solver:createCodePrefix()
 		'inline real coordLen(real3 r) { return sqrt(coordLenSq(r)); }',
 	}
 
+	for i=0,self.dim-1 do
+		lines:insert(getCode_real3_to_real('coordHolBasisLen'..i, self.geometry.eHolLenCode[i+1]))
+	end
+
 	for i,eiCode in ipairs(self.geometry.eCode) do
 		lines:insert(getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
 	end

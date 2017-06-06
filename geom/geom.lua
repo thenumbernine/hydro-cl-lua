@@ -252,10 +252,24 @@ print('eCode['..i..']['..j..'] = ' .. tostring(eijCode))
 			return eijCode 
 		end)
 	end)
+	
+	local eHolLen = range(#eHol):map(function(i)
+		return symmath.sqrt(
+			range(#eHol):map(function(j)
+				return eHol[i][j]^2
+			end):sum()
+		)()
+	end)
+
+	self.eHolLenCode = eHolLen:map(function(eiHolLen, i)
+		local eiHolLenCode = compile(eiHolLen)
+print('eHolLen['..i..'] = '..eiHolLenCode)
+		return eiHolLenCode
+	end)
 
 --[=[ not being used
 	local eExtLen = eExt:map(function(ei,i)
-		return symmath.sqrt(ei:map(function(x) return x^2 end):sum())
+		return symmath.sqrt(ei:map(function(x) return x^2 end):sum())()
 	end)
 	local eExtUnit = eExt:map(function(ei,i)
 		return ei:map(function(eij) return (eij/eExtLen[i])() end)
@@ -269,8 +283,6 @@ print('eUnitCode = ', tolua(self.eUnitCode, {indent=true}))
 	local lenSqExpr = (coordU'^a' * coordU'_a')()
 	self.uLenSqCode = compile(lenSqExpr)
 print('uLenSqCodes = '..self.uLenSqCode)
-	self.uLenCode = compile((symmath.sqrt(lenSqExpr))())
-print('uLenCode = '..self.uLenCode)
 
 	-- dx is the change across the grid
 	-- therefore it is based on the holonomic metric

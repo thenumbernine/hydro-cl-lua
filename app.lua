@@ -239,7 +239,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 1,
+		dim = cmdline.dim or 2,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
@@ -257,10 +257,10 @@ real sym3_dot(sym3 a, sym3 b) {
 		--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		fluxLimiter = cmdline.fluxLimiter or 'donor cell',
 
-		usePLM = true,	-- piecewise-linear slope limiter
+		--usePLM = true,	-- piecewise-linear slope limiter
 		--slopeLimiter = 'minmod',
 		
-		-- [[ cartesian
+		--[[ cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
@@ -278,7 +278,7 @@ real sym3_dot(sym3 a, sym3 b) {
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
-		--[[ cylinder
+		-- [[ cylinder
 		geometry = 'cylinder',
 		mins = cmdline.mins or {0, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
@@ -340,7 +340,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		-- Euler / SRHD / MHD initial states:
 		--initState = 'constant',
 		--initState = 'linear',
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		-- (those designed for srhd:)
@@ -350,7 +350,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'relativistic blast wave interaction',
 		-- self-gravitation tests:
 		--initState = 'self-gravitation test 1',
-		--initState = 'self-gravitation test 1 spinning',
+		initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
 		--initState = 'self-gravitation test 2 orbiting',
 		--initState = 'self-gravitation test 4',
