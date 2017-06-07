@@ -55,6 +55,17 @@ local function getCode_define_i3_to_real3(name, codes)
 		end):concat', '..')'
 end
 
+local function getCode_real3_to_sym3(name, exprs)
+	return 'inline sym3 '..name..'(real3 r) {\n\treturn (sym3){\n'
+		.. range(3):map(function(i)
+			return range(i,3):map(function(j)
+				return '\t\t.'..xs[i]..xs[j]..' = ' 
+					.. (exprs[i] and exprs[i][j] or '0.') .. ','
+			end):concat'\n'
+		end):concat'\n'
+		..'\n\t};\n}'
+end
+
 local Solver = class()
 
 Solver.name = 'Solver'
@@ -570,16 +581,19 @@ function Solver:createCodePrefix()
 		lines:insert(getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
 	end
 
+	lines:insert(getCode_real3_to_sym3('coord_g', self.geometry.gCode))
+	lines:insert(getCode_real3_to_sym3('coord_gU', self.geometry.gUCode))
+
 	lines:insert(template([[
 
-//converts a vector from cartesian coordinates to grid coordinates
+//converts a vector from cartesian coordinates to anholonomic normalized grid coordinates
 //by projecting the vector into the grid basis vectors 
 //at x, which is in grid coordinates
 real3 cartesianToGrid(real3 v, real3 x) {
 	real3 vCoord;
 	<? for i=0,solver.dim-1 do ?>{
 		real3 e = coordBasis<?=i?>(x);
-		vCoord.s<?=i?> = real3_dot(e, v) / real3_lenSq(e);
+		vCoord.s<?=i?> = real3_dot(e, v) / real3_len(e);
 	}<? end
 	for i=solver.dim,2 do ?>
 	vCoord.s<?=i?> = 0.;

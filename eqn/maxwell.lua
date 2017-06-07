@@ -9,7 +9,7 @@ local template = require 'template'
 local Maxwell = class(Equation)
 Maxwell.name = 'Maxwell'
 Maxwell.numWaves = 6
-Maxwell.numStates = 7
+Maxwell.numStates = 10
 Maxwell.mirrorVars = {{'epsE.x', 'B.x'}, {'epsE.y', 'B.y'}, {'epsE.z', 'B.z'}}
 
 Maxwell.hasEigenCode = true
@@ -17,20 +17,19 @@ Maxwell.useSourceTerm = true
 
 Maxwell.initStates = require 'init.euler'
 
-Maxwell.guiVars = table{
-	GuiFloat{name='eps0', value=1 / (4 * math.pi)},	-- permittivity
-	GuiFloat{name='mu0', value=4 * math.pi},	-- permeability
-	GuiFloat{name='sigma', value=1},-- conductivity
-}
+Maxwell.guiVars = {}
 
 function Maxwell:getTypeCode()
 	return template([[
 typedef union {
-	real ptr[7];
+	real ptr[10];
 	struct {
 		real3 epsE;
 		real3 B;
 		real BPot;	//used to calculate the B potential & remove div
+		real sigma;
+		real eps;
+		real mu;
 	};
 } <?=eqn.cons_t?>;
 ]], {
@@ -41,15 +40,13 @@ end
 function Maxwell:getCodePrefix()
 	return table{
 		Maxwell.super.getCodePrefix(self),
-		'#define sqrt_eps0 '..clnumber(math.sqrt(self.guiVarsForName.eps0.value[0])),
-		'#define sqrt_mu0 '..clnumber(math.sqrt(self.guiVarsForName.mu0.value[0])),
 		template([[
 //hmm, for E and B, even if the coord is 2D, we need all 3D components ...
 //this means we need coordLen functions with guaranteed dimensions, including tangent spaces
 
 real ESq(<?=eqn.cons_t?> U) { 
-	//return coordLenSq(U.epsE) / (eps0 * eps0);
-	return real3_lenSq(U.epsE) / (eps0 * eps0);
+	//return coordLenSq(U.epsE) / (U.eps * U.eps);
+	return real3_lenSq(U.epsE) / (U.eps * U.eps);
 }
 
 real BSq(<?=eqn.cons_t?> U) {
@@ -86,6 +83,9 @@ kernel void initState(
 	//used
 	real3 E = _real3(0,0,0);
 	real3 B = _real3(0,0,0);
+	real conductivity = 1.;
+	real permittivity = 1. / (4. * M_PI);
+	real permeability = 4. * M_PI;
 	//throw-away
 	real rho = 0;
 	real3 v = _real3(0,0,0);
@@ -94,9 +94,12 @@ kernel void initState(
 
 ]]..code..[[
 	
-	U->epsE = real3_scale(E, eps0);
+	U->epsE = real3_scale(E, permittivity);
 	U->B = B;
 	U->BPot = 0;
+	U->sigma = conductivity;
+	U->eps = permittivity;
+	U->mu = permeability;
 }
 ]], {
 	eqn = self,
@@ -109,17 +112,17 @@ end
 
 function Maxwell:getDisplayVars()
 	return table{
-		{Ex = 'value = U->epsE.x / eps0;'},
-		{Ey = 'value = U->epsE.y / eps0;'},
-		{Ez = 'value = U->epsE.z / eps0;'},
+		{Ex = 'value = U->epsE.x / U->eps;'},
+		{Ey = 'value = U->epsE.y / U->eps;'},
+		{Ez = 'value = U->epsE.z / U->eps;'},
 		{E = 'value = sqrt(ESq(*U));'},
 		{Bx = 'value = U->B.x;'},
 		{By = 'value = U->B.y;'},
 		{Bz = 'value = U->B.z;'},
 		{B = 'value = sqrt(BSq(*U));'},
 		{energy = [[
-	//value = .5 * (coordLen(U->epsE) + coordLen(U->B) / mu0);
-	value = .5 * (real3_len(U->epsE) + real3_len(U->B) / mu0);
+	//value = .5 * (coordLen(U->epsE) + coordLen(U->B) / U->mu);
+	value = .5 * (real3_len(U->epsE) + real3_len(U->B) / U->mu);
 ]]},
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='epsE', B='B'})[var] )
@@ -132,17 +135,20 @@ function Maxwell:getDisplayVars()
 	}<? end ?>
 	value *= .5;
 	<? if field == 'epsE' then ?>
-	value /= eps0;
+	value /= U->eps;
 	<? end ?>
 ]], {solver=self.solver, field=field})}
 	end)):append{
---		{phi = 'value = U->BPot;'},
+		{BPot = 'value = U->BPot;'},
+		{sigma = 'value = U->sigma;'},
+		{eps = 'value = U->eps;'},
+		{mu = 'value = U->mu;'},
 	}
 end
 
 -- can it be zero sized?
 function Maxwell:getEigenTypeCode()
-	return 'typedef struct { char mustbesomething; } '..self.eigen_t..';'
+	return 'typedef struct { real eps, mu; } '..self.eigen_t..';'
 end
 
 function Maxwell:getEigenDisplayVars()

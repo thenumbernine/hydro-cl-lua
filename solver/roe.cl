@@ -211,7 +211,8 @@ kernel void calcFlux(
 //if you're using anholonomic normalized vector components
 // on a holonomic grid
 // then you have to incorporate the ratio between basii here:
-				/ coordHolBasisLen<?=side?>(x)
+//				/ coordHolBasisLen<?=side?>(x)
+//...but it doesn't seem to help ...
 			;
 		}
 	}<? end ?>

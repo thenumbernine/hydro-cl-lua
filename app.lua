@@ -355,7 +355,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'Colella-Woodward',
 		--initState = 'double mach reflection',
 		--initState = 'square cavity',
-		initState = 'shock bubble interaction',
+		--initState = 'shock bubble interaction',
 
 		--initState = 'configuration 1',
 		--initState = 'configuration 2',
@@ -383,6 +383,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'Orszag-Tang',
 		-- EM:
 		--initState = 'Maxwell default',
+		initState = 'scattering around cylinder',
 		
 		--initState = 'two-fluid EMHD soliton ion',
 		--initState = 'two-fluid EMHD soliton electron',
@@ -411,7 +412,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
 	--self.solvers:insert(require 'solver.srhd-roe'(args))
 	-- not working just yet, still needs some behavior modifications:
-	self.solvers:insert(require 'solver.srhd-roe_implicit_linearized'(args))
+	--self.solvers:insert(require 'solver.srhd-roe_implicit_linearized'(args))
 	
 	-- M+HD. 
 	-- with superbee flux lim:  
@@ -425,7 +426,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))	-- TODO what about removing divergence?
 	
 	-- EM
-	--self.solvers:insert(require 'solver.maxwell-roe'(args))
+	self.solvers:insert(require 'solver.maxwell-roe'(args))
 	--self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
 	
 	-- EM+HD

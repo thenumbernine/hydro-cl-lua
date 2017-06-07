@@ -144,7 +144,8 @@ local initStates = {
 		name = 'advect wave',
 		init = function(solver)
 			return [[
-	real rSq = real3_dot(x,x);
+	real3 xc = real3_sub(coordMap(x), _real3(-.5, 0, 0));
+	real rSq = real3_lenSq(xc);
 	rho = exp(-100*rSq) + 1.;
 	v.x = 1;
 	P = 1;
@@ -573,8 +574,6 @@ end ?>
 	{
 		name = 'self-gravitation test 1 spinning',
 		init = function(solver)
--- TODO always specify initial conditions in cartesian
--- then reproject back on to dx^i's after init()			
 			local inside = [[
 	v.x = -2 * delta.y;
 	v.y = 2 * delta.x;
@@ -686,9 +685,22 @@ end ?>
 		name = 'Maxwell default',
 		init = function(solver)
 			return [[
-	const real L = 12.;
 	E = _real3(1,0,0);
 	B = _real3(0, 1, lhs ? 1 : -1);
+]]
+		end,
+	},
+
+	{
+		name = 'scattering around cylinder',
+		init = function(solver)
+			return [[
+	real3 xc = coordMap(x);
+	if (x.x < mins.x * .9 + maxs.x * .1) E.y = 1;
+	if (real3_lenSq(xc) < .2*.2) {
+		//conductivity = 0;
+		permittivity = 10.;
+	}
 ]]
 		end,
 	},

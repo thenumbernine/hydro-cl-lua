@@ -294,6 +294,24 @@ print('dxCode['..i..'] = '..lenCode)
 		return lenCode
 	end)
 
+	self.g = g
+	self.gCode = range(dim):map(function(i)
+		return range(i,dim):map(function(j)
+			local gijCode = compile(self.g[i][j])
+print('g['..i..']['..j..'] = '..gijCode)
+			return gijCode, j
+		end)
+	end)
+
+	local gU = Tensor('^ab', table.unpack((Matrix.inverse(g))))
+	self.gU = gU
+	self.gUCode = range(dim):map(function(i)
+		return range(i,dim):map(function(j)
+			local gUijCode = compile(self.gU[i][j])
+print('gU['..i..']['..j..'] = '..gUijCode)
+			return gUijCode, j
+		end)
+	end)
 	local volumeExpr = symmath.sqrt(symmath.Matrix.determinant(g))()
 	self.volumeCode = compile(volumeExpr)
 print('volumeCode = '..self.volumeCode)
