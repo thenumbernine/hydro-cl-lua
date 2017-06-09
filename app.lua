@@ -240,7 +240,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 1,
+		dim = cmdline.dim or 2,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
@@ -379,10 +379,11 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'relativistic blast wave interaction',
 	
 		-- MHD-only init states: (that use 'b')
-		initState = 'Brio-Wu',
+		--initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
+		
 		-- EM:
-		--initState = 'Maxwell default',
+		initState = 'Maxwell default',
 		--initState = 'scattering around cylinder',
 		
 		--initState = 'two-fluid EMHD soliton ion',
@@ -422,10 +423,10 @@ real sym3_dot(sym3 a, sym3 b) {
 	-- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 	-- also div B is nonzero.  in fact it's pretty big.
 	--self.solvers:insert(require 'solver.mhd-roe'(args))
-	self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))	-- TODO what about removing divergence?
+	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))	-- TODO what about removing divergence?
 	
 	-- EM
-	--self.solvers:insert(require 'solver.maxwell-roe'(args))
+	self.solvers:insert(require 'solver.maxwell-roe'(args))
 	--self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
 	
 	-- EM+HD

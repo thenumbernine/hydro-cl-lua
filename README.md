@@ -30,7 +30,7 @@ TODO:
 - add EM+SRHD by mixing and matching SRHD and EMHD
 - add EM+GR+HD by winning
 - for 2D SRHD, it looks like my W = U.D / prim.rho is drifting from W = 1 / sqrt(1 - prim.v^2)
-- get PLM working in SRHD 
+- implement eigen-stuff code in SRHD so that PLM can work 
 - get curved coordinates working for MHD
 - 2D MHD seems to have nonzero div B ...
 

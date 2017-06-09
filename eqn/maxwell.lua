@@ -46,12 +46,12 @@ function Maxwell:getCodePrefix()
 
 real ESq(<?=eqn.cons_t?> U, real3 x) { 
 	//return coordLenSq(U.epsE, x) / (U.eps * U.eps);
-	return real3_lenSq(U.epsE, x) / (U.eps * U.eps);
+	return real3_lenSq(U.epsE) / (U.eps * U.eps);
 }
 
 real BSq(<?=eqn.cons_t?> U, real3 x) {
 	//return coordLenSq(U.B, x);
-	return real3_lenSq(U.B, x);
+	return real3_lenSq(U.B);
 }
 ]], {
 	eqn = self,
