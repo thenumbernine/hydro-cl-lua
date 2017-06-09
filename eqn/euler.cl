@@ -104,8 +104,10 @@ kernel void calcEigenBasis(
 	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(2,1);
-	int indexR = index;
+	real3 x = cell_x(i);
 	
+	int indexR = index;
+
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		
@@ -113,16 +115,15 @@ kernel void calcEigenBasis(
 	
 		<?= solver.getULRCode ?>
 		
-		int intindex = side + dim * index;	
-		real3 intI = _real3(i.x, i.y, i.z);
-		intI.s[side] -= .5;
-		real3 intX = cell_x(intI);
+		int indexInt = side + dim * index;	
+		real3 xInt = x;
+		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 
-		global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
-		eigen_forSide(eig, UL, UR, intX);
+		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
+		eigen_forSide(eig, UL, UR, xInt);
 		
-		global real* wave = waveBuf + numWaves * intindex;
-		eigen_calcWaves_<?=side?>_global_global(wave, eig, intX);
+		global real* wave = waveBuf + numWaves * indexInt;
+		eigen_calcWaves_<?=side?>_global_global(wave, eig, xInt);
 	}<? end ?>
 }
 

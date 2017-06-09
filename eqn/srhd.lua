@@ -105,22 +105,6 @@ function SRHD:getCodePrefix()
 //then later the transition to the evolved metric will be easier
 constant const real alpha = 1;
 constant const real3 betaU = _real3(0,0,0);
-constant const sym3 gammaL = (sym3){.xx=1, .yy=1, .zz=1, .xy=0, .yz=0, .xz=0};
-constant const sym3 gammaU = (sym3){.xx=1, .yy=1, .zz=1, .xy=0, .yz=0, .xz=0};
-constant const real gammaDet = 1;
-
-inline real3 lower(real3 vU) {
-	return sym3_real3_mul(gammaL, vU);
-}
-
-inline real metricLenSq(real3 vU) {
-	real3 vL = lower(vU);
-	return real3_dot(vL, vU);
-}
-
-inline real metricLen(real3 vU) {
-	return sqrt(metricLenSq(vU));
-}
 
 //pressure function for ideal gas
 real calc_P(real rho, real eInt) {
@@ -145,8 +129,8 @@ real calc_h(real rho, real P, real eInt) {
 	return 1. + eInt + P / rho;
 }
 
-<?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> prim) {
-	real vSq = metricLenSq(prim.v);
+<?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> prim, real3 x) {
+	real vSq = coordLenSq(prim.v, x);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
 	real P = calc_P(prim.rho, prim.eInt);
@@ -203,13 +187,13 @@ kernel void initState(
 ]]..code..[[
 	
 	real eInt = calc_eInt_from_P(rho, P);
-	real vSq = metricLenSq(v);
+	real vSq = coordLenSq(v, x);
 	real W = 1. / sqrt(1. - vSq);
 	real h = calc_h(rho, P, eInt);
 
 	<?=eqn.prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
 	primBuf[index] = prim;
-	consBuf[index] = consFromPrim(prim);
+	consBuf[index] = consFromPrim(prim, x);
 }
 ]], {
 	eqn = self,
@@ -238,14 +222,14 @@ function SRHD:getDisplayVars()
 		{Sx = 'value = U.S.x;'},
 		{Sy = 'value = U.S.y;'},
 		{Sz = 'value = U.S.z;'},
-		{S = 'value = metricLen(U.S);'},
+		{S = 'value = coordLen(U.S, x);'},
 		{tau = 'value = U.tau;'},
 		{W = 'value = U.D / prim.rho;'},
 		{['primitive reconstruction error'] = template([[
 			//prim have just been reconstructed from cons
 			//so reconstruct cons from prims again and calculate the difference
 			{
-				<?=eqn.cons_t?> U2 = consFromPrim(prim);
+				<?=eqn.cons_t?> U2 = consFromPrim(prim, x);
 				value = 0;
 				for (int j = 0; j < numStates; ++j) {
 					value += fabs(U.ptr[j] - U2.ptr[j]);
@@ -268,7 +252,7 @@ SRHD.primDisplayVars = {
 	{vx = 'value = prim.v.x;'},
 	{vy = 'value = prim.v.y;'},
 	{vz = 'value = prim.v.z;'},
-	{v = 'value = metricLen(prim.v);'},
+	{v = 'value = coordLen(prim.v, x);'},
 	{eInt = 'value = prim.eInt;'},
 	{ePot = 'value = prim.ePot;'},
 	{P = 'value = calc_P(prim.rho, prim.eInt);'},

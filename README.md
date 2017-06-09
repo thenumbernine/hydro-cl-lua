@@ -32,6 +32,7 @@ TODO:
 - add EM+SRHD by mixing and matching SRHD and EMHD
 - add EM+GR+HD by winning
 - for 2D SRHD, it looks like my W = U.D / prim.rho is drifting from W = 1 / sqrt(1 - prim.v^2)
+- add curved coordinate code to SRHD
 
 Minor TODO:
 - get MHD working with Orszag-Tang 2D

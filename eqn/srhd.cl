@@ -29,11 +29,13 @@ kernel void calcDT(
 		dtBuf[index] = INFINITY;
 		return;
 	}
-	
+	real3 x = cell_x(i);
+	sym3 gammaU = coord_gU(x);
+
 	<?=eqn.prim_t?> prim = primBuf[index];
 	real rho = prim.rho;
 	real eInt = prim.eInt;
-	real vSq = metricLenSq(prim.v);
+	real vSq = coordLenSq(prim.v, x);
 	real P = calc_P(rho, eInt);
 	real h = calc_h(rho, P, eInt);
 	real csSq = heatCapacityRatio * P / (rho * h);
@@ -90,6 +92,7 @@ kernel void calcEigenBasis(
 	const global <?=eqn.prim_t?>* primBuf	
 ) {
 	SETBOUNDS(2,1);
+	real3 x = cell_x(i);
 	
 	int indexR = index;
 	<?=eqn.prim_t?> primR = primBuf[indexR];
@@ -100,6 +103,10 @@ kernel void calcEigenBasis(
 		
 		int indexL = index - stepsize[side];
 		<?=eqn.prim_t?> primL = primBuf[indexL];
+		
+		real3 xInt = x;
+		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
+		sym3 gammaU = coord_gU(xInt);
 
 <? if true then -- arithmetic averaging ?>
 		<?=eqn.prim_t?> avg = (<?=eqn.prim_t?>){
@@ -122,7 +129,7 @@ kernel void calcEigenBasis(
 
 //TODO NOTE if you're swapping vector components, you have to swap metric components too 
 
-		real3 vL = lower(v);
+		real3 vL = coord_lower(v, xInt);
 		real vSq = real3_dot(v, vL);
 		real oneOverW2 = 1. - vSq;
 		real oneOverW = sqrt(oneOverW2);
@@ -202,23 +209,27 @@ for _,addr0 in ipairs{'', 'global'} do
 				end):concat()
 ?>
 void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* y,
+	<?=addr0?> real* Y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* x_
+	<?=addr2?> const real* X_,
+	real3 x
 ) { 
-	//rotate incoming v's in x
+	//rotate incoming v's in X
 	//TODO do the same for gamma_ij
 	<? if side==0 then ?>
-	<?=addr2?> const real* x = x_;
+	<?=addr2?> const real* X = X_;
 	<? elseif side == 1 then ?>
-	real x[5] = {x_[0], x_[2], -x_[1], x_[3], x_[4]};
+	real X[5] = {X_[0], X_[2], -X_[1], X_[3], X_[4]};
 	<? elseif side == 2 then ?>
-	real x[5] = {x_[0], x_[3], x_[2], -x_[1], x_[4]};
+	real X[5] = {X_[0], X_[3], X_[2], -X_[1], X_[4]};
 	<? end ?>
 
 	<?=prefix?>
-	
-	real3 vL = lower(v);
+	real gammaDet = volume_at(x);
+	sym3 gammaL = coord_g(x);
+	sym3 gammaU = coord_gU(x);
+
+	real3 vL = coord_lower(v, x);
 	real vxSq = v.x * v.x;
 	real hSq = h * h;
 	real hW = h * W;
@@ -234,119 +245,122 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real scale;
 	scale = hSq / Delta;
 	real l5minus = (1 - Kappa) * (-gammaDet * v.x + VPlus * (W2 * xi - gamma_gammaUxx)) - Kappa * W2 * VPlus * xi;
-	y[0] = (
-		x[0] * (hW * VPlus * xi + l5minus)
-		+ x[1] * (gamma_gammaUxx * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.x * xi - gamma_gammaUxx * v.x))
-		+ x[2] * (gamma_gammaUxy * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.y * xi - gamma_gammaUxy * v.x))
-		+ x[3] * (gamma_gammaUxz * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.z * xi - gamma_gammaUxz * v.x))
-		+ x[4] * l5minus
+	Y[0] = (
+		X[0] * (hW * VPlus * xi + l5minus)
+		+ X[1] * (gamma_gammaUxx * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.x * xi - gamma_gammaUxx * v.x))
+		+ X[2] * (gamma_gammaUxy * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.y * xi - gamma_gammaUxy * v.x))
+		+ X[3] * (gamma_gammaUxz * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.z * xi - gamma_gammaUxz * v.x))
+		+ X[4] * l5minus
 	) * scale;
 	//mid normal row	2008 Font eqn 115
 	scale = W / (Kappa - 1.);
-	y[1] = (
-		x[0] * (h - W) 
-		+ x[1] * (W * v.x) 
-		+ x[2] * (W * v.y) 
-		+ x[3] * (W * v.z) 
-		+ x[4] * (-W)
+	Y[1] = (
+		X[0] * (h - W) 
+		+ X[1] * (W * v.x) 
+		+ X[2] * (W * v.y) 
+		+ X[3] * (W * v.z) 
+		+ X[4] * (-W)
 	) * scale;
 	//mid tangent A row	2008 Font eqn 116
 	scale = 1. / (h * xi);
-	y[2] = (
-		x[0] * (-gammaL.zz * vL.y + gammaL.yz * vL.z) 
-		+ x[1] * v.x * (gammaL.zz * vL.y - gammaL.yz * vL.z)
-		+ x[2] * (gammaL.zz * (1. - v.x * vL.x) + gammaL.xz * vL.z * v.x)
-		+ x[3] * (-gammaL.yz * (1. - vL.x * v.x) - gammaL.xz * vL.y * v.x)
-		+ x[4] * (-gammaL.zz * vL.y + gammaL.yz * vL.z)
+	Y[2] = (
+		X[0] * (-gammaL.zz * vL.y + gammaL.yz * vL.z) 
+		+ X[1] * v.x * (gammaL.zz * vL.y - gammaL.yz * vL.z)
+		+ X[2] * (gammaL.zz * (1. - v.x * vL.x) + gammaL.xz * vL.z * v.x)
+		+ X[3] * (-gammaL.yz * (1. - vL.x * v.x) - gammaL.xz * vL.y * v.x)
+		+ X[4] * (-gammaL.zz * vL.y + gammaL.yz * vL.z)
 	) * scale;
 	//mid tangent B row	2008 Font eqn 117
-	y[3] = (
-		x[0] * (-gammaL.yy * vL.z + gammaL.yz * vL.y)
-		+ x[1] * v.x * (gammaL.yy * vL.z - gammaL.yz * vL.y)
-		+ x[2] * (-gammaL.yz * (1. - vL.x * v.x) - gammaL.xy * vL.z * v.x)
-		+ x[3] * (gammaL.yy * (1. - vL.x * v.x) + gammaL.xy * vL.y * v.x)
-		+ x[4] * (-gammaL.yy * vL.z + gammaL.yz * vL.y)
+	Y[3] = (
+		X[0] * (-gammaL.yy * vL.z + gammaL.yz * vL.y)
+		+ X[1] * v.x * (gammaL.yy * vL.z - gammaL.yz * vL.y)
+		+ X[2] * (-gammaL.yz * (1. - vL.x * v.x) - gammaL.xy * vL.z * v.x)
+		+ X[3] * (gammaL.yy * (1. - vL.x * v.x) + gammaL.xy * vL.y * v.x)
+		+ X[4] * (-gammaL.yy * vL.z + gammaL.yz * vL.y)
 	) * scale;
 	//max row	2008 Font eqn 118
 	scale = -hSq / Delta;
 	real l5plus = (1 - Kappa) * (-gammaDet * v.x + VMinus * (W2 * xi - gamma_gammaUxx)) - Kappa * W2 * VMinus * xi;
-	y[4] = (
-		x[0] * (h * W * VMinus * xi + l5plus)
-		+ x[1] * (gamma_gammaUxx * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.x * xi - gamma_gammaUxx * v.x))
-		+ x[2] * (gamma_gammaUxy * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.y * xi - gamma_gammaUxy * v.x))
-		+ x[3] * (gamma_gammaUxz * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.z * xi - gamma_gammaUxz * v.x))
-		+ x[4] * l5plus
+	Y[4] = (
+		X[0] * (h * W * VMinus * xi + l5plus)
+		+ X[1] * (gamma_gammaUxx * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.x * xi - gamma_gammaUxx * v.x))
+		+ X[2] * (gamma_gammaUxy * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.y * xi - gamma_gammaUxy * v.x))
+		+ X[3] * (gamma_gammaUxz * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.z * xi - gamma_gammaUxz * v.x))
+		+ X[4] * l5plus
 	) * scale;
 }
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* y,
+	<?=addr0?> real* Y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* x
+	<?=addr2?> const real* X,
+	real3 x
 ) {
 	<?=prefix?>
+	sym3 gammaL = coord_g(x);
 	
-	real3 vL = lower(v);
+	real3 vL = coord_lower(v, x);
 	real hW = h * W;
 	real W2 = W * W;
 
 	//2008 Font eqns 108-111
-	y[0] = x[0]
-		+ x[1] * (Kappa / hW)
-		+ x[2] * (W * vL.y)
-		+ x[3] * (W * vL.z)
-		+ x[4];
-	y[1] = x[0] * (hW * CMinus)
-		+ x[1] * (vL.x)
-		+ x[2] * (h * (gammaL.xy + 2. * W2 * vL.y * vL.x))
-		+ x[3] * (h * (gammaL.xz + 2. * W2 * vL.x * vL.z))
-		+ x[4] * (hW * CPlus);
-	y[2] = x[0] * (hW * vL.y)
-		+ x[1] * (vL.y)
-		+ x[2] * (h * (gammaL.yy + 2. * W2 * vL.y * vL.y))
-		+ x[3] * (h * (gammaL.yz + 2. * W2 * vL.y * vL.z))
-		+ x[4] * (hW * vL.y);
-	y[3] = x[0] * (hW * vL.z)
-		+ x[1] * (vL.z)
-		+ x[2] * (h * (gammaL.yz + 2. * W2 * vL.y * vL.z))
-		+ x[3] * (h * (gammaL.zz + 2. * W2 * vL.z * vL.z))
-		+ x[4] * (hW * vL.z);
-	y[4] =x[0] * (hW * ATildeMinus - 1.)
-		+ x[1] * (1. - Kappa / hW)
-		+ x[2] * (W * vL.y * (2. * hW - 1.))
-		+ x[3] * (W * vL.z * (2. * hW - 1.))
-		+ x[4] * (hW * ATildePlus - 1.);
+	Y[0] = X[0]
+		+ X[1] * (Kappa / hW)
+		+ X[2] * (W * vL.y)
+		+ X[3] * (W * vL.z)
+		+ X[4];
+	Y[1] = X[0] * (hW * CMinus)
+		+ X[1] * (vL.x)
+		+ X[2] * (h * (gammaL.xy + 2. * W2 * vL.y * vL.x))
+		+ X[3] * (h * (gammaL.xz + 2. * W2 * vL.x * vL.z))
+		+ X[4] * (hW * CPlus);
+	Y[2] = X[0] * (hW * vL.y)
+		+ X[1] * (vL.y)
+		+ X[2] * (h * (gammaL.yy + 2. * W2 * vL.y * vL.y))
+		+ X[3] * (h * (gammaL.yz + 2. * W2 * vL.y * vL.z))
+		+ X[4] * (hW * vL.y);
+	Y[3] = X[0] * (hW * vL.z)
+		+ X[1] * (vL.z)
+		+ X[2] * (h * (gammaL.yz + 2. * W2 * vL.y * vL.z))
+		+ X[3] * (h * (gammaL.zz + 2. * W2 * vL.z * vL.z))
+		+ X[4] * (hW * vL.z);
+	Y[4] =X[0] * (hW * ATildeMinus - 1.)
+		+ X[1] * (1. - Kappa / hW)
+		+ X[2] * (W * vL.y * (2. * hW - 1.))
+		+ X[3] * (W * vL.z * (2. * hW - 1.))
+		+ X[4] * (hW * ATildePlus - 1.);
 	
 	//rotate outgoing y's x's into side
 	<? if side ~= 0 then ?>
-	real tmp = y[1];
-	y[1] = -y[1+<?=side?>];
-	y[1+<?=side?>] = tmp;
+	real tmp = Y[1];
+	Y[1] = -Y[1+<?=side?>];
+	Y[1+<?=side?>] = tmp;
 	<? end ?>
 }
 
 <?	if solver.checkFluxError then ?>
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* y,
+	<?=addr0?> real* Y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* x_
+	<?=addr2?> const real* X_,
+	real3 x
 ) {
 	//rotate incoming v's in x
 	<? if side==0 then ?>
-	<?=addr2?> const real* x = x_;
+	<?=addr2?> const real* X = X_;
 	<? elseif side == 1 then ?>
-	real x[5] = {x_[0], x_[2], -x_[1], x_[3], x_[4]};
+	real X[5] = {X_[0], X_[2], -X_[1], X_[3], X_[4]};
 	<? elseif side == 2 then ?>
-	real x[5] = {x_[0], x_[3], x_[2], -x_[1], x_[4]};
+	real X[5] = {X_[0], X_[3], X_[2], -X_[1], X_[4]};
 	<? end ?>
 
 	//TODO do the matrix multiply here
 
 	//rotate outgoing y's x's into side
 	<? if side ~= 0 then ?>
-	real tmp = y[1];
-	y[1] = y[1+<?=side?>];
-	y[1+<?=side?>] = tmp;
+	real tmp = Y[1];
+	Y[1] = Y[1+<?=side?>];
+	Y[1+<?=side?>] = tmp;
 	<? end ?>
 }
 <?				end
@@ -375,7 +389,8 @@ kernel void updatePrims(
 	const global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(2,1);
-	
+	real3 x = cell_x(i);
+
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	real D = U->D;
 	real3 S = U->S;
@@ -384,7 +399,7 @@ kernel void updatePrims(
 	global <?=eqn.prim_t?>* prim = primBuf + index;
 	real3 v = prim->v;
 
-	real SLen = metricLen(S);
+	real SLen = coordLen(S, x);
 	real PMin = max(SLen - tau - D + SLen * solvePrimVelEpsilon, solvePrimPMinEpsilon);
 	real PMax = (heatCapacityRatio - 1.) * tau;
 	PMax = max(PMax, PMin);
@@ -405,7 +420,7 @@ kernel void updatePrims(
 		P = newP;
 		if (PError < solvePrimStopEpsilon) {
 			v = real3_scale(S, 1. / (tau + D + P));
-			vSq = metricLenSq(v);
+			vSq = coordLenSq(v, x);
 			W = 1. / sqrt(1. - vSq);
 			rho = D / W;
 			rho = max(rho, (real)rhoMin);
