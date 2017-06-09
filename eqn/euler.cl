@@ -187,7 +187,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 	real invDenom = .5 / (Cs * Cs);
 
-#if 1	//works
+#if 0	//works
 	Y[0] = (X[0] * ((heatCapacityRatio - 1.) * .5 * vSq + Cs_over_sqrt_gUjj * v_n)
 		+ X[1] * -(nx * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.x) 
 		+ X[2] * -(ny * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.y)
@@ -209,32 +209,68 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[4] * (heatCapacityRatio - 1.)
 	) * invDenom;
 #else	//matches math
-	Y[0] = (X[0] * ((heatCapacityRatio - 1.) * .5 * vSq + Cs_over_sqrt_gUjj * v_n)
-		+ X[1] * -(nx * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.x) 
-		+ X[2] * -(ny * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.y)
-		+ X[3] * -(nz * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.z)
-		+ X[4] * (heatCapacityRatio - 1.)
+<? if side == 0 then ?>
+
+//these two blocks of code are identical
+// except the first one stalls the kernel for seconds
+// and the second one is just a mathematical simplification of the first - and works fine
+#if 0
+	real CsSq = Cs * Cs;
+	real sqrt_gUxx = sqrt_gUjj;
+	const real heatRatioMinusOne = heatCapacityRatio - 1.;
+	Y[0] = X[0] * (heatRatioMinusOne * vSq / (4. * CsSq) + v.x / (2. * Cs * sqrt_gUxx))
+		+ X[1] * (-(heatRatioMinusOne * vL.x) / (2. * CsSq) - 1. / (2. * Cs * sqrt_gUxx))
+		+ X[2] * -heatRatioMinusOne * vL.y / (2. * CsSq)
+		+ X[3] * -heatRatioMinusOne * vL.z / (2. * CsSq)
+		+ X[4] * heatRatioMinusOne / (2. * CsSq);
+	Y[1] = X[0] * (1. - heatRatioMinusOne * vSq / (2. * CsSq))
+		+ X[1] * heatRatioMinusOne * vL.x / CsSq
+		+ X[2] * heatRatioMinusOne * vL.y / CsSq
+		+ X[3] * heatRatioMinusOne * vL.z / CsSq
+		+ X[4] * -heatRatioMinusOne / CsSq;
+	Y[2] = X[0] * (v.x * gU.xy / gU.xx - v.y)
+		+ X[1] * -gU.xy / gU.xx
+		+ X[2];
+	Y[3] = X[0] * (v.x * gU.xz / gU.xx - v.z)
+		+ X[1] * -gU.xz / gU.xx
+		+ X[3];
+	Y[4] = X[0] * (heatRatioMinusOne * vSq / (4. * CsSq) - v.x / (2. * Cs * sqrt_gUxx))
+		+ X[1] * (-heatRatioMinusOne * vL.x / (2. * CsSq) + 1. / (2. * Cs * sqrt_gUxx))
+		+ X[2] * -heatRatioMinusOne * vL.y / (2. * CsSq)
+		+ X[3] * -heatRatioMinusOne * vL.z / (2. * CsSq)
+		+ X[4] * heatRatioMinusOne / (2. * CsSq);
+#else	//good
+	real sqrt_gUxx = sqrt_gUjj;
+	const real heatRatioMinusOne = heatCapacityRatio - 1.;
+	Y[0] = (X[0] * (.5 * heatRatioMinusOne * vSq + Cs * v.x / sqrt_gUxx)
+		+ X[1] * (-heatRatioMinusOne * vL.x - Cs / sqrt_gUxx)
+		+ X[2] * -heatRatioMinusOne * vL.y
+		+ X[3] * -heatRatioMinusOne * vL.z
+		+ X[4] * heatRatioMinusOne
 	) * invDenom;
-	Y[1] = (X[0] * (nx * (2.*Cs*Cs - (heatCapacityRatio - 1.) * vSq) + 2.*Cs*Cs*(v_n * gU.xx / gUjj - v.x))
-		+ X[1] * 2 * (heatCapacityRatio - 1.) * vL.x
-		+ X[2] * 2 * (heatCapacityRatio - 1.) * vL.y
-		+ X[3] * 2 * (heatCapacityRatio - 1.) * vL.z
-		+ X[4] * -(heatCapacityRatio - 1.) * 2
+	Y[1] = (X[0] * (2. * Cs * Cs - heatRatioMinusOne * vSq)
+		+ X[1] * 2. * heatRatioMinusOne * vL.x
+		+ X[2] * 2. * heatRatioMinusOne * vL.y
+		+ X[3] * 2. * heatRatioMinusOne * vL.z
+		+ X[4] * -2. * heatRatioMinusOne
 	) * invDenom;
-	Y[2] = X[0] * (ny * (2.*Cs*Cs - (heatCapacityRatio - 1.) * vSq) + 2.*Cs*Cs*(v_n * gU.xy / gUjj - v.y))
-		+ X[1] * n1x 
-		+ X[2] * n1y 
-		+ X[3] * n1z;
-	Y[3] = X[0] * (nz * (2.*Cs*Cs - (heatCapacityRatio - 1.) * vSq) + 2.*Cs*Cs*(v_n * gU.xz / gUjj - v.z))
-		+ X[1] * n2x 
-		+ X[2] * n2y 
-		+ X[3] * n2z;
-	Y[4] = (X[0] * ((heatCapacityRatio - 1.) * .5 * vSq - Cs_over_sqrt_gUjj * v_n) 
-		+ X[1] * (nx * Cs_over_sqrt_gUjj - (heatCapacityRatio - 1.) * vL.x) 
-		+ X[2] * (ny * Cs_over_sqrt_gUjj - (heatCapacityRatio - 1.) * vL.y) 
-		+ X[3] * (nz * Cs_over_sqrt_gUjj - (heatCapacityRatio - 1.) * vL.z) 
-		+ X[4] * (heatCapacityRatio - 1.)
+	Y[2] = X[0] * (v.x * gU.xy / gU.xx - v.y)
+		+ X[1] * -gU.xy / gU.xx
+		+ X[2];
+	Y[3] = X[0] * (v.x * gU.xz / gU.xx - v.z)
+		+ X[1] * -gU.xz / gU.xx
+		+ X[3];
+	Y[4] = (X[0] * (.5 * heatRatioMinusOne * vSq - Cs * v.x / sqrt_gUxx)
+		+ X[1] * (-heatRatioMinusOne * vL.x + Cs / sqrt_gUxx)
+		+ X[2] * -heatRatioMinusOne * vL.y
+		+ X[3] * -heatRatioMinusOne * vL.z
+		+ X[4] * heatRatioMinusOne
 	) * invDenom;
+#endif
+
+<? elseif side == 1 then ?>
+<? elseif side == 2 then ?>
+<? end ?>
 #endif
 }
 
@@ -245,7 +281,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real3 x
 ) {
 	<?=prefix?>
-
+#if 1	//works
 	Y[0] = X[0] + X[1] + X[4];
 	Y[1] = X[0] * (v.x - gUj.x * Cs_over_sqrt_gUjj) 
 		+ X[1] * v.x 
@@ -267,6 +303,26 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[2] * v_n1 
 		+ X[3] * v_n2 
 		+ X[4] * (hTotal + v_n * Cs_over_sqrt_gUjj);
+#else	//math
+	real sqrt_gUxx = sqrt_gUjj;
+	Y[0] = X[0] + X[1] + X[4];
+	Y[1] = X[0] * (v.x - Cs * sqrt_gUxx)
+		+ X[1] * v.x
+		+ X[4] * (v.x + Cs * sqrt_gUxx);
+	Y[2] = X[0] * (v.y - Cs * gU.xy / sqrt_gUxx)
+		+ X[1] * v.y
+		+ X[2]
+		+ X[4] * (v.y + Cs * gU.xy / sqrt_gUxx);
+	Y[3] = X[0] * (v.z - Cs * gU.xz / sqrt_gUxx)
+		+ X[1] * v.z
+		+ X[3]
+		+ X[4] * (v.z + Cs * gU.xz / sqrt_gUxx);
+	Y[4] = X[0] * (hTotal - Cs * v.x / sqrt_gUxx)
+		+ X[1] * vSq / 2.
+		+ X[2] * vL.y
+		+ X[3] * vL.z
+		+ X[4] * (hTotal + Cs * v.x / sqrt_gUxx);
+#endif
 }
 
 <?	if solver.checkFluxError then ?>
