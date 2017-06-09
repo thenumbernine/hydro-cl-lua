@@ -256,7 +256,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--integrator = 'Runge-Kutta 4, non-TVD',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
-		--fluxLimiter = cmdline.fluxLimiter or 'donor cell',
+		--fluxLimiter = 'donor cell',
 
 		--usePLM = true,	-- piecewise-linear slope limiter
 		--slopeLimiter = 'minmod',

@@ -293,7 +293,12 @@ kernel void <?=name?>(
 	int4 dsti = i;
 	
 	real3 x = cell_x(i);
-
+	real3 xInt[<?=solver.dim?>];
+<? for i=0,solver.dim-1 do
+?>	xInt[<?=i?>] = x;
+	xInt[<?=i?>].s<?=i?> -= .5 * grid_dx<?=i?>;
+<? end
+?>
 	//now constrain
 	if (i.x < 2) i.x = 2;
 	if (i.x > gridSize_x - 2) i.x = gridSize_x - 2;

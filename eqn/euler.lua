@@ -217,7 +217,7 @@ function Euler:getDisplayVars()
 		{HTotal = 'value = calc_HTotal(W.P, U.ETotal);'},
 		{hTotal = 'value = calc_hTotal(W.rho, W.P, U.ETotal);'},
 		{['Speed of Sound'] = 'value = calc_Cs(&W);'},
-		{['Mach number'] = 'value = coordLen(W.v) / calc_Cs(&W);'},
+		{['Mach number'] = 'value = coordLen(W.v, x) / calc_Cs(&W);'},
 	}:append( ({
 	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
 	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
@@ -251,7 +251,7 @@ function Euler:getEigenDisplayVars()
 		{vx = 'value = eigen->v.x;'},
 		{vy = 'value = eigen->v.y;'},
 		{vz = 'value = eigen->v.z;'},
-		{v = 'value = coordLen(eigen->v);'},
+		{v = 'value = coordLen(eigen->v, xInt[0]);'},
 		{hTotal = 'value = eigen->hTotal;'},
 		{vSq = 'value = eigen->vSq;'},
 		{Cs = 'value = eigen->Cs;'},

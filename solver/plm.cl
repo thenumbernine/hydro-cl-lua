@@ -16,7 +16,8 @@ kernel void calcLR(
 ) {
 	SETBOUNDS(1,1);
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-	
+	real3 x = cell_x(i);
+
 	//TODO skip this lr stuff if we're doing piecewise-constant
 	//...and just use the original buffers
 	<? for side=0,solver.dim-1 do ?>{
@@ -92,16 +93,21 @@ kernel void calcLR(
 			dUC.ptr[j] = UR->ptr[j] - UL->ptr[j];
 		}
 
+		real3 xIntL = x;
+		xIntL.s<?=side?> -= grid_dx<?=side?>;
+		real3 xIntR = x;
+		xIntR.s<?=side?> += grid_dx<?=side?>;
+
 		//calc eigen values and vectors at cell center
 		<?=eqn.eigen_t?> eig;
-		eigen_forCell_<?=side?>(&eig, U);
+		eigen_forCell_<?=side?>(&eig, U, x);
 		real wave[numWaves];
-		eigen_calcWaves_<?=side?>__(wave, &eig);
+		eigen_calcWaves_<?=side?>__(wave, &eig, x);
 		
 		real dULEig[numWaves], dUREig[numWaves], dUCEig[numWaves];
-		eigen_leftTransform_<?=side?>___(dULEig, &eig, dUL.ptr);
-		eigen_leftTransform_<?=side?>___(dUREig, &eig, dUR.ptr);
-		eigen_leftTransform_<?=side?>___(dUCEig, &eig, dUC.ptr);
+		eigen_leftTransform_<?=side?>___(dULEig, &eig, dUL.ptr, xIntL);
+		eigen_leftTransform_<?=side?>___(dUREig, &eig, dUR.ptr, xIntR);
+		eigen_leftTransform_<?=side?>___(dUCEig, &eig, dUC.ptr, x);
 
 		real dUMEig[numWaves];
 		for (int j = 0; j < numWaves; ++j) {
@@ -130,8 +136,8 @@ kernel void calcLR(
 
 		//convert back
 		<?=eqn.cons_t?> ql, qr;
-		eigen_rightTransform_<?=side?>___(ql.ptr, &eig, pl);
-		eigen_rightTransform_<?=side?>___(qr.ptr, &eig, pr);
+		eigen_rightTransform_<?=side?>___(ql.ptr, &eig, pl, x);
+		eigen_rightTransform_<?=side?>___(qr.ptr, &eig, pr, x);
 		
 		for (int j = 0; j < numStates; ++j) {
 			ULR->L.ptr[j] = U->ptr[j] - qr.ptr[j];
@@ -154,27 +160,25 @@ kernel void calcLR(
 
 		//calc eigen values and vectors at cell center
 		<?=eqn.eigen_t?> eig;
-		eigen_forCell_<?=side?>(&eig, U);
+		eigen_forCell_<?=side?>(&eig, U, x);
 		real wave[numWaves];
-		eigen_calcWaves_<?=side?>__(wave, &eig);
+		eigen_calcWaves_<?=side?>__(wave, &eig, x);
 	
 		//apply dU/dW before applying left/right eigenvectors so the eigenvectors are of the flux wrt primitives 
 		//RW = dW/dU RU, LW = LU dU/dW
 		<?=eqn.cons_t?> tmp;
 
-#error plug in xs.  don't forget to use xl's and xr's where appropriate
-
-		apply_dU_dW(&tmp, &W, &dWL, x);
+		apply_dU_dW(&tmp, &W, &dWL);
 		real dWLEig[numWaves];
-		eigen_leftTransform_<?=side?>___(dWLEig, &eig, tmp.ptr);
+		eigen_leftTransform_<?=side?>___(dWLEig, &eig, tmp.ptr, xIntL);
 		
-		apply_dU_dW(&tmp, &W, &dWR, x);
+		apply_dU_dW(&tmp, &W, &dWR);
 		real dWREig[numWaves];
-		eigen_leftTransform_<?=side?>___(dWREig, &eig, tmp.ptr);
+		eigen_leftTransform_<?=side?>___(dWREig, &eig, tmp.ptr, xIntR);
 		
-		apply_dU_dW(&tmp, &W, &dWC, x);
+		apply_dU_dW(&tmp, &W, &dWC);
 		real dWCEig[numWaves];
-		eigen_leftTransform_<?=side?>___(dWCEig, &eig, tmp.ptr);
+		eigen_leftTransform_<?=side?>___(dWCEig, &eig, tmp.ptr, x);
 
 		real dWMEig[numWaves];
 		for (int j = 0; j < numWaves; ++j) {
@@ -203,13 +207,13 @@ kernel void calcLR(
 
 		//convert back
 		
-		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pl);
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pl, x);
 		<?=eqn.prim_t?> ql;
-		apply_dW_dU(&ql, &W, &tmp, x);
+		apply_dW_dU(&ql, &W, &tmp);
 		
-		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pr);
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pr, x);
 		<?=eqn.prim_t?> qr;
-		apply_dW_dU(&qr, &W, &tmp, x);
+		apply_dW_dU(&qr, &W, &tmp);
 	
 		<?=eqn.prim_t?> W2L, W2R;
 		for (int j = 0; j < numStates; ++j) {

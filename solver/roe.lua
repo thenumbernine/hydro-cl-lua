@@ -138,15 +138,17 @@ function Roe:addConvertToTexs()
 			return {[tostring(i)] = 'value = deltaUEig['..i..'];'}
 		end),
 	}
-	self:addConvertToTex{
-		name = 'rEig',
-		varCodePrefix = [[
+	if self.fluxLimiter[0] > 0 then
+		self:addConvertToTex{
+			name = 'rEig',
+			varCodePrefix = [[
 	const global real* rEig = buf + intindex * numWaves;
 ]],
-		vars = range(0,self.eqn.numWaves-1):map(function(i)
-			return {[tostring(i)] = 'value = rEig['..i..'];'}
-		end),
-	}
+			vars = range(0,self.eqn.numWaves-1):map(function(i)
+				return {[tostring(i)] = 'value = rEig['..i..'];'}
+			end),
+		}
+	end
 	self:addConvertToTex{
 		name = 'flux', 
 		varCodePrefix = [[
