@@ -18,6 +18,11 @@ Features:
 - self-gravitation for Euler equations
 
 TODO:
+- for 2D SRHD, it looks like my W = U.D / prim.rho is drifting from W = 1 / sqrt(1 - prim.v^2)
+- implement eigen-stuff code in SRHD so that PLM can work 
+- get curved coordinates working for MHD
+- 2D MHD seems to have nonzero div B ...
+- get curved coordinates to work in EM
 - why when you run Orszag-Tang in the Maxwell simulator does it explode at different random times? 
 - get two-fluid EMHD working (currently has nans)
 - add HLL / HLLC solvers
@@ -29,10 +34,6 @@ TODO:
 - add GR+HD by taking the SRHD and giving it the metric from GR (adm solver)
 - add EM+SRHD by mixing and matching SRHD and EMHD
 - add EM+GR+HD by winning
-- for 2D SRHD, it looks like my W = U.D / prim.rho is drifting from W = 1 / sqrt(1 - prim.v^2)
-- implement eigen-stuff code in SRHD so that PLM can work 
-- get curved coordinates working for MHD
-- 2D MHD seems to have nonzero div B ...
 
 Minor TODO:
 - get MHD working with Orszag-Tang 2D

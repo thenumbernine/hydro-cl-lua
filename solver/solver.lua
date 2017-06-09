@@ -661,9 +661,9 @@ inline real coordLen(real3 r, real3 x) {
 
 	do
 		local function addSym3Components(name, codes)
-			for i=1,self.dim do
-				for j=i,self.dim do
-					local code = (codes[i] and codes[i][j] and convertParams(codes[i][j]) or '0.')
+			for i=1,3 do
+				for j=i,3 do
+					local code = (codes[i] and codes[i][j] and convertParams(codes[i][j]) or clnumber(i==j and 1 or 0))
 					lines:insert('#define '..name..(i-1)..(j-1)..'(r) '..code)
 					if i ~= j then
 						lines:insert('#define '..name..(j-1)..(i-1)..'(r) '..code)

@@ -151,6 +151,9 @@ typedef union {
 	struct {
 		real xx, xy, xz, yy, yz, zz;
 	};
+	struct {
+		real s00, s01, s02, s11, s12, s22;
+	};
 } sym3;
 ]]
 	ffi.cdef(self.sym3TypeCode)
@@ -240,7 +243,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 1,
+		dim = cmdline.dim or 2,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
@@ -261,7 +264,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--usePLM = true,	-- piecewise-linear slope limiter
 		--slopeLimiter = 'minmod',
 		
-		-- [[ cartesian
+		-- [[ Cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
@@ -348,7 +351,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -372,7 +375,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'self-gravitation test 4',
 		--initState = 'self-gravitation soup',
 		
-		-- those designed for srhd:
+		-- those designed for SRHD:
 		--initState = 'relativistic shock reflection',
 		--initState = 'relativistic blast wave test problem 1',
 		--initState = 'relativistic blast wave test problem 2',
@@ -383,7 +386,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'Orszag-Tang',
 		
 		-- EM:
-		initState = 'Maxwell default',
+		--initState = 'Maxwell default',
 		--initState = 'scattering around cylinder',
 		
 		--initState = 'two-fluid EMHD soliton ion',
@@ -394,7 +397,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	self.solvers = table()
 	
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 
 	-- the same as solver.euler-roe:
@@ -437,7 +440,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card

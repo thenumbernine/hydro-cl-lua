@@ -8,7 +8,7 @@
 	<?=eqn.cons_t?> F;
 	F.rho = U.m.s<?=side?>;
 	F.m = real3_scale(U.m, vj);
-<? for i=0,solver.dim-1 do
+<? for i=0,2 do
 ?>	F.m.s<?=i?> += coord_gU<?=i?><?=side?>(x) * W.P;
 <? end
 ?>	F.ETotal = HTotal * vj;
@@ -156,22 +156,22 @@ for _,addr0 in ipairs{'', 'global'} do
 ]]
 				end
 				prefix = [[
+	sym3 gU = coord_gU(x);
+	real gUjj = gU.s]]..side..side..[[;
+	real sqrt_gUjj = coord_sqrt_gU]]..side..side..[[(x);
+	
 	real3 v = eig->v;
 	real3 vL = coord_lower(v, x);
 	real hTotal = eig->hTotal;
 	real vSq = real3_dot(v, vL);
-	real sqrt_gU = coord_sqrt_gU]]..side..side..[[(x);
 	real Cs = eig->Cs;
-	real Cs_over_sqrt_gU = Cs / sqrt_gU; 
+	real Cs_over_sqrt_gUjj = Cs / sqrt_gUjj; 
 	//g^ij for fixed j=side
 ]] .. prefix
 
 	local gUdef = '\treal3 gUj = _real3(\n'
-	for i=0,solver.dim-1 do
-		gUdef = gUdef .. '\t\tcoord_gU'..side..i..'(x),\n'
-	end
-	for i=solver.dim,2 do
-		gUdef = gUdef .. '\t\t0.'..(i<2 and ',' or '')..'\n'
+	for i=0,2 do
+		gUdef = gUdef .. '\t\tcoord_gU'..side..i..'(x)'..(i<2 and ',' or '')..'\n'
 	end
 	gUdef = gUdef .. '\t);\n'
 	prefix = gUdef .. prefix
@@ -186,10 +186,12 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=prefix?>
 
 	real invDenom = .5 / (Cs * Cs);
-	Y[0] = (X[0] * ((heatCapacityRatio - 1.) * .5 * vSq + Cs * v_n)
-		+ X[1] * -(nx * Cs + (heatCapacityRatio - 1.) * v.x) 
-		+ X[2] * -(ny * Cs + (heatCapacityRatio - 1.) * v.y)
-		+ X[3] * -(nz * Cs + (heatCapacityRatio - 1.) * v.z)
+
+#if 1	//works
+	Y[0] = (X[0] * ((heatCapacityRatio - 1.) * .5 * vSq + Cs_over_sqrt_gUjj * v_n)
+		+ X[1] * -(nx * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.x) 
+		+ X[2] * -(ny * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.y)
+		+ X[3] * -(nz * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.z)
 		+ X[4] * (heatCapacityRatio - 1.)
 	) * invDenom;
 	Y[1] = (X[0] * (2.*Cs*Cs - (heatCapacityRatio - 1.) * vSq)
@@ -200,12 +202,40 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	) * invDenom;
 	Y[2] = X[0] * -v_n1 + X[1] * n1x + X[2] * n1y + X[3] * n1z;
 	Y[3] = X[0] * -v_n2 + X[1] * n2x + X[2] * n2y + X[3] * n2z;
-	Y[4] = (X[0] * ((heatCapacityRatio - 1.) * .5 * vSq - Cs * v_n) 
-		+ X[1] * (nx * Cs - (heatCapacityRatio - 1.) * v.x) 
-		+ X[2] * (ny * Cs - (heatCapacityRatio - 1.) * v.y) 
-		+ X[3] * (nz * Cs - (heatCapacityRatio - 1.) * v.z) 
+	Y[4] = (X[0] * ((heatCapacityRatio - 1.) * .5 * vSq - Cs_over_sqrt_gUjj * v_n) 
+		+ X[1] * (nx * Cs_over_sqrt_gUjj - (heatCapacityRatio - 1.) * vL.x) 
+		+ X[2] * (ny * Cs_over_sqrt_gUjj - (heatCapacityRatio - 1.) * vL.y) 
+		+ X[3] * (nz * Cs_over_sqrt_gUjj - (heatCapacityRatio - 1.) * vL.z) 
 		+ X[4] * (heatCapacityRatio - 1.)
 	) * invDenom;
+#else	//matches math
+	Y[0] = (X[0] * ((heatCapacityRatio - 1.) * .5 * vSq + Cs_over_sqrt_gUjj * v_n)
+		+ X[1] * -(nx * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.x) 
+		+ X[2] * -(ny * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.y)
+		+ X[3] * -(nz * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.z)
+		+ X[4] * (heatCapacityRatio - 1.)
+	) * invDenom;
+	Y[1] = (X[0] * (nx * (2.*Cs*Cs - (heatCapacityRatio - 1.) * vSq) + 2.*Cs*Cs*(v_n * gU.xx / gUjj - v.x))
+		+ X[1] * 2 * (heatCapacityRatio - 1.) * vL.x
+		+ X[2] * 2 * (heatCapacityRatio - 1.) * vL.y
+		+ X[3] * 2 * (heatCapacityRatio - 1.) * vL.z
+		+ X[4] * -(heatCapacityRatio - 1.) * 2
+	) * invDenom;
+	Y[2] = X[0] * (ny * (2.*Cs*Cs - (heatCapacityRatio - 1.) * vSq) + 2.*Cs*Cs*(v_n * gU.xy / gUjj - v.y))
+		+ X[1] * n1x 
+		+ X[2] * n1y 
+		+ X[3] * n1z;
+	Y[3] = X[0] * (nz * (2.*Cs*Cs - (heatCapacityRatio - 1.) * vSq) + 2.*Cs*Cs*(v_n * gU.xz / gUjj - v.z))
+		+ X[1] * n2x 
+		+ X[2] * n2y 
+		+ X[3] * n2z;
+	Y[4] = (X[0] * ((heatCapacityRatio - 1.) * .5 * vSq - Cs_over_sqrt_gUjj * v_n) 
+		+ X[1] * (nx * Cs_over_sqrt_gUjj - (heatCapacityRatio - 1.) * vL.x) 
+		+ X[2] * (ny * Cs_over_sqrt_gUjj - (heatCapacityRatio - 1.) * vL.y) 
+		+ X[3] * (nz * Cs_over_sqrt_gUjj - (heatCapacityRatio - 1.) * vL.z) 
+		+ X[4] * (heatCapacityRatio - 1.)
+	) * invDenom;
+#endif
 }
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
@@ -217,26 +247,26 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=prefix?>
 
 	Y[0] = X[0] + X[1] + X[4];
-	Y[1] = X[0] * (v.x - gUj.x * Cs_over_sqrt_gU) 
+	Y[1] = X[0] * (v.x - gUj.x * Cs_over_sqrt_gUjj) 
 		+ X[1] * v.x 
 		+ X[2] * n1x 
 		+ X[3] * n2x 
-		+ X[4] * (v.x + gUj.x * Cs_over_sqrt_gU);
-	Y[2] = X[0] * (v.y - gUj.y * Cs_over_sqrt_gU) 
+		+ X[4] * (v.x + gUj.x * Cs_over_sqrt_gUjj);
+	Y[2] = X[0] * (v.y - gUj.y * Cs_over_sqrt_gUjj) 
 		+ X[1] * v.y 
 		+ X[2] * n1y 
 		+ X[3] * n2y 
-		+ X[4] * (v.y + gUj.y * Cs_over_sqrt_gU);
-	Y[3] = X[0] * (v.z - gUj.z * Cs_over_sqrt_gU) 
+		+ X[4] * (v.y + gUj.y * Cs_over_sqrt_gUjj);
+	Y[3] = X[0] * (v.z - gUj.z * Cs_over_sqrt_gUjj) 
 		+ X[1] * v.z 
 		+ X[2] * n1z 
 		+ X[3] * n2z 
-		+ X[4] * (v.z + gUj.z * Cs_over_sqrt_gU);
-	Y[4] = X[0] * (hTotal - v_n * Cs_over_sqrt_gU) 
+		+ X[4] * (v.z + gUj.z * Cs_over_sqrt_gUjj);
+	Y[4] = X[0] * (hTotal - v_n * Cs_over_sqrt_gUjj) 
 		+ X[1] * .5 * vSq
 		+ X[2] * v_n1 
 		+ X[3] * v_n2 
-		+ X[4] * (hTotal + v_n * Cs_over_sqrt_gU);
+		+ X[4] * (hTotal + v_n * Cs_over_sqrt_gUjj);
 }
 
 <?	if solver.checkFluxError then ?>
@@ -285,15 +315,18 @@ end
 
 
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxForCons_<?=side?>(<?=eqn.cons_t?> U, real3 x) {
+<?=eqn.cons_t?> fluxForCons_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
 	<?=eqn.prim_t?> W = primFromCons(U, x);
 	real mi = U.m.s<?=side?>;
 	return (<?=eqn.cons_t?>){
 		.rho = mi,
 		.m = (real3){
-			.x = mi * W.v.x<?= side==0 and ' + W.P' or ''?>,
-			.y = mi * W.v.y<?= side==1 and ' + W.P' or ''?>,
-			.z = mi * W.v.z<?= side==2 and ' + W.P' or ''?>,
+			.x = mi * W.v.x + coord_gU0<?=side?>(x) * W.P,
+			.y = mi * W.v.y + coord_gU1<?=side?>(x) * W.P,
+			.z = mi * W.v.z + coord_gU2<?=side?>(x) * W.P,
 		},
 		.ETotal = (U.ETotal + W.P) * W.v.s<?=side?>,
 		.ePot = 0.,

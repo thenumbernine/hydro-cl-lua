@@ -373,7 +373,7 @@ print('gU['..i..']['..j..'] = '..gUijCode)
 		end)
 	end)
 	
-	local sqrt_gU = Tensor('^ab', function(a,b) return symmath.sqrt(gU[a][b]) end)
+	local sqrt_gU = Tensor('^ab', function(a,b) return symmath.sqrt(gU[a][b])() end)
 	self.sqrt_gUCode = range(dim):map(function(i)
 		return range(i,dim):map(function(j)
 			local sqrt_gUijCode = compile(sqrt_gU[i][j])
