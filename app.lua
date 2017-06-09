@@ -240,7 +240,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 2,
+		dim = cmdline.dim or 1,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
@@ -426,7 +426,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))	-- TODO what about removing divergence?
 	
 	-- EM
-	self.solvers:insert(require 'solver.maxwell-roe'(args))
+	--self.solvers:insert(require 'solver.maxwell-roe'(args))
 	--self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
 	
 	-- EM+HD
@@ -437,7 +437,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
+	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card

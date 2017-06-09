@@ -1,6 +1,7 @@
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const global <?=eqn.cons_t?>* U
+	const global <?=eqn.cons_t?>* U,
+	real3 x
 ) {
 	real f = calc_f(U->alpha);
 	real lambda = U->alpha * sqrt(f / U->gamma_xx);
@@ -12,7 +13,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
 	<?=eqn.eigen_t?>* eig,
-	const global <?=eqn.cons_t?>* U
+	const global <?=eqn.cons_t?>* U,
+	real3 x
 ) {
 	real f = calc_f(U->alpha);
 	eig->alpha = U->alpha;
@@ -28,7 +30,8 @@ for _,addr0 in ipairs{'', 'global'} do
 ?>
 void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 	<?=addr0?> real* wave,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
+	real3 x
 ) {
 	real lambda = eig->alpha * eig->sqrt_f_over_gamma_xx;
 	wave[0] = -lambda;
@@ -44,7 +47,8 @@ end
 void eigen_forSide(
 	global <?=eqn.eigen_t?>* eig,
 	global const <?=eqn.cons_t?>* UL,
-	global const <?=eqn.cons_t?>* UR
+	global const <?=eqn.cons_t?>* UR,
+	real3 x
 ) {
 	eig->alpha = .5 * (UL->alpha + UR->alpha);
 	real gamma_xx = .5 * (UL->gamma_xx + UR->gamma_xx);
@@ -58,6 +62,7 @@ kernel void calcEigenBasis(
 	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(2,1);
+	real3 x = cell_x(i);
 	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
@@ -68,10 +73,10 @@ kernel void calcEigenBasis(
 		int intindex = side + dim * index;	
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
-		eigen_forSide(eig, UL, UR);
+		eigen_forSide(eig, UL, UR, x);
 
 		global real* wave = waveBuf + numWaves * intindex;
-		eigen_calcWaves_<?=side?>_global_global(wave, eig);
+		eigen_calcWaves_<?=side?>_global_global(wave, eig, x);
 	}<? end ?>
 }
 
@@ -85,7 +90,8 @@ for _,addr0 in ipairs{'', 'global'} do
 void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* x
+	<?=addr2?> const real* x,
+	real3 unused
 ) {
 	real gamma_xx_over_f = 1. / (eig->sqrt_f_over_gamma_xx * eig->sqrt_f_over_gamma_xx);
 	y[0] = .5 * (x[2] / eig->sqrt_f_over_gamma_xx - x[4]);
@@ -96,7 +102,8 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* x
+	<?=addr2?> const real* x,
+	real3 unused
 ) {
 	y[0] = 0;
 	y[1] = 0;
@@ -109,7 +116,8 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* x
+	<?=addr2?> const real* x,
+	real3 unused
 ) {
 	real f_over_gamma_xx = eig->sqrt_f_over_gamma_xx * eig->sqrt_f_over_gamma_xx;
 	

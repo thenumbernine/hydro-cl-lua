@@ -1,6 +1,7 @@
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const global <?=eqn.cons_t?>* U
+	const global <?=eqn.cons_t?>* U,
+	real3 x
 ) {
 	real f = calc_f(U->alpha);
 	real lambda = U->alpha * sqrt(f / U->gamma_xx);
@@ -15,7 +16,8 @@ for _,addr0 in ipairs{'', 'global'} do
 ?>
 void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 	<?=addr1?> real* wave,
-	const <?=addr0?> <?=eqn.eigen_t?>* eig
+	const <?=addr0?> <?=eqn.eigen_t?>* eig,
+	real3 x
 ) {
 	real lambda = eig->alpha * sqrt(eig->f / eig->gamma_xx);
 	wave[0] = -lambda;
@@ -30,7 +32,8 @@ end
 void eigen_forSide(
 	global <?=eqn.eigen_t?>* eig,
 	const global <?=eqn.cons_t?>* UL,
-	const global <?=eqn.cons_t?>* UR
+	const global <?=eqn.cons_t?>* UR,
+	real3 x
 ) {
 	eig->alpha = .5 * (UL->alpha + UR->alpha);
 	eig->gamma_xx = .5 * (UL->gamma_xx + UR->gamma_xx);
@@ -43,6 +46,7 @@ kernel void calcEigenBasis(
 	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(2,1);
+	real3 x = cell_x(i);
 	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
@@ -52,10 +56,10 @@ kernel void calcEigenBasis(
 		
 		int intindex = side + dim * index;
 		global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
-		eigen_forSide(eig, UL, UR);
+		eigen_forSide(eig, UL, UR, x);
 
 		global real* wave = waveBuf + numWaves * intindex;
-		eigen_calcWaves_<?=side?>_global_global(wave, eig);
+		eigen_calcWaves_<?=side?>_global_global(wave, eig, x);
 	}<? end ?>
 }
 
@@ -69,7 +73,8 @@ for _,addr0 in ipairs{'', 'global'} do
 void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* x
+	<?=addr2?> const real* x,
+	real3 unused
 ) {
 	real sqrt_f = sqrt(eig->f);
 	y[0] = (x[2] / eig->f - x[4] / sqrt_f) / 2.;
@@ -80,7 +85,8 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* x
+	<?=addr2?> const real* x,
+	real3 unused
 ) {
 	y[0] = 0;
 	y[1] = 0;
@@ -93,7 +99,8 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* x
+	<?=addr2?> const real* x,
+	real3 unused
 ) {
 	real alpha_over_sqrt_gamma_xx = eig->alpha / sqrt(eig->gamma_xx);
 	y[0] = 0;
