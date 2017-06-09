@@ -1119,7 +1119,7 @@ function Solver:calcDT()
 end
 
 function Solver:update()
-local before = self.UBufObj:toCPU()
+--local before = self.UBufObj:toCPU()
 --print'\nself.UBufObj before boundary:' self:printBuf(self.UBufObj) print(debug.traceback(),'\n\n')	
 	self:boundary()
 --[[
