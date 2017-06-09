@@ -72,7 +72,8 @@ kernel void calcDT(
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
 	<?=eqn.eigen_t?>* eig,
-	const global <?=eqn.cons_t?>* U
+	const global <?=eqn.cons_t?>* U,
+	real3 x
 ) {
 	
 }

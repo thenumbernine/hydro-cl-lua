@@ -7,6 +7,7 @@ kernel void calcErrors(
 	const global <?=eqn.eigen_t?>* eigenBuf
 ) {
 	SETBOUNDS(0,0);
+	real3 x = cell_x(i);
 
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
@@ -14,9 +15,8 @@ kernel void calcErrors(
 		const global real* wave = waveBuf + numWaves * intindex;
 		const global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
 		
-		real3 intI = _real3(i.x, i.y, i.z);
-		intI.s[side] -= .5;
-		real3 intX = cell_x(intI);
+		real3 xInt = x;
+		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 
 		real orthoError = 0;
 		real fluxError = 0;
@@ -32,10 +32,10 @@ kernel void calcErrors(
 			}
 			
 			real eigenInvCoords[numStates];
-			eigen_rightTransform_<?=side?>__global_(eigenInvCoords, eig, basis, intX);
+			eigen_rightTransform_<?=side?>__global_(eigenInvCoords, eig, basis, xInt);
 		
 			real newbasis[numWaves];
-			eigen_leftTransform_<?=side?>__global_(newbasis, eig, eigenInvCoords, intX);
+			eigen_leftTransform_<?=side?>__global_(newbasis, eig, eigenInvCoords, xInt);
 			
 			for (int j = 0; j < numWaves; ++j) {
 				orthoError += fabs(newbasis[j] - basis[j]);
@@ -49,7 +49,7 @@ kernel void calcErrors(
 			}
 
 			real eigenCoords[numWaves];
-			eigen_leftTransform_<?=side?>__global_(eigenCoords, eig, basis, intX);
+			eigen_leftTransform_<?=side?>__global_(eigenCoords, eig, basis, xInt);
 
 			real eigenScaled[numWaves];
 			for (int j = 0; j < numWaves; ++j) {
@@ -57,10 +57,10 @@ kernel void calcErrors(
 			}
 			
 			real newtransformed[numStates];
-			eigen_rightTransform_<?=side?>__global_(newtransformed, eig, eigenScaled, intX);
+			eigen_rightTransform_<?=side?>__global_(newtransformed, eig, eigenScaled, xInt);
 			
 			real transformed[numStates];
-			eigen_fluxTransform_<?=side?>__global_(transformed, eig, basis, intX);
+			eigen_fluxTransform_<?=side?>__global_(transformed, eig, basis, xInt);
 			
 			for (int j = 0; j < numStates; ++j) {
 				fluxError += fabs(newtransformed[j] - transformed[j]);
@@ -81,14 +81,14 @@ kernel void calcDeltaUEig(
 	const global <?=eqn.eigen_t?>* eigenBuf
 ) {
 	SETBOUNDS(2,1);	
+	real3 x = cell_x(i);
 	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexL = index - stepsize[side];
 		
-		real3 intI = _real3(i.x, i.y, i.z);
-		intI.s[side] -= .5;
-		real3 intX = cell_x(intI);	
+		real3 xInt = x;
+		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 		
 		<?= solver.getULRCode ?>
 
@@ -100,7 +100,7 @@ kernel void calcDeltaUEig(
 		int intindex = side + dim * index;	
 		global real* deltaUEig = deltaUEigBuf + intindex * numWaves;
 		const global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
-		eigen_leftTransform_<?=side?>_global_global_(deltaUEig, eig, deltaU.ptr, intX);
+		eigen_leftTransform_<?=side?>_global_global_(deltaUEig, eig, deltaU.ptr, xInt);
 	}<? end ?>
 }
 
@@ -157,9 +157,8 @@ kernel void calcFlux(
 		real dt_dx = dt / dx<?=side?>_at(i);//grid_dx<?=side?>;
 		int indexL = index - stepsize[side];
 		
-		real3 intI = _real3(i.x, i.y, i.z);
-		intI.s[side] -= .5;
-		real3 intX = cell_x(intI);
+		real3 xInt = xR;
+		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 
 		<?= solver.getULRCode ?>
 		
@@ -172,7 +171,7 @@ kernel void calcFlux(
 		for (int j = 0; j < numStates; ++j) {
 			UAvg.ptr[j] = .5 * (UL->ptr[j] + UR->ptr[j]);
 		}
-		eigen_leftTransform_<?=side?>__global_(fluxEig, eig, UAvg.ptr, intX);
+		eigen_leftTransform_<?=side?>__global_(fluxEig, eig, UAvg.ptr, xInt);
 <? end ?>
 
 		const global real* lambdas = waveBuf + numWaves * intindex;
@@ -204,14 +203,13 @@ kernel void calcFlux(
 		}
 			
 		global <?=eqn.cons_t?>* flux = fluxBuf + intindex;
-		eigen_rightTransform_<?=side?>_global_global_(flux->ptr, eig, fluxEig, intX);
+		eigen_rightTransform_<?=side?>_global_global_(flux->ptr, eig, fluxEig, xInt);
 		
 <? if eqn.hasFluxFromCons then ?>
 		// should the metric evaluation be at the interface, or at the cell center where the state is?
 		//I'll try for the cell centers, so there is consistency with the state variables themselves
-		int3 iL = i;
-		iL.s<?=side?>--;
-		real3 xL = cell_x(iL);
+		real3 xL = xR;
+		xL.s<?=side?> -= grid_dx<?=side?>;
 		
 		<?=eqn.cons_t?> FL = fluxFromCons_<?=side?>(*UL, xL);
 		<?=eqn.cons_t?> FR = fluxFromCons_<?=side?>(*UR, xR);
@@ -220,7 +218,7 @@ kernel void calcFlux(
 		}
 <? end ?>
 
-		real volume = volume_at(intX);
+		real volume = volume_at(xInt);
 
 		//I'm going by Trangenstein's curved-coordinate implementation
 		for (int j = 0; j < numStates; ++j) {
@@ -228,7 +226,7 @@ kernel void calcFlux(
 //if you're using anholonomic normalized vector components
 // on a holonomic grid
 // then you have to incorporate the ratio between basii here:
-//				/ coordHolBasisLen<?=side?>(intX)
+//				/ coordHolBasisLen<?=side?>(xInt)
 //...but it doesn't seem to help ...
 			;
 		}
@@ -247,15 +245,15 @@ kernel void calcDerivFromFlux(
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 	
-		//real3 intIL = _real3(i.x, i.y, i.z);
-		//intIL.s[side] -= .5;
-		//real3 intXL = cell_x(intIL);
-		//real volumeL = volume_at(intXL);
+		//real3 iIntL = _real3(i.x, i.y, i.z);
+		//iIntL.s[side] -= .5;
+		//real3 xIntL = cell_x(iIntL);
+		//real volumeL = volume_at(xIntL);
 		//
-		//real3 intIR = _real3(i.x, i.y, i.z);
-		//intIR.s[side] -= .5;
-		//real3 intXR = cell_x(intIR);
-		//real volumeR = volume_at(intXR);
+		//real3 iIntR = _real3(i.x, i.y, i.z);
+		//iIntR.s[side] -= .5;
+		//real3 xIntR = cell_x(iIntR);
+		//real volumeR = volume_at(xIntR);
 	
 		int intindexL = side + dim * index;
 		int intindexR = intindexL + dim * stepsize[side]; 

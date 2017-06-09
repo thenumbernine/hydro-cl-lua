@@ -19,9 +19,7 @@ Features:
 
 TODO:
 - why when you run Orszag-Tang in the Maxwell simulator does it explode at different random times? 
-- 2D MHD seems to have nonzero div B ...
 - get two-fluid EMHD working (currently has nans)
-- get potential forces for Euler equations working
 - add HLL / HLLC solvers
 - implement Navier-Stokes
 - rename 'adm\_' prefixes to 'nr\_' or 'gr\_' or something else ...
@@ -32,7 +30,9 @@ TODO:
 - add EM+SRHD by mixing and matching SRHD and EMHD
 - add EM+GR+HD by winning
 - for 2D SRHD, it looks like my W = U.D / prim.rho is drifting from W = 1 / sqrt(1 - prim.v^2)
-- add curved coordinate code to SRHD
+- get PLM working in SRHD 
+- get curved coordinates working for MHD
+- 2D MHD seems to have nonzero div B ...
 
 Minor TODO:
 - get MHD working with Orszag-Tang 2D

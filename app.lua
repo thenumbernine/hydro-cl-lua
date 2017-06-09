@@ -348,7 +348,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -379,7 +379,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'relativistic blast wave interaction',
 	
 		-- MHD-only init states: (that use 'b')
-		--initState = 'Brio-Wu',
+		initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
 		-- EM:
 		--initState = 'Maxwell default',
@@ -410,8 +410,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	-- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 	--    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-	self.solvers:insert(require 'solver.srhd-roe'(args))
-	-- not working just yet, still needs some behavior modifications:
+	--self.solvers:insert(require 'solver.srhd-roe'(args))
 	--self.solvers:insert(require 'solver.srhd-roe_implicit_linearized'(args))
 	
 	-- M+HD. 
@@ -423,7 +422,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	-- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 	-- also div B is nonzero.  in fact it's pretty big.
 	--self.solvers:insert(require 'solver.mhd-roe'(args))
-	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))	-- TODO what about removing divergence?
+	self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))	-- TODO what about removing divergence?
 	
 	-- EM
 	--self.solvers:insert(require 'solver.maxwell-roe'(args))

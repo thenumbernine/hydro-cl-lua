@@ -1,6 +1,6 @@
 //use Eqn.hasFluxFromCons to allow the calcFlux function to take advantage of this function
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U) {
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U, real3 x) {
 	<?=eqn.prim_t?> W = primFromCons(U);
 	real vj = W.v.s<?=side?>;
 	real Bj = W.B.s<?=side?>;
@@ -85,23 +85,23 @@ end
 -- rotate 3D vectors of a cons_t into the x-is-fwd plane, and remove the Bx component 
 local function _7to8code(addr,side)
 	return [[
-	]]..eqn.cons_t..[[ xU = *(]]..addr..[[ ]]..eqn.cons_t..[[*)x_;
-	]]..consPutXFwd('xU', side)..[[
-	real x[7] = { xU.rho, xU.m.x, xU.m.y, xU.m.z, xU.ETotal, xU.B.y, xU.B.z }; 
+	]]..eqn.cons_t..[[ XU = *(]]..addr..[[ ]]..eqn.cons_t..[[*)X_;
+	]]..consPutXFwd('XU', side)..[[
+	real X[7] = { XU.rho, XU.m.x, XU.m.y, XU.m.z, XU.ETotal, XU.B.y, XU.B.z }; 
 ]]
 end
 
 -- re-insert Bx=0 and rotate x back to its original direction
 local function _8to7code(addr, side)
 	return [[
-	]]..eqn.cons_t..[[ yU = { 
-		.rho = y[0], 
-		.m = {.x = y[1], .y = y[2], .z = y[3] }, 
-		.ETotal = y[4], 
-		.B = {.x = 0, .y = y[5], .z = y[6] },
+	]]..eqn.cons_t..[[ YU = { 
+		.rho = Y[0], 
+		.m = {.x = Y[1], .y = Y[2], .z = Y[3] }, 
+		.ETotal = Y[4], 
+		.B = {.x = 0, .y = Y[5], .z = Y[6] },
 	};
-	]]..consPutXBack('yU', side)..[[
-	*(]]..addr..[[ ]]..eqn.cons_t..[[*)y = yU;
+	]]..consPutXBack('YU', side)..[[
+	*(]]..addr..[[ ]]..eqn.cons_t..[[*)Y = YU;
 ]]
 end
 ?>
@@ -109,7 +109,8 @@ end
 //called from calcDT
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const global <?=eqn.cons_t?>* U
+	const global <?=eqn.cons_t?>* U,
+	real3 x
 ) {
 	<?=eqn.cons_t?> U_ = *U;
 	<?=consPutXFwd('U_', side)?>
@@ -443,51 +444,54 @@ kernel void calcEigenBasis(
 		for _,addr2 in ipairs{'', 'global'} do
 			for side=0,2 do ?>
 void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* y,
+	<?=addr0?> real* Y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* x_
+	<?=addr2?> const real* X_,
+	real3 x
 ) {
 	<?=_7to8code(addr2,side)?>
 	<?=addr1?> const real* A = eig->evL;
 	for (int i = 0; i < 7; ++i) {
 		real sum = 0;
 		for (int j = 0; j < 7; ++j) {
-			sum += A[i+7*j] * x[j];
+			sum += A[i+7*j] * X[j];
 		}
-		y[i] = sum;
+		Y[i] = sum;
 	}
 }
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* y,
+	<?=addr0?> real* Y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* x
+	<?=addr2?> const real* X,
+	real3 x
 ) {
 	<?=addr1?> const real* A = eig->evR;
 	for (int i = 0; i < 7; ++i) {
 		real sum = 0;
 		for (int j = 0; j < 7; ++j) {
-			sum += A[i+7*j] * x[j];
+			sum += A[i+7*j] * X[j];
 		}
-		y[i] = sum;
+		Y[i] = sum;
 	}
 	<?=_8to7code(addr0, side)?>
 }
 
 <? 				if solver.checkFluxError then ?>
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* y,
+	<?=addr0?> real* Y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* x_
+	<?=addr2?> const real* X_,
+	real3 x
 ) {
 	<?=_7to8code(addr2, side)?>
 	<?=addr1?> const real* A = eig->A;
 	for (int i = 0; i < 7; ++i) {
 		real sum = 0;
 		for (int j = 0; j < 7; ++j) {
-			sum += A[i+7*j] * x[j];
+			sum += A[i+7*j] * X[j];
 		}
-		y[i] = sum;
+		Y[i] = sum;
 	}
 	<?=_8to7code(addr0, side)?>
 }
