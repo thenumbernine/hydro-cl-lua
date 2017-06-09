@@ -95,7 +95,7 @@ function HydroCLApp:initGL(...)
 	-- TODO favor cl_khr_gl_sharing, cl_khr_fp64, cl_khr_3d_image_writes
 	self.env = CLEnv{
 		verbose = true,
-		precision = cmdline.float and 'float' or nil, -- cmd-line override
+		precision = 'double', 	--cmdline.float and 'float' or nil, -- cmd-line override
 	}
 
 	self.is64bit = self.env.real == 'double'
@@ -397,7 +397,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	self.solvers = table()
 	
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 
 	-- the same as solver.euler-roe:
@@ -440,7 +440,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
+	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card

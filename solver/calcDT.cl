@@ -15,12 +15,12 @@ kernel void calcDT(
 	<? for side=0,solver.dim-1 do ?>{
 		//use cell-centered eigenvalues
 		range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(U, x); 
-		lambda.min = min((real)0., lambda.min);
-		lambda.max = max((real)0., lambda.max);
+		lambda.min = (real)min((real)0., lambda.min);
+		lambda.max = (real)max((real)0., lambda.max);
 		// anholonomic normalized
-		//dt = min(dt, (real)dx<?=side?>_at(i) / (fabs(lambda.max - lambda.min) + (real)1e-9));
+		//dt = (real)min(dt, (real)dx<?=side?>_at(i) / (fabs(lambda.max - lambda.min) + (real)1e-9));
 		// holonomic
-		dt = min(dt, (real)grid_dx<?=side?> / (fabs(lambda.max - lambda.min) + (real)1e-9));
+		dt = (real)min((real)dt, (real)(grid_dx<?=side?> / (fabs(lambda.max - lambda.min) + (real)1e-9)));
 	}<? end ?>
 	dtBuf[index] = dt;
 }
