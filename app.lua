@@ -348,7 +348,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -383,7 +383,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'Orszag-Tang',
 		-- EM:
 		--initState = 'Maxwell default',
-		initState = 'scattering around cylinder',
+		--initState = 'scattering around cylinder',
 		
 		--initState = 'two-fluid EMHD soliton ion',
 		--initState = 'two-fluid EMHD soliton electron',
@@ -393,7 +393,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	self.solvers = table()
 	
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 
 	-- the same as solver.euler-roe:
@@ -426,7 +426,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))	-- TODO what about removing divergence?
 	
 	-- EM
-	self.solvers:insert(require 'solver.maxwell-roe'(args))
+	--self.solvers:insert(require 'solver.maxwell-roe'(args))
 	--self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
 	
 	-- EM+HD

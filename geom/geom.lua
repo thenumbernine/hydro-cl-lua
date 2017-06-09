@@ -1,5 +1,55 @@
 --[[
 
+This tells us the coordinate chart for our embedding in nD Cartesian (Euclidian?) geometry.
+There are a few options on how to do this.
+
+1) The Engineer way:
+	Represent our eqn vector coordinates in Cartesian coordinates,
+	use our Geometry to determine the cell volumes, areas, centers, normals, etc.,
+	compute flux in Cartesian coordinates.
+	
+	This seems like the least change from a Cartesian grid, and should be easy to implement:
+	All you have to change is the face normals and the dx values of the finite volume update 
+	and change dx's in any operators of divergence (div B=0 magnetic monopole constraint) and Laplacian (del rho = 4 pi G for gravitation).
+	
+	This treats the problem as if it were made up a rigid grid, i.e. flattening off the curves in cylindrical and treating each cell like a polygon.
+	For that reason, face center positions should probably be calculated as the average of vertices rather than the coordinate intermediate position,
+	otherwise they won't represent the flat geometry and will introduce errors.
+	This misses out on the perk of simulating problems whose components are purely rotational about an origin
+	with much greater accuracy than a Cartesian grid.
+
+2) The Physicist way:
+	Represent our eqn vector coordinates in anholonomic coordinates, normalizing the vector components.
+	Ex. for cylindrical the holonomic basis is e_r = [cos phi, sin phi], e_phi = [-r sin phi, r cos phi], 
+	while the anholonomic normalized basis is only different by e_phiHat = 1/r e_phi = [-sin phi, cos phi].
+	This creates orthonormal basis vectors and creates an identity metric (which means the equations don't have to be changed)
+	but requires keeping track of both the holonomic and anholonomic coordinates,
+	and requires lots of extra changes:
+	Finite volume update requires scaling the flux up by the volume *and* back down by the anholonomic normalization.
+	The dx's should be coordinate based, and therefore not metric-adjusted?
+	The coordinate conversion needs the holonomic basis information still.
+	The centrifugal forces need the anholonomic connections.
+	The grid length and distance calculations need the holonomic connections.
+	It looks like a lot of extra bookkeeping.
+	Buuut the Euler fluid equations at least stay untouched (except the added Coriolis source term)
+		
+	Most sources take that a step further for the Euler fluid equations and say to represent the velocity in covariant form
+	so that the pressure term contribution to the flux needs no rescaling by the holonomic cell volume (while everything else does rescale ... how does the eigen-decomposition represent that?)
+	by making the tensor next to that pressure term a delta^i_j instead of a g^ij.
+	This seems great for a single equation, but might make a Roe implementation problematic if I want to make it flexible. 
+	
+	This also means representing covariant derivatives (divergence and Laplace-Beltrami)
+	with connections / holonomic volume derivatives *with* extra rescaling to the anholonomic basis.
+
+3) The Mathematician way:
+	Represent our eqn vector coordinates as holonomic coordinates.  No normalization.
+	This would mean keeping that g^ij in front of the pressure term, and therefore adjusting the eigen-decomposition of the Euler fluid equations.
+	It would also mean performing our dx's in coordinate space.  No anholonomic readjustments.
+
+	This is like the Physicist way except *without* extra normalization for the holonomic-anholonomic basis exchanges.
+	It is also made to work with a metric, and therefore works easiest when the metric is a dynamic variable (right?  where will the change-in-metric stuff have to go?)
+	Turns out this is similar to the conservative form for relativistic solvers mentioned in papers by Font and company.
+
 TODO
 charts per dimension
 that way every class isn't repeating 1D
@@ -8,7 +58,7 @@ and that way we can have multiple 2D options per-permutation of 3D variables
 places where geometry is used
 
 - the initial conditions ... should params be specified in coordinate chart (r,theta,phi) or basis (x,y,z) ?   ... coordinate chart for now
-- the vector structures -- same question?  coordinate chart 
+- the vector structures -- same question?  coordinate chart
 - the flux
 - the calcDT
 - anything dealing with cell volume or surface
@@ -161,11 +211,16 @@ print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()
 
 	-- code generation
 
+	local coordU = Tensor('^a', function(a) 
+		return var('{v^'..a..'}')
+	end)
 	
 	local toC = require 'symmath.tostring.C'
 	local toC_coordArgs = table.map(baseCoords, function(coord, i)
-		return {[coord] = '{x'..i..'}'}	-- 1-based
-	end)	
+		return {[coord] = '{x^'..i..'}'}	-- 1-based
+	end):append(range(dim):map(function(a)
+		return {[coordU[a]] = coordU[a].name}
+	end))
 	local function compile(expr)
 		local orig = expr	
 		-- replace pow(x,2) with x*x
@@ -253,6 +308,7 @@ print('eCode['..i..']['..j..'] = ' .. tostring(eijCode))
 		end)
 	end)
 	
+--[=[ not being used
 	local eHolLen = range(#eHol):map(function(i)
 		return symmath.sqrt(
 			range(#eHol):map(function(j)
@@ -267,7 +323,6 @@ print('eHolLen['..i..'] = '..eiHolLenCode)
 		return eiHolLenCode
 	end)
 
---[=[ not being used
 	local eExtLen = eExt:map(function(ei,i)
 		return symmath.sqrt(ei:map(function(x) return x^2 end):sum())()
 	end)
@@ -278,8 +333,13 @@ print('eHolLen['..i..'] = '..eiHolLenCode)
 print('eUnitCode = ', tolua(self.eUnitCode, {indent=true}))
 --]=]
 
-	local coordU = Tensor('^a', function(a) return baseCoords[a] end)
-	
+	local lowerExpr = coordU'_a'()
+	self.lowerCodes = range(dim):map(function(i)
+		local lowerCode = compile(lowerExpr[i])
+print('lowerCode['..i..'] = '..lowerCode)
+		return lowerCode
+	end)
+
 	local lenSqExpr = (coordU'^a' * coordU'_a')()
 	self.uLenSqCode = compile(lenSqExpr)
 print('uLenSqCodes = '..self.uLenSqCode)
@@ -312,6 +372,16 @@ print('gU['..i..']['..j..'] = '..gUijCode)
 			return gUijCode, j
 		end)
 	end)
+	
+	local sqrt_gU = Tensor('^ab', function(a,b) return symmath.sqrt(gU[a][b]) end)
+	self.sqrt_gUCode = range(dim):map(function(i)
+		return range(i,dim):map(function(j)
+			local sqrt_gUijCode = compile(sqrt_gU[i][j])
+print('sqrt(gU['..i..']['..j..']) = '..sqrt_gUijCode)
+			return sqrt_gUijCode, j
+		end)
+	end)
+	
 	local volumeExpr = symmath.sqrt(symmath.Matrix.determinant(g))()
 	self.volumeCode = compile(volumeExpr)
 print('volumeCode = '..self.volumeCode)

@@ -22,48 +22,88 @@ local vec3sz = require 'ffi.vec.vec3sz'
 local xs = table{'x', 'y', 'z'}
 local minmaxs = table{'min', 'max'}
 
-local function xs_to_rs(code)
-	return (code:gsub('{x(%d)}', function(i)
-		return 'r.'..xs[i+0]
-	end))
-end
-
-local function xs_to_is(code)
-	return (code:gsub('{x(%d)}', function(i)
-		return 'cell_x'..(i-1)..'(i.'..xs[i+0]..')'
-	end))
+local function convertParams(code)
+	code = code:gsub('{x^(%d)}', function(i)
+		return 'x.'..xs[i+0]
+	end)
+	code = code:gsub('{v^(%d)}', function(i)
+		return 'v.'..xs[i+0]
+	end)
+	return code
 end
 
 local function getCode_real3_to_real(name, code)
-	return 'inline real '..name..'(real3 r) { return '..xs_to_rs(code)..'; }'
+	return template([[
+inline real <?=name?>(real3 x) {
+	return <?=code?>;
+}]], {
+		name = name,
+		code = convertParams(code),
+	})
 end
 
+-- f(x) where x is a point in the coordinate chart
 local function getCode_real3_to_real3(name, exprs)
-	return 'inline real3 '..name..'(real3 r) { return _real3('
-		..range(3):map(function(i)
-			return xs_to_rs(exprs[i])
-		end):concat', '..'); }'
+	return template([[
+inline real3 <?=name?>(real3 x) {
+	return _real3(
+<? for i=1,3 do
+?>		<?=exprs[i] and convertParams(exprs[i]) or '0.'
+		?><?=i==3 and '' or ','?>
+<? end
+?>	);
+}]], {
+		name = name,
+		exprs = exprs,
+		convertParams = convertParams,
+	})
 end
 
-local function getCode_define_i3_to_real3(name, codes)
-	return '#define '..name..'(i) _real3('
-		..codes:map(function(code,i)
-			for j=1,3 do
-				code = code:gsub('{x'..j..'}', 'cell_x'..(j-1)..'(i.'..xs[j]..')')
-			end
-			return code
-		end):concat', '..')'
+-- f(v,x) where x is a point on the coordinate chart and v is most likely a tensor
+local function getCode_real3_real3_to_real(name, expr)
+	return template([[
+inline real <?=name?>(real3 v, real3 x) {
+	return <?=convertParams(expr)?>;
+}]], {
+		name = name,
+		expr = expr,
+		convertParams = convertParams,
+	})
+end
+
+local function getCode_real3_real3_to_real3(name, exprs)
+	return template([[
+inline real3 <?=name?>(real3 v, real3 x) {
+	return _real3(
+<? for i=1,3 do
+?>		<?=exprs[i] and convertParams(exprs[i]) or '0.'
+		?><?=i==3 and '' or ','?>
+<? end
+?>	);
+}]], {
+		name = name,
+		exprs = exprs,
+		convertParams = convertParams,
+	})
 end
 
 local function getCode_real3_to_sym3(name, exprs)
-	return 'inline sym3 '..name..'(real3 r) {\n\treturn (sym3){\n'
-		.. range(3):map(function(i)
-			return range(i,3):map(function(j)
-				return '\t\t.'..xs[i]..xs[j]..' = ' 
-					.. (exprs[i] and exprs[i][j] or '0.') .. ','
-			end):concat'\n'
-		end):concat'\n'
-		..'\n\t};\n}'
+	return template([[
+inline sym3 <?=name?>(real3 x) {
+	return (sym3){
+<? for i=1,3 do
+	for j=i,3 do
+?>		.<?=xs[i]..xs[j]?> = <?=exprs[i] and exprs[i][j] 
+			and convertParams(exprs[i][j]) or '0.'?>,
+<?	end
+end
+?>	};
+}]], {
+		xs = xs,
+		name = name,
+		exprs = exprs,
+		convertParams = convertParams,
+	})
 end
 
 local Solver = class()
@@ -174,7 +214,7 @@ end
 function Solver:getCoordMapCode()
 	return table{
 		getCode_real3_to_real3('coordMap', range(3):map(function(i)
-			return self.geometry.uCode[i] or '{x'..i..'}'
+			return self.geometry.uCode[i] or '{x^'..(i-1)..'}'
 		end)),
 	}:concat'\n'
 end
@@ -252,6 +292,8 @@ kernel void <?=name?>(
 	int dstindex = index;
 	int4 dsti = i;
 	
+	real3 x = cell_x(i);
+
 	//now constrain
 	if (i.x < 2) i.x = 2;
 	if (i.x > gridSize_x - 2) i.x = gridSize_x - 2;
@@ -519,13 +561,35 @@ function Solver:createCodePrefix()
 		'constant int4 stepsize = (int4)(1, gridSize_x, gridSize_x * gridSize_y, gridSize_x * gridSize_y * gridSize_z);',
 		'#define INDEX(a,b,c)	((a) + gridSize_x * ((b) + gridSize_y * (c)))',
 		'#define INDEXV(i)		indexForInt4ForSize(i, gridSize_x, gridSize_y, gridSize_z)',
+	
+	--[[
+	naming conventions ...
+	* the grid indexes i_1..i_n that span 1 through gridSize_1..gridSize_n
+	(between the index and the coordinate space:)
+		- grid_dx? is the change in coordinate space wrt the change in grid space
+		- cell_x(i) calculates the coordinates at index i
+	* the coordinates space x_1..x_n that spans mins.s1..maxs.sn
+	(between the coordinate and the embedded space:)
+		- vectors can be calculated from Cartesian by cartesianToCoord
+		- the length of the basis vectors wrt the change in indexes is given by dx?_at(x)
+		- the Cartesian length of the holonomic basis vectors is given by coordHolBasisLen.  
+			This is like dx?_at except not scaled by grid_dx?
+			This is just the change in embedded wrt the change in coordinate, not wrt the change in grid
+		- volume_at(x) gives the volume between indexes at the coordinate x
+		- the Cartesian length of a vector in coordinate space is given by coordLen and coordLenSq
+	* the embedded Cartesian space ... idk what letters I should use for this.  
+		Some literature uses x^I vs coordinate space x^a, but that's still an 'x', no good for programming.
+		Maybe I'll use 'xc' vs 'x', like I've already started to do in the initial conditions.
+	--]]
+	
 	}:append(range(3):map(function(i)
+	-- this is the change in coordinate wrt the change in code
 	-- delta in coordinate space along one grid cell
 		return (('#define grid_dx{i} ((maxs_{x} - mins_{x}) / (real)(gridSize_{x} - '..(2*self.numGhost)..'))')
 			:gsub('{i}', i-1)
 			:gsub('{x}', xs[i]))
 	end)):append(range(3):map(function(i)
-	-- mapping from cell index space to coordinate space	
+	-- mapping from index to coordinate 
 		return (('#define cell_x{i}(i) ((real)(i + '..clnumber(.5-self.numGhost)..') * grid_dx{i} + mins_'..xs[i]..')')
 			:gsub('{i}', i-1))
 	end)):append{
@@ -550,11 +614,12 @@ function Solver:createCodePrefix()
 	}
 
 	-- dx0, ...
+	-- this is the change in cartesian wrt the change in grid
 	lines:append(range(self.dim):map(function(i)
 		local code = self.geometry.dxCodes[i]
 		for j=1,3 do
 			code = code:gsub(
-				'{x'..j..'}',
+				'{x^'..j..'}',
 				'cell_x'..(j-1)..'(i.'..xs[j]..')')
 		end
 		return '#define dx'..(i-1)..'_at(i) (grid_dx'..(i-1)..' * ('..code..'))'
@@ -568,32 +633,60 @@ function Solver:createCodePrefix()
 	lines:insert(getCode_real3_to_real('volume_at', volumeCode))
 	
 	-- coord len code: l(v) = v^i v^j g_ij
+	print('uLenSqCode')
 	lines:append{
-		getCode_real3_to_real('coordLenSq', self.geometry.uLenSqCode),
-		'inline real coordLen(real3 r) { return sqrt(coordLenSq(r)); }',
+		getCode_real3_real3_to_real('coordLenSq', self.geometry.uLenSqCode),
+		[[
+inline real coordLen(real3 r, real3 x) {
+	return sqrt(coordLenSq(r, x));
+}]],
 	}
-
+	
+	--[[
 	for i=0,self.dim-1 do
 		lines:insert(getCode_real3_to_real('coordHolBasisLen'..i, self.geometry.eHolLenCode[i+1]))
 	end
+	--]]
 
 	for i,eiCode in ipairs(self.geometry.eCode) do
 		lines:insert(getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
 	end
 
-	lines:insert(getCode_real3_to_sym3('coord_g', self.geometry.gCode))
-	lines:insert(getCode_real3_to_sym3('coord_gU', self.geometry.gUCode))
+	lines:insert(getCode_real3_real3_to_real3('coord_lower', self.geometry.lowerCodes))
+
+	do
+		local function addSym3Components(name, codes)
+			for i=1,self.dim do
+				for j=i,self.dim do
+					local code = (codes[i] and codes[i][j] and convertParams(codes[i][j]) or '0.')
+					lines:insert('#define '..name..(i-1)..(j-1)..'(r) '..code)
+					if i ~= j then
+						lines:insert('#define '..name..(j-1)..(i-1)..'(r) '..code)
+					end
+				end
+			end
+		end
+		
+		addSym3Components('coord_g', self.geometry.gCode)
+		addSym3Components('coord_gU', self.geometry.gUCode)
+		addSym3Components('coord_sqrt_gU', self.geometry.sqrt_gUCode)
+		lines:insert(getCode_real3_to_sym3('coord_g', self.geometry.gCode))
+		lines:insert(getCode_real3_to_sym3('coord_gU', self.geometry.gUCode))
+	end
 
 	lines:insert(template([[
 
-//converts a vector from cartesian coordinates to anholonomic normalized grid coordinates
+//converts a vector from cartesian coordinates to grid coordinates
 //by projecting the vector into the grid basis vectors 
 //at x, which is in grid coordinates
-real3 cartesianToGrid(real3 v, real3 x) {
+real3 cartesianToCoord(real3 v, real3 x) {
 	real3 vCoord;
 	<? for i=0,solver.dim-1 do ?>{
 		real3 e = coordBasis<?=i?>(x);
-		vCoord.s<?=i?> = real3_dot(e, v) / real3_len(e);
+		//anholonomic normalized
+		//vCoord.s<?=i?> = real3_dot(e, v) / real3_len(e);
+		//holonomic
+		vCoord.s<?=i?> = real3_dot(e, v) / real3_lenSq(e);
 	}<? end
 	for i=solver.dim,2 do ?>
 	vCoord.s<?=i?> = 0.;

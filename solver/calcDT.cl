@@ -7,15 +7,20 @@ kernel void calcDT(
 		dtBuf[index] = INFINITY;
 		return;
 	}
-		
+	real3 x = cell_x(i);
+
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
-		range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(U); 
+		//use cell-centered eigenvalues
+		range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(U, x); 
 		lambda.min = min((real)0., lambda.min);
 		lambda.max = max((real)0., lambda.max);
-		dt = min(dt, (real)dx<?=side?>_at(i) / (fabs(lambda.max - lambda.min) + (real)1e-9));
+		// anholonomic normalized
+		//dt = min(dt, (real)dx<?=side?>_at(i) / (fabs(lambda.max - lambda.min) + (real)1e-9));
+		// holonomic
+		dt = min(dt, (real)grid_dx<?=side?> / (fabs(lambda.max - lambda.min) + (real)1e-9));
 	}<? end ?>
 	dtBuf[index] = dt;
 }

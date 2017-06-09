@@ -68,23 +68,23 @@ inline real calc_H(real P) { return P * (heatCapacityRatio / (heatCapacityRatio 
 inline real calc_h(real rho, real P) { return calc_H(P) / rho; }
 inline real calc_hTotal(real rho, real P, real ETotal) { return (P + ETotal) / rho; }
 inline real calc_HTotal(real P, real ETotal) { return P + ETotal; }
-inline real calc_eKin(<?=eqn.prim_t?> W) { return .5 * coordLenSq(W.v); }
-inline real calc_EKin(<?=eqn.prim_t?> W) { return W.rho * calc_eKin(W); }
+inline real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
+inline real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
 inline real calc_EInt(<?=eqn.prim_t?> W) { return W.P / (heatCapacityRatio - 1.); }
 inline real calc_eInt(<?=eqn.prim_t?> W) { return calc_EInt(W) / W.rho; }
-inline real calc_EKin_fromCons(<?=eqn.cons_t?> U) { return .5 * coordLenSq(U.m) / U.rho; }
-inline real calc_ETotal(<?=eqn.prim_t?> W) {
+inline real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.m, x) / U.rho; }
+inline real calc_ETotal(<?=eqn.prim_t?> W, real3 x) {
 	real EPot = W.rho * W.ePot;
-	return calc_EKin(W) + calc_EInt(W) + EPot;
+	return calc_EKin(W, x) + calc_EInt(W) + EPot;
 }
 
 inline real calc_Cs(const <?=eqn.prim_t?>* W) {
 	return sqrt(heatCapacityRatio * W->P / W->rho);
 }
 
-inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U) {
+inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 	real EPot = U.rho * U.ePot;
-	real EKin = calc_EKin_fromCons(U);
+	real EKin = calc_EKin_fromCons(U, x);
 	real EInt = U.ETotal - EPot - EKin;
 	return (<?=eqn.prim_t?>){
 		.rho = U.rho,
@@ -94,11 +94,11 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U) {
 	};
 }
 
-<?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W) {
+<?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
 		.rho = W.rho,
 		.m = real3_scale(W.v, W.rho),
-		.ETotal = calc_ETotal(W),
+		.ETotal = calc_ETotal(W, x),
 		.ePot = W.ePot,
 	};
 }
@@ -138,15 +138,14 @@ kernel void initState(
 
 ]]..code..[[
 
-	//v's are vectors which need to be transformed from cartesian to our geometry
 
 	<?=eqn.prim_t?> W = {
 		.rho = rho,
-		.v = cartesianToGrid(v, x),
+		.v = cartesianToCoord(v, x),	//transform from cartesian to coordinate space 
 		.P = P,
 		.ePot = ePot,
 	};
-	UBuf[index] = consFromPrim(W);
+	UBuf[index] = consFromPrim(W, x);
 }
 ]], {
 		eqn = self,
@@ -160,7 +159,7 @@ end
 function Euler:getDisplayVarCodePrefix()
 	return template([[
 	<?=eqn.cons_t?> U = buf[index];
-	<?=eqn.prim_t?> W = primFromCons(U);
+	<?=eqn.prim_t?> W = primFromCons(U, x);
 ]], {
 	eqn = self,
 })
@@ -198,18 +197,18 @@ function Euler:getDisplayVars()
 		{vx = 'value = W.v.x;'},
 		{vy = 'value = W.v.y;'},
 		{vz = 'value = W.v.z;'},
-		{v = 'value = coordLen(W.v);'},
+		{v = 'value = coordLen(W.v, x);'},
 		{mx = 'value = U.m.x;'},
 		{my = 'value = U.m.y;'},
 		{mz = 'value = U.m.z;'},
-		{m = 'value = coordLen(U.m);'},
+		{m = 'value = coordLen(U.m, x);'},
 		{P = 'value = W.P;'},
 		{eInt = 'value = calc_eInt(W);'},
-		{eKin = 'value = calc_eKin(W);'},
+		{eKin = 'value = calc_eKin(W, x);'},
 		{ePot = 'value = U.ePot;'},
 		{eTotal = 'value = U.ETotal / W.rho;'},
 		{EInt = 'value = calc_EInt(W);'},
-		{EKin = 'value = calc_EKin(W);'},
+		{EKin = 'value = calc_EKin(W, x);'},
 		{EPot = 'value = U.rho * U.ePot;'},
 		{ETotal = 'value = U.ETotal;'},
 		{S = 'value = W.P / pow(W.rho, (real)heatCapacityRatio);'},

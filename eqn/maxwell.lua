@@ -44,14 +44,14 @@ function Maxwell:getCodePrefix()
 //hmm, for E and B, even if the coord is 2D, we need all 3D components ...
 //this means we need coordLen functions with guaranteed dimensions, including tangent spaces
 
-real ESq(<?=eqn.cons_t?> U) { 
-	//return coordLenSq(U.epsE) / (U.eps * U.eps);
-	return real3_lenSq(U.epsE) / (U.eps * U.eps);
+real ESq(<?=eqn.cons_t?> U, real3 x) { 
+	//return coordLenSq(U.epsE, x) / (U.eps * U.eps);
+	return real3_lenSq(U.epsE, x) / (U.eps * U.eps);
 }
 
-real BSq(<?=eqn.cons_t?> U) {
-	//return coordLenSq(U.B);
-	return real3_lenSq(U.B);
+real BSq(<?=eqn.cons_t?> U, real3 x) {
+	//return coordLenSq(U.B, x);
+	return real3_lenSq(U.B, x);
 }
 ]], {
 	eqn = self,
@@ -115,11 +115,11 @@ function Maxwell:getDisplayVars()
 		{Ex = 'value = U->epsE.x / U->eps;'},
 		{Ey = 'value = U->epsE.y / U->eps;'},
 		{Ez = 'value = U->epsE.z / U->eps;'},
-		{E = 'value = sqrt(ESq(*U));'},
+		{E = 'value = sqrt(ESq(*U, x));'},
 		{Bx = 'value = U->B.x;'},
 		{By = 'value = U->B.y;'},
 		{Bz = 'value = U->B.z;'},
-		{B = 'value = sqrt(BSq(*U));'},
+		{B = 'value = sqrt(BSq(*U, x));'},
 		{energy = [[
 	//value = .5 * (coordLen(U->epsE) + coordLen(U->B) / U->mu);
 	value = .5 * (real3_len(U->epsE) + real3_len(U->B) / U->mu);
