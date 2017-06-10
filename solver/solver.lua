@@ -213,7 +213,7 @@ end
 function Solver:getCoordMapCode()
 	return table{
 		getCode_real3_to_real3('coordMap', range(3):map(function(i)
-			return self.geometry.uCode[i] or '{x^'..(i-1)..'}'
+			return self.geometry.uCode[i] or '{x^'..i..'}'
 		end)),
 	}:concat'\n'
 end

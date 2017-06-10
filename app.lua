@@ -264,7 +264,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--usePLM = true,	-- piecewise-linear slope limiter
 		--slopeLimiter = 'minmod',
 		
-		-- [[ Cartesian
+		--[[ Cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
@@ -282,7 +282,7 @@ real sym3_dot(sym3 a, sym3 b) {
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
-		--[[ cylinder
+		-- [[ cylinder
 		geometry = 'cylinder',
 		mins = cmdline.mins or {0, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},

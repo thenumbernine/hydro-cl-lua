@@ -505,6 +505,9 @@ void eigen_forCell_<?=side?>(
 }
 <? end ?>
 
+//TODO where does potential energy belong in this Jacobian?
+// does it belong here at all?
+
 //U = output
 //WA = W components that make up the jacobian matrix
 //W = input
@@ -523,8 +526,9 @@ void apply_dU_dW(
 			real3_scale(W->v, WA->rho)),
 		.ETotal = W->rho * .5 * real3_dot(WA->v, WA_vL) 
 			+ WA->rho * real3_dot(W->v, WA_vL)
-			+ W->P / (heatCapacityRatio - 1.) 
-			+ W->ePot,
+			+ W->P / (heatCapacityRatio - 1.),
+			+ WA->rho * W->ePot,
+		.ePot = W->ePot,
 	};
 }
 
@@ -545,9 +549,10 @@ void apply_dW_dU(
 			real3_scale(U->m, 1. / WA->rho),
 			real3_scale(WA->v, U->rho / WA->rho)),
 		.P = (heatCapacityRatio - 1.) * (
-			U->ETotal 
-			+ .5 * real3_dot(WA->v, WA_vL) * U->rho 
+			.5 * real3_dot(WA->v, WA_vL) * U->rho 
 			- real3_dot(U->m, WA_vL)
-			- U->ePot),
+			+ U->ETotal 
+			- WA->rho * U->ePot),
+		.ePot = U->ePot,
 	};
 }
