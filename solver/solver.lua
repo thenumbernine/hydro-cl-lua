@@ -9,7 +9,6 @@ local file = require 'ext.file'
 local math = require 'ext.math'
 local vec3 = require 'vec.vec3'
 local CLImageGL = require 'cl.imagegl'
-local CLProgram = require 'cl.program'
 local CLBuffer = require 'cl.obj.buffer'
 local GLTex2D = require 'gl.tex2d'
 local GLTex3D = require 'gl.tex3d'
@@ -715,8 +714,8 @@ real3 cartesianToCoord(real3 v, real3 x) {
 
 	self.codePrefix = lines:concat'\n'
 
-print'solver.codePrefix:'
-print(self.codePrefix)
+--print'solver.codePrefix:'
+--print(self.codePrefix)
 end
 
 function Solver:refreshInitStateProgram()
@@ -725,7 +724,7 @@ function Solver:refreshInitStateProgram()
 		self.codePrefix,
 		self.eqn:getInitStateCode(),
 	}:concat'\n'
-	self.initStateProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=initStateCode}
+	self.initStateProgram = self.app.ctx:program{devices={self.app.device}, code=initStateCode}
 	self.initStateKernel = self.initStateProgram:kernel('initState', self.UBuf)
 end
 
@@ -765,7 +764,7 @@ kernel void multAdd(
 ]],
 	}:concat'\n'
 
-	self.commonProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=commonCode}
+	self.commonProgram = self.app.ctx:program{devices={self.app.device}, code=commonCode}
 
 	-- used by the integrators
 	self.multAddKernel = self.commonProgram:kernel'multAdd'
@@ -840,7 +839,23 @@ function Solver:refreshSolverProgram()
 
 	local code = self:getSolverCode()
 	
-	self.solverProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code}
+	self.solverProgram = self.app.ctx:program{devices={self.app.device}, code=code}
+
+--[[ trying to find out what causes stalls on certain kernels
+do
+	local cl = require 'ffi.OpenCL'
+	
+	local size = ffi.new('size_t[1]', 0)
+	local err = cl.clGetProgramInfo(self.solverProgram.id, cl.CL_PROGRAM_BINARY_SIZES, ffi.sizeof(size), size, nil)
+	if err ~= cl.CL_SUCCESS then error"failed to get binary size" end
+print('size',size[0])
+
+	local binary = ffi.new('char[?]', size[0])
+	local err = cl.clGetProgramInfo(self.solverProgram.id, cl.CL_PROGRAM_BINARIES, size[0], binary, nil)
+	if err ~= cl.CL_SUCCESS then error("failed to get binary: "..err) end
+file['solverProgram.bin'] = ffi.string(binary, size[0])
+end
+--]]
 
 	self:refreshCalcDTKernel()
 
@@ -918,7 +933,7 @@ function Solver:refreshDisplayProgram()
 	end
 
 	local code = lines:concat'\n'
-	self.displayProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code}
+	self.displayProgram = self.app.ctx:program{devices={self.app.device}, code=code}
 
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do
@@ -1055,7 +1070,7 @@ kernel void boundary(
 
 	local code = lines:concat'\n'
 
-	local boundaryProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code} 
+	local boundaryProgram = self.app.ctx:program{devices={self.app.device}, code=code} 
 	local boundaryKernel = boundaryProgram:kernel'boundary'
 	return boundaryProgram, boundaryKernel
 end

@@ -185,9 +185,10 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 ) { 
 	<?=prefix?>
 
-	real invDenom = .5 / (Cs * Cs);
+	real denom = 2. * Cs * Cs;
+	real invDenom = 1. / denom;
 
-#if 0	//works
+#if 0	//works but isn't correct for curved space
 	Y[0] = (X[0] * ((heatCapacityRatio - 1.) * .5 * vSq + Cs_over_sqrt_gUjj * v_n)
 		+ X[1] * -(nx * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.x) 
 		+ X[2] * -(ny * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.y)
@@ -209,12 +210,12 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[4] * (heatCapacityRatio - 1.)
 	) * invDenom;
 #else	//matches math
-<? if side == 0 then ?>
 
 //these two blocks of code are identical
 // except the first one stalls the kernel for seconds
 // and the second one is just a mathematical simplification of the first - and works fine
 #if 0
+<? if side == 0 then ?>
 	real CsSq = Cs * Cs;
 	real sqrt_gUxx = sqrt_gUjj;
 	const real heatRatioMinusOne = heatCapacityRatio - 1.;
@@ -239,16 +240,20 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[2] * -heatRatioMinusOne * vL.y / (2. * CsSq)
 		+ X[3] * -heatRatioMinusOne * vL.z / (2. * CsSq)
 		+ X[4] * heatRatioMinusOne / (2. * CsSq);
+<? elseif side == 1 then ?>
+<? elseif side == 2 then ?>
+<? end ?>
 #else	//good
-	real sqrt_gUxx = sqrt_gUjj;
 	const real heatRatioMinusOne = heatCapacityRatio - 1.;
+<? if side == 0 then ?>
+	real sqrt_gUxx = sqrt_gUjj;
 	Y[0] = (X[0] * (.5 * heatRatioMinusOne * vSq + Cs * v.x / sqrt_gUxx)
 		+ X[1] * (-heatRatioMinusOne * vL.x - Cs / sqrt_gUxx)
 		+ X[2] * -heatRatioMinusOne * vL.y
 		+ X[3] * -heatRatioMinusOne * vL.z
 		+ X[4] * heatRatioMinusOne
 	) * invDenom;
-	Y[1] = (X[0] * (2. * Cs * Cs - heatRatioMinusOne * vSq)
+	Y[1] = (X[0] * (denom - heatRatioMinusOne * vSq)
 		+ X[1] * 2. * heatRatioMinusOne * vL.x
 		+ X[2] * 2. * heatRatioMinusOne * vL.y
 		+ X[3] * 2. * heatRatioMinusOne * vL.z
@@ -266,11 +271,61 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[3] * -heatRatioMinusOne * vL.z
 		+ X[4] * heatRatioMinusOne
 	) * invDenom;
+<? elseif side == 1 then ?>
+	real sqrt_gUyy = sqrt_gUjj;
+	Y[0] = (X[0] * (.5 * heatRatioMinusOne * vSq + Cs * v.y / sqrt_gUyy)
+		+ X[1] * -heatRatioMinusOne * vL.x
+		+ X[2] * (-heatRatioMinusOne * vL.y - Cs / sqrt_gUyy)
+		+ X[3] * -heatRatioMinusOne * vL.z
+		+ X[4] * heatRatioMinusOne
+	) * invDenom;
+	Y[1] = X[0] * (v.y * gU.xy / gU.yy - v.x)
+		+ X[1]
+		+ X[2] * -gU.xy / gU.yy;
+	Y[2] = (X[0] * (denom - heatRatioMinusOne * vSq)
+		+ X[1] * 2. * heatRatioMinusOne * vL.x
+		+ X[2] * 2. * heatRatioMinusOne * vL.y
+		+ X[3] * 2. * heatRatioMinusOne * vL.z
+		+ X[4] * -2. * heatRatioMinusOne
+	) * invDenom;
+	Y[3] = X[0] * (v.y * gU.yz / gU.yy - v.z)
+		+ X[2] * -gU.yz / gU.yy
+		+ X[3];
+	Y[4] = (X[0] * (.5 * heatRatioMinusOne * vSq - Cs * v.y / sqrt_gUyy)
+		+ X[1] * -heatRatioMinusOne * vL.x
+		+ X[2] * (-heatRatioMinusOne * vL.y + Cs / sqrt_gUyy)
+		+ X[3] * -heatRatioMinusOne * vL.z
+		+ X[4] * heatRatioMinusOne
+	) * invDenom;
+<? elseif side == 2 then ?>
+	real sqrt_gUzz = sqrt_gUjj;
+	Y[0] = (X[0] * (.5 * heatRatioMinusOne * vSq + Cs * v.z / sqrt_gUzz)
+		+ X[1] * -heatRatioMinusOne * vL.x
+		+ X[2] * -heatRatioMinusOne * vL.y
+		+ X[3] * (-heatRatioMinusOne * vL.z - Cs / sqrt_gUzz)
+		+ X[4] * heatRatioMinusOne
+	) * invDenom;
+	Y[1] = X[0] * (v.z * gU.xz / gU.zz - v.x)
+		+ X[1]
+		+ X[3] * -gU.xz / gU.zz;
+	Y[2] = X[0] * (v.z * gU.yz / gU.zz - v.y)
+		+ X[2]
+		+ X[3] * -gU.yz / gU.zz;
+	Y[3] = (X[0] * (denom - heatRatioMinusOne * vSq)
+		+ X[1] * 2. * heatRatioMinusOne * vL.x
+		+ X[2] * 2. * heatRatioMinusOne * vL.y
+		+ X[3] * 2. * heatRatioMinusOne * vL.z
+		+ X[4] * -2. * heatRatioMinusOne
+	) * invDenom;
+	Y[4] = (X[0] * (.5 * heatRatioMinusOne * vSq - Cs * v.z / sqrt_gUzz)
+		+ X[1] * -heatRatioMinusOne * vL.x
+		+ X[2] * -heatRatioMinusOne * vL.y
+		+ X[3] * (-heatRatioMinusOne * vL.z + Cs / sqrt_gUzz)
+		+ X[4] * heatRatioMinusOne
+	) * invDenom;
+<? end ?>
 #endif
 
-<? elseif side == 1 then ?>
-<? elseif side == 2 then ?>
-<? end ?>
 #endif
 }
 
@@ -281,7 +336,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real3 x
 ) {
 	<?=prefix?>
-#if 1	//works
+#if 0	//works but doesn't account for curved space
 	Y[0] = X[0] + X[1] + X[4];
 	Y[1] = X[0] * (v.x - gUj.x * Cs_over_sqrt_gUjj) 
 		+ X[1] * v.x 
@@ -304,6 +359,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[3] * v_n2 
 		+ X[4] * (hTotal + v_n * Cs_over_sqrt_gUjj);
 #else	//math
+<? if side == 0 then ?>	
 	real sqrt_gUxx = sqrt_gUjj;
 	Y[0] = X[0] + X[1] + X[4];
 	Y[1] = X[0] * (v.x - Cs * sqrt_gUxx)
@@ -322,6 +378,45 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[2] * vL.y
 		+ X[3] * vL.z
 		+ X[4] * (hTotal + Cs * v.x / sqrt_gUxx);
+<? elseif side == 1 then ?>	
+	real sqrt_gUyy = sqrt_gUjj;
+	Y[0] = X[0] + X[2] + X[4];
+	Y[1] = X[0] * (v.x - Cs * gU.xy / sqrt_gUyy)
+		+ X[1]
+		+ X[2] * v.x
+		+ X[4] * (v.x + Cs * gU.xy / sqrt_gUyy);
+	Y[2] = X[0] * (v.y - Cs * sqrt_gUyy)
+		+ X[2] * v.y
+		+ X[4] * (v.y + Cs * sqrt_gUyy);
+	Y[3] = X[0] * (v.z - Cs * gU.yz / sqrt_gUyy)
+		+ X[2] * v.z
+		+ X[3]
+		+ X[4] * (v.z + Cs * gU.yz / sqrt_gUyy);
+	Y[4] = X[0] * (hTotal - Cs * v.y / sqrt_gUyy)
+		+ X[1] * vL.x
+		+ X[2] * vSq / 2.
+		+ X[3] * vL.z
+		+ X[4] * (hTotal + Cs * v.y / sqrt_gUyy);
+<? elseif side == 2 then ?>	
+	real sqrt_gUzz = sqrt_gUjj;
+	Y[0] = X[0] + X[3] + X[4];
+	Y[1] = X[0] * (v.x - Cs * gU.xz / sqrt_gUzz)
+		+ X[1]
+		+ X[3] * v.x
+		+ X[4] * (v.x + Cs * gU.xz / sqrt_gUzz);
+	Y[2] = X[0] * (v.y - Cs * gU.yz / sqrt_gUzz)
+		+ X[2]
+		+ X[3] * v.y
+		+ X[4] * (v.y + Cs * gU.yz / sqrt_gUzz);
+	Y[3] = X[0] * (v.z - Cs * sqrt_gUzz)
+		+ X[3] * v.z
+		+ X[4] * (v.z + Cs * sqrt_gUzz);
+	Y[4] = X[0] * (hTotal - Cs * v.z / sqrt_gUzz)
+		+ X[1] * vL.x
+		+ X[2] * vL.y
+		+ X[3] * vSq / 2.
+		+ X[4] * (hTotal + Cs * v.z / sqrt_gUzz);
+<? end ?>
 #endif
 }
 
