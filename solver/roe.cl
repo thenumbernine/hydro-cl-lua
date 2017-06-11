@@ -154,7 +154,7 @@ kernel void calcFlux(
 	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;	
-		real dt_dx = dt / dx<?=side?>_at(i);//grid_dx<?=side?>;
+		real dt_dx = dt / grid_dx<?=side?>;//dx<?=side?>_at(i);
 		int indexL = index - stepsize[side];
 		
 		real3 xInt = xR;

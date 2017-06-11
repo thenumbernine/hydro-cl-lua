@@ -1,4 +1,4 @@
-//needs Eqn.hasFluxFromCons=true
+//needs Equation.hasFluxFromCons=true
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U, real3 x) {
 	<?=eqn.prim_t?> W = primFromCons(U, x);
@@ -526,7 +526,7 @@ void apply_dU_dW(
 			real3_scale(W->v, WA->rho)),
 		.ETotal = W->rho * .5 * real3_dot(WA->v, WA_vL) 
 			+ WA->rho * real3_dot(W->v, WA_vL)
-			+ W->P / (heatCapacityRatio - 1.),
+			+ W->P / (heatCapacityRatio - 1.)
 			+ WA->rho * W->ePot,
 		.ePot = W->ePot,
 	};
@@ -555,4 +555,19 @@ void apply_dW_dU(
 			- WA->rho * U->ePot),
 		.ePot = U->ePot,
 	};
+}
+
+//set Equation.useSourceTerm=true
+//this has the connection terms that aren't absorbed in the change-of-volum
+//for Euclidian this is -Conn^i_jk rho v^j v^k
+//hmm, doesn't seem to help
+kernel void addSource(
+	global <?=eqn.cons_t?>* derivBuf,
+	const global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(2,2);
+	real3 x = cell_x(i);
+	global <?=eqn.cons_t?>* deriv = derivBuf + index;
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(U->m, x), 1. / U->rho));
 }

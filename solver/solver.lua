@@ -637,7 +637,6 @@ function Solver:createCodePrefix()
 	lines:insert(getCode_real3_to_real('volume_at', volumeCode))
 	
 	-- coord len code: l(v) = v^i v^j g_ij
-	print('uLenSqCode')
 	lines:append{
 		getCode_real3_real3_to_real('coordLenSq', self.geometry.uLenSqCode),
 		[[
@@ -645,7 +644,9 @@ inline real coordLen(real3 r, real3 x) {
 	return sqrt(coordLenSq(r, x));
 }]],
 	}
-	
+
+	lines:insert(getCode_real3_real3_to_real3('coord_conn', self.geometry.connCodes))
+
 	--[[
 	for i=0,self.dim-1 do
 		lines:insert(getCode_real3_to_real('coordHolBasisLen'..i, self.geometry.eHolLenCode[i+1]))

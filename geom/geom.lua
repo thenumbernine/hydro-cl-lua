@@ -211,7 +211,7 @@ print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()
 
 	-- code generation
 
-	local coordU = Tensor('^a', function(a) 
+	local paramU = Tensor('^a', function(a) 
 		return var('{v^'..a..'}')
 	end)
 	
@@ -219,7 +219,7 @@ print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()
 	local toC_coordArgs = table.map(baseCoords, function(coord, i)
 		return {[coord] = '{x^'..i..'}'}	-- 1-based
 	end):append(range(dim):map(function(a)
-		return {[coordU[a]] = coordU[a].name}
+		return {[paramU[a]] = paramU[a].name}
 	end))
 	local function compile(expr)
 		local orig = expr	
@@ -333,16 +333,24 @@ print('eHolLen['..i..'] = '..eiHolLenCode)
 print('eUnitCode = ', tolua(self.eUnitCode, {indent=true}))
 --]=]
 
-	local lowerExpr = coordU'_a'()
+	local lowerExpr = paramU'_a'()
 	self.lowerCodes = range(dim):map(function(i)
 		local lowerCode = compile(lowerExpr[i])
 print('lowerCode['..i..'] = '..lowerCode)
 		return lowerCode
 	end)
 
-	local lenSqExpr = (coordU'^a' * coordU'_a')()
+	local lenSqExpr = (paramU'^a' * paramU'_a')()
 	self.uLenSqCode = compile(lenSqExpr)
 print('uLenSqCodes = '..self.uLenSqCode)
+
+	-- Conn^i_jk(x) v^j v^k
+	local connExpr = (Gamma'^a_bc' * paramU'^b' * paramU'^c')()
+	self.connCodes = range(dim):map(function(i)
+		local conniCode = compile(connExpr[i])
+print('connCode['..i..'] = '..conniCode)
+		return conniCode
+	end)
 
 	-- dx is the change across the grid
 	-- therefore it is based on the holonomic metric
@@ -381,7 +389,7 @@ print('sqrt(gU['..i..']['..j..']) = '..sqrt_gUijCode)
 			return sqrt_gUijCode, j
 		end)
 	end)
-	
+
 	local volumeExpr = symmath.sqrt(symmath.Matrix.determinant(g))()
 	self.volumeCode = compile(volumeExpr)
 print('volumeCode = '..self.volumeCode)

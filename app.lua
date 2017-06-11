@@ -284,7 +284,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--]]
 		-- [[ cylinder
 		geometry = 'cylinder',
-		mins = cmdline.mins or {0, 0, -1},
+		mins = cmdline.mins or {.1, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
 		gridSize = {
 			cmdline.gridSize or 32,
@@ -347,11 +347,11 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'constant with motion',
 		--initState = 'linear',
 		--initState = 'gaussian',
-		--initState = 'advect wave',
+		initState = 'advect wave',
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',

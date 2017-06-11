@@ -19,8 +19,13 @@ Euler.mirrorVars = {{'m.x'}, {'m.y'}, {'m.z'}}
 
 Euler.hasEigenCode = true
 
--- this is working in the gravitation-waves simulation, but not here ...
+-- this gives me different behavior.  is it good or bad?
 --Euler.hasFluxFromCons = true
+
+-- the only source term that the Euler equations has is the connection coefficients of the velocity vector
+-- maybe later I will automatically flag what elements are vectors
+-- and automatically add connection coefficients
+Euler.useSourceTerm = true
 
 Euler.initStates = require 'init.euler'
 
