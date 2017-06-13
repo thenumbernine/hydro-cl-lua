@@ -11,9 +11,9 @@ kernel void calcErrors(
 
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		int intindex = side + dim * index;
-		const global real* wave = waveBuf + numWaves * intindex;
-		const global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
+		int indexInt = side + dim * index;
+		const global real* wave = waveBuf + numWaves * indexInt;
+		const global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 		
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
@@ -67,7 +67,7 @@ kernel void calcErrors(
 			}
 		}
 		
-		errorBuf[intindex] = (error_t){
+		errorBuf[indexInt] = (error_t){
 			.ortho = orthoError,
 			.flux = fluxError,
 		};
@@ -97,9 +97,9 @@ kernel void calcDeltaUEig(
 			deltaU.ptr[j] = UR->ptr[j] - UL->ptr[j];
 		}
 	
-		int intindex = side + dim * index;	
-		global real* deltaUEig = deltaUEigBuf + intindex * numWaves;
-		const global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
+		int indexInt = side + dim * index;	
+		global real* deltaUEig = deltaUEigBuf + indexInt * numWaves;
+		const global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 		eigen_leftTransform_<?=side?>_global_global_(deltaUEig, eig, deltaU.ptr, xInt);
 	}<? end ?>
 }
@@ -115,14 +115,14 @@ kernel void calcREig(
 		const int side = <?=side?>;
 		int indexL = index - stepsize[side];
 		int indexR = index + stepsize[side];
-		int intindex = side + dim * index;
-		int intindexL = side + dim * indexL;
-		int intindexR = side + dim * indexR;
-		global real* rEig = rEigBuf + intindex * numWaves;
-		const global real* deltaUEig = deltaUEigBuf + intindex * numWaves;
-		const global real* deltaUEigL = deltaUEigBuf + intindexL * numWaves;
-		const global real* deltaUEigR = deltaUEigBuf + intindexR * numWaves;
-		const global real* wave = waveBuf + intindex * numWaves;
+		int indexInt = side + dim * index;
+		int indexIntL = side + dim * indexL;
+		int indexIntR = side + dim * indexR;
+		global real* rEig = rEigBuf + indexInt * numWaves;
+		const global real* deltaUEig = deltaUEigBuf + indexInt * numWaves;
+		const global real* deltaUEigL = deltaUEigBuf + indexIntL * numWaves;
+		const global real* deltaUEigR = deltaUEigBuf + indexIntR * numWaves;
+		const global real* wave = waveBuf + indexInt * numWaves;
 		for (int j = 0; j < numWaves; ++j) {
 			if (deltaUEig[j] == 0) {
 				rEig[j] = 0;
@@ -162,8 +162,8 @@ kernel void calcFlux(
 
 		<?= solver.getULRCode ?>
 		
-		int intindex = side + dim * index;
-		const global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
+		int indexInt = side + dim * index;
+		const global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 
 		real fluxEig[numWaves];
 <? if not eqn.hasFluxFromCons then ?>
@@ -174,10 +174,10 @@ kernel void calcFlux(
 		eigen_leftTransform_<?=side?>__global_(fluxEig, eig, UAvg.ptr, xInt);
 <? end ?>
 
-		const global real* lambdas = waveBuf + numWaves * intindex;
-		const global real* deltaUEig = deltaUEigBuf + numWaves * intindex;
+		const global real* lambdas = waveBuf + numWaves * indexInt;
+		const global real* deltaUEig = deltaUEigBuf + numWaves * indexInt;
 <? if solver.fluxLimiter[0] > 0 then ?>
-		const global real* rEig = rEigBuf + numWaves * intindex;
+		const global real* rEig = rEigBuf + numWaves * indexInt;
 <? end ?>
 
 		for (int j = 0; j < numWaves; ++j) {
@@ -202,7 +202,7 @@ kernel void calcFlux(
 			);
 		}
 			
-		global <?=eqn.cons_t?>* flux = fluxBuf + intindex;
+		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
 		eigen_rightTransform_<?=side?>_global_global_(flux->ptr, eig, fluxEig, xInt);
 		
 <? if eqn.hasFluxFromCons then ?>
@@ -245,38 +245,35 @@ kernel void calcDerivFromFlux(
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 	
-		//real3 iIntL = _real3(i.x, i.y, i.z);
-		//iIntL.s[side] -= .5;
-		//real3 xIntL = cell_x(iIntL);
-		//real volumeL = volume_at(xIntL);
-		//
-		//real3 iIntR = _real3(i.x, i.y, i.z);
-		//iIntR.s[side] -= .5;
-		//real3 xIntR = cell_x(iIntR);
-		//real volumeR = volume_at(xIntR);
-	
-		int intindexL = side + dim * index;
-		int intindexR = intindexL + dim * stepsize[side]; 
-		const global <?=eqn.cons_t?>* fluxL = fluxBuf + intindexL;
-		const global <?=eqn.cons_t?>* fluxR = fluxBuf + intindexR;
+
+		int indexIntL = side + dim * index;
+		int indexIntR = indexIntL + dim * stepsize[side]; 
+		const global <?=eqn.cons_t?>* fluxL = fluxBuf + indexIntL;
+		const global <?=eqn.cons_t?>* fluxR = fluxBuf + indexIntR;
 		for (int j = 0; j < numStates; ++j) {
 			real deltaFlux = fluxR->ptr[j] - fluxL->ptr[j];
-			deriv->ptr[j] -= deltaFlux
-				// holonomic
+			deriv->ptr[j] -= deltaFlux 
 				/ grid_dx<?=side?>
-				// anholonomic normalized
-//				/ dx<?=side?>_at(i)
-				
-				//going off of Trangenstein's examples
-				//(p.466 for spherical, p.474 for cylindrical) 
-				//it looks like, instead of dividing by volume, 
-				//I should be dividing by (x^j rhs * volume at rhs - x^j lhs * volume at lhs)
+				/*
+				going off of Trangenstein's examples
+				(p.466 for spherical, p.474 for cylindrical) 
+				it looks like, instead of dividing by volume, 
+				I should be dividing by the integral of the volume element 
+				 ... instead of just approximating
+				It also looks like he loses dividing his volume by dx_i for flux face i ... 
+				maybe there's a typo, since there are tons of typos in this section (like omitting the dt on the top of the fraction)
+				*/
 				/ volume
-//				/ (cell_x<?=side?>((real)i.s<?=side?> + .5) 
-//				- cell_x<?=side?>((real)i.s<?=side?> - .5));
+				/*
+				for cylindrical, r dr dtheta = (r1+r2)/2 (r2-r1) dtheta = 1/2 (r2^2 - r1^2) dtheta
+				...is the correct value for the volume.
+				
+				for spherical, r dr dtheta = ((r2+r1)/2)^2 (r2-r1) dtheta
+				= 1/4 (r2+r1) (r2^2-r1^2) dtheta
+				... isn't quite the correct volume equation ...
+				= 1/3 (r2^3 - r1^3) dtheta
+				*/
 			;
-			//	/ (volumeR * cell_x<?=side?>((real)i.s<?=side?> + .5) 
-			//	- volumeL * cell_x<?=side?>((real)i.s<?=side?> - .5));
 		}
 	}<? end ?>
 }

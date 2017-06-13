@@ -313,7 +313,7 @@ if solver.dim >= 3 then ?>
 	index = INDEXV(i);
 	
 	int side = 0;
-	int intindex = side + dim * index;
+	int indexInt = side + dim * index;
 	real value = 0;
 
 <?= convertToTex.varCodePrefix or '' ?>
@@ -402,7 +402,7 @@ function Solver:addConvertToTexs()
 	self:addConvertToTex{
 		name = 'wave',
 		varCodePrefix = [[
-	const global real* wave = buf + intindex * numWaves;
+	const global real* wave = buf + indexInt * numWaves;
 ]],
 		vars = range(0, self.eqn.numWaves-1):map(function(i)
 			return {[tostring(i)] = 'value = wave['..i..'];'}

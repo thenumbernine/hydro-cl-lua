@@ -13,6 +13,7 @@ SRHD.numWaves = 5
 SRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
 
 SRHD.hasEigenCode = true 
+
 -- SRHD fluxFromCons will need prims passed to it as well
 -- which means overriding the code that calls this? or the calc flux code?
 --SRHD.hasFluxFromCons = true

@@ -338,8 +338,8 @@ kernel void calcEigenBasis(
 
 		real CAx = sqrt(CAxSq);
 		
-		int intindex = side + dim * index;
-		global real* wave = waveBuf + numWaves * intindex;
+		int indexInt = side + dim * index;
+		global real* wave = waveBuf + numWaves * indexInt;
 		
 		real lambdaFastMin = v.x - Cf;
 		real lambdaSlowMin = v.x - Cs;
@@ -347,7 +347,7 @@ kernel void calcEigenBasis(
 		real lambdaFastMax = v.x + Cf;
 		fill(wave, 1, lambdaFastMin, v.x - CAx, lambdaSlowMin, v.x, lambdaSlowMax, v.x + CAx, lambdaFastMax);
 
-		global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
+		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 
 		// dF/dU
 		<? if solver.checkFluxError then ?>

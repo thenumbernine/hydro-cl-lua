@@ -569,5 +569,15 @@ kernel void addSource(
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
+
+#if 1	// coriolis force alone	
 	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(U->m, x), 1. / U->rho));
+#else	// all covariant derivative terms (including the others that should be absorbed into the finite-volume computations
+	real connTrace = coord_connTrace(x);
+	deriv->rho -= U->rho * connTrace;
+	deriv->m = real3_sub(
+		real3_sub(deriv->m, real3_scale(coord_conn(U->m, x), 1. / U->rho)),
+		real3_scale(U->m, connTrace));
+	deriv->ETotal -= U->ETotal * connTrace;
+#endif
 }

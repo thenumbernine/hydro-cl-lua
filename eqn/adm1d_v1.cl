@@ -54,11 +54,11 @@ kernel void calcEigenBasis(
 	
 		<?= solver.getULRCode ?>
 		
-		int intindex = side + dim * index;
-		global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;
+		int indexInt = side + dim * index;
+		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 		eigen_forSide(eig, UL, UR, x);
 
-		global real* wave = waveBuf + numWaves * intindex;
+		global real* wave = waveBuf + numWaves * indexInt;
 		eigen_calcWaves_<?=side?>_global_global(wave, eig, x);
 	}<? end ?>
 }

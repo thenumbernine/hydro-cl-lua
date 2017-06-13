@@ -22,8 +22,8 @@ kernel void calcLR(
 	//...and just use the original buffers
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		int intindex = side + dim * index;
-		global <?=eqn.consLR_t?>* ULR = ULRBuf + intindex;	
+		int indexInt = side + dim * index;
+		global <?=eqn.consLR_t?>* ULR = ULRBuf + indexInt;	
 		
 		//piecewise-linear
 		

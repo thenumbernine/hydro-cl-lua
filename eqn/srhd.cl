@@ -157,8 +157,8 @@ kernel void calcEigenBasis(
 		real lambdaMin = (v.x * (1. - csSq) - cs * discr) / (1. - vSq * csSq) * alpha * alpha - betaUi;
 		real lambdaMax = (v.x * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * alpha * alpha - betaUi;
 
-		int intindex = side + dim * index;	
-		global real* wave = waveBuf + numWaves * intindex;
+		int indexInt = side + dim * index;	
+		global real* wave = waveBuf + numWaves * indexInt;
 		wave[0] = lambdaMin;
 		wave[1] = v.x * alpha - betaUi;
 		wave[2] = v.x * alpha - betaUi;
@@ -186,7 +186,7 @@ kernel void calcEigenBasis(
 		real Kappa = kappaTilde / (kappaTilde - csSq);	//2008 Font eqn 112.  
 		//Kappa = h;	//approx for ideal gas
 		
-		global <?=eqn.eigen_t?>* eig = eigenBuf + intindex;	
+		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;	
 
 <?
 for _,field in ipairs(eqn.eigenStructFields) do

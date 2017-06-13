@@ -123,7 +123,7 @@ function Roe:addConvertToTexs()
 			name = 'eigen',
 			type = self.eqn.eigen_t,
 			varCodePrefix = [[
-	const global ]]..self.eqn.eigen_t..[[* eigen = buf + intindex;
+	const global ]]..self.eqn.eigen_t..[[* eigen = buf + indexInt;
 ]],
 			vars = eigenDisplayVars,
 		}
@@ -132,7 +132,7 @@ function Roe:addConvertToTexs()
 	self:addConvertToTex{
 		name = 'deltaUEig', 
 		varCodePrefix = [[
-	const global real* deltaUEig = buf + intindex * numWaves;
+	const global real* deltaUEig = buf + indexInt * numWaves;
 ]],
 		vars = range(0,self.eqn.numWaves-1):map(function(i)
 			return {[tostring(i)] = 'value = deltaUEig['..i..'];'}
@@ -142,7 +142,7 @@ function Roe:addConvertToTexs()
 		self:addConvertToTex{
 			name = 'rEig',
 			varCodePrefix = [[
-	const global real* rEig = buf + intindex * numWaves;
+	const global real* rEig = buf + indexInt * numWaves;
 ]],
 			vars = range(0,self.eqn.numWaves-1):map(function(i)
 				return {[tostring(i)] = 'value = rEig['..i..'];'}
@@ -152,7 +152,7 @@ function Roe:addConvertToTexs()
 	self:addConvertToTex{
 		name = 'flux', 
 		varCodePrefix = [[
-	const global ]]..self.eqn.cons_t..[[* flux = buf + intindex;
+	const global ]]..self.eqn.cons_t..[[* flux = buf + indexInt;
 ]],
 		vars = range(0,self.eqn.numStates-1):map(function(i)
 			return {[tostring(i)] = 'value = flux->ptr['..i..'];'}
@@ -165,8 +165,8 @@ function Roe:addConvertToTexs()
 			useLog = true,
 			type = 'error_t',
 			vars = {
-				{ortho = 'value = buf[intindex].ortho;'},
-				{flux = 'value = buf[intindex].flux;'},
+				{ortho = 'value = buf[indexInt].ortho;'},
+				{flux = 'value = buf[indexInt].flux;'},
 			},
 		}
 	end
