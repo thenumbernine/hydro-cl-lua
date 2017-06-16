@@ -689,9 +689,9 @@ real3 cartesianToCoord(real3 v, real3 x) {
 	<? for i=0,solver.dim-1 do ?>{
 		real3 e = coordBasis<?=i?>(x);
 		//anholonomic normalized
-		//vCoord.s<?=i?> = real3_dot(e, v) / real3_len(e);
+		vCoord.s<?=i?> = real3_dot(e, v) / real3_len(e);
 		//holonomic
-		vCoord.s<?=i?> = real3_dot(e, v) / real3_lenSq(e);
+		//vCoord.s<?=i?> = real3_dot(e, v) / real3_lenSq(e);
 	}<? end
 	for i=solver.dim,2 do ?>
 	vCoord.s<?=i?> = 0.;

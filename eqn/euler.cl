@@ -570,14 +570,26 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
-#if 1	// coriolis force alone	
+#if defined(geometry_cylinder)
+#if 1	// holonomic coriolis force alone	
 	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(U->m, x), 1. / U->rho));
-#else	// all covariant derivative terms (including the others that should be absorbed into the finite-volume computations
+#elif 0	// holonomic: all covariant derivative terms (including the others that should be absorbed into the finite-volume computations
 	real connTrace = coord_connTrace(x);
 	deriv->rho -= U->rho * connTrace;
 	deriv->m = real3_sub(
 		real3_sub(deriv->m, real3_scale(coord_conn(U->m, x), 1. / U->rho)),
 		real3_scale(U->m, connTrace));
 	deriv->ETotal -= U->ETotal * connTrace;
+#elif 1	//anholonomic  cylindrical
+	real r = x.x, theta = x.y, z = x.z;
+	<?=eqn.prim_t?> W = primFromCons(*U, x); 
+	real HTotal = calc_HTotal(W.P, U->ETotal);
+	//cylinder anholonomic connections: Conn^theta_r_theta = -Conn^r_theta_theta = 1/r
+	deriv->rho -= 1/r * U->m.x;
+	deriv->m.x -= 1/r * (U->m.x * W.v.x;
+	deriv->m.y -= 1/r * (U->m.x * W.v.y;
+	deriv->m.z -= 1/r * (U->m.x * W.v.z;
+	deriv->ETotal -= 1/r * W.v.x * HTotal;
+#endif
 #endif
 }

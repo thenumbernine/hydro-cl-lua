@@ -343,11 +343,11 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = cmdline.initState,
 		
 		-- Euler / SRHD / MHD initial states:
-		initState = 'constant',
+		--initState = 'constant',
 		--initState = 'constant with motion',
 		--initState = 'linear',
 		--initState = 'gaussian',
-		--initState = 'advect wave',
+		initState = 'advect wave',
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		

@@ -217,19 +217,6 @@ kernel void calcFlux(
 			flux->ptr[j] += .5 * (FL.ptr[j] + FR.ptr[j]);
 		}
 <? end ?>
-
-		real volume = volume_at(xInt);
-
-		//I'm going by Trangenstein's curved-coordinate implementation
-		for (int j = 0; j < numStates; ++j) {
-			flux->ptr[j] *= volume
-//if you're using anholonomic normalized vector components
-// on a holonomic grid
-// then you have to incorporate the ratio between basii here:
-//				/ coordHolBasisLen<?=side?>(xInt)
-//...but it doesn't seem to help ...
-			;
-		}
 	}<? end ?>
 }
 
@@ -239,41 +226,55 @@ kernel void calcDerivFromFlux(
 ) {
 	SETBOUNDS(2,2);
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
-		
-	real volume = volume_at(cell_x(i));
+
+	real3 iIntL = _real3((real)i.x-.5, (real)i.y-.5, (real)i.z-.5);
+	real3 xIntL = cell_x(iIntL);
+	real3 iIntR = _real3((real)i.x+.5, (real)i.y+.5, (real)i.z+.5);
+	real3 xIntR = cell_x(iIntR);
 	
+	//integral over volume of the coordinates
+#if defined(geometry_cylinder)
+	//integral of r dr dtheta dz
+	real r1 = xIntL.x, theta1 = xIntL.y, z1 = xIntL.z;
+	real r2 = xIntR.x, theta2 = xIntR.y, z2 = xIntR.z;
+	real dr = r2 - r1;
+	real dtheta = theta2 - theta1;
+	real dz = z2 - z1;
+#if dim == 1
+	real volume = .5 * (r2*r2 - r1*r1);
+	real3 sideL = _real3(1., 1., 1.);
+	real3 sideR = _real3(1., 1., 1.);
+#elif dim == 2
+	real volume = .5 * (r2*r2 - r1*r1) * dtheta;
+	real3 sideL = _real3(r1 * dtheta, dr, 1.);
+	real3 sideR = _real3(r2 * dtheta, dr, 1.);
+#elif dim == 3
+	real volume = .5 * (r2*r2 - r1*r1) * dtheta * dz;
+	real3 sideL = _real3(r1 * dtheta * dz, dr * dz, .5 * (r2*r2 - r1*r1) * dtheta);
+	real3 sideR = _real3(r2 * dtheta * dz, dr * dz, .5 * (r2*r2 - r1*r1) * dtheta);
+#endif
+
+#else
+	//general case -- use the metric 
+	real3 x = cell_x(i);
+	real volume = volume_at(x);
+	real3 dxs = _real3(grid_dx0, grid_dx1, grid_dx2);
+	real3 sideL = _real3(volume / dxs.x, volume / dxs.y, volume / dxs.z); 
+	real3 sideR = sideL;
+#endif
+
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-	
 
 		int indexIntL = side + dim * index;
 		int indexIntR = indexIntL + dim * stepsize[side]; 
 		const global <?=eqn.cons_t?>* fluxL = fluxBuf + indexIntL;
 		const global <?=eqn.cons_t?>* fluxR = fluxBuf + indexIntR;
 		for (int j = 0; j < numStates; ++j) {
-			real deltaFlux = fluxR->ptr[j] - fluxL->ptr[j];
-			deriv->ptr[j] -= deltaFlux 
-				/ grid_dx<?=side?>
-				/*
-				going off of Trangenstein's examples
-				(p.466 for spherical, p.474 for cylindrical) 
-				it looks like, instead of dividing by volume, 
-				I should be dividing by the integral of the volume element 
-				 ... instead of just approximating
-				It also looks like he loses dividing his volume by dx_i for flux face i ... 
-				maybe there's a typo, since there are tons of typos in this section (like omitting the dt on the top of the fraction)
-				*/
-				/ volume
-				/*
-				for cylindrical, r dr dtheta = (r1+r2)/2 (r2-r1) dtheta = 1/2 (r2^2 - r1^2) dtheta
-				...is the correct value for the volume.
-				
-				for spherical, r dr dtheta = ((r2+r1)/2)^2 (r2-r1) dtheta
-				= 1/4 (r2+r1) (r2^2-r1^2) dtheta
-				... isn't quite the correct volume equation ...
-				= 1/3 (r2^3 - r1^3) dtheta
-				*/
-			;
+			deriv->ptr[j] -= (
+				fluxR->ptr[j] * sideR.s<?=side?> 
+				- fluxL->ptr[j] * sideL.s<?=side?>
+			) / volume;
 		}
 	}<? end ?>
 }
