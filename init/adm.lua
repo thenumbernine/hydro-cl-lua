@@ -87,7 +87,7 @@ local function initNumRel(args)
 		if symmath.Expression.is(expr) then 
 			expr = expr()
 			print('compiling '..expr)
-			return require 'symmath.tostring.C':compile(expr, vars), name
+			return expr:compile(vars, 'C'), name
 		end
 		return table.map(expr, compileC), name
 	end
@@ -236,8 +236,8 @@ local d2h = Tensor('_ij', function(i,j) return h:diff(xs[i],xs[j])() end)
 				K = symNames:map(function(xij,ij) return KLL[{from6to3x3(ij)}] end),
 			}
 	
-			codes.f = require 'symmath.tostring.C':compile(f, {alphaVar})
-			codes.dalpha_f = require 'symmath.tostring.C':compile(dalpha_f, {alphaVar})
+			codes.f = f:compile({alphaVar}, 'C')
+			codes.dalpha_f = dalpha_f:compile({alphaVar}, 'C')
 
 			return codes
 		end,
