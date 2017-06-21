@@ -706,6 +706,45 @@ end ?>
 	},
 
 	{
+		name = 'Maxwell wire',
+		init = function(solver)
+			local c = 299792458
+			local s_in_m = 1 / c
+			local G = 6.6740831e-11
+			local kg_in_m = G / c^2
+			local ke = 8.9875517873681764e+9
+			local C_in_m = math.sqrt(ke * G) / c^2	-- m
+			local Ohm_in_m = kg_in_m / (s_in_m * C_in_m^2)	-- m^0
+			local resistivities = table{	-- at 20' Celsius, in Ohm m
+				air = 2e+14,
+				aluminum = 2.65e-8,
+				copper = 1.724e-8,
+				iron = 9.71e-8,
+				nichrome = 1e-6,
+				gold = 2.24e-8,
+				silver = 1.59e-8,
+				platinum = 1.06e-7,
+				tungsten = 5.65e-8,
+			}:map(function(v) return v * Ohm_in_m end)
+			return template([[
+	conductivity = <?=clnumber(1/resistivities.air)?>;
+	if (x.y >= -.1 && x.y < .1) {
+		//if (x.x < mins.x * .9 + maxs.x * .1) 
+			E.x = 1;
+		conductivity = <?=clnumber(1/resistivities.copper)?>;
+	}
+]], 		{
+				clnumber = clnumber,
+				resistivities = resistivities,
+			})
+		end,
+		-- kernel to run every update frame
+		update = function(solver)
+			
+		end,
+	},
+
+	{
 		name = 'two-fluid EMHD soliton ion',
 		init = function(solver)
 			return [[

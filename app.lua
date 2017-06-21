@@ -264,7 +264,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--usePLM = true,	-- piecewise-linear slope limiter
 		--slopeLimiter = 'minmod',
 		
-		--[[ Cartesian
+		-- [[ Cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
@@ -282,7 +282,7 @@ real sym3_dot(sym3 a, sym3 b) {
 			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
-		-- [[ cylinder
+		--[[ cylinder
 		geometry = 'cylinder',
 		mins = cmdline.mins or {.1, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
@@ -347,7 +347,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'constant with motion',
 		--initState = 'linear',
 		--initState = 'gaussian',
-		initState = 'advect wave',
+		--initState = 'advect wave',
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
@@ -387,6 +387,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		
 		-- EM:
 		--initState = 'Maxwell default',
+		initState = 'Maxwell wire',
 		--initState = 'scattering around cylinder',
 		
 		--initState = 'two-fluid EMHD soliton ion',
@@ -397,7 +398,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	self.solvers = table()
 	
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 
 	-- the same as solver.euler-roe:
@@ -407,7 +408,7 @@ real sym3_dot(sym3 a, sym3 b) {
 
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
-	-- int. shock wave  with superbee flux lim in 1D works at 256, fails at 1024 with float (works with double)
+	-- rel blast wave interaction works with superbee flux lim in 1D works at 256, fails at 1024 with float (works with double)
 	-- 	256x256 double fails with F.E., RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths,
 	-- rel blast wave 1 doesn't work in 64x64. with superbee flux lim
 	-- rel blast wave 2 with superbee flux lim, Roe solver, works at 64x64 with forward euler
@@ -429,7 +430,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))	-- TODO what about removing divergence?
 	
 	-- EM
-	--self.solvers:insert(require 'solver.maxwell-roe'(args))
+	self.solvers:insert(require 'solver.maxwell-roe'(args))
 	--self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
 	
 	-- EM+HD
