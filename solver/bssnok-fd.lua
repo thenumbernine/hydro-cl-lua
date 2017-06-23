@@ -7,8 +7,11 @@ BSSNOKFiniteDifferenceSolver.name = 'BSSNOKFiniteDifferenceSolver'
 
 function BSSNOKFiniteDifferenceSolver:refreshSolverProgram()
 	BSSNOKFiniteDifferenceSolver.super.refreshSolverProgram(self)
+	
 	self.calcDerivKernel = self.solverProgram:kernel'calcDeriv'
 	self.calcDerivKernel:setArg(1, self.UBuf)
+
+	self.constrainUKernel = self.solverProgram:kernel('constrainU', self.UBuf)
 end
 
 function BSSNOKFiniteDifferenceSolver:createEqn(eqn)
@@ -24,6 +27,12 @@ end
 function BSSNOKFiniteDifferenceSolver:calcDeriv(derivBuf, dt)
 	self.calcDerivKernel:setArg(0, derivBuf)
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDerivKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+end
+
+function BSSNOKFiniteDifferenceSolver:step(dt)
+	BSSNOKFiniteDifferenceSolver.super.step(self, dt)
+
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 end
 
 return BSSNOKFiniteDifferenceSolver

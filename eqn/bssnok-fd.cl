@@ -20,6 +20,42 @@ local function sym(a,b)
 	return xNames[a]..xNames[b]
 end
 ?>
+
+kernel void constrainU(
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(2,2);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	
+	/*
+	det(gammaBar_ij) 
+	= det(gamma^-1/3 gamma_ij)
+	= gamma^-1 gamma
+	= 1
+	*/
+	real det_gammaBar = sym3_det(U->gammaBar_ll);
+	real cbrt_det_gammaBar = 1. / cbrt(det_gammaBar);
+	U->gammaBar_ll = sym3_scale(U->gammaBar_ll, cbrt_det_gammaBar);
+
+	sym3 gammaBar_uu = sym3_inv(1., U->gammaBar_ll);
+
+	/*
+	tr(A_ij)
+	= tr(K_ij - 1/3 gamma_ij K)
+	= gamma^ij K_ij - 1/3 gamma^ij gamma_ij K
+	= K - 1/3 3 K
+	= 0
+
+	tr(ATilde_ij) = 3 psi^-4 tr(A_ij) = 3 psi^-4 * 0 
+	= 0
+	*/
+	real tr_ATilde = sym3_dot(gammaBar_uu, U->ATilde_ll);
+	U->ATilde_ll = sym3_sub(
+		U->ATilde_ll, 
+		sym3_scale(U->gammaBar_ll, -1./3. * tr_ATilde));
+}
+
+
 kernel void calcDeriv(
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
@@ -41,20 +77,22 @@ kernel void calcDeriv(
 	real3 partial_beta_ul[3];		//beta^i_,j = partial_beta_ul[j][i]
 	real tr_partial_beta = 0.;	//beta^i_,i
 	sym3 partial_gammaBar_ll[3];	//gammaBar_ij,k = gammaBar[k].ij
-<? for i=0,solver.dim-1 do
-?>	partial_alpha_l.s<?=i?> = (Up[<?=i?>]->alpha - Um[<?=i?>]->alpha) / (2. * grid_dx<?=i?>);
-	partial_phi_l.s<?=i?> = (Up[<?=i?>]->phi - Um[<?=i?>]->phi) / (2. * grid_dx<?=i?>);
-	partial_beta_ul[<?=i?>] = real3_scale( real3_sub(Up[<?=i?>]->beta_u, Um[<?=i?>]->beta_u), 1. / (2. * grid_dx<?=i?>));
-	partial_gammaBar_ll[<?=i?>] = sym3_scale( sym3_sub(Up[<?=i?>]->gammaBar_ll, Um[<?=i?>]->gammaBar_ll), 1. / (2. * grid_dx<?=i?>));
-	partial_K_l.s<?=i?> = (Up[<?=i?>]->K - Um[<?=i?>]->K) / (2. * grid_dx<?=i?>);
-	tr_partial_beta += partial_beta_ul[<?=i?>].s<?=i?>;
+<? for i=1,solver.dim do
+	local xi = xNames[i]
+?>	partial_alpha_l.<?=xi?> = (Up[<?=i-1?>]->alpha - Um[<?=i-1?>]->alpha) / (2. * grid_dx<?=i-1?>);
+	partial_phi_l.<?=xi?> = (Up[<?=i-1?>]->phi - Um[<?=i-1?>]->phi) / (2. * grid_dx<?=i-1?>);
+	partial_beta_ul[<?=i-1?>] = real3_scale( real3_sub(Up[<?=i-1?>]->beta_u, Um[<?=i-1?>]->beta_u), 1. / (2. * grid_dx<?=i-1?>));
+	partial_gammaBar_ll[<?=i-1?>] = sym3_scale( sym3_sub(Up[<?=i-1?>]->gammaBar_ll, Um[<?=i-1?>]->gammaBar_ll), 1. / (2. * grid_dx<?=i-1?>));
+	partial_K_l.<?=xi?> = (Up[<?=i-1?>]->K - Um[<?=i-1?>]->K) / (2. * grid_dx<?=i-1?>);
+	tr_partial_beta += partial_beta_ul[<?=i-1?>].<?=xi?>;
 <? end
-for i=solver.dim,2 do
-?>	partial_alpha_l.s<?=i?> = 0;
-	partial_phi_l.s<?=i?> = 0;
-	partial_beta_ul[<?=i?>] = _real3(0,0,0);
-	partial_gammaBar_ll[<?=i?>] = (sym3){.s={0,0,0,0,0,0}};
-	partial_K_l.s<?=i?> = 0;
+for i=solver.dim+1,3 do
+	local xi = xNames[i]
+?>	partial_alpha_l.<?=xi?> = 0;
+	partial_phi_l.<?=xi?> = 0;
+	partial_beta_ul[<?=i-1?>] = _real3(0,0,0);
+	partial_gammaBar_ll[<?=i-1?>] = (sym3){.s={0,0,0,0,0,0}};
+	partial_K_l.<?=xi?> = 0;
 <? end
 ?>
 
@@ -81,15 +119,13 @@ end
 	real exp_neg4phi = 1. / exp_4phi;
 
 	//gamma_ij = exp(4 phi) gammaBar_ij
-	sym3 gamma = sym3_scale(U->gammaBar_ll, exp_4phi);
+	sym3 gamma_ll = sym3_scale(U->gammaBar_ll, exp_4phi);
 
 	//gammaBar^ij = inv gammaBar_ij
-	//shouldn't this be 1 anyways?
-	real det_gammaBar = sym3_det(U->gammaBar_ll);
-	sym3 gammaBar_uu = sym3_inv(det_gammaBar, U->gammaBar_ll);
+	sym3 gammaBar_uu = sym3_inv(1., U->gammaBar_ll);
 
 	//gamma^ij = inv gamma_ij	
-	//sym3 gammaU = sym3_inv(gamma);
+	//sym3 gamma_uu = sym3_inv(gamma_ll);
 	//gamma^ij = exp(-4 phi) gammaBar^ij
 	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
 
@@ -109,8 +145,8 @@ for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
 ?>	connBar_ull[<?=i-1?>].<?=xjk?> = 0. <?
 		for l,xl in ipairs(xNames) do
-?> + gammaBar_uu.<?=sym(i,l)?> * connBar_lll[<?=l-1?>].<?=xjk?>
-<?		end
+?> + gammaBar_uu.<?=sym(i,l)?> * connBar_lll[<?=l-1?>].<?=xjk?><?
+		end
 ?>;
 <?	end
 end
@@ -121,7 +157,7 @@ end
 for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
-?>	conn_ull[<?=i-1?>].<?=xjk?> = connBar_ull[<?=i-1?>].<?=xjk?> <?
+?>	conn_ull[<?=i-1?>].<?=xjk?> = connBar_ull[<?=i-1?>].<?=xjk?><?
 		if i==j then
 ?> + 2 * partial_phi_l.<?=xNames[k]?><?
 		end

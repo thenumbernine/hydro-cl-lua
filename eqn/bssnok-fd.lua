@@ -185,15 +185,17 @@ end
 <? for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
-?>	connBar_ull[<?=i-1?>].<?=xjk?> = conn_ull[<?=i-1?>].<?=xjk?> + 2. * U->gammaBar_ll.<?=sym(j,k)?> * partial_psi_u.<?=xi?> <?
+		local xj = xNames[j]
+		local xk = xNames[k]
+?>	connBar_ull[<?=i-1?>].<?=xjk?> = conn_ull[<?=i-1?>].<?=xjk?> + 2. * U->gammaBar_ll.<?=sym(j,k)?> * partial_psi_u.<?=xi?><?
 		if i == j then
-?> - 2. * partial_psi_l.s<?=k-1?><?
+?> - 2. * partial_psi_l.<?=xk?><?
 		end
 		if i == k then
-?> - 2. * partial_psi_l.s<?=j-1?><?
+?> - 2. * partial_psi_l.<?=xj?><?
 		end
-?>);<?
-	end
+?>;
+<?	end
 end
 ?>
 	U->connBar_u = _real3(
