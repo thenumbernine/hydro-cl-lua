@@ -128,8 +128,8 @@ local function initNumRel(args)
 		return codes
 
 	-- assuming this is an ADM 3D solver
-	elseif args.solver.eqn.numWaves == 30
-	or args.solver.eqn.numWaves == 45
+	elseif require 'eqn.adm3d'.is(args.solver.eqn)
+	or require 'eqn.bssnok-fd'.is(args.solver.eqn)
 	then 
 
 		-- for complex computations it might be handy to extract the determinant first ...
@@ -149,6 +149,16 @@ local function initNumRel(args)
 			end)
 		end)
 		print('...done building metric partials')
+
+		-- TODO only calculate upon request
+		local gammaLL = exprs.gammaLL
+		local det_gamma = symmath.Matrix(
+			{gammaLL[1], gammaLL[2], gammaLL[3]},
+			{gammaLL[2], gammaLL[4], gammaLL[5]},
+			{gammaLL[3], gammaLL[5], gammaLL[6]}):determinant()
+		exprs.partial_psi = table.map(vars, function(xk)
+			return (symmath.log(det_gamma)/12):diff(xk)()
+		end)
 	
 		print('building lapse partials...')
 		exprs.a = table.map(vars, function(var)
@@ -179,6 +189,9 @@ local function initNumRel(args)
 			end):unpack()),
 			symNames:map(function(xij,ij)
 				return exprs.K[ij], 'K_'..xij
+			end),
+			xNames:map(function(xi,i)
+				return exprs.partial_psi[i], 'partial_psi_'..xi
 			end)
 		):map(compileC)
 
@@ -234,13 +247,13 @@ return {
 
 			local h = H * symmath.exp(-((x - xc)^2 + (y - yc)^2 + (z - zc)^2) / sigma^2)
 			h = h()
-local dh = Tensor('_i', function(i) return h:diff(xs[i])() end)
-local d2h = Tensor('_ij', function(i,j) return h:diff(xs[i],xs[j])() end)
--- hmm why isn't comma derivative working?
---print('h',h)
---print('h_,i', h'_,i')
---print('h_,i', h'_,i'())
---os.exit()
+			local dh = Tensor('_i', function(i) return h:diff(xs[i])() end)
+			local d2h = Tensor('_ij', function(i,j) return h:diff(xs[i],xs[j])() end)
+			-- hmm why isn't comma derivative working?
+			--print('h',h)
+			--print('h_,i', h'_,i')
+			--print('h_,i', h'_,i'())
+			--os.exit()
 
 			local deltaLL = Tensor('_ij', function(i,j) return i == j and 1 or 0 end)
 			local gammaLL = (deltaLL'_ij' - dh'_i' * dh'_j')()
@@ -255,10 +268,10 @@ local d2h = Tensor('_ij', function(i,j) return h:diff(xs[i],xs[j])() end)
 				gammaLL = symNames:map(function(xij,ij) return gammaLL[{from6to3x3(ij)}] end),
 				K = symNames:map(function(xij,ij) return KLL[{from6to3x3(ij)}] end),
 			}
-	
+			
 			codes.f = f:compile({alphaVar}, 'C')
 			codes.dalpha_f = dalpha_f:compile({alphaVar}, 'C')
-
+			
 			return codes
 		end,
 	},
