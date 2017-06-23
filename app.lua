@@ -450,7 +450,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 	-- then there's the BSSNOK finite-difference solver
-	self.solvers:insert(require 'solver.bssnok-fd-fe'(args))	-- goes really sloooow, same with HydroGPU on this graphics card
+	self.solvers:insert(require 'solver.bssnok-fd-fe'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 	

@@ -2,28 +2,28 @@ local class = require 'ext.class'
 local BSSNOKFiniteDifferenceEquation = require 'eqn.bssnok-fd'
 local Solver = require 'solver.solver'
 
-local BSSNOKFiniteDifferenceForwardEulerSolver = class(Solver)
-BSSNOKFiniteDifferenceForwardEulerSolver.name = 'BSSNOKFiniteDifferenceForwardEulerSolver'
+local BSSNOKFiniteDifferenceSolver = class(Solver)
+BSSNOKFiniteDifferenceSolver.name = 'BSSNOKFiniteDifferenceSolver'
 
-function BSSNOKFiniteDifferenceForwardEulerSolver:refreshSolverProgram()
-	BSSNOKFiniteDifferenceForwardEulerSolver.super.refreshSolverProgram(self)
+function BSSNOKFiniteDifferenceSolver:refreshSolverProgram()
+	BSSNOKFiniteDifferenceSolver.super.refreshSolverProgram(self)
 	self.calcDerivKernel = self.solverProgram:kernel'calcDeriv'
 	self.calcDerivKernel:setArg(1, self.UBuf)
 end
 
-function BSSNOKFiniteDifferenceForwardEulerSolver:createEqn(eqn)
+function BSSNOKFiniteDifferenceSolver:createEqn(eqn)
 	self.eqn = BSSNOKFiniteDifferenceEquation(self)
 end
 
-function BSSNOKFiniteDifferenceForwardEulerSolver:getCalcDTCode() end
-function BSSNOKFiniteDifferenceForwardEulerSolver:refreshCalcDTKernel() end
-function BSSNOKFiniteDifferenceForwardEulerSolver:calcDT()
+function BSSNOKFiniteDifferenceSolver:getCalcDTCode() end
+function BSSNOKFiniteDifferenceSolver:refreshCalcDTKernel() end
+function BSSNOKFiniteDifferenceSolver:calcDT()
 	return self.fixedDT
 end
 
-function BSSNOKFiniteDifferenceForwardEulerSolver:calcDeriv(derivBuf, dt)
+function BSSNOKFiniteDifferenceSolver:calcDeriv(derivBuf, dt)
 	self.calcDerivKernel:setArg(0, derivBuf)
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDerivKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 end
 
-return BSSNOKFiniteDifferenceForwardEulerSolver
+return BSSNOKFiniteDifferenceSolver
