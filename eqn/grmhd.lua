@@ -1,10 +1,9 @@
 --[[
-based on Marti 1998, Marti & Muller 2008, and maybe some of Font 2008 (but that's grhd)
-
-honestly I developed a Marti & Muller SRHD solver
-then I bumped it up to GRHD by incorporating (fixed) alphas betas and gammas
-and then I thought "why not keep the old SRHD solver around"
-so viola, here it is, unnecessarily available.
+based on 2010 Anton et al 
+... which looks to be a SRMHD implementation ...
+where are varying metrics incorporated in 2010 Anton?
+general relativistic ideal MHD
+(TODO do a resistivie GRMHD, which incorporates E as well)
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
@@ -13,26 +12,26 @@ local Equation = require 'eqn.eqn'
 local clnumber = require 'clnumber'
 local template = require 'template'
 
-local SRHD = class(Equation)
-SRHD.name = 'SRHD'
-SRHD.numStates = 6
-SRHD.numWaves = 5
+local GRMHD = class(Equation)
+GRMHD.name = 'GRMHD'
+GRMHD.numStates = 9
+GRMHD.numWaves = 8
 
-SRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
+GRMHD.mirrorVars = {{'S.x', 'B.x'}, {'S.y', 'B.y'}, {'S.z', 'B.z'}}
 
-SRHD.hasEigenCode = true 
+GRMHD.hasEigenCode = true 
 
--- SRHD fluxFromCons will need prims passed to it as well
+-- GRMHD fluxFromCons will need prims passed to it as well
 -- which means overriding the code that calls this? or the calc flux code?
---SRHD.hasFluxFromCons = true
+--GRMHD.hasFluxFromCons = true
 
-SRHD.hasCalcDT = true
+GRMHD.hasCalcDT = true
 
-SRHD.initStates = require 'init.euler'
+GRMHD.initStates = require 'init.euler'
 
 local GuiFloat = require 'guivar.float'
 local GuiInt = require 'guivar.int'
-SRHD.guiVars = table{
+GRMHD.guiVars = table{
 --[[ double precision
 	GuiFloat{name='heatCapacityRatio', value=7/5},
 
@@ -79,25 +78,34 @@ SRHD.guiVars = table{
 --]]
 }
 
-function SRHD:getTypeCode()
+function GRMHD:getTypeCode()
 	return template([[
-typedef struct {
-	real rho;
-	real3 v;
-	real eInt;
-	real ePot;
+typedef union {
+	real ptr[9];
+	struct {
+		real rho;
+		real3 v;
+		
+		//TODO Font 2008 uses 'eInt' and derives P (for a more flexible EOS)
+		//but Anton just uses P
+		real eInt;	
+		
+		real3 B;
+		real BPot;
+	};
 } <?=eqn.prim_t?>;
 
 typedef union {
-	real ptr[5];
+	real ptr[9];
 	struct {
 		real D;
 		real3 S;
 		real tau;
+		real3 B;
 		
 		// TODO fix this.
 		// it is here because prim_t is expected to be the same size as cons_t
-		real unused;
+		real BPot;
 	};
 } <?=eqn.cons_t?>;
 ]], {
@@ -105,10 +113,17 @@ typedef union {
 })
 end
 
-function SRHD:getCodePrefix()
+-- YOU ARE HERE in converting stuff from SRHD to GRMHD
+
+function GRMHD:getCodePrefix()
 	return table{
-		SRHD.super.getCodePrefix(self),
+		GRMHD.super.getCodePrefix(self),
 		template([[
+
+//I'm going to fix metric coordinates at first
+//then later the transition to the evolved metric will be easier
+constant const real alpha = 1;
+constant const real3 betaU = _real3(0,0,0);
 
 //pressure function for ideal gas
 real calc_P(real rho, real eInt) {
@@ -146,10 +161,12 @@ real calc_h(real rho, real P, real eInt) {
 	real D = prim.rho * W;	
 	
 	//momentum = T^0i = rho h u^0 u^i + P g^0i
-	real3 S = real3_scale(prim.v, prim.rho * h * WSq);
+	real3 S = real3_add(
+		real3_scale(prim.v, prim.rho * h * WSq),
+		real3_scale(betaU, P / (alpha * alpha)));
 	
 	//energy = T^00 = rho h u^0 u^0 + P g^00
-	real tau = prim.rho * h * WSq - D - P;
+	real tau = prim.rho * h * WSq - D - P / (alpha * alpha);
 	
 	return (<?=eqn.cons_t?>){.D=D, .S=S, .tau=tau};
 }
@@ -159,7 +176,7 @@ real calc_h(real rho, real P, real eInt) {
 	}:concat'\n'
 end
 
-function SRHD:getInitStateCode()
+function GRMHD:getInitStateCode()
 	local initState = self.initStates[1+self.solver.initStatePtr[0]]
 	assert(initState, "couldn't find initState "..(self.solver.initStatePtr[0]+1))
 	local code = initState.init(self.solver)
@@ -202,14 +219,14 @@ kernel void initState(
 })
 end
 
-function SRHD:getSolverCode()
+function GRMHD:getSolverCode()
 	return template(file['eqn/srhd.cl'], {
 		eqn = self,
 		solver = self.solver,
 	})
 end
 
-function SRHD:getDisplayVarCodePrefix()
+function GRMHD:getDisplayVarCodePrefix()
 	return template([[
 	<?=eqn.cons_t?> U = buf[index];
 	<?=eqn.prim_t?> prim = primBuf[index];
@@ -218,7 +235,7 @@ function SRHD:getDisplayVarCodePrefix()
 })
 end
 
-function SRHD:getDisplayVars()
+function GRMHD:getDisplayVars()
 	return {
 		{D = 'value = U.D;'},
 		{Sx = 'value = U.S.x;'},
@@ -241,7 +258,7 @@ function SRHD:getDisplayVars()
 	}
 end
 
-function SRHD:getPrimDisplayVarCodePrefix()
+function GRMHD:getPrimDisplayVarCodePrefix()
 	return template([[
 	<?=eqn.prim_t?> prim = buf[index];
 ]], {
@@ -249,7 +266,7 @@ function SRHD:getPrimDisplayVarCodePrefix()
 	})
 end
 
-SRHD.primDisplayVars = {
+GRMHD.primDisplayVars = {
 	{rho = 'value = prim.rho;'},
 	{vx = 'value = prim.v.x;'},
 	{vy = 'value = prim.v.y;'},
@@ -261,7 +278,7 @@ SRHD.primDisplayVars = {
 	{h = 'value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt);'},
 }
 
-SRHD.eigenStructFields = {
+GRMHD.eigenStructFields = {
 	{rho = 'real'},
 	{v = 'real3'},
 	{h = 'real'},
@@ -275,7 +292,7 @@ SRHD.eigenStructFields = {
 	{Kappa = 'real'},
 }
 
-function SRHD:getEigenTypeCode()
+function GRMHD:getEigenTypeCode()
 	return 'typedef struct {\n'
 		..table.map(self.eigenStructFields, function(field)
 			local name, ctype = next(field)
@@ -284,8 +301,8 @@ function SRHD:getEigenTypeCode()
 		..'} '..self.eigen_t..';\n'
 end
 
-function SRHD:getEigenDisplayVars()
+function GRMHD:getEigenDisplayVars()
 	return {}
 end
 
-return SRHD
+return GRMHD

@@ -1,3 +1,10 @@
+/*
+I've highjacked all of this.  It was a normal Euler eqn solver.
+But I experimented with a curved-space solver.  
+To get back to the original code,
+just replace all the g_ab stuff with their constant values and simplify away.
+*/
+
 //needs Equation.hasFluxFromCons=true
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U, real3 x) {

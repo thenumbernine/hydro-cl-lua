@@ -1,10 +1,7 @@
 --[[
-based on Marti 1998, Marti & Muller 2008, and maybe some of Font 2008 (but that's grhd)
-
-honestly I developed a Marti & Muller SRHD solver
-then I bumped it up to GRHD by incorporating (fixed) alphas betas and gammas
-and then I thought "why not keep the old SRHD solver around"
-so viola, here it is, unnecessarily available.
+Font 2008
+it's all based on a metric of alpha, beta, gamma
+which I haven't got hooked up to anything (grid, mesh, etc)
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
@@ -13,26 +10,26 @@ local Equation = require 'eqn.eqn'
 local clnumber = require 'clnumber'
 local template = require 'template'
 
-local SRHD = class(Equation)
-SRHD.name = 'SRHD'
-SRHD.numStates = 6
-SRHD.numWaves = 5
+local GRHD = class(Equation)
+GRHD.name = 'GRHD'
+GRHD.numStates = 6
+GRHD.numWaves = 5
 
-SRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
+GRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
 
-SRHD.hasEigenCode = true 
+GRHD.hasEigenCode = true 
 
--- SRHD fluxFromCons will need prims passed to it as well
+-- GRHD fluxFromCons will need prims passed to it as well
 -- which means overriding the code that calls this? or the calc flux code?
---SRHD.hasFluxFromCons = true
+--GRHD.hasFluxFromCons = true
 
-SRHD.hasCalcDT = true
+GRHD.hasCalcDT = true
 
-SRHD.initStates = require 'init.euler'
+GRHD.initStates = require 'init.euler'
 
 local GuiFloat = require 'guivar.float'
 local GuiInt = require 'guivar.int'
-SRHD.guiVars = table{
+GRHD.guiVars = table{
 --[[ double precision
 	GuiFloat{name='heatCapacityRatio', value=7/5},
 
@@ -79,7 +76,7 @@ SRHD.guiVars = table{
 --]]
 }
 
-function SRHD:getTypeCode()
+function GRHD:getTypeCode()
 	return template([[
 typedef struct {
 	real rho;
@@ -105,10 +102,15 @@ typedef union {
 })
 end
 
-function SRHD:getCodePrefix()
+function GRHD:getCodePrefix()
 	return table{
-		SRHD.super.getCodePrefix(self),
+		GRHD.super.getCodePrefix(self),
 		template([[
+
+//I'm going to fix metric coordinates at first
+//then later the transition to the evolved metric will be easier
+constant const real alpha = 1;
+constant const real3 betaU = _real3(0,0,0);
 
 //pressure function for ideal gas
 real calc_P(real rho, real eInt) {
@@ -146,10 +148,12 @@ real calc_h(real rho, real P, real eInt) {
 	real D = prim.rho * W;	
 	
 	//momentum = T^0i = rho h u^0 u^i + P g^0i
-	real3 S = real3_scale(prim.v, prim.rho * h * WSq);
+	real3 S = real3_add(
+		real3_scale(prim.v, prim.rho * h * WSq),
+		real3_scale(betaU, P / (alpha * alpha)));
 	
 	//energy = T^00 = rho h u^0 u^0 + P g^00
-	real tau = prim.rho * h * WSq - D - P;
+	real tau = prim.rho * h * WSq - D - P / (alpha * alpha);
 	
 	return (<?=eqn.cons_t?>){.D=D, .S=S, .tau=tau};
 }
@@ -159,7 +163,7 @@ real calc_h(real rho, real P, real eInt) {
 	}:concat'\n'
 end
 
-function SRHD:getInitStateCode()
+function GRHD:getInitStateCode()
 	local initState = self.initStates[1+self.solver.initStatePtr[0]]
 	assert(initState, "couldn't find initState "..(self.solver.initStatePtr[0]+1))
 	local code = initState.init(self.solver)
@@ -202,14 +206,14 @@ kernel void initState(
 })
 end
 
-function SRHD:getSolverCode()
-	return template(file['eqn/srhd.cl'], {
+function GRHD:getSolverCode()
+	return template(file['eqn/grhd.cl'], {
 		eqn = self,
 		solver = self.solver,
 	})
 end
 
-function SRHD:getDisplayVarCodePrefix()
+function GRHD:getDisplayVarCodePrefix()
 	return template([[
 	<?=eqn.cons_t?> U = buf[index];
 	<?=eqn.prim_t?> prim = primBuf[index];
@@ -218,7 +222,7 @@ function SRHD:getDisplayVarCodePrefix()
 })
 end
 
-function SRHD:getDisplayVars()
+function GRHD:getDisplayVars()
 	return {
 		{D = 'value = U.D;'},
 		{Sx = 'value = U.S.x;'},
@@ -241,7 +245,7 @@ function SRHD:getDisplayVars()
 	}
 end
 
-function SRHD:getPrimDisplayVarCodePrefix()
+function GRHD:getPrimDisplayVarCodePrefix()
 	return template([[
 	<?=eqn.prim_t?> prim = buf[index];
 ]], {
@@ -249,7 +253,7 @@ function SRHD:getPrimDisplayVarCodePrefix()
 	})
 end
 
-SRHD.primDisplayVars = {
+GRHD.primDisplayVars = {
 	{rho = 'value = prim.rho;'},
 	{vx = 'value = prim.v.x;'},
 	{vy = 'value = prim.v.y;'},
@@ -261,7 +265,7 @@ SRHD.primDisplayVars = {
 	{h = 'value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt);'},
 }
 
-SRHD.eigenStructFields = {
+GRHD.eigenStructFields = {
 	{rho = 'real'},
 	{v = 'real3'},
 	{h = 'real'},
@@ -275,7 +279,7 @@ SRHD.eigenStructFields = {
 	{Kappa = 'real'},
 }
 
-function SRHD:getEigenTypeCode()
+function GRHD:getEigenTypeCode()
 	return 'typedef struct {\n'
 		..table.map(self.eigenStructFields, function(field)
 			local name, ctype = next(field)
@@ -284,8 +288,8 @@ function SRHD:getEigenTypeCode()
 		..'} '..self.eigen_t..';\n'
 end
 
-function SRHD:getEigenDisplayVars()
+function GRHD:getEigenDisplayVars()
 	return {}
 end
 
-return SRHD
+return GRHD

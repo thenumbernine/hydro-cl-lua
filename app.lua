@@ -376,10 +376,10 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'self-gravitation soup',
 		
 		-- those designed for SRHD:
-		--initState = 'relativistic shock reflection',
+		--initState = 'relativistic shock reflection',			-- not working.  these initial conditions are constant =P
 		--initState = 'relativistic blast wave test problem 1',
 		--initState = 'relativistic blast wave test problem 2',
-		--initState = 'relativistic blast wave interaction',
+		initState = 'relativistic blast wave interaction',
 	
 		-- MHD-only init states: (that use 'b')
 		--initState = 'Brio-Wu',
@@ -387,7 +387,7 @@ real sym3_dot(sym3 a, sym3 b) {
 		
 		-- EM:
 		--initState = 'Maxwell default',
-		initState = 'Maxwell wire',
+		--initState = 'Maxwell wire',
 		--initState = 'scattering around cylinder',
 		
 		--initState = 'two-fluid EMHD soliton ion',
@@ -415,7 +415,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	-- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 	--    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-	--self.solvers:insert(require 'solver.srhd-roe'(args))
+	self.solvers:insert(require 'solver.srhd-roe'(args))
 	--self.solvers:insert(require 'solver.srhd-roe_implicit_linearized'(args))
 	
 	-- M+HD. 
@@ -430,7 +430,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))	-- TODO what about removing divergence?
 	
 	-- EM
-	self.solvers:insert(require 'solver.maxwell-roe'(args))
+	--self.solvers:insert(require 'solver.maxwell-roe'(args))
 	--self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
 	
 	-- EM+HD
