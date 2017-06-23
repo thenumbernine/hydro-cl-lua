@@ -17,6 +17,19 @@ local clnumber = require 'clnumber'
 local template = require 'template'
 local vec3sz = require 'ffi.vec.vec3sz'
 
+local function getn(...)
+	local t = {...}
+	t.n = select('#', ...)
+	return t
+end
+local function time(name, cb)
+	print(name..'...')
+	local startTime = os.clock()
+	local result = getn(cb())
+	local endTime = os.clock()
+	print('...done '..name..' ('..(endTime - startTime)..'s)')
+	return table.unpack(result, 1, result.n)
+end
 
 local xs = table{'x', 'y', 'z'}
 local minmaxs = table{'min', 'max'}
@@ -715,7 +728,7 @@ real3 cartesianToCoord(real3 v, real3 x) {
 
 	self.codePrefix = lines:concat'\n'
 
---print'solver.codePrefix:'
+print'done building solver.codePrefix'
 --print(self.codePrefix)
 end
 
@@ -725,13 +738,19 @@ function Solver:refreshInitStateProgram()
 		self.codePrefix,
 		self.eqn:getInitStateCode(),
 	}:concat'\n'
-	self.initStateProgram = self.app.ctx:program{devices={self.app.device}, code=initStateCode}
+	time('compiling init state program', function()
+		self.initStateProgram = self.app.ctx:program{devices={self.app.device}, code=initStateCode}
+	end)
 	self.initStateKernel = self.initStateProgram:kernel('initState', self.UBuf)
 end
 
 function Solver:resetState()
 	self.app.cmds:finish()
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.initStateKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{
+		kernel=self.initStateKernel, 
+		dim=self.dim, 
+		globalSize=self.gridSize:ptr(), 
+		localSize=self.localSize:ptr()}
 	self:boundary()
 	self.app.cmds:finish()
 	self.t = 0
@@ -765,7 +784,9 @@ kernel void multAdd(
 ]],
 	}:concat'\n'
 
-	self.commonProgram = self.app.ctx:program{devices={self.app.device}, code=commonCode}
+	time('compiling common program', function()
+		self.commonProgram = self.app.ctx:program{devices={self.app.device}, code=commonCode}
+	end)
 
 	-- used by the integrators
 	self.multAddKernel = self.commonProgram:kernel'multAdd'
@@ -839,8 +860,10 @@ function Solver:refreshSolverProgram()
 ]])
 
 	local code = self:getSolverCode()
-	
-	self.solverProgram = self.app.ctx:program{devices={self.app.device}, code=code}
+
+	time('compiling solver program', function()
+		self.solverProgram = self.app.ctx:program{devices={self.app.device}, code=code}
+	end)
 
 --[[ trying to find out what causes stalls on certain kernels
 do
@@ -934,7 +957,9 @@ function Solver:refreshDisplayProgram()
 	end
 
 	local code = lines:concat'\n'
-	self.displayProgram = self.app.ctx:program{devices={self.app.device}, code=code}
+	time('compiling display program', function()
+		self.displayProgram = self.app.ctx:program{devices={self.app.device}, code=code}
+	end)
 
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do
@@ -1071,7 +1096,10 @@ kernel void boundary(
 
 	local code = lines:concat'\n'
 
-	local boundaryProgram = self.app.ctx:program{devices={self.app.device}, code=code} 
+	local boundaryProgram
+	time('compiling boundary program', function()
+		boundaryProgram = self.app.ctx:program{devices={self.app.device}, code=code} 
+	end)
 	local boundaryKernel = boundaryProgram:kernel'boundary'
 	return boundaryProgram, boundaryKernel
 end

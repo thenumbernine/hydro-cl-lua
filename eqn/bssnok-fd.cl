@@ -1,24 +1,21 @@
 <?
 local table = require 'ext.table'
+local from3x3to6_table = {
+	{1, 2, 3},
+	{2, 4, 5},
+	{3, 5, 6},
+}
 local function from3x3to6(i,j)
-	if i == 1 then
-		if j == 1 then return 1 end
-		if j == 2 then return 2 end
-		if j == 3 then return 3 end
-	elseif i == 2 then
-		if j == 1 then return 2 end
-		if j == 2 then return 4 end
-		if j == 3 then return 5 end
-	elseif i == 3 then
-		if j == 1 then return 3 end
-		if j == 2 then return 5 end
-		if j == 3 then return 6 end
-	end
-	error'here'
+	return from3x3to6_table[i][j]
 end
 local from6to3x3_table = {{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}}
 local function from6to3x3(i)
 	return table.unpack(from6to3x3_table[i])
+end
+
+local function sym(a,b)
+	if a > b then a,b = b,a end
+	return xNames[a]..xNames[b]
 end
 ?>
 kernel void calcDeriv(
@@ -52,7 +49,7 @@ for i=solver.dim,2 do
 ?>	dx_alpha.s<?=i?> = 0;
 	dx_phi.s<?=i?> = 0;
 	dx_beta[<?=i?>] = _real3(0,0,0);
-	dx_gammaTilde[<?=i?>] = (sym3){0,0,0,0,0,0};
+	dx_gammaTilde[<?=i?>] = (sym3){.s={0,0,0,0,0,0}};
 <? end
 ?>
 
@@ -96,10 +93,10 @@ for ij,xij in ipairs(symNames) do
 		local ik = from3x3to6(i,k)
 		local jk = from3x3to6(j,k)
 ?>		+ dx_gammaTilde[<?=k?>].<?=xij?> * U->beta.<?=xk?>		//+ beta^k gammaTilde_ij,k 
-		+ U->gammaTilde.s<?=ik?> * dx_beta[<?=j+1?>].<?=xk?> 	//+ gammaTilde_ik beta^k_,j
-		+ U->gammaTilde.s<?=jk?> * dx_beta[<?=j+1?>].<?=xi?>	//+ gammaTilde_kj beta^k_,i 
+		+ U->gammaTilde.<?=sym(i,k)?> * dx_beta[<?=j+1?>].<?=xk?> 	//+ gammaTilde_ik beta^k_,j
+		+ U->gammaTilde.<?=sym(j,k)?> * dx_beta[<?=j+1?>].<?=xi?>	//+ gammaTilde_kj beta^k_,i 
 <? 	end
-?>		- 2./3. * U->gammaTilde.s[<?=ij?>] * tr_dx_beta;		//- 2/3 gammaTilde_ij beta^k_,k
+?>		- 2./3. * U->gammaTilde.<?=sym(i,j)?> * tr_dx_beta;		//- 2/3 gammaTilde_ij beta^k_,k
 <?
 end
 ?>

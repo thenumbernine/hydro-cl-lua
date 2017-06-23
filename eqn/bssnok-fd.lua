@@ -97,6 +97,7 @@ kernel void initState(
 <? end
 ?>	
 ]]..[[	
+
 	sym3 K = {
 <? for _,xij in ipairs(symNames) do
 ?>		.<?=xij?> = calc_K_<?=xij?>(x.x, x.y, x.z),
@@ -152,7 +153,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	addvar'alpha'
 	addsym3'gammaTilde'
 	addvar'phi'
-	addvar'K'
+	addvar'tr_K'
 	addreal3'Gamma'
 	addsym3'ATilde'
 	--[[

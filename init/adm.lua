@@ -86,7 +86,27 @@ local function initNumRel(args)
 		assert(type(expr) == 'table', "expected table, found "..type(expr))
 		if symmath.Expression.is(expr) then 
 			expr = expr()
-			print('compiling '..expr)
+		
+			local range = require 'ext.range'
+			-- replace pow(x,2) with x*x
+			expr = expr:map(function(x)
+				if symmath.op.pow.is(x) 
+				and symmath.Constant.is(x[2])
+				then
+					local value = assert(x[2].value)
+					if value > 0 and value == math.floor(value) then
+						if value == 1 then
+							return x[1]
+						else
+							return symmath.op.mul(range(value):map(function() 
+								return symmath.clone(x[1])
+							end):unpack())
+						end
+					end
+				end
+			end)		
+			
+			print('compiling '..name..' '..expr)
 			return expr:compile(vars, 'C'), name
 		end
 		return table.map(expr, compileC), name

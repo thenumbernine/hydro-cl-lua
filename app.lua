@@ -243,7 +243,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 2,
+		dim = cmdline.dim or 1,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
@@ -375,11 +375,11 @@ real sym3_dot(sym3 a, sym3 b) {
 		--initState = 'self-gravitation test 4',
 		--initState = 'self-gravitation soup',
 		
-		-- those designed for SRHD:
+		-- those designed for SRHD / GRHD:
 		--initState = 'relativistic shock reflection',			-- not working.  these initial conditions are constant =P
 		--initState = 'relativistic blast wave test problem 1',
 		--initState = 'relativistic blast wave test problem 2',
-		initState = 'relativistic blast wave interaction',
+		--initState = 'relativistic blast wave interaction',
 	
 		-- MHD-only init states: (that use 'b')
 		--initState = 'Brio-Wu',
@@ -415,8 +415,12 @@ real sym3_dot(sym3 a, sym3 b) {
 	-- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 	--    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-	self.solvers:insert(require 'solver.srhd-roe'(args))
+	--self.solvers:insert(require 'solver.srhd-roe'(args))
 	--self.solvers:insert(require 'solver.srhd-roe_implicit_linearized'(args))
+	
+	-- GR+HD
+	--self.solvers:insert(require 'solver.grhd-roe'(args))
+	--self.solvers:insert(require 'solver.grhd-roe_implicit_linearized'(args))
 	
 	-- M+HD. 
 	-- with superbee flux lim:  
@@ -446,7 +450,7 @@ real sym3_dot(sym3 a, sym3 b) {
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
 	-- then there's the BSSNOK finite-difference solver
-	--self.solvers:insert(require 'solver.bssnok-fd-fe'(args))	-- goes really sloooow, same with HydroGPU on this graphics card
+	self.solvers:insert(require 'solver.bssnok-fd-fe'(args))	-- goes really sloooow, same with HydroGPU on this graphics card
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 	
