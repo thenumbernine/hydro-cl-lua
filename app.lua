@@ -155,10 +155,23 @@ typedef union {
 		real s00, s01, s02, s11, s12, s22;
 	};
 } sym3;
+
+//row vectors, so a.i.j = a_ij
+typedef union {
+	real s[9];
+	real3 v[3];
+	struct {
+		real3 v0,v1,v2;
+	};
+	struct {
+		real3 x,y,z;
+	};
+} mat3;
 ]]
 	ffi.cdef(self.sym3TypeCode)
 
-	self.sym3Code = [[
+	local template = require 'template'
+	self.sym3Code = template([[
 real sym3_det(sym3 m) {
 	return m.xx * m.yy * m.zz
 		+ m.xy * m.yz * m.xz
@@ -226,7 +239,39 @@ real sym3_dot(sym3 a, sym3 b) {
 		+ 2. * (a.xy * b.xy + a.xz * b.xz + a.yz * b.yz);
 }
 
-]]
+mat3 sym3_sym3_mul(sym3 a, sym3 b) {
+	mat3 m;
+<? for i=0,2 do
+	for j=0,2 do
+?>	m.v<?=i?>.s<?=j?> = 0.
+<?		for k=0,2 do
+?>		+ a.s<?=i<=k and i..k or k..i?> * b.s<?=k<=j and k..j or j..k?>
+<?		end
+?>	;
+<?	end
+end 
+?>	return m;
+}
+
+mat3 mat3_mat3_mul(mat3 a, mat3 b) {
+	mat3 c;
+	for (int i = 0; i < 3; ++i) {
+		for (int j = 0; j < 3; ++j) {
+			real sum = 0.;
+			for (int k = 0; k < 3; ++k) {
+				sum += a.v[i].s[k] * b.v[k].s[j];
+			}
+			c.v[i].s[j] = sum;
+		}
+	}
+	return c;
+}
+
+real mat3_trace(mat3 m) {
+	return m.x.x + m.y.y + m.z.z;
+}
+
+]])
 
 	--[[ self-gravitation simulation of planet earth?
 	cmdline = {
@@ -449,8 +494,8 @@ real sym3_dot(sym3 a, sym3 b) {
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
-	-- then there's the BSSNOK finite-difference solver
-	self.solvers:insert(require 'solver.bssnok-fd-fe'(args))
+	-- then there's the BSSNOK finite-difference solver ...
+	self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 	
