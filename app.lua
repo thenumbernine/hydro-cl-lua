@@ -199,6 +199,15 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		m.xz * v.z + m.yz * v.y + m.zz * v.z);
 }
 
+real real3_weighted_norm(real3 v, sym3 m) {
+	return v.x * v.x * m.xx 
+		+ v.y * v.y * m.yy
+		+ v.z * v.z * m.zz
+		+ 2. * (v.x * v.y * m.xy
+			+ v.x * v.z * m.xz
+			+ v.y * v.z * m.yz);
+}
+
 sym3 sym3_add(sym3 a, sym3 b) {
 	return (sym3){
 		.xx = a.xx + b.xx,
@@ -252,6 +261,21 @@ mat3 sym3_sym3_mul(sym3 a, sym3 b) {
 end 
 ?>	return m;
 }
+
+mat3 mat3_sym3_mul(mat3 a, sym3 b) {
+	mat3 m;
+<? for i=0,2 do
+	for j=0,2 do
+?>	m.v<?=i?>.s<?=j?> = 0.<?
+		for k=0,2 do
+?> + a.v<?=i?>.s<?=k?> * b.s<?=k<=j and k..j or j..k?><?
+		end
+?>;
+<?	end
+end 
+?>	return m;
+}
+
 
 mat3 mat3_mat3_mul(mat3 a, mat3 b) {
 	mat3 c;
