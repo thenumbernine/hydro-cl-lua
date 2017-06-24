@@ -124,7 +124,6 @@ kernel void initState(
 	//gammaBar_ij = e^(-4phi) gamma_ij
 	real exp_neg4phi = exp(-4 * U->phi);
 	U->gammaBar_ll = sym3_scale(gamma_ll, exp_neg4phi);
-	
 
 ]]--[[
 <? for _,x in ipairs(xNames) do
@@ -153,7 +152,7 @@ kernel void init_connBarU(
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
-
+	
 	const global <?=eqn.cons_t?>* Up[dim];
 	const global <?=eqn.cons_t?>* Um[dim];
 	for (int i = 0; i < dim; ++i) {

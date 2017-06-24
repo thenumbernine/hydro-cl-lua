@@ -39,9 +39,9 @@ kernel void constrainU(
 	1
 	*/
 	real det_gammaBar = sym3_det(U->gammaBar_ll);
-	real cbrt_det_gammaBar = 1./cbrt(det_gammaBar);
+	real _1_cbrt_det_gammaBar = 1./cbrt(det_gammaBar);
 <? for ij,xij in ipairs(symNames) do
-?>	U->gammaBar_ll.<?=xij?> *= cbrt_det_gammaBar;
+?>	U->gammaBar_ll.<?=xij?> *= _1_cbrt_det_gammaBar;
 <? end
 ?>
 	sym3 gammaBar_uu = sym3_inv(1., U->gammaBar_ll);
@@ -53,13 +53,14 @@ kernel void constrainU(
 	= K - 1/3 3 K
 	= 0
 
-	tr(ATilde_ij) = 3 psi^-4 tr(A_ij) = 3 psi^-4 * 0 
+	tr(ATilde_ij) = 3 exp(-4 phi) tr(A_ij) 
+	= 3 exp(-4 phi) * 0 
 	= 0
 	*/
 	real tr_ATilde = sym3_dot(gammaBar_uu, U->ATilde_ll);
 	U->ATilde_ll = sym3_sub(
 		U->ATilde_ll, 
-		sym3_scale(U->gammaBar_ll, -1./3. * tr_ATilde));
+		sym3_scale(U->gammaBar_ll, 1./3. * tr_ATilde));
 }
 
 
@@ -70,7 +71,7 @@ kernel void calcDeriv(
 	SETBOUNDS(2,2);
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-
+	
 	const global <?=eqn.cons_t?>* Up[dim];
 	const global <?=eqn.cons_t?>* Um[dim];
 	for (int i = 0; i < dim; ++i) {
