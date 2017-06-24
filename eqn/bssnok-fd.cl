@@ -79,7 +79,8 @@ kernel void calcDeriv(
 	real tr_partial_beta = 0.;		//beta^i_,i
 	sym3 partial_gammaBar_lll[3];	//gammaBar_ij,k = partial_gammaBar[k].ij
 	sym3 partial_ATilde_lll[3];		//ATilde_ij,k = partial_ATilde_lll[k].ij
-<? for i=1,solver.dim do
+<?
+for i=1,solver.dim do
 	local xi = xNames[i]
 ?>	partial_alpha_l.<?=xi?> = (Up[<?=i-1?>]->alpha - Um[<?=i-1?>]->alpha) / (2. * grid_dx<?=i-1?>);
 	partial_phi_l.<?=xi?> = (Up[<?=i-1?>]->phi - Um[<?=i-1?>]->phi) / (2. * grid_dx<?=i-1?>);
@@ -199,10 +200,11 @@ end
 <?
 for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-?>	D2_alpha_ll.<?=xij?> = partial2_alpha_ll.<?=xij?> <?
+?>	D2_alpha_ll.<?=xij?> = partial2_alpha_ll.<?=xij?><?
 	for k,xk in ipairs(xNames) do 
 ?> - conn_ull[<?=k-1?>].<?=xij?> * partial_alpha_l.<?=xk?><?
-	end ?>;<?
+	end ?>;
+<?
 end
 ?>
 
@@ -236,17 +238,15 @@ for ij,xij in ipairs(symNames) do
 <?
 end
 ?>
-
-	mat3 ATilde_lu = sym3_sym3_mul(U->ATilde_ll, gammaBar_uu);	//ATilde_i^j
-	mat3 ATildeSq_lu = mat3_mat3_mul(ATilde_lu, ATilde_lu); 	//ATilde_i^k ATilde_k^j
-	real tr_ATildeSq = mat3_trace(ATildeSq_lu);					//ATilde_ij ATilde^ij
-	mat3 ATildeSq_ll = mat3_sym3_mul(ATilde_lu, U->ATilde_ll);	//ATilde_i^k ATilde_kj
-
+	mat3 ATilde_ul = sym3_sym3_mul(gammaBar_uu, U->ATilde_ll);		//ATilde^i_j = gammaBar^kl ATilde_kj
+	sym3 ATilde_uu = mat3_sym3_to_sym3_mul(ATilde_ul, gammaBar_uu);	//ATilde^ij = gammaBar^ik ATilde_kl gammaBar^lj
+	real tr_ATilde_sq = sym3_dot(U->ATilde_ll, ATilde_uu);			//tr_ATilde_sq := tr(ATilde^2) = ATilde_ij ATilde^ji
+	
 	real S = sym3_dot(U->S_ll, gamma_uu);
-
+	
 	//B&S 11.52
 	//K_,t = -gamma^ij D_ij alpha + alpha (ATilde_ij ATilde^ij + K^2 / 3) + 4 pi alpha (rho + S) + beta^i K_,i
-	deriv->K += -sym3_dot(gammaBar_uu, D2_alpha_ll) + U->alpha * (tr_ATildeSq + U->K * U->K / 3.) + 4 * M_PI * U->alpha * (U->rho + S) + real3_dot(U->beta_u, partial_K_l);
+	deriv->K += -sym3_dot(gammaBar_uu, D2_alpha_ll) + U->alpha * (tr_ATilde_sq + U->K * U->K / 3.) + 4 * M_PI * U->alpha * (U->rho + S) + real3_dot(U->beta_u, partial_K_l);
 
 	sym3 partial2_gammaBar_llll[6];	//partial2_gammaBar_llll[kl].ij = gammaBar_ij,kl
 <?
@@ -274,7 +274,8 @@ for ij,xij in ipairs(symNames) do
 end
 ?>
 	sym3 partial2_gammaBar_ll;	//partial2_gammaBar_ll.ij = gammaBar^kl gammaBar_ij,kl
-<? for ij,xij in ipairs(symNames) do
+<?
+for ij,xij in ipairs(symNames) do
 ?>	partial2_gammaBar_ll.<?=xij?> = 0. <?
 	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do
@@ -287,7 +288,8 @@ end
 
 	//B&S 11.54
 	sym3 RBar_ll;
-<? for ij,xij in ipairs(symNames) do
+<?
+for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 ?>	RBar_ll.<?=xij?> = -1./2. * partial2_gammaBar_ll.<?=xij?>
 <?	for k,xk in ipairs(xNames) do
@@ -303,12 +305,13 @@ end
 <?			end
 		end
 	end
-?>;
+?>	;
 <? end
 ?>
 
 	sym3 DBar2_phi_ll;
-<? for ij,xij in ipairs(symNames) do
+<?
+for ij,xij in ipairs(symNames) do
 ?>	DBar2_phi_ll.<?=xij?> = partial2_phi_ll.<?=xij?> <?
 	for k,xk in ipairs(xNames) do
 ?> - connBar_ull[<?=k?>].<?=xij?> * partial_phi_l.<?=xk?><?
@@ -326,13 +329,13 @@ end
 	//Then Baumgarte & Shapiro on p.390 say RPhi_ij is the same as p.57 substituting phi for ln(psi)
 	// ... but I thought phi was ln(psi)?  Then why would you need to separate R_ij = RBar_ij + RPhi_ij ?  I thought the substitution showed that R_ij was RPhi_ij?
 	//phi = ln(psi), so DBar_i ln psi = partial_phi_i
-	// so DBar_i DBar_j = 
 	sym3 RPhi_ll;
-<? for ij,xij in ipairs(symNames) do
+<?
+for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi = xNames[i]
 	local xj = xNames[j]
-?>	RPhi_ll.<?=xij?> + RBar_ll.<?=xij?> - 2. * (DBar2_phi_ll.<?=xij?> + gammaBar_uu.<?=xij?> * tr_DBar2_phi) + 4. * (partial_phi_l.<?=xi?> * partial_phi_l.<?=xj?> - U->gammaBar_ll.<?=xij?> * DBar_phi_norm);
+?>	RPhi_ll.<?=xij?> = RBar_ll.<?=xij?> - 2. * (DBar2_phi_ll.<?=xij?> + gammaBar_uu.<?=xij?> * tr_DBar2_phi) + 4. * (partial_phi_l.<?=xi?> * partial_phi_l.<?=xj?> - U->gammaBar_ll.<?=xij?> * DBar_phi_norm);
 <? end 
 ?>
 	sym3 R_ll = sym3_add(RPhi_ll, RBar_ll);
@@ -347,22 +350,96 @@ end
 	tracelessPart_ll = sym3_sub(tracelessPart_ll, sym3_scale(gamma_ll, -1./3. * tr_tracelessPart));
 
 	//B&S 11.53
-	//ATilde_ij,t = exp(-4phi) (-(D_ij alpha)^TF + alpha (R_ij^TF - 8 pi S_ij^TF) ) 
+	//ATilde_ij,t = 
+	//	exp(-4phi) (-(D_ij alpha)^TF + alpha (R_ij^TF - 8 pi S_ij^TF) ) 
 	//	+ alpha (K ATilde_ij - 2 ATilde_il ATilde^l_j)
-	//	+ beta^k ATilde_ij,k + ATilde_ik beta^k_,j + ATidle_kj beta^k_,i - 2/3 ATilde_ij beta^k_,k
+	//	+ beta^k ATilde_ij,k 
+	//	+ ATilde_ik beta^k_,j 
+	//	+ ATidle_kj beta^k_,i 
+	//	- 2/3 ATilde_ij beta^k_,k
 <?
 for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi = xNames[i]
 	local xj = xNames[j]
-?>	deriv->ATilde_ll.<?=xij?> = exp_neg4phi * tracelessPart_ll.<?=xij?>
-		+ U->alpha * (U->K * U->ATilde_ll.<?=xij?> - 2. * ATildeSq_ll.<?=xi?>.<?=xj?>)
+?>	deriv->ATilde_ll.<?=xij?> += exp_neg4phi * tracelessPart_ll.<?=xij?>
+		+ U->alpha * U->K * U->ATilde_ll.<?=xij?> 
 <?	for k,xk in ipairs(xNames) do
-?>		+ partial_ATilde_lll[<?=k-1?>].<?=xij?> * U->beta_u.<?=xk?>
+?>		- 2. * U->alpha * U->ATilde_ll.<?=sym(i,k)?> * ATilde_ul.<?=xk?>.<?=xj?>
+		+ partial_ATilde_lll[<?=k-1?>].<?=xij?> * U->beta_u.<?=xk?>
 		+ U->ATilde_ll.<?=sym(i,k)?> * partial_beta_ul[<?=j-1?>].<?=xk?>
 		+ U->ATilde_ll.<?=sym(j,k)?> * partial_beta_ul[<?=i-1?>].<?=xk?>
 <?	end
 ?>		- 2./3. * U->ATilde_ll.<?=xij?> * tr_partial_beta;
 <? end
+?>
+
+	real3 partial2_beta_ull[6];	//partial2_beta_ull[jk].i = beta^i_,jk
+<?
+for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+	if i==j then
+?>	partial2_beta_ull[<?=ij-1?>] = real3_scale(
+		real3_add(
+			real3_scale(U->beta_u, -2.),
+			real3_add(
+				Up[<?=i-1?>]->beta_u,
+				Um[<?=i-1?>]->beta_u)),
+			1. / (grid_dx<?=i-1?> * grid_dx<?=i-1?>));
+<?	else
+?>	partial2_beta_ull[<?=ij-1?>] = real3_scale(
+		real3_sub(
+			real3_add(
+				U[index + stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].beta_u,
+				U[index - stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].beta_u),
+			real3_add(
+				U[index - stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].beta_u,
+				U[index + stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].beta_u)
+		), 1. / (4. * grid_dx<?=i-1?> * grid_dx<?=j-1?>));
+<?	end
+end
+?>
+
+	//connBar^i is the connection function / connection coefficient iteration with Hamiltonian constraint baked in (Baumgarte & Shapiro p.389, Alcubierre p.86).
+	//B&S 11.55
+	//partial_t connBar^i = 
+	//	-2 ATilde^ij alpha_,j
+	//	+ 2 alpha (
+	//		connBar^i_jk ATilde^kj 
+	//		- 2/3 gammaBar^ij K_,j
+	//		- 8 pi gammaBar^ij S_j 
+	//		+ 6 ATilde^ij phi_,j
+	//	)
+	//	+ beta^j connBar^i_,j
+	//	- connBar^j beta^i_,j
+	//	+ 2/3 connBar^i beta^j_,j
+	//	+ 1/3 gammaBar^ki beta^j_,jk
+	//	+ gammaBar^kj beta^i_,jk
+<? 
+for i,xi in ipairs(xNames) do
+?>	deriv->connBar_u.<?=xi?> +=
+		2./3. * U->connBar_u.<?=xi?> * tr_partial_beta
+<?	for j,xj in ipairs(xNames) do
+		local xij = sym(i,j)
+		local jj = from3x3to6(j,j)
+?>		- 2. * U->ATilde_ll.<?=xij?> * partial_alpha_l.<?=xj?>
+		+ 2. * U->alpha * (
+			-2./3. * gammaBar_uu.<?=xij?> * partial_K_l.<?=xj?> 
+			- 8. * M_PI * U->gammaBar_ll.<?=xij?> * U->S_u.<?=xj?> 
+			+ 6. * ATilde_uu.<?=xij?> * partial_phi_l.<?=xj?>)
+		+ U->beta_u.<?=xi?> * partial_connBar_ul[<?=j-1?>].<?=xi?>
+		- U->connBar_u.<?=xj?> * partial_beta_ul[<?=j-1?>].<?=xi?>
+<?		for k,xk in ipairs(xNames) do		
+			local xik = sym(i,k)
+			local jk = from3x3to6(j,k)
+			local xjk = symNames[jk]
+?>		+ 2. * U->alpha * connBar_ull[<?=i-1?>].<?=xjk?> * ATilde_uu.<?=xjk?>
+		+ 1./3. * gammaBar_uu.<?=xik?> * partial2_beta_ull[<?=jk-1?>].<?=xj?>
+		+ gammaBar_uu.<?=xjk?> * partial2_beta_ull[<?=jk-1?>].<?=xi?>
+<?		end
+	end
+?>	;
+<?
+end
 ?>
 }

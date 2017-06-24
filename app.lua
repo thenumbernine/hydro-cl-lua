@@ -276,6 +276,19 @@ end
 ?>	return m;
 }
 
+sym3 mat3_sym3_to_sym3_mul(mat3 a, sym3 b) {
+	sym3 m;
+<? for i=0,2 do
+	for j=i,2 do
+?>	m.s<?=i?><?=j?> = 0.<?
+		for k=0,2 do
+?> + a.v<?=i?>.s<?=k?> * b.s<?=k<=j and k..j or j..k?><?
+		end
+?>;
+<?	end
+end 
+?>	return m;
+}
 
 mat3 mat3_mat3_mul(mat3 a, mat3 b) {
 	mat3 c;
