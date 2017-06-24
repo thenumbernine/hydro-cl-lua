@@ -58,9 +58,10 @@ kernel void constrainU(
 	= 0
 	*/
 	real tr_ATilde = sym3_dot(gammaBar_uu, U->ATilde_ll);
-	U->ATilde_ll = sym3_sub(
-		U->ATilde_ll, 
-		sym3_scale(U->gammaBar_ll, 1./3. * tr_ATilde));
+<? for ij,xij in ipairs(symNames) do
+?>	U->ATilde_ll.<?=xij?> -= U->gammaBar_ll.<?=xij?> * tr_ATilde * (1./3.);
+<? end
+?>
 }
 
 
@@ -71,12 +72,12 @@ kernel void calcDeriv(
 	SETBOUNDS(2,2);
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-	
+
 	const global <?=eqn.cons_t?>* Up[dim];
 	const global <?=eqn.cons_t?>* Um[dim];
 	for (int i = 0; i < dim; ++i) {
-		Up[i] = U + index + stepsize[i];
-		Um[i] = U + index - stepsize[i];
+		Up[i] = U + stepsize[i];
+		Um[i] = U - stepsize[i];
 	}
 
 	real3 partial_alpha_l;			//alpha_,i = partial_alpha_l.i
@@ -87,8 +88,7 @@ kernel void calcDeriv(
 	real tr_partial_beta = 0.;		//beta^i_,i
 	sym3 partial_gammaBar_lll[3];	//gammaBar_ij,k = partial_gammaBar[k].ij
 	sym3 partial_ATilde_lll[3];		//ATilde_ij,k = partial_ATilde_lll[k].ij
-<?
-for i=1,solver.dim do
+<? for i=1,solver.dim do
 	local xi = xNames[i]
 ?>	partial_alpha_l.<?=xi?> = (Up[<?=i-1?>]->alpha - Um[<?=i-1?>]->alpha) / (2. * grid_dx<?=i-1?>);
 	partial_phi_l.<?=xi?> = (Up[<?=i-1?>]->phi - Um[<?=i-1?>]->phi) / (2. * grid_dx<?=i-1?>);
@@ -183,8 +183,7 @@ end
 ?>
 
 	sym3 conn_ull[3];	//conn^i_jk = conn_ull[i].jk
-<?
-for i,xi in ipairs(xNames) do
+<? for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
 ?>	conn_ull[<?=i-1?>].<?=xjk?> = connBar_ull[<?=i-1?>].<?=xjk?><?
@@ -204,15 +203,13 @@ end
 
 	//D2_alpha_ll.ij = D_i D_j alpha = partial_i partial_j alpha - conn^k_ij partial_k alpha
 	sym3 D2_alpha_ll = (sym3){.s={0,0,0,0,0,0}};
-<?
-for ij,xij in ipairs(symNames) do
+<? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 ?>	D2_alpha_ll.<?=xij?> = partial2_alpha_ll.<?=xij?><?
 	for k,xk in ipairs(xNames) do 
 ?> - conn_ull[<?=k-1?>].<?=xij?> * partial_alpha_l.<?=xk?><?
 	end ?>;
-<?
-end
+<? end
 ?>
 
 	//Q = f(alpha) K
@@ -231,8 +228,7 @@ end
 
 	//B&S 11.51
 	//gammaBar_ij,t = -2 alpha ATilde_ij + beta^k gammaBar_ij,k + gammaBar_ik beta^k_,j + gammaBar_kj beta^k_,i - 2/3 gammaBar_ij beta^k_,k
-<?
-for ij,xij in ipairs(symNames) do
+<? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi = xNames[i]
 ?>	deriv->gammaBar_ll.<?=xij?> += -2 * U->alpha * U->ATilde_ll.<?=xij?>	//-2 alpha ATilde_ij 
@@ -242,8 +238,7 @@ for ij,xij in ipairs(symNames) do
 		+ U->gammaBar_ll.<?=sym(j,k)?> * partial_beta_ul[<?=j-1?>].<?=xi?>	//+ gammaBar_kj beta^k_,i 
 <? 	end
 ?>		- 2./3. * U->gammaBar_ll.<?=sym(i,j)?> * tr_partial_beta;		//- 2/3 gammaBar_ij beta^k_,k
-<?
-end
+<? end
 ?>
 	mat3 ATilde_ul = sym3_sym3_mul(gammaBar_uu, U->ATilde_ll);		//ATilde^i_j = gammaBar^kl ATilde_kj
 	sym3 ATilde_uu = mat3_sym3_to_sym3_mul(ATilde_ul, gammaBar_uu);	//ATilde^ij = gammaBar^ik ATilde_kl gammaBar^lj
@@ -256,8 +251,7 @@ end
 	deriv->K += -sym3_dot(gammaBar_uu, D2_alpha_ll) + U->alpha * (tr_ATilde_sq + U->K * U->K / 3.) + 4 * M_PI * U->alpha * (U->rho + S) + real3_dot(U->beta_u, partial_K_l);
 
 	sym3 partial2_gammaBar_llll[6];	//partial2_gammaBar_llll[kl].ij = gammaBar_ij,kl
-<?
-for ij,xij in ipairs(symNames) do
+<? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	if i==j then
 ?>	partial2_gammaBar_llll[<?=ij-1?>] = sym3_scale(
@@ -281,8 +275,7 @@ for ij,xij in ipairs(symNames) do
 end
 ?>
 	sym3 partial2_gammaBar_ll;	//partial2_gammaBar_ll.ij = gammaBar^kl gammaBar_ij,kl
-<?
-for ij,xij in ipairs(symNames) do
+<? for ij,xij in ipairs(symNames) do
 ?>	partial2_gammaBar_ll.<?=xij?> = 0. <?
 	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do
@@ -295,8 +288,7 @@ for ij,xij in ipairs(symNames) do
 
 	//B&S 11.54
 	sym3 RBar_ll;
-<?
-for ij,xij in ipairs(symNames) do
+<? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 ?>	RBar_ll.<?=xij?> = -1./2. * partial2_gammaBar_ll.<?=xij?>
 <?	for k,xk in ipairs(xNames) do
@@ -317,8 +309,7 @@ for ij,xij in ipairs(symNames) do
 ?>
 
 	sym3 DBar2_phi_ll;
-<?
-for ij,xij in ipairs(symNames) do
+<? for ij,xij in ipairs(symNames) do
 ?>	DBar2_phi_ll.<?=xij?> = partial2_phi_ll.<?=xij?> <?
 	for k,xk in ipairs(xNames) do
 ?> - connBar_ull[<?=k?>].<?=xij?> * partial_phi_l.<?=xk?><?
@@ -337,8 +328,7 @@ for ij,xij in ipairs(symNames) do
 	// ... but I thought phi was ln(psi)?  Then why would you need to separate R_ij = RBar_ij + RPhi_ij ?  I thought the substitution showed that R_ij was RPhi_ij?
 	//phi = ln(psi), so DBar_i ln psi = partial_phi_i
 	sym3 RPhi_ll;
-<?
-for ij,xij in ipairs(symNames) do
+<? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi = xNames[i]
 	local xj = xNames[j]
@@ -364,8 +354,7 @@ for ij,xij in ipairs(symNames) do
 	//	+ ATilde_ik beta^k_,j 
 	//	+ ATidle_kj beta^k_,i 
 	//	- 2/3 ATilde_ij beta^k_,k
-<?
-for ij,xij in ipairs(symNames) do
+<? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi = xNames[i]
 	local xj = xNames[j]
@@ -382,8 +371,7 @@ for ij,xij in ipairs(symNames) do
 ?>
 
 	real3 partial2_beta_ull[6];	//partial2_beta_ull[jk].i = beta^i_,jk
-<?
-for ij,xij in ipairs(symNames) do
+<? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	if i==j then
 ?>	partial2_beta_ull[<?=ij-1?>] = real3_scale(
@@ -446,7 +434,6 @@ for i,xi in ipairs(xNames) do
 <?		end
 	end
 ?>	;
-<?
-end
+<? end
 ?>
 }

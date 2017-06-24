@@ -104,7 +104,7 @@ end
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
-	SETBOUNDS(0,0);
+	SETBOUNDS(2,2);
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
@@ -122,7 +122,8 @@ kernel void initState(
 	U->phi = log(det_gamma) / 12.;
 
 	//gammaBar_ij = e^(-4phi) gamma_ij
-	real exp_neg4phi = exp(-4 * U->phi);
+	//real exp_neg4phi = exp(-4 * U->phi);
+	real exp_neg4phi = 1./cbrt(det_gamma);
 	U->gammaBar_ll = sym3_scale(gamma_ll, exp_neg4phi);
 
 ]]--[[
@@ -138,7 +139,7 @@ kernel void initState(
 <? end	
 ?>	};
 	U->K = sym3_dot(K_ll, gamma_uu);
-	sym3 A_ll = sym3_add(K_ll, sym3_scale(gamma_ll, -1./3. * U->K));
+	sym3 A_ll = sym3_sub(K_ll, sym3_scale(gamma_ll, 1./3. * U->K));
 	U->ATilde_ll = sym3_scale(A_ll, exp_neg4phi);
 	
 	U->rho = 0;
@@ -149,17 +150,90 @@ kernel void initState(
 kernel void init_connBarU(
 	global <?=eqn.cons_t?>* UBuf
 ) {
-	SETBOUNDS(0,0);
+	SETBOUNDS(2,2);
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
+#if 1
+	//why do I see spikes in connBar^i where gamma is constant?
+	//ok I got it to go away here at least
+	//but it still shows up in updates, and influences here after several iterations
+	//ahh I was using U+index instead of UBuf+index
+
+#if 0 //this works
+	sym3 Up_gammaBar_ll = UBuf[index + 1].gammaBar_ll;
+	sym3 Um_gammaBar_ll = UBuf[index - 1].gammaBar_ll;
+#else	//this doesn't
+	const global <?=eqn.cons_t?>* Up;
+	const global <?=eqn.cons_t?>* Um;
+	Up = U + stepsize.x;
+	Um = U - stepsize.x;
+	sym3 Up_gammaBar_ll = Up->gammaBar_ll;
+	sym3 Um_gammaBar_ll = Um->gammaBar_ll;
+#endif
+
+	real Up_gammaBarUxx = Up_gammaBar_ll.yy * Up_gammaBar_ll.zz 
+		- Up_gammaBar_ll.yz * Up_gammaBar_ll.yz;
+	real Um_gammaBarUxx = Um_gammaBar_ll.yy * Um_gammaBar_ll.zz 
+		- Um_gammaBar_ll.yz * Um_gammaBar_ll.yz;
+	
+	U->connBar_u.x = (Up_gammaBarUxx - Um_gammaBarUxx) / (2. * grid_dx0);
+	U->connBar_u.y = 0.;
+	U->connBar_u.z = 0.;
+
+#elif 0
 	const global <?=eqn.cons_t?>* Up[dim];
 	const global <?=eqn.cons_t?>* Um[dim];
-	for (int i = 0; i < dim; ++i) {
-		Up[i] = U + index + stepsize[i];
-		Um[i] = U + index - stepsize[i];
+	for (int j = 0; j < dim; ++j) {
+		Up[j] = U + stepsize[j];
+		Um[j] = U - stepsize[j];
 	}
 
+	sym3 Up_gammaBar_ll, Um_gammaBar_ll;
+	real det_Up_gammaBar_ll, det_Um_gammaBar_ll;
+	sym3 Up_gammaBar_uu, Um_gammaBar_uu;
+	sym3 partial_gammaBar_uul[3];
+<? for i=1,solver.dim do
+?>	
+	Up_gammaBar_ll = Up[<?=i-1?>]->gammaBar_ll;
+	Um_gammaBar_ll = Um[<?=i-1?>]->gammaBar_ll;
+	
+	//TODO hmm, det is supposed to be 1 ... but it isn't ... 
+	det_Up_gammaBar_ll = sym3_det(Up_gammaBar_ll); 
+	det_Um_gammaBar_ll = sym3_det(Um_gammaBar_ll); 
+	
+	Up_gammaBar_uu = sym3_inv(det_Up_gammaBar_ll, Up_gammaBar_ll);
+	Um_gammaBar_uu = sym3_inv(det_Um_gammaBar_ll, Um_gammaBar_ll);
+
+<? 	for jk,xjk in ipairs(symNames) do
+?>	partial_gammaBar_uul[<?=i-1?>].<?=xjk?> = 
+		(Up_gammaBar_uu.<?=xjk?> - Um_gammaBar_uu.<?=xjk?>)
+			/ (2. * grid_dx<?=i-1?>);
+<?	end 
+end
+for i=solver.dim+1,3 do
+?>	partial_gammaBar_uul[<?=i-1?>] = (sym3){.s={0,0,0,0,0,0}};
+<? end
+?>
+
+	//connBar^i = -gammaBar^ij_,j
+<? for i,xi in ipairs(xNames) do
+?>	U->connBar_u.<?=xi?> =<?
+	for j,xj in ipairs(xNames) do
+?> - partial_gammaBar_uul[<?=j-1?>].<?=sym(i,j)?><?
+	end
+?>;
+<? end
+?>
+
+#elif 0
+	const global <?=eqn.cons_t?>* Up[dim];
+	const global <?=eqn.cons_t?>* Um[dim];
+	for (int j = 0; j < dim; ++j) {
+		Up[j] = U + stepsize[j];
+		Um[j] = U - stepsize[j];
+	}
+	
 	sym3 gammaBar_uu = sym3_inv(1., U->gammaBar_ll);
 	
 	real exp_neg4phi = exp(-4 * U->phi);
@@ -172,7 +246,7 @@ kernel void init_connBarU(
 <? for k,xk in ipairs(xNames) do
 	for ij,xij in ipairs(symNames) do
 ?>	d_lll[<?=k-1?>].<?=xij?> = calc_d_<?=xk?><?=xij?>(x.x, x.y, x.z);
-<?	
+<?
 	end
 end
 ?>
@@ -189,10 +263,10 @@ end
 	sym3 conn_ull[3];
 <? for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
-?>	conn_ull[<?=i-1?>].<?=xjk?> = 0. <?
+?>	conn_ull[<?=i-1?>].<?=xjk?> = 0.<?
 		for l,xl in ipairs(xNames) do
-?> + gamma_uu.<?=sym(i,l)?> * conn_lll[<?=l-1?>].<?=xjk?>
-<?		end
+?> + gamma_uu.<?=sym(i,l)?> * conn_lll[<?=l-1?>].<?=xjk?><?
+		end
 ?>;
 <?	end
 end
@@ -227,12 +301,14 @@ for i=solver.dim+1,3 do
 <?	end
 end
 ?>
-	
 	//TODO something wrong with connBar^i's initialization
 	U->connBar_u = _real3(
 		sym3_dot(connBar_ull[0], gammaBar_uu),
 		sym3_dot(connBar_ull[1], gammaBar_uu),
 		sym3_dot(connBar_ull[2], gammaBar_uu));
+#else
+#error "forgot to enable one"
+#endif
 }
 ]], {
 		eqn = self,
@@ -296,7 +372,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	addreal3'S_u'
 	addsym3'S_ll'
 
-	vars:insert{det_gammaBar = [[value = sym3_det(U->gammaBar_ll);]]}
+	vars:insert{['det_gammaBar_ll_minus_1'] = [[value = -1. + sym3_det(U->gammaBar_ll);]]}
 	
 	vars:insert{tr_ATilde = [[
 	sym3 gammaBar_uu = sym3_inv(1., U->gammaBar_ll);
