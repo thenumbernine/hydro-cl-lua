@@ -8,14 +8,20 @@ now this project, lua-hydro-cl, pushes the middleman (C++) out completely
 
 Features:
 - Roe solver in 1D, 2D, 3D
-- various flux limiters
+- various flux limiters / 
+- PLM for certain solvers
 - various boundary conditions
+- integrators: Forward Euler, several Runge-Kutta and Runge-Kutta TVD, and implicit linearized GMRES
 - script-generated OpenCL code regenerated on the fly as soon as you change GUI options
 - GUI-driven everything.  no more restarting the program to switch solvers.
-- Euler equations from Toro's book
-- ADM via the Bona-Masso formalism described in Alcubierre 1997 and Alcubierre's 2008 book
+- Euler equations from Toro's book (with some modifications for curved geometry) 
 - Maxwell equations from Trangenstein's book
+- ideal MHD from Stone et al 2008
 - self-gravitation for Euler equations
+- SRHD from Marti & Muller 2008
+- GRHD from Font 2008
+- numerical relativity via Bona-Masso formalism described in Alcubierre 1997 and Alcubierre's 2008 book
+- (WIP) numerical relativity via finite difference BSSNOK (Baumgarte & Shapiro 2010)
 
 TODO:
 - for 2D SRHD, it looks like my W = U.D / prim.rho is drifting from W = 1 / sqrt(1 - prim.v^2)
@@ -30,7 +36,7 @@ TODO:
 - rename 'adm\_' prefixes to 'nr\_' or 'gr\_' or something else ...
 - PLM support that works on a wide range of equations (currently have a few vying options)
 - higher-order polynomial stuff - WENO or whatever
-- initialize NR stuff to the geometry metric
+- initialize NR stuff to the geometry metric ... or decide what kind of geometry metric to use (holonomic vs anholonomic)
 - add GR+HD by taking the SRHD and giving it the metric from GR (adm solver)
 - add EM+SRHD by mixing and matching SRHD and EMHD
 - add EM+GR+HD by winning

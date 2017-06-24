@@ -1,3 +1,8 @@
+/*
+Baumgarte & Shapiro "Numerical Relativity: Solving Einstein's Equations on the Computer" 2010
+Alcubierre "Introduction to Numerical Relativity" 2008
+*/
+
 <?
 local table = require 'ext.table'
 local from3x3to6_table = {

@@ -1,3 +1,8 @@
+/*
+Stone et al 2008 - https://arxiv.org/pdf/0804.0402v1.pdf
+based on Athena's version of eigenvectors of derivative of adiabatic MHD flux wrt primitives
+*/
+
 //use Eqn.hasFluxFromCons to allow the calcFlux function to take advantage of this function
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U, real3 x) {
@@ -19,9 +24,6 @@
 	return F;
 }
 <? end ?>
-
-// https://arxiv.org/pdf/0804.0402v1.pdf
-// based on Athena's version of eigenvectors of derivative of adiabatic MHD flux wrt primitives
 
 typedef struct {
 	real rho;
