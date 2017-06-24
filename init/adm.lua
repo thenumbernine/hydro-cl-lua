@@ -150,16 +150,6 @@ local function initNumRel(args)
 		end)
 		print('...done building metric partials')
 
-		-- TODO only calculate upon request
-		local gammaLL = exprs.gammaLL
-		local det_gamma = symmath.Matrix(
-			{gammaLL[1], gammaLL[2], gammaLL[3]},
-			{gammaLL[2], gammaLL[4], gammaLL[5]},
-			{gammaLL[3], gammaLL[5], gammaLL[6]}):determinant()
-		exprs.partial_psi = table.map(vars, function(xk)
-			return (symmath.log(det_gamma)/12):diff(xk)()
-		end)
-	
 		print('building lapse partials...')
 		exprs.a = table.map(vars, function(var)
 			return (exprs.alpha:diff(var) / exprs.alpha)()
@@ -189,9 +179,6 @@ local function initNumRel(args)
 			end):unpack()),
 			symNames:map(function(xij,ij)
 				return exprs.K[ij], 'K_'..xij
-			end),
-			xNames:map(function(xi,i)
-				return exprs.partial_psi[i], 'partial_psi_'..xi
 			end)
 		):map(compileC)
 

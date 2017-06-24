@@ -125,8 +125,6 @@ kernel void initState(
 	real exp_neg4phi = exp(-4 * U->phi);
 	U->gammaBar_ll = sym3_scale(gamma_ll, exp_neg4phi);
 	
-	//gammaBar^ij = e^(4phi) gamma^ij
-	sym3 gammaBar_uu = sym3_scale(gamma_uu, 1./exp_neg4phi);
 
 ]]--[[
 <? for _,x in ipairs(xNames) do
@@ -143,6 +141,32 @@ kernel void initState(
 	U->K = sym3_dot(K_ll, gamma_uu);
 	sym3 A_ll = sym3_add(K_ll, sym3_scale(gamma_ll, -1./3. * U->K));
 	U->ATilde_ll = sym3_scale(A_ll, exp_neg4phi);
+	
+	U->rho = 0;
+	U->S_u = _real3(0,0,0);
+	U->S_ll = (sym3){.s={0,0,0,0,0,0}};
+}
+
+kernel void init_connBarU(
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cell_x(i);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+	const global <?=eqn.cons_t?>* Up[dim];
+	const global <?=eqn.cons_t?>* Um[dim];
+	for (int i = 0; i < dim; ++i) {
+		Up[i] = U + index + stepsize[i];
+		Um[i] = U + index - stepsize[i];
+	}
+
+	sym3 gammaBar_uu = sym3_inv(1., U->gammaBar_ll);
+	
+	real exp_neg4phi = exp(-4 * U->phi);
+
+	//gammaBar^ij = e^(4phi) gamma^ij
+	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
 
 	//d[k].ij = d_kij = = 1/2 gamma_ij,k
 	sym3 d_lll[3];
@@ -174,12 +198,18 @@ end
 <?	end
 end
 ?>
-	real3 partial_psi_l = _real3(
-		calc_partial_psi_x(x.x, x.y, x.z),
-		calc_partial_psi_y(x.x, x.y, x.z),
-		calc_partial_psi_z(x.x, x.y, x.z));
-	real3 partial_psi_u = sym3_real3_mul(gammaBar_uu, partial_psi_l);
-
+	real3 partial_phi_l;
+<? for i=1,solver.dim do
+	local xi = xNames[i]
+?>	partial_phi_l.<?=xi?> = (Up[<?=i-1?>]->phi - Um[<?=i-1?>]->phi) / (2. * grid_dx<?=i-1?>);
+<? end
+for i=solver.dim+1,3 do
+	local xi = xNames[i]
+?>	partial_phi_l.<?=xi?> = 0;
+<? end
+?>
+	real3 partial_phi_u = sym3_real3_mul(gammaBar_uu, partial_phi_l);
+	
 	//connBar^i_jk = conn^i_jk - 2 delta^i_j ln(psi)_,k - 2 delta^i_k ln(psi)_,j + 2 gammaBar_jk gammaBar^il ln(psi)_,l
 	sym3 connBar_ull[3];
 <? for i,xi in ipairs(xNames) do
@@ -187,28 +217,28 @@ end
 		local j,k = from6to3x3(jk)
 		local xj = xNames[j]
 		local xk = xNames[k]
-?>	connBar_ull[<?=i-1?>].<?=xjk?> = conn_ull[<?=i-1?>].<?=xjk?> + 2. * U->gammaBar_ll.<?=sym(j,k)?> * partial_psi_u.<?=xi?><?
+?>	connBar_ull[<?=i-1?>].<?=xjk?> = conn_ull[<?=i-1?>].<?=xjk?> + 2. * U->gammaBar_ll.<?=sym(j,k)?> * partial_phi_u.<?=xi?><?
 		if i == j then
-?> - 2. * partial_psi_l.<?=xk?><?
+?> - 2. * partial_phi_l.<?=xk?><?
 		end
 		if i == k then
-?> - 2. * partial_psi_l.<?=xj?><?
+?> - 2. * partial_phi_l.<?=xj?><?
 		end
 ?>;
 <?	end
 end
 ?>
+	
+	//TODO something wrong with connBar^i's initialization
 	U->connBar_u = _real3(
 		sym3_dot(connBar_ull[0], gammaBar_uu),
 		sym3_dot(connBar_ull[1], gammaBar_uu),
 		sym3_dot(connBar_ull[2], gammaBar_uu));
 	
-	U->rho = 0;
-	U->S_u = _real3(0,0,0);
-	U->S_ll = (sym3){.s={0,0,0,0,0,0}};
 }
 ]], {
 		eqn = self,
+		solver = self.solver,
 		symNames = symNames,
 		xNames = xNames,
 	})
@@ -267,6 +297,19 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	addvar'rho'
 	addreal3'S_u'
 	addsym3'S_ll'
+
+	vars:insert{det_gammaBar = [[value = sym3_det(U->gammaBar_ll);]]}
+	vars:insert{tr_ATilde = [[
+	sym3 gammaBar_uu = sym3_inv(1., U->gammaBar_ll);
+	value = sym3_dot(gammaBar_uu, U->ATilde_ll);
+]]}
+
+	vars:insert{S = [[
+	sym3 gammaBar_uu = sym3_inv(1., U->gammaBar_ll);
+	real exp_neg4phi = exp(-4. * U->phi);
+	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
+	value = sym3_dot(U->S_ll, gamma_uu);
+]]}
 
 	return vars
 end

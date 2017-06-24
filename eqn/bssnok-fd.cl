@@ -161,7 +161,6 @@ for i,xi in ipairs(xNames) do
 <?	end
 end
 ?>	
-
 	sym3 connBar_ull[3];	//connBar^i_jk = connBar_ull[i].jk
 <? 
 for i,xi in ipairs(xNames) do

@@ -5,6 +5,10 @@ local Solver = require 'solver.solver'
 local BSSNOKFiniteDifferenceSolver = class(Solver)
 BSSNOKFiniteDifferenceSolver.name = 'BSSNOKFiniteDifferenceSolver'
 
+function BSSNOKFiniteDifferenceSolver:createEqn(eqn)
+	self.eqn = BSSNOKFiniteDifferenceEquation(self)
+end
+
 function BSSNOKFiniteDifferenceSolver:refreshSolverProgram()
 	BSSNOKFiniteDifferenceSolver.super.refreshSolverProgram(self)
 	
@@ -14,8 +18,22 @@ function BSSNOKFiniteDifferenceSolver:refreshSolverProgram()
 	self.constrainUKernel = self.solverProgram:kernel('constrainU', self.UBuf)
 end
 
-function BSSNOKFiniteDifferenceSolver:createEqn(eqn)
-	self.eqn = BSSNOKFiniteDifferenceEquation(self)
+function BSSNOKFiniteDifferenceSolver:refreshInitStateProgram()
+	BSSNOKFiniteDifferenceSolver.super.refreshInitStateProgram(self)
+
+	self.initCalcConnUBarKernel = self.initStateProgram:kernel('init_connBarU', self.UBuf)
+end
+
+function BSSNOKFiniteDifferenceSolver:resetState()
+	BSSNOKFiniteDifferenceSolver.super.resetState(self)
+	
+	self.app.cmds:enqueueNDRangeKernel{
+		kernel=self.initCalcConnUBarKernel, 
+		dim=self.dim, 
+		globalSize=self.gridSize:ptr(), 
+		localSize=self.localSize:ptr()}
+	self:boundary()
+	self.app.cmds:finish()
 end
 
 function BSSNOKFiniteDifferenceSolver:getCalcDTCode() end
