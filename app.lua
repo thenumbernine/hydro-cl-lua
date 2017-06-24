@@ -173,12 +173,9 @@ typedef union {
 	local template = require 'template'
 	self.sym3Code = template([[
 real sym3_det(sym3 m) {
-	return m.xx * m.yy * m.zz
-		+ m.xy * m.yz * m.xz
-		+ m.xz * m.xy * m.yz
-		- m.xz * m.yy * m.xz
-		- m.yz * m.yz * m.xx
-		- m.zz * m.xy * m.xy;
+	return m.xx * (m.yy * m.zz - m.yz * m.yz)
+		- m.xy * (m.xy * m.zz - m.xz * m.yz)
+		+ m.xz * (m.xy * m.yz - m.yy * m.xz);
 }
 
 sym3 sym3_inv(real d, sym3 m) {
@@ -233,12 +230,12 @@ sym3 sym3_sub(sym3 a, sym3 b) {
 
 sym3 sym3_scale(sym3 a, real s) {
 	return (sym3){
-		.xx = a.xx + s,
-		.xy = a.xy + s,
-		.xz = a.xz + s,
-		.yy = a.yy + s,
-		.yz = a.yz + s,
-		.zz = a.zz + s,
+		.xx = a.xx * s,
+		.xy = a.xy * s,
+		.xz = a.xz * s,
+		.yy = a.yy * s,
+		.yz = a.yz * s,
+		.zz = a.zz * s,
 	};
 }
 

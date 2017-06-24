@@ -32,11 +32,18 @@ kernel void constrainU(
 	= det(gamma^-1/3 gamma_ij)
 	= gamma^-1 gamma
 	= 1
+	
+	det(a * 1/det(a)^(1/n) )
+	det(a) * 1/det(a)^(1/n)^n
+	det(a) * 1/det(a)
+	1
 	*/
 	real det_gammaBar = sym3_det(U->gammaBar_ll);
-	real cbrt_det_gammaBar = 1. / cbrt(det_gammaBar);
-	U->gammaBar_ll = sym3_scale(U->gammaBar_ll, cbrt_det_gammaBar);
-
+	real cbrt_det_gammaBar = 1./cbrt(det_gammaBar);
+<? for ij,xij in ipairs(symNames) do
+?>	U->gammaBar_ll.<?=xij?> *= cbrt_det_gammaBar;
+<? end
+?>
 	sym3 gammaBar_uu = sym3_inv(1., U->gammaBar_ll);
 
 	/*
@@ -63,7 +70,7 @@ kernel void calcDeriv(
 	SETBOUNDS(2,2);
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-		
+
 	const global <?=eqn.cons_t?>* Up[dim];
 	const global <?=eqn.cons_t?>* Um[dim];
 	for (int i = 0; i < dim; ++i) {

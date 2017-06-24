@@ -117,6 +117,16 @@ end
 function Roe:addConvertToTexs()
 	Roe.super.addConvertToTexs(self)
 
+	self:addConvertToTex{
+		name = 'wave',
+		varCodePrefix = [[
+	const global real* wave = buf + indexInt * numWaves;
+]],
+		vars = range(0, self.eqn.numWaves-1):map(function(i)
+			return {[tostring(i)] = 'value = wave['..i..'];'}
+		end),
+	}
+
 	local eigenDisplayVars = self.eqn:getEigenDisplayVars()
 	if eigenDisplayVars and #eigenDisplayVars > 0 then
 		self:addConvertToTex{

@@ -234,7 +234,6 @@ end
 		sym3_dot(connBar_ull[0], gammaBar_uu),
 		sym3_dot(connBar_ull[1], gammaBar_uu),
 		sym3_dot(connBar_ull[2], gammaBar_uu));
-	
 }
 ]], {
 		eqn = self,
@@ -299,6 +298,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	addsym3'S_ll'
 
 	vars:insert{det_gammaBar = [[value = sym3_det(U->gammaBar_ll);]]}
+	
 	vars:insert{tr_ATilde = [[
 	sym3 gammaBar_uu = sym3_inv(1., U->gammaBar_ll);
 	value = sym3_dot(gammaBar_uu, U->ATilde_ll);

@@ -412,15 +412,6 @@ end
 
 function Solver:addConvertToTexs()
 	self:addConvertToTexUBuf()
-	self:addConvertToTex{
-		name = 'wave',
-		varCodePrefix = [[
-	const global real* wave = buf + indexInt * numWaves;
-]],
-		vars = range(0, self.eqn.numWaves-1):map(function(i)
-			return {[tostring(i)] = 'value = wave['..i..'];'}
-		end),
-	}
 	
 	-- might contain nonsense :-p
 	self:addConvertToTex{
