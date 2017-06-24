@@ -155,33 +155,6 @@ kernel void init_connBarU(
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
 #if 1
-	//why do I see spikes in connBar^i where gamma is constant?
-	//ok I got it to go away here at least
-	//but it still shows up in updates, and influences here after several iterations
-	//ahh I was using U+index instead of UBuf+index
-
-#if 0 //this works
-	sym3 Up_gammaBar_ll = UBuf[index + 1].gammaBar_ll;
-	sym3 Um_gammaBar_ll = UBuf[index - 1].gammaBar_ll;
-#else	//this doesn't
-	const global <?=eqn.cons_t?>* Up;
-	const global <?=eqn.cons_t?>* Um;
-	Up = U + stepsize.x;
-	Um = U - stepsize.x;
-	sym3 Up_gammaBar_ll = Up->gammaBar_ll;
-	sym3 Um_gammaBar_ll = Um->gammaBar_ll;
-#endif
-
-	real Up_gammaBarUxx = Up_gammaBar_ll.yy * Up_gammaBar_ll.zz 
-		- Up_gammaBar_ll.yz * Up_gammaBar_ll.yz;
-	real Um_gammaBarUxx = Um_gammaBar_ll.yy * Um_gammaBar_ll.zz 
-		- Um_gammaBar_ll.yz * Um_gammaBar_ll.yz;
-	
-	U->connBar_u.x = (Up_gammaBarUxx - Um_gammaBarUxx) / (2. * grid_dx0);
-	U->connBar_u.y = 0.;
-	U->connBar_u.z = 0.;
-
-#elif 0
 	const global <?=eqn.cons_t?>* Up[dim];
 	const global <?=eqn.cons_t?>* Um[dim];
 	for (int j = 0; j < dim; ++j) {
@@ -227,6 +200,7 @@ for i=solver.dim+1,3 do
 ?>
 
 #elif 0
+	
 	const global <?=eqn.cons_t?>* Up[dim];
 	const global <?=eqn.cons_t?>* Um[dim];
 	for (int j = 0; j < dim; ++j) {

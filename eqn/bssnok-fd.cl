@@ -64,7 +64,6 @@ kernel void constrainU(
 ?>
 }
 
-
 kernel void calcDeriv(
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
@@ -346,6 +345,8 @@ end
 	real tr_tracelessPart = sym3_dot(gamma_uu, tracelessPart_ll);
 	tracelessPart_ll = sym3_sub(tracelessPart_ll, sym3_scale(gamma_ll, -1./3. * tr_tracelessPart));
 
+#if 1
+//something is asymmetric
 	//B&S 11.53
 	//ATilde_ij,t = 
 	//	exp(-4phi) (-(D_ij alpha)^TF + alpha (R_ij^TF - 8 pi S_ij^TF) ) 
@@ -369,6 +370,7 @@ end
 ?>		- 2./3. * U->ATilde_ll.<?=xij?> * tr_partial_beta;
 <? end
 ?>
+#endif
 
 	real3 partial2_beta_ull[6];	//partial2_beta_ull[jk].i = beta^i_,jk
 <? for ij,xij in ipairs(symNames) do
