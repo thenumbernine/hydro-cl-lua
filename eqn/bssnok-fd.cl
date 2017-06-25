@@ -238,10 +238,10 @@ end
 ?>	deriv->gammaBar_ll.<?=xij?> += -2 * U->alpha * U->ATilde_ll.<?=xij?>	//-2 alpha ATilde_ij 
 <? 	for k,xk in ipairs(xNames) do
 ?>		+ partial_gammaBar_lll[<?=k-1?>].<?=xij?> * U->beta_u.<?=xk?>		//+ beta^k gammaBar_ij,k 
-		+ U->gammaBar_ll.<?=sym(i,k)?> * partial_beta_ul[<?=j-1?>].<?=xk?> 	//+ gammaBar_ik beta^k_,j
-		+ U->gammaBar_ll.<?=sym(j,k)?> * partial_beta_ul[<?=i-1?>].<?=xk?>	//+ gammaBar_jk beta^k_,i 
+		+ U->gammaBar_ll.<?=sym(k,j)?> * partial_beta_ul[<?=i-1?>].<?=xk?>	//+ gammaBar_jk beta^k_,i 
+		+ U->gammaBar_ll.<?=sym(k,i)?> * partial_beta_ul[<?=j-1?>].<?=xk?> 	//+ gammaBar_ik beta^k_,j
 <? 	end
-?>		- 2./3. * U->gammaBar_ll.<?=sym(i,j)?> * tr_partial_beta;		//- 2/3 gammaBar_ij beta^k_,k
+?>		- 2./3. * U->gammaBar_ll.<?=xij?> * tr_partial_beta;				//- 2/3 gammaBar_ij beta^k_,k
 <? end
 ?>
 	mat3 ATilde_ul = sym3_sym3_mul(gammaBar_uu, U->ATilde_ll);		//ATilde^i_j = gammaBar^kl ATilde_kj
@@ -294,10 +294,11 @@ end
 ?>
 
 	//B&S 11.54
+	//Alcubierre eqn 2.8.17
 	sym3 RBar_ll;
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-?>	RBar_ll.<?=xij?> = -1./2. * partial2_gammaBar_ll.<?=xij?>
+?>	RBar_ll.<?=xij?> = -.5 * partial2_gammaBar_ll.<?=xij?>
 <?	for k,xk in ipairs(xNames) do
 ?>		+ .5 * U->gammaBar_ll.<?=sym(k,i)?> * partial_connBar_ul[<?=j-1?>].<?=xk?>
 		+ .5 * U->gammaBar_ll.<?=sym(k,j)?> * partial_connBar_ul[<?=i-1?>].<?=xk?>
@@ -305,9 +306,11 @@ end
 		+ .5 * U->connBar_u.<?=xk?> * connBar_lll[<?=j-1?>].<?=sym(i,k)?>
 <?		for l,xl in ipairs(xNames) do
 			for m,xm in ipairs(xNames) do
-?>		+ connBar_ull[<?=k-1?>].<?=sym(l,i)?> * connBar_ull[<?=j-1?>].<?=sym(k,m)?>
-		+ connBar_ull[<?=k-1?>].<?=sym(l,j)?> * connBar_ull[<?=i-1?>].<?=sym(k,m)?>
-		+ connBar_ull[<?=k-1?>].<?=sym(i,m)?> * connBar_ull[<?=k-1?>].<?=sym(l,j)?>
+?>		+ gammaBar_uu.<?=sym(k,m)?> * (
+			+ connBar_ull[<?=k-1?>].<?=sym(l,i)?> * connBar_lll[<?=j-1?>].<?=sym(k,m)?>
+			+ connBar_ull[<?=k-1?>].<?=sym(l,j)?> * connBar_lll[<?=i-1?>].<?=sym(k,m)?>
+			+ connBar_ull[<?=k-1?>].<?=sym(i,m)?> * connBar_lll[<?=k-1?>].<?=sym(l,j)?>
+		)
 <?			end
 		end
 	end
