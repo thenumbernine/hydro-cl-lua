@@ -239,7 +239,7 @@ end
 <? 	for k,xk in ipairs(xNames) do
 ?>		+ partial_gammaBar_lll[<?=k-1?>].<?=xij?> * U->beta_u.<?=xk?>		//+ beta^k gammaBar_ij,k 
 		+ U->gammaBar_ll.<?=sym(i,k)?> * partial_beta_ul[<?=j-1?>].<?=xk?> 	//+ gammaBar_ik beta^k_,j
-		+ U->gammaBar_ll.<?=sym(j,k)?> * partial_beta_ul[<?=j-1?>].<?=xi?>	//+ gammaBar_kj beta^k_,i 
+		+ U->gammaBar_ll.<?=sym(j,k)?> * partial_beta_ul[<?=i-1?>].<?=xk?>	//+ gammaBar_jk beta^k_,i 
 <? 	end
 ?>		- 2./3. * U->gammaBar_ll.<?=sym(i,j)?> * tr_partial_beta;		//- 2/3 gammaBar_ij beta^k_,k
 <? end
@@ -252,7 +252,10 @@ end
 	
 	//B&S 11.52
 	//K_,t = -gamma^ij D_ij alpha + alpha (ATilde_ij ATilde^ij + K^2 / 3) + 4 pi alpha (rho + S) + beta^i K_,i
-	deriv->K += -sym3_dot(gammaBar_uu, D2_alpha_ll) + U->alpha * (tr_ATilde_sq + U->K * U->K / 3.) + 4 * M_PI * U->alpha * (U->rho + S) + real3_dot(U->beta_u, partial_K_l);
+	deriv->K += -sym3_dot(gammaBar_uu, D2_alpha_ll) 
+		+ U->alpha * (tr_ATilde_sq + U->K * U->K / 3.) 
+		+ 4. * M_PI * U->alpha * (U->rho + S) 
+		+ real3_dot(U->beta_u, partial_K_l);
 
 	sym3 partial2_gammaBar_llll[6];	//partial2_gammaBar_llll[kl].ij = gammaBar_ij,kl
 <? for ij,xij in ipairs(symNames) do
