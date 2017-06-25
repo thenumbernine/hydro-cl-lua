@@ -161,7 +161,6 @@ kernel void init_connBarU(
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
-#if 1
 	const global <?=eqn.cons_t?>* Up[dim];
 	const global <?=eqn.cons_t?>* Um[dim];
 	for (int j = 0; j < dim; ++j) {
@@ -205,91 +204,6 @@ for i=solver.dim+1,3 do
 ?>;
 <? end
 ?>
-
-#elif 0
-	
-	const global <?=eqn.cons_t?>* Up[dim];
-	const global <?=eqn.cons_t?>* Um[dim];
-	for (int j = 0; j < dim; ++j) {
-		Up[j] = U + stepsize[j];
-		Um[j] = U - stepsize[j];
-	}
-	
-	sym3 gammaBar_uu = sym3_inv(1., U->gammaBar_ll);
-	
-	real exp_neg4phi = exp(-4 * U->phi);
-
-	//gammaBar^ij = e^(4phi) gamma^ij
-	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
-
-	//d[k].ij = d_kij = = 1/2 gamma_ij,k
-	sym3 d_lll[3];
-<? for k,xk in ipairs(xNames) do
-	for ij,xij in ipairs(symNames) do
-?>	d_lll[<?=k-1?>].<?=xij?> = calc_d_<?=xk?><?=xij?>(x.x, x.y, x.z);
-<?
-	end
-end
-?>
-	//conn_ijk = conn_lll[i].jk
-	sym3 conn_lll[3];
-<? for i,xi in ipairs(xNames) do
-	for jk,xjk in ipairs(symNames) do
-		local j,k = from6to3x3(jk)
-?>	conn_lll[<?=i-1?>].<?=xjk?> = d_lll[<?=k-1?>].<?=sym(i,j)?> + d_lll[<?=j-1?>].<?=sym(i,k)?> - d_lll[<?=i-1?>].<?=xjk?>;
-<?	end
-end
-?>
-	//conn^i_jk = conn_ull[i].jk
-	sym3 conn_ull[3];
-<? for i,xi in ipairs(xNames) do
-	for jk,xjk in ipairs(symNames) do
-?>	conn_ull[<?=i-1?>].<?=xjk?> = 0.<?
-		for l,xl in ipairs(xNames) do
-?> + gamma_uu.<?=sym(i,l)?> * conn_lll[<?=l-1?>].<?=xjk?><?
-		end
-?>;
-<?	end
-end
-?>
-	real3 partial_phi_l;
-<? for i=1,solver.dim do
-	local xi = xNames[i]
-?>	partial_phi_l.<?=xi?> = (Up[<?=i-1?>]->phi - Um[<?=i-1?>]->phi) / (2. * grid_dx<?=i-1?>);
-<? end
-for i=solver.dim+1,3 do
-	local xi = xNames[i]
-?>	partial_phi_l.<?=xi?> = 0;
-<? end
-?>
-	real3 partial_phi_u = sym3_real3_mul(gammaBar_uu, partial_phi_l);
-	
-	//connBar^i_jk = conn^i_jk - 2 delta^i_j ln(psi)_,k - 2 delta^i_k ln(psi)_,j + 2 gammaBar_jk gammaBar^il ln(psi)_,l
-	sym3 connBar_ull[3];
-<? for i,xi in ipairs(xNames) do
-	for jk,xjk in ipairs(symNames) do
-		local j,k = from6to3x3(jk)
-		local xj = xNames[j]
-		local xk = xNames[k]
-?>	connBar_ull[<?=i-1?>].<?=xjk?> = conn_ull[<?=i-1?>].<?=xjk?> + 2. * U->gammaBar_ll.<?=sym(j,k)?> * partial_phi_u.<?=xi?><?
-		if i == j then
-?> - 2. * partial_phi_l.<?=xk?><?
-		end
-		if i == k then
-?> - 2. * partial_phi_l.<?=xj?><?
-		end
-?>;
-<?	end
-end
-?>
-	//TODO something wrong with connBar^i's initialization
-	U->connBar_u = _real3(
-		sym3_dot(connBar_ull[0], gammaBar_uu),
-		sym3_dot(connBar_ull[1], gammaBar_uu),
-		sym3_dot(connBar_ull[2], gammaBar_uu));
-#else
-#error "forgot to enable one"
-#endif
 }
 ]], {
 		eqn = self,

@@ -95,7 +95,16 @@ kernel void initState(
 	}
 
 	local function build(var)
-		return '\tU->'..var..' = calc_'..var..'(x.x, x.y, x.z);'
+		local prefix, suffix = var:match'(.*)_(.*)'
+		local field = var
+		if prefix then
+			if #suffix == 3 then
+				field = prefix..'['..(('xyz'):find(suffix:sub(1,1))-1)..'].'..suffix:sub(2)
+			else
+				field = prefix..'.'..suffix
+			end
+		end
+		lines:insert('\tU->'..field..' = calc_'..var..'(x.x, x.y, x.z);')
 	end
 
 	build'alpha'
@@ -105,9 +114,13 @@ kernel void initState(
 		symNames:map(function(xij) build('d_'..xk..xij) end)
 	end)
 	symNames:map(function(xij) build('K_'..xij) end)
+	
+	-- TODO V^i
+	
 	lines:insert'}'
 	
-	return lines:concat'\n'
+	local code = lines:concat'\n'
+	return code
 end
 
 function ADM_BonaMasso_3D:getSolverCode()
@@ -126,7 +139,9 @@ function ADM_BonaMasso_3D:getDisplayVars()
 		return {[var] = 'value = U->'..code..';'}
 	end))
 	:append{
-		{volume = 'value = U->alpha * sqrt(sym3_det(U->gamma));'}
+		{det_gamma = 'value = sym3_det(U->gamma);'},
+		{volume = 'value = U->alpha * sqrt(sym3_det(U->gamma));'},
+		{f = 'value = calc_f(U->alpha);'},
 	}
 end
 

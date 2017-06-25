@@ -1,7 +1,3 @@
-inline real calcMaxEigenvalue(real alpha, real gammaUii) {
-	return alpha * sqrt(calc_f(alpha) * gammaUii);
-}
-
 kernel void calcDT(
 	global real* dtBuf,
 	const global <?=eqn.cons_t?>* UBuf
@@ -13,21 +9,27 @@ kernel void calcDT(
 	}
 		
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-	real gamma = sym3_det(U->gamma);
+	real det_gamma = sym3_det(U->gamma);
+	real f = calc_f(U->alpha);
+	real sqrt_f = sqrt(f);
 
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
+		
 		<? if side==0 then ?>
-		real gammaUxx = (U->gamma.yy * U->gamma.zz - U->gamma.yz * U->gamma.yz) / gamma;
-		real lambda = calcMaxEigenvalue(U->alpha, gammaUxx);
+		real gammaUxx = (U->gamma.yy * U->gamma.zz - U->gamma.yz * U->gamma.yz) / det_gamma;
+		real lambdaLight = U->alpha * sqrt(gammaUxx);
 		<? elseif side==1 then ?>
-		real gammaUyy = (U->gamma.xx * U->gamma.zz - U->gamma.xz * U->gamma.xz) / gamma;
-		real lambda = calcMaxEigenvalue(U->alpha, gammaUyy);
+		real gammaUyy = (U->gamma.xx * U->gamma.zz - U->gamma.xz * U->gamma.xz) / det_gamma;
+		real lambdaLight = U->alpha * sqrt(gammaUyy);
 		<? elseif side==2 then ?>
-		real gammaUzz = (U->gamma.xx * U->gamma.yy - U->gamma.xy * U->gamma.xy) / gamma;
-		lambda = calcMaxEigenvalue(U->alpha, gammaUzz);
+		real gammaUzz = (U->gamma.xx * U->gamma.yy - U->gamma.xy * U->gamma.xy) / det_gamma;
+		real lambdaLight = U->alpha * sqrt(gammaUzz);
 		<? end ?>	
-	
+		
+		real lambdaGauge = lambdaLight * sqrt_f;
+		real lambda = (real)max(lambdaGauge, lambdaLight);
+		
 		real lambdaMin = (real)min((real)0., -lambda);
 		real lambdaMax = (real)max((real)0., lambda);
 		dt = (real)min(dt, (real)(dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
@@ -44,8 +46,8 @@ void eigen_forCell_<?=side?>(
 ) {
 	eig->alpha = U->alpha;
 	eig->f = calc_f(U->alpha);
-	real gamma_det = sym3_det(U->gamma);
-	eig->gammaU = sym3_inv(gamma_det, U->gamma);
+	real det_gamma = sym3_det(U->gamma);
+	eig->gammaU = sym3_inv(det_gamma, U->gamma);
 }
 <? end ?>
 
@@ -132,6 +134,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* input,
 	real3 unused
 ) {
+#if 0
 	real f = eig->f;
 	sym3 gammaU = eig->gammaU;
 	real sqrt_f = sqrt(f);
@@ -249,6 +252,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	results[29] = ((sqrt_f * gammaUzz_toThe_3_2 * input[26]) + (sqrt_f * sqrt_gammaUzz * gammaU.xx * input[21]) + (2. * sqrt_f * sqrt_gammaUzz * gammaU.xy * input[22]) + (2. * sqrt_f * sqrt_gammaUzz * gammaU.xz * input[23]) + (sqrt_f * sqrt_gammaUzz * gammaU.yy * input[24]) + (2. * sqrt_f * sqrt_gammaUzz * gammaU.yz * input[25]) + (gammaU.xz * input[0]) + (2. * gammaU.xz * input[27]) + (gammaU.yz * input[1]) + (2. * gammaU.yz * input[28]) + (gammaU.zz * input[2]) + (2. * gammaU.zz * input[29]));
 
 	<? end ?>
+#endif
 }
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
@@ -257,6 +261,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* input,
 	real3 unused
 ) {
+#if 0	
 	real f = eig->f;
 	sym3 gammaU = eig->gammaU;
 	real sqrt_f = sqrt(f);
@@ -379,6 +384,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	results[29] = input[22];
 
 	<? end ?>
+#endif
 }
 <?				if solver.checkFluxError then ?>
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
@@ -402,6 +408,7 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf)
 {
+#if 0	
 	SETBOUNDS(2,2);
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
@@ -727,6 +734,7 @@ GU0L[2] + AKL[2] - U->a.z * trK + K12D23L[2] + KD23L[2] - 2 * K12D12L[2] + 2 * K
 	deriv->V.x += U->alpha * PL[0];
 	deriv->V.y += U->alpha * PL[1];
 	deriv->V.z += U->alpha * PL[2];
+#endif
 }
 
 // the 1D version has no problems, but at 2D we get instabilities ... 
