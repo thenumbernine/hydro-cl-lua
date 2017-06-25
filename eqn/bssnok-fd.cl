@@ -252,7 +252,7 @@ end
 	
 	//B&S 11.52
 	//K_,t = -gamma^ij D_ij alpha + alpha (ATilde_ij ATilde^ij + K^2 / 3) + 4 pi alpha (rho + S) + beta^i K_,i
-	deriv->K += -sym3_dot(gammaBar_uu, D2_alpha_ll) 
+	deriv->K += -sym3_dot(gamma_uu, D2_alpha_ll) 
 		+ U->alpha * (tr_ATilde_sq + U->K * U->K / 3.) 
 		+ 4. * M_PI * U->alpha * (U->rho + S) 
 		+ real3_dot(U->beta_u, partial_K_l);
