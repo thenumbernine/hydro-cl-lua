@@ -10,12 +10,12 @@ local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
 
 local BSSNOKFiniteDifferenceEquation = class(Equation)
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
-BSSNOKFiniteDifferenceEquation.numStates = 31
+BSSNOKFiniteDifferenceEquation.numStates = 35
 
 function BSSNOKFiniteDifferenceEquation:getTypeCode()
 	return template([[
 typedef union {
-	real ptr[31];
+	real ptr[1];
 	struct {
 		real alpha;			//1
 		real3 beta_u;		//3: beta^i
@@ -37,6 +37,10 @@ typedef union {
 		real rho;			//1: n_a n_b T^ab
 		real3 S_u;			//3: -gamma^ij n_a T_aj
 		sym3 S_ll;			//6: gamma_i^c gamma_j^d T_cd
+	
+		//constraints:
+		real H;
+		real3 M_u;
 	};
 } <?=eqn.prim_t?>;
 typedef <?=eqn.prim_t?> <?=eqn.cons_t?>;
@@ -145,6 +149,9 @@ kernel void initState(
 	U->rho = 0;
 	U->S_u = _real3(0,0,0);
 	U->S_ll = (sym3){.s={0,0,0,0,0,0}};
+	
+	U->H = 0.;
+	U->M_u = _real3(0,0,0);
 }
 
 kernel void init_connBarU(
@@ -345,6 +352,9 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	addvar'rho'
 	addreal3'S_u'
 	addsym3'S_ll'
+
+	addvar'H'
+	addreal3'M_u'
 
 	vars:insert{['det_gammaBar_ll_minus_1'] = [[value = -1. + sym3_det(U->gammaBar_ll);]]}
 	

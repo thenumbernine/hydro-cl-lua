@@ -3,6 +3,8 @@ Baumgarte & Shapiro "Numerical Relativity: Solving Einstein's Equations on the C
 Alcubierre "Introduction to Numerical Relativity" 2008
 */
 
+#define CALC_CONSTRAINTS
+
 <?
 local table = require 'ext.table'
 local from3x3to6_table = {
@@ -75,7 +77,11 @@ kernel void calcDeriv(
 ) {
 	SETBOUNDS(2,2);
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+
+#ifndef CALC_CONSTRAINTS
+	const 
+#endif
+	global <?=eqn.cons_t?>* U = UBuf + index;
 
 	const global <?=eqn.cons_t?>* Up[dim];
 	const global <?=eqn.cons_t?>* Um[dim];
@@ -92,6 +98,7 @@ kernel void calcDeriv(
 	real tr_partial_beta = 0.;		//beta^i_,i
 	sym3 partial_gammaBar_lll[3];	//gammaBar_ij,k = partial_gammaBar[k].ij
 	sym3 partial_ATilde_lll[3];		//ATilde_ij,k = partial_ATilde_lll[k].ij
+
 <? for i=1,solver.dim do
 	local xi = xNames[i]
 ?>	partial_alpha_l.<?=xi?> = (Up[<?=i-1?>]->alpha - Um[<?=i-1?>]->alpha) / (2. * grid_dx<?=i-1?>);
@@ -227,10 +234,12 @@ end
 	//deriv->beta += _real3(0,0,0);
 
 	//B&S 11.50
+	//Alcubierre 2.8.10
 	//phi,t = -1/6 alpha K + beta^i phi,i + 1/6 beta^i_,i
 	deriv->phi += -U->alpha * U->K / 6. + real3_dot(U->beta_u, partial_phi_l) + tr_partial_beta / 6.;
 
 	//B&S 11.51
+	//Alcubierre 2.8.9
 	//gammaBar_ij,t = -2 alpha ATilde_ij + beta^k gammaBar_ij,k + gammaBar_ik beta^k_,j + gammaBar_kj beta^k_,i - 2/3 gammaBar_ij beta^k_,k
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
@@ -251,6 +260,7 @@ end
 	real S = sym3_dot(U->S_ll, gamma_uu);
 	
 	//B&S 11.52
+	//Alcubierre 2.8.12
 	//K_,t = -gamma^ij D_ij alpha + alpha (ATilde_ij ATilde^ij + K^2 / 3) + 4 pi alpha (rho + S) + beta^i K_,i
 	deriv->K += -sym3_dot(gamma_uu, D2_alpha_ll) 
 		+ U->alpha * (tr_ATilde_sq + U->K * U->K / 3.) 
@@ -292,7 +302,6 @@ end
 ?>;
 <? end
 ?>
-
 	//B&S 11.54
 	//Alcubierre eqn 2.8.17
 	sym3 RBar_ll;
@@ -327,22 +336,32 @@ end
 ?>;
 <? end
 ?>
-
 	real tr_DBar2_phi = sym3_dot(gammaBar_uu, DBar2_phi_ll);
 
-	real DBar_phi_norm = real3_weighted_norm(partial_phi_l, gammaBar_uu);
+	real3 DBar_phi_u = sym3_real3_mul(gammaBar_uu, partial_phi_l);
+	real DBar_phi_norm = real3_dot(partial_phi_l, DBar_phi_u);
 
 	//Baumgarte & Shapiro p.57 eqn 3.10
 	//R_ll(i,j) := R_ij = RBar_ij - 2 (DBar_i DBar_j ln(psi) + gammaBar_ij gammaBar^lm DBar_l DBar_m ln(psi)) + 4((DBar_i ln(psi)) (DBar_j ln(psi)) - gammaBar_ij gammaBar^lm (DBar_l ln(psi)) (DBar_m ln(psi)))
 	//Then Baumgarte & Shapiro on p.390 say RPhi_ij is the same as p.57 substituting phi for ln(psi)
 	// ... but I thought phi was ln(psi)?  Then why would you need to separate R_ij = RBar_ij + RPhi_ij ?  I thought the substitution showed that R_ij was RPhi_ij?
 	//phi = ln(psi), so DBar_i ln psi = partial_phi_i
+	//Alcubierre 2.8.18
+	//RPhi_ll.xij := -2 DTilde_i DTilde_j phi - 2 gammaTilde_ij gammaTilde^kl DTilde_k DTilde_l phi + 4 DTilde_i phi DTilde_j phi - 4 gammaTilde_ij DTilde^k phi DTilde_k phi
+	//	= -2 (DTilde_i DTilde_j phi)
+	//		- 2 gammaTilde_ij gammaTilde^kl (DTilde_k DTilde_l phi)
+	//		+ 4 phi_,i phi_,j 
+	//		- 4 gammaTilde_ij gammaTilde^kl phi_,k phi_,l
+	//it looks like Alcubierre agrees with Baumgarte & Shapiro, except without the extra RBar_ij ...
 	sym3 RPhi_ll;
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi = xNames[i]
 	local xj = xNames[j]
-?>	RPhi_ll.<?=xij?> = RBar_ll.<?=xij?> - 2. * (DBar2_phi_ll.<?=xij?> + gammaBar_uu.<?=xij?> * tr_DBar2_phi) + 4. * (partial_phi_l.<?=xi?> * partial_phi_l.<?=xj?> - U->gammaBar_ll.<?=xij?> * DBar_phi_norm);
+?>	RPhi_ll.<?=xij?> = -2. * DBar2_phi_ll.<?=xij?> 
+		- 2. * gammaBar_uu.<?=xij?> * tr_DBar2_phi 
+		+ 4. * partial_phi_l.<?=xi?> * partial_phi_l.<?=xj?> 
+		- 4. * U->gammaBar_ll.<?=xij?> * DBar_phi_norm;
 <? end 
 ?>
 	sym3 R_ll = sym3_add(RPhi_ll, RBar_ll);
@@ -356,11 +375,10 @@ end
 	real tr_tracelessPart = sym3_dot(gamma_uu, tracelessPart_ll);
 	tracelessPart_ll = sym3_sub(tracelessPart_ll, sym3_scale(gamma_ll, -1./3. * tr_tracelessPart));
 
-#if 1
-//something is asymmetric
 	//B&S 11.53
+	//Alcubierre 2.8.11
 	//ATilde_ij,t = 
-	//	exp(-4phi) (-(D_ij alpha)^TF + alpha (R_ij^TF - 8 pi S_ij^TF) ) 
+	//	exp(-4phi) (-(D_ij alpha) + alpha (R_ij - 8 pi S_ij) )^TF
 	//	+ alpha (K ATilde_ij - 2 ATilde_il ATilde^l_j)
 	//	+ beta^k ATilde_ij,k 
 	//	+ ATilde_ik beta^k_,j 
@@ -376,13 +394,11 @@ end
 ?>		- 2. * U->alpha * U->ATilde_ll.<?=sym(i,k)?> * ATilde_ul.<?=xk?>.<?=xj?>
 		+ partial_ATilde_lll[<?=k-1?>].<?=xij?> * U->beta_u.<?=xk?>
 		+ U->ATilde_ll.<?=sym(i,k)?> * partial_beta_ul[<?=j-1?>].<?=xk?>
-		+ U->ATilde_ll.<?=sym(j,k)?> * partial_beta_ul[<?=i-1?>].<?=xk?>
+		+ U->ATilde_ll.<?=sym(k,j)?> * partial_beta_ul[<?=i-1?>].<?=xk?>
 <?	end
 ?>		- 2./3. * U->ATilde_ll.<?=xij?> * tr_partial_beta;
 <? end
 ?>
-#endif
-
 	real3 partial2_beta_ull[6];	//partial2_beta_ull[jk].i = beta^i_,jk
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
@@ -407,9 +423,9 @@ end
 <?	end
 end
 ?>
-
 	//connBar^i is the connection function / connection coefficient iteration with Hamiltonian constraint baked in (Baumgarte & Shapiro p.389, Alcubierre p.86).
 	//B&S 11.55
+	//Alcubierre 2.8.25
 	//partial_t connBar^i = 
 	//	-2 ATilde^ij alpha_,j
 	//	+ 2 alpha (
@@ -423,17 +439,16 @@ end
 	//	+ 2/3 connBar^i beta^j_,j
 	//	+ 1/3 gammaBar^ki beta^j_,jk
 	//	+ gammaBar^kj beta^i_,jk
-<? 
-for i,xi in ipairs(xNames) do
+<? for i,xi in ipairs(xNames) do
 ?>	deriv->connBar_u.<?=xi?> +=
 		2./3. * U->connBar_u.<?=xi?> * tr_partial_beta
+		- 16. * M_PI * exp_4phi * U->alpha * U->S_u.<?=xi?> 
 <?	for j,xj in ipairs(xNames) do
 		local xij = sym(i,j)
 		local jj = from3x3to6(j,j)
-?>		- 2. * U->ATilde_ll.<?=xij?> * partial_alpha_l.<?=xj?>
+?>		- 2. * ATilde_uu.<?=xij?> * partial_alpha_l.<?=xj?>
 		+ 2. * U->alpha * (
 			-2./3. * gammaBar_uu.<?=xij?> * partial_K_l.<?=xj?> 
-			- 8. * M_PI * U->gammaBar_ll.<?=xij?> * U->S_u.<?=xj?> 
 			+ 6. * ATilde_uu.<?=xij?> * partial_phi_l.<?=xj?>)
 		+ U->beta_u.<?=xi?> * partial_connBar_ul[<?=j-1?>].<?=xi?>
 		- U->connBar_u.<?=xj?> * partial_beta_ul[<?=j-1?>].<?=xi?>
@@ -449,4 +464,50 @@ for i,xi in ipairs(xNames) do
 ?>	;
 <? end
 ?>
+
+#ifdef CALC_CONSTRAINTS
+	real RBar = sym3_dot(gammaBar_uu, RBar_ll);
+
+	//B&S 11.48
+	//
+	//exp(phi)_,ij = partial2_exp_phi_ll.ij
+	//= (phi_,i exp(phi))_;j
+	//= exp(phi) (phi_,ij + phi_,i phi_,j)
+	//
+	//DBar_j DBar_i exp(phi)
+	//= DBar_j exp(phi)_,i 
+	//= DBar_j (phi_,i exp(phi))
+	//= exp(phi) (phi_,ij - connBar^k_ij phi_,k + phi_,i phi_,j)
+	//= exp(phi) (DBar2_ij phi + phi_,i phi_,j)
+	//
+	//gammaBar^ij DBar_i DBar_j exp(phi)
+	// = exp(phi) (gammaBar^ij DBar_i DBar_j phi + gammaBar^ij phi_,i phi_,j)
+	// = exp(phi) (tr_DBar2_phi + DBar_phi_norm)
+
+	//H = gammaBar^ij DBar_i DBar_j e^phi 
+	//		- 1/8 e^phi RBar 
+	//		+ 1/8 e^(5 phi) ATilde_ij ATilde^ij 
+	//		- 1/12 e^(5 phi) K^2 
+	//		+ 2 pi e^(5 phi) rho
+	//= e^(phi) (
+	//		tr_DBar2_phi 
+	//		+ DBar_phi_norm
+	//		- 1/8 RBar 
+	//		+ e^(4phi) (
+	//			+ 1/8 ATilde_ij ATilde^ij 
+	//			- 1/12 K^2 
+	//			+ 2 pi rho
+	//	)	)
+
+	U->H = exp(U->phi) * (
+		tr_DBar2_phi 
+		+ DBar_phi_norm
+		- 1./8. * RBar
+		+ exp_4phi * (
+			+ 1./8. * tr_ATilde_sq
+			- 1./12. * U->K * U->K
+			+ 2. * M_PI * U->rho
+		)
+	);
+#endif	//CALC_CONSTRAINTS
 }

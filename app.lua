@@ -196,15 +196,6 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		m.xz * v.z + m.yz * v.y + m.zz * v.z);
 }
 
-real real3_weighted_norm(real3 v, sym3 m) {
-	return v.x * v.x * m.xx 
-		+ v.y * v.y * m.yy
-		+ v.z * v.z * m.zz
-		+ 2. * (v.x * v.y * m.xy
-			+ v.x * v.z * m.xz
-			+ v.y * v.z * m.yz);
-}
-
 sym3 sym3_add(sym3 a, sym3 b) {
 	return (sym3){
 		.xx = a.xx + b.xx,
