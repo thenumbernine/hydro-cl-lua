@@ -69,7 +69,7 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 	real lambdaLight = eig->alpha * eig->sqrt_gammaUjj.z;
 	<? end ?>
 	real lambdaGauge = lambdaLight * eig->sqrt_f;
-			
+	
 	wave[0] = -lambdaGauge;
 	<? for i=1,5 do ?> wave[<?=i?>] = -lambdaLight; <? end ?>
 	<? for i=6,23 do ?> wave[<?=i?>] = 0.; <? end ?>
@@ -172,8 +172,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 	//a^x - f d^xj_j
 
-	real sqrt_f = eig->sqrt_f;
-	real f = sqrt_f * sqrt_f;
+	real f = eig->sqrt_f * eig->sqrt_f;
 
 	real d_x_input = sym3_dot(eig->gammaU, inputU->d[0]);
 	results[23] = inputU->a.x - f * d_x_input;
@@ -181,7 +180,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//gauge:
 	//sqrt(f gamma^xx) K +- (a^x + 2 V^x)
 
-	real ev0a = sqrt_f * sym3_dot(eig->gammaU, K_sqrt_gammaUxx);
+	real ev0a = eig->sqrt_f * sym3_dot(eig->gammaU, K_sqrt_gammaUxx);
 	real ev0b = eig->gammaU.xx * (inputU->a.x + 2. * inputU->V.x) 
 				+ eig->gammaU.xy * (inputU->a.y + 2. * inputU->V.y)
 				+ eig->gammaU.xz * (inputU->a.z + 2. * inputU->V.z);
@@ -258,8 +257,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 	//a^y - f d^yj_j
 
-	real sqrt_f = eig->sqrt_f;
-	real f = sqrt_f * sqrt_f;
+	real f = eig->sqrt_f * eig->sqrt_f;
 
 	real d_y_input = sym3_dot(eig->gammaU, inputU->d[1]);
 	results[23] = inputU->a.y - f * d_y_input;
@@ -267,7 +265,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//gauge:
 	//sqrt(f gamma^yy) K +- (a^y + 2 V^y)
 
-	real ev0a = sqrt_f * sym3_dot(eig->gammaU, K_sqrt_gammaUyy);
+	real ev0a = eig->sqrt_f * sym3_dot(eig->gammaU, K_sqrt_gammaUyy);
 	real ev0b = eig->gammaU.xy * (inputU->a.x + 2. * inputU->V.x)
 				+ eig->gammaU.yy * (inputU->a.y + 2. * inputU->V.y)
 				+ eig->gammaU.yz * (inputU->a.z + 2. * inputU->V.z);
@@ -474,10 +472,9 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	resultU->V.z = input[22];
 
 	real sqrt_gammaUxx = eig->sqrt_gammaUjj.x;
-	real gammaUxxSq = eig->gammaU.xx * eig->gammaU.xx;
-
-	real inv_gammaUxx = 1. / eig->gammaU.xx;
-	real invDenom = .5 * inv_gammaUxx;
+	real _1_sqrt_gammaUxx = 1. / sqrt_gammaUxx;
+	real _1_gammaUxx = _1_sqrt_gammaUxx * _1_sqrt_gammaUxx;
+	real invDenom = .5 * _1_gammaUxx;
 
 	real VUx_input = eig->gammaU.xx * input[20]		//V_x
 					+ eig->gammaU.xy * input[21]	//V_y
@@ -511,7 +508,8 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		) + eig->gammaU.yy * input[26]
 		+ eig->gammaU.zz * input[28];
 
-	real f = eig->sqrt_f * eig->sqrt_f;
+	real _1_sqrt_f = 1. / eig->sqrt_f;
+	real _1_f = _1_sqrt_f * _1_sqrt_f;
 
 	resultU->d[0].xx = -(
 			- K_input_minus
@@ -536,9 +534,8 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 					+ eig->gammaU.xz * input[7]	//a_z
 					+ 2. * VUx_input
 				)
-			) / f
-			
-		) * invDenom * inv_gammaUxx;
+			) * _1_f
+		) * invDenom * _1_gammaUxx;
 
 	//gamma^ij d_yij
 	real d_y_input = 
@@ -603,10 +600,10 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	resultU->K.xx = (
 			- K_input_minus
 			- K_input_plus	
-			+ gauge_sum / eig->sqrt_f
-		) * invDenom / sqrt_gammaUxx;
+			+ gauge_sum * _1_sqrt_f
+		) * invDenom * _1_sqrt_gammaUxx;
 
-	real tmp = sqrt_gammaUxx * invDenom;
+	real tmp = .5 * _1_sqrt_gammaUxx;
 	resultU->K.xy = (input[1] + input[24]) * tmp;
 	resultU->K.xz = (input[2] + input[25]) * tmp;
 	resultU->K.yy = (input[3] + input[26]) * tmp;
@@ -638,9 +635,8 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	resultU->V.z = input[22];
 
 	real sqrt_gammaUyy = eig->sqrt_gammaUjj.y;
-	real gammaUyySq = eig->gammaU.yy * eig->gammaU.yy;
-
-	real inv_gammaUyy = 1. / eig->gammaU.yy;
+	real _1_sqrt_gammaUyy = 1. / sqrt_gammaUyy;
+	real inv_gammaUyy = _1_sqrt_gammaUyy * _1_sqrt_gammaUyy;
 	real invDenom = .5 * inv_gammaUyy;
 
 	real VUy_input = eig->gammaU.xy * input[20]
@@ -694,10 +690,8 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			+ 2. * eig->gammaU.xy * input[10]
 			+ 2. * eig->gammaU.yz * input[16]
 			- input[26]
-		) / (2. * eig->gammaU.yy);
+		) * invDenom;
 	
-	real f = eig->sqrt_f * eig->sqrt_f;
-
 	real K_input_minus = 
 		2. * (
 			eig->gammaU.xy * input[2]
@@ -713,6 +707,9 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			+ eig->gammaU.yz * input[27]
 		) + eig->gammaU.xx * input[24]
 		+ eig->gammaU.zz * input[28];
+
+	real _1_sqrt_f = 1. / eig->sqrt_f;
+	real _1_f = _1_sqrt_f  * _1_sqrt_f;
 
 	resultU->d[1].yy = -(
 			- K_input_minus	
@@ -736,8 +733,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 					+ eig->gammaU.yz * input[7]
 					+ 2. * VUy_input
 				)
-			) / f
-		
+			) * _1_f
 		) * invDenom * inv_gammaUyy;
 	
 	resultU->d[1].yz = -(
@@ -762,12 +758,12 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	resultU->K.yy = (
 			- K_input_minus
 			- K_input_plus
-			+ gauge_sum / eig->sqrt_f
-		) * invDenom / sqrt_gammaUyy;
+			+ gauge_sum * _1_sqrt_f
+		) * invDenom * _1_sqrt_gammaUyy;
 
-	real tmp = sqrt_gammaUyy * invDenom;
+	real tmp = .5 * _1_sqrt_gammaUyy;
 	resultU->K.xx = (input[1] + input[24]) * tmp;
-	resultU->K.xy = (input[2] + input[25]) * tmp;
+	resultU->K.xy = (input[2] + input[25]) * tmp;		//once this gets enabled, compiling crashes
 	resultU->K.xz = (input[3] + input[26]) * tmp;
 	resultU->K.yz = (input[4] + input[27]) * tmp;
 	resultU->K.zz = (input[5] + input[28]) * tmp;
