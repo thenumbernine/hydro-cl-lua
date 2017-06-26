@@ -919,7 +919,6 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf)
 {
-#if 0	
 	SETBOUNDS(2,2);
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
@@ -928,35 +927,26 @@ kernel void addSource(
 	sym3 gammaU = sym3_inv(gamma, U->gamma);
 	real f = calc_f(U->alpha);	//could be based on alpha...
 
-real density = 0;//state[STATE_DENSITY];
-real pressure = 0;//state[STATE_PRESSURE];
-real3 vel3 = _real3(0,0,0);//(real4)(state[STATE_VELOCITY_X], state[STATE_VELOCITY_Y], state[STATE_VELOCITY_Z], 0.);
-real vel3Sq = real3_dot(vel3, vel3);	//TODO use gamma
-real LorentzFactor = 1. / sqrt(1. - vel3Sq);
-real4 vel4_ = (real4)(vel3.x * LorentzFactor, vel3.y * LorentzFactor, vel3.z * LorentzFactor, LorentzFactor);
+	real density = 0;//state[STATE_DENSITY];
+	real pressure = 0;//state[STATE_PRESSURE];
+	real3 vel3 = _real3(0,0,0);//(real4)(state[STATE_VELOCITY_X], state[STATE_VELOCITY_Y], state[STATE_VELOCITY_Z], 0.);
+	real vel3Sq = real3_dot(vel3, vel3);	//TODO use gamma
+	real LorentzFactor = 1. / sqrt(1. - vel3Sq);
+	real4 vel4_ = (real4)(vel3.x * LorentzFactor, vel3.y * LorentzFactor, vel3.z * LorentzFactor, LorentzFactor);
 
-real3 beta_ = _real3(0,0,0);
+	real3 beta_ = _real3(0,0,0);
 
-// source terms
-real KUL[3][3] = {
-{gammaU.xx * U->K.xx + gammaU.xy * U->K.xy + gammaU.xz * U->K.xz,
-gammaU.xx * U->K.xy + gammaU.xy * U->K.yy + gammaU.xz * U->K.yz,
-gammaU.xx * U->K.xz + gammaU.xy * U->K.yz + gammaU.xz * U->K.zz,
-},{gammaU.xy * U->K.xx + gammaU.yy * U->K.xy + gammaU.yz * U->K.xz,
-gammaU.xy * U->K.xy + gammaU.yy * U->K.yy + gammaU.yz * U->K.yz,
-gammaU.xy * U->K.xz + gammaU.yy * U->K.yz + gammaU.yz * U->K.zz,
-},{gammaU.xz * U->K.xx + gammaU.yz * U->K.xy + gammaU.zz * U->K.xz,
-gammaU.xz * U->K.xy + gammaU.yz * U->K.yy + gammaU.zz * U->K.yz,
-gammaU.xz * U->K.xz + gammaU.yz * U->K.yz + gammaU.zz * U->K.zz,
-},};
-real trK = KUL[0][0] + KUL[1][1] + KUL[2][2];
+	// source terms
+	mat3 KUL = sym3_sym3_mul(gammaU, U->K);
+	real trK = KUL.x.x + KUL.y.y + KUL.z.z;
+#if 0
 real KSqSymLL[6] = {
-U->K.xx * KUL[0][0] + U->K.xy * KUL[1][0] + U->K.xz * KUL[2][0],
-U->K.xx * KUL[0][1] + U->K.xy * KUL[1][1] + U->K.xz * KUL[2][1],
-U->K.xx * KUL[0][2] + U->K.xy * KUL[1][2] + U->K.xz * KUL[2][2],
-U->K.xy * KUL[0][1] + U->K.yy * KUL[1][1] + U->K.yz * KUL[2][1],
-U->K.xy * KUL[0][2] + U->K.yy * KUL[1][2] + U->K.yz * KUL[2][2],
-U->K.xz * KUL[0][2] + U->K.yz * KUL[1][2] + U->K.zz * KUL[2][2],
+U->K.xx * KUL.x.x + U->K.xy * KUL.y.x + U->K.xz * KUL.z.x,
+U->K.xx * KUL.x.y + U->K.xy * KUL.y.y + U->K.xz * KUL.z.y,
+U->K.xx * KUL.x.z + U->K.xy * KUL.y.z + U->K.xz * KUL.z.z,
+U->K.xy * KUL.x.y + U->K.yy * KUL.y.y + U->K.yz * KUL.z.y,
+U->K.xy * KUL.x.z + U->K.yy * KUL.y.z + U->K.yz * KUL.z.z,
+U->K.xz * KUL.x.z + U->K.yz * KUL.y.z + U->K.zz * KUL.z.z,
 };
 real DLUL[3][3][3] = {
 {{U->d[0].xx * gammaU.xx + U->d[0].xy * gammaU.xy + U->d[0].xz * gammaU.xz,
@@ -1184,29 +1174,29 @@ real GU0L[3] = {
 8. * M_PI * ((density + pressure) * vel4_.w * vel4_.z + pressure * beta_.z),
 };
 real AKL[3] = {
-U->a.x * KUL[0][0] + U->a.y * KUL[1][0] + U->a.z * KUL[2][0],
-U->a.x * KUL[0][1] + U->a.y * KUL[1][1] + U->a.z * KUL[2][1],
-U->a.x * KUL[0][2] + U->a.y * KUL[1][2] + U->a.z * KUL[2][2],
+U->a.x * KUL.x.x + U->a.y * KUL.y.x + U->a.z * KUL.z.x,
+U->a.x * KUL.x.y + U->a.y * KUL.y.y + U->a.z * KUL.z.y,
+U->a.x * KUL.x.z + U->a.y * KUL.y.z + U->a.z * KUL.z.z,
 };
 real K12D23L[3] = {
-KUL[0][0] * DLUL[0][0][0] +KUL[0][1] * DLUL[0][1][0] +KUL[0][2] * DLUL[0][2][0] + KUL[1][0] * DLUL[0][0][1] +KUL[1][1] * DLUL[0][1][1] +KUL[1][2] * DLUL[0][2][1] + KUL[2][0] * DLUL[0][0][2] +KUL[2][1] * DLUL[0][1][2] +KUL[2][2] * DLUL[0][2][2],
-KUL[0][0] * DLUL[1][0][0] +KUL[0][1] * DLUL[1][1][0] +KUL[0][2] * DLUL[1][2][0] + KUL[1][0] * DLUL[1][0][1] +KUL[1][1] * DLUL[1][1][1] +KUL[1][2] * DLUL[1][2][1] + KUL[2][0] * DLUL[1][0][2] +KUL[2][1] * DLUL[1][1][2] +KUL[2][2] * DLUL[1][2][2],
-KUL[0][0] * DLUL[2][0][0] +KUL[0][1] * DLUL[2][1][0] +KUL[0][2] * DLUL[2][2][0] + KUL[1][0] * DLUL[2][0][1] +KUL[1][1] * DLUL[2][1][1] +KUL[1][2] * DLUL[2][2][1] + KUL[2][0] * DLUL[2][0][2] +KUL[2][1] * DLUL[2][1][2] +KUL[2][2] * DLUL[2][2][2],
+KUL.x.x * DLUL[0][0][0] +KUL.x.y * DLUL[0][1][0] +KUL.x.z * DLUL[0][2][0] + KUL.y.x * DLUL[0][0][1] +KUL.y.y * DLUL[0][1][1] +KUL.y.z * DLUL[0][2][1] + KUL.z.x * DLUL[0][0][2] +KUL.z.y * DLUL[0][1][2] +KUL.z.z * DLUL[0][2][2],
+KUL.x.x * DLUL[1][0][0] +KUL.x.y * DLUL[1][1][0] +KUL.x.z * DLUL[1][2][0] + KUL.y.x * DLUL[1][0][1] +KUL.y.y * DLUL[1][1][1] +KUL.y.z * DLUL[1][2][1] + KUL.z.x * DLUL[1][0][2] +KUL.z.y * DLUL[1][1][2] +KUL.z.z * DLUL[1][2][2],
+KUL.x.x * DLUL[2][0][0] +KUL.x.y * DLUL[2][1][0] +KUL.x.z * DLUL[2][2][0] + KUL.y.x * DLUL[2][0][1] +KUL.y.y * DLUL[2][1][1] +KUL.y.z * DLUL[2][2][1] + KUL.z.x * DLUL[2][0][2] +KUL.z.y * DLUL[2][1][2] +KUL.z.z * DLUL[2][2][2],
 };
 real KD23L[3] = {
-KUL[0][0] * D1L[0] + KUL[1][0] * D1L[1] + KUL[2][0] * D1L[2],
-KUL[0][1] * D1L[0] + KUL[1][1] * D1L[1] + KUL[2][1] * D1L[2],
-KUL[0][2] * D1L[0] + KUL[1][2] * D1L[1] + KUL[2][2] * D1L[2],
+KUL.x.x * D1L[0] + KUL.y.x * D1L[1] + KUL.z.x * D1L[2],
+KUL.x.y * D1L[0] + KUL.y.y * D1L[1] + KUL.z.y * D1L[2],
+KUL.x.z * D1L[0] + KUL.y.z * D1L[1] + KUL.z.z * D1L[2],
 };
 real K12D12L[3] = {
-KUL[0][0] * DLUL[0][0][0] + KUL[0][1] * DLUL[0][1][0] + KUL[0][2] * DLUL[0][2][0] + KUL[1][0] * DLUL[1][0][0] + KUL[1][1] * DLUL[1][1][0] + KUL[1][2] * DLUL[1][2][0] + KUL[2][0] * DLUL[2][0][0] + KUL[2][1] * DLUL[2][1][0] + KUL[2][2] * DLUL[2][2][0],
-KUL[0][0] * DLUL[0][0][1] + KUL[0][1] * DLUL[0][1][1] + KUL[0][2] * DLUL[0][2][1] + KUL[1][0] * DLUL[1][0][1] + KUL[1][1] * DLUL[1][1][1] + KUL[1][2] * DLUL[1][2][1] + KUL[2][0] * DLUL[2][0][1] + KUL[2][1] * DLUL[2][1][1] + KUL[2][2] * DLUL[2][2][1],
-KUL[0][0] * DLUL[0][0][2] + KUL[0][1] * DLUL[0][1][2] + KUL[0][2] * DLUL[0][2][2] + KUL[1][0] * DLUL[1][0][2] + KUL[1][1] * DLUL[1][1][2] + KUL[1][2] * DLUL[1][2][2] + KUL[2][0] * DLUL[2][0][2] + KUL[2][1] * DLUL[2][1][2] + KUL[2][2] * DLUL[2][2][2],
+KUL.x.x * DLUL[0][0][0] + KUL.x.y * DLUL[0][1][0] + KUL.x.z * DLUL[0][2][0] + KUL.y.x * DLUL[1][0][0] + KUL.y.y * DLUL[1][1][0] + KUL.y.z * DLUL[1][2][0] + KUL.z.x * DLUL[2][0][0] + KUL.z.y * DLUL[2][1][0] + KUL.z.z * DLUL[2][2][0],
+KUL.x.x * DLUL[0][0][1] + KUL.x.y * DLUL[0][1][1] + KUL.x.z * DLUL[0][2][1] + KUL.y.x * DLUL[1][0][1] + KUL.y.y * DLUL[1][1][1] + KUL.y.z * DLUL[1][2][1] + KUL.z.x * DLUL[2][0][1] + KUL.z.y * DLUL[2][1][1] + KUL.z.z * DLUL[2][2][1],
+KUL.x.x * DLUL[0][0][2] + KUL.x.y * DLUL[0][1][2] + KUL.x.z * DLUL[0][2][2] + KUL.y.x * DLUL[1][0][2] + KUL.y.y * DLUL[1][1][2] + KUL.y.z * DLUL[1][2][2] + KUL.z.x * DLUL[2][0][2] + KUL.z.y * DLUL[2][1][2] + KUL.z.z * DLUL[2][2][2],
 };
 real KD12L[3] = {
-KUL[0][0] * D3L[0] + KUL[1][0] * D3L[1] + KUL[2][0] * D3L[2],
-KUL[0][1] * D3L[0] + KUL[1][1] * D3L[1] + KUL[2][1] * D3L[2],
-KUL[0][2] * D3L[0] + KUL[1][2] * D3L[1] + KUL[2][2] * D3L[2],
+KUL.x.x * D3L[0] + KUL.y.x * D3L[1] + KUL.z.x * D3L[2],
+KUL.x.y * D3L[0] + KUL.y.y * D3L[1] + KUL.z.y * D3L[2],
+KUL.x.z * D3L[0] + KUL.y.z * D3L[1] + KUL.z.z * D3L[2],
 };
 real PL[3] = {
 GU0L[0] + AKL[0] - U->a.x * trK + K12D23L[0] + KD23L[0] - 2 * K12D12L[0] + 2 * KD12L[0],
@@ -1235,7 +1225,7 @@ GU0L[2] + AKL[2] - U->a.z * trK + K12D23L[2] + KD23L[2] - 2 * K12D12L[2] + 2 * K
 	deriv->gamma.yy += -2. * U->alpha * U->K.yy;
 	deriv->gamma.yz += -2. * U->alpha * U->K.yz;
 	deriv->gamma.zz += -2. * U->alpha * U->K.zz;
-	
+
 	deriv->K.xx += U->alpha * SSymLL[0];
 	deriv->K.xy += U->alpha * SSymLL[1];
 	deriv->K.xz += U->alpha * SSymLL[2];
@@ -1248,12 +1238,9 @@ GU0L[2] + AKL[2] - U->a.z * trK + K12D23L[2] + KD23L[2] - 2 * K12D12L[2] + 2 * K
 #endif
 }
 
-// the 1D version has no problems, but at 2D we get instabilities ... 
-kernel void constrain(
+kernel void constrainU(
 	global <?=eqn.cons_t?>* UBuf
 ) {
-<? if false then ?>
-#if 0	//use constraints at all?
 	SETBOUNDS(2,2);	
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
@@ -1298,7 +1285,7 @@ kernel void constrain(
 		- (gammaU.xz * U->d[0].zz)
 		- (gammaU.yz * U->d[1].zz);
 
-#if 0	//directly assign V_i's
+#if 1	//directly assign V_i's
 	U->V.x = D3_D1_x;
 	U->V.y = D3_D1_y;
 	U->V.z = D3_D1_z;
@@ -1313,7 +1300,4 @@ f_i = V_i - (d_ijk - d_jki) gamma^jk
 	U->V.x -= epsilon;
 	U->V.y -= epsilon;
 #endif
-
-#endif
-<? end ?>
 }

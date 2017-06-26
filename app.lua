@@ -515,10 +515,10 @@ real mat3_trace(mat3 m) {
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
+	self.solvers:insert(require 'solver.adm3d-roe'(args))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
-	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm3d'})))	-- goes really sloooow, same with HydroGPU on this graphics card
+	--self.solvers:insert(require 'solver.adm3d-roe_implicit_linearized'(args))
 	-- then there's the BSSNOK finite-difference solver ...
 	--self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
