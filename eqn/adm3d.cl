@@ -268,16 +268,16 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//sqrt(f gamma^yy) K +- (a^y + 2 V^y)
 
 	real ev0a = sqrt_f * sym3_dot(eig->gammaU, K_sqrt_gammaUyy);
-	real ev0b = gammaU.xy * (inputU->a.x + 2. * inputU->V.x)
-				+ gammaU.yy * (inputU->a.y + 2. * inputU->V.y)
-				+ gammaU.yz * (inputU->a.z + 2. * inputU->V.z)
+	real ev0b = eig->gammaU.xy * (inputU->a.x + 2. * inputU->V.x)
+				+ eig->gammaU.yy * (inputU->a.y + 2. * inputU->V.y)
+				+ eig->gammaU.yz * (inputU->a.z + 2. * inputU->V.z);
 	results[0] = ev0a - ev0b;
 	results[29] = ev0a + ev0b;
 
 	//light:
 	//sqrt(gamma^yy) K_xx +- d^y_xx
 
-	real dUy_xx_input = gammaU.xy * inputU->d[0].xx + gammaU.yy * inputU->d[1].xx + gammaU.yz * inputU->d[2].xx;
+	real dUy_xx_input = eig->gammaU.xy * inputU->d[0].xx + eig->gammaU.yy * inputU->d[1].xx + eig->gammaU.yz * inputU->d[2].xx;
 	results[1] = K_sqrt_gammaUyy.xx - dUy_xx_input;
 	results[24] = K_sqrt_gammaUyy.xx + dUy_xx_input;
 
@@ -285,7 +285,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//sqrt(gamma^yy) K_xy +- (d^y_xy + .5 (a_x - d_xj^j) + V_x)
 
 	real d_x_input = sym3_dot(eig->gammaU, inputU->d[0]);
-	real dUy_xy_input = gammaU.xy * inputU->d[0].xy + gammaU.yy * inputU->d[1].xy + gammaU.yz * inputU->d[2].xy;
+	real dUy_xy_input = eig->gammaU.xy * inputU->d[0].xy + eig->gammaU.yy * inputU->d[1].xy + eig->gammaU.yz * inputU->d[2].xy;
 	real ev2b = dUy_xy_input + .5 * (inputU->a.x - d_x_input) + inputU->V.x;
 	results[2] = K_sqrt_gammaUyy.xy - ev2b;
 	results[25] = K_sqrt_gammaUyy.xy + ev2b;
@@ -293,15 +293,15 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//light:
 	//sqrt(gamma^yy) K_xz +- d^y_xz
 
-	real dUy_xz_input = gammaU.xy * inputU->d[0].xz + gammaU.yy * inputU->d[1].xz + gammaU.yz * inputU->d[2].xz;
+	real dUy_xz_input = eig->gammaU.xy * inputU->d[0].xz + eig->gammaU.yy * inputU->d[1].xz + eig->gammaU.yz * inputU->d[2].xz;
 	results[3] = K_sqrt_gammaUyy.xz - dUy_xz_input;
 	results[26] = K_sqrt_gammaUyy.xz + dUy_xz_input;
 
 	//light:
 	//sqrt(gamma^yy) K_yz +- (d^y_yz + .5 (a_z - d_zj^j) + V_z)
 
-	real dUy_yz_input = gammaU.xy * inputU->d[0].yz + gammaU.yy * inputU->d[1].yz + gammaU.yz * inputU->d[2].yz;
-	real d_z_input = sym3_dot(eig->gammaU, input->d[2]);
+	real dUy_yz_input = eig->gammaU.xy * inputU->d[0].yz + eig->gammaU.yy * inputU->d[1].yz + eig->gammaU.yz * inputU->d[2].yz;
+	real d_z_input = sym3_dot(eig->gammaU, inputU->d[2]);
 	real ev4b = dUy_yz_input + .5 * (inputU->a.z - d_z_input) + inputU->V.z;
 	results[4] = K_sqrt_gammaUyy.yz - ev4b;
 	results[27] = K_sqrt_gammaUyy.yz + ev4b;
@@ -309,7 +309,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//light:
 	//sqrt(gamma^yy) K_zz +- d^y_zz
 
-	real dUy_zz_input = gammaU.xy * inputU->d[0].zz + gammaU.yy * inputU->d[1].zz + gammaU.yz * inputU->d[2].zz;
+	real dUy_zz_input = eig->gammaU.xy * inputU->d[0].zz + eig->gammaU.yy * inputU->d[1].zz + eig->gammaU.yz * inputU->d[2].zz;
 	results[5] = K_sqrt_gammaUyy.zz - dUy_zz_input;
 	results[28] = K_sqrt_gammaUyy.zz - dUy_zz_input;
 	
