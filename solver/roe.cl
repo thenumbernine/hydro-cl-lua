@@ -20,8 +20,9 @@ kernel void calcErrors(
 
 		real orthoError = 0;
 		real fluxError = 0;
-		
-		//the flux transform is F v = R Lambda L v, I = R L
+
+<?	if solver.checkOrthoError then
+?>		//the flux transform is F v = R Lambda L v, I = R L
 		//but if numWaves < numStates then certain v will map to the nullspace 
 		//so to test orthogonality for only numWaves dimensions, I will verify that Qinv Q v = v 
 		//I = L R
@@ -41,8 +42,9 @@ kernel void calcErrors(
 				orthoError += fabs(newbasis[j] - basis[j]);
 			}
 		}
-		
-		for (int k = 0; k < numStates; ++k) {
+<? 	end
+	if solver.checkFluxError then	
+?>		for (int k = 0; k < numStates; ++k) {
 			real basis[numStates];
 			for (int j = 0; j < numStates; ++j) {
 				basis[j] = k == j ? 1 : 0;
@@ -66,8 +68,8 @@ kernel void calcErrors(
 				fluxError += fabs(newtransformed[j] - transformed[j]);
 			}
 		}
-		
-		errorBuf[indexInt] = (error_t){
+<?	end
+?>		errorBuf[indexInt] = (error_t){
 			.ortho = orthoError,
 			.flux = fluxError,
 		};
