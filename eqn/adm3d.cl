@@ -45,13 +45,12 @@ void eigen_forCell_<?=side?>(
 	real3 x 
 ) {
 	eig->alpha = U->alpha;
-	eig->f = calc_f(U->alpha);
+	eig->sqrt_f = sqrt(calc_f(U->alpha));
 	real det_gamma = sym3_det(U->gamma);
 	eig->gammaU = sym3_inv(det_gamma, U->gamma);
 }
 <? end ?>
 
-//used by PLM
 <?
 for _,addr0 in ipairs{'', 'global'} do
 	for _,addr1 in ipairs{'', 'global'} do
@@ -63,13 +62,13 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 	real3 x
 ) {
 	<? if side==0 then ?>
-	real lambdaLight = eig->alpha * sqrt(eig->gammaU.xx);
+	real lambdaLight = eig->alpha * eig->sqrt_gammaUjj.x;
 	<? elseif side==1 then ?>
-	real lambdaLight = eig->alpha * sqrt(eig->gammaU.yy);
+	real lambdaLight = eig->alpha * eig->sqrt_gammaUjj.y;
 	<? elseif side==2 then ?>
-	real lambdaLight = eig->alpha * sqrt(eig->gammaU.zz);
+	real lambdaLight = eig->alpha * eig->sqrt_gammaUjj.z;
 	<? end ?>
-	real lambdaGauge = lambdaLight * sqrt(eig->f);
+	real lambdaGauge = lambdaLight * eig->sqrt_f;
 			
 	wave[0] = -lambdaGauge;
 	<? for i=1,5 do ?> wave[<?=i?>] = -lambdaLight; <? end ?>
@@ -99,8 +98,11 @@ void eigen_forSide(
 	real avg_gamma_det = sym3_det(avg_gamma);
 	
 	eig->alpha = alpha;
-	eig->f = calc_f(alpha);
+	eig->sqrt_f = sqrt(calc_f(alpha));
 	eig->gammaU = sym3_inv(avg_gamma_det, avg_gamma);
+	eig->sqrt_gammaUjj.x = sqrt(eig->gammaU.xx);
+	eig->sqrt_gammaUjj.y = sqrt(eig->gammaU.yy);
+	eig->sqrt_gammaUjj.z = sqrt(eig->gammaU.zz);
 }
 
 kernel void calcEigenBasis(
@@ -166,17 +168,20 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	results[21] = inputU->V.y;
 	results[22] = inputU->V.z;
 	
-	sym3 K_sqrt_gammaUxx = sym3_scale(inputU->K, sqrt(eig->gammaU.xx));
+	sym3 K_sqrt_gammaUxx = sym3_scale(inputU->K, eig->sqrt_gammaUjj.x);
 
 	//a^x - f d^xj_j
 
+	real sqrt_f = eig->sqrt_f;
+	real f = sqrt_f * sqrt_f;
+
 	real d_x_input = sym3_dot(eig->gammaU, inputU->d[0]);
-	results[23] = inputU->a.x - eig->f * d_x_input;
+	results[23] = inputU->a.x - sqrt_f * d_x_input;
 
 	//gauge:
 	//sqrt(f) sqrt(gamma^xx) K +- (a^x + 2 V^x)
 
-	real ev0a = sqrt(eig->f) * sym3_dot(eig->gammaU, K_sqrt_gammaUxx);
+	real ev0a = sqrt_f * sym3_dot(eig->gammaU, K_sqrt_gammaUxx);
 	real ev0b = eig->gammaU.xx * (inputU->a.x + 2. * inputU->V.x) 
 				+ eig->gammaU.xy * (inputU->a.y + 2. * inputU->V.y)
 				+ eig->gammaU.xz * (inputU->a.z + 2. * inputU->V.z);
@@ -224,7 +229,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 	<? elseif side == 1 then ?>
 
-	real f = eig->f;
+	real f = eig->sqrt_f * eig->sqrt_f;
 
 	sym3 gammaU = eig->gammaU;
 
@@ -232,7 +237,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//so skip the first 7 of input
 	input += 7;
 
-	real sqrt_gammaUyy = sqrt(gammaU.yy);
+	real sqrt_gammaUyy = eig->sqrt_gammaUjj.y;
 	real gammaUyy_toThe_3_2 = sqrt_gammaUyy * gammaU.yy;
 	
 	results[0] = ((sqrt_f * gammaUyy_toThe_3_2 * input[24])
@@ -350,14 +355,14 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	
 	<? elseif side == 2 then ?>
 	
-	real f = eig->f;
+	real f = eig->sqrt_f * eig->sqrt_f;
 	sym3 gammaU = eig->gammaU;
 
 	//input of left eigenvectors is the state
 	//so skip the first 7 of input
 	input += 7;
 
-	real sqrt_gammaUzz = sqrt(gammaU.zz);
+	real sqrt_gammaUzz = eig->sqrt_gammaUjj.z;
 	real gammaUzz_toThe_3_2 = sqrt_gammaUzz * gammaU.zz;
 	
 	results[0] = ((sqrt_f * gammaUzz_toThe_3_2 * input[26])
@@ -507,7 +512,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	resultU->V.y = input[21];
 	resultU->V.z = input[22];
 
-	real sqrt_gammaUxx = sqrt(eig->gammaU.xx);
+	real sqrt_gammaUxx = eig->sqrt_gammaUjj.x;
 	real gammaUxxSq = eig->gammaU.xx * eig->gammaU.xx;
 
 	real inv_gammaUxx = 1. / eig->gammaU.xx;
@@ -545,6 +550,9 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		) + eig->gammaU.yy * input[26]
 		+ eig->gammaU.zz * input[28];
 
+	real sqrt_f = eig->sqrt_f;
+	real f = sqrt_f * sqrt_f;
+
 	resultU->d[0].xx = -(
 			- K_input_minus
 			+ K_input_plus
@@ -568,7 +576,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 				+ 2. * eig->gammaU.xz * input[7]	//a_z
 				
 				+ 4. * VUx
-			) / eig->f
+			) / f
 			
 		) * invDenom * inv_gammaUxx;
 
@@ -633,7 +641,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		) * invDenom;
 
 //hmm, why does this break things ...
-#if 1	//works
+#if 0	//works
 	resultU->K.xx = 0;
 #endif
 #if 0	//works
@@ -655,7 +663,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			+ gauge_sum
 		);
 #endif
-#if 1	//works
+#if 0	//works
 	resultU->K.xx = (
 			- K_input_minus
 			- K_input_plus
@@ -673,7 +681,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	resultU->K.xx = 
 		- K_input_minus
 		- K_input_plus	
-		+ gauge_sum / sqrt(eig->f);
+		+ gauge_sum / eig->sqrt_f;
 #endif
 #if 0	//fails
 	resultU->K.xx = (
@@ -681,11 +689,11 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			- K_input_plus	
 		) * invDenom / sqrt_gammaUxx;
 #endif
-#if 0 // fails.  this is what I'm aiming for.
+#if 1 // fails.  this is what I'm aiming for.
 	resultU->K.xx = (
 			- K_input_minus
 			- K_input_plus	
-			+ gauge_sum / sqrt(eig->f)
+			+ gauge_sum / eig->sqrt_f
 		) * invDenom / sqrt_gammaUxx;
 #endif
 
@@ -709,9 +717,9 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 	<? elseif side == 1 then ?>
 	
-	real f = eig->f;
+	real sqrt_f = eig->sqrt_f;
+	real f = sqrt_f * sqrt_f;
 	sym3 gammaU = eig->gammaU;
-	real sqrt_f = sqrt(f);
 
 	//write zeros to the alpha and gammaLL terms
 	for (int i = 0; i < 7; ++i) {
@@ -719,7 +727,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		++results;
 	}
 
-	real sqrt_gammaUyy = sqrt(gammaU.yy);
+	real sqrt_gammaUyy = eig->sqrt_gammaUjj.y;
 	real gammaUyy_toThe_3_2 = sqrt_gammaUyy * gammaU.yy;
 	real gammaUyySq = gammaU.yy * gammaU.yy;
 	
@@ -828,9 +836,9 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	
 	<? elseif side == 2 then ?>
 	
-	real f = eig->f;
+	real sqrt_f = eig->sqrt_f;
+	real f = sqrt_f * sqrt_f;
 	sym3 gammaU = eig->gammaU;
-	real sqrt_f = sqrt(f);
 	
 	//write zeros to the alpha and gammaLL terms
 	for (int i = 0; i < 7; ++i) {
@@ -838,7 +846,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		++results;
 	}
 
-	real sqrt_gammaUzz = sqrt(gammaU.zz);
+	real sqrt_gammaUzz = eig->sqrt_gammaUjj.z;
 	real gammaUzz_toThe_3_2 = sqrt_gammaUzz * gammaU.zz;
 	real gammaUzzSq = gammaU.zz * gammaU.zz;
 	

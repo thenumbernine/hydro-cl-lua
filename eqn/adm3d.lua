@@ -149,8 +149,9 @@ function ADM_BonaMasso_3D:getEigenTypeCode()
 	return template([[
 typedef struct {
 	real alpha;	//used only by eigen_calcWaves ... makes me think eigen_forCell / eigen_forSide should both calculate waves and basis variables in the same go
-	real f;
+	real sqrt_f;
 	sym3 gammaU;
+	real3 sqrt_gammaUjj;	//sqrt(gamma^jj)
 } <?=eqn.eigen_t?>;
 ]], {
 	eqn = self,
@@ -159,7 +160,7 @@ end
 
 function ADM_BonaMasso_3D:getEigenDisplayVars()
 	return {
-		{f = 'value = eigen->f;'},
+		{sqrt_f = 'value = eigen->sqrt_f;'},
 		{gammaUxx = 'value = eigen->gammaU.xx;'},
 		{gammaUxy = 'value = eigen->gammaU.xy;'},
 		{gammaUxz = 'value = eigen->gammaU.xz;'},
