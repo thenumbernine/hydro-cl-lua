@@ -9,8 +9,11 @@ local xNames = table{'x', 'y', 'z'}
 local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
 
 local BSSNOKFiniteDifferenceEquation = class(Equation)
+
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
 BSSNOKFiniteDifferenceEquation.numStates = 35
+
+BSSNOKFiniteDifferenceEquation.useConstrainU = true
 
 function BSSNOKFiniteDifferenceEquation:getTypeCode()
 	return template([[

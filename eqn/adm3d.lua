@@ -30,6 +30,7 @@ assert(ADM_BonaMasso_3D.numStates == #ADM_BonaMasso_3D.consVars)
 ADM_BonaMasso_3D.hasCalcDT = true
 ADM_BonaMasso_3D.hasEigenCode = true
 ADM_BonaMasso_3D.useSourceTerm = true
+ADM_BonaMasso_3D.useConstrainU = true
 
 ADM_BonaMasso_3D.initStates = require 'init.adm'
 

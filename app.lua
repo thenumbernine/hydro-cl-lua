@@ -509,7 +509,7 @@ real mat3_trace(mat3 m) {
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	--self.solvers:insert(require 'solver.adm3d-roe'(args))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 	self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas

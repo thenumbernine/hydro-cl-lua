@@ -27,6 +27,8 @@ GRMHD.hasEigenCode = true
 
 GRMHD.hasCalcDT = true
 
+GRMHD.useConstrainU = true
+
 GRMHD.initStates = require 'init.euler'
 
 local GuiFloat = require 'guivar.float'

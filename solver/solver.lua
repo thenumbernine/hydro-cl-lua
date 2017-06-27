@@ -737,12 +737,11 @@ end
 
 function Solver:resetState()
 	self.app.cmds:finish()
-	self.app.cmds:enqueueNDRangeKernel{
-		kernel=self.initStateKernel, 
-		dim=self.dim, 
-		globalSize=self.gridSize:ptr(), 
-		localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.initStateKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	self:boundary()
+	if self.eqn.useConstrainU then
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	end
 	self.app.cmds:finish()
 	self.t = 0
 end
@@ -873,6 +872,10 @@ end
 --]]
 
 	self:refreshCalcDTKernel()
+
+	if self.eqn.useConstrainU then
+		self.constrainUKernel = self.solverProgram:kernel('constrainU', self.UBuf)
+	end
 
 	if self.usePLM then
 		self.calcLRKernel = self.solverProgram:kernel(
@@ -1192,6 +1195,10 @@ function Solver:step(dt)
 	self.integrator:integrate(dt, function(derivBuf)
 		self:calcDeriv(derivBuf, dt)
 	end)
+
+	if self.eqn.useConstrainU then
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	end
 end
 
 function Solver:printBuf(buf, ptr)

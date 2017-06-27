@@ -28,6 +28,8 @@ SRHD.hasEigenCode = true
 
 SRHD.hasCalcDT = true
 
+SRHD.useConstrainU = true
+
 SRHD.initStates = require 'init.euler'
 
 local GuiFloat = require 'guivar.float'

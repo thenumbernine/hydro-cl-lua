@@ -25,6 +25,8 @@ GRHD.hasEigenCode = true
 
 GRHD.hasCalcDT = true
 
+GRHD.useConstrainU = true
+
 GRHD.initStates = require 'init.euler'
 
 local GuiFloat = require 'guivar.float'

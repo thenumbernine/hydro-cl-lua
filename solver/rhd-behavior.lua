@@ -65,14 +65,12 @@ return function(parent)
 		self.calcDTKernel:setArg(1, self.primBuf)
 		self.calcEigenBasisKernel:setArg(2, self.primBuf)
 
-		self.constrainUKernel = self.solverProgram:kernel('constrainU', self.UBuf)
 		self.updatePrimsKernel = self.solverProgram:kernel('updatePrims', self.primBuf, self.UBuf)
 	end
 
 	function template:step(dt)
 		template.super.step(self, dt)
 
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.updatePrimsKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	end
 
