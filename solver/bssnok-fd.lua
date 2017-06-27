@@ -21,18 +21,15 @@ end
 function BSSNOKFiniteDifferenceSolver:refreshInitStateProgram()
 	BSSNOKFiniteDifferenceSolver.super.refreshInitStateProgram(self)
 
-	self.initCalcConnUBarKernel = self.initStateProgram:kernel('init_connBarU', self.UBuf)
+	self.initConnUBarKernel = self.initStateProgram:kernel('init_connBarU', self.UBuf)
 end
 
 function BSSNOKFiniteDifferenceSolver:resetState()
 	BSSNOKFiniteDifferenceSolver.super.resetState(self)
 	
-	self.app.cmds:enqueueNDRangeKernel{
-		kernel=self.initCalcConnUBarKernel, 
-		dim=self.dim, 
-		globalSize=self.gridSize:ptr(), 
-		localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.initConnUBarKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	self:boundary()
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 	self.app.cmds:finish()
 end
 
