@@ -263,8 +263,6 @@ function Solver:refreshGridSize()
 		return (self.maxs[i] - self.mins[i]) / tonumber(self.sizeWithoutBorder:ptr()[i-1])
 	end):unpack())
 
-	self:refreshIntegrator()	-- depends on eqn & gridSize
-
 	self:createDisplayVars()	-- depends on eqn
 	
 	-- depends on eqn & gridSize
@@ -273,6 +271,8 @@ function Solver:refreshGridSize()
 	self:finalizeCLAllocs()
 	
 	self:createCodePrefix()		-- depends on eqn, gridSize, displayVars
+	
+	self:refreshIntegrator()	-- depends on eqn & gridSize ... & ffi.cdef cons_t
 
 	self:refreshInitStateProgram()
 	self:refreshCommonProgram()
@@ -425,7 +425,7 @@ end
 Solver.allocateOneBigStructure = false
 
 function Solver:clalloc(name, size)
-	self.buffers:insert{name=name, size=size}	
+	self.buffers:insert{name=name, size=size}
 end
 
 function Solver:finalizeCLAllocs()

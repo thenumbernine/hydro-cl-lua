@@ -316,7 +316,7 @@ real mat3_trace(mat3 m) {
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or 1,
 		
-		integrator = cmdline.integrator or 'forward Euler',	
+		--integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -328,6 +328,7 @@ real mat3_trace(mat3 m) {
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
+		integrator = 'backward Euler',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = 'donor cell',
@@ -470,12 +471,9 @@ real mat3_trace(mat3 m) {
 	
 	-- HD
 	--self.solvers:insert(require 'solver.euler-roe'(args))
-	--self.solvers:insert(require 'solver.euler-roe_implicit_linearized'(args))
 
 	-- the same as solver.euler-roe:
 	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe')(table(args, {eqn='euler'})))
-	-- the same as solver.euler-roe_implicit_linearized
-	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe_implicit_linearized')(table(args, {eqn='euler'})))
 
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
@@ -487,11 +485,9 @@ real mat3_trace(mat3 m) {
 	--    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
 	--self.solvers:insert(require 'solver.srhd-roe'(args))
-	--self.solvers:insert(require 'solver.srhd-roe_implicit_linearized'(args))
 	
 	-- GR+HD
 	--self.solvers:insert(require 'solver.grhd-roe'(args))
-	--self.solvers:insert(require 'solver.grhd-roe_implicit_linearized'(args))
 	
 	-- M+HD. 
 	-- with superbee flux lim:  
@@ -502,25 +498,18 @@ real mat3_trace(mat3 m) {
 	-- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 	-- also div B is nonzero.  in fact it's pretty big.
 	--self.solvers:insert(require 'solver.mhd-roe'(args))
-	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='mhd'})))	-- TODO what about removing divergence?
 	
 	-- EM
 	--self.solvers:insert(require 'solver.maxwell-roe'(args))
-	--self.solvers:insert(require 'solver.maxwell-roe_implicit_linearized'(args))
 	
 	-- EM+HD
 	-- I broke this when I moved the cons_t type defs from solver to equation
 	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
-	--self.solvers:insert(require 'solver.twofluid-emhd-roe_implicit_linearized'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
 	
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.adm3d-roe'(args))
-	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v1'})))
-	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
-	--self.solvers:insert(require 'solver.adm3d-roe_implicit_linearized'(args))
-	-- then there's the BSSNOK finite-difference solver ...
 	self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas

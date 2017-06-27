@@ -1,8 +1,16 @@
-local class = require 'ext.class'
-local table = require 'ext.table'
-local Roe = require 'solver.roe'
+--[[
+backwards-Euler integrator
+based on GMRES, easily swappable for any other OpenCL krylov solver of your choice
+(found in solver.cl.*)
+
+
+--]]
+
 local ffi = require 'ffi'
+local class = require 'ext.class'
 local math = require 'ext.math'
+local Integrator = require 'int.int'
+local CLBuffer = require 'cl.obj.buffer'
 local CLGMRES = require 'solver.cl.gmres'
 
 local ThisGMRES = class(CLGMRES)
@@ -17,43 +25,69 @@ function ThisGMRES:newBuffer(name)
 	return cached
 end
 
--- technically this backwards Euler integrator works on any solver with calcDeriv implemented
--- which means maybe I could implement it as an integrator instead of a solver ...
-local RoeImplicitLinearized = class(Roe)
-RoeImplicitLinearized.name = 'RoeImplicitLinearized'
+local BackwardEuler = class(Integrator)
 
-function RoeImplicitLinearized:refreshGridSize(...)
-	RoeImplicitLinearized.super.refreshGridSize(self, ...)
+BackwardEuler.name = 'backward Euler'
 
-	-- the previous call in Solver:iterate is to self:calcDT
-	-- which calls self.equation:calcInterfaceEigenBasis, which fills the self.eigenvalues table
+function BackwardEuler:init(solver)
+	self.solver = solver
+
+-- formerly createBuffers
+
+	local bufferSize = solver.volume * ffi.sizeof(solver.eqn.cons_t)
+	local realSize = ffi.sizeof(solver.app.env.real)
+	for _,name in ipairs{
+		'krylov_b',
+		'krylov_x',
+		'krylov_dUdt',
+	} do
+		self[name..'Obj'] = CLBuffer{
+			env = solver.app.env,
+			name = name,
+			type = 'real',
+			size = bufferSize / realSize,
+		}
+	end
+
+-- formerly refreshGridSize
+	
+	-- the previous call in Solver:iterate is to solver:calcDT
+	-- which calls solver.equation:calcInterfaceEigenBasis, which fills the solver.eigenvalues table
 
 	-- function that returns deriv when provided a state vector
 	-- dUdtBuf and UBuf are cl.obj.buffer
 	local function calc_dU_dt(dUdtBuf, UBuf)
-		-- setting self.UBuf won't make a difference because the kernels are already bound to the original self.UBuf
-		-- copying over self.UBuf will overwrite the contents of 'x'
+		-- setting solver.UBuf won't make a difference because the kernels are already bound to the original solver.UBuf
+		-- copying over solver.UBuf will overwrite the contents of 'x'
 		-- so I need to (a1) make a new buffer for 'x'
-		-- (a2) here, copy UBuf into self.UBuf before running the kernel
+		-- (a2) here, copy UBuf into solver.UBuf before running the kernel
 		-- or (b) have Solver:calcDeriv accept a param for the 'UBuf' 
 		-- ... but that'll be hard since UBuf is exchanged with getULRBuf with usePLM
---print'\nUBuf:' self:printBuf(UBuf) print(debug.traceback(),'\n\n')
-		self.UBufObj:copyFrom(UBuf)
+--print'\nUBuf:' solver:printBuf(UBuf) print(debug.traceback(),'\n\n')
+		solver.UBufObj:copyFrom(UBuf)
 		dUdtBuf:fill()
-		self:calcDeriv(dUdtBuf.obj, self.linearSolverDT)
---print'\ndUdtBuf:' self:printBuf(dUdtBuf) print(debug.traceback(),'\n\n')
---self:checkFinite(dUdtBuf)
+
+		-- TODO should 'dt' be passed along as well?
+		-- typically only dU/dt is calculated which, for first order, doesn't depend on dt
+		-- however for some 2nd order flux limiters, 'dt' is needed 
+		-- ... is that the 'dt' of the overall step, 
+		-- or of the individual step within the integrator overall step?
+		self.integrateCallback(dUdtBuf.obj)
+		--solver:calcDeriv(dUdtBuf.obj, self.linearSolverDT)
+
+--print'\ndUdtBuf:' solver:printBuf(dUdtBuf) print(debug.traceback(),'\n\n')
+--solver:checkFinite(dUdtBuf)
 	end
 
-	local mulWithoutBorder = self.domain:kernel{
+	local mulWithoutBorder = solver.domain:kernel{
 		name = 'RoeImplicitLinearized_mulWithoutBorder',
-		header = self.codePrefix,
+		header = solver.codePrefix,
 		argsOut = {
-			{name='y', type=self.eqn.cons_t, obj=true},
+			{name='y', type=solver.eqn.cons_t, obj=true},
 		},
 		argsIn = {
-			{name='a', type=self.eqn.cons_t, obj=true},
-			{name='b', type=self.eqn.cons_t, obj=true},
+			{name='a', type=solver.eqn.cons_t, obj=true},
+			{name='b', type=solver.eqn.cons_t, obj=true},
 		},
 		body = [[	
 	if (OOB(numGhost, numGhost)) {
@@ -68,11 +102,11 @@ function RoeImplicitLinearized:refreshGridSize(...)
 ]],
 	}
 	
-	local numreals = self.volume * self.eqn.numStates
-	local volumeWithoutBorder = tonumber(self.sizeWithoutBorder:volume())
-	local numRealsWithoutBorder = volumeWithoutBorder * self.eqn.numStates
+	local numreals = solver.volume * solver.eqn.numStates
+	local volumeWithoutBorder = tonumber(solver.sizeWithoutBorder:volume())
+	local numRealsWithoutBorder = volumeWithoutBorder * solver.eqn.numStates
 	
-	local sum = self.app.env:reduce{
+	local sum = solver.app.env:reduce{
 		size = numreals,
 		op = function(x,y) return x..' + '..y end,
 	}
@@ -82,8 +116,8 @@ function RoeImplicitLinearized:refreshGridSize(...)
 	end
 
 	local linearSolverArgs = {
-		env = self.app.env,
-		x = self.RoeImplicitLinear_xObj,
+		env = solver.app.env,
+		x = self.krylov_xObj,
 		size = numreals,
 		epsilon = 1e-10,
 		--maxiter = 1000,
@@ -91,7 +125,7 @@ function RoeImplicitLinearized:refreshGridSize(...)
 		restart = 10,
 		-- logging:
 		errorCallback = function(err, iter, x, rLenSq)
---print('gmres t', self.t, 'iter', iter, 'err', err, 'rLenSq', rLenSq)
+--print('gmres t', solver.t, 'iter', iter, 'err', err, 'rLenSq', rLenSq)
 			if not math.isfinite(err) then
 				error("got non-finite err: "..err)
 			end
@@ -104,7 +138,7 @@ function RoeImplicitLinearized:refreshGridSize(...)
 				-- need to divide by volume or else 2D will enter non-physical states
 				/ numRealsWithoutBorder
 				-- but if you divide 1D by volume then it runs really really slow
-				* tonumber(self.sizeWithoutBorder.x) * self.eqn.numStates
+				* tonumber(solver.sizeWithoutBorder.x) * solver.eqn.numStates
 			)
 		end,
 		--]]
@@ -118,13 +152,13 @@ function RoeImplicitLinearized:refreshGridSize(...)
 	}
 
 	-- [=[ backward Euler
-	linearSolverArgs.b = self.RoeImplicitLinear_bObj
+	linearSolverArgs.b = self.krylov_bObj
 	linearSolverArgs.A = function(UNext, U)
-		local dUdt = self.RoeImplicitLinear_dUdtObj
-		calc_dU_dt(dUdt, self.RoeImplicitLinear_bObj)
+		local dUdt = self.krylov_dUdtObj
+		calc_dU_dt(dUdt, self.krylov_bObj)
 		
 		--UNext = U - dt * calc_dU_dt(lastU)
---print'\nU:' self:printBuf(U) print(debug.traceback(),'\n\n')
+--print'\nU:' solver:printBuf(U) print(debug.traceback(),'\n\n')
 --print('self.linearSolverDT', self.linearSolverDT)		
 		
 --[[
@@ -151,27 +185,27 @@ I'm betting if the norm is changed then the inner product will probably also hav
 For norm(r) = sqrt(dot(r,r)/n), we can define the inner product as dot(r,r)/n.
 --]]
 		self.linearSolver.args.mulAdd(UNext, U, dUdt.obj, -self.linearSolverDT)
---print'\nUNext:' self:printBuf(UNext) print(debug.traceback(),'\n\n')
+--print'\nUNext:' solver:printBuf(UNext) print(debug.traceback(),'\n\n')
 	
 		--[[ do I need to apply the boundary?
 		-- doesn't seem to make a difference
 		-- TODO don't even include the boundary cells in the GMRES
 		-- in fact, should I even be storing ghost cells in memory, or just using conditions to provide their values?
-		self.boundaryKernel:setArg(0, UNext)
-		self:boundary()
-		self.boundaryKernel:setArg(0, self.UBuf)
+		solver.boundaryKernel:setArg(0, UNext)
+		solver:boundary()
+		solver.boundaryKernel:setArg(0, solver.UBuf)
 		--]]
 	end
 	--]=]
 	--[=[ crank-nicolson - converges faster
 	linearSolverArgs.b = (function(UBuf)
 		UBuf = UBuf + .5 * dt * calc_dU_dt(UBuf)
-		self.boundaryMethod(UBuf)
+		solver.boundaryMethod(UBuf)
 		return UBuf
 	end)(UBuf)
 	linearSolverArgs.A = function(UBuf)
 		UBuf = UBuf - .5 * dt * calc_dU_dt(UBuf)
-		self.boundaryMethod(UBuf)
+		solver.boundaryMethod(UBuf)
 		return UBuf
 	end
 	--]=]
@@ -180,24 +214,21 @@ For norm(r) = sqrt(dot(r,r)/n), we can define the inner product as dot(r,r)/n.
 	self.linearSolver = ThisGMRES(linearSolverArgs)
 end
 
-function RoeImplicitLinearized:createBuffers()
-	RoeImplicitLinearized.super.createBuffers(self)
-	self:clalloc('RoeImplicitLinear_b', self.volume * ffi.sizeof(self.eqn.cons_t))
-	self:clalloc('RoeImplicitLinear_x', self.volume * ffi.sizeof(self.eqn.cons_t))
-	self:clalloc('RoeImplicitLinear_dUdt', self.volume * ffi.sizeof(self.eqn.cons_t))
-end
-
 -- step contains integrating flux and source terms
 -- but not post iterate
-function RoeImplicitLinearized:step(dt)
+function BackwardEuler:integrate(dt, callback)
+	local solver = self.solver
+	-- this is a call to 'calcDeriv'
+	self.integrateCallback = callback
+	
 	self.linearSolverDT = dt
 	-- UBuf needs to be overwritten to pass on to the calcFluxDeriv
 	-- (TODO make calcFluxDeriv accept a parameter)
-	self.RoeImplicitLinear_bObj:copyFrom(self.UBufObj)
---print'\nself.RoeImplicitLinear_bObj:' self:printBuf(self.RoeImplicitLinear_bObj) print(debug.traceback(),'\n\n')
-	self.RoeImplicitLinear_xObj:copyFrom(self.UBufObj)
+	self.krylov_bObj:copyFrom(solver.UBufObj)
+--print'\nself.krylov_bObj:' self:printBuf(self.krylov_bObj) print(debug.traceback(),'\n\n')
+	self.krylov_xObj:copyFrom(solver.UBufObj)
 	self.linearSolver()
-	self.UBufObj:copyFrom(self.RoeImplicitLinear_xObj)
+	solver.UBufObj:copyFrom(self.krylov_xObj)
 end
 
-return RoeImplicitLinearized
+return BackwardEuler

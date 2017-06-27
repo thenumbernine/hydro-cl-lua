@@ -1,5 +1,6 @@
 local class = require 'ext.class'
 local ForwardEuler = require 'int.fe'
+local BackwardEuler = require 'int.be'
 local RungeKutta = require 'int.rk'
 
 --the following are from https://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods#Classic_fourth-order_method
@@ -162,4 +163,5 @@ return require 'ext.table'{
 	RungeKutta3TVD,
 	RungeKutta4TVD,
 	RungeKutta4NonTVD,
+	BackwardEuler,
 }
