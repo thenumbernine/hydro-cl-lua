@@ -540,10 +540,8 @@ function Solver:createCodePrefix()
 	end
 
 	-- real3
-	lines:insert(self.app.real3TypeCode)
-	lines:insert(self.app.real3Code)
-	lines:insert(self.app.sym3TypeCode)
-	lines:insert(self.app.sym3Code)
+	lines:insert(file['math.h'])
+	lines:insert(template(file['math.cl']))
 
 	lines:append{
 		'#define geometry_'..self.geometry.name..' 1',
