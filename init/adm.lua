@@ -220,6 +220,7 @@ return {
 			local xc = .5 * (solver.mins[1] + solver.maxs[1])
 			local yc = .5 * (solver.mins[2] + solver.maxs[2])
 			local zc = .5 * (solver.mins[3] + solver.maxs[3])
+			local xcs = {xc,yc,zc}
 			
 			local alpha = 1
 			--[=[
@@ -232,7 +233,12 @@ return {
 			),
 			--]=]
 
-			local h = H * symmath.exp(-((x - xc)^2 + (y - yc)^2 + (z - zc)^2) / sigma^2)
+			--local s = (x - xc)^2 + (y - yc)^2 + (z - zc)^2
+			local s = xs:sub(1,solver.dim):map(function(x,i)
+				return (x - xcs[i])^2
+			end):sum()
+
+			local h = H * symmath.exp(-s / sigma^2)
 			h = h()
 			local dh = Tensor('_i', function(i) return h:diff(xs[i])() end)
 			local d2h = Tensor('_ij', function(i,j) return h:diff(xs[i],xs[j])() end)

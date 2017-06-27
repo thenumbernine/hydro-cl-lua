@@ -134,6 +134,7 @@ args:
 --]]
 function Solver:init(args)
 	assert(args)
+	self.app = assert(args.app)
 	
 	local gridSize = assert(args.gridSize)
 	if type(gridSize) == 'number' then 
@@ -163,8 +164,6 @@ function Solver:init(args)
 	self:createEqn(args.eqn)
 	
 	self.name = self.eqn.name..' '..self.name
-
-	self.app = assert(args.app)
 	
 	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
 	-- product of all local sizes must be <= max workgroup size

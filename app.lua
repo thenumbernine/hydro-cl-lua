@@ -316,7 +316,7 @@ real mat3_trace(mat3 m) {
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or 1,
 		
-		--integrator = cmdline.integrator or 'forward Euler',	
+		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -328,7 +328,7 @@ real mat3_trace(mat3 m) {
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		integrator = 'backward Euler',
+		--integrator = 'backward Euler',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = 'donor cell',
@@ -443,7 +443,7 @@ real mat3_trace(mat3 m) {
 		--initState = 'self-gravitation test 1',
 		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
-		--initState = 'self-gravitation test 2 orbiting',
+		initState = 'self-gravitation test 2 orbiting',
 		--initState = 'self-gravitation test 4',
 		--initState = 'self-gravitation soup',
 		
@@ -509,8 +509,8 @@ real mat3_trace(mat3 m) {
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
-	self.solvers:insert(require 'solver.bssnok-fd'(args))
+	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+	--self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 	
