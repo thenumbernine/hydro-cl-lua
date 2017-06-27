@@ -5,106 +5,6 @@ Alcubierre "Introduction to Numerical Relativity" 2008
 
 <? local calcConstraints = true ?>
 
-<?
-local table = require 'ext.table'
-local from3x3to6_table = {
-	{1, 2, 3},
-	{2, 4, 5},
-	{3, 5, 6},
-}
-local function from3x3to6(i,j)
-	return from3x3to6_table[i][j]
-end
-local from6to3x3_table = {{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}}
-local function from6to3x3(i)
-	return table.unpack(from6to3x3_table[i])
-end
-
-local function sym(a,b)
-	assert(a >= 1 and a <= 3, "tried to index sym with "..tostring(a)..", "..tostring(b))
-	assert(b >= 1 and b <= 3, "tried to index sym with "..tostring(a)..", "..tostring(b))
-	if a > b then a,b = b,a end
-	return xNames[a]..xNames[b]
-end
-
-local typeInfo = {
-	real = {
-		add = function(a,b) return '('..a..') + ('..b..')' end, 
-		sub = function(a,b) return '('..a..') - ('..b..')' end, 
-		scale = function(a,b) return '('..a..') * ('..b..')' end, 
-		zero = '0.',
-	},
-	real3 = {
-		add = function(a,b) return 'real3_add('..a..', '..b..')' end,
-		sub = function(a,b) return 'real3_sub('..a..', '..b..')' end,
-		scale = function(a,b) return 'real3_scale('..a..', '..b..')' end,
-		zero = '_real3(0., 0., 0.)',
-	},
-	sym3 = {
-		add = function(a,b) return 'sym3_add('..a..', '..b..')' end,
-		sub = function(a,b) return 'sym3_sub('..a..', '..b..')' end,
-		scale = function(a,b) return 'sym3_scale('..a..', '..b..')' end,
-		zero = '(sym3){.s={0., 0., 0., 0., 0., 0.}}',
-	},
-
-}
-
-local function makePartial(field, fieldType)
-	local suffix = 'l'
-	if not field:find'_' then suffix = '_' .. suffix end
-	local name = 'partial_'..field..suffix
-	local fieldTypeInfo = assert(typeInfo[fieldType], "failed to find typeInfo for "..fieldType)
-	local sub, scale, zero = fieldTypeInfo.sub, fieldTypeInfo.scale, fieldTypeInfo.zero
-
-?>	<?=fieldType?> <?=name?>[3];
-<?	for i,xi in ipairs(xNames) do
-		if i <= solver.dim then
-?>	<?=name?>[<?=i-1?>] = <?=scale(sub(  
-		'U[stepsize['..(i-1)..']].'..field,
-		'U[-stepsize['..(i-1)..']].'..field
-	), '1. / (2. * grid_dx'..(i-1)..')')?>;
-<?		else
-?>	<?=name?>[<?=i-1?>] = <?=zero?>;
-<?		end
-	end
-end
-
-local function makePartial2(field, fieldType)
-	local suffix = 'll'
-	if not field:find'_' then suffix = '_' .. suffix end
-	local name = 'partial2_'..field..suffix
-	local fieldTypeInfo = assert(typeInfo[fieldType], "failed to find typeInfo for "..fieldType)
-	local add, sub, scale, zero = fieldTypeInfo.add, fieldTypeInfo.sub, fieldTypeInfo.scale, fieldTypeInfo.zero
-
-?>	<?=fieldType?> <?=name?>[6];
-<?	for ij,xij in ipairs(symNames) do
-		local i,j = from6to3x3(ij)
-		if i > solver.dim or j > solver.dim then
-?>	<?=name?>[<?=ij-1?>] = <?=zero?>;
-<?		elseif i == j then
-?>	<?=name?>[<?=ij-1?>] = <?=scale(
-		add(
-			'U[stepsize['..(i-1)..']].'..field,
-			add(
-				scale('U->'..field, '-2.'),
-				'U[-stepsize['..(i-1)..']].'..field
-			)
-		), '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')?>;
-<?		else
-?>	<?=name?>[<?=ij-1?>] = <?=scale(
-		sub(
-			add(
-				'U[stepsize['..(i-1)..'] + stepsize['..(j-1)..']].'..field,
-				'U[-stepsize['..(i-1)..'] - stepsize['..(j-1)..']].'..field),
-			add(
-				'U[-stepsize['..(i-1)..'] + stepsize['..(j-1)..']].'..field,
-				'U[stepsize['..(i-1)..'] - stepsize['..(j-1)..']].'..field)
-		), '1. / (grid_dx'..(i-1)..' * grid_dx'..(j-1)..')')?>;
-<?		end
-	end
-end
-?>
-
 /*
 TF(K_ij) = K_ij - 1/3 gamma_ij gamma^kl K_kl
 
@@ -171,13 +71,13 @@ kernel void calcDeriv(
 		Um[i] = U - stepsize[i];
 	}
 
-<? makePartial('alpha', 'real') ?>		//partial_alpha_l[i] := alpha_,i
-<? makePartial('phi', 'real') ?>		//partial_phi_l[i] := phi_,i 
-<? makePartial('K', 'real')	?>			//partial_K_l[i] := K,i
-<? makePartial('beta_u', 'real3') ?>	//partial_beta_ul[j].i := beta^i_,j
-<? makePartial('connBar_u', 'real3') ?>	//partial_connBar_ul[j].i := connBar^i_,j
-<? makePartial('gammaBar_ll', 'sym3') ?>//partial_gammaBar[k].ij := gammaBar_ij,k
-<? makePartial('ATilde_ll', 'sym3') ?>	//partial_ATilde_lll[k].ij = ATilde_ij,k
+<?=makePartial('alpha', 'real')?>		//partial_alpha_l[i] := alpha_,i
+<?=makePartial('phi', 'real')?>			//partial_phi_l[i] := phi_,i 
+<?=makePartial('K', 'real')	?>			//partial_K_l[i] := K,i
+<?=makePartial('beta_u', 'real3')?>		//partial_beta_ul[j].i := beta^i_,j
+<?=makePartial('connBar_u', 'real3')?>	//partial_connBar_ul[j].i := connBar^i_,j
+<?=makePartial('gammaBar_ll', 'sym3')?>	//partial_gammaBar[k].ij := gammaBar_ij,k
+<?=makePartial('ATilde_ll', 'sym3')?>	//partial_ATilde_lll[k].ij = ATilde_ij,k
 
 	//tr_partial_beta := beta^i_,i
 	real tr_partial_beta = 0. <?
@@ -185,10 +85,10 @@ for i,xi in ipairs(xNames) do
 ?> + partial_beta_ul[<?=i-1?>].<?=xi?><?
 end ?>;
 
-<? makePartial2('alpha', 'real') ?>			//partial2_alpha_ll.ij := alpha_,ij
-<? makePartial2('phi', 'real') ?>			//partial2_phi_ll.ij := phi_,ij
-<? makePartial2('gammaBar_ll', 'sym3') ?>	//partial2_gammaBar_llll[kl].ij = gammaBar_ij,kl
-<? makePartial2('beta_u', 'real3') ?>	//partial2_beta_ull[jk].i = beta^i_,jk
+<?=makePartial2('alpha', 'real')?>			//partial2_alpha_ll.ij := alpha_,ij
+<?=makePartial2('phi', 'real')?>			//partial2_phi_ll.ij := phi_,ij
+<?=makePartial2('gammaBar_ll', 'sym3')?>	//partial2_gammaBar_llll[kl].ij = gammaBar_ij,kl
+<?=makePartial2('beta_u', 'real3')?>		//partial2_beta_ull[jk].i = beta^i_,jk
 
 	real exp_4phi = exp(4. * U->phi);
 	real exp_neg4phi = 1. / exp_4phi;

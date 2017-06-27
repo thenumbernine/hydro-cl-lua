@@ -242,11 +242,6 @@ return {
 			h = h()
 			local dh = Tensor('_i', function(i) return h:diff(xs[i])() end)
 			local d2h = Tensor('_ij', function(i,j) return h:diff(xs[i],xs[j])() end)
-			-- hmm why isn't comma derivative working?
-			--print('h',h)
-			--print('h_,i', h'_,i')
-			--print('h_,i', h'_,i'())
-			--os.exit()
 
 			local delta = Tensor('_ij', function(i,j) return i == j and 1 or 0 end)
 			local gamma = (delta'_ij' - dh'_i' * dh'_j')()
@@ -276,9 +271,6 @@ return {
 			local tanh = symmath.tanh
 			local clone = symmath.clone
 			local Tensor = symmath.Tensor		
-			
-			--xmin = {-2,-2,-2}
-			--xmax = {2,2,2} 
 
 			local R = .5		-- warp bubble radius
 			local sigma = 8	-- warp bubble thickness
@@ -335,11 +327,157 @@ return {
 	{
 		name = 'Schwarzschild black hole',
 		init = function(solver)
+			-- [[
+			defs.adm_BonaMasso_f = '1. + 1. / (alpha * alpha)'	-- TODO C/OpenCL exporter with lua symmath (only real difference is number formatting, with option for floating point)
+			defs.adm_BonaMasso_df_dalpha = '-1. / (alpha * alpha * alpha)'
+			--]]
+			--[[ constant
+			defs.adm_BonaMasso_f = '1.'	-- '1.69'	-- '.49'
+			defs.adm_BonaMasso_df_dalpha = '0.'
+			--]]
+			
+			local R = .002	-- Schwarzschild radius
+			
+			local symmath = require 'symmath'	
+			local t,x,y,z = symmath.vars('t','x','y','z')
+			local r = (x^2 + y^2 + z^2)^.5
+			
+			initNumRel{
+				vars = {x,y,z},
+				-- 4D metric ADM components:
+				alpha = (1 - R/r)^.5,
+				beta = {0,0,0},
+				gamma = {
+					x^2/((r/R-1)*r^2) + 1,	-- xx
+					x*y/((r/R-1)*r^2),		-- xy
+					x*z/((r/R-1)*r^2),		-- xz
+					y^2/((r/R-1)*r^2) + 1,	-- yy
+					y*z/((r/R-1)*r^2),		-- yz
+					z^2/((r/R-1)*r^2) + 1,	-- zz
+				},
+				K = {0,0,0,0,0,0},
+			}
+	
 		end,
 	},
 	{
 		name = 'stellar model',
 		init = function(solver)
+				
+			local symmath = require 'symmath'
+			symmath.tostring = require 'symmath.tostring.SingleLine'
+
+			--[[ this is technically correct, but gets some artifacts with the radial boundary on the cartesian grid
+			local H = symmath.Heaviside
+			--]]
+			-- [[ this looks a bit smoother.  sharper edges mean greater artifacts.
+			local function H(u) return symmath.tanh((u) * 10) * .5 + .5 end
+			--]]
+				
+			local class = require 'ext.class'
+			local min = class(require 'symmath.Function')
+			min.name = 'min'
+			min.func = math.min
+			-- derivative wrt 1st param... 
+			function min:evaluateDerivative(...)
+				local a = self[1]
+				local b = self[2]
+				return H(b - a) * symmath.diff(a, ...) + H(a - b) * symmath.diff(b, ...)
+			end
+			
+			local bodies = args and args.bodies or {{
+				pos = {0,0,0},
+				mass = .001,
+				radius = .1,
+			}}
+
+			defs.adm_BonaMasso_f = '1. + 1. / (alpha * alpha)'	-- TODO C/OpenCL exporter with lua symmath (only real difference is number formatting, with option for floating point)
+			defs.adm_BonaMasso_df_dalpha = '-1. / (alpha * alpha * alpha)'
+			
+			local t,x,y,z = symmath.vars('t','x','y','z')
+			
+			print('building variables ...')
+			
+			local alpha = 1
+			local gamma = {1,0,0,1,0,1}
+			for _,body in ipairs(bodies) do
+				local M = body.mass 
+				local R = body.radius
+				
+				local x_ = x - body.pos[1] 
+				local y_ = y - body.pos[2] 
+				local z_ = z - body.pos[3] 
+				local rSq = x_^2 + y_^2 + z_^2
+				local r = rSq^.5
+				local m = M * min(r/R, 1)^3
+				local R = 2*m
+				
+				alpha = alpha - 2*m/r
+				gamma[1] = gamma[1] + x_^2/((r/R-1)*rSq)
+				gamma[2] = gamma[2] + x_*y_/((r/R-1)*rSq)
+				gamma[3] = gamma[3] + x_*z_/((r/R-1)*rSq)
+				gamma[4] = gamma[4] + y_^2/((r/R-1)*rSq)
+				gamma[5] = gamma[5] + y_*z_/((r/R-1)*rSq)
+				gamma[6] = gamma[6] + z_^2/((r/R-1)*rSq)
+			
+				-- TODO pressure as well.  see TOV equations: https://en.wikipedia.org/wiki/Tolman%E2%80%93Oppenheimer%E2%80%93Volkoff_equation
+			end
+			alpha = alpha^.5
+			
+			print('...done building variables')
+			
+			print('initializing numerical relativity variables ...')
+			initNumRel{
+				vars = {x,y,z},
+				-- 4D metric ADM components:
+				alpha = alpha,
+				beta = {0,0,0},
+				gamma = gamma,
+				K = {0,0,0,0,0,0},
+				useNumericInverse = true,	-- if gamma gets too complex ...
+				-- hmm would be nice if any field could be a function, algebra, or constant ...
+				density = function(x,y,z)
+					local density = 0
+					for _,body in ipairs(bodies) do
+						local x_ = x - body.pos[1] 
+						local y_ = y - body.pos[2] 
+						local z_ = z - body.pos[3]
+						local rSq = x_*x_ + y_*y_ + z_*z_
+						if rSq < body.radius * body.radius then
+							density = density + (body.density or (body.mass / (4/3 * math.pi * body.radius * body.radius * body.radius)))
+						end
+					end
+					return density
+				end,
+				pressure = function(x,y,z)
+					local pressure = 0
+					for _,body in ipairs(bodies) do
+						local M = body.mass
+						local R = body.radius
+						local x_ = x - body.pos[1] 
+						local y_ = y - body.pos[2] 
+						local z_ = z - body.pos[3]
+						local rSq = x_*x_ + y_*y_ + z_*z_
+						if rSq < body.radius * body.radius then
+							local r = math.sqrt(rSq)
+							local rho0 = body.pressure or (body.mass / (4/3 * math.pi * body.radius * body.radius * body.radius))
+							-- TOV pressure solution: http://physics.stackexchange.com/questions/69953/solving-the-tolman-oppenheimer-volkoff-tov-equation
+							-- ... solution to constant pressure?  doesn't density decrease with radius? time to find a better source.
+							pressure = pressure + (body.pressure or (rho0 * (
+								(
+									math.sqrt(1 - 2 * M / R) - math.sqrt(1 - 2 * M * r * r / (R * R * R))
+								) / (
+									math.sqrt(1 - 2 * M * r * r / (R * R * R)) - 3 * math.sqrt(1 - 2 * M / R)
+								)
+							)))
+						end
+					end
+					return pressure
+				end,
+			}
+			print('...done initializing numerical relativity variables') 
+		
+			
 			setup()
 		end,
 	},

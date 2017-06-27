@@ -21,14 +21,16 @@ Features:
 - SRHD from Marti & Muller 2008
 - GRHD from Font 2008
 - numerical relativity via Bona-Masso formalism described in Alcubierre 1997 and Alcubierre's 2008 book
-- (WIP) numerical relativity via finite difference BSSNOK (Baumgarte & Shapiro 2010)
+- numerical relativity via finite difference BSSNOK (Baumgarte & Shapiro 2010)
 
 TODO:
+- ADM3D needs shift conditions, and moving puncture, etc ...
+- and I just need to implement something finite-volume and more robust than just Bona-Masso's original algorithm 
+- BSSN is lining up with ADM3D, but boundary conditions are occasionally messing up 
 - for 2D SRHD, it looks like my W = U.D / prim.rho is drifting from W = 1 / sqrt(1 - prim.v^2)
 - implement eigen-stuff code in SRHD so that PLM can work 
-- get curved coordinates working for MHD
 - 2D MHD seems to have nonzero div B ...
-- get curved coordinates to work in EM
+- get curved coordinates to work
 - why when you run Orszag-Tang in the Maxwell simulator does it explode at different random times? 
 - get two-fluid EMHD working (currently has nans)
 - add HLL / HLLC solvers

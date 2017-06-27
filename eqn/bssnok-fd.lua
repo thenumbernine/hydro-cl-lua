@@ -5,8 +5,139 @@ local template = require 'template'
 local Equation = require 'eqn.eqn'
 local symmath = require 'symmath'
 	
+-- bssnok helper functions:
+
 local xNames = table{'x', 'y', 'z'}
 local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
+
+local from3x3to6_table = {
+	{1, 2, 3},
+	{2, 4, 5},
+	{3, 5, 6},
+}
+local function from3x3to6(i,j)
+	return from3x3to6_table[i][j]
+end
+
+local from6to3x3_table = {{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}}
+local function from6to3x3(i)
+	return table.unpack(from6to3x3_table[i])
+end
+
+local function sym(a,b)
+	assert(a >= 1 and a <= 3, "tried to index sym with "..tostring(a)..", "..tostring(b))
+	assert(b >= 1 and b <= 3, "tried to index sym with "..tostring(a)..", "..tostring(b))
+	if a > b then a,b = b,a end
+	return xNames[a]..xNames[b]
+end
+
+local typeInfo = {
+	real = {
+		add = function(a,b) return '('..a..') + ('..b..')' end, 
+		sub = function(a,b) return '('..a..') - ('..b..')' end, 
+		scale = function(a,b) return '('..a..') * ('..b..')' end, 
+		zero = '0.',
+	},
+	real3 = {
+		add = function(a,b) return 'real3_add('..a..', '..b..')' end,
+		sub = function(a,b) return 'real3_sub('..a..', '..b..')' end,
+		scale = function(a,b) return 'real3_scale('..a..', '..b..')' end,
+		zero = '_real3(0., 0., 0.)',
+	},
+	sym3 = {
+		add = function(a,b) return 'sym3_add('..a..', '..b..')' end,
+		sub = function(a,b) return 'sym3_sub('..a..', '..b..')' end,
+		scale = function(a,b) return 'sym3_scale('..a..', '..b..')' end,
+		zero = '(sym3){.s={0., 0., 0., 0., 0., 0.}}',
+	},
+}
+
+local function makePartial(solver, field, fieldType)
+	return template([=[<?
+	local suffix = 'l'
+	if not field:find'_' then suffix = '_' .. suffix end
+	local name = 'partial_'..field..suffix
+	local fieldTypeInfo = assert(typeInfo[fieldType], "failed to find typeInfo for "..fieldType)
+	local sub, scale, zero = fieldTypeInfo.sub, fieldTypeInfo.scale, fieldTypeInfo.zero
+assert(sub)
+?>	<?=fieldType?> <?=name?>[3];
+<?	for i,xi in ipairs(xNames) do
+		if i <= solver.dim then
+?>	<?=name?>[<?=i-1?>] = <?=scale(sub(  
+		'U[stepsize['..(i-1)..']].'..field,
+		'U[-stepsize['..(i-1)..']].'..field
+	), '1. / (2. * grid_dx'..(i-1)..')')?>;
+<?		else
+?>	<?=name?>[<?=i-1?>] = <?=zero?>;
+<?		end
+	end
+?>]=], {
+		solver = solver,
+		xNames = xNames,
+		field = field,
+		fieldType = fieldType,
+		typeInfo = typeInfo,
+	})
+end
+
+local function makePartial2(solver, field, fieldType)
+	return template([=[<?
+	local suffix = 'll'
+	if not field:find'_' then suffix = '_' .. suffix end
+	local name = 'partial2_'..field..suffix
+	local fieldTypeInfo = assert(typeInfo[fieldType], "failed to find typeInfo for "..fieldType)
+	local add, sub, scale, zero = fieldTypeInfo.add, fieldTypeInfo.sub, fieldTypeInfo.scale, fieldTypeInfo.zero
+?>	<?=fieldType?> <?=name?>[6];
+<?	for ij,xij in ipairs(symNames) do
+		local i,j = from6to3x3(ij)
+		if i > solver.dim or j > solver.dim then
+?>	<?=name?>[<?=ij-1?>] = <?=zero?>;
+<?		elseif i == j then
+?>	<?=name?>[<?=ij-1?>] = <?=scale(
+		add(
+			'U[stepsize['..(i-1)..']].'..field,
+			add(
+				scale('U->'..field, '-2.'),
+				'U[-stepsize['..(i-1)..']].'..field
+			)
+		), '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')?>;
+<?		else
+?>	<?=name?>[<?=ij-1?>] = <?=scale(
+		sub(
+			add(
+				'U[stepsize['..(i-1)..'] + stepsize['..(j-1)..']].'..field,
+				'U[-stepsize['..(i-1)..'] - stepsize['..(j-1)..']].'..field),
+			add(
+				'U[-stepsize['..(i-1)..'] + stepsize['..(j-1)..']].'..field,
+				'U[stepsize['..(i-1)..'] - stepsize['..(j-1)..']].'..field)
+		), '1. / (grid_dx'..(i-1)..' * grid_dx'..(j-1)..')')?>;
+<?		end
+	end
+?>]=], {
+		solver = solver,
+		symNames = symNames,
+		from6to3x3 = from6to3x3,
+		field = field,
+		fieldType = fieldType,
+		typeInfo = typeInfo,
+	})
+end
+
+local function getTemplateEnv(self)
+	return {
+		eqn = self,
+		solver = self.solver,
+		xNames = xNames,
+		symNames = symNames,
+		from3x3to6 = from3x3to6,
+		from6to3x3 = from6to3x3,
+		sym = sym,
+		typeInfo = typeInfo,
+		makePartial = function(...) return makePartial(self.solver, ...) end,
+		makePartial2 = function(...) return makePartial2(self.solver, ...) end,
+	}
+end
+
 
 local BSSNOKFiniteDifferenceEquation = class(Equation)
 
@@ -85,29 +216,6 @@ end
 
 function BSSNOKFiniteDifferenceEquation:getInitStateCode()
 	return template([[
-<?
-local table = require 'ext.table'
-local from3x3to6_table = {
-	{1, 2, 3},
-	{2, 4, 5},
-	{3, 5, 6},
-}
-local function from3x3to6(i,j)
-	return from3x3to6_table[i][j]
-end
-local from6to3x3_table = {{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}}
-local function from6to3x3(i)
-	return table.unpack(from6to3x3_table[i])
-end
-
-local function sym(a,b)
-	assert(a >= 1 and a <= 3, "tried to index sym with "..a..", "..b)
-	assert(b >= 1 and b <= 3, "tried to index sym with "..a..", "..b)
-	if a > b then a,b = b,a end
-	return xNames[a]..xNames[b]
-end
-?>
-
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -199,21 +307,11 @@ for i=solver.dim+1,3 do
 <? end
 ?>
 }
-]], {
-		eqn = self,
-		solver = self.solver,
-		symNames = symNames,
-		xNames = xNames,
-	})
+]], getTemplateEnv(self))
 end
 
 function BSSNOKFiniteDifferenceEquation:getSolverCode()
-	return template(file['eqn/bssnok-fd.cl'], {
-		eqn = self,
-		solver = self.solver,
-		xNames = xNames,
-		symNames = symNames,
-	})
+	return template(file['eqn/bssnok-fd.cl'], getTemplateEnv(self))
 end
 
 function BSSNOKFiniteDifferenceEquation:getDisplayVarCodePrefix()
@@ -264,19 +362,36 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	addvar'H'
 	addreal3'M_u'
 
-	vars:insert{['det_gammaBar_ll_minus_1'] = [[value = -1. + sym3_det(U->gammaBar_ll);]]}
-	
-	vars:insert{tr_ATilde = [[
+	vars:append{
+		{['det_gammaBar_ll_minus_1'] = [[value = -1. + sym3_det(U->gammaBar_ll);]]},
+		{tr_ATilde = [[
 	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
 	value = sym3_dot(gammaBar_uu, U->ATilde_ll);
-]]}
-
-	vars:insert{S = [[
+]]},
+		{S = [[
 	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
 	real exp_neg4phi = exp(-4. * U->phi);
 	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
 	value = sym3_dot(U->S_ll, gamma_uu);
-]]}
+]]},
+		{det_gamma = 'value = exp(-4. * U->phi);'},
+		{volume = 'value = U->alpha * exp(-4. * U->phi);'},
+		{f = 'value = calc_f(U->alpha);'},
+		{expansion = 'value = -U->alpha * U->K;'},
+		
+		-- TODO needs shift influence (which is lengthy)
+		{gravityMagn = template([[
+<?=makePartial('alpha', 'real')?>
+	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
+	real exp_neg4phi = exp(-4. * U->phi);
+	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
+	return real3_len(sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l)) / U->alpha;
+]],			{
+				solver = self.solver,
+				makePartial = function(...) return makePartial(self.solver, ...) end,
+			})
+		},
+	}
 
 	return vars
 end

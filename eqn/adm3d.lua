@@ -154,12 +154,13 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 	value = -U->alpha * sym3_dot(gammaU, U->K);
 ]]},	
+		-- TODO needs shift influence (which is lengthy)
 		{gravityMagn = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 	value = real3_len(sym3_real3_mul(gammaU, U->a));
 ]]},
-		-- TODO constraint codes
+		-- TODO V^i constraint codes
 	}
 end
 
