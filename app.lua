@@ -178,14 +178,15 @@ real sym3_det(sym3 m) {
 		+ m.xz * (m.xy * m.yz - m.yy * m.xz);
 }
 
-sym3 sym3_inv(real d, sym3 m) {
+sym3 sym3_inv(sym3 m, real det) {
+	real invDet = 1. / det;
 	return (sym3){
-		.xx = (m.yy * m.zz - m.yz * m.yz) / d,
-		.xy = (m.xz * m.yz - m.xy * m.zz) / d,
-		.xz = (m.xy * m.yz - m.xz * m.yy) / d,
-		.yy = (m.xx * m.zz - m.xz * m.xz) / d,
-		.yz = (m.xz * m.xy - m.xx * m.yz) / d,
-		.zz = (m.xx * m.yy - m.xy * m.xy) / d,
+		.xx = (m.yy * m.zz - m.yz * m.yz) * invDet,
+		.xy = (m.xz * m.yz - m.xy * m.zz) * invDet,
+		.xz = (m.xy * m.yz - m.xz * m.yy) * invDet,
+		.yy = (m.xx * m.zz - m.xz * m.xz) * invDet,
+		.yz = (m.xz * m.xy - m.xx * m.yz) * invDet,
+		.zz = (m.xx * m.yy - m.xy * m.xy) * invDet,
 	};
 }
 
@@ -339,9 +340,9 @@ real mat3_trace(mat3 m) {
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 32,
-			cmdline.gridSize or 32,
-			cmdline.gridSize or 32,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -515,12 +516,12 @@ real mat3_trace(mat3 m) {
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	self.solvers:insert(require 'solver.adm3d-roe'(args))
+	--self.solvers:insert(require 'solver.adm3d-roe'(args))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe_implicit_linearized'(table(args, {eqn='adm1d_v2'})))
 	--self.solvers:insert(require 'solver.adm3d-roe_implicit_linearized'(args))
 	-- then there's the BSSNOK finite-difference solver ...
-	--self.solvers:insert(require 'solver.bssnok-fd'(args))
+	self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 	

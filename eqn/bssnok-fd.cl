@@ -28,6 +28,29 @@ local function sym(a,b)
 end
 ?>
 
+/*
+TF(K_ij) = K_ij - 1/3 gamma_ij gamma^kl K_kl
+
+tr(A_ij)
+= tr(K_ij - 1/3 gamma_ij K)
+= gamma^ij K_ij - 1/3 gamma^ij gamma_ij K
+= K - 1/3 3 K
+= 0
+
+tr(ATilde_ij) = 3 exp(-4 phi) tr(A_ij) 
+= 3 exp(-4 phi) * 0
+= 0
+
+TFBar(K_ij) = K_ij - 1/3 gammaBar_ij gammaBar^kl K_kl 
+	= K_ij - 1/3 gamma_ij gamma^kl K_kl
+	= TF(K_ij)
+*/
+sym3 tracefree(sym3 A_ll, sym3 gamma_ll, sym3 gamma_uu) {
+	real tr_A = sym3_dot(A_ll, gamma_uu);
+	return sym3_sub(A_ll, sym3_scale(gamma_ll, tr_A / 3.));
+}
+
+
 kernel void constrainU(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -51,24 +74,8 @@ kernel void constrainU(
 ?>	U->gammaBar_ll.<?=xij?> *= _1_cbrt_det_gammaBar;
 <? end
 ?>
-	sym3 gammaBar_uu = sym3_inv(1., U->gammaBar_ll);
-
-	/*
-	tr(A_ij)
-	= tr(K_ij - 1/3 gamma_ij K)
-	= gamma^ij K_ij - 1/3 gamma^ij gamma_ij K
-	= K - 1/3 3 K
-	= 0
-
-	tr(ATilde_ij) = 3 exp(-4 phi) tr(A_ij) 
-	= 3 exp(-4 phi) * 0 
-	= 0
-	*/
-	real tr_ATilde = sym3_dot(gammaBar_uu, U->ATilde_ll);
-<? for ij,xij in ipairs(symNames) do
-?>	U->ATilde_ll.<?=xij?> -= U->gammaBar_ll.<?=xij?> * tr_ATilde * (1./3.);
-<? end
-?>
+	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
+	U->ATilde_ll = tracefree(U->ATilde_ll, U->gammaBar_ll, gammaBar_uu);
 }
 
 kernel void calcDeriv(
@@ -164,10 +171,10 @@ end
 	sym3 gamma_ll = sym3_scale(U->gammaBar_ll, exp_4phi);
 
 	//gammaBar^ij = inv gammaBar_ij
-	sym3 gammaBar_uu = sym3_inv(1., U->gammaBar_ll);
+	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
 
-	//gamma^ij = inv gamma_ij	
-	//sym3 gamma_uu = sym3_inv(gamma_ll);
+	//gammaBar_ij = exp(-4 phi) gamma_ij
+	//gammaBar^ij = exp(4 phi) gamma^ij
 	//gamma^ij = exp(-4 phi) gammaBar^ij
 	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
 
@@ -176,7 +183,10 @@ end
 for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
-?>	connBar_lll[<?=i-1?>].<?=xjk?> = .5 * (partial_gammaBar_lll[<?=k-1?>].<?=sym(i,j)?> + partial_gammaBar_lll[<?=j-1?>].<?=sym(i,k)?> - partial_gammaBar_lll[<?=i-1?>].<?=xjk?>);
+?>	connBar_lll[<?=i-1?>].<?=xjk?> = .5 * (
+		partial_gammaBar_lll[<?=k-1?>].<?=sym(i,j)?> 
+		+ partial_gammaBar_lll[<?=j-1?>].<?=sym(i,k)?> 
+		- partial_gammaBar_lll[<?=i-1?>].<?=xjk?>);
 <?	end
 end
 ?>	
@@ -291,9 +301,9 @@ end
 <?	end
 end
 ?>
-	sym3 partial2_gammaBar_ll;	//partial2_gammaBar_ll.ij = gammaBar^kl gammaBar_ij,kl
+	sym3 tr_partial2_gammaBar_ll;	//tr_partial2_gammaBar_ll.ij = gammaBar^kl gammaBar_ij,kl
 <? for ij,xij in ipairs(symNames) do
-?>	partial2_gammaBar_ll.<?=xij?> = 0. <?
+?>	tr_partial2_gammaBar_ll.<?=xij?> = 0. <?
 	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do
 ?> + gammaBar_uu.<?=sym(k,l)?> * partial2_gammaBar_llll[<?=from3x3to6(k,l)-1?>].<?=xij?><?
@@ -304,15 +314,22 @@ end
 ?>
 	//B&S 11.54
 	//Alcubierre eqn 2.8.17
+	//RBar_ij = -1/2 gammaBar^lm gammaBar_ij,lm 
+	//		+ 1/2 gammaBar_ki connBar^k_,j
+	//		+ 1/2 gammaBar_kj connBar^k_,i 
+	//		+ 1/2 connBar^k (connBar_ijk + connBar_jik)
+	// 		+ gammaBar^lm (
+	//			connBar^k_li connBar_jkm
+	//			+ connBar^k_lj connBar_ikm
+	//			+ connBar^k_im connBar_klj)
 	sym3 RBar_ll;
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-?>	RBar_ll.<?=xij?> = -.5 * partial2_gammaBar_ll.<?=xij?>
+?>	RBar_ll.<?=xij?> = -.5 * tr_partial2_gammaBar_ll.<?=xij?>
 <?	for k,xk in ipairs(xNames) do
 ?>		+ .5 * U->gammaBar_ll.<?=sym(k,i)?> * partial_connBar_ul[<?=j-1?>].<?=xk?>
 		+ .5 * U->gammaBar_ll.<?=sym(k,j)?> * partial_connBar_ul[<?=i-1?>].<?=xk?>
-		+ .5 * U->connBar_u.<?=xk?> * connBar_lll[<?=i-1?>].<?=sym(j,k)?>
-		+ .5 * U->connBar_u.<?=xk?> * connBar_lll[<?=j-1?>].<?=sym(i,k)?>
+		+ .5 * U->connBar_u.<?=xk?> * (connBar_lll[<?=i-1?>].<?=sym(j,k)?> + connBar_lll[<?=j-1?>].<?=sym(i,k)?>)
 <?		for l,xl in ipairs(xNames) do
 			for m,xm in ipairs(xNames) do
 ?>		+ gammaBar_uu.<?=sym(k,m)?> * (
@@ -372,8 +389,8 @@ end
 			sym3_add(R_ll, sym3_scale(U->S_ll, -8. * M_PI)), 
 			U->alpha),
 		D2_alpha_ll);
-	real tr_tracelessPart = sym3_dot(gamma_uu, tracelessPart_ll);
-	tracelessPart_ll = sym3_sub(tracelessPart_ll, sym3_scale(gamma_ll, -1./3. * tr_tracelessPart));
+	
+	tracelessPart_ll = tracefree(tracelessPart_ll, U->gammaBar_ll, gammaBar_uu);
 
 	//B&S 11.53
 	//Alcubierre 2.8.11

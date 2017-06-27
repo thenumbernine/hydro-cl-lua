@@ -47,7 +47,7 @@ void eigen_forCell_<?=side?>(
 	eig->alpha = U->alpha;
 	eig->sqrt_f = sqrt(calc_f(U->alpha));
 	real det_gamma = sym3_det(U->gamma);
-	eig->gammaU = sym3_inv(det_gamma, U->gamma);
+	eig->gammaU = sym3_inv(U->gamma, det_gamma);
 }
 <? end ?>
 
@@ -95,11 +95,11 @@ void eigen_forSide(
 		.yz = .5 * (UL->gamma.yz + UR->gamma.yz),
 		.zz = .5 * (UL->gamma.zz + UR->gamma.zz),
 	};
-	real avg_gamma_det = sym3_det(avg_gamma);
+	real det_avg_gamma = sym3_det(avg_gamma);
 	
 	eig->alpha = alpha;
 	eig->sqrt_f = sqrt(calc_f(alpha));
-	eig->gammaU = sym3_inv(avg_gamma_det, avg_gamma);
+	eig->gammaU = sym3_inv(avg_gamma, det_avg_gamma);
 	eig->sqrt_gammaUjj.x = sqrt(eig->gammaU.xx);
 	eig->sqrt_gammaUjj.y = sqrt(eig->gammaU.yy);
 	eig->sqrt_gammaUjj.z = sqrt(eig->gammaU.zz);
@@ -923,286 +923,296 @@ kernel void addSource(
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 
-	real gamma = sym3_det(U->gamma);
-	sym3 gammaU = sym3_inv(gamma, U->gamma);
+	real det_gamma = sym3_det(U->gamma);
+	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 	real f = calc_f(U->alpha);	//could be based on alpha...
 
+#if 0
 	real density = 0;//state[STATE_DENSITY];
 	real pressure = 0;//state[STATE_PRESSURE];
 	real3 vel3 = _real3(0,0,0);//(real4)(state[STATE_VELOCITY_X], state[STATE_VELOCITY_Y], state[STATE_VELOCITY_Z], 0.);
 	real vel3Sq = real3_dot(vel3, vel3);	//TODO use gamma
 	real LorentzFactor = 1. / sqrt(1. - vel3Sq);
 	real4 vel4_ = (real4)(vel3.x * LorentzFactor, vel3.y * LorentzFactor, vel3.z * LorentzFactor, LorentzFactor);
-
 	real3 beta_ = _real3(0,0,0);
+#endif
 
 	// source terms
+	
 	mat3 KUL = sym3_sym3_mul(gammaU, U->K);
 	real trK = KUL.x.x + KUL.y.y + KUL.z.z;
-#if 0
-real KSqSymLL[6] = {
-U->K.xx * KUL.x.x + U->K.xy * KUL.y.x + U->K.xz * KUL.z.x,
-U->K.xx * KUL.x.y + U->K.xy * KUL.y.y + U->K.xz * KUL.z.y,
-U->K.xx * KUL.x.z + U->K.xy * KUL.y.z + U->K.xz * KUL.z.z,
-U->K.xy * KUL.x.y + U->K.yy * KUL.y.y + U->K.yz * KUL.z.y,
-U->K.xy * KUL.x.z + U->K.yy * KUL.y.z + U->K.yz * KUL.z.z,
-U->K.xz * KUL.x.z + U->K.yz * KUL.y.z + U->K.zz * KUL.z.z,
-};
-real DLUL[3][3][3] = {
-{{U->d[0].xx * gammaU.xx + U->d[0].xy * gammaU.xy + U->d[0].xz * gammaU.xz,
-U->d[0].xy * gammaU.xx + U->d[0].yy * gammaU.xy + U->d[0].yz * gammaU.xz,
-U->d[0].xz * gammaU.xx + U->d[0].yz * gammaU.xy + U->d[0].zz * gammaU.xz,
-},{U->d[0].xx * gammaU.xy + U->d[0].xy * gammaU.yy + U->d[0].xz * gammaU.yz,
-U->d[0].xy * gammaU.xy + U->d[0].yy * gammaU.yy + U->d[0].yz * gammaU.yz,
-U->d[0].xz * gammaU.xy + U->d[0].yz * gammaU.yy + U->d[0].zz * gammaU.yz,
-},{U->d[0].xx * gammaU.xz + U->d[0].xy * gammaU.yz + U->d[0].xz * gammaU.zz,
-U->d[0].xy * gammaU.xz + U->d[0].yy * gammaU.yz + U->d[0].yz * gammaU.zz,
-U->d[0].xz * gammaU.xz + U->d[0].yz * gammaU.yz + U->d[0].zz * gammaU.zz,
-},},{{U->d[1].xx * gammaU.xx + U->d[1].xy * gammaU.xy + U->d[1].xz * gammaU.xz,
-U->d[1].xy * gammaU.xx + U->d[1].yy * gammaU.xy + U->d[1].yz * gammaU.xz,
-U->d[1].xz * gammaU.xx + U->d[1].yz * gammaU.xy + U->d[1].zz * gammaU.xz,
-},{U->d[1].xx * gammaU.xy + U->d[1].xy * gammaU.yy + U->d[1].xz * gammaU.yz,
-U->d[1].xy * gammaU.xy + U->d[1].yy * gammaU.yy + U->d[1].yz * gammaU.yz,
-U->d[1].xz * gammaU.xy + U->d[1].yz * gammaU.yy + U->d[1].zz * gammaU.yz,
-},{U->d[1].xx * gammaU.xz + U->d[1].xy * gammaU.yz + U->d[1].xz * gammaU.zz,
-U->d[1].xy * gammaU.xz + U->d[1].yy * gammaU.yz + U->d[1].yz * gammaU.zz,
-U->d[1].xz * gammaU.xz + U->d[1].yz * gammaU.yz + U->d[1].zz * gammaU.zz,
-},},{{U->d[2].xx * gammaU.xx + U->d[2].xy * gammaU.xy + U->d[2].xz * gammaU.xz,
-U->d[2].xy * gammaU.xx + U->d[2].yy * gammaU.xy + U->d[2].yz * gammaU.xz,
-U->d[2].xz * gammaU.xx + U->d[2].yz * gammaU.xy + U->d[2].zz * gammaU.xz,
-},{U->d[2].xx * gammaU.xy + U->d[2].xy * gammaU.yy + U->d[2].xz * gammaU.yz,
-U->d[2].xy * gammaU.xy + U->d[2].yy * gammaU.yy + U->d[2].yz * gammaU.yz,
-U->d[2].xz * gammaU.xy + U->d[2].yz * gammaU.yy + U->d[2].zz * gammaU.yz,
-},{U->d[2].xx * gammaU.xz + U->d[2].xy * gammaU.yz + U->d[2].xz * gammaU.zz,
-U->d[2].xy * gammaU.xz + U->d[2].yy * gammaU.yz + U->d[2].yz * gammaU.zz,
-U->d[2].xz * gammaU.xz + U->d[2].yz * gammaU.yz + U->d[2].zz * gammaU.zz,
-},},};
-real D1L[3] = {
-DLUL[0][0][0] + DLUL[0][1][1] + DLUL[0][2][2],
-DLUL[1][0][0] + DLUL[1][1][1] + DLUL[1][2][2],
-DLUL[2][0][0] + DLUL[2][1][1] + DLUL[2][2][2],
-};
-real D3L[3] = {
-DLUL[0][0][0] + DLUL[1][1][0] + DLUL[2][2][0],
-DLUL[0][0][1] + DLUL[1][1][1] + DLUL[2][2][1],
-DLUL[0][0][2] + DLUL[1][1][2] + DLUL[2][2][2],
-};
-real DUUL[3][3][3] = {
-{{DLUL[0][0][0] * gammaU.xx + DLUL[1][0][0] * gammaU.xy + DLUL[2][0][0] * gammaU.xz,
-DLUL[0][0][1] * gammaU.xx + DLUL[1][0][1] * gammaU.xy + DLUL[2][0][1] * gammaU.xz,
-DLUL[0][0][2] * gammaU.xx + DLUL[1][0][2] * gammaU.xy + DLUL[2][0][2] * gammaU.xz,
-},{DLUL[0][1][0] * gammaU.xx + DLUL[1][1][0] * gammaU.xy + DLUL[2][1][0] * gammaU.xz,
-DLUL[0][1][1] * gammaU.xx + DLUL[1][1][1] * gammaU.xy + DLUL[2][1][1] * gammaU.xz,
-DLUL[0][1][2] * gammaU.xx + DLUL[1][1][2] * gammaU.xy + DLUL[2][1][2] * gammaU.xz,
-},{DLUL[0][2][0] * gammaU.xx + DLUL[1][2][0] * gammaU.xy + DLUL[2][2][0] * gammaU.xz,
-DLUL[0][2][1] * gammaU.xx + DLUL[1][2][1] * gammaU.xy + DLUL[2][2][1] * gammaU.xz,
-DLUL[0][2][2] * gammaU.xx + DLUL[1][2][2] * gammaU.xy + DLUL[2][2][2] * gammaU.xz,
-},},{{DLUL[0][0][0] * gammaU.xy + DLUL[1][0][0] * gammaU.yy + DLUL[2][0][0] * gammaU.yz,
-DLUL[0][0][1] * gammaU.xy + DLUL[1][0][1] * gammaU.yy + DLUL[2][0][1] * gammaU.yz,
-DLUL[0][0][2] * gammaU.xy + DLUL[1][0][2] * gammaU.yy + DLUL[2][0][2] * gammaU.yz,
-},{DLUL[0][1][0] * gammaU.xy + DLUL[1][1][0] * gammaU.yy + DLUL[2][1][0] * gammaU.yz,
-DLUL[0][1][1] * gammaU.xy + DLUL[1][1][1] * gammaU.yy + DLUL[2][1][1] * gammaU.yz,
-DLUL[0][1][2] * gammaU.xy + DLUL[1][1][2] * gammaU.yy + DLUL[2][1][2] * gammaU.yz,
-},{DLUL[0][2][0] * gammaU.xy + DLUL[1][2][0] * gammaU.yy + DLUL[2][2][0] * gammaU.yz,
-DLUL[0][2][1] * gammaU.xy + DLUL[1][2][1] * gammaU.yy + DLUL[2][2][1] * gammaU.yz,
-DLUL[0][2][2] * gammaU.xy + DLUL[1][2][2] * gammaU.yy + DLUL[2][2][2] * gammaU.yz,
-},},{{DLUL[0][0][0] * gammaU.xz + DLUL[1][0][0] * gammaU.yz + DLUL[2][0][0] * gammaU.zz,
-DLUL[0][0][1] * gammaU.xz + DLUL[1][0][1] * gammaU.yz + DLUL[2][0][1] * gammaU.zz,
-DLUL[0][0][2] * gammaU.xz + DLUL[1][0][2] * gammaU.yz + DLUL[2][0][2] * gammaU.zz,
-},{DLUL[0][1][0] * gammaU.xz + DLUL[1][1][0] * gammaU.yz + DLUL[2][1][0] * gammaU.zz,
-DLUL[0][1][1] * gammaU.xz + DLUL[1][1][1] * gammaU.yz + DLUL[2][1][1] * gammaU.zz,
-DLUL[0][1][2] * gammaU.xz + DLUL[1][1][2] * gammaU.yz + DLUL[2][1][2] * gammaU.zz,
-},{DLUL[0][2][0] * gammaU.xz + DLUL[1][2][0] * gammaU.yz + DLUL[2][2][0] * gammaU.zz,
-DLUL[0][2][1] * gammaU.xz + DLUL[1][2][1] * gammaU.yz + DLUL[2][2][1] * gammaU.zz,
-DLUL[0][2][2] * gammaU.xz + DLUL[1][2][2] * gammaU.yz + DLUL[2][2][2] * gammaU.zz,
-},},};
-real D12SymLL[6] = {
-U->d[0].xx * DUUL[0][0][0] + U->d[0].xy * DUUL[0][1][0] + U->d[0].xz * DUUL[0][2][0] + U->d[1].xx * DUUL[1][0][0] + U->d[1].xy * DUUL[1][1][0] + U->d[1].xz * DUUL[1][2][0] + U->d[2].xx * DUUL[2][0][0] + U->d[2].xy * DUUL[2][1][0] + U->d[2].xz * DUUL[2][2][0],
-U->d[0].xy * DUUL[0][0][0] + U->d[0].yy * DUUL[0][1][0] + U->d[0].yz * DUUL[0][2][0] + U->d[1].xy * DUUL[1][0][0] + U->d[1].yy * DUUL[1][1][0] + U->d[1].yz * DUUL[1][2][0] + U->d[2].xy * DUUL[2][0][0] + U->d[2].yy * DUUL[2][1][0] + U->d[2].yz * DUUL[2][2][0],
-U->d[0].xz * DUUL[0][0][0] + U->d[0].yz * DUUL[0][1][0] + U->d[0].zz * DUUL[0][2][0] + U->d[1].xz * DUUL[1][0][0] + U->d[1].yz * DUUL[1][1][0] + U->d[1].zz * DUUL[1][2][0] + U->d[2].xz * DUUL[2][0][0] + U->d[2].yz * DUUL[2][1][0] + U->d[2].zz * DUUL[2][2][0],
-U->d[0].xy * DUUL[0][0][1] + U->d[0].yy * DUUL[0][1][1] + U->d[0].yz * DUUL[0][2][1] + U->d[1].xy * DUUL[1][0][1] + U->d[1].yy * DUUL[1][1][1] + U->d[1].yz * DUUL[1][2][1] + U->d[2].xy * DUUL[2][0][1] + U->d[2].yy * DUUL[2][1][1] + U->d[2].yz * DUUL[2][2][1],
-U->d[0].xz * DUUL[0][0][1] + U->d[0].yz * DUUL[0][1][1] + U->d[0].zz * DUUL[0][2][1] + U->d[1].xz * DUUL[1][0][1] + U->d[1].yz * DUUL[1][1][1] + U->d[1].zz * DUUL[1][2][1] + U->d[2].xz * DUUL[2][0][1] + U->d[2].yz * DUUL[2][1][1] + U->d[2].zz * DUUL[2][2][1],
-U->d[0].xz * DUUL[0][0][2] + U->d[0].yz * DUUL[0][1][2] + U->d[0].zz * DUUL[0][2][2] + U->d[1].xz * DUUL[1][0][2] + U->d[1].yz * DUUL[1][1][2] + U->d[1].zz * DUUL[1][2][2] + U->d[2].xz * DUUL[2][0][2] + U->d[2].yz * DUUL[2][1][2] + U->d[2].zz * DUUL[2][2][2],
-};
-real GammaLSymLL[3][6] = {
-{U->d[0].xx,
-U->d[1].xx,
-U->d[2].xx,
-((2 * U->d[1].xy) - U->d[0].yy),
-(U->d[2].xy + (U->d[1].xz - U->d[0].yz)),
-((2 * U->d[2].xz) - U->d[0].zz),
-},{((2 * U->d[0].xy) - U->d[1].xx),
-U->d[0].yy,
-(U->d[2].xy + (U->d[0].yz - U->d[1].xz)),
-U->d[1].yy,
-U->d[2].yy,
-((2 * U->d[2].yz) - U->d[1].zz),
-},{((2 * U->d[0].xz) - U->d[2].xx),
-(U->d[1].xz + (U->d[0].yz - U->d[2].xy)),
-U->d[0].zz,
-((2 * U->d[1].yz) - U->d[2].yy),
-U->d[1].zz,
-U->d[2].zz,
-},};
-real GammaUSymLL[3][6] = {
-{gammaU.xx * GammaLSymLL[0][0] + gammaU.xy * GammaLSymLL[1][0] + gammaU.xz * GammaLSymLL[2][0],
-gammaU.xx * GammaLSymLL[0][1] + gammaU.xy * GammaLSymLL[1][1] + gammaU.xz * GammaLSymLL[2][1],
-gammaU.xx * GammaLSymLL[0][2] + gammaU.xy * GammaLSymLL[1][2] + gammaU.xz * GammaLSymLL[2][2],
-gammaU.xx * GammaLSymLL[0][3] + gammaU.xy * GammaLSymLL[1][3] + gammaU.xz * GammaLSymLL[2][3],
-gammaU.xx * GammaLSymLL[0][4] + gammaU.xy * GammaLSymLL[1][4] + gammaU.xz * GammaLSymLL[2][4],
-gammaU.xx * GammaLSymLL[0][5] + gammaU.xy * GammaLSymLL[1][5] + gammaU.xz * GammaLSymLL[2][5],
-},{gammaU.xy * GammaLSymLL[0][0] + gammaU.yy * GammaLSymLL[1][0] + gammaU.yz * GammaLSymLL[2][0],
-gammaU.xy * GammaLSymLL[0][1] + gammaU.yy * GammaLSymLL[1][1] + gammaU.yz * GammaLSymLL[2][1],
-gammaU.xy * GammaLSymLL[0][2] + gammaU.yy * GammaLSymLL[1][2] + gammaU.yz * GammaLSymLL[2][2],
-gammaU.xy * GammaLSymLL[0][3] + gammaU.yy * GammaLSymLL[1][3] + gammaU.yz * GammaLSymLL[2][3],
-gammaU.xy * GammaLSymLL[0][4] + gammaU.yy * GammaLSymLL[1][4] + gammaU.yz * GammaLSymLL[2][4],
-gammaU.xy * GammaLSymLL[0][5] + gammaU.yy * GammaLSymLL[1][5] + gammaU.yz * GammaLSymLL[2][5],
-},{gammaU.xz * GammaLSymLL[0][0] + gammaU.yz * GammaLSymLL[1][0] + gammaU.zz * GammaLSymLL[2][0],
-gammaU.xz * GammaLSymLL[0][1] + gammaU.yz * GammaLSymLL[1][1] + gammaU.zz * GammaLSymLL[2][1],
-gammaU.xz * GammaLSymLL[0][2] + gammaU.yz * GammaLSymLL[1][2] + gammaU.zz * GammaLSymLL[2][2],
-gammaU.xz * GammaLSymLL[0][3] + gammaU.yz * GammaLSymLL[1][3] + gammaU.zz * GammaLSymLL[2][3],
-gammaU.xz * GammaLSymLL[0][4] + gammaU.yz * GammaLSymLL[1][4] + gammaU.zz * GammaLSymLL[2][4],
-gammaU.xz * GammaLSymLL[0][5] + gammaU.yz * GammaLSymLL[1][5] + gammaU.zz * GammaLSymLL[2][5],
-},};
-real Gamma3L[3] = {
-GammaUSymLL[0][0] + GammaUSymLL[1][1] + GammaUSymLL[2][2],
-GammaUSymLL[0][1] + GammaUSymLL[1][3] + GammaUSymLL[2][4],
-GammaUSymLL[0][2] + GammaUSymLL[1][4] + GammaUSymLL[2][5],
-};
-real Gamma31SymLL[6] = {
-Gamma3L[0] * GammaUSymLL[0][0] + Gamma3L[1] * GammaUSymLL[1][0] + Gamma3L[2] * GammaUSymLL[2][0],
-Gamma3L[0] * GammaUSymLL[0][1] + Gamma3L[1] * GammaUSymLL[1][1] + Gamma3L[2] * GammaUSymLL[2][1],
-Gamma3L[0] * GammaUSymLL[0][2] + Gamma3L[1] * GammaUSymLL[1][2] + Gamma3L[2] * GammaUSymLL[2][2],
-Gamma3L[0] * GammaUSymLL[0][3] + Gamma3L[1] * GammaUSymLL[1][3] + Gamma3L[2] * GammaUSymLL[2][3],
-Gamma3L[0] * GammaUSymLL[0][4] + Gamma3L[1] * GammaUSymLL[1][4] + Gamma3L[2] * GammaUSymLL[2][4],
-Gamma3L[0] * GammaUSymLL[0][5] + Gamma3L[1] * GammaUSymLL[1][5] + Gamma3L[2] * GammaUSymLL[2][5],
-};
-real GammaLUL[3][3][3] = {
-{{gammaU.xx * GammaLSymLL[0][0] + gammaU.xy * GammaLSymLL[0][1] + gammaU.xz * GammaLSymLL[0][2],
-gammaU.xx * GammaLSymLL[0][1] + gammaU.xy * GammaLSymLL[0][3] + gammaU.xz * GammaLSymLL[0][4],
-gammaU.xx * GammaLSymLL[0][2] + gammaU.xy * GammaLSymLL[0][4] + gammaU.xz * GammaLSymLL[0][5],
-},{gammaU.xy * GammaLSymLL[0][0] + gammaU.yy * GammaLSymLL[0][1] + gammaU.yz * GammaLSymLL[0][2],
-gammaU.xy * GammaLSymLL[0][1] + gammaU.yy * GammaLSymLL[0][3] + gammaU.yz * GammaLSymLL[0][4],
-gammaU.xy * GammaLSymLL[0][2] + gammaU.yy * GammaLSymLL[0][4] + gammaU.yz * GammaLSymLL[0][5],
-},{gammaU.xz * GammaLSymLL[0][0] + gammaU.yz * GammaLSymLL[0][1] + gammaU.zz * GammaLSymLL[0][2],
-gammaU.xz * GammaLSymLL[0][1] + gammaU.yz * GammaLSymLL[0][3] + gammaU.zz * GammaLSymLL[0][4],
-gammaU.xz * GammaLSymLL[0][2] + gammaU.yz * GammaLSymLL[0][4] + gammaU.zz * GammaLSymLL[0][5],
-},},{{gammaU.xx * GammaLSymLL[1][0] + gammaU.xy * GammaLSymLL[1][1] + gammaU.xz * GammaLSymLL[1][2],
-gammaU.xx * GammaLSymLL[1][1] + gammaU.xy * GammaLSymLL[1][3] + gammaU.xz * GammaLSymLL[1][4],
-gammaU.xx * GammaLSymLL[1][2] + gammaU.xy * GammaLSymLL[1][4] + gammaU.xz * GammaLSymLL[1][5],
-},{gammaU.xy * GammaLSymLL[1][0] + gammaU.yy * GammaLSymLL[1][1] + gammaU.yz * GammaLSymLL[1][2],
-gammaU.xy * GammaLSymLL[1][1] + gammaU.yy * GammaLSymLL[1][3] + gammaU.yz * GammaLSymLL[1][4],
-gammaU.xy * GammaLSymLL[1][2] + gammaU.yy * GammaLSymLL[1][4] + gammaU.yz * GammaLSymLL[1][5],
-},{gammaU.xz * GammaLSymLL[1][0] + gammaU.yz * GammaLSymLL[1][1] + gammaU.zz * GammaLSymLL[1][2],
-gammaU.xz * GammaLSymLL[1][1] + gammaU.yz * GammaLSymLL[1][3] + gammaU.zz * GammaLSymLL[1][4],
-gammaU.xz * GammaLSymLL[1][2] + gammaU.yz * GammaLSymLL[1][4] + gammaU.zz * GammaLSymLL[1][5],
-},},{{gammaU.xx * GammaLSymLL[2][0] + gammaU.xy * GammaLSymLL[2][1] + gammaU.xz * GammaLSymLL[2][2],
-gammaU.xx * GammaLSymLL[2][1] + gammaU.xy * GammaLSymLL[2][3] + gammaU.xz * GammaLSymLL[2][4],
-gammaU.xx * GammaLSymLL[2][2] + gammaU.xy * GammaLSymLL[2][4] + gammaU.xz * GammaLSymLL[2][5],
-},{gammaU.xy * GammaLSymLL[2][0] + gammaU.yy * GammaLSymLL[2][1] + gammaU.yz * GammaLSymLL[2][2],
-gammaU.xy * GammaLSymLL[2][1] + gammaU.yy * GammaLSymLL[2][3] + gammaU.yz * GammaLSymLL[2][4],
-gammaU.xy * GammaLSymLL[2][2] + gammaU.yy * GammaLSymLL[2][4] + gammaU.yz * GammaLSymLL[2][5],
-},{gammaU.xz * GammaLSymLL[2][0] + gammaU.yz * GammaLSymLL[2][1] + gammaU.zz * GammaLSymLL[2][2],
-gammaU.xz * GammaLSymLL[2][1] + gammaU.yz * GammaLSymLL[2][3] + gammaU.zz * GammaLSymLL[2][4],
-gammaU.xz * GammaLSymLL[2][2] + gammaU.yz * GammaLSymLL[2][4] + gammaU.zz * GammaLSymLL[2][5],
-},},};
-real GammaLSymUU[3][6] = {
-{gammaU.xx * GammaLUL[0][0][0] + gammaU.xy * GammaLUL[0][0][1] + gammaU.xz * GammaLUL[0][0][2],
-gammaU.xy * GammaLUL[0][0][0] + gammaU.yy * GammaLUL[0][0][1] + gammaU.yz * GammaLUL[0][0][2],
-gammaU.xz * GammaLUL[0][0][0] + gammaU.yz * GammaLUL[0][0][1] + gammaU.zz * GammaLUL[0][0][2],
-gammaU.xy * GammaLUL[0][1][0] + gammaU.yy * GammaLUL[0][1][1] + gammaU.yz * GammaLUL[0][1][2],
-gammaU.xz * GammaLUL[0][1][0] + gammaU.yz * GammaLUL[0][1][1] + gammaU.zz * GammaLUL[0][1][2],
-gammaU.xz * GammaLUL[0][2][0] + gammaU.yz * GammaLUL[0][2][1] + gammaU.zz * GammaLUL[0][2][2],
-},{gammaU.xx * GammaLUL[1][0][0] + gammaU.xy * GammaLUL[1][0][1] + gammaU.xz * GammaLUL[1][0][2],
-gammaU.xy * GammaLUL[1][0][0] + gammaU.yy * GammaLUL[1][0][1] + gammaU.yz * GammaLUL[1][0][2],
-gammaU.xz * GammaLUL[1][0][0] + gammaU.yz * GammaLUL[1][0][1] + gammaU.zz * GammaLUL[1][0][2],
-gammaU.xy * GammaLUL[1][1][0] + gammaU.yy * GammaLUL[1][1][1] + gammaU.yz * GammaLUL[1][1][2],
-gammaU.xz * GammaLUL[1][1][0] + gammaU.yz * GammaLUL[1][1][1] + gammaU.zz * GammaLUL[1][1][2],
-gammaU.xz * GammaLUL[1][2][0] + gammaU.yz * GammaLUL[1][2][1] + gammaU.zz * GammaLUL[1][2][2],
-},{gammaU.xx * GammaLUL[2][0][0] + gammaU.xy * GammaLUL[2][0][1] + gammaU.xz * GammaLUL[2][0][2],
-gammaU.xy * GammaLUL[2][0][0] + gammaU.yy * GammaLUL[2][0][1] + gammaU.yz * GammaLUL[2][0][2],
-gammaU.xz * GammaLUL[2][0][0] + gammaU.yz * GammaLUL[2][0][1] + gammaU.zz * GammaLUL[2][0][2],
-gammaU.xy * GammaLUL[2][1][0] + gammaU.yy * GammaLUL[2][1][1] + gammaU.yz * GammaLUL[2][1][2],
-gammaU.xz * GammaLUL[2][1][0] + gammaU.yz * GammaLUL[2][1][1] + gammaU.zz * GammaLUL[2][1][2],
-gammaU.xz * GammaLUL[2][2][0] + gammaU.yz * GammaLUL[2][2][1] + gammaU.zz * GammaLUL[2][2][2],
-},};
-real Gamma11SymLL[6] = {
-GammaLSymLL[0][0] * GammaLSymUU[0][0] + GammaLSymLL[0][1] * GammaLSymUU[0][1] + GammaLSymLL[0][2] * GammaLSymUU[0][2] + GammaLSymLL[0][1] * GammaLSymUU[0][1] + GammaLSymLL[0][3] * GammaLSymUU[0][3] + GammaLSymLL[0][4] * GammaLSymUU[0][4] + GammaLSymLL[0][2] * GammaLSymUU[0][2] + GammaLSymLL[0][4] * GammaLSymUU[0][4] + GammaLSymLL[0][5] * GammaLSymUU[0][5],
-GammaLSymLL[0][0] * GammaLSymUU[1][0] + GammaLSymLL[0][1] * GammaLSymUU[1][1] + GammaLSymLL[0][2] * GammaLSymUU[1][2] + GammaLSymLL[0][1] * GammaLSymUU[1][1] + GammaLSymLL[0][3] * GammaLSymUU[1][3] + GammaLSymLL[0][4] * GammaLSymUU[1][4] + GammaLSymLL[0][2] * GammaLSymUU[1][2] + GammaLSymLL[0][4] * GammaLSymUU[1][4] + GammaLSymLL[0][5] * GammaLSymUU[1][5],
-GammaLSymLL[0][0] * GammaLSymUU[2][0] + GammaLSymLL[0][1] * GammaLSymUU[2][1] + GammaLSymLL[0][2] * GammaLSymUU[2][2] + GammaLSymLL[0][1] * GammaLSymUU[2][1] + GammaLSymLL[0][3] * GammaLSymUU[2][3] + GammaLSymLL[0][4] * GammaLSymUU[2][4] + GammaLSymLL[0][2] * GammaLSymUU[2][2] + GammaLSymLL[0][4] * GammaLSymUU[2][4] + GammaLSymLL[0][5] * GammaLSymUU[2][5],
-GammaLSymLL[1][0] * GammaLSymUU[1][0] + GammaLSymLL[1][1] * GammaLSymUU[1][1] + GammaLSymLL[1][2] * GammaLSymUU[1][2] + GammaLSymLL[1][1] * GammaLSymUU[1][1] + GammaLSymLL[1][3] * GammaLSymUU[1][3] + GammaLSymLL[1][4] * GammaLSymUU[1][4] + GammaLSymLL[1][2] * GammaLSymUU[1][2] + GammaLSymLL[1][4] * GammaLSymUU[1][4] + GammaLSymLL[1][5] * GammaLSymUU[1][5],
-GammaLSymLL[1][0] * GammaLSymUU[2][0] + GammaLSymLL[1][1] * GammaLSymUU[2][1] + GammaLSymLL[1][2] * GammaLSymUU[2][2] + GammaLSymLL[1][1] * GammaLSymUU[2][1] + GammaLSymLL[1][3] * GammaLSymUU[2][3] + GammaLSymLL[1][4] * GammaLSymUU[2][4] + GammaLSymLL[1][2] * GammaLSymUU[2][2] + GammaLSymLL[1][4] * GammaLSymUU[2][4] + GammaLSymLL[1][5] * GammaLSymUU[2][5],
-GammaLSymLL[2][0] * GammaLSymUU[2][0] + GammaLSymLL[2][1] * GammaLSymUU[2][1] + GammaLSymLL[2][2] * GammaLSymUU[2][2] + GammaLSymLL[2][1] * GammaLSymUU[2][1] + GammaLSymLL[2][3] * GammaLSymUU[2][3] + GammaLSymLL[2][4] * GammaLSymUU[2][4] + GammaLSymLL[2][2] * GammaLSymUU[2][2] + GammaLSymLL[2][4] * GammaLSymUU[2][4] + GammaLSymLL[2][5] * GammaLSymUU[2][5],
-};
-real ADL[3] = {
-U->a.x - 2 * D3L[0],
-U->a.y - 2 * D3L[1],
-U->a.z - 2 * D3L[2],
-};
-real ADU[3] = {
-gammaU.xx * ADL[0] + gammaU.xy * ADL[1] + gammaU.xz * ADL[2],
-gammaU.xy * ADL[0] + gammaU.yy * ADL[1] + gammaU.yz * ADL[2],
-gammaU.xz * ADL[0] + gammaU.yz * ADL[1] + gammaU.zz * ADL[2],
-};
-real ADDSymLL[6] = {
-ADU[0] * (2 * U->d[0].xx) + ADU[1] * (2 * U->d[0].xy) + ADU[2] * (2 * U->d[0].xz),
-ADU[0] * (U->d[0].xy + U->d[1].xx) + ADU[1] * (U->d[0].yy + U->d[1].xy) + ADU[2] * (U->d[0].yz + U->d[1].xz),
-ADU[0] * (U->d[0].xz + U->d[2].xx) + ADU[1] * (U->d[0].yz + U->d[2].xy) + ADU[2] * (U->d[0].zz + U->d[2].xz),
-ADU[0] * (2 * U->d[1].xy) + ADU[1] * (2 * U->d[1].yy) + ADU[2] * (2 * U->d[1].yz),
-ADU[0] * (U->d[1].xz + U->d[2].xy) + ADU[1] * (U->d[1].yz + U->d[2].yy) + ADU[2] * (U->d[1].zz + U->d[2].yz),
-ADU[0] * (2 * U->d[2].xz) + ADU[1] * (2 * U->d[2].yz) + ADU[2] * (2 * U->d[2].zz),
-};
-real R4SymLL[6] = {
-8. * M_PI * ((density + pressure) * vel4_.x * vel4_.x + .5 * (density - pressure) * U->gamma.xx),
-8. * M_PI * ((density + pressure) * vel4_.x * vel4_.y + .5 * (density - pressure) * U->gamma.xy),
-8. * M_PI * ((density + pressure) * vel4_.x * vel4_.z + .5 * (density - pressure) * U->gamma.xz),
-8. * M_PI * ((density + pressure) * vel4_.y * vel4_.y + .5 * (density - pressure) * U->gamma.yy),
-8. * M_PI * ((density + pressure) * vel4_.y * vel4_.z + .5 * (density - pressure) * U->gamma.yz),
-8. * M_PI * ((density + pressure) * vel4_.z * vel4_.z + .5 * (density - pressure) * U->gamma.zz),
-};
-real SSymLL[6] = {
--R4SymLL[0] + trK * U->K.xx - 2 * KSqSymLL[0] + 4 * D12SymLL[0] + Gamma31SymLL[0] - Gamma11SymLL[0] + ADDSymLL[0] + (U->a.x * ((2 * U->V.x) - D1L[0])),
--R4SymLL[1] + trK * U->K.xy - 2 * KSqSymLL[1] + 4 * D12SymLL[1] + Gamma31SymLL[1] - Gamma11SymLL[1] + ADDSymLL[1] + ((((2 * U->a.y * U->V.x) - (U->a.y * D1L[0])) + ((2 * U->a.x * U->V.y) - (U->a.x * D1L[1]))) / 2),
--R4SymLL[2] + trK * U->K.xz - 2 * KSqSymLL[2] + 4 * D12SymLL[2] + Gamma31SymLL[2] - Gamma11SymLL[2] + ADDSymLL[2] + ((((2 * U->a.z * U->V.x) - (U->a.z * D1L[0])) + ((2 * U->a.x * U->V.z) - (U->a.x * D1L[2]))) / 2),
--R4SymLL[3] + trK * U->K.yy - 2 * KSqSymLL[3] + 4 * D12SymLL[3] + Gamma31SymLL[3] - Gamma11SymLL[3] + ADDSymLL[3] + (U->a.y * ((2 * U->V.y) - D1L[1])),
--R4SymLL[4] + trK * U->K.yz - 2 * KSqSymLL[4] + 4 * D12SymLL[4] + Gamma31SymLL[4] - Gamma11SymLL[4] + ADDSymLL[4] + ((((2 * U->a.z * U->V.y) - (U->a.z * D1L[1])) + ((2 * U->a.y * U->V.z) - (U->a.y * D1L[2]))) / 2),
--R4SymLL[5] + trK * U->K.zz - 2 * KSqSymLL[5] + 4 * D12SymLL[5] + Gamma31SymLL[5] - Gamma11SymLL[5] + ADDSymLL[5] + (U->a.z * ((2 * U->V.z) - D1L[2])),
-};
-real GU0L[3] = {
-8. * M_PI * ((density + pressure) * vel4_.w * vel4_.x + pressure * beta_.x),
-8. * M_PI * ((density + pressure) * vel4_.w * vel4_.y + pressure * beta_.y),
-8. * M_PI * ((density + pressure) * vel4_.w * vel4_.z + pressure * beta_.z),
-};
-real AKL[3] = {
-U->a.x * KUL.x.x + U->a.y * KUL.y.x + U->a.z * KUL.z.x,
-U->a.x * KUL.x.y + U->a.y * KUL.y.y + U->a.z * KUL.z.y,
-U->a.x * KUL.x.z + U->a.y * KUL.y.z + U->a.z * KUL.z.z,
-};
-real K12D23L[3] = {
-KUL.x.x * DLUL[0][0][0] +KUL.x.y * DLUL[0][1][0] +KUL.x.z * DLUL[0][2][0] + KUL.y.x * DLUL[0][0][1] +KUL.y.y * DLUL[0][1][1] +KUL.y.z * DLUL[0][2][1] + KUL.z.x * DLUL[0][0][2] +KUL.z.y * DLUL[0][1][2] +KUL.z.z * DLUL[0][2][2],
-KUL.x.x * DLUL[1][0][0] +KUL.x.y * DLUL[1][1][0] +KUL.x.z * DLUL[1][2][0] + KUL.y.x * DLUL[1][0][1] +KUL.y.y * DLUL[1][1][1] +KUL.y.z * DLUL[1][2][1] + KUL.z.x * DLUL[1][0][2] +KUL.z.y * DLUL[1][1][2] +KUL.z.z * DLUL[1][2][2],
-KUL.x.x * DLUL[2][0][0] +KUL.x.y * DLUL[2][1][0] +KUL.x.z * DLUL[2][2][0] + KUL.y.x * DLUL[2][0][1] +KUL.y.y * DLUL[2][1][1] +KUL.y.z * DLUL[2][2][1] + KUL.z.x * DLUL[2][0][2] +KUL.z.y * DLUL[2][1][2] +KUL.z.z * DLUL[2][2][2],
-};
-real KD23L[3] = {
-KUL.x.x * D1L[0] + KUL.y.x * D1L[1] + KUL.z.x * D1L[2],
-KUL.x.y * D1L[0] + KUL.y.y * D1L[1] + KUL.z.y * D1L[2],
-KUL.x.z * D1L[0] + KUL.y.z * D1L[1] + KUL.z.z * D1L[2],
-};
-real K12D12L[3] = {
-KUL.x.x * DLUL[0][0][0] + KUL.x.y * DLUL[0][1][0] + KUL.x.z * DLUL[0][2][0] + KUL.y.x * DLUL[1][0][0] + KUL.y.y * DLUL[1][1][0] + KUL.y.z * DLUL[1][2][0] + KUL.z.x * DLUL[2][0][0] + KUL.z.y * DLUL[2][1][0] + KUL.z.z * DLUL[2][2][0],
-KUL.x.x * DLUL[0][0][1] + KUL.x.y * DLUL[0][1][1] + KUL.x.z * DLUL[0][2][1] + KUL.y.x * DLUL[1][0][1] + KUL.y.y * DLUL[1][1][1] + KUL.y.z * DLUL[1][2][1] + KUL.z.x * DLUL[2][0][1] + KUL.z.y * DLUL[2][1][1] + KUL.z.z * DLUL[2][2][1],
-KUL.x.x * DLUL[0][0][2] + KUL.x.y * DLUL[0][1][2] + KUL.x.z * DLUL[0][2][2] + KUL.y.x * DLUL[1][0][2] + KUL.y.y * DLUL[1][1][2] + KUL.y.z * DLUL[1][2][2] + KUL.z.x * DLUL[2][0][2] + KUL.z.y * DLUL[2][1][2] + KUL.z.z * DLUL[2][2][2],
-};
-real KD12L[3] = {
-KUL.x.x * D3L[0] + KUL.y.x * D3L[1] + KUL.z.x * D3L[2],
-KUL.x.y * D3L[0] + KUL.y.y * D3L[1] + KUL.z.y * D3L[2],
-KUL.x.z * D3L[0] + KUL.y.z * D3L[1] + KUL.z.z * D3L[2],
-};
-real PL[3] = {
-GU0L[0] + AKL[0] - U->a.x * trK + K12D23L[0] + KD23L[0] - 2 * K12D12L[0] + 2 * KD12L[0],
-GU0L[1] + AKL[1] - U->a.y * trK + K12D23L[1] + KD23L[1] - 2 * K12D12L[1] + 2 * KD12L[1],
-GU0L[2] + AKL[2] - U->a.z * trK + K12D23L[2] + KD23L[2] - 2 * K12D12L[2] + 2 * KD12L[2],
-};
+
+	real KSqSymLL[6] = {
+		U->K.xx * KUL.x.x + U->K.xy * KUL.y.x + U->K.xz * KUL.z.x,
+		U->K.xx * KUL.x.y + U->K.xy * KUL.y.y + U->K.xz * KUL.z.y,
+		U->K.xx * KUL.x.z + U->K.xy * KUL.y.z + U->K.xz * KUL.z.z,
+		U->K.xy * KUL.x.y + U->K.yy * KUL.y.y + U->K.yz * KUL.z.y,
+		U->K.xy * KUL.x.z + U->K.yy * KUL.y.z + U->K.yz * KUL.z.z,
+		U->K.xz * KUL.x.z + U->K.yz * KUL.y.z + U->K.zz * KUL.z.z,
+	};
+	real DLUL[3][3][3] = {
+	{{U->d[0].xx * gammaU.xx + U->d[0].xy * gammaU.xy + U->d[0].xz * gammaU.xz,
+	U->d[0].xy * gammaU.xx + U->d[0].yy * gammaU.xy + U->d[0].yz * gammaU.xz,
+	U->d[0].xz * gammaU.xx + U->d[0].yz * gammaU.xy + U->d[0].zz * gammaU.xz,
+	},{U->d[0].xx * gammaU.xy + U->d[0].xy * gammaU.yy + U->d[0].xz * gammaU.yz,
+	U->d[0].xy * gammaU.xy + U->d[0].yy * gammaU.yy + U->d[0].yz * gammaU.yz,
+	U->d[0].xz * gammaU.xy + U->d[0].yz * gammaU.yy + U->d[0].zz * gammaU.yz,
+	},{U->d[0].xx * gammaU.xz + U->d[0].xy * gammaU.yz + U->d[0].xz * gammaU.zz,
+	U->d[0].xy * gammaU.xz + U->d[0].yy * gammaU.yz + U->d[0].yz * gammaU.zz,
+	U->d[0].xz * gammaU.xz + U->d[0].yz * gammaU.yz + U->d[0].zz * gammaU.zz,
+	},},{{U->d[1].xx * gammaU.xx + U->d[1].xy * gammaU.xy + U->d[1].xz * gammaU.xz,
+	U->d[1].xy * gammaU.xx + U->d[1].yy * gammaU.xy + U->d[1].yz * gammaU.xz,
+	U->d[1].xz * gammaU.xx + U->d[1].yz * gammaU.xy + U->d[1].zz * gammaU.xz,
+	},{U->d[1].xx * gammaU.xy + U->d[1].xy * gammaU.yy + U->d[1].xz * gammaU.yz,
+	U->d[1].xy * gammaU.xy + U->d[1].yy * gammaU.yy + U->d[1].yz * gammaU.yz,
+	U->d[1].xz * gammaU.xy + U->d[1].yz * gammaU.yy + U->d[1].zz * gammaU.yz,
+	},{U->d[1].xx * gammaU.xz + U->d[1].xy * gammaU.yz + U->d[1].xz * gammaU.zz,
+	U->d[1].xy * gammaU.xz + U->d[1].yy * gammaU.yz + U->d[1].yz * gammaU.zz,
+	U->d[1].xz * gammaU.xz + U->d[1].yz * gammaU.yz + U->d[1].zz * gammaU.zz,
+	},},{{U->d[2].xx * gammaU.xx + U->d[2].xy * gammaU.xy + U->d[2].xz * gammaU.xz,
+	U->d[2].xy * gammaU.xx + U->d[2].yy * gammaU.xy + U->d[2].yz * gammaU.xz,
+	U->d[2].xz * gammaU.xx + U->d[2].yz * gammaU.xy + U->d[2].zz * gammaU.xz,
+	},{U->d[2].xx * gammaU.xy + U->d[2].xy * gammaU.yy + U->d[2].xz * gammaU.yz,
+	U->d[2].xy * gammaU.xy + U->d[2].yy * gammaU.yy + U->d[2].yz * gammaU.yz,
+	U->d[2].xz * gammaU.xy + U->d[2].yz * gammaU.yy + U->d[2].zz * gammaU.yz,
+	},{U->d[2].xx * gammaU.xz + U->d[2].xy * gammaU.yz + U->d[2].xz * gammaU.zz,
+	U->d[2].xy * gammaU.xz + U->d[2].yy * gammaU.yz + U->d[2].yz * gammaU.zz,
+	U->d[2].xz * gammaU.xz + U->d[2].yz * gammaU.yz + U->d[2].zz * gammaU.zz,
+	},},};
+	real D1L[3] = {
+	DLUL[0][0][0] + DLUL[0][1][1] + DLUL[0][2][2],
+	DLUL[1][0][0] + DLUL[1][1][1] + DLUL[1][2][2],
+	DLUL[2][0][0] + DLUL[2][1][1] + DLUL[2][2][2],
+	};
+	real D3L[3] = {
+	DLUL[0][0][0] + DLUL[1][1][0] + DLUL[2][2][0],
+	DLUL[0][0][1] + DLUL[1][1][1] + DLUL[2][2][1],
+	DLUL[0][0][2] + DLUL[1][1][2] + DLUL[2][2][2],
+	};
+	real DUUL[3][3][3] = {
+	{{DLUL[0][0][0] * gammaU.xx + DLUL[1][0][0] * gammaU.xy + DLUL[2][0][0] * gammaU.xz,
+	DLUL[0][0][1] * gammaU.xx + DLUL[1][0][1] * gammaU.xy + DLUL[2][0][1] * gammaU.xz,
+	DLUL[0][0][2] * gammaU.xx + DLUL[1][0][2] * gammaU.xy + DLUL[2][0][2] * gammaU.xz,
+	},{DLUL[0][1][0] * gammaU.xx + DLUL[1][1][0] * gammaU.xy + DLUL[2][1][0] * gammaU.xz,
+	DLUL[0][1][1] * gammaU.xx + DLUL[1][1][1] * gammaU.xy + DLUL[2][1][1] * gammaU.xz,
+	DLUL[0][1][2] * gammaU.xx + DLUL[1][1][2] * gammaU.xy + DLUL[2][1][2] * gammaU.xz,
+	},{DLUL[0][2][0] * gammaU.xx + DLUL[1][2][0] * gammaU.xy + DLUL[2][2][0] * gammaU.xz,
+	DLUL[0][2][1] * gammaU.xx + DLUL[1][2][1] * gammaU.xy + DLUL[2][2][1] * gammaU.xz,
+	DLUL[0][2][2] * gammaU.xx + DLUL[1][2][2] * gammaU.xy + DLUL[2][2][2] * gammaU.xz,
+	},},{{DLUL[0][0][0] * gammaU.xy + DLUL[1][0][0] * gammaU.yy + DLUL[2][0][0] * gammaU.yz,
+	DLUL[0][0][1] * gammaU.xy + DLUL[1][0][1] * gammaU.yy + DLUL[2][0][1] * gammaU.yz,
+	DLUL[0][0][2] * gammaU.xy + DLUL[1][0][2] * gammaU.yy + DLUL[2][0][2] * gammaU.yz,
+	},{DLUL[0][1][0] * gammaU.xy + DLUL[1][1][0] * gammaU.yy + DLUL[2][1][0] * gammaU.yz,
+	DLUL[0][1][1] * gammaU.xy + DLUL[1][1][1] * gammaU.yy + DLUL[2][1][1] * gammaU.yz,
+	DLUL[0][1][2] * gammaU.xy + DLUL[1][1][2] * gammaU.yy + DLUL[2][1][2] * gammaU.yz,
+	},{DLUL[0][2][0] * gammaU.xy + DLUL[1][2][0] * gammaU.yy + DLUL[2][2][0] * gammaU.yz,
+	DLUL[0][2][1] * gammaU.xy + DLUL[1][2][1] * gammaU.yy + DLUL[2][2][1] * gammaU.yz,
+	DLUL[0][2][2] * gammaU.xy + DLUL[1][2][2] * gammaU.yy + DLUL[2][2][2] * gammaU.yz,
+	},},{{DLUL[0][0][0] * gammaU.xz + DLUL[1][0][0] * gammaU.yz + DLUL[2][0][0] * gammaU.zz,
+	DLUL[0][0][1] * gammaU.xz + DLUL[1][0][1] * gammaU.yz + DLUL[2][0][1] * gammaU.zz,
+	DLUL[0][0][2] * gammaU.xz + DLUL[1][0][2] * gammaU.yz + DLUL[2][0][2] * gammaU.zz,
+	},{DLUL[0][1][0] * gammaU.xz + DLUL[1][1][0] * gammaU.yz + DLUL[2][1][0] * gammaU.zz,
+	DLUL[0][1][1] * gammaU.xz + DLUL[1][1][1] * gammaU.yz + DLUL[2][1][1] * gammaU.zz,
+	DLUL[0][1][2] * gammaU.xz + DLUL[1][1][2] * gammaU.yz + DLUL[2][1][2] * gammaU.zz,
+	},{DLUL[0][2][0] * gammaU.xz + DLUL[1][2][0] * gammaU.yz + DLUL[2][2][0] * gammaU.zz,
+	DLUL[0][2][1] * gammaU.xz + DLUL[1][2][1] * gammaU.yz + DLUL[2][2][1] * gammaU.zz,
+	DLUL[0][2][2] * gammaU.xz + DLUL[1][2][2] * gammaU.yz + DLUL[2][2][2] * gammaU.zz,
+	},},};
+	real D12SymLL[6] = {
+	U->d[0].xx * DUUL[0][0][0] + U->d[0].xy * DUUL[0][1][0] + U->d[0].xz * DUUL[0][2][0] + U->d[1].xx * DUUL[1][0][0] + U->d[1].xy * DUUL[1][1][0] + U->d[1].xz * DUUL[1][2][0] + U->d[2].xx * DUUL[2][0][0] + U->d[2].xy * DUUL[2][1][0] + U->d[2].xz * DUUL[2][2][0],
+	U->d[0].xy * DUUL[0][0][0] + U->d[0].yy * DUUL[0][1][0] + U->d[0].yz * DUUL[0][2][0] + U->d[1].xy * DUUL[1][0][0] + U->d[1].yy * DUUL[1][1][0] + U->d[1].yz * DUUL[1][2][0] + U->d[2].xy * DUUL[2][0][0] + U->d[2].yy * DUUL[2][1][0] + U->d[2].yz * DUUL[2][2][0],
+	U->d[0].xz * DUUL[0][0][0] + U->d[0].yz * DUUL[0][1][0] + U->d[0].zz * DUUL[0][2][0] + U->d[1].xz * DUUL[1][0][0] + U->d[1].yz * DUUL[1][1][0] + U->d[1].zz * DUUL[1][2][0] + U->d[2].xz * DUUL[2][0][0] + U->d[2].yz * DUUL[2][1][0] + U->d[2].zz * DUUL[2][2][0],
+	U->d[0].xy * DUUL[0][0][1] + U->d[0].yy * DUUL[0][1][1] + U->d[0].yz * DUUL[0][2][1] + U->d[1].xy * DUUL[1][0][1] + U->d[1].yy * DUUL[1][1][1] + U->d[1].yz * DUUL[1][2][1] + U->d[2].xy * DUUL[2][0][1] + U->d[2].yy * DUUL[2][1][1] + U->d[2].yz * DUUL[2][2][1],
+	U->d[0].xz * DUUL[0][0][1] + U->d[0].yz * DUUL[0][1][1] + U->d[0].zz * DUUL[0][2][1] + U->d[1].xz * DUUL[1][0][1] + U->d[1].yz * DUUL[1][1][1] + U->d[1].zz * DUUL[1][2][1] + U->d[2].xz * DUUL[2][0][1] + U->d[2].yz * DUUL[2][1][1] + U->d[2].zz * DUUL[2][2][1],
+	U->d[0].xz * DUUL[0][0][2] + U->d[0].yz * DUUL[0][1][2] + U->d[0].zz * DUUL[0][2][2] + U->d[1].xz * DUUL[1][0][2] + U->d[1].yz * DUUL[1][1][2] + U->d[1].zz * DUUL[1][2][2] + U->d[2].xz * DUUL[2][0][2] + U->d[2].yz * DUUL[2][1][2] + U->d[2].zz * DUUL[2][2][2],
+	};
+	real GammaLSymLL[3][6] = {
+	{U->d[0].xx,
+	U->d[1].xx,
+	U->d[2].xx,
+	((2 * U->d[1].xy) - U->d[0].yy),
+	(U->d[2].xy + (U->d[1].xz - U->d[0].yz)),
+	((2 * U->d[2].xz) - U->d[0].zz),
+	},{((2 * U->d[0].xy) - U->d[1].xx),
+	U->d[0].yy,
+	(U->d[2].xy + (U->d[0].yz - U->d[1].xz)),
+	U->d[1].yy,
+	U->d[2].yy,
+	((2 * U->d[2].yz) - U->d[1].zz),
+	},{((2 * U->d[0].xz) - U->d[2].xx),
+	(U->d[1].xz + (U->d[0].yz - U->d[2].xy)),
+	U->d[0].zz,
+	((2 * U->d[1].yz) - U->d[2].yy),
+	U->d[1].zz,
+	U->d[2].zz,
+	},};
+	real GammaUSymLL[3][6] = {
+	{gammaU.xx * GammaLSymLL[0][0] + gammaU.xy * GammaLSymLL[1][0] + gammaU.xz * GammaLSymLL[2][0],
+	gammaU.xx * GammaLSymLL[0][1] + gammaU.xy * GammaLSymLL[1][1] + gammaU.xz * GammaLSymLL[2][1],
+	gammaU.xx * GammaLSymLL[0][2] + gammaU.xy * GammaLSymLL[1][2] + gammaU.xz * GammaLSymLL[2][2],
+	gammaU.xx * GammaLSymLL[0][3] + gammaU.xy * GammaLSymLL[1][3] + gammaU.xz * GammaLSymLL[2][3],
+	gammaU.xx * GammaLSymLL[0][4] + gammaU.xy * GammaLSymLL[1][4] + gammaU.xz * GammaLSymLL[2][4],
+	gammaU.xx * GammaLSymLL[0][5] + gammaU.xy * GammaLSymLL[1][5] + gammaU.xz * GammaLSymLL[2][5],
+	},{gammaU.xy * GammaLSymLL[0][0] + gammaU.yy * GammaLSymLL[1][0] + gammaU.yz * GammaLSymLL[2][0],
+	gammaU.xy * GammaLSymLL[0][1] + gammaU.yy * GammaLSymLL[1][1] + gammaU.yz * GammaLSymLL[2][1],
+	gammaU.xy * GammaLSymLL[0][2] + gammaU.yy * GammaLSymLL[1][2] + gammaU.yz * GammaLSymLL[2][2],
+	gammaU.xy * GammaLSymLL[0][3] + gammaU.yy * GammaLSymLL[1][3] + gammaU.yz * GammaLSymLL[2][3],
+	gammaU.xy * GammaLSymLL[0][4] + gammaU.yy * GammaLSymLL[1][4] + gammaU.yz * GammaLSymLL[2][4],
+	gammaU.xy * GammaLSymLL[0][5] + gammaU.yy * GammaLSymLL[1][5] + gammaU.yz * GammaLSymLL[2][5],
+	},{gammaU.xz * GammaLSymLL[0][0] + gammaU.yz * GammaLSymLL[1][0] + gammaU.zz * GammaLSymLL[2][0],
+	gammaU.xz * GammaLSymLL[0][1] + gammaU.yz * GammaLSymLL[1][1] + gammaU.zz * GammaLSymLL[2][1],
+	gammaU.xz * GammaLSymLL[0][2] + gammaU.yz * GammaLSymLL[1][2] + gammaU.zz * GammaLSymLL[2][2],
+	gammaU.xz * GammaLSymLL[0][3] + gammaU.yz * GammaLSymLL[1][3] + gammaU.zz * GammaLSymLL[2][3],
+	gammaU.xz * GammaLSymLL[0][4] + gammaU.yz * GammaLSymLL[1][4] + gammaU.zz * GammaLSymLL[2][4],
+	gammaU.xz * GammaLSymLL[0][5] + gammaU.yz * GammaLSymLL[1][5] + gammaU.zz * GammaLSymLL[2][5],
+	},};
+	real Gamma3L[3] = {
+	GammaUSymLL[0][0] + GammaUSymLL[1][1] + GammaUSymLL[2][2],
+	GammaUSymLL[0][1] + GammaUSymLL[1][3] + GammaUSymLL[2][4],
+	GammaUSymLL[0][2] + GammaUSymLL[1][4] + GammaUSymLL[2][5],
+	};
+	real Gamma31SymLL[6] = {
+	Gamma3L[0] * GammaUSymLL[0][0] + Gamma3L[1] * GammaUSymLL[1][0] + Gamma3L[2] * GammaUSymLL[2][0],
+	Gamma3L[0] * GammaUSymLL[0][1] + Gamma3L[1] * GammaUSymLL[1][1] + Gamma3L[2] * GammaUSymLL[2][1],
+	Gamma3L[0] * GammaUSymLL[0][2] + Gamma3L[1] * GammaUSymLL[1][2] + Gamma3L[2] * GammaUSymLL[2][2],
+	Gamma3L[0] * GammaUSymLL[0][3] + Gamma3L[1] * GammaUSymLL[1][3] + Gamma3L[2] * GammaUSymLL[2][3],
+	Gamma3L[0] * GammaUSymLL[0][4] + Gamma3L[1] * GammaUSymLL[1][4] + Gamma3L[2] * GammaUSymLL[2][4],
+	Gamma3L[0] * GammaUSymLL[0][5] + Gamma3L[1] * GammaUSymLL[1][5] + Gamma3L[2] * GammaUSymLL[2][5],
+	};
+	real GammaLUL[3][3][3] = {
+	{{gammaU.xx * GammaLSymLL[0][0] + gammaU.xy * GammaLSymLL[0][1] + gammaU.xz * GammaLSymLL[0][2],
+	gammaU.xx * GammaLSymLL[0][1] + gammaU.xy * GammaLSymLL[0][3] + gammaU.xz * GammaLSymLL[0][4],
+	gammaU.xx * GammaLSymLL[0][2] + gammaU.xy * GammaLSymLL[0][4] + gammaU.xz * GammaLSymLL[0][5],
+	},{gammaU.xy * GammaLSymLL[0][0] + gammaU.yy * GammaLSymLL[0][1] + gammaU.yz * GammaLSymLL[0][2],
+	gammaU.xy * GammaLSymLL[0][1] + gammaU.yy * GammaLSymLL[0][3] + gammaU.yz * GammaLSymLL[0][4],
+	gammaU.xy * GammaLSymLL[0][2] + gammaU.yy * GammaLSymLL[0][4] + gammaU.yz * GammaLSymLL[0][5],
+	},{gammaU.xz * GammaLSymLL[0][0] + gammaU.yz * GammaLSymLL[0][1] + gammaU.zz * GammaLSymLL[0][2],
+	gammaU.xz * GammaLSymLL[0][1] + gammaU.yz * GammaLSymLL[0][3] + gammaU.zz * GammaLSymLL[0][4],
+	gammaU.xz * GammaLSymLL[0][2] + gammaU.yz * GammaLSymLL[0][4] + gammaU.zz * GammaLSymLL[0][5],
+	},},{{gammaU.xx * GammaLSymLL[1][0] + gammaU.xy * GammaLSymLL[1][1] + gammaU.xz * GammaLSymLL[1][2],
+	gammaU.xx * GammaLSymLL[1][1] + gammaU.xy * GammaLSymLL[1][3] + gammaU.xz * GammaLSymLL[1][4],
+	gammaU.xx * GammaLSymLL[1][2] + gammaU.xy * GammaLSymLL[1][4] + gammaU.xz * GammaLSymLL[1][5],
+	},{gammaU.xy * GammaLSymLL[1][0] + gammaU.yy * GammaLSymLL[1][1] + gammaU.yz * GammaLSymLL[1][2],
+	gammaU.xy * GammaLSymLL[1][1] + gammaU.yy * GammaLSymLL[1][3] + gammaU.yz * GammaLSymLL[1][4],
+	gammaU.xy * GammaLSymLL[1][2] + gammaU.yy * GammaLSymLL[1][4] + gammaU.yz * GammaLSymLL[1][5],
+	},{gammaU.xz * GammaLSymLL[1][0] + gammaU.yz * GammaLSymLL[1][1] + gammaU.zz * GammaLSymLL[1][2],
+	gammaU.xz * GammaLSymLL[1][1] + gammaU.yz * GammaLSymLL[1][3] + gammaU.zz * GammaLSymLL[1][4],
+	gammaU.xz * GammaLSymLL[1][2] + gammaU.yz * GammaLSymLL[1][4] + gammaU.zz * GammaLSymLL[1][5],
+	},},{{gammaU.xx * GammaLSymLL[2][0] + gammaU.xy * GammaLSymLL[2][1] + gammaU.xz * GammaLSymLL[2][2],
+	gammaU.xx * GammaLSymLL[2][1] + gammaU.xy * GammaLSymLL[2][3] + gammaU.xz * GammaLSymLL[2][4],
+	gammaU.xx * GammaLSymLL[2][2] + gammaU.xy * GammaLSymLL[2][4] + gammaU.xz * GammaLSymLL[2][5],
+	},{gammaU.xy * GammaLSymLL[2][0] + gammaU.yy * GammaLSymLL[2][1] + gammaU.yz * GammaLSymLL[2][2],
+	gammaU.xy * GammaLSymLL[2][1] + gammaU.yy * GammaLSymLL[2][3] + gammaU.yz * GammaLSymLL[2][4],
+	gammaU.xy * GammaLSymLL[2][2] + gammaU.yy * GammaLSymLL[2][4] + gammaU.yz * GammaLSymLL[2][5],
+	},{gammaU.xz * GammaLSymLL[2][0] + gammaU.yz * GammaLSymLL[2][1] + gammaU.zz * GammaLSymLL[2][2],
+	gammaU.xz * GammaLSymLL[2][1] + gammaU.yz * GammaLSymLL[2][3] + gammaU.zz * GammaLSymLL[2][4],
+	gammaU.xz * GammaLSymLL[2][2] + gammaU.yz * GammaLSymLL[2][4] + gammaU.zz * GammaLSymLL[2][5],
+	},},};
+	real GammaLSymUU[3][6] = {
+	{gammaU.xx * GammaLUL[0][0][0] + gammaU.xy * GammaLUL[0][0][1] + gammaU.xz * GammaLUL[0][0][2],
+	gammaU.xy * GammaLUL[0][0][0] + gammaU.yy * GammaLUL[0][0][1] + gammaU.yz * GammaLUL[0][0][2],
+	gammaU.xz * GammaLUL[0][0][0] + gammaU.yz * GammaLUL[0][0][1] + gammaU.zz * GammaLUL[0][0][2],
+	gammaU.xy * GammaLUL[0][1][0] + gammaU.yy * GammaLUL[0][1][1] + gammaU.yz * GammaLUL[0][1][2],
+	gammaU.xz * GammaLUL[0][1][0] + gammaU.yz * GammaLUL[0][1][1] + gammaU.zz * GammaLUL[0][1][2],
+	gammaU.xz * GammaLUL[0][2][0] + gammaU.yz * GammaLUL[0][2][1] + gammaU.zz * GammaLUL[0][2][2],
+	},{gammaU.xx * GammaLUL[1][0][0] + gammaU.xy * GammaLUL[1][0][1] + gammaU.xz * GammaLUL[1][0][2],
+	gammaU.xy * GammaLUL[1][0][0] + gammaU.yy * GammaLUL[1][0][1] + gammaU.yz * GammaLUL[1][0][2],
+	gammaU.xz * GammaLUL[1][0][0] + gammaU.yz * GammaLUL[1][0][1] + gammaU.zz * GammaLUL[1][0][2],
+	gammaU.xy * GammaLUL[1][1][0] + gammaU.yy * GammaLUL[1][1][1] + gammaU.yz * GammaLUL[1][1][2],
+	gammaU.xz * GammaLUL[1][1][0] + gammaU.yz * GammaLUL[1][1][1] + gammaU.zz * GammaLUL[1][1][2],
+	gammaU.xz * GammaLUL[1][2][0] + gammaU.yz * GammaLUL[1][2][1] + gammaU.zz * GammaLUL[1][2][2],
+	},{gammaU.xx * GammaLUL[2][0][0] + gammaU.xy * GammaLUL[2][0][1] + gammaU.xz * GammaLUL[2][0][2],
+	gammaU.xy * GammaLUL[2][0][0] + gammaU.yy * GammaLUL[2][0][1] + gammaU.yz * GammaLUL[2][0][2],
+	gammaU.xz * GammaLUL[2][0][0] + gammaU.yz * GammaLUL[2][0][1] + gammaU.zz * GammaLUL[2][0][2],
+	gammaU.xy * GammaLUL[2][1][0] + gammaU.yy * GammaLUL[2][1][1] + gammaU.yz * GammaLUL[2][1][2],
+	gammaU.xz * GammaLUL[2][1][0] + gammaU.yz * GammaLUL[2][1][1] + gammaU.zz * GammaLUL[2][1][2],
+	gammaU.xz * GammaLUL[2][2][0] + gammaU.yz * GammaLUL[2][2][1] + gammaU.zz * GammaLUL[2][2][2],
+	},};
+	real Gamma11SymLL[6] = {
+	GammaLSymLL[0][0] * GammaLSymUU[0][0] + GammaLSymLL[0][1] * GammaLSymUU[0][1] + GammaLSymLL[0][2] * GammaLSymUU[0][2] + GammaLSymLL[0][1] * GammaLSymUU[0][1] + GammaLSymLL[0][3] * GammaLSymUU[0][3] + GammaLSymLL[0][4] * GammaLSymUU[0][4] + GammaLSymLL[0][2] * GammaLSymUU[0][2] + GammaLSymLL[0][4] * GammaLSymUU[0][4] + GammaLSymLL[0][5] * GammaLSymUU[0][5],
+	GammaLSymLL[0][0] * GammaLSymUU[1][0] + GammaLSymLL[0][1] * GammaLSymUU[1][1] + GammaLSymLL[0][2] * GammaLSymUU[1][2] + GammaLSymLL[0][1] * GammaLSymUU[1][1] + GammaLSymLL[0][3] * GammaLSymUU[1][3] + GammaLSymLL[0][4] * GammaLSymUU[1][4] + GammaLSymLL[0][2] * GammaLSymUU[1][2] + GammaLSymLL[0][4] * GammaLSymUU[1][4] + GammaLSymLL[0][5] * GammaLSymUU[1][5],
+	GammaLSymLL[0][0] * GammaLSymUU[2][0] + GammaLSymLL[0][1] * GammaLSymUU[2][1] + GammaLSymLL[0][2] * GammaLSymUU[2][2] + GammaLSymLL[0][1] * GammaLSymUU[2][1] + GammaLSymLL[0][3] * GammaLSymUU[2][3] + GammaLSymLL[0][4] * GammaLSymUU[2][4] + GammaLSymLL[0][2] * GammaLSymUU[2][2] + GammaLSymLL[0][4] * GammaLSymUU[2][4] + GammaLSymLL[0][5] * GammaLSymUU[2][5],
+	GammaLSymLL[1][0] * GammaLSymUU[1][0] + GammaLSymLL[1][1] * GammaLSymUU[1][1] + GammaLSymLL[1][2] * GammaLSymUU[1][2] + GammaLSymLL[1][1] * GammaLSymUU[1][1] + GammaLSymLL[1][3] * GammaLSymUU[1][3] + GammaLSymLL[1][4] * GammaLSymUU[1][4] + GammaLSymLL[1][2] * GammaLSymUU[1][2] + GammaLSymLL[1][4] * GammaLSymUU[1][4] + GammaLSymLL[1][5] * GammaLSymUU[1][5],
+	GammaLSymLL[1][0] * GammaLSymUU[2][0] + GammaLSymLL[1][1] * GammaLSymUU[2][1] + GammaLSymLL[1][2] * GammaLSymUU[2][2] + GammaLSymLL[1][1] * GammaLSymUU[2][1] + GammaLSymLL[1][3] * GammaLSymUU[2][3] + GammaLSymLL[1][4] * GammaLSymUU[2][4] + GammaLSymLL[1][2] * GammaLSymUU[2][2] + GammaLSymLL[1][4] * GammaLSymUU[2][4] + GammaLSymLL[1][5] * GammaLSymUU[2][5],
+	GammaLSymLL[2][0] * GammaLSymUU[2][0] + GammaLSymLL[2][1] * GammaLSymUU[2][1] + GammaLSymLL[2][2] * GammaLSymUU[2][2] + GammaLSymLL[2][1] * GammaLSymUU[2][1] + GammaLSymLL[2][3] * GammaLSymUU[2][3] + GammaLSymLL[2][4] * GammaLSymUU[2][4] + GammaLSymLL[2][2] * GammaLSymUU[2][2] + GammaLSymLL[2][4] * GammaLSymUU[2][4] + GammaLSymLL[2][5] * GammaLSymUU[2][5],
+	};
+	real ADL[3] = {
+	U->a.x - 2 * D3L[0],
+	U->a.y - 2 * D3L[1],
+	U->a.z - 2 * D3L[2],
+	};
+	real ADU[3] = {
+	gammaU.xx * ADL[0] + gammaU.xy * ADL[1] + gammaU.xz * ADL[2],
+	gammaU.xy * ADL[0] + gammaU.yy * ADL[1] + gammaU.yz * ADL[2],
+	gammaU.xz * ADL[0] + gammaU.yz * ADL[1] + gammaU.zz * ADL[2],
+	};
+	real ADDSymLL[6] = {
+	ADU[0] * (2 * U->d[0].xx) + ADU[1] * (2 * U->d[0].xy) + ADU[2] * (2 * U->d[0].xz),
+	ADU[0] * (U->d[0].xy + U->d[1].xx) + ADU[1] * (U->d[0].yy + U->d[1].xy) + ADU[2] * (U->d[0].yz + U->d[1].xz),
+	ADU[0] * (U->d[0].xz + U->d[2].xx) + ADU[1] * (U->d[0].yz + U->d[2].xy) + ADU[2] * (U->d[0].zz + U->d[2].xz),
+	ADU[0] * (2 * U->d[1].xy) + ADU[1] * (2 * U->d[1].yy) + ADU[2] * (2 * U->d[1].yz),
+	ADU[0] * (U->d[1].xz + U->d[2].xy) + ADU[1] * (U->d[1].yz + U->d[2].yy) + ADU[2] * (U->d[1].zz + U->d[2].yz),
+	ADU[0] * (2 * U->d[2].xz) + ADU[1] * (2 * U->d[2].yz) + ADU[2] * (2 * U->d[2].zz),
+	};
+	real R4SymLL[6] = {
+	#if 1
+	0,0,0,0,0,0
+	#else
+	8. * M_PI * ((density + pressure) * vel4_.x * vel4_.x + .5 * (density - pressure) * U->gamma.xx),
+	8. * M_PI * ((density + pressure) * vel4_.x * vel4_.y + .5 * (density - pressure) * U->gamma.xy),
+	8. * M_PI * ((density + pressure) * vel4_.x * vel4_.z + .5 * (density - pressure) * U->gamma.xz),
+	8. * M_PI * ((density + pressure) * vel4_.y * vel4_.y + .5 * (density - pressure) * U->gamma.yy),
+	8. * M_PI * ((density + pressure) * vel4_.y * vel4_.z + .5 * (density - pressure) * U->gamma.yz),
+	8. * M_PI * ((density + pressure) * vel4_.z * vel4_.z + .5 * (density - pressure) * U->gamma.zz),
+	#endif
+	};
+	real SSymLL[6] = {
+	-R4SymLL[0] + trK * U->K.xx - 2 * KSqSymLL[0] + 4 * D12SymLL[0] + Gamma31SymLL[0] - Gamma11SymLL[0] + ADDSymLL[0] + (U->a.x * ((2 * U->V.x) - D1L[0])),
+	-R4SymLL[1] + trK * U->K.xy - 2 * KSqSymLL[1] + 4 * D12SymLL[1] + Gamma31SymLL[1] - Gamma11SymLL[1] + ADDSymLL[1] + ((((2 * U->a.y * U->V.x) - (U->a.y * D1L[0])) + ((2 * U->a.x * U->V.y) - (U->a.x * D1L[1]))) / 2),
+	-R4SymLL[2] + trK * U->K.xz - 2 * KSqSymLL[2] + 4 * D12SymLL[2] + Gamma31SymLL[2] - Gamma11SymLL[2] + ADDSymLL[2] + ((((2 * U->a.z * U->V.x) - (U->a.z * D1L[0])) + ((2 * U->a.x * U->V.z) - (U->a.x * D1L[2]))) / 2),
+	-R4SymLL[3] + trK * U->K.yy - 2 * KSqSymLL[3] + 4 * D12SymLL[3] + Gamma31SymLL[3] - Gamma11SymLL[3] + ADDSymLL[3] + (U->a.y * ((2 * U->V.y) - D1L[1])),
+	-R4SymLL[4] + trK * U->K.yz - 2 * KSqSymLL[4] + 4 * D12SymLL[4] + Gamma31SymLL[4] - Gamma11SymLL[4] + ADDSymLL[4] + ((((2 * U->a.z * U->V.y) - (U->a.z * D1L[1])) + ((2 * U->a.y * U->V.z) - (U->a.y * D1L[2]))) / 2),
+	-R4SymLL[5] + trK * U->K.zz - 2 * KSqSymLL[5] + 4 * D12SymLL[5] + Gamma31SymLL[5] - Gamma11SymLL[5] + ADDSymLL[5] + (U->a.z * ((2 * U->V.z) - D1L[2])),
+	};
+	real GU0L[3] = {
+	#if 1
+	0,0,0
+	#else
+	8. * M_PI * ((density + pressure) * vel4_.w * vel4_.x + pressure * beta_.x),
+	8. * M_PI * ((density + pressure) * vel4_.w * vel4_.y + pressure * beta_.y),
+	8. * M_PI * ((density + pressure) * vel4_.w * vel4_.z + pressure * beta_.z),
+	#endif
+	};
+	real AKL[3] = {
+	U->a.x * KUL.x.x + U->a.y * KUL.y.x + U->a.z * KUL.z.x,
+	U->a.x * KUL.x.y + U->a.y * KUL.y.y + U->a.z * KUL.z.y,
+	U->a.x * KUL.x.z + U->a.y * KUL.y.z + U->a.z * KUL.z.z,
+	};
+	real K12D23L[3] = {
+	KUL.x.x * DLUL[0][0][0] +KUL.x.y * DLUL[0][1][0] +KUL.x.z * DLUL[0][2][0] + KUL.y.x * DLUL[0][0][1] +KUL.y.y * DLUL[0][1][1] +KUL.y.z * DLUL[0][2][1] + KUL.z.x * DLUL[0][0][2] +KUL.z.y * DLUL[0][1][2] +KUL.z.z * DLUL[0][2][2],
+	KUL.x.x * DLUL[1][0][0] +KUL.x.y * DLUL[1][1][0] +KUL.x.z * DLUL[1][2][0] + KUL.y.x * DLUL[1][0][1] +KUL.y.y * DLUL[1][1][1] +KUL.y.z * DLUL[1][2][1] + KUL.z.x * DLUL[1][0][2] +KUL.z.y * DLUL[1][1][2] +KUL.z.z * DLUL[1][2][2],
+	KUL.x.x * DLUL[2][0][0] +KUL.x.y * DLUL[2][1][0] +KUL.x.z * DLUL[2][2][0] + KUL.y.x * DLUL[2][0][1] +KUL.y.y * DLUL[2][1][1] +KUL.y.z * DLUL[2][2][1] + KUL.z.x * DLUL[2][0][2] +KUL.z.y * DLUL[2][1][2] +KUL.z.z * DLUL[2][2][2],
+	};
+	real KD23L[3] = {
+	KUL.x.x * D1L[0] + KUL.y.x * D1L[1] + KUL.z.x * D1L[2],
+	KUL.x.y * D1L[0] + KUL.y.y * D1L[1] + KUL.z.y * D1L[2],
+	KUL.x.z * D1L[0] + KUL.y.z * D1L[1] + KUL.z.z * D1L[2],
+	};
+	real K12D12L[3] = {
+	KUL.x.x * DLUL[0][0][0] + KUL.x.y * DLUL[0][1][0] + KUL.x.z * DLUL[0][2][0] + KUL.y.x * DLUL[1][0][0] + KUL.y.y * DLUL[1][1][0] + KUL.y.z * DLUL[1][2][0] + KUL.z.x * DLUL[2][0][0] + KUL.z.y * DLUL[2][1][0] + KUL.z.z * DLUL[2][2][0],
+	KUL.x.x * DLUL[0][0][1] + KUL.x.y * DLUL[0][1][1] + KUL.x.z * DLUL[0][2][1] + KUL.y.x * DLUL[1][0][1] + KUL.y.y * DLUL[1][1][1] + KUL.y.z * DLUL[1][2][1] + KUL.z.x * DLUL[2][0][1] + KUL.z.y * DLUL[2][1][1] + KUL.z.z * DLUL[2][2][1],
+	KUL.x.x * DLUL[0][0][2] + KUL.x.y * DLUL[0][1][2] + KUL.x.z * DLUL[0][2][2] + KUL.y.x * DLUL[1][0][2] + KUL.y.y * DLUL[1][1][2] + KUL.y.z * DLUL[1][2][2] + KUL.z.x * DLUL[2][0][2] + KUL.z.y * DLUL[2][1][2] + KUL.z.z * DLUL[2][2][2],
+	};
+	real KD12L[3] = {
+	KUL.x.x * D3L[0] + KUL.y.x * D3L[1] + KUL.z.x * D3L[2],
+	KUL.x.y * D3L[0] + KUL.y.y * D3L[1] + KUL.z.y * D3L[2],
+	KUL.x.z * D3L[0] + KUL.y.z * D3L[1] + KUL.z.z * D3L[2],
+	};
+	real PL[3] = {
+	GU0L[0] + AKL[0] - U->a.x * trK + K12D23L[0] + KD23L[0] - 2 * K12D12L[0] + 2 * KD12L[0],
+	GU0L[1] + AKL[1] - U->a.y * trK + K12D23L[1] + KD23L[1] - 2 * K12D12L[1] + 2 * KD12L[1],
+	GU0L[2] + AKL[2] - U->a.z * trK + K12D23L[2] + KD23L[2] - 2 * K12D12L[2] + 2 * KD12L[2],
+	};
 
 	/*
 	TODO now that alpha and gamma are moved from the flux eigensystem
@@ -1235,7 +1245,6 @@ GU0L[2] + AKL[2] - U->a.z * trK + K12D23L[2] + KD23L[2] - 2 * K12D12L[2] + 2 * K
 	deriv->V.x += U->alpha * PL[0];
 	deriv->V.y += U->alpha * PL[1];
 	deriv->V.z += U->alpha * PL[2];
-#endif
 }
 
 kernel void constrainU(
@@ -1245,8 +1254,8 @@ kernel void constrainU(
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
-	real gamma = sym3_det(U->gamma);
-	sym3 gammaU = sym3_inv(gamma, U->gamma);
+	real det_gamma = sym3_det(U->gamma);
+	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 
 	real D3_D1_x = 
 		(gammaU.xy * U->d[0].xy)

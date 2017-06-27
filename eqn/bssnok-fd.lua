@@ -122,7 +122,7 @@ kernel void initState(
 <? end
 ?>	};
 	real det_gamma = sym3_det(gamma_ll);
-	sym3 gamma_uu = sym3_inv(det_gamma, gamma_ll);
+	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma);
 	U->phi = log(det_gamma) / 12.;
 
 	//gammaBar_ij = e^(-4phi) gamma_ij
@@ -168,21 +168,12 @@ kernel void init_connBarU(
 		Um[j] = U - stepsize[j];
 	}
 
-	sym3 Up_gammaBar_ll, Um_gammaBar_ll;
-	real det_Up_gammaBar_ll, det_Um_gammaBar_ll;
 	sym3 Up_gammaBar_uu, Um_gammaBar_uu;
 	sym3 partial_gammaBar_uul[3];
 <? for i=1,solver.dim do
 ?>	
-	Up_gammaBar_ll = Up[<?=i-1?>]->gammaBar_ll;
-	Um_gammaBar_ll = Um[<?=i-1?>]->gammaBar_ll;
-	
-	//TODO hmm, det is supposed to be 1 ... but it isn't ... 
-	det_Up_gammaBar_ll = sym3_det(Up_gammaBar_ll); 
-	det_Um_gammaBar_ll = sym3_det(Um_gammaBar_ll); 
-	
-	Up_gammaBar_uu = sym3_inv(det_Up_gammaBar_ll, Up_gammaBar_ll);
-	Um_gammaBar_uu = sym3_inv(det_Um_gammaBar_ll, Um_gammaBar_ll);
+	Up_gammaBar_uu = sym3_inv(Up[<?=i-1?>]->gammaBar_ll, 1.);
+	Um_gammaBar_uu = sym3_inv(Um[<?=i-1?>]->gammaBar_ll, 1.);
 
 <? 	for jk,xjk in ipairs(symNames) do
 ?>	partial_gammaBar_uul[<?=i-1?>].<?=xjk?> = 
@@ -273,12 +264,12 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	vars:insert{['det_gammaBar_ll_minus_1'] = [[value = -1. + sym3_det(U->gammaBar_ll);]]}
 	
 	vars:insert{tr_ATilde = [[
-	sym3 gammaBar_uu = sym3_inv(1., U->gammaBar_ll);
+	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
 	value = sym3_dot(gammaBar_uu, U->ATilde_ll);
 ]]}
 
 	vars:insert{S = [[
-	sym3 gammaBar_uu = sym3_inv(1., U->gammaBar_ll);
+	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
 	real exp_neg4phi = exp(-4. * U->phi);
 	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
 	value = sym3_dot(U->S_ll, gamma_uu);
