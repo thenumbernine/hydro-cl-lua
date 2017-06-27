@@ -37,7 +37,8 @@ ADM_BonaMasso_3D.initStates = require 'init.adm'
 ADM_BonaMasso_3D.guiVars = table{
 	require 'guivar.combo'{
 		name = 'f',
-		options = {'1', '1.69', '.49', '1 + 1/alpha^2'},
+		options = {'1. + 1./(alpha*alpha)', '1', '1.69', '.49'},
+		value = 0,	-- zero-based from the options, so this is 1+1/alpha^2
 	}
 }
 
@@ -143,6 +144,22 @@ function ADM_BonaMasso_3D:getDisplayVars()
 		{det_gamma = 'value = sym3_det(U->gamma);'},
 		{volume = 'value = U->alpha * sqrt(sym3_det(U->gamma));'},
 		{f = 'value = calc_f(U->alpha);'},
+		{K = [[
+	real det_gamma = sym3_det(U->gamma);
+	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
+	value = sym3_dot(gammaU, U->K);
+]]},
+		{expansion = [[
+	real det_gamma = sym3_det(U->gamma);
+	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
+	value = -U->alpha * sym3_dot(gammaU, U->K);
+]]},	
+		{gravityMagn = [[
+	real det_gamma = sym3_det(U->gamma);
+	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
+	value = real3_len(sym3_real3_mul(gammaU, U->a));
+]]},
+		-- TODO constraint codes
 	}
 end
 
@@ -152,7 +169,9 @@ typedef struct {
 	real alpha;	//used only by eigen_calcWaves ... makes me think eigen_forCell / eigen_forSide should both calculate waves and basis variables in the same go
 	real sqrt_f;
 	sym3 gammaU;
-	real3 sqrt_gammaUjj;	//sqrt(gamma^jj)
+	
+	//sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
+	real3 sqrt_gammaUjj;	
 } <?=eqn.eigen_t?>;
 ]], {
 	eqn = self,

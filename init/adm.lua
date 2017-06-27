@@ -38,7 +38,6 @@ local function symMat33Inv(xx, xy, xz, yy, yz, zz)
 			(xx * yy - xy * xy) / d		-- zz
 end
 
-
 -- I'm working on a unified initial condition code for 1D and 3D NR problems:
 --[[
 args:
@@ -47,10 +46,10 @@ args:
 	args = {x,y,z} spatial basis variables
 	alpha = lapse expression
 	(beta isn't used yet)
-	gammaLL = 3-metric
+	gamma = 3-metric
 	K = extrinsic curvature
 
-	gammaLL & K are stored as {xx,xy,xz,yy,yz,zz}
+	gamma & K are stored as {xx,xy,xz,yy,yz,zz}
 
 	density = lua function
 --]]
@@ -59,10 +58,10 @@ local function initNumRel(args)
 	
 	local exprs = table{
 		alpha = assert(args.alpha),
-		gammaLL = {table.unpack(args.gammaLL)},
+		gamma = {table.unpack(args.gamma)},
 		K = {table.unpack(args.K)}
 	}
-	assert(#exprs.gammaLL == 6)
+	assert(#exprs.gamma == 6)
 	assert(#exprs.K == 6)
 
 	local function toExpr(expr, name)
@@ -119,9 +118,9 @@ local function initNumRel(args)
 		print('compiling expressions...')
 		local codes = table{
 			alpha  = exprs.alpha,
-			gamma_xx = exprs.gammaLL[1],	-- only need g_xx
+			gamma_xx = exprs.gamma[1],	-- only need g_xx
 			a_x = (exprs.alpha:diff(vars[1]) / exprs.alpha)(),	-- only need a_x
-			d_xxx = (exprs.gammaLL[1]:diff(vars[1])/2)(),	-- only need D_xxx
+			d_xxx = (exprs.gamma[1]:diff(vars[1])/2)(),	-- only need D_xxx
 			K_xx = exprs.K[1],	-- only need K_xx
 		}:map(compileC)
 		print('...done compiling expressions')
@@ -136,14 +135,14 @@ local function initNumRel(args)
 		-- or even just perform a numerical inverse ...
 		if not args.useNumericInverse then
 			print('inverting spatial metric...')
-			exprs.gammaUU = {symMat33Inv(exprs.gammaLL:unpack())}
+			exprs.gammaUU = {symMat33Inv(exprs.gamma:unpack())}
 			print('...done inverting spatial metric')
 		end
 
 		-- this takes forever.  why is that?  differentiation?
 		print('building metric partials...')
 		exprs.d = table.map(vars, function(xk)
-			return table.map(exprs.gammaLL, function(gamma_ij)
+			return table.map(exprs.gamma, function(gamma_ij)
 				print('differentiating '..gamma_ij)
 				return (gamma_ij:diff(xk)/2)()
 			end)
@@ -167,7 +166,7 @@ local function initNumRel(args)
 			--dalpha_f = exprs.dalpha_f,
 			{alpha = exprs.alpha},
 			symNames:map(function(xij,ij)
-				return exprs.gammaLL[ij], 'gamma_'..xij
+				return exprs.gamma[ij], 'gamma_'..xij
 			end),
 			xNames:map(function(xi,i)
 				return exprs.a[i], 'a_'..xi
@@ -201,9 +200,10 @@ return {
 			-- lapse function
 
 			local alphaVar = args.alphaVar or var'alpha'
-			--local kappa = 1 -- TODO specify this? or should I bother?
-			local f = symmath.clone(args.f or 1)
 			
+			-- TODO specify this? or should I bother?
+			--local kappa = 1 
+			local f = symmath.clone(args.f or 1)
 			local dalpha_f = f:diff(alphaVar)()
 	
 			-- the rest
@@ -248,9 +248,9 @@ return {
 			--print('h_,i', h'_,i'())
 			--os.exit()
 
-			local deltaLL = Tensor('_ij', function(i,j) return i == j and 1 or 0 end)
-			local gammaLL = (deltaLL'_ij' - dh'_i' * dh'_j')()
-			local KLL = (-d2h'_ij' / (1 - (dh'_k' * dh'_k')() )^.5 )()
+			local delta = Tensor('_ij', function(i,j) return i == j and 1 or 0 end)
+			local gamma = (delta'_ij' - dh'_i' * dh'_j')()
+			local K = (-d2h'_ij' / (1 - (dh'_k' * dh'_k')() )^.5 )()
 			
 			print('...done deriving and compiling.')
 			
@@ -258,8 +258,8 @@ return {
 				solver = solver,
 				vars = xs,
 				alpha = alpha,
-				gammaLL = symNames:map(function(xij,ij) return gammaLL[{from6to3x3(ij)}] end),
-				K = symNames:map(function(xij,ij) return KLL[{from6to3x3(ij)}] end),
+				gamma = symNames:map(function(xij,ij) return gamma[{from6to3x3(ij)}] end),
+				K = symNames:map(function(xij,ij) return K[{from6to3x3(ij)}] end),
 			}
 			
 			codes.f = f:compile({alphaVar}, 'C')
@@ -270,7 +270,66 @@ return {
 	},
 	{
 		name = 'Alcubierre warp bubble',
-		init = function(solver)
+		init = function(solver, args)
+			local var = symmath.var
+			local vars = symmath.vars
+			local tanh = symmath.tanh
+			local clone = symmath.clone
+			local Tensor = symmath.Tensor		
+			
+			--xmin = {-2,-2,-2}
+			--xmax = {2,2,2} 
+
+			local R = .5		-- warp bubble radius
+			local sigma = 8	-- warp bubble thickness
+			local speed = .1	-- warp bubble speed
+
+			local xs = xNames:map(function(x) return var(x) end)
+			Tensor.coords{{variables=xs}}
+			local x,y,z = xs:unpack()
+			
+			local x_s = 0 -- speed * t
+			local v_s = speed -- x_s:diff(t)()
+			local r_s = ((x - x_s)^2 + y^2 + z^2)^.5
+			local f = (tanh(sigma * (r_s + R)) - tanh(sigma * (r_s - R))) / (2 * tanh(sigma * R))
+		
+			local betaUx = -v_s * f
+
+			local alpha = 1
+
+			local K_xx = betaUx:diff(x)() / alpha
+			local K_xy = betaUx:diff(y)() / (2 * alpha)
+			local K_xz = betaUx:diff(z)() / (2 * alpha)
+
+			local codes = initNumRel{
+				solver = solver,
+				vars = xs,
+				alpha = alpha,
+				
+				--[[
+				interesting note:
+				Alcubierre warp bubble drive depends on a beta parameter
+				(the local metric is completely flat)
+				however so does the toy 1+1 relativity require a beta parameter to produce the stated extrinsic curvature
+				yet the toy 1+1 sample set beta=0
+				--]]
+				beta = {betaUx, 0, 0},
+
+				gamma = {1, 0, 0, 1, 0, 1},		-- identity
+				K = {K_xx, K_xy, K_xz, 0, 0, 0},
+			}
+
+			local alphaVar = args.alphaVar or var'alpha'
+			
+			-- TODO specify this? or should I bother?
+			--local kappa = 1 
+			local f = clone(args.f or 1)
+			local dalpha_f = f:diff(alphaVar)()
+
+			codes.f = f:compile({alphaVar}, 'C')
+			codes.dalpha_f = dalpha_f:compile({alphaVar}, 'C')
+			
+			return codes
 		end,
 	},
 	{

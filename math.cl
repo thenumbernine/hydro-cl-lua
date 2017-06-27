@@ -131,6 +131,20 @@ end
 ?>	return m;
 }
 
+sym3 sym3_mat3_to_sym3_mul(sym3 a, mat3 b) {
+	sym3 m;
+<? for i=0,2 do
+	for j=i,2 do
+?>	m.s<?=i?><?=j?> = 0.<?
+		for k=0,2 do
+?> + a.s<?=i<=k and i..k or k..i?> * b.v<?=k?>.s<?=j?><?
+		end
+?>;
+<?	end
+end 
+?>	return m;
+}
+
 mat3 mat3_mat3_mul(mat3 a, mat3 b) {
 	mat3 c;
 	for (int i = 0; i < 3; ++i) {

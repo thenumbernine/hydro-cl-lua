@@ -126,7 +126,7 @@ function HydroCLApp:initGL(...)
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or 2,
 		
-		--integrator = cmdline.integrator or 'forward Euler',	
+		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -138,7 +138,7 @@ function HydroCLApp:initGL(...)
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		integrator = 'backward Euler',
+		--integrator = 'backward Euler',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = 'donor cell',
@@ -151,9 +151,9 @@ function HydroCLApp:initGL(...)
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 128,
-			cmdline.gridSize or 128,
-			cmdline.gridSize or 128,
+			cmdline.gridSize or 64,
+			cmdline.gridSize or 64,
+			cmdline.gridSize or 64,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -235,7 +235,7 @@ function HydroCLApp:initGL(...)
 		
 		--initState = 'Sod',
 		--initState = 'Sedov',
-		initState = 'Kelvin-Hemholtz',
+		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
 		--initState = 'Colella-Woodward',
 		--initState = 'double mach reflection',
@@ -275,12 +275,21 @@ function HydroCLApp:initGL(...)
 		--initState = 'two-fluid EMHD soliton ion',
 		--initState = 'two-fluid EMHD soliton electron',
 		--initState = 'two-fluid EMHD soliton maxwell',
+	
+		-- GR
+		--initState = 'gauge shock wave',
+		initState = 'Alcubierre warp bubble',
+		--initState = 'Schwarzschild black hole',
+		--initState = 'stellar model',
+		--initState = 'stellar model 2',
+		--initState = 'stellar model 3',
+		--initState = 'stellar model 3',
 	}
 	
 	self.solvers = table()
 	
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe')(table(args, {eqn='euler'})))
@@ -319,7 +328,7 @@ function HydroCLApp:initGL(...)
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 	--self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
