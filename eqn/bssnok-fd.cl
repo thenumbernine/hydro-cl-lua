@@ -185,45 +185,10 @@ for i,xi in ipairs(xNames) do
 ?> + partial_beta_ul[<?=i-1?>].<?=xi?><?
 end ?>;
 
-	//alpha_,ij = partial2_alpha_ll.ij
-	sym3 partial2_alpha_ll = (sym3){.s={0,0,0,0,0,0}};
-<? 
-for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	if i <= solver.dim and j <= solver.dim then
-		if i==j then
-?>	partial2_alpha_ll.<?=xij?> = (Up[<?=i-1?>]->alpha - 2. * U->alpha + Um[<?=i-1?>]->alpha) 
-				/ (grid_dx<?=i-1?> * grid_dx<?=i-1?>);
-<?		else
-?>	partial2_alpha_ll.<?=xij?> = (
-		U[stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].alpha 
-		- U[-stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].alpha 
-		- U[stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].alpha
-		+ U[-stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].alpha 
-	) / (4 * grid_dx<?=i-1?> * grid_dx<?=j-1?>);
-<? 		end
-	end
-end
-?>
-	//phi_,ij = partial2_phi_ll.ij
-	sym3 partial2_phi_ll = (sym3){.s={0,0,0,0,0,0}};
-<? 
-for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	if i <= solver.dim and j <= solver.dim then
-		if i==j then
-?>	partial2_phi_ll.<?=xij?> = (Up[<?=i-1?>]->phi - 2. * U->phi + Um[<?=i-1?>]->phi) / (grid_dx<?=i-1?> * grid_dx<?=i-1?>);
-<?		else
-?>	partial2_phi_ll.<?=xij?> = (
-		U[stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].phi 
-		- U[-stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].phi 
-		- U[stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].phi
-		+ U[-stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].phi 
-	) / (4 * grid_dx<?=i-1?> * grid_dx<?=j-1?>);
-<? 		end
-	end
-end
-?>
+<? makePartial2('alpha', 'real') ?>			//partial2_alpha_ll.ij := alpha_,ij
+<? makePartial2('phi', 'real') ?>			//partial2_phi_ll.ij := phi_,ij
+<? makePartial2('gammaBar_ll', 'sym3') ?>	//partial2_gammaBar_llll[kl].ij = gammaBar_ij,kl
+<? makePartial2('beta_u', 'real3') ?>	//partial2_beta_ull[jk].i = beta^i_,jk
 
 	real exp_4phi = exp(4. * U->phi);
 	real exp_neg4phi = 1. / exp_4phi;
@@ -295,7 +260,7 @@ end
 	sym3 D2_alpha_ll = (sym3){.s={0,0,0,0,0,0}};
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-?>	D2_alpha_ll.<?=xij?> = partial2_alpha_ll.<?=xij?><?
+?>	D2_alpha_ll.<?=xij?> = partial2_alpha_ll[<?=ij-1?>]<?
 	for k,xk in ipairs(xNames) do 
 ?> - conn_ull[<?=k-1?>].<?=xij?> * partial_alpha_l[<?=k-1?>]<?
 	end ?>;
@@ -346,33 +311,8 @@ end
 		+ 4. * M_PI * U->alpha * (U->rho + S) 
 		+ real3_dot(U->beta_u, *(real3*)partial_K_l);
 
-	sym3 partial2_gammaBar_llll[6];	//partial2_gammaBar_llll[ij].kl = gammaBar_kl,ij
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	if i <= solver.dim and j <= solver.dim then
-		if i==j then
-?>	partial2_gammaBar_llll[<?=ij-1?>] = sym3_scale(
-		sym3_add(
-			sym3_scale(U->gammaBar_ll, -2.),
-			sym3_add(
-				Up[<?=i-1?>]->gammaBar_ll,
-				Um[<?=i-1?>]->gammaBar_ll)),
-			1. / (grid_dx<?=i-1?> * grid_dx<?=i-1?>));
-<?		else
-?>	partial2_gammaBar_llll[<?=ij-1?>] = sym3_scale(
-		sym3_sub(
-			sym3_add(
-				U[stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].gammaBar_ll,
-				U[-stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].gammaBar_ll),
-			sym3_add(
-				U[-stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].gammaBar_ll,
-				U[stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].gammaBar_ll)
-		), 1. / (4. * grid_dx<?=i-1?> * grid_dx<?=j-1?>));
-<?		end
-	end
-end
-?>
-	sym3 tr_partial2_gammaBar_ll;	//tr_partial2_gammaBar_ll.ij = gammaBar^kl gammaBar_ij,kl
+	//tr_partial2_gammaBar_ll.ij = gammaBar^kl gammaBar_ij,kl
+	sym3 tr_partial2_gammaBar_ll;	
 <? for ij,xij in ipairs(symNames) do
 ?>	tr_partial2_gammaBar_ll.<?=xij?> = 0. <?
 	for k,xk in ipairs(xNames) do
@@ -417,7 +357,7 @@ end
 
 	sym3 DBar2_phi_ll;
 <? for ij,xij in ipairs(symNames) do
-?>	DBar2_phi_ll.<?=xij?> = partial2_phi_ll.<?=xij?> <?
+?>	DBar2_phi_ll.<?=xij?> = partial2_phi_ll[<?=ij-1?>] <?
 	for k,xk in ipairs(xNames) do
 ?> - connBar_ull[<?=k?>].<?=xij?> * partial_phi_l[<?=k-1?>]<?
 	end
@@ -425,7 +365,6 @@ end
 <? end
 ?>
 	real tr_DBar2_phi = sym3_dot(gammaBar_uu, DBar2_phi_ll);
-
 	real DBar_phi_norm = real3_dot(*(real3*)partial_phi_l, DBar_phi_u);
 
 	//Baumgarte & Shapiro p.57 eqn 3.10
@@ -499,32 +438,7 @@ end
 ?>		- 2./3. * U->ATilde_ll.<?=xij?> * tr_partial_beta;
 <? end
 ?>
-	real3 partial2_beta_ull[6];	//partial2_beta_ull[jk].i = beta^i_,jk
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	if i <= solver.dim and j <= solver.dim then
-		if i==j then
-?>	partial2_beta_ull[<?=ij-1?>] = real3_scale(
-		real3_add(
-			real3_scale(U->beta_u, -2.),
-			real3_add(
-				Up[<?=i-1?>]->beta_u,
-				Um[<?=i-1?>]->beta_u)),
-			1. / (grid_dx<?=i-1?> * grid_dx<?=i-1?>));
-<?		else
-?>	partial2_beta_ull[<?=ij-1?>] = real3_scale(
-		real3_sub(
-			real3_add(
-				U[stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].beta_u,
-				U[-stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].beta_u),
-			real3_add(
-				U[-stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].beta_u,
-				U[stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].beta_u)
-		), 1. / (4. * grid_dx<?=i-1?> * grid_dx<?=j-1?>));
-<?		end
-	end
-end
-?>
+	
 	//connBar^i is the connection function / connection coefficient iteration with Hamiltonian constraint baked in (Baumgarte & Shapiro p.389, Alcubierre p.86).
 	//B&S 11.55
 	//Alcubierre 2.8.25
