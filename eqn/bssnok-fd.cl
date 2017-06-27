@@ -86,12 +86,20 @@ local function makePartial2(field, fieldType)
 		add(
 			'U[stepsize['..(i-1)..']].'..field,
 			add(
-				'U[-stepsize['..(i-1)..']].'..field,
-				scale('U->'..field, '-2.')
+				scale('U->'..field, '-2.'),
+				'U[-stepsize['..(i-1)..']].'..field
 			)
 		), '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')?>;
 <?		else
-?>	<?=name?>[<?=ij-1?>] = 
+?>	<?=name?>[<?=ij-1?>] = <?=scale(
+		sub(
+			add(
+				'U[stepsize['..(i-1)..'] + stepsize['..(j-1)..']].'..field,
+				'U[-stepsize['..(i-1)..'] - stepsize['..(j-1)..']].'..field),
+			add(
+				'U[-stepsize['..(i-1)..'] + stepsize['..(j-1)..']].'..field,
+				'U[stepsize['..(i-1)..'] - stepsize['..(j-1)..']].'..field)
+		), '1. / (grid_dx'..(i-1)..' * grid_dx'..(j-1)..')')?>;
 <?		end
 	end
 end
@@ -188,10 +196,10 @@ for ij,xij in ipairs(symNames) do
 				/ (grid_dx<?=i-1?> * grid_dx<?=i-1?>);
 <?		else
 ?>	partial2_alpha_ll.<?=xij?> = (
-		U[index + stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].alpha 
-		- U[index - stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].alpha 
-		- U[index + stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].alpha
-		+ U[index - stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].alpha 
+		U[stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].alpha 
+		- U[-stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].alpha 
+		- U[stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].alpha
+		+ U[-stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].alpha 
 	) / (4 * grid_dx<?=i-1?> * grid_dx<?=j-1?>);
 <? 		end
 	end
@@ -207,10 +215,10 @@ for ij,xij in ipairs(symNames) do
 ?>	partial2_phi_ll.<?=xij?> = (Up[<?=i-1?>]->phi - 2. * U->phi + Um[<?=i-1?>]->phi) / (grid_dx<?=i-1?> * grid_dx<?=i-1?>);
 <?		else
 ?>	partial2_phi_ll.<?=xij?> = (
-		U[index + stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].phi 
-		- U[index - stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].phi 
-		- U[index + stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].phi
-		+ U[index - stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].phi 
+		U[stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].phi 
+		- U[-stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].phi 
+		- U[stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].phi
+		+ U[-stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].phi 
 	) / (4 * grid_dx<?=i-1?> * grid_dx<?=j-1?>);
 <? 		end
 	end
@@ -354,11 +362,11 @@ end
 ?>	partial2_gammaBar_llll[<?=ij-1?>] = sym3_scale(
 		sym3_sub(
 			sym3_add(
-				U[index + stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].gammaBar_ll,
-				U[index - stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].gammaBar_ll),
+				U[stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].gammaBar_ll,
+				U[-stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].gammaBar_ll),
 			sym3_add(
-				U[index - stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].gammaBar_ll,
-				U[index + stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].gammaBar_ll)
+				U[-stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].gammaBar_ll,
+				U[stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].gammaBar_ll)
 		), 1. / (4. * grid_dx<?=i-1?> * grid_dx<?=j-1?>));
 <?		end
 	end
@@ -507,11 +515,11 @@ end
 ?>	partial2_beta_ull[<?=ij-1?>] = real3_scale(
 		real3_sub(
 			real3_add(
-				U[index + stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].beta_u,
-				U[index - stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].beta_u),
+				U[stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].beta_u,
+				U[-stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].beta_u),
 			real3_add(
-				U[index - stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].beta_u,
-				U[index + stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].beta_u)
+				U[-stepsize[<?=i-1?>] + stepsize[<?=j-1?>]].beta_u,
+				U[stepsize[<?=i-1?>] - stepsize[<?=j-1?>]].beta_u)
 		), 1. / (4. * grid_dx<?=i-1?> * grid_dx<?=j-1?>));
 <?		end
 	end
