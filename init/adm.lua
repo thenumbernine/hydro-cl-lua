@@ -37,6 +37,39 @@ local function symMat33Inv(xx, xy, xz, yy, yz, zz)
 			(xz * xy - xx * yz) / d,	-- yz
 			(xx * yy - xy * xy) / d		-- zz
 end
+	
+local function compileC(expr, name, vars)
+	assert(type(expr) == 'table', "expected table, found "..type(expr))
+	if symmath.Expression.is(expr) then 
+		expr = expr()
+	
+		local range = require 'ext.range'
+		-- replace pow(x,2) with x*x
+		expr = expr:map(function(x)
+			if symmath.op.pow.is(x) 
+			and symmath.Constant.is(x[2])
+			then
+				local value = assert(x[2].value)
+				if value > 0 and value == math.floor(value) then
+					if value == 1 then
+						return x[1]
+					else
+						return symmath.op.mul(range(value):map(function() 
+							return symmath.clone(x[1])
+						end):unpack())
+					end
+				end
+			end
+		end)		
+		
+		print('compiling '..name..':')
+		print(expr)
+		local code = expr:compile(vars, 'C'), name
+		print(code)
+		return code
+	end
+	return table.map(expr, function(v,k) return compileC(v,k,vars) end), name
+end
 
 -- I'm working on a unified initial condition code for 1D and 3D NR problems:
 --[[
@@ -81,36 +114,6 @@ local function initNumRel(args)
 	exprs = table.map(exprs, toExpr)
 	print('...done converting everything to expressions')
 	
-	local function compileC(expr, name)
-		assert(type(expr) == 'table', "expected table, found "..type(expr))
-		if symmath.Expression.is(expr) then 
-			expr = expr()
-		
-			local range = require 'ext.range'
-			-- replace pow(x,2) with x*x
-			expr = expr:map(function(x)
-				if symmath.op.pow.is(x) 
-				and symmath.Constant.is(x[2])
-				then
-					local value = assert(x[2].value)
-					if value > 0 and value == math.floor(value) then
-						if value == 1 then
-							return x[1]
-						else
-							return symmath.op.mul(range(value):map(function() 
-								return symmath.clone(x[1])
-							end):unpack())
-						end
-					end
-				end
-			end)		
-			
-			print('compiling '..name..' '..expr)
-			return expr:compile(vars, 'C'), name
-		end
-		return table.map(expr, compileC), name
-	end
-	
 	-- ADM
 	
 	-- assuming this is one of the ADM 1D solvers
@@ -122,7 +125,7 @@ local function initNumRel(args)
 			a_x = (exprs.alpha:diff(vars[1]) / exprs.alpha)(),	-- only need a_x
 			d_xxx = (exprs.gamma[1]:diff(vars[1])/2)(),	-- only need D_xxx
 			K_xx = exprs.K[1],	-- only need K_xx
-		}:map(compileC)
+		}:map(function(v,k) return compileC(v,k,vars) end)
 		print('...done compiling expressions')
 		return codes
 
@@ -179,7 +182,7 @@ local function initNumRel(args)
 			symNames:map(function(xij,ij)
 				return exprs.K[ij], 'K_'..xij
 			end)
-		):map(compileC)
+		):map(function(v,k) return compileC(v,k,vars) end)
 
 		print('...done compiling expressions')
 
@@ -195,11 +198,10 @@ return {
 	{
 		name = 'gauge shock wave',
 		init = function(solver, args)
-			local var = symmath.var
 			
 			-- lapse function
 
-			local alphaVar = args.alphaVar or var'alpha'
+			local alphaVar = args.alphaVar or symmath.var'alpha'
 			
 			-- TODO specify this? or should I bother?
 			--local kappa = 1 
@@ -208,9 +210,8 @@ return {
 	
 			-- the rest
 
-			local Tensor = symmath.Tensor
-			local xs = xNames:map(function(x) return var(x) end)
-			Tensor.coords{{variables=xs}}
+			local xs = xNames:map(function(x) return symmath.var(x) end)
+			symmath.Tensor.coords{{variables=xs}}
 			local x,y,z = xs:unpack()
 
 			local size = solver.maxs[1] - solver.mins[1]
@@ -240,10 +241,10 @@ return {
 
 			local h = H * symmath.exp(-s / sigma^2)
 			h = h()
-			local dh = Tensor('_i', function(i) return h:diff(xs[i])() end)
-			local d2h = Tensor('_ij', function(i,j) return h:diff(xs[i],xs[j])() end)
+			local dh = symmath.Tensor('_i', function(i) return h:diff(xs[i])() end)
+			local d2h = symmath.Tensor('_ij', function(i,j) return h:diff(xs[i],xs[j])() end)
 
-			local delta = Tensor('_ij', function(i,j) return i == j and 1 or 0 end)
+			local delta = symmath.Tensor('_ij', function(i,j) return i == j and 1 or 0 end)
 			local gamma = (delta'_ij' - dh'_i' * dh'_j')()
 			local K = (-d2h'_ij' / (1 - (dh'_k' * dh'_k')() )^.5 )()
 			
@@ -257,8 +258,8 @@ return {
 				K = symNames:map(function(xij,ij) return K[{from6to3x3(ij)}] end),
 			}
 			
-			codes.f = f:compile({alphaVar}, 'C')
-			codes.dalpha_f = dalpha_f:compile({alphaVar}, 'C')
+			codes.f = compileC(f, 'f', {alphaVar})
+			codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
 			
 			return codes
 		end,
@@ -266,24 +267,18 @@ return {
 	{
 		name = 'Alcubierre warp bubble',
 		init = function(solver, args)
-			local var = symmath.var
-			local vars = symmath.vars
-			local tanh = symmath.tanh
-			local clone = symmath.clone
-			local Tensor = symmath.Tensor		
-
 			local R = .5		-- warp bubble radius
 			local sigma = 8	-- warp bubble thickness
 			local speed = .1	-- warp bubble speed
 
-			local xs = xNames:map(function(x) return var(x) end)
-			Tensor.coords{{variables=xs}}
+			local xs = xNames:map(function(x) return symmath.var(x) end)
+			symmath.Tensor.coords{{variables=xs}}
 			local x,y,z = xs:unpack()
 			
 			local x_s = 0 -- speed * t
 			local v_s = speed -- x_s:diff(t)()
 			local r_s = ((x - x_s)^2 + y^2 + z^2)^.5
-			local f = (tanh(sigma * (r_s + R)) - tanh(sigma * (r_s - R))) / (2 * tanh(sigma * R))
+			local f = (symmath.tanh(sigma * (r_s + R)) - symmath.tanh(sigma * (r_s - R))) / (2 * symmath.tanh(sigma * R))
 		
 			local betaUx = -v_s * f
 
@@ -311,41 +306,30 @@ return {
 				K = {K_xx, K_xy, K_xz, 0, 0, 0},
 			}
 
-			local alphaVar = args.alphaVar or var'alpha'
+			local alphaVar = args.alphaVar or symmath.var'alpha'
 			
-			-- TODO specify this? or should I bother?
-			--local kappa = 1 
-			local f = clone(args.f or 1)
+			local f = symmath.clone(args.f or 1)
 			local dalpha_f = f:diff(alphaVar)()
 
-			codes.f = f:compile({alphaVar}, 'C')
-			codes.dalpha_f = dalpha_f:compile({alphaVar}, 'C')
+			codes.f = compileC(f, 'f', {alphaVar})
+			codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
 			
 			return codes
 		end,
 	},
 	{
 		name = 'Schwarzschild black hole',
-		init = function(solver)
-			-- [[
-			defs.adm_BonaMasso_f = '1. + 1. / (alpha * alpha)'	-- TODO C/OpenCL exporter with lua symmath (only real difference is number formatting, with option for floating point)
-			defs.adm_BonaMasso_df_dalpha = '-1. / (alpha * alpha * alpha)'
-			--]]
-			--[[ constant
-			defs.adm_BonaMasso_f = '1.'	-- '1.69'	-- '.49'
-			defs.adm_BonaMasso_df_dalpha = '0.'
-			--]]
-			
+		init = function(solver, args)
 			local R = .002	-- Schwarzschild radius
 			
-			local symmath = require 'symmath'	
-			local t,x,y,z = symmath.vars('t','x','y','z')
-			local r = (x^2 + y^2 + z^2)^.5
+			local x,y,z = symmath.vars('x','y','z')
+			local r = symmath.sqrt(x^2 + y^2 + z^2)
 			
-			initNumRel{
+			local codes = initNumRel{
+				solver = solver,
 				vars = {x,y,z},
 				-- 4D metric ADM components:
-				alpha = (1 - R/r)^.5,
+				alpha = symmath.sqrt(1 - R/r),
 				beta = {0,0,0},
 				gamma = {
 					x^2/((r/R-1)*r^2) + 1,	-- xx
@@ -357,16 +341,24 @@ return {
 				},
 				K = {0,0,0,0,0,0},
 			}
-	
+
+			local alphaVar = args.alphaVar or symmath.var'alpha'
+			
+			-- TODO specify this? or should I bother?
+			--local kappa = 1 
+			local f = symmath.clone(args.f or 1)
+			local dalpha_f = f:diff(alphaVar)()
+
+			codes.f = compileC(f, 'f', {alphaVar})
+			codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
+			
+			return codes
 		end,
 	},
 	{
 		name = 'stellar model',
-		init = function(solver)
+		init = function(solver, args)
 				
-			local symmath = require 'symmath'
-			symmath.tostring = require 'symmath.tostring.SingleLine'
-
 			--[[ this is technically correct, but gets some artifacts with the radial boundary on the cartesian grid
 			local H = symmath.Heaviside
 			--]]
@@ -391,9 +383,6 @@ return {
 				radius = .1,
 			}}
 
-			defs.adm_BonaMasso_f = '1. + 1. / (alpha * alpha)'	-- TODO C/OpenCL exporter with lua symmath (only real difference is number formatting, with option for floating point)
-			defs.adm_BonaMasso_df_dalpha = '-1. / (alpha * alpha * alpha)'
-			
 			local t,x,y,z = symmath.vars('t','x','y','z')
 			
 			print('building variables ...')
@@ -419,15 +408,14 @@ return {
 				gamma[4] = gamma[4] + y_^2/((r/R-1)*rSq)
 				gamma[5] = gamma[5] + y_*z_/((r/R-1)*rSq)
 				gamma[6] = gamma[6] + z_^2/((r/R-1)*rSq)
-			
-				-- TODO pressure as well.  see TOV equations: https://en.wikipedia.org/wiki/Tolman%E2%80%93Oppenheimer%E2%80%93Volkoff_equation
 			end
 			alpha = alpha^.5
 			
 			print('...done building variables')
 			
 			print('initializing numerical relativity variables ...')
-			initNumRel{
+			local codes = initNumRel{
+				solver = solver,
 				vars = {x,y,z},
 				-- 4D metric ADM components:
 				alpha = alpha,
@@ -476,9 +464,16 @@ return {
 				end,
 			}
 			print('...done initializing numerical relativity variables') 
-		
+	
+			local alphaVar = args.alphaVar or symmath.var'alpha'
 			
-			setup()
+			local f = symmath.clone(args.f or 1)
+			local dalpha_f = f:diff(alphaVar)()
+
+			codes.f = compileC(f, 'f', {alphaVar})
+			codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
+
+			return codes	
 		end,
 	},
 	{
