@@ -1057,6 +1057,7 @@ kernel void boundary(
 
 		local gridSizeSide = 'gridSize_'..xs[side]
 		local rhs = gridSizeSide..'-numGhost+j'
+		local method = args.methods[x..'min']
 		lines:insert(({
 			periodic = '\t\t'..assign('buf['..index'j'..']', 'buf['..index(gridSizeSide..'-2*numGhost+j')..']')..';',
 			mirror = table{
@@ -1065,8 +1066,9 @@ kernel void boundary(
 				return '\t\t'..'buf['..index'j'..'].'..var..' = -buf['..index'j'..'].'..var..';'
 			end)):concat'\n',
 			freeflow = '\t\t'..assign('buf['..index'j'..']', 'buf['..index'numGhost'..']')..';',
-		})[args.methods[x..'min']])
+		})[method] or method('buf['..index'j'..']'))
 
+		local method = args.methods[x..'max']
 		lines:insert(({
 			periodic = '\t\t'..assign('buf['..index(rhs)..']', 'buf['..index'numGhost+j'..']')..';',
 			mirror = table{
@@ -1075,7 +1077,7 @@ kernel void boundary(
 				return '\t\t'..'buf['..index(rhs)..'].'..var..' = -buf['..index(rhs)..'].'..var..';'
 			end)):concat'\n',
 			freeflow = '\t\t'..assign('buf['..index(rhs)..']', 'buf['..index(gridSizeSide..'-numGhost-1')..']')..';',
-		})[args.methods[x..'max']])
+		})[method] or method('buf['..index(rhs)..']'))
 	
 		if self.dim > 1 then
 			lines:insert'\t}'

@@ -187,8 +187,12 @@ end
 BSSNOKFiniteDifferenceEquation.guiVars = {
 	require 'guivar.combo'{
 		name = 'f',
-		options = {'1', '.49', '.5', '1.5', '1.69', '1 + 1/alpha^2'},
-		-- value?
+		options = {
+			'2./alpha',	-- 1+log slicing
+			'1. + 1./(alpha*alpha)', 	-- Alcubierre 10.2.24: "shock avoiding condition" for Toy 1+1 spacetimes 
+			'1', 		-- Alcubierre 4.2.50 - harmonic slicing
+			'.49', '.5', '1.5', '1.69'},
+		value = 0,
 	}
 }
 
@@ -222,11 +226,20 @@ kernel void initState(
 	SETBOUNDS(2,2);
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
-
+	
 	U->alpha = calc_alpha(x.x, x.y, x.z);
-
+	
+#if 0
+	U->beta_u = (real3){
+<? for _,xi in ipairs(xNames) do
+?>		.<?=xi?> = calc_beta_<?=xi?>(x.x, x.y, x.z),
+<?	end
+?>	};
+#endif
+#if 1
 	U->beta_u = _real3(0,0,0);
-
+#endif
+	
 	sym3 gamma_ll = {
 <? for _,xij in ipairs(symNames) do
 ?>		.<?=xij?> = calc_gamma_<?=xij?>(x.x, x.y, x.z),
@@ -376,7 +389,6 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 ]]},
 		{det_gamma = 'value = exp(-4. * U->phi);'},
 		{volume = 'value = U->alpha * exp(-4. * U->phi);'},
-		{f = 'value = calc_f(U->alpha);'},
 		{expansion = 'value = -U->alpha * U->K;'},
 		
 		-- TODO needs shift influence (which is lengthy)
@@ -385,7 +397,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
 	real exp_neg4phi = exp(-4. * U->phi);
 	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
-	return real3_len(sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l)) / U->alpha;
+	value = real3_len(sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l)) / U->alpha;
 ]],			{
 				solver = self.solver,
 				makePartial = function(...) return makePartial(self.solver, ...) end,

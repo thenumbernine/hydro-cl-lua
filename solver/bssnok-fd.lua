@@ -1,4 +1,6 @@
 local class = require 'ext.class'
+local table = require 'ext.table'
+local template = require 'template'
 local BSSNOKFiniteDifferenceEquation = require 'eqn.bssnok-fd'
 local Solver = require 'solver.solver'
 
@@ -21,6 +23,33 @@ function BSSNOKFiniteDifferenceSolver:refreshInitStateProgram()
 
 	self.initConnUBarKernel = self.initStateProgram:kernel('init_connBarU', self.UBuf)
 end
+
+-- override and implement a constant boundary condition
+-- TODO make the boundary conditions more flexible
+-- right now there's no way to specify this in sell.app.boundaryMethods
+function BSSNOKFiniteDifferenceSolver:refreshBoundaryProgram()
+	self.boundaryProgram, self.boundaryKernel = 
+		self:createBoundaryProgramAndKernel{
+			type = self.eqn.cons_t,
+			-- remap from enum/combobox int values to names
+			methods = table.map(self.boundaryMethods, function(v,k)
+				return function(U)
+					return template([[
+	<?=U?>.alpha = 1.;
+	<?=U?>.beta_u = _real3(0,0,0);
+	<?=U?>.gammaBar_ll = (sym3){.s={1,0,0,1,0,1}};
+	<?=U?>.phi = 0;
+	<?=U?>.K = 0;
+	<?=U?>.ATilde_ll = (sym3){.s={1,0,0,1,0,1}};
+	<?=U?>.connBar_u = _real3(0,0,0);
+]],						{U = U})
+				end, k
+			end),
+			mirrorVars = self.eqn.mirrorVars,
+		}
+	self.boundaryKernel:setArg(0, self.UBuf)
+end
+
 
 function BSSNOKFiniteDifferenceSolver:resetState()
 	BSSNOKFiniteDifferenceSolver.super.resetState(self)

@@ -14,8 +14,8 @@ tr(A_ij)
 = K - 1/3 3 K
 = 0
 
-tr(ATilde_ij) = 3 exp(-4 phi) tr(A_ij) 
-= 3 exp(-4 phi) * 0
+tr(ATilde_ij) = exp(-4 phi) tr(A_ij) 
+= exp(-4 phi) * 0
 = 0
 
 TFBar(K_ij) = K_ij - 1/3 gammaBar_ij gammaBar^kl K_kl 
@@ -167,15 +167,13 @@ end
 <? end
 ?>
 
+	//Alcubierre 4.2.52 - Bona-Masso family of slicing
 	//Q = f(alpha) K
 	real Q = calc_f(U->alpha) * U->K;
 	
 	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
 	//alpha,t = -alpha^2 Q + alpha,i beta^i
 	deriv->alpha += -U->alpha * U->alpha * Q + real3_dot(*(real3*)partial_alpha_l, U->beta_u);
-
-	//manuall update elsewhere?
-	//deriv->beta += _real3(0,0,0);
 
 	//B&S 11.50
 	//Alcubierre 2.8.10
@@ -355,8 +353,9 @@ end
 	//	+ 2/3 connBar^i beta^j_,j
 	//	+ 1/3 gammaBar^ki beta^j_,jk
 	//	+ gammaBar^kj beta^i_,jk
+	real3 dt_connBar_u;
 <? for i,xi in ipairs(xNames) do
-?>	deriv->connBar_u.<?=xi?> +=
+?>	dt_connBar_u.<?=xi?> =
 		2./3. * U->connBar_u.<?=xi?> * tr_partial_beta
 		- 16. * M_PI * exp_4phi * U->alpha * U->S_u.<?=xi?> 
 <?	for j,xj in ipairs(xNames) do
@@ -380,10 +379,27 @@ end
 ?>	;
 <? end
 ?>
+	deriv->connBar_u = real3_add(deriv->connBar_u, dt_connBar_u);
+
+#if 0
+	//Gamma-driver
+	//B&S 4.82
+	//beta^i_,t = k (connBar^i_,t + eta connBar^i)
+	//TODO hyperbolic Gamma driver B&S 4.83 beta^i_,t = 3/4 B^i, B^i_,t = connBar^i_,t - eta B^i ... maybe + beta^j B^i_,j
+	const real k = 0.;//3./4.;
+	const real eta = 0.;	// 1 / (2 M), for total mass M
+	deriv->beta_u = real3_add(deriv->beta_u,
+		real3_add(
+			real3_scale(dt_connBar_u, k),
+			real3_scale(U->connBar_u, eta)));
+#endif
 
 <? if calcConstraints then ?>
+	
+#if 0
 	real RBar = sym3_dot(gammaBar_uu, RBar_ll);
-
+	real exp_phi = exp(U->phi);
+	
 	//B&S 11.48
 	//
 	//exp(phi)_,ij = partial2_exp_phi_ll.ij
@@ -414,8 +430,7 @@ end
 	//			- 1/12 K^2 
 	//			+ 2 pi rho
 	//	)	)
-
-	U->H = exp(U->phi) * (
+	U->H = exp_phi * (
 		tr_DBar2_phi 
 		+ DBar_phi_norm
 		- 1./8. * RBar
@@ -425,5 +440,45 @@ end
 			+ 2. * M_PI * U->rho
 		)
 	);
+#endif
+#if 1
+	real R = sym3_dot(gamma_uu, R_ll);	//R = gamma^ij R_ij
+	
+	//K_ij = A_ij + 1/3 gamma_ij K 
+	//A_ij = exp(4 phi) ATilde_ij
+	//K_ij = exp(4 phi) ATilde_ij + 1/3 gamma_ij K 
+	sym3 K_ll = sym3_add(
+		sym3_scale(U->ATilde_ll, exp_4phi),
+		sym3_scale(gamma_ll, U->K/3.));
+	mat3 K_ul = sym3_sym3_mul(gamma_uu, K_ll);
+	sym3 K_uu = mat3_sym3_to_sym3_mul(K_ul, gamma_uu);
+	
+	//Alcubierre 3.1.1
+	U->H = R + U->K * U->K - sym3_dot(K_uu, K_ll);
+#endif
+
+#if 0
+	//DBar_j (e^(6 phi) ATilde^ij)
+	//= DBar_j (e^(6 phi)) ATilde^ij + e^(6 phi) DBar_j ATilde^ij
+	//= 6 phi_,j e^(6 phi) ATilde^ij + e^(6 phi) (ATilde^ij_,j + connBar^i_kj ATilde^kj + connBar^j_kj ATilde^ik)
+	//= exp(6 phi) (6 ATilde^ij phi_,j + (gammaBar^ik ATilde_kl gammaBar^lj)_,j + connBar^i_jk ATilde^jk) ... plus (ln det gammaBar_ll)_,k which is zero, right?
+	//= exp(6 phi) (
+	//		+ 6 ATilde^ij phi_,j
+	//		+ gammaBar^ik_,j ATilde_k^j
+	//		+ ATilde^i_l gammaBar^lj_,j
+	//		+ gammaBar^ik ATilde_kl,j gammaBar^lj
+	//		+ connBar^i_jk ATilde^jk)
+   	//= exp(6 phi) (
+	//		+ 6 ATilde^ij phi_,j
+	//		- ATilde^kj gammaBar^il gammaBar_lk,j
+	//		- ATilde^ik gammaBar^mj gammaBar_km,j
+	//		+ gammaBar^ik gammaBar^lj ATilde_kl,j
+	//		+ connBar^i_jk ATilde^jk)
+
+
+	//B&S 11.49
+	//0 = M^i = DBar_j (e^(6 phi) ATilde^ij) - 2/3 e^(6 phi) DBar^i K - 8 pi e^(6 phi) S^i
+#endif
+
 <? end	--calcConstraints ?>
 }

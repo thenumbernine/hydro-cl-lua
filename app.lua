@@ -124,9 +124,9 @@ function HydroCLApp:initGL(...)
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 2,
+		dim = cmdline.dim or 1,
 		
-		--integrator = cmdline.integrator or 'forward Euler',	
+		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -138,7 +138,7 @@ function HydroCLApp:initGL(...)
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		integrator = 'backward Euler',
+		--integrator = 'backward Euler',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = 'donor cell',
@@ -277,8 +277,8 @@ function HydroCLApp:initGL(...)
 		--initState = 'two-fluid EMHD soliton maxwell',
 	
 		-- GR
-		--initState = 'gauge shock wave',
-		initState = 'Alcubierre warp bubble',
+		initState = 'gauge shock wave',
+		--initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
 		--initState = 'stellar model',
 		--initState = 'stellar model 2',

@@ -42,8 +42,6 @@ TODO:
 - add GR+HD by taking the SRHD and giving it the metric from GR (adm solver)
 - add EM+SRHD by mixing and matching SRHD and EMHD
 - add EM+GR+HD by winning
-
-Minor TODO:
 - get MHD working with Orszag-Tang 2D
 
 ### Sources:
