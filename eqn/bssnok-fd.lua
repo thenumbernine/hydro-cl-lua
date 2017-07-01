@@ -188,11 +188,11 @@ BSSNOKFiniteDifferenceEquation.guiVars = {
 	require 'guivar.combo'{
 		name = 'f',
 		options = {
-			'2./alpha',	-- 1+log slicing
-			'1. + 1./(alpha*alpha)', 	-- Alcubierre 10.2.24: "shock avoiding condition" for Toy 1+1 spacetimes 
+			'2/alpha',	-- 1+log slicing
+			'1 + 1/alpha^2', 	-- Alcubierre 10.2.24: "shock avoiding condition" for Toy 1+1 spacetimes 
 			'1', 		-- Alcubierre 4.2.50 - harmonic slicing
-			'.49', '.5', '1.5', '1.69'},
-		value = 0,
+			'.49', '.5', '1.5', '1.69',
+		},
 	}
 }
 
@@ -202,20 +202,48 @@ function BSSNOKFiniteDifferenceEquation:getCodePrefix()
 	local initState = self.initStates[1+self.solver.initStatePtr[0]]
 	assert(initState, "couldn't find initState "..self.solver.initStatePtr[0])	
 	
-	local alphaVar = symmath.var'alpha'
-	
-	local fGuiVar = self.guiVarsForName.f
-	local fCode = fGuiVar.options[fGuiVar.value[0]+1]
-	local fExpr = assert(loadstring('local alpha = ... return '..fCode))(alphaVar)
-	
-	self.codes = initState.init(self.solver, {
-		f = fExpr,
-		alphaVar = alphaVar,
-	})
+	return initState.init(self.solver, function(exprs, vars, args)
+		-- this takes forever.  why is that?  differentiation?
+		print('building metric partials...')
+		exprs.d = table.map(vars, function(xk)
+			return table.map(exprs.gamma, function(gamma_ij)
+				print('differentiating '..gamma_ij)
+				return (gamma_ij:diff(xk)/2)()
+			end)
+		end)
+		print('...done building metric partials')
 
-	return table.map(self.codes, function(code,name,t)
-		return 'real calc_'..name..code, #t+1
-	end):concat'\n'
+		print('building lapse partials...')
+		exprs.a = table.map(vars, function(var)
+			return (exprs.alpha:diff(var) / exprs.alpha)()
+		end)
+		print('...done building lapse partials')
+	
+		-- this requires turning d from sym into a Tensor
+		--  and requires gammaUU being stored as the Tensor metric inverse
+		--exprs.V = (d'_ik^k' - d'^k_ki')()
+
+		print('compiling expressions...')
+		return table(
+			--f = exprs.f,
+			--dalpha_f = exprs.dalpha_f,
+			{alpha = exprs.alpha},
+			symNames:map(function(xij,ij)
+				return exprs.gamma[ij], 'gamma_'..xij
+			end),
+			xNames:map(function(xi,i)
+				return exprs.a[i], 'a_'..xi
+			end),
+			table(xNames:map(function(xk,k,t)
+				return symNames:map(function(xij,ij)
+					return exprs.d[k][ij], 'd_'..xk..xij
+				end), #t+1
+			end):unpack()),
+			symNames:map(function(xij,ij)
+				return exprs.K[ij], 'K_'..xij
+			end)
+		)	
+	end)
 end
 
 function BSSNOKFiniteDifferenceEquation:getInitStateCode()

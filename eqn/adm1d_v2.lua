@@ -97,31 +97,30 @@ ADM_BonaMasso_1D_Alcubierre1997.useSourceTerm = true
 
 ADM_BonaMasso_1D_Alcubierre1997.initStates = require 'init.adm'
 
-function ADM_BonaMasso_1D_Alcubierre1997:getCodePrefix()
-	local initState = self.initStates[self.solver.initStatePtr[0]+1]
-	
-	local alphaVar = require 'symmath'.var'alpha'
-	
-	local fGuiVar = self.guiVarsForName.f
-	local fCode = fGuiVar.options[fGuiVar.value[0]+1]
-	local fExpr = assert(loadstring('local alpha = ... return '..fCode))(alphaVar)
-	
-	self.codes = initState.init(self.solver, {
-		f = fExpr,
-		alphaVar = alphaVar,
-	})
-	
-	return table.map(self.codes, function(code,name,t)
-		return 'real calc_'..name..code, #t+1
-	end):concat'\n'
-end
-
 ADM_BonaMasso_1D_Alcubierre1997.guiVars = {
 	require 'guivar.combo'{
 		name = 'f',
-		options = {'1', '1.69', '.49', '1 + 1/alpha^2'},
+		options = {
+			'1', '.49', '.5', '1.69',
+			'1 + 1/alpha^2', 
+			'2/alpha',
+		},
 	}
 }
+
+function ADM_BonaMasso_1D_Alcubierre1997:getCodePrefix()
+	local initState = self.initStates[self.solver.initStatePtr[0]+1]
+	
+	return initState.init(self.solver, function(exprs, vars)
+		return {
+			alpha  = exprs.alpha,
+			gamma_xx = exprs.gamma[1],	-- only need g_xx
+			a_x = (exprs.alpha:diff(vars[1]) / exprs.alpha)(),	-- only need a_x
+			d_xxx = (exprs.gamma[1]:diff(vars[1])/2)(),	-- only need D_xxx
+			K_xx = exprs.K[1],	-- only need K_xx
+		}
+	end)
+end
 
 function ADM_BonaMasso_1D_Alcubierre1997:getInitStateCode()
 	return template([[

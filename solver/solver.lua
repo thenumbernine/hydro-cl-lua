@@ -1345,19 +1345,57 @@ function Solver:updateGUIEqnSpecific()
 	end
 end
 
+
+local function hoverTooltip(name)
+	if ig.igIsItemHovered() then
+		ig.igBeginTooltip()
+		ig.igText(name)
+		ig.igEndTooltip()
+	end
+end
+
+local function wrapTooltip(fn)
+	return function(name, ...)
+		ig.igPushIdStr(name)
+		local result = ig[fn]('', ...)
+		hoverTooltip(name)
+		ig.igPopId()
+		return result
+	end
+end
+
+local sliderTooltip = wrapTooltip'igSliderFloat'
+local comboTooltip = wrapTooltip'igCombo'
+local buttonTooltip = wrapTooltip'igButton'
+local inputFloatTooltip = wrapTooltip'igInputFloat'
+local checkboxTooltip = wrapTooltip'igCheckbox'
+
 do
 	-- display vars: TODO graph vars
 	local function handle(var, title)
 		ig.igPushIdStr(title)
-		local enableChanged = ig.igCheckbox(var.name, var.enabled) 
+	
+--		ig.igPushItemWidth(10)
+		ig.igText(var.name)
+--		ig.igPopItemWidth()
 		ig.igSameLine()
-		if ig.igCollapsingHeader'' then	
-			ig.igCheckbox('log', var.useLogPtr)
-			ig.igCheckbox('fixed range', var.heatMapFixedRangePtr)
-			ig.igInputFloat('value min', var.heatMapValueMinPtr)
-			ig.igInputFloat('value max', var.heatMapValueMaxPtr)
-		end
+		
+		local enableChanged = checkboxTooltip('enabled', var.enabled) 
+		ig.igSameLine()
+		
+		checkboxTooltip('log', var.useLogPtr)
+		ig.igSameLine()
+		
+		checkboxTooltip('fixed range', var.heatMapFixedRangePtr)
+		ig.igSameLine()
+		
+		inputFloatTooltip('value min', var.heatMapValueMinPtr)
+		ig.igSameLine()
+		
+		inputFloatTooltip('value max', var.heatMapValueMaxPtr)
+		
 		ig.igPopId()
+		
 		return enableChanged 
 	end
 

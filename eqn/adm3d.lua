@@ -9,6 +9,17 @@ local file = require 'ext.file'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
 
+local xNames = table{'x', 'y', 'z'}
+
+-- symmetric indexes: xx xy xz yy yz zz
+local symNames = table()
+for i,xi in ipairs(xNames) do
+	for j=i,3 do
+		local xj = xNames[j]
+		symNames:insert(xi..xj)
+	end
+end
+
 local ADM_BonaMasso_3D = class(Equation)
 ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
 
@@ -34,14 +45,6 @@ ADM_BonaMasso_3D.useConstrainU = true
 
 ADM_BonaMasso_3D.initStates = require 'init.adm'
 
-ADM_BonaMasso_3D.guiVars = table{
-	require 'guivar.combo'{
-		name = 'f',
-		options = {'1. + 1./(alpha*alpha)', '1', '1.69', '.49'},
-		value = 0,	-- zero-based from the options, so this is 1+1/alpha^2
-	}
-}
-
 function ADM_BonaMasso_3D:getTypeCode()
 	return template([[
 typedef union {
@@ -60,23 +63,55 @@ typedef union {
 })
 end
 
+ADM_BonaMasso_3D.guiVars = table{
+	require 'guivar.combo'{
+		name = 'f',
+		options = {
+			'1 + 1/alpha^2',
+			'2/alpha', 
+			'1', '.49', '.5', '1.5', '1.69', 
+		},
+	}
+}
+
 function ADM_BonaMasso_3D:getCodePrefix()
 	local initState = self.initStates[self.solver.initStatePtr[0]+1]
+	assert(initState, "couldn't find initState "..self.solver.initStatePtr[0])	
 	
-	local alphaVar = require 'symmath'.var'alpha'
-
-	local fGuiVar = self.guiVarsForName.f
-	local fCode = fGuiVar.options[fGuiVar.value[0]+1]
-	local fExpr = assert(loadstring('local alpha = ... return '..fCode))(alphaVar)
-
-	self.codes = initState.init(self.solver, {
-		f = fExpr,
-		alphaVar = alphaVar,
-	})
+	return initState.init(self.solver, function(exprs, vars, args)
+		print('building lapse partials...')
+		exprs.a = table.map(vars, function(var)
+			return (exprs.alpha:diff(var) / exprs.alpha)()
+		end)
+		print('...done building lapse partials')
+		
+		print('building metric partials...')
+		exprs.d = table.map(vars, function(xk)
+			return table.map(exprs.gamma, function(gamma_ij)
+				print('differentiating '..gamma_ij)
+				return (gamma_ij:diff(xk)/2)()
+			end)
+		end)
+		print('...done building metric partials')
 	
-	return table.map(self.codes, function(code,name,t)
-		return 'real calc_'..name..code, #t+1
-	end):concat'\n'
+		return table(
+			{alpha = exprs.alpha},
+			symNames:map(function(xij,ij)
+				return exprs.gamma[ij], 'gamma_'..xij
+			end),
+			xNames:map(function(xi,i)
+				return exprs.a[i], 'a_'..xi
+			end),
+			table(xNames:map(function(xk,k,t)
+				return symNames:map(function(xij,ij)
+					return exprs.d[k][ij], 'd_'..xk..xij
+				end), #t+1
+			end):unpack()),
+			symNames:map(function(xij,ij)
+				return exprs.K[ij], 'K_'..xij
+			end)
+		)
+	end)
 end
 	
 local xNames = table{'x', 'y', 'z'}
@@ -108,7 +143,7 @@ kernel void initState(
 		end
 		lines:insert('\tU->'..field..' = calc_'..var..'(x.x, x.y, x.z);')
 	end
-
+	
 	build'alpha'
 	symNames:map(function(xij) build('gamma_'..xij) end)
 	xNames:map(function(xi) build('a_'..xi) end)	

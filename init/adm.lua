@@ -37,7 +37,7 @@ local function symMat33Inv(xx, xy, xz, yy, yz, zz)
 			(xz * xy - xx * yz) / d,	-- yz
 			(xx * yy - xy * xy) / d		-- zz
 end
-	
+
 local function compileC(expr, name, vars)
 	assert(type(expr) == 'table', "expected table, found "..type(expr))
 	if symmath.Expression.is(expr) then 
@@ -75,16 +75,19 @@ end
 --[[
 args:
 	solver = the solver
+	getCodes = function that accepts a table of the expressions alpha, beta, gamma, K
+				and returns which expressions are needed by this particular equation
 
 	args = {x,y,z} spatial basis variables
 	alpha = lapse expression
-	(beta isn't used yet)
+	beta = shift expressions 
 	gamma = 3-metric
 	K = extrinsic curvature
 
-	gamma & K are stored as {xx,xy,xz,yy,yz,zz}
+	symmetric 3x3 matrices (particularly gamma & K) are stored as {xx,xy,xz,yy,yz,zz}
 
-	density = lua function
+	(still working on)
+	density, pressure = lua function
 --]]
 local function initNumRel(args)	
 	local vars = assert(args.vars)
@@ -117,102 +120,44 @@ local function initNumRel(args)
 	-- ADM
 	
 	-- assuming this is one of the ADM 1D solvers
-	if args.solver.eqn.numWaves == 3 then
-		print('compiling expressions...')
-		local codes = table{
-			alpha  = exprs.alpha,
-			gamma_xx = exprs.gamma[1],	-- only need g_xx
-			a_x = (exprs.alpha:diff(vars[1]) / exprs.alpha)(),	-- only need a_x
-			d_xxx = (exprs.gamma[1]:diff(vars[1])/2)(),	-- only need D_xxx
-			K_xx = exprs.K[1],	-- only need K_xx
-		}:map(function(v,k) return compileC(v,k,vars) end)
-		print('...done compiling expressions')
-		return codes
-
-	-- assuming this is an ADM 3D solver
-	elseif require 'eqn.adm3d'.is(args.solver.eqn)
-	or require 'eqn.bssnok-fd'.is(args.solver.eqn)
-	then 
-
-		-- for complex computations it might be handy to extract the determinant first ...
-		-- or even just perform a numerical inverse ...
-		if not args.useNumericInverse then
-			print('inverting spatial metric...')
-			exprs.gammaUU = {symMat33Inv(exprs.gamma:unpack())}
-			print('...done inverting spatial metric')
-		end
-
-		-- this takes forever.  why is that?  differentiation?
-		print('building metric partials...')
-		exprs.d = table.map(vars, function(xk)
-			return table.map(exprs.gamma, function(gamma_ij)
-				print('differentiating '..gamma_ij)
-				return (gamma_ij:diff(xk)/2)()
-			end)
-		end)
-		print('...done building metric partials')
-
-		print('building lapse partials...')
-		exprs.a = table.map(vars, function(var)
-			return (exprs.alpha:diff(var) / exprs.alpha)()
-		end)
-		print('...done building lapse partials')
+	print('compiling expressions...')
+	local codes = table.map(
+		assert(args.getCodes(exprs, vars, args), "getCodes needs to return something"),
+		function(v,k) return compileC(v,k,vars) end)
+	print('...done compiling expressions')
 	
-		-- this requires turning d from sym into a Tensor
-		--  and requires gammaUU being stored as the Tensor metric inverse
-		--exprs.V = (d'_ik^k' - d'^k_ki')()
+	-- here's the lapse conditions 
 
-		print('compiling expressions...')
-		local codes = {}
-		local codes = table(
-			--f = exprs.f,
-			--dalpha_f = exprs.dalpha_f,
-			{alpha = exprs.alpha},
-			symNames:map(function(xij,ij)
-				return exprs.gamma[ij], 'gamma_'..xij
-			end),
-			xNames:map(function(xi,i)
-				return exprs.a[i], 'a_'..xi
-			end),
-			table(xNames:map(function(xk,k,t)
-				return symNames:map(function(xij,ij)
-					return exprs.d[k][ij], 'd_'..xk..xij
-				end), #t+1
-			end):unpack()),
-			symNames:map(function(xij,ij)
-				return exprs.K[ij], 'K_'..xij
-			end)
-		):map(function(v,k) return compileC(v,k,vars) end)
+	local alphaVar = symmath.var'alpha'
+	-- TODO each eqn must be stated as a guiVar of the solver
+	-- make a parent class or something for all num rel eqns
+	local fGuiVar = args.solver.eqn.guiVarsForName.f
+	local fLuaCode = fGuiVar.options[fGuiVar.value[0]+1]
+	
+	local f = assert(loadstring('local alpha = ... return '..fLuaCode))(alphaVar)
+	f = symmath.clone(f)
+	local dalpha_f = f:diff(alphaVar)()
 
-		print('...done compiling expressions')
+	codes.f = compileC(f, 'f', {alphaVar})
+	codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
 
-		-- TODO if useNumericInverse is true then add a gammaUij that's based on Cramer's rule
-
-		return codes
-	else
-		error "don't have support for this ADM solver yet"
-	end
+	return table.map(codes, function(code,name,t)
+		return 'real calc_'..name..code, #t+1
+	end):concat'\n'
 end
 
 return {
 	{
 		name = 'gauge shock wave',
-		init = function(solver, args)
-			
-			-- lapse function
+		init = function(solver, getCodes)
 
-			local alphaVar = args.alphaVar or symmath.var'alpha'
-			
-			-- TODO specify this? or should I bother?
-			--local kappa = 1 
-			local f = symmath.clone(args.f or 1)
-			local dalpha_f = f:diff(alphaVar)()
-	
-			-- the rest
+			-- here's the coordinates
 
 			local xs = xNames:map(function(x) return symmath.var(x) end)
 			symmath.Tensor.coords{{variables=xs}}
 			local x,y,z = xs:unpack()
+
+			-- here's the metric
 
 			local size = solver.maxs[1] - solver.mins[1]
 			local H = 5 * size / 300
@@ -250,23 +195,19 @@ return {
 			
 			print('...done deriving and compiling.')
 			
-			local codes = initNumRel{
+			return initNumRel{
 				solver = solver,
+				getCodes = getCodes,
 				vars = xs,
 				alpha = alpha,
 				gamma = symNames:map(function(xij,ij) return gamma[{from6to3x3(ij)}] end),
 				K = symNames:map(function(xij,ij) return K[{from6to3x3(ij)}] end),
 			}
-			
-			codes.f = compileC(f, 'f', {alphaVar})
-			codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
-			
-			return codes
 		end,
 	},
 	{
 		name = 'Alcubierre warp bubble',
-		init = function(solver, args)
+		init = function(solver, getCodes)
 			local R = .5		-- warp bubble radius
 			local sigma = 8	-- warp bubble thickness
 			local speed = .1	-- warp bubble speed
@@ -288,9 +229,12 @@ return {
 			local K_xy = betaUx:diff(y)() / (2 * alpha)
 			local K_xz = betaUx:diff(z)() / (2 * alpha)
 
-			local codes = initNumRel{
+			return initNumRel{
 				solver = solver,
+				getCodes = getCodes,
+				
 				vars = xs,
+				
 				alpha = alpha,
 				
 				--[[
@@ -305,16 +249,6 @@ return {
 				gamma = {1, 0, 0, 1, 0, 1},		-- identity
 				K = {K_xx, K_xy, K_xz, 0, 0, 0},
 			}
-
-			local alphaVar = args.alphaVar or symmath.var'alpha'
-			
-			local f = symmath.clone(args.f or 1)
-			local dalpha_f = f:diff(alphaVar)()
-
-			codes.f = compileC(f, 'f', {alphaVar})
-			codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
-			
-			return codes
 		end,
 	},
 	{

@@ -24,33 +24,33 @@ ADM_BonaMasso_1D_Alcubierre2008.useSourceTerm = true
 
 ADM_BonaMasso_1D_Alcubierre2008.initStates = require 'init.adm'
 
+ADM_BonaMasso_1D_Alcubierre2008.guiVars = {
+	require 'guivar.combo'{
+		name = 'f',
+		options = {
+			'1', '.49', '.5', '1.5', '1.69',
+			'1 + 1/alpha^2',
+			'2/alpha',
+		},
+	}
+}
+
+local symmath = require 'symmath'
 function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix()
 	local initState = self.initStates[self.solver.initStatePtr[0]+1]
 	assert(initState, "couldn't find initState "..self.solver.initStatePtr[0])	
 	
-	local alphaVar = require 'symmath'.var'alpha'
-	
-	local fGuiVar = self.guiVarsForName.f
-	local fCode = fGuiVar.options[fGuiVar.value[0]+1]
-	local fExpr = assert(loadstring('local alpha = ... return '..fCode))(alphaVar)
-	
-	self.codes = initState.init(self.solver, {
-		f = fExpr,
-		alphaVar = alphaVar,
-	})
-	
-	return table.map(self.codes, function(code,name,t)
-		return 'real calc_'..name..code, #t+1
-	end):concat'\n'
+	-- pick out whatever variables that 'codes' needs to convert
+	return initState.init(self.solver, function(exprs, vars)
+		return {
+			alpha  = exprs.alpha,
+			gamma_xx = exprs.gamma[1],	-- only need g_xx
+			a_x = (exprs.alpha:diff(vars[1]) / exprs.alpha)(),	-- only need a_x
+			D_g = (exprs.gamma[1]:diff(vars[1]) / exprs.gamma[1])(),	-- only need D_xxx
+			KTilde = exprs.K[1] / symmath.sqrt(exprs.gamma[1]),	-- only need K_xx
+		}
+	end)
 end
-
-ADM_BonaMasso_1D_Alcubierre2008.guiVars = {
-	require 'guivar.combo'{
-		name = 'f',
-		options = {'1', '.49', '.5', '1.5', '1.69', '1 + 1/alpha^2'},
-		-- value?
-	}
-}
 
 function ADM_BonaMasso_1D_Alcubierre2008:getInitStateCode()
 	return template([[
@@ -64,8 +64,8 @@ kernel void initState(
 	U->alpha = calc_alpha(x.x, x.y, x.z);
 	U->gamma_xx = calc_gamma_xx(x.x, x.y, x.z);
 	U->a_x = calc_a_x(x.x, x.y, x.z);
-	U->D_g = (2. * calc_d_xxx(x.x, x.y, x.z) / U->gamma_xx);
-	U->KTilde = calc_K_xx(x.x, x.y, x.z) / sqrt(U->gamma_xx);
+	U->D_g = calc_D_g(x.x, x.y, x.z);
+	U->KTilde = calc_KTilde(x.x, x.y, x.z);
 }
 ]], {
 	eqn = self,
