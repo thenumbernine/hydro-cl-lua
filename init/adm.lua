@@ -199,7 +199,7 @@ return {
 				solver = solver,
 				getCodes = getCodes,
 				vars = xs,
-				alpha = alpha,
+				alpha = symmath.clone(alpha),
 				gamma = symNames:map(function(xij,ij) return gamma[{from6to3x3(ij)}] end),
 				K = symNames:map(function(xij,ij) return K[{from6to3x3(ij)}] end),
 			}
@@ -253,14 +253,15 @@ return {
 	},
 	{
 		name = 'Schwarzschild black hole',
-		init = function(solver, args)
+		init = function(solver, getCodes)
 			local R = .002	-- Schwarzschild radius
 			
 			local x,y,z = symmath.vars('x','y','z')
 			local r = symmath.sqrt(x^2 + y^2 + z^2)
 			
-			local codes = initNumRel{
+			return initNumRel{
 				solver = solver,
+				getCodes = getCodes,
 				vars = {x,y,z},
 				-- 4D metric ADM components:
 				alpha = symmath.sqrt(1 - R/r),
@@ -275,23 +276,11 @@ return {
 				},
 				K = {0,0,0,0,0,0},
 			}
-
-			local alphaVar = args.alphaVar or symmath.var'alpha'
-			
-			-- TODO specify this? or should I bother?
-			--local kappa = 1 
-			local f = symmath.clone(args.f or 1)
-			local dalpha_f = f:diff(alphaVar)()
-
-			codes.f = compileC(f, 'f', {alphaVar})
-			codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
-			
-			return codes
 		end,
 	},
 	{
 		name = 'stellar model',
-		init = function(solver, args)
+		init = function(solver, getCodes)
 				
 			--[[ this is technically correct, but gets some artifacts with the radial boundary on the cartesian grid
 			local H = symmath.Heaviside
@@ -305,10 +294,10 @@ return {
 			min.name = 'min'
 			min.func = math.min
 			-- derivative wrt 1st param... 
-			function min:evaluateDerivative(...)
+			function min:evaluateDerivative(deriv, ...)
 				local a = self[1]
 				local b = self[2]
-				return H(b - a) * symmath.diff(a, ...) + H(a - b) * symmath.diff(b, ...)
+				return H(b - a) * deriv(a, ...) + H(a - b) * deriv(b, ...)
 			end
 			
 			local bodies = args and args.bodies or {{
@@ -317,12 +306,12 @@ return {
 				radius = .1,
 			}}
 
-			local t,x,y,z = symmath.vars('t','x','y','z')
+			local x,y,z = symmath.vars('x','y','z')
 			
 			print('building variables ...')
 			
 			local alpha = 1
-			local gamma = {1,0,0,1,0,1}
+			local gamma = table{1,0,0,1,0,1}
 			for _,body in ipairs(bodies) do
 				local M = body.mass 
 				local R = body.radius
@@ -350,14 +339,17 @@ return {
 			print('initializing numerical relativity variables ...')
 			local codes = initNumRel{
 				solver = solver,
+				getCodes = getCodes,
 				vars = {x,y,z},
 				-- 4D metric ADM components:
 				alpha = alpha,
 				beta = {0,0,0},
 				gamma = gamma,
 				K = {0,0,0,0,0,0},
-				useNumericInverse = true,	-- if gamma gets too complex ...
+--				useNumericInverse = true,	-- if gamma gets too complex ...
+				-- hmm, why do I need gammaU again?  just for initialization of V^i I think ...
 				-- hmm would be nice if any field could be a function, algebra, or constant ...
+--[[				
 				density = function(x,y,z)
 					local density = 0
 					for _,body in ipairs(bodies) do
@@ -396,17 +388,9 @@ return {
 					end
 					return pressure
 				end,
+--]]
 			}
 			print('...done initializing numerical relativity variables') 
-	
-			local alphaVar = args.alphaVar or symmath.var'alpha'
-			
-			local f = symmath.clone(args.f or 1)
-			local dalpha_f = f:diff(alphaVar)()
-
-			codes.f = compileC(f, 'f', {alphaVar})
-			codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
-
 			return codes	
 		end,
 	},

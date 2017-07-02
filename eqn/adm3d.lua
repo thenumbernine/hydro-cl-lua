@@ -74,6 +74,7 @@ ADM_BonaMasso_3D.guiVars = table{
 	}
 }
 
+local symmath = require 'symmath'
 function ADM_BonaMasso_3D:getCodePrefix()
 	local initState = self.initStates[self.solver.initStatePtr[0]+1]
 	assert(initState, "couldn't find initState "..self.solver.initStatePtr[0])	
@@ -113,7 +114,7 @@ function ADM_BonaMasso_3D:getCodePrefix()
 		)
 	end)
 end
-	
+
 local xNames = table{'x', 'y', 'z'}
 local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
 

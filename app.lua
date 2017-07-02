@@ -278,9 +278,9 @@ function HydroCLApp:initGL(...)
 	
 		-- GR
 		--initState = 'gauge shock wave',
-		initState = 'Alcubierre warp bubble',
+		--initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
-		--initState = 'stellar model',
+		initState = 'stellar model',
 		--initState = 'stellar model 2',
 		--initState = 'stellar model 3',
 		--initState = 'stellar model 3',
@@ -328,12 +328,12 @@ function HydroCLApp:initGL(...)
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 	--
 	-- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
 	--  but something gets caught up in the freeflow boundary conditions, and it explodes
 	-- TODO constant Minkowski boundary conditions?
-	--self.solvers:insert(require 'solver.bssnok-fd'(args))
+	self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 	
