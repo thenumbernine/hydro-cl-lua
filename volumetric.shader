@@ -20,7 +20,7 @@ void main() {
 uniform sampler3D tex;
 uniform sampler1D gradient;
 uniform int maxiter;
-//uniform vec3 oneOverDx;
+uniform vec3 oneOverDx;
 uniform float scale;
 uniform bool useLog;
 uniform float alpha;
@@ -38,6 +38,7 @@ void main() {
 	vec3 p = texCoordStart;
 	vec4 result = vec4(0., 0., 0., 1.);
 	float value = getValue(p); 
+	
 	float voxelAlpha = alpha;// * min(1., mod(value * 4., 3.));
 	vec3 voxelColor = texture1D(gradient, value).rgb;
 	voxelAlpha *= min(1., length(voxelColor));
@@ -46,7 +47,7 @@ void main() {
 	
 	vec3 step = vertexStart - eye;
 	step = normalize(step) / float(maxiter);
-//	step /= oneOverDx;
+	step /= oneOverDx;
 	for (int i = 2; i <= maxiter; i++) {
 		p += step;
 		if (p.x < 0. || p.y < 0. || p.z < 0. ||
@@ -58,6 +59,7 @@ void main() {
 		//(as you would when rendering transparent stuff on top of each other)
 		//this will allow you to bailout early if your transparency ever hits fully opaque
 		value = getValue(p);
+		
 		voxelAlpha = alpha;// * min(1., mod(value * 4., 3.));
 		voxelColor = texture1D(gradient, value).rgb;
 		voxelAlpha *= min(1., length(voxelColor));
@@ -66,6 +68,7 @@ void main() {
 
 		if (result.a < .01) break;
 	}
+result.a = 0.;
 	gl_FragColor = vec4(result.rgb, 1. - result.a);
 }
 

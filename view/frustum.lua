@@ -6,7 +6,7 @@ local quat = require 'vec.quat'
 local FrustumView = class()
 
 function FrustumView:init()
-	self.dist = 1
+	self.dist = 3
 	self.pos = vec3()
 	self.angle = quat()
 end

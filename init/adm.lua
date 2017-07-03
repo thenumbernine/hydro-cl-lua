@@ -65,6 +65,9 @@ local function compileC(expr, name, vars)
 		print('compiling '..name..':')
 		print(expr)
 		local code = expr:compile(vars, 'C'), name
+		
+code = code:gsub('sqrt%(', '(real)sqrt((real)')
+		
 		print(code)
 		return code
 	end

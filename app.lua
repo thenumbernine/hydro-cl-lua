@@ -124,7 +124,7 @@ function HydroCLApp:initGL(...)
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 2,
+		dim = cmdline.dim or 3,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
@@ -151,9 +151,9 @@ function HydroCLApp:initGL(...)
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 64,
-			cmdline.gridSize or 64,
-			cmdline.gridSize or 64,
+			cmdline.gridSize or 32,
+			cmdline.gridSize or 32,
+			cmdline.gridSize or 32,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -233,7 +233,7 @@ function HydroCLApp:initGL(...)
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -280,16 +280,15 @@ function HydroCLApp:initGL(...)
 		--initState = 'gauge shock wave',
 		--initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
-		initState = 'stellar model',
+		--initState = 'stellar model',
 		--initState = 'stellar model 2',
-		--initState = 'stellar model 3',
 		--initState = 'stellar model 3',
 	}
 	
 	self.solvers = table()
 	
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe')(table(args, {eqn='euler'})))
@@ -333,7 +332,7 @@ function HydroCLApp:initGL(...)
 	-- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
 	--  but something gets caught up in the freeflow boundary conditions, and it explodes
 	-- TODO constant Minkowski boundary conditions?
-	self.solvers:insert(require 'solver.bssnok-fd'(args))
+	--self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 	
@@ -378,45 +377,29 @@ function HydroCLApp:initGL(...)
 					tex = 0,
 					gradient = 1,
 					maxiter = maxiter,
-					--oneOverDx = (solver.maxs - solver.mins):unpack(),
+					oneOverDx = {(solver.maxs - solver.mins):unpack()},
 				},
 			}
 			solver.volumeRayShader = volumeRayShader
 
 			-- volume slices
 
+			local code = file['slices3d.shader']
 			local volumeSliceShader = GLProgram{
-			vertexCode = [[
-varying vec3 pos;
-void main() {
-	pos = gl_Vertex.xyz;
-	gl_Position = ftransform();
-}
-]],
-			fragmentCode = [[
-varying vec3 pos;
-uniform sampler3D volTex;
-uniform sampler2D gradientTex;
-uniform vec3 normal;
-uniform float alpha;
-uniform float alphaGamma;
-void main() {
-	vec4 worldPos = gl_ModelViewMatrix * vec4(pos,1.);
-
-	float value = texture3D(volTex, pos).r;
-	vec4 voxelColor = vec4(texture2D(gradientTex, vec2(value, .5)).rgb, pow(alpha, alphaGamma));
-	
-	//calculate normal in screen coordinates
-	vec4 n = gl_ModelViewProjectionMatrix * vec4(normal, 0.);
-	//determine length of line through slice at its angle
-	voxelColor.a /= -n.w;
-	
-	gl_FragColor = vec4(voxelColor.rgb, voxelColor.a * alpha);
-}
-]],
+				vertexCode = table{
+					'#define VERTEX_SHADER',
+					solver:getCoordMapGLSLCode(),
+					code,
+				}:concat'\n',
+				fragmentCode = table{
+					'#define FRAGMENT_SHADER',
+					code,
+				}:concat'\n',
 				uniforms = {
 					volTex = 0,
 					gradientTex = 1,
+					valueMin = 0,
+					valueMax = 0,
 				},
 			}
 			solver.volumeSliceShader = volumeSliceShader
@@ -917,15 +900,29 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 	for _,solver in ipairs(solvers) do 
 		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
 		if varIndex then
+			local valueMin, valueMax
+			if var.heatMapFixedRangePtr[0] then
+				valueMin = var.heatMapValueMinPtr[0]
+				valueMax = var.heatMapValueMaxPtr[0]
+			else
+				valueMin, valueMax = solver:calcDisplayVarRange(var)
+				var.heatMapValueMinPtr[0] = valueMin
+				var.heatMapValueMaxPtr[0] = valueMax
+			end
 
 			solver:calcDisplayVarToTex(var)	
 
 			solver.volumeSliceShader:use()
 			solver:getTex(var):bind(0)
 			self.gradientTex:bind(1)
-			if solver.volumeSliceShader.uniforms.alpha then gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha.loc, .15) end
-			if solver.volumeSliceShader.uniforms.alphaGamma then gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, 1) end
-					
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha.loc, .15)
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, 1)
+			gl.glUniform3f(solver.volumeSliceShader.uniforms.mins.loc, solver.mins:unpack())
+			gl.glUniform3f(solver.volumeSliceShader.uniforms.maxs.loc, solver.maxs:unpack())
+			gl.glUniform1i(solver.volumeSliceShader.uniforms.useLog.loc, var.useLogPtr[0])
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMin.loc, valueMin)
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMax.loc, valueMax)
+
 			gl.glEnable(gl.GL_TEXTURE_GEN_S)
 			gl.glEnable(gl.GL_TEXTURE_GEN_T)
 			gl.glEnable(gl.GL_TEXTURE_GEN_R)
@@ -937,20 +934,26 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 			gl.glTexGendv(gl.GL_R, gl.GL_OBJECT_PLANE, vec4d(0,0,1,0):ptr())
 
 			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-			gl.glEnable(gl.GL_BLEND)
+--			gl.glEnable(gl.GL_BLEND)
 
-			--[[ points
+			-- [[ points
+			gl.glEnable(gl.GL_DEPTH_TEST)
 			gl.glPointSize(2)
 			gl.glBegin(gl.GL_POINTS)
-			for _,pt in ipairs(self.pts) do
-				gl.glVertex3d( 
-					(pt[1] - .5)/(self.max[1] + 1),
-					(pt[2] - .5)/(self.max[2] + 1),
-					(pt[3] - .5)/(self.max[3] + 1))
+			for i=1,tonumber(solver.gridSize.x) do
+				for j=1,tonumber(solver.gridSize.y) do
+					for k=1,tonumber(solver.gridSize.z) do
+						gl.glVertex3d( 
+							(i - .5)/tonumber(solver.gridSize.x),
+							(j - .5)/tonumber(solver.gridSize.y),
+							(k - .5)/tonumber(solver.gridSize.z))
+					end
+				end
 			end
 			gl.glEnd()
+			gl.glDisable(gl.GL_DEPTH_TEST)
 			--]]
-			-- [[ slices
+			--[[ slices
 			local n = 255
 			local fwd = -self.frustumView.angle:zAxis()
 			local fwddir = select(2, table(fwd):map(math.abs):sup())
@@ -993,6 +996,7 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 	end
 end
 
+local glreport = require 'gl.report'
 function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	self.view:projection(ar)
 	self.view:modelview()
@@ -1031,7 +1035,7 @@ function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, 
 				gl.glEnable(gl.GL_BLEND)
 				volumeRayShader:use()
 				gl.glUniform1f(volumeRayShader.uniforms.scale.loc, 1)--scale)
-				gl.glUniform1i(volumeRayShader.uniforms.useLog.loc, useLog and 1 or 0)
+				gl.glUniform1i(volumeRayShader.uniforms.useLog.loc, 0)--useLog and 1 or 0)
 				gl.glUniform1f(volumeRayShader.uniforms.alpha.loc, 1)--alpha)
 				solver:getTex(var):bind(0)
 				self.gradientTex:bind(1)
@@ -1061,6 +1065,7 @@ function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, 
 			end
 		end
 	end
+glreport'here'
 end
 
 --HydroCLApp.display3D = HydroCLApp.display3D_Ray
@@ -1182,7 +1187,7 @@ function HydroCLApp:event(event, ...)
 			if leftButtonDown and not guiDown then
 				if shiftDown then
 					if dx ~= 0 or dy ~= 0 then
-						self.view:mouseZoom(dx, dy)
+						self.view:mouseZoom(dx, -dx) --dy
 					end
 				else
 					if dx ~= 0 or dy ~= 0 then

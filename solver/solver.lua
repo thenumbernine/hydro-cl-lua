@@ -1253,17 +1253,20 @@ function Solver:calcDisplayVarToTex(var)
 		convertToTex:setToBufferArgs(var)
 		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
 		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.volume, ptr=ptr}
+		local destPtr = ptr
 		if app.is64bit then
+			-- can this run in place?
+			destPtr = ffi.cast('float*', ptr)
 			for i=0,self.volume-1 do
-				ffi.cast('float*',ptr)[i] = ffi.cast('double*',ptr)[i]
+				destPtr[i] = ptr[i]
 			end
 		end
 		tex:bind()
 		if self.dim < 3 then
-			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, tex.width, tex.height, gl.GL_RED, gl.GL_FLOAT, ptr)
+			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, tex.width, tex.height, gl.GL_RED, gl.GL_FLOAT, destPtr)
 		else
 			for z=0,tex.depth-1 do
-				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, tex.width, tex.height, 1, gl.GL_RED, gl.GL_FLOAT, ptr + tex.width * tex.height * z)		
+				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, tex.width, tex.height, 1, gl.GL_RED, gl.GL_FLOAT, destPtr + tex.width * tex.height * z)
 			end
 		end
 		tex:unbind()
