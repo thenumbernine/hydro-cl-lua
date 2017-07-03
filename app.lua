@@ -42,14 +42,11 @@ local sdl = require 'ffi.sdl'
 local class = require 'ext.class'
 local math = require 'ext.math'
 local table = require 'ext.table'
-local range = require 'ext.range'
-local string = require 'ext.string'
 local file = require 'ext.file'
+local template = require 'template'
 local ImGuiApp = require 'imguiapp'
-local CLPlatform = require 'cl.platform'
-local CLContext = require 'cl.context'
-local CLCommandQueue = require 'cl.commandqueue'
 local CLEnv = require 'cl.obj.env'
+local clnumber = require 'cl.obj.number'
 local GLProgram = require 'gl.program'
 local GLGradientTex = require 'gl.gradienttex'
 local GLTex2D = require 'gl.tex2d'
@@ -336,6 +333,28 @@ function HydroCLApp:initGL(...)
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 	
+	local gradTexWidth = 1024
+	self.gradientTex = GLGradientTex(gradTexWidth, {
+	-- [[ white, rainbow, black
+		{0,0,0,.5},	-- black
+		{0,0,1,1},	-- blue
+		{0,1,1,1},	-- cyan
+		{0,1,0,1},	-- green
+		{1,1,0,1},	-- yellow
+		{1,.5,0,1},	-- orange
+		{1,0,0,1},	-- red
+		{1,1,1,1},	-- white
+	--]]
+	--[[ stripes 
+		range(32):map(function(i)
+			return ({
+				{0,0,0,0},
+				{1,1,1,1},
+			})[i%2+1]
+		end):unpack()
+	--]]
+	}, false)
+
 	local graphShaderCode = file['graph.shader']
 	self.graphShader = GLProgram{
 		vertexCode = '#define VERTEX_SHADER\n'..graphShaderCode,
@@ -350,12 +369,20 @@ function HydroCLApp:initGL(...)
 	local code = file['heatmap2d.shader']
 	for _,solver in ipairs(self.solvers) do
 		local heatMap2DShader = GLProgram{
-			vertexCode = table{
-				'#define VERTEX_SHADER',
-				solver:getCoordMapGLSLCode(),
-				code,
-			}:concat'\n',
-			fragmentCode = '#define FRAGMENT_SHADER\n'..code,
+			vertexCode = template(
+				table{
+					solver:getCoordMapGLSLCode(),
+					code, 
+				}:concat'\n',
+				{
+					vertexShader = true,
+				}
+			),
+			fragmentCode = template(code, {
+				fragmentShader = true,
+				clnumber = clnumber,
+				gradTexWidth = gradTexWidth,
+			}),
 			uniforms = {
 				valueMin = 0,
 				valueMax = 0,
@@ -386,15 +413,20 @@ function HydroCLApp:initGL(...)
 
 			local code = file['slices3d.shader']
 			local volumeSliceShader = GLProgram{
-				vertexCode = table{
-					'#define VERTEX_SHADER',
-					solver:getCoordMapGLSLCode(),
-					code,
-				}:concat'\n',
-				fragmentCode = table{
-					'#define FRAGMENT_SHADER',
-					code,
-				}:concat'\n',
+				vertexCode = template(
+					table{
+						solver:getCoordMapGLSLCode(),
+						code,
+					}:concat'\n',
+					{
+						vertexShader = true,
+					}
+				),
+				fragmentCode = template(code, {
+					fragmentShader = true,
+					clnumber = clnumber,
+					gradTexWidth = gradTexWidth,
+				}),
 				uniforms = {
 					volTex = 0,
 					gradientTex = 1,
@@ -405,27 +437,6 @@ function HydroCLApp:initGL(...)
 			solver.volumeSliceShader = volumeSliceShader
 		end
 	end
-
-	self.gradientTex = GLGradientTex(1024, {
-	-- [[ white, rainbow, black
-		{0,0,0,.5},	-- black
-		{0,0,1,1},	-- blue
-		{0,1,1,1},	-- cyan
-		{0,1,0,1},	-- green
-		{1,1,0,1},	-- yellow
-		{1,.5,0,1},	-- orange
-		{1,0,0,1},	-- red
-		{1,1,1,1},	-- white
-	--]]
-	--[[ stripes 
-		range(32):map(function(i)
-			return ({
-				{0,0,0,0},
-				{1,1,1,1},
-			})[i%2+1]
-		end):unpack()
-	--]]
-	}, false)
 
 	-- [[ need to get image loading working
 	local fonttex = GLTex2D{
@@ -933,10 +944,7 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 			gl.glTexGendv(gl.GL_T, gl.GL_OBJECT_PLANE, vec4d(0,1,0,0):ptr())
 			gl.glTexGendv(gl.GL_R, gl.GL_OBJECT_PLANE, vec4d(0,0,1,0):ptr())
 
-			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
---			gl.glEnable(gl.GL_BLEND)
-
-			-- [[ points
+			--[[ points
 			gl.glEnable(gl.GL_DEPTH_TEST)
 			gl.glPointSize(2)
 			gl.glBegin(gl.GL_POINTS)
@@ -953,9 +961,12 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 			gl.glEnd()
 			gl.glDisable(gl.GL_DEPTH_TEST)
 			--]]
-			--[[ slices
+			-- [[ slices
+			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+			gl.glEnable(gl.GL_BLEND)
+
 			local n = 255
-			local fwd = -self.frustumView.angle:zAxis()
+			local fwd = -self.frustumView.angle:conjugate():zAxis()
 			local fwddir = select(2, table(fwd):map(math.abs):sup())
 
 			local quad = {{0,0},{1,0},{1,1},{0,1}}
@@ -965,7 +976,10 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 			else
 				jmin, jmax, jdir = n, 0, -1
 			end
-			if solver.volumeSliceShader.uniforms.normal then gl.glUniform3f(solver.volumeSliceShader.uniforms.normal.loc, fwddir==1 and jdir or 0, fwddir==2 and jdir or 0, fwddir==3 and jdir or 0) end
+			gl.glUniform3f(solver.volumeSliceShader.uniforms.normal.loc, 
+				fwddir == 1 and jdir or 0, 
+				fwddir == 2 and jdir or 0, 
+				fwddir == 3 and jdir or 0)
 			
 			gl.glBegin(gl.GL_QUADS)
 			for j=jmin,jmax,jdir do

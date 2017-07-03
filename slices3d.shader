@@ -1,6 +1,9 @@
 varying vec3 texCoord;
 
-#ifdef VERTEX_SHADER
+<?
+if vertexShader then
+?>
+
 uniform vec3 mins, maxs;
 void main() {
 	texCoord = gl_Vertex.xyz;
@@ -11,9 +14,11 @@ void main() {
 	x = vec4(coordMap(x.xyz), x.w);
 	gl_Position = gl_ModelViewProjectionMatrix * x;
 }
-#endif	//VERTEX_SHADER
 
-#ifdef FRAGMENT_SHADER
+<?
+end
+if fragmentShader then
+?>
 
 //1/log(10)
 #define _1_LN_10 0.4342944819032517611567811854911269620060920715332
@@ -41,7 +46,7 @@ void main() {
 		value = (value - valueMin) / (valueMax - valueMin);
 	}
 	//TODO insert the gradient tex size
-	value = value * 1023. / 1024.;
+	value = value * <?=clnumber(gradTexWidth-1)?> / <?=clnumber(gradTexWidth)?>;
 	vec4 voxelColor = texture1D(gradientTex, value);
 	voxelColor.a = pow(alpha, alphaGamma);
 	
@@ -53,4 +58,6 @@ void main() {
 	gl_FragColor = vec4(voxelColor.rgb, voxelColor.a * alpha);
 }
 
-#endif	//FRAGMENT_SHADER
+<?
+end
+?>
