@@ -219,7 +219,7 @@ local initStates = {
 		init = function(solver)
 			return [[
 	real rSq = real3_dot(x,x);
-	bool inside = rSq < .2*.2;
+	bool inside = rSq < .5*.5;
 	rho = inside ? 1 : .1;
 	P = inside ? 1 : .1;
 ]]
