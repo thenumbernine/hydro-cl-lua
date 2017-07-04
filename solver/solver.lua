@@ -156,6 +156,12 @@ function Solver:init(args)
 
 	for i=self.dim,2 do self.gridSize:ptr()[i] = 1 end
 
+	self.stepSize = vec3sz()
+	self.stepSize.x = 1
+	for i=1,self.dim-1 do
+		self.stepSize:ptr()[i] = self.stepSize:ptr()[i-1] * self.gridSize:ptr()[i-1]
+	end
+
 	self.color = vec3(math.random(), math.random(), math.random()):normalize()
 
 	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))

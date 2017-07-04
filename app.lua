@@ -332,7 +332,9 @@ function HydroCLApp:initGL(...)
 	--self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
-	
+
+
+
 	local gradTexWidth = 1024
 	self.gradientTex = GLGradientTex(gradTexWidth, {
 	-- [[ white, rainbow, black
@@ -691,6 +693,33 @@ function HydroCLApp:update(...)
 	HydroCLApp.super.update(self, ...)
 end
 
+function HydroCLApp:showDisplayVar1D(solver, varIndex)
+	local var = solver.displayVars[varIndex]
+	solver:calcDisplayVarToTex(var)	
+	-- display
+
+	self.graphShader:use()
+	solver:getTex(var):bind()
+
+	gl.glUniform1i(self.graphShader.uniforms.useLog.loc, var.useLogPtr[0])
+	gl.glUniform2f(self.graphShader.uniforms.xmin.loc, solver.mins[1], 0)
+	gl.glUniform2f(self.graphShader.uniforms.xmax.loc, solver.maxs[1], 0)
+	gl.glUniform1i(self.graphShader.uniforms.axis.loc, solver.dim)
+	gl.glUniform2f(self.graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
+
+	gl.glColor3f(table.unpack((#self.solvers > 1 and solver or var).color))
+	gl.glBegin(gl.GL_LINE_STRIP)
+	local step = 1
+	for i=2,tonumber(solver.gridSize.x)-2,step do
+		local x = (i+.5)/tonumber(solver.gridSize.x)
+		gl.glVertex2f(x, 0)
+	end
+	gl.glEnd()
+	
+	solver:getTex(var):unbind()
+	self.graphShader:useNone()
+end
+
 function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
@@ -903,11 +932,48 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 --	gl.glDisable(gl.GL_DEPTH_TEST)
 end
 
+-- 2D
+local vertexesInQuad = {{0,0},{1,0},{1,1},{0,1}}
+
+-- 3D
+local vertexesInCube = {
+	0,0,0,
+	1,0,0,
+	0,1,0,
+	1,1,0,
+	0,0,1,
+	1,0,1,
+	0,1,1,
+	1,1,1,
+}
+
+local quadsInCube = {
+	0,1,3,2,
+	4,6,7,5,
+	1,5,7,3,
+	0,2,6,4,
+	0,4,5,1,
+	2,3,7,6,
+}
+	
 local vec4d = require 'ffi.vec.vec4d'
 function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	self.view:projection(ar)
 	self.view:modelview()
-	
+
+	if not self.display3D_usePoints then
+		self.display3D_usePoints = ffi.new('bool[1]', false)
+	end
+	if not self.display3D_alpha then
+		self.display3D_alpha = ffi.new('float[1]', .15)
+	end
+	if not self.display3D_alphaGamma then
+		self.display3D_alphaGamma = ffi.new('float[1]', 1)
+	end
+	if not self.display3D_numSlices then
+		self.display3D_numSlices = ffi.new('int[1]', 255)
+	end
+
 	for _,solver in ipairs(solvers) do 
 		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
 		if varIndex then
@@ -926,82 +992,69 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 			solver.volumeSliceShader:use()
 			solver:getTex(var):bind(0)
 			self.gradientTex:bind(1)
-			gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha.loc, .15)
-			gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, 1)
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha.loc, self.display3D_alpha[0])
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, self.display3D_alphaGamma[0])
 			gl.glUniform3f(solver.volumeSliceShader.uniforms.mins.loc, solver.mins:unpack())
 			gl.glUniform3f(solver.volumeSliceShader.uniforms.maxs.loc, solver.maxs:unpack())
 			gl.glUniform1i(solver.volumeSliceShader.uniforms.useLog.loc, var.useLogPtr[0])
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMin.loc, valueMin)
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMax.loc, valueMax)
 
-			gl.glEnable(gl.GL_TEXTURE_GEN_S)
-			gl.glEnable(gl.GL_TEXTURE_GEN_T)
-			gl.glEnable(gl.GL_TEXTURE_GEN_R)
-			gl.glTexGeni(gl.GL_S, gl.GL_TEXTURE_GEN_MODE, gl.GL_OBJECT_LINEAR)
-			gl.glTexGeni(gl.GL_T, gl.GL_TEXTURE_GEN_MODE, gl.GL_OBJECT_LINEAR)
-			gl.glTexGeni(gl.GL_R, gl.GL_TEXTURE_GEN_MODE, gl.GL_OBJECT_LINEAR)
-			gl.glTexGendv(gl.GL_S, gl.GL_OBJECT_PLANE, vec4d(1,0,0,0):ptr())
-			gl.glTexGendv(gl.GL_T, gl.GL_OBJECT_PLANE, vec4d(0,1,0,0):ptr())
-			gl.glTexGendv(gl.GL_R, gl.GL_OBJECT_PLANE, vec4d(0,0,1,0):ptr())
-
-			--[[ points
-			gl.glEnable(gl.GL_DEPTH_TEST)
-			gl.glPointSize(2)
-			gl.glBegin(gl.GL_POINTS)
-			for i=1,tonumber(solver.gridSize.x) do
-				for j=1,tonumber(solver.gridSize.y) do
-					for k=1,tonumber(solver.gridSize.z) do
-						gl.glVertex3d( 
-							(i - .5)/tonumber(solver.gridSize.x),
-							(j - .5)/tonumber(solver.gridSize.y),
-							(k - .5)/tonumber(solver.gridSize.z))
+			if self.display3D_usePoints[0] then
+				gl.glEnable(gl.GL_DEPTH_TEST)
+				gl.glPointSize(2)
+				gl.glBegin(gl.GL_POINTS)
+				local numGhost = solver.numGhost
+				for i=numGhost+1,tonumber(solver.gridSize.x-numGhost) do
+					for j=numGhost+1,tonumber(solver.gridSize.y-numGhost) do
+						for k=numGhost+1,tonumber(solver.gridSize.z-numGhost) do
+							gl.glVertex3d( 
+								(i - numGhost - .5)/tonumber(solver.gridSize.x - 2*numGhost),
+								(j - numGhost - .5)/tonumber(solver.gridSize.y - 2*numGhost),
+								(k - numGhost - .5)/tonumber(solver.gridSize.z - 2*numGhost))
+						end
 					end
 				end
-			end
-			gl.glEnd()
-			gl.glDisable(gl.GL_DEPTH_TEST)
-			--]]
-			-- [[ slices
-			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-			gl.glEnable(gl.GL_BLEND)
-
-			local n = 255
-			local fwd = -self.frustumView.angle:conjugate():zAxis()
-			local fwddir = select(2, table(fwd):map(math.abs):sup())
-
-			local quad = {{0,0},{1,0},{1,1},{0,1}}
-			local jmin, jmax, jdir
-			if fwd[fwddir] < 0 then
-				jmin, jmax, jdir = 0, n, 1
+				gl.glEnd()
+				gl.glDisable(gl.GL_DEPTH_TEST)
+			
 			else
-				jmin, jmax, jdir = n, 0, -1
-			end
-			gl.glUniform3f(solver.volumeSliceShader.uniforms.normal.loc, 
-				fwddir == 1 and jdir or 0, 
-				fwddir == 2 and jdir or 0, 
-				fwddir == 3 and jdir or 0)
 			
-			gl.glBegin(gl.GL_QUADS)
-			for j=jmin,jmax,jdir do
-				local f = j/n
-				for _,vtx in ipairs(quad) do
-					if fwddir == 1 then
-						gl.glVertex3f(f, vtx[1], vtx[2])
-					elseif fwddir == 2 then
-						gl.glVertex3f(vtx[1], f, vtx[2])
-					elseif fwddir == 3 then
-						gl.glVertex3f(vtx[1], vtx[2], f)
+				gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+				gl.glEnable(gl.GL_BLEND)
+
+				local n = self.display3D_numSlices[0]
+				local fwd = -self.frustumView.angle:conjugate():zAxis()
+				local fwddir = select(2, table(fwd):map(math.abs):sup())
+
+				local jmin, jmax, jdir
+				if fwd[fwddir] < 0 then
+					jmin, jmax, jdir = 0, n, 1
+				else
+					jmin, jmax, jdir = n, 0, -1
+				end
+				gl.glUniform3f(solver.volumeSliceShader.uniforms.normal.loc, 
+					fwddir == 1 and jdir or 0, 
+					fwddir == 2 and jdir or 0, 
+					fwddir == 3 and jdir or 0)
+				
+				gl.glBegin(gl.GL_QUADS)
+				for j=jmin,jmax,jdir do
+					local f = j/n
+					for _,vtx in ipairs(vertexesInQuad) do
+						if fwddir == 1 then
+							gl.glVertex3f(f, vtx[1], vtx[2])
+						elseif fwddir == 2 then
+							gl.glVertex3f(vtx[1], f, vtx[2])
+						elseif fwddir == 3 then
+							gl.glVertex3f(vtx[1], vtx[2], f)
+						end
 					end
 				end
-			end
-			gl.glEnd()
-			--]]
+				gl.glEnd()
 			
-			gl.glDisable(gl.GL_BLEND)
-
-			gl.glDisable(gl.GL_TEXTURE_GEN_S)
-			gl.glDisable(gl.GL_TEXTURE_GEN_T)
-			gl.glDisable(gl.GL_TEXTURE_GEN_R)
+				gl.glDisable(gl.GL_BLEND)
+			end
 
 			self.gradientTex:unbind(1)
 			solver:getTex(var):unbind(0)
@@ -1015,26 +1068,6 @@ function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, 
 	self.view:projection(ar)
 	self.view:modelview()
 
-	local vertexes = {
-		0,0,0,
-		1,0,0,
-		0,1,0,
-		1,1,0,
-		0,0,1,
-		1,0,1,
-		0,1,1,
-		1,1,1,
-	}
-
-	local quads = {
-		0,1,3,2,
-		4,6,7,5,
-		1,5,7,3,
-		0,2,6,4,
-		0,4,5,1,
-		2,3,7,6,
-	}
-	
 	for _,solver in ipairs(solvers) do
 		local volumeRayShader = solver.volumeRayShader
 		gl.glColor3f(1,1,1)
@@ -1056,9 +1089,9 @@ function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, 
 			end
 			gl.glBegin(gl.GL_QUADS)
 			for i=1,24 do
-				local x = vertexes[quads[i] * 3 + 0 + 1]
-				local y = vertexes[quads[i] * 3 + 1 + 1]
-				local z = vertexes[quads[i] * 3 + 2 + 1]
+				local x = vertexesInCube[quadsInCube[i] * 3 + 0 + 1]
+				local y = vertexesInCube[quadsInCube[i] * 3 + 1 + 1]
+				local z = vertexesInCube[quadsInCube[i] * 3 + 2 + 1]
 				gl.glTexCoord3f(x, y, z)
 				x = x * (solver.maxs[1] - solver.mins[1]) + solver.mins[1]
 				y = y * (solver.maxs[2] - solver.mins[2]) + solver.mins[2]
@@ -1082,35 +1115,227 @@ function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, 
 glreport'here'
 end
 
---HydroCLApp.display3D = HydroCLApp.display3D_Ray
-HydroCLApp.display3D = HydroCLApp.display3D_Slice
+--[[
 
-function HydroCLApp:showDisplayVar1D(solver, varIndex)
-	local var = solver.displayVars[varIndex]
-	solver:calcDisplayVarToTex(var)	
-	-- display
+6---12--7
+|\      |\
+| 10    8 11
+7  \    |  \
+|   4---9---5
+|   |   |   |
+2---|6--3   |
+ \  3    \  5
+  2 |     4 |
+   \|      \|
+    0---1---1
 
-	self.graphShader:use()
-	solver:getTex(var):bind()
+edges:
+0 1
+0 2
+0 4
+1 3
+1 5
+2 3
+2 6
+3 7
+4 5
+4 6
+5 7
+6 7
 
-	gl.glUniform1i(self.graphShader.uniforms.useLog.loc, var.useLogPtr[0])
-	gl.glUniform2f(self.graphShader.uniforms.xmin.loc, solver.mins[1], 0)
-	gl.glUniform2f(self.graphShader.uniforms.xmax.loc, solver.maxs[1], 0)
-	gl.glUniform1i(self.graphShader.uniforms.axis.loc, solver.dim)
-	gl.glUniform2f(self.graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
+--]]
 
-	gl.glColor3f(table.unpack((#self.solvers > 1 and solver or var).color))
-	gl.glBegin(gl.GL_LINE_STRIP)
-	local step = 1
-	for i=2,tonumber(solver.gridSize.x)-2,step do
-		local x = (i+.5)/tonumber(solver.gridSize.x)
-		gl.glVertex2f(x, 0)
-	end
-	gl.glEnd()
+-- maps from the sum of two vertex bits to the edge index 
+local edgeForTwoCorners = table.map({
+	2^0 + 2^1,
+	2^0 + 2^2,
+	2^0 + 2^4,
+	2^1 + 2^3,
+	2^1 + 2^5,
+	2^2 + 2^3,
+	2^2 + 2^6,
+	2^3 + 2^7,
+	2^4 + 2^5,
+	2^4 + 2^6,
+	2^5 + 2^7,
+	2^6 + 2^7,
+}, function(v,k)
+	return k,v
+end)
+
+local edgesForInside = {
+	[2^0] = {1, 2, 3},
+	[2^1] = {1, 4, 5},
+	[2^2] = {2, 6, 7},
+	[2^3] = {4, 6, 8},
+	[2^4] = {3, 9, 10},
+	[2^5] = {5, 9, 11},
+	[2^6] = {7, 10, 12},
+	[2^7] = {8, 11, 12},
+
+
+	[2^0 + 2^1] = {2, 3, 5, 5, 4, 2},
+	[2^2 + 2^3] = {2, 4, 8, 8, 7, 2},
+	[2^4 + 2^5] = {3, 5, 11, 11, 10, 3},
+	[2^6 + 2^7] = {7, 8, 11, 11, 10, 7},
 	
-	solver:getTex(var):unbind()
-	self.graphShader:useNone()
+	[2^0 + 2^2] = {1, 3, 7, 7, 6, 1},
+	[2^1 + 2^3] = {1, 5, 8, 8, 6, 1},
+	[2^4 + 2^6] = {3, 7, 12, 12, 9, 3},
+	[2^5 + 2^7] = {5, 8, 12, 12, 9, 5},
+	
+	[2^0 + 2^4] = {1, 2, 10, 10, 9, 1},
+	[2^1 + 2^5] = {1, 4, 11, 11, 9, 1},
+	[2^2 + 2^6] = {2, 6, 12, 12, 10, 2},
+	[2^3 + 2^7] = {4, 6, 12, 12, 11, 4},
+
+
+	[2^0 + 2^1 + 2^2 + 2^3] = {3, 5, 8, 8, 7, 3},
+
+	[2^0 + 2^2 + 2^4 + 2^6] = {1, 6, 12, 12, 9, 1},
+
+	[2^0 + 2^1 + 2^4 + 2^5] = {2, 4, 11, 11, 10, 2},
+}
+
+for _,k in ipairs(table.keys(edgesForInside)) do
+	edgesForInside[bit.band(0xff, bit.bnot(k))] = edgesForInside[k]
 end
+
+local vec3d = require 'ffi.vec.vec3d'
+function HydroCLApp:display3D_Isosurface(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
+	self.view:projection(ar)
+	self.view:modelview()
+
+	-- draw wireframe
+	for _,solver in ipairs(solvers) do
+		local volumeRayShader = solver.volumeRayShader
+		gl.glColor3f(1,1,1)
+		gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+		gl.glBegin(gl.GL_QUADS)
+		for i=1,24 do
+			local x = vertexesInCube[quadsInCube[i] * 3 + 0 + 1]
+			local y = vertexesInCube[quadsInCube[i] * 3 + 1 + 1]
+			local z = vertexesInCube[quadsInCube[i] * 3 + 2 + 1]
+			gl.glTexCoord3f(x, y, z)
+			x = x * (solver.maxs[1] - solver.mins[1]) + solver.mins[1]
+			y = y * (solver.maxs[2] - solver.mins[2]) + solver.mins[2]
+			z = z * (solver.maxs[3] - solver.mins[3]) + solver.mins[3]
+			gl.glVertex3f(x, y, z)
+		end
+		gl.glEnd()
+		gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
+	end
+			
+	gl.glColor3f(1,1,1)
+	gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+	gl.glDisable(gl.GL_CULL_FACE)
+	gl.glBegin(gl.GL_TRIANGLES)
+
+	for _,solver in ipairs(solvers) do 
+		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
+		if varIndex then
+			local valueMin, valueMax
+			if var.heatMapFixedRangePtr[0] then
+				valueMin = var.heatMapValueMinPtr[0]
+				valueMax = var.heatMapValueMaxPtr[0]
+			else
+				valueMin, valueMax = solver:calcDisplayVarRange(var)
+				var.heatMapValueMinPtr[0] = valueMin
+				var.heatMapValueMaxPtr[0] = valueMax
+			end
+			
+			solver:calcDisplayVarToTex(var)	
+			
+			assert(not self.useGLSharing, "I still need to code in the GL sharing version")
+			local dest = ffi.cast('float*', solver.calcDisplayVarToTexPtr)
+			local cornerValues = {}
+			local edgeVtxs = {}
+
+			--[[ snap to power-of-10
+			local valueDelta = valueMax - valueMin
+			local deltaLog10 = math.log(valueDelta, 10)	-- how big is our interval in log10
+			local isostep = 10^math.floor(deltaLog10)
+			local minBar = math.ceil(valueMin / isostep)
+			local maxBar = math.floor(valueMax / isostep)
+			for bar=minBar,maxBar do
+				local isoValue = isostep * bar
+			--]]
+			-- [[ span value range evenly
+			local numBars = 1
+			for bar=.5,numBars do
+				local f = bar / numBars
+				local isoValue = valueMin * (1 - f) + valueMax * f
+			--]]
+	
+				for k=solver.numGhost,tonumber(solver.gridSize.z)-solver.numGhost-1 do
+					for j=solver.numGhost,tonumber(solver.gridSize.y)-solver.numGhost-1 do
+						for i=solver.numGhost,tonumber(solver.gridSize.x)-solver.numGhost-1 do
+							local ofs = i + solver.gridSize.x * (j + solver.gridSize.y * k)
+							
+							local inside = 0
+							for corner=0,7 do
+								local cornerOfs = ofs
+								for n=0,2 do
+									if bit.band(bit.rshift(corner, n), 1) == 1 then
+										cornerOfs = cornerOfs + solver.stepSize:ptr()[n]
+									end
+								end
+								local cornerValue = dest[cornerOfs]
+								cornerValues[corner] = cornerValue
+								if cornerValue > isoValue then
+									inside = bit.bor(inside, bit.lshift(1, corner))
+								end
+							end
+							-- now for each 0/1 pair along each edge, calculate the fractions based on the fractions of values across corners
+							for corner=0,6 do
+								for n=0,2 do
+									local sign = bit.band(bit.rshift(corner, n), 1) == 0 and 1 or -1
+									local nextCorner = bit.bxor(corner, bit.lshift(1, n))
+									if nextCorner > corner then
+										--v.x, v.y, v.z = i, j, k
+										local v = vec3d(i,j,k)
+										for m=0,2 do
+											if bit.band(corner, bit.lshift(1,m)) ~= 0 then
+												v:ptr()[m] = v:ptr()[m] + 1
+											end
+										end
+										
+										local frac = (isoValue - cornerValues[corner]) / (cornerValues[nextCorner] - cornerValues[corner])
+										v:ptr()[n] = v:ptr()[n] + sign * frac
+									
+										local twoCornerIndex = bit.bor(bit.lshift(1, corner), bit.lshift(1, nextCorner))
+										local edge = edgeForTwoCorners[twoCornerIndex]
+										edgeVtxs[edge] = v 
+									end
+								end
+							end
+							
+							local edges = edgesForInside[inside]
+							if edges then
+								for _,edge in ipairs(edges) do
+									local x,y,z = edgeVtxs[edge]:unpack()
+									
+									x = (x - solver.numGhost) / tonumber(solver.gridSize.x - 2 * solver.numGhost) * (solver.maxs[1] - solver.mins[1]) + solver.mins[1]
+									y = (y - solver.numGhost) / tonumber(solver.gridSize.y - 2 * solver.numGhost) * (solver.maxs[2] - solver.mins[2]) + solver.mins[2]
+									z = (z - solver.numGhost) / tonumber(solver.gridSize.z - 2 * solver.numGhost) * (solver.maxs[3] - solver.mins[3]) + solver.mins[3]
+									
+									gl.glVertex3d(x,y,z)
+								end
+							end
+						end
+					end
+				end
+			end	
+		end
+	end
+	
+	gl.glEnd()
+	gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
+end
+
+--HydroCLApp.display3D = HydroCLApp.display3D_Slice
+--HydroCLApp.display3D = HydroCLApp.display3D_Ray
+HydroCLApp.display3D = HydroCLApp.display3D_Isosurface
 
 function HydroCLApp:updateGUI()
 	if ig.igCollapsingHeader'simulation' then
@@ -1170,6 +1395,22 @@ function HydroCLApp:updateGUI()
 		if ig.igRadioButtonBool('frustum', self.view == self.frustumView) then
 			self.view = self.frustumView
 		end
+	
+		-- TODO flag for separate/combined displays (esp for ortho view)
+
+		-- TODO flag to toggle slice vs volume display
+		-- or maybe checkboxes for each kind?
+		if self.view == self.frustumView then
+			-- if we're doing 3D slice display 
+			if self.display3D == self.display3D_Slice then
+				ig.igSliderFloat('alpha', self.display3D_alpha, 0, 1)
+				ig.igSliderFloat('gamma', self.display3D_alphaGamma, 0, 1)
+				ig.igCheckbox('pointcloud', self.display3D_usePoints)
+				if not self.display3D_usePoints[0] then
+					ig.igInputInt('num slices', self.display3D_numSlices)
+				end
+			end
+		end
 	end
 	
 	for i,solver in ipairs(self.solvers) do
@@ -1201,7 +1442,7 @@ function HydroCLApp:event(event, ...)
 			if leftButtonDown and not guiDown then
 				if shiftDown then
 					if dx ~= 0 or dy ~= 0 then
-						self.view:mouseZoom(dx, -dx) --dy
+						self.view:mouseZoom(-dy, dy)
 					end
 				else
 					if dx ~= 0 or dy ~= 0 then
