@@ -535,6 +535,11 @@ end
 HydroCLApp.updateMethod = nil
 
 function HydroCLApp:update(...)
+	
+	if not self.displayAllTogether then
+		self.displayAllTogether = ffi.new('bool[1]', false)
+	end
+	
 	if self.updateMethod then
 		if self.updateMethod == 'step' then 
 			print('performing single step...')
@@ -653,11 +658,13 @@ function HydroCLApp:update(...)
 			ymax = 5
 		end
 
-		gl.glViewport(
-			graphCol / graphsWide * w,
-			(1 - (graphRow + 1) / graphsHigh) * h,
-			w / graphsWide,
-			h / graphsHigh)
+		if not self.displayAllTogether[0] then
+			gl.glViewport(
+				graphCol / graphsWide * w,
+				(1 - (graphRow + 1) / graphsHigh) * h,
+				w / graphsWide,
+				h / graphsHigh)
+		end
 
 		-- TODO maybe find the first solver for this var and use it to choose 1D,2D,3D
 		local dim = self.solvers[1].dim
@@ -722,6 +729,8 @@ function HydroCLApp:showDisplayVar1D(solver, varIndex)
 	self.graphShader:use()
 	solver:getTex(var):bind()
 
+	gl.glUniform1f(self.graphShader.uniforms.scale.loc, 1)
+	gl.glUniform1f(self.graphShader.uniforms.ambient.loc, 1)
 	gl.glUniform1i(self.graphShader.uniforms.useLog.loc, var.useLogPtr[0])
 	gl.glUniform2f(self.graphShader.uniforms.xmin.loc, solver.mins[1], 0)
 	gl.glUniform2f(self.graphShader.uniforms.xmax.loc, solver.maxs[1], 0)
@@ -957,7 +966,8 @@ function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin
 	self.view:projection(ar)
 	self.view:modelview()
 	gl.glColor3f(1,1,1)
-	
+	gl.glEnable(gl.GL_DEPTH_TEST)
+
 	for _,solver in ipairs(solvers) do 
 		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
 		if varIndex then
@@ -972,11 +982,21 @@ function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin
 				var.heatMapValueMaxPtr[0] = valueMax
 			end
 
+			-- TODO gui this somewhere
+			local step = 1
+			local scale = 1
+			local ambient = .3
+			
+			-- TODO where to specify using the heatmap gradient vs using the variable/solver color
+			gl.glColor3f(table.unpack((#self.solvers > 1 and solver or var).color))
+
 			solver:calcDisplayVarToTex(var)
 	
 			self.graphShader:use()
 			solver:getTex(var):bind()
 
+			gl.glUniform1f(self.graphShader.uniforms.scale.loc, scale)
+			gl.glUniform1f(self.graphShader.uniforms.ambient.loc, ambient)
 			gl.glUniform1i(self.graphShader.uniforms.axis.loc, solver.dim)
 			gl.glUniform1i(self.graphShader.uniforms.useLog.loc, var.useLogPtr[0])
 			gl.glUniform2f(self.graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
@@ -985,11 +1005,10 @@ function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin
 
 			gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
 
-			local step = 1
-			for ybase=2,tonumber(solver.gridSize.y)-3,step do
+			for ybase=2,tonumber(solver.gridSize.y)-2-step,step do
 				gl.glBegin(gl.GL_TRIANGLE_STRIP)
 				for x=2,tonumber(solver.gridSize.x)-2,step do
-					for yofs=0,step do
+					for yofs=0,step,step do
 						local y = ybase + yofs
 						gl.glVertex2d(
 							(x + .5) / tonumber(solver.gridSize.x),
@@ -1004,6 +1023,8 @@ function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin
 			self.graphShader:useNone()
 		end
 	end
+	
+	gl.glDisable(gl.GL_DEPTH_TEST)
 end
 
 local display2DMethods = table{
@@ -1598,7 +1619,9 @@ function HydroCLApp:updateGUI()
 				end
 			end
 		end
-	
+
+		ig.igCheckbox('stack graphs', self.displayAllTogether)
+
 		if ig.igRadioButtonBool('ortho', self.view == self.orthoView) then
 			self.view = self.orthoView
 		end
