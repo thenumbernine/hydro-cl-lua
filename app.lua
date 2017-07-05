@@ -121,7 +121,7 @@ function HydroCLApp:initGL(...)
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 3,
+		dim = cmdline.dim or 2,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
@@ -148,9 +148,9 @@ function HydroCLApp:initGL(...)
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 32,
-			cmdline.gridSize or 32,
-			cmdline.gridSize or 32,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -810,7 +810,7 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 	end
 end
 
-function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, graph_xmax, graph_ymax)
+function HydroCLApp:display2D_Heatmap(solvers, varName, ar, graph_xmin, graph_ymin, graph_xmax, graph_ymax)
 	self.view:projection(ar)
 	self.view:modelview()
 	if self.view.getOrthoBounds then
@@ -951,6 +951,71 @@ function HydroCLApp:display2D(solvers, varName, ar, graph_xmin, graph_ymin, grap
 	end
 	
 --	gl.glDisable(gl.GL_DEPTH_TEST)
+end
+
+function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin, graph_xmax, graph_ymax)
+	self.view:projection(ar)
+	self.view:modelview()
+	gl.glColor3f(1,1,1)
+	
+	for _,solver in ipairs(solvers) do 
+		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
+		if varIndex then
+			-- TODO allow a fixed, manual colormap range
+			local valueMin, valueMax
+			if var.heatMapFixedRangePtr[0] then
+				valueMin = var.heatMapValueMinPtr[0]
+				valueMax = var.heatMapValueMaxPtr[0]
+			else
+				valueMin, valueMax = solver:calcDisplayVarRange(var)
+				var.heatMapValueMinPtr[0] = valueMin
+				var.heatMapValueMaxPtr[0] = valueMax
+			end
+
+			solver:calcDisplayVarToTex(var)
+	
+			self.graphShader:use()
+			solver:getTex(var):bind()
+
+			gl.glUniform1i(self.graphShader.uniforms.axis.loc, solver.dim)
+			gl.glUniform1i(self.graphShader.uniforms.useLog.loc, var.useLogPtr[0])
+			gl.glUniform2f(self.graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
+			gl.glUniform2f(self.graphShader.uniforms.xmin.loc, solver.mins[1], solver.mins[2])
+			gl.glUniform2f(self.graphShader.uniforms.xmax.loc, solver.maxs[1], solver.maxs[2])
+
+			gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+
+			local step = 1
+			for ybase=2,tonumber(solver.gridSize.y)-3,step do
+				gl.glBegin(gl.GL_TRIANGLE_STRIP)
+				for x=2,tonumber(solver.gridSize.x)-2,step do
+					for yofs=0,step do
+						local y = ybase + yofs
+						gl.glVertex2d(
+							(x + .5) / tonumber(solver.gridSize.x),
+							(y + .5) / tonumber(solver.gridSize.y))
+					end
+				end
+				gl.glEnd()
+			end
+			
+			gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
+			
+			self.graphShader:useNone()
+		end
+	end
+end
+
+local display2DMethods = table{
+	{Heatmap = HydroCLApp.display2D_Heatmap},
+	{Graph = HydroCLApp.display2D_Graph},
+}
+local display2DMethodNames = display2DMethods:map(function(kv)
+	return (next(kv))
+end)
+function HydroCLApp:display2D(...)
+	self.display2DMethod = self.display2DMethod or ffi.new('int[1]', 0)
+	select(2, next(display2DMethods[ self.display2DMethod[0]+1 ]))(self, ...)
 end
 
 -- 2D
@@ -1473,7 +1538,7 @@ end
 local display3DMethods = table{
 	{Slices = HydroCLApp.display3D_Slice},
 	{Raytrace = HydroCLApp.display3D_Ray},
-	{Isosurfaces = HydroCLApp.display3D_Isosurfaces},
+	{Isosurfaces = HydroCLApp.display3D_Isosurface},
 }
 local display3DMethodNames =  display3DMethods:map(function(kv)
 	return (next(kv))
@@ -1546,24 +1611,32 @@ function HydroCLApp:updateGUI()
 
 		-- TODO flag to toggle slice vs volume display
 		-- or maybe checkboxes for each kind?
-		if self.solvers[1]
-		and self.solvers[1].dim == 3 
-		then
-			ig.igCombo('Display Method', self.display3DMethod, display3DMethodNames)
+		
+		if self.solvers[1] then
+			local dim = self.solvers[1].dim
+			if dim == 2 then
+				ig.igPushIdStr'2D'
+				ig.igCombo('Display Method', self.display2DMethod, display2DMethodNames)
+				ig.igPopId()
+			elseif dim == 3 then
+				ig.igPushIdStr'3D'
+				ig.igCombo('Display Method', self.display3DMethod, display3DMethodNames)
 
-			-- if we're doing 3D slice display 
-			if HydroCLApp.display3D_Slice == select(2, next(display3DMethods[self.display3DMethod[0]+1])) then
-				ig.igSliderFloat('alpha', self.display3D_Slice_alpha, 0, 1)
-				ig.igSliderFloat('gamma', self.display3D_Slice_alphaGamma, 0, 1)
-				ig.igCheckbox('isobars', self.display3D_Slice_useIsos)
-				if self.display3D_Slice_useIsos[0] then
-					ig.igInputInt('num isobars', self.display3D_Slice_numIsobars)
+				-- if we're doing 3D slice display 
+				if HydroCLApp.display3D_Slice == select(2, next(display3DMethods[self.display3DMethod[0]+1])) then
+					ig.igSliderFloat('alpha', self.display3D_Slice_alpha, 0, 1)
+					ig.igSliderFloat('gamma', self.display3D_Slice_alphaGamma, 0, 1)
+					ig.igCheckbox('isobars', self.display3D_Slice_useIsos)
+					if self.display3D_Slice_useIsos[0] then
+						ig.igInputInt('num isobars', self.display3D_Slice_numIsobars)
+					end
+					ig.igCheckbox('lighting', self.display3D_Slice_useLighting)
+					ig.igCheckbox('pointcloud', self.display3D_Slice_usePoints)
+					if not self.display3D_Slice_usePoints[0] then
+						ig.igInputInt('num slices', self.display3D_Slice_numSlices)
+					end
 				end
-				ig.igCheckbox('lighting', self.display3D_Slice_useLighting)
-				ig.igCheckbox('pointcloud', self.display3D_Slice_usePoints)
-				if not self.display3D_Slice_usePoints[0] then
-					ig.igInputInt('num slices', self.display3D_Slice_numSlices)
-				end
+				ig.igPopId()
 			end
 		end
 	end

@@ -74,14 +74,6 @@ void main() {
 
 	//don't bother with the gamma factor if we're using isobars
 	if (useIsos) {
-		/*
-		float isoAlpha = cos(frac * M_PI * numIsobars);
-		isoAlpha *= isoAlpha;
-		isoAlpha *= isoAlpha;
-		isoAlpha *= isoAlpha;
-		isoAlpha *= isoAlpha;
-		isoAlpha *= isoAlpha;
-		*/	
 		float ffrac = fract(frac * numIsobars);
 #define stepThickness .1
 		float isoAlpha = smoothstep(0., stepThickness / 3., ffrac) 
