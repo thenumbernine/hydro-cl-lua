@@ -227,10 +227,10 @@ function HydroCLApp:initGL(...)
 		--initState = 'linear',
 		--initState = 'gaussian',
 		--initState = 'advect wave',
-		initState = 'sphere',
+		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -439,6 +439,27 @@ function HydroCLApp:initGL(...)
 			solver.volumeSliceShader = volumeSliceShader
 		end
 	end
+
+	self.isobarShader = GLProgram{
+		vertexCode = [[
+varying vec4 color;
+void main() {
+	color = gl_Color;
+	gl_Position = ftransform();
+}
+]],
+		fragmentCode = [[
+varying vec4 color;
+void main() {
+	float dx_dz = dFdx(gl_FragCoord.z);
+	float dy_dz = dFdy(gl_FragCoord.z);
+
+	vec3 n = normalize(vec3(dx_dz, dy_dz, 10.));
+
+	gl_FragColor = vec4(color.rgb * n.z, color.a);
+}
+]],
+	}
 
 	-- [[ need to get image loading working
 	local fonttex = GLTex2D{
@@ -955,24 +976,19 @@ local quadsInCube = {
 	0,4,5,1,
 	2,3,7,6,
 }
-	
+
 local vec4d = require 'ffi.vec.vec4d'
 function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	self.view:projection(ar)
 	self.view:modelview()
 
-	if not self.display3D_usePoints then
-		self.display3D_usePoints = ffi.new('bool[1]', false)
-	end
-	if not self.display3D_alpha then
-		self.display3D_alpha = ffi.new('float[1]', .15)
-	end
-	if not self.display3D_alphaGamma then
-		self.display3D_alphaGamma = ffi.new('float[1]', 1)
-	end
-	if not self.display3D_numSlices then
-		self.display3D_numSlices = ffi.new('int[1]', 255)
-	end
+	if not self.display3D_Slice_usePoints then self.display3D_Slice_usePoints = ffi.new('bool[1]', false) end
+	if not self.display3D_Slice_useIsos then self.display3D_Slice_useIsos = ffi.new('bool[1]', true) end
+	if not self.display3D_Slice_numIsobars then self.display3D_Slice_numIsobars = ffi.new('int[1]', 20) end
+	if not self.display3D_Slice_useLighting then self.display3D_Slice_useLighting = ffi.new('bool[1]', false) end
+	if not self.display3D_Slice_alpha then self.display3D_Slice_alpha = ffi.new('float[1]', .15) end
+	if not self.display3D_Slice_alphaGamma then self.display3D_Slice_alphaGamma = ffi.new('float[1]', 1) end
+	if not self.display3D_Slice_numSlices then self.display3D_Slice_numSlices = ffi.new('int[1]', 255) end
 
 	for _,solver in ipairs(solvers) do 
 		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
@@ -992,15 +1008,21 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 			solver.volumeSliceShader:use()
 			solver:getTex(var):bind(0)
 			self.gradientTex:bind(1)
-			gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha.loc, self.display3D_alpha[0])
-			gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, self.display3D_alphaGamma[0])
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha.loc, self.display3D_Slice_alpha[0])
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, self.display3D_Slice_alphaGamma[0])
 			gl.glUniform3f(solver.volumeSliceShader.uniforms.mins.loc, solver.mins:unpack())
 			gl.glUniform3f(solver.volumeSliceShader.uniforms.maxs.loc, solver.maxs:unpack())
 			gl.glUniform1i(solver.volumeSliceShader.uniforms.useLog.loc, var.useLogPtr[0])
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMin.loc, valueMin)
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMax.loc, valueMax)
+			gl.glUniform1i(solver.volumeSliceShader.uniforms.useIsos.loc, self.display3D_Slice_useIsos[0])
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.numIsobars.loc, self.display3D_Slice_numIsobars[0])
+			gl.glUniform1i(solver.volumeSliceShader.uniforms.useLighting.loc, self.display3D_Slice_useLighting[0])
 
-			if self.display3D_usePoints[0] then
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.numGhost.loc, solver.numGhost)
+			gl.glUniform3f(solver.volumeSliceShader.uniforms.texSize.loc, solver.gridSize:unpack())
+
+			if self.display3D_Slice_usePoints[0] then
 				gl.glEnable(gl.GL_DEPTH_TEST)
 				gl.glPointSize(2)
 				gl.glBegin(gl.GL_POINTS)
@@ -1023,7 +1045,7 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 				gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 				gl.glEnable(gl.GL_BLEND)
 
-				local n = self.display3D_numSlices[0]
+				local n = self.display3D_Slice_numSlices[0]
 				local fwd = -self.frustumView.angle:conjugate():zAxis()
 				local fwddir = select(2, table(fwd):map(math.abs):sup())
 
@@ -1121,7 +1143,7 @@ end
 |\      |\
 | 10    8 11
 7  \    |  \
-|   4---9---5
+|   4--9----5
 |   |   |   |
 2---|6--3   |
  \  3    \  5
@@ -1129,19 +1151,9 @@ end
    \|      \|
     0---1---1
 
-edges:
-0 1
-0 2
-0 4
-1 3
-1 5
-2 3
-2 6
-3 7
-4 5
-4 6
-5 7
-6 7
+
+76543210
+00010110
 
 --]]
 
@@ -1171,8 +1183,7 @@ function reverse(t)
 	return nt
 end
 
-
-local edgesForInside = {
+local singles = {
 	[2^0] = {1, 2, 3},
 	[2^1] = reverse{1, 4, 5},
 	[2^2] = {2, 6, 7},
@@ -1181,8 +1192,43 @@ local edgesForInside = {
 	[2^5] = {5, 9, 11},
 	[2^6] = reverse{7, 10, 12},
 	[2^7] = {8, 11, 12},
+}
+-- [[ combine all singles that do not share an edge in common
+local function neighbor(corner, corner2)
+	return corner == bit.bxor(corner2, 1)
+		or corner == bit.bxor(corner2, 2)
+		or corner == bit.bxor(corner2, 4)
+end
+for corner=0,6 do
+	for corner2=corner+1,7 do
+		if not neighbor(corner, corner2) then
+			singles[2^corner + 2^corner2] = table():append(singles[2^corner], singles[2^corner2])
+		end
+		for corner3=corner2+1,7 do
+			if not neighbor(corner, corner2) 
+			and not neighbor(corner2, corner3)
+			and not neighbor(corner, corner3)
+			then
+				singles[2^corner + 2^corner2 + 2^corner3] = table():append(singles[2^corner], singles[2^corner2], singles[2^corner3])
+			end
+			for corner4=corner3+1,7 do
+				if not neighbor(corner, corner2) 
+				and not neighbor(corner, corner3)
+				and not neighbor(corner, corner4)
+				and not neighbor(corner2, corner3)
+				and not neighbor(corner2, corner4)
+				and not neighbor(corner3, corner4)
+				then
+					singles[2^corner + 2^corner2 + 2^corner3 + 2^corner4] = table():append(singles[2^corner], singles[2^corner2], singles[2^corner3], singles[2^corner4])
+				end		
+			end
+		end
+	end
+end
+--]]
+edgesForInside = table(single)
 
-
+local doubles = {
 	[2^0 + 2^1] = {2, 3, 5, 5, 4, 2},
 	[2^2 + 2^3] = {2, 4, 8, 8, 7, 2},
 	[2^4 + 2^5] = reverse{3, 5, 11, 11, 10, 3},
@@ -1196,19 +1242,84 @@ local edgesForInside = {
 	[2^0 + 2^4] = {1, 2, 10, 10, 9, 1},
 	[2^1 + 2^5] = reverse{1, 4, 11, 11, 9, 1},
 	[2^2 + 2^6] = {2, 6, 12, 12, 10, 2},
-	  [2^3 + 2^7] = reverse{4, 6, 12, 12, 11, 4},
+	[2^3 + 2^7] = reverse{4, 6, 12, 12, 11, 4},
+}
+-- [[
+for _,pair in ipairs{
+	{ {0,1}, {6,7} },
+	{ {4,5}, {2,3} },
+	
+	{ {0,2}, {5,7} },
+	{ {1,3}, {4,6} },
+	
+	{ {0,4}, {3,7} },
+	{ {1,5}, {2,6} },
+} do
+	local pa, pb = table.unpack(pair)
+	local ka = 2^pa[1] + 2^pa[2]
+	local kb = 2^pb[1] + 2^pb[2]
+	doubles[ka + kb] = table():append(doubles[ka], doubles[kb])
+end
+--]]
+edgesForInside = table(edgesForInside, doubles)
 
+local triples = {
+--[[ something in here is off
+	--bad
+	[2^0 + 2^1 + 2^2] = {3, 5, 7, 4, 6, 7, 7, 5, 4},	
+	[2^0 + 2^1 + 2^3] = {3, 5, 9, 3, 9, 6, 6, 2, 3},
+	[2^0 + 2^2 + 2^3] = {3, 8, 7, 1, 4, 8, 8, 3, 1},
+	[2^1 + 2^2 + 2^3] = {5, 8, 7, 1, 5, 7, 7, 2, 1},
 
+	--bad
+	[2^4 + 2^5 + 2^6] = {3, 7, 5, 5, 7, 12, 12, 11, 5},
+	[2^4 + 2^5 + 2^7] = {3, 9, 5, 3, 10, 12, 12, 8, 3},
+	[2^4 + 2^6 + 2^7] = {3, 7, 8, 3, 8, 11, 11, 9, 3},
+	[2^5 + 2^6 + 2^7] = {5, 7, 8, 5, 9, 10, 10, 7, 5},
+--]]
+	
+	--good
+	[2^0 + 2^2 + 2^6] = {1, 6, 12, 1, 12, 10, 10, 3, 1},
+	[2^0 + 2^2 + 2^4] = {1, 6, 9, 6, 7, 10, 10, 9, 6},
+	[2^0 + 2^4 + 2^6] = {1, 12, 9, 1, 2, 7, 7, 12, 1},
+	[2^2 + 2^4 + 2^6] = {6, 12, 9, 2, 6, 9, 9, 3, 2},
+
+	--good
+	[2^1 + 2^3 + 2^5] = {1, 9, 6, 9, 11, 8, 8, 6, 9},
+	[2^1 + 2^3 + 2^7] = {1, 12, 6, 1, 5, 11, 11, 12, 1},
+	[2^1 + 2^5 + 2^7] = {1, 9, 12, 1, 12, 8, 8, 4, 1},
+	[2^3 + 2^5 + 2^7] = {6, 9, 12, 4, 5, 9, 9, 6, 4},
+
+	--good
+	[2^0 + 2^1 + 2^4] = {2, 10, 4, 4, 10, 9, 9, 5, 4},
+	[2^0 + 2^1 + 2^5] = {2, 11, 4, 2, 3, 9, 9, 11, 2},
+	[2^0 + 2^4 + 2^5] = {2, 10, 11, 1, 2, 11, 11, 5, 1},
+	[2^1 + 2^4 + 2^5] = {4, 10, 11, 1, 3, 10, 10, 4, 1},
+
+	--good
+	[2^2 + 2^3 + 2^6] = {2, 4, 10, 4, 8, 12, 12, 10, 4},
+	[2^2 + 2^3 + 2^7] = {2, 4, 11, 2, 11, 12, 12, 7, 2},
+	[2^2 + 2^6 + 2^7] = {2, 11, 10, 2, 6, 8, 8, 11, 2},
+	[2^3 + 2^6 + 2^7] = {4, 11, 10, 4, 10, 7, 7, 6, 4},
+}
+edgesForInside = table(edgesForInside, triples)
+
+local quads = {
 	[2^0 + 2^1 + 2^2 + 2^3] = {3, 5, 8, 8, 7, 3},
-
 	[2^0 + 2^2 + 2^4 + 2^6] = {1, 6, 12, 12, 9, 1},
-
 	[2^0 + 2^1 + 2^4 + 2^5] = reverse{2, 4, 11, 11, 10, 2},
 }
+edgesForInside = table(edgesForInside, quads)
 
 for _,k in ipairs(table.keys(edgesForInside)) do
 	edgesForInside[bit.band(0xff, bit.bnot(k))] = reverse(edgesForInside[k])
 end
+
+--[[
+for i=0,255 do
+	if not edgesForInside[i] then print(('0x%x'):format(i)) end
+end
+--]]
 
 local vec3d = require 'ffi.vec.vec3d'
 function HydroCLApp:display3D_Isosurface(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
@@ -1240,6 +1351,8 @@ function HydroCLApp:display3D_Isosurface(solvers, varName, ar, xmin, ymin, xmax,
 	gl.glEnable(gl.GL_DEPTH_TEST)
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
 	gl.glEnable(gl.GL_BLEND)
+	
+	self.isobarShader:use()
 	gl.glBegin(gl.GL_TRIANGLES)
 
 	for _,solver in ipairs(solvers) do 
@@ -1351,14 +1464,24 @@ function HydroCLApp:display3D_Isosurface(solvers, varName, ar, xmin, ymin, xmax,
 	end
 	
 	gl.glEnd()
+	self.isobarShader:useNone()
 	gl.glDisable(gl.GL_DEPTH_TEST)
 	gl.glDisable(gl.GL_CULL_FACE)
 	gl.glDisable(gl.GL_BLEND)
 end
 
---HydroCLApp.display3D = HydroCLApp.display3D_Slice
---HydroCLApp.display3D = HydroCLApp.display3D_Ray
-HydroCLApp.display3D = HydroCLApp.display3D_Isosurface
+local display3DMethods = table{
+	{Slices = HydroCLApp.display3D_Slice},
+	{Raytrace = HydroCLApp.display3D_Ray},
+	{Isosurfaces = HydroCLApp.display3D_Isosurfaces},
+}
+local display3DMethodNames =  display3DMethods:map(function(kv)
+	return (next(kv))
+end)
+function HydroCLApp:display3D(...)
+	self.display3DMethod = self.display3DMethod or ffi.new('int[1]', 0)
+	select(2, next(display3DMethods[ self.display3DMethod[0]+1 ]))(self, ...)
+end
 
 function HydroCLApp:updateGUI()
 	if ig.igCollapsingHeader'simulation' then
@@ -1423,14 +1546,23 @@ function HydroCLApp:updateGUI()
 
 		-- TODO flag to toggle slice vs volume display
 		-- or maybe checkboxes for each kind?
-		if self.view == self.frustumView then
+		if self.solvers[1]
+		and self.solvers[1].dim == 3 
+		then
+			ig.igCombo('Display Method', self.display3DMethod, display3DMethodNames)
+
 			-- if we're doing 3D slice display 
-			if self.display3D == self.display3D_Slice then
-				ig.igSliderFloat('alpha', self.display3D_alpha, 0, 1)
-				ig.igSliderFloat('gamma', self.display3D_alphaGamma, 0, 1)
-				ig.igCheckbox('pointcloud', self.display3D_usePoints)
-				if not self.display3D_usePoints[0] then
-					ig.igInputInt('num slices', self.display3D_numSlices)
+			if HydroCLApp.display3D_Slice == select(2, next(display3DMethods[self.display3DMethod[0]+1])) then
+				ig.igSliderFloat('alpha', self.display3D_Slice_alpha, 0, 1)
+				ig.igSliderFloat('gamma', self.display3D_Slice_alphaGamma, 0, 1)
+				ig.igCheckbox('isobars', self.display3D_Slice_useIsos)
+				if self.display3D_Slice_useIsos[0] then
+					ig.igInputInt('num isobars', self.display3D_Slice_numIsobars)
+				end
+				ig.igCheckbox('lighting', self.display3D_Slice_useLighting)
+				ig.igCheckbox('pointcloud', self.display3D_Slice_usePoints)
+				if not self.display3D_Slice_usePoints[0] then
+					ig.igInputInt('num slices', self.display3D_Slice_numSlices)
 				end
 			end
 		end
