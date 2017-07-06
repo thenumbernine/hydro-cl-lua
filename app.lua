@@ -121,9 +121,9 @@ function HydroCLApp:initGL(...)
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 2,
+		dim = cmdline.dim or 3,
 		
-		integrator = cmdline.integrator or 'forward Euler',	
+		--integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -135,7 +135,7 @@ function HydroCLApp:initGL(...)
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		--integrator = 'backward Euler',
+		integrator = 'backward Euler',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = 'donor cell',
@@ -148,17 +148,17 @@ function HydroCLApp:initGL(...)
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
+			cmdline.gridSize or 32,
+			cmdline.gridSize or 32,
+			cmdline.gridSize or 32,
 		},
 		boundary = {
-			xmin=cmdline.boundary or 'freeflow',
-			xmax=cmdline.boundary or 'freeflow',
-			ymin=cmdline.boundary or 'freeflow',
-			ymax=cmdline.boundary or 'freeflow',
-			zmin=cmdline.boundary or 'freeflow',
-			zmax=cmdline.boundary or 'freeflow',
+			xmin=cmdline.boundary or 'mirror',
+			xmax=cmdline.boundary or 'mirror',
+			ymin=cmdline.boundary or 'mirror',
+			ymax=cmdline.boundary or 'mirror',
+			zmin=cmdline.boundary or 'mirror',
+			zmax=cmdline.boundary or 'mirror',
 		},
 		--]]
 		--[[ cylinder
@@ -531,6 +531,10 @@ function Display:init(args)
 	self.heatMapVars = table()
 end
 
+-- whether to output a text file that holds all variable ranges
+-- be sure not to change 
+local outputVariableRanges = ffi.new('bool[1]', false)
+local outputVariableFile
 
 HydroCLApp.updateMethod = nil
 
@@ -553,6 +557,37 @@ function HydroCLApp:update(...)
 		if oldestSolver then 
 			oldestSolver:update() 
 		end
+	
+		if outputVariableRanges[0] then
+			if not outputVariableFile then
+				outputVariableFile = io.open('var-ranges.txt', 'w')
+				-- don't change any vars while outputting or else your rows won't match your header
+				outputVariableFile:write't'
+				for _,solver in ipairs(self.solvers) do 
+					for _,var in ipairs(solver.displayVars) do
+						if var.enabled then
+							outputVariableFile:write('\t',var.name..'_min')
+							outputVariableFile:write('\t',var.name..'_max')
+						end
+					end
+				end
+				outputVariableFile:write'\n'
+				outputVariableFile:flush()
+			end
+			
+			outputVariableFile:write(oldestSolver.t)
+			for _,solver in ipairs(self.solvers) do 
+				for _,var in ipairs(solver.displayVars) do
+					if var.enabled then
+						local ymin, ymax = solver:calcDisplayVarRange(var)
+						outputVariableFile:write(('\t%.16e'):format(ymin))
+						outputVariableFile:write(('\t%.16e'):format(ymax))
+					end
+				end
+			end
+			outputVariableFile:write'\n'
+			outputVariableFile:flush()
+		end
 	end
 
 	gl.glClear(bit.bor(gl.GL_COLOR_BUFFER_BIT, gl.GL_DEPTH_BUFFER_BIT))
@@ -563,7 +598,7 @@ function HydroCLApp:update(...)
 	local varNamesEnabledByName = {}
 	for _,solver in ipairs(self.solvers) do
 		for i,var in ipairs(solver.displayVars) do
-			if var.enabled[0] then
+			if var.enabled then
 				if not varNamesEnabledByName[var.name] then
 					varNamesEnabled:insert(var.name)
 					varNamesEnabledByName[var.name] = true
@@ -588,7 +623,7 @@ function HydroCLApp:update(...)
 			if varIndex
 			--and solver.visiblePtr and solver.visiblePtr[0] 
 			then
-				useLog = var.useLogPtr[0]
+				useLog = var.useLog
 				
 				local solverxmin, solverxmax = solver.mins[1], solver.maxs[1]
 				solverxmin, solverxmax = 1.1 * solverxmin - .1 * solverxmax, 1.1 * solverxmax - .1 * solverxmin
@@ -731,7 +766,7 @@ function HydroCLApp:showDisplayVar1D(solver, varIndex)
 
 	gl.glUniform1f(self.graphShader.uniforms.scale.loc, 1)
 	gl.glUniform1f(self.graphShader.uniforms.ambient.loc, 1)
-	gl.glUniform1i(self.graphShader.uniforms.useLog.loc, var.useLogPtr[0])
+	gl.glUniform1i(self.graphShader.uniforms.useLog.loc, var.useLog)
 	gl.glUniform2f(self.graphShader.uniforms.xmin.loc, solver.mins[1], 0)
 	gl.glUniform2f(self.graphShader.uniforms.xmax.loc, solver.maxs[1], 0)
 	gl.glUniform1i(self.graphShader.uniforms.axis.loc, solver.dim)
@@ -869,19 +904,19 @@ function HydroCLApp:display2D_Heatmap(solvers, varName, ar, graph_xmin, graph_ym
 		if varIndex then
 			-- TODO allow a fixed, manual colormap range
 			local valueMin, valueMax
-			if var.heatMapFixedRangePtr[0] then
-				valueMin = var.heatMapValueMinPtr[0]
-				valueMax = var.heatMapValueMaxPtr[0]
+			if var.heatMapFixedRange then
+				valueMin = var.heatMapValueMin
+				valueMax = var.heatMapValueMax
 			else
 				valueMin, valueMax = solver:calcDisplayVarRange(var)
-				var.heatMapValueMinPtr[0] = valueMin
-				var.heatMapValueMaxPtr[0] = valueMax
+				var.heatMapValueMin = valueMin
+				var.heatMapValueMax = valueMax
 			end
 
 			solver:calcDisplayVarToTex(var)
 	
 			solver.heatMap2DShader:use()
-			gl.glUniform1i(solver.heatMap2DShader.uniforms.useLog.loc, var.useLogPtr[0])
+			gl.glUniform1i(solver.heatMap2DShader.uniforms.useLog.loc, var.useLog)
 			gl.glUniform1f(solver.heatMap2DShader.uniforms.valueMin.loc, valueMin)
 			gl.glUniform1f(solver.heatMap2DShader.uniforms.valueMax.loc, valueMax)
 			solver:getTex(var):bind(0)
@@ -973,13 +1008,13 @@ function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin
 		if varIndex then
 			-- TODO allow a fixed, manual colormap range
 			local valueMin, valueMax
-			if var.heatMapFixedRangePtr[0] then
-				valueMin = var.heatMapValueMinPtr[0]
-				valueMax = var.heatMapValueMaxPtr[0]
+			if var.heatMapFixedRange then
+				valueMin = var.heatMapValueMin
+				valueMax = var.heatMapValueMax
 			else
 				valueMin, valueMax = solver:calcDisplayVarRange(var)
-				var.heatMapValueMinPtr[0] = valueMin
-				var.heatMapValueMaxPtr[0] = valueMax
+				var.heatMapValueMin = valueMin
+				var.heatMapValueMax = valueMax
 			end
 
 			-- TODO gui this somewhere
@@ -998,7 +1033,7 @@ function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin
 			gl.glUniform1f(self.graphShader.uniforms.scale.loc, scale)
 			gl.glUniform1f(self.graphShader.uniforms.ambient.loc, ambient)
 			gl.glUniform1i(self.graphShader.uniforms.axis.loc, solver.dim)
-			gl.glUniform1i(self.graphShader.uniforms.useLog.loc, var.useLogPtr[0])
+			gl.glUniform1i(self.graphShader.uniforms.useLog.loc, var.useLog)
 			gl.glUniform2f(self.graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
 			gl.glUniform2f(self.graphShader.uniforms.xmin.loc, solver.mins[1], solver.mins[2])
 			gl.glUniform2f(self.graphShader.uniforms.xmax.loc, solver.maxs[1], solver.maxs[2])
@@ -1080,13 +1115,13 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
 		if varIndex then
 			local valueMin, valueMax
-			if var.heatMapFixedRangePtr[0] then
-				valueMin = var.heatMapValueMinPtr[0]
-				valueMax = var.heatMapValueMaxPtr[0]
+			if var.heatMapFixedRange then
+				valueMin = var.heatMapValueMin
+				valueMax = var.heatMapValueMax
 			else
 				valueMin, valueMax = solver:calcDisplayVarRange(var)
-				var.heatMapValueMinPtr[0] = valueMin
-				var.heatMapValueMaxPtr[0] = valueMax
+				var.heatMapValueMin = valueMin
+				var.heatMapValueMax = valueMax
 			end
 
 			solver:calcDisplayVarToTex(var)	
@@ -1098,7 +1133,7 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, self.display3D_Slice_alphaGamma[0])
 			gl.glUniform3f(solver.volumeSliceShader.uniforms.mins.loc, solver.mins:unpack())
 			gl.glUniform3f(solver.volumeSliceShader.uniforms.maxs.loc, solver.maxs:unpack())
-			gl.glUniform1i(solver.volumeSliceShader.uniforms.useLog.loc, var.useLogPtr[0])
+			gl.glUniform1i(solver.volumeSliceShader.uniforms.useLog.loc, var.useLog)
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMin.loc, valueMin)
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMax.loc, valueMax)
 			gl.glUniform1i(solver.volumeSliceShader.uniforms.useIsos.loc, self.display3D_Slice_useIsos[0])
@@ -1445,13 +1480,13 @@ function HydroCLApp:display3D_Isosurface(solvers, varName, ar, xmin, ymin, xmax,
 		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
 		if varIndex then
 			local valueMin, valueMax
-			if var.heatMapFixedRangePtr[0] then
-				valueMin = var.heatMapValueMinPtr[0]
-				valueMax = var.heatMapValueMaxPtr[0]
+			if var.heatMapFixedRange then
+				valueMin = var.heatMapValueMin
+				valueMax = var.heatMapValueMax
 			else
 				valueMin, valueMax = solver:calcDisplayVarRange(var)
-				var.heatMapValueMinPtr[0] = valueMin
-				var.heatMapValueMaxPtr[0] = valueMax
+				var.heatMapValueMin = valueMin
+				var.heatMapValueMax = valueMax
 			end
 			
 			solver:calcDisplayVarToTex(var)	
@@ -1620,6 +1655,8 @@ function HydroCLApp:updateGUI()
 			end
 		end
 
+		ig.igCheckbox('output data', outputVariableRanges)
+
 		ig.igCheckbox('stack graphs', self.displayAllTogether)
 
 		if ig.igRadioButtonBool('ortho', self.view == self.orthoView) then
@@ -1644,7 +1681,7 @@ function HydroCLApp:updateGUI()
 			elseif dim == 3 then
 				ig.igPushIdStr'3D'
 				ig.igCombo('Display Method', self.display3DMethod, display3DMethodNames)
-
+				
 				-- if we're doing 3D slice display 
 				if HydroCLApp.display3D_Slice == select(2, next(display3DMethods[self.display3DMethod[0]+1])) then
 					ig.igSliderFloat('alpha', self.display3D_Slice_alpha, 0, 1)

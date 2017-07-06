@@ -37,8 +37,8 @@ ADM_BonaMasso_1D_Alcubierre2008.guiVars = {
 
 local symmath = require 'symmath'
 function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix()
-	local initState = self.initStates[self.solver.initStatePtr[0]+1]
-	assert(initState, "couldn't find initState "..self.solver.initStatePtr[0])	
+	local initState = self.initStates[self.solver.initStateIndex]
+	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
 	
 	-- pick out whatever variables that 'codes' needs to convert
 	return initState.init(self.solver, function(exprs, vars)

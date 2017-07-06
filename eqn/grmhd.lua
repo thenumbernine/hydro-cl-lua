@@ -179,8 +179,8 @@ real calc_h(real rho, real P, real eInt) {
 end
 
 function GRMHD:getInitStateCode()
-	local initState = self.initStates[1+self.solver.initStatePtr[0]]
-	assert(initState, "couldn't find initState "..(self.solver.initStatePtr[0]+1))
+	local initState = self.initStates[self.solver.initStateIndex]
+	assert(initState, "couldn't find initState "..self.solver.initStateIndex)
 	local code = initState.init(self.solver)
 	return template([[
 

@@ -199,8 +199,8 @@ BSSNOKFiniteDifferenceEquation.guiVars = {
 BSSNOKFiniteDifferenceEquation.initStates = require 'init.adm'
 
 function BSSNOKFiniteDifferenceEquation:getCodePrefix()
-	local initState = self.initStates[1+self.solver.initStatePtr[0]]
-	assert(initState, "couldn't find initState "..self.solver.initStatePtr[0])	
+	local initState = self.initStates[self.solver.initStateIndex]
+	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
 	
 	return initState.init(self.solver, function(exprs, vars, args)
 		-- this takes forever.  why is that?  differentiation?

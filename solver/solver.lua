@@ -16,6 +16,7 @@ local glreport = require 'gl.report'
 local clnumber = require 'clnumber'
 local template = require 'template'
 local vec3sz = require 'ffi.vec.vec3sz'
+local tooltip = require 'tooltip'
 
 local function getn(...)
 	local t = {...}
@@ -205,8 +206,8 @@ function Solver:init(args)
 	self.useFixedDT = false
 	self.fixedDT = .001
 	self.cfl = .5	--/self.dim
-	self.initStatePtr = ffi.new('int[1]', (table.find(self.eqn.initStateNames, args.initState) or 1)-1)
-	self.integratorPtr = ffi.new('int[1]', (self.integratorNames:find(args.integrator) or 1)-1)
+	self.initStateIndex = table.find(self.eqn.initStateNames, args.initState) or 1
+	self.integratorIndex = self.integratorNames:find(args.integrator) or 1
 	self.fluxLimiter = ffi.new('int[1]', (self.app.limiterNames:find(args.fluxLimiter) or 1)-1)
 	
 	self.boundaryMethods = {}
@@ -289,7 +290,7 @@ function Solver:refreshGridSize()
 end
 
 function Solver:refreshIntegrator()
-	self.integrator = self.integrators[self.integratorPtr[0]+1](self)
+	self.integrator = self.integrators[self.integratorIndex](self)
 end
 
 local ConvertToTex = class()
@@ -360,18 +361,14 @@ function ConvertToTex:init(args)
 			convertToTex = self,
 			code = code,
 			name = self.name..'_'..name,
-			enabled = ffi.new('bool[1]', 
-				self.name == 'U' and (solver.dim==1 or i==1)
-				or (self.name == 'error' and solver.dim==1)
-			),
-			useLogPtr = ffi.new('bool[1]', 
-				args.useLog or false
-			),
+			enabled = self.name == 'U' and (solver.dim==1 or i==1)
+				or (self.name == 'error' and solver.dim==1),
+			useLog = args.useLog or false,
 			color = vec3(math.random(), math.random(), math.random()):normalize(),
 			--heatMapTexPtr = ffi.new('int[1]', 0),	-- hsv, isobar, etc ...
-			heatMapFixedRangePtr = ffi.new('bool[1]', false),	-- self.name ~= 'error'
-			heatMapValueMinPtr = ffi.new('float[1]', 0),
-			heatMapValueMaxPtr = ffi.new('float[1]', 1),
+			heatMapFixedRange = false,	-- self.name ~= 'error'
+			heatMapValueMin = 0,
+			heatMapValueMax = 1,
 		}
 	end
 end
@@ -912,7 +909,7 @@ function Solver:refreshDisplayProgram()
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do
 			for _,var in ipairs(convertToTex.vars) do
-				if var.enabled[0] then
+				if var.enabled then
 					lines:append{
 						template(convertToTex.displayCode, {
 							solver = self,
@@ -938,7 +935,7 @@ function Solver:refreshDisplayProgram()
 
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		for _,var in ipairs(convertToTex.vars) do
-			if var.enabled[0] then
+			if var.enabled then
 				lines:append{
 					template(convertToTex.displayCode, {
 						solver = self,
@@ -961,7 +958,7 @@ function Solver:refreshDisplayProgram()
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do
 			for _,var in ipairs(convertToTex.vars) do
-				if var.enabled[0] then
+				if var.enabled then
 					var.calcDisplayVarToTexKernel = self.displayProgram:kernel('calcDisplayVarToTex_'..var.id, self.texCLMem)
 				end
 			end
@@ -970,7 +967,7 @@ function Solver:refreshDisplayProgram()
 
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		for _,var in ipairs(convertToTex.vars) do
-			if var.enabled[0] then
+			if var.enabled then
 				var.calcDisplayVarToBufferKernel = self.displayProgram:kernel('calcDisplayVarToBuffer_'..var.id, self.reduceBuf)
 			end
 		end
@@ -1280,48 +1277,76 @@ function Solver:calcDisplayVarToTex(var)
 	end
 end
 
+-- used by the display code to dynamically adjust ranges
 function Solver:calcDisplayVarRange(var)
-	local convertToTex = var.convertToTex
-	
-	convertToTex:setToBufferArgs(var)
+	if var.lastTime == self.t then
+		return var.lastMin, var.lastMax
+	end
+	var.lastTime = self.t
+
+	var.convertToTex:setToBufferArgs(var)
 	
 	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-	local ymin = self.reduceMin()
+	local min = self.reduceMin()
 	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
-	local ymax = self.reduceMax()
-	return ymin, ymax
+	local max = self.reduceMax()
+	
+	var.lastMin = min
+	var.lastMax = max
+	
+	return min, max
 end
 
-local float = ffi.new'float[1]'
-local bool = ffi.new'bool[1]'
+-- used by the output to print out avg, min, max
+function Solver:calcDisplayVarRangeAndAvg(var)
+	local needsUpdate = var.lastTime ~= self.t
+
+	-- this will update lastTime if necessary
+	local min, max = self:calcDisplayVarRange(var)
+	-- convertToTex has already set up the appropriate args
+
+	local avg
+	if needsUpdate then
+		self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		avg = self.reduceSum() / tonumber(self.volume)
+	else
+		avg = var.lastAvg
+	end
+
+	return min, max, avg
+end
 
 function Solver:updateGUIParams()
 	if ig.igCollapsingHeader'parameters:' then
-		bool[0] = self.useFixedDT
-		if ig.igCheckbox('use fixed dt', bool) then
-			self.useFixedDT = bool[0]
-		end
-		float[0] = self.fixedDT
-		if ig.igInputFloat('fixed dt', float) then 
-			self.fixedDT = float[0] 
-		end
-		float[0] = self.cfl
-		if ig.igInputFloat('CFL', float) then 
-			self.cfl = float[0] 
-		end
+		
+		tooltip.checkboxTable('use fixed dt', self, 'useFixedDT')
+		ig.igSameLine()
+		
+		tooltip.numberTable('fixed dt', self, 'fixedDT')
+		tooltip.numberTable('CFL', self, 'cfl')
 
-		if ig.igCombo('integrator', self.integratorPtr, self.integratorNames) then
+		if tooltip.comboTable('integrator', self, 'integratorIndex', self.integratorNames) then
 			self:refreshIntegrator()
 		end
 
-		if ig.igCombo('slope limiter', self.fluxLimiter, self.app.limiterNames) then
+		-- I think I'll display my GMRES # steps to converge / epsilon error ... 
+		if self.integrator.updateGUI then
+			ig.igSameLine()
+			ig.igPushIdStr'integrator'
+			if ig.igCollapsingHeader'' then
+				self.integrator:updateGUI()
+			end
+			ig.igPopId()
+		end
+
+		if tooltip.combo('slope limiter', self.fluxLimiter, self.app.limiterNames) then
 			self:refreshSolverProgram()
 		end
 
 		for i=1,self.dim do
 			for _,minmax in ipairs(minmaxs) do
 				local var = xs[i]..minmax
-				if ig.igCombo(var, self.boundaryMethods[var], self.app.boundaryMethods) then
+				if tooltip.combo(var, self.boundaryMethods[var], self.app.boundaryMethods) then
 					self:refreshBoundaryProgram()
 				end
 			end
@@ -1333,7 +1358,7 @@ function Solver:updateGUIEqnSpecific()
 	if ig.igCollapsingHeader'equation-specific:' then
 		-- equation-specific:
 
-		if ig.igCombo('init state', self.initStatePtr, self.eqn.initStateNames) then
+		if tooltip.comboTable('init state', self, 'initStateIndex', self.eqn.initStateNames) then
 			
 			self:refreshInitStateProgram()
 			
@@ -1346,62 +1371,30 @@ function Solver:updateGUIEqnSpecific()
 			self:refreshBoundaryProgram()
 		end	
 		
-		local f = ffi.new'float[1]'
-		local i = ffi.new'int[1]'
 		for _,var in ipairs(self.eqn.guiVars) do
 			var:updateGUI(self)
 		end
 	end
 end
 
-
-local function hoverTooltip(name)
-	if ig.igIsItemHovered() then
-		ig.igBeginTooltip()
-		ig.igText(name)
-		ig.igEndTooltip()
-	end
-end
-
-local function wrapTooltip(fn)
-	return function(name, ...)
-		ig.igPushIdStr(name)
-		local result = ig[fn]('', ...)
-		hoverTooltip(name)
-		ig.igPopId()
-		return result
-	end
-end
-
-local sliderTooltip = wrapTooltip'igSliderFloat'
-local comboTooltip = wrapTooltip'igCombo'
-local buttonTooltip = wrapTooltip'igButton'
-local inputFloatTooltip = wrapTooltip'igInputFloat'
-local checkboxTooltip = wrapTooltip'igCheckbox'
-
 do
 	-- display vars: TODO graph vars
 	local function handle(var, title)
 		ig.igPushIdStr(title)
-	
---		ig.igPushItemWidth(10)
-		ig.igText(var.name)
---		ig.igPopItemWidth()
+		
+		local enableChanged = tooltip.checkboxTable('enabled', var, 'enabled') 
 		ig.igSameLine()
 		
-		local enableChanged = checkboxTooltip('enabled', var.enabled) 
+		tooltip.checkboxTable('log', var, 'useLog')
+		ig.igSameLine()
+
+		tooltip.checkboxTable('fixed range', var, 'heatMapFixedRange')
 		ig.igSameLine()
 		
-		checkboxTooltip('log', var.useLogPtr)
-		ig.igSameLine()
-		
-		checkboxTooltip('fixed range', var.heatMapFixedRangePtr)
-		ig.igSameLine()
-		
-		inputFloatTooltip('value min', var.heatMapValueMinPtr)
-		ig.igSameLine()
-		
-		inputFloatTooltip('value max', var.heatMapValueMaxPtr)
+		if ig.igCollapsingHeader(var.name) then
+			tooltip.numberTable('value min', var, 'heatMapValueMin')
+			tooltip.numberTable('value max', var, 'heatMapValueMax')
+		end
 		
 		ig.igPopId()
 		
@@ -1410,17 +1403,16 @@ do
 
 	-- do one for 'all'
 	local function _and(a,b) return a and b end
-	local fields = {'enabled', 'useLogPtr', 'heatMapFixedRangePtr', 'heatMapValueMinPtr', 'heatMapValueMaxPtr'}
-	local types = {'bool', 'bool', 'bool', 'float', 'float'}
+	local fields = {'enabled', 'useLog', 'heatMapFixedRange', 'heatMapValueMin', 'heatMapValueMax'}
 	local defaults = {true, true, true, math.huge, -math.huge}
 	local combines = {_and, _and, _and, math.min, math.max}
 	local all = {name='all'}
 	for i=1,#fields do
-		all[fields[i]] = ffi.new(types[i]..'[1]')
+		all[fields[i]] = defaults[i]
 	end
 	local original = {}
 	for i,field in ipairs(fields) do
-		original[field] = ffi.new(types[i]..'[1]')
+		original[field] = defaults[i]
 	end
 
 	function Solver:updateGUIDisplay()
@@ -1429,21 +1421,21 @@ do
 				ig.igPushIdStr('display '..i)
 				if ig.igCollapsingHeader(convertToTex.name) then				
 					for i=1,#fields do
-						all[fields[i]][0] = defaults[i]
+						all[fields[i]] = defaults[i]
 					end
 					for _,var in ipairs(convertToTex.vars) do
 						for i,field in ipairs(fields) do
-							all[field][0] = combines[i](all[field][0], var[field][0])
+							all[field] = combines[i](all[field], var[field])
 						end
 					end
 					for _,field in ipairs(fields) do
-						original[field][0] = all[field][0]
+						original[field] = all[field]
 					end
 					handle(all, 'all')
 					for _,field in ipairs(fields) do
-						if all[field][0] ~= original[field][0] then
+						if all[field] ~= original[field] then
 							for _,var in ipairs(convertToTex.vars) do
-								var[field][0] = all[field][0]
+								var[field] = all[field]
 							end
 							if field == 'enabled' then
 								self:refreshDisplayProgram()

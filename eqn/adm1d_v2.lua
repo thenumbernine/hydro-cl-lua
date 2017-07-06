@@ -109,7 +109,7 @@ ADM_BonaMasso_1D_Alcubierre1997.guiVars = {
 }
 
 function ADM_BonaMasso_1D_Alcubierre1997:getCodePrefix()
-	local initState = self.initStates[self.solver.initStatePtr[0]+1]
+	local initState = self.initStates[self.solver.initStateIndex]
 	
 	return initState.init(self.solver, function(exprs, vars)
 		return {

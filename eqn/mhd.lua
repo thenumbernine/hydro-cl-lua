@@ -113,8 +113,8 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W) {
 end
 
 function MHD:getInitStateCode()
-	local initState = self.initStates[1+self.solver.initStatePtr[0]]
-	assert(initState, "couldn't find initState "..self.solver.initStatePtr[0])	
+	local initState = self.initStates[self.solver.initStateIndex]
+	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
 	local code = initState.init(self.solver)	
 	return template([[
 kernel void initState(

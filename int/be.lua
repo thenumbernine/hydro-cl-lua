@@ -7,8 +7,10 @@ based on GMRES, easily swappable for any other OpenCL krylov solver of your choi
 --]]
 
 local ffi = require 'ffi'
+local ig = require 'ffi.imgui'
 local class = require 'ext.class'
 local math = require 'ext.math'
+local tooltip = require 'tooltip'
 local Integrator = require 'int.int'
 local CLBuffer = require 'cl.obj.buffer'
 local CLGMRES = require 'solver.cl.gmres'
@@ -31,6 +33,11 @@ BackwardEuler.name = 'backward Euler'
 
 function BackwardEuler:init(solver)
 	self.solver = solver
+
+	-- gui vars:
+	self.last_err = 0
+	self.last_iter = 0
+	self.last_rLenSq = 0
 
 -- formerly createBuffers
 
@@ -121,13 +128,19 @@ function BackwardEuler:init(solver)
 		size = numreals,
 		epsilon = 1e-10,
 		--maxiter = 1000,
-		maxiter = 10 * numreals,
 		restart = 10,
+		maxiter = 10 * numreals,
 		-- logging:
 		errorCallback = function(err, iter, x, rLenSq)
 --print('gmres t', solver.t, 'iter', iter, 'err', err, 'rLenSq', rLenSq)
+			
+			self.last_err = err
+			self.last_iter = iter
+			self.last_rLenSq = rLenSq
+			
 			if not math.isfinite(err) then
-				error("got non-finite err: "..err)
+				print("got non-finite err: "..err)	-- error?
+				return true	-- fail
 			end
 		end,
 		--[[ only scale down norm, keep dot the same
@@ -229,6 +242,16 @@ function BackwardEuler:integrate(dt, callback)
 	self.krylov_xObj:copyFrom(solver.UBufObj)
 	self.linearSolver()
 	solver.UBufObj:copyFrom(self.krylov_xObj)
+end
+
+function BackwardEuler:updateGUI()
+	tooltip.numberTable('Krylov epsilon', self.linearSolver.args, 'epsilon')
+	tooltip.intTable('GMRES restart', self.linearSolver.args, 'restart')
+	tooltip.intTable('Krylov maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * volume * number of states
+	-- read-only:
+	ig.igText('err = '..self.last_err)	-- this is |r|
+	--ig.igText('|r|^2 = '..self.last_rLenSq)	-- stops when |r| < err
+	ig.igText('iter = '..self.last_iter)
 end
 
 return BackwardEuler
