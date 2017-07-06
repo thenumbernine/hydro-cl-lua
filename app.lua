@@ -51,6 +51,7 @@ local GLProgram = require 'gl.program'
 local GLGradientTex = require 'gl.gradienttex'
 local GLTex2D = require 'gl.tex2d'
 local Font = require 'gui.font'
+local tooltip = require 'tooltip'
 
 local HydroCLApp = class(ImGuiApp)
 
@@ -121,7 +122,7 @@ function HydroCLApp:initGL(...)
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 3,
+		dim = cmdline.dim or 2,
 		
 		--integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
@@ -148,9 +149,9 @@ function HydroCLApp:initGL(...)
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 32,
-			cmdline.gridSize or 32,
-			cmdline.gridSize or 32,
+			cmdline.gridSize or 16,
+			cmdline.gridSize or 16,
+			cmdline.gridSize or 16,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'mirror',
@@ -532,18 +533,65 @@ function Display:init(args)
 end
 
 -- whether to output a text file that holds all variable ranges
--- be sure not to change 
-local outputVariableRanges = ffi.new('bool[1]', false)
-local outputVariableFile
+-- TODO how about some way to track any variable in the gui?
+local dumpFile = {
+	enabled = false,
+}
 
-HydroCLApp.updateMethod = nil
+function dumpFile:update(app, t)
+	if not self.enabled then return end
 
-function HydroCLApp:update(...)
-	
-	if not self.displayAllTogether then
-		self.displayAllTogether = ffi.new('bool[1]', false)
+	local f = self.file
+	if not f then
+		f = io.open('var-ranges.txt', 'w')
+		self.file = f
+		
+		-- don't change any vars while outputting or else your rows won't match your header
+		f:write'#t'
+		
+		for _,solver in ipairs(app.solvers) do 
+			--[[ display variables:
+			for _,var in ipairs(solver.displayVars) do
+				if var.enabled then
+					f:write('\t',var.name..'_min')
+					f:write('\t',var.name..'_max')
+				end
+			end
+			--]]
+			-- [[ gmres error
+			f:write'\tgmres_err'
+			f:write'\tgmres_iter'
+			--]]
+		end
+		f:write'\n'
+		f:flush()
 	end
 	
+	f:write(t)
+	for _,solver in ipairs(app.solvers) do 
+		--[[ display variables:
+		for _,var in ipairs(solver.displayVars) do
+			if var.enabled then
+				local ymin, ymax = solver:calcDisplayVarRange(var)
+				f:write(('\t%.16e'):format(ymin))
+				f:write(('\t%.16e'):format(ymax))
+			end
+		end
+		--]]
+		-- [[ gmres error
+		f:write('\t'..solver.integrator.last_err)
+		f:write('\t'..solver.integrator.last_iter)
+		--]]
+	end
+	f:write'\n'
+	f:flush()
+end
+
+
+HydroCLApp.updateMethod = nil
+HydroCLApp.displayAllTogether = false
+
+function HydroCLApp:update(...)
 	if self.updateMethod then
 		if self.updateMethod == 'step' then 
 			print('performing single step...')
@@ -556,37 +604,10 @@ function HydroCLApp:update(...)
 		end)
 		if oldestSolver then 
 			oldestSolver:update() 
-		end
 	
-		if outputVariableRanges[0] then
-			if not outputVariableFile then
-				outputVariableFile = io.open('var-ranges.txt', 'w')
-				-- don't change any vars while outputting or else your rows won't match your header
-				outputVariableFile:write't'
-				for _,solver in ipairs(self.solvers) do 
-					for _,var in ipairs(solver.displayVars) do
-						if var.enabled then
-							outputVariableFile:write('\t',var.name..'_min')
-							outputVariableFile:write('\t',var.name..'_max')
-						end
-					end
-				end
-				outputVariableFile:write'\n'
-				outputVariableFile:flush()
-			end
-			
-			outputVariableFile:write(oldestSolver.t)
-			for _,solver in ipairs(self.solvers) do 
-				for _,var in ipairs(solver.displayVars) do
-					if var.enabled then
-						local ymin, ymax = solver:calcDisplayVarRange(var)
-						outputVariableFile:write(('\t%.16e'):format(ymin))
-						outputVariableFile:write(('\t%.16e'):format(ymax))
-					end
-				end
-			end
-			outputVariableFile:write'\n'
-			outputVariableFile:flush()
+			-- TODO should the time be oldestSolver.t after oldestSolver just updated?
+			-- or - if dumpFile is enabled - should we re-search-out the oldest solver and use its time?
+			dumpFile:update(self, oldestSolver.t)
 		end
 	end
 
@@ -693,7 +714,7 @@ function HydroCLApp:update(...)
 			ymax = 5
 		end
 
-		if not self.displayAllTogether[0] then
+		if not self.displayAllTogether then
 			gl.glViewport(
 				graphCol / graphsWide * w,
 				(1 - (graphRow + 1) / graphsHigh) * h,
@@ -1655,9 +1676,10 @@ function HydroCLApp:updateGUI()
 			end
 		end
 
-		ig.igCheckbox('output data', outputVariableRanges)
+		tooltip.checkboxTable('dump to file', dumpFile, 'enabled')
+		ig.igSameLine()
 
-		ig.igCheckbox('stack graphs', self.displayAllTogether)
+		tooltip.checkboxTable('stack graphs', self, 'displayAllTogether')
 
 		if ig.igRadioButtonBool('ortho', self.view == self.orthoView) then
 			self.view = self.orthoView

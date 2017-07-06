@@ -2,8 +2,6 @@
 backwards-Euler integrator
 based on GMRES, easily swappable for any other OpenCL krylov solver of your choice
 (found in solver.cl.*)
-
-
 --]]
 
 local ffi = require 'ffi'
