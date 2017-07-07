@@ -624,8 +624,8 @@ end ?>
 					center = {-.25, 0, 0},
 					radius = .1,
 					inside = [[
-						v.x = -.1 * x.y;
-						v.y = .1 * x.x;
+						v.x = -.5 * x.y;
+						v.y = .5 * x.x;
 						rho = 1;
 						P = 1;
 					]],
@@ -634,8 +634,8 @@ end ?>
 					center = {.25, 0, 0},
 					radius = .1,
 					inside = [[
-						v.x = -.1 * x.y;
-						v.y = .1 * x.x;
+						v.x = -.5 * x.y;
+						v.y = .5 * x.x;
 						rho = 1;
 						P = 1;
 					]],

@@ -127,16 +127,19 @@ function Maxwell:getDisplayVars()
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='epsE', B='B'})[var] )
 		return {['div '..var] = template([[
-	value = 0;
-	<? for j=0,solver.dim-1 do ?>{
-		value += (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 
-			- buf[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		) / grid_dx<?=j?>;
-	}<? end ?>
-	value *= .5;
-	<? if field == 'epsE' then ?>
-	value /= U->eps;
-	<? end ?>
+	value = .5 * (0.
+<?
+for j=0,solver.dim-1 do
+?>		+ (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 
+			- U[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
+		) / grid_dx<?=j?>
+<?
+end 
+?>	)<? 
+if field == 'epsE' then 
+?> / U->eps<?
+end
+?>;
 ]], {solver=self.solver, field=field})}
 	end)):append{
 		{BPot = 'value = U->BPot;'},

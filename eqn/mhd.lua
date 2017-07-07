@@ -175,17 +175,21 @@ function MHD:getDisplayVars()
 		{Bz = 'value = W.B.z;'},
 		{['|B|'] = 'value = real3_len(W.B);'},
 		{['div B'] = template([[
-	value = 0;
-	<? for j=0,solver.dim-1 do ?>{
-		value += (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 
-			- buf[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		) / grid_dx<?=j?>;
-	}<? end ?>
-	value *= .5;
-	<? if field == 'epsE' then ?>
-	value /= eps0;
-	<? end ?>
+	value = .5 * (0.
+<? 
+for j=0,solver.dim-1 do 
+?>		+ (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 
+			- U[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
+		) / grid_dx<?=j?>
+<? 
+end 
+?>	)<? 
+if field == 'epsE' then 
+?> / eps0<?
+end
+?>;
 ]], {solver=self.solver, field='B'})},
+		{['BPot'] = 'value = U->BPot;'},
 		{P = 'value = W.P;'},
 		--{PMag = 'value = calc_PMag(W);'},
 		--{PTotal = 'value = W.P + calc_PMag(W);'},

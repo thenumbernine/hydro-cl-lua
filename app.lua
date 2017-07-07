@@ -98,7 +98,7 @@ function HydroCLApp:setup()
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or 2,
 		
-		integrator = cmdline.integrator or 'forward Euler',	
+		--integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -110,7 +110,7 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		--integrator = 'backward Euler',
+		integrator = 'backward Euler',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = 'donor cell',
@@ -237,10 +237,10 @@ function HydroCLApp:setup()
 	
 		-- MHD-only init states: (that use 'b')
 		--initState = 'Brio-Wu',
-		--initState = 'Orszag-Tang',
+		initState = 'Orszag-Tang',
 		
 		-- EM:
-		initState = 'Maxwell default',
+		--initState = 'Maxwell default',
 		--initState = 'Maxwell wire',
 		--initState = 'scattering around cylinder',
 		
@@ -290,10 +290,10 @@ function HydroCLApp:setup()
 	-- 		RK4-TVD fails at 256x256 at just after t=.5
 	-- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 	-- also div B is nonzero.  in fact it's pretty big.
-	--self.solvers:insert(require 'solver.mhd-roe'(args))
+	self.solvers:insert(require 'solver.mhd-roe'(args))
 	
 	-- EM
-	self.solvers:insert(require 'solver.maxwell-roe'(args))
+	--self.solvers:insert(require 'solver.maxwell-roe'(args))
 	
 	-- EM+HD
 	-- I broke this when I moved the cons_t type defs from solver to equation

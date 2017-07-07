@@ -2,6 +2,7 @@ local table = require 'ext.table'
 local file = require 'ext.file'
 local class = require 'ext.class'
 local ffi = require 'ffi'
+local template = require 'template'
 
 local Poisson = class()
 
@@ -21,7 +22,7 @@ function Poisson:init(solver)
 end
 
 function Poisson:getSolverCode()
-	return require 'template'(
+	return template(
 		table{
 			file['solver/poisson.cl'],
 			self:getPoissonCode() or '',

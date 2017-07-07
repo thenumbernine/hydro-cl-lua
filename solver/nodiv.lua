@@ -1,5 +1,6 @@
 local class = require 'ext.class'
 local Poisson = require 'solver.poisson'
+local template = require 'template'
 
 local NoDiv = class(Poisson)
 
@@ -9,13 +10,17 @@ NoDiv.gaussSeidelMaxIters = 20
 
 function NoDiv:getCodeParams()
 	return {
-		calcRho = require 'template'([[
+		calcRho = template([[
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	real divB = .5 * (0
-<? for j=0,solver.dim-1 do ?>
-		+ (U[stepsize.s<?=j?>].B.s<?=j?> - U[-stepsize.s<?=j?>].B.s<?=j?>) / grid_dx<?=j?>
-<? end ?>
-	);
+<? 
+for j=0,solver.dim-1 do
+?>		+ (U[stepsize.s<?=j?>].B.s<?=j?> 
+			- U[-stepsize.s<?=j?>].B.s<?=j?>
+		) / grid_dx<?=j?>
+<? 
+end 
+?>	);
 	//because this is the discrete case, no 4pi
 	rho = divB;
 ]], 
@@ -28,7 +33,6 @@ end
 
 function NoDiv:getPoissonCode()
 	return [[
-
 kernel void noDiv(
 	global <?=eqn.cons_t?>* UBuf
 ) {
