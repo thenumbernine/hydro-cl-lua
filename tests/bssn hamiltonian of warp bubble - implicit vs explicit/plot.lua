@@ -2,9 +2,10 @@
 -- plot the var-ranges.txt created by running the app.lua with 'output variable ranges' set
 
 require 'ext'
+local fn = assert((...))
 local matrix = require 'matrix'
 local _ = range
-local ls = file['var-ranges.txt']:trim():split'\n'
+local ls = file[fn]:trim():split'\n'
 
 local cols = ls:remove(1):split'\t'
 

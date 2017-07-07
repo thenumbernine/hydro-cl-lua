@@ -87,36 +87,10 @@ HydroCLApp.limiters = table{
 }
 HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limiter.name end)
 
-function HydroCLApp:initGL(...)
-	HydroCLApp.super.initGL(self, ...)
-
-	-- TODO favor cl_khr_gl_sharing, cl_khr_fp64, cl_khr_3d_image_writes
-	self.env = CLEnv{
-		verbose = true,
-		precision = 'double', 	--cmdline.float and 'float' or nil, -- cmd-line override
-	}
-
-	self.is64bit = self.env.real == 'double'
-	self.useGLSharing = self.env.useGLSharing
-	self.device = self.env.device
-	self.ctx = self.env.ctx
-	self.cmds = self.env.cmds
-	self.real = self.env.real
-
-	ffi.cdef('typedef '..self.real..' real;')
-
-	ffi.cdef(file['math.h'])
-
-	--[[ self-gravitation simulation of planet earth?
-	cmdline = {
-		dim = 1,
-		mins = {-12e+6},
-		maxs = {12e+6},
-		gridSize = 256,
-		initState = 'self-gravitation test 1',
-	}
-	--]]
-
+-- setup for the solver
+-- override this for specific experiments
+-- this can't override float vs double precision yet
+function HydroCLApp:setup()
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
 	local args = {
@@ -277,8 +251,8 @@ function HydroCLApp:initGL(...)
 		-- GR
 		--initState = 'gauge shock wave',
 		--initState = 'Alcubierre warp bubble',
-		--initState = 'Schwarzschild black hole',
-		initState = 'binary black holes',
+		initState = 'Schwarzschild black hole',
+		--initState = 'binary black holes',
 		--initState = 'stellar model',
 		--initState = 'stellar model 2',
 		--initState = 'stellar model 3',
@@ -338,6 +312,43 @@ function HydroCLApp:initGL(...)
 	self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
+end
+
+function HydroCLApp:initGL(...)
+	HydroCLApp.super.initGL(self, ...)
+
+	-- TODO favor cl_khr_gl_sharing, cl_khr_fp64, cl_khr_3d_image_writes
+	self.env = CLEnv{
+		verbose = true,
+		precision = 'double', 	--cmdline.float and 'float' or nil, -- TODO allow override?
+	}
+
+	self.is64bit = self.env.real == 'double'
+	self.useGLSharing = self.env.useGLSharing
+	self.device = self.env.device
+	self.ctx = self.env.ctx
+	self.cmds = self.env.cmds
+	self.real = self.env.real
+
+	ffi.cdef('typedef '..self.real..' real;')
+
+	ffi.cdef(file['math.h'])
+
+
+
+	self.solvers = table()
+
+	--[[ self-gravitation simulation of planet earth?
+	cmdline = {
+		dim = 1,
+		mins = {-12e+6},
+		maxs = {12e+6},
+		gridSize = 256,
+		initState = 'self-gravitation test 1',
+	}
+	--]]
+
+	self:setup()
 
 
 
@@ -593,14 +604,14 @@ function dumpFile:update(app, t)
 end
 
 
-HydroCLApp.updateMethod = nil
+HydroCLApp.running = nil
 HydroCLApp.displayAllTogether = false
 
 function HydroCLApp:update(...)
-	if self.updateMethod then
-		if self.updateMethod == 'step' then 
+	if self.running then
+		if self.running == 'step' then 
 			print('performing single step...')
-			self.updateMethod = nil 
+			self.running = nil 
 		end
 
 		-- update the one furthest behind
@@ -613,6 +624,10 @@ function HydroCLApp:update(...)
 			-- TODO should the time be oldestSolver.t after oldestSolver just updated?
 			-- or - if dumpFile is enabled - should we re-search-out the oldest solver and use its time?
 			dumpFile:update(self, oldestSolver.t)
+		
+			if self.exitTime and oldestSolver.t > self.exitTime then
+				self:requestExit()
+			end
 		end
 	end
 
@@ -1632,12 +1647,12 @@ end
 
 function HydroCLApp:updateGUI()
 	if ig.igCollapsingHeader'simulation' then
-		if ig.igButton(self.updateMethod and 'Stop' or 'Start') then
-			self.updateMethod = not self.updateMethod
+		if ig.igButton(self.running and 'Stop' or 'Start') then
+			self.running = not self.running
 		end
 		ig.igSameLine()
 		if ig.igButton'Step' then
-			self.updateMethod = 'step'
+			self.running = 'step'
 		end
 		ig.igSameLine()
 		if ig.igButton'Reset' then
@@ -1645,7 +1660,7 @@ function HydroCLApp:updateGUI()
 			for _,solver in ipairs(self.solvers) do
 				solver:resetState()
 			end
-			self.updateMethod = nil
+			self.running = nil
 		end
 
 		if ig.igButton'Save' then
@@ -1799,15 +1814,15 @@ function HydroCLApp:event(event, ...)
 			rightGuiDown = false
 		elseif canHandleKeyboard then
 			if event.key.keysym.sym == sdl.SDLK_SPACE then
-				self.updateMethod = not self.updateMethod
+				self.running = not self.running
 			elseif event.key.keysym.sym == ('u'):byte() then
-				self.updateMethod = 'step'
+				self.running = 'step'
 			elseif event.key.keysym.sym == ('r'):byte() then
 				print'resetting...'
 				for _,solver in ipairs(self.solvers) do
 					solver:resetState()
 				end
-				self.updateMethod = nil
+				self.running = nil
 			end
 		end
 	end

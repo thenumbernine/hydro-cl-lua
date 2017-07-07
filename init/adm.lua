@@ -1,7 +1,7 @@
 local symmath = require 'symmath'
 local table = require 'ext.table'
 local template = require 'template'
-local clnumber = require 'cl.obj.number',
+local clnumber = require 'cl.obj.number'
 
 --symmath.tostring = require 'symmath.tostring.SingleLine'		
 
@@ -337,7 +337,8 @@ end
 			f = symmath.clone(f)
 			local fCCode = compileC(f, 'f', {alphaVar})
 		
-			-- TODO
+			error'TODO'
+			--[=[
 			return template([[
 #define calc_f(alpha)			(<?=fCCode?>)
 #define rSq(x,y,z)	 			(x*x + y*y + z*z)
@@ -363,6 +364,7 @@ end
 				R1 = clnumber(.01),
 				R2 = clnumber(.01),
 			}))	
+			--]=]
 		end,
 	},
 	{
