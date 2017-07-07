@@ -64,6 +64,25 @@ places where geometry is used
 - anything dealing with cell volume or surface
 - anything dealing with lengths
 - anything dealing with coordinates
+
+
+
+
+here's another rehashing of my options
+- contra- vs co-variant form
+	this is equation specific
+	but certain eqns like Euler have the benefit of turning g's into deltas
+
+- holonomic vs anholonomic
+	This is whether vector components are normalized as they are transported through normals.
+	Conceptually easier, but mathematically more difficult when working with covariant derivatives in curved space.
+
+- coordinate components vs curvilinear components
+	One easy fix would be to just use geom for computing normals and volumes and surface areas,
+	and just keep all coordinates in Euclidian space.
+	This would certainly be easiest when adopting the equations to unstructured meshes.
+	This does throw out any benefits of when velocity streamlines coincide with coordinate derivatives. 
+
 --]]
 
 local class = require 'ext.class'

@@ -1,22 +1,28 @@
 local symmath = require 'symmath'
 local table = require 'ext.table'
+local template = require 'template'
+local clnumber = require 'cl.obj.number',
 
 --symmath.tostring = require 'symmath.tostring.SingleLine'		
 
-local from6to3x3_table = {{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}}
-local function from6to3x3(i)
-	return table.unpack(from6to3x3_table[i])
-end
-
 local xNames = table{'x', 'y', 'z'}
+local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
 
--- symmetric indexes: xx xy xz yy yz zz
-local symNames = table()
-for i,xi in ipairs(xNames) do
-	for j=i,3 do
-		local xj = xNames[j]
-		symNames:insert(xi..xj)
-	end
+local from3x3to6_table = {{1, 2, 3}, {2, 4, 5}, {3, 5, 6},}
+local function from3x3to6(i,j) return from3x3to6_table[i][j] end
+
+local from6to3x3_table = {{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}}
+local function from6to3x3(i) return table.unpack(from6to3x3_table[i]) end
+
+local function getTemplateEnv(solver)
+	return {
+		solver = solver,
+		xNames = xNames,
+		symNames = symNames,
+		from3x3to6 = from3x3to6,
+		from6to3x3 = from6to3x3,
+		clnumber = clnumber,
+	}
 end
 
 local function symMat33Det(xx, xy, xz, yy, yz, zz)
@@ -65,8 +71,9 @@ local function compileC(expr, name, vars)
 		print('compiling '..name..':')
 		print(expr)
 		local code = expr:compile(vars, 'C'), name
-		
-code = code:gsub('sqrt%(', '(real)sqrt((real)')
+	
+		-- ugh...
+		code = code:gsub('sqrt%(', '(real)sqrt((real)')
 		
 		print(code)
 		return code
@@ -135,7 +142,7 @@ local function initNumRel(args)
 	-- TODO each eqn must be stated as a guiVar of the solver
 	-- make a parent class or something for all num rel eqns
 	local fGuiVar = args.solver.eqn.guiVarsForName.f
-	local fLuaCode = fGuiVar.options[fGuiVar.value[0]+1]
+	local fLuaCode = fGuiVar.options[fGuiVar.value]
 	
 	local f = assert(loadstring('local alpha = ... return '..fLuaCode))(alphaVar)
 	f = symmath.clone(f)
@@ -257,11 +264,13 @@ return {
 	{
 		name = 'Schwarzschild black hole',
 		init = function(solver, getCodes)
+			
 			local R = .002	-- Schwarzschild radius
 			
+			--[=[ using symbolic calculations
 			local x,y,z = symmath.vars('x','y','z')
 			local r = symmath.sqrt(x^2 + y^2 + z^2)
-			
+		
 			return initNumRel{
 				solver = solver,
 				getCodes = getCodes,
@@ -279,6 +288,81 @@ return {
 				},
 				K = {0,0,0,0,0,0},
 			}
+			--]=]
+			-- [=[ just pass it the cl code.
+			
+			local alphaVar = symmath.var'alpha'
+			local fGuiVar = solver.eqn.guiVarsForName.f
+			local fLuaCode = fGuiVar.options[fGuiVar.value]
+			
+			local f = assert(loadstring('local alpha = ... return '..fLuaCode))(alphaVar)
+			f = symmath.clone(f)
+			local fCCode = compileC(f, 'f', {alphaVar})
+			
+			return template([[
+#define calc_f(alpha)			(<?=fCCode?>)
+#define rSq(x,y,z) 				(x*x + y*y + z*z)
+#define r(x,y,z) 				sqrt(rSq(x,y,z))
+#define calc_alpha(x,y,z) 		sqrt(1. - <?=R?>/r(x,y,z))
+<? 
+for i,xi in ipairs(xNames) do
+?>#define calc_beta_<?=xi?>(x,y,z)		0.
+<?
+end
+for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+	local xi, xj = xNames[i], xNames[j]
+?>#define calc_gamma_<?=xij?>(x,y,z) 	(<?=xi?>*<?=xj?>/((r(x,y,z) / <?=R?> - 1.) * rSq(x,y,z))<?= i==j and ' + 1.' or ''?>)
+<?
+end
+for ij,xij in ipairs(symNames) do
+?>#define calc_K_<?=xij?>(x,y,z)		0.
+<?
+end
+?>]], 		table(getTemplateEnv(solver), {
+				fCCode = fCCode:match'{ return (.*); }',
+				R = clnumber(R),
+			}))
+			--]=]
+		end,
+	},
+	{
+		name = 'binary black holes',
+		init = function(solver, getCodes)
+			local alphaVar = symmath.var'alpha'
+			local fGuiVar = solver.eqn.guiVarsForName.f
+			local fLuaCode = fGuiVar.options[fGuiVar.value]
+			
+			local f = assert(loadstring('local alpha = ... return '..fLuaCode))(alphaVar)
+			f = symmath.clone(f)
+			local fCCode = compileC(f, 'f', {alphaVar})
+		
+			-- TODO
+			return template([[
+#define calc_f(alpha)			(<?=fCCode?>)
+#define rSq(x,y,z)	 			(x*x + y*y + z*z)
+#define r(x,y,z) 				sqrt(rSq(x,y,z))
+#define calc_alpha(x,y,z) 		sqrt(1. - schwarzschildRadius/r(x,y,z))
+<? 
+for i,xi in ipairs(xNames) do
+?>#define calc_beta_<?=xi?>(x,y,z)		0.
+<?
+end
+for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+	local xi, xj = xNames[i], xNames[j]
+?>#define calc_gamma_<?=xij?>(x,y,z) 	(<?=xi?>*<?=xj?>/((r(x,y,z) / schwarzschildRadius - 1.) * rSq(x,y,z))<?= i==j and ' + 1.' or ''?>)
+<?
+end
+for ij,xij in ipairs(symNames) do
+?>#define calc_K_<?=xij?>(x,y,z)		0.
+<?
+end
+?>]], 		table(getTemplateEnv(solver), {
+				fCCode = fCCode:match'{ return (.*); }',
+				R1 = clnumber(.01),
+				R2 = clnumber(.01),
+			}))	
 		end,
 	},
 	{

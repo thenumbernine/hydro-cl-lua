@@ -7,6 +7,11 @@ local Solver = require 'solver.solver'
 local BSSNOKFiniteDifferenceSolver = class(Solver)
 BSSNOKFiniteDifferenceSolver.name = 'BSSNOKFiniteDifferenceSolver'
 
+function BSSNOKFiniteDifferenceSolver:init(...)
+	BSSNOKFiniteDifferenceSolver.super.init(self, ...)
+	self.name = nil	-- don't append the eqn name to this
+end
+
 function BSSNOKFiniteDifferenceSolver:createEqn(eqn)
 	self.eqn = BSSNOKFiniteDifferenceEquation(self)
 end

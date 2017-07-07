@@ -91,7 +91,7 @@ local initStates = {
 		name = 'constant',
 		init = function(solver)
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 7/5
+				solver.eqn.guiVarsForName.heatCapacityRatio.value = 7/5
 			end
 			return [[
 	rho = 1;
@@ -103,7 +103,7 @@ local initStates = {
 		name = 'linear',
 		init = function(solver)
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 7/5
+				solver.eqn.guiVarsForName.heatCapacityRatio.value = 7/5
 			end
 			return [[
 	rho = 1 + x.x;
@@ -158,7 +158,7 @@ local initStates = {
 		name = 'Sod',
 		init = function(solver)
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 7/5
+				solver.eqn.guiVarsForName.heatCapacityRatio.value = 7/5
 			end
 			return [[
 	rho = lhs ? 1. : .125;
@@ -181,7 +181,7 @@ local initStates = {
 		name = 'Brio-Wu',
 		init = function(solver)
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 2
+				solver.eqn.guiVarsForName.heatCapacityRatio.value = 2
 			end
 			return [[
 	rho = lhs ? 1 : .125;
@@ -198,7 +198,7 @@ local initStates = {
 		name = 'Orszag-Tang',
 		init = function(solver)
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
+				solver.eqn.guiVarsForName.heatCapacityRatio.value = 5/3
 			end
 			return [[
 	const real B0 = 1./sqrt(4. * M_PI);
@@ -288,7 +288,7 @@ local initStates = {
 		init = function(solver)
 			solver.cfl = .5	-- needs a slower cfl
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 4/3
+				solver.eqn.guiVarsForName.heatCapacityRatio.value = 4/3
 			end
 			return [[
 	rho = 1;
@@ -302,7 +302,7 @@ local initStates = {
 		init = function(solver)
 			solver.cfl = .5	-- needs a slower cfl
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
+				solver.eqn.guiVarsForName.heatCapacityRatio.value = 5/3
 			end
 			return [[
 	rho = lhs ? 10 : 1;
@@ -315,7 +315,7 @@ local initStates = {
 		init = function(solver)
 			solver.cfl = .5	-- needs a slower cfl
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value[0] = 5/3
+				solver.eqn.guiVarsForName.heatCapacityRatio.value = 5/3
 			end
 			return [[
 	rho = 1;
@@ -482,7 +482,7 @@ end ?>
 			solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'mirror'-1
 			solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'mirror'-1
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.guiVarsForName.heatCapacityRatio.value[0] = 7/5
+				solver.guiVarsForName.heatCapacityRatio.value = 7/5
 			end
 			return table{
 	'#define sqrt1_3 '..clnumber(math.sqrt(1/3)),

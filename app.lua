@@ -149,9 +149,9 @@ function HydroCLApp:initGL(...)
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 16,
-			cmdline.gridSize or 16,
-			cmdline.gridSize or 16,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 128,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'mirror',
@@ -231,7 +231,7 @@ function HydroCLApp:initGL(...)
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -278,6 +278,7 @@ function HydroCLApp:initGL(...)
 		--initState = 'gauge shock wave',
 		--initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
+		initState = 'binary black holes',
 		--initState = 'stellar model',
 		--initState = 'stellar model 2',
 		--initState = 'stellar model 3',
@@ -286,7 +287,7 @@ function HydroCLApp:initGL(...)
 	self.solvers = table()
 	
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe')(table(args, {eqn='euler'})))
@@ -303,6 +304,8 @@ function HydroCLApp:initGL(...)
 	--self.solvers:insert(require 'solver.srhd-roe'(args))
 	
 	-- GR+HD
+	-- right now this is just like srhd except extended by Font's eqns
+	-- this has plug-ins for ADM metric alpha, beta, gammas, but I need to make a composite solver to combine it with GR equations. 
 	--self.solvers:insert(require 'solver.grhd-roe'(args))
 	
 	-- M+HD. 
@@ -330,7 +333,9 @@ function HydroCLApp:initGL(...)
 	-- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
 	--  but something gets caught up in the freeflow boundary conditions, and it explodes
 	-- TODO constant Minkowski boundary conditions?
-	--self.solvers:insert(require 'solver.bssnok-fd'(args))
+	-- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
+	-- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
+	self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 

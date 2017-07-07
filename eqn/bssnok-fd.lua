@@ -10,19 +10,11 @@ local symmath = require 'symmath'
 local xNames = table{'x', 'y', 'z'}
 local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
 
-local from3x3to6_table = {
-	{1, 2, 3},
-	{2, 4, 5},
-	{3, 5, 6},
-}
-local function from3x3to6(i,j)
-	return from3x3to6_table[i][j]
-end
+local from3x3to6_table = {{1, 2, 3}, {2, 4, 5}, {3, 5, 6},}
+local function from3x3to6(i,j) return from3x3to6_table[i][j] end
 
 local from6to3x3_table = {{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}}
-local function from6to3x3(i)
-	return table.unpack(from6to3x3_table[i])
-end
+local function from6to3x3(i) return table.unpack(from6to3x3_table[i]) end
 
 local function sym(a,b)
 	assert(a >= 1 and a <= 3, "tried to index sym with "..tostring(a)..", "..tostring(b))
@@ -123,18 +115,18 @@ local function makePartial2(solver, field, fieldType)
 	})
 end
 
-local function getTemplateEnv(self)
+local function getTemplateEnv(eqn)
 	return {
-		eqn = self,
-		solver = self.solver,
+		eqn = eqn,
+		solver = eqn.solver,
 		xNames = xNames,
 		symNames = symNames,
 		from3x3to6 = from3x3to6,
 		from6to3x3 = from6to3x3,
 		sym = sym,
 		typeInfo = typeInfo,
-		makePartial = function(...) return makePartial(self.solver, ...) end,
-		makePartial2 = function(...) return makePartial2(self.solver, ...) end,
+		makePartial = function(...) return makePartial(eqn.solver, ...) end,
+		makePartial2 = function(...) return makePartial2(eqn.solver, ...) end,
 	}
 end
 
@@ -203,27 +195,6 @@ function BSSNOKFiniteDifferenceEquation:getCodePrefix()
 	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
 	
 	return initState.init(self.solver, function(exprs, vars, args)
-		-- this takes forever.  why is that?  differentiation?
-		print('building metric partials...')
-		exprs.d = table.map(vars, function(xk)
-			return table.map(exprs.gamma, function(gamma_ij)
-				print('differentiating '..gamma_ij)
-				return (gamma_ij:diff(xk)/2)()
-			end)
-		end)
-		print('...done building metric partials')
-
-		print('building lapse partials...')
-		exprs.a = table.map(vars, function(var)
-			return (exprs.alpha:diff(var) / exprs.alpha)()
-		end)
-		print('...done building lapse partials')
-	
-		-- this requires turning d from sym into a Tensor
-		--  and requires gammaUU being stored as the Tensor metric inverse
-		--exprs.V = (d'_ik^k' - d'^k_ki')()
-
-		print('compiling expressions...')
 		return table(
 			--f = exprs.f,
 			--dalpha_f = exprs.dalpha_f,
@@ -231,14 +202,6 @@ function BSSNOKFiniteDifferenceEquation:getCodePrefix()
 			symNames:map(function(xij,ij)
 				return exprs.gamma[ij], 'gamma_'..xij
 			end),
-			xNames:map(function(xi,i)
-				return exprs.a[i], 'a_'..xi
-			end),
-			table(xNames:map(function(xk,k,t)
-				return symNames:map(function(xij,ij)
-					return exprs.d[k][ij], 'd_'..xk..xij
-				end), #t+1
-			end):unpack()),
 			symNames:map(function(xij,ij)
 				return exprs.K[ij], 'K_'..xij
 			end)
