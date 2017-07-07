@@ -35,7 +35,7 @@ kernel void noDiv(
 	SETBOUNDS(2,2);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 <? for j=0,solver.dim-1 do ?> 
-	U->B.s<?=j?> -= (UBuf[stepsize.s<?=j?>].BPot - UBuf[-stepsize.s<?=j?>].BPot) / (2. * grid_dx<?=j?>);
+	U->B.s<?=j?> -= (U[stepsize.s<?=j?>].BPot - U[-stepsize.s<?=j?>].BPot) / (2. * grid_dx<?=j?>);
 <? end ?>
 }
 
