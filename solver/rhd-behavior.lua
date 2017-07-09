@@ -71,7 +71,7 @@ return function(parent)
 	function template:step(dt)
 		template.super.step(self, dt)
 
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.updatePrimsKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.updatePrimsKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
 
 	function template:boundary()

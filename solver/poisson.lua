@@ -58,7 +58,7 @@ end
 
 function Poisson:resetState()
 	local solver = self.solver
-	solver.app.cmds:enqueueNDRangeKernel{kernel=solver.initPotentialKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	solver.app.cmds:enqueueNDRangeKernel{kernel=solver.initPotentialKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
 	solver:potentialBoundary()
 	self:relax()
 end
@@ -66,7 +66,7 @@ end
 function Poisson:relax()
 	local solver = self.solver
 	for i=1,self.gaussSeidelMaxIters do
-		solver.app.cmds:enqueueNDRangeKernel{kernel=solver.solvePoissonKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+		solver.app.cmds:enqueueNDRangeKernel{kernel=solver.solvePoissonKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
 		solver:potentialBoundary()
 	end
 end

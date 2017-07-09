@@ -186,33 +186,33 @@ end
 function Roe:calcDeriv(derivBuf, dt)
 	if self.usePLM then
 		self.calcLRKernel:setArg(2, ffi.new('real[1]', dt))
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcLRKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcLRKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
 
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcEigenBasisKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcEigenBasisKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 
 	if self.checkFluxError or self.checkOrthoError then
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcErrorsKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcErrorsKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
 
 	-- technically, if flux limiter isn't used, this can be merged into calcFlux (since no left/right reads need to be done)
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDeltaUEigKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDeltaUEigKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	
 	if self.fluxLimiter[0] > 0 then
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcREigKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcREigKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
 
 	self.calcFluxKernel:setArg(5, ffi.new('real[1]', dt))
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcFluxKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcFluxKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 
 	-- calcDerivFromFlux zeroes the derivative buffer
 	self.calcDerivFromFluxKernel:setArg(0, derivBuf)
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDerivFromFluxKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDerivFromFluxKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 
 	-- addSource adds to the derivative buffer
 	if self.eqn.useSourceTerm then
 		self.addSourceKernel:setArg(0, derivBuf)
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.addSourceKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.addSourceKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
 end
 

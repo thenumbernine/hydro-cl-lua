@@ -59,7 +59,7 @@ end
 function BSSNOKFiniteDifferenceSolver:resetState()
 	BSSNOKFiniteDifferenceSolver.super.resetState(self)
 	
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.initConnUBarKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.initConnUBarKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	self:boundary()
 	self.app.cmds:finish()
 end
@@ -72,7 +72,7 @@ end
 
 function BSSNOKFiniteDifferenceSolver:calcDeriv(derivBuf, dt)
 	self.calcDerivKernel:setArg(0, derivBuf)
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDerivKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDerivKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 end
 
 return BSSNOKFiniteDifferenceSolver

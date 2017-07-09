@@ -17,6 +17,7 @@ local clnumber = require 'clnumber'
 local template = require 'template'
 local vec3sz = require 'ffi.vec.vec3sz'
 local tooltip = require 'tooltip'
+local roundup = require 'roundup'
 
 local function getn(...)
 	local t = {...}
@@ -136,7 +137,13 @@ args:
 function Solver:init(args)
 	assert(args)
 	self.app = assert(args.app)
-	
+
+	-- TODO OK this is a little ambiguous ...
+	-- gridSize is the desired grid size
+	-- self.gridSize is gonna be that, plus numGhost on either side ...
+	-- so maybe I should rename 'self.gridSize' to 'self.gridSizeWithBorder'
+	-- and 'self.gridSizeWithoutBorder' to 'self.gridSize'
+
 	local gridSize = assert(args.gridSize)
 	if type(gridSize) == 'number' then 
 		self.gridSize = vec3sz(gridSize,1,1)
@@ -154,6 +161,8 @@ function Solver:init(args)
 	else
 		error("can't understand args.gridSize type "..type(args.gridSize).." value "..tostring(args.gridSize))
 	end
+
+	for i=0,self.dim-1 do self.gridSize:ptr()[i] = self.gridSize:ptr()[i] + 2 * self.numGhost end	
 
 	for i=self.dim,2 do self.gridSize:ptr()[i] = 1 end
 
@@ -202,6 +211,12 @@ function Solver:init(args)
 			self.localSize.z = math.min(gridSize[3], rest / localSizeY)
 		end
 	end
+
+	-- this is grid size, but rounded up to the next localSize
+	self.globalSize = vec3sz(
+		roundup(self.gridSize.x, self.localSize.x),
+		roundup(self.gridSize.y, self.localSize.y),
+		roundup(self.gridSize.z, self.localSize.z))
 
 	self.useFixedDT = false
 	self.fixedDT = .001
@@ -263,6 +278,7 @@ function Solver:refreshGridSize()
 	for i=0,self.dim-1 do
 		self.sizeWithoutBorder:ptr()[i] = self.sizeWithoutBorder:ptr()[i] - 2 * self.numGhost
 	end
+	self.volumeWithoutBorder = tonumber(self.sizeWithoutBorder:volume())
 
 	self.volume = tonumber(self.gridSize:volume())
 	self.dxs = vec3(range(3):map(function(i)
@@ -298,6 +314,8 @@ Solver.ConvertToTex = ConvertToTex
 
 ConvertToTex.type = 'real'	-- default
 
+-- TODO buf (dest) shouldn't have ghost cells
+-- and dstIndex should be based on the size without ghost cells
 ConvertToTex.displayCode = [[
 kernel void <?=name?>(
 	<?=input?>,
@@ -307,9 +325,9 @@ kernel void <?=name?>(
 		or '' ?>
 ) {
 	SETBOUNDS(0,0);
-	int dstindex = index;
 	int4 dsti = i;
-	
+	int dstindex = index;
+
 	real3 x = cell_x(i);
 	real3 xInt[<?=solver.dim?>];
 <? for i=0,solver.dim-1 do
@@ -320,14 +338,17 @@ kernel void <?=name?>(
 	//now constrain
 	if (i.x < 2) i.x = 2;
 	if (i.x > gridSize_x - 2) i.x = gridSize_x - 2;
-<? if solver.dim >= 2 then ?>
-	if (i.y < 2) i.y = 2;
+<? 
+if solver.dim >= 2 then
+?>	if (i.y < 2) i.y = 2;
 	if (i.y > gridSize_y - 2) i.y = gridSize_y - 2;
-<? end
-if solver.dim >= 3 then ?>
-	if (i.z < 2) i.z = 2;
+<? 
+end
+if solver.dim >= 3 then
+?>	if (i.z < 2) i.z = 2;
 	if (i.z > gridSize_z - 2) i.z = gridSize_z - 2;
-<? end ?>
+<? end 
+?>
 	//and recalculate read index
 	index = INDEXV(i);
 	
@@ -437,12 +458,10 @@ function Solver:finalizeCLAllocs()
 		local name = buffer.name
 		local size = buffer.size
 		if not self.allocateOneBigStructure then
-			if size % ffi.sizeof(self.app.env.real) ~= 0 then
-				print()
-				print'!!!!!!!!!!! WARNING !!!!!!!!!!!'
-				print(' unaligned buffer: '..name)
-				print()
-				size = size + ffi.sizeof(self.app.env.real)
+			local mod = size % ffi.sizeof(self.app.env.real)
+			if mod ~= 0 then
+				-- WARNING?
+				size = size - mod + ffi.sizeof(self.app.env.real)
 			end
 		end
 		total = total + size
@@ -737,10 +756,10 @@ end
 
 function Solver:resetState()
 	self.app.cmds:finish()
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.initStateKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.initStateKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	self:boundary()
 	if self.eqn.useConstrainU then
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
 	self.app.cmds:finish()
 	self.t = 0
@@ -1119,7 +1138,9 @@ function Solver:applyBoundaryToBuffer(kernel)
 	if self.dim == 1 then
 		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=self.localSize1d, localSize=self.localSize1d}
 	elseif self.dim == 2 then
-		local maxSize = math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y))
+		local maxSize = roundup(
+			math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y)),
+			self.localSize1d)
 		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=maxSize, localSize=math.min(self.localSize1d, maxSize)}
 	elseif self.dim == 3 then
 		-- xy xz yz
@@ -1148,7 +1169,7 @@ function Solver:calcDT()
 	if self.useFixedDT then
 		dt = self.fixedDT
 	else
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDTKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDTKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 		dt = self.cfl * self.reduceMin()
 		if not math.isfinite(dt) then
 			print("got a bad dt!") -- TODO dump all buffers
@@ -1222,7 +1243,7 @@ function Solver:step(dt)
 	end)
 
 	if self.eqn.useConstrainU then
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
 end
 
@@ -1268,16 +1289,18 @@ function Solver:calcDisplayVarToTex(var)
 		app.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
 	
 		convertToTex:setToTexArgs(var)
-		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToTexKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToTexKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 		app.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
 		app.cmds:finish()
 	else
 		-- download to CPU then upload with glTexSubImage2D
+		-- calcDisplayVarToTexPtr is sized without ghost cells 
+		-- so is the GL texture
 		local ptr = self.calcDisplayVarToTexPtr
 		local tex = self.tex
 		
 		convertToTex:setToBufferArgs(var)
-		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.volume, ptr=ptr}
 		local destPtr = ptr
 		if app.is64bit then
@@ -1309,9 +1332,9 @@ function Solver:calcDisplayVarRange(var)
 
 	var.convertToTex:setToBufferArgs(var)
 	
-	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	local min = self.reduceMin()
-	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	local max = self.reduceMax()
 	
 	var.lastMin = min
@@ -1330,7 +1353,7 @@ function Solver:calcDisplayVarRangeAndAvg(var)
 
 	local avg
 	if needsUpdate then
-		self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 		avg = self.reduceSum() / tonumber(self.volume)
 	else
 		avg = var.lastAvg
@@ -1340,9 +1363,7 @@ function Solver:calcDisplayVarRangeAndAvg(var)
 end
 
 function Solver:updateGUIParams()
-	if self.fps then
-		ig.igText('fps: '..tostring(self.fps))
-	end
+	ig.igText('fps: '..(self.fps and tostring(self.fps) or ''))
 	
 	if ig.igCollapsingHeader'parameters:' then
 		

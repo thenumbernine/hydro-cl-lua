@@ -124,9 +124,9 @@ function HydroCLApp:setup()
 		maxs = cmdline.maxs or {1, 1, 1},
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = {
-			cmdline.gridSize or 128,
-			cmdline.gridSize or 128,
-			cmdline.gridSize or 128,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -206,7 +206,7 @@ function HydroCLApp:setup()
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -223,7 +223,7 @@ function HydroCLApp:setup()
 		--initState = 'configuration 6',
 
 		-- self-gravitation tests:
-		initState = 'self-gravitation test 1',
+		--initState = 'self-gravitation test 1',
 		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
 		--initState = 'self-gravitation test 2 orbiting',

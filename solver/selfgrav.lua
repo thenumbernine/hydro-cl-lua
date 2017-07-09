@@ -70,8 +70,7 @@ kernel void offsetPotentialAndAddToTotal(
 ) {
 	SETBOUNDS(0,0);
 	global <?=eqn.cons_t?>* U = UBuf + index;
-//	U->ePot += 0. - ePotMin;
-U->ePot -= .5;
+	U->ePot += 0. - ePotMin;
 	U->ETotal += U->rho * U->ePot;
 }
 
@@ -105,17 +104,17 @@ function SelfGrav:resetState()
 	-- TODO easier way to reduce min/max on display var ePot
 	--		but that means compiling the ePot dispaly var code even if the ePot display var is turned off ...
 	-- TODO stop calling them 'display var' since they're not just used for displaying
-	solver.app.cmds:enqueueNDRangeKernel{kernel=self.reduce_ePotKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.reduce_ePotKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
 	local ePotMin = solver.reduceMin()
-	solver.app.cmds:enqueueNDRangeKernel{kernel=self.reduce_ePotKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.reduce_ePotKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
 	local ePotMax = solver.reduceMax()
 	
 	self.offsetPotentialAndAddToTotalKernel:setArg(1, ffi.new('real[1]', ePotMin))
-	solver.app.cmds:enqueueNDRangeKernel{kernel=self.offsetPotentialAndAddToTotalKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.offsetPotentialAndAddToTotalKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
 	
-	solver.app.cmds:enqueueNDRangeKernel{kernel=self.reduce_ePotKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.reduce_ePotKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
 	local new_ePotMin = solver.reduceMin()
-	solver.app.cmds:enqueueNDRangeKernel{kernel=self.reduce_ePotKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.reduce_ePotKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
 	local new_ePotMax = solver.reduceMax()
 
 print('offsetting potential energy from '..ePotMin..','..ePotMax..' to '..new_ePotMin..','..new_ePotMax)
@@ -137,7 +136,7 @@ return setmetatable({
 			self.integrator:integrate(dt, function(derivBuf)
 				self[field]:relax()
 				self[field].calcGravityDerivKernel:setArg(0, derivBuf)
-				self.app.cmds:enqueueNDRangeKernel{kernel=self[field].calcGravityDerivKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+				self.app.cmds:enqueueNDRangeKernel{kernel=self[field].calcGravityDerivKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 			end)
 		end
 

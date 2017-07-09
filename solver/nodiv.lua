@@ -62,7 +62,7 @@ return function(parent)
 		template.super.step(self, dt)
 
 		self[field]:relax()
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.noDivKernel, dim=self.dim, globalSize=self.gridSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.noDivKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
 
 	return template
