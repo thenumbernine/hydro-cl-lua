@@ -526,6 +526,9 @@ function Solver:createBuffers()
 
 	-- CL/GL interop
 
+	-- hmm, notice I'm still keeping the numGhost border on my texture 
+	-- if I remove the border altogether then I get wrap-around
+	-- maybe I should just keep a border of 1?
 	local cl = self.dim < 3 and GLTex2D or GLTex3D
 	self.tex = cl{
 		width = tonumber(self.gridSize.x),
