@@ -1158,7 +1158,30 @@ function Solver:calcDT()
 	return dt
 end
 
+Solver.fpsNumSamples = 30
+
 function Solver:update()
+	--[[
+	Here's an update-based FPS counter.
+	This isn't as precise as profiling events for all of my OpenCL calls
+	but it will give a general idea while running simulations continuously.
+	Because pauses will mess with the numbers, I'll only look at the last n many frames.  
+	Maybe just the last 1.
+	--]]
+	local thisTime = os.clock()
+	if not self.fpsSamples then
+		self.fpsIndex = 0
+		self.fpsSamples = table()
+	end
+	if self.lastFrameTime then
+		local deltaTime = thisTime - self.lastFrameTime
+		local fps = 1 / deltaTime
+		self.fpsIndex = (self.fpsIndex % self.fpsNumSamples) + 1
+		self.fpsSamples[self.fpsIndex] = fps
+		self.fps = self.fpsSamples:sum() / #self.fpsSamples
+	end
+	self.lastFrameTime = thisTime
+
 --local before = self.UBufObj:toCPU()
 --print'\nself.UBufObj before boundary:' self:printBuf(self.UBufObj) print(debug.traceback(),'\n\n')	
 	self:boundary()
@@ -1317,6 +1340,10 @@ function Solver:calcDisplayVarRangeAndAvg(var)
 end
 
 function Solver:updateGUIParams()
+	if self.fps then
+		ig.igText('fps: '..tostring(self.fps))
+	end
+	
 	if ig.igCollapsingHeader'parameters:' then
 		
 		tooltip.checkboxTable('use fixed dt', self, 'useFixedDT')

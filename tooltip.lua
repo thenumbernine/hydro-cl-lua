@@ -23,6 +23,13 @@ local function makeWrapTooltip(f)
 	end
 end
 
+local function tooltipLabel(label, str)
+	ig.igPushIdStr(label)
+	ig.igText(str)
+	hoverTooltip(label)
+	ig.igPopId()
+end
+
 -- naive wrappers of makeWrapTooltip
 
 local wrap = table.map({
@@ -96,6 +103,7 @@ local tooltip = {
 	numberTable = numberTable,
 	comboTable = comboTable,
 	text = wrap.text,
+	label = tooltipLabel,
 }
 
 return tooltip

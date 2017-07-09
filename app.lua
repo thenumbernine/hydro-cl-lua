@@ -612,7 +612,7 @@ function HydroCLApp:update(...)
 	if self.running then
 		if self.running == 'step' then 
 			print('performing single step...')
-			self.running = nil 
+			self.running = nil
 		end
 
 		-- update the one furthest behind
@@ -629,6 +629,11 @@ function HydroCLApp:update(...)
 			if self.exitTime and oldestSolver.t > self.exitTime then
 				self:requestExit()
 			end
+		end
+	else	
+		-- clear all 'lastFrameTime's of solvers so the rough fps calcs don't get messed with
+		for _,solver in ipairs(self.solvers) do
+			solver.lastFrameTime = nil
 		end
 	end
 
