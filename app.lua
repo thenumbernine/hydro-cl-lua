@@ -98,7 +98,7 @@ function HydroCLApp:setup()
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or 2,
 		
-		--integrator = cmdline.integrator or 'forward Euler',	
+		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -110,7 +110,7 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		integrator = 'backward Euler',
+		--integrator = 'backward Euler',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = 'donor cell',
@@ -123,9 +123,9 @@ function HydroCLApp:setup()
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		gridSize = {
-			cmdline.gridSize or 128,
-			cmdline.gridSize or 128,
-			cmdline.gridSize or 128,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
+			cmdline.gridSize or 256,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -222,7 +222,7 @@ function HydroCLApp:setup()
 		--initState = 'configuration 6',
 
 		-- self-gravitation tests:
-		--initState = 'self-gravitation test 1',
+		initState = 'self-gravitation test 1',
 		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
 		--initState = 'self-gravitation test 2 orbiting',
@@ -237,7 +237,7 @@ function HydroCLApp:setup()
 	
 		-- MHD-only init states: (that use 'b')
 		--initState = 'Brio-Wu',
-		initState = 'Orszag-Tang',
+		--initState = 'Orszag-Tang',
 		
 		-- EM:
 		--initState = 'Maxwell default',
@@ -261,9 +261,10 @@ function HydroCLApp:setup()
 	self.solvers = table()
 	
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
+	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
 	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe')(table(args, {eqn='euler'})))
 
 	-- SR+HD.  
@@ -290,7 +291,7 @@ function HydroCLApp:setup()
 	-- 		RK4-TVD fails at 256x256 at just after t=.5
 	-- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 	-- also div B is nonzero.  in fact it's pretty big.
-	self.solvers:insert(require 'solver.mhd-roe'(args))
+	--self.solvers:insert(require 'solver.mhd-roe'(args))
 	
 	-- EM
 	--self.solvers:insert(require 'solver.maxwell-roe'(args))

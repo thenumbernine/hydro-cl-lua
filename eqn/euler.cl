@@ -46,16 +46,42 @@ void eigen_forSide(
 	global const <?=eqn.cons_t?>* UR,
 	real3 x
 ) {
+	/*
+	hmm, where should ePot be removed from eTotal?
+	before Roe averaging, or after?
+	I'm doing it after in my previous framework and it works fine
+	but here, removing after causes numerical errors
+	however in the previous framework, I never offset ePot to be always-positive like I'm doing here ... 
+	...tadaa! that's the issue.
+	so if we do offset potential to be positive, and don't remove potential energy at all from hTotal, the boundary stays static.
+	if we do offset potential to be positive and remove it after Roe averaging then the system explodes 
+		(probably because positive potential means subtracting out a positive number, means nonphysical cases ...
+		... even though as we offset the potential to be positive, we are also adding it into the total energy ...
+		... but somewhere through numerical error it might be getting too close to zero non-potential total energy?)
+	
+	if we do offset potential to be positive and remove ePot before Roe averaging then nothing special happens
+
+	but if we DON'T offset potential (so keep it negative) and then we remove it after Roe averaging
+		then we get this nice Rayleigh-Taylor ... or Jeans ... instability from self-gravitation.
+	and if we DON'T offset potential (keep negative) and remove ePot before Roe averaging, same thing
+
+	so in summary if ePot is positive then the system either blows up (remove after) or stays boring (remove before)
+	but if ePot is negative then it behaves and displays the correct(?) instability patterns 
+	
+	but which behavior is correct?
+	is the instability at the surface of my self-gravitating demos Jeans, or is it errors?
+	*/
+
 	<?=eqn.prim_t?> WL = primFromCons(*UL, x);
 	real sqrtRhoL = sqrt(WL.rho);
 	real3 vL = WL.v;
-	real hTotalL = calc_hTotal(WL.rho, WL.P, UL->ETotal);
+	real hTotalL = calc_hTotal(WL.rho, WL.P, UL->ETotal) - UL->ePot;
 	
 	<?=eqn.prim_t?> WR = primFromCons(*UR, x);
 	real sqrtRhoR = sqrt(UR->rho);
 	real3 vR = WR.v;
-	real hTotalR = calc_hTotal(WR.rho, WR.P, UR->ETotal);
-	
+	real hTotalR = calc_hTotal(WR.rho, WR.P, UR->ETotal) - UR->ePot;
+
 	real invDenom = 1./(sqrtRhoL + sqrtRhoR);
 	
 	//Roe-averaged
@@ -64,7 +90,7 @@ void eigen_forSide(
 			real3_scale(vL, sqrtRhoL * invDenom),
 			real3_scale(vR, sqrtRhoR * invDenom));
 	real hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR);
-	
+
 	//derived:
 	real vSq = coordLenSq(v, x);
 	real eKin = .5 * vSq;

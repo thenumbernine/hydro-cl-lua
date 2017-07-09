@@ -18,8 +18,8 @@ Roe.name = 'Roe'
 
 -- enable these to verify accuracy
 -- disable these to save on allocation / speed
-Roe.checkFluxError = true 
-Roe.checkOrthoError = true 
+Roe.checkFluxError = false
+Roe.checkOrthoError = false 
 
 function Roe:createBuffers()
 	Roe.super.createBuffers(self)

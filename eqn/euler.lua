@@ -90,7 +90,7 @@ inline real calc_Cs(const <?=eqn.prim_t?>* W) {
 inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 	real EPot = U.rho * U.ePot;
 	real EKin = calc_EKin_fromCons(U, x);
-	real EInt = U.ETotal - EPot - EKin;
+	real EInt = U.ETotal - EKin - EPot;
 	return (<?=eqn.prim_t?>){
 		.rho = U.rho,
 		.v = real3_scale(U.m, 1./U.rho),

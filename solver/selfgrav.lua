@@ -65,7 +65,7 @@ kernel void offsetPotentialAndAddToTotal(
 	real ePotMin
 ) {
 	SETBOUNDS(0,0);
-	UBuf[index].ePot += 1. - ePotMin;
+//	UBuf[index].ePot += 1. - ePotMin;
 	UBuf[index].ETotal += UBuf[index].rho * UBuf[index].ePot;
 }
 
