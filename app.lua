@@ -122,10 +122,11 @@ function HydroCLApp:setup()
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
+		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = {
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 128,
 		},
 		boundary = {
 			xmin=cmdline.boundary or 'freeflow',
@@ -374,6 +375,8 @@ function HydroCLApp:initGL(...)
 		end):unpack()
 	--]]
 	}, false)
+	-- don't wrap the colors, but do use GL_REPEAT
+	self.gradientTex:setWrap{s = gl.GL_REPEAT}
 
 	local graphShaderCode = file['graph.shader']
 	self.graphShader = GLProgram{

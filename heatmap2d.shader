@@ -34,8 +34,7 @@ void main() {
 	} else {
 		value = (value - valueMin) / (valueMax - valueMin);
 	}
-	//TODO insert the gradient tex size
-	value = value * <?=clnumber(gradTexWidth-1)?> / <?=clnumber(gradTexWidth)?>;
+	value = (value * <?=clnumber(gradTexWidth-1)?> + .5) / <?=clnumber(gradTexWidth)?>;
 	gl_FragColor = texture1D(gradientTex, value);
 }
 

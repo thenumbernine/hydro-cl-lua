@@ -52,7 +52,8 @@ kernel void calcGravityDeriv(
 	}<? end ?>
 }
 
-kernel void findMinPotential(
+//TODO just use the display var kernels
+kernel void reduce_ePot(
 	global real* reduceBuf,
 	global const <?=eqn.cons_t?>* UBuf
 ) {
@@ -60,13 +61,18 @@ kernel void findMinPotential(
 	reduceBuf[index] = UBuf[index].ePot;
 }
 
+//hmm, if ePot is negative then we get the cool turbulence effect
+//but if it is positive, esp >1, then we get no extra behavior ... a static sphere
+//and if it is too big then it explodes
 kernel void offsetPotentialAndAddToTotal(
 	global <?=eqn.cons_t?>* UBuf,
 	real ePotMin
 ) {
 	SETBOUNDS(0,0);
-//	UBuf[index].ePot += 1. - ePotMin;
-	UBuf[index].ETotal += UBuf[index].rho * UBuf[index].ePot;
+	global <?=eqn.cons_t?>* U = UBuf + index;
+//	U->ePot += 0. - ePotMin;
+U->ePot -= .5;
+	U->ETotal += U->rho * U->ePot;
 }
 
 ]],
@@ -84,7 +90,9 @@ function SelfGrav:refreshSolverProgram()
 	self.calcGravityDerivKernel = solver.solverProgram:kernel'calcGravityDeriv'
 	self.calcGravityDerivKernel:setArg(1, solver.UBuf)
 
-	self.findMinPotentialKernel = solver.solverProgram:kernel('findMinPotential', solver.reduceBuf, solver.UBuf)
+	--TODO just use the display var kernels
+	self.reduce_ePotKernel = solver.solverProgram:kernel('reduce_ePot', solver.reduceBuf, solver.UBuf)
+	
 	self.offsetPotentialAndAddToTotalKernel = solver.solverProgram:kernel('offsetPotentialAndAddToTotal', solver.UBuf)
 end
 
@@ -93,13 +101,24 @@ function SelfGrav:resetState()
 	SelfGrav.super.resetState(self)
 
 	local solver = self.solver
-	solver.app.cmds:enqueueNDRangeKernel{kernel=self.findMinPotentialKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	
+	-- TODO easier way to reduce min/max on display var ePot
+	--		but that means compiling the ePot dispaly var code even if the ePot display var is turned off ...
+	-- TODO stop calling them 'display var' since they're not just used for displaying
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.reduce_ePotKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
 	local ePotMin = solver.reduceMin()
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.reduce_ePotKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	local ePotMax = solver.reduceMax()
+	
 	self.offsetPotentialAndAddToTotalKernel:setArg(1, ffi.new('real[1]', ePotMin))
 	solver.app.cmds:enqueueNDRangeKernel{kernel=self.offsetPotentialAndAddToTotalKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
-	solver.app.cmds:enqueueNDRangeKernel{kernel=self.findMinPotentialKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.reduce_ePotKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
 	local new_ePotMin = solver.reduceMin()
-print('offsetting potential energy from '..ePotMin..' to '..new_ePotMin)
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.reduce_ePotKernel, dim=solver.dim, globalSize=solver.gridSize:ptr(), localSize=solver.localSize:ptr()}
+	local new_ePotMax = solver.reduceMax()
+
+print('offsetting potential energy from '..ePotMin..','..ePotMax..' to '..new_ePotMin..','..new_ePotMax)
 end
 
 local field = 'gravityPoisson'

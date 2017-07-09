@@ -547,10 +547,11 @@ end ?>
 	{
 		name = 'self-gravitation test 1',
 		init = function(solver)
+			local radius = .5
 			local f = SelfGravProblem{
 				solver = solver,
 				sources={
-					{center={0, 0, 0}, radius = .5},
+					{center={0, 0, 0}, radius = radius},
 				},
 			}
 			if solver.geometry.name == 'cylinder' then
@@ -560,10 +561,10 @@ end ?>
 				solver.boundaryMethods.ymax[0] = solver.app.boundaryMethods:find'periodic'-1
 				solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'freeflow'-1
 				solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'freeflow'-1
-				return [[
+				return template([[
 	P = 1;
-	rho = x.s[0] < .5 ? 1 : .1;
-]]
+	rho = x.s[0] < <?=radius?> ? 1 : .1;
+]], {radius=radius})
 			else
 				return f(solver)
 			end

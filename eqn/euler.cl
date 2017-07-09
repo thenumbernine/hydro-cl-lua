@@ -70,6 +70,18 @@ void eigen_forSide(
 	
 	but which behavior is correct?
 	is the instability at the surface of my self-gravitating demos Jeans, or is it errors?
+	
+	--- 
+
+	let me take that back
+	with forward Euler integrator on a grid of 256x256 ...
+	... even with offsetting the potential energy to be positive ...
+	... it is working fine (when subtracting potential energy pre-averaging)
+	... even with radius same as yesterday, gridsize, ... idk why it was exploding before ...
+	
+	but still,
+	offsetting the ePot to be positive does reduce the gravitational turbulence a lot
+	... so the initial range of ePot influences the turbulence
 	*/
 
 	<?=eqn.prim_t?> WL = primFromCons(*UL, x);

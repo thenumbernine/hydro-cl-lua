@@ -40,11 +40,12 @@ TODO:
 - rename 'adm\_' prefixes to 'nr\_' or 'gr\_' or something else ...
 - PLM support that works on a wide range of equations (currently have a few vying options)
 - higher-order polynomial stuff - WENO or whatever
-- initialize NR stuff to the geometry metric ... or decide what kind of geometry metric to use (holonomic vs anholonomic)
+- initialize NR stuff to the geometry metric ... or decide what kind of geometry metric to use (holonomic vs anholonomic) ... or just use euclidian components and calculate the normals and volumes and surfaces using geom.
 - add GR+HD by taking the SRHD and giving it the metric from GR
 - add EM+SRHD by mixing and matching SRHD and EMHD
 - add EM+GR+HD by winning
 - get MHD working with Orszag-Tang 2D
+- Figure out what to do with self-gravitational potential energy in the Euler simulation.  offsetting it positive makes gravitational instability stable.  offsetting it too positive explodes -- even a forward euler integrator (why).  offsetting it negative causes more instability.
 
 ### Sources:
 
