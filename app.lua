@@ -136,12 +136,12 @@ function HydroCLApp:setup()
 			cmdline.gridSize or 28,
 		},
 		boundary = {
-			xmin=cmdline.boundary or 'mirror',
-			xmax=cmdline.boundary or 'mirror',
-			ymin=cmdline.boundary or 'mirror',
-			ymax=cmdline.boundary or 'mirror',
-			zmin=cmdline.boundary or 'mirror',
-			zmax=cmdline.boundary or 'mirror',
+			xmin=cmdline.boundary or 'freeflow',
+			xmax=cmdline.boundary or 'freeflow',
+			ymin=cmdline.boundary or 'freeflow',
+			ymax=cmdline.boundary or 'freeflow',
+			zmin=cmdline.boundary or 'freeflow',
+			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
 		--[[ cylinder
@@ -842,6 +842,7 @@ function HydroCLApp:showDisplayVar1D(solver, varIndex)
 	solver:getTex(var):bind()
 
 	gl.glUniform1f(self.graphShader.uniforms.scale.loc, 1)
+	gl.glUniform1f(self.graphShader.uniforms.offset.loc, 0)
 	gl.glUniform1f(self.graphShader.uniforms.ambient.loc, 1)
 	gl.glUniform1i(self.graphShader.uniforms.useLog.loc, var.useLog)
 	gl.glUniform2f(self.graphShader.uniforms.xmin.loc, solver.mins[1], 0)
@@ -1096,7 +1097,6 @@ function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin
 
 			-- TODO gui this somewhere
 			local step = 1
-			local scale = 1
 			local ambient = .3
 			
 			-- TODO where to specify using the heatmap gradient vs using the variable/solver color
@@ -1107,7 +1107,11 @@ function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin
 			self.graphShader:use()
 			solver:getTex(var):bind()
 
+			local scale = 1 / (valueMax - valueMin)
+			local offset = valueMin
 			gl.glUniform1f(self.graphShader.uniforms.scale.loc, scale)
+			gl.glUniform1f(self.graphShader.uniforms.offset.loc, offset)
+			
 			gl.glUniform1f(self.graphShader.uniforms.ambient.loc, ambient)
 			gl.glUniform1i(self.graphShader.uniforms.axis.loc, solver.dim)
 			gl.glUniform1i(self.graphShader.uniforms.useLog.loc, var.useLog)

@@ -370,7 +370,61 @@ end
 	{
 		name = 'stellar model',
 		init = function(solver, getCodes)
+			-- hmm, the symbolic stuff seemed to be working so much better in the last project ...
+			-- now i'm replacing it with macros for speed's sake ...
+			do
+				local bodyMass = .001
+				local bodyRadius = .1 
 				
+				local alphaVar = symmath.var'alpha'
+				local fGuiVar = solver.eqn.guiVarsForName.f
+				local fLuaCode = fGuiVar.options[fGuiVar.value]
+				
+				local f = assert(loadstring('local alpha = ... return '..fLuaCode))(alphaVar)
+				f = symmath.clone(f)
+				local fCCode = compileC(f, 'f', {alphaVar})
+				
+--[[
+d/dr alpha = 1/2 (1 - 2 minMass / r)^(-1/2) * -2 * d/dr(minMass / r)
+minMass = bodyMass * min((r/bodyRadius)^3, 1)
+d/dr minMass = r >= bodyRadius and 0 or (3 r^2 bodyMass / bodyRadius^3)
+d/dr (minMass / r) = (d/dr minMass) / r - minMass / r^2
+	= bodyMass ((r >= bodyRadius and 0 or (3 r / bodyRadius^3)) - min((r/bodyRadius)^3, 1) / r^2)
+--]]
+				return template([[
+#define calc_f(alpha)			(<?=fCCode?>)
+#define rSq(x,y,z) 				(x*x + y*y + z*z)
+#define r(x,y,z) 				sqrt(rSq(x,y,z))
+#define rCubed(x,y,z)			(r(x,y,z) * rSq(x,y,z))
+#define bodyMass				<?=bodyMass?>
+#define bodyRadius				<?=bodyRadius?>
+#define cubed(x)				((x)*(x)*(x))
+#define minMass(x,y,z)			(bodyMass * min(rCubed(x,y,z)/cubed(bodyRadius), 1.))
+#define minRadius(x,y,z)		(2.*minMass(x,y,z))
+#define calc_alpha(x,y,z)		sqrt(1. - 2*minMass(x,y,z)/r(x,y,z))
+<? 
+for i,xi in ipairs(xNames) do
+?>#define calc_beta_<?=xi?>(x,y,z)		0.
+<?
+end
+for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+	local xi, xj = xNames[i], xNames[j]
+?>#define calc_gamma_<?=xij?>(x,y,z)	(<?=i==j and '1.+' or ''?> + <?=xi?> * <?=xj?> / ((r(x,y,z) / minRadius(x,y,z) - 1.) * rSq(x,y,z)))
+<?
+end
+for ij,xij in ipairs(symNames) do
+?>#define calc_K_<?=xij?>(x,y,z)		0.
+<?
+end
+?>]], 			table(getTemplateEnv(solver), {
+					fCCode = fCCode:match'{ return (.*); }',
+					bodyRadius  = clnumber(bodyRadius),
+					bodyMass = clnumber(bodyMass),
+				}))
+			end
+
+
 			--[[ this is technically correct, but gets some artifacts with the radial boundary on the cartesian grid
 			local H = symmath.Heaviside
 			--]]
