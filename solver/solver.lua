@@ -19,6 +19,9 @@ local vec3sz = require 'ffi.vec.vec3sz'
 local tooltip = require 'tooltip'
 local roundup = require 'roundup'
 
+--local tryingAMR = 'dt vs 2dt'
+--local tryingAMR = 'gradient'
+
 local function getn(...)
 	local t = {...}
 	t.n = select('#', ...)
@@ -386,7 +389,6 @@ function ConvertToTex:init(args)
 				or (self.name == 'error' and solver.dim==1),
 			useLog = args.useLog or false,
 			color = vec3(math.random(), math.random(), math.random()):normalize(),
-			--heatMapTexPtr = ffi.new('int[1]', 0),	-- hsv, isobar, etc ...
 			heatMapFixedRange = false,	-- self.name ~= 'error'
 			heatMapValueMin = 0,
 			heatMapValueMax = 1,
@@ -441,6 +443,23 @@ function Solver:addConvertToTexs()
 		name = 'reduce', 
 		vars = {{['0'] = 'value = buf[index];'}},
 	}
+
+if tryingAMR == 'dt vs 2dt' then
+	self:addConvertToTex{
+		name = 'U2',
+		type = self.eqn.cons_t,
+		vars = {
+			{[0] = 'value = buf[index].ptr[0];'},
+		}
+	}
+elseif tryingAMR == 'gradient' then
+	self:addConvertToTex{
+		name = 'amrError',
+		vars = {
+			{[0] = 'value = buf[index];'},
+		}
+	}
+end
 end
 
 -- my best idea to work around the stupid 8-arg max kernel restriction
@@ -509,11 +528,74 @@ function Solver:createBuffers()
 	end
 
 	-- should I put these all in one AoS?
+
+	--[[
+	ok here's my thoughts on the size ...
+	I'm gonna try to do AMR
+	that means storing the nodes in the same buffer
+	I think I'll pad the end of the UBuf with the leaves
+	and then store a tree of index information somewhere else that says what leaf goes where
+	(maybe that will go at the end)
 	
-	-- two fluid uses multiple solvers, each with their own cons_t ... 
-	-- but in ffi, typedefs can't be undefined / redefined
-	self:clalloc('UBuf', self.volume * ffi.sizeof(self.eqn.cons_t))
+	how should memory breakdown look?
+	how big should the leaves be?
+
+	how about do like reduce ...
+	leaves can be 16x16 blocks
+	a kernel can cycle through the root leaves and sum te amrError 
+	-- in the same kernel as it is calculated
+	-- then I don't need to store so much memory, only one value per leaf, not per grid ...
+	-- then ... split or merge leaves, based on their error ...
+
+	how to modify that?  in anothe kernel of its own ...
+	bit array of whether each cell is divided ...
+	-- then in one kernel we update all leaves
+	-- in another kernel, populate leaf ghost cells
+	-- in another kernel, 
+	-- 		decide what should be merged and, based on that, copy from parent into this
+	--		if something should be split then look for unflagged children and copy into it
 	
+	how many bits will we need?
+	volume / leafSize bits for the root level
+	
+	then we have parameters of 
+	- how big each node is
+	- what level of refinement it is
+	
+	ex:
+	nodes in the root level are 2^4 x 2^4 = 2^8 = 256 cells = 256 bits = 2^5 = 32 bytes
+	
+
+	leafs are 2^4 x 2^4 = 2^8 = 256 cells
+	... but ghost cells are 2 border, so we need to allocate (2^n+2*2)^2 cells ... for n=4 this is 400 cells ... 
+		so we lose (2^n+2*2)^2 - 2^(2n) = 2^(2n) + 2^(n+3) + 2^4 - 2^(2n) = 2^(n+3) + 2^4) cells are lost
+	
+	so leafs multipy at a factor of 2^2 x 2^2 = 2^4 = 16
+	so the next level has 2^(8+4) = 2^12 = 4096 bits = 2^9 = 512 bytes
+
+	--]]
+	
+	-- this much for the first level U data
+	local UBufSize = self.volume * ffi.sizeof(self.eqn.cons_t)
+if tryingARM == 'not yet' then	
+	-- this much for the next level U data
+	local numRootLeafs = 10
+	-- how big each root is
+	local leafSize = vec3sz(8,8,8)	-- including numGhost
+	local leafVolume = leafSize:volume()
+	UBufSize = UBufSize + self.volume / numRootLeafs * leafVolume
+end
+	self:clalloc('UBuf', UBufSize)
+
+
+if tryingAMR == 'dt vs 2dt' then
+	-- here's my start at AMR, using the 1989 Berger, Collela two-small-steps vs one-big-step method
+	self:clalloc('lastUBuf', self.volume * ffi.sizeof(self.eqn.cons_t))
+	self:clalloc('U2Buf', self.volume * ffi.sizeof(self.eqn.cons_t))
+elseif tryingAMR == 'gradient' then
+	self:clalloc('amrErrorBuf', self.volume * ffi.sizeof'real')
+end
+
 	if self.usePLM then
 		self:clalloc('ULRBuf', self.volume * self.dim * ffi.sizeof(self.eqn.consLR_t))
 	end
@@ -529,6 +611,7 @@ function Solver:createBuffers()
 	-- hmm, notice I'm still keeping the numGhost border on my texture 
 	-- if I remove the border altogether then I get wrap-around
 	-- maybe I should just keep a border of 1?
+	-- for now i'll leave it as it is
 	local cl = self.dim < 3 and GLTex2D or GLTex3D
 	self.tex = cl{
 		width = tonumber(self.gridSize.x),
@@ -847,6 +930,54 @@ function Solver:getSolverCode()
 	
 		-- messing with this ...
 		self.usePLM and template(file['solver/plm.cl'], {solver=self, eqn=self.eqn}) or '',
+
+		template(
+			({
+				['dt vs 2dt'] = [[
+kernel void compareUvsU2(
+	global <?=eqn.cons_t?>* U2Buf,
+	const global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(0,0);
+	global <?=eqn.cons_t?> *U2 = U2Buf + index;
+	const global <?=eqn.cons_t?> *U = UBuf + index;
+	
+	//what to use to compare values ...
+	//if we combine all primitives, they'll have to be appropriately weighted ...
+	real sum = 0.;
+	real tmp;
+<? for i=0,eqn.numStates-1 do
+?>	tmp = U2->ptr[<?=i?>] - U->ptr[<?=i?>]; sum += tmp * tmp;
+<? end
+?>	U2->ptr[0] = sum * 1e+5;
+}
+]],
+				gradient = [==[
+kernel void calcAMRError(
+	global real* amrErrorBuf,
+	const global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(0,0);
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+
+	real dV_dx;
+	real sum = 0.;
+	
+	//TODO this wasn't the exact formula ...
+	// and TODO make this modular.  some papers use velocity vector instead of density.  
+	// why not total energy -- that incorporates everything?
+
+<? for i=0,solver.dim-1 do
+?>	dV_dx = (U[stepsize.s<?=i?>].rho - U[-stepsize.s<?=i?>].rho) / (2. * grid_dx<?=i?>);
+	sum += dV_dx * dV_dx;
+<? end
+?>	amrErrorBuf[index] = sum * 1e-3;
+}
+]==],
+			})[tryingAMR] or ''
+			, {solver=self, eqn=self.eqn}
+		),
+
 	}:concat'\n'
 end
 
@@ -905,6 +1036,12 @@ end
 			self.ULRBuf,
 			self.UBuf)
 	end
+
+if tryingAMR == 'dt vs 2dt' then
+	self.compareUvsU2Kernel = self.solverProgram:kernel('compareUvsU2', self.U2Buf, self.UBuf)
+elseif tryingAMR == 'gradient' then
+	self.calcAMRErrorKernel = self.solverProgram:kernel('calcAMRError', self.amrErrorBuf, self.UBuf)
+end
 end
 
 -- for solvers who don't rely on calcDT
@@ -1147,8 +1284,12 @@ function Solver:applyBoundaryToBuffer(kernel)
 		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=maxSize, localSize=math.min(self.localSize1d, maxSize)}
 	elseif self.dim == 3 then
 		-- xy xz yz
-		local maxSizeX = math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y))
-		local maxSizeY = math.max(tonumber(self.gridSize.y), tonumber(self.gridSize.z))
+		local maxSizeX = roundup(
+			math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y)),
+			self.localSize2d[1])
+		local maxSizeY = roundup(
+			math.max(tonumber(self.gridSize.y), tonumber(self.gridSize.z)),
+			self.localSize2d[2])
 		self.app.cmds:enqueueNDRangeKernel{
 			kernel = kernel,
 			globalSize = {maxSizeX, maxSizeY},
@@ -1192,19 +1333,24 @@ function Solver:update()
 	Because pauses will mess with the numbers, I'll only look at the last n many frames.  
 	Maybe just the last 1.
 	--]]
-	local thisTime = os.clock()
-	if not self.fpsSamples then
-		self.fpsIndex = 0
-		self.fpsSamples = table()
+	local numFrames = 10
+	self.frames = (self.frames or 0) + 1
+	if self.frames >= numFrames then
+		local thisTime = os.time()	-- TODO gettimeofday or something
+		if not self.fpsSamples then
+			self.fpsIndex = 0
+			self.fpsSamples = table()
+		end
+		if self.lastFrameTime then
+			local deltaTime = thisTime - self.lastFrameTime
+			local fps = numFrames / deltaTime
+			self.fpsIndex = (self.fpsIndex % self.fpsNumSamples) + 1
+			self.fpsSamples[self.fpsIndex] = fps
+			self.fps = self.fpsSamples:sum() / #self.fpsSamples
+		end
+		self.lastFrameTime = thisTime
+		self.frames = 0
 	end
-	if self.lastFrameTime then
-		local deltaTime = thisTime - self.lastFrameTime
-		local fps = 1 / deltaTime
-		self.fpsIndex = (self.fpsIndex % self.fpsNumSamples) + 1
-		self.fpsSamples[self.fpsIndex] = fps
-		self.fps = self.fpsSamples:sum() / #self.fpsSamples
-	end
-	self.lastFrameTime = thisTime
 
 --local before = self.UBufObj:toCPU()
 --print'\nself.UBufObj before boundary:' self:printBuf(self.UBufObj) print(debug.traceback(),'\n\n')	
@@ -1235,9 +1381,35 @@ if self.app.dim == 2 then
 end
 --]]	
 	local dt = self:calcDT()
---print('dt',dt)	
+
+if tryingAMR == 'dt vs 2dt' then
+	-- back up the last buffer
+	self.app.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.lastUBuf, size=self.volume * self.eqn.numStates * ffi.sizeof(self.app.real)}
+end
+	
+	-- first do a big step
 	self:step(dt)
+
+	-- now copy it to the backup buffer
+if tryingAMR == 'dt vs 2dt' then
+	-- TODO have step() provide a target, and just update directly into U2Buf?
+	self.app.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.U2Buf, size=self.volume * self.eqn.numStates * ffi.sizeof(self.app.real)}
+	self.app.cmds:enqueueCopyBuffer{src=self.lastUBuf, dst=self.UBuf, size=self.volume * self.eqn.numStates * ffi.sizeof(self.app.real)}
+
+	local t = self.t
+	self:step(.5 * dt)
+	self.t = t + .5 * dt
+	self:step(.5 * dt)
+	self.t = t + dt
+
+	-- now compare UBuf and U2Buf, store in U2Buf in the first real of cons_t
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.compareUvsU2Kernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+elseif tryingAMR == 'gradient' then
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcAMRErrorKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+else
 	self.t = self.t + dt
+end
+
 end
 
 function Solver:step(dt)

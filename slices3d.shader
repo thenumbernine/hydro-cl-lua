@@ -1,4 +1,9 @@
-varying vec3 texCoord;
+varying vec3 texCoord;	//[0,1]^n
+
+<? local useClipPlanes = false ?>
+<? if useClipPlanes then ?>
+varying vec3 pos;		//positive after coordinate mapping, before view transform
+<? end ?>
 
 <?
 if vertexShader then
@@ -12,6 +17,9 @@ void main() {
 	x.xyz *= maxs - mins;
 	x.xyz += mins;
 	x = vec4(coordMap(x.xyz), x.w);
+<? if useClipPlanes then ?>
+	pos = x.xyz;
+<? end ?>
 	gl_Position = gl_ModelViewProjectionMatrix * x;
 }
 
@@ -40,7 +48,12 @@ uniform float alphaGamma;
 
 uniform bool useIsos;
 uniform float numIsobars;
-
+<? if useClipPlanes then ?>
+<? for i,clipInfo in ipairs(clipInfos) do
+?>uniform bool clipEnabled<?=i?>;
+<? end
+?>
+<? end ?>
 uniform bool useLighting;
 
 float calcFrac(float value) {
@@ -64,12 +77,17 @@ float getTex(vec3 tc) {
 }
 
 void main() {
-	//vec4 worldPos = gl_ModelViewMatrix * vec4(pos,1.);
-
+<? if useClipPlanes then ?>
+	vec4 worldPos = gl_ModelViewMatrix * vec4(pos, 1.);
+<? for i,clipInfo in ipairs(clipInfos) do
+?>	if (clipEnabled<?=i?> && dot(worldPos, gl_ClipPlane[<?=i-1?>]) < 0.) discard;
+<? end
+?>
+<? end ?>
 	float value = getTex(texCoord);
 	float frac = calcFrac(value);
 	//TODO insert the gradient tex size
-	float gradTC = (frac * <?=clnumber(gradTexWidth-1)?> + .5) / <?=clnumber(gradTexWidth)?>;
+	float gradTC = (frac * <?=clnumber(gradTexWidth-1)?>) / <?=clnumber(gradTexWidth)?>;
 	vec4 voxelColor = texture1D(gradientTex, gradTC);
 
 	//don't bother with the gamma factor if we're using isobars

@@ -140,6 +140,7 @@ kernel void calcREig(
 }
 <? end ?>
 
+//TODO entropy fix ... for the Euler equations at least
 kernel void calcFlux(
 	global <?=eqn.cons_t?>* fluxBuf,
 	<?= solver.getULRArg ?>,

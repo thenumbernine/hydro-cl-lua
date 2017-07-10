@@ -36,13 +36,14 @@ end
 local bit = require 'bit'
 local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
-local gl = require 'gl'
 local cl = require 'ffi.OpenCL'
+local gl = require 'gl'
 local sdl = require 'ffi.sdl'
 local class = require 'ext.class'
 local math = require 'ext.math'
 local table = require 'ext.table'
 local file = require 'ext.file'
+local range = require 'ext.range'
 local template = require 'template'
 local ImGuiApp = require 'imguiapp'
 local CLEnv = require 'cl.obj.env'
@@ -50,8 +51,14 @@ local clnumber = require 'cl.obj.number'
 local GLProgram = require 'gl.program'
 local GLGradientTex = require 'gl.gradienttex'
 local GLTex2D = require 'gl.tex2d'
+local glreport = require 'gl.report'
 local Font = require 'gui.font'
+local Image = require 'image'
+local vec4d = require 'ffi.vec.vec4d'
+local vec3d = require 'ffi.vec.vec3d'
 local tooltip = require 'tooltip'
+
+
 
 local HydroCLApp = class(ImGuiApp)
 
@@ -96,9 +103,9 @@ function HydroCLApp:setup()
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 2,
+		dim = cmdline.dim or 3,
 		
-		integrator = cmdline.integrator or 'forward Euler',	
+		--integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -110,7 +117,7 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		--integrator = 'backward Euler',
+		integrator = 'backward Euler',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = 'donor cell',
@@ -124,17 +131,17 @@ function HydroCLApp:setup()
 		maxs = cmdline.maxs or {1, 1, 1},
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = {
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
-			cmdline.gridSize or 256,
+			cmdline.gridSize or 28,
+			cmdline.gridSize or 28,
+			cmdline.gridSize or 28,
 		},
 		boundary = {
-			xmin=cmdline.boundary or 'freeflow',
-			xmax=cmdline.boundary or 'freeflow',
-			ymin=cmdline.boundary or 'freeflow',
-			ymax=cmdline.boundary or 'freeflow',
-			zmin=cmdline.boundary or 'freeflow',
-			zmax=cmdline.boundary or 'freeflow',
+			xmin=cmdline.boundary or 'mirror',
+			xmax=cmdline.boundary or 'mirror',
+			ymin=cmdline.boundary or 'mirror',
+			ymax=cmdline.boundary or 'mirror',
+			zmin=cmdline.boundary or 'mirror',
+			zmax=cmdline.boundary or 'mirror',
 		},
 		--]]
 		--[[ cylinder
@@ -206,7 +213,7 @@ function HydroCLApp:setup()
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -251,7 +258,7 @@ function HydroCLApp:setup()
 	
 		-- GR
 		--initState = 'gauge shock wave',
-		--initState = 'Alcubierre warp bubble',
+		initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
 		--initState = 'binary black holes',
 		--initState = 'stellar model',
@@ -262,7 +269,7 @@ function HydroCLApp:setup()
 	self.solvers = table()
 	
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
@@ -311,9 +318,27 @@ function HydroCLApp:setup()
 	-- TODO constant Minkowski boundary conditions?
 	-- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 	-- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-	--self.solvers:insert(require 'solver.bssnok-fd'(args))
+	self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
+end
+
+local useClipPlanes
+if useClipPlanes then
+-- TODO put all the display3D_slices stuff in its own file
+local rotateClip = ffi.new('int[1]', 0)
+local function makeDefaultPlane(i)
+	assert(i >= 1 and i <= 4)
+	local plane = vec4d(0,0,0,0)
+	plane:ptr()[math.min(i,3)-1] = -1
+	return plane
+end
+local clipInfos = range(4):map(function(i)
+	return {
+		enabled = i == 3,
+		plane = makeDefaultPlane(i),
+	}
+end)
 end
 
 function HydroCLApp:initGL(...)
@@ -357,7 +382,7 @@ function HydroCLApp:initGL(...)
 	local gradTexWidth = 1024
 	self.gradientTex = GLGradientTex(gradTexWidth, {
 	-- [[ white, rainbow, black
-		{0,0,0,.5},	-- black
+		{0,0,0,.5},	-- black ... ?
 		{0,0,1,1},	-- blue
 		{0,1,1,1},	-- cyan
 		{0,1,0,1},	-- green
@@ -449,6 +474,7 @@ function HydroCLApp:initGL(...)
 					fragmentShader = true,
 					clnumber = clnumber,
 					gradTexWidth = gradTexWidth,
+					clipInfos = useClipPlanes and clipInfos or nil,
 				}),
 				uniforms = {
 					volTex = 0,
@@ -496,6 +522,7 @@ void main() {
 	end
 	self.font = Font{tex = fonttex}
 	--]]
+
 
 	self.orthoView = require 'view.ortho'()
 	self.frustumView = require 'view.frustum'()
@@ -1148,7 +1175,6 @@ local quadsInCube = {
 	2,3,7,6,
 }
 
-local vec4d = require 'ffi.vec.vec4d'
 function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	self.view:projection(ar)
 	self.view:modelview()
@@ -1161,6 +1187,12 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 	if not self.display3D_Slice_alphaGamma then self.display3D_Slice_alphaGamma = ffi.new('float[1]', 1) end
 	if not self.display3D_Slice_numSlices then self.display3D_Slice_numSlices = ffi.new('int[1]', 255) end
 
+if useClipPlanes then
+	for i,clipInfo in ipairs(clipInfos) do
+		gl.glClipPlane(gl.GL_CLIP_PLANE0+i-1, clipInfo.plane:ptr())
+	end
+end
+	
 	for _,solver in ipairs(solvers) do 
 		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
 		if varIndex then
@@ -1189,9 +1221,14 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 			gl.glUniform1i(solver.volumeSliceShader.uniforms.useIsos.loc, self.display3D_Slice_useIsos[0])
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.numIsobars.loc, self.display3D_Slice_numIsobars[0])
 			gl.glUniform1i(solver.volumeSliceShader.uniforms.useLighting.loc, self.display3D_Slice_useLighting[0])
-
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.numGhost.loc, solver.numGhost)
 			gl.glUniform3f(solver.volumeSliceShader.uniforms.texSize.loc, solver.gridSize:unpack())
+
+if useClipPlanes then
+			for i,info in ipairs(clipInfos) do
+				gl.glUniform1i(solver.volumeSliceShader.uniforms['clipEnabled'..i].loc, info.enabled and 1 or 0)
+			end
+end
 
 			if self.display3D_Slice_usePoints[0] then
 				gl.glEnable(gl.GL_DEPTH_TEST)
@@ -1256,7 +1293,6 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 	end
 end
 
-local glreport = require 'gl.report'
 function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	self.view:projection(ar)
 	self.view:modelview()
@@ -1492,7 +1528,6 @@ for i=0,255 do
 end
 --]]
 
-local vec3d = require 'ffi.vec.vec3d'
 function HydroCLApp:display3D_Isosurface(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	self.view:projection(ar)
 	self.view:modelview()
@@ -1682,7 +1717,7 @@ function HydroCLApp:updateGUI()
 					local height = tonumber(solver.gridSize.y)
 					local channels = solver.eqn.numStates
 					
-					local image = require 'image'(width, height, channels, assert(self.real))
+					local image = Image(width, height, channels, assert(self.real))
 					self.cmds:enqueueReadBuffer{buffer=solver.UBuf, block=true, size=ffi.sizeof(self.real) * solver.volume, ptr=image.buffer}
 					
 					-- now convert from interleaved to planar
@@ -1735,6 +1770,21 @@ function HydroCLApp:updateGUI()
 				
 				-- if we're doing 3D slice display 
 				if HydroCLApp.display3D_Slice == select(2, next(display3DMethods[self.display3DMethod[0]+1])) then
+
+if useClipPlanes then
+					ig.igRadioButton("rotate camera", rotateClip, 0)
+					for i,clipInfo in ipairs(clipInfos) do
+						ig.igPushIdStr('clip '..i)
+						tooltip.checkbox('clip', clipInfo.enabled)
+						ig.igSameLine()
+						ig.igRadioButton('rotate', rotateClip, i)
+						ig.igSameLine()
+						if ig.igButton('reset') then
+							clipInfo.plane = makeDefaultPlane(i)
+						end
+						ig.igPopId()
+					end				
+end					
 					ig.igSliderFloat('alpha', self.display3D_Slice_alpha, 0, 1)
 					ig.igSliderFloat('gamma', self.display3D_Slice_alphaGamma, 0, 1)
 					ig.igCheckbox('isobars', self.display3D_Slice_useIsos)
