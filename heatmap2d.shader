@@ -1,8 +1,6 @@
 varying vec2 texCoord;
 
-<? 
-if vertexShader then
-?>
+<?  if vertexShader then ?>
 
 void main() {
 	texCoord = gl_MultiTexCoord0.xy;
@@ -10,13 +8,11 @@ void main() {
 	gl_Position = gl_ModelViewProjectionMatrix * x;
 }
 
-<?
-end
-if fragmentShader then
-?>
+<? end
+if fragmentShader then ?>
 
 //1/log(10)
-#define _1_LN_10 0.4342944819032517611567811854911269620060920715332
+#define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
 float logmap(float x) { return log(1. + abs(x)) * _1_LN_10; }
 
 uniform bool useLog;
@@ -38,6 +34,4 @@ void main() {
 	gl_FragColor = texture1D(gradientTex, value);
 }
 
-<?
-end
-?>
+<? end ?>

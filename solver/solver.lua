@@ -331,15 +331,10 @@ kernel void <?=name?>(
 		and ','..table.concat(convertToTex.extraArgs, ',\n\t')
 		or '' ?>
 ) {
-	//SETBOUNDS is relative to gridSize, which includes the ghost cells
-	// so this is going to span [0,sizeWithoutBorder)
-	SETBOUNDS(0,<?=2*solver.numGhost?>);
+	SETBOUNDS(0,0);
 	
 	int4 dsti = i;
-	int dstindex = indexForInt4ForSize(i, 
-		<?=tonumber(solver.sizeWithoutBorder.x)?>,
-		<?=tonumber(solver.sizeWithoutBorder.y)?>,
-		<?=tonumber(solver.sizeWithoutBorder.z)?>);
+	int dstindex = index;
 <? for i=0,solver.dim-1 do
 ?>	i.s<?=i?> += <?=solver.numGhost?>;
 <? end
@@ -352,17 +347,17 @@ kernel void <?=name?>(
 <? end
 ?>
 	//now constrain
-	if (i.x < 2) i.x = 2;
-	if (i.x > gridSize_x - 2) i.x = gridSize_x - 2;
+	if (i.x < numGhost) i.x = numGhost;
+	if (i.x >= gridSize_x - numGhost) i.x = gridSize_x - numGhost-1;
 <? 
 if solver.dim >= 2 then
-?>	if (i.y < 2) i.y = 2;
-	if (i.y > gridSize_y - 2) i.y = gridSize_y - 2;
+?>	if (i.y < numGhost) i.y = numGhost;
+	if (i.y >= gridSize_y - numGhost) i.y = gridSize_y - numGhost-1;
 <? 
 end
 if solver.dim >= 3 then
-?>	if (i.z < 2) i.z = 2;
-	if (i.z > gridSize_z - 2) i.z = gridSize_z - 2;
+?>	if (i.z < numGhost) i.z = numGhost;
+	if (i.z >= gridSize_z - numGhost) i.z = gridSize_z - numGhost-1;
 <? end 
 ?>
 	//and recalculate read index
@@ -681,9 +676,9 @@ end
 	-- for now i'll leave it as it is
 	local cl = self.dim < 3 and GLTex2D or GLTex3D
 	self.tex = cl{
-		width = tonumber(self.sizeWithoutBorder.x),
-		height = tonumber(self.sizeWithoutBorder.y),
-		depth = tonumber(self.sizeWithoutBorder.z),
+		width = tonumber(self.gridSize.x),
+		height = tonumber(self.gridSize.y),
+		depth = tonumber(self.gridSize.z),
 		internalFormat = gl.GL_RGBA32F,
 		format = gl.GL_RGBA,
 		type = gl.GL_FLOAT,
@@ -695,7 +690,7 @@ end
 	if self.app.useGLSharing then
 		self.texCLMem = CLImageGL{context=self.app.ctx, tex=self.tex, write=true}
 	else
-		self.calcDisplayVarToTexPtr = ffi.new(self.app.real..'[?]', self.volumeWithoutBorder)
+		self.calcDisplayVarToTexPtr = ffi.new(self.app.real..'[?]', self.volume)
 		
 		--[[ PBOs?
 		self.calcDisplayVarToTexPBO = ffi.new('gl_int[1]', 0)
@@ -1686,7 +1681,7 @@ function Solver:calcDisplayVarToTex(var)
 		app.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
 	
 		convertToTex:setToTexArgs(var)
-		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToTexKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
+		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToTexKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 		app.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
 		app.cmds:finish()
 	else
@@ -1697,13 +1692,13 @@ function Solver:calcDisplayVarToTex(var)
 		local tex = self.tex
 		
 		convertToTex:setToBufferArgs(var)
-		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
-		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.volumeWithoutBorder, ptr=ptr}
+		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.volume, ptr=ptr}
 		local destPtr = ptr
 		if app.is64bit then
 			-- can this run in place?
 			destPtr = ffi.cast('float*', ptr)
-			for i=0,self.volumeWithoutBorder-1 do
+			for i=0,self.volume-1 do
 				destPtr[i] = ptr[i]
 			end
 		end
@@ -1729,10 +1724,10 @@ function Solver:calcDisplayVarRange(var)
 
 	var.convertToTex:setToBufferArgs(var)
 
-	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
-	local min = self.reduceMin(nil, self.volumeWithoutBorder)
-	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
-	local max = self.reduceMax(nil, self.volumeWithoutBorder)
+	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+	local min = self.reduceMin(nil, self.volume)
+	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+	local max = self.reduceMax(nil, self.volume)
 	
 	var.lastMin = min
 	var.lastMax = max
@@ -1751,7 +1746,7 @@ function Solver:calcDisplayVarRangeAndAvg(var)
 	local avg
 	if needsUpdate then
 		self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
-		avg = self.reduceSum(nil, self.volumeWithoutBorder) / tonumber(self.volume)
+		avg = self.reduceSum(nil, self.volume) / tonumber(self.volume)
 	else
 		avg = var.lastAvg
 	end

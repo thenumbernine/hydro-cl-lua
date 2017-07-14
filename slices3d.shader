@@ -5,9 +5,7 @@ varying vec3 texCoord;	//[0,1]^n
 varying vec3 pos;		//positive after coordinate mapping, before view transform
 <? end ?>
 
-<?
-if vertexShader then
-?>
+<? if vertexShader then ?>
 
 uniform vec3 mins, maxs;
 void main() {
@@ -23,10 +21,8 @@ void main() {
 	gl_Position = gl_ModelViewProjectionMatrix * x;
 }
 
-<?
-end
-if fragmentShader then
-?>
+<? end
+if fragmentShader then ?>
 
 #define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
 #define M_PI 		<?=('%.50f'):format(math.pi)?>
@@ -125,6 +121,4 @@ void main() {
 	gl_FragColor = vec4(voxelColor.rgb, voxelColor.a * alpha);
 }
 
-<?
-end
-?>
+<? end ?>

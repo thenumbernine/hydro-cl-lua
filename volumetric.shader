@@ -2,20 +2,26 @@ varying vec3 texCoordStart;
 varying vec3 vertexStart;
 varying vec3 eye;
 
-#ifdef VERTEX_SHADER
+<? if vertexShader then ?>
 
+uniform vec3 mins, maxs;
 void main() {
 	//this only needs to be done once per render
 	//i.e. uniform?
 	eye = (gl_ModelViewMatrixInverse * vec4(0., 0., 0., 1.)).xyz;
 	texCoordStart = gl_MultiTexCoord0.xyz;
-	vertexStart = gl_Vertex.xyz;
-	gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+	
+	vec4 x = gl_Vertex;
+	x.xyz *= maxs - mins;
+	x.xyz += mins;
+	x = vec4(coordMap(x.xyz), x.w);	
+	
+	vertexStart = x.xyz;	//this means we have to invert coordMap as we travel through the cartesian space
+	gl_Position = gl_ModelViewProjectionMatrix * x;
 }
 
-#endif	//VERTEX_SHADER
-
-#ifdef FRAGMENT_SHADER
+<? end
+if fragmentShader then ?>
 
 uniform sampler3D tex;
 uniform sampler1D gradient;
@@ -24,8 +30,7 @@ uniform vec3 oneOverDx;
 uniform float scale;
 uniform bool useLog;
 uniform float alpha;
-//1/log(10)
-#define _1_LN_10 0.4342944819032517611567811854911269620060920715332
+#define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
 
 float getValue(vec3 p) {
 	float value = texture3D(tex, p).r;
@@ -72,4 +77,4 @@ result.a = 0.;
 	gl_FragColor = vec4(result.rgb, 1. - result.a);
 }
 
-#endif	//FRAGMENT_SHADER
+<? end ?>

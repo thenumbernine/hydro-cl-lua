@@ -59,7 +59,6 @@ local vec3d = require 'ffi.vec.vec3d'
 local tooltip = require 'tooltip'
 
 
-
 local HydroCLApp = class(ImGuiApp)
 
 HydroCLApp.title = 'Hydrodynamics in OpenCL'
@@ -100,10 +99,11 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 function HydroCLApp:setup()
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
+	local dim = 2
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
-		dim = cmdline.dim or 3,
+		dim = cmdline.dim or dim,
 		
 		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
@@ -125,16 +125,16 @@ function HydroCLApp:setup()
 		--usePLM = true,	-- piecewise-linear slope limiter
 		--slopeLimiter = 'minmod',
 		
-		--[[ Cartesian
+		-- [[ Cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		-- 256^2 = 2^16 = 2 * 32^3
-		gridSize = {
-			cmdline.gridSize or 128,
-			cmdline.gridSize or 128,
-			cmdline.gridSize or 128,
-		},
+		gridSize = ({
+			{1024,1,1},
+			{200,200,1},
+			{32,32,32},
+		})[dim],
 		boundary = {
 			xmin=cmdline.boundary or 'mirror',
 			xmax=cmdline.boundary or 'mirror',
@@ -144,12 +144,15 @@ function HydroCLApp:setup()
 			zmax=cmdline.boundary or 'mirror',
 		},
 		--]]
-		-- [[ cylinder
+		--[[ cylinder
 		geometry = 'cylinder',
 		mins = cmdline.mins or {.1, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
-		--gridSize = {32, 128, 1}, -- 2D
-		gridSize = {16, 64, 16}, -- 3D
+		gridSize = ({
+			{128, 1, 1}, -- 1D
+			{32, 128, 1}, -- 2D
+			{16, 64, 16}, -- 3D
+		})[dim],
 		boundary = {
 			xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
 			xmax=cmdline.boundary or 'mirror',
@@ -413,7 +416,7 @@ function HydroCLApp:initGL(...)
 	
 	local code = file['heatmap2d.shader']
 	for _,solver in ipairs(self.solvers) do
-		local heatMap2DShader = GLProgram{
+		solver.heatMap2DShader = GLProgram{
 			vertexCode = template(
 				table{
 					solver:getCoordMapGLSLCode(),
@@ -435,7 +438,6 @@ function HydroCLApp:initGL(...)
 				gradientTex = 1,
 			},
 		}
-		solver.heatMap2DShader = heatMap2DShader 
 
 		if solver.dim == 3 then
 			-- raytracing (stalling)
@@ -443,8 +445,18 @@ function HydroCLApp:initGL(...)
 			local maxiter = math.max(tonumber(solver.gridSize.x), tonumber(solver.gridSize.y), tonumber(solver.gridSize.z))
 			local code = file['volumetric.shader']
 			local volumeRayShader = GLProgram{
-				vertexCode = '#define VERTEX_SHADER\n'..code,
-				fragmentCode = '#define FRAGMENT_SHADER\n'..code,
+				vertexCode = template(
+					table{
+						solver:getCoordMapGLSLCode(),
+						code,
+					}:concat'\n',
+					{
+						vertexShader = true,
+					}
+				),
+				fragmentCode = template(code, {
+					fragmentShader = true,
+				}),
 				uniforms = {
 					tex = 0,
 					gradient = 1,
@@ -1010,8 +1022,8 @@ function HydroCLApp:display2D_Heatmap(solvers, varName, ar, graph_xmin, graph_ym
 						local u = ui/udivs
 						local v = vi/vdivs
 						gl.glTexCoord2d(
-							(u * (tonumber(solver.gridSize.x) - 2 * solver.numGhost) + solver.numGhost) / tonumber(solver.gridSize.x),
-							(v * (tonumber(solver.gridSize.y) - 2 * solver.numGhost) + solver.numGhost) / tonumber(solver.gridSize.y))
+							(u * tonumber(solver.sizeWithoutBorder.x) + solver.numGhost) / tonumber(solver.gridSize.x),
+							(v * tonumber(solver.sizeWithoutBorder.y) + solver.numGhost) / tonumber(solver.gridSize.y))
 						gl.glVertex2d(
 							u * solver.maxs[1] + (1 - u) * solver.mins[1],
 							v * solver.maxs[2] + (1 - v) * solver.mins[2])
@@ -1175,7 +1187,12 @@ local quadsInCube = {
 	2,3,7,6,
 }
 
--- looks great for flat space
+--[[
+looks great for flat space
+TODO for curved space: provide a coordMapInv function (might have to be manual to account for domains of rotations)
+ and then call this as we march through volumes 
+ and treat out-of-bound values as fully transparent
+--]]
 function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	self.view:projection(ar)
 	self.view:modelview()
@@ -1269,44 +1286,47 @@ end
 					fwddir == 2 and jdir or 0, 
 					fwddir == 3 and jdir or 0)
 						
-				-- [[	single quad
-				gl.glBegin(gl.GL_QUADS)
-				for j=jmin,jmax,jdir do
-					local f = j/n
-					for _,vtx in ipairs(vertexesInQuad) do
-						if fwddir == 1 then
-							gl.glVertex3f(f, vtx[1], vtx[2])
-						elseif fwddir == 2 then
-							gl.glVertex3f(vtx[1], f, vtx[2])
-						elseif fwddir == 3 then
-							gl.glVertex3f(vtx[1], vtx[2], f)
-						end
-					end
-				end
-				gl.glEnd()
-				--]]
-				--[[	use a grid, so curved coordinates can be seen
-				for j=jmin,jmax,jdir do
-					local f = j/n
-					local xres = 20
-					local yres = 20
-					for ybase=1,yres-1 do
-						gl.glBegin(gl.GL_TRIANGLE_STRIP)
-						for x=1,xres do
-							for y=ybase,ybase+1 do
-								if fwddir == 1 then
-									gl.glVertex3f(f, x/xres, y/yres)
-								elseif fwddir == 2 then
-									gl.glVertex3f(x/xres, f, y/yres)
-								elseif fwddir == 3 then
-									gl.glVertex3f(x/xres, y/yres, f)
-								end
+				if solver.geometry.name == 'cartesian' then
+					-- [[	single quad
+					gl.glBegin(gl.GL_QUADS)
+					for j=jmin,jmax,jdir do
+						local f = j/n
+						for _,vtx in ipairs(vertexesInQuad) do
+							if fwddir == 1 then
+								gl.glVertex3f(f, vtx[1], vtx[2])
+							elseif fwddir == 2 then
+								gl.glVertex3f(vtx[1], f, vtx[2])
+							elseif fwddir == 3 then
+								gl.glVertex3f(vtx[1], vtx[2], f)
 							end
 						end
-						gl.glEnd()
 					end
+					gl.glEnd()
+					--]]
+				else
+					-- [[	use a grid, so curved coordinates can be seen
+					for j=jmin,jmax,jdir do
+						local f = j/n
+						local xres = 20
+						local yres = 20
+						for ybase=1,yres-1 do
+							gl.glBegin(gl.GL_TRIANGLE_STRIP)
+							for x=1,xres do
+								for y=ybase,ybase+1 do
+									if fwddir == 1 then
+										gl.glVertex3f(f, x/xres, y/yres)
+									elseif fwddir == 2 then
+										gl.glVertex3f(x/xres, f, y/yres)
+									elseif fwddir == 3 then
+										gl.glVertex3f(x/xres, y/yres, f)
+									end
+								end
+							end
+							gl.glEnd()
+						end
+					end
+					--]]
 				end
-				--]]
 			
 				gl.glDisable(gl.GL_BLEND)
 			end
@@ -1323,46 +1343,58 @@ function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, 
 	self.view:modelview()
 
 	for _,solver in ipairs(solvers) do
-		local volumeRayShader = solver.volumeRayShader
-		gl.glColor3f(1,1,1)
-		for pass=0,1 do
-			if pass == 0 then
-				gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
+		if varIndex then
+			local valueMin, valueMax
+			if var.heatMapFixedRange then
+				valueMin = var.heatMapValueMin
+				valueMax = var.heatMapValueMax
 			else
-				gl.glEnable(gl.GL_CULL_FACE)
-				gl.glCullFace(gl.GL_FRONT)
-				gl.glEnable(gl.GL_DEPTH_TEST)
-				gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-				gl.glEnable(gl.GL_BLEND)
-				volumeRayShader:use()
-				gl.glUniform1f(volumeRayShader.uniforms.scale.loc, 1)--scale)
-				gl.glUniform1i(volumeRayShader.uniforms.useLog.loc, 0)--useLog and 1 or 0)
-				gl.glUniform1f(volumeRayShader.uniforms.alpha.loc, 1)--alpha)
-				solver:getTex(var):bind(0)
-				self.gradientTex:bind(1)
+				valueMin, valueMax = solver:calcDisplayVarRange(var)
+				var.heatMapValueMin = valueMin
+				var.heatMapValueMax = valueMax
 			end
-			gl.glBegin(gl.GL_QUADS)
-			for i=1,24 do
-				local x = vertexesInCube[quadsInCube[i] * 3 + 0 + 1]
-				local y = vertexesInCube[quadsInCube[i] * 3 + 1 + 1]
-				local z = vertexesInCube[quadsInCube[i] * 3 + 2 + 1]
-				gl.glTexCoord3f(x, y, z)
-				x = x * (solver.maxs[1] - solver.mins[1]) + solver.mins[1]
-				y = y * (solver.maxs[2] - solver.mins[2]) + solver.mins[2]
-				z = z * (solver.maxs[3] - solver.mins[3]) + solver.mins[3]
-				gl.glVertex3f(x, y, z)
-			end
-			gl.glEnd()
-			if pass == 0 then
-				gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
-			else
-				self.gradientTex:unbind(1)
-				solver:getTex(var):unbind(0)
-				volumeRayShader:useNone()
-				gl.glDisable(gl.GL_BLEND)
-				gl.glDisable(gl.GL_DEPTH_TEST)
-				gl.glCullFace(gl.GL_BACK)
-				gl.glDisable(gl.GL_CULL_FACE)
+
+			gl.glColor3f(1,1,1)
+			for pass=0,1 do
+				if pass == 0 then
+					gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+				else
+					gl.glEnable(gl.GL_CULL_FACE)
+					gl.glCullFace(gl.GL_FRONT)
+					gl.glEnable(gl.GL_DEPTH_TEST)
+					gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+					gl.glEnable(gl.GL_BLEND)
+					solver.volumeRayShader:use()
+					gl.glUniform1f(solver.volumeRayShader.uniforms.scale.loc, 1)--scale)
+					gl.glUniform1i(solver.volumeRayShader.uniforms.useLog.loc, 0)--useLog and 1 or 0)
+					gl.glUniform1f(solver.volumeRayShader.uniforms.alpha.loc, 1)--alpha)
+					solver:getTex(var):bind(0)
+					self.gradientTex:bind(1)
+				end
+				gl.glBegin(gl.GL_QUADS)
+				for i=1,24 do
+					local x = vertexesInCube[quadsInCube[i] * 3 + 0 + 1]
+					local y = vertexesInCube[quadsInCube[i] * 3 + 1 + 1]
+					local z = vertexesInCube[quadsInCube[i] * 3 + 2 + 1]
+					gl.glTexCoord3f(x, y, z)
+					x = x * (solver.maxs[1] - solver.mins[1]) + solver.mins[1]
+					y = y * (solver.maxs[2] - solver.mins[2]) + solver.mins[2]
+					z = z * (solver.maxs[3] - solver.mins[3]) + solver.mins[3]
+					gl.glVertex3f(x, y, z)
+				end
+				gl.glEnd()
+				if pass == 0 then
+					gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
+				else
+					self.gradientTex:unbind(1)
+					solver:getTex(var):unbind(0)
+					solver.volumeRayShader:useNone()
+					gl.glDisable(gl.GL_BLEND)
+					gl.glDisable(gl.GL_DEPTH_TEST)
+					gl.glCullFace(gl.GL_BACK)
+					gl.glDisable(gl.GL_CULL_FACE)
+				end
 			end
 		end
 	end

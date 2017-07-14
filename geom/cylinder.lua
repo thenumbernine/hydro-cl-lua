@@ -16,12 +16,12 @@ function Cylinder:init(args)
 	
 	local r, theta = symmath.vars('r', 'theta')
 
-	--[[ holonomic
+	-- [[ holonomic
 	-- this would need the conservation law equation delta^ij's swapped with g^ij's
 	-- which takes a new eigen-decomposition
 	args.coords = table{r, theta, z}:sub(1, args.solver.dim)
 	--]]
-	-- [[ anholonomic
+	--[[ anholonomic
 	-- g^ij = delta^ij, so the Euler fluid equations match those in flat space
 	-- however the Conn^k_jk terms still match up with the holonomic terms
 	-- and the grid itself is still the holonomic coordinate system
