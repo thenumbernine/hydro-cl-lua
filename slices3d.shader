@@ -83,8 +83,8 @@ void main() {
 ?>	if (clipEnabled<?=i?> && dot(worldPos, gl_ClipPlane[<?=i-1?>]) < 0.) discard;
 <? end
 ?>
-<? end ?>
-	float value = getTex(texCoord);
+<? end
+?>	float value = getTex(texCoord);
 	float frac = calcFrac(value);
 	//TODO insert the gradient tex size
 	float gradTC = (frac * <?=clnumber(gradTexWidth-1)?>) / <?=clnumber(gradTexWidth)?>;

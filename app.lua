@@ -105,7 +105,7 @@ function HydroCLApp:setup()
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or 3,
 		
-		--integrator = cmdline.integrator or 'forward Euler',	
+		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -117,7 +117,7 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		integrator = 'backward Euler',
+		--integrator = 'backward Euler',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 		--fluxLimiter = 'donor cell',
@@ -125,37 +125,34 @@ function HydroCLApp:setup()
 		--usePLM = true,	-- piecewise-linear slope limiter
 		--slopeLimiter = 'minmod',
 		
-		-- [[ Cartesian
+		--[[ Cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = {
-			cmdline.gridSize or 28,
-			cmdline.gridSize or 28,
-			cmdline.gridSize or 28,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 128,
+			cmdline.gridSize or 128,
 		},
 		boundary = {
-			xmin=cmdline.boundary or 'freeflow',
-			xmax=cmdline.boundary or 'freeflow',
-			ymin=cmdline.boundary or 'freeflow',
-			ymax=cmdline.boundary or 'freeflow',
-			zmin=cmdline.boundary or 'freeflow',
-			zmax=cmdline.boundary or 'freeflow',
+			xmin=cmdline.boundary or 'mirror',
+			xmax=cmdline.boundary or 'mirror',
+			ymin=cmdline.boundary or 'mirror',
+			ymax=cmdline.boundary or 'mirror',
+			zmin=cmdline.boundary or 'mirror',
+			zmax=cmdline.boundary or 'mirror',
 		},
 		--]]
-		--[[ cylinder
+		-- [[ cylinder
 		geometry = 'cylinder',
 		mins = cmdline.mins or {.1, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
-		gridSize = {
-			cmdline.gridSize or 32,
-			cmdline.gridSize or 128,
-			cmdline.gridSize or 1,
-		},
+		--gridSize = {32, 128, 1}, -- 2D
+		gridSize = {16, 64, 16}, -- 3D
 		boundary = {
-			xmin=cmdline.boundary or 'freeflow',		-- hmm, how to treat the r=0 boundary ...
-			xmax=cmdline.boundary or 'freeflow',
+			xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
+			xmax=cmdline.boundary or 'mirror',
 			ymin=cmdline.boundary or 'periodic',
 			ymax=cmdline.boundary or 'periodic',
 			zmin=cmdline.boundary or 'freeflow',
@@ -213,7 +210,7 @@ function HydroCLApp:setup()
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -258,7 +255,7 @@ function HydroCLApp:setup()
 	
 		-- GR
 		--initState = 'gauge shock wave',
-		initState = 'Alcubierre warp bubble',
+		--initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
 		--initState = 'binary black holes',
 		--initState = 'stellar model',
@@ -269,7 +266,7 @@ function HydroCLApp:setup()
 	self.solvers = table()
 	
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
@@ -318,7 +315,7 @@ function HydroCLApp:setup()
 	-- TODO constant Minkowski boundary conditions?
 	-- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 	-- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-	self.solvers:insert(require 'solver.bssnok-fd'(args))
+	--self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 end
@@ -460,7 +457,7 @@ function HydroCLApp:initGL(...)
 			-- volume slices
 
 			local code = file['slices3d.shader']
-			local volumeSliceShader = GLProgram{
+			solver.volumeSliceShader = GLProgram{
 				vertexCode = template(
 					table{
 						solver:getCoordMapGLSLCode(),
@@ -483,7 +480,6 @@ function HydroCLApp:initGL(...)
 					valueMax = 0,
 				},
 			}
-			solver.volumeSliceShader = volumeSliceShader
 		end
 	end
 
@@ -1179,6 +1175,7 @@ local quadsInCube = {
 	2,3,7,6,
 }
 
+-- looks great for flat space
 function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	self.view:projection(ar)
 	self.view:modelview()
@@ -1242,7 +1239,7 @@ end
 				for i=numGhost+1,tonumber(solver.gridSize.x-numGhost) do
 					for j=numGhost+1,tonumber(solver.gridSize.y-numGhost) do
 						for k=numGhost+1,tonumber(solver.gridSize.z-numGhost) do
-							gl.glVertex3d( 
+							gl.glVertex3d(
 								(i - numGhost - .5)/tonumber(solver.gridSize.x - 2*numGhost),
 								(j - numGhost - .5)/tonumber(solver.gridSize.y - 2*numGhost),
 								(k - numGhost - .5)/tonumber(solver.gridSize.z - 2*numGhost))
@@ -1271,7 +1268,8 @@ end
 					fwddir == 1 and jdir or 0, 
 					fwddir == 2 and jdir or 0, 
 					fwddir == 3 and jdir or 0)
-				
+						
+				-- [[	single quad
 				gl.glBegin(gl.GL_QUADS)
 				for j=jmin,jmax,jdir do
 					local f = j/n
@@ -1286,6 +1284,29 @@ end
 					end
 				end
 				gl.glEnd()
+				--]]
+				--[[	use a grid, so curved coordinates can be seen
+				for j=jmin,jmax,jdir do
+					local f = j/n
+					local xres = 20
+					local yres = 20
+					for ybase=1,yres-1 do
+						gl.glBegin(gl.GL_TRIANGLE_STRIP)
+						for x=1,xres do
+							for y=ybase,ybase+1 do
+								if fwddir == 1 then
+									gl.glVertex3f(f, x/xres, y/yres)
+								elseif fwddir == 2 then
+									gl.glVertex3f(x/xres, f, y/yres)
+								elseif fwddir == 3 then
+									gl.glVertex3f(x/xres, y/yres, f)
+								end
+							end
+						end
+						gl.glEnd()
+					end
+				end
+				--]]
 			
 				gl.glDisable(gl.GL_BLEND)
 			end

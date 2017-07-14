@@ -254,41 +254,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[3] * (nz * Cs_over_sqrt_gUjj - (heatCapacityRatio - 1.) * vL.z) 
 		+ X[4] * (heatCapacityRatio - 1.)
 	) * invDenom;
-#else	//matches math
-
-//these two blocks of code are identical
-// except the first one stalls the kernel for seconds
-// and the second one is just a mathematical simplification of the first - and works fine
-#if 0
-<? if side == 0 then ?>
-	real CsSq = Cs * Cs;
-	real sqrt_gUxx = sqrt_gUjj;
-	const real heatRatioMinusOne = heatCapacityRatio - 1.;
-	Y[0] = X[0] * (heatRatioMinusOne * vSq / (4. * CsSq) + v.x / (2. * Cs * sqrt_gUxx))
-		+ X[1] * (-(heatRatioMinusOne * vL.x) / (2. * CsSq) - 1. / (2. * Cs * sqrt_gUxx))
-		+ X[2] * -heatRatioMinusOne * vL.y / (2. * CsSq)
-		+ X[3] * -heatRatioMinusOne * vL.z / (2. * CsSq)
-		+ X[4] * heatRatioMinusOne / (2. * CsSq);
-	Y[1] = X[0] * (1. - heatRatioMinusOne * vSq / (2. * CsSq))
-		+ X[1] * heatRatioMinusOne * vL.x / CsSq
-		+ X[2] * heatRatioMinusOne * vL.y / CsSq
-		+ X[3] * heatRatioMinusOne * vL.z / CsSq
-		+ X[4] * -heatRatioMinusOne / CsSq;
-	Y[2] = X[0] * (v.x * gU.xy / gU.xx - v.y)
-		+ X[1] * -gU.xy / gU.xx
-		+ X[2];
-	Y[3] = X[0] * (v.x * gU.xz / gU.xx - v.z)
-		+ X[1] * -gU.xz / gU.xx
-		+ X[3];
-	Y[4] = X[0] * (heatRatioMinusOne * vSq / (4. * CsSq) - v.x / (2. * Cs * sqrt_gUxx))
-		+ X[1] * (-heatRatioMinusOne * vL.x / (2. * CsSq) + 1. / (2. * Cs * sqrt_gUxx))
-		+ X[2] * -heatRatioMinusOne * vL.y / (2. * CsSq)
-		+ X[3] * -heatRatioMinusOne * vL.z / (2. * CsSq)
-		+ X[4] * heatRatioMinusOne / (2. * CsSq);
-<? elseif side == 1 then ?>
-<? elseif side == 2 then ?>
-<? end ?>
-#else	//good
+#else
 	const real heatRatioMinusOne = heatCapacityRatio - 1.;
 <? if side == 0 then ?>
 	real sqrt_gUxx = sqrt_gUjj;
@@ -369,8 +335,6 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[4] * heatRatioMinusOne
 	) * invDenom;
 <? end ?>
-#endif
-
 #endif
 }
 

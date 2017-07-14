@@ -159,10 +159,10 @@ kernel void calcFlux(
 		const int side = <?=side?>;	
 		real dt_dx = dt / grid_dx<?=side?>;//dx<?=side?>_at(i);
 		int indexL = index - stepsize[side];
-		
+
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
-
+	
 		<?= solver.getULRCode ?>
 		
 		int indexInt = side + dim * index;
@@ -190,17 +190,15 @@ kernel void calcFlux(
 <? else ?>
 			fluxEig[j] = 0.;
 <? end ?>
-			real theta = lambda >= 0 ? 1 : -1;
+			real sgnLambda = lambda >= 0 ? 1 : -1;
 		
 <? if solver.fluxLimiter[0] > 0 then ?>
 			real phi = fluxLimiter(rEig[j]);
 <? end ?>
 
-			real epsilon = lambda * dt_dx;
-			real deltaFluxEig = lambda * deltaUEig[j];
-			fluxEig[j] -= .5 * deltaFluxEig * (theta
+			fluxEig[j] -= .5 * lambda * deltaUEig[j] * (sgnLambda
 <? if solver.fluxLimiter[0] > 0 then ?>
-				+ phi * (epsilon - theta)
+				+ phi * (lambda * dt_dx - sgnLambda)
 <? end ?>			
 			);
 		}
@@ -209,8 +207,7 @@ kernel void calcFlux(
 		eigen_rightTransform_<?=side?>_global_global_(flux->ptr, eig, fluxEig, xInt);
 		
 <? if eqn.hasFluxFromCons then ?>
-		// should the metric evaluation be at the interface, or at the cell center where the state is?
-		//I'll try for the cell centers, so there is consistency with the state variables themselves
+		
 		real3 xL = xR;
 		xL.s<?=side?> -= grid_dx<?=side?>;
 		
@@ -229,55 +226,32 @@ kernel void calcDerivFromFlux(
 ) {
 	SETBOUNDS(2,2);
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
-
-	real3 iIntL = _real3((real)i.x-.5, (real)i.y-.5, (real)i.z-.5);
-	real3 xIntL = cell_x(iIntL);
-	real3 iIntR = _real3((real)i.x+.5, (real)i.y+.5, (real)i.z+.5);
-	real3 xIntR = cell_x(iIntR);
 	
-	//integral over volume of the coordinates
-#if defined(geometry_cylinder)
-	//integral of r dr dtheta dz
-	real r1 = xIntL.x, theta1 = xIntL.y, z1 = xIntL.z;
-	real r2 = xIntR.x, theta2 = xIntR.y, z2 = xIntR.z;
-	real dr = r2 - r1;
-	real dtheta = theta2 - theta1;
-	real dz = z2 - z1;
-#if dim == 1
-	real volume = .5 * (r2*r2 - r1*r1);
-	real3 sideL = _real3(1., 1., 1.);
-	real3 sideR = _real3(1., 1., 1.);
-#elif dim == 2
-	real volume = .5 * (r2*r2 - r1*r1) * dtheta;
-	real3 sideL = _real3(r1 * dtheta, dr, 1.);
-	real3 sideR = _real3(r2 * dtheta, dr, 1.);
-#elif dim == 3
-	real volume = .5 * (r2*r2 - r1*r1) * dtheta * dz;
-	real3 sideL = _real3(r1 * dtheta * dz, dr * dz, .5 * (r2*r2 - r1*r1) * dtheta);
-	real3 sideR = _real3(r2 * dtheta * dz, dr * dz, .5 * (r2*r2 - r1*r1) * dtheta);
-#endif
-
-#else
-	//general case -- use the metric 
 	real3 x = cell_x(i);
 	real volume = volume_at(x);
-	real3 dxs = _real3(grid_dx0, grid_dx1, grid_dx2);
-	real3 sideL = _real3(volume / dxs.x, volume / dxs.y, volume / dxs.z); 
-	real3 sideR = sideL;
-#endif
 
+	
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 
 		int indexIntL = side + dim * index;
 		int indexIntR = indexIntL + dim * stepsize[side]; 
+		
+		real3 xIntL = x;
+		xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
+		real volumeIntL = volume_at(xIntL);
+	
+		real3 xIntR = x;
+		xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
+		real volumeIntR = volume_at(xIntR);
+		
 		const global <?=eqn.cons_t?>* fluxL = fluxBuf + indexIntL;
 		const global <?=eqn.cons_t?>* fluxR = fluxBuf + indexIntR;
 		for (int j = 0; j < numStates; ++j) {
 			deriv->ptr[j] -= (
-				fluxR->ptr[j] * sideR.s<?=side?> 
-				- fluxL->ptr[j] * sideL.s<?=side?>
-			) / volume;
+				fluxR->ptr[j] * volumeIntR
+				- fluxL->ptr[j] * volumeIntL
+			) / (volume * grid_dx<?=side?>);
 		}
 	}<? end ?>
 }

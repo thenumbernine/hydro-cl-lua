@@ -17,7 +17,7 @@ function GuiFloat:getCode()
 end
 
 function GuiFloat:updateGUI(solver)
-	if tooltip.numberTable(self.name, self, 'value', 0, 0, -1, ig.ImGuiInputTextFlags_EnterReturnsTrue) then
+	if tooltip.numberTable(self.name, self, 'value') then
 		print('refreshing '..self.name..' = '..self.value)
 		solver:refreshSolverProgram()
 		solver:refreshDisplayProgram()

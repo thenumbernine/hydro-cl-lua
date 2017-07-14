@@ -267,7 +267,7 @@ return {
 			
 			local R = .002	-- Schwarzschild radius
 			
-			--[=[ using symbolic calculations
+-- [=[ using symbolic calculations
 			local x,y,z = symmath.vars('x','y','z')
 			local r = symmath.sqrt(x^2 + y^2 + z^2)
 		
@@ -288,8 +288,8 @@ return {
 				},
 				K = {0,0,0,0,0,0},
 			}
-			--]=]
-			-- [=[ just pass it the cl code.
+--]=]
+--[=[ just pass it the cl code.
 			
 			local alphaVar = symmath.var'alpha'
 			local fGuiVar = solver.eqn.guiVarsForName.f
@@ -323,7 +323,7 @@ end
 				fCCode = fCCode:match'{ return (.*); }',
 				R = clnumber(R),
 			}))
-			--]=]
+--]=]
 		end,
 	},
 	{
@@ -385,11 +385,31 @@ end
 				local fCCode = compileC(f, 'f', {alphaVar})
 				
 --[[
-d/dr alpha = 1/2 (1 - 2 minMass / r)^(-1/2) * -2 * d/dr(minMass / r)
+K_ij = -alpha Gamma^t_ij
+...and for Schwarzschild, Gamma^t_ij = 0
+...so K_ij = 0
+
+a_i = ln(alpha)_,i = alpha,i / alpha
+
+alpha = (1 - 2 minMass / r)^(1/2)
 minMass = bodyMass * min((r/bodyRadius)^3, 1)
 d/dr minMass = r >= bodyRadius and 0 or (3 r^2 bodyMass / bodyRadius^3)
 d/dr (minMass / r) = (d/dr minMass) / r - minMass / r^2
 	= bodyMass ((r >= bodyRadius and 0 or (3 r / bodyRadius^3)) - min((r/bodyRadius)^3, 1) / r^2)
+d/dr alpha = 1/2 (1 - 2 minMass / r)^(-1/2) * -2 * d/dr(minMass / r)
+	= -1/alpha d/dr(minMass / r) dr/dx
+dr/dx = x / r
+
+g_ij = x_i x_j / (r^2 (r / minRadius - 1)) + delta_ij
+d_kij = 1/2 g_ij,k  = 1/2 (
+	x_i,k x_j / (r^2 (r / minRadius - 1))
+	+ x_i x_j,k / (r^2 (r / minRadius - 1))
+	- x_i x_j / (r^3 (r / minRadius - 1)^2 ) * (
+		2 (r / minRadius - 1) + r (
+			(minRadius - r d/dr minRadius) / minRadius^2
+		)
+	)
+
 --]]
 				return template([[
 #define calc_f(alpha)			(<?=fCCode?>)
@@ -402,22 +422,25 @@ d/dr (minMass / r) = (d/dr minMass) / r - minMass / r^2
 #define minMass(x,y,z)			(bodyMass * min(rCubed(x,y,z)/cubed(bodyRadius), 1.))
 #define minRadius(x,y,z)		(2.*minMass(x,y,z))
 #define calc_alpha(x,y,z)		sqrt(1. - 2*minMass(x,y,z)/r(x,y,z))
-<? 
-for i,xi in ipairs(xNames) do
+<?  for i,xi in ipairs(xNames) do
 ?>#define calc_beta_<?=xi?>(x,y,z)		0.
-<?
-end
+<? end
 for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi, xj = xNames[i], xNames[j]
 ?>#define calc_gamma_<?=xij?>(x,y,z)	(<?=i==j and '1.+' or ''?> + <?=xi?> * <?=xj?> / ((r(x,y,z) / minRadius(x,y,z) - 1.) * rSq(x,y,z)))
-<?
-end
+<? end
 for ij,xij in ipairs(symNames) do
 ?>#define calc_K_<?=xij?>(x,y,z)		0.
+<? end
+?>#define dr_minMass_over_r(x,y,z)	(bodyMass * ((r >= bodyRadius ? 0. : 3. * r(x,y,z) / cubed(bodyRadius))- min(rCubed(x,y,z)/cubed(bodyRadius), 1.) / rSq(x,y,z)))
 <?
-end
-?>]], 			table(getTemplateEnv(solver), {
+for i,xi in ipairs(xNames) do
+?>#define calc_a_<?=xi?>(x,y,z)	(-dr_minMass_over_r(x,y,z) / (calc_alpha(x,y,z) * calc_alpha(x,y,z)) * x / r(x,y,z))
+<? end
+?>
+
+]], 			table(getTemplateEnv(solver), {
 					fCCode = fCCode:match'{ return (.*); }',
 					bodyRadius  = clnumber(bodyRadius),
 					bodyMass = clnumber(bodyMass),

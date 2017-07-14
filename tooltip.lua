@@ -67,6 +67,7 @@ local buf = ffi.new'char[256]'
 local function numberTable(title, t, k, ...)
 	local s = tostring(t[k])
 	ffi.copy(buf, s, ffi.sizeof(buf))
+	-- TODO maybe ig.ImGuiInputTextFlags_EnterReturnsTrue
 	if wrap.text(title, buf, ffi.sizeof(buf), ...) then
 		local s = ffi.string(buf, ffi.sizeof(buf))
 		local v = tonumber(s)

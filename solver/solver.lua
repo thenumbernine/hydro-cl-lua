@@ -455,6 +455,7 @@ if tryingAMR == 'dt vs 2dt' then
 elseif tryingAMR == 'gradient' then
 	self:addConvertToTex{
 		name = 'amrError',
+		type = 'real',
 		vars = {
 			{[0] = 'value = buf[index];'},
 		}
@@ -521,14 +522,15 @@ function Solver:createBuffers()
 	ffi.cdef(self:getConsLRTypeCode())
 
 	-- for twofluid, cons_t has been renamed to euler_maxwell_t and maxwell_cons_t
-	if ffi.sizeof(self.eqn.cons_t) ~= self.eqn.numStates * ffi.sizeof'real' then
+	if ffi.sizeof(self.eqn.cons_t) ~= self.eqn.numStates * ffi.sizeof(self.app.real) then
 	   error('expected sizeof('..self.eqn.cons_t..') to be '
-		   ..self.eqn.numStates..' * sizeof(real) = '..(self.eqn.numStates * ffi.sizeof'real')
+		   ..self.eqn.numStates..' * sizeof(real) = '..(self.eqn.numStates * ffi.sizeof(self.app.real))
 		   ..' but found '..ffi.sizeof(self.eqn.cons_t))
 	end
 
 	-- should I put these all in one AoS?
 
+if tryingAMR == 'gradient' then
 	--[[
 	ok here's my thoughts on the size ...
 	I'm gonna try to do AMR
@@ -574,17 +576,62 @@ function Solver:createBuffers()
 	so the next level has 2^(8+4) = 2^12 = 4096 bits = 2^9 = 512 bytes
 
 	--]]
+
+	-- the size, in cells, which a node replaces
+	self.amrNodeFromSize = ({
+		vec3sz(8, 1, 1),
+		vec3sz(8, 8, 1),
+		vec3sz(8, 8, 8),
+	})[self.dim]
+print('self.amrNodeFromSize', self.amrNodeFromSize)
+
+	-- the size, in cells, of each node, excluding border, for each dimension
+	self.amrNodeSizeWithoutBorder = ({
+		vec3sz(16, 1, 1),
+		vec3sz(16, 16, 1),
+		vec3sz(16, 16, 16),
+	})[self.dim]
+print('self.amrNodeSizeWithoutBorder', self.amrNodeSizeWithoutBorder)
+
+	-- size of the root level, in terms of nodes ('from' size)
+	self.amrRootSizeInFromSize = vec3sz(1,1,1)
+	for i=0,self.dim-1 do
+		self.amrRootSizeInFromSize:ptr()[i] = 
+			roundup(self.sizeWithoutBorder:ptr()[i], self.amrNodeFromSize:ptr()[i]) 
+				/ self.amrNodeFromSize:ptr()[i]
+	end
+print('self.amrRootSizeInFromSize', self.amrRootSizeInFromSize)
+
+	-- how big each node is
+	self.amrNodeSize = self.amrNodeSizeWithoutBorder + 2 * self.numGhost
+
+	-- how many nodes to allocate and use
+	-- here's the next dilemma in terms of memory layout
+	-- specifically in terms of rendering
+	-- if I want to easily copy and render the texture information then I will need to package the leafs into the same texture as the root
+	-- which means extending the texture buffer in some particular direction.
+	-- since i'm already adding the leaf information to the end of the buffer
+	-- and since appending to the end of a texture buffer coincides with adding extra rows to the texture
+	-- why not just put our leafs in extra rows of -- both our display texture and of  
+	self.amrMaxNodes = 1
 	
+	-- this will hold info on what leafs have yet been used
+	self.amrLeafs = table()
+
+	-- hmm, this is the info for the root node ...
+	-- do I want to keep the root level data separate?
+	-- or do I just want to represent everything as a collection of leaf nodes?
+	-- I'll keep the root structure separate for now
+	-- so I can keep the original non-amr solver untouched
+	self.amrLayers = table()
+	self.amrLayers[1] = table()	-- here's the root
+end
+
 	-- this much for the first level U data
 	local UBufSize = self.volume * ffi.sizeof(self.eqn.cons_t)
-if tryingARM == 'not yet' then	
-	-- this much for the next level U data
-	local numRootLeafs = 10
-	-- how big each root is
-	local leafSize = vec3sz(8,8,8)	-- including numGhost
-	local leafVolume = leafSize:volume()
-	UBufSize = UBufSize + self.volume / numRootLeafs * leafVolume
-end
+if tryingARM == 'gradient' then	
+	UBufSize = UBufSize + self.amrMaxNodes * self.amrNodeSize:volume()
+end	
 	self:clalloc('UBuf', UBufSize)
 
 
@@ -593,7 +640,14 @@ if tryingAMR == 'dt vs 2dt' then
 	self:clalloc('lastUBuf', self.volume * ffi.sizeof(self.eqn.cons_t))
 	self:clalloc('U2Buf', self.volume * ffi.sizeof(self.eqn.cons_t))
 elseif tryingAMR == 'gradient' then
-	self:clalloc('amrErrorBuf', self.volume * ffi.sizeof'real')
+	
+	-- this is going to be a single value for each leaf
+	-- that means the destination will be the number of nodes it takes to cover the grid (excluding the border)
+	-- however, do I want this to be a larger buffer, and then perform reduce on it?
+	self:clalloc('amrErrorBuf', 
+		-- self.volume 
+		tonumber(self.amrRootSizeInFromSize:volume())
+		* ffi.sizeof(self.app.real))
 end
 
 	if self.usePLM then
@@ -957,26 +1011,68 @@ kernel void calcAMRError(
 	global real* amrErrorBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
-	SETBOUNDS(0,0);
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	int4 nodei = globalInt4();
+	if (nodei.x >= <?=solver.amrRootSizeInFromSize.x?> || 
+		nodei.y >= <?=solver.amrRootSizeInFromSize.y?>) 
+	{
+		return;
+	}
 
-	real dV_dx;
+	int nodeIndex = nodei.x + <?=solver.amrRootSizeInFromSize.x?> * nodei.y;
+
+	real dV_dx;	
 	real sum = 0.;
 	
+	//hmm, it's less memory, but it's probably slower to iterate across all values as I build them here
+	for (int nx = 0; nx < <?=solver.amrNodeFromSize.x?>; ++nx) {
+		for (int ny = 0; ny < <?=solver.amrNodeFromSize.y?>; ++ny) {
+			int4 Ui = (int4)(0,0,0,0);
+			
+			Ui.x = nodei.x * <?=solver.amrNodeFromSize.x?> + nx + numGhost;
+			Ui.y = nodei.y * <?=solver.amrNodeFromSize.y?> + ny + numGhost;
+			
+			int Uindex = INDEXV(Ui);
+			const global <?=eqn.cons_t?>* U = UBuf + Uindex;
+				
 	//TODO this wasn't the exact formula ...
 	// and TODO make this modular.  some papers use velocity vector instead of density.  
 	// why not total energy -- that incorporates everything?
-
 <? for i=0,solver.dim-1 do
-?>	dV_dx = (U[stepsize.s<?=i?>].rho - U[-stepsize.s<?=i?>].rho) / (2. * grid_dx<?=i?>);
-	sum += dV_dx * dV_dx;
+?>			dV_dx = (U[stepsize.s<?=i?>].rho - U[-stepsize.s<?=i?>].rho) / (2. * grid_dx<?=i?>);
+			sum += dV_dx * dV_dx;
 <? end
-?>	amrErrorBuf[index] = sum * 1e-3;
+?>	
+		}
+	}
+	amrErrorBuf[nodeIndex] = sum * 1e-2 * <?=clnumber(1/tonumber( solver.amrNodeFromSize:volume() ))?>;
+}
+
+//from is the position on the root level to read from
+//to is which node to copy into
+kernel void initNodeFromRoot(
+	global <?=eqn.cons_t?>* UBuf,
+	int4 from,
+	int toNodeIndex
+) {
+	int4 i = (int4)(0,0,0,0);
+	i.x = get_global_id(0);
+	i.y = get_global_id(1);
+	int dstIndex = i.x + numGhost + <?=solver.amrNodeSize.x?> * (i.y + numGhost);
+	int srcIndex = from.x + (i.x>>1) + numGhost + gridSize_x * (from.y + (i.y>>1) + numGhost);
+
+	global <?=eqn.cons_t?>* dstU = UBuf + <?=solver.volume?> + toNodeIndex * <?=solver.amrNodeSize:volume()?>;
+	
+	//blitter srcU sized solver.amrNodeFromSize (in a patch of size solver.gridSize)
+	// to dstU sized solver.amrNodeSize (in a patch of solver.amrNodeSize)
+	
+	dstU[dstIndex] = UBuf[srcIndex];
 }
 ]==],
-			})[tryingAMR] or ''
-			, {solver=self, eqn=self.eqn}
-		),
+			})[tryingAMR] or '', {
+				solver = self,
+				eqn = self.eqn,
+				clnumber = clnumber,
+			}),
 
 	}:concat'\n'
 end
@@ -1041,6 +1137,7 @@ if tryingAMR == 'dt vs 2dt' then
 	self.compareUvsU2Kernel = self.solverProgram:kernel('compareUvsU2', self.U2Buf, self.UBuf)
 elseif tryingAMR == 'gradient' then
 	self.calcAMRErrorKernel = self.solverProgram:kernel('calcAMRError', self.amrErrorBuf, self.UBuf)
+	self.initNodeFromRootKernel = self.solverProgram:kernel('initNodeFromRoot', self.UBuf)
 end
 end
 
@@ -1325,6 +1422,13 @@ end
 
 Solver.fpsNumSamples = 30
 
+require 'ffi.c.sys.time'
+local gettimeofday_tv = ffi.new'struct timeval[1]'
+local function getTime()
+	local results = ffi.C.gettimeofday(gettimeofday_tv, nil)
+	return tonumber(gettimeofday_tv[0].tv_sec) + tonumber(gettimeofday_tv[0].tv_usec) / 1000000
+end
+
 function Solver:update()
 	--[[
 	Here's an update-based FPS counter.
@@ -1333,24 +1437,19 @@ function Solver:update()
 	Because pauses will mess with the numbers, I'll only look at the last n many frames.  
 	Maybe just the last 1.
 	--]]
-	local numFrames = 10
-	self.frames = (self.frames or 0) + 1
-	if self.frames >= numFrames then
-		local thisTime = os.time()	-- TODO gettimeofday or something
-		if not self.fpsSamples then
-			self.fpsIndex = 0
-			self.fpsSamples = table()
-		end
-		if self.lastFrameTime then
-			local deltaTime = thisTime - self.lastFrameTime
-			local fps = numFrames / deltaTime
-			self.fpsIndex = (self.fpsIndex % self.fpsNumSamples) + 1
-			self.fpsSamples[self.fpsIndex] = fps
-			self.fps = self.fpsSamples:sum() / #self.fpsSamples
-		end
-		self.lastFrameTime = thisTime
-		self.frames = 0
+	local thisTime = getTime()
+	if not self.fpsSamples then
+		self.fpsIndex = 0
+		self.fpsSamples = table()
 	end
+	if self.lastFrameTime then
+		local deltaTime = thisTime - self.lastFrameTime
+		local fps = 1 / deltaTime
+		self.fpsIndex = (self.fpsIndex % self.fpsNumSamples) + 1
+		self.fpsSamples[self.fpsIndex] = fps
+		self.fps = self.fpsSamples:sum() / #self.fpsSamples
+	end
+	self.lastFrameTime = thisTime
 
 --local before = self.UBufObj:toCPU()
 --print'\nself.UBufObj before boundary:' self:printBuf(self.UBufObj) print(debug.traceback(),'\n\n')	
@@ -1405,7 +1504,117 @@ if tryingAMR == 'dt vs 2dt' then
 	-- now compare UBuf and U2Buf, store in U2Buf in the first real of cons_t
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.compareUvsU2Kernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 elseif tryingAMR == 'gradient' then
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcAMRErrorKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+	
+	-- 1) compute errors from gradient, sum up errors in each root node, and output on a per-node basis
+	local amrRootSizeInFromGlobalSize = vec3sz(
+		roundup(self.amrRootSizeInFromSize.x, self.localSize.x),
+		roundup(self.amrRootSizeInFromSize.y, self.localSize.y),
+		roundup(self.amrRootSizeInFromSize.z, self.localSize.z))
+	
+	self.app.cmds:enqueueNDRangeKernel{
+		kernel = self.calcAMRErrorKernel, 
+		dim = self.dim, 
+		globalSize = amrRootSizeInFromGlobalSize:ptr(), 
+		localSize = self.localSize:ptr(),
+	}
+
+	-- 2) based on what nodes' errors are past some value, split or merge...
+	--[[
+	1) initial tree will have nothing flagged as split
+	2) then we get some split data - gradients -> errors -> thresholds -> flags 
+		... which are lined up with the layout of the patches ...
+		... which doesn't necessarily match the tree structure ...
+	3) look through all used patches' error thresholds, min and max
+		if it says to split ... 
+			then look and see if we have room for any more free leafs in our state buffer
+		
+			the first iteration will request to split on some cells
+			so go through the error buffer for each (root?) node,
+			see if the error is bigger than some threshold then this node needs to be split
+				then we have to add a new leaf node
+			
+			so i have to hold a table of what in the U extra leaf buffer is used
+			which means looking
+		
+		if it says to merge ...
+			clear the 'used' flag in the overall tree / in the layout of leafs in our state buffer
+	--]]
+	local vol = tonumber(self.amrRootSizeInFromSize:volume())
+	local ptr = ffi.new('real[?]', vol)
+	self.app.cmds:enqueueReadBuffer{buffer=self.amrErrorBuf, block=true, size=ffi.sizeof(self.app.real) * vol, ptr=ptr}
+-- [[
+print'armErrors:'
+for ny=0,tonumber(self.amrRootSizeInFromSize.y)-1 do
+	for nx=0,tonumber(self.amrRootSizeInFromSize.x)-1 do
+		local i = nx + self.amrRootSizeInFromSize.x * ny
+		io.write('\t', ('%.5f'):format(ptr[i]))
+	end
+	print()
+end
+--]]
+
+for ny=0,tonumber(self.amrRootSizeInFromSize.y)-1 do
+	for nx=0,tonumber(self.amrRootSizeInFromSize.x)-1 do
+		local i = nx + self.amrRootSizeInFromSize.x * ny
+		local nodeErr = ptr[i]
+		if nodeErr > .2 then
+			print('root node '..tostring(i)..' needs to be split')
+			
+			-- flag for a split
+			-- look for a free node to allocate in the buffer
+			-- if there's one available then ...
+			-- store it in a map
+
+			local amrLayer = self.amrLayers[1]
+			
+			-- see if there's an entry in this layer
+			-- if there's not then ...
+			-- allocate a new patch and make an entry
+			if not amrLayer[i+1] then
+			
+				-- next: find a new unused leaf
+				-- for now, just this one node
+				local leafIndex = 0
+				
+				if not self.amrLeafs[leafIndex+1] then
+			
+					print('splitting root node '..tostring(i)..' and putting in leaf node '..leafIndex)
+		
+					-- create info about the leaf
+					self.amrLeafs[leafIndex+1] = {
+						level = 0,	-- root
+						layer = amrLayer,
+						layerX = nx,		-- node x and y in the root
+						layerY = ny,
+						leafIndex = leafIndex,	-- which leaf we are using
+					}
+			
+					-- tell the root layer table which node is used
+					--  by pointing it back to the table of the leaf nodes 
+					amrLayer[i+1] = self.amrLeafs[1]
+				
+					-- copy data from the root node location into the new node
+					-- upsample as we go ... by nearest?
+				
+					-- TODO setup kernel args
+					self.initNodeFromRootKernel:setArg(1, ffi.new('int[4]', {nx, ny, 0, 0}))
+					self.initNodeFromRootKernel:setArg(2, ffi.new('int[1]', 0))
+					self.app.cmds:enqueueNDRangeKernel{
+						kernel = self.initNodeFromRootKernel, 
+						dim = self.dim, 
+						globalSize = self.amrNodeSizeWithoutBorder:ptr(),
+						localSize = self.amrNodeSizeWithoutBorder:ptr(),
+					}
+					
+				end
+			end
+		end
+	end
+end
+
+os.exit()
+	
+	self.t = self.t + dt
 else
 	self.t = self.t + dt
 end
