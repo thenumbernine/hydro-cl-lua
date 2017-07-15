@@ -597,7 +597,7 @@ real3 cartesianToCoord(real3 v, real3 x) {
 	<? for i=0,solver.dim-1 do ?>{
 		real3 e = coordBasis<?=i?>(x);
 		//anholonomic normalized
-		//vCoord.s<?=i?> = real3_dot(e, v) / real3_len(e);
+		//vCoord.s<?=i?> = real3_dot(e, v); // / real3_len(e);
 		//holonomic
 		vCoord.s<?=i?> = real3_dot(e, v) / real3_lenSq(e);
 	}<? end
@@ -626,8 +626,8 @@ end
 function Geometry:getCoordMapGLSLCode()
 	return (self:getCoordMapCode()
 		:gsub('inline%S*', '')
-		:gsub('_real3', 'vec3')
-		:gsub('real3', 'vec3')
+		:gsub('_real3', 'vec3')	-- real3 constructor
+		:gsub('real3', 'vec3')	-- real3 type
 	)
 end
 
