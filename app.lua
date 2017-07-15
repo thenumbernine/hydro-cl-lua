@@ -138,12 +138,12 @@ function HydroCLApp:setup()
 			{32,32,32},
 		})[dim],
 		boundary = {
-			xmin=cmdline.boundary or 'mirror',
-			xmax=cmdline.boundary or 'mirror',
-			ymin=cmdline.boundary or 'mirror',
-			ymax=cmdline.boundary or 'mirror',
-			zmin=cmdline.boundary or 'mirror',
-			zmax=cmdline.boundary or 'mirror',
+			xmin=cmdline.boundary or 'periodic',
+			xmax=cmdline.boundary or 'periodic',
+			ymin=cmdline.boundary or 'periodic',
+			ymax=cmdline.boundary or 'periodic',
+			zmin=cmdline.boundary or 'periodic',
+			zmax=cmdline.boundary or 'periodic',
 		},
 		--]]
 		-- [[ cylinder
@@ -156,8 +156,8 @@ function HydroCLApp:setup()
 			{16, 64, 16}, -- 3D
 		})[dim],
 		boundary = {
-			xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
-			xmax=cmdline.boundary or 'mirror',
+			xmin=cmdline.boundary or 'freeflow',		-- hmm, how to treat the r=0 boundary ...
+			xmax=cmdline.boundary or 'freeflow',
 			ymin=cmdline.boundary or 'periodic',
 			ymax=cmdline.boundary or 'periodic',
 			zmin=cmdline.boundary or 'freeflow',
@@ -421,7 +421,7 @@ function HydroCLApp:initGL(...)
 		solver.heatMap2DShader = GLProgram{
 			vertexCode = template(
 				table{
-					solver:getCoordMapGLSLCode(),
+					solver.geometry:getCoordMapGLSLCode(),
 					code, 
 				}:concat'\n',
 				{
@@ -449,7 +449,7 @@ function HydroCLApp:initGL(...)
 			local volumeRayShader = GLProgram{
 				vertexCode = template(
 					table{
-						solver:getCoordMapGLSLCode(),
+						solver.geometry:getCoordMapGLSLCode(),
 						code,
 					}:concat'\n',
 					{
@@ -474,7 +474,7 @@ function HydroCLApp:initGL(...)
 			solver.volumeSliceShader = GLProgram{
 				vertexCode = template(
 					table{
-						solver:getCoordMapGLSLCode(),
+						solver.geometry:getCoordMapGLSLCode(),
 						code,
 					}:concat'\n',
 					{

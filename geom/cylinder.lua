@@ -9,12 +9,13 @@ local Tensor = symmath.Tensor
 local Cylinder = class(geometry)
 
 Cylinder.name = 'cylinder' 
+Cylinder.coords = {'r', 'θ', 'z'}
 
 function Cylinder:init(args)
 	local x, y, z = symmath.vars('x', 'y', 'z')
 	args.embedded = table{x,y,z}:sub(1, args.solver.dim)
 	
-	local r, theta = symmath.vars('r', 'theta')
+	local r, theta = symmath.vars('r', 'θ')
 
 	-- [[ holonomic
 	-- this would need the conservation law equation delta^ij's swapped with g^ij's

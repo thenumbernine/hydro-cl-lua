@@ -46,89 +46,6 @@ end
 local xs = table{'x', 'y', 'z'}
 local minmaxs = table{'min', 'max'}
 
-local function convertParams(code)
-	code = code:gsub('{x^(%d)}', function(i)
-		return 'x.'..xs[i+0]
-	end)
-	code = code:gsub('{v^(%d)}', function(i)
-		return 'v.'..xs[i+0]
-	end)
-	return code
-end
-
-local function getCode_real3_to_real(name, code)
-	return template([[
-inline real <?=name?>(real3 x) {
-	return <?=code?>;
-}]], {
-		name = name,
-		code = convertParams(code),
-	})
-end
-
--- f(x) where x is a point in the coordinate chart
-local function getCode_real3_to_real3(name, exprs)
-	return template([[
-inline real3 <?=name?>(real3 x) {
-	return _real3(
-<? for i=1,3 do
-?>		<?=exprs[i] and convertParams(exprs[i]) or '0.'
-		?><?=i==3 and '' or ','?>
-<? end
-?>	);
-}]], {
-		name = name,
-		exprs = exprs,
-		convertParams = convertParams,
-	})
-end
-
--- f(v,x) where x is a point on the coordinate chart and v is most likely a tensor
-local function getCode_real3_real3_to_real(name, expr)
-	return template([[
-inline real <?=name?>(real3 v, real3 x) {
-	return <?=convertParams(expr)?>;
-}]], {
-		name = name,
-		expr = expr,
-		convertParams = convertParams,
-	})
-end
-
-local function getCode_real3_real3_to_real3(name, exprs)
-	return template([[
-inline real3 <?=name?>(real3 v, real3 x) {
-	return _real3(
-<? for i=1,3 do
-?>		<?=exprs[i] and convertParams(exprs[i]) or '0.'
-		?><?=i==3 and '' or ','?>
-<? end
-?>	);
-}]], {
-		name = name,
-		exprs = exprs,
-		convertParams = convertParams,
-	})
-end
-
-local function getCode_real3_to_sym3(name, exprs)
-	return template([[
-inline sym3 <?=name?>(real3 x) {
-	return (sym3){
-<? for i=1,3 do
-	for j=i,3 do
-?>		.<?=xs[i]..xs[j]?> = <?=exprs[i] and exprs[i][j] 
-			and convertParams(exprs[i][j]) or '0.'?>,
-<?	end
-end
-?>	};
-}]], {
-		xs = xs,
-		name = name,
-		exprs = exprs,
-		convertParams = convertParams,
-	})
-end
 
 local Solver = class()
 
@@ -252,22 +169,6 @@ function Solver:init(args)
 	self.slopeLimiter = ffi.new('int[1]', (self.app.limiterNames:find(args.slopeLimiter) or 1)-1)
 
 	self:refreshGridSize()
-end
-
-function Solver:getCoordMapCode()
-	return table{
-		getCode_real3_to_real3('coordMap', range(3):map(function(i)
-			return self.geometry.uCode[i] or '{x^'..i..'}'
-		end)),
-	}:concat'\n'
-end
-
-function Solver:getCoordMapGLSLCode()
-	return (self:getCoordMapCode()
-		:gsub('inline%S*', '')
-		:gsub('_real3', 'vec3')
-		:gsub('real3', 'vec3')
-	)
 end
 
 -- this is the general function - which just assigns the eqn provided by the arg
@@ -792,96 +693,11 @@ function Solver:createCodePrefix()
 		'\tint index = INDEXV(i);',
 	}
 
-	-- dx0, ...
-	-- this is the change in cartesian wrt the change in grid
-	lines:append(range(self.dim):map(function(i)
-		local code = self.geometry.dxCodes[i]
-		for j=1,3 do
-			code = code:gsub(
-				'{x^'..j..'}',
-				'cell_x'..(j-1)..'(i.'..xs[j]..')')
-		end
-		return '#define dx'..(i-1)..'_at(i) (grid_dx'..(i-1)..' * ('..code..'))'
-	end))
-	
-	-- volume
-	local volumeCode = '(' .. self.geometry.volumeCode .. ')'
-	for i=1,self.dim do
-		volumeCode = volumeCode .. ' * grid_dx'..(i-1)
-	end
-	lines:insert(getCode_real3_to_real('volume_at', volumeCode))
-	
-	-- coord len code: l(v) = v^i v^j g_ij
-	lines:append{
-		getCode_real3_real3_to_real('coordLenSq', self.geometry.uLenSqCode),
-		[[
-inline real coordLen(real3 r, real3 x) {
-	return sqrt(coordLenSq(r, x));
-}]],
-	}
-
-	lines:insert(getCode_real3_real3_to_real3('coord_conn', self.geometry.connCodes))
-
-	--[[
-	for i=0,self.dim-1 do
-		lines:insert(getCode_real3_to_real('coordHolBasisLen'..i, self.geometry.eHolLenCode[i+1]))
-	end
-	--]]
-
-	for i,eiCode in ipairs(self.geometry.eCode) do
-		lines:insert(getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
-	end
-
-	lines:insert(getCode_real3_real3_to_real3('coord_lower', self.geometry.lowerCodes))
-
-	do
-		local function addSym3Components(name, codes)
-			for i=1,3 do
-				for j=i,3 do
-					local code = (codes[i] and codes[i][j] and convertParams(codes[i][j]) or clnumber(i==j and 1 or 0))
-					lines:insert('#define '..name..(i-1)..(j-1)..'(r) '..code)
-					if i ~= j then
-						lines:insert('#define '..name..(j-1)..(i-1)..'(r) '..code)
-					end
-				end
-			end
-		end
-		
-		addSym3Components('coord_g', self.geometry.gCode)
-		addSym3Components('coord_gU', self.geometry.gUCode)
-		addSym3Components('coord_sqrt_gU', self.geometry.sqrt_gUCode)
-		lines:insert(getCode_real3_to_sym3('coord_g', self.geometry.gCode))
-		lines:insert(getCode_real3_to_sym3('coord_gU', self.geometry.gUCode))
-	end
-
-	lines:insert(template([[
-
-//converts a vector from cartesian coordinates to grid coordinates
-//by projecting the vector into the grid basis vectors 
-//at x, which is in grid coordinates
-real3 cartesianToCoord(real3 v, real3 x) {
-	real3 vCoord;
-	<? for i=0,solver.dim-1 do ?>{
-		real3 e = coordBasis<?=i?>(x);
-		//anholonomic normalized
-		vCoord.s<?=i?> = real3_dot(e, v) / real3_len(e);
-		//holonomic
-		//vCoord.s<?=i?> = real3_dot(e, v) / real3_lenSq(e);
-	}<? end
-	for i=solver.dim,2 do ?>
-	vCoord.s<?=i?> = 0.;
-	<? end ?>
-	return vCoord;
-}
-]], {
-		solver = self,
-	}))
+	lines:insert(self.geometry:getCode(self))
 
 	lines:append{
 		-- not messing with this one yet
 		self.allocateOneBigStructure and '#define allocateOneBigStructure' or '',
-		
-		self:getCoordMapCode() or '',
 		
 		-- this is dependent on coord map / length code
 		self.eqn:getCodePrefix() or '',

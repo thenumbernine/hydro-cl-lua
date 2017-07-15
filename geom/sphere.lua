@@ -6,11 +6,18 @@ local sin, cos = symmath.sin, symmath.cos
 local Tensor = symmath.Tensor
 
 local Sphere = class(geometry)
+
 Sphere.name = 'sphere' 
+Sphere.coords = {'r', 'θ', 'φ'}
+
 function Sphere:init(args)
 	args.embedded = table{symmath.vars('x', 'y', 'z')}:sub(1,args.solver.dim)
-	local r, theta, phi = symmath.vars('r', 'theta', 'phi')
-	
+	local r, theta, phi = symmath.vars('r', 'θ', 'φ')
+
+	-- [[ holonomic
+	args.coords = table{r, theta, phi}
+	--]]
+	--[[ anholonomic
 	local thetaHat = symmath.var'thetaHat'
 	thetaHat.base = theta
 	function thetaHat:applyDiff(expr) return expr:diff(theta) / r end
@@ -20,6 +27,8 @@ function Sphere:init(args)
 	function phiHat:applyDiff(expr) return expr:diff(phi) / (r * sin(theta)) end
 	
 	args.coords = table{thetaHat, phiHat, r}:sub(1, args.solver.dim)
+	--]]
+	
 	args.chart = function() 
 		return ({
 			function() return Tensor('^I', theta) end,

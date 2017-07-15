@@ -143,7 +143,6 @@ kernel void initState(
 
 ]]..code..[[
 
-
 	<?=eqn.prim_t?> W = {
 		.rho = rho,
 		.v = cartesianToCoord(v, x),	//transform from cartesian to coordinate space 

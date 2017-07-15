@@ -6,6 +6,7 @@ local Geometry = require 'geom.geom'
 local Cartesian = class(Geometry)
 
 Cartesian.name = 'cartesian' 
+Cartesian.coords = {'x', 'y', 'z'}
 
 function Cartesian:init(args)
 	args.embedded = table{symmath.vars('x', 'y', 'z')}:sub(1, args.solver.dim)

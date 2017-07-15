@@ -18,6 +18,10 @@ There are a few options on how to do this.
 	This misses out on the perk of simulating problems whose components are purely rotational about an origin
 	with much greater accuracy than a Cartesian grid.
 
+	...in fact, this can be implemented as a 'grid' class on top of whatever curvilinear coordinates I choose --
+	I should be able to use a cylindrical grid and cartesian coordaintes with no extra modifications to the 
+	connections, or raising/lowering of coordinates -- only modifying my volume and side computations.
+
 2) The Physicist way:
 	Represent our eqn vector coordinates in anholonomic coordinates, normalizing the vector components.
 	Ex. for cylindrical the holonomic basis is e_r = [cos phi, sin phi], e_phi = [-r sin phi, r cos phi], 
@@ -230,6 +234,16 @@ print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()
 
 	-- code generation
 
+	local function substCoords(code)
+		code = code:gsub('{x^(%d)}', function(i)
+			return self.coords[i+0]
+		end)
+		code = code:gsub('{v^(%d)}', function(i)
+			return 'v'..self.coords[i+0]
+		end)
+		return code
+	end
+
 	local paramU = Tensor('^a', function(a) 
 		return var('{v^'..a..'}')
 	end)
@@ -276,7 +290,7 @@ print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()
 	-- uCode is used to project the grid for displaying
 	self.uCode = range(dim):map(function(i) 
 		local uCode = compile(u[i])
-print('uCode['..i..'] = '..uCode)
+print('uCode['..i..'] = '..substCoords(uCode))
 		return uCode
 	end)
 
@@ -322,7 +336,7 @@ print('uCode['..i..'] = '..uCode)
 	self.eCode = eExt:map(function(ei,i) 
 		return ei:map(function(eij,j)
 			local eijCode = compile(eij) 
-print('eCode['..i..']['..j..'] = ' .. tostring(eijCode))
+print('eCode['..i..']['..j..'] = '..substCoords(eijCode))
 			return eijCode 
 		end)
 	end)
@@ -338,7 +352,7 @@ print('eCode['..i..']['..j..'] = ' .. tostring(eijCode))
 
 	self.eHolLenCode = eHolLen:map(function(eiHolLen, i)
 		local eiHolLenCode = compile(eiHolLen)
-print('eHolLen['..i..'] = '..eiHolLenCode)
+print('eHolLen['..i..'] = '..substCoords(eiHolLenCode))
 		return eiHolLenCode
 	end)
 
@@ -355,19 +369,19 @@ print('eUnitCode = ', tolua(self.eUnitCode, {indent=true}))
 	local lowerExpr = paramU'_a'()
 	self.lowerCodes = range(dim):map(function(i)
 		local lowerCode = compile(lowerExpr[i])
-print('lowerCode['..i..'] = '..lowerCode)
+print('lowerCode['..i..'] = '..substCoords(lowerCode))
 		return lowerCode
 	end)
 
 	local lenSqExpr = (paramU'^a' * paramU'_a')()
 	self.uLenSqCode = compile(lenSqExpr)
-print('uLenSqCodes = '..self.uLenSqCode)
+print('uLenSqCodes = '..substCoords(self.uLenSqCode))
 
 	-- Conn^i_jk(x) v^j v^k
 	local connExpr = (Gamma'^a_bc' * paramU'^b' * paramU'^c')()
 	self.connCodes = range(dim):map(function(i)
 		local conniCode = compile(connExpr[i])
-print('connCode['..i..'] = '..conniCode)
+print('connCode['..i..'] = '..substCoords(conniCode))
 		return conniCode
 	end)
 
@@ -377,7 +391,7 @@ print('connCode['..i..'] = '..conniCode)
 		local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
 		local lenSqExpr = (dir'^a' * dir'^b' * gHol'_ab')()
 		local lenCode = compile((symmath.sqrt(lenSqExpr))())
-print('dxCode['..i..'] = '..lenCode)
+print('dxCode['..i..'] = '..substCoords(lenCode))
 		return lenCode
 	end)
 
@@ -385,7 +399,7 @@ print('dxCode['..i..'] = '..lenCode)
 	self.gCode = range(dim):map(function(i)
 		return range(i,dim):map(function(j)
 			local gijCode = compile(self.g[i][j])
-print('g['..i..']['..j..'] = '..gijCode)
+print('g['..i..']['..j..'] = '..substCoords(gijCode))
 			return gijCode, j
 		end)
 	end)
@@ -395,7 +409,7 @@ print('g['..i..']['..j..'] = '..gijCode)
 	self.gUCode = range(dim):map(function(i)
 		return range(i,dim):map(function(j)
 			local gUijCode = compile(self.gU[i][j])
-print('gU['..i..']['..j..'] = '..gUijCode)
+print('gU['..i..']['..j..'] = '..substCoords(gUijCode))
 			return gUijCode, j
 		end)
 	end)
@@ -404,15 +418,218 @@ print('gU['..i..']['..j..'] = '..gUijCode)
 	self.sqrt_gUCode = range(dim):map(function(i)
 		return range(i,dim):map(function(j)
 			local sqrt_gUijCode = compile(sqrt_gU[i][j])
-print('sqrt(gU['..i..']['..j..']) = '..sqrt_gUijCode)
+print('sqrt(gU['..i..']['..j..']) = '..substCoords(sqrt_gUijCode))
 			return sqrt_gUijCode, j
 		end)
 	end)
 
 	local volumeExpr = symmath.sqrt(symmath.Matrix.determinant(g))()
 	self.volumeCode = compile(volumeExpr)
-print('volumeCode = '..self.volumeCode)
+print('volumeCode = '..substCoords(self.volumeCode))
 
 end
+
+
+
+local template = require 'template'
+local clnumber = require 'clnumber'
+
+local xs = table{'x', 'y', 'z'}
+
+local function convertParams(code)
+	code = code:gsub('{x^(%d)}', function(i)
+		return 'x.'..xs[i+0]
+	end)
+	code = code:gsub('{v^(%d)}', function(i)
+		return 'v.'..xs[i+0]
+	end)
+	return code
+end
+
+local function getCode_real3_to_real(name, code)
+	return template([[
+inline real <?=name?>(real3 x) {
+	return <?=code?>;
+}]], {
+		name = name,
+		code = convertParams(code),
+	})
+end
+
+-- f(x) where x is a point in the coordinate chart
+local function getCode_real3_to_real3(name, exprs)
+	return template([[
+inline real3 <?=name?>(real3 x) {
+	return _real3(
+<? for i=1,3 do
+?>		<?=exprs[i] and convertParams(exprs[i]) or '0.'
+		?><?=i==3 and '' or ','?>
+<? end
+?>	);
+}]], {
+		name = name,
+		exprs = exprs,
+		convertParams = convertParams,
+	})
+end
+
+-- f(v,x) where x is a point on the coordinate chart and v is most likely a tensor
+local function getCode_real3_real3_to_real(name, expr)
+	return template([[
+inline real <?=name?>(real3 v, real3 x) {
+	return <?=convertParams(expr)?>;
+}]], {
+		name = name,
+		expr = expr,
+		convertParams = convertParams,
+	})
+end
+
+local function getCode_real3_real3_to_real3(name, exprs)
+	return template([[
+inline real3 <?=name?>(real3 v, real3 x) {
+	return _real3(
+<? for i=1,3 do
+?>		<?=exprs[i] and convertParams(exprs[i]) or '0.'
+		?><?=i==3 and '' or ','?>
+<? end
+?>	);
+}]], {
+		name = name,
+		exprs = exprs,
+		convertParams = convertParams,
+	})
+end
+
+local function getCode_real3_to_sym3(name, exprs)
+	return template([[
+inline sym3 <?=name?>(real3 x) {
+	return (sym3){
+<? for i=1,3 do
+	for j=i,3 do
+?>		.<?=xs[i]..xs[j]?> = <?=exprs[i] and exprs[i][j] 
+			and convertParams(exprs[i][j]) or '0.'?>,
+<?	end
+end
+?>	};
+}]], {
+		xs = xs,
+		name = name,
+		exprs = exprs,
+		convertParams = convertParams,
+	})
+end
+
+function Geometry:getCode(solver)
+	local dim = solver.dim
+
+	local lines = table()
+	
+	-- dx0, ...
+	-- this is the change in cartesian wrt the change in grid
+	lines:append(range(dim):map(function(i)
+		local code = self.dxCodes[i]
+		for j=1,3 do
+			code = code:gsub(
+				'{x^'..j..'}',
+				'cell_x'..(j-1)..'(i.'..xs[j]..')')
+		end
+		return '#define dx'..(i-1)..'_at(i) (grid_dx'..(i-1)..' * ('..code..'))'
+	end))
+	
+	-- volume
+	local volumeCode = '(' .. self.volumeCode .. ')'
+	for i=1,dim do
+		volumeCode = volumeCode .. ' * grid_dx'..(i-1)
+	end
+	lines:insert(getCode_real3_to_real('volume_at', volumeCode))
+	
+	-- coord len code: l(v) = v^i v^j g_ij
+	lines:append{
+		getCode_real3_real3_to_real('coordLenSq', self.uLenSqCode),
+		[[
+inline real coordLen(real3 r, real3 x) {
+	return sqrt(coordLenSq(r, x));
+}]],
+	}
+
+	lines:insert(getCode_real3_real3_to_real3('coord_conn', self.connCodes))
+
+	--[[
+	for i=0,dim-1 do
+		lines:insert(getCode_real3_to_real('coordHolBasisLen'..i, self.eHolLenCode[i+1]))
+	end
+	--]]
+
+	for i,eiCode in ipairs(self.eCode) do
+		lines:insert(getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
+	end
+
+	lines:insert(getCode_real3_real3_to_real3('coord_lower', self.lowerCodes))
+
+	do
+		local function addSym3Components(name, codes)
+			for i=1,3 do
+				for j=i,3 do
+					local code = (codes[i] and codes[i][j] and convertParams(codes[i][j]) or clnumber(i==j and 1 or 0))
+					lines:insert('#define '..name..(i-1)..(j-1)..'(r) '..code)
+					if i ~= j then
+						lines:insert('#define '..name..(j-1)..(i-1)..'(r) '..code)
+					end
+				end
+			end
+		end
+		
+		addSym3Components('coord_g', self.gCode)
+		addSym3Components('coord_gU', self.gUCode)
+		addSym3Components('coord_sqrt_gU', self.sqrt_gUCode)
+		lines:insert(getCode_real3_to_sym3('coord_g', self.gCode))
+		lines:insert(getCode_real3_to_sym3('coord_gU', self.gUCode))
+	end
+
+	lines:insert(template([[
+
+//converts a vector from cartesian coordinates to grid coordinates
+//by projecting the vector into the grid basis vectors 
+//at x, which is in grid coordinates
+real3 cartesianToCoord(real3 v, real3 x) {
+	real3 vCoord;
+	<? for i=0,solver.dim-1 do ?>{
+		real3 e = coordBasis<?=i?>(x);
+		//anholonomic normalized
+		//vCoord.s<?=i?> = real3_dot(e, v) / real3_len(e);
+		//holonomic
+		vCoord.s<?=i?> = real3_dot(e, v) / real3_lenSq(e);
+	}<? end
+	for i=solver.dim,2 do ?>
+	vCoord.s<?=i?> = 0.;
+	<? end ?>
+	return vCoord;
+}
+]], {
+		solver = solver,
+	}))
+
+	lines:insert(self:getCoordMapCode())
+		
+	return lines:concat'\n'
+end
+
+function Geometry:getCoordMapCode()
+	return table{
+		getCode_real3_to_real3('coordMap', range(3):map(function(i)
+			return self.uCode[i] or '{x^'..i..'}'
+		end)),
+	}:concat'\n'
+end
+
+function Geometry:getCoordMapGLSLCode()
+	return (self:getCoordMapCode()
+		:gsub('inline%S*', '')
+		:gsub('_real3', 'vec3')
+		:gsub('real3', 'vec3')
+	)
+end
+
 
 return Geometry

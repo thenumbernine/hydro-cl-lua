@@ -251,7 +251,9 @@ kernel void calcDerivFromFlux(
 			deriv->ptr[j] -= (
 				fluxR->ptr[j] * volumeIntR
 				- fluxL->ptr[j] * volumeIntL
-			) / (volume * grid_dx<?=side?>);
+			) / (grid_dx<?=side?>
+				* volume
+			);
 		}
 	}<? end ?>
 }

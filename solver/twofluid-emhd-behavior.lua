@@ -96,11 +96,6 @@ local function TwoFluidEMHDBehavior(parent)
 		self.t = 0
 	end
 
-	-- only used by createCodePrefix
-	function templateClass:getCoordMapCode() 
-		return self.ion:getCoordMapCode() 
-	end
-
 	function templateClass:getConsLRTypeCode() return '' end
 
 	local clnumber = require 'clnumber'
@@ -185,10 +180,6 @@ kernel void addSource_maxwell(
 		return self.solvers:map(function(solver)
 			return solver[name](solver, args:unpack(1, args.n))
 		end):unpack()
-	end
-
-	function templateClass:getCoordMapGLSLCode()
-		return self.ion:getCoordMapGLSLCode()
 	end
 
 	function templateClass:createEqn()
