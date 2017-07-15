@@ -22,6 +22,13 @@ local roundup = require 'roundup'
 --local tryingAMR = 'dt vs 2dt'
 --local tryingAMR = 'gradient'
 
+require 'ffi.c.sys.time'
+local gettimeofday_tv = ffi.new'struct timeval[1]'
+local function getTime()
+	local results = ffi.C.gettimeofday(gettimeofday_tv, nil)
+	return tonumber(gettimeofday_tv[0].tv_sec) + tonumber(gettimeofday_tv[0].tv_usec) / 1000000
+end
+
 local function getn(...)
 	local t = {...}
 	t.n = select('#', ...)
@@ -29,9 +36,9 @@ local function getn(...)
 end
 local function time(name, cb)
 	print(name..'...')
-	local startTime = os.clock()
+	local startTime = getTime()
 	local result = getn(cb())
-	local endTime = os.clock()
+	local endTime = getTime()
 	print('...done '..name..' ('..(endTime - startTime)..'s)')
 	return table.unpack(result, 1, result.n)
 end
@@ -332,13 +339,10 @@ kernel void <?=name?>(
 		or '' ?>
 ) {
 	SETBOUNDS(0,0);
-	
+
 	int4 dsti = i;
 	int dstindex = index;
-<? for i=0,solver.dim-1 do
-?>	i.s<?=i?> += <?=solver.numGhost?>;
-<? end
-?>
+	
 	real3 x = cell_x(i);
 	real3 xInt[<?=solver.dim?>];
 <? for i=0,solver.dim-1 do
@@ -683,7 +687,7 @@ end
 		format = gl.GL_RGBA,
 		type = gl.GL_FLOAT,
 		minFilter = gl.GL_NEAREST,
-		magFilter = gl.GL_LINEAR,
+		magFilter = gl.GL_NEAREST, --gl.GL_LINEAR,
 		wrap = {s=gl.GL_REPEAT, t=gl.GL_REPEAT, r=gl.GL_REPEAT},
 	}
 
@@ -1429,13 +1433,6 @@ function Solver:calcDT()
 end
 
 Solver.fpsNumSamples = 30
-
-require 'ffi.c.sys.time'
-local gettimeofday_tv = ffi.new'struct timeval[1]'
-local function getTime()
-	local results = ffi.C.gettimeofday(gettimeofday_tv, nil)
-	return tonumber(gettimeofday_tv[0].tv_sec) + tonumber(gettimeofday_tv[0].tv_usec) / 1000000
-end
 
 function Solver:update()
 	--[[

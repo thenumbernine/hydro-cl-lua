@@ -58,6 +58,8 @@ local vec4d = require 'ffi.vec.vec4d'
 local vec3d = require 'ffi.vec.vec3d'
 local tooltip = require 'tooltip'
 
+local CartesianGeom = require 'geom.cartesian'
+local CylinderGeom = require 'geom.cylinder'
 
 local HydroCLApp = class(ImGuiApp)
 
@@ -132,7 +134,7 @@ function HydroCLApp:setup()
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = ({
 			{1024,1,1},
-			{200,200,1},
+			{128,128,1},
 			{32,32,32},
 		})[dim],
 		boundary = {
@@ -206,14 +208,14 @@ function HydroCLApp:setup()
 		
 		-- Euler / SRHD / MHD initial states:
 		--initState = 'constant',
-		--initState = 'constant with motion',
+		initState = 'constant with motion',
 		--initState = 'linear',
 		--initState = 'gaussian',
 		--initState = 'advect wave',
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -1010,20 +1012,25 @@ function HydroCLApp:display2D_Heatmap(solvers, varName, ar, graph_xmin, graph_ym
 	
 			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 			gl.glEnable(gl.GL_BLEND)
-		
+	
 			local gridScale = 4
 			local udivs = math.ceil(tonumber(solver.gridSize.x)/gridScale)
 			local vdivs = math.ceil(tonumber(solver.gridSize.y)/gridScale)
+			if CartesianGeom.is(solver.geometry) then
+				udivs, vdivs = 1, 1
+			elseif CylinderGeom.is(solver.geometry) then
+				udivs = 1
+			end	
 			for vbase=0,vdivs-1 do
 				gl.glBegin(gl.GL_TRIANGLE_STRIP)
 				for ui=0,udivs do
-					for vofs=1,0,-1 do
+					for vofs=0,1 do
 						local vi = vbase+vofs
 						local u = ui/udivs
 						local v = vi/vdivs
-						gl.glTexCoord2d(
-							(u * tonumber(solver.sizeWithoutBorder.x) + solver.numGhost) / tonumber(solver.gridSize.x),
-							(v * tonumber(solver.sizeWithoutBorder.y) + solver.numGhost) / tonumber(solver.gridSize.y))
+						local tx = (u * tonumber(solver.sizeWithoutBorder.x) + solver.numGhost) / tonumber(solver.gridSize.x)
+						local ty = (v * tonumber(solver.sizeWithoutBorder.y) + solver.numGhost) / tonumber(solver.gridSize.y)
+						gl.glTexCoord2d(tx, ty)
 						gl.glVertex2d(
 							u * solver.maxs[1] + (1 - u) * solver.mins[1],
 							v * solver.maxs[2] + (1 - v) * solver.mins[2])
@@ -1286,7 +1293,7 @@ end
 					fwddir == 2 and jdir or 0, 
 					fwddir == 3 and jdir or 0)
 						
-				if solver.geometry.name == 'cartesian' then
+				if CartesianGeom.is(solver.geometry) then
 					-- [[	single quad
 					gl.glBegin(gl.GL_QUADS)
 					for j=jmin,jmax,jdir do
@@ -1780,7 +1787,6 @@ function HydroCLApp:updateGUI()
 					
 					-- now convert from interleaved to planar
 					-- *OR* add planes to the FITS output
-					-- [[
 					local tmp = ffi.new(self.real..'[?]', width * height * channels)
 					for ch=0,channels-1 do
 						for j=0,height-1 do
@@ -1791,7 +1797,6 @@ function HydroCLApp:updateGUI()
 						end
 					end
 					image.buffer = tmp
-					--]]
 					
 					image:save('output-'..i..'.fits')
 				else
