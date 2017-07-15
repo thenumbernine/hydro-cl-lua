@@ -581,7 +581,9 @@ kernel void addSource(
 
 #if defined(geometry_cylinder)
 #if 1	// holonomic coriolis force alone	
-	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(U->m, x), U->rho));
+	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(W.v, x), U->rho));	//-Gamma^i_jk v^j v^k rho
+	deriv->m = real3_add(deriv->m, real3_scale(coord_connTrace(x), W.P));		//+Gamma^i_jk g^jk P
 #elif 0	// holonomic: all covariant derivative terms (including the others that should be absorbed into the finite-volume computations
 	real connTrace = coord_connTrace(x);
 	deriv->rho -= U->rho * connTrace;

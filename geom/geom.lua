@@ -385,6 +385,14 @@ print('connCode['..i..'] = '..substCoords(conniCode))
 		return conniCode
 	end)
 
+	-- Conn^i = Conn^i_jk g^jk
+	local connTraceExpr = (Gamma'^a_b^b')()
+	self.connTraceCodes = range(dim):map(function(i)
+		local connTraceiCode = compile(connTraceExpr[i])
+print('connTraceCode['..i..'] = '..substCoords(connTraceiCode))
+		return connTraceiCode
+	end)
+
 	-- dx is the change across the grid
 	-- therefore it is based on the holonomic metric
 	self.dxCodes = range(dim):map(function(i)
@@ -554,6 +562,7 @@ inline real coordLen(real3 r, real3 x) {
 	}
 
 	lines:insert(getCode_real3_real3_to_real3('coord_conn', self.connCodes))
+	lines:insert(getCode_real3_to_real3('coord_connTrace', self.connTraceCodes))
 
 	--[[
 	for i=0,dim-1 do
