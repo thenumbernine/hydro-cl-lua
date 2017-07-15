@@ -125,7 +125,7 @@ function HydroCLApp:setup()
 		--usePLM = true,	-- piecewise-linear slope limiter
 		--slopeLimiter = 'minmod',
 		
-		-- [[ Cartesian
+		--[[ Cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
@@ -144,7 +144,7 @@ function HydroCLApp:setup()
 			zmax=cmdline.boundary or 'mirror',
 		},
 		--]]
-		--[[ cylinder
+		-- [[ cylinder
 		geometry = 'cylinder',
 		mins = cmdline.mins or {.1, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
@@ -1775,20 +1775,23 @@ function HydroCLApp:updateGUI()
 					local channels = solver.eqn.numStates
 					
 					local image = Image(width, height, channels, assert(self.real))
-					self.cmds:enqueueReadBuffer{buffer=solver.UBuf, block=true, size=ffi.sizeof(self.real) * solver.volume, ptr=image.buffer}
+					self.cmds:enqueueReadBuffer{buffer=solver.UBuf, block=true, size=ffi.sizeof(self.real) * channels * solver.volume, ptr=image.buffer}
+					local src = image.buffer
 					
 					-- now convert from interleaved to planar
 					-- *OR* add planes to the FITS output
+					-- [[
 					local tmp = ffi.new(self.real..'[?]', width * height * channels)
 					for ch=0,channels-1 do
 						for j=0,height-1 do
 							for i=0,width-1 do
-								tmp[i + width * (j + channels * ch)]
-									= image.buffer[ch + channels * (i + width * j)]
+								tmp[i + width * (j + height * ch)]
+									= src[ch + channels * (i + width * j)]
 							end
 						end
 					end
 					image.buffer = tmp
+					--]]
 					
 					image:save('output-'..i..'.fits')
 				else
