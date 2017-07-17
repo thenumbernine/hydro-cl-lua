@@ -57,16 +57,8 @@ for _,info in ipairs{
 		-- but lazy me will enable it for displaying for the time being
 		for _,var in ipairs(solver.displayVars) do
 			if var.name:sub(1,2) == 'U_' then
-				var.enabled = true
 				self.trackVars:insert(var)
-			else
-				var.enabled = false
 			end
-		end
-		solver:refreshDisplayProgram()
-		-- in fact, I bet I can turn off var.enabled here, 
-		-- and still have the convert-to-tex kernels
-		for _,var in ipairs(solver.displayVars) do
 			var.enabled = false
 		end
 

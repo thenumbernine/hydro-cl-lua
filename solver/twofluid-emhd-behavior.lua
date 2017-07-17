@@ -68,9 +68,11 @@ local function TwoFluidEMHDBehavior(parent)
 			end
 		end
 
+		--[[ hmm do we still need this?
 		self.ion:refreshDisplayProgram()
 		self.electron:refreshDisplayProgram()
 		self.maxwell:refreshDisplayProgram()
+		--]]
 
 		self.color = vec3(math.random(), math.random(), math.random()):normalize()
 		

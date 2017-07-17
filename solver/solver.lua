@@ -588,7 +588,8 @@ end
 		format = gl.GL_RGBA,
 		type = gl.GL_FLOAT,
 		minFilter = gl.GL_NEAREST,
-		magFilter = gl.GL_NEAREST, --gl.GL_LINEAR,
+		--magFilter = gl.GL_NEAREST,
+		magFilter = gl.GL_LINEAR,
 		wrap = {s=gl.GL_REPEAT, t=gl.GL_REPEAT, r=gl.GL_REPEAT},
 	}
 
@@ -780,6 +781,14 @@ kernel void multAdd(
 		size = self.volume,
 		op = function(x,y) return 'max('..x..', '..y..')' end,
 		initValue = '-INFINITY',
+		buffer = self.reduceBuf,
+		swapBuffer = self.reduceSwapBuf,
+		result = self.reduceResultPtr,
+	}
+	self.reduceSum = self.app.env:reduce{
+		size = self.volume,
+		op = function(x,y) return x..' + '..y end,
+		initValue = '0.',
 		buffer = self.reduceBuf,
 		swapBuffer = self.reduceSwapBuf,
 		result = self.reduceResultPtr,
@@ -993,44 +1002,40 @@ function Solver:refreshDisplayProgram()
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do
 			for _,var in ipairs(convertToTex.vars) do
-				if var.enabled then
-					lines:append{
-						template(convertToTex.displayCode, {
-							solver = self,
-							var = var,
-							convertToTex = convertToTex,
-							name = 'calcDisplayVarToTex_'..var.id,
-							input = '__write_only '
-								..(self.dim == 3 
-									and 'image3d_t' 
-									or 'image2d_t'
-								)..' tex',
-							output = '	write_imagef(tex, '
-								..(self.dim == 3 
-									and '(int4)(dsti.x, dsti.y, dsti.z, 0)' 
-									or '(int2)(dsti.x, dsti.y)'
-								)..', (float4)(value, 0., 0., 0.));',
-						})
-					}
-				end
+				lines:append{
+					template(convertToTex.displayCode, {
+						solver = self,
+						var = var,
+						convertToTex = convertToTex,
+						name = 'calcDisplayVarToTex_'..var.id,
+						input = '__write_only '
+							..(self.dim == 3 
+								and 'image3d_t' 
+								or 'image2d_t'
+							)..' tex',
+						output = '	write_imagef(tex, '
+							..(self.dim == 3 
+								and '(int4)(dsti.x, dsti.y, dsti.z, 0)' 
+								or '(int2)(dsti.x, dsti.y)'
+							)..', (float4)(value, 0., 0., 0.));',
+					})
+				}
 			end
 		end
 	end
 
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		for _,var in ipairs(convertToTex.vars) do
-			if var.enabled then
-				lines:append{
-					template(convertToTex.displayCode, {
-						solver = self,
-						var = var,
-						convertToTex = convertToTex,
-						name = 'calcDisplayVarToBuffer_'..var.id,
-						input = 'global real* dest',
-						output = '	dest[dstindex] = value;',
-					})
-				}
-			end
+			lines:append{
+				template(convertToTex.displayCode, {
+					solver = self,
+					var = var,
+					convertToTex = convertToTex,
+					name = 'calcDisplayVarToBuffer_'..var.id,
+					input = 'global real* dest',
+					output = '	dest[dstindex] = value;',
+				})
+			}
 		end
 	end
 
@@ -1042,18 +1047,14 @@ function Solver:refreshDisplayProgram()
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do
 			for _,var in ipairs(convertToTex.vars) do
-				if var.enabled then
-					var.calcDisplayVarToTexKernel = self.displayProgram:kernel('calcDisplayVarToTex_'..var.id, self.texCLMem)
-				end
+				var.calcDisplayVarToTexKernel = self.displayProgram:kernel('calcDisplayVarToTex_'..var.id, self.texCLMem)
 			end
 		end
 	end
 
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		for _,var in ipairs(convertToTex.vars) do
-			if var.enabled then
-				var.calcDisplayVarToBufferKernel = self.displayProgram:kernel('calcDisplayVarToBuffer_'..var.id, self.reduceBuf)
-			end
+			var.calcDisplayVarToBufferKernel = self.displayProgram:kernel('calcDisplayVarToBuffer_'..var.id, self.reduceBuf)
 		end
 	end
 end
@@ -1238,6 +1239,7 @@ function Solver:calcDT()
 	if self.useFixedDT then
 		dt = self.fixedDT
 	else
+		-- TODO this without the border
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDTKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 		dt = self.cfl * self.reduceMin()
 		if not math.isfinite(dt) then
@@ -1635,7 +1637,7 @@ do
 	local function handle(var, title)
 		ig.igPushIdStr(title)
 		
-		local enableChanged = tooltip.checkboxTable('enabled', var, 'enabled') 
+		tooltip.checkboxTable('enabled', var, 'enabled') 
 		ig.igSameLine()
 		
 		tooltip.checkboxTable('log', var, 'useLog')
@@ -1650,8 +1652,6 @@ do
 		end
 		
 		ig.igPopId()
-		
-		return enableChanged 
 	end
 
 	-- do one for 'all'
@@ -1690,16 +1690,11 @@ do
 							for _,var in ipairs(convertToTex.vars) do
 								var[field] = all[field]
 							end
-							if field == 'enabled' then
-								self:refreshDisplayProgram()
-							end
 						end
 					end
 
 					for _,var in ipairs(convertToTex.vars) do
-						if handle(var, convertToTex.name..' '..var.name) then
-							self:refreshDisplayProgram()
-						end
+						handle(var, convertToTex.name..' '..var.name)
 					end
 				end
 				ig.igPopId()

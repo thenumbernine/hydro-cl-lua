@@ -127,7 +127,7 @@ function HydroCLApp:setup()
 		--usePLM = true,	-- piecewise-linear slope limiter
 		--slopeLimiter = 'minmod',
 		
-		--[[ Cartesian
+		-- [[ Cartesian
 		geometry = 'cartesian',
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
@@ -146,7 +146,7 @@ function HydroCLApp:setup()
 			zmax=cmdline.boundary or 'periodic',
 		},
 		--]]
-		-- [[ cylinder
+		--[[ cylinder
 		geometry = 'cylinder',
 		mins = cmdline.mins or {.1, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
@@ -208,14 +208,14 @@ function HydroCLApp:setup()
 		
 		-- Euler / SRHD / MHD initial states:
 		--initState = 'constant',
-		initState = 'constant with motion',
+		--initState = 'constant with motion',
 		--initState = 'linear',
 		--initState = 'gaussian',
 		--initState = 'advect wave',
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
