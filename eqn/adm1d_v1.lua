@@ -24,16 +24,19 @@ ADM_BonaMasso_1D_Alcubierre2008.useSourceTerm = true
 
 ADM_BonaMasso_1D_Alcubierre2008.initStates = require 'init.adm'
 
-ADM_BonaMasso_1D_Alcubierre2008.guiVars = {
-	require 'guivar.combo'{
-		name = 'f',
-		options = {
-			'1', '.49', '.5', '1.5', '1.69',
-			'1 + 1/alpha^2',
-			'2/alpha',
-		},
+function ADM_BonaMasso_1D_Alcubierre2008:init(...)
+	self.guiVars = {
+		require 'guivar.combo'{
+			name = 'f',
+			options = {
+				'1', '.49', '.5', '1.5', '1.69',
+				'1 + 1/alpha^2',
+				'2/alpha',
+			},
+		}
 	}
-}
+	ADM_BonaMasso_1D_Alcubierre2008.super.init(self, ...)
+end
 
 local symmath = require 'symmath'
 function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix()

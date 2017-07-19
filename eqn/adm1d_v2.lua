@@ -97,16 +97,19 @@ ADM_BonaMasso_1D_Alcubierre1997.useSourceTerm = true
 
 ADM_BonaMasso_1D_Alcubierre1997.initStates = require 'init.adm'
 
-ADM_BonaMasso_1D_Alcubierre1997.guiVars = {
-	require 'guivar.combo'{
-		name = 'f',
-		options = {
-			'1', '.49', '.5', '1.69',
-			'1 + 1/alpha^2', 
-			'2/alpha',
-		},
+function ADM_BonaMasso_1D_Alcubierre1997:init(...)
+	self.guiVars = {
+		require 'guivar.combo'{
+			name = 'f',
+			options = {
+				'1', '.49', '.5', '1.69',
+				'1 + 1/alpha^2', 
+				'2/alpha',
+			},
+		}
 	}
-}
+	ADM_BonaMasso_1D_Alcubierre1997.super.init(self, ...)
+end
 
 function ADM_BonaMasso_1D_Alcubierre1997:getCodePrefix()
 	local initState = self.initStates[self.solver.initStateIndex]

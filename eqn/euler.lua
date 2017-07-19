@@ -30,14 +30,17 @@ Euler.useSourceTerm = true
 
 Euler.initStates = require 'init.euler'
 
-Euler.guiVars = {
-	require 'guivar.float'{name='heatCapacityRatio', 
+function Euler:init(...)
+	self.guiVars = {
+		require 'guivar.float'{name='heatCapacityRatio', 
 --in order to make things work, gamma needs to be set *HERE AND IN INIT/EULER*
 -- which means it is being read and written in multiple places
 -- TODO consolidate that
-		value=7/5,
+			value=7/5,
+		}
 	}
-}
+	Euler.super.init(self, ...)
+end
 
 function Euler:getTypeCode()
 	return template([[

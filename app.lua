@@ -97,7 +97,7 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 function HydroCLApp:setup()
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	local dim = 2
+	local dim = 1
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
@@ -327,8 +327,9 @@ function HydroCLApp:setup()
 -- [=[ two-solver testing ...
 -- running two solvers at once causes errors
 local app = self
-self.solvers:insert(require 'solver.euler-roe'(args))
-self.solvers:insert(require 'solver.euler-roe'(args))
+local cl = require 'solver.mhd-roe'
+self.solvers:insert(cl(args))
+self.solvers:insert(cl(args))
 local s1, s2 = self.solvers:unpack()
 
 local numReals = s1.volume * s1.eqn.numStates

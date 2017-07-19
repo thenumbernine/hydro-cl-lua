@@ -18,8 +18,6 @@ Maxwell.useSourceTerm = true
 
 Maxwell.initStates = require 'init.euler'
 
-Maxwell.guiVars = {}
-
 function Maxwell:getTypeCode()
 	return template([[
 typedef union {

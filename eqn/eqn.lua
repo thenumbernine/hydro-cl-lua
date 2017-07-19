@@ -42,6 +42,8 @@ function Equation:init(solver)
 	-- (put static states at the end of your cons_t structures)
 	if not self.numIntStates then self.numIntStates = self.numStates end
 
+	self.guiVars = self.guiVars or {}
+
 	self.initStateNames = table.map(self.initStates, function(info) return info.name end)
 	self.guiVarsForName = table.map(self.guiVars, function(var) return var, var.name end)
 end

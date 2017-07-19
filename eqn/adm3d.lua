@@ -63,16 +63,19 @@ typedef union {
 })
 end
 
-ADM_BonaMasso_3D.guiVars = table{
-	require 'guivar.combo'{
-		name = 'f',
-		options = {
-			'1 + 1/alpha^2',
-			'2/alpha', 
-			'1', '.49', '.5', '1.5', '1.69', 
-		},
+function ADM_BonaMasso_3D:init(...)
+	self.guiVars = table{
+		require 'guivar.combo'{
+			name = 'f',
+			options = {
+				'1 + 1/alpha^2',
+				'2/alpha', 
+				'1', '.49', '.5', '1.5', '1.69', 
+			},
+		}
 	}
-}
+	ADM_BonaMasso_1D_Alcubierre1997.super.init(self, ...)
+end
 
 local symmath = require 'symmath'
 function ADM_BonaMasso_3D:getCodePrefix()
