@@ -143,12 +143,13 @@ function Solver:refreshGridSize()
 	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
 	-- product of all local sizes must be <= max workgroup size
 	local maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
+print('maxWorkGroupSize', maxWorkGroupSize)
 
 	self.offset = vec3sz(0,0,0)
 	self.localSize1d = math.min(maxWorkGroupSize, tonumber(self.gridSize:volume()))
 
 	if self.dim == 3 then
-		local localSizeX = math.min(gridSize[1], 2^math.ceil(math.log(maxWorkGroupSize,2)/2))
+		local localSizeX = math.min(tonumber(self.gridSize.x), 2^math.ceil(math.log(maxWorkGroupSize,2)/2))
 		local localSizeY = maxWorkGroupSize / localSizeX
 		self.localSize2d = {localSizeX, localSizeY}
 	end
