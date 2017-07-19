@@ -53,7 +53,6 @@ local GLGradientTex = require 'gl.gradienttex'
 local GLTex2D = require 'gl.tex2d'
 local glreport = require 'gl.report'
 local Font = require 'gui.font'
-local Image = require 'image'
 local vec4d = require 'ffi.vec.vec4d'
 local vec3d = require 'ffi.vec.vec3d'
 local tooltip = require 'tooltip'
@@ -138,12 +137,12 @@ function HydroCLApp:setup()
 			{32,32,32},
 		})[dim],
 		boundary = {
-			xmin=cmdline.boundary or 'periodic',
-			xmax=cmdline.boundary or 'periodic',
-			ymin=cmdline.boundary or 'periodic',
-			ymax=cmdline.boundary or 'periodic',
-			zmin=cmdline.boundary or 'periodic',
-			zmax=cmdline.boundary or 'periodic',
+			xmin=cmdline.boundary or 'mirror',
+			xmax=cmdline.boundary or 'mirror',
+			ymin=cmdline.boundary or 'mirror',
+			ymax=cmdline.boundary or 'mirror',
+			zmin=cmdline.boundary or 'mirror',
+			zmax=cmdline.boundary or 'mirror',
 		},
 		--]]
 		--[[ cylinder
@@ -273,6 +272,115 @@ function HydroCLApp:setup()
 	-- HD
 	self.solvers:insert(require 'solver.euler-roe'(args))
 
+--[=[ two-solver testing ...
+self.solvers:insert(require 'solver.euler-roe'(args))
+-- running two solvers at once causes errors
+local app = self
+local s1, s2 = self.solvers:unpack()
+--function s2:update() self.t = self.t + .1 end
+--function s2:boundary() end
+--function s2:calcDT() return s1.fixedDT end
+function s2:step(dt)
+	--[[ fails
+	s1.integrator:integrate(dt, function(derivBuf)
+		self:calcDeriv(derivBuf, dt)
+	end)
+	--]]
+	--[[ seems to work fine, but we're not adding to UBuf
+	self:calcDeriv(s1.integrator.derivBuf, dt)
+	--]]
+	--[[ works as well .. but doesn't add to s2's UBuf
+	self:calcDeriv(self.integrator.derivBuf, dt)
+	--]]
+	--[[ fails with inline forward euler
+	-- calcDeriv runs fine on its own
+	-- everything except calcDeriv runs on its own
+	-- but as soon as the two are put together, it dies
+	app.cmds:finish()
+	app.cmds:enqueueFillBuffer{
+		buffer = self.integrator.derivBuf, 
+		size = self.volume * self.eqn.numStates * ffi.sizeof(app.real),
+	}
+	-- this produces crap in s2
+	-- if it's not added into s2's UBuf then we're safe
+	-- if it isn't called and zero is added to s2's UBuf then we're safe
+	self:calcDeriv(
+		self.integrator.derivBuf, 
+		dt)
+	self.multAddKernel:setArgs(
+		self.UBuf,
+		self.UBuf,
+		-- using self.integrator.derivBuf fails
+		-- but using s1.integrator.derivBuf works
+		s1.integrator.derivBuf,
+		ffi.new('real[1]', dt))
+	app.cmds:enqueueNDRangeKernel{
+		kernel=self.multAddKernel,
+		globalSize=self.integrator.globalSize,
+		localSize=self.localSize1d,
+	}
+	app.cmds:finish()
+	--]]
+	--[[ fails with the other solver's forward-euler and multAddKernel
+	app.cmds:finish()
+	app.cmds:enqueueFillBuffer{buffer=s1.integrator.derivBuf, size=self.volume * self.eqn.numStates * ffi.sizeof(app.real)}
+	self:calcDeriv(s1.integrator.derivBuf, dt)
+	s1.multAddKernel:setArgs(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
+	app.cmds:enqueueNDRangeKernel{kernel=s1.multAddKernel, globalSize=self.integrator.globalSize, localSize=self.localSize1d}
+	app.cmds:finish()
+	--]]
+	-- [[ just adding s1's deriv to s2?  works fine
+	-- ... up til a boundary is reached
+	-- in which case we git a discrepancy of sign
+	s1.multAddKernel:setArgs(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
+	app.cmds:enqueueNDRangeKernel{kernel=s1.multAddKernel, globalSize=self.integrator.globalSize, localSize=self.localSize1d}
+	s1.multAddKernel:setArgs(s1.UBuf, s1.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
+	--]]
+	-- so the code in common is when calcDeriv is called by the 2nd solver ...
+	-- ... regardless of what buffer it is written to
+end
+local numReals = s1.volume * s1.eqn.numStates
+local ptr1 = ffi.new('real[?]', numReals)
+local ptr2 = ffi.new('real[?]', numReals)
+local function compare()
+	app.cmds:enqueueReadBuffer{buffer=s1.UBuf, block=true, size=ffi.sizeof(app.real) * numReals, ptr=ptr1}
+	app.cmds:enqueueReadBuffer{buffer=s2.UBuf, block=true, size=ffi.sizeof(app.real) * numReals, ptr=ptr2}
+	local diff
+	for i=0,numReals-1 do
+		if ptr1[i] ~= ptr2[i] then
+			diff = i 
+			break
+		end
+	end
+	if diff then
+		for _,info in ipairs{{ptr1=ptr1},{ptr2=ptr2}} do
+			local k,v = next(info)
+			print(k)
+			for i=0,numReals-1 do
+				io.write(' '..v[i])
+				local col = 8*6
+				if i%col==col-1 then print() end
+			end
+		end
+		local ch = diff % s1.eqn.numStates
+		local x = math.floor(diff / tonumber(s1.eqn.numStates * s1.gridSize.x)) % tonumber(s1.gridSize.y)
+		local y = math.floor(diff / tonumber(s1.eqn.numStates * s1.gridSize.x * s1.gridSize.y))
+		print('index '..diff
+			..' coord '..x..', '..y..' ch '..ch
+			..' differs:',ptr1[diff], ptr2[diff])
+		s1:save's1.fits'
+		s2:save's2.fits'
+		error'here'
+	end
+end
+function s2:update()
+	s1.update(self)
+	-- ...annd even when using s1's derivBuf, this dies once the wave hits a boundary
+	-- complains about negative'd values (with mirror boundary conditions)
+	compare()
+end
+--]=]
+	
 	-- the same as solver.euler-roe:
 	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
 	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe')(table(args, {eqn='euler'})))
@@ -308,7 +416,7 @@ function HydroCLApp:setup()
 	
 	-- EM+HD
 	-- I broke this when I moved the cons_t type defs from solver to equation
-	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))	-- has trouble with multiple cdefs of cons_t and consLR_t
+	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
 	
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
@@ -1774,34 +1882,7 @@ function HydroCLApp:updateGUI()
 		if ig.igButton'Save' then
 			-- save as cfits 
 			for i,solver in ipairs(self.solvers) do
-				if solver.dim == 2 then
-					-- TODO add planes to image, then have the FITS module use planes and not channels
-					-- so the dimension layout of the buffer is [channels][width][height][planes]
-					local width = tonumber(solver.gridSize.x)
-					local height = tonumber(solver.gridSize.y)
-					local channels = solver.eqn.numStates
-					
-					local image = Image(width, height, channels, assert(self.real))
-					self.cmds:enqueueReadBuffer{buffer=solver.UBuf, block=true, size=ffi.sizeof(self.real) * channels * solver.volume, ptr=image.buffer}
-					local src = image.buffer
-					
-					-- now convert from interleaved to planar
-					-- *OR* add planes to the FITS output
-					local tmp = ffi.new(self.real..'[?]', width * height * channels)
-					for ch=0,channels-1 do
-						for j=0,height-1 do
-							for i=0,width-1 do
-								tmp[i + width * (j + height * ch)]
-									= src[ch + channels * (i + width * j)]
-							end
-						end
-					end
-					image.buffer = tmp
-					
-					image:save('output-'..i..'.fits')
-				else
-					print("haven't got support for saving dim="..solver.dim.." states")
-				end
+				solver:save('output-'..i..'.fits')
 			end
 		end
 

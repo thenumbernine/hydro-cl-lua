@@ -38,6 +38,10 @@ function Equation:init(solver)
 	-- default # waves is the # of states
 	if not self.numWaves then self.numWaves = self.numStates end 
 
+	-- how many states are integratable
+	-- (put static states at the end of your cons_t structures)
+	if not self.numIntStates then self.numIntStates = self.numStates end
+
 	self.initStateNames = table.map(self.initStates, function(info) return info.name end)
 	self.guiVarsForName = table.map(self.guiVars, function(var) return var, var.name end)
 end

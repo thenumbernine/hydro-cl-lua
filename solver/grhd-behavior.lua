@@ -3,12 +3,11 @@ local GRHDEqn = require 'eqn.grhd'
 local RHDBehavior = require 'solver/rhd-behavior'
 
 return function(parent)
-	local template = class(RHDBehavior(parent))
-
-	function template:createEqn()
+	local templateClass = class(RHDBehavior(parent))
+	
+	function templateClass:createEqn()
 		self.eqn = GRHDEqn(self)
 	end
-
-	return template
+	
+	return templateClass
 end
-

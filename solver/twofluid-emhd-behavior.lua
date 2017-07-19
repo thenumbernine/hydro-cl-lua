@@ -12,9 +12,11 @@ local table = require 'ext.table'
 local ig = require 'ffi.imgui'
 local vec3sz = require 'ffi.vec.vec3sz'
 local template = require 'template'
+local CLProgram = require 'cl.program'
+local clnumber = require 'clnumber'
 
 --[[
-parent is a solver (Roe, RoeImplicitLinearized)
+parent is a solver... just Roe for now
 --]]
 local function TwoFluidEMHDBehavior(parent)
 	local templateClass = class()
@@ -29,33 +31,48 @@ local function TwoFluidEMHDBehavior(parent)
 		-- same name in init/euler and init/maxwell?
 		-- both?
 
+		--[[ specific initialization
+		local ionInitState = 'two-fluid EMHD soliton ion'
+		local electronInitState = 'two-fluid EMHD soliton electron'
+		local emhdInitState = 'two-fluid EMHD soliton maxwell'
+		--]]	
+		-- [[ use whatever is in args
+		local ionInitState
+		local electronInitState
+		local emhdInitState
+		--]]
+
 		local IonSolver = class(require 'solver.euler-behavior'(parent))
 		function IonSolver:init(args)
-			IonSolver.super.init(self, table(args, {
---				initState = 'two-fluid EMHD soliton ion',
-			}))
+			IonSolver.super.init(self, table(args, {initState = ionInitState}))
 			self.name = 'ion '..self.name
 		end
 		self.ion = IonSolver(args)
 
+--[[
 		local ElectronSolver = class(require 'solver.euler-behavior'(parent))
 		function ElectronSolver:init(args)
-			ElectronSolver.super.init(self, table(args, {
---				initState = 'two-fluid EMHD soliton electron',
-			}))
+			ElectronSolver.super.init(self, table(args, {initState = electronInitState}))
 			self.name = 'electron '..self.name
 		end
 		self.electron = ElectronSolver(args)
 
 		local MaxwellSolver = class(require 'solver.maxwell-behavior'(parent))
 		function MaxwellSolver:init(args)
-			MaxwellSolver.super.init(self, table(args, {
---				initState = 'two-fluid EMHD soliton maxwell',
-			}))
+			MaxwellSolver.super.init(self, table(args, {initState = emhdInitState}))
 		end
 		self.maxwell = MaxwellSolver(args)
-		
-		self.solvers = table{self.ion, self.electron, self.maxwell}
+--]]		
+		-- multiple Euler solvers are getting errors ...
+		-- and even if I allocate two solvers and run one,
+		-- the boundary program screws up
+		self.solvers = table{
+			self.ion, 
+--			self.electron,
+			--self.maxwell,
+			-- even if I add a new one, it has errors also
+			--require 'solver.euler-roe'(args),
+		}
 		
 		self.displayVars = table():append(self.solvers:map(function(solver) return solver.displayVars end):unpack())
 		
@@ -68,17 +85,12 @@ local function TwoFluidEMHDBehavior(parent)
 			end
 		end
 
-		--[[ hmm do we still need this?
-		self.ion:refreshDisplayProgram()
-		self.electron:refreshDisplayProgram()
-		self.maxwell:refreshDisplayProgram()
-		--]]
-
 		self.color = vec3(math.random(), math.random(), math.random()):normalize()
 		
 		self.numGhost = self.ion.numGhost
 		self.dim = self.ion.dim
 		self.gridSize = vec3sz(self.ion.gridSize)
+		self.sizeWithoutBorder = vec3sz(self.ion.sizeWithoutBorder)
 		self.mins = vec3(self.ion.mins:unpack())
 		self.maxs = vec3(self.ion.maxs:unpack())
 			
@@ -93,14 +105,13 @@ local function TwoFluidEMHDBehavior(parent)
 		}
 
 		-- call this after we've assigned 'self' all its fields
-		self:replaceSourceKernels()
+--		self:replaceSourceKernels()
 
 		self.t = 0
 	end
 
 	function templateClass:getConsLRTypeCode() return '' end
 
-	local clnumber = require 'clnumber'
 	function templateClass:replaceSourceKernels()
 		local chargeMassRatio_ion = 1
 		local chargeMassRatio_electron = .01
@@ -159,7 +170,7 @@ kernel void addSource_maxwell(
 			euler_cons_t = self.electron.eqn.cons_t,
 			maxwell_cons_t = self.maxwell.eqn.cons_t,
 		})
-		self.addSourceProgram = require 'cl.program'{context=self.app.ctx, devices={self.app.device}, code=code}
+		self.addSourceProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code}
 		
 		self.ion.addSourceKernel = self.addSourceProgram:kernel'addSource_ion'
 		self.ion.addSourceKernel:setArg(1, self.ion.UBuf)

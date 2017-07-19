@@ -65,6 +65,12 @@ function Solver:init(args)
 	assert(args)
 	self.app = assert(args.app)
 
+	self.color = vec3(math.random(), math.random(), math.random()):normalize()
+
+	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
+	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
+
+
 	-- TODO OK this is a little ambiguous ...
 	-- gridSize is the desired grid size
 	-- self.gridSize is gonna be that, plus numGhost on either side ...
@@ -93,57 +99,10 @@ function Solver:init(args)
 
 	for i=self.dim,2 do self.gridSize:ptr()[i] = 1 end
 
-	self.stepSize = vec3sz()
-	self.stepSize.x = 1
-	for i=1,self.dim-1 do
-		self.stepSize:ptr()[i] = self.stepSize:ptr()[i-1] * self.gridSize:ptr()[i-1]
-	end
-
-	self.color = vec3(math.random(), math.random(), math.random()):normalize()
-
-	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
-	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
 
 	self:createEqn(args.eqn)
-	
+
 	self.name = self.eqn.name..' '..self.name
-	
-	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
-	-- product of all local sizes must be <= max workgroup size
-	self.maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
-
-	self.offset = vec3sz(0,0,0)
-	self.localSize1d = math.min(self.maxWorkGroupSize, tonumber(self.gridSize:volume()))
-
-	if self.dim == 3 then
-		local localSizeX = math.min(gridSize[1], 2^math.ceil(math.log(self.maxWorkGroupSize,2)/2))
-		local localSizeY = self.maxWorkGroupSize / localSizeX
-		self.localSize2d = {localSizeX, localSizeY}
-	end
-
---	self.localSize = self.dim < 3 and vec3sz(16,16,16) or vec3sz(4,4,4)
-	-- TODO better than constraining by math.min(gridSize),
-	-- look at which gridSizes have the most room, and double them accordingly, until all of maxWorkGroupSize is taken up
-	self.localSize = vec3sz(1,1,1)
-	local rest = self.maxWorkGroupSize
-	local localSizeX = math.min(gridSize[1], 2^math.ceil(math.log(rest,2)/self.dim))
-	self.localSize.x = localSizeX
-	if self.dim > 1 then
-		rest = rest / localSizeX
-		if self.dim == 2 then
-			self.localSize.y = math.min(gridSize[2], rest)
-		elseif self.dim == 3 then
-			local localSizeY = math.min(gridSize[2], 2^math.ceil(math.log(math.sqrt(rest),2)))
-			self.localSize.y = localSizeY
-			self.localSize.z = math.min(gridSize[3], rest / localSizeY)
-		end
-	end
-
-	-- this is grid size, but rounded up to the next localSize
-	self.globalSize = vec3sz(
-		roundup(self.gridSize.x, self.localSize.x),
-		roundup(self.gridSize.y, self.localSize.y),
-		roundup(self.gridSize.z, self.localSize.z))
 
 	self.useFixedDT = false
 	self.fixedDT = .001
@@ -178,6 +137,52 @@ function Solver:createEqn(eqn)
 end
 
 function Solver:refreshGridSize()
+
+	self.stepSize = vec3sz()
+	self.stepSize.x = 1
+	for i=1,self.dim-1 do
+		self.stepSize:ptr()[i] = self.stepSize:ptr()[i-1] * self.gridSize:ptr()[i-1]
+	end
+	
+	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
+	-- product of all local sizes must be <= max workgroup size
+	local maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
+
+	self.offset = vec3sz(0,0,0)
+	self.localSize1d = math.min(maxWorkGroupSize, tonumber(self.gridSize:volume()))
+
+	if self.dim == 3 then
+		local localSizeX = math.min(gridSize[1], 2^math.ceil(math.log(maxWorkGroupSize,2)/2))
+		local localSizeY = maxWorkGroupSize / localSizeX
+		self.localSize2d = {localSizeX, localSizeY}
+	end
+
+--	self.localSize = self.dim < 3 and vec3sz(16,16,16) or vec3sz(4,4,4)
+	-- TODO better than constraining by math.min(gridSize),
+	-- look at which gridSizes have the most room, and double them accordingly, until all of maxWorkGroupSize is taken up
+	self.localSize = vec3sz(1,1,1)
+	local rest = maxWorkGroupSize
+	local localSizeX = math.min(tonumber(self.gridSize.x), 2^math.ceil(math.log(rest,2)/self.dim))
+	self.localSize.x = localSizeX
+	if self.dim > 1 then
+		rest = rest / localSizeX
+		if self.dim == 2 then
+			self.localSize.y = math.min(tonumber(self.gridSize.y), rest)
+		elseif self.dim == 3 then
+			local localSizeY = math.min(tonumber(self.gridSize.y), 2^math.ceil(math.log(math.sqrt(rest),2)))
+			self.localSize.y = localSizeY
+			self.localSize.z = math.min(tonumber(self.gridSize.z), rest / localSizeY)
+		end
+	end
+
+	-- this is grid size, but rounded up to the next localSize
+	self.globalSize = vec3sz(
+		roundup(self.gridSize.x, self.localSize.x),
+		roundup(self.gridSize.y, self.localSize.y),
+		roundup(self.gridSize.z, self.localSize.z))
+
+
+
 
 	self.domain = self.app.env:domain{
 		size = {self.gridSize:unpack()},
@@ -570,7 +575,8 @@ end
 	-- used both by reduceMin and reduceMax
 	-- (and TODO use this by sum() in implicit solver as well?)
 	self:clalloc('reduceBuf', self.volume * realSize)
-	self:clalloc('reduceSwapBuf', self.volume * realSize / self.localSize1d)
+	local reduceSwapBufSize = roundup(self.volume * realSize / self.localSize1d, realSize)
+	self:clalloc('reduceSwapBuf', reduceSwapBufSize)
 	self.reduceResultPtr = ffi.new('real[1]', 0)
 
 	-- CL/GL interop
@@ -743,23 +749,23 @@ function Solver:refreshCommonProgram()
 	-- code that depend on real and nothing else
 	-- TODO move to app, along with reduceBuf
 
-	local commonCode = table():append
-		{self.app.is64bit and '#pragma OPENCL EXTENSION cl_khr_fp64 : enable' or nil
+	local commonCode = table():append{
+		self.app.env.code,
+		self.codePrefix,
 	}:append{
-		'typedef '..self.app.real..' real;',
-		-- used by the integrators
-		[[
+		template([[
 kernel void multAdd(
-	global real* a,
-	const global real* b,
-	const global real* c,
+	global <?=eqn.cons_t?>* a,
+	const global <?=eqn.cons_t?>* b,
+	const global <?=eqn.cons_t?>* c,
 	real d
 ) {
-	size_t i = get_global_id(0);
-	if (i >= get_global_size(0)) return;
-	a[i] = b[i] + c[i] * d;
-}	
-]],
+	SETBOUNDS(numGhost,numGhost);
+<? for i=0,eqn.numStates-1 do
+?>	a[index].ptr[<?=i?>] = b[index].ptr[<?=i?>] + c[index].ptr[<?=i?>] * d;
+<? end
+?>}
+]], {eqn=self.eqn})
 	}:concat'\n'
 
 	time('compiling common program', function()
@@ -767,6 +773,8 @@ kernel void multAdd(
 	end)
 
 	-- used by the integrators
+	-- needs the same globalSize and localSize as the typical simulation kernels
+	-- TODO exclude states which are not supposed to be integrated
 	self.multAddKernel = self.commonProgram:kernel'multAdd'
 
 	self.reduceMin = self.app.env:reduce{
@@ -1428,7 +1436,6 @@ for ny=0,tonumber(self.amrRootSizeInFromSize.y)-1 do
 						globalSize = self.amrNodeSizeWithoutBorder:ptr(),
 						localSize = self.amrNodeSizeWithoutBorder:ptr(),
 					}
-					
 				end
 			end
 		end
@@ -1711,6 +1718,39 @@ function Solver:updateGUI()
 	-- heat map var
 
 	-- TODO volumetric var
+end
+
+local Image = require 'image'
+function Solver:save(filename)
+	if self.dim ~= 2 then
+		print("haven't got support for saving dim="..self.dim.." states")
+		return
+	end
+		
+	-- TODO add planes to image, then have the FITS module use planes and not channels
+	-- so the dimension layout of the buffer is [channels][width][height][planes]
+	local width = tonumber(self.gridSize.x)
+	local height = tonumber(self.gridSize.y)
+	local channels = self.eqn.numStates
+	
+	local image = Image(width, height, channels, assert(self.app.real))
+	self.app.cmds:enqueueReadBuffer{buffer=self.UBuf, block=true, size=ffi.sizeof(self.app.real) * channels * self.volume, ptr=image.buffer}
+	local src = image.buffer
+	
+	-- now convert from interleaved to planar
+	-- *OR* add planes to the FITS output
+	local tmp = ffi.new(self.app.real..'[?]', width * height * channels)
+	for ch=0,channels-1 do
+		for j=0,height-1 do
+			for i=0,width-1 do
+				tmp[i + width * (j + height * ch)]
+					= src[ch + channels * (i + width * j)]
+			end
+		end
+	end
+	image.buffer = tmp
+	
+	image:save('output-'..i..'.fits')
 end
 
 return Solver

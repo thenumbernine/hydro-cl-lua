@@ -8,12 +8,13 @@ local Equation = require 'eqn.eqn'
 local Euler = class(Equation)
 Euler.name = 'Euler'
 
-Euler.numWaves = 5
-
 -- ePot is the 6th param
 -- which means it's now in the derivBuf, but it is always zero
 -- so TODO a new variable for deriv size vs cons_t size?
 Euler.numStates = 6	
+
+Euler.numWaves = 5
+Euler.numIntStates = 5
 
 Euler.mirrorVars = {{'m.x'}, {'m.y'}, {'m.z'}} 
 

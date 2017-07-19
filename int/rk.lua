@@ -67,12 +67,12 @@ function RungeKutta:integrate(dt, callback)
 			if self.alphas[i-1][k] ~= 0 then
 				solver.multAddKernel:setArg(2, self.UBufs[k])
 				solver.multAddKernel:setArg(3, ffi.new('real[1]', self.alphas[i-1][k]))
-				solver.app.cmds:enqueueNDRangeKernel{kernel=solver.multAddKernel, globalSize=length, localSize=solver.localSize1d}
+				solver.app.cmds:enqueueNDRangeKernel{kernel=solver.multAddKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
 			end
 			if self.betas[i-1][k] ~= 0 then
 				solver.multAddKernel:setArg(2, self.derivBufs[k])
 				solver.multAddKernel:setArg(3, ffi.new('real[1]', self.betas[i-1][k] * dt))
-				solver.app.cmds:enqueueNDRangeKernel{kernel=solver.multAddKernel, globalSize=length, localSize=solver.localSize1d}
+				solver.app.cmds:enqueueNDRangeKernel{kernel=solver.multAddKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
 			end
 		end
 	
