@@ -3,7 +3,7 @@ local ig = require 'ffi.imgui'
 local tooltip = require 'tooltip'
 local class = require 'ext.class'
 local GuiVar = require 'guivar.guivar'
-local clnumber = require 'clnumber'
+local clnumber = require 'cl.obj.number'
 
 local GuiFloat = class(GuiVar)
 

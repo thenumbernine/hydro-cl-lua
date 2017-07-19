@@ -13,7 +13,7 @@ local ig = require 'ffi.imgui'
 local vec3sz = require 'ffi.vec.vec3sz'
 local template = require 'template'
 local CLProgram = require 'cl.program'
-local clnumber = require 'clnumber'
+local clnumber = require 'cl.obj.number'
 
 --[[
 parent is a solver... just Roe for now

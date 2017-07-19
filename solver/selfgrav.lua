@@ -21,7 +21,7 @@ function SelfGrav:getCodeParams()
 			self = self,
 			solver = self.solver,
 			eqn = self.solver.eqn,
-			clnumber = require 'clnumber',
+			clnumber = require 'cl.obj.number',
 		}),
 	}
 end

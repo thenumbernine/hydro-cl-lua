@@ -443,7 +443,7 @@ end
 
 
 local template = require 'template'
-local clnumber = require 'clnumber'
+local clnumber = require 'cl.obj.number'
 
 local xs = table{'x', 'y', 'z'}
 

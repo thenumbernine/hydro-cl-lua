@@ -3,7 +3,7 @@ local table = require 'ext.table'
 local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local GuiFloat = require 'guivar.float'
-local clnumber = require 'clnumber'
+local clnumber = require 'cl.obj.number'
 local template = require 'template'
 
 local Maxwell = class(Equation)

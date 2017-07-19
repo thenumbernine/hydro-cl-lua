@@ -7,7 +7,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
-local clnumber = require 'clnumber'
+local clnumber = require 'cl.obj.number'
 local template = require 'template'
 
 local GRHD = class(Equation)
