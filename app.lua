@@ -100,7 +100,7 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 function HydroCLApp:setup()
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	local dim = 1
+	local dim = 2
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
@@ -270,9 +270,64 @@ function HydroCLApp:setup()
 	self.solvers = table()
 	
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 
--- [=[ two-solver testing ...
+	-- the same as solver.euler-roe:
+	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
+	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe')(table(args, {eqn='euler'})))
+
+	-- SR+HD.  
+	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
+	-- rel blast wave interaction works with superbee flux lim in 1D works at 256, fails at 1024 with float (works with double)
+	-- 	256x256 double fails with F.E., RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths,
+	-- rel blast wave 1 doesn't work in 64x64. with superbee flux lim
+	-- rel blast wave 2 with superbee flux lim, Roe solver, works at 64x64 with forward euler
+	-- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
+	--    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
+	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
+	--self.solvers:insert(require 'solver.srhd-roe'(args))
+	
+	-- GR+HD
+	-- right now this is just like srhd except extended by Font's eqns
+	-- this has plug-ins for ADM metric alpha, beta, gammas, but I need to make a composite solver to combine it with GR equations. 
+	--self.solvers:insert(require 'solver.grhd-roe'(args))
+	
+	-- M+HD. 
+	-- with superbee flux lim:  
+	-- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.
+	-- Orszag-Tang with forward Euler integrator fails at 64x64 around .7 or .8
+	-- 		but works with 'Runge-Kutta 4, TVD' integrator at 64x64
+	-- 		RK4-TVD fails at 256x256 at just after t=.5
+	-- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
+	-- also div B is nonzero.  in fact it's pretty big.
+	--self.solvers:insert(require 'solver.mhd-roe'(args))
+	
+	-- EM
+	--self.solvers:insert(require 'solver.maxwell-roe'(args))
+	
+	-- EM+HD
+	-- I broke this when I moved the cons_t type defs from solver to equation
+	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
+	
+	-- GR
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+	--
+	-- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
+	--  but something gets caught up in the freeflow boundary conditions, and it explodes
+	-- TODO constant Minkowski boundary conditions?
+	-- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
+	-- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
+	--self.solvers:insert(require 'solver.bssnok-fd'(args))
+	
+	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
+
+
+
+
+
+--[=[ two-solver testing ...
 self.solvers:insert(require 'solver.euler-roe'(args))
 self.solvers:insert(require 'solver.euler-roe'(args))
 -- running two solvers at once causes errors
@@ -381,56 +436,7 @@ end
 --]==]
 --]=]
 	
-	-- the same as solver.euler-roe:
-	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
-	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe')(table(args, {eqn='euler'})))
 
-	-- SR+HD.  
-	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
-	-- rel blast wave interaction works with superbee flux lim in 1D works at 256, fails at 1024 with float (works with double)
-	-- 	256x256 double fails with F.E., RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths,
-	-- rel blast wave 1 doesn't work in 64x64. with superbee flux lim
-	-- rel blast wave 2 with superbee flux lim, Roe solver, works at 64x64 with forward euler
-	-- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
-	--    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
-	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-	--self.solvers:insert(require 'solver.srhd-roe'(args))
-	
-	-- GR+HD
-	-- right now this is just like srhd except extended by Font's eqns
-	-- this has plug-ins for ADM metric alpha, beta, gammas, but I need to make a composite solver to combine it with GR equations. 
-	--self.solvers:insert(require 'solver.grhd-roe'(args))
-	
-	-- M+HD. 
-	-- with superbee flux lim:  
-	-- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.
-	-- Orszag-Tang with forward Euler integrator fails at 64x64 around .7 or .8
-	-- 		but works with 'Runge-Kutta 4, TVD' integrator at 64x64
-	-- 		RK4-TVD fails at 256x256 at just after t=.5
-	-- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
-	-- also div B is nonzero.  in fact it's pretty big.
-	--self.solvers:insert(require 'solver.mhd-roe'(args))
-	
-	-- EM
-	--self.solvers:insert(require 'solver.maxwell-roe'(args))
-	
-	-- EM+HD
-	-- I broke this when I moved the cons_t type defs from solver to equation
-	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
-	
-	-- GR
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
-	--
-	-- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
-	--  but something gets caught up in the freeflow boundary conditions, and it explodes
-	-- TODO constant Minkowski boundary conditions?
-	-- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
-	-- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-	--self.solvers:insert(require 'solver.bssnok-fd'(args))
-	
-	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 end
 
 local useClipPlanes

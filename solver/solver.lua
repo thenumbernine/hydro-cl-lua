@@ -170,13 +170,13 @@ function Solver:refreshGridSize()
 			self.localSize.z = math.min(tonumber(self.gridSize.z), rest / localSizeY)
 		end
 	end
-
+print('self.localSize', self.localSize)
 	-- this is grid size, but rounded up to the next localSize
 	self.globalSize = vec3sz(
 		roundup(self.gridSize.x, self.localSize.x),
 		roundup(self.gridSize.y, self.localSize.y),
 		roundup(self.gridSize.z, self.localSize.z))
-
+print('self.globalSize', self.globalSize)
 
 
 
@@ -190,13 +190,17 @@ function Solver:refreshGridSize()
 	for i=0,self.dim-1 do
 		self.sizeWithoutBorder:ptr()[i] = self.sizeWithoutBorder:ptr()[i] - 2 * self.numGhost
 	end
+print('self.sizeWithoutBorder', self.sizeWithoutBorder)	
 	self.volumeWithoutBorder = tonumber(self.sizeWithoutBorder:volume())
+print('self.volumeWithoutBorder', self.volumeWithoutBorder)	
 	self.globalSizeWithoutBorder = vec3sz( 
 		roundup(self.sizeWithoutBorder.x, self.localSize.x),
 		roundup(self.sizeWithoutBorder.y, self.localSize.y),
 		roundup(self.sizeWithoutBorder.z, self.localSize.z))
-
+print('self.globalSizeWithoutBorder', self.globalSizeWithoutBorder)
+	
 	self.volume = tonumber(self.gridSize:volume())
+print('self.volume', self.volume)
 	self.dxs = vec3(range(3):map(function(i)
 		return (self.maxs[i] - self.mins[i]) / tonumber(self.sizeWithoutBorder:ptr()[i-1])
 	end):unpack())
@@ -756,12 +760,18 @@ kernel void multAdd(
 	const global <?=eqn.cons_t?>* c,
 	real d
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	int4 i = globalInt4();
+	if (OOB(0,2*numGhost)) return;
+	i += (int4)(<?=require 'ext.range'(4):map(function(i) return i <= solver.dim and '2' or '0' end):concat','?>);
+	int index = INDEXV(i);
 <? for i=0,eqn.numStates-1 do
 ?>	a[index].ptr[<?=i?>] = b[index].ptr[<?=i?>] + c[index].ptr[<?=i?>] * d;
 <? end
 ?>}
-]], {eqn=self.eqn})
+]], 	{
+			solver = self,
+			eqn = self.eqn,
+		})
 	}:concat'\n'
 
 	time('compiling common program', function()
@@ -1202,7 +1212,7 @@ end
 function Solver:applyBoundaryToBuffer(kernel)
 	-- 1D:
 	if self.dim == 1 then
-		--self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=self.localSize1d, localSize=self.localSize1d}
+		-- if you do change this size from anything but 1, make sure to add conditions to the boundary kernel code
 		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=1, localSize=1}
 	elseif self.dim == 2 then
 		local maxSize = roundup(
