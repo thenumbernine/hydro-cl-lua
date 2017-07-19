@@ -71,6 +71,8 @@ function Solver:init(args)
 	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
 
 
+	self.dim = assert(args.dim)
+
 	-- TODO OK this is a little ambiguous ...
 	-- gridSize is the desired grid size
 	-- self.gridSize is gonna be that, plus numGhost on either side ...
@@ -80,23 +82,17 @@ function Solver:init(args)
 	local gridSize = assert(args.gridSize)
 	if type(gridSize) == 'number' then 
 		self.gridSize = vec3sz(gridSize,1,1)
-		assert(not args.dim or args.dim == 1)
-		self.dim = 1
 	elseif type(gridSize) == 'cdata' 
 	and ffi.typeof(gridSize) == vec3sz 
 	then
 		self.gridSize = vec3sz(gridSize)
-		self.dim = assert(args.dim)
 	elseif type(gridSize) == 'table' then
 		self.gridSize = vec3sz(table.unpack(gridSize))
-		assert(not args.dim or args.dim <= #gridSize)
-		self.dim = args.dim or #gridSize
 	else
 		error("can't understand args.gridSize type "..type(args.gridSize).." value "..tostring(args.gridSize))
 	end
 
-	for i=0,self.dim-1 do self.gridSize:ptr()[i] = self.gridSize:ptr()[i] + 2 * self.numGhost end	
-
+	for i=0,self.dim-1 do self.gridSize:ptr()[i] = self.gridSize:ptr()[i] + 2 * self.numGhost end
 	for i=self.dim,2 do self.gridSize:ptr()[i] = 1 end
 
 
@@ -1080,11 +1076,7 @@ kernel void boundary(
 ]], {
 	bufType = args.type,
 }))
-	if self.dim == 1 then 
-		lines:insert[[
-	if (get_global_id(0) != 0) return;
-]]
-	elseif self.dim == 2 then
+	if self.dim == 2 then
 		lines:insert[[
 	int i = get_global_id(0);
 ]]
@@ -1210,7 +1202,8 @@ end
 function Solver:applyBoundaryToBuffer(kernel)
 	-- 1D:
 	if self.dim == 1 then
-		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=self.localSize1d, localSize=self.localSize1d}
+		--self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=self.localSize1d, localSize=self.localSize1d}
+		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=1, localSize=1}
 	elseif self.dim == 2 then
 		local maxSize = roundup(
 			math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y)),

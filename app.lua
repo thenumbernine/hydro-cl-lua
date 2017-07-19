@@ -100,7 +100,7 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 function HydroCLApp:setup()
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	local dim = 2
+	local dim = 1
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
@@ -132,7 +132,7 @@ function HydroCLApp:setup()
 		maxs = cmdline.maxs or {1, 1, 1},
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = ({
-			{1024,1,1},
+			{256,1,1},
 			{128,128,1},
 			{32,32,32},
 		})[dim],
@@ -270,9 +270,10 @@ function HydroCLApp:setup()
 	self.solvers = table()
 	
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 
---[=[ two-solver testing ...
+-- [=[ two-solver testing ...
+self.solvers:insert(require 'solver.euler-roe'(args))
 self.solvers:insert(require 'solver.euler-roe'(args))
 -- running two solvers at once causes errors
 local app = self
@@ -280,6 +281,7 @@ local s1, s2 = self.solvers:unpack()
 --function s2:update() self.t = self.t + .1 end
 --function s2:boundary() end
 --function s2:calcDT() return s1.fixedDT end
+--[==[ messing with step to find the problem
 function s2:step(dt)
 	--[[ fails
 	s1.integrator:integrate(dt, function(derivBuf)
@@ -314,31 +316,27 @@ function s2:step(dt)
 		-- but using s1.integrator.derivBuf works
 		s1.integrator.derivBuf,
 		ffi.new('real[1]', dt))
-	app.cmds:enqueueNDRangeKernel{
-		kernel=self.multAddKernel,
-		globalSize=self.integrator.globalSize,
-		localSize=self.localSize1d,
-	}
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.multAddKernel, dim=self.dim, globalSize=self.globalSize:ptr(), self=solver.localSize:ptr()}
 	app.cmds:finish()
 	--]]
-	--[[ fails with the other solver's forward-euler and multAddKernel
+	-- [[ fails with the other solver's forward-euler and multAddKernel
 	app.cmds:finish()
 	app.cmds:enqueueFillBuffer{buffer=s1.integrator.derivBuf, size=self.volume * self.eqn.numStates * ffi.sizeof(app.real)}
 	self:calcDeriv(s1.integrator.derivBuf, dt)
 	s1.multAddKernel:setArgs(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
-	app.cmds:enqueueNDRangeKernel{kernel=s1.multAddKernel, globalSize=self.integrator.globalSize, localSize=self.localSize1d}
+	app.cmds:enqueueNDRangeKernel{kernel=s1.multAddKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	app.cmds:finish()
 	--]]
-	-- [[ just adding s1's deriv to s2?  works fine
-	-- ... up til a boundary is reached
-	-- in which case we git a discrepancy of sign
+	--[[ just adding s1's deriv to s2?  works fine
 	s1.multAddKernel:setArgs(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
-	app.cmds:enqueueNDRangeKernel{kernel=s1.multAddKernel, globalSize=self.integrator.globalSize, localSize=self.localSize1d}
+	app.cmds:enqueueNDRangeKernel{kernel=s1.multAddKernel, dim=s1.dim, globalSize=s1.globalSize:ptr(), localSize=s1.localSize:ptr()}
 	s1.multAddKernel:setArgs(s1.UBuf, s1.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
 	--]]
 	-- so the code in common is when calcDeriv is called by the 2nd solver ...
 	-- ... regardless of what buffer it is written to
 end
+--]==]
+--[==[ comparing buffers.  tends to die on the boundaries even if it is working (why is that?)
 local numReals = s1.volume * s1.eqn.numStates
 local ptr1 = ffi.new('real[?]', numReals)
 local ptr2 = ffi.new('real[?]', numReals)
@@ -361,6 +359,7 @@ local function compare()
 				local col = 8*6
 				if i%col==col-1 then print() end
 			end
+			print()
 		end
 		local ch = diff % s1.eqn.numStates
 		local x = math.floor(diff / tonumber(s1.eqn.numStates * s1.gridSize.x)) % tonumber(s1.gridSize.y)
@@ -379,6 +378,7 @@ function s2:update()
 	-- complains about negative'd values (with mirror boundary conditions)
 	compare()
 end
+--]==]
 --]=]
 	
 	-- the same as solver.euler-roe:
@@ -816,6 +816,7 @@ function HydroCLApp:update(...)
 			local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
 			
 			if varIndex
+			and var.enabled
 			--and solver.visiblePtr and solver.visiblePtr[0] 
 			then
 				useLog = var.useLog
@@ -951,8 +952,7 @@ function HydroCLApp:update(...)
 	HydroCLApp.super.update(self, ...)
 end
 
-function HydroCLApp:showDisplayVar1D(solver, varIndex)
-	local var = solver.displayVars[varIndex]
+function HydroCLApp:showDisplayVar1D(solver, varIndex, var)
 	solver:calcDisplayVarToTex(var)	
 	-- display
 
@@ -1020,9 +1020,9 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 
 	-- display here
 	for _,solver in ipairs(solvers) do
-		local varIndex = solver.displayVars:find(nil, function(var) return var.name == varName end)
-		if varIndex then
-			self:showDisplayVar1D(solver, varIndex)
+		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
+		if varIndex and var.enabled then
+			self:showDisplayVar1D(solver, varIndex, var)
 		end
 
 		if self.font then
@@ -1097,7 +1097,7 @@ function HydroCLApp:display2D_Heatmap(solvers, varName, ar, graph_xmin, graph_ym
 	-- I've got to rethink the visualization
 	for _,solver in ipairs(solvers) do 
 		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
-		if varIndex then
+		if varIndex and var.enabled then
 			-- TODO allow a fixed, manual colormap range
 			local valueMin, valueMax
 			if var.heatMapFixedRange then
@@ -1206,7 +1206,7 @@ function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin
 
 	for _,solver in ipairs(solvers) do 
 		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
-		if varIndex then
+		if varIndex and var.enabled then
 			-- TODO allow a fixed, manual colormap range
 			local valueMin, valueMax
 			if var.heatMapFixedRange then
@@ -1328,7 +1328,7 @@ end
 	
 	for _,solver in ipairs(solvers) do 
 		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
-		if varIndex then
+		if varIndex and var.enabled then
 			local valueMin, valueMax
 			if var.heatMapFixedRange then
 				valueMin = var.heatMapValueMin
@@ -1459,7 +1459,7 @@ function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, 
 
 	for _,solver in ipairs(solvers) do
 		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
-		if varIndex then
+		if varIndex and var.enabled then
 			local valueMin, valueMax
 			if var.heatMapFixedRange then
 				valueMin = var.heatMapValueMin
@@ -1735,7 +1735,7 @@ function HydroCLApp:display3D_Isosurface(solvers, varName, ar, xmin, ymin, xmax,
 
 	for _,solver in ipairs(solvers) do 
 		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
-		if varIndex then
+		if varIndex and var.enabled then
 			local valueMin, valueMax
 			if var.heatMapFixedRange then
 				valueMin = var.heatMapValueMin

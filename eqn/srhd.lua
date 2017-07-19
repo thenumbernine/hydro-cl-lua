@@ -17,6 +17,7 @@ local SRHD = class(Equation)
 SRHD.name = 'SRHD'
 SRHD.numStates = 6
 SRHD.numWaves = 5
+SRHD.numIntStates = 5
 
 SRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
 

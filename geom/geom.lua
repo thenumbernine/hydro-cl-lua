@@ -93,6 +93,10 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 
+-- debugging
+--local dprint = print
+local dprint = function() end
+
 local Geometry = class()
 
 function Geometry:init(args)
@@ -118,25 +122,25 @@ function Geometry:init(args)
 		return coord.base or coord
 	end)
 
---print('coordinates:', table.unpack(coords))
---print('base coords:', table.unpack(baseCoords))
---print('embedding:', table.unpack(embedded))
+--dprint('coordinates:', table.unpack(coords))
+--dprint('base coords:', table.unpack(baseCoords))
+--dprint('embedding:', table.unpack(embedded))
 	
 	local eta = Tensor('_IJ', table.unpack(flatMetric)) 
---print'flat metric:'
---print(var'\\eta''_IJ':eq(eta'_IJ'()))
---print()
+--dprint'flat metric:'
+--dprint(var'\\eta''_IJ':eq(eta'_IJ'()))
+--dprint()
 
 	local u = args.chart()
-print'coordinate chart:'
-print(var'u''^I':eq(u'^I'()))
-print()
+dprint'coordinate chart:'
+dprint(var'u''^I':eq(u'^I'()))
+dprint()
 
 	local e = Tensor'_u^I'
 	e['_u^I'] = u'^I_,u'()
-print'embedded:'
-print(var'e''_u^I':eq(var'u''^I_,u'):eq(e'_u^I'()))
-print()
+dprint'embedded:'
+dprint(var'e''_u^I':eq(var'u''^I_,u'):eq(e'_u^I'()))
+dprint()
 
 	local anholonomic
 	for i=1,#coords do
@@ -145,7 +149,7 @@ print()
 			break
 		end
 	end
-print('is anholonomic? '..tostring(anholonomic))
+dprint('is anholonomic? '..tostring(anholonomic))
 
 	-- for the sake of grid lengths, 
 	-- I will need the basis and metric of the holonomic version as well
@@ -156,26 +160,26 @@ print('is anholonomic? '..tostring(anholonomic))
 		eHol = Tensor('_u^I', function(a,I)
 			return u[I]:diff(baseCoords[a])()
 		end)
-print'holonomic embedded:'
-print(var'e''_u^I':eq(var'u''^I_,u'):eq(eHol'_u^I'()))
+dprint'holonomic embedded:'
+dprint(var'e''_u^I':eq(var'u''^I_,u'):eq(eHol'_u^I'()))
 	end
 
 	-- commutation coefficients
 	local c = Tensor'_ab^c'
 	if anholonomic then
---print'connection coefficients:'
---print(var'c''_uv^w' * var'e''_w','$=[ e_u, e_v ]$')
+--dprint'connection coefficients:'
+--dprint(var'c''_uv^w' * var'e''_w','$=[ e_u, e_v ]$')
 		for i,ui in ipairs(coords) do
 			for j,uj in ipairs(coords) do
 				local psi = var('\\psi', baseCoords)
 				local diff = ui:applyDiff(uj:applyDiff(psi)) - uj:applyDiff(ui:applyDiff(psi))
 				local diffEval = diff()
 				if diffEval ~= const(0) then
---print('$[',ui.name,',',uj.name,'] =$',diff:eq(diffEval))
+--dprint('$[',ui.name,',',uj.name,'] =$',diff:eq(diffEval))
 					diff = diff()
---print('factor division',diff)
+--dprint('factor division',diff)
 					local dpsi = table.map(baseCoords, function(uk) return psi:diff(uk) end)
---print('dpsi', dpsi:unpack())
+--dprint('dpsi', dpsi:unpack())
 					local A,b = symmath.factorLinearSystem({diff}, dpsi)
 					-- now extract psi:diff(uk)
 					-- and divide by e_k to get the correct coefficient
@@ -193,8 +197,8 @@ print(var'e''_u^I':eq(var'u''^I_,u'):eq(eHol'_u^I'()))
 			end
 		end
 	end
-print'commutation:'
-print(var'c''_uv^w':eq(c'_uv^w'()))
+dprint'commutation:'
+dprint(var'c''_uv^w':eq(c'_uv^w'()))
 
 	local g = (e'_u^I' * e'_v^J' * eta'_IJ')()
 	--[[ TODO automatically do this ...
@@ -207,29 +211,29 @@ print(var'c''_uv^w':eq(c'_uv^w'()))
 		end
 	end)()
 	--]]
-print'metric:'
-print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
+dprint'metric:'
+dprint(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
 
 	local gHol
 	if not anholonomic then
 		gHol = g
 	else
 		gHol = (eHol'_u^I' * eHol'_v^J' * eta'_IJ')()
-print'holonomic metric:'
-print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(gHol'_uv'()))
+dprint'holonomic metric:'
+dprint(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(gHol'_uv'()))
 	end	
 
 	Tensor.metric(g)
 
 	local GammaL = Tensor'_abc'
 	GammaL['_abc'] = ((g'_ab,c' + g'_ac,b' - g'_bc,a' + c'_abc' + c'_acb' - c'_bca') / 2)()
-print'1st kind Christoffel:'
-print(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(GammaL'_abc'()))
+dprint'1st kind Christoffel:'
+dprint(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(GammaL'_abc'()))
 
 	local Gamma = Tensor'^a_bc'
 	Gamma['^a_bc'] = GammaL'^a_bc'()
-print'connection:'
-print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()))
+dprint'connection:'
+dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()))
 
 
 	-- code generation
@@ -279,10 +283,10 @@ print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()
 			toC_coordArgs
 		):match'return (.*);'
 	
---print'compiling...'
---print(orig)
---print'...to...'
---print(code)
+--dprint'compiling...'
+--dprint(orig)
+--dprint'...to...'
+--dprint(code)
 
 		return code
 	end
@@ -290,7 +294,7 @@ print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()
 	-- uCode is used to project the grid for displaying
 	self.uCode = range(dim):map(function(i) 
 		local uCode = compile(u[i])
-print('uCode['..i..'] = '..substCoords(uCode))
+dprint('uCode['..i..'] = '..substCoords(uCode))
 		return uCode
 	end)
 
@@ -336,7 +340,7 @@ print('uCode['..i..'] = '..substCoords(uCode))
 	self.eCode = eExt:map(function(ei,i) 
 		return ei:map(function(eij,j)
 			local eijCode = compile(eij) 
-print('eCode['..i..']['..j..'] = '..substCoords(eijCode))
+dprint('eCode['..i..']['..j..'] = '..substCoords(eijCode))
 			return eijCode 
 		end)
 	end)
@@ -352,7 +356,7 @@ print('eCode['..i..']['..j..'] = '..substCoords(eijCode))
 
 	self.eHolLenCode = eHolLen:map(function(eiHolLen, i)
 		local eiHolLenCode = compile(eiHolLen)
-print('eHolLen['..i..'] = '..substCoords(eiHolLenCode))
+dprint('eHolLen['..i..'] = '..substCoords(eiHolLenCode))
 		return eiHolLenCode
 	end)
 
@@ -363,25 +367,25 @@ print('eHolLen['..i..'] = '..substCoords(eiHolLenCode))
 		return ei:map(function(eij) return (eij/eExtLen[i])() end)
 	end)
 	self.eUnitCode = eExtUnit:map(function(ei_unit,i) return ei_unit:map(compile) end)
-print('eUnitCode = ', tolua(self.eUnitCode, {indent=true}))
+dprint('eUnitCode = ', tolua(self.eUnitCode, {indent=true}))
 --]=]
 
 	local lowerExpr = paramU'_a'()
 	self.lowerCodes = range(dim):map(function(i)
 		local lowerCode = compile(lowerExpr[i])
-print('lowerCode['..i..'] = '..substCoords(lowerCode))
+dprint('lowerCode['..i..'] = '..substCoords(lowerCode))
 		return lowerCode
 	end)
 
 	local lenSqExpr = (paramU'^a' * paramU'_a')()
 	self.uLenSqCode = compile(lenSqExpr)
-print('uLenSqCodes = '..substCoords(self.uLenSqCode))
+dprint('uLenSqCodes = '..substCoords(self.uLenSqCode))
 
 	-- Conn^i_jk(x) v^j v^k
 	local connExpr = (Gamma'^a_bc' * paramU'^b' * paramU'^c')()
 	self.connCodes = range(dim):map(function(i)
 		local conniCode = compile(connExpr[i])
-print('connCode['..i..'] = '..substCoords(conniCode))
+dprint('connCode['..i..'] = '..substCoords(conniCode))
 		return conniCode
 	end)
 
@@ -389,7 +393,7 @@ print('connCode['..i..'] = '..substCoords(conniCode))
 	local connTraceExpr = (Gamma'^a_b^b')()
 	self.connTraceCodes = range(dim):map(function(i)
 		local connTraceiCode = compile(connTraceExpr[i])
-print('connTraceCode['..i..'] = '..substCoords(connTraceiCode))
+dprint('connTraceCode['..i..'] = '..substCoords(connTraceiCode))
 		return connTraceiCode
 	end)
 
@@ -399,7 +403,7 @@ print('connTraceCode['..i..'] = '..substCoords(connTraceiCode))
 		local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
 		local lenSqExpr = (dir'^a' * dir'^b' * gHol'_ab')()
 		local lenCode = compile((symmath.sqrt(lenSqExpr))())
-print('dxCode['..i..'] = '..substCoords(lenCode))
+dprint('dxCode['..i..'] = '..substCoords(lenCode))
 		return lenCode
 	end)
 
@@ -407,7 +411,7 @@ print('dxCode['..i..'] = '..substCoords(lenCode))
 	self.gCode = range(dim):map(function(i)
 		return range(i,dim):map(function(j)
 			local gijCode = compile(self.g[i][j])
-print('g['..i..']['..j..'] = '..substCoords(gijCode))
+dprint('g['..i..']['..j..'] = '..substCoords(gijCode))
 			return gijCode, j
 		end)
 	end)
@@ -417,7 +421,7 @@ print('g['..i..']['..j..'] = '..substCoords(gijCode))
 	self.gUCode = range(dim):map(function(i)
 		return range(i,dim):map(function(j)
 			local gUijCode = compile(self.gU[i][j])
-print('gU['..i..']['..j..'] = '..substCoords(gUijCode))
+dprint('gU['..i..']['..j..'] = '..substCoords(gUijCode))
 			return gUijCode, j
 		end)
 	end)
@@ -426,15 +430,14 @@ print('gU['..i..']['..j..'] = '..substCoords(gUijCode))
 	self.sqrt_gUCode = range(dim):map(function(i)
 		return range(i,dim):map(function(j)
 			local sqrt_gUijCode = compile(sqrt_gU[i][j])
-print('sqrt(gU['..i..']['..j..']) = '..substCoords(sqrt_gUijCode))
+dprint('sqrt(gU['..i..']['..j..']) = '..substCoords(sqrt_gUijCode))
 			return sqrt_gUijCode, j
 		end)
 	end)
 
 	local volumeExpr = symmath.sqrt(symmath.Matrix.determinant(g))()
 	self.volumeCode = compile(volumeExpr)
-print('volumeCode = '..substCoords(self.volumeCode))
-
+dprint('volumeCode = '..substCoords(self.volumeCode))
 end
 
 

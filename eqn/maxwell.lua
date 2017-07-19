@@ -8,8 +8,9 @@ local template = require 'template'
 
 local Maxwell = class(Equation)
 Maxwell.name = 'Maxwell'
-Maxwell.numWaves = 6
 Maxwell.numStates = 10
+Maxwell.numWaves = 6
+Maxwell.numIntStates = 6
 Maxwell.mirrorVars = {{'epsE.x', 'B.x'}, {'epsE.y', 'B.y'}, {'epsE.z', 'B.z'}}
 
 Maxwell.hasEigenCode = true
