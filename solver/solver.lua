@@ -1065,7 +1065,7 @@ function Solver:refreshDisplayProgram()
 			}
 		end
 	end
-
+	
 	local code = lines:concat'\n'
 	time('compiling display program', function()
 		self.displayProgram = self.app.ctx:program{devices={self.app.device}, code=code}

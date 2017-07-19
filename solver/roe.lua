@@ -161,6 +161,7 @@ function Roe:addConvertToTexs()
 	end
 	self:addConvertToTex{
 		name = 'flux', 
+		type = self.eqn.cons_t,
 		varCodePrefix = [[
 	const global ]]..self.eqn.cons_t..[[* flux = buf + indexInt;
 ]],

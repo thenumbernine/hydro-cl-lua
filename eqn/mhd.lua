@@ -1,5 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
+local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
@@ -240,5 +241,23 @@ typedef struct {
 		solver = self.solver,
 	})
 end
+
+-- because eigen_t is only 7*7 instead of 7*8 = numStates * numWaves ...
+function MHD:getEigenDisplayVars()
+	return range(0, self.numWaves * self.numWaves - 1):map(function(i)
+		local row = i%self.numWaves
+		local col = (i-row)/self.numWaves
+		return {['evL_'..row..'_'..col] = 'value = eigen->evL['..i..'];'}
+	end):append(range(0, self.numWaves * self.numWaves - 1):map(function(i)
+		local row = i % self.numWaves
+		local col = (i-row)/self.numWaves
+		return {['evR_'..row..'_'..col] = 'value = eigen->evR['..i..'];'}
+	end)):append(self.solver.checkFluxError and range(0, self.numWaves * self.numWaves - 1):map(function(i)
+		local row = i%self.numWaves
+		local col = (i-row)/self.numWaves
+		return {['A_'..row..'_'..col] = 'value = eigen->A['..i..'];'}
+	end) or nil)
+end
+
 
 return MHD
