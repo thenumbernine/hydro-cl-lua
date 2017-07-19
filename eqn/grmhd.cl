@@ -93,7 +93,7 @@ kernel void calcEigenBasis(
 	// or do the PLM on the UBuf and do the cons->prim on the ULR edge values
 	const global <?=eqn.prim_t?>* primBuf	
 ) {
-	SETBOUNDS(2,1);
+	SETBOUNDS(numGhost,numGhost-1);
 	real3 x = cell_x(i);
 	
 	int indexR = index;
@@ -390,7 +390,7 @@ kernel void updatePrims(
 	global <?=eqn.prim_t?>* primBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
-	SETBOUNDS(2,1);
+	SETBOUNDS(numGhost,numGhost-1);
 	real3 x = cell_x(i);
 
 	const global <?=eqn.cons_t?>* U = UBuf + index;

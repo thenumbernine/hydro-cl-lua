@@ -57,7 +57,7 @@ kernel void calcEigenBasis(
 	global <?=eqn.eigen_t?>* eigenBuf,
 	<?= solver.getULRArg ?>
 ) {
-	SETBOUNDS(2,1);
+	SETBOUNDS(numGhost,numGhost-1);
 	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
@@ -246,7 +246,7 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
-	SETBOUNDS(2,2);
+	SETBOUNDS_NOGHOST();
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	deriv->epsE = real3_sub(deriv->epsE, real3_scale(U->epsE, 1. / U->eps * U->sigma));

@@ -36,7 +36,7 @@ function NoDiv:getPoissonCode()
 kernel void noDiv(
 	global <?=eqn.cons_t?>* UBuf
 ) {
-	SETBOUNDS(2,2);
+	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 <? for j=0,solver.dim-1 do ?> 
 	U->B.s<?=j?> -= (U[stepsize.s<?=j?>].BPot - U[-stepsize.s<?=j?>].BPot) / (2. * grid_dx<?=j?>);

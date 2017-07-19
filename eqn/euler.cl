@@ -148,7 +148,7 @@ kernel void calcEigenBasis(
 	global <?=eqn.eigen_t?>* eigenBuf,		//[volume][dim]
 	<?= solver.getULRArg ?>
 ) {
-	SETBOUNDS(2,1);
+	SETBOUNDS(numGhost,numGhost-1);
 	real3 x = cell_x(i);
 	
 	int indexR = index;
@@ -574,7 +574,7 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
-	SETBOUNDS(2,2);
+	SETBOUNDS_NOGHOST();
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;

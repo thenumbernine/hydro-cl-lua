@@ -214,7 +214,7 @@ function BSSNOKFiniteDifferenceEquation:getInitStateCode()
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
-	SETBOUNDS(2,2);
+	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
@@ -272,7 +272,7 @@ kernel void initState(
 kernel void init_connBarU(
 	global <?=eqn.cons_t?>* UBuf
 ) {
-	SETBOUNDS(2,2);
+	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	

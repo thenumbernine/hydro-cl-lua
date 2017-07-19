@@ -21,7 +21,7 @@ discrete evaluation:
 kernel void initPotential(
 	global <?=poisson:getPotBufType()?>* UBuf
 ) {
-	SETBOUNDS(2,2);
+	SETBOUNDS(numGhost,numGhost);
 	real rho = 0;
 	<?=calcRho?>
 	UBuf[index].<?=poisson.potentialField?> = -rho;
@@ -30,7 +30,7 @@ kernel void initPotential(
 kernel void solvePoisson(
 	global <?=poisson:getPotBufType()?>* UBuf
 ) {
-	SETBOUNDS(2,2);
+	SETBOUNDS(numGhost,numGhost);
 
 <? for j=0,solver.dim-1 do ?>
 	real dx<?=j?> = dx<?=j?>_at(i);

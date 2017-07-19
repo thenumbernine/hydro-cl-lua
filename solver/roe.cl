@@ -82,7 +82,7 @@ kernel void calcDeltaUEig(
 	<?= solver.getULRArg ?>,
 	const global <?=eqn.eigen_t?>* eigenBuf
 ) {
-	SETBOUNDS(2,1);	
+	SETBOUNDS(numGhost,numGhost-1);	
 	real3 x = cell_x(i);
 	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
@@ -112,7 +112,7 @@ kernel void calcREig(
 	const global real* deltaUEigBuf,
 	const global real* waveBuf
 ) {
-	SETBOUNDS(2,1);
+	SETBOUNDS(numGhost,numGhost-1);
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexL = index - stepsize[side];
@@ -152,7 +152,7 @@ kernel void calcFlux(
 	,const global real* rEigBuf
 <? end ?>
 ) {
-	SETBOUNDS(2,1);
+	SETBOUNDS(numGhost,numGhost-1);
 	real3 xR = cell_x(i);
 	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
@@ -224,7 +224,7 @@ kernel void calcDerivFromFlux(
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* fluxBuf
 ) {
-	SETBOUNDS(2,2);
+	SETBOUNDS_NOGHOST();
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	
 	real3 x = cell_x(i);

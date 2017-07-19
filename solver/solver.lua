@@ -688,16 +688,31 @@ function Solver:createCodePrefix()
 		self.eqn:getEigenTypeCode() or '',
 		
 		-- bounds-check macro
-		'#define OOB(lhs,rhs) (i.x < lhs || i.x >= gridSize_x - rhs'
-			.. (self.dim < 2 and '' or ' || i.y < lhs || i.y >= gridSize_y - rhs')
-			.. (self.dim < 3 and '' or ' || i.z < lhs || i.z >= gridSize_z - rhs')
+		'#define OOB(lhs,rhs) (i.x < (lhs) || i.x >= gridSize_x - (rhs)'
+			.. (self.dim < 2 and '' or ' || i.y < (lhs) || i.y >= gridSize_y - (rhs)')
+			.. (self.dim < 3 and '' or ' || i.z < (lhs) || i.z >= gridSize_z - (rhs)')
 			.. ')',
 		
-		-- define i, index, and bounds-check
-		'#define SETBOUNDS(lhs,rhs)	\\',
-		'\tint4 i = globalInt4(); \\',
-		'\tif (OOB(lhs,rhs)) return; \\',
-		'\tint index = INDEXV(i);',
+		template([[
+
+// define i, index, and bounds-check
+#define SETBOUNDS(lhs,rhs)	\
+	int4 i = globalInt4(); \
+	if (OOB(lhs,rhs)) return; \
+	int index = INDEXV(i);
+		
+// same as above, except for kernels that don't use the boundary
+// index operates on buffers of 'gridSize' (with border)
+// but the kernel must be invoked across sizeWithoutBorder
+<? local range = require'ext.range'
+?>#define SETBOUNDS_NOGHOST() \
+	int4 i = globalInt4(); \
+	if (OOB(0,2*numGhost)) return; \
+	i += (int4)(<?=range(4):map(function(i) 
+		return i <= solver.dim and '2' or '0' 
+	end):concat','?>); \
+	int index = INDEXV(i);
+]], {solver = self}),
 	}
 
 	lines:insert(self.geometry:getCode(self))
@@ -760,10 +775,7 @@ kernel void multAdd(
 	const global <?=eqn.cons_t?>* c,
 	real d
 ) {
-	int4 i = globalInt4();
-	if (OOB(0,2*numGhost)) return;
-	i += (int4)(<?=require 'ext.range'(4):map(function(i) return i <= solver.dim and '2' or '0' end):concat','?>);
-	int index = INDEXV(i);
+	SETBOUNDS_NOGHOST();	
 <? for i=0,eqn.numStates-1 do
 ?>	a[index].ptr[<?=i?>] = b[index].ptr[<?=i?>] + c[index].ptr[<?=i?>] * d;
 <? end

@@ -207,12 +207,12 @@ function Roe:calcDeriv(derivBuf, dt)
 
 	-- calcDerivFromFlux zeroes the derivative buffer
 	self.calcDerivFromFluxKernel:setArg(0, derivBuf)
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDerivFromFluxKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDerivFromFluxKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
 
 	-- addSource adds to the derivative buffer
 	if self.eqn.useSourceTerm then
 		self.addSourceKernel:setArg(0, derivBuf)
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.addSourceKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.addSourceKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
 	end
 end
 

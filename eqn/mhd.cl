@@ -241,7 +241,7 @@ kernel void calcEigenBasis(
 	global <?=eqn.eigen_t?>* eigenBuf,		//[volume][dim]
 	<?= solver.getULRArg ?>
 ) {
-	SETBOUNDS(2,1);
+	SETBOUNDS(numGhost,numGhost-1);
 	int indexR = index;
 
 	const real gamma = heatCapacityRatio;

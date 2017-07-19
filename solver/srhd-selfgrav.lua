@@ -50,7 +50,7 @@ kernel void calcGravityDeriv(
 	global const <?=eqn.cons_t?>* UBuf,
 	global const <?=eqn.prim_t?>* primBuf
 ) {
-	SETBOUNDS(2,2);
+	SETBOUNDS(numGhost,numGhost);
 	
 	global <?=eqn.cons_t?>* deriv = derivBuffer + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;

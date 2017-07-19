@@ -31,7 +31,7 @@ sym3 tracefree(sym3 A_ll, sym3 gamma_ll, sym3 gamma_uu) {
 kernel void constrainU(
 	global <?=eqn.cons_t?>* UBuf
 ) {
-	SETBOUNDS(2,2);
+	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
 	/*
@@ -59,7 +59,7 @@ kernel void calcDeriv(
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
-	SETBOUNDS(2,2);
+	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 
 	<?=calcConstraints and '' or 'const'?> global <?=eqn.cons_t?>* U = UBuf + index;
