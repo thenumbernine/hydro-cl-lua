@@ -97,7 +97,7 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 function HydroCLApp:setup()
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	local dim = 1
+	local dim = 2
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
@@ -130,7 +130,7 @@ function HydroCLApp:setup()
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = ({
 			{256,1,1},
-			{16,16,1},
+			{256,256,1},
 			{32,32,32},
 		})[dim],
 		boundary = {
@@ -327,7 +327,8 @@ function HydroCLApp:setup()
 -- [=[ two-solver testing ...
 -- running two solvers at once causes errors
 local app = self
-local cl = require 'solver.mhd-roe'
+local cl = require 'solver.euler-roe'
+--local cl = require 'solver.mhd-roe'
 self.solvers:insert(cl(args))
 self.solvers:insert(cl(args))
 local s1, s2 = self.solvers:unpack()
@@ -468,7 +469,10 @@ function HydroCLApp:initGL(...)
 	self.env = CLEnv{
 		verbose = true,
 		precision = 'double', 	--cmdline.float and 'float' or nil, -- TODO allow override?
+		--cpu = true,
 	}
+	print(self.env.platform:getName())
+	print(self.env.device:getName())
 
 	self.is64bit = self.env.real == 'double'
 	self.useGLSharing = self.env.useGLSharing
@@ -480,7 +484,6 @@ function HydroCLApp:initGL(...)
 	ffi.cdef('typedef '..self.real..' real;')
 
 	ffi.cdef(file['math.h'])
-
 
 
 	self.solvers = table()
