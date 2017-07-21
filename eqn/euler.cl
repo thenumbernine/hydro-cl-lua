@@ -7,7 +7,10 @@ just replace all the g_ab stuff with their constant values and simplify away.
 
 //needs Equation.hasFluxFromCons=true
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U, real3 x) {
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
 	<?=eqn.prim_t?> W = primFromCons(U, x);
 	real vj = W.v.s<?=side?>;
 	real HTotal = U.ETotal + W.P;
@@ -473,26 +476,6 @@ end
 
 // used by PLM
 
-
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxForCons_<?=side?>(
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	<?=eqn.prim_t?> W = primFromCons(U, x);
-	real mi = U.m.s<?=side?>;
-	return (<?=eqn.cons_t?>){
-		.rho = mi,
-		.m = (real3){
-			.x = mi * W.v.x + coord_gU0<?=side?>(x) * W.P,
-			.y = mi * W.v.y + coord_gU1<?=side?>(x) * W.P,
-			.z = mi * W.v.z + coord_gU2<?=side?>(x) * W.P,
-		},
-		.ETotal = (U.ETotal + W.P) * W.v.s<?=side?>,
-		.ePot = 0.,
-	};
-}
-<? end ?>
 
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(

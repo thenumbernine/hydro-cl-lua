@@ -21,6 +21,7 @@ ADM_BonaMasso_1D_Alcubierre2008.mirrorVars = {{'gamma_xx', 'a_x', 'D_g', 'KTilde
 
 ADM_BonaMasso_1D_Alcubierre2008.hasEigenCode = true
 ADM_BonaMasso_1D_Alcubierre2008.useSourceTerm = true
+ADM_BonaMasso_1D_Alcubierre2008.hasFluxFromCons = true
 
 ADM_BonaMasso_1D_Alcubierre2008.initStates = require 'init.adm'
 

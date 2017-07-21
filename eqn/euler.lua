@@ -19,9 +19,7 @@ Euler.numIntStates = 5	-- don't bother integrate ePot
 Euler.mirrorVars = {{'m.x'}, {'m.y'}, {'m.z'}} 
 
 Euler.hasEigenCode = true
-
--- this gives me different behavior.  is it good or bad?
---Euler.hasFluxFromCons = true
+Euler.hasFluxFromCons = true
 
 -- the only source term that the Euler equations has is the connection coefficients of the velocity vector
 -- maybe later I will automatically flag what elements are vectors

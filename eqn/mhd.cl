@@ -5,7 +5,10 @@ based on Athena's version of eigenvectors of derivative of adiabatic MHD flux wr
 
 //use Eqn.hasFluxFromCons to allow the calcFlux function to take advantage of this function
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U, real3 x) {
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
 	<?=eqn.prim_t?> W = primFromCons(U);
 	real vj = W.v.s<?=side?>;
 	real Bj = W.B.s<?=side?>;

@@ -1,3 +1,24 @@
+//the PLM version that uses this crashes
+//so maybe there's something wrong with this
+//... you know, this looks a lot like eigen_fluxTransform
+//...if the eigen was provided from the state information
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	real f = calc_f(U.alpha);
+	real alpha_over_sqrt_gamma_xx = U.alpha / sqrt(U.gamma_xx);
+	return (<?=eqn.cons_t?>){
+		.alpha = 0,
+		.gamma_xx = 0,
+		.a_x = U.KTilde * f * alpha_over_sqrt_gamma_xx,
+		.D_g = U.KTilde * 2. * alpha_over_sqrt_gamma_xx,
+		.KTilde = U.a_x * alpha_over_sqrt_gamma_xx,
+	};
+}
+<? end ?>
+
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const global <?=eqn.cons_t?>* U,
@@ -151,26 +172,11 @@ kernel void addSource(
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
 	<?=eqn.eigen_t?>* eig,
-	global const <?=eqn.cons_t?>* U
+	global const <?=eqn.cons_t?>* U,
+	real3 x
 ) {
 	eig->alpha = U->alpha;
 	eig->gamma_xx = U->gamma_xx;
 	eig->f = calc_f(U->alpha);
 }
 <? end ?>
-
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxForCons_<?=side?>(<?=eqn.cons_t?> U) {
-	real sqrt_gamma_xx = sqrt(U.gamma_xx);
-	real K_xx = U.KTilde / sqrt_gamma_xx;
-	real f = calc_f(U.alpha);
-	return (<?=eqn.cons_t?>){
-		.alpha = 0,
-		.gamma_xx = 0,
-		.a_x = U.alpha * f * K_xx,
-		.D_g = 2. * U.alpha * K_xx,
-		.KTilde = U.alpha * U.a_x / sqrt_gamma_xx,
-	};
-}
-<? end ?>
-

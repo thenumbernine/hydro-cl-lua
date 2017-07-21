@@ -117,11 +117,11 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 4, non-TVD',
 		--integrator = 'backward Euler',
 	
-		--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
-		usePLM = true,	-- piecewise-linear slope limiter
-		fluxLimiter = 'donor cell',
-		slopeLimiter = 'minmod',
+		--usePLM = true,	-- piecewise-linear slope limiter
+		--fluxLimiter = 'donor cell',
+		--slopeLimiter = 'minmod',
 		
 		-- [[ Cartesian
 		geometry = 'cartesian',
@@ -134,12 +134,12 @@ function HydroCLApp:setup()
 			{32,32,32},
 		})[dim],
 		boundary = {
-			xmin=cmdline.boundary or 'mirror',
-			xmax=cmdline.boundary or 'mirror',
-			ymin=cmdline.boundary or 'mirror',
-			ymax=cmdline.boundary or 'mirror',
-			zmin=cmdline.boundary or 'mirror',
-			zmax=cmdline.boundary or 'mirror',
+			xmin=cmdline.boundary or 'freeflow',
+			xmax=cmdline.boundary or 'freeflow',
+			ymin=cmdline.boundary or 'freeflow',
+			ymax=cmdline.boundary or 'freeflow',
+			zmin=cmdline.boundary or 'freeflow',
+			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
 		--[[ cylinder
@@ -267,7 +267,7 @@ function HydroCLApp:setup()
 	self.solvers = table()
 	
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
@@ -300,7 +300,7 @@ function HydroCLApp:setup()
 	--self.solvers:insert(require 'solver.mhd-roe'(args))
 	
 	-- EM
-	self.solvers:insert(require 'solver.maxwell-roe'(args))
+	--self.solvers:insert(require 'solver.maxwell-roe'(args))
 	
 	-- EM+HD
 	-- I'm having some memory issues with two solvers running simultanously .. 

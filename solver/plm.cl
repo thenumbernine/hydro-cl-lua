@@ -29,8 +29,10 @@ kernel void calcLR(
 		
 #if 1	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
 		//and https://en.wikipedia.org/wiki/MUSCL_scheme
-		//Works for Euler Sod 1D and 2D
-		//Failing for adm1d_v1
+		//Works with oscillations for Euler Sod 1D
+		//Works for Euler Sod 2D
+		//Works with oscillations for MHD Brio-Wu 1D
+		//Works with some oscillations for adm1d_v1 freeflow (fails for mirror)
 		//Works for Maxwell
 
 		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
@@ -67,8 +69,8 @@ kernel void calcLR(
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
 
-		<?=eqn.cons_t?> FHalfL = fluxForCons_<?=side?>(UHalfL, xIntL);
-		<?=eqn.cons_t?> FHalfR = fluxForCons_<?=side?>(UHalfR, xIntR);
+		<?=eqn.cons_t?> FHalfL = fluxFromCons_<?=side?>(UHalfL, xIntL);
+		<?=eqn.cons_t?> FHalfR = fluxFromCons_<?=side?>(UHalfR, xIntR);
 		
 		for (int j = 0; j < numStates; ++j) {
 			real dF = FHalfR.ptr[j] - FHalfL.ptr[j];
@@ -87,8 +89,9 @@ kernel void calcLR(
 		//except I'm projecting the differences in conservative values instead of primitive values.
 		//This also needs modular slope limiter support.
 		//This works for adm1d_v1 and 1D Euler Sod 
+		//(fails for adm1d_v1 mirror)
 		//For 2D Euler Sod this gets strange behavior and slowly diverges.
-		//This fails for Maxwell
+		//This fails for Maxwell 
 
 		//1) calc delta q's ... l r c (eqn 36)
 		const global <?=eqn.cons_t?>* UL = U - stepsize[side];

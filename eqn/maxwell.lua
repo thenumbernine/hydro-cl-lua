@@ -15,6 +15,7 @@ Maxwell.mirrorVars = {{'epsE.x', 'B.x'}, {'epsE.y', 'B.y'}, {'epsE.z', 'B.z'}}
 
 Maxwell.hasEigenCode = true
 Maxwell.useSourceTerm = true
+Maxwell.hasFluxFromCons = true
 
 Maxwell.initStates = require 'init.euler'
 
