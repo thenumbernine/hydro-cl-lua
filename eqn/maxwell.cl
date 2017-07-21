@@ -13,22 +13,42 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 void eigen_forSide(
 	global <?=eqn.eigen_t?>* eig,
 	global const <?=eqn.cons_t?>* UL,
-	global const <?=eqn.cons_t?>* UR
+	global const <?=eqn.cons_t?>* UR,
+	real3 xInt
 ) {
 	eig->eps = .5 * (UL->eps + UR->eps);
 	eig->mu = .5 * (UL->mu + UR->mu);
 }
 
 //used by PLM
+
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
 	<?=eqn.eigen_t?>* eig,
-	const global <?=eqn.cons_t?>* U
+	const global <?=eqn.cons_t?>* U,
+	real3 x
 ) {
 }
 <? end ?>
 
 //used by PLM
+
+void apply_dU_dW(
+	<?=eqn.cons_t?>* U, 
+	const <?=eqn.prim_t?>* WA, 
+	const <?=eqn.prim_t?>* W, 
+	real3 x
+) { *U = *W; }
+
+void apply_dW_dU(
+	<?=eqn.prim_t?>* W,
+	const <?=eqn.prim_t?>* WA,
+	const <?=eqn.cons_t?>* U,
+	real3 x
+) { *W = *U; }
+
+//used by PLM
+
 <?
 for _,addr0 in ipairs{'', 'global'} do
 	for _,addr1 in ipairs{'', 'global'} do
@@ -36,7 +56,8 @@ for _,addr0 in ipairs{'', 'global'} do
 ?>
 void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 	<?=addr1?> real* wave,
-	const <?=addr0?> <?=eqn.eigen_t?>* eig
+	const <?=addr0?> <?=eqn.eigen_t?>* eig,
+	real3 x
 ) {
 	real lambda = 1. / sqrt(eig->eps * eig->mu);
 	wave[0] = -lambda;
@@ -52,26 +73,57 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 end
 ?>
 
+//used by PLM
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_t?> fluxForCons_0(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	real3 B = U.B;
+	real3 epsE = U.epsE;
+	real mu = U.mu;
+	real eps = U.eps;
+	return (<?=eqn.cons_t?>){
+	<? if side == 0 then ?>
+		.epsE = _real3(0., B.z / mu, -B.y / mu),
+		.B = _real3(0., epsE.z / eps, -epsE.y / eps),
+	<? elseif side == 1 then ?>
+		.epsE = _real3(-B.z / mu, 0., B.x / mu),
+		.B = _real3(-epsE.z / eps, 0., epsE.x / eps),
+	<? elseif side == 2 then ?>
+		.epsE = _real3(B.y / mu, -B.x / mu, 0.),
+		.B = _real3(epsE.y / eps, -epsE. / eps, 0.),
+	<? end ?>
+	};
+}
+<? end ?>
+
 kernel void calcEigenBasis(
 	global real* waveBuf,
 	global <?=eqn.eigen_t?>* eigenBuf,
 	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
+	real3 x = cell_x(i);
+	
 	int indexR = index;
+	
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
+		
 		int indexL = index - stepsize[side];
 		
 		<?= solver.getULRCode ?>
 		
 		int indexInt = side + dim * index;	
+		real3 xInt = x;
+		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		eigen_forSide(eig, UL, UR);
+		eigen_forSide(eig, UL, UR, xInt);
 		
 		global real* wave = waveBuf + numWaves * indexInt;
-		eigen_calcWaves_<?=side?>_global_global(wave, eig);
+		eigen_calcWaves_<?=side?>_global_global(wave, eig, xInt);
 	}<? end ?>
 }
 		

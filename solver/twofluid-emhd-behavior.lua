@@ -49,7 +49,6 @@ local function TwoFluidEMHDBehavior(parent)
 		end
 		self.ion = IonSolver(args)
 
---[[
 		local ElectronSolver = class(require 'solver.euler-behavior'(parent))
 		function ElectronSolver:init(args)
 			ElectronSolver.super.init(self, table(args, {initState = electronInitState}))
@@ -62,16 +61,14 @@ local function TwoFluidEMHDBehavior(parent)
 			MaxwellSolver.super.init(self, table(args, {initState = emhdInitState}))
 		end
 		self.maxwell = MaxwellSolver(args)
---]]		
+
 		-- multiple Euler solvers are getting errors ...
 		-- and even if I allocate two solvers and run one,
 		-- the boundary program screws up
 		self.solvers = table{
-			self.ion, 
---			self.electron,
-			--self.maxwell,
-			-- even if I add a new one, it has errors also
-			--require 'solver.euler-roe'(args),
+			--self.ion, 
+			--self.electron,
+			self.maxwell,
 		}
 		
 		self.displayVars = table():append(self.solvers:map(function(solver) return solver.displayVars end):unpack())

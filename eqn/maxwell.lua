@@ -31,6 +31,9 @@ typedef union {
 		real mu;
 	};
 } <?=eqn.cons_t?>;
+
+typedef <?=eqn.cons_t?> <?=eqn.prim_t?>;
+
 ]], {
 	eqn = self,
 })
@@ -52,6 +55,9 @@ real BSq(<?=eqn.cons_t?> U, real3 x) {
 	//return coordLenSq(U.B, x);
 	return real3_lenSq(U.B);
 }
+
+inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) { return U; }
+inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) { return W; }
 ]], {
 	eqn = self,
 }),

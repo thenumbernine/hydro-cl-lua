@@ -103,7 +103,7 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 	};
 }
 
-<?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
+inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
 		.rho = W.rho,
 		.m = real3_scale(W.v, W.rho),

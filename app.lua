@@ -97,7 +97,7 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 function HydroCLApp:setup()
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	local dim = 2
+	local dim = 1
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
@@ -117,11 +117,11 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 4, non-TVD',
 		--integrator = 'backward Euler',
 	
-		fluxLimiter = cmdline.fluxLimiter or 'superbee',
-		--fluxLimiter = 'donor cell',
+		--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
-		--usePLM = true,	-- piecewise-linear slope limiter
-		--slopeLimiter = 'minmod',
+		usePLM = true,	-- piecewise-linear slope limiter
+		fluxLimiter = 'donor cell',
+		slopeLimiter = 'minmod',
 		
 		-- [[ Cartesian
 		geometry = 'cartesian',
@@ -211,7 +211,7 @@ function HydroCLApp:setup()
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -242,7 +242,7 @@ function HydroCLApp:setup()
 		--initState = 'relativistic blast wave interaction',
 	
 		-- MHD-only init states: (that use 'b')
-		--initState = 'Brio-Wu',
+		initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
 		
 		-- EM:
@@ -300,10 +300,10 @@ function HydroCLApp:setup()
 	--self.solvers:insert(require 'solver.mhd-roe'(args))
 	
 	-- EM
-	--self.solvers:insert(require 'solver.maxwell-roe'(args))
+	self.solvers:insert(require 'solver.maxwell-roe'(args))
 	
 	-- EM+HD
-	-- I broke this when I moved the cons_t type defs from solver to equation
+	-- I'm having some memory issues with two solvers running simultanously .. 
 	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
 	
 	-- GR
@@ -324,7 +324,7 @@ function HydroCLApp:setup()
 
 
 
--- [=[ two-solver testing ...
+--[=[ two-solver testing ...
 -- running two solvers at once causes errors
 local app = self
 local cl = require 'solver.euler-roe'

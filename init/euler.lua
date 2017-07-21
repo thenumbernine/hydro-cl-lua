@@ -698,8 +698,8 @@ end ?>
 	real3 xc = coordMap(x);
 	if (x.x < mins.x * .9 + maxs.x * .1) E.y = 1;
 	if (real3_lenSq(xc) < .2*.2) {
-		//conductivity = 0;
-		permittivity = 10.;
+		conductivity = 0;
+		//permittivity = 10.;
 	}
 ]]
 		end,

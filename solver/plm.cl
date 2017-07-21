@@ -27,10 +27,11 @@ kernel void calcLR(
 		
 		//piecewise-linear
 		
-#if 0	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
+#if 1	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
 		//and https://en.wikipedia.org/wiki/MUSCL_scheme
 		//Works for Euler Sod 1D and 2D
 		//Failing for adm1d_v1
+		//Works for Maxwell
 
 		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
 		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
@@ -39,6 +40,11 @@ kernel void calcLR(
 			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
 			dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
 		}
+		
+		real3 xIntL = x;
+		xIntL.s<?=side?> -= grid_dx<?=side?>;
+		real3 xIntR = x;
+		xIntR.s<?=side?> += grid_dx<?=side?>;
 
 		<?=eqn.cons_t?> UHalfL, UHalfR;
 		for (int j = 0; j < numStates; ++j) {
@@ -61,8 +67,8 @@ kernel void calcLR(
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
 
-		<?=eqn.cons_t?> FHalfL = fluxForCons_<?=side?>(UHalfL);
-		<?=eqn.cons_t?> FHalfR = fluxForCons_<?=side?>(UHalfR);
+		<?=eqn.cons_t?> FHalfL = fluxForCons_<?=side?>(UHalfL, xIntL);
+		<?=eqn.cons_t?> FHalfR = fluxForCons_<?=side?>(UHalfR, xIntR);
 		
 		for (int j = 0; j < numStates; ++j) {
 			real dF = FHalfR.ptr[j] - FHalfL.ptr[j];
@@ -76,12 +82,13 @@ kernel void calcLR(
 			ULR->R.ptr[j] = UHalfR.ptr[j] + .5 * dt_dx * dF;
 		}
 
-#elif 1	//based on https://arxiv.org/pdf/0804.0402v1.pdf 
+#elif 0	//based on https://arxiv.org/pdf/0804.0402v1.pdf 
 		//and Trangenstein "Numeric Simulation of Hyperbolic Conservation Laws" section 6.2.5
 		//except I'm projecting the differences in conservative values instead of primitive values.
 		//This also needs modular slope limiter support.
 		//This works for adm1d_v1 and 1D Euler Sod 
 		//For 2D Euler Sod this gets strange behavior and slowly diverges.
+		//This fails for Maxwell
 
 		//1) calc delta q's ... l r c (eqn 36)
 		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
@@ -144,13 +151,24 @@ kernel void calcLR(
 			ULR->R.ptr[j] = U->ptr[j] + ql.ptr[j];
 		}
 #elif 0	//Trangenstein, Athena, etc, except working on primitives like it says to
+		//fails for Maxwell
+
+		real3 xL = x;
+		xL.s<?=side?> -= grid_dx<?=side?>;
+		real3 xR = x;
+		xR.s<?=side?> += grid_dx<?=side?>;
+		
+		real3 xIntL = x;
+		xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
+		real3 xIntR = x;
+		xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
 		
 		//1) calc delta q's ... l r c (eqn 36)
 		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
 		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
-		<?=eqn.prim_t?> W = primFromCons(*U);
-		<?=eqn.prim_t?> WL = primFromCons(*UL);
-		<?=eqn.prim_t?> WR = primFromCons(*UR);
+		<?=eqn.prim_t?> W = primFromCons(*U, x);
+		<?=eqn.prim_t?> WL = primFromCons(*UL, xL);
+		<?=eqn.prim_t?> WR = primFromCons(*UR, xR);
 		<?=eqn.prim_t?> dWL, dWR, dWC;
 		for (int j = 0; j < numStates; ++j) {
 			dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
@@ -168,15 +186,15 @@ kernel void calcLR(
 		//RW = dW/dU RU, LW = LU dU/dW
 		<?=eqn.cons_t?> tmp;
 
-		apply_dU_dW(&tmp, &W, &dWL);
+		apply_dU_dW(&tmp, &W, &dWL, xIntL);
 		real dWLEig[numWaves];
 		eigen_leftTransform_<?=side?>___(dWLEig, &eig, tmp.ptr, xIntL);
 		
-		apply_dU_dW(&tmp, &W, &dWR);
+		apply_dU_dW(&tmp, &W, &dWR, xIntR);
 		real dWREig[numWaves];
 		eigen_leftTransform_<?=side?>___(dWREig, &eig, tmp.ptr, xIntR);
 		
-		apply_dU_dW(&tmp, &W, &dWC);
+		apply_dU_dW(&tmp, &W, &dWC, x);
 		real dWCEig[numWaves];
 		eigen_leftTransform_<?=side?>___(dWCEig, &eig, tmp.ptr, x);
 
@@ -207,21 +225,21 @@ kernel void calcLR(
 
 		//convert back
 		
-		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pl, x);
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pl, xIntL);
 		<?=eqn.prim_t?> ql;
-		apply_dW_dU(&ql, &W, &tmp);
+		apply_dW_dU(&ql, &W, &tmp, xIntL);
 		
-		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pr, x);
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pr, xIntR);
 		<?=eqn.prim_t?> qr;
-		apply_dW_dU(&qr, &W, &tmp);
+		apply_dW_dU(&qr, &W, &tmp, xIntR);
 	
 		<?=eqn.prim_t?> W2L, W2R;
 		for (int j = 0; j < numStates; ++j) {
 			W2L.ptr[j] = W.ptr[j] - qr.ptr[j];
 			W2R.ptr[j] = W.ptr[j] + ql.ptr[j];
 		}
-		ULR->L = consFromPrim(W2L);
-		ULR->R = consFromPrim(W2R);
+		ULR->L = consFromPrim(W2L, xIntL);
+		ULR->R = consFromPrim(W2R, xIntR);
 #endif
 
 	}<? end ?>
