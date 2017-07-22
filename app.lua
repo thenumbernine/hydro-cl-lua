@@ -117,11 +117,11 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 4, non-TVD',
 		--integrator = 'backward Euler',
 	
-		fluxLimiter = cmdline.fluxLimiter or 'superbee',
+		--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
-		--usePLM = true,	-- piecewise-linear slope limiter
-		--fluxLimiter = 'donor cell',
-		--slopeLimiter = 'minmod',
+		usePLM = true,	-- piecewise-linear slope limiter
+		fluxLimiter = 'donor cell',
+		slopeLimiter = 'minmod',
 		
 		-- [[ Cartesian
 		geometry = 'cartesian',
@@ -327,15 +327,16 @@ function HydroCLApp:setup()
 --[=[ two-solver testing ...
 -- running two solvers at once causes errors
 local app = self
-local cl = require 'solver.euler-roe'
+--local cl = require 'solver.euler-roe'
+local cl = require 'solver.maxwell-roe'
 --local cl = require 'solver.mhd-roe'
 self.solvers:insert(cl(args))
 self.solvers:insert(cl(args))
 local s1, s2 = self.solvers:unpack()
 
 local numReals = s1.volume * s1.eqn.numStates
-local ptr1 = ffi.new('real[?]', numReals * 2)
-local ptr2 = ffi.new('real[?]', numReals * 2)
+local ptr1 = ffi.new('real[?]', numReals)
+local ptr2 = ffi.new('real[?]', numReals)
 local function compare(buf1, buf2)
 	app.cmds:enqueueReadBuffer{buffer=buf1, block=true, size=ffi.sizeof(app.real) * numReals, ptr=ptr1}
 	app.cmds:enqueueReadBuffer{buffer=buf2, block=true, size=ffi.sizeof(app.real) * numReals, ptr=ptr2}

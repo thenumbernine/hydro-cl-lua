@@ -66,8 +66,8 @@ local function TwoFluidEMHDBehavior(parent)
 		-- and even if I allocate two solvers and run one,
 		-- the boundary program screws up
 		self.solvers = table{
-			--self.ion, 
-			--self.electron,
+			self.ion, 
+			self.electron,
 			self.maxwell,
 		}
 		

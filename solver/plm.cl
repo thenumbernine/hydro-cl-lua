@@ -27,7 +27,7 @@ kernel void calcLR(
 		
 		//piecewise-linear
 		
-#if 1	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
+#if 0	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
 		//and https://en.wikipedia.org/wiki/MUSCL_scheme
 		//Works with oscillations for Euler Sod 1D
 		//Works for Euler Sod 2D
@@ -37,7 +37,7 @@ kernel void calcLR(
 
 		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
 		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
-		<?=eqn.cons_t?> dUL, dUR, dUC;
+		<?=eqn.cons_t?> dUL, dUR;
 		for (int j = 0; j < numStates; ++j) {
 			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
 			dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
@@ -84,7 +84,7 @@ kernel void calcLR(
 			ULR->R.ptr[j] = UHalfR.ptr[j] + .5 * dt_dx * dF;
 		}
 
-#elif 0	//based on https://arxiv.org/pdf/0804.0402v1.pdf 
+#elif 1	//based on https://arxiv.org/pdf/0804.0402v1.pdf 
 		//and Trangenstein "Numeric Simulation of Hyperbolic Conservation Laws" section 6.2.5
 		//except I'm projecting the differences in conservative values instead of primitive values.
 		//This also needs modular slope limiter support.
@@ -243,6 +243,99 @@ kernel void calcLR(
 		}
 		ULR->L = consFromPrim(W2L, xIntL);
 		ULR->R = consFromPrim(W2R, xIntR);
+
+#elif 0	//based on Athena
+
+		real3 xIntL = x;
+		xIntL.s<?=side?> -= grid_dx<?=side?>;
+		real3 xIntR = x;
+		xIntR.s<?=side?> += grid_dx<?=side?>;
+		
+		real3 xL = x;
+		xL.s<?=side?> -= grid_dx<?=side?>;
+		real3 xR = x;
+		xR.s<?=side?> += grid_dx<?=side?>;
+
+		//calc eigen values and vectors at cell center
+		<?=eqn.eigen_t?> eig;
+		eigen_forCell_<?=side?>(&eig, U, x);
+		real wave[numWaves];
+		eigen_calcWaves_<?=side?>__(wave, &eig, x);
+
+		real dx = dx<?=side?>_at(i);
+		real dt_dx = dt / dx;
+
+		//1) calc delta q's ... l r c (eqn 36)
+		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
+		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
+
+		<?=eqn.prim_t?> W = primFromCons(*U, x);
+		<?=eqn.prim_t?> WL = primFromCons(*UL, xL);
+		<?=eqn.prim_t?> WR = primFromCons(*UR, xR);
+		
+		<?=eqn.prim_t?> dWl, dWr, dWc, dWg;
+		for (int j = 0; j < numStates; ++j) {
+			dWl.ptr[j] = W.ptr[j] - WL.ptr[j];
+			dWr.ptr[j] = WR.ptr[j] - W.ptr[j];
+			dWc.ptr[j] = WR.ptr[j] - WL.ptr[j];
+			dWg.ptr[j] = (dWl.ptr[j] * dWr.ptr[j]) <= 0. ? 0. : (
+				2. * dWl.ptr[j] * dWr.ptr[j] / (dWl.ptr[j] + dWr.ptr[j])
+			);
+		}
+		
+		real dal[numWaves], dar[numWaves], dac[numWaves], dag[numWaves];
+		eigen_leftTransform_<?=side?>___(dal, &eig, dWl.ptr, xIntL);
+		eigen_leftTransform_<?=side?>___(dar, &eig, dWr.ptr, xIntR);
+		eigen_leftTransform_<?=side?>___(dac, &eig, dWc.ptr, x);
+		eigen_leftTransform_<?=side?>___(dag, &eig, dWg.ptr, x);
+
+		real da[numWaves];
+		for (int j = 0; j < numWaves; ++j) {
+			da[j] = 0;
+			if (dal[j] * dar[j] > 0) {
+				real lim_slope1 = min(fabs(dal[j]), fabs(dar[j]));
+				real lim_slope2 = min(.5 * fabs(dac[j]), fabs(dag[j]));
+				da[j] = sign(dac[j]) * min(2. * lim_slope1, lim_slope2);
+			}
+		}
+		
+		<?=eqn.prim_t?> dWm;
+		eigen_rightTransform_<?=side?>___(dWm.ptr, &eig, da, x);
+
+		<?=eqn.prim_t?> Wlv, Wrv;
+		for (int j = 0; j < numWaves; ++j) {
+			Wlv.ptr[j] = W.ptr[j] - .5 * dWm.ptr[j];
+			Wrv.ptr[j] = W.ptr[j] + .5 * dWm.ptr[j];
+			real C = Wrv.ptr[j] + Wlv.ptr[j];
+			
+			Wlv.ptr[j] = max(min(W.ptr[j], WL.ptr[j]), Wlv.ptr[j]);
+			Wlv.ptr[j] = min(max(W.ptr[j], WL.ptr[j]), Wlv.ptr[j]);
+			Wrv.ptr[j] = C - Wlv.ptr[j];
+
+			Wrv.ptr[j] = max(min(W.ptr[j],WR.ptr[j]),Wrv.ptr[j]);
+			Wrv.ptr[j] = min(max(W.ptr[j],WR.ptr[j]),Wrv.ptr[j]);
+			Wlv.ptr[j] = C - Wrv.ptr[j];
+		}
+
+		ULR->L = consFromPrim(Wlv, xIntL);
+		ULR->R = consFromPrim(Wrv, xIntR);
+
+#elif 0	//here's my attempt at Trangenstein section 5.12 PPM
+	
+		alphas = evL * right side of U[i-1]
+		betas = evL * (left side of U[i+1] - right side of U[i-1])
+		gamma = 6 * (U[i] - alpha - .5 * beta)
+		...but then there are conditions on the definitions of left side and right side of U
+			based on beta .... but beta is defined in terms of the left and right sides of U
+			... so there's a circular definition.
+		Unless (in the text after 5.1) beta is specified for a particular situation
+			... if so, then what is the definition of beta?
+		hmm, section 5.9.4 defines left and right U as:
+			left side of U[i+1/2] = U[i] + .5 (1 - lambda[i] dt/dx) s[j] dx : lambda[i] > 0
+									= U[i] : lambda <= 0
+			right side of U[i+1/2] = U[i] - .5 (1 - lambda[i+1] dt/dx) s[j] dx : lambda[i+1] < 0
+									= U[i] : lambda[i+1] >= 0
+		...but this is for muscl, and s[j] is the minmod slope limiter ...
 #endif
 
 	}<? end ?>
