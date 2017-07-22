@@ -588,14 +588,6 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 end
 ?>
 
-<? 
-local clnumber = require 'cl.obj.number'
-local chargeMassRatio_ion = 1
-local chargeMassRatio_elec = .01
-?>
-#define chargeMassRatio_ion <?=clnumber(chargeMassRatio_ion)?>
-#define chargeMassRatio_elec <?=clnumber(chargeMassRatio_elec)?>
-
 kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
@@ -603,16 +595,24 @@ kernel void addSource(
 	SETBOUNDS_NOGHOST();
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-#if 1	
-<? for _,fluid in ipairs(fluids) do ?>
-	deriv-><?=fluid?>_m.x += chargeMassRatio_<?=fluid?> * (U->epsE.x / U->eps + U-><?=fluid?>_m.y * U->B.z - U-><?=fluid?>_m.z * U->B.y);
-	deriv-><?=fluid?>_m.y += chargeMassRatio_<?=fluid?> * (U->epsE.y / U->eps + U-><?=fluid?>_m.z * U->B.x - U-><?=fluid?>_m.x * U->B.z);
-	deriv-><?=fluid?>_m.z += chargeMassRatio_<?=fluid?> * (U->epsE.z / U->eps + U-><?=fluid?>_m.x * U->B.y - U-><?=fluid?>_m.y * U->B.x);
-	deriv-><?=fluid?>_ETotal += chargeMassRatio_<?=fluid?> * real3_dot(U->epsE, U-><?=fluid?>_m) / U->eps;
-<? end ?>
-	deriv->epsE = real3_sub(deriv->epsE, real3_scale(U->ion_m, chargeMassRatio_ion));
-	deriv->epsE = real3_sub(deriv->epsE, real3_scale(U->elec_m, chargeMassRatio_elec));
-#endif
+	
+	deriv->ion_m.x += <?=clnumber(1 / eqn.ionLarmorRadius)?> * (U->ion_rho * U->epsE.x / U->eps + U->ion_m.y * U->B.z - U->ion_m.z * U->B.y);
+	deriv->ion_m.y += <?=clnumber(1 / eqn.ionLarmorRadius)?> * (U->ion_rho * U->epsE.y / U->eps + U->ion_m.z * U->B.x - U->ion_m.x * U->B.z);
+	deriv->ion_m.z += <?=clnumber(1 / eqn.ionLarmorRadius)?> * (U->ion_rho * U->epsE.z / U->eps + U->ion_m.x * U->B.y - U->ion_m.y * U->B.x);
+	deriv->ion_ETotal += <?=clnumber(1 / eqn.ionLarmorRadius)?> * real3_dot(U->epsE, U->ion_m) / U->eps;
+	
+	deriv->elec_m.x -= <?=clnumber(eqn.ionElectronMassRatio / eqn.ionLarmorRadius)?> * (U->elec_rho * U->epsE.x / U->eps + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y);
+	deriv->elec_m.y -= <?=clnumber(eqn.ionElectronMassRatio / eqn.ionLarmorRadius)?> * (U->elec_rho * U->epsE.y / U->eps + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z);
+	deriv->elec_m.z -= <?=clnumber(eqn.ionElectronMassRatio / eqn.ionLarmorRadius)?> * (U->elec_rho * U->epsE.z / U->eps + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x);
+	deriv->elec_ETotal -= <?=clnumber(eqn.ionElectronMassRatio / eqn.ionLarmorRadius)?> * real3_dot(U->epsE, U->elec_m) / U->eps;
+	
+	deriv->epsE.x -= (U->ion_m.x * <?=clnumber(eqn.ionChargeMassRatio)?>
+						+ U->elec_m.x * <?=clnumber(eqn.elecChargeMassRatio)?>
+					) / <?=clnumber(eqn.ionDebyeLength^2 * eqn.ionLarmorRadius)?>;
+	deriv->epsE.y -= (U->ion_m.y * <?=clnumber(eqn.ionChargeMassRatio)?>
+						+ U->elec_m.y * <?=clnumber(eqn.elecChargeMassRatio)?>
+					) / <?=clnumber(eqn.ionDebyeLength^2 * eqn.ionLarmorRadius)?>;
+	deriv->epsE.z -= (U->ion_m.z * <?=clnumber(eqn.ionChargeMassRatio)?>
+						+ U->elec_m.z * <?=clnumber(eqn.elecChargeMassRatio)?>
+					) / <?=clnumber(eqn.ionDebyeLength^2 * eqn.ionLarmorRadius)?>;
 }
-
-

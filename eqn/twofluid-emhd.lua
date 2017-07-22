@@ -1,4 +1,6 @@
 --[[
+2014 Abgrall, Kumar "Robust Finite Volume Schemes for Two-Fluid Plasma Equations"
+
 the solver/twofluid-emhd-behavior.lua instanciates three separate solvers:
 	ion, electron, maxwell
 However OpenCL is having trouble with this.
@@ -17,6 +19,12 @@ local template = require 'template'
 local fluids = {'ion', 'elec'}
 
 local TwoFluidEMHD = class(Equation)
+
+-- set this to 'true' to use the init.euler states
+-- these states are only provided in terms of a single density and pressure variable,
+-- so the subsequent ion and electron densities and pressures must be derived from this.
+TwoFluidEMHD.useEulerInitState = true
+
 TwoFluidEMHD.name = 'TwoFluidEMHD'
 TwoFluidEMHD.numStates = 22
 TwoFluidEMHD.numWaves = 16
@@ -27,15 +35,30 @@ TwoFluidEMHD.mirrorVars = {
 	{'ion_m.z', 'elec_m.z', 'epsE.z', 'B.z'},
 }
 
+-- v_i^T = ion reference thermal velocity
+-- B_0 = reference magnetic field 
+-- x_0 = reference length
+-- m_i = ion mass = 1
+TwoFluidEMHD.ionLarmorRadius = .05			-- lHat = l_r / x_0 = m_i v_i^T / (q_i B_0 x_0)
+TwoFluidEMHD.ionElectronMassRatio = 5		-- m = m_i / m_e
+TwoFluidEMHD.ionChargeMassRatio = 1			-- r_i = q_i / m_i
+TwoFluidEMHD.elecChargeMassRatio = .05		-- r_e = q_e / m_e
+TwoFluidEMHD.speedOfLight = 1				-- cHat = c / v_i^T
+TwoFluidEMHD.ionDebyeLength = 1				-- lambdaHat_d = lambda_d / l_r
+
 TwoFluidEMHD.hasEigenCode = true
 TwoFluidEMHD.useSourceTerm = true
 TwoFluidEMHD.hasFluxFromCons = true
 
-TwoFluidEMHD.initStates = require 'init.twofluid-emhd'
+if TwoFluidEMHD.useEulerInitState then
+	TwoFluidEMHD.initStates = require 'init.euler'
+else
+	TwoFluidEMHD.initStates = require 'init.twofluid-emhd'
+end
 
 function TwoFluidEMHD:init(...)
 	self.guiVars = {
-		require 'guivar.float'{name='heatCapacityRatio', value=7/5}
+		require 'guivar.float'{name='heatCapacityRatio', value=5/3}
 	}
 	TwoFluidEMHD.super.init(self, ...)
 end
@@ -186,13 +209,24 @@ kernel void initState(
 		&& x.z < mids.z
 #endif
 	;
-	<? for _,fluid in ipairs(fluids) do ?>
-	real <?=fluid?>_rho = 0;
+<? 
+if eqn.useEulerInitState then 
+?>
+	real rho = 0.;
+	real3 v = _real3(0,0,0);
+	real P = 0;
+	real ePot = 0;
+<?
+else
+	 for _,fluid in ipairs(fluids) do
+?>	real <?=fluid?>_rho = 0;
 	real3 <?=fluid?>_v = _real3(0,0,0);
 	real <?=fluid?>_P = 0;
 	real <?=fluid?>_ePot = 0;
-	<? end ?>	
-	real3 E = _real3(0,0,0);
+<? 
+	end 
+end
+?>	real3 E = _real3(0,0,0);
 	real3 B = _real3(0,0,0);
 	real conductivity = 1.;
 	real permittivity = 1. / (4. * M_PI);
@@ -201,12 +235,41 @@ kernel void initState(
 ]]..code..[[
 
 	<?=eqn.prim_t?> W = {
-		<? for _,fluid in ipairs(fluids) do ?>
+<? 
+if eqn.useEulerInitState then 
+?>
+		.ion_rho = rho,
+		.elec_rho = rho * <?=clnumber(1/eqn.ionElectronMassRatio)?>, 
+
+		// "the electron pressure is taken to be elec_P = 5 ion_rho"
+		// is that arbitrary?
+		.elec_P = 5. * rho,
+		
+		// "the ion pressure is 1/100th the electron pressure"
+		// is that from the mass ratio of ion/electron?
+		.ion_P = P * <?=clnumber(1/eqn.ionElectronMassRatio)?>, 
+
+		.ion_v = v,
+		.elec_v = v,
+
+		.E = E,
+		.B = B,
+		.BPot = 0,
+		.sigma = conductivity,
+		.eps = permittivity,
+		.mu = permeability,
+
+<?	
+else	-- expect the initState to explicitly provide the ion_ and elec_ Euler fluid variables
+	for _,fluid in ipairs(fluids) do ?>
 		.<?=fluid?>_rho = <?=fluid?>_rho,
 		.<?=fluid?>_v = cartesianToCoord(<?=fluid?>_v, x),
 		.<?=fluid?>_P = <?=fluid?>_P,
 		.<?=fluid?>_ePot = <?=fluid?>_ePot,
-		<? end ?>
+<?
+	end
+end
+?>
 		.E = E,
 		.B = B,
 		.BPot = 0,
@@ -219,6 +282,7 @@ kernel void initState(
 ]], {
 		eqn = self,
 		fluids = fluids,
+		clnumber = clnumber,
 	})
 end
 
@@ -227,6 +291,7 @@ function TwoFluidEMHD:getSolverCode()
 		eqn = self, 
 		solver = self.solver,
 		fluids = fluids,
+		clnumber = clnumber,
 	})
 end
 
@@ -235,8 +300,8 @@ function TwoFluidEMHD:getDisplayVarCodePrefix()
 	global const <?=eqn.cons_t?>* U = buf + index;
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
 ]], {
-	eqn = self,
-})
+		eqn = self,
+	})
 end
 
 function TwoFluidEMHD:getDisplayVars()
