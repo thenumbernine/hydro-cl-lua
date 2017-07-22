@@ -2,7 +2,6 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
-local GuiFloat = require 'guivar.float'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
 
@@ -161,7 +160,10 @@ function Maxwell:getEigenTypeCode()
 end
 
 function Maxwell:getEigenDisplayVars()
-	return {}
+	return {
+		{eps = 'value = eigen->eps;'},
+		{mu = 'value = eigen->mu;'},
+	}
 end
 
 return Maxwell

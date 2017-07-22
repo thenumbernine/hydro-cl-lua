@@ -146,6 +146,8 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 end
 ?>
 
+//this routine is pretty standard.
+//why not move it to Roe or somewhere similar?
 kernel void calcEigenBasis(
 	global real* waveBuf,			//[volume][dim][numWaves]
 	global <?=eqn.eigen_t?>* eigenBuf,		//[volume][dim]

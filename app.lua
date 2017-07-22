@@ -117,11 +117,11 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 4, non-TVD',
 		--integrator = 'backward Euler',
 	
-		--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
-		usePLM = true,	-- piecewise-linear slope limiter
-		fluxLimiter = 'donor cell',
-		slopeLimiter = 'minmod',
+		--usePLM = true,	-- piecewise-linear slope limiter
+		--fluxLimiter = 'donor cell',
+		--slopeLimiter = 'minmod',
 		
 		-- [[ Cartesian
 		geometry = 'cartesian',
@@ -267,7 +267,7 @@ function HydroCLApp:setup()
 	self.solvers = table()
 	
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
@@ -304,8 +304,10 @@ function HydroCLApp:setup()
 	
 	-- EM+HD
 	-- I'm having some memory issues with two solvers running simultanously .. 
-	--self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
-	
+	--self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
+	-- so to try and get around that, here the two are combined into one solver:
+	self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
+
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))

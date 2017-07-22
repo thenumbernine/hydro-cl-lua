@@ -1,4 +1,4 @@
-#define sqrt_1_2 0.70710678118654757273731092936941422522068023681641
+#define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
@@ -42,40 +42,11 @@ void eigen_forSide(
 	global <?=eqn.eigen_t?>* eig,
 	global const <?=eqn.cons_t?>* UL,
 	global const <?=eqn.cons_t?>* UR,
-	real3 xInt
+	real3 x
 ) {
 	eig->eps = .5 * (UL->eps + UR->eps);
 	eig->mu = .5 * (UL->mu + UR->mu);
 }
-
-//used by PLM
-
-<? for side=0,solver.dim-1 do ?>
-void eigen_forCell_<?=side?>(
-	<?=eqn.eigen_t?>* eig,
-	const global <?=eqn.cons_t?>* U,
-	real3 x
-) {
-}
-<? end ?>
-
-//used by PLM
-
-void apply_dU_dW(
-	<?=eqn.cons_t?>* U, 
-	const <?=eqn.prim_t?>* WA, 
-	const <?=eqn.prim_t?>* W, 
-	real3 x
-) { *U = *W; }
-
-void apply_dW_dU(
-	<?=eqn.prim_t?>* W,
-	const <?=eqn.prim_t?>* WA,
-	const <?=eqn.cons_t?>* U,
-	real3 x
-) { *W = *U; }
-
-//used by PLM
 
 <?
 for _,addr0 in ipairs{'', 'global'} do
@@ -101,8 +72,7 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 end
 ?>
 
-//used by PLM
-
+//same as in eqn/euler.cl
 kernel void calcEigenBasis(
 	global real* waveBuf,
 	global <?=eqn.eigen_t?>* eigenBuf,
@@ -288,8 +258,10 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	Y[5] = 0;
 		
 	<? end ?>
-	
-	Y[6] = 0;
+
+<? for i=6,eqn.numStates-1 do ?>
+	Y[<?=i?>] = 0;
+<? end ?>
 }
 <?
 				end
@@ -308,3 +280,32 @@ kernel void addSource(
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	deriv->epsE = real3_sub(deriv->epsE, real3_scale(U->epsE, 1. / U->eps * U->sigma));
 }
+
+
+//used by PLM
+
+
+<? for side=0,solver.dim-1 do ?>
+void eigen_forCell_<?=side?>(
+	<?=eqn.eigen_t?>* eig,
+	const global <?=eqn.cons_t?>* U,
+	real3 x
+) {
+	eig->eps = U->eps;
+	eig->mu = U->mu;
+}
+<? end ?>
+
+void apply_dU_dW(
+	<?=eqn.cons_t?>* U, 
+	const <?=eqn.prim_t?>* WA, 
+	const <?=eqn.prim_t?>* W, 
+	real3 x
+) { *U = *W; }
+
+void apply_dW_dU(
+	<?=eqn.prim_t?>* W,
+	const <?=eqn.prim_t?>* WA,
+	const <?=eqn.cons_t?>* U,
+	real3 x
+) { *W = *U; }
