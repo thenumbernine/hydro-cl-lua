@@ -97,7 +97,7 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 function HydroCLApp:setup()
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	local dim = 1
+	local dim = 3
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
@@ -242,7 +242,7 @@ function HydroCLApp:setup()
 		--initState = 'relativistic blast wave interaction',
 	
 		-- MHD-only init states: (that use 'b')
-		initState = 'Brio-Wu',
+		--initState = 'Brio-Wu',
 		--initState = 'Orszag-Tang',
 		
 		-- EM:
@@ -255,7 +255,7 @@ function HydroCLApp:setup()
 		--initState = 'two-fluid EMHD soliton maxwell',
 	
 		-- GR
-		--initState = 'gauge shock wave',
+		initState = 'gauge shock wave',
 		--initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
 		--initState = 'binary black holes',
@@ -300,7 +300,7 @@ function HydroCLApp:setup()
 	--self.solvers:insert(require 'solver.mhd-roe'(args))
 	
 	-- EM
-	self.solvers:insert(require 'solver.maxwell-roe'(args))
+	--self.solvers:insert(require 'solver.maxwell-roe'(args))
 	
 	-- EM+HD
 	-- I'm having some memory issues with two solvers running simultanously .. 
@@ -311,7 +311,7 @@ function HydroCLApp:setup()
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 	--
 	-- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
 	--  but something gets caught up in the freeflow boundary conditions, and it explodes

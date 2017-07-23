@@ -74,7 +74,7 @@ function ADM_BonaMasso_3D:init(...)
 			},
 		}
 	}
-	ADM_BonaMasso_1D_Alcubierre1997.super.init(self, ...)
+	ADM_BonaMasso_3D.super.init(self, ...)
 end
 
 local symmath = require 'symmath'

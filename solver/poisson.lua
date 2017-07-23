@@ -4,6 +4,23 @@ local class = require 'ext.class'
 local ffi = require 'ffi'
 local template = require 'template'
 
+--[[
+local CLGMRES = require 'solver.cl.gmres'
+
+-- TODO combine this with int/be.lua
+local ThisGMRES = class(CLGMRES)
+
+function ThisGMRES:newBuffer(name)
+	if not self.cache then self.cache = {} end
+	local cached = self.cache[name]
+	if cached then return cached end
+	cached = ThisGMRES.super.newBuffer(self, name)
+	cached:fill()
+	self.cache[name] = cached
+	return cached
+end
+--]]
+
 local Poisson = class()
 
 function Poisson:getPotBufType()
@@ -18,6 +35,13 @@ Poisson.potentialField = 'ePot'
 
 function Poisson:init(solver)
 	self.solver = solver
+
+	-- hmm, should this go in refreshGridSize?
+	--[[ poisson
+	--]]
+	-- [[ gmres
+	this.linearSolver = ThisGMRES(linearSolverArgs)
+	--]]
 end
 
 local CLBuffer = require 'cl.obj.buffer'

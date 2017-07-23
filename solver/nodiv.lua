@@ -47,7 +47,7 @@ function NoDiv:refreshSolverProgram()
 	NoDiv.super.refreshSolverProgram(self)
 
 	local solver = self.solver
-	solver.noDivKernel = solver.solverProgram:kernel('noDiv', solver.UBuf)
+	self.noDivKernel = solver.solverProgram:kernel('noDiv', solver.UBuf)
 end
 
 local field = 'noDivPoisson' 
@@ -59,7 +59,7 @@ return function(parent)
 		template.super.step(self, dt)
 
 		self[field]:relax()
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.noDivKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=self[field].noDivKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
 
 	return template
