@@ -322,10 +322,10 @@ function TwoFluidEMHD:getDisplayVars()
 
 	//TODO incorporate metric
 
-	real3 vim = real3_scale(Uim->m, 1. / Uim-><?=fluid?>_rho);
-	real3 vip = real3_scale(Uip->m, 1. / Uip-><?=fluid?>_rho);
-	real3 vjm = real3_scale(Ujm->m, 1. / Ujm-><?=fluid?>_rho);
-	real3 vjp = real3_scale(Ujp->m, 1. / Ujp-><?=fluid?>_rho);
+	real3 vim = real3_scale(Uim-><?=fluid?>_m, 1. / Uim-><?=fluid?>_rho);
+	real3 vip = real3_scale(Uip-><?=fluid?>_m, 1. / Uip-><?=fluid?>_rho);
+	real3 vjm = real3_scale(Ujm-><?=fluid?>_m, 1. / Ujm-><?=fluid?>_rho);
+	real3 vjp = real3_scale(Ujp-><?=fluid?>_m, 1. / Ujp-><?=fluid?>_rho);
 	
 	value = (vjp.s<?=i?> - vjm.s<?=i?>) / (2. * grid_dx<?=i?>)
 			- (vip.s<?=j?> - vim.s<?=j?>) / (2. * grid_dx<?=j?>);

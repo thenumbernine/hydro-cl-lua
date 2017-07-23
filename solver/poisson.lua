@@ -15,11 +15,18 @@ function Poisson:getPotBuf()
 end
 
 Poisson.potentialField = 'ePot'
-Poisson.gaussSeidelMaxIters = 20
 
 function Poisson:init(solver)
 	self.solver = solver
 end
+
+local CLBuffer = require 'cl.obj.buffer'
+-- set 'stopOnEpsilon' to false to just run a fixed number of iterations
+-- set it to false to monitor the updates and stop at an epsilon
+--  but this requires an extra buffer allocation
+Poisson.stopOnEpsilon = true
+Poisson.stopEpsilon = 1e-2
+Poisson.maxIters = 100
 
 function Poisson:getSolverCode()
 	return template(
@@ -36,8 +43,11 @@ end
 
 function Poisson:refreshSolverProgram()
 	local solver = self.solver
-	solver.initPotentialKernel = solver.solverProgram:kernel('initPotential', self:getPotBuf())
-	solver.solvePoissonKernel = solver.solverProgram:kernel('solvePoisson', self:getPotBuf())
+	self.initPotentialKernel = solver.solverProgram:kernel('initPotential', self:getPotBuf())
+	self.solvePoissonKernel = solver.solverProgram:kernel('solvePoisson', self:getPotBuf())
+	if self.stopOnEpsilon then
+		self.solvePoissonKernel:setArg(1, solver.reduceBuf)
+	end
 end
 
 function Poisson:refreshBoundaryProgram()
@@ -58,16 +68,22 @@ end
 
 function Poisson:resetState()
 	local solver = self.solver
-	solver.app.cmds:enqueueNDRangeKernel{kernel=solver.initPotentialKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.initPotentialKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
 	solver:potentialBoundary()
 	self:relax()
 end
 
 function Poisson:relax()
 	local solver = self.solver
-	for i=1,self.gaussSeidelMaxIters do
-		solver.app.cmds:enqueueNDRangeKernel{kernel=solver.solvePoissonKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+	for i=1,self.maxIters do
+		solver.app.cmds:enqueueNDRangeKernel{kernel=self.solvePoissonKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
 		solver:potentialBoundary()
+
+		if self.stopOnEpsilon then
+			local err = solver.reduceSum()
+			print('gauss seidel iter '..i..' err '..err)
+			if err < self.stopEpsilon then break end
+		end
 	end
 end
 
@@ -81,9 +97,9 @@ enableField - which field in 'self' to toggle the behavior
 function Poisson:createBehavior(field, enableField)
 	local subclass = self
 	return function(parent)
-		local template = class(parent)
+		local templateClass = class(parent)
 
-		function template:init(args)
+		function templateClass:init(args)
 			if enableField then
 				self[enableField] = not not args[enableField]
 			end
@@ -95,41 +111,41 @@ function Poisson:createBehavior(field, enableField)
 			--end
 
 			-- init is gonna call
-			template.super.init(self, args)
+			templateClass.super.init(self, args)
 		end
 
-		function template:getSolverCode()
+		function templateClass:getSolverCode()
 			return table{
-				template.super.getSolverCode(self),
+				templateClass.super.getSolverCode(self),
 				self[field]:getSolverCode(),
 			}:concat'\n'
 		end
 
-		function template:refreshBoundaryProgram()
-			template.super.refreshBoundaryProgram(self)
+		function templateClass:refreshBoundaryProgram()
+			templateClass.super.refreshBoundaryProgram(self)
 			self[field]:refreshBoundaryProgram()
 		end
 
-		function template:refreshSolverProgram()
-			template.super.refreshSolverProgram(self)
+		function templateClass:refreshSolverProgram()
+			templateClass.super.refreshSolverProgram(self)
 			self[field]:refreshSolverProgram()
 		end
 
 		-- TODO
 		-- for Euler, add potential energy into total energy
 		-- then MAKE SURE TO SUBTRACT IT OUT everywhere internal energy is used
-		function template:resetState()
-			template.super.resetState(self)
+		function templateClass:resetState()
+			templateClass.super.resetState(self)
 			if not enableField or self[enableField] then
 				self[field]:resetState()
 			end
 		end
 
-		function template:potentialBoundary()
+		function templateClass:potentialBoundary()
 			self:applyBoundaryToBuffer(self.potentialBoundaryKernel)
 		end
 
-		return template
+		return templateClass
 	end
 end
 

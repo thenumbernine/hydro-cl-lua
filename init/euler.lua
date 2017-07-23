@@ -739,6 +739,7 @@ end ?>
 			})
 		end,
 		-- kernel to run every update frame
+		-- TODO give one side of the wire a time-varying boundary value
 		update = function(solver)
 			
 		end,

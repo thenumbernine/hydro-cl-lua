@@ -102,7 +102,7 @@ local function TwoFluidEMHDBehavior(parent)
 		}
 
 		-- call this after we've assigned 'self' all its fields
---		self:replaceSourceKernels()
+		self:replaceSourceKernels()
 
 		self.t = 0
 	end

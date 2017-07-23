@@ -13,7 +13,6 @@ function SelfGrav:getCodeParams()
 	return {
 		calcRho = template([[
 #define gravitationalConstant <?=clnumber(self.gravitationConstant)?>
-	global <?=eqn.cons_t?>* U = UBuf + index;
 	//maybe a 4pi?  or is that only in the continuous case?
 	rho = gravitationalConstant * U->rho;
 ]], 

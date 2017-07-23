@@ -6,12 +6,9 @@ local NoDiv = class(Poisson)
 
 NoDiv.potentialField = 'BPot'
 
-NoDiv.gaussSeidelMaxIters = 20
-
 function NoDiv:getCodeParams()
 	return {
 		calcRho = template([[
-	global <?=eqn.cons_t?>* U = UBuf + index;
 	real divB = .5 * (0
 <? 
 for j=0,solver.dim-1 do

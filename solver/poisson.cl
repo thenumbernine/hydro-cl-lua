@@ -22,15 +22,29 @@ kernel void initPotential(
 	global <?=poisson:getPotBufType()?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
+	global <?=poisson:getPotBufType()?>* U = UBuf + index;
 	real rho = 0;
 	<?=calcRho?>
 	UBuf[index].<?=poisson.potentialField?> = -rho;
 }
 
 kernel void solvePoisson(
-	global <?=poisson:getPotBufType()?>* UBuf
+	global <?=poisson:getPotBufType()?>* UBuf<?
+if poisson.stopOnEpsilon then ?>,
+	global real* reduceBuf<?
+end ?>
 ) {
+<? if not poisson.stopOnEpsilon then ?>
 	SETBOUNDS(numGhost,numGhost);
+<? else ?>
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		reduceBuf[index] = 0.;
+		return;
+	}
+<? end ?>
+
+	global <?=poisson:getPotBufType()?>* U = UBuf + index;
 
 <? for j=0,solver.dim-1 do ?>
 	real dx<?=j?> = dx<?=j?>_at(i);
@@ -50,8 +64,8 @@ kernel void solvePoisson(
 #if 1	//defined(geometry_cartesian)
 	real skewSum = (0.
 <? for j=0,solver.dim-1 do ?>
-		+ volR.s<?=j?> * UBuf[index + stepsize.s<?=j?>].<?=poisson.potentialField?> / (dx<?=j?> * dx<?=j?>)
-		+ volL.s<?=j?> * UBuf[index - stepsize.s<?=j?>].<?=poisson.potentialField?> / (dx<?=j?> * dx<?=j?>)
+		+ volR.s<?=j?> * U[stepsize.s<?=j?>].<?=poisson.potentialField?> / (dx<?=j?> * dx<?=j?>)
+		+ volL.s<?=j?> * U[-stepsize.s<?=j?>].<?=poisson.potentialField?> / (dx<?=j?> * dx<?=j?>)
 <? end 
 ?>	) / volAtX;
 
@@ -89,5 +103,16 @@ kernel void solvePoisson(
 	real rho = 0;
 	<?=calcRho?>
 
-	UBuf[index].<?=poisson.potentialField?> = (rho - skewSum) / diag;
+	real oldU = U-><?=poisson.potentialField?>;
+	
+	//Gauss-Seidel iteration: x_i = (b_i - A_ij) / A_ii
+	real newU = (rho - skewSum) / diag;
+
+<?
+if poisson.stopOnEpsilon then
+?>	reduceBuf[index] = fabs(newU - oldU);
+<?
+end
+?>
+	U-><?=poisson.potentialField?> = newU;
 }

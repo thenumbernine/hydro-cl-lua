@@ -316,7 +316,7 @@ elseif side == 1 then
 	Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.y * gU.xy / gU.yy - <?=fluid?>_v.x)
 		+ X[<?=5*i-4?>]
 		+ X[<?=5*i-3?>] * -gU.xy / gU.yy;
-	Y[<?=5*i-3?>] = (X[<?=5*i-5?>] * (denom - heatRatioMinusOne * <?=fluid?>_vSq)
+	Y[<?=5*i-3?>] = (X[<?=5*i-5?>] * (<?=fluid?>_denom - heatRatioMinusOne * <?=fluid?>_vSq)
 		+ X[<?=5*i-4?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.x
 		+ X[<?=5*i-3?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.y
 		+ X[<?=5*i-2?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.z
