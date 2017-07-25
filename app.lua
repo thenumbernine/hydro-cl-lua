@@ -255,8 +255,8 @@ function HydroCLApp:setup()
 		--initState = 'two-fluid EMHD soliton maxwell',
 	
 		-- GR
-		initState = 'gauge shock wave',
-		--initState = 'Alcubierre warp bubble',
+		--initState = 'gauge shock wave',
+		initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
 		--initState = 'binary black holes',
 		--initState = 'stellar model',
@@ -370,8 +370,8 @@ local function compare(buf1, buf2)
 		print('index '..diff
 			..' coord '..x..', '..y..' ch '..ch
 			..' differs:',ptr1[diff], ptr2[diff])
-		s1:save's1.fits'
-		s2:save's2.fits'
+		s1:save's1'
+		s2:save's2'
 		error'here'
 	end
 end
@@ -1898,7 +1898,7 @@ function HydroCLApp:updateGUI()
 		if ig.igButton'Save' then
 			-- save as cfits 
 			for i,solver in ipairs(self.solvers) do
-				solver:save('output-'..i..'.fits')
+				solver:save(tostring(i))
 			end
 		end
 

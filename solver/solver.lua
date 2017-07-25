@@ -1461,8 +1461,10 @@ end
 os.exit()
 	
 	self.t = self.t + dt
+	self.dt = dt
 else
 	self.t = self.t + dt
+	self.dt = dt
 end
 
 end
@@ -1737,36 +1739,49 @@ function Solver:updateGUI()
 end
 
 local Image = require 'image'
-function Solver:save(filename)
-	if self.dim ~= 2 then
-		print("haven't got support for saving dim="..self.dim.." states")
-		return
-	end
-		
+function Solver:save(prefix)
 	-- TODO add planes to image, then have the FITS module use planes and not channels
 	-- so the dimension layout of the buffer is [channels][width][height][planes]
 	local width = tonumber(self.gridSize.x)
 	local height = tonumber(self.gridSize.y)
-	local channels = self.eqn.numStates
-	
-	local image = Image(width, height, channels, assert(self.app.real))
-	self.app.cmds:enqueueReadBuffer{buffer=self.UBuf, block=true, size=ffi.sizeof(self.app.real) * channels * self.volume, ptr=image.buffer}
-	local src = image.buffer
-	
-	-- now convert from interleaved to planar
-	-- *OR* add planes to the FITS output
-	local tmp = ffi.new(self.app.real..'[?]', width * height * channels)
-	for ch=0,channels-1 do
-		for j=0,height-1 do
-			for i=0,width-1 do
-				tmp[i + width * (j + height * ch)]
-					= src[ch + channels * (i + width * j)]
+	local depth = tonumber(self.gridSize.z)
+
+	for _,infos in ipairs{
+		{U={buffer=self.UBuf, channels=self.eqn.numStates}},
+		{wave={buffer=self.waveBuf, channels=self.dim * self.eqn.numWaves}},
+	} do
+		local name, info = next(infos)
+		local buffer, channels = info.buffer, info.channels
+		local numReals = self.volume * channels
+--[[ 3D interleave the depth and the channels ... causes FV to break 
+		local image = Image(width, height, depth * channels, assert(self.app.real))
+		local function getIndex(ch,i,j,k) return i + width * (j + height * (ch + channels * k)) end
+--]]
+-- [[ 3D interleave the depth and the width
+		local image = Image(width * depth, height, channels, assert(self.app.real))
+		local function getIndex(ch,i,j,k) return i + width * (k + depth * (j + height * ch)) end
+--]]
+		self.app.cmds:enqueueReadBuffer{buffer=buffer, block=true, size=ffi.sizeof(self.app.real) * numReals, ptr=image.buffer}
+		local src = image.buffer
+		
+		-- now convert from interleaved to planar
+		-- *OR* add planes to the FITS output
+		local tmp = ffi.new(self.app.real..'[?]', numReals)
+		for ch=0,channels-1 do
+			for k=0,depth-1 do
+				for j=0,height-1 do
+					for i=0,width-1 do
+						tmp[getIndex(ch,i,j,k)] = src[ch + channels * (i + width * (j + height * k))]
+					end
+				end
 			end
 		end
-	end
-	image.buffer = tmp
+		image.buffer = tmp
 	
-	image:save('output-'..i..'.fits')
+		local filename = prefix..'_'..name..'.fits'
+		print('saving '..filename)
+		image:save(filename)
+	end
 end
 
 return Solver

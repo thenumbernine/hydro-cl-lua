@@ -24,16 +24,17 @@ local ADM_BonaMasso_3D = class(Equation)
 ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
 
 ADM_BonaMasso_3D.consVars = {
-	'alpha',
-	'gamma_xx', 'gamma_xy', 'gamma_xz', 'gamma_yy', 'gamma_yz', 'gamma_zz',
-	'a_x', 'a_y', 'a_z',
-	'd_xxx', 'd_xxy', 'd_xxz', 'd_xyy', 'd_xyz', 'd_xzz',
-	'd_yxx', 'd_yxy', 'd_yxz', 'd_yyy', 'd_yyz', 'd_yzz',
-	'd_zxx', 'd_zxy', 'd_zxz', 'd_zyy', 'd_zyz', 'd_zzz',
-	'K_xx', 'K_xy', 'K_xz', 'K_yy', 'K_yz', 'K_zz',
-	'V_x', 'V_y', 'V_z',
+--[[ 0	]]	'alpha',
+--[[ 1	]]	'gamma_xx', 'gamma_xy', 'gamma_xz', 'gamma_yy', 'gamma_yz', 'gamma_zz',
+--[[ 7	]]	'a_x', 'a_y', 'a_z',
+--[[ 10	]]	'd_xxx', 'd_xxy', 'd_xxz', 'd_xyy', 'd_xyz', 'd_xzz',
+--[[ 16	]]	'd_yxx', 'd_yxy', 'd_yxz', 'd_yyy', 'd_yyz', 'd_yzz',
+--[[ 22	]]	'd_zxx', 'd_zxy', 'd_zxz', 'd_zyy', 'd_zyz', 'd_zzz',
+--[[ 28	]]	'K_xx', 'K_xy', 'K_xz', 'K_yy', 'K_yz', 'K_zz',
+--[[ 34	]]	'V_x', 'V_y', 'V_z',
+--[[ 37	]]
 }
-ADM_BonaMasso_3D.numStates = 7 + 30	-- should equal # consVars
+ADM_BonaMasso_3D.numStates = 37
 ADM_BonaMasso_3D.numWaves = 30	-- skip alpha and gamma_ij
 
 assert(ADM_BonaMasso_3D.numStates == #ADM_BonaMasso_3D.consVars)
