@@ -471,8 +471,8 @@ function HydroCLApp:initGL(...)
 	-- TODO favor cl_khr_gl_sharing, cl_khr_fp64, cl_khr_3d_image_writes
 	self.env = CLEnv{
 		verbose = true,
-		precision = 'double', 	--cmdline.float and 'float' or nil, -- TODO allow override?
-		--cpu = true,
+		precision = cmdline.float and 'float' or nil,
+		cpu = cmdline.cpu,
 	}
 	print(self.env.platform:getName())
 	print(self.env.device:getName())

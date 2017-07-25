@@ -401,6 +401,7 @@ function Solver:finalizeCLAllocs()
 			if mod ~= 0 then
 				-- WARNING?
 				size = size - mod + ffi.sizeof(self.app.env.real)
+				buffer.size = size
 			end
 		end
 		total = total + size
@@ -1493,10 +1494,10 @@ end
 
 -- check for nans
 -- expects buf to be of type cons_t, made up of numStates real variables
-function Solver:checkFinite(buf)
+function Solver:checkFinite(buf, volume)
 	local ptr = buf:toCPU()
 	local found
-	for i=0,self.volume * self.eqn.numStates - 1 do
+	for i=0,buf.size-1 do
 		if not math.isfinite(ptr[i]) then
 			found = found or table()
 			found:insert(i)
@@ -1746,10 +1747,31 @@ function Solver:save(prefix)
 	local height = tonumber(self.gridSize.y)
 	local depth = tonumber(self.gridSize.z)
 
-	for _,infos in ipairs{
+	--self.buffers:insert{name=name, size=size}
+	--buffer.size = size / ffi.sizeof(self.app.env.real)
+--[[ save only certain buffers
+	local bufferInfos {
 		{U={buffer=self.UBuf, channels=self.eqn.numStates}},
 		{wave={buffer=self.waveBuf, channels=self.dim * self.eqn.numWaves}},
-	} do
+	}
+--]]
+-- [[ save all buffers
+	local bufferInfos = self.buffers:map(function(buffer, _, t)
+		local name = buffer.name
+		local channels = buffer.size / self.volume / ffi.sizeof(self.app.real)
+		print(name,channels)
+		if channels ~= math.floor(channels) then
+			print("can't save buffer "..name.." due to its size not being divisible by the solver volume")
+			return
+		else
+			return {[name] = {
+				buffer = self[name], 
+				channels = channels,
+			}}, #t+1
+		end
+	end)
+--]]
+	for _,infos in ipairs(bufferInfos) do
 		local name, info = next(infos)
 		local buffer, channels = info.buffer, info.channels
 		local numReals = self.volume * channels
