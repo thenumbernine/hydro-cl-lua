@@ -130,7 +130,7 @@ function HydroCLApp:setup()
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = ({
 			{256,1,1},
-			{256,256,1},
+			{128,128,1},
 			{32,32,32},
 		})[dim],
 		boundary = {

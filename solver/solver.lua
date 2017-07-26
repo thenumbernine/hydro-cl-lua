@@ -139,7 +139,8 @@ function Solver:refreshGridSize()
 	for i=1,self.dim-1 do
 		self.stepSize:ptr()[i] = self.stepSize:ptr()[i-1] * self.gridSize:ptr()[i-1]
 	end
-	
+print('self.stepSize', self.stepSize)
+
 	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
 	-- product of all local sizes must be <= max workgroup size
 	local maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')

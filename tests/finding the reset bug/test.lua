@@ -3,19 +3,25 @@ require 'ext'
 local Image = require 'image'
 local matrix = require 'matrix'
 
-local imgs = table{
-	r1f1_U = Image'r1f1_U.fits',
-	r1f2_U = Image'r1f2_U.fits',
-	r2f1_U = Image'r2f1_U.fits',
-	r2f2_U = Image'r2f2_U.fits',
-	r1f1_wave = Image'r1f1_wave.fits',
-	r1f2_wave = Image'r1f2_wave.fits',
-	r2f1_wave = Image'r2f1_wave.fits',
-	r2f2_wave = Image'r2f2_wave.fits',
+local bufnames = {
+	'deltaUEigBuf',
+	'eigenBuf',
+	'fluxBuf',
+	'reduceBuf',
+	'rEigBuf',
+	'UBuf',
+	'waveBuf',
 }
-
-local imgsize = matrix{imgs.r1f1_U:size()}
-local size = matrix{36,36,select(2, imgsize:unpack())}
+local imgs = table()
+for i=1,2 do
+	for j=1,2 do
+		for _,name in ipairs(bufnames) do
+			local prefix = 'r'..i..'f'..j..'_'..name
+			local filename = prefix..'.fits'
+			imgs[prefix] = Image(filename)
+		end
+	end
+end
 
 local function unravel(index,size)
 	local result = matrix()
@@ -31,6 +37,11 @@ end
 local function compare(fa,fb)
 	local A = imgs[fa]
 	local B = imgs[fb]
+	
+	local imgsize = matrix{A:size()}
+	assert(imgsize == matrix{B:size()})
+	local size = matrix{36,36,select(2, imgsize:unpack())}
+	
 	local chs = table()
 	local errs = table()
 	local diffs 
@@ -53,7 +64,10 @@ local function compare(fa,fb)
 	end
 end
 
-compare('r1f1_U', 'r2f1_U')
-compare('r1f1_wave', 'r2f1_wave')
-compare('r1f2_U', 'r2f2_U')
-compare('r1f2_wave', 'r2f2_wave')
+for i=1,2 do
+	for _,name in ipairs(bufnames) do
+		local n1 = 'r1f'..i..'_'..name
+		local n2 = 'r2f'..i..'_'..name
+		compare(n1, n2)
+	end
+end

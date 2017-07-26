@@ -3,7 +3,7 @@ kernel void calcDT(
 	const global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
-	if (OOB(2,2)) {
+	if (OOB(numGhost,numGhost)) {
 		dtBuf[index] = INFINITY;
 		return;
 	}

@@ -98,7 +98,24 @@ function ADM_BonaMasso_3D:getCodePrefix()
 			end)
 		end)
 		print('...done building metric partials')
-	
+
+		--[[
+		local gammaU = table{mat33.inv(gamma:unpack())} or calc.gammaU:map(function(gammaUij) return gammaUij(x,y,z) end) 
+		exprs.V = table.map(vars, function(var)
+			local s = 0
+			for j=1,3 do
+				for k=1,3 do
+					local d_ijk = sym3x3(exprs.d[i],j,k)
+					local d_kji = sym3x3(exprs.d[k],j,i)
+					local gammaUjk = sym3x3(gammaU,j,k)
+					local dg = (d_ijk - d_kji) * gammaUjk
+					s = s + dg
+				end
+			end
+			return s
+		end)
+		--]]
+
 		return table(
 			{alpha = exprs.alpha},
 			symNames:map(function(xij,ij)
@@ -115,6 +132,11 @@ function ADM_BonaMasso_3D:getCodePrefix()
 			symNames:map(function(xij,ij)
 				return exprs.K[ij], 'K_'..xij
 			end)
+			--[[
+			xNames:map(function(xi,i)
+				return exprs.V[i], 'V_'..xi
+			end),
+			--]]
 		)
 	end)
 end
@@ -156,9 +178,14 @@ kernel void initState(
 		symNames:map(function(xij) build('d_'..xk..xij) end)
 	end)
 	symNames:map(function(xij) build('K_'..xij) end)
-	
-	-- TODO V^i
-	
+
+	--[[ symbolic
+	xNames:map(function(xi) build('V_'..xi) end)
+	--]]
+	-- [[
+	lines:insert'	U->V = _real3(0,0,0);'
+	--]]
+
 	lines:insert'}'
 	
 	local code = lines:concat'\n'
@@ -201,6 +228,59 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	value = real3_len(sym3_real3_mul(gammaU, U->a));
 ]]},
 		-- TODO V^i constraint codes
+
+-- ... and here's the dt code ...
+		{lambdaLight_x = template([[
+	real det_gamma = sym3_det(U->gamma);
+	real f = calc_f(U->alpha);
+	real sqrt_f = sqrt(f);
+	real gammaUxx = (U->gamma.yy * U->gamma.zz - U->gamma.yz * U->gamma.yz) / det_gamma;
+	value = U->alpha * sqrt(gammaUxx);
+]], {solver=self.solver})},
+
+		{lambdaLight_y = template([[
+	real det_gamma = sym3_det(U->gamma);
+	real f = calc_f(U->alpha);
+	real sqrt_f = sqrt(f);
+	real gammaUyy = (U->gamma.xx * U->gamma.zz - U->gamma.xz * U->gamma.xz) / det_gamma;
+	value = U->alpha * sqrt(gammaUyy);
+]], {solver=self.solver})},
+		
+		{lambdaLight_z = template([[
+	real det_gamma = sym3_det(U->gamma);
+	real f = calc_f(U->alpha);
+	real sqrt_f = sqrt(f);
+	real gammaUzz = (U->gamma.xx * U->gamma.yy - U->gamma.xy * U->gamma.xy) / det_gamma;
+	value = U->alpha * sqrt(gammaUzz);
+]], {solver=self.solver})},
+
+		{dt = template([[
+	real det_gamma = sym3_det(U->gamma);
+	real f = calc_f(U->alpha);
+	real sqrt_f = sqrt(f);
+
+	value = INFINITY;
+	<? for side=0,solver.dim-1 do ?>{
+		
+		<? if side==0 then ?>
+		real gammaUxx = (U->gamma.yy * U->gamma.zz - U->gamma.yz * U->gamma.yz) / det_gamma;
+		real lambdaLight = U->alpha * sqrt(gammaUxx);
+		<? elseif side==1 then ?>
+		real gammaUyy = (U->gamma.xx * U->gamma.zz - U->gamma.xz * U->gamma.xz) / det_gamma;
+		real lambdaLight = U->alpha * sqrt(gammaUyy);
+		<? elseif side==2 then ?>
+		real gammaUzz = (U->gamma.xx * U->gamma.yy - U->gamma.xy * U->gamma.xy) / det_gamma;
+		real lambdaLight = U->alpha * sqrt(gammaUzz);
+		<? end ?>	
+		
+		real lambdaGauge = lambdaLight * sqrt_f;
+		real lambda = (real)max(lambdaGauge, lambdaLight);
+		
+		real lambdaMin = (real)min((real)0., -lambda);
+		real lambdaMax = (real)max((real)0., lambda);
+		value = (real)min(value, (real)(dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
+	}<? end ?>
+]], {solver=self.solver})},
 	}
 end
 

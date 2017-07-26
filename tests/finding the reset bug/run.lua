@@ -46,7 +46,8 @@ function App:setup()
 
 		-- now run until the dt is nan
 
-		while math.isfinite(solver.dt) do
+		--while math.isfinite(solver.dt) do
+		while solver.dt < 100 do
 			solver:update()
 			print(require 'ext.tolua'{t=solver.t, dt=solver.dt})
 			coroutine.yield()

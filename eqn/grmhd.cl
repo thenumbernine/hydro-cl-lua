@@ -26,7 +26,7 @@ kernel void calcDT(
 	const global <?=eqn.prim_t?>* primBuf
 ) {
 	SETBOUNDS(0,0);
-	if (OOB(2,2)) {
+	if (OOB(numGhost,numGhost)) {
 		dtBuf[index] = INFINITY;
 		return;
 	}
