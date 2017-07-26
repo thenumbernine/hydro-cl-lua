@@ -1,8 +1,0 @@
-in this one i'm looking after a bug where ...
-after running a test until the simulation explodes,
-all subsequent runs will immediately explode.
-
-and it's 100% reproducible on different platforms.
-but it is 0% reproducible when running it without the GUI enabled ...
-and 0% reproducible when running with GUI, but the solver isn't inserted to self.solvers
- (so the GUI isn't displaying the solver)
