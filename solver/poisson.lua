@@ -50,7 +50,7 @@ local CLBuffer = require 'cl.obj.buffer'
 --  but this requires an extra buffer allocation
 Poisson.stopOnEpsilon = true
 Poisson.stopEpsilon = 1e-2
-Poisson.maxIters = 100
+Poisson.maxIters = 20
 
 function Poisson:getSolverCode()
 	return template(
@@ -105,7 +105,7 @@ function Poisson:relax()
 
 		if self.stopOnEpsilon then
 			local err = solver.reduceSum()
-			print('gauss seidel iter '..i..' err '..err)
+			--print('gauss seidel iter '..i..' err '..err)
 			if err < self.stopEpsilon then break end
 		end
 	end

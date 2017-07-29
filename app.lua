@@ -130,16 +130,16 @@ function HydroCLApp:setup()
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = ({
 			{256,1,1},
-			{64,64,1},
+			{256,256,1},
 			{32,32,32},
 		})[dim],
 		boundary = {
-			xmin=cmdline.boundary or 'mirror',
-			xmax=cmdline.boundary or 'mirror',
-			ymin=cmdline.boundary or 'mirror',
-			ymax=cmdline.boundary or 'mirror',
-			zmin=cmdline.boundary or 'mirror',
-			zmax=cmdline.boundary or 'mirror',
+			xmin=cmdline.boundary or 'periodic',
+			xmax=cmdline.boundary or 'periodic',
+			ymin=cmdline.boundary or 'periodic',
+			ymax=cmdline.boundary or 'periodic',
+			zmin=cmdline.boundary or 'periodic',
+			zmax=cmdline.boundary or 'periodic',
 		},
 		--]]
 		--[[ cylinder
@@ -243,7 +243,7 @@ function HydroCLApp:setup()
 	
 		-- MHD-only init states: (that use 'b')
 		--initState = 'Brio-Wu',
-		--initState = 'Orszag-Tang',
+		initState = 'Orszag-Tang',
 		
 		-- EM:
 		--initState = 'Maxwell default',
@@ -256,7 +256,7 @@ function HydroCLApp:setup()
 	
 		-- GR
 		--initState = 'gauge shock wave',
-		initState = 'Alcubierre warp bubble',
+		--initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
 		--initState = 'binary black holes',
 		--initState = 'stellar model',
@@ -295,9 +295,10 @@ function HydroCLApp:setup()
 	-- Orszag-Tang with forward Euler integrator fails at 64x64 around .7 or .8
 	-- 		but works with 'Runge-Kutta 4, TVD' integrator at 64x64
 	-- 		RK4-TVD fails at 256x256 at just after t=.5
+	--		and works fine with backwards Euler 
 	-- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
-	-- also div B is nonzero.  in fact it's pretty big.
-	--self.solvers:insert(require 'solver.mhd-roe'(args))
+	--		but that could be because of issues with simultaneous solvers.
+	self.solvers:insert(require 'solver.mhd-roe'(args))
 	
 	-- EM
 	--self.solvers:insert(require 'solver.maxwell-roe'(args))
@@ -318,7 +319,7 @@ function HydroCLApp:setup()
 	-- so I have set constant Minkowski boundary conditions?
 	-- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 	-- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-	self.solvers:insert(require 'solver.bssnok-fd'(args))
+	--self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 

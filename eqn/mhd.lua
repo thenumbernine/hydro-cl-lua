@@ -169,11 +169,11 @@ function MHD:getDisplayVars()
 		{vx = '*value = W.v.x;'},
 		{vy = '*value = W.v.y;'},
 		{vz = '*value = W.v.z;'},
-		{v = '*value = real3_len(W.v);'},
+		{['|v|'] = '*value = real3_len(W.v);'},
 		{mx = '*value = U->m.x;'},
 		{my = '*value = U->m.y;'},
 		{mz = '*value = U->m.z;'},
-		{m = '*value = real3_len(U->m);'},
+		{['|m|'] = '*value = real3_len(U->m);'},
 		{Bx = '*value = W.B.x;'},
 		{By = '*value = W.B.y;'},
 		{Bz = '*value = W.B.z;'},
@@ -225,6 +225,15 @@ end
 	eqn = self,
 })},
 	}
+end
+
+function MHD:getVecDisplayVars()
+	local vars = table{
+		{v = 'valuevec = W.v;'},
+		{m = 'valuevec = U->m;'},
+		{B = 'valuevec = U->B;'},
+	}
+	return vars
 end
 
 function MHD:getEigenTypeCode()
