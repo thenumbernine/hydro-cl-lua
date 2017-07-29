@@ -1965,11 +1965,7 @@ function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, y
 	self.view:modelview()
 
 	if self.displayVectorField_scale == nil then self.displayVectorField_scale = .1 end
-	if self.displayVectorField_step == nil then 
-		self.displayVectorField_step = ({
-			16, 16, 4
-		})[self.solvers[1].dim or 2] 
-	end
+	if self.displayVectorField_step == nil then self.displayVectorField_step = 4 end
 
 	gl.glDisable(gl.GL_BLEND)
 	gl.glEnable(gl.GL_DEPTH_TEST)
