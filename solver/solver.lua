@@ -359,6 +359,7 @@ function Solver:addConvertToTexUBuf()
 end
 
 function Solver:addConvertToTexUBufVec()
+	if not self.eqn.getVecDisplayVars then return end
 	self:addConvertToTex{
 		name = 'U',
 		type = self.eqn.cons_t,

@@ -97,13 +97,13 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 function HydroCLApp:setup()
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	local dim = 3
+	local dim = 2
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or dim,
 		
-		integrator = cmdline.integrator or 'forward Euler',	
+		--integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -115,7 +115,7 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		--integrator = 'backward Euler',
+		integrator = 'backward Euler',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
@@ -130,7 +130,7 @@ function HydroCLApp:setup()
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = ({
 			{256,1,1},
-			{256,256,1},
+			{64,64,1},
 			{32,32,32},
 		})[dim],
 		boundary = {
@@ -211,7 +211,7 @@ function HydroCLApp:setup()
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -256,7 +256,7 @@ function HydroCLApp:setup()
 	
 		-- GR
 		--initState = 'gauge shock wave',
-		--initState = 'Alcubierre warp bubble',
+		initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
 		--initState = 'binary black holes',
 		--initState = 'stellar model',
@@ -267,7 +267,7 @@ function HydroCLApp:setup()
 	self.solvers = table()
 	
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
@@ -315,10 +315,10 @@ function HydroCLApp:setup()
 	--
 	-- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
 	--  but something gets caught up in the freeflow boundary conditions, and it explodes
-	-- TODO constant Minkowski boundary conditions?
+	-- so I have set constant Minkowski boundary conditions?
 	-- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 	-- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-	--self.solvers:insert(require 'solver.bssnok-fd'(args))
+	self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 

@@ -278,7 +278,7 @@ function ADM_BonaMasso_3D:getDisplayVars()
 		
 		real lambdaMin = (real)min((real)0., -lambda);
 		real lambdaMax = (real)max((real)0., lambda);
-		*value = (real)min(value, (real)(dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
+		*value = (real)min((real)*value, (real)(dx<?=side?>_at(i) / ((real)fabs(lambdaMax - lambdaMin) + (real)1e-9)));
 	}<? end ?>
 ]], {solver=self.solver})},
 	}
@@ -297,6 +297,29 @@ typedef struct {
 ]], {
 	eqn = self,
 })
+end
+
+function ADM_BonaMasso_3D:getVecDisplayVars()
+	local vars = table()
+	local function add(field)
+		vars:insert{[field] = 'valuevec = U->'..field..';'}
+	end
+	local function addSym3(field)
+		for i,xi in ipairs(xNames) do
+			vars:insert{[field..'_'..xi] = 'valuevec = sym3_'..xi..'(U->'..field..');'}
+		end
+	end
+	addSym3'gamma'
+	add'a'
+	addSym3'K'
+	-- shift-less gravity only
+	-- gravity with shift is much more complex
+	vars:insert{gravity = [[
+	real det_gamma = sym3_det(U->gamma);
+	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
+	valuevec = real3_scale(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
+]]}
+	return vars
 end
 
 function ADM_BonaMasso_3D:getEigenDisplayVars()

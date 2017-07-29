@@ -145,6 +145,10 @@ end
 ?>	return m;
 }
 
+real3 sym3_x(sym3 m) { return _real3(m.xx, m.xy, m.xz); }
+real3 sym3_y(sym3 m) { return _real3(m.xy, m.yy, m.yz); }
+real3 sym3_z(sym3 m) { return _real3(m.xz, m.yz, m.zz); }
+
 mat3 mat3_mat3_mul(mat3 a, mat3 b) {
 	mat3 c;
 	for (int i = 0; i < 3; ++i) {
@@ -162,5 +166,3 @@ mat3 mat3_mat3_mul(mat3 a, mat3 b) {
 real mat3_trace(mat3 m) {
 	return m.x.x + m.y.y + m.z.z;
 }
-
-

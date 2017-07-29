@@ -403,4 +403,45 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	return vars
 end
 
+function BSSNOKFiniteDifferenceEquation:getVecDisplayVars()
+	vars = table()
+	local function add(field)
+		vars:insert{[field] = 'valuevec = U->'..field..';'}
+	end
+	local function addSym3(field)
+		for i,xi in ipairs(xNames) do
+			vars:insert{[field..'_'..xi] = 'valuevec = sym3_'..xi..'(U->'..field..');'}
+		end
+	end
+	add'beta_u'
+	add'connBar_u'
+	addSym3'gammaBar_ll'
+	addSym3'ATilde_ll'
+	add'S_u'
+	addSym3'S_ll'
+	add'M_u'
+
+	vars:append{
+		{gamma_x = 'valuevec = real3_scale(sym3_x(U->gammaBar_ll), exp(4. * U->phi));'},
+		{gamma_y = 'valuevec = real3_scale(sym3_y(U->gammaBar_ll), exp(4. * U->phi));'},
+		{gamma_z = 'valuevec = real3_scale(sym3_z(U->gammaBar_ll), exp(4. * U->phi));'},
+		{K_x = 'valuevec = real3_add(sym3_x(U->ATilde_ll), real3_scale(sym3_x(U->gammaBar_ll), U->K/3.));'},
+		{K_y = 'valuevec = real3_add(sym3_y(U->ATilde_ll), real3_scale(sym3_y(U->gammaBar_ll), U->K/3.));'},
+		{K_z = 'valuevec = real3_add(sym3_z(U->ATilde_ll), real3_scale(sym3_z(U->gammaBar_ll), U->K/3.));'},
+
+		{gravity = template([[
+<?=makePartial('alpha', 'real')?>
+	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
+	real exp_neg4phi = exp(-4. * U->phi);
+	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
+	valuevec = real3_scale(sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l), 1. / U->alpha);
+]],			{
+				solver = self.solver,
+				makePartial = function(...) return makePartial(self.solver, ...) end,
+			})
+		},
+	}
+	return vars
+end
+
 return BSSNOKFiniteDifferenceEquation 

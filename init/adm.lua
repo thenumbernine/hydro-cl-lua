@@ -218,12 +218,12 @@ return {
 	{
 		name = 'Alcubierre warp bubble',
 		init = function(solver, getCodes)
-			--[[ safe values
+			-- [[ safe values
 			local R = .5		-- warp bubble radius
 			local sigma = 8	-- warp bubble thickness
 			local speed = .1	-- warp bubble speed
 			--]]
-			-- [[
+			--[[
 			local R = .5
 			local sigma = 8
 			local speed = 1
