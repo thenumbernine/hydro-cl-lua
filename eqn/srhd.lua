@@ -226,21 +226,21 @@ end
 
 function SRHD:getDisplayVars()
 	return {
-		{D = 'value = U.D;'},
-		{Sx = 'value = U.S.x;'},
-		{Sy = 'value = U.S.y;'},
-		{Sz = 'value = U.S.z;'},
-		{S = 'value = coordLen(U.S, x);'},
-		{tau = 'value = U.tau;'},
-		{W = 'value = U.D / prim.rho;'},
+		{D = '*value = U.D;'},
+		{Sx = '*value = U.S.x;'},
+		{Sy = '*value = U.S.y;'},
+		{Sz = '*value = U.S.z;'},
+		{S = '*value = coordLen(U.S, x);'},
+		{tau = '*value = U.tau;'},
+		{W = '*value = U.D / prim.rho;'},
 		{['primitive reconstruction error'] = template([[
 			//prim have just been reconstructed from cons
 			//so reconstruct cons from prims again and calculate the difference
 			{
 				<?=eqn.cons_t?> U2 = consFromPrim(prim, x);
-				value = 0;
+				*value = 0;
 				for (int j = 0; j < numStates; ++j) {
-					value += fabs(U.ptr[j] - U2.ptr[j]);
+					*value += fabs(U.ptr[j] - U2.ptr[j]);
 				}
 			}
 	]], {eqn=self})},
@@ -256,15 +256,15 @@ function SRHD:getPrimDisplayVarCodePrefix()
 end
 
 SRHD.primDisplayVars = {
-	{rho = 'value = prim.rho;'},
-	{vx = 'value = prim.v.x;'},
-	{vy = 'value = prim.v.y;'},
-	{vz = 'value = prim.v.z;'},
-	{v = 'value = coordLen(prim.v, x);'},
-	{eInt = 'value = prim.eInt;'},
-	{ePot = 'value = prim.ePot;'},
-	{P = 'value = calc_P(prim.rho, prim.eInt);'},
-	{h = 'value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt);'},
+	{rho = '*value = prim.rho;'},
+	{vx = '*value = prim.v.x;'},
+	{vy = '*value = prim.v.y;'},
+	{vz = '*value = prim.v.z;'},
+	{v = '*value = coordLen(prim.v, x);'},
+	{eInt = '*value = prim.eInt;'},
+	{ePot = '*value = prim.ePot;'},
+	{P = '*value = calc_P(prim.rho, prim.eInt);'},
+	{h = '*value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt);'},
 }
 
 SRHD.eigenStructFields = {

@@ -152,22 +152,22 @@ end
 function ADM_BonaMasso_1D_Alcubierre1997:getDisplayVars()
 	return {
 		-- source-only:
-		{alpha = 'value = U->alpha;'},
-		{gamma_xx = 'value = U->gamma_xx;'},
+		{alpha = '*value = U->alpha;'},
+		{gamma_xx = '*value = U->gamma_xx;'},
 		-- both 1998 and 2008 cons vars:
-		{a_x = 'value = U->a_x;'},
+		{a_x = '*value = U->a_x;'},
 		-- 1998-only cons vars:
-		{d_xxx = 'value = U->d_xxx;'},
-		{K_xx = 'value = U->K_xx;'},
+		{d_xxx = '*value = U->d_xxx;'},
+		{K_xx = '*value = U->K_xx;'},
 		-- 2008-only cons vars:
-		{D_g = 'value = 2. * U->d_xxx / U->gamma_xx;'},
-		{KTilde = 'value = U->K_xx / sqrt(U->gamma_xx);'},
+		{D_g = '*value = 2. * U->d_xxx / U->gamma_xx;'},
+		{KTilde = '*value = U->K_xx / sqrt(U->gamma_xx);'},
 		-- aux:
-		{dx_alpha = 'value = U->alpha * U->a_x;'},
-		{dx_gamma_xx = 'value = 2. * U->d_xxx;'},
-		{volume = 'value = U->alpha * sqrt(U->gamma_xx);'},
-		{f = 'value = calc_f(U->alpha);'},
-		{['df/dalpha'] = 'value = calc_dalpha_f(U->alpha);'},
+		{dx_alpha = '*value = U->alpha * U->a_x;'},
+		{dx_gamma_xx = '*value = 2. * U->d_xxx;'},
+		{volume = '*value = U->alpha * sqrt(U->gamma_xx);'},
+		{f = '*value = calc_f(U->alpha);'},
+		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
 	}
 end
 
@@ -179,7 +179,7 @@ end
 
 function ADM_BonaMasso_1D_Alcubierre1997:getEigenDisplayVars()
 	return table.map(eigenVars, function(var)
-		return {[var] = 'value = eigen->'..var..';'}
+		return {[var] = '*value = eigen->'..var..';'}
 	end)
 end
 

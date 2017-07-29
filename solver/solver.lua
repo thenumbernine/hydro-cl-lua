@@ -277,7 +277,9 @@ if solver.dim >= 3 then
 	
 	int side = 0;
 	int indexInt = side + dim * index;
-	real value = 0;
+	
+	real3 valuevec = _real3(0,0,0);
+	real* value = valuevec.s;
 
 <?= convertToTex.varCodePrefix or '' ?>
 <?= var.code ?>
@@ -312,6 +314,7 @@ function ConvertToTex:init(args)
 			heatMapFixedRange = false,	-- self.name ~= 'error'
 			heatMapValueMin = 0,
 			heatMapValueMax = 1,
+			vectorField = args.vectorField,
 		}
 	end
 end
@@ -355,13 +358,24 @@ function Solver:addConvertToTexUBuf()
 	}
 end
 
+function Solver:addConvertToTexUBufVec()
+	self:addConvertToTex{
+		name = 'U',
+		type = self.eqn.cons_t,
+		varCodePrefix = self.eqn:getDisplayVarCodePrefix(),
+		vars = assert(self.eqn:getVecDisplayVars()),
+		vectorField = true,
+	}
+end
+
 function Solver:addConvertToTexs()
 	self:addConvertToTexUBuf()
+	self:addConvertToTexUBufVec()
 	
 	-- might contain nonsense :-p
 	self:addConvertToTex{
 		name = 'reduce', 
-		vars = {{['0'] = 'value = buf[index];'}},
+		vars = {{['0'] = '*value = buf[index];'}},
 	}
 
 if tryingAMR == 'dt vs 2dt' then
@@ -369,7 +383,7 @@ if tryingAMR == 'dt vs 2dt' then
 		name = 'U2',
 		type = self.eqn.cons_t,
 		vars = {
-			{[0] = 'value = buf[index].ptr[0];'},
+			{[0] = '*value = buf[index].ptr[0];'},
 		}
 	}
 elseif tryingAMR == 'gradient' then
@@ -377,7 +391,7 @@ elseif tryingAMR == 'gradient' then
 		name = 'amrError',
 		type = 'real',
 		vars = {
-			{[0] = 'value = buf[index];'},
+			{[0] = '*value = buf[index];'},
 		}
 	}
 end
@@ -577,7 +591,9 @@ end
 
 	-- used both by reduceMin and reduceMax
 	-- (and TODO use this by sum() in implicit solver as well?)
-	self:clalloc('reduceBuf', self.volume * realSize)
+	-- times three because this is also used by the convertToTex
+	-- on non-GL-sharing cards.
+	self:clalloc('reduceBuf', self.volume * realSize * 3)
 	local reduceSwapBufSize = roundup(self.volume * realSize / self.localSize1d, realSize)
 	self:clalloc('reduceSwapBuf', reduceSwapBufSize)
 	self.reduceResultPtr = ffi.new('real[1]', 0)
@@ -605,7 +621,7 @@ end
 	if self.app.useGLSharing then
 		self.texCLMem = CLImageGL{context=self.app.ctx, tex=self.tex, write=true}
 	else
-		self.calcDisplayVarToTexPtr = ffi.new(self.app.real..'[?]', self.volume)
+		self.calcDisplayVarToTexPtr = ffi.new(self.app.real..'[?]', self.volume * 3)
 		
 		--[[ PBOs?
 		self.calcDisplayVarToTexPBO = ffi.new('gl_int[1]', 0)
@@ -945,7 +961,6 @@ kernel void initNodeFromRoot(
 				eqn = self.eqn,
 				clnumber = clnumber,
 			}),
-
 	}:concat'\n'
 end
 
@@ -1052,7 +1067,7 @@ function Solver:refreshDisplayProgram()
 							..(self.dim == 3 
 								and '(int4)(dsti.x, dsti.y, dsti.z, 0)' 
 								or '(int2)(dsti.x, dsti.y)'
-							)..', (float4)(value, 0., 0., 0.));',
+							)..', (float4)(value[0], value[1], value[2], 0.));',
 					})
 				}
 			end
@@ -1068,7 +1083,11 @@ function Solver:refreshDisplayProgram()
 					convertToTex = convertToTex,
 					name = 'calcDisplayVarToBuffer_'..var.id,
 					input = 'global real* dest',
-					output = '	dest[dstindex] = value;',
+					output = [[
+	dest[0+3*dstindex] = valuevec.x;//value[0];
+	dest[1+3*dstindex] = valuevec.y;//value[1];
+	dest[2+3*dstindex] = valuevec.z;//value[2];
+]],
 				})
 			}
 		end
@@ -1541,21 +1560,21 @@ function Solver:calcDisplayVarToTex(var)
 		
 		convertToTex:setToBufferArgs(var)
 		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
-		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.volume, ptr=ptr}
+		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.volume * 3, ptr=ptr}
 		local destPtr = ptr
 		if app.is64bit then
 			-- can this run in place?
 			destPtr = ffi.cast('float*', ptr)
-			for i=0,self.volume-1 do
+			for i=0,self.volume*3-1 do
 				destPtr[i] = ptr[i]
 			end
 		end
 		tex:bind()
 		if self.dim < 3 then
-			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, tex.width, tex.height, gl.GL_RED, gl.GL_FLOAT, destPtr)
+			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, tex.width, tex.height, gl.GL_RGB, gl.GL_FLOAT, destPtr)
 		else
 			for z=0,tex.depth-1 do
-				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, tex.width, tex.height, 1, gl.GL_RED, gl.GL_FLOAT, destPtr + tex.width * tex.height * z)
+				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, tex.width, tex.height, 1, gl.GL_RGB, gl.GL_FLOAT, destPtr + 3 * tex.width * tex.height * z)
 			end
 		end
 		tex:unbind()

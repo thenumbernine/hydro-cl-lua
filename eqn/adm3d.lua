@@ -205,27 +205,27 @@ function ADM_BonaMasso_3D:getDisplayVars()
 			local i = xNames:find(dx)
 			code = 'd['..(i-1)..'].'..rest
 		end
-		return {[var] = 'value = U->'..code..';'}
+		return {[var] = '*value = U->'..code..';'}
 	end))
 	:append{
-		{det_gamma = 'value = sym3_det(U->gamma);'},
-		{volume = 'value = U->alpha * sqrt(sym3_det(U->gamma));'},
-		{f = 'value = calc_f(U->alpha);'},
+		{det_gamma = '*value = sym3_det(U->gamma);'},
+		{volume = '*value = U->alpha * sqrt(sym3_det(U->gamma));'},
+		{f = '*value = calc_f(U->alpha);'},
 		{K = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	value = sym3_dot(gammaU, U->K);
+	*value = sym3_dot(gammaU, U->K);
 ]]},
 		{expansion = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	value = -U->alpha * sym3_dot(gammaU, U->K);
+	*value = -U->alpha * sym3_dot(gammaU, U->K);
 ]]},	
 		-- TODO needs shift influence (which is lengthy)
 		{gravityMagn = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	value = real3_len(sym3_real3_mul(gammaU, U->a));
+	*value = real3_len(sym3_real3_mul(gammaU, U->a));
 ]]},
 		-- TODO V^i constraint codes
 
@@ -235,7 +235,7 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	real f = calc_f(U->alpha);
 	real sqrt_f = sqrt(f);
 	real gammaUxx = (U->gamma.yy * U->gamma.zz - U->gamma.yz * U->gamma.yz) / det_gamma;
-	value = U->alpha * sqrt(gammaUxx);
+	*value = U->alpha * sqrt(gammaUxx);
 ]], {solver=self.solver})},
 
 		{lambdaLight_y = template([[
@@ -243,7 +243,7 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	real f = calc_f(U->alpha);
 	real sqrt_f = sqrt(f);
 	real gammaUyy = (U->gamma.xx * U->gamma.zz - U->gamma.xz * U->gamma.xz) / det_gamma;
-	value = U->alpha * sqrt(gammaUyy);
+	*value = U->alpha * sqrt(gammaUyy);
 ]], {solver=self.solver})},
 		
 		{lambdaLight_z = template([[
@@ -251,7 +251,7 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	real f = calc_f(U->alpha);
 	real sqrt_f = sqrt(f);
 	real gammaUzz = (U->gamma.xx * U->gamma.yy - U->gamma.xy * U->gamma.xy) / det_gamma;
-	value = U->alpha * sqrt(gammaUzz);
+	*value = U->alpha * sqrt(gammaUzz);
 ]], {solver=self.solver})},
 
 		{dt = template([[
@@ -259,7 +259,7 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	real f = calc_f(U->alpha);
 	real sqrt_f = sqrt(f);
 
-	value = INFINITY;
+	*value = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
 		
 		<? if side==0 then ?>
@@ -278,7 +278,7 @@ function ADM_BonaMasso_3D:getDisplayVars()
 		
 		real lambdaMin = (real)min((real)0., -lambda);
 		real lambdaMax = (real)max((real)0., lambda);
-		value = (real)min(value, (real)(dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
+		*value = (real)min(value, (real)(dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
 	}<? end ?>
 ]], {solver=self.solver})},
 	}
@@ -301,13 +301,13 @@ end
 
 function ADM_BonaMasso_3D:getEigenDisplayVars()
 	return {
-		{sqrt_f = 'value = eigen->sqrt_f;'},
-		{gammaUxx = 'value = eigen->gammaU.xx;'},
-		{gammaUxy = 'value = eigen->gammaU.xy;'},
-		{gammaUxz = 'value = eigen->gammaU.xz;'},
-		{gammaUyy = 'value = eigen->gammaU.yy;'},
-		{gammaUyz = 'value = eigen->gammaU.yz;'},
-		{gammaUzz = 'value = eigen->gammaU.zz;'},
+		{sqrt_f = '*value = eigen->sqrt_f;'},
+		{gammaUxx = '*value = eigen->gammaU.xx;'},
+		{gammaUxy = '*value = eigen->gammaU.xy;'},
+		{gammaUxz = '*value = eigen->gammaU.xz;'},
+		{gammaUyy = '*value = eigen->gammaU.yy;'},
+		{gammaUyz = '*value = eigen->gammaU.yz;'},
+		{gammaUzz = '*value = eigen->gammaU.zz;'},
 	}
 end
 

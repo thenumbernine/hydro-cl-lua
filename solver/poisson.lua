@@ -37,9 +37,9 @@ function Poisson:init(solver)
 	self.solver = solver
 
 	-- hmm, should this go in refreshGridSize?
-	--[[ poisson
+	-- [[ poisson
 	--]]
-	-- [[ gmres
+	--[[ gmres
 	this.linearSolver = ThisGMRES(linearSolverArgs)
 	--]]
 end

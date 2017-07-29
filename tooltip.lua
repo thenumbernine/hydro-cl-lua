@@ -59,6 +59,7 @@ end
 
 local checkboxTable = makeTableAccess('bool', wrap.checkbox)
 local intTable = makeTableAccess('int', wrap.int)
+local sliderTable = makeTableAccess('float', wrap.slider)
 
 -- unlike others, this is a bit more than simple ffi primitive read/write
 -- because imgui's float formatting isn't very flexible
@@ -99,6 +100,7 @@ local tooltip = {
 	float = wrap.float,
 	int = wrap.int,
 	slider = wrap.slider,
+	sliderTable = sliderTable,
 	checkboxTable = checkboxTable,
 	intTable = intTable,
 	numberTable = numberTable,

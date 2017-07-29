@@ -123,7 +123,7 @@ function Roe:addConvertToTexs()
 	const global real* wave = buf + indexInt * numWaves;
 ]],
 		vars = range(0, self.eqn.numWaves-1):map(function(i)
-			return {[tostring(i)] = 'value = wave['..i..'];'}
+			return {[tostring(i)] = '*value = wave['..i..'];'}
 		end),
 	}
 
@@ -145,7 +145,7 @@ function Roe:addConvertToTexs()
 	const global real* deltaUEig = buf + indexInt * numWaves;
 ]],
 		vars = range(0,self.eqn.numWaves-1):map(function(i)
-			return {[tostring(i)] = 'value = deltaUEig['..i..'];'}
+			return {[tostring(i)] = '*value = deltaUEig['..i..'];'}
 		end),
 	}
 	if self.fluxLimiter[0] > 0 then
@@ -155,7 +155,7 @@ function Roe:addConvertToTexs()
 	const global real* rEig = buf + indexInt * numWaves;
 ]],
 			vars = range(0,self.eqn.numWaves-1):map(function(i)
-				return {[tostring(i)] = 'value = rEig['..i..'];'}
+				return {[tostring(i)] = '*value = rEig['..i..'];'}
 			end),
 		}
 	end
@@ -166,7 +166,7 @@ function Roe:addConvertToTexs()
 	const global ]]..self.eqn.cons_t..[[* flux = buf + indexInt;
 ]],
 		vars = range(0,self.eqn.numStates-1):map(function(i)
-			return {[tostring(i)] = 'value = flux->ptr['..i..'];'}
+			return {[tostring(i)] = '*value = flux->ptr['..i..'];'}
 		end),
 	}
 
@@ -176,8 +176,8 @@ function Roe:addConvertToTexs()
 			useLog = true,
 			type = 'error_t',
 			vars = {
-				{ortho = 'value = buf[indexInt].ortho;'},
-				{flux = 'value = buf[indexInt].flux;'},
+				{ortho = '*value = buf[indexInt].ortho;'},
+				{flux = '*value = buf[indexInt].flux;'},
 			},
 		}
 	end

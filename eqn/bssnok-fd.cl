@@ -57,12 +57,12 @@ kernel void constrainU(
 
 kernel void calcDeriv(
 	global <?=eqn.cons_t?>* derivBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	<?=calcConstraints and '' or 'const '?>global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 
-	<?=calcConstraints and '' or 'const'?> global <?=eqn.cons_t?>* U = UBuf + index;
+	<?=calcConstraints and '' or 'const '?>global <?=eqn.cons_t?>* U = UBuf + index;
 
 	const global <?=eqn.cons_t?>* Up[dim];
 	const global <?=eqn.cons_t?>* Um[dim];

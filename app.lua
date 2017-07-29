@@ -97,13 +97,13 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 function HydroCLApp:setup()
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	local dim = 3
+	local dim = 2
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or dim,
 		
-		--integrator = cmdline.integrator or 'forward Euler',	
+		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -115,7 +115,7 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		integrator = 'backward Euler',
+		--integrator = 'backward Euler',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
@@ -130,7 +130,7 @@ function HydroCLApp:setup()
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = ({
 			{256,1,1},
-			{128,128,1},
+			{256,256,1},
 			{32,32,32},
 		})[dim],
 		boundary = {
@@ -211,7 +211,7 @@ function HydroCLApp:setup()
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -256,7 +256,7 @@ function HydroCLApp:setup()
 	
 		-- GR
 		--initState = 'gauge shock wave',
-		initState = 'Alcubierre warp bubble',
+		--initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
 		--initState = 'binary black holes',
 		--initState = 'stellar model',
@@ -267,7 +267,7 @@ function HydroCLApp:setup()
 	self.solvers = table()
 	
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
@@ -318,7 +318,7 @@ function HydroCLApp:setup()
 	-- TODO constant Minkowski boundary conditions?
 	-- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 	-- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-	self.solvers:insert(require 'solver.bssnok-fd'(args))
+	--self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 
@@ -619,6 +619,63 @@ function HydroCLApp:initGL(...)
 				},
 			}
 		end
+	
+		solver.vectorFieldShader = GLProgram{
+			vertexCode = template([[
+uniform vec3 mins, maxs;
+uniform float scale;
+
+<? if dim < 3 then ?>
+uniform sampler2D tex;
+<? else ?>
+uniform sampler3D tex;
+<? end ?>
+
+void main() {
+<? if dim < 3 then ?> 
+	vec3 dir = texture2D(tex, gl_MultiTexCoord0.xy).rgb;
+	vec3 tv = vec3(-dir.y, dir.x, 0.);
+<? else ?>
+	vec3 dir = texture3D(tex, gl_MultiTexCoord0.xyz).rgb;
+	vec3 vx = vec3(0., -dir.z, dir.y);
+	vec3 vy = vec3(dir.z, 0., -dir.x);
+	vec3 vz = vec3(-dir.y, dir.x, 0.);
+	float lxsq = dot(vx,vx);
+	float lysq = dot(vy,vy);
+	float lzsq = dot(vz,vz);
+	vec3 tv;
+	if (lxsq > lysq) {		//x > y
+		if (lxsq > lzsq) {	//x > z, x > y
+			tv = vx;
+		} else {			//z > x > y
+			tv = vz;
+		}
+	} else {				//y >= x
+		if (lysq > lzsq) {	//y >= x, y > z
+			tv = vy;
+		} else {			// z > y >= x
+			tv = vz;
+		}
+	}
+<? end ?>
+
+	vec2 offset = gl_Vertex.xy;
+	vec3 v = gl_MultiTexCoord1.xyz * (maxs - mins) + mins + scale * (offset.x * dir + offset.y * tv);
+	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(v, 1.);
+}
+]], {dim=solver.dim}),
+			fragmentCode = [[
+void main() {
+	//TODO uniform & use graph color
+	gl_FragColor = vec4(1.,1.,1.,1.);
+}
+]],
+			uniforms = {
+				scale = 1,
+				tex = 0,
+			},
+		}
+
 	end
 
 	self.isobarShader = GLProgram{
@@ -770,7 +827,7 @@ end
 
 
 HydroCLApp.running = nil
-HydroCLApp.displayAllTogether = false
+HydroCLApp.displayAllTogether = true
 
 function HydroCLApp:update(...)
 	if self.running then
@@ -822,10 +879,16 @@ function HydroCLApp:update(...)
 	local graphsHigh = math.ceil(#varNamesEnabled/graphsWide)
 	local graphCol = 0
 	local graphRow = 0
-	
+
+	if self.displayAllTogether then
+		graphsWide = 1
+		graphsHigh = 1
+	end
+
 	local ar = (w / graphsWide) / (h / graphsHigh)
 
 	local useLog
+	local vectorField
 	for _,varName in ipairs(varNamesEnabled) do
 		local xmin, xmax, ymin, ymax
 		for _,solver in ipairs(self.solvers) do
@@ -836,6 +899,7 @@ function HydroCLApp:update(...)
 			--and solver.visiblePtr and solver.visiblePtr[0] 
 			then
 				useLog = var.useLog
+				vectorField = var.vectorField
 				
 				local solverxmin, solverxmax = solver.mins[1], solver.maxs[1]
 				solverxmin, solverxmax = 1.1 * solverxmin - .1 * solverxmax, 1.1 * solverxmax - .1 * solverxmin
@@ -915,18 +979,27 @@ function HydroCLApp:update(...)
 
 		-- TODO maybe find the first solver for this var and use it to choose 1D,2D,3D
 		local dim = self.solvers[1].dim
-		if dim == 1 then
-			self:display1D(self.solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
-		elseif dim == 2 then
-			self:display2D(self.solvers, varName, ar, xmin, ymin, xmax, ymax)
-		elseif dim == 3 then
-			self:display3D(self.solvers, varName, ar, xmin, ymin, xmax, ymax)
+		
+		if not vectorField then
+			if dim == 1 then
+				self:display1D(self.solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
+			elseif dim == 2 then
+				self:display2D(self.solvers, varName, ar, xmin, ymin, xmax, ymax)
+			elseif dim == 3 then
+				self:display3D(self.solvers, varName, ar, xmin, ymin, xmax, ymax)
+			end
+		else
+			--if self.enableVectorField then
+				self:displayVectorField(self.solvers, varName, ar, xmin, ymin, xmax, ymax)
+			--end
 		end
-
-		graphCol = graphCol + 1
-		if graphCol == graphsWide then
-			graphCol = 0
-			graphRow = graphRow + 1
+	
+		if not self.displayAllTogether then
+			graphCol = graphCol + 1
+			if graphCol == graphsWide then
+				graphCol = 0
+				graphRow = graphRow + 1
+			end
 		end
 	end
 
@@ -1328,13 +1401,13 @@ function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax
 	self.view:projection(ar)
 	self.view:modelview()
 
-	if not self.display3D_Slice_usePoints then self.display3D_Slice_usePoints = ffi.new('bool[1]', false) end
-	if not self.display3D_Slice_useIsos then self.display3D_Slice_useIsos = ffi.new('bool[1]', true) end
-	if not self.display3D_Slice_numIsobars then self.display3D_Slice_numIsobars = ffi.new('int[1]', 20) end
-	if not self.display3D_Slice_useLighting then self.display3D_Slice_useLighting = ffi.new('bool[1]', false) end
-	if not self.display3D_Slice_alpha then self.display3D_Slice_alpha = ffi.new('float[1]', .15) end
-	if not self.display3D_Slice_alphaGamma then self.display3D_Slice_alphaGamma = ffi.new('float[1]', 1) end
-	if not self.display3D_Slice_numSlices then self.display3D_Slice_numSlices = ffi.new('int[1]', 255) end
+	if self.display3D_Slice_usePoints == nil then self.display3D_Slice_usePoints = false end
+	if self.display3D_Slice_useIsos == nil then self.display3D_Slice_useIsos = true end
+	if self.display3D_Slice_numIsobars == nil then self.display3D_Slice_numIsobars = 20 end
+	if self.display3D_Slice_useLighting == nil then self.display3D_Slice_useLighting = false end
+	if self.display3D_Slice_alpha == nil then self.display3D_Slice_alpha = .15 end
+	if self.display3D_Slice_alphaGamma == nil then self.display3D_Slice_alphaGamma = 1 end
+	if self.display3D_Slice_numSlices == nil then self.display3D_Slice_numSlices = 255 end
 
 if useClipPlanes then
 	for i,clipInfo in ipairs(clipInfos) do
@@ -1360,16 +1433,16 @@ end
 			solver.volumeSliceShader:use()
 			solver:getTex(var):bind(0)
 			self.gradientTex:bind(1)
-			gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha.loc, self.display3D_Slice_alpha[0])
-			gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, self.display3D_Slice_alphaGamma[0])
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha.loc, self.display3D_Slice_alpha)
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, self.display3D_Slice_alphaGamma)
 			gl.glUniform3f(solver.volumeSliceShader.uniforms.mins.loc, solver.mins:unpack())
 			gl.glUniform3f(solver.volumeSliceShader.uniforms.maxs.loc, solver.maxs:unpack())
 			gl.glUniform1i(solver.volumeSliceShader.uniforms.useLog.loc, var.useLog)
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMin.loc, valueMin)
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMax.loc, valueMax)
-			gl.glUniform1i(solver.volumeSliceShader.uniforms.useIsos.loc, self.display3D_Slice_useIsos[0])
-			gl.glUniform1f(solver.volumeSliceShader.uniforms.numIsobars.loc, self.display3D_Slice_numIsobars[0])
-			gl.glUniform1i(solver.volumeSliceShader.uniforms.useLighting.loc, self.display3D_Slice_useLighting[0])
+			gl.glUniform1i(solver.volumeSliceShader.uniforms.useIsos.loc, self.display3D_Slice_useIsos)
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.numIsobars.loc, self.display3D_Slice_numIsobars)
+			gl.glUniform1i(solver.volumeSliceShader.uniforms.useLighting.loc, self.display3D_Slice_useLighting)
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.numGhost.loc, solver.numGhost)
 			gl.glUniform3f(solver.volumeSliceShader.uniforms.texSize.loc, solver.gridSize:unpack())
 
@@ -1379,7 +1452,7 @@ if useClipPlanes then
 			end
 end
 
-			if self.display3D_Slice_usePoints[0] then
+			if self.display3D_Slice_usePoints then
 				gl.glEnable(gl.GL_DEPTH_TEST)
 				gl.glPointSize(2)
 				gl.glBegin(gl.GL_POINTS)
@@ -1402,7 +1475,7 @@ end
 				gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 				gl.glEnable(gl.GL_BLEND)
 
-				local n = self.display3D_Slice_numSlices[0]
+				local n = self.display3D_Slice_numSlices
 				local fwd = -self.frustumView.angle:conjugate():zAxis()
 				local fwddir = select(2, table(fwd):map(math.abs):sup())
 
@@ -1485,6 +1558,8 @@ function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, 
 				var.heatMapValueMin = valueMin
 				var.heatMapValueMax = valueMax
 			end
+			
+			solver:calcDisplayVarToTex(var)	
 
 			gl.glColor3f(1,1,1)
 			for pass=0,1 do
@@ -1877,6 +1952,71 @@ function HydroCLApp:display3D(...)
 	select(2, next(display3DMethods[ self.display3DMethod[0]+1 ]))(self, ...)
 end
 
+local arrow = {
+	{-.5, 0.},
+	{.5, 0.},
+	{.2, .3},
+	{.5, 0.},
+	{.2, -.3},
+	{.5, 0.},
+}
+function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
+	self.view:projection(ar)
+	self.view:modelview()
+	
+	for _,solver in ipairs(solvers) do
+		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
+		if varIndex and var.enabled then
+			local valueMin, valueMax
+			if var.heatMapFixedRange then
+				valueMin = var.heatMapValueMin
+				valueMax = var.heatMapValueMax
+			else
+				valueMin, valueMax = solver:calcDisplayVarRange(var)
+				var.heatMapValueMin = valueMin
+				var.heatMapValueMax = valueMax
+			end
+			
+			solver:calcDisplayVarToTex(var)	
+					
+			solver.vectorFieldShader:use()
+			solver:getTex(var):bind(0)
+			
+			gl.glUniform3f(solver.vectorFieldShader.uniforms.mins.loc, solver.mins:unpack())
+			gl.glUniform3f(solver.vectorFieldShader.uniforms.maxs.loc, solver.maxs:unpack())
+			-- how to determine scale?
+			local scale = .1 * (valueMax - valueMin)
+			gl.glUniform1f(solver.vectorFieldShader.uniforms.scale.loc, scale) 
+
+			local step = 10
+			gl.glBegin(gl.GL_LINES)
+			for k=0,tonumber(solver.sizeWithoutBorder.z-1),step do
+				for j=0,tonumber(solver.sizeWithoutBorder.y-1),step do
+					for i=0,tonumber(solver.sizeWithoutBorder.x-1),step do
+						local tx = (i + .5 + solver.numGhost) / tonumber(solver.gridSize.x)
+						local ty = (j + .5 + (solver.dim > 1 and solver.numGhost or 0)) / tonumber(solver.gridSize.y)
+						local tz = (k + .5 + (solver.dim > 2 and solver.numGhost or 0)) / tonumber(solver.gridSize.z)
+						gl.glMultiTexCoord3f(gl.GL_TEXTURE0, tx, ty, tz)	
+						local x = (i + .5) / tonumber(solver.sizeWithoutBorder.x)
+						local y = (j + .5) / tonumber(solver.sizeWithoutBorder.y)
+						local z = (k + .5) / tonumber(solver.sizeWithoutBorder.z)
+						gl.glMultiTexCoord3f(gl.GL_TEXTURE1, x, y, z)
+						for _,q in ipairs(arrow) do
+							gl.glVertex2f(q[1], q[2])
+						end
+					end
+				end
+			end
+			gl.glEnd()
+	
+			solver:getTex(var):unbind(0)
+			solver.vectorFieldShader:useNone()
+		end
+	end
+	
+glreport'here'
+end
+
 function HydroCLApp:updateGUI()
 	if ig.igCollapsingHeader'simulation' then
 		if ig.igButton(self.running and 'Stop' or 'Start') then
@@ -1947,20 +2087,22 @@ if useClipPlanes then
 						ig.igPopId()
 					end				
 end					
-					ig.igSliderFloat('alpha', self.display3D_Slice_alpha, 0, 1)
-					ig.igSliderFloat('gamma', self.display3D_Slice_alphaGamma, 0, 1)
-					ig.igCheckbox('isobars', self.display3D_Slice_useIsos)
-					if self.display3D_Slice_useIsos[0] then
-						ig.igInputInt('num isobars', self.display3D_Slice_numIsobars)
+					tooltip.sliderTable('alpha', self, 'display3D_Slice_alpha', 0, 1)
+					tooltip.sliderTable('gamma', self, 'display3D_Slice_alphaGamma', 0, 1)
+					tooltip.checkboxTable('isobars', self, 'display3D_Slice_useIsos')
+					if self.display3D_Slice_useIsos then
+						tooltip.intTable('num isobars', self, 'display3D_Slice_numIsobars')
 					end
-					ig.igCheckbox('lighting', self.display3D_Slice_useLighting)
-					ig.igCheckbox('pointcloud', self.display3D_Slice_usePoints)
-					if not self.display3D_Slice_usePoints[0] then
-						ig.igInputInt('num slices', self.display3D_Slice_numSlices)
+					tooltip.checkboxTable('lighting', self, 'display3D_Slice_useLighting')
+					tooltip.checkboxTable('pointcloud', self, 'display3D_Slice_usePoints')
+					if not self.display3D_Slice_usePoints then
+						tooltip.int('num slices', self, 'display3D_Slice_numSlices')
 					end
 				end
 				ig.igPopId()
 			end
+		
+			--ig.igCheckbox('vector field', self.enableVectorField)
 		end
 	end
 	

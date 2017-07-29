@@ -327,7 +327,7 @@ function TwoFluidEMHD:getDisplayVars()
 	real3 vjm = real3_scale(Ujm-><?=fluid?>_m, 1. / Ujm-><?=fluid?>_rho);
 	real3 vjp = real3_scale(Ujp-><?=fluid?>_m, 1. / Ujp-><?=fluid?>_rho);
 	
-	value = (vjp.s<?=i?> - vjm.s<?=i?>) / (2. * grid_dx<?=i?>)
+	*value = (vjp.s<?=i?> - vjm.s<?=i?>) / (2. * grid_dx<?=i?>)
 			- (vip.s<?=j?> - vim.s<?=j?>) / (2. * grid_dx<?=j?>);
 ]], 		{
 				i = i,
@@ -338,31 +338,31 @@ function TwoFluidEMHD:getDisplayVars()
 		end
 		
 		vars:append{
-			{[fluid..' rho'] = 'value = W.'..fluid..'_rho;'},
-			{[fluid..' vx'] = 'value = W.'..fluid..'_v.x;'},
-			{[fluid..' vy'] = 'value = W.'..fluid..'_v.y;'},
-			{[fluid..' vz'] = 'value = W.'..fluid..'_v.z;'},
-			{[fluid..' v'] = 'value = coordLen(W.'..fluid..'_v, x);'},
-			{[fluid..' mx'] = 'value = U->'..fluid..'_m.x;'},
-			{[fluid..' my'] = 'value = U->'..fluid..'_m.y;'},
-			{[fluid..' mz'] = 'value = U->'..fluid..'_m.z;'},
-			{[fluid..' m'] = 'value = coordLen(U->'..fluid..'_m, x);'},
-			{[fluid..' P'] = 'value = W.'..fluid..'_P;'},
-			{[fluid..' eInt'] = 'value = calc_'..fluid..'_eInt(W);'},
-			{[fluid..' eKin'] = 'value = calc_'..fluid..'_eKin(W, x);'},
-			{[fluid..' ePot'] = 'value = U->'..fluid..'_ePot;'},
-			{[fluid..' eTotal'] = 'value = U->'..fluid..'_ETotal / W.'..fluid..'_rho;'},
-			{[fluid..' EInt'] = 'value = calc_'..fluid..'_EInt(W);'},
-			{[fluid..' EKin'] = 'value = calc_'..fluid..'_EKin(W, x);'},
-			{[fluid..' EPot'] = 'value = U->'..fluid..'_rho * U->'..fluid..'_ePot;'},
-			{[fluid..' ETotal'] = 'value = U->'..fluid..'_ETotal;'},
-			{[fluid..' S'] = 'value = W.'..fluid..'_P / pow(W.'..fluid..'_rho, (real)heatCapacityRatio);'},
-			{[fluid..' H'] = 'value = calc_H(W.'..fluid..'_P);'},
-			{[fluid..' h'] = 'value = calc_h(W.'..fluid..'_rho, W.'..fluid..'_P);'},
-			{[fluid..' HTotal'] = 'value = calc_HTotal(W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
-			{[fluid..' hTotal'] = 'value = calc_hTotal(W.'..fluid..'_rho, W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
-			{[fluid..'Speed of Sound'] = 'value = calc_'..fluid..'_Cs(&W);'},
-			{[fluid..'Mach number'] = 'value = coordLen(W.'..fluid..'_v, x) / calc_'..fluid..'_Cs(&W);'},
+			{[fluid..' rho'] = '*value = W.'..fluid..'_rho;'},
+			{[fluid..' vx'] = '*value = W.'..fluid..'_v.x;'},
+			{[fluid..' vy'] = '*value = W.'..fluid..'_v.y;'},
+			{[fluid..' vz'] = '*value = W.'..fluid..'_v.z;'},
+			{[fluid..' v'] = '*value = coordLen(W.'..fluid..'_v, x);'},
+			{[fluid..' mx'] = '*value = U->'..fluid..'_m.x;'},
+			{[fluid..' my'] = '*value = U->'..fluid..'_m.y;'},
+			{[fluid..' mz'] = '*value = U->'..fluid..'_m.z;'},
+			{[fluid..' m'] = '*value = coordLen(U->'..fluid..'_m, x);'},
+			{[fluid..' P'] = '*value = W.'..fluid..'_P;'},
+			{[fluid..' eInt'] = '*value = calc_'..fluid..'_eInt(W);'},
+			{[fluid..' eKin'] = '*value = calc_'..fluid..'_eKin(W, x);'},
+			{[fluid..' ePot'] = '*value = U->'..fluid..'_ePot;'},
+			{[fluid..' eTotal'] = '*value = U->'..fluid..'_ETotal / W.'..fluid..'_rho;'},
+			{[fluid..' EInt'] = '*value = calc_'..fluid..'_EInt(W);'},
+			{[fluid..' EKin'] = '*value = calc_'..fluid..'_EKin(W, x);'},
+			{[fluid..' EPot'] = '*value = U->'..fluid..'_rho * U->'..fluid..'_ePot;'},
+			{[fluid..' ETotal'] = '*value = U->'..fluid..'_ETotal;'},
+			{[fluid..' S'] = '*value = W.'..fluid..'_P / pow(W.'..fluid..'_rho, (real)heatCapacityRatio);'},
+			{[fluid..' H'] = '*value = calc_H(W.'..fluid..'_P);'},
+			{[fluid..' h'] = '*value = calc_h(W.'..fluid..'_rho, W.'..fluid..'_P);'},
+			{[fluid..' HTotal'] = '*value = calc_HTotal(W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
+			{[fluid..' hTotal'] = '*value = calc_hTotal(W.'..fluid..'_rho, W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
+			{[fluid..'Speed of Sound'] = '*value = calc_'..fluid..'_Cs(&W);'},
+			{[fluid..'Mach number'] = '*value = coordLen(W.'..fluid..'_v, x) / calc_'..fluid..'_Cs(&W);'},
 		}:append( ({
 		-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
 		-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
@@ -374,22 +374,22 @@ function TwoFluidEMHD:getDisplayVars()
 	end
 
 	vars:append{
-		{Ex = 'value = U->epsE.x / U->eps;'},
-		{Ey = 'value = U->epsE.y / U->eps;'},
-		{Ez = 'value = U->epsE.z / U->eps;'},
-		{E = 'value = sqrt(ESq(*U, x));'},
-		{Bx = 'value = U->B.x;'},
-		{By = 'value = U->B.y;'},
-		{Bz = 'value = U->B.z;'},
-		{B = 'value = sqrt(BSq(*U, x));'},
+		{Ex = '*value = U->epsE.x / U->eps;'},
+		{Ey = '*value = U->epsE.y / U->eps;'},
+		{Ez = '*value = U->epsE.z / U->eps;'},
+		{E = '*value = sqrt(ESq(*U, x));'},
+		{Bx = '*value = U->B.x;'},
+		{By = '*value = U->B.y;'},
+		{Bz = '*value = U->B.z;'},
+		{B = '*value = sqrt(BSq(*U, x));'},
 		{['EM energy'] = [[
-	//value = .5 * (coordLen(U->epsE) + coordLen(U->B) / U->mu);
-	value = .5 * (real3_len(U->epsE) + real3_len(U->B) / U->mu);
+	//*value = .5 * (coordLen(U->epsE) + coordLen(U->B) / U->mu);
+	*value = .5 * (real3_len(U->epsE) + real3_len(U->B) / U->mu);
 ]]},
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='epsE', B='B'})[var] )
 		return {['div '..var] = template([[
-	value = .5 * (0.
+	*value = .5 * (0.
 <?
 for j=0,solver.dim-1 do
 ?>		+ (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 
@@ -404,10 +404,10 @@ end
 ?>;
 ]], {solver=self.solver, field=field})}
 	end)):append{
-		{BPot = 'value = U->BPot;'},
-		{sigma = 'value = U->sigma;'},
-		{eps = 'value = U->eps;'},
-		{mu = 'value = U->mu;'},
+		{BPot = '*value = U->BPot;'},
+		{sigma = '*value = U->sigma;'},
+		{eps = '*value = U->eps;'},
+		{mu = '*value = U->mu;'},
 	}
 
 	return vars
@@ -439,19 +439,19 @@ function TwoFluidEMHD:getEigenDisplayVars()
 	local vars = table()
 	for _,fluid in ipairs(fluids) do
 		vars:append{
-			{[fluid..' rho'] = 'value = eigen->'..fluid..'_rho;'},
-			{[fluid..' vx'] = 'value = eigen->'..fluid..'_v.x;'},
-			{[fluid..' vy'] = 'value = eigen->'..fluid..'_v.y;'},
-			{[fluid..' vz'] = 'value = eigen->'..fluid..'_v.z;'},
-			{[fluid..' v'] = 'value = coordLen(eigen->'..fluid..'_v, xInt[0]);'},
-			{[fluid..' hTotal'] = 'value = eigen->'..fluid..'_hTotal;'},
-			{[fluid..' vSq'] = 'value = eigen->'..fluid..'_vSq;'},
-			{[fluid..' Cs'] = 'value = eigen->'..fluid..'_Cs;'},
+			{[fluid..' rho'] = '*value = eigen->'..fluid..'_rho;'},
+			{[fluid..' vx'] = '*value = eigen->'..fluid..'_v.x;'},
+			{[fluid..' vy'] = '*value = eigen->'..fluid..'_v.y;'},
+			{[fluid..' vz'] = '*value = eigen->'..fluid..'_v.z;'},
+			{[fluid..' v'] = '*value = coordLen(eigen->'..fluid..'_v, xInt[0]);'},
+			{[fluid..' hTotal'] = '*value = eigen->'..fluid..'_hTotal;'},
+			{[fluid..' vSq'] = '*value = eigen->'..fluid..'_vSq;'},
+			{[fluid..' Cs'] = '*value = eigen->'..fluid..'_Cs;'},
 		}
 	end
 	vars:append{
-		{eps = 'value = eigen->eps;'},
-		{mu = 'value = eigen->mu;'},
+		{eps = '*value = eigen->eps;'},
+		{mu = '*value = eigen->mu;'},
 	}
 	return vars
 end

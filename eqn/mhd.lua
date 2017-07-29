@@ -165,21 +165,21 @@ end
 
 function MHD:getDisplayVars()
 	return {
-		{rho = 'value = W.rho;'},
-		{vx = 'value = W.v.x;'},
-		{vy = 'value = W.v.y;'},
-		{vz = 'value = W.v.z;'},
-		{v = 'value = real3_len(W.v);'},
-		{mx = 'value = U->m.x;'},
-		{my = 'value = U->m.y;'},
-		{mz = 'value = U->m.z;'},
-		{m = 'value = real3_len(U->m);'},
-		{Bx = 'value = W.B.x;'},
-		{By = 'value = W.B.y;'},
-		{Bz = 'value = W.B.z;'},
-		{['|B|'] = 'value = real3_len(W.B);'},
+		{rho = '*value = W.rho;'},
+		{vx = '*value = W.v.x;'},
+		{vy = '*value = W.v.y;'},
+		{vz = '*value = W.v.z;'},
+		{v = '*value = real3_len(W.v);'},
+		{mx = '*value = U->m.x;'},
+		{my = '*value = U->m.y;'},
+		{mz = '*value = U->m.z;'},
+		{m = '*value = real3_len(U->m);'},
+		{Bx = '*value = W.B.x;'},
+		{By = '*value = W.B.y;'},
+		{Bz = '*value = W.B.z;'},
+		{['|B|'] = '*value = real3_len(W.B);'},
 		{['div B'] = template([[
-	value = .5 * (0.
+	*value = .5 * (0.
 <? 
 for j=0,solver.dim-1 do 
 ?>		+ (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 
@@ -193,33 +193,33 @@ if field == 'epsE' then
 end
 ?>;
 ]], {solver=self.solver, field='B'})},
-		{['BPot'] = 'value = U->BPot;'},
-		{P = 'value = W.P;'},
-		--{PMag = 'value = calc_PMag(W);'},
-		--{PTotal = 'value = W.P + calc_PMag(W);'},
-		--{eInt = 'value = calc_eInt(W);'},
-		{EInt = 'value = calc_EInt(W);'},
-		--{eKin = 'value = calc_eKin(W);'},
-		{EKin = 'value = calc_EKin(W);'},
-		--{eHydro = 'value = calc_eHydro(W);'},
-		{EHydro = 'value = calc_EHydro(W);'},
-		--{eMag = 'value = calc_eMag(W);'},
-		{EMag = 'value = calc_EMag(W);'},
-		--{eTotal = 'value = U->ETotal / W.rho;'},
-		{ETotal = 'value = U->ETotal;'},
-		{S = 'value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
-		{H = 'value = calc_H(W.P);'},
-		--{h = 'value = calc_H(W.P) / W.rho;'},
-		--{HTotal = 'value = calc_HTotal(W, U->ETotal);'},
-		--{hTotal = 'value = calc_hTotal(W, U->ETotal);'},
-		--{Cs = 'value = calc_Cs(W); },
+		{['BPot'] = '*value = U->BPot;'},
+		{P = '*value = W.P;'},
+		--{PMag = '*value = calc_PMag(W);'},
+		--{PTotal = '*value = W.P + calc_PMag(W);'},
+		--{eInt = '*value = calc_eInt(W);'},
+		{EInt = '*value = calc_EInt(W);'},
+		--{eKin = '*value = calc_eKin(W);'},
+		{EKin = '*value = calc_EKin(W);'},
+		--{eHydro = '*value = calc_eHydro(W);'},
+		{EHydro = '*value = calc_EHydro(W);'},
+		--{eMag = '*value = calc_eMag(W);'},
+		{EMag = '*value = calc_EMag(W);'},
+		--{eTotal = '*value = U->ETotal / W.rho;'},
+		{ETotal = '*value = U->ETotal;'},
+		{S = '*value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
+		{H = '*value = calc_H(W.P);'},
+		--{h = '*value = calc_H(W.P) / W.rho;'},
+		--{HTotal = '*value = calc_HTotal(W, U->ETotal);'},
+		--{hTotal = '*value = calc_hTotal(W, U->ETotal);'},
+		--{Cs = '*value = calc_Cs(W); },
 		{['primitive reconstruction error'] = template([[
 		//prim have just been reconstructed from cons
 		//so reconstruct cons from prims again and calculate the difference
 		<?=eqn.cons_t?> U2 = consFromPrim(W);
-		value = 0;
+		*value = 0;
 		for (int j = 0; j < numStates; ++j) {
-			value += fabs(U->ptr[j] - U2.ptr[j]);
+			*value += fabs(U->ptr[j] - U2.ptr[j]);
 		}
 ]], {
 	eqn = self,
@@ -247,15 +247,15 @@ function MHD:getEigenDisplayVars()
 	return range(0, self.numWaves * self.numWaves - 1):map(function(i)
 		local row = i%self.numWaves
 		local col = (i-row)/self.numWaves
-		return {['evL_'..row..'_'..col] = 'value = eigen->evL['..i..'];'}
+		return {['evL_'..row..'_'..col] = '*value = eigen->evL['..i..'];'}
 	end):append(range(0, self.numWaves * self.numWaves - 1):map(function(i)
 		local row = i % self.numWaves
 		local col = (i-row)/self.numWaves
-		return {['evR_'..row..'_'..col] = 'value = eigen->evR['..i..'];'}
+		return {['evR_'..row..'_'..col] = '*value = eigen->evR['..i..'];'}
 	end)):append(self.solver.checkFluxError and range(0, self.numWaves * self.numWaves - 1):map(function(i)
 		local row = i%self.numWaves
 		local col = (i-row)/self.numWaves
-		return {['A_'..row..'_'..col] = 'value = eigen->A['..i..'];'}
+		return {['A_'..row..'_'..col] = '*value = eigen->A['..i..'];'}
 	end) or nil)
 end
 

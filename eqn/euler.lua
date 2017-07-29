@@ -171,13 +171,12 @@ function Euler:getDisplayVarCodePrefix()
 })
 end
 
-function Euler:getDisplayVars()
-	-- k is 0,1,2
-	local function vorticity(k)
-		local xs = {'x','y','z'}
-		local i = (k+1)%3
-		local j = (i+1)%3
-		return {['vorticity '..xs[k+1]] = template([[
+-- k is 0,1,2
+local function vorticity(eqn,k)
+	local xs = {'x','y','z'}
+	local i = (k+1)%3
+	local j = (i+1)%3
+	return {['vorticity '..xs[k+1]] = template([[
 	global const <?=eqn.cons_t?>* Uim = buf + index - stepsize.s<?=i?>;
 	global const <?=eqn.cons_t?>* Uip = buf + index + stepsize.s<?=i?>;
 	global const <?=eqn.cons_t?>* Ujm = buf + index - stepsize.s<?=j?>;
@@ -190,48 +189,80 @@ function Euler:getDisplayVars()
 	real3 vjm = real3_scale(Ujm->m, 1. / Ujm->rho);
 	real3 vjp = real3_scale(Ujp->m, 1. / Ujp->rho);
 	
-	value = (vjp.s<?=i?> - vjm.s<?=i?>) / (2. * grid_dx<?=i?>)
+	*value = (vjp.s<?=i?> - vjm.s<?=i?>) / (2. * grid_dx<?=i?>)
 			- (vip.s<?=j?> - vim.s<?=j?>) / (2. * grid_dx<?=j?>);
-]], 	{
-			i = i,
-			j = j,
-			eqn = self,
-		})}
-	end
+]], {
+		i = i,
+		j = j,
+		eqn = eqn,
+	})}
+end
+
+function Euler:getDisplayVars()
 	return table{
-		{rho = 'value = W.rho;'},
-		{vx = 'value = W.v.x;'},
-		{vy = 'value = W.v.y;'},
-		{vz = 'value = W.v.z;'},
-		{v = 'value = coordLen(W.v, x);'},
-		{mx = 'value = U.m.x;'},
-		{my = 'value = U.m.y;'},
-		{mz = 'value = U.m.z;'},
-		{m = 'value = coordLen(U.m, x);'},
-		{P = 'value = W.P;'},
-		{eInt = 'value = calc_eInt(W);'},
-		{eKin = 'value = calc_eKin(W, x);'},
-		{ePot = 'value = U.ePot;'},
-		{eTotal = 'value = U.ETotal / W.rho;'},
-		{EInt = 'value = calc_EInt(W);'},
-		{EKin = 'value = calc_EKin(W, x);'},
-		{EPot = 'value = U.rho * U.ePot;'},
-		{ETotal = 'value = U.ETotal;'},
-		{S = 'value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
-		{H = 'value = calc_H(W.P);'},
-		{h = 'value = calc_h(W.rho, W.P);'},
-		{HTotal = 'value = calc_HTotal(W.P, U.ETotal);'},
-		{hTotal = 'value = calc_hTotal(W.rho, W.P, U.ETotal);'},
-		{['Speed of Sound'] = 'value = calc_Cs(&W);'},
-		{['Mach number'] = 'value = coordLen(W.v, x) / calc_Cs(&W);'},
+		{rho = '*value = W.rho;'},
+		{vx = '*value = W.v.x;'},
+		{vy = '*value = W.v.y;'},
+		{vz = '*value = W.v.z;'},
+		{vMag = '*value = coordLen(W.v, x);'},
+		{mx = '*value = U.m.x;'},
+		{my = '*value = U.m.y;'},
+		{mz = '*value = U.m.z;'},
+		{mMag = '*value = coordLen(U.m, x);'},
+		{P = '*value = W.P;'},
+		{eInt = '*value = calc_eInt(W);'},
+		{eKin = '*value = calc_eKin(W, x);'},
+		{ePot = '*value = U.ePot;'},
+		{eTotal = '*value = U.ETotal / W.rho;'},
+		{EInt = '*value = calc_EInt(W);'},
+		{EKin = '*value = calc_EKin(W, x);'},
+		{EPot = '*value = U.rho * U.ePot;'},
+		{ETotal = '*value = U.ETotal;'},
+		{S = '*value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
+		{H = '*value = calc_H(W.P);'},
+		{h = '*value = calc_h(W.rho, W.P);'},
+		{HTotal = '*value = calc_HTotal(W.P, U.ETotal);'},
+		{hTotal = '*value = calc_hTotal(W.rho, W.P, U.ETotal);'},
+		{['Speed of Sound'] = '*value = calc_Cs(&W);'},
+		{['Mach number'] = '*value = coordLen(W.v, x) / calc_Cs(&W);'},
 	}:append( ({
 	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
 	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
 			[1] = {},
-			[2] = {vorticity(2)},
-			[3] = range(0,2):map(vorticity),
+			[2] = {vorticity(self,2)},
+			[3] = range(0,2):map(function(i) return vorticity(self,i) end),
 
 	})[self.solver.dim] )
+end
+
+function Euler:getVecDisplayVars()
+	local vars = table{
+		{v = 'valuevec = W.v;'},
+		{m = 'valuevec = U.m;'},
+--[=[		
+		{v = [[
+	value[0] = W.v.x;
+	value[1] = W.v.y;
+	value[2] = W.v.z;
+]]},
+		{m = [[
+	value[0] = U.m.x;
+	value[1] = U.m.y;
+	value[2] = U.m.z;
+]]},
+--]=]
+	}
+	if self.solver.dim == 3 then
+		local v = range(0,2):map(function(i) return vorticity(self,i) end)
+		return {vorticityVec = template([[
+	<? for i=0,2 do ?>{
+		<?=select(2,next(v[i]))?>
+		++value;
+	}<? end ?>
+	value -= 3;
+]], {v=v})}
+	end
+	return vars
 end
 
 function Euler:getEigenTypeCode()
@@ -253,14 +284,14 @@ end
 
 function Euler:getEigenDisplayVars()
 	return {
-		{rho = 'value = eigen->rho;'},
-		{vx = 'value = eigen->v.x;'},
-		{vy = 'value = eigen->v.y;'},
-		{vz = 'value = eigen->v.z;'},
-		{v = 'value = coordLen(eigen->v, xInt[0]);'},
-		{hTotal = 'value = eigen->hTotal;'},
-		{vSq = 'value = eigen->vSq;'},
-		{Cs = 'value = eigen->Cs;'},
+		{rho = '*value = eigen->rho;'},
+		{vx = '*value = eigen->v.x;'},
+		{vy = '*value = eigen->v.y;'},
+		{vz = '*value = eigen->v.z;'},
+		{v = '*value = coordLen(eigen->v, xInt[0]);'},
+		{hTotal = '*value = eigen->hTotal;'},
+		{vSq = '*value = eigen->vSq;'},
+		{Cs = '*value = eigen->Cs;'},
 	}
 end
 

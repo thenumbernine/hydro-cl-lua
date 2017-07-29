@@ -117,22 +117,22 @@ end
 
 function Maxwell:getDisplayVars()
 	return table{
-		{Ex = 'value = U->epsE.x / U->eps;'},
-		{Ey = 'value = U->epsE.y / U->eps;'},
-		{Ez = 'value = U->epsE.z / U->eps;'},
-		{E = 'value = sqrt(ESq(*U, x));'},
-		{Bx = 'value = U->B.x;'},
-		{By = 'value = U->B.y;'},
-		{Bz = 'value = U->B.z;'},
-		{B = 'value = sqrt(BSq(*U, x));'},
+		{Ex = '*value = U->epsE.x / U->eps;'},
+		{Ey = '*value = U->epsE.y / U->eps;'},
+		{Ez = '*value = U->epsE.z / U->eps;'},
+		{E = '*value = sqrt(ESq(*U, x));'},
+		{Bx = '*value = U->B.x;'},
+		{By = '*value = U->B.y;'},
+		{Bz = '*value = U->B.z;'},
+		{B = '*value = sqrt(BSq(*U, x));'},
 		{energy = [[
-	//value = .5 * (coordLen(U->epsE) + coordLen(U->B) / U->mu);
-	value = .5 * (real3_len(U->epsE) + real3_len(U->B) / U->mu);
+	//*value = .5 * (coordLen(U->epsE) + coordLen(U->B) / U->mu);
+	*value = .5 * (real3_len(U->epsE) + real3_len(U->B) / U->mu);
 ]]},
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='epsE', B='B'})[var] )
 		return {['div '..var] = template([[
-	value = .5 * (0.
+	*value = .5 * (0.
 <?
 for j=0,solver.dim-1 do
 ?>		+ (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 
@@ -147,10 +147,10 @@ end
 ?>;
 ]], {solver=self.solver, field=field})}
 	end)):append{
-		{BPot = 'value = U->BPot;'},
-		{sigma = 'value = U->sigma;'},
-		{eps = 'value = U->eps;'},
-		{mu = 'value = U->mu;'},
+		{BPot = '*value = U->BPot;'},
+		{sigma = '*value = U->sigma;'},
+		{eps = '*value = U->eps;'},
+		{mu = '*value = U->mu;'},
 	}
 end
 
@@ -161,8 +161,8 @@ end
 
 function Maxwell:getEigenDisplayVars()
 	return {
-		{eps = 'value = eigen->eps;'},
-		{mu = 'value = eigen->mu;'},
+		{eps = '*value = eigen->eps;'},
+		{mu = '*value = eigen->mu;'},
 	}
 end
 

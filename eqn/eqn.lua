@@ -104,15 +104,15 @@ function Equation:getEigenDisplayVars()
 	return range(self.numStates * self.numWaves):map(function(i)
 		local row = (i-1)%self.numWaves
 		local col = (i-1-row)/self.numWaves
-		return {['evL_'..row..'_'..col] = 'value = eigen->evL['..i..'];'}
+		return {['evL_'..row..'_'..col] = '*value = eigen->evL['..i..'];'}
 	end):append(range(self.numStates * self.numWaves):map(function(i)
 		local row = (i-1)%self.numStates
 		local col = (i-1-row)/self.numStates
-		return {['evR_'..row..'_'..col] = 'value = eigen->evR['..i..'];'}
+		return {['evR_'..row..'_'..col] = '*value = eigen->evR['..i..'];'}
 	end)):append(self.solver.checkFluxError and range(self.numStates * self.numStates):map(function(i)
 		local row = (i-1)%self.numStates
 		local col = (i-1-row)/self.numStates
-		return {['A_'..row..'_'..col] = 'value = eigen->A['..i..'];'}
+		return {['A_'..row..'_'..col] = '*value = eigen->A['..i..'];'}
 	end) or nil)
 end
 

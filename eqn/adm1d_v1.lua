@@ -83,22 +83,22 @@ end
 function ADM_BonaMasso_1D_Alcubierre2008:getDisplayVars()
 	return {
 		-- source-only:
-		{alpha = 'value = U->alpha;'},
-		{gamma_xx = 'value = U->gamma_xx;'},
+		{alpha = '*value = U->alpha;'},
+		{gamma_xx = '*value = U->gamma_xx;'},
 		-- both 1998 and 2008 cons vars:
-		{a_x = 'value = U->a_x;'},
+		{a_x = '*value = U->a_x;'},
 		-- 1998-only cons vars:
-		{d_xxx = 'value = .5 * U->D_g * U->gamma_xx;'},
-		{K_xx = 'value = U->KTilde * sqrt(U->gamma_xx);'},
+		{d_xxx = '*value = .5 * U->D_g * U->gamma_xx;'},
+		{K_xx = '*value = U->KTilde * sqrt(U->gamma_xx);'},
 		-- 2008-only cons vars:
-		{D_g = 'value = U->D_g;'},
-		{KTilde = 'value = U->KTilde;'},
+		{D_g = '*value = U->D_g;'},
+		{KTilde = '*value = U->KTilde;'},
 		-- aux:
-		{dx_alpha = 'value = U->alpha * U->a_x;'},
-		{dx_gamma_xx = 'value = U->gamma_xx * U->D_g;'},
-		{volume = 'value = U->alpha * sqrt(U->gamma_xx);'},
-		{f = 'value = calc_f(U->alpha);'},
-		{['df/dalpha'] = 'value = calc_dalpha_f(U->alpha);'},
+		{dx_alpha = '*value = U->alpha * U->a_x;'},
+		{dx_gamma_xx = '*value = U->gamma_xx * U->D_g;'},
+		{volume = '*value = U->alpha * sqrt(U->gamma_xx);'},
+		{f = '*value = calc_f(U->alpha);'},
+		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
 	}
 end
 
@@ -112,9 +112,9 @@ end
 		
 function ADM_BonaMasso_1D_Alcubierre2008:getEigenDisplayVars()
 	return {
-		{f = 'value = eigen->f;'},
-		{alpha = 'value = eigen->alpha;'},
-		{gamma_xx = 'value = eigen->gamma_xx;'},
+		{f = '*value = eigen->f;'},
+		{alpha = '*value = eigen->alpha;'},
+		{gamma_xx = '*value = eigen->gamma_xx;'},
 	}
 end
 

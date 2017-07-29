@@ -135,22 +135,23 @@ local BSSNOKFiniteDifferenceEquation = class(Equation)
 
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
 BSSNOKFiniteDifferenceEquation.numStates = 35
+BSSNOKFiniteDifferenceEquation.numIntStates = 18
 
 BSSNOKFiniteDifferenceEquation.useConstrainU = true
 
 function BSSNOKFiniteDifferenceEquation:getTypeCode()
 	return template([[
 typedef union {
-	real ptr[1];
+	real ptr[35];
 	struct {
-		real alpha;			//1
-		real3 beta_u;		//3: beta^i
-		sym3 gammaBar_ll;	//6: gammaBar_ij, only 5 dof since det gammaBar_ij = 1
+		real alpha;			//0		1
+		real3 beta_u;		//1		3: beta^i
+		sym3 gammaBar_ll;	//4		6: gammaBar_ij, only 5 dof since det gammaBar_ij = 1
 	
-		real phi;			//1
-		real K;				//1
-		sym3 ATilde_ll;		//6: ATilde_ij, only 5 dof since ATilde^k_k = 0
-		real3 connBar_u;	//3: connBar&i = gammaBar^jk connBar^i_jk = -partial_j gammaBar^ij
+		real phi;			//10	1
+		real K;				//11	1
+		sym3 ATilde_ll;		//12	6: ATilde_ij, only 5 dof since ATilde^k_k = 0
+		real3 connBar_u;	//18	3: connBar&i = gammaBar^jk connBar^i_jk = -partial_j gammaBar^ij
 
 ]]--[[		
 		//hyperbolic variables:
@@ -160,14 +161,14 @@ typedef union {
 ]]..[[
 		
 		//stress-energy variables:
-		real rho;			//1: n_a n_b T^ab
-		real3 S_u;			//3: -gamma^ij n_a T_aj
-		sym3 S_ll;			//6: gamma_i^c gamma_j^d T_cd
+		real rho;			//21	1: n_a n_b T^ab
+		real3 S_u;			//22	3: -gamma^ij n_a T_aj
+		sym3 S_ll;			//25	6: gamma_i^c gamma_j^d T_cd
 	
 		//constraints:
-		real H;
-		real3 M_u;
-	};
+		real H;				//31	1
+		real3 M_u;			//32	3
+	};						//35
 } <?=eqn.prim_t?>;
 typedef <?=eqn.prim_t?> <?=eqn.cons_t?>;
 
@@ -333,7 +334,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	local vars = table()
 
 	local function addvar(name)
-		vars:insert{[name] = 'value = U->'..name..';'}
+		vars:insert{[name] = '*value = U->'..name..';'}
 	end
 
 	local function addreal3(name)
@@ -370,20 +371,20 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	addreal3'M_u'
 
 	vars:append{
-		{['det_gammaBar_ll_minus_1'] = [[value = -1. + sym3_det(U->gammaBar_ll);]]},
+		{['det_gammaBar_ll_minus_1'] = [[*value = -1. + sym3_det(U->gammaBar_ll);]]},
 		{tr_ATilde = [[
 	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
-	value = sym3_dot(gammaBar_uu, U->ATilde_ll);
+	*value = sym3_dot(gammaBar_uu, U->ATilde_ll);
 ]]},
 		{S = [[
 	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
 	real exp_neg4phi = exp(-4. * U->phi);
 	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
-	value = sym3_dot(U->S_ll, gamma_uu);
+	*value = sym3_dot(U->S_ll, gamma_uu);
 ]]},
-		{det_gamma = 'value = exp(-4. * U->phi);'},
-		{volume = 'value = U->alpha * exp(-4. * U->phi);'},
-		{expansion = 'value = -U->alpha * U->K;'},
+		{det_gamma = '*value = exp(-4. * U->phi);'},
+		{volume = '*value = U->alpha * exp(-4. * U->phi);'},
+		{expansion = '*value = -U->alpha * U->K;'},
 		
 		-- TODO needs shift influence (which is lengthy)
 		{gravityMagn = template([[
@@ -391,7 +392,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
 	real exp_neg4phi = exp(-4. * U->phi);
 	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
-	value = real3_len(sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l)) / U->alpha;
+	*value = real3_len(sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l)) / U->alpha;
 ]],			{
 				solver = self.solver,
 				makePartial = function(...) return makePartial(self.solver, ...) end,
