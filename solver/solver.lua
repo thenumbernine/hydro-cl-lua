@@ -1084,10 +1084,12 @@ function Solver:refreshDisplayProgram()
 					convertToTex = convertToTex,
 					name = 'calcDisplayVarToBuffer_'..var.id,
 					input = 'global real* dest',
-					output = [[
-	dest[0+3*dstindex] = valuevec.x;//value[0];
-	dest[1+3*dstindex] = valuevec.y;//value[1];
-	dest[2+3*dstindex] = valuevec.z;//value[2];
+					output = var.vectorField and [[
+	dest[0+3*dstindex] = valuevec.x;
+	dest[1+3*dstindex] = valuevec.y;
+	dest[2+3*dstindex] = valuevec.z;
+]] or [[
+	dest[dstindex] = value[0];
 ]],
 				})
 			}
@@ -1558,24 +1560,27 @@ function Solver:calcDisplayVarToTex(var)
 		-- so is the GL texture
 		local ptr = self.calcDisplayVarToTexPtr
 		local tex = self.tex
-		
+
+		local channels = var.vectorField and 3 or 1
+		local format = var.vectorField and gl.GL_RGB or gl.GL_RED
+
 		convertToTex:setToBufferArgs(var)
 		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
-		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.volume * 3, ptr=ptr}
+		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.volume * channels, ptr=ptr}
 		local destPtr = ptr
 		if app.is64bit then
 			-- can this run in place?
 			destPtr = ffi.cast('float*', ptr)
-			for i=0,self.volume*3-1 do
+			for i=0,self.volume*channels-1 do
 				destPtr[i] = ptr[i]
 			end
 		end
 		tex:bind()
 		if self.dim < 3 then
-			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, tex.width, tex.height, gl.GL_RGB, gl.GL_FLOAT, destPtr)
+			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, tex.width, tex.height, format, gl.GL_FLOAT, destPtr)
 		else
 			for z=0,tex.depth-1 do
-				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, tex.width, tex.height, 1, gl.GL_RGB, gl.GL_FLOAT, destPtr + 3 * tex.width * tex.height * z)
+				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, tex.width, tex.height, 1, format, gl.GL_FLOAT, destPtr + channels * tex.width * tex.height * z)
 			end
 		end
 		tex:unbind()
