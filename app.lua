@@ -97,7 +97,7 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 function HydroCLApp:setup()
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	local dim = 2
+	local dim = 3
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
@@ -990,7 +990,7 @@ function HydroCLApp:update(...)
 			end
 		else
 			--if self.enableVectorField then
-				self:displayVectorField(self.solvers, varName, ar, xmin, ymin, xmax, ymax)
+			self:displayVectorField(self.solvers, varName, ar, xmin, ymin, xmax, ymax)
 			--end
 		end
 	
@@ -1963,7 +1963,18 @@ local arrow = {
 function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	self.view:projection(ar)
 	self.view:modelview()
-	
+
+	if self.displayVectorField_scale == nil then self.displayVectorField_scale = .1 end
+	if self.displayVectorField_step == nil then 
+		self.displayVectorField_step = ({
+			16, 16, 4
+		})[self.solvers[1].dim or 2] 
+	end
+
+	gl.glDisable(gl.GL_BLEND)
+	gl.glEnable(gl.GL_DEPTH_TEST)
+	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
+
 	for _,solver in ipairs(solvers) do
 		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
 		if varIndex and var.enabled then
@@ -1985,10 +1996,10 @@ function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, y
 			gl.glUniform3f(solver.vectorFieldShader.uniforms.mins.loc, solver.mins:unpack())
 			gl.glUniform3f(solver.vectorFieldShader.uniforms.maxs.loc, solver.maxs:unpack())
 			-- how to determine scale?
-			local scale = .1 * (valueMax - valueMin)
+			local scale = self.displayVectorField_scale * (valueMax - valueMin)
 			gl.glUniform1f(solver.vectorFieldShader.uniforms.scale.loc, scale) 
 
-			local step = 10
+			local step = self.displayVectorField_step
 			gl.glBegin(gl.GL_LINES)
 			for k=0,tonumber(solver.sizeWithoutBorder.z-1),step do
 				for j=0,tonumber(solver.sizeWithoutBorder.y-1),step do
@@ -2013,6 +2024,8 @@ function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, y
 			solver.vectorFieldShader:useNone()
 		end
 	end
+	
+	gl.glDisable(gl.GL_DEPTH_TEST)
 	
 glreport'here'
 end
@@ -2096,13 +2109,16 @@ end
 					tooltip.checkboxTable('lighting', self, 'display3D_Slice_useLighting')
 					tooltip.checkboxTable('pointcloud', self, 'display3D_Slice_usePoints')
 					if not self.display3D_Slice_usePoints then
-						tooltip.int('num slices', self, 'display3D_Slice_numSlices')
+						tooltip.intTable('num slices', self, 'display3D_Slice_numSlices')
 					end
 				end
 				ig.igPopId()
 			end
 		
 			--ig.igCheckbox('vector field', self.enableVectorField)
+		
+			tooltip.sliderTable('vector field scale', self, 'displayVectorField_scale', 0, 100, nil, 10)
+			tooltip.intTable('vector field step', self, 'displayVectorField_step')
 		end
 	end
 	

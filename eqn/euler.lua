@@ -239,24 +239,12 @@ function Euler:getVecDisplayVars()
 	local vars = table{
 		{v = 'valuevec = W.v;'},
 		{m = 'valuevec = U.m;'},
---[=[		
-		{v = [[
-	value[0] = W.v.x;
-	value[1] = W.v.y;
-	value[2] = W.v.z;
-]]},
-		{m = [[
-	value[0] = U.m.x;
-	value[1] = U.m.y;
-	value[2] = U.m.z;
-]]},
---]=]
 	}
 	if self.solver.dim == 3 then
 		local v = range(0,2):map(function(i) return vorticity(self,i) end)
-		return {vorticityVec = template([[
+		vars:insert{vorticityVec = template([[
 	<? for i=0,2 do ?>{
-		<?=select(2,next(v[i]))?>
+		<?=select(2,next(v[i+1]))?>
 		++value;
 	}<? end ?>
 	value -= 3;
