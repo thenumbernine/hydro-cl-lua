@@ -97,13 +97,13 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 function HydroCLApp:setup()
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	local dim = 2
+	local dim = 1
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or dim,
 		
-		--integrator = cmdline.integrator or 'forward Euler',	
+		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -115,7 +115,7 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		integrator = 'backward Euler',
+		--integrator = 'backward Euler',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
@@ -211,7 +211,7 @@ function HydroCLApp:setup()
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -243,7 +243,7 @@ function HydroCLApp:setup()
 	
 		-- MHD-only init states: (that use 'b')
 		--initState = 'Brio-Wu',
-		initState = 'Orszag-Tang',
+		--initState = 'Orszag-Tang',
 		
 		-- EM:
 		--initState = 'Maxwell default',
@@ -267,7 +267,7 @@ function HydroCLApp:setup()
 	self.solvers = table()
 	
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
@@ -298,7 +298,7 @@ function HydroCLApp:setup()
 	--		and works fine with backwards Euler 
 	-- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 	--		but that could be because of issues with simultaneous solvers.
-	self.solvers:insert(require 'solver.mhd-roe'(args))
+	--self.solvers:insert(require 'solver.mhd-roe'(args))
 	
 	-- EM
 	--self.solvers:insert(require 'solver.maxwell-roe'(args))
@@ -322,130 +322,6 @@ function HydroCLApp:setup()
 	--self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
-
-
-
-
-
---[=[ two-solver testing ...
--- running two solvers at once causes errors
-local app = self
---local cl = require 'solver.euler-roe'
-local cl = require 'solver.maxwell-roe'
---local cl = require 'solver.mhd-roe'
-self.solvers:insert(cl(args))
-self.solvers:insert(cl(args))
-local s1, s2 = self.solvers:unpack()
-
-local numReals = s1.volume * s1.eqn.numStates
-local ptr1 = ffi.new('real[?]', numReals)
-local ptr2 = ffi.new('real[?]', numReals)
-local function compare(buf1, buf2)
-	app.cmds:enqueueReadBuffer{buffer=buf1, block=true, size=ffi.sizeof(app.real) * numReals, ptr=ptr1}
-	app.cmds:enqueueReadBuffer{buffer=buf2, block=true, size=ffi.sizeof(app.real) * numReals, ptr=ptr2}
-	local diff
-	for i=0,numReals-1 do
-		if ptr1[i] ~= ptr2[i] then
-			diff = i 
-			break
-		end
-	end
-	if diff then
-		for i=0,numReals-1 do
-			io.write(('%7d '):format(i))
-			for j,v in ipairs{ptr1, ptr2} do
-				io.write(({' ','/'})[j])
-				local vi = v[i]
-				local s = vi and ('%.8e'):format(v[i]) or 'nil'
-				local ip = ffi.cast('int*', v+i)
-				s = s .. '(' .. (ip and (('%08x'):format(ip[1]):sub(-8) .. ('%08x'):format(ip[0]):sub(-8)) or 'nil') .. ')'
-				io.write(s)
-			end
-			local col = 1
-			if i%col==col-1 then print() end
-		end
-		print()
-		local ch = diff % s1.eqn.numStates
-		local x = math.floor(diff / tonumber(s1.eqn.numStates * s1.gridSize.x)) % tonumber(s1.gridSize.y)
-		local y = math.floor(diff / tonumber(s1.eqn.numStates * s1.gridSize.x * s1.gridSize.y))
-		print('index '..diff
-			..' coord '..x..', '..y..' ch '..ch
-			..' differs:',ptr1[diff], ptr2[diff])
-		s1:save's1'
-		s2:save's2'
-		error'here'
-	end
-end
-
---for _,s in ipairs(self.solvers) do s.useFixedDT = true s.fixedDT = .025 end
---s2.integrator = s1.integrator
---function s2:update() self.t = self.t + .1 end
---function s2:boundary() end
---function s2:calcDT() return s1.fixedDT end
--- [==[ messing with step to find the problem
-function s2:step(dt)
-	--[[ fails
-	s1.integrator:integrate(dt, function(derivBuf)
-		self:calcDeriv(derivBuf, dt)
-	end)
-	--]]
-	--[[ seems to work fine, but we're not adding to UBuf
-	self:calcDeriv(s1.integrator.derivBuf, dt)
-	--]]
-	--[[ works as well .. but doesn't add to s2's UBuf
-	self:calcDeriv(self.integrator.derivBuf, dt)
-	--]]
-	-- [[ fails with inline forward euler
-	-- calcDeriv runs fine on its own
-	-- everything except calcDeriv runs on its own
-	-- but as soon as the two are put together, it dies
-	app.cmds:enqueueFillBuffer{buffer=self.integrator.derivBuf, size=self.volume * self.eqn.numStates * ffi.sizeof(app.real)}
-	-- this produces crap in s2
-	-- if it's not added into s2's UBuf then we're safe
-	-- if it isn't called and zero is added to s2's UBuf then we're safe
-	self:calcDeriv(self.integrator.derivBuf, dt)
-	
--- why does derivBuf differ?
--- something is corrupting every numStates data ... like something is writing out of bounds ...
---compare(s1.integrator.derivBuf, s2.integrator.derivBuf)
-	
-	self.multAddKernel:setArgs(
-		self.UBuf,
-		s1.UBuf,
-		
-		-- using self.integrator.derivBuf fails
-		-- but using s1.integrator.derivBuf works ... worked ....
-		s1.integrator.derivBuf,
-		
-		ffi.new('real[1]', dt))
-	app.cmds:enqueueNDRangeKernel{kernel=self.multAddKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), self=self.localSize:ptr()}
-	--]]
-	--[[ fails with the other solver's forward-euler and multAddKernel
-	app.cmds:finish()
-	app.cmds:enqueueFillBuffer{buffer=s1.integrator.derivBuf, size=self.volume * self.eqn.numStates * ffi.sizeof(app.real)}
-	self:calcDeriv(s1.integrator.derivBuf, dt)
-	s1.multAddKernel:setArgs(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
-	app.cmds:enqueueNDRangeKernel{kernel=s1.multAddKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
-	app.cmds:finish()
-	--]]
-	--[[ just adding s1's deriv to s2?  works fine
-	s1.multAddKernel:setArgs(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
-	app.cmds:enqueueNDRangeKernel{kernel=s1.multAddKernel, dim=s1.dim, globalSize=s1.globalSizeWithoutBorder:ptr(), localSize=s1.localSize:ptr()}
-	s1.multAddKernel:setArgs(s1.UBuf, s1.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
-	--]]
-	-- so the code in common is when calcDeriv is called by the 2nd solver ...
-	-- ... regardless of what buffer it is written to
-end
---]==]
---[==[ comparing buffers.  tends to die on the boundaries even if it is working (why is that?)
-function s2:update()
-	s1.update(self)
-	-- ...annd even when using s1's derivBuf, this dies once the wave hits a boundary
-	-- complains about negative'd values (with mirror boundary conditions)
-	compare(s1.UBuf, s2.UBuf)
-end
---]==]
---]=]
 end
 
 local useClipPlanes
@@ -828,6 +704,9 @@ end
 
 
 HydroCLApp.running = nil
+
+-- hmm, this only looks good when overlaying vector fields on top of other graphs
+-- when it comes to separate variables, they usually look better apart
 HydroCLApp.displayAllTogether = true
 
 function HydroCLApp:update(...)
