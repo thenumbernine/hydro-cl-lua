@@ -116,9 +116,9 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 end
 
 function Euler:getInitStateCode()
-	local initState = self.initStates[self.solver.initStateIndex]
-	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
-	local code = initState.init(self.solver)	
+	self.initState = self.initStates[self.solver.initStateIndex]
+	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)	
+	local code = self.initState.init(self.solver)	
 	return template([[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf

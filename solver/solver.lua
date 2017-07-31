@@ -1116,6 +1116,19 @@ function Solver:refreshDisplayProgram()
 	end
 end
 
+--[[
+args:
+	type = type of buffer to create boundary information
+	extraArgs = any extra args to add to the kernel (other than a global of the buffer type)
+	methods = {
+		[x|y|z..min|max] = 
+			either 'peroidic', 'mirror', 'freeflow',
+			or a function of the name of variable pointer 
+			that returns the code to apply to that particular pointer 
+	}
+	mirrorVars = {x vars, y vars, z vars} = table of tables of strings of what fields should be negative'd on mirror condition
+		this tends to be vectors' components that point into the boundary.
+--]]
 function Solver:createBoundaryProgramAndKernel(args)
 	local assign = args.assign or function(a, b) return a .. ' = ' .. b end
 	
@@ -1124,11 +1137,12 @@ function Solver:createBoundaryProgramAndKernel(args)
 	lines:insert(self.codePrefix)
 	lines:insert(template([[
 kernel void boundary(
-	global <?=bufType?>* buf
+	global <?=args.type?>* buf
+<?= args.extraArgs and #args.extraArgs > 0 
+	and ','..table.concat(args.extraArgs, ',\n\t')
+	or '' ?>
 ) {
-]], {
-	bufType = args.type,
-}))
+]], {args = args}))
 	if self.dim == 2 then
 		lines:insert[[
 	int i = get_global_id(0);
@@ -1151,25 +1165,25 @@ kernel void boundary(
 		if self.dim == 2 then
 			if side == 1 then
 				lines:insert[[
-	if (i < gridSize_y) {
+		if (i < gridSize_y) {
 ]]
 			elseif side == 2 then
 				lines:insert[[
-	if (i < gridSize_x) {
+		if (i < gridSize_x) {
 ]]
 			end
 		elseif self.dim == 3 then
 			if side == 1 then
 				lines:insert[[
-	if (i.x < gridSize_y && i.y < gridSize_z) {
+		if (i.x < gridSize_y && i.y < gridSize_z) {
 ]]
 			elseif side == 2 then
 				lines:insert[[
-	if (i.x < gridSize_x && i.y < gridSize_z) {
+		if (i.x < gridSize_x && i.y < gridSize_z) {
 ]]
 			elseif side == 3 then
 				lines:insert[[
-	if (i.x < gridSize_x && i.y < gridSize_y) {
+		if (i.x < gridSize_x && i.y < gridSize_y) {
 ]]
 			end
 		end
@@ -1199,33 +1213,34 @@ kernel void boundary(
 		local gridSizeSide = 'gridSize_'..xs[side]
 		local rhs = gridSizeSide..'-numGhost+j'
 		local method = args.methods[x..'min']
+		local tab = '\t\t\t'
 		lines:insert(({
-			periodic = '\t\t'..assign('buf['..index'j'..']', 'buf['..index(gridSizeSide..'-2*numGhost+j')..']')..';',
+			periodic = tab..assign('buf['..index'j'..']', 'buf['..index(gridSizeSide..'-2*numGhost+j')..']')..';',
 			mirror = table{
-				'\t\t'..assign('buf['..index'j'..']', ' buf['..index'2*numGhost-1-j'..']')..';',
+				tab..assign('buf['..index'j'..']', ' buf['..index'2*numGhost-1-j'..']')..';',
 			}:append(table.map((args.mirrorVars or {})[side] or {}, function(var)
-				return '\t\t'..'buf['..index'j'..'].'..var..' = -buf['..index'j'..'].'..var..';'
+				return tab..'buf['..index'j'..'].'..var..' = -buf['..index'j'..'].'..var..';'
 			end)):concat'\n',
-			freeflow = '\t\t'..assign('buf['..index'j'..']', 'buf['..index'numGhost'..']')..';',
+			freeflow = tab..assign('buf['..index'j'..']', 'buf['..index'numGhost'..']')..';',
 		})[method] or method('buf['..index'j'..']'))
 
 		local method = args.methods[x..'max']
 		lines:insert(({
-			periodic = '\t\t'..assign('buf['..index(rhs)..']', 'buf['..index'numGhost+j'..']')..';',
+			periodic = tab..assign('buf['..index(rhs)..']', 'buf['..index'numGhost+j'..']')..';',
 			mirror = table{
-				'\t\t'..assign('buf['..index(rhs)..']', 'buf['..index(gridSizeSide..'-numGhost-1-j')..']')..';',
+				tab..assign('buf['..index(rhs)..']', 'buf['..index(gridSizeSide..'-numGhost-1-j')..']')..';',
 			}:append(table.map((args.mirrorVars or {})[side] or {}, function(var)
-				return '\t\t'..'buf['..index(rhs)..'].'..var..' = -buf['..index(rhs)..'].'..var..';'
+				return tab..'buf['..index(rhs)..'].'..var..' = -buf['..index(rhs)..'].'..var..';'
 			end)):concat'\n',
-			freeflow = '\t\t'..assign('buf['..index(rhs)..']', 'buf['..index(gridSizeSide..'-numGhost-1')..']')..';',
+			freeflow = tab..assign('buf['..index(rhs)..']', 'buf['..index(gridSizeSide..'-numGhost-1')..']')..';',
 		})[method] or method('buf['..index(rhs)..']'))
 	
 		if self.dim > 1 then
-			lines:insert'\t}'
+			lines:insert'		}'
 		end
 	end
 	
-	lines:insert'\t}'
+	lines:insert'	}'
 	lines:insert'}'
 
 	local code = lines:concat'\n'
@@ -1238,16 +1253,23 @@ kernel void boundary(
 	return boundaryProgram, boundaryKernel
 end
 
+function Solver:getBoundaryProgramArgs()
+	return {
+		type = self.eqn.cons_t,
+		-- remap from enum/combobox int values to names
+		methods = table.map(self.boundaryMethods, function(v,k)
+			if type(v) == 'function' then
+				return v, k
+			end
+			return self.app.boundaryMethods[1+v[0]], k
+		end),
+		mirrorVars = self.eqn.mirrorVars,
+	}
+end
+
 function Solver:refreshBoundaryProgram()
 	self.boundaryProgram, self.boundaryKernel = 
-		self:createBoundaryProgramAndKernel{
-			type = self.eqn.cons_t,
-			-- remap from enum/combobox int values to names
-			methods = table.map(self.boundaryMethods, function(v,k)
-				return self.app.boundaryMethods[1+v[0]], k
-			end),
-			mirrorVars = self.eqn.mirrorVars,
-		}
+		self:createBoundaryProgramAndKernel(self:getBoundaryProgramArgs())
 	self.boundaryKernel:setArg(0, self.UBuf)
 end
 
@@ -1503,6 +1525,14 @@ function Solver:step(dt)
 	self.integrator:integrate(dt, function(derivBuf)
 		self:calcDeriv(derivBuf, dt)
 	end)
+
+	-- while we're here, perform any update specific to the initial conditions
+	-- TODO constrainU before it as well as after?
+	if self.eqn.initState
+	and self.eqn.initState.update
+	then
+		self.eqn.initState.update(self)
+	end
 
 	if self.eqn.useConstrainU then
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}

@@ -97,7 +97,7 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 function HydroCLApp:setup()
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	local dim = 1
+	local dim = 2
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
@@ -134,12 +134,12 @@ function HydroCLApp:setup()
 			{32,32,32},
 		})[dim],
 		boundary = {
-			xmin=cmdline.boundary or 'periodic',
-			xmax=cmdline.boundary or 'periodic',
-			ymin=cmdline.boundary or 'periodic',
-			ymax=cmdline.boundary or 'periodic',
-			zmin=cmdline.boundary or 'periodic',
-			zmax=cmdline.boundary or 'periodic',
+			xmin=cmdline.boundary or 'mirror',
+			xmax=cmdline.boundary or 'mirror',
+			ymin=cmdline.boundary or 'mirror',
+			ymax=cmdline.boundary or 'mirror',
+			zmin=cmdline.boundary or 'mirror',
+			zmax=cmdline.boundary or 'mirror',
 		},
 		--]]
 		--[[ cylinder
@@ -211,7 +211,7 @@ function HydroCLApp:setup()
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -248,7 +248,8 @@ function HydroCLApp:setup()
 		-- EM:
 		--initState = 'Maxwell default',
 		--initState = 'Maxwell wire',
-		--initState = 'scattering around cylinder',
+		initState = 'Maxwell scattering around cylinder',
+		--initState = 'Maxwell FDTD test',
 		
 		--initState = 'two-fluid EMHD soliton ion',
 		--initState = 'two-fluid EMHD soliton electron',
@@ -267,7 +268,7 @@ function HydroCLApp:setup()
 	self.solvers = table()
 	
 	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
@@ -301,7 +302,7 @@ function HydroCLApp:setup()
 	--self.solvers:insert(require 'solver.mhd-roe'(args))
 	
 	-- EM
-	--self.solvers:insert(require 'solver.maxwell-roe'(args))
+	self.solvers:insert(require 'solver.maxwell-roe'(args))
 	
 	-- EM+HD
 	-- I'm having some memory issues with two solvers running simultanously .. 
@@ -380,6 +381,9 @@ function HydroCLApp:initGL(...)
 
 	self:setup()
 
+	-- This only looks good when overlaying vector fields on top of other graphs.
+	-- When it comes to separate variables, they usually look better apart.
+	self.displayAllTogether = self.solvers[1] and self.solvers[1].dim > 1 or false
 
 
 	local gradTexWidth = 1024
@@ -704,10 +708,6 @@ end
 
 
 HydroCLApp.running = nil
-
--- hmm, this only looks good when overlaying vector fields on top of other graphs
--- when it comes to separate variables, they usually look better apart
-HydroCLApp.displayAllTogether = true
 
 function HydroCLApp:update(...)
 	if self.running then
@@ -1993,7 +1993,9 @@ end
 		
 			--ig.igCheckbox('vector field', self.enableVectorField)
 		
-			tooltip.sliderTable('vector field scale', self, 'displayVectorField_scale', 0, 100, nil, 10)
+			tooltip.floatTable('vector field scale', self, 'displayVectorField_scale')
+			--tooltip.sliderTable('vector field scale', self, 'displayVectorField_scale', 0, 100, nil, 10)
+			
 			tooltip.intTable('vector field step', self, 'displayVectorField_step')
 		end
 	end

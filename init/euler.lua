@@ -3,6 +3,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
+local ffi = require 'ffi'
 
 local function quadrantProblem(args)
 	args.init = function(solver)
@@ -692,11 +693,43 @@ end ?>
 	},
 
 	{
-		name = 'scattering around cylinder',
+		name = 'Maxwell scattering around cylinder',
 		init = function(solver)
+-- [=[	
+			-- this args is only for the UBuf boundary program -- not calle for the Poisson boundary program
+			function solver:getBoundaryProgramArgs()
+				-- i'm completely overriding this
+				-- so I can completely override boundaryMethods for the solver boundary kernel
+				-- yet not for the poisson boundary kernel
+				local boundaryMethods = table(self.boundaryMethods)
+				boundaryMethods.xmin = function(U)
+					return template([[
+			<?=U?>.epsE.y = (real)sin((real)10. * t) / <?=U?>.eps;
+]], {U=U})
+				end
+
+				return {
+					type = self.eqn.cons_t,
+					extraArgs = {'real t'},
+					-- remap from enum/combobox int values to names
+					methods = table.map(boundaryMethods, function(v,k)
+						if type(v) == 'function' then
+							return v, k
+						end
+						return self.app.boundaryMethods[1+v[0]], k
+					end),
+					mirrorVars = self.eqn.mirrorVars,
+				}
+			end
+			-- this runs before refreshBoundaryProgram, so lets hijack refreshBoundaryProgram and add in our time-based boundary conditions
+			local oldBoundary = solver.boundary
+			function solver:boundary()
+				self.boundaryKernel:setArg(1, ffi.new('real[1]', self.t))
+				oldBoundary(self)
+			end
+--]=]		
 			return [[
 	real3 xc = coordMap(x);
-	if (x.x < mins.x * .9 + maxs.x * .1) E.y = 1;
 	if (real3_lenSq(xc) < .2*.2) {
 		conductivity = 0;
 		//permittivity = 10.;
@@ -738,10 +771,14 @@ end ?>
 				resistivities = resistivities,
 			})
 		end,
-		-- kernel to run every update frame
-		-- TODO give one side of the wire a time-varying boundary value
-		update = function(solver)
-			
+	},
+
+	{
+		name = 'Maxwell FDTD test',
+		init = function(solver)
+			return [[
+
+]]
 		end,
 	},
 

@@ -4,6 +4,13 @@ static inline real real3_dot(real3 a, real3 b) {
 	return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
+static inline real3 real3_cross(real3 a, real3 b) {
+	return _real3(
+		a.y * b.z - a.z * b.y,
+		a.z * b.x - a.x * b.z,
+		a.x * b.y - a.y * b.x);
+}
+
 static inline real real3_lenSq(real3 a) {
 	return real3_dot(a,a);
 }

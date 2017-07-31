@@ -21,7 +21,7 @@ function App:setup()
 		geometry = 'cartesian',
 		mins = {-1, -1, -1},
 		maxs = {1, 1, 1},
-		gridSize = {32, 32, 32},
+		gridSize = {256, 256, 256},
 		boundary = {
 			xmin='freeflow',
 			xmax='freeflow',
@@ -30,7 +30,8 @@ function App:setup()
 			zmin='freeflow',
 			zmax='freeflow',
 		},
-		initState = 'Sod',
+		--initState = 'Sod',
+		initState = 'self-gravitation test 1',
 	}
 
 	-- [=[ two-solver testing ...

@@ -65,9 +65,9 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) { return W; }
 end
 
 function Maxwell:getInitStateCode()
-	local initState = self.initStates[self.solver.initStateIndex]
-	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
-	local code = initState.init(self.solver)	
+	self.initState = self.initStates[self.solver.initStateIndex]
+	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)	
+	local code = self.initState.init(self.solver)	
 	return template([[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
@@ -120,11 +120,11 @@ function Maxwell:getDisplayVars()
 		{Ex = '*value = U->epsE.x / U->eps;'},
 		{Ey = '*value = U->epsE.y / U->eps;'},
 		{Ez = '*value = U->epsE.z / U->eps;'},
-		{E = '*value = sqrt(ESq(*U, x));'},
+		{['|E|'] = '*value = sqrt(ESq(*U, x));'},
 		{Bx = '*value = U->B.x;'},
 		{By = '*value = U->B.y;'},
 		{Bz = '*value = U->B.z;'},
-		{B = '*value = sqrt(BSq(*U, x));'},
+		{['|B|'] = '*value = sqrt(BSq(*U, x));'},
 		{energy = [[
 	//*value = .5 * (coordLen(U->epsE) + coordLen(U->B) / U->mu);
 	*value = .5 * (real3_len(U->epsE) + real3_len(U->B) / U->mu);
@@ -151,6 +151,14 @@ end
 		{sigma = '*value = U->sigma;'},
 		{eps = '*value = U->eps;'},
 		{mu = '*value = U->mu;'},
+	}
+end
+
+function Maxwell:getVecDisplayVars()
+	return table{
+		{E = 'valuevec = real3_scale(U->epsE, 1. / U->eps);'},
+		{B = 'valuevec = U->B;'},
+		{S = 'valuevec = real3_scale(real3_cross(U->epsE, U->B), 1. / U->eps);'},
 	}
 end
 
