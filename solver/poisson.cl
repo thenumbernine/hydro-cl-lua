@@ -18,7 +18,10 @@ discrete evaluation:
 1/sqrt(g) (sqrt(g(x+dxi/2)) g^ij(x+dxj/2) (f(x+dxj) - f(x)) / dx(x+dxj/2))_,i
 */
 
-kernel void initPotential(
+//initialize the poisson solver field 
+//this is only called upon solver reset
+//each iteration uses the previous iteration's results as the starting point
+kernel void initPoissonPotential(
 	global <?=poisson:getPotBufType()?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
@@ -28,7 +31,8 @@ kernel void initPotential(
 	UBuf[index].<?=poisson.potentialField?> = -rho;
 }
 
-kernel void solvePoisson(
+//called every Jacobi method iteration
+kernel void solvePoissonJacobi(
 	global <?=poisson:getPotBufType()?>* UBuf<?
 if poisson.stopOnEpsilon then ?>,
 	global real* reduceBuf<?

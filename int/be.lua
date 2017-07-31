@@ -35,7 +35,6 @@ function BackwardEuler:init(solver)
 	-- gui vars:
 	self.last_err = 0
 	self.last_iter = 0
-	self.last_rLenSq = 0
 
 -- formerly createBuffers
 
@@ -130,34 +129,17 @@ function BackwardEuler:init(solver)
 		maxiter = 10 * numreals,
 		-- logging:
 		errorCallback = function(err, iter, x, rLenSq)
---print('gmres t', solver.t, 'iter', iter, 'err', err, 'rLenSq', rLenSq)
-			
 			self.last_err = err
 			self.last_iter = iter
-			self.last_rLenSq = rLenSq
 			
 			if not math.isfinite(err) then
 				print("got non-finite err: "..err)	-- error?
 				return true	-- fail
 			end
 		end,
-		--[[ only scale down norm, keep dot the same
-		dot = dotWithoutBorder,
-		norm = function(v)
-			local v2 = dotWithoutBorder(v,v)
-			return math.sqrt(v2 
-				-- need to divide by volume or else 2D will enter non-physical states
-				/ numRealsWithoutBorder
-				-- but if you divide 1D by volume then it runs really really slow
-				* tonumber(solver.sizeWithoutBorder.x) * solver.eqn.numStates
-			)
-		end,
-		--]]
-		-- [[ scale down dot and let norm be sqrt(dot(v,v))
 		dot = function(a,b)
 			return dotWithoutBorder(a,b) / numRealsWithoutBorder
 		end,
-		--]]
 	}
 
 	-- [=[ backward Euler
@@ -170,29 +152,6 @@ function BackwardEuler:init(solver)
 --print'\nU:' solver:printBuf(U) print(debug.traceback(),'\n\n')
 --print('self.linearSolverDT', self.linearSolverDT)		
 		
---[[
-2D GMRES fails.
-1D works fine,
-but 2D encounters differences with 1D in that,
-if we use a L2 norm
-and if our 2D data is an extrusion of our 1D data
-then |r_2d| = sqrt(n) * |r_1d|	for extruded length n.
-From there, v[1] = r/|r| is scaled down an extra factor of sqrt(n).
-From there, A(w, v[1]), which builds the orthonormal basis,
-accepts a *much smaller* v[1] = r/|r|, yet computes the *same* derivative as the 1D case,
-which tends to step 'x' into non-physical values (negative density and energy).
-In fact,
-dot(w, v[1]) for 1D is positive
-and dot(w, v[1]) for 2D is negative.
-
-Maybe my norm function should be norm(r) = sqrt(sum_i r_i / n)?
-Then an extruded norm is norm(r_2d) = sqrt(n sum_i r_i / n^2) = norm(r_1d).
-Then the norms of extruded data would match that of the original data.
-But does GMRES require a particular kind of norm?
-The original paper doesn't specify a norm, but does use it hand-in-hand with an inner product.
-I'm betting if the norm is changed then the inner product will probably also have to be changed.
-For norm(r) = sqrt(dot(r,r)/n), we can define the inner product as dot(r,r)/n.
---]]
 		self.linearSolver.args.mulAdd(UNext, U, dUdt.obj, -self.linearSolverDT)
 --print'\nUNext:' solver:printBuf(UNext) print(debug.traceback(),'\n\n')
 	
@@ -246,7 +205,6 @@ function BackwardEuler:updateGUI()
 	tooltip.intTable('Krylov maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * volume * number of states
 	-- read-only:
 	ig.igText('err = '..self.last_err)	-- this is |r|
-	--ig.igText('|r|^2 = '..self.last_rLenSq)	-- stops when |r| < err
 	ig.igText('iter = '..self.last_iter)
 end
 

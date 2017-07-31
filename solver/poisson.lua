@@ -6,23 +6,6 @@ local ig = require 'ffi.imgui'
 local tooltip = require 'tooltip'
 local template = require 'template'
 
---[[
-local CLGMRES = require 'solver.cl.gmres'
-
--- TODO combine this with int/be.lua
-local ThisGMRES = class(CLGMRES)
-
-function ThisGMRES:newBuffer(name)
-	if not self.cache then self.cache = {} end
-	local cached = self.cache[name]
-	if cached then return cached end
-	cached = ThisGMRES.super.newBuffer(self, name)
-	cached:fill()
-	self.cache[name] = cached
-	return cached
-end
---]]
-
 local Poisson = class()
 
 function Poisson:getPotBufType()
@@ -37,13 +20,6 @@ Poisson.potentialField = 'ePot'
 
 function Poisson:init(solver)
 	self.solver = solver
-
-	-- hmm, should this go in refreshGridSize?
-	-- [[ poisson
-	--]]
-	--[[ gmres
-	this.linearSolver = ThisGMRES(linearSolverArgs)
-	--]]
 end
 
 Poisson.stopOnEpsilon = true
@@ -65,10 +41,10 @@ end
 
 function Poisson:refreshSolverProgram()
 	local solver = self.solver
-	self.initPotentialKernel = solver.solverProgram:kernel('initPotential', self:getPotBuf())
-	self.solvePoissonKernel = solver.solverProgram:kernel('solvePoisson', self:getPotBuf())
+	self.initPoissonPotentialKernel = solver.solverProgram:kernel('initPoissonPotential', self:getPotBuf())
+	self.solvePoissonJacobiKernel = solver.solverProgram:kernel('solvePoissonJacobi', self:getPotBuf())
 	if self.stopOnEpsilon then
-		self.solvePoissonKernel:setArg(1, solver.reduceBuf)
+		self.solvePoissonJacobiKernel:setArg(1, solver.reduceBuf)
 	end
 end
 
@@ -90,7 +66,7 @@ end
 
 function Poisson:resetState()
 	local solver = self.solver
-	solver.app.cmds:enqueueNDRangeKernel{kernel=self.initPotentialKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.initPoissonPotentialKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
 	solver:potentialBoundary()
 	self:relax()
 end
@@ -99,7 +75,7 @@ function Poisson:relax()
 	local solver = self.solver
 	for i=1,self.maxIters do
 		self.lastIter = i
-		solver.app.cmds:enqueueNDRangeKernel{kernel=self.solvePoissonKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+		solver.app.cmds:enqueueNDRangeKernel{kernel=self.solvePoissonJacobiKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
 		solver:potentialBoundary()
 
 		if self.stopOnEpsilon then

@@ -27,8 +27,7 @@ Features:
 
 TODO:
 - ADM3D needs shift conditions, and moving puncture, etc ...
-- and I just need to implement something finite-volume and more robust than just Bona-Masso's original algorithm 
-- BSSN is lining up with ADM3D, but boundary conditions are occasionally messing up 
+- FOBSSN would be nice.  something with the equation stability of BSSN and the algorithmic stability of finite-volume.
 - for 2D SRHD, it looks like my W = U.D / prim.rho is drifting from W = 1 / sqrt(1 - prim.v^2)
 - implement eigen-stuff code in SRHD so that PLM can work 
 - better divergence removal

@@ -1,0 +1,330 @@
+local table = require 'ext.table'
+local file = require 'ext.file'
+local class = require 'ext.class'
+local math = require 'ext.math'
+local ffi = require 'ffi'
+local ig = require 'ffi.imgui'
+local tooltip = require 'tooltip'
+local template = require 'template'
+
+local CLBuffer = require 'cl.obj.buffer'
+local CLGMRES = require 'solver.cl.gmres'
+
+-- can I combine this with the CLGMRES in int/be.lua somehow?
+local ThisGMRES = class(CLGMRES)
+
+function ThisGMRES:newBuffer(name)
+	if not self.cache then self.cache = {} end
+	local cached = self.cache[name]
+	if cached then return cached end
+	cached = ThisGMRES.super.newBuffer(self, name)
+	cached:fill()
+	self.cache[name] = cached
+	return cached
+end
+
+local Poisson = class()
+
+function Poisson:getPotBufType()
+	return self.solver.eqn.cons_t
+end
+
+function Poisson:getPotBuf()
+	return self.solver.UBuf
+end
+
+Poisson.potentialField = 'ePot'
+
+function Poisson:init(solver)
+	self.solver = solver
+end
+
+function Poisson:initSolver()
+	local solver = self.solver
+	
+	for _,name in ipairs{
+		'krylov_b',
+		'krylov_x',
+	} do
+		self[name..'Obj'] = CLBuffer{
+			env = solver.app.env,
+			name = name,
+			type = 'real',
+			size = solver.volume,	-- without border?
+		}
+	end
+
+	local mulWithoutBorder = solver.domain:kernel{
+		name = 'Poisson_mulWithoutBorder',
+		header = solver.codePrefix,
+		argsOut = {
+			{name='y', type=solver.app.real, obj=true},
+		},
+		argsIn = {
+			{name='a', type=solver.app.real, obj=true},
+			{name='b', type=solver.app.real, obj=true},
+		},
+		body = [[	
+	if (OOB(numGhost, numGhost)) {
+		y[index] = 0;
+		return;
+	}
+	y[index] = a[index] * b[index];
+]],
+	}
+	local volumeWithoutBorder = tonumber(solver.sizeWithoutBorder:volume())
+
+	local sum = solver.app.env:reduce{
+		size = volumeWithoutBorder,
+		op = function(x,y) return x..' + '..y end,
+	}
+	local dotWithoutBorder = function(a,b)
+		mulWithoutBorder(sum.buffer, a, b)
+		return sum()
+	end
+
+	self.last_err = 0
+	self.last_iter = 0
+	local linearSolverArgs = {
+		env = solver.app.env,
+		x = self.krylov_xObj,
+		size = volumeWithoutBorder,
+		epsilon = 1e-10,
+		--maxiter = 1000,
+		restart = 10,
+		maxiter = 10 * volumeWithoutBorder,
+		-- logging:
+		errorCallback = function(err, iter, x, rLenSq)
+			self.last_err = err
+			self.last_iter = iter
+			
+			if not math.isfinite(err) then
+				print("got non-finite err: "..err)	-- error?
+				return true	-- fail
+			end
+		end,
+		dot = function(a,b)
+			return dotWithoutBorder(a,b) / volumeWithoutBorder 
+		end,
+	}
+
+	linearSolverArgs.b = self.krylov_bObj
+	
+	linearSolverArgs.A = function(UNext, U)
+		-- A(x) = div x
+		-- but don't use the poisson.cl one, that's for in-place Gauss-Seidel
+		self.poissonGMRESLinearFuncKernel:setArgs(UNext, U)
+		solver.app.cmds:enqueueNDRangeKernel{kernel=self.poissonGMRESLinearFuncKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+	end	
+	self.linearSolver = ThisGMRES(linearSolverArgs)
+end
+
+local poissonGMRESCode = [[
+
+kernel void poissonGMRESLinearFunc(
+	global real* y,
+	global real* x
+) {
+	SETBOUNDS(0,0);
+	if (OOB(numGhost, numGhost)) {
+		y[index] = 0.;
+		return;
+	}
+
+<? for j=0,solver.dim-1 do ?>
+	real dx<?=j?> = dx<?=j?>_at(i);
+<? end ?>
+
+	real3 intIndex = _real3(i.x, i.y, i.z);
+	real3 volL, volR;
+<? for j=0,solver.dim-1 do ?>
+	intIndex.s<?=j?> = i.s<?=j?> - .5;
+	volL.s<?=j?> = volume_at(cell_x(intIndex));
+	intIndex.s<?=j?> = i.s<?=j?> + .5;
+	volR.s<?=j?> = volume_at(cell_x(intIndex));
+	intIndex.s<?=j?> = i.s<?=j?>;
+<? end ?>
+	real volAtX = volume_at(cell_x(i));
+
+	real sum = (0.
+<? for j=0,solver.dim-1 do ?>
+		+ volR.s<?=j?> * x[stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>)
+		+ volL.s<?=j?> * x[-stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>)
+<? end 
+?>	) / volAtX;
+
+	sum += x[index] * (0.
+<? for j=0,solver.dim-1 do ?>
+		- (volR.s<?=j?> + volL.s<?=j?>) / (dx<?=j?> * dx<?=j?>)
+<? end ?>
+	) / volAtX;
+
+	y[index] = sum;
+}
+
+kernel void copyPotentialFieldToVecAndInitB(
+	global real* x,
+	global real* b,
+	global const <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(0, 0);
+
+	global const <?=eqn.cons_t?>* U = UBuf + index;
+
+	x[index] = U-><?=poisson.potentialField?>;
+	
+	real rho = 0.;
+	<?=calcRho?>
+	b[index] = rho;
+}
+
+kernel void copyVecToPotentialField(
+	global <?=eqn.cons_t?>* UBuf,
+	global const real* x
+) {
+	SETBOUNDS(0, 0);
+	
+	UBuf[index].<?=poisson.potentialField?> = x[index];
+}
+]]
+
+-- TODO rename to 'getCode'
+function Poisson:getSolverCode()
+	return table{
+		template(
+			table{
+				file['solver/poisson.cl'],
+				poissonGMRESCode,
+				self:getPoissonCode() or '',
+			}:concat'\n',
+			table(self:getCodeParams(), {
+				poisson = self,
+				solver = self.solver,
+				eqn = self.solver.eqn,
+			})),
+	}:concat'\n'
+end
+
+function Poisson:refreshSolverProgram()
+	local solver = self.solver
+	self.initPoissonPotentialKernel = solver.solverProgram:kernel('initPoissonPotential', self:getPotBuf())
+	self.copyPotentialFieldToVecAndInitBKernel = solver.solverProgram:kernel('copyPotentialFieldToVecAndInitB', assert(self.krylov_xObj.obj), self.krylov_bObj.obj, self:getPotBuf())
+	self.copyVecToPotentialFieldKernel = solver.solverProgram:kernel('copyVecToPotentialField', self:getPotBuf(), self.krylov_xObj.obj)
+	self.poissonGMRESLinearFuncKernel = solver.solverProgram:kernel'poissonGMRESLinearFunc'
+end
+
+function Poisson:refreshBoundaryProgram()
+	local solver = self.solver
+	-- only applies the boundary conditions to Poisson:potentialField
+	solver.potentialBoundaryProgram, solver.potentialBoundaryKernel =
+		solver:createBoundaryProgramAndKernel{
+			type = self:getPotBufType(),
+			methods = table.map(solver.boundaryMethods, function(v)
+				return (select(2, next(solver.boundaryOptions[1+v[0]])))
+			end),
+			assign = function(a,b)
+				return a..'.'..self.potentialField..' = '..b..'.'..self.potentialField
+			end,
+		}
+	solver.potentialBoundaryKernel:setArg(0, self:getPotBuf())
+end
+
+function Poisson:resetState()
+	local solver = self.solver
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.initPoissonPotentialKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+	solver:potentialBoundary()
+	self:relax()
+end
+
+function Poisson:relax()
+	local solver = self.solver
+	-- copy potential field into krylov_x
+	-- calculate krylov_b by Poisson:getCodeParams().calcRho
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.copyPotentialFieldToVecAndInitBKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+	-- solve
+	self.linearSolver()
+	-- copy krylov_x back to potential field
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.copyVecToPotentialFieldKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+end
+
+function Poisson:updateGUI()
+	-- TODO unique name for other Poisson solvers?
+	ig.igPushIdStr'Poisson GMRES solver'
+	-- TODO name from 'field' / 'enableField', though those aren't properties of Poisson
+	if ig.igCollapsingHeader'Poisson solver' then
+		tooltip.numberTable('Krylov epsilon', self.linearSolver.args, 'epsilon')
+		tooltip.intTable('GMRES restart', self.linearSolver.args, 'restart')
+		tooltip.intTable('Krylov maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * volume * number of states
+		-- read-only:
+		ig.igText('err = '..self.last_err)
+		ig.igText('iter = '..self.last_iter)
+	end
+	ig.igPopId()
+end
+
+--[[
+static function
+called with : (to get the correct subclass)
+used as behavior template
+field - which field in 'self' to store this behavior object 
+enableField - which field in 'self' to toggle the behavior
+--]]
+function Poisson:createBehavior(field, enableField)
+	local subclass = self
+	return function(parent)
+		local templateClass = class(parent)
+
+		function templateClass:init(args)
+			if enableField then
+				self[enableField] = not not args[enableField]
+			end
+
+			-- TODO in refreshGrid?
+			-- or should I always build one of these? 
+			--if not enableField or not self[enableField] then
+			--end
+
+			-- init is gonna call
+			templateClass.super.init(self, args)
+		
+		end
+
+		function templateClass:getSolverCode()
+			return table{
+				templateClass.super.getSolverCode(self),
+				self[field]:getSolverCode(),
+			}:concat'\n'
+		end
+
+		function templateClass:refreshBoundaryProgram()
+			templateClass.super.refreshBoundaryProgram(self)
+			self[field]:refreshBoundaryProgram()
+		end
+
+		function templateClass:refreshSolverProgram()
+			self[field] = subclass(self)
+			self[field]:initSolver()
+			
+			templateClass.super.refreshSolverProgram(self)
+			self[field]:refreshSolverProgram()
+		end
+
+		-- TODO
+		-- for Euler, add potential energy into total energy
+		-- then MAKE SURE TO SUBTRACT IT OUT everywhere internal energy is used
+		function templateClass:resetState()
+			templateClass.super.resetState(self)
+			if not enableField or self[enableField] then
+				self[field]:resetState()
+			end
+		end
+
+		function templateClass:potentialBoundary()
+			self:applyBoundaryToBuffer(self.potentialBoundaryKernel)
+		end
+
+		return templateClass
+	end
+end
+
+return Poisson
