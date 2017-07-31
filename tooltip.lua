@@ -59,7 +59,6 @@ end
 
 local checkboxTable = makeTableAccess('bool', wrap.checkbox)
 local intTable = makeTableAccess('int', wrap.int)
-local floatTable = makeTableAccess('float', wrap.float)
 local sliderTable = makeTableAccess('float', wrap.slider)
 
 -- unlike others, this is a bit more than simple ffi primitive read/write
@@ -99,7 +98,6 @@ local tooltip = {
 	checkbox = wrap.checkbox,
 	combo = wrap.combo,
 	float = wrap.float,
-	floatTable = floatTable,
 	int = wrap.int,
 	slider = wrap.slider,
 	sliderTable = sliderTable,

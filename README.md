@@ -45,6 +45,7 @@ TODO:
 - add EM+SRHD by mixing and matching SRHD and EMHD
 - add EM+GR+HD by winning
 - Figure out what to do with self-gravitational potential energy in the Euler simulation.  offsetting it positive makes gravitational instability stable.  offsetting it too positive explodes -- even a forward euler integrator (why).  offsetting it negative causes more instability.
+- change vector field from immediate mode to buffered geometry, and gometry shaders if they're available
 
 ### Sources:
 

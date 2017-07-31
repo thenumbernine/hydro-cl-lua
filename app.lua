@@ -101,7 +101,7 @@ function HydroCLApp:setup()
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or dim,
 		
-		--integrator = cmdline.integrator or 'forward Euler',	
+		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -113,7 +113,7 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		integrator = 'backward Euler',
+		--integrator = 'backward Euler',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
@@ -128,7 +128,7 @@ function HydroCLApp:setup()
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = ({
 			{256,1,1},
-			{64,64,1},
+			{128,128,1},
 			{32,32,32},
 		})[dim],
 		boundary = {
@@ -229,7 +229,7 @@ function HydroCLApp:setup()
 		--initState = 'self-gravitation test 1',
 		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
-		--initState = 'self-gravitation test 2 orbiting',
+		initState = 'self-gravitation test 2 orbiting',
 		--initState = 'self-gravitation test 4',
 		--initState = 'self-gravitation soup',
 		
@@ -255,7 +255,7 @@ function HydroCLApp:setup()
 	
 		-- GR
 		--initState = 'gauge shock wave',
-		initState = 'Alcubierre warp bubble',
+		--initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
 		--initState = 'Schwarzschild black hole - isotropic',
 		--initState = 'binary black holes',
@@ -267,7 +267,7 @@ function HydroCLApp:setup()
 	self.solvers = table()
 	
 	-- HD
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
@@ -319,7 +319,7 @@ function HydroCLApp:setup()
 	-- so I have set constant Minkowski boundary conditions?
 	-- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 	-- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-	self.solvers:insert(require 'solver.bssnok-fd'(args))
+	--self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 end
@@ -1992,7 +1992,7 @@ end
 		
 			--ig.igCheckbox('vector field', self.enableVectorField)
 		
-			tooltip.floatTable('vector field scale', self, 'displayVectorField_scale')
+			tooltip.numberTable('vector field scale', self, 'displayVectorField_scale')
 			--tooltip.sliderTable('vector field scale', self, 'displayVectorField_scale', 0, 100, nil, 10)
 			
 			tooltip.intTable('vector field step', self, 'displayVectorField_step')

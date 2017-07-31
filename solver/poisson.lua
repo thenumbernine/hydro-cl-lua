@@ -2,6 +2,8 @@ local table = require 'ext.table'
 local file = require 'ext.file'
 local class = require 'ext.class'
 local ffi = require 'ffi'
+local ig = require 'ffi.imgui'
+local tooltip = require 'tooltip'
 local template = require 'template'
 
 --[[
@@ -44,10 +46,6 @@ function Poisson:init(solver)
 	--]]
 end
 
-local CLBuffer = require 'cl.obj.buffer'
--- set 'stopOnEpsilon' to false to just run a fixed number of iterations
--- set it to false to monitor the updates and stop at an epsilon
---  but this requires an extra buffer allocation
 Poisson.stopOnEpsilon = true
 Poisson.stopEpsilon = 1e-2
 Poisson.maxIters = 20
@@ -100,15 +98,37 @@ end
 function Poisson:relax()
 	local solver = self.solver
 	for i=1,self.maxIters do
+		self.lastIter = i
 		solver.app.cmds:enqueueNDRangeKernel{kernel=self.solvePoissonKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
 		solver:potentialBoundary()
 
 		if self.stopOnEpsilon then
 			local err = solver.reduceSum()
+			self.lastEpsilon = err
 			--print('gauss seidel iter '..i..' err '..err)
-			if err < self.stopEpsilon then break end
+			if err <= self.stopEpsilon then break end
 		end
 	end
+end
+
+function Poisson:updateGUI()
+	-- TODO unique name for other Poisson solvers?
+	ig.igPushIdStr'Poisson solver'
+	-- TODO name from 'field' / 'enableField', though those aren't properties of Poisson
+	if ig.igCollapsingHeader'Poisson solver' then
+		if tooltip.checkboxTable('stop on epsilon', self, 'stopOnEpsilon') then
+			-- TODO just recompile the poisson program?
+			solver:refreshSolverProgram()
+		end
+		ig.igSameLine()
+		tooltip.numberTable('epsilon', self, 'stopEpsilon')
+		tooltip.intTable('maxiter', self, 'maxIters')
+		if self.stopOnEpsilon then
+			ig.igText('err = '..self.lastEpsilon)
+		end
+		ig.igText('iter = '..self.lastIter)
+	end
+	ig.igPopId()
 end
 
 --[[

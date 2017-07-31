@@ -1752,6 +1752,14 @@ function Solver:updateGUIParams()
 			ig.igPopId()
 		end
 
+		-- TODO either hold a list of Poisson operations
+		-- or a list of sub-GUIs (which Poisson and Integrator can attach themselves to)
+		-- or a list of operations (flux integration, constrain U, self-grav, etc)
+		-- 	and then add GUIs from this list
+		if self.gravityPoisson then
+			self.gravityPoisson:updateGUI()
+		end
+
 		if tooltip.combo('slope limiter', self.fluxLimiter, self.app.limiterNames) then
 			self:refreshSolverProgram()
 		end
