@@ -274,7 +274,7 @@ return {
 			
 			local R = .002	-- Schwarzschild radius
 			
--- [=[ using symbolic calculations
+--[=[ using symbolic calculations
 			local x,y,z = symmath.vars('x','y','z')
 			local r = symmath.sqrt(x^2 + y^2 + z^2)
 		
@@ -297,7 +297,6 @@ return {
 			}
 --]=]
 --[=[ just pass it the cl code.
-			
 			local alphaVar = symmath.var'alpha'
 			local fGuiVar = solver.eqn.guiVarsForName.f
 			local fLuaCode = fGuiVar.options[fGuiVar.value]
@@ -331,6 +330,50 @@ end
 				R = clnumber(R),
 			}))
 --]=]
+		end,
+	},
+	{	-- Baumgarte & Shapiro, table 2.1, isotropic coordinates
+		name = 'Schwarzschild black hole - isotropic',
+		init = function(solver, getCodes)
+			local R = .002	-- Schwarzschild radius
+		
+			local alphaVar = symmath.var'alpha'
+			local fGuiVar = solver.eqn.guiVarsForName.f
+			local fLuaCode = fGuiVar.options[fGuiVar.value]
+			
+			local f = assert(loadstring('local alpha = ... return '..fLuaCode))(alphaVar)
+			f = symmath.clone(f)
+			local fCCode = compileC(f, 'f', {alphaVar})
+			
+			return template([[
+#define calc_f(alpha)			(<?=fCCode?>)
+#define rSq(x,y,z) 				(x*x + y*y + z*z)
+#define r(x,y,z) 				sqrt(rSq(x,y,z))
+#define calc_alpha(x,y,z) 		((1. - <?=R?>/r(x,y,z))/(1. + <?=R?>/r(x,y,z)))
+#define sq(x)					((x)*(x))
+<? 
+for i,xi in ipairs(xNames) do
+?>#define calc_beta_<?=xi?>(x,y,z)		0.
+<?
+end
+for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+	local xi, xj = xNames[i], xNames[j]
+	if i==j then
+?>#define calc_gamma_<?=xij?>(x,y,z) 	sq(sq(1. + <?=R?> / r(x,y,z)))
+<?	else
+?>#define calc_gamma_<?=xij?>(x,y,z)	0.
+<?	end
+end
+for ij,xij in ipairs(symNames) do
+?>#define calc_K_<?=xij?>(x,y,z)		0.
+<?
+end
+?>]], 		table(getTemplateEnv(solver), {
+				fCCode = fCCode:match'{ return (.*); }',
+				R = clnumber(R),
+			}))
+	
 		end,
 	},
 	{

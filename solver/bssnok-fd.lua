@@ -32,6 +32,9 @@ end
 -- override and implement a constant boundary condition
 -- TODO make the boundary conditions more flexible
 -- right now there's no way to specify this in sell.app.boundaryMethods
+-- how to do that?  have the gui poll from a list from the solver, 
+--  and have this solver add its constant option to that list
+--[=[
 function BSSNOKFiniteDifferenceSolver:refreshBoundaryProgram()
 	self.boundaryProgram, self.boundaryKernel = 
 		self:createBoundaryProgramAndKernel{
@@ -54,6 +57,7 @@ function BSSNOKFiniteDifferenceSolver:refreshBoundaryProgram()
 		}
 	self.boundaryKernel:setArg(0, self.UBuf)
 end
+--]=]
 
 
 function BSSNOKFiniteDifferenceSolver:resetState()

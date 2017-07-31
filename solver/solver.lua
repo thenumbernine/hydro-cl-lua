@@ -1698,9 +1698,7 @@ function Solver:updateGUIParams()
 end
 
 function Solver:updateGUIEqnSpecific()
-	if ig.igCollapsingHeader'equation-specific:' then
-		-- equation-specific:
-
+	if ig.igCollapsingHeader'equation:' then
 		if tooltip.comboTable('init state', self, 'initStateIndex', self.eqn.initStateNames) then
 			
 			self:refreshInitStateProgram()

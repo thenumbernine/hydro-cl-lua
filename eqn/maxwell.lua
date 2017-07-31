@@ -1,3 +1,27 @@
+--[[
+based on Trangenstein
+but there's a more advanced version in the slides by Chatterjee "Finite Volume Time Domain (FVTD) Computations for Electromagnetic Scattering"
+B,t + curl E = -rho H
+D,t - curl H = -J_i - sigma E
+D = eps' E
+B = mu' H
+sigma = omega eps"
+rho = omega mu"
+eps_r = eps' - j eps"
+mu_r = mu' - j mu"
+what is rho?
+what is sigma? conductance
+what is eps', eps", mu', mu", omega, j?
+then using Shokin, Fedurok, Lebedev, Chubarov "Parallel FVTD for Solving Maxwell Equations in Dielectric-Metal Composite Media"
+I get 
+D,t - curl H = 0
+B,t + curl E = 0
+D = eps0 eps_r E
+B = mu0 H
+div D = 0
+div B = 0
+Drude model: eps(omega) = eps_inf - omega_p^2 / (omega (omega + i Gamma))
+--]]
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
