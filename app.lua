@@ -64,8 +64,6 @@ local HydroCLApp = class(ImGuiApp)
 
 HydroCLApp.title = 'Hydrodynamics in OpenCL'
 
-HydroCLApp.boundaryMethods = table{'freeflow', 'periodic', 'mirror'}
-
 -- list from https://en.wikipedia.org/wiki/Flux_limiter
 HydroCLApp.limiters = table{
 	{name='donor cell', code='return 0.;'},
@@ -257,9 +255,9 @@ function HydroCLApp:setup()
 	
 		-- GR
 		--initState = 'gauge shock wave',
-		--initState = 'Alcubierre warp bubble',
+		initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
-		initState = 'Schwarzschild black hole - isotropic',
+		--initState = 'Schwarzschild black hole - isotropic',
 		--initState = 'binary black holes',
 		--initState = 'stellar model',
 		--initState = 'stellar model 2',

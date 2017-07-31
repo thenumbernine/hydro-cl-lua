@@ -95,6 +95,24 @@ function Solver:init(args)
 	for i=0,self.dim-1 do self.gridSize:ptr()[i] = self.gridSize:ptr()[i] + 2 * self.numGhost end
 	for i=self.dim,2 do self.gridSize:ptr()[i] = 1 end
 
+	
+	self:createBoundaryOptions()
+	self:finalizeBoundaryOptions()
+
+	self.boundaryMethods = {}
+	for i=1,3 do
+		for _,minmax in ipairs(minmaxs) do
+			local var = xs[i]..minmax
+			self.boundaryMethods[var] = ffi.new('int[1]', 
+				self.boundaryOptions:find(
+					(args.boundary or {})[var] or 'freeflow',
+					function(option, search)
+						return search == next(option)
+					end
+				)-1)
+		end
+	end
+
 
 	self:createEqn(args.eqn)
 
@@ -106,16 +124,7 @@ function Solver:init(args)
 	self.initStateIndex = table.find(self.eqn.initStateNames, args.initState) or 1
 	self.integratorIndex = self.integratorNames:find(args.integrator) or 1
 	self.fluxLimiter = ffi.new('int[1]', (self.app.limiterNames:find(args.fluxLimiter) or 1)-1)
-	
-	self.boundaryMethods = {}
-	for i=1,3 do
-		for _,minmax in ipairs(minmaxs) do
-			local var = xs[i]..minmax
-			self.boundaryMethods[var] = ffi.new('int[1]', self.app.boundaryMethods:find(
-				(args.boundary or {})[var] or 'freeflow'
-			)-1)
-		end
-	end
+
 
 	self.geometry = require('geom.'..args.geometry){solver=self}
 
@@ -124,6 +133,85 @@ function Solver:init(args)
 	self.slopeLimiter = ffi.new('int[1]', (self.app.limiterNames:find(args.slopeLimiter) or 1)-1)
 
 	self:refreshGridSize()
+end
+
+--[[
+boundaryOptions is a table of {name = args => assign code}
+	args of the boundary function are:
+		index
+		assign = function(dst,src) 
+			assignment operator
+			default is dst = src
+			poisson uses dist.field = src.field
+		rhs
+		gridSizeSide = solver.gridSize[side]
+		side = 1,2,3
+		minmax = 'min' or 'max'
+		mirrorVars = which vars to reflect.
+			for solver.UBuf this is taken from eqn
+			for poisson this is nothing
+--]]
+function Solver:createBoundaryOptions()
+	self.boundaryOptions = table{
+		{periodic = function(args)
+			local gridSizeSide = 'gridSize_'..xs[args.side]
+			local rhs = gridSizeSide..'-numGhost+j'
+			if args.minmax == 'min' then
+				return '\t\t\t'..args.assign(
+					'buf['..args.index'j'..']', 
+					'buf['..args.index(gridSizeSide..'-2*numGhost+j')..']'
+				)..';'
+			elseif args.minmax == 'max' then
+				return '\t\t\t'..args.assign(
+					'buf['..args.index(rhs)..']', 
+					'buf['..args.index'numGhost+j'..']'
+				)..';'
+			end
+		end},
+		{mirror = function(args)
+			local gridSizeSide = 'gridSize_'..xs[args.side]
+			local rhs = gridSizeSide..'-numGhost+j'
+			if args.minmax == 'min' then
+				return table{
+					'\t\t\t'..args.assign(
+						'buf['..args.index'j'..']',
+						' buf['..args.index'2*numGhost-1-j'..']'
+					)..';'
+				}:append(table.map((args.mirrorVars or {})[args.side] or {}, function(var)
+					return '\t\t\t'..'buf['..args.index'j'..'].'..var..' = -buf['..args.index'j'..'].'..var..';'
+				end)):concat'\n'
+			elseif args.minmax == 'max' then
+				return table{
+					'\t\t\t'..args.assign(
+						'buf['..args.index(rhs)..']',
+						'buf['..args.index(gridSizeSide..'-numGhost-1-j')..']'
+					)..';'
+				}:append(table.map((args.mirrorVars or {})[args.side] or {}, function(var)
+					return '\t\t\t'..'buf['..args.index(rhs)..'].'..var..' = -buf['..args.index(rhs)..'].'..var..';'
+				end)):concat'\n'
+			end
+		end},
+		{freeflow = function(args)
+			local gridSizeSide = 'gridSize_'..xs[args.side]
+			local rhs = gridSizeSide..'-numGhost+j'
+			if args.minmax == 'min' then
+				return '\t\t\t'..args.assign(
+					'buf['..args.index'j'..']',
+					'buf['..args.index'numGhost'..']'
+				)..';'
+			elseif args.minmax == 'max' then
+				return '\t\t\t'..args.assign(
+					'buf['..args.index(rhs)..']',
+					'buf['..args.index(gridSizeSide..'-numGhost-1'
+				)..']')..';'
+			end
+		end},
+	}
+end
+function Solver:finalizeBoundaryOptions()
+	self.boundaryOptionNames = self.boundaryOptions:map(function(option) return (next(option)) end)
+	-- hmm here's the one time that table.map using k,v comes in handy
+	self.boundaryOptionForName = self.boundaryOptions:map(function(option) local k,v = next(option) return v,k end)
 end
 
 -- this is the general function - which just assigns the eqn provided by the arg
@@ -1207,33 +1295,17 @@ kernel void boundary(
 				end
 			end
 		end
-
-		local x = xs[side]
-
-		local gridSizeSide = 'gridSize_'..xs[side]
-		local rhs = gridSizeSide..'-numGhost+j'
-		local method = args.methods[x..'min']
-		local tab = '\t\t\t'
-		lines:insert(({
-			periodic = tab..assign('buf['..index'j'..']', 'buf['..index(gridSizeSide..'-2*numGhost+j')..']')..';',
-			mirror = table{
-				tab..assign('buf['..index'j'..']', ' buf['..index'2*numGhost-1-j'..']')..';',
-			}:append(table.map((args.mirrorVars or {})[side] or {}, function(var)
-				return tab..'buf['..index'j'..'].'..var..' = -buf['..index'j'..'].'..var..';'
-			end)):concat'\n',
-			freeflow = tab..assign('buf['..index'j'..']', 'buf['..index'numGhost'..']')..';',
-		})[method] or method('buf['..index'j'..']'))
-
-		local method = args.methods[x..'max']
-		lines:insert(({
-			periodic = tab..assign('buf['..index(rhs)..']', 'buf['..index'numGhost+j'..']')..';',
-			mirror = table{
-				tab..assign('buf['..index(rhs)..']', 'buf['..index(gridSizeSide..'-numGhost-1-j')..']')..';',
-			}:append(table.map((args.mirrorVars or {})[side] or {}, function(var)
-				return tab..'buf['..index(rhs)..'].'..var..' = -buf['..index(rhs)..'].'..var..';'
-			end)):concat'\n',
-			freeflow = tab..assign('buf['..index(rhs)..']', 'buf['..index(gridSizeSide..'-numGhost-1')..']')..';',
-		})[method] or method('buf['..index(rhs)..']'))
+	
+		for _,minmax in ipairs{'min', 'max'} do
+			local method = args.methods[xs[side]..minmax]
+			lines:insert(method{
+				index = index,
+				assign = assign,
+				side = side,
+				mirrorVars = args.mirrorVars,
+				minmax = minmax,
+			})
+		end
 	
 		if self.dim > 1 then
 			lines:insert'		}'
@@ -1256,12 +1328,10 @@ end
 function Solver:getBoundaryProgramArgs()
 	return {
 		type = self.eqn.cons_t,
-		-- remap from enum/combobox int values to names
-		methods = table.map(self.boundaryMethods, function(v,k)
-			if type(v) == 'function' then
-				return v, k
-			end
-			return self.app.boundaryMethods[1+v[0]], k
+		-- remap from enum/combobox int values to functions from the solver.boundaryOptions table
+		methods = table.map(self.boundaryMethods, function(v)
+			if type(v) == 'function' then return v end
+			return (select(2, next(self.boundaryOptions[1+v[0]])))
 		end),
 		mirrorVars = self.eqn.mirrorVars,
 	}
@@ -1689,7 +1759,7 @@ function Solver:updateGUIParams()
 		for i=1,self.dim do
 			for _,minmax in ipairs(minmaxs) do
 				local var = xs[i]..minmax
-				if tooltip.combo(var, self.boundaryMethods[var], self.app.boundaryMethods) then
+				if tooltip.combo(var, self.boundaryMethods[var], self.boundaryOptionNames) then
 					self:refreshBoundaryProgram()
 				end
 			end

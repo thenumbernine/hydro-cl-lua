@@ -29,20 +29,14 @@ function BSSNOKFiniteDifferenceSolver:refreshInitStateProgram()
 	self.initConnUBarKernel = self.initStateProgram:kernel('init_connBarU', self.UBuf)
 end
 
--- override and implement a constant boundary condition
--- TODO make the boundary conditions more flexible
--- right now there's no way to specify this in sell.app.boundaryMethods
--- how to do that?  have the gui poll from a list from the solver, 
---  and have this solver add its constant option to that list
---[=[
-function BSSNOKFiniteDifferenceSolver:refreshBoundaryProgram()
-	self.boundaryProgram, self.boundaryKernel = 
-		self:createBoundaryProgramAndKernel{
-			type = self.eqn.cons_t,
-			-- remap from enum/combobox int values to names
-			methods = table.map(self.boundaryMethods, function(v,k)
-				return function(U)
-					return template([[
+-- add an option for fixed Minkowsky boundary spacetime
+function BSSNOKFiniteDifferenceSolver:createBoundaryOptions()
+	BSSNOKFiniteDifferenceSolver.super.createBoundaryOptions(self)
+
+	self.boundaryOptions:insert{
+		fixed = function(args)
+			local U = 'buf['..args.index'j'..']'
+			return template([[
 	<?=U?>.alpha = 1.;
 	<?=U?>.beta_u = _real3(0,0,0);
 	<?=U?>.gammaBar_ll = (sym3){.s={1,0,0,1,0,1}};
@@ -50,15 +44,10 @@ function BSSNOKFiniteDifferenceSolver:refreshBoundaryProgram()
 	<?=U?>.K = 0;
 	<?=U?>.ATilde_ll = (sym3){.s={1,0,0,1,0,1}};
 	<?=U?>.connBar_u = _real3(0,0,0);
-]],						{U = U})
-				end, k
-			end),
-			mirrorVars = self.eqn.mirrorVars,
-		}
-	self.boundaryKernel:setArg(0, self.UBuf)
+]], {U=U})
+		end,
+	}
 end
---]=]
-
 
 function BSSNOKFiniteDifferenceSolver:resetState()
 	BSSNOKFiniteDifferenceSolver.super.resetState(self)

@@ -80,8 +80,8 @@ function Poisson:refreshBoundaryProgram()
 	solver.potentialBoundaryProgram, solver.potentialBoundaryKernel =
 		solver:createBoundaryProgramAndKernel{
 			type = self:getPotBufType(),
-			methods = table.map(solver.boundaryMethods, function(v,k)
-				return solver.app.boundaryMethods[1+v[0]], k
+			methods = table.map(solver.boundaryMethods, function(v)
+				return (select(2, next(solver.boundaryOptions[1+v[0]])))
 			end),
 			assign = function(a,b)
 				return a..'.'..self.potentialField..' = '..b..'.'..self.potentialField
