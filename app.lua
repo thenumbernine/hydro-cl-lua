@@ -131,7 +131,7 @@ function HydroCLApp:setup()
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = ({
 			{256,1,1},
-			{128,128,1},
+			{64,64,1},
 			{32,32,32},
 		})[dim],
 		boundary = {
@@ -212,7 +212,7 @@ function HydroCLApp:setup()
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -248,7 +248,7 @@ function HydroCLApp:setup()
 		
 		-- EM:
 		--initState = 'Maxwell default',
-		initState = 'Maxwell scattering around cylinder',
+		--initState = 'Maxwell scattering around cylinder',
 		--initState = 'Maxwell wire',
 		--initState = 'Maxwell FDTD test',
 		
@@ -268,7 +268,7 @@ function HydroCLApp:setup()
 	}
 	
 	-- HD - Roe
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
@@ -308,7 +308,7 @@ function HydroCLApp:setup()
 	--self.solvers:insert(require 'solver.mhd-roe'(args))
 	
 	-- EM
-	self.solvers:insert(require 'solver.maxwell-roe'(args))
+	--self.solvers:insert(require 'solver.maxwell-roe'(args))
 	
 	-- EM+HD
 	-- I'm having some memory issues with two solvers running simultanously .. 

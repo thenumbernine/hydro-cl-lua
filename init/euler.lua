@@ -737,8 +737,8 @@ end ?>
 			return [[
 	real3 xc = coordMap(x);
 	if (real3_lenSq(xc) < .2*.2) {
-		conductivity = 0;
-		//permittivity = 10.;
+		//conductivity = 0;
+		permittivity = 10.;
 	}
 ]]
 		end,

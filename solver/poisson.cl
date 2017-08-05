@@ -114,7 +114,8 @@ end ?>
 
 <?
 if poisson.stopOnEpsilon then
-?>	reduceBuf[index] = fabs(newU - oldU);
+?>	real dU = newU - oldU;
+	reduceBuf[index] = dU * dU;
 <?
 end
 ?>

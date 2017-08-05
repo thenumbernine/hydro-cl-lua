@@ -23,8 +23,15 @@ function Poisson:init(solver)
 end
 
 Poisson.stopOnEpsilon = true
-Poisson.stopEpsilon = 1e-2
+-- [[ realtime
+Poisson.stopEpsilon = 1e-12
 Poisson.maxIters = 20
+--]]
+--[[ safe
+Poisson.stopEpsilon = 1e-20
+Poisson.maxIters = 10000
+--]]
+--Poisson.verbose = true
 
 function Poisson:getSolverCode()
 	return template(
@@ -79,9 +86,11 @@ function Poisson:relax()
 		solver:potentialBoundary()
 
 		if self.stopOnEpsilon then
-			local err = solver.reduceSum()
+			local err = solver.reduceSum() / tonumber(solver.volumeWithoutBorder)
 			self.lastEpsilon = err
-			--print('gauss seidel iter '..i..' err '..err)
+			if self.verbose then
+				print('gauss seidel iter '..i..' err '..err)
+			end
 			if err <= self.stopEpsilon then break end
 		end
 	end

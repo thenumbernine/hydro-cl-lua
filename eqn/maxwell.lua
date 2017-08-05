@@ -113,8 +113,13 @@ kernel void initState(
 	real3 E = _real3(0,0,0);
 	real3 B = _real3(0,0,0);
 	real conductivity = 1.;
-	real permittivity = 1. / (4. * M_PI);
-	real permeability = 4. * M_PI;
+	
+	//natural units say eps0 = 1/4pi, mu0 = 4pi
+	//but waves don't make it to the opposite side...
+	//mu0 eps0 = 1/c^2
+	real permittivity = 1.; //1. / (4. * M_PI);
+	real permeability = 1.; //4. * M_PI;
+	
 	//throw-away
 	real rho = 0;
 	real3 v = _real3(0,0,0);
