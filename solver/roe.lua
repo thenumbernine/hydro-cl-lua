@@ -4,7 +4,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
-local Solver = require 'solver.solver'
+local FiniteVolumeSolver = require 'solver.fvsolver'
 
 -- this can be put in app.lua
 local errorType = 'error_t'
@@ -13,7 +13,7 @@ typedef struct {
 	real ortho, flux;
 } ]]..errorType..';'
 
-local Roe = class(Solver)
+local Roe = class(FiniteVolumeSolver)
 Roe.name = 'Roe'
 
 -- enable these to verify accuracy
@@ -36,7 +36,6 @@ function Roe:createBuffers()
 	if self.fluxLimiter[0] > 0 then
 		self:clalloc('rEigBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
 	end
-	self:clalloc('fluxBuf', self.volume * self.dim * ffi.sizeof(self.eqn.cons_t))
 	
 	-- debug only
 	if self.checkFluxError or self.checkOrthoError then
@@ -60,7 +59,6 @@ function Roe:getSolverCode()
 	
 		-- before this went above solver/plm.cl, now it's going after it ...
 		template(file['solver/roe.cl'], {solver=self, eqn=self.eqn}),
-		template(file['solver/calcDeriv.cl'], {solver=self, eqn=self.eqn}),
 	}:concat'\n'
 end
 
@@ -99,8 +97,7 @@ function Roe:refreshSolverProgram()
 		self.calcFluxKernel:setArg(6, self.rEigBuf)
 	end
 
-	self.calcDerivFromFluxKernel = self.solverProgram:kernel'calcDerivFromFlux'
-	self.calcDerivFromFluxKernel:setArg(1, self.fluxBuf)
+	-- TODO put this in solver/solver.lua ?
 	if self.eqn.useSourceTerm then
 		self.addSourceKernel = self.solverProgram:kernel'addSource'
 		self.addSourceKernel:setArg(1, self.UBuf)
@@ -166,19 +163,6 @@ function Roe:addConvertToTexs()
 		}
 	end
 	
-	-- TODO add kernels for each side
-	-- TODO move to solverfv
-	self:addConvertToTex{
-		name = 'flux', 
-		type = self.eqn.cons_t,
-		varCodePrefix = [[
-	const global ]]..self.eqn.cons_t..[[* flux = buf + indexInt;
-]],
-		vars = range(0,self.eqn.numStates-1):map(function(i)
-			return {[tostring(i)] = '*value = flux->ptr['..i..'];'}
-		end),
-	}
-
 	-- TODO add kernels for each side
 	if self.checkFluxError or self.checkOrthoError then	
 		self:addConvertToTex{

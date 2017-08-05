@@ -101,7 +101,7 @@ function HydroCLApp:setup()
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or dim,
 		
-		--integrator = cmdline.integrator or 'forward Euler',	
+		integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -113,7 +113,7 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		integrator = 'backward Euler',
+		--integrator = 'backward Euler',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
@@ -128,7 +128,7 @@ function HydroCLApp:setup()
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = ({
 			{256,1,1},
-			{256,256,1},
+			{128,128,1},
 			{32,32,32},
 		})[dim],
 		boundary = {
@@ -209,7 +209,7 @@ function HydroCLApp:setup()
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -226,7 +226,7 @@ function HydroCLApp:setup()
 		--initState = 'configuration 6',
 
 		-- self-gravitation tests:
-		--initState = 'self-gravitation test 1',
+		initState = 'self-gravitation test 1',
 		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
 		--initState = 'self-gravitation test 2 orbiting',
@@ -274,6 +274,9 @@ function HydroCLApp:setup()
 	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe')(table(args, {eqn='euler'})))
 
 	-- HD - Burgers
+	-- f.e. and b.e. are working, but none of the r.k. integrators 
+	-- PLM isn't implemented yet
+	-- neither is source term / poisson stuff
 	self.solvers:insert(require 'solver.euler-burgers'(args))
 
 	-- SR+HD.  

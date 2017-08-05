@@ -1596,14 +1596,6 @@ function Solver:step(dt)
 		self:calcDeriv(derivBuf, dt)
 	end)
 
-	-- TODO as well -- maybe I don't need this
-	-- I think I had initState just override what it wanted.
-	if self.eqn.initState
-	and self.eqn.initState.update
-	then
-		self.eqn.initState.update(self)
-	end
-
 	if self.eqn.useConstrainU then
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end

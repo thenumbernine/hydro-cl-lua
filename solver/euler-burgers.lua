@@ -4,9 +4,9 @@ local table = require 'ext.table'
 local file = require 'ext.file'
 local range = require 'ext.range'
 local template = require 'template'
-local Solver = require 'solver.solver'
+local FiniteVolumeSolver = require 'solver.fvsolver'
 
-local EulerBurgers = class(Solver)
+local EulerBurgers = class(FiniteVolumeSolver)
 EulerBurgers.name = 'EulerBurgers'
 
 function EulerBurgers:init(...)
@@ -14,17 +14,15 @@ function EulerBurgers:init(...)
 	self.name = nil	-- don't append the eqn name to this
 end
 
-local BurgersEulerEqn = class(require 'eqn.euler')
-BurgersEulerEqn.hasCalcDT = true 
-function EulerBurgers:createEqn(eqn)
-	self.eqn = BurgersEulerEqn(self)
-end
+-- Usually the eqn provide their own 'calcDT'
+-- but sometimes the solver needs it too ...
+-- Maybe the eqn should flag whether it has 'calcDT'
+-- and the solver should use it likewise?
+-- This is also in solver/bssnok-fd.lua which also 
+function EulerBurgers:getCalcDTCode() return '' end
 
 function EulerBurgers:createBuffers()
 	EulerBurgers.super.createBuffers(self)
-	
-	-- TODO move this to fvsolver.lua
-	self:clalloc('fluxBuf', self.volume * self.dim * ffi.sizeof(self.eqn.cons_t))
 	
 	self:clalloc('intVelBuf', self.volume * self.dim * ffi.sizeof(self.app.real))
 	self:clalloc('PBuf', self.volume * ffi.sizeof(self.app.real))
@@ -34,7 +32,6 @@ function EulerBurgers:getSolverCode()
 	return table{
 		EulerBurgers.super.getSolverCode(self),
 		template(file['solver/euler-burgers.cl'], {solver=self, eqn=self.eqn}),
-		template(file['solver/calcDeriv.cl'], {solver=self, eqn=self.eqn}),
 	}:concat'\n'
 end
 
@@ -42,13 +39,9 @@ function EulerBurgers:refreshSolverProgram()
 	EulerBurgers.super.refreshSolverProgram(self)
 
 	-- no mention of ULR just yet ...
-	
+
 	self.calcIntVelKernel = self.solverProgram:kernel('calcIntVel', self.intVelBuf, self.UBuf)
 	self.calcFluxKernel = self.solverProgram:kernel('calcFlux', self.fluxBuf, self.UBuf, self.intVelBuf)
-
-	-- TODO move this to fvsolver.lua
-	self.calcDerivFromFluxKernel = self.solverProgram:kernel'calcDerivFromFlux'
-	self.calcDerivFromFluxKernel:setArg(1, self.fluxBuf)
 
 	self.computePressureKernel = self.solverProgram:kernel('computePressure', self.PBuf, self.UBuf) 
 	
@@ -62,18 +55,6 @@ end
 
 function EulerBurgers:addConvertToTexs()
 	EulerBurgers.super.addConvertToTexs(self)
-
-	-- TODO move to solverfv
-	self:addConvertToTex{
-		name = 'flux', 
-		type = self.eqn.cons_t,
-		varCodePrefix = [[
-	const global ]]..self.eqn.cons_t..[[* flux = buf + indexInt;
-]],
-		vars = range(0,self.eqn.numStates-1):map(function(i)
-			return {[tostring(i)] = '*value = flux->ptr['..i..'];'}
-		end),
-	}
 
 	self:addConvertToTex{
 		name = 'P', 
@@ -119,6 +100,15 @@ function EulerBurgers:step(dt)
 		self.diffuseWorkKernel:setArg(0, derivBuf)
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.diffuseWorkKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
 	end)
+
+	-- no addSource call just yet
+	-- it is invoked by individual solvers
+	-- however for eqn/euler there is nothing there except my messing with connection coefficients
 end
 
-return EulerBurgers 
+-- all this does is add SelfGrav and add createEqn
+local EulerBehavior = require 'solver.euler-behavior'
+
+-- wrap EulerBehavior last so its step() calls this class
+-- because this class doesn't call super
+return EulerBehavior(EulerBurgers)
