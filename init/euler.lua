@@ -87,6 +87,44 @@ function SelfGravProblem:__call(solver)
 	})
 end
 
+local function addMaxwellOscillatingBoundary(solver)
+	-- this args is only for the UBuf boundary program -- not calle for the Poisson boundary program
+	function solver:getBoundaryProgramArgs()
+		-- i'm completely overriding this
+		-- so I can completely override boundaryMethods for the solver boundary kernel
+		-- yet not for the poisson boundary kernel
+		local boundaryMethods = table(self.boundaryMethods)
+		boundaryMethods.xmin = function(args)
+			local U = 'buf['..args.index'j'..']'
+			return template([[
+	<?=U?>.epsE.y = (real)sin((real)10. * t) / <?=U?>.eps;
+]], {U=U})
+		end
+
+		-- same as super 
+		-- except with extraAgs
+		-- and using boundaryMethods instead of self.boundaryMethods
+		-- (which I leave alone so Poisson can deal with it)
+		return {
+			type = self.eqn.cons_t,
+			extraArgs = {'real t'},
+			-- remap from enum/combobox int values to functions from the solver.boundaryOptions table
+			methods = table.map(boundaryMethods, function(v)
+				if type(v) == 'function' then return v end
+				return (select(2, next(self.boundaryOptions[1+v[0]])))
+			end),
+			mirrorVars = self.eqn.mirrorVars,
+		}
+	end
+	
+	-- this runs before refreshBoundaryProgram, so lets hijack refreshBoundaryProgram and add in our time-based boundary conditions
+	local oldBoundary = solver.boundary
+	function solver:boundary()
+		self.boundaryKernel:setArg(1, ffi.new('real[1]', self.t))
+		oldBoundary(self)
+	end
+end
+
 local initStates = {
 	{
 		name = 'constant',
@@ -695,39 +733,7 @@ end ?>
 	{
 		name = 'Maxwell scattering around cylinder',
 		init = function(solver)
--- [=[	
-			-- this args is only for the UBuf boundary program -- not calle for the Poisson boundary program
-			function solver:getBoundaryProgramArgs()
-				-- i'm completely overriding this
-				-- so I can completely override boundaryMethods for the solver boundary kernel
-				-- yet not for the poisson boundary kernel
-				local boundaryMethods = table(self.boundaryMethods)
-				boundaryMethods.xmin = function(U)
-					return template([[
-			<?=U?>.epsE.y = (real)sin((real)10. * t) / <?=U?>.eps;
-]], {U=U})
-				end
-
-				return {
-					type = self.eqn.cons_t,
-					extraArgs = {'real t'},
-					-- remap from enum/combobox int values to names
-					methods = table.map(boundaryMethods, function(v,k)
-						if type(v) == 'function' then
-							return v, k
-						end
-						return self.app.boundaryMethods[1+v[0]], k
-					end),
-					mirrorVars = self.eqn.mirrorVars,
-				}
-			end
-			-- this runs before refreshBoundaryProgram, so lets hijack refreshBoundaryProgram and add in our time-based boundary conditions
-			local oldBoundary = solver.boundary
-			function solver:boundary()
-				self.boundaryKernel:setArg(1, ffi.new('real[1]', self.t))
-				oldBoundary(self)
-			end
---]=]		
+			addMaxwellOscillatingBoundary(solver)
 			return [[
 	real3 xc = coordMap(x);
 	if (real3_lenSq(xc) < .2*.2) {
@@ -741,6 +747,8 @@ end ?>
 	{
 		name = 'Maxwell wire',
 		init = function(solver)
+			addMaxwellOscillatingBoundary(solver)
+			
 			local c = 299792458
 			local s_in_m = 1 / c
 			local G = 6.6740831e-11

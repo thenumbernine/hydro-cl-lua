@@ -114,7 +114,10 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
 		--integrator = 'backward Euler',
-	
+
+		--fixedDT = .05,
+		--cfl = 1,
+
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
 		--usePLM = true,	-- piecewise-linear slope limiter
@@ -132,12 +135,12 @@ function HydroCLApp:setup()
 			{32,32,32},
 		})[dim],
 		boundary = {
-			xmin=cmdline.boundary or 'mirror',
-			xmax=cmdline.boundary or 'mirror',
-			ymin=cmdline.boundary or 'mirror',
-			ymax=cmdline.boundary or 'mirror',
-			zmin=cmdline.boundary or 'mirror',
-			zmax=cmdline.boundary or 'mirror',
+			xmin=cmdline.boundary or 'freeflow',
+			xmax=cmdline.boundary or 'freeflow',
+			ymin=cmdline.boundary or 'freeflow',
+			ymax=cmdline.boundary or 'freeflow',
+			zmin=cmdline.boundary or 'freeflow',
+			zmax=cmdline.boundary or 'freeflow',
 		},
 		--]]
 		--[[ cylinder
@@ -226,7 +229,7 @@ function HydroCLApp:setup()
 		--initState = 'configuration 6',
 
 		-- self-gravitation tests:
-		initState = 'self-gravitation test 1',
+		--initState = 'self-gravitation test 1',
 		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
 		--initState = 'self-gravitation test 2 orbiting',
@@ -245,8 +248,8 @@ function HydroCLApp:setup()
 		
 		-- EM:
 		--initState = 'Maxwell default',
+		initState = 'Maxwell scattering around cylinder',
 		--initState = 'Maxwell wire',
-		--initState = 'Maxwell scattering around cylinder',
 		--initState = 'Maxwell FDTD test',
 		
 		--initState = 'two-fluid EMHD soliton ion',
@@ -264,8 +267,6 @@ function HydroCLApp:setup()
 		--initState = 'stellar model 3',
 	}
 	
-	self.solvers = table()
-	
 	-- HD - Roe
 	--self.solvers:insert(require 'solver.euler-roe'(args))
 
@@ -277,7 +278,7 @@ function HydroCLApp:setup()
 	-- f.e. and b.e. are working, but none of the r.k. integrators 
 	-- PLM isn't implemented yet
 	-- neither is source term / poisson stuff
-	self.solvers:insert(require 'solver.euler-burgers'(args))
+	--self.solvers:insert(require 'solver.euler-burgers'(args))
 
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
@@ -307,7 +308,7 @@ function HydroCLApp:setup()
 	--self.solvers:insert(require 'solver.mhd-roe'(args))
 	
 	-- EM
-	--self.solvers:insert(require 'solver.maxwell-roe'(args))
+	self.solvers:insert(require 'solver.maxwell-roe'(args))
 	
 	-- EM+HD
 	-- I'm having some memory issues with two solvers running simultanously .. 
