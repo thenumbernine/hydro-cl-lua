@@ -101,7 +101,7 @@ function HydroCLApp:setup()
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or dim,
 		
-		integrator = cmdline.integrator or 'forward Euler',	
+		--integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -113,7 +113,7 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		--integrator = 'backward Euler',
+		integrator = 'backward Euler',
 	
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
@@ -128,16 +128,16 @@ function HydroCLApp:setup()
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = ({
 			{256,1,1},
-			{128,128,1},
+			{256,256,1},
 			{32,32,32},
 		})[dim],
 		boundary = {
-			xmin=cmdline.boundary or 'freeflow',
-			xmax=cmdline.boundary or 'freeflow',
-			ymin=cmdline.boundary or 'freeflow',
-			ymax=cmdline.boundary or 'freeflow',
-			zmin=cmdline.boundary or 'freeflow',
-			zmax=cmdline.boundary or 'freeflow',
+			xmin=cmdline.boundary or 'mirror',
+			xmax=cmdline.boundary or 'mirror',
+			ymin=cmdline.boundary or 'mirror',
+			ymax=cmdline.boundary or 'mirror',
+			zmin=cmdline.boundary or 'mirror',
+			zmax=cmdline.boundary or 'mirror',
 		},
 		--]]
 		--[[ cylinder
@@ -209,7 +209,7 @@ function HydroCLApp:setup()
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -229,7 +229,7 @@ function HydroCLApp:setup()
 		--initState = 'self-gravitation test 1',
 		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
-		initState = 'self-gravitation test 2 orbiting',
+		--initState = 'self-gravitation test 2 orbiting',
 		--initState = 'self-gravitation test 4',
 		--initState = 'self-gravitation soup',
 		
@@ -266,12 +266,15 @@ function HydroCLApp:setup()
 	
 	self.solvers = table()
 	
-	-- HD
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	-- HD - Roe
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
 	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe')(table(args, {eqn='euler'})))
+
+	-- HD - Burgers
+	self.solvers:insert(require 'solver.euler-burgers'(args))
 
 	-- SR+HD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim

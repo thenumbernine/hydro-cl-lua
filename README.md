@@ -37,6 +37,7 @@ TODO:
 - implement Navier-Stokes, compressible & incompressible
 - rename 'adm\_' prefixes to 'nr\_' or 'gr\_' or something else ...
 - PLM support that works on a wide range of equations (currently have a few vying options)
+- PLM for BSSNOK-FD and Euler-Burgers
 - higher-order polynomial stuff - WENO or whatever
 - initialize NR stuff to the geometry metric ... or decide what kind of geometry metric to use (holonomic vs anholonomic) ... or just use euclidian components and calculate the normals and volumes and surfaces using geom.
 - currently seeing errors when two solvers run simultaneously ... which makes EM+HD difficult

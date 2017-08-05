@@ -1596,8 +1596,8 @@ function Solver:step(dt)
 		self:calcDeriv(derivBuf, dt)
 	end)
 
-	-- while we're here, perform any update specific to the initial conditions
-	-- TODO constrainU before it as well as after?
+	-- TODO as well -- maybe I don't need this
+	-- I think I had initState just override what it wanted.
 	if self.eqn.initState
 	and self.eqn.initState.update
 	then

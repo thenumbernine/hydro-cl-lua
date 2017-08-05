@@ -109,7 +109,7 @@ end ?>
 
 	real oldU = U-><?=poisson.potentialField?>;
 	
-	//Gauss-Seidel iteration: x_i = (b_i - A_ij) / A_ii
+	//Gauss-Seidel iteration: x_i = (b_i - A_ij x_j) / A_ii
 	real newU = (rho - skewSum) / diag;
 
 <?

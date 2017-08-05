@@ -148,8 +148,8 @@ kernel void poissonGMRESLinearFunc(
 
 	real sum = (0.
 <? for j=0,solver.dim-1 do ?>
-		+ volR.s<?=j?> * x[stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>)
-		+ volL.s<?=j?> * x[-stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>)
+		+ volR.s<?=j?> * x[index + stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>)
+		+ volL.s<?=j?> * x[index - stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>)
 <? end 
 ?>	) / volAtX;
 

@@ -60,6 +60,7 @@ function Roe:getSolverCode()
 	
 		-- before this went above solver/plm.cl, now it's going after it ...
 		template(file['solver/roe.cl'], {solver=self, eqn=self.eqn}),
+		template(file['solver/calcDeriv.cl'], {solver=self, eqn=self.eqn}),
 	}:concat'\n'
 end
 
@@ -117,6 +118,7 @@ end
 function Roe:addConvertToTexs()
 	Roe.super.addConvertToTexs(self)
 
+	-- TODO add kernels for each side
 	self:addConvertToTex{
 		name = 'wave',
 		varCodePrefix = [[
@@ -127,6 +129,7 @@ function Roe:addConvertToTexs()
 		end),
 	}
 
+	-- TODO add kernels for each side
 	local eigenDisplayVars = self.eqn:getEigenDisplayVars()
 	if eigenDisplayVars and #eigenDisplayVars > 0 then
 		self:addConvertToTex{
@@ -139,6 +142,7 @@ function Roe:addConvertToTexs()
 		}
 	end
 
+	-- TODO add kernels for each side
 	self:addConvertToTex{
 		name = 'deltaUEig', 
 		varCodePrefix = [[
@@ -148,7 +152,9 @@ function Roe:addConvertToTexs()
 			return {[tostring(i)] = '*value = deltaUEig['..i..'];'}
 		end),
 	}
+	
 	if self.fluxLimiter[0] > 0 then
+	-- TODO add kernels for each side
 		self:addConvertToTex{
 			name = 'rEig',
 			varCodePrefix = [[
@@ -159,6 +165,9 @@ function Roe:addConvertToTexs()
 			end),
 		}
 	end
+	
+	-- TODO add kernels for each side
+	-- TODO move to solverfv
 	self:addConvertToTex{
 		name = 'flux', 
 		type = self.eqn.cons_t,
@@ -170,6 +179,7 @@ function Roe:addConvertToTexs()
 		end),
 	}
 
+	-- TODO add kernels for each side
 	if self.checkFluxError or self.checkOrthoError then	
 		self:addConvertToTex{
 			name = 'error', 

@@ -1,6 +1,7 @@
 local class = require 'ext.class'
 local template = require 'template'
 local Poisson = require 'solver.poisson'
+--local Poisson = require 'solver.poisson_gmres'
 
 -- TODO guarantee all potential values are initially positive (and from then on?)
 

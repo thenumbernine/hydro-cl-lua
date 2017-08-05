@@ -57,6 +57,7 @@ function BSSNOKFiniteDifferenceSolver:resetState()
 	self.app.cmds:finish()
 end
 
+-- TODO just give eqn/bssnok-fd hasCalcDT=true ? then no need to override this, right?
 function BSSNOKFiniteDifferenceSolver:getCalcDTCode() end
 function BSSNOKFiniteDifferenceSolver:refreshCalcDTKernel() end
 function BSSNOKFiniteDifferenceSolver:calcDT()
