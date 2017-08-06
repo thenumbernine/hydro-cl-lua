@@ -1,7 +1,7 @@
 --[[
 Font 2008
-it's all based on a metric of alpha, beta, gamma
-which I haven't got hooked up to anything (grid, mesh, etc)
+similar to SRHD except using a metric based on a metric of alpha, beta, gamma
+which needs to be provided externally from another solver (via gr-hd-separate-behavior)
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
@@ -12,8 +12,9 @@ local template = require 'template'
 
 local GRHD = class(Equation)
 GRHD.name = 'GRHD'
-GRHD.numStates = 6
+GRHD.numIntVars = 5
 GRHD.numWaves = 5
+GRHD.numStates = 6
 
 GRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
 
@@ -83,25 +84,30 @@ end
 
 function GRHD:getTypeCode()
 	return template([[
-typedef struct {
-	real rho;
-	real3 v;
-	real eInt;
-	real ePot;
-} <?=eqn.prim_t?>;
-
 typedef union {
 	real ptr[5];
 	struct {
 		real D;
 		real3 S;
 		real tau;
-		
-		// TODO fix this.
-		// it is here because prim_t is expected to be the same size as cons_t
-		real unused;
+	
+		//metric variables
+		//populated by whatever NR solver is used
+		real alpha;
+		real3 beta;
+		sym3 gamma;
 	};
 } <?=eqn.cons_t?>;
+
+typedef struct {
+	real rho;
+	real3 v;
+	real eInt;
+
+	real alpha;
+	real3 beta;
+	sym3 gamma;
+} <?=eqn.prim_t?>;
 ]], {
 	eqn = self,
 })
@@ -111,11 +117,6 @@ function GRHD:getCodePrefix()
 	return table{
 		GRHD.super.getCodePrefix(self),
 		template([[
-
-//I'm going to fix metric coordinates at first
-//then later the transition to the evolved metric will be easier
-constant const real alpha = 1;
-constant const real3 betaU = _real3(0,0,0);
 
 //pressure function for ideal gas
 real calc_P(real rho, real eInt) {
@@ -146,6 +147,7 @@ real calc_h(real rho, real P, real eInt) {
 	real W = sqrt(WSq);
 	real P = calc_P(prim.rho, prim.eInt);
 	real h = calc_h(prim.rho, P, prim.eInt);
+	real alpha = prim.alpha;
 
 	//2008 Font, eqn 40-42:
 	
@@ -155,12 +157,19 @@ real calc_h(real rho, real P, real eInt) {
 	//momentum = T^0i = rho h u^0 u^i + P g^0i
 	real3 S = real3_add(
 		real3_scale(prim.v, prim.rho * h * WSq),
-		real3_scale(betaU, P / (alpha * alpha)));
+		real3_scale(prim.beta, P / (alpha * alpha)));
 	
 	//energy = T^00 = rho h u^0 u^0 + P g^00
 	real tau = prim.rho * h * WSq - D - P / (alpha * alpha);
-	
-	return (<?=eqn.cons_t?>){.D=D, .S=S, .tau=tau};
+
+	return (<?=eqn.cons_t?>){
+		.D = D,
+		.S = S,
+		.tau = tau,
+		.alpha = prim.alpha,
+		.beta = prim.beta,
+		.gamma = prim.gamma,
+	};
 }
 ]], {
 	eqn = self,
@@ -195,6 +204,10 @@ kernel void initState(
 	//ignored:
 	real3 B = _real3(0,0,0);
 
+	real alpha = 1.;
+	real3 beta = _real3(0,0,0);
+	sym3 gamma = _sym3(1,0,0,1,0,1);
+
 ]]..code..[[
 	
 	real eInt = calc_eInt_from_P(rho, P);
@@ -202,7 +215,14 @@ kernel void initState(
 	real W = 1. / sqrt(1. - vSq);
 	real h = calc_h(rho, P, eInt);
 
-	<?=eqn.prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
+	<?=eqn.prim_t?> prim = {
+		.rho = rho,
+		.v = v,
+		.eInt = eInt,
+		.alpha = alpha,
+		.beta = beta,
+		.gamma = gamma,
+	};
 	primBuf[index] = prim;
 	consBuf[index] = consFromPrim(prim, x);
 }
@@ -265,7 +285,6 @@ GRHD.primDisplayVars = {
 	{vz = '*value = prim.v.z;'},
 	{v = '*value = coordLen(prim.v, x);'},
 	{eInt = '*value = prim.eInt;'},
-	{ePot = '*value = prim.ePot;'},
 	{P = '*value = calc_P(prim.rho, prim.eInt);'},
 	{h = '*value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt);'},
 }

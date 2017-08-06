@@ -95,7 +95,7 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 function HydroCLApp:setup()
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	local dim = 2
+	local dim = 1
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
@@ -115,7 +115,7 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 4, non-TVD',
 		--integrator = 'backward Euler',
 
-		--fixedDT = .05,
+		--fixedDT = .0001,
 		--cfl = 1,
 
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
@@ -212,7 +212,7 @@ function HydroCLApp:setup()
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -238,7 +238,7 @@ function HydroCLApp:setup()
 		
 		-- those designed for SRHD / GRHD:
 		--initState = 'relativistic shock reflection',			-- not working.  these initial conditions are constant =P
-		--initState = 'relativistic blast wave test problem 1',
+		initState = 'relativistic blast wave test problem 1',
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'relativistic blast wave interaction',
 	
@@ -260,15 +260,15 @@ function HydroCLApp:setup()
 		--initState = 'gauge shock wave',
 		--initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
-		--initState = 'Schwarzschild black hole - isotropic',
-		--initState = 'binary black holes',
+		--initState = 'black hole - isotropic',
+		--initState = 'binary black holes - isotropic',
 		--initState = 'stellar model',
 		--initState = 'stellar model 2',
 		--initState = 'stellar model 3',
 	}
 	
 	-- HD - Roe
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
@@ -294,7 +294,7 @@ function HydroCLApp:setup()
 	-- GR+HD
 	-- right now this is just like srhd except extended by Font's eqns
 	-- this has plug-ins for ADM metric alpha, beta, gammas, but I need to make a composite solver to combine it with GR equations. 
-	--self.solvers:insert(require 'solver.grhd-roe'(args))
+	self.solvers:insert(require 'solver.grhd-roe'(args))
 	
 	-- M+HD. 
 	-- with superbee flux lim:  

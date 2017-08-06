@@ -408,7 +408,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 	//write zeros to the alpha and gammaLL terms
 	resultU->alpha = 0;
-	resultU->gamma = (sym3){.s={0,0,0,0,0,0}};
+	resultU->gamma = _sym3(0,0,0,0,0,0);
 
 	resultU->a.y = input[6];
 	resultU->a.z = input[7];
@@ -574,7 +574,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	
 	//write zeros to the alpha and gammaLL terms
 	resultU->alpha = 0;
-	resultU->gamma = (sym3){.s={0,0,0,0,0,0}};
+	resultU->gamma = _sym3(0,0,0,0,0,0);
 	
 	resultU->a.x = input[6];
 	resultU->a.z = input[7];
@@ -740,7 +740,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 	//write zeros to the alpha and gammaLL terms
 	resultU->alpha = 0;
-	resultU->gamma = (sym3){.s={0,0,0,0,0,0}};
+	resultU->gamma = _sym3(0,0,0,0,0,0);
 	
 	resultU->a.x = input[6];
 	resultU->a.y = input[7];

@@ -31,6 +31,8 @@ static inline real3 real3_sub(real3 a, real3 b) {
 	return _real3(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 
+#define _sym3(a,b,c,d,e,f) (sym3){.s={a,b,c,d,e,f}}
+
 real sym3_det(sym3 m) {
 	return m.xx * (m.yy * m.zz - m.yz * m.yz)
 		- m.xy * (m.xy * m.zz - m.xz * m.yz)

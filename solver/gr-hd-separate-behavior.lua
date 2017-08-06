@@ -20,18 +20,15 @@ also TODO ... think of a better way to provide separate arguments to each sub-so
 right now 'parent' is just the Euler solver type
 I'm only using BSSNOK-finite-difference for the spacetime solver
 --]]
-local function GRHDBehavior(parent)
+local function GRHDBehavior()
 	local templateClass = class()
 
-	templateClass.name = 'two-fluid EMHD '..parent.name
+	templateClass.name = 'GRHD'
 
 	function templateClass:init(args)
 		self.app = assert(args.app)
 
-		local grSolver
-		local hdSolver
-
-		local HydroSolver = class(require 'solver.euler-behavior'(parent))
+		local HydroSolver = class(require 'solver.grhd-roe'())
 		function HydroSolver:init(args)
 			HydroSolver.super.init(self, args)
 			self.name = 'HD '..self.name

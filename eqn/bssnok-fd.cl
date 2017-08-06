@@ -157,7 +157,7 @@ end
 ?>
 
 	//D2_alpha_ll.ij = D_i D_j alpha = partial_i partial_j alpha - conn^k_ij partial_k alpha
-	sym3 D2_alpha_ll = (sym3){.s={0,0,0,0,0,0}};
+	sym3 D2_alpha_ll = _sym3(0,0,0,0,0,0);
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 ?>	D2_alpha_ll.<?=xij?> = partial2_alpha_ll[<?=ij-1?>]<?

@@ -39,10 +39,10 @@ function BSSNOKFiniteDifferenceSolver:createBoundaryOptions()
 			return template([[
 	<?=U?>.alpha = 1.;
 	<?=U?>.beta_u = _real3(0,0,0);
-	<?=U?>.gammaBar_ll = (sym3){.s={1,0,0,1,0,1}};
+	<?=U?>.gammaBar_ll = _sym3(1,0,0,1,0,1);
 	<?=U?>.phi = 0;
 	<?=U?>.K = 0;
-	<?=U?>.ATilde_ll = (sym3){.s={1,0,0,1,0,1}};
+	<?=U?>.ATilde_ll = _sym3(1,0,0,1,0,1);
 	<?=U?>.connBar_u = _real3(0,0,0);
 ]], {U=U})
 		end,
@@ -59,9 +59,7 @@ end
 
 function BSSNOKFiniteDifferenceSolver:getCalcDTCode() end
 function BSSNOKFiniteDifferenceSolver:refreshCalcDTKernel() end
-function BSSNOKFiniteDifferenceSolver:calcDT()
-	return self.fixedDT
-end
+function BSSNOKFiniteDifferenceSolver:calcDT() return self.fixedDT end
 
 function BSSNOKFiniteDifferenceSolver:calcDeriv(derivBuf, dt)
 	self.calcDerivKernel:setArg(0, derivBuf)

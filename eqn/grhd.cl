@@ -7,7 +7,7 @@ Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 20
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U) {
 	real vi = W->v.s<?=side?>;
-	real vi_shift = vi - betaU.s<?=side?> / alpha;
+	real vi_shift = vi - U.beta.s<?=side?> / U.alpha;
 
 	<?=eqn.cons_t?> F;
 	F.D = U->D * vi_shift;
@@ -29,10 +29,12 @@ kernel void calcDT(
 		dtBuf[index] = INFINITY;
 		return;
 	}
-	real3 x = cell_x(i);
-	sym3 gammaU = coord_gU(x);
-
 	<?=eqn.prim_t?> prim = primBuf[index];
+	real3 x = cell_x(i);
+	
+	real det_gamma = sym3_det(prim.gamma);
+	sym3 gammaU = sym3_inv(prim.gamma);
+
 	real rho = prim.rho;
 	real eInt = prim.eInt;
 	real vSq = coordLenSq(prim.v, x);
@@ -51,10 +53,10 @@ kernel void calcDT(
 		// Marti 1998 eqn 19
 		// also Marti & Muller 2008 eqn 68
 		// also Font 2008 eqn 106
-		const real betaUi = betaU.s<?=side?>;
+		const real betaUi = prim.betaU.s<?=side?>;
 		real discr = sqrt((1. - vSq) * (gammaU.xx * (1. - vSq * csSq) - viSq * (1. - csSq)));
-		real lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq) * alpha - betaUi;
-		real lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * alpha - betaUi;
+		real lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq) * prim.alpha - betaUi;
+		real lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * prim.alpha - betaUi;
 		lambdaMin = min((real)0., lambdaMin);
 		lambdaMax = max((real)0., lambdaMax);
 		dt = min(dt, (real)dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9));
@@ -114,6 +116,10 @@ kernel void calcEigenBasis(
 			.rho = .5 * (primL.rho + primR.rho),
 			.v = real3_scale(real3_add(primL.v, primR.v), .5),
 			.eInt = .5 * (primL.eInt + primR.eInt),
+			
+			.alpha = .5 * (primL.alpha + primR.alpha),
+			.beta = real3_scale(real3_add(primL.beta, primR.beta), .5),
+			.gamma = sym3_scale(sym3_add(primL.gamma, primR.gamma), .5),
 		};
 <? -- else -- Roe-averaging, Font 2008 eqn 38 ?>
 <? end ?>
@@ -151,6 +157,10 @@ kernel void calcEigenBasis(
 		real vxSq = v.x * v.x;
 		real csSq = heatCapacityRatio * P / (rho * h);
 		real cs = sqrt(csSq);
+
+		real alpha = avg.alpha;
+		real3 betaU = avg.beta;
+		sym3 gamma = avg.gamma;
 
 		const real betaUi = betaU.s<?=side?>;
 		real discr = sqrt((1. - vSq) * ((1. - vSq * csSq) - vxSq * (1. - csSq)));

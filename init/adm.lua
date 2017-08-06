@@ -104,6 +104,7 @@ local function initNumRel(args)
 	
 	local exprs = table{
 		alpha = assert(args.alpha),
+		beta = args.beta,	-- optional
 		gamma = {table.unpack(args.gamma)},
 		K = {table.unpack(args.K)}
 	}
@@ -333,9 +334,9 @@ end
 		end,
 	},
 	{	-- Baumgarte & Shapiro, table 2.1, isotropic coordinates
-		name = 'Schwarzschild black hole - isotropic',
+		name = 'black hole - isotropic',
 		init = function(solver, getCodes)
-			local R = .002	-- Schwarzschild radius
+			local R = .01	-- Schwarzschild radius
 		
 			local alphaVar = symmath.var'alpha'
 			local fGuiVar = solver.eqn.guiVarsForName.f
@@ -347,11 +348,12 @@ end
 			
 			return template([[
 #define calc_f(alpha)			(<?=fCCode?>)
-#define rSq(x,y,z) 				(x*x + y*y + z*z)
+#define rSq(x,y,z)	 			((x)*(x) + (y)*(y) + (z)*(z))
 #define r(x,y,z) 				sqrt(rSq(x,y,z))
-#define calc_alpha(x,y,z) 		((1. - <?=R?>/r(x,y,z))/(1. + <?=R?>/r(x,y,z)))
 #define sq(x)					((x)*(x))
-<? 
+#define bssn_phi(x,y,z)			(1. + .25 * <?=R?> / r(x,y,z))	//sum of mass over radius
+#define calc_alpha(x,y,z) 		((1. - .25 * <?=R?>/r(x,y,z))/bssn_phi(x,y,z))
+<?
 for i,xi in ipairs(xNames) do
 ?>#define calc_beta_<?=xi?>(x,y,z)		0.
 <?
@@ -360,7 +362,7 @@ for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi, xj = xNames[i], xNames[j]
 	if i==j then
-?>#define calc_gamma_<?=xij?>(x,y,z) 	sq(sq(1. + <?=R?> / r(x,y,z)))
+?>#define calc_gamma_<?=xij?>(x,y,z) 	sq(sq(bssn_phi(x,y,z)))
 <?	else
 ?>#define calc_gamma_<?=xij?>(x,y,z)	0.
 <?	end
@@ -377,7 +379,7 @@ end
 		end,
 	},
 	{
-		name = 'binary black holes',
+		name = 'binary black holes - isotropic',
 		init = function(solver, getCodes)
 			local alphaVar = symmath.var'alpha'
 			local fGuiVar = solver.eqn.guiVarsForName.f
@@ -387,13 +389,15 @@ end
 			f = symmath.clone(f)
 			local fCCode = compileC(f, 'f', {alphaVar})
 		
-			error'TODO'
-			--[=[
+			-- [=[
 			return template([[
 #define calc_f(alpha)			(<?=fCCode?>)
-#define rSq(x,y,z)	 			(x*x + y*y + z*z)
-#define r(x,y,z) 				sqrt(rSq(x,y,z))
-#define calc_alpha(x,y,z) 		sqrt(1. - schwarzschildRadius/r(x,y,z))
+#define rSq(x,y,z)	 			((x)*(x) + (y)*(y) + (z)*(z))
+#define r1(x,y,z) 				sqrt(rSq(x - .25, y, z))
+#define r2(x,y,z) 				sqrt(rSq(x + .25, y, z))
+#define sq(x)					((x)*(x))
+#define bssn_phi(x,y,z)			(1. + .25 * <?=R1?> / r1(x, y, z) + .25 * <?=R2?> / r2(x, y, z))
+#define calc_alpha(x,y,z) 		((1. - .25 * <?=R1?> / r1(x, y, z) - .25 * <?=R2?> / r2(x, y, z)) / bssn_phi(x, y, z))
 <? 
 for i,xi in ipairs(xNames) do
 ?>#define calc_beta_<?=xi?>(x,y,z)		0.
@@ -402,8 +406,11 @@ end
 for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi, xj = xNames[i], xNames[j]
-?>#define calc_gamma_<?=xij?>(x,y,z) 	(<?=xi?>*<?=xj?>/((r(x,y,z) / schwarzschildRadius - 1.) * rSq(x,y,z))<?= i==j and ' + 1.' or ''?>)
-<?
+	if i==j then
+?>#define calc_gamma_<?=xij?>(x,y,z) 	sq(sq(bssn_phi(x,y,z)))
+<?	else
+?>#define calc_gamma_<?=xij?>(x,y,z)	0.
+<?	end
 end
 for ij,xij in ipairs(symNames) do
 ?>#define calc_K_<?=xij?>(x,y,z)		0.

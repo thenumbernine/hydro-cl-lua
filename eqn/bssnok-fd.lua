@@ -40,7 +40,7 @@ local typeInfo = {
 		add = function(a,b) return 'sym3_add('..a..', '..b..')' end,
 		sub = function(a,b) return 'sym3_sub('..a..', '..b..')' end,
 		scale = function(a,b) return 'sym3_scale('..a..', '..b..')' end,
-		zero = '(sym3){.s={0., 0., 0., 0., 0., 0.}}',
+		zero = '_sym3(0.,0.,0.,0.,0.,0.)',
 	},
 }
 
@@ -203,6 +203,9 @@ function BSSNOKFiniteDifferenceEquation:getCodePrefix()
 			--f = exprs.f,
 			--dalpha_f = exprs.dalpha_f,
 			{alpha = exprs.alpha},
+			exprs.beta and xNames:map(function(xi,i)
+				return exprs.beta[i], 'beta_'..xi
+			end) or {},
 			symNames:map(function(xij,ij)
 				return exprs.gamma[ij], 'gamma_'..xij
 			end),
@@ -223,18 +226,15 @@ kernel void initState(
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
 	U->alpha = calc_alpha(x.x, x.y, x.z);
-	
-#if 0
+
+	//hmm, beta causes some problems ...
+	//maybe beta has an error somewhere ...
 	U->beta_u = (real3){
 <? for _,xi in ipairs(xNames) do
 ?>		.<?=xi?> = calc_beta_<?=xi?>(x.x, x.y, x.z),
 <?	end
 ?>	};
-#endif
-#if 1
-	U->beta_u = _real3(0,0,0);
-#endif
-	
+
 	sym3 gamma_ll = {
 <? for _,xij in ipairs(symNames) do
 ?>		.<?=xij?> = calc_gamma_<?=xij?>(x.x, x.y, x.z),
@@ -267,7 +267,7 @@ kernel void initState(
 	
 	U->rho = 0;
 	U->S_u = _real3(0,0,0);
-	U->S_ll = (sym3){.s={0,0,0,0,0,0}};
+	U->S_ll = _sym3(0,0,0,0,0,0);
 	
 	U->H = 0.;
 	U->M_u = _real3(0,0,0);
@@ -301,7 +301,7 @@ kernel void init_connBarU(
 <?	end 
 end
 for i=solver.dim+1,3 do
-?>	partial_gammaBar_uul[<?=i-1?>] = (sym3){.s={0,0,0,0,0,0}};
+?>	partial_gammaBar_uul[<?=i-1?>] = _sym3(0,0,0,0,0,0);
 <? end
 ?>
 
