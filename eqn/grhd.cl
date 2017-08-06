@@ -14,6 +14,9 @@ Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 20
 	F.S = real3_scale(U->S, vi_shift);
 	F.S.s<?=side?> += W->p;
 	F.tau = U->tau * vi_shift + p * vi;
+	F.alpha = 0;
+	F.beta = _real3(0,0,0);
+	F.gamma = _sym3(0,0,0,0,0,0);
 	return F;
 }
 <? end ?>
@@ -37,10 +40,7 @@ kernel void calcDT(
 	real rho = prim.rho;
 	real eInt = prim.eInt;
 	//2008 Font just after Eqn 31: v^2 = gamma_ij v^i v^j
-	// ... but he is describing the Wilson covaraint formalism ...
-	// ... but I don't think he defines v^2 elsewhere
-	// (Alcubierre, when describing the relativistic eigenvectors, uses v^2 = v_x^2 + v_y^2 + v_z^2)
-	real vSq = real3_weightedLenSq(prim.v, gamma);
+	real vSq = real3_weightedLenSq(prim.v, prim.gamma);
 	real P = calc_P(rho, eInt);
 	real h = calc_h(rho, P, eInt);
 	real csSq = heatCapacityRatio * P / (rho * h);
@@ -168,10 +168,10 @@ kernel void calcEigenBasis(
 		real3 betaU = avg.beta;
 		sym3 gamma = avg.gamma;
 		
-		real det_gamma = sym3_det(prim.gamma);
-		sym3 gammaU = sym3_inv(prim.gamma, det_gamma);
+		real det_gamma = sym3_det(avg.gamma);
+		sym3 gammaU = sym3_inv(avg.gamma, det_gamma);
 
-		real3 vL = sym3_real3_mul(v, gamma);
+		real3 vL = sym3_real3_mul(gamma, v);
 		real vSq = real3_dot(v, vL);
 		real oneOverW2 = 1. - vSq;
 		real oneOverW = sqrt(oneOverW2);
@@ -239,7 +239,6 @@ for _,field in ipairs(eqn.eigenStructFields) do
 	}<? end ?>
 }
 
-
 <?
 for _,addr0 in ipairs{'', 'global'} do
 	for _,addr1 in ipairs{'', 'global'} do
@@ -273,7 +272,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 	<?=prefix?>
 
-	real3 vL = sym3_mul(v, gammaL);
+	real3 vL = sym3_real3_mul(gammaL, v);
 	real vxSq = v.x * v.x;
 	real hSq = h * h;
 	real hW = h * W;
@@ -343,7 +342,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=prefix?>
 	sym3 gammaL = eig->gamma;
 	
-	real3 vL = sym3_mul(v, gammaL);
+	real3 vL = sym3_real3_mul(gammaL, v);
 	real hW = h * W;
 	real W2 = W * W;
 
@@ -380,6 +379,9 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	Y[1] = -Y[1+<?=side?>];
 	Y[1+<?=side?>] = tmp;
 	<? end ?>
+
+	//now this ignores the non-integrable parts of the cons_t
+	// namely alpha, beta, gamma
 }
 
 <?	if solver.checkFluxError then ?>
@@ -427,7 +429,7 @@ kernel void constrainU(
 	U->tau = min(U->tau, (real)tauMax);
 }
 
-//TODO update to include alphas, betas, and gammas
+//TODO double check that this is GR and not just SR 
 /*
 W = -u^a n_a = alpha u^0
 v^i = (u^i / u^0 + beta^i) / alpha
@@ -467,16 +469,22 @@ kernel void updatePrims(
 		P = newP;
 		if (PError < solvePrimStopEpsilon) {
 			v = real3_scale(S, 1. / (tau + D + P));
-			vSq = real3_weightedLenSq(v, gammaL);
+			vSq = real3_weightedLenSq(v, U->gamma);
 			W = 1. / sqrt(1. - vSq);
 			rho = D / W;
 			rho = max(rho, (real)rhoMin);
 			rho = min(rho, (real)rhoMax);
 			eInt = P / (rho * (heatCapacityRatio - 1.));
 			eInt = min(eInt, (real)eIntMax);
-			prim->rho = rho;
-			prim->v = v;
-			prim->eInt = eInt;
+			*prim = (<?=eqn.prim_t?>){
+				.rho = rho,
+				.v = v,
+				.eInt = eInt,
+				
+				.alpha = U->alpha,
+				.beta = U->beta,
+				.gamma = U->gamma,
+			};
 //printf("cell %d finished with prims = %f %f %f\n", index, rho, v.x, eInt);
 			return;
 		}

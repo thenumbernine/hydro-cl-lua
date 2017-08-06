@@ -85,18 +85,18 @@ end
 function GRHD:getTypeCode()
 	return template([[
 typedef union {
-	real ptr[5];
+	real ptr[15];
 	struct {
-		real D;
-		real3 S;
-		real tau;
+		real D;		//0
+		real3 S;	//1
+		real tau;	//4
 	
 		//metric variables
 		//populated by whatever NR solver is used
-		real alpha;
-		real3 beta;
-		sym3 gamma;
-	};
+		real alpha;	//5
+		real3 beta;	//6
+		sym3 gamma;	//9
+	};				//15
 } <?=eqn.cons_t?>;
 
 typedef struct {
@@ -283,7 +283,7 @@ GRHD.primDisplayVars = {
 	{vx = '*value = prim.v.x;'},
 	{vy = '*value = prim.v.y;'},
 	{vz = '*value = prim.v.z;'},
-	{v = '*value = real3_weightedLen(prim.v, U.gamma);'},
+	{v = '*value = real3_weightedLen(prim.v, prim.gamma);'},
 	{eInt = '*value = prim.eInt;'},
 	{P = '*value = calc_P(prim.rho, prim.eInt);'},
 	{h = '*value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt);'},

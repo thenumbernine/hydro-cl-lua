@@ -164,11 +164,11 @@ real real3_weightedDot(real3 a, real3 b, sym3 m) {
 }
 
 real real3_weightedLenSq(real3 a, sym3 m) {
-	return sym3_real3_dot(a, a, m);
+	return real3_weightedDot(a, a, m);
 }
 
 real real3_weightedLen(real3 a, sym3 m) {
-	return sqrt(real3_weightedLen(a, m));
+	return sqrt(real3_weightedLenSq(a, m));
 }
 
 mat3 mat3_mat3_mul(mat3 a, mat3 b) {
