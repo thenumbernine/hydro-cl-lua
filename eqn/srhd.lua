@@ -35,18 +35,21 @@ SRHD.initStates = require 'init.euler'
 
 local GuiFloat = require 'guivar.float'
 local GuiInt = require 'guivar.int'
-function SRHD:init(...)
-	self.guiVars = table{
---[[ double precision
-		GuiFloat{name='heatCapacityRatio', value=7/5},
+function SRHD:init(solver)
 
+	-- hmm, setting the higher thresholds using double precision is less stable
+	local double = false --solver.app.real == 'double'
+	
+	self.guiVars = table{
+		GuiFloat{name='heatCapacityRatio', value=7/5},
+		
 		-- setting max iter to 100+ makes it freeze initially 
 		-- but setting it to 100 after the first iteration is fine ...
 		-- meaning the initial cons to prim is taking too long ...
 		GuiInt{name='solvePrimMaxIter', value=10},	-- value=1000},
-		
+
 		GuiFloat{name='solvePrimStopEpsilon', value=1e-7},
-		
+	
 		-- used by pressure solver
 		-- velocity epsilon is how close we can get to the speed of light
 		-- set ylabel "Lorentz factor"; set xlabel "velocity epsilon -log10"; set log xy; plot [1:10] 1/sqrt(1-(1-10**(-x))**2);
@@ -55,34 +58,19 @@ function SRHD:init(...)
 		--velEpsilon = 1e-7	-- <=> handles up to W = 2,000
 		--velEpsilon = 1e-10	-- <=> handles up to W = 100,000
 		-- <=> smaller than 1e-15 gnuplot x11 terminal breaks down past W = 1e+7 ...
-		GuiFloat{name='solvePrimVelEpsilon', value=1e-15},	
+		GuiFloat{name='solvePrimVelEpsilon', value=double and 1e-15 or 1e-7},
 		
-		GuiFloat{name='solvePrimPMinEpsilon', value=1e-16},
+		GuiFloat{name='solvePrimPMinEpsilon', value=double and 1e-16 or 1e-7},
 		
-		GuiFloat{name='rhoMin', value=1e-15},
+		GuiFloat{name='rhoMin', value=double and 1e-15 or 1e-7},
 		GuiFloat{name='rhoMax', value=1e+20},
 		GuiFloat{name='eIntMax', value=1e+20},
-		GuiFloat{name='DMin', value=1e-15},
+		GuiFloat{name='DMin', value=double and 1e-15 or 1e-7},
 		GuiFloat{name='DMax', value=1e+20},
-		GuiFloat{name='tauMin', value=1e-15},
+		GuiFloat{name='tauMin', value=double and 1e-15 or 1e-7},
 		GuiFloat{name='tauMax', value=1e+20},
---]]
--- [[ single precision?
-		GuiFloat{name='heatCapacityRatio', value=7/5},
-		GuiInt{name='solvePrimMaxIter', value=10},	-- value=1000},
-		GuiFloat{name='solvePrimStopEpsilon', value=1e-7},
-		GuiFloat{name='solvePrimVelEpsilon', value=1e-7},	
-		GuiFloat{name='solvePrimPMinEpsilon', value=1e-7},
-		GuiFloat{name='rhoMin', value=1e-7},
-		GuiFloat{name='rhoMax', value=1e+20},
-		GuiFloat{name='eIntMax', value=1e+20},
-		GuiFloat{name='DMin', value=1e-7},
-		GuiFloat{name='DMax', value=1e+20},
-		GuiFloat{name='tauMin', value=1e-7},
-		GuiFloat{name='tauMax', value=1e+20},
---]]
 	}
-	SRHD.super.init(self, ...)
+	SRHD.super.init(self, solver)
 end
 
 function SRHD:getTypeCode()

@@ -138,7 +138,7 @@ kernel void calcEigenBasis(
 		*/
 
 		v = _real3(v.y, -v.x, v.z);	// -90' rotation to put the y axis contents into the x axis
-		avg.betaU = _real3(avg.betaU.y, -avg.betaU.x, avg.betaU.z);
+		avg.beta = _real3(avg.beta.y, -avg.beta.x, avg.beta.z);
 		avg.gamma = (sym3){
 			.xx = avg.gamma.yy,
 			.xy = -avg.gamma.xy,
@@ -152,7 +152,7 @@ kernel void calcEigenBasis(
 		//x,z -> z,-x
 		
 		v = _real3(v.z, v.y, -v.x);	//-90' rotation to put the z axis in the x axis
-		avg.betaU = _real3(avg.betaU.z, avg.betaU.y, -avg.betaU.x);
+		avg.beta = _real3(avg.beta.z, avg.beta.y, -avg.beta.x);
 		avg.gamma = (sym3){
 			.xx = -avg.gamma.zz,
 			.xy = avg.gamma.yz,

@@ -1,6 +1,9 @@
 --[[
 combining a GR solver (probably BSSNOK-finite-difference + backwards-Euler integrator)
 and a HD solver (Roe)
+
+this is no longer a 'behavior' but now fully a 'solver'
+though only an abstract version of one, hiding the two underlying solvers
 --]]
 
 local class = require 'ext.class'
@@ -23,22 +26,22 @@ I'm only using BSSNOK-finite-difference for the spacetime solver
 local function GRHDBehavior()
 	local templateClass = class()
 
-	templateClass.name = 'GRHD'
+	templateClass.name = 'GR+HD'
 
 	function templateClass:init(args)
 		self.app = assert(args.app)
 
-		local HydroSolver = class(require 'solver.grhd-roe'())
+		local HydroSolver = class(require 'solver.grhd-roe')
 		function HydroSolver:init(args)
 			HydroSolver.super.init(self, args)
 			self.name = 'HD '..self.name
 		end
 		self.hydro = HydroSolver(args)
 
-		local GRSolver = class(require 'solver.bssnok-fd'())
+		local GRSolver = class(require 'solver.bssnok-fd')
 		function GRSolver:init(args)
 			GRSolver.super.init(self, table(args, {
-				initState = 'Schwarzschild black hole - isotropic',
+				initState = 'black hole - isotropic',
 				integrator = 'backward Euler',
 			}))
 			self.name = 'GR '..self.name
@@ -62,10 +65,12 @@ local function GRHDBehavior()
 		end
 
 		self.color = vec3(math.random(), math.random(), math.random()):normalize()
-		
+
 		self.numGhost = self.hydro.numGhost
 		self.dim = self.hydro.dim
 		self.gridSize = vec3sz(self.hydro.gridSize)
+		self.localSize = vec3sz(self.hydro.localSize:unpack())
+		self.globalSize = vec3sz(self.hydro.globalSize:unpack())
 		self.sizeWithoutBorder = vec3sz(self.hydro.sizeWithoutBorder)
 		self.mins = vec3(self.hydro.mins:unpack())
 		self.maxs = vec3(self.hydro.maxs:unpack())
@@ -87,6 +92,50 @@ local function GRHDBehavior()
 
 	function templateClass:getConsLRTypeCode() return '' end
 
+	function templateClass:replaceSourceKernels()
+		
+		-- build self.codePrefix
+		require 'solver.solver'.createCodePrefix(self)
+		
+		local lines = table{
+			self.app.env.code,
+			self.codePrefix,
+			self.gr.eqn:getTypeCode(),
+			self.hydro.eqn:getTypeCode(),
+			template([[
+kernel void copyMetricFromGRToHydro(
+	// I can't remember which of these two uses it -- maybe both? 
+	//TODO either just put it in one place ...
+	// or better yet, just pass gr.UBuf into all the grhd functions?
+	global <?=hydro.eqn.cons_t?>* hydroUBuf,
+	global <?=hydro.eqn.prim_t?>* hydroPrimBuf,
+	const global <?=gr.eqn.cons_t?>* grUBuf
+) {
+	SETBOUNDS(0,0);
+	global <?=hydro.eqn.cons_t?>* hydroU = hydroUBuf + index;
+	global <?=hydro.eqn.prim_t?>* hydroPrim = hydroPrimBuf + index;
+	const global <?=gr.eqn.cons_t?>* grU = grUBuf + index;
+	hydroU->alpha = hydroPrim->alpha = grU->alpha;
+	hydroU->beta = hydroPrim->beta = grU->beta_u;
+	
+	real exp_4phi = exp(4. * grU->phi);
+	sym3 gamma_ll = sym3_scale(grU->gammaBar_ll, exp_4phi);
+	hydroU->gamma = hydroPrim->gamma = gamma_ll;
+}
+]], 		{
+				hydro = self.hydro,
+				gr = self.gr,
+			}),
+		}
+		local code = lines:concat'\n'
+		self.copyMetricFrmoGRToHydroProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code}
+		self.copyMetricFrmoGRToHydroKernel = self.copyMetricFrmoGRToHydroProgram:kernel(
+			'copyMetricFromGRToHydro',
+			self.hydro.UBuf,
+			self.hydro.primBuf,
+			self.gr.UBuf)
+	end
+	
 	function templateClass:callAll(name, ...)
 		local args = setmetatable({...}, table)
 		args.n = select('#',...)
@@ -94,28 +143,29 @@ local function GRHDBehavior()
 			return solver[name](solver, args:unpack(1, args.n))
 		end):unpack()
 	end
-
+	
 	function templateClass:createEqn()
 		self:callAll'createEqn'
 	end
-
+	
 	function templateClass:resetState()
 		self:callAll'resetState'
 		self.t = self.hydro.t
 	end
-
+	
 	function templateClass:boundary()
 		self:callAll'boundary'
 	end
-
+	
 	function templateClass:calcDT()
 		return math.min(self:callAll'calcDT')
 	end
-
+	
 	function templateClass:step(dt)
 		self:callAll('step', dt)
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.copyMetricFrmoGRToHydroKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
-
+	
 	-- same as Solver.update
 	-- note this means sub-solvers' update() will be skipped
 	-- so best to put update stuff in step()

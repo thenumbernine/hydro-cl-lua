@@ -114,6 +114,7 @@ local function TwoFluidEMHDBehavior(parent)
 		local chargeMassRatio_electron = .01
 		local eps0 = 1 / (4 * math.pi)
 
+		-- build self.codePrefix
 		require 'solver.solver'.createCodePrefix(self)
 
 		local lines = table{
@@ -182,6 +183,7 @@ kernel void addSource_maxwell(
 		self.maxwell.addSourceKernel = self.addSourceProgram:kernel'addSource_maxwell'
 		self.maxwell.addSourceKernel:setArg(1, self.ion.UBuf)
 		self.maxwell.addSourceKernel:setArg(2, self.electron.UBuf)
+		self.maxwell.eqn.useSourceTerm = true
 	end
 
 	function templateClass:callAll(name, ...)

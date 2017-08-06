@@ -79,7 +79,7 @@ return function(parent)
 		template.super.boundary(self)
 		-- prim boundary
 		self.boundaryKernel:setArg(0, self.primBuf)
-		template.super.boundary(self)
+		self:applyBoundaryToBuffer(self.boundaryKernel)
 		self.boundaryKernel:setArg(0, self.UBuf)
 	end
 

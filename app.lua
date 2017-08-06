@@ -93,9 +93,21 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 -- override this for specific experiments
 -- this can't override float vs double precision yet
 function HydroCLApp:setup()
+	
+	--[[ self-gravitation simulation of planet earth?
+	cmdline = {
+		dim = 1,
+		mins = {-12e+6},
+		maxs = {12e+6},
+		gridSize = 256,
+		initState = 'self-gravitation test 1',
+	}
+	--]]
+	
+	
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	local dim = 1
+	local dim = 2
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
@@ -131,7 +143,7 @@ function HydroCLApp:setup()
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = ({
 			{256,1,1},
-			{64,64,1},
+			{256,256,1},
 			{32,32,32},
 		})[dim],
 		boundary = {
@@ -280,7 +292,7 @@ function HydroCLApp:setup()
 	-- neither is source term / poisson stuff
 	--self.solvers:insert(require 'solver.euler-burgers'(args))
 
-	-- SR+HD.  
+	-- SRHD.  
 	-- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
 	-- rel blast wave interaction works with superbee flux lim in 1D works at 256, fails at 1024 with float (works with double)
 	-- 	256x256 double fails with F.E., RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths,
@@ -291,11 +303,15 @@ function HydroCLApp:setup()
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
 	--self.solvers:insert(require 'solver.srhd-roe'(args))
 	
-	-- GR+HD
+	-- GRHD
 	-- right now this is just like srhd except extended by Font's eqns
 	-- this has plug-ins for ADM metric alpha, beta, gammas, but I need to make a composite solver to combine it with GR equations. 
-	self.solvers:insert(require 'solver.grhd-roe'(args))
-	
+	--self.solvers:insert(require 'solver.grhd-roe'(args))
+
+	-- GRHD+GR
+	-- here's the GRHD solver with the BSSNOK plugged into it
+	self.solvers:insert(require 'solver.gr-hd-separate-behavior'()(args))
+
 	-- M+HD. 
 	-- with superbee flux lim:  
 	-- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.
@@ -372,18 +388,7 @@ function HydroCLApp:initGL(...)
 
 	ffi.cdef(file['math.h'])
 
-
 	self.solvers = table()
-
-	--[[ self-gravitation simulation of planet earth?
-	cmdline = {
-		dim = 1,
-		mins = {-12e+6},
-		maxs = {12e+6},
-		gridSize = 256,
-		initState = 'self-gravitation test 1',
-	}
-	--]]
 
 	self:setup()
 
@@ -1149,9 +1154,12 @@ function HydroCLApp:display2D_Heatmap(solvers, varName, ar, graph_xmin, graph_ym
 				local ystep = 10^(math.log(ymax - ymin, 10) - 1.5)
 				for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
 					local value = (y - ymin) * (valueMax - valueMin) / (ymax - ymin) + valueMin
+					local absvalue = math.abs(value)
 					self.font:draw{
 						pos={xmin * .99 + xmax * .01, y + fontSizeY * .5},
-						text=(math.abs(value) > 1e+5 and ('%.5e'):format(value) or ('%.5f'):format(value)),
+						text=(
+							(absvalue > 1e+5 or absvalue < 1e-5)
+							and ('%.5e'):format(value) or ('%.5f'):format(value)),
 						color = {1,1,1,1},
 						fontSize={fontSizeX, -fontSizeY},
 						multiLine=false,
@@ -1283,17 +1291,16 @@ TODO for curved space: provide a coordMapInv function (might have to be manual t
  and then call this as we march through volumes 
  and treat out-of-bound values as fully transparent
 --]]
+HydroCLApp.display3D_Slice_usePoints = false
+HydroCLApp.display3D_Slice_useIsos = true
+HydroCLApp.display3D_Slice_numIsobars = 20
+HydroCLApp.display3D_Slice_useLighting = false
+HydroCLApp.display3D_Slice_alpha = .15
+HydroCLApp.display3D_Slice_alphaGamma = 1
+HydroCLApp.display3D_Slice_numSlices = 255
 function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	self.view:projection(ar)
 	self.view:modelview()
-
-	if self.display3D_Slice_usePoints == nil then self.display3D_Slice_usePoints = false end
-	if self.display3D_Slice_useIsos == nil then self.display3D_Slice_useIsos = true end
-	if self.display3D_Slice_numIsobars == nil then self.display3D_Slice_numIsobars = 20 end
-	if self.display3D_Slice_useLighting == nil then self.display3D_Slice_useLighting = false end
-	if self.display3D_Slice_alpha == nil then self.display3D_Slice_alpha = .15 end
-	if self.display3D_Slice_alphaGamma == nil then self.display3D_Slice_alphaGamma = 1 end
-	if self.display3D_Slice_numSlices == nil then self.display3D_Slice_numSlices = 255 end
 
 if useClipPlanes then
 	for i,clipInfo in ipairs(clipInfos) do
@@ -1846,12 +1853,11 @@ local arrow = {
 	{.2, -.3},
 	{.5, 0.},
 }
+HydroCLApp.displayVectorField_scale = .1
+HydroCLApp.displayVectorField_step = 4
 function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	self.view:projection(ar)
 	self.view:modelview()
-
-	if self.displayVectorField_scale == nil then self.displayVectorField_scale = .1 end
-	if self.displayVectorField_step == nil then self.displayVectorField_step = 4 end
 
 	gl.glDisable(gl.GL_BLEND)
 	gl.glEnable(gl.GL_DEPTH_TEST)
