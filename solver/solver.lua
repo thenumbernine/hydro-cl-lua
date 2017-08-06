@@ -546,10 +546,11 @@ function Solver:createBuffers()
 	ffi.cdef(self:getConsLRTypeCode())
 
 	-- for twofluid, cons_t has been renamed to euler_maxwell_t and maxwell_cons_t
-	if ffi.sizeof(self.eqn.cons_t) ~= self.eqn.numStates * ffi.sizeof(self.app.real) then
-	   error('expected sizeof('..self.eqn.cons_t..') to be '
-		   ..self.eqn.numStates..' * sizeof(real) = '..(self.eqn.numStates * ffi.sizeof(self.app.real))
-		   ..' but found '..ffi.sizeof(self.eqn.cons_t))
+	if ffi.sizeof(self.eqn.cons_t) ~= self.eqn.numStates * realSize then
+	   error('Expected sizeof('..self.eqn.cons_t..') to be '
+		   ..self.eqn.numStates..' * sizeof(real) = '..(self.eqn.numStates * realSize)
+		   ..' but found '..ffi.sizeof(self.eqn.cons_t)..' = '..(ffi.sizeof(self.eqn.cons_t) / realSize)..' * sizeof(real). '
+		   ..'Maybe you need to update Eqn.numStates?')
 	end
 
 	-- should I put these all in one AoS?

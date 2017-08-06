@@ -14,7 +14,7 @@ local GRHD = class(Equation)
 GRHD.name = 'GRHD'
 GRHD.numIntVars = 5
 GRHD.numWaves = 5
-GRHD.numStates = 6
+GRHD.numStates = 15
 
 GRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
 

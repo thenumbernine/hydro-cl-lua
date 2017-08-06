@@ -33,7 +33,7 @@ kernel void calcDT(
 	real3 x = cell_x(i);
 	
 	real det_gamma = sym3_det(prim.gamma);
-	sym3 gammaU = sym3_inv(prim.gamma);
+	sym3 gammaU = sym3_inv(prim.gamma, det_gamma);
 
 	real rho = prim.rho;
 	real eInt = prim.eInt;
@@ -53,7 +53,7 @@ kernel void calcDT(
 		// Marti 1998 eqn 19
 		// also Marti & Muller 2008 eqn 68
 		// also Font 2008 eqn 106
-		const real betaUi = prim.betaU.s<?=side?>;
+		const real betaUi = prim.beta.s<?=side?>;
 		real discr = sqrt((1. - vSq) * (gammaU.xx * (1. - vSq * csSq) - viSq * (1. - csSq)));
 		real lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq) * prim.alpha - betaUi;
 		real lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * prim.alpha - betaUi;
