@@ -30,14 +30,17 @@ kernel void calcDT(
 		return;
 	}
 	<?=eqn.prim_t?> prim = primBuf[index];
-	real3 x = cell_x(i);
 	
 	real det_gamma = sym3_det(prim.gamma);
 	sym3 gammaU = sym3_inv(prim.gamma, det_gamma);
 
 	real rho = prim.rho;
 	real eInt = prim.eInt;
-	real vSq = coordLenSq(prim.v, x);
+	//2008 Font just after Eqn 31: v^2 = gamma_ij v^i v^j
+	// ... but he is describing the Wilson covaraint formalism ...
+	// ... but I don't think he defines v^2 elsewhere
+	// (Alcubierre, when describing the relativistic eigenvectors, uses v^2 = v_x^2 + v_y^2 + v_z^2)
+	real vSq = real3_weightedLenSq(prim.v, gamma);
 	real P = calc_P(rho, eInt);
 	real h = calc_h(rho, P, eInt);
 	real csSq = heatCapacityRatio * P / (rho * h);
@@ -95,7 +98,6 @@ kernel void calcEigenBasis(
 	const global <?=eqn.prim_t?>* primBuf	
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
-	real3 x = cell_x(i);
 	
 	int indexR = index;
 	<?=eqn.prim_t?> primR = primBuf[indexR];
@@ -106,10 +108,6 @@ kernel void calcEigenBasis(
 		
 		int indexL = index - stepsize[side];
 		<?=eqn.prim_t?> primL = primBuf[indexL];
-		
-		real3 xInt = x;
-		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
-		sym3 gammaU = coord_gU(xInt);
 
 <? if true then -- arithmetic averaging ?>
 		<?=eqn.prim_t?> avg = (<?=eqn.prim_t?>){
@@ -123,20 +121,57 @@ kernel void calcEigenBasis(
 		};
 <? -- else -- Roe-averaging, Font 2008 eqn 38 ?>
 <? end ?>
-
+		
 		real rho = avg.rho;
 		real3 v = avg.v;
 		real eInt = avg.eInt;
-	
+
+		//these match eigen_leftTransform
 		<? if side == 1 then ?>
+		//v' = P [vx,vy,vz] = [vy,-vx,vz]
+		/*
+		should gamma' = P gamma P' or P' gamma P ?
+		I'm going to use P gamma P' because the signs match how 'v' changes as well
+		however, because gamma the metric of v, maybe it should be opposite? 
+		Also, the norms work out, so (P gamma P') (P v) has the same norm as (gamma v)
+		Same with (P v)' (P gamma P') (P v) works vs (P v)' (P' gamma P) (P v) which doesn't
+		*/
+
 		v = _real3(v.y, -v.x, v.z);	// -90' rotation to put the y axis contents into the x axis
+		avg.betaU = _real3(avg.betaU.y, -avg.betaU.x, avg.betaU.z);
+		avg.gamma = (sym3){
+			.xx = avg.gamma.yy,
+			.xy = -avg.gamma.xy,
+			.xz = avg.gamma.yz,
+			.yy = avg.gamma.xx,
+			.yz = -avg.gamma.xz,
+			.zz = avg.gamma.zz,
+		};
+	
 		<? elseif side == 2 then ?>
+		//x,z -> z,-x
+		
 		v = _real3(v.z, v.y, -v.x);	//-90' rotation to put the z axis in the x axis
+		avg.betaU = _real3(avg.betaU.z, avg.betaU.y, -avg.betaU.x);
+		avg.gamma = (sym3){
+			.xx = -avg.gamma.zz,
+			.xy = avg.gamma.yz,
+			.xz = -avg.gamma.xz,
+			.yy = avg.gamma.yy,
+			.yz = -avg.gamma.xy,
+			.zz = avg.gamma.xx,
+		};
+
 		<? end ?>
+		
+		real alpha = avg.alpha;
+		real3 betaU = avg.beta;
+		sym3 gamma = avg.gamma;
+		
+		real det_gamma = sym3_det(prim.gamma);
+		sym3 gammaU = sym3_inv(prim.gamma, det_gamma);
 
-//TODO NOTE if you're swapping vector components, you have to swap metric components too 
-
-		real3 vL = coord_lower(v, xInt);
+		real3 vL = sym3_real3_mul(v, gamma);
 		real vSq = real3_dot(v, vL);
 		real oneOverW2 = 1. - vSq;
 		real oneOverW = sqrt(oneOverW2);
@@ -157,10 +192,6 @@ kernel void calcEigenBasis(
 		real vxSq = v.x * v.x;
 		real csSq = heatCapacityRatio * P / (rho * h);
 		real cs = sqrt(csSq);
-
-		real alpha = avg.alpha;
-		real3 betaU = avg.beta;
-		sym3 gamma = avg.gamma;
 
 		const real betaUi = betaU.s<?=side?>;
 		real discr = sqrt((1. - vSq) * ((1. - vSq * csSq) - vxSq * (1. - csSq)));
@@ -226,7 +257,8 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real3 x
 ) { 
 	//rotate incoming v's in X
-	//TODO do the same for gamma_ij
+	//this should match calcEigenBasis
+	//eig->betaU and eig->gamma should already be rotated
 	<? if side==0 then ?>
 	<?=addr2?> const real* X = X_;
 	<? elseif side == 1 then ?>
@@ -234,13 +266,14 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<? elseif side == 2 then ?>
 	real X[5] = {X_[0], X_[3], X_[2], -X_[1], X_[4]};
 	<? end ?>
+	
+	sym3 gammaL = eig->gamma;
+	real gammaDet = sym3_det(gammaL);
+	sym3 gammaU = sym3_inv(gammaL, gammaDet);
 
 	<?=prefix?>
-	real gammaDet = volume_at(x);
-	sym3 gammaL = coord_g(x);
-	sym3 gammaU = coord_gU(x);
 
-	real3 vL = coord_lower(v, x);
+	real3 vL = sym3_mul(v, gammaL);
 	real vxSq = v.x * v.x;
 	real hSq = h * h;
 	real hW = h * W;
@@ -308,9 +341,9 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real3 x
 ) {
 	<?=prefix?>
-	sym3 gammaL = coord_g(x);
+	sym3 gammaL = eig->gamma;
 	
-	real3 vL = coord_lower(v, x);
+	real3 vL = sym3_mul(v, gammaL);
 	real hW = h * W;
 	real W2 = W * W;
 
@@ -395,12 +428,15 @@ kernel void constrainU(
 }
 
 //TODO update to include alphas, betas, and gammas
+/*
+W = -u^a n_a = alpha u^0
+v^i = (u^i / u^0 + beta^i) / alpha
+*/
 kernel void updatePrims(
 	global <?=eqn.prim_t?>* primBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
-	real3 x = cell_x(i);
 
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	real D = U->D;
@@ -410,7 +446,7 @@ kernel void updatePrims(
 	global <?=eqn.prim_t?>* prim = primBuf + index;
 	real3 v = prim->v;
 
-	real SLen = coordLen(S, x);
+	real SLen = real3_weightedLen(S, U->gamma);
 	real PMin = max(SLen - tau - D + SLen * solvePrimVelEpsilon, solvePrimPMinEpsilon);
 	real PMax = (heatCapacityRatio - 1.) * tau;
 	PMax = max(PMax, PMin);
@@ -431,7 +467,7 @@ kernel void updatePrims(
 		P = newP;
 		if (PError < solvePrimStopEpsilon) {
 			v = real3_scale(S, 1. / (tau + D + P));
-			vSq = coordLenSq(v, x);
+			vSq = real3_weightedLenSq(v, gammaL);
 			W = 1. / sqrt(1. - vSq);
 			rho = D / W;
 			rho = max(rho, (real)rhoMin);

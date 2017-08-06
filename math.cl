@@ -158,6 +158,19 @@ real3 sym3_x(sym3 m) { return _real3(m.xx, m.xy, m.xz); }
 real3 sym3_y(sym3 m) { return _real3(m.xy, m.yy, m.yz); }
 real3 sym3_z(sym3 m) { return _real3(m.xz, m.yz, m.zz); }
 
+//weighted inner product using 'm'
+real real3_weightedDot(real3 a, real3 b, sym3 m) {
+	return real3_dot(a, sym3_real3_mul(m, b));
+}
+
+real real3_weightedLenSq(real3 a, sym3 m) {
+	return sym3_real3_dot(a, a, m);
+}
+
+real real3_weightedLen(real3 a, sym3 m) {
+	return sqrt(real3_weightedLen(a, m));
+}
+
 mat3 mat3_mat3_mul(mat3 a, mat3 b) {
 	mat3 c;
 	for (int i = 0; i < 3; ++i) {

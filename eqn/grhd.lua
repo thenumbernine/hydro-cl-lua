@@ -141,8 +141,8 @@ real calc_h(real rho, real P, real eInt) {
 	return 1. + eInt + P / rho;
 }
 
-<?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> prim, real3 x) {
-	real vSq = coordLenSq(prim.v, x);
+<?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> prim) {
+	real vSq = real3_weightedLenSq(prim.v, prim.gamma);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
 	real P = calc_P(prim.rho, prim.eInt);
@@ -211,7 +211,7 @@ kernel void initState(
 ]]..code..[[
 	
 	real eInt = calc_eInt_from_P(rho, P);
-	real vSq = coordLenSq(v, x);
+	real vSq = real3_weightedLenSq(v, gamma);
 	real W = 1. / sqrt(1. - vSq);
 	real h = calc_h(rho, P, eInt);
 
@@ -224,7 +224,7 @@ kernel void initState(
 		.gamma = gamma,
 	};
 	primBuf[index] = prim;
-	consBuf[index] = consFromPrim(prim, x);
+	consBuf[index] = consFromPrim(prim);
 }
 ]], {
 	eqn = self,
@@ -253,14 +253,14 @@ function GRHD:getDisplayVars()
 		{Sx = '*value = U.S.x;'},
 		{Sy = '*value = U.S.y;'},
 		{Sz = '*value = U.S.z;'},
-		{S = '*value = coordLen(U.S, x);'},
+		{S = '*value = real3_weightedLen(U.S, U.gamma);'},
 		{tau = '*value = U.tau;'},
 		{W = '*value = U.D / prim.rho;'},
 		{['primitive reconstruction error'] = template([[
 			//prim have just been reconstructed from cons
 			//so reconstruct cons from prims again and calculate the difference
 			{
-				<?=eqn.cons_t?> U2 = consFromPrim(prim, x);
+				<?=eqn.cons_t?> U2 = consFromPrim(prim);
 				*value = 0;
 				for (int j = 0; j < numStates; ++j) {
 					*value += fabs(U.ptr[j] - U2.ptr[j]);
@@ -283,7 +283,7 @@ GRHD.primDisplayVars = {
 	{vx = '*value = prim.v.x;'},
 	{vy = '*value = prim.v.y;'},
 	{vz = '*value = prim.v.z;'},
-	{v = '*value = coordLen(prim.v, x);'},
+	{v = '*value = real3_weightedLen(prim.v, U.gamma);'},
 	{eInt = '*value = prim.eInt;'},
 	{P = '*value = calc_P(prim.rho, prim.eInt);'},
 	{h = '*value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt);'},
@@ -301,6 +301,10 @@ GRHD.eigenStructFields = {
 	{CMinus = 'real'},
 	{CPlus = 'real'},
 	{Kappa = 'real'},
+	-- hmm, I could just as easily re-average these ...
+	{alpha = 'real'},
+	{betaU = 'real3'},
+	{gamma = 'sym3'},
 }
 
 function GRHD:getEigenTypeCode()
