@@ -897,7 +897,7 @@ kernel void multAdd(
 	real d
 ) {
 	SETBOUNDS_NOGHOST();	
-<? for i=0,eqn.numStates-1 do
+<? for i=0,eqn.numIntStates-1 do
 ?>	a[index].ptr[<?=i?>] = b[index].ptr[<?=i?>] + c[index].ptr[<?=i?>] * d;
 <? end
 ?>}

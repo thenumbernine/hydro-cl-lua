@@ -36,6 +36,13 @@ function GRHDSeparateSolver:init(args)
 	self.gr = gr
 
 	local HydroSolver = class(require 'solver.grhd-roe')
+	function HydroSolver:createCodePrefix()
+		HydroSolver.super.createCodePrefix(self)
+		self.codePrefix = table{
+			self.codePrefix,
+			gr.eqn:getTypeCode(),
+		}:concat'\n'
+	end
 	function HydroSolver:init(args)
 		args = table(args, {
 			-- TODO make initStates objects that accept parameters
@@ -141,6 +148,8 @@ end
 function GRHDSeparateSolver:getConsLRTypeCode() return '' end
 
 function GRHDSeparateSolver:replaceSourceKernels()
+
+--[=[ instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver
 	
 	-- build self.codePrefix
 	require 'solver.solver'.createCodePrefix(self)
@@ -178,6 +187,7 @@ hydroU->gamma = hydroPrim->gamma = gamma_ll;
 	local code = lines:concat'\n'
 	self.copyMetricFrmoGRToHydroProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code}
 	self.copyMetricFrmoGRToHydroKernel = self.copyMetricFrmoGRToHydroProgram:kernel('copyMetricFromGRToHydro', self.hydro.UBuf, self.hydro.primBuf, self.gr.UBuf)
+-- instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver ]=]
 end
 
 function GRHDSeparateSolver:callAll(name, ...)
@@ -207,7 +217,9 @@ end
 
 function GRHDSeparateSolver:step(dt)
 	-- copy spacetime across for the GRHD
+--[=[ instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver
 	self.app.cmds:enqueueNDRangeKernel{kernel=self.copyMetricFrmoGRToHydroKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+-- instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver ]=]
 	self:callAll('step', dt)
 end
 

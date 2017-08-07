@@ -83,7 +83,7 @@ typedef struct {
 } <?=eqn.prim_t?>;
 
 typedef union {
-	real ptr[5];
+	real ptr[6];
 	struct {
 		real D;
 		real3 S;
