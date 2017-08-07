@@ -5,7 +5,10 @@ Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 20
 <? if eqn.hasFluxFromCons then ?>
 //Eqn.hasFluxFromCons
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U) {
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_t?> U<?=
+	solver:getADMArgs()?>
+) {
 	real vi = W->v.s<?=side?>;
 	real vi_shift = vi - U.beta.s<?=side?> / U.alpha;
 

@@ -128,7 +128,7 @@ function HydroCLApp:setup()
 		--integrator = 'backward Euler',
 
 		--fixedDT = .0001,
-		cfl = .25/dim,
+		--cfl = .25/dim,
 
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
@@ -306,11 +306,11 @@ function HydroCLApp:setup()
 	-- GRHD
 	-- right now this is just like srhd except extended by Font's eqns
 	-- this has plug-ins for ADM metric alpha, beta, gammas, but I need to make a composite solver to combine it with GR equations. 
-	self.solvers:insert(require 'solver.grhd-roe'(args))
+	--self.solvers:insert(require 'solver.grhd-roe'(args))
 
 	-- GRHD+GR
 	-- here's the GRHD solver with the BSSNOK plugged into it
-	--self.solvers:insert(require 'solver.gr-hd-separate-behavior'(args))
+	self.solvers:insert(require 'solver.gr-hd-separate'(args))
 
 	-- M+HD. 
 	-- with superbee flux lim:  

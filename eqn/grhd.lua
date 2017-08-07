@@ -14,7 +14,7 @@ local GRHD = class(Equation)
 GRHD.name = 'GRHD'
 GRHD.numIntVars = 5
 GRHD.numWaves = 5
-GRHD.numStates = 15
+GRHD.numStates = 5
 
 GRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
 
@@ -25,7 +25,6 @@ GRHD.hasEigenCode = true
 --GRHD.hasFluxFromCons = true
 
 GRHD.hasCalcDT = true
-
 GRHD.useConstrainU = true
 
 GRHD.initStates = require 'init.euler'
@@ -85,28 +84,18 @@ end
 function GRHD:getTypeCode()
 	return template([[
 typedef union {
-	real ptr[15];
+	real ptr[5];
 	struct {
 		real D;		//0
 		real3 S;	//1
 		real tau;	//4
-	
-		//metric variables
-		//populated by whatever NR solver is used
-		real alpha;	//5
-		real3 beta;	//6
-		sym3 gamma;	//9
-	};				//15
+	};
 } <?=eqn.cons_t?>;
 
 typedef struct {
 	real rho;
 	real3 v;
 	real eInt;
-
-	real alpha;
-	real3 beta;
-	sym3 gamma;
 } <?=eqn.prim_t?>;
 ]], {
 	eqn = self,
@@ -141,13 +130,17 @@ real calc_h(real rho, real P, real eInt) {
 	return 1. + eInt + P / rho;
 }
 
-<?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> prim) {
-	real vSq = real3_weightedLenSq(prim.v, prim.gamma);
+<?=eqn.cons_t?> consFromPrim(
+	<?=eqn.prim_t?> prim,
+	real alpha,
+	real3 beta,
+	sym3 gamma
+) {
+	real vSq = real3_weightedLenSq(prim.v, gamma);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
 	real P = calc_P(prim.rho, prim.eInt);
 	real h = calc_h(prim.rho, P, prim.eInt);
-	real alpha = prim.alpha;
 
 	//2008 Font, eqn 40-42:
 	
@@ -157,7 +150,7 @@ real calc_h(real rho, real P, real eInt) {
 	//momentum = T^0i = rho h u^0 u^i + P g^0i
 	real3 S = real3_add(
 		real3_scale(prim.v, prim.rho * h * WSq),
-		real3_scale(prim.beta, P / (alpha * alpha)));
+		real3_scale(beta, P / (alpha * alpha)));
 	
 	//energy = T^00 = rho h u^0 u^0 + P g^00
 	real tau = prim.rho * h * WSq - D - P / (alpha * alpha);
@@ -166,9 +159,6 @@ real calc_h(real rho, real P, real eInt) {
 		.D = D,
 		.S = S,
 		.tau = tau,
-		.alpha = prim.alpha,
-		.beta = prim.beta,
-		.gamma = prim.gamma,
 	};
 }
 ]], {
@@ -185,7 +175,8 @@ function GRHD:getInitStateCode()
 
 kernel void initState(
 	global <?=eqn.cons_t?>* consBuf,
-	global <?=eqn.prim_t?>* primBuf
+	global <?=eqn.prim_t?>* primBuf<?=
+	solver:getADMArgs()?>
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
@@ -204,9 +195,7 @@ kernel void initState(
 	//ignored:
 	real3 B = _real3(0,0,0);
 
-	real alpha = 1.;
-	real3 beta = _real3(0,0,0);
-	sym3 gamma = _sym3(1,0,0,1,0,1);
+	<?=solver:getADMVarCode()?>
 
 ]]..code..[[
 	
@@ -219,15 +208,13 @@ kernel void initState(
 		.rho = rho,
 		.v = v,
 		.eInt = eInt,
-		.alpha = alpha,
-		.beta = beta,
-		.gamma = gamma,
 	};
-	primBuf[index] = prim;
-	consBuf[index] = consFromPrim(prim);
+	primBuf[index] = prim;	
+	consBuf[index] = consFromPrim(prim, alpha, beta, gamma);
 }
 ]], {
 	eqn = self,
+	solver = self.solver,
 })
 end
 
@@ -253,20 +240,24 @@ function GRHD:getDisplayVars()
 		{Sx = '*value = U.S.x;'},
 		{Sy = '*value = U.S.y;'},
 		{Sz = '*value = U.S.z;'},
-		{S = '*value = real3_weightedLen(U.S, U.gamma);'},
+		{S = template([[
+	<?=solver:getADMVarCode()?>
+	*value = real3_weightedLen(U.S, gamma);
+]], {solver=self.solver})},
 		{tau = '*value = U.tau;'},
 		{W = '*value = U.D / prim.rho;'},
 		{['primitive reconstruction error'] = template([[
-			//prim have just been reconstructed from cons
-			//so reconstruct cons from prims again and calculate the difference
-			{
-				<?=eqn.cons_t?> U2 = consFromPrim(prim);
-				*value = 0;
-				for (int j = 0; j < numStates; ++j) {
-					*value += fabs(U.ptr[j] - U2.ptr[j]);
-				}
-			}
-	]], {eqn=self})},
+	//prim have just been reconstructed from cons
+	//so reconstruct cons from prims again and calculate the difference
+	{
+		<?=solver:getADMVarCode()?>
+		<?=eqn.cons_t?> U2 = consFromPrim(prim, alpha, beta, gamma);
+		*value = 0;
+		for (int j = 0; j < numStates; ++j) {
+			*value += fabs(U.ptr[j] - U2.ptr[j]);
+		}
+	}
+]], {eqn=self, solver=self.solver})},
 	}
 end
 
@@ -283,7 +274,11 @@ GRHD.primDisplayVars = {
 	{vx = '*value = prim.v.x;'},
 	{vy = '*value = prim.v.y;'},
 	{vz = '*value = prim.v.z;'},
-	{v = '*value = real3_weightedLen(prim.v, prim.gamma);'},
+
+	--TODO in gr-hd-separate, override gr's prim tex and give it an 'extraArgs'
+	--{v = '*value = real3_weightedLen(prim.v, gamma);'},
+	{v = '*value = real3_len(prim.v);'},
+	
 	{eInt = '*value = prim.eInt;'},
 	{P = '*value = calc_P(prim.rho, prim.eInt);'},
 	{h = '*value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt);'},

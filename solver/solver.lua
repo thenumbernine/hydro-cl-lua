@@ -320,7 +320,12 @@ function Solver:refreshIntegrator()
 end
 
 local ConvertToTex = class()
+
+-- this is the default ConvertToTex
 Solver.ConvertToTex = ConvertToTex
+
+-- and this is the ConvertToTex used for UBuf
+Solver.ConvertToTex_U = ConvertToTex
 
 ConvertToTex.type = 'real'	-- default
 
@@ -419,9 +424,9 @@ function ConvertToTex:setToBufferArgs(var)
 	self:setArgs(var.calcDisplayVarToBufferKernel, var)
 end
 
-function Solver:addConvertToTex(args, class)
-	class = class or ConvertToTex
-	self.convertToTexs:insert(class(
+function Solver:addConvertToTex(args, cl)
+	cl = cl or self.ConvertToTex
+	self.convertToTexs:insert(cl(
 		table(args, {
 			solver = self,
 		})
@@ -437,8 +442,8 @@ function Solver:createDisplayVars()
 	end
 end
 
-function Solver:addConvertToTexUBuf()
-	self:addConvertToTex{
+function Solver:getAddConvertToTexUBufArgs()
+	return {
 		name = 'U',
 		type = self.eqn.cons_t,
 		varCodePrefix = self.eqn:getDisplayVarCodePrefix(),
@@ -446,15 +451,16 @@ function Solver:addConvertToTexUBuf()
 	}
 end
 
+function Solver:addConvertToTexUBuf()
+	self:addConvertToTex(self:getAddConvertToTexUBufArgs(), self.ConvertToTex_U)
+end
+
 function Solver:addConvertToTexUBufVec()
 	if not self.eqn.getVecDisplayVars then return end
-	self:addConvertToTex{
-		name = 'U',
-		type = self.eqn.cons_t,
-		varCodePrefix = self.eqn:getDisplayVarCodePrefix(),
-		vars = assert(self.eqn:getVecDisplayVars()),
-		vectorField = true,
-	}
+	local args = self:getAddConvertToTexUBufArgs()
+	args.vars = assert(self.eqn:getVecDisplayVars())
+	args.vectorField = true
+	self:addConvertToTex(args)
 end
 
 function Solver:addConvertToTexs()

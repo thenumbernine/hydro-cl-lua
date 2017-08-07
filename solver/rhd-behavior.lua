@@ -8,6 +8,7 @@ but maybe it should -- because this is running faster than Euler
 --]]
 local ffi = require 'ffi'
 local class = require 'ext.class'
+local table = require 'ext.table'
 
 return function(parent)
 	local template = class(parent)
@@ -17,23 +18,16 @@ return function(parent)
 		self:clalloc('primBuf', self.volume * self.dim * ffi.sizeof(self.eqn.prim_t))
 	end
 
-	local ConvertToTex_SRHD_U = class(template.ConvertToTex)
-
-	function ConvertToTex_SRHD_U:setArgs(kernel, var)
+	template.ConvertToTex_U = class(template.ConvertToTex_U)
+	function template.ConvertToTex_U:setArgs(kernel, var)
 		kernel:setArg(1, self.solver.UBuf)
 		kernel:setArg(2, self.solver.primBuf)
 	end
 
 	-- replace the U convertToTex with some custom code 
-	function template:addConvertToTexUBuf()
-		self:addConvertToTex({
-			name = 'U',
-			type = self.eqn.cons_t,
-			extraArgs = {'const global '..self.eqn.prim_t..'* primBuf'},
-	-- the index vs dstindex stuff is shared in common with the main display code
-			varCodePrefix = self.eqn:getDisplayVarCodePrefix(),
-			vars = self.eqn:getDisplayVars(),
-		}, ConvertToTex_SRHD_U)
+	function template:getAddConvertToTexUBufArgs()
+		return table(template.super.getAddConvertToTexUBufArgs(self),
+			{extraArgs = {'const global '..self.eqn.prim_t..'* primBuf'}})
 	end
 
 	function template:addConvertToTexs()

@@ -1,9 +1,6 @@
 --[[
 combining a GR solver (probably BSSNOK-finite-difference + backwards-Euler integrator)
 and a HD solver (Roe)
-
-this is no longer a 'behavior' but now fully a 'solver'
-though only an abstract version of one, hiding the two underlying solvers
 --]]
 
 local class = require 'ext.class'
@@ -18,10 +15,7 @@ local clnumber = require 'cl.obj.number'
 TODO take the composite behavior stuff that this and TwoFluidEMHDBehavior have in common
 and make a separate parent out of them ... CompositeSolver or something
 
-also TODO ... think of a better way to provide separate arguments to each sub-solver
-
-right now 'parent' is just the Euler solver type
-I'm only using BSSNOK-finite-difference for the spacetime solver
+also TODO ... think of a better way to provide separate arguments to each sub-solver's initialization
 --]]
 local GRHDSeparateSolver = class()
 
@@ -70,8 +64,37 @@ function GRHDSeparateSolver:init(args)
 	sym3 <?=args.gamma?> = sym3_scale(<?=args.U?>->gammaBar_ll, exp(4. * <?=args.U?>->phi));
 ]], {gr=gr, args=args})
 	end
-	self.hydro = HydroSolver(args)
+	
+	HydroSolver.ConvertToTex_U = class(HydroSolver.ConvertToTex_U)
+	function HydroSolver.ConvertToTex_U:setArgs(kernel, var)
+		HydroSolver.ConvertToTex_U.super.setArgs(self, kernel, var)
+		kernel:setArg(3, gr.UBuf)
+	end
+	function HydroSolver:getAddConvertToTexUBufArgs()
+		local args = HydroSolver.super.getAddConvertToTexUBufArgs(self)
+		table.insert(args.extraArgs, 'const global '..gr.eqn.cons_t..'* grUBuf')
+		return args
+	end
+	function HydroSolver:refreshInitStateProgram()
+		HydroSolver.super.refreshInitStateProgram(self)
+		self.initStateKernel:setArg(2, gr.UBuf)
+	end
+	function HydroSolver:refreshSolverProgram()
+		HydroSolver.super.refreshSolverProgram(self)
+		
+		self.calcDTKernel:setArg(2, gr.UBuf)
+		self.calcEigenBasisKernel:setArg(3, gr.UBuf)
+	end
 
+	local hydro = HydroSolver(args)
+	self.hydro = hydro
+
+	-- now all of hydro's kernels need to be given the extra ADM arg
+io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
+	hydro.initStateKernel:setArg(2, gr.UBuf)
+	hydro.calcDTKernel:setArg(2, gr.UBuf)
+	hydro.calcEigenBasisKernel:setArg(3, gr.UBuf)
+	hydro.updatePrimsKernel:setArg(2, gr.UBuf)
 
 	self.solvers = table{
 		self.gr, 
