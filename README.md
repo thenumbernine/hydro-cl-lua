@@ -49,6 +49,7 @@ TODO:
 - add different vector field scales for different solvers (use valuemin and valuemax?)
 - looks like RHD has multistep errors in RK, probably because it needs more (either boundary() or updatePrimsFromCons()) to be called between substeps
 - add source terms to GRHD -- or at least plugins for 'gr-hd-separate' to fill in from the NR solver
+- coroutines to iterative solvers?  so they don't stall the app execution?
 
 ### Sources:
 

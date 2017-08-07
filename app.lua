@@ -224,7 +224,7 @@ function HydroCLApp:setup()
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -241,7 +241,7 @@ function HydroCLApp:setup()
 		--initState = 'configuration 6',
 
 		-- self-gravitation tests:
-		--initState = 'self-gravitation test 1',
+		initState = 'self-gravitation test 1',
 		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
 		--initState = 'self-gravitation test 2 orbiting',
@@ -280,7 +280,7 @@ function HydroCLApp:setup()
 	}
 	
 	-- HD - Roe
-	--self.solvers:insert(require 'solver.euler-roe'(args))
+	self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
@@ -310,7 +310,7 @@ function HydroCLApp:setup()
 
 	-- GRHD+GR
 	-- here's the GRHD solver with the BSSNOK plugged into it
-	self.solvers:insert(require 'solver.gr-hd-separate'(args))
+	--self.solvers:insert(require 'solver.gr-hd-separate'(args))
 
 	-- M+HD. 
 	-- with superbee flux lim:  

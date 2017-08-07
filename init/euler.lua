@@ -10,7 +10,7 @@ local function quadrantProblem(args)
 		solver.cfl = .475
 		for _,x in ipairs{'x', 'y', 'z'} do
 			for _,minmax in ipairs{'min', 'max'} do
-				solver.boundaryMethods[x..minmax][0] = solver.app.boundaryMethods:find'freeflow'-1
+				solver.boundaryMethods[x..minmax][0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
 			end
 		end
 		local function build(i)
@@ -56,12 +56,12 @@ function SelfGravProblem:__call(solver)
 	local args = self.args
 	solver.useGravity = true
 	--[[ the boundary might not be necessary/appropriate, esp for cylindrical geometry
-	solver.boundaryMethods.xmin[0] = solver.app.boundaryMethods:find'freeflow'-1
-	solver.boundaryMethods.xmax[0] = solver.app.boundaryMethods:find'freeflow'-1
-	solver.boundaryMethods.ymin[0] = solver.app.boundaryMethods:find'freeflow'-1
-	solver.boundaryMethods.ymax[0] = solver.app.boundaryMethods:find'freeflow'-1
-	solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'freeflow'-1
-	solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'freeflow'-1
+	solver.boundaryMethods.xmin[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+	solver.boundaryMethods.xmax[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+	solver.boundaryMethods.ymin[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+	solver.boundaryMethods.ymax[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+	solver.boundaryMethods.zmin[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+	solver.boundaryMethods.zmax[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
 	--]]
 
 	return template([[
@@ -389,7 +389,8 @@ local initStates = {
 		init = function(solver)
 			for _,x in ipairs{'x', 'y', 'z'} do
 				for _,minmax in ipairs{'min', 'max'} do
-					solver.boundaryMethods[x..minmax][0] = solver.app.boundaryMethods:find'freeflow'-1
+					solver.boundaryMethods[x..minmax][0] = 
+						solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
 				end
 			end
 			return [[
@@ -410,8 +411,7 @@ local initStates = {
 			for i,x in ipairs{'x', 'y', 'z'} do
 				for _,minmax in ipairs{'min', 'max'} do
 					solver.boundaryMethods[x..minmax][0] = 
-						--i == solver.dim and solver.app.boundaryMethods:find'freeflow'-1 or 
-						solver.app.boundaryMethods:find'periodic'-1
+						solver.boundaryOptions:find(nil, function(option) return next(option) == 'periodic' end)-1
 				end
 			end
 			
@@ -459,15 +459,16 @@ end ?>
 	},
 	
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/rt/rt.html
+	-- TODO fixme 
 	{
 		name = 'Rayleigh-Taylor',
-		init = function()
+		init = function(solver)
 			local xs = {'x', 'y', 'z'}
 			
 			local xmid = (solver.mins + solver.maxs) * .5
 			
 			-- triple the length along the interface dimension
-			local k = xs[solver.dim]
+			local k = solver.dim
 			solver.mins[k] = xmid[k] + (solver.mins[k] - xmid[k]) * 3
 			solver.maxs[k] = xmid[k] + (solver.maxs[k] - xmid[k]) * 3
 
@@ -479,30 +480,24 @@ end ?>
 				for _,minmax in ipairs{'min', 'max'} do
 					solver.boundaryMethods[x..minmax][0] = 
 						i == solver.dim 
-						and solver.app.boundaryMethods:find'mirror'-1
-						or solver.app.boundaryMethods:find'periodic'-1
+						and solver.boundaryOptions:find(nil, function(option) return next(option) == 'mirror' end)-1
+						or solver.boundaryOptions:find(nil, function(option) return next(option) == 'periodic' end)-1
 				end
 			end
 		
-			-- TODO incorporate this into the Euler model ..
-			local externalForce = {0, 1, 0}
-			
-			initState = function(x,y,z)
-				local xs = {x,y,z}
-				local top = xs[k] > xmid[k]
-				local potentialEnergy = 0	-- minPotentialEnergy
-				for k=1,#size do
-					potentialEnergy = potentialEnergy + (xs[k] - xmin[k]) * externalForce[k]
-				end
-				local density = top and 2 or 1
-				return buildStateEuler{
-					noise = .001,
-					density = density,
-					potentialEnergy = potentialEnergy,
-					pressure = 2.5 - density * potentialEnergy,
-					-- or maybe it is ... pressure = (gamma - 1) * density * (2.5 - potentialEnergy)
-				}
-			end
+			return [[
+	const real3 externalForce = _real3(0,1,0);
+	ePot = 0. <? 
+for side=0,solver.dim-1 do
+?> + (x.s<?=side?> - mins.s<?=side?>) * externalForce.s<?=side?><?
+end ?>;
+	int topdim = <?=solver.dim-1?>;
+	bool top = x.s[topdim] > mids.s[topdim];
+	//TODO noise too?
+	rho = top ? 2 : 1;
+	P = 2.5 - rho * ePot;
+	// or maybe it is ... pressure = (gamma - 1) * density * (2.5 - potentialEnergy)
+]]
 		end,
 	},
 
@@ -514,14 +509,14 @@ end ?>
 			-- I am not correctly modeling the top boundary
 			solver.mins = vec3(0,0,0)
 			solver.maxs = vec3(4,1,1)
-			solver.boundaryMethods.xmin[0] = solver.app.boundaryMethods:find'freeflow'-1
-			solver.boundaryMethods.xmax[0] = solver.app.boundaryMethods:find'freeflow'-1
-			solver.boundaryMethods.ymin[0] = solver.app.boundaryMethods:find'mirror'-1
-			solver.boundaryMethods.ymax[0] = solver.app.boundaryMethods:find'freeflow'-1
-			solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'mirror'-1
-			solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'mirror'-1
+			solver.boundaryMethods.xmin[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+			solver.boundaryMethods.xmax[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+			solver.boundaryMethods.ymin[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'mirror' end)-1
+			solver.boundaryMethods.ymax[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+			solver.boundaryMethods.zmin[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'mirror' end)-1
+			solver.boundaryMethods.zmax[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'mirror' end)-1
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.guiVarsForName.heatCapacityRatio.value = 7/5
+				solver.eqn.guiVarsForName.heatCapacityRatio.value = 7/5
 			end
 			return table{
 	'#define sqrt1_3 '..clnumber(math.sqrt(1/3)),
@@ -530,8 +525,8 @@ end ?>
 	if (inside) {
 		rho = 8;
 		P = 116.5;
-		v.x = 8.25 * cos(30. * M_PI / 180.),
-		v.y = -8.25 * sin(30. * M_PI / 180.),
+		v.x = 8.25 * cos(30. * M_PI / 180.);
+		v.y = -8.25 * sin(30. * M_PI / 180.);
 	} else {
 		rho = 1.4;
 		P = 1;
@@ -545,12 +540,12 @@ end ?>
 	{
 		name = 'square cavity',
 		init = function(solver)
-			solver.boundaryMethods.xmin[0] = solver.app.boundaryMethods:find'mirror'-1
-			solver.boundaryMethods.xmax[0] = solver.app.boundaryMethods:find'mirror'-1
-			solver.boundaryMethods.ymin[0] = solver.app.boundaryMethods:find'mirror'-1
-			solver.boundaryMethods.ymax[0] = solver.app.boundaryMethods:find'freeflow'-1	-- TODO none
-			solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'mirror'-1
-			solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'mirror'-1
+			solver.boundaryMethods.xmin[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'mirror' end)-1
+			solver.boundaryMethods.xmax[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'mirror' end)-1
+			solver.boundaryMethods.ymin[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'mirror' end)-1
+			solver.boundaryMethods.ymax[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1	-- TODO none
+			solver.boundaryMethods.zmin[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'mirror' end)-1
+			solver.boundaryMethods.zmax[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'mirror' end)-1
 			return [[
 	rho = 1;
 	v.x = x.y > .45 ? 1 : 0;
@@ -562,12 +557,12 @@ end ?>
 	{
 		name='shock bubble interaction',
 		init = function(solver)
-			solver.boundaryMethods.xmin[0] = solver.app.boundaryMethods:find'freeflow'-1
-			solver.boundaryMethods.xmax[0] = solver.app.boundaryMethods:find'freeflow'-1
-			solver.boundaryMethods.ymin[0] = solver.app.boundaryMethods:find'freeflow'-1
-			solver.boundaryMethods.ymax[0] = solver.app.boundaryMethods:find'freeflow'-1
-			solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'freeflow'-1
-			solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'freeflow'-1
+			solver.boundaryMethods.xmin[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+			solver.boundaryMethods.xmax[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+			solver.boundaryMethods.ymin[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+			solver.boundaryMethods.ymax[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+			solver.boundaryMethods.zmin[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+			solver.boundaryMethods.zmax[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
 			return [[
 	const real waveX = -.45;
 	real3 bubbleCenter = _real3(0,0,0);
@@ -594,12 +589,12 @@ end ?>
 				},
 			}
 			if solver.geometry.name == 'cylinder' then
-				solver.boundaryMethods.xmin[0] = solver.app.boundaryMethods:find'freeflow'-1
-				solver.boundaryMethods.xmax[0] = solver.app.boundaryMethods:find'freeflow'-1
-				solver.boundaryMethods.ymin[0] = solver.app.boundaryMethods:find'periodic'-1
-				solver.boundaryMethods.ymax[0] = solver.app.boundaryMethods:find'periodic'-1
-				solver.boundaryMethods.zmin[0] = solver.app.boundaryMethods:find'freeflow'-1
-				solver.boundaryMethods.zmax[0] = solver.app.boundaryMethods:find'freeflow'-1
+				solver.boundaryMethods.xmin[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+				solver.boundaryMethods.xmax[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+				solver.boundaryMethods.ymin[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'periodic' end)-1
+				solver.boundaryMethods.ymax[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'periodic' end)-1
+				solver.boundaryMethods.zmin[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
+				solver.boundaryMethods.zmax[0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'freeflow' end)-1
 				return template([[
 	P = 1;
 	rho = x.s[0] < <?=radius?> ? 1 : .1;

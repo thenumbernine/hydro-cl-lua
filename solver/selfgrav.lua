@@ -1,6 +1,9 @@
 local class = require 'ext.class'
+local ig = require 'ffi.imgui'
+local tooltip = require 'tooltip'
 local template = require 'template'
 local Poisson = require 'solver.poisson'
+
 --local Poisson = require 'solver.poisson_gmres'
 
 -- TODO guarantee all potential values are initially positive (and from then on?)
@@ -122,6 +125,15 @@ end
 
 local field = 'gravityPoisson'
 local enableField = 'useGravity'
+
+-- TODO maybe put this inside the Poisson:updateGUI collapsing header?
+function SelfGrav:updateGUI()
+	SelfGrav.super.updateGUI(self)
+	ig.igPushIdStr'SelfGrav behavior'
+	tooltip.checkboxTable('use gravity', self.solver, enableField)
+	ig.igPopId()
+end
+
 return setmetatable({
 	class = SelfGrav,
 }, {

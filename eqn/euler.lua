@@ -155,6 +155,7 @@ kernel void initState(
 }
 ]], {
 		eqn = self,
+		solver = self.solver,
 	})
 end
 
