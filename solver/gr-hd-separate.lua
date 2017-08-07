@@ -56,10 +56,11 @@ function GRHDSeparateSolver:init(args)
 		return template([[,
 	const global <?=gr.eqn.cons_t?>* grUBuf]], {gr=gr})
 	end
+	-- args is volatile
 	function HydroSolver:getADMVarCode(args)
 		args = args or {}
 		args.suffix = args.suffix or ''
-		args.index = args.index or 'index'
+		args.index = args.index or ('index'..args.suffix)
 		args.alpha = args.alpha or ('alpha'..args.suffix)
 		args.beta = args.beta or ('beta'..args.suffix)
 		args.gamma = args.gamma or ('gamma'..args.suffix)

@@ -25,6 +25,7 @@ GRHD.hasEigenCode = true
 --GRHD.hasFluxFromCons = true
 
 GRHD.hasCalcDT = true
+GRHD.useSourceTerm = true
 GRHD.useConstrainU = true
 
 GRHD.initStates = require 'init.euler'
@@ -86,15 +87,15 @@ function GRHD:getTypeCode()
 typedef union {
 	real ptr[5];
 	struct {
-		real D;		//0
-		real3 S;	//1
-		real tau;	//4
+		real D;		//0 D = rho W
+		real3 S;	//1	S_j = rho h W^2 v_j
+		real tau;	//4 tau = rho h W^2 - P
 	};
 } <?=eqn.cons_t?>;
 
 typedef struct {
 	real rho;
-	real3 v;
+	real3 v;	//v_i
 	real eInt;
 } <?=eqn.prim_t?>;
 ]], {
@@ -136,24 +137,22 @@ real calc_h(real rho, real P, real eInt) {
 	real3 beta,
 	sym3 gamma
 ) {
-	real vSq = real3_weightedLenSq(prim.v, gamma);
+	//2008 Font eqn 31 etc 
+	real det_gamma = sym3_det(gamma);
+	sym3 gammaU = sym3_inv(gamma, det_gamma);
+	real3 vU = sym3_real3_mul(gammaU, prim.v);
+	real vSq = real3_dot(prim.v, vU);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
+	
 	real P = calc_P(prim.rho, prim.eInt);
 	real h = calc_h(prim.rho, P, prim.eInt);
 
-	//2008 Font, eqn 40-42:
+	//2008 Font, eqn 28-30:
 	
-	//rest-mass density = J^0 = rho u^0
-	real D = prim.rho * W;	
-	
-	//momentum = T^0i = rho h u^0 u^i + P g^0i
-	real3 S = real3_add(
-		real3_scale(prim.v, prim.rho * h * WSq),
-		real3_scale(beta, P / (alpha * alpha)));
-	
-	//energy = T^00 = rho h u^0 u^0 + P g^00
-	real tau = prim.rho * h * WSq - D - P / (alpha * alpha);
+	real D = prim.rho * W;
+	real3 S = real3_scale(prim.v, prim.rho * h * WSq);
+	real tau = prim.rho * h * WSq - P - D;
 
 	return (<?=eqn.cons_t?>){
 		.D = D,
@@ -200,9 +199,6 @@ kernel void initState(
 ]]..code..[[
 	
 	real eInt = calc_eInt_from_P(rho, P);
-	real vSq = real3_weightedLenSq(v, gamma);
-	real W = 1. / sqrt(1. - vSq);
-	real h = calc_h(rho, P, eInt);
 
 	<?=eqn.prim_t?> prim = {
 		.rho = rho,
@@ -237,27 +233,39 @@ end
 function GRHD:getDisplayVars()
 	return {
 		{D = '*value = U.D;'},
-		{Sx = '*value = U.S.x;'},
-		{Sy = '*value = U.S.y;'},
-		{Sz = '*value = U.S.z;'},
+		{S_x = '*value = U.S.x;'},
+		{S_y = '*value = U.S.y;'},
+		{S_z = '*value = U.S.z;'},
 		{S = template([[
 	<?=solver:getADMVarCode()?>
 	*value = real3_weightedLen(U.S, gamma);
 ]], {solver=self.solver})},
 		{tau = '*value = U.tau;'},
-		{W = '*value = U.D / prim.rho;'},
+		{['W based on D'] = '*value = U.D / prim.rho;'},
+		{['W based on v'] = template([[
+	<?=solver:getADMVarCode()?>
+	real det_gamma = sym3_det(gamma);
+	sym3 gammaU = sym3_inv(gamma, det_gamma);
+	*value = 1. / sqrt(1. - real3_weightedLenSq(prim.v, gammaU));
+]], {solver=self.solver})},
 		{['primitive reconstruction error'] = template([[
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
-	{
-		<?=solver:getADMVarCode()?>
-		<?=eqn.cons_t?> U2 = consFromPrim(prim, alpha, beta, gamma);
-		*value = 0;
-		for (int j = 0; j < numStates; ++j) {
-			*value += fabs(U.ptr[j] - U2.ptr[j]);
-		}
+	<?=solver:getADMVarCode()?>
+	<?=eqn.cons_t?> U2 = consFromPrim(prim, alpha, beta, gamma);
+	*value = 0;
+	for (int j = 0; j < numStates; ++j) {
+		*value += fabs(U.ptr[j] - U2.ptr[j]);
 	}
 ]], {eqn=self, solver=self.solver})},
+		{['W error'] = template([[
+	real W1 = U.D / prim.rho;
+	<?=solver:getADMVarCode()?>
+	real det_gamma = sym3_det(gamma);
+	sym3 gammaU = sym3_inv(gamma, det_gamma);
+	real W2 = 1. / sqrt(1. - real3_weightedLenSq(prim.v, gammaU));
+	*value = fabs(W1 - W2);
+]], {solver=self.solver})},
 	}
 end
 
@@ -271,13 +279,13 @@ end
 
 GRHD.primDisplayVars = {
 	{rho = '*value = prim.rho;'},
-	{vx = '*value = prim.v.x;'},
-	{vy = '*value = prim.v.y;'},
-	{vz = '*value = prim.v.z;'},
+	{['v_x'] = '*value = prim.v.x;'},
+	{['v_y'] = '*value = prim.v.y;'},
+	{['v_z'] = '*value = prim.v.z;'},
 
 	--TODO in gr-hd-separate, override gr's prim tex and give it an 'extraArgs'
 	--{v = '*value = real3_weightedLen(prim.v, gamma);'},
-	{v = '*value = real3_len(prim.v);'},
+	{['|v|'] = '*value = real3_len(prim.v);'},
 	
 	{eInt = '*value = prim.eInt;'},
 	{P = '*value = calc_P(prim.rho, prim.eInt);'},
@@ -286,7 +294,7 @@ GRHD.primDisplayVars = {
 
 GRHD.eigenStructFields = {
 	{rho = 'real'},
-	{v = 'real3'},
+	{vL = 'real3'},
 	{h = 'real'},
 	{W = 'real'},
 	{ATildeMinus = 'real'},

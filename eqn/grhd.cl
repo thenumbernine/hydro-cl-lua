@@ -1,29 +1,46 @@
 /*
-Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 2008 
+2008 Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity"
 */
 
-<? if eqn.hasFluxFromCons then ?>
-//Eqn.hasFluxFromCons
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+<? 
+-- also in eqn/bssnok-fd.lua
+-- and in solver/solver, and a few other places
+local table = require 'ext.table'
+local xNames = table{'x', 'y', 'z'}
+
+local function sym(a,b)
+	assert(a >= 1 and a <= 3, "tried to index sym with "..tostring(a)..", "..tostring(b))
+	assert(b >= 1 and b <= 3, "tried to index sym with "..tostring(a)..", "..tostring(b))
+	if a > b then a,b = b,a end
+	return xNames[a]..xNames[b]
+end
+
+if eqn.hasFluxFromCons then
+	for side=0,solver.dim-1 do
+?><?=eqn.cons_t?> fluxFromCons_<?=side?>(
 	<?=eqn.cons_t?> U<?=
 	solver:getADMArgs()?>
 ) {
-	real vi = W->v.s<?=side?>;
-	real vi_shift = vi - U.beta.s<?=side?> / U.alpha;
+	<?=solver:getADMVarCode()?>
+	real det_gamma = sym3_det(gamma);
+	sym3 gammaU = sym3_inv(gamma, det_gamma);
+	
+	real vUi = gammaU.<?=sym(side+1,1)?> * prim.v.x
+			+ gammaU.<?=sym(side+1,2)?> * prim.v.y
+			+ gammaU.<?=sym(side+1,3)?> * prim.v.z;
+	real vUi_shift = vUi - U.beta.s<?=side?> / U.alpha;
 
 	<?=eqn.cons_t?> F;
-	F.D = U->D * vi_shift;
-	F.S = real3_scale(U->S, vi_shift);
-	F.S.s<?=side?> += W->p;
-	F.tau = U->tau * vi_shift + p * vi;
-	F.alpha = 0;
-	F.beta = _real3(0,0,0);
-	F.gamma = _sym3(0,0,0,0,0,0);
+	F.D = U->D * vUi_shift;
+	F.S = real3_scale(U->S, vUi_shift);
+	F.S.s<?=side?> += prim->p;
+	F.tau = U->tau * vUi_shift + p * vUi;
 	return F;
 }
-<? end ?>
-<? end ?>
+<? 
+	end
+end
+?>
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
@@ -41,11 +58,12 @@ kernel void calcDT(
 
 	real det_gamma = sym3_det(gamma);
 	sym3 gammaU = sym3_inv(gamma, det_gamma);
+	real3 vU = sym3_real3_mul(gammaU, prim.v);
 
 	real rho = prim.rho;
 	real eInt = prim.eInt;
-	//2008 Font just after Eqn 31: v^2 = gamma_ij v^i v^j
-	real vSq = real3_weightedLenSq(prim.v, gamma);
+	//2008 Font Eqn 31: v^2 = gamma_ij v^i v^j
+	real vSq = real3_dot(prim.v, vU);
 	real P = calc_P(rho, eInt);
 	real h = calc_h(rho, P, eInt);
 	real csSq = heatCapacityRatio * P / (rho * h);
@@ -55,16 +73,14 @@ kernel void calcDT(
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		//for the particular direction
-		real vi = prim.v.s<?=side?>;
-		real viSq = vi * vi;
+		real vUi = vU.s<?=side?>;
+		real vUiSq = vUi * vUi;
 		
-		// Marti 1998 eqn 19
-		// also Marti & Muller 2008 eqn 68
-		// also Font 2008 eqn 106
+		//Font 2008 eqn 106
 		const real betaUi = beta.s<?=side?>;
-		real discr = sqrt((1. - vSq) * (gammaU.xx * (1. - vSq * csSq) - viSq * (1. - csSq)));
-		real lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq) * alpha - betaUi;
-		real lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * alpha - betaUi;
+		real discr = sqrt((1. - vSq) * (gammaU.xx * (1. - vSq * csSq) - vUiSq * (1. - csSq)));
+		real lambdaMin = (vUi * (1. - csSq) - cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
+		real lambdaMax = (vUi * (1. - csSq) + cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
 		lambdaMin = min((real)0., lambdaMin);
 		lambdaMax = max((real)0., lambdaMax);
 		dt = min(dt, (real)dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9));
@@ -108,7 +124,7 @@ kernel void calcEigenBasis(
 	int indexR = index;
 	<?=eqn.prim_t?> primR = primBuf[indexR];
 	
-	<?=solver:getADMVarCode{index='indexR', suffix='R'}?>
+	<?=solver:getADMVarCode{suffix='R'} --[[ produce alphaR, betaR, gammaR at indexR ]] ?>
 	
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
@@ -117,14 +133,13 @@ kernel void calcEigenBasis(
 		int indexL = index - stepsize[side];
 		<?=eqn.prim_t?> primL = primBuf[indexL];
 	
-		<?=solver:getADMVarCode{index='indexL', suffix='L'}?>
+		<?=solver:getADMVarCode{suffix='L'} --[[ produce alphaL, betaL, gammaL at indexL ]] ?>
 
 <? if true then -- arithmetic averaging ?>
 		<?=eqn.prim_t?> avg = (<?=eqn.prim_t?>){
 			.rho = .5 * (primL.rho + primR.rho),
 			.v = real3_scale(real3_add(primL.v, primR.v), .5),
 			.eInt = .5 * (primL.eInt + primR.eInt),
-			
 		};
 		real alpha = .5 * (alphaL + alphaR);
 		real3 beta = real3_scale(real3_add(betaL, betaR), .5);
@@ -133,7 +148,7 @@ kernel void calcEigenBasis(
 <? end ?>
 		
 		real rho = avg.rho;
-		real3 v = avg.v;
+		real3 vL = avg.v;
 		real eInt = avg.eInt;
 			
 		//these match eigen_leftTransform
@@ -146,8 +161,7 @@ kernel void calcEigenBasis(
 		Also, the norms work out, so (P gamma P') (P v) has the same norm as (gamma v)
 		Same with (P v)' (P gamma P') (P v) works vs (P v)' (P' gamma P) (P v) which doesn't
 		*/
-
-		v = _real3(v.y, -v.x, v.z);	// -90' rotation to put the y axis contents into the x axis
+		vL = _real3(vL.y, -vL.x, vL.z);	// -90' rotation to put the y axis contents into the x axis
 		beta = _real3(beta.y, -beta.x, beta.z);
 		gamma = (sym3){
 			.xx = gamma.yy,
@@ -159,8 +173,7 @@ kernel void calcEigenBasis(
 		};
 		<? elseif side == 2 then ?>
 		//x,z -> z,-x
-		
-		v = _real3(v.z, v.y, -v.x);	//-90' rotation to put the z axis in the x axis
+		vL = _real3(vL.z, vL.y, -vL.x);	//-90' rotation to put the z axis in the x axis
 		beta = _real3(beta.z, beta.y, -beta.x);
 		gamma = (sym3){
 			.xx = gamma.zz,
@@ -175,11 +188,11 @@ kernel void calcEigenBasis(
 		real det_gamma = sym3_det(gamma);
 		sym3 gammaU = sym3_inv(gamma, det_gamma);
 
-		real3 vL = sym3_real3_mul(gamma, v);
-		real vSq = real3_dot(v, vL);
+		real3 vU = sym3_real3_mul(gammaU, vL);
+		real vSq = real3_dot(vL, vU);
 		real oneOverW2 = 1. - vSq;
 		real oneOverW = sqrt(oneOverW2);
-		real W = 1. / oneOverW;
+		real W = 1. / oneOverW;	//alpha?
 		real W2 = 1. / oneOverW2;
 		real P = (heatCapacityRatio - 1.) * rho * eInt;
 		real h = 1. + eInt + P / rho;
@@ -193,37 +206,39 @@ kernel void calcEigenBasis(
 		// = 1/rho ( (gamma-1) rho eInt + (gamma-1) P )
 		// = 1/rho ( P + (gamma-1) P)
 		// = gamma P / rho
-		real vxSq = v.x * v.x;
+		real vUxSq = vU.x * vU.x;
 		real csSq = heatCapacityRatio * P / (rho * h);
 		real cs = sqrt(csSq);
 
+		//Font 2008 eqn 106 -- matches calcDT
 		const real betaUi = beta.s<?=side?>;
-		real discr = sqrt((1. - vSq) * ((1. - vSq * csSq) - vxSq * (1. - csSq)));
-		real lambdaMin = (v.x * (1. - csSq) - cs * discr) / (1. - vSq * csSq) * alpha * alpha - betaUi;
-		real lambdaMax = (v.x * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * alpha * alpha - betaUi;
+		real discr = sqrt((1. - vSq) * (gammaU.xx * (1. - vSq * csSq) - vUxSq * (1. - csSq)));
+		real lambdaMin = (vU.x * (1. - csSq) - cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
+		real lambdaMax = (vU.x * (1. - csSq) + cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
 
 		int indexInt = side + dim * index;	
 		global real* wave = waveBuf + numWaves * indexInt;
 		wave[0] = lambdaMin;
-		wave[1] = v.x * alpha - betaUi;
-		wave[2] = v.x * alpha - betaUi;
-		wave[3] = v.x * alpha - betaUi;
+		wave[1] = vU.x * alpha - betaUi;
+		wave[2] = vU.x * alpha - betaUi;
+		wave[3] = vU.x * alpha - betaUi;
 		wave[4] = lambdaMax;
 
 		real LambdaMin = (lambdaMin + betaUi) / alpha;	//2008 Font eqn 114
 		real LambdaMax = (lambdaMax + betaUi) / alpha;	//2008 Font eqn 114
 		
 		//used by evL and evR
-		real ATildeMinus = (gammaU.xx - vxSq) / (gammaU.xx - v.x * LambdaMin);	//2008 Font eqn 113
-		real ATildePlus  = (gammaU.xx - vxSq) / (gammaU.xx - v.x * LambdaMax);	//2008 Font eqn 113
+		real ATildeMinus = (gammaU.xx - vUxSq) / (gammaU.xx - vU.x * LambdaMin);	//2008 Font eqn 113
+		real ATildePlus  = (gammaU.xx - vUxSq) / (gammaU.xx - vU.x * LambdaMax);	//2008 Font eqn 113
 		
 		//used by evL
-		real VMinus = (v.x - LambdaMin) / (gammaU.xx - v.x * LambdaMin);	//2008 Font eqn 113
-		real VPlus = (v.x - LambdaMax) / (gammaU.xx - v.x * LambdaMax);		//2008 Font eqn 113
+		real VMinus = (vU.x - LambdaMin) / (gammaU.xx - vU.x * LambdaMin);	//2008 Font eqn 113
+		real VPlus = (vU.x - LambdaMax) / (gammaU.xx - vU.x * LambdaMax);		//2008 Font eqn 113
 	
 		//used by evL and evR
+		//hmm, should these be lower?  Time to derive the equations?
 		real CMinus = vL.x - VMinus;	//2008 Font eqn 112
-		real CPlus = vL.x - VPlus;	//2008 Font eqn 112
+		real CPlus = vL.x - VPlus;		//2008 Font eqn 112
 
 		real kappa = calc_dP_deInt(rho, eInt);	//2008 Font note just after eqn 107
 		real kappaTilde = kappa / rho;	//2008 Font eqn 112.  
@@ -231,15 +246,13 @@ kernel void calcEigenBasis(
 		real Kappa = kappaTilde / (kappaTilde - csSq);	//2008 Font eqn 112.  
 		//Kappa = h;	//approx for ideal gas
 		
-		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;	
-
+		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 <?
 for _,field in ipairs(eqn.eigenStructFields) do
 	local name,ctype = next(field)
+?>	eig-><?=name?> = <?=name?>;
+<? end
 ?>
-		eig-><?=name?> = <?=name?>;
-<? end ?>
-
 	}<? end ?>
 }
 
@@ -270,69 +283,68 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real X[5] = {X_[0], X_[3], X_[2], -X_[1], X_[4]};
 	<? end ?>
 	
-	sym3 gammaL = eig->gamma;
-	real gammaDet = sym3_det(gammaL);
-	sym3 gammaU = sym3_inv(gammaL, gammaDet);
-
 	<?=prefix?>
+	
+	real det_gamma = sym3_det(gamma);
+	sym3 gammaU = sym3_inv(gamma, det_gamma);
 
-	real3 vL = sym3_real3_mul(gammaL, v);
-	real vxSq = v.x * v.x;
+	real3 vU = sym3_real3_mul(gammaU, vL);
+	real vUxSq = vU.x * vU.x;
 	real hSq = h * h;
 	real hW = h * W;
 	real W2 = W * W;
 
-	real gamma_gammaUxx = gammaDet * gammaU.xx;
-	real gamma_gammaUxy = gammaDet * gammaU.xy;
-	real gamma_gammaUxz = gammaDet * gammaU.xz;
-	real xi = gammaDet * (gammaU.xx - vxSq);//2008 Font eqn 121
+	real gamma_gammaUxx = det_gamma * gammaU.xx;
+	real gamma_gammaUxy = det_gamma * gammaU.xy;
+	real gamma_gammaUxz = det_gamma * gammaU.xz;
+	real xi = det_gamma * (gammaU.xx - vUxSq);//2008 Font eqn 121
 	real Delta = hSq * hW * (Kappa - 1.) * (CPlus - CMinus) * xi;	//2008 Font eqn 121
 	
 	//min row	2008 Font eqn 118
 	real scale;
 	scale = hSq / Delta;
-	real l5minus = (1 - Kappa) * (-gammaDet * v.x + VPlus * (W2 * xi - gamma_gammaUxx)) - Kappa * W2 * VPlus * xi;
+	real l5minus = (1 - Kappa) * (-det_gamma * vU.x + VPlus * (W2 * xi - gamma_gammaUxx)) - Kappa * W2 * VPlus * xi;
 	Y[0] = (
 		X[0] * (hW * VPlus * xi + l5minus)
-		+ X[1] * (gamma_gammaUxx * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.x * xi - gamma_gammaUxx * v.x))
-		+ X[2] * (gamma_gammaUxy * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.y * xi - gamma_gammaUxy * v.x))
-		+ X[3] * (gamma_gammaUxz * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * v.z * xi - gamma_gammaUxz * v.x))
+		+ X[1] * (gamma_gammaUxx * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * vU.x * xi - gamma_gammaUxx * vU.x))
+		+ X[2] * (gamma_gammaUxy * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * vU.y * xi - gamma_gammaUxy * vU.x))
+		+ X[3] * (gamma_gammaUxz * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * vU.z * xi - gamma_gammaUxz * vU.x))
 		+ X[4] * l5minus
 	) * scale;
 	//mid normal row	2008 Font eqn 115
 	scale = W / (Kappa - 1.);
 	Y[1] = (
 		X[0] * (h - W) 
-		+ X[1] * (W * v.x) 
-		+ X[2] * (W * v.y) 
-		+ X[3] * (W * v.z) 
+		+ X[1] * (W * vU.x) 
+		+ X[2] * (W * vU.y) 
+		+ X[3] * (W * vU.z) 
 		+ X[4] * (-W)
 	) * scale;
 	//mid tangent A row	2008 Font eqn 116
 	scale = 1. / (h * xi);
 	Y[2] = (
-		X[0] * (-gammaL.zz * vL.y + gammaL.yz * vL.z) 
-		+ X[1] * v.x * (gammaL.zz * vL.y - gammaL.yz * vL.z)
-		+ X[2] * (gammaL.zz * (1. - v.x * vL.x) + gammaL.xz * vL.z * v.x)
-		+ X[3] * (-gammaL.yz * (1. - vL.x * v.x) - gammaL.xz * vL.y * v.x)
-		+ X[4] * (-gammaL.zz * vL.y + gammaL.yz * vL.z)
+		X[0] * (-gamma.zz * vL.y + gamma.yz * vL.z) 
+		+ X[1] * vU.x * (gamma.zz * vL.y - gamma.yz * vL.z)
+		+ X[2] * (gamma.zz * (1. - vL.x * vU.x) + gamma.xz * vL.z * vU.x)
+		+ X[3] * (-gamma.yz * (1. - vL.x * vU.x) - gamma.xz * vL.y * vU.x)
+		+ X[4] * (-gamma.zz * vL.y + gamma.yz * vL.z)
 	) * scale;
 	//mid tangent B row	2008 Font eqn 117
 	Y[3] = (
-		X[0] * (-gammaL.yy * vL.z + gammaL.yz * vL.y)
-		+ X[1] * v.x * (gammaL.yy * vL.z - gammaL.yz * vL.y)
-		+ X[2] * (-gammaL.yz * (1. - vL.x * v.x) - gammaL.xy * vL.z * v.x)
-		+ X[3] * (gammaL.yy * (1. - vL.x * v.x) + gammaL.xy * vL.y * v.x)
-		+ X[4] * (-gammaL.yy * vL.z + gammaL.yz * vL.y)
+		X[0] * (-gamma.yy * vL.z + gamma.yz * vL.y)
+		+ X[1] * vU.x * (gamma.yy * vL.z - gamma.yz * vL.y)
+		+ X[2] * (-gamma.yz * (1. - vL.x * vU.x) - gamma.xy * vL.z * vU.x)
+		+ X[3] * (gamma.yy * (1. - vL.x * vU.x) + gamma.xy * vL.y * vU.x)
+		+ X[4] * (-gamma.yy * vL.z + gamma.yz * vL.y)
 	) * scale;
 	//max row	2008 Font eqn 118
 	scale = -hSq / Delta;
-	real l5plus = (1 - Kappa) * (-gammaDet * v.x + VMinus * (W2 * xi - gamma_gammaUxx)) - Kappa * W2 * VMinus * xi;
+	real l5plus = (1 - Kappa) * (-det_gamma * vU.x + VMinus * (W2 * xi - gamma_gammaUxx)) - Kappa * W2 * VMinus * xi;
 	Y[4] = (
 		X[0] * (h * W * VMinus * xi + l5plus)
-		+ X[1] * (gamma_gammaUxx * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.x * xi - gamma_gammaUxx * v.x))
-		+ X[2] * (gamma_gammaUxy * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.y * xi - gamma_gammaUxy * v.x))
-		+ X[3] * (gamma_gammaUxz * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * v.z * xi - gamma_gammaUxz * v.x))
+		+ X[1] * (gamma_gammaUxx * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * vU.x * xi - gamma_gammaUxx * vU.x))
+		+ X[2] * (gamma_gammaUxy * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * vU.y * xi - gamma_gammaUxy * vU.x))
+		+ X[3] * (gamma_gammaUxz * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * vU.z * xi - gamma_gammaUxz * vU.x))
 		+ X[4] * l5plus
 	) * scale;
 }
@@ -344,9 +356,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real3 x
 ) {
 	<?=prefix?>
-	sym3 gammaL = eig->gamma;
 	
-	real3 vL = sym3_real3_mul(gammaL, v);
 	real hW = h * W;
 	real W2 = W * W;
 
@@ -358,18 +368,18 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[4];
 	Y[1] = X[0] * (hW * CMinus)
 		+ X[1] * (vL.x)
-		+ X[2] * (h * (gammaL.xy + 2. * W2 * vL.y * vL.x))
-		+ X[3] * (h * (gammaL.xz + 2. * W2 * vL.x * vL.z))
+		+ X[2] * (h * (gamma.xy + 2. * W2 * vL.y * vL.x))
+		+ X[3] * (h * (gamma.xz + 2. * W2 * vL.x * vL.z))
 		+ X[4] * (hW * CPlus);
 	Y[2] = X[0] * (hW * vL.y)
 		+ X[1] * (vL.y)
-		+ X[2] * (h * (gammaL.yy + 2. * W2 * vL.y * vL.y))
-		+ X[3] * (h * (gammaL.yz + 2. * W2 * vL.y * vL.z))
+		+ X[2] * (h * (gamma.yy + 2. * W2 * vL.y * vL.y))
+		+ X[3] * (h * (gamma.yz + 2. * W2 * vL.y * vL.z))
 		+ X[4] * (hW * vL.y);
 	Y[3] = X[0] * (hW * vL.z)
 		+ X[1] * (vL.z)
-		+ X[2] * (h * (gammaL.yz + 2. * W2 * vL.y * vL.z))
-		+ X[3] * (h * (gammaL.zz + 2. * W2 * vL.z * vL.z))
+		+ X[2] * (h * (gamma.yz + 2. * W2 * vL.y * vL.z))
+		+ X[3] * (h * (gamma.zz + 2. * W2 * vL.z * vL.z))
 		+ X[4] * (hW * vL.z);
 	Y[4] =X[0] * (hW * ATildeMinus - 1.)
 		+ X[1] * (1. - Kappa / hW)
@@ -416,6 +426,19 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	end
 end ?>
 
+kernel void addSource(
+	global <?=eqn.cons_t?>* derivBuf,
+	const global <?=eqn.cons_t?>* UBuf,
+	const global <?=eqn.prim_t?>* primBuf<?=
+	solver:getADMArgs()?>
+) {
+	SETBOUNDS_NOGHOST();
+	global <?=eqn.cons_t?>* deriv = derivBuf + index;
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+	const global <?=eqn.prim_t?>* prim = primBuf + index;
+	<?=solver:getADMVarCode()?>
+}
+
 kernel void constrainU(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -430,9 +453,8 @@ kernel void constrainU(
 	U->tau = min(U->tau, (real)tauMax);
 }
 
-//TODO double check that this is GR and not just SR 
 /*
-W = -u^a n_a = alpha u^0
+W = alpha u^0
 v^i = (u^i / u^0 + beta^i) / alpha
 */
 kernel void updatePrims(
@@ -443,6 +465,9 @@ kernel void updatePrims(
 	SETBOUNDS(numGhost,numGhost-1);
 	
 	<?=solver:getADMVarCode()?>
+	
+	real det_gamma = sym3_det(gamma);
+	sym3 gammaU = sym3_inv(gamma, det_gamma);
 
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	real D = U->D;
@@ -452,14 +477,15 @@ kernel void updatePrims(
 	global <?=eqn.prim_t?>* prim = primBuf + index;
 	real3 v = prim->v;
 
-	real SLen = real3_weightedLen(S, gamma);
+	real SLen = real3_weightedLen(S, gammaU);
+	//TODO update this to work with GRHD
 	real PMin = max(SLen - tau - D + SLen * solvePrimVelEpsilon, solvePrimPMinEpsilon);
 	real PMax = (heatCapacityRatio - 1.) * tau;
 	PMax = max(PMax, PMin);
 	real P = .5 * (PMin + PMax);
 
 	for (int iter = 0; iter < solvePrimMaxIter; ++iter) {
-		real vLen = SLen / (tau + D + P);
+		real vLen = SLen / (tau + D + P);	//tau + D + P = rho h W^2
 		real vSq = vLen * vLen;
 		real W = 1. / sqrt(1. - vSq);
 		real eInt = (tau + D * (1. - W) + P * (1. - W*W)) / (D * W);

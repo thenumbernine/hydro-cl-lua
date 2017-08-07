@@ -107,7 +107,7 @@ function HydroCLApp:setup()
 	
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	local dim = 2
+	local dim = 1
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
@@ -219,7 +219,7 @@ function HydroCLApp:setup()
 		--initState = 'constant',
 		--initState = 'constant with motion',
 		--initState = 'linear',
-		initState = 'gaussian',
+		--initState = 'gaussian',
 		--initState = 'advect wave',
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
@@ -250,7 +250,7 @@ function HydroCLApp:setup()
 		
 		-- those designed for SRHD / GRHD:
 		--initState = 'relativistic shock reflection',			-- not working.  these initial conditions are constant =P
-		--initState = 'relativistic blast wave test problem 1',
+		initState = 'relativistic blast wave test problem 1',
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'relativistic blast wave interaction',
 	
@@ -300,12 +300,12 @@ function HydroCLApp:setup()
 	-- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 	--    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-	self.solvers:insert(require 'solver.srhd-roe'(args))
+	--self.solvers:insert(require 'solver.srhd-roe'(args))
 	
 	-- GRHD
 	-- right now this is just like srhd except extended by Font's eqns
 	-- this has plug-ins for ADM metric alpha, beta, gammas, but I need to make a composite solver to combine it with GR equations. 
-	--self.solvers:insert(require 'solver.grhd-roe'(args))
+	self.solvers:insert(require 'solver.grhd-roe'(args))
 
 	-- GRHD+GR
 	-- here's the GRHD solver with the BSSNOK plugged into it
@@ -1887,26 +1887,35 @@ function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, y
 			gl.glUniform1f(solver.vectorFieldShader.uniforms.scale.loc, scale) 
 
 			local step = self.displayVectorField_step
-			gl.glBegin(gl.GL_LINES)
-			for k=0,tonumber(solver.sizeWithoutBorder.z-1),step do
-				for j=0,tonumber(solver.sizeWithoutBorder.y-1),step do
-					for i=0,tonumber(solver.sizeWithoutBorder.x-1),step do
-						local tx = (i + .5 + solver.numGhost) / tonumber(solver.gridSize.x)
-						local ty = (j + .5 + (solver.dim > 1 and solver.numGhost or 0)) / tonumber(solver.gridSize.y)
-						local tz = (k + .5 + (solver.dim > 2 and solver.numGhost or 0)) / tonumber(solver.gridSize.z)
-						gl.glMultiTexCoord3f(gl.GL_TEXTURE0, tx, ty, tz)	
-						local x = (i + .5) / tonumber(solver.sizeWithoutBorder.x)
-						local y = (j + .5) / tonumber(solver.sizeWithoutBorder.y)
-						local z = (k + .5) / tonumber(solver.sizeWithoutBorder.z)
-						gl.glMultiTexCoord3f(gl.GL_TEXTURE1, x, y, z)
-						for _,q in ipairs(arrow) do
-							gl.glVertex2f(q[1], q[2])
+	
+			--[[ goes just slightly faster.  24 vs 23 fps.
+			self.vectorField_displayList = self.vectorField_displayList or {}
+			local glCallOrDraw = require 'gl.call'
+			glCallOrDraw(self.vectorField_displayList, function()
+			--]]	
+				gl.glBegin(gl.GL_LINES)
+				for k=0,tonumber(solver.sizeWithoutBorder.z-1),step do
+					for j=0,tonumber(solver.sizeWithoutBorder.y-1),step do
+						for i=0,tonumber(solver.sizeWithoutBorder.x-1),step do
+							local tx = (i + .5 + solver.numGhost) / tonumber(solver.gridSize.x)
+							local ty = (j + .5 + (solver.dim > 1 and solver.numGhost or 0)) / tonumber(solver.gridSize.y)
+							local tz = (k + .5 + (solver.dim > 2 and solver.numGhost or 0)) / tonumber(solver.gridSize.z)
+							gl.glMultiTexCoord3f(gl.GL_TEXTURE0, tx, ty, tz)	
+							local x = (i + .5) / tonumber(solver.sizeWithoutBorder.x)
+							local y = (j + .5) / tonumber(solver.sizeWithoutBorder.y)
+							local z = (k + .5) / tonumber(solver.sizeWithoutBorder.z)
+							gl.glMultiTexCoord3f(gl.GL_TEXTURE1, x, y, z)
+							for _,q in ipairs(arrow) do
+								gl.glVertex2f(q[1], q[2])
+							end
 						end
 					end
 				end
-			end
-			gl.glEnd()
-	
+				gl.glEnd()
+			--[[
+			end)
+			--]]
+
 			solver:getTex(var):unbind(0)
 			solver.vectorFieldShader:useNone()
 		end

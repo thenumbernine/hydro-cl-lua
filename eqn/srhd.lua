@@ -268,7 +268,7 @@ function SRHD:getDisplayVars()
 	real W1 = U.D / prim.rho;
 	real W2 = 1. / sqrt(1. - coordLenSq(prim.v, x));
 	*value = fabs(W1 - W2);
-		]]},
+]]		},
 	}:append( ({
 	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
 	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]

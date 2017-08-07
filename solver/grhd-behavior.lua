@@ -22,7 +22,7 @@ return function(parent)
 		gamma = (optional) gamma var name
 		suffix = (optional) suffix for default variable names
 		index = (optional) index in grid associated with metric. default 'index'
-	I made args destructive because I was lazy
+	I made args volatile because I was lazy
 	--]]
 	function templateClass:getADMVarCode(args)
 		args = args or {}
