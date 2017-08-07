@@ -135,7 +135,7 @@ kernel void addSource_<?=species?>(
 	const global <?=euler_cons_t?>* UBuf,
 	const global <?=maxwell_cons_t?>* maxwellUBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	SETBOUNDS_NOGHOST();
 	global <?=euler_cons_t?>* deriv = derivBuf + index;
 	const global <?=euler_cons_t?>* U = UBuf + index;
 	const global <?=maxwell_cons_t?>* maxwellU = maxwellUBuf + index;
@@ -152,7 +152,7 @@ kernel void addSource_maxwell(
 	const global <?=euler_cons_t?>* ionUBuf,
 	const global <?=euler_cons_t?>* electronUBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	SETBOUNDS_NOGHOST();
 	global <?=maxwell_cons_t?>* deriv = derivBuf + index;
 	const global <?=euler_cons_t?>* ionU = ionUBuf + index;
 	const global <?=euler_cons_t?>* electronU = electronUBuf + index;

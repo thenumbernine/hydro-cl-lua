@@ -303,7 +303,7 @@ GRHD.eigenStructFields = {
 	{Kappa = 'real'},
 	-- hmm, I could just as easily re-average these ...
 	{alpha = 'real'},
-	{betaU = 'real3'},
+	{beta = 'real3'},
 	{gamma = 'sym3'},
 }
 

@@ -25,7 +25,8 @@ Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 20
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
 	global real* dtBuf,
-	const global <?=eqn.prim_t?>* primBuf
+	const global <?=eqn.prim_t?>* primBuf<?=
+	solver:getADMArgs()?>
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
@@ -33,14 +34,15 @@ kernel void calcDT(
 		return;
 	}
 	<?=eqn.prim_t?> prim = primBuf[index];
-	
-	real det_gamma = sym3_det(prim.gamma);
-	sym3 gammaU = sym3_inv(prim.gamma, det_gamma);
+	<?=solver:getADMVarCode()?>
+
+	real det_gamma = sym3_det(gamma);
+	sym3 gammaU = sym3_inv(gamma, det_gamma);
 
 	real rho = prim.rho;
 	real eInt = prim.eInt;
 	//2008 Font just after Eqn 31: v^2 = gamma_ij v^i v^j
-	real vSq = real3_weightedLenSq(prim.v, prim.gamma);
+	real vSq = real3_weightedLenSq(prim.v, gamma);
 	real P = calc_P(rho, eInt);
 	real h = calc_h(rho, P, eInt);
 	real csSq = heatCapacityRatio * P / (rho * h);
@@ -56,10 +58,10 @@ kernel void calcDT(
 		// Marti 1998 eqn 19
 		// also Marti & Muller 2008 eqn 68
 		// also Font 2008 eqn 106
-		const real betaUi = prim.beta.s<?=side?>;
+		const real betaUi = beta.s<?=side?>;
 		real discr = sqrt((1. - vSq) * (gammaU.xx * (1. - vSq * csSq) - viSq * (1. - csSq)));
-		real lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq) * prim.alpha - betaUi;
-		real lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * prim.alpha - betaUi;
+		real lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq) * alpha - betaUi;
+		real lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * alpha - betaUi;
 		lambdaMin = min((real)0., lambdaMin);
 		lambdaMax = max((real)0., lambdaMax);
 		dt = min(dt, (real)dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9));
@@ -95,12 +97,15 @@ kernel void calcEigenBasis(
 	//right now only primBuf is being used for getting neighbor values
 	//so SRHD should perform the PLM stuff on the primBuf instead of the UBUf?
 	// or do the PLM on the UBuf and do the cons->prim on the ULR edge values
-	const global <?=eqn.prim_t?>* primBuf	
+	const global <?=eqn.prim_t?>* primBuf<?=
+	solver:getADMArgs()?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	
 	int indexR = index;
 	<?=eqn.prim_t?> primR = primBuf[indexR];
+	
+	<?=solver:getADMVarCode{index='indexR', suffix='R'}?>
 	
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
@@ -108,6 +113,8 @@ kernel void calcEigenBasis(
 		
 		int indexL = index - stepsize[side];
 		<?=eqn.prim_t?> primL = primBuf[indexL];
+	
+		<?=solver:getADMVarCode{index='indexL', suffix='L'}?>
 
 <? if true then -- arithmetic averaging ?>
 		<?=eqn.prim_t?> avg = (<?=eqn.prim_t?>){
@@ -115,17 +122,17 @@ kernel void calcEigenBasis(
 			.v = real3_scale(real3_add(primL.v, primR.v), .5),
 			.eInt = .5 * (primL.eInt + primR.eInt),
 			
-			.alpha = .5 * (primL.alpha + primR.alpha),
-			.beta = real3_scale(real3_add(primL.beta, primR.beta), .5),
-			.gamma = sym3_scale(sym3_add(primL.gamma, primR.gamma), .5),
 		};
+		real alpha = .5 * (alphaL + alphaR);
+		real3 beta = real3_scale(real3_add(betaL, betaR), .5);
+		sym3 gamma = sym3_scale(sym3_add(gammaL, gammaR), .5);
 <? -- else -- Roe-averaging, Font 2008 eqn 38 ?>
 <? end ?>
 		
 		real rho = avg.rho;
 		real3 v = avg.v;
 		real eInt = avg.eInt;
-
+			
 		//these match eigen_leftTransform
 		<? if side == 1 then ?>
 		//v' = P [vx,vy,vz] = [vy,-vx,vz]
@@ -138,38 +145,32 @@ kernel void calcEigenBasis(
 		*/
 
 		v = _real3(v.y, -v.x, v.z);	// -90' rotation to put the y axis contents into the x axis
-		avg.beta = _real3(avg.beta.y, -avg.beta.x, avg.beta.z);
-		avg.gamma = (sym3){
-			.xx = avg.gamma.yy,
-			.xy = -avg.gamma.xy,
-			.xz = avg.gamma.yz,
-			.yy = avg.gamma.xx,
-			.yz = -avg.gamma.xz,
-			.zz = avg.gamma.zz,
+		beta = _real3(beta.y, -beta.x, beta.z);
+		gamma = (sym3){
+			.xx = gamma.yy,
+			.xy = -gamma.xy,
+			.xz = gamma.yz,
+			.yy = gamma.xx,
+			.yz = -gamma.xz,
+			.zz = gamma.zz,
 		};
-	
 		<? elseif side == 2 then ?>
 		//x,z -> z,-x
 		
 		v = _real3(v.z, v.y, -v.x);	//-90' rotation to put the z axis in the x axis
-		avg.beta = _real3(avg.beta.z, avg.beta.y, -avg.beta.x);
-		avg.gamma = (sym3){
-			.xx = -avg.gamma.zz,
-			.xy = avg.gamma.yz,
-			.xz = -avg.gamma.xz,
-			.yy = avg.gamma.yy,
-			.yz = -avg.gamma.xy,
-			.zz = avg.gamma.xx,
+		beta = _real3(beta.z, beta.y, -beta.x);
+		gamma = (sym3){
+			.xx = gamma.zz,
+			.xy = gamma.yz,
+			.xz = -gamma.xz,
+			.yy = gamma.yy,
+			.yz = -gamma.xy,
+			.zz = gamma.xx,
 		};
-
 		<? end ?>
 		
-		real alpha = avg.alpha;
-		real3 betaU = avg.beta;
-		sym3 gamma = avg.gamma;
-		
-		real det_gamma = sym3_det(avg.gamma);
-		sym3 gammaU = sym3_inv(avg.gamma, det_gamma);
+		real det_gamma = sym3_det(gamma);
+		sym3 gammaU = sym3_inv(gamma, det_gamma);
 
 		real3 vL = sym3_real3_mul(gamma, v);
 		real vSq = real3_dot(v, vL);
@@ -193,7 +194,7 @@ kernel void calcEigenBasis(
 		real csSq = heatCapacityRatio * P / (rho * h);
 		real cs = sqrt(csSq);
 
-		const real betaUi = betaU.s<?=side?>;
+		const real betaUi = beta.s<?=side?>;
 		real discr = sqrt((1. - vSq) * ((1. - vSq * csSq) - vxSq * (1. - csSq)));
 		real lambdaMin = (v.x * (1. - csSq) - cs * discr) / (1. - vSq * csSq) * alpha * alpha - betaUi;
 		real lambdaMax = (v.x * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * alpha * alpha - betaUi;
@@ -215,7 +216,7 @@ kernel void calcEigenBasis(
 		
 		//used by evL
 		real VMinus = (v.x - LambdaMin) / (gammaU.xx - v.x * LambdaMin);	//2008 Font eqn 113
-		real VPlus = (v.x - LambdaMax) / (gammaU.xx - v.x * LambdaMax);	//2008 Font eqn 113
+		real VPlus = (v.x - LambdaMax) / (gammaU.xx - v.x * LambdaMax);		//2008 Font eqn 113
 	
 		//used by evL and evR
 		real CMinus = vL.x - VMinus;	//2008 Font eqn 112
@@ -257,7 +258,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 ) { 
 	//rotate incoming v's in X
 	//this should match calcEigenBasis
-	//eig->betaU and eig->gamma should already be rotated
+	//eig->beta and eig->gamma should already be rotated
 	<? if side==0 then ?>
 	<?=addr2?> const real* X = X_;
 	<? elseif side == 1 then ?>
@@ -379,9 +380,6 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	Y[1] = -Y[1+<?=side?>];
 	Y[1+<?=side?>] = tmp;
 	<? end ?>
-
-	//now this ignores the non-integrable parts of the cons_t
-	// namely alpha, beta, gamma
 }
 
 <?	if solver.checkFluxError then ?>
@@ -436,9 +434,12 @@ v^i = (u^i / u^0 + beta^i) / alpha
 */
 kernel void updatePrims(
 	global <?=eqn.prim_t?>* primBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	const global <?=eqn.cons_t?>* UBuf<?=
+	solver:getADMArgs()?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
+	
+	<?=solver:getADMVarCode()?>
 
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	real D = U->D;
@@ -448,7 +449,7 @@ kernel void updatePrims(
 	global <?=eqn.prim_t?>* prim = primBuf + index;
 	real3 v = prim->v;
 
-	real SLen = real3_weightedLen(S, U->gamma);
+	real SLen = real3_weightedLen(S, gamma);
 	real PMin = max(SLen - tau - D + SLen * solvePrimVelEpsilon, solvePrimPMinEpsilon);
 	real PMax = (heatCapacityRatio - 1.) * tau;
 	PMax = max(PMax, PMin);
@@ -469,7 +470,7 @@ kernel void updatePrims(
 		P = newP;
 		if (PError < solvePrimStopEpsilon) {
 			v = real3_scale(S, 1. / (tau + D + P));
-			vSq = real3_weightedLenSq(v, U->gamma);
+			vSq = real3_weightedLenSq(v, gamma);
 			W = 1. / sqrt(1. - vSq);
 			rho = D / W;
 			rho = max(rho, (real)rhoMin);
@@ -480,10 +481,6 @@ kernel void updatePrims(
 				.rho = rho,
 				.v = v,
 				.eInt = eInt,
-				
-				.alpha = U->alpha,
-				.beta = U->beta,
-				.gamma = U->gamma,
 			};
 //printf("cell %d finished with prims = %f %f %f\n", index, rho, v.x, eInt);
 			return;

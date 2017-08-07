@@ -128,7 +128,7 @@ function HydroCLApp:setup()
 		--integrator = 'backward Euler',
 
 		--fixedDT = .0001,
-		--cfl = 1,
+		cfl = .25/dim,
 
 		fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
@@ -224,7 +224,7 @@ function HydroCLApp:setup()
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		--initState = 'Sod',
+		initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -250,7 +250,7 @@ function HydroCLApp:setup()
 		
 		-- those designed for SRHD / GRHD:
 		--initState = 'relativistic shock reflection',			-- not working.  these initial conditions are constant =P
-		initState = 'relativistic blast wave test problem 1',
+		--initState = 'relativistic blast wave test problem 1',
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'relativistic blast wave interaction',
 	
@@ -306,11 +306,11 @@ function HydroCLApp:setup()
 	-- GRHD
 	-- right now this is just like srhd except extended by Font's eqns
 	-- this has plug-ins for ADM metric alpha, beta, gammas, but I need to make a composite solver to combine it with GR equations. 
-	--self.solvers:insert(require 'solver.grhd-roe'(args))
+	self.solvers:insert(require 'solver.grhd-roe'(args))
 
 	-- GRHD+GR
 	-- here's the GRHD solver with the BSSNOK plugged into it
-	self.solvers:insert(require 'solver.gr-hd-separate-behavior'()(args))
+	--self.solvers:insert(require 'solver.gr-hd-separate-behavior'(args))
 
 	-- M+HD. 
 	-- with superbee flux lim:  
