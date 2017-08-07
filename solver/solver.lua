@@ -460,7 +460,7 @@ function Solver:addConvertToTexUBufVec()
 	local args = self:getAddConvertToTexUBufArgs()
 	args.vars = assert(self.eqn:getVecDisplayVars())
 	args.vectorField = true
-	self:addConvertToTex(args)
+	self:addConvertToTex(args, self.ConvertToTex_U)
 end
 
 function Solver:addConvertToTexs()

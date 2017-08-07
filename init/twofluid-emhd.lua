@@ -1,4 +1,6 @@
-return {
+local InitState = require 'init.init'
+local table = require 'ext.table'
+return table{
 	{
 		name = 'Brio-Wu',
 		init = function(solver)
@@ -16,4 +18,4 @@ return {
 ]]
 		end,
 	}
-}
+}:map(InitState)

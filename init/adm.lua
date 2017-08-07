@@ -2,6 +2,7 @@ local symmath = require 'symmath'
 local table = require 'ext.table'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
+local InitState = require 'init.init'
 
 --symmath.tostring = require 'symmath.tostring.SingleLine'		
 
@@ -157,7 +158,7 @@ local function initNumRel(args)
 	end):concat'\n'
 end
 
-return {
+return table{
 	{
 		name = 'gauge shock wave',
 		init = function(solver, getCodes)
@@ -659,4 +660,4 @@ for i,xi in ipairs(xNames) do
 			}
 		end,
 	},
-}
+}:map(InitState)

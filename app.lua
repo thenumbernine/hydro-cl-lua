@@ -219,7 +219,7 @@ function HydroCLApp:setup()
 		--initState = 'constant',
 		--initState = 'constant with motion',
 		--initState = 'linear',
-		--initState = 'gaussian',
+		initState = 'gaussian',
 		--initState = 'advect wave',
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
@@ -241,7 +241,7 @@ function HydroCLApp:setup()
 		--initState = 'configuration 6',
 
 		-- self-gravitation tests:
-		initState = 'self-gravitation test 1',
+		--initState = 'self-gravitation test 1',
 		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
 		--initState = 'self-gravitation test 2 orbiting',
@@ -262,7 +262,6 @@ function HydroCLApp:setup()
 		--initState = 'Maxwell default',
 		--initState = 'Maxwell scattering around cylinder',
 		--initState = 'Maxwell wire',
-		--initState = 'Maxwell FDTD test',
 		
 		--initState = 'two-fluid EMHD soliton ion',
 		--initState = 'two-fluid EMHD soliton electron',
@@ -280,7 +279,7 @@ function HydroCLApp:setup()
 	}
 	
 	-- HD - Roe
-	self.solvers:insert(require 'solver.euler-roe'(args))
+	--self.solvers:insert(require 'solver.euler-roe'(args))
 
 	-- the same as solver.euler-roe:
 	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
@@ -301,7 +300,7 @@ function HydroCLApp:setup()
 	-- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 	--    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-	--self.solvers:insert(require 'solver.srhd-roe'(args))
+	self.solvers:insert(require 'solver.srhd-roe'(args))
 	
 	-- GRHD
 	-- right now this is just like srhd except extended by Font's eqns

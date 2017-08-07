@@ -8,6 +8,7 @@ so viola, here it is, unnecessarily available.
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
+local range = require 'ext.range'
 local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local clnumber = require 'cl.obj.number'
@@ -212,27 +213,69 @@ function SRHD:getDisplayVarCodePrefix()
 })
 end
 
+-- TODO put in common parent of Euler, SRHD, GRHD
+-- k is 0,1,2
+local function vorticity(eqn,k)
+	local xs = {'x','y','z'}
+	local i = (k+1)%3
+	local j = (i+1)%3
+	return {['vorticity '..xs[k+1]] = template([[
+	global const <?=eqn.prim_t?>* prim_im = primBuf + index - stepsize.s<?=i?>;
+	global const <?=eqn.prim_t?>* prim_ip = primBuf + index + stepsize.s<?=i?>;
+	global const <?=eqn.prim_t?>* prim_jm = primBuf + index - stepsize.s<?=j?>;
+	global const <?=eqn.prim_t?>* prim_jp = primBuf + index + stepsize.s<?=j?>;
+
+	//TODO incorporate metric
+	//TODO 3-vorticity vs 4-vorticity?
+
+	real vim_j = prim_im->v.s<?=j?>;
+	real vip_j = prim_ip->v.s<?=j?>;
+	
+	real vjm_i = prim_jm->v.s<?=i?>;
+	real vjp_i = prim_jp->v.s<?=i?>;
+	
+	*value = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
+			- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
+]], {
+		i = i,
+		j = j,
+		eqn = eqn,
+	})}
+end
+
 function SRHD:getDisplayVars()
-	return {
+	return table{
 		{D = '*value = U.D;'},
 		{Sx = '*value = U.S.x;'},
 		{Sy = '*value = U.S.y;'},
 		{Sz = '*value = U.S.z;'},
 		{S = '*value = coordLen(U.S, x);'},
 		{tau = '*value = U.tau;'},
-		{W = '*value = U.D / prim.rho;'},
+		{['W based on D'] = '*value = U.D / prim.rho;'},
+		{['W based on v'] = '*value = 1. / sqrt(1. - coordLenSq(prim.v, x));'},
 		{['primitive reconstruction error'] = template([[
-			//prim have just been reconstructed from cons
-			//so reconstruct cons from prims again and calculate the difference
-			{
-				<?=eqn.cons_t?> U2 = consFromPrim(prim, x);
-				*value = 0;
-				for (int j = 0; j < numStates; ++j) {
-					*value += fabs(U.ptr[j] - U2.ptr[j]);
-				}
-			}
-	]], {eqn=self})},
+	//prim have just been reconstructed from cons
+	//so reconstruct cons from prims again and calculate the difference
+	{
+		<?=eqn.cons_t?> U2 = consFromPrim(prim, x);
+		*value = 0;
+		for (int j = 0; j < numStates; ++j) {
+			*value += fabs(U.ptr[j] - U2.ptr[j]);
+		}
 	}
+	]], {eqn=self})},
+		{['W error'] = [[
+	real W1 = U.D / prim.rho;
+	real W2 = 1. / sqrt(1. - coordLenSq(prim.v, x));
+	*value = fabs(W1 - W2);
+		]]},
+	}:append( ({
+	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
+	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
+			[1] = {},
+			[2] = {vorticity(self,2)},
+			[3] = range(0,2):map(function(i) return vorticity(self,i) end),
+	})[self.solver.dim] )
 end
 
 function SRHD:getPrimDisplayVarCodePrefix()
@@ -254,6 +297,24 @@ SRHD.primDisplayVars = {
 	{P = '*value = calc_P(prim.rho, prim.eInt);'},
 	{h = '*value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt);'},
 }
+
+function SRHD:getVecDisplayVars()
+	local vars = table{
+		{v = 'valuevec = prim.v;'},
+		{S = 'valuevec = U.S;'},
+	}
+	if self.solver.dim == 3 then
+		local v = range(0,2):map(function(i) return vorticity(self,i) end)
+		vars:insert{vorticityVec = template([[
+	<? for i=0,2 do ?>{
+		<?=select(2,next(v[i+1]))?>
+		++value;
+	}<? end ?>
+	value -= 3;
+]], {v=v})}
+	end
+	return vars
+end
 
 SRHD.eigenStructFields = {
 	{rho = 'real'},

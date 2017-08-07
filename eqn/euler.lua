@@ -185,13 +185,14 @@ local function vorticity(eqn,k)
 
 	//TODO incorporate metric
 
-	real3 vim = real3_scale(Uim->m, 1. / Uim->rho);
-	real3 vip = real3_scale(Uip->m, 1. / Uip->rho);
-	real3 vjm = real3_scale(Ujm->m, 1. / Ujm->rho);
-	real3 vjp = real3_scale(Ujp->m, 1. / Ujp->rho);
+	real vim_j = Uim->m.s<?=j?> / Uim->rho;
+	real vip_j = Uip->m.s<?=j?> / Uip->rho;
 	
-	*value = (vjp.s<?=i?> - vjm.s<?=i?>) / (2. * grid_dx<?=i?>)
-			- (vip.s<?=j?> - vim.s<?=j?>) / (2. * grid_dx<?=j?>);
+	real vjm_i = Ujm->m.s<?=i?> / Ujm->rho;
+	real vjp_i = Ujp->m.s<?=i?> / Ujp->rho;
+	
+	*value = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
+			- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
 ]], {
 		i = i,
 		j = j,
@@ -232,7 +233,6 @@ function Euler:getDisplayVars()
 			[1] = {},
 			[2] = {vorticity(self,2)},
 			[3] = range(0,2):map(function(i) return vorticity(self,i) end),
-
 	})[self.solver.dim] )
 end
 

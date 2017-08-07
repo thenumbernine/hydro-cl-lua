@@ -4,6 +4,7 @@ local range = require 'ext.range'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
 local ffi = require 'ffi'
+local InitState = require 'init.init'
 
 local function quadrantProblem(args)
 	args.init = function(solver)
@@ -125,7 +126,7 @@ local function addMaxwellOscillatingBoundary(solver)
 	end
 end
 
-local initStates = {
+local initStates = table{
 	{
 		name = 'constant',
 		init = function(solver)
@@ -777,15 +778,6 @@ end ?>;
 	},
 
 	{
-		name = 'Maxwell FDTD test',
-		init = function(solver)
-			return [[
-
-]]
-		end,
-	},
-
-	{
 		name = 'two-fluid EMHD soliton ion',
 		init = function(solver)
 			return [[
@@ -812,6 +804,6 @@ end ?>;
 ]]
 		end,
 	},
-}
+}:map(InitState)
 
 return initStates

@@ -28,7 +28,6 @@ Features:
 TODO:
 - ADM3D needs shift conditions, and moving puncture, etc ...
 - FOBSSN would be nice.  something with the equation stability of BSSN and the algorithmic stability of finite-volume.
-- for 2D SRHD, it looks like my W = U.D / prim.rho is drifting from W = 1 / sqrt(1 - prim.v^2)
 - implement eigen-stuff code in SRHD so that PLM can work 
 - better divergence removal
 - get curved coordinates to work
@@ -50,6 +49,7 @@ TODO:
 - looks like RHD has multistep errors in RK, probably because it needs more (either boundary() or updatePrimsFromCons()) to be called between substeps
 - add source terms to GRHD -- or at least plugins for 'gr-hd-separate' to fill in from the NR solver
 - coroutines to iterative solvers?  so they don't stall the app execution?
+- Poisson SelfGrav seems to be pulling things slightly upwards
 
 ### Sources:
 
