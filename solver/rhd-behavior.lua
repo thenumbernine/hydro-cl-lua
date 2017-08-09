@@ -58,7 +58,11 @@ return function(parent)
 
 		self.calcDTKernel:setArg(1, self.primBuf)
 		self.calcEigenBasisKernel:setArg(2, self.primBuf)
-		self.addSourceKernel:setArg(2, self.primBuf)
+		
+		-- grhd has one of these, srhd doesn't
+		if self.addSourceKernel then
+			self.addSourceKernel:setArg(2, self.primBuf)
+		end
 
 		self.updatePrimsKernel = self.solverProgram:kernel('updatePrims', self.primBuf, self.UBuf)
 	end

@@ -107,14 +107,14 @@ function HydroCLApp:setup()
 	
 	-- create this after 'real' is defined
 	--  specifically the call to 'refreshGridSize' within it
-	local dim = 1
+	local dim = 2
 	local args = {
 		app = self, 
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or dim,
 		
-		integrator = cmdline.integrator or 'forward Euler',	
-		--integrator = 'Runge-Kutta 2',
+		--integrator = cmdline.integrator or 'forward Euler',	
+		integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
 		--integrator = 'Runge-Kutta 3',
@@ -300,12 +300,12 @@ function HydroCLApp:setup()
 	-- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 	--    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-	--self.solvers:insert(require 'solver.srhd-roe'(args))
+	self.solvers:insert(require 'solver.srhd-roe'(args))
 	
 	-- GRHD
 	-- right now this is just like srhd except extended by Font's eqns
 	-- this has plug-ins for ADM metric alpha, beta, gammas, but I need to make a composite solver to combine it with GR equations. 
-	self.solvers:insert(require 'solver.grhd-roe'(args))
+	--self.solvers:insert(require 'solver.grhd-roe'(args))
 
 	-- GRHD+GR
 	-- here's the GRHD solver with the BSSNOK plugged into it
