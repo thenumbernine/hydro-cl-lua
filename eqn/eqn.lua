@@ -11,8 +11,9 @@ Equation.hasCalcDT = nil
 Equation.hasFluxFromCons = nil
 Equation.useSourceTerm = nil
 
+-- static so that no names overlap across all equations
 local uid = 0
-local function unique(name)
+function Equation:unique(name)
 	uid = uid + 1
 	return name..'_'..uid
 end
@@ -20,10 +21,10 @@ end
 function Equation:init(solver)
 	self.solver = assert(solver)
 
-	self.prim_t = unique 'prim_t'
-	self.cons_t = unique 'cons_t'
-	self.consLR_t = unique 'consLR_t'
-	self.eigen_t = unique 'eigen_t'
+	self.prim_t = self:unique'prim_t'
+	self.cons_t = self:unique'cons_t'
+	self.consLR_t = self:unique'consLR_t'
+	self.eigen_t = self:unique'eigen_t'
 
 	-- TODO get rid of consVars and primVars
 	-- they're still used by ADM1D

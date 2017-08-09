@@ -179,6 +179,8 @@ end
 
 -- NOTICE this adds the contents of derivBuf and does not clear it
 function Roe:calcDeriv(derivBuf, dt)
+	self:boundary()
+	
 	if self.usePLM then
 		self.calcLRKernel:setArg(2, ffi.new('real[1]', dt))
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcLRKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}

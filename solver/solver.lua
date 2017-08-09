@@ -1602,8 +1602,9 @@ function Solver:step(dt)
 	self.integrator:integrate(dt, function(derivBuf)
 		self:calcDeriv(derivBuf, dt)
 	end)
-
+	
 	if self.eqn.useConstrainU then
+		self:boundary()
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
 end
