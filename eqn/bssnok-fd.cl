@@ -51,8 +51,13 @@ kernel void constrainU(
 ?>	U->gammaBar_ll.<?=xij?> *= _1_cbrt_det_gammaBar;
 <? end
 ?>
+
+	//in Buchman's paper it says he doesn't do this
+	//likewise in my own experiences, this can tend A to grow out of control 
+#if 1
 	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
 	U->ATilde_ll = tracefree(U->ATilde_ll, U->gammaBar_ll, gammaBar_uu);
+#endif
 }
 
 kernel void calcDeriv(

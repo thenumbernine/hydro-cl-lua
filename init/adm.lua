@@ -99,6 +99,8 @@ args:
 
 	(still working on)
 	density, pressure = lua function
+
+	preCompile = function to call on expressions before compile
 --]]
 local function initNumRel(args)	
 	local vars = assert(args.vars)
@@ -135,7 +137,12 @@ local function initNumRel(args)
 	print('compiling expressions...')
 	local codes = table.map(
 		assert(args.getCodes(exprs, vars, args), "getCodes needs to return something"),
-		function(v,k) return compileC(v,k,vars) end)
+		function(v,k) 
+			if args.preCompile then
+				v = args.preCompile(v)
+			end
+			return compileC(v,k,vars) 
+		end)
 	print('...done compiling expressions')
 	
 	-- here's the lapse conditions 
@@ -347,19 +354,53 @@ end
 		
 			local fCCode = buildFCCode(solver)
 
-			for _,x in ipairs{'x', 'y', 'z'} do
-				for _,minmax in ipairs{'min', 'max'} do
-					solver.boundaryMethods[x..minmax][0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'fixed' end)-1
+			local fixedBC = solver.boundaryOptions:find(nil, function(option) return next(option) == 'fixed' end)
+			if not fixedBC then
+				io.stderr:write"you're using a solver that doesn't support fixed boundary conditions\n"
+			else
+				for _,x in ipairs{'x', 'y', 'z'} do
+					for _,minmax in ipairs{'min', 'max'} do
+						solver.boundaryMethods[x..minmax][0] = fixedBC-1
+					end
 				end
 			end
-
+--[=[ runs a lot faster than passing r=sqrt(x^2+y^2+z^2) to compile
+--	but the equations are too complex -- they tend to crash upon compile
+			local xs = xNames:map(function(x) return symmath.var(x) end)
+			symmath.Tensor.coords{{variables=xs}}
+			local x,y,z = xs:unpack()
+			local r = symmath.var('r', xs)
+			local r_from_xyz = r:eq(symmath.sqrt(x^2+y^2+z^2))
+			local psi = (1 + 1/4 * R / r)
+			local alpha = (1 - 1/4 * R / r) / psi
+			return initNumRel{
+				solver = solver,
+				getCodes = getCodes,
+				vars = xs,
+				alpha = alpha,
+				beta = {0,0,0},
+				gamma = {psi^4, 0, 0, psi^4, 0, psi^4},
+				K = {0,0,0,0,0,0},
+				preCompile = function(x)
+					return (x
+						:replace(r:diff(x), x/r)
+						:replace(r:diff(y), y/r)
+						:replace(r:diff(z), z/r)
+						:subst(r_from_xyz))()
+				end,
+			}
+--]=]
+-- [=[ the downside to explicitly defining stuff is that it has to be done for all aux vars that a solver might use
 			return template([[
-#define calc_f(alpha)			(<?=fCCode?>)
-#define rSq(x,y,z)	 			((x)*(x) + (y)*(y) + (z)*(z))
-#define r(x,y,z) 				sqrt(rSq(x,y,z))
-#define sq(x)					((x)*(x))
-#define bssn_phi(x,y,z)			(1. + .25 * <?=R?> / r(x,y,z))	//sum of mass over radius
-#define calc_alpha(x,y,z) 		((1. - .25 * <?=R?>/r(x,y,z))/bssn_phi(x,y,z))
+inline real calc_f(real alpha) { return <?=fCCode?>; }
+inline real bssn_psi(real r) { return 1. + .25 * <?=R?> / r; }	//sum of mass over radius
+inline real bssn_psi2(real r) { return 1. - .25 * <?=R?> / r; }
+
+inline real calc_alpha(real x, real y, real z) { 
+	real r = sqrt(x*x + y*y + z*z);
+	return bssn_psi2(r) / bssn_psi(r);
+}
+
 <?
 for i,xi in ipairs(xNames) do
 ?>#define calc_beta_<?=xi?>(x,y,z)		0.
@@ -369,7 +410,15 @@ for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi, xj = xNames[i], xNames[j]
 	if i==j then
-?>#define calc_gamma_<?=xij?>(x,y,z) 	sq(sq(bssn_phi(x,y,z)))
+?>
+
+inline real calc_gamma_<?=xij?>(real x, real y, real z) {
+	real r = sqrt(x*x + y*y + z*z);
+	real psi = bssn_psi(r);
+	real psiSq = psi*psi;
+	return psiSq*psiSq;
+}
+
 <?	else
 ?>#define calc_gamma_<?=xij?>(x,y,z)	0.
 <?	end
@@ -378,11 +427,53 @@ for ij,xij in ipairs(symNames) do
 ?>#define calc_K_<?=xij?>(x,y,z)		0.
 <?
 end
+?>
+
+//aux vars used by adm3d
+<? for i,xi in ipairs(xNames) do
+?>
+
+inline real d<?=xi?>_bssn_psi(real x, real y, real z) {
+	real r = sqrt(x*x + y*y + z*z);
+	real rSq = r * r;
+	real rCubed = rSq * r;
+	return -.25 * <?=R?> * <?=xi?> / rCubed;
+}
+
+inline real d<?=xi?>_bssn_psi2(real x, real y, real z) {
+	return -d<?=xi?>_bssn_psi(x,y,z);
+}
+
+inline real calc_d<?=xi?>_alpha(real x, real y, real z) {
+	real r = sqrt(x*x + y*y + z*z);
+	real psi = bssn_psi(r);
+	real psi2 = bssn_psi2(r);
+	real dpsi = d<?=xi?>_bssn_psi(x,y,z);
+	real dpsi2 = d<?=xi?>_bssn_psi2(x,y,z);
+	return dpsi2 / psi - psi2 * dpsi2 / (psi * psi);
+}
+
+inline real calc_a_<?=xi?>(real x, real y, real z) {
+	return calc_d<?=xi?>_alpha(x,y,z) / calc_alpha(x,y,z);
+}
+
+<? end
+for ij,xij in ipairs(symNames) do
+	for k,xk in ipairs(xNames) do
+?>
+inline real calc_d_<?=xk?><?=xij?>(real x, real y, real z) {
+	real r = sqrt(x*x + y*y + z*z);
+	real psi = bssn_psi(r);
+	real dpsi = d<?=xk?>_bssn_psi(x,y,z);
+	return 4. * psi * psi * psi * dpsi;
+}
+<?	end
+end
 ?>]], 		table(getTemplateEnv(solver), {
 				fCCode = fCCode:match'{ return (.*); }',
 				R = clnumber(R),
 			}))
-	
+--]=]
 		end,
 	},
 	{
@@ -403,8 +494,8 @@ end
 #define r1(x,y,z) 				sqrt(rSq(x - .25, y, z))
 #define r2(x,y,z) 				sqrt(rSq(x + .25, y, z))
 #define sq(x)					((x)*(x))
-#define bssn_phi(x,y,z)			(1. + .25 * <?=R1?> / r1(x, y, z) + .25 * <?=R2?> / r2(x, y, z))
-#define calc_alpha(x,y,z) 		((1. - .25 * <?=R1?> / r1(x, y, z) - .25 * <?=R2?> / r2(x, y, z)) / bssn_phi(x, y, z))
+#define bssn_psi(x,y,z)			(1. + .25 * <?=R1?> / r1(x, y, z) + .25 * <?=R2?> / r2(x, y, z))
+#define calc_alpha(x,y,z) 		((1. - .25 * <?=R1?> / r1(x, y, z) - .25 * <?=R2?> / r2(x, y, z)) / bssn_psi(x, y, z))
 <? 
 for i,xi in ipairs(xNames) do
 ?>#define calc_beta_<?=xi?>(x,y,z)		0.
@@ -414,7 +505,7 @@ for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi, xj = xNames[i], xNames[j]
 	if i==j then
-?>#define calc_gamma_<?=xij?>(x,y,z) 	sq(sq(bssn_phi(x,y,z)))
+?>#define calc_gamma_<?=xij?>(x,y,z) 	sq(sq(bssn_psi(x,y,z)))
 <?	else
 ?>#define calc_gamma_<?=xij?>(x,y,z)	0.
 <?	end

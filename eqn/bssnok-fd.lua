@@ -26,9 +26,17 @@ end
 
 local typeInfo = {
 	real = {
-		add = function(a,b) return '('..a..') + ('..b..')' end, 
+		add = function(a,b) 
+			if a == '0' or a == '0.' then return b end
+			if b == '0' or b == '0.' then return a end
+			return '('..a..') + ('..b..')' 
+		end, 
 		sub = function(a,b) return '('..a..') - ('..b..')' end, 
-		scale = function(a,b) return '('..a..') * ('..b..')' end, 
+		scale = function(a,b) 
+			if a == '1' or a == '1.' then return b end
+			if b == '1' or b == '1.' then return a end
+			return '('..a..') * ('..b..')' 
+		end, 
 		zero = '0.',
 	},
 	real3 = {
@@ -63,7 +71,7 @@ local derivCoeffs = {
 	},
 }
 
-local derivOrder = 2
+local derivOrder = 4
 
 local function makePartial(order, solver, field, fieldType)
 	local suffix = 'l'
@@ -79,8 +87,8 @@ local function makePartial(order, solver, field, fieldType)
 		if i <= solver.dim then
 			for j,coeff in ipairs(coeffs) do
 				expr = add(expr, scale(sub(
-						'U['..j..' * stepsize.'..xNames[i]..'].'..field,
-						'U[-'..j..' * stepsize.'..xNames[i]..'].'..field
+						'U['..j..' * stepsize.'..xi..'].'..field,
+						'U[-'..j..' * stepsize.'..xi..'].'..field
 					), clnumber(coeff)))
 			end
 			expr = scale(expr, '1. / grid_dx'..(i-1))
@@ -101,32 +109,40 @@ local function makePartial2(order, solver, field, fieldType)
 	lines:insert('\t'..fieldType..' '..name..'[6];')
 	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
+		local xi, xj = xNames[i], xNames[j]
 		local nameij = name..'['..(ij-1)..']'
 		if i > solver.dim or j > solver.dim then
 			lines:insert('\t'..nameij..' = '..zero..';')
 		elseif i == j then
 			local expr = scale('U->'..field, coeffs[0])
-			for j,coeff in ipairs(coeffs) do
+			for k,coeff in ipairs(coeffs) do
 				expr = add(
 					expr, 
 					scale(
 						add(
-							'U['..j..' * stepsize['..(i-1)..']].'..field,
-							'U[-'..j..' * stepsize['..(i-1)..']].'..field),
+							'U['..k..' * stepsize['..(i-1)..']].'..field,
+							'U[-'..k..' * stepsize['..(i-1)..']].'..field),
 						clnumber(coeff)))
 			end
 			expr = scale(expr, '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')
 			lines:insert('\t'..nameij..' = '..expr..';')
 		else
-			lines:insert('\t'..nameij..' = '..scale(
-				sub(
-					add(
-						'U[stepsize['..(i-1)..'] + stepsize['..(j-1)..']].'..field,
-						'U[-stepsize['..(i-1)..'] - stepsize['..(j-1)..']].'..field),
-					add(
-						'U[-stepsize['..(i-1)..'] + stepsize['..(j-1)..']].'..field,
-						'U[stepsize['..(i-1)..'] - stepsize['..(j-1)..']].'..field)
-				), '.25 / (grid_dx'..(i-1)..' * grid_dx'..(j-1)..')')..';')
+			local expr = zero
+			for k,coeff_k in ipairs(coeffs) do
+				for l,coeff_l in ipairs(coeffs) do
+					expr = add(expr, scale(
+						sub(
+							add(
+								'U['..k..' * stepsize.'..xi..' + '..l..' * stepsize.'..xj..'].'..field,
+								'U[-'..k..' * stepsize.'..xi..' - '..l..' * stepsize.'..xj..'].'..field),
+							add(
+								'U[-'..k..' * stepsize.'..xi..' + '..l..' * stepsize.'..xi..'].'..field,
+								'U['..k..' * stepsize.'..xi..' - '..l..' * stepsize.'..xi..'].'..field)), 
+						clnumber(coeff_k * coeff_l)))
+				end
+			end
+			expr = scale(expr, '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')
+			lines:insert('\t'..nameij..' = '..expr..';')
 		end
 	end
 	return lines:concat'\n'
