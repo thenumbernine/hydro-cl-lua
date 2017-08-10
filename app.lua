@@ -114,7 +114,7 @@ function HydroCLApp:setup()
 		dim = cmdline.dim or dim,
 		
 		--integrator = cmdline.integrator or 'forward Euler',	
-		integrator = 'Runge-Kutta 2',
+		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
 		--integrator = 'Runge-Kutta 3',
@@ -125,7 +125,7 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		--integrator = 'backward Euler',
+		integrator = 'backward Euler',
 
 		--fixedDT = .0001,
 		--cfl = .25/dim,
@@ -143,7 +143,7 @@ function HydroCLApp:setup()
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = ({
 			{256,1,1},
-			{256,256,1},
+			{32,32,1},
 			{32,32,32},
 		})[dim],
 		boundary = {
@@ -250,7 +250,7 @@ function HydroCLApp:setup()
 		
 		-- those designed for SRHD / GRHD:
 		--initState = 'relativistic shock reflection',			-- not working.  these initial conditions are constant =P
-		initState = 'relativistic blast wave test problem 1',
+		--initState = 'relativistic blast wave test problem 1',
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'relativistic blast wave interaction',
 	
@@ -271,7 +271,7 @@ function HydroCLApp:setup()
 		--initState = 'gauge shock wave',
 		--initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
-		--initState = 'black hole - isotropic',
+		initState = 'black hole - isotropic',
 		--initState = 'binary black holes - isotropic',
 		--initState = 'stellar model',
 		--initState = 'stellar model 2',
@@ -300,7 +300,7 @@ function HydroCLApp:setup()
 	-- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 	--    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-	self.solvers:insert(require 'solver.srhd-roe'(args))
+	--self.solvers:insert(require 'solver.srhd-roe'(args))
 	
 	-- GRHD
 	-- right now this is just like srhd except extended by Font's eqns
@@ -341,7 +341,7 @@ function HydroCLApp:setup()
 	-- so I have set constant Minkowski boundary conditions?
 	-- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 	-- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-	--self.solvers:insert(require 'solver.bssnok-fd'(args))
+	self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 end

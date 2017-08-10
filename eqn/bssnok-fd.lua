@@ -44,75 +44,80 @@ local typeInfo = {
 	},
 }
 
-local function makePartial(solver, field, fieldType)
-	return template([=[<?
+-- derivCoeffs[derivative][accuracy] = {coeffs...}
+local derivCoeffs = {
+	-- antisymmetric coefficients 
+	{
+		[2] = {.5},
+		[4] = {2/3, -1/12},
+		[6] = {3/4, -3/20, 1/60},
+		[8] = {4/5, -1/5, 4/105, -1/280},
+	},
+	-- symmetric
+	{
+		[2] = {[0] = -2, 1},
+		[4] = {[0] = -5/2, 4/3, -1/12},
+		[6] = {[0] = -49/18, 3/2, -3/20, 1/90},
+		[8] = {[0] = -205/72, 8/5, -1/5, 8/315, -1/560},
+	},
+}
+
+local clnumber = require 'cl.obj.number'
+local derivOrder = 2
+local function makePartial(order, solver, field, fieldType)
 	local suffix = 'l'
 	if not field:find'_' then suffix = '_' .. suffix end
 	local name = 'partial_'..field..suffix
 	local fieldTypeInfo = assert(typeInfo[fieldType], "failed to find typeInfo for "..fieldType)
 	local sub, scale, zero = fieldTypeInfo.sub, fieldTypeInfo.scale, fieldTypeInfo.zero
-assert(sub)
-?>	<?=fieldType?> <?=name?>[3];
-<?	for i,xi in ipairs(xNames) do
+	local lines = table{'\t'..fieldType..' '..name..'[3];\n'}
+	for i,xi in ipairs(xNames) do
 		if i <= solver.dim then
-?>	<?=name?>[<?=i-1?>] = <?=scale(sub(  
-		'U[stepsize['..(i-1)..']].'..field,
-		'U[-stepsize['..(i-1)..']].'..field
-	), '1. / (2. * grid_dx'..(i-1)..')')?>;
-<?		else
-?>	<?=name?>[<?=i-1?>] = <?=zero?>;
-<?		end
+			lines:insert('\t'..name..'['..(i-1)..'] = '..scale(sub(
+					'U[stepsize['..(i-1)..']].'..field,
+					'U[-stepsize['..(i-1)..']].'..field
+				), clnumber(.5)..' / grid_dx'..(i-1))..';\n')
+		else
+			lines:insert('\t'..name..'['..(i-1)..'] = '..zero..';')
+		end
 	end
-?>]=], {
-		solver = solver,
-		xNames = xNames,
-		field = field,
-		fieldType = fieldType,
-		typeInfo = typeInfo,
-	})
+	return lines:concat'\n'
 end
 
-local function makePartial2(solver, field, fieldType)
-	return template([=[<?
+local function makePartial2(order, solver, field, fieldType)
 	local suffix = 'll'
 	if not field:find'_' then suffix = '_' .. suffix end
 	local name = 'partial2_'..field..suffix
 	local fieldTypeInfo = assert(typeInfo[fieldType], "failed to find typeInfo for "..fieldType)
 	local add, sub, scale, zero = fieldTypeInfo.add, fieldTypeInfo.sub, fieldTypeInfo.scale, fieldTypeInfo.zero
-?>	<?=fieldType?> <?=name?>[6];
-<?	for ij,xij in ipairs(symNames) do
+	local lines = table()
+	lines:insert('\t'..fieldType..' '..name..'[6];')
+	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
 		if i > solver.dim or j > solver.dim then
-?>	<?=name?>[<?=ij-1?>] = <?=zero?>;
-<?		elseif i == j then
-?>	<?=name?>[<?=ij-1?>] = <?=scale(
-		add(
-			'U[stepsize['..(i-1)..']].'..field,
-			add(
-				scale('U->'..field, '-2.'),
-				'U[-stepsize['..(i-1)..']].'..field
-			)
-		), '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')?>;
-<?		else
-?>	<?=name?>[<?=ij-1?>] = <?=scale(
-		sub(
-			add(
-				'U[stepsize['..(i-1)..'] + stepsize['..(j-1)..']].'..field,
-				'U[-stepsize['..(i-1)..'] - stepsize['..(j-1)..']].'..field),
-			add(
-				'U[-stepsize['..(i-1)..'] + stepsize['..(j-1)..']].'..field,
-				'U[stepsize['..(i-1)..'] - stepsize['..(j-1)..']].'..field)
-		), '1. / (grid_dx'..(i-1)..' * grid_dx'..(j-1)..')')?>;
-<?		end
+			lines:insert('\t'..name..'['..(ij-1)..'] = '..zero..';')
+		elseif i == j then
+			lines:insert('\t'..name..'['..(ij-1)..'] = '..scale(
+				add(
+					'U[stepsize['..(i-1)..']].'..field,
+					add(
+						scale('U->'..field, '-2.'),
+						'U[-stepsize['..(i-1)..']].'..field
+					)
+				), '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')..';')
+		else
+			lines:insert('\t'..name..'['..(ij-1)..'] = '..scale(
+				sub(
+					add(
+						'U[stepsize['..(i-1)..'] + stepsize['..(j-1)..']].'..field,
+						'U[-stepsize['..(i-1)..'] - stepsize['..(j-1)..']].'..field),
+					add(
+						'U[-stepsize['..(i-1)..'] + stepsize['..(j-1)..']].'..field,
+						'U[stepsize['..(i-1)..'] - stepsize['..(j-1)..']].'..field)
+				), '1. / (grid_dx'..(i-1)..' * grid_dx'..(j-1)..')')..';')
+		end
 	end
-?>]=], {
-		solver = solver,
-		symNames = symNames,
-		from6to3x3 = from6to3x3,
-		field = field,
-		fieldType = fieldType,
-		typeInfo = typeInfo,
-	})
+	return lines:concat'\n'
 end
 
 local function getTemplateEnv(eqn)
@@ -125,8 +130,8 @@ local function getTemplateEnv(eqn)
 		from6to3x3 = from6to3x3,
 		sym = sym,
 		typeInfo = typeInfo,
-		makePartial = function(...) return makePartial(eqn.solver, ...) end,
-		makePartial2 = function(...) return makePartial2(eqn.solver, ...) end,
+		makePartial = function(...) return makePartial(derivOrder, eqn.solver, ...) end,
+		makePartial2 = function(...) return makePartial2(derivOrder, eqn.solver, ...) end,
 	}
 end
 
@@ -395,7 +400,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	*value = real3_len(sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l)) / U->alpha;
 ]],			{
 				solver = self.solver,
-				makePartial = function(...) return makePartial(self.solver, ...) end,
+				makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
 			})
 		},
 	}
@@ -437,7 +442,7 @@ function BSSNOKFiniteDifferenceEquation:getVecDisplayVars()
 	valuevec = real3_scale(sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l), 1. / U->alpha);
 ]],			{
 				solver = self.solver,
-				makePartial = function(...) return makePartial(self.solver, ...) end,
+				makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
 			})
 		},
 	}

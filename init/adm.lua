@@ -158,6 +158,18 @@ local function initNumRel(args)
 	end):concat'\n'
 end
 
+local function buildFCCode(solver, diff)
+	local alphaVar = symmath.var'alpha'
+	local fGuiVar = solver.eqn.guiVarsForName.f
+	local fLuaCode = fGuiVar.options[fGuiVar.value]
+	
+	local f = assert(loadstring('local alpha = ... return '..fLuaCode))(alphaVar)
+	f = symmath.clone(f)
+	local fCCode = compileC(f, 'f', {alphaVar})
+
+	return fCCode
+end
+
 return table{
 	{
 		name = 'gauge shock wave',
@@ -299,13 +311,7 @@ return table{
 			}
 --]=]
 --[=[ just pass it the cl code.
-			local alphaVar = symmath.var'alpha'
-			local fGuiVar = solver.eqn.guiVarsForName.f
-			local fLuaCode = fGuiVar.options[fGuiVar.value]
-			
-			local f = assert(loadstring('local alpha = ... return '..fLuaCode))(alphaVar)
-			f = symmath.clone(f)
-			local fCCode = compileC(f, 'f', {alphaVar})
+			local fCCode = buildFCCode(solver)
 			
 			return template([[
 #define calc_f(alpha)			(<?=fCCode?>)
@@ -339,14 +345,8 @@ end
 		init = function(solver, getCodes)
 			local R = .01	-- Schwarzschild radius
 		
-			local alphaVar = symmath.var'alpha'
-			local fGuiVar = solver.eqn.guiVarsForName.f
-			local fLuaCode = fGuiVar.options[fGuiVar.value]
-			
-			local f = assert(loadstring('local alpha = ... return '..fLuaCode))(alphaVar)
-			f = symmath.clone(f)
-			local fCCode = compileC(f, 'f', {alphaVar})
-			
+			local fCCode = buildFCCode(solver)
+
 			return template([[
 #define calc_f(alpha)			(<?=fCCode?>)
 #define rSq(x,y,z)	 			((x)*(x) + (y)*(y) + (z)*(z))
@@ -380,15 +380,15 @@ end
 		end,
 	},
 	{
+		name = 'spinning black hole - isotropic',
+		init = function(solver, getCodes)
+			local R = .01
+		end,
+	},
+	{
 		name = 'binary black holes - isotropic',
 		init = function(solver, getCodes)
-			local alphaVar = symmath.var'alpha'
-			local fGuiVar = solver.eqn.guiVarsForName.f
-			local fLuaCode = fGuiVar.options[fGuiVar.value]
-			
-			local f = assert(loadstring('local alpha = ... return '..fLuaCode))(alphaVar)
-			f = symmath.clone(f)
-			local fCCode = compileC(f, 'f', {alphaVar})
+			local fCCode = buildFCCode(solver)
 		
 			-- [=[
 			return template([[
@@ -434,13 +434,7 @@ end
 				local bodyMass = .001
 				local bodyRadius = .1 
 				
-				local alphaVar = symmath.var'alpha'
-				local fGuiVar = solver.eqn.guiVarsForName.f
-				local fLuaCode = fGuiVar.options[fGuiVar.value]
-				
-				local f = assert(loadstring('local alpha = ... return '..fLuaCode))(alphaVar)
-				f = symmath.clone(f)
-				local fCCode = compileC(f, 'f', {alphaVar})
+				local fCCode = buildFCCode(solver)
 				
 --[[
 K_ij = -alpha Gamma^t_ij
