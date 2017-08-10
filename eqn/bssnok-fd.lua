@@ -4,6 +4,7 @@ local table = require 'ext.table'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
 local symmath = require 'symmath'
+local clnumber = require 'cl.obj.number'
 	
 -- bssnok helper functions:
 
@@ -62,24 +63,29 @@ local derivCoeffs = {
 	},
 }
 
-local clnumber = require 'cl.obj.number'
 local derivOrder = 2
+
 local function makePartial(order, solver, field, fieldType)
 	local suffix = 'l'
 	if not field:find'_' then suffix = '_' .. suffix end
 	local name = 'partial_'..field..suffix
 	local fieldTypeInfo = assert(typeInfo[fieldType], "failed to find typeInfo for "..fieldType)
-	local sub, scale, zero = fieldTypeInfo.sub, fieldTypeInfo.scale, fieldTypeInfo.zero
+	local add, sub, scale, zero = fieldTypeInfo.add, fieldTypeInfo.sub, fieldTypeInfo.scale, fieldTypeInfo.zero
+	local coeffs = assert(derivCoeffs[1][order], "couldn't find derivative coefficients of order "..order)
 	local lines = table{'\t'..fieldType..' '..name..'[3];\n'}
 	for i,xi in ipairs(xNames) do
+		local namei = name..'['..(i-1)..']'
+		local expr = zero
 		if i <= solver.dim then
-			lines:insert('\t'..name..'['..(i-1)..'] = '..scale(sub(
-					'U[stepsize['..(i-1)..']].'..field,
-					'U[-stepsize['..(i-1)..']].'..field
-				), clnumber(.5)..' / grid_dx'..(i-1))..';\n')
-		else
-			lines:insert('\t'..name..'['..(i-1)..'] = '..zero..';')
+			for j,coeff in ipairs(coeffs) do
+				expr = add(expr, scale(sub(
+						'U['..j..' * stepsize.'..xNames[i]..'].'..field,
+						'U[-'..j..' * stepsize.'..xNames[i]..'].'..field
+					), clnumber(coeff)))
+			end
+			expr = scale(expr, '1. / grid_dx'..(i-1))
 		end
+		lines:insert('\t'..namei..' = '..expr..';')
 	end
 	return lines:concat'\n'
 end
@@ -90,23 +96,29 @@ local function makePartial2(order, solver, field, fieldType)
 	local name = 'partial2_'..field..suffix
 	local fieldTypeInfo = assert(typeInfo[fieldType], "failed to find typeInfo for "..fieldType)
 	local add, sub, scale, zero = fieldTypeInfo.add, fieldTypeInfo.sub, fieldTypeInfo.scale, fieldTypeInfo.zero
+	local coeffs = assert(derivCoeffs[2][order], "couldn't find derivative coefficients of order "..order)
 	local lines = table()
 	lines:insert('\t'..fieldType..' '..name..'[6];')
 	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
+		local nameij = name..'['..(ij-1)..']'
 		if i > solver.dim or j > solver.dim then
-			lines:insert('\t'..name..'['..(ij-1)..'] = '..zero..';')
+			lines:insert('\t'..nameij..' = '..zero..';')
 		elseif i == j then
-			lines:insert('\t'..name..'['..(ij-1)..'] = '..scale(
-				add(
-					'U[stepsize['..(i-1)..']].'..field,
-					add(
-						scale('U->'..field, '-2.'),
-						'U[-stepsize['..(i-1)..']].'..field
-					)
-				), '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')..';')
+			local expr = scale('U->'..field, coeffs[0])
+			for j,coeff in ipairs(coeffs) do
+				expr = add(
+					expr, 
+					scale(
+						add(
+							'U['..j..' * stepsize['..(i-1)..']].'..field,
+							'U[-'..j..' * stepsize['..(i-1)..']].'..field),
+						clnumber(coeff)))
+			end
+			expr = scale(expr, '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')
+			lines:insert('\t'..nameij..' = '..expr..';')
 		else
-			lines:insert('\t'..name..'['..(ij-1)..'] = '..scale(
+			lines:insert('\t'..nameij..' = '..scale(
 				sub(
 					add(
 						'U[stepsize['..(i-1)..'] + stepsize['..(j-1)..']].'..field,
@@ -114,7 +126,7 @@ local function makePartial2(order, solver, field, fieldType)
 					add(
 						'U[-stepsize['..(i-1)..'] + stepsize['..(j-1)..']].'..field,
 						'U[stepsize['..(i-1)..'] - stepsize['..(j-1)..']].'..field)
-				), '1. / (grid_dx'..(i-1)..' * grid_dx'..(j-1)..')')..';')
+				), '.25 / (grid_dx'..(i-1)..' * grid_dx'..(j-1)..')')..';')
 		end
 	end
 	return lines:concat'\n'

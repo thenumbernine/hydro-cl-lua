@@ -155,13 +155,13 @@ function Solver:createBoundaryOptions()
 	self.boundaryOptions = table{
 		{periodic = function(args)
 			local gridSizeSide = 'gridSize_'..xs[args.side]
-			local rhs = gridSizeSide..'-numGhost+j'
 			if args.minmax == 'min' then
 				return '\t\t\t'..args.assign(
 					'buf['..args.index'j'..']', 
 					'buf['..args.index(gridSizeSide..'-2*numGhost+j')..']'
 				)..';'
 			elseif args.minmax == 'max' then
+				local rhs = gridSizeSide..'-numGhost+j'
 				return '\t\t\t'..args.assign(
 					'buf['..args.index(rhs)..']', 
 					'buf['..args.index'numGhost+j'..']'
@@ -170,7 +170,6 @@ function Solver:createBoundaryOptions()
 		end},
 		{mirror = function(args)
 			local gridSizeSide = 'gridSize_'..xs[args.side]
-			local rhs = gridSizeSide..'-numGhost+j'
 			if args.minmax == 'min' then
 				return table{
 					'\t\t\t'..args.assign(
@@ -181,6 +180,7 @@ function Solver:createBoundaryOptions()
 					return '\t\t\t'..'buf['..args.index'j'..'].'..var..' = -buf['..args.index'j'..'].'..var..';'
 				end)):concat'\n'
 			elseif args.minmax == 'max' then
+				local rhs = gridSizeSide..'-numGhost+j'
 				return table{
 					'\t\t\t'..args.assign(
 						'buf['..args.index(rhs)..']',
@@ -193,13 +193,13 @@ function Solver:createBoundaryOptions()
 		end},
 		{freeflow = function(args)
 			local gridSizeSide = 'gridSize_'..xs[args.side]
-			local rhs = gridSizeSide..'-numGhost+j'
 			if args.minmax == 'min' then
 				return '\t\t\t'..args.assign(
 					'buf['..args.index'j'..']',
 					'buf['..args.index'numGhost'..']'
 				)..';'
 			elseif args.minmax == 'max' then
+				local rhs = gridSizeSide..'-numGhost+j'
 				return '\t\t\t'..args.assign(
 					'buf['..args.index(rhs)..']',
 					'buf['..args.index(gridSizeSide..'-numGhost-1'

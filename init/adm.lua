@@ -343,9 +343,15 @@ end
 	{	-- Baumgarte & Shapiro, table 2.1, isotropic coordinates
 		name = 'black hole - isotropic',
 		init = function(solver, getCodes)
-			local R = .01	-- Schwarzschild radius
+			local R = .001	-- Schwarzschild radius
 		
 			local fCCode = buildFCCode(solver)
+
+			for _,x in ipairs{'x', 'y', 'z'} do
+				for _,minmax in ipairs{'min', 'max'} do
+					solver.boundaryMethods[x..minmax][0] = solver.boundaryOptions:find(nil, function(option) return next(option) == 'fixed' end)-1
+				end
+			end
 
 			return template([[
 #define calc_f(alpha)			(<?=fCCode?>)

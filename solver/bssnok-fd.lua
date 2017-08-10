@@ -4,6 +4,8 @@ local template = require 'template'
 local BSSNOKFiniteDifferenceEquation = require 'eqn.bssnok-fd'
 local Solver = require 'solver.solver'
 
+local xNames = table{'x', 'y', 'z'}
+
 local BSSNOKFiniteDifferenceSolver = class(Solver)
 BSSNOKFiniteDifferenceSolver.name = 'BSSNOKFiniteDifferenceSolver'
 
@@ -35,8 +37,14 @@ function BSSNOKFiniteDifferenceSolver:createBoundaryOptions()
 
 	self.boundaryOptions:insert{
 		fixed = function(args)
-			local U = 'buf['..args.index'j'..']'
-			return template([[
+		
+			local lines = table()
+			local gridSizeSide = 'gridSize_'..xNames[args.side]
+			for _,U in ipairs{
+				'buf['..args.index'j'..']',
+				'buf['..args.index(gridSizeSide..'-numGhost+j')..']',
+			} do
+				lines:insert(template([[
 	<?=U?>.alpha = 1.;
 	<?=U?>.beta_u = _real3(0,0,0);
 	<?=U?>.gammaBar_ll = _sym3(1,0,0,1,0,1);
@@ -44,7 +52,9 @@ function BSSNOKFiniteDifferenceSolver:createBoundaryOptions()
 	<?=U?>.K = 0;
 	<?=U?>.ATilde_ll = _sym3(1,0,0,1,0,1);
 	<?=U?>.connBar_u = _real3(0,0,0);
-]], {U=U})
+]], {U=U}))
+			end
+			return lines:concat'\n'
 		end,
 	}
 end
