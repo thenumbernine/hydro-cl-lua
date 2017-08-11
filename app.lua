@@ -143,7 +143,7 @@ function HydroCLApp:setup()
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = ({
 			{256,1,1},
-			{32,32,1},
+			{64,64,1},
 			{32,32,32},
 		})[dim],
 		boundary = {
@@ -244,7 +244,7 @@ function HydroCLApp:setup()
 		--initState = 'self-gravitation test 1',
 		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
-		--initState = 'self-gravitation test 2 orbiting',
+		initState = 'self-gravitation test 2 orbiting',
 		--initState = 'self-gravitation test 4',
 		--initState = 'self-gravitation soup',
 		
@@ -260,7 +260,7 @@ function HydroCLApp:setup()
 		
 		-- EM:
 		--initState = 'Maxwell default',
-		initState = 'Maxwell scattering around cylinder',
+		--initState = 'Maxwell scattering around cylinder',
 		--initState = 'Maxwell wire',
 		
 		--initState = 'two-fluid EMHD soliton ion',
@@ -279,7 +279,7 @@ function HydroCLApp:setup()
 	}
 	
 	-- HD - Roe
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+	self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 	-- HD - Burgers
 	-- f.e. and b.e. are working, but none of the r.k. integrators 
@@ -319,7 +319,7 @@ function HydroCLApp:setup()
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 	
 	-- EM
-	self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 	
 	-- EM+HD
 	-- I'm having some memory issues with two solvers running simultanously .. 

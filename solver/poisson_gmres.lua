@@ -222,7 +222,7 @@ function Poisson:refreshBoundaryProgram()
 		solver:createBoundaryProgramAndKernel{
 			type = self:getPotBufType(),
 			methods = table.map(solver.boundaryMethods, function(v)
-				return (select(2, next(solver.boundaryOptions[1+v[0]])))
+				return (select(2, next(solver.boundaryOptions[v+1])))
 			end),
 			assign = function(a,b)
 				return a..'.'..self.potentialField..' = '..b..'.'..self.potentialField

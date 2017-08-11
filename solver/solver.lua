@@ -106,13 +106,12 @@ function Solver:init(args)
 	for i=1,3 do
 		for _,minmax in ipairs(minmaxs) do
 			local var = xs[i]..minmax
-			self.boundaryMethods[var] = ffi.new('int[1]', 
-				self.boundaryOptions:find(
+			self.boundaryMethods[var] = self.boundaryOptions:find(
 					(args.boundary or {})[var] or 'freeflow',
 					function(option, search)
 						return search == next(option)
 					end
-				)-1)
+				)-1
 		end
 	end
 
@@ -1352,7 +1351,7 @@ function Solver:getBoundaryProgramArgs()
 		-- remap from enum/combobox int values to functions from the solver.boundaryOptions table
 		methods = table.map(self.boundaryMethods, function(v)
 			if type(v) == 'function' then return v end
-			return (select(2, next(self.boundaryOptions[1+v[0]])))
+			return (select(2, next(self.boundaryOptions[v+1])))
 		end),
 		mirrorVars = self.eqn.mirrorVars,
 	}
@@ -1786,7 +1785,7 @@ function Solver:updateGUIParams()
 		for i=1,self.dim do
 			for _,minmax in ipairs(minmaxs) do
 				local var = xs[i]..minmax
-				if tooltip.combo(var, self.boundaryMethods[var], self.boundaryOptionNames) then
+				if tooltip.combo(var, self.boundaryMethods, var, self.boundaryOptionNames) then
 					self:refreshBoundaryProgram()
 				end
 			end
