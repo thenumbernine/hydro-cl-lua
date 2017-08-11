@@ -79,13 +79,13 @@ local function makePartial(order, solver, field, fieldType)
 	local name = 'partial_'..field..suffix
 	local fieldTypeInfo = assert(typeInfo[fieldType], "failed to find typeInfo for "..fieldType)
 	local add, sub, scale, zero = fieldTypeInfo.add, fieldTypeInfo.sub, fieldTypeInfo.scale, fieldTypeInfo.zero
-	local coeffs = assert(derivCoeffs[1][order], "couldn't find derivative coefficients of order "..order)
+	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)
 	local lines = table{'\t'..fieldType..' '..name..'[3];\n'}
 	for i,xi in ipairs(xNames) do
 		local namei = name..'['..(i-1)..']'
 		local expr = zero
 		if i <= solver.dim then
-			for j,coeff in ipairs(coeffs) do
+			for j,coeff in ipairs(d1coeffs) do
 				expr = add(expr, scale(sub(
 						'U['..j..' * stepsize.'..xi..'].'..field,
 						'U[-'..j..' * stepsize.'..xi..'].'..field
@@ -104,7 +104,8 @@ local function makePartial2(order, solver, field, fieldType)
 	local name = 'partial2_'..field..suffix
 	local fieldTypeInfo = assert(typeInfo[fieldType], "failed to find typeInfo for "..fieldType)
 	local add, sub, scale, zero = fieldTypeInfo.add, fieldTypeInfo.sub, fieldTypeInfo.scale, fieldTypeInfo.zero
-	local coeffs = assert(derivCoeffs[2][order], "couldn't find derivative coefficients of order "..order)
+	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)
+	local d2coeffs = assert(derivCoeffs[2][order], "couldn't find 2nd derivative coefficients of order "..order)
 	local lines = table()
 	lines:insert('\t'..fieldType..' '..name..'[6];')
 	for ij,xij in ipairs(symNames) do
@@ -114,8 +115,8 @@ local function makePartial2(order, solver, field, fieldType)
 		if i > solver.dim or j > solver.dim then
 			lines:insert('\t'..nameij..' = '..zero..';')
 		elseif i == j then
-			local expr = scale('U->'..field, coeffs[0])
-			for k,coeff in ipairs(coeffs) do
+			local expr = scale('U->'..field, d2coeffs[0])
+			for k,coeff in ipairs(d2coeffs) do
 				expr = add(
 					expr, 
 					scale(
@@ -128,8 +129,8 @@ local function makePartial2(order, solver, field, fieldType)
 			lines:insert('\t'..nameij..' = '..expr..';')
 		else
 			local expr = zero
-			for k,coeff_k in ipairs(coeffs) do
-				for l,coeff_l in ipairs(coeffs) do
+			for k,coeff_k in ipairs(d1coeffs) do
+				for l,coeff_l in ipairs(d1coeffs) do
 					expr = add(expr, scale(
 						sub(
 							add(

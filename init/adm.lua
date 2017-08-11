@@ -360,7 +360,7 @@ end
 			else
 				for _,x in ipairs{'x', 'y', 'z'} do
 					for _,minmax in ipairs{'min', 'max'} do
-						solver.boundaryMethods[x..minmax] = fixedBC-1
+						solver.boundaryMethods[x..minmax] = fixedBC
 					end
 				end
 			end
