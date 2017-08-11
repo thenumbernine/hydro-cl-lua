@@ -13,7 +13,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr1?> const real* A = eig->evL;
 	for (int i = 0; i < numWaves; ++i) {
 		real sum = 0;
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			sum += A[i+numWaves*j] * x[j];
 		}
 		y[i] = sum;
@@ -28,7 +28,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr1?> const real* A = eig->evR;
 	for (int i = 0; i < numWaves; ++i) {
 		real sum = 0;
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			sum += A[i+numWaves*j] * x[j];
 		}
 		y[i] = sum;
@@ -42,10 +42,10 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* x
 ) {
 	<?=addr1?> const real* A = eig->A;
-	for (int i = 0; i < numStates; ++i) {
+	for (int i = 0; i < numIntStates; ++i) {
 		real sum = 0;
-		for (int j = 0; j < numStates; ++j) {
-			sum += A[i+numStates*j] * x[j];
+		for (int j = 0; j < numIntStates; ++j) {
+			sum += A[i+numIntStates*j] * x[j];
 		}
 		y[i] = sum;
 	}

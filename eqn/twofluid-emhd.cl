@@ -388,7 +388,7 @@ end
 }
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,			//numStates = 22
+	<?=addr0?> real* Y,			//numIntStates = 16
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* X,	//numWaves = 16
 	real3 x
@@ -499,13 +499,7 @@ elseif side == 2 then
 	Y[13] = su * (X[10] + X[15]);
 	Y[14] = su * (X[11] + X[14]);
 	Y[15] = su * (X[12] + X[13]);
-<? 
-end 
-for i=16,eqn.numStates-1 do
-?>	Y[<?=i?>] = 0;
-<?
-end 
-?>}
+}
 
 <?	if solver.checkFluxError then ?>
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
@@ -574,11 +568,6 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	Y[15] = 0;
 		
 <? end ?>
-
-<? for i=16,eqn.numStates-1 do ?>
-	Y[<?=i?>] = 0;
-<? end ?>
-
 }
 <?
 				end

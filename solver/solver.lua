@@ -748,6 +748,7 @@ function Solver:createCodePrefix()
 		'#define dim '..self.dim,
 		'#define numGhost '..self.numGhost,
 		'#define numStates '..self.eqn.numStates,
+		'#define numIntStates '..self.eqn.numIntStates,
 		'#define numWaves '..self.eqn.numWaves,
 	}:append(xs:map(function(x,i)
 	-- coordinate space = u,v,w

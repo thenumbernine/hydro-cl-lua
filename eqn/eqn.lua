@@ -79,14 +79,14 @@ end
 function Equation:getEigenTypeCode()
 	return template([[
 typedef struct {
-	real evL[<?=numStates * numWaves?>];
-	real evR[<?=numStates * numWaves?>];
+	real evL[<?=numIntStates * numWaves?>];
+	real evR[<?=numIntStates * numWaves?>];
 <? if solver.checkFluxError then ?>
-	real A[<?=numStates * numStates?>];
+	real A[<?=numIntStates * numIntStates?>];
 <? end ?>
 } <?=eqn.eigen_t?>;
 ]], {
-		numStates = self.numStates,
+		numIntStates = self.numIntStates,
 		numWaves = self.numWaves,
 		solver = self.solver,
 		eqn = self,
@@ -102,17 +102,17 @@ function Equation:getEigenCode()
 end
 
 function Equation:getEigenDisplayVars()
-	return range(self.numStates * self.numWaves):map(function(i)
+	return range(self.numIntStates * self.numWaves):map(function(i)
 		local row = (i-1)%self.numWaves
 		local col = (i-1-row)/self.numWaves
 		return {['evL_'..row..'_'..col] = '*value = eigen->evL['..i..'];'}
-	end):append(range(self.numStates * self.numWaves):map(function(i)
-		local row = (i-1)%self.numStates
-		local col = (i-1-row)/self.numStates
+	end):append(range(self.numIntStates * self.numWaves):map(function(i)
+		local row = (i-1)%self.numIntStates
+		local col = (i-1-row)/self.numIntStates
 		return {['evR_'..row..'_'..col] = '*value = eigen->evR['..i..'];'}
-	end)):append(self.solver.checkFluxError and range(self.numStates * self.numStates):map(function(i)
-		local row = (i-1)%self.numStates
-		local col = (i-1-row)/self.numStates
+	end)):append(self.solver.checkFluxError and range(self.numIntStates * self.numIntStates):map(function(i)
+		local row = (i-1)%self.numIntStates
+		local col = (i-1-row)/self.numIntStates
 		return {['A_'..row..'_'..col] = '*value = eigen->A['..i..'];'}
 	end) or nil)
 end

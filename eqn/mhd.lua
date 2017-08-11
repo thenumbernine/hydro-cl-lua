@@ -9,8 +9,9 @@ local MHD = class(Equation)
 
 MHD.name = 'MHD'
 
-MHD.numStates = 9
 MHD.numWaves = 7
+MHD.numIntStates = 8
+MHD.numStates = 9
 
 MHD.mirrorVars = {{'m.x', 'B.x'}, {'m.y', 'B.y'}, {'m.z', 'B.z'}}
 
@@ -221,7 +222,7 @@ end
 		//so reconstruct cons from prims again and calculate the difference
 		<?=eqn.cons_t?> U2 = consFromPrim(W);
 		*value = 0;
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			*value += fabs(U->ptr[j] - U2.ptr[j]);
 		}
 ]], {
@@ -254,7 +255,7 @@ typedef struct {
 	})
 end
 
--- because eigen_t is only 7*7 instead of 7*8 = numStates * numWaves ...
+-- because eigen_t is only 7*7 instead of 7*8 = numWaves * numIntStates ...
 function MHD:getEigenDisplayVars()
 	return range(0, self.numWaves * self.numWaves - 1):map(function(i)
 		local row = i%self.numWaves

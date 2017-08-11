@@ -143,7 +143,7 @@ function HydroCLApp:setup()
 		-- 256^2 = 2^16 = 2 * 32^3
 		gridSize = ({
 			{256,1,1},
-			{64,64,1},
+			{128,128,1},
 			{32,32,32},
 		})[dim],
 		boundary = {
@@ -244,7 +244,7 @@ function HydroCLApp:setup()
 		--initState = 'self-gravitation test 1',
 		--initState = 'self-gravitation test 1 spinning',
 		--initState = 'self-gravitation test 2',
-		initState = 'self-gravitation test 2 orbiting',
+		--initState = 'self-gravitation test 2 orbiting',
 		--initState = 'self-gravitation test 4',
 		--initState = 'self-gravitation soup',
 		
@@ -269,7 +269,7 @@ function HydroCLApp:setup()
 	
 		-- GR
 		--initState = 'gauge shock wave',
-		--initState = 'Alcubierre warp bubble',
+		initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
 		--initState = 'black hole - isotropic',
 		--initState = 'binary black holes - isotropic',
@@ -279,7 +279,7 @@ function HydroCLApp:setup()
 	}
 	
 	-- HD - Roe
-	self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 	-- HD - Burgers
 	-- f.e. and b.e. are working, but none of the r.k. integrators 
@@ -337,7 +337,7 @@ function HydroCLApp:setup()
 	-- so I have set constant Minkowski boundary conditions?
 	-- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 	-- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-	--self.solvers:insert(require 'solver.bssnok-fd'(args))
+	self.solvers:insert(require 'solver.bssnok-fd'(args))
 	
 	-- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 end

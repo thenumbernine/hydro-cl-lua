@@ -38,7 +38,7 @@ kernel void calcLR(
 		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
 		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
 		<?=eqn.cons_t?> dUL, dUR;
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
 			dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
 		}
@@ -49,7 +49,7 @@ kernel void calcLR(
 		xIntR.s<?=side?> += grid_dx<?=side?>;
 
 		<?=eqn.cons_t?> UHalfL, UHalfR;
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			
 			//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)	
 			//https://en.wikipedia.org/wiki/MUSCL_scheme
@@ -72,7 +72,7 @@ kernel void calcLR(
 		<?=eqn.cons_t?> FHalfL = fluxFromCons_<?=side?>(UHalfL, xIntL);
 		<?=eqn.cons_t?> FHalfR = fluxFromCons_<?=side?>(UHalfR, xIntR);
 		
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			real dF = FHalfR.ptr[j] - FHalfL.ptr[j];
 
 			//U-cell-L = q^n+1/2_i-1/2,R (Hydrodynamics II 6.62)
@@ -97,7 +97,7 @@ kernel void calcLR(
 		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
 		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
 		<?=eqn.cons_t?> dUL, dUR, dUC;
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
 			dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
 			dUC.ptr[j] = UR->ptr[j] - UL->ptr[j];
@@ -149,7 +149,7 @@ kernel void calcLR(
 		eigen_rightTransform_<?=side?>___(ql.ptr, &eig, pl, x);
 		eigen_rightTransform_<?=side?>___(qr.ptr, &eig, pr, x);
 		
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			ULR->L.ptr[j] = U->ptr[j] - qr.ptr[j];
 			ULR->R.ptr[j] = U->ptr[j] + ql.ptr[j];
 		}
@@ -173,7 +173,7 @@ kernel void calcLR(
 		<?=eqn.prim_t?> WL = primFromCons(*UL, xL);
 		<?=eqn.prim_t?> WR = primFromCons(*UR, xR);
 		<?=eqn.prim_t?> dWL, dWR, dWC;
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
 			dWR.ptr[j] = WR.ptr[j] - W.ptr[j];
 			dWC.ptr[j] = WR.ptr[j] - WL.ptr[j];
@@ -237,7 +237,7 @@ kernel void calcLR(
 		apply_dW_dU(&qr, &W, &tmp, xIntR);
 	
 		<?=eqn.prim_t?> W2L, W2R;
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			W2L.ptr[j] = W.ptr[j] - qr.ptr[j];
 			W2R.ptr[j] = W.ptr[j] + ql.ptr[j];
 		}
@@ -274,7 +274,7 @@ kernel void calcLR(
 		<?=eqn.prim_t?> WR = primFromCons(*UR, xR);
 		
 		<?=eqn.prim_t?> dWl, dWr, dWc, dWg;
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			dWl.ptr[j] = W.ptr[j] - WL.ptr[j];
 			dWr.ptr[j] = WR.ptr[j] - W.ptr[j];
 			dWc.ptr[j] = WR.ptr[j] - WL.ptr[j];

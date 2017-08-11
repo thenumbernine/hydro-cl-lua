@@ -112,7 +112,7 @@ local function addMaxwellOscillatingBoundary(solver)
 			-- remap from enum/combobox int values to functions from the solver.boundaryOptions table
 			methods = table.map(boundaryMethods, function(v)
 				if type(v) == 'function' then return v end
-				return (select(2, next(self.boundaryOptions[1+v[0]])))
+				return (select(2, next(self.boundaryOptions[1+v])))
 			end),
 			mirrorVars = self.eqn.mirrorVars,
 		}

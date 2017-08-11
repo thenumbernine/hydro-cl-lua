@@ -87,7 +87,7 @@ kernel void calcFlux(
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			real deltaL = UL->ptr[j] - UL2->ptr[j];
 			real delta = UR->ptr[j] - UL->ptr[j];
 			real deltaR = UR2->ptr[j] - UR->ptr[j];

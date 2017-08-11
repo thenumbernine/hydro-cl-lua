@@ -21,7 +21,7 @@ function RungeKutta:init(solver)
 			needed = needed or self.alphas[m][i] ~= 0
 		end
 		if needed then
-			self.UBufs[i] = solver.app.ctx:buffer{rw=true, size=solver.volume * solver.eqn.numStates * ffi.sizeof(solver.app.real)}
+			self.UBufs[i] = solver.app.ctx:buffer{rw=true, size=solver.volume * ffi.sizeof(solver.eqn.cons_t)}
 		end
 	
 		local needed = false
@@ -29,16 +29,14 @@ function RungeKutta:init(solver)
 			needed = needed or self.betas[m][i] ~= 0
 		end
 		if needed then
-			self.derivBufs[i] = solver.app.ctx:buffer{rw=true, size=solver.volume * solver.eqn.numStates * ffi.sizeof(solver.app.real)}
+			self.derivBufs[i] = solver.app.ctx:buffer{rw=true, size=solver.volume * ffi.sizeof(solver.eqn.cons_t)}
 		end
 	end
 end
 
 function RungeKutta:integrate(dt, callback)
 	local solver = self.solver
-	local realSize = ffi.sizeof(solver.app.real)
-	local length = solver.volume * solver.eqn.numStates
-	local bufferSize = length * realSize
+	local bufferSize = solver.volume * ffi.sizeof(solver.eqn.cons_t)
 	
 	solver.multAddKernel:setArgs(solver.UBuf, solver.UBuf)
 	

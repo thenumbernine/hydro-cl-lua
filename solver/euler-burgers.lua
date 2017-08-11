@@ -15,6 +15,10 @@ function EulerBurgers:init(...)
 	self.name = nil	-- don't append the eqn name to this
 end
 
+function EulerBurgers:createEqn()
+	self.eqn = require 'eqn.euler'(self)
+end
+
 -- Usually the eqn provide their own 'calcDT'
 -- but sometimes the solver needs it too ...
 -- Maybe the eqn should flag whether it has 'calcDT'

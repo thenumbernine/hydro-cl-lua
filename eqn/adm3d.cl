@@ -918,7 +918,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* x,
 	real3 unused
 ) {
-	for (int i = 0; i < numStates; ++i) {
+	for (int i = 0; i < numIntStates; ++i) {
 		*y = 0;
 		++y;
 	}

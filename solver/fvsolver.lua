@@ -43,7 +43,7 @@ function FiniteVolumeSolver:addConvertToTexs()
 		varCodePrefix = [[
 	const global ]]..self.eqn.cons_t..[[* flux = buf + indexInt;
 ]],
-		vars = range(0,self.eqn.numStates-1):map(function(i)
+		vars = range(0,self.eqn.numIntStates-1):map(function(i)
 			return {[tostring(i)] = '*value = flux->ptr['..i..'];'}
 		end),
 	}

@@ -59,7 +59,7 @@ then
 		real areaR = volumeIntR / grid_dx<?=side?>;
 <? end
 ?>
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			deriv->ptr[j] -= (
 				fluxR->ptr[j] * areaR
 				- fluxL->ptr[j] * areaL

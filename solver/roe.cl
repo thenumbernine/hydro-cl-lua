@@ -23,7 +23,7 @@ kernel void calcErrors(
 
 <?	if solver.checkOrthoError then
 ?>		//the flux transform is F v = R Lambda L v, I = R L
-		//but if numWaves < numStates then certain v will map to the nullspace 
+		//but if numWaves < numIntStates then certain v will map to the nullspace 
 		//so to test orthogonality for only numWaves dimensions, I will verify that Qinv Q v = v 
 		//I = L R
 		for (int k = 0; k < numWaves; ++k) {
@@ -32,7 +32,7 @@ kernel void calcErrors(
 				basis[j] = k == j ? 1 : 0;
 			}
 			
-			real eigenInvCoords[numStates];
+			real eigenInvCoords[numIntStates];
 			eigen_rightTransform_<?=side?>__global_(eigenInvCoords, eig, basis, xInt);
 		
 			real newbasis[numWaves];
@@ -44,9 +44,9 @@ kernel void calcErrors(
 		}
 <? 	end
 	if solver.checkFluxError then	
-?>		for (int k = 0; k < numStates; ++k) {
-			real basis[numStates];
-			for (int j = 0; j < numStates; ++j) {
+?>		for (int k = 0; k < numIntStates; ++k) {
+			real basis[numIntStates];
+			for (int j = 0; j < numIntStates; ++j) {
 				basis[j] = k == j ? 1 : 0;
 			}
 
@@ -58,13 +58,13 @@ kernel void calcErrors(
 				eigenScaled[j] = eigenCoords[j] * wave[j];
 			}
 			
-			real newtransformed[numStates];
+			real newtransformed[numIntStates];
 			eigen_rightTransform_<?=side?>__global_(newtransformed, eig, eigenScaled, xInt);
 			
-			real transformed[numStates];
+			real transformed[numIntStates];
 			eigen_fluxTransform_<?=side?>__global_(transformed, eig, basis, xInt);
 			
-			for (int j = 0; j < numStates; ++j) {
+			for (int j = 0; j < numIntStates; ++j) {
 				fluxError += fabs(newtransformed[j] - transformed[j]);
 			}
 		}
@@ -95,7 +95,7 @@ kernel void calcDeltaUEig(
 		<?= solver.getULRCode ?>
 
 		<?=eqn.cons_t?> deltaU;
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			deltaU.ptr[j] = UR->ptr[j] - UL->ptr[j];
 		}
 	
@@ -171,7 +171,7 @@ kernel void calcFlux(
 		real fluxEig[numWaves];
 <? if not eqn.hasFluxFromCons then ?>
 		<?=eqn.cons_t?> UAvg;
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			UAvg.ptr[j] = .5 * (UL->ptr[j] + UR->ptr[j]);
 		}
 		eigen_leftTransform_<?=side?>__global_(fluxEig, eig, UAvg.ptr, xInt);
@@ -213,7 +213,7 @@ kernel void calcFlux(
 		
 		<?=eqn.cons_t?> FL = fluxFromCons_<?=side?>(*UL, xL);
 		<?=eqn.cons_t?> FR = fluxFromCons_<?=side?>(*UR, xR);
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			flux->ptr[j] += .5 * (FL.ptr[j] + FR.ptr[j]);
 		}
 <? end ?>

@@ -254,7 +254,7 @@ function GRHD:getDisplayVars()
 	<?=solver:getADMVarCode()?>
 	<?=eqn.cons_t?> U2 = consFromPrim(prim, alpha, beta, gamma);
 	*value = 0;
-	for (int j = 0; j < numStates; ++j) {
+	for (int j = 0; j < numIntStates; ++j) {
 		*value += fabs(U.ptr[j] - U2.ptr[j]);
 	}
 ]], {eqn=self, solver=self.solver})},

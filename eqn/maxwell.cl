@@ -258,10 +258,6 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	Y[5] = 0;
 		
 	<? end ?>
-
-<? for i=6,eqn.numStates-1 do ?>
-	Y[<?=i?>] = 0;
-<? end ?>
 }
 <?
 				end
