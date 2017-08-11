@@ -42,6 +42,13 @@ Maxwell.hasFluxFromCons = true
 
 Maxwell.initStates = require 'init.euler'
 
+function Maxwell:init(solver)
+	Maxwell.super.init(self, solver)
+
+	local NoDiv = require 'solver.nodiv'
+	solver.ops:insert(NoDiv{solver=solver})
+end
+
 function Maxwell:getTypeCode()
 	return template([[
 typedef union {

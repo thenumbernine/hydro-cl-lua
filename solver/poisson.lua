@@ -8,18 +8,19 @@ local template = require 'template'
 
 local Poisson = class()
 
+Poisson.potentialField = 'ePot'
+
+function Poisson:init(args)
+	self.solver = assert(args.solver)
+	self.potentialField = args.potentialField
+end
+
 function Poisson:getPotBufType()
 	return self.solver.eqn.cons_t
 end
 
 function Poisson:getPotBuf()
 	return self.solver.UBuf
-end
-
-Poisson.potentialField = 'ePot'
-
-function Poisson:init(solver)
-	self.solver = solver
 end
 
 Poisson.stopOnEpsilon = true
@@ -58,7 +59,7 @@ end
 function Poisson:refreshBoundaryProgram()
 	local solver = self.solver
 	-- only applies the boundary conditions to Poisson:potentialField
-	solver.potentialBoundaryProgram, solver.potentialBoundaryKernel =
+	self.potentialBoundaryProgram, self.potentialBoundaryKernel =
 		solver:createBoundaryProgramAndKernel{
 			type = self:getPotBufType(),
 			methods = table.map(solver.boundaryMethods, function(v)
@@ -68,13 +69,17 @@ function Poisson:refreshBoundaryProgram()
 				return a..'.'..self.potentialField..' = '..b..'.'..self.potentialField
 			end,
 		}
-	solver.potentialBoundaryKernel:setArg(0, self:getPotBuf())
+	self.potentialBoundaryKernel:setArg(0, self:getPotBuf())
 end
 
+-- TODO
+-- for Euler, add potential energy into total energy
+-- then MAKE SURE TO SUBTRACT IT OUT everywhere internal energy is used
 function Poisson:resetState()
 	local solver = self.solver
+	if self.enableField and not solver[self.enableField] then return end
 	solver.app.cmds:enqueueNDRangeKernel{kernel=self.initPoissonPotentialKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
-	solver:potentialBoundary()
+	self:potentialBoundary()
 	self:relax()
 end
 
@@ -83,7 +88,7 @@ function Poisson:relax()
 	for i=1,self.maxIters do
 		self.lastIter = i
 		solver.app.cmds:enqueueNDRangeKernel{kernel=self.solvePoissonJacobiKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
-		solver:potentialBoundary()
+		self:potentialBoundary()
 
 		if self.stopOnEpsilon then
 			local err = solver.reduceSum() / tonumber(solver.volumeWithoutBorder)
@@ -94,6 +99,10 @@ function Poisson:relax()
 			if err <= self.stopEpsilon then break end
 		end
 	end
+end
+
+function Poisson:potentialBoundary()
+	self.solver:applyBoundaryToBuffer(self.potentialBoundaryKernel)
 end
 
 function Poisson:updateGUI()
@@ -114,68 +123,6 @@ function Poisson:updateGUI()
 		ig.igText('iter = '..self.lastIter)
 	end
 	ig.igPopId()
-end
-
---[[
-static function
-called with : (to get the correct subclass)
-used as behavior template
-field - which field in 'self' to store this behavior object 
-enableField - which field in 'self' to toggle the behavior
---]]
-function Poisson:createBehavior(field, enableField)
-	local subclass = self
-	return function(parent)
-		local templateClass = class(parent)
-
-		function templateClass:init(args)
-			if enableField then
-				self[enableField] = not not args[enableField]
-			end
-
-			-- TODO in refreshGrid?
-			-- or should I always build one of these? 
-			--if not enableField or not self[enableField] then
-			self[field] = subclass(self)
-			--end
-
-			-- init is gonna call
-			templateClass.super.init(self, args)
-		end
-
-		function templateClass:getSolverCode()
-			return table{
-				templateClass.super.getSolverCode(self),
-				self[field]:getSolverCode(),
-			}:concat'\n'
-		end
-
-		function templateClass:refreshBoundaryProgram()
-			templateClass.super.refreshBoundaryProgram(self)
-			self[field]:refreshBoundaryProgram()
-		end
-
-		function templateClass:refreshSolverProgram()
-			templateClass.super.refreshSolverProgram(self)
-			self[field]:refreshSolverProgram()
-		end
-
-		-- TODO
-		-- for Euler, add potential energy into total energy
-		-- then MAKE SURE TO SUBTRACT IT OUT everywhere internal energy is used
-		function templateClass:resetState()
-			templateClass.super.resetState(self)
-			if not enableField or self[enableField] then
-				self[field]:resetState()
-			end
-		end
-
-		function templateClass:potentialBoundary()
-			self:applyBoundaryToBuffer(self.potentialBoundaryKernel)
-		end
-
-		return templateClass
-	end
 end
 
 return Poisson

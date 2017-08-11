@@ -4,6 +4,7 @@ local template = require 'template'
 
 local NoDiv = class(Poisson)
 
+-- which cons_t field to store the solved potential value in
 NoDiv.potentialField = 'BPot'
 
 function NoDiv:getCodeParams()
@@ -50,17 +51,10 @@ function NoDiv:refreshSolverProgram()
 	self.noDivKernel = solver.solverProgram:kernel('noDiv', solver.UBuf)
 end
 
-local field = 'noDivPoisson' 
-local apply = NoDiv:createBehavior(field)
-return function(parent)
-	local template = apply(parent)
-	
-	function template:step(dt)
-		template.super.step(self, dt)
-
-		self[field]:relax()
-		self.app.cmds:enqueueNDRangeKernel{kernel=self[field].noDivKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
-	end
-
-	return template
+function NoDiv:step(dt)
+	local solver = self.solver
+	self:relax()
+	solver.app.cmds:enqueueNDRangeKernel{kernel=self.noDivKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
 end
+
+return NoDiv

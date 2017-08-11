@@ -260,7 +260,7 @@ function HydroCLApp:setup()
 		
 		-- EM:
 		--initState = 'Maxwell default',
-		--initState = 'Maxwell scattering around cylinder',
+		initState = 'Maxwell scattering around cylinder',
 		--initState = 'Maxwell wire',
 		
 		--initState = 'two-fluid EMHD soliton ion',
@@ -269,7 +269,7 @@ function HydroCLApp:setup()
 	
 		-- GR
 		--initState = 'gauge shock wave',
-		initState = 'Alcubierre warp bubble',
+		--initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
 		--initState = 'black hole - isotropic',
 		--initState = 'binary black holes - isotropic',
@@ -279,11 +279,7 @@ function HydroCLApp:setup()
 	}
 	
 	-- HD - Roe
-	--self.solvers:insert(require 'solver.euler-roe'(args))
-
-	-- the same as solver.euler-roe:
-	-- TODO specify behavior operations (selfgrav, nodiv, etc) in eqn, and apply them to the solver
-	--self.solvers:insert(require 'solver.selfgrav'(require 'solver.roe')(table(args, {eqn='euler'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 	-- HD - Burgers
 	-- f.e. and b.e. are working, but none of the r.k. integrators 
@@ -320,10 +316,10 @@ function HydroCLApp:setup()
 	--		and works fine with backwards Euler 
 	-- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 	--		but that could be because of issues with simultaneous solvers.
-	--self.solvers:insert(require 'solver.mhd-roe'(args))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 	
 	-- EM
-	--self.solvers:insert(require 'solver.maxwell-roe'(args))
+	self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 	
 	-- EM+HD
 	-- I'm having some memory issues with two solvers running simultanously .. 
@@ -334,7 +330,7 @@ function HydroCLApp:setup()
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	self.solvers:insert(require 'solver.adm3d-roe'(args))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 	--
 	-- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
 	--  but something gets caught up in the freeflow boundary conditions, and it explodes

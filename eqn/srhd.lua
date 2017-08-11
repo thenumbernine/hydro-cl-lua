@@ -72,6 +72,9 @@ function SRHD:init(solver)
 		GuiFloat{name='tauMax', value=1e+20},
 	}
 	SRHD.super.init(self, solver)
+
+	local SRHDSelfGrav = require 'solver.srhd-selfgrav'
+	solver.ops:insert(SRHDSelfGrav{solver=solver})
 end
 
 function SRHD:getTypeCode()
@@ -220,22 +223,27 @@ local function vorticity(eqn,k)
 	local i = (k+1)%3
 	local j = (i+1)%3
 	return {['vorticity '..xs[k+1]] = template([[
-	global const <?=eqn.prim_t?>* prim_im = primBuf + index - stepsize.s<?=i?>;
-	global const <?=eqn.prim_t?>* prim_ip = primBuf + index + stepsize.s<?=i?>;
-	global const <?=eqn.prim_t?>* prim_jm = primBuf + index - stepsize.s<?=j?>;
-	global const <?=eqn.prim_t?>* prim_jp = primBuf + index + stepsize.s<?=j?>;
-
-	//TODO incorporate metric
-	//TODO 3-vorticity vs 4-vorticity?
-
-	real vim_j = prim_im->v.s<?=j?>;
-	real vip_j = prim_ip->v.s<?=j?>;
 	
-	real vjm_i = prim_jm->v.s<?=i?>;
-	real vjp_i = prim_jp->v.s<?=i?>;
-	
-	*value = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
-			- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
+	if (OOB(1,1)) {
+		*value = 0.;
+	} else {
+		global const <?=eqn.prim_t?>* prim_im = primBuf + index - stepsize.s<?=i?>;
+		global const <?=eqn.prim_t?>* prim_ip = primBuf + index + stepsize.s<?=i?>;
+		global const <?=eqn.prim_t?>* prim_jm = primBuf + index - stepsize.s<?=j?>;
+		global const <?=eqn.prim_t?>* prim_jp = primBuf + index + stepsize.s<?=j?>;
+
+		//TODO incorporate metric
+		//TODO 3-vorticity vs 4-vorticity?
+
+		real vim_j = prim_im->v.s<?=j?>;
+		real vip_j = prim_ip->v.s<?=j?>;
+		
+		real vjm_i = prim_jm->v.s<?=i?>;
+		real vjp_i = prim_jp->v.s<?=i?>;
+		
+		*value = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
+				- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
+	}
 ]], {
 		i = i,
 		j = j,

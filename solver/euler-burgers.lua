@@ -6,6 +6,7 @@ local range = require 'ext.range'
 local template = require 'template'
 local FiniteVolumeSolver = require 'solver.fvsolver'
 
+-- TODO make this work with ops, specifically Euler's SelfGrav
 local EulerBurgers = class(FiniteVolumeSolver)
 EulerBurgers.name = 'EulerBurgers'
 
@@ -106,9 +107,4 @@ function EulerBurgers:step(dt)
 	-- however for eqn/euler there is nothing there except my messing with connection coefficients
 end
 
--- all this does is add SelfGrav and add createEqn
-local EulerBehavior = require 'solver.euler-behavior'
-
--- wrap EulerBehavior last so its step() calls this class
--- because this class doesn't call super
-return EulerBehavior(EulerBurgers)
+return EulerBurgers

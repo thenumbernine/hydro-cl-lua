@@ -7,7 +7,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local template = require 'template'
-local Equation = require 'eqn.eqn'
+local NumRelEqn = require 'eqn.numrel'
 
 local xNames = table{'x', 'y', 'z'}
 
@@ -20,7 +20,7 @@ for i,xi in ipairs(xNames) do
 	end
 end
 
-local ADM_BonaMasso_3D = class(Equation)
+local ADM_BonaMasso_3D = class(NumRelEqn)
 ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
 
 ADM_BonaMasso_3D.consVars = {
@@ -318,6 +318,15 @@ end
 
 function ADM_BonaMasso_3D:getVecDisplayVars()
 	local vars = table()
+	
+	-- shift-less gravity only
+	-- gravity with shift is much more complex
+	vars:insert{gravity = [[
+	real det_gamma = sym3_det(U->gamma);
+	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
+	valuevec = real3_scale(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
+]]}
+	
 	local function add(field)
 		vars:insert{[field] = 'valuevec = U->'..field..';'}
 	end
@@ -329,13 +338,7 @@ function ADM_BonaMasso_3D:getVecDisplayVars()
 	addSym3'gamma'
 	add'a'
 	addSym3'K'
-	-- shift-less gravity only
-	-- gravity with shift is much more complex
-	vars:insert{gravity = [[
-	real det_gamma = sym3_det(U->gamma);
-	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	valuevec = real3_scale(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
-]]}
+
 	return vars
 end
 

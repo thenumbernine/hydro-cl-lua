@@ -31,27 +31,6 @@ function BSSNOKFiniteDifferenceSolver:refreshInitStateProgram()
 	self.initConnUBarKernel = self.initStateProgram:kernel('init_connBarU', self.UBuf)
 end
 
--- add an option for fixed Minkowsky boundary spacetime
-function BSSNOKFiniteDifferenceSolver:createBoundaryOptions()
-	BSSNOKFiniteDifferenceSolver.super.createBoundaryOptions(self)
-
-	self.boundaryOptions:insert{
-		fixed = function(args)
-			local lines = table()
-			local gridSizeSide = 'gridSize_'..xNames[args.side]
-			for _,U in ipairs{
-				'buf['..args.index'j'..']',
-				'buf['..args.index(gridSizeSide..'-numGhost+j')..']',
-			} do
-				lines:insert(template([[
-	setFlatSpace(&<?=U?>);
-]], {U=U}))
-			end
-			return lines:concat'\n'
-		end,
-	}
-end
-
 function BSSNOKFiniteDifferenceSolver:resetState()
 	BSSNOKFiniteDifferenceSolver.super.resetState(self)
 	

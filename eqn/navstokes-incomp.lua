@@ -86,18 +86,22 @@ function NavierStokesDivFree:getDisplayVars()
 		local i = (k+1)%3
 		local j = (i+1)%3
 		return {['vorticity '..xs[k+1]] = template([[
-	global const <?=eqn.cons_t?>* Uim = buf + index - stepsize.s<?=i?>;
-	global const <?=eqn.cons_t?>* Uip = buf + index + stepsize.s<?=i?>;
-	global const <?=eqn.cons_t?>* Ujm = buf + index - stepsize.s<?=j?>;
-	global const <?=eqn.cons_t?>* Ujp = buf + index + stepsize.s<?=j?>;
-	
-	real3 vim = Uim->v;
-	real3 vip = Uip->v;
-	real3 vjm = Ujm->v;
-	real3 vjp = Ujp->v;
-	
-	*value = (vjp.s<?=i?> - vjm.s<?=i?>) / (2. * grid_dx<?=i?>)
-			- (vip.s<?=j?> - vim.s<?=j?>) / (2. * grid_dx<?=j?>);
+	if (OOB(1,1)) {
+		*value = 0.;
+	} else {
+		global const <?=eqn.cons_t?>* Uim = buf + index - stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Uip = buf + index + stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Ujm = buf + index - stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = buf + index + stepsize.s<?=j?>;
+		
+		real3 vim = Uim->v;
+		real3 vip = Uip->v;
+		real3 vjm = Ujm->v;
+		real3 vjp = Ujp->v;
+		
+		*value = (vjp.s<?=i?> - vjm.s<?=i?>) / (2. * grid_dx<?=i?>)
+				- (vip.s<?=j?> - vim.s<?=j?>) / (2. * grid_dx<?=j?>);
+	}
 ]], 	{
 			i = i,
 			j = j,

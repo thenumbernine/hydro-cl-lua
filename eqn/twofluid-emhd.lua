@@ -56,11 +56,26 @@ else
 	TwoFluidEMHD.initStates = require 'init.twofluid-emhd'
 end
 
-function TwoFluidEMHD:init(...)
+function TwoFluidEMHD:init(solver)
 	self.guiVars = {
 		require 'guivar.float'{name='heatCapacityRatio', value=5/3}
 	}
-	TwoFluidEMHD.super.init(self, ...)
+	TwoFluidEMHD.super.init(self, solver)
+
+	local NoDiv = require 'solver.nodiv'
+	solver.ops:insert(NoDiv{solver=solver})	-- nodiv on maxwell
+	
+	local SelfGrav = require 'solver.selfgrav'
+	solver.ops:insert(SelfGrav{
+		solver = solver,
+		densityField = 'ion_rho',
+		potentialField = 'ion_ePot',
+	})	-- selfgrav on ion 
+	solver.ops:insert(SelfGrav{
+		solver = solver,
+		densityField = 'elec_rho',
+		potentialField = 'elec_ePot',
+	})	-- selfgrav on electron
 end
 
 
@@ -315,20 +330,24 @@ function TwoFluidEMHD:getDisplayVars()
 			local i = (k+1)%3
 			local j = (i+1)%3
 			return {[fluid..' vorticity '..xs[k+1]] = template([[
-	global const <?=eqn.cons_t?>* Uim = U - stepsize.s<?=i?>;
-	global const <?=eqn.cons_t?>* Uip = U + stepsize.s<?=i?>;
-	global const <?=eqn.cons_t?>* Ujm = U - stepsize.s<?=j?>;
-	global const <?=eqn.cons_t?>* Ujp = U + stepsize.s<?=j?>;
+	if (OOB(1,1)) {
+		*value = 0.;
+	} else {
+		global const <?=eqn.cons_t?>* Uim = U - stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Uip = U + stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Ujm = U - stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = U + stepsize.s<?=j?>;
 
-	//TODO incorporate metric
+		//TODO incorporate metric
 
-	real3 vim_j = Uim-><?=fluid?>_m.s<?=j?> / Uim-><?=fluid?>_rho;
-	real3 vip_j = Uip-><?=fluid?>_m.s<?=j?> / Uip-><?=fluid?>_rho;
-	real3 vjm_i = Ujm-><?=fluid?>_m.s<?=i?> / Ujm-><?=fluid?>_rho;
-	real3 vjp_i = Ujp-><?=fluid?>_m.s<?=i?> / Ujp-><?=fluid?>_rho;
-	
-	*value = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
-			- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
+		real3 vim_j = Uim-><?=fluid?>_m.s<?=j?> / Uim-><?=fluid?>_rho;
+		real3 vip_j = Uip-><?=fluid?>_m.s<?=j?> / Uip-><?=fluid?>_rho;
+		real3 vjm_i = Ujm-><?=fluid?>_m.s<?=i?> / Ujm-><?=fluid?>_rho;
+		real3 vjp_i = Ujp-><?=fluid?>_m.s<?=i?> / Ujp-><?=fluid?>_rho;
+		
+		*value = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
+				- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
+	}
 ]], 		{
 				i = i,
 				j = j,

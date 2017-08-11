@@ -22,12 +22,15 @@ MHD.initStates = require 'init.euler'
 
 local GuiFloat = require 'guivar.float'
 
-function MHD:init(...)
+function MHD:init(solver)
 	self.guiVars = table{
 		GuiFloat{name='heatCapacityRatio', value=2},	-- 5/3 for most problems, but 2 for Brio-Wu, so I will just set it here for now (in case something else is reading it before it is set there)
 		GuiFloat{name='mu0', value=1},	-- this should be 4 pi for natural units, but I haven't verified that all mu0's are where they should be ...
 	}
-	MHD.super.init(self, ...)
+	MHD.super.init(self, solver)
+	
+	local NoDiv = require 'solver.nodiv'
+	solver.ops:insert(NoDiv{solver=solver})
 end
 
 function MHD:getTypeCode()

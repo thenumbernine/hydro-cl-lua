@@ -28,7 +28,7 @@ Euler.useSourceTerm = true
 
 Euler.initStates = require 'init.euler'
 
-function Euler:init(...)
+function Euler:init(solver)
 	self.guiVars = {
 		require 'guivar.float'{name='heatCapacityRatio', 
 --in order to make things work, gamma needs to be set *HERE AND IN INIT/EULER*
@@ -37,7 +37,13 @@ function Euler:init(...)
 			value=7/5,
 		}
 	}
-	Euler.super.init(self, ...)
+	
+	Euler.super.init(self, solver)
+
+	-- TODO ops folder
+	local SelfGrav = require 'solver.selfgrav'
+	self.gravOp = SelfGrav{solver=solver}
+	solver.ops:insert(self.gravOp)
 end
 
 function Euler:getTypeCode()
@@ -178,21 +184,25 @@ local function vorticity(eqn,k)
 	local i = (k+1)%3
 	local j = (i+1)%3
 	return {['vorticity '..xs[k+1]] = template([[
-	global const <?=eqn.cons_t?>* Uim = buf + index - stepsize.s<?=i?>;
-	global const <?=eqn.cons_t?>* Uip = buf + index + stepsize.s<?=i?>;
-	global const <?=eqn.cons_t?>* Ujm = buf + index - stepsize.s<?=j?>;
-	global const <?=eqn.cons_t?>* Ujp = buf + index + stepsize.s<?=j?>;
+	if (OOB(1,1)) {
+		*value = 0.;
+	} else {
+		global const <?=eqn.cons_t?>* Uim = buf + index - stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Uip = buf + index + stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Ujm = buf + index - stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = buf + index + stepsize.s<?=j?>;
 
-	//TODO incorporate metric
+		//TODO incorporate metric
 
-	real vim_j = Uim->m.s<?=j?> / Uim->rho;
-	real vip_j = Uip->m.s<?=j?> / Uip->rho;
-	
-	real vjm_i = Ujm->m.s<?=i?> / Ujm->rho;
-	real vjp_i = Ujp->m.s<?=i?> / Ujp->rho;
-	
-	*value = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
-			- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
+		real vim_j = Uim->m.s<?=j?> / Uim->rho;
+		real vip_j = Uip->m.s<?=j?> / Uip->rho;
+		
+		real vjm_i = Ujm->m.s<?=i?> / Ujm->rho;
+		real vjp_i = Ujp->m.s<?=i?> / Ujp->rho;
+		
+		*value = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
+				- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
+	}
 ]], {
 		i = i,
 		j = j,
@@ -240,6 +250,22 @@ function Euler:getVecDisplayVars()
 	local vars = table{
 		{v = 'valuevec = W.v;'},
 		{m = 'valuevec = U.m;'},
+		{gravity = template([[
+	if (OOB(1,1)) {
+		*value = 0.;
+	} else {
+		<? 
+for side=0,solver.dim-1 do ?>{
+			global const <?=eqn.cons_t?>* Um = buf + index - stepsize.s<?=side?>;
+			global const <?=eqn.cons_t?>* Up = buf + index + stepsize.s<?=side?>;
+			valuevec.s<?=side?> = -(Up-><?=eqn.gravOp.potentialField?> - Um-><?=eqn.gravOp.potentialField?>) / (2. * dx<?=side?>_at(i));
+		}<? 
+end
+for side=solver.dim,2 do ?>
+		valuevec.s<?=side?> = 0.;
+<? end ?>
+	}
+]], {eqn=self, solver=self.solver})},
 	}
 	if self.solver.dim == 3 then
 		local v = range(0,2):map(function(i) return vorticity(self,i) end)

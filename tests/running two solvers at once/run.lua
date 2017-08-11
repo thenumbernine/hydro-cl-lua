@@ -37,9 +37,10 @@ function App:setup()
 	-- [=[ two-solver testing ...
 	-- running two solvers at once causes errors
 	local app = self
-	local cl = require 'solver.euler-roe'
-	--local cl = require 'solver.maxwell-roe'
-	--local cl = require 'solver.mhd-roe'
+	local cl = require 'solver.roe' 
+	args.eqn = 'euler'
+	--args.eqn = 'maxwell'
+	--args.eqn = 'mhd'
 	self.solvers:insert(cl(args))
 	self.solvers:insert(cl(args))
 	local s1, s2 = self.solvers:unpack()

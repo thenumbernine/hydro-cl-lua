@@ -42,21 +42,21 @@ local function TwoFluidEMHDBehavior(parent)
 		local emhdInitState
 		--]]
 
-		local IonSolver = class(require 'solver.euler-behavior'(parent))
-		function IonSolver:init(args)
+		local IonSolver = class(parent)
+		function IonSolver:init(table(args, {eqn='euler'}))
 			IonSolver.super.init(self, table(args, {initState = ionInitState}))
 			self.name = 'ion '..self.name
 		end
 		self.ion = IonSolver(args)
 
-		local ElectronSolver = class(require 'solver.euler-behavior'(parent))
-		function ElectronSolver:init(args)
+		local ElectronSolver = class(parent)
+		function ElectronSolver:init(table(args, {eqn='euler'}))
 			ElectronSolver.super.init(self, table(args, {initState = electronInitState}))
 			self.name = 'electron '..self.name
 		end
 		self.electron = ElectronSolver(args)
 
-		local MaxwellSolver = class(require 'solver.maxwell-behavior'(parent))
+		local MaxwellSolver = class(parent)
 		function MaxwellSolver:init(args)
 			MaxwellSolver.super.init(self, table(args, {initState = emhdInitState}))
 		end

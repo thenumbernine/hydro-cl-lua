@@ -4,6 +4,8 @@ local Poisson = require 'solver.poisson'
 
 local SRHDSelfGrav = class(Poisson)
 
+SRHDSelfGrav.enableField = 'useGravity'
+
 SRHDSelfGrav.gravitationConstant = 2	---- 6.67384e-11 m^3 / (kg s^2)
 
 function SRHDSelfGrav:getPotBufType()
@@ -17,7 +19,7 @@ end
 function SRHDSelfGrav:refreshBoundaryProgram()
 	SRHDSelfGrav.super.refreshBoundaryProgram(self)
 	local solver = self.solver
-	solver.potentialBoundaryKernel:setArg(0, solver.primBuf)
+	self.potentialBoundaryKernel:setArg(0, solver.primBuf)
 end
 
 -- params for solver/poisson.cl 
@@ -166,34 +168,26 @@ function SRHDSelfGrav:refreshSolverProgram()
 	SRHDSelfGrav.super.refreshSolverProgram(self)
 	
 	local solver = self.solver
-	solver.calcGravityDerivKernel = solver.solverProgram:kernel'calcGravityDeriv'
-	solver.calcGravityDerivKernel:setArg(1, solver.UBuf)
-	solver.calcGravityDerivKernel:setArg(2, solver.primBuf)
+	self.calcGravityDerivKernel = solver.solverProgram:kernel'calcGravityDeriv'
+	self.calcGravityDerivKernel:setArg(1, solver.UBuf)
+	self.calcGravityDerivKernel:setArg(2, solver.primBuf)
 end
 
-local field = 'gravityPoisson'
-local enableField = 'useGravity'
-return setmetatable({
-	class = SRHDSelfGrav,
-}, {
-	__call = function(reqWrapper, parent)
-		local apply = reqWrapper.class:createBehavior(field, enableField)
-		local template = apply(parent)
+function SRHDSelfGrav:updateGUI()
+	SRHDSelfGrav.super.updateGUI(self)
+	ig.igPushIdStr'SRHDSelfGrav behavior'
+	tooltip.checkboxTable('use gravity', self.solver, self.enableField)
+	ig.igPopId()
+end
 
-		function template:step(dt)
-			template.super.step(self, dt)
-		
-			self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
-			self.app.cmds:enqueueNDRangeKernel{kernel=self.updatePrimsKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
-			
-			if not self[enableField] then return end
-			self.integrator:integrate(dt, function(derivBuf)
-				self[field]:relax()
-				self.calcGravityDerivKernel:setArg(0, derivBuf)
-				self.app.cmds:enqueueNDRangeKernel{kernel=self.calcGravityDerivKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
-			end)
-		end
+function SRHDSelfGrav:step(dt)
+	local solver = self.solver
+	if not solver[self.enableField] then return end
+	solver.integrator:integrate(dt, function(derivBuf)
+		self:relax()
+		self.calcGravityDerivKernel:setArg(0, derivBuf)
+		solver.app.cmds:enqueueNDRangeKernel{kernel=self.calcGravityDerivKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+	end)
+end
 
-		return template
-	end,
-})
+return SRHDSelfGrav

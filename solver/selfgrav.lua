@@ -1,16 +1,25 @@
-local class = require 'ext.class'
+local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
+local class = require 'ext.class'
 local tooltip = require 'tooltip'
 local template = require 'template'
+
 local Poisson = require 'solver.poisson'
-
 --local Poisson = require 'solver.poisson_gmres'
-
--- TODO guarantee all potential values are initially positive (and from then on?)
 
 local SelfGrav = class(Poisson)
 
+-- potential field is inhertied from Poisson: ePot
+SelfGrav.densityField = 'rho'
+
+SelfGrav.enableField = 'useGravity'
+
 SelfGrav.gravitationConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
+
+function SelfGrav:init(args)
+	SelfGrav.super.init(self, args)
+	self.densityField = args.densityField	
+end
 
 -- params for solver/poisson.cl 
 function SelfGrav:getCodeParams()
@@ -18,9 +27,8 @@ function SelfGrav:getCodeParams()
 		calcRho = template([[
 #define gravitationalConstant <?=clnumber(self.gravitationConstant)?>
 	//maybe a 4pi?  or is that only in the continuous case?
-	rho = gravitationalConstant * U->rho;
-]], 
-		{
+	rho = gravitationalConstant * U-><?=self.densityField?>;
+]], {
 			self = self,
 			solver = self.solver,
 			eqn = self.solver.eqn,
@@ -30,9 +38,7 @@ function SelfGrav:getCodeParams()
 end
 
 function SelfGrav:getPoissonCode()
-	return template(
-		[[
-
+	return template([[
 kernel void calcGravityDeriv(
 	global <?=eqn.cons_t?>* derivBuffer,
 	global const <?=eqn.cons_t?>* UBuf
@@ -50,8 +56,8 @@ kernel void calcGravityDeriv(
 	
 		real gravity = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * dx<?=side?>_at(i));
 
-		deriv->m.s[side] -= U->rho * gravity;
-		deriv->ETotal -= U->rho * gravity * U->m.s[side];
+		deriv->m.s[side] -= U-><?=self.densityField?> * gravity;
+		deriv->ETotal -= U-><?=self.densityField?> * gravity * U->m.s[side];
 	}<? end ?>
 }
 
@@ -61,7 +67,7 @@ kernel void reduce_ePot(
 	global const <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
-	reduceBuf[index] = UBuf[index].ePot;
+	reduceBuf[index] = UBuf[index].<?=self.potentialField?>;
 }
 
 //hmm, if ePot is negative then we get the cool turbulence effect
@@ -71,14 +77,15 @@ kernel void offsetPotentialAndAddToTotal(
 	global <?=eqn.cons_t?>* UBuf,
 	real ePotMin
 ) {
+	const real basePotential = 0.;
+	//const real basePotential = 1.;
+	
 	SETBOUNDS(0,0);
 	global <?=eqn.cons_t?>* U = UBuf + index;
-	U->ePot += 0. - ePotMin;
-	U->ETotal += U->rho * U->ePot;
+	U-><?=self.potentialField?> += basePotential - ePotMin;
+	U->ETotal += U-><?=self.densityField?> * U-><?=self.potentialField?>;
 }
-
-]],
-	{
+]], {
 		self = self,
 		solver = self.solver,
 		eqn = self.solver.eqn,
@@ -98,7 +105,6 @@ function SelfGrav:refreshSolverProgram()
 	self.offsetPotentialAndAddToTotalKernel = solver.solverProgram:kernel('offsetPotentialAndAddToTotal', solver.UBuf)
 end
 
-local ffi = require 'ffi'
 function SelfGrav:resetState()
 	SelfGrav.super.resetState(self)
 
@@ -123,35 +129,21 @@ function SelfGrav:resetState()
 print('offsetting potential energy from '..ePotMin..','..ePotMax..' to '..new_ePotMin..','..new_ePotMax)
 end
 
-local field = 'gravityPoisson'
-local enableField = 'useGravity'
-
--- TODO maybe put this inside the Poisson:updateGUI collapsing header?
 function SelfGrav:updateGUI()
 	SelfGrav.super.updateGUI(self)
 	ig.igPushIdStr'SelfGrav behavior'
-	tooltip.checkboxTable('use gravity', self.solver, enableField)
+	tooltip.checkboxTable('use gravity', self.solver, self.enableField)
 	ig.igPopId()
 end
 
-return setmetatable({
-	class = SelfGrav,
-}, {
-	__call = function(reqWrapper, parent)
-		local apply = reqWrapper.class:createBehavior(field, enableField)
-		local template = apply(parent)
+function SelfGrav:step(dt)
+	local solver = self.solver
+	if not solver[self.enableField] then return end
+	solver.integrator:integrate(dt, function(derivBuf)
+		self:relax()
+		self.calcGravityDerivKernel:setArg(0, derivBuf)
+		solver.app.cmds:enqueueNDRangeKernel{kernel=self.calcGravityDerivKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+	end)
+end
 
-		function template:step(dt)
-			template.super.step(self, dt)
-			
-			if not self[enableField] then return end
-			self.integrator:integrate(dt, function(derivBuf)
-				self[field]:relax()
-				self[field].calcGravityDerivKernel:setArg(0, derivBuf)
-				self.app.cmds:enqueueNDRangeKernel{kernel=self[field].calcGravityDerivKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
-			end)
-		end
-
-		return template
-	end,
-})
+return SelfGrav

@@ -2,10 +2,10 @@ local file = require 'ext.file'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
-local Equation = require 'eqn.eqn'
 local symmath = require 'symmath'
 local clnumber = require 'cl.obj.number'
-	
+local NumRelEqn = require 'eqn.numrel'
+
 -- bssnok helper functions:
 
 local xNames = table{'x', 'y', 'z'}
@@ -164,7 +164,7 @@ local function getTemplateEnv(eqn)
 end
 
 
-local BSSNOKFiniteDifferenceEquation = class(Equation)
+local BSSNOKFiniteDifferenceEquation = class(NumRelEqn)
 
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
 BSSNOKFiniteDifferenceEquation.numStates = 35

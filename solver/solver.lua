@@ -72,7 +72,7 @@ function Solver:init(args)
 
 
 	self.dim = assert(args.dim)
-
+	
 	-- TODO OK this is a little ambiguous ...
 	-- gridSize is the desired grid size
 	-- self.gridSize is gonna be that, plus numGhost on either side ...
@@ -95,7 +95,10 @@ function Solver:init(args)
 	for i=0,self.dim-1 do self.gridSize:ptr()[i] = self.gridSize:ptr()[i] + 2 * self.numGhost end
 	for i=self.dim,2 do self.gridSize:ptr()[i] = 1 end
 
-	
+		-- operators for this solver
+	self.ops = table()
+	self:createEqn(args.eqn)
+
 	self:createBoundaryOptions()
 	self:finalizeBoundaryOptions()
 
@@ -112,9 +115,6 @@ function Solver:init(args)
 				)-1)
 		end
 	end
-
-
-	self:createEqn(args.eqn)
 
 	self.name = self.eqn.name..' '..self.name
 
@@ -207,6 +207,10 @@ function Solver:createBoundaryOptions()
 			end
 		end},
 	}
+
+	if self.eqn.createBoundaryOptions then
+		self.eqn:createBoundaryOptions()
+	end
 end
 function Solver:finalizeBoundaryOptions()
 	self.boundaryOptionNames = self.boundaryOptions:map(function(option) return (next(option)) end)
@@ -874,6 +878,10 @@ function Solver:resetState()
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
 	self.app.cmds:finish()
+
+	for _,op in ipairs(self.ops) do
+		op:resetState()
+	end
 end
 
 function Solver:getCalcDTCode()
@@ -1057,7 +1065,9 @@ kernel void initNodeFromRoot(
 				eqn = self.eqn,
 				clnumber = clnumber,
 			}),
-	}:concat'\n'
+	}:append(self.ops:map(function(op)
+		return op:getSolverCode()
+	end)):concat'\n'
 end
 
 -- depends on buffers
@@ -1122,6 +1132,10 @@ elseif tryingAMR == 'gradient' then
 	self.calcAMRErrorKernel = self.solverProgram:kernel('calcAMRError', self.amrErrorBuf, self.UBuf)
 	self.initNodeFromRootKernel = self.solverProgram:kernel('initNodeFromRoot', self.UBuf)
 end
+
+	for _,op in ipairs(self.ops) do
+		op:refreshSolverProgram()
+	end
 end
 
 -- for solvers who don't rely on calcDT
@@ -1348,6 +1362,9 @@ function Solver:refreshBoundaryProgram()
 	self.boundaryProgram, self.boundaryKernel = 
 		self:createBoundaryProgramAndKernel(self:getBoundaryProgramArgs())
 	self.boundaryKernel:setArg(0, self.UBuf)
+	for _,op in ipairs(self.ops) do
+		op:refreshBoundaryProgram()
+	end
 end
 
 -- assumes the buffer is already in the kernel's arg
@@ -1607,6 +1624,12 @@ function Solver:step(dt)
 		self:boundary()
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
+
+	for _,op in ipairs(self.ops) do
+		if op.step then
+			op:step(dt)
+		end
+	end
 end
 
 function Solver:printBuf(buf, ptr)
@@ -1752,12 +1775,8 @@ function Solver:updateGUIParams()
 			ig.igPopId()
 		end
 
-		-- TODO either hold a list of Poisson operations
-		-- or a list of sub-GUIs (which Poisson and Integrator can attach themselves to)
-		-- or a list of operations (flux integration, constrain U, self-grav, etc)
-		-- 	and then add GUIs from this list
-		if self.gravityPoisson then
-			self.gravityPoisson:updateGUI()
+		for _,op in ipairs(self.ops) do
+			op:updateGUI()
 		end
 
 		if tooltip.combo('slope limiter', self.fluxLimiter, self.app.limiterNames) then

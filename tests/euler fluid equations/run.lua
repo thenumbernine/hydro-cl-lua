@@ -22,8 +22,9 @@ local f = io.open(dir..'/var-ranges.txt', 'w')
 local App = class(require 'app')
 
 function App:setup()
-	local solver = require 'solver.euler-roe'{
+	local solver = require 'solver.roe'{
 		app = self, 
+		eqn = 'euler',
 		dim = 2,
 		fluxLimiter = 'superbee',
 		geometry = 'cartesian',
