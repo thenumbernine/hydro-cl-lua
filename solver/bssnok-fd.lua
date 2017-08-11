@@ -37,7 +37,6 @@ function BSSNOKFiniteDifferenceSolver:createBoundaryOptions()
 
 	self.boundaryOptions:insert{
 		fixed = function(args)
-		
 			local lines = table()
 			local gridSizeSide = 'gridSize_'..xNames[args.side]
 			for _,U in ipairs{
@@ -45,13 +44,7 @@ function BSSNOKFiniteDifferenceSolver:createBoundaryOptions()
 				'buf['..args.index(gridSizeSide..'-numGhost+j')..']',
 			} do
 				lines:insert(template([[
-	<?=U?>.alpha = 1.;
-	<?=U?>.beta_u = _real3(0,0,0);
-	<?=U?>.gammaBar_ll = _sym3(1,0,0,1,0,1);
-	<?=U?>.phi = 0;
-	<?=U?>.K = 0;
-	<?=U?>.ATilde_ll = _sym3(1,0,0,1,0,1);
-	<?=U?>.connBar_u = _real3(0,0,0);
+	setFlatSpace(&<?=U?>);
 ]], {U=U}))
 			end
 			return lines:concat'\n'

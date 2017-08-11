@@ -227,11 +227,26 @@ end
 
 BSSNOKFiniteDifferenceEquation.initStates = require 'init.adm'
 
+-- should this be getInitStateCode like in eqn/euler?
 function BSSNOKFiniteDifferenceEquation:getCodePrefix()
 	local initState = self.initStates[self.solver.initStateIndex]
 	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
 	
-	return initState.init(self.solver, function(exprs, vars, args)
+	local lines = table()
+	
+	lines:insert(template([[
+void setFlatSpace(global <?=eqn.cons_t?>* U) {
+	U->alpha = 1.;
+	U->beta_u = _real3(0,0,0);
+	U->gammaBar_ll = _sym3(1,0,0,1,0,1);
+	U->phi = 0;
+	U->K = 0;
+	U->ATilde_ll = _sym3(1,0,0,1,0,1);
+	U->connBar_u = _real3(0,0,0);
+}
+]], {eqn=self}))
+	
+	lines:insert(initState.init(self.solver, function(exprs, vars, args)
 		return table(
 			--f = exprs.f,
 			--dalpha_f = exprs.dalpha_f,
@@ -246,7 +261,9 @@ function BSSNOKFiniteDifferenceEquation:getCodePrefix()
 				return exprs.K[ij], 'K_'..xij
 			end)
 		)	
-	end)
+	end))
+
+	return lines:concat()
 end
 
 function BSSNOKFiniteDifferenceEquation:getInitStateCode()

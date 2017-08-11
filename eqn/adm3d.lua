@@ -83,7 +83,22 @@ function ADM_BonaMasso_3D:getCodePrefix()
 	local initState = self.initStates[self.solver.initStateIndex]
 	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
 	
-	return initState.init(self.solver, function(exprs, vars, args)
+	local lines = table()
+	
+	lines:insert(template([[
+void setFlatSpace(global <?=eqn.cons_t?>* U) {
+	U->alpha = 1.;
+	U->gamma = _sym3(1,0,0,1,0,1);
+	U->a = _real3(0,0,0);
+	U->d[0] = _sym3(0,0,0,0,0,0);
+	U->d[1] = _sym3(0,0,0,0,0,0);
+	U->d[2] = _sym3(0,0,0,0,0,0);
+	U->K = _sym3(0,0,0,0,0,0);
+	U->V = _real3(0,0,0);
+}
+]], {eqn=self}))
+	
+	lines:insert(initState.init(self.solver, function(exprs, vars, args)
 		print('building lapse partials...')
 		exprs.a = table.map(vars, function(var)
 			return (exprs.alpha:diff(var) / exprs.alpha)()
@@ -138,7 +153,9 @@ function ADM_BonaMasso_3D:getCodePrefix()
 			end),
 			--]]
 		)
-	end)
+	end))
+
+	return lines:concat()
 end
 
 local xNames = table{'x', 'y', 'z'}
