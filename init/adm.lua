@@ -178,6 +178,7 @@ local function buildFCCode(solver, diff)
 end
 
 return table{
+	-- from 1997 Alcubierre "The appearance of coorindate shocks in hyperbolic formalisms of General Relativity".
 	{
 		name = 'gauge shock wave',
 		init = function(solver, getCodes)
@@ -215,6 +216,7 @@ return table{
 				return (x - xcs[i])^2
 			end):sum()
 
+			-- to be fair, I don't think Alcubierre ever does this wave in more than 1D 
 			local h = H * symmath.exp(-s / sigma^2)
 			h = h()
 			local dh = symmath.Tensor('_i', function(i) return h:diff(xs[i])() end)
@@ -233,6 +235,27 @@ return table{
 				alpha = symmath.clone(alpha),
 				gamma = symNames:map(function(xij,ij) return gamma[{from6to3x3(ij)}] end),
 				K = symNames:map(function(xij,ij) return K[{from6to3x3(ij)}] end),
+			}
+		end,
+	},
+	-- from 2012 Alic et. al. "Conformal and covariant formulations of the Z4 system with constraint-violation damping"
+	{
+		name = 'plane gauge wave',
+		init = function(solver, getCodes)
+			local xs = xNames:map(function(x) return symmath.var(x) end)
+			symmath.Tensor.coords{{variables=xs}}
+			local x,y,z = xs:unpack()
+
+			local A = .1
+			local L = 1
+			local h = 1 - A * symmath.sin((2 * math.pi / L) * x)
+			return initNumRel{
+				solver = solver,
+				getCodes = getCodes,
+				vars = xs,
+				alpha = symmath.sqrt(h),
+				gamma = {h,0,0,1,0,1},
+				K = {0,0,0,0,0},
 			}
 		end,
 	},

@@ -18,9 +18,7 @@ end
 
 function GuiCombo:updateGUI(solver)
 	if tooltip.comboTable(self.name, self, 'value', self.options) then
-		print('refreshing '..self.name..' = '..self.options[self.value])
-		solver:refreshSolverProgram()
-		solver:refreshDisplayProgram()
+		self:refresh(self.options[self.value], solver)
 	end
 end
 

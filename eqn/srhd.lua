@@ -16,11 +16,15 @@ local template = require 'template'
 
 local SRHD = class(Equation)
 SRHD.name = 'SRHD'
-SRHD.numStates = 6
+SRHD.numStates = 11
 SRHD.numWaves = 5
 SRHD.numIntStates = 5
 
-SRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
+SRHD.mirrorVars = {
+	{'cons.S.x', 'prim.v.x'},
+	{'cons.S.y', 'prim.v.y'},
+	{'cons.S.z', 'prim.v.z'},
+}
 
 SRHD.hasEigenCode = true 
 
@@ -37,6 +41,8 @@ SRHD.initStates = require 'init.euler'
 local GuiFloat = require 'guivar.float'
 local GuiInt = require 'guivar.int'
 function SRHD:init(solver)
+
+	self.cons_only_t = self:unique'cons_only_t'
 
 	-- hmm, setting the higher thresholds using double precision is less stable
 	local double = false --solver.app.real == 'double'
@@ -79,23 +85,30 @@ end
 
 function SRHD:getTypeCode()
 	return template([[
-typedef struct {
-	real rho;
-	real3 v;
-	real eInt;
-	real ePot;
-} <?=eqn.prim_t?>;
-
 typedef union {
-	real ptr[6];
+	real ptr[5];
 	struct {
 		real D;
 		real3 S;
 		real tau;
-		
-		// TODO fix this.
-		// it is here because prim_t is expected to be the same size as cons_t
-		real unused;
+	};
+} <?=eqn.cons_only_t?>;
+
+typedef union {
+	real ptr[5];
+	struct {
+		real rho;
+		real3 v;
+		real eInt;
+	};
+} <?=eqn.prim_t?>;
+
+typedef union {
+	real ptr[11];
+	struct {
+		<?=eqn.cons_only_t?> cons;
+		<?=eqn.prim_t?> prim;
+		real ePot;
 	};
 } <?=eqn.cons_t?>;
 ]], {
@@ -131,7 +144,7 @@ real calc_h(real rho, real P, real eInt) {
 	return 1. + eInt + P / rho;
 }
 
-<?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> prim, real3 x) {
+<?=eqn.cons_only_t?> consFromPrim(<?=eqn.prim_t?> prim, real3 x) {
 	real vSq = coordLenSq(prim.v, x);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
@@ -149,7 +162,7 @@ real calc_h(real rho, real P, real eInt) {
 	//energy = T^00 = rho h u^0 u^0 + P g^00
 	real tau = prim.rho * h * WSq - D - P;
 	
-	return (<?=eqn.cons_t?>){.D=D, .S=S, .tau=tau};
+	return (<?=eqn.cons_only_t?>){.D=D, .S=S, .tau=tau};
 }
 ]], {
 	eqn = self,
@@ -164,8 +177,7 @@ function SRHD:getInitStateCode()
 	return template([[
 
 kernel void initState(
-	global <?=eqn.cons_t?>* consBuf,
-	global <?=eqn.prim_t?>* primBuf
+	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
@@ -192,8 +204,10 @@ kernel void initState(
 	real h = calc_h(rho, P, eInt);
 
 	<?=eqn.prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
-	primBuf[index] = prim;
-	consBuf[index] = consFromPrim(prim, x);
+	UBuf[index] = (<?=eqn.cons_t?>){
+		.prim = prim,
+		.cons = consFromPrim(prim, x),
+	};
 }
 ]], {
 	eqn = self,
@@ -207,15 +221,6 @@ function SRHD:getSolverCode()
 	})
 end
 
-function SRHD:getDisplayVarCodePrefix()
-	return template([[
-	<?=eqn.cons_t?> U = buf[index];
-	<?=eqn.prim_t?> prim = primBuf[index];
-]], {
-	eqn = self,
-})
-end
-
 -- TODO put in common parent of Euler, SRHD, GRHD
 -- k is 0,1,2
 local function vorticity(eqn,k)
@@ -227,10 +232,10 @@ local function vorticity(eqn,k)
 	if (OOB(1,1)) {
 		*value = 0.;
 	} else {
-		global const <?=eqn.prim_t?>* prim_im = primBuf + index - stepsize.s<?=i?>;
-		global const <?=eqn.prim_t?>* prim_ip = primBuf + index + stepsize.s<?=i?>;
-		global const <?=eqn.prim_t?>* prim_jm = primBuf + index - stepsize.s<?=j?>;
-		global const <?=eqn.prim_t?>* prim_jp = primBuf + index + stepsize.s<?=j?>;
+		global const <?=eqn.prim_t?>* prim_im = &buf[index - stepsize.s<?=i?>].prim;
+		global const <?=eqn.prim_t?>* prim_ip = &buf[index + stepsize.s<?=i?>].prim;
+		global const <?=eqn.prim_t?>* prim_jm = &buf[index - stepsize.s<?=j?>].prim;
+		global const <?=eqn.prim_t?>* prim_jp = &buf[index + stepsize.s<?=j?>].prim;
 
 		//TODO incorporate metric
 		//TODO 3-vorticity vs 4-vorticity?
@@ -253,28 +258,40 @@ end
 
 function SRHD:getDisplayVars()
 	return table{
-		{D = '*value = U.D;'},
-		{Sx = '*value = U.S.x;'},
-		{Sy = '*value = U.S.y;'},
-		{Sz = '*value = U.S.z;'},
-		{S = '*value = coordLen(U.S, x);'},
-		{tau = '*value = U.tau;'},
-		{['W based on D'] = '*value = U.D / prim.rho;'},
-		{['W based on v'] = '*value = 1. / sqrt(1. - coordLenSq(prim.v, x));'},
+		{D = '*value = U->cons.D;'},
+		{Sx = '*value = U->cons.S.x;'},
+		{Sy = '*value = U->cons.S.y;'},
+		{Sz = '*value = U->cons.S.z;'},
+		{S = '*value = coordLen(U->cons.S, x);'},
+		{tau = '*value = U->cons.tau;'},
+		{['W based on D'] = '*value = U->cons.D / U->prim.rho;'},
+		{['W based on v'] = '*value = 1. / sqrt(1. - coordLenSq(U->prim.v, x));'},
+		
+		{rho = '*value = U->prim.rho;'},
+		{vx = '*value = U->prim.v.x;'},
+		{vy = '*value = U->prim.v.y;'},
+		{vz = '*value = U->prim.v.z;'},
+		{v = '*value = coordLen(U->prim.v, x);'},
+		{eInt = '*value = U->prim.eInt;'},
+		{P = '*value = calc_P(U->prim.rho, U->prim.eInt);'},
+		{h = '*value = calc_h(U->prim.rho, calc_P(U->prim.rho, U->prim.eInt), U->prim.eInt);'},
+		
+		{ePot = '*value = U->ePot;'},
+		
 		{['primitive reconstruction error'] = template([[
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
 	{
-		<?=eqn.cons_t?> U2 = consFromPrim(prim, x);
+		<?=eqn.cons_only_t?> U2 = consFromPrim(U->prim, x);
 		*value = 0;
 		for (int j = 0; j < numIntStates; ++j) {
-			*value += fabs(U.ptr[j] - U2.ptr[j]);
+			*value += fabs(U->cons.ptr[j] - U2.ptr[j]);
 		}
 	}
 	]], {eqn=self})},
 		{['W error'] = [[
-	real W1 = U.D / prim.rho;
-	real W2 = 1. / sqrt(1. - coordLenSq(prim.v, x));
+	real W1 = U->cons.D / U->prim.rho;
+	real W2 = 1. / sqrt(1. - coordLenSq(U->prim.v, x));
 	*value = fabs(W1 - W2);
 ]]		},
 	}:append( ({
@@ -286,30 +303,10 @@ function SRHD:getDisplayVars()
 	})[self.solver.dim] )
 end
 
-function SRHD:getPrimDisplayVarCodePrefix()
-	return template([[
-	<?=eqn.prim_t?> prim = buf[index];
-]], {
-		eqn = self,
-	})
-end
-
-SRHD.primDisplayVars = {
-	{rho = '*value = prim.rho;'},
-	{vx = '*value = prim.v.x;'},
-	{vy = '*value = prim.v.y;'},
-	{vz = '*value = prim.v.z;'},
-	{v = '*value = coordLen(prim.v, x);'},
-	{eInt = '*value = prim.eInt;'},
-	{ePot = '*value = prim.ePot;'},
-	{P = '*value = calc_P(prim.rho, prim.eInt);'},
-	{h = '*value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt);'},
-}
-
 function SRHD:getVecDisplayVars()
 	local vars = table{
-		{v = 'valuevec = prim.v;'},
-		{S = 'valuevec = U.S;'},
+		{v = 'valuevec = U->prim.v;'},
+		{S = 'valuevec = U->cons.S;'},
 	}
 	if self.solver.dim == 3 then
 		local v = range(0,2):map(function(i) return vorticity(self,i) end)

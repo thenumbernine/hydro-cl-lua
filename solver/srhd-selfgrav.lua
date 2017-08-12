@@ -8,18 +8,9 @@ SRHDSelfGrav.enableField = 'useGravity'
 
 SRHDSelfGrav.gravitationConstant = 2	---- 6.67384e-11 m^3 / (kg s^2)
 
-function SRHDSelfGrav:getPotBufType()
-	return self.solver.eqn.prim_t
-end
-
-function SRHDSelfGrav:getPotBuf()
-	return self.solver.primBuf
-end
-
-function SRHDSelfGrav:refreshBoundaryProgram()
-	SRHDSelfGrav.super.refreshBoundaryProgram(self)
-	local solver = self.solver
-	self.potentialBoundaryKernel:setArg(0, solver.primBuf)
+function SRHDSelfGrav:init(args)
+	SRHDSelfGrav.super.init(self, args)
+	self.densityField = args.densityField	
 end
 
 -- params for solver/poisson.cl 
@@ -30,7 +21,7 @@ function SRHDSelfGrav:getCodeParams()
 		-- even though it's the primBuf ...
 		calcRho = template([[
 #define gravitationalConstant <?=clnumber(self.gravitationConstant)?>
-	global <?=eqn.prim_t?>* prim = UBuf + index;
+	global <?=eqn.prim_t?>* prim = &UBuf[index].prim;
 	//maybe a 4pi?  or is that only in the continuous case?
 	rho = gravitationalConstant * prim->rho;
 ]], 
@@ -44,19 +35,16 @@ function SRHDSelfGrav:getCodeParams()
 end
 
 function SRHDSelfGrav:getPoissonCode()
-	return template(
-		[[
-
+	return template([[
 kernel void calcGravityDeriv(
 	global <?=eqn.cons_t?>* derivBuffer,
-	global const <?=eqn.cons_t?>* UBuf,
-	global const <?=eqn.prim_t?>* primBuf
+	global const <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	
 	global <?=eqn.cons_t?>* deriv = derivBuffer + index;
-	const global <?=eqn.cons_t?>* U = UBuf + index;
-	const global <?=eqn.prim_t?>* prim = primBuf + index;
+	const global <?=eqn.cons_only_t?>* U = &UBuf[index].cons;
+	const global <?=eqn.prim_t?>* prim = &UBuf[index].prim;
 
 	real3 du_dt = _real3(0,0,0);
 	//for (int side = 0; side < dim; ++side) {
@@ -65,10 +53,10 @@ kernel void calcGravityDeriv(
 		int indexL = index - stepsize[side];
 		int indexR = index + stepsize[side];
 
-		du_dt.s<?=side?> = (primBuf[indexR].<?=self.potentialField?> - primBuf[indexL].<?=self.potentialField?>) / (2. * dx<?=side?>_at(i));
+		du_dt.s<?=side?> = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * dx<?=side?>_at(i));
 	}<? end ?>
 
-	real Phi = primBuf[index].<?=self.potentialField?>;
+	real Phi = UBuf[index].<?=self.potentialField?>;
 
 	//u = W v
 	real W = U->D / prim->rho;
@@ -138,12 +126,12 @@ kernel void calcGravityDeriv(
 
 	//D = W rho
 	//D,t = W,t rho
-	deriv->D -= dW_dt * prim->rho;
+	deriv->cons.D -= dW_dt * prim->rho;
 
 	//S = rho h W^2 v = rho h W u
 	//assuming rho and h are constant ... 
 	//S,t = rho h (W,t u + W u,t)
-	deriv->S = real3_sub(deriv->S,
+	deriv->cons.S = real3_sub(deriv->cons.S,
 		real3_add(
 			real3_scale(u, prim->rho * h * dW_dt),
 			real3_scale(du_dt, prim->rho * h * W)
@@ -153,7 +141,7 @@ kernel void calcGravityDeriv(
 	//tau = rho h W^2 - p - rho W
 	//tau,t = rho h (2 W W,t) - rho W,t
 	//tau,t = rho W,t (2 h W - 1)
-	deriv->tau -= prim->rho * dW_dt * (2. * h * W - 1.);
+	deriv->cons.tau -= prim->rho * dW_dt * (2. * h * W - 1.);
 }
 
 ]],
@@ -170,7 +158,6 @@ function SRHDSelfGrav:refreshSolverProgram()
 	local solver = self.solver
 	self.calcGravityDerivKernel = solver.solverProgram:kernel'calcGravityDeriv'
 	self.calcGravityDerivKernel:setArg(1, solver.UBuf)
-	self.calcGravityDerivKernel:setArg(2, solver.primBuf)
 end
 
 function SRHDSelfGrav:updateGUI()

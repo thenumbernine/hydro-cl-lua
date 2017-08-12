@@ -8,13 +8,13 @@ Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 20
 //Eqn.hasFluxFromCons
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U) {
-	real vi = W->v.s<?=side?>;
+	real vi = U->prim.v.s<?=side?>;
 
 	<?=eqn.cons_t?> F;
-	F.D = U->D * vi;
-	F.S = real3_scale(U->S, vi);
-	F.S.s<?=side?> += W->p;
-	F.tau = U->tau * vi + p * vi;
+	F.cons.D = U->cons.D * vi;
+	F.cons.S = real3_scale(U->cons.S, vi);
+	F.cons.S.s<?=side?> += U->prim.p;
+	F.cons.tau = U->cons.tau * vi + p * vi;
 	return F;
 }
 <? end ?>
@@ -23,7 +23,7 @@ Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 20
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
 	global real* dtBuf,
-	const global <?=eqn.prim_t?>* primBuf
+	const global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
@@ -32,7 +32,7 @@ kernel void calcDT(
 	}
 	real3 x = cell_x(i);
 
-	<?=eqn.prim_t?> prim = primBuf[index];
+	<?=eqn.prim_t?> prim = UBuf[index].prim;
 	real rho = prim.rho;
 	real eInt = prim.eInt;
 	real vSq = coordLenSq(prim.v, x);
@@ -89,20 +89,20 @@ kernel void calcEigenBasis(
 	//right now only primBuf is being used for getting neighbor values
 	//so SRHD should perform the PLM stuff on the primBuf instead of the UBUf?
 	// or do the PLM on the UBuf and do the cons->prim on the ULR edge values
-	const global <?=eqn.prim_t?>* primBuf	
+	const global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	real3 x = cell_x(i);
 	
 	int indexR = index;
-	<?=eqn.prim_t?> primR = primBuf[indexR];
+	<?=eqn.prim_t?> primR = UBuf[indexR].prim;
 	
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		
 		int indexL = index - stepsize[side];
-		<?=eqn.prim_t?> primL = primBuf[indexL];
+		<?=eqn.prim_t?> primL = UBuf[indexL].prim;
 		
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
@@ -359,7 +359,7 @@ kernel void constrainU(
 ) {
 	SETBOUNDS(0,0);
 
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=eqn.cons_only_t?>* U = &UBuf[index].cons;
 	
 	U->D = max(U->D, (real)DMin);
 	U->tau = max(U->tau, (real)tauMin);
@@ -369,18 +369,17 @@ kernel void constrainU(
 }
 
 kernel void updatePrims(
-	global <?=eqn.prim_t?>* primBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	real3 x = cell_x(i);
 
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	const global <?=eqn.cons_only_t?>* U = &UBuf[index].cons;
 	real D = U->D;
 	real3 S = U->S;
 	real tau = U->tau;
 
-	global <?=eqn.prim_t?>* prim = primBuf + index;
+	global <?=eqn.prim_t?>* prim = &UBuf[index].prim;
 	real3 v = prim->v;
 
 	real SLen = coordLen(S, x);

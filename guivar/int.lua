@@ -17,9 +17,7 @@ end
 
 function GuiInt:updateGUI(solver)
 	if tooltip.intTable(self.name, self, 'value', 1, 100, ig.ImGuiInputTextFlags_EnterReturnsTrue) then
-		print('refreshing '..self.name..' = '..self.value)
-		solver:refreshSolverProgram()
-		solver:refreshDisplayProgram()
+		self:refresh(self.value, solver)
 	end
 end
 
