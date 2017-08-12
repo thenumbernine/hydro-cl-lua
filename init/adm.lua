@@ -255,7 +255,7 @@ return table{
 
 			local A = .1
 			local L = 1
-			local h = 1 - A * symmath.sin((2 * math.pi / L) * x)
+			local h = 1 - A * symmath.cos((2 * math.pi / L) * x)
 			return initNumRel{
 				solver = solver,
 				getCodes = getCodes,

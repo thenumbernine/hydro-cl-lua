@@ -14,10 +14,9 @@ local ADM_BonaMasso_1D_Alcubierre2008 = class(NumRelEqn)
 
 ADM_BonaMasso_1D_Alcubierre2008.name = 'ADM_BonaMasso_1D_Alcubierre2008' 
 
-ADM_BonaMasso_1D_Alcubierre2008.numStates = 5
+ADM_BonaMasso_1D_Alcubierre2008.consVars = {'alpha', 'gamma_xx', 'a_x', 'D_g', 'KTilde'}
 ADM_BonaMasso_1D_Alcubierre2008.numWaves = 3	-- alpha and gamma_xx are source-term only
 
-ADM_BonaMasso_1D_Alcubierre2008.consVars = {'alpha', 'gamma_xx', 'a_x', 'D_g', 'KTilde'}
 ADM_BonaMasso_1D_Alcubierre2008.mirrorVars = {{'gamma_xx', 'a_x', 'D_g', 'KTilde'}}
 
 ADM_BonaMasso_1D_Alcubierre2008.hasEigenCode = true

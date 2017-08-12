@@ -45,19 +45,19 @@ kernel void constrainU(
 	det(a) * 1/det(a)
 	1
 	*/
+<? if eqn.constrain_det_gammaBar_ll then ?>
 	real det_gammaBar = sym3_det(U->gammaBar_ll);
 	real _1_cbrt_det_gammaBar = 1./cbrt(det_gammaBar);
-<? for ij,xij in ipairs(symNames) do
+<? 	for ij,xij in ipairs(symNames) do
 ?>	U->gammaBar_ll.<?=xij?> *= _1_cbrt_det_gammaBar;
-<? end
-?>
-
+<? 	end
+end ?>
 	//in Buchman's paper it says he doesn't do this
 	//likewise in my own experiences, this can tend A to grow out of control 
-#if 1
+<? if eqn.constrain_tr_ATilde_ll then ?>
 	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
 	U->ATilde_ll = tracefree(U->ATilde_ll, U->gammaBar_ll, gammaBar_uu);
-#endif
+<? end ?>
 }
 
 kernel void calcDeriv(
@@ -83,7 +83,9 @@ kernel void calcDeriv(
 <?=makePartial('connBar_u', 'real3')?>	//partial_connBar_ul[j].i := connBar^i_,j
 <?=makePartial('gammaBar_ll', 'sym3')?>	//partial_gammaBar[k].ij := gammaBar_ij,k
 <?=makePartial('ATilde_ll', 'sym3')?>	//partial_ATilde_lll[k].ij = ATilde_ij,k
-
+<? if eqn.useHypGammaDriver then ?>
+<?=makePartial('B_u', 'real3')?>
+<? end ?>
 	//tr_partial_beta := beta^i_,i
 	real tr_partial_beta = 0. <?
 for i,xi in ipairs(xNames) do
@@ -386,18 +388,34 @@ end
 ?>
 	deriv->connBar_u = real3_add(deriv->connBar_u, dt_connBar_u);
 
-#if 0
+<? if eqn.useGammaDriver then ?>
 	//Gamma-driver
 	//B&S 4.82
 	//beta^i_,t = k (connBar^i_,t + eta connBar^i)
-	//TODO hyperbolic Gamma driver B&S 4.83 beta^i_,t = 3/4 B^i, B^i_,t = connBar^i_,t - eta B^i ... maybe + beta^j B^i_,j
 	const real k = 0.;//3./4.;
 	const real eta = 0.;	// 1 / (2 M), for total mass M
 	deriv->beta_u = real3_add(deriv->beta_u,
 		real3_add(
 			real3_scale(dt_connBar_u, k),
 			real3_scale(U->connBar_u, eta)));
-#endif
+<? end ?>
+<? if eqn.useHypGammaDriver then ?>
+	//hyperbolic Gamma driver 
+	//B&S 4.83 
+	//beta^i_,t = 3/4 B^i (Rezolla says 3/4 alpha B^i)
+	//B^i_,t = connBar^i_,t - eta B^i ... maybe + beta^j B^i_,j (Rezolla says - beta^j B^i_,j)
+	const real eta = 0.;
+	deriv->beta_u = real3_add(deriv->beta_u,
+		real3_scale(U->B_u, 3./4. * U->alpha));
+
+	deriv->B_u = real3_add(deriv->B_u, dt_connBar_u);
+	deriv->B_u = real3_sub(deriv->B_u, real3_scale(U->B_u, eta));
+<? 	for i,xi in ipairs(xNames) do
+		for j,xj in ipairs(xNames) do
+?>	deriv->B_u.<?=xi?> -= U->beta_u.<?=xj?> * partial_B_ul[<?=i-1?>].<?=xj?>;
+<? 		end
+	end
+end ?>
 
 <? if calcConstraints then ?>
 	

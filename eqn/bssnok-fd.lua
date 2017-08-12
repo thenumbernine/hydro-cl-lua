@@ -5,6 +5,7 @@ local template = require 'template'
 local symmath = require 'symmath'
 local clnumber = require 'cl.obj.number'
 local NumRelEqn = require 'eqn.numrel'
+local makestruct = require 'eqn.makestruct'
 
 -- bssnok helper functions:
 
@@ -71,6 +72,7 @@ local derivCoeffs = {
 	},
 }
 
+-- any past 4 and you need more ghost cells
 local derivOrder = 4
 
 local function makePartial(order, solver, field, fieldType)
@@ -168,48 +170,52 @@ end
 local BSSNOKFiniteDifferenceEquation = class(NumRelEqn)
 
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
-BSSNOKFiniteDifferenceEquation.numStates = 35
-BSSNOKFiniteDifferenceEquation.numIntStates = 18
+
+-- options:
+
+BSSNOKFiniteDifferenceEquation.constrain_det_gammaBar_ll = true
+BSSNOKFiniteDifferenceEquation.constrain_tr_ATilde_ll = true
+
+BSSNOKFiniteDifferenceEquation.useGammaDriver = false
+BSSNOKFiniteDifferenceEquation.useHypGammaDriver = true
+
+
+local intVars = table{
+	{alpha = 'real'},			-- 1
+	{beta_u = 'real3'},         -- 3: beta^i
+	{gammaBar_ll = 'sym3'},    -- 6: gammaBar_ij, only 5 dof since det gammaBar_ij = 1
+                                                                                                 
+	{phi = 'real'},             -- 1
+	{K = 'real'},               -- 1
+	{ATilde_ll = 'sym3'},       -- 6: ATilde_ij, only 5 dof since ATilde^k_k = 0
+	{connBar_u = 'real3'},      -- 3: connBar^i = gammaBar^jk connBar^i_jk = -partial_j gammaBar^ij
+}
+
+if BSSNOKFiniteDifferenceEquation.useHypGammaDriver then
+	intVars:insert{B_u = 'real3'}
+end
+
+local consVars = table()
+:append(intVars)
+:append{
+	--hyperbolic variables:
+	--real3 a;			//3: a_i
+	--sym3 dTilde[3];		//18: dTilde_ijk, only 15 dof since dTilde_ij^j = 0
+	--real3 Phi;			//3: Phi_i
+
+	--stress-energy variables:
+	{rho = 'real'},		--1: n_a n_b T^ab
+	{S_u = 'real3'},			--3: -gamma^ij n_a T_aj
+	{S_ll = 'sym3'},			--6: gamma_i^c gamma_j^d T_cd
+
+	--constraints:
+	{H = 'real'},				--1
+	{M_u = 'real3'},			--3
+}
+BSSNOKFiniteDifferenceEquation.consVars = consVars
+BSSNOKFiniteDifferenceEquation.numIntStates = makestruct.countReals(intVars)
 
 BSSNOKFiniteDifferenceEquation.useConstrainU = true
-
-function BSSNOKFiniteDifferenceEquation:getTypeCode()
-	return template([[
-typedef union {
-	real ptr[35];
-	struct {
-		real alpha;			//0		1
-		real3 beta_u;		//1		3: beta^i
-		sym3 gammaBar_ll;	//4		6: gammaBar_ij, only 5 dof since det gammaBar_ij = 1
-	
-		real phi;			//10	1
-		real K;				//11	1
-		sym3 ATilde_ll;		//12	6: ATilde_ij, only 5 dof since ATilde^k_k = 0
-		real3 connBar_u;	//18	3: connBar&i = gammaBar^jk connBar^i_jk = -partial_j gammaBar^ij
-
-]]--[[		
-		//hyperbolic variables:
-		real3 a;			//3: a_i
-		sym3 dTilde[3];		//18: dTilde_ijk, only 15 dof since dTilde_ij^j = 0
-		real3 Phi;			//3: Phi_i
-]]..[[
-		
-		//stress-energy variables:
-		real rho;			//21	1: n_a n_b T^ab
-		real3 S_u;			//22	3: -gamma^ij n_a T_aj
-		sym3 S_ll;			//25	6: gamma_i^c gamma_j^d T_cd
-	
-		//constraints:
-		real H;				//31	1
-		real3 M_u;			//32	3
-	};						//35
-} <?=eqn.prim_t?>;
-typedef <?=eqn.prim_t?> <?=eqn.cons_t?>;
-
-]], {
-		eqn = self,
-	})
-end
 
 BSSNOKFiniteDifferenceEquation.initStates = require 'init.adm'
 

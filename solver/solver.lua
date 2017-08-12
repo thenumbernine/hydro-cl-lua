@@ -403,7 +403,8 @@ function ConvertToTex:init(args)
 			code = code,
 			name = self.name..'_'..name,
 			enabled = self.name == 'U' and (
-					i == 1 or (solver.dim == 1 and not args.vectorField)
+					(solver.dim ~= 1 and i == 1)
+					or (solver.dim == 1 and not args.vectorField)
 				)
 				or (self.name == 'error' and solver.dim==1),
 			useLog = args.useLog or false,

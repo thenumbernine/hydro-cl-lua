@@ -1,8 +1,10 @@
+local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
+local makestruct = require 'eqn.makestruct'
 
 local Equation = class()
 
@@ -26,14 +28,19 @@ function Equation:init(solver)
 	self.consLR_t = self:unique'consLR_t'
 	self.eigen_t = self:unique'eigen_t'
 
-	-- TODO get rid of consVars and primVars
-	-- they're still used by ADM1D
-	-- default # states is # of conservative variables
+	local numReals
+	if self.consVars then
+		numReals = makestruct.countReals(self.consVars)
+	end
+
 	if not self.numStates then 
-		self.numStates = #self.consVars 
+		self.numStates = numReals
+		if not self.numStates then
+			error("you either need to define numStates or consVars")
+		end
 	else
-		if self.consVars then
-			assert(self.numStates == #self.consVars)
+		if numReals then
+			assert(self.numStates == numReals)
 		end
 	end
 	-- default # waves is the # of states
@@ -57,14 +64,7 @@ end
 
 function Equation:getTypeCode()
 	assert(self.consVars)
-	return table{
-		'typedef union {',
-		'	real ptr['..self.numStates..'];',
-		'	struct {',
-		'		real '..table.concat(self.consVars, ', ')..';',
-		'	};',
-		'} '..self.cons_t..';',
-	}:concat'\n'
+	return makestruct.makeStruct(self.cons_t, self.consVars)
 end
 
 function Equation:getDisplayVarCodePrefix()
