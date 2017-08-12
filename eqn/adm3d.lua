@@ -64,26 +64,16 @@ typedef union {
 })
 end
 
-function ADM_BonaMasso_3D:init(...)
-	self.guiVars = table{
-		require 'guivar.combo'{
-			name = 'f',
-			options = {
-				'1 + 1/alpha^2',
-				'2/alpha', 
-				'1', '.49', '.5', '1.5', '1.69', 
-			},
-		}
-	}
-	ADM_BonaMasso_3D.super.init(self, ...)
-end
-
 local symmath = require 'symmath'
 function ADM_BonaMasso_3D:getCodePrefix()
 	local initState = self.initStates[self.solver.initStateIndex]
 	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
 	
 	local lines = table()
+		
+	-- don't call super because it generates the guivar code
+	-- which is already being generated in initState
+	--lines:insert(ADM_BonaMasso_3D.super.getCodePrefix(self))
 	
 	lines:insert(template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U) {

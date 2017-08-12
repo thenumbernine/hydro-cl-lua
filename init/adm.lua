@@ -107,12 +107,13 @@ local function initNumRel(args)
 	
 	local exprs = table{
 		alpha = assert(args.alpha),
-		beta = args.beta,	-- optional
+		beta = {table.unpack(args.beta or {0,0,0})},	-- optional
 		gamma = {table.unpack(args.gamma)},
 		K = {table.unpack(args.K)}
 	}
-	assert(#exprs.gamma == 6)
-	assert(#exprs.K == 6)
+	assert(#exprs.beta == 3, "didn't find 3 beta vars")
+	assert(#exprs.gamma == 6, "didn't find 6 gamma vars")
+	assert(#exprs.K == 6, "didn't find 6 K vars")
 
 	local function toExpr(expr, name)
 		if type(expr) == 'number' then expr = symmath.Constant(expr) end
@@ -153,7 +154,10 @@ local function initNumRel(args)
 	local fGuiVar = args.solver.eqn.guiVarsForName.f
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
 	
-	local f = assert(loadstring('local alpha = ... return '..fLuaCode))(alphaVar)
+	local f = assert(loadstring([[
+local alpha, symmath = ...
+local log = symmath.log
+return ]]..fLuaCode))(alphaVar, symmath)
 	f = symmath.clone(f)
 	local dalpha_f = f:diff(alphaVar)()
 
@@ -170,7 +174,10 @@ local function buildFCCode(solver, diff)
 	local fGuiVar = solver.eqn.guiVarsForName.f
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
 	
-	local f = assert(loadstring('local alpha = ... return '..fLuaCode))(alphaVar)
+	local f = assert(loadstring([[
+local alpha, symmath = ...
+local log = symmath.log
+return ]]..fLuaCode))(alphaVar, symmath)
 	f = symmath.clone(f)
 	local fCCode = compileC(f, 'f', {alphaVar})
 
@@ -255,7 +262,7 @@ return table{
 				vars = xs,
 				alpha = symmath.sqrt(h),
 				gamma = {h,0,0,1,0,1},
-				K = {0,0,0,0,0},
+				K = {0,0,0,0,0,0},
 			}
 		end,
 	},

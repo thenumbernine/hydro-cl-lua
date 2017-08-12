@@ -8,9 +8,10 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local template = require 'template'
-local Equation = require 'eqn.eqn'
+local NumRelEqn = require 'eqn.numrel'
 
-local ADM_BonaMasso_1D_Alcubierre2008 = class(Equation)
+local ADM_BonaMasso_1D_Alcubierre2008 = class(NumRelEqn)
+
 ADM_BonaMasso_1D_Alcubierre2008.name = 'ADM_BonaMasso_1D_Alcubierre2008' 
 
 ADM_BonaMasso_1D_Alcubierre2008.numStates = 5
@@ -25,35 +26,40 @@ ADM_BonaMasso_1D_Alcubierre2008.hasFluxFromCons = true
 
 ADM_BonaMasso_1D_Alcubierre2008.initStates = require 'init.adm'
 
-function ADM_BonaMasso_1D_Alcubierre2008:init(...)
-	self.guiVars = {
-		require 'guivar.combo'{
-			name = 'f',
-			options = {
-				'1', '.49', '.5', '1.5', '1.69',
-				'1 + 1/alpha^2',
-				'2/alpha',
-			},
-		}
-	}
-	ADM_BonaMasso_1D_Alcubierre2008.super.init(self, ...)
-end
-
 local symmath = require 'symmath'
 function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix()
 	local initState = self.initStates[self.solver.initStateIndex]
 	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
 	
 	-- pick out whatever variables that 'codes' needs to convert
-	return initState.init(self.solver, function(exprs, vars)
-		return {
-			alpha  = exprs.alpha,
-			gamma_xx = exprs.gamma[1],	-- only need g_xx
-			a_x = (exprs.alpha:diff(vars[1]) / exprs.alpha)(),	-- only need a_x
-			D_g = (exprs.gamma[1]:diff(vars[1]) / exprs.gamma[1])(),	-- only need D_xxx
-			KTilde = exprs.K[1] / symmath.sqrt(exprs.gamma[1]),	-- only need K_xx
-		}
-	end)
+	return table{
+		
+		-- don't call super because it generates the guivar code
+		-- which is already being generated in initState
+		--ADM_BonaMasso_1D_Alcubierre2008.super.getCodePrefix(self),
+		
+		template([[
+void setFlatSpace(global <?=eqn.cons_t?>* U) {
+	*U = (<?=eqn.cons_t?>){
+		.alpha = 1, 
+		.gamma_xx = 1,
+		.a_x = 0,
+		.D_g = 0,
+		.KTilde = 0,
+	};
+}
+]], {eqn=self}),	
+		
+		initState.init(self.solver, function(exprs, vars)
+			return {
+				alpha  = exprs.alpha,
+				gamma_xx = exprs.gamma[1],	-- only need g_xx
+				a_x = (exprs.alpha:diff(vars[1]) / exprs.alpha)(),	-- only need a_x
+				D_g = (exprs.gamma[1]:diff(vars[1]) / exprs.gamma[1])(),	-- only need D_xxx
+				KTilde = exprs.K[1] / symmath.sqrt(exprs.gamma[1]),	-- only need K_xx
+			}
+		end)
+	}:concat'\n'
 end
 
 function ADM_BonaMasso_1D_Alcubierre2008:getInitStateCode()

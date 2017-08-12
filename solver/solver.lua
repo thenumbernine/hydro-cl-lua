@@ -402,7 +402,9 @@ function ConvertToTex:init(args)
 			convertToTex = self,
 			code = code,
 			name = self.name..'_'..name,
-			enabled = self.name == 'U' and (solver.dim==1 or i==1)
+			enabled = self.name == 'U' and (
+					i == 1 or (solver.dim == 1 and not args.vectorField)
+				)
 				or (self.name == 'error' and solver.dim==1),
 			useLog = args.useLog or false,
 			color = vec3(math.random(), math.random(), math.random()):normalize(),

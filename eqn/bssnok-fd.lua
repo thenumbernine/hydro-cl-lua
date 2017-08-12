@@ -211,21 +211,6 @@ typedef <?=eqn.prim_t?> <?=eqn.cons_t?>;
 	})
 end
 
-function BSSNOKFiniteDifferenceEquation:init(...)
-	self.guiVars = {
-		require 'guivar.combo'{
-			name = 'f',
-			options = {
-				'2/alpha',	-- 1+log slicing
-				'1 + 1/alpha^2', 	-- Alcubierre 10.2.24: "shock avoiding condition" for Toy 1+1 spacetimes 
-				'1', 		-- Alcubierre 4.2.50 - harmonic slicing
-				'.49', '.5', '1.5', '1.69',
-			},
-		}
-	}
-	BSSNOKFiniteDifferenceEquation.super.init(self, ...)
-end
-
 BSSNOKFiniteDifferenceEquation.initStates = require 'init.adm'
 
 -- should this be getInitStateCode like in eqn/euler?
@@ -234,6 +219,10 @@ function BSSNOKFiniteDifferenceEquation:getCodePrefix()
 	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
 	
 	local lines = table()
+	
+	-- don't call super because it generates the guivar code
+	-- which is already being generated in initState
+	--lines:insert(BSSNOKFiniteDifferenceEquation.super.getCodePrefix(self))
 	
 	lines:insert(template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U) {
