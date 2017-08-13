@@ -1164,46 +1164,50 @@ function Solver:refreshDisplayProgram()
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do
 			for _,var in ipairs(convertToTex.vars) do
-				lines:append{
-					template(convertToTex.displayCode, {
-						solver = self,
-						var = var,
-						convertToTex = convertToTex,
-						name = 'calcDisplayVarToTex_'..var.id,
-						input = '__write_only '
-							..(self.dim == 3 
-								and 'image3d_t' 
-								or 'image2d_t'
-							)..' tex',
-						output = '	write_imagef(tex, '
-							..(self.dim == 3 
-								and '(int4)(dsti.x, dsti.y, dsti.z, 0)' 
-								or '(int2)(dsti.x, dsti.y)'
-							)..', (float4)(value[0], value[1], value[2], 0.));',
-					})
-				}
+				if var.enabled then
+					lines:append{
+						template(convertToTex.displayCode, {
+							solver = self,
+							var = var,
+							convertToTex = convertToTex,
+							name = 'calcDisplayVarToTex_'..var.id,
+							input = '__write_only '
+								..(self.dim == 3 
+									and 'image3d_t' 
+									or 'image2d_t'
+								)..' tex',
+							output = '	write_imagef(tex, '
+								..(self.dim == 3 
+									and '(int4)(dsti.x, dsti.y, dsti.z, 0)' 
+									or '(int2)(dsti.x, dsti.y)'
+								)..', (float4)(value[0], value[1], value[2], 0.));',
+						})
+					}
+				end
 			end
 		end
 	end
 
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		for _,var in ipairs(convertToTex.vars) do
-			lines:append{
-				template(convertToTex.displayCode, {
-					solver = self,
-					var = var,
-					convertToTex = convertToTex,
-					name = 'calcDisplayVarToBuffer_'..var.id,
-					input = 'global real* dest',
-					output = var.vectorField and [[
+			if var.enabled then
+				lines:append{
+					template(convertToTex.displayCode, {
+						solver = self,
+						var = var,
+						convertToTex = convertToTex,
+						name = 'calcDisplayVarToBuffer_'..var.id,
+						input = 'global real* dest',
+						output = var.vectorField and [[
 	dest[0+3*dstindex] = valuevec.x;
 	dest[1+3*dstindex] = valuevec.y;
 	dest[2+3*dstindex] = valuevec.z;
 ]] or [[
 	dest[dstindex] = value[0];
 ]],
-				})
-			}
+					})
+				}
+			end
 		end
 	end
 	
@@ -1215,14 +1219,18 @@ function Solver:refreshDisplayProgram()
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do
 			for _,var in ipairs(convertToTex.vars) do
-				var.calcDisplayVarToTexKernel = self.displayProgram:kernel('calcDisplayVarToTex_'..var.id, self.texCLMem)
+				if var.enabled then
+					var.calcDisplayVarToTexKernel = self.displayProgram:kernel('calcDisplayVarToTex_'..var.id, self.texCLMem)
+				end
 			end
 		end
 	end
 
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		for _,var in ipairs(convertToTex.vars) do
-			var.calcDisplayVarToBufferKernel = self.displayProgram:kernel('calcDisplayVarToBuffer_'..var.id, self.reduceBuf)
+			if var.enabled then
+				var.calcDisplayVarToBufferKernel = self.displayProgram:kernel('calcDisplayVarToBuffer_'..var.id, self.reduceBuf)
+			end
 		end
 	end
 end
@@ -1723,9 +1731,9 @@ function Solver:calcDisplayVarRange(var)
 	var.convertToTex:setToBufferArgs(var)
 
 	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
-	local min = self.reduceMin(nil, self.volume)
+	local min = self.reduceMin()
 	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
-	local max = self.reduceMax(nil, self.volume)
+	local max = self.reduceMax()
 	
 	var.lastMin = min
 	var.lastMax = max
@@ -1822,7 +1830,7 @@ do
 	local function handle(var, title)
 		ig.igPushIdStr(title)
 		
-		tooltip.checkboxTable('enabled', var, 'enabled') 
+		local enableChanged = tooltip.checkboxTable('enabled', var, 'enabled') 
 		ig.igSameLine()
 		
 		tooltip.checkboxTable('log', var, 'useLog')
@@ -1837,6 +1845,8 @@ do
 		end
 		
 		ig.igPopId()
+	
+		return enableChanged
 	end
 
 	-- do one for 'all'
@@ -1854,6 +1864,7 @@ do
 	end
 
 	function Solver:updateGUIDisplay()
+		local refresh 
 		if ig.igCollapsingHeader'display:' then
 			for i,convertToTex in ipairs(self.convertToTexs) do
 				ig.igPushIdStr('display '..i)
@@ -1869,7 +1880,8 @@ do
 					for _,field in ipairs(fields) do
 						original[field] = all[field]
 					end
-					handle(all, 'all')
+					local enableChanged = handle(all, 'all')
+					refresh = refresh or enableChanged
 					for _,field in ipairs(fields) do
 						if all[field] ~= original[field] then
 							for _,var in ipairs(convertToTex.vars) do
@@ -1879,11 +1891,15 @@ do
 					end
 
 					for _,var in ipairs(convertToTex.vars) do
-						handle(var, convertToTex.name..' '..var.name)
+						local enableChanged = handle(var, convertToTex.name..' '..var.name)
+						refresh = refresh or enableChanged
 					end
 				end
 				ig.igPopId()
 			end
+		end
+		if refresh then
+			self:refreshDisplayProgram()
 		end
 	end
 end

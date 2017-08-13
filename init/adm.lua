@@ -187,7 +187,7 @@ end
 return table{
 	-- from 1997 Alcubierre "The appearance of coorindate shocks in hyperbolic formalisms of General Relativity".
 	{
-		name = 'gauge shock wave',
+		name = 'gaussian perturbation',
 		init = function(solver, getCodes)
 
 			-- here's the coordinates
@@ -199,8 +199,17 @@ return table{
 			-- here's the metric
 
 			local size = solver.maxs[1] - solver.mins[1]
-			local H = 5 * size / 300
-			local sigma = 10 * size / 300
+		
+			-- 1997 Alcubierre uses amplitude of 5 on a grid size of 300 with dx=1
+			--local H = 5 / 300 * size
+			--local sigma = 10 / 300 * size
+			-- 1998 Bona et al use amplitude of .05 on a grid size of 100 with dx=.01
+			--local H = .05 * size
+			--local sigma = math.sqrt(.05) * size
+			-- messing with it on my own
+			local H = .01 * size
+			local sigma = .1 * size
+
 		
 			local xc = .5 * (solver.mins[1] + solver.maxs[1])
 			local yc = .5 * (solver.mins[2] + solver.maxs[2])
