@@ -85,7 +85,7 @@ function GRHDSeparateSolver:init(args)
 	end
 	function HydroSolver:refreshInitStateProgram()
 		HydroSolver.super.refreshInitStateProgram(self)
-		self.initStateKernel:setArg(2, gr.UBuf)
+		self.initStateKernel:setArg(1, gr.UBuf)
 	end
 	function HydroSolver:refreshSolverProgram()
 		HydroSolver.super.refreshSolverProgram(self)
@@ -94,8 +94,8 @@ function GRHDSeparateSolver:init(args)
 io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 		self.calcDTKernel:setArg(2, gr.UBuf)
 		self.calcEigenBasisKernel:setArg(3, gr.UBuf)
-		self.addSourceKernel:setArg(3, gr.UBuf)
-		self.updatePrimsKernel:setArg(2, gr.UBuf)
+		self.addSourceKernel:setArg(2, gr.UBuf)
+		self.updatePrimsKernel:setArg(1, gr.UBuf)
 	end
 
 	local hydro = HydroSolver(args)

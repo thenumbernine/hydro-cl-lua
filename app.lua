@@ -113,7 +113,7 @@ function HydroCLApp:setup()
 		eqn = cmdline.eqn,
 		dim = cmdline.dim or dim,
 		
-		integrator = cmdline.integrator or 'forward Euler',	
+		--integrator = cmdline.integrator or 'forward Euler',	
 		--integrator = 'Runge-Kutta 2',
 		--integrator = 'Runge-Kutta 2 Heun',
 		--integrator = 'Runge-Kutta 2 Ralston',
@@ -125,7 +125,7 @@ function HydroCLApp:setup()
 		--integrator = 'Runge-Kutta 3, TVD',
 		--integrator = 'Runge-Kutta 4, TVD',
 		--integrator = 'Runge-Kutta 4, non-TVD',
-		--integrator = 'backward Euler',
+		integrator = 'backward Euler',
 
 		--fixedDT = .0001,
 		--cfl = .25/dim,
@@ -250,7 +250,7 @@ function HydroCLApp:setup()
 		
 		-- those designed for SRHD / GRHD:
 		--initState = 'relativistic shock reflection',			-- not working.  these initial conditions are constant =P
-		--initState = 'relativistic blast wave test problem 1',
+		initState = 'relativistic blast wave test problem 1',
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'relativistic blast wave interaction',
 	
@@ -268,7 +268,7 @@ function HydroCLApp:setup()
 		--initState = 'two-fluid EMHD soliton maxwell',
 	
 		-- GR
-		initState = 'gaussian perturbation',
+		--initState = 'gaussian perturbation',
 		--initState = 'plane gauge wave',
 		--initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
@@ -297,7 +297,7 @@ function HydroCLApp:setup()
 	-- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 	--    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 	-- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-	--self.solvers:insert(require 'solver.srhd-roe'(args))
+	self.solvers:insert(require 'solver.srhd-roe'(args))
 	
 	-- GRHD
 	-- right now this is just like srhd except extended by Font's eqns
@@ -331,7 +331,7 @@ function HydroCLApp:setup()
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 	--
 	-- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
 	--  but something gets caught up in the freeflow boundary conditions, and it explodes

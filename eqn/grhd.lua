@@ -12,18 +12,21 @@ local template = require 'template'
 
 local GRHD = class(Equation)
 GRHD.name = 'GRHD'
-GRHD.numIntVars = 5
+GRHD.numStates = 10
 GRHD.numWaves = 5
-GRHD.numStates = 5
+GRHD.numIntStates = 5
 
-GRHD.mirrorVars = {{'S.x'}, {'S.y'}, {'S.z'}}
-
-GRHD.hasEigenCode = true 
+GRHD.mirrorVars = {
+	{'cons.S.x', 'prim.v.x'},
+	{'cons.S.y', 'prim.v.y'},
+	{'cons.S.z', 'prim.v.z'},
+}
 
 -- GRHD fluxFromCons will need prims passed to it as well
 -- which means overriding the code that calls this? or the calc flux code?
 --GRHD.hasFluxFromCons = true
 
+GRHD.hasEigenCode = true 
 GRHD.hasCalcDT = true
 GRHD.useSourceTerm = true
 GRHD.useConstrainU = true
@@ -33,6 +36,9 @@ GRHD.initStates = require 'init.euler'
 local GuiFloat = require 'guivar.float'
 local GuiInt = require 'guivar.int'
 function GRHD:init(...)
+	
+	self.cons_only_t = self:unique'cons_only_t'
+	
 	self.guiVars = table{
 --[[ double precision
 		GuiFloat{name='heatCapacityRatio', value=7/5},
@@ -91,13 +97,24 @@ typedef union {
 		real3 S;	//1	S_j = rho h W^2 v_j
 		real tau;	//4 tau = rho h W^2 - P
 	};
-} <?=eqn.cons_t?>;
+} <?=eqn.cons_only_t?>;
 
-typedef struct {
-	real rho;
-	real3 v;	//v_i
-	real eInt;
+typedef union {
+	real ptr[5];
+	struct {
+		real rho;
+		real3 v;	//v_i
+		real eInt;
+	};
 } <?=eqn.prim_t?>;
+
+typedef union {
+	real ptr[10];
+	struct {
+		<?=eqn.cons_only_t?> cons;
+		<?=eqn.prim_t?> prim;
+	};
+} <?=eqn.cons_t?>;
 ]], {
 	eqn = self,
 })
@@ -131,7 +148,7 @@ real calc_h(real rho, real P, real eInt) {
 	return 1. + eInt + P / rho;
 }
 
-<?=eqn.cons_t?> consFromPrim(
+<?=eqn.cons_only_t?> consFromPrim(
 	<?=eqn.prim_t?> prim,
 	real alpha,
 	real3 beta,
@@ -154,7 +171,7 @@ real calc_h(real rho, real P, real eInt) {
 	real3 S = real3_scale(prim.v, prim.rho * h * WSq);
 	real tau = prim.rho * h * WSq - P - D;
 
-	return (<?=eqn.cons_t?>){
+	return (<?=eqn.cons_only_t?>){
 		.D = D,
 		.S = S,
 		.tau = tau,
@@ -173,8 +190,7 @@ function GRHD:getInitStateCode()
 	return template([[
 
 kernel void initState(
-	global <?=eqn.cons_t?>* consBuf,
-	global <?=eqn.prim_t?>* primBuf<?=
+	global <?=eqn.cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
 ) {
 	SETBOUNDS(0,0);
@@ -205,8 +221,10 @@ kernel void initState(
 		.v = v,
 		.eInt = eInt,
 	};
-	primBuf[index] = prim;	
-	consBuf[index] = consFromPrim(prim, alpha, beta, gamma);
+	UBuf[index] = (<?=eqn.cons_t?>){
+		.prim = prim,
+		.cons = consFromPrim(prim, alpha, beta, gamma),
+	};
 }
 ]], {
 	eqn = self,
@@ -221,76 +239,57 @@ function GRHD:getSolverCode()
 	})
 end
 
-function GRHD:getDisplayVarCodePrefix()
-	return template([[
-	<?=eqn.cons_t?> U = buf[index];
-	<?=eqn.prim_t?> prim = primBuf[index];
-]], {
-	eqn = self,
-})
-end
-
 function GRHD:getDisplayVars()
 	return {
-		{D = '*value = U.D;'},
-		{S_x = '*value = U.S.x;'},
-		{S_y = '*value = U.S.y;'},
-		{S_z = '*value = U.S.z;'},
+		{D = '*value = U->cons.D;'},
+		{S_x = '*value = U->cons.S.x;'},
+		{S_y = '*value = U->cons.S.y;'},
+		{S_z = '*value = U->cons.S.z;'},
 		{S = template([[
 	<?=solver:getADMVarCode()?>
-	*value = real3_weightedLen(U.S, gamma);
+	*value = real3_weightedLen(U->cons.S, gamma);
 ]], {solver=self.solver})},
-		{tau = '*value = U.tau;'},
-		{['W based on D'] = '*value = U.D / prim.rho;'},
+		{tau = '*value = U->cons.tau;'},
+		{['W based on D'] = '*value = U->cons.D / U->prim.rho;'},
 		{['W based on v'] = template([[
 	<?=solver:getADMVarCode()?>
 	real det_gamma = sym3_det(gamma);
 	sym3 gammaU = sym3_inv(gamma, det_gamma);
-	*value = 1. / sqrt(1. - real3_weightedLenSq(prim.v, gammaU));
+	*value = 1. / sqrt(1. - real3_weightedLenSq(U->prim.v, gammaU));
 ]], {solver=self.solver})},
 		{['primitive reconstruction error'] = template([[
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
 	<?=solver:getADMVarCode()?>
-	<?=eqn.cons_t?> U2 = consFromPrim(prim, alpha, beta, gamma);
+	<?=eqn.cons_only_t?> U2 = consFromPrim(prim, alpha, beta, gamma);
 	*value = 0;
 	for (int j = 0; j < numIntStates; ++j) {
-		*value += fabs(U.ptr[j] - U2.ptr[j]);
+		*value += fabs(U->cons.ptr[j] - U2.ptr[j]);
 	}
 ]], {eqn=self, solver=self.solver})},
 		{['W error'] = template([[
-	real W1 = U.D / prim.rho;
+	real W1 = U->cons.D / U->prim.rho;
 	<?=solver:getADMVarCode()?>
 	real det_gamma = sym3_det(gamma);
 	sym3 gammaU = sym3_inv(gamma, det_gamma);
-	real W2 = 1. / sqrt(1. - real3_weightedLenSq(prim.v, gammaU));
+	real W2 = 1. / sqrt(1. - real3_weightedLenSq(U->prim.v, gammaU));
 	*value = fabs(W1 - W2);
 ]], {solver=self.solver})},
+
+		{rho = '*value = U->prim.rho;'},
+		{['v_x'] = '*value = U->prim.v.x;'},
+		{['v_y'] = '*value = U->prim.v.y;'},
+		{['v_z'] = '*value = U->prim.v.z;'},
+
+		--TODO in gr-hd-separate, override gr's prim tex and give it an 'extraArgs'
+		--{v = '*value = real3_weightedLen(prim.v, gamma);'},
+		{['|v|'] = '*value = real3_len(U->prim.v);'},
+		
+		{eInt = '*value = U->prim.eInt;'},
+		{P = '*value = calc_P(U->prim.rho, U->prim.eInt);'},
+		{h = '*value = calc_h(U->prim.rho, calc_P(U->prim.rho, U->prim.eInt), U->prim.eInt);'},
 	}
 end
-
-function GRHD:getPrimDisplayVarCodePrefix()
-	return template([[
-	<?=eqn.prim_t?> prim = buf[index];
-]], {
-		eqn = self,
-	})
-end
-
-GRHD.primDisplayVars = {
-	{rho = '*value = prim.rho;'},
-	{['v_x'] = '*value = prim.v.x;'},
-	{['v_y'] = '*value = prim.v.y;'},
-	{['v_z'] = '*value = prim.v.z;'},
-
-	--TODO in gr-hd-separate, override gr's prim tex and give it an 'extraArgs'
-	--{v = '*value = real3_weightedLen(prim.v, gamma);'},
-	{['|v|'] = '*value = real3_len(prim.v);'},
-	
-	{eInt = '*value = prim.eInt;'},
-	{P = '*value = calc_P(prim.rho, prim.eInt);'},
-	{h = '*value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt);'},
-}
 
 GRHD.eigenStructFields = {
 	{rho = 'real'},

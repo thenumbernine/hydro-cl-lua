@@ -26,14 +26,12 @@ SRHD.mirrorVars = {
 	{'cons.S.z', 'prim.v.z'},
 }
 
-SRHD.hasEigenCode = true 
-
 -- SRHD fluxFromCons will need prims passed to it as well
 -- which means overriding the code that calls this? or the calc flux code?
 --SRHD.hasFluxFromCons = true
 
+SRHD.hasEigenCode = true 
 SRHD.hasCalcDT = true
-
 SRHD.useConstrainU = true
 
 SRHD.initStates = require 'init.euler'

@@ -1257,7 +1257,7 @@ kernel void addSource(
 kernel void constrainU(
 	global <?=eqn.cons_t?>* UBuf
 ) {
-#if 0	//gravitational_wave_sim uses this (for 1D), HydroGPU doesn't (for 2D/3D)
+#if 1	//gravitational_wave_sim uses this (for 1D), HydroGPU doesn't (for 2D/3D)
 	SETBOUNDS(numGhost,numGhost);	
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
@@ -1281,16 +1281,26 @@ kernel void constrainU(
 	U->V = real3_sub(U->V, delta);
 #endif
 #if 1	//average between V and d
-	
-	//interpolation between V and d
-	//weight = 1 means only adjust V (gives a 1e-20 error in the constraint eqns)
-	//weight = 0 means only adjust d (hmm, is only at 1e-2 ...)
-	const real weight = .2;
 
-	//epsilon = 1 means direct update.  anything less should slowly converge.
-	const real epsilon = .01;
-	const real v_weight = epsilon * weight;
-	const real d_weight = epsilon * (1. - weight) / 4.;
+/*
+interpolation between V and d
+weight = 1 means only adjust V (gives a 1e-20 error in the constraint eqns)
+weight = 0 means only adjust d (hmm, is only at 1e-2 ...)
+
+V_i - (d_im^m - d^m_mi) = Q_i ...
+V'_i = V_i - alpha Q_i
+(d_im^m - d^m_mi)' = (d_im^m - d^m_mi) + (1-alpha) Q_i
+so (V_i - (d_im^m - d^m_mi))' = V'_i - (d_im^m - d^m_mi)' = V_i - alpha Q_i - (d_im^m - d^m_mi) - (1-alpha) Q_i = Q_i - Q_i = 0
+works for d'_ijk = d_ijk + (1-alpha)/4 (Q_i gamma_jk - Q_k gamma_ij)
+so d'_im^m = d'_ijk gamma^jk = d_im^m + (1-alpha)/4 (Q_i gamma_jk - Q_k gamma_ij) gamma^jk = d_im^m + (1-alpha)/2 Q_i
+and d'^m_mi = d'_kji gamma^jk = d^m_mi + (1-alpha)/4 (Q_k gamma_ij - Q_i gamma_jk) gamma^jk = d^m_mi - (1-alpha)/2 Q_i
+therefore (d_im^m - d^m_mi)' = d_im^m - d^m_mi + (1-alpha) Q_i
+
+...but how come it's not working?
+*/
+	const real weight = .5;
+	const real v_weight = weight;
+	const real d_weight = (1. - weight) / 4.;
 
 	U->V = real3_sub(U->V, real3_scale(delta, v_weight));
 <? for i,xi in ipairs(xNames) do 

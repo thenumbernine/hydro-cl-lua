@@ -17,8 +17,8 @@ end
 
 if eqn.hasFluxFromCons then
 	for side=0,solver.dim-1 do
-?><?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	<?=eqn.cons_t?> U<?=
+?><?=eqn.cons_only_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_only_t?> U<?=
 	solver:getADMArgs()?>
 ) {
 	<?=solver:getADMVarCode()?>
@@ -30,12 +30,15 @@ if eqn.hasFluxFromCons then
 			+ gammaU.<?=sym(side+1,3)?> * prim.v.z;
 	real vUi_shift = vUi - U.beta.s<?=side?> / U.alpha;
 
-	<?=eqn.cons_t?> F;
+	<?=eqn.cons_only_t?> F;
 	F.D = U->D * vUi_shift;
 	F.S = real3_scale(U->S, vUi_shift);
 	F.S.s<?=side?> += prim->p;
 	F.tau = U->tau * vUi_shift + p * vUi;
-	return F;
+<? for i=eqn.numIntStates,eqn.numStates-1 do
+?>	F.ptr[<?=i?>] = 0.;
+<? end
+?>	return F;
 }
 <? 
 	end
@@ -45,7 +48,7 @@ end
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
 	global real* dtBuf,
-	const global <?=eqn.prim_t?>* primBuf<?=
+	const global <?=eqn.cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
 ) {
 	SETBOUNDS(0,0);
@@ -53,7 +56,7 @@ kernel void calcDT(
 		dtBuf[index] = INFINITY;
 		return;
 	}
-	<?=eqn.prim_t?> prim = primBuf[index];
+	<?=eqn.prim_t?> prim = UBuf[index].prim;
 	<?=solver:getADMVarCode()?>
 
 	real det_gamma = sym3_det(gamma);
@@ -116,13 +119,13 @@ kernel void calcEigenBasis(
 	//right now only primBuf is being used for getting neighbor values
 	//so SRHD should perform the PLM stuff on the primBuf instead of the UBUf?
 	// or do the PLM on the UBuf and do the cons->prim on the ULR edge values
-	const global <?=eqn.prim_t?>* primBuf<?=
+	const global <?=eqn.cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	
 	int indexR = index;
-	<?=eqn.prim_t?> primR = primBuf[indexR];
+	<?=eqn.prim_t?> primR = UBuf[indexR].prim;
 	
 	<?=solver:getADMVarCode{suffix='R'} --[[ produce alphaR, betaR, gammaR at indexR ]] ?>
 	
@@ -131,7 +134,7 @@ kernel void calcEigenBasis(
 		const int side = <?=side?>;
 		
 		int indexL = index - stepsize[side];
-		<?=eqn.prim_t?> primL = primBuf[indexL];
+		<?=eqn.prim_t?> primL = UBuf[indexL].prim;
 	
 		<?=solver:getADMVarCode{suffix='L'} --[[ produce alphaL, betaL, gammaL at indexL ]] ?>
 
@@ -428,14 +431,12 @@ end ?>
 
 kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
-	const global <?=eqn.cons_t?>* UBuf,
-	const global <?=eqn.prim_t?>* primBuf<?=
+	const global <?=eqn.cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
 ) {
 	SETBOUNDS_NOGHOST();
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-	const global <?=eqn.prim_t?>* prim = primBuf + index;
 	<?=solver:getADMVarCode()?>
 }
 
@@ -444,7 +445,7 @@ kernel void constrainU(
 ) {
 	SETBOUNDS(0,0);
 
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=eqn.cons_only_t?>* U = &UBuf[index].cons;
 	
 	U->D = max(U->D, (real)DMin);
 	U->tau = max(U->tau, (real)tauMin);
@@ -458,8 +459,7 @@ W = alpha u^0
 v^i = (u^i / u^0 + beta^i) / alpha
 */
 kernel void updatePrims(
-	global <?=eqn.prim_t?>* primBuf,
-	const global <?=eqn.cons_t?>* UBuf<?=
+	global <?=eqn.cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
@@ -469,12 +469,12 @@ kernel void updatePrims(
 	real det_gamma = sym3_det(gamma);
 	sym3 gammaU = sym3_inv(gamma, det_gamma);
 
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	const global <?=eqn.cons_only_t?>* U = &UBuf[index].cons;
 	real D = U->D;
 	real3 S = U->S;
 	real tau = U->tau;
 
-	global <?=eqn.prim_t?>* prim = primBuf + index;
+	global <?=eqn.prim_t?>* prim = &UBuf[index].prim;
 	real3 v = prim->v;
 
 	real SLen = real3_weightedLen(S, gammaU);
