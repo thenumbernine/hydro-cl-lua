@@ -224,7 +224,7 @@ function HydroCLApp:setup()
 		--initState = 'sphere',
 		--initState = 'rarefaction wave',
 		
-		initState = 'Sod',
+		--initState = 'Sod',
 		--initState = 'Sedov',
 		--initState = 'Kelvin-Hemholtz',
 		--initState = 'Rayleigh-Taylor',
@@ -268,7 +268,7 @@ function HydroCLApp:setup()
 		--initState = 'two-fluid EMHD soliton maxwell',
 	
 		-- GR
-		--initState = 'gaussian perturbation',
+		initState = 'gaussian perturbation',
 		--initState = 'plane gauge wave',
 		--initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
@@ -280,7 +280,7 @@ function HydroCLApp:setup()
 	}
 	
 	-- HD - Roe
-	self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 	-- HD - Burgers
 	-- f.e. and b.e. are working, but none of the r.k. integrators 
@@ -331,7 +331,7 @@ function HydroCLApp:setup()
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 	--
 	-- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
 	--  but something gets caught up in the freeflow boundary conditions, and it explodes

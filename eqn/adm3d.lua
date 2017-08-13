@@ -10,14 +10,19 @@ local template = require 'template'
 local NumRelEqn = require 'eqn.numrel'
 
 local xNames = table{'x', 'y', 'z'}
+local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
 
--- symmetric indexes: xx xy xz yy yz zz
-local symNames = table()
-for i,xi in ipairs(xNames) do
-	for j=i,3 do
-		local xj = xNames[j]
-		symNames:insert(xi..xj)
-	end
+local from3x3to6_table = {{1, 2, 3}, {2, 4, 5}, {3, 5, 6},}
+local function from3x3to6(i,j) return from3x3to6_table[i][j] end
+
+local from6to3x3_table = {{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}}
+local function from6to3x3(i) return table.unpack(from6to3x3_table[i]) end
+
+local function sym(a,b)
+	assert(a >= 1 and a <= 3, "tried to index sym with "..tostring(a)..", "..tostring(b))
+	assert(b >= 1 and b <= 3, "tried to index sym with "..tostring(a)..", "..tostring(b))
+	if a > b then a,b = b,a end
+	return xNames[a]..xNames[b]
 end
 
 local ADM_BonaMasso_3D = class(NumRelEqn)
@@ -200,7 +205,14 @@ kernel void initState(
 end
 
 function ADM_BonaMasso_3D:getSolverCode()
-	return template(file['eqn/adm3d.cl'], {eqn=self, solver=self.solver})
+	return template(file['eqn/adm3d.cl'], {
+		eqn = self,
+		solver = self.solver,
+		xNames = xNames,
+		symNames = symNames,
+		from6to3x3 = from6to3x3,
+		sym = sym,
+	})
 end
 
 function ADM_BonaMasso_3D:getDisplayVars()
@@ -222,72 +234,64 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 	*value = sym3_dot(gammaU, U->K);
-]]},
+]]		},
 		{expansion = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 	*value = -U->alpha * sym3_dot(gammaU, U->K);
-]]},	
+]]		},
 		-- TODO needs shift influence (which is lengthy)
 		{gravityMagn = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 	*value = real3_len(sym3_real3_mul(gammaU, U->a));
-]]},
-		-- TODO V^i constraint codes
-
--- ... and here's the dt code ...
-		{lambdaLight_x = template([[
+]]		},
+	}:append( xNames:map(function(xi,i)
+		-- V_i - (d_im^m - d^m_mi)
+		return {['constraint_V_'..xi] = template([[
 	real det_gamma = sym3_det(U->gamma);
-	real f = calc_f(U->alpha);
-	real sqrt_f = sqrt(f);
-	real gammaUxx = (U->gamma.yy * U->gamma.zz - U->gamma.yz * U->gamma.yz) / det_gamma;
-	*value = U->alpha * sqrt(gammaUxx);
-]], {solver=self.solver})},
-
-		{lambdaLight_y = template([[
+	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
+	real d1 = sym3_dot(U->d[<?=i-1?>], gammaU);
+	real d2 = 0.<?
+for j=1,3 do
+	for k,xk in ipairs(xNames) do
+?> + U->d[<?=j-1?>].<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
+	end
+end ?>;
+	*value = U->V.<?=xi?> - d1 + d2;
+]], {i=i, xi=xi, sym=sym, xNames=xNames})}
+	
+	end) ):append{
+		{constraint_V_magn = template([[
 	real det_gamma = sym3_det(U->gamma);
-	real f = calc_f(U->alpha);
-	real sqrt_f = sqrt(f);
-	real gammaUyy = (U->gamma.xx * U->gamma.zz - U->gamma.xz * U->gamma.xz) / det_gamma;
-	*value = U->alpha * sqrt(gammaUyy);
-]], {solver=self.solver})},
-		
-		{lambdaLight_z = template([[
-	real det_gamma = sym3_det(U->gamma);
-	real f = calc_f(U->alpha);
-	real sqrt_f = sqrt(f);
-	real gammaUzz = (U->gamma.xx * U->gamma.yy - U->gamma.xy * U->gamma.xy) / det_gamma;
-	*value = U->alpha * sqrt(gammaUzz);
-]], {solver=self.solver})},
-
-		{dt = template([[
-	real det_gamma = sym3_det(U->gamma);
-	real f = calc_f(U->alpha);
-	real sqrt_f = sqrt(f);
-
-	*value = INFINITY;
-	<? for side=0,solver.dim-1 do ?>{
-		
-		<? if side==0 then ?>
-		real gammaUxx = (U->gamma.yy * U->gamma.zz - U->gamma.yz * U->gamma.yz) / det_gamma;
-		real lambdaLight = U->alpha * sqrt(gammaUxx);
-		<? elseif side==1 then ?>
-		real gammaUyy = (U->gamma.xx * U->gamma.zz - U->gamma.xz * U->gamma.xz) / det_gamma;
-		real lambdaLight = U->alpha * sqrt(gammaUyy);
-		<? elseif side==2 then ?>
-		real gammaUzz = (U->gamma.xx * U->gamma.yy - U->gamma.xy * U->gamma.xy) / det_gamma;
-		real lambdaLight = U->alpha * sqrt(gammaUzz);
-		<? end ?>	
-		
-		real lambdaGauge = lambdaLight * sqrt_f;
-		real lambda = (real)max(lambdaGauge, lambdaLight);
-		
-		real lambdaMin = (real)min((real)0., -lambda);
-		real lambdaMax = (real)max((real)0., lambda);
-		*value = (real)min((real)*value, (real)(dx<?=side?>_at(i) / ((real)fabs(lambdaMax - lambdaMin) + (real)1e-9)));
+	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
+	*value = 0.;
+	<? for i,xi in ipairs(xNames) do ?>{
+		real d1 = sym3_dot(U->d[<?=i-1?>], gammaU);
+		real d2 = 0.<?
+	for j=1,3 do
+		for k,xk in ipairs(xNames) do
+?> + U->d[<?=j-1?>].<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
+		end
+	end ?>;
+		real d3 = U->V.<?=xi?> - (d1 - d2);
+		*value += d3 * d3;
 	}<? end ?>
-]], {solver=self.solver})},
+	*value = sqrt(*value);
+]], {sym=sym, xNames=xNames})}
+
+--[=[
+	-- 1998 Bona et al
+--[[
+H = 1/2 ( R + K^2 - K_ij K^ij ) - alpha^2 8 pi rho
+for 8 pi rho = G^00
+
+momentum constraints
+--]]
+		{H = [[
+	.5 * 
+]]		},
+--]=]
 	}
 end
 
@@ -328,6 +332,21 @@ function ADM_BonaMasso_3D:getVecDisplayVars()
 	addSym3'gamma'
 	add'a'
 	addSym3'K'
+
+	vars:insert{constraint_V = template([[
+	real det_gamma = sym3_det(U->gamma);
+	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
+	<? for i,xi in ipairs(xNames) do ?>{
+		real d1 = sym3_dot(U->d[<?=i-1?>], gammaU);
+		real d2 = 0.<?
+	for j=1,3 do
+		for k,xk in ipairs(xNames) do
+?> + U->d[<?=j-1?>].<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
+		end
+	end ?>;
+		valuevec.<?=xi?> = U->V.<?=xi?> - (d1 - d2);
+	}<? end ?>
+]], {sym=sym, xNames=xNames})}
 
 	return vars
 end

@@ -1265,57 +1265,47 @@ kernel void constrainU(
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 
-	real D3_D1_x = 
-		(gammaU.xy * U->d[0].xy)
-		+ (gammaU.xz * U->d[0].xz)
-		+ (gammaU.yy * U->d[0].yy)
-		+ (2. * gammaU.yz * U->d[0].yz)
-		+ (gammaU.zz * U->d[0].zz)
-		- (gammaU.xy * U->d[1].xx)
-		- (gammaU.xz * U->d[2].xx)
-		- (gammaU.yy * U->d[1].xy)
-		- (gammaU.yz * U->d[2].xy)
-		- (gammaU.yz * U->d[1].xz)
-		- (gammaU.zz * U->d[2].xz);
-	real D3_D1_y = 
-		(gammaU.xx * U->d[1].xx)
-		+ (gammaU.xy * U->d[1].xy)
-		+ (2. * gammaU.xz * U->d[1].xz)
-		+ (gammaU.yz * U->d[1].yz)
-		+ (gammaU.zz * U->d[1].zz)
-		- (gammaU.xx * U->d[0].xy)
-		- (gammaU.xz * U->d[2].xy)
-		- (gammaU.xy * U->d[0].yy)
-		- (gammaU.yz * U->d[2].yy)
-		- (gammaU.xz * U->d[0].yz)
-		- (gammaU.zz * U->d[2].yz);
-	real D3_D1_z = 
-		(gammaU.xx * U->d[2].xx)
-		+ (2. * gammaU.xy * U->d[2].xy)
-		+ (gammaU.xz * U->d[2].xz)
-		+ (gammaU.yy * U->d[2].yy)
-		+ (gammaU.yz * U->d[2].yz)
-		- (gammaU.xx * U->d[0].xz)
-		- (gammaU.xy * U->d[1].xz)
-		- (gammaU.xy * U->d[0].yz)
-		- (gammaU.yy * U->d[1].yz)
-		- (gammaU.xz * U->d[0].zz)
-		- (gammaU.yz * U->d[1].zz);
+	real3 delta;
+	<? for i,xi in ipairs(xNames) do ?>{
+		real d1 = sym3_dot(U->d[<?=i-1?>], gammaU);
+		real d2 = 0.<?
+	for j=1,3 do
+		for k,xk in ipairs(xNames) do
+?> + U->d[<?=j-1?>].<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
+		end
+	end ?>;
+		delta.<?=xi?> = U->V.<?=xi?> - (d1 - d2);
+	}<? end ?>
 
-#if 1	//directly assign V_i's
-	U->V.x = D3_D1_x;
-	U->V.y = D3_D1_y;
-	U->V.z = D3_D1_z;
+#if 0	//directly assign to V
+	U->V = real3_sub(U->V, delta);
 #endif
-#if 0	//linearly project out the [V_i, U->d_ijk] vector
+#if 1	//average between V and d
+	
+	//interpolation between V and d
+	//weight = 1 means only adjust V (gives a 1e-20 error in the constraint eqns)
+	//weight = 0 means only adjust d (hmm, is only at 1e-2 ...)
+	const real weight = .2;
+
+	//epsilon = 1 means direct update.  anything less should slowly converge.
+	const real epsilon = .01;
+	const real v_weight = epsilon * weight;
+	const real d_weight = epsilon * (1. - weight) / 4.;
+
+	U->V = real3_sub(U->V, real3_scale(delta, v_weight));
+<? for i,xi in ipairs(xNames) do 
+	for jk,xjk in ipairs(symNames) do
+		local j,k = from6to3x3(jk)
+		local xk = xNames[k]
+?>	U->d[<?=i-1?>].<?=xjk?> += (
+		delta.<?=xi?> * U->gamma.<?=xjk?> 
+		- delta.<?=xk?> * U->gamma.<?=sym(i,j)?>
+	) * d_weight;
+<?	end
+end ?>
 #endif
-#if 0	//do a single gradient descent step
-/*
-V_i = d_ik^k - d^k_ki
-f_i = V_i - (d_ijk - d_jki) gamma^jk
-*/
-	U->V.x -= epsilon;
-	U->V.y -= epsilon;
-#endif
+
+//...or linearly project out the [V_i, U->d_ijk] vector
+//...or do a single gradient descent step
 #endif
 }
