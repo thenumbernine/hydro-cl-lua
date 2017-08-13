@@ -370,9 +370,6 @@ if solver.dim >= 3 then
 	//and recalculate read index
 	index = INDEXV(i);
 	
-	int side = 0;
-	int indexInt = side + dim * index;
-	
 	real3 valuevec = _real3(0,0,0);
 	real* value = valuevec.s;
 

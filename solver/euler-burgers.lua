@@ -6,6 +6,8 @@ local range = require 'ext.range'
 local template = require 'template'
 local FiniteVolumeSolver = require 'solver.fvsolver'
 
+local xNames = table{'x', 'y', 'z'}
+
 -- TODO make this work with ops, specifically Euler's SelfGrav
 local EulerBurgers = class(FiniteVolumeSolver)
 EulerBurgers.name = 'EulerBurgers'
@@ -68,12 +70,17 @@ function EulerBurgers:addConvertToTexs()
 		},
 	}
 
-	self:addConvertToTex{
-		name = 'intVel', 
-		vars = range(0,self.dim-1):map(function(i)
-			return {[tostring(i)] = '*value = buf['..i..' + indexInt];'}
-		end),
-	}
+	for j,xj in ipairs(xNames) do
+		self:addConvertToTex{
+			name = 'intVel', 
+			varCodePrefix = [[
+	int indexInt = ]]..(j-1)..[[ + dim * index;
+]],
+			vars = range(0,self.dim-1):map(function(i)
+				return {[xj..'_'..i] = '*value = buf['..i..' + indexInt];'}
+			end),
+		}
+	end
 end
 
 function EulerBurgers:step(dt)

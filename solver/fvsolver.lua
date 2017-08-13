@@ -10,6 +10,8 @@ local file = require 'ext.file'
 local template = require 'template'
 local Solver = require 'solver.solver'
 
+local xNames = table{'x', 'y', 'z'}
+
 local FiniteVolumeSolver = class(Solver)
 
 function FiniteVolumeSolver:createBuffers()
@@ -37,16 +39,19 @@ function FiniteVolumeSolver:addConvertToTexs()
 	FiniteVolumeSolver.super.addConvertToTexs(self)
 
 	-- TODO add kernels for each side
-	self:addConvertToTex{
-		name = 'flux', 
-		type = self.eqn.cons_t,
-		varCodePrefix = [[
+	for j,xj in ipairs(xNames) do
+		self:addConvertToTex{
+			name = 'flux', 
+			type = self.eqn.cons_t,
+			varCodePrefix = [[
+	int indexInt = ]]..(j-1)..[[ + dim * index;
 	const global ]]..self.eqn.cons_t..[[* flux = buf + indexInt;
 ]],
-		vars = range(0,self.eqn.numIntStates-1):map(function(i)
-			return {[tostring(i)] = '*value = flux->ptr['..i..'];'}
-		end),
-	}
+			vars = range(0,self.eqn.numIntStates-1):map(function(i)
+				return {[xj..'_'..i] = '*value = flux->ptr['..i..'];'}
+			end),
+		}
+	end
 end
 
 return FiniteVolumeSolver

@@ -6,6 +6,8 @@ local file = require 'ext.file'
 local template = require 'template'
 local FiniteVolumeSolver = require 'solver.fvsolver'
 
+local xNames = table{'x', 'y', 'z'}
+
 -- this can be put in app.lua
 local errorType = 'error_t'
 local errorTypeCode = [[
@@ -19,7 +21,7 @@ Roe.name = 'Roe'
 -- enable these to verify accuracy
 -- disable these to save on allocation / speed
 Roe.checkFluxError = false
-Roe.checkOrthoError = false 
+Roe.checkOrthoError = false
 
 function Roe:createBuffers()
 	Roe.super.createBuffers(self)
@@ -115,65 +117,81 @@ end
 function Roe:addConvertToTexs()
 	Roe.super.addConvertToTexs(self)
 
-	-- TODO add kernels for each side
-	self:addConvertToTex{
-		name = 'wave',
-		varCodePrefix = [[
+	for j,xj in ipairs(xNames) do
+		self:addConvertToTex{
+			name = 'wave',
+			varCodePrefix = [[
+	int indexInt = ]]..(j-1)..[[ + dim * index;
 	const global real* wave = buf + indexInt * numWaves;
 ]],
-		vars = range(0, self.eqn.numWaves-1):map(function(i)
-			return {[tostring(i)] = '*value = wave['..i..'];'}
-		end),
-	}
-
-	-- TODO add kernels for each side
-	local eigenDisplayVars = self.eqn:getEigenDisplayVars()
-	if eigenDisplayVars and #eigenDisplayVars > 0 then
-		self:addConvertToTex{
-			name = 'eigen',
-			type = self.eqn.eigen_t,
-			varCodePrefix = [[
-	const global ]]..self.eqn.eigen_t..[[* eigen = buf + indexInt;
-]],
-			vars = eigenDisplayVars,
+			vars = range(0, self.eqn.numWaves-1):map(function(i)
+				return {[xj..'_'..i] = '*value = wave['..i..'];'}
+			end),
 		}
 	end
 
-	-- TODO add kernels for each side
-	self:addConvertToTex{
-		name = 'deltaUEig', 
-		varCodePrefix = [[
+	local eigenDisplayVars = self.eqn:getEigenDisplayVars()
+	if eigenDisplayVars and #eigenDisplayVars > 0 then
+		for j,xj in ipairs(xNames) do
+			self:addConvertToTex{
+				name = 'eigen',
+				type = self.eqn.eigen_t,
+				varCodePrefix = [[
+	int indexInt = ]]..(j-1)..[[ + dim * index;
+	const global ]]..self.eqn.eigen_t..[[* eigen = buf + indexInt;
+]],
+				vars = table.map(eigenDisplayVars, function(kv)
+					local k,v = next(kv)
+					return {[xj..'_'..k] = v}
+				end),
+			}
+		end
+	end
+
+	for j,xj in ipairs(xNames) do
+		self:addConvertToTex{
+			name = 'deltaUEig', 
+			varCodePrefix = [[
+	int indexInt = ]]..(j-1)..[[ + dim * index;
 	const global real* deltaUEig = buf + indexInt * numWaves;
 ]],
-		vars = range(0,self.eqn.numWaves-1):map(function(i)
-			return {[tostring(i)] = '*value = deltaUEig['..i..'];'}
-		end),
-	}
-	
-	if self.fluxLimiter[0] > 0 then
-	-- TODO add kernels for each side
-		self:addConvertToTex{
-			name = 'rEig',
-			varCodePrefix = [[
-	const global real* rEig = buf + indexInt * numWaves;
-]],
 			vars = range(0,self.eqn.numWaves-1):map(function(i)
-				return {[tostring(i)] = '*value = rEig['..i..'];'}
+				return {[xj..'_'..i] = '*value = deltaUEig['..i..'];'}
 			end),
 		}
+	end
+
+	if self.fluxLimiter[0] > 0 then
+		for j,xj in ipairs(xNames) do
+			self:addConvertToTex{
+				name = 'rEig',
+				varCodePrefix = [[
+	int indexInt = ]]..(j-1)..[[ + dim * index;
+	const global real* rEig = buf + indexInt * numWaves;
+]],
+				vars = range(0,self.eqn.numWaves-1):map(function(i)
+					return {[xj..'_'..i] = '*value = rEig['..i..'];'}
+				end),
+			}
+		end
 	end
 	
 	-- TODO add kernels for each side
 	if self.checkFluxError or self.checkOrthoError then	
-		self:addConvertToTex{
-			name = 'error', 
-			useLog = true,
-			type = 'error_t',
-			vars = {
-				{ortho = '*value = buf[indexInt].ortho;'},
-				{flux = '*value = buf[indexInt].flux;'},
-			},
-		}
+		for j,xj in ipairs(xNames) do
+			self:addConvertToTex{
+				name = 'error', 
+				varCodePrefix = [[
+	int indexInt = ]]..(j-1)..[[ + dim * index;
+]],
+				useLog = true,
+				type = 'error_t',
+				vars = {
+					{[xj..'_ortho'] = '*value = buf[indexInt].ortho;'},
+					{[xj..'_flux'] = '*value = buf[indexInt].flux;'},
+				},
+			}
+		end
 	end
 end
 
