@@ -250,7 +250,7 @@ function HydroCLApp:setup()
 		
 		-- those designed for SRHD / GRHD:
 		--initState = 'relativistic shock reflection',			-- not working.  these initial conditions are constant =P
-		initState = 'relativistic blast wave test problem 1',
+		--initState = 'relativistic blast wave test problem 1',
 		--initState = 'relativistic blast wave test problem 2',
 		--initState = 'relativistic blast wave interaction',
 	
@@ -268,7 +268,7 @@ function HydroCLApp:setup()
 		--initState = 'two-fluid EMHD soliton maxwell',
 	
 		-- GR
-		--initState = 'gaussian perturbation',
+		initState = 'gaussian perturbation',
 		--initState = 'plane gauge wave',
 		--initState = 'Alcubierre warp bubble',
 		--initState = 'Schwarzschild black hole',
@@ -306,7 +306,7 @@ function HydroCLApp:setup()
 
 	-- GRHD+GR
 	-- here's the GRHD solver with the BSSNOK plugged into it
-	self.solvers:insert(require 'solver.gr-hd-separate'(args))
+	--self.solvers:insert(require 'solver.gr-hd-separate'(args))
 
 	-- M+HD. 
 	-- with superbee flux lim:  
@@ -331,7 +331,7 @@ function HydroCLApp:setup()
 	-- GR
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-	--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+	self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 	--
 	-- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
 	--  but something gets caught up in the freeflow boundary conditions, and it explodes

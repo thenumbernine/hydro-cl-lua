@@ -23,8 +23,6 @@ ADM_BonaMasso_1D_Alcubierre2008.hasEigenCode = true
 ADM_BonaMasso_1D_Alcubierre2008.useSourceTerm = true
 ADM_BonaMasso_1D_Alcubierre2008.hasFluxFromCons = true
 
-ADM_BonaMasso_1D_Alcubierre2008.initStates = require 'init.adm'
-
 local symmath = require 'symmath'
 function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix()
 	local initState = self.initStates[self.solver.initStateIndex]

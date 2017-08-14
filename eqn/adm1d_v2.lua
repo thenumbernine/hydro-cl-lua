@@ -95,8 +95,6 @@ ADM_BonaMasso_1D_Alcubierre1997.mirrorVars = {{'gamma_xx', 'a_x', 'd_xxx', 'K_xx
 ADM_BonaMasso_1D_Alcubierre1997.hasEigenCode = true
 ADM_BonaMasso_1D_Alcubierre1997.useSourceTerm = true
 
-ADM_BonaMasso_1D_Alcubierre1997.initStates = require 'init.adm'
-
 function ADM_BonaMasso_1D_Alcubierre1997:getCodePrefix()
 	local initState = self.initStates[self.solver.initStateIndex]
 	

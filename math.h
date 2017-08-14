@@ -14,6 +14,8 @@ typedef union {
 	};
 } sym3;
 
+typedef sym3 _3sym3[3];
+
 //row vectors, so a.i.j = a_ij
 typedef union {
 	real s[9];

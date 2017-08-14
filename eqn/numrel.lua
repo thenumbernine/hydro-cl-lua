@@ -11,6 +11,8 @@ local NumRelEqn = class(Equation)
 
 local xNames = table{'x', 'y', 'z'}
 
+NumRelEqn.initStates = require 'init.numrel'
+
 function NumRelEqn:init(solver)
 	self.guiVars = {
 		require 'guivar.combo'{

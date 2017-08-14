@@ -28,46 +28,26 @@ end
 local ADM_BonaMasso_3D = class(NumRelEqn)
 ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
 
-ADM_BonaMasso_3D.consVars = {
---[[ 0	]]	'alpha',
---[[ 1	]]	'gamma_xx', 'gamma_xy', 'gamma_xz', 'gamma_yy', 'gamma_yz', 'gamma_zz',
---[[ 7	]]	'a_x', 'a_y', 'a_z',
---[[ 10	]]	'd_xxx', 'd_xxy', 'd_xxz', 'd_xyy', 'd_xyz', 'd_xzz',
---[[ 16	]]	'd_yxx', 'd_yxy', 'd_yxz', 'd_yyy', 'd_yyz', 'd_yzz',
---[[ 22	]]	'd_zxx', 'd_zxy', 'd_zxz', 'd_zyy', 'd_zyz', 'd_zzz',
---[[ 28	]]	'K_xx', 'K_xy', 'K_xz', 'K_yy', 'K_yz', 'K_zz',
---[[ 34	]]	'V_x', 'V_y', 'V_z',
---[[ 37	]]
+local fluxVars = table{
+	{a = 'real3'},
+	{d = '_3sym3'},
+	{K = 'sym3'},
+	{V = 'real3'},
 }
-ADM_BonaMasso_3D.numStates = 37
-ADM_BonaMasso_3D.numWaves = 30	-- skip alpha and gamma_ij
 
-assert(ADM_BonaMasso_3D.numStates == #ADM_BonaMasso_3D.consVars)
+ADM_BonaMasso_3D.consVars = table{
+	{alpha = 'real'},
+	{gamma = 'sym3'},
+}:append(fluxVars)
+
+-- skip alpha and gamma
+ADM_BonaMasso_3D.numWaves = require 'eqn.makestruct'.countReals(fluxVars)
+assert(ADM_BonaMasso_3D.numWaves == 30)
 
 ADM_BonaMasso_3D.hasCalcDT = true
 ADM_BonaMasso_3D.hasEigenCode = true
 ADM_BonaMasso_3D.useSourceTerm = true
 ADM_BonaMasso_3D.useConstrainU = true
-
-ADM_BonaMasso_3D.initStates = require 'init.adm'
-
-function ADM_BonaMasso_3D:getTypeCode()
-	return template([[
-typedef union {
-	real ptr[37];
-	struct {
-		real alpha;
-		sym3 gamma;
-		real3 a;
-		sym3 d[3];
-		sym3 K;
-		real3 V;
-	};
-} <?=eqn.cons_t?>;
-]], {
-	eqn = self,
-})
-end
 
 local symmath = require 'symmath'
 function ADM_BonaMasso_3D:getCodePrefix()
@@ -216,17 +196,30 @@ function ADM_BonaMasso_3D:getSolverCode()
 end
 
 function ADM_BonaMasso_3D:getDisplayVars()
-	return table()
-	:append(table.map(ADM_BonaMasso_3D.consVars, function(var)
-		local code = var:gsub('_', '.')
-		local dx, rest = code:match('^d%.([xyz])([xyz][xyz])$')
-		if dx then
-			local i = xNames:find(dx)
-			code = 'd['..(i-1)..'].'..rest
+	local vars = table()
+	for _,var in ipairs(self.consVars) do
+		local varname, vartype = next(var)
+		
+		if vartype == 'real' then
+			vars:insert{[varname] = '*value = U->'..varname..';'}
+		elseif vartype == 'real3' then
+			for i,xi in ipairs(xNames) do
+				vars:insert{[varname..'_'..xi] = '*value = U->'..varname..'.'..xi..';'}
+			end
+		elseif vartype == 'sym3' then
+			for ij,xij in ipairs(symNames) do
+				vars:insert{[varname..'_'..xij] = '*value = U->'..varname..'.'..xij..';'}
+			end
+		elseif vartype == '_3sym3' then
+			for i,xi in ipairs(xNames) do
+				for jk,xjk in ipairs(symNames) do
+					vars:insert{[varname..'_'..xi..xjk] = '*value = U->'..varname..'['..(i-1)..'].'..xjk..';'}
+				end
+			end
 		end
-		return {[var] = '*value = U->'..code..';'}
-	end))
-	:append{
+	end
+	
+	vars:append{
 		{det_gamma = '*value = sym3_det(U->gamma);'},
 		{volume = '*value = U->alpha * sqrt(sym3_det(U->gamma));'},
 		{f = '*value = calc_f(U->alpha);'},
@@ -293,6 +286,8 @@ momentum constraints
 ]]		},
 --]=]
 	}
+
+	return vars
 end
 
 function ADM_BonaMasso_3D:getEigenTypeCode()

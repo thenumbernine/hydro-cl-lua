@@ -217,8 +217,6 @@ BSSNOKFiniteDifferenceEquation.numIntStates = makestruct.countReals(intVars)
 
 BSSNOKFiniteDifferenceEquation.useConstrainU = true
 
-BSSNOKFiniteDifferenceEquation.initStates = require 'init.adm'
-
 -- should this be getInitStateCode like in eqn/euler?
 function BSSNOKFiniteDifferenceEquation:getCodePrefix()
 	local initState = self.initStates[self.solver.initStateIndex]
