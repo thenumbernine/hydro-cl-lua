@@ -76,10 +76,11 @@ function GRHDSeparateSolver:init(args)
 	HydroSolver.ConvertToTex_U = class(HydroSolver.ConvertToTex_U)
 	function HydroSolver.ConvertToTex_U:setArgs(kernel, var)
 		HydroSolver.ConvertToTex_U.super.setArgs(self, kernel, var)
-		kernel:setArg(3, gr.UBuf)
+		kernel:setArg(2, gr.UBuf)
 	end
 	function HydroSolver:getAddConvertToTexUBufArgs()
 		local args = HydroSolver.super.getAddConvertToTexUBufArgs(self)
+		args.extraArgs = args.extraArgs or {}
 		table.insert(args.extraArgs, 'const global '..gr.eqn.cons_t..'* grUBuf')
 		return args
 	end
