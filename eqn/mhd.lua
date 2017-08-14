@@ -120,11 +120,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W) {
 	}:concat'\n'
 end
 
-function MHD:getInitStateCode()
-	local initState = self.initStates[self.solver.initStateIndex]
-	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
-	local code = initState.init(self.solver)	
-	return template([[
+MHD.initStateCode = [[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -144,15 +140,12 @@ kernel void initState(
 	real P = 0;
 	real3 B = _real3(0,0,0);
 
-]]..code..[[
+	<?=code?>
 	
 	<?=eqn.prim_t?> W = {.rho=rho, .v=v, .P=P, .B=B, .BPot=0};
 	UBuf[index] = consFromPrim(W);
 }
-]], {
-	eqn = self,
-})
-end
+]]
 
 function MHD:getSolverCode()
 	return template(file['eqn/mhd.cl'], {eqn=self, solver=self.solver})

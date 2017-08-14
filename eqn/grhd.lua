@@ -183,12 +183,7 @@ real calc_h(real rho, real P, real eInt) {
 	}:concat'\n'
 end
 
-function GRHD:getInitStateCode()
-	local initState = self.initStates[self.solver.initStateIndex]
-	assert(initState, "couldn't find initState "..self.solver.initStateIndex)
-	local code = initState.init(self.solver)
-	return template([[
-
+GRHD.initStateCode = [[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
@@ -212,7 +207,7 @@ kernel void initState(
 
 	<?=solver:getADMVarCode()?>
 
-]]..code..[[
+	<?=code?>
 	
 	real eInt = calc_eInt_from_P(rho, P);
 
@@ -226,11 +221,7 @@ kernel void initState(
 		.cons = consFromPrim(prim, alpha, beta, gamma),
 	};
 }
-]], {
-	eqn = self,
-	solver = self.solver,
-})
-end
+]]
 
 function GRHD:getSolverCode()
 	return template(file['eqn/grhd.cl'], {

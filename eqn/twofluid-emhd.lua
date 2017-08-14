@@ -205,10 +205,11 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	}:concat'\n'
 end
 
-function TwoFluidEMHD:getInitStateCode()
-	local initState = self.initStates[self.solver.initStateIndex]
-	assert(initState, "couldn't find initState "..self.solver.initStateIndex)
-	local code = initState.init(self.solver)	
+-- overridden because it adds some extra parameters to the template args
+-- should I either make a function for the template arg params
+-- or maybe I shouldn't have super-class'd the initState code to begin with ...
+TwoFluidEMHD:getInitStateCode()
+	local code = self.initState.init(self.solver)	
 	return template([[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf

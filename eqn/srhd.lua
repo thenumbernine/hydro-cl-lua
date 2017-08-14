@@ -168,12 +168,7 @@ real calc_h(real rho, real P, real eInt) {
 	}:concat'\n'
 end
 
-function SRHD:getInitStateCode()
-	local initState = self.initStates[self.solver.initStateIndex]
-	assert(initState, "couldn't find initState "..self.solver.initStateIndex)
-	local code = initState.init(self.solver)
-	return template([[
-
+SRHD.initStateCode = [[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -194,7 +189,7 @@ kernel void initState(
 	//ignored:
 	real3 B = _real3(0,0,0);
 
-]]..code..[[
+	<?=code?>
 	
 	real eInt = calc_eInt_from_P(rho, P);
 	real vSq = coordLenSq(v, x);
@@ -207,10 +202,7 @@ kernel void initState(
 		.cons = consFromPrim(prim, x),
 	};
 }
-]], {
-	eqn = self,
-})
-end
+]]
 
 function SRHD:getSolverCode()
 	return template(file['eqn/srhd.cl'], {

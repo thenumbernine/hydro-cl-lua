@@ -121,11 +121,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	}:concat'\n'
 end
 
-function Euler:getInitStateCode()
-	self.initState = self.initStates[self.solver.initStateIndex]
-	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)	
-	local code = self.initState.init(self.solver)	
-	return template([[
+Euler.initStateCode = [[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -149,7 +145,7 @@ kernel void initState(
 	real3 B = _real3(0,0,0);	//set for MHD / thrown away for pure Euler
 	real ePot = 0;
 
-]]..code..[[
+	<?=code?>
 
 	<?=eqn.prim_t?> W = {
 		.rho = rho,
@@ -159,11 +155,7 @@ kernel void initState(
 	};
 	UBuf[index] = consFromPrim(W, x);
 }
-]], {
-		eqn = self,
-		solver = self.solver,
-	})
-end
+]]
 
 function Euler:getSolverCode()
 	return template(file['eqn/euler.cl'], {eqn=self, solver=self.solver})

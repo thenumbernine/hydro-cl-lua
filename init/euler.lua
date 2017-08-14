@@ -7,7 +7,7 @@ local ffi = require 'ffi'
 local InitState = require 'init.init'
 
 local function quadrantProblem(args)
-	args.init = function(solver)
+	args.initState = function(solver)
 		solver.cfl = .475
 		solver:setBoundaryMethods'freeflow'
 		local function build(i)
@@ -120,7 +120,7 @@ end
 local initStates = table{
 	{
 		name = 'constant',
-		init = function(solver)
+		initState = function(solver)
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
 				solver.eqn.guiVarsForName.heatCapacityRatio.value = 7/5
 			end
@@ -132,7 +132,7 @@ local initStates = table{
 	},
 	{
 		name = 'linear',
-		init = function(solver)
+		initState = function(solver)
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
 				solver.eqn.guiVarsForName.heatCapacityRatio.value = 7/5
 			end
@@ -144,7 +144,7 @@ local initStates = table{
 	},
 	{
 		name = 'constant with motion',
-		init = function(solver) 
+		initState = function(solver) 
 			return [[
 	rho=1;
 	v.x=1;
@@ -156,13 +156,13 @@ local initStates = table{
 	},
 	{
 		name = 'linear',
-		init = function(solver)
+		initState = function(solver)
 			return '	rho=2+x.x; P=1;'
 		end,
 	},
 	{
 		name = 'gaussian',
-		init = function(solver)
+		initState = function(solver)
 			return [[
 	real sigma = 1. / sqrt(10.);
 	real xSq = real3_dot(x,x);
@@ -173,7 +173,7 @@ local initStates = table{
 	},
 	{
 		name = 'advect wave',
-		init = function(solver)
+		initState = function(solver)
 			return [[
 	real3 xc = real3_sub(coordMap(x), _real3(-.5, 0, 0));
 	real rSq = real3_lenSq(xc);
@@ -187,7 +187,7 @@ local initStates = table{
 	
 	{
 		name = 'Sod',
-		init = function(solver)
+		initState = function(solver)
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
 				solver.eqn.guiVarsForName.heatCapacityRatio.value = 7/5
 			end
@@ -199,7 +199,7 @@ local initStates = table{
 	},
 	{
 		name = 'Sedov',
-		init = function(solver)
+		initState = function(solver)
 			return [[
 	rho = 1;
 	P = (i.x == gridSize.x/2 && i.y == gridSize.y/2 && i.z == gridSize.z/2) ? 1e+3 : 1;
@@ -210,7 +210,7 @@ local initStates = table{
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/brio-wu/Brio-Wu.html
 	{
 		name = 'Brio-Wu',
-		init = function(solver)
+		initState = function(solver)
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
 				solver.eqn.guiVarsForName.heatCapacityRatio.value = 2
 			end
@@ -227,7 +227,7 @@ local initStates = table{
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/orszag-tang/pagesource.html
 	{
 		name = 'Orszag-Tang',
-		init = function(solver)
+		initState = function(solver)
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
 				solver.eqn.guiVarsForName.heatCapacityRatio.value = 5/3
 			end
@@ -247,7 +247,7 @@ local initStates = table{
 	-- http://www.cfd-online.com/Wiki/Explosion_test_in_2-D
 	{
 		name = 'sphere',
-		init = function(solver)
+		initState = function(solver)
 			return [[
 	real rSq = real3_dot(x,x);
 	bool inside = rSq < .5*.5;
@@ -258,7 +258,7 @@ local initStates = table{
 	},
 	{
 		name = 'rarefaction wave',
-		init = function(solver)
+		initState = function(solver)
 			return [[
 	real delta = .1;
 	rho = 1;	// lhs ? .2 : .8;
@@ -316,7 +316,7 @@ local initStates = table{
 	--from SRHD Marti & Muller 2000
 	{
 		name = 'relativistic shock reflection',
-		init = function(solver)
+		initState = function(solver)
 			solver.cfl = .5	-- needs a slower cfl
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
 				solver.eqn.guiVarsForName.heatCapacityRatio.value = 4/3
@@ -330,7 +330,7 @@ local initStates = table{
 	},
 	{
 		name = 'relativistic blast wave test problem 1',
-		init = function(solver)
+		initState = function(solver)
 			solver.cfl = .5	-- needs a slower cfl
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
 				solver.eqn.guiVarsForName.heatCapacityRatio.value = 5/3
@@ -343,7 +343,7 @@ local initStates = table{
 	},
 	{
 		name = 'relativistic blast wave test problem 2',
-		init = function(solver)
+		initState = function(solver)
 			solver.cfl = .5	-- needs a slower cfl
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
 				solver.eqn.guiVarsForName.heatCapacityRatio.value = 5/3
@@ -356,7 +356,7 @@ local initStates = table{
 	},
 	{
 		name = 'relativistic blast wave interaction',
-		init = function(solver)
+		initState = function(solver)
 			solver.cfl = .5	-- needs a slower cfl
 			return template([[
 	
@@ -378,7 +378,7 @@ local initStates = table{
 
 	{
 		name = 'Colella-Woodward',
-		init = function(solver)
+		initState = function(solver)
 			solver:setBoundaryMethods'freeflow'
 			return [[
 	rho = 1;
@@ -394,7 +394,7 @@ local initStates = table{
 	},
 	{
 		name = 'Kelvin-Hemholtz',
-		init = function(solver)
+		initState = function(solver)
 			solver:setBoundaryMethods'periodic'
 			
 			local moveAxis = 0
@@ -444,7 +444,7 @@ end ?>
 	-- TODO fixme 
 	{
 		name = 'Rayleigh-Taylor',
-		init = function(solver)
+		initState = function(solver)
 			local xs = {'x', 'y', 'z'}
 			
 			local xmid = (solver.mins + solver.maxs) * .5
@@ -486,7 +486,7 @@ end ?>;
 	--http://www.astro.virginia.edu/VITA/ATHENA/dmr.html
 	{
 		name = 'double mach reflection',
-		init = function(solver)
+		initState = function(solver)
 			-- I am not correctly modeling the top boundary
 			solver.mins = vec3(0,0,0)
 			solver.maxs = vec3(4,1,1)
@@ -522,7 +522,7 @@ end ?>;
 	-- http://www.cfd-online.com/Wiki/2-D_laminar/turbulent_driven_square_cavity_flow
 	{
 		name = 'square cavity',
-		init = function(solver)
+		initState = function(solver)
 			solver:setBoundaryMethods{
 				xmin = 'mirror',
 				xmax = 'mirror',
@@ -541,7 +541,7 @@ end ?>;
 
 	{
 		name='shock bubble interaction',
-		init = function(solver)
+		initState = function(solver)
 			solver:setBoundaryMethods'freeflow'
 			return [[
 	const real waveX = -.45;
@@ -560,7 +560,7 @@ end ?>;
 
 	{
 		name = 'self-gravitation test 1',
-		init = function(solver)
+		initState = function(solver)
 			local radius = .5
 			local f = SelfGravProblem{
 				solver = solver,
@@ -589,7 +589,7 @@ end ?>;
 
 	{
 		name = 'self-gravitation test 1 spinning',
-		init = function(solver)
+		initState = function(solver)
 			local inside = [[
 	v.x = -2 * delta.y;
 	v.y = 2 * delta.x;
@@ -617,7 +617,7 @@ end ?>;
 
 	{
 		name = 'self-gravitation test 2',
-		init = SelfGravProblem{ 
+		initState = SelfGravProblem{ 
 			sources={
 				{
 					center = {-.25, 0, 0},
@@ -634,7 +634,7 @@ end ?>;
 	{
 		-- TODO add tidal-locked rotations
 		name = 'self-gravitation test 2 orbiting',
-		init = SelfGravProblem{ 
+		initState = SelfGravProblem{ 
 			sources = {
 				{
 					center = {-.25, 0, 0},
@@ -662,7 +662,7 @@ end ?>;
 	
 	{
 		name = 'self-gravitation test 4',
-		init =  SelfGravProblem{
+		initState =  SelfGravProblem{
 			sources={
 				{center={.25, .25, 0}, radius = .1},
 				{center={-.25, .25, 0}, radius = .1},
@@ -674,7 +674,7 @@ end ?>;
 
 	{
 		name = 'self-gravitation soup',
-		init = function(solver)
+		initState = function(solver)
 			return [[
 	int q = index;
 	for (int i = 0; i < 20; ++i) {
@@ -699,7 +699,7 @@ end ?>;
 
 	{
 		name = 'Maxwell default',
-		init = function(solver)
+		initState = function(solver)
 			return [[
 	E = _real3(1,0,0);
 	B = _real3(0, 1, lhs ? 1 : -1);
@@ -709,7 +709,7 @@ end ?>;
 
 	{
 		name = 'Maxwell scattering around cylinder',
-		init = function(solver)
+		initState = function(solver)
 			addMaxwellOscillatingBoundary(solver)
 			return [[
 	real3 xc = coordMap(x);
@@ -723,7 +723,7 @@ end ?>;
 
 	{
 		name = 'Maxwell wire',
-		init = function(solver)
+		initState = function(solver)
 			addMaxwellOscillatingBoundary(solver)
 			
 			local c = 299792458
@@ -760,7 +760,7 @@ end ?>;
 
 	{
 		name = 'two-fluid EMHD soliton ion',
-		init = function(solver)
+		initState = function(solver)
 			return [[
 	const real L = 12.;
 	rho = 1. + (real)exp((real)-25. * (real)fabs(x.x - L / (real)3.));
@@ -769,7 +769,7 @@ end ?>;
 	},
 	{
 		name = 'two-fluid EMHD soliton electron',
-		init = function(solver)
+		initState = function(solver)
 			return [[
 	const real L = 12.;
 	rho = 5. * (1. + (real)exp((real)-25. * (real)fabs(x.x - L / (real)3.)));
@@ -778,7 +778,7 @@ end ?>;
 	},
 	{
 		name = 'two-fluid EMHD soliton maxwell',
-		init = function(solver)
+		initState = function(solver)
 -- TODO			
 			return [[
 

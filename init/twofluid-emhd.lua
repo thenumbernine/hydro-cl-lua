@@ -3,7 +3,7 @@ local table = require 'ext.table'
 return table{
 	{
 		name = 'Brio-Wu',
-		init = function(solver)
+		initState = function(solver)
 			if solver.eqn.guiVarsForName.heatCapacityRatio then	
 				solver.eqn.guiVarsForName.heatCapacityRatio.value = 2
 			end

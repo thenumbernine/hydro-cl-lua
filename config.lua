@@ -109,6 +109,14 @@ local args = {
 
 	--useGravity = true,
 
+	-- TODO separate initStates for each class of equation
+	-- this would cohese better with the combined solvers
+	-- i.e. a fluid initState, an EM init-state, and a numrel init-state
+	-- ... but that means splitting the MHD init-states across M and HD ...
+	-- how about just stacking initStates?
+	-- and letting each one assign what values it wants.
+	-- still to solve -- how do we specify initStates for combined solvers with multiple sets of the same variables (ion/electron, etc)
+
 	-- no initial state means use the first
 	--initState = cmdline.initState,
 	
@@ -165,8 +173,8 @@ local args = {
 	--initState = 'two-fluid EMHD soliton maxwell',
 
 	-- GR
-	--initState = 'gaussian perturbation',
-	initState = 'plane gauge wave',
+	initState = 'gaussian perturbation',
+	--initState = 'plane gauge wave',
 	--initState = 'Alcubierre warp bubble',
 	--initState = 'Schwarzschild black hole',
 	--initState = 'black hole - isotropic',
@@ -227,7 +235,7 @@ local args = {
 --self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
 
 -- GR
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 --
@@ -236,7 +244,6 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
---self.solvers:insert(require 'solver.bssnok-fd'(args))
+self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
-

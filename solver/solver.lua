@@ -333,18 +333,30 @@ print('self.volume', self.volume)
 	self.buffers = table()
 	self:createBuffers()
 	self:finalizeCLAllocs()
+
+	-- create the code prefix, reflect changes
+	self:refreshCodePrefix()
+	-- initialize things dependent on cons_t alone
+	self:refreshCommonProgram()
+	self:resetState()
+end
+	
+-- call this when the solver initializes or changes the codePrefix (or changes initState)
+-- it will build the code prefix and refresh everything related to it
+-- TODO if you change cons_t then call resetState etc (below the refreshCodePrefix() call a few lines above) in addition to this -- or else your values will get messed up
+function Solver:refreshCodePrefix()	
+	-- this influences createCodePrefix (via its call of eqn:getCodePrefix)
+	--  and refreshInitStateProgram()
+	self.eqn:createInitState()
 	
 	self:createCodePrefix()		-- depends on eqn, gridSize, displayVars
-	
 	self:refreshIntegrator()	-- depends on eqn & gridSize ... & ffi.cdef cons_t
-
 	self:refreshInitStateProgram()
-	self:refreshCommonProgram()
 	self:refreshSolverProgram()
 	self:refreshDisplayProgram()
+	-- changing initState calls this, and could change boundary programs, so I'm putting this here
+	-- bad excuse, I know
 	self:refreshBoundaryProgram()
-
-	self:resetState()
 end
 
 function Solver:refreshIntegrator()
@@ -1834,16 +1846,8 @@ end
 function Solver:updateGUIEqnSpecific()
 	if ig.igCollapsingHeader'equation:' then
 		if tooltip.comboTable('init state', self, 'initStateIndex', self.eqn.initStateNames) then
-			
-			self:refreshInitStateProgram()
-			
-			-- TODO changing the init state program might also change the boundary methods
-			-- ... but I don't want it to change the settings for the running scheme (or do I?)
-			-- ... but I don't want it to not change the settings ...
-			-- so maybe refreshing the init state program should just refresh everything?
-			-- or maybe just the boundaries too?
-			-- hack for now:
-			self:refreshBoundaryProgram()
+			-- TODO hmm ... the whole point of making a separate initStateProgram was to be able to refresh it without rebuilding all of the solver ...
+			self:refreshCodePrefix()
 		end	
 		
 		for _,var in ipairs(self.eqn.guiVars) do

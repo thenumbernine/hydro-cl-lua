@@ -27,11 +27,7 @@ typedef <?=eqn.prim_t?> <?=eqn.cons_t?>;
 	})
 end
 
-function NavierStokesDivFree:getInitStateCode()
-	local initState = self.initStates[self.solver.initStateIndex]
-	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
-	local code = initState.init(self.solver)	
-	return template([[
+NavierStokesDivFree.initStateCode = [[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -54,7 +50,7 @@ kernel void initState(
 	real3 B = _real3(0,0,0);
 	real ePot = 0;
 
-]]..code..[[
+	<?=code?>
 
 	<?=eqn.cons_t?> U = {
 		.rho = rho,
@@ -62,10 +58,7 @@ kernel void initState(
 	};
 	UBuf[index] = U;
 }
-]], {
-		eqn = self,
-	})
-end
+]]
 
 function NavierStokesDivFree:getSolverCode()
 	return template(file['eqn/euler.cl'], {eqn=self, solver=self.solver})

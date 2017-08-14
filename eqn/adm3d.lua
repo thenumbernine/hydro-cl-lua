@@ -51,9 +51,6 @@ ADM_BonaMasso_3D.useConstrainU = true
 
 local symmath = require 'symmath'
 function ADM_BonaMasso_3D:getCodePrefix()
-	local initState = self.initStates[self.solver.initStateIndex]
-	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
-	
 	local lines = table()
 		
 	-- don't call super because it generates the guivar code
@@ -73,7 +70,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 }
 ]], {eqn=self}))
 	
-	lines:insert(initState.init(self.solver, function(exprs, vars, args)
+	lines:insert(self.initState:getCodePrefix(self.solver, function(exprs, vars, args)
 		print('building lapse partials...')
 		exprs.a = table.map(vars, function(var)
 			return (exprs.alpha:diff(var) / exprs.alpha)()

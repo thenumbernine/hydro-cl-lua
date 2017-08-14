@@ -96,8 +96,6 @@ ADM_BonaMasso_1D_Alcubierre1997.hasEigenCode = true
 ADM_BonaMasso_1D_Alcubierre1997.useSourceTerm = true
 
 function ADM_BonaMasso_1D_Alcubierre1997:getCodePrefix()
-	local initState = self.initStates[self.solver.initStateIndex]
-	
 	return table{
 		-- don't call super because it generates the guivar code
 		-- which is already being generated in initState
@@ -115,7 +113,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 }
 ]], {eqn=self}),	
 			
-		initState.init(self.solver, function(exprs, vars)
+		self.initState:getCodePrefix(self.solver, function(exprs, vars)
 			return {
 				alpha  = exprs.alpha,
 				gamma_xx = exprs.gamma[1],	-- only need g_xx
@@ -127,8 +125,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	}:concat'\n'
 end
 
-function ADM_BonaMasso_1D_Alcubierre1997:getInitStateCode()
-	return template([[
+ADM_BonaMasso_1D_Alcubierre1997.initStateCode = [[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -142,10 +139,7 @@ kernel void initState(
 	U->d_xxx = calc_d_xxx(x.x, x.y, x.z);
 	U->K_xx = calc_K_xx(x.x, x.y, x.z);
 }
-]], {
-	eqn = self,
-})
-end
+]]
 
 function ADM_BonaMasso_1D_Alcubierre1997:getSolverCode()
 	return template(file['eqn/adm1d_v2.cl'], {eqn=self, solver=self.solver})
@@ -176,7 +170,7 @@ end
 local eigenVars = {'alpha', 'sqrt_f_over_gamma_xx'}
 
 function ADM_BonaMasso_1D_Alcubierre1997:getEigenTypeCode()
-	return require 'eqn.makestruct'(self.eigen_t, eigenVars)
+	return require 'eqn.makestruct'.makeStruct(self.eigen_t, eigenVars)
 end
 
 function ADM_BonaMasso_1D_Alcubierre1997:getEigenDisplayVars()

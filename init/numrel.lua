@@ -188,7 +188,7 @@ return table{
 	-- from 1997 Alcubierre "The appearance of coorindate shocks in hyperbolic formalisms of General Relativity".
 	{
 		name = 'gaussian perturbation',
-		init = function(solver, getCodes)
+		getCodePrefix = function(self, solver, getCodes)
 
 			-- here's the coordinates
 
@@ -258,14 +258,14 @@ return table{
 	-- from 2012 Alic et. al. "Conformal and covariant formulations of the Z4 system with constraint-violation damping"
 	{
 		name = 'plane gauge wave',
-		init = function(solver, getCodes)
+		getCodePrefix = function(self, solver, getCodes)
 			local xs = xNames:map(function(x) return symmath.var(x) end)
 			symmath.Tensor.coords{{variables=xs}}
 			local x,y,z = xs:unpack()
 
 			local A = .1
 			local L = 1
-			local h = 1 - A * symmath.cos((2 * math.pi / L) * x)
+			local h = 1 - A * symmath.sin((2 * math.pi / L) * x)
 			return initNumRel{
 				solver = solver,
 				getCodes = getCodes,
@@ -278,7 +278,7 @@ return table{
 	},
 	{
 		name = 'Alcubierre warp bubble',
-		init = function(solver, getCodes)
+		getCodePrefix = function(self, solver, getCodes)
 			-- [[ safe values
 			local R = .5		-- warp bubble radius
 			local sigma = 8	-- warp bubble thickness
@@ -331,7 +331,7 @@ return table{
 	},
 	{
 		name = 'Schwarzschild black hole',
-		init = function(solver, getCodes)
+		getCodePrefix = function(self, solver, getCodes)
 			
 			local R = .002	-- Schwarzschild radius
 			
@@ -389,7 +389,7 @@ end
 	},
 	{	-- Baumgarte & Shapiro, table 2.1, isotropic coordinates
 		name = 'black hole - isotropic',
-		init = function(solver, getCodes)
+		getCodePrefix = function(self, solver, getCodes)
 			local R = .001	-- Schwarzschild radius
 		
 			local fCCode = buildFCCode(solver)
@@ -509,13 +509,13 @@ end
 	},
 	{
 		name = 'spinning black hole - isotropic',
-		init = function(solver, getCodes)
+		getCodePrefix = function(self, solver, getCodes)
 			local R = .01
 		end,
 	},
 	{
 		name = 'binary black holes - isotropic',
-		init = function(solver, getCodes)
+		getCodePrefix = function(self, solver, getCodes)
 			local fCCode = buildFCCode(solver)
 		
 			-- [=[
@@ -555,7 +555,7 @@ end
 	},
 	{
 		name = 'stellar model',
-		init = function(solver, getCodes)
+		getCodePrefix = function(self, solver, getCodes)
 			-- hmm, the symbolic stuff seemed to be working so much better in the last project ...
 			-- now i'm replacing it with macros for speed's sake ...
 			do
@@ -742,7 +742,7 @@ for i,xi in ipairs(xNames) do
 	},
 	{
 		name = 'stellar model 2',
-		init = function(solver)
+		getCodePrefix = function(self, solver)
 			-- planet plucked out of existence
 			initNumRel{
 				bodies={
@@ -753,7 +753,7 @@ for i,xi in ipairs(xNames) do
 	},
 	{
 		name = 'stellar model 3',
-		init = function(solver)
+		getCodePrefix = function(self, solver)
 			--[[
 			earth radius = 6.37101e+6 m
 			domain: 10x radius = 6.37101e+7 m
@@ -784,9 +784,10 @@ for i,xi in ipairs(xNames) do
 	},
 	-- 2007 Alic et al "Efficient Implementation of finite volume methods in Numerical Relativity"
 	-- 1D Black Hole in wormhole form
+	-- FIXME this is freezing on init
 	{
 		name = '1D black hole - wormhole form',
-		init = function(solver, getCodes)
+		getCodePrefix = function(self, solver, getCodes)
 			-- TODO gui parameters for initState variables
 			local m = 1
 			

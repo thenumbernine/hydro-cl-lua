@@ -56,6 +56,12 @@ function Equation:init(solver)
 	self.guiVarsForName = table.map(self.guiVars, function(var) return var, var.name end)
 end
 
+function Equation:createInitState()
+	assert(self.initStates, "expected Eqn.initStates")
+	self.initState = self.initStates[self.solver.initStateIndex]
+	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)	
+end
+
 function Equation:getCodePrefix()
 	return (self.guiVars and table.map(self.guiVars, function(var) 
 		return var:getCode()
@@ -65,6 +71,16 @@ end
 function Equation:getTypeCode()
 	assert(self.consVars)
 	return makestruct.makeStruct(self.cons_t, self.consVars)
+end
+
+function Equation:getInitStateCode()
+	local code = self.initState.initState and self.initState.initState(self.solver) or nil
+	assert(self.initStateCode, "expected Eqn.initStateCode")
+	return template(self.initStateCode, {
+		eqn = self,
+		code = code,
+		solver = self.solver,
+	})
 end
 
 function Equation:getDisplayVarCodePrefix()

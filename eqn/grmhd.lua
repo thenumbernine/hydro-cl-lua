@@ -181,12 +181,7 @@ real calc_h(real rho, real P, real eInt) {
 	}:concat'\n'
 end
 
-function GRMHD:getInitStateCode()
-	local initState = self.initStates[self.solver.initStateIndex]
-	assert(initState, "couldn't find initState "..self.solver.initStateIndex)
-	local code = initState.init(self.solver)
-	return template([[
-
+GRMHD.initStateCode = [[
 kernel void initState(
 	global <?=eqn.cons_t?>* consBuf,
 	global <?=eqn.prim_t?>* primBuf
@@ -208,7 +203,7 @@ kernel void initState(
 	//ignored:
 	real3 B = _real3(0,0,0);
 
-]]..code..[[
+	<?=code?>
 	
 	real eInt = calc_eInt_from_P(rho, P);
 	real vSq = coordLenSq(v, x);
@@ -219,10 +214,7 @@ kernel void initState(
 	primBuf[index] = prim;
 	consBuf[index] = consFromPrim(prim, x);
 }
-]], {
-	eqn = self,
-})
-end
+]]
 
 function GRMHD:getSolverCode()
 	return template(file['eqn/srhd.cl'], {

@@ -27,7 +27,6 @@ end
 
 function BSSNOKFiniteDifferenceSolver:refreshInitStateProgram()
 	BSSNOKFiniteDifferenceSolver.super.refreshInitStateProgram(self)
-
 	self.initConnUBarKernel = self.initStateProgram:kernel('init_connBarU', self.UBuf)
 end
 

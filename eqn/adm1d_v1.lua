@@ -25,9 +25,6 @@ ADM_BonaMasso_1D_Alcubierre2008.hasFluxFromCons = true
 
 local symmath = require 'symmath'
 function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix()
-	local initState = self.initStates[self.solver.initStateIndex]
-	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
-	
 	-- pick out whatever variables that 'codes' needs to convert
 	return table{
 		
@@ -47,7 +44,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 }
 ]], {eqn=self}),	
 		
-		initState.init(self.solver, function(exprs, vars)
+		self.initState:getCodePrefix(self.solver, function(exprs, vars)
 			return {
 				alpha  = exprs.alpha,
 				gamma_xx = exprs.gamma[1],	-- only need g_xx
@@ -59,8 +56,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	}:concat'\n'
 end
 
-function ADM_BonaMasso_1D_Alcubierre2008:getInitStateCode()
-	return template([[
+ADM_BonaMasso_1D_Alcubierre2008.initStateCode = [[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -74,10 +70,7 @@ kernel void initState(
 	U->D_g = calc_D_g(x.x, x.y, x.z);
 	U->KTilde = calc_KTilde(x.x, x.y, x.z);
 }
-]], {
-	eqn = self,
-})
-end
+]]
 
 function ADM_BonaMasso_1D_Alcubierre2008:getSolverCode()
 	return template(file['eqn/adm1d_v1.cl'], {eqn=self, solver=self.solver})

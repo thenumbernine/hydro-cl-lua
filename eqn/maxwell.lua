@@ -95,11 +95,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) { return W; }
 	}:concat'\n'
 end
 
-function Maxwell:getInitStateCode()
-	self.initState = self.initStates[self.solver.initStateIndex]
-	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)	
-	local code = self.initState.init(self.solver)	
-	return template([[
+Maxwell.initStateCode = [[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -132,8 +128,8 @@ kernel void initState(
 	real3 v = _real3(0,0,0);
 	real P = 0;
 	real ePot = 0;
-
-]]..code..[[
+	
+	<?=code?>
 	
 	U->epsE = real3_scale(E, permittivity);
 	U->B = B;
@@ -142,10 +138,7 @@ kernel void initState(
 	U->eps = permittivity;
 	U->mu = permeability;
 }
-]], {
-	eqn = self,
-})
-end
+]]
 
 function Maxwell:getSolverCode()
 	return template(file['eqn/maxwell.cl'], {eqn=self, solver=self.solver})

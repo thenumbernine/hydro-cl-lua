@@ -219,9 +219,6 @@ BSSNOKFiniteDifferenceEquation.useConstrainU = true
 
 -- should this be getInitStateCode like in eqn/euler?
 function BSSNOKFiniteDifferenceEquation:getCodePrefix()
-	local initState = self.initStates[self.solver.initStateIndex]
-	assert(initState, "couldn't find initState "..self.solver.initStateIndex)	
-	
 	local lines = table()
 	
 	-- don't call super because it generates the guivar code
@@ -240,7 +237,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 }
 ]], {eqn=self}))
 	
-	lines:insert(initState.init(self.solver, function(exprs, vars, args)
+	lines:insert(self.initState:getCodePrefix(self.solver, function(exprs, vars, args)
 		return table(
 			--f = exprs.f,
 			--dalpha_f = exprs.dalpha_f,
