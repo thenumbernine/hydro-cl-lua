@@ -787,15 +787,19 @@ for i,xi in ipairs(xNames) do
 	{
 		name = '1D black hole - wormhole form',
 		init = function(solver, getCodes)
+			-- TODO gui parameters for initState variables
+			local m = 1
+			
 			-- coords: t, eta, Omega
 			-- g_tt = -(tanh eta)^2 = -alpha^2 <=> alpha = tanh eta
 			-- g_eta_eta = 4 m^2 cosh(eta/2)^4
 			-- g_Omega_Omega = 4 m^2 cosh(eta/2)^4
 			-- using r = m/2 exp(Eta)
 			-- m = mass
-			local xNames = table{'t', 'eta'}
-			-- TODO mapping to isotropic?
-			-- separate models or automatic transforms between isotropic and spherical?
+			-- TODO how should the finite volume scheme be modified to incorporate the volume element -- especially a dynamic volume element
+			local xNames = table{'eta', 'theta', 'phi'}
+			-- TODO mapping to isotropic coordinates?
+			-- or separate models or automatic transforms between isotropic and spherical?
 			local xs = xNames:map(function(x) return symmath.var(x) end)
 			local t, eta = xs:unpack()
 			
