@@ -50,6 +50,7 @@ TODO:
 - add source terms to GRHD -- or at least plugins for 'gr-hd-separate' to fill in from the NR solver
 - coroutines to iterative solvers?  so they don't stall the app execution?
 - Poisson SelfGrav seems to be pulling things slightly upwards
+- RHD W error in >1 dimension
 
 ### Sources:
 

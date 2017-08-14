@@ -216,6 +216,36 @@ function Solver:finalizeBoundaryOptions()
 	self.boundaryOptionForName = self.boundaryOptions:map(function(option) local k,v = next(option) return v,k end)
 end
 
+--[[
+this is shorthand for assignment
+you can also assign each solver.boundaryMethod.[x|y|z][min|max] to an index in solver.boundaryOptions
+args:
+	a string = sets all boundaryMethods to the boundaryOptions index with name of the string in args
+	a table = sets each xmin...zmax boundaryMethod with the associated name
+--]]
+function Solver:setBoundaryMethods(args)
+	for _,x in ipairs(xs) do
+		for _,minmax in ipairs(minmaxs) do
+			local k = x..minmax
+			local name
+			if type(args) == 'string' then
+				name = args	
+			elseif type(args) == 'table' then
+				name = args[k]
+			else
+				error("don't know how to deal with these args") 
+			end
+			local i = self.boundaryOptions:find(nil, function(option) return next(option) == name end)
+			if not i then
+				io.stderr:write("unable to find boundary method "..name.." -- can't assign it to side "..k.."\n")
+				io.stderr:flush()
+			else
+				self.boundaryMethods[k] = i
+			end
+		end
+	end
+end
+
 -- this is the general function - which just assigns the eqn provided by the arg
 -- but it can be overridden for specific equations
 function Solver:createEqn(eqn)

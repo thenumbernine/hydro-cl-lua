@@ -209,6 +209,7 @@ return table{
 			-- messing with it on my own
 			local H = .01 * size
 			local sigma = .1 * size
+			-- TODO allow initStates to expose their own parameters
 
 		
 			local xc = .5 * (solver.mins[1] + solver.maxs[1])
@@ -393,16 +394,7 @@ end
 		
 			local fCCode = buildFCCode(solver)
 
-			local fixedBC = solver.boundaryOptions:find(nil, function(option) return next(option) == 'fixed' end)
-			if not fixedBC then
-				io.stderr:write"you're using a solver that doesn't support fixed boundary conditions\n"
-			else
-				for _,x in ipairs{'x', 'y', 'z'} do
-					for _,minmax in ipairs{'min', 'max'} do
-						solver.boundaryMethods[x..minmax] = fixedBC
-					end
-				end
-			end
+			solver:setBoundaryMethods'fixed'
 --[=[ runs a lot faster than passing r=sqrt(x^2+y^2+z^2) to compile
 --	but the equations are too complex -- they tend to crash upon compile
 			local xs = xNames:map(function(x) return symmath.var(x) end)
@@ -752,7 +744,7 @@ for i,xi in ipairs(xNames) do
 		name = 'stellar model 2',
 		init = function(solver)
 			-- planet plucked out of existence
-			setup{
+			initNumRel{
 				bodies={
 					{pos = {0,0,0}, radius = .1, mass = .001, density=0, pressure=0}
 				}
@@ -783,10 +775,40 @@ for i,xi in ipairs(xNames) do
 			for k,v in pairs(planet) do print(k,v) end
 
 			local gridUnitsInM = planet.radiusInM / planet.radiusInCoords
-			setup{
+			initNumRel{
 				bodies={
 					{pos = {0,0,0}, radius = planet.radiusInCoords, mass = planet.massInCoords},
 				}
+			}
+		end,
+	},
+	-- 2007 Alic et al "Efficient Implementation of finite volume methods in Numerical Relativity"
+	-- 1D Black Hole in wormhole form
+	{
+		name = '1D black hole - wormhole form',
+		init = function(solver, getCodes)
+			-- coords: t, eta, Omega
+			-- g_tt = -(tanh eta)^2 = -alpha^2 <=> alpha = tanh eta
+			-- g_eta_eta = 4 m^2 cosh(eta/2)^4
+			-- g_Omega_Omega = 4 m^2 cosh(eta/2)^4
+			-- using r = m/2 exp(Eta)
+			-- m = mass
+			local xNames = table{'t', 'eta'}
+			-- TODO mapping to isotropic?
+			-- separate models or automatic transforms between isotropic and spherical?
+			local xs = xNames:map(function(x) return symmath.var(x) end)
+			local t, eta = xs:unpack()
+			
+			local alpha = symmath.tanh(eta)
+			local g_eta_eta = 4 * m^2 * symmath.cosh(eta/2)^4
+			
+			return initNumRel{
+				solver = solver,
+				getCodes = getCodes,
+				vars = xs,
+				alpha = alpha,
+				gamma = {g_eta_eta,0,0,g_eta_eta,0,g_eta_eta},
+				K = {0,0,0,0,0,0},
 			}
 		end,
 	},
