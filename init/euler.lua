@@ -7,7 +7,7 @@ local ffi = require 'ffi'
 local InitState = require 'init.init'
 
 local function quadrantProblem(args)
-	args.initState = function(solver)
+	args.initState = function(self, solver)
 		solver.cfl = .475
 		solver:setBoundaryMethods'freeflow'
 		local function build(i)
@@ -120,9 +120,9 @@ end
 local initStates = table{
 	{
 		name = 'constant',
-		initState = function(solver)
-			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value = 7/5
+		initState = function(self, solver)
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
 			end
 			return [[
 	rho = 1;
@@ -132,9 +132,9 @@ local initStates = table{
 	},
 	{
 		name = 'linear',
-		initState = function(solver)
-			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value = 7/5
+		initState = function(self, solver)
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
 			end
 			return [[
 	rho = 1 + x.x;
@@ -144,7 +144,7 @@ local initStates = table{
 	},
 	{
 		name = 'constant with motion',
-		initState = function(solver) 
+		initState = function(self, solver) 
 			return [[
 	rho=1;
 	v.x=1;
@@ -156,13 +156,13 @@ local initStates = table{
 	},
 	{
 		name = 'linear',
-		initState = function(solver)
+		initState = function(self, solver)
 			return '	rho=2+x.x; P=1;'
 		end,
 	},
 	{
 		name = 'gaussian',
-		initState = function(solver)
+		initState = function(self, solver)
 			return [[
 	real sigma = 1. / sqrt(10.);
 	real xSq = real3_dot(x,x);
@@ -173,7 +173,7 @@ local initStates = table{
 	},
 	{
 		name = 'advect wave',
-		initState = function(solver)
+		initState = function(self, solver)
 			return [[
 	real3 xc = real3_sub(coordMap(x), _real3(-.5, 0, 0));
 	real rSq = real3_lenSq(xc);
@@ -187,9 +187,9 @@ local initStates = table{
 	
 	{
 		name = 'Sod',
-		initState = function(solver)
-			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value = 7/5
+		initState = function(self, solver)
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
 			end
 			return [[
 	rho = lhs ? 1. : .125;
@@ -199,7 +199,7 @@ local initStates = table{
 	},
 	{
 		name = 'Sedov',
-		initState = function(solver)
+		initState = function(self, solver)
 			return [[
 	rho = 1;
 	P = (i.x == gridSize.x/2 && i.y == gridSize.y/2 && i.z == gridSize.z/2) ? 1e+3 : 1;
@@ -210,9 +210,9 @@ local initStates = table{
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/brio-wu/Brio-Wu.html
 	{
 		name = 'Brio-Wu',
-		initState = function(solver)
-			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value = 2
+		initState = function(self, solver)
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 2
 			end
 			return [[
 	rho = lhs ? 1 : .125;
@@ -227,9 +227,9 @@ local initStates = table{
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/orszag-tang/pagesource.html
 	{
 		name = 'Orszag-Tang',
-		initState = function(solver)
-			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value = 5/3
+		initState = function(self, solver)
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 5/3
 			end
 			return [[
 	const real B0 = 1./sqrt(4. * M_PI);
@@ -247,7 +247,7 @@ local initStates = table{
 	-- http://www.cfd-online.com/Wiki/Explosion_test_in_2-D
 	{
 		name = 'sphere',
-		initState = function(solver)
+		initState = function(self, solver)
 			return [[
 	real rSq = real3_dot(x,x);
 	bool inside = rSq < .5*.5;
@@ -258,7 +258,7 @@ local initStates = table{
 	},
 	{
 		name = 'rarefaction wave',
-		initState = function(solver)
+		initState = function(self, solver)
 			return [[
 	real delta = .1;
 	rho = 1;	// lhs ? .2 : .8;
@@ -316,10 +316,10 @@ local initStates = table{
 	--from SRHD Marti & Muller 2000
 	{
 		name = 'relativistic shock reflection',
-		initState = function(solver)
+		initState = function(self, solver)
 			solver.cfl = .5	-- needs a slower cfl
-			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value = 4/3
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 4/3
 			end
 			return [[
 	rho = 1;
@@ -330,10 +330,10 @@ local initStates = table{
 	},
 	{
 		name = 'relativistic blast wave test problem 1',
-		initState = function(solver)
+		initState = function(self, solver)
 			solver.cfl = .5	-- needs a slower cfl
-			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value = 5/3
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 5/3
 			end
 			return [[
 	rho = lhs ? 10 : 1;
@@ -343,10 +343,10 @@ local initStates = table{
 	},
 	{
 		name = 'relativistic blast wave test problem 2',
-		initState = function(solver)
+		initState = function(self, solver)
 			solver.cfl = .5	-- needs a slower cfl
-			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value = 5/3
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 5/3
 			end
 			return [[
 	rho = 1;
@@ -356,7 +356,7 @@ local initStates = table{
 	},
 	{
 		name = 'relativistic blast wave interaction',
-		initState = function(solver)
+		initState = function(self, solver)
 			solver.cfl = .5	-- needs a slower cfl
 			return template([[
 	
@@ -378,7 +378,7 @@ local initStates = table{
 
 	{
 		name = 'Colella-Woodward',
-		initState = function(solver)
+		initState = function(self, solver)
 			solver:setBoundaryMethods'freeflow'
 			return [[
 	rho = 1;
@@ -394,7 +394,7 @@ local initStates = table{
 	},
 	{
 		name = 'Kelvin-Hemholtz',
-		initState = function(solver)
+		initState = function(self, solver)
 			solver:setBoundaryMethods'periodic'
 			
 			local moveAxis = 0
@@ -444,7 +444,7 @@ end ?>
 	-- TODO fixme 
 	{
 		name = 'Rayleigh-Taylor',
-		initState = function(solver)
+		initState = function(self, solver)
 			local xs = {'x', 'y', 'z'}
 			
 			local xmid = (solver.mins + solver.maxs) * .5
@@ -486,7 +486,7 @@ end ?>;
 	--http://www.astro.virginia.edu/VITA/ATHENA/dmr.html
 	{
 		name = 'double mach reflection',
-		initState = function(solver)
+		initState = function(self, solver)
 			-- I am not correctly modeling the top boundary
 			solver.mins = vec3(0,0,0)
 			solver.maxs = vec3(4,1,1)
@@ -498,8 +498,8 @@ end ?>;
 				zmin = 'mirror',
 				zmax = 'mirror',
 			}
-			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value = 7/5
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
 			end
 			return table{
 	'#define sqrt1_3 '..clnumber(math.sqrt(1/3)),
@@ -522,7 +522,7 @@ end ?>;
 	-- http://www.cfd-online.com/Wiki/2-D_laminar/turbulent_driven_square_cavity_flow
 	{
 		name = 'square cavity',
-		initState = function(solver)
+		initState = function(self, solver)
 			solver:setBoundaryMethods{
 				xmin = 'mirror',
 				xmax = 'mirror',
@@ -541,7 +541,7 @@ end ?>;
 
 	{
 		name='shock bubble interaction',
-		initState = function(solver)
+		initState = function(self, solver)
 			solver:setBoundaryMethods'freeflow'
 			return [[
 	const real waveX = -.45;
@@ -560,7 +560,7 @@ end ?>;
 
 	{
 		name = 'self-gravitation test 1',
-		initState = function(solver)
+		initState = function(self, solver)
 			local radius = .5
 			local f = SelfGravProblem{
 				solver = solver,
@@ -589,7 +589,7 @@ end ?>;
 
 	{
 		name = 'self-gravitation test 1 spinning',
-		initState = function(solver)
+		initState = function(self, solver)
 			local inside = [[
 	v.x = -2 * delta.y;
 	v.y = 2 * delta.x;
@@ -674,7 +674,7 @@ end ?>;
 
 	{
 		name = 'self-gravitation soup',
-		initState = function(solver)
+		initState = function(self, solver)
 			return [[
 	int q = index;
 	for (int i = 0; i < 20; ++i) {
@@ -699,7 +699,7 @@ end ?>;
 
 	{
 		name = 'Maxwell default',
-		initState = function(solver)
+		initState = function(self, solver)
 			return [[
 	E = _real3(1,0,0);
 	B = _real3(0, 1, lhs ? 1 : -1);
@@ -709,7 +709,7 @@ end ?>;
 
 	{
 		name = 'Maxwell scattering around cylinder',
-		initState = function(solver)
+		initState = function(self, solver)
 			addMaxwellOscillatingBoundary(solver)
 			return [[
 	real3 xc = coordMap(x);
@@ -723,7 +723,7 @@ end ?>;
 
 	{
 		name = 'Maxwell wire',
-		initState = function(solver)
+		initState = function(self, solver)
 			addMaxwellOscillatingBoundary(solver)
 			
 			local c = 299792458
@@ -760,7 +760,7 @@ end ?>;
 
 	{
 		name = 'two-fluid EMHD soliton ion',
-		initState = function(solver)
+		initState = function(self, solver)
 			return [[
 	const real L = 12.;
 	rho = 1. + (real)exp((real)-25. * (real)fabs(x.x - L / (real)3.));
@@ -769,7 +769,7 @@ end ?>;
 	},
 	{
 		name = 'two-fluid EMHD soliton electron',
-		initState = function(solver)
+		initState = function(self, solver)
 			return [[
 	const real L = 12.;
 	rho = 5. * (1. + (real)exp((real)-25. * (real)fabs(x.x - L / (real)3.)));
@@ -778,7 +778,7 @@ end ?>;
 	},
 	{
 		name = 'two-fluid EMHD soliton maxwell',
-		initState = function(solver)
+		initState = function(self, solver)
 -- TODO			
 			return [[
 

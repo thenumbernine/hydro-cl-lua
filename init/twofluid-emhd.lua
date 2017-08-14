@@ -4,9 +4,9 @@ local InitState = require 'init.init'
 return table{
 	{
 		name = 'Brio-Wu',
-		initState = function(solver)
-			if solver.eqn.guiVarsForName.heatCapacityRatio then	
-				solver.eqn.guiVarsForName.heatCapacityRatio.value = 2
+		initState = function(self, solver)
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 2
 			end
 			return [[
 	ion_rho = lhs ? 1 : .125;

@@ -355,7 +355,6 @@ function Solver:refreshEqnInitState()
 	-- this influences createCodePrefix (via its call of eqn:getCodePrefix)
 	--  and refreshInitStateProgram()
 	self.eqn:createInitState()
-	self.eqn:finalizeInitState()
 
 	self:refreshCodePrefix()
 end

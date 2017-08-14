@@ -59,7 +59,14 @@ function Equation:addGuiVar(args)
 		vartype = type(args.value)
 	end
 	local cl = require('guivar.'..vartype)
-	self.guiVars:insert(cl(args))
+
+	-- no non-strings allowed as names, especially not numbers,
+	-- because I'm going to map names into guiVars' keys, and I don't want to overwrite any integer-indexed guiVars
+	assert(args.name and type(args.name) == 'string')
+
+	local var = cl(args)
+	self.guiVars:insert(var)
+	self.guiVars[var.name] = var
 end
 
 -- always call super first
@@ -68,10 +75,6 @@ function Equation:createInitState()
 	assert(self.initStates, "expected Eqn.initStates")
 	self.initState = self.initStates[self.solver.initStateIndex](self.solver)
 	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)	
-end
-
-function Equation:finalizeInitState()
-	self.guiVarsForName = table.map(self.guiVars, function(var) return var, var.name end)
 end
 
 function Equation:getCodePrefix()
@@ -86,7 +89,7 @@ function Equation:getTypeCode()
 end
 
 function Equation:getInitStateCode()
-	local code = self.initState.initState and self.initState.initState(self.solver) or nil
+	local code = self.initState.initState and self.initState:initState(self.solver) or nil
 	assert(self.initStateCode, "expected Eqn.initStateCode")
 	return template(self.initStateCode, {
 		eqn = self,

@@ -152,7 +152,7 @@ local function initNumRel(args)
 	local alphaVar = symmath.var'alpha'
 	-- TODO each eqn must be stated as a guiVar of the solver
 	-- make a parent class or something for all num rel eqns
-	local fGuiVar = args.solver.eqn.guiVarsForName.f
+	local fGuiVar = args.solver.eqn.guiVars.f
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
 	
 	local f = assert(loadstring([[
@@ -172,7 +172,7 @@ end
 
 local function buildFCCode(solver, diff)
 	local alphaVar = symmath.var'alpha'
-	local fGuiVar = solver.eqn.guiVarsForName.f
+	local fGuiVar = solver.eqn.guiVars.f
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
 	
 	local f = assert(loadstring([[
@@ -216,8 +216,8 @@ return table{
 
 			-- here's the metric
 
-			local H = solver.eqn.guiVarsForName.H.value
-			local sigma = solver.eqn.guiVarsForName.sigma.value
+			local H = solver.eqn.guiVars.H.value
+			local sigma = solver.eqn.guiVars.sigma.value
 		
 			local xc = .5 * (solver.mins[1] + solver.maxs[1])
 			local yc = .5 * (solver.mins[2] + solver.maxs[2])
