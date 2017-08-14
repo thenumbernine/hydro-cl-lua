@@ -323,9 +323,6 @@ print('self.globalSizeWithoutBorder', self.globalSizeWithoutBorder)
 	
 	self.volume = tonumber(self.gridSize:volume())
 print('self.volume', self.volume)
-	self.dxs = vec3(range(3):map(function(i)
-		return (self.maxs[i] - self.mins[i]) / tonumber(self.sizeWithoutBorder:ptr()[i-1])
-	end):unpack())
 
 	self:createDisplayVars()	-- depends on eqn
 	
@@ -1822,6 +1819,18 @@ function Solver:updateGUIParams()
 		
 		tooltip.numberTable('fixed dt', self, 'fixedDT')
 		tooltip.numberTable('CFL', self, 'cfl')
+
+		for i=1,self.dim do
+			for _,minmax in ipairs(minmaxs) do
+				local k = xs[i]..minmax
+				if tooltip.numberTable(k, self[minmax..'s'], i, ig.ImGuiInputTextFlags_EnterReturnsTrue) then
+					-- if the domain changes
+					-- then the dx has to change
+					-- and all the stuff based on codePrefix has to change
+					self:refreshCodePrefix()
+				end
+			end
+		end
 
 		if tooltip.comboTable('integrator', self, 'integratorIndex', self.integratorNames) then
 			self:refreshIntegrator()

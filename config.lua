@@ -129,7 +129,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Hemholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -182,11 +182,11 @@ local args = {
 	--initState = 'stellar model',
 	--initState = 'stellar model 2',
 	--initState = 'stellar model 3',
-	--initState = '1D black hole - wormhole form',
+	initState = '1D black hole - wormhole form',
 }
 
 -- HD - Roe
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
 -- f.e. and b.e. are working, but none of the r.k. integrators 
@@ -235,7 +235,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
 
 -- GR
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 --

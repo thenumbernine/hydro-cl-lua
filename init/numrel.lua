@@ -788,17 +788,27 @@ for i,xi in ipairs(xNames) do
 			}
 		end,
 	},
-	-- 2007 Alic et al "Efficient Implementation of finite volume methods in Numerical Relativity"
-	-- 1D Black Hole in wormhole form
-	-- FIXME this is freezing on init
+	--[[
+	2007 Alic et al "Efficient Implementation of finite volume methods in Numerical Relativity"
+	1D Black Hole in wormhole form
+	the paper says for >1D use the eqn 24 and do the 'stuffed black hole' fix
+	the paper describes the metric in terms of eta, and then gives a relationship between r and eta ...
+	but never labels their graphs, whether they are in terms of eta or r ...
+	I tried eta and got an initial value of a lapse that looked, well, like a tanh would look (that is the lapse, according to the metric)
+	 which is not what their graphs look like.  their graphs look like a sigmoid/tanh that goes from .9 to 1 ... not the range of tanh(eta) which goes from 0 to 1 on a domain of 0 to 8
+	--]]
 	{
 		name = '1D black hole - wormhole form',
 		init = function(self, solver)
 			solver.eqn:addGuiVar{name='m', value=1}
 		end,
 		getCodePrefix = function(self, solver, getCodes)
-			-- TODO gui parameters for initState variables
-			local m = 1
+			local m = solver.eqn.guiVars.m.value
+		
+			-- TODO refreshCodePrefix ... except this is called by that ...
+			-- hmm, account for initState's defining the bounds
+			solver.mins = require 'vec.vec3'(0,0,0) 
+			solver.maxs = require 'vec.vec3'(8,8,8) 
 			
 			-- coords: t, eta, Omega
 			-- g_tt = -(tanh eta)^2 = -alpha^2 <=> alpha = tanh eta
@@ -807,21 +817,45 @@ for i,xi in ipairs(xNames) do
 			-- using r = m/2 exp(Eta)
 			-- m = mass
 			-- TODO how should the finite volume scheme be modified to incorporate the volume element -- especially a dynamic volume element
-			local xNames = table{'eta', 'theta', 'phi'}
+			--local xNames = table{'eta', 'theta', 'phi'}
 			-- TODO mapping to isotropic coordinates?
 			-- or separate models or automatic transforms between isotropic and spherical?
 			local xs = xNames:map(function(x) return symmath.var(x) end)
-			local t, eta = xs:unpack()
 			
-			local alpha = 1--symmath.tanh(eta)
-			local g_eta_eta = 1--4 * m^2 * symmath.cosh(eta/2)^4
+			-- [[ using eta as a coord
+			local eta, theta, phi = xs:unpack()
+			local alpha = symmath.tanh(eta)
+			local g_eta_eta = 4 * m^2 * symmath.cosh(eta/2)^4
+			local gamma = {g_eta_eta, 0, 0, g_eta_eta, 0, g_eta_eta}  
+			--]]
+			--[[
+			local x,y,z = xs:unpack()
+			local r = (x^2+y^2+z^2)^.5
+			-- r = m/2 exp(eta)
+			-- eta = log(2r/m)
+			-- alpha = tanh(eta) = tanh(log(2r/m)) = sinh(eta) / cosh(eta) = (exp(eta) - exp(-eta)) / (exp(eta) + exp(-eta))
+			-- = (2r/m - m/2r) / (2r/m + m/2r)
+			-- = (4r^2 - m^2) / (4r^2 + m^2)
+			local tanh_eta = (4 * r^2 - m^2) / (4 * r^2 + m^2)
+			local alpha = tanh_eta
+			-- or maybe the paper just initializes a lapse of 1? 
+			--local alpha = 1
+			-- 4 m^2 cosh(eta/2)^4 deta^2 = 4 m^2 cosh(log(2r/m)/2)^4 /r^2 dr^2
+			-- = 4 (m/r)^2 (sqrt(2r/m) + sqrt(m/2r) )^4 dr^2
+			-- but now we have an infinity as r->0 ...
+			local g_rr = 4 * (m/r)^2 * (symmath.sqrt(2*r/m) + symmath.sqrt(.5*m/r))^4
+			-- ... unless that "cosh eta / 2" means "cosh(eta)/2" .... but then why not just write 4/16 = 1/4 out front?  grrr this paper  ....
+			-- 1/4 (m/r)^2 (2r/m + m/2r)^4
+			--local g_rr = (m/r)^2 * (2*r/m + m/(2*r))^4 / 4
+			local gamma = {g_rr, 0, 0, g_rr, 0, g_rr}
+			--]]
 			
 			return initNumRel{
 				solver = solver,
 				getCodes = getCodes,
 				vars = xs,
 				alpha = alpha,
-				gamma = {g_eta_eta,0,0,g_eta_eta,0,g_eta_eta},
+				gamma = gamma,
 				K = {0,0,0,0,0,0},
 			}
 		end,
