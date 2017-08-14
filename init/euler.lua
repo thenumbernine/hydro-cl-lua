@@ -785,6 +785,7 @@ end ?>;
 ]]
 		end,
 	},
-}:map(InitState)
-
+}:map(function(cl)
+	return class(InitState, cl)
+end)
 return initStates

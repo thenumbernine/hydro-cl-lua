@@ -335,7 +335,7 @@ print('self.volume', self.volume)
 	self:finalizeCLAllocs()
 
 	-- create the code prefix, reflect changes
-	self:refreshCodePrefix()
+	self:refreshEqnInitState()
 	-- initialize things dependent on cons_t alone
 	self:refreshCommonProgram()
 	self:resetState()
@@ -343,12 +343,26 @@ end
 	
 -- call this when the solver initializes or changes the codePrefix (or changes initState)
 -- it will build the code prefix and refresh everything related to it
--- TODO if you change cons_t then call resetState etc (below the refreshCodePrefix() call a few lines above) in addition to this -- or else your values will get messed up
-function Solver:refreshCodePrefix()	
+-- TODO if you change cons_t then call resetState etc (below the refreshEqnInitState() call a few lines above) in addition to this -- or else your values will get messed up
+function Solver:refreshEqnInitState()	
+	--[[
+	circular dependency
+	... I want to createInitState when the initState changes
+	but if a gui var changes
+	then I want to call everything other than initState
+	--]]
+	
 	-- this influences createCodePrefix (via its call of eqn:getCodePrefix)
 	--  and refreshInitStateProgram()
 	self.eqn:createInitState()
-	
+	self.eqn:finalizeInitState()
+
+	self:refreshCodePrefix()
+end
+
+-- call this when a gui var changes
+-- it rebuilds the code prefix, but doesn't reset the initState
+function Solver:refreshCodePrefix()
 	self:createCodePrefix()		-- depends on eqn, gridSize, displayVars
 	self:refreshIntegrator()	-- depends on eqn & gridSize ... & ffi.cdef cons_t
 	self:refreshInitStateProgram()
@@ -1847,7 +1861,7 @@ function Solver:updateGUIEqnSpecific()
 	if ig.igCollapsingHeader'equation:' then
 		if tooltip.comboTable('init state', self, 'initStateIndex', self.eqn.initStateNames) then
 			-- TODO hmm ... the whole point of making a separate initStateProgram was to be able to refresh it without rebuilding all of the solver ...
-			self:refreshCodePrefix()
+			self:refreshEqnInitState()
 		end	
 		
 		for _,var in ipairs(self.eqn.guiVars) do

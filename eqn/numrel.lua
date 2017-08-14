@@ -13,19 +13,18 @@ local xNames = table{'x', 'y', 'z'}
 
 NumRelEqn.initStates = require 'init.numrel'
 
-function NumRelEqn:init(solver)
-	self.guiVars = {
-		require 'guivar.combo'{
-			name = 'f',
-			options = {
-				'2/alpha',	-- 1+log slicing
-				'1 + 1/alpha^2', 	-- Alcubierre 10.2.24: "shock avoiding condition" for Toy 1+1 spacetimes 
-				'1', 		-- Alcubierre 4.2.50 - harmonic slicing
-				'0', '.49', '.5', '1.5', '1.69',
-			},
+function NumRelEqn:createInitState()
+	NumRelEqn.super.createInitState(self)
+	self:addGuiVar{
+		type = 'combo',
+		name = 'f',
+		options = {
+			'2/alpha',	-- 1+log slicing
+			'1 + 1/alpha^2', 	-- Alcubierre 10.2.24: "shock avoiding condition" for Toy 1+1 spacetimes 
+			'1', 		-- Alcubierre 4.2.50 - harmonic slicing
+			'0', '.49', '.5', '1.5', '1.69',
 		}
 	}
-	NumRelEqn.super.init(self, solver)
 end
 
 -- add an option for fixed Minkowsky boundary spacetime

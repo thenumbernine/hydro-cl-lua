@@ -33,59 +33,9 @@ GRHD.useConstrainU = true
 
 GRHD.initStates = require 'init.euler'
 
-local GuiFloat = require 'guivar.float'
-local GuiInt = require 'guivar.int'
 function GRHD:init(...)
-	
-	self.cons_only_t = self:unique'cons_only_t'
-	
-	self.guiVars = table{
---[[ double precision
-		GuiFloat{name='heatCapacityRatio', value=7/5},
-
-		-- setting max iter to 100+ makes it freeze initially 
-		-- but setting it to 100 after the first iteration is fine ...
-		-- meaning the initial cons to prim is taking too long ...
-		GuiInt{name='solvePrimMaxIter', value=10},	-- value=1000},
-		
-		GuiFloat{name='solvePrimStopEpsilon', value=1e-7},
-		
-		-- used by pressure solver
-		-- velocity epsilon is how close we can get to the speed of light
-		-- set ylabel "Lorentz factor"; set xlabel "velocity epsilon -log10"; set log xy; plot [1:10] 1/sqrt(1-(1-10**(-x))**2);
-		--velEpsilon = 1e-5	-- <=> handles up to W = 500
-		--velEpsilon = 1e-6	-- <=> handles up to W = 600
-		--velEpsilon = 1e-7	-- <=> handles up to W = 2,000
-		--velEpsilon = 1e-10	-- <=> handles up to W = 100,000
-		-- <=> smaller than 1e-15 gnuplot x11 terminal breaks down past W = 1e+7 ...
-		GuiFloat{name='solvePrimVelEpsilon', value=1e-15},	
-		
-		GuiFloat{name='solvePrimPMinEpsilon', value=1e-16},
-		
-		GuiFloat{name='rhoMin', value=1e-15},
-		GuiFloat{name='rhoMax', value=1e+20},
-		GuiFloat{name='eIntMax', value=1e+20},
-		GuiFloat{name='DMin', value=1e-15},
-		GuiFloat{name='DMax', value=1e+20},
-		GuiFloat{name='tauMin', value=1e-15},
-		GuiFloat{name='tauMax', value=1e+20},
---]]
--- [[ single precision?
-		GuiFloat{name='heatCapacityRatio', value=7/5},
-		GuiInt{name='solvePrimMaxIter', value=10},	-- value=1000},
-		GuiFloat{name='solvePrimStopEpsilon', value=1e-7},
-		GuiFloat{name='solvePrimVelEpsilon', value=1e-7},	
-		GuiFloat{name='solvePrimPMinEpsilon', value=1e-7},
-		GuiFloat{name='rhoMin', value=1e-7},
-		GuiFloat{name='rhoMax', value=1e+20},
-		GuiFloat{name='eIntMax', value=1e+20},
-		GuiFloat{name='DMin', value=1e-7},
-		GuiFloat{name='DMax', value=1e+20},
-		GuiFloat{name='tauMin', value=1e-7},
-		GuiFloat{name='tauMax', value=1e+20},
---]]
-	}
 	GRHD.super.init(self, ...)
+	self.cons_only_t = self:unique'cons_only_t'
 end
 
 function GRHD:getTypeCode()
@@ -118,6 +68,55 @@ typedef union {
 ]], {
 	eqn = self,
 })
+end
+
+function GRHD:createInitState()
+	GRHD.super.createInitState(self)
+	
+--[[ double precision
+	self:addGuiVar{name='heatCapacityRatio', value=7/5}
+
+	-- setting max iter to 100+ makes it freeze initially 
+	-- but setting it to 100 after the first iteration is fine ...
+	-- meaning the initial cons to prim is taking too long ...
+	self:addGuiVar{name='solvePrimMaxIter', type='int', value=10}	-- value=1000}
+	
+	self:addGuiVar{name='solvePrimStopEpsilon', value=1e-7}
+	
+	-- used by pressure solver
+	-- velocity epsilon is how close we can get to the speed of light
+	-- set ylabel "Lorentz factor"; set xlabel "velocity epsilon -log10"; set log xy; plot [1:10] 1/sqrt(1-(1-10**(-x))**2);
+	--velEpsilon = 1e-5	-- <=> handles up to W = 500
+	--velEpsilon = 1e-6	-- <=> handles up to W = 600
+	--velEpsilon = 1e-7	-- <=> handles up to W = 2,000
+	--velEpsilon = 1e-10	-- <=> handles up to W = 100,000
+	-- <=> smaller than 1e-15 gnuplot x11 terminal breaks down past W = 1e+7 ...
+	self:addGuiVar{name='solvePrimVelEpsilon', value=1e-15}	
+	
+	self:addGuiVar{name='solvePrimPMinEpsilon', value=1e-16}
+	
+	self:addGuiVar{name='rhoMin', value=1e-15}
+	self:addGuiVar{name='rhoMax', value=1e+20}
+	self:addGuiVar{name='eIntMax', value=1e+20}
+	self:addGuiVar{name='DMin', value=1e-15}
+	self:addGuiVar{name='DMax', value=1e+20}
+	self:addGuiVar{name='tauMin', value=1e-15}
+	self:addGuiVar{name='tauMax', value=1e+20}
+--]]
+-- [[ single precision?
+	self:addGuiVar{name='heatCapacityRatio', value=7/5}
+	self:addGuiVar{name='solvePrimMaxIter', type='int', value=10}	-- value=1000}
+	self:addGuiVar{name='solvePrimStopEpsilon', value=1e-7}
+	self:addGuiVar{name='solvePrimVelEpsilon', value=1e-7}	
+	self:addGuiVar{name='solvePrimPMinEpsilon', value=1e-7}
+	self:addGuiVar{name='rhoMin', value=1e-7}
+	self:addGuiVar{name='rhoMax', value=1e+20}
+	self:addGuiVar{name='eIntMax', value=1e+20}
+	self:addGuiVar{name='DMin', value=1e-7}
+	self:addGuiVar{name='DMax', value=1e+20}
+	self:addGuiVar{name='tauMin', value=1e-7}
+	self:addGuiVar{name='tauMax', value=1e+20}
+--]]
 end
 
 function GRHD:getCodePrefix()

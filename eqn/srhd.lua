@@ -36,46 +36,10 @@ SRHD.useConstrainU = true
 
 SRHD.initStates = require 'init.euler'
 
-local GuiFloat = require 'guivar.float'
-local GuiInt = require 'guivar.int'
 function SRHD:init(solver)
+	SRHD.super.init(self, solver)
 
 	self.cons_only_t = self:unique'cons_only_t'
-
-	-- hmm, setting the higher thresholds using double precision is less stable
-	local double = false --solver.app.real == 'double'
-	
-	self.guiVars = table{
-		GuiFloat{name='heatCapacityRatio', value=7/5},
-		
-		-- setting max iter to 100+ makes it freeze initially 
-		-- but setting it to 100 after the first iteration is fine ...
-		-- meaning the initial cons to prim is taking too long ...
-		GuiInt{name='solvePrimMaxIter', value=10},	-- value=1000},
-
-		GuiFloat{name='solvePrimStopEpsilon', value=1e-7},
-	
-		-- used by pressure solver
-		-- velocity epsilon is how close we can get to the speed of light
-		-- set ylabel "Lorentz factor"; set xlabel "velocity epsilon -log10"; set log xy; plot [1:10] 1/sqrt(1-(1-10**(-x))**2);
-		--velEpsilon = 1e-5	-- <=> handles up to W = 500
-		--velEpsilon = 1e-6	-- <=> handles up to W = 600
-		--velEpsilon = 1e-7	-- <=> handles up to W = 2,000
-		--velEpsilon = 1e-10	-- <=> handles up to W = 100,000
-		-- <=> smaller than 1e-15 gnuplot x11 terminal breaks down past W = 1e+7 ...
-		GuiFloat{name='solvePrimVelEpsilon', value=double and 1e-15 or 1e-7},
-		
-		GuiFloat{name='solvePrimPMinEpsilon', value=double and 1e-16 or 1e-7},
-		
-		GuiFloat{name='rhoMin', value=double and 1e-15 or 1e-7},
-		GuiFloat{name='rhoMax', value=1e+20},
-		GuiFloat{name='eIntMax', value=1e+20},
-		GuiFloat{name='DMin', value=double and 1e-15 or 1e-7},
-		GuiFloat{name='DMax', value=1e+20},
-		GuiFloat{name='tauMin', value=double and 1e-15 or 1e-7},
-		GuiFloat{name='tauMax', value=1e+20},
-	}
-	SRHD.super.init(self, solver)
 
 	local SRHDSelfGrav = require 'solver.srhd-selfgrav'
 	solver.ops:insert(SRHDSelfGrav{solver=solver})
@@ -112,6 +76,42 @@ typedef union {
 ]], {
 	eqn = self,
 })
+end
+
+function SRHD:createInitState()
+	SRHD.super.createInitState(self)
+
+	-- hmm, setting the higher thresholds using double precision is less stable
+	local double = false --solver.app.real == 'double'
+	
+	self:addGuiVar{name='heatCapacityRatio', value=7/5}
+	
+	-- setting max iter to 100+ makes it freeze initially 
+	-- but setting it to 100 after the first iteration is fine ...
+	-- meaning the initial cons to prim is taking too long ...
+	self:addGuiVar{name='solvePrimMaxIter', type='int', value=10}	-- value=1000}
+
+	self:addGuiVar{name='solvePrimStopEpsilon', value=1e-7}
+
+	-- used by pressure solver
+	-- velocity epsilon is how close we can get to the speed of light
+	-- set ylabel "Lorentz factor"; set xlabel "velocity epsilon -log10"; set log xy; plot [1:10] 1/sqrt(1-(1-10**(-x))**2);
+	--velEpsilon = 1e-5	-- <=> handles up to W = 500
+	--velEpsilon = 1e-6	-- <=> handles up to W = 600
+	--velEpsilon = 1e-7	-- <=> handles up to W = 2,000
+	--velEpsilon = 1e-10	-- <=> handles up to W = 100,000
+	-- <=> smaller than 1e-15 gnuplot x11 terminal breaks down past W = 1e+7 ...
+	self:addGuiVar{name='solvePrimVelEpsilon', value=double and 1e-15 or 1e-7}
+	
+	self:addGuiVar{name='solvePrimPMinEpsilon', value=double and 1e-16 or 1e-7}
+	
+	self:addGuiVar{name='rhoMin', value=double and 1e-15 or 1e-7}
+	self:addGuiVar{name='rhoMax', value=1e+20}
+	self:addGuiVar{name='eIntMax', value=1e+20}
+	self:addGuiVar{name='DMin', value=double and 1e-15 or 1e-7}
+	self:addGuiVar{name='DMax', value=1e+20}
+	self:addGuiVar{name='tauMin', value=double and 1e-15 or 1e-7}
+	self:addGuiVar{name='tauMax', value=1e+20}
 end
 
 function SRHD:getCodePrefix()

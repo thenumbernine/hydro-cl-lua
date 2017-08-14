@@ -129,7 +129,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Hemholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -173,7 +173,7 @@ local args = {
 	--initState = 'two-fluid EMHD soliton maxwell',
 
 	-- GR
-	initState = 'gaussian perturbation',
+	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 	--initState = 'Alcubierre warp bubble',
 	--initState = 'Schwarzschild black hole',
@@ -186,7 +186,7 @@ local args = {
 }
 
 -- HD - Roe
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
 -- f.e. and b.e. are working, but none of the r.k. integrators 
@@ -244,6 +244,6 @@ local args = {
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-self.solvers:insert(require 'solver.bssnok-fd'(args))
+--self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas

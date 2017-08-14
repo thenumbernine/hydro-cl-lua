@@ -57,9 +57,6 @@ else
 end
 
 function TwoFluidEMHD:init(solver)
-	self.guiVars = {
-		require 'guivar.float'{name='heatCapacityRatio', value=5/3}
-	}
 	TwoFluidEMHD.super.init(self, solver)
 
 	local NoDiv = require 'solver.nodiv'
@@ -131,6 +128,11 @@ typedef union {
 ]], {
 	eqn = self,
 })
+end
+
+function TwoFluidEMHD:createInitState()
+	TwoFluidEMHD.super.createInitState(self)
+	self:addGuiVar{name='heatCapacityRatio', value=5/3}
 end
 
 function TwoFluidEMHD:getCodePrefix()

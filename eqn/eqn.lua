@@ -50,16 +50,28 @@ function Equation:init(solver)
 	-- (put static states at the end of your cons_t structures)
 	if not self.numIntStates then self.numIntStates = self.numStates end
 
-	self.guiVars = self.guiVars or {}
-
 	self.initStateNames = table.map(self.initStates, function(info) return info.name end)
-	self.guiVarsForName = table.map(self.guiVars, function(var) return var, var.name end)
 end
 
+function Equation:addGuiVar(args)
+	local vartype = args.type
+	if not vartype then
+		vartype = type(args.value)
+	end
+	local cl = require('guivar.'..vartype)
+	self.guiVars:insert(cl(args))
+end
+
+-- always call super first
 function Equation:createInitState()
+	self.guiVars = table()
 	assert(self.initStates, "expected Eqn.initStates")
-	self.initState = self.initStates[self.solver.initStateIndex]
+	self.initState = self.initStates[self.solver.initStateIndex](self.solver)
 	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)	
+end
+
+function Equation:finalizeInitState()
+	self.guiVarsForName = table.map(self.guiVars, function(var) return var, var.name end)
 end
 
 function Equation:getCodePrefix()

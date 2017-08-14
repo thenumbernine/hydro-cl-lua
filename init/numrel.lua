@@ -1,5 +1,6 @@
-local symmath = require 'symmath'
+local class = require 'ext.class'
 local table = require 'ext.table'
+local symmath = require 'symmath'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
 local InitState = require 'init.init'
@@ -188,6 +189,23 @@ return table{
 	-- from 1997 Alcubierre "The appearance of coorindate shocks in hyperbolic formalisms of General Relativity".
 	{
 		name = 'gaussian perturbation',
+		init = function(self, solver)
+			local size = solver.maxs[1] - solver.mins[1]
+			
+			-- 1997 Alcubierre uses amplitude of 5 on a grid size of 300 with dx=1
+			--local H = 5 / 300 * size
+			--local sigma = 10 / 300 * size
+			-- 1998 Bona et al use amplitude of .05 on a grid size of 100 with dx=.01
+			--local H = .05 * size
+			--local sigma = math.sqrt(.05) * size
+			-- messing with it on my own
+			local H = .01 * size
+			local sigma = .1 * size
+
+			-- TODO if only OpenCL allowed something like uniforms ...
+			solver.eqn:addGuiVar{name = 'H', value = H}
+			solver.eqn:addGuiVar{name = 'sigma', value = sigma}
+		end,
 		getCodePrefix = function(self, solver, getCodes)
 
 			-- here's the coordinates
@@ -198,19 +216,8 @@ return table{
 
 			-- here's the metric
 
-			local size = solver.maxs[1] - solver.mins[1]
-		
-			-- 1997 Alcubierre uses amplitude of 5 on a grid size of 300 with dx=1
-			--local H = 5 / 300 * size
-			--local sigma = 10 / 300 * size
-			-- 1998 Bona et al use amplitude of .05 on a grid size of 100 with dx=.01
-			--local H = .05 * size
-			--local sigma = math.sqrt(.05) * size
-			-- messing with it on my own
-			local H = .01 * size
-			local sigma = .1 * size
-			-- TODO allow initStates to expose their own parameters
-
+			local H = solver.eqn.guiVarsForName.H.value
+			local sigma = solver.eqn.guiVarsForName.sigma.value
 		
 			local xc = .5 * (solver.mins[1] + solver.maxs[1])
 			local yc = .5 * (solver.mins[2] + solver.maxs[2])
@@ -635,7 +642,6 @@ for i,xi in ipairs(xNames) do
 			local function H(u) return symmath.tanh((u) * 10) * .5 + .5 end
 			--]]
 				
-			local class = require 'ext.class'
 			local min = class(require 'symmath.Function')
 			min.name = 'min'
 			min.func = math.min
@@ -787,6 +793,9 @@ for i,xi in ipairs(xNames) do
 	-- FIXME this is freezing on init
 	{
 		name = '1D black hole - wormhole form',
+		init = function(self, solver)
+			solver.eqn:addGuiVar{name='m', value=1}
+		end,
 		getCodePrefix = function(self, solver, getCodes)
 			-- TODO gui parameters for initState variables
 			local m = 1
@@ -804,8 +813,8 @@ for i,xi in ipairs(xNames) do
 			local xs = xNames:map(function(x) return symmath.var(x) end)
 			local t, eta = xs:unpack()
 			
-			local alpha = symmath.tanh(eta)
-			local g_eta_eta = 4 * m^2 * symmath.cosh(eta/2)^4
+			local alpha = 1--symmath.tanh(eta)
+			local g_eta_eta = 1--4 * m^2 * symmath.cosh(eta/2)^4
 			
 			return initNumRel{
 				solver = solver,
@@ -817,4 +826,6 @@ for i,xi in ipairs(xNames) do
 			}
 		end,
 	},
-}:map(InitState)
+}:map(function(cl)
+	return class(InitState, cl)
+end)

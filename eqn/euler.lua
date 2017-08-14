@@ -29,15 +29,6 @@ Euler.useSourceTerm = true
 Euler.initStates = require 'init.euler'
 
 function Euler:init(solver)
-	self.guiVars = {
-		require 'guivar.float'{name='heatCapacityRatio', 
---in order to make things work, gamma needs to be set *HERE AND IN INIT/EULER*
--- which means it is being read and written in multiple places
--- TODO consolidate that
-			value=7/5,
-		}
-	}
-	
 	Euler.super.init(self, solver)
 
 	-- TODO ops folder
@@ -70,6 +61,14 @@ typedef union {
 ]], {
 		eqn = self,
 	})
+end
+
+function Euler:createInitState()
+	Euler.super.createInitState(self)
+--in order to make things work, gamma needs to be set *HERE AND IN INIT/EULER*
+-- which means it is being read and written in multiple places
+-- TODO consolidate that
+	self:addGuiVar{name='heatCapacityRatio', value=7/5}
 end
 
 function Euler:getCodePrefix()
