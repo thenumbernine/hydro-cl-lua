@@ -1,5 +1,3 @@
-local table = require 'ext.table'
-
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
 local dim = 1
@@ -182,7 +180,10 @@ local args = {
 	--initState = 'stellar model',
 	--initState = 'stellar model 2',
 	--initState = 'stellar model 3',
-	initState = '1D black hole - wormhole form',
+	--initState = '1D black hole - wormhole form',
+	--initState = 'Gowdy waves',
+	initState = 'testbed - robust',
+	--initState = 'testbed - gauge wave - axis aligned',
 }
 
 -- HD - Roe

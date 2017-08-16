@@ -89,13 +89,7 @@ function Equation:getTypeCode()
 end
 
 function Equation:getInitStateCode()
-	local code = self.initState.initState and self.initState:initState(self.solver) or nil
-	assert(self.initStateCode, "expected Eqn.initStateCode")
-	return template(self.initStateCode, {
-		eqn = self,
-		code = code,
-		solver = self.solver,
-	})
+	return self.initState:getInitStateCode(self.solver)
 end
 
 function Equation:getDisplayVarCodePrefix()
@@ -146,6 +140,10 @@ function Equation:getEigenDisplayVars()
 		local col = (i-1-row)/self.numIntStates
 		return {['A_'..row..'_'..col] = '*value = eigen->A['..i..'];'}
 	end) or nil)
+end
+
+function Equation:resetState()
+	self.initState:resetState(self.solver)
 end
 
 return Equation

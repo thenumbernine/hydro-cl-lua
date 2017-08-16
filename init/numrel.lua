@@ -3,7 +3,7 @@ local table = require 'ext.table'
 local symmath = require 'symmath'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
-local InitState = require 'init.init'
+local InitCond = require 'init.init'
 
 --symmath.tostring = require 'symmath.tostring.SingleLine'		
 
@@ -81,6 +81,34 @@ local function compileC(expr, name, vars)
 		return code
 	end
 	return table.map(expr, function(v,k) return compileC(v,k,vars) end), name
+end
+
+local NumRelInitCond = class(InitCond)
+
+function NumRelInitCond:getCodePrefix(solver)
+	-- looks like all num rel solvers might need this
+	-- maybe I should put it in InitCond?
+	
+	local alphaVar = symmath.var'alpha'
+	-- TODO each eqn must be stated as a guiVar of the solver
+	-- make a parent class or something for all num rel eqns
+	local fGuiVar = solver.eqn.guiVars.f
+	local fLuaCode = fGuiVar.options[fGuiVar.value]
+	
+	local f = assert(loadstring([[
+local alpha, symmath = ...
+local log = symmath.log
+return ]]..fLuaCode))(alphaVar, symmath)
+	f = symmath.clone(f)
+	local dalpha_f = f:diff(alphaVar)()
+
+	local codes = table()
+	codes.f = compileC(f, 'f', {alphaVar})
+	codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
+
+	return codes:map(function(code,name,t)
+		return 'real calc_'..name..code, #t+1
+	end):concat'\n'		
 end
 
 -- I'm working on a unified initial condition code for 1D and 3D NR problems:
@@ -860,6 +888,72 @@ for i,xi in ipairs(xNames) do
 			}
 		end,
 	},
+--[[
+2003 Alcubierre et al "Toward standard testbeds for numerical relativity"
+2004 Bona et al "A symmetry-breaking mechanism..."
+2009 Bona, Bona-Casas "Gowdy waves..." https://arxiv.org/pdf/0911.1208v1.pdf
+Gaudy wave tests
+1/sqrt(t) exp(Q/2) (-dt^2 + dz^2) + t (exp(P) dx^2 + exp(-P) dy^2)
+Q & P are functions of t & z, only periodic in z
+t = t0 exp(-tau/tau0)
+dt = -t0/tau0 exp(-tau/tau0) dtau
+
+specifically for this problem:
+P = J0(2 pi t) cos(2 pi z)
+Q = pi J0(2 pi) J1(2 pi) - 2 pi t J0(2 pi t) J1(2 pi t) cos(2 pi z)^2
+		+ 2 pi^2 t^2 (J0(2 pi t)^2 + J1(2 pi t)^2 - J0(2 pi)^2 - J1(2 pi)^2)
+2 pi t0 is the 20th root of the Bessel function J0 <=> t0 ~ 9.88
+
+at time tau=0 <=> t=t0, and picking 2 pi t0 to be a root of J0 ...
+Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
+--]]
+	{
+		name = 'Gowdy waves',
+		getCodePrefix = function(self, solver)
+			--solver.mins = require 'vec.vec3'(0,0,0)
+			--solver.maxs = require 'vec.vec3'(10,10,10)
+		end,
+	},
+
+-- 2003 Alcubierre et al "Toward standard testbeds for numerical relativity"
+-- grids are from [-.5, .5] with 50 rho cells, rho = 1,2,4, and timesteps of .01/rho
+	{
+		name = 'testbed - robust',
+		-- pick epsilon so epsilon^2 = 0
+		-- eqn 4.1: pick epsilon from -1e-10 / rho^2 to 1e=10 / rho^2
+		resetState = function(self, solver)
+			local epsilon = 1e-10
+			solver.eqn:fillRandom(epsilon)
+		end,
+		refreshInitStateProgram = function(self, solver) end,
+		getInitStateCode = function(self, solver) end,
+	},
+	{
+		name = 'testbed - gauge wave - axis aligned',
+		init = function(self, solver)
+			solver.eqn:addGuiVar{name='A', value=.1}	-- .1, .01
+			solver.eqn:addGuiVar{name='d', value=1}
+--			solver.eqn.guiVars.f.value = solver.eqn.guiVars.f.options:find'1'	-- set f=1
+		end,
+		getCodePrefix = function(self, solver, getCodes)
+			local A = solver.eqn.guiVars.A.value
+			local d = solver.eqn.guiVars.d.value
+			local xs = xNames:map(function(x) return symmath.var(x) end)
+			local x,y,z = xs:unpack()
+			local t = 0
+			local theta = 2 * math.pi / d * (x - t)
+			local H = 1 + A * symmath.sin(theta)
+			return initNumRel{
+				solver = solver,
+				getCodes = getCodes,
+				vars = xs,
+				alpha = symmath.sqrt(H),
+				gamma = {H, 0, 0, 1, 0, 1},
+				K = {-math.pi * A / d * symmath.cos(theta) / symmath.sqrt(H), 0,0,0,0,0},
+			}
+		end,
+	},
+
 }:map(function(cl)
-	return class(InitState, cl)
+	return class(NumRelInitCond, cl)
 end)

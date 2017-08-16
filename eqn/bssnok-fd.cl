@@ -498,10 +498,17 @@ end ?>
 	//		+ gammaBar^ik gammaBar^lj ATilde_kl,j
 	//		+ connBar^i_jk ATilde^jk)
 
-
 	//B&S 11.49
 	//0 = M^i = DBar_j (e^(6 phi) ATilde^ij) - 2/3 e^(6 phi) DBar^i K - 8 pi e^(6 phi) S^i
 #endif
 
 <? end	--calcConstraints ?>
+}
+
+kernel void addSource(
+	global <?=eqn.cons_t?>* UBuf
+) {
+	//TODO
+	//Kreiss-Oligar dissipation
+	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 }

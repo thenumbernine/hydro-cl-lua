@@ -8,6 +8,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local template = require 'template'
+local symmath = require 'symmath'
 local NumRelEqn = require 'eqn.numrel'
 
 local ADM_BonaMasso_1D_Alcubierre2008 = class(NumRelEqn)
@@ -23,16 +24,15 @@ ADM_BonaMasso_1D_Alcubierre2008.hasEigenCode = true
 ADM_BonaMasso_1D_Alcubierre2008.useSourceTerm = true
 ADM_BonaMasso_1D_Alcubierre2008.hasFluxFromCons = true
 
-local symmath = require 'symmath'
 function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix()
 	-- pick out whatever variables that 'codes' needs to convert
-	return table{
-		
+	local lines = table()
+
 		-- don't call super because it generates the guivar code
 		-- which is already being generated in initState
 		--ADM_BonaMasso_1D_Alcubierre2008.super.getCodePrefix(self),
 		
-		template([[
+	lines:insert(template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	*U = (<?=eqn.cons_t?>){
 		.alpha = 1, 
@@ -42,9 +42,10 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 		.KTilde = 0,
 	};
 }
-]], {eqn=self}),	
+]], {eqn=self}))
 		
-		self.initState:getCodePrefix(self.solver, function(exprs, vars)
+	if self.initState.getCodePrefix then
+		lines:insert(self.initState:getCodePrefix(self.solver, function(exprs, vars)
 			return {
 				alpha  = exprs.alpha,
 				gamma_xx = exprs.gamma[1],	-- only need g_xx
@@ -52,8 +53,10 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 				D_g = (exprs.gamma[1]:diff(vars[1]) / exprs.gamma[1])(),	-- only need D_xxx
 				KTilde = exprs.K[1] / symmath.sqrt(exprs.gamma[1]),	-- only need K_xx
 			}
-		end)
-	}:concat'\n'
+		end))
+	end
+
+	return lines:concat'\n'
 end
 
 ADM_BonaMasso_1D_Alcubierre2008.initStateCode = [[
@@ -112,6 +115,22 @@ function ADM_BonaMasso_1D_Alcubierre2008:getEigenDisplayVars()
 		{alpha = '*value = eigen->alpha;'},
 		{gamma_xx = '*value = eigen->gamma_xx;'},
 	}
+end
+
+local function crand() return 2 * math.random() - 1 end
+
+local ffi = require 'ffi'
+function ADM_BonaMasso_1D_Alcubierre2008:fillRandom(epsilon)
+	local solver = self.solver
+	local ptr = ffi.new(self.cons_t..'[?]', solver.volume)
+	for i=0,solver.volume-1 do
+		ptr[i].alpha = epsilon * crand()
+		ptr[i].gamma_xx = 1 + epsilon * crand()
+		ptr[i].a_x = epsilon * crand()
+		ptr[i].D_g = epsilon * crand()
+		ptr[i].KTilde = epsilon * crand()
+	end
+	solver.UBufObj:fromCPU(ptr)
 end
 
 return ADM_BonaMasso_1D_Alcubierre2008

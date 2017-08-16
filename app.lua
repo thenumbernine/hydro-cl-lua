@@ -94,8 +94,8 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 -- this can't override float vs double precision yet
 function HydroCLApp:setup()
 	assert(load([[
-local self, cmdline = ...
-]] .. file['config.lua']))(self, cmdline)
+local self, cmdline, table = ...
+]] .. file['config.lua']))(self, cmdline, table)
 end
 
 local useClipPlanes
@@ -655,7 +655,7 @@ function HydroCLApp:update(...)
 	if self.font then
 		local solverNames = self.solvers:map(function(solver)
 			return {
-				text = ('(%.3f) '):format(solver.t)..solver.name,
+				text = solver.name,
 				color = solver.color,
 			}
 		end)

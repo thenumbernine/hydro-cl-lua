@@ -903,15 +903,7 @@ print'done building solver.codePrefix'
 end
 
 function Solver:refreshInitStateProgram()
-	local initStateCode = table{
-		self.app.env.code,
-		self.codePrefix,
-		self.eqn:getInitStateCode(),
-	}:concat'\n'
-	time('compiling init state program', function()
-		self.initStateProgram = self.app.ctx:program{devices={self.app.device}, code=initStateCode}
-	end)
-	self.initStateKernel = self.initStateProgram:kernel('initState', self.UBuf)
+	self.eqn.initState:refreshInitStateProgram(self)
 end
 
 function Solver:resetState()
@@ -923,7 +915,8 @@ function Solver:resetState()
 		self.app.cmds:enqueueFillBuffer{buffer=self[bufferInfo.name], size=bufferInfo.size}
 	end
 
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.initStateKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+	self.eqn:resetState()
+	
 	self:boundary()
 	if self.eqn.useConstrainU then
 		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
@@ -1810,6 +1803,9 @@ function Solver:calcDisplayVarRangeAndAvg(var)
 end
 
 function Solver:updateGUIParams()
+	ig.igText('t: '..self.t)
+
+	-- hmm put fps somewhere else, or put ms update here
 	ig.igText('fps: '..(self.fps and tostring(self.fps) or ''))
 	
 	if ig.igCollapsingHeader'parameters:' then
