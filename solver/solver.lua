@@ -18,30 +18,10 @@ local template = require 'template'
 local vec3sz = require 'ffi.vec.vec3sz'
 local tooltip = require 'tooltip'
 local roundup = require 'roundup'
+local time, getTime = table.unpack(require 'time')
 
 --local tryingAMR = 'dt vs 2dt'
 --local tryingAMR = 'gradient'
-
-require 'ffi.c.sys.time'
-local gettimeofday_tv = ffi.new'struct timeval[1]'
-local function getTime()
-	local results = ffi.C.gettimeofday(gettimeofday_tv, nil)
-	return tonumber(gettimeofday_tv[0].tv_sec) + tonumber(gettimeofday_tv[0].tv_usec) / 1000000
-end
-
-local function getn(...)
-	local t = {...}
-	t.n = select('#', ...)
-	return t
-end
-local function time(name, cb)
-	print(name..'...')
-	local startTime = getTime()
-	local result = getn(cb())
-	local endTime = getTime()
-	print('...done '..name..' ('..(endTime - startTime)..'s)')
-	return table.unpack(result, 1, result.n)
-end
 
 local xs = table{'x', 'y', 'z'}
 local minmaxs = table{'min', 'max'}
@@ -117,7 +97,7 @@ function Solver:init(args)
 	self.name = self.eqn.name..' '..self.name
 
 	self.useFixedDT = not not args.fixedDT
-	self.fixedDT = args.fixedDT or .001
+	self.fixedDT = args.fixedDT or self.fixedDT or .001
 	self.cfl = args.cfl or .5	--/self.dim
 	self.initStateIndex = table.find(self.eqn.initStateNames, args.initState) or 1
 	self.integratorIndex = self.integratorNames:find(args.integrator) or 1

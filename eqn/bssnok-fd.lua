@@ -486,4 +486,38 @@ function BSSNOKFiniteDifferenceEquation:getVecDisplayVars()
 	return vars
 end
 
+--[[ TODO implement this so the random initial condition can work
+local sym3_delta = {1,0,0,1,0,1}
+
+local ffi = require 'ffi'
+local function crand() return 2 * math.random() - 1 end
+function BSSNOKFiniteDifferenceEquation:fillRandom(epsilon)
+	local solver = self.solver
+	local ptr = ffi.new(self.cons_t..'[?]', solver.volume)
+	for i=0,solver.volume-1 do
+		ptr[i].alpha = epsilon * crand()
+		for j=0,2 do
+			ptr[i].beta_u[j] = epsilon * crand()
+		end
+		for jk=0,5 do
+			ptr[i].gammaBar_ll.s[jk] = sym3_delta[jk+1] + epsilon * crand()
+		end
+		ptr[i].phi = epsilon * crand()
+		ptr[i].K = epsilon * crand()
+		
+		for mn=0,5 do
+			ptr[i].ATilde_ll[j].s[mn] = epsilon * crand()
+		end
+		
+		for jk=0,5 do
+			ptr[i].K.ptr[jk] = epsilon * crand()
+		end
+		for j=0,2 do
+			ptr[i].V.ptr[j] = epsilon * crand()
+		end
+	end
+	solver.UBufObj:fromCPU(ptr)
+end
+--]]
+
 return BSSNOKFiniteDifferenceEquation 

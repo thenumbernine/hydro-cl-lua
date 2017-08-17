@@ -182,8 +182,13 @@ local args = {
 	--initState = 'stellar model 3',
 	--initState = '1D black hole - wormhole form',
 	--initState = 'Gowdy waves',
-	initState = 'testbed - robust',
+	--initState = 'testbed - robust',	-- not working with fv solvers 
 	--initState = 'testbed - gauge wave - axis aligned',
+
+	-- NLS
+	--initState = 'Gaussian',
+	--initState = 'Ring',
+	initState = 'Oscillatory',
 }
 
 -- HD - Roe
@@ -236,7 +241,7 @@ local args = {
 --self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
 
 -- GR
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 --
@@ -248,3 +253,5 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
+
+self.solvers:insert(require 'solver.nls'(args))

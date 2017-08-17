@@ -88,6 +88,10 @@ function Equation:getTypeCode()
 	return makestruct.makeStruct(self.cons_t, self.consVars)
 end
 
+function Equation:getSolverCode()
+	return template(file[self.solverCodeFile], {eqn=self, solver=self.solver})
+end
+
 function Equation:getInitStateCode()
 	return self.initState:getInitStateCode(self.solver)
 end

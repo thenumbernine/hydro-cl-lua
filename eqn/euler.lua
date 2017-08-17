@@ -1,6 +1,5 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
 local range = require 'ext.range'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
@@ -156,9 +155,7 @@ kernel void initState(
 }
 ]]
 
-function Euler:getSolverCode()
-	return template(file['eqn/euler.cl'], {eqn=self, solver=self.solver})
-end
+Euler.solverCodeFile = 'eqn/euler.cl'
 
 function Euler:getDisplayVarCodePrefix()
 	return template([[

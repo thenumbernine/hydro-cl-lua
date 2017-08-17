@@ -117,9 +117,8 @@ function ADM_BonaMasso_1D_Alcubierre2008:getEigenDisplayVars()
 	}
 end
 
-local function crand() return 2 * math.random() - 1 end
-
 local ffi = require 'ffi'
+local function crand() return 2 * math.random() - 1 end
 function ADM_BonaMasso_1D_Alcubierre2008:fillRandom(epsilon)
 	local solver = self.solver
 	local ptr = ffi.new(self.cons_t..'[?]', solver.volume)

@@ -179,4 +179,19 @@ function ADM_BonaMasso_1D_Alcubierre1997:getEigenDisplayVars()
 	end)
 end
 
+local ffi = require 'ffi'
+local function crand() return 2 * math.random() - 1 end
+function ADM_BonaMasso_1D_Alcubierre1997:fillRandom(epsilon)
+	local solver = self.solver
+	local ptr = ffi.new(self.cons_t..'[?]', solver.volume)
+	for i=0,solver.volume-1 do
+		ptr[i].alpha = epsilon * crand()
+		ptr[i].gamma_xx = 1 + epsilon * crand()
+		ptr[i].a_x = epsilon * crand()
+		ptr[i].d_xxx = epsilon * crand()
+		ptr[i].K_xx = epsilon * crand()
+	end
+	solver.UBufObj:fromCPU(ptr)
+end
+
 return ADM_BonaMasso_1D_Alcubierre1997

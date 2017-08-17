@@ -163,6 +163,8 @@ kernel void addSource(
 	deriv->a_x -= ((.5 * D_g - a_x) * f - alpha * dalpha_f * a_x) * alpha * K;
 	deriv->D_g -= (.5 * D_g - a_x) * 2 * alpha * K;
 	deriv->KTilde -= (.5 * D_g - a_x) * a_x * alpha / sqrt_gamma_xx;
+
+	//...and diffusion?
 }
 
 

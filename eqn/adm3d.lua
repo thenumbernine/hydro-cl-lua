@@ -355,4 +355,34 @@ function ADM_BonaMasso_3D:getEigenDisplayVars()
 	}
 end
 
+local sym3_delta = {1,0,0,1,0,1}
+
+local ffi = require 'ffi'
+local function crand() return 2 * math.random() - 1 end
+function ADM_BonaMasso_3D:fillRandom(epsilon)
+	local solver = self.solver
+	local ptr = ffi.new(self.cons_t..'[?]', solver.volume)
+	for i=0,solver.volume-1 do
+		ptr[i].alpha = epsilon * crand()
+		for jk=0,5 do
+			ptr[i].gamma.s[jk] = sym3_delta[jk+1] + epsilon * crand()
+		end
+		for j=0,2 do
+			ptr[i].a.s[j] = epsilon * crand()
+		end
+		for j=0,2 do
+			for mn=0,5 do
+				ptr[i].d[j].s[mn] = epsilon * crand()
+			end
+		end
+		for jk=0,5 do
+			ptr[i].K.s[jk] = epsilon * crand()
+		end
+		for j=0,2 do
+			ptr[i].V.s[j] = epsilon * crand()
+		end
+	end
+	solver.UBufObj:fromCPU(ptr)
+end
+
 return ADM_BonaMasso_3D

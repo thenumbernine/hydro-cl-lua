@@ -921,8 +921,11 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 		name = 'testbed - robust',
 		-- pick epsilon so epsilon^2 = 0
 		-- eqn 4.1: pick epsilon from -1e-10 / rho^2 to 1e=10 / rho^2
+		init = function(self, solver)
+			solver.eqn:addGuiVar{name='epsilon', value=1e-10}
+		end,
 		resetState = function(self, solver)
-			local epsilon = 1e-10
+			local epsilon = solver.eqn.guiVars.epsilon.value
 			solver.eqn:fillRandom(epsilon)
 		end,
 		refreshInitStateProgram = function(self, solver) end,
