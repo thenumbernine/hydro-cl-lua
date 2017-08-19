@@ -8,12 +8,12 @@ local args = {
 	
 	dim = cmdline.dim or dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	--integrator = 'Runge-Kutta 4',
+	integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -187,8 +187,8 @@ local args = {
 
 	-- NLS
 	--initState = 'Gaussian',
-	--initState = 'Ring',
-	initState = 'Oscillatory',
+	initState = 'Ring',
+	--initState = 'Oscillatory',
 }
 
 -- HD - Roe

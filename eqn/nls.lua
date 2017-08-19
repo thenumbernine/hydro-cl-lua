@@ -29,7 +29,7 @@ kernel void initState(
 NLSEqn.solverCodeFile = 'eqn/nls.cl'
 
 function NLSEqn:getDisplayVars()
-	return table{
+	return {
 		{re = '*value = U->re;'},
 		{im = '*value = U->im;'},
 		{norm = '*value = sqrt(U->re*U->re + U->im*U->im);'},
