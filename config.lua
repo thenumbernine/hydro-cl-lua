@@ -13,14 +13,14 @@ local args = {
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	integrator = 'Runge-Kutta 4',
+	--integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	--integrator = 'backward Euler',
+	integrator = 'backward Euler',
 
 	--fixedDT = .0001,
 	--cfl = .25/dim,
@@ -183,11 +183,14 @@ local args = {
 	--initState = '1D black hole - wormhole form',
 	--initState = 'Gowdy waves',
 	--initState = 'testbed - robust',	-- not working with fv solvers 
-	--initState = 'testbed - gauge wave - axis aligned',
+	initState = 'testbed - gauge wave',
+	--initState = 'testbed - gauge wave - diagonal',
+	--initState = 'testbed - linear wave',
+	--initState = 'testbed - linear wave - diagonal',
 
 	-- NLS
 	--initState = 'Gaussian',
-	initState = 'Ring',
+	--initState = 'Ring',
 	--initState = 'Oscillatory',
 }
 
@@ -250,8 +253,8 @@ local args = {
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
---self.solvers:insert(require 'solver.bssnok-fd'(args))
+self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 
-self.solvers:insert(require 'solver.nls'(args))
+--self.solvers:insert(require 'solver.nls'(args))

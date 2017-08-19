@@ -73,6 +73,8 @@ local derivCoeffs = {
 }
 
 -- any past 4 and you need more ghost cells
+-- TODO make this 2x numGhost
+-- and make numGhost a GUI variable
 local derivOrder = 4
 
 local function makePartial(order, solver, field, fieldType)
@@ -173,10 +175,8 @@ BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference'
 
 -- options:
 
-BSSNOKFiniteDifferenceEquation.constrain_det_gammaBar_ll = true
-BSSNOKFiniteDifferenceEquation.constrain_tr_ATilde_ll = true
-
-BSSNOKFiniteDifferenceEquation.useGammaDriver = false
+-- needs to be defined up front
+-- otherwise rebuild intVars based on it ...
 BSSNOKFiniteDifferenceEquation.useHypGammaDriver = true
 
 
@@ -217,6 +217,14 @@ BSSNOKFiniteDifferenceEquation.numIntStates = makestruct.countReals(intVars)
 
 BSSNOKFiniteDifferenceEquation.useConstrainU = true
 BSSNOKFiniteDifferenceEquation.useSourceTerm = true
+
+
+function BSSNOKFiniteDifferenceEquation:createInitState()
+	BSSNOKFiniteDifferenceEquation.super.createInitState(self)
+	self:addGuiVar{name='constrain_det_gammaBar_ll', value=true}
+	self:addGuiVar{name='constrain_tr_ATilde_ll', value=true}
+	self:addGuiVar{name='useGammaDriver', value=false}
+end
 
 -- should this be getInitStateCode like in eqn/euler?
 function BSSNOKFiniteDifferenceEquation:getCodePrefix()

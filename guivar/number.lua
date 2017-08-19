@@ -1,4 +1,3 @@
-local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
 local tooltip = require 'tooltip'
 local class = require 'ext.class'

@@ -49,6 +49,9 @@ end)
 local function makeTableAccess(prim, orig)
 	local ptr = ffi.new(prim..'[1]')
 	return function(title, t, k, ...)
+		if t[k] == nil then
+			error("failed to find value "..k.." in table "..tostring(t))
+		end
 		ptr[0] = t[k]
 		if orig(title, ptr, ...) then
 			t[k] = ptr[0]

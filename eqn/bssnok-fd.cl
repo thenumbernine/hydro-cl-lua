@@ -45,7 +45,7 @@ kernel void constrainU(
 	det(a) * 1/det(a)
 	1
 	*/
-<? if eqn.constrain_det_gammaBar_ll then ?>
+<? if eqn.guiVars.constrain_det_gammaBar_ll.value then ?>
 	real det_gammaBar = sym3_det(U->gammaBar_ll);
 	real _1_cbrt_det_gammaBar = 1./cbrt(det_gammaBar);
 <? 	for ij,xij in ipairs(symNames) do
@@ -54,7 +54,7 @@ kernel void constrainU(
 end ?>
 	//in Buchman's paper it says he doesn't do this
 	//likewise in my own experiences, this can tend A to grow out of control 
-<? if eqn.constrain_tr_ATilde_ll then ?>
+<? if eqn.guiVars.constrain_tr_ATilde_ll.value then ?>
 	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
 	U->ATilde_ll = tracefree(U->ATilde_ll, U->gammaBar_ll, gammaBar_uu);
 <? end ?>
@@ -388,7 +388,7 @@ end
 ?>
 	deriv->connBar_u = real3_add(deriv->connBar_u, dt_connBar_u);
 
-<? if eqn.useGammaDriver then ?>
+<? if eqn.guiVars.useGammaDriver.value then ?>
 	//Gamma-driver
 	//B&S 4.82
 	//beta^i_,t = k (connBar^i_,t + eta connBar^i)
