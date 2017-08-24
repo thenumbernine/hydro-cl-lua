@@ -115,7 +115,7 @@ kernel void calcEigenBasis(
 	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		int indexL = index - stepsize[side];
+		int indexL = index - stepsize.s<?=side?>;
 		<?= solver.getULRCode ?>	
 		int indexInt = side + dim * index;	
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;

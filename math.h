@@ -27,4 +27,3 @@ typedef union {
 		real3 x,y,z;
 	};
 } mat3;
-

@@ -29,8 +29,8 @@ kernel void calcDiv(
 	real div = 0.;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		div -= .5 * (U[stepsize[side]].v.s<?=side?>
-				- U[-stepsize[side]].v.s<?=side?>) / grid_dx<?=side?>;
+		div -= .5 * (U[stepsize.s<?=side?>].v.s<?=side?>
+				- U[-stepsize.s<?=side?>].v.s<?=side?>) / grid_dx<?=side?>;
 	}<? end ?>
 	divBuf[index] = div;
 }
@@ -43,7 +43,7 @@ kernel void diffusePressure(
 	global real* P = PBuf + index;
 	const global real* div = divBuf + index;
 	<? for side=0,solver.dim-1 do ?>{
-		*P += .25 * (div[stepsize[side]] - div[-stepsize[side]]) / grid_dx<?=side?>;
+		*P += .25 * (div[stepsize.s<?=side?>] - div[-stepsize.s<?=side?>]) / grid_dx<?=side?>;
 	}<? end ?>
 }
 
@@ -55,6 +55,6 @@ kernel void project(
 	const global real* P = PBuf + index;
 	const <?=eqn.cons_t?>* U = UBuf + index;
 	<? for side=0,solver.dim-1 do ?>{
-		U->v.s<?=side?> -= (P[stepsize[side]] - P[-stepsize[side]]) / grid_dx<?=side?>;
+		U->v.s<?=side?> -= (P[stepsize.s<?=side?>] - P[-stepsize.s<?=side?>]) / grid_dx<?=side?>;
 	}<? end ?>
 }

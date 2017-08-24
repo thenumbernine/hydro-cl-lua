@@ -35,7 +35,7 @@ kernel void calcIntVel(
 	
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		int indexL = index - stepsize[side];
+		int indexL = index - stepsize.s<?=side?>;
 		const global <?=eqn.cons_t?>* UL = UBuf + indexL;
 
 		// eventually: < ?= solver.getULRCode ? >
@@ -69,13 +69,13 @@ kernel void calcFlux(
 		const int side = <?=side?>;
 		real dt_dx = dt / grid_dx<?=side?>;//dx<?=side?>_at(i);
 		
-		int indexL = index - stepsize[side];
+		int indexL = index - stepsize.s<?=side?>;
 		const global <?=eqn.cons_t?>* UL = UBuf + indexL;
 		
-		int indexL2 = indexL - stepsize[side];
+		int indexL2 = indexL - stepsize.s<?=side?>;
 		const global <?=eqn.cons_t?>* UL2 = UBuf + indexL2;
 		
-		int indexR2 = index + stepsize[side];
+		int indexR2 = index + stepsize.s<?=side?>;
 		const global <?=eqn.cons_t?>* UR2 = UBuf + indexR2;
 
 		// eventually: < ?= solver.getULRCode ? >
@@ -122,8 +122,8 @@ kernel void computePressure(
 ?>	real dvSqSum = 0.;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
-		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
+		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
 		
 		real dv = UR->m.s<?=side?> / UR->rho
 				- UL->m.s<?=side?> / UL->rho;
@@ -145,7 +145,7 @@ kernel void diffuseMomentum(
 
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		real dP = P[stepsize[side]] - P[-stepsize[side]];
+		real dP = P[stepsize.s<?=side?>] - P[-stepsize.s<?=side?>];
 		deriv->m.s<?=side?> -= .5 * dP / grid_dx<?=side?>;
 	}<? end ?>
 }
@@ -163,13 +163,13 @@ kernel void diffuseWork(
 	real dE = 0.;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
-		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
+		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
 		
 		real vR = UR->m.s<?=side?> / UR->rho;
-		real PR = P[stepsize[side]];
+		real PR = P[stepsize.s<?=side?>];
 		real vL = UL->m.s<?=side?> / UL->rho;
-		real PL = P[-stepsize[side]];
+		real PL = P[-stepsize.s<?=side?>];
 		dE -= .5 * (PR * vR - PL * vL) / grid_dx<?=side?>;
 	}<? end ?>
 

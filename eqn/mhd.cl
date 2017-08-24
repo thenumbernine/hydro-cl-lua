@@ -254,7 +254,7 @@ kernel void calcEigenBasis(
 
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		int indexL = index - stepsize[side];
+		int indexL = index - stepsize.s<?=side?>;
 		<?= solver.getULRCode ?>
 
 		//swap the sides with x here, so all the fluxes are in the 'x' direction

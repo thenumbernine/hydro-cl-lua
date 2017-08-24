@@ -123,8 +123,8 @@ local function makePartial2(order, solver, field, fieldType)
 					expr, 
 					scale(
 						add(
-							'U['..k..' * stepsize['..(i-1)..']].'..field,
-							'U[-'..k..' * stepsize['..(i-1)..']].'..field),
+							'U['..k..' * stepsize.s'..(i-1)..'].'..field,
+							'U[-'..k..' * stepsize.s'..(i-1)..'].'..field),
 						clnumber(coeff)))
 			end
 			expr = scale(expr, '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')
@@ -324,10 +324,10 @@ kernel void init_connBarU(
 	
 	const global <?=eqn.cons_t?>* Up[dim];
 	const global <?=eqn.cons_t?>* Um[dim];
-	for (int j = 0; j < dim; ++j) {
-		Up[j] = U + stepsize[j];
-		Um[j] = U - stepsize[j];
-	}
+	<? for j=0,solver.dim-1 do ?>{
+		Up[<?=j?>] = U + stepsize.s<?=j?>;
+		Um[<?=j?>] = U - stepsize.s<?=j?>;
+	}<? end ?>
 
 	sym3 Up_gammaBar_uu, Um_gammaBar_uu;
 	sym3 partial_gammaBar_uul[3];

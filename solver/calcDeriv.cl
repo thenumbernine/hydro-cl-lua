@@ -15,7 +15,7 @@ kernel void calcDerivFromFlux(
 		int indexIntL = <?=side?> + dim * index;
 		const global <?=eqn.cons_t?>* fluxL = fluxBuf + indexIntL;
 		
-		int indexIntR = indexIntL + dim * stepsize[<?=side?>]; 
+		int indexIntR = indexIntL + dim * stepsize.s<?=side?>; 
 		const global <?=eqn.cons_t?>* fluxR = fluxBuf + indexIntR;
 
 <? -- trying to apply Trangenstein to my holonomic coordinate code:

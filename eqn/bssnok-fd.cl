@@ -71,10 +71,10 @@ kernel void calcDeriv(
 
 	const global <?=eqn.cons_t?>* Up[dim];
 	const global <?=eqn.cons_t?>* Um[dim];
-	for (int i = 0; i < dim; ++i) {
-		Up[i] = U + stepsize[i];
-		Um[i] = U - stepsize[i];
-	}
+	<? for i=0,solver.dim-1 do ?>{
+		Up[<?=i?>] = U + stepsize.s<?=i?>;
+		Um[<?=i?>] = U - stepsize.s<?=i?>;
+	}<? end ?>
 
 <?=makePartial('alpha', 'real')?>		//partial_alpha_l[i] := alpha_,i
 <?=makePartial('phi', 'real')?>			//partial_phi_l[i] := phi_,i 

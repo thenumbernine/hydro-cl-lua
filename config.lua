@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 1
+local dim = 2
 local args = {
 	app = self, 
 	
@@ -38,7 +38,7 @@ local args = {
 	-- 256^2 = 2^16 = 2 * 32^3
 	gridSize = ({
 		{256,1,1},
-		{128,128,1},
+		{256,256,1},
 		{32,32,32},
 	})[dim],
 	boundary = {
@@ -127,7 +127,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Hemholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -188,11 +188,11 @@ local args = {
 	-- NLS
 	--initState = 'Gaussian',
 	--initState = 'Ring',
-	initState = 'Oscillatory',
+	--initState = 'Oscillatory',
 }
 
 -- HD - Roe
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
 -- f.e. and b.e. are working, but none of the r.k. integrators 
@@ -254,4 +254,4 @@ local args = {
 
 -- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 
-self.solvers:insert(require 'solver.nls'(args))
+--self.solvers:insert(require 'solver.nls'(args))

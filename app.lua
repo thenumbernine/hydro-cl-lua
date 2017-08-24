@@ -138,7 +138,7 @@ function HydroCLApp:initGL(...)
 	ffi.cdef('typedef '..self.real..' real;')
 
 	ffi.cdef(file['math.h'])
-
+	
 	self.solvers = table()
 
 	self:setup()
@@ -342,7 +342,10 @@ void main() {
 ]],
 	}
 
-	-- [[ need to get image loading working
+	-- [[ 
+if ffi.os == 'Windows' then
+	io.stderr:write'TODO get png loader working on windows\n'
+else
 	local fonttex = GLTex2D{
 		filename = 'font.png',
 		minFilter = gl.GL_LINEAR_MIPMAP_LINEAR,
@@ -355,8 +358,8 @@ void main() {
 		gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR) 
 	end
 	self.font = Font{tex = fonttex}
+end
 	--]]
-
 
 	self.orthoView = require 'view.ortho'()
 	self.frustumView = require 'view.frustum'()

@@ -19,6 +19,7 @@ SelfGrav.gravitationConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
 function SelfGrav:init(args)
 	SelfGrav.super.init(self, args)
 	self.densityField = args.densityField	
+	self.solver[self.enableField] = not not self.solver[self.enableField]
 end
 
 -- params for solver/poisson.cl 
@@ -51,8 +52,8 @@ kernel void calcGravityDeriv(
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		int indexL = index - stepsize[side];
-		int indexR = index + stepsize[side];
+		int indexL = index - stepsize.s<?=side?>;
+		int indexR = index + stepsize.s<?=side?>;
 	
 		real gravity = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * dx<?=side?>_at(i));
 

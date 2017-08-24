@@ -35,8 +35,8 @@ kernel void calcLR(
 		//Works with some oscillations for adm1d_v1 freeflow (fails for mirror)
 		//Works for Maxwell
 
-		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
-		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
+		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
 		<?=eqn.cons_t?> dUL, dUR;
 		for (int j = 0; j < numIntStates; ++j) {
 			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
@@ -94,8 +94,8 @@ kernel void calcLR(
 		//This fails for Maxwell 
 
 		//1) calc delta q's ... l r c (eqn 36)
-		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
-		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
+		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
 		<?=eqn.cons_t?> dUL, dUR, dUC;
 		for (int j = 0; j < numIntStates; ++j) {
 			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
@@ -167,8 +167,8 @@ kernel void calcLR(
 		xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
 		
 		//1) calc delta q's ... l r c (eqn 36)
-		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
-		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
+		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
 		<?=eqn.prim_t?> W = primFromCons(*U, x);
 		<?=eqn.prim_t?> WL = primFromCons(*UL, xL);
 		<?=eqn.prim_t?> WR = primFromCons(*UR, xR);
@@ -266,8 +266,8 @@ kernel void calcLR(
 		real dt_dx = dt / dx;
 
 		//1) calc delta q's ... l r c (eqn 36)
-		const global <?=eqn.cons_t?>* UL = U - stepsize[side];
-		const global <?=eqn.cons_t?>* UR = U + stepsize[side];
+		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
 
 		<?=eqn.prim_t?> W = primFromCons(*U, x);
 		<?=eqn.prim_t?> WL = primFromCons(*UL, xL);

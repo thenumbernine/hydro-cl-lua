@@ -87,7 +87,7 @@ kernel void calcDeltaUEig(
 	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		int indexL = index - stepsize[side];
+		int indexL = index - stepsize.s<?=side?>;
 		
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
@@ -115,8 +115,8 @@ kernel void calcREig(
 	SETBOUNDS(numGhost,numGhost-1);
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		int indexL = index - stepsize[side];
-		int indexR = index + stepsize[side];
+		int indexL = index - stepsize.s<?=side?>;
+		int indexR = index + stepsize.s<?=side?>;
 		int indexInt = side + dim * index;
 		int indexIntL = side + dim * indexL;
 		int indexIntR = side + dim * indexR;
@@ -158,7 +158,7 @@ kernel void calcFlux(
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;	
 		real dt_dx = dt / grid_dx<?=side?>;//dx<?=side?>_at(i);
-		int indexL = index - stepsize[side];
+		int indexL = index - stepsize.s<?=side?>;
 
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
