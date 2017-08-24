@@ -14,7 +14,6 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_scale(real3_add(mins, maxs), .5);
 
 	real r = x.x;
 	real re = 0;
@@ -29,7 +28,7 @@ kernel void initState(
 NLSEqn.solverCodeFile = 'eqn/nls.cl'
 
 function NLSEqn:getDisplayVars()
-	return table{
+	return {
 		{re = '*value = U->re;'},
 		{im = '*value = U->im;'},
 		{norm = '*value = sqrt(U->re*U->re + U->im*U->im);'},

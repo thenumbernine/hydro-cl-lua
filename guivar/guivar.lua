@@ -7,7 +7,7 @@ function GuiVar:init(args)
 end
 
 function GuiVar:refresh(value, solver)
-	print('refreshing '..self.name..' = '..value)
+	print('refreshing '..self.name..' = '..tostring(value))
 	solver:refreshCodePrefix()
 end
 

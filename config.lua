@@ -3,9 +3,7 @@
 local dim = 2
 local args = {
 	app = self, 
-	
 	eqn = cmdline.eqn,
-	
 	dim = cmdline.dim or dim,
 	
 	integrator = cmdline.integrator or 'forward Euler',	
@@ -183,7 +181,11 @@ local args = {
 	--initState = '1D black hole - wormhole form',
 	--initState = 'Gowdy waves',
 	--initState = 'testbed - robust',	-- not working with fv solvers 
-	--initState = 'testbed - gauge wave - axis aligned',
+	--initState = 'testbed - gauge wave',
+	--initState = 'testbed - gauge wave - diagonal',
+	--initState = 'testbed - linear wave',
+	--initState = 'testbed - linear wave - diagonal',
+	--initState = 'testbed - Gowdy',
 
 	-- NLS
 	--initState = 'Gaussian',

@@ -2,6 +2,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local template = require 'template'
+local vec3 = require 'vec.vec3'
 local clnumber = require 'cl.obj.number'
 local InitCond = require 'init.init'
 
@@ -932,8 +933,11 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 		getInitStateCode = function(self, solver) end,
 	},
 	{
-		name = 'testbed - gauge wave - axis aligned',
+		name = 'testbed - gauge wave',
 		init = function(self, solver)
+--			solver.mins = vec3(-.5, -.5, -.5)
+--			solver.maxs = vec3(-.5, -.5, -.5)
+			solver:setBoundaryMethods'periodic'
 			solver.eqn:addGuiVar{name='A', value=.1}	-- .1, .01
 			solver.eqn:addGuiVar{name='d', value=1}
 --			solver.eqn.guiVars.f.value = solver.eqn.guiVars.f.options:find'1'	-- set f=1
@@ -944,7 +948,7 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 			local xs = xNames:map(function(x) return symmath.var(x) end)
 			local x,y,z = xs:unpack()
 			local t = 0
-			local theta = 2 * math.pi / d * (x - t)
+			local theta = (2 * math.pi / d) * (x - t)
 			local H = 1 + A * symmath.sin(theta)
 			return initNumRel{
 				solver = solver,
@@ -956,7 +960,76 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 			}
 		end,
 	},
-
+	{
+		name = 'testbed - gauge wave - diagonal',
+		init = function(self, solver)
+			error"finishme"
+		end,
+	},
+	{
+		name = 'testbed - linear wave',
+		init = function(self, solver)
+-- TODO changing the range upon init causes something to freeze up ...
+--			solver.mins = vec3(-.5, -.5, -.5)
+--			solver.maxs = vec3(-.5, -.5, -.5)
+			solver:setBoundaryMethods'periodic'
+			solver.eqn:addGuiVar{name='A', value=1e-8}
+			solver.eqn:addGuiVar{name='d', value=1}
+		end,
+		getCodePrefix = function(self, solver, getCodes)
+			local A = solver.eqn.guiVars.A.value
+			local d = solver.eqn.guiVars.d.value
+			local xs = xNames:map(function(x) return symmath.var(x) end)
+			local x,y,z = xs:unpack()
+			local t = 0
+			local theta = (2 * math.pi / d) * (x - t)
+			local b = A * symmath.sin(theta)
+			return initNumRel{
+				solver = solver,
+				getCodes = getCodes,
+				vars = xs,
+				alpha = 1,
+				gamma = {1,0,0,1+b,0,1-b},
+				K = {0,0,0,b:diff(t)/2,0,-b:diff(t)/2},
+			}
+		end,
+	},
+	{
+		name = 'testbed - linear wave - diagonal',
+		init = function(self, solver)
+			error"finishme"
+		end,
+	},
+	{
+		name = 'testbed - Gowdy',
+		init = function(self, solver)
+		
+		end,
+		getCodePrefix = function(self, solver, getCodes)
+			local frac = symmath.frac
+			local xs = xNames:map(function(x) return symmath.var(x) end)
+			local x,y,z = xs:unpack()
+			local t = 0
+			--[[ general solution
+			local lambda = -2 * pi * t * J0(2 * pi * t) * J1(2 * pi * t) * symmath.cos(2 * pi * z)^2
+				+ 2 * pi^2 * t^2 * (J0(2 * pi * t)^2 + J1(2 * pi * t)^2)
+				- 1/2 * ( (2 * pi)^2 * (J0(2 * pi)^2 + J1(2 * pi)^2) - 2 * pi * J0(2 * pi) * J1(2 * pi))
+			--]]
+			local lambda = -.5 * ( (2 * math.pi)^2 * (J0(2 * math.pi)^2 + J1(2 * math.pi)^2) - 2 * math.pi * J0(2 * math.pi) * J1(2 * math.pi))
+			local alpha = t^symmath.frac(-1,4) * symmath.exp(lambda/4)
+			local P = J0(2 * pi * t) * symmath.cos(2 * pi * z)
+			local gamma = {t * symmath.exp(P), 0, 0, t * symmath.exp(-P), 0, 1/symmath.sqrt(t) * symmath.exp(lambda/2)}
+			local K = {-1/2 * t^(1/4) * symmath.exp(P-lambda/4) * (1 + t * dP_dt), 0, 0, -1/2 * t^(1/4) * symmath.exp(-P-lambda/4) * (1 - t * dP_dt), 0, 1/4*t^(-1/4) * symmath.exp(lambda/4) * (1/t - dlambda_dt)}
+			return initNumRel{
+				solver = solver,
+				getCodes = getCodes,
+				vars = xs,
+				alpha = alpha,
+				gamma = gamma,
+				K = K,
+			}
+		end,
+	},
 }:map(function(cl)
 	return class(NumRelInitCond, cl)
 end)
