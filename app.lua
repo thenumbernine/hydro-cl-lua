@@ -471,6 +471,7 @@ end
 
 HydroCLApp.running = nil
 
+local minDeltaY = 1e-7
 function HydroCLApp:update(...)
 	if self.running then
 		if self.running == 'step' then 
@@ -557,7 +558,7 @@ function HydroCLApp:update(...)
 					solverymin, solverymax = 1.1 * solverymin - .1 * solverymax, 1.1 * solverymax - .1 * solverymin
 				else
 					solverymin, solverymax = solver:calcDisplayVarRange(var)
-		
+					
 					if useLog then
 						solverymin = math.log(solverymin, 10)
 						solverymax = math.log(solverymax, 10)
@@ -565,7 +566,7 @@ function HydroCLApp:update(...)
 						if not math.isfinite(solverymax) then solverymax = -math.huge end
 						solverymin = math.max(-30, solverymin)
 						solverymax = math.max(-30, solverymax)
-						solverymax = math.max(solverymax, solverymin + 1e-5)
+						solverymax = math.max(solverymax, solverymin + minDeltaY)
 					end			
 					
 					if solverymin
@@ -580,7 +581,6 @@ function HydroCLApp:update(...)
 						local newymax = (solverymax < 0 and -1 or 1) * (math.abs(solverymax) == math.huge and 1e+100 or base ^ math.log(math.abs(solverymax), base))
 						solverymin, solverymax = newymin, newymax
 						do
-							local minDeltaY = 1e-5
 							local deltaY = solverymax - solverymin
 							if deltaY < minDeltaY then
 								solverymax = solverymax + .5 * minDeltaY
@@ -655,7 +655,7 @@ function HydroCLApp:update(...)
 	if self.font then
 		local solverNames = self.solvers:map(function(solver)
 			return {
-				text = solver.name,
+				text = '('..solver.t..') '..solver.name,
 				color = solver.color,
 			}
 		end)
