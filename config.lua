@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 3
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -36,17 +36,17 @@ local args = {
 	-- 256^2 = 2^16 = 2 * 32^3
 	gridSize = (
 		({ 	-- size options based on OpenCL vendor ...
-			['NVIDIA CUDA'] = {
+			['NVIDIA CUDA/GeForce GTX 1080 Ti'] = {
 				{256,1,1},
-				{1024,1024,1},
+				{256,256,1},
 				{128,128,128},
 			},
-			['Intel(R) OpenCL'] = {
+			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
 				{128,128,1},
 				{32,32,32},
 			},
-		})[platformName] 
+		})[platformName..'/'..deviceName] 
 		-- default size options
 		or {
 			{256,1,1},
@@ -55,12 +55,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'periodic',
-		xmax=cmdline.boundary or 'periodic',
-		ymin=cmdline.boundary or 'periodic',
-		ymax=cmdline.boundary or 'periodic',
-		zmin=cmdline.boundary or 'periodic',
-		zmax=cmdline.boundary or 'periodic',
+		xmin=cmdline.boundary or 'mirror',
+		xmax=cmdline.boundary or 'mirror',
+		ymin=cmdline.boundary or 'mirror',
+		ymax=cmdline.boundary or 'mirror',
+		zmin=cmdline.boundary or 'mirror',
+		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
 	--[[ cylinder
@@ -140,7 +140,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Hemholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -157,7 +157,7 @@ local args = {
 	--initState = 'configuration 6',
 
 	-- self-gravitation tests:
-	initState = 'self-gravitation test 1',
+	--initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
 	--initState = 'self-gravitation test 2',
 	--initState = 'self-gravitation test 2 orbiting',
@@ -237,7 +237,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- here's the GRHD solver with the BSSNOK plugged into it
 --self.solvers:insert(require 'solver.gr-hd-separate'(args))
 
--- M+HD. 
+-- MHD. 
 -- with superbee flux lim:  
 -- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.
 -- Orszag-Tang with forward Euler integrator fails at 64x64 around .7 or .8
