@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 2
+local dim = 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -34,18 +34,33 @@ local args = {
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
 	-- 256^2 = 2^16 = 2 * 32^3
-	gridSize = ({
-		{256,1,1},
-		{256,256,1},
-		{32,32,32},
-	})[dim],
+	gridSize = (
+		({ 	-- size options based on OpenCL vendor ...
+			['NVIDIA CUDA'] = {
+				{256,1,1},
+				{1024,1024,1},
+				{128,128,128},
+			},
+			['Intel(R) OpenCL'] = {
+				{256,1,1},
+				{128,128,1},
+				{32,32,32},
+			},
+		})[platformName] 
+		-- default size options
+		or {
+			{256,1,1},
+			{128,128,1},
+			{32,32,32},
+		}
+	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'periodic',
+		xmax=cmdline.boundary or 'periodic',
+		ymin=cmdline.boundary or 'periodic',
+		ymax=cmdline.boundary or 'periodic',
+		zmin=cmdline.boundary or 'periodic',
+		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
 	--[[ cylinder
@@ -125,7 +140,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Hemholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -142,7 +157,7 @@ local args = {
 	--initState = 'configuration 6',
 
 	-- self-gravitation tests:
-	--initState = 'self-gravitation test 1',
+	initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
 	--initState = 'self-gravitation test 2',
 	--initState = 'self-gravitation test 2 orbiting',
