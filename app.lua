@@ -343,9 +343,6 @@ void main() {
 	}
 
 	-- [[ 
-if ffi.os == 'Windows' then
-	io.stderr:write'TODO get png loader working on windows\n'
-else
 	local fonttex = GLTex2D{
 		filename = 'font.png',
 		minFilter = gl.GL_LINEAR_MIPMAP_LINEAR,
@@ -358,7 +355,6 @@ else
 		gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR) 
 	end
 	self.font = Font{tex = fonttex}
-end
 	--]]
 
 	self.orthoView = require 'view.ortho'()
