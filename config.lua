@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 2
+local dim = 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -34,11 +34,26 @@ local args = {
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
 	-- 256^2 = 2^16 = 2 * 32^3
-	gridSize = ({
-		{256,1,1},
-		{128,128,1},
-		{32,32,32},
-	})[dim],
+	gridSize = (
+		({ 	-- size options based on OpenCL vendor ...
+			['NVIDIA CUDA'] = {
+				{256,1,1},
+				{1024,1024,1},
+				{128,128,128},
+			},
+			['Intel(R) OpenCL'] = {
+				{256,1,1},
+				{128,128,1},
+				{32,32,32},
+			},
+		})[platformName] 
+		-- default size options
+		or {
+			{256,1,1},
+			{128,128,1},
+			{32,32,32},
+		}
+	)[dim],
 	boundary = {
 		xmin=cmdline.boundary or 'periodic',
 		xmax=cmdline.boundary or 'periodic',
@@ -142,7 +157,7 @@ local args = {
 	--initState = 'configuration 6',
 
 	-- self-gravitation tests:
-	--initState = 'self-gravitation test 1',
+	initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
 	--initState = 'self-gravitation test 2',
 	--initState = 'self-gravitation test 2 orbiting',

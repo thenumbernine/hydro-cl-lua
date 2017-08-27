@@ -92,10 +92,16 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limit
 -- setup for the solver
 -- override this for specific experiments
 -- this can't override float vs double precision yet
-function HydroCLApp:setup()
+function HydroCLApp:setup(args)
+	args.self = self
+	args.cmdline = cmdline
+	args.table = table
+	local keys = table.keys(args)
 	assert(load([[
-local self, cmdline, table = ...
-]] .. file['config.lua']))(self, cmdline, table)
+local ]]..keys:concat', '..[[ = ...
+]] .. file['config.lua']))(
+	keys:map(function(key) return args[key] end):unpack()
+)
 end
 
 local useClipPlanes
@@ -125,8 +131,10 @@ function HydroCLApp:initGL(...)
 		precision = cmdline.float and 'float' or nil,
 		cpu = cmdline.cpu,
 	}
-	print(self.env.platform:getName())
-	print(self.env.device:getName())
+	local platformName = self.env.platform:getName()
+	local deviceName = self.env.device:getName()
+	print(platformName)
+	print(deviceName)
 
 	self.is64bit = self.env.real == 'double'
 	self.useGLSharing = self.env.useGLSharing
@@ -141,7 +149,7 @@ function HydroCLApp:initGL(...)
 	
 	self.solvers = table()
 
-	self:setup()
+	self:setup{platformName=platformName, deviceName=deviceName}
 
 	-- This only looks good when overlaying vector fields on top of other graphs.
 	-- When it comes to separate variables, they usually look better apart.

@@ -60,7 +60,11 @@ function Roe:getSolverCode()
 		Roe.super.getSolverCode(self),
 	
 		-- before this went above solver/plm.cl, now it's going after it ...
-		template(file['solver/roe.cl'], {solver=self, eqn=self.eqn}),
+		template(file['solver/roe.cl'], {
+			solver = self,
+			eqn = self.eqn,
+			clnumber = require 'cl.obj.number',
+		}),
 	}:concat'\n'
 end
 
@@ -98,6 +102,7 @@ function Roe:refreshSolverProgram()
 	if self.fluxLimiter[0] > 0 then
 		self.calcFluxKernel:setArg(6, self.rEigBuf)
 	end
+	self:setKernelSizeProps(self.calcFluxKernel)
 
 	-- TODO put this in solver/solver.lua ?
 	if self.eqn.useSourceTerm then
@@ -218,7 +223,7 @@ function Roe:calcDeriv(derivBuf, dt)
 	end
 
 	self.calcFluxKernel:setArg(5, ffi.new('real[1]', dt))
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcFluxKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcFluxKernel, dim=self.dim, globalSize=self.calcFluxKernel.globalSize:ptr(), localSize=self.calcFluxKernel.localSize:ptr()}
 
 	-- calcDerivFromFlux zeroes the derivative buffer
 	self.calcDerivFromFluxKernel:setArg(0, derivBuf)

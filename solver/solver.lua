@@ -232,8 +232,85 @@ function Solver:createEqn(eqn)
 	self.eqn = require('eqn.'..assert(eqn))(self)
 end
 
-function Solver:refreshGridSize()
 
+-- for each kernel I need a copy of localSize1d, localSize(nD), globalSize
+-- this is close to domain ... in fact, it's a cross of domains and kernels' maxWorkGroupSize (which should be <= the device maxWorkGroupSize ?)
+function Solver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
+	local localSize1d = math.min(maxWorkGroupSize, tonumber(self.gridSize:volume()))
+
+	local localSize2d
+	if self.dim == 3 then
+		local localSizeX = math.min(tonumber(self.gridSize.x), 2^math.ceil(math.log(maxWorkGroupSize,2)/2))
+		local localSizeY = maxWorkGroupSize / localSizeX
+		localSize2d = {localSizeX, localSizeY}
+	end
+
+--	self.localSize = self.dim < 3 and vec3sz(16,16,16) or vec3sz(4,4,4)
+	-- TODO better than constraining by math.min(gridSize),
+	-- look at which gridSizes have the most room, and double them accordingly, until all of maxWorkGroupSize is taken up
+	local localSize = vec3sz(1,1,1)
+	local rest = maxWorkGroupSize
+	local localSizeX = math.min(tonumber(self.gridSize.x), 2^math.ceil(math.log(rest,2)/self.dim))
+	localSize.x = localSizeX
+	if self.dim > 1 then
+		rest = rest / localSizeX
+		if self.dim == 2 then
+			localSize.y = math.min(tonumber(self.gridSize.y), rest)
+		elseif self.dim == 3 then
+			local localSizeY = math.min(tonumber(self.gridSize.y), 2^math.ceil(math.log(math.sqrt(rest),2)))
+			localSize.y = localSizeY
+			localSize.z = math.min(tonumber(self.gridSize.z), rest / localSizeY)
+		end
+	end
+
+	-- this is grid size, but rounded up to the next localSize
+	local globalSize = vec3sz(
+		roundup(self.gridSize.x, localSize.x),
+		roundup(self.gridSize.y, localSize.y),
+		roundup(self.gridSize.z, localSize.z))
+
+	self.domain = self.app.env:domain{
+		size = {self.gridSize:unpack()},
+		dim = dim,
+	}
+
+	-- don't include the ghost cells as a part of the grid coordinate space
+	local sizeWithoutBorder = vec3sz(self.gridSize:unpack())
+	for i=0,self.dim-1 do
+		sizeWithoutBorder:ptr()[i] = sizeWithoutBorder:ptr()[i] - 2 * self.numGhost
+	end
+	local volumeWithoutBorder = tonumber(sizeWithoutBorder:volume())
+	local globalSizeWithoutBorder = vec3sz( 
+		roundup(sizeWithoutBorder.x, localSize.x),
+		roundup(sizeWithoutBorder.y, localSize.y),
+		roundup(sizeWithoutBorder.z, localSize.z))
+	
+	local volume = tonumber(self.gridSize:volume())
+
+	return {
+		localSize1d = localSize1d,
+		localSize2d = localSize2d,
+		localSize = localSize,
+		globalSize = globalSize,
+		sizeWithoutBorder = sizeWithoutBorder,
+		volumeWithoutBorder = volumeWithoutBorder,
+		globalSizeWithoutBorder = globalSizeWithoutBorder,
+		volume = volume,
+	}
+end
+
+function Solver:setKernelSizeProps(kernel)
+	kernel.maxWorkGroupSize = tonumber(kernel:getWorkGroupInfo(self.app.env.device, 'CL_KERNEL_WORK_GROUP_SIZE'))
+	local sizeProps = self:getSizePropsForWorkGroupSize(kernel.maxWorkGroupSize)
+	local kernelName = table.find(self, kernel)
+	for k,v in pairs(sizeProps) do
+print(kernelName, k,v)
+		assert(kernel[k] == nil)
+		kernel[k] = v
+	end
+end
+
+function Solver:refreshGridSize()
 	self.stepSize = vec3sz()
 	self.stepSize.x = 1
 	for i=1,self.dim-1 do
@@ -247,62 +324,12 @@ print('self.stepSize', self.stepSize)
 print('maxWorkGroupSize', maxWorkGroupSize)
 
 	self.offset = vec3sz(0,0,0)
-	self.localSize1d = math.min(maxWorkGroupSize, tonumber(self.gridSize:volume()))
 
-	if self.dim == 3 then
-		local localSizeX = math.min(tonumber(self.gridSize.x), 2^math.ceil(math.log(maxWorkGroupSize,2)/2))
-		local localSizeY = maxWorkGroupSize / localSizeX
-		self.localSize2d = {localSizeX, localSizeY}
+	local sizeProps = self:getSizePropsForWorkGroupSize(maxWorkGroupSize)
+	for k,v in pairs(sizeProps) do
+print(k,v)	
+		self[k] = v
 	end
-
---	self.localSize = self.dim < 3 and vec3sz(16,16,16) or vec3sz(4,4,4)
-	-- TODO better than constraining by math.min(gridSize),
-	-- look at which gridSizes have the most room, and double them accordingly, until all of maxWorkGroupSize is taken up
-	self.localSize = vec3sz(1,1,1)
-	local rest = maxWorkGroupSize
-	local localSizeX = math.min(tonumber(self.gridSize.x), 2^math.ceil(math.log(rest,2)/self.dim))
-	self.localSize.x = localSizeX
-	if self.dim > 1 then
-		rest = rest / localSizeX
-		if self.dim == 2 then
-			self.localSize.y = math.min(tonumber(self.gridSize.y), rest)
-		elseif self.dim == 3 then
-			local localSizeY = math.min(tonumber(self.gridSize.y), 2^math.ceil(math.log(math.sqrt(rest),2)))
-			self.localSize.y = localSizeY
-			self.localSize.z = math.min(tonumber(self.gridSize.z), rest / localSizeY)
-		end
-	end
-print('self.localSize', self.localSize)
-	-- this is grid size, but rounded up to the next localSize
-	self.globalSize = vec3sz(
-		roundup(self.gridSize.x, self.localSize.x),
-		roundup(self.gridSize.y, self.localSize.y),
-		roundup(self.gridSize.z, self.localSize.z))
-print('self.globalSize', self.globalSize)
-
-
-
-	self.domain = self.app.env:domain{
-		size = {self.gridSize:unpack()},
-		dim = dim,
-	}
-
-	-- don't include the ghost cells as a part of the grid coordinate space
-	self.sizeWithoutBorder = vec3sz(self.gridSize:unpack())
-	for i=0,self.dim-1 do
-		self.sizeWithoutBorder:ptr()[i] = self.sizeWithoutBorder:ptr()[i] - 2 * self.numGhost
-	end
-print('self.sizeWithoutBorder', self.sizeWithoutBorder)	
-	self.volumeWithoutBorder = tonumber(self.sizeWithoutBorder:volume())
-print('self.volumeWithoutBorder', self.volumeWithoutBorder)	
-	self.globalSizeWithoutBorder = vec3sz( 
-		roundup(self.sizeWithoutBorder.x, self.localSize.x),
-		roundup(self.sizeWithoutBorder.y, self.localSize.y),
-		roundup(self.sizeWithoutBorder.z, self.localSize.z))
-print('self.globalSizeWithoutBorder', self.globalSizeWithoutBorder)
-	
-	self.volume = tonumber(self.gridSize:volume())
-print('self.volume', self.volume)
 
 	self:createDisplayVars()	-- depends on eqn
 	
@@ -940,13 +967,16 @@ kernel void multAdd(
 	}:concat'\n'
 
 	time('compiling common program', function()
-		self.commonProgram = self.app.ctx:program{devices={self.app.device}, code=commonCode}
+		self.commonProgramObj = self.app.env:program{code=commonCode}
+		self.commonProgramObj:compile()
+		self.commonProgram = self.commonProgramObj.obj
 	end)
 
 	-- used by the integrators
 	-- needs the same globalSize and localSize as the typical simulation kernels
 	-- TODO exclude states which are not supposed to be integrated
-	self.multAddKernel = self.commonProgram:kernel'multAdd'
+	self.multAddKernelObj = self.commonProgramObj:kernel'multAdd'
+	self.multAddKernel = assert(self.multAddKernelObj.obj)
 
 	self.reduceMin = self.app.env:reduce{
 		size = self.volume,
@@ -1118,7 +1148,9 @@ function Solver:refreshSolverProgram()
 	local code = self:getSolverCode()
 
 	time('compiling solver program', function()
-		self.solverProgram = self.app.ctx:program{devices={self.app.device}, code=code}
+		self.solverProgramObj = self.app.env:program{code=code}
+		self.solverProgramObj:compile()
+		self.solverProgram = self.solverProgramObj.obj
 	end)
 
 --[[ trying to find out what causes stalls on certain kernels

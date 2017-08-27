@@ -83,12 +83,12 @@ void main() {
 ?>	float value = getTex(texCoord);
 	float frac = calcFrac(value);
 	//TODO insert the gradient tex size
-	float gradTC = (frac * <?=clnumber(gradTexWidth-1)?>) / <?=clnumber(gradTexWidth)?>;
+	float gradTC = (frac * <?=clnumber(gradTexWidth-1)?>) * <?=clnumber(1 / gradTexWidth)?>;
 	vec4 voxelColor = texture1D(gradientTex, gradTC);
 
 	//don't bother with the gamma factor if we're using isobars
 	if (useIsos) {
-		float ffrac = fract(frac * numIsobars);
+		float ffrac = fract(frac * numIsobars + .5);
 //percentage of each isobar that is solid
 #define stepThickness .1
 		float isoAlpha = smoothstep(0., stepThickness / 3., ffrac) 
