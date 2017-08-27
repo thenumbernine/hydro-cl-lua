@@ -310,6 +310,14 @@ print(kernelName, k,v)
 	end
 end
 
+-- hmm, it'd be nice to merge this into cl.obj ...
+function Solver:makeKernel(program, name, ...)
+	local kernel = program:kernel(name, ...)
+	assert(self[name..'Kernel'] == nil)
+	self[name..'Kernel'] = kernel
+	self:setKernelSizeProps(kernel)
+end
+
 function Solver:refreshGridSize()
 	self.stepSize = vec3sz()
 	self.stepSize.x = 1
@@ -320,12 +328,12 @@ print('self.stepSize', self.stepSize)
 
 	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
 	-- product of all local sizes must be <= max workgroup size
-	local maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
-print('maxWorkGroupSize', maxWorkGroupSize)
+	self.maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
+print('maxWorkGroupSize', self.maxWorkGroupSize)
 
 	self.offset = vec3sz(0,0,0)
 
-	local sizeProps = self:getSizePropsForWorkGroupSize(maxWorkGroupSize)
+	local sizeProps = self:getSizePropsForWorkGroupSize(self.maxWorkGroupSize)
 	for k,v in pairs(sizeProps) do
 print(k,v)	
 		self[k] = v
@@ -1172,21 +1180,18 @@ end
 	self:refreshCalcDTKernel()
 
 	if self.eqn.useConstrainU then
-		self.constrainUKernel = self.solverProgram:kernel('constrainU', self.UBuf)
+		self:makeKernel(self.solverProgram, 'constrainU', self.UBuf)
 	end
 
 	if self.usePLM then
-		self.calcLRKernel = self.solverProgram:kernel(
-			'calcLR',
-			self.ULRBuf,
-			self.UBuf)
+		self:makeKernel(self.solverProgram, 'calcLR', self.ULRBuf, self.UBuf)
 	end
 
 if tryingAMR == 'dt vs 2dt' then
-	self.compareUvsU2Kernel = self.solverProgram:kernel('compareUvsU2', self.U2Buf, self.UBuf)
+	self:makeKernel(self.solverProgram, 'compareUvsU2', self.U2Buf, self.UBuf)
 elseif tryingAMR == 'gradient' then
-	self.calcAMRErrorKernel = self.solverProgram:kernel('calcAMRError', self.amrErrorBuf, self.UBuf)
-	self.initNodeFromRootKernel = self.solverProgram:kernel('initNodeFromRoot', self.UBuf)
+	self:makeKernel(self.solverProgram, 'calcAMRError', self.amrErrorBuf, self.UBuf)
+	self:makeKernel(self.solverProgram, 'initNodeFromRoot', self.UBuf)
 end
 
 	for _,op in ipairs(self.ops) do
@@ -1196,10 +1201,7 @@ end
 
 -- for solvers who don't rely on calcDT
 function Solver:refreshCalcDTKernel()
-	self.calcDTKernel = self.solverProgram:kernel(
-		'calcDT',
-		self.reduceBuf,
-		self.UBuf)
+	self:makeKernel(self.solverProgram, 'calcDT', self.reduceBuf, self.UBuf)
 end
 
 function Solver:refreshDisplayProgram()
@@ -1407,6 +1409,7 @@ kernel void boundary(
 		boundaryProgram = self.app.ctx:program{devices={self.app.device}, code=code} 
 	end)
 	local boundaryKernel = boundaryProgram:kernel'boundary'
+	boundaryKernel.maxWorkGroupSize = tonumber(boundaryKernel:getWorkGroupInfo(self.app.env.device, 'CL_KERNEL_WORK_GROUP_SIZE'))
 	return boundaryProgram, boundaryKernel
 end
 
@@ -1438,10 +1441,15 @@ function Solver:applyBoundaryToBuffer(kernel)
 		-- if you do change this size from anything but 1, make sure to add conditions to the boundary kernel code
 		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=1, localSize=1}
 	elseif self.dim == 2 then
-		local maxSize = roundup(
-			math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y)),
-			self.localSize1d)
-		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=maxSize, localSize=math.min(self.localSize1d, maxSize)}
+		local maxSize = math.min(
+				roundup(
+					math.max(
+						tonumber(self.gridSize.x),
+						tonumber(self.gridSize.y)),
+				self.localSize1d),
+			kernel.maxWorkGroupSize)
+		local localSize = math.min(self.localSize1d, maxSize)
+		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=maxSize, localSize=localSize}
 	elseif self.dim == 3 then
 		-- xy xz yz
 		local maxSizeX = roundup(

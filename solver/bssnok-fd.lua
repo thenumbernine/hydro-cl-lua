@@ -21,7 +21,7 @@ end
 function BSSNOKFiniteDifferenceSolver:refreshSolverProgram()
 	BSSNOKFiniteDifferenceSolver.super.refreshSolverProgram(self)
 	
-	self.calcDerivKernel = self.solverProgram:kernel'calcDeriv'
+	self:makeKernel(self.solverProgram, 'calcDeriv')
 	self.calcDerivKernel:setArg(1, self.UBuf)
 end
 
@@ -44,7 +44,7 @@ function BSSNOKFiniteDifferenceSolver:calcDT() return self.fixedDT end
 
 function BSSNOKFiniteDifferenceSolver:calcDeriv(derivBuf, dt)
 	self.calcDerivKernel:setArg(0, derivBuf)
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDerivKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDerivKernel, dim=self.dim, globalSize=self.calcDerivKernel.globalSize:ptr(), localSize=self.calcDerivKernel.localSize:ptr()}
 end
 
 return BSSNOKFiniteDifferenceSolver

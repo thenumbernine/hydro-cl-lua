@@ -91,7 +91,7 @@ function Poisson:relax()
 		self:potentialBoundary()
 
 		if self.stopOnEpsilon then
-			local err = solver.reduceSum() -- / tonumber(solver.volumeWithoutBorder)
+			local err = solver.reduceSum() / tonumber(solver.volumeWithoutBorder)
 			self.lastEpsilon = err
 			if self.verbose then
 				print('gauss seidel iter '..i..' err '..err)
