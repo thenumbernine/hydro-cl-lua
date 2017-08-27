@@ -6,7 +6,7 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -18,7 +18,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	--integrator = 'backward Euler',
+	integrator = 'backward Euler',
 
 	--fixedDT = .0001,
 	--cfl = .25/dim,
@@ -36,16 +36,16 @@ local args = {
 	-- 256^2 = 2^16 = 2 * 32^3
 	gridSize = ({
 		{256,1,1},
-		{256,256,1},
+		{128,128,1},
 		{32,32,32},
 	})[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'periodic',
+		xmax=cmdline.boundary or 'periodic',
+		ymin=cmdline.boundary or 'periodic',
+		ymax=cmdline.boundary or 'periodic',
+		zmin=cmdline.boundary or 'periodic',
+		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
 	--[[ cylinder
@@ -125,7 +125,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Hemholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -171,7 +171,7 @@ local args = {
 	-- GR
 	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
-	--initState = 'Alcubierre warp bubble',
+	initState = 'Alcubierre warp bubble',
 	--initState = 'Schwarzschild black hole',
 	--initState = 'black hole - isotropic',
 	--initState = 'binary black holes - isotropic',
@@ -194,7 +194,7 @@ local args = {
 }
 
 -- HD - Roe
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
 -- f.e. and b.e. are working, but none of the r.k. integrators 
@@ -252,7 +252,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
---self.solvers:insert(require 'solver.bssnok-fd'(args))
+self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 

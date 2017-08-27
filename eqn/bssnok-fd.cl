@@ -77,7 +77,11 @@ kernel void calcDeriv(
 	}<? end ?>
 
 <?=makePartial('alpha', 'real')?>		//partial_alpha_l[i] := alpha_,i
+<? if eqn.useChi then ?>
+<?=makePartial('chi', 'real')?>			//partial_chi_l[i] := chi_,i 
+<? else ?>
 <?=makePartial('phi', 'real')?>			//partial_phi_l[i] := phi_,i 
+<? end ?>
 <?=makePartial('K', 'real')	?>			//partial_K_l[i] := K,i
 <?=makePartial('beta_u', 'real3')?>		//partial_beta_ul[j].i := beta^i_,j
 <?=makePartial('connBar_u', 'real3')?>	//partial_connBar_ul[j].i := connBar^i_,j
@@ -93,14 +97,41 @@ for i,xi in ipairs(xNames) do
 end ?>;
 
 <?=makePartial2('alpha', 'real')?>			//partial2_alpha_ll.ij := alpha_,ij
+<? if eqn.useChi then ?>
+<?=makePartial2('chi', 'real')?>			//partial2_chi_ll.ij := chi_,ij
+<? else ?>
 <?=makePartial2('phi', 'real')?>			//partial2_phi_ll.ij := phi_,ij
+<? end ?>
 <?=makePartial2('gammaBar_ll', 'sym3')?>	//partial2_gammaBar_llll[kl].ij = gammaBar_ij,kl
 <?=makePartial2('beta_u', 'real3')?>		//partial2_beta_ull[jk].i = beta^i_,jk
 
+<? if eqn.useChi then ?>
+	real exp_neg4phi = U->chi;
+	
+	//TODO minimize using these 
+	real exp_4phi = 1. / exp_neg4phi;
+
+	real partial_phi_l[3] = {
+<? for i,xi in ipairs(xNames) do
+?>		-partial_chi_l[<?=i-1?>] / (4. * U->chi),
+<? end
+?>	};
+
+	real partial2_phi_ll[6] = {
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+?>		.25 * (-partial2_chi_ll[<?=ij-1?>] + partial_chi_l[<?=i-1?>] * partial_chi_l[<?=j-1?>] / U->chi) / U->chi,
+<? end
+?>	};
+
+<? else ?>
 	real exp_4phi = exp(4. * U->phi);
 	real exp_neg4phi = 1. / exp_4phi;
-
+<? end ?>
+	
 	//gamma_ij = exp(4 phi) gammaBar_ij
+	//only used in K_ll calculation for H constraint
+	// exp_4phi could be singular
 	sym3 gamma_ll = sym3_scale(U->gammaBar_ll, exp_4phi);
 
 	//gammaBar^ij = inv gammaBar_ij
@@ -138,6 +169,10 @@ for i,xi in ipairs(xNames) do
 end
 ?>
 
+	//from 2006 Campanelli "connBar^i is replaced by -gammaBar^ij_j wherever it is not differentiated"
+	// TODO ... but do that, I should track gammaBar^ij ...
+	real3 connBar_u = U->connBar_u;
+	
 	//DBar^i phi = gammaBar^ij phi_,j
 	real3 DBar_phi_u = sym3_real3_mul(gammaBar_uu, *(real3*)partial_phi_l);
 
@@ -182,10 +217,16 @@ end
 	//alpha,t = -alpha^2 Q + alpha,i beta^i
 	deriv->alpha += -U->alpha * U->alpha * Q + real3_dot(*(real3*)partial_alpha_l, U->beta_u);
 
+<? if eqn.useChi then ?>
+	//2006 Campanelli eqn 2
+	//chi,t = 2/3 chi (alpha K - beta^i_,i) + beta^i chi_,i
+	deriv->chi += 2./3. * U->chi * (U->alpha * U->K - tr_partial_beta) + real3_dot(U->beta_u, *(real3*)partial_chi_l); 
+<? else ?>
 	//B&S 11.50
 	//Alcubierre 2.8.10
 	//phi,t = -1/6 alpha K + beta^i phi,i + 1/6 beta^i_,i
 	deriv->phi += -U->alpha * U->K / 6. + real3_dot(U->beta_u, *(real3*)partial_phi_l) + tr_partial_beta / 6.;
+<? end ?>
 
 	//B&S 11.51
 	//Alcubierre 2.8.9
@@ -245,7 +286,7 @@ end
 <?	for k,xk in ipairs(xNames) do
 ?>		+ .5 * U->gammaBar_ll.<?=sym(k,i)?> * partial_connBar_ul[<?=j-1?>].<?=xk?>
 		+ .5 * U->gammaBar_ll.<?=sym(k,j)?> * partial_connBar_ul[<?=i-1?>].<?=xk?>
-		+ .5 * U->connBar_u.<?=xk?> * (connBar_lll[<?=i-1?>].<?=sym(j,k)?> + connBar_lll[<?=j-1?>].<?=sym(i,k)?>)
+		+ .5 * connBar_u.<?=xk?> * (connBar_lll[<?=i-1?>].<?=sym(j,k)?> + connBar_lll[<?=j-1?>].<?=sym(i,k)?>)
 <?		for l,xl in ipairs(xNames) do
 			for m,xm in ipairs(xNames) do
 ?>		+ gammaBar_uu.<?=sym(k,m)?> * (
@@ -363,7 +404,7 @@ end
 	real3 dt_connBar_u;
 <? for i,xi in ipairs(xNames) do
 ?>	dt_connBar_u.<?=xi?> =
-		2./3. * U->connBar_u.<?=xi?> * tr_partial_beta
+		2./3. * connBar_u.<?=xi?> * tr_partial_beta
 		- 16. * M_PI * exp_4phi * U->alpha * U->S_u.<?=xi?> 
 <?	for j,xj in ipairs(xNames) do
 		local xij = sym(i,j)
@@ -373,7 +414,7 @@ end
 			-2./3. * gammaBar_uu.<?=xij?> * partial_K_l[<?=j-1?>] 
 			+ 6. * ATilde_uu.<?=xij?> * partial_phi_l[<?=j-1?>])
 		+ U->beta_u.<?=xi?> * partial_connBar_ul[<?=j-1?>].<?=xi?>
-		- U->connBar_u.<?=xj?> * partial_beta_ul[<?=j-1?>].<?=xi?>
+		- connBar_u.<?=xj?> * partial_beta_ul[<?=j-1?>].<?=xi?>
 <?		for k,xk in ipairs(xNames) do		
 			local xik = sym(i,k)
 			local jk = from3x3to6(j,k)
@@ -397,12 +438,12 @@ end
 	deriv->beta_u = real3_add(deriv->beta_u,
 		real3_add(
 			real3_scale(dt_connBar_u, k),
-			real3_scale(U->connBar_u, eta)));
+			real3_scale(connBar_u, eta)));
 <? end ?>
 <? if eqn.useHypGammaDriver then ?>
 	//hyperbolic Gamma driver 
 	//B&S 4.83 
-	//beta^i_,t = 3/4 B^i (Rezolla says 3/4 alpha B^i)
+	//beta^i_,t = 3/4 B^i (Rezolla says 3/4 alpha B^i, 2006 Campanelli says B^i but absorbs 3/4 into B^i)
 	//B^i_,t = connBar^i_,t - eta B^i ... maybe + beta^j B^i_,j (Rezolla says - beta^j B^i_,j)
 	const real eta = 0.;
 	deriv->beta_u = real3_add(deriv->beta_u,

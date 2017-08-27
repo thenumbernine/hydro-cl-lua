@@ -658,7 +658,7 @@ function HydroCLApp:update(...)
 	if self.font then
 		local solverNames = self.solvers:map(function(solver)
 			return {
-				text = '('..solver.t..') '..solver.name,
+				text = ('(%.3f) %s'):format(solver.t, solver.name),
 				color = solver.color,
 			}
 		end)

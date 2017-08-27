@@ -74,7 +74,7 @@ local derivCoeffs = {
 
 -- any past 4 and you need more ghost cells
 -- TODO make this 2x numGhost
--- and make numGhost a GUI variable
+-- and make numGhost or order a GUI variable for the bssnok solver
 local derivOrder = 4
 
 local function makePartial(order, solver, field, fieldType)
@@ -179,13 +179,19 @@ BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference'
 -- otherwise rebuild intVars based on it ...
 BSSNOKFiniteDifferenceEquation.useHypGammaDriver = true
 
+-- use chi = 1/psi instead of phi, as described in 2006 Campanelli 
+-- it should be used with the hyperbolic gamma driver
+BSSNOKFiniteDifferenceEquation.useChi = true
 
 local intVars = table{
 	{alpha = 'real'},			-- 1
 	{beta_u = 'real3'},         -- 3: beta^i
 	{gammaBar_ll = 'sym3'},    -- 6: gammaBar_ij, only 5 dof since det gammaBar_ij = 1
                                                                                                  
-	{phi = 'real'},             -- 1
+	BSSNOKFiniteDifferenceEquation.useChi 
+		and {chi = 'real'}		-- 1
+		or {phi = 'real'},		-- 1
+	
 	{K = 'real'},               -- 1
 	{ATilde_ll = 'sym3'},       -- 6: ATilde_ij, only 5 dof since ATilde^k_k = 0
 	{connBar_u = 'real3'},      -- 3: connBar^i = gammaBar^jk connBar^i_jk = -partial_j gammaBar^ij
@@ -239,8 +245,12 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	U->alpha = 1.;
 	U->beta_u = _real3(0,0,0);
 	U->gammaBar_ll = _sym3(1,0,0,1,0,1);
-	U->phi = 0;
-	U->K = 0;
+<? if eqn.useChi then 
+?>	U->chi = 1;
+<? else
+?>	U->phi = 0;
+<? end
+?>	U->K = 0;
 	U->ATilde_ll = _sym3(1,0,0,1,0,1);
 	U->connBar_u = _real3(0,0,0);
 }
@@ -292,11 +302,17 @@ kernel void initState(
 ?>	};
 	real det_gamma = sym3_det(gamma_ll);
 	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma);
-	U->phi = log(det_gamma) / 12.;
 
 	//gammaBar_ij = e^(-4phi) gamma_ij
 	//real exp_neg4phi = exp(-4 * U->phi);
 	real exp_neg4phi = 1./cbrt(det_gamma);
+
+<? if eqn.useChi then 
+?>	U->chi = exp_neg4phi;
+<? else
+?>	U->phi = log(det_gamma) / 12.;
+<? end 
+?>
 	U->gammaBar_ll = sym3_scale(gamma_ll, exp_neg4phi);
 
 ]]--[[
@@ -402,7 +418,11 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	addvar'alpha'
 	addreal3'beta_u'
 	addsym3'gammaBar_ll'
-	addvar'phi'
+	if self.useChi then
+		addvar'chi'
+	else
+		addvar'phi'
+	end
 	addvar'K'
 	addsym3'ATilde_ll'
 	addreal3'connBar_u'
@@ -426,24 +446,33 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
 	*value = sym3_dot(gammaBar_uu, U->ATilde_ll);
 ]]},
-		{S = [[
+		{S = template([[
 	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
-	real exp_neg4phi = exp(-4. * U->phi);
-	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
+<? if eqn.useChi then
+?>	real exp_neg4phi = U->chi;
+<? else
+?>	real exp_neg4phi = exp(-4. * U->phi);
+<? end
+?>	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
 	*value = sym3_dot(U->S_ll, gamma_uu);
-]]},
-		{det_gamma = '*value = exp(-4. * U->phi);'},
-		{volume = '*value = U->alpha * exp(-4. * U->phi);'},
+]], {eqn=self})},
+		{det_gamma = self.useChi 
+			and '*value = 1. / (U->chi * U->chi * U->chi);' 
+			or '*value = exp(12. * U->phi);'},
+		{volume = self.useChi 
+			and '*value = U->alpha / (U->chi * U->chi * U->chi);' 
+			or '*value = U->alpha * exp(12. * U->phi);'},
 		{expansion = '*value = -U->alpha * U->K;'},
 		
 		-- TODO needs shift influence (which is lengthy)
 		{gravityMagn = template([[
 <?=makePartial('alpha', 'real')?>
 	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
-	real exp_neg4phi = exp(-4. * U->phi);
+	real exp_neg4phi = <?=eqn.useChi and 'U->chi' or 'exp(-4. * U->phi)'?>;
 	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
 	*value = real3_len(sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l)) / U->alpha;
 ]],			{
+				eqn = self,
 				solver = self.solver,
 				makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
 			})
@@ -471,10 +500,11 @@ function BSSNOKFiniteDifferenceEquation:getVecDisplayVars()
 	addSym3'S_ll'
 	add'M_u'
 
+	local chi = self.useChi and '1. / U->chi' or 'exp(4. * U->phi)'
 	vars:append{
-		{gamma_x = 'valuevec = real3_scale(sym3_x(U->gammaBar_ll), exp(4. * U->phi));'},
-		{gamma_y = 'valuevec = real3_scale(sym3_y(U->gammaBar_ll), exp(4. * U->phi));'},
-		{gamma_z = 'valuevec = real3_scale(sym3_z(U->gammaBar_ll), exp(4. * U->phi));'},
+		{gamma_x = template('valuevec = real3_scale(sym3_x(U->gammaBar_ll), <?=chi?>);', {chi=chi})},
+		{gamma_y = template('valuevec = real3_scale(sym3_y(U->gammaBar_ll), <?=chi?>);', {chi=chi})},
+		{gamma_z = template('valuevec = real3_scale(sym3_z(U->gammaBar_ll), <?=chi?>);', {chi=chi})},
 		{K_x = 'valuevec = real3_add(sym3_x(U->ATilde_ll), real3_scale(sym3_x(U->gammaBar_ll), U->K/3.));'},
 		{K_y = 'valuevec = real3_add(sym3_y(U->ATilde_ll), real3_scale(sym3_y(U->gammaBar_ll), U->K/3.));'},
 		{K_z = 'valuevec = real3_add(sym3_z(U->ATilde_ll), real3_scale(sym3_z(U->gammaBar_ll), U->K/3.));'},
@@ -482,10 +512,11 @@ function BSSNOKFiniteDifferenceEquation:getVecDisplayVars()
 		{gravity = template([[
 <?=makePartial('alpha', 'real')?>
 	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
-	real exp_neg4phi = exp(-4. * U->phi);
+	real exp_neg4phi = <?=eqn.useChi and 'U->chi' or 'exp(-4. * U->phi)'?>;
 	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
 	valuevec = real3_scale(sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l), 1. / U->alpha);
 ]],			{
+				eqn = self,
 				solver = self.solver,
 				makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
 			})
