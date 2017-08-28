@@ -313,7 +313,8 @@ end
 -- hmm, it'd be nice to merge this into cl.obj ...
 function Solver:makeKernel(program, name, ...)
 	local kernel = program:kernel(name, ...)
-	assert(self[name..'Kernel'] == nil)
+	-- this won't be true after :refresh... is called
+	--assert(self[name..'Kernel'] == nil)
 	self[name..'Kernel'] = kernel
 	self:setKernelSizeProps(kernel)
 end

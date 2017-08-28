@@ -201,7 +201,7 @@ kernel void calcFlux(
 				+ phi * (lambda * dt_dx - sgnLambda)
 
 // this makes my oscillations in >=2D go away ... but what is the correct fix?
-* <?=clnumber(1/solver.dim)?>	
+// * <?=clnumber(1/solver.dim)?>	
 
 <? end ?>			
 			);

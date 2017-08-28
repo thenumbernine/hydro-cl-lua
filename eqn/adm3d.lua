@@ -8,6 +8,8 @@ local table = require 'ext.table'
 local file = require 'ext.file'
 local template = require 'template'
 local NumRelEqn = require 'eqn.numrel'
+local symmath = require 'symmath'
+local makeStruct = require 'eqn.makestruct'
 
 local xNames = table{'x', 'y', 'z'}
 local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
@@ -41,7 +43,7 @@ ADM_BonaMasso_3D.consVars = table{
 }:append(fluxVars)
 
 -- skip alpha and gamma
-ADM_BonaMasso_3D.numWaves = require 'eqn.makestruct'.countReals(fluxVars)
+ADM_BonaMasso_3D.numWaves = makeStruct.countReals(fluxVars)
 assert(ADM_BonaMasso_3D.numWaves == 30)
 
 ADM_BonaMasso_3D.hasCalcDT = true
@@ -49,7 +51,19 @@ ADM_BonaMasso_3D.hasEigenCode = true
 ADM_BonaMasso_3D.useSourceTerm = true
 ADM_BonaMasso_3D.useConstrainU = true
 
-local symmath = require 'symmath'
+function ADM_BonaMasso_3D:createInitState()
+	ADM_BonaMasso_3D.super.createInitState(self)
+	self:addGuiVar{
+		type = 'combo',
+		name = 'constrain V',
+		options = {
+			'none',
+			'replace V',
+			'average',	-- TODO add averaging weights, from 100% V (which works) to 100% d (which doesn't yet work)
+		}
+	}
+end
+
 function ADM_BonaMasso_3D:getCodePrefix()
 	local lines = table()
 		

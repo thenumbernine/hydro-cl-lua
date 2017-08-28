@@ -1257,7 +1257,11 @@ kernel void addSource(
 kernel void constrainU(
 	global <?=eqn.cons_t?>* UBuf
 ) {
-#if 1	//gravitational_wave_sim uses this (for 1D), HydroGPU doesn't (for 2D/3D)
+<?
+local constrainVGuiVar = eqn.guiVars['constrain V']
+local constrainV = constrainVGuiVar.options[constrainVGuiVar.value]  
+if constrainV ~= 'none' then 
+?>	//gravitational_wave_sim uses this (for 1D), HydroGPU doesn't (for 2D/3D)
 	SETBOUNDS(numGhost,numGhost);	
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
@@ -1277,10 +1281,15 @@ kernel void constrainU(
 		delta.<?=xi?> = U->V.<?=xi?> - (d1 - d2);
 	}<? end ?>
 
-#if 0	//directly assign to V
+<?
+	if constrainV == 'replace V' then
+?>
+	//directly assign to V
 	U->V = real3_sub(U->V, delta);
-#endif
-#if 1	//average between V and d
+<?
+	elseif constrainV == 'average' then
+?>
+	//average between V and d
 
 /*
 interpolation between V and d
@@ -1303,19 +1312,24 @@ therefore (d_im^m - d^m_mi)' = d_im^m - d^m_mi + (1-alpha) Q_i
 	const real d_weight = (1. - weight) / 4.;
 
 	U->V = real3_sub(U->V, real3_scale(delta, v_weight));
-<? for i,xi in ipairs(xNames) do 
-	for jk,xjk in ipairs(symNames) do
-		local j,k = from6to3x3(jk)
-		local xk = xNames[k]
+<? 
+		for i,xi in ipairs(xNames) do 
+			for jk,xjk in ipairs(symNames) do
+				local j,k = from6to3x3(jk)
+				local xk = xNames[k]
 ?>	U->d[<?=i-1?>].<?=xjk?> += (
 		delta.<?=xi?> * U->gamma.<?=xjk?> 
 		- delta.<?=xk?> * U->gamma.<?=sym(i,j)?>
 	) * d_weight;
-<?	end
-end ?>
-#endif
+<?	
+			end
+		end 
+	end
+?>
 
 //...or linearly project out the [V_i, U->d_ijk] vector
 //...or do a single gradient descent step
-#endif
+<?
+end
+?>
 }
