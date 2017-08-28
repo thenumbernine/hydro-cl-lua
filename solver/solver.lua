@@ -487,11 +487,11 @@ function ConvertToTex:setArgs(kernel, var)
 end
 
 function ConvertToTex:setToTexArgs(var)
-	self:setArgs(var.calcDisplayVarToTexKernel, var)
+	self:setArgs(var.calcDisplayVarToTexKernelObj.obj, var)
 end
 
 function ConvertToTex:setToBufferArgs(var)
-	self:setArgs(var.calcDisplayVarToBufferKernel, var)
+	self:setArgs(var.calcDisplayVarToBufferKernelObj.obj, var)
 end
 
 function Solver:addConvertToTex(args, cl)
@@ -976,16 +976,15 @@ kernel void multAdd(
 	}:concat'\n'
 
 	time('compiling common program', function()
+		-- TODO rename :compile() to :build() to be like cl.program?
 		self.commonProgramObj = self.app.env:program{code=commonCode}
 		self.commonProgramObj:compile()
-		self.commonProgram = self.commonProgramObj.obj
 	end)
 
 	-- used by the integrators
 	-- needs the same globalSize and localSize as the typical simulation kernels
 	-- TODO exclude states which are not supposed to be integrated
 	self.multAddKernelObj = self.commonProgramObj:kernel'multAdd'
-	self.multAddKernel = assert(self.multAddKernelObj.obj)
 
 	self.reduceMin = self.app.env:reduce{
 		size = self.volume,
@@ -1270,14 +1269,16 @@ function Solver:refreshDisplayProgram()
 	
 	local code = lines:concat'\n'
 	time('compiling display program', function()
-		self.displayProgram = self.app.ctx:program{devices={self.app.device}, code=code}
+		self.displayProgramObj = self.app.env:program{code=code}
+		self.displayProgramObj:compile()
 	end)
 
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do
 			for _,var in ipairs(convertToTex.vars) do
 				if var.enabled then
-					var.calcDisplayVarToTexKernel = self.displayProgram:kernel('calcDisplayVarToTex_'..var.id, self.texCLMem)
+					var.calcDisplayVarToTexKernelObj = self.displayProgramObj:kernel('calcDisplayVarToTex_'..var.id)
+					var.calcDisplayVarToTexKernelObj.obj:setArgs(self.texCLMem)
 				end
 			end
 		end
@@ -1286,7 +1287,8 @@ function Solver:refreshDisplayProgram()
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		for _,var in ipairs(convertToTex.vars) do
 			if var.enabled then
-				var.calcDisplayVarToBufferKernel = self.displayProgram:kernel('calcDisplayVarToBuffer_'..var.id, self.reduceBuf)
+				var.calcDisplayVarToBufferKernelObj = self.displayProgramObj:kernel('calcDisplayVarToBuffer_'..var.id)
+				var.calcDisplayVarToBufferKernelObj.obj:setArgs(self.reduceBuf)
 			end
 		end
 	end
@@ -1757,7 +1759,7 @@ function Solver:calcDisplayVarToTex(var)
 		app.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
 	
 		convertToTex:setToTexArgs(var)
-		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToTexKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToTexKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 		app.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
 		app.cmds:finish()
 	else
@@ -1771,7 +1773,7 @@ function Solver:calcDisplayVarToTex(var)
 		local format = var.vectorField and gl.GL_RGB or gl.GL_RED
 
 		convertToTex:setToBufferArgs(var)
-		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.volume * channels, ptr=ptr}
 		local destPtr = ptr
 		if app.is64bit then
@@ -1803,9 +1805,9 @@ function Solver:calcDisplayVarRange(var)
 
 	var.convertToTex:setToBufferArgs(var)
 
-	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	local min = self.reduceMin()
-	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	local max = self.reduceMax()
 	
 	var.lastMin = min
@@ -1824,7 +1826,7 @@ function Solver:calcDisplayVarRangeAndAvg(var)
 
 	local avg
 	if needsUpdate then
-		self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 		avg = self.reduceSum(nil, self.volume) / tonumber(self.volume)
 	else
 		avg = var.lastAvg

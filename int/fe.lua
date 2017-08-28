@@ -28,8 +28,8 @@ function ForwardEuler:integrate(dt, callback)
 	local solver = self.solver
 	solver.app.cmds:enqueueFillBuffer{buffer=self.derivBuf, size=solver.volume * ffi.sizeof(solver.eqn.cons_t)}
 	callback(self.derivBuf)
-	solver.multAddKernel:setArgs(solver.UBuf, solver.UBuf, self.derivBuf, ffi.new('real[1]', dt))
-	solver.app.cmds:enqueueNDRangeKernel{kernel=solver.multAddKernel, dim=solver.dim, globalSize=solver.globalSizeWithoutBorder:ptr(), localSize=solver.localSize:ptr()}
+	solver.multAddKernelObj.obj:setArgs(solver.UBuf, solver.UBuf, self.derivBuf, ffi.new('real[1]', dt))
+	solver.app.cmds:enqueueNDRangeKernel{kernel=solver.multAddKernelObj.obj, dim=solver.dim, globalSize=solver.globalSizeWithoutBorder:ptr(), localSize=solver.localSize:ptr()}
 end
 
 return ForwardEuler
