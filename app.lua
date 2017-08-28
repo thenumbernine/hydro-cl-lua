@@ -476,6 +476,49 @@ function dumpFile:update(app, t)
 end
 
 
+-- TODO split off plot and dump stuff into its own folder/files
+local io = require 'ext.io'
+function HydroCLApp:screenshot()
+	-- TODO only once upon init?
+	if not io.fileexists'screenshots' then
+		-- don't assert -- if it already exists the cmd will fail
+		os.execute'mkdir screenshots'
+	end
+	for i=0,10000 do
+		local fn = ('screenshots/%05d.png'):format(i)
+		if not io.fileexists(fn) then
+			self:screenshotToFile(fn)
+			return
+		end
+	end
+	error("couldn't find an available filename")
+end
+
+local Image = require 'image'
+function HydroCLApp:screenshotToFile(fn)
+	local w, h = self:size()
+	if self.ssimg then
+		if w ~= self.ssimg.width or h ~= self.ssimg.height then
+			self.ssimg = nil
+			self.ssflipped = nil
+		end
+	end
+	if not self.ssimg then
+		self.ssimg = Image(w, h, 3, 'unsigned char')
+		self.ssflipped = Image(w, h, 3, 'unsigned char')
+	end
+	gl.glReadPixels(0, 0, w, h, gl.GL_RGB, gl.GL_UNSIGNED_BYTE, self.ssimg.buffer) 
+	-- reverse rows ...
+	-- TODO maybe ... for all projection matrix setups, have them check a screenshot flag and automatically flip?
+	for y=0,h-1 do
+		ffi.copy(
+			self.ssflipped.buffer + (h-y-1) * w * 3,
+			self.ssimg.buffer + y * w * 3,
+			w * 3)
+	end
+	self.ssflipped:save(fn)
+end
+
 HydroCLApp.running = nil
 
 local minDeltaY = 1e-7
@@ -687,6 +730,14 @@ function HydroCLApp:update(...)
 		end
 	end
 
+	-- screenshot before gui
+	if self.createAnimation then 
+		self:screenshot() 
+		if self.createAnimation == 'once' then
+			self.createAnimation = nil
+		end
+	end
+
 	HydroCLApp.super.update(self, ...)
 end
 
@@ -785,6 +836,51 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 				multiLine=false,
 			}
 		end
+	end
+end
+
+function HydroCLApp:drawGradientLegend(ar, varName, valueMin, valueMax)
+	self.orthoView:projection(ar)
+	self.orthoView:modelview()
+	local xmin, xmax, ymin, ymax = self.orthoView:getOrthoBounds(ar)
+	
+	if self.font then
+		local palwidth = (xmax - xmin) * .1
+		self.gradientTex:enable()
+		self.gradientTex:bind()
+		gl.glBegin(gl.GL_QUADS)
+		gl.glColor3f(1,1,1)
+		gl.glTexCoord1f(0) gl.glVertex2f(xmin, ymin)
+		gl.glTexCoord1f(0) gl.glVertex2f(xmin + palwidth, ymin)
+		gl.glTexCoord1f(1) gl.glVertex2f(xmin + palwidth, ymax)
+		gl.glTexCoord1f(1) gl.glVertex2f(xmin, ymax)
+		gl.glEnd()
+		self.gradientTex:unbind()
+		self.gradientTex:disable()
+
+		local fontSizeX = (xmax - xmin) * .025
+		local fontSizeY = (ymax - ymin) * .025
+		local ystep = 10^(math.log(ymax - ymin, 10) - 1.5)
+		for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
+			local value = (y - ymin) * (valueMax - valueMin) / (ymax - ymin) + valueMin
+			local absvalue = math.abs(value)
+			self.font:draw{
+				pos={xmin * .99 + xmax * .01, y + fontSizeY * .5},
+				text=(
+					(absvalue > 1e+5 or absvalue < 1e-5)
+					and ('%.5e'):format(value) or ('%.5f'):format(value)),
+				color = {1,1,1,1},
+				fontSize={fontSizeX, -fontSizeY},
+				multiLine=false,
+			}
+		end
+		self.font:draw{
+			pos = {xmin, ymax, gridz},
+			text = varName,
+			color = {1,1,1,1},
+			fontSize = {fontSizeX, -fontSizeY},
+			multiLine = false,
+		}
 	end
 end
 
@@ -893,45 +989,8 @@ function HydroCLApp:display2D_Heatmap(solvers, varName, ar, graph_xmin, graph_ym
 			
 --			gl.glDisable(gl.GL_DEPTH_TEST)
 
-			local palwidth = (xmax - xmin) * .15 
-			self.gradientTex:enable()
-			self.gradientTex:bind()
-			gl.glBegin(gl.GL_QUADS)
-			gl.glColor3f(1,1,1)
-			gl.glTexCoord1f(0) gl.glVertex2f(xmin, ymin)
-			gl.glTexCoord1f(0) gl.glVertex2f(xmin + palwidth, ymin)
-			gl.glTexCoord1f(1) gl.glVertex2f(xmin + palwidth, ymax)
-			gl.glTexCoord1f(1) gl.glVertex2f(xmin, ymax)
-			gl.glEnd()
-			self.gradientTex:unbind()
-			self.gradientTex:disable()
-	
-			if self.font then
-				local fontSizeX = (xmax - xmin) * .025
-				local fontSizeY = (ymax - ymin) * .025
-				local ystep = 10^(math.log(ymax - ymin, 10) - 1.5)
-				for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
-					local value = (y - ymin) * (valueMax - valueMin) / (ymax - ymin) + valueMin
-					local absvalue = math.abs(value)
-					self.font:draw{
-						pos={xmin * .99 + xmax * .01, y + fontSizeY * .5},
-						text=(
-							(absvalue > 1e+5 or absvalue < 1e-5)
-							and ('%.5e'):format(value) or ('%.5f'):format(value)),
-						color = {1,1,1,1},
-						fontSize={fontSizeX, -fontSizeY},
-						multiLine=false,
-					}
-				end
-				self.font:draw{
-					pos = {xmin, ymax, gridz},
-					text=varName,
-					color = {1,1,1,1},
-					fontSize = {fontSizeX, -fontSizeY},
-					multiLine = false,
-				}
-			end
-			
+			self:drawGradientLegend(ar, varName, valueMin, valueMax)
+		
 --			gl.glEnable(gl.GL_DEPTH_TEST)
 		end
 	end
@@ -1057,18 +1116,20 @@ HydroCLApp.display3D_Slice_alpha = .15
 HydroCLApp.display3D_Slice_alphaGamma = 1
 HydroCLApp.display3D_Slice_numSlices = 255
 function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
-	self.view:projection(ar)
-	self.view:modelview()
+	for _,solver in ipairs(solvers) do 
+		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
+		if varIndex and var.enabled then
+			
+			self.view:projection(ar)
+			self.view:modelview()
 
 if useClipPlanes then
 	for i,clipInfo in ipairs(clipInfos) do
 		gl.glClipPlane(gl.GL_CLIP_PLANE0+i-1, clipInfo.plane:ptr())
 	end
 end
-	
-	for _,solver in ipairs(solvers) do 
-		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
-		if varIndex and var.enabled then
+			
+			
 			local valueMin, valueMax
 			if var.heatMapFixedRange then
 				valueMin = var.heatMapValueMin
@@ -1189,6 +1250,8 @@ end
 			self.gradientTex:unbind(1)
 			solver:getTex(var):unbind(0)
 			solver.volumeSliceShader:useNone()
+		
+			self:drawGradientLegend(ar, varName, valueMin, valueMax)
 		end
 	end
 end
@@ -1710,8 +1773,17 @@ function HydroCLApp:updateGUI()
 			end
 		end
 
+		-- dump min/max(/avg?) of displayvars to a .txt file
 		tooltip.checkboxTable('dump to file', dumpFile, 'enabled')
 		ig.igSameLine()
+
+		if ig.igButton'Screenshot' then
+			self:screenshot()
+		end
+
+		if ig.igButton(self.createAnimation and 'stop frame dump' or 'start frame dump') then
+			self.createAnimation = not self.createAnimation
+		end
 
 		tooltip.checkboxTable('stack graphs', self, 'displayAllTogether')
 

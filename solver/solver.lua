@@ -467,7 +467,7 @@ function ConvertToTex:init(args)
 			code = code,
 			name = self.name..'_'..name,
 			enabled = self.name == 'U' and (
-					(solver.dim ~= 1 and i == 1)
+					(solver.dim ~= 1 and i == 1 and not args.vectorField)
 					or (solver.dim == 1 and not args.vectorField)
 				)
 				or (self.name == 'error' and solver.dim==1),
@@ -1409,7 +1409,13 @@ kernel void boundary(
 		boundaryProgram = self.app.ctx:program{devices={self.app.device}, code=code} 
 	end)
 	local boundaryKernel = boundaryProgram:kernel'boundary'
+	
+	-- this is the same as makeKernel except without self[] assignment
+	-- ... maybe I should get rid of that?
+	-- but don't do that yet -- instead work towards unifying kernels and programs with cl.obj
 	boundaryKernel.maxWorkGroupSize = tonumber(boundaryKernel:getWorkGroupInfo(self.app.env.device, 'CL_KERNEL_WORK_GROUP_SIZE'))
+	self:setKernelSizeProps(boundaryKernel)
+	
 	return boundaryProgram, boundaryKernel
 end
 
@@ -1449,7 +1455,11 @@ function Solver:applyBoundaryToBuffer(kernel)
 				self.localSize1d),
 			kernel.maxWorkGroupSize)
 		local localSize = math.min(self.localSize1d, maxSize)
-		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=maxSize, localSize=localSize}
+		self.app.cmds:enqueueNDRangeKernel{
+			kernel = kernel, 
+			globalSize = maxSize, 
+			localSize = localSize,
+		}
 	elseif self.dim == 3 then
 		-- xy xz yz
 		local maxSizeX = roundup(
@@ -1462,8 +1472,8 @@ function Solver:applyBoundaryToBuffer(kernel)
 			kernel = kernel,
 			globalSize = {maxSizeX, maxSizeY},
 			localSize = {
-				math.min(self.localSize2d[1], maxSizeX),
-				math.min(self.localSize2d[2], maxSizeY),
+				math.min(kernel.localSize2d[1], maxSizeX),
+				math.min(kernel.localSize2d[2], maxSizeY),
 			},
 		}
 	else
