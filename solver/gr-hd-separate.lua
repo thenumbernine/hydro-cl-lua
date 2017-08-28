@@ -8,7 +8,6 @@ local table = require 'ext.table'
 local ig = require 'ffi.imgui'
 local vec3sz = require 'ffi.vec.vec3sz'
 local template = require 'template'
-local CLProgram = require 'cl.program'
 local clnumber = require 'cl.obj.number'
 
 --[[
@@ -86,7 +85,7 @@ function GRHDSeparateSolver:init(args)
 	end
 	function HydroSolver:refreshInitStateProgram()
 		HydroSolver.super.refreshInitStateProgram(self)
-		self.initStateKernel:setArg(1, gr.UBuf)
+		self.initStateKernelObj.obj:setArg(1, gr.UBuf)
 	end
 	function HydroSolver:refreshSolverProgram()
 		HydroSolver.super.refreshSolverProgram(self)
@@ -95,8 +94,8 @@ function GRHDSeparateSolver:init(args)
 io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 		self.calcDTKernelObj.obj:setArg(2, gr.UBuf)
 		self.calcEigenBasisKernelObj.obj:setArg(3, gr.UBuf)
-		self.addSourceKernel:setArg(2, gr.UBuf)
-		self.updatePrimsKernel:setArg(1, gr.UBuf)
+		self.addSourceKernelObj.obj:setArg(2, gr.UBuf)
+		self.updatePrimsKernelObj.obj:setArg(1, gr.UBuf)
 	end
 
 	local hydro = HydroSolver(args)
@@ -153,7 +152,6 @@ function GRHDSeparateSolver:replaceSourceKernels()
 	require 'solver.solver'.createCodePrefix(self)
 	
 	local lines = table{
-		self.app.env.code,
 		self.codePrefix,
 		self.gr.eqn:getTypeCode(),
 		self.hydro.eqn:getTypeCode(),
@@ -183,8 +181,9 @@ hydroU->gamma = hydroPrim->gamma = gamma_ll;
 		}),
 	}
 	local code = lines:concat'\n'
-	self.copyMetricFrmoGRToHydroProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code}
-	self.copyMetricFrmoGRToHydroKernel = self.copyMetricFrmoGRToHydroProgram:kernel('copyMetricFromGRToHydro', self.hydro.UBuf, self.hydro.primBuf, self.gr.UBuf)
+	self.copyMetricFromGRToHydroProgramObj = self.gr.Program{code=code}
+	self.copyMetricFromGRToHydroProgramObj:compile()
+	self.copyMetricFromGRToHydroKernelObj = self.copyMetricFromGRToHydroProgramObj:kernel('copyMetricFromGRToHydro', self.hydro.UBuf, self.hydro.primBuf, self.gr.UBuf)
 -- instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver ]=]
 end
 
@@ -216,7 +215,7 @@ end
 function GRHDSeparateSolver:step(dt)
 	-- copy spacetime across for the GRHD
 --[=[ instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.copyMetricFrmoGRToHydroKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+	self.copyMetricFromGRToHydroKernelObj()
 -- instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver ]=]
 	self:callAll('step', dt)
 end

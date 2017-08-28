@@ -114,8 +114,7 @@ function Poisson:initSolver()
 	linearSolverArgs.A = function(UNext, U)
 		-- A(x) = div x
 		-- but don't use the poisson.cl one, that's for in-place Gauss-Seidel
-		self.poissonGMRESLinearFuncKernel:setArgs(UNext, U)
-		solver.app.cmds:enqueueNDRangeKernel{kernel=self.poissonGMRESLinearFuncKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+		self.poissonGMRESLinearFuncKernelObj(UNext, U)
 	end	
 	self.linearSolver = ThisGMRES(linearSolverArgs)
 end
@@ -209,10 +208,10 @@ end
 function Poisson:refreshSolverProgram()
 	local solver = self.solver
 	self:initSolver()
-	self.initPoissonPotentialKernel = solver.solverProgramObj.obj:kernel('initPoissonPotential', self:getPotBuf())
-	self.copyPotentialFieldToVecAndInitBKernel = solver.solverProgramObj.obj:kernel('copyPotentialFieldToVecAndInitB', assert(self.krylov_xObj.obj), self.krylov_bObj.obj, self:getPotBuf())
-	self.copyVecToPotentialFieldKernel = solver.solverProgramObj.obj:kernel('copyVecToPotentialField', self:getPotBuf(), self.krylov_xObj.obj)
-	self.poissonGMRESLinearFuncKernel = solver.solverProgramObj.obj:kernel'poissonGMRESLinearFunc'
+	self.initPoissonPotentialKernelObj = solver.solverProgramObj:kernel('initPoissonPotential', self:getPotBuf())
+	self.copyPotentialFieldToVecAndInitBKernelObj = solver.solverProgramObj:kernel('copyPotentialFieldToVecAndInitB', assert(self.krylov_xObj.obj), self.krylov_bObj.obj, self:getPotBuf())
+	self.copyVecToPotentialFieldKernelObj = solver.solverProgramObj:kernel('copyVecToPotentialField', self:getPotBuf(), self.krylov_xObj.obj)
+	self.poissonGMRESLinearFuncKernelObj = solver.solverProgramObj:kernel'poissonGMRESLinearFunc'
 end
 
 function Poisson:refreshBoundaryProgram()
@@ -237,7 +236,7 @@ end
 function Poisson:resetState()
 	local solver = self.solver
 	if self.enableField and not solver[self.enableField] then return end
-	solver.app.cmds:enqueueNDRangeKernel{kernel=self.initPoissonPotentialKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+	self.initPoissonPotentialKernelObj()
 	solver:potentialBoundary()
 	self:relax()
 end
@@ -246,11 +245,11 @@ function Poisson:relax()
 	local solver = self.solver
 	-- copy potential field into krylov_x
 	-- calculate krylov_b by Poisson:getCodeParams().calcRho
-	solver.app.cmds:enqueueNDRangeKernel{kernel=self.copyPotentialFieldToVecAndInitBKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+	self.copyPotentialFieldToVecAndInitBKernelObj()
 	-- solve
 	self.linearSolver()
 	-- copy krylov_x back to potential field
-	solver.app.cmds:enqueueNDRangeKernel{kernel=self.copyVecToPotentialFieldKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+	self.copyVecToPotentialFieldKernelObj()
 end
 
 function Poisson:potentialBoundary()

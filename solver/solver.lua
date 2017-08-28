@@ -988,7 +988,6 @@ function Solver:refreshCommonProgram()
 	-- TODO move to app, along with reduceBuf
 
 	local commonCode = table():append{
-		self.app.env.code,
 		self.codePrefix,
 	}:append{
 		template([[
@@ -1056,7 +1055,6 @@ function Solver:getSolverCode()
 		.. '}'
 	
 	return table{
-		self.app.env.code,
 		self.codePrefix,
 		
 		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
@@ -1224,7 +1222,6 @@ end
 function Solver:refreshDisplayProgram()
 
 	local lines = table{
-		self.app.env.code,
 		self.codePrefix,
 	}
 	
@@ -1326,7 +1323,6 @@ function Solver:createBoundaryProgramAndKernel(args)
 	local assign = args.assign or function(a, b) return a .. ' = ' .. b end
 	
 	local lines = table()
-	lines:insert(self.app.env.code)
 	lines:insert(self.codePrefix)
 	lines:insert(template([[
 kernel void boundary(

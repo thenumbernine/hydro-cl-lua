@@ -12,7 +12,6 @@ local table = require 'ext.table'
 local ig = require 'ffi.imgui'
 local vec3sz = require 'ffi.vec.vec3sz'
 local template = require 'template'
-local CLProgram = require 'cl.program'
 local clnumber = require 'cl.obj.number'
 
 --[[
@@ -117,7 +116,6 @@ local function TwoFluidEMHDBehavior(parent)
 		require 'solver.solver'.createCodePrefix(self)
 
 		local lines = table{
-			self.app.env.code,
 			self.codePrefix,
 			self.electron.eqn:getTypeCode(),
 			self.ion.eqn:getTypeCode(),
@@ -167,21 +165,26 @@ kernel void addSource_maxwell(
 			euler_cons_t = self.electron.eqn.cons_t,
 			maxwell_cons_t = self.maxwell.eqn.cons_t,
 		})
-		self.addSourceProgram = CLProgram{context=self.app.ctx, devices={self.app.device}, code=code}
 		
-		self.ion.addSourceKernel = self.addSourceProgram:kernel'addSource_ion'
-		self.ion.addSourceKernel:setArg(1, self.ion.UBuf)
-		self.ion.addSourceKernel:setArg(2, self.maxwell.UBuf)
+		-- the solver.Program is only unique to solvers wrt env and domain
+		-- and those will match between these multi solvers
+		-- so it doesn't matter which solver.Program I use
+		self.addSourceProgramObj = self.ion.Program{code=code}
+		self.addSourceProgramObj:compile()
+
+		self.ion.addSourceKernelObj = self.addSourceProgramObj:kernel'addSource_ion'
+		self.ion.addSourceKernelObj.obj:setArg(1, self.ion.UBuf)
+		self.ion.addSourceKernelObj.obj:setArg(2, self.maxwell.UBuf)
 		self.ion.eqn.useSourceTerm = true
 		
-		self.electron.addSourceKernel = self.addSourceProgram:kernel'addSource_electron'
-		self.electron.addSourceKernel:setArg(1, self.electron.UBuf)
-		self.electron.addSourceKernel:setArg(2, self.maxwell.UBuf)
+		self.electron.addSourceKernelObj = self.addSourceProgramObj:kernel'addSource_electron'
+		self.electron.addSourceKernelObj.obj:setArg(1, self.electron.UBuf)
+		self.electron.addSourceKernelObj.obj:setArg(2, self.maxwell.UBuf)
 		self.electron.eqn.useSourceTerm = true
 
-		self.maxwell.addSourceKernel = self.addSourceProgram:kernel'addSource_maxwell'
-		self.maxwell.addSourceKernel:setArg(1, self.ion.UBuf)
-		self.maxwell.addSourceKernel:setArg(2, self.electron.UBuf)
+		self.maxwell.addSourceKernelObj = self.addSourceProgramObj:kernel'addSource_maxwell'
+		self.maxwell.addSourceKernelObj.obj:setArg(1, self.ion.UBuf)
+		self.maxwell.addSourceKernelObj.obj:setArg(2, self.electron.UBuf)
 		self.maxwell.eqn.useSourceTerm = true
 	end
 

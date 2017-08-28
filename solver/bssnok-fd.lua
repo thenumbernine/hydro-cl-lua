@@ -27,15 +27,14 @@ end
 
 function BSSNOKFiniteDifferenceSolver:refreshInitStateProgram()
 	BSSNOKFiniteDifferenceSolver.super.refreshInitStateProgram(self)
-	self.initConnUBarKernel = self.initStateProgram:kernel('init_connBarU', self.UBuf)
+	self.init_connBarUKernelObj = self.initStateProgramObj:kernel('init_connBarU', self.UBuf)
 end
 
 function BSSNOKFiniteDifferenceSolver:resetState()
 	BSSNOKFiniteDifferenceSolver.super.resetState(self)
 	
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.initConnUBarKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+	self.init_connBarUKernelObj()
 	self:boundary()
-	self.app.cmds:finish()
 end
 
 function BSSNOKFiniteDifferenceSolver:getCalcDTCode() end

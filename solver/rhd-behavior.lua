@@ -21,7 +21,7 @@ return function(parent)
 	function template:refreshSolverProgram()
 		template.super.refreshSolverProgram(self)
 
-		self.updatePrimsKernel = self.solverProgramObj.obj:kernel('updatePrims', self.UBuf)
+		self.updatePrimsKernelObj = self.solverProgramObj:kernel('updatePrims', self.UBuf)
 	end
 
 	--[[ method 1: update prims after step() overall is called
@@ -29,14 +29,14 @@ return function(parent)
 	function template:step(dt)
 		template.super.step(self, dt)
 
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.updatePrimsKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.updatePrimsKernelObj()
 	end
 	--]]
 	-- [[ method 2: update the before calcDeriv
 	-- this might take some extra calculations
 	-- and prims could converge *from* different prevoius values even when converging *to* the same destination UBuf 
 	function template:calcDeriv(derivBuf, dt)
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.updatePrimsKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.updatePrimsKernelObj()
 
 		template.super.calcDeriv(self, derivBuf, dt)
 	end

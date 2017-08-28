@@ -48,13 +48,13 @@ function NoDiv:refreshSolverProgram()
 	NoDiv.super.refreshSolverProgram(self)
 
 	local solver = self.solver
-	self.noDivKernel = solver.solverProgramObj.obj:kernel('noDiv', solver.UBuf)
+	self.noDivKernelObj = solver.solverProgramObj:kernel('noDiv', solver.UBuf)
 end
 
 function NoDiv:step(dt)
 	local solver = self.solver
 	self:relax()
-	solver.app.cmds:enqueueNDRangeKernel{kernel=self.noDivKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+	self.noDivKernelObj()
 end
 
 return NoDiv

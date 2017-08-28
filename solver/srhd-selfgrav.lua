@@ -156,8 +156,8 @@ function SRHDSelfGrav:refreshSolverProgram()
 	SRHDSelfGrav.super.refreshSolverProgram(self)
 	
 	local solver = self.solver
-	self.calcGravityDerivKernel = solver.solverProgramObj.obj:kernel'calcGravityDeriv'
-	self.calcGravityDerivKernel:setArg(1, solver.UBuf)
+	self.calcGravityDerivKernelObj = solver.solverProgramObj:kernel'calcGravityDeriv'
+	self.calcGravityDerivKernelObj.obj:setArg(1, solver.UBuf)
 end
 
 function SRHDSelfGrav:updateGUI()
@@ -172,8 +172,7 @@ function SRHDSelfGrav:step(dt)
 	if not solver[self.enableField] then return end
 	solver.integrator:integrate(dt, function(derivBuf)
 		self:relax()
-		self.calcGravityDerivKernel:setArg(0, derivBuf)
-		solver.app.cmds:enqueueNDRangeKernel{kernel=self.calcGravityDerivKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+		self.calcGravityDerivKernelObj(derivBuf)
 	end)
 end
 

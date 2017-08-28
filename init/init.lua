@@ -7,14 +7,14 @@ local InitCond = class()
 
 function InitCond:refreshInitStateProgram(solver)
 	local initStateCode = table{
-		solver.app.env.code,
 		solver.codePrefix,
 		solver.eqn:getInitStateCode(),
 	}:concat'\n'
 	time('compiling init state program', function()
-		solver.initStateProgram = solver.app.ctx:program{devices={solver.app.device}, code=initStateCode}
+		solver.initStateProgramObj = solver.Program{code=initStateCode}
+		solver.initStateProgramObj:compile()
 	end)
-	solver.initStateKernel = solver.initStateProgram:kernel('initState', solver.UBuf)
+	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.UBuf)
 end
 
 function InitCond:getInitStateCode(solver)
@@ -30,7 +30,7 @@ end
 
 -- called when the solver resets
 function InitCond:resetState(solver)
-	solver.app.cmds:enqueueNDRangeKernel{kernel=solver.initStateKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+	solver.initStateKernelObj()
 end
 
 return InitCond

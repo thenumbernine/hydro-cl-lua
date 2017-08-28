@@ -26,11 +26,11 @@ end
 function NavierStokesIncompressible:refreshSolverProgram()
 	NavierStokesIncompressible.super.refreshSolverProgram(self)
 
-	self.diffuseKernel = self.solverProgramObj.obj:kernel('diffuse', self.UNextBuf, self.UBuf)
-	self.advectKernel = self.solverProgramObj.obj:kernel('advect', self.UNextBuf, self.UBuf)
-	self.calcDivKernel = self.solverProgramObj.obj:kernel('calcDiv', self.divBuf, self.UBuf)
-	self.diffusePressureKernel= self.solverProgramObj.obj:kernel('diffusePressure', self.PBuf, self.divBuf)
-	self.projectKernel= self.solverProgramObj.obj:kernel('project', self.UBuf, self.PBuf)
+	self.diffuseKernelObj = self.solverProgramObj:kernel('diffuse', self.UNextBuf, self.UBuf)
+	self.advectKernelObj = self.solverProgramObj:kernel('advect', self.UNextBuf, self.UBuf)
+	self.calcDivKernelObj = self.solverProgramObj:kernel('calcDiv', self.divBuf, self.UBuf)
+	self.diffusePressureKernelObj = self.solverProgramObj:kernel('diffusePressure', self.PBuf, self.divBuf)
+	self.projectKernelObj = self.solverProgramObj:kernel('project', self.UBuf, self.PBuf)
 end
 
 function NavierStokesIncompressible:getCalcDTCode() end
@@ -41,23 +41,23 @@ function NavierStokesIncompressible:calcDT() return self.fixedDT end
 NavierStokesIncompressible.numGaussSeidelSteps = 20
 
 function NavierStokesIncompressible:project()
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDivKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
+	self.calcDivKernelObj:callWithoutBorder()
 
 	for i=1,self.numGaussSeidelSteps do
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.diffusePressureKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
+		self.diffusePressureKernelObj:callWithoutBorder()
 	end
 	
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.projectKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
+	self.projectKernelObj:callWithoutBorder()
 end
 
 function NavierStokesIncompressible:step(dt)
 	local bufferSize = solver.volume * ffi.sizeof(self.eqn.cons_t)
 
-	self.diffuseKernel:setArg(2, ffi.new('real[1]', dt))
+	self.diffuseKernelObj.obj:setArg(2, ffi.new('real[1]', dt))
 	
 	-- diffuse
 	for i=1,self.numGaussSeidelSteps do
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.diffuseKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
+		self.diffuseKernelObj:callWithoutBorder()
 		solver.app.cmds:enqueueCopyBuffer{src=solver.UNextBuf, dst=self.UBuf, size=bufferSize}
 	end
 	

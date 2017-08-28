@@ -49,10 +49,10 @@ end
 
 function Poisson:refreshSolverProgram()
 	local solver = self.solver
-	self.initPoissonPotentialKernel = solver.solverProgramObj.obj:kernel('initPoissonPotential', self:getPotBuf())
-	self.solvePoissonJacobiKernel = solver.solverProgramObj.obj:kernel('solvePoissonJacobi', self:getPotBuf())
+	self.initPoissonPotentialKernelObj = solver.solverProgramObj:kernel('initPoissonPotential', self:getPotBuf())
+	self.solvePoissonJacobiKernelObj = solver.solverProgramObj:kernel('solvePoissonJacobi', self:getPotBuf())
 	if self.stopOnEpsilon then
-		self.solvePoissonJacobiKernel:setArg(1, solver.reduceBuf)
+		self.solvePoissonJacobiKernelObj.obj:setArg(1, solver.reduceBuf)
 	end
 end
 
@@ -78,7 +78,7 @@ end
 function Poisson:resetState()
 	local solver = self.solver
 	if self.enableField and not solver[self.enableField] then return end
-	solver.app.cmds:enqueueNDRangeKernel{kernel=self.initPoissonPotentialKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+	self.initPoissonPotentialKernelObj()
 	self:potentialBoundary()
 	self:relax()
 end
@@ -87,7 +87,7 @@ function Poisson:relax()
 	local solver = self.solver
 	for i=1,self.maxIters do
 		self.lastIter = i
-		solver.app.cmds:enqueueNDRangeKernel{kernel=self.solvePoissonJacobiKernel, dim=solver.dim, globalSize=solver.globalSize:ptr(), localSize=solver.localSize:ptr()}
+		self.solvePoissonJacobiKernelObj()
 		self:potentialBoundary()
 
 		if self.stopOnEpsilon then
