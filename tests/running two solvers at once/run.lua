@@ -117,7 +117,7 @@ function App:setup()
 	-- something is corrupting every numStates data ... like something is writing out of bounds ...
 	--compare(s1.integrator.derivBuf, s2.integrator.derivBuf)
 		
-		self.multAddKernelObj.obj:setArgs(
+		self.multAddKernelObj:callWithoutBorder(
 			self.UBuf,
 			s1.UBuf,
 			
@@ -126,19 +126,16 @@ function App:setup()
 			s1.integrator.derivBuf,
 			
 			ffi.new('real[1]', dt))
-		app.cmds:enqueueNDRangeKernel{kernel=self.multAddKernelObj.obj, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), self=self.localSize:ptr()}
 		--]]
 		--[[ fails with the other solver's forward-euler and multAddKernel
 		app.cmds:finish()
 		app.cmds:enqueueFillBuffer{buffer=s1.integrator.derivBuf, size=self.volume * self.eqn.numStates * ffi.sizeof(app.real)}
 		self:calcDeriv(s1.integrator.derivBuf, dt)
-		s1.multAddKernelObj.obj:setArgs(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
-		app.cmds:enqueueNDRangeKernel{kernel=s1.multAddKernelObj.obj, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
+		s1.multAddKernelObj:callWithoutBorder(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
 		app.cmds:finish()
 		--]]
 		--[[ just adding s1's deriv to s2?  works fine
-		s1.multAddKernelObj.obj:setArgs(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
-		app.cmds:enqueueNDRangeKernel{kernel=s1.multAddKernelObj.obj, dim=s1.dim, globalSize=s1.globalSizeWithoutBorder:ptr(), localSize=s1.localSize:ptr()}
+		s1.multAddKernelObj:callWithoutBorder(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
 		s1.multAddKernelObj.obj:setArgs(s1.UBuf, s1.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
 		--]]
 		-- so the code in common is when calcDeriv is called by the 2nd solver ...

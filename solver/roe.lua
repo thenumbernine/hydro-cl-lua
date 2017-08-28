@@ -205,7 +205,7 @@ function Roe:calcDeriv(derivBuf, dt)
 	
 	if self.usePLM then
 		self.calcLRKernelObj.obj:setArg(2, ffi.new('real[1]', dt))
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcLRKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.calcLRKernelObj()
 	end
 
 	self.calcEigenBasisKernelObj()

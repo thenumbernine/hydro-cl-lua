@@ -969,7 +969,7 @@ function Solver:resetState()
 	
 	self:boundary()
 	if self.eqn.useConstrainU then
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.constrainUKernelObj()
 	end
 	self.app.cmds:finish()
 
@@ -1505,8 +1505,8 @@ function Solver:calcDT()
 	if self.useFixedDT then
 		dt = self.fixedDT
 	else
-		-- TODO this without the border
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDTKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		-- TODO this without the border, but that means changing reduce *and display*
+		self.calcDTKernelObj()
 		dt = self.cfl * self.reduceMin()
 		if not math.isfinite(dt) then
 			print("got a bad dt!") -- TODO dump all buffers
@@ -1591,7 +1591,7 @@ if tryingAMR == 'dt vs 2dt' then
 	self.t = t + dt
 
 	-- now compare UBuf and U2Buf, store in U2Buf in the first real of cons_t
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.compareUvsU2KernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+	self.compareUvsU2KernelObj()
 elseif tryingAMR == 'gradient' then
 	
 	-- 1) compute errors from gradient, sum up errors in each root node, and output on a per-node basis
@@ -1718,7 +1718,7 @@ function Solver:step(dt)
 	
 	if self.eqn.useConstrainU then
 		self:boundary()
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.constrainUKernelObj()
 	end
 
 	for _,op in ipairs(self.ops) do
@@ -1770,7 +1770,7 @@ function Solver:calcDisplayVarToTex(var)
 		app.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
 	
 		convertToTex:setToTexArgs(var)
-		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToTexKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		var.calcDisplayVarToTexKernelObj()
 		app.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
 		app.cmds:finish()
 	else
@@ -1784,7 +1784,7 @@ function Solver:calcDisplayVarToTex(var)
 		local format = var.vectorField and gl.GL_RGB or gl.GL_RED
 
 		convertToTex:setToBufferArgs(var)
-		app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		var.calcDisplayVarToBufferKernelObj()
 		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.volume * channels, ptr=ptr}
 		local destPtr = ptr
 		if app.is64bit then
@@ -1816,9 +1816,9 @@ function Solver:calcDisplayVarRange(var)
 
 	var.convertToTex:setToBufferArgs(var)
 
-	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+	var.calcDisplayVarToBufferKernelObj()
 	local min = self.reduceMin()
-	self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+	var.calcDisplayVarToBufferKernelObj()
 	local max = self.reduceMax()
 	
 	var.lastMin = min
@@ -1837,7 +1837,7 @@ function Solver:calcDisplayVarRangeAndAvg(var)
 
 	local avg
 	if needsUpdate then
-		self.app.cmds:enqueueNDRangeKernel{kernel=var.calcDisplayVarToBufferKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		var.calcDisplayVarToBufferKernelObj()
 		avg = self.reduceSum(nil, self.volume) / tonumber(self.volume)
 	else
 		avg = var.lastAvg

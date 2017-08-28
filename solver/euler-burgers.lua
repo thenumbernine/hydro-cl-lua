@@ -101,8 +101,7 @@ function EulerBurgers:step(dt)
 	self.integrator:integrate(dt, function(derivBuf)
 		self.computePressureKernelObj()
 	
-		self.diffuseMomentumKernelObj.obj:setArg(0, derivBuf)
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.diffuseMomentumKernelObj.obj, dim=self.dim, globalSize=self.diffuseMomentumKernelObj.globalSizeWithoutBorder:ptr(), localSize=self.diffuseMomentumKernelObj.localSize:ptr()}
+		self.diffuseMomentumKernelObj:callWithoutBorder(derivBuf)
 	end)
 	
 	self:boundary()
