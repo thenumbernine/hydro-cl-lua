@@ -112,7 +112,7 @@ local function addMaxwellOscillatingBoundary(solver)
 	-- this runs before refreshBoundaryProgram, so lets hijack refreshBoundaryProgram and add in our time-based boundary conditions
 	local oldBoundary = solver.boundary
 	function solver:boundary()
-		self.boundaryKernel:setArg(1, ffi.new('real[1]', self.t))
+		self.boundaryKernelObj.obj:setArg(1, ffi.new('real[1]', self.t))
 		oldBoundary(self)
 	end
 end

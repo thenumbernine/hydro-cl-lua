@@ -1423,23 +1423,10 @@ kernel void boundary(
 		boundaryProgramObj = self.Program{code=code}
 		boundaryProgramObj:compile()
 	end)
-	local boundaryProgram = boundaryProgramObj.obj
 	local boundaryKernelObj = boundaryProgramObj:kernel'boundary'
-	local boundaryKernel = boundaryKernelObj.obj
-
-	for _,field in ipairs{
-		'maxWorkGroupSize',
-		'localSize1d',
-		'localSize2d',
-		'localSize',
-		'globalSize',
-		'volume',
-	} do
-		boundaryKernel[field] = boundaryKernelObj[field]
-	end
 	
 	-- TODO switch these over to obj
-	return boundaryProgram, boundaryKernel
+	return boundaryProgramObj, boundaryKernelObj
 end
 
 function Solver:getBoundaryProgramArgs()
@@ -1455,20 +1442,24 @@ function Solver:getBoundaryProgramArgs()
 end
 
 function Solver:refreshBoundaryProgram()
-	self.boundaryProgram, self.boundaryKernel = 
+	self.boundaryProgramObj, self.boundaryKernelObj = 
 		self:createBoundaryProgramAndKernel(self:getBoundaryProgramArgs())
-	self.boundaryKernel:setArg(0, self.UBuf)
+	self.boundaryKernelObj.obj:setArg(0, self.UBuf)
 	for _,op in ipairs(self.ops) do
 		op:refreshBoundaryProgram()
 	end
 end
 
 -- assumes the buffer is already in the kernel's arg
-function Solver:applyBoundaryToBuffer(kernel)
+function Solver:applyBoundaryToBuffer(kernelObj)
 	-- 1D:
 	if self.dim == 1 then
 		-- if you do change this size from anything but 1, make sure to add conditions to the boundary kernel code
-		self.app.cmds:enqueueNDRangeKernel{kernel=kernel, globalSize=1, localSize=1}
+		self.app.cmds:enqueueNDRangeKernel{
+			kernel = kernelObj.obj,
+			globalSize = 1,
+			localSize = 1,
+		}
 	elseif self.dim == 2 then
 		local maxSize = math.min(
 				roundup(
@@ -1476,10 +1467,10 @@ function Solver:applyBoundaryToBuffer(kernel)
 						tonumber(self.gridSize.x),
 						tonumber(self.gridSize.y)),
 				self.localSize1d),
-			kernel.maxWorkGroupSize)
+			kernelObj.maxWorkGroupSize)
 		local localSize = math.min(self.localSize1d, maxSize)
 		self.app.cmds:enqueueNDRangeKernel{
-			kernel = kernel, 
+			kernel = kernelObj.obj,
 			globalSize = maxSize, 
 			localSize = localSize,
 		}
@@ -1492,11 +1483,11 @@ function Solver:applyBoundaryToBuffer(kernel)
 			math.max(tonumber(self.gridSize.y), tonumber(self.gridSize.z)),
 			self.localSize2d[2])
 		self.app.cmds:enqueueNDRangeKernel{
-			kernel = kernel,
+			kernel = kernelObj.obj,
 			globalSize = {maxSizeX, maxSizeY},
 			localSize = {
-				math.min(kernel.localSize2d[1], maxSizeX),
-				math.min(kernel.localSize2d[2], maxSizeY),
+				math.min(kernelObj.localSize2d[1], maxSizeX),
+				math.min(kernelObj.localSize2d[2], maxSizeY),
 			},
 		}
 	else
@@ -1505,7 +1496,7 @@ function Solver:applyBoundaryToBuffer(kernel)
 end
 
 function Solver:boundary()
-	self:applyBoundaryToBuffer(self.boundaryKernel)
+	self:applyBoundaryToBuffer(self.boundaryKernelObj)
 end
 
 function Solver:calcDT()
