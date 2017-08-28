@@ -49,8 +49,8 @@ end
 
 function Poisson:refreshSolverProgram()
 	local solver = self.solver
-	self.initPoissonPotentialKernel = solver.solverProgram:kernel('initPoissonPotential', self:getPotBuf())
-	self.solvePoissonJacobiKernel = solver.solverProgram:kernel('solvePoissonJacobi', self:getPotBuf())
+	self.initPoissonPotentialKernel = solver.solverProgramObj.obj:kernel('initPoissonPotential', self:getPotBuf())
+	self.solvePoissonJacobiKernel = solver.solverProgramObj.obj:kernel('solvePoissonJacobi', self:getPotBuf())
 	if self.stopOnEpsilon then
 		self.solvePoissonJacobiKernel:setArg(1, solver.reduceBuf)
 	end

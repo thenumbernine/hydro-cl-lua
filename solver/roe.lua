@@ -72,27 +72,27 @@ end
 function Roe:refreshSolverProgram()
 	Roe.super.refreshSolverProgram(self)
 
-	self:makeKernel(self.solverProgram,
+	self.calcEigenBasisKernelObj = self.solverProgramObj:kernel(
 		'calcEigenBasis',
 		self.waveBuf,
 		self.eigenBuf,
 		self.getULRBuf)
-		
-	self:makeKernel(self.solverProgram,
+
+	self.calcDeltaUEigKernelObj = self.solverProgramObj:kernel(
 		'calcDeltaUEig',
 		self.deltaUEigBuf,
 		self.getULRBuf,
 		self.eigenBuf)
 
 	if self.fluxLimiter[0] > 0 then
-		self:makeKernel(self.solverProgram,
+		self.calcREigKernelObj = self.solverProgramObj:kernel(
 			'calcREig',
 			self.rEigBuf,
 			self.deltaUEigBuf,
 			self.waveBuf)
 	end
-	
-	self:makeKernel(self.solverProgram,
+
+	self.calcFluxKernelObj = self.solverProgramObj:kernel(
 		'calcFlux',
 		self.fluxBuf,
 		self.getULRBuf,
@@ -100,17 +100,17 @@ function Roe:refreshSolverProgram()
 		self.eigenBuf,
 		self.deltaUEigBuf)
 	if self.fluxLimiter[0] > 0 then
-		self.calcFluxKernel:setArg(6, self.rEigBuf)
+		self.calcFluxKernelObj.obj:setArg(6, self.rEigBuf)
 	end
 
 	-- TODO put this in solver/solver.lua ?
 	if self.eqn.useSourceTerm then
-		self:makeKernel(self.solverProgram, 'addSource')
-		self.addSourceKernel:setArg(1, self.UBuf)
+		self.addSourceKernelObj = self.solverProgramObj:kernel'addSource'
+		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
 	end
 
 	if self.checkFluxError or self.checkOrthoError then
-		self:makeKernel(self.solverProgram,
+		self.calcErrorsKernelObj = self.solverProgramObj:kernel(
 			'calcErrors',
 			self.errorBuf,
 			self.waveBuf,
@@ -204,34 +204,33 @@ function Roe:calcDeriv(derivBuf, dt)
 	self:boundary()
 	
 	if self.usePLM then
-		self.calcLRKernel:setArg(2, ffi.new('real[1]', dt))
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcLRKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.calcLRKernelObj.obj:setArg(2, ffi.new('real[1]', dt))
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcLRKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
 
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcEigenBasisKernel, dim=self.dim, globalSize=self.calcEigenBasisKernel.globalSize:ptr(), localSize=self.calcEigenBasisKernel.localSize:ptr()}
+	self.calcEigenBasisKernelObj()
 
 	if self.checkFluxError or self.checkOrthoError then
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcErrorsKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.calcErrorsKernelObj()
 	end
 
 	-- technically, if flux limiter isn't used, this can be merged into calcFlux (since no left/right reads need to be done)
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDeltaUEigKernel, dim=self.dim, globalSize=self.calcDeltaUEigKernel.globalSize:ptr(), localSize=self.calcDeltaUEigKernel.localSize:ptr()}
+	self.calcDeltaUEigKernelObj()
 	
 	if self.fluxLimiter[0] > 0 then
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcREigKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.calcREigKernelObj()
 	end
 
-	self.calcFluxKernel:setArg(5, ffi.new('real[1]', dt))
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcFluxKernel, dim=self.dim, globalSize=self.calcFluxKernel.globalSize:ptr(), localSize=self.calcFluxKernel.localSize:ptr()}
+	self.calcFluxKernelObj.obj:setArg(5, ffi.new('real[1]', dt))
+	self.calcFluxKernelObj()
 
 	-- calcDerivFromFlux zeroes the derivative buffer
-	self.calcDerivFromFluxKernel:setArg(0, derivBuf)
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDerivFromFluxKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
+	self.calcDerivFromFluxKernelObj:callWithoutBorder(derivBuf)
 
 	-- addSource adds to the derivative buffer
 	if self.eqn.useSourceTerm then
-		self.addSourceKernel:setArg(0, derivBuf)
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.addSourceKernel, dim=self.dim, globalSize=self.addSourceKernel.globalSizeWithoutBorder:ptr(), localSize=self.addSourceKernel.localSize:ptr()}
+		-- can't use call because this uses the without-border size
+		self.addSourceKernelObj:callWithoutBorder(derivBuf)
 	end
 end
 

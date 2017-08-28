@@ -17,7 +17,7 @@ end
 function NLSSolver:refreshSolverProgram()
 	NLSSolver.super.refreshSolverProgram(self)
 	
-	self.calcDerivKernel = self.solverProgram:kernel'calcDeriv'
+	self.calcDerivKernel = self.solverProgramObj.obj:kernel'calcDeriv'
 	self.calcDerivKernel:setArg(1, self.UBuf)
 end
 

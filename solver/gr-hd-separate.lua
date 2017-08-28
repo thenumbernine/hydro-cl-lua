@@ -93,8 +93,8 @@ function GRHDSeparateSolver:init(args)
 		
 	-- now all of hydro's kernels need to be given the extra ADM arg
 io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
-		self.calcDTKernel:setArg(2, gr.UBuf)
-		self.calcEigenBasisKernel:setArg(3, gr.UBuf)
+		self.calcDTKernelObj.obj:setArg(2, gr.UBuf)
+		self.calcEigenBasisKernelObj.obj:setArg(3, gr.UBuf)
 		self.addSourceKernel:setArg(2, gr.UBuf)
 		self.updatePrimsKernel:setArg(1, gr.UBuf)
 	end

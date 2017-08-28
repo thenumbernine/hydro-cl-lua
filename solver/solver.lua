@@ -110,6 +110,60 @@ function Solver:init(args)
 	assert(not self.usePLM or self.fluxLimiter[0] == 0, "are you sure you want to use flux and slope limiters at the same time?")
 	self.slopeLimiter = ffi.new('int[1]', (self.app.limiterNames:find(args.slopeLimiter) or 1)-1)
 
+	local solver = self
+
+	-- my kernel objs are going to need workgroup info based on domain.size-2*noGhost as well as domain.size ... 
+	-- ...and rather than require an extra argument, I think I'll just take advantage of a closure
+	local Program = class(require 'cl.obj.program')
+	function Program:init(args)
+		args.env = solver.app.env
+		args.domain = solver.domain
+		Program.super.init(self, args)
+	end
+	
+	self.Program = Program  
+
+	local Kernel = class(require 'cl.obj.kernel')
+
+	function Kernel:setSizeProps()
+		Kernel.super.setSizeProps(self)
+
+		-- don't include the ghost cells as a part of the grid coordinate space
+		self.sizeWithoutBorder = vec3sz(self.domain.size:unpack())
+		for i=0,self.domain.dim-1 do
+			self.sizeWithoutBorder:ptr()[i] = self.sizeWithoutBorder:ptr()[i] - 2 * solver.numGhost
+		end
+		self.volumeWithoutBorder = tonumber(self.sizeWithoutBorder:volume())
+		self.globalSizeWithoutBorder = vec3sz( 
+			roundup(self.sizeWithoutBorder.x, self.localSize.x),
+			roundup(self.sizeWithoutBorder.y, self.localSize.y),
+			roundup(self.sizeWithoutBorder.z, self.localSize.z))
+	end
+
+	-- looks just like __call except uses self.globalSizeWithoutBorder
+	-- hmm, maybe I should make that overrideable somehow?
+	-- or maybe I should just replace self.globalSize within the kernels that use it?
+	function Kernel:callWithoutBorder(...)
+		if not self.obj then
+			self:compile()
+		end
+		if select('#', ...) > 0 then
+			self.obj:setArgs(...)
+		end
+		self.env.cmds:enqueueNDRangeKernel{
+			kernel = self.obj,
+			dim = self.domain.dim,
+			globalSize = self.globalSizeWithoutBorder:ptr(),
+			localSize = self.localSize:ptr(),
+			wait = self.wait,
+			event = self.event,
+		}
+	end
+
+
+	self.Kernel = Kernel
+	Program.Kernel = Kernel
+
 	self:refreshGridSize()
 end
 
@@ -233,8 +287,8 @@ function Solver:createEqn(eqn)
 end
 
 
--- for each kernel I need a copy of localSize1d, localSize(nD), globalSize
--- this is close to domain ... in fact, it's a cross of domains and kernels' maxWorkGroupSize (which should be <= the device maxWorkGroupSize ?)
+-- this is only used by Solver, but each kernel gets its own,
+-- so TODO get rid of this and just use kernel's sizes
 function Solver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	local localSize1d = math.min(maxWorkGroupSize, tonumber(self.gridSize:volume()))
 
@@ -269,11 +323,6 @@ function Solver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 		roundup(self.gridSize.y, localSize.y),
 		roundup(self.gridSize.z, localSize.z))
 
-	self.domain = self.app.env:domain{
-		size = {self.gridSize:unpack()},
-		dim = dim,
-	}
-
 	-- don't include the ghost cells as a part of the grid coordinate space
 	local sizeWithoutBorder = vec3sz(self.gridSize:unpack())
 	for i=0,self.dim-1 do
@@ -299,26 +348,6 @@ function Solver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	}
 end
 
-function Solver:setKernelSizeProps(kernel)
-	kernel.maxWorkGroupSize = tonumber(kernel:getWorkGroupInfo(self.app.env.device, 'CL_KERNEL_WORK_GROUP_SIZE'))
-	local sizeProps = self:getSizePropsForWorkGroupSize(kernel.maxWorkGroupSize)
-	local kernelName = table.find(self, kernel)
-	for k,v in pairs(sizeProps) do
-print(kernelName, k,v)
-		assert(kernel[k] == nil)
-		kernel[k] = v
-	end
-end
-
--- hmm, it'd be nice to merge this into cl.obj ...
-function Solver:makeKernel(program, name, ...)
-	local kernel = program:kernel(name, ...)
-	-- this won't be true after :refresh... is called
-	--assert(self[name..'Kernel'] == nil)
-	self[name..'Kernel'] = kernel
-	self:setKernelSizeProps(kernel)
-end
-
 function Solver:refreshGridSize()
 	self.stepSize = vec3sz()
 	self.stepSize.x = 1
@@ -333,6 +362,11 @@ print('self.stepSize', self.stepSize)
 print('maxWorkGroupSize', self.maxWorkGroupSize)
 
 	self.offset = vec3sz(0,0,0)
+	
+	self.domain = self.app.env:domain{
+		size = {self.gridSize:unpack()},
+		dim = self.dim,
+	}
 
 	local sizeProps = self:getSizePropsForWorkGroupSize(self.maxWorkGroupSize)
 	for k,v in pairs(sizeProps) do
@@ -935,7 +969,7 @@ function Solver:resetState()
 	
 	self:boundary()
 	if self.eqn.useConstrainU then
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
 	self.app.cmds:finish()
 
@@ -977,7 +1011,7 @@ kernel void multAdd(
 
 	time('compiling common program', function()
 		-- TODO rename :compile() to :build() to be like cl.program?
-		self.commonProgramObj = self.app.env:program{code=commonCode}
+		self.commonProgramObj = self.Program{code=commonCode}
 		self.commonProgramObj:compile()
 	end)
 
@@ -1156,42 +1190,25 @@ function Solver:refreshSolverProgram()
 	local code = self:getSolverCode()
 
 	time('compiling solver program', function()
-		self.solverProgramObj = self.app.env:program{code=code}
+		self.solverProgramObj = self.Program{code=code}
 		self.solverProgramObj:compile()
-		self.solverProgram = self.solverProgramObj.obj
 	end)
-
---[[ trying to find out what causes stalls on certain kernels
-do
-	local cl = require 'ffi.OpenCL'
-	
-	local size = ffi.new('size_t[1]', 0)
-	local err = cl.clGetProgramInfo(self.solverProgram.id, cl.CL_PROGRAM_BINARY_SIZES, ffi.sizeof(size), size, nil)
-	if err ~= cl.CL_SUCCESS then error"failed to get binary size" end
-print('size',size[0])
-
-	local binary = ffi.new('char[?]', size[0])
-	local err = cl.clGetProgramInfo(self.solverProgram.id, cl.CL_PROGRAM_BINARIES, size[0], binary, nil)
-	if err ~= cl.CL_SUCCESS then error("failed to get binary: "..err) end
-file['solverProgram.bin'] = ffi.string(binary, size[0])
-end
---]]
 
 	self:refreshCalcDTKernel()
 
 	if self.eqn.useConstrainU then
-		self:makeKernel(self.solverProgram, 'constrainU', self.UBuf)
+		self.constrainUKernelObj = self.solverProgramObj:kernel('constrainU', self.UBuf)
 	end
 
 	if self.usePLM then
-		self:makeKernel(self.solverProgram, 'calcLR', self.ULRBuf, self.UBuf)
+		self.calcLRKernelObj = self.solverProgramObj:kernel('calcLR', self.ULRBuf, self.UBuf)
 	end
 
 if tryingAMR == 'dt vs 2dt' then
-	self:makeKernel(self.solverProgram, 'compareUvsU2', self.U2Buf, self.UBuf)
+	self.compareUvsU2KernelObj = self.solverProgramObj:kernel('compareUvsU2', self.U2Buf, self.UBuf)
 elseif tryingAMR == 'gradient' then
-	self:makeKernel(self.solverProgram, 'calcAMRError', self.amrErrorBuf, self.UBuf)
-	self:makeKernel(self.solverProgram, 'initNodeFromRoot', self.UBuf)
+	self.calcAMRErrorKernelObj = self.solverProgramObj:kernel('calcAMRError', self.amrErrorBuf, self.UBuf)
+	self.initNodeFromRootKernelObj = self.solverProgramObj:kernel('initNodeFromRoot', self.UBuf)
 end
 
 	for _,op in ipairs(self.ops) do
@@ -1201,7 +1218,7 @@ end
 
 -- for solvers who don't rely on calcDT
 function Solver:refreshCalcDTKernel()
-	self:makeKernel(self.solverProgram, 'calcDT', self.reduceBuf, self.UBuf)
+	self.calcDTKernelObj = self.solverProgramObj:kernel('calcDT', self.reduceBuf, self.UBuf)
 end
 
 function Solver:refreshDisplayProgram()
@@ -1269,7 +1286,7 @@ function Solver:refreshDisplayProgram()
 	
 	local code = lines:concat'\n'
 	time('compiling display program', function()
-		self.displayProgramObj = self.app.env:program{code=code}
+		self.displayProgramObj = self.Program{code=code}
 		self.displayProgramObj:compile()
 	end)
 
@@ -1277,8 +1294,7 @@ function Solver:refreshDisplayProgram()
 		for _,convertToTex in ipairs(self.convertToTexs) do
 			for _,var in ipairs(convertToTex.vars) do
 				if var.enabled then
-					var.calcDisplayVarToTexKernelObj = self.displayProgramObj:kernel('calcDisplayVarToTex_'..var.id)
-					var.calcDisplayVarToTexKernelObj.obj:setArgs(self.texCLMem)
+					var.calcDisplayVarToTexKernelObj = self.displayProgramObj:kernel('calcDisplayVarToTex_'..var.id, self.texCLMem)
 				end
 			end
 		end
@@ -1287,8 +1303,7 @@ function Solver:refreshDisplayProgram()
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		for _,var in ipairs(convertToTex.vars) do
 			if var.enabled then
-				var.calcDisplayVarToBufferKernelObj = self.displayProgramObj:kernel('calcDisplayVarToBuffer_'..var.id)
-				var.calcDisplayVarToBufferKernelObj.obj:setArgs(self.reduceBuf)
+				var.calcDisplayVarToBufferKernelObj = self.displayProgramObj:kernel('calcDisplayVarToBuffer_'..var.id, self.reduceBuf)
 			end
 		end
 	end
@@ -1407,18 +1422,27 @@ kernel void boundary(
 
 	local code = lines:concat'\n'
 
-	local boundaryProgram
+	local boundaryProgramObj
 	time('compiling boundary program', function()
-		boundaryProgram = self.app.ctx:program{devices={self.app.device}, code=code} 
+		boundaryProgramObj = self.Program{code=code}
+		boundaryProgramObj:compile()
 	end)
-	local boundaryKernel = boundaryProgram:kernel'boundary'
+	local boundaryProgram = boundaryProgramObj.obj
+	local boundaryKernelObj = boundaryProgramObj:kernel'boundary'
+	local boundaryKernel = boundaryKernelObj.obj
+
+	for _,field in ipairs{
+		'maxWorkGroupSize',
+		'localSize1d',
+		'localSize2d',
+		'localSize',
+		'globalSize',
+		'volume',
+	} do
+		boundaryKernel[field] = boundaryKernelObj[field]
+	end
 	
-	-- this is the same as makeKernel except without self[] assignment
-	-- ... maybe I should get rid of that?
-	-- but don't do that yet -- instead work towards unifying kernels and programs with cl.obj
-	boundaryKernel.maxWorkGroupSize = tonumber(boundaryKernel:getWorkGroupInfo(self.app.env.device, 'CL_KERNEL_WORK_GROUP_SIZE'))
-	self:setKernelSizeProps(boundaryKernel)
-	
+	-- TODO switch these over to obj
 	return boundaryProgram, boundaryKernel
 end
 
@@ -1495,7 +1519,7 @@ function Solver:calcDT()
 		dt = self.fixedDT
 	else
 		-- TODO this without the border
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDTKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDTKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 		dt = self.cfl * self.reduceMin()
 		if not math.isfinite(dt) then
 			print("got a bad dt!") -- TODO dump all buffers
@@ -1580,7 +1604,7 @@ if tryingAMR == 'dt vs 2dt' then
 	self.t = t + dt
 
 	-- now compare UBuf and U2Buf, store in U2Buf in the first real of cons_t
-	self.app.cmds:enqueueNDRangeKernel{kernel=self.compareUvsU2Kernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+	self.app.cmds:enqueueNDRangeKernel{kernel=self.compareUvsU2KernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 elseif tryingAMR == 'gradient' then
 	
 	-- 1) compute errors from gradient, sum up errors in each root node, and output on a per-node basis
@@ -1590,7 +1614,7 @@ elseif tryingAMR == 'gradient' then
 		roundup(self.amrRootSizeInFromSize.z, self.localSize.z))
 	
 	self.app.cmds:enqueueNDRangeKernel{
-		kernel = self.calcAMRErrorKernel, 
+		kernel = self.calcAMRErrorKernelObj.obj, 
 		dim = self.dim, 
 		globalSize = amrRootSizeInFromGlobalSize:ptr(), 
 		localSize = self.localSize:ptr(),
@@ -1675,10 +1699,10 @@ for ny=0,tonumber(self.amrRootSizeInFromSize.y)-1 do
 					-- upsample as we go ... by nearest?
 				
 					-- TODO setup kernel args
-					self.initNodeFromRootKernel:setArg(1, ffi.new('int[4]', {nx, ny, 0, 0}))
-					self.initNodeFromRootKernel:setArg(2, ffi.new('int[1]', 0))
+					self.initNodeFromRootKernelObj.obj:setArg(1, ffi.new('int[4]', {nx, ny, 0, 0}))
+					self.initNodeFromRootKernelObj.obj:setArg(2, ffi.new('int[1]', 0))
 					self.app.cmds:enqueueNDRangeKernel{
-						kernel = self.initNodeFromRootKernel, 
+						kernel = self.initNodeFromRootKernelObj.obj,
 						dim = self.dim, 
 						globalSize = self.amrNodeSizeWithoutBorder:ptr(),
 						localSize = self.amrNodeSizeWithoutBorder:ptr(),
@@ -1707,7 +1731,7 @@ function Solver:step(dt)
 	
 	if self.eqn.useConstrainU then
 		self:boundary()
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.constrainUKernelObj.obj, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
 	end
 
 	for _,op in ipairs(self.ops) do

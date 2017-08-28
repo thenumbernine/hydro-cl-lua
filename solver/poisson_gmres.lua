@@ -209,10 +209,10 @@ end
 function Poisson:refreshSolverProgram()
 	local solver = self.solver
 	self:initSolver()
-	self.initPoissonPotentialKernel = solver.solverProgram:kernel('initPoissonPotential', self:getPotBuf())
-	self.copyPotentialFieldToVecAndInitBKernel = solver.solverProgram:kernel('copyPotentialFieldToVecAndInitB', assert(self.krylov_xObj.obj), self.krylov_bObj.obj, self:getPotBuf())
-	self.copyVecToPotentialFieldKernel = solver.solverProgram:kernel('copyVecToPotentialField', self:getPotBuf(), self.krylov_xObj.obj)
-	self.poissonGMRESLinearFuncKernel = solver.solverProgram:kernel'poissonGMRESLinearFunc'
+	self.initPoissonPotentialKernel = solver.solverProgramObj.obj:kernel('initPoissonPotential', self:getPotBuf())
+	self.copyPotentialFieldToVecAndInitBKernel = solver.solverProgramObj.obj:kernel('copyPotentialFieldToVecAndInitB', assert(self.krylov_xObj.obj), self.krylov_bObj.obj, self:getPotBuf())
+	self.copyVecToPotentialFieldKernel = solver.solverProgramObj.obj:kernel('copyVecToPotentialField', self:getPotBuf(), self.krylov_xObj.obj)
+	self.poissonGMRESLinearFuncKernel = solver.solverProgramObj.obj:kernel'poissonGMRESLinearFunc'
 end
 
 function Poisson:refreshBoundaryProgram()

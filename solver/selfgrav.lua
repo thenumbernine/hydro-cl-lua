@@ -97,13 +97,13 @@ function SelfGrav:refreshSolverProgram()
 	SelfGrav.super.refreshSolverProgram(self)
 	
 	local solver = self.solver
-	self.calcGravityDerivKernel = solver.solverProgram:kernel'calcGravityDeriv'
+	self.calcGravityDerivKernel = solver.solverProgramObj.obj:kernel'calcGravityDeriv'
 	self.calcGravityDerivKernel:setArg(1, solver.UBuf)
 
 	--TODO just use the display var kernels
-	self.reduce_ePotKernel = solver.solverProgram:kernel('reduce_ePot', solver.reduceBuf, solver.UBuf)
+	self.reduce_ePotKernel = solver.solverProgramObj.obj:kernel('reduce_ePot', solver.reduceBuf, solver.UBuf)
 	
-	self.offsetPotentialAndAddToTotalKernel = solver.solverProgram:kernel('offsetPotentialAndAddToTotal', solver.UBuf)
+	self.offsetPotentialAndAddToTotalKernel = solver.solverProgramObj.obj:kernel('offsetPotentialAndAddToTotal', solver.UBuf)
 end
 
 function SelfGrav:resetState()

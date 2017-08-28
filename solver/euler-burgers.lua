@@ -47,17 +47,17 @@ function EulerBurgers:refreshSolverProgram()
 
 	-- no mention of ULR just yet ...
 
-	self.calcIntVelKernel = self.solverProgram:kernel('calcIntVel', self.intVelBuf, self.UBuf)
-	self.calcFluxKernel = self.solverProgram:kernel('calcFlux', self.fluxBuf, self.UBuf, self.intVelBuf)
+	self.calcIntVelKernelObj = self.solverProgramObj:kernel('calcIntVel', self.intVelBuf, self.UBuf)
+	self.calcFluxKernelObj = self.solverProgramObj:kernel('calcFlux', self.fluxBuf, self.UBuf, self.intVelBuf)
 
-	self.computePressureKernel = self.solverProgram:kernel('computePressure', self.PBuf, self.UBuf) 
+	self.computePressureKernelObj = self.solverProgramObj:kernel('computePressure', self.PBuf, self.UBuf) 
 	
-	self.diffuseMomentumKernel = self.solverProgram:kernel'diffuseMomentum'
-	self.diffuseMomentumKernel:setArg(1, self.PBuf)
+	self.diffuseMomentumKernelObj = self.solverProgramObj:kernel'diffuseMomentum'
+	self.diffuseMomentumKernelObj.obj:setArg(1, self.PBuf)
 	
-	self.diffuseWorkKernel = self.solverProgram:kernel'diffuseWork'
-	self.diffuseWorkKernel:setArg(1, self.UBuf)
-	self.diffuseWorkKernel:setArg(2, self.PBuf)
+	self.diffuseWorkKernelObj = self.solverProgramObj:kernel'diffuseWork'
+	self.diffuseWorkKernelObj.obj:setArg(1, self.UBuf)
+	self.diffuseWorkKernelObj.obj:setArg(2, self.PBuf)
 end
 
 function EulerBurgers:addConvertToTexs()
@@ -86,13 +86,12 @@ end
 function EulerBurgers:step(dt)
 	-- calc deriv here
 	self.integrator:integrate(dt, function(derivBuf)
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcIntVelKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.calcIntVelKernelObj()
 
-		self.calcFluxKernel:setArg(3, ffi.new('real[1]', dt))
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcFluxKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.calcFluxKernelObj.obj:setArg(3, ffi.new('real[1]', dt))
+		self.calcFluxKernelObj()
 	
-		self.calcDerivFromFluxKernel:setArg(0, derivBuf)
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.calcDerivFromFluxKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
+		self.calcDerivFromFluxKernelObj:callWithoutBorder(derivBuf)
 	end)
 
 	self:boundary()
@@ -100,17 +99,16 @@ function EulerBurgers:step(dt)
 	-- TODO potential update here
 	
 	self.integrator:integrate(dt, function(derivBuf)
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.computePressureKernel, dim=self.dim, globalSize=self.globalSize:ptr(), localSize=self.localSize:ptr()}
+		self.computePressureKernelObj()
 	
-		self.diffuseMomentumKernel:setArg(0, derivBuf)
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.diffuseMomentumKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
+		self.diffuseMomentumKernelObj.obj:setArg(0, derivBuf)
+		self.app.cmds:enqueueNDRangeKernel{kernel=self.diffuseMomentumKernelObj.obj, dim=self.dim, globalSize=self.diffuseMomentumKernelObj.globalSizeWithoutBorder:ptr(), localSize=self.diffuseMomentumKernelObj.localSize:ptr()}
 	end)
 	
 	self:boundary()
 	
 	self.integrator:integrate(dt, function(derivBuf)
-		self.diffuseWorkKernel:setArg(0, derivBuf)
-		self.app.cmds:enqueueNDRangeKernel{kernel=self.diffuseWorkKernel, dim=self.dim, globalSize=self.globalSizeWithoutBorder:ptr(), localSize=self.localSize:ptr()}
+		self.diffuseWorkKernelObj:callWithoutBorder(derivBuf)
 	end)
 
 	-- no addSource call just yet

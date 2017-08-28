@@ -21,7 +21,7 @@ return function(parent)
 	function template:refreshSolverProgram()
 		template.super.refreshSolverProgram(self)
 
-		self.updatePrimsKernel = self.solverProgram:kernel('updatePrims', self.UBuf)
+		self.updatePrimsKernel = self.solverProgramObj.obj:kernel('updatePrims', self.UBuf)
 	end
 
 	--[[ method 1: update prims after step() overall is called

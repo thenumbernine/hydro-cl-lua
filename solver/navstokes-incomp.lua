@@ -26,11 +26,11 @@ end
 function NavierStokesIncompressible:refreshSolverProgram()
 	NavierStokesIncompressible.super.refreshSolverProgram(self)
 
-	self.diffuseKernel = self.solverProgram:kernel('diffuse', self.UNextBuf, self.UBuf)
-	self.advectKernel = self.solverProgram:kernel('advect', self.UNextBuf, self.UBuf)
-	self.calcDivKernel = self.solverProgram:kernel('calcDiv', self.divBuf, self.UBuf)
-	self.diffusePressureKernel= self.solverProgram:kernel('diffusePressure', self.PBuf, self.divBuf)
-	self.projectKernel= self.solverProgram:kernel('project', self.UBuf, self.PBuf)
+	self.diffuseKernel = self.solverProgramObj.obj:kernel('diffuse', self.UNextBuf, self.UBuf)
+	self.advectKernel = self.solverProgramObj.obj:kernel('advect', self.UNextBuf, self.UBuf)
+	self.calcDivKernel = self.solverProgramObj.obj:kernel('calcDiv', self.divBuf, self.UBuf)
+	self.diffusePressureKernel= self.solverProgramObj.obj:kernel('diffusePressure', self.PBuf, self.divBuf)
+	self.projectKernel= self.solverProgramObj.obj:kernel('project', self.UBuf, self.PBuf)
 end
 
 function NavierStokesIncompressible:getCalcDTCode() end

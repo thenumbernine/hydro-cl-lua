@@ -48,7 +48,7 @@ function NoDiv:refreshSolverProgram()
 	NoDiv.super.refreshSolverProgram(self)
 
 	local solver = self.solver
-	self.noDivKernel = solver.solverProgram:kernel('noDiv', solver.UBuf)
+	self.noDivKernel = solver.solverProgramObj.obj:kernel('noDiv', solver.UBuf)
 end
 
 function NoDiv:step(dt)

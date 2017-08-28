@@ -31,8 +31,8 @@ function FiniteVolumeSolver:refreshSolverProgram()
 
 	-- 'calcFlux' is usually provided, but the args vary, so I'll leave it to the subclass
 	
-	self.calcDerivFromFluxKernel = self.solverProgram:kernel'calcDerivFromFlux'
-	self.calcDerivFromFluxKernel:setArg(1, self.fluxBuf)
+	self.calcDerivFromFluxKernelObj = self.solverProgramObj:kernel'calcDerivFromFlux'
+	self.calcDerivFromFluxKernelObj.obj:setArg(1, self.fluxBuf)
 end
 
 function FiniteVolumeSolver:addConvertToTexs()

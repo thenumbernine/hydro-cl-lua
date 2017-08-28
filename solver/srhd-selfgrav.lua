@@ -156,7 +156,7 @@ function SRHDSelfGrav:refreshSolverProgram()
 	SRHDSelfGrav.super.refreshSolverProgram(self)
 	
 	local solver = self.solver
-	self.calcGravityDerivKernel = solver.solverProgram:kernel'calcGravityDeriv'
+	self.calcGravityDerivKernel = solver.solverProgramObj.obj:kernel'calcGravityDeriv'
 	self.calcGravityDerivKernel:setArg(1, solver.UBuf)
 end
 
