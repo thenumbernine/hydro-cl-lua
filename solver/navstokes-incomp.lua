@@ -26,11 +26,11 @@ end
 function NavierStokesIncompressible:refreshSolverProgram()
 	NavierStokesIncompressible.super.refreshSolverProgram(self)
 
-	self.diffuseKernelObj = self.solverProgramObj:kernel('diffuse', self.UNextBuf, self.UBuf)
-	self.advectKernelObj = self.solverProgramObj:kernel('advect', self.UNextBuf, self.UBuf)
-	self.calcDivKernelObj = self.solverProgramObj:kernel('calcDiv', self.divBuf, self.UBuf)
-	self.diffusePressureKernelObj = self.solverProgramObj:kernel('diffusePressure', self.PBuf, self.divBuf)
-	self.projectKernelObj = self.solverProgramObj:kernel('project', self.UBuf, self.PBuf)
+	self.diffuseKernelObj = self.solverProgramObj:kernel{name='diffuse', setArgs={self.UNextBuf, self.UBuf}, domain=self.domainWithoutBorder}
+	self.advectKernelObj = self.solverProgramObj:kernel{name='advect', setArgs={self.UNextBuf, self.UBuf}, domain=self.domainWithoutBorder}
+	self.calcDivKernelObj = self.solverProgramObj:kernel{name='calcDiv', setArgs={self.divBuf, self.UBuf}, domain=self.domainWithoutBorder}
+	self.diffusePressureKernelObj = self.solverProgramObj:kernel{name='diffusePressure', setArgs={self.PBuf, self.divBuf}, domain=self.domainWithoutBorder}
+	self.projectKernelObj = self.solverProgramObj:kernel{name='project', setArgs={self.UBuf, self.PBuf}, domain=self.domainWithoutBorder}
 end
 
 function NavierStokesIncompressible:getCalcDTCode() end
@@ -41,13 +41,13 @@ function NavierStokesIncompressible:calcDT() return self.fixedDT end
 NavierStokesIncompressible.numGaussSeidelSteps = 20
 
 function NavierStokesIncompressible:project()
-	self.calcDivKernelObj:callWithoutBorder()
+	self.calcDivKernelObj()
 
 	for i=1,self.numGaussSeidelSteps do
-		self.diffusePressureKernelObj:callWithoutBorder()
+		self.diffusePressureKernelObj()
 	end
 	
-	self.projectKernelObj:callWithoutBorder()
+	self.projectKernelObj()
 end
 
 function NavierStokesIncompressible:step(dt)
@@ -57,7 +57,7 @@ function NavierStokesIncompressible:step(dt)
 	
 	-- diffuse
 	for i=1,self.numGaussSeidelSteps do
-		self.diffuseKernelObj:callWithoutBorder()
+		self.diffuseKernelObj()
 		solver.app.cmds:enqueueCopyBuffer{src=solver.UNextBuf, dst=self.UBuf, size=bufferSize}
 	end
 	

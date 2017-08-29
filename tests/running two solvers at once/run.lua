@@ -117,7 +117,7 @@ function App:setup()
 	-- something is corrupting every numStates data ... like something is writing out of bounds ...
 	--compare(s1.integrator.derivBuf, s2.integrator.derivBuf)
 		
-		self.multAddKernelObj:callWithoutBorder(
+		self.multAddKernelObj(
 			self.UBuf,
 			s1.UBuf,
 			
@@ -131,11 +131,11 @@ function App:setup()
 		app.cmds:finish()
 		app.cmds:enqueueFillBuffer{buffer=s1.integrator.derivBuf, size=self.volume * self.eqn.numStates * ffi.sizeof(app.real)}
 		self:calcDeriv(s1.integrator.derivBuf, dt)
-		s1.multAddKernelObj:callWithoutBorder(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
+		s1.multAddKernelObj(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
 		app.cmds:finish()
 		--]]
 		--[[ just adding s1's deriv to s2?  works fine
-		s1.multAddKernelObj:callWithoutBorder(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
+		s1.multAddKernelObj(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
 		s1.multAddKernelObj.obj:setArgs(s1.UBuf, s1.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
 		--]]
 		-- so the code in common is when calcDeriv is called by the 2nd solver ...

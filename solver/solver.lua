@@ -120,49 +120,7 @@ function Solver:init(args)
 		args.domain = solver.domain
 		Program.super.init(self, args)
 	end
-	
 	self.Program = Program  
-
-	local Kernel = class(require 'cl.obj.kernel')
-
-	function Kernel:setSizeProps()
-		Kernel.super.setSizeProps(self)
-
-		-- don't include the ghost cells as a part of the grid coordinate space
-		self.sizeWithoutBorder = vec3sz(self.domain.size:unpack())
-		for i=0,self.domain.dim-1 do
-			self.sizeWithoutBorder:ptr()[i] = self.sizeWithoutBorder:ptr()[i] - 2 * solver.numGhost
-		end
-		self.volumeWithoutBorder = tonumber(self.sizeWithoutBorder:volume())
-		self.globalSizeWithoutBorder = vec3sz( 
-			roundup(self.sizeWithoutBorder.x, self.localSize.x),
-			roundup(self.sizeWithoutBorder.y, self.localSize.y),
-			roundup(self.sizeWithoutBorder.z, self.localSize.z))
-	end
-
-	-- looks just like __call except uses self.globalSizeWithoutBorder
-	-- hmm, maybe I should make that overrideable somehow?
-	-- or maybe I should just replace self.globalSize within the kernels that use it?
-	function Kernel:callWithoutBorder(...)
-		if not self.obj then
-			self:compile()
-		end
-		if select('#', ...) > 0 then
-			self.obj:setArgs(...)
-		end
-		self.env.cmds:enqueueNDRangeKernel{
-			kernel = self.obj,
-			dim = self.domain.dim,
-			globalSize = self.globalSizeWithoutBorder:ptr(),
-			localSize = self.localSize:ptr(),
-			wait = self.wait,
-			event = self.event,
-		}
-	end
-
-
-	self.Kernel = Kernel
-	Program.Kernel = Kernel
 
 	self:refreshGridSize()
 end
@@ -373,6 +331,12 @@ print('maxWorkGroupSize', self.maxWorkGroupSize)
 print(k,v)	
 		self[k] = v
 	end
+
+	self.domainWithoutBorder = self.app.env:domain{
+		size = {self.sizeWithoutBorder:unpack()},
+		dim = self.dim,
+	}
+
 
 	self:createDisplayVars()	-- depends on eqn
 	
@@ -1017,7 +981,7 @@ kernel void multAdd(
 	-- used by the integrators
 	-- needs the same globalSize and localSize as the typical simulation kernels
 	-- TODO exclude states which are not supposed to be integrated
-	self.multAddKernelObj = self.commonProgramObj:kernel'multAdd'
+	self.multAddKernelObj = self.commonProgramObj:kernel{name='multAdd', domain=self.domainWithoutBorder}
 
 	self.reduceMin = self.app.env:reduce{
 		size = self.volume,

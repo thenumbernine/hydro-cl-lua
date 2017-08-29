@@ -105,7 +105,7 @@ function Roe:refreshSolverProgram()
 
 	-- TODO put this in solver/solver.lua ?
 	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj = self.solverProgramObj:kernel'addSource'
+		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
 		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
 	end
 
@@ -225,12 +225,12 @@ function Roe:calcDeriv(derivBuf, dt)
 	self.calcFluxKernelObj()
 
 	-- calcDerivFromFlux zeroes the derivative buffer
-	self.calcDerivFromFluxKernelObj:callWithoutBorder(derivBuf)
+	self.calcDerivFromFluxKernelObj(derivBuf)
 
 	-- addSource adds to the derivative buffer
 	if self.eqn.useSourceTerm then
 		-- can't use call because this uses the without-border size
-		self.addSourceKernelObj:callWithoutBorder(derivBuf)
+		self.addSourceKernelObj(derivBuf)
 	end
 end
 

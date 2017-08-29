@@ -65,12 +65,12 @@ function RungeKutta:integrate(dt, callback)
 			if self.alphas[i-1][k] ~= 0 then
 				solver.multAddKernelObj.obj:setArg(2, self.UBufs[k])
 				solver.multAddKernelObj.obj:setArg(3, ffi.new('real[1]', self.alphas[i-1][k]))
-				solver.multAddKernelObj:callWithoutBorder()
+				solver.multAddKernelObj()
 			end
 			if self.betas[i-1][k] ~= 0 then
 				solver.multAddKernelObj.obj:setArg(2, self.derivBufs[k])
 				solver.multAddKernelObj.obj:setArg(3, ffi.new('real[1]', self.betas[i-1][k] * dt))
-				solver.multAddKernelObj:callWithoutBorder()
+				solver.multAddKernelObj()
 			end
 		end
 	

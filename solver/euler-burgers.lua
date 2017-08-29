@@ -52,7 +52,7 @@ function EulerBurgers:refreshSolverProgram()
 
 	self.computePressureKernelObj = self.solverProgramObj:kernel('computePressure', self.PBuf, self.UBuf) 
 	
-	self.diffuseMomentumKernelObj = self.solverProgramObj:kernel'diffuseMomentum'
+	self.diffuseMomentumKernelObj = self.solverProgramObj:kernel{name='diffuseMomentum', domain=self.domainWithoutBorder}
 	self.diffuseMomentumKernelObj.obj:setArg(1, self.PBuf)
 	
 	self.diffuseWorkKernelObj = self.solverProgramObj:kernel'diffuseWork'
@@ -91,7 +91,7 @@ function EulerBurgers:step(dt)
 		self.calcFluxKernelObj.obj:setArg(3, ffi.new('real[1]', dt))
 		self.calcFluxKernelObj()
 	
-		self.calcDerivFromFluxKernelObj:callWithoutBorder(derivBuf)
+		self.calcDerivFromFluxKernelObj(derivBuf)
 	end)
 
 	self:boundary()
@@ -101,13 +101,13 @@ function EulerBurgers:step(dt)
 	self.integrator:integrate(dt, function(derivBuf)
 		self.computePressureKernelObj()
 	
-		self.diffuseMomentumKernelObj:callWithoutBorder(derivBuf)
+		self.diffuseMomentumKernelObj(derivBuf)
 	end)
 	
 	self:boundary()
 	
 	self.integrator:integrate(dt, function(derivBuf)
-		self.diffuseWorkKernelObj:callWithoutBorder(derivBuf)
+		self.diffuseWorkKernelObj(derivBuf)
 	end)
 
 	-- no addSource call just yet
