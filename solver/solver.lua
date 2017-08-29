@@ -1420,6 +1420,8 @@ function Solver:applyBoundaryToBuffer(kernelObj)
 			localSize = 1,
 		}
 	elseif self.dim == 2 then
+		-- TODO what happens when kernelObj.maxWorkGroupSize 
+		-- is lower than the grid size?
 		local maxSize = math.min(
 				roundup(
 					math.max(

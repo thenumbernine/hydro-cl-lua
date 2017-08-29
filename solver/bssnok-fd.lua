@@ -9,6 +9,14 @@ local xNames = table{'x', 'y', 'z'}
 local BSSNOKFiniteDifferenceSolver = class(Solver)
 BSSNOKFiniteDifferenceSolver.name = 'BSSNOKFiniteDifferenceSolver'
 
+-- TODO make a gui variable for numGhost
+-- hmm, can I do that without rebuilding solverProgram every time it changes?
+-- probably not, courtesy of boundary
+-- in fact, how would boundary work with numGhost!=2?
+-- esp mirror boundary conditions?
+BSSNOKFiniteDifferenceSolver.numGhost = 2
+
+
 function BSSNOKFiniteDifferenceSolver:init(...)
 	BSSNOKFiniteDifferenceSolver.super.init(self, ...)
 	self.name = nil	-- don't append the eqn name to this

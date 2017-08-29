@@ -158,6 +158,10 @@ real3 sym3_x(sym3 m) { return _real3(m.xx, m.xy, m.xz); }
 real3 sym3_y(sym3 m) { return _real3(m.xy, m.yy, m.yz); }
 real3 sym3_z(sym3 m) { return _real3(m.xz, m.yz, m.zz); }
 
+real sym3_trace(sym3 m) {
+	return m.xx + m.yy + m.zz;
+}
+
 //weighted inner product using 'm'
 real real3_weightedDot(real3 a, real3 b, sym3 m) {
 	return real3_dot(a, sym3_real3_mul(m, b));

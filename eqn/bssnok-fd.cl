@@ -105,12 +105,11 @@ end ?>;
 <?=makePartial2('gammaBar_ll', 'sym3')?>	//partial2_gammaBar_llll[kl].ij = gammaBar_ij,kl
 <?=makePartial2('beta_u', 'real3')?>		//partial2_beta_ull[jk].i = beta^i_,jk
 
-<? if eqn.useChi then ?>
-	real exp_neg4phi = U->chi;
-	
+	real exp_neg4phi = calc_exp_neg4phi(U);
 	//TODO minimize using these 
 	real exp_4phi = 1. / exp_neg4phi;
 
+<? if eqn.useChi then ?>
 	real partial_phi_l[3] = {
 <? for i,xi in ipairs(xNames) do
 ?>		-partial_chi_l[<?=i-1?>] / (4. * U->chi),
@@ -123,10 +122,6 @@ end ?>;
 ?>		.25 * (-partial2_chi_ll[<?=ij-1?>] + partial_chi_l[<?=i-1?>] * partial_chi_l[<?=j-1?>] / U->chi) / U->chi,
 <? end
 ?>	};
-
-<? else ?>
-	real exp_4phi = exp(4. * U->phi);
-	real exp_neg4phi = 1. / exp_4phi;
 <? end ?>
 	
 	//gamma_ij = exp(4 phi) gammaBar_ij
@@ -429,6 +424,13 @@ end
 ?>
 	deriv->connBar_u = real3_add(deriv->connBar_u, dt_connBar_u);
 
+<? 
+if eqn.guiVars.useGammaDriver.value
+and eqn.useHypGammaDriver
+then
+	error("you can only enable either useGammaDriver or useHypGammaDriver.  I should make this a combo gui option")
+end
+?>
 <? if eqn.guiVars.useGammaDriver.value then ?>
 	//Gamma-driver
 	//B&S 4.82
