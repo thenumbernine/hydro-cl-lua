@@ -287,10 +287,6 @@ function Solver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 		sizeWithoutBorder:ptr()[i] = sizeWithoutBorder:ptr()[i] - 2 * self.numGhost
 	end
 	local volumeWithoutBorder = tonumber(sizeWithoutBorder:volume())
-	local globalSizeWithoutBorder = vec3sz( 
-		roundup(sizeWithoutBorder.x, localSize.x),
-		roundup(sizeWithoutBorder.y, localSize.y),
-		roundup(sizeWithoutBorder.z, localSize.z))
 	
 	local volume = tonumber(self.gridSize:volume())
 
@@ -301,7 +297,6 @@ function Solver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 		globalSize = globalSize,
 		sizeWithoutBorder = sizeWithoutBorder,
 		volumeWithoutBorder = volumeWithoutBorder,
-		globalSizeWithoutBorder = globalSizeWithoutBorder,
 		volume = volume,
 	}
 end
