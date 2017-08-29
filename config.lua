@@ -140,7 +140,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Hemholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -158,7 +158,7 @@ local args = {
 
 	-- self-gravitation tests:
 	--initState = 'self-gravitation test 1',
-	initState = 'self-gravitation test 1 spinning',
+	--initState = 'self-gravitation test 1 spinning',
 	--initState = 'self-gravitation test 2',
 	--initState = 'self-gravitation test 2 orbiting',
 	--initState = 'self-gravitation test 4',

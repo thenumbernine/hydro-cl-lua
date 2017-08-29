@@ -1200,7 +1200,7 @@ function Solver:refreshDisplayProgram()
 							var = var,
 							convertToTex = convertToTex,
 							name = 'calcDisplayVarToTex_'..var.id,
-							input = '__write_only '
+							input = 'write_only '
 								..(self.dim == 3 
 									and 'image3d_t' 
 									or 'image2d_t'
@@ -1730,6 +1730,7 @@ function Solver:calcDisplayVarToTex(var)
 	
 		convertToTex:setToTexArgs(var)
 		var.calcDisplayVarToTexKernelObj()
+		
 		app.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
 		app.cmds:finish()
 	else

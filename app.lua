@@ -9,6 +9,8 @@ predefined vars:
 	mins=
 	maxs=
 	float= set to false to override double precision
+	cpu= set to use CPU instead of GPU
+	useGLSharing= set to disable GL sharing
 --]]
 local cmdline = {}
 --[[
@@ -130,6 +132,7 @@ function HydroCLApp:initGL(...)
 		verbose = true,
 		precision = cmdline.float and 'float' or nil,
 		cpu = cmdline.cpu,
+		useGLSharing = cmdline.useGLSharing ~= false,	-- let nil default to true 
 	}
 	local platformName = self.env.platform:getName()
 	local deviceName = self.env.device:getName()
