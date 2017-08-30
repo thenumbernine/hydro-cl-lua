@@ -27,7 +27,6 @@ sym3 tracefree(sym3 A_ll, sym3 gamma_ll, sym3 gamma_uu) {
 	return sym3_sub(A_ll, sym3_scale(gamma_ll, tr_A / 3.));
 }
 
-
 kernel void constrainU(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -52,11 +51,14 @@ kernel void constrainU(
 ?>	U->gammaBar_ll.<?=xij?> *= _1_cbrt_det_gammaBar;
 <? 	end
 end ?>
+
+	//here we refresh gammaBar_uu
+	U->gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
+	
 	//in Buchman's paper it says he doesn't do this
 	//likewise in my own experiences, this can tend A to grow out of control 
 <? if eqn.guiVars.constrain_tr_ATilde_ll.value then ?>
-	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
-	U->ATilde_ll = tracefree(U->ATilde_ll, U->gammaBar_ll, gammaBar_uu);
+	U->ATilde_ll = tracefree(U->ATilde_ll, U->gammaBar_ll, U->gammaBar_uu);
 <? end ?>
 }
 
@@ -129,13 +131,10 @@ end ?>;
 	// exp_4phi could be singular
 	sym3 gamma_ll = sym3_scale(U->gammaBar_ll, exp_4phi);
 
-	//gammaBar^ij = inv gammaBar_ij
-	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
-
 	//gammaBar_ij = exp(-4 phi) gamma_ij
 	//gammaBar^ij = exp(4 phi) gamma^ij
 	//gamma^ij = exp(-4 phi) gammaBar^ij
-	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
+	sym3 gamma_uu = sym3_scale(U->gammaBar_uu, exp_neg4phi);
 
 	//connBar_lll[i].jk := connBar_ijk = 1/2 (gammaBar_ij,k + gammaBar_ik,j - gammaBar_jk,i)
 	sym3 connBar_lll[3];
@@ -157,7 +156,7 @@ for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
 ?>	connBar_ull[<?=i-1?>].<?=xjk?> = 0. <?
 		for l,xl in ipairs(xNames) do
-?> + gammaBar_uu.<?=sym(i,l)?> * connBar_lll[<?=l-1?>].<?=xjk?><?
+?> + U->gammaBar_uu.<?=sym(i,l)?> * connBar_lll[<?=l-1?>].<?=xjk?><?
 		end
 ?>;
 <?	end
@@ -166,10 +165,22 @@ end
 
 	//from 2006 Campanelli "connBar^i is replaced by -gammaBar^ij_j wherever it is not differentiated"
 	// TODO ... but do that, I should track gammaBar^ij ...
-	real3 connBar_u = U->connBar_u;
-	
+<? if useChi then
+?>	real3 connBar_u = _real3(0,0,0);
+	//connBar^i = -gammaBar^ij_,j
+<?	for i,xi in ipairs(xNames) do
+?>	connBar_u.<?=xi?> =<?
+		for j,xj in ipairs(xNames) do
+?> - partial_gammaBar_uul[<?=j-1?>].<?=sym(i,j)?><?
+		end
+?>;
+	end
+else
+?>	real3 connBar_u = U->connBar_u;
+<? end
+?>
 	//DBar^i phi = gammaBar^ij phi_,j
-	real3 DBar_phi_u = sym3_real3_mul(gammaBar_uu, *(real3*)partial_phi_l);
+	real3 DBar_phi_u = sym3_real3_mul(U->gammaBar_uu, *(real3*)partial_phi_l);
 
 	//conn_ull[i].jk := conn^i_jk
 	//Alcubierre 2.8.14:
@@ -238,8 +249,8 @@ end
 ?>		- 2./3. * U->gammaBar_ll.<?=xij?> * tr_partial_beta;				//- 2/3 gammaBar_ij beta^k_,k
 <? end
 ?>
-	mat3 ATilde_ul = sym3_sym3_mul(gammaBar_uu, U->ATilde_ll);		//ATilde^i_j = gammaBar^kl ATilde_kj
-	sym3 ATilde_uu = mat3_sym3_to_sym3_mul(ATilde_ul, gammaBar_uu);	//ATilde^ij = gammaBar^ik ATilde_kl gammaBar^lj
+	mat3 ATilde_ul = sym3_sym3_mul(U->gammaBar_uu, U->ATilde_ll);		//ATilde^i_j = gammaBar^kl ATilde_kj
+	sym3 ATilde_uu = mat3_sym3_to_sym3_mul(ATilde_ul, U->gammaBar_uu);	//ATilde^ij = gammaBar^ik ATilde_kl gammaBar^lj
 	real tr_ATilde_sq = sym3_dot(U->ATilde_ll, ATilde_uu);			//tr_ATilde_sq := tr(ATilde^2) = ATilde_ij ATilde^ji
 	
 	real S = sym3_dot(U->S_ll, gamma_uu);
@@ -258,7 +269,7 @@ end
 ?>	tr_partial2_gammaBar_ll.<?=xij?> = 0. <?
 	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do
-?> + gammaBar_uu.<?=sym(k,l)?> * partial2_gammaBar_llll[<?=from3x3to6(k,l)-1?>].<?=xij?><?
+?> + U->gammaBar_uu.<?=sym(k,l)?> * partial2_gammaBar_llll[<?=from3x3to6(k,l)-1?>].<?=xij?><?
 		end
 	end
 ?>;
@@ -284,7 +295,7 @@ end
 		+ .5 * connBar_u.<?=xk?> * (connBar_lll[<?=i-1?>].<?=sym(j,k)?> + connBar_lll[<?=j-1?>].<?=sym(i,k)?>)
 <?		for l,xl in ipairs(xNames) do
 			for m,xm in ipairs(xNames) do
-?>		+ gammaBar_uu.<?=sym(k,m)?> * (
+?>		+ U->gammaBar_uu.<?=sym(k,m)?> * (
 			+ connBar_ull[<?=k-1?>].<?=sym(l,i)?> * connBar_lll[<?=j-1?>].<?=sym(k,m)?>
 			+ connBar_ull[<?=k-1?>].<?=sym(l,j)?> * connBar_lll[<?=i-1?>].<?=sym(k,m)?>
 			+ connBar_ull[<?=k-1?>].<?=sym(i,m)?> * connBar_lll[<?=k-1?>].<?=sym(l,j)?>
@@ -305,7 +316,7 @@ end
 ?>;
 <? end
 ?>
-	real tr_DBar2_phi = sym3_dot(gammaBar_uu, DBar2_phi_ll);
+	real tr_DBar2_phi = sym3_dot(U->gammaBar_uu, DBar2_phi_ll);
 	real DBar_phi_norm = real3_dot(*(real3*)partial_phi_l, DBar_phi_u);
 
 	//Baumgarte & Shapiro p.57 eqn 3.10
@@ -327,7 +338,7 @@ end
 	local xj = xNames[j]
 ?>	RPhi_ll.<?=xij?> = 2. * (
 		- DBar2_phi_ll.<?=xij?> 
-		- gammaBar_uu.<?=xij?> * tr_DBar2_phi 
+		- U->gammaBar_uu.<?=xij?> * tr_DBar2_phi 
 		+ 2. * (partial_phi_l[<?=i-1?>] * partial_phi_l[<?=j-1?>] 
 			- U->gammaBar_ll.<?=xij?> * DBar_phi_norm));
 <? end 
@@ -341,7 +352,7 @@ end
 			sym3_add(R_ll, sym3_scale(U->S_ll, -8. * M_PI)), 
 			U->alpha),
 		D2_alpha_ll);
-	tracelessPart_ll = tracefree(tracelessPart_ll, U->gammaBar_ll, gammaBar_uu);
+	tracelessPart_ll = tracefree(tracelessPart_ll, U->gammaBar_ll, U->gammaBar_uu);
 #else	//each term separately
 	sym3 tracelessPart_ll = sym3_sub(
 		sym3_scale(
@@ -406,7 +417,7 @@ end
 		local jj = from3x3to6(j,j)
 ?>		- 2. * ATilde_uu.<?=xij?> * partial_alpha_l[<?=j-1?>]
 		+ 2. * U->alpha * (
-			-2./3. * gammaBar_uu.<?=xij?> * partial_K_l[<?=j-1?>] 
+			-2./3. * U->gammaBar_uu.<?=xij?> * partial_K_l[<?=j-1?>] 
 			+ 6. * ATilde_uu.<?=xij?> * partial_phi_l[<?=j-1?>])
 		+ U->beta_u.<?=xi?> * partial_connBar_ul[<?=j-1?>].<?=xi?>
 		- connBar_u.<?=xj?> * partial_beta_ul[<?=j-1?>].<?=xi?>
@@ -415,8 +426,8 @@ end
 			local jk = from3x3to6(j,k)
 			local xjk = symNames[jk]
 ?>		+ 2. * U->alpha * connBar_ull[<?=i-1?>].<?=xjk?> * ATilde_uu.<?=xjk?>
-		+ 1./3. * gammaBar_uu.<?=xik?> * partial2_beta_ull[<?=jk-1?>].<?=xj?>
-		+ gammaBar_uu.<?=xjk?> * partial2_beta_ull[<?=jk-1?>].<?=xi?>
+		+ 1./3. * U->gammaBar_uu.<?=xik?> * partial2_beta_ull[<?=jk-1?>].<?=xj?>
+		+ U->gammaBar_uu.<?=xjk?> * partial2_beta_ull[<?=jk-1?>].<?=xi?>
 <?		end
 	end
 ?>	;
@@ -463,7 +474,7 @@ end ?>
 <? if calcConstraints then ?>
 	
 #if 0
-	real RBar = sym3_dot(gammaBar_uu, RBar_ll);
+	real RBar = sym3_dot(U->gammaBar_uu, RBar_ll);
 	real exp_phi = exp(U->phi);
 	
 	//B&S 11.48

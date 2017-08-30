@@ -161,7 +161,7 @@ BSSNOKFiniteDifferenceEquation.useHypGammaDriver = true
 
 -- use chi = 1/psi instead of phi, as described in 2006 Campanelli 
 -- it should be used with the hyperbolic gamma driver
-BSSNOKFiniteDifferenceEquation.useChi = false
+BSSNOKFiniteDifferenceEquation.useChi = true
 
 local intVars = table{
 	{alpha = 'real'},			-- 1
@@ -197,7 +197,11 @@ local consVars = table()
 	--constraints:
 	{H = 'real'},				--1
 	{M_u = 'real3'},			--3
+
+	-- aux variable
+	{gammaBar_uu = 'sym3'},		--6
 }
+
 BSSNOKFiniteDifferenceEquation.consVars = consVars
 BSSNOKFiniteDifferenceEquation.numIntStates = makestruct.countReals(intVars)
 
@@ -249,6 +253,17 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 ?>	U->K = 0;
 	U->ATilde_ll = _sym3(1,0,0,1,0,1);
 	U->connBar_u = _real3(0,0,0);
+<? if eqn.useHypGammaDriver then
+?>	U->B_u = _real3(0,0,0);
+<? end
+?>	U->gammaBar_uu = _sym3(1,0,0,1,0,1);
+
+	//what to do with the constraint vars and the source vars?
+	U->rho = 0;
+	U->S_u = _real3(0,0,0);
+	U->S_ll = _sym3(0,0,0,0,0,0);
+	U->H = 0;
+	U->M_u = _real3(0,0,0);
 }
 
 <? if eqn.useChi then
@@ -257,6 +272,19 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 ?>#define calc_exp_neg4phi(U) (exp(-4. * (U)->phi))
 <? end
 ?>
+
+real calc_det_gamma(global const <?=eqn.cons_t?>* U) {
+	real exp_neg4phi = calc_exp_neg4phi(U);
+	real det_gamma = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
+	return det_gamma;
+}
+
+sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U) {
+	real exp_neg4phi = calc_exp_neg4phi(U);
+	sym3 gamma_uu = sym3_scale(U->gammaBar_uu, exp_neg4phi);
+	return gamma_uu;
+}
+
 ]], {eqn=self}))
 	
 	lines:insert(self.initState:getCodePrefix(self.solver, function(exprs, vars, args)
@@ -317,6 +345,7 @@ kernel void initState(
 <? end 
 ?>
 	U->gammaBar_ll = sym3_scale(gamma_ll, exp_neg4phi);
+	U->gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
 
 ]]--[[
 <? for _,x in ipairs(xNames) do
@@ -342,6 +371,7 @@ kernel void initState(
 	U->M_u = _real3(0,0,0);
 }
 
+//after popularing gammaBar_ll, use its finite-difference derivative to initialize connBar_u
 kernel void init_connBarU(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -356,23 +386,7 @@ kernel void init_connBarU(
 		Um[<?=j?>] = U - stepsize.s<?=j?>;
 	}<? end ?>
 
-	sym3 Up_gammaBar_uu, Um_gammaBar_uu;
-	sym3 partial_gammaBar_uul[3];
-<? for i=1,solver.dim do
-?>	
-	Up_gammaBar_uu = sym3_inv(Up[<?=i-1?>]->gammaBar_ll, 1.);
-	Um_gammaBar_uu = sym3_inv(Um[<?=i-1?>]->gammaBar_ll, 1.);
-
-<? 	for jk,xjk in ipairs(symNames) do
-?>	partial_gammaBar_uul[<?=i-1?>].<?=xjk?> = 
-		(Up_gammaBar_uu.<?=xjk?> - Um_gammaBar_uu.<?=xjk?>)
-			/ (2. * grid_dx<?=i-1?>);
-<?	end 
-end
-for i=solver.dim+1,3 do
-?>	partial_gammaBar_uul[<?=i-1?>] = _sym3(0,0,0,0,0,0);
-<? end
-?>
+<?=makePartial('gammaBar_uu', 'sym3')?>
 
 	//connBar^i = -gammaBar^ij_,j
 <? for i,xi in ipairs(xNames) do
@@ -416,24 +430,20 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 		vars:insert{['|'..name..'| weighted'] = '*value = real3_weightedLen(U->'..name..', U->gammaBar_ll) / calc_exp_neg4phi(U);'}	
 	end
 
-	local function addsym3(name)
+	-- hmm, how to do the weighting stuff with gammaBar_ll ... 
+	-- also, how to determine which metric to raise by ... gamma vs gammaBar
+	local function addsym3_ll(name)
 		for _,xij in ipairs(symNames) do
 			addvar(name..'.'..xij)
 		end
 		vars:insert{['norm '..name] = '*value = sym3_dot(U->'..name..', U->'..name..');'}
-		-- TODO norm weighted based on two multiplications of gammaU ...
 		vars:insert{['tr '..name] = '*value = sym3_trace(U->'..name..');'} 
-		vars:insert{['tr '..name..' weighted'] = [[
-	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
-	real exp_neg4phi = calc_exp_neg4phi(U);
-	real det_gamma = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
-	*value = sym3_dot(gammaBar_uu, U->]]..name..[[) / det_gamma;
-]]}
+		vars:insert{['tr '..name..' weighted'] = '*value = sym3_dot(U->gammaBar_uu, U->'..name..') / calc_det_gamma(U);'}
 	end
 
 	addvar'alpha'
 	addreal3'beta_u'
-	addsym3'gammaBar_ll'
+	addsym3_ll'gammaBar_ll'
 	vars:insert{['det gammaBar-1'] = [[*value = -1. + sym3_det(U->gammaBar_ll);]]}	-- for logarithmic displays
 	if self.useChi then
 		addvar'chi'
@@ -445,44 +455,34 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	*value = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);   
 ]]}
 	addvar'K'
-	addsym3'ATilde_ll'
+	addsym3_ll'ATilde_ll'
 	addreal3'connBar_u'
 	if self.useHypGammaDriver then
 		addreal3'B_u'
 	end
 	--[[
 	addreal3'a'
-	addsym3'dTilde[0]'
-	addsym3'dTilde[1]'
-	addsym3'dTilde[2]'
+	addsym3_ll'dTilde[0]'
+	addsym3_ll'dTilde[1]'
+	addsym3_ll'dTilde[2]'
 	addreal3'Phi'
 	--]]
 	addvar'rho'
 	addreal3'S_u'
-	addsym3'S_ll'
+	addsym3_ll'S_ll'
 
 	addvar'H'
 	addreal3'M_u'
 
 	vars:append{
-		{S = template([[
-	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
-	real exp_neg4phi = calc_exp_neg4phi(U);
-	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
-	*value = sym3_dot(U->S_ll, gamma_uu);
-]], {eqn=self})},
-		{volume = self.useChi 
-			and '*value = U->alpha / (U->chi * U->chi * U->chi);' 
-			or '*value = U->alpha * exp(12. * U->phi);'},
+		{S = '*value = sym3_dot(U->S_ll, calc_gamma_uu(U));'},
+		{volume = '*value = U->alpha * calc_det_gamma(U);'},
 		{expansion = '*value = -U->alpha * U->K;'},
 		
 		-- TODO needs shift influence (which is lengthy)
 		{gravityMagn = template([[
 <?=makePartial('alpha', 'real')?>
-	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
-	real exp_neg4phi = calc_exp_neg4phi(U);
-	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
-	*value = real3_len(sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l)) / U->alpha;
+	*value = real3_len(sym3_real3_mul(calc_gamma_uu(U), *(real3*)partial_alpha_l)) / U->alpha;
 ]],			{
 				eqn = self,
 				solver = self.solver,
@@ -528,10 +528,7 @@ function BSSNOKFiniteDifferenceEquation:getVecDisplayVars()
 
 		{gravity = template([[
 <?=makePartial('alpha', 'real')?>
-	sym3 gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
-	real exp_neg4phi = calc_exp_neg4phi(U);
-	sym3 gamma_uu = sym3_scale(gammaBar_uu, exp_neg4phi);
-	valuevec = real3_scale(sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l), 1. / U->alpha);
+	valuevec = real3_scale(sym3_real3_mul(calc_gamma_uu(U), *(real3*)partial_alpha_l), 1. / U->alpha);
 ]],			{
 				eqn = self,
 				solver = self.solver,

@@ -39,7 +39,7 @@ local args = {
 			['NVIDIA CUDA/GeForce GTX 1080 Ti'] = {
 				{256,1,1},
 				{256,256,1},
-				{64,64,64},
+				{32,32,32},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
@@ -188,7 +188,7 @@ local args = {
 	--initState = 'plane gauge wave',
 	--initState = 'Alcubierre warp bubble',
 	--initState = 'Schwarzschild black hole',
-	--initState = 'black hole - isotropic',
+	initState = 'black hole - isotropic',
 	--initState = 'binary black holes - isotropic',
 	--initState = 'stellar model',
 	--initState = 'stellar model 2',
