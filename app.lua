@@ -10,7 +10,7 @@ predefined vars:
 	maxs=
 	float= set to false to override double precision
 	cpu= set to use CPU instead of GPU
-	useGLSharing= set to disable GL sharing
+	useGLSharing= set to false to disable GL sharing
 --]]
 local cmdline = {}
 --[[
