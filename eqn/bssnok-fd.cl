@@ -207,19 +207,19 @@ end
 
 <? if eqn.useChi then
 ?>	
-	real partial_chi_bardot_partial_alpha = real3_weightedDot( *(real*)partial_chi_l, *(real*)partial_alpha_l, U->gammaBar_uu);
+	real partial_chi_bardot_partial_alpha = real3_weightedDot( *(real3*)partial_chi_l, *(real3*)partial_alpha_l, U->gammaBar_uu);
 	
 	//chi D_i D_j alpha = alpha,ij - connBar^k_ij alpha,k + 1/(2 chi) (alpha,i chi,j + alpha,j chi,i - gammaBar_ij gammaBar^kl alpha,k chi,l)
 	sym3 chi_D2_alpha_ll = (sym3){
 <? 	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
-?>		.<?=xij?> = chi * (partial2_alpha_ll[<?=ij-1?>] <?
+?>		.<?=xij?> = U->chi * (partial2_alpha_ll[<?=ij-1?>] <?
 		for k,xk in ipairs(xNames) do
 			?> - connBar_ull[<?=k-1?>].<?=xij?> * partial_alpha_l[<?=k-1?>]<?
 		end
 			?>) + .5 * partial_alpha_l[<?=i-1?>] * partial_chi_l[<?=j-1?>] <?
 			?> + .5 * partial_alpha_l[<?=i-1?>] * partial_chi_l[<?=j-1?>] <?
-			?> - .5 * U->gammaBar_ll.<?=xij?> * partial_chi_bardot_partial_alpha;
+			?> - .5 * U->gammaBar_ll.<?=xij?> * partial_chi_bardot_partial_alpha,
 <? 	end
 ?>	};
 
@@ -392,7 +392,7 @@ else	-- not useChi
 	//(chi alpha (R_ij - 8 pi S_ij))^TF
 	sym3 tf_chi_alpha_R_minus_S = sym3_scale(
 		sym3_add(R_ll, sym3_scale(U->S_ll, -8. * M_PI)), 
-		chi * U->alpha);
+		U->chi * U->alpha);
 	tf_chi_alpha_R_minus_S = tracefree(tf_chi_alpha_R_minus_S, U->gammaBar_ll, U->gammaBar_uu);
 
 	//(chi D_i D_j alpha)^TF
@@ -411,7 +411,7 @@ else	-- not useChi
 		)
 	);
 
-	sym3 tracelessPart_ll = sym3_add(tf_chi_alpha_R_minus_S, chi_tf_D2_alpha);
+	sym3 chi_tracelessPart_ll = sym3_add(tf_chi_alpha_R_minus_S, chi_tf_D2_alpha);
 
 <? else
 ?>
