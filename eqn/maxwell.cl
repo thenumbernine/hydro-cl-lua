@@ -38,14 +38,15 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 <? end ?>
 
-void eigen_forSide(
-	global <?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forSide(
 	global const <?=eqn.cons_t?>* UL,
 	global const <?=eqn.cons_t?>* UR,
 	real3 x
 ) {
-	eig->eps = .5 * (UL->eps + UR->eps);
-	eig->mu = .5 * (UL->mu + UR->mu);
+	return (<?=eqn.eigen_t?>){
+		.eps = .5 * (UL->eps + UR->eps),
+		.mu = .5 * (UL->mu + UR->mu),
+	};
 }
 
 <?
@@ -95,7 +96,7 @@ kernel void calcEigenBasis(
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		eigen_forSide(eig, UL, UR, xInt);
+		*eig = eigen_forSide(UL, UR, xInt);
 		
 		global real* wave = waveBuf + numWaves * indexInt;
 		eigen_calcWaves_<?=side?>_global_global(wave, eig, xInt);

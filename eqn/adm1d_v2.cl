@@ -44,16 +44,18 @@ end
 ?>
 
 //used for interface eigen basis
-void eigen_forSide(
-	global <?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forSide(
 	global const <?=eqn.cons_t?>* UL,
 	global const <?=eqn.cons_t?>* UR,
 	real3 x
 ) {
-	eig->alpha = .5 * (UL->alpha + UR->alpha);
+	real alpha = .5 * (UL->alpha + UR->alpha);
 	real gamma_xx = .5 * (UL->gamma_xx + UR->gamma_xx);
-	real f = calc_f(eig->alpha);
-	eig->sqrt_f_over_gamma_xx = sqrt(f / gamma_xx);
+	real f = calc_f(alpha);
+	return (<?=eqn.eigen_t?>){
+		.alpha = alpha, 
+		.sqrt_f_over_gamma_xx = sqrt(f / gamma_xx),
+	};
 }
 
 kernel void calcEigenBasis(
@@ -73,7 +75,7 @@ kernel void calcEigenBasis(
 		int indexInt = side + dim * index;	
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		eigen_forSide(eig, UL, UR, x);
+		*eig = eigen_forSide(UL, UR, x);
 
 		global real* wave = waveBuf + numWaves * indexInt;
 		eigen_calcWaves_<?=side?>_global_global(wave, eig, x);

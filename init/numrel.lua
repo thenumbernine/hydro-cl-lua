@@ -232,8 +232,10 @@ return table{
 			local sigma = .1 * size
 
 			-- TODO if only OpenCL allowed something like uniforms ...
-			solver.eqn:addGuiVar{name = 'H', value = H}
-			solver.eqn:addGuiVar{name = 'sigma', value = sigma}
+			solver.eqn:addGuiVars{
+				{name = 'H', value = H},
+				{name = 'sigma', value = sigma},
+			}
 		end,
 		getCodePrefix = function(self, solver, getCodes)
 
@@ -938,8 +940,10 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 --			solver.mins = vec3(-.5, -.5, -.5)
 --			solver.maxs = vec3(-.5, -.5, -.5)
 			solver:setBoundaryMethods'periodic'
-			solver.eqn:addGuiVar{name='A', value=.1}	-- .1, .01
-			solver.eqn:addGuiVar{name='d', value=1}
+			solver.eqn:addGuiVars{
+				{name='A', value=.1},	-- .1, .01
+				{name='d', value=1},
+			}
 --			solver.eqn.guiVars.f.value = solver.eqn.guiVars.f.options:find'1'	-- set f=1
 		end,
 		getCodePrefix = function(self, solver, getCodes)
@@ -973,8 +977,10 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 --			solver.mins = vec3(-.5, -.5, -.5)
 --			solver.maxs = vec3(-.5, -.5, -.5)
 			solver:setBoundaryMethods'periodic'
-			solver.eqn:addGuiVar{name='A', value=1e-8}
-			solver.eqn:addGuiVar{name='d', value=1}
+			solver.eqn:addGuiVars{
+				{name='A', value=1e-8},
+				{name='d', value=1},
+			}
 		end,
 		getCodePrefix = function(self, solver, getCodes)
 			local A = solver.eqn.guiVars.A.value

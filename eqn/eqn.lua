@@ -53,6 +53,12 @@ function Equation:init(solver)
 	self.initStateNames = table.map(self.initStates, function(info) return info.name end)
 end
 
+function Equation:addGuiVars(args)
+	for _,arg in ipairs(args) do
+		self:addGuiVar(arg)
+	end
+end
+
 function Equation:addGuiVar(args)
 	local vartype = args.type
 	if not vartype then

@@ -81,10 +81,10 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 end ?>
 
 //used for interface eigen basis
-void eigen_forSide(
-	global <?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forSide(
 	global const <?=eqn.cons_t?>* UL,
-	global const <?=eqn.cons_t?>* UR
+	global const <?=eqn.cons_t?>* UR,
+	real3 x
 ) {
 	real alpha = .5 * (UL->alpha + UR->alpha);
 	sym3 avg_gamma = (sym3){
@@ -96,13 +96,15 @@ void eigen_forSide(
 		.zz = .5 * (UL->gamma.zz + UR->gamma.zz),
 	};
 	real det_avg_gamma = sym3_det(avg_gamma);
-	
-	eig->alpha = alpha;
-	eig->sqrt_f = sqrt(calc_f(alpha));
-	eig->gammaU = sym3_inv(avg_gamma, det_avg_gamma);
-	eig->sqrt_gammaUjj.x = sqrt(eig->gammaU.xx);
-	eig->sqrt_gammaUjj.y = sqrt(eig->gammaU.yy);
-	eig->sqrt_gammaUjj.z = sqrt(eig->gammaU.zz);
+
+	<?=eqn.eigen_t?> eig;
+	eig.alpha = alpha;
+	eig.sqrt_f = sqrt(calc_f(alpha));
+	eig.gammaU = sym3_inv(avg_gamma, det_avg_gamma);
+	eig.sqrt_gammaUjj.x = sqrt(eig.gammaU.xx);
+	eig.sqrt_gammaUjj.y = sqrt(eig.gammaU.yy);
+	eig.sqrt_gammaUjj.z = sqrt(eig.gammaU.zz);
+	return eig;
 }
 
 kernel void calcEigenBasis(
@@ -116,11 +118,18 @@ kernel void calcEigenBasis(
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexL = index - stepsize.s<?=side?>;
+		
 		<?= solver.getULRCode ?>	
+		
+		real3 xInt = xR;
+		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 		int indexInt = side + dim * index;	
+		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		eigen_forSide(eig, UL, UR);
+		*eig = eigen_forSide(UL, UR, xInt);
+		
 		global real* wave = waveBuf + numWaves * indexInt;
+		
 		eigen_calcWaves_<?=side?>_global_global(wave, eig, x);
 	}<? end ?>
 }

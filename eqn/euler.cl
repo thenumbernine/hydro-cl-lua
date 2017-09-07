@@ -43,8 +43,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <? end ?>
 
 //used for interface eigen basis
-void eigen_forSide(
-	global <?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forSide(
 	global const <?=eqn.cons_t?>* UL,
 	global const <?=eqn.cons_t?>* UR,
 	real3 x
@@ -93,7 +92,7 @@ void eigen_forSide(
 	real hTotalL = calc_hTotal(WL.rho, WL.P, UL->ETotal) - UL->ePot;
 	
 	<?=eqn.prim_t?> WR = primFromCons(*UR, x);
-	real sqrtRhoR = sqrt(UR->rho);
+	real sqrtRhoR = sqrt(WR.rho);
 	real3 vR = WR.v;
 	real hTotalR = calc_hTotal(WR.rho, WR.P, UR->ETotal) - UR->ePot;
 
@@ -111,12 +110,14 @@ void eigen_forSide(
 	real eKin = .5 * vSq;
 	real CsSq = (heatCapacityRatio - 1.) * (hTotal - eKin);
 	real Cs = sqrt(CsSq);
-	
-	eig->rho = rho; 
-	eig->v = v;
-	eig->hTotal = hTotal;
-	eig->vSq = vSq;
-	eig->Cs = Cs;
+
+	return (<?=eqn.eigen_t?>){
+		.rho = rho, 
+		.v = v,
+		.hTotal = hTotal,
+		.vSq = vSq,
+		.Cs = Cs,
+	};
 }
 
 //this is also used by PLM for cell-centered waves
@@ -170,7 +171,7 @@ kernel void calcEigenBasis(
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		eigen_forSide(eig, UL, UR, xInt);
+		*eig = eigen_forSide(UL, UR, xInt);
 		
 		global real* wave = waveBuf + numWaves * indexInt;
 		eigen_calcWaves_<?=side?>_global_global(wave, eig, xInt);

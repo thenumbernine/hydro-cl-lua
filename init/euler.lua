@@ -394,47 +394,65 @@ local initStates = table{
 	},
 	{
 		name = 'Kelvin-Hemholtz',
-		initState = function(self, solver)
-			solver:setBoundaryMethods'periodic'
+		init = function(self, solver)
 			
-			local moveAxis = 0
-			local sliceAxis = 1
+			local moveAxis = 1
+			local sliceAxis = 2
 			
 			-- move around the cylinder
 			if solver.geometry.name == 'cylinder' then
-				moveAxis = 1
-				sliceAxis = 0
+				moveAxis = 2
+				sliceAxis = 1
 			end
 			
+			solver.eqn:addGuiVars{
+				{name='moveAxis', type='combo', value=moveAxis, options={'x','y','z'}},
+				{name='sliceAxis', type='combo', value=sliceAxis, options={'x','y','z'}},
+				{name='rhoInside', value=2.},
+				{name='rhoOutside', value=1.},
+				{name='amplitude', value=1e-2},
+				{name='backgroundPressure', value=2.5},
+				{name='frequency', value=2.},
+				{name='thickness', value=.035},
+				{name='velInside', value=-.5},
+				{name='velOutside', value=.5},
+			}
+		end,
+		initState = function(self, solver)
+			solver:setBoundaryMethods'periodic'			
+		
 			return template([[
-	real yq1 = mins.s<?=sliceAxis?> * .75 + maxs.s<?=sliceAxis?> * .25;
-	real yq2 = mins.s<?=sliceAxis?> * .25 + maxs.s<?=sliceAxis?> * .75;
-	bool inside = (x.s<?=sliceAxis?> > yq1 && x.s<?=sliceAxis?> < yq2);
+	real yq1 = mins.<?=sliceAxis?> * .75 + maxs.<?=sliceAxis?> * .25;
+	real yq2 = mins.<?=sliceAxis?> * .25 + maxs.<?=sliceAxis?> * .75;
 
-	real theta = 2. * M_PI;
+	real inside = (.5 + .5 * tanh((x.<?=sliceAxis?> - yq1) / thickness))
+				- (.5 + .5 * tanh((x.<?=sliceAxis?> - yq2) / thickness));
+
+	real theta = frequency * 2. * M_PI;
 <?
+local xNames = {'x','y','z'}
 for i=0,solver.dim-1 do 
-	if i ~= sliceAxis then
+	if xNames[i+1] ~= sliceAxis then
 ?>	theta *= (x.s<?=i?> - mins.s<?=i?>) / (maxs.s<?=i?> - mins.s<?=i?>);
 <? 
 	end	
 end ?>
 
-	real noise = (maxs.x - mins.x) * 1e-4;
-	rho = inside ? 2 : 1;
-	v.x = cos(theta) * noise;
+	real noise = (maxs.x - mins.x) * amplitude;
+	rho = inside * rhoInside + (1. - inside) * rhoOutside;
+	//v.x = cos(theta) * noise;
 #if dim == 2
 	v.y = sin(theta) * noise;
 #endif
 #if dim == 3
 	v.z = sin(theta) * noise;
 #endif
-	v.s<?=moveAxis?> += (inside ? -.5 : .5);
-	P = 2.5;
+	v.<?=moveAxis?> += inside * velInside + (1. - inside) * velOutside;
+	P = backgroundPressure;
 ]],				{
 					solver = solver,
-					sliceAxis = sliceAxis,
-					moveAxis = moveAxis,
+					moveAxis = solver.eqn.guiVars.moveAxis.options[solver.eqn.guiVars.moveAxis.value],
+					sliceAxis = solver.eqn.guiVars.sliceAxis.options[solver.eqn.guiVars.sliceAxis.value],
 				}
 			)
 		end,

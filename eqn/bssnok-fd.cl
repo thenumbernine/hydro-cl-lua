@@ -204,6 +204,42 @@ else
 end
 ?>
 
+<? if eqn.useChi then
+?>	
+	real partial_chi_bardot_partial_alpha = real3_weightedDot( *(real*)partial_chi_l, *(real*)partial_alpha_l, U->gammaBar_uu);
+	
+	//chi D_i D_j alpha = alpha,ij - connBar^k_ij alpha,k + 1/(2 chi) (alpha,i chi,j + alpha,j chi,i - gammaBar_ij gammaBar^kl alpha,k chi,l)
+	sym3 chi_D2_alpha_ll = (sym3){
+<? 	for ij,xij in ipairs(symNames) do
+		local i,j = from6to3x3(ij)
+?>		.<?=xij?> = chi * (partial2_alpha_ll[<?=ij-1?>] <?
+		for k,xk in ipairs(xNames) do
+			?> - connBar_ull[<?=k-1?>].<?=xij?> * partial_alpha_l[<?=k-1?>]<?
+		end
+			?>) + .5 * partial_alpha_l[<?=i-1?>] * partial_chi_l[<?=j-1?>] <?
+			?> + .5 * partial_alpha_l[<?=i-1?>] * partial_chi_l[<?=j-1?>] <?
+			?> - .5 * U->gammaBar_ll.<?=xij?> * partial_chi_bardot_partial_alpha;
+<? 	end
+?>	};
+
+<? 	if false then -- why bother when I need to use chi D_i D_j alpha?  why not just take the trace?
+?>
+	//chi gammaTilde^ij alpha,ij - chi connBar^i alpha,i - 1/2 gammaTilde^ij chi,i alpha,j
+	real tr_D2_alpha = U->chi * (
+			sym3_dot(U->gammaBar_uu, *(sym3*)partial2_alpha_ll)
+			- real3_dot(U->connBar_u, *(real3*)partial_alpha_l)
+		)
+		- .5 * real3_weightedDot(
+			*(real3*)partial_chi_l,
+			*(real3*)partial_alpha_l,
+			U->gammaBar_uu);
+<? 	else 
+?>	real tr_D2_alpha = sym3_dot(U->gammaBar_uu, chi_D2_alpha_ll);
+
+<?	end
+else	-- not useChi
+?>	
+	
 	//D2_alpha_ll.ij = D_i D_j alpha = partial_i partial_j alpha - conn^k_ij partial_k alpha
 	sym3 D2_alpha_ll = _sym3(0,0,0,0,0,0);
 <? for ij,xij in ipairs(symNames) do
@@ -213,6 +249,11 @@ end
 ?> - conn_ull[<?=k-1?>].<?=xij?> * partial_alpha_l[<?=k-1?>]<?
 	end ?>;
 <? end
+?>
+
+	//gamma^ij D_i D_j alpha
+	real tr_D2_alpha = sym3_dot(gamma_uu, D2_alpha_ll);
+<? end	-- useChi
 ?>
 
 	//Alcubierre 4.2.52 - Bona-Masso family of slicing
@@ -257,8 +298,8 @@ end
 	
 	//B&S 11.52
 	//Alcubierre 2.8.12
-	//K_,t = -gamma^ij D_ij alpha + alpha (ATilde_ij ATilde^ij + K^2 / 3) + 4 pi alpha (rho + S) + beta^i K_,i
-	deriv->K += -sym3_dot(gamma_uu, D2_alpha_ll) 
+	//K_,t = -gamma^ij D_i D_j alpha + alpha (ATilde_ij ATilde^ij + K^2 / 3) + 4 pi alpha (rho + S) + beta^i K_,i
+	deriv->K += -tr_D2_alpha
 		+ U->alpha * (tr_ATilde_sq + U->K * U->K / 3.) 
 		+ 4. * M_PI * U->alpha * (U->rho + S) 
 		+ real3_dot(U->beta_u, *(real3*)partial_K_l);
@@ -345,7 +386,36 @@ end
 ?>
 	sym3 R_ll = sym3_add(RPhi_ll, RBar_ll);
 
+<? if eqn.useChi then
+?>
+	//(chi alpha (R_ij - 8 pi S_ij))^TF
+	sym3 tf_chi_alpha_R_minus_S = sym3_scale(
+		sym3_add(R_ll, sym3_scale(U->S_ll, -8. * M_PI)), 
+		chi * U->alpha);
+	tf_chi_alpha_R_minus_S = tracefree(tf_chi_alpha_R_minus_S, U->gammaBar_ll, U->gammaBar_uu);
+
+	//(chi D_i D_j alpha)^TF
+	//= chi D_i D_j alpha + gammaBar_ij ( 1/3 chi (connBar^k alpha,k - gammaBar^kl alpha,kl) + 1/6 gammaBar^kl chi,k alpha,l)
+	sym3 chi_tf_D2_alpha = sym3_add( 
+		chi_D2_alpha_ll,
+		sym3_scale(U->gammaBar_ll, 
+			1./3. * U->chi * (
+				real3_dot(U->connBar_u, *(real3*)partial_alpha_l)
+				- sym3_dot(U->gammaBar_uu, *(sym3*)partial2_alpha_ll)
+			) + 1./6. * real3_weightedDot(
+				*(real3*)partial_alpha_l,
+				*(real3*)partial_chi_l,
+				U->gammaBar_uu
+			)
+		)
+	);
+
+	sym3 tracelessPart_ll = sym3_add(tf_chi_alpha_R_minus_S, chi_tf_D2_alpha);
+
+<? else
+?>
 	//traceless portion of -D^2 alpha + alpha (R_ij - 8 pi S_ij)
+	//...times chi = exp(-4 phi)
 #if 1	//all at once
 	sym3 tracelessPart_ll = sym3_sub(
 		sym3_scale(
@@ -365,6 +435,9 @@ end
 		tracefree(D2_alpha_ll, gamma_ll, gamma_uu)
 	);
 #endif
+	sym3 chi_tracelessPart_ll = sym3_scale(tracelessPart_ll, exp_neg4phi);
+<? end
+?>
 
 	//B&S 11.53
 	//Alcubierre 2.8.11
@@ -379,7 +452,7 @@ end
 	local i,j = from6to3x3(ij)
 	local xi = xNames[i]
 	local xj = xNames[j]
-?>	deriv->ATilde_ll.<?=xij?> += exp_neg4phi * tracelessPart_ll.<?=xij?>
+?>	deriv->ATilde_ll.<?=xij?> += chi_tracelessPart_ll.<?=xij?>
 		+ U->alpha * U->K * U->ATilde_ll.<?=xij?> 
 <?	for k,xk in ipairs(xNames) do
 ?>		- 2. * U->alpha * U->ATilde_ll.<?=sym(i,k)?> * ATilde_ul.<?=xk?>.<?=xj?>

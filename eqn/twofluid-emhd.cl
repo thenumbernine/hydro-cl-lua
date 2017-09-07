@@ -71,17 +71,17 @@ end
 }
 <? end ?>
 
-void eigen_forSide(
-	global <?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forSide(
 	global const <?=eqn.cons_t?>* UL,
 	global const <?=eqn.cons_t?>* UR,
 	real3 x
 ) {
 	<?=eqn.prim_t?> WL = primFromCons(*UL, x);
 	<?=eqn.prim_t?> WR = primFromCons(*UR, x);
-	
-	eig->eps = .5 * (UL->eps + UR->eps);
-	eig->mu = .5 * (UL->mu + UR->mu);
+	<?=eqn.eigen_t?> eig;
+
+	eig.eps = .5 * (UL->eps + UR->eps);
+	eig.mu = .5 * (UL->mu + UR->mu);
 
 <? for _,fluid in ipairs(fluids) do ?>
 
@@ -108,13 +108,15 @@ void eigen_forSide(
 	real <?=fluid?>_CsSq = (heatCapacityRatio - 1.) * (<?=fluid?>_hTotal - <?=fluid?>_eKin);
 	real <?=fluid?>_Cs = sqrt(<?=fluid?>_CsSq);
 	
-	eig-><?=fluid?>_rho = <?=fluid?>_rho; 
-	eig-><?=fluid?>_v = <?=fluid?>_v;
-	eig-><?=fluid?>_hTotal = <?=fluid?>_hTotal;
-	eig-><?=fluid?>_vSq = <?=fluid?>_vSq;
-	eig-><?=fluid?>_Cs = <?=fluid?>_Cs;
+	eig.<?=fluid?>_rho = <?=fluid?>_rho; 
+	eig.<?=fluid?>_v = <?=fluid?>_v;
+	eig.<?=fluid?>_hTotal = <?=fluid?>_hTotal;
+	eig.<?=fluid?>_vSq = <?=fluid?>_vSq;
+	eig.<?=fluid?>_Cs = <?=fluid?>_Cs;
 
 <? end ?>
+	
+	return eig;
 }
 
 <?
@@ -172,7 +174,7 @@ kernel void calcEigenBasis(
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		eigen_forSide(eig, UL, UR, xInt);
+		*eig = eigen_forSide(UL, UR, xInt);
 		
 		global real* wave = waveBuf + numWaves * indexInt;
 		eigen_calcWaves_<?=side?>_global_global(wave, eig, xInt);

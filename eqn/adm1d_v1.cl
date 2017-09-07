@@ -50,15 +50,17 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 end
 ?>
 
-void eigen_forSide(
-	global <?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forSide(
 	const global <?=eqn.cons_t?>* UL,
 	const global <?=eqn.cons_t?>* UR,
 	real3 x
 ) {
-	eig->alpha = .5 * (UL->alpha + UR->alpha);
-	eig->gamma_xx = .5 * (UL->gamma_xx + UR->gamma_xx);
-	eig->f = calc_f(eig->alpha);
+	real alpha = .5 * (UL->alpha + UR->alpha);
+	return (<?=eqn.eigen_t?>){
+		.alpha = alpha,
+		.gamma_xx = .5 * (UL->gamma_xx + UR->gamma_xx),
+		.f = calc_f(alpha),
+	};
 }
 
 kernel void calcEigenBasis(
@@ -77,7 +79,7 @@ kernel void calcEigenBasis(
 		
 		int indexInt = side + dim * index;
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		eigen_forSide(eig, UL, UR, x);
+		*eig = eigen_forSide(UL, UR, x);
 
 		global real* wave = waveBuf + numWaves * indexInt;
 		eigen_calcWaves_<?=side?>_global_global(wave, eig, x);
