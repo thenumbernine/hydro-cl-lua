@@ -6,7 +6,7 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -18,7 +18,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	--integrator = 'backward Euler',
+	integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	--cfl = .25/dim,
@@ -34,6 +34,13 @@ local args = {
 	geometry = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
+
+--[=[ for Richmyer-Meshkov
+-- TODO let the init conds configure domain
+mins = {-2,0,0},
+maxs = {6,1,1},
+--]=]
+
 	-- 256^2 = 2^16 = 2 * 32^3
 	gridSize = (
 		({ 	-- size options based on OpenCL vendor ...
@@ -44,7 +51,7 @@ local args = {
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{256,256,1},
+				{32,32,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -141,7 +148,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Hemholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -149,6 +156,7 @@ local args = {
 	--initState = 'double mach reflection',
 	--initState = 'square cavity',
 	--initState = 'shock bubble interaction',
+	--initState = 'Richmyer-Meshkov',
 
 	--initState = 'configuration 1',
 	--initState = 'configuration 2',
@@ -187,7 +195,7 @@ local args = {
 	-- GR
 	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
-	--initState = 'Alcubierre warp bubble',
+	initState = 'Alcubierre warp bubble',
 	--initState = 'Schwarzschild black hole',
 	--initState = 'black hole - isotropic',
 	--initState = 'binary black holes - isotropic',
@@ -211,7 +219,7 @@ local args = {
 
 -- HD
 -- Roe is actually running faster than HLL ...
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
@@ -284,7 +292,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
---self.solvers:insert(require 'solver.bssnok-fd'(args))
+self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 

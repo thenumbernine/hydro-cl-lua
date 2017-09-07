@@ -174,6 +174,7 @@ end
 ?> - partial_gammaBar_uul[<?=j-1?>].<?=sym(i,j)?><?
 		end
 ?>;
+<?
 	end
 else
 ?>	real3 connBar_u = U->connBar_u;

@@ -574,6 +574,48 @@ end ?>;
 		end,
 	},
 
+	{
+		name = 'Richmyer-Meshkov',
+		initState = function(self, solver)
+			--solver.mins = vec3(-2,0,0)
+			--solver.maxs = vec3(6,1,1)
+			
+			solver:setBoundaryMethods'freeflow'
+			
+			local theta = math.pi / 4
+			local eta = 3
+			local betaInv = .5	-- .5 for magnetic field
+			local P0 = 1
+
+			return template([[
+	constant real P0 = <?=clnumber(P0)?>;
+	if (x.x < -.2) {
+		//TODO how do you calculate conditions for a particular mach speed shock wave? 
+		//constant real gamma = heatCapacityRatio;		
+		//constant real M = 2;
+		//rho = (gamma + 1) / (gamma - 1) * M*M / (M*M + 2);
+		//P = P0 * (2 * gamma * M*M * (gamma - 1)) / ((gamma + 1) * (gamma + 1));
+		rho = 1;
+		P = 10;
+	} else {
+		P = P0;
+		if (x.x < x.y * <?=clnumber(math.tan(theta))?>) {
+			rho = 1;
+		} else {
+			rho = <?=clnumber(eta)?>;
+		}
+	}
+	B.x = sqrt(2 * P0 * <?=clnumber(betaInv)?>);
+]], 			{
+					clnumber = clnumber,
+					theta = theta,
+					eta = eta,
+					betaInv = betaInv,
+					P0 = P0,
+				})
+		end,
+	},
+
 	-- gravity potential test - equilibrium - Rayleigh-Taylor ... or is it Jeans? (still has an shock wave ... need to fix initial conditions?)
 
 	{
