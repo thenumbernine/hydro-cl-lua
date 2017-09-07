@@ -163,13 +163,13 @@ kernel void calcEigenBasis(
 		const int side = <?=side?>;
 		
 		int indexL = index - stepsize.s<?=side?>;
-	
+		
 		<?= solver.getULRCode ?>
 		
 		int indexInt = side + dim * index;	
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
-
+		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 		*eig = eigen_forSide(UL, UR, xInt);
 		

@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 1
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -23,8 +23,8 @@ local args = {
 	--fixedDT = .0001,
 	--cfl = .25/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
-	fluxLimiter = 'monotized central',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
 	--usePLM = true,	-- piecewise-linear slope limiter
@@ -56,12 +56,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'periodic',
-		xmax=cmdline.boundary or 'periodic',
-		ymin=cmdline.boundary or 'periodic',
-		ymax=cmdline.boundary or 'periodic',
-		zmin=cmdline.boundary or 'periodic',
-		zmax=cmdline.boundary or 'periodic',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
@@ -210,8 +210,9 @@ local args = {
 }
 
 -- HD
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
-self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
+-- Roe is actually running faster than HLL ...
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
 -- f.e. and b.e. are working, but none of the r.k. integrators 
@@ -229,6 +230,7 @@ self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
 --self.solvers:insert(require 'solver.srhd-roe'(args))
+--self.solvers:insert(require 'solver.srhd-hll'(args))	-- TODO finishme
 
 -- GRHD
 -- right now this is just like srhd except extended by Font's eqns
@@ -250,8 +252,13 @@ self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --		but that could be because of issues with simultaneous solvers.
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 
+-- TODO to get HLL working for MHD (even though it'll not simulate all those intermediate waves correctly)
+--  I need to rework eqn/mhd.cl to implement eigen_forSide
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
+
 -- EM
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 
 -- EM+HD
 -- I'm having some memory issues with two solvers running simultanously .. 
@@ -259,10 +266,18 @@ self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 -- so to try and get around that, here the two are combined into one solver:
 --self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
 
+
 -- GR
+
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v2'})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d'})))	-- this is breaking ... probably because fluxFromCons is implemented very poorly
+
+
 --
 -- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
 --  but something gets caught up in the freeflow boundary conditions, and it explodes

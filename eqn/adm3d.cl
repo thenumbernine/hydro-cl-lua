@@ -38,10 +38,19 @@ kernel void calcDT(
 }
 
 //used by PLM
-<? for side=0,solver.dim-1 do ?>
-void eigen_forCell_<?=side?>(
+<? 
+for side=0,solver.dim-1 do 
+	-- TODO add _'s to the default eigen_forCell name
+	-- to make it like eigen_calcWaves_...
+	for _,addrAndSuffix in ipairs{
+		{[''] = 'local'}, 	-- local addr has 'local' suffix
+		{global = ''},		-- global addr has no suffix
+	} do
+	local addr, suffix = next(addrAndSuffix)
+?>
+void eigen_forCell_<?=side?><?=suffix?>(
 	<?=eqn.eigen_t?>* eig,
-	const global <?=eqn.cons_t?>* U,
+	<?=addr?> const <?=eqn.cons_t?>* U,
 	real3 x 
 ) {
 	eig->alpha = U->alpha;
@@ -49,7 +58,10 @@ void eigen_forCell_<?=side?>(
 	real det_gamma = sym3_det(U->gamma);
 	eig->gammaU = sym3_inv(U->gamma, det_gamma);
 }
-<? end ?>
+<? 
+	end
+end 
+?>
 
 <?
 for _,addr0 in ipairs{'', 'global'} do
@@ -79,6 +91,36 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 <?		end
 	end
 end ?>
+
+<? for side=0,solver.dim-1 do ?>
+range_t calcCellMinMaxEigenvalues_<?=side?>(
+	const global <?=eqn.cons_t?>* U,
+	real3 x
+) {
+	real det_gamma = sym3_det(U->gamma);
+	
+	<? if side==0 then ?>
+	real gammaUjj = (U->gamma.yy * U->gamma.zz - U->gamma.yz * U->gamma.yz) / det_gamma;
+	<? elseif side==1 then ?>
+	real gammaUjj = (U->gamma.xx * U->gamma.zz - U->gamma.xz * U->gamma.xz) / det_gamma;
+	<? elseif side==2 then ?>
+	real gammaUjj = (U->gamma.xx * U->gamma.yy - U->gamma.xy * U->gamma.xy) / det_gamma;
+	<? end ?>
+	
+	real lambdaLight = U->alpha * sqrt(gammaUjj);
+	
+	real f = calc_f(U->alpha);
+	real lambdaGauge = lambdaLight * sqrt(f);
+
+	real lambdaMax = max(lambdaGauge, lambdaLight);
+	//= lambdaLight * max(sqrt(f), 1)
+
+	return (range_t){
+		.min = -lambdaMax, 
+		.max = lambdaMax,
+	};
+}
+<? end ?>
 
 //used for interface eigen basis
 <?=eqn.eigen_t?> eigen_forSide(
@@ -113,7 +155,7 @@ kernel void calcEigenBasis(
 	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
-	real3 x = cell_x(i);
+	real3 xR = cell_x(i);
 	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
@@ -130,13 +172,16 @@ kernel void calcEigenBasis(
 		
 		global real* wave = waveBuf + numWaves * indexInt;
 		
-		eigen_calcWaves_<?=side?>_global_global(wave, eig, x);
+		eigen_calcWaves_<?=side?>_global_global(wave, eig, xInt);
 	}<? end ?>
 }
 
 <?
 local unpack = unpack or table.unpack
 for _,addrs in ipairs{
+
+	{'', '', ''},	-- only used by fluxFromCons below
+	
 	{'', 'global', ''},
 	{'global', 'global', ''},
 } do
@@ -937,6 +982,37 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	end
 end
 ?>
+
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	//TODO do the math for this
+	//until then, use the eigenbasis ...
+	//TODO use this as a default for fluxFromCons as well
+
+	<?=eqn.eigen_t?> eig;
+	eigen_forCell_<?=side?>local(&eig, &U, x);
+
+	real wave[numWaves];
+	eigen_calcWaves_<?=side?>__(wave, &eig, x);
+
+	real charvars[numWaves];
+	eigen_leftTransform_<?=side?>___(charvars, &eig, &U, x);
+	
+	for (int j = 0; j < numWaves; ++j) {
+		charvars[j] *= wave[j];
+	}
+			
+	<?=eqn.cons_t?> F;
+	eigen_rightTransform_<?=side?>___(F.ptr, &eig, charvars, x);
+
+	return F;
+}
+<? end ?>
+
+
 
 kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
