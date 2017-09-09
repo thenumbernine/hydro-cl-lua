@@ -475,31 +475,78 @@ for i,xi in ipairs(xNames) do
 ?>#define calc_beta_<?=xi?>(x,y,z)		0.
 <?
 end
+
+-- gamma_ij
 for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi, xj = xNames[i], xNames[j]
 	if i==j then
 ?>
-
 inline real calc_gamma_<?=xij?>(real x, real y, real z) {
 	real r = sqrt(x*x + y*y + z*z);
 	real psi = bssn_psi(r);
 	real psiSq = psi*psi;
 	return psiSq*psiSq;
 }
-
 <?	else
 ?>#define calc_gamma_<?=xij?>(x,y,z)	0.
 <?	end
 end
+
 for ij,xij in ipairs(symNames) do
-?>#define calc_K_<?=xij?>(x,y,z)		0.
+	local i,j = from6to3x3(ij)
+	local xi, xj = xNames[i], xNames[j]
+?>inline real calc_ABar_<?=xij?>(real x, real y, real z) {
+
+	//momentum
+	constant real3 PU = _real3(0,0,0);
+	
+	//rotation
+	constant real3 JU = _real3(0,0,1);
+	
+	real3 xU = _real3(x,y,z);
+	real r = sqrt(x*x + y*y + z*z);
+	real rSq = r * r;
+	real rCubed = rSq * r;
+	real r5 = rCubed * rSq;
+
+	//here's lowering it, using the diagonal metric specified above ...
+	//gamma_ij = psi^4 delta_ij 
+	real psi = bssn_psi(r);
+	real psi2 = psi*psi;
+	real psi4 = psi2*psi2;
+	real psi8 = psi4*psi4;
+	//scaling by psi8 is the same as lowering two indexes
+
+	real ABar_boost_uu = 1.5/rCubed * (PU.<?=xi?> * <?=xj?> + PU.<?=xj?> * <?=xi?> 
+		- (<?=i==j and 1 or 0?> - <?=xi?> * <?=xj?> / rSq ) * real3_dot(PU, xU) );
+
+	real3 rJU = real3_cross(JU, xU);
+
+	real ABar_spin_uu = psi8 * 3. / r5 * (<?=xi?> * rJU.<?=xj?> + <?=xj?> * rJU.<?=xi?>);
+
+	real ABar_uu = ABar_boost_uu + ABar_spin_uu;
+
+	return ABar_uu * psi8;
+}
 <?
 end
-?>
 
-//aux vars used by adm3d
-<? for i,xi in ipairs(xNames) do
+-- K_ij = psi^-2 ABar_ij + 1/3 gamma_ij K
+for ij,xij in ipairs(symNames) do
+?>
+inline real calc_K_<?=xij?>(real x, real y, real z) {
+	real r = sqrt(x*x + y*y + z*z);
+	real psi = bssn_psi(r);
+	real psiSq = psi*psi;
+	constant real K = 0;
+	return calc_ABar_<?=xij?>(x,y,z) / psiSq - calc_gamma_<?=xij?>(x,y,z) / 3. * K;
+}
+<?
+end
+
+--aux vars used by adm3d
+for i,xi in ipairs(xNames) do
 ?>
 
 inline real d<?=xi?>_bssn_psi(real x, real y, real z) {

@@ -273,57 +273,21 @@ function HydroCLApp:initGL(...)
 				},
 			}
 		end
-	
+
+		local code = file['vectorfield.shader']
 		solver.vectorFieldShader = GLProgram{
-			vertexCode = template([[
-uniform vec3 mins, maxs;
-uniform float scale;
-
-<? if dim < 3 then ?>
-uniform sampler2D tex;
-<? else ?>
-uniform sampler3D tex;
-<? end ?>
-
-void main() {
-<? if dim < 3 then ?> 
-	vec3 dir = texture2D(tex, gl_MultiTexCoord0.xy).rgb;
-	vec3 tv = vec3(-dir.y, dir.x, 0.);
-<? else ?>
-	vec3 dir = texture3D(tex, gl_MultiTexCoord0.xyz).rgb;
-	vec3 vx = vec3(0., -dir.z, dir.y);
-	vec3 vy = vec3(dir.z, 0., -dir.x);
-	vec3 vz = vec3(-dir.y, dir.x, 0.);
-	float lxsq = dot(vx,vx);
-	float lysq = dot(vy,vy);
-	float lzsq = dot(vz,vz);
-	vec3 tv;
-	if (lxsq > lysq) {		//x > y
-		if (lxsq > lzsq) {	//x > z, x > y
-			tv = vx;
-		} else {			//z > x > y
-			tv = vz;
-		}
-	} else {				//y >= x
-		if (lysq > lzsq) {	//y >= x, y > z
-			tv = vy;
-		} else {			// z > y >= x
-			tv = vz;
-		}
-	}
-<? end ?>
-
-	vec2 offset = gl_Vertex.xy;
-	vec3 v = gl_MultiTexCoord1.xyz * (maxs - mins) + mins + scale * (offset.x * dir + offset.y * tv);
-	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(v, 1.);
-}
-]], {dim=solver.dim}),
-			fragmentCode = [[
-void main() {
-	//TODO uniform & use graph color
-	gl_FragColor = vec4(1.,1.,1.,1.);
-}
-]],
+			vertexCode = template(code, {
+				vertexShader = true,
+				dim = solver.dim,
+				clnumber = clnumber,
+				gradTexWidth = gradTexWidth,
+			}),
+			fragmentCode = template(code, {
+				fragmentShader = true,
+				dim = solver.dim,
+				clnumber = clnumber,
+				gradTexWidth = gradTexWidth,
+			}),
 			uniforms = {
 				scale = 1,
 				tex = 0,
@@ -1677,8 +1641,8 @@ local arrow = {
 	{.2, -.3},
 	{.5, 0.},
 }
-HydroCLApp.displayVectorField_scale = .1
-HydroCLApp.displayVectorField_step = 4
+HydroCLApp.displayVectorField_scale = 1
+HydroCLApp.displayVectorField_step = 1
 function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	self.view:projection(ar)
 	self.view:modelview()
@@ -1708,7 +1672,12 @@ function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, y
 			gl.glUniform3f(solver.vectorFieldShader.uniforms.mins.loc, solver.mins:unpack())
 			gl.glUniform3f(solver.vectorFieldShader.uniforms.maxs.loc, solver.maxs:unpack())
 			-- how to determine scale?
-			local scale = self.displayVectorField_scale * (valueMax - valueMin)
+			--local scale = self.displayVectorField_scale * (valueMax - valueMin)
+			--local scale = self.displayVectorField_scale / (valueMax - valueMin)
+			local scale = self.displayVectorField_scale * math.min(
+				(solver.maxs[1] - solver.mins[1]) / tonumber(solver.gridSize.x),
+				(solver.maxs[2] - solver.mins[2]) / tonumber(solver.gridSize.y),
+				(solver.maxs[3] - solver.mins[3]) / tonumber(solver.gridSize.z))
 			gl.glUniform1f(solver.vectorFieldShader.uniforms.scale.loc, scale) 
 
 			local step = self.displayVectorField_step
