@@ -71,7 +71,6 @@ void main() {
 		value = (value - valueMin) / (valueMax - valueMin);
 	}
 	value = (value * <?=clnumber(gradTexWidth-1)?> + .5) / <?=clnumber(gradTexWidth)?>;
-	
 	color = texture1D(gradientTex, value);
 
 	vec2 offset = gl_Vertex.xy;

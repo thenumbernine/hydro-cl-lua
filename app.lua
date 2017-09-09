@@ -290,7 +290,10 @@ function HydroCLApp:initGL(...)
 			}),
 			uniforms = {
 				scale = 1,
+				valueMin = 0,
+				valueMax = 0,
 				tex = 0,
+				gradientTex = 1,
 			},
 		}
 
@@ -1667,17 +1670,23 @@ function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, y
 			solver:calcDisplayVarToTex(var)	
 					
 			solver.vectorFieldShader:use()
+			gl.glUniform1i(solver.vectorFieldShader.uniforms.useLog.loc, var.useLog)
+			gl.glUniform1f(solver.vectorFieldShader.uniforms.valueMin.loc, valueMin)
+			gl.glUniform1f(solver.vectorFieldShader.uniforms.valueMax.loc, valueMax)
 			solver:getTex(var):bind(0)
+			self.gradientTex:bind(1)
 			
 			gl.glUniform3f(solver.vectorFieldShader.uniforms.mins.loc, solver.mins:unpack())
 			gl.glUniform3f(solver.vectorFieldShader.uniforms.maxs.loc, solver.maxs:unpack())
 			-- how to determine scale?
 			--local scale = self.displayVectorField_scale * (valueMax - valueMin)
 			--local scale = self.displayVectorField_scale / (valueMax - valueMin)
-			local scale = self.displayVectorField_scale * math.min(
-				(solver.maxs[1] - solver.mins[1]) / tonumber(solver.gridSize.x),
-				(solver.maxs[2] - solver.mins[2]) / tonumber(solver.gridSize.y),
-				(solver.maxs[3] - solver.mins[3]) / tonumber(solver.gridSize.z))
+			local scale = self.displayVectorField_scale 
+				* self.displayVectorField_step 
+				* math.min(
+					(solver.maxs[1] - solver.mins[1]) / tonumber(solver.gridSize.x),
+					(solver.maxs[2] - solver.mins[2]) / tonumber(solver.gridSize.y),
+					(solver.maxs[3] - solver.mins[3]) / tonumber(solver.gridSize.z))
 			gl.glUniform1f(solver.vectorFieldShader.uniforms.scale.loc, scale) 
 
 			local step = self.displayVectorField_step
@@ -1710,6 +1719,7 @@ function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, y
 			end)
 			--]]
 
+			self.gradientTex:unbind(1)
 			solver:getTex(var):unbind(0)
 			solver.vectorFieldShader:useNone()
 		end
