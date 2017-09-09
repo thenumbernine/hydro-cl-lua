@@ -97,10 +97,10 @@ local function makePartial(order, solver, field, fieldType)
 	return lines:concat'\n'
 end
 
-local function makePartial2(order, solver, field, fieldType)
+local function makePartial2(order, solver, field, fieldType, nameOverride)
 	local suffix = 'll'
 	if not field:find'_' then suffix = '_' .. suffix end
-	local name = 'partial2_'..field..suffix
+	local name = nameOverride or ('partial2_'..field..suffix)
 	local fieldTypeInfo = assert(typeInfo[fieldType], "failed to find typeInfo for "..fieldType)
 	local add, sub, scale, zero = fieldTypeInfo.add, fieldTypeInfo.sub, fieldTypeInfo.scale, fieldTypeInfo.zero
 	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)
@@ -152,6 +152,8 @@ end
 local BSSNOKFiniteDifferenceEquation = class(NumRelEqn)
 
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
+
+BSSNOKFiniteDifferenceEquation.hasEigenCode = true
 
 -- options:
 
@@ -219,6 +221,7 @@ end
 function BSSNOKFiniteDifferenceEquation:getTemplateEnv()
 	local derivOrder = 2 * self.solver.numGhost
 	return {
+		clnumber = clnumber,
 		eqn = self,
 		solver = self.solver,
 		xNames = xNames,
@@ -413,6 +416,12 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVarCodePrefix()
 	})
 end
 
+function BSSNOKFiniteDifferenceEquation:getEigenTypeCode()
+	return template([[
+typedef struct { char unused; } <?=eqn.eigen_t?>;
+]], {eqn=self})
+end
+
 function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	local derivOrder = 2 * self.solver.numGhost
 	
@@ -539,38 +548,35 @@ function BSSNOKFiniteDifferenceEquation:getVecDisplayVars()
 	return vars
 end
 
---[[ TODO implement this so the random initial condition can work
-local sym3_delta = {1,0,0,1,0,1}
-
 local ffi = require 'ffi'
 local function crand() return 2 * math.random() - 1 end
 function BSSNOKFiniteDifferenceEquation:fillRandom(epsilon)
 	local solver = self.solver
 	local ptr = ffi.new(self.cons_t..'[?]', solver.volume)
+	ffi.fill(ptr, 0, ffi.sizeof(ptr))
 	for i=0,solver.volume-1 do
-		ptr[i].alpha = epsilon * crand()
-		for j=0,2 do
-			ptr[i].beta_u[j] = epsilon * crand()
+		for _,var in ipairs(intVars) do
+			local name, ctype = next(var)
+			if ctype == 'real' then
+				ptr[i][name] = epsilon * crand()
+			elseif ctype == 'real3' then
+				for j=0,2 do
+					ptr[i][name].s[j] = epsilon * crand()
+				end
+			elseif ctype == 'sym3' then
+				for jk=0,5 do
+					ptr[i][name].s[jk] = epsilon * crand()
+				end
+			else
+				error("don't know how to handle ctype "..ctype.." for field "..name)
+			end
 		end
-		for jk=0,5 do
-			ptr[i].gammaBar_ll.s[jk] = sym3_delta[jk+1] + epsilon * crand()
-		end
-		ptr[i].phi = epsilon * crand()
-		ptr[i].K = epsilon * crand()
 		
-		for mn=0,5 do
-			ptr[i].ATilde_ll[j].s[mn] = epsilon * crand()
-		end
-		
-		for jk=0,5 do
-			ptr[i].K.ptr[jk] = epsilon * crand()
-		end
-		for j=0,2 do
-			ptr[i].V.ptr[j] = epsilon * crand()
-		end
+		ptr[i].gammaBar_ll.xx = ptr[i].gammaBar_ll.xx + 1
+		ptr[i].gammaBar_ll.yy = ptr[i].gammaBar_ll.yy + 1
+		ptr[i].gammaBar_ll.zz = ptr[i].gammaBar_ll.zz + 1
 	end
 	solver.UBufObj:fromCPU(ptr)
 end
---]]
 
-return BSSNOKFiniteDifferenceEquation 
+return BSSNOKFiniteDifferenceEquation

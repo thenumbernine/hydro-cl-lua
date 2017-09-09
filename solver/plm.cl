@@ -119,9 +119,10 @@ kernel void calcLR(
 		eigen_leftTransform_<?=side?>___(dUREig, &eig, dUR.ptr, xIntR);
 		eigen_leftTransform_<?=side?>___(dUCEig, &eig, dUC.ptr, x);
 
+		//MUSCL slope of characteristic variables
+		//TODO make this based on the choice of slope limiter
 		real dUMEig[numWaves];
 		for (int j = 0; j < numWaves; ++j) {
-			//MUSCL slope of characteristic variables
 			dUMEig[j] = dULEig[j] * dUREig[j] < 0 ? 0 : (
 				(dUCEig[j] >= 0. ? 1. : -1.)
 				* min(
@@ -136,22 +137,21 @@ kernel void calcLR(
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
 
-		real pl[numWaves], pr[numWaves];
+		// slopes in characteristic space
+		real aL[numWaves], aR[numWaves];
 		for (int j = 0; j < numWaves; ++j) {
-			pl[j] = wave[j] < 0 ? 0 : 
-				dUMEig[j] * .5 * (1. - wave[j] * dt_dx);
-			pr[j] = wave[j] > 0 ? 0 : 
-				dUMEig[j] * .5 * (1. + wave[j] * dt_dx);
+			aL[j] = wave[j] < 0 ? 0 : dUMEig[j] * .5 * (1. - wave[j] * dt_dx);
+			aR[j] = wave[j] > 0 ? 0 : dUMEig[j] * .5 * (1. + wave[j] * dt_dx);
 		}
 
-		//convert back
-		<?=eqn.cons_t?> ql, qr;
-		eigen_rightTransform_<?=side?>___(ql.ptr, &eig, pl, x);
-		eigen_rightTransform_<?=side?>___(qr.ptr, &eig, pr, x);
+		//convert back to conservation variable space
+		<?=eqn.cons_t?> UL, UR;
+		eigen_rightTransform_<?=side?>___(UL.ptr, &eig, aL, x);
+		eigen_rightTransform_<?=side?>___(UR.ptr, &eig, aR, x);
 		
 		for (int j = 0; j < numIntStates; ++j) {
-			ULR->L.ptr[j] = U->ptr[j] - qr.ptr[j];
-			ULR->R.ptr[j] = U->ptr[j] + ql.ptr[j];
+			ULR->L.ptr[j] = U->ptr[j] - UR.ptr[j];
+			ULR->R.ptr[j] = U->ptr[j] + UL.ptr[j];
 		}
 #elif 0	//Trangenstein, Athena, etc, except working on primitives like it says to
 		//fails for Maxwell

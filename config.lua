@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -195,7 +195,7 @@ maxs = {6,1,1},
 	-- GR
 	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
-	initState = 'Alcubierre warp bubble',
+	--initState = 'Alcubierre warp bubble',
 	--initState = 'Schwarzschild black hole',
 	--initState = 'black hole - isotropic',
 	--initState = 'binary black holes - isotropic',
@@ -204,7 +204,7 @@ maxs = {6,1,1},
 	--initState = 'stellar model 3',
 	--initState = '1D black hole - wormhole form',
 	--initState = 'Gowdy waves',
-	--initState = 'testbed - robust',	-- not working with fv solvers 
+	initState = 'testbed - robust',	-- not working with fv solvers
 	--initState = 'testbed - gauge wave',
 	--initState = 'testbed - gauge wave - diagonal',
 	--initState = 'testbed - linear wave',

@@ -165,7 +165,8 @@ end
 
 	//from 2006 Campanelli "connBar^i is replaced by -gammaBar^ij_j wherever it is not differentiated"
 	// TODO ... but do that, I should track gammaBar^ij ...
-<? if useChi then
+<? 
+if useChi then
 ?>	real3 connBar_u = _real3(0,0,0);
 	//connBar^i = -gammaBar^ij_,j
 <?	for i,xi in ipairs(xNames) do
@@ -176,9 +177,10 @@ end
 ?>;
 <?
 	end
-else
+else	-- not useChi
 ?>	real3 connBar_u = U->connBar_u;
-<? end
+<? 
+end
 ?>
 	//DBar^i phi = gammaBar^ij phi_,j
 	real3 DBar_phi_u = sym3_real3_mul(U->gammaBar_uu, *(real3*)partial_phi_l);
@@ -190,7 +192,8 @@ else
 	//conn^i_jk = connBar^i_jk + 2 (delta^i_j phi_,k + delta^i_k phi_,j - gammaBar_jk gammaBar^il phi_,l)
 	//conn^i_jk = connBar^i_jk + 2 (delta^i_j phi_,k + delta^i_k phi_,j - gammaBar_jk DBar^i phi)
 	sym3 conn_ull[3];	
-<? for i,xi in ipairs(xNames) do
+<? 
+for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
 ?>	conn_ull[<?=i-1?>].<?=xjk?> = connBar_ull[<?=i-1?>].<?=xjk?> - 2 * U->gammaBar_ll.<?=xjk?> * DBar_phi_u.<?=xi?><?
@@ -205,7 +208,8 @@ else
 end
 ?>
 
-<? if eqn.useChi then
+<? 
+if eqn.useChi then
 ?>	
 	real partial_chi_bardot_partial_alpha = real3_weightedDot( *(real3*)partial_chi_l, *(real3*)partial_alpha_l, U->gammaBar_uu);
 	
@@ -249,7 +253,8 @@ else	-- not useChi
 	for k,xk in ipairs(xNames) do 
 ?> - conn_ull[<?=k-1?>].<?=xij?> * partial_alpha_l[<?=k-1?>]<?
 	end ?>;
-<? end
+<? 
+end
 ?>
 
 	//gamma^ij D_i D_j alpha
@@ -385,10 +390,14 @@ else	-- not useChi
 			- U->gammaBar_ll.<?=xij?> * DBar_phi_norm));
 <? end 
 ?>
+	
 	sym3 R_ll = sym3_add(RPhi_ll, RBar_ll);
 
 <? if eqn.useChi then
 ?>
+	//TODO instead of R_ll, add in chi_tf_RPhi and chi_tf_RBar_ll
+	//then factor out one of the chis 
+	
 	//(chi alpha (R_ij - 8 pi S_ij))^TF
 	sym3 tf_chi_alpha_R_minus_S = sym3_scale(
 		sym3_add(R_ll, sym3_scale(U->S_ll, -8. * M_PI)), 
@@ -636,7 +645,27 @@ end ?>
 kernel void addSource(
 	global <?=eqn.cons_t?>* UBuf
 ) {
+	SETBOUNDS_NOGHOST();
+
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+<?
+local diffuseSigma = .01
+local diffusionCoeff = diffuseSigma/16
+?>
+	
 	//TODO
 	//Kreiss-Oligar dissipation
 	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
+	//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
+	for (int i = 0; i < numIntStates; ++i) {
+<?=makePartial2('ptr[i]', 'real', 'partial2_Ui_ll')?>	
+		real lap = 0<?
+for j,xj in ipairs(xNames) do
+	local jj = from3x3to6(j,j)
+?> + partial2_Ui_ll[<?=jj-1?>]<?
+end
+?>;
+		U->ptr[i] -= <?=clnumber(diffusionCoeff)?> * lap;
+	}
 }

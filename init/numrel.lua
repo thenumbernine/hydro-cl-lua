@@ -931,6 +931,10 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 			local epsilon = solver.eqn.guiVars.epsilon.value
 			solver.eqn:fillRandom(epsilon)
 		end,
+		
+		-- hmm, for bssnok, this still needs the init_connBar code ...
+		-- but it doesn't want the initState code
+		-- because that requires all the calc_* macros
 		refreshInitStateProgram = function(self, solver) end,
 		getInitStateCode = function(self, solver) end,
 	},
