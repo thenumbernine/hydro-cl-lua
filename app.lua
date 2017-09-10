@@ -1647,6 +1647,7 @@ local arrow = {
 HydroCLApp.displayVectorField_scale = 1
 HydroCLApp.displayVectorField_step = 1
 function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
+	local magVarName = varName..' mag'	-- this should match the name in Solver:addConvertToTexUBufVec()
 	self.view:projection(ar)
 	self.view:modelview()
 
@@ -1656,23 +1657,35 @@ function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, y
 
 	for _,solver in ipairs(solvers) do
 		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
+		local magVarIndex, magVar = solver.displayVars:find(nil, function(var) return var.name == magVarName end)
 		if varIndex and var.enabled then
+			local magVar = var.magVar
+			
 			local valueMin, valueMax
 			if var.heatMapFixedRange then
 				valueMin = var.heatMapValueMin
 				valueMax = var.heatMapValueMax
 			else
-				valueMin, valueMax = solver:calcDisplayVarRange(var)
+				valueMin, valueMax = solver:calcDisplayVarRange(magVar)
 				var.heatMapValueMin = valueMin
 				var.heatMapValueMax = valueMax
 			end
 			
 			solver:calcDisplayVarToTex(var)	
-					
+			
 			solver.vectorFieldShader:use()
 			gl.glUniform1i(solver.vectorFieldShader.uniforms.useLog.loc, var.useLog)
+			-- [[ this gives the l1 bounds of the vector field
 			gl.glUniform1f(solver.vectorFieldShader.uniforms.valueMin.loc, valueMin)
 			gl.glUniform1f(solver.vectorFieldShader.uniforms.valueMax.loc, valueMax)
+			--]]
+			--[[ it'd be nice instead to get the norm bounds ... 
+			-- but looking at the reduce calculations, the easiest way to do that is
+			-- to associate each vector display shader with a norm display shader
+			-- and then just reduce that
+			gl.glUniform1f(solver.vectorFieldShader.uniforms.valueMin.loc, 0)
+			gl.glUniform1f(solver.vectorFieldShader.uniforms.valueMax.loc, math.max(math.abs(valueMin), math.abs(valueMax)))
+			--]]
 			solver:getTex(var):bind(0)
 			self.gradientTex:bind(1)
 			

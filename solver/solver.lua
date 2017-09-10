@@ -463,6 +463,7 @@ function ConvertToTex:init(args)
 			enabled = self.name == 'U' and (
 					(solver.dim ~= 1 and i == 1 
 						--and not args.vectorField
+						and not args.vectorFieldMagn
 					)
 					or (solver.dim == 1 and not args.vectorField)
 				)
@@ -473,6 +474,7 @@ function ConvertToTex:init(args)
 			heatMapValueMin = 0,
 			heatMapValueMax = 1,
 			vectorField = args.vectorField,
+			vectorFieldMagn = args.vectorFieldMagn,
 		}
 	end
 end
@@ -491,11 +493,14 @@ end
 
 function Solver:addConvertToTex(args, cl)
 	cl = cl or self.ConvertToTex
-	self.convertToTexs:insert(cl(
+	-- each ConvertToTex object holds a table of vars objects ...
+	local convertToTexs = cl(
 		table(args, {
 			solver = self,
 		})
-	))
+	)
+	self.convertToTexs:insert(convertToTexs)
+	return convertToTexs
 end
 
 function Solver:createDisplayVars()
@@ -525,7 +530,34 @@ function Solver:addConvertToTexUBufVec()
 	local args = self:getAddConvertToTexUBufArgs()
 	args.vars = assert(self.eqn:getVecDisplayVars())
 	args.vectorField = true
-	self:addConvertToTex(args, self.ConvertToTex_U)
+	local vecConvertToTex = self:addConvertToTex(args, self.ConvertToTex_U)
+
+	-- automatically create norm display shaders
+	-- and associate the one with the other
+	-- so I can reduce norms in the vector display shader
+	-- and get the norm's range
+	local vecVars = args.vars
+	args = table(args)
+	args.vectorField = nil
+	args.vectorFieldMagn = true
+	args.vars = table(args.vars)
+	for i=1,#args.vars do
+		local name, code = next(args.vars[i])
+		code = code .. [[
+	valuevec = _real3(real3_len(valuevec),0,0);
+]]
+		args.vars[i] = {[name..' mag'] = code} 	-- name needs to be unique or the lookups (for overlapping graphs) will collide with the vector field displays
+	end
+	local magConvertToTex = self:addConvertToTex(args, self.ConvertToTex_U)
+
+	-- tie these two together,
+	-- since reduceMin and Max applied to vectors is gonna reduce their magnitude
+	-- so I need to always compile the magnitude kernels, even if they are not enabled
+	assert(#magConvertToTex.vars == #vecConvertToTex.vars)
+	for i=1,#magConvertToTex.vars do
+		magConvertToTex.vars[i].vecVar = vecConvertToTex.vars[i]
+		vecConvertToTex.vars[i].magVar = magConvertToTex.vars[i]
+	end
 end
 
 function Solver:addConvertToTexs()
@@ -1195,7 +1227,9 @@ function Solver:refreshDisplayProgram()
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do
 			for _,var in ipairs(convertToTex.vars) do
-				if var.enabled then
+				if var.enabled 
+				or (var.vecVar and var.vecVar.enabled)
+				then
 					lines:append{
 						template(convertToTex.displayCode, {
 							solver = self,
@@ -1221,7 +1255,9 @@ function Solver:refreshDisplayProgram()
 
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		for _,var in ipairs(convertToTex.vars) do
-			if var.enabled then
+			if var.enabled 
+			or (var.vecVar and var.vecVar.enabled)
+			then
 				lines:append{
 					template(convertToTex.displayCode, {
 						solver = self,
@@ -1251,7 +1287,9 @@ function Solver:refreshDisplayProgram()
 	if self.app.useGLSharing then
 		for _,convertToTex in ipairs(self.convertToTexs) do
 			for _,var in ipairs(convertToTex.vars) do
-				if var.enabled then
+				if var.enabled 
+				or (var.vecVar and var.vecVar.enabled)
+				then
 					var.calcDisplayVarToTexKernelObj = self.displayProgramObj:kernel('calcDisplayVarToTex_'..var.id, self.texCLMem)
 				end
 			end
@@ -1260,7 +1298,9 @@ function Solver:refreshDisplayProgram()
 
 	for _,convertToTex in ipairs(self.convertToTexs) do
 		for _,var in ipairs(convertToTex.vars) do
-			if var.enabled then
+			if var.enabled 
+			or (var.vecVar and var.vecVar.enabled)
+			then
 				var.calcDisplayVarToBufferKernelObj = self.displayProgramObj:kernel('calcDisplayVarToBuffer_'..var.id, self.reduceBuf)
 			end
 		end

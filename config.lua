@@ -63,12 +63,12 @@ maxs = {6,1,1},
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'mirror',
-		xmax=cmdline.boundary or 'mirror',
-		ymin=cmdline.boundary or 'mirror',
-		ymax=cmdline.boundary or 'mirror',
-		zmin=cmdline.boundary or 'mirror',
-		zmax=cmdline.boundary or 'mirror',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
@@ -197,7 +197,7 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 	--initState = 'Alcubierre warp bubble',
 	--initState = 'Schwarzschild black hole',
-	--initState = 'black hole - isotropic',
+	--initState = 'black hole - isotropic',	-- this one has momentum and rotation.  TODO parameterize
 	--initState = 'binary black holes - isotropic',
 	--initState = 'stellar model',
 	--initState = 'stellar model 2',
