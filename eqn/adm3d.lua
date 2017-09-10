@@ -244,12 +244,6 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 	*value = -U->alpha * sym3_dot(gammaU, U->K);
 ]]		},
-		-- TODO needs shift influence (which is lengthy)
-		{gravityMagn = [[
-	real det_gamma = sym3_det(U->gamma);
-	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	*value = real3_len(sym3_real3_mul(gammaU, U->a));
-]]		},
 	}:append( xNames:map(function(xi,i)
 		-- V_i - (d_im^m - d^m_mi)
 		return {['constraint_V_'..xi] = template([[
@@ -266,24 +260,6 @@ end ?>;
 ]], {i=i, xi=xi, sym=sym, xNames=xNames})}
 	
 	end) ):append{
-		{constraint_V_magn = template([[
-	real det_gamma = sym3_det(U->gamma);
-	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	*value = 0.;
-	<? for i,xi in ipairs(xNames) do ?>{
-		real d1 = sym3_dot(U->d[<?=i-1?>], gammaU);
-		real d2 = 0.<?
-	for j=1,3 do
-		for k,xk in ipairs(xNames) do
-?> + U->d[<?=j-1?>].<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
-		end
-	end ?>;
-		real d3 = U->V.<?=xi?> - (d1 - d2);
-		*value += d3 * d3;
-	}<? end ?>
-	*value = sqrt(*value);
-]], {sym=sym, xNames=xNames})}
-
 --[=[
 	-- 1998 Bona et al
 --[[
@@ -321,6 +297,7 @@ function ADM_BonaMasso_3D:getVecDisplayVars()
 	
 	-- shift-less gravity only
 	-- gravity with shift is much more complex
+	-- TODO add shift influence (which is lengthy)
 	vars:insert{gravity = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
