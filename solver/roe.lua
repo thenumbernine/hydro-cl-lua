@@ -118,11 +118,11 @@ function Roe:refreshSolverProgram()
 	end
 end
 
-function Roe:addConvertToTexs()
-	Roe.super.addConvertToTexs(self)
+function Roe:addDisplayVars()
+	Roe.super.addDisplayVars(self)
 
 	for j,xj in ipairs(xNames) do
-		self:addConvertToTex{
+		self:addDisplayVarGroup{
 			name = 'wave',
 			varCodePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
@@ -137,7 +137,7 @@ function Roe:addConvertToTexs()
 	local eigenDisplayVars = self.eqn:getEigenDisplayVars()
 	if eigenDisplayVars and #eigenDisplayVars > 0 then
 		for j,xj in ipairs(xNames) do
-			self:addConvertToTex{
+			self:addDisplayVarGroup{
 				name = 'eigen',
 				type = self.eqn.eigen_t,
 				varCodePrefix = [[
@@ -153,7 +153,7 @@ function Roe:addConvertToTexs()
 	end
 
 	for j,xj in ipairs(xNames) do
-		self:addConvertToTex{
+		self:addDisplayVarGroup{
 			name = 'deltaUEig', 
 			varCodePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
@@ -167,7 +167,7 @@ function Roe:addConvertToTexs()
 
 	if self.fluxLimiter[0] > 0 then
 		for j,xj in ipairs(xNames) do
-			self:addConvertToTex{
+			self:addDisplayVarGroup{
 				name = 'rEig',
 				varCodePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
@@ -183,7 +183,7 @@ function Roe:addConvertToTexs()
 	-- TODO add kernels for each side
 	if self.checkFluxError or self.checkOrthoError then	
 		for j,xj in ipairs(xNames) do
-			self:addConvertToTex{
+			self:addDisplayVarGroup{
 				name = 'error', 
 				varCodePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;

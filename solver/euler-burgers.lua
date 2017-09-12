@@ -60,10 +60,10 @@ function EulerBurgers:refreshSolverProgram()
 	self.diffuseWorkKernelObj.obj:setArg(2, self.PBuf)
 end
 
-function EulerBurgers:addConvertToTexs()
-	EulerBurgers.super.addConvertToTexs(self)
+function EulerBurgers:addDisplayVars()
+	EulerBurgers.super.addDisplayVars(self)
 
-	self:addConvertToTex{
+	self:addDisplayVarGroup{
 		name = 'P', 
 		vars = {
 			{P = '*value = buf[index];'},
@@ -71,7 +71,7 @@ function EulerBurgers:addConvertToTexs()
 	}
 
 	for j,xj in ipairs(xNames) do
-		self:addConvertToTex{
+		self:addDisplayVarGroup{
 			name = 'intVel', 
 			varCodePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;

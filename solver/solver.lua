@@ -382,25 +382,28 @@ function Solver:refreshIntegrator()
 	self.integrator = self.integrators[self.integratorIndex](self)
 end
 
-local ConvertToTex = class()
+--[[
+it'd be convenient to do this for all properties of all types ...
+	real -> scalar
+	real3 -> x, y, z, magn scalar displays, real3 vector display
+	sym3 -> x, y, z column and row vector displays, xx..zz, det, trace, |x|..|z| col & row scalar displays
+--]]
+local DisplayVar = class()
 
--- this is the default ConvertToTex
-Solver.ConvertToTex = ConvertToTex
+-- this is the default DisplayVar
+Solver.DisplayVar = DisplayVar
 
--- and this is the ConvertToTex used for UBuf
-Solver.ConvertToTex_U = ConvertToTex
+-- and this is the DisplayVar used for UBuf
+Solver.DisplayVar_U = DisplayVar
 
-ConvertToTex.type = 'real'	-- default
+DisplayVar.type = 'real'	-- default
 
 -- TODO buf (dest) shouldn't have ghost cells
 -- and dstIndex should be based on the size without ghost cells
-ConvertToTex.displayCode = [[
+DisplayVar.displayCode = [[
 kernel void <?=name?>(
 	<?=input?>,
-	const global <?= convertToTex.type ?>* buf
-	<?= #convertToTex.extraArgs > 0 
-		and ','..table.concat(convertToTex.extraArgs, ',\n\t')
-		or '' ?>
+	const global <?= var.type ?>* buf
 ) {
 	SETBOUNDS(0,0);
 
@@ -434,144 +437,215 @@ if solver.dim >= 3 then
 	real3 valuevec = _real3(0,0,0);
 	real* value = valuevec.s;
 
-<?= convertToTex.varCodePrefix or '' ?>
+<?= var.codePrefix or '' ?>
 <?= var.code ?>
 
 <?= output ?>
 }
 ]]
 
-ConvertToTex.extraArgs = {}
-
-function ConvertToTex:init(args)
-	local solver = assert(args.solver)	
+function DisplayVar:init(args)
+	self.code = assert(args.code)
 	self.name = assert(args.name)
-	self.solver = solver
+	self.solver = assert(args.solver)
 	self.type = args.type	-- or self.type
-	self.extraArgs = args.extraArgs
-	self.displayCode = args.displayCode	-- or self.displayCode
-	self.displayBodyCode = args.displayBodyCode
-	self.varCodePrefix = args.varCodePrefix
-	self.vars = table()
+	self.displayCode = args.displayCode 	-- or self.displayCode
+	self.codePrefix = args.codePrefix
+	
+	-- display stuff
+	self.enabled = not not args.enabled 
+	self.useLog = args.useLog or false
+	self.color = vec3(math.random(), math.random(), math.random()):normalize()
+	self.heatMapFixedRange = false	-- args.name ~= 'error'
+	self.heatMapValueMin = 0
+	self.heatMapValueMax = 1
+
+	-- is it a vector or a scalar?
+	self.vectorField = args.vectorField
+
+	-- maybe this should be in args too?
+	-- or - instead of buffer - how about all the kernel's args?
+	-- but the reason I have to store the field here is that the buffer isn't made yet 
+	-- TODO? make display vars after buffers so I can store the buffer here?
+	self.bufferField = args.bufferField
+end
+
+function DisplayVar:setArgs(kernel)
+	kernel:setArg(1, self.solver[self.bufferField])
+end
+
+function DisplayVar:setToTexArgs()
+	self:setArgs(self.calcDisplayVarToTexKernelObj.obj)
+end
+
+function DisplayVar:setToBufferArgs(var)
+	self:setArgs(self.calcDisplayVarToBufferKernelObj.obj)
+end
+
+
+local DisplayVarGroup = class()
+
+function DisplayVarGroup:init(args)
+	self.name = assert(args.name)
+	self.vars = table(args.vars)
+end
+
+function Solver:newDisplayVarGroup(args)
+	local displayVarGroup = DisplayVarGroup(args)
+	self.displayVarGroups:insert(displayVarGroup)
+	return displayVarGroup
+end
+
+
+function Solver:addDisplayVarGroup(args, cl)
+	cl = cl or self.DisplayVar
+
+	local displayVarGroup = args.group or self:newDisplayVarGroup{name=args.name}
+	local groupName = displayVarGroup.name
+
 	for i,var in ipairs(args.vars) do
 		assert(type(var) == 'table', "failed on var "..self.name)
 		local name, code = next(var)
-		self.vars:insert{
-			convertToTex = self,
+		displayVarGroup.vars:insert(cl{
+			solver = self,
+			
+			-- right now I use var.name to determine unique variables when overlapping the different graphs in the 1D simulations
+			-- so if I don't prefix it correctly then eig_0 and flux_0 will draw overlapped 
+			-- TODO have that check for var name and group name, and have this name=name only,
+			name = groupName..'_'..name,
 			code = code,
-			name = self.name..'_'..name,
-			enabled = self.name == 'U' and (
-					(solver.dim ~= 1 and i == 1 
+					
+			type = args.type, -- or self.type
+			displayCode = args.displayCode,	-- or self.displayCode
+			codePrefix = args.codePrefix,
+			
+			enabled = groupName == 'U' and (
+					(self.dim ~= 1 and i == 1 
 						--and not args.vectorField
 						and not args.vectorFieldMagn
 					)
-					or (solver.dim == 1 and not args.vectorField)
+					or (self.dim == 1 and not args.vectorField)
 				)
-				or (self.name == 'error' and solver.dim==1),
-			useLog = args.useLog or false,
-			color = vec3(math.random(), math.random(), math.random()):normalize(),
-			heatMapFixedRange = false,	-- self.name ~= 'error'
-			heatMapValueMin = 0,
-			heatMapValueMax = 1,
+				or (groupName == 'error' and self.dim==1),
+			useLog = args.useLog,
 			vectorField = args.vectorField,
-			vectorFieldMagn = args.vectorFieldMagn,
-		}
-	end
-end
-
-function ConvertToTex:setArgs(kernel, var)
-	kernel:setArg(1, self.solver[var.convertToTex.name..'Buf'])
-end
-
-function ConvertToTex:setToTexArgs(var)
-	self:setArgs(var.calcDisplayVarToTexKernelObj.obj, var)
-end
-
-function ConvertToTex:setToBufferArgs(var)
-	self:setArgs(var.calcDisplayVarToBufferKernelObj.obj, var)
-end
-
-function Solver:addConvertToTex(args, cl)
-	cl = cl or self.ConvertToTex
-	-- each ConvertToTex object holds a table of vars objects ...
-	local convertToTexs = cl(
-		table(args, {
-			solver = self,
+			bufferField = groupName..'Buf',
 		})
-	)
-	self.convertToTexs:insert(convertToTexs)
-	return convertToTexs
+	end
+
+	return displayVarGroup
 end
 
 function Solver:createDisplayVars()
-	self.convertToTexs = table()
-	self:addConvertToTexs()
+	self.displayVarGroups = table()
+	self:addDisplayVars()
 	self.displayVars = table()
-	for _,convertToTex in ipairs(self.convertToTexs) do
-		self.displayVars:append(convertToTex.vars)
+	for _,displayVarGroup in ipairs(self.displayVarGroups) do
+		self.displayVars:append(displayVarGroup.vars)
 	end
 end
 
-function Solver:getAddConvertToTexUBufArgs()
+-- still used by gr-hd-separate
+function Solver:getUBufDisplayVarsArgs()
 	return {
-		name = 'U',
 		type = self.eqn.cons_t,
-		varCodePrefix = self.eqn:getDisplayVarCodePrefix(),
-		vars = assert(self.eqn:getDisplayVars()),
+		codePrefix = self.eqn:getDisplayVarCodePrefix(),
+		bufferField = 'UBuf',
 	}
 end
 
-function Solver:addConvertToTexUBuf()
-	self:addConvertToTex(self:getAddConvertToTexUBufArgs(), self.ConvertToTex_U)
+function Solver:addUBufDisplayVars()
+	local group = self:newDisplayVarGroup{name='U'}
+	
+	local args = self:getUBufDisplayVarsArgs()
+	args.group = group
+
+	local varInfos = table()
+		-- first add scalars
+		:append( self.eqn:getDisplayVars() )
+		-- then add vectors, and scalars for each of their properties
+		:append(
+			self.eqn.getVecDisplayVars
+			and table.map(self.eqn:getVecDisplayVars() or {}, function(var) return table(var, {type = 'real3'}) end)
+			or {})
+
+	local enableScalar = true
+	local enableVector = true
+	for i,varInfo in ipairs(varInfos) do
+	
+		local name, code, vartype
+		for k,v in pairs(varInfo) do
+			if k == 'type' then
+				vartype = v
+			else
+				assert(not name and not code)
+				name = k
+				code = v
+			end
+		end
+
+		-- enable the first vector field on non-1D simulations
+		local enabled
+		if vartype ~= 'real3' then
+			enabled = enableScalar
+			enableScalar = nil
+		else
+			if self.dim ~= 1 then
+				enabled = enableVector
+				enableVector = nil
+			end
+		end
+
+		local var = self.DisplayVar(table(args, {
+			solver = self,				
+			name = group.name .. '_' .. name,
+			code = code,
+			vectorField = vartype == 'real3',
+			enabled = enabled,
+		}))
+		group.vars:insert(var)
+
+		if vartype == 'real3' then
+			for _,info in ipairs{
+				{name = ' x', code = '	valuevec = _real3(valuevec.x,0,0);'},
+				{name = ' y', code = '	valuevec = _real3(valuevec.y,0,0);'},
+				{name = ' z', code = '	valuevec = _real3(valuevec.z,0,0);'},
+				{name = ' mag', code = '	valuevec = _real3(real3_len(valuevec),0,0);', magn=true},
+			} do
+				-- automatically create norm display shaders
+				-- and associate the one with the other
+				-- so I can reduce norms in the vector display shader
+				-- and get the norm's range
+				local scalarVar = self.DisplayVar(table(args, {
+					solver = self,
+					name = group.name .. '_' .. name .. info.name,
+					code = code .. info.code,
+				}))
+				group.vars:insert(scalarVar)
+			
+				-- tie these two together,
+				-- since reduceMin and Max applied to vectors is gonna reduce their magnitude
+				-- so I need to always compile the magnitude kernels, even if they are not enabled
+				if info.magn then
+					var.magVar = scalarVar
+					scalarVar.vecVar = var
+				end
+			end
+		end
+	end
 end
 
-function Solver:addConvertToTexUBufVec()
-	if not self.eqn.getVecDisplayVars then return end
-	local args = self:getAddConvertToTexUBufArgs()
-	args.vars = assert(self.eqn:getVecDisplayVars())
-	args.vectorField = true
-	local vecConvertToTex = self:addConvertToTex(args, self.ConvertToTex_U)
-
-	-- automatically create norm display shaders
-	-- and associate the one with the other
-	-- so I can reduce norms in the vector display shader
-	-- and get the norm's range
-	local vecVars = args.vars
-	args = table(args)
-	args.vectorField = nil
-	args.vectorFieldMagn = true
-	args.vars = table(args.vars)
-	for i=1,#args.vars do
-		local name, code = next(args.vars[i])
-		code = code .. [[
-	valuevec = _real3(real3_len(valuevec),0,0);
-]]
-		args.vars[i] = {[name..' mag'] = code} 	-- name needs to be unique or the lookups (for overlapping graphs) will collide with the vector field displays
-	end
-	local magConvertToTex = self:addConvertToTex(args, self.ConvertToTex_U)
-
-	-- tie these two together,
-	-- since reduceMin and Max applied to vectors is gonna reduce their magnitude
-	-- so I need to always compile the magnitude kernels, even if they are not enabled
-	assert(#magConvertToTex.vars == #vecConvertToTex.vars)
-	for i=1,#magConvertToTex.vars do
-		magConvertToTex.vars[i].vecVar = vecConvertToTex.vars[i]
-		vecConvertToTex.vars[i].magVar = magConvertToTex.vars[i]
-	end
-end
-
-function Solver:addConvertToTexs()
-	self:addConvertToTexUBuf()
-	self:addConvertToTexUBufVec()
+function Solver:addDisplayVars()
+	self:addUBufDisplayVars()
 	
 	-- might contain nonsense :-p
-	self:addConvertToTex{
+	self:addDisplayVarGroup{
 		name = 'reduce', 
 		vars = {{['0'] = '*value = buf[index];'}},
 	}
 
 if tryingAMR == 'dt vs 2dt' then
-	self:addConvertToTex{
+	self:addDisplayVarGroup{
 		name = 'U2',
 		type = self.eqn.cons_t,
 		vars = {
@@ -579,7 +653,7 @@ if tryingAMR == 'dt vs 2dt' then
 		}
 	}
 elseif tryingAMR == 'gradient' then
-	self:addConvertToTex{
+	self:addDisplayVarGroup{
 		name = 'amrError',
 		type = 'real',
 		vars = {
@@ -784,7 +858,7 @@ end
 
 	-- used both by reduceMin and reduceMax
 	-- (and TODO use this by sum() in implicit solver as well?)
-	-- times three because this is also used by the convertToTex
+	-- times three because this is also used by the displayVar 
 	-- on non-GL-sharing cards.
 	self:clalloc('reduceBuf', self.volume * realSize * 3)
 	local reduceSwapBufSize = roundup(self.volume * realSize / self.localSize1d, realSize)
@@ -1218,23 +1292,22 @@ function Solver:refreshDisplayProgram()
 		self.codePrefix,
 	}
 	
-	for _,convertToTex in ipairs(self.convertToTexs) do
-		for _,var in ipairs(convertToTex.vars) do
+	for _,displayVarGroup in ipairs(self.displayVarGroups) do
+		for _,var in ipairs(displayVarGroup.vars) do
 			var.id = tostring(var):sub(10)
 		end
 	end
 
 	if self.app.useGLSharing then
-		for _,convertToTex in ipairs(self.convertToTexs) do
-			for _,var in ipairs(convertToTex.vars) do
+		for _,displayVarGroup in ipairs(self.displayVarGroups) do
+			for _,var in ipairs(displayVarGroup.vars) do
 				if var.enabled 
 				or (var.vecVar and var.vecVar.enabled)
 				then
 					lines:append{
-						template(convertToTex.displayCode, {
+						template(var.displayCode, {
 							solver = self,
 							var = var,
-							convertToTex = convertToTex,
 							name = 'calcDisplayVarToTex_'..var.id,
 							input = 'write_only '
 								..(self.dim == 3 
@@ -1253,16 +1326,15 @@ function Solver:refreshDisplayProgram()
 		end
 	end
 
-	for _,convertToTex in ipairs(self.convertToTexs) do
-		for _,var in ipairs(convertToTex.vars) do
+	for _,displayVarGroup in ipairs(self.displayVarGroups) do
+		for _,var in ipairs(displayVarGroup.vars) do
 			if var.enabled 
 			or (var.vecVar and var.vecVar.enabled)
 			then
 				lines:append{
-					template(convertToTex.displayCode, {
+					template(var.displayCode, {
 						solver = self,
 						var = var,
-						convertToTex = convertToTex,
 						name = 'calcDisplayVarToBuffer_'..var.id,
 						input = 'global real* dest',
 						output = var.vectorField and [[
@@ -1285,8 +1357,8 @@ function Solver:refreshDisplayProgram()
 	end)
 
 	if self.app.useGLSharing then
-		for _,convertToTex in ipairs(self.convertToTexs) do
-			for _,var in ipairs(convertToTex.vars) do
+		for _,displayVarGroup in ipairs(self.displayVarGroups) do
+			for _,var in ipairs(displayVarGroup.vars) do
 				if var.enabled 
 				or (var.vecVar and var.vecVar.enabled)
 				then
@@ -1296,8 +1368,8 @@ function Solver:refreshDisplayProgram()
 		end
 	end
 
-	for _,convertToTex in ipairs(self.convertToTexs) do
-		for _,var in ipairs(convertToTex.vars) do
+	for _,displayVarGroup in ipairs(self.displayVarGroups) do
+		for _,var in ipairs(displayVarGroup.vars) do
 			if var.enabled 
 			or (var.vecVar and var.vecVar.enabled)
 			then
@@ -1766,13 +1838,13 @@ end
 
 function Solver:calcDisplayVarToTex(var)
 	local app = self.app
-	local convertToTex = var.convertToTex
+	local displayVarGroup = var.displayVarGroup
 	if app.useGLSharing then
 		-- copy to GL using cl_*_gl_sharing
 		gl.glFinish()
 		app.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
 	
-		convertToTex:setToTexArgs(var)
+		var:setToTexArgs()
 		var.calcDisplayVarToTexKernelObj()
 		
 		app.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
@@ -1787,7 +1859,7 @@ function Solver:calcDisplayVarToTex(var)
 		local channels = var.vectorField and 3 or 1
 		local format = var.vectorField and gl.GL_RGB or gl.GL_RED
 
-		convertToTex:setToBufferArgs(var)
+		var:setToBufferArgs()
 		var.calcDisplayVarToBufferKernelObj()
 		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.volume * channels, ptr=ptr}
 		local destPtr = ptr
@@ -1818,7 +1890,7 @@ function Solver:calcDisplayVarRange(var)
 	end
 	var.lastTime = self.t
 
-	var.convertToTex:setToBufferArgs(var)
+	var:setToBufferArgs()
 
 	var.calcDisplayVarToBufferKernelObj()
 	local min = self.reduceMin()
@@ -1837,7 +1909,7 @@ function Solver:calcDisplayVarRangeAndAvg(var)
 
 	-- this will update lastTime if necessary
 	local min, max = self:calcDisplayVarRange(var)
-	-- convertToTex has already set up the appropriate args
+	-- displayVarGroup has already set up the appropriate args
 
 	local avg
 	if needsUpdate then
@@ -1963,13 +2035,13 @@ do
 	function Solver:updateGUIDisplay()
 		local refresh 
 		if ig.igCollapsingHeader'display:' then
-			for i,convertToTex in ipairs(self.convertToTexs) do
+			for i,displayVarGroup in ipairs(self.displayVarGroups) do
 				ig.igPushIdStr('display '..i)
-				if ig.igCollapsingHeader(convertToTex.name) then				
+				if ig.igCollapsingHeader(displayVarGroup.name) then				
 					for i=1,#fields do
 						all[fields[i]] = defaults[i]
 					end
-					for _,var in ipairs(convertToTex.vars) do
+					for _,var in ipairs(displayVarGroup.vars) do
 						for i,field in ipairs(fields) do
 							all[field] = combines[i](all[field], var[field])
 						end
@@ -1981,14 +2053,14 @@ do
 					refresh = refresh or enableChanged
 					for _,field in ipairs(fields) do
 						if all[field] ~= original[field] then
-							for _,var in ipairs(convertToTex.vars) do
+							for _,var in ipairs(displayVarGroup.vars) do
 								var[field] = all[field]
 							end
 						end
 					end
 
-					for _,var in ipairs(convertToTex.vars) do
-						local enableChanged = handle(var, convertToTex.name..' '..var.name)
+					for _,var in ipairs(displayVarGroup.vars) do
+						local enableChanged = handle(var, displayVarGroup.name..' '..var.name)
 						refresh = refresh or enableChanged
 					end
 				end

@@ -1647,7 +1647,6 @@ local arrow = {
 HydroCLApp.displayVectorField_scale = 1
 HydroCLApp.displayVectorField_step = 1
 function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
-	local magVarName = varName..' mag'	-- this should match the name in Solver:addConvertToTexUBufVec()
 	self.view:projection(ar)
 	self.view:modelview()
 
@@ -1657,9 +1656,8 @@ function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, y
 
 	for _,solver in ipairs(solvers) do
 		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
-		local magVarIndex, magVar = solver.displayVars:find(nil, function(var) return var.name == magVarName end)
 		if varIndex and var.enabled then
-			local magVar = var.magVar
+			local magVar = assert(var.magVar, "tried to use a vector display on a var without an associated magVar")
 			
 			local valueMin, valueMax
 			if var.heatMapFixedRange then

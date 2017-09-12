@@ -431,11 +431,9 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 		vars:insert{[name] = '*value = U->'..name..';'}
 	end
 
+	-- only adds the weighted length
+	-- for all else, make sure to add the real3 to the Vec vars in the separate function below
 	local function addreal3(name)
-		for _,i in ipairs(xNames) do
-			addvar(name..'.'..i)
-		end
-		vars:insert{['|'..name..'|'] = '*value = real3_len(U->'..name..');'}	
 		vars:insert{['|'..name..'| weighted'] = '*value = real3_weightedLen(U->'..name..', U->gammaBar_ll) / calc_exp_neg4phi(U);'}	
 	end
 
@@ -507,24 +505,24 @@ function BSSNOKFiniteDifferenceEquation:getVecDisplayVars()
 	local derivOrder = 2 * self.solver.numGhost
 	
 	local vars = table()
-	local function add(field)
+	local function addreal3(field)
 		vars:insert{[field] = 'valuevec = U->'..field..';'}
 	end
-	local function addSym3(field)
+	local function addsym3(field)
 		for i,xi in ipairs(xNames) do
 			vars:insert{[field..'_'..xi] = 'valuevec = sym3_'..xi..'(U->'..field..');'}
 		end
 	end
-	add'beta_u'
-	add'connBar_u'
+	addreal3'beta_u'
+	addreal3'connBar_u'
 	if self.useHypGammaDriver then
-		add'B_u'
+		addreal3'B_u'
 	end
-	addSym3'gammaBar_ll'
-	addSym3'ATilde_ll'
-	add'S_u'
-	addSym3'S_ll'
-	add'M_u'
+	addsym3'gammaBar_ll'
+	addsym3'ATilde_ll'
+	addreal3'S_u'
+	addsym3'S_ll'
+	addreal3'M_u'
 
 	local chi = self.useChi and '1. / U->chi' or 'exp(4. * U->phi)'
 	vars:append{

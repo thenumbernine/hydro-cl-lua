@@ -214,9 +214,7 @@ function ADM_BonaMasso_3D:getDisplayVars()
 		if vartype == 'real' then
 			vars:insert{[varname] = '*value = U->'..varname..';'}
 		elseif vartype == 'real3' then
-			for i,xi in ipairs(xNames) do
-				vars:insert{[varname..'_'..xi] = '*value = U->'..varname..'.'..xi..';'}
-			end
+			-- use vec display vars, it'll auto-create scalars
 		elseif vartype == 'sym3' then
 			for ij,xij in ipairs(symNames) do
 				vars:insert{[varname..'_'..xij] = '*value = U->'..varname..'.'..xij..';'}
@@ -294,7 +292,15 @@ end
 
 function ADM_BonaMasso_3D:getVecDisplayVars()
 	local vars = table()
-	
+
+	for _,var in ipairs(self.consVars) do
+		local varname, vartype = next(var)
+		
+		if vartype == 'real3' then
+			vars:insert{[varname] = 'valuevec = U->'..varname..';'}
+		end
+	end
+
 	-- shift-less gravity only
 	-- gravity with shift is much more complex
 	-- TODO add shift influence (which is lengthy)
@@ -304,16 +310,12 @@ function ADM_BonaMasso_3D:getVecDisplayVars()
 	valuevec = real3_scale(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
 ]]}
 	
-	local function add(field)
-		vars:insert{[field] = 'valuevec = U->'..field..';'}
-	end
 	local function addSym3(field)
 		for i,xi in ipairs(xNames) do
 			vars:insert{[field..'_'..xi] = 'valuevec = sym3_'..xi..'(U->'..field..');'}
 		end
 	end
 	addSym3'gamma'
-	add'a'
 	addSym3'K'
 
 	vars:insert{constraint_V = template([[

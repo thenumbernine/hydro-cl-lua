@@ -199,15 +199,11 @@ local function vorticity(eqn,k)
 end
 
 function Euler:getDisplayVars()
-	return table{
+	local vars = table{
 		{rho = '*value = W.rho;'},
-		{vx = '*value = W.v.x;'},
-		{vy = '*value = W.v.y;'},
-		{vz = '*value = W.v.z;'},
-		{mx = '*value = U.m.x;'},
-		{my = '*value = U.m.y;'},
-		{mz = '*value = U.m.z;'},
+		{v = 'valuevec = W.v;', type='real3'},
 		{P = '*value = W.P;'},
+		{m = 'valuevec = U.m;', type='real3'},
 		{eInt = '*value = calc_eInt(W);'},
 		{eKin = '*value = calc_eKin(W, x);'},
 		{ePot = '*value = U.ePot;'},
@@ -223,19 +219,6 @@ function Euler:getDisplayVars()
 		{hTotal = '*value = calc_hTotal(W.rho, W.P, U.ETotal);'},
 		{['Speed of Sound'] = '*value = calc_Cs(&W);'},
 		{['Mach number'] = '*value = coordLen(W.v, x) / calc_Cs(&W);'},
-	}:append( ({
-	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
-	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
-			[1] = {},
-			[2] = {vorticity(self,2)},
-			[3] = range(0,2):map(function(i) return vorticity(self,i) end),
-	})[self.solver.dim] )
-end
-
-function Euler:getVecDisplayVars()
-	local vars = table{
-		{v = 'valuevec = W.v;'},
-		{m = 'valuevec = U.m;'},
 		{gravity = template([[
 	if (OOB(1,1)) {
 		*value = 0.;
@@ -251,9 +234,15 @@ for side=solver.dim,2 do ?>
 		valuevec.s<?=side?> = 0.;
 <? end ?>
 	}
-]], {eqn=self, solver=self.solver})},
+]], {eqn=self, solver=self.solver}), type='real3'},
+	
 	}
-	if self.solver.dim == 3 then
+	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
+	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
+		
+	if self.solver.dim == 2 then
+		vars:insert(vorticity(self,2))
+	elseif self.solver.dim == 3 then
 		local v = range(0,2):map(function(i) return vorticity(self,i) end)
 		vars:insert{vorticityVec = template([[
 	<? for i=0,2 do ?>{
@@ -261,9 +250,13 @@ for side=solver.dim,2 do ?>
 		++value;
 	}<? end ?>
 	value -= 3;
-]], {v=v})}
+]], {v=v}), type='real3'}
 	end
+
 	return vars
+end
+
+function Euler:getVecDisplayVars()
 end
 
 function Euler:getEigenTypeCode()

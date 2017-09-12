@@ -35,12 +35,12 @@ function FiniteVolumeSolver:refreshSolverProgram()
 	self.calcDerivFromFluxKernelObj.obj:setArg(1, self.fluxBuf)
 end
 
-function FiniteVolumeSolver:addConvertToTexs()
-	FiniteVolumeSolver.super.addConvertToTexs(self)
+function FiniteVolumeSolver:addDisplayVars()
+	FiniteVolumeSolver.super.addDisplayVars(self)
 
 	-- TODO add kernels for each side
 	for j,xj in ipairs(xNames) do
-		self:addConvertToTex{
+		self:addDisplayVarGroup{
 			name = 'flux', 
 			type = self.eqn.cons_t,
 			varCodePrefix = [[
