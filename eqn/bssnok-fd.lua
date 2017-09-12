@@ -431,9 +431,8 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 		vars:insert{[name] = '*value = U->'..name..';'}
 	end
 
-	-- only adds the weighted length
-	-- for all else, make sure to add the real3 to the Vec vars in the separate function below
 	local function addreal3(name)
+		vars:insert{[name] = 'valuevec = U->'..name..';', type='real3'}	
 		vars:insert{['|'..name..'| weighted'] = '*value = real3_weightedLen(U->'..name..', U->gammaBar_ll) / calc_exp_neg4phi(U);'}	
 	end
 
@@ -442,6 +441,9 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	local function addsym3_ll(name)
 		for _,xij in ipairs(symNames) do
 			addvar(name..'.'..xij)
+		end
+		for i,xi in ipairs(xNames) do
+			vars:insert{[name..'_'..xi] = 'valuevec = sym3_'..xi..'(U->'..name..');', type='real3'}
 		end
 		vars:insert{['norm '..name] = '*value = sym3_dot(U->'..name..', U->'..name..');'}
 		vars:insert{['tr '..name] = '*value = sym3_trace(U->'..name..');'} 
@@ -485,62 +487,27 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 		{S = '*value = sym3_dot(U->S_ll, calc_gamma_uu(U));'},
 		{volume = '*value = U->alpha * calc_det_gamma(U);'},
 		{expansion = '*value = -U->alpha * U->K;'},
-		
-		-- TODO needs shift influence (which is lengthy)
-		{gravityMagn = template([[
-<?=makePartial('alpha', 'real')?>
-	*value = real3_len(sym3_real3_mul(calc_gamma_uu(U), *(real3*)partial_alpha_l)) / U->alpha;
-]],			{
-				eqn = self,
-				solver = self.solver,
-				makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
-			})
-		},
 	}
 
-	return vars
-end
-
-function BSSNOKFiniteDifferenceEquation:getVecDisplayVars()
-	local derivOrder = 2 * self.solver.numGhost
-	
-	local vars = table()
-	local function addreal3(field)
-		vars:insert{[field] = 'valuevec = U->'..field..';'}
-	end
-	local function addsym3(field)
-		for i,xi in ipairs(xNames) do
-			vars:insert{[field..'_'..xi] = 'valuevec = sym3_'..xi..'(U->'..field..');'}
-		end
-	end
-	addreal3'beta_u'
-	addreal3'connBar_u'
-	if self.useHypGammaDriver then
-		addreal3'B_u'
-	end
-	addsym3'gammaBar_ll'
-	addsym3'ATilde_ll'
-	addreal3'S_u'
-	addsym3'S_ll'
-	addreal3'M_u'
-
-	local chi = self.useChi and '1. / U->chi' or 'exp(4. * U->phi)'
 	vars:append{
-		{gamma_x = template('valuevec = real3_scale(sym3_x(U->gammaBar_ll), <?=chi?>);', {chi=chi})},
-		{gamma_y = template('valuevec = real3_scale(sym3_y(U->gammaBar_ll), <?=chi?>);', {chi=chi})},
-		{gamma_z = template('valuevec = real3_scale(sym3_z(U->gammaBar_ll), <?=chi?>);', {chi=chi})},
-		{K_x = 'valuevec = real3_add(sym3_x(U->ATilde_ll), real3_scale(sym3_x(U->gammaBar_ll), U->K/3.));'},
-		{K_y = 'valuevec = real3_add(sym3_y(U->ATilde_ll), real3_scale(sym3_y(U->gammaBar_ll), U->K/3.));'},
-		{K_z = 'valuevec = real3_add(sym3_z(U->ATilde_ll), real3_scale(sym3_z(U->gammaBar_ll), U->K/3.));'},
+		{gamma_x = 'valuevec = real3_scale(sym3_x(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},
+		{gamma_y = 'valuevec = real3_scale(sym3_y(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},
+		{gamma_z = 'valuevec = real3_scale(sym3_z(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},
+		{K_x = 'valuevec = real3_add(sym3_x(U->ATilde_ll), real3_scale(sym3_x(U->gammaBar_ll), U->K/3.));', type='real3'},
+		{K_y = 'valuevec = real3_add(sym3_y(U->ATilde_ll), real3_scale(sym3_y(U->gammaBar_ll), U->K/3.));', type='real3'},
+		{K_z = 'valuevec = real3_add(sym3_z(U->ATilde_ll), real3_scale(sym3_z(U->gammaBar_ll), U->K/3.));', type='real3'},
 
-		{gravity = template([[
+		{
+			gravity = template([[
 <?=makePartial('alpha', 'real')?>
 	valuevec = real3_scale(sym3_real3_mul(calc_gamma_uu(U), *(real3*)partial_alpha_l), 1. / U->alpha);
-]],			{
-				eqn = self,
-				solver = self.solver,
-				makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
-			})
+]],				{
+					eqn = self,
+					solver = self.solver,
+					makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
+				}
+			), 
+			type = 'real3',
 		},
 	}
 	return vars

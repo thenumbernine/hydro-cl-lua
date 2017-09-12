@@ -247,21 +247,15 @@ local function vorticity(eqn,k)
 end
 
 function SRHD:getDisplayVars()
-	return table{
+	local vars = table{
 		{D = '*value = U->cons.D;'},
-		{Sx = '*value = U->cons.S.x;'},
-		{Sy = '*value = U->cons.S.y;'},
-		{Sz = '*value = U->cons.S.z;'},
-		{S = '*value = coordLen(U->cons.S, x);'},
+		{S = 'valuevec = U->cons.S;', type='real3'},
 		{tau = '*value = U->cons.tau;'},
 		{['W based on D'] = '*value = U->cons.D / U->prim.rho;'},
 		{['W based on v'] = '*value = 1. / sqrt(1. - coordLenSq(U->prim.v, x));'},
 		
 		{rho = '*value = U->prim.rho;'},
-		{vx = '*value = U->prim.v.x;'},
-		{vy = '*value = U->prim.v.y;'},
-		{vz = '*value = U->prim.v.z;'},
-		{v = '*value = coordLen(U->prim.v, x);'},
+		{v = 'valuevec = U->prim.v;', type='real3'},
 		{eInt = '*value = U->prim.eInt;'},
 		{P = '*value = calc_P(U->prim.rho, U->prim.eInt);'},
 		{h = '*value = calc_h(U->prim.rho, calc_P(U->prim.rho, U->prim.eInt), U->prim.eInt);'},
@@ -284,21 +278,11 @@ function SRHD:getDisplayVars()
 	real W2 = 1. / sqrt(1. - coordLenSq(U->prim.v, x));
 	*value = fabs(W1 - W2);
 ]]		},
-	}:append( ({
-	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
-	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
-			[1] = {},
-			[2] = {vorticity(self,2)},
-			[3] = range(0,2):map(function(i) return vorticity(self,i) end),
-	})[self.solver.dim] )
-end
-
-function SRHD:getVecDisplayVars()
-	local vars = table{
-		{v = 'valuevec = U->prim.v;'},
-		{S = 'valuevec = U->cons.S;'},
 	}
-	if self.solver.dim == 3 then
+	
+	if self.solver.dim == 2 then
+		vars:insert(vorticity(self,2))
+	elseif self.solver.dim == 3 then
 		local v = range(0,2):map(function(i) return vorticity(self,i) end)
 		vars:insert{vorticityVec = template([[
 	<? for i=0,2 do ?>{
@@ -306,8 +290,9 @@ function SRHD:getVecDisplayVars()
 		++value;
 	}<? end ?>
 	value -= 3;
-]], {v=v})}
+]], {v=v}), type='real3'}
 	end
+
 	return vars
 end
 

@@ -403,7 +403,11 @@ DisplayVar.type = 'real'	-- default
 DisplayVar.displayCode = [[
 kernel void <?=name?>(
 	<?=input?>,
-	const global <?= var.type ?>* buf
+	const global <?= var.type ?>* buf<?= 
+	#convertToTex.extraArgs > 0 
+		and ',\n\t'..table.concat(convertToTex.extraArgs, ',\n\t')
+		or '' 
+?>
 ) {
 	SETBOUNDS(0,0);
 
@@ -468,6 +472,7 @@ function DisplayVar:init(args)
 	-- but the reason I have to store the field here is that the buffer isn't made yet 
 	-- TODO? make display vars after buffers so I can store the buffer here?
 	self.bufferField = args.bufferField
+	self.extraArgs = args.extraArgs
 end
 
 function DisplayVar:setArgs(kernel)
@@ -546,7 +551,6 @@ function Solver:createDisplayVars()
 end
 
 -- still used by gr-hd-separate to add 'extraArgs'
--- I don't even know if that is still supported correctly ...
 function Solver:getUBufDisplayVarsArgs()
 	return {
 		type = self.eqn.cons_t,
@@ -561,14 +565,7 @@ function Solver:addUBufDisplayVars()
 	local args = self:getUBufDisplayVarsArgs()
 	args.group = group
 
-	local varInfos = table()
-		-- first add scalars
-		:append( self.eqn:getDisplayVars() )
-		-- then add vectors, and scalars for each of their properties
-		:append(
-			self.eqn.getVecDisplayVars
-			and table.map(self.eqn:getVecDisplayVars() or {}, function(var) return table(var, {type = 'real3'}) end)
-			or {})
+	local varInfos = self.eqn:getDisplayVars()
 
 	local enableScalar = true
 	local enableVector = true

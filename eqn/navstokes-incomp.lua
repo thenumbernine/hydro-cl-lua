@@ -101,16 +101,10 @@ function NavierStokesDivFree:getDisplayVars()
 			eqn = self,
 		})}
 	end
-	return table{
+	local vars = table{
 		{rho = '*value = U.rho;'},
-		{vx = '*value = U.v.x;'},
-		{vy = '*value = U.v.y;'},
-		{vz = '*value = U.v.z;'},
-		{v = '*value = coordLen(U.v, x);'},
-		{mx = '*value = U.rho * U.v.x;'},
-		{my = '*value = U.rho * U.v.y;'},
-		{mz = '*value = U.rho * U.v.z;'},
-		{m = '*value = U.rho * coordLen(U.v, x);'},
+		{v = 'valuevec = U.v;', type='real3'},
+		{m = 'value = real3_scale(U.v, U.rho);', type='real3'},
 		--{P = '*value = W.P;'},
 		--{eInt = '*value = calc_eInt(W);'},
 		--{eKin = '*value = calc_eKin(W);'},
@@ -127,13 +121,24 @@ function NavierStokesDivFree:getDisplayVars()
 		--{hTotal = '*value = calc_hTotal(W.rho, W.P, U.ETotal);'},
 		--{['Speed of Sound'] = '*value = calc_Cs(&W);'},
 		--{['Mach number'] = '*value = coordLen(W.v, x) / calc_Cs(&W);'},
-	}:append( ({
+	}
+	
+	if self.solver.dim == 2 then
 	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
 	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
-			[1] = {},
-			[2] = {vorticity(2)},
-			[3] = range(0,2):map(vorticity),
-	})[self.solver.dim] )
+		vars:insert(vorticity(2))
+	elseif self.solver.dim == 3 then
+		local v = range(0,2):map(function(i) return vorticity(self,i) end)
+		vars:insert{vorticityVec = template([[
+	<? for i=0,2 do ?>{
+		<?=select(2,next(v[i+1]))?>
+		++value;
+	}<? end ?>
+	value -= 3;
+]], {v=v}), type='real3'}
+	end	
+			
+	return vars
 end
 
 return NavierStokesDivFree 

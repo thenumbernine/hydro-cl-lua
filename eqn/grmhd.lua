@@ -1,3 +1,6 @@
+-- BIG TODO.   I've moved prim_t into cons_t for GRHD ... because it's rare one is bound when the other is not
+-- so .. this needs to undergo that as well
+
 --[[
 based on 2010 Anton et al 
 ... which looks to be a SRMHD implementation ...

@@ -232,10 +232,8 @@ end
 function GRHD:getDisplayVars()
 	return {
 		{D = '*value = U->cons.D;'},
-		{S_x = '*value = U->cons.S.x;'},
-		{S_y = '*value = U->cons.S.y;'},
-		{S_z = '*value = U->cons.S.z;'},
-		{S = template([[
+		{S = 'valuevec = U->cons.S;', type='real3'},
+		{['S weighted'] = template([[
 	<?=solver:getADMVarCode()?>
 	*value = real3_weightedLen(U->cons.S, gamma);
 ]], {solver=self.solver})},
@@ -267,14 +265,14 @@ function GRHD:getDisplayVars()
 ]], {solver=self.solver})},
 
 		{rho = '*value = U->prim.rho;'},
-		{['v_x'] = '*value = U->prim.v.x;'},
-		{['v_y'] = '*value = U->prim.v.y;'},
-		{['v_z'] = '*value = U->prim.v.z;'},
-
-		--TODO in gr-hd-separate, override gr's prim tex and give it an 'extraArgs'
-		--{v = '*value = real3_weightedLen(prim.v, gamma);'},
-		{['|v|'] = '*value = real3_len(U->prim.v);'},
 		
+		-- TODO abstract the generators of real3 variables and add weighted norms automatically
+		{v = 'valuevec = U->prim.v;', type='real3'},
+		{['v weighted'] = template([[
+	<?=solver:getADMVarCode()?>
+	*value = real3_weightedLen(U->prim.v, gamma);
+]], {solver=self.solver})},
+
 		{eInt = '*value = U->prim.eInt;'},
 		{P = '*value = calc_P(U->prim.rho, U->prim.eInt);'},
 		{h = '*value = calc_h(U->prim.rho, calc_P(U->prim.rho, U->prim.eInt), U->prim.eInt);'},

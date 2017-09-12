@@ -1841,6 +1841,7 @@ end
 			--tooltip.sliderTable('vector field scale', self, 'displayVectorField_scale', 0, 100, nil, 10)
 			
 			tooltip.intTable('vector field step', self, 'displayVectorField_step')
+			self.displayVectorField_step = math.max(self.displayVectorField_step, 1)
 		end
 	end
 	
