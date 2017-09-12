@@ -404,8 +404,8 @@ DisplayVar.displayCode = [[
 kernel void <?=name?>(
 	<?=input?>,
 	const global <?= var.type ?>* buf<?= 
-	#convertToTex.extraArgs > 0 
-		and ',\n\t'..table.concat(convertToTex.extraArgs, ',\n\t')
+	var.extraArgs and #var.extraArgs > 0 
+		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
 		or '' 
 ?>
 ) {
@@ -582,7 +582,8 @@ function Solver:addUBufDisplayVars()
 			end
 		end
 
-		-- enable the first vector field on non-1D simulations
+		-- enable the first scalar field
+		-- also enable the first vector field on non-1D simulations
 		local enabled
 		if vartype ~= 'real3' then
 			enabled = enableScalar
@@ -610,10 +611,6 @@ function Solver:addUBufDisplayVars()
 				{name = ' z', code = '	valuevec = _real3(valuevec.z,0,0);'},
 				{name = ' mag', code = '	valuevec = _real3(real3_len(valuevec),0,0);', magn=true},
 			} do
-				-- automatically create norm display shaders
-				-- and associate the one with the other
-				-- so I can reduce norms in the vector display shader
-				-- and get the norm's range
 				local scalarVar = self.DisplayVar(table(args, {
 					solver = self,
 					name = group.name .. '_' .. name .. info.name,
@@ -621,13 +618,32 @@ function Solver:addUBufDisplayVars()
 				}))
 				group.vars:insert(scalarVar)
 			
-				-- tie these two together,
+				-- tie together vectors and magnitudes,
 				-- since reduceMin and Max applied to vectors is gonna reduce their magnitude
 				-- so I need to always compile the magnitude kernels, even if they are not enabled
 				if info.magn then
 					var.magVar = scalarVar
 					scalarVar.vecVar = var
 				end
+			end
+		-- hmm, valuevec has to be bigger for this to work
+		-- but does that mean I have to store 6 components in valuevec?
+		-- I suppose it does if I want a sym3-specific visualization
+		elseif vartype == 'sym3' then
+			for _,info in ipairs{
+				{name = ' xx', code = '	valuevec = _real3(valuevec.xx,0,0);'},
+				{name = ' xy', code = '	valuevec = _real3(valuevec.xy,0,0);'},
+				{name = ' xz', code = '	valuevec = _real3(valuevec.xz,0,0);'},
+				{name = ' yy', code = '	valuevec = _real3(valuevec.yy,0,0);'},
+				{name = ' yz', code = '	valuevec = _real3(valuevec.yz,0,0);'},
+				{name = ' zz', code = '	valuevec = _real3(valuevec.zz,0,0);'},
+			} do
+				local scalarVar = self.DisplayVar(table(args, {
+					solver = self,
+					name = group.name .. '_' .. name .. info.name,
+					code = code .. info.code,
+				}))
+				group.vars:insert(scalarVar)
 			end
 		end
 	end

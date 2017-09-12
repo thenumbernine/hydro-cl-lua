@@ -70,11 +70,13 @@ void main() {
 	} else {
 		value = (value - valueMin) / (valueMax - valueMin);
 	}
+	float valuescale = clamp(value, 0., 1.) * scale;
 	value = (value * <?=clnumber(gradTexWidth-1)?> + .5) / <?=clnumber(gradTexWidth)?>;
 	color = texture1D(gradientTex, value);
 
+
 	vec2 offset = gl_Vertex.xy;
-	vec3 v = gl_MultiTexCoord1.xyz * (maxs - mins) + mins + scale * (offset.x * dir + offset.y * tv);
+	vec3 v = gl_MultiTexCoord1.xyz * (maxs - mins) + mins + valuescale * (offset.x * dir + offset.y * tv);
 	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(v, 1.);
 }
 
