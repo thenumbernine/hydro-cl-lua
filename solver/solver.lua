@@ -545,7 +545,8 @@ function Solver:createDisplayVars()
 	end
 end
 
--- still used by gr-hd-separate
+-- still used by gr-hd-separate to add 'extraArgs'
+-- I don't even know if that is still supported correctly ...
 function Solver:getUBufDisplayVarsArgs()
 	return {
 		type = self.eqn.cons_t,

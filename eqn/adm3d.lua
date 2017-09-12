@@ -214,7 +214,7 @@ function ADM_BonaMasso_3D:getDisplayVars()
 		if vartype == 'real' then
 			vars:insert{[varname] = '*value = U->'..varname..';'}
 		elseif vartype == 'real3' then
-			-- use vec display vars, it'll auto-create scalars
+			vars:insert{[varname] = 'valuevec = U->'..varname..';', type='real3'}
 		elseif vartype == 'sym3' then
 			for ij,xij in ipairs(symNames) do
 				vars:insert{[varname..'_'..xij] = '*value = U->'..varname..'.'..xij..';'}
@@ -242,22 +242,7 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 	*value = -U->alpha * sym3_dot(gammaU, U->K);
 ]]		},
-	}:append( xNames:map(function(xi,i)
-		-- V_i - (d_im^m - d^m_mi)
-		return {['constraint_V_'..xi] = template([[
-	real det_gamma = sym3_det(U->gamma);
-	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	real d1 = sym3_dot(U->d[<?=i-1?>], gammaU);
-	real d2 = 0.<?
-for j=1,3 do
-	for k,xk in ipairs(xNames) do
-?> + U->d[<?=j-1?>].<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
-	end
-end ?>;
-	*value = U->V.<?=xi?> - d1 + d2;
-]], {i=i, xi=xi, sym=sym, xNames=xNames})}
-	
-	end) ):append{
+	}:append{
 --[=[
 	-- 1998 Bona et al
 --[[
@@ -272,35 +257,6 @@ momentum constraints
 --]=]
 	}
 
-	return vars
-end
-
-function ADM_BonaMasso_3D:getEigenTypeCode()
-	return template([[
-typedef struct {
-	real alpha;	//used only by eigen_calcWaves ... makes me think eigen_forCell / eigen_forSide should both calculate waves and basis variables in the same go
-	real sqrt_f;
-	sym3 gammaU;
-	
-	//sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
-	real3 sqrt_gammaUjj;	
-} <?=eqn.eigen_t?>;
-]], {
-	eqn = self,
-})
-end
-
-function ADM_BonaMasso_3D:getVecDisplayVars()
-	local vars = table()
-
-	for _,var in ipairs(self.consVars) do
-		local varname, vartype = next(var)
-		
-		if vartype == 'real3' then
-			vars:insert{[varname] = 'valuevec = U->'..varname..';'}
-		end
-	end
-
 	-- shift-less gravity only
 	-- gravity with shift is much more complex
 	-- TODO add shift influence (which is lengthy)
@@ -308,11 +264,11 @@ function ADM_BonaMasso_3D:getVecDisplayVars()
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 	valuevec = real3_scale(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
-]]}
+]], type='real3'}
 	
 	local function addSym3(field)
 		for i,xi in ipairs(xNames) do
-			vars:insert{[field..'_'..xi] = 'valuevec = sym3_'..xi..'(U->'..field..');'}
+			vars:insert{[field..'_'..xi] = 'valuevec = sym3_'..xi..'(U->'..field..');', type='real3'}
 		end
 	end
 	addSym3'gamma'
@@ -331,9 +287,26 @@ function ADM_BonaMasso_3D:getVecDisplayVars()
 	end ?>;
 		valuevec.<?=xi?> = U->V.<?=xi?> - (d1 - d2);
 	}<? end ?>
-]], {sym=sym, xNames=xNames})}
+]], {sym=sym, xNames=xNames}), type='real3'}
+
+
 
 	return vars
+end
+
+function ADM_BonaMasso_3D:getEigenTypeCode()
+	return template([[
+typedef struct {
+	real alpha;	//used only by eigen_calcWaves ... makes me think eigen_forCell / eigen_forSide should both calculate waves and basis variables in the same go
+	real sqrt_f;
+	sym3 gammaU;
+	
+	//sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
+	real3 sqrt_gammaUjj;	
+} <?=eqn.eigen_t?>;
+]], {
+	eqn = self,
+})
 end
 
 function ADM_BonaMasso_3D:getEigenDisplayVars()

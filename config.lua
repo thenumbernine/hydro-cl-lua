@@ -148,7 +148,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Hemholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -184,7 +184,7 @@ maxs = {6,1,1},
 	--initState = 'Orszag-Tang',
 	
 	-- EM:
-	--initState = 'Maxwell default',
+	initState = 'Maxwell default',
 	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell wire',
 	
@@ -219,7 +219,7 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
@@ -265,7 +265,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
 
 -- EM
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 
 -- EM+HD

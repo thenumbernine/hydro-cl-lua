@@ -146,14 +146,9 @@ end
 
 function Maxwell:getDisplayVars()
 	return table{
-		{Ex = '*value = U->epsE.x / U->eps;'},
-		{Ey = '*value = U->epsE.y / U->eps;'},
-		{Ez = '*value = U->epsE.z / U->eps;'},
-		{['|E|'] = '*value = sqrt(ESq(*U, x));'},
-		{Bx = '*value = U->B.x;'},
-		{By = '*value = U->B.y;'},
-		{Bz = '*value = U->B.z;'},
-		{['|B|'] = '*value = sqrt(BSq(*U, x));'},
+		{E = 'valuevec = real3_scale(U->epsE, 1. / U->eps);', type='real3'},
+		{B = 'valuevec = U->B;', type='real3'},
+		{S = 'valuevec = real3_scale(real3_cross(U->epsE, U->B), 1. / U->eps);', type='real3'},
 		{energy = [[
 	//*value = .5 * (coordLen(U->epsE) + coordLen(U->B) / U->mu);
 	*value = .5 * (real3_len(U->epsE) + real3_len(U->B) / U->mu);
@@ -180,14 +175,6 @@ end
 		{sigma = '*value = U->sigma;'},
 		{eps = '*value = U->eps;'},
 		{mu = '*value = U->mu;'},
-	}
-end
-
-function Maxwell:getVecDisplayVars()
-	return table{
-		{E = 'valuevec = real3_scale(U->epsE, 1. / U->eps);'},
-		{B = 'valuevec = U->B;'},
-		{S = 'valuevec = real3_scale(real3_cross(U->epsE, U->B), 1. / U->eps);'},
 	}
 end
 

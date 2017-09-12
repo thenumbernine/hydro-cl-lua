@@ -361,14 +361,8 @@ function TwoFluidEMHD:getDisplayVars()
 		
 		vars:append{
 			{[fluid..' rho'] = '*value = W.'..fluid..'_rho;'},
-			{[fluid..' vx'] = '*value = W.'..fluid..'_v.x;'},
-			{[fluid..' vy'] = '*value = W.'..fluid..'_v.y;'},
-			{[fluid..' vz'] = '*value = W.'..fluid..'_v.z;'},
-			{[fluid..' v'] = '*value = coordLen(W.'..fluid..'_v, x);'},
-			{[fluid..' mx'] = '*value = U->'..fluid..'_m.x;'},
-			{[fluid..' my'] = '*value = U->'..fluid..'_m.y;'},
-			{[fluid..' mz'] = '*value = U->'..fluid..'_m.z;'},
-			{[fluid..' m'] = '*value = coordLen(U->'..fluid..'_m, x);'},
+			{[fluid..' v'] = 'valuevec = W.'..fluid..'_v;', type='real3'},
+			{[fluid..' m'] = 'valuevec = U->'..fluid..'_m;', type='real3'},
 			{[fluid..' P'] = '*value = W.'..fluid..'_P;'},
 			{[fluid..' eInt'] = '*value = calc_'..fluid..'_eInt(W);'},
 			{[fluid..' eKin'] = '*value = calc_'..fluid..'_eKin(W, x);'},
@@ -396,14 +390,8 @@ function TwoFluidEMHD:getDisplayVars()
 	end
 
 	vars:append{
-		{Ex = '*value = U->epsE.x / U->eps;'},
-		{Ey = '*value = U->epsE.y / U->eps;'},
-		{Ez = '*value = U->epsE.z / U->eps;'},
-		{E = '*value = sqrt(ESq(*U, x));'},
-		{Bx = '*value = U->B.x;'},
-		{By = '*value = U->B.y;'},
-		{Bz = '*value = U->B.z;'},
-		{B = '*value = sqrt(BSq(*U, x));'},
+		{E = 'valuevec = real3_scale(U->epsE, 1./U->eps);', type='real3'},
+		{B = 'valuevec = U->B;', type='real3'},
 		{['EM energy'] = [[
 	//*value = .5 * (coordLen(U->epsE) + coordLen(U->B) / U->mu);
 	*value = .5 * (real3_len(U->epsE) + real3_len(U->B) / U->mu);

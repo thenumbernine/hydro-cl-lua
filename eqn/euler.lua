@@ -256,9 +256,6 @@ for side=solver.dim,2 do ?>
 	return vars
 end
 
-function Euler:getVecDisplayVars()
-end
-
 function Euler:getEigenTypeCode()
 	return template([[
 typedef struct {
