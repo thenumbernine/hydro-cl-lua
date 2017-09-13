@@ -16,7 +16,7 @@ local Equation = require 'eqn.eqn'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
 
-local fluids = {'ion', 'elec'}
+local fluids = table{'ion', 'elec'}
 
 local TwoFluidEMHD = class(Equation)
 
@@ -29,6 +29,51 @@ TwoFluidEMHD.name = 'TwoFluidEMHD'
 TwoFluidEMHD.numStates = 22
 TwoFluidEMHD.numWaves = 16
 TwoFluidEMHD.numIntStates = 16
+
+TwoFluidEMHD.consVars = table{
+	--integration variables		
+	{ion_rho = 'real'},
+	{ion_m = 'real3'},
+	{ion_ETotal = 'real'},
+	
+	{elec_rho = 'real'},
+	{elec_m = 'real3'},
+	{elec_ETotal = 'real'},
+
+	{epsE = 'real3'},
+	{B = 'real3'},
+
+	--extra	
+	{ion_ePot = 'real'},
+	{elec_ePot = 'real'},
+	{BPot = 'real'},
+	{sigma = 'real'},
+	{eps = 'real'},
+	{mu = 'real'},
+}
+
+TwoFluidEMHD.primVars = table{
+	--integration variables		
+	{ion_rho = 'real'},
+	{ion_v = 'real3'},
+	{ion_P = 'real'},
+	
+	{elec_rho = 'real'},
+	{elec_v = 'real3'},
+	{elec_P = 'real'},
+
+	{E = 'real3'},
+	{B = 'real3'},
+	
+	--extra	
+	{ion_ePot = 'real'},
+	{elec_ePot = 'real'},
+	{BPot = 'real'},
+	{sigma = 'real'},
+	{eps = 'real'},
+	{mu = 'real'},
+}
+
 TwoFluidEMHD.mirrorVars = {
 	{'ion_m.x', 'elec_m.x', 'epsE.x', 'B.x'}, 
 	{'ion_m.y', 'elec_m.y', 'epsE.y', 'B.y'}, 
@@ -61,7 +106,9 @@ function TwoFluidEMHD:init(solver)
 
 	local NoDiv = require 'solver.nodiv'
 	solver.ops:insert(NoDiv{solver=solver})	-- nodiv on maxwell
-	
+
+io.stderr:write'you need to give different selfgravs different names for twofluid selfgrav to work\n' 
+	--[[ TODO give each selfgrav a unique function name
 	local SelfGrav = require 'solver.selfgrav'
 	solver.ops:insert(SelfGrav{
 		solver = solver,
@@ -73,66 +120,20 @@ function TwoFluidEMHD:init(solver)
 		densityField = 'elec_rho',
 		potentialField = 'elec_ePot',
 	})	-- selfgrav on electron
-end
-
-
-function TwoFluidEMHD:getTypeCode()
-	return template([[
-typedef union {
-	real ptr[<?=eqn.numStates?>];
-	struct {
-//integration variables		
-		real ion_rho;
-		real3 ion_m;
-		real ion_ETotal;
-		
-		real elec_rho;
-		real3 elec_m;
-		real elec_ETotal;
-	
-		real3 epsE;
-		real3 B;
-//extra	
-		real ion_ePot;
-		real elec_ePot;
-		real BPot;
-		real sigma;
-		real eps;
-		real mu;
-	};
-} <?=eqn.cons_t?>;
-
-typedef union {
-	real ptr[<?=eqn.numStates?>];
-	struct {
-//integration variables		
-		real ion_rho;
-		real3 ion_v;
-		real ion_P;
-		
-		real elec_rho;
-		real3 elec_v;
-		real elec_P;
-	
-		real3 E;
-		real3 B;
-//extra	
-		real ion_ePot;
-		real elec_ePot;
-		real BPot;
-		real sigma;
-		real eps;
-		real mu;
-	};
-} <?=eqn.prim_t?>;
-]], {
-	eqn = self,
-})
+	--]]
 end
 
 function TwoFluidEMHD:createInitState()
 	TwoFluidEMHD.super.createInitState(self)
-	self:addGuiVar{name='heatCapacityRatio', value=5/3}
+	self:addGuiVars{
+		{name='heatCapacityRatio', value=5/3},
+		{name='ionLarmorRadius', value=.05},			-- lHat = l_r / x_0 = m_i v_i^T / (q_i B_0 x_0)
+		{name='ionElectronMassRatio', value=5},			-- m = m_i / m_e
+		{name='ionChargeMassRatio', value=1},			-- r_i = q_i / m_i
+		{name='elecChargeMassRatio', value=.05},		-- r_e = q_e / m_e
+		{name='speedOfLight', value=1},					-- cHat = c / v_i^T
+		{name='ionDebyeLength', value=1},				-- lambdaHat_d = lambda_d / l_r
+	}
 end
 
 function TwoFluidEMHD:getCodePrefix()
@@ -210,8 +211,8 @@ end
 -- overridden because it adds some extra parameters to the template args
 -- should I either make a function for the template arg params
 -- or maybe I shouldn't have super-class'd the initState code to begin with ...
-TwoFluidEMHD:getInitStateCode()
-	local code = self.initState.init(self.solver)	
+function TwoFluidEMHD:getInitStateCode()
+	local code = self.initState:initState(self.solver)	
 	return template([[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
@@ -257,7 +258,7 @@ end
 if eqn.useEulerInitState then 
 ?>
 		.ion_rho = rho,
-		.elec_rho = rho * <?=clnumber(1/eqn.ionElectronMassRatio)?>, 
+		.elec_rho = rho / ionElectronMassRatio, 
 
 		// "the electron pressure is taken to be elec_P = 5 ion_rho"
 		// is that arbitrary?
@@ -265,7 +266,7 @@ if eqn.useEulerInitState then
 		
 		// "the ion pressure is 1/100th the electron pressure"
 		// is that from the mass ratio of ion/electron?
-		.ion_P = P * <?=clnumber(1/eqn.ionElectronMassRatio)?>, 
+		.ion_P = P / ionElectronMassRatio, 
 
 		.ion_v = v,
 		.elec_v = v,
@@ -323,7 +324,7 @@ function TwoFluidEMHD:getDisplayVarCodePrefix()
 end
 
 function TwoFluidEMHD:getDisplayVars()
-	local vars = table()
+	local vars = TwoFluidEMHD.super.getDisplayVars(self)
 
 	for _,fluid in ipairs(fluids) do
 	
@@ -360,14 +361,11 @@ function TwoFluidEMHD:getDisplayVars()
 		end
 		
 		vars:append{
-			{[fluid..' rho'] = '*value = W.'..fluid..'_rho;'},
-			{[fluid..' v'] = 'valuevec = W.'..fluid..'_v;', type='real3'},
-			{[fluid..' m'] = 'valuevec = U->'..fluid..'_m;', type='real3'},
+			{[fluid..' v'] = '*valuevec = W.'..fluid..'_v;', type='real3'},
 			{[fluid..' P'] = '*value = W.'..fluid..'_P;'},
 			{[fluid..' eInt'] = '*value = calc_'..fluid..'_eInt(W);'},
 			{[fluid..' eKin'] = '*value = calc_'..fluid..'_eKin(W, x);'},
 			{[fluid..' ePot'] = '*value = U->'..fluid..'_ePot;'},
-			{[fluid..' eTotal'] = '*value = U->'..fluid..'_ETotal / W.'..fluid..'_rho;'},
 			{[fluid..' EInt'] = '*value = calc_'..fluid..'_EInt(W);'},
 			{[fluid..' EKin'] = '*value = calc_'..fluid..'_EKin(W, x);'},
 			{[fluid..' EPot'] = '*value = U->'..fluid..'_rho * U->'..fluid..'_ePot;'},
@@ -390,8 +388,7 @@ function TwoFluidEMHD:getDisplayVars()
 	end
 
 	vars:append{
-		{E = 'valuevec = real3_scale(U->epsE, 1./U->eps);', type='real3'},
-		{B = 'valuevec = U->B;', type='real3'},
+		{E = '*valuevec = real3_scale(U->epsE, 1./U->eps);', type='real3'},
 		{['EM energy'] = [[
 	//*value = .5 * (coordLen(U->epsE) + coordLen(U->B) / U->mu);
 	*value = .5 * (real3_len(U->epsE) + real3_len(U->B) / U->mu);
@@ -413,57 +410,28 @@ if field == 'epsE' then
 end
 ?>;
 ]], {solver=self.solver, field=field})}
-	end)):append{
-		{BPot = '*value = U->BPot;'},
-		{sigma = '*value = U->sigma;'},
-		{eps = '*value = U->eps;'},
-		{mu = '*value = U->mu;'},
-	}
+	end))
 
 	return vars
 end
 
--- can it be zero sized?
-function TwoFluidEMHD:getEigenTypeCode()
-	return template([[
-typedef struct {
-<? for _,fluid in ipairs(fluids) do ?>	
-	// Roe-averaged vars
-	real <?=fluid?>_rho;
-	real3 <?=fluid?>_v;
-	real <?=fluid?>_hTotal;
+local eigenVars = table()
+for _,fluid in ipairs(fluids) do
+	eigenVars:append{
+		-- Roe-averaged vars
+		{[fluid..'_rho'] = 'real'},
+		{[fluid..'_v'] = 'real3'},
+		{[fluid..'_hTotal'] = 'real'},
 
-	// derived vars
-	real <?=fluid?>_vSq;
-	real <?=fluid?>_Cs;
-<? end ?>
-	real eps, mu; 
-} <?=eqn.eigen_t?>;
-]], {
-	eqn = self,
-	fluids = fluids,
-})
-end
-
-function TwoFluidEMHD:getEigenDisplayVars()
-	local vars = table()
-	for _,fluid in ipairs(fluids) do
-		vars:append{
-			{[fluid..' rho'] = '*value = eigen->'..fluid..'_rho;'},
-			{[fluid..' vx'] = '*value = eigen->'..fluid..'_v.x;'},
-			{[fluid..' vy'] = '*value = eigen->'..fluid..'_v.y;'},
-			{[fluid..' vz'] = '*value = eigen->'..fluid..'_v.z;'},
-			{[fluid..' v'] = '*value = coordLen(eigen->'..fluid..'_v, xInt[0]);'},
-			{[fluid..' hTotal'] = '*value = eigen->'..fluid..'_hTotal;'},
-			{[fluid..' vSq'] = '*value = eigen->'..fluid..'_vSq;'},
-			{[fluid..' Cs'] = '*value = eigen->'..fluid..'_Cs;'},
-		}
-	end
-	vars:append{
-		{eps = '*value = eigen->eps;'},
-		{mu = '*value = eigen->mu;'},
+		-- derived vars
+		{[fluid..'_vSq'] = 'real'},
+		{[fluid..'_Cs'] = 'real'},
 	}
-	return vars
 end
+eigenVars:append{
+	{eps = 'real'},
+	{mu = 'real'},
+}
+TwoFluidEMHD.eigenVars = eigenVars
 
 return TwoFluidEMHD

@@ -6,51 +6,34 @@ local symmath = require 'symmath'
 local clnumber = require 'cl.obj.number'
 local NumRelEqn = require 'eqn.numrel'
 local makestruct = require 'eqn.makestruct'
-
--- bssnok helper functions:
-
-local xNames = table{'x', 'y', 'z'}
-local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
-
-local from3x3to6_table = {{1, 2, 3}, {2, 4, 5}, {3, 5, 6},}
-local function from3x3to6(i,j) return from3x3to6_table[i][j] end
-
-local from6to3x3_table = {{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}}
-local function from6to3x3(i) return table.unpack(from6to3x3_table[i]) end
-
-local function sym(a,b)
-	assert(a >= 1 and a <= 3, "tried to index sym with "..tostring(a)..", "..tostring(b))
-	assert(b >= 1 and b <= 3, "tried to index sym with "..tostring(a)..", "..tostring(b))
-	if a > b then a,b = b,a end
-	return xNames[a]..xNames[b]
-end
+require 'common'(_G)
 
 local typeInfo = {
 	real = {
 		add = function(a,b) 
-			if a == '0' or a == '0.' then return b end
-			if b == '0' or b == '0.' then return a end
+			if tonumber(a) == 0 then return b end
+			if tonumber(b) == 0 then return a end
 			return '('..a..') + ('..b..')' 
 		end, 
 		sub = function(a,b) return '('..a..') - ('..b..')' end, 
 		scale = function(a,b) 
-			if a == '1' or a == '1.' then return b end
-			if b == '1' or b == '1.' then return a end
+			if tonumber(a) == 1 then return b end
+			if tonumber(b) == 1 then return a end
 			return '('..a..') * ('..b..')' 
 		end, 
-		zero = '0.',
+		zero = '0',
 	},
 	real3 = {
 		add = function(a,b) return 'real3_add('..a..', '..b..')' end,
 		sub = function(a,b) return 'real3_sub('..a..', '..b..')' end,
 		scale = function(a,b) return 'real3_scale('..a..', '..b..')' end,
-		zero = '_real3(0., 0., 0.)',
+		zero = '_real3(0,0,0)',
 	},
 	sym3 = {
 		add = function(a,b) return 'sym3_add('..a..', '..b..')' end,
 		sub = function(a,b) return 'sym3_sub('..a..', '..b..')' end,
 		scale = function(a,b) return 'sym3_scale('..a..', '..b..')' end,
-		zero = '_sym3(0.,0.,0.,0.,0.,0.)',
+		zero = '_sym3(0,0,0,0,0,0)',
 	},
 }
 
@@ -318,6 +301,8 @@ kernel void initState(
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
+
+	setFlatSpace(U);
 	
 	U->alpha = calc_alpha(x.x, x.y, x.z);
 
@@ -422,48 +407,27 @@ typedef struct { char unused; } <?=eqn.eigen_t?>;
 ]], {eqn=self})
 end
 
-function BSSNOKFiniteDifferenceEquation:getDisplayVars()
-	local derivOrder = 2 * self.solver.numGhost
-	
-	local vars = table()
-
-	local function addvar(name)
-		vars:insert{[name] = '*value = U->'..name..';'}
-	end
+function BSSNOKFiniteDifferenceEquation:getDisplayVars()	
+	local vars = BSSNOKFiniteDifferenceEquation.super.getDisplayVars(self)
 
 	local function addreal3(name)
-		vars:insert{[name] = 'valuevec = U->'..name..';', type='real3'}	
+		-- TODO override solver's real3 display var construction
 		vars:insert{['|'..name..'| weighted'] = '*value = real3_weightedLen(U->'..name..', U->gammaBar_ll) / calc_exp_neg4phi(U);'}	
 	end
 
 	-- hmm, how to do the weighting stuff with gammaBar_ll ... 
 	-- also, how to determine which metric to raise by ... gamma vs gammaBar
 	local function addsym3_ll(name)
-		for _,xij in ipairs(symNames) do
-			addvar(name..'.'..xij)
-		end
-		for i,xi in ipairs(xNames) do
-			vars:insert{[name..'_'..xi] = 'valuevec = sym3_'..xi..'(U->'..name..');', type='real3'}
-		end
-		vars:insert{['norm '..name] = '*value = sym3_dot(U->'..name..', U->'..name..');'}
-		vars:insert{['tr '..name] = '*value = sym3_trace(U->'..name..');'} 
 		vars:insert{['tr '..name..' weighted'] = '*value = sym3_dot(U->gammaBar_uu, U->'..name..') / calc_det_gamma(U);'}
 	end
 
-	addvar'alpha'
 	addreal3'beta_u'
 	addsym3_ll'gammaBar_ll'
 	vars:insert{['det gammaBar-1'] = [[*value = -1. + sym3_det(U->gammaBar_ll);]]}	-- for logarithmic displays
-	if self.useChi then
-		addvar'chi'
-	else
-		addvar'phi'
-	end
 	vars:insert{['det gamma based on phi'] = [[
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	*value = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);   
 ]]}
-	addvar'K'
 	addsym3_ll'ATilde_ll'
 	addreal3'connBar_u'
 	if self.useHypGammaDriver then
@@ -476,31 +440,29 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	addsym3_ll'dTilde[2]'
 	addreal3'Phi'
 	--]]
-	addvar'rho'
 	addreal3'S_u'
 	addsym3_ll'S_ll'
 
-	addvar'H'
 	addreal3'M_u'
 
+	local derivOrder = 2 * self.solver.numGhost
 	vars:append{
 		{S = '*value = sym3_dot(U->S_ll, calc_gamma_uu(U));'},
 		{volume = '*value = U->alpha * calc_det_gamma(U);'},
 		{expansion = '*value = -U->alpha * U->K;'},
-	}
-
-	vars:append{
-		{gamma_x = 'valuevec = real3_scale(sym3_x(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},
-		{gamma_y = 'valuevec = real3_scale(sym3_y(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},
-		{gamma_z = 'valuevec = real3_scale(sym3_z(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},
-		{K_x = 'valuevec = real3_add(sym3_x(U->ATilde_ll), real3_scale(sym3_x(U->gammaBar_ll), U->K/3.));', type='real3'},
-		{K_y = 'valuevec = real3_add(sym3_y(U->ATilde_ll), real3_scale(sym3_y(U->gammaBar_ll), U->K/3.));', type='real3'},
-		{K_z = 'valuevec = real3_add(sym3_z(U->ATilde_ll), real3_scale(sym3_z(U->gammaBar_ll), U->K/3.));', type='real3'},
+		{f = '*value = calc_f(U->alpha);'},
+		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
+		{gamma_x = '*valuevec = real3_scale(sym3_x(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},
+		{gamma_y = '*valuevec = real3_scale(sym3_y(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},
+		{gamma_z = '*valuevec = real3_scale(sym3_z(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},
+		{K_x = '*valuevec = real3_add(sym3_x(U->ATilde_ll), real3_scale(sym3_x(U->gammaBar_ll), U->K/3.));', type='real3'},
+		{K_y = '*valuevec = real3_add(sym3_y(U->ATilde_ll), real3_scale(sym3_y(U->gammaBar_ll), U->K/3.));', type='real3'},
+		{K_z = '*valuevec = real3_add(sym3_z(U->ATilde_ll), real3_scale(sym3_z(U->gammaBar_ll), U->K/3.));', type='real3'},
 
 		{
 			gravity = template([[
 <?=makePartial('alpha', 'real')?>
-	valuevec = real3_scale(sym3_real3_mul(calc_gamma_uu(U), *(real3*)partial_alpha_l), 1. / U->alpha);
+	*valuevec = real3_scale(sym3_real3_mul(calc_gamma_uu(U), *(real3*)partial_alpha_l), 1. / U->alpha);
 ]],				{
 					eqn = self,
 					solver = self.solver,
@@ -510,38 +472,21 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 			type = 'real3',
 		},
 	}
+	
 	return vars
 end
 
-local ffi = require 'ffi'
-local function crand() return 2 * math.random() - 1 end
 function BSSNOKFiniteDifferenceEquation:fillRandom(epsilon)
+	local ptr = BSSNOKFiniteDifferenceEquation.super.fillRandom(self, epsilon)
 	local solver = self.solver
-	local ptr = ffi.new(self.cons_t..'[?]', solver.volume)
-	ffi.fill(ptr, 0, ffi.sizeof(ptr))
 	for i=0,solver.volume-1 do
-		for _,var in ipairs(intVars) do
-			local name, ctype = next(var)
-			if ctype == 'real' then
-				ptr[i][name] = epsilon * crand()
-			elseif ctype == 'real3' then
-				for j=0,2 do
-					ptr[i][name].s[j] = epsilon * crand()
-				end
-			elseif ctype == 'sym3' then
-				for jk=0,5 do
-					ptr[i][name].s[jk] = epsilon * crand()
-				end
-			else
-				error("don't know how to handle ctype "..ctype.." for field "..name)
-			end
-		end
-		
+		ptr[i].alpha = ptr[i].alpha + 1
 		ptr[i].gammaBar_ll.xx = ptr[i].gammaBar_ll.xx + 1
 		ptr[i].gammaBar_ll.yy = ptr[i].gammaBar_ll.yy + 1
 		ptr[i].gammaBar_ll.zz = ptr[i].gammaBar_ll.zz + 1
 	end
 	solver.UBufObj:fromCPU(ptr)
+	return ptr
 end
 
 return BSSNOKFiniteDifferenceEquation

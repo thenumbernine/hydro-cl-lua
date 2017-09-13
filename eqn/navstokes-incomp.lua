@@ -103,7 +103,7 @@ function NavierStokesDivFree:getDisplayVars()
 	end
 	local vars = table{
 		{rho = '*value = U.rho;'},
-		{v = 'valuevec = U.v;', type='real3'},
+		{v = '*valuevec = U.v;', type='real3'},
 		{m = 'value = real3_scale(U.v, U.rho);', type='real3'},
 		--{P = '*value = W.P;'},
 		--{eInt = '*value = calc_eInt(W);'},

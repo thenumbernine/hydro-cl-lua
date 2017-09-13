@@ -11,21 +11,8 @@ local NumRelEqn = require 'eqn.numrel'
 local symmath = require 'symmath'
 local makeStruct = require 'eqn.makestruct'
 
-local xNames = table{'x', 'y', 'z'}
-local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
-
-local from3x3to6_table = {{1, 2, 3}, {2, 4, 5}, {3, 5, 6},}
-local function from3x3to6(i,j) return from3x3to6_table[i][j] end
-
-local from6to3x3_table = {{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}}
-local function from6to3x3(i) return table.unpack(from6to3x3_table[i]) end
-
-local function sym(a,b)
-	assert(a >= 1 and a <= 3, "tried to index sym with "..tostring(a)..", "..tostring(b))
-	assert(b >= 1 and b <= 3, "tried to index sym with "..tostring(a)..", "..tostring(b))
-	if a > b then a,b = b,a end
-	return xNames[a]..xNames[b]
-end
+-- TODO assign these as locals instead of globals
+require 'common'(_G)
 
 local ADM_BonaMasso_3D = class(NumRelEqn)
 ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
@@ -144,9 +131,6 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	return lines:concat()
 end
 
-local xNames = table{'x', 'y', 'z'}
-local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
-
 function ADM_BonaMasso_3D:getInitStateCode()
 	local lines = table{
 		template([[
@@ -156,9 +140,12 @@ kernel void initState(
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
-]], {
-	eqn = self,
-}),
+
+	setFlatSpace(U);
+	
+]], 	{
+			eqn = self,
+		}),
 	}
 
 	local function build(var)
@@ -207,31 +194,13 @@ function ADM_BonaMasso_3D:getSolverCode()
 end
 
 function ADM_BonaMasso_3D:getDisplayVars()
-	local vars = table()
-	for _,var in ipairs(self.consVars) do
-		local varname, vartype = next(var)
-		
-		if vartype == 'real' then
-			vars:insert{[varname] = '*value = U->'..varname..';'}
-		elseif vartype == 'real3' then
-			vars:insert{[varname] = 'valuevec = U->'..varname..';', type='real3'}
-		elseif vartype == 'sym3' then
-			for ij,xij in ipairs(symNames) do
-				vars:insert{[varname..'_'..xij] = '*value = U->'..varname..'.'..xij..';'}
-			end
-		elseif vartype == '_3sym3' then
-			for i,xi in ipairs(xNames) do
-				for jk,xjk in ipairs(symNames) do
-					vars:insert{[varname..'_'..xi..xjk] = '*value = U->'..varname..'['..(i-1)..'].'..xjk..';'}
-				end
-			end
-		end
-	end
-	
+	local vars = ADM_BonaMasso_3D.super.getDisplayVars(self)
+
 	vars:append{
 		{det_gamma = '*value = sym3_det(U->gamma);'},
 		{volume = '*value = U->alpha * sqrt(sym3_det(U->gamma));'},
 		{f = '*value = calc_f(U->alpha);'},
+		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
 		{K = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
@@ -263,17 +232,9 @@ momentum constraints
 	vars:insert{gravity = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	valuevec = real3_scale(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
+	*valuevec = real3_scale(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
 ]], type='real3'}
 	
-	local function addSym3(field)
-		for i,xi in ipairs(xNames) do
-			vars:insert{[field..'_'..xi] = 'valuevec = sym3_'..xi..'(U->'..field..');', type='real3'}
-		end
-	end
-	addSym3'gamma'
-	addSym3'K'
-
 	vars:insert{constraint_V = template([[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
@@ -285,41 +246,20 @@ momentum constraints
 ?> + U->d[<?=j-1?>].<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
 		end
 	end ?>;
-		valuevec.<?=xi?> = U->V.<?=xi?> - (d1 - d2);
+		valuevec-><?=xi?> = U->V.<?=xi?> - (d1 - d2);
 	}<? end ?>
 ]], {sym=sym, xNames=xNames}), type='real3'}
-
-
 
 	return vars
 end
 
-function ADM_BonaMasso_3D:getEigenTypeCode()
-	return template([[
-typedef struct {
-	real alpha;	//used only by eigen_calcWaves ... makes me think eigen_forCell / eigen_forSide should both calculate waves and basis variables in the same go
-	real sqrt_f;
-	sym3 gammaU;
-	
-	//sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
-	real3 sqrt_gammaUjj;	
-} <?=eqn.eigen_t?>;
-]], {
-	eqn = self,
-})
-end
-
-function ADM_BonaMasso_3D:getEigenDisplayVars()
-	return {
-		{sqrt_f = '*value = eigen->sqrt_f;'},
-		{gammaUxx = '*value = eigen->gammaU.xx;'},
-		{gammaUxy = '*value = eigen->gammaU.xy;'},
-		{gammaUxz = '*value = eigen->gammaU.xz;'},
-		{gammaUyy = '*value = eigen->gammaU.yy;'},
-		{gammaUyz = '*value = eigen->gammaU.yz;'},
-		{gammaUzz = '*value = eigen->gammaU.zz;'},
-	}
-end
+ADM_BonaMasso_3D.eigenVars = table{
+	{alpha = 'real'},	--used only by eigen_calcWaves ... makes me think eigen_forCell / eigen_forSide should both calculate waves and basis variables in the same go
+	{sqrt_f = 'real'},
+	{gammaU = 'sym3'},
+	-- sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
+	{sqrt_gammaUjj = 'real3'},
+}
 
 local sym3_delta = {1,0,0,1,0,1}
 
@@ -329,7 +269,7 @@ function ADM_BonaMasso_3D:fillRandom(epsilon)
 	local solver = self.solver
 	local ptr = ffi.new(self.cons_t..'[?]', solver.volume)
 	for i=0,solver.volume-1 do
-		ptr[i].alpha = epsilon * crand()
+		ptr[i].alpha = 1 + epsilon * crand()
 		for jk=0,5 do
 			ptr[i].gamma.s[jk] = sym3_delta[jk+1] + epsilon * crand()
 		end

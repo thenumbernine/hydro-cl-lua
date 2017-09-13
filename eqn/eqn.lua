@@ -31,6 +31,10 @@ function Equation:init(solver)
 	local numReals
 	if self.consVars then
 		numReals = makestruct.countReals(self.consVars)
+		if self.primVars then
+			local numPrimReals = makestruct.countReals(self.primVars)
+			assert(numPrimReals <= numReals, "hmm, this is awkward")
+		end
 	end
 
 	if not self.numStates then 
@@ -91,7 +95,15 @@ end
 
 function Equation:getTypeCode()
 	assert(self.consVars)
-	return makestruct.makeStruct(self.cons_t, self.consVars)
+	local lines = table{
+		makestruct.makeStruct(self.cons_t, self.consVars),
+	}
+	if self.primVars then
+		lines:insert(makestruct.makeStruct(self.prim_t, self.primVars))
+	else
+		lines:insert('typedef '..self.cons_t..' '..self.prim_t..';')
+	end
+	return lines:concat'\n'
 end
 
 function Equation:getSolverCode()
@@ -110,9 +122,45 @@ function Equation:getDisplayVarCodePrefix()
 })
 end
 
+-- accepts a list of struct var info {name=type}
+-- returns a list of display var construction info
+function Equation:getDisplayVarsForStructVars(structVarInfos)
+	local displayVarInfos = table()
+	for _,structVarInfo in ipairs(structVarInfos) do
+		local varname, vartype = next(structVarInfo)
+		
+		if vartype == 'real' then
+			displayVarInfos:insert{[varname] = '*value = U->'..varname..';'}
+		elseif vartype == 'real3' then
+			displayVarInfos:insert{[varname] = '*valuevec = U->'..varname..';', type='real3'}
+		elseif vartype == 'sym3' then
+			for ij,xij in ipairs(symNames) do
+				displayVarInfos:insert{[varname..'_'..xij] = '*value = U->'..varname..'.'..xij..';'}
+			end
+		elseif vartype == '_3sym3' then
+			for i,xi in ipairs(xNames) do
+				for jk,xjk in ipairs(symNames) do
+					displayVarInfos:insert{[varname..'_'..xi..xjk] = '*value = U->'..varname..'['..(i-1)..'].'..xjk..';'}
+				end
+			end
+		end
+	end
+	return displayVarInfos	
+end
+
+function Equation:getDisplayVars()
+	return self:getDisplayVarsForStructVars(self.consVars)
+end
+
 -- TODO autogen the name so multiple solvers don't collide
 function Equation:getEigenTypeCode()
-	return template([[
+	if self.eigenVars then
+		return makestruct.makeStruct(self.eigen_t, self.eigenVars)
+	
+	-- use the default matrix structures	
+	-- whose code is in solver/eigen.cl (included below)
+	else
+		return template([[
 typedef struct {
 	real evL[<?=numIntStates * numWaves?>];
 	real evR[<?=numIntStates * numWaves?>];
@@ -120,12 +168,13 @@ typedef struct {
 	real A[<?=numIntStates * numIntStates?>];
 <? end ?>
 } <?=eqn.eigen_t?>;
-]], {
-		numIntStates = self.numIntStates,
-		numWaves = self.numWaves,
-		solver = self.solver,
-		eqn = self,
-	})
+]], 	{
+			numIntStates = self.numIntStates,
+			numWaves = self.numWaves,
+			solver = self.solver,
+			eqn = self,
+		})
+	end
 end
 
 function Equation:getEigenCode()
@@ -137,19 +186,26 @@ function Equation:getEigenCode()
 end
 
 function Equation:getEigenDisplayVars()
-	return range(self.numIntStates * self.numWaves):map(function(i)
-		local row = (i-1)%self.numWaves
-		local col = (i-1-row)/self.numWaves
-		return {['evL_'..row..'_'..col] = '*value = eigen->evL['..i..'];'}
-	end):append(range(self.numIntStates * self.numWaves):map(function(i)
-		local row = (i-1)%self.numIntStates
-		local col = (i-1-row)/self.numIntStates
-		return {['evR_'..row..'_'..col] = '*value = eigen->evR['..i..'];'}
-	end)):append(self.solver.checkFluxError and range(self.numIntStates * self.numIntStates):map(function(i)
-		local row = (i-1)%self.numIntStates
-		local col = (i-1-row)/self.numIntStates
-		return {['A_'..row..'_'..col] = '*value = eigen->A['..i..'];'}
-	end) or nil)
+	-- use the automatic codegen for display vars
+	if self.eigenVars then
+		return self:getDisplayVarsForStructVars(self.eigenVars)
+
+	-- use the autogen left & right eigenvector matrices
+	else
+		return range(self.numIntStates * self.numWaves):map(function(i)
+			local row = (i-1)%self.numWaves
+			local col = (i-1-row)/self.numWaves
+			return {['evL_'..row..'_'..col] = '*value = eigen->evL['..i..'];'}
+		end):append(range(self.numIntStates * self.numWaves):map(function(i)
+			local row = (i-1)%self.numIntStates
+			local col = (i-1-row)/self.numIntStates
+			return {['evR_'..row..'_'..col] = '*value = eigen->evR['..i..'];'}
+		end)):append(self.solver.checkFluxError and range(self.numIntStates * self.numIntStates):map(function(i)
+			local row = (i-1)%self.numIntStates
+			local col = (i-1-row)/self.numIntStates
+			return {['A_'..row..'_'..col] = '*value = eigen->A['..i..'];'}
+		end) or nil)
+	end
 end
 
 function Equation:resetState()

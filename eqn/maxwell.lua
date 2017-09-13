@@ -34,6 +34,16 @@ Maxwell.name = 'Maxwell'
 Maxwell.numStates = 10
 Maxwell.numWaves = 6
 Maxwell.numIntStates = 6
+
+Maxwell.consVars = {
+	{epsE = 'real3'},
+	{B = 'real3'},
+	{BPot = 'real'},	-- used to calculate the B potential & remove div
+	{sigma = 'real'},
+	{eps = 'real'},
+	{mu = 'real'},
+}
+
 Maxwell.mirrorVars = {{'epsE.x', 'B.x'}, {'epsE.y', 'B.y'}, {'epsE.z', 'B.z'}}
 
 Maxwell.hasEigenCode = true
@@ -47,27 +57,6 @@ function Maxwell:init(solver)
 
 	local NoDiv = require 'solver.nodiv'
 	solver.ops:insert(NoDiv{solver=solver})
-end
-
-function Maxwell:getTypeCode()
-	return template([[
-typedef union {
-	real ptr[10];
-	struct {
-		real3 epsE;
-		real3 B;
-		real BPot;	//used to calculate the B potential & remove div
-		real sigma;
-		real eps;
-		real mu;
-	};
-} <?=eqn.cons_t?>;
-
-typedef <?=eqn.cons_t?> <?=eqn.prim_t?>;
-
-]], {
-	eqn = self,
-})
 end
 
 function Maxwell:getCodePrefix()
@@ -145,10 +134,9 @@ function Maxwell:getSolverCode()
 end
 
 function Maxwell:getDisplayVars()
-	return table{
-		{E = 'valuevec = real3_scale(U->epsE, 1. / U->eps);', type='real3'},
-		{B = 'valuevec = U->B;', type='real3'},
-		{S = 'valuevec = real3_scale(real3_cross(U->epsE, U->B), 1. / U->eps);', type='real3'},
+	return Maxwell.super.getDisplayVars(self):append{ 
+		{E = '*valuevec = real3_scale(U->epsE, 1. / U->eps);', type='real3'},
+		{S = '*valuevec = real3_scale(real3_cross(U->epsE, U->B), 1. / U->eps);', type='real3'},
 		{energy = [[
 	//*value = .5 * (coordLen(U->epsE) + coordLen(U->B) / U->mu);
 	*value = .5 * (real3_len(U->epsE) + real3_len(U->B) / U->mu);
@@ -170,24 +158,12 @@ if field == 'epsE' then
 end
 ?>;
 ]], {solver=self.solver, field=field})}
-	end)):append{
-		{BPot = '*value = U->BPot;'},
-		{sigma = '*value = U->sigma;'},
-		{eps = '*value = U->eps;'},
-		{mu = '*value = U->mu;'},
-	}
+	end))
 end
 
--- can it be zero sized?
-function Maxwell:getEigenTypeCode()
-	return 'typedef struct { real eps, mu; } '..self.eigen_t..';'
-end
-
-function Maxwell:getEigenDisplayVars()
-	return {
-		{eps = '*value = eigen->eps;'},
-		{mu = '*value = eigen->mu;'},
-	}
-end
+Maxwell.eigenVars = table{
+	{eps = 'real'},
+	{mu = 'real'},
+}
 
 return Maxwell

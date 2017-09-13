@@ -46,4 +46,39 @@ function NumRelEqn:createBoundaryOptions()
 	}
 end
 
+-- and now for fillRandom ...
+local ffi = require 'ffi'
+local function crand() return 2 * math.random() - 1 end
+function NumRelEqn:fillRandom(epsilon)
+	local solver = self.solver
+	local ptr = ffi.new(self.cons_t..'[?]', solver.volume)
+	ffi.fill(ptr, 0, ffi.sizeof(ptr))
+	for i=0,solver.volume-1 do
+		for _,var in ipairs(intVars) do
+			local name, ctype = next(var)
+			if ctype == 'real' then
+				ptr[i][name] = epsilon * crand()
+			elseif ctype == 'real3' then
+				for j=0,2 do
+					ptr[i][name].s[j] = epsilon * crand()
+				end
+			elseif ctype == 'sym3' then
+				for jk=0,5 do
+					ptr[i][name].s[jk] = epsilon * crand()
+				end
+			else
+				error("don't know how to handle ctype "..ctype.." for field "..name)
+			end
+		end
+		
+		ptr[i].alpha = ptr[i].alpha + 1
+		ptr[i].gammaBar_ll.xx = ptr[i].gammaBar_ll.xx + 1
+		ptr[i].gammaBar_ll.yy = ptr[i].gammaBar_ll.yy + 1
+		ptr[i].gammaBar_ll.zz = ptr[i].gammaBar_ll.zz + 1
+	end
+	solver.UBufObj:fromCPU(ptr)
+	return ptr
+end
+
+
 return NumRelEqn

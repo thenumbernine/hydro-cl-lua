@@ -234,12 +234,12 @@ for _,addr0 in ipairs{'', 'global'} do
 
 ]] .. prefix
 
-	local gUdef = '\treal3 gUj = _real3(\n'
-	for i=0,2 do
-		gUdef = gUdef .. '\t\tcoord_gU'..side..i..'(x)'..(i<2 and ',' or '')..'\n'
-	end
-	gUdef = gUdef .. '\t);\n'
-	prefix = gUdef .. prefix
+				local gUdef = '\treal3 gUj = _real3(\n'
+				for i=0,2 do
+					gUdef = gUdef .. '\t\tcoord_gU'..side..i..'(x)'..(i<2 and ',' or '')..'\n'
+				end
+				gUdef = gUdef .. '\t);\n'
+				prefix = gUdef .. prefix
 ?>
 
 void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
@@ -262,11 +262,11 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	const real isu = sqrt_1_2 / sqrt(eig->mu);
 
 <? 
-if side == 0 then 
+				if side == 0 then 
 ?>
 	real sqrt_gUxx = sqrt_gUjj;
 <?
-	for i,fluid in ipairs(fluids) do
+					for i,fluid in ipairs(fluids) do
 ?>
 	Y[<?=5*i-5?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq + <?=fluid?>_Cs * <?=fluid?>_v.x / sqrt_gUxx)
 		+ X[<?=5*i-4?>] * (-heatRatioMinusOne * <?=fluid?>_vL.x - <?=fluid?>_Cs / sqrt_gUxx)
@@ -293,7 +293,7 @@ if side == 0 then
 		+ X[<?=5*i-1?>] * heatRatioMinusOne
 	) * <?=fluid?>_invDenom;
 <? 
-	end
+					end
 ?>
 	//EM
 	Y[10] = X[12] *  ise + X[14] * isu;
@@ -303,11 +303,11 @@ if side == 0 then
 	Y[14] = X[11] *  ise + X[15] * isu;
 	Y[15] = X[12] * -ise + X[14] * isu;
 <?
-elseif side == 1 then 
+				elseif side == 1 then 
 ?>
 	real sqrt_gUyy = sqrt_gUjj;
 <?	
-	for i,fluid in ipairs(fluids) do
+					for i,fluid in ipairs(fluids) do
 ?>
 	Y[<?=5*i-5?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq + <?=fluid?>_Cs * <?=fluid?>_v.y / sqrt_gUyy)
 		+ X[<?=5*i-4?>] * -heatRatioMinusOne * <?=fluid?>_vL.x
@@ -334,7 +334,7 @@ elseif side == 1 then
 		+ X[<?=5*i-1?>] * heatRatioMinusOne
 	) * <?=fluid?>_invDenom;
 <?
-	end 
+					end 
 ?>
 	//EM
 	Y[10] = X[10] *  ise + X[15] * isu;
@@ -344,11 +344,11 @@ elseif side == 1 then
 	Y[14] = X[12] *  ise + X[13] * isu;
 	Y[15] = X[10] * -ise + X[15] * isu;
 <? 
-elseif side == 2 then
+				elseif side == 2 then
 ?>
 	real sqrt_gUzz = sqrt_gUjj;
 <?
-	for i,fluid in ipairs(fluids) do
+					for i,fluid in ipairs(fluids) do
 ?>
 	Y[<?=5*i-5?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq + <?=fluid?>_Cs * <?=fluid?>_v.z / sqrt_gUzz)
 		+ X[<?=5*i-4?>] * -heatRatioMinusOne * <?=fluid?>_vL.x
@@ -375,7 +375,7 @@ elseif side == 2 then
 		+ X[<?=5*i-1?>] * heatRatioMinusOne
 	) * <?=fluid?>_invDenom;
 <? 
-	end
+					end
 ?>
 	//EM
 	Y[10] = X[11] *  ise + X[13] * isu;
@@ -385,7 +385,7 @@ elseif side == 2 then
 	Y[14] = X[10] *  ise + X[14] * isu;
 	Y[15] = X[11] * -ise + X[13] * isu;
 <?
-end 
+				end 
 ?>
 }
 
@@ -399,11 +399,11 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	const real se = sqrt_1_2 * sqrt(eig->eps);
 	const real su = sqrt_1_2 * sqrt(eig->mu);
 <? 
-if side == 0 then
+				if side == 0 then
 ?>
 	real sqrt_gUxx = sqrt_gUjj;
 <?
-	for i,fluid in ipairs(fluids) do
+					for i,fluid in ipairs(fluids) do
 ?>
 	Y[<?=5*i-5?>] = X[<?=5*i-5?>] + X[<?=5*i-4?>] + X[<?=5*i-1?>];
 	Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x - <?=fluid?>_Cs * sqrt_gUxx)
@@ -423,7 +423,7 @@ if side == 0 then
 		+ X[<?=5*i-2?>] * <?=fluid?>_vL.z
 		+ X[<?=5*i-1?>] * (<?=fluid?>_hTotal + <?=fluid?>_Cs * <?=fluid?>_v.x / sqrt_gUxx);
 <?
-	end
+					end
 ?>
 	//EM
 	Y[10] = se * (-X[12] + X[13]);
@@ -433,11 +433,11 @@ if side == 0 then
 	Y[14] = su * (X[10] + X[15]);
 	Y[15] = su * (X[11] + X[14]);
 <? 
-elseif side == 1 then
+				elseif side == 1 then
 ?>
 	real sqrt_gUyy = sqrt_gUjj;
 <?
-	for i,fluid in ipairs(fluids) do
+					for i,fluid in ipairs(fluids) do
 ?>	
 	Y[<?=5*i-5?>] = X[<?=5*i-5?>] + X[<?=5*i-3?>] + X[<?=5*i-1?>];
 	Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x - <?=fluid?>_Cs * gU.xy / sqrt_gUyy)
@@ -457,7 +457,7 @@ elseif side == 1 then
 		+ X[<?=5*i-2?>] * <?=fluid?>_vL.z
 		+ X[<?=5*i-1?>] * (<?=fluid?>_hTotal + <?=fluid?>_Cs * <?=fluid?>_v.y / sqrt_gUyy);
 <?
-	end
+					end
 ?>
 	//EM
 	Y[10] = se * (X[10] - X[15]);
@@ -468,11 +468,11 @@ elseif side == 1 then
 	Y[15] = su * (X[10] + X[15]);
 
 <?
-elseif side == 2 then
+				elseif side == 2 then
 ?>
 	real sqrt_gUzz = sqrt_gUjj;
 <?
-	for i,fluid in ipairs(fluids) do
+					for i,fluid in ipairs(fluids) do
 ?>
 	Y[<?=5*i-5?>] = X[<?=5*i-5?>] + X[<?=5*i-2?>] + X[<?=5*i-1?>];
 	Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x - <?=fluid?>_Cs * gU.xz / sqrt_gUzz)
@@ -492,7 +492,7 @@ elseif side == 2 then
 		+ X[<?=5*i-2?>] * <?=fluid?>_vSq / 2.
 		+ X[<?=5*i-1?>] * (<?=fluid?>_hTotal + <?=fluid?>_Cs * <?=fluid?>_v.z / sqrt_gUzz);
 <?
-	end
+					end
 ?>
 	//EM
 	Y[10] = se * (-X[11] + X[14]);
@@ -501,9 +501,14 @@ elseif side == 2 then
 	Y[13] = su * (X[10] + X[15]);
 	Y[14] = su * (X[11] + X[14]);
 	Y[15] = su * (X[12] + X[13]);
+<?
+				end
+?>
 }
 
-<?	if solver.checkFluxError then ?>
+<?
+				if solver.checkFluxError then 
+?>
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* Y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
@@ -511,7 +516,9 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real3 x
 ) {
 	<?=prefix?>
-<? for i,fluid	in ipairs(fluids) do ?>
+<?
+					for i,fluid	in ipairs(fluids) do 
+?>
 	Y[<?=5*i-5?>] = X[<?=5*i-4?>] * nx 
 		+ X[<?=5*i-3?>] * ny 
 		+ X[<?=5*i-2?>] * nz;
@@ -535,41 +542,43 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[<?=5*i-3?>] * (-(heatCapacityRatio - 1.) * <?=fluid?>_v_n * <?=fluid?>_vL.y + ny * <?=fluid?>_hTotal)
 		+ X[<?=5*i-2?>] * (-(heatCapacityRatio - 1.) * <?=fluid?>_v_n * <?=fluid?>_vL.z + nz * <?=fluid?>_hTotal)
 		+ X[<?=5*i-1?>] * heatCapacityRatio * <?=fluid?>_v_n;
-<? end ?>
-
+<? 
+					end 
+?>
 	real3 epsE = X->epsE;
 	real3 B = X->B;
 	real eps = eig->eps;
 	real mu = eig->mu;
-
-<? if side==0 then ?>
-	
+<? 
+					if side==0 then 
+?>
 	Y[10] = 0;
 	Y[11] = B.z / mu;
 	Y[12] = -B.y / mu;
 	Y[13] = 0;
 	Y[14] = -epsE.z / eps;
 	Y[15] = epsE.y / eps;
-
-<? elseif side==1 then ?>
-		
+<?
+					elseif side==1 then
+?>
 	Y[10] = -B.z / mu;
 	Y[11] = 0;
 	Y[12] = B.x / mu;
 	Y[13] = epsE.z / eps;
 	Y[14] = 0;
 	Y[15] = -epsE.x / eps;
-		
-<? elseif side==2 then ?>
-		
+<?
+					elseif side==2 then 
+?>
 	Y[10] = B.y / mu;
 	Y[11] = -B.x / mu;
 	Y[12] = 0;
 	Y[13] = -epsE.y / eps;
 	Y[14] = epsE.x / eps;
 	Y[15] = 0;
-		
-<? end ?>
+<?
+					end 
+?>
 }
 <?
 				end
@@ -587,23 +596,24 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	
-	deriv->ion_m.x += <?=clnumber(1 / eqn.ionLarmorRadius)?> * (U->ion_rho * U->epsE.x / U->eps + U->ion_m.y * U->B.z - U->ion_m.z * U->B.y);
-	deriv->ion_m.y += <?=clnumber(1 / eqn.ionLarmorRadius)?> * (U->ion_rho * U->epsE.y / U->eps + U->ion_m.z * U->B.x - U->ion_m.x * U->B.z);
-	deriv->ion_m.z += <?=clnumber(1 / eqn.ionLarmorRadius)?> * (U->ion_rho * U->epsE.z / U->eps + U->ion_m.x * U->B.y - U->ion_m.y * U->B.x);
-	deriv->ion_ETotal += <?=clnumber(1 / eqn.ionLarmorRadius)?> * real3_dot(U->epsE, U->ion_m) / U->eps;
+	deriv->ion_m.x += (1. / ionLarmorRadius) * (U->ion_rho * U->epsE.x / U->eps + U->ion_m.y * U->B.z - U->ion_m.z * U->B.y);
+	deriv->ion_m.y += (1. / ionLarmorRadius) * (U->ion_rho * U->epsE.y / U->eps + U->ion_m.z * U->B.x - U->ion_m.x * U->B.z);
+	deriv->ion_m.z += (1. / ionLarmorRadius) * (U->ion_rho * U->epsE.z / U->eps + U->ion_m.x * U->B.y - U->ion_m.y * U->B.x);
+	deriv->ion_ETotal += (1. / ionLarmorRadius) * real3_dot(U->epsE, U->ion_m) / U->eps;
 	
-	deriv->elec_m.x -= <?=clnumber(eqn.ionElectronMassRatio / eqn.ionLarmorRadius)?> * (U->elec_rho * U->epsE.x / U->eps + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y);
-	deriv->elec_m.y -= <?=clnumber(eqn.ionElectronMassRatio / eqn.ionLarmorRadius)?> * (U->elec_rho * U->epsE.y / U->eps + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z);
-	deriv->elec_m.z -= <?=clnumber(eqn.ionElectronMassRatio / eqn.ionLarmorRadius)?> * (U->elec_rho * U->epsE.z / U->eps + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x);
-	deriv->elec_ETotal -= <?=clnumber(eqn.ionElectronMassRatio / eqn.ionLarmorRadius)?> * real3_dot(U->epsE, U->elec_m) / U->eps;
-	
-	deriv->epsE.x -= (U->ion_m.x * <?=clnumber(eqn.ionChargeMassRatio)?>
-						+ U->elec_m.x * <?=clnumber(eqn.elecChargeMassRatio)?>
-					) / <?=clnumber(eqn.ionDebyeLength^2 * eqn.ionLarmorRadius)?>;
-	deriv->epsE.y -= (U->ion_m.y * <?=clnumber(eqn.ionChargeMassRatio)?>
-						+ U->elec_m.y * <?=clnumber(eqn.elecChargeMassRatio)?>
-					) / <?=clnumber(eqn.ionDebyeLength^2 * eqn.ionLarmorRadius)?>;
-	deriv->epsE.z -= (U->ion_m.z * <?=clnumber(eqn.ionChargeMassRatio)?>
-						+ U->elec_m.z * <?=clnumber(eqn.elecChargeMassRatio)?>
-					) / <?=clnumber(eqn.ionDebyeLength^2 * eqn.ionLarmorRadius)?>;
+	deriv->elec_m.x -= ionElectronMassRatio / ionLarmorRadius * (U->elec_rho * U->epsE.x / U->eps + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y);
+	deriv->elec_m.y -= ionElectronMassRatio / ionLarmorRadius * (U->elec_rho * U->epsE.y / U->eps + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z);
+	deriv->elec_m.z -= ionElectronMassRatio / ionLarmorRadius * (U->elec_rho * U->epsE.z / U->eps + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x);
+	deriv->elec_ETotal -= ionElectronMassRatio / ionLarmorRadius * real3_dot(U->epsE, U->elec_m) / U->eps;
+
+#define ionDebyeLengthSq (ionDebyeLength*ionDebyeLength)
+	deriv->epsE.x -= (U->ion_m.x * ionChargeMassRatio
+						+ U->elec_m.x * elecChargeMassRatio
+					) / ionDebyeLengthSq * ionLarmorRadius;
+	deriv->epsE.y -= (U->ion_m.y * ionChargeMassRatio
+						+ U->elec_m.y * elecChargeMassRatio
+					) / (ionDebyeLengthSq * ionLarmorRadius);
+	deriv->epsE.z -= (U->ion_m.z * ionChargeMassRatio
+						+ U->elec_m.z * elecChargeMassRatio
+					) / (ionDebyeLengthSq * ionLarmorRadius);
 }

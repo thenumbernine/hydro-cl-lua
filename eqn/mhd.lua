@@ -13,6 +13,22 @@ MHD.numWaves = 7
 MHD.numIntStates = 8
 MHD.numStates = 9
 
+MHD.primVars = table{
+	{rho = 'real'},
+	{v = 'real3'},
+	{P = 'real'},
+	{B = 'real3'},
+	{BPot = 'real'},
+}
+
+MHD.consVars = table{
+	{rho = 'real'},
+	{m = 'real3'},
+	{ETotal = 'real'},
+	{B = 'real3'},
+	{BPot = 'real'},
+}
+
 MHD.mirrorVars = {{'m.x', 'B.x'}, {'m.y', 'B.y'}, {'m.z', 'B.z'}}
 
 MHD.hasEigenCode = true
@@ -25,34 +41,6 @@ function MHD:init(solver)
 	MHD.super.init(self, solver)
 	local NoDiv = require 'solver.nodiv'
 	solver.ops:insert(NoDiv{solver=solver})
-end
-
-function MHD:getTypeCode()
-	return template([[
-typedef struct {
-	real ptr[9];
-	struct {
-		real rho;
-		real3 v;
-		real P;
-		real3 B;
-		real BPot;
-	};
-} <?=eqn.prim_t?>;
-
-typedef union {
-	real ptr[9];
-	struct {
-		real rho;
-		real3 m;
-		real ETotal;
-		real3 B;
-		real BPot;
-	};
-} <?=eqn.cons_t?>;
-]], {
-	eqn = self,
-})
 end
 
 function MHD:createInitState()
@@ -160,11 +148,8 @@ function MHD:getDisplayVarCodePrefix()
 end
 
 function MHD:getDisplayVars()
-	return {
-		{rho = '*value = W.rho;'},
-		{v = 'valuevec = W.v;', type='real3'},
-		{m = 'valuevec = U->m;', type='real3'},
-		{B = 'valuevec = U->B;', type='real3'},
+	return MHD.super.getDisplayVars(self):append{
+		{v = '*valuevec = W.v;', type='real3'},
 		{['div B'] = template([[
 	*value = .5 * (0.
 <? 
@@ -193,7 +178,6 @@ end
 		--{eMag = '*value = calc_eMag(W);'},
 		{EMag = '*value = calc_EMag(W);'},
 		--{eTotal = '*value = U->ETotal / W.rho;'},
-		{ETotal = '*value = U->ETotal;'},
 		{S = '*value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
 		{H = '*value = calc_H(W.P);'},
 		--{h = '*value = calc_H(W.P) / W.rho;'},

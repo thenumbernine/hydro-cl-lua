@@ -89,7 +89,13 @@ ADM_BonaMasso_1D_Alcubierre1997.name = 'ADM_BonaMasso_1D_Alcubierre1997'
 ADM_BonaMasso_1D_Alcubierre1997.numStates = 5
 ADM_BonaMasso_1D_Alcubierre1997.numWaves = 3
 
-ADM_BonaMasso_1D_Alcubierre1997.consVars = {'alpha', 'gamma_xx', 'a_x', 'd_xxx', 'K_xx'}
+ADM_BonaMasso_1D_Alcubierre1997.consVars = {
+	{alpha = 'real'},
+	{gamma_xx = 'real'},
+	{a_x = 'real'}, 
+	{d_xxx = 'real'}, 
+	{K_xx = 'real'},
+}
 ADM_BonaMasso_1D_Alcubierre1997.mirrorVars = {{'gamma_xx', 'a_x', 'd_xxx', 'K_xx'}}
 
 ADM_BonaMasso_1D_Alcubierre1997.hasEigenCode = true
@@ -146,16 +152,8 @@ function ADM_BonaMasso_1D_Alcubierre1997:getSolverCode()
 end
 
 function ADM_BonaMasso_1D_Alcubierre1997:getDisplayVars()
-	return {
-		-- source-only:
-		{alpha = '*value = U->alpha;'},
-		{gamma_xx = '*value = U->gamma_xx;'},
-		-- both 1998 and 2008 cons vars:
-		{a_x = '*value = U->a_x;'},
-		-- 1998-only cons vars:
-		{d_xxx = '*value = U->d_xxx;'},
-		{K_xx = '*value = U->K_xx;'},
-		-- 2008-only cons vars:
+	return ADM_BonaMasso_1D_Alcubierre1997.super.getDisplayVars(self):append{
+		-- adm1d_v1 cons vars:
 		{D_g = '*value = 2. * U->d_xxx / U->gamma_xx;'},
 		{KTilde = '*value = U->K_xx / sqrt(U->gamma_xx);'},
 		-- aux:
@@ -164,34 +162,26 @@ function ADM_BonaMasso_1D_Alcubierre1997:getDisplayVars()
 		{volume = '*value = U->alpha * sqrt(U->gamma_xx);'},
 		{f = '*value = calc_f(U->alpha);'},
 		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
+		{K = '*value = U->K_xx / U->gamma_xx;'},
+		{expansion = '*value = -U->alpha * U->K_xx / U->gamma_xx;'},
+		{['gravity mag'] = '*value = -U->alpha * U->alpha * U->a_x / U->gamma_xx;'},
 	}
 end
 
-local eigenVars = {'alpha', 'sqrt_f_over_gamma_xx'}
+ADM_BonaMasso_1D_Alcubierre1997.eigenVars = {
+	{alpha = 'real'},
+	{sqrt_f_over_gamma_xx = 'real'},
+}
 
-function ADM_BonaMasso_1D_Alcubierre1997:getEigenTypeCode()
-	return require 'eqn.makestruct'.makeStruct(self.eigen_t, eigenVars)
-end
-
-function ADM_BonaMasso_1D_Alcubierre1997:getEigenDisplayVars()
-	return table.map(eigenVars, function(var)
-		return {[var] = '*value = eigen->'..var..';'}
-	end)
-end
-
-local ffi = require 'ffi'
-local function crand() return 2 * math.random() - 1 end
 function ADM_BonaMasso_1D_Alcubierre1997:fillRandom(epsilon)
+	local ptr = ADM_BonaMasso_1D_Alcubierre1997.super.fillRandom(self, epsilon)
 	local solver = self.solver
-	local ptr = ffi.new(self.cons_t..'[?]', solver.volume)
 	for i=0,solver.volume-1 do
-		ptr[i].alpha = epsilon * crand()
-		ptr[i].gamma_xx = 1 + epsilon * crand()
-		ptr[i].a_x = epsilon * crand()
-		ptr[i].d_xxx = epsilon * crand()
-		ptr[i].K_xx = epsilon * crand()
+		ptr[i].alpha = ptr[i].alpha + 1
+		ptr[i].gamma_xx = ptr[i].gamma_xx + 1
 	end
 	solver.UBufObj:fromCPU(ptr)
+	return ptr
 end
 
 return ADM_BonaMasso_1D_Alcubierre1997

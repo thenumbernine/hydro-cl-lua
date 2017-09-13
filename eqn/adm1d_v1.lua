@@ -15,7 +15,13 @@ local ADM_BonaMasso_1D_Alcubierre2008 = class(NumRelEqn)
 
 ADM_BonaMasso_1D_Alcubierre2008.name = 'ADM_BonaMasso_1D_Alcubierre2008' 
 
-ADM_BonaMasso_1D_Alcubierre2008.consVars = {'alpha', 'gamma_xx', 'a_x', 'D_g', 'KTilde'}
+ADM_BonaMasso_1D_Alcubierre2008.consVars = {
+	{alpha = 'real'}, 
+	{gamma_xx = 'real'}, 
+	{a_x = 'real'}, 
+	{D_g = 'real'}, 
+	{KTilde = 'real'},
+}
 ADM_BonaMasso_1D_Alcubierre2008.numWaves = 3	-- alpha and gamma_xx are source-term only
 
 ADM_BonaMasso_1D_Alcubierre2008.mirrorVars = {{'gamma_xx', 'a_x', 'D_g', 'KTilde'}}
@@ -80,56 +86,41 @@ function ADM_BonaMasso_1D_Alcubierre2008:getSolverCode()
 end
 
 function ADM_BonaMasso_1D_Alcubierre2008:getDisplayVars()
-	return {
-		-- source-only:
-		{alpha = '*value = U->alpha;'},
-		{gamma_xx = '*value = U->gamma_xx;'},
-		-- both 1998 and 2008 cons vars:
-		{a_x = '*value = U->a_x;'},
-		-- 1998-only cons vars:
+	return ADM_BonaMasso_1D_Alcubierre2008.super.getDisplayVars(self):append{
+		-- adm1d_v2 cons vars:
 		{d_xxx = '*value = .5 * U->D_g * U->gamma_xx;'},
 		{K_xx = '*value = U->KTilde * sqrt(U->gamma_xx);'},
-		-- 2008-only cons vars:
-		{D_g = '*value = U->D_g;'},
-		{KTilde = '*value = U->KTilde;'},
 		-- aux:
 		{dx_alpha = '*value = U->alpha * U->a_x;'},
 		{dx_gamma_xx = '*value = U->gamma_xx * U->D_g;'},
 		{volume = '*value = U->alpha * sqrt(U->gamma_xx);'},
 		{f = '*value = calc_f(U->alpha);'},
 		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
+		{K = '*value = U->KTilde / sqrt(U->gamma_xx);'},
+		{expansion = '*value = -U->alpha * U->KTilde / sqrt(U->gamma_xx);'},
+		{['gravity mag'] = '*value = -U->alpha * U->alpha * U->a_x / U->gamma_xx;'},
 	}
 end
 
-function ADM_BonaMasso_1D_Alcubierre2008:getEigenTypeCode()
-	return template([[
-typedef struct {
-	real f, alpha, gamma_xx;
-} <?=eqn.eigen_t?>;
-]], {eqn=self, solver=self.solver})
-end
-		
-function ADM_BonaMasso_1D_Alcubierre2008:getEigenDisplayVars()
-	return {
-		{f = '*value = eigen->f;'},
-		{alpha = '*value = eigen->alpha;'},
-		{gamma_xx = '*value = eigen->gamma_xx;'},
-	}
-end
-
+ADM_BonaMasso_1D_Alcubierre2008.eigenVars = table{
+	{f = 'real'},
+	{alpha = 'real'},
+	{gamma_xx = 'real'},
+}
+	
+-- TODO store flat values somewhere, then perturb all real values here
+--  then you can move this into the parent class
 local ffi = require 'ffi'
 local function crand() return 2 * math.random() - 1 end
 function ADM_BonaMasso_1D_Alcubierre2008:fillRandom(epsilon)
+	local ptr = ADM_BonaMasso_1D_Alcubierre2008.super.fillRandom(self, epsilon)
 	local solver = self.solver
-	local ptr = ffi.new(self.cons_t..'[?]', solver.volume)
 	for i=0,solver.volume-1 do
-		ptr[i].alpha = epsilon * crand()
-		ptr[i].gamma_xx = 1 + epsilon * crand()
-		ptr[i].a_x = epsilon * crand()
-		ptr[i].D_g = epsilon * crand()
-		ptr[i].KTilde = epsilon * crand()
+		ptr[i].alpha = ptr[i].alpha + 1
+		ptr[i].gamma_xx = ptr[i].gamma_xx + 1
 	end
 	solver.UBufObj:fromCPU(ptr)
+	return ptr
 end
 
 return ADM_BonaMasso_1D_Alcubierre2008

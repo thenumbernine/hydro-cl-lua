@@ -183,7 +183,7 @@ kernel void calcEigenBasis(
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;	
 
 <?
-for _,field in ipairs(eqn.eigenStructFields) do
+for _,field in ipairs(eqn.eigenVars) do
 	local name,ctype = next(field)
 ?>
 		eig-><?=name?> = <?=name?>;
@@ -198,7 +198,7 @@ for _,addr0 in ipairs{'', 'global'} do
 	for _,addr1 in ipairs{'', 'global'} do
 		for _,addr2 in ipairs{'', 'global'} do
 			for side=0,solver.dim-1 do 
-				local prefix = require 'ext.table'.map(eqn.eigenStructFields, function(field)
+				local prefix = require 'ext.table'.map(eqn.eigenVars, function(field)
 					local name,ctype = next(field)
 					return '\t'..ctype..' '..name..' = eig->'..name..';\n'
 				end):concat()

@@ -28,16 +28,17 @@ Features:
 TODO:
 - ADM3D needs shift conditions, and moving puncture, etc ...
 - FOBSSN would be nice.  something with the equation stability of BSSN and the algorithmic stability of finite-volume.
+- Z4
 - implement eigen-stuff code in SRHD so that PLM can work 
-- better divergence removal
-- get curved coordinates to work
-- get two-fluid EMHD working (currently has nans)
-- add HLL / HLLC solvers
-- implement Navier-Stokes, compressible & incompressible
-- rename 'adm\_' prefixes to 'nr\_' or 'gr\_' or something else ...
 - PLM support that works on a wide range of equations (currently have a few vying options)
 - PLM for BSSNOK-FD and Euler-Burgers
+- PPM
 - higher-order polynomial stuff - WENO or whatever
+- better divergence removal (multigrid)
+- get curved coordinates to work
+- get two-fluid EMHD working (currently has nans)
+- add HLLC/D solvers
+- implement Navier-Stokes, compressible & incompressible
 - initialize NR stuff to the geometry metric ... or decide what kind of geometry metric to use (holonomic vs anholonomic) ... or just use euclidian components and calculate the normals and volumes and surfaces using geom.
 - currently seeing errors when two solvers run simultaneously ... which makes EM+HD difficult
 - finish GR+HD by taking the SRHD and giving it the metric from GR
@@ -45,12 +46,12 @@ TODO:
 - add EM+GR+HD by winning
 - Figure out what to do with self-gravitational potential energy in the Euler simulation.  offsetting it positive makes gravitational instability stable.  offsetting it too positive explodes -- even a forward euler integrator (why).  offsetting it negative causes more instability.
 - change vector field from immediate mode to buffered geometry, and gometry shaders if they're available
-- add different vector field scales for different solvers (use valuemin and valuemax?)
-- looks like RHD has multistep errors in RK, probably because it needs more (either boundary() or updatePrimsFromCons()) to be called between substeps
 - add source terms to GRHD -- or at least plugins for 'gr-hd-separate' to fill in from the NR solver
 - coroutines to iterative solvers?  so they don't stall the app execution?
 - Poisson SelfGrav seems to be pulling things slightly upwards
 - RHD W error in >1 dimension
+- num rel flat space simulations make an initial wave.  but shouldn't flat space be stable?
+- get eqn\grhd.lua working again by updating the big changes of merging prim_t and cons_t into grhd
 
 ### Sources:
 

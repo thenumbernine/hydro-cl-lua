@@ -45,6 +45,7 @@ function SRHD:init(solver)
 	solver.ops:insert(SRHDSelfGrav{solver=solver})
 end
 
+-- because of the unique shape of prim_t and cons_only_t, I can't use the consVars for struct generation ...
 function SRHD:getTypeCode()
 	return template([[
 typedef union {
@@ -83,35 +84,37 @@ function SRHD:createInitState()
 
 	-- hmm, setting the higher thresholds using double precision is less stable
 	local double = false --solver.app.real == 'double'
-	
-	self:addGuiVar{name='heatCapacityRatio', value=7/5}
-	
-	-- setting max iter to 100+ makes it freeze initially 
-	-- but setting it to 100 after the first iteration is fine ...
-	-- meaning the initial cons to prim is taking too long ...
-	self:addGuiVar{name='solvePrimMaxIter', type='int', value=10}	-- value=1000}
 
-	self:addGuiVar{name='solvePrimStopEpsilon', value=1e-7}
+	self:addGuiVars{
+		{name='heatCapacityRatio', value=7/5},
+		
+		-- setting max iter to 100+ makes it freeze initially 
+		-- but setting it to 100 after the first iteration is fine ...
+		-- meaning the initial cons to prim is taking too long ...
+		{name='solvePrimMaxIter', type='int', value=10}	-- value=1000},
 
-	-- used by pressure solver
-	-- velocity epsilon is how close we can get to the speed of light
-	-- set ylabel "Lorentz factor"; set xlabel "velocity epsilon -log10"; set log xy; plot [1:10] 1/sqrt(1-(1-10**(-x))**2);
-	--velEpsilon = 1e-5	-- <=> handles up to W = 500
-	--velEpsilon = 1e-6	-- <=> handles up to W = 600
-	--velEpsilon = 1e-7	-- <=> handles up to W = 2,000
-	--velEpsilon = 1e-10	-- <=> handles up to W = 100,000
-	-- <=> smaller than 1e-15 gnuplot x11 terminal breaks down past W = 1e+7 ...
-	self:addGuiVar{name='solvePrimVelEpsilon', value=double and 1e-15 or 1e-7}
-	
-	self:addGuiVar{name='solvePrimPMinEpsilon', value=double and 1e-16 or 1e-7}
-	
-	self:addGuiVar{name='rhoMin', value=double and 1e-15 or 1e-7}
-	self:addGuiVar{name='rhoMax', value=1e+20}
-	self:addGuiVar{name='eIntMax', value=1e+20}
-	self:addGuiVar{name='DMin', value=double and 1e-15 or 1e-7}
-	self:addGuiVar{name='DMax', value=1e+20}
-	self:addGuiVar{name='tauMin', value=double and 1e-15 or 1e-7}
-	self:addGuiVar{name='tauMax', value=1e+20}
+		{name='solvePrimStopEpsilon', value=1e-7},
+
+		-- used by pressure solver
+		-- velocity epsilon is how close we can get to the speed of light
+		-- set ylabel "Lorentz factor"; set xlabel "velocity epsilon -log10"; set log xy; plot [1:10] 1/sqrt(1-(1-10**(-x))**2);
+		--velEpsilon = 1e-5	-- <=> handles up to W = 500
+		--velEpsilon = 1e-6	-- <=> handles up to W = 600
+		--velEpsilon = 1e-7	-- <=> handles up to W = 2,000
+		--velEpsilon = 1e-10	-- <=> handles up to W = 100,000
+		-- <=> smaller than 1e-15 gnuplot x11 terminal breaks down past W = 1e+7 ...
+		{name='solvePrimVelEpsilon', value=double and 1e-15 or 1e-7},
+		
+		{name='solvePrimPMinEpsilon', value=double and 1e-16 or 1e-7},
+		
+		{name='rhoMin', value=double and 1e-15 or 1e-7},
+		{name='rhoMax', value=1e+20},
+		{name='eIntMax', value=1e+20},
+		{name='DMin', value=double and 1e-15 or 1e-7},
+		{name='DMax', value=1e+20},
+		{name='tauMin', value=double and 1e-15 or 1e-7},
+		{name='tauMax', value=1e+20},
+	}
 end
 
 function SRHD:getCodePrefix()
@@ -249,13 +252,13 @@ end
 function SRHD:getDisplayVars()
 	local vars = table{
 		{D = '*value = U->cons.D;'},
-		{S = 'valuevec = U->cons.S;', type='real3'},
+		{S = '*valuevec = U->cons.S;', type='real3'},
 		{tau = '*value = U->cons.tau;'},
 		{['W based on D'] = '*value = U->cons.D / U->prim.rho;'},
 		{['W based on v'] = '*value = 1. / sqrt(1. - coordLenSq(U->prim.v, x));'},
 		
 		{rho = '*value = U->prim.rho;'},
-		{v = 'valuevec = U->prim.v;', type='real3'},
+		{v = '*valuevec = U->prim.v;', type='real3'},
 		{eInt = '*value = U->prim.eInt;'},
 		{P = '*value = calc_P(U->prim.rho, U->prim.eInt);'},
 		{h = '*value = calc_h(U->prim.rho, calc_P(U->prim.rho, U->prim.eInt), U->prim.eInt);'},
@@ -296,7 +299,7 @@ function SRHD:getDisplayVars()
 	return vars
 end
 
-SRHD.eigenStructFields = {
+SRHD.eigenVars = {
 	{rho = 'real'},
 	{v = 'real3'},
 	{h = 'real'},
@@ -309,18 +312,5 @@ SRHD.eigenStructFields = {
 	{CPlus = 'real'},
 	{Kappa = 'real'},
 }
-
-function SRHD:getEigenTypeCode()
-	return 'typedef struct {\n'
-		..table.map(self.eigenStructFields, function(field)
-			local name, ctype = next(field)
-			return '\t'..ctype..' '..name..';\n'
-		end):concat'\n'
-		..'} '..self.eigen_t..';\n'
-end
-
-function SRHD:getEigenDisplayVars()
-	return {}
-end
 
 return SRHD

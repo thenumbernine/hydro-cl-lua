@@ -232,7 +232,7 @@ end
 function GRHD:getDisplayVars()
 	return {
 		{D = '*value = U->cons.D;'},
-		{S = 'valuevec = U->cons.S;', type='real3'},
+		{S = '*valuevec = U->cons.S;', type='real3'},
 		{['S weighted'] = template([[
 	<?=solver:getADMVarCode()?>
 	*value = real3_weightedLen(U->cons.S, gamma);
@@ -267,7 +267,7 @@ function GRHD:getDisplayVars()
 		{rho = '*value = U->prim.rho;'},
 		
 		-- TODO abstract the generators of real3 variables and add weighted norms automatically
-		{v = 'valuevec = U->prim.v;', type='real3'},
+		{v = '*valuevec = U->prim.v;', type='real3'},
 		{['v weighted'] = template([[
 	<?=solver:getADMVarCode()?>
 	*value = real3_weightedLen(U->prim.v, gamma);
@@ -279,7 +279,7 @@ function GRHD:getDisplayVars()
 	}
 end
 
-GRHD.eigenStructFields = {
+GRHD.eigenVars = {
 	{rho = 'real'},
 	{vL = 'real3'},
 	{h = 'real'},
@@ -296,15 +296,6 @@ GRHD.eigenStructFields = {
 	{beta = 'real3'},
 	{gamma = 'sym3'},
 }
-
-function GRHD:getEigenTypeCode()
-	return 'typedef struct {\n'
-		..table.map(self.eigenStructFields, function(field)
-			local name, ctype = next(field)
-			return '\t'..ctype..' '..name..';\n'
-		end):concat'\n'
-		..'} '..self.eigen_t..';\n'
-end
 
 function GRHD:getEigenDisplayVars()
 	return {}

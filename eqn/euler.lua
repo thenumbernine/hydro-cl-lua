@@ -36,31 +36,19 @@ function Euler:init(solver)
 	solver.ops:insert(self.gravOp)
 end
 
-function Euler:getTypeCode()
-	return template([[
-typedef union {
-	real ptr[6];
-	struct { 
-		real rho;
-		real3 v;
-		real P;
-		real ePot;
-	};
-} <?=eqn.prim_t?>;
+Euler.primVars = table{
+	{rho = 'real'},
+	{v = 'real3'},
+	{P = 'real'},
+	{ePot = 'real'},
+}
 
-typedef union {
-	real ptr[6];
-	struct {
-		real rho;
-		real3 m;
-		real ETotal;
-		real ePot;
-	};
-} <?=eqn.cons_t?>;
-]], {
-		eqn = self,
-	})
-end
+Euler.consVars = table{
+	{rho = 'real'},
+	{m = 'real3'},
+	{ETotal = 'real'},
+	{ePot = 'real'},
+}
 
 function Euler:createInitState()
 	Euler.super.createInitState(self)
@@ -159,8 +147,8 @@ Euler.solverCodeFile = 'eqn/euler.cl'
 
 function Euler:getDisplayVarCodePrefix()
 	return template([[
-	<?=eqn.cons_t?> U = buf[index];
-	<?=eqn.prim_t?> W = primFromCons(U, x);
+	const global <?=eqn.cons_t?> *U = buf + index;
+	<?=eqn.prim_t?> W = primFromCons(*U, x);
 ]], {
 	eqn = self,
 })
@@ -175,10 +163,10 @@ local function vorticity(eqn,k)
 	if (OOB(1,1)) {
 		*value = 0.;
 	} else {
-		global const <?=eqn.cons_t?>* Uim = buf + index - stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Uip = buf + index + stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Ujm = buf + index - stepsize.s<?=j?>;
-		global const <?=eqn.cons_t?>* Ujp = buf + index + stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Uim = U - stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Uip = U + stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Ujm = U - stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = U + stepsize.s<?=j?>;
 
 		//TODO incorporate metric
 
@@ -199,24 +187,22 @@ local function vorticity(eqn,k)
 end
 
 function Euler:getDisplayVars()
-	local vars = table{
-		{rho = '*value = W.rho;'},
-		{v = 'valuevec = W.v;', type='real3'},
+	local vars = Euler.super.getDisplayVars(self)
+	vars:append{
+		{v = '*valuevec = W.v;', type='real3'},
 		{P = '*value = W.P;'},
-		{m = 'valuevec = U.m;', type='real3'},
 		{eInt = '*value = calc_eInt(W);'},
 		{eKin = '*value = calc_eKin(W, x);'},
-		{ePot = '*value = U.ePot;'},
-		{eTotal = '*value = U.ETotal / W.rho;'},
+		{ePot = '*value = U->ePot;'},
+		{eTotal = '*value = U->ETotal / W.rho;'},
 		{EInt = '*value = calc_EInt(W);'},
 		{EKin = '*value = calc_EKin(W, x);'},
-		{EPot = '*value = U.rho * U.ePot;'},
-		{ETotal = '*value = U.ETotal;'},
+		{EPot = '*value = U->rho * U->ePot;'},
 		{S = '*value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
 		{H = '*value = calc_H(W.P);'},
 		{h = '*value = calc_h(W.rho, W.P);'},
-		{HTotal = '*value = calc_HTotal(W.P, U.ETotal);'},
-		{hTotal = '*value = calc_hTotal(W.rho, W.P, U.ETotal);'},
+		{HTotal = '*value = calc_HTotal(W.P, U->ETotal);'},
+		{hTotal = '*value = calc_hTotal(W.rho, W.P, U->ETotal);'},
 		{['Speed of Sound'] = '*value = calc_Cs(&W);'},
 		{['Mach number'] = '*value = coordLen(W.v, x) / calc_Cs(&W);'},
 		{gravity = template([[
@@ -225,13 +211,13 @@ function Euler:getDisplayVars()
 	} else {
 		<? 
 for side=0,solver.dim-1 do ?>{
-			global const <?=eqn.cons_t?>* Um = buf + index - stepsize.s<?=side?>;
-			global const <?=eqn.cons_t?>* Up = buf + index + stepsize.s<?=side?>;
-			valuevec.s<?=side?> = -(Up-><?=eqn.gravOp.potentialField?> - Um-><?=eqn.gravOp.potentialField?>) / (2. * dx<?=side?>_at(i));
+			global const <?=eqn.cons_t?>* Um = U - stepsize.s<?=side?>;
+			global const <?=eqn.cons_t?>* Up = U + stepsize.s<?=side?>;
+			valuevec->s<?=side?> = -(Up-><?=eqn.gravOp.potentialField?> - Um-><?=eqn.gravOp.potentialField?>) / (2. * dx<?=side?>_at(i));
 		}<? 
 end
 for side=solver.dim,2 do ?>
-		valuevec.s<?=side?> = 0.;
+		valuevec->s<?=side?> = 0.;
 <? end ?>
 	}
 ]], {eqn=self, solver=self.solver}), type='real3'},
@@ -256,34 +242,14 @@ for side=solver.dim,2 do ?>
 	return vars
 end
 
-function Euler:getEigenTypeCode()
-	return template([[
-typedef struct {
-	// Roe-averaged vars
-	real rho;
-	real3 v;
-	real hTotal;
-
-	// derived vars
-	real vSq;
-	real Cs;
-} <?=eqn.eigen_t?>;
-]], {
-	eqn = self,
-})
-end
-
-function Euler:getEigenDisplayVars()
-	return {
-		{rho = '*value = eigen->rho;'},
-		{vx = '*value = eigen->v.x;'},
-		{vy = '*value = eigen->v.y;'},
-		{vz = '*value = eigen->v.z;'},
-		{v = '*value = coordLen(eigen->v, xInt[0]);'},
-		{hTotal = '*value = eigen->hTotal;'},
-		{vSq = '*value = eigen->vSq;'},
-		{Cs = '*value = eigen->Cs;'},
-	}
-end
+Euler.eigenVars = table{
+	-- Roe-averaged vars
+	{rho = 'real'},
+	{v = 'real3'},
+	{hTotal = 'real'},
+	-- derived vars
+	{vSq = 'real'},
+	{Cs = 'real'},
+}
 
 return Euler

@@ -437,9 +437,12 @@ if solver.dim >= 3 then
 ?>
 	//and recalculate read index
 	index = INDEXV(i);
+
 	
-	real3 valuevec = _real3(0,0,0);
-	real* value = valuevec.s;
+	real value[6] = {0,0,0,0,0,0};	//size of largest struct
+	sym3* valuesym3 = (sym3*)value;
+	real3* valuevec = (real3*)value;
+	real3* valuevec_hi = (real3*)(value+3);
 
 <?= var.codePrefix or '' ?>
 <?= var.code ?>
@@ -587,7 +590,9 @@ function Solver:addUBufDisplayVars()
 		local enabled
 		if vartype ~= 'real3' then
 			enabled = enableScalar
-			enableScalar = nil
+			if self.dim ~= 1 then
+				enableScalar = nil
+			end
 		else
 			if self.dim ~= 1 then
 				enabled = enableVector
@@ -606,15 +611,16 @@ function Solver:addUBufDisplayVars()
 
 		if vartype == 'real3' then
 			for _,info in ipairs{
-				{name = ' x', code = '	valuevec = _real3(valuevec.x,0,0);'},
-				{name = ' y', code = '	valuevec = _real3(valuevec.y,0,0);'},
-				{name = ' z', code = '	valuevec = _real3(valuevec.z,0,0);'},
-				{name = ' mag', code = '	valuevec = _real3(real3_len(valuevec),0,0);', magn=true},
+				{name = ' x', code = '	*valuevec = _real3(valuevec->x,0,0);'},
+				{name = ' y', code = '	*valuevec = _real3(valuevec->y,0,0);'},
+				{name = ' z', code = '	*valuevec = _real3(valuevec->z,0,0);'},
+				{name = ' mag', code = '	*valuevec = _real3(real3_len(*valuevec),0,0);', magn=true},
 			} do
 				local scalarVar = self.DisplayVar(table(args, {
 					solver = self,
 					name = group.name .. '_' .. name .. info.name,
 					code = code .. info.code,
+					enabled = self.dim == 1,
 				}))
 				group.vars:insert(scalarVar)
 			
@@ -626,22 +632,32 @@ function Solver:addUBufDisplayVars()
 					scalarVar.vecVar = var
 				end
 			end
+		
 		-- hmm, valuevec has to be bigger for this to work
 		-- but does that mean I have to store 6 components in valuevec?
 		-- I suppose it does if I want a sym3-specific visualization
 		elseif vartype == 'sym3' then
 			for _,info in ipairs{
-				{name = ' xx', code = '	valuevec = _real3(valuevec.xx,0,0);'},
-				{name = ' xy', code = '	valuevec = _real3(valuevec.xy,0,0);'},
-				{name = ' xz', code = '	valuevec = _real3(valuevec.xz,0,0);'},
-				{name = ' yy', code = '	valuevec = _real3(valuevec.yy,0,0);'},
-				{name = ' yz', code = '	valuevec = _real3(valuevec.yz,0,0);'},
-				{name = ' zz', code = '	valuevec = _real3(valuevec.zz,0,0);'},
+				{name = ' x', code = '	*valuevec = sym3_x(valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
+				{name = ' y', code = '	*valuevec = sym3_y(valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
+				{name = ' z', code = '	*valuevec = sym3_z(valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
+				
+				{name = ' xx', code = '	valuesym3 = _sym3(valuesym3.xx, 0,0,0,0,0);'},
+				{name = ' xy', code = '	valuesym3 = _sym3(valuesym3.xy, 0,0,0,0,0);'},
+				{name = ' xz', code = '	valuesym3 = _sym3(valuesym3.xz, 0,0,0,0,0);'},
+				{name = ' yy', code = '	valuesym3 = _sym3(valuesym3.yy, 0,0,0,0,0);'},
+				{name = ' yz', code = '	valuesym3 = _sym3(valuesym3.yz, 0,0,0,0,0);'},
+				{name = ' zz', code = '	valuesym3 = _sym3(valuesym3.zz, 0,0,0,0,0);'},
+				
+				{name = ' norm', code = ' valuesym3 = _sym3( sqrt(sym3_dot(valuesym3, valuesym3)), 0,0,0,0,0);'},
+				{name = ' tr', code = ' valuesym3 = _sym3( sym3_trace(valuesym3), 0,0,0,0,0);'},
 			} do
 				local scalarVar = self.DisplayVar(table(args, {
 					solver = self,
 					name = group.name .. '_' .. name .. info.name,
 					code = code .. info.code,
+					vectorField = info.vectorField,
+					enabled = self.dim == 1 and not info.vectorField,
 				}))
 				group.vars:insert(scalarVar)
 			end
@@ -1352,9 +1368,9 @@ function Solver:refreshDisplayProgram()
 						name = 'calcDisplayVarToBuffer_'..var.id,
 						input = 'global real* dest',
 						output = var.vectorField and [[
-	dest[0+3*dstindex] = valuevec.x;
-	dest[1+3*dstindex] = valuevec.y;
-	dest[2+3*dstindex] = valuevec.z;
+	dest[0+3*dstindex] = valuevec->x;
+	dest[1+3*dstindex] = valuevec->y;
+	dest[2+3*dstindex] = valuevec->z;
 ]] or [[
 	dest[dstindex] = value[0];
 ]],

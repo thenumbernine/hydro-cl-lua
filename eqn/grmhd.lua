@@ -235,10 +235,7 @@ end
 function GRMHD:getDisplayVars()
 	return {
 		{D = '*value = U.D;'},
-		{Sx = '*value = U.S.x;'},
-		{Sy = '*value = U.S.y;'},
-		{Sz = '*value = U.S.z;'},
-		{S = '*value = coordLen(U.S, x);'},
+		{S = '*valuevec = U.S;', type='real3'},
 		{tau = '*value = U.tau;'},
 		{W = '*value = U.D / prim.rho;'},
 		{['primitive reconstruction error'] = template([[
@@ -263,19 +260,7 @@ function GRMHD:getPrimDisplayVarCodePrefix()
 	})
 end
 
-GRMHD.primDisplayVars = {
-	{rho = '*value = prim.rho;'},
-	{vx = '*value = prim.v.x;'},
-	{vy = '*value = prim.v.y;'},
-	{vz = '*value = prim.v.z;'},
-	{v = '*value = coordLen(prim.v, x);'},
-	{eInt = '*value = prim.eInt;'},
-	{ePot = '*value = prim.ePot;'},
-	{P = '*value = calc_P(prim.rho, prim.eInt);'},
-	{h = '*value = calc_h(prim.rho, calc_P(prim.rho, prim.eInt), prim.eInt);'},
-}
-
-GRMHD.eigenStructFields = {
+GRMHD.eigenVars = {
 	{rho = 'real'},
 	{v = 'real3'},
 	{h = 'real'},
@@ -288,18 +273,5 @@ GRMHD.eigenStructFields = {
 	{CPlus = 'real'},
 	{Kappa = 'real'},
 }
-
-function GRMHD:getEigenTypeCode()
-	return 'typedef struct {\n'
-		..table.map(self.eigenStructFields, function(field)
-			local name, ctype = next(field)
-			return '\t'..ctype..' '..name..';\n'
-		end):concat'\n'
-		..'} '..self.eigen_t..';\n'
-end
-
-function GRMHD:getEigenDisplayVars()
-	return {}
-end
 
 return GRMHD

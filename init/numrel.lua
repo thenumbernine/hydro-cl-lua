@@ -6,16 +6,7 @@ local vec3 = require 'vec.vec3'
 local clnumber = require 'cl.obj.number'
 local InitCond = require 'init.init'
 
---symmath.tostring = require 'symmath.tostring.SingleLine'		
-
-local xNames = table{'x', 'y', 'z'}
-local symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
-
-local from3x3to6_table = {{1, 2, 3}, {2, 4, 5}, {3, 5, 6},}
-local function from3x3to6(i,j) return from3x3to6_table[i][j] end
-
-local from6to3x3_table = {{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}}
-local function from6to3x3(i) return table.unpack(from6to3x3_table[i]) end
+require 'common'(_G)
 
 local function getTemplateEnv(solver)
 	return {

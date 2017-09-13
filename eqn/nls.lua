@@ -4,7 +4,7 @@ local Equation = require 'eqn.eqn'
 
 local NLSEqn = class(Equation)
 NLSEqn.name = 'NLSEqn'
-NLSEqn.consVars = {'re', 'im'}
+NLSEqn.consVars = {{re='real'}, {im='real'}}
 
 NLSEqn.initStates = require 'init.nls'
 
@@ -28,9 +28,7 @@ kernel void initState(
 NLSEqn.solverCodeFile = 'eqn/nls.cl'
 
 function NLSEqn:getDisplayVars()
-	return {
-		{re = '*value = U->re;'},
-		{im = '*value = U->im;'},
+	return NLSEqn.super.getDisplayVars(self):append{
 		{norm = '*value = sqrt(U->re*U->re + U->im*U->im);'},
 	}
 end
