@@ -145,13 +145,13 @@ kernel void calcLR(
 		}
 
 		//convert back to conservation variable space
-		<?=eqn.cons_t?> UL, UR;
-		eigen_rightTransform_<?=side?>___(UL.ptr, &eig, aL, x);
-		eigen_rightTransform_<?=side?>___(UR.ptr, &eig, aR, x);
+		<?=eqn.cons_t?> sL, sR;
+		eigen_rightTransform_<?=side?>___(sL.ptr, &eig, aL, x);
+		eigen_rightTransform_<?=side?>___(sR.ptr, &eig, aR, x);
 		
 		for (int j = 0; j < numIntStates; ++j) {
-			ULR->L.ptr[j] = U->ptr[j] - UR.ptr[j];
-			ULR->R.ptr[j] = U->ptr[j] + UL.ptr[j];
+			ULR->L.ptr[j] = U->ptr[j] - sR.ptr[j];
+			ULR->R.ptr[j] = U->ptr[j] + sL.ptr[j];
 		}
 #elif 0	//Trangenstein, Athena, etc, except working on primitives like it says to
 		//fails for Maxwell
