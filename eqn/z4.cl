@@ -84,10 +84,10 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 	real lambdaGauge = lambdaLight * eig->sqrt_f;
 	
 	wave[0] = -lambdaGauge;
-	<? for i=1,5 do ?> wave[<?=i?>] = -lambdaLight; <? end ?>
-	<? for i=6,23 do ?> wave[<?=i?>] = 0.; <? end ?>
-	<? for i=24,28 do ?> wave[<?=i?>] = lambdaLight; <? end ?>
-	wave[29] = lambdaGauge;
+	<? for i=1,6 do ?> wave[<?=i?>] = -lambdaLight; <? end ?>
+	<? for i=7,23 do ?> wave[<?=i?>] = 0.; <? end ?>
+	<? for i=24,29 do ?> wave[<?=i?>] = lambdaLight; <? end ?>
+	wave[30] = lambdaGauge;
 }
 <?		end
 	end
@@ -144,9 +144,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	eig.alpha = alpha;
 	eig.sqrt_f = sqrt(calc_f(alpha));
 	eig.gammaU = sym3_inv(avg_gamma, det_avg_gamma);
-	eig.sqrt_gammaUjj.x = sqrt(eig.gammaU.xx);
-	eig.sqrt_gammaUjj.y = sqrt(eig.gammaU.yy);
-	eig.sqrt_gammaUjj.z = sqrt(eig.gammaU.zz);
+	eig.sqrt_gammaUjj = _real3(sqrt(eig.gammaU.xx), sqrt(eig.gammaU.yy), sqrt(eig.gammaU.zz));
 	return eig;
 }
 
@@ -177,6 +175,8 @@ kernel void calcEigenBasis(
 	}<? end ?>
 }
 
+#error you are here	
+
 <?
 local unpack = unpack or table.unpack
 for _,addrs in ipairs{
@@ -195,7 +195,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real3 unused
 ) {
 	<?=addr2?> const <?=eqn.cons_t?>* inputU = (<?=addr2?> const <?=eqn.cons_t?>*)input;
-	
+
 	<? if side == 0 then ?>
 
 	//a_y, a_z
@@ -1335,87 +1335,6 @@ kernel void addSource(
 	deriv->K.yy += U->alpha * SSymLL[3];
 	deriv->K.yz += U->alpha * SSymLL[4];
 	deriv->K.zz += U->alpha * SSymLL[5];
-	deriv->V.x += U->alpha * PL[0];
-	deriv->V.y += U->alpha * PL[1];
-	deriv->V.z += U->alpha * PL[2];
-}
 
-kernel void constrainU(
-	global <?=eqn.cons_t?>* UBuf
-) {
-<?
-local constrainVGuiVar = eqn.guiVars['constrain V']
-local constrainV = constrainVGuiVar.options[constrainVGuiVar.value]  
-if constrainV ~= 'none' then 
-?>	//gravitational_wave_sim uses this (for 1D), HydroGPU doesn't (for 2D/3D)
-	SETBOUNDS(numGhost,numGhost);	
-	
-	global <?=eqn.cons_t?>* U = UBuf + index;
-
-	real det_gamma = sym3_det(U->gamma);
-	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-
-	real3 delta;
-	<? for i,xi in ipairs(xNames) do ?>{
-		real d1 = sym3_dot(U->d[<?=i-1?>], gammaU);
-		real d2 = 0.<?
-	for j=1,3 do
-		for k,xk in ipairs(xNames) do
-?> + U->d[<?=j-1?>].<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
-		end
-	end ?>;
-		delta.<?=xi?> = U->V.<?=xi?> - (d1 - d2);
-	}<? end ?>
-
-<?
-	if constrainV == 'replace V' then
-?>
-	//directly assign to V
-	U->V = real3_sub(U->V, delta);
-<?
-	elseif constrainV == 'average' then
-?>
-	//average between V and d
-
-/*
-interpolation between V and d
-weight = 1 means only adjust V (gives a 1e-20 error in the constraint eqns)
-weight = 0 means only adjust d (hmm, is only at 1e-2 ...)
-
-V_i - (d_im^m - d^m_mi) = Q_i ...
-V'_i = V_i - alpha Q_i
-(d_im^m - d^m_mi)' = (d_im^m - d^m_mi) + (1-alpha) Q_i
-so (V_i - (d_im^m - d^m_mi))' = V'_i - (d_im^m - d^m_mi)' = V_i - alpha Q_i - (d_im^m - d^m_mi) - (1-alpha) Q_i = Q_i - Q_i = 0
-works for d'_ijk = d_ijk + (1-alpha)/4 (Q_i gamma_jk - Q_k gamma_ij)
-so d'_im^m = d'_ijk gamma^jk = d_im^m + (1-alpha)/4 (Q_i gamma_jk - Q_k gamma_ij) gamma^jk = d_im^m + (1-alpha)/2 Q_i
-and d'^m_mi = d'_kji gamma^jk = d^m_mi + (1-alpha)/4 (Q_k gamma_ij - Q_i gamma_jk) gamma^jk = d^m_mi - (1-alpha)/2 Q_i
-therefore (d_im^m - d^m_mi)' = d_im^m - d^m_mi + (1-alpha) Q_i
-
-...but how come it's not working?
-*/
-	const real weight = .5;
-	const real v_weight = weight;
-	const real d_weight = (1. - weight) / 4.;
-
-	U->V = real3_sub(U->V, real3_scale(delta, v_weight));
-<? 
-		for i,xi in ipairs(xNames) do 
-			for jk,xjk in ipairs(symNames) do
-				local j,k = from6to3x3(jk)
-				local xk = xNames[k]
-?>	U->d[<?=i-1?>].<?=xjk?> += (
-		delta.<?=xi?> * U->gamma.<?=xjk?> 
-		- delta.<?=xk?> * U->gamma.<?=sym(i,j)?>
-	) * d_weight;
-<?	
-			end
-		end 
-	end
-?>
-
-//...or linearly project out the [V_i, U->d_ijk] vector
-//...or do a single gradient descent step
-<?
-end
-?>
+#error TODO Z and Theta source terms ... and I'm pretty sure the source terms already there need updating
 }

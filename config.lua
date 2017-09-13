@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 3
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -148,7 +148,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Hemholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -194,7 +194,7 @@ maxs = {6,1,1},
 	--initState = 'two-fluid EMHD soliton maxwell',
 
 	-- GR
-	--initState = 'gaussian perturbation',
+	initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 	--initState = 'Alcubierre warp bubble',
 	--initState = 'Schwarzschild black hole',
@@ -220,7 +220,7 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
@@ -286,7 +286,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v2'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d'})))	-- this is breaking ... probably because fluxFromCons is implemented very poorly
+self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d'})))	-- this is breaking ... probably because fluxFromCons is implemented very poorly
 
 
 --

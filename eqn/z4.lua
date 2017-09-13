@@ -1,6 +1,6 @@
 --[[
 Based on Alcubierre 2008 "Introduction to 3+1 Numerical Relativity" on the chapter on hyperbolic formalisms. 
-The first Bona-Masso formalism.
+With some hints from a few of the Z4 papers
 --]]
 
 local class = require 'ext.class'
@@ -10,64 +10,43 @@ local template = require 'template'
 local NumRelEqn = require 'eqn.numrel'
 local symmath = require 'symmath'
 local makeStruct = require 'eqn.makestruct'
-
--- TODO assign these as locals instead of globals
 require 'common'(_G)
 
-local ADM_BonaMasso_3D = class(NumRelEqn)
-ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
+local Z4 = class(NumRelEqn)
+Z4.name = 'Z4'
 
 local fluxVars = table{
 	{a = 'real3'},
 	{d = '_3sym3'},
 	{K = 'sym3'},
-	{V = 'real3'},
+	{Theta = 'real'},
+	{Z = 'real3'},
 }
 
-ADM_BonaMasso_3D.consVars = table{
+Z4.consVars = table{
 	{alpha = 'real'},
 	{gamma = 'sym3'},
 }:append(fluxVars)
 
--- skip alpha and gamma
-ADM_BonaMasso_3D.numWaves = makeStruct.countReals(fluxVars)
-assert(ADM_BonaMasso_3D.numWaves == 30)
+Z4.numWaves = makeStruct.countReals(fluxVars)
 
-ADM_BonaMasso_3D.hasCalcDT = true
-ADM_BonaMasso_3D.hasEigenCode = true
-ADM_BonaMasso_3D.useSourceTerm = true
-ADM_BonaMasso_3D.useConstrainU = true
+Z4.hasCalcDT = true
+Z4.hasEigenCode = true
+Z4.useSourceTerm = true
 
-function ADM_BonaMasso_3D:createInitState()
-	ADM_BonaMasso_3D.super.createInitState(self)
-	self:addGuiVar{
-		type = 'combo',
-		name = 'constrain V',
-		options = {
-			'none',
-			'replace V',
-			'average',	-- TODO add averaging weights, from 100% V (which works) to 100% d (which doesn't yet work)
-		}
-	}
-end
-
-function ADM_BonaMasso_3D:getCodePrefix()
+function Z4:getCodePrefix()
 	local lines = table()
-		
-	-- don't call super because it generates the guivar code
-	-- which is already being generated in initState
-	--lines:insert(ADM_BonaMasso_3D.super.getCodePrefix(self))
-	
 	lines:insert(template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U) {
-	U->alpha = 1.;
+	U->alpha = 1;
 	U->gamma = _sym3(1,0,0,1,0,1);
 	U->a = _real3(0,0,0);
 	U->d[0] = _sym3(0,0,0,0,0,0);
 	U->d[1] = _sym3(0,0,0,0,0,0);
 	U->d[2] = _sym3(0,0,0,0,0,0);
 	U->K = _sym3(0,0,0,0,0,0);
-	U->V = _real3(0,0,0);
+	U->Theta = 0;
+	U->Z = _real3(0,0,0);
 }
 ]], {eqn=self}))
 	
@@ -87,23 +66,6 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 		end)
 		print('...done building metric partials')
 
-		--[[
-		local gammaU = table{mat33.inv(gamma:unpack())} or calc.gammaU:map(function(gammaUij) return gammaUij(x,y,z) end) 
-		exprs.V = table.map(vars, function(var)
-			local s = 0
-			for j=1,3 do
-				for k=1,3 do
-					local d_ijk = sym3x3(exprs.d[i],j,k)
-					local d_kji = sym3x3(exprs.d[k],j,i)
-					local gammaUjk = sym3x3(gammaU,j,k)
-					local dg = (d_ijk - d_kji) * gammaUjk
-					s = s + dg
-				end
-			end
-			return s
-		end)
-		--]]
-
 		return table(
 			{alpha = exprs.alpha},
 			symNames:map(function(xij,ij)
@@ -120,18 +82,15 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 			symNames:map(function(xij,ij)
 				return exprs.K[ij], 'K_'..xij
 			end)
-			--[[
-			xNames:map(function(xi,i)
-				return exprs.V[i], 'V_'..xi
-			end),
-			--]]
+		
+			-- TODO Theta and Z_i, or can I just leave them as zero?
 		)
 	end))
 
 	return lines:concat()
 end
 
-function ADM_BonaMasso_3D:getInitStateCode()
+function Z4:getInitStateCode()
 	local lines = table{
 		template([[
 kernel void initState(
@@ -169,12 +128,8 @@ kernel void initState(
 	end)
 	symNames:map(function(xij) build('K_'..xij) end)
 
-	--[[ symbolic
-	xNames:map(function(xi) build('V_'..xi) end)
-	--]]
-	-- [[
-	lines:insert'	U->V = _real3(0,0,0);'
-	--]]
+	lines:insert'	U->Theta = 0;'
+	lines:insert'	U->Z = _real3(0,0,0);'
 
 	lines:insert'}'
 	
@@ -182,8 +137,8 @@ kernel void initState(
 	return code
 end
 
-function ADM_BonaMasso_3D:getSolverCode()
-	return template(file['eqn/adm3d.cl'], {
+function Z4:getSolverCode()
+	return template(file['eqn/z4.cl'], {
 		eqn = self,
 		solver = self.solver,
 		xNames = xNames,
@@ -193,14 +148,12 @@ function ADM_BonaMasso_3D:getSolverCode()
 	})
 end
 
-function ADM_BonaMasso_3D:getDisplayVars()
-	local vars = ADM_BonaMasso_3D.super.getDisplayVars(self)
-
+function Z4:getDisplayVars()
+	local vars = Z4.super.getDisplayVars(self)
 	vars:append{
 		{det_gamma = '*value = sym3_det(U->gamma);'},
 		{volume = '*value = U->alpha * sqrt(sym3_det(U->gamma));'},
 		{f = '*value = calc_f(U->alpha);'},
-		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
 		{K = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
@@ -211,7 +164,6 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 	*value = -U->alpha * sym3_dot(gammaU, U->K);
 ]]		},
-	}:append{
 --[=[
 	-- 1998 Bona et al
 --[[
@@ -224,44 +176,28 @@ momentum constraints
 	.5 * 
 ]]		},
 --]=]
-	}
 
 	-- shift-less gravity only
 	-- gravity with shift is much more complex
 	-- TODO add shift influence (which is lengthy)
-	vars:insert{gravity = [[
+		{gravity = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 	*valuevec = real3_scale(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
-]], type='real3'}
+]], type='real3'},
+	}
 	
-	vars:insert{constraint_V = template([[
-	real det_gamma = sym3_det(U->gamma);
-	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	<? for i,xi in ipairs(xNames) do ?>{
-		real d1 = sym3_dot(U->d[<?=i-1?>], gammaU);
-		real d2 = 0.<?
-	for j=1,3 do
-		for k,xk in ipairs(xNames) do
-?> + U->d[<?=j-1?>].<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
-		end
-	end ?>;
-		valuevec-><?=xi?> = U->V.<?=xi?> - (d1 - d2);
-	}<? end ?>
-]], {sym=sym, xNames=xNames}), type='real3'}
-
 	return vars
 end
 
-ADM_BonaMasso_3D.eigenVars = table{
-	{alpha = 'real'},	--used only by eigen_calcWaves ... makes me think eigen_forCell / eigen_forSide should both calculate waves and basis variables in the same go
+Z4.eigenVars = table{
+	{alpha = 'real'},
 	{sqrt_f = 'real'},
 	{gammaU = 'sym3'},
-	-- sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
 	{sqrt_gammaUjj = 'real3'},
 }
 
-function ADM_BonaMasso_3D:fillRandom(epsilon)
+function Z4:fillRandom(epsilon)
 	local ptr = ADM_BonaMasso_3D.super.fillRandom(self, epsilon)
 	local solver = self.solver
 	for i=0,solver.volume-1 do
@@ -274,4 +210,4 @@ function ADM_BonaMasso_3D:fillRandom(epsilon)
 	return ptr
 end
 
-return ADM_BonaMasso_3D
+return Z4 

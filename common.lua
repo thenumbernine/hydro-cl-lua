@@ -1,6 +1,9 @@
 local table = require 'ext.table'
 --[[
 idk where to put this stuff
+TODO luajit's getfenv is returning _G
+I wonder if there's a way to set these variables to the local scope env of the require'ing files
+...without using debug's upvalue stuff
 --]]
 return function(env)
 	env = env or {}
