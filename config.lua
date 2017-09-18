@@ -180,7 +180,7 @@ maxs = {6,1,1},
 	--initState = 'relativistic blast wave interaction',
 
 	-- MHD-only init states: (that use 'b')
-	--initState = 'Brio-Wu',
+	initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	
 	-- EM:
@@ -194,7 +194,7 @@ maxs = {6,1,1},
 	--initState = 'two-fluid EMHD soliton maxwell',
 
 	-- GR
-	initState = 'gaussian perturbation',
+	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 	--initState = 'Alcubierre warp bubble',
 	--initState = 'Schwarzschild black hole',
@@ -261,7 +261,7 @@ maxs = {6,1,1},
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 
 -- TODO to get HLL working for MHD (even though it'll not simulate all those intermediate waves correctly)
 --  I need to rework eqn/mhd.cl to implement eigen_forSide
@@ -282,7 +282,7 @@ maxs = {6,1,1},
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v2'})))

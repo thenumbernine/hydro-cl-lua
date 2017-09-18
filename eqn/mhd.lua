@@ -70,7 +70,10 @@ inline real calc_HTotal(<?=eqn.prim_t?> W, real ETotal) { return W.P + calc_PMag
 inline real calc_hTotal(<?=eqn.prim_t?> W, real ETotal) { return calc_HTotal(W, ETotal) / W.rho; }
 inline real calc_Cs(<?=eqn.prim_t?> W) { return sqrt(heatCapacityRatio * W.P / W.rho); }
 
-inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U) {
+inline <?=eqn.prim_t?> primFromCons(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
 	<?=eqn.prim_t?> W;
 	W.rho = U.rho;
 	W.v = real3_scale(U.m, 1./U.rho);
@@ -87,7 +90,7 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U) {
 	return W;
 }
 
-inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W) {
+inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	<?=eqn.cons_t?> U;
 	U.rho = W.rho;
 	U.m = real3_scale(W.v, W.rho);
@@ -130,7 +133,7 @@ kernel void initState(
 	<?=code?>
 	
 	<?=eqn.prim_t?> W = {.rho=rho, .v=v, .P=P, .B=B, .BPot=0};
-	UBuf[index] = consFromPrim(W);
+	UBuf[index] = consFromPrim(W, x);
 }
 ]]
 
@@ -141,7 +144,7 @@ end
 function MHD:getDisplayVarCodePrefix()
 	return template([[
 	global const <?=eqn.cons_t?>* U = buf + index;
-	<?=eqn.prim_t?> W = primFromCons(*U);
+	<?=eqn.prim_t?> W = primFromCons(*U, x);
 ]], {
 	eqn = self,
 })
@@ -187,7 +190,7 @@ end
 		{['primitive reconstruction error'] = template([[
 		//prim have just been reconstructed from cons
 		//so reconstruct cons from prims again and calculate the difference
-		<?=eqn.cons_t?> U2 = consFromPrim(W);
+		<?=eqn.cons_t?> U2 = consFromPrim(W, x);
 		*value = 0;
 		for (int j = 0; j < numIntStates; ++j) {
 			*value += fabs(U->ptr[j] - U2.ptr[j]);

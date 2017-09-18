@@ -9,7 +9,7 @@ based on Athena's version of eigenvectors of derivative of adiabatic MHD flux wr
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	<?=eqn.prim_t?> W = primFromCons(U);
+	<?=eqn.prim_t?> W = primFromCons(U, x);
 	real vj = W.v.s<?=side?>;
 	real Bj = W.B.s<?=side?>;
 	real BSq = real3_lenSq(W.B);
@@ -27,14 +27,6 @@ based on Athena's version of eigenvectors of derivative of adiabatic MHD flux wr
 	return F;
 }
 <? end ?>
-
-typedef struct {
-	real rho;
-	real3 v;
-	real hTotal;
-	real3 B;
-	real X, Y;
-} Roe_t;
 
 <? 
 
@@ -119,10 +111,10 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 ) {
 	<?=eqn.cons_t?> U_ = *U;
 	<?=consPutXFwd('U_', side)?>
-	<?=eqn.prim_t?> W = primFromCons(U_);
+	<?=eqn.prim_t?> W = primFromCons(U_, x);
 	
 #if 0
-	<?=eqn.prim_t?> W = primFromCons(*U);
+	<?=eqn.prim_t?> W = primFromCons(*U, x);
 	real3 v = W.v;
 	real3 B = W.B;
 	
@@ -191,19 +183,29 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 <? end ?>
 
+//these are the variables that are inputs to the eigensystem computation
+typedef struct {
+	real rho;
+	real3 v;
+	real hTotal;
+	real3 B;
+	real X, Y;
+} Roe_t;
+
 //assumes UL and UR are already rotated so the 'x' direction is our flux direction
 void calcRoeValues(
 	Roe_t* W, 
 	const <?=eqn.cons_t?>* UL, 
-	const <?=eqn.cons_t?>* UR
+	const <?=eqn.cons_t?>* UR,
+	real3 x
 ) {
 	// should I use Bx, or BxL/R, for calculating the PMag at the L and R states?
-	<?=eqn.prim_t?> WL = primFromCons(*UL);
+	<?=eqn.prim_t?> WL = primFromCons(*UL, x);
 	real sqrtRhoL = sqrt(UL->rho);
 	real PMagL = .5 * real3_lenSq(UL->B);
 	real hTotalL = (UL->ETotal + WL.P + PMagL) / UL->rho;
 
-	<?=eqn.prim_t?> WR = primFromCons(*UR);
+	<?=eqn.prim_t?> WR = primFromCons(*UR, x);
 	real sqrtRhoR = sqrt(UR->rho);
 	real PMagR = .5 * real3_lenSq(UR->B);
 	real hTotalR = (UR->ETotal + WR.P + PMagR) / UR->rho;
@@ -245,6 +247,7 @@ kernel void calcEigenBasis(
 	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
+	real3 x = cell_x(i);
 	int indexR = index;
 
 	const real gamma = heatCapacityRatio;
@@ -257,6 +260,10 @@ kernel void calcEigenBasis(
 		int indexL = index - stepsize.s<?=side?>;
 		<?= solver.getULRCode ?>
 
+		int indexInt = side + dim * index;
+		real3 xInt = x;
+		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
+
 		//swap the sides with x here, so all the fluxes are in the 'x' direction
 		<?=eqn.cons_t?> UL_ = *UL;
 		<?=eqn.cons_t?> UR_ = *UR;
@@ -264,7 +271,7 @@ kernel void calcEigenBasis(
 		<?=consPutXFwd('UR_',side)?>
 
 		Roe_t roe;
-		calcRoeValues(&roe, &UL_, &UR_);
+		calcRoeValues(&roe, &UL_, &UR_, xInt);
 
 		real rho = roe.rho;
 		real3 v = roe.v;
@@ -343,7 +350,6 @@ kernel void calcEigenBasis(
 
 		real CAx = sqrt(CAxSq);
 		
-		int indexInt = side + dim * index;
 		global real* wave = waveBuf + numWaves * indexInt;
 		
 		real lambdaFastMin = v.x - Cf;
@@ -505,3 +511,50 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		end
 	end
 end ?>
+
+//U = output
+//WA = W components that make up the jacobian matrix
+//W = input
+//x = coordinate location
+void apply_dU_dW(
+	<?=eqn.cons_t?>* U, 
+	const <?=eqn.prim_t?>* WA, 
+	const <?=eqn.prim_t?>* W, 
+	real3 x
+) {
+	*U = (<?=eqn.cons_t?>){
+		.rho = W->rho,
+		.m = real3_add(
+			real3_scale(WA->v, W->rho),
+			real3_scale(W->v, WA->rho)),
+		.B = WA->B,
+		.ETotal = W->rho * .5 * real3_dot(WA->v, WA->v)
+			+ WA->rho * real3_dot(W->v, WA->v)
+			+ real3_dot(W->B, WA->B) / mu0
+			+ W->P / (heatCapacityRatio - 1.),
+	};
+}
+
+//W = output
+//WA = W components that make up the jacobian matrix
+//U = input
+//x = coordinate location
+void apply_dW_dU(
+	<?=eqn.prim_t?>* W,
+	const <?=eqn.prim_t?>* WA,
+	const <?=eqn.cons_t?>* U,
+	real3 x
+) {
+	*W = (<?=eqn.prim_t?>){
+		.rho = U->rho,
+		.v = real3_sub(
+			real3_scale(U->m, 1. / WA->rho),
+			real3_scale(WA->v, U->rho / WA->rho)),
+		.B = U->B,
+		.P = (heatCapacityRatio - 1.) *  (
+			.5 * U->rho * real3_dot(WA->v, WA->v)
+			- real3_dot(U->m, WA->v)
+			- real3_dot(U->B, WA->B) / mu0
+			+ U->ETotal),
+	};
+}

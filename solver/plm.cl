@@ -84,7 +84,7 @@ kernel void calcLR(
 			ULR->R.ptr[j] = UHalfR.ptr[j] + .5 * dt_dx * dF;
 		}
 
-#elif 1	//based on https://arxiv.org/pdf/0804.0402v1.pdf 
+#elif 0	//based on https://arxiv.org/pdf/0804.0402v1.pdf 
 		//and Trangenstein "Numeric Simulation of Hyperbolic Conservation Laws" section 6.2.5
 		//except I'm projecting the differences in conservative values instead of primitive values.
 		//This also needs modular slope limiter support.
@@ -153,7 +153,7 @@ kernel void calcLR(
 			ULR->L.ptr[j] = U->ptr[j] - sR.ptr[j];
 			ULR->R.ptr[j] = U->ptr[j] + sL.ptr[j];
 		}
-#elif 0	//Trangenstein, Athena, etc, except working on primitives like it says to
+#elif 1	//Trangenstein, Athena, etc, except working on primitives like it says to
 		//fails for Maxwell
 
 		real3 xL = x;
