@@ -214,7 +214,6 @@ MHD.roeVars = table{
 
 
 MHD.eigenVars = table(MHD.roeVars):append{
-	{vx = 'real'},
 	{Cs = 'real'},
 	{CAx = 'real'},
 	{Cf = 'real'},
