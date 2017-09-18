@@ -175,8 +175,6 @@ kernel void calcEigenBasis(
 	}<? end ?>
 }
 
-#error you are here	
-
 <?
 local unpack = unpack or table.unpack
 for _,addrs in ipairs{
@@ -197,6 +195,10 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const <?=eqn.cons_t?>* inputU = (<?=addr2?> const <?=eqn.cons_t?>*)input;
 
 	<? if side == 0 then ?>
+
+	results[0] = -gamma^xi a_i
+	results[30] = gamma^xi a_i
+
 
 	//a_y, a_z
 	results[6] = inputU->a.y;
