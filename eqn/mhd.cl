@@ -396,19 +396,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	// hHydro - eKin = eInt + P/rho = (1./(gamma-1) + 1) P/rho = gamma/(gamma-1) P/rho
 	// a^2 = (gamma-1)(hHydro - eKin) = gamma P / rho
 	real aTildeSq = max((gamma_1 * (hHydro - .5 * vSq) - gamma_2 * X), 1e-20);
-
-	real BStarPerpSq_rho = BStarPerpSq * _1_rho;
-	real CATildeSq = CAxSq + BStarPerpSq_rho;
-	real CStarSq = .5 * (CATildeSq + aTildeSq);
-	real CA_a_TildeSqDiff = .5 * (CATildeSq - aTildeSq);
-	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * BStarPerpSq_rho);
-	
-	real CfSq = CStarSq + sqrtDiscr;
-	//real Cf = sqrt(CfSq);
-	
-	real CsSq = aTildeSq * CAxSq / CfSq;
-	//real Cs = sqrt(CsSq);
-	
+		
 	real BPerpLen = sqrt(BPerpSq);
 	real BStarPerpLen = sqrt(BStarPerpSq);
 	real betaY, betaZ;
@@ -422,7 +410,9 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real betaStarY = betaY / sqrt(gamma_1 - gamma_2*Y);
 	real betaStarZ = betaZ / sqrt(gamma_1 - gamma_2*Y);
 	real betaStarSq = betaStarY*betaStarY + betaStarZ*betaStarZ;
-	real vDotBeta = v.y*betaStarY + v.z*betaStarZ;
+	
+	real CfSq = Cf * Cf;
+	real CsSq = Cs * Cs;
 
 	real alphaF, alphaS;
 	if (CfSq - CsSq == 0) {
@@ -447,8 +437,6 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real Qs = Cs*alphaS*sbx;
 	real Af = aTilde*alphaF*_1_sqrtRho;
 	real As = aTilde*alphaS*_1_sqrtRho;
-	real Afpbb = Af*BStarPerpLen*betaStarSq;
-	real Aspbb = As*BStarPerpLen*betaStarSq;
 
 
 	// left eigenvectors
@@ -566,19 +554,8 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	// hHydro - eKin = eInt + P/rho = (1./(gamma-1) + 1) P/rho = gamma/(gamma-1) P/rho
 	// a^2 = (gamma-1)(hHydro - eKin) = gamma P / rho
 	real aTildeSq = max((gamma_1 * (hHydro - .5 * vSq) - gamma_2 * X), 1e-20);
+	
 
-	real BStarPerpSq_rho = BStarPerpSq * _1_rho;
-	real CATildeSq = CAxSq + BStarPerpSq_rho;
-	real CStarSq = .5 * (CATildeSq + aTildeSq);
-	real CA_a_TildeSqDiff = .5 * (CATildeSq - aTildeSq);
-	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * BStarPerpSq_rho);
-	
-	real CfSq = CStarSq + sqrtDiscr;
-	//real Cf = sqrt(CfSq);
-	
-	real CsSq = aTildeSq * CAxSq / CfSq;
-	//real Cs = sqrt(CsSq);
-	
 	real BPerpLen = sqrt(BPerpSq);
 	real BStarPerpLen = sqrt(BStarPerpSq);
 	real betaY, betaZ;
@@ -593,6 +570,9 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real betaStarZ = betaZ / sqrt(gamma_1 - gamma_2*Y);
 	real betaStarSq = betaStarY*betaStarY + betaStarZ*betaStarZ;
 	real vDotBeta = v.y*betaStarY + v.z*betaStarZ;
+
+	real CfSq = Cf * Cf;
+	real CsSq = Cs * Cs;
 
 	real alphaF, alphaS;
 	if (CfSq - CsSq == 0) {

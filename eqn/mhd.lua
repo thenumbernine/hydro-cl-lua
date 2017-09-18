@@ -203,6 +203,8 @@ end
 end
 
 
+-- these are calculated based on cell-centered (or extrapolated) conserved vars
+-- they are used to calculate the eigensystem at a cell center or edge 
 MHD.roeVars = table{
 	{rho = 'real'},
 	{v = 'real3'},
@@ -213,6 +215,7 @@ MHD.roeVars = table{
 }
 
 
+-- here's the variables that an eigensystem uses to compute a left, right, or flux transform 
 MHD.eigenVars = table(MHD.roeVars):append{
 	{Cs = 'real'},
 	{CAx = 'real'},
