@@ -421,7 +421,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real vSq = real3_lenSq(v);
 	
 	// left eigenvectors
-	real norm = .5/eig->aTildeSq;
+	real norm = .5 / eig->aTildeSq;
 	real Cff = norm * alphaF * Cf;
 	real Css = norm * alphaS * Cs;
 	Qf = Qf * norm;
@@ -452,10 +452,10 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	
 
 	result[0] = 
-		  input[0] * (alphaF*(vSq - eig->hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb) 
-		+ input[1] * (-alphaF*v.x - Cff)
-		+ input[2] * (-alphaF*v.y + Qs*QStarY)
-		+ input[3] * (-alphaF*v.z + Qs*QStarZ)
+		  input[0] * (alphaF * (vSq - eig->hHydro) + Cff * (Cf + v.x) - Qs * vqstr - aspb) 
+		+ input[1] * (-alphaF * v.x - Cff)
+		+ input[2] * (-alphaF * v.y + Qs * QStarY)
+		+ input[3] * (-alphaF * v.z + Qs * QStarZ)
 		+ input[4] * alphaF
 		+ input[5] * l16
 		+ input[6] * l17;
@@ -466,15 +466,15 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ input[5] * l26
 		+ input[6] * l27;
 	result[2] = 
-		  input[0] * (alphaS*(vSq - eig->hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb)
-		+ input[1] * (-alphaS*v.x - Css)
-		+ input[2] * (-alphaS*v.y - Qf*QStarY)
-		+ input[3] * (-alphaS*v.z - Qf*QStarZ)
+		  input[0] * (alphaS * (vSq - eig->hHydro) + Css * (Cs + v.x) + Qf * vqstr + afpb)
+		+ input[1] * (-alphaS * v.x - Css)
+		+ input[2] * (-alphaS * v.y - Qf * QStarY)
+		+ input[3] * (-alphaS * v.z - Qf * QStarZ)
 		+ input[4] * alphaS
 		+ input[5] * l36
 		+ input[6] * l37;
 	result[3] = 
-		  input[0] * (1. - norm*(.5*vSq - gamma_2*X/gamma_1))
+		  input[0] * (1. - norm * (.5 * vSq - gamma_2 * X / gamma_1))
 		+ input[1] * norm*v.x
 		+ input[2] * norm*v.y
 		+ input[3] * norm*v.z
@@ -482,10 +482,10 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ input[5] * norm*B.y
 		+ input[6] * norm*B.z;
 	result[4] = 
-		  input[0] * (alphaS*(vSq - eig->hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb)
-		+ input[1] * (-alphaS*v.x + Css)
-		+ input[2] * (-alphaS*v.y + Qf*QStarY)
-		+ input[3] * (-alphaS*v.z + Qf*QStarZ)
+		  input[0] * (alphaS * (vSq - eig->hHydro) + Css * (Cs - v.x) - Qf * vqstr + afpb)
+		+ input[1] * (-alphaS * v.x + Css)
+		+ input[2] * (-alphaS * v.y + Qf * QStarY)
+		+ input[3] * (-alphaS * v.z + Qf * QStarZ)
 		+ input[4] * alphaS
 		+ input[5] * l36
 		+ input[6] * l37;
@@ -496,10 +496,10 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ input[5] * l26
 		+ input[6] * l27;
 	result[6] = 
-		  input[0] * (alphaF*(vSq - eig->hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb)
-		+ input[1] * (-alphaF*v.x + Cff)
-		+ input[2] * (-alphaF*v.y - Qs*QStarY)
-		+ input[3] * (-alphaF*v.z - Qs*QStarZ)
+		  input[0] * (alphaF * (vSq - eig->hHydro) + Cff * (Cf - v.x) + Qs * vqstr - aspb)
+		+ input[1] * (-alphaF * v.x + Cff)
+		+ input[2] * (-alphaF * v.y - Qs * QStarY)
+		+ input[3] * (-alphaF * v.z - Qs * QStarZ)
 		+ input[4] * alphaF
 		+ input[5] * l16
 		+ input[6] * l17;
@@ -556,11 +556,11 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ input[4] * alphaS
 		+ input[6] * alphaF;
 	result[1] =
-		  input[0] * alphaF*lambdaFastMin
-		+ input[2] * alphaS*lambdaSlowMin
+		  input[0] * alphaF * lambdaFastMin
+		+ input[2] * alphaS * lambdaSlowMin
 		+ input[3] * v.x
-		+ input[4] * alphaS*lambdaSlowMax
-		+ input[6] * alphaF*lambdaFastMax;
+		+ input[4] * alphaS * lambdaSlowMax
+		+ input[6] * alphaF * lambdaFastMax;
 	result[2] =
 		  input[0] * (qa3 + qc3)
 		+ input[1] * -betaZ
