@@ -285,26 +285,26 @@ void eig_forSide_<?=side?>_<?=addr1?>(
 	real BStarPerpSq = (gamma_1 - gamma_2 * Y) * BPerpSq;
 	real CAxSq = B.x*B.x*_1_rho;
 	real CASq = CAxSq + BPerpSq * _1_rho;
-	real hHydro = hTotal - CASq;
+	eig->hHydro = hTotal - CASq;
 	// hTotal = (EHydro + EMag + P)/rho
-	// hHydro = hTotal - CASq, CASq = EMag/rho
-	// hHydro = eHydro + P/rho = eKin + eInt + P/rho
-	// hHydro - eKin = eInt + P/rho = (1./(gamma-1) + 1) P/rho = gamma/(gamma-1) P/rho
-	// a^2 = (gamma-1)(hHydro - eKin) = gamma P / rho
-	real aTildeSq = max((gamma_1 * (hHydro - .5 * vSq) - gamma_2 * X), 1e-20);
+	// eig->hHydro = hTotal - CASq, CASq = EMag/rho
+	// eig->hHydro = eHydro + P/rho = eKin + eInt + P/rho
+	// eig->hHydro - eKin = eInt + P/rho = (1./(gamma-1) + 1) P/rho = gamma/(gamma-1) P/rho
+	// a^2 = (gamma-1)(eig->hHydro - eKin) = gamma P / rho
+	eig->aTildeSq = max((gamma_1 * (eig->hHydro - .5 * vSq) - gamma_2 * X), 1e-20);
 
 	real BStarPerpSq_rho = BStarPerpSq * _1_rho;
 	real CATildeSq = CAxSq + BStarPerpSq_rho;
-	real CStarSq = .5 * (CATildeSq + aTildeSq);
-	real CA_a_TildeSqDiff = .5 * (CATildeSq - aTildeSq);
-	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * BStarPerpSq_rho);
+	real CStarSq = .5 * (CATildeSq + eig->aTildeSq);
+	real CA_a_TildeSqDiff = .5 * (CATildeSq - eig->aTildeSq);
+	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + eig->aTildeSq * BStarPerpSq_rho);
 	
 	eig->CAx = sqrt(CAxSq);
 	
 	real CfSq = CStarSq + sqrtDiscr;
 	eig->Cf = sqrt(CfSq);
 	
-	real CsSq = aTildeSq * CAxSq / CfSq;
+	real CsSq = eig->aTildeSq * CAxSq / CfSq;
 	eig->Cs = sqrt(CsSq);
 
 	
@@ -326,26 +326,26 @@ void eig_forSide_<?=side?>_<?=addr1?>(
 	if (CfSq - CsSq == 0) {
 		eig->alphaF = 1;
 		eig->alphaS = 0;
-	} else if (aTildeSq - CsSq <= 0) {
+	} else if (eig->aTildeSq - CsSq <= 0) {
 		eig->alphaF = 0;
 		eig->alphaS = 1;
-	} else if (CfSq - aTildeSq <= 0) {
+	} else if (CfSq - eig->aTildeSq <= 0) {
 		eig->alphaF = 1;
 		eig->alphaS = 0;
 	} else {
-		eig->alphaF = sqrt((aTildeSq - CsSq) / (CfSq - CsSq));
-		eig->alphaS = sqrt((CfSq - aTildeSq) / (CfSq - CsSq));
+		eig->alphaF = sqrt((eig->aTildeSq - CsSq) / (CfSq - CsSq));
+		eig->alphaS = sqrt((CfSq - eig->aTildeSq) / (CfSq - CsSq));
 	}
 
 
 	eig->sqrtRho = sqrt(rho);
-	eig->_1_sqrtRho = 1. / eig->sqrtRho;
+	real _1_sqrtRho = 1. / eig->sqrtRho;
 	eig->sbx = B.x >= 0 ? 1 : -1;
-	real aTilde = sqrt(aTildeSq);
+	real aTilde = sqrt(eig->aTildeSq);
 	eig->Qf = eig->Cf * eig->alphaF * eig->sbx;
 	eig->Qs = eig->Cs * eig->alphaS * eig->sbx;
-	eig->Af = aTilde * eig->alphaF * eig->_1_sqrtRho;
-	eig->As = aTilde * eig->alphaS * eig->_1_sqrtRho;
+	eig->Af = aTilde * eig->alphaF * _1_sqrtRho;
+	eig->As = aTilde * eig->alphaS * _1_sqrtRho;
 
 
 	//used for eigenvectors and eigenvalues
@@ -412,32 +412,16 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	const real gamma = heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
-	const real gamma_3 = gamma - 3.;
 
 <? for _,kv in ipairs(eqn.eigenVars) do
 	local name, ctype = next(kv)
 ?> 	<?=ctype?> <?=name?> = eig-><?=name?>;
 <? end ?>
 
-	real _1_rho = 1. / rho;
 	real vSq = real3_lenSq(v);
-	real BDotV = real3_dot(B,v);
-	real BPerpSq = B.y*B.y + B.z*B.z;
-	real BStarPerpSq = (gamma_1 - gamma_2 * Y) * BPerpSq;
-	real CAxSq = B.x*B.x*_1_rho;
-	real CASq = CAxSq + BPerpSq * _1_rho;
-	real hHydro = hTotal - CASq;
-	// hTotal = (EHydro + EMag + P)/rho
-	// hHydro = hTotal - CASq, CASq = EMag/rho
-	// hHydro = eHydro + P/rho = eKin + eInt + P/rho
-	// hHydro - eKin = eInt + P/rho = (1./(gamma-1) + 1) P/rho = gamma/(gamma-1) P/rho
-	// a^2 = (gamma-1)(hHydro - eKin) = gamma P / rho
-	real aTildeSq = max((gamma_1 * (hHydro - .5 * vSq) - gamma_2 * X), 1e-20);
-		
-
-
+	
 	// left eigenvectors
-	real norm = .5/aTildeSq;
+	real norm = .5/eig->aTildeSq;
 	real Cff = norm * alphaF * Cf;
 	real Css = norm * alphaS * Cs;
 	Qf = Qf * norm;
@@ -468,7 +452,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	
 
 	result[0] = 
-		  input[0] * (alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb) 
+		  input[0] * (alphaF*(vSq - eig->hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb) 
 		+ input[1] * (-alphaF*v.x - Cff)
 		+ input[2] * (-alphaF*v.y + Qs*QStarY)
 		+ input[3] * (-alphaF*v.z + Qs*QStarZ)
@@ -482,7 +466,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ input[5] * l26
 		+ input[6] * l27;
 	result[2] = 
-		  input[0] * (alphaS*(vSq-hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb)
+		  input[0] * (alphaS*(vSq - eig->hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb)
 		+ input[1] * (-alphaS*v.x - Css)
 		+ input[2] * (-alphaS*v.y - Qf*QStarY)
 		+ input[3] * (-alphaS*v.z - Qf*QStarZ)
@@ -498,7 +482,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ input[5] * norm*B.y
 		+ input[6] * norm*B.z;
 	result[4] = 
-		  input[0] * (alphaS*(vSq-hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb)
+		  input[0] * (alphaS*(vSq - eig->hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb)
 		+ input[1] * (-alphaS*v.x + Css)
 		+ input[2] * (-alphaS*v.y + Qf*QStarY)
 		+ input[3] * (-alphaS*v.z + Qf*QStarZ)
@@ -512,7 +496,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ input[5] * l26
 		+ input[6] * l27;
 	result[6] = 
-		  input[0] * (alphaF*(vSq-hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb)
+		  input[0] * (alphaF*(vSq - eig->hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb)
 		+ input[1] * (-alphaF*v.x + Cff)
 		+ input[2] * (-alphaF*v.y - Qs*QStarY)
 		+ input[3] * (-alphaF*v.z - Qs*QStarZ)
@@ -530,25 +514,15 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	const real gamma = heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
-	const real gamma_3 = gamma - 3.;
 
 <? for _,kv in ipairs(eqn.eigenVars) do
 	local name, ctype = next(kv)
 ?> 	<?=ctype?> <?=name?> = eig-><?=name?>;
 <? end ?>
 
-	real _1_rho = 1. / rho;
 	real vSq = real3_lenSq(v);
-	real BDotV = real3_dot(B,v);
-	real BPerpSq = B.y*B.y + B.z*B.z;
-	real BStarPerpSq = (gamma_1 - gamma_2 * Y) * BPerpSq;
-	real CAxSq = B.x*B.x*_1_rho;
-	real CASq = CAxSq + BPerpSq * _1_rho;
-	real hHydro = hTotal - CASq;
-	
-
 	real vDotBeta = v.y*betaStarY + v.z*betaStarZ;
-
+	real _1_sqrtRho = 1. / eig->sqrtRho;
 	real Afpbb = Af * BStarPerpLen * betaStarSq;
 	real Aspbb = As * BStarPerpLen * betaStarSq;
 
@@ -604,13 +578,13 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ input[5] * -betaY
 		+ input[6] * (qa4 - qc4);
 	result[4] =
-		  input[0] * (alphaF*(hHydro - v.x*Cf) + Qs*vDotBeta + Aspbb)
+		  input[0] * (alphaF*(eig->hHydro - v.x*Cf) + Qs*vDotBeta + Aspbb)
 		+ input[1] * r52
-		+ input[2] * (alphaS*(hHydro - v.x*Cs) - Qf*vDotBeta - Afpbb)
+		+ input[2] * (alphaS*(eig->hHydro - v.x*Cs) - Qf*vDotBeta - Afpbb)
 		+ input[3] * (.5*vSq + gamma_2*X/gamma_1)
-		+ input[4] * (alphaS*(hHydro + v.x*Cs) + Qf*vDotBeta - Afpbb)
+		+ input[4] * (alphaS*(eig->hHydro + v.x*Cs) + Qf*vDotBeta - Afpbb)
 		+ input[5] * -r52
-		+ input[6] * (alphaF*(hHydro + v.x*Cf) - Qs*vDotBeta + Aspbb);
+		+ input[6] * (alphaF*(eig->hHydro + v.x*Cf) - Qs*vDotBeta + Aspbb);
 	result[5] =
 		  input[0] * r61
 		+ input[1] * r62

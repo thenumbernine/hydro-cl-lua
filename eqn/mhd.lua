@@ -217,7 +217,10 @@ MHD.roeVars = table{
 
 -- here's the variables that an eigensystem uses to compute a left, right, or flux transform 
 MHD.eigenVars = table(MHD.roeVars):append{
-	
+
+	{hHydro = 'real'},
+	{aTildeSq = 'real'},
+
 	{Cs = 'real'},
 	{CAx = 'real'},
 	{Cf = 'real'},
@@ -233,7 +236,6 @@ MHD.eigenVars = table(MHD.roeVars):append{
 	{alphaS = 'real'},
 
 	{sqrtRho = 'real'},
-	{_1_sqrtRho = 'real'},
 	{sbx = 'real'},
 	{Qf = 'real'},
 	{Qs = 'real'},
