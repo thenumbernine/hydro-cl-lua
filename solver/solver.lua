@@ -96,6 +96,7 @@ function Solver:init(args)
 
 	self.name = self.eqn.name..' '..self.name
 
+	self.checkNaNs = false
 	self.useFixedDT = not not args.fixedDT
 	self.fixedDT = args.fixedDT or self.fixedDT or .001
 	self.cfl = args.cfl or .5	--/self.dim
@@ -1645,6 +1646,11 @@ function Solver:update()
 	end
 	self.lastFrameTime = thisTime
 
+
+	if self.checkNaNs then
+		if self:checkFinite(self.UBufObj, self.volume) then return end
+	end
+
 --local before = self.UBufObj:toCPU()
 --print'\nself.UBufObj before boundary:' self:printBuf(self.UBufObj) print(debug.traceback(),'\n\n')	
 	self:boundary()
@@ -1857,9 +1863,10 @@ function Solver:checkFinite(buf, volume)
 		end
 	end
 	if not found then return end
-	self:printBuf(nil, ptr)
-	print(found:map(tostring):concat', ')
-	error'found non-finite numbers'
+--	self:printBuf(nil, ptr)
+--	print(found:map(tostring):concat', ')
+--	error'found non-finite numbers'
+	return true
 end
 
 function Solver:getTex(var) 
@@ -1959,7 +1966,9 @@ function Solver:updateGUIParams()
 	ig.igText('fps: '..(self.fps and tostring(self.fps) or ''))
 	
 	if ig.igCollapsingHeader'parameters:' then
-		
+
+		tooltip.checkboxTable('check NaNs', self, 'checkNaNs')
+
 		tooltip.checkboxTable('use fixed dt', self, 'useFixedDT')
 		ig.igSameLine()
 		

@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 1
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -180,8 +180,8 @@ maxs = {6,1,1},
 	--initState = 'relativistic blast wave interaction',
 
 	-- MHD-only init states: (that use 'b')
-	initState = 'Brio-Wu',
-	--initState = 'Orszag-Tang',
+	--initState = 'Brio-Wu',
+	initState = 'Orszag-Tang',
 	
 	-- EM:
 	--initState = 'Maxwell default',
