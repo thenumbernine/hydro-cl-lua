@@ -209,6 +209,12 @@ typedef struct {
 <? if solver.checkFluxError then ?>
 	real A[7*7];
 <? end ?>
+
+	//for reconstructing eigenvalues
+	real vx;	//velocity in i'th direction 
+	real Cs;	//slow
+	real CAx;	//Alfvan 
+	real Cf;	//fast
 } <?=eqn.eigen_t?>;
 ]], {
 		eqn = self,

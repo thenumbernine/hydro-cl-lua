@@ -231,7 +231,8 @@ void calcRoeValues(
 	W->Y = .5 * (UL->rho + UR->rho) / W->rho;
 };
 
-void fill(global real* ptr, int step, real a, real b, real c, real d, real e, real f, real g) {
+<? for _,addr in ipairs{'', 'global'} do ?>
+void fill_<?=addr?>(<?=addr?> real* ptr, int step, real a, real b, real c, real d, real e, real f, real g) {
 	ptr[0*step] = a;
 	ptr[1*step] = b;
 	ptr[2*step] = c;
@@ -240,11 +241,42 @@ void fill(global real* ptr, int step, real a, real b, real c, real d, real e, re
 	ptr[5*step] = f;
 	ptr[6*step] = g;
 }
+<? 
+end 
+?>
 
-void calcEigenSystemForRoeValues(
-	global real* wave,
-	global <?=eqn.eigen_t?>* eig,
-	Roe_t roe
+<? 
+for _,addr0 in ipairs{'', 'global'} do
+	for _,addr1 in ipairs{'', 'global'} do
+		for side=0,solver.dim-1 do 
+?>
+void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
+	<?=addr0?> real* wave,
+	<?=addr1?> const <?=eqn.eigen_t?>* eig,
+	real3 x
+) {
+	wave[0] = eig->vx - eig->Cf;
+	wave[1] = eig->vx - eig->CAx;
+	wave[2] = eig->vx - eig->Cs;
+	wave[3] = eig->vx;
+	wave[4] = eig->vx + eig->Cs;
+	wave[5] = eig->vx + eig->CAx;
+	wave[6] = eig->vx + eig->Cf;
+}
+<?
+		end
+	end 
+end
+
+for side=0,solver.dim-1 do
+	for _,addr0 in ipairs{'', 'global'} do 
+		for _,addr1 in ipairs{'', 'global'} do 
+?>
+void calcEigenSystemForRoeValues_<?=side?>_<?=addr0?>_<?=addr1?>(
+	<?=addr0?> real* wave,
+	<?=addr1?> <?=eqn.eigen_t?>* eig,
+	Roe_t roe,
+	real3 x
 ) {
 	const real gamma = heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
@@ -326,24 +358,35 @@ void calcEigenSystemForRoeValues(
 	real Afpbb = Af*BStarPerpLen*betaStarSq;
 	real Aspbb = As*BStarPerpLen*betaStarSq;
 
-	real CAx = sqrt(CAxSq);
-	
-	real lambdaFastMin = v.x - Cf;
-	real lambdaSlowMin = v.x - Cs;
-	real lambdaSlowMax = v.x + Cs;
-	real lambdaFastMax = v.x + Cf;
-	fill(wave, 1, lambdaFastMin, v.x - CAx, lambdaSlowMin, v.x, lambdaSlowMax, v.x + CAx, lambdaFastMax);
+	eig->vx = v.x;
+	eig->Cs = Cs;
+	eig->CAx = sqrt(CAxSq);
+	eig->Cf = Cf;
+
+	real lambdaFastMin, lambdaSlowMin, lambdaSlowMax, lambdaFastMax;
+	if (wave) {
+		eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(wave, eig, x);
+		lambdaFastMin = wave[0];
+		lambdaSlowMin = wave[2];
+		lambdaSlowMax = wave[4];
+		lambdaFastMax = wave[6];
+	} else {
+		real lambdaFastMin = eig->vx - eig->Cf;
+		real lambdaSlowMin = eig->vx - eig->Cs;
+		real lambdaSlowMax = eig->vx + eig->Cs;
+		real lambdaFastMax = eig->vx + eig->Cf;
+	}
 
 	// dF/dU
 	<? if solver.checkFluxError then ?>
-	global real* A = eig->A;
-	fill(A+0,7,	0, 												1,											0,								0,								0,			0,								0								);
-	fill(A+1,7,	-v.x*v.x + .5*gamma_1*vSq - gamma_2*X,			-gamma_3*v.x,								-gamma_1*v.y,					-gamma_1*v.z,					gamma_1,	-gamma_2*Y*B.y,					-gamma_2*Y*B.z					);
-	fill(A+2,7,	-v.x*v.y,										v.y,										v.x,							0, 								0,			-B.x,							0								);
-	fill(A+3,7,	-v.x*v.z,										v.z,										0,								v.x, 							0,			0,								-B.x							);
-	fill(A+4,7,	v.x*(.5*gamma_1*vSq - hTotal) + B.x*BDotV/rho,	-gamma_1*v.x*v.x + hTotal - B.x*B.x/rho,	-gamma_1*v.x*v.y - B.x*B.y/rho,	-gamma_1*v.x*v.z - B.x*B.z/rho,	gamma*v.x,	-gamma_2*Y*B.y*v.x - B.x*v.y,	-gamma_2*Y*B.z*v.x - B.x*v.z	);
-	fill(A+5,7,	(B.x*v.y - B.y*v.x)/rho,						B.y/rho,									-B.x/rho,						0, 								0,			v.x,							0								);
-	fill(A+6,7,	(B.x*v.z - B.z*v.x)/rho,						B.z/rho,									0,								-B.x/rho, 						0,			0,								v.x								);
+	<?=addr1?> real* A = eig->A;
+	fill_<?=addr1?>(A+0,7,	0, 												1,											0,								0,								0,			0,								0								);
+	fill_<?=addr1?>(A+1,7,	-v.x*v.x + .5*gamma_1*vSq - gamma_2*X,			-gamma_3*v.x,								-gamma_1*v.y,					-gamma_1*v.z,					gamma_1,	-gamma_2*Y*B.y,					-gamma_2*Y*B.z					);
+	fill_<?=addr1?>(A+2,7,	-v.x*v.y,										v.y,										v.x,							0, 								0,			-B.x,							0								);
+	fill_<?=addr1?>(A+3,7,	-v.x*v.z,										v.z,										0,								v.x, 							0,			0,								-B.x							);
+	fill_<?=addr1?>(A+4,7,	v.x*(.5*gamma_1*vSq - hTotal) + B.x*BDotV/rho,	-gamma_1*v.x*v.x + hTotal - B.x*B.x/rho,	-gamma_1*v.x*v.y - B.x*B.y/rho,	-gamma_1*v.x*v.z - B.x*B.z/rho,	gamma*v.x,	-gamma_2*Y*B.y*v.x - B.x*v.y,	-gamma_2*Y*B.z*v.x - B.x*v.z	);
+	fill_<?=addr1?>(A+5,7,	(B.x*v.y - B.y*v.x)/rho,						B.y/rho,									-B.x/rho,						0, 								0,			v.x,							0								);
+	fill_<?=addr1?>(A+6,7,	(B.x*v.z - B.z*v.x)/rho,						B.z/rho,									0,								-B.x/rho, 						0,			0,								v.x								);
 	<? end ?>
 
 	// right eigenvectors
@@ -363,14 +406,14 @@ void calcEigenSystemForRoeValues(
 	real r72 = betaY*sbx*_1_sqrtRho;
 	real r73 = -Af*betaStarZ;
 	//rows
-	global real* evR = eig->evR;
-	fill(evR+0,7, 	alphaF, 										0, 		alphaS, 										1, 							alphaS, 										0, 		alphaF											);
-	fill(evR+1,7, 	alphaF*lambdaFastMin, 							0, 		alphaS*lambdaSlowMin, 							v.x, 	 	 	 	 	 	alphaS*lambdaSlowMax, 							0, 		alphaF*lambdaFastMax							);
-	fill(evR+2,7, 	qa3 + qc3, 										-betaZ,	qb3 - qd3, 										v.y, 	 	 	 	 	 	qb3 + qd3, 										betaZ, 	qa3 - qc3										);
-	fill(evR+3,7, 	qa4 + qc4, 										betaY,	qb4 - qd4, 										v.z, 	 	 	 	 	 	qb4 + qd4, 										-betaY, qa4 - qc4										);
-	fill(evR+4,7, 	alphaF*(hHydro - v.x*Cf) + Qs*vDotBeta + Aspbb, r52,	alphaS*(hHydro - v.x*Cs) - Qf*vDotBeta - Afpbb, .5*vSq + gamma_2*X/gamma_1, alphaS*(hHydro + v.x*Cs) + Qf*vDotBeta - Afpbb, -r52, 	alphaF*(hHydro + v.x*Cf) - Qs*vDotBeta + Aspbb	);
-	fill(evR+5,7, 	r61, 											r62, 	r63, 											0, 							r63, 											r62, 	r61												);
-	fill(evR+6,7,	r71, 											r72, 	r73, 											0, 							r73, 											r72, 	r71												);
+	<?=addr1?> real* evR = eig->evR;
+	fill_<?=addr1?>(evR+0,7, 	alphaF, 										0, 		alphaS, 										1, 							alphaS, 										0, 		alphaF											);
+	fill_<?=addr1?>(evR+1,7, 	alphaF*lambdaFastMin, 							0, 		alphaS*lambdaSlowMin, 							v.x, 	 	 	 	 	 	alphaS*lambdaSlowMax, 							0, 		alphaF*lambdaFastMax							);
+	fill_<?=addr1?>(evR+2,7, 	qa3 + qc3, 										-betaZ,	qb3 - qd3, 										v.y, 	 	 	 	 	 	qb3 + qd3, 										betaZ, 	qa3 - qc3										);
+	fill_<?=addr1?>(evR+3,7, 	qa4 + qc4, 										betaY,	qb4 - qd4, 										v.z, 	 	 	 	 	 	qb4 + qd4, 										-betaY, qa4 - qc4										);
+	fill_<?=addr1?>(evR+4,7, 	alphaF*(hHydro - v.x*Cf) + Qs*vDotBeta + Aspbb, r52,	alphaS*(hHydro - v.x*Cs) - Qf*vDotBeta - Afpbb, .5*vSq + gamma_2*X/gamma_1, alphaS*(hHydro + v.x*Cs) + Qf*vDotBeta - Afpbb, -r52, 	alphaF*(hHydro + v.x*Cf) - Qs*vDotBeta + Aspbb	);
+	fill_<?=addr1?>(evR+5,7, 	r61, 											r62, 	r63, 											0, 							r63, 											r62, 	r61												);
+	fill_<?=addr1?>(evR+6,7,	r71, 											r72, 	r73, 											0, 							r73, 											r72, 	r71												);
 
 	// left eigenvectors
 	real norm = .5/aTildeSq;
@@ -402,26 +445,31 @@ void calcEigenSystemForRoeValues(
 	real l36 = -AHatF*QStarY - alphaS*B.y;
 	real l37 = -AHatF*QStarZ - alphaS*B.z;
 	//rows
-	global real* evL = eig->evL;
-	fill(evL+0,7,	alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb, -alphaF*v.x - Cff, -alphaF*v.y + Qs*QStarY, -alphaF*v.z + Qs*QStarZ, alphaF, l16, l17);
-	fill(evL+1,7,	l21, 0, l23, l24, 0, l26, l27);
-	fill(evL+2,7,	alphaS*(vSq-hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb, -alphaS*v.x - Css, -alphaS*v.y - Qf*QStarY, -alphaS*v.z - Qf*QStarZ, alphaS, l36, l37);
-	fill(evL+3,7,	1. - norm*(.5*vSq - gamma_2*X/gamma_1) , norm*v.x, norm*v.y, norm*v.z, -norm, norm*B.y, norm*B.z);
-	fill(evL+4,7,	alphaS*(vSq-hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb, -alphaS*v.x + Css, -alphaS*v.y + Qf*QStarY, -alphaS*v.z + Qf*QStarZ, alphaS, l36, l37);
-	fill(evL+5,7,	-l21, 0, -l23, -l24, 0, l26, l27);
-	fill(evL+6,7,	alphaF*(vSq-hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb, -alphaF*v.x + Cff, -alphaF*v.y - Qs*QStarY, -alphaF*v.z - Qs*QStarZ, alphaF, l16, l17);
+	<?=addr1?> real* evL = eig->evL;
+	fill_<?=addr1?>(evL+0,7,	alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb, -alphaF*v.x - Cff, -alphaF*v.y + Qs*QStarY, -alphaF*v.z + Qs*QStarZ, alphaF, l16, l17);
+	fill_<?=addr1?>(evL+1,7,	l21, 0, l23, l24, 0, l26, l27);
+	fill_<?=addr1?>(evL+2,7,	alphaS*(vSq-hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb, -alphaS*v.x - Css, -alphaS*v.y - Qf*QStarY, -alphaS*v.z - Qf*QStarZ, alphaS, l36, l37);
+	fill_<?=addr1?>(evL+3,7,	1. - norm*(.5*vSq - gamma_2*X/gamma_1) , norm*v.x, norm*v.y, norm*v.z, -norm, norm*B.y, norm*B.z);
+	fill_<?=addr1?>(evL+4,7,	alphaS*(vSq-hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb, -alphaS*v.x + Css, -alphaS*v.y + Qf*QStarY, -alphaS*v.z + Qf*QStarZ, alphaS, l36, l37);
+	fill_<?=addr1?>(evL+5,7,	-l21, 0, -l23, -l24, 0, l26, l27);
+	fill_<?=addr1?>(evL+6,7,	alphaF*(vSq-hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb, -alphaF*v.x + Cff, -alphaF*v.y - Qs*QStarY, -alphaF*v.z - Qs*QStarZ, alphaF, l16, l17);
 #else	//self-referencing evL
 	//rows
-	global real* evL = eig->evL;
-	fill(evL+0,7,	alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb, -alphaF*v.x - Cff, -alphaF*v.y + Qs*QStarY, -alphaF*v.z + Qs*QStarZ, alphaF, AHatS*QStarY - alphaF*B.y, AHatS*QStarZ - alphaF*B.z);
-	fill(evL+1,7,	.5*(v.y*betaZ - v.z*betaY), 0, -.5*betaZ, .5*betaY, 0, -.5*sqrtRho*betaZ*sbx, .5*sqrtRho*betaY*sbx);
-	fill(evL+2,7,	alphaS*(vSq-hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb, -alphaS*v.x - Css, -alphaS*v.y - Qf*QStarY, -alphaS*v.z - Qf*QStarZ, alphaS, -AHatF*QStarY - alphaS*B.y, -AHatF*QStarZ - alphaS*B.z);
-	fill(evL+3,7,	1. - norm*(.5*vSq - gamma_2*X/gamma_1) , norm*v.x, norm*v.y, norm*v.z, -norm, norm*B.y, norm*B.z);
-	fill(evL+4,7,	alphaS*(vSq-hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb, -alphaS*v.x + Css, -alphaS*v.y + Qf*QStarY, -alphaS*v.z + Qf*QStarZ, alphaS, evL[2+7*5], evL[2+7*6]);
-	fill(evL+5,7,	-evL[1+7*0], 0, -evL[1+7*2], -evL[1+7*3], 0, evL[1+7*5], evL[1+7*6]);
-	fill(evL+6,7,	alphaF*(vSq-hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb, -alphaF*v.x + Cff, -alphaF*v.y - Qs*QStarY, -alphaF*v.z - Qs*QStarZ, alphaF, evL[0+7*5], evL[0+7*6]);
+	<?=addr1?> real* evL = eig->evL;
+	fill_<?=addr1?>(evL+0,7,	alphaF*(vSq-hHydro) + Cff*(Cf+v.x) - Qs*vqstr - aspb, -alphaF*v.x - Cff, -alphaF*v.y + Qs*QStarY, -alphaF*v.z + Qs*QStarZ, alphaF, AHatS*QStarY - alphaF*B.y, AHatS*QStarZ - alphaF*B.z);
+	fill_<?=addr1?>(evL+1,7,	.5*(v.y*betaZ - v.z*betaY), 0, -.5*betaZ, .5*betaY, 0, -.5*sqrtRho*betaZ*sbx, .5*sqrtRho*betaY*sbx);
+	fill_<?=addr1?>(evL+2,7,	alphaS*(vSq-hHydro) + Css*(Cs+v.x) + Qf*vqstr + afpb, -alphaS*v.x - Css, -alphaS*v.y - Qf*QStarY, -alphaS*v.z - Qf*QStarZ, alphaS, -AHatF*QStarY - alphaS*B.y, -AHatF*QStarZ - alphaS*B.z);
+	fill_<?=addr1?>(evL+3,7,	1. - norm*(.5*vSq - gamma_2*X/gamma_1) , norm*v.x, norm*v.y, norm*v.z, -norm, norm*B.y, norm*B.z);
+	fill_<?=addr1?>(evL+4,7,	alphaS*(vSq-hHydro) + Css*(Cs-v.x) - Qf*vqstr + afpb, -alphaS*v.x + Css, -alphaS*v.y + Qf*QStarY, -alphaS*v.z + Qf*QStarZ, alphaS, evL[2+7*5], evL[2+7*6]);
+	fill_<?=addr1?>(evL+5,7,	-evL[1+7*0], 0, -evL[1+7*2], -evL[1+7*3], 0, evL[1+7*5], evL[1+7*6]);
+	fill_<?=addr1?>(evL+6,7,	alphaF*(vSq-hHydro) + Cff*(Cf-v.x) + Qs*vqstr - aspb, -alphaF*v.x + Cff, -alphaF*v.y - Qs*QStarY, -alphaF*v.z - Qs*QStarZ, alphaF, evL[0+7*5], evL[0+7*6]);
 #endif
 }
+<? 
+		end
+	end 
+end
+?>
 
 kernel void calcEigenBasis(
 	global real* waveBuf,			//[volume][dim][numWaves]
@@ -453,7 +501,7 @@ kernel void calcEigenBasis(
 		global real* wave = waveBuf + numWaves * indexInt;
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 
-		calcEigenSystemForRoeValues(wave, eig, roe);
+		calcEigenSystemForRoeValues_<?=side?>_global_global(wave, eig, roe, xInt);
 	}<? end ?>
 }
 
@@ -518,6 +566,27 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		end
 	end
 end ?>
+
+<? for side=0,solver.dim-1 do ?>
+void eigen_forCell_<?=side?>(
+	<?=eqn.eigen_t?>* eig,
+	global const <?=eqn.cons_t?>* U,
+	real3 x
+) {
+	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	real PMag = .5 * real3_lenSq(W.B);
+	real hTotal = (U->ETotal + W.P + PMag) / W.rho;
+	Roe_t roe = (Roe_t){
+		.rho = W.rho,
+		.v = W.v,
+		.hTotal = hTotal,
+		.B = W.B,
+		.X = 0,
+		.Y = 1,
+	};
+	calcEigenSystemForRoeValues_<?=side?>__(NULL, eig, roe, x);
+}
+<? end ?>
 
 //U = output
 //WA = W components that make up the jacobian matrix
