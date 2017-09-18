@@ -203,18 +203,29 @@ end
 
 function MHD:getEigenTypeCode()
 	return template([[
+
+//these are the variables that are inputs to the eigensystem computation
 typedef struct {
-	real evL[7*7];
-	real evR[7*7];
+	real rho;
+	real3 v;
+	real hTotal;
+	real3 B;
+	real X, Y;
+} Roe_t;
+
+typedef struct {
 <? if solver.checkFluxError then ?>
 	real A[7*7];
 <? end ?>
+
+	Roe_t roe;
 
 	//for reconstructing eigenvalues
 	real vx;	//velocity in i'th direction 
 	real Cs;	//slow
 	real CAx;	//Alfvan 
 	real Cf;	//fast
+
 } <?=eqn.eigen_t?>;
 ]], {
 		eqn = self,
@@ -224,15 +235,8 @@ end
 
 -- because eigen_t is only 7*7 instead of 7*8 = numWaves * numIntStates ...
 function MHD:getEigenDisplayVars()
-	return range(0, self.numWaves * self.numWaves - 1):map(function(i)
-		local row = i%self.numWaves
-		local col = (i-row)/self.numWaves
-		return {['evL_'..row..'_'..col] = '*value = eigen->evL['..i..'];'}
-	end):append(range(0, self.numWaves * self.numWaves - 1):map(function(i)
-		local row = i % self.numWaves
-		local col = (i-row)/self.numWaves
-		return {['evR_'..row..'_'..col] = '*value = eigen->evR['..i..'];'}
-	end)):append(self.solver.checkFluxError and range(0, self.numWaves * self.numWaves - 1):map(function(i)
+	return table()
+	:append(self.solver.checkFluxError and range(0, self.numWaves * self.numWaves - 1):map(function(i)
 		local row = i%self.numWaves
 		local col = (i-row)/self.numWaves
 		return {['A_'..row..'_'..col] = '*value = eigen->A['..i..'];'}
