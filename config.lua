@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -63,12 +63,12 @@ maxs = {6,1,1},
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'periodic',
-		xmax=cmdline.boundary or 'periodic',
-		ymin=cmdline.boundary or 'periodic',
-		ymax=cmdline.boundary or 'periodic',
-		zmin=cmdline.boundary or 'periodic',
-		zmax=cmdline.boundary or 'periodic',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
@@ -180,8 +180,8 @@ maxs = {6,1,1},
 	--initState = 'relativistic blast wave interaction',
 
 	-- MHD-only init states: (that use 'b')
-	--initState = 'Brio-Wu',
-	initState = 'Orszag-Tang',
+	initState = 'Brio-Wu',
+	--initState = 'Orszag-Tang',
 	
 	-- EM:
 	--initState = 'Maxwell default',

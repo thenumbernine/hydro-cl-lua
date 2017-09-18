@@ -3,6 +3,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
+local makestruct = require 'eqn.makestruct'
 local Equation = require 'eqn.eqn'
 
 local MHD = class(Equation)
@@ -201,36 +202,30 @@ end
 	}
 end
 
+
+MHD.roeVars = table{
+	{rho = 'real'},
+	{v = 'real3'},
+	{hTotal = 'real'},
+	{B = 'real3'},
+	{X = 'real'},
+	{Y = 'real'},
+}
+
+
+MHD.eigenVars = table(MHD.roeVars):append{
+	{vx = 'real'},
+	{Cs = 'real'},
+	{CAx = 'real'},
+	{Cf = 'real'},
+}
+
+
 function MHD:getEigenTypeCode()
-	return template([[
-
-//these are the variables that are inputs to the eigensystem computation
-typedef struct {
-	real rho;
-	real3 v;
-	real hTotal;
-	real3 B;
-	real X, Y;
-} Roe_t;
-
-typedef struct {
-	Roe_t roe;
-
-	//for reconstructing eigenvalues
-	real vx;	//velocity in i'th direction 
-	real Cs;	//slow
-	real CAx;	//Alfvan 
-	real Cf;	//fast
-
-} <?=eqn.eigen_t?>;
-]], {
-		eqn = self,
-		solver = self.solver,
-	})
-end
-
--- because eigen_t is only 7*7 instead of 7*8 = numWaves * numIntStates ...
-function MHD:getEigenDisplayVars()
+	return table{
+		makestruct.makeStruct('Roe_t', self.roeVars),
+		MHD.super.getEigenTypeCode(self),
+	}:concat'\n'
 end
 
 return MHD

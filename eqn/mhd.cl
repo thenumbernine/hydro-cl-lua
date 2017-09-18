@@ -307,7 +307,11 @@ void eig_forSide_<?=side?>_<?=addr1?>(
 	
 
 	//used for eigenvectors and eigenvalues
-	eig->roe = roe;
+<? 	for _,kv in ipairs(eqn.roeVars) do
+		local name = next(kv) 
+?>	eig-><?=name?> = roe.<?=name?>;
+<?	end
+?>
 
 	//used for eigenvalues
 	eig->vx = v.x;
@@ -372,13 +376,11 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
 	const real gamma_3 = gamma - 3.;
-	
-	real rho = eig->roe.rho;
-	real3 v = eig->roe.v;
-	real hTotal = eig->roe.hTotal;
-	real3 B = eig->roe.B;
-	real X = eig->roe.X;
-	real Y = eig->roe.Y;
+
+<? for _,kv in ipairs(eqn.eigenVars) do
+	local name, ctype = next(kv)
+?> 	<?=ctype?> <?=name?> = eig-><?=name?>;
+<? end ?>
 
 	real _1_rho = 1. / rho;
 	real vSq = real3_lenSq(v);
@@ -402,10 +404,10 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * BStarPerpSq_rho);
 	
 	real CfSq = CStarSq + sqrtDiscr;
-	real Cf = sqrt(CfSq);
+	//real Cf = sqrt(CfSq);
 	
 	real CsSq = aTildeSq * CAxSq / CfSq;
-	real Cs = sqrt(CsSq);
+	//real Cs = sqrt(CsSq);
 	
 	real BPerpLen = sqrt(BPerpSq);
 	real BStarPerpLen = sqrt(BStarPerpSq);
@@ -544,13 +546,11 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
 	const real gamma_3 = gamma - 3.;
-	
-	real rho = eig->roe.rho;
-	real3 v = eig->roe.v;
-	real hTotal = eig->roe.hTotal;
-	real3 B = eig->roe.B;
-	real X = eig->roe.X;
-	real Y = eig->roe.Y;
+
+<? for _,kv in ipairs(eqn.eigenVars) do
+	local name, ctype = next(kv)
+?> 	<?=ctype?> <?=name?> = eig-><?=name?>;
+<? end ?>
 
 	real _1_rho = 1. / rho;
 	real vSq = real3_lenSq(v);
@@ -574,10 +574,10 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * BStarPerpSq_rho);
 	
 	real CfSq = CStarSq + sqrtDiscr;
-	real Cf = sqrt(CfSq);
+	//real Cf = sqrt(CfSq);
 	
 	real CsSq = aTildeSq * CAxSq / CfSq;
-	real Cs = sqrt(CsSq);
+	//real Cs = sqrt(CsSq);
 	
 	real BPerpLen = sqrt(BPerpSq);
 	real BStarPerpLen = sqrt(BStarPerpSq);
@@ -713,13 +713,11 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
 	const real gamma_3 = gamma - 3.;
-	
-	real rho = eig->roe.rho;
-	real3 v = eig->roe.v;
-	real hTotal = eig->roe.hTotal;
-	real3 B = eig->roe.B;
-	real X = eig->roe.X;
-	real Y = eig->roe.Y;
+
+<? for _,kv in ipairs(eqn.eigenVars) do
+	local name, ctype = next(kv)
+?> 	<?=ctype?> <?=name?> = eig-><?=name?>;
+<? end ?>
 
 	real _1_rho = 1. / rho;
 	real vSq = real3_lenSq(v);
@@ -743,10 +741,10 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * BStarPerpSq_rho);
 	
 	real CfSq = CStarSq + sqrtDiscr;
-	real Cf = sqrt(CfSq);
+	//real Cf = sqrt(CfSq);
 	
 	real CsSq = aTildeSq * CAxSq / CfSq;
-	real Cs = sqrt(CsSq);
+	//real Cs = sqrt(CsSq);
 	
 	real BPerpLen = sqrt(BPerpSq);
 	real BStarPerpLen = sqrt(BStarPerpSq);
