@@ -73,7 +73,7 @@ function EulerBurgers:addDisplayVars()
 	for j,xj in ipairs(xNames) do
 		self:addDisplayVarGroup{
 			name = 'intVel', 
-			varCodePrefix = [[
+			codePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
 ]],
 			vars = range(0,self.dim-1):map(function(i)

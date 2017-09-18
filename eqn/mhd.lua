@@ -3,6 +3,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
+local makestruct = require 'eqn.makestruct'
 local Equation = require 'eqn.eqn'
 
 local MHD = class(Equation)
@@ -201,37 +202,29 @@ end
 	}
 end
 
+
+MHD.roeVars = table{
+	{rho = 'real'},
+	{v = 'real3'},
+	{hTotal = 'real'},
+	{B = 'real3'},
+	{X = 'real'},
+	{Y = 'real'},
+}
+
+
+MHD.eigenVars = table(MHD.roeVars):append{
+	{Cs = 'real'},
+	{CAx = 'real'},
+	{Cf = 'real'},
+}
+
+
 function MHD:getEigenTypeCode()
-	return template([[
-typedef struct {
-	real evL[7*7];
-	real evR[7*7];
-<? if solver.checkFluxError then ?>
-	real A[7*7];
-<? end ?>
-} <?=eqn.eigen_t?>;
-]], {
-		eqn = self,
-		solver = self.solver,
-	})
+	return table{
+		makestruct.makeStruct('Roe_t', self.roeVars),
+		MHD.super.getEigenTypeCode(self),
+	}:concat'\n'
 end
-
--- because eigen_t is only 7*7 instead of 7*8 = numWaves * numIntStates ...
-function MHD:getEigenDisplayVars()
-	return range(0, self.numWaves * self.numWaves - 1):map(function(i)
-		local row = i%self.numWaves
-		local col = (i-row)/self.numWaves
-		return {['evL_'..row..'_'..col] = '*value = eigen->evL['..i..'];'}
-	end):append(range(0, self.numWaves * self.numWaves - 1):map(function(i)
-		local row = i % self.numWaves
-		local col = (i-row)/self.numWaves
-		return {['evR_'..row..'_'..col] = '*value = eigen->evR['..i..'];'}
-	end)):append(self.solver.checkFluxError and range(0, self.numWaves * self.numWaves - 1):map(function(i)
-		local row = i%self.numWaves
-		local col = (i-row)/self.numWaves
-		return {['A_'..row..'_'..col] = '*value = eigen->A['..i..'];'}
-	end) or nil)
-end
-
 
 return MHD
