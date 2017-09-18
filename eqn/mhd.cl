@@ -299,12 +299,54 @@ void eig_forSide_<?=side?>_<?=addr1?>(
 	real CA_a_TildeSqDiff = .5 * (CATildeSq - aTildeSq);
 	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * BStarPerpSq_rho);
 	
+	eig->CAx = sqrt(CAxSq);
+	
 	real CfSq = CStarSq + sqrtDiscr;
-	real Cf = sqrt(CfSq);
+	eig->Cf = sqrt(CfSq);
 	
 	real CsSq = aTildeSq * CAxSq / CfSq;
-	real Cs = sqrt(CsSq);
+	eig->Cs = sqrt(CsSq);
+
 	
+	real BPerpLen = sqrt(BPerpSq);
+	eig->BStarPerpLen = sqrt(BStarPerpSq);
+	
+	if (BPerpLen == 0) {
+		eig->betaY = 1;
+		eig->betaZ = 0;
+	} else {
+		eig->betaY = B.y / BPerpLen;
+		eig->betaZ = B.z / BPerpLen;
+	}
+	eig->betaStarY = eig->betaY / sqrt(gamma_1 - gamma_2*Y);
+	eig->betaStarZ = eig->betaZ / sqrt(gamma_1 - gamma_2*Y);
+	eig->betaStarSq = eig->betaStarY*eig->betaStarY + eig->betaStarZ*eig->betaStarZ;
+
+
+	if (CfSq - CsSq == 0) {
+		eig->alphaF = 1;
+		eig->alphaS = 0;
+	} else if (aTildeSq - CsSq <= 0) {
+		eig->alphaF = 0;
+		eig->alphaS = 1;
+	} else if (CfSq - aTildeSq <= 0) {
+		eig->alphaF = 1;
+		eig->alphaS = 0;
+	} else {
+		eig->alphaF = sqrt((aTildeSq - CsSq) / (CfSq - CsSq));
+		eig->alphaS = sqrt((CfSq - aTildeSq) / (CfSq - CsSq));
+	}
+
+
+	eig->sqrtRho = sqrt(rho);
+	eig->_1_sqrtRho = 1. / eig->sqrtRho;
+	eig->sbx = B.x >= 0 ? 1 : -1;
+	real aTilde = sqrt(aTildeSq);
+	eig->Qf = eig->Cf * eig->alphaF * eig->sbx;
+	eig->Qs = eig->Cs * eig->alphaS * eig->sbx;
+	eig->Af = aTilde * eig->alphaF * eig->_1_sqrtRho;
+	eig->As = aTilde * eig->alphaS * eig->_1_sqrtRho;
+
 
 	//used for eigenvectors and eigenvalues
 <? 	for _,kv in ipairs(eqn.roeVars) do
@@ -313,11 +355,6 @@ void eig_forSide_<?=side?>_<?=addr1?>(
 <?	end
 ?>
 
-	//used for eigenvalues -- along with eig->v.x 
-	// (since eigensystem info is always x-aligned)
-	eig->Cs = Cs;
-	eig->CAx = sqrt(CAxSq);
-	eig->Cf = Cf;
 }
 <? 
 	end 
@@ -397,77 +434,37 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	// a^2 = (gamma-1)(hHydro - eKin) = gamma P / rho
 	real aTildeSq = max((gamma_1 * (hHydro - .5 * vSq) - gamma_2 * X), 1e-20);
 		
-	real BPerpLen = sqrt(BPerpSq);
-	real BStarPerpLen = sqrt(BStarPerpSq);
-	real betaY, betaZ;
-	if (BPerpLen == 0) {
-		betaY = 1;
-		betaZ = 0;
-	} else {
-		betaY = B.y / BPerpLen;
-		betaZ = B.z / BPerpLen;
-	}
-	real betaStarY = betaY / sqrt(gamma_1 - gamma_2*Y);
-	real betaStarZ = betaZ / sqrt(gamma_1 - gamma_2*Y);
-	real betaStarSq = betaStarY*betaStarY + betaStarZ*betaStarZ;
-	
-	real CfSq = Cf * Cf;
-	real CsSq = Cs * Cs;
-
-	real alphaF, alphaS;
-	if (CfSq - CsSq == 0) {
-		alphaF = 1;
-		alphaS = 0;
-	} else if (aTildeSq - CsSq <= 0) {
-		alphaF = 0;
-		alphaS = 1;
-	} else if (CfSq - aTildeSq <= 0) {
-		alphaF = 1;
-		alphaS = 0;
-	} else {
-		alphaF = sqrt((aTildeSq - CsSq) / (CfSq - CsSq));
-		alphaS = sqrt((CfSq - aTildeSq) / (CfSq - CsSq));
-	}
-
-	real sqrtRho = sqrt(rho);
-	real _1_sqrtRho = 1./sqrtRho;
-	real sbx = B.x >= 0 ? 1 : -1;
-	real aTilde = sqrt(aTildeSq);
-	real Qf = Cf*alphaF*sbx;
-	real Qs = Cs*alphaS*sbx;
-	real Af = aTilde*alphaF*_1_sqrtRho;
-	real As = aTilde*alphaS*_1_sqrtRho;
 
 
 	// left eigenvectors
 	real norm = .5/aTildeSq;
-	real Cff = norm*alphaF*Cf;
-	real Css = norm*alphaS*Cs;
+	real Cff = norm * alphaF * Cf;
+	real Css = norm * alphaS * Cs;
 	Qf = Qf * norm;
 	Qs = Qs * norm;
-	real AHatF = norm*Af*rho;
-	real AHatS = norm*As*rho;
-	real afpb = norm*Af*BStarPerpLen;
-	real aspb = norm*As*BStarPerpLen;
+	real AHatF = norm * Af * rho;
+	real AHatS = norm * As * rho;
+	real afpb = norm * Af * BStarPerpLen;
+	real aspb = norm * As * BStarPerpLen;
 
 	norm = norm * gamma_1;
 	alphaF = alphaF * norm;
 	alphaS = alphaS * norm;
 	real QStarY = betaStarY/betaStarSq;
 	real QStarZ = betaStarZ/betaStarSq;
-	real vqstr = (v.y*QStarY + v.z*QStarZ);
+	real vqstr = (v.y * QStarY + v.z * QStarZ);
 	norm = norm * 2.;
 
 	
-	real l16 = AHatS*QStarY - alphaF*B.y;
-	real l17 = AHatS*QStarZ - alphaF*B.z;
-	real l21 = .5*(v.y*betaZ - v.z*betaY);
-	real l23 = .5*betaZ;
-	real l24 = .5*betaY;
-	real l26 = -.5*sqrtRho*betaZ*sbx;
-	real l27 = .5*sqrtRho*betaY*sbx;
-	real l36 = -AHatF*QStarY - alphaS*B.y;
-	real l37 = -AHatF*QStarZ - alphaS*B.z;
+	real l16 = AHatS * QStarY - alphaF * B.y;
+	real l17 = AHatS * QStarZ - alphaF * B.z;
+	real l21 = .5 * (v.y * betaZ - v.z * betaY);
+	real l23 = .5 * betaZ;
+	real l24 = .5 * betaY;
+	real l26 = -.5 * sqrtRho * betaZ * sbx;
+	real l27 = .5 * sqrtRho * betaY * sbx;
+	real l36 = -AHatF * QStarY - alphaS * B.y;
+	real l37 = -AHatF * QStarZ - alphaS * B.z;
 	
 
 	result[0] = 
@@ -548,58 +545,12 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real CAxSq = B.x*B.x*_1_rho;
 	real CASq = CAxSq + BPerpSq * _1_rho;
 	real hHydro = hTotal - CASq;
-	// hTotal = (EHydro + EMag + P)/rho
-	// hHydro = hTotal - CASq, CASq = EMag/rho
-	// hHydro = eHydro + P/rho = eKin + eInt + P/rho
-	// hHydro - eKin = eInt + P/rho = (1./(gamma-1) + 1) P/rho = gamma/(gamma-1) P/rho
-	// a^2 = (gamma-1)(hHydro - eKin) = gamma P / rho
-	real aTildeSq = max((gamma_1 * (hHydro - .5 * vSq) - gamma_2 * X), 1e-20);
 	
 
-	real BPerpLen = sqrt(BPerpSq);
-	real BStarPerpLen = sqrt(BStarPerpSq);
-	real betaY, betaZ;
-	if (BPerpLen == 0) {
-		betaY = 1;
-		betaZ = 0;
-	} else {
-		betaY = B.y / BPerpLen;
-		betaZ = B.z / BPerpLen;
-	}
-	real betaStarY = betaY / sqrt(gamma_1 - gamma_2*Y);
-	real betaStarZ = betaZ / sqrt(gamma_1 - gamma_2*Y);
-	real betaStarSq = betaStarY*betaStarY + betaStarZ*betaStarZ;
 	real vDotBeta = v.y*betaStarY + v.z*betaStarZ;
 
-	real CfSq = Cf * Cf;
-	real CsSq = Cs * Cs;
-
-	real alphaF, alphaS;
-	if (CfSq - CsSq == 0) {
-		alphaF = 1;
-		alphaS = 0;
-	} else if (aTildeSq - CsSq <= 0) {
-		alphaF = 0;
-		alphaS = 1;
-	} else if (CfSq - aTildeSq <= 0) {
-		alphaF = 1;
-		alphaS = 0;
-	} else {
-		alphaF = sqrt((aTildeSq - CsSq) / (CfSq - CsSq));
-		alphaS = sqrt((CfSq - aTildeSq) / (CfSq - CsSq));
-	}
-
-	real sqrtRho = sqrt(rho);
-	real _1_sqrtRho = 1./sqrtRho;
-	real sbx = B.x >= 0 ? 1 : -1;
-	real aTilde = sqrt(aTildeSq);
-	real Qf = Cf*alphaF*sbx;
-	real Qs = Cs*alphaS*sbx;
-	real Af = aTilde*alphaF*_1_sqrtRho;
-	real As = aTilde*alphaS*_1_sqrtRho;
-	real Afpbb = Af*BStarPerpLen*betaStarSq;
-	real Aspbb = As*BStarPerpLen*betaStarSq;
-
+	real Afpbb = Af * BStarPerpLen * betaStarSq;
+	real Aspbb = As * BStarPerpLen * betaStarSq;
 
 	real lambdaFastMin = eig->v.x - eig->Cf;
 	real lambdaSlowMin = eig->v.x - eig->Cs;
@@ -608,21 +559,21 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 
 	// right eigenvectors
-	real qa3 = alphaF*v.y;
-	real qb3 = alphaS*v.y;
-	real qc3 = Qs*betaStarY;
-	real qd3 = Qf*betaStarY;
-	real qa4 = alphaF*v.z;
-	real qb4 = alphaS*v.z;
-	real qc4 = Qs*betaStarZ;
-	real qd4 = Qf*betaStarZ;
-	real r52 = -(v.y*betaZ - v.z*betaY);
-	real r61 = As*betaStarY;
-	real r62 = -betaZ*sbx*_1_sqrtRho;
-	real r63 = -Af*betaStarY;
-	real r71 = As*betaStarZ;
-	real r72 = betaY*sbx*_1_sqrtRho;
-	real r73 = -Af*betaStarZ;
+	real qa3 = alphaF * v.y;
+	real qb3 = alphaS * v.y;
+	real qc3 = Qs * betaStarY;
+	real qd3 = Qf * betaStarY;
+	real qa4 = alphaF * v.z;
+	real qb4 = alphaS * v.z;
+	real qc4 = Qs * betaStarZ;
+	real qd4 = Qf * betaStarZ;
+	real r52 = -(v.y * betaZ - v.z * betaY);
+	real r61 = As * betaStarY;
+	real r62 = -betaZ * sbx * _1_sqrtRho;
+	real r63 = -Af * betaStarY;
+	real r71 = As * betaStarZ;
+	real r72 = betaY * sbx * _1_sqrtRho;
+	real r73 = -Af * betaStarZ;
 	
 	result[0] =
 		  input[0] * alphaF
