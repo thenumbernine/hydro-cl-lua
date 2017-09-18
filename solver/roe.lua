@@ -124,7 +124,7 @@ function Roe:addDisplayVars()
 	for j,xj in ipairs(xNames) do
 		self:addDisplayVarGroup{
 			name = 'wave',
-			varCodePrefix = [[
+			codePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
 	const global real* wave = buf + indexInt * numWaves;
 ]],
@@ -140,7 +140,7 @@ function Roe:addDisplayVars()
 			self:addDisplayVarGroup{
 				name = 'eigen',
 				type = self.eqn.eigen_t,
-				varCodePrefix = [[
+				codePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
 	const global ]]..self.eqn.eigen_t..[[* eigen = buf + indexInt;
 ]],
@@ -155,7 +155,7 @@ function Roe:addDisplayVars()
 	for j,xj in ipairs(xNames) do
 		self:addDisplayVarGroup{
 			name = 'deltaUEig', 
-			varCodePrefix = [[
+			codePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
 	const global real* deltaUEig = buf + indexInt * numWaves;
 ]],
@@ -169,7 +169,7 @@ function Roe:addDisplayVars()
 		for j,xj in ipairs(xNames) do
 			self:addDisplayVarGroup{
 				name = 'rEig',
-				varCodePrefix = [[
+				codePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
 	const global real* rEig = buf + indexInt * numWaves;
 ]],
@@ -185,7 +185,7 @@ function Roe:addDisplayVars()
 		for j,xj in ipairs(xNames) do
 			self:addDisplayVarGroup{
 				name = 'error', 
-				varCodePrefix = [[
+				codePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
 ]],
 				useLog = true,

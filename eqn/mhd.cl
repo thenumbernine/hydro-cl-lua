@@ -260,11 +260,9 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 end
 
 for side=0,solver.dim-1 do
-	for _,addr0 in ipairs{'', 'global'} do 
-		for _,addr1 in ipairs{'', 'global'} do 
+	for _,addr1 in ipairs{'', 'global'} do 
 ?>
-void calcEigenSystemForRoeValues_<?=side?>_<?=addr0?>_<?=addr1?>(
-	<?=addr0?> real* wave,
+void eig_forSide_<?=side?>_<?=addr1?>(
 	<?=addr1?> <?=eqn.eigen_t?>* eig,
 	Roe_t roe,
 	real3 x
@@ -283,7 +281,6 @@ void calcEigenSystemForRoeValues_<?=side?>_<?=addr0?>_<?=addr1?>(
 
 	real _1_rho = 1. / rho;
 	real vSq = real3_lenSq(v);
-	real BDotV = real3_dot(B,v);
 	real BPerpSq = B.y*B.y + B.z*B.z;
 	real BStarPerpSq = (gamma_1 - gamma_2 * Y) * BPerpSq;
 	real CAxSq = B.x*B.x*_1_rho;
@@ -308,82 +305,17 @@ void calcEigenSystemForRoeValues_<?=side?>_<?=addr0?>_<?=addr1?>(
 	real CsSq = aTildeSq * CAxSq / CfSq;
 	real Cs = sqrt(CsSq);
 	
-	real BPerpLen = sqrt(BPerpSq);
-	real BStarPerpLen = sqrt(BStarPerpSq);
-	real betaY, betaZ;
-	if (BPerpLen == 0) {
-		betaY = 1;
-		betaZ = 0;
-	} else {
-		betaY = B.y / BPerpLen;
-		betaZ = B.z / BPerpLen;
-	}
-	real betaStarY = betaY / sqrt(gamma_1 - gamma_2*Y);
-	real betaStarZ = betaZ / sqrt(gamma_1 - gamma_2*Y);
-	real betaStarSq = betaStarY*betaStarY + betaStarZ*betaStarZ;
-	real vDotBeta = v.y*betaStarY + v.z*betaStarZ;
 
-	real alphaF, alphaS;
-	if (CfSq - CsSq == 0) {
-		alphaF = 1;
-		alphaS = 0;
-	} else if (aTildeSq - CsSq <= 0) {
-		alphaF = 0;
-		alphaS = 1;
-	} else if (CfSq - aTildeSq <= 0) {
-		alphaF = 1;
-		alphaS = 0;
-	} else {
-		alphaF = sqrt((aTildeSq - CsSq) / (CfSq - CsSq));
-		alphaS = sqrt((CfSq - aTildeSq) / (CfSq - CsSq));
-	}
-
-	real sqrtRho = sqrt(rho);
-	real _1_sqrtRho = 1./sqrtRho;
-	real sbx = B.x >= 0 ? 1 : -1;
-	real aTilde = sqrt(aTildeSq);
-	real Qf = Cf*alphaF*sbx;
-	real Qs = Cs*alphaS*sbx;
-	real Af = aTilde*alphaF*_1_sqrtRho;
-	real As = aTilde*alphaS*_1_sqrtRho;
-	real Afpbb = Af*BStarPerpLen*betaStarSq;
-	real Aspbb = As*BStarPerpLen*betaStarSq;
-
+	//used for eigenvectors and eigenvalues
 	eig->roe = roe;
 
+	//used for eigenvalues
 	eig->vx = v.x;
 	eig->Cs = Cs;
 	eig->CAx = sqrt(CAxSq);
 	eig->Cf = Cf;
-
-	real lambdaFastMin, lambdaSlowMin, lambdaSlowMax, lambdaFastMax;
-	if (wave) {
-		eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(wave, eig, x);
-		lambdaFastMin = wave[0];
-		lambdaSlowMin = wave[2];
-		lambdaSlowMax = wave[4];
-		lambdaFastMax = wave[6];
-	} else {
-		lambdaFastMin = eig->vx - eig->Cf;
-		lambdaSlowMin = eig->vx - eig->Cs;
-		lambdaSlowMax = eig->vx + eig->Cs;
-		lambdaFastMax = eig->vx + eig->Cf;
-	}
-
-	// dF/dU
-	<? if solver.checkFluxError then ?>
-	<?=addr1?> real* A = eig->A;
-	fill_<?=addr1?>(A+0,7,	0, 												1,											0,								0,								0,			0,								0								);
-	fill_<?=addr1?>(A+1,7,	-v.x*v.x + .5*gamma_1*vSq - gamma_2*X,			-gamma_3*v.x,								-gamma_1*v.y,					-gamma_1*v.z,					gamma_1,	-gamma_2*Y*B.y,					-gamma_2*Y*B.z					);
-	fill_<?=addr1?>(A+2,7,	-v.x*v.y,										v.y,										v.x,							0, 								0,			-B.x,							0								);
-	fill_<?=addr1?>(A+3,7,	-v.x*v.z,										v.z,										0,								v.x, 							0,			0,								-B.x							);
-	fill_<?=addr1?>(A+4,7,	v.x*(.5*gamma_1*vSq - hTotal) + B.x*BDotV/rho,	-gamma_1*v.x*v.x + hTotal - B.x*B.x/rho,	-gamma_1*v.x*v.y - B.x*B.y/rho,	-gamma_1*v.x*v.z - B.x*B.z/rho,	gamma*v.x,	-gamma_2*Y*B.y*v.x - B.x*v.y,	-gamma_2*Y*B.z*v.x - B.x*v.z	);
-	fill_<?=addr1?>(A+5,7,	(B.x*v.y - B.y*v.x)/rho,						B.y/rho,									-B.x/rho,						0, 								0,			v.x,							0								);
-	fill_<?=addr1?>(A+6,7,	(B.x*v.z - B.z*v.x)/rho,						B.z/rho,									0,								-B.x/rho, 						0,			0,								v.x								);
-	<? end ?>
 }
 <? 
-		end
 	end 
 end
 ?>
@@ -418,7 +350,9 @@ kernel void calcEigenBasis(
 		global real* wave = waveBuf + numWaves * indexInt;
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 
-		calcEigenSystemForRoeValues_<?=side?>_global_global(wave, eig, roe, xInt);
+		eig_forSide_<?=side?>_global(eig, roe, xInt);
+	
+		eigen_calcWaves_<?=side?>_global_global(wave, eig, xInt); 
 	}<? end ?>
 }
 
@@ -513,12 +447,6 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real As = aTilde*alphaS*_1_sqrtRho;
 	real Afpbb = Af*BStarPerpLen*betaStarSq;
 	real Aspbb = As*BStarPerpLen*betaStarSq;
-
-
-	real lambdaFastMin = eig->vx - eig->Cf;
-	real lambdaSlowMin = eig->vx - eig->Cs;
-	real lambdaSlowMax = eig->vx + eig->Cs;
-	real lambdaFastMax = eig->vx + eig->Cf;
 
 
 	// left eigenvectors
@@ -779,14 +707,128 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real3 x
 ) {
 	<?=_7to8code(addr2, side)?>
-	<?=addr1?> const real* A = eig->A;
-	for (int i = 0; i < 7; ++i) {
-		real sum = 0;
-		for (int j = 0; j < 7; ++j) {
-			sum += A[i+7*j] * X[j];
-		}
-		Y[i] = sum;
+
+
+	const real gamma = heatCapacityRatio;
+	const real gamma_1 = gamma - 1.;
+	const real gamma_2 = gamma - 2.;
+	const real gamma_3 = gamma - 3.;
+	
+	real rho = eig->roe.rho;
+	real3 v = eig->roe.v;
+	real hTotal = eig->roe.hTotal;
+	real3 B = eig->roe.B;
+	real X = eig->roe.X;
+	real Y = eig->roe.Y;
+
+	real _1_rho = 1. / rho;
+	real vSq = real3_lenSq(v);
+	real BDotV = real3_dot(B,v);
+	real BPerpSq = B.y*B.y + B.z*B.z;
+	real BStarPerpSq = (gamma_1 - gamma_2 * Y) * BPerpSq;
+	real CAxSq = B.x*B.x*_1_rho;
+	real CASq = CAxSq + BPerpSq * _1_rho;
+	real hHydro = hTotal - CASq;
+	// hTotal = (EHydro + EMag + P)/rho
+	// hHydro = hTotal - CASq, CASq = EMag/rho
+	// hHydro = eHydro + P/rho = eKin + eInt + P/rho
+	// hHydro - eKin = eInt + P/rho = (1./(gamma-1) + 1) P/rho = gamma/(gamma-1) P/rho
+	// a^2 = (gamma-1)(hHydro - eKin) = gamma P / rho
+	real aTildeSq = max((gamma_1 * (hHydro - .5 * vSq) - gamma_2 * X), 1e-20);
+
+	real BStarPerpSq_rho = BStarPerpSq * _1_rho;
+	real CATildeSq = CAxSq + BStarPerpSq_rho;
+	real CStarSq = .5 * (CATildeSq + aTildeSq);
+	real CA_a_TildeSqDiff = .5 * (CATildeSq - aTildeSq);
+	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * BStarPerpSq_rho);
+	
+	real CfSq = CStarSq + sqrtDiscr;
+	real Cf = sqrt(CfSq);
+	
+	real CsSq = aTildeSq * CAxSq / CfSq;
+	real Cs = sqrt(CsSq);
+	
+	real BPerpLen = sqrt(BPerpSq);
+	real BStarPerpLen = sqrt(BStarPerpSq);
+	real betaY, betaZ;
+	if (BPerpLen == 0) {
+		betaY = 1;
+		betaZ = 0;
+	} else {
+		betaY = B.y / BPerpLen;
+		betaZ = B.z / BPerpLen;
 	}
+	real betaStarY = betaY / sqrt(gamma_1 - gamma_2*Y);
+	real betaStarZ = betaZ / sqrt(gamma_1 - gamma_2*Y);
+	real betaStarSq = betaStarY*betaStarY + betaStarZ*betaStarZ;
+	real vDotBeta = v.y*betaStarY + v.z*betaStarZ;
+
+	real alphaF, alphaS;
+	if (CfSq - CsSq == 0) {
+		alphaF = 1;
+		alphaS = 0;
+	} else if (aTildeSq - CsSq <= 0) {
+		alphaF = 0;
+		alphaS = 1;
+	} else if (CfSq - aTildeSq <= 0) {
+		alphaF = 1;
+		alphaS = 0;
+	} else {
+		alphaF = sqrt((aTildeSq - CsSq) / (CfSq - CsSq));
+		alphaS = sqrt((CfSq - aTildeSq) / (CfSq - CsSq));
+	}
+
+	real sqrtRho = sqrt(rho);
+	real _1_sqrtRho = 1./sqrtRho;
+	real sbx = B.x >= 0 ? 1 : -1;
+	real aTilde = sqrt(aTildeSq);
+	real Qf = Cf*alphaF*sbx;
+	real Qs = Cs*alphaS*sbx;
+	real Af = aTilde*alphaF*_1_sqrtRho;
+	real As = aTilde*alphaS*_1_sqrtRho;
+	real Afpbb = Af*BStarPerpLen*betaStarSq;
+	real Aspbb = As*BStarPerpLen*betaStarSq;
+
+
+	// dF/dU
+	result[0] = input[1];
+	result[1] =
+		  input[0] * (-v.x*v.x + .5*gamma_1*vSq - gamma_2*X)
+		+ input[1] * -gamma_3*v.x
+		+ input[2] * -gamma_1*v.y
+		+ input[3] * -gamma_1*v.z
+		+ input[4] * gamma_1
+		+ input[5] * -gamma_2*Y*B.y
+		+ input[6] * -gamma_2*Y*B.z;
+	result[2] =
+		  input[0] * -v.x*v.y
+		+ input[1] * v.y
+		+ input[2] * v.x
+		+ input[5] * -B.x;
+	result[3] =
+		  input[0] * -v.x*v.z
+		+ input[1] * v.z
+		+ input[3] * v.x
+		+ input[6] * -B.x;
+	result[4] =
+		  input[0] * (v.x*(.5*gamma_1*vSq - hTotal) + B.x*BDotV/rho)
+		+ input[1] * (-gamma_1*v.x*v.x + hTotal - B.x*B.x/rho)
+		+ input[2] * (-gamma_1*v.x*v.y - B.x*B.y/rho)
+		+ input[3] * (-gamma_1*v.x*v.z - B.x*B.z/rho)
+		+ input[4] * gamma*v.x
+		+ input[5] * (-gamma_2*Y*B.y*v.x - B.x*v.y)
+		+ input[6] * (-gamma_2*Y*B.z*v.x - B.x*v.z);
+	result[5] =
+		  input[0] * (B.x*v.y - B.y*v.x)/rho
+		+ input[1] * B.y/rho
+		+ input[2] * -B.x/rho
+		+ input[5] * v.x;
+	result[6] =
+		  input[0] * (B.x*v.z - B.z*v.x)/rho
+		+ input[1] * B.z/rho
+		+ input[3] * -B.x/rho
+		+ input[6] * v.x;
+
 	<?=_8to7code(addr0, side)?>
 }
 <?				end
@@ -812,7 +854,7 @@ void eigen_forCell_<?=side?>(
 		.X = 0,
 		.Y = 1,
 	};
-	calcEigenSystemForRoeValues_<?=side?>__(NULL, eig, roe, x);
+	eig_forSide_<?=side?>_(eig, roe, x);
 }
 <? end ?>
 

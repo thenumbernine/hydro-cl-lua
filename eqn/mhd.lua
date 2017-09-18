@@ -214,10 +214,6 @@ typedef struct {
 } Roe_t;
 
 typedef struct {
-<? if solver.checkFluxError then ?>
-	real A[7*7];
-<? end ?>
-
 	Roe_t roe;
 
 	//for reconstructing eigenvalues
@@ -235,13 +231,6 @@ end
 
 -- because eigen_t is only 7*7 instead of 7*8 = numWaves * numIntStates ...
 function MHD:getEigenDisplayVars()
-	return table()
-	:append(self.solver.checkFluxError and range(0, self.numWaves * self.numWaves - 1):map(function(i)
-		local row = i%self.numWaves
-		local col = (i-row)/self.numWaves
-		return {['A_'..row..'_'..col] = '*value = eigen->A['..i..'];'}
-	end) or nil)
 end
-
 
 return MHD

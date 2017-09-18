@@ -43,7 +43,7 @@ function FiniteVolumeSolver:addDisplayVars()
 		self:addDisplayVarGroup{
 			name = 'flux', 
 			type = self.eqn.cons_t,
-			varCodePrefix = [[
+			codePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
 	const global ]]..self.eqn.cons_t..[[* flux = buf + indexInt;
 ]],
