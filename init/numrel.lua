@@ -420,9 +420,9 @@ end
 		name = 'black hole - isotropic',
 		getCodePrefix = function(self, solver, getCodes)
 			local R = .001	-- Schwarzschild radius
-		
+			
 			local fCCode = buildFCCode(solver)
-
+			
 			solver:setBoundaryMethods'fixed'
 --[=[ runs a lot faster than passing r=sqrt(x^2+y^2+z^2) to compile
 --	but the equations are too complex -- they tend to crash upon compile
@@ -563,8 +563,8 @@ inline real calc_d<?=xi?>_alpha(real x, real y, real z) {
 inline real calc_a_<?=xi?>(real x, real y, real z) {
 	return calc_d<?=xi?>_alpha(x,y,z) / calc_alpha(x,y,z);
 }
-
-<? end
+<?
+end
 for ij,xij in ipairs(symNames) do
 	for k,xk in ipairs(xNames) do
 ?>
@@ -574,7 +574,8 @@ inline real calc_d_<?=xk?><?=xij?>(real x, real y, real z) {
 	real dpsi = d<?=xk?>_bssn_psi(x,y,z);
 	return 4. * psi * psi * psi * dpsi;
 }
-<?	end
+<?
+	end
 end
 ?>]], 		table(getTemplateEnv(solver), {
 				fCCode = fCCode:match'{ return (.*); }',

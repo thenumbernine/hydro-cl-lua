@@ -140,6 +140,7 @@ end
 ?>	return m;
 }
 
+//c_ik = a_ij b_jk when you know c_ik is going to be symmetric
 sym3 sym3_mat3_to_sym3_mul(sym3 a, mat3 b) {
 	sym3 m;
 <? for i=0,2 do

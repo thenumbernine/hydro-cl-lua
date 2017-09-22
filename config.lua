@@ -52,7 +52,7 @@ maxs = {6,1,1},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
 				{64,64,1},
-				{32,32,32},
+				{8,8,8},
 			},
 		})[platformName..'/'..deviceName] 
 		-- default size options
@@ -181,7 +181,7 @@ maxs = {6,1,1},
 
 	-- MHD-only init states: (that use 'b')
 	--initState = 'Brio-Wu',
-	initState = 'Orszag-Tang',
+	--initState = 'Orszag-Tang',
 	
 	-- EM:
 	--initState = 'Maxwell default',
@@ -196,7 +196,7 @@ maxs = {6,1,1},
 	-- GR
 	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
-	--initState = 'Alcubierre warp bubble',
+	initState = 'Alcubierre warp bubble',
 	--initState = 'Schwarzschild black hole',
 	--initState = 'black hole - isotropic',	-- this one has momentum and rotation.  TODO parameterize
 	--initState = 'binary black holes - isotropic',
@@ -261,7 +261,7 @@ maxs = {6,1,1},
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 
 -- TODO to get HLL working for MHD (even though it'll not simulate all those intermediate waves correctly)
 --  I need to rework eqn/mhd.cl to implement eigen_forSide
@@ -282,7 +282,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'})))
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
