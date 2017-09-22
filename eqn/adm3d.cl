@@ -189,9 +189,11 @@ for _,addrs in ipairs{
 void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* results,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const <?=eqn.cons_t?>* inputU,
+	<?=addr2?> const real* input,
 	real3 unused
 ) {
+	<?=addr2?> const <?=eqn.cons_t?>* inputU = (<?=addr2?> const <?=eqn.cons_t?>*)input;
+	
 	<? if side == 0 then ?>
 
 	//a_y, a_z
@@ -996,7 +998,7 @@ end
 	eigen_calcWaves_<?=side?>__(wave, &eig, x);
 
 	real charvars[numWaves];
-	eigen_leftTransform_<?=side?>___(charvars, &eig, &U, x);
+	eigen_leftTransform_<?=side?>___(charvars, &eig, U.ptr, x);
 	
 	for (int j = 0; j < numWaves; ++j) {
 		charvars[j] *= wave[j];
@@ -1032,6 +1034,35 @@ kernel void addSource(
 	real4 vel4_ = (real4)(vel3.x * LorentzFactor, vel3.y * LorentzFactor, vel3.z * LorentzFactor, LorentzFactor);
 	real3 beta_ = _real3(0,0,0);
 #endif
+
+	//Sterms_ll[ij] = 4 pi (gamma_ij (S - rho) - 2 S_ij)
+	//...where rho = n^a n^b T_ab
+	//...and S_ij = proj T_ij
+	//..and S = gamma^ij S_ij
+#if 1
+	sym3 Sterms_ll = (sym3){.s={0,0,0,0,0,0}};
+#else
+	sym3 Sterms_ll = (sym3){
+	8. * M_PI * ((density + pressure) * vel4_.x * vel4_.x + .5 * (density - pressure) * U->gamma.xx),
+	8. * M_PI * ((density + pressure) * vel4_.x * vel4_.y + .5 * (density - pressure) * U->gamma.xy),
+	8. * M_PI * ((density + pressure) * vel4_.x * vel4_.z + .5 * (density - pressure) * U->gamma.xz),
+	8. * M_PI * ((density + pressure) * vel4_.y * vel4_.y + .5 * (density - pressure) * U->gamma.yy),
+	8. * M_PI * ((density + pressure) * vel4_.y * vel4_.z + .5 * (density - pressure) * U->gamma.yz),
+	8. * M_PI * ((density + pressure) * vel4_.z * vel4_.z + .5 * (density - pressure) * U->gamma.zz),
+	};
+#endif
+	
+	//momentum term: j_i = n^a proj T_ai
+#if 1
+	real3 j_l = _real3(0,0,0);
+#else
+	real3 j_l = (real3){
+		8. * M_PI * ((density + pressure) * vel4_.w * vel4_.x + pressure * beta_.x),
+		8. * M_PI * ((density + pressure) * vel4_.w * vel4_.y + pressure * beta_.y),
+		8. * M_PI * ((density + pressure) * vel4_.w * vel4_.z + pressure * beta_.z),
+	};
+#endif
+
 
 	// source terms
 	
@@ -1077,21 +1108,6 @@ kernel void addSource(
 ?>	};
 	real3 a_V_d3_u = sym3_real3_mul(gammaU, a_V_d3_l);
 
-	//Sterms_ll[ij] = 4 pi (gamma_ij (S - rho) - 2 S_ij)
-#if 1
-	sym3 Sterms_ll = (sym3){.s={0,0,0,0,0,0}};
-#else
-	sym3 Sterms_ll = (sym3){
-	8. * M_PI * ((density + pressure) * vel4_.x * vel4_.x + .5 * (density - pressure) * U->gamma.xx),
-	8. * M_PI * ((density + pressure) * vel4_.x * vel4_.y + .5 * (density - pressure) * U->gamma.xy),
-	8. * M_PI * ((density + pressure) * vel4_.x * vel4_.z + .5 * (density - pressure) * U->gamma.xz),
-	8. * M_PI * ((density + pressure) * vel4_.y * vel4_.y + .5 * (density - pressure) * U->gamma.yy),
-	8. * M_PI * ((density + pressure) * vel4_.y * vel4_.z + .5 * (density - pressure) * U->gamma.yz),
-	8. * M_PI * ((density + pressure) * vel4_.z * vel4_.z + .5 * (density - pressure) * U->gamma.zz),
-	};
-#endif
-
-
 	//srcK_ij = (-a_i a_j 
 	//		+ (d_ij^k + d_ji^k - d^k_ij) (a_k + V_k - d^l_lk) 
 	//		+ 2 d_ki^l d^k_jl
@@ -1126,49 +1142,6 @@ kernel void addSource(
 <? end
 ?>	};
 
-/*
-another million dollar question: what are the G0's?
-the BSSN analysis paper says they're related to the R4's (of course)
-*/
-#if 1
-	real3 G0_l = _real3(0,0,0);
-#else
-	real3 G0_l = (real3){
-		8. * M_PI * ((density + pressure) * vel4_.w * vel4_.x + pressure * beta_.x),
-		8. * M_PI * ((density + pressure) * vel4_.w * vel4_.y + pressure * beta_.y),
-		8. * M_PI * ((density + pressure) * vel4_.w * vel4_.z + pressure * beta_.z),
-	};
-#endif
-
-	//a_K_l = a_j K^j_i
-	real3 a_K_l = (real3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
-	for j,xj in ipairs(xNames) do
-?> + U->a.<?=xj?> * K_ul.<?=xj?>.<?=xi?><?
-	end	?>,
-<? end
-?>	};
-
-	//d_lul[i].jk = d_i^j_k = gamma^jl d_ilk
-	mat3 d_lul[3] = {
-<? for i=0,2 do 
-?>		sym3_sym3_mul(gammaU, U->d[<?=i?>]),
-<? end
-?>	};
-	
-	//K_dot_d23_l[i] = d_ijk K^jk = d_ij^k K^j_k = d_i^k_j K^j_k
-	real3 K_dot_d23_l = (real3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
-	for j,xj in ipairs(xNames) do
-		for k,xk in ipairs(xNames) do
-?> + d_lul[<?=i-1?>].<?=xk?>.<?=xj?> * K_ul.<?=xj?>.<?=xk?><?
-		end
-	end ?>,
-<? end
-?>	};
-
 	//d1_l = d_ij^j
 	real3 d1_l = (real3){
 <? for i,xi in ipairs(xNames) do
@@ -1176,47 +1149,28 @@ the BSSN analysis paper says they're related to the R4's (of course)
 <? end
 ?>	};
 
-	//d1_K_l[i] = d_jk^k K^j_i
-	real3 d1_K_l = (real3){
-<? for i,xi in ipairs(xNames)
-do ?>	.<?=xi?> = 0.<?
-	for j,xj in ipairs(xNames) do
-?> + d1_l.<?=xj?> * K_ul.<?=xj?>.<?=xi?><?
+	//srcV_k = -a_k K 
+	//			+ 8 pi j_k
+	//			+ a^j K_jk 
+	//			- 4 K d^j_jk 
+	//			+ 2 K^i_k d^j_ji 
+	//			+ K^i_k d_ij^j 
+	//			- K^i_j d_ki^j
+	//			+ 2 K^i_j d_ik^j 
+	real3 srcV_l = (real3){
+<? for k,xk in ipairs(xNames) do
+?>		.<?=xk?> = -trK * U->a.<?=xk?>
+			+ 8. * M_PI * j_l.<?=xk?>
+<?	for j,xj in ipairs(xNames) do
+?>			+ U->a.<?=xj?> * K_ul.<?=xj?>.<?=xk?>
+			- 4. * trK * d_ull[<?=j-1?>].<?=sym(j,k)?>
+			+ 2. * K_ul.<?=xj?>.<?=xk?> * d3_l.<?=xj?>
+			+ 2. * K_ul.<?=xj?>.<?=xk?> * d1_l.<?=xj?>
+<?		for i,xi in ipairs(xNames) do
+?>			- K_ul.<?=xi?>.<?=xj?> * d_llu[<?=k-1?>].<?=xi?>.<?=xj?>
+			+ 2. * K_ul.<?=xi?>.<?=xj?> * d_llu[<?=i-1?>].<?=xk?>.<?=xj?>
+<? 		end
 	end ?>,
-<? end
-?>	};
-
-	//K_dot_d12_l[i] = K^j_k d_j^k_i
-	real3 K_dot_d12_l = (real3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
-	for j,xj in ipairs(xNames) do
-		for k,xk in ipairs(xNames) do
-?> + K_ul.<?=xj?>.<?=xk?> * d_lul[<?=j-1?>].<?=xk?>.<?=xi?><?
-		end
-	end ?>,
-<? end
-?>	};
-
-	//d3_K_l[i] = K^j_i d_k^k_j
-	real3 d3_K_l = {
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
-	for j,xj in ipairs(xNames) do
-?> + K_ul.<?=xj?>.<?=xi?> * d3_l.<?=xj?><?
-	end ?>,
-<? end
-?>	};
-
-	real3 src_V_l = (real3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = G0_l.<?=xi?>
-			+ a_K_l.<?=xi?>
-			+ U->a.<?=xi?> * trK
-			+ K_dot_d23_l.<?=xi?>
-			+ d1_K_l.<?=xi?>
-			- 2. * K_dot_d12_l.<?=xi?>
-			+ 2. * d3_K_l.<?=xi?>,
 <? end
 ?>	};
 
@@ -1229,8 +1183,9 @@ do ?>	.<?=xi?> = 0.<?
 	
 	//K_ij,t = first derivs + alpha srcK_ij
 	sym3_add(deriv->K, sym3_scale(srcK_ll, U->alpha));
-	
-	real3_add(deriv->V, real3_scale(src_V_l, U->alpha));
+
+	//V_k,t = first derivs + alpha srcV_k
+	real3_add(deriv->V, real3_scale(srcV_l, U->alpha));
 }
 
 kernel void constrainU(
