@@ -1039,17 +1039,24 @@ kernel void addSource(
 	real trK = mat3_trace(K_ul);				//K^k_k
 	sym3 KSq_ll = sym3_mat3_to_sym3_mul(U->K, K_ul);	//KSq_ij = K_ik K^k_j
 
-	//d_lul[i].jk = d_i^j_k = gamma^jl d_ilk
-	mat3 d_lul[3] = {
-<? for i=0,2 do 
-?>		sym3_sym3_mul(gammaU, U->d[<?=i?>]),
+	//d_llu = d_ij^k = d_ijl * gamma^lk
+	mat3 d_llu[3] = {
+<? for i,xi in ipairs(xNames) do
+?>		sym3_sym3_mul(U->d[<?=i-1?>], gammaU),
 <? end
 ?>	};
-	
-	//d1_l = d_i^j_j
-	real3 d1_l = (real3){
+
+	//d_ull = d^i_jk = gamma^il d_ljk
+	sym3 d_ull[3] = {
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = mat3_trace(d_lul[<?=i-1?>]),
+?>		(sym3){
+<?	for jk,xjk in ipairs(symNames) do
+?>			.<?=xjk?> = 0.<?
+		for l,xl in ipairs(xNames) do
+?> + gammaU.<?=sym(i,l)?> * U->d[<?=l-1?>].<?=xjk?><?
+		end ?>,
+<? end
+?>		},
 <? end
 ?>	};
 
@@ -1058,155 +1065,23 @@ kernel void addSource(
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = 0.<?
 	for j,xj in ipairs(xNames) do
-		?> + d_lul[<?=j-1?>].<?=xj?>.<?=xi?><?
+		?> + d_ull[<?=j-1?>].<?=sym(j,i)?><?
 	end	?>,
 <? end
 ?>	};
 
-	//d_uul[i].jk = d^ij_k = gamma^il d_l^j_k
-	mat3 d_uul[3] = {
+	real3 a_V_d3_l = (real3){
 <? for i,xi in ipairs(xNames) do
-?>		(mat3){
-<?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = (real3){
-<?		for k,xk in ipairs(xNames) do
-?>				.<?=xk?> = 0.<?
-			for l,xl in ipairs(xNames) do
-?> + gammaU.<?=sym(i,l)?> * d_lul[<?=l-1?>].<?=xj?>.<?=xk?><?
-			end	?>,
-<?		end
-?>			},
-<?	end
-?>		},
+?>		.<?=xi?> = U->a.<?=xi?> + U->V.<?=xi?> - d3_l.<?=xi?>,
 <? end
 ?>	};
+	real3 a_V_d3_u = sym3_real3_mul(gammaU, a_V_d3_l);
 
-	//d1d2_ll = d_kli d^kl_j
-	sym3 d1d2_ll = (sym3){
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi,xj = xNames[i],xNames[j]
-?>		.<?=xij?> = 0.<?
-	for k,xk in ipairs(xNames) do
-		for l,xl in ipairs(xNames) do
-?> + U->d[<?=k-1?>].<?=sym(l,i)?> * d_uul[<?=k-1?>].<?=xl?>.<?=xj?><?
-		end
-	end
-?>,
-<? end
-?>	};
-
-	//conn_lll.ijk = d.kij + d.jik - d.ijk
-	sym3 conn_lll[3] = {
-<? for i,xi in ipairs(xNames) do
-?>		(sym3){
-<?	for jk,xjk in ipairs(symNames) do
-		local j,k = from6to3x3(jk)
-		local xj,xk = xNames[j], xNames[k]
-?>			.<?=xjk?> = U->d[<?=k-1?>].<?=sym(i,j)?> + U->d[<?=j-1?>].<?=sym(i,k)?> - U->d[<?=i-1?>].<?=sym(j,k)?>,
-<?	end
-?>		},
-<? end
-?>	};
-
-	//conn_ull[i][j][k] = conn^i_jk = gamma^il conn_ljk
-	sym3 conn_ull[3] = {
-<? for i,xi in ipairs(xNames) do
-?>		(sym3){
-<?	for jk,xjk in ipairs(symNames) do
-		local j,k = from6to3x3(jk)
-		local xj,xk = xNames[j], xNames[k]
-?>			.<?=xjk?> = 0.<?
-		for l,xl in ipairs(xNames) do
-?> + gammaU.<?=sym(i,l)?> * conn_lll[<?=l-1?>].<?=xjk?><?
-		end ?>,
-<? 	end
-?>		},
-<? end
-?>	};
-
-	//conn3_l = conn^j_ji
-	real3 conn3_l = (real3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
-	for j,xj in ipairs(xNames) do
-?> + conn_ull[<?=j-1?>].<?=sym(j,i)?><?
-	end ?>,
-<? end
-?>	};
-
-	//conn31_ll[i][j] = conn31_ij = conn^k_kl conn^l_ij
-	sym3 conn31_ll = (sym3){
-<? for ij,xij in ipairs(symNames) do
-?>		.<?=xij?> = 0.<?
-	for k,xk in ipairs(xNames) do
-?> + conn3_l.<?=xk?> * conn_ull[<?=k-1?>].<?=xij?><?
-	end ?>,
-<? end
-?>	};
-
-	//conn_llu[i][j][k] = conn_ij^k = conn_ijl gamma^lk
-	mat3 conn_llu[3] = {
-<? for i,xi in ipairs(xNames) do
-?>		sym3_sym3_mul(conn_lll[<?=i-1?>], gammaU),
-<? end
-?>	};
-
-	//conn_luu[i][j][k] = conn_i^jk = gamma^jl conn_il^k
-	sym3 conn_luu[3] = {
-<? for i,xi in ipairs(xNames) do
-?>		sym3_mat3_to_sym3_mul(gammaU, conn_llu[<?=i-1?>]),
-<? end
-?>	};
-
-	//conn11_ll[i][j] = conn_ikl conn_j^kl
-	sym3 conn11_ll = (sym3){
-<? for ij,xij in ipairs(symNames) do
-		local i,j = from6to3x3(ij)
-		local xi,xj = xNames[i], xNames[j]
-?>		.<?=xij?> = 0.<?
-		for k,xk in ipairs(xNames) do
-			for l,xl in ipairs(xNames) do
-?> + conn_lll[<?=i-1?>].<?=sym(k,l)?> * conn_luu[<?=j-1?>].<?=sym(k,l)?><?
-			end
-		end ?>,
-<? end
-?>	};
-
-	// a_minus_2d3_l[i] = a_i - 2 d_j^j_i
-	real3 a_minus_2d3_l = real3_sub(U->a, real3_scale(d3_l, -2.));
-
-	//a^i - 2 d_j^ji
-	real3 a_minus_2d3_u = sym3_real3_mul(gammaU, a_minus_2d3_l);
-
-	//(a^k - 2 d_l^lk) (d_ijk + d_jik)
-	sym3 a_minus_2d3_times_d_plus_d = (sym3){
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-?>		.<?=xij?> = 0.<?
-	for k,xk in ipairs(xNames) do
-?> + a_minus_2d3_u.<?=xk?> * (U->d[<?=i-1?>].<?=sym(j,k)?> + U->d[<?=j-1?>].<?=sym(i,k)?>)<?
-	end ?>,
-<? end
-?>	};
-
-/*
-here's the million dollar question:
-what is R4?
-it's supposed to "involve only the fields themselves and not their derivatives" cf the Alcubierre paper on gauge shock waves
-it's equal to R3 "up to a first derivative" according to the first-order BSSN analysis paper by Alcubierre
-neither of those look like they can be reconstructed with field variables themselves, without their derivatives
-Then there's the Gauss-Codazzi def, which gives R4 in terms of R3 and K's ... which we see here ...
-... which makes me think that if we removed the R4, we could remove the K's and Gammas as well ...
-(...which makes me think the Gammas aren't just spatial Gammas (based on D's, as above), but 4D Gammas, which also involve K's ...
-
-Bona Masso 1997 says R4_ij = G_ij - 1/2 (-alpha^2 G^00 + tr G) gamma_ij
-...and G_ij = 8 pi ((mu + p) u_i u_j + p gamma_ij) for p = pressure, mu = fluid total energy density, u_i = 3-velocity
-*/
+	//Sterms_ll[ij] = 4 pi (gamma_ij (S - rho) - 2 S_ij)
 #if 1
-	sym3 R4_ll = (sym3){.s={0,0,0,0,0,0}};
+	sym3 Sterms_ll = (sym3){.s={0,0,0,0,0,0}};
 #else
-	sym3 R4_ll = (sym3){
+	sym3 Sterms_ll = (sym3){
 	8. * M_PI * ((density + pressure) * vel4_.x * vel4_.x + .5 * (density - pressure) * U->gamma.xx),
 	8. * M_PI * ((density + pressure) * vel4_.x * vel4_.y + .5 * (density - pressure) * U->gamma.xy),
 	8. * M_PI * ((density + pressure) * vel4_.x * vel4_.z + .5 * (density - pressure) * U->gamma.xz),
@@ -1216,19 +1091,38 @@ Bona Masso 1997 says R4_ij = G_ij - 1/2 (-alpha^2 G^00 + tr G) gamma_ij
 	};
 #endif
 
-	sym3 S_ll = (sym3){
+
+	//srcK_ij = (-a_i a_j 
+	//		+ (d_ij^k + d_ji^k - d^k_ij) (a_k + V_k - d^l_lk) 
+	//		+ 2 d_ki^l d^k_jl
+	//		- 2 d_ki^l d_lj^k
+	//		+ 2 d_ki^l d_jl^k
+	//		+ 2 d_il^k d_kj^l
+	//		- 3 d_il^k d_jk^l
+	//		+ K K_ij - 2 K_ik K^k_j
+	//		+ Sterms_ij
+	sym3 srcK_ll = (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi, xj = xNames[i], xNames[j]
-?>		.<?=xij?> = -R4_ll.<?=xij?> 
-			+ trK * U->K.<?=xij?> 
-			- 2. * KSq_ll.<?=xij?> 
-			+ 4. * d1d2_ll.<?=xij?> 
-			+ conn31_ll.<?=xij?> 
-			- conn11_ll.<?=xij?>
-			+ a_minus_2d3_times_d_plus_d.<?=xij?>
-			+ U->a.<?=xi?> * (U->V.<?=xj?> - .5 * d1_l.<?=xj?>)
-			+ U->a.<?=xj?> * (U->V.<?=xi?> - .5 * d1_l.<?=xi?>),
+?>		.<?=xij?> = 
+			- U->a.<?=xi?> * U->a.<?=xj?>
+
+<? 	for k,xk in ipairs(xNames) do 
+?>			+ (d_llu[<?=i-1?>].<?=xj?>.<?=xk?> - d_llu[<?=j-1?>].<?=xi?>.<?=xk?> - U->d[<?=k-1?>].<?=xij?>) * a_V_d3_u.<?=xk?>
+<?		for l,xl in ipairs(xNames) do
+?>			+ 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_ull[<?=k-1?>].<?=sym(j,l)?>
+			- 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_llu[<?=l-1?>].<?=xj?>.<?=xk?>
+			+ 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_llu[<?=j-1?>].<?=xl?>.<?=xk?>
+			+ 2. * d_llu[<?=i-1?>].<?=xl?>.<?=xk?> * d_llu[<?=k-1?>].<?=xj?>.<?=xl?>
+			- 3. * d_llu[<?=i-1?>].<?=xl?>.<?=xk?> * d_llu[<?=j-1?>].<?=xk?>.<?=xl?>
+<? 		end
+	end
+?>
+			+ trK * U->K.<?=xij?>
+			- 2. * KSq_ll.<?=xij?>
+			
+			- Sterms_ll.<?=xij?>,
 <? end
 ?>	};
 
@@ -1256,6 +1150,13 @@ the BSSN analysis paper says they're related to the R4's (of course)
 <? end
 ?>	};
 
+	//d_lul[i].jk = d_i^j_k = gamma^jl d_ilk
+	mat3 d_lul[3] = {
+<? for i=0,2 do 
+?>		sym3_sym3_mul(gammaU, U->d[<?=i?>]),
+<? end
+?>	};
+	
 	//K_dot_d23_l[i] = d_ijk K^jk = d_ij^k K^j_k = d_i^k_j K^j_k
 	real3 K_dot_d23_l = (real3){
 <? for i,xi in ipairs(xNames) do
@@ -1265,6 +1166,13 @@ the BSSN analysis paper says they're related to the R4's (of course)
 ?> + d_lul[<?=i-1?>].<?=xk?>.<?=xj?> * K_ul.<?=xj?>.<?=xk?><?
 		end
 	end ?>,
+<? end
+?>	};
+
+	//d1_l = d_ij^j
+	real3 d1_l = (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = mat3_trace(d_llu[<?=i-1?>]),
 <? end
 ?>	};
 
@@ -1300,7 +1208,7 @@ do ?>	.<?=xi?> = 0.<?
 <? end
 ?>	};
 
-	real3 P_l = (real3){
+	real3 src_V_l = (real3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = G0_l.<?=xi?>
 			+ a_K_l.<?=xi?>
@@ -1312,25 +1220,17 @@ do ?>	.<?=xi?> = 0.<?
 <? end
 ?>	};
 
-	/*
-	TODO now that alpha and gamma are moved from the flux eigensystem
-	how would we still incorporate the shift terms with them?
-	the easy solution is to re-add them back in (even though shift computation is supposed to go on apart from the eigensystem)
-	typically, when they are included, they get a flux between cells equal to the shift at that cell
-	maybe that has to be done, even if they are not a part of the eigensystem?
-	then again, maybe I should be keeping alpha and gamma in the eigensystem,
-	and maybe aux vars like the density should be in the eigensystem as well,
-	all for no reason more than to be influenced by the shift
-	
-	Then again, maybe this is an argument for the solver to specify the flux vector size 
-	-- especially if it is allowed a custom RoeFluxDeriv function.
-	*/
-	
-	
+
+	//alpha_,t = first derivs - alpha^2 f gamma^ij K_ij
 	deriv->alpha += -U->alpha * U->alpha * f * trK;
+	
+	//gamma_ij,t = first derivs - 2 alpha K_ij
 	sym3_add(deriv->gamma, sym3_scale(U->K, -2. * U->alpha));
-	sym3_add(deriv->K, sym3_scale(S_ll, U->alpha));
-	real3_add(deriv->V, real3_scale(P_l, U->alpha));
+	
+	//K_ij,t = first derivs + alpha srcK_ij
+	sym3_add(deriv->K, sym3_scale(srcK_ll, U->alpha));
+	
+	real3_add(deriv->V, real3_scale(src_V_l, U->alpha));
 }
 
 kernel void constrainU(
