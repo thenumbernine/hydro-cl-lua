@@ -489,17 +489,23 @@ for ij,xij in ipairs(symNames) do
 	local xi, xj = xNames[i], xNames[j]
 ?>inline real calc_ABar_<?=xij?>(real x, real y, real z) {
 
-	//momentum
+	//momentum - isn't working
 	constant real3 PU = _real3(0,0,0);
+	//constant real3 PU = _real3(.01,0,0);
 	
 	//rotation
-	constant real3 JU = _real3(0,0,1);
+	constant real3 JU = _real3(0,0,0);
+	//constant real3 JU = _real3(0,0,.1);	//slowly comes to a stop and then forms a weird pattern and everything stops.
+	//constant real3 JU = _real3(0,0,1);
+	//constant real3 JU = _real3(0,0,10);
 	
 	real3 xU = _real3(x,y,z);
 	real r = sqrt(x*x + y*y + z*z);
 	real rSq = r * r;
 	real rCubed = rSq * r;
 	real r5 = rCubed * rSq;
+	
+	real3 lU = real3_scale(xU, 1./r);
 
 	//here's lowering it, using the diagonal metric specified above ...
 	//gamma_ij = psi^4 delta_ij 
@@ -509,8 +515,14 @@ for ij,xij in ipairs(symNames) do
 	real psi8 = psi4*psi4;
 	//scaling by psi8 is the same as lowering two indexes
 
-	real ABar_boost_uu = 1.5/rCubed * (PU.<?=xi?> * <?=xj?> + PU.<?=xj?> * <?=xi?> 
-		- (<?=i==j and 1 or 0?> - <?=xi?> * <?=xj?> / rSq ) * real3_dot(PU, xU) );
+	//lower, only for cartesian:
+	real3 lL = real3_scale(lU, psi4);
+
+	real ABar_boost_uu = 1.5/rSq * (
+		PU.<?=xi?> * lU.<?=xj?>
+		+ PU.<?=xj?> * lU.<?=xi?>
+		- (<?=i==j and 1 or 0?> - lU.<?=xi?> * lU.<?=xj?>) * real3_dot(lL, PU) 
+	);
 
 	real3 rJU = real3_cross(JU, xU);
 
@@ -518,6 +530,7 @@ for ij,xij in ipairs(symNames) do
 
 	real ABar_uu = ABar_boost_uu + ABar_spin_uu;
 
+	//lower twice <-> scale by psi^8
 	return ABar_uu * psi8;
 }
 <?
