@@ -490,14 +490,14 @@ for ij,xij in ipairs(symNames) do
 ?>inline real calc_ABar_<?=xij?>(real x, real y, real z) {
 
 	//momentum - isn't working
-	constant real3 PU = _real3(0,0,0);
-	//constant real3 PU = _real3(.01,0,0);
+	const real3 PU = _real3(0,0,0);
+	//const real3 PU = _real3(.01,0,0);
 	
 	//rotation
-	constant real3 JU = _real3(0,0,0);
-	//constant real3 JU = _real3(0,0,.1);	//slowly comes to a stop and then forms a weird pattern and everything stops.
-	//constant real3 JU = _real3(0,0,1);
-	//constant real3 JU = _real3(0,0,10);
+	//const real3 JU = _real3(0,0,0);
+	//const real3 JU = _real3(0,0,.1);	//slowly comes to a stop and then forms a weird pattern and everything stops.
+	const real3 JU = _real3(0,0,1);
+	//const real3 JU = _real3(0,0,10);
 	
 	real3 xU = _real3(x,y,z);
 	real r = sqrt(x*x + y*y + z*z);
@@ -543,7 +543,7 @@ inline real calc_K_<?=xij?>(real x, real y, real z) {
 	real r = sqrt(x*x + y*y + z*z);
 	real psi = bssn_psi(r);
 	real psiSq = psi*psi;
-	constant real K = 0;
+	const real K = 0;
 	return calc_ABar_<?=xij?>(x,y,z) / psiSq - calc_gamma_<?=xij?>(x,y,z) / 3. * K;
 }
 <?
