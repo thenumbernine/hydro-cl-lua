@@ -491,7 +491,8 @@ for ij,xij in ipairs(symNames) do
 
 	//momentum - isn't working
 	const real3 PU = _real3(0,0,0);
-	//const real3 PU = _real3(.01,0,0);
+	//const real3 PU = _real3(.1,0,0);
+	//const real3 PU = _real3(1,0,0);
 	
 	//rotation
 	//const real3 JU = _real3(0,0,0);

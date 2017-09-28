@@ -358,7 +358,7 @@ end
 <? for ij,xij in ipairs(symNames) do
 ?>	DBar2_phi_ll.<?=xij?> = partial2_phi_ll[<?=ij-1?>] <?
 	for k,xk in ipairs(xNames) do
-?> - connBar_ull[<?=k?>].<?=xij?> * partial_phi_l[<?=k-1?>]<?
+?> - connBar_ull[<?=k-1?>].<?=xij?> * partial_phi_l[<?=k-1?>]<?
 	end
 ?>;
 <? end
@@ -654,7 +654,6 @@ local diffuseSigma = .01
 local diffusionCoeff = diffuseSigma/16
 ?>
 	
-	//TODO
 	//Kreiss-Oligar dissipation
 	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 	//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
