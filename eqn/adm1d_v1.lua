@@ -31,14 +31,9 @@ ADM_BonaMasso_1D_Alcubierre2008.useSourceTerm = true
 ADM_BonaMasso_1D_Alcubierre2008.hasFluxFromCons = true
 
 function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix()
-	-- pick out whatever variables that 'codes' needs to convert
-	local lines = table()
-
-		-- don't call super because it generates the guivar code
-		-- which is already being generated in initState
-		--ADM_BonaMasso_1D_Alcubierre2008.super.getCodePrefix(self),
-		
-	lines:insert(template([[
+	return table{
+		ADM_BonaMasso_1D_Alcubierre2008.super.getCodePrefix(self),
+		template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	*U = (<?=eqn.cons_t?>){
 		.alpha = 1, 
@@ -48,21 +43,8 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 		.KTilde = 0,
 	};
 }
-]], {eqn=self}))
-		
-	if self.initState.getCodePrefix then
-		lines:insert(self.initState:getCodePrefix(self.solver, function(exprs, vars)
-			return {
-				alpha  = exprs.alpha,
-				gamma_xx = exprs.gamma[1],	-- only need g_xx
-				a_x = (exprs.alpha:diff(vars[1]) / exprs.alpha)(),	-- only need a_x
-				D_g = (exprs.gamma[1]:diff(vars[1]) / exprs.gamma[1])(),	-- only need D_xxx
-				KTilde = exprs.K[1] / symmath.sqrt(exprs.gamma[1]),	-- only need K_xx
-			}
-		end))
-	end
-
-	return lines:concat'\n'
+]], {eqn=self}),
+	}:concat'\n'
 end
 
 ADM_BonaMasso_1D_Alcubierre2008.initStateCode = [[
@@ -71,13 +53,33 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
+	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
-	U->alpha = calc_alpha(x.x, x.y, x.z);
-	U->gamma_xx = calc_gamma_xx(x.x, x.y, x.z);
-	U->a_x = calc_a_x(x.x, x.y, x.z);
-	U->D_g = calc_D_g(x.x, x.y, x.z);
-	U->KTilde = calc_KTilde(x.x, x.y, x.z);
+	real alpha = 1.;
+	real3 beta_u = _real3(0,0,0);
+	sym3 gamma_ll = _sym3(1,0,0,1,0,1);
+	sym3 K_ll = _sym3(0,0,0,0,0,0);
+
+	<?=code?>
+
+	U->alpha = alpha;
+	U->gamma_xx = gamma_ll.xx;
+	U->KTilde = K_ll.xx / sqrt(gamma_ll.xx);
+}
+
+kernel void initDerivs(
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	
+	real dx_alpha = (U[1].alpha - U[-1].alpha) / grid_dx0;
+	real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / grid_dx0;
+
+	U->a_x = dx_alpha / U->alpha;
+	U->D_g = dx_gamma_xx / U->gamma_xx;
 }
 ]]
 

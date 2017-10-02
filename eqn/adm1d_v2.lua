@@ -103,10 +103,7 @@ ADM_BonaMasso_1D_Alcubierre1997.useSourceTerm = true
 
 function ADM_BonaMasso_1D_Alcubierre1997:getCodePrefix()
 	return table{
-		-- don't call super because it generates the guivar code
-		-- which is already being generated in initState
-		--ADM_BonaMasso_1D_Alcubierre1997.super.getCodePrefix(self),
-		
+		ADM_BonaMasso_1D_Alcubierre1997.super.getCodePrefix(self),
 		template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	*U = (<?=eqn.cons_t?>){
@@ -117,17 +114,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 		.K_xx = 0,
 	};
 }
-]], {eqn=self}),	
-			
-		self.initState:getCodePrefix(self.solver, function(exprs, vars)
-			return {
-				alpha  = exprs.alpha,
-				gamma_xx = exprs.gamma[1],	-- only need g_xx
-				a_x = (exprs.alpha:diff(vars[1]) / exprs.alpha)(),	-- only need a_x
-				d_xxx = (exprs.gamma[1]:diff(vars[1])/2)(),	-- only need D_xxx
-				K_xx = exprs.K[1],	-- only need K_xx
-			}
-		end)
+]], {eqn=self}),
 	}:concat'\n'
 end
 
@@ -137,13 +124,33 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
+	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+	real alpha = 1.;
+	real3 beta_u = _real3(0,0,0);
+	sym3 gamma_ll = _sym3(1,0,0,1,0,1);
+	sym3 K_ll = _sym3(0,0,0,0,0,0);
+
+	<?=code?>
+
+	U->alpha = alpha;
+	U->gamma_xx = gamma_ll.xx;
+	U->K_xx = K_ll.xx;
+}
+
+kernel void initDerivs(
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
-	U->alpha = calc_alpha(x.x, x.y, x.z);
-	U->gamma_xx = calc_gamma_xx(x.x, x.y, x.z);
-	U->a_x = calc_a_x(x.x, x.y, x.z);
-	U->d_xxx = calc_d_xxx(x.x, x.y, x.z);
-	U->K_xx = calc_K_xx(x.x, x.y, x.z);
+	real dx_alpha = (U[1].alpha - U[-1].alpha) / grid_dx0;
+	real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / grid_dx0;
+	
+	U->a_x = dx_alpha / U->alpha;
+	U->d_xxx = .5 * dx_gamma_xx;
 }
 ]]
 

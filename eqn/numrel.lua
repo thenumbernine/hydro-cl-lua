@@ -46,6 +46,23 @@ function NumRelEqn:createBoundaryOptions()
 	}
 end
 
+-- add the gui vars with a gui_ prefix
+-- also add the initState's getCodePrefix
+-- maybe I should do this everywhere?
+function NumRelEqn:getCodePrefix(solver)
+	local lines = table()
+	
+	local guivars = NumRelEqn.super.getCodePrefix(self)
+	guivars = guivars:gsub('define ', 'define gui_')
+	lines:insert(guivars)
+
+	if self.initState.getCodePrefix then
+		lines:insert(self.initState:getCodePrefix(self.solver))
+	end
+
+	return lines:concat'\n'
+end
+
 -- and now for fillRandom ...
 local ffi = require 'ffi'
 local function crand() return 2 * math.random() - 1 end
@@ -54,7 +71,7 @@ function NumRelEqn:fillRandom(epsilon)
 	local ptr = ffi.new(self.cons_t..'[?]', solver.volume)
 	ffi.fill(ptr, 0, ffi.sizeof(ptr))
 	for i=0,solver.volume-1 do
-		for j=0,solver.numStates-1 do
+		for j=0,self.numStates-1 do
 			ptr[i].ptr[j] = epsilon * crand()
 		end
 	end

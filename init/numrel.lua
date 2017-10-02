@@ -19,25 +19,6 @@ local function getTemplateEnv(solver)
 	}
 end
 
-local function symMat33Det(xx, xy, xz, yy, yz, zz)
-	return xx * yy * zz
-		+ xy * yz * xz
-		+ xz * xy * yz
-		- xz * yy * xz
-		- yz * yz * xx
-		- zz * xy * xy
-end
-
-local function symMat33Inv(xx, xy, xz, yy, yz, zz)
-	local d = symMat33Det(xx, xy, xz, yy, yz, zz)
-	return (yy * zz - yz * yz) / d,		-- xx
-			(xz * yz - xy * zz) / d,	-- xy
-			(xy * yz - xz * yy) / d,	-- xz
-			(xx * zz - xz * xz) / d,	-- yy
-			(xz * xy - xx * yz) / d,	-- yz
-			(xx * yy - xy * xy) / d		-- zz
-end
-
 local function compileC(expr, name, vars)
 	assert(type(expr) == 'table', "expected table, found "..type(expr))
 	if symmath.Expression.is(expr) then 
@@ -76,6 +57,17 @@ local function compileC(expr, name, vars)
 end
 
 local NumRelInitCond = class(InitCond)
+
+function NumRelInitCond:refreshInitStateProgram(solver)
+	NumRelInitCond.super.refreshInitStateProgram(self, solver)
+	solver.initDerivsKernelObj = solver.initStateProgramObj:kernel('initDerivs', solver.UBuf)
+end
+
+function NumRelInitCond:resetState(solver)
+	NumRelInitCond.super.resetState(self, solver)
+	solver:boundary()
+	solver.initDerivsKernelObj()
+end
 
 function NumRelInitCond:getCodePrefix(solver)
 	-- looks like all num rel solvers might need this
@@ -190,7 +182,7 @@ return ]]..fLuaCode))(alphaVar, symmath)
 	end):concat'\n'
 end
 
-local function buildFCCode(solver, diff)
+function NumRelInitCond:buildFCCode(solver, diff)
 	local alphaVar = symmath.var'alpha'
 	local fGuiVar = solver.eqn.guiVars.f
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
@@ -228,619 +220,302 @@ return table{
 				{name = 'sigma', value = sigma},
 			}
 		end,
-		getCodePrefix = function(self, solver, getCodes)
+		initState = function(self, solver)
+			return [[
+	
+	real3 c = real3_sub(x, mids);
+	real s = real3_lenSq(c);
 
-			-- here's the coordinates
+	const real H = gui_H;
+	const real sigma = gui_sigma;
+	const real sigma2 = sigma * sigma;
+	const real sigma4 = sigma2 * sigma2;
+	real h = H * exp(-s / sigma2);
 
-			local xs = xNames:map(function(x) return symmath.var(x) end)
-			symmath.Tensor.coords{{variables=xs}}
-			local x,y,z = xs:unpack()
+	//h,i = (H exp(-(x-c)^2 / sigma^2)),i
+	// = -2 h / sigma^2 (x_i-c_i)
+	real3 dh = real3_scale(real3_sub(x, mids), -2. * h / sigma2);
 
-			-- here's the metric
+	sym3 delta_ll = sym3_ident();
 
-			local H = solver.eqn.guiVars.H.value
-			local sigma = solver.eqn.guiVars.sigma.value
-		
-			local xc = .5 * (solver.mins[1] + solver.maxs[1])
-			local yc = .5 * (solver.mins[2] + solver.maxs[2])
-			local zc = .5 * (solver.mins[3] + solver.maxs[3])
-			local xcs = {xc,yc,zc}
-			
-			local alpha = 1
-			--[=[
-			alpha = 1/2 * (
-				(1 + symmath.sqrt(1 + kappa))
-				* symmath.sqrt((1-h:diff(x))/(1+h:diff(x)))
-				- 
-				kappa / (1 + symmath.sqrt(1 + kappa))
-				* symmath.sqrt((1+h:diff(x))/(1-h:diff(x)))
-			),
-			--]=]
+	//h,ij = h,i,j = (-2 h / sigma^2 (x_i-c_i)),j
+	// = -2 h,j / sigma^2 (x_i-c_i) - 2 h delta_ij / sigma^2
+	// = -2 (-2 h / sigma^2 (x-c)_i (x-c)_j) / sigma^2 - 2 h delta_ij / sigma^2
+	// = 4 h (x-c)_i (x-c)_j / sigma^4 - 2 h delta_ij / sigma^2
+	sym3 d2h = sym3_sub(
+		sym3_scale(real3_outer(c, c), 4. * h / sigma4),
+		sym3_scale(sym3_ident(), 2. * h / sigma2));
 
-			--local s = (x - xc)^2 + (y - yc)^2 + (z - zc)^2
-			local s = xs:sub(1,solver.dim):map(function(x,i)
-				return (x - xcs[i])^2
-			end):sum()
+#if 0
+	alpha = .5 * (
+		(1 + sqrt(1 + kappa)) * sqrt((1-dh.x)/(1+dh.x))
+		- kappa / (1 + sqrt(1 + kappa)) * sqrt((1+dh.x)/(1-dh.x))
+	);
+#endif
 
-			-- to be fair, I don't think Alcubierre ever does this wave in more than 1D 
-			local h = H * symmath.exp(-s / sigma^2)
-			h = h()
-			local dh = symmath.Tensor('_i', function(i) return h:diff(xs[i])() end)
-			local d2h = symmath.Tensor('_ij', function(i,j) return h:diff(xs[i],xs[j])() end)
+	gamma_ll = sym3_sub(delta_ll, real3_outer(dh, dh));
+	K_ll = sym3_scale(d2h, -1./sqrt(1. - real3_lenSq(dh)));
 
-			local delta = symmath.Tensor('_ij', function(i,j) return i == j and 1 or 0 end)
-			local gamma = (delta'_ij' - dh'_i' * dh'_j')()
-			local K = (-d2h'_ij' / (1 - (dh'_k' * dh'_k')() )^.5 )()
-			
-			print('...done deriving and compiling.')
-			
-			return initNumRel{
-				solver = solver,
-				getCodes = getCodes,
-				vars = xs,
-				alpha = symmath.clone(alpha),
-				gamma = symNames:map(function(xij,ij) return gamma[{from6to3x3(ij)}] end),
-				K = symNames:map(function(xij,ij) return K[{from6to3x3(ij)}] end),
-			}
+//enable this if you want the ADM 3D run in 1D to match the ADM 1D's
+//disable this if you want things to run in higher dimensions
+#if dim == 1
+	gamma_ll = _sym3(gamma_ll.xx, 0,0,1,0,1);
+	K_ll = _sym3(K_ll.xx, 0,0,0,0,0);
+#endif
+]]
 		end,
 	},
 	-- from 2012 Alic et. al. "Conformal and covariant formulations of the Z4 system with constraint-violation damping"
 	{
 		name = 'plane gauge wave',
-		getCodePrefix = function(self, solver, getCodes)
-			local xs = xNames:map(function(x) return symmath.var(x) end)
-			symmath.Tensor.coords{{variables=xs}}
-			local x,y,z = xs:unpack()
-
-			local A = .1
-			local L = 1
-			local h = 1 - A * symmath.sin((2 * math.pi / L) * x)
-			return initNumRel{
-				solver = solver,
-				getCodes = getCodes,
-				vars = xs,
-				alpha = symmath.sqrt(h),
-				gamma = {h,0,0,1,0,1},
-				K = {0,0,0,0,0,0},
+		init = function(self, solver)
+			solver.eqn:addGuiVars{
+				{name = 'A', value = .1},
+				{name = 'L', value = 1},
 			}
+		end,
+		initState = function(self, solver)
+			return [[
+	real h = 1. - gui_A * sin((2. * M_PI / gui_L) * x.x);
+	alpha = sqrt(h);
+	gamma_ll.xx = h;
+
+]]
 		end,
 	},
 	{
 		name = 'Alcubierre warp bubble',
-		getCodePrefix = function(self, solver, getCodes)
-			-- [[ safe values
-			local R = .5		-- warp bubble radius
-			local sigma = 8	-- warp bubble thickness
-			local speed = .1	-- warp bubble speed
-			--]]
-			--[[
-			local R = .5
-			local sigma = 8
-			local speed = 1
-			--]]
-
-			local xs = xNames:map(function(x) return symmath.var(x) end)
-			symmath.Tensor.coords{{variables=xs}}
-			local x,y,z = xs:unpack()
-			
-			local x_s = 0 -- speed * t
-			local v_s = speed -- x_s:diff(t)()
-			local r_s = ((x - x_s)^2 + y^2 + z^2)^.5
-			local f = (symmath.tanh(sigma * (r_s + R)) - symmath.tanh(sigma * (r_s - R))) / (2 * symmath.tanh(sigma * R))
-		
-			local betaUx = -v_s * f
-
-			local alpha = 1
-
-			local K_xx = betaUx:diff(x)() / alpha
-			local K_xy = betaUx:diff(y)() / (2 * alpha)
-			local K_xz = betaUx:diff(z)() / (2 * alpha)
-
-			return initNumRel{
-				solver = solver,
-				getCodes = getCodes,
-				
-				vars = xs,
-				
-				alpha = alpha,
-				
-				--[[
-				interesting note:
-				Alcubierre warp bubble drive depends on a beta parameter
-				(the local metric is completely flat)
-				however so does the toy 1+1 relativity require a beta parameter to produce the stated extrinsic curvature
-				yet the toy 1+1 sample set beta=0
-				--]]
-				beta = {betaUx, 0, 0},
-
-				gamma = {1, 0, 0, 1, 0, 1},		-- identity
-				K = {K_xx, K_xy, K_xz, 0, 0, 0},
+		init = function(self, solver)
+			solver.eqn:addGuiVars{
+				{name = 'R', value = .5},		-- warp bubble radius
+				{name = 'sigma', value = 8},	-- warp bubble thickness
+				{name = 'speed', value = .1},	-- warp bubble speed
 			}
 		end,
+		initState = function(self, solver)
+			return [[
+	real x_s = 0;	//speed * t
+	real v_s = gui_speed;
+	
+	real3 y = x; y.x -= x_s;
+	real r_s = real3_len(y);
+
+#define cosh(x)		(.5 * (exp(x) + exp(-x)))
+#define dtanh(x) 	(1./(cosh(x)*cosh(x)))
+
+	real fnum = tanh(gui_sigma * (r_s + gui_R)) - tanh(gui_sigma * (r_s - gui_R));
+	real fdenom = 2 * tanh(gui_sigma * gui_R);
+	real f = fnum / fdenom;
+
+	beta_u.x = -v_s * f;
+
+	real3 dx_r_s = real3_scale(y, 1. / r_s);
+
+	real3 dx_f = real3_scale(dx_r_s, 
+		gui_sigma * (
+			dtanh(gui_sigma * (r_s + gui_R)) 
+			- dtanh(gui_sigma * (r_s - gui_R))
+		) / fdenom);
+
+	alpha = 1;
+
+	K_ll.xx = -v_s * dx_f.x / alpha;
+	K_ll.xy = -v_s * dx_f.y / (2 * alpha);
+	K_ll.xz = -v_s * dx_f.z / (2 * alpha);
+]]
+		end,
 	},
-	{
-		name = 'Schwarzschild black hole',
-		getCodePrefix = function(self, solver, getCodes)
-			
-			local R = .002	-- Schwarzschild radius
-			
---[=[ using symbolic calculations
-			local x,y,z = symmath.vars('x','y','z')
-			local r = symmath.sqrt(x^2 + y^2 + z^2)
-		
-			return initNumRel{
-				solver = solver,
-				getCodes = getCodes,
-				vars = {x,y,z},
-				-- 4D metric ADM components:
-				alpha = symmath.sqrt(1 - R/r),
-				beta = {0,0,0},
-				gamma = {
-					x^2/((r/R-1)*r^2) + 1,	-- xx
-					x*y/((r/R-1)*r^2),		-- xy
-					x*z/((r/R-1)*r^2),		-- xz
-					y^2/((r/R-1)*r^2) + 1,	-- yy
-					y*z/((r/R-1)*r^2),		-- yz
-					z^2/((r/R-1)*r^2) + 1,	-- zz
-				},
-				K = {0,0,0,0,0,0},
+	{	-- take the schwarzschild and apply a cartesian coordinate transform
+		name = 'black hole - Schwarzschild pseudocartesian',
+		init = function(self, solver)
+			solver.eqn:addGuiVars{
+				{name = 'R', value = .002},	-- Schwarzschild radius
 			}
---]=]
---[=[ just pass it the cl code.
-			local fCCode = buildFCCode(solver)
-			
-			return template([[
-#define calc_f(alpha)			(<?=fCCode?>)
-#define rSq(x,y,z) 				(x*x + y*y + z*z)
-#define r(x,y,z) 				sqrt(rSq(x,y,z))
-#define calc_alpha(x,y,z) 		sqrt(1. - <?=R?>/r(x,y,z))
-<? 
-for i,xi in ipairs(xNames) do
-?>#define calc_beta_<?=xi?>(x,y,z)		0.
-<?
-end
-for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi, xj = xNames[i], xNames[j]
-?>#define calc_gamma_<?=xij?>(x,y,z) 	(<?=xi?>*<?=xj?>/((r(x,y,z) / <?=R?> - 1.) * rSq(x,y,z))<?= i==j and ' + 1.' or ''?>)
-<?
-end
-for ij,xij in ipairs(symNames) do
-?>#define calc_K_<?=xij?>(x,y,z)		0.
-<?
-end
-?>]], 		table(getTemplateEnv(solver), {
-				fCCode = fCCode:match'{ return (.*); }',
-				R = clnumber(R),
-			}))
---]=]
+		end,
+		initState = function(self, solver)
+			return [[
+	const real R = gui_R;
+	
+	real r = real3_len(x);
+	alpha = sqrt(1. - R/r);
+
+	real3 xu = real3_scale(x, 1. / r);
+
+	gamma_ll = sym3_add(
+		sym3_ident(),
+		sym3_scale(real3_outer(xu, xu), 1. / (r / R - 1)));
+]]
 		end,
 	},
 	{	-- Baumgarte & Shapiro, table 2.1, isotropic coordinates
 		name = 'black hole - isotropic',
-		getCodePrefix = function(self, solver, getCodes)
-			local R = .001	-- Schwarzschild radius
-			
-			local fCCode = buildFCCode(solver)
-			
-			solver:setBoundaryMethods'fixed'
---[=[ runs a lot faster than passing r=sqrt(x^2+y^2+z^2) to compile
---	but the equations are too complex -- they tend to crash upon compile
-			local xs = xNames:map(function(x) return symmath.var(x) end)
-			symmath.Tensor.coords{{variables=xs}}
-			local x,y,z = xs:unpack()
-			local r = symmath.var('r', xs)
-			local r_from_xyz = r:eq(symmath.sqrt(x^2+y^2+z^2))
-			local psi = (1 + 1/4 * R / r)
-			local alpha = (1 - 1/4 * R / r) / psi
-			return initNumRel{
-				solver = solver,
-				getCodes = getCodes,
-				vars = xs,
-				alpha = alpha,
-				beta = {0,0,0},
-				gamma = {psi^4, 0, 0, psi^4, 0, psi^4},
-				K = {0,0,0,0,0,0},
-				preCompile = function(x)
-					return (x
-						:replace(r:diff(x), x/r)
-						:replace(r:diff(y), y/r)
-						:replace(r:diff(z), z/r)
-						:subst(r_from_xyz))()
-				end,
+		init = function(self, solver)
+			solver.eqn:addGuiVars{
+				{name = 'R', value = .001},	-- Schwarzschild radius
 			}
---]=]
--- [=[ the downside to explicitly defining stuff is that it has to be done for all aux vars that a solver might use
+		end,
+		initState = function(self, solver)
+			solver:setBoundaryMethods'fixed'
+
+			--momentum - isn't working
+			local PU = {0,0,0}
+			--local PU = {.1,0,0}
+			--local PU = {1,0,0}
+			
+			--rotation
+			--local JU = {0,0,0}
+			--local JU = {0,0,.1}	//slowly comes to a stop and then forms a weird pattern and everything stops.
+			local JU = {0,0,1}
+			--local JU = {0,0,10}
+	
 			return template([[
-inline real calc_f(real alpha) { return <?=fCCode?>; }
-inline real bssn_psi(real r) { return 1. + .25 * <?=R?> / r; }	//sum of mass over radius
-inline real bssn_psi2(real r) { return 1. - .25 * <?=R?> / r; }
-
-inline real calc_alpha(real x, real y, real z) { 
-	real r = sqrt(x*x + y*y + z*z);
-	return bssn_psi2(r) / bssn_psi(r);
-}
-
-<?
-for i,xi in ipairs(xNames) do
-?>#define calc_beta_<?=xi?>(x,y,z)		0.
-<?
-end
-
--- gamma_ij
-for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi, xj = xNames[i], xNames[j]
-	if i==j then
-?>
-inline real calc_gamma_<?=xij?>(real x, real y, real z) {
-	real r = sqrt(x*x + y*y + z*z);
-	real psi = bssn_psi(r);
-	real psiSq = psi*psi;
-	return psiSq*psiSq;
-}
-<?	else
-?>#define calc_gamma_<?=xij?>(x,y,z)	0.
-<?	end
-end
-
-for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi, xj = xNames[i], xNames[j]
-?>inline real calc_ABar_<?=xij?>(real x, real y, real z) {
-
-	//momentum - isn't working
-	const real3 PU = _real3(0,0,0);
-	//const real3 PU = _real3(.1,0,0);
-	//const real3 PU = _real3(1,0,0);
+	const real R = gui_R;
+	real rSq = real3_lenSq(x);
+	real r = sqrt(rSq);
 	
-	//rotation
-	//const real3 JU = _real3(0,0,0);
-	//const real3 JU = _real3(0,0,.1);	//slowly comes to a stop and then forms a weird pattern and everything stops.
-	const real3 JU = _real3(0,0,1);
-	//const real3 JU = _real3(0,0,10);
-	
-	real3 xU = _real3(x,y,z);
-	real r = sqrt(x*x + y*y + z*z);
-	real rSq = r * r;
+	real alpha_num = 1. - .25 * R / r;
+	real psi = 1. + .25 * R / r;		//sum of mass over radius
+	real psi2 = psi * psi;
+	real psi4 = psi2 * psi2;
+	real psi8 = psi4 * psi4;
+
+	alpha = alpha_num / psi;
+
+	gamma_ll = sym3_scale(sym3_ident(), psi4);
+
+	real3 PU = _real3(<?=clnumber(PU[1])?>, <?=clnumber(PU[2])?>, <?=clnumber(PU[3])?>);
+	real3 JU = _real3(<?=clnumber(JU[1])?>, <?=clnumber(JU[2])?>, <?=clnumber(JU[3])?>);
+
 	real rCubed = rSq * r;
 	real r5 = rCubed * rSq;
 	
-	real3 lU = real3_scale(xU, 1./r);
+	real3 lU = real3_scale(x, 1./r);
 
 	//here's lowering it, using the diagonal metric specified above ...
 	//gamma_ij = psi^4 delta_ij 
-	real psi = bssn_psi(r);
-	real psi2 = psi*psi;
-	real psi4 = psi2*psi2;
-	real psi8 = psi4*psi4;
 	//scaling by psi8 is the same as lowering two indexes
 
 	//lower, only for cartesian:
 	real3 lL = real3_scale(lU, psi4);
+	real l_dot_P = real3_dot(lL, PU);
 
-	real ABar_boost_uu = 1.5/rSq * (
-		PU.<?=xi?> * lU.<?=xj?>
-		+ PU.<?=xj?> * lU.<?=xi?>
-		- (<?=i==j and 1 or 0?> - lU.<?=xi?> * lU.<?=xj?>) * real3_dot(lL, PU) 
-	);
+	sym3 ABar_boost_uu = sym3_scale(
+		sym3_sub(
+			sym3_add(real3_outer(PU, lU), real3_outer(lU, PU)),
+			sym3_scale(sym3_sub(sym3_ident(), real3_outer(lU, lU)), l_dot_P))
+		, 1.5/rSq);
 
-	real3 rJU = real3_cross(JU, xU);
+	real3 rJU = real3_cross(JU, x);
 
-	real ABar_spin_uu = psi8 * 3. / r5 * (<?=xi?> * rJU.<?=xj?> + <?=xj?> * rJU.<?=xi?>);
+	sym3 ABar_spin_uu = sym3_scale(
+		sym3_add(real3_outer(x, rJU), real3_outer(rJU, x)),
+		psi8 * 3. / r5);
 
-	real ABar_uu = ABar_boost_uu + ABar_spin_uu;
+	sym3 ABar_uu = sym3_add(ABar_boost_uu, ABar_spin_uu);
 
 	//lower twice <-> scale by psi^8
-	return ABar_uu * psi8;
-}
-<?
-end
+	sym3 ABar_ll = sym3_scale(ABar_uu, psi8);
 
--- K_ij = psi^-2 ABar_ij + 1/3 gamma_ij K
-for ij,xij in ipairs(symNames) do
-?>
-inline real calc_K_<?=xij?>(real x, real y, real z) {
-	real r = sqrt(x*x + y*y + z*z);
-	real psi = bssn_psi(r);
-	real psiSq = psi*psi;
-	const real K = 0;
-	return calc_ABar_<?=xij?>(x,y,z) / psiSq - calc_gamma_<?=xij?>(x,y,z) / 3. * K;
-}
-<?
-end
+	//ATilde_ij = A_ij * exp(-4 phi)
+	//K = 0, so A_ij = K_ij
+	K_ll = sym3_scale(ABar_ll, 1. / psi2);
 
---aux vars used by adm3d
-for i,xi in ipairs(xNames) do
-?>
-
-inline real d<?=xi?>_bssn_psi(real x, real y, real z) {
-	real r = sqrt(x*x + y*y + z*z);
-	real rSq = r * r;
-	real rCubed = rSq * r;
-	return -.25 * <?=R?> * <?=xi?> / rCubed;
-}
-
-inline real d<?=xi?>_bssn_psi2(real x, real y, real z) {
-	return -d<?=xi?>_bssn_psi(x,y,z);
-}
-
-inline real calc_d<?=xi?>_alpha(real x, real y, real z) {
-	real r = sqrt(x*x + y*y + z*z);
-	real psi = bssn_psi(r);
-	real psi2 = bssn_psi2(r);
-	real dpsi = d<?=xi?>_bssn_psi(x,y,z);
-	real dpsi2 = d<?=xi?>_bssn_psi2(x,y,z);
-	return dpsi2 / psi - psi2 * dpsi2 / (psi * psi);
-}
-
-inline real calc_a_<?=xi?>(real x, real y, real z) {
-	return calc_d<?=xi?>_alpha(x,y,z) / calc_alpha(x,y,z);
-}
-<?
-end
-for ij,xij in ipairs(symNames) do
-	for k,xk in ipairs(xNames) do
-?>
-inline real calc_d_<?=xk?><?=xij?>(real x, real y, real z) {
-	real r = sqrt(x*x + y*y + z*z);
-	real psi = bssn_psi(r);
-	real dpsi = d<?=xk?>_bssn_psi(x,y,z);
-	return 4. * psi * psi * psi * dpsi;
-}
-<?
-	end
-end
-?>]], 		table(getTemplateEnv(solver), {
-				fCCode = fCCode:match'{ return (.*); }',
-				R = clnumber(R),
-			}))
---]=]
-		end,
-	},
-	{
-		name = 'spinning black hole - isotropic',
-		getCodePrefix = function(self, solver, getCodes)
-			local R = .01
+]], {
+	JU = JU,
+	PU = PU,
+	clnumber = clnumber,
+})
 		end,
 	},
 	{
 		name = 'binary black holes - isotropic',
-		getCodePrefix = function(self, solver, getCodes)
-			local fCCode = buildFCCode(solver)
-		
-			-- [=[
-			return template([[
-#define calc_f(alpha)			(<?=fCCode?>)
-#define rSq(x,y,z)	 			((x)*(x) + (y)*(y) + (z)*(z))
-#define r1(x,y,z) 				sqrt(rSq(x - .25, y, z))
-#define r2(x,y,z) 				sqrt(rSq(x + .25, y, z))
-#define sq(x)					((x)*(x))
-#define bssn_psi(x,y,z)			(1. + .25 * <?=R1?> / r1(x, y, z) + .25 * <?=R2?> / r2(x, y, z))
-#define calc_alpha(x,y,z) 		((1. - .25 * <?=R1?> / r1(x, y, z) - .25 * <?=R2?> / r2(x, y, z)) / bssn_psi(x, y, z))
-<? 
-for i,xi in ipairs(xNames) do
-?>#define calc_beta_<?=xi?>(x,y,z)		0.
-<?
-end
-for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi, xj = xNames[i], xNames[j]
-	if i==j then
-?>#define calc_gamma_<?=xij?>(x,y,z) 	sq(sq(bssn_psi(x,y,z)))
-<?	else
-?>#define calc_gamma_<?=xij?>(x,y,z)	0.
-<?	end
-end
-for ij,xij in ipairs(symNames) do
-?>#define calc_K_<?=xij?>(x,y,z)		0.
-<?
-end
-?>]], 		table(getTemplateEnv(solver), {
-				fCCode = fCCode:match'{ return (.*); }',
-				R1 = clnumber(.01),
-				R2 = clnumber(.01),
-			}))	
-			--]=]
+		init = function(self, solver)
+			solver.eqn:addGuiVars{
+				{name = 'R1', value = .01},
+				{name = 'R2', value = .01},
+			}
+		end,
+		initState = function(self, solver)
+			return [[
+	const real R1 = gui_R1;
+	const real R2 = gui_R2;
+	
+	real3 pos1 = x; pos1.x -= .25;
+	real3 pos2 = x; pos2.x += .25;
+	
+	real r1 = real3_lenSq(pos1);
+	real r2 = real3_lenSq(pos2);
+
+	real psi = 1. + .25 * R1 / r1 + .25 * R2 / r2;
+	real psi2 = psi * psi;
+	real psi4 = psi2 * psi2;
+
+	alpha = (1. - .25 * R1 / r1 - .25 * R2 / r2) / psi;
+
+	gamma_ll = sym3_scale(sym3_ident(), psi4);
+]]
 		end,
 	},
 	{
 		name = 'stellar model',
-		getCodePrefix = function(self, solver, getCodes)
-			-- hmm, the symbolic stuff seemed to be working so much better in the last project ...
-			-- now i'm replacing it with macros for speed's sake ...
-			do
-				local bodyMass = .001
-				local bodyRadius = .1 
-				
-				local fCCode = buildFCCode(solver)
-				
---[[
-K_ij = -alpha Gamma^t_ij
-...and for Schwarzschild, Gamma^t_ij = 0
-...so K_ij = 0
-
-a_i = ln(alpha)_,i = alpha,i / alpha
-
-alpha = (1 - 2 minMass / r)^(1/2)
-minMass = bodyMass * min((r/bodyRadius)^3, 1)
-d/dr minMass = r >= bodyRadius and 0 or (3 r^2 bodyMass / bodyRadius^3)
-d/dr (minMass / r) = (d/dr minMass) / r - minMass / r^2
-	= bodyMass ((r >= bodyRadius and 0 or (3 r / bodyRadius^3)) - min((r/bodyRadius)^3, 1) / r^2)
-d/dr alpha = 1/2 (1 - 2 minMass / r)^(-1/2) * -2 * d/dr(minMass / r)
-	= -1/alpha d/dr(minMass / r) dr/dx
-dr/dx = x / r
-
-g_ij = x_i x_j / (r^2 (r / minRadius - 1)) + delta_ij
-d_kij = 1/2 g_ij,k  = 1/2 (
-	x_i,k x_j / (r^2 (r / minRadius - 1))
-	+ x_i x_j,k / (r^2 (r / minRadius - 1))
-	- x_i x_j / (r^3 (r / minRadius - 1)^2 ) * (
-		2 (r / minRadius - 1) + r (
-			(minRadius - r d/dr minRadius) / minRadius^2
-		)
-	)
-
---]]
-				return template([[
-#define calc_f(alpha)			(<?=fCCode?>)
-#define rSq(x,y,z) 				(x*x + y*y + z*z)
-#define r(x,y,z) 				sqrt(rSq(x,y,z))
-#define rCubed(x,y,z)			(r(x,y,z) * rSq(x,y,z))
-#define bodyMass				<?=bodyMass?>
-#define bodyRadius				<?=bodyRadius?>
-#define cubed(x)				((x)*(x)*(x))
-#define minMass(x,y,z)			(bodyMass * min(rCubed(x,y,z)/cubed(bodyRadius), 1.))
-#define minRadius(x,y,z)		(2.*minMass(x,y,z))
-#define calc_alpha(x,y,z)		sqrt(1. - 2*minMass(x,y,z)/r(x,y,z))
-<?  for i,xi in ipairs(xNames) do
-?>#define calc_beta_<?=xi?>(x,y,z)		0.
-<? end
-for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi, xj = xNames[i], xNames[j]
-?>#define calc_gamma_<?=xij?>(x,y,z)	(<?=i==j and '1.+' or ''?> + <?=xi?> * <?=xj?> / ((r(x,y,z) / minRadius(x,y,z) - 1.) * rSq(x,y,z)))
-<? end
-for ij,xij in ipairs(symNames) do
-?>#define calc_K_<?=xij?>(x,y,z)		0.
-<? end
-?>#define dr_minMass_over_r(x,y,z)	(bodyMass * ((r >= bodyRadius ? 0. : 3. * r(x,y,z) / cubed(bodyRadius))- min(rCubed(x,y,z)/cubed(bodyRadius), 1.) / rSq(x,y,z)))
-<?
-for i,xi in ipairs(xNames) do
-?>#define calc_a_<?=xi?>(x,y,z)	(-dr_minMass_over_r(x,y,z) / (calc_alpha(x,y,z) * calc_alpha(x,y,z)) * x / r(x,y,z))
-<? end
-?>
-
-]], 			table(getTemplateEnv(solver), {
-					fCCode = fCCode:match'{ return (.*); }',
-					bodyRadius  = clnumber(bodyRadius),
-					bodyMass = clnumber(bodyMass),
-				}))
-			end
-
-
-			--[[ this is technically correct, but gets some artifacts with the radial boundary on the cartesian grid
-			local H = symmath.Heaviside
-			--]]
-			-- [[ this looks a bit smoother.  sharper edges mean greater artifacts.
-			local function H(u) return symmath.tanh((u) * 10) * .5 + .5 end
-			--]]
-				
-			local min = class(require 'symmath.Function')
-			min.name = 'min'
-			min.func = math.min
-			-- derivative wrt 1st param... 
-			function min:evaluateDerivative(deriv, ...)
-				local a = self[1]
-				local b = self[2]
-				return H(b - a) * deriv(a, ...) + H(a - b) * deriv(b, ...)
-			end
-			
-			local bodies = args and args.bodies or {{
-				pos = {0,0,0},
-				mass = .001,
-				radius = .1,
-			}}
-
-			local x,y,z = symmath.vars('x','y','z')
-			
-			print('building variables ...')
-			
-			local alpha = 1
-			local gamma = table{1,0,0,1,0,1}
-			for _,body in ipairs(bodies) do
-				local M = body.mass 
-				local R = body.radius
-				
-				local x_ = x - body.pos[1] 
-				local y_ = y - body.pos[2] 
-				local z_ = z - body.pos[3] 
-				local rSq = x_^2 + y_^2 + z_^2
-				local r = rSq^.5
-				local m = M * min(r/R, 1)^3
-				local R = 2*m
-				
-				alpha = alpha - 2*m/r
-				gamma[1] = gamma[1] + x_^2/((r/R-1)*rSq)
-				gamma[2] = gamma[2] + x_*y_/((r/R-1)*rSq)
-				gamma[3] = gamma[3] + x_*z_/((r/R-1)*rSq)
-				gamma[4] = gamma[4] + y_^2/((r/R-1)*rSq)
-				gamma[5] = gamma[5] + y_*z_/((r/R-1)*rSq)
-				gamma[6] = gamma[6] + z_^2/((r/R-1)*rSq)
-			end
-			alpha = alpha^.5
-			
-			print('...done building variables')
-			
-			print('initializing numerical relativity variables ...')
-			local codes = initNumRel{
-				solver = solver,
-				getCodes = getCodes,
-				vars = {x,y,z},
-				-- 4D metric ADM components:
-				alpha = alpha,
-				beta = {0,0,0},
-				gamma = gamma,
-				K = {0,0,0,0,0,0},
---				useNumericInverse = true,	-- if gamma gets too complex ...
-				-- hmm, why do I need gammaU again?  just for initialization of V^i I think ...
-				-- hmm would be nice if any field could be a function, algebra, or constant ...
---[[				
-				density = function(x,y,z)
-					local density = 0
-					for _,body in ipairs(bodies) do
-						local x_ = x - body.pos[1] 
-						local y_ = y - body.pos[2] 
-						local z_ = z - body.pos[3]
-						local rSq = x_*x_ + y_*y_ + z_*z_
-						if rSq < body.radius * body.radius then
-							density = density + (body.density or (body.mass / (4/3 * math.pi * body.radius * body.radius * body.radius)))
-						end
-					end
-					return density
-				end,
-				pressure = function(x,y,z)
-					local pressure = 0
-					for _,body in ipairs(bodies) do
-						local M = body.mass
-						local R = body.radius
-						local x_ = x - body.pos[1] 
-						local y_ = y - body.pos[2] 
-						local z_ = z - body.pos[3]
-						local rSq = x_*x_ + y_*y_ + z_*z_
-						if rSq < body.radius * body.radius then
-							local r = math.sqrt(rSq)
-							local rho0 = body.pressure or (body.mass / (4/3 * math.pi * body.radius * body.radius * body.radius))
-							-- TOV pressure solution: http://physics.stackexchange.com/questions/69953/solving-the-tolman-oppenheimer-volkoff-tov-equation
-							-- ... solution to constant pressure?  doesn't density decrease with radius? time to find a better source.
-							pressure = pressure + (body.pressure or (rho0 * (
-								(
-									math.sqrt(1 - 2 * M / R) - math.sqrt(1 - 2 * M * r * r / (R * R * R))
-								) / (
-									math.sqrt(1 - 2 * M * r * r / (R * R * R)) - 3 * math.sqrt(1 - 2 * M / R)
-								)
-							)))
-						end
-					end
-					return pressure
-				end,
---]]
+		init = function(self, solver)
+			solver.eqn:addGuiVars{
+				{name = 'bodyMass', value = .001},
+				{name = 'bodyRadius', value = .1},
 			}
-			print('...done initializing numerical relativity variables') 
-			return codes	
 		end,
-	},
-	{
-		name = 'stellar model 2',
-		getCodePrefix = function(self, solver)
-			-- planet plucked out of existence
-			initNumRel{
-				bodies={
-					{pos = {0,0,0}, radius = .1, mass = .001, density=0, pressure=0}
+		initState = function(self, solver)
+			local bodies = table{
+				{
+					pos = {0,0,0},
+					mass = solver.eqn.guiVars.bodyMass.value,
+					radius = solver.eqn.guiVars.bodyRadius.value,
 				}
 			}
+			
+			return template([[
+<? for _,body in ipairs(bodies) do
+?>
+	real3 pos = _real3(<?=table.map(body.pos, clnumber):concat', '?>);
+	real3 ofs = real3_sub(x, pos);
+	
+	real r = real3_len(ofs);
+	real3 l = real3_scale(ofs, 1./r);
+	
+	real m = r / gui_bodyRadius; m *= m * m; m = min(m, 1.); m *= gui_bodyMass;
+	real R = 2. * m;
+
+	alpha -= 2*m/r;
+	gamma_ll = sym3_add(gamma_ll, sym3_scale(real3_outer(l,l), 1./(r/R - 1.)));
+
+	if (r < gui_bodyRadius) {
+		rho += gui_bodyMass / (4./3. * M_PI * gui_bodyRadius * gui_bodyRadius * gui_bodyRadius);
+#if 0
+		local r = math.sqrt(rSq)
+		local rho0 = body.pressure or (body.mass / (4/3 * math.pi * body.radius * body.radius * body.radius))
+		-- TOV pressure solution: http://physics.stackexchange.com/questions/69953/solving-the-tolman-oppenheimer-volkoff-tov-equation
+		-- ... solution to constant pressure?  doesn't density decrease with radius? time to find a better source.
+		pressure = pressure + (body.pressure or (rho0 * (
+			(
+				math.sqrt(1 - 2 * M / R) - math.sqrt(1 - 2 * M * r * r / (R * R * R))
+			) / (
+				math.sqrt(1 - 2 * M * r * r / (R * R * R)) - 3 * math.sqrt(1 - 2 * M / R)
+			)
+		)))
+#endif
+	}
+
+<? end ?>
+
+	alpha = sqrt(alpha);
+]], {
+	table = table,
+	clnumber = clnumber,
+	bodies = bodies,
+})
 		end,
 	},
+	--[=[
 	{
 		name = 'stellar model 3',
 		getCodePrefix = function(self, solver)
@@ -850,8 +525,8 @@ for i,xi in ipairs(xNames) do
 			earth mass = 5.9736e+24 kg = 5.9736e+24 * 6.6738480e-11 / 299792458^2 m
 			earth mass = Em * G / c^2 in meters
 			--]]
-			local G = 6.6738480e-11	-- kg m^3/s^2
-			local c = 299792458	-- m/s
+			local G = 6.6738480e-11 -- kg m^3/s^2
+			local c = 299792458     -- m/s
 			-- massInRadii is the order of 1e-9.  much more subtle than the default 1e-3 demo
 			local earth = {radiusInM = 6.37101e+6, massInKg = 5.9736e+24}
 			-- massInRadii is on the order of 1e-6
@@ -868,10 +543,7 @@ for i,xi in ipairs(xNames) do
 			initNumRel{
 				bodies={
 					{pos = {0,0,0}, radius = planet.radiusInCoords, mass = planet.massInCoords},
-				}
-			}
-		end,
-	},
+	--]=]
 	--[[
 	2007 Alic et al "Efficient Implementation of finite volume methods in Numerical Relativity"
 	1D Black Hole in wormhole form
@@ -984,12 +656,6 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 			local epsilon = solver.eqn.guiVars.epsilon.value
 			solver.eqn:fillRandom(epsilon)
 		end,
-		
-		-- hmm, for bssnok, this still needs the init_connBar code ...
-		-- but it doesn't want the initState code
-		-- because that requires all the calc_* macros
-		refreshInitStateProgram = function(self, solver) end,
-		getInitStateCode = function(self, solver) end,
 	},
 	{
 		name = 'testbed - gauge wave',
@@ -1003,22 +669,15 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 			}
 --			solver.eqn.guiVars.f.value = solver.eqn.guiVars.f.options:find'1'	-- set f=1
 		end,
-		getCodePrefix = function(self, solver, getCodes)
-			local A = solver.eqn.guiVars.A.value
-			local d = solver.eqn.guiVars.d.value
-			local xs = xNames:map(function(x) return symmath.var(x) end)
-			local x,y,z = xs:unpack()
-			local t = 0
-			local theta = (2 * math.pi / d) * (x - t)
-			local H = 1 + A * symmath.sin(theta)
-			return initNumRel{
-				solver = solver,
-				getCodes = getCodes,
-				vars = xs,
-				alpha = symmath.sqrt(H),
-				gamma = {H, 0, 0, 1, 0, 1},
-				K = {-math.pi * A / d * symmath.cos(theta) / symmath.sqrt(H), 0,0,0,0,0},
-			}
+		initState = function(self, solver)
+			return [[
+	const real t = 0.;
+	real theta = 2. * M_PI / gui_d * (x.x - t);
+	real H = 1. + gui_A * sin(theta);
+	alpha = sqrt(H);
+	gamma_ll.xx = H;
+	K_ll.xx = -M_PI * gui_A / gui_d * cos(theta) / alpha;
+]]
 		end,
 	},
 	{
@@ -1039,22 +698,17 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 				{name='d', value=1},
 			}
 		end,
-		getCodePrefix = function(self, solver, getCodes)
-			local A = solver.eqn.guiVars.A.value
-			local d = solver.eqn.guiVars.d.value
-			local xs = xNames:map(function(x) return symmath.var(x) end)
-			local x,y,z = xs:unpack()
-			local t = 0
-			local theta = (2 * math.pi / d) * (x - t)
-			local b = A * symmath.sin(theta)
-			return initNumRel{
-				solver = solver,
-				getCodes = getCodes,
-				vars = xs,
-				alpha = 1,
-				gamma = {1,0,0,1+b,0,1-b},
-				K = {0,0,0,b:diff(t)/2,0,-b:diff(t)/2},
-			}
+		initState = function(self, solver)
+			return [[
+	const real t = 0.;
+	real theta = 2. * M_PI / gui_d * (x.x - t);
+	real b = gui_A * sin(theta);
+	gamma_ll.yy += b;
+	gamma_ll.zz -= b;
+	real db_dt = -2. * M_PI * gui_A / gui_d * cos(theta);
+	K_ll.yy = .5 * db_dt;
+	K_ll.zz = -.5 * db_dt;
+]]
 		end,
 	},
 	{

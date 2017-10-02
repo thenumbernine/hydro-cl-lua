@@ -222,9 +222,7 @@ end
 function BSSNOKFiniteDifferenceEquation:getCodePrefix()
 	local lines = table()
 	
-	-- don't call super because it generates the guivar code
-	-- which is already being generated in initState
-	--lines:insert(BSSNOKFiniteDifferenceEquation.super.getCodePrefix(self))
+	lines:insert(BSSNOKFiniteDifferenceEquation.super.getCodePrefix(self))
 	
 	lines:insert(template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U) {
@@ -273,23 +271,6 @@ sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U) {
 
 ]], {eqn=self}))
 	
-	lines:insert(self.initState:getCodePrefix(self.solver, function(exprs, vars, args)
-		return table(
-			--f = exprs.f,
-			--dalpha_f = exprs.dalpha_f,
-			{alpha = exprs.alpha},
-			exprs.beta and xNames:map(function(xi,i)
-				return exprs.beta[i], 'beta_'..xi
-			end) or {},
-			symNames:map(function(xij,ij)
-				return exprs.gamma[ij], 'gamma_'..xij
-			end),
-			symNames:map(function(xij,ij)
-				return exprs.K[ij], 'K_'..xij
-			end)
-		)	
-	end))
-
 	return lines:concat()
 end
 
@@ -300,25 +281,21 @@ kernel void initState(
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);
+	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
-	setFlatSpace(U);
-	
-	U->alpha = calc_alpha(x.x, x.y, x.z);
+	real alpha = 1.;
+	real3 beta_u = _real3(0,0,0);
+	sym3 gamma_ll = _sym3(1,0,0,1,0,1);
+	sym3 K_ll = _sym3(0,0,0,0,0,0);
+	real rho = 0.;
 
-	//hmm, beta causes some problems ...
-	//maybe beta has an error somewhere ...
-	U->beta_u = (real3){
-<? for _,xi in ipairs(xNames) do
-?>		.<?=xi?> = calc_beta_<?=xi?>(x.x, x.y, x.z),
-<?	end
-?>	};
+	<?=code?>
 
-	sym3 gamma_ll = {
-<? for _,xij in ipairs(symNames) do
-?>		.<?=xij?> = calc_gamma_<?=xij?>(x.x, x.y, x.z),
-<? end
-?>	};
+	U->alpha = alpha;
+	U->beta_u = beta_u;
+
 	real det_gamma = sym3_det(gamma_ll);
 	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma);
 
@@ -342,16 +319,11 @@ kernel void initState(
 ?>	
 ]]..[[	
 
-	sym3 K_ll = {
-<? for _,xij in ipairs(symNames) do
-?>		.<?=xij?> = calc_K_<?=xij?>(x.x, x.y, x.z),
-<? end	
-?>	};
 	U->K = sym3_dot(K_ll, gamma_uu);
 	sym3 A_ll = sym3_sub(K_ll, sym3_scale(gamma_ll, 1./3. * U->K));
 	U->ATilde_ll = sym3_scale(A_ll, exp_neg4phi);
 	
-	U->rho = 0;
+	U->rho = rho;
 	U->S_u = _real3(0,0,0);
 	U->S_ll = _sym3(0,0,0,0,0,0);
 	
@@ -360,7 +332,7 @@ kernel void initState(
 }
 
 //after popularing gammaBar_ll, use its finite-difference derivative to initialize connBar_u
-kernel void init_connBarU(
+kernel void initDerivs(
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
@@ -386,7 +358,11 @@ kernel void init_connBarU(
 <? end
 ?>
 }
-]], self:getTemplateEnv())
+]], table(self:getTemplateEnv(), {
+	code = self.initState.initState 
+		and self.initState:initState(self.solver) 
+		or '//no code from InitCond:initState() was provided',
+}))
 end
 
 function BSSNOKFiniteDifferenceEquation:getSolverCode()

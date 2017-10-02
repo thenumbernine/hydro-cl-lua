@@ -9,10 +9,10 @@ kernel void calcDT(
 	}
 		
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-	real det_gamma = sym3_det(U->gamma);
-	real f = calc_f(U->alpha);
 	
-	//the only advantage of this calcDT over the default is that here this sqrt(f) is only called once
+	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma) is only called once
+	real f = calc_f(U->alpha);
+	real det_gamma = sym3_det(U->gamma);
 	real sqrt_f = sqrt(f);
 
 	real dt = INFINITY;
@@ -82,12 +82,20 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 	real lambdaLight = eig->alpha * eig->sqrt_gammaUjj.z;
 	<? end ?>
 	real lambdaGauge = lambdaLight * eig->sqrt_f;
-	
+
+<? if not eqn.noZeroRowsInFlux then ?>
 	wave[0] = -lambdaGauge;
 	<? for i=1,5 do ?> wave[<?=i?>] = -lambdaLight; <? end ?>
 	<? for i=6,23 do ?> wave[<?=i?>] = 0.; <? end ?>
 	<? for i=24,28 do ?> wave[<?=i?>] = lambdaLight; <? end ?>
 	wave[29] = lambdaGauge;
+<? else ?>
+	wave[0] = -lambdaGauge;
+	<? for i=1,5 do ?> wave[<?=i?>] = -lambdaLight; <? end ?>
+	wave[6] = 0.;
+	<? for i=7,11 do ?> wave[<?=i?>] = lambdaLight; <? end ?>
+	wave[12] = lambdaGauge;
+<? end ?>
 }
 <?		end
 	end
@@ -177,6 +185,11 @@ kernel void calcEigenBasis(
 	}<? end ?>
 }
 
+//for swapping dimensions
+sym3 sym3_swap0(sym3 m) { return m; }
+sym3 sym3_swap1(sym3 m) { return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
+sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
+
 <?
 local unpack = unpack or table.unpack
 for _,addrs in ipairs{
@@ -193,7 +206,9 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real3 unused
 ) {
 	<?=addr2?> const <?=eqn.cons_t?>* inputU = (<?=addr2?> const <?=eqn.cons_t?>*)input;
-	
+
+<? if not eqn.noZeroRowsInFlux then ?>
+
 	<? if side == 0 then ?>
 
 	//a_y, a_z
@@ -446,7 +461,40 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	results[5] = K_sqrt_gammaUzz.yz - ev5b;
 	results[28] = K_sqrt_gammaUzz.yz + ev5b;
 
-	<? end ?>
+	<? end -- side ?>
+
+<? else -- eqn.noZeroRowsInFlux ?>
+
+	real _1_sqrt_f = 1. / eig->sqrt_f;
+	real _1_f = _1_sqrt_f * _1_sqrt_f; 
+	real sqrt_gammaUjj = eig->sqrt_gammaUjj.s<?=side?>;
+	real _1_gammaUjj = 1. / eig->gammaU.s<?=side?><?=side?>;
+
+	real a = inputU->a.s<?=side?>;
+
+	//now swap x and side on the sym3's
+	sym3 d = sym3_swap<?=side?>(inputU->d[<?=side?>]);
+	sym3 K = sym3_swap<?=side?>(inputU->K);
+	sym3 gammaU = sym3_swap<?=side?>(eig->gammaU);
+
+	real K_dot_eig_gamma = sym3_dot(K, gammaU);
+	real dj_dot_eig_gamma = sym3_dot(d, gammaU);
+
+	results[0] = (a * -sqrt_gammaUjj * _1_sqrt_f + K_dot_eig_gamma) * .5 * _1_gammaUjj;
+
+		<? for i=1,5 do ?>
+	results[<?=i?>] = .5 * (-sqrt_gammaUjj * d.s[<?=i?>] + K.s[<?=i?>]);
+		<? end ?>
+
+	results[6] = (-a * _1_f + dj_dot_eig_gamma) * _1_gammaUjj;
+
+		<? for i=1,5 do ?>
+	results[<?=6+i?>] = .5 * (sqrt_gammaUjj * d.s[<?=i?>] + K.s[<?=i?>]);
+		<? end ?>
+
+	results[12] = (a * sqrt_gammaUjj * _1_sqrt_f + K_dot_eig_gamma) * .5 * _1_gammaUjj;
+	
+<? end -- eqn.noZeroRowsInFlux ?>
 }
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
@@ -456,6 +504,8 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real3 unused
 ) {
 	<?=addr0?> <?=eqn.cons_t?>* resultU = (<?=addr0?> <?=eqn.cons_t?>*)results;
+
+<? if not eqn.noZeroRowsInFlux then ?>
 	
 	<? if side == 0 then ?>
 
@@ -955,6 +1005,55 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	resultU->K.yz = (input[5] + input[28]) * tmp;
 	
 	<? end ?>
+
+<? else -- eqn.noZeroRowsInFlux ?>
+
+	sym3 gammaU = eig->gammaU;
+	<? if side == 1 then ?>
+	gammaU = _sym3(gammaU.yy, gammaU.xy, gammaU.yz, gammaU.xx, gammaU.xz, gammaU.zz);
+	<? elseif side == 2 then ?>
+	gammaU = _sym3(gammaU.zz, gammaU.yz, gammaU.xz, gammaU.yy, gammaU.xy, gammaU.xx);
+	<? end ?>
+
+	real input1_dot_gammaU = input[1] * 2. * gammaU.xy
+		+ input[2] * 2. * gammaU.xz
+		+ input[3] * gammaU.yy
+		+ input[4] * 2. * gammaU.yz
+		+ input[5] * gammaU.zz;
+	real input7_dot_gammaU = input[7] * 2. * gammaU.xy
+		+ input[8] * 2. * gammaU.xz
+		+ input[9] * gammaU.yy
+		+ input[10] * 2. * gammaU.yz
+		+ input[11] * gammaU.zz;
+
+	real _1_sqrt_f = 1. / eig->sqrt_f;
+	real sqrt_gammaUjj = eig->sqrt_gammaUjj.s<?=side?>;
+	real _1_sqrt_gammaUjj = 1. / sqrt_gammaUjj;
+	real _1_gammaUjj = _1_sqrt_gammaUjj * _1_sqrt_gammaUjj; 
+
+	resultU->a.s<?=side?> = eig->sqrt_f * sqrt_gammaUjj * (-input[0] + input[12] );
+
+	sym3 d, K;
+	d.xx = (
+		(input[12] - input[0]) * _1_sqrt_f
+		+ (input1_dot_gammaU - input7_dot_gammaU) * _1_gammaUjj
+	) * _1_sqrt_gammaUjj + input[6];
+
+	<? for i=1,5 do ?>
+	d.s[<?=i?>] = (input[<?=i+6?>] - input[<?=i?>]) * _1_sqrt_gammaUjj;
+	<? end ?>
+
+	K.xx = input[0] + input[12] - (input1_dot_gammaU + input7_dot_gammaU) * _1_gammaUjj;
+
+	<? for i=1,5 do ?>
+	K.s[<?=i?>] = input[<?=i?>] + input[<?=i+6?>];
+	<? end ?>
+
+	//now swap x and side on the sym3's
+	resultU->d[<?=side?>] = sym3_swap<?=side?>(d);
+	resultU->K = sym3_swap<?=side?>(K);
+
+<? end 	-- eqn.noZeroRowsInFlux ?>
 }
 <?	end
 end
@@ -966,15 +1065,41 @@ if solver.checkFluxError then
 		for side=0,solver.dim-1 do
 ?>
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* y,
+	<?=addr0?> real* results,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* x,
+	<?=addr2?> const real* input,
 	real3 unused
 ) {
 	for (int i = 0; i < numIntStates; ++i) {
-		*y = 0;
-		++y;
+		*results = 0;
+		++results;
 	}
+
+<? if not eqn.noZeroRowsInFlux then ?>
+<? else -- noZeroRowsInFlux ?>
+
+	<?=addr2?> const <?=eqn.cons_t?>* inputU = (<?=addr2?> const <?=eqn.cons_t?>*)input;
+	<?=addr0?> <?=eqn.cons_t?>* resultU = (<?=addr0?> <?=eqn.cons_t?>*)results;
+	
+	//now swap x and side on the sym3's
+	sym3 input_d = sym3_swap<?=side?>(inputU->d[<?=side?>]);
+	sym3 input_K = sym3_swap<?=side?>(inputU->K);
+	sym3 gammaU = sym3_swap<?=side?>(eig->gammaU);
+
+
+	real f = eig->sqrt_f * eig->sqrt_f;
+	resultU->a.s<?=side?> = sym3_dot(input_K, gammaU) * eig->alpha * f;
+
+	sym3 result_d = sym3_scale(input_K, eig->alpha);
+	sym3 result_K = sym3_scale(input_d, eig->alpha * gammaU.xx);
+	result_K.xx += (inputU->a.s<?=side?> - sym3_dot(input_d, gammaU)) * eig->alpha;
+
+
+	//now swap x and side on the sym3's
+	resultU->d[<?=side?>] = sym3_swap<?=side?>(result_d);
+	resultU->K = sym3_swap<?=side?>(result_K);
+
+<? end -- noZeroRowsInFlux ?>
 }
 <?
 		end

@@ -29,9 +29,23 @@ ADM_BonaMasso_3D.consVars = table{
 	{gamma = 'sym3'},
 }:append(fluxVars)
 
--- skip alpha and gamma
-ADM_BonaMasso_3D.numWaves = makeStruct.countReals(fluxVars)
-assert(ADM_BonaMasso_3D.numWaves == 30)
+
+--[[
+solve a smaller eigendecomposition that doesn't include the rows of variables whose d/dt is zero.
+kind of like how ideal MHD is an 8-var system, but the flux jacobian solved is a 7x7 because Bx,t = 0
+TODO make this a ctor arg - so solvers can run in parallel with and without this
+...or why don't I just scrap the old code, because this runs a lot faster.
+--]]
+ADM_BonaMasso_3D.noZeroRowsInFlux = true
+
+if not ADM_BonaMasso_3D.noZeroRowsInFlux then
+	-- skip alpha and gamma
+	ADM_BonaMasso_3D.numWaves = makeStruct.countReals(fluxVars)
+	assert(ADM_BonaMasso_3D.numWaves == 30)
+else
+	-- skip alpha, gamma, a_q, d_qij, V_i for q != the direction of flux
+	ADM_BonaMasso_3D.numWaves = 13
+end
 
 ADM_BonaMasso_3D.hasCalcDT = true
 ADM_BonaMasso_3D.hasEigenCode = true
@@ -52,13 +66,9 @@ function ADM_BonaMasso_3D:createInitState()
 end
 
 function ADM_BonaMasso_3D:getCodePrefix()
-	local lines = table()
-		
-	-- don't call super because it generates the guivar code
-	-- which is already being generated in initState
-	--lines:insert(ADM_BonaMasso_3D.super.getCodePrefix(self))
-	
-	lines:insert(template([[
+	return table{
+		ADM_BonaMasso_3D.super.getCodePrefix(self),
+		template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	U->alpha = 1.;
 	U->gamma = _sym3(1,0,0,1,0,1);
@@ -69,118 +79,51 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	U->K = _sym3(0,0,0,0,0,0);
 	U->V = _real3(0,0,0);
 }
-]], {eqn=self}))
-	
-	lines:insert(self.initState:getCodePrefix(self.solver, function(exprs, vars, args)
-		print('building lapse partials...')
-		exprs.a = table.map(vars, function(var)
-			return (exprs.alpha:diff(var) / exprs.alpha)()
-		end)
-		print('...done building lapse partials')
-		
-		print('building metric partials...')
-		exprs.d = table.map(vars, function(xk)
-			return table.map(exprs.gamma, function(gamma_ij)
-				print('differentiating '..gamma_ij)
-				return (gamma_ij:diff(xk)/2)()
-			end)
-		end)
-		print('...done building metric partials')
-
-		--[[
-		local gammaU = table{mat33.inv(gamma:unpack())} or calc.gammaU:map(function(gammaUij) return gammaUij(x,y,z) end) 
-		exprs.V = table.map(vars, function(var)
-			local s = 0
-			for j=1,3 do
-				for k=1,3 do
-					local d_ijk = sym3x3(exprs.d[i],j,k)
-					local d_kji = sym3x3(exprs.d[k],j,i)
-					local gammaUjk = sym3x3(gammaU,j,k)
-					local dg = (d_ijk - d_kji) * gammaUjk
-					s = s + dg
-				end
-			end
-			return s
-		end)
-		--]]
-
-		return table(
-			{alpha = exprs.alpha},
-			symNames:map(function(xij,ij)
-				return exprs.gamma[ij], 'gamma_'..xij
-			end),
-			xNames:map(function(xi,i)
-				return exprs.a[i], 'a_'..xi
-			end),
-			table(xNames:map(function(xk,k,t)
-				return symNames:map(function(xij,ij)
-					return exprs.d[k][ij], 'd_'..xk..xij
-				end), #t+1
-			end):unpack()),
-			symNames:map(function(xij,ij)
-				return exprs.K[ij], 'K_'..xij
-			end)
-			--[[
-			xNames:map(function(xi,i)
-				return exprs.V[i], 'V_'..xi
-			end),
-			--]]
-		)
-	end))
-
-	return lines:concat()
+]], {eqn=self}),
+	}:concat'\n'
 end
 
-function ADM_BonaMasso_3D:getInitStateCode()
-	local lines = table{
-		template([[
+ADM_BonaMasso_3D.initStateCode = [[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
+	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
-	setFlatSpace(U);
-	
-]], 	{
-			eqn = self,
-		}),
-	}
+	real alpha = 1.;
+	real3 beta_u = _real3(0,0,0);
+	sym3 gamma_ll = _sym3(1,0,0,1,0,1);
+	sym3 K_ll = _sym3(0,0,0,0,0,0);
 
-	local function build(var)
-		local prefix, suffix = var:match'(.*)_(.*)'
-		local field = var
-		if prefix then
-			if #suffix == 3 then
-				field = prefix..'['..(('xyz'):find(suffix:sub(1,1))-1)..'].'..suffix:sub(2)
-			else
-				field = prefix..'.'..suffix
-			end
-		end
-		lines:insert('\tU->'..field..' = calc_'..var..'(x.x, x.y, x.z);')
-	end
-	
-	build'alpha'
-	symNames:map(function(xij) build('gamma_'..xij) end)
-	xNames:map(function(xi) build('a_'..xi) end)	
-	xNames:map(function(xk)
-		symNames:map(function(xij) build('d_'..xk..xij) end)
-	end)
-	symNames:map(function(xij) build('K_'..xij) end)
+	<?=code?>
 
-	--[[ symbolic
-	xNames:map(function(xi) build('V_'..xi) end)
-	--]]
-	-- [[
-	lines:insert'	U->V = _real3(0,0,0);'
-	--]]
-
-	lines:insert'}'
+	U->alpha = alpha;
+	U->gamma = gamma_ll;
+	U->K = K_ll;
 	
-	local code = lines:concat'\n'
-	return code
-end
+	//TODO V_i = d_ik^k - d^k_ki 
+	U->V = _real3(0,0,0);	
+}
+
+kernel void initDerivs(
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+<? for i=0,2 do ?>
+	U->a.s<?=i?> = (U[stepsize.s<?=i?>].alpha - U[-stepsize.s<?=i?>].alpha) / (grid_dx<?=i?> * U->alpha);
+	<? for j=0,2 do ?>
+		<? for k=j,2 do ?>
+	U->d[<?=i?>].s<?=j..k?> = .5 * (U[stepsize.s<?=i?>].gamma.s<?=j..k?> - U[-stepsize.s<?=i?>].gamma.s<?=j..k?>) / grid_dx<?=i?>;
+		<? end ?>
+	<? end ?>
+<? end ?>
+}
+]]
 
 function ADM_BonaMasso_3D:getSolverCode()
 	return template(file['eqn/adm3d.cl'], {

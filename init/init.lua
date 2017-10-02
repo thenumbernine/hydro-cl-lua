@@ -17,13 +17,15 @@ function InitCond:refreshInitStateProgram(solver)
 	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.UBuf)
 end
 
+-- TODO maybe consolidate this and initState()
+-- TODO maybe make the template env vars modular too
 function InitCond:getInitStateCode(solver)
 	local eqn = solver.eqn
 	local code = self.initState and self:initState(eqn.solver) or nil
 	assert(eqn.initStateCode, "expected Eqn.initStateCode")
 	return template(eqn.initStateCode, {
 		eqn = eqn,
-		code = code,
+		code = code or '//no code from InitCond:initState() was provided',
 		solver = eqn.solver,
 	})
 end

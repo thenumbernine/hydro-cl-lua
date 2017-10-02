@@ -13,7 +13,10 @@ return function(env)
 	env.symNames = table{'xx', 'xy', 'xz', 'yy', 'yz', 'zz'}
 
 	local from3x3to6_table = {{1, 2, 3}, {2, 4, 5}, {3, 5, 6},}
-	env.from3x3to6 = function(i,j) return from3x3to6_table[i][j] end
+	env.from3x3to6 = function(i,j) 
+		assert(1 <= i and i <= 3 and 1 <= j and j <= 3, "got an oob i,j = "..tostring(i)..","..tostring(j))
+		return from3x3to6_table[i][j] 
+	end
 
 	local from6to3x3_table = {{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}}
 	env.from6to3x3 = function(i) return table.unpack(from6to3x3_table[i]) end
