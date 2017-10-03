@@ -196,9 +196,12 @@ BSSNOKFiniteDifferenceEquation.useSourceTerm = true
 
 function BSSNOKFiniteDifferenceEquation:createInitState()
 	BSSNOKFiniteDifferenceEquation.super.createInitState(self)
-	self:addGuiVar{name='constrain_det_gammaBar_ll', value=true}
-	self:addGuiVar{name='constrain_tr_ATilde_ll', value=true}
-	self:addGuiVar{name='useGammaDriver', value=false}
+	self:addGuiVars{
+		{name='constrain_det_gammaBar_ll', value=true},
+		{name='constrain_tr_ATilde_ll', value=true},
+		{name='useGammaDriver', value=false},
+		{name='diffuseSigma', value=.01},
+	}
 end
 
 function BSSNOKFiniteDifferenceEquation:getTemplateEnv()

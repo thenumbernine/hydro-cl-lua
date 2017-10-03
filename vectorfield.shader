@@ -70,7 +70,7 @@ void main() {
 	} else {
 		value = (value - valueMin) / (valueMax - valueMin);
 	}
-	float valuescale = scale;// * clamp(value, 0., 1.);
+	float valuescale = scale * clamp(value, 0., 1.);
 	value = (value * <?=clnumber(gradTexWidth-1)?> + .5) / <?=clnumber(gradTexWidth)?>;
 	color = texture1D(gradientTex, value);
 

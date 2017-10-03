@@ -649,11 +649,6 @@ kernel void addSource(
 
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
-<?
-local diffuseSigma = .01
-local diffusionCoeff = diffuseSigma/16
-?>
-	
 	//Kreiss-Oligar dissipation
 	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 	//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
@@ -665,6 +660,6 @@ for j,xj in ipairs(xNames) do
 ?> + partial2_Ui_ll[<?=jj-1?>]<?
 end
 ?>;
-		U->ptr[i] -= <?=clnumber(diffusionCoeff)?> * lap;
+		U->ptr[i] -= gui_diffuseSigma/16. * lap;
 	}
 }
