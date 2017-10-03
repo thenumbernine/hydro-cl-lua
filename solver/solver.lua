@@ -563,6 +563,36 @@ function Solver:getUBufDisplayVarsArgs()
 	}
 end
 
+function Solver:getDisplayInfosForType()
+	return {
+		real3 = {
+			{name = ' x', code = '	*valuevec = _real3(valuevec->x,0,0);'},
+			{name = ' y', code = '	*valuevec = _real3(valuevec->y,0,0);'},
+			{name = ' z', code = '	*valuevec = _real3(valuevec->z,0,0);'},
+			{name = ' mag', code = '	*valuevec = _real3(real3_len(*valuevec),0,0);', magn=true},
+		},
+		
+		-- hmm, valuevec has to be bigger for this to work
+		-- but does that mean I have to store 6 components in valuevec?
+		-- I suppose it does if I want a sym3-specific visualization
+		sym3 = {
+			{name = ' x', code = '	*valuevec = sym3_x(valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
+			{name = ' y', code = '	*valuevec = sym3_y(valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
+			{name = ' z', code = '	*valuevec = sym3_z(valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
+			
+			{name = ' xx', code = '	valuesym3 = _sym3(valuesym3.xx, 0,0,0,0,0);'},
+			{name = ' xy', code = '	valuesym3 = _sym3(valuesym3.xy, 0,0,0,0,0);'},
+			{name = ' xz', code = '	valuesym3 = _sym3(valuesym3.xz, 0,0,0,0,0);'},
+			{name = ' yy', code = '	valuesym3 = _sym3(valuesym3.yy, 0,0,0,0,0);'},
+			{name = ' yz', code = '	valuesym3 = _sym3(valuesym3.yz, 0,0,0,0,0);'},
+			{name = ' zz', code = '	valuesym3 = _sym3(valuesym3.zz, 0,0,0,0,0);'},
+			
+			{name = ' norm', code = ' valuesym3 = _sym3( sqrt(sym3_dot(valuesym3, valuesym3)), 0,0,0,0,0);'},
+			{name = ' tr', code = ' valuesym3 = _sym3( sym3_trace(valuesym3), 0,0,0,0,0);'},
+		}
+	}
+end
+
 function Solver:addUBufDisplayVars()
 	local group = self:newDisplayVarGroup{name='U'}
 	
@@ -610,18 +640,17 @@ function Solver:addUBufDisplayVars()
 		}))
 		group.vars:insert(var)
 
-		if vartype == 'real3' then
-			for _,info in ipairs{
-				{name = ' x', code = '	*valuevec = _real3(valuevec->x,0,0);'},
-				{name = ' y', code = '	*valuevec = _real3(valuevec->y,0,0);'},
-				{name = ' z', code = '	*valuevec = _real3(valuevec->z,0,0);'},
-				{name = ' mag', code = '	*valuevec = _real3(real3_len(*valuevec),0,0);', magn=true},
-			} do
+		local infosForType = self:getDisplayInfosForType()
+
+		local infos = infosForType[vartype]
+		if infos then
+			for _,info in ipairs(infos) do
 				local scalarVar = self.DisplayVar(table(args, {
 					solver = self,
 					name = group.name .. '_' .. name .. info.name,
 					code = code .. info.code,
-					enabled = self.dim == 1,
+					vectorField = info.vectorField,
+					enabled = self.dim == 1 and not info.vectorField,
 				}))
 				group.vars:insert(scalarVar)
 			
@@ -632,35 +661,6 @@ function Solver:addUBufDisplayVars()
 					var.magVar = scalarVar
 					scalarVar.vecVar = var
 				end
-			end
-		
-		-- hmm, valuevec has to be bigger for this to work
-		-- but does that mean I have to store 6 components in valuevec?
-		-- I suppose it does if I want a sym3-specific visualization
-		elseif vartype == 'sym3' then
-			for _,info in ipairs{
-				{name = ' x', code = '	*valuevec = sym3_x(valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
-				{name = ' y', code = '	*valuevec = sym3_y(valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
-				{name = ' z', code = '	*valuevec = sym3_z(valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
-				
-				{name = ' xx', code = '	valuesym3 = _sym3(valuesym3.xx, 0,0,0,0,0);'},
-				{name = ' xy', code = '	valuesym3 = _sym3(valuesym3.xy, 0,0,0,0,0);'},
-				{name = ' xz', code = '	valuesym3 = _sym3(valuesym3.xz, 0,0,0,0,0);'},
-				{name = ' yy', code = '	valuesym3 = _sym3(valuesym3.yy, 0,0,0,0,0);'},
-				{name = ' yz', code = '	valuesym3 = _sym3(valuesym3.yz, 0,0,0,0,0);'},
-				{name = ' zz', code = '	valuesym3 = _sym3(valuesym3.zz, 0,0,0,0,0);'},
-				
-				{name = ' norm', code = ' valuesym3 = _sym3( sqrt(sym3_dot(valuesym3, valuesym3)), 0,0,0,0,0);'},
-				{name = ' tr', code = ' valuesym3 = _sym3( sym3_trace(valuesym3), 0,0,0,0,0);'},
-			} do
-				local scalarVar = self.DisplayVar(table(args, {
-					solver = self,
-					name = group.name .. '_' .. name .. info.name,
-					code = code .. info.code,
-					vectorField = info.vectorField,
-					enabled = self.dim == 1 and not info.vectorField,
-				}))
-				group.vars:insert(scalarVar)
 			end
 		end
 	end

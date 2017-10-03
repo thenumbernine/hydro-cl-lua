@@ -128,20 +128,15 @@ function Equation:getDisplayVarsForStructVars(structVarInfos)
 	local displayVarInfos = table()
 	for _,structVarInfo in ipairs(structVarInfos) do
 		local varname, vartype = next(structVarInfo)
-		
 		if vartype == 'real' then
 			displayVarInfos:insert{[varname] = '*value = U->'..varname..';'}
 		elseif vartype == 'real3' then
 			displayVarInfos:insert{[varname] = '*valuevec = U->'..varname..';', type='real3'}
 		elseif vartype == 'sym3' then
-			for ij,xij in ipairs(symNames) do
-				displayVarInfos:insert{[varname..'_'..xij] = '*value = U->'..varname..'.'..xij..';'}
-			end
+			displayVarInfos:insert{[varname] = '*valuesym3 = U->'..varname..';', type='sym3'}
 		elseif vartype == '_3sym3' then
 			for i,xi in ipairs(xNames) do
-				for jk,xjk in ipairs(symNames) do
-					displayVarInfos:insert{[varname..'_'..xi..xjk] = '*value = U->'..varname..'['..(i-1)..'].'..xjk..';'}
-				end
+				displayVarInfos:insert{[varname..'_'..xi] = '*valuesym3 = U->'..varname..'['..(i-1)..'];', type='sym3'}
 			end
 		end
 	end

@@ -389,41 +389,12 @@ end
 function BSSNOKFiniteDifferenceEquation:getDisplayVars()	
 	local vars = BSSNOKFiniteDifferenceEquation.super.getDisplayVars(self)
 
-	local function addreal3(name)
-		-- TODO override solver's real3 display var construction
-		vars:insert{['|'..name..'| weighted'] = '*value = real3_weightedLen(U->'..name..', U->gammaBar_ll) / calc_exp_neg4phi(U);'}	
-	end
-
-	-- hmm, how to do the weighting stuff with gammaBar_ll ... 
-	-- also, how to determine which metric to raise by ... gamma vs gammaBar
-	local function addsym3_ll(name)
-		vars:insert{['tr '..name..' weighted'] = '*value = sym3_dot(U->gammaBar_uu, U->'..name..') / calc_det_gamma(U);'}
-	end
-
-	addreal3'beta_u'
-	addsym3_ll'gammaBar_ll'
 	vars:insert{['det gammaBar-1'] = [[*value = -1. + sym3_det(U->gammaBar_ll);]]}	-- for logarithmic displays
 	vars:insert{['det gamma based on phi'] = [[
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	*value = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);   
 ]]}
-	addsym3_ll'ATilde_ll'
-	addreal3'connBar_u'
-	if self.useHypGammaDriver then
-		addreal3'B_u'
-	end
-	--[[
-	addreal3'a'
-	addsym3_ll'dTilde[0]'
-	addsym3_ll'dTilde[1]'
-	addsym3_ll'dTilde[2]'
-	addreal3'Phi'
-	--]]
-	addreal3'S_u'
-	addsym3_ll'S_ll'
-
-	addreal3'M_u'
-
+	
 	local derivOrder = 2 * self.solver.numGhost
 	vars:append{
 		{S = '*value = sym3_dot(U->S_ll, calc_gamma_uu(U));'},

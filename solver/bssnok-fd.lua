@@ -41,4 +41,23 @@ function BSSNOKFiniteDifferenceSolver:calcDeriv(derivBuf, dt)
 	self.calcDerivKernelObj(derivBuf)
 end
 
+function BSSNOKFiniteDifferenceSolver:getDisplayInfosForType()
+	local t = BSSNOKFiniteDifferenceSolver.super.getDisplayInfosForType(self)
+
+	-- hmm, only works with U ... so it only applies to U ...
+	table.insert(t.real3, {
+		name = ' norm weighted',
+		code = '*value = real3_weightedLen(*valuevec, U->gammaBar_ll) / calc_exp_neg4phi(U);',
+	})
+
+	-- hmm, how to do the weighting stuff with gammaBar_ll ... 
+	-- also, how to determine which metric to raise by ... gamma vs gammaBar
+	table.insert(t.sym3, {
+		name = ' tr weighted',
+		code = '*value = sym3_dot(U->gammaBar_uu, *valuesym3) / calc_det_gamma(U);',
+	})
+
+	return t
+end
+
 return BSSNOKFiniteDifferenceSolver
