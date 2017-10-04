@@ -576,19 +576,19 @@ function Solver:getDisplayInfosForType()
 		-- but does that mean I have to store 6 components in valuevec?
 		-- I suppose it does if I want a sym3-specific visualization
 		sym3 = {
-			{name = ' x', code = '	*valuevec = sym3_x(valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
-			{name = ' y', code = '	*valuevec = sym3_y(valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
-			{name = ' z', code = '	*valuevec = sym3_z(valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
+			{name = ' x', code = '	*valuevec = sym3_x(*valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
+			{name = ' y', code = '	*valuevec = sym3_y(*valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
+			{name = ' z', code = '	*valuevec = sym3_z(*valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
 			
-			{name = ' xx', code = '	valuesym3 = _sym3(valuesym3.xx, 0,0,0,0,0);'},
-			{name = ' xy', code = '	valuesym3 = _sym3(valuesym3.xy, 0,0,0,0,0);'},
-			{name = ' xz', code = '	valuesym3 = _sym3(valuesym3.xz, 0,0,0,0,0);'},
-			{name = ' yy', code = '	valuesym3 = _sym3(valuesym3.yy, 0,0,0,0,0);'},
-			{name = ' yz', code = '	valuesym3 = _sym3(valuesym3.yz, 0,0,0,0,0);'},
-			{name = ' zz', code = '	valuesym3 = _sym3(valuesym3.zz, 0,0,0,0,0);'},
+			{name = ' xx', code = '	*valuesym3 = _sym3(valuesym3->xx, 0,0,0,0,0);'},
+			{name = ' xy', code = '	*valuesym3 = _sym3(valuesym3->xy, 0,0,0,0,0);'},
+			{name = ' xz', code = '	*valuesym3 = _sym3(valuesym3->xz, 0,0,0,0,0);'},
+			{name = ' yy', code = '	*valuesym3 = _sym3(valuesym3->yy, 0,0,0,0,0);'},
+			{name = ' yz', code = '	*valuesym3 = _sym3(valuesym3->yz, 0,0,0,0,0);'},
+			{name = ' zz', code = '	*valuesym3 = _sym3(valuesym3->zz, 0,0,0,0,0);'},
 			
-			{name = ' norm', code = ' valuesym3 = _sym3( sqrt(sym3_dot(valuesym3, valuesym3)), 0,0,0,0,0);'},
-			{name = ' tr', code = ' valuesym3 = _sym3( sym3_trace(valuesym3), 0,0,0,0,0);'},
+			{name = ' norm', code = '	*valuesym3 = _sym3( sqrt(sym3_dot(*valuesym3, *valuesym3)), 0,0,0,0,0);'},
+			{name = ' tr', code = '	*valuesym3 = _sym3( sym3_trace(*valuesym3), 0,0,0,0,0);'},
 		}
 	}
 end

@@ -29,11 +29,11 @@ kernel void calcLR(
 		
 #if 0	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
 		//and https://en.wikipedia.org/wiki/MUSCL_scheme
-		//Works with oscillations for Euler Sod 1D
-		//Works for Euler Sod 2D
-		//Works with oscillations for MHD Brio-Wu 1D
-		//Works with some oscillations for adm1d_v1 freeflow (fails for mirror)
-		//Works for Maxwell
+		//fails for euler Sod 1D
+		//works for euler Sod 2D
+		//works for mhd Brio-Wu 1D with oscillations 
+		//fails for maxwell
+		//works for adm1d_v1 freeflow with some oscillations (fails for mirror)
 
 		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
 		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
@@ -44,9 +44,9 @@ kernel void calcLR(
 		}
 		
 		real3 xIntL = x;
-		xIntL.s<?=side?> -= grid_dx<?=side?>;
+		xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
 		real3 xIntR = x;
-		xIntR.s<?=side?> += grid_dx<?=side?>;
+		xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
 
 		<?=eqn.cons_t?> UHalfL, UHalfR;
 		for (int j = 0; j < numIntStates; ++j) {
@@ -88,10 +88,11 @@ kernel void calcLR(
 		//and Trangenstein "Numeric Simulation of Hyperbolic Conservation Laws" section 6.2.5
 		//except I'm projecting the differences in conservative values instead of primitive values.
 		//This also needs modular slope limiter support.
-		//This works for adm1d_v1 and 1D Euler Sod 
-		//(fails for adm1d_v1 mirror)
-		//For 2D Euler Sod this gets strange behavior and slowly diverges.
-		//This fails for Maxwell 
+		//works for Euler 1D Sod
+		//euler 2D Sod this gets strange behavior and slowly diverges.
+		//works for MHD Brio-Wu
+		//fails for maxwell 
+		//works for adm1d_v1 
 
 		//1) calc delta q's ... l r c (eqn 36)
 		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
@@ -218,6 +219,9 @@ kernel void calcLR(
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
 
+
+#if 1	//using reference state
+
 		//min and max waves
 		real waveMin = min(0., wave[0]);
 		real waveMax = max(0., wave[numWaves-1]);
@@ -259,6 +263,36 @@ kernel void calcLR(
 		//TODO fix the x's
 		ULR->R = consFromPrim(W2L, xIntL);
 		ULR->L = consFromPrim(W2R, xIntR);
+
+#else
+
+		// calculate left and right slopes in characteristic space
+ 		real pl[numWaves], pr[numWaves];
+ 		for (int j = 0; j < numWaves; ++j) {
+			pl[j] = wave[j] < 0 ? 0 : dWMEig[j] * .5 * (1. - wave[j] * dt_dx);
+			pr[j] = wave[j] > 0 ? 0 : dWMEig[j] * .5 * (1. + wave[j] * dt_dx);
+		}
+
+		// transform slopes back to conserved variable space
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pl, xIntL);
+		<?=eqn.prim_t?> ql;
+		apply_dW_dU(&ql, &W, &tmp, xIntL);
+		
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pr, xIntR);
+		<?=eqn.prim_t?> qr;
+		apply_dW_dU(&qr, &W, &tmp, xIntR);
+	
+		// linearly extrapolate the slopes forward and backward from the cell center
+ 		<?=eqn.prim_t?> W2L, W2R;
+ 		for (int j = 0; j < numIntStates; ++j) {
+			W2L.ptr[j] = W.ptr[j] - qr.ptr[j];
+			W2R.ptr[j] = W.ptr[j] + ql.ptr[j];
+ 		}
+		ULR->L = consFromPrim(W2L, xIntL);
+		ULR->R = consFromPrim(W2R, xIntR);
+
+#endif
+
 
 #elif 0	//based on Athena
 
