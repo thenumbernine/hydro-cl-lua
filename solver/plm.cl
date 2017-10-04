@@ -201,9 +201,9 @@ kernel void calcLR(
 		real dWCEig[numWaves];
 		eigen_leftTransform_<?=side?>___(dWCEig, &eig, tmp.ptr, x);
 
+		//MUSCL slope of characteristic variables
 		real dWMEig[numWaves];
 		for (int j = 0; j < numWaves; ++j) {
-			//MUSCL slope of characteristic variables
 			dWMEig[j] = dWLEig[j] * dWREig[j] < 0 ? 0 : (
 				(dWCEig[j] >= 0. ? 1. : -1.)
 				* min(
@@ -218,16 +218,30 @@ kernel void calcLR(
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
 
-		real pl[numWaves], pr[numWaves];
-		for (int j = 0; j < numWaves; ++j) {
-			pl[j] = wave[j] < 0 ? 0 : 
-				dWMEig[j] * .5 * (1. - wave[j] * dt_dx);
-			pr[j] = wave[j] > 0 ? 0 : 
-				dWMEig[j] * .5 * (1. + wave[j] * dt_dx);
+		//min and max waves
+		real waveMin = min(0., wave[0]);
+		real waveMax = max(0., wave[numWaves-1]);
+
+		//limited slope in primitive variable space
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, dWMEig, x);
+		<?=eqn.prim_t?> dWM;
+		apply_dW_dU(&dWM, &W, &tmp, x);
+
+		//left and right reference states
+		<?=eqn.prim_t?> WLRef, WRRef;
+		for (int j = 0; j < numIntStates; ++j) {
+			WLRef.ptr[j] = W.ptr[j] + .5 * (1. - dt_dx * waveMax) * dWM.ptr[j];
+			WRRef.ptr[j] = W.ptr[j] - .5 * (1. + dt_dx * waveMin) * dWM.ptr[j];
 		}
 
-		//convert back
-		
+		// calculate left and right slopes in characteristic space
+		real pl[numWaves], pr[numWaves];
+		for (int j = 0; j < numWaves; ++j) {
+			pl[j] = wave[j] < 0 ? 0 : (dWMEig[j] * dt_dx * (waveMax - wave[j]));
+			pr[j] = wave[j] > 0 ? 0 : (dWMEig[j] * dt_dx * (waveMin - wave[j]));
+		}
+
+		// transform slopes back to conserved variable space
 		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pl, xIntL);
 		<?=eqn.prim_t?> ql;
 		apply_dW_dU(&ql, &W, &tmp, xIntL);
@@ -236,13 +250,15 @@ kernel void calcLR(
 		<?=eqn.prim_t?> qr;
 		apply_dW_dU(&qr, &W, &tmp, xIntR);
 	
+		// linearly extrapolate the slopes forward and backward from the cell center
 		<?=eqn.prim_t?> W2L, W2R;
 		for (int j = 0; j < numIntStates; ++j) {
-			W2L.ptr[j] = W.ptr[j] - qr.ptr[j];
-			W2R.ptr[j] = W.ptr[j] + ql.ptr[j];
+			W2L.ptr[j] = WLRef.ptr[j] + .5 * ql.ptr[j];
+			W2R.ptr[j] = WRRef.ptr[j] + .5 * qr.ptr[j];
 		}
-		ULR->L = consFromPrim(W2L, xIntL);
-		ULR->R = consFromPrim(W2R, xIntR);
+		//TODO fix the x's
+		ULR->R = consFromPrim(W2L, xIntL);
+		ULR->L = consFromPrim(W2R, xIntR);
 
 #elif 0	//based on Athena
 
