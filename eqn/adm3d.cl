@@ -1070,7 +1070,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* input,
 	real3 unused
 ) {
-	for (int i = 0; i < numIntStates; ++i) {
+	for (int i = 0; i < numStates; ++i) {
 		*results = 0;
 		++results;
 	}
@@ -1081,15 +1081,14 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const <?=eqn.cons_t?>* inputU = (<?=addr2?> const <?=eqn.cons_t?>*)input;
 	<?=addr0?> <?=eqn.cons_t?>* resultU = (<?=addr0?> <?=eqn.cons_t?>*)results;
 	
+	real f = eig->sqrt_f * eig->sqrt_f;
+	
 	//now swap x and side on the sym3's
 	sym3 input_d = sym3_swap<?=side?>(inputU->d[<?=side?>]);
 	sym3 input_K = sym3_swap<?=side?>(inputU->K);
 	sym3 gammaU = sym3_swap<?=side?>(eig->gammaU);
 
-
-	real f = eig->sqrt_f * eig->sqrt_f;
 	resultU->a.s<?=side?> = sym3_dot(input_K, gammaU) * eig->alpha * f;
-
 	sym3 result_d = sym3_scale(input_K, eig->alpha);
 	sym3 result_K = sym3_scale(input_d, eig->alpha * gammaU.xx);
 	result_K.xx += (inputU->a.s<?=side?> - sym3_dot(input_d, gammaU)) * eig->alpha;

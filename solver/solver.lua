@@ -576,17 +576,19 @@ function Solver:getDisplayInfosForType()
 		-- but does that mean I have to store 6 components in valuevec?
 		-- I suppose it does if I want a sym3-specific visualization
 		sym3 = {
-			{name = ' x', code = '	*valuevec = sym3_x(*valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
-			{name = ' y', code = '	*valuevec = sym3_y(*valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
-			{name = ' z', code = '	*valuevec = sym3_z(*valuesym3); *valuevec_hi = _real3(0,0,0);', vectorField=true},
-			
+			{name = ' x', code = '	*valuevec = sym3_x(*valuesym3); *valuevec_hi = _real3(0,0,0);', vartype='real3'},
+			{name = ' y', code = '	*valuevec = sym3_y(*valuesym3); *valuevec_hi = _real3(0,0,0);', vartype='real3'},
+			{name = ' z', code = '	*valuevec = sym3_z(*valuesym3); *valuevec_hi = _real3(0,0,0);', vartype='real3'},
+	
+			--[[ these are already added through real3 x_i real x_j
 			{name = ' xx', code = '	*valuesym3 = _sym3(valuesym3->xx, 0,0,0,0,0);'},
 			{name = ' xy', code = '	*valuesym3 = _sym3(valuesym3->xy, 0,0,0,0,0);'},
 			{name = ' xz', code = '	*valuesym3 = _sym3(valuesym3->xz, 0,0,0,0,0);'},
 			{name = ' yy', code = '	*valuesym3 = _sym3(valuesym3->yy, 0,0,0,0,0);'},
 			{name = ' yz', code = '	*valuesym3 = _sym3(valuesym3->yz, 0,0,0,0,0);'},
 			{name = ' zz', code = '	*valuesym3 = _sym3(valuesym3->zz, 0,0,0,0,0);'},
-			
+			--]]
+
 			{name = ' norm', code = '	*valuesym3 = _sym3( sqrt(sym3_dot(*valuesym3, *valuesym3)), 0,0,0,0,0);'},
 			{name = ' tr', code = '	*valuesym3 = _sym3( sym3_trace(*valuesym3), 0,0,0,0,0);'},
 		}
@@ -616,53 +618,63 @@ function Solver:addUBufDisplayVars()
 			end
 		end
 
-		-- enable the first scalar field
-		-- also enable the first vector field on non-1D simulations
-		local enabled
-		if vartype ~= 'real3' then
-			enabled = enableScalar
-			if self.dim ~= 1 then
-				enableScalar = nil
-			end
-		else
-			if self.dim ~= 1 then
-				enabled = enableVector
-				enableVector = nil
-			end
-		end
-
-		local var = self.DisplayVar(table(args, {
-			solver = self,				
-			name = group.name .. '_' .. name,
-			code = code,
-			vectorField = vartype == 'real3',
-			enabled = enabled,
-		}))
-		group.vars:insert(var)
-
-		local infosForType = self:getDisplayInfosForType()
-
-		local infos = infosForType[vartype]
-		if infos then
-			for _,info in ipairs(infos) do
-				local scalarVar = self.DisplayVar(table(args, {
-					solver = self,
-					name = group.name .. '_' .. name .. info.name,
-					code = code .. info.code,
-					vectorField = info.vectorField,
-					enabled = self.dim == 1 and not info.vectorField,
-				}))
-				group.vars:insert(scalarVar)
-			
-				-- tie together vectors and magnitudes,
-				-- since reduceMin and Max applied to vectors is gonna reduce their magnitude
-				-- so I need to always compile the magnitude kernels, even if they are not enabled
-				if info.magn then
-					var.magVar = scalarVar
-					scalarVar.vecVar = var
+		local function addvar(args)
+print('adding var',args.name,'of type',args.vartype)
+			-- enable the first scalar field
+			-- also enable the first vector field on non-1D simulations
+			local enabled
+			if args.vartype ~= 'real3' then
+				enabled = enableScalar
+				if self.dim ~= 1 then
+					enableScalar = nil
+				end
+			else
+				if self.dim ~= 1 then
+					enabled = enableVector
+					enableVector = nil
 				end
 			end
+
+			local var = self.DisplayVar(table(args, {
+				vectorField = args.vartype == 'real3',
+				enabled = enabled,
+			}))
+			group.vars:insert(var)
+
+			local infosForType = self:getDisplayInfosForType()
+
+			local infos = infosForType[args.vartype]
+			if infos then
+				for _,info in ipairs(infos) do
+					local scalarVar = addvar(table(args, {
+						name = args.name .. info.name,
+						code = args.code .. info.code,
+						vartype = info.vartype or 'real',
+						magn = info.magn or false,
+						vectorField = info.vartype == 'real3',
+						enabled = self.dim == 1 and info.vartype ~= 'real3',
+					}))
+				
+					-- tie together vectors and magnitudes,
+					-- since reduceMin and Max applied to vectors is gonna reduce their magnitude
+					-- so I need to always compile the magnitude kernels, even if they are not enabled
+					if info.magn then
+						var.magVar = scalarVar
+						scalarVar.vecVar = var
+					end
+				end
+			end
+		
+			return var
 		end
+	
+		addvar(table(args, {
+			solver = self,
+			name = group.name .. '_' .. name,
+			code = code,
+			vartype = vartype or 'real',
+		}))
+print'done'	
 	end
 end
 
