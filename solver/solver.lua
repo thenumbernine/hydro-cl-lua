@@ -618,8 +618,9 @@ function Solver:addUBufDisplayVars()
 			end
 		end
 
+		-- this is a quick fix for the magn vars associated with the axis real3 vars of the sym3s
+		-- but it has lots of redundant symmetries for the sym3 real3 elements 
 		local function addvar(args)
-print('adding var',args.name,'of type',args.vartype)
 			-- enable the first scalar field
 			-- also enable the first vector field on non-1D simulations
 			local enabled
@@ -674,7 +675,6 @@ print('adding var',args.name,'of type',args.vartype)
 			code = code,
 			vartype = vartype or 'real',
 		}))
-print'done'	
 	end
 end
 

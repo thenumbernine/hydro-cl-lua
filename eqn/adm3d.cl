@@ -1008,12 +1008,9 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 <? else -- eqn.noZeroRowsInFlux ?>
 
-	sym3 gammaU = eig->gammaU;
-	<? if side == 1 then ?>
-	gammaU = _sym3(gammaU.yy, gammaU.xy, gammaU.yz, gammaU.xx, gammaU.xz, gammaU.zz);
-	<? elseif side == 2 then ?>
-	gammaU = _sym3(gammaU.zz, gammaU.yz, gammaU.xz, gammaU.yy, gammaU.xy, gammaU.xx);
-	<? end ?>
+	//TODO swap size inside eigen_t structure
+	//instead of doing it here
+	sym3 gammaU = sym3_swap<?=side?>(eig->gammaU);
 
 	real input1_dot_gammaU = input[1] * 2. * gammaU.xy
 		+ input[2] * 2. * gammaU.xz
@@ -1031,7 +1028,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real _1_sqrt_gammaUjj = 1. / sqrt_gammaUjj;
 	real _1_gammaUjj = _1_sqrt_gammaUjj * _1_sqrt_gammaUjj; 
 
-	resultU->a.s<?=side?> = eig->sqrt_f * sqrt_gammaUjj * (-input[0] + input[12] );
+	resultU->a.s<?=side?> = eig->sqrt_f * sqrt_gammaUjj * (input[12] - input[0]);
 
 	sym3 d, K;
 	d.xx = (

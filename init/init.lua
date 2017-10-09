@@ -8,7 +8,10 @@ local InitCond = class()
 function InitCond:refreshInitStateProgram(solver)
 	local initStateCode = table{
 		solver.codePrefix,
+		
+		-- this calls InitCond:getInitStateCode below
 		solver.eqn:getInitStateCode(),
+	
 	}:concat'\n'
 	time('compiling init state program', function()
 		solver.initStateProgramObj = solver.Program{code=initStateCode}

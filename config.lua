@@ -1,12 +1,12 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 1
+local dim = 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -18,17 +18,17 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	--integrator = 'backward Euler',
+	integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	--cfl = .25/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
-	usePLM = true,	-- piecewise-linear slope limiter
-	slopeLimiter = 'minmod',
+	--usePLM = true,	-- piecewise-linear slope limiter
+	--slopeLimiter = 'minmod',
 	
 	-- [[ Cartesian
 	geometry = 'cartesian',
@@ -51,7 +51,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{128,128,1},
+				{64,64,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -194,11 +194,11 @@ maxs = {6,1,1},
 	--initState = 'two-fluid EMHD soliton maxwell',
 
 	-- GR
-	initState = 'gaussian perturbation',
+	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 	--initState = 'Alcubierre warp bubble',
 	--initState = 'black hole - Schwarzschild pseudocartesian',
-	--initState = 'black hole - isotropic',	-- this one has momentum and rotation.  TODO parameterize
+	initState = 'black hole - isotropic',	-- this one has momentum and rotation.  TODO parameterize
 	--initState = 'binary black holes - isotropic',
 	--initState = 'stellar model',
 	--initState = '1D black hole - wormhole form',
@@ -280,7 +280,7 @@ maxs = {6,1,1},
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'})))
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
@@ -295,7 +295,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
---self.solvers:insert(require 'solver.bssnok-fd'(args))
+self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 

@@ -348,81 +348,149 @@ return table{
 		end,
 	},
 	{	-- Baumgarte & Shapiro, table 2.1, isotropic coordinates
+		-- also looking at ch 12.2 on binary black hole initial data
+		--[[
+		this is going to require one extra computation, similar to initDerivs,
+		for performing the inverse laplacian to compute the 'u' parameter
+		which is used to compute the psi parameter
+		--]]
 		name = 'black hole - isotropic',
 		init = function(self, solver)
 			solver.eqn:addGuiVars{
-				{name = 'R', value = .001},	-- Schwarzschild radius
+				{name = 'R', value = .1},	-- Schwarzschild radius
+				{name = 'P', value = .1},	-- linear momentum 
+				{name = 'S', value = 10},	-- angular momentum 
 			}
 		end,
 		initState = function(self, solver)
 			solver:setBoundaryMethods'fixed'
 
-			--momentum - isn't working
-			local PU = {0,0,0}
-			--local PU = {.1,0,0}
-			--local PU = {1,0,0}
+			local bodies = {
+				{
+					R = solver.eqn.guiVars.R.value,
+					P_u = {0,solver.eqn.guiVars.P.value,0},
+					S_u = {0,0,solver.eqn.guiVars.S.value},
+					pos = {.5,0,0},
+				},
+				-- [[
+				{
+					R = solver.eqn.guiVars.R.value,
+					P_u = {0,-solver.eqn.guiVars.P.value,0},
+					S_u = {0,0,solver.eqn.guiVars.S.value},
+					pos = {-.5,0,0},
+				},
+				--]]
+			}
+
+			--[[
+			I'm trying to follow 1997 Brandt & Brugmann, but here's what I've gathered:
+			1) calculate K_PS^ij for each puncture.  two lowerings are involved in computing the spatial cross product.  these require phi -- which hasn't been calculated yet.  (should I pretend they are lowered with an identity metric?)
+			2) use the sum of K_PS^ij's to compute K^ij at each point
+			3) compute alpha = 1 / (.5 sum m_i / (r - r_i))
+			4) compute beta = 1/8 alpha^7 K^ab K_ab ... which again requires phi, which is what we're trying to solve for ... (is this a gradient descent or a predictor-corrector algorithm?) 
+			5) compute (converge?) u = lap^-1 beta / (1 + alpha u)^7
+			6) phi = 1/alpha + u
+			7) and then there's something about the spherical coordinate inversion ...
 			
-			--rotation
-			--local JU = {0,0,0}
-			--local JU = {0,0,.1}	//slowly comes to a stop and then forms a weird pattern and everything stops.
-			local JU = {0,0,1}
-			--local JU = {0,0,10}
-	
+			Here's the answer to the circular definitions of index raising/lowering with a metric that uses the variables we are solving for ...
+			B&S 12.2.1: "...so that gammaBar_ij = eta_ij..."
+			So all raising and lowering throughout these computations uses eta_ij?
+			This statement makes sense to consider raising/lowering of ABar and gammaBar using eta_ij.
+			However it does not explain the raising/lowering of non-bar terms like n^i, S^i, P^i etc
+			And I would simply change the ABar computations from lower to upper, except even they include a term n_i S^i which will still require a metric.
+
+			--]]
 			return template([[
-	const real R = gui_R;
-	real rSq = real3_lenSq(x);
-	real r = sqrt(rSq);
+	real sln_oneOverAlpha = 0.;
 	
-	real alpha_num = 1. - .25 * R / r;
-	real psi = 1. + .25 * R / r;		//sum of mass over radius
+	
+	real psi = 1.;
+	real alpha_num = 1.;
+	<? for _,body in ipairs(bodies) do ?>{
+		const real R = <?=clnumber(body.R)?>;
+		real3 pos = _real3(<?=clnumber(body.pos[1])?>, <?=clnumber(body.pos[2])?>, <?=clnumber(body.pos[3])?>);
+		real3 xrel = real3_sub(x, pos);
+		real r = real3_len(xrel);
+		
+		
+		// the correct binary black hole way: B&S 12.51
+		sln_oneOverAlpha += .5 * <?=clnumber(body.R)?> / r;
+		
+		
+		//the time-symmetric way:
+		psi += .25 * R / r;
+		alpha_num -= .25 * R / r;
+	
+	}<? end ?>		//sum of mass over radius
+
+	//correct binary black hole way
+	//psi = 1 + 1/alpha + u	-- B&S 12.50
+
+	
+	//next solve u via 
+	// Baumgarte & Shapiro add an extra 1 to psi's calculations as compared to the original Brandt & Brugmann equation
+	//DBar^2 u = -1/8 alpha^7 ABar_ij ABar^ij / ( alpha (1 + u) + 1)^7 	<-- Baumgarte & Shapiro eqns 12.52, 12.53
+	//...factoring out the alpha ...
+	//DBar^2 u = -1/8 ABar_ij ABar^ij / (1 + 1/alpha + u)^7
+
+	//time-symmmetric way:
+	alpha = alpha_num / psi;
 	real psi2 = psi * psi;
 	real psi4 = psi2 * psi2;
-	real psi8 = psi4 * psi4;
 
-	alpha = alpha_num / psi;
 
 	gamma_ll = sym3_scale(sym3_ident(), psi4);
 
-	real3 PU = _real3(<?=clnumber(PU[1])?>, <?=clnumber(PU[2])?>, <?=clnumber(PU[3])?>);
-	real3 JU = _real3(<?=clnumber(JU[1])?>, <?=clnumber(JU[2])?>, <?=clnumber(JU[3])?>);
+	<? for _,body in ipairs(bodies) do ?>{
 
-	real rCubed = rSq * r;
-	real r5 = rCubed * rSq;
-	
-	real3 lU = real3_scale(x, 1./r);
+		real3 pos = _real3(<?=clnumber(body.pos[1])?>, <?=clnumber(body.pos[2])?>, <?=clnumber(body.pos[3])?>);
+		real3 xrel = real3_sub(x, pos);
+		real r = real3_len(xrel);
+		real rSq = r * r;
+		real rCubed = rSq * r;
 
-	//here's lowering it, using the diagonal metric specified above ...
-	//gamma_ij = psi^4 delta_ij 
-	//scaling by psi8 is the same as lowering two indexes
+		// upper is cartesian coordinates
+		// metric is isotropic
+		real3 n_u = r == 0 ? _real3(0,0,1) : real3_scale(xrel, 1./r);
+		real3 n_l = real3_scale(n_u, psi4);
 
-	//lower, only for cartesian:
-	real3 lL = real3_scale(lU, psi4);
-	real l_dot_P = real3_dot(lL, PU);
+		real3 P_u = _real3(<?=clnumber(body.P_u[1])?>, <?=clnumber(body.P_u[2])?>, <?=clnumber(body.P_u[3])?>);
+		real3 S_u = _real3(<?=clnumber(body.S_u[1])?>, <?=clnumber(body.S_u[2])?>, <?=clnumber(body.S_u[3])?>);
 
-	sym3 ABar_boost_uu = sym3_scale(
-		sym3_sub(
-			sym3_add(real3_outer(PU, lU), real3_outer(lU, PU)),
-			sym3_scale(sym3_sub(sym3_ident(), real3_outer(lU, lU)), l_dot_P))
-		, 1.5/rSq);
+		real3 P_l = real3_scale(P_u, psi4);
+		
+		real n_dot_P = real3_dot(n_l, P_u);
+		
+		//Alcubierre 3.4.22
+		//Bowen-York extrinsic curvature
 
-	real3 rJU = real3_cross(JU, x);
+		sym3 ABar_boost_ll = sym3_scale(
+			sym3_sub(
+				sym3_add(real3_outer(P_l, n_l), real3_outer(n_l, P_l)),
+				sym3_scale(sym3_sub(real3_outer(n_l, n_l), sym3_ident()), n_dot_P)
+			), 1.5 / rSq);
 
-	sym3 ABar_spin_uu = sym3_scale(
-		sym3_add(real3_outer(x, rJU), real3_outer(rJU, x)),
-		psi8 * 3. / r5);
+		//Levi-Civita density is det gamma for conformal metric, whose det is 1, so a cross product works with covariant Levi-Civita
+		real3 S_cross_n_l = real3_cross(S_u, n_u);
 
-	sym3 ABar_uu = sym3_add(ABar_boost_uu, ABar_spin_uu);
+		sym3 ABar_spin_ll = sym3_scale(
+			sym3_add(
+				real3_outer(S_cross_n_l, n_l),
+				real3_outer(n_l, S_cross_n_l)), 
+			3. / rCubed);
 
-	//lower twice <-> scale by psi^8
-	sym3 ABar_ll = sym3_scale(ABar_uu, psi8);
+		sym3 ABar_ll = sym3_add(ABar_boost_ll, ABar_spin_ll);
 
-	//ATilde_ij = A_ij * exp(-4 phi)
-	//K = 0, so A_ij = K_ij
-	K_ll = sym3_scale(ABar_ll, 1. / psi2);
+
+
+		//ATilde_ij = A_ij * exp(-4 phi)
+		//K = 0, so A_ij = K_ij
+		//likewise sum the K_ij's for each black hole (1997 Brandt & Brugmann eqn 7)
+		K_ll = sym3_add(K_ll, sym3_scale(ABar_ll, 1. / psi2));
+	}<? end ?>
 
 ]], {
-	JU = JU,
-	PU = PU,
+	bodies = bodies,
 	clnumber = clnumber,
 })
 		end,
