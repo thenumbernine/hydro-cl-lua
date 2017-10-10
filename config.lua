@@ -47,7 +47,7 @@ maxs = {6,1,1},
 			['NVIDIA CUDA/GeForce GTX 1080 Ti'] = {
 				{256,1,1},
 				{256,256,1},
-				{32,32,32},
+				{64,64,64},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},

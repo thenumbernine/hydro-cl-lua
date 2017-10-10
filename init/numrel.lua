@@ -357,9 +357,9 @@ return table{
 		name = 'black hole - isotropic',
 		init = function(self, solver)
 			solver.eqn:addGuiVars{
-				{name = 'R', value = .1},	-- Schwarzschild radius
-				{name = 'P', value = .1},	-- linear momentum 
-				{name = 'S', value = 10},	-- angular momentum 
+				{name = 'R', value = .01},	-- Schwarzschild radius
+				{name = 'P', value = 0},	-- linear momentum 
+				{name = 'S', value = 1},	-- angular momentum 
 			}
 		end,
 		initState = function(self, solver)
@@ -370,9 +370,9 @@ return table{
 					R = solver.eqn.guiVars.R.value,
 					P_u = {0,solver.eqn.guiVars.P.value,0},
 					S_u = {0,0,solver.eqn.guiVars.S.value},
-					pos = {.5,0,0},
+					pos = {0,0,0},
 				},
-				-- [[
+				--[[
 				{
 					R = solver.eqn.guiVars.R.value,
 					P_u = {0,-solver.eqn.guiVars.P.value,0},

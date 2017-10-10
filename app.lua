@@ -448,20 +448,38 @@ end
 
 -- TODO split off plot and dump stuff into its own folder/files
 local io = require 'ext.io'
+
+-- dropdown options
+HydroCLApp.screenshotExts = {'png', 'bmp', 'jpeg', 'tiff', 'fits', 'tga', 'ppm'}
+-- dropdown index
+HydroCLApp.screenshotExtIndex = 1
+
 function HydroCLApp:screenshot()
+	local ext = self.screenshotExts[self.screenshotExtIndex]
+
 	-- TODO only once upon init?
 	if not io.fileexists'screenshots' then
 		-- don't assert -- if it already exists the cmd will fail
 		os.execute'mkdir screenshots'
 	end
-	for i=0,10000 do
-		local fn = ('screenshots/%05d.png'):format(i)
-		if not io.fileexists(fn) then
-			self:screenshotToFile(fn)
-			return
-		end
+
+	-- make a new subdir for each application instance ... ?
+	if not self.screenshotDir then
+		self.screenshotDir = os.date('%Y.%m.%d-%H.%M.%S')
+		local dir = 'screenshots/'..self.screenshotDir
+		assert(not io.fileexists(dir), "found a duplicate screenshot timestamp subdir")
+	
+		-- bleh, windows.
+		-- TODO a mkdir for everyone, either in ext.file or get lfs working with luajit 
+		if ffi.os == 'Windows' then dir = dir:gsub('/', '\\') end
+		assert(os.execute('mkdir '..dir))
+		
+		self.screenshotIndex = 0
 	end
-	error("couldn't find an available filename")
+
+	local fn = ('screenshots/'..self.screenshotDir..'/%05d.'..ext):format(self.screenshotIndex)
+	self.screenshotIndex = self.screenshotIndex + 1
+	self:screenshotToFile(fn)
 end
 
 local Image = require 'image'
@@ -1767,12 +1785,14 @@ function HydroCLApp:updateGUI()
 		end
 
 		-- dump min/max(/avg?) of displayvars to a .txt file
-		tooltip.checkboxTable('dump to file', dumpFile, 'enabled')
-		ig.igSameLine()
+		tooltip.checkboxTable('dump to text file', dumpFile, 'enabled')
 
 		if ig.igButton'Screenshot' then
 			self:screenshot()
 		end
+		ig.igSameLine()
+
+		tooltip.comboTable('screenshot ext', self, 'screenshotExtIndex', self.screenshotExts)
 
 		if ig.igButton(self.createAnimation and 'stop frame dump' or 'start frame dump') then
 			self.createAnimation = not self.createAnimation

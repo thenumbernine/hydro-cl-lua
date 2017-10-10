@@ -119,14 +119,16 @@ function BackwardEuler:init(solver)
 		return sum()
 	end
 
+	local restart = 10
+
 	local linearSolverArgs = {
 		env = solver.app.env,
 		x = self.krylov_xObj,
 		size = numreals,
 		epsilon = 1e-10,
 		--maxiter = 1000,
-		restart = 10,
-		maxiter = 10 * numreals,
+		restart = restart,
+		maxiter = restart * numreals,
 		-- logging:
 		errorCallback = function(err, iter, x, rLenSq)
 			self.last_err = err
