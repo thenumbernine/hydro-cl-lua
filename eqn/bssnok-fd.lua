@@ -409,14 +409,149 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 		{K_y = '*valuevec = real3_add(sym3_y(U->ATilde_ll), real3_scale(sym3_y(U->gammaBar_ll), U->K/3.));', type='real3'},
 		{K_z = '*valuevec = real3_add(sym3_z(U->ATilde_ll), real3_scale(sym3_z(U->gammaBar_ll), U->K/3.));', type='real3'},
 
+		--[[ ADM geodesic equation spatial terms:
+		-Gamma^i_tt = 
+			- gamma^ij alpha_,j
+
+			+ alpha^-1 (
+				gamma^ij beta^l gamma_kl beta^k_,j
+				+ 1/2 gamma^ij gamma_kl,j beta^k beta^l
+				- beta^i_,t
+				- gamma^ij beta^k gamma_jk,t
+
+				+ alpha^-1 beta^i (
+					alpha_,t
+					+ beta^j alpha_,j
+
+					+ alpha^-1 (
+						beta^i 1/2 beta^j beta^k gamma_jk,t
+						- beta^i 1/2 beta^j beta^k beta^l gamma_kl,j
+						- beta^i beta^j beta^l gamma_kl beta^k_,j
+					)
+				)
+			)
+
+		substitute 
+		alpha_,t = -alpha^2 f K + beta^j alpha_,j
+		beta^k_,t = B^k
+		gamma_jk,t = -2 alpha K_jk + gamma_jk,l beta^l + gamma_lj beta^l_,k + gamma_lk beta^l_,j
+		--]]
 		{
 			gravity = template([[
-<?=makePartial('alpha', 'real')?>
-	*valuevec = real3_scale(sym3_real3_mul(calc_gamma_uu(U), *(real3*)partial_alpha_l), 1. / U->alpha);
+	<?=makePartial('alpha', 'real')?>
+	<?=makePartial('beta_u', 'real3')?>
+
+	<?=makePartial('gammaBar_ll', 'sym3')?>
+<? if not eqn.useChi then ?>
+
+	//gamma_ij = exp(4 phi) gammaBar_ij
+	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	sym3 gamma_ll = sym3_scale(exp_4phi, U->gammaBar_ll);
+
+	//gamma_ij,k = exp(4 phi) gammaBar_ij,k + 4 phi,k exp(4 phi) gammaBar_ij
+	<?=makePartial('phi', 'real')?>
+	sym3 partial_gamma_lll[3] = {
+<? for i,xi in ipairs(xNames) do
+?>		sym3_add(
+			sym3_scale(partial_gammaBar_lll[<?=i-1?>], exp_4phi),
+			sym3_scale(U->gammaBar_ll, 4. * exp_4phi * partial_phi_l[<?=i-1?>])),
+<? end
+?>	};
+
+<? else -- useChi ?>
+
+	//chi = exp(-4 phi)
+	real _1_chi = 1. / U->chi;
+	
+	//gamma_ij = 1/chi gammaBar_ij
+	sym3 gamma_ll = sym3_scale(U->gammaBar_ll, _1_chi);
+	
+	//gamma_ij,k = 1/chi gammaBar_ij,k - chi,k / chi^2 gammaBar_ij
+	<?=makePartial('chi', 'real')?>
+	sym3 partial_gamma_lll[3] = {
+<? for i,xi in ipairs(xNames) do
+?>		sym3_sub(
+			sym3_scale(partial_gammaBar_lll[<?=i-1?>], _1_chi),
+			sym3_scale(U->gammaBar_ll, partial_chi_l[<?=i-1?>] * _1_chi * _1_chi)),
+<? end
+?>	};
+
+<? end -- useChi ?>
+
+	//TODO
+	real dt_alpha = 0.;
+	sym3 dt_gamma_ll = _sym3(0,0,0,0,0,0);
+
+
+	real _1_alpha = 1. / U->alpha;
+
+	sym3 gamma_uu = calc_gamma_uu(U);
+	real3 partial_alpha_u = sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l);		//alpha_,j gamma^ij = alpha^,i
+	real partial_alpha_dot_beta = real3_dot(U->beta_u, *(real3*)partial_alpha_l);	//beta^j alpha_,j
+
+	real3 beta_l = sym3_real3_mul(gamma_ll, U->beta_u);								//beta^j gamma_ij
+	real3 beta_dt_gamma_l = sym3_real3_mul(dt_gamma_ll, U->beta_u);					//beta^j gamma_ij,t
+	real beta_beta_dt_gamma = real3_dot(U->beta_u, beta_dt_gamma_l);				//beta^i beta^j gamma_ij,t
+	
+	real3 beta_dt_gamma_u = sym3_real3_mul(gamma_uu, beta_dt_gamma_l);				//gamma^ij gamma_jk,t beta^k
+
+	//beta^i beta^j beta^k gamma_ij,k
+	real beta_beta_beta_partial_gamma = 0.<?
+for i,xi in ipairs(xNames) do
+?> + U->beta_u.<?=xi?> * real3_weightedLenSq(U->beta_u, partial_gamma_lll[<?=i-1?>])<?
+end ?>;
+
+	//beta_j beta^j_,i
+	real3 beta_dbeta_l = (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = real3_dot(beta_l, partial_beta_ul[<?=i-1?>]),
+<? end
+?>	};
+
+	//beta_j beta^j_,i beta^i
+	real beta_beta_dbeta = real3_dot(U->beta_u, beta_dbeta_l);
+
+	//beta_j beta^j_,k gamma^ik
+	real3 beta_dbeta_u = sym3_real3_mul(gamma_uu, beta_dbeta_l);
+
+	//gamma_kl,j beta^k beta^l
+	real3 beta_beta_dgamma_l = (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = real3_weightedLenSq(U->beta_u, partial_gamma_lll[<?=i-1?>]),
+<? end
+?>	};
+
+	real3 beta_beta_dgamma_u = sym3_real3_mul(gamma_uu, beta_beta_dgamma_l);
+
+<? for i,xi in ipairs(xNames) do
+?>	valuevec->s<?=i-1?> = -partial_alpha_u.<?=xi?>
+
+		+ _1_alpha * (
+			beta_dbeta_u.<?=xi?>
+			+ .5 * beta_beta_dgamma_u.<?=xi?>	
+			- U->B_u.<?=xi?>
+			- beta_dt_gamma_u.<?=xi?>
+
+			+ _1_alpha * U->beta_u.<?=xi?> * (
+				.5 * dt_alpha
+				+ partial_alpha_dot_beta
+
+				+ _1_alpha * (
+					.5 * beta_beta_dt_gamma
+					- .5 * beta_beta_beta_partial_gamma 
+					- beta_beta_dbeta
+				)
+			)
+		)
+	; 
+<? end
+?>
 ]],				{
 					eqn = self,
 					solver = self.solver,
 					makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
+					xNames = xNames,
+					sym = sym,
 				}
 			), 
 			type = 'real3',

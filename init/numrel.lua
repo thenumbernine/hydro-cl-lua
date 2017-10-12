@@ -356,28 +356,33 @@ return table{
 		--]]
 		name = 'black hole - isotropic',
 		init = function(self, solver)
+			-- numbers from 2006 Brugmann et al - "Calibration of a Moving Puncture Simulation" (though I'm not using moving puncture method)
+			-- ... and I'm setting them to 1/10th the paper.
+			-- TODO allow rescaling grid within initial conditions.
 			solver.eqn:addGuiVars{
-				{name = 'R', value = .01},	-- Schwarzschild radius
-				{name = 'P', value = 0},	-- linear momentum 
-				{name = 'S', value = 1},	-- angular momentum 
+				{name = 'R', value = .0505},-- Schwarzschild radius
+				{name = 'P', value = .0133},	-- linear momentum 
+				{name = 'S', value = .0866},	-- angular momentum 
+				{name = 'dist', value = .3257},	-- separation
 			}
 		end,
 		initState = function(self, solver)
 			solver:setBoundaryMethods'fixed'
 
+			local v = solver.eqn.guiVars
 			local bodies = {
 				{
-					R = solver.eqn.guiVars.R.value,
-					P_u = {0,solver.eqn.guiVars.P.value,0},
-					S_u = {0,0,solver.eqn.guiVars.S.value},
-					pos = {0,0,0},
+					R = v.R.value,
+					P_u = {0,v.P.value,0},
+					S_u = {0,0,v.S.value},
+					pos = {v.dist.value,0,0},
 				},
-				--[[
+				-- [[
 				{
-					R = solver.eqn.guiVars.R.value,
-					P_u = {0,-solver.eqn.guiVars.P.value,0},
-					S_u = {0,0,solver.eqn.guiVars.S.value},
-					pos = {-.5,0,0},
+					R = v.R.value,
+					P_u = {0,-v.P.value,0},
+					S_u = {0,0,v.S.value},
+					pos = {-v.dist.value,0,0},
 				},
 				--]]
 			}

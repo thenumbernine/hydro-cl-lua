@@ -614,7 +614,7 @@ end ?>
 	sym3 K_uu = mat3_sym3_to_sym3_mul(K_ul, gamma_uu);
 	
 	//Alcubierre 3.1.1
-	U->H = R + U->K * U->K - sym3_dot(K_uu, K_ll);
+	U->H = R + U->K * U->K - sym3_dot(K_uu, K_ll) - 16. * M_PI * U->rho;
 #endif
 
 #if 0
