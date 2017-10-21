@@ -480,7 +480,8 @@ function DisplayVar:init(args)
 end
 
 function DisplayVar:setArgs(kernel)
-	kernel:setArg(1, self.solver[self.bufferField])
+	local buffer = assert(self.solver[self.bufferField], "failed to find buffer "..tostring(self.bufferField))
+	kernel:setArg(1, buffer)
 end
 
 function DisplayVar:setToTexArgs()

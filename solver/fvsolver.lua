@@ -42,7 +42,7 @@ function FiniteVolumeSolver:addDisplayVars()
 	for j,xj in ipairs(xNames) do
 		self:addDisplayVarGroup{
 			name = 'flux '..xj, 
-			bufferFiedl = 'fluxBuf',
+			bufferField = 'fluxBuf',
 			type = self.eqn.cons_t,
 			codePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
