@@ -539,54 +539,6 @@ function Solver:getDisplayInfosForType()
 	}
 end
 
-
--- TODO move 'addUBufDisplayVars' multiple type code into here
-function Solver:addDisplayVarGroup(args, cl)
-	args.group = args.group or self:newDisplayVarGroup{name=args.name}
-
--- [[ TODO
-self:addDisplayVarsFromVarDescs(args, cl)
-do return end
---]]
---[[
-local group = args.group
-cl = cl or self.DisplayVar
---]]
-
-
-	for i,var in ipairs(args.vars) do
-		assert(type(var) == 'table', "failed on var "..self.name)
-		local name, code = next(var)
-		group.vars:insert(cl{
-			solver = self,
-			
-			-- right now I use var.name to determine unique variables when overlapping the different graphs in the 1D simulations
-			-- so if I don't prefix it correctly then eig_0 and flux_0 will draw overlapped 
-			-- TODO have that check for var name and group name, and have this name=name only,
-			name = group.name..' '..name,
-			code = code,
-					
-			type = args.type, -- or self.type
-			displayCode = args.displayCode,	-- or self.displayCode
-			codePrefix = args.codePrefix,
-			
-			enabled = group.name == 'U' and (
-					(self.dim ~= 1 and i == 1 
-						--and not args.vectorField
-						and not args.vectorFieldMagn
-					)
-					or (self.dim == 1 and not args.vectorField)
-				)
-				or (group.name == 'error' and self.dim==1),
-			useLog = args.useLog,
-			vectorField = args.vectorField,
-			bufferField = args.bufferField or group.name..'Buf',
-		})
-	end
-
-	return group
-end
-
 function Solver:createDisplayVars()
 	self.displayVarGroups = table()
 	self:addDisplayVars()
@@ -615,13 +567,17 @@ function Solver:addUBufDisplayVars()
 	-- gets var descriptions, which is {name=code, [type=type]}
 	args.vars = self.eqn:getDisplayVars()
 	
-	self:addDisplayVarsFromVarDescs(args, cl)
+	self:addDisplayVarGroup(args, cl)
 end
 
 
-function Solver:addDisplayVarsFromVarDescs(args, cl)
+function Solver:addDisplayVarGroup(args, cl)
 	cl = cl or self.DisplayVar
-	
+
+	if not args.group then
+		args.group = self:newDisplayVarGroup{name = args.name}
+	end
+
 	local group = args.group
 	local varInfos = args.vars
 
@@ -702,6 +658,8 @@ function Solver:addDisplayVarsFromVarDescs(args, cl)
 			vartype = vartype or 'real',
 		}))
 	end
+
+	return args.group
 end
 
 function Solver:addDisplayVars()
