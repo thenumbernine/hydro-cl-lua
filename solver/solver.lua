@@ -603,7 +603,7 @@ function Solver:addDisplayVarGroup(args, cl)
 			-- also enable the first vector field on non-1D simulations
 			local enabled
 			if group.name == 'U' 
-			or (group.name == 'error' and self.dim == 1) 
+			or (group.name:sub(1,5) == 'error' and self.dim == 1) 
 			then
 				if args.vartype ~= 'real3' then
 					enabled = enableScalar
