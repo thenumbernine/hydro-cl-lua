@@ -193,6 +193,7 @@ end
 Z4.eigenVars = table{
 	{alpha = 'real'},
 	{sqrt_f = 'real'},
+	{gamma = 'sym3'},
 	{gammaU = 'sym3'},
 	{sqrt_gammaUjj = 'real3'},
 }

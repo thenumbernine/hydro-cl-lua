@@ -91,7 +91,7 @@ function SRHD:createInitState()
 		-- setting max iter to 100+ makes it freeze initially 
 		-- but setting it to 100 after the first iteration is fine ...
 		-- meaning the initial cons to prim is taking too long ...
-		{name='solvePrimMaxIter', type='int', value=10}	-- value=1000},
+		{name='solvePrimMaxIter', type='int', value=10},	-- value=1000},
 
 		{name='solvePrimStopEpsilon', value=1e-7},
 

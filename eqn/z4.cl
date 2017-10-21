@@ -55,6 +55,7 @@ void eigen_forCell_<?=side?><?=suffix?>(
 ) {
 	eig->alpha = U->alpha;
 	eig->sqrt_f = sqrt(calc_f(U->alpha));
+	eig->gamma = U->gamma;
 	real det_gamma = sym3_det(U->gamma);
 	eig->gammaU = sym3_inv(U->gamma, det_gamma);
 	eig->sqrt_gammaUjj = _real3(sqrt(eig->gammaU.xx), sqrt(eig->gammaU.yy), sqrt(eig->gammaU.zz));
@@ -178,9 +179,7 @@ kernel void calcEigenBasis(
 <?
 local unpack = unpack or table.unpack
 for _,addrs in ipairs{
-
 	{'', '', ''},	-- only used by fluxFromCons below
-	
 	{'', 'global', ''},
 	{'global', 'global', ''},
 } do
@@ -196,8 +195,29 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 	<? if side == 0 then ?>
 
-	results[0] = -gamma^xi a_i
-	results[30] = gamma^xi a_i
+	real3 a = real3_swap<?=side?>(inputU->a);
+	sym3 gamma = sym3_swap<?=side?>(eig->gamma);
+	sym3 gammaU = sym3_swap<?=side?>(eig->gammaU);
+	sym3 dx = sym3_swap<?=side?>(inputU->d[<?=side?>]);
+	sym3 dy = sym3_swap<?=side?>(inputU->d[<?=side==1 and 0 or 1?>]);
+	sym3 dz = sym3_swap<?=side?>(inputU->d[<?=side==2 and 0 or 2?>]);
+
+	real a_u_x = a.x * gammaU.xx + a.y * gammaU.xy + a.z * gammaU.xz;
+	real K = sym3_dot(eig->gammaU, inputU->K);
+	real V_u_x = gammaU.xx * inputU->V.x + gammaU.xy * inputU->V.y + gammaU.xz * inputU->V.z;
+
+	results[0] = -a_u_x
+		+ lambda2 * gamma * (
+			- gamma.zz * dx.xx + 2. * gamma.yz * dx.xy - gamma.yy * dx.yy
+			+ gamma.zz * dy.xy - gamma.yz * dy.xz + gamma.xz * dy.yz - gamma.xy * dy.zz
+			- gamma.yz * dz.xy + gamma.yy * dz.xz + gamma.xz * dz.yy - gamma.xy * dz.yz
+		)
+		+ sqrt_f * K
+		+ sqrt_f * inputU->Theta
+		+ lambda2 * V_u_x
+	;
+			
+	results[30] = -results[0];
 
 
 	//a_y, a_z
@@ -1262,12 +1282,16 @@ kernel void addSource(
 	#endif
 	};
 	real SSymLL[6] = {
+	#if 0	//V is no longer with us
 	-R4SymLL[0] + trK * U->K.xx - 2 * KSqSymLL.s[0] + 4 * D12SymLL[0] + Gamma31SymLL[0] - Gamma11SymLL[0] + ADDSymLL[0] + (U->a.x * ((2 * U->V.x) - D1L[0])),
 	-R4SymLL[1] + trK * U->K.xy - 2 * KSqSymLL.s[1] + 4 * D12SymLL[1] + Gamma31SymLL[1] - Gamma11SymLL[1] + ADDSymLL[1] + ((((2 * U->a.y * U->V.x) - (U->a.y * D1L[0])) + ((2 * U->a.x * U->V.y) - (U->a.x * D1L[1]))) / 2),
 	-R4SymLL[2] + trK * U->K.xz - 2 * KSqSymLL.s[2] + 4 * D12SymLL[2] + Gamma31SymLL[2] - Gamma11SymLL[2] + ADDSymLL[2] + ((((2 * U->a.z * U->V.x) - (U->a.z * D1L[0])) + ((2 * U->a.x * U->V.z) - (U->a.x * D1L[2]))) / 2),
 	-R4SymLL[3] + trK * U->K.yy - 2 * KSqSymLL.s[3] + 4 * D12SymLL[3] + Gamma31SymLL[3] - Gamma11SymLL[3] + ADDSymLL[3] + (U->a.y * ((2 * U->V.y) - D1L[1])),
 	-R4SymLL[4] + trK * U->K.yz - 2 * KSqSymLL.s[4] + 4 * D12SymLL[4] + Gamma31SymLL[4] - Gamma11SymLL[4] + ADDSymLL[4] + ((((2 * U->a.z * U->V.y) - (U->a.z * D1L[1])) + ((2 * U->a.y * U->V.z) - (U->a.y * D1L[2]))) / 2),
 	-R4SymLL[5] + trK * U->K.zz - 2 * KSqSymLL.s[5] + 4 * D12SymLL[5] + Gamma31SymLL[5] - Gamma11SymLL[5] + ADDSymLL[5] + (U->a.z * ((2 * U->V.z) - D1L[2])),
+	#else
+	0,0,0,0,0,0
+	#endif
 	};
 	real GU0L[3] = {
 	#if 1

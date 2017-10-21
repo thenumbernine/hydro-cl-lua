@@ -185,11 +185,6 @@ kernel void calcEigenBasis(
 	}<? end ?>
 }
 
-//for swapping dimensions
-sym3 sym3_swap0(sym3 m) { return m; }
-sym3 sym3_swap1(sym3 m) { return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
-sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
-
 <?
 local unpack = unpack or table.unpack
 for _,addrs in ipairs{

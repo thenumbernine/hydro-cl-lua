@@ -249,7 +249,7 @@ function GRHD:getDisplayVars()
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
 	<?=solver:getADMVarCode()?>
-	<?=eqn.cons_only_t?> U2 = consFromPrim(prim, alpha, beta, gamma);
+	<?=eqn.cons_only_t?> U2 = consFromPrim(U->prim, alpha, beta, gamma);
 	*value = 0;
 	for (int j = 0; j < numIntStates; ++j) {
 		*value += fabs(U->cons.ptr[j] - U2.ptr[j]);
@@ -296,9 +296,5 @@ GRHD.eigenVars = {
 	{beta = 'real3'},
 	{gamma = 'sym3'},
 }
-
-function GRHD:getEigenDisplayVars()
-	return {}
-end
 
 return GRHD

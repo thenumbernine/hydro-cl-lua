@@ -134,6 +134,7 @@ function Roe:addDisplayVars()
 		}
 	end
 
+	-- TODO rename to 'getEigenDisplayVarDescs()'
 	local eigenDisplayVars = self.eqn:getEigenDisplayVars()
 	if eigenDisplayVars and #eigenDisplayVars > 0 then
 		for j,xj in ipairs(xNames) do
@@ -145,8 +146,10 @@ function Roe:addDisplayVars()
 	const global ]]..self.eqn.eigen_t..[[* eigen = buf + indexInt;
 ]],
 				vars = table.map(eigenDisplayVars, function(kv)
-					local k,v = next(kv)
-					return {[xj..'_'..k] = v}
+					return table.map(kv, function(v,k)
+						if k == 'type' then return v, k end
+						return v, xj..'_'..k
+					end)
 				end),
 			}
 		end

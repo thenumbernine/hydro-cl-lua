@@ -38,6 +38,11 @@ static inline sym3 real3_outer(real3 a, real3 b) {
 		a.y * b.y, a.y * b.z, a.z * b.z);
 }
 
+//for swapping dimensions between x and 012
+real3 real3_swap0(real3 v) { return v; }
+real3 real3_swap1(real3 v) { return _real3(v.y, v.x, v.z); }
+real3 real3_swap2(real3 v) { return _real3(v.z, v.y, v.x); }
+
 
 static inline sym3 sym3_ident() {
 	return _sym3(1,0,0,1,0,1);
@@ -172,6 +177,12 @@ static inline real3 sym3_z(sym3 m) { return _real3(m.xz, m.yz, m.zz); }
 static inline real sym3_trace(sym3 m) {
 	return m.xx + m.yy + m.zz;
 }
+
+//for swapping dimensions between x and 012
+sym3 sym3_swap0(sym3 m) { return m; }
+sym3 sym3_swap1(sym3 m) { return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
+sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
+
 
 static inline mat3 mat3_mat3_mul(mat3 a, mat3 b) {
 	mat3 c;

@@ -124,19 +124,21 @@ end
 
 -- accepts a list of struct var info {name=type}
 -- returns a list of display var construction info
-function Equation:getDisplayVarsForStructVars(structVarInfos)
+function Equation:getDisplayVarsForStructVars(structVarInfos, ptrName)
+	ptrName = ptrName or 'U'
+	ptrName = ptrName .. '->'
 	local displayVarInfos = table()
 	for _,structVarInfo in ipairs(structVarInfos) do
 		local varname, vartype = next(structVarInfo)
 		if vartype == 'real' then
-			displayVarInfos:insert{[varname] = '*value = U->'..varname..';'}
+			displayVarInfos:insert{[varname] = '*value = '..ptrName..varname..';'}
 		elseif vartype == 'real3' then
-			displayVarInfos:insert{[varname] = '*valuevec = U->'..varname..';', type='real3'}
+			displayVarInfos:insert{[varname] = '*valuevec = '..ptrName..varname..';', type='real3'}
 		elseif vartype == 'sym3' then
-			displayVarInfos:insert{[varname] = '*valuesym3 = U->'..varname..';', type='sym3'}
+			displayVarInfos:insert{[varname] = '*valuesym3 = '..ptrName..varname..';', type='sym3'}
 		elseif vartype == '_3sym3' then
 			for i,xi in ipairs(xNames) do
-				displayVarInfos:insert{[varname..'_'..xi] = '*valuesym3 = U->'..varname..'['..(i-1)..'];', type='sym3'}
+				displayVarInfos:insert{[varname..'_'..xi] = '*valuesym3 = '..ptrName..varname..'['..(i-1)..'];', type='sym3'}
 			end
 		end
 	end
@@ -183,7 +185,7 @@ end
 function Equation:getEigenDisplayVars()
 	-- use the automatic codegen for display vars
 	if self.eigenVars then
-		return self:getDisplayVarsForStructVars(self.eigenVars)
+		return self:getDisplayVarsForStructVars(self.eigenVars, 'eigen')
 
 	-- use the autogen left & right eigenvector matrices
 	else

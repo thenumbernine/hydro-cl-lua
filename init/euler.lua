@@ -700,20 +700,20 @@ end ?>;
 					center = {-.25, 0, 0},
 					radius = .1,
 					inside = [[
-						v.x = -.01 * x.y;
-						v.y = .01 * x.x;
-						rho = 1;
-						P = 1;
+	v.x = -2 * delta.y - .1 * x.y;
+	v.y = 2 * delta.x + .1 * x.x;
+	rho = 1;
+	P = 1;
 					]],
 				},
 				{
 					center = {.25, 0, 0},
 					radius = .1,
 					inside = [[
-						v.x = -.01 * x.y;
-						v.y = .01 * x.x;
-						rho = 1;
-						P = 1;
+	v.x = -2 * delta.y - .1 * x.y;
+	v.y = 2 * delta.x + .1 * x.x;
+	rho = 1;
+	P = 1;
 					]],
 				},
 			},

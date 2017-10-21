@@ -506,43 +506,43 @@ function Solver:newDisplayVarGroup(args)
 end
 
 
+-- TODO move 'addUBufDisplayVars' multiple type code into here
 function Solver:addDisplayVarGroup(args, cl)
 	cl = cl or self.DisplayVar
 
-	local displayVarGroup = args.group or self:newDisplayVarGroup{name=args.name}
-	local groupName = displayVarGroup.name
+	local group = args.group or self:newDisplayVarGroup{name=args.name}
 
 	for i,var in ipairs(args.vars) do
 		assert(type(var) == 'table', "failed on var "..self.name)
 		local name, code = next(var)
-		displayVarGroup.vars:insert(cl{
+		group.vars:insert(cl{
 			solver = self,
 			
 			-- right now I use var.name to determine unique variables when overlapping the different graphs in the 1D simulations
 			-- so if I don't prefix it correctly then eig_0 and flux_0 will draw overlapped 
 			-- TODO have that check for var name and group name, and have this name=name only,
-			name = groupName..'_'..name,
+			name = group.name..'_'..name,
 			code = code,
 					
 			type = args.type, -- or self.type
 			displayCode = args.displayCode,	-- or self.displayCode
 			codePrefix = args.codePrefix,
 			
-			enabled = groupName == 'U' and (
+			enabled = group.name == 'U' and (
 					(self.dim ~= 1 and i == 1 
 						--and not args.vectorField
 						and not args.vectorFieldMagn
 					)
 					or (self.dim == 1 and not args.vectorField)
 				)
-				or (groupName == 'error' and self.dim==1),
+				or (group.name == 'error' and self.dim==1),
 			useLog = args.useLog,
 			vectorField = args.vectorField,
-			bufferField = groupName..'Buf',
+			bufferField = group.name..'Buf',
 		})
 	end
 
-	return displayVarGroup
+	return group
 end
 
 function Solver:createDisplayVars()
@@ -596,12 +596,19 @@ function Solver:getDisplayInfosForType()
 end
 
 function Solver:addUBufDisplayVars()
+	local cl = self.DisplayVar
+	
 	local group = self:newDisplayVarGroup{name='U'}
 	
 	local args = self:getUBufDisplayVarsArgs()
 	args.group = group
 
+	-- TODO rename to 'getDisplayVarDescs()'
+	-- gets var descriptions, which is {name=code, [type=type]}
 	local varInfos = self.eqn:getDisplayVars()
+
+
+
 
 	local enableScalar = true
 	local enableVector = true
@@ -636,7 +643,7 @@ function Solver:addUBufDisplayVars()
 				end
 			end
 
-			local var = self.DisplayVar(table(args, {
+			local var = cl(table(args, {
 				vectorField = args.vartype == 'real3',
 				enabled = enabled,
 			}))
