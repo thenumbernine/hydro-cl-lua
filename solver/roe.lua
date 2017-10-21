@@ -123,13 +123,14 @@ function Roe:addDisplayVars()
 
 	for j,xj in ipairs(xNames) do
 		self:addDisplayVarGroup{
-			name = 'wave',
+			name = 'wave '..xj,
+			bufferField = 'waveBuf',
 			codePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
 	const global real* wave = buf + indexInt * numWaves;
 ]],
 			vars = range(0, self.eqn.numWaves-1):map(function(i)
-				return {[xj..'_'..i] = '*value = wave['..i..'];'}
+				return {[''..i] = '*value = wave['..i..'];'}
 			end),
 		}
 	end
@@ -139,7 +140,8 @@ function Roe:addDisplayVars()
 	if eigenDisplayVars and #eigenDisplayVars > 0 then
 		for j,xj in ipairs(xNames) do
 			self:addDisplayVarGroup{
-				name = 'eigen',
+				name = 'eigen '..xj,
+				bufferField = 'eigenBuf',
 				type = self.eqn.eigen_t,
 				codePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
@@ -148,7 +150,7 @@ function Roe:addDisplayVars()
 				vars = table.map(eigenDisplayVars, function(kv)
 					return table.map(kv, function(v,k)
 						if k == 'type' then return v, k end
-						return v, xj..'_'..k
+						return v, k
 					end)
 				end),
 			}
@@ -157,13 +159,14 @@ function Roe:addDisplayVars()
 
 	for j,xj in ipairs(xNames) do
 		self:addDisplayVarGroup{
-			name = 'deltaUEig', 
+			name = 'deltaUEig '..xj, 
+			bufferField = 'deltaUEigBuf',
 			codePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
 	const global real* deltaUEig = buf + indexInt * numWaves;
 ]],
 			vars = range(0,self.eqn.numWaves-1):map(function(i)
-				return {[xj..'_'..i] = '*value = deltaUEig['..i..'];'}
+				return {[''..i] = '*value = deltaUEig['..i..'];'}
 			end),
 		}
 	end
@@ -171,13 +174,14 @@ function Roe:addDisplayVars()
 	if self.fluxLimiter[0] > 0 then
 		for j,xj in ipairs(xNames) do
 			self:addDisplayVarGroup{
-				name = 'rEig',
+				name = 'rEig '..xj,
+				bufferField = 'rEigBuf',
 				codePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
 	const global real* rEig = buf + indexInt * numWaves;
 ]],
 				vars = range(0,self.eqn.numWaves-1):map(function(i)
-					return {[xj..'_'..i] = '*value = rEig['..i..'];'}
+					return {[''..i] = '*value = rEig['..i..'];'}
 				end),
 			}
 		end
@@ -187,15 +191,16 @@ function Roe:addDisplayVars()
 	if self.checkFluxError or self.checkOrthoError then	
 		for j,xj in ipairs(xNames) do
 			self:addDisplayVarGroup{
-				name = 'error', 
+				name = 'error '..xj,
+				bufferField = 'errorBuf',
 				codePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
 ]],
 				useLog = true,
 				type = 'error_t',
 				vars = {
-					{[xj..'_ortho'] = '*value = buf[indexInt].ortho;'},
-					{[xj..'_flux'] = '*value = buf[indexInt].flux;'},
+					{ortho = '*value = buf[indexInt].ortho;'},
+					{flux = '*value = buf[indexInt].flux;'},
 				},
 			}
 		end
