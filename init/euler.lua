@@ -187,13 +187,25 @@ local initStates = table{
 	
 	{
 		name = 'Sod',
+		init = function(self, solver)
+			solver.eqn:addGuiVars{
+				{name = 'rhoL', value = 1},
+				{name = 'PL', value = 1},
+				{name = 'rhoR', value = .125},
+				{name = 'PR', value = .1},
+			}
+		end,
 		initState = function(self, solver)
+			-- TODO i've got no easy way to set vars from init conds
+			-- setting this will require a recompile for the code to reflect the change
+			--[[
 			if solver.eqn.guiVars.heatCapacityRatio then	
 				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
 			end
+			--]]
 			return [[
-	rho = lhs ? 1. : .125;
-	P = lhs ? 1. : .1;
+	rho = lhs ? rhoL : rhoR;
+	P = lhs ? PL : PR;
 ]]
 		end,
 	},
