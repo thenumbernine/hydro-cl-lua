@@ -1063,8 +1063,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real3 unused
 ) {
 	for (int i = 0; i < numStates; ++i) {
-		*results = 0;
-		++results;
+		results[i] = 0;
 	}
 
 <? if not eqn.noZeroRowsInFlux then ?>
@@ -1084,7 +1083,6 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	sym3 result_d = sym3_scale(input_K, eig->alpha);
 	sym3 result_K = sym3_scale(input_d, eig->alpha * gammaU.xx);
 	result_K.xx += (inputU->a.s<?=side?> - sym3_dot(input_d, gammaU)) * eig->alpha;
-
 
 	//now swap x and side on the sym3's
 	resultU->d[<?=side?>] = sym3_swap<?=side?>(result_d);

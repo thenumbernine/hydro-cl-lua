@@ -694,10 +694,5 @@ kernel void addSource(
 	//TODO correct source terms
 
 	deriv->alpha += -U->alpha * U->alpha * f * tr_K;
-	deriv->gamma.xx += -2. * U->alpha * U->K.xx;
-	deriv->gamma.xy += -2. * U->alpha * U->K.xy;
-	deriv->gamma.xz += -2. * U->alpha * U->K.xz;
-	deriv->gamma.yy += -2. * U->alpha * U->K.yy;
-	deriv->gamma.yz += -2. * U->alpha * U->K.yz;
-	deriv->gamma.zz += -2. * U->alpha * U->K.zz;
+	deriv->gamma = sym3_add(deriv->gamma, sym3_scale(U->K, -2. * U->alpha));
 }
