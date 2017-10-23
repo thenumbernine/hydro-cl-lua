@@ -37,7 +37,7 @@ Z4.useSourceTerm = true
 
 function Z4:createInitState()
 	Z4.super.createInitState(self)
-	self:addGuiVar{name = 'lambda', value = 1}
+	self:addGuiVar{name = 'lambda', value = -1}
 end
 
 function Z4:getCodePrefix()

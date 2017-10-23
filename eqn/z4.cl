@@ -406,210 +406,209 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real fSq = f * f;
 	sym3 gamma = sym3_swap<?=side?>(eig->gamma);
 	sym3 gammaU = sym3_swap<?=side?>(eig->gammaU);
-	
-	real lambda_1 = (2. - gui_lambda) / (f - 1.);
-	real lambda_2 = (2. * f - gui_lambda) / (f - 1.);
+
+	real fMinus1 = f - 1.;
+	real lambda_1 = (2. - gui_lambda) / fMinus1;
+	real lambda_2 = (2. * f - gui_lambda) / fMinus1;
 
 	real3 a;
-	a.x = ((((input[0] 
-		- input[30]) 
-		- (lambda_2 * input[1])) 
-		+ (lambda_2 * input[29]) 
-		+ (2. * gammaU.xy * input[7]) 
-		+ (2. * gammaU.xz * input[8])) / (
-		-(2. * gammaU.xx)));
+	a.x = -.5 * (
+			input[0] 
+			- input[30] 
+			- lambda_2 * input[1] 
+			+ lambda_2 * input[29] 
+			+ 2. * gammaU.xy * input[7] 
+			+ 2. * gammaU.xz * input[8]
+		) / gammaU.xx;
 	a.y = input[7];
 	a.z = input[8];
+	
 	sym3 d[3];
-	d[0].xx = ((((2. * input[0]) 
-		- (2. * input[1])) 
-		+ (4. * input[21] * gammaU.xx) 
-		+ (((2. * input[29]) 
-		- (2. * input[30])) 
-		- (2. * lambda_2 * input[1])) 
-		+ (((2. * lambda_2 * input[29]) 
-		- (4. * gammaU.xy * input[2] * f)) 
-		- (12. * gammaU.xy * input[7] * f)) 
-		+ (8. * gammaU.xy * input[9] * gammaU.xx * f) 
-		+ (8. * gammaU.xy * gammaU.xy * input[10] * f) 
-		+ (4. * gammaU.xy * input[22]) 
-		+ (4. * gammaU.xy * input[24] * f) 
-		+ (8. * gammaU.xy * fSq * input[9] * gammaU.xx) 
-		+ (16. * gammaU.xy * gammaU.xy * fSq * input[10]) 
-		+ (8. * gammaU.xy * f * input[22]) 
-		+ (8. * gammaU.xy * gammaU.xz * input[11] * f) 
-		+ (8. * gammaU.xy * gammaU.xz * input[16] * f) 
-		+ (16. * gammaU.xy * gammaU.xz * fSq * input[11]) 
-		+ (16. * gammaU.xy * gammaU.xz * fSq * input[16]) 
-		+ (8. * gammaU.xy * gammaU.yz * input[13] * f) 
-		+ (((16. * gammaU.xy * gammaU.yz * fSq * input[13]) 
-		- (4. * gammaU.xz * input[3] * f)) 
-		- (12. * gammaU.xz * input[8] * f)) 
-		+ (8. * gammaU.xz * input[15] * gammaU.xx * f) 
-		+ (8. * gammaU.xz * gammaU.xz * input[17] * f) 
-		+ (4. * gammaU.xz * input[23]) 
-		+ (4. * gammaU.xz * input[25] * f) 
-		+ (8. * gammaU.xz * fSq * input[15] * gammaU.xx) 
-		+ (16. * gammaU.xz * gammaU.xz * fSq * input[17]) 
-		+ (8. * gammaU.xz * f * input[23]) 
-		+ (8. * gammaU.xz * gammaU.yz * input[19] * f) 
-		+ ((16. * gammaU.xz * gammaU.yz * fSq * input[19]) 
-		- (2. * gammaU.yy * input[4] * f)) 
-		+ (2. * gammaU.yy * input[26] * f) 
-		+ (4. * gammaU.yy * gammaU.xy * input[12] * f) 
-		+ (8. * gammaU.yy * gammaU.xy * fSq * input[12]) 
-		+ (4. * gammaU.yy * gammaU.xz * input[18] * f) 
-		+ ((8. * gammaU.yy * gammaU.xz * fSq * input[18]) 
-		- (4. * gammaU.yz * input[5] * f)) 
-		+ ((4. * gammaU.yz * input[27] * f) 
-		- (2. * gammaU.zz * input[6] * f)) 
-		+ (2. * gammaU.zz * input[28] * f) 
-		+ (4. * gammaU.zz * gammaU.xy * input[14] * f) 
-		+ (8. * gammaU.zz * gammaU.xy * fSq * input[14]) 
-		+ (4. * gammaU.zz * gammaU.xz * input[20] * f) 
-		+ (8. * gammaU.zz * gammaU.xz * fSq * input[20])) / (
-		-(4. * gammaU.xx * gammaU.xx * f)));
-	d[0].xy = ((
-		-(input[2] 
-		+ (((((((3. * input[7]) 
-		- (input[9] * gammaU.xx)) 
-		- (2. * input[22])) 
-		- input[24]) 
-		- (2. * f * input[9] * gammaU.xx)) 
-		- (4. * gammaU.xy * f * input[10])) 
-		- (2. * gammaU.xz * input[11])) 
-		+ ((((((((2. * gammaU.xz * input[16]) 
-		- (4. * gammaU.xz * f * input[11])) 
-		- (gammaU.yy * input[12])) 
-		- (2. * gammaU.yy * f * input[12])) 
-		- (2. * gammaU.yz * input[13])) 
-		- (4. * gammaU.yz * f * input[13])) 
-		- (gammaU.zz * input[14])) 
-		- (2. * gammaU.zz * f * input[14])))) / (2. * gammaU.xx));
-	d[0].xz = ((
-		-(input[3] 
-		+ (((((3. * input[8]) 
-		- (input[15] * gammaU.xx)) 
-		- (2. * input[23])) 
-		- input[25]) 
-		- (2. * f * input[15] * gammaU.xx)) 
-		+ ((((((((((2. * gammaU.xy * input[11]) 
-		- (2. * gammaU.xy * input[16])) 
-		- (4. * gammaU.xy * f * input[16])) 
-		- (4. * gammaU.xz * f * input[17])) 
-		- (gammaU.yy * input[18])) 
-		- (2. * gammaU.yy * f * input[18])) 
-		- (2. * gammaU.yz * input[19])) 
-		- (4. * gammaU.yz * f * input[19])) 
-		- (gammaU.zz * input[20])) 
-		- (2. * gammaU.zz * f * input[20])))) / (2. * gammaU.xx));
-	d[0].yy = ((
-		-((input[4] 
-		- input[26]) 
-		+ (2. * gammaU.xy * input[12]) 
-		+ (2. * gammaU.xz * input[18]))) / (2. * gammaU.xx));
-	d[0].yz = ((
-		-((input[5] 
-		- input[27]) 
-		+ (2. * gammaU.xy * input[13]) 
-		+ (2. * gammaU.xz * input[19]))) / (2. * gammaU.xx));
-	d[0].zz = ((
-		-((input[6] 
-		- input[28]) 
-		+ (2. * gammaU.xy * input[14]) 
-		+ (2. * gammaU.xz * input[20]))) / (2. * gammaU.xx));
+
+	<?=addr2?> const sym3 *sym3_1 = (<?=addr2?> const sym3*)(input+1);
+	<?=addr2?> const sym3 *sym3_9 = (<?=addr2?> const sym3*)(input+9);
+	<?=addr2?> const sym3 *sym3_15 = (<?=addr2?> const sym3*)(input+15);
+	<?=addr2?> const sym3 *sym3_23 = (<?=addr2?> const sym3*)(input+23);
+
+	real tr_1 = sym3_dot(gammaU, *sym3_1);
+	real tr_9 = sym3_dot(gammaU, *sym3_9);
+	real tr_15 = sym3_dot(gammaU, *sym3_15);
+	real tr_23 = sym3_dot(gammaU, *sym3_23);
+
+	real _2fPlus1 = 2. * f + 1.;
+
+	d[0] = sym3_scale(*sym3_9, -gammaU.xy);
+	d[0] = sym3_add(d[0], sym3_scale(*sym3_15, -gammaU.xz));
+	d[0] = sym3_add(d[0], sym3_scale(sym3_add(*sym3_1, *sym3_23), -.5));
+
+	d[0].xx += -.5 * (
+		(
+			(
+				input[0] 
+				
+				- input[1] 
+				+ input[29] 
+				
+				- input[30] 
+				
+				- input[1] * lambda_2
+				+ input[29] * lambda_2
+				
+				+ 2. * gammaU.xx * input[21]
+				+ 2. * gammaU.xy * input[22] 
+				+ 2. * gammaU.xz * input[23] 
+						
+				+ fMinus1 * (
+					tr_23
+					- gammaU.xx * input[23]
+				)	
+					
+			) / f
+			
+			- 6. * gammaU.xy * input[7] 
+			- 6. * gammaU.xz * input[8] 
+			
+			+ 2. * gammaU.xy * tr_9 * _2fPlus1
+			+ 2. * gammaU.xz * tr_15 * _2fPlus1
+			
+			+ 4. * gammaU.xy * input[22] 
+			+ 4. * gammaU.xz * input[23]
+		
+		) / gammaU.xx
+	
+		- input[1]
+		+ input[23]
+	);
+	
+	d[0].xy += -.5 * (
+		3. * input[7] 
+		- tr_9 * _2fPlus1
+		- 2. * input[22] 
+	);
+	
+	d[0].xz += -.5 * (
+		3. * input[8] 
+		- tr_15 * _2fPlus1
+		- 2. * input[23] 
+	);
+	
+
+	d[0] = sym3_scale(d[0], 1. / gammaU.xx);
+	
 	d[1] = *(<?=addr2?> const sym3*)(input+9);
+	
 	d[2] = *(<?=addr2?> const sym3*)(input+15);
-	sym3 K;
-	K.xx = ((input[0] 
-		+ ((((((((((((input[30] 
-		- (lambda_1 * input[1] * sqrt_f)) 
-		- (lambda_1 * input[29] * sqrt_f)) 
-		- (2. * gammaU.xy * input[2] * sqrt_f)) 
-		- (2. * gammaU.xy * input[24] * sqrt_f)) 
-		- (2. * gammaU.xz * input[3] * sqrt_f)) 
-		- (2. * gammaU.xz * input[25] * sqrt_f)) 
-		- (gammaU.yy * input[4] * sqrt_f)) 
-		- (gammaU.yy * input[26] * sqrt_f)) 
-		- (2. * gammaU.yz * input[5] * sqrt_f)) 
-		- (2. * gammaU.yz * input[27] * sqrt_f)) 
-		- (gammaU.zz * input[6] * sqrt_f)) 
-		- (gammaU.zz * input[28] * sqrt_f))) / (2. * sqrt_f * gammaU.xx));
-	K.xy = ((input[2] 
-		+ input[24]) / 2.);
-	K.xz = ((input[3] 
-		+ input[25]) / 2.);
-	K.yy = ((input[4] 
-		+ input[26]) / 2.);
-	K.yz = ((input[5] 
-		+ input[27]) / 2.);
-	K.zz = ((input[6] 
-		+ input[28]) / 2.);
-	real Theta = ((input[1] 
-		+ input[29]) / 2.);
+	
+	sym3 K = sym3_add( *sym3_1, sym3_scale( *sym3_23, .5));
+	
+	K.xx += .5 * (
+			(
+				input[0] 
+				+ input[30]
+			) / sqrt_f
+			
+			- input[1] * lambda_1
+			+ gammaU.xx * input[1]
+			+ gammaU.xx * input[23]
+
+			- tr_1
+			- tr_23
+			
+			- input[29] * lambda_1
+			
+		) / gammaU.xx
+		- input[1]
+		- .5 * input[23]
+	;
+
+	real Theta = .5 * (
+		input[1] 
+		+ input[29]
+	);
+	
 	real3 Z;
-	Z.x = ((((((input[1] 
-		- input[29]) 
-		- (gammaU.xy * input[2])) 
-		- (gammaU.xy * input[7])) 
-		- (gammaU.xy * input[9] * gammaU.xx)) 
-		+ (((((gammaU.xy * input[24]) 
-		- (2. * gammaU.xy * gammaU.yz * input[13])) 
-		- (gammaU.xz * input[3])) 
-		- (gammaU.xz * input[8])) 
-		- (gammaU.xz * input[15] * gammaU.xx)) 
-		+ (((gammaU.xz * input[25]) 
-		- (gammaU.yy * input[4])) 
-		- (2. * gammaU.yy * input[10] * gammaU.xx)) 
-		+ ((((((gammaU.yy * input[26]) 
-		- (gammaU.yy * gammaU.xy * input[12])) 
-		- (gammaU.yy * gammaU.xz * input[18])) 
-		- (2. * gammaU.yz * input[5])) 
-		- (2. * gammaU.yz * input[11] * gammaU.xx)) 
-		- (2. * gammaU.yz * input[16] * gammaU.xx)) 
-		+ ((((2. * gammaU.yz * input[27]) 
-		- (2. * gammaU.yz * gammaU.xz * input[19])) 
-		- (gammaU.zz * input[6])) 
-		- (2. * gammaU.zz * input[17] * gammaU.xx)) 
-		+ (((gammaU.zz * input[28]) 
-		- (gammaU.zz * gammaU.xy * input[14])) 
-		- (gammaU.zz * gammaU.xz * input[20]))) / (2. * gammaU.xx));
-	Z.y = (((input[2] * gammaU.xx) 
-		+ ((input[7] * gammaU.xx) 
-		- (input[24] * gammaU.xx)) 
-		+ (((gammaU.xx * gammaU.xx * input[9]) 
-		- (gammaU.xx * gammaU.yy * input[12])) 
-		- (2. * gammaU.xx * gammaU.yz * input[18])) 
-		+ (gammaU.xy * input[4]) 
-		+ (2. * gammaU.xy * input[10] * gammaU.xx) 
-		+ ((2. * gammaU.xy * gammaU.xy * input[12]) 
-		- (gammaU.xy * input[26])) 
-		+ (2. * gammaU.xy * gammaU.xz * input[13]) 
-		+ (gammaU.xz * input[5]) 
-		+ (2. * gammaU.xz * input[11] * gammaU.xx) 
-		+ ((2. * gammaU.xz * gammaU.xz * input[19]) 
-		- (gammaU.xz * input[27])) 
-		+ (2. * gammaU.xz * gammaU.xy * input[18]) 
-		+ ((gammaU.zz * input[14] * gammaU.xx) 
-		- (2. * gammaU.zz * gammaU.xx * input[19]))) / (2. * gammaU.xx));
-	Z.z = (((input[3] * gammaU.xx) 
-		+ ((input[8] * gammaU.xx) 
-		- (input[25] * gammaU.xx)) 
-		+ ((((gammaU.xx * gammaU.xx * input[15]) 
-		- (2. * gammaU.xx * gammaU.yy * input[13])) 
-		- (2. * gammaU.xx * gammaU.yz * input[14])) 
-		- (gammaU.xx * gammaU.zz * input[20])) 
-		+ (gammaU.xy * input[5]) 
-		+ (2. * gammaU.xy * gammaU.xy * input[13]) 
-		+ ((2. * gammaU.xy * input[16] * gammaU.xx) 
-		- (gammaU.xy * input[27])) 
-		+ (2. * gammaU.xy * gammaU.xz * input[19]) 
-		+ (gammaU.xz * input[6]) 
-		+ (2. * gammaU.xz * input[17] * gammaU.xx) 
-		+ ((2. * gammaU.xz * gammaU.xz * input[20]) 
-		- (gammaU.xz * input[28])) 
-		+ (2. * gammaU.xz * gammaU.xy * input[14]) 
-		+ (gammaU.yy * input[18] * gammaU.xx)) / (2. * gammaU.xx));
+	
+	Z.x = .5 * (
+		input[1] 
+		- input[29] 
+		
+		- gammaU.xy * input[2] 
+		- gammaU.xz * input[3] 
+		- gammaU.yy * input[4] 
+		- 2. * gammaU.yz * input[5] 
+		- gammaU.zz * input[6] 
+		
+		- gammaU.xy * input[7] 
+		- gammaU.xz * input[8] 
+		
+		- gammaU.xy * gammaU.xx * input[9] 
+		- 2. * gammaU.yy * gammaU.xx * input[10] 
+		- 2. * gammaU.yz * gammaU.xx * input[11] 
+		- gammaU.xy * gammaU.yy * input[12] 
+		- 2. * gammaU.xy * gammaU.yz * input[13] 
+		- gammaU.xy * gammaU.zz * input[14] 
+		
+		- gammaU.xz * gammaU.xx * input[15] 
+		- 2. * gammaU.yz * gammaU.xx * input[16] 
+		- 2. * gammaU.zz * gammaU.xx * input[17] 
+		- gammaU.xz * gammaU.yy * input[18] 
+		- 2. * gammaU.xz * gammaU.yz * input[19] 
+		- gammaU.xz * gammaU.zz * input[20]
+		
+		+ gammaU.xy * input[24] 
+		+ gammaU.xz * input[25] 
+		+ gammaU.yy * input[26] 
+		+ 2. * gammaU.yz * input[27] 
+		+ gammaU.zz * input[28] 
+	) / gammaU.xx;
+	
+	Z.y = .5 * (
+		gammaU.xx * input[2]
+		+ gammaU.xy * input[4]
+		+ gammaU.xz * input[5]
+		+ gammaU.xx * input[7]
+		
+		+ gammaU.xx * gammaU.xx * input[9]
+		+ 2. * gammaU.xy * gammaU.xx * input[10]
+		+ 2. * gammaU.xz * gammaU.xx * input[11] 
+		- gammaU.xx * gammaU.yy * input[12]
+		+ 2. * gammaU.xy * gammaU.xy * input[12]
+		+ 2. * gammaU.xy * gammaU.xz * input[13]
+		+ gammaU.zz * gammaU.xx * input[14] 
+		
+		- 2. * gammaU.xx * gammaU.yz * input[18]
+		+ 2. * gammaU.xz * gammaU.xy * input[18] 
+		+ 2. * gammaU.xz * gammaU.xz * input[19] 
+		- 2. * gammaU.zz * gammaU.xx * input[19]
+		
+		- gammaU.xx * input[24]
+		- gammaU.xy * input[26]
+		- gammaU.xz * input[27] 
+	) / gammaU.xx;
+	
+	Z.z = .5 * (
+		gammaU.xx * input[3]
+		+ gammaU.xy * input[5] 
+		+ gammaU.xz * input[6] 
+		+ gammaU.xx * input[8]
+		
+		+ 2. * gammaU.xy * gammaU.xy * input[13] 
+		- 2. * gammaU.xx * gammaU.yy * input[13] 
+		- 2. * gammaU.xx * gammaU.yz * input[14] 
+		+ 2. * gammaU.xz * gammaU.xy * input[14] 
+		
+		+ gammaU.xx * gammaU.xx * input[15] 
+		+ 2. * gammaU.xy * gammaU.xx * input[16] 
+		+ 2. * gammaU.xz * gammaU.xx * input[17] 
+		+ gammaU.yy * gammaU.xx * input[18]
+		+ 2. * gammaU.xy * gammaU.xz * input[19] 
+		- gammaU.xx * gammaU.zz * input[20] 
+		+ 2. * gammaU.xz * gammaU.xz * input[20] 
+		
+		- gammaU.xx * input[25]
+		- gammaU.xy * input[27] 
+		- gammaU.xz * input[28] 
+	) / gammaU.xx;
 
 	<?=addr0?> <?=eqn.cons_t?>* resultsU = (<?=addr0?> <?=eqn.cons_t?>*)results;
 	resultsU->alpha = 0;
