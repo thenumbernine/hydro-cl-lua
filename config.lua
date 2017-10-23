@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -185,7 +185,7 @@ maxs = {6,1,1},
 	
 	-- EM:
 	--initState = 'Maxwell default',
-	initState = 'Maxwell scattering around cylinder',
+	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell wire',
 
 	-- EM+HD
@@ -194,7 +194,7 @@ maxs = {6,1,1},
 	--initState = 'two-fluid EMHD soliton maxwell',
 
 	-- GR
-	--initState = 'gaussian perturbation',
+	initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 	--initState = 'Alcubierre warp bubble',
 	--initState = 'black hole - Schwarzschild pseudocartesian',
@@ -266,7 +266,7 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
 
 -- EM
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 
 -- EM+HD
@@ -281,7 +281,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'})))
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v2'})))

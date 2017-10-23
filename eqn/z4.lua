@@ -29,14 +29,21 @@ Z4.consVars = table{
 }:append(fluxVars)
 
 Z4.numWaves = makeStruct.countReals(fluxVars)
+assert(Z4.numWaves == 31)
 
 Z4.hasCalcDT = true
 Z4.hasEigenCode = true
 Z4.useSourceTerm = true
 
+function Z4:createInitState()
+	Z4.super.createInitState(self)
+	self:addGuiVar{name = 'lambda', value = 1}
+end
+
 function Z4:getCodePrefix()
-	local lines = table()
-	lines:insert(template([[
+	return table{
+		Z4.super.getCodePrefix(self),
+		template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	U->alpha = 1;
 	U->gamma = _sym3(1,0,0,1,0,1);
@@ -48,94 +55,51 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	U->Theta = 0;
 	U->Z = _real3(0,0,0);
 }
-]], {eqn=self}))
-	
-	lines:insert(self.initState:getCodePrefix(self.solver, function(exprs, vars, args)
-		print('building lapse partials...')
-		exprs.a = table.map(vars, function(var)
-			return (exprs.alpha:diff(var) / exprs.alpha)()
-		end)
-		print('...done building lapse partials')
-		
-		print('building metric partials...')
-		exprs.d = table.map(vars, function(xk)
-			return table.map(exprs.gamma, function(gamma_ij)
-				print('differentiating '..gamma_ij)
-				return (gamma_ij:diff(xk)/2)()
-			end)
-		end)
-		print('...done building metric partials')
-
-		return table(
-			{alpha = exprs.alpha},
-			symNames:map(function(xij,ij)
-				return exprs.gamma[ij], 'gamma_'..xij
-			end),
-			xNames:map(function(xi,i)
-				return exprs.a[i], 'a_'..xi
-			end),
-			table(xNames:map(function(xk,k,t)
-				return symNames:map(function(xij,ij)
-					return exprs.d[k][ij], 'd_'..xk..xij
-				end), #t+1
-			end):unpack()),
-			symNames:map(function(xij,ij)
-				return exprs.K[ij], 'K_'..xij
-			end)
-		
-			-- TODO Theta and Z_i, or can I just leave them as zero?
-		)
-	end))
-
-	return lines:concat()
+]], {eqn=self}),
+	}:concat()
 end
 
-function Z4:getInitStateCode()
-	local lines = table{
-		template([[
+Z4.initStateCode = [[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
+	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	setFlatSpace(U);
+
+	real alpha = 1.;
+	real3 beta_u = _real3(0,0,0);
+	sym3 gamma_ll = _sym3(1,0,0,1,0,1);
+	sym3 K_ll = _sym3(0,0,0,0,0,0);
+
+	<?=code?>
+
+	U->alpha = alpha;
+	U->gamma = gamma_ll;
+	U->K = K_ll;
+	U->Theta = 0;
+	U->Z = _real3(0,0,0);
+}
+
+kernel void initDerivs(
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
-	setFlatSpace(U);
-	
-]], 	{
-			eqn = self,
-		}),
-	}
-
-	local function build(var)
-		local prefix, suffix = var:match'(.*)_(.*)'
-		local field = var
-		if prefix then
-			if #suffix == 3 then
-				field = prefix..'['..(('xyz'):find(suffix:sub(1,1))-1)..'].'..suffix:sub(2)
-			else
-				field = prefix..'.'..suffix
-			end
-		end
-		lines:insert('\tU->'..field..' = calc_'..var..'(x.x, x.y, x.z);')
-	end
-	
-	build'alpha'
-	symNames:map(function(xij) build('gamma_'..xij) end)
-	xNames:map(function(xi) build('a_'..xi) end)	
-	xNames:map(function(xk)
-		symNames:map(function(xij) build('d_'..xk..xij) end)
-	end)
-	symNames:map(function(xij) build('K_'..xij) end)
-
-	lines:insert'	U->Theta = 0;'
-	lines:insert'	U->Z = _real3(0,0,0);'
-
-	lines:insert'}'
-	
-	local code = lines:concat'\n'
-	return code
-end
+<? for i=0,2 do ?>
+	U->a.s<?=i?> = (U[stepsize.s<?=i?>].alpha - U[-stepsize.s<?=i?>].alpha) / (grid_dx<?=i?> * U->alpha);
+	<? for j=0,2 do ?>
+		<? for k=j,2 do ?>
+	U->d[<?=i?>].s<?=j..k?> = .5 * (U[stepsize.s<?=i?>].gamma.s<?=j..k?> - U[-stepsize.s<?=i?>].gamma.s<?=j..k?>) / grid_dx<?=i?>;
+		<? end ?>
+	<? end ?>
+<? end ?>
+}
+]]
 
 function Z4:getSolverCode()
 	return template(file['eqn/z4.cl'], {
@@ -199,7 +163,7 @@ Z4.eigenVars = table{
 }
 
 function Z4:fillRandom(epsilon)
-	local ptr = ADM_BonaMasso_3D.super.fillRandom(self, epsilon)
+	local ptr = Z4.super.fillRandom(self, epsilon)
 	local solver = self.solver
 	for i=0,solver.volume-1 do
 		ptr[i].alpha = ptr[i].alpha + 1
