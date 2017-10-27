@@ -1049,12 +1049,13 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 }
 <?	end
 end
-if solver.checkFluxError then 
-	for _,addrs in ipairs{
-		{'', 'global', ''},
-	} do
-		local addr0, addr1, addr2 = unpack(addrs)
-		for side=0,solver.dim-1 do
+
+for _,addrs in ipairs{
+	{'', '', ''},		-- used by fluxFromCons
+	{'', 'global', ''},	-- used by the error stuff
+} do
+	local addr0, addr1, addr2 = unpack(addrs)
+	for side=0,solver.dim-1 do
 ?>
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* results,
@@ -1091,7 +1092,6 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 <? end -- noZeroRowsInFlux ?>
 }
 <?
-		end
 	end
 end
 ?>
@@ -1101,9 +1101,8 @@ end
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	//TODO do the math for this
-	//until then, use the eigenbasis ...
-	//TODO use this as a default for fluxFromCons as well
+<? if not eqn.noZeroRowsInFlux then ?>
+	// !noZeroRowsInFlux doesn't have fluxTransform implemented
 
 	<?=eqn.eigen_t?> eig;
 	eigen_forCell_<?=side?>local(&eig, &U, x);
@@ -1120,6 +1119,17 @@ end
 			
 	<?=eqn.cons_t?> F;
 	eigen_rightTransform_<?=side?>___(F.ptr, &eig, charvars, x);
+
+<? else	-- noZeroRowsInFlux ?>
+	// noZeroRowsInFlux has fluxTransform implemented
+
+	<?=eqn.eigen_t?> eig;
+	eigen_forCell_<?=side?>local(&eig, &U, x);
+
+	<?=eqn.cons_t?> F;
+	eigen_fluxTransform_<?=side?>___(F.ptr, &eig, U.ptr, x);
+
+<? end -- noZeroRowsInFlux ?>
 
 	return F;
 }
@@ -1149,14 +1159,14 @@ kernel void addSource(
 	real3 beta_ = _real3(0,0,0);
 #endif
 
-	//Sterms_ll[ij] = 4 pi (gamma_ij (S - rho) - 2 S_ij)
+	//S_terms_ll[ij] = 4 pi (gamma_ij (S - rho) - 2 S_ij)
 	//...where rho = n^a n^b T_ab
 	//...and S_ij = proj T_ij
 	//..and S = gamma^ij S_ij
 #if 1
-	sym3 Sterms_ll = (sym3){.s={0,0,0,0,0,0}};
+	sym3 S_terms_ll = (sym3){.s={0,0,0,0,0,0}};
 #else
-	sym3 Sterms_ll = (sym3){
+	sym3 S_terms_ll = (sym3){
 	8. * M_PI * ((density + pressure) * vel4_.x * vel4_.x + .5 * (density - pressure) * U->gamma.xx),
 	8. * M_PI * ((density + pressure) * vel4_.x * vel4_.y + .5 * (density - pressure) * U->gamma.xy),
 	8. * M_PI * ((density + pressure) * vel4_.x * vel4_.z + .5 * (density - pressure) * U->gamma.xz),
@@ -1252,7 +1262,7 @@ kernel void addSource(
 			+ trK * U->K.<?=xij?>
 			- 2. * KSq_ll.<?=xij?>
 			
-			- Sterms_ll.<?=xij?>,
+			- S_terms_ll.<?=xij?>,
 <? end
 ?>	};
 
