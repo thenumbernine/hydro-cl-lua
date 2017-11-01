@@ -155,13 +155,13 @@ function Euler:getDisplayVarCodePrefix()
 end
 
 -- k is 0,1,2
-local function vorticity(eqn,k)
+local function vorticity(eqn,k,result)
 	local xs = {'x','y','z'}
 	local i = (k+1)%3
 	local j = (i+1)%3
 	return {['vorticity '..xs[k+1]] = template([[
 	if (OOB(1,1)) {
-		*value = 0.;
+		<?=result?> = 0.;
 	} else {
 		global const <?=eqn.cons_t?>* Uim = U - stepsize.s<?=i?>;
 		global const <?=eqn.cons_t?>* Uip = U + stepsize.s<?=i?>;
@@ -176,13 +176,14 @@ local function vorticity(eqn,k)
 		real vjm_i = Ujm->m.s<?=i?> / Ujm->rho;
 		real vjp_i = Ujp->m.s<?=i?> / Ujp->rho;
 		
-		*value = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
+		<?=result?> = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
 				- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
 	}
 ]], {
 		i = i,
 		j = j,
 		eqn = eqn,
+		result = result,
 	})}
 end
 
@@ -227,15 +228,13 @@ for side=solver.dim,2 do ?>
 	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
 		
 	if self.solver.dim == 2 then
-		vars:insert(vorticity(self,2))
+		vars:insert(vorticity(self,2,'*value'))
 	elseif self.solver.dim == 3 then
-		local v = range(0,2):map(function(i) return vorticity(self,i) end)
+		local v = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
 		vars:insert{vorticityVec = template([[
 	<? for i=0,2 do ?>{
 		<?=select(2,next(v[i+1]))?>
-		++value;
 	}<? end ?>
-	value -= 3;
 ]], {v=v}), type='real3'}
 	end
 

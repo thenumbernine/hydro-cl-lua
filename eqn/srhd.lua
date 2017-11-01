@@ -215,15 +215,16 @@ function SRHD:getSolverCode()
 end
 
 -- TODO put in common parent of Euler, SRHD, GRHD
+-- TODO use the automatic arbitrary finite difference generator in bssnok
 -- k is 0,1,2
-local function vorticity(eqn,k)
+local function vorticity(eqn,k,result)
 	local xs = {'x','y','z'}
 	local i = (k+1)%3
 	local j = (i+1)%3
 	return {['vorticity '..xs[k+1]] = template([[
 	
 	if (OOB(1,1)) {
-		*value = 0.;
+		<?=result?> = 0.;
 	} else {
 		global const <?=eqn.prim_t?>* prim_im = &buf[index - stepsize.s<?=i?>].prim;
 		global const <?=eqn.prim_t?>* prim_ip = &buf[index + stepsize.s<?=i?>].prim;
@@ -239,13 +240,14 @@ local function vorticity(eqn,k)
 		real vjm_i = prim_jm->v.s<?=i?>;
 		real vjp_i = prim_jp->v.s<?=i?>;
 		
-		*value = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
+		<?=result?> = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
 				- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
 	}
 ]], {
 		i = i,
 		j = j,
 		eqn = eqn,
+		result = result,
 	})}
 end
 
@@ -284,9 +286,9 @@ function SRHD:getDisplayVars()
 	}
 	
 	if self.solver.dim == 2 then
-		vars:insert(vorticity(self,2))
+		vars:insert(vorticity(self,2,'*value'))
 	elseif self.solver.dim == 3 then
-		local v = range(0,2):map(function(i) return vorticity(self,i) end)
+		local v = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
 		vars:insert{vorticityVec = template([[
 	<? for i=0,2 do ?>{
 		<?=select(2,next(v[i+1]))?>

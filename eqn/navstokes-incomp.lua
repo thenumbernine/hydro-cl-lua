@@ -74,13 +74,13 @@ end
 
 function NavierStokesDivFree:getDisplayVars()
 	-- k is 0,1,2
-	local function vorticity(k)
+	local function vorticity(k,result)
 		local xs = {'x','y','z'}
 		local i = (k+1)%3
 		local j = (i+1)%3
 		return {['vorticity '..xs[k+1]] = template([[
 	if (OOB(1,1)) {
-		*value = 0.;
+		<?=result?> = 0.;
 	} else {
 		global const <?=eqn.cons_t?>* Uim = buf + index - stepsize.s<?=i?>;
 		global const <?=eqn.cons_t?>* Uip = buf + index + stepsize.s<?=i?>;
@@ -92,7 +92,7 @@ function NavierStokesDivFree:getDisplayVars()
 		real3 vjm = Ujm->v;
 		real3 vjp = Ujp->v;
 		
-		*value = (vjp.s<?=i?> - vjm.s<?=i?>) / (2. * grid_dx<?=i?>)
+		<?=result?> = (vjp.s<?=i?> - vjm.s<?=i?>) / (2. * grid_dx<?=i?>)
 				- (vip.s<?=j?> - vim.s<?=j?>) / (2. * grid_dx<?=j?>);
 	}
 ]], 	{
@@ -126,9 +126,9 @@ function NavierStokesDivFree:getDisplayVars()
 	if self.solver.dim == 2 then
 	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
 	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
-		vars:insert(vorticity(2))
+		vars:insert(vorticity(2,'*value'))
 	elseif self.solver.dim == 3 then
-		local v = range(0,2):map(function(i) return vorticity(self,i) end)
+		local v = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
 		vars:insert{vorticityVec = template([[
 	<? for i=0,2 do ?>{
 		<?=select(2,next(v[i+1]))?>
