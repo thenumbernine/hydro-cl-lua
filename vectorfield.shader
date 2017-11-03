@@ -77,6 +77,7 @@ void main() {
 
 	vec2 offset = gl_Vertex.xy;
 	vec3 v = gl_MultiTexCoord1.xyz * (maxs - mins) + mins + valuescale * (offset.x * dir + offset.y * tv);
+	v = coordMap(v);
 	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(v, 1.);
 }
 

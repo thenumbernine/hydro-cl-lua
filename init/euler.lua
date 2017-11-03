@@ -261,7 +261,8 @@ local initStates = table{
 		name = 'sphere',
 		initState = function(self, solver)
 			return [[
-	real rSq = real3_dot(x,x);
+	real3 xc = coordMap(x);
+	real rSq = real3_lenSq(xc);
 	bool inside = rSq < .5*.5;
 	rho = inside ? 1 : .1;
 	P = inside ? 1 : .1;

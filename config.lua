@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 3
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -30,7 +30,7 @@ local args = {
 	--usePLM = true,	-- piecewise-linear slope limiter
 	--slopeLimiter = 'minmod',
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	geometry = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -71,7 +71,7 @@ maxs = {6,1,1},
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	--[[ cylinder
+	-- [[ cylinder
 	geometry = 'cylinder',
 	mins = cmdline.mins or {.1, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},
@@ -145,12 +145,12 @@ maxs = {6,1,1},
 	--initState = 'linear',
 	--initState = 'gaussian',
 	--initState = 'advect wave',
-	--initState = 'sphere',
+	initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
 	--initState = 'Sod',
 	--initState = 'Sedov',
-	initState = 'Kelvin-Hemholtz',
+	--initState = 'Kelvin-Hemholtz',
 	--initState = 'Rayleigh-Taylor',
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',

@@ -194,19 +194,25 @@ function HydroCLApp:initGL(...)
 		},
 	}
 	
-	local code = file['heatmap2d.shader']
+	local heatMapCode = file['heatmap2d.shader']
+	local volumetricCode = file['volumetric.shader']
+	local volumeSliceCode = file['slices3d.shader']
+	local vectorFieldCode = file['vectorfield.shader']
 	for _,solver in ipairs(self.solvers) do
+		
+		local coordMapGLSLCode = solver.geometry:getCoordMapGLSLCode()
+		
 		solver.heatMap2DShader = GLProgram{
 			vertexCode = template(
 				table{
-					solver.geometry:getCoordMapGLSLCode(),
-					code, 
+					coordMapGLSLCode,
+					heatMapCode, 
 				}:concat'\n',
 				{
 					vertexShader = true,
 				}
 			),
-			fragmentCode = template(code, {
+			fragmentCode = template(heatMapCode, {
 				fragmentShader = true,
 				clnumber = clnumber,
 				gradTexWidth = gradTexWidth,
@@ -223,18 +229,17 @@ function HydroCLApp:initGL(...)
 			-- raytracing (stalling)
 			
 			local maxiter = math.max(tonumber(solver.gridSize.x), tonumber(solver.gridSize.y), tonumber(solver.gridSize.z))
-			local code = file['volumetric.shader']
 			local volumeRayShader = GLProgram{
 				vertexCode = template(
 					table{
-						solver.geometry:getCoordMapGLSLCode(),
-						code,
+						coordMapGLSLCode, 
+						volumetricCode,
 					}:concat'\n',
 					{
 						vertexShader = true,
 					}
 				),
-				fragmentCode = template(code, {
+				fragmentCode = template(volumetricCode, {
 					fragmentShader = true,
 				}),
 				uniforms = {
@@ -248,18 +253,17 @@ function HydroCLApp:initGL(...)
 
 			-- volume slices
 
-			local code = file['slices3d.shader']
 			solver.volumeSliceShader = GLProgram{
 				vertexCode = template(
 					table{
-						solver.geometry:getCoordMapGLSLCode(),
-						code,
+						coordMapGLSLCode, 
+						volumeSliceCode,
 					}:concat'\n',
 					{
 						vertexShader = true,
 					}
 				),
-				fragmentCode = template(code, {
+				fragmentCode = template(volumeSliceCode, {
 					fragmentShader = true,
 					clnumber = clnumber,
 					gradTexWidth = gradTexWidth,
@@ -274,15 +278,19 @@ function HydroCLApp:initGL(...)
 			}
 		end
 
-		local code = file['vectorfield.shader']
 		solver.vectorFieldShader = GLProgram{
-			vertexCode = template(code, {
+			vertexCode = template(
+				table{
+					coordMapGLSLCode, 
+					vectorFieldCode,
+				}:concat'\n',
+				{
 				vertexShader = true,
 				dim = solver.dim,
 				clnumber = clnumber,
 				gradTexWidth = gradTexWidth,
 			}),
-			fragmentCode = template(code, {
+			fragmentCode = template(vectorFieldCode, {
 				fragmentShader = true,
 				dim = solver.dim,
 				clnumber = clnumber,
