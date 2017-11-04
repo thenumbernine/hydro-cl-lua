@@ -165,7 +165,8 @@ local initStates = table{
 		initState = function(self, solver)
 			return [[
 	real sigma = 1. / sqrt(10.);
-	real xSq = real3_dot(x,x);
+	real3 xc = coordMap(x);
+	real xSq = real3_lenSq(xc);
 	rho = exp(-xSq / (sigma*sigma)) + .1;
 	P = 1 + .1 * (exp(-xSq / (sigma*sigma)) + 1) / ((heatCapacityRatio - 1.) * rho);
 ]]

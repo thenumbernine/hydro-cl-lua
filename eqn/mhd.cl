@@ -667,6 +667,8 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ input[3] * -B.x * _1_rho
 		+ input[6] * v.x;
 
+	result[7] = 0;
+
 	<?=_8to7code(addr0, side)?>
 }
 <?				end

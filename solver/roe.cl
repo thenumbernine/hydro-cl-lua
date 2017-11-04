@@ -45,8 +45,11 @@ kernel void calcErrors(
 <? 	end
 	if solver.checkFluxError then	
 ?>		for (int k = 0; k < numIntStates; ++k) {
-			real basis[numIntStates];
-			for (int j = 0; j < numIntStates; ++j) {
+			
+			//this only needs to be numIntStates in size
+			//but just in case the left/right transforms are reaching past that memory boundary ...
+			real basis[numStates];
+			for (int j = 0; j < numStates; ++j) {
 				basis[j] = k == j ? 1 : 0;
 			}
 
@@ -57,11 +60,19 @@ kernel void calcErrors(
 			for (int j = 0; j < numWaves; ++j) {
 				eigenScaled[j] = eigenCoords[j] * wave[j];
 			}
-			
-			real newtransformed[numIntStates];
+		
+			//once again, only needs to be numIntStates
+			real newtransformed[numStates];
 			eigen_rightTransform_<?=side?>__global_(newtransformed, eig, eigenScaled, xInt);
-			
-			real transformed[numIntStates];
+
+//this shouldn't need to be reset here
+// but it will if leftTransform does anything destructive
+for (int j = 0; j < numStates; ++j) {
+	basis[j] = k == j ? 1 : 0;
+}
+
+			//once again, only needs to be numIntStates
+			real transformed[numStates];
 			eigen_fluxTransform_<?=side?>__global_(transformed, eig, basis, xInt);
 			
 			for (int j = 0; j < numIntStates; ++j) {

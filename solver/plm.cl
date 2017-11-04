@@ -27,7 +27,7 @@ kernel void calcLR(
 		
 		//piecewise-linear
 		
-#if 0	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
+#if 1	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
 		//and https://en.wikipedia.org/wiki/MUSCL_scheme
 		//fails for euler Sod 1D
 		//works for euler Sod 2D
@@ -154,7 +154,7 @@ kernel void calcLR(
 			ULR->L.ptr[j] = U->ptr[j] - sR.ptr[j];
 			ULR->R.ptr[j] = U->ptr[j] + sL.ptr[j];
 		}
-#elif 1	//Trangenstein, Athena, etc, except working on primitives like it says to
+#elif 0	//Trangenstein, Athena, etc, except working on primitives like it says to
 		//fails for Maxwell
 
 		real3 xL = x;
