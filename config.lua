@@ -23,12 +23,12 @@ local args = {
 	--fixedDT = .0001,
 	--cfl = .25/dim,
 	
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	--fluxLimiter = 'donor cell',
+	fluxLimiter = 'donor cell',
 	
-	--usePLM = true,	-- piecewise-linear slope limiter
-	--slopeLimiter = 'minmod',
+	usePLM = true,	-- piecewise-linear slope limiter
+	slopeLimiter = 'minmod',
 	
 	-- [[ Cartesian
 	geometry = 'cartesian',

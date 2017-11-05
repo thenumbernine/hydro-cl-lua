@@ -1,3 +1,14 @@
+<?
+
+--local plmMethod = 'plm-v1'	-- works in conservative variable space, uses a slope limiter
+local plmMethod = 'plm-v2'	-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
+--local plmMethod = 'plm-v3a'	-- works in primitive eigenspace, etc
+--local plmMethod = 'plm-v3b'	-- works in primitive eigenspace, etc, subtracts out min & max
+--local plmMethod = 'plm-v4'	-- based on Athena, idk about this one
+--local plmMethod = 'plm-v5'	-- one more attempt to figure out all the PLM stuff, but I didn't get far
+
+?>
+
 inline real minmod(real a, real b) {
 	if (a * b <= 0) return 0;
 	return fabs(a) < fabs(b) ? a : b;
@@ -26,30 +37,33 @@ kernel void calcLR(
 		global <?=eqn.consLR_t?>* ULR = ULRBuf + indexInt;	
 		
 		//piecewise-linear
-	
-		/*
-		#1: slope based on conservative variables
-		----------------------------------------
 
-		phi(x) = minmod(x) = clamp(r, 0, 1)
 
-		dUL = U_i - U_i-1
-		dUR = U_i+1 - U_i
-		sigma = phi( dUL / dUR ) * dUR
+<? if plmMethod == 'plm-v1' then ?>
+/*
+#1: slope based on conservative variables
+----------------------------------------
 
-		dF = F(U_i+1/2) - F(U_i-1/2)
+phi(x) = minmod(x) = clamp(r, 0, 1)
 
-		dx = (x_i+1/2 - x_i-1/2)
-		U_i-1/2,R = U_i - 1/2 (sigma - dt/dx dF)
-		U_i+1/2,L = U_i + 1/2 (sigma + dt/dx dF)
-		*/
-#if 0	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
-		//and https://en.wikipedia.org/wiki/MUSCL_scheme
-		//fails for euler Sod 1D
-		//works for euler Sod 2D
-		//works for mhd Brio-Wu 1D with oscillations 
-		//fails for maxwell
-		//works for adm1d_v1 freeflow with some oscillations (fails for mirror)
+dUL = U_i - U_i-1
+dUR = U_i+1 - U_i
+sigma = phi( dUL / dUR ) * dUR
+
+dF = F(U_i+1/2) - F(U_i-1/2)
+
+dx = (x_i+1/2 - x_i-1/2)
+U_i-1/2,R = U_i - 1/2 (sigma - dt/dx dF)
+U_i+1/2,L = U_i + 1/2 (sigma + dt/dx dF)
+
+Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
+and https://en.wikipedia.org/wiki/MUSCL_scheme
+works for euler Sod 1D with oscillations 
+works for euler Sod 2D
+works for mhd Brio-Wu 1D with oscillations 
+works for maxwell with oscillations 
+works for adm1d_v1 freeflow with oscillations (fails for mirror)
+*/
 
 		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
 		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
@@ -57,6 +71,10 @@ kernel void calcLR(
 		for (int j = 0; j < numIntStates; ++j) {
 			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
 			dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
+		}
+		for (int j = numIntStates; j < numStates; ++j) {
+			dUL.ptr[j] = 0;
+			dUR.ptr[j] = 0;
 		}
 		
 		real3 xIntL = x;
@@ -81,13 +99,17 @@ kernel void calcLR(
 			//q^n_i+1/2,L = q^n_i + 1/2 dx sigma	(Hydrodynamics II 6.59)
 			UHalfR.ptr[j] = U->ptr[j] + .5 * sigma;
 		}
+		for (int j = numIntStates; j < numStates; ++j) {
+			UHalfL.ptr[j] = U->ptr[j];
+			UHalfR.ptr[j] = U->ptr[j];
+		}
 	
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
 
 		<?=eqn.cons_t?> FHalfL = fluxFromCons_<?=side?>(UHalfL, xIntL);
 		<?=eqn.cons_t?> FHalfR = fluxFromCons_<?=side?>(UHalfR, xIntR);
-		
+	
 		for (int j = 0; j < numIntStates; ++j) {
 			real dF = FHalfR.ptr[j] - FHalfL.ptr[j];
 
@@ -99,33 +121,40 @@ kernel void calcLR(
 			// = q^n_i+1/2,L + 1/2 dt/dx (f_k(q^n_i+1/2,L) - f_k(q_i-1/2,R))
 			ULR->R.ptr[j] = UHalfR.ptr[j] + .5 * dt_dx * dF;
 		}
+		for (int j = numIntStates; j < numStates; ++j) {
+			ULR->L.ptr[j] = U->ptr[j];
+			ULR->R.ptr[j] = U->ptr[j];
+		}
 
-		/*
-		#2: next step, project into eigenspace
-		----------------------------------------
 
-		evL, evR, wave = eigensystem(dF/dU at i)
+<? elseif plmMethod == 'plm-v2' then ?>
+/*
+#2: next step, project into eigenspace
+----------------------------------------
 
-		dULe = evL( U_i - U_i-1 )
-		dURe = evL( U_i+1 - U_i )
-		dUCe = evL( (U_i+1 - U_i-1)/2 )
-		dUMe_j = step(dULe_j * dURe_j) * sign(dUCe_j) * 2 * min(|dULe_j|, |dURe_j|, |dUCe_j|) 
+evL, evR, wave = eigensystem(dF/dU at i)
 
-		aL = step(wave_j) dUMe_j (1 - wave_j dt/dx)
-		aR = step(-wave_j) dUMe_j (1 + wave_j dt/dx)
+dULe = evL( U_i - U_i-1 )
+dURe = evL( U_i+1 - U_i )
+dUCe = evL( (U_i+1 - U_i-1)/2 )
+dUMe_j = step(dULe_j * dURe_j) * sign(dUCe_j) * 2 * min(|dULe_j|, |dURe_j|, |dUCe_j|) 
 
-		U_i-1/2,R = U_i - evR 1/2 aR
-		U_i+1/2,L = U_i + evR 1/2 aL
-		*/
-#elif 0	//based on https://arxiv.org/pdf/0804.0402v1.pdf 
-		//and Trangenstein "Numeric Simulation of Hyperbolic Conservation Laws" section 6.2.5
-		//except I'm projecting the differences in conservative values instead of primitive values.
-		//This also needs modular slope limiter support.
-		//works for Euler 1D Sod
-		//euler 2D Sod this gets strange behavior and slowly diverges.
-		//works for MHD Brio-Wu
-		//fails for maxwell 
-		//works for adm1d_v1 
+aL = step(wave_j) dUMe_j (1 - wave_j dt/dx)
+aR = step(-wave_j) dUMe_j (1 + wave_j dt/dx)
+
+U_i-1/2,R = U_i - evR 1/2 aR
+U_i+1/2,L = U_i + evR 1/2 aL
+
+based on https://arxiv.org/pdf/0804.0402v1.pdf 
+and Trangenstein "Numeric Simulation of Hyperbolic Conservation Laws" section 6.2.5
+except I'm projecting the differences in conservative values instead of primitive values.
+This also needs modular slope limiter support.
+works for Euler 1D Sod
+euler 2D Sod this gets strange behavior and slowly diverges.
+works for MHD Brio-Wu
+fails for maxwell 
+works for adm1d_v1 
+*/
 
 		//1) calc delta q's ... l r c (eqn 36)
 		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
@@ -188,47 +217,49 @@ kernel void calcLR(
 			ULR->R.ptr[j] = U->ptr[j] + sL.ptr[j];
 		}
 
-		/*
-		#3a: next step, convert to primitives
-		----------------------------------------
+<? elseif plmMethod == 'plm-v3a' or plmMethod == 'plm-v3b' then ?>
+/*
+#3a: next step, convert to primitives
+----------------------------------------
 
-		evL, evR, wave = eigensystem(dF/dU at i)
+evL, evR, wave = eigensystem(dF/dU at i)
 
-		W_i = W(U_i)
+W_i = W(U_i)
 
-		dWLe = evL dU/dW ( W_i - W_i-1 )
-		dWRe = evL dU/dW ( W_i+1 - W_i )
-		dWCe = evL dU/dW ( (W_i+1 - W_i-1)/2 )
-		dWMe_j = step(dWL_j * dWRe_j) * sign(dWCe_j) * 2 * min(|dWLe_j|, |dWRe_j|, |dWCe_j|)
+dWLe = evL dU/dW ( W_i - W_i-1 )
+dWRe = evL dU/dW ( W_i+1 - W_i )
+dWCe = evL dU/dW ( (W_i+1 - W_i-1)/2 )
+dWMe_j = step(dWL_j * dWRe_j) * sign(dWCe_j) * 2 * min(|dWLe_j|, |dWRe_j|, |dWCe_j|)
 
-		aL = step(wave_j) dWMe_j (1 - wave_j dt/dx)
-		aR = step(-wave_j) dWMe_j (1 + wave_j dt/dx)
+aL = step(wave_j) dWMe_j (1 - wave_j dt/dx)
+aR = step(-wave_j) dWMe_j (1 + wave_j dt/dx)
 
-		U_i-1/2,R = U(W_i - 1/2 dW/dU evR aR)
-		U_i+1/2,L = U(W_i + 1/2 dW/dU evR aL)
+U_i-1/2,R = U(W_i - 1/2 dW/dU evR aR)
+U_i+1/2,L = U(W_i + 1/2 dW/dU evR aL)
 
 
-		#3b: next step, subtract out reference state
-		----------------------------------------
+#3b: next step, subtract out reference state
+----------------------------------------
 
-		evL, evR, wave = eigensystem(dF/dU at i)
+evL, evR, wave = eigensystem(dF/dU at i)
 
-		W_i = W(U_i)
+W_i = W(U_i)
 
-		dWLe = evL dU/dW ( W_i - W_i-1 )
-		dWRe = evL dU/dW ( W_i+1 - W_i )
-		dWCe = evL dU/dW ( (W_i+1 - W_i-1)/2 )
-		dWMe_j = step(dWL_j * dWRe_j) * sign(dWCe_j) * 2 * min(|dWLe_j|, |dWRe_j|, |dWCe_j|)
+dWLe = evL dU/dW ( W_i - W_i-1 )
+dWRe = evL dU/dW ( W_i+1 - W_i )
+dWCe = evL dU/dW ( (W_i+1 - W_i-1)/2 )
+dWMe_j = step(dWL_j * dWRe_j) * sign(dWCe_j) * 2 * min(|dWLe_j|, |dWRe_j|, |dWCe_j|)
 
-		aL = step(wave_j) dWMe_j dt/dx (max(wave) - wave_j)
-		aR = step(wave_j) dWMe_j dt/dx (min(wave) - wave_j)
+aL = step(wave_j) dWMe_j dt/dx (max(wave) - wave_j)
+aR = step(wave_j) dWMe_j dt/dx (min(wave) - wave_j)
 
-		U_i-1/2,R = U( W_i + 1/2 dW/dU evR (aR - (1 + dt/dx min(wave)) dWMe) )
-		U_i+1/2,L = U( W_i + 1/2 dW/dU evR (aL + (1 - dt/dx max(wave)) dWMe) )
-				
-		*/
-#elif 1	//Trangenstein, Athena, etc, except working on primitives like it says to
-		//fails for Maxwell
+U_i-1/2,R = U( W_i + 1/2 dW/dU evR (aR - (1 + dt/dx min(wave)) dWMe) )
+U_i+1/2,L = U( W_i + 1/2 dW/dU evR (aL + (1 - dt/dx max(wave)) dWMe) )
+		
+
+based on Trangenstein, Athena, etc, except working on primitives like it says to
+fails for Maxwell
+*/
 
 		real3 xL = x;
 		xL.s<?=side?> -= grid_dx<?=side?>;
@@ -294,7 +325,9 @@ kernel void calcLR(
 		real dt_dx = dt / dx;
 
 
-#if 1	//using reference state
+<?	if plmMethod == 'plm-v3b' then ?>
+		//using reference state
+
 
 		//min and max waves
 		real waveMin = min(0., wave[0]);
@@ -338,7 +371,10 @@ kernel void calcLR(
 		ULR->L = consFromPrim(W2R, xIntR);
 		ULR->R = consFromPrim(W2L, xIntL);
 
-#else	//without it
+
+<? elseif plmMethod == 'plm-v3a' then ?>
+		//without reference state
+
 
 		// calculate left and right slopes in characteristic space
  		real aL[numWaves], aR[numWaves];
@@ -365,10 +401,11 @@ kernel void calcLR(
 		ULR->L = consFromPrim(W2L, xIntL);
 		ULR->R = consFromPrim(W2R, xIntR);
 
-#endif
 
-
-#elif 0	//based on Athena
+<? 	end	-- plmMethod
+elseif plmMethod == 'plm-v4' then 
+?>
+		//based on Athena
 
 		real3 xIntL = x;
 		xIntL.s<?=side?> -= grid_dx<?=side?>;
@@ -444,8 +481,11 @@ kernel void calcLR(
 		ULR->L = consFromPrim(Wlv, xIntL);
 		ULR->R = consFromPrim(Wrv, xIntR);
 
-#elif 0	//here's my attempt at Trangenstein section 5.12 PPM
-	
+
+<? elseif plmMethod == 'plm-v5' then ?>
+//here's my attempt at Trangenstein section 5.12 PPM
+
+
 		alphas = evL * right side of U[i-1]
 		betas = evL * (left side of U[i+1] - right side of U[i-1])
 		gamma = 6 * (U[i] - alpha - .5 * beta)
@@ -460,7 +500,8 @@ kernel void calcLR(
 			right side of U[i+1/2] = U[i] - .5 (1 - lambda[i+1] dt/dx) s[j] dx : lambda[i+1] < 0
 									= U[i] : lambda[i+1] >= 0
 		...but this is for muscl, and s[j] is the minmod slope limiter ...
-#endif
+
+<? end ?>
 
 	}<? end ?>
 }
