@@ -46,6 +46,8 @@ kernel void calcErrors(
 	if solver.checkFluxError then	
 ?>		for (int k = 0; k < numIntStates; ++k) {
 			
+//TODO find out which left/right/fluxTransform functions are writing more than they should
+//I see errors in mhd and in adm3d
 			//this only needs to be numIntStates in size
 			//but just in case the left/right transforms are reaching past that memory boundary ...
 			real basis[numStates];
@@ -65,11 +67,13 @@ kernel void calcErrors(
 			real newtransformed[numStates];
 			eigen_rightTransform_<?=side?>__global_(newtransformed, eig, eigenScaled, xInt);
 
+#if 0
 //this shouldn't need to be reset here
 // but it will if leftTransform does anything destructive
 for (int j = 0; j < numStates; ++j) {
 	basis[j] = k == j ? 1 : 0;
 }
+#endif
 
 			//once again, only needs to be numIntStates
 			real transformed[numStates];

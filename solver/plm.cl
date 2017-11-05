@@ -26,8 +26,24 @@ kernel void calcLR(
 		global <?=eqn.consLR_t?>* ULR = ULRBuf + indexInt;	
 		
 		//piecewise-linear
-		
-#if 1	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
+	
+		/*
+		#1: slope based on conservative variables
+		----------------------------------------
+
+		phi(x) = minmod(x) = clamp(r, 0, 1)
+
+		dUL = U_i - U_i-1
+		dUR = U_i+1 - U_i
+		sigma = phi( dUL / dUR ) * dUR
+
+		dF = F(U_i+1/2) - F(U_i-1/2)
+
+		dx = (x_i+1/2 - x_i-1/2)
+		U_i-1/2,R = U_i - 1/2 (sigma - dt/dx dF)
+		U_i+1/2,L = U_i + 1/2 (sigma + dt/dx dF)
+		*/
+#if 0	//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)
 		//and https://en.wikipedia.org/wiki/MUSCL_scheme
 		//fails for euler Sod 1D
 		//works for euler Sod 2D
@@ -84,6 +100,23 @@ kernel void calcLR(
 			ULR->R.ptr[j] = UHalfR.ptr[j] + .5 * dt_dx * dF;
 		}
 
+		/*
+		#2: next step, project into eigenspace
+		----------------------------------------
+
+		evL, evR, wave = eigensystem(dF/dU at i)
+
+		dULe = evL( U_i - U_i-1 )
+		dURe = evL( U_i+1 - U_i )
+		dUCe = evL( (U_i+1 - U_i-1)/2 )
+		dUMe_j = step(dULe_j * dURe_j) * sign(dUCe_j) * 2 * min(|dULe_j|, |dURe_j|, |dUCe_j|) 
+
+		aL = step(wave_j) dUMe_j (1 - wave_j dt/dx)
+		aR = step(-wave_j) dUMe_j (1 + wave_j dt/dx)
+
+		U_i-1/2,R = U_i - evR 1/2 aR
+		U_i+1/2,L = U_i + evR 1/2 aL
+		*/
 #elif 0	//based on https://arxiv.org/pdf/0804.0402v1.pdf 
 		//and Trangenstein "Numeric Simulation of Hyperbolic Conservation Laws" section 6.2.5
 		//except I'm projecting the differences in conservative values instead of primitive values.
@@ -101,7 +134,7 @@ kernel void calcLR(
 		for (int j = 0; j < numIntStates; ++j) {
 			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
 			dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
-			dUC.ptr[j] = UR->ptr[j] - UL->ptr[j];
+			dUC.ptr[j] = .5 * (UR->ptr[j] - UL->ptr[j]);
 		}
 
 		real3 xIntL = x;
@@ -126,8 +159,8 @@ kernel void calcLR(
 		for (int j = 0; j < numWaves; ++j) {
 			dUMEig[j] = dULEig[j] * dUREig[j] < 0 ? 0 : (
 				(dUCEig[j] >= 0. ? 1. : -1.)
-				* min(
-					2. * min(
+				* 2. * min(
+					min(
 						fabs(dULEig[j]),
 						fabs(dUREig[j])),
 					fabs(dUCEig[j])
@@ -154,7 +187,47 @@ kernel void calcLR(
 			ULR->L.ptr[j] = U->ptr[j] - sR.ptr[j];
 			ULR->R.ptr[j] = U->ptr[j] + sL.ptr[j];
 		}
-#elif 0	//Trangenstein, Athena, etc, except working on primitives like it says to
+
+		/*
+		#3a: next step, convert to primitives
+		----------------------------------------
+
+		evL, evR, wave = eigensystem(dF/dU at i)
+
+		W_i = W(U_i)
+
+		dWLe = evL dU/dW ( W_i - W_i-1 )
+		dWRe = evL dU/dW ( W_i+1 - W_i )
+		dWCe = evL dU/dW ( (W_i+1 - W_i-1)/2 )
+		dWMe_j = step(dWL_j * dWRe_j) * sign(dWCe_j) * 2 * min(|dWLe_j|, |dWRe_j|, |dWCe_j|)
+
+		aL = step(wave_j) dWMe_j (1 - wave_j dt/dx)
+		aR = step(-wave_j) dWMe_j (1 + wave_j dt/dx)
+
+		U_i-1/2,R = U(W_i - 1/2 dW/dU evR aR)
+		U_i+1/2,L = U(W_i + 1/2 dW/dU evR aL)
+
+
+		#3b: next step, subtract out reference state
+		----------------------------------------
+
+		evL, evR, wave = eigensystem(dF/dU at i)
+
+		W_i = W(U_i)
+
+		dWLe = evL dU/dW ( W_i - W_i-1 )
+		dWRe = evL dU/dW ( W_i+1 - W_i )
+		dWCe = evL dU/dW ( (W_i+1 - W_i-1)/2 )
+		dWMe_j = step(dWL_j * dWRe_j) * sign(dWCe_j) * 2 * min(|dWLe_j|, |dWRe_j|, |dWCe_j|)
+
+		aL = step(wave_j) dWMe_j dt/dx (max(wave) - wave_j)
+		aR = step(wave_j) dWMe_j dt/dx (min(wave) - wave_j)
+
+		U_i-1/2,R = U( W_i + 1/2 dW/dU evR (aR - (1 + dt/dx min(wave)) dWMe) )
+		U_i+1/2,L = U( W_i + 1/2 dW/dU evR (aL + (1 - dt/dx max(wave)) dWMe) )
+				
+		*/
+#elif 1	//Trangenstein, Athena, etc, except working on primitives like it says to
 		//fails for Maxwell
 
 		real3 xL = x;
@@ -177,10 +250,11 @@ kernel void calcLR(
 		for (int j = 0; j < numIntStates; ++j) {
 			dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
 			dWR.ptr[j] = WR.ptr[j] - W.ptr[j];
-			dWC.ptr[j] = WR.ptr[j] - WL.ptr[j];
+			dWC.ptr[j] = .5 * (WR.ptr[j] - WL.ptr[j]);
 		}
 
 		//calc eigen values and vectors at cell center
+		//TODO calculate the eigenstate wrt W instead of U - to save some computations
 		<?=eqn.eigen_t?> eig;
 		eigen_forCell_<?=side?>(&eig, U, x);
 		real wave[numWaves];
@@ -207,8 +281,8 @@ kernel void calcLR(
 		for (int j = 0; j < numWaves; ++j) {
 			dWMEig[j] = dWLEig[j] * dWREig[j] < 0 ? 0 : (
 				(dWCEig[j] >= 0. ? 1. : -1.)
-				* min(
-					2. * min(
+				* 2. * min(
+					min(
 						fabs(dWLEig[j]),
 						fabs(dWREig[j])),
 					fabs(dWCEig[j])
@@ -239,54 +313,54 @@ kernel void calcLR(
 		}
 
 		// calculate left and right slopes in characteristic space
-		real pl[numWaves], pr[numWaves];
+		real aL[numWaves], aR[numWaves];
 		for (int j = 0; j < numWaves; ++j) {
-			pl[j] = wave[j] < 0 ? 0 : (dWMEig[j] * dt_dx * (waveMax - wave[j]));
-			pr[j] = wave[j] > 0 ? 0 : (dWMEig[j] * dt_dx * (waveMin - wave[j]));
+			aL[j] = wave[j] < 0 ? 0 : (dWMEig[j] * dt_dx * (waveMax - wave[j]));
+			aR[j] = wave[j] > 0 ? 0 : (dWMEig[j] * dt_dx * (waveMin - wave[j]));
 		}
 
 		// transform slopes back to conserved variable space
-		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pl, xIntL);
-		<?=eqn.prim_t?> ql;
-		apply_dW_dU(&ql, &W, &tmp, xIntL);
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aL, xIntL);
+		<?=eqn.prim_t?> sL;
+		apply_dW_dU(&sL, &W, &tmp, xIntL);
 		
-		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pr, xIntR);
-		<?=eqn.prim_t?> qr;
-		apply_dW_dU(&qr, &W, &tmp, xIntR);
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aR, xIntR);
+		<?=eqn.prim_t?> sR;
+		apply_dW_dU(&sR, &W, &tmp, xIntR);
 	
 		// linearly extrapolate the slopes forward and backward from the cell center
 		<?=eqn.prim_t?> W2L, W2R;
 		for (int j = 0; j < numIntStates; ++j) {
-			W2L.ptr[j] = WLRef.ptr[j] + .5 * ql.ptr[j];
-			W2R.ptr[j] = WRRef.ptr[j] + .5 * qr.ptr[j];
+			W2R.ptr[j] = WRRef.ptr[j] + .5 * sR.ptr[j];
+			W2L.ptr[j] = WLRef.ptr[j] + .5 * sL.ptr[j];
 		}
 		//TODO fix the x's
-		ULR->R = consFromPrim(W2L, xIntL);
 		ULR->L = consFromPrim(W2R, xIntR);
+		ULR->R = consFromPrim(W2L, xIntL);
 
-#else
+#else	//without it
 
 		// calculate left and right slopes in characteristic space
- 		real pl[numWaves], pr[numWaves];
+ 		real aL[numWaves], aR[numWaves];
  		for (int j = 0; j < numWaves; ++j) {
-			pl[j] = wave[j] < 0 ? 0 : dWMEig[j] * .5 * (1. - wave[j] * dt_dx);
-			pr[j] = wave[j] > 0 ? 0 : dWMEig[j] * .5 * (1. + wave[j] * dt_dx);
+			aL[j] = wave[j] < 0 ? 0 : dWMEig[j] * .5 * (1. - wave[j] * dt_dx);
+			aR[j] = wave[j] > 0 ? 0 : dWMEig[j] * .5 * (1. + wave[j] * dt_dx);
 		}
 
 		// transform slopes back to conserved variable space
-		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pl, xIntL);
-		<?=eqn.prim_t?> ql;
-		apply_dW_dU(&ql, &W, &tmp, xIntL);
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aL, xIntL);
+		<?=eqn.prim_t?> sL;
+		apply_dW_dU(&sL, &W, &tmp, xIntL);
 		
-		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, pr, xIntR);
-		<?=eqn.prim_t?> qr;
-		apply_dW_dU(&qr, &W, &tmp, xIntR);
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aR, xIntR);
+		<?=eqn.prim_t?> sR;
+		apply_dW_dU(&sR, &W, &tmp, xIntR);
 	
 		// linearly extrapolate the slopes forward and backward from the cell center
  		<?=eqn.prim_t?> W2L, W2R;
  		for (int j = 0; j < numIntStates; ++j) {
-			W2L.ptr[j] = W.ptr[j] - qr.ptr[j];
-			W2R.ptr[j] = W.ptr[j] + ql.ptr[j];
+			W2L.ptr[j] = W.ptr[j] - sR.ptr[j];
+			W2R.ptr[j] = W.ptr[j] + sL.ptr[j];
  		}
 		ULR->L = consFromPrim(W2L, xIntL);
 		ULR->R = consFromPrim(W2R, xIntR);
