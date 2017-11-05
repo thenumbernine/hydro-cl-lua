@@ -1,11 +1,11 @@
 <?
 
---local plmMethod = 'plm-v1'	-- works in conservative variable space, uses a slope limiter
-local plmMethod = 'plm-v2'	-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
---local plmMethod = 'plm-v3a'	-- works in primitive eigenspace, etc
---local plmMethod = 'plm-v3b'	-- works in primitive eigenspace, etc, subtracts out min & max
---local plmMethod = 'plm-v4'	-- based on Athena, idk about this one
---local plmMethod = 'plm-v5'	-- one more attempt to figure out all the PLM stuff, but I didn't get far
+--local plmMethod = 'plm-cons'			-- works in conservative variable space, uses a slope limiter
+--local plmMethod = 'plm-eig'			-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
+--local plmMethod = 'plm-eig-prim'		-- works in primitive eigenspace, etc
+--local plmMethod = 'plm-eig-prim-ref'	-- works in primitive eigenspace, etc, subtracts out min & max
+local plmMethod = 'plm-athena'			-- based on Athena, idk about this one
+--local plmMethod = 'ppm-experimental'	-- one more attempt to figure out all the PLM stuff, but I didn't get far
 
 ?>
 
@@ -39,7 +39,7 @@ kernel void calcLR(
 		//piecewise-linear
 
 
-<? if plmMethod == 'plm-v1' then ?>
+<? if plmMethod == 'plm-cons' then ?>
 /*
 #1: slope based on conservative variables
 ----------------------------------------
@@ -73,8 +73,7 @@ works for adm1d_v1 freeflow with oscillations (fails for mirror)
 			dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
 		}
 		for (int j = numIntStates; j < numStates; ++j) {
-			dUL.ptr[j] = 0;
-			dUR.ptr[j] = 0;
+			dUL.ptr[j] = dUR.ptr[j] = 0;
 		}
 		
 		real3 xIntL = x;
@@ -100,8 +99,7 @@ works for adm1d_v1 freeflow with oscillations (fails for mirror)
 			UHalfR.ptr[j] = U->ptr[j] + .5 * sigma;
 		}
 		for (int j = numIntStates; j < numStates; ++j) {
-			UHalfL.ptr[j] = U->ptr[j];
-			UHalfR.ptr[j] = U->ptr[j];
+			UHalfL.ptr[j] = UHalfR.ptr[j] = U->ptr[j];
 		}
 	
 		real dx = dx<?=side?>_at(i);
@@ -122,12 +120,11 @@ works for adm1d_v1 freeflow with oscillations (fails for mirror)
 			ULR->R.ptr[j] = UHalfR.ptr[j] + .5 * dt_dx * dF;
 		}
 		for (int j = numIntStates; j < numStates; ++j) {
-			ULR->L.ptr[j] = U->ptr[j];
-			ULR->R.ptr[j] = U->ptr[j];
+			ULR->L.ptr[j] = ULR->R.ptr[j] = U->ptr[j];
 		}
 
 
-<? elseif plmMethod == 'plm-v2' then ?>
+<? elseif plmMethod == 'plm-eig' then ?>
 /*
 #2: next step, project into eigenspace
 ----------------------------------------
@@ -152,7 +149,7 @@ This also needs modular slope limiter support.
 works for Euler 1D Sod
 euler 2D Sod this gets strange behavior and slowly diverges.
 works for MHD Brio-Wu
-fails for maxwell 
+works for maxwell 
 works for adm1d_v1 
 */
 
@@ -164,6 +161,9 @@ works for adm1d_v1
 			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
 			dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
 			dUC.ptr[j] = .5 * (UR->ptr[j] - UL->ptr[j]);
+		}
+		for (int j = numIntStates; j < numStates; ++j) {
+			dUL.ptr[j] = dUR.ptr[j] = dUC.ptr[j] = 0;
 		}
 
 		real3 xIntL = x;
@@ -216,8 +216,11 @@ works for adm1d_v1
 			ULR->L.ptr[j] = U->ptr[j] - sR.ptr[j];
 			ULR->R.ptr[j] = U->ptr[j] + sL.ptr[j];
 		}
+		for (int j = numIntStates; j < numStates; ++j) {
+			ULR->L.ptr[j] = ULR->R.ptr[j] = U->ptr[j];
+		}
 
-<? elseif plmMethod == 'plm-v3a' or plmMethod == 'plm-v3b' then ?>
+<? elseif plmMethod == 'plm-eig-prim' or plmMethod == 'plm-eig-prim-ref' then ?>
 /*
 #3a: next step, convert to primitives
 ----------------------------------------
@@ -251,14 +254,13 @@ dWCe = evL dU/dW ( (W_i+1 - W_i-1)/2 )
 dWMe_j = step(dWL_j * dWRe_j) * sign(dWCe_j) * 2 * min(|dWLe_j|, |dWRe_j|, |dWCe_j|)
 
 aL = step(wave_j) dWMe_j dt/dx (max(wave) - wave_j)
-aR = step(wave_j) dWMe_j dt/dx (min(wave) - wave_j)
+aR = step(-wave_j) dWMe_j dt/dx (wave_j - min(wave))
 
-U_i-1/2,R = U( W_i + 1/2 dW/dU evR (aR - (1 + dt/dx min(wave)) dWMe) )
+U_i-1/2,R = U( W_i - 1/2 dW/dU evR (aR + (1 + dt/dx min(wave)) dWMe) )
 U_i+1/2,L = U( W_i + 1/2 dW/dU evR (aL + (1 - dt/dx max(wave)) dWMe) )
 		
 
 based on Trangenstein, Athena, etc, except working on primitives like it says to
-fails for Maxwell
 */
 
 		real3 xL = x;
@@ -282,6 +284,9 @@ fails for Maxwell
 			dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
 			dWR.ptr[j] = WR.ptr[j] - W.ptr[j];
 			dWC.ptr[j] = .5 * (WR.ptr[j] - WL.ptr[j]);
+		}
+		for (int j = numIntStates; j < numStates; ++j) {
+			dWL.ptr[j] = dWR.ptr[j] = dWC.ptr[j] = 0.;
 		}
 
 		//calc eigen values and vectors at cell center
@@ -325,54 +330,7 @@ fails for Maxwell
 		real dt_dx = dt / dx;
 
 
-<?	if plmMethod == 'plm-v3b' then ?>
-		//using reference state
-
-
-		//min and max waves
-		real waveMin = min(0., wave[0]);
-		real waveMax = max(0., wave[numWaves-1]);
-
-		//limited slope in primitive variable space
-		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, dWMEig, x);
-		<?=eqn.prim_t?> dWM;
-		apply_dW_dU(&dWM, &W, &tmp, x);
-
-		//left and right reference states
-		<?=eqn.prim_t?> WLRef, WRRef;
-		for (int j = 0; j < numIntStates; ++j) {
-			WLRef.ptr[j] = W.ptr[j] + .5 * (1. - dt_dx * waveMax) * dWM.ptr[j];
-			WRRef.ptr[j] = W.ptr[j] - .5 * (1. + dt_dx * waveMin) * dWM.ptr[j];
-		}
-
-		// calculate left and right slopes in characteristic space
-		real aL[numWaves], aR[numWaves];
-		for (int j = 0; j < numWaves; ++j) {
-			aL[j] = wave[j] < 0 ? 0 : (dWMEig[j] * dt_dx * (waveMax - wave[j]));
-			aR[j] = wave[j] > 0 ? 0 : (dWMEig[j] * dt_dx * (waveMin - wave[j]));
-		}
-
-		// transform slopes back to conserved variable space
-		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aL, xIntL);
-		<?=eqn.prim_t?> sL;
-		apply_dW_dU(&sL, &W, &tmp, xIntL);
-		
-		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aR, xIntR);
-		<?=eqn.prim_t?> sR;
-		apply_dW_dU(&sR, &W, &tmp, xIntR);
-	
-		// linearly extrapolate the slopes forward and backward from the cell center
-		<?=eqn.prim_t?> W2L, W2R;
-		for (int j = 0; j < numIntStates; ++j) {
-			W2R.ptr[j] = WRRef.ptr[j] + .5 * sR.ptr[j];
-			W2L.ptr[j] = WLRef.ptr[j] + .5 * sL.ptr[j];
-		}
-		//TODO fix the x's
-		ULR->L = consFromPrim(W2R, xIntR);
-		ULR->R = consFromPrim(W2L, xIntL);
-
-
-<? elseif plmMethod == 'plm-v3a' then ?>
+<? 	if plmMethod == 'plm-eig-prim' then ?>
 		//without reference state
 
 
@@ -398,12 +356,68 @@ fails for Maxwell
 			W2L.ptr[j] = W.ptr[j] - sR.ptr[j];
 			W2R.ptr[j] = W.ptr[j] + sL.ptr[j];
  		}
+		for (int j = numIntStates; j < numStates; ++j) {
+			W2L.ptr[j] = W2R.ptr[j] = W.ptr[j];
+		}
 		ULR->L = consFromPrim(W2L, xIntL);
 		ULR->R = consFromPrim(W2R, xIntR);
 
 
+<?	elseif plmMethod == 'plm-eig-prim-ref' then ?>
+		//with reference state
+
+
+		//min and max waves
+		real waveMin = min(0., wave[0]);
+		real waveMax = max(0., wave[numWaves-1]);
+
+		//limited slope in primitive variable space
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, dWMEig, x);
+		<?=eqn.prim_t?> dWM;
+		apply_dW_dU(&dWM, &W, &tmp, x);
+
+		//left and right reference states
+		<?=eqn.prim_t?> WLRef, WRRef;
+		for (int j = 0; j < numIntStates; ++j) {
+			WLRef.ptr[j] = W.ptr[j] + .5 * (1. - dt_dx * waveMax) * dWM.ptr[j];
+			WRRef.ptr[j] = W.ptr[j] - .5 * (1. + dt_dx * waveMin) * dWM.ptr[j];
+		}
+		for (int j = numIntStates; j < numStates; ++j) {
+			WLRef.ptr[j] = WRRef.ptr[j] = 0;
+		}
+
+		// calculate left and right slopes in characteristic space
+		real aL[numWaves], aR[numWaves];
+		for (int j = 0; j < numWaves; ++j) {
+			aL[j] = wave[j] < 0 ? 0 : (dWMEig[j] * dt_dx * (waveMax - wave[j]));
+			aR[j] = wave[j] > 0 ? 0 : (dWMEig[j] * dt_dx * (waveMin - wave[j]));
+		}
+
+		// transform slopes back to conserved variable space
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aL, xIntL);
+		<?=eqn.prim_t?> sL;
+		apply_dW_dU(&sL, &W, &tmp, xIntL);
+		
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aR, xIntR);
+		<?=eqn.prim_t?> sR;
+		apply_dW_dU(&sR, &W, &tmp, xIntR);
+	
+		// linearly extrapolate the slopes forward and backward from the cell center
+		<?=eqn.prim_t?> W2L, W2R;
+		for (int j = 0; j < numIntStates; ++j) {
+			W2R.ptr[j] = WRRef.ptr[j] + .5 * sR.ptr[j];
+			W2L.ptr[j] = WLRef.ptr[j] + .5 * sL.ptr[j];
+		}
+		for (int j = numIntStates; j < numStates; ++j) {
+			W2R.ptr[j] = W2L.ptr[j] = W.ptr[j];
+		}
+		//TODO fix the x's
+		ULR->L = consFromPrim(W2R, xIntR);
+		ULR->R = consFromPrim(W2L, xIntL);
+
+
 <? 	end	-- plmMethod
-elseif plmMethod == 'plm-v4' then 
+elseif plmMethod == 'plm-athena' then 
 ?>
 		//based on Athena
 
@@ -443,6 +457,9 @@ elseif plmMethod == 'plm-v4' then
 				2. * dWl.ptr[j] * dWr.ptr[j] / (dWl.ptr[j] + dWr.ptr[j])
 			);
 		}
+		for (int j = numIntStates; j < numStates; ++j) {
+			dWl.ptr[j] = dWr.ptr[j] = dWc.ptr[j] = dWg.ptr[j] = 0.;
+		}
 		
 		real dal[numWaves], dar[numWaves], dac[numWaves], dag[numWaves];
 		eigen_leftTransform_<?=side?>___(dal, &eig, dWl.ptr, xIntL);
@@ -464,7 +481,7 @@ elseif plmMethod == 'plm-v4' then
 		eigen_rightTransform_<?=side?>___(dWm.ptr, &eig, da, x);
 
 		<?=eqn.prim_t?> Wlv, Wrv;
-		for (int j = 0; j < numWaves; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			Wlv.ptr[j] = W.ptr[j] - .5 * dWm.ptr[j];
 			Wrv.ptr[j] = W.ptr[j] + .5 * dWm.ptr[j];
 			real C = Wrv.ptr[j] + Wlv.ptr[j];
@@ -477,12 +494,16 @@ elseif plmMethod == 'plm-v4' then
 			Wrv.ptr[j] = min(max(W.ptr[j],WR.ptr[j]),Wrv.ptr[j]);
 			Wlv.ptr[j] = C - Wrv.ptr[j];
 		}
+		for (int j = numIntStates; j < numStates; ++j) {
+			Wlv.ptr[j] = W.ptr[j];
+			Wrv.ptr[j] = W.ptr[j];
+		}
 
 		ULR->L = consFromPrim(Wlv, xIntL);
 		ULR->R = consFromPrim(Wrv, xIntR);
 
 
-<? elseif plmMethod == 'plm-v5' then ?>
+<? elseif plmMethod == 'ppm-experimental' then ?>
 //here's my attempt at Trangenstein section 5.12 PPM
 
 
