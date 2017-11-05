@@ -756,6 +756,9 @@ function Solver:createBuffers()
 		   ..' but found '..ffi.sizeof(self.eqn.cons_t)..' = '..(ffi.sizeof(self.eqn.cons_t) / realSize)..' * sizeof(real). '
 		   ..'Maybe you need to update Eqn.numStates?')
 	end
+	if ffi.sizeof(self.eqn.cons_t) < ffi.sizeof(self.eqn.prim_t) then
+		error("for PLM's sake I might need sizeof(prim_t) <= sizeof(cons_t)")
+	end
 
 	-- should I put these all in one AoS?
 

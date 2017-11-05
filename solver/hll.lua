@@ -6,6 +6,7 @@ local template = require 'template'
 local FVSolver = require 'solver.fvsolver'
 
 local HLL = class(FVSolver)
+HLL.name = 'HLL'
 
 function HLL:getSolverCode()
 	return table{

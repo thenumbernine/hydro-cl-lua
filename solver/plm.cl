@@ -1,25 +1,9 @@
-<?
+<? if not solver.usePLM then return end ?>
 
---local plmMethod = 'plm-cons'			-- works in conservative variable space, uses a slope limiter
---local plmMethod = 'plm-eig'			-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
---local plmMethod = 'plm-eig-prim'		-- works in primitive eigenspace, etc
---local plmMethod = 'plm-eig-prim-ref'	-- works in primitive eigenspace, etc, subtracts out min & max
-local plmMethod = 'plm-athena'			-- based on Athena, idk about this one
---local plmMethod = 'ppm-experimental'	-- one more attempt to figure out all the PLM stuff, but I didn't get far
-
-?>
-
-inline real minmod(real a, real b) {
-	if (a * b <= 0) return 0;
-	return fabs(a) < fabs(b) ? a : b;
+real min3(real x, real y, real z) {
+	return min(min(x, y), z);
 }
 
-inline real maxmod(real a, real b) {
-	if (a * b <= 0) return 0;
-	return fabs(a) > fabs(b) ? a : b;
-}
-
-<? if solver.usePLM then ?>
 kernel void calcLR(
 	global <?=eqn.consLR_t?>* ULRBuf,
 	const global <?=eqn.cons_t?>* UBuf,
@@ -39,7 +23,7 @@ kernel void calcLR(
 		//piecewise-linear
 
 
-<? if plmMethod == 'plm-cons' then ?>
+<? if solver.usePLM == 'plm-cons' then ?>
 /*
 #1: slope based on conservative variables
 ----------------------------------------
@@ -80,10 +64,9 @@ works for adm1d_v1 freeflow with oscillations (fails for mirror)
 		xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
 		real3 xIntR = x;
 		xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
-
+		
 		<?=eqn.cons_t?> UHalfL, UHalfR;
 		for (int j = 0; j < numIntStates; ++j) {
-			
 			//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)	
 			//https://en.wikipedia.org/wiki/MUSCL_scheme
 			
@@ -124,7 +107,7 @@ works for adm1d_v1 freeflow with oscillations (fails for mirror)
 		}
 
 
-<? elseif plmMethod == 'plm-eig' then ?>
+<? elseif solver.usePLM == 'plm-eig' then ?>
 /*
 #2: next step, project into eigenspace
 ----------------------------------------
@@ -188,12 +171,10 @@ works for adm1d_v1
 		for (int j = 0; j < numWaves; ++j) {
 			dUMEig[j] = dULEig[j] * dUREig[j] < 0 ? 0 : (
 				(dUCEig[j] >= 0. ? 1. : -1.)
-				* 2. * min(
-					min(
-						fabs(dULEig[j]),
-						fabs(dUREig[j])),
-					fabs(dUCEig[j])
-				)
+				* 2. * min3(
+					fabs(dULEig[j]),
+					fabs(dUREig[j]),
+					fabs(dUCEig[j]))
 			);	
 		}
 	
@@ -220,7 +201,7 @@ works for adm1d_v1
 			ULR->L.ptr[j] = ULR->R.ptr[j] = U->ptr[j];
 		}
 
-<? elseif plmMethod == 'plm-eig-prim' or plmMethod == 'plm-eig-prim-ref' then ?>
+<? elseif solver.usePLM == 'plm-eig-prim' or solver.usePLM == 'plm-eig-prim-ref' then ?>
 /*
 #3a: next step, convert to primitives
 ----------------------------------------
@@ -317,10 +298,9 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		for (int j = 0; j < numWaves; ++j) {
 			dWMEig[j] = dWLEig[j] * dWREig[j] < 0 ? 0 : (
 				(dWCEig[j] >= 0. ? 1. : -1.)
-				* 2. * min(
-					min(
-						fabs(dWLEig[j]),
-						fabs(dWREig[j])),
+				* 2. * min3(
+					fabs(dWLEig[j]),
+					fabs(dWREig[j]),
 					fabs(dWCEig[j])
 				)
 			);
@@ -330,7 +310,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		real dt_dx = dt / dx;
 
 
-<? 	if plmMethod == 'plm-eig-prim' then ?>
+<? 	if solver.usePLM == 'plm-eig-prim' then ?>
 		//without reference state
 
 
@@ -363,7 +343,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		ULR->R = consFromPrim(W2R, xIntR);
 
 
-<?	elseif plmMethod == 'plm-eig-prim-ref' then ?>
+<?	elseif solver.usePLM == 'plm-eig-prim-ref' then ?>
 		//with reference state
 
 
@@ -416,8 +396,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		ULR->R = consFromPrim(W2L, xIntL);
 
 
-<? 	end	-- plmMethod
-elseif plmMethod == 'plm-athena' then 
+<? 	end	-- solver.usePLM
+elseif solver.usePLM == 'plm-athena' then 
 ?>
 		//based on Athena
 
@@ -503,7 +483,7 @@ elseif plmMethod == 'plm-athena' then
 		ULR->R = consFromPrim(Wrv, xIntR);
 
 
-<? elseif plmMethod == 'ppm-experimental' then ?>
+<? elseif solver.usePLM == 'ppm-experimental' then ?>
 //here's my attempt at Trangenstein section 5.12 PPM
 
 
@@ -526,4 +506,3 @@ elseif plmMethod == 'plm-athena' then
 
 	}<? end ?>
 }
-<? end ?>

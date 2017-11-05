@@ -27,7 +27,15 @@ local args = {
 	--fluxLimiter = 'monotized central',
 	fluxLimiter = 'donor cell',
 	
-	usePLM = true,	-- piecewise-linear slope limiter
+	-- piecewise-linear slope limiter
+	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
+	--usePLM = 'plm-eig',			-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
+	usePLM = 'plm-eig-prim',		-- works in primitive eigenspace, etc
+	--usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max
+	--usePLM = 'plm-athena',		-- based on Athena, idk about this one
+	--usePLM = 'ppm-experimental',	-- one more attempt to figure out all the PLM stuff, but I didn't get far
+
+
 	slopeLimiter = 'minmod',
 	
 	-- [[ Cartesian
