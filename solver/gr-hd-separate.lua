@@ -40,6 +40,9 @@ function GRHDSeparateSolver:init(args)
 		self.codePrefix = table{
 			self.codePrefix,
 			gr.eqn:getTypeCode(),
+			
+			-- this is for calc_exp_neg4phi
+			gr.eqn:getExtraCLFuncs(),
 		}:concat'\n'
 	end
 	function HydroSolver:init(args)
@@ -68,7 +71,7 @@ function GRHDSeparateSolver:init(args)
 	const global <?=gr.eqn.cons_t?>* <?=args.U?> = grUBuf + <?=args.index?>;
 	real <?=args.alpha?> = <?=args.U?>->alpha;
 	real3 <?=args.beta?> = <?=args.U?>->beta_u;
-	sym3 <?=args.gamma?> = sym3_scale(<?=args.U?>->gammaBar_ll, exp(4. * <?=args.U?>->phi));
+	sym3 <?=args.gamma?> = sym3_scale(<?=args.U?>->gammaBar_ll, 1. / calc_exp_neg4phi(<?=args.U?>));
 ]], {gr=gr, args=args})
 	end
 	

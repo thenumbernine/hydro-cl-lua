@@ -23,14 +23,14 @@ local args = {
 	--fixedDT = .0001,
 	--cfl = .25/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	fluxLimiter = 'donor cell',
+	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
 	--usePLM = 'plm-eig',			-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
-	usePLM = 'plm-eig-prim',		-- works in primitive eigenspace, etc
+	--usePLM = 'plm-eig-prim',		-- works in primitive eigenspace, etc
 	--usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max
 	--usePLM = 'plm-athena',		-- based on Athena, idk about this one
 	--usePLM = 'ppm-experimental',	-- one more attempt to figure out all the PLM stuff, but I didn't get far
@@ -226,7 +226,7 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
@@ -256,7 +256,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- GRHD+GR
 -- TODO FIXME TOO -- I never implemented this
 -- here's the GRHD solver with the BSSNOK plugged into it
---self.solvers:insert(require 'solver.gr-hd-separate'(args))
+self.solvers:insert(require 'solver.gr-hd-separate'(args))
 
 -- MHD. 
 -- with superbee flux lim:  

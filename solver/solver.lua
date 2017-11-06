@@ -567,7 +567,7 @@ function Solver:addUBufDisplayVars()
 	-- gets var descriptions, which is {name=code, [type=type]}
 	args.vars = self.eqn:getDisplayVars()
 	
-	self:addDisplayVarGroup(args, cl)
+	self:addDisplayVarGroup(args, self.DisplayVar_U)
 end
 
 
