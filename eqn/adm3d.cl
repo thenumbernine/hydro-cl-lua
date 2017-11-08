@@ -1364,6 +1364,8 @@ and d'^m_mi = d'_kji gamma^jk = d^m_mi + (1-alpha)/4 (Q_k gamma_ij - Q_i gamma_j
 therefore (d_im^m - d^m_mi)' = d_im^m - d^m_mi + (1-alpha) Q_i
 
 ...but how come it's not working?
+...probably because neighbors are influencing one another
+so to solve this, you must solve a giant linear system of all variables
 */
 	const real weight = .5;
 	const real v_weight = weight;

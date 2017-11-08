@@ -407,7 +407,7 @@ local initStates = table{
 		end,
 	},
 	{
-		name = 'Kelvin-Hemholtz',
+		name = 'Kelvin-Helmholtz',
 		init = function(self, solver)
 			
 			local moveAxis = 1

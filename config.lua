@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 1
+local dim = 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -156,9 +156,9 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
-	--initState = 'Kelvin-Hemholtz',
+	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
@@ -206,7 +206,7 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 	--initState = 'Alcubierre warp bubble',
 	--initState = 'black hole - Schwarzschild pseudocartesian',
-	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
+	initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 	--initState = 'binary black holes - isotropic',
 	--initState = 'stellar model',
 	--initState = '1D black hole - wormhole form',
@@ -243,7 +243,7 @@ maxs = {6,1,1},
 -- rel blast wave 2 with superbee flux lim, Roe solver, works at 64x64 with forward euler
 -- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
--- Kelvin-Hemholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
+-- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
 --self.solvers:insert(require 'solver.srhd-roe'(args))
 --self.solvers:insert(require 'solver.srhd-hll'(args))	-- TODO finishme
 
@@ -256,7 +256,7 @@ maxs = {6,1,1},
 -- GRHD+GR
 -- TODO FIXME TOO -- I never implemented this
 -- here's the GRHD solver with the BSSNOK plugged into it
-self.solvers:insert(require 'solver.gr-hd-separate'(args))
+--self.solvers:insert(require 'solver.gr-hd-separate'(args))
 
 -- MHD. 
 -- with superbee flux lim:  
@@ -303,7 +303,7 @@ self.solvers:insert(require 'solver.gr-hd-separate'(args))
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
---self.solvers:insert(require 'solver.bssnok-fd'(args))
+self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 
