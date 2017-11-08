@@ -178,4 +178,19 @@ kernel void addSource(
 	deriv->d_xxx -= alpha * a_x * K_xx;
 	deriv->K_xx -= alpha * a_x * a_x; 
 #endif
+
+	// and now for the first-order constraints
+	//hmm, enforcing the gamma_xx constraint is causing asymmetries here,
+	// but it wasn't in the pure lua version ...
+	//which makes me think evaluation order matters?
+	
+	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
+	real dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * grid_dx0);
+	deriv->a_x += gui_linearConstraintCoeff * (dx_alpha / alpha - a_x);
+	
+	// D_g = gamma_xx,x / gamma_xx <=> D_g += eta (gamma_xx,x / gamma_xx - D_g)
+	real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * grid_dx0);
+	deriv->d_xxx += gui_linearConstraintCoeff * (.5 * dx_gamma_xx - d_xxx);
+
+	//Kreiss-Oligar diffusion, for stability's sake?
 }

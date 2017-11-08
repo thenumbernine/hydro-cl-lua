@@ -101,6 +101,24 @@ function ADM_BonaMasso_1D_Alcubierre2008:getDisplayVars()
 		{K = '*value = U->KTilde / sqrt(U->gamma_xx);'},
 		{expansion = '*value = -U->alpha * U->KTilde / sqrt(U->gamma_xx);'},
 		{['gravity mag'] = '*value = -U->alpha * U->alpha * U->a_x / U->gamma_xx;'},
+	
+		{['alpha vs a_x'] = [[
+	if (OOB(1,1)) {
+		*value = 0.;
+	} else {
+		real dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * grid_dx0);
+		*value = fabs(dx_alpha - U->alpha * U->a_x);
+	}
+]]},
+
+		{['gamma_xx vs D_g'] = [[
+	if (OOB(1,1)) {
+		*value = 0.;
+	} else {
+		real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * grid_dx0);
+		*value = fabs(dx_gamma_xx - U->gamma_xx * U->D_g);
+	}
+]]},
 	}
 end
 

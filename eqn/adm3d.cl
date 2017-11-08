@@ -1310,11 +1310,14 @@ kernel void addSource(
 
 	//V_k,t = first derivs + alpha srcV_k
 	real3_add(deriv->V, real3_scale(srcV_l, U->alpha));
+
+	//TODO constraints *here* (not below)
 }
 
 kernel void constrainU(
 	global <?=eqn.cons_t?>* UBuf
 ) {
+
 <?
 local constrainVGuiVar = eqn.guiVars['constrain V']
 local constrainV = constrainVGuiVar.options[constrainVGuiVar.value]  
