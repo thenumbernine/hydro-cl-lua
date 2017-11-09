@@ -58,7 +58,7 @@ function ADM_BonaMasso_3D:createInitState()
 		type = 'combo',
 		name = 'constrain V',
 		options = {
-			'none',
+			'none',	-- as long as there is a damping term to the source, direct constraint methods aren't required.
 			'replace V',
 			'average',	-- TODO add averaging weights, from 100% V (which works) to 100% d (which doesn't yet work)
 		}
@@ -103,9 +103,6 @@ kernel void initState(
 	U->alpha = alpha;
 	U->gamma = gamma_ll;
 	U->K = K_ll;
-	
-	//TODO V_i = d_ik^k - d^k_ki 
-	U->V = _real3(0,0,0);	
 }
 
 kernel void initDerivs(
@@ -113,14 +110,25 @@ kernel void initDerivs(
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* U = UBuf + index;
+	
+	real det_gamma = sym3_det(U->gamma);
+	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 
-<? for i=0,2 do ?>
-	U->a.s<?=i?> = (U[stepsize.s<?=i?>].alpha - U[-stepsize.s<?=i?>].alpha) / (grid_dx<?=i?> * U->alpha);
-	<? for j=0,2 do ?>
-		<? for k=j,2 do ?>
-	U->d[<?=i?>].s<?=j..k?> = .5 * (U[stepsize.s<?=i?>].gamma.s<?=j..k?> - U[-stepsize.s<?=i?>].gamma.s<?=j..k?>) / grid_dx<?=i?>;
-		<? end ?>
+<? for i,xi in ipairs(xNames) do ?>
+	U->a.<?=xi?> = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (grid_dx<?=i-1?> * U->alpha);
+	<? for jk,xjk in ipairs(symNames) do ?>
+	U->d[<?=i-1?>].<?=xjk?> = .5 * (U[stepsize.<?=xi?>].gamma.<?=xjk?> - U[-stepsize.<?=xi?>].gamma.<?=xjk?>) / grid_dx<?=i-1?>;
 	<? end ?>
+<? end ?>
+	
+	//V_i = d_ik^k - d^k_ki 
+<? for i,xi in ipairs(xNames) do ?>
+	U->V.<?=xi?> = 0.<?
+	for j,xj in ipairs(xNames) do
+		for k,xk in ipairs(xNames) do
+?> + gammaU.<?=sym(j,k)?> * ( U->d[<?=i-1?>].<?=sym(j,k)?> - U->d[<?=j-1?>].<?=sym(k,i)?> )<?
+		end
+	end ?>;
 <? end ?>
 }
 ]]
@@ -177,8 +185,49 @@ momentum constraints
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 	*valuevec = real3_scale(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
 ]], type='real3'}
-	
-	vars:insert{constraint_V = template([[
+
+	vars:insert{['alpha vs a_i'] = template([[
+	if (OOB(1,1)) {
+		*valuevec = _real3(0,0,0);
+	} else {
+		<? for i,xi in ipairs(xNames) do ?>{
+			real di_alpha = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (2. * grid_dx<?=i-1?>);
+			valuevec-><?=xi?> = fabs(di_alpha - U->alpha * U->a.<?=xi?>);
+		}<? end ?>
+	}
+]], {
+	xNames = xNames,
+}), type='real3'}
+
+	-- d_kij = gamma_ij,k
+	for i,xi in ipairs(xNames) do
+		vars:insert{['gamma_ij vs d_'..xi..'ij'] = template([[
+	if (OOB(1,1)) {
+		*valuesym3 = (sym3){.s={0,0,0,0,0,0}};
+	} else {
+		sym3 di_gamma_jk = sym3_scale(
+			sym3_sub(
+				U[stepsize.<?=xi?>].gamma, 
+				U[-stepsize.<?=xi?>].gamma
+			), 
+			1. / (2. * grid_dx<?=i-1?>)
+		);
+		*valuesym3 = sym3_sub(di_gamma_jk, sym3_scale(U->d[<?=i-1?>], 2.));
+		*valuesym3 = (sym3){<?
+	for jk,xjk in ipairs(symNames) do 
+?>			.<?=xjk?> = fabs(valuesym3-><?=xjk?>),
+<?	end
+?>		};
+	}
+]], {
+	i = i,
+	xi = xi,
+	xNames = xNames,
+	symNames = symNames,
+}), type='sym3'}
+	end
+
+	vars:insert{['V constraint'] = template([[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 	<? for i,xi in ipairs(xNames) do ?>{

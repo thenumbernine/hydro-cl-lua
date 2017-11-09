@@ -1061,7 +1061,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* results,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* input,
-	real3 unused
+	real3 x
 ) {
 	for (int i = 0; i < numStates; ++i) {
 		results[i] = 0;
@@ -1311,7 +1311,34 @@ kernel void addSource(
 	//V_k,t = first derivs + alpha srcV_k
 	real3_add(deriv->V, real3_scale(srcV_l, U->alpha));
 
-	//TODO constraints *here* (not below)
+<? if eqn.guiVars.linearConstraintCoeff.value ~= 0 then ?>
+	// and now for the first-order constraints
+
+	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
+	<? for i,xi in ipairs(xNames) do ?>{
+		real di_alpha = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (2. * grid_dx<?=i-1?>);
+		deriv->a.<?=xi?> += gui_linearConstraintCoeff * (di_alpha / U->alpha - U->a.<?=xi?>);
+	}<? end ?>	
+	
+	// d_xxx = .5 gamma_xx,x <=> d_xxx += eta (.5 gamma_xx,x - d_xxx)
+	<? 
+for i,xi in ipairs(xNames) do 
+	for jk,xjk in ipairs(symNames) do ?>{
+		real di_gamma_jk = (U[stepsize.<?=xi?>].gamma.<?=xjk?> - U[-stepsize.<?=xi?>].gamma.<?=xjk?>) / (2. * grid_dx<?=i-1?>);
+		deriv->d[<?=i-1?>].<?=xjk?> += gui_linearConstraintCoeff * (.5 * di_gamma_jk - U->d[<?=i-1?>].<?=xjk?>);
+	}<? 
+	end
+end ?>
+
+	//V_i = d_ik^k - d^k_ki <=> V_i += eta (d_ik^k - d^k_ki - V_i)
+	deriv->V = real3_add(
+		deriv->V,
+		real3_scale(
+			real3_sub(real3_sub(d1_l, d3_l), U->V),
+			gui_linearConstraintCoeff));
+
+	//Kreiss-Oligar diffusion, for stability's sake?
+<? end -- eqn.guiVars.linearConstraintCoeff.value  ?>
 }
 
 kernel void constrainU(

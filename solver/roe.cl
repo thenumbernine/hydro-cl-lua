@@ -67,13 +67,11 @@ kernel void calcErrors(
 			real newtransformed[numStates];
 			eigen_rightTransform_<?=side?>__global_(newtransformed, eig, eigenScaled, xInt);
 
-#if 0
 //this shouldn't need to be reset here
 // but it will if leftTransform does anything destructive
 for (int j = 0; j < numStates; ++j) {
 	basis[j] = k == j ? 1 : 0;
 }
-#endif
 
 			//once again, only needs to be numIntStates
 			real transformed[numStates];
