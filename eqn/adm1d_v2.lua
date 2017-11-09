@@ -101,6 +101,15 @@ ADM_BonaMasso_1D_Alcubierre1997.mirrorVars = {{'gamma_xx', 'a_x', 'd_xxx', 'K_xx
 ADM_BonaMasso_1D_Alcubierre1997.hasEigenCode = true
 ADM_BonaMasso_1D_Alcubierre1997.useSourceTerm = true
 
+function ADM_BonaMasso_1D_Alcubierre1997:createInitState()
+	ADM_BonaMasso_1D_Alcubierre1997.super.createInitState(self)
+	self:addGuiVars{
+		-- hmm, it is useful to make this proportional to dt ... since it's used for a constraint ...
+		{name='a_x_convCoeff', value=10},
+		{name='d_xxx_convCoeff', value=10},
+	}
+end
+
 function ADM_BonaMasso_1D_Alcubierre1997:getCodePrefix()
 	return table{
 		ADM_BonaMasso_1D_Alcubierre1997.super.getCodePrefix(self),

@@ -30,6 +30,15 @@ ADM_BonaMasso_1D_Alcubierre2008.hasEigenCode = true
 ADM_BonaMasso_1D_Alcubierre2008.useSourceTerm = true
 ADM_BonaMasso_1D_Alcubierre2008.hasFluxFromCons = true
 
+function ADM_BonaMasso_1D_Alcubierre2008:createInitState()
+	ADM_BonaMasso_1D_Alcubierre2008.super.createInitState(self)
+	self:addGuiVars{
+		-- hmm, it is useful to make this proportional to dt ... since it's used for a constraint ...
+		{name='a_x_convCoeff', value=10},
+		{name='D_g_convCoeff', value=10},
+	}
+end
+
 function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix()
 	return table{
 		ADM_BonaMasso_1D_Alcubierre2008.super.getCodePrefix(self),

@@ -166,19 +166,21 @@ kernel void addSource(
 	deriv->D_g -= (.5 * D_g - a_x) * 2 * alpha * K;
 	deriv->KTilde -= (.5 * D_g - a_x) * a_x * alpha / sqrt_gamma_xx;
 
-<? if eqn.guiVars.linearConstraintCoeff.value ~= 0 then ?>
 	// and now for the first-order constraints
 	
+<? if eqn.guiVars.a_x_convCoeff.value ~= 0 then ?>
 	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
 	real dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * grid_dx0);
-	deriv->a_x += gui_linearConstraintCoeff * (dx_alpha / alpha - a_x);
+	deriv->a_x += gui_a_x_convCoeff * (dx_alpha / alpha - a_x);
+<? end -- eqn.guiVars.a_x_convCoeff.value  ?>
 	
+<? if eqn.guiVars.D_g_convCoeff.value ~= 0 then ?>
 	// D_g = gamma_xx,x / gamma_xx <=> D_g += eta (gamma_xx,x / gamma_xx - D_g)
 	real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * grid_dx0);
-	deriv->D_g += gui_linearConstraintCoeff * (dx_gamma_xx / gamma_xx - D_g);
+	deriv->D_g += gui_D_g_convCoeff * (dx_gamma_xx / gamma_xx - D_g);
+<? end -- eqn.guiVars.D_g_convCoeff.value  ?>
 
 	//Kreiss-Oligar diffusion, for stability's sake?
-<? end -- eqn.guiVars.linearConstraintCoeff.value  ?>
 }
 
 

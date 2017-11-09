@@ -1311,9 +1311,9 @@ kernel void addSource(
 	//V_k,t = first derivs + alpha srcV_k
 	real3_add(deriv->V, real3_scale(srcV_l, U->alpha));
 
-<? if eqn.guiVars.linearConstraintCoeff.value ~= 0 then ?>
 	// and now for the first-order constraints
 
+<? if eqn.guiVars.a_convCoeff.value ~= 0 then ?>
 	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
 	<? for i,xi in ipairs(xNames) do ?>{
 		<? if i <= solver.dim then ?>
@@ -1321,10 +1321,12 @@ kernel void addSource(
 		<? else ?>
 		real di_alpha = 0.;
 		<? end ?>
-		deriv->a.<?=xi?> += gui_linearConstraintCoeff * (di_alpha / U->alpha - U->a.<?=xi?>);
+		deriv->a.<?=xi?> += gui_a_convCoeff * (di_alpha / U->alpha - U->a.<?=xi?>);
 	}<? end ?>	
+<? end -- eqn.guiVars.a_convCoeff.value  ?>
 	
 	// d_xxx = .5 gamma_xx,x <=> d_xxx += eta (.5 gamma_xx,x - d_xxx)
+<? if eqn.guiVars.d_convCoeff.value ~= 0 then ?>
 	<? 
 for i,xi in ipairs(xNames) do 
 	for jk,xjk in ipairs(symNames) do ?>{
@@ -1333,20 +1335,22 @@ for i,xi in ipairs(xNames) do
 		<? else ?>
 		real di_gamma_jk = 0;
 		<? end ?>
-		deriv->d[<?=i-1?>].<?=xjk?> += gui_linearConstraintCoeff * (.5 * di_gamma_jk - U->d[<?=i-1?>].<?=xjk?>);
+		deriv->d[<?=i-1?>].<?=xjk?> += gui_d_convCoeff * (.5 * di_gamma_jk - U->d[<?=i-1?>].<?=xjk?>);
 	}<? 
 	end
 end ?>
+<? end -- eqn.guiVars.d_convCoeff.value  ?>
 
+<? if eqn.guiVars.V_convCoeff.value ~= 0 then ?>
 	//V_i = d_ik^k - d^k_ki <=> V_i += eta (d_ik^k - d^k_ki - V_i)
 	deriv->V = real3_add(
 		deriv->V,
 		real3_scale(
 			real3_sub(real3_sub(d1_l, d3_l), U->V),
-			gui_linearConstraintCoeff));
+			gui_V_convCoeff));
+<? end -- eqn.guiVars.V_convCoeff.value  ?>
 
 	//Kreiss-Oligar diffusion, for stability's sake?
-<? end -- eqn.guiVars.linearConstraintCoeff.value  ?>
 }
 
 kernel void constrainU(

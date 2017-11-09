@@ -26,7 +26,6 @@ function NumRelEqn:createInitState()
 				'0', '.49', '.5', '1.5', '1.69',
 			}
 		},
-		{name='linearConstraintCoeff', value=10},
 	}
 end
 

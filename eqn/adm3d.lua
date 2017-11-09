@@ -54,14 +54,19 @@ ADM_BonaMasso_3D.useConstrainU = true
 
 function ADM_BonaMasso_3D:createInitState()
 	ADM_BonaMasso_3D.super.createInitState(self)
-	self:addGuiVar{
-		type = 'combo',
-		name = 'constrain V',
-		options = {
-			'none',	-- as long as there is a damping term to the source, direct constraint methods aren't required.
-			'replace V',
-			'average',	-- TODO add averaging weights, from 100% V (which works) to 100% d (which doesn't yet work)
-		}
+	self:addGuiVars{
+		{
+			type = 'combo',
+			name = 'constrain V',
+			options = {
+				'none',	-- as long as there is a damping term to the source, direct constraint methods aren't required.
+				'replace V',
+				'average',	-- TODO add averaging weights, from 100% V (which works) to 100% d (which doesn't yet work)
+			}
+		},
+		{name='a_convCoeff', value=10},
+		{name='d_convCoeff', value=10},
+		{name='V_convCoeff', value=10},
 	}
 end
 
