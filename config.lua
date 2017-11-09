@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 1
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -202,9 +202,9 @@ maxs = {6,1,1},
 	--initState = 'two-fluid EMHD soliton maxwell',
 
 	-- GR
-	initState = 'gaussian perturbation',
+	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
-	--initState = 'Alcubierre warp bubble',
+	initState = 'Alcubierre warp bubble',
 	--initState = 'black hole - Schwarzschild pseudocartesian',
 	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 	--initState = 'binary black holes - isotropic',

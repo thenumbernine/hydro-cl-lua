@@ -989,6 +989,11 @@ function Solver:createCodePrefix()
 	}:append(range(3):map(function(i)
 	-- this is the change in coordinate wrt the change in code
 	-- delta in coordinate space along one grid cell
+		if i > self.dim then 
+-- why is this causing errors?
+-- I think the grid_dx def is bad for dims outside the grid dim ...
+--			return '#define grid_dx'..(i-1)..' 1.' 
+		end
 		return (('#define grid_dx{i} ((maxs_{x} - mins_{x}) / (real)(gridSize_{x} - '..(2*self.numGhost)..'))')
 			:gsub('{i}', i-1)
 			:gsub('{x}', xs[i]))

@@ -1316,7 +1316,11 @@ kernel void addSource(
 
 	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
 	<? for i,xi in ipairs(xNames) do ?>{
+		<? if i <= solver.dim then ?>
 		real di_alpha = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (2. * grid_dx<?=i-1?>);
+		<? else ?>
+		real di_alpha = 0.;
+		<? end ?>
 		deriv->a.<?=xi?> += gui_linearConstraintCoeff * (di_alpha / U->alpha - U->a.<?=xi?>);
 	}<? end ?>	
 	
@@ -1324,7 +1328,11 @@ kernel void addSource(
 	<? 
 for i,xi in ipairs(xNames) do 
 	for jk,xjk in ipairs(symNames) do ?>{
+		<? if i <= solver.dim then ?>
 		real di_gamma_jk = (U[stepsize.<?=xi?>].gamma.<?=xjk?> - U[-stepsize.<?=xi?>].gamma.<?=xjk?>) / (2. * grid_dx<?=i-1?>);
+		<? else ?>
+		real di_gamma_jk = 0;
+		<? end ?>
 		deriv->d[<?=i-1?>].<?=xjk?> += gui_linearConstraintCoeff * (.5 * di_gamma_jk - U->d[<?=i-1?>].<?=xjk?>);
 	}<? 
 	end

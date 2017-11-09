@@ -103,6 +103,7 @@ kernel void initState(
 	U->alpha = alpha;
 	U->gamma = gamma_ll;
 	U->K = K_ll;
+	U->V = _real3(0,0,0);
 }
 
 kernel void initDerivs(
@@ -114,13 +115,25 @@ kernel void initDerivs(
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 
-<? for i,xi in ipairs(xNames) do ?>
+<? 
+for i=1,solver.dim do 
+	local xi = xNames[i]
+?>
 	U->a.<?=xi?> = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (grid_dx<?=i-1?> * U->alpha);
 	<? for jk,xjk in ipairs(symNames) do ?>
 	U->d[<?=i-1?>].<?=xjk?> = .5 * (U[stepsize.<?=xi?>].gamma.<?=xjk?> - U[-stepsize.<?=xi?>].gamma.<?=xjk?>) / grid_dx<?=i-1?>;
 	<? end ?>
-<? end ?>
-	
+<? 
+end 
+for i=solver.dim+1,3 do
+	local xi = xNames[i]
+?>
+	U->a.<?=xi?> = 0;
+	U->d[<?=i-1?>] = _sym3(0,0,0,0,0,0);
+<?
+end
+?>
+
 	//V_i = d_ik^k - d^k_ki 
 <? for i,xi in ipairs(xNames) do ?>
 	U->V.<?=xi?> = 0.<?
@@ -190,12 +203,20 @@ momentum constraints
 	if (OOB(1,1)) {
 		*valuevec = _real3(0,0,0);
 	} else {
-		<? for i,xi in ipairs(xNames) do ?>{
+		<? for i=1,solver.dim do
+			local xi = xNames[i]
+		?>{
 			real di_alpha = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (2. * grid_dx<?=i-1?>);
 			valuevec-><?=xi?> = fabs(di_alpha - U->alpha * U->a.<?=xi?>);
 		}<? end ?>
+		<? for i=solver.dim+1,3 do
+			local xi = xNames[i]
+		?>{
+			valuevec-><?=xi?> = 0;
+		}<? end ?>
 	}
 ]], {
+	solver = self.solver,
 	xNames = xNames,
 }), type='real3'}
 
@@ -205,6 +226,7 @@ momentum constraints
 	if (OOB(1,1)) {
 		*valuesym3 = (sym3){.s={0,0,0,0,0,0}};
 	} else {
+		<? if i <= solver.dim then ?>
 		sym3 di_gamma_jk = sym3_scale(
 			sym3_sub(
 				U[stepsize.<?=xi?>].gamma, 
@@ -212,6 +234,9 @@ momentum constraints
 			), 
 			1. / (2. * grid_dx<?=i-1?>)
 		);
+		<? else ?>
+		sym3 di_gamma_jk = _sym3(0,0,0,0,0,0);
+		<? end ?>
 		*valuesym3 = sym3_sub(di_gamma_jk, sym3_scale(U->d[<?=i-1?>], 2.));
 		*valuesym3 = (sym3){<?
 	for jk,xjk in ipairs(symNames) do 
@@ -224,6 +249,7 @@ momentum constraints
 	xi = xi,
 	xNames = xNames,
 	symNames = symNames,
+	solver = self.solver,
 }), type='sym3'}
 	end
 
