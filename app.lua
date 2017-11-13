@@ -91,9 +91,12 @@ HydroCLApp.limiters = table{
 }
 HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limiter.name end)
 
--- setup for the solver
--- override this for specific experiments
--- this can't override float vs double precision yet
+--[[
+setup for the solver
+args has: platformName, deviceName
+override this for specific experiments
+this can't override float vs double precision yet
+--]]
 function HydroCLApp:setup(args)
 	args.self = self
 	args.cmdline = cmdline
