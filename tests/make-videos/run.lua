@@ -15,19 +15,42 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 
-for _,setup in ipairs{
-	function(self, args)
-		local solverName = 'roe'
+local function run(...)
+	print(...)
+	return os.execute(...)
+end
+
+local configurations = {
+	--{eqn='euler', gridSize={256}, initState='Sod', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+	--{eqn='euler', gridSize={256}, initState='Sod', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+	--{eqn='euler', gridSize={256}, initState='Sedov', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+	--{eqn='euler', gridSize={256}, initState='Sedov', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+	--{eqn='euler', gridSize={256}, initState='Sedov', solver='roe', integrator='backward Euler', usePLM='plm-eig-prim-ref'},
+	--{eqn='euler', gridSize={256}, initState='Sedov', solver='hll', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+	--{eqn='euler', gridSize={256}, initState='self-gravitation test 1', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+	--{eqn='euler', gridSize={256}, initState='self-gravitation test 1', solver='hll', integrator='forward Euler', fluxLimiter='superbee'},
+
+	{eqn='euler', gridSize={256,256}, initState='Sod', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+	{eqn='euler', gridSize={256,256}, initState='Sod', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+	{eqn='euler', gridSize={256,256}, initState='Sedov', solver='hll', integrator='forward Euler', fluxLimiter='superbee'},
+}
+
+for _,cfg in ipairs(configurations) do
+	
+	local App = class(require 'app')
+	
+	function App:setup(args)
 		local args = {
 			app = self,
-			eqn = 'euler',
-			dim = 1,
-			integrator = 'forward Euler',
-			fluxLimiter = 'superbee',
+			eqn = cfg.eqn,
+			dim = #cfg.gridSize,
+			integrator = cfg.integrator,
+			fluxLimiter = cfg.fluxLimiter,
+			usePLM = cfg.usePLM,
 			geometry = 'cartesian',
 			mins = {-1,-1,-1},
 			maxs = {1,1,1},
-			gridSize = {256,1,1},
+			gridSize = cfg.gridSize,
 			boundary = {
 				xmin = 'freeflow',
 				xmax = 'freeflow',
@@ -36,39 +59,42 @@ for _,setup in ipairs{
 				zmin = 'freeflow',
 				zmax = 'freeflow',
 			},
-			initState = 'Sod',
+			initState = cfg.initState,
 		}
-		self.solvers:insert(require('solver.'..solverName)(args))
+		self.solvers:insert(require('solver.'..cfg.solver)(args))
 		
 		self.destMovieName = table{
 			'eqn='..args.eqn,
-			'solver='..solverName,
+			'solver='..cfg.solver,
 			'integrator='..args.integrator,
-		
-			-- TODO this only if usePLM is false 
-			'fluxLimiter='..args.fluxLimiter,
-			
+		}:append(args.usePLM 
+			-- plm:
+			and table{
+				'plm='..args.usePLM,
+			}:append(
+				args.slopeLimiter and {'slopeLimiter='..args.slopeLimiter} or nil
+			) 
+			-- non-plm: use flux limiter
+			or (
+				args.fluxLimiter and {'fluxLimiter='..args.fluxLimiter} or nil
+			)
+		):append{	
 			'init='..args.initState,
 			'gridSize='..range(args.dim):map(function(i) return args.gridSize[i] end):concat'x',
 		}:concat', '..'.mp4'
 		print(self.destMovieName)
-	end,
-} do
-	local App = class(require 'app')
-	function App:setup(args)
+		
 		sdl.SDL_SetWindowSize(self.window, 1280, 720)
-		setup(self, args)
 		self.running = true
-		self.exitTime = .1
+		self.exitTime = 1
 		self.createAnimation = true
+	
+		self.displayVectorField_step = 8
 	end
+	
 	local app  = App()
+	
 	app:run()
-
-	local function run(...)
-		print(...)
-		return os.execute(...)
-	end
 
 	-- once we're done ...
 	local ext = app.screenshotExts[app.screenshotExtIndex]
@@ -79,4 +105,6 @@ for _,setup in ipairs{
 	end
 	local sep = ffi.os == 'Windows' and '\\' or '/'
 	run('rmdir '..dir:gsub('/', sep))
+
+	-- TODO imgui always crashes here.  Fix this stupid imgui bug of assertion failure g.io.DeltaTime >= 0 
 end
