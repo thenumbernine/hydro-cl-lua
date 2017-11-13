@@ -135,6 +135,7 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 	self.geometry = self.hydro.geometry
 	self.eqn = {
 		numStates = self.solvers:map(function(solver) return solver.eqn.numStates end):sum(),
+		numIntStates = self.solvers:map(function(solver) return solver.eqn.numIntStates end):sum(),
 		numWaves = self.solvers:map(function(solver) return solver.eqn.numWaves end):sum(),
 		getEigenTypeCode = function() end,
 		getCodePrefix = function() end,

@@ -86,10 +86,16 @@ local function addMaxwellOscillatingBoundary(solver)
 		-- so I can completely override boundaryMethods for the solver boundary kernel
 		-- yet not for the poisson boundary kernel
 		local boundaryMethods = table(self.boundaryMethods)
+		-- TODO get the oscillations on 2D 256x256 in the upper left corner to stop
+		--local oldxmin = select(2, next(solver.boundaryOptions[boundaryMethods.xmin]))
 		boundaryMethods.xmin = function(args)
 			local U = 'buf['..args.index'j'..']'
-			return template([[
-	<?=U?>.epsE.y = (real)sin((real)10. * t) / <?=U?>.eps;
+			-- TODO put the old code here
+			return 
+				--oldxmin(args) .. 
+				template([[
+	<?=U?>.B = _real3(0,0,0);
+	<?=U?>.epsE = _real3(0., (real)sin((real)10. * t) / <?=U?>.eps, 0.);
 ]], {U=U})
 		end
 
@@ -796,7 +802,75 @@ end ?>;
 	},
 
 	{
-		name = 'Maxwell wire',
+		name = 'Maxwell scattering around Koch snowflake',
+		header = function(self, solver)
+			return template([[
+
+#define sqrt3 <?=clnumber(math.sqrt(3))?>
+
+#define p1 _real3(0, .5, 0)
+#define p2 _real3(.25*sqrt3, -.25, 0.)
+#define p3 _real3(-.25*sqrt3, -.25, 0.)
+
+#define n1 _real3(0, 1, 0)
+#define n2 _real3(.5*sqrt3, -.5, 0)
+#define n3 _real3(-.5*sqrt3, -.5, 0)
+
+//initial branches
+<? for i=1,3 do ?>
+real3 branch<?=i?>(real3 x) {
+	x = _real3(-x.x, -x.y, 0);	//180 rotation
+	real3 n = _real3(-n<?=i?>.y, n<?=i?>.x, 0);	//angle of rotation of the normal
+	x = _real3(n.x * x.x - n.y * x.y, n.x * x.y + n.y * x.x, 0.);	//rotate by 'n'
+	x.y -= sqrt3*3./8.;	//translate to center
+	x = real3_scale(x, 3.);	//scale up by 3
+	x = _real3(-x.x, -x.y, 0);	//180 rotation
+	return x;
+}
+<? end ?>
+
+//secondary branches
+real3 branch2_1(real3 x) {
+	x.x += sqrt3;
+	x = real3_scale(x, 3.);
+	x.y -= .5*sqrt3;
+	return x;
+}
+
+real3 branch2_2(real3 x) {
+	x.x -= sqrt3;
+	x = real3_scale(x, 3.);
+	x.y -= .5*sqrt3;
+	return x;
+}
+
+real3 branch2_3(real3 x) {
+	real c = .5;
+	real s = sqrt3*.5;
+	x = _real3(x.x*c - x.y*s, x.x*s + x.y*c, 0.);	//rotate by c,s
+	x = real3_scale(x, 3);	//scale by 3
+	x.y += sqrt3;	//translate to center
+	return x;
+}
+
+real3 branch2_4(real3 x) {
+	real c = .5;
+	real s = -sqrt3*.5;
+	x = _real3(x.x*c - x.y*s, x.x*s + x.y*c, 0.);	//rotate by c,s
+	x = real3_scale(x, 3);	//scale by 3
+	x.y += sqrt3;	//translate to center
+	return x;
+}
+
+bool testTriangle(real3 xc) {
+	return (real3_dot(real3_sub(xc, p1), n1) < 0. &&
+		real3_dot(real3_sub(xc, p2), n2) < 0. &&
+		real3_dot(real3_sub(xc, p3), n3) < 0.);
+}
+]], {
+	clnumber = clnumber,
+})
+		end,
 		initState = function(self, solver)
 			addMaxwellOscillatingBoundary(solver)
 			
@@ -817,15 +891,83 @@ end ?>;
 				silver = 1.59e-8,
 				platinum = 1.06e-7,
 				tungsten = 5.65e-8,
+			}:map(function(v) return v * Ohm_in_m end)		
+			
+			return template([[
+	real3 xc = coordMap(x);
+	xc = real3_scale(xc, 2.);
+	
+	//conductivity = <?=clnumber(1/resistivities.air)?>;
+
+	if (false
+		|| testTriangle(xc)
+
+<? for i=1,3 do ?>
+		|| testTriangle( branch<?=i?>(xc) )	
+<? end ?>
+
+<? for i=1,3 do ?>
+	<? for j=1,4 do ?>
+		|| testTriangle( branch2_<?=j?>( branch<?=i?>( xc ) ) )
+	<? end ?>
+<? end ?>
+
+<? for k=1,4 do ?>
+	<? for j=1,4 do ?>
+		<? for i=1,3 do ?>
+		|| testTriangle( branch2_<?=k?>( branch2_<?=j?>( branch<?=i?>( xc ) ) ) )
+		<? end ?>
+	<? end ?>
+<? end ?>
+	
+	) {
+		//conductivity = 0;
+		//conductivity = <?=clnumber(1/resistivities.copper)?>;
+		permittivity = 10.;
+	}
+
+]], {
+			clnumber = clnumber,
+			resistivities = resistivities,
+})
+		end,
+	},
+
+	{
+		name = 'Maxwell wire',
+		initState = function(self, solver)
+			--addMaxwellOscillatingBoundary(solver)
+			
+			local c = 299792458
+			local s_in_m = 1 / c
+			local G = 6.6740831e-11
+			local kg_in_m = G / c^2
+			local ke = 8.9875517873681764e+9
+			local C_in_m = math.sqrt(ke * G) / c^2	-- m
+			local Ohm_in_m = kg_in_m / (s_in_m * C_in_m^2)	-- m^0
+			local resistivities = table{	-- at 20' Celsius, in Ohm m
+				air = 2e+14,
+				aluminum = 2.65e-8,
+				copper = 1.724e-8,
+				iron = 9.71e-8,
+				nichrome = 1e-6,
+				gold = 2.24e-8,
+				silver = 1.59e-8,
+				platinum = 1.06e-7,
+				tungsten = 5.65e-8,
 			}:map(function(v) return v * Ohm_in_m end)
 			return template([[
+	E.x = 1;
+	
 	conductivity = <?=clnumber(1/resistivities.air)?>;
-	if (x.y >= -.1 && x.y < .1) {
-		//if (x.x < mins.x * .9 + maxs.x * .1) 
-			E.x = 1;
+	
+	real r2 = x.y * x.y<? if solver.dim == 3 then ?> + x.z * x.z<? end ?>;	
+	
+	if (r2 < .1*.1) {
 		conductivity = <?=clnumber(1/resistivities.copper)?>;
 	}
 ]], 		{
+				solver = solver,
 				clnumber = clnumber,
 				resistivities = resistivities,
 			})

@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 1
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -59,8 +59,8 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{64,64,1},
-				{32,32,32},
+				{256,256,1},
+				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
 		-- default size options
@@ -194,6 +194,7 @@ maxs = {6,1,1},
 	-- EM:
 	--initState = 'Maxwell default',
 	--initState = 'Maxwell scattering around cylinder',
+	initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 
 	-- EM+HD
@@ -202,7 +203,7 @@ maxs = {6,1,1},
 	--initState = 'two-fluid EMHD soliton maxwell',
 
 	-- GR
-	initState = 'gaussian perturbation',
+	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 	--initState = 'Alcubierre warp bubble',
 	--initState = 'black hole - Schwarzschild pseudocartesian',
@@ -277,18 +278,21 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 
--- EM+HD
+-- EM+HD two-fluid electron/ion solver
 -- I'm having some memory issues with two solvers running simultanously .. 
 --self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
 -- so to try and get around that, here the two are combined into one solver:
 --self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
+
+-- GR+EM.  params go to the EM solver.
+self.solvers:insert(require 'solver.gr-em-separate'(args))
 
 
 -- GR
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'})))
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
@@ -305,6 +309,5 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
 --self.solvers:insert(require 'solver.bssnok-fd'(args))
 
--- TODO GR+HD by combining the SR+HD 's alphas and gammas with the GR's alphas and gammas
 
 --self.solvers:insert(require 'solver.nls'(args))

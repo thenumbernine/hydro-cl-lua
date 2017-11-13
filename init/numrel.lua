@@ -360,10 +360,10 @@ return table{
 			-- ... and I'm setting them to 1/10th the paper.
 			-- TODO allow rescaling grid within initial conditions.
 			solver.eqn:addGuiVars{
-				{name = 'R', value = .0505},-- Schwarzschild radius
-				{name = 'P', value = .0133},	-- linear momentum 
-				{name = 'S', value = .0866},	-- angular momentum 
-				{name = 'dist', value = .3257},	-- separation
+				{name = 'R', value = .0001},--.0505},-- Schwarzschild radius
+				{name = 'P', value = 0},--.0133},	-- linear momentum 
+				{name = 'S', value = 1},--.0866},	-- angular momentum 
+				{name = 'dist', value = 0},--.3257},	-- separation
 			}
 		end,
 		initState = function(self, solver)
@@ -377,7 +377,7 @@ return table{
 					S_u = {0,0,v.S.value},
 					pos = {v.dist.value,0,0},
 				},
-				-- [[
+				--[[
 				{
 					R = v.R.value,
 					P_u = {0,-v.P.value,0},
