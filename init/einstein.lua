@@ -56,26 +56,26 @@ local function compileC(expr, name, vars)
 	return table.map(expr, function(v,k) return compileC(v,k,vars) end), name
 end
 
-local NumRelInitCond = class(InitCond)
+local EinsteinInitCond = class(InitCond)
 
-function NumRelInitCond:refreshInitStateProgram(solver)
-	NumRelInitCond.super.refreshInitStateProgram(self, solver)
+function EinsteinInitCond:refreshInitStateProgram(solver)
+	EinsteinInitCond.super.refreshInitStateProgram(self, solver)
 	solver.initDerivsKernelObj = solver.initStateProgramObj:kernel('initDerivs', solver.UBuf)
 end
 
-function NumRelInitCond:resetState(solver)
-	NumRelInitCond.super.resetState(self, solver)
+function EinsteinInitCond:resetState(solver)
+	EinsteinInitCond.super.resetState(self, solver)
 	solver:boundary()
 	solver.initDerivsKernelObj()
 end
 
-function NumRelInitCond:getCodePrefix(solver)
-	-- looks like all num rel solvers might need this
+function EinsteinInitCond:getCodePrefix(solver)
+	-- looks like all EFE solvers might need this
 	-- maybe I should put it in InitCond?
 	
 	local alphaVar = symmath.var'alpha'
 	-- TODO each eqn must be stated as a guiVar of the solver
-	-- make a parent class or something for all num rel eqns
+	-- make a parent class or something for all Einstein field eqns
 	local fGuiVar = solver.eqn.guiVars.f
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
 	
@@ -115,7 +115,7 @@ args:
 
 	preCompile = function to call on expressions before compile
 --]]
-local function initNumRel(args)	
+local function initEinstein(args)	
 	local vars = assert(args.vars)
 	
 	local exprs = table{
@@ -163,7 +163,7 @@ local function initNumRel(args)
 
 	local alphaVar = symmath.var'alpha'
 	-- TODO each eqn must be stated as a guiVar of the solver
-	-- make a parent class or something for all num rel eqns
+	-- make a parent class or something for all Einstein field eqns
 	local fGuiVar = args.solver.eqn.guiVars.f
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
 	
@@ -182,7 +182,7 @@ return ]]..fLuaCode))(alphaVar, symmath)
 	end):concat'\n'
 end
 
-function NumRelInitCond:buildFCCode(solver, diff)
+function EinsteinInitCond:buildFCCode(solver, diff)
 	local alphaVar = symmath.var'alpha'
 	local fGuiVar = solver.eqn.guiVars.f
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
@@ -613,7 +613,7 @@ return table{
 			for k,v in pairs(planet) do print(k,v) end
 
 			local gridUnitsInM = planet.radiusInM / planet.radiusInCoords
-			initNumRel{
+			initEinstein{
 				bodies={
 					{pos = {0,0,0}, radius = planet.radiusInCoords, mass = planet.massInCoords},
 	--]=]
@@ -679,7 +679,7 @@ return table{
 			local gamma = {g_rr, 0, 0, g_rr, 0, g_rr}
 			--]]
 			
-			return initNumRel{
+			return initEinstein{
 				solver = solver,
 				getCodes = getCodes,
 				vars = xs,
@@ -810,7 +810,7 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 			local P = J0(2 * pi * t) * symmath.cos(2 * pi * z)
 			local gamma = {t * symmath.exp(P), 0, 0, t * symmath.exp(-P), 0, 1/symmath.sqrt(t) * symmath.exp(lambda/2)}
 			local K = {-1/2 * t^(1/4) * symmath.exp(P-lambda/4) * (1 + t * dP_dt), 0, 0, -1/2 * t^(1/4) * symmath.exp(-P-lambda/4) * (1 - t * dP_dt), 0, 1/4*t^(-1/4) * symmath.exp(lambda/4) * (1/t - dlambda_dt)}
-			return initNumRel{
+			return initEinstein{
 				solver = solver,
 				getCodes = getCodes,
 				vars = xs,
@@ -821,5 +821,5 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 		end,
 	},
 }:map(function(cl)
-	return class(NumRelInitCond, cl)
+	return class(EinsteinInitCond, cl)
 end)

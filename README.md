@@ -50,8 +50,8 @@ TODO:
 - coroutines to iterative solvers?  so they don't stall the app execution?
 - Poisson SelfGrav seems to be pulling things slightly upwards
 - RHD W error in >1 dimension
-- num rel flat space simulations make an initial wave.  but shouldn't flat space be stable?
-- get eqn\grhd.lua working again by updating the big changes of merging prim_t and cons_t into grhd
+- GR flat space simulations make an initial wave.  but shouldn't flat space be stable?
+- get eqn/grhd.lua working again by updating the big changes of merging prim_t and cons_t into grhd
 
 ### Sources:
 
@@ -64,10 +64,11 @@ TODO:
 	* https://en.wikipedia.org/wiki/Flux_limiter
 * Electromagnetics:
 	* Trangenstein "Numerical Simulation of Hyperbolic Conservation Laws"
-* Numerical Relativity- ADM, BSSN, etc:
+* Einstein Field Equations- ADM, BSSN, etc:
 	* Alcubierre, Miguel. Introduction to 3+1 Numerical Relativity. Oxford Science Publications, Oxford, 2008.
 	* Baumgarte, Shapiro. Numerical Relativity: Solving Einstein's Equations on the Computer, 2010.
 	* Alcubierre (1997) "The appearance of coorindate shocks in hyperbolic formalisms of General Relativity".
+	* Bona, Palenzuela-Luque, Bona-Casas.  Elements of Numerical Relativity and Relativistic Hydrodynamics, 2009.
 * Stellar Schwarzschild initial conditions:
 	* Misner, Thorne, Wheeler. Gravitation, 1973
 * SRHD:

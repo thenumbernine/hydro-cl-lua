@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 2
+local dim = 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -59,8 +59,8 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{256,256,1},
-				{16,16,16},
+				{128,128,1},
+				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
 		-- default size options
@@ -138,7 +138,7 @@ maxs = {6,1,1},
 
 	-- TODO separate initStates for each class of equation
 	-- this would cohese better with the combined solvers
-	-- i.e. a fluid initState, an EM init-state, and a numrel init-state
+	-- i.e. a fluid initState, an EM init-state, and a GR init-state
 	-- ... but that means splitting the MHD init-states across M and HD ...
 	-- how about just stacking initStates?
 	-- and letting each one assign what values it wants.
@@ -194,8 +194,11 @@ maxs = {6,1,1},
 	-- EM:
 	--initState = 'Maxwell default',
 	--initState = 'Maxwell scattering around cylinder',
-	initState = 'Maxwell scattering around Koch snowflake',
+	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
+	
+	-- hmm, I think I need a fluid solver for this, not just an EM solver ...
+	--initState = 'Maxwell Lichtenberg',	
 
 	-- EM+HD
 	--initState = 'two-fluid EMHD soliton ion',
@@ -205,7 +208,7 @@ maxs = {6,1,1},
 	-- GR
 	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
-	--initState = 'Alcubierre warp bubble',
+	initState = 'Alcubierre warp bubble',
 	--initState = 'black hole - Schwarzschild pseudocartesian',
 	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 	--initState = 'binary black holes - isotropic',
@@ -285,7 +288,7 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
 
 -- GR+EM.  params go to the EM solver.
-self.solvers:insert(require 'solver.gr-em-separate'(args))
+--self.solvers:insert(require 'solver.gr-em-separate'(args))
 
 
 -- GR
@@ -293,11 +296,11 @@ self.solvers:insert(require 'solver.gr-em-separate'(args))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'}))) -- TODO fixme
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v2'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d'})))	-- this is breaking ... probably because fluxFromCons is implemented very poorly
+self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='z4'}))) -- TODO fixme
 
 

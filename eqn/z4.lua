@@ -7,12 +7,12 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local template = require 'template'
-local NumRelEqn = require 'eqn.numrel'
+local EinsteinEqn = require 'eqn.einstein'
 local symmath = require 'symmath'
 local makeStruct = require 'eqn.makestruct'
 require 'common'(_G)
 
-local Z4 = class(NumRelEqn)
+local Z4 = class(EinsteinEqn)
 Z4.name = 'Z4'
 
 local fluxVars = table{

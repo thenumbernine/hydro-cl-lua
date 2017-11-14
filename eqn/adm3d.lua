@@ -7,14 +7,14 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local template = require 'template'
-local NumRelEqn = require 'eqn.numrel'
+local EinsteinEqn = require 'eqn.einstein'
 local symmath = require 'symmath'
 local makeStruct = require 'eqn.makestruct'
 
 -- TODO assign these as locals instead of globals
 require 'common'(_G)
 
-local ADM_BonaMasso_3D = class(NumRelEqn)
+local ADM_BonaMasso_3D = class(EinsteinEqn)
 ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
 
 local fluxVars = table{

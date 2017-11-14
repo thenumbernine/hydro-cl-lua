@@ -934,9 +934,71 @@ bool testTriangle(real3 xc) {
 	},
 
 	{
+		name = 'Maxwell Lichtenberg',
+		initState = function(self, solver)
+			local src = {math.floor(tonumber(solver.gridSize.x)*.75)}
+			local dst = {math.floor(tonumber(solver.gridSize.x)*.25)}
+			for j=2,solver.dim do
+				src[j] = math.floor(tonumber(solver.gridSize:ptr()[j-1])*.5)
+				dst[j] = math.floor(tonumber(solver.gridSize:ptr()[j-1])*.5)
+			end
+			for j=solver.dim+1,3 do
+				src[j] = 0
+				dst[j] = 0
+			end
+
+			local addExtraSourceProgramObj = solver.Program{
+				code = table{
+					solver.codePrefix,
+					template([[
+//single cell domain
+kernel void addExtraSource(
+	global <?=eqn.cons_t?>* UBuf
+) {
+	UBuf[INDEX(<?=src[1]?>,<?=src[2]?>,<?=src[3]?>)].epsE.x = -10;
+	UBuf[INDEX(<?=dst[1]?>,<?=dst[2]?>,<?=dst[3]?>)].epsE.x = -10;
+}
+]], {
+	eqn = solver.eqn,
+	src = src,
+	dst = dst,
+}),
+				}:concat'\n',
+			}
+			addExtraSourceProgramObj:compile()
+			local addExtraSourceKernelObj = addExtraSourceProgramObj:kernel{
+				name = 'addExtraSource', 
+				argsOut = {solver.UBufObj},
+				domain = solver.app.env:domain{dim=1, size=1},
+			}
+			
+			local oldStep = solver.step
+			function solver:step(dt)
+				oldStep(self, dt)
+				
+				-- I just want to add to the E field at a specific point ...
+				-- should this be a cpu/gpu mem cpy and write?
+				-- or should this be a kernel with a single cell domain?
+				addExtraSourceKernelObj()
+			end
+		end,
+		resetState = function(self, solver)
+			-- super calls initStateKernel ...
+			InitState.resetState(self, solver)
+			-- and here I'm going to fill the permittivity 'eps' with random noise
+			-- ... and put a source + and - current 'sigma' at two points on the image
+			local ptr = ffi.cast(solver.eqn.cons_t..'*', solver.UBufObj:toCPU())
+			for i=0,solver.volume-1 do
+				ptr[i].sigma = math.random() * 1e-4 + 1e-7
+			end
+			solver.UBufObj:fromCPU(ffi.cast('real*', ptr))
+		end,
+	},
+
+	{
 		name = 'Maxwell wire',
 		initState = function(self, solver)
-			--addMaxwellOscillatingBoundary(solver)
+			addMaxwellOscillatingBoundary(solver)
 			
 			local c = 299792458
 			local s_in_m = 1 / c
@@ -965,6 +1027,7 @@ bool testTriangle(real3 xc) {
 	
 	if (r2 < .1*.1) {
 		conductivity = <?=clnumber(1/resistivities.copper)?>;
+		//permittivity = 10;
 	}
 ]], 		{
 				solver = solver,

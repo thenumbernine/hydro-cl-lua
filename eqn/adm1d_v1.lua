@@ -9,9 +9,9 @@ local table = require 'ext.table'
 local file = require 'ext.file'
 local template = require 'template'
 local symmath = require 'symmath'
-local NumRelEqn = require 'eqn.numrel'
+local EinsteinEqn = require 'eqn.einstein'
 
-local ADM_BonaMasso_1D_Alcubierre2008 = class(NumRelEqn)
+local ADM_BonaMasso_1D_Alcubierre2008 = class(EinsteinEqn)
 
 ADM_BonaMasso_1D_Alcubierre2008.name = 'ADM_BonaMasso_1D_Alcubierre2008' 
 

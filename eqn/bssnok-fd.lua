@@ -4,7 +4,7 @@ local table = require 'ext.table'
 local template = require 'template'
 local symmath = require 'symmath'
 local clnumber = require 'cl.obj.number'
-local NumRelEqn = require 'eqn.numrel'
+local EinsteinEqn = require 'eqn.einstein'
 local makestruct = require 'eqn.makestruct'
 require 'common'(_G)
 
@@ -132,7 +132,7 @@ local function makePartial2(order, solver, field, fieldType, nameOverride)
 end
 
 
-local BSSNOKFiniteDifferenceEquation = class(NumRelEqn)
+local BSSNOKFiniteDifferenceEquation = class(EinsteinEqn)
 
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
 
