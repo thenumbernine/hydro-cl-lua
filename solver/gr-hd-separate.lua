@@ -114,10 +114,11 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 	
 	-- make names unique so that stupid 1D var name-matching code doesn't complain
 	self.solverForDisplayVars = table()
-	for _,solver in ipairs(self.solvers) do
+	for i,solver in ipairs(self.solvers) do
 		for _,var in ipairs(solver.displayVars) do
 			self.solverForDisplayVars[var] = solver
-			var.name = solver.name:gsub('[%s]', '_')..'_'..var.name
+			--var.name = solver.name:gsub('[%s]', '_')..'_'..var.name
+			var.name = i..'_'..var.name
 		end
 	end
 

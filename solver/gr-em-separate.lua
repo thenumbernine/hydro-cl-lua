@@ -94,10 +94,11 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 	
 	-- make names unique so that stupid 1D var name-matching code doesn't complain
 	self.solverForDisplayVars = table()
-	for _,solver in ipairs(self.solvers) do
+	for i,solver in ipairs(self.solvers) do
 		for _,var in ipairs(solver.displayVars) do
 			self.solverForDisplayVars[var] = solver
-			var.name = solver.name:gsub('[%s]', '_')..'_'..var.name
+			--var.name = solver.name:gsub('[%s]', '_')..'_'..var.name
+			var.name = i..'_'..var.name
 		end
 	end
 
@@ -196,9 +197,9 @@ kernel void computeGRStressEnergy(
 		}),
 	}
 	local code = lines:concat'\n'
-	self.sourceProgramObj = self.gr.Program{code=code}
-	self.sourceProgramObj:compile()
-	self.computeGRStressEnergyKernelObj = self.sourceProgramObj:kernel('computeGRStressEnergy', self.gr.UBuf, self.em.UBuf)
+	self.computeGRStressEnergyProgramObj = self.gr.Program{code=code}
+	self.computeGRStressEnergyProgramObj:compile()
+	self.computeGRStressEnergyKernelObj = self.computeGRStressEnergyProgramObj:kernel('computeGRStressEnergy', self.gr.UBuf, self.em.UBuf)
 end
 
 function GREMSeparateSolver:callAll(name, ...)
@@ -222,8 +223,13 @@ function GREMSeparateSolver:boundary()
 	self:callAll'boundary'
 end
 
+local function passthru(f, ...)
+	f(...)
+	return ...
+end
+
 function GREMSeparateSolver:calcDT()
-	return math.min(self:callAll'calcDT')
+	return math.min(passthru(print, self:callAll'calcDT'))
 end
 
 function GREMSeparateSolver:step(dt)
