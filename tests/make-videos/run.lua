@@ -23,13 +23,44 @@ local function run(...)
 	return os.execute(...)
 end
 
-local configurations = {
+--[[
+outer({{a=1}, {a=2}}, {{b=1}, {b=2}})
+returns {{a=1,b=1}, {a=1,b=2}, {a=2,b=1}, {a=2,b=2}}
+--]]
+local function outer(...)
+	local args = {...}
+	local n = #args
+	local is = table()
+	for i=1,n do is[i] = 1 end
+	local ts = table()
+	local done
+	repeat
+		ts:insert(table( is:map(function(j,i) return args[i][j] end):unpack() ))
+		for j=1,n do
+			is[j] = is[j] + 1
+			if is[j] > #args[j] then
+				is[j] = 1
+				if j == n then
+					done = true
+					break
+				end
+			else
+				break
+			end
+		end
+	until done
+	return ts
+end
+
+local configurations = table{
 	{eqn='euler', gridSize={256}, initState='Sod', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
 	{eqn='euler', gridSize={256}, initState='Sod', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+	
 	{eqn='euler', gridSize={256}, initState='Sedov', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
 	{eqn='euler', gridSize={256}, initState='Sedov', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
 	{eqn='euler', gridSize={256}, initState='Sedov', solver='roe', integrator='backward Euler', usePLM='plm-eig-prim-ref'},		-- b.e. gets nans
 	{eqn='euler', gridSize={256}, initState='Sedov', solver='hll', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+	
 	{eqn='euler', gridSize={256}, initState='self-gravitation test 1', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
 	{eqn='euler', gridSize={256}, initState='self-gravitation test 1', solver='hll', integrator='forward Euler', fluxLimiter='superbee'},
 
@@ -37,10 +68,42 @@ local configurations = {
 	{eqn='euler', gridSize={256,256}, initState='Sod', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
 	{eqn='euler', gridSize={256,256}, initState='Sod', solver='hll', integrator='forward Euler', fluxLimiter='superbee'},
 	{eqn='euler', gridSize={256,256}, initState='Sod', solver='hll', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+	
 	{eqn='euler', gridSize={256,256}, initState='Sedov', solver='hll', integrator='forward Euler', fluxLimiter='superbee'},
 	{eqn='euler', gridSize={256,256}, initState='Sedov', solver='hll', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
 	{eqn='euler', gridSize={256,256}, initState='Sedov', solver='hll', integrator='Runge-Kutta 4, TVD', usePLM='plm-eig-prim-ref'},
-}
+}:append(outer(
+	{
+		{eqn='euler', gridSize={256,256}, solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+		{eqn='euler', gridSize={256,256}, solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+		{eqn='euler', gridSize={256,256}, solver='roe', integrator='backward Euler', usePLM='plm-eig-prim-ref'},
+		{eqn='euler', gridSize={256,256}, solver='hll', integrator='forward Euler', fluxLimiter='superbee'},
+		{eqn='euler', gridSize={256,256}, solver='hll', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+		{eqn='euler', gridSize={256,256}, solver='hll', integrator='backward Euler', usePLM='plm-eig-prim-ref'},
+	},
+	{
+		{initState='Kelvin-Helmholtz', movieFrameDT=.1, movieEndTime=10},
+		{initState='shock bubble interaction', movieEndTime=5},
+		{initState='configuration 1', movieEndTime=.3},
+		{initState='configuration 2', movieEndTime=.3},
+		{initState='configuration 3', movieEndTime=.3},
+		{initState='configuration 4', movieEndTime=.3},
+		{initState='configuration 5', movieEndTime=.3},
+		{initState='configuration 6', movieEndTime=.3},
+	}
+)):append(outer(
+	{
+		{eqn='euler', gridSize={256,256}, solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+		{eqn='euler', gridSize={256,256}, solver='roe', integrator='backward Euler', fluxLimiter='superbee'},
+		{eqn='euler', gridSize={256,256}, solver='hll', integrator='forward Euler', fluxLimiter='superbee'},
+	},
+	{
+		{initState='self-gravitation test 1'},
+		{initState='self-gravitation test 1 spinning'},
+		--{initState='self-gravitation test 2'},
+		--{initState='self-gravitation test 2 spinning'},
+	}
+))
 
 for _,cfg in ipairs(configurations) do
 
@@ -84,12 +147,21 @@ for _,cfg in ipairs(configurations) do
 	):append{	
 		'init='..args.initState,
 		'gridSize='..range(args.dim):map(function(i) return args.gridSize[i] end):concat'x',
+	}:append{
+		cfg.movieStartTime and ('t0='..cfg.movieStartTime) or nil,
+	}:append{
+		cfg.movieEndTime and ('t1='..cfg.movieEndTime) or nil,
+	}:append{
+		cfg.movieFrameDT and ('dt='..cfg.movieFrameDT) or nil,
 	}:concat', '..'.mp4'
 	print(destMovieName)
-
+		
 	if io.fileexists(rundir..'/'..destMovieName) then
 		print("I already found movie "..destMovieName)
 	else
+		local movieStartTime = cfg.movieStartTime or 0
+		local movieEndTime = cfg.movieEndTime or 1
+		local movieFrameDT = cfg.movieFrameDT or 0 
 
 		local App = class(require 'app')
 		function App:setup(clArgs)
@@ -97,9 +169,36 @@ for _,cfg in ipairs(configurations) do
 			self.solvers:insert(require('solver.'..cfg.solver)(args))
 			sdl.SDL_SetWindowSize(self.window, 1280, 720)
 			self.running = true
-			self.exitTime = 1
-			self.createAnimation = true
+			self.exitTime = movieEndTime + movieStartTime
 			self.displayVectorField_step = 8
+		end
+		
+		local recording
+		local nextCaptureTime
+		function App:update(...)
+	
+			local oldestSolver = self.solvers:inf(function(a,b) return a.t < b.t end)
+			
+			-- if the recording hasn't started then start it ... 
+			-- ... as soon as it passes the movieStartTime 
+			if not recording then
+				if not movieStartTime 
+				or oldestSolver.t >= movieStartTime
+				then
+					recording = true
+				end
+			end
+
+			if recording then
+				if not nextCaptureTime
+				or nextCaptureTime <= oldestSolver.t
+				then
+					self.createAnimation = 'once'
+					nextCaptureTime = oldestSolver.t + movieFrameDT
+				end
+			end
+
+			return App.super.update(self, ...)
 		end
 		local app  = App()
 		

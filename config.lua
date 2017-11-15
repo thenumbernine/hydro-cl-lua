@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 3
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -158,7 +158,7 @@ maxs = {6,1,1},
 	
 	--initState = 'Sod',
 	--initState = 'Sedov',
-	--initState = 'Kelvin-Helmholtz',
+	initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
@@ -208,7 +208,7 @@ maxs = {6,1,1},
 	-- GR
 	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
-	initState = 'Alcubierre warp bubble',
+	--initState = 'Alcubierre warp bubble',
 	--initState = 'black hole - Schwarzschild pseudocartesian',
 	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 	--initState = 'binary black holes - isotropic',
@@ -230,7 +230,7 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
@@ -300,7 +300,7 @@ maxs = {6,1,1},
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v2'})))
-self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d'})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='z4'}))) -- TODO fixme
 
 
