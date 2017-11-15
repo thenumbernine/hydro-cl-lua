@@ -47,7 +47,6 @@ local table = require 'ext.table'
 local file = require 'ext.file'
 local range = require 'ext.range'
 local template = require 'template'
-local ImGuiApp = require 'imguiapp'
 local CLEnv = require 'cl.obj.env'
 local clnumber = require 'cl.obj.number'
 local GLProgram = require 'gl.program'
@@ -62,7 +61,16 @@ local tooltip = require 'tooltip'
 local CartesianGeom = require 'geom.cartesian'
 local CylinderGeom = require 'geom.cylinder'
 
-local HydroCLApp = class(ImGuiApp)
+
+-- I tried making this a flag, and simply skipping the gui update if it wasn't set, but imgui still messes with the GL state and textures and stuff
+--  and I still get errors... so I'm cutting out imgui altogether, but now it takes a global flag to do so.
+local HydroCLApp
+if __disableGUI__ then
+	HydroCLApp = class(require 'glapp')
+else
+	HydroCLApp = class(require 'imguiapp')
+end
+
 
 HydroCLApp.title = 'Hydrodynamics in OpenCL'
 
@@ -128,7 +136,9 @@ end)
 end
 
 function HydroCLApp:initGL(...)
-	HydroCLApp.super.initGL(self, ...)
+	if HydroCLApp.super.initGL then
+		HydroCLApp.super.initGL(self, ...)
+	end
 
 	-- TODO favor cl_khr_gl_sharing, cl_khr_fp64, cl_khr_3d_image_writes
 	self.env = CLEnv{
@@ -737,7 +747,9 @@ function HydroCLApp:update(...)
 		end
 	end
 
-	HydroCLApp.super.update(self, ...)
+	if HydroCLApp.super.update then
+		HydroCLApp.super.update(self, ...)
+	end
 end
 
 function HydroCLApp:showDisplayVar1D(solver, varIndex, var)
@@ -1893,7 +1905,9 @@ local rightShiftDown
 local leftGuiDown
 local rightGuiDown
 function HydroCLApp:event(event, ...)
-	HydroCLApp.super.event(self, event, ...)
+	if HydroCLApp.super.event then
+		HydroCLApp.super.event(self, event, ...)
+	end
 	local canHandleMouse = not ig.igGetIO()[0].WantCaptureMouse
 	local canHandleKeyboard = not ig.igGetIO()[0].WantCaptureKeyboard
 	local shiftDown = leftShiftDown or rightShiftDown
