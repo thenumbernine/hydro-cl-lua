@@ -194,7 +194,6 @@ function Euler:getDisplayVars()
 		{P = '*value = W.P;'},
 		{eInt = '*value = calc_eInt(W);'},
 		{eKin = '*value = calc_eKin(W, x);'},
-		{ePot = '*value = U->ePot;'},
 		{eTotal = '*value = U->ETotal / W.rho;'},
 		{EInt = '*value = calc_EInt(W);'},
 		{EKin = '*value = calc_EKin(W, x);'},

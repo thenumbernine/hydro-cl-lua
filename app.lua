@@ -52,7 +52,6 @@ local clnumber = require 'cl.obj.number'
 local GLProgram = require 'gl.program'
 local GLGradientTex = require 'gl.gradienttex'
 local GLTex2D = require 'gl.tex2d'
-local glreport = require 'gl.report'
 local Font = require 'gui.font'
 local vec4d = require 'ffi.vec.vec4d'
 local vec3d = require 'ffi.vec.vec3d'
@@ -313,7 +312,6 @@ function HydroCLApp:initGL(...)
 				gradientTex = 1,
 			},
 		}
-
 	end
 
 	self.isobarShader = GLProgram{
@@ -828,6 +826,7 @@ function HydroCLApp:display3D(...)
 end
 
 require 'draw.vectorfield'(HydroCLApp)
+--require 'draw.vectorfield2'(HydroCLApp)
 
 function HydroCLApp:updateGUI()
 	if ig.igCollapsingHeader'simulation' then

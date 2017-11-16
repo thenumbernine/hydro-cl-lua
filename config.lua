@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 3
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -158,7 +158,7 @@ maxs = {6,1,1},
 	
 	--initState = 'Sod',
 	--initState = 'Sedov',
-	initState = 'Kelvin-Helmholtz',
+	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
@@ -176,7 +176,7 @@ maxs = {6,1,1},
 	-- self-gravitation tests:
 	--initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
-	--initState = 'self-gravitation test 2',
+	initState = 'self-gravitation test 2',
 	--initState = 'self-gravitation test 2 orbiting',
 	--initState = 'self-gravitation test 4',
 	--initState = 'self-gravitation soup',

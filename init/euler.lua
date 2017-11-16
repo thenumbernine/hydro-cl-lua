@@ -49,8 +49,9 @@ function SelfGravProblem:init(args)
 	self.getRadiusCode = args.getRadiusCode
 end
 
-function SelfGravProblem:__call(solver)
+function SelfGravProblem:__call(initState, solver)
 	local args = self.args
+
 	solver.useGravity = true
 	--[[ the boundary might not be necessary/appropriate, esp for cylindrical geometry
 	solver:setBoundaryMethods'freeflow'
@@ -662,7 +663,7 @@ end ?>;
 	rho = x.s[0] < <?=radius?> ? 1 : .1;
 ]], {radius=radius})
 			else
-				return f(solver)
+				return f(self, solver)
 			end
 		end
 	},
@@ -691,7 +692,7 @@ end ?>;
 						inside = inside,
 					},
 				},
-			}(solver)
+			}(self, solver)
 		end,
 	},
 
