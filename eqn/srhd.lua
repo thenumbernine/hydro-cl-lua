@@ -45,7 +45,13 @@ function SRHD:init(solver)
 	solver.ops:insert(SRHDSelfGrav{solver=solver})
 end
 
--- because of the unique shape of prim_t and cons_only_t, I can't use the consVars for struct generation ...
+--[[
+because of the unique shape of prim_t and cons_only_t, I can't use the consVars for struct generation ...
+
+2003 Marti & Muller show the state variables as D, S^i, tau ... for SRHD
+...but the GRHD folks use D, S_i, tau ...
+maybe Marti & Muller were lazy with notation since the metric is eta = diag(-1,1,1,1) and raising/lowering spatial doesn't matter ... ?
+--]]
 function SRHD:getTypeCode()
 	return template([[
 typedef union {

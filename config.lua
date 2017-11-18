@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -176,14 +176,14 @@ maxs = {6,1,1},
 	-- self-gravitation tests:
 	--initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
-	initState = 'self-gravitation test 2',
+	--initState = 'self-gravitation test 2',
 	--initState = 'self-gravitation test 2 orbiting',
 	--initState = 'self-gravitation test 4',
 	--initState = 'self-gravitation soup',
 	
 	-- those designed for SRHD / GRHD:
 	--initState = 'relativistic shock reflection',			-- not working.  these initial conditions are constant =P
-	--initState = 'relativistic blast wave test problem 1',
+	initState = 'relativistic blast wave test problem 1',
 	--initState = 'relativistic blast wave test problem 2',
 	--initState = 'relativistic blast wave interaction',
 
@@ -230,7 +230,7 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
@@ -248,7 +248,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
---self.solvers:insert(require 'solver.srhd-roe'(args))
+self.solvers:insert(require 'solver.srhd-roe'(args))
 --self.solvers:insert(require 'solver.srhd-hll'(args))	-- TODO finishme
 
 -- GRHD
@@ -285,7 +285,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- I'm having some memory issues with two solvers running simultanously .. 
 --self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
 -- so to try and get around that, here the two are combined into one solver:
---self.solvers:insert(require 'solver.twofluid-emhd-roe'(args))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 
 -- GR+EM.  params go to the EM solver.
 --self.solvers:insert(require 'solver.gr-em-separate'(args))

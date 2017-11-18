@@ -101,6 +101,8 @@ else
 	TwoFluidEMHD.initStates = require 'init.twofluid-emhd'
 end
 
+-- TODO this has the symptoms of all the other CL kernels that intel's compiler bugged out on
+-- i.e. takes a minute to run a kernel on the GPU
 function TwoFluidEMHD:init(solver)
 	TwoFluidEMHD.super.init(self, solver)
 

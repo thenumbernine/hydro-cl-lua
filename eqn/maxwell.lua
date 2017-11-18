@@ -138,8 +138,8 @@ function Maxwell:getDisplayVars()
 		{E = '*valuevec = real3_scale(U->epsE, 1. / U->eps);', type='real3'},
 		{S = '*valuevec = real3_scale(real3_cross(U->epsE, U->B), 1. / U->eps);', type='real3'},
 		{energy = [[
-	//*value = .5 * (coordLen(U->epsE) + coordLen(U->B) / U->mu);
-	*value = .5 * (real3_len(U->epsE) + real3_len(U->B) / U->mu);
+	//*value = .5 * (coordLenSq(U->epsE) + coordLenSq(U->B) / (U->mu * U->mu));
+	*value = .5 * (real3_lenSq(U->epsE) + real3_lenSq(U->B) / (U->mu * U->mu));
 ]]},
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='epsE', B='B'})[var] )

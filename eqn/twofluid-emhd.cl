@@ -545,8 +545,8 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 <? 
 					end 
 ?>
-	real3 epsE = X->epsE;
-	real3 B = X->B;
+	real3 epsE = ((<?=addr2?> const <?=eqn.cons_t?>*)X)->epsE;
+	real3 B = ((<?=addr2?> const <?=eqn.cons_t?>*)X)->B;
 	real eps = eig->eps;
 	real mu = eig->mu;
 <? 

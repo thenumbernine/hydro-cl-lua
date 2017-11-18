@@ -30,9 +30,9 @@ function GREMSeparateSolver:init(args)
 	local gr = GRSolver(args)
 	self.gr = gr
 
-	local EMSolver = class(require 'solver.roe')
-	function EMSolver:createCodePrefix()
-		EMSolver.super.createCodePrefix(self)
+	local GRMaxwellSolver = class(require 'solver.gr-maxwell-roe')
+	function GRMaxwellSolver:createCodePrefix()
+		GRMaxwellSolver.super.createCodePrefix(self)
 		self.codePrefix = table{
 			self.codePrefix,
 			gr.eqn:getTypeCode(),
@@ -41,34 +41,52 @@ function GREMSeparateSolver:init(args)
 			gr.eqn:getExtraCLFuncs(),
 		}:concat'\n'
 	end
-	function EMSolver:init(args)
+	function GRMaxwellSolver:init(args)
 		args = table(args, {
-			eqn = 'maxwell',
+			eqn = 'gr-maxwell',
 		})
-		EMSolver.super.init(self, args)
+		GRMaxwellSolver.super.init(self, args)
 		self.name = 'EM '..self.name
 	end
-	
-io.stderr:write('TODO finishme -- the EM needs the GR influence\n')
---[[ TODO finishme
-	EMSolver.DisplayVar_U = class(EMSolver.DisplayVar_U)
-	function EMSolver.DisplayVar_U:setArgs(kernel)
-		EMSolver.DisplayVar_U.super.setArgs(self, kernel)
+	function GRMaxwellSolver:getADMArgs()
+		return template([[,
+	const global <?=gr.eqn.cons_t?>* grUBuf]], {gr=gr})
+	end
+	-- args is volatile
+	function GRMaxwellSolver:getADMVarCode(args)
+		args = args or {}
+		args.suffix = args.suffix or ''
+		args.index = args.index or ('index'..args.suffix)
+		args.alpha = args.alpha or ('alpha'..args.suffix)
+		args.beta = args.beta or ('beta'..args.suffix)
+		args.gamma = args.gamma or ('gamma'..args.suffix)
+		args.U = 'grU'..args.suffix
+		return template([[
+	const global <?=gr.eqn.cons_t?>* <?=args.U?> = grUBuf + <?=args.index?>;
+	real <?=args.alpha?> = <?=args.U?>->alpha;
+	real3 <?=args.beta?> = <?=args.U?>->beta_u;
+	sym3 <?=args.gamma?> = sym3_scale(<?=args.U?>->gammaBar_ll, 1. / calc_exp_neg4phi(<?=args.U?>));
+]], {gr=gr, args=args})
+	end
+
+	GRMaxwellSolver.DisplayVar_U = class(GRMaxwellSolver.DisplayVar_U)
+	function GRMaxwellSolver.DisplayVar_U:setArgs(kernel)
+		GRMaxwellSolver.DisplayVar_U.super.setArgs(self, kernel)
 		kernel:setArg(2, gr.UBuf)
 	end
 	
-	function EMSolver:getUBufDisplayVarsArgs()
-		local args = EMSolver.super.getUBufDisplayVarsArgs(self)
+	function GRMaxwellSolver:getUBufDisplayVarsArgs()
+		local args = GRMaxwellSolver.super.getUBufDisplayVarsArgs(self)
 		args.extraArgs = args.extraArgs or {}
 		table.insert(args.extraArgs, 'const global '..gr.eqn.cons_t..'* grUBuf')
 		return args
 	end
-	function EMSolver:refreshInitStateProgram()
-		EMSolver.super.refreshInitStateProgram(self)
+	function GRMaxwellSolver:refreshInitStateProgram()
+		GRMaxwellSolver.super.refreshInitStateProgram(self)
 		self.initStateKernelObj.obj:setArg(1, gr.UBuf)
 	end
-	function EMSolver:refreshSolverProgram()
-		EMSolver.super.refreshSolverProgram(self)
+	function GRMaxwellSolver:refreshSolverProgram()
+		GRMaxwellSolver.super.refreshSolverProgram(self)
 		
 		-- now all of em's kernels need to be given the extra ADM arg
 		-- TODO replace all these kernels with einstein-maxwell equivalents
@@ -80,9 +98,8 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 		self.calcEigenBasisKernelObj.obj:setArg(3, gr.UBuf)
 		self.addSourceKernelObj.obj:setArg(2, gr.UBuf)
 	end
---]]
 
-	local em = EMSolver(args)
+	local em = GRMaxwellSolver(args)
 	self.em = em
 
 	self.solvers = table{
@@ -229,7 +246,7 @@ local function passthru(f, ...)
 end
 
 function GREMSeparateSolver:calcDT()
-	return math.min(passthru(print, self:callAll'calcDT'))
+	return math.min(self:callAll'calcDT')
 end
 
 function GREMSeparateSolver:step(dt)
