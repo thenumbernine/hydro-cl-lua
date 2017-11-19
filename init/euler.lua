@@ -197,10 +197,10 @@ local initStates = table{
 		name = 'Sod',
 		init = function(self, solver)
 			solver.eqn:addGuiVars{
-				{name = 'rhoL', value = 1},
-				{name = 'PL', value = 1},
-				{name = 'rhoR', value = .125},
-				{name = 'PR', value = .1},
+				{name = 'init_rhoL', value = 1},
+				{name = 'init_PL', value = 1},
+				{name = 'init_rhoR', value = .125},
+				{name = 'init_PR', value = .1},
 			}
 		end,
 		initState = function(self, solver)
@@ -212,8 +212,8 @@ local initStates = table{
 			end
 			--]]
 			return [[
-	rho = lhs ? rhoL : rhoR;
-	P = lhs ? PL : PR;
+	rho = lhs ? init_rhoL : init_rhoR;
+	P = lhs ? init_PL : init_PR;
 ]]
 		end,
 	},
