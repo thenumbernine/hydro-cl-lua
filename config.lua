@@ -271,9 +271,9 @@ maxs = {6,1,1},
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
 
 -- TODO to get HLL working for MHD (even though it'll not simulate all those intermediate waves correctly)
 --  I need to rework eqn/mhd.cl to implement eigen_forSide
