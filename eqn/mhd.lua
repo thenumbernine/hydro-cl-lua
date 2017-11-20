@@ -44,11 +44,10 @@ function MHD:init(solver)
 	solver.ops:insert(NoDiv{solver=solver})
 end
 
-function MHD:createInitState()
-	MHD.super.createInitState(self)
-	self:addGuiVar{name='heatCapacityRatio', value=2}	-- 5/3 for most problems, but 2 for Brio-Wu, so I will just set it here for now (in case something else is reading it before it is set there)
-	self:addGuiVar{name='mu0', value=1}	-- this should be 4 pi for natural units, but I haven't verified that all mu0's are where they should be ...
-end
+MHD.guiVars = {
+	{name='heatCapacityRatio', value=2},	-- 5/3 for most problems, but 2 for Brio-Wu, so I will just set it here for now (in case something else is reading it before it is set there)
+	{name='mu0', value=1},	-- this should be 4 pi for natural units, but I haven't verified that all mu0's are where they should be ...
+}
 
 function MHD:getCodePrefix()
 	return table{

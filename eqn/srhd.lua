@@ -151,7 +151,7 @@ real calc_h(real rho, real P, real eInt) {
 	return 1. + eInt + P / rho;
 }
 
-<?=eqn.cons_only_t?> consFromPrim(<?=eqn.prim_t?> prim, real3 x) {
+<?=eqn.cons_only_t?> consOnlyFromPrim(<?=eqn.prim_t?> prim, real3 x) {
 	real vSq = coordLenSq(prim.v, x);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
@@ -171,6 +171,10 @@ real calc_h(real rho, real P, real eInt) {
 	
 	return (<?=eqn.cons_only_t?>){.D=D, .S=S, .tau=tau};
 }
+
+//PLM uses prim_t and cons_t, esp using the 'numIntStates' reals that they start with
+//...and PLM uses consFromPrim and primFromCons
+
 ]], {
 	eqn = self,
 }),
@@ -208,7 +212,7 @@ kernel void initState(
 	<?=eqn.prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
 	UBuf[index] = (<?=eqn.cons_t?>){
 		.prim = prim,
-		.cons = consFromPrim(prim, x),
+		.cons = consOnlyFromPrim(prim, x),
 	};
 }
 ]]
@@ -277,7 +281,7 @@ function SRHD:getDisplayVars()
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
 	{
-		<?=eqn.cons_only_t?> U2 = consFromPrim(U->prim, x);
+		<?=eqn.cons_only_t?> U2 = consOnlyFromPrim(U->prim, x);
 		*value = 0;
 		for (int j = 0; j < numIntStates; ++j) {
 			*value += fabs(U->cons.ptr[j] - U2.ptr[j]);
@@ -308,6 +312,7 @@ function SRHD:getDisplayVars()
 end
 
 SRHD.eigenVars = {
+	-- needed by eigenvectors ...
 	{rho = 'real'},
 	{v = 'real3'},
 	{h = 'real'},

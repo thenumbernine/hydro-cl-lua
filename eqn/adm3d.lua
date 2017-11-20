@@ -47,10 +47,40 @@ else
 	ADM_BonaMasso_3D.numWaves = 13
 end
 
+
+ADM_BonaMasso_3D.numIntStates = makeStruct.countReals(ADM_BonaMasso_3D.consVars)
+
+
+-- no shift
+ADM_BonaMasso_3D.useShift = false
+
+-- minimal distortion elliptic -- Alcubierre's book, eqn 4.3.14 and 4.3.15
+--ADM_BonaMasso_3D.useShift = 'MinimalDistortionElliptic'
+
+
+if ADM_BonaMasso_3D.useShift == 'MinimalDistortionElliptic' then
+	ADM_BonaMasso_3D.consVars:insert{beta_u = 'real3'}
+	--[[ and maybe some of these ...
+	ADM_BonaMasso_3D.consVars:insert{gamma_uu = 'sym3'}
+	ADM_BonaMasso_3D.consVars:insert{conn_ull = '_3sym3'}
+	ADM_BonaMasso_3D.consVars:insert{R_ll = 'sym3'}
+	--]]
+end
+
+
 ADM_BonaMasso_3D.hasCalcDT = true
 ADM_BonaMasso_3D.hasEigenCode = true
 ADM_BonaMasso_3D.useSourceTerm = true
 ADM_BonaMasso_3D.useConstrainU = true
+
+function ADM_BonaMasso_3D:init(solver)
+	ADM_BonaMasso_3D.super.init(self, solver)
+
+	if self.useShift == 'MinimalDistortionElliptic' then
+		local MinimalDistortionEllipticShift = require 'solver.gr-shift-mde'
+		solver.ops:insert(MinimalDistortionEllipticShift{solver=solver})
+	end
+end
 
 function ADM_BonaMasso_3D:createInitState()
 	ADM_BonaMasso_3D.super.createInitState(self)
@@ -68,6 +98,8 @@ function ADM_BonaMasso_3D:createInitState()
 		{name='d_convCoeff', value=10},
 		{name='V_convCoeff', value=10},
 	}
+	-- TODO add shift option
+	-- but that means moving the consVars construction to the :init()
 end
 
 function ADM_BonaMasso_3D:getCodePrefix()
@@ -83,6 +115,10 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	U->d[2] = _sym3(0,0,0,0,0,0);
 	U->K = _sym3(0,0,0,0,0,0);
 	U->V = _real3(0,0,0);
+<? if eqn.useShift then 
+?>	U->beta_u = _real3(0,0,0);
+<? end 
+?>
 }
 ]], {eqn=self}),
 	}:concat'\n'
@@ -109,6 +145,10 @@ kernel void initState(
 	U->gamma = gamma_ll;
 	U->K = K_ll;
 	U->V = _real3(0,0,0);
+<? if eqn.useShift then
+?>	U->beta_u = beta_u;
+<? end
+?>
 }
 
 kernel void initDerivs(
@@ -139,7 +179,7 @@ for i=solver.dim+1,3 do
 end
 ?>
 
-	//V_i = d_ik^k - d^k_ki 
+//V_i = d_ik^k - d^k_ki 
 <? for i,xi in ipairs(xNames) do ?>
 	U->V.<?=xi?> = 0.<?
 	for j,xj in ipairs(xNames) do

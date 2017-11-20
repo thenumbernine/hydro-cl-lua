@@ -82,6 +82,10 @@ end
 -- always call super first
 function Equation:createInitState()
 	self.guiVars = table()
+	local mt = getmetatable(self)
+	if mt.guiVars then
+		self:addGuiVars(mt.guiVars)
+	end
 	assert(self.initStates, "expected Eqn.initStates")
 	self.initState = self.initStates[self.solver.initStateIndex](self.solver)
 	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)	

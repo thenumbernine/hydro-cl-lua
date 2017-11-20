@@ -4,20 +4,38 @@ Marti 1998
 Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 2008 
 */
 
-<? if eqn.hasFluxFromCons then ?>
+<? -- create code to initialize local vars of all the eig vars
+local eigVarCode = require 'ext.table'.map(eqn.eigenVars, function(field)
+	local name,ctype = next(field)
+	return '\t'..ctype..' '..name..' = eig->'..name..';\n'
+end):concat()
+?>
+
 //Eqn.hasFluxFromCons
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U) {
-	real vi = U->prim.v.s<?=side?>;
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	real vi = U.prim.v.s<?=side?>;
+	real P = calc_P(U.prim.rho, U.prim.eInt);
 
 	<?=eqn.cons_t?> F;
-	F.cons.D = U->cons.D * vi;
-	F.cons.S = real3_scale(U->cons.S, vi);
-	F.cons.S.s<?=side?> += U->prim.p;
-	F.cons.tau = U->cons.tau * vi + p * vi;
+	F.cons.D = U.cons.D * vi;
+	F.cons.S = real3_scale(U.cons.S, vi);
+	F.cons.S.s<?=side?> += P;
+	F.cons.tau = U.cons.tau * vi + P * vi;
+	
+	//make sure the rest is zero ...
+	F.prim = (<?=eqn.prim_t?>){
+		.rho = 0,
+		.v = {.s={0,0,0}},
+		.eInt = 0,
+	};
+	F.ePot = 0;
+
 	return F;
 }
-<? end ?>
 <? end ?>
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
@@ -62,12 +80,19 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-//used by PLM
-//TODO SRHD PLM needs to do this:
-//1) calcLR for the <?=eqn.prim_t?> (that means put calcLR in its own file, and a new primLR buf)
-//2) have a new kernel for calc consLR from primLR, since calcDeltaUEig and calcFlux both need this
-//or does the eigenbasis need to be derived from the variables being transformed?
-//shoud I PLM the U's then converge the prims ... and therefore track the prims on edges as well?
+/*
+used by PLM
+TODO SRHD PLM needs to do this:
+1) calcLR for the <?=eqn.prim_t?> (that means put calcLR in its own file, and a new primLR buf)
+2) have a new kernel for calc consLR from primLR, since calcDeltaUEig and calcFlux both need this
+or does the eigenbasis need to be derived from the variables being transformed?
+shoud I PLM the U's then converge the prims ... and therefore track the prims on edges as well?
+
+NOTICE this is only going to use U->prim
+... but that won't help the PLM, since it operates based on numIntStates
+... and numIntStates only covers the cons_t vars ...
+which means this function won't work with the PLM code
+*/
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
 	<?=eqn.eigen_t?>* eig,
@@ -77,7 +102,6 @@ void eigen_forCell_<?=side?>(
 	
 }
 <? end ?>
-
 
 kernel void calcEigenBasis(
 	global real* waveBuf,
@@ -116,18 +140,13 @@ kernel void calcEigenBasis(
 <? -- else -- Roe-averaging, Font 2008 eqn 38 ?>
 <? end ?>
 
+		avg.v = real3_swap<?=side?>(avg.v);
+
 		real rho = avg.rho;
 		real3 v = avg.v;
 		real eInt = avg.eInt;
-	
-		<? if side == 1 then ?>
-		v = _real3(v.y, -v.x, v.z);	// -90' rotation to put the y axis contents into the x axis
-		<? elseif side == 2 then ?>
-		v = _real3(v.z, v.y, -v.x);	//-90' rotation to put the z axis in the x axis
-		<? end ?>
 
 //TODO NOTE if you're swapping vector components, you have to swap metric components too 
-
 		real3 vL = coord_lower(v, xInt);
 		real vSq = real3_dot(v, vL);
 		real oneOverW2 = 1. - vSq;
@@ -198,10 +217,6 @@ for _,addr0 in ipairs{'', 'global'} do
 	for _,addr1 in ipairs{'', 'global'} do
 		for _,addr2 in ipairs{'', 'global'} do
 			for side=0,solver.dim-1 do 
-				local prefix = require 'ext.table'.map(eqn.eigenVars, function(field)
-					local name,ctype = next(field)
-					return '\t'..ctype..' '..name..' = eig->'..name..';\n'
-				end):concat()
 ?>
 void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* Y,
@@ -213,12 +228,12 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<? if side==0 then ?>
 	<?=addr2?> const real* X = X_;
 	<? elseif side == 1 then ?>
-	real X[5] = {X_[0], X_[2], -X_[1], X_[3], X_[4]};
+	real X[5] = {X_[0], X_[2], X_[1], X_[3], X_[4]};
 	<? elseif side == 2 then ?>
-	real X[5] = {X_[0], X_[3], X_[2], -X_[1], X_[4]};
+	real X[5] = {X_[0], X_[3], X_[2], X_[1], X_[4]};
 	<? end ?>
 
-	<?=prefix?>
+	<?=eigVarCode?>
 
 	real3 vL = coord_lower(v, x);
 	real vxSq = v.x * v.x;
@@ -282,7 +297,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* X,
 	real3 x
 ) {
-	<?=prefix?>
+	<?=eigVarCode?>
 	
 	real3 vL = coord_lower(v, x);
 	real hW = h * W;
@@ -318,7 +333,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//rotate outgoing y's x's into side
 	<? if side ~= 0 then ?>
 	real tmp = Y[1];
-	Y[1] = -Y[1+<?=side?>];
+	Y[1] = Y[1+<?=side?>];
 	Y[1+<?=side?>] = tmp;
 	<? end ?>
 }
@@ -334,9 +349,9 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<? if side==0 then ?>
 	<?=addr2?> const real* X = X_;
 	<? elseif side == 1 then ?>
-	real X[5] = {X_[0], X_[2], -X_[1], X_[3], X_[4]};
+	real X[5] = {X_[0], X_[2], X_[1], X_[3], X_[4]};
 	<? elseif side == 2 then ?>
-	real X[5] = {X_[0], X_[3], X_[2], -X_[1], X_[4]};
+	real X[5] = {X_[0], X_[3], X_[2], X_[1], X_[4]};
 	<? end ?>
 
 	//TODO do the matrix multiply here

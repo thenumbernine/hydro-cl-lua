@@ -43,6 +43,14 @@ real3 real3_swap0(real3 v) { return v; }
 real3 real3_swap1(real3 v) { return _real3(v.y, v.x, v.z); }
 real3 real3_swap2(real3 v) { return _real3(v.z, v.y, v.x); }
 
+real3 real3_rotFrom0(real3 v) { return v; }
+real3 real3_rotFrom1(real3 v) { return _real3(v.y, -v.x, v.z); }
+real3 real3_rotFrom2(real3 v) { return _real3(v.z, v.y, -v.x); }
+
+real3 real3_rotTo0(real3 v) { return v; }
+real3 real3_rotTo1(real3 v) { return _real3(-v.y, v.x, v.z); }
+real3 real3_rotTo2(real3 v) { return _real3(-v.z, v.y, v.x); }
+
 
 static inline sym3 sym3_ident() {
 	return _sym3(1,0,0,1,0,1);
