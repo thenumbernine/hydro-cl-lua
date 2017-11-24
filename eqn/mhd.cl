@@ -1,6 +1,7 @@
 /*
 Stone et al 2008 - https://arxiv.org/pdf/0804.0402v1.pdf
 based on Athena's version of eigenvectors of derivative of adiabatic MHD flux wrt primitives
+ideal-mhd, divergence-free, conservative-based eigensystem
 */
 
 //use Eqn.hasFluxFromCons to allow the calcFlux function to take advantage of this function
@@ -31,14 +32,19 @@ based on Athena's version of eigenvectors of derivative of adiabatic MHD flux wr
 
 <? for side=0,2 do ?>
 <?=eqn.cons_t?> cons_swapFrom<?=side?>(<?=eqn.cons_t?> U) {
-	U.m = real3_swap<?=side?>(U.m);
-	U.B = real3_swap<?=side?>(U.B);
+	//both work as good as the other ...
+	//U.m = real3_swap<?=side?>(U.m);
+	//U.B = real3_swap<?=side?>(U.B);
+	U.m = real3_rotFrom<?=side?>(U.m);
+	U.B = real3_rotFrom<?=side?>(U.B);
 	return U;
 }
 
 <?=eqn.cons_t?> cons_swapTo<?=side?>(<?=eqn.cons_t?> U) {
-	U.m = real3_swap<?=side?>(U.m);
-	U.B = real3_swap<?=side?>(U.B);
+	//U.m = real3_swap<?=side?>(U.m);
+	//U.B = real3_swap<?=side?>(U.B);
+	U.m = real3_rotTo<?=side?>(U.m);
+	U.B = real3_rotTo<?=side?>(U.B);
 	return U;
 }
 <? end ?>
@@ -330,7 +336,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* input,
 	real3 x
 ) {	
-	<?=eqn.cons_t?> inputU = cons_swapTo<?=side?>(*(<?=addr2?> <?=eqn.cons_t?>*)input);
+	<?=eqn.cons_t?> inputU = cons_swapFrom<?=side?>(*(<?=addr2?> <?=eqn.cons_t?>*)input);
 	
 	const real gamma = heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
@@ -524,7 +530,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ input[5] * r72
 		+ input[6] * r71;
 	resultU.BPot = 0;
-	*(<?=addr0?> <?=eqn.cons_t?>*)result = cons_swapFrom<?=side?>(resultU);
+	*(<?=addr0?> <?=eqn.cons_t?>*)result = cons_swapTo<?=side?>(resultU);
 }
 
 <? 				if solver.checkFluxError then ?>
@@ -534,7 +540,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* input,
 	real3 x
 ) {
-	<?=eqn.cons_t?> inputU = cons_swapTo<?=side?>(*(<?=addr2?> <?=eqn.cons_t?>*)input);
+	<?=eqn.cons_t?> inputU = cons_swapFrom<?=side?>(*(<?=addr2?> <?=eqn.cons_t?>*)input);
 
 	const real gamma = heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
@@ -591,7 +597,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ inputU.m.z * -B.x * _1_rho
 		+ inputU.B.z * v.x;
 	resultU.BPot = 0;
-	*(<?=addr0?> <?=eqn.cons_t?>*)result = cons_swapFrom<?=side?>(resultU);
+	*(<?=addr0?> <?=eqn.cons_t?>*)result = cons_swapTo<?=side?>(resultU);
 }
 <?				end
 			end
@@ -640,7 +646,7 @@ void apply_dU_dW(
 			+ WA->rho * real3_dot(W->v, WA->v)
 			+ real3_dot(W->B, WA->B) / mu0
 			+ W->P / (heatCapacityRatio - 1.),
-		.BPot = 0,
+		.BPot = W->BPot,
 	};
 }
 
@@ -665,6 +671,6 @@ void apply_dW_dU(
 			- real3_dot(U->m, WA->v)
 			- real3_dot(U->B, WA->B) / mu0
 			+ U->ETotal),
-		.BPot = 0,
+		.BPot = U->BPot,
 	};
 }

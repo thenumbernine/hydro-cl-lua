@@ -156,7 +156,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -188,7 +188,7 @@ maxs = {6,1,1},
 	--initState = 'relativistic blast wave interaction',
 
 	-- MHD-only init states: (that use 'b')
-	initState = 'Brio-Wu',
+	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	
 	-- EM:
@@ -273,11 +273,11 @@ maxs = {6,1,1},
 --		but that could be because of issues with simultaneous solvers.
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
-
 -- TODO to get HLL working for MHD (even though it'll not simulate all those intermediate waves correctly)
 --  I need to rework eqn/mhd.cl to implement eigen_forSide
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
+
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
 
 -- EM
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
