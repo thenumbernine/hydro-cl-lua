@@ -1,6 +1,6 @@
 -- create this after 'real' is defined
 --  specifically the call to 'refreshGridSize' within it
-local dim = 1
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -59,7 +59,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{128,128,1},
+				{64,64,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -156,7 +156,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -193,7 +193,7 @@ maxs = {6,1,1},
 	
 	-- EM:
 	--initState = 'Maxwell default',
-	--initState = 'Maxwell scattering around cylinder',
+	initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	
@@ -252,13 +252,11 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.srhd-hll'(args))	-- TODO finishme
 
 -- GRHD
--- TODO FIXME -- I merged primBuf into UBuf in SRHD but never updated GRHD
--- right now this is just like srhd except extended by Font's eqns
--- this has plug-ins for ADM metric alpha, beta, gammas, but I need to make a composite solver to combine it with GR equations. 
+-- this is the solver with plug-ins for ADM metric, 
+-- yet doesn't come coupled with any other solver
 --self.solvers:insert(require 'solver.grhd-roe'(args))
 
 -- GRHD+GR
--- TODO FIXME TOO -- I never implemented this
 -- here's the GRHD solver with the BSSNOK plugged into it
 --self.solvers:insert(require 'solver.gr-hd-separate'(args))
 
@@ -277,7 +275,7 @@ maxs = {6,1,1},
 --  I need to rework eqn/mhd.cl to implement eigen_forSide
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
 
 -- EM
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
@@ -290,6 +288,11 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 
 -- GR+EM.  params go to the EM solver.
+-- TODO this should be the einstein-maxwell eqns solver with flat space plugged into the metric
+-- TODO rename to einstein-maxwell-roe
+self.solvers:insert(require 'solver.gr-maxwell-roe'(args))
+-- TODO and this should be the einstein-maxwell with an einstein solver plugged in
+-- TODO rename to einstein-maxwell-separate
 --self.solvers:insert(require 'solver.gr-em-separate'(args))
 
 

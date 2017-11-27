@@ -31,14 +31,22 @@ GLM_MHD.mirrorVars = {{'m.x', 'B.x'}, {'m.y', 'B.y'}, {'m.z', 'B.z'}}
 GLM_MHD.hasEigenCode = true
 GLM_MHD.useSourceTerm = true
 GLM_MHD.hasFluxFromCons = true
+GLM_MHD.useConstrianU = true
+
+GLM_MHD.useFixedCh = true	-- true = use a gui var, false = calculate by max(|v_i|+Cf)
 
 -- hmm, we want init.euler and init.mhd here ...
 GLM_MHD.initStates = require 'init.euler'
 
-GLM_MHD.guiVars = {
+GLM_MHD.guiVars = table{
 	{name='heatCapacityRatio', value=2},	-- 5/3 for most problems, but 2 for Brio-Wu, so I will just set it here for now (in case something else is reading it before it is set there)
 	{name='mu0', value=1},	-- this should be 4 pi for natural units, but I haven't verified that all mu0's are where they should be ...
+	{name='Cp', value=1},
 }
+
+if GLM_MHD.useFixedCh then
+	GLM_MHD.guiVars:insert{name='Ch', value=0}
+end
 
 function GLM_MHD:getCodePrefix()
 	return table{
@@ -215,7 +223,9 @@ GLM_MHD.eigenVars = table(GLM_MHD.roeVars):append{
 	{Cs = 'real'},
 	{CAx = 'real'},
 	{Cf = 'real'},
-
+}:append(GLM_MHD.useFixedCh and {} or {
+	{Ch = 'real'},
+}):append{
 	{BStarPerpLen = 'real'},
 	{betaY = 'real'},
 	{betaZ = 'real'},

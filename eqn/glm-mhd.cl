@@ -5,46 +5,20 @@ tweaked it while looking at
 2009 Mignone, Tzeferacos - A Second-Order Unsplit Godunov Scheme for Cell-Centered MHD- the CTU-GLM scheme
 */
 
-constant real c_h = 1.;
-constant real c_p = 1.;
-
-//use Eqn.hasFluxFromCons to allow the calcFlux function to take advantage of this function
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	<?=eqn.prim_t?> W = primFromCons(U, x);
-	real vj = W.v.s<?=side?>;
-	real Bj = W.B.s<?=side?>;
-	real BSq = real3_lenSq(W.B);
-	real BDotV = real3_dot(W.B, W.v);
-	real PMag = .5 * BSq;
-	real PTotal = W.P + PMag;
-	real HTotal = U.ETotal + PTotal;
-	
-	<?=eqn.cons_t?> F;
-	F.rho = U.m.s<?=side?>;
-	F.m = real3_sub(real3_scale(U.m, vj), real3_scale(U.B, Bj / mu0));
-	F.m.s<?=side?> += PTotal;
-	F.B = real3_sub(real3_scale(U.B, vj), real3_scale(W.v, Bj));
-	F.B.s<?=side?> += F.BPot;
-	F.ETotal = HTotal * vj - BDotV * Bj / mu0;
-	F.BPot = c_h * c_h;
-	return F;
-}
-<? end ?>
-
 <? for side=0,2 do ?>
 <?=eqn.cons_t?> cons_swapFrom<?=side?>(<?=eqn.cons_t?> U) {
-	U.m = real3_swap<?=side?>(U.m);
-	U.B = real3_swap<?=side?>(U.B);
+	//U.m = real3_swap<?=side?>(U.m);
+	//U.B = real3_swap<?=side?>(U.B);
+	U.m = real3_rotFrom<?=side?>(U.m);
+	U.B = real3_rotFrom<?=side?>(U.B);
 	return U;
 }
 
 <?=eqn.cons_t?> cons_swapTo<?=side?>(<?=eqn.cons_t?> U) {
-	U.m = real3_swap<?=side?>(U.m);
-	U.B = real3_swap<?=side?>(U.B);
+	//U.m = real3_swap<?=side?>(U.m);
+	//U.B = real3_swap<?=side?>(U.B);
+	U.m = real3_rotTo<?=side?>(U.m);
+	U.B = real3_rotTo<?=side?>(U.B);
 	return U;
 }
 <? end ?>
@@ -117,12 +91,16 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real CsSq = aTildeSq * CAxSq / CfSq;
 	real Cs = sqrt(CsSq);
 
+<? if not eqn.useFixedCh then ?>
+	real Ch = max(max(fabs(v.x) + Cf, fabs(v.y) + Cf), fabs(v.z) + Cf);
+<? end ?>
+
 	real lambdaFastMin = v.x - Cf;
 	real lambdaFastMax = v.x + Cf;
 	
 	return (range_t){
-		.min = min(lambdaFastMin, -c_h),
-		.max = max(lambdaFastMax, c_h),
+		.min = min(lambdaFastMin, -Ch),
+		.max = max(lambdaFastMax, Ch),
 	};
 #endif
 }
@@ -183,9 +161,12 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 	wave[3] = eig->v.x;
 	wave[4] = eig->v.x + eig->Cs;
 	wave[5] = eig->v.x + eig->CAx;
-	wave[6] = eig->v.x + eig->Cf;
-	wave[7] = -c_h;
-	wave[8] = c_h;
+	wave[6] = eig->v.x + eig->Cf;	
+<? if not eqn.useFixedCh then ?>
+	real Ch = eig->Ch;
+<? end ?>
+	wave[7] = -Ch;
+	wave[8] = Ch;
 }
 <?
 		end
@@ -195,7 +176,7 @@ end
 for side=0,solver.dim-1 do
 	for _,addr1 in ipairs{'', 'global'} do 
 ?>
-void eig_forSide_<?=side?>_<?=addr1?>(
+void eigen_forSide_<?=side?>_<?=addr1?>(
 	<?=addr1?> <?=eqn.eigen_t?>* eig,
 	Roe_t roe,
 	real3 x
@@ -240,7 +221,10 @@ void eig_forSide_<?=side?>_<?=addr1?>(
 	real CsSq = eig->aTildeSq * CAxSq / CfSq;
 	eig->Cs = sqrt(CsSq);
 
-	
+<? if not eqn.useFixedCh then ?>
+	eig->Ch = max(max(fabs(v.x) + eig->Cf, fabs(v.y) + eig->Cf), fabs(v.z) + eig->Cf);
+<? end ?>
+
 	real BPerpLen = sqrt(BPerpSq);
 	eig->BStarPerpLen = sqrt(BStarPerpSq);
 	
@@ -294,6 +278,68 @@ void eig_forSide_<?=side?>_<?=addr1?>(
 end
 ?>
 
+<? for side=0,solver.dim-1 do ?>
+void eigen_forCons_<?=side?>(
+	<?=eqn.eigen_t?>* eig,
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	<?=eqn.prim_t?> W = primFromCons(U, x);
+	real PMag = .5 * real3_lenSq(W.B);
+	real hTotal = (U.ETotal + W.P + PMag) / W.rho;
+	Roe_t roe = (Roe_t){
+		.rho = W.rho,
+		.v = W.v,
+		.hTotal = hTotal,
+		.B = W.B,
+		.X = 0,
+		.Y = 1,
+	};
+	eigen_forSide_<?=side?>_(eig, roe, x);
+}
+<? end ?>
+
+
+//use Eqn.hasFluxFromCons to allow the calcFlux function to take advantage of this function
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	<?=eqn.prim_t?> W = primFromCons(U, x);
+	real vj = W.v.s<?=side?>;
+	real Bj = W.B.s<?=side?>;
+	real BSq = real3_lenSq(W.B);
+	real BDotV = real3_dot(W.B, W.v);
+	real PMag = .5 * BSq;
+	real PTotal = W.P + PMag;
+	real HTotal = U.ETotal + PTotal;
+	
+	<?=eqn.cons_t?> F;
+	F.rho = U.m.s<?=side?>;
+	F.m = real3_sub(real3_scale(U.m, vj), real3_scale(U.B, Bj / mu0));
+	F.m.s<?=side?> += PTotal;
+	F.B = real3_sub(real3_scale(U.B, vj), real3_scale(W.v, Bj));
+	F.B.s<?=side?> += F.BPot;
+	F.ETotal = HTotal * vj - BDotV * Bj / mu0;
+
+<? if not eqn.useFixedCh then ?>
+	//TODO don't need the whole eigen here, just the Ch
+	real Ch = 0;
+	<? for side=0,solver.dim-1 do ?>{
+		<?=eqn.eigen_t?> eig;
+		eigen_forCons_<?=side?>(&eig, U, x);
+		Ch = max(Ch, eig.Ch);
+	}<? end ?>
+<? end ?>
+
+	F.BPot = Ch * Ch;
+	return F;
+}
+<? end ?>
+
+
+
 kernel void calcEigenBasis(
 	global real* waveBuf,			//[volume][dim][numWaves]
 	global <?=eqn.eigen_t?>* eigenBuf,		//[volume][dim]
@@ -322,7 +368,7 @@ kernel void calcEigenBasis(
 		global real* wave = waveBuf + numWaves * indexInt;
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 
-		eig_forSide_<?=side?>_global(eig, roe, xInt);
+		eigen_forSide_<?=side?>_global(eig, roe, xInt);
 		
 		eigen_calcWaves_<?=side?>_global_global(wave, eig, xInt);
 	}<? end ?>
@@ -338,7 +384,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* input,
 	real3 x
 ) {	
-	<?=eqn.cons_t?> inputU = cons_swapTo<?=side?>(*(<?=addr2?> <?=eqn.cons_t?>*)input);
+	<?=eqn.cons_t?> inputU = cons_swapFrom<?=side?>(*(<?=addr2?> <?=eqn.cons_t?>*)input);
 	
 	const real gamma = heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
@@ -434,8 +480,12 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ inputU.ETotal * alphaF
 		+ inputU.B.y * l16
 		+ inputU.B.z * l17;
-	result[7] = inputU.B.x;
-	result[8] = inputU.BPot;
+	result[7] = inputU.B.x * .5;
+	result[8] = inputU.B.x * .5;
+	if (Ch != 0) {
+		result[7] += inputU.BPot * -.5 / Ch;
+		result[8] += inputU.BPot * .5 / Ch;
+	}
 }
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
@@ -518,7 +568,9 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ input[4] * (alphaS*(eig->hHydro + v.x*Cs) + Qf*vDotBeta - Afpbb)
 		+ input[5] * -r52
 		+ input[6] * (alphaF*(eig->hHydro + v.x*Cf) - Qs*vDotBeta + Aspbb);
-	resultU.B.x = input[7];
+	resultU.B.x = 
+		  input[7] * .5
+		+ input[8] * .5;
 	resultU.B.y =
 		  input[0] * r61
 		+ input[1] * r62
@@ -533,8 +585,10 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ input[4] * r73
 		+ input[5] * r72
 		+ input[6] * r71;
-	resultU.BPot = input[8];
-	*(<?=addr0?> <?=eqn.cons_t?>*)result = cons_swapFrom<?=side?>(resultU);
+	resultU.BPot = 
+		  input[7] * -Ch
+		+ input[8] * Ch;
+	*(<?=addr0?> <?=eqn.cons_t?>*)result = cons_swapTo<?=side?>(resultU);
 }
 
 <? 				if solver.checkFluxError then ?>
@@ -544,7 +598,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* input,
 	real3 x
 ) {
-	<?=eqn.cons_t?> inputU = cons_swapTo<?=side?>(*(<?=addr2?> <?=eqn.cons_t?>*)input);
+	<?=eqn.cons_t?> inputU = cons_swapFrom<?=side?>(*(<?=addr2?> <?=eqn.cons_t?>*)input);
 
 	const real gamma = heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
@@ -601,7 +655,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ inputU.m.z * -B.x * _1_rho
 		+ inputU.B.z * v.x;
 	resultU.BPot = inputU.BPot;
-	*(<?=addr0?> <?=eqn.cons_t?>*)result = cons_swapFrom<?=side?>(resultU);
+	*(<?=addr0?> <?=eqn.cons_t?>*)result = cons_swapTo<?=side?>(resultU);
 }
 <?				end
 			end
@@ -618,28 +672,44 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
-	deriv->BPot -= c_h * c_h / (c_p * c_p) * U->BPot;
+	//TODO don't need the whole eigen here, just the Ch	
+<? if not eqn.useFixedCh then ?>
+	real Ch = 0;
+	<? for side=0,solver.dim-1 do ?>{
+		<?=eqn.eigen_t?> eig;
+		eigen_forCons_<?=side?>(&eig, *U, x);
+		Ch = max(Ch, eig.Ch);
+	}<? end ?>
+<? end ?>
+
+	deriv->BPot -= Ch * Ch / (Cp * Cp) * U->BPot;
+}
+
+kernel void constrainU(
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cell_x(i);
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	<?=eqn.prim_t?> W = primFromCons(*U, x);
+
+	W.rho = max(W.rho, 1e-7);
+	W.P = max(W.P, 1e-7);
+
+	*U = consFromPrim(W, x);
 }
 
 
+
+//used by PLM
 <? for side=0,solver.dim-1 do ?>
 void eigen_forCell_<?=side?>(
 	<?=eqn.eigen_t?>* eig,
 	global const <?=eqn.cons_t?>* U,
 	real3 x
 ) {
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
-	real PMag = .5 * real3_lenSq(W.B);
-	real hTotal = (U->ETotal + W.P + PMag) / W.rho;
-	Roe_t roe = (Roe_t){
-		.rho = W.rho,
-		.v = W.v,
-		.hTotal = hTotal,
-		.B = W.B,
-		.X = 0,
-		.Y = 1,
-	};
-	eig_forSide_<?=side?>_(eig, roe, x);
+	eigen_forCons_<?=side?>(eig, *U, x);
 }
 <? end ?>
 
