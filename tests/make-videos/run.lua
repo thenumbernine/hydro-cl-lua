@@ -52,24 +52,116 @@ local function outer(...)
 	return ts
 end
 
-local configurations = outer(
-	{ 
-		{eqn='euler', gridSize={256} },
-	},
-	{
-		{initState='Sod', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
-		{initState='Sod', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
-		{initState='Sod', solver='euler-burgers', integrator='forward Euler', fluxLimiter='superbee'},
-		
-		{initState='Sedov', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
-		{initState='Sedov', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
-		{initState='Sedov', solver='roe', integrator='backward Euler', usePLM='plm-eig-prim-ref'},		-- b.e. gets nans
-		{initState='Sedov', solver='hll', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+local configurations = 
+outer(
+	{ {gridSize={256}} },
+	-- [[ Euler & SRHD
+	outer(
+		{ {eqn='euler'} },
+		{
+			{initState='Sod', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+			{initState='Sod', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+			{initState='Sod', solver='roe', integrator='backward Euler', fluxLimiter='superbee'},
+			{initState='Sod', solver='roe', integrator='backward Euler', usePLM='plm-eig-prim-ref'},
+			
+			{initState='Sod', solver='hll', integrator='forward Euler', fluxLimiter='superbee'},
+			{initState='Sod', solver='hll', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+			{initState='Sod', solver='hll', integrator='backward Euler', fluxLimiter='superbee'},
+			{initState='Sod', solver='hll', integrator='backward Euler', usePLM='plm-eig-prim-ref'},
+			
+			{initState='Sod', solver='euler-burgers', integrator='forward Euler', fluxLimiter='superbee'},
+			{eqn='srhd', initState='Sod', solver='srhd-roe', integrator='forward Euler', fluxLimiter='superbee'},
+			--{initState='Sod', solver='srhd-roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},		-- not working yet
+
+			{initState='Sod', eqn='mhd', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+			{initState='Sod', eqn='mhd', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+			{initState='Sod', eqn='mhd', solver='roe', integrator='backward Euler', fluxLimiter='superbee'},
+			{initState='Sod', eqn='mhd', solver='roe', integrator='backward Euler', usePLM='plm-eig-prim-ref'},
+
+
+			{initState='Sedov', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+			{initState='Sedov', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+			{initState='Sedov', solver='roe', integrator='backward Euler', usePLM='plm-eig-prim-ref'},		-- b.e. + PLM gets nans
+			{initState='Sedov', solver='hll', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+			{eqn='srhd', initState='Sedov', solver='srhd-roe', integrator='forward Euler', fluxLimiter='superbee'},
+			--{eqn='srhd', initState='Sedov', solver='srhd-roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+			--{eqn='srhd', initState='Sedov', solver='srhd-roe', integrator='backward Euler', usePLM='plm-eig-prim-ref'},
 	
-		{initState='self-gravitation test 1', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
-		{initState='self-gravitation test 1', solver='hll', integrator='forward Euler', fluxLimiter='superbee'},
+
+			{initState='self-gravitation test 1', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+			{initState='self-gravitation test 1', solver='hll', integrator='forward Euler', fluxLimiter='superbee'},
+			{eqn='srhd', initState='self-gravitation test 1', solver='srhd-roe', integrator='forward Euler', fluxLimiter='superbee'},
+			--{eqn='srhd', initState='self-gravitation test 1', solver='hll', integrator='forward Euler', fluxLimiter='superbee'},
+		}
+	)
+	--]]
+	-- [[ SRHD
+	:append(outer(
+		{
+			{eqn='srhd', solver='srhd-roe', integrator='forward Euler', fluxLimiter='superbee'},
+			{eqn='srhd', solver='srhd-roe', integrator='backward Euler', fluxLimiter='superbee'},
+		},
+		{	
+			--{initState='relativistic shock reflection'},			-- not working.  these initial conditions are constant =P
+			{initState='relativistic blast wave test problem 1'},
+			{initState='relativistic blast wave test problem 2'},
+			{initState='relativistic blast wave interaction'},
+		}
+	))
+	--]]
+	-- [[ ideal MHD
+	:append{
+		{initState='Brio-Wu', eqn='mhd', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+		{initState='Brio-Wu', eqn='mhd', solver='roe', integrator='backward Euler', fluxLimiter='superbee'},
+		{initState='Brio-Wu', eqn='mhd', solver='roe', integrator='forward Euler', usePLM='plm-eig'},
+		{initState='Brio-Wu', eqn='mhd', solver='roe', integrator='backward Euler', usePLM='plm-eig'},
+		
+		--plm-eig-prim-ref not working with mhd...
+		--{initState='Brio-Wu', eqn='mhd', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+		--{initState='Brio-Wu', eqn='mhd', solver='roe', integrator='backward Euler', usePLM='plm-eig-prim-ref'},
+		-- also not working	
+		--{initState='Brio-Wu', eqn='mhd', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim'},
+		--{initState='Brio-Wu', eqn='mhd', solver='roe', integrator='backward Euler', usePLM='plm-eig-prim'},
+		
 	}
+	--]]
+	-- [[ Maxwell
+	:append(outer(
+		{
+			{eqn='maxwell', solver='roe', integrator='forward Euler', fluxLimiter='superbee'}, 
+			{eqn='maxwell', solver='roe', integrator='backward Euler', fluxLimiter='superbee'}, 
+			{eqn='maxwell', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'}, 
+			{eqn='maxwell', solver='roe', integrator='backward Euler', usePLM='plm-eig-prim-ref'}, 
+			{eqn='maxwell', solver='hll', integrator='forward Euler', fluxLimiter='superbee'}, 
+			{eqn='maxwell', solver='hll', integrator='backward Euler', fluxLimiter='superbee'}, 
+			{eqn='maxwell', solver='hll', integrator='forward Euler', usePLM='plm-eig-prim-ref'}, 
+			{eqn='maxwell', solver='hll', integrator='backward Euler', usePLM='plm-eig-prim-ref'}, 
+		},
+		{
+			{initState='Maxwell default'},
+			{initState='Maxwell scattering around cylinder', movieFrameDT=.01, movieEndTime=5},
+			--{initState='Maxwell scattering around Koch snowflake'},	-- 2D only
+			--{initState='Maxwell wire'},	-- 2D / 3D only
+		}
+	))
+	--]]
+	--[[ GR
+	:append(outer(
+		{
+			{eqn='adm1d_v1', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+			{eqn='adm1d_v2', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+			{eqn='adm3d', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+			{eqn='bssnok-fd', solver='bssnok-fd', integrator='backward Euler'},
+		},
+		{
+			{initState='gaussian perturbation'},
+			{initState='plane gauge wave'},
+			{initState='plane gauge wave'},
+		}
+	))
+	--]]
 ):append(
+	-- [[ Euler & SRHD
 	outer(
 	{
 		{eqn='euler', gridSize={256,256} },
@@ -77,8 +169,16 @@ local configurations = outer(
 	table{
 		{initState='Sod', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
 		{initState='Sod', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+		{initState='Sod', solver='roe', integrator='backward Euler', fluxLimiter='superbee'},
 		{initState='Sod', solver='hll', integrator='forward Euler', fluxLimiter='superbee'},
 		{initState='Sod', solver='hll', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+		{eqn='srhd', initState='Sod', solver='srhd-roe', integrator='forward Euler', fluxLimiter='superbee'},
+		--{eqn='srhd', initState='Sod', solver='srhd-roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+		
+		{initState='Sedov', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+		{initState='Sedov', solver='roe', integrator='backward Euler', fluxLimiter='superbee'},
+		{initState='Sedov', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+		{initState='Sedov', solver='roe', integrator='Runge-Kutta 4, TVD', usePLM='plm-eig-prim-ref'},
 		
 		{initState='Sedov', solver='hll', integrator='forward Euler', fluxLimiter='superbee'},
 		{initState='Sedov', solver='hll', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
@@ -107,6 +207,8 @@ local configurations = outer(
 			{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
 			{solver='roe', integrator='backward Euler', fluxLimiter='superbee'},
 			{solver='hll', integrator='forward Euler', fluxLimiter='superbee'},
+			{eqn='srhd', solver='srhd-roe', integrator='forward Euler', fluxLimiter='superbee'},
+			{eqn='srhd', solver='srhd-roe', integrator='backward Euler', fluxLimiter='superbee'},
 		},
 		{
 			{initState='self-gravitation test 1'},
@@ -115,6 +217,51 @@ local configurations = outer(
 			{initState='self-gravitation test 2 orbiting'},
 		}
 	))
+	--]]
+	-- [[ SRHD
+	:append(
+		outer(
+			{
+				{eqn='srhd', solver='srhd-roe', integrator='forward Euler', fluxLimiter='superbee'},
+				{eqn='srhd', solver='srhd-roe', integrator='backward Euler', fluxLimiter='superbee'},
+			},
+			{	
+				{initState='relativistic shock reflection'},			-- not working.  these initial conditions are constant =P
+				{initState='relativistic blast wave test problem 1'},
+				{initState='relativistic blast wave test problem 2'},
+				{initState='relativistic blast wave interaction'},
+			}
+		)
+	)
+	--]]
+	-- [[ ideal MHD
+	:append{
+		{initState='Orszag-Tang', eqn='mhd', solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+		{initState='Orszag-Tang', eqn='mhd', solver='roe', integrator='backward Euler', fluxLimiter='superbee'},
+		{initState='Orszag-Tang', eqn='mhd', solver='roe', integrator='forward Euler', usePLM='plm-eig'},
+		{initState='Orszag-Tang', eqn='mhd', solver='roe', integrator='backward Euler', usePLM='plm-eig'},
+	}
+	--]]
+	-- [[ Maxwell
+	:append(outer(
+		{
+			{eqn='maxwell', solver='roe', integrator='forward Euler', fluxLimiter='superbee'}, 
+			{eqn='maxwell', solver='roe', integrator='backward Euler', fluxLimiter='superbee'}, 
+			{eqn='maxwell', solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'}, 
+			{eqn='maxwell', solver='roe', integrator='backward Euler', usePLM='plm-eig-prim-ref'}, 
+			{eqn='maxwell', solver='hll', integrator='forward Euler', fluxLimiter='superbee'}, 
+			{eqn='maxwell', solver='hll', integrator='backward Euler', fluxLimiter='superbee'}, 
+			{eqn='maxwell', solver='hll', integrator='forward Euler', usePLM='plm-eig-prim-ref'}, 
+			{eqn='maxwell', solver='hll', integrator='backward Euler', usePLM='plm-eig-prim-ref'}, 
+		},
+		{
+			{initState='Maxwell default'},
+			{initState='Maxwell scattering around cylinder', movieFrameDT=.01, movieEndTime=5},
+			{initState='Maxwell scattering around Koch snowflake', movieFrameDT=.01, movieEndTime=5},	-- 2D only
+			{initState='Maxwell wire'},	-- 2D / 3D only
+		}
+	))
+	--]]
 ))
 
 for _,cfg in ipairs(configurations) do
@@ -141,8 +288,9 @@ for _,cfg in ipairs(configurations) do
 		initState = cfg.initState,
 	}
 		
-	local destMovieName = table{
-		'eqn='..args.eqn,
+	local destMovieName = table(
+		args.eqn and {'eqn='..args.eqn} or nil
+	):append{
 		'solver='..cfg.solver,
 		'integrator='..args.integrator,
 	}:append(args.usePLM 
@@ -151,7 +299,7 @@ for _,cfg in ipairs(configurations) do
 			'plm='..args.usePLM,
 		}:append(
 			args.slopeLimiter and {'slopeLimiter='..args.slopeLimiter} or nil
-		) 
+		)
 		-- non-plm: use flux limiter
 		or (
 			args.fluxLimiter and {'fluxLimiter='..args.fluxLimiter} or nil
@@ -231,5 +379,7 @@ for _,cfg in ipairs(configurations) do
 		end
 		local sep = ffi.os == 'Windows' and '\\' or '/'
 		run('rmdir '..dir:gsub('/', sep))
+--for some odd reason, every time it runs, it messes up the GL state ...
+os.exit(1)
 	end
 end

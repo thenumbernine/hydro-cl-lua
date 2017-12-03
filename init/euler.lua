@@ -6,6 +6,8 @@ local template = require 'template'
 local ffi = require 'ffi'
 local InitState = require 'init.init'
 
+local xNames = {'x', 'y', 'z'}
+
 local function quadrantProblem(args)
 	args.initState = function(self, solver)
 		solver.cfl = .475
@@ -248,6 +250,14 @@ local initStates = table{
 	{
 		name = 'Orszag-Tang',
 		initState = function(self, solver)
+			local boundaryMethods = {}
+			for i,x in ipairs(xNames) do
+				for _,minmax in ipairs{'min', 'max'} do
+					boundaryMethods[x..minmax] = 'periodic'
+				end
+			end
+			solver:setBoundaryMethods(boundaryMethods)
+			
 			if solver.eqn.guiVars.heatCapacityRatio then	
 				solver.eqn.guiVars.heatCapacityRatio.value = 5/3
 			end
@@ -451,7 +461,6 @@ local initStates = table{
 
 	real theta = frequency * 2. * M_PI;
 <?
-local xNames = {'x','y','z'}
 for i=0,solver.dim-1 do 
 	if xNames[i+1] ~= sliceAxis then
 ?>	theta *= (x.s<?=i?> - mins.s<?=i?>) / (maxs.s<?=i?> - mins.s<?=i?>);
@@ -474,6 +483,7 @@ end ?>
 					solver = solver,
 					moveAxis = solver.eqn.guiVars.moveAxis.options[solver.eqn.guiVars.moveAxis.value],
 					sliceAxis = solver.eqn.guiVars.sliceAxis.options[solver.eqn.guiVars.sliceAxis.value],
+					xNames = xNames,
 				}
 			)
 		end,
@@ -483,9 +493,7 @@ end ?>
 	-- TODO fixme 
 	{
 		name = 'Rayleigh-Taylor',
-		initState = function(self, solver)
-			local xs = {'x', 'y', 'z'}
-			
+		initState = function(self, solver)	
 			local xmid = (solver.mins + solver.maxs) * .5
 			
 			-- triple the length along the interface dimension
@@ -498,7 +506,7 @@ end ?>
 			-- (can it handle npo2 sizes?)
 
 			local boundaryMethods = {}
-			for i,x in ipairs(xs) do
+			for i,x in ipairs(xNames) do
 				for _,minmax in ipairs{'min', 'max'} do
 					boundaryMethods[x..minmax] = i == solver.dim and 'mirror' or 'periodic'
 				end
