@@ -1,6 +1,8 @@
 local gl = require 'ffi.OpenGL'
 
 return function(HydroCLApp)
+			
+HydroCLApp.display2D_Graph_step = 1
 
 function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin, graph_xmax, graph_ymax)
 	self.view:projection(ar)
@@ -22,8 +24,8 @@ function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin
 				var.heatMapValueMax = valueMax
 			end
 
+			local step = self.display2D_Graph_step 
 			-- TODO gui this somewhere
-			local step = 1
 			local ambient = .3
 			
 			-- TODO where to specify using the heatmap gradient vs using the variable/solver color

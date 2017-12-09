@@ -110,6 +110,9 @@ function Solver:init(args)
 	self.usePLM = args.usePLM
 	assert(not self.usePLM or self.fluxLimiter[0] == 0, "are you sure you want to use flux and slope limiters at the same time?")
 	self.slopeLimiter = ffi.new('int[1]', (self.app.limiterNames:find(args.slopeLimiter) or 1)-1)
+	
+	self.useCTU = args.useCTU
+	assert(not self.useCTU or self.usePLM, "if you are using CTU then you need to use a slope limiter method")
 
 	local solver = self
 
@@ -134,6 +137,8 @@ boundaryOptions is a table of {name = args => assign code}
 			assignment operator
 			default is dst = src
 			poisson uses dist.field = src.field
+		field
+		array
 		rhs
 		gridSizeSide = solver.gridSize[side]
 		side = 1,2,3
@@ -141,21 +146,24 @@ boundaryOptions is a table of {name = args => assign code}
 		mirrorVars = which vars to reflect.
 			for solver.UBuf this is taken from eqn
 			for poisson this is nothing
+
+this is such a mess.  it's practically an AST.
 --]]
 function Solver:createBoundaryOptions()
+	local tab = '\t\t\t'
 	self.boundaryOptions = table{
 		{periodic = function(args)
 			local gridSizeSide = 'gridSize_'..xs[args.side]
 			if args.minmax == 'min' then
-				return '\t\t\t'..args.assign(
-					'buf['..args.index'j'..']', 
-					'buf['..args.index(gridSizeSide..'-2*numGhost+j')..']'
+				return tab..args.assign(
+					args.array('buf', args.index'j'), 
+					args.array('buf', args.index(gridSizeSide..'-2*numGhost+j'))
 				)..';'
 			elseif args.minmax == 'max' then
 				local rhs = gridSizeSide..'-numGhost+j'
-				return '\t\t\t'..args.assign(
-					'buf['..args.index(rhs)..']', 
-					'buf['..args.index'numGhost+j'..']'
+				return tab..args.assign(
+					args.array('buf', args.index(rhs)),
+					args.array('buf', args.index'numGhost+j')
 				)..';'
 			end
 		end},
@@ -163,38 +171,44 @@ function Solver:createBoundaryOptions()
 			local gridSizeSide = 'gridSize_'..xs[args.side]
 			if args.minmax == 'min' then
 				return table{
-					'\t\t\t'..args.assign(
-						'buf['..args.index'j'..']',
-						' buf['..args.index'2*numGhost-1-j'..']'
+					tab..args.assign(
+						args.array('buf', args.index'j'),
+						args.array('buf', args.index'2*numGhost-1-j')
 					)..';'
 				}:append(table.map((args.mirrorVars or {})[args.side] or {}, function(var)
-					return '\t\t\t'..'buf['..args.index'j'..'].'..var..' = -buf['..args.index'j'..'].'..var..';'
+					return tab..args.assign(
+						args.field(args.array('buf', args.index'j'), var),
+						args.field('-'..args.array('buf', args.index'j'), var)
+					)..';'
 				end)):concat'\n'
 			elseif args.minmax == 'max' then
 				local rhs = gridSizeSide..'-numGhost+j'
 				return table{
-					'\t\t\t'..args.assign(
-						'buf['..args.index(rhs)..']',
-						'buf['..args.index(gridSizeSide..'-numGhost-1-j')..']'
+					tab..args.assign(
+						args.array('buf', args.index(rhs)),
+						args.array('buf', args.index(gridSizeSide..'-numGhost-1-j'))
 					)..';'
 				}:append(table.map((args.mirrorVars or {})[args.side] or {}, function(var)
-					return '\t\t\t'..'buf['..args.index(rhs)..'].'..var..' = -buf['..args.index(rhs)..'].'..var..';'
+					return tab..args.assign(
+						args.field(args.array('buf', args.index(rhs)), var),
+						args.field('-'..args.array('buf', args.index(rhs)), var)
+					)..';'
 				end)):concat'\n'
 			end
 		end},
 		{freeflow = function(args)
 			local gridSizeSide = 'gridSize_'..xs[args.side]
 			if args.minmax == 'min' then
-				return '\t\t\t'..args.assign(
+				return tab..args.assign(
 					'buf['..args.index'j'..']',
 					'buf['..args.index'numGhost'..']'
 				)..';'
 			elseif args.minmax == 'max' then
 				local rhs = gridSizeSide..'-numGhost+j'
-				return '\t\t\t'..args.assign(
+				return tab..args.assign(
 					'buf['..args.index(rhs)..']',
-					'buf['..args.index(gridSizeSide..'-numGhost-1'
-				)..']')..';'
+					'buf['..args.index(gridSizeSide..'-numGhost-1')..']'
+				)..';'
 			end
 		end},
 	}
@@ -737,7 +751,13 @@ typedef union {
 		<?=eqn.cons_t?> L, R;
 	};
 } <?=eqn.consLR_t?>;
+
+//ugly hack to work around even uglier boundary code
+typedef struct {
+	<?=eqn.consLR_t?> side[<?=solver.dim?>];
+} <?=eqn.consLR_t?>_dim;
 ]], {
+	solver = self,
 	eqn = self.eqn,
 })
 end
@@ -1279,6 +1299,7 @@ function Solver:refreshSolverProgram()
 
 	-- this code creates the const global cons_t* UL, UR variables
 	-- it assumes that indexL, indexR, and side are already defined
+	-- both UBuf and ULRBuf should be cell-centered
 	self.getULRCode = self.usePLM and ([[
 	const global ]]..self.eqn.cons_t..[[* UL = &ULRBuf[side + dim * indexL].R;
 	const global ]]..self.eqn.cons_t..[[* UR = &ULRBuf[side + dim * indexR].L;
@@ -1302,6 +1323,12 @@ function Solver:refreshSolverProgram()
 
 	if self.usePLM then
 		self.calcLRKernelObj = self.solverProgramObj:kernel('calcLR', self.ULRBuf, self.UBuf)
+	end
+	if self.useCTU then
+		-- currently implemented in solver/roe.cl
+		-- not available for any other flux method
+		assert(self.fluxBuf)
+		self.updateCTUKernelObj = self.solverProgramObj:kernel('updateCTU', self.ULRBuf, self.fluxBuf)
 	end
 
 if tryingAMR == 'dt vs 2dt' then
@@ -1426,10 +1453,16 @@ args:
 	}
 	mirrorVars = {x vars, y vars, z vars} = table of tables of strings of what fields should be negative'd on mirror condition
 		this tends to be vectors' components that point into the boundary.
+
+	assign = function(a,b) a = b 
+	field = function(a,b) a.b
+	array = function(a,b) a[b]
 --]]
 function Solver:createBoundaryProgramAndKernel(args)
 	local assign = args.assign or function(a, b) return a .. ' = ' .. b end
-	
+	local field = args.field or function(a, b) return a .. '.' .. b end
+	local array = args.array or function(a, b) return a .. '[' .. b .. ']' end
+
 	local lines = table()
 	lines:insert(self.codePrefix)
 	lines:insert(template([[
@@ -1555,6 +1588,14 @@ function Solver:refreshBoundaryProgram()
 	self.boundaryKernelObj.obj:setArg(0, self.UBuf)
 	for _,op in ipairs(self.ops) do
 		op:refreshBoundaryProgram()
+	end
+
+	if self.useCTU then
+		self.lrBoundaryProgramObj, self.lrBoundaryKernelObj =
+			self:createBoundaryProgramAndKernel(table(self:getBoundaryProgramArgs(), {
+				type = self.eqn.consLR_t..'_dim',
+			}))
+		self.lrBoundaryKernelObj.obj:setArg(0, self.ULRBuf)
 	end
 end
 

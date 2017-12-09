@@ -212,7 +212,9 @@ x,  y,  z, z,  y,  x
 	
 	<? end ?>
 	
-	Y[6] = 0;	//BPot
+	for (int i = 6; i < numStates; ++i) {
+		Y[i] = 0;
+	}
 }
 
 <? 
@@ -259,6 +261,10 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	Y[5] = 0;
 		
 	<? end ?>
+	
+	for (int i = 6; i < numStates; ++i) {
+		Y[i] = 0;
+	}
 }
 <?
 				end

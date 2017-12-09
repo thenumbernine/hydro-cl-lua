@@ -23,7 +23,7 @@ local args = {
 	--fixedDT = .0001,
 	--cfl = .25/dim,
 	
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
@@ -31,12 +31,13 @@ local args = {
 	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
 	--usePLM = 'plm-eig',			-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
 	--usePLM = 'plm-eig-prim',		-- works in primitive eigenspace, etc
-	--usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max
+	usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max
 	--usePLM = 'plm-athena',		-- based on Athena, idk about this one
 	--usePLM = 'ppm-experimental',	-- one more attempt to figure out all the PLM stuff, but I didn't get far
 
-
 	slopeLimiter = 'minmod',
+
+	useCTU = true,
 	
 	-- [[ Cartesian
 	geometry = 'cartesian',
@@ -59,7 +60,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{64,64,1},
+				{256,256,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -153,7 +154,7 @@ maxs = {6,1,1},
 	--initState = 'linear',
 	--initState = 'gaussian',
 	--initState = 'advect wave',
-	--initState = 'sphere',
+	initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
 	--initState = 'Sod',
@@ -163,7 +164,7 @@ maxs = {6,1,1},
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
 	--initState = 'square cavity',
-	--initState = 'shock bubble interaction',
+	--initState = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initState = 'Richmyer-Meshkov',
 
 	--initState = 'configuration 1',
@@ -193,7 +194,7 @@ maxs = {6,1,1},
 	
 	-- EM:
 	--initState = 'Maxwell default',
-	initState = 'Maxwell scattering around cylinder',
+	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	
@@ -230,7 +231,7 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
@@ -290,7 +291,7 @@ maxs = {6,1,1},
 -- GR+EM.  params go to the EM solver.
 -- TODO this should be the einstein-maxwell eqns solver with flat space plugged into the metric
 -- TODO rename to einstein-maxwell-roe
-self.solvers:insert(require 'solver.gr-maxwell-roe'(args))
+--self.solvers:insert(require 'solver.gr-maxwell-roe'(args))
 -- TODO and this should be the einstein-maxwell with an einstein solver plugged in
 -- TODO rename to einstein-maxwell-separate
 --self.solvers:insert(require 'solver.gr-em-separate'(args))

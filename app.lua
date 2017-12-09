@@ -130,6 +130,31 @@ local clipInfos = range(4):map(function(i)
 end)
 end
 
+-- needs to go before display2DMethods
+require 'draw.2d_heatmap'(HydroCLApp)
+require 'draw.2d_graph'(HydroCLApp)
+
+-- needs to go before initGL
+local display2DMethods = table{
+	{Heatmap = HydroCLApp.display2D_Heatmap},
+	{Graph = HydroCLApp.display2D_Graph},
+}
+
+require 'draw.3d_slice'(HydroCLApp)
+require 'draw.3d_ray'(HydroCLApp)
+require 'draw.3d_iso'(HydroCLApp)
+
+local display3DMethods = table{
+	{Slices = HydroCLApp.display3D_Slice},
+	{Raytrace = HydroCLApp.display3D_Ray},
+	{Isosurfaces = HydroCLApp.display3D_Isosurface},
+}
+local display3DMethodNames =  display3DMethods:map(function(kv)
+	return (next(kv))
+end)
+
+
+
 function HydroCLApp:initGL(...)
 	if HydroCLApp.super.initGL then
 		HydroCLApp.super.initGL(self, ...)
@@ -349,6 +374,12 @@ void main() {
 	end
 	self.font = Font{tex = fonttex}
 	--]]
+
+	-- todo reorganize me
+	self.display2DMethodsEnabled = display2DMethods:map(function(method, index)
+		local name, func = next(method)
+		return index == 1, name
+	end)
 
 	self.orthoView = require 'view.ortho'()
 	self.frustumView = require 'view.frustum'()
@@ -793,33 +824,15 @@ function HydroCLApp:drawGradientLegend(ar, varName, valueMin, valueMax)
 	end
 end
 
-require 'draw.2d_heatmap'(HydroCLApp)
-require 'draw.2d_graph'(HydroCLApp)
-
-local display2DMethods = table{
-	{Heatmap = HydroCLApp.display2D_Heatmap},
-	{Graph = HydroCLApp.display2D_Graph},
-}
-local display2DMethodNames = display2DMethods:map(function(kv)
-	return (next(kv))
-end)
 function HydroCLApp:display2D(...)
-	self.display2DMethod = self.display2DMethod or ffi.new('int[1]', 0)
-	select(2, next(display2DMethods[ self.display2DMethod[0]+1 ]))(self, ...)
+	for _,method in ipairs(display2DMethods) do
+		local name, func = next(method)
+		if self.display2DMethodsEnabled[name] then
+			func(self, ...)
+		end
+	end
 end
 
-require 'draw.3d_slice'(HydroCLApp)
-require 'draw.3d_ray'(HydroCLApp)
-require 'draw.3d_iso'(HydroCLApp)
-
-local display3DMethods = table{
-	{Slices = HydroCLApp.display3D_Slice},
-	{Raytrace = HydroCLApp.display3D_Ray},
-	{Isosurfaces = HydroCLApp.display3D_Isosurface},
-}
-local display3DMethodNames =  display3DMethods:map(function(kv)
-	return (next(kv))
-end)
 function HydroCLApp:display3D(...)
 	self.display3DMethod = self.display3DMethod or ffi.new('int[1]', 0)
 	select(2, next(display3DMethods[ self.display3DMethod[0]+1 ]))(self, ...)
@@ -886,8 +899,19 @@ function HydroCLApp:updateGUI()
 			local dim = self.solvers[1].dim
 			if dim == 2 then
 				ig.igPushIdStr'2D'
-				ig.igCombo('Display Method', self.display2DMethod, display2DMethodNames)
+				for i,method in ipairs(display2DMethods) do
+					if i > 1 then ig.igSameLine() end
+					local name, func = next(method)
+					tooltip.checkboxTable(name, self.display2DMethodsEnabled, name)
+				end
+				
+				if self.display2DMethodsEnabled.Graph then
+					tooltip.intTable('graph step', self, 'display2D_Graph_step')
+				end
+				
 				ig.igPopId()
+			
+			
 			elseif dim == 3 then
 				ig.igPushIdStr'3D'
 				ig.igCombo('Display Method', self.display3DMethod, display3DMethodNames)
@@ -899,7 +923,7 @@ if useClipPlanes then
 					ig.igRadioButton("rotate camera", rotateClip, 0)
 					for i,clipInfo in ipairs(clipInfos) do
 						ig.igPushIdStr('clip '..i)
-						tooltip.checkbox('clip', clipInfo.enabled)
+						tooltip.checkbox('clip', clipInfo, 'enabled')
 						ig.igSameLine()
 						ig.igRadioButton('rotate', rotateClip, i)
 						ig.igSameLine()

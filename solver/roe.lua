@@ -229,10 +229,39 @@ function Roe:calcDeriv(derivBuf, dt)
 		self.calcREigKernelObj()
 	end
 
-	self.calcFluxKernelObj.obj:setArg(5, ffi.new('real[1]', dt))
+	local dtArg = ffi.new('real[1]', dt)
+	self.calcFluxKernelObj.obj:setArg(5, dtArg)
 	self.calcFluxKernelObj()
 
-	-- calcDerivFromFlux zeroes the derivative buffer
+	if self.useCTU then
+		-- if we're using CTU then ...
+		-- 1) calc fluxes based on a slope-limiter method (PLM, etc)
+		-- 2) at each interface, integrate each dimension's LR states by all other dimensions' fluxes with a timestep of -dt/2
+		--	( don't use the deriv buf because it already has the sum of all dimensions' flux differences)
+		self.updateCTUKernelObj.obj:setArg(2, dtArg)
+		self.updateCTUKernelObj()
+
+		-- now we need to calcBounds on the ULR
+		self.lrBoundaryKernelObj()
+
+		-- 3) use the final LR states to calculate the flux ...
+
+		-- the rest of this matches above
+		-- maybe use 'repeat'?
+		
+		self.calcEigenBasisKernelObj()
+		--[[ hmm, error here or above?  only need it once.
+		if self.checkFluxError or self.checkOrthoError then
+			self.calcErrorsKernelObj()
+		end
+		--]]
+		self.calcDeltaUEigKernelObj()
+		if self.fluxLimiter[0] > 0 then
+			self.calcREigKernelObj()
+		end
+		self.calcFluxKernelObj()
+	end
+
 	self.calcDerivFromFluxKernelObj(derivBuf)
 
 	-- addSource adds to the derivative buffer

@@ -152,6 +152,9 @@ end
 GRMaxwell.eigenVars = table{
 	{eps = 'real'},
 	{mu = 'real'},
+	{alpha = 'real'},
+	{det_gamma = 'real'},
+	{detg_gUjj = 'real'},	-- g g^jj
 }
 
 return GRMaxwell

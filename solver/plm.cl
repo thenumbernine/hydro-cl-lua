@@ -17,8 +17,10 @@ kernel void calcLR(
 	//...and just use the original buffers
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		int indexInt = side + dim * index;
-		global <?=eqn.consLR_t?>* ULR = ULRBuf + indexInt;	
+		
+		//cell-centered index for a particular side...
+		int indexForSide = side + dim * index;
+		global <?=eqn.consLR_t?>* ULR = ULRBuf + indexForSide;
 		
 		//piecewise-linear
 
