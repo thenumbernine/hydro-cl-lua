@@ -23,7 +23,7 @@ local args = {
 	--fixedDT = .0001,
 	--cfl = .25/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
@@ -31,13 +31,13 @@ local args = {
 	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
 	--usePLM = 'plm-eig',			-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
 	--usePLM = 'plm-eig-prim',		-- works in primitive eigenspace, etc
-	usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max
+	--usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max
 	--usePLM = 'plm-athena',		-- based on Athena, idk about this one
 	--usePLM = 'ppm-experimental',	-- one more attempt to figure out all the PLM stuff, but I didn't get far
 
 	slopeLimiter = 'minmod',
 
-	useCTU = true,
+	--useCTU = true,
 	
 	-- [[ Cartesian
 	geometry = 'cartesian',
@@ -60,7 +60,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{256,256,1},
+				{64,64,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -154,7 +154,7 @@ maxs = {6,1,1},
 	--initState = 'linear',
 	--initState = 'gaussian',
 	--initState = 'advect wave',
-	initState = 'sphere',
+	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
 	--initState = 'Sod',
@@ -206,10 +206,31 @@ maxs = {6,1,1},
 	--initState = 'two-fluid EMHD soliton electron',
 	--initState = 'two-fluid EMHD soliton maxwell',
 
+
 	-- GR
 	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
-	--initState = 'Alcubierre warp bubble',
+
+
+	initState = 'Alcubierre warp bubble',
+	
+	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
+	
+	--initStateArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
+	-- ... works with
+	--	size=64x64 solver=adm3d int=fe plm=athena ctu
+	--  size=64x64 solver=adm3d int=fe plm=athena
+	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee
+	
+	initStateArgs = {R=.5, sigma=8, speed=2},		-- super-luminal 2x
+	-- ... works with
+	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee
+	
+	--initStateArgs = {R=.5, sigma=8, speed=10},		-- super-luminal 10x
+	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee ... eventually explodes
+	--  size=64x64 solver=bssnok int=be flux-limiter=superbee ... eventually explodes as well
+
+
 	--initState = 'black hole - Schwarzschild pseudocartesian',
 	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 	--initState = 'binary black holes - isotropic',
@@ -231,7 +252,7 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
@@ -301,7 +322,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'}))) -- TODO fixme
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))

@@ -87,7 +87,7 @@ function Equation:createInitState()
 		self:addGuiVars(mt.guiVars)
 	end
 	assert(self.initStates, "expected Eqn.initStates")
-	self.initState = self.initStates[self.solver.initStateIndex](self.solver)
+	self.initState = self.initStates[self.solver.initStateIndex](self.solver, self.solver.initStateArgs)
 	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)	
 end
 

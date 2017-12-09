@@ -285,11 +285,17 @@ return table{
 	},
 	{
 		name = 'Alcubierre warp bubble',
-		init = function(self, solver)
+		--[[
+		args:
+			R = warp bubble radius
+			sigma = warp bubble thickness
+			speed = warp bubble speed
+		--]]
+		init = function(self, solver, args)
 			solver.eqn:addGuiVars{
-				{name = 'R', value = .5},		-- warp bubble radius
-				{name = 'sigma', value = 8},	-- warp bubble thickness
-				{name = 'speed', value = .1},	-- warp bubble speed
+				{name = 'R', value = args.R or .5},
+				{name = 'sigma', value = args.sigma or 8},
+				{name = 'speed', value = args.speed or .1},
 			}
 		end,
 		initState = function(self, solver)

@@ -100,7 +100,10 @@ function Solver:init(args)
 	self.useFixedDT = not not args.fixedDT
 	self.fixedDT = args.fixedDT or self.fixedDT or .001
 	self.cfl = args.cfl or .5	--/self.dim
+
 	self.initStateIndex = table.find(self.eqn.initStateNames, args.initState) or 1
+	self.initStateArgs = args.initStateArgs
+
 	self.integratorIndex = self.integratorNames:find(args.integrator) or 1
 	self.fluxLimiter = ffi.new('int[1]', (self.app.limiterNames:find(args.fluxLimiter) or 1)-1)
 
@@ -1543,6 +1546,8 @@ kernel void boundary(
 			lines:insert(method{
 				index = index,
 				assign = assign,
+				array = array,
+				field = field,
 				side = side,
 				mirrorVars = args.mirrorVars,
 				minmax = minmax,
