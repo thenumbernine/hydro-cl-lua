@@ -1195,6 +1195,7 @@ function Solver:getSolverCode()
 	
 		-- messing with this ...
 		self.usePLM and template(file['solver/plm.cl'], {solver=self, eqn=self.eqn}) or '',
+		self.useCTU and template(file['solver/ctu.cl'], {solver=self, eqn=self.eqn}) or '',
 
 		template(
 			({

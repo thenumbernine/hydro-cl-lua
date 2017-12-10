@@ -99,6 +99,9 @@ setup for the solver
 args has: platformName, deviceName
 override this for specific experiments
 this can't override float vs double precision yet
+
+make sure to call this after 'real' is defined
+ specifically the call to 'refreshGridSize' within it
 --]]
 function HydroCLApp:setup(args)
 	args.self = self

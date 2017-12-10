@@ -1,5 +1,3 @@
--- create this after 'real' is defined
---  specifically the call to 'refreshGridSize' within it
 local dim = 2
 local args = {
 	app = self, 
@@ -23,12 +21,12 @@ local args = {
 	--fixedDT = .0001,
 	--cfl = .25/dim,
 	
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
-	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
+	usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
 	--usePLM = 'plm-eig',			-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
 	--usePLM = 'plm-eig-prim',		-- works in primitive eigenspace, etc
 	--usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max
@@ -37,7 +35,7 @@ local args = {
 
 	slopeLimiter = 'minmod',
 
-	--useCTU = true,
+	useCTU = true,
 	
 	-- [[ Cartesian
 	geometry = 'cartesian',
@@ -60,7 +58,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{64,64,1},
+				{256,256,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -222,11 +220,11 @@ maxs = {6,1,1},
 	--  size=64x64 solver=adm3d int=fe plm=athena
 	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee
 	
-	initStateArgs = {R=.5, sigma=8, speed=2},		-- super-luminal 2x
+	--initStateArgs = {R=.5, sigma=8, speed=2},		-- super-luminal 2x
 	-- ... works with
 	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee
 	
-	--initStateArgs = {R=.5, sigma=8, speed=10},		-- super-luminal 10x
+	initStateArgs = {R=.5, sigma=8, speed=10},		-- super-luminal 10x
 	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee ... eventually explodes
 	--  size=64x64 solver=bssnok int=be flux-limiter=superbee ... eventually explodes as well
 
@@ -322,12 +320,12 @@ maxs = {6,1,1},
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'}))) -- TODO fixme
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v2'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d'})))
+self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='z4'}))) -- TODO fixme
 
 

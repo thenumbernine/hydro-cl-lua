@@ -209,12 +209,15 @@ end
 
 -- NOTICE this adds the contents of derivBuf and does not clear it
 function Roe:calcDeriv(derivBuf, dt)
+	local dtArg = ffi.new('real[1]', dt)
+	
 	self:boundary()
 	
 	if self.usePLM then
-		self.calcLRKernelObj.obj:setArg(2, ffi.new('real[1]', dt))
+		self.calcLRKernelObj.obj:setArg(2, dtArg)
 		self.calcLRKernelObj()
 	end
+
 
 	self.calcEigenBasisKernelObj()
 
@@ -229,9 +232,9 @@ function Roe:calcDeriv(derivBuf, dt)
 		self.calcREigKernelObj()
 	end
 
-	local dtArg = ffi.new('real[1]', dt)
 	self.calcFluxKernelObj.obj:setArg(5, dtArg)
 	self.calcFluxKernelObj()
+
 
 	if self.useCTU then
 		-- if we're using CTU then ...
@@ -242,6 +245,8 @@ function Roe:calcDeriv(derivBuf, dt)
 		self.updateCTUKernelObj()
 
 		-- now we need to calcBounds on the ULR
+		-- TODO this will break for mirror conditions
+		-- because I haven't got the boundary code flexible enough to operate on specific fields within the L & R fields of the ULRBuf
 		self.lrBoundaryKernelObj()
 
 		-- 3) use the final LR states to calculate the flux ...

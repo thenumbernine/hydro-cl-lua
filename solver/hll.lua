@@ -37,18 +37,28 @@ function HLL:refreshSolverProgram()
 end
 
 function HLL:calcDeriv(derivBuf, dt)
+	local dtArg = ffi.new('real[1]', dt)
+	
 	self:boundary()
 	
 	if self.usePLM then
-		self.calcLRKernelObj.obj:setArg(2, ffi.new('real[1]', dt))
+		self.calcLRKernelObj.obj:setArg(2, dtArg)
 		self.calcLRKernelObj()
 	end
 	
 	self.calcFluxKernelObj()
 
-	-- calcDerivFromFlux zeroes the derivative buffer
+	if self.useCTU then	-- see solver/roe.lua for a description of why this is how this is
+		self.updateCTUKernelObj.obj:setArg(2, dtArg)
+		self.updateCTUKernelObj()
+		
+		self.lrBoundaryKernelObj()
+		
+		self.calcFluxKernelObj()
+	end
+	
 	self.calcDerivFromFluxKernelObj(derivBuf)
-
+	
 	-- addSource adds to the derivative buffer
 	if self.eqn.useSourceTerm then
 		-- can't use call because this uses the without-border size
