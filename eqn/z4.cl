@@ -685,14 +685,278 @@ kernel void addSource(
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 
+	const real xi = 1.;	//which is which parameter?  I alwasy forget .. m .. lambda ... xi ... always changing names
+
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 	real f = calc_f(U->alpha);	//could be based on alpha...
 
-	real tr_K = sym3_dot(gammaU, U->K);
+	//K^i_j = gamma^ik K_kj
+	mat3 K_ul = (mat3){
+<? 
+for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = (real3){
+<? 	for j,xj in ipairs(xNames) do
+?>			.<?=xj?> = 0.<?
+		for k,xk in ipairs(xNames) do
+		?> + gammaU.<?=sym(i,k)?> * U->K.<?=sym(k,j)?><? 
+		end ?>,
+<? 	end
+?>		},
+<? 
+end
+?>	};
+
+	real tr_K = mat3_trace(K_ul);
 
 	//TODO correct source terms
+	//I'm taking this from the 2008 Yano et al "Flux-Vector Splitting..."
+	//which itself references (for the source terms) the 2005 Bona et al "Geometrically Motivated ..." 
+	//but notice, 2005 Bona paper shows the flux as densitized, so the eigenvalues without any gamma influence
 
-	deriv->alpha += -U->alpha * U->alpha * f * tr_K;
+	//alpha,t + ... = alpha beta^k a_k - alpha^2 f (K - 2 Theta)
+	deriv->alpha += -U->alpha * U->alpha * f * (tr_K - 2. * U->Theta);
+
+	//a_i,t + ... = b_i^k a_k - b_k^k a_i
+
+	//beta^i_,t + ... = beta^k b_k^i - alpha Q^i
+	//Q^i = alpha (a^i - d^i + 2 V^i)
+	//V^i = d^i - e^i - Z^i
+	
+	//gamma_ij,t + ... = 2 beta^k d_kij + b_ji + b_ij - 2 alpha K_ij
 	deriv->gamma = sym3_add(deriv->gamma, sym3_scale(U->K, -2. * U->alpha));
+
+	//d_kij,t + ... = b_k^l d_lij - b_l^l d_kij
+
+	//conn_ijk = .5 * (g_ij,k + g_ik,j - g_jk,i) 
+	//= d_kij + d_jik - d_ijk
+	sym3 conn_lll[3] = {
+<? 
+for i,xi in ipairs(xNames) do
+?>		(sym3){
+<? 	for jk,xjk in ipairs(symNames) do 
+		local j,k = from6to3x3(jk)
+?>			.<?=xjk?> = U->d[<?=k-1?>].<?=sym(i,j)?> + U->d[<?=j-1?>].<?=sym(i,k)?> - U->d[<?=i-1?>].<?=sym(j,k)?>,
+<? 	end 
+?>		},
+<? 
+end
+?>	};
+
+	_3sym3 conn_ull; sym3_3sym3_mul_(conn_ull, gammaU, conn_lll);
+	_3sym3 d_ull; sym3_3sym3_mul_global(d_ull, gammaU, U->d);
+
+	//conn^ij_k = gamma^jl conn^i_lk
+	_3sym3 conn_uul = {
+<? 
+	for i,xi in ipairs(xNames) do
+?>
+		{
+<? 
+		for jk,xjk in ipairs(symNames) do
+			local j,k = from6to3x3(jk)
+?>			.<?=xjk?> = 0. <?
+			for l,xl in ipairs(xNames) do
+				?> + gammaU.<?=sym(l,j)?> * conn_ull[<?=i-1?>].<?=sym(l,k)?><?
+			end	?>,
+<? end		
+?>		},
+<? 
+	end
+?>	};
+
+	//d_ijk conn^ij_l gamma^kl
+	real d_dot_conn = 0.<?
+for i,xi in ipairs(xNames) do
+	for j,xj in ipairs(xNames) do
+		for k,xk in ipairs(xNames) do
+			for l,xl in ipairs(xNames) do
+?> + U->d[<?=i-1?>].<?=sym(j,k)?> * conn_uul[<?=i-1?>].<?=sym(j,k)?> * gammaU.<?=sym(k,l)?><?
+			end
+		end
+	end
+end
+?>;
+
+	//d_i = d_ik^k
+	real3 d = (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = sym3_dot(U->d[<?=i-1?>], gammaU),
+<? end
+?>	};
+	
+	//e_i = d^k_ki
+	real3 e = (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = 0. <?
+	for j,xj in ipairs(xNames) do
+?> + d_ull[<?=j-1?>].<?=sym(j,i)?><?
+	end
+?>,
+<? end
+?>	};
+
+	real3 d_u = sym3_real3_mul(gammaU, d);
+	real3 e_u = sym3_real3_mul(gammaU, e);
+	real3 a_u = sym3_real3_mul(gammaU, U->a);
+	real3 Z_u = sym3_real3_mul(gammaU, U->Z);
+
+	//connSq_ij = conn^k_li conn^l_kj
+	real connSq_ll[3][3] = {
+<? for i,xi in ipairs(xNames) do 
+?>		{
+<?	for j,xj in ipairs(xNames) do
+?>
+			0. <?
+		for k,xk in ipairs(xNames) do
+			for l,xl in ipairs(xNames) do
+				?> + conn_ull[<?=k-1?>].<?=sym(l,i)?> * conn_ull[<?=l-1?>].<?=sym(k,j)?><?
+			end
+		end
+	?>,
+<? end 
+?>		},
+<? end
+?>	};
+
+	//K_ik K^k_j
+	sym3 KSq_ll = sym3_mat3_to_sym3_mul(U->K, K_ul);
+
+	real tr_KSq = sym3_dot(KSq_ll, gammaU);
+
+	//dsq_ij = d_ikl gamma^lm d^k_mj
+	mat3 dsq = {
+<? 
+for i,xi in ipairs(xNames) do
+?>
+		.<?=xi?> = {
+<?	for j,xj in ipairs(xNames) do
+?>			.<?=xj?> = 
+				0.<?
+		for k,xk in ipairs(xNames) do
+			for l,xl in ipairs(xNames) do
+				for m,xm in ipairs(xNames) do
+					?> + U->d[<?=i-1?>].<?=sym(j,l)?> * gammaU.<?=sym(l,m)?> * d_ull[<?=k-1?>].<?=sym(m,j)?>
+<?
+				end
+			end
+		end	
+?>			,
+<? 	end
+?>		},
+<? 
+end
+?>	};
+
+	/*
+	K_ij,t + ... = -K_ij b_k^k + K_ik b_j^k + K_jk b_i^k 
+		+ alpha ( 1/2 (1 + xi) ( - a_k Gamma^k_ij + 1/2 (a_i d_j + a_j d_i))
+			+ 1/2 (1 - xi) (a_k d^k_ij - 1/2 (a_j (2 e_i - d_i) + a_i (2 e_j - d_j))
+				+ 2 (d_ir^m d^r_mj + d_jr^m d^r_mi) - 2 e_k (d_ij^k + d_ji^k)
+			)
+			+ (d_k + a_k - 2 Z_k) Gamma^k_ij - Gamma^k_mj Gamma^m_ki - (a_i Z_j + a_j Z_i)
+			- 2 K^k_i K_kj + (K - 2 Theta) K_ij
+		) - 8 pi alpha (S_ij - 1/2 (S - tau) gamma_ij)
+	*/
+<? for ij,xij in ipairs(symNames) do 
+	local i,j = from6to3x3(ij)
+	local xi,xj = xNames[i], xNames[j]
+?>
+	deriv->K.<?=xij?> += 
+		//TODO shift terms
+	U->alpha * (
+		.5 * (1. + xi) * (
+		<? for k,xk in ipairs(xNames) do ?> 
+			-U->a.<?=xk?> * conn_ull[<?=k-1?>].<?=xij?>
+		<? end ?>
+			+ .5 * (U->a.<?=xi?> * d.<?=xj?> + U->a.<?=xj?> * d.<?=xi?>)
+		)
+		+ .5 * (1. - xi) * (0.
+		<? for k,xk in ipairs(xNames) do ?> 
+			+ a_u.<?=xk?> * U->d[<?=k-1?>].<?=xij?>
+		<? end ?>
+			- .5 * ( 
+				U->a.<?=xj?> * (2. * e.<?=xi?> - d.<?=xi?>) 
+				+ U->a.<?=xi?> * (2. * e.<?=xj?> - d.<?=xj?>)
+			)
+			+ 2. * (dsq.v[<?=i-1?>].s[<?=j-1?>] + dsq.v[<?=j-1?>].s[<?=i-1?>])
+		<? for k,xk in ipairs(xNames) do ?> 
+			- 2. * e_u.<?=xk?> * (U->d[<?=i-1?>].<?=sym(j,k)?> + U->d[<?=j-1?>].<?=sym(i,k)?>)
+		<? end ?>
+		)
+		<? for k,xk in ipairs(xNames) do ?> 
+		+ (d.<?=xk?> + U->a.<?=xk?> - 2. * U->Z.<?=xk?>) * conn_ull[<?=k-1?>].<?=xij?>
+		<? end ?>
+		- connSq_ll[<?=j-1?>][<?=i-1?>]
+		- U->a.<?=xi?> * U->Z.<?=xj?>
+		- U->a.<?=xj?> * U->Z.<?=xi?>
+		- 2. * KSq_ll.<?=xij?>
+		+ U->K.<?=xij?> * (tr_K - 2. * U->Theta)
+	)
+		// TODO source terms
+	;
+<? end
+?>
+	
+	/*
+	Theta,t + ... = 
+		-Theta b_k^k 
+		+ 1/2 alpha (
+			2 a_k (d^k - e^k - 2 Z^k) 
+			+ d_krs Gamma^krs 
+			- d^k (d_k - 2 Z_k)
+			- K^k_r K^r_k 
+			+ K (K - 2 Theta)
+		)
+		- 8 pi alpha tau
+	
+	d_ijk conn^ijk
+	= d_ijk (d^kij + d^jik - d^ijk)
+	*/
+	deriv->Theta += .5 * U->alpha * (0. 
+		<? for k,xk in ipairs(xNames) do ?> 
+		+ 2. * U->a.<?=xk?> * (d_u.<?=xk?> - e_u.<?=xk?> - 2. * Z_u.<?=xk?>)
+		- d_u.<?=xk?> * (d.<?=xk?> - 2. * U->Z.<?=xk?>)
+		<? end ?>	
+		+ d_dot_conn
+		- tr_KSq
+		+ tr_K * (tr_K - 2. * U->Theta)
+	);
+
+	// K^k_j Gamma^j_ki
+	real3 K_times_conn = (real3){
+<? 
+for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = 0.<?
+	for j,xj in ipairs(xNames) do
+		for k,xk in ipairs(xNames) do
+?> + K_ul.v[<?=k-1?>].s[<?=j-1?>] * conn_ull[<?=j-1?>].<?=sym(k,i)?><?
+		end
+	end	?>,
+<? 
+end
+?>	};
+
+	/*
+	Z_i,t + ... = 
+		-Z_i b_k^k 
+		+ Z_k b_i^k 
+		- 8 pi alpha S_i
+		+ alpha (
+			a_i (K - 2 Theta) 
+			- a_k K^k_i 
+			- K^k_r Gamma^r_ki 
+			+ K^k_i (d_k - 2 Z_k)
+		)
+	*/
+	<? for i,xi in ipairs(xNames) do ?> 
+	deriv->Z.<?=xi?> += U->alpha * (
+		U->a.<?=xi?> * (tr_K - 2. * U->Theta)
+		<? for k,xk in ipairs(xNames) do ?> 
+		- a_u.<?=xk?> * U->K.<?=sym(i,k)?>
+		+ U->K.<?=sym(i,k)?> * (d_u.<?=xk?> - 2. * Z_u.<?=xk?>)
+		<? end ?>
+		- K_times_conn.<?=xi?>
+	);
+	<? end ?>
 }

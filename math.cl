@@ -225,3 +225,22 @@ static inline real real3_weightedLenSq(real3 a, sym3 m) {
 static inline real real3_weightedLen(real3 a, sym3 m) {
 	return sqrt(real3_weightedLenSq(a, m));
 }
+
+//c^i_jk = a^il b_ljk
+<? for _,addr in ipairs{'', 'global'} do
+?>static void sym3_3sym3_mul_<?=addr?>(_3sym3 c, const sym3 a, <?=addr?> const _3sym3 b) {
+<? 
+for i,xi in ipairs(xNames) do
+?>	c[<?=i-1?>] = (sym3){
+<?	for jk,xjk in ipairs(symNames) do
+?>		.<?=xjk?> = 0.<?
+		for l,xl in ipairs(xNames) do
+			?> + a.<?=sym(i,l)?> * b[<?=l-1?>].<?=xjk?><? 
+		end ?>,
+<?	end
+?>	};
+<? 
+end
+?>}
+<? end
+?>

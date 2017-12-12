@@ -1,6 +1,7 @@
 --[[
 Based on Alcubierre 2008 "Introduction to 3+1 Numerical Relativity" on the chapter on hyperbolic formalisms. 
-With some hints from a few of the Z4 papers
+With some hints from a few of the Z4 papers.
+(Which papers again?  The 2008 Alcubierre book doesn't have eigenvectors, and I got them from one of the papers, but the papers don't all have the same eigensystem (my favorite difference being whether sqrt(gamma^xx) shows up in the eigenvalues or not)) 
 --]]
 
 local class = require 'ext.class'
