@@ -3,133 +3,13 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
 local symmath = require 'symmath'
-local clnumber = require 'cl.obj.number'
 local EinsteinEqn = require 'eqn.einstein'
 local makestruct = require 'eqn.makestruct'
 require 'common'(_G)
 
-local typeInfo = {
-	real = {
-		add = function(a,b) 
-			if tonumber(a) == 0 then return b end
-			if tonumber(b) == 0 then return a end
-			return '('..a..') + ('..b..')' 
-		end, 
-		sub = function(a,b) return '('..a..') - ('..b..')' end, 
-		scale = function(a,b) 
-			if tonumber(a) == 1 then return b end
-			if tonumber(b) == 1 then return a end
-			return '('..a..') * ('..b..')' 
-		end, 
-		zero = '0',
-	},
-	real3 = {
-		add = function(a,b) return 'real3_add('..a..', '..b..')' end,
-		sub = function(a,b) return 'real3_sub('..a..', '..b..')' end,
-		scale = function(a,b) return 'real3_scale('..a..', '..b..')' end,
-		zero = '_real3(0,0,0)',
-	},
-	sym3 = {
-		add = function(a,b) return 'sym3_add('..a..', '..b..')' end,
-		sub = function(a,b) return 'sym3_sub('..a..', '..b..')' end,
-		scale = function(a,b) return 'sym3_scale('..a..', '..b..')' end,
-		zero = '_sym3(0,0,0,0,0,0)',
-	},
-}
-
--- derivCoeffs[derivative][accuracy] = {coeffs...}
-local derivCoeffs = {
-	-- antisymmetric coefficients 
-	{
-		[2] = {.5},
-		[4] = {2/3, -1/12},
-		[6] = {3/4, -3/20, 1/60},
-		[8] = {4/5, -1/5, 4/105, -1/280},
-	},
-	-- symmetric
-	{
-		[2] = {[0] = -2, 1},
-		[4] = {[0] = -5/2, 4/3, -1/12},
-		[6] = {[0] = -49/18, 3/2, -3/20, 1/90},
-		[8] = {[0] = -205/72, 8/5, -1/5, 8/315, -1/560},
-	},
-}
-
-local function makePartial(order, solver, field, fieldType)
-	local suffix = 'l'
-	if not field:find'_' then suffix = '_' .. suffix end
-	local name = 'partial_'..field..suffix
-	local fieldTypeInfo = assert(typeInfo[fieldType], "failed to find typeInfo for "..fieldType)
-	local add, sub, scale, zero = fieldTypeInfo.add, fieldTypeInfo.sub, fieldTypeInfo.scale, fieldTypeInfo.zero
-	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)
-	local lines = table{'\t'..fieldType..' '..name..'[3];\n'}
-	for i,xi in ipairs(xNames) do
-		local namei = name..'['..(i-1)..']'
-		local expr = zero
-		if i <= solver.dim then
-			for j,coeff in ipairs(d1coeffs) do
-				expr = add(expr, scale(sub(
-						'U['..j..' * stepsize.'..xi..'].'..field,
-						'U[-'..j..' * stepsize.'..xi..'].'..field
-					), clnumber(coeff)))
-			end
-			expr = scale(expr, '1. / grid_dx'..(i-1))
-		end
-		lines:insert('\t'..namei..' = '..expr..';')
-	end
-	return lines:concat'\n'
-end
-
-local function makePartial2(order, solver, field, fieldType, nameOverride)
-	local suffix = 'll'
-	if not field:find'_' then suffix = '_' .. suffix end
-	local name = nameOverride or ('partial2_'..field..suffix)
-	local fieldTypeInfo = assert(typeInfo[fieldType], "failed to find typeInfo for "..fieldType)
-	local add, sub, scale, zero = fieldTypeInfo.add, fieldTypeInfo.sub, fieldTypeInfo.scale, fieldTypeInfo.zero
-	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)
-	local d2coeffs = assert(derivCoeffs[2][order], "couldn't find 2nd derivative coefficients of order "..order)
-	local lines = table()
-	lines:insert('\t'..fieldType..' '..name..'[6];')
-	for ij,xij in ipairs(symNames) do
-		local i,j = from6to3x3(ij)
-		local xi, xj = xNames[i], xNames[j]
-		local nameij = name..'['..(ij-1)..']'
-		if i > solver.dim or j > solver.dim then
-			lines:insert('\t'..nameij..' = '..zero..';')
-		elseif i == j then
-			local expr = scale('U->'..field, d2coeffs[0])
-			for k,coeff in ipairs(d2coeffs) do
-				expr = add(
-					expr, 
-					scale(
-						add(
-							'U['..k..' * stepsize.s'..(i-1)..'].'..field,
-							'U[-'..k..' * stepsize.s'..(i-1)..'].'..field),
-						clnumber(coeff)))
-			end
-			expr = scale(expr, '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')
-			lines:insert('\t'..nameij..' = '..expr..';')
-		else
-			local expr = zero
-			for k,coeff_k in ipairs(d1coeffs) do
-				for l,coeff_l in ipairs(d1coeffs) do
-					expr = add(expr, scale(
-						sub(
-							add(
-								'U['..k..' * stepsize.'..xi..' + '..l..' * stepsize.'..xj..'].'..field,
-								'U[-'..k..' * stepsize.'..xi..' - '..l..' * stepsize.'..xj..'].'..field),
-							add(
-								'U[-'..k..' * stepsize.'..xi..' + '..l..' * stepsize.'..xi..'].'..field,
-								'U['..k..' * stepsize.'..xi..' - '..l..' * stepsize.'..xi..'].'..field)), 
-						clnumber(coeff_k * coeff_l)))
-				end
-			end
-			expr = scale(expr, '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')
-			lines:insert('\t'..nameij..' = '..expr..';')
-		end
-	end
-	return lines:concat'\n'
-end
+local makePartials = require 'eqn.makepartial'
+local makePartial = makePartials.makePartial
+local makePartial2 = makePartials.makePartial2
 
 
 local BSSNOKFiniteDifferenceEquation = class(EinsteinEqn)
@@ -171,7 +51,7 @@ local consVars = table()
 :append{
 	--hyperbolic variables:
 	--real3 a;			//3: a_i
-	--sym3 dTilde[3];		//18: dTilde_ijk, only 15 dof since dTilde_ij^j = 0
+	--_3sym3 dTilde;		//18: dTilde_ijk, only 15 dof since dTilde_ij^j = 0
 	--real3 Phi;			//3: Phi_i
 
 	--stress-energy variables:
@@ -207,7 +87,6 @@ end
 function BSSNOKFiniteDifferenceEquation:getTemplateEnv()
 	local derivOrder = 2 * self.solver.numGhost
 	return {
-		clnumber = clnumber,
 		eqn = self,
 		solver = self.solver,
 		xNames = xNames,
@@ -215,7 +94,6 @@ function BSSNOKFiniteDifferenceEquation:getTemplateEnv()
 		from3x3to6 = from3x3to6,
 		from6to3x3 = from6to3x3,
 		sym = sym,
-		typeInfo = typeInfo,
 		makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
 		makePartial2 = function(...) return makePartial2(derivOrder, self.solver, ...) end,
 	}
@@ -455,9 +333,9 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 
 	//gamma_ij,k = exp(4 phi) gammaBar_ij,k + 4 phi,k exp(4 phi) gammaBar_ij
 	<?=makePartial('phi', 'real')?>
-	sym3 partial_gamma_lll[3] = {
+	_3sym3 partial_gamma_lll = {
 <? for i,xi in ipairs(xNames) do
-?>		sym3_add(
+?>		.<?=xi?> = sym3_add(
 			sym3_scale(partial_gammaBar_lll[<?=i-1?>], exp_4phi),
 			sym3_scale(U->gammaBar_ll, 4. * exp_4phi * partial_phi_l[<?=i-1?>])),
 <? end
@@ -473,9 +351,9 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	
 	//gamma_ij,k = 1/chi gammaBar_ij,k - chi,k / chi^2 gammaBar_ij
 	<?=makePartial('chi', 'real')?>
-	sym3 partial_gamma_lll[3] = {
+	_3sym3 partial_gamma_lll = {
 <? for i,xi in ipairs(xNames) do
-?>		sym3_sub(
+?>		.<?=xi?> = sym3_sub(
 			sym3_scale(partial_gammaBar_lll[<?=i-1?>], _1_chi),
 			sym3_scale(U->gammaBar_ll, partial_chi_l[<?=i-1?>] * _1_chi * _1_chi)),
 <? end
@@ -503,7 +381,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	//beta^i beta^j beta^k gamma_ij,k
 	real beta_beta_beta_partial_gamma = 0.<?
 for i,xi in ipairs(xNames) do
-?> + U->beta_u.<?=xi?> * real3_weightedLenSq(U->beta_u, partial_gamma_lll[<?=i-1?>])<?
+?> + U->beta_u.<?=xi?> * real3_weightedLenSq(U->beta_u, partial_gamma_lll.<?=xi?>)<?
 end ?>;
 
 	//beta_j beta^j_,i
@@ -522,7 +400,7 @@ end ?>;
 	//gamma_kl,j beta^k beta^l
 	real3 beta_beta_dgamma_l = (real3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = real3_weightedLenSq(U->beta_u, partial_gamma_lll[<?=i-1?>]),
+?>		.<?=xi?> = real3_weightedLenSq(U->beta_u, partial_gamma_lll.<?=xi?>),
 <? end
 ?>	};
 

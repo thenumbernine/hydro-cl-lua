@@ -14,7 +14,15 @@ typedef union {
 	};
 } sym3;
 
-typedef sym3 _3sym3[3];
+typedef union {
+	real s[18];
+	struct {
+		sym3 v0,v1,v2;
+	};
+	struct {
+		sym3 x,y,z;
+	};
+} _3sym3;
 
 //row vectors, so a.i.j = a_ij
 typedef union {

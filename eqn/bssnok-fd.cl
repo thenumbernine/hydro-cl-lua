@@ -137,12 +137,12 @@ end ?>;
 	sym3 gamma_uu = sym3_scale(U->gammaBar_uu, exp_neg4phi);
 
 	//connBar_lll[i].jk := connBar_ijk = 1/2 (gammaBar_ij,k + gammaBar_ik,j - gammaBar_jk,i)
-	sym3 connBar_lll[3];
+	_3sym3 connBar_lll;
 <? 
 for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
-?>	connBar_lll[<?=i-1?>].<?=xjk?> = .5 * (
+?>	connBar_lll.<?=xi?>.<?=xjk?> = .5 * (
 		partial_gammaBar_lll[<?=k-1?>].<?=sym(i,j)?> 
 		+ partial_gammaBar_lll[<?=j-1?>].<?=sym(i,k)?> 
 		- partial_gammaBar_lll[<?=i-1?>].<?=xjk?>);
@@ -150,18 +150,7 @@ for i,xi in ipairs(xNames) do
 end
 ?>	
 	//connBar_ull[i].jk := connBar^i_jk = gammaBar^il connBar_ljk
-	sym3 connBar_ull[3];	
-<? 
-for i,xi in ipairs(xNames) do
-	for jk,xjk in ipairs(symNames) do
-?>	connBar_ull[<?=i-1?>].<?=xjk?> = 0. <?
-		for l,xl in ipairs(xNames) do
-?> + U->gammaBar_uu.<?=sym(i,l)?> * connBar_lll[<?=l-1?>].<?=xjk?><?
-		end
-?>;
-<?	end
-end
-?>
+	_3sym3 connBar_ull = sym3_3sym3_mul(U->gammaBar_uu, connBar_lll);	
 
 	//from 2006 Campanelli "connBar^i is replaced by -gammaBar^ij_j wherever it is not differentiated"
 	// TODO ... but do that, I should track gammaBar^ij ...
@@ -191,12 +180,12 @@ end
 	//B&S 3.7:
 	//conn^i_jk = connBar^i_jk + 2 (delta^i_j phi_,k + delta^i_k phi_,j - gammaBar_jk gammaBar^il phi_,l)
 	//conn^i_jk = connBar^i_jk + 2 (delta^i_j phi_,k + delta^i_k phi_,j - gammaBar_jk DBar^i phi)
-	sym3 conn_ull[3];	
+	_3sym3 conn_ull;	
 <? 
 for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
-?>	conn_ull[<?=i-1?>].<?=xjk?> = connBar_ull[<?=i-1?>].<?=xjk?> - 2 * U->gammaBar_ll.<?=xjk?> * DBar_phi_u.<?=xi?><?
+?>	conn_ull.<?=xi?>.<?=xjk?> = connBar_ull.<?=xi?>.<?=xjk?> - 2 * U->gammaBar_ll.<?=xjk?> * DBar_phi_u.<?=xi?><?
 		if i==j then
 ?> + 2 * partial_phi_l[<?=k-1?>]<?
 		end
@@ -219,7 +208,7 @@ if eqn.useChi then
 		local i,j = from6to3x3(ij)
 ?>		.<?=xij?> = U->chi * (partial2_alpha_ll[<?=ij-1?>] <?
 		for k,xk in ipairs(xNames) do
-			?> - connBar_ull[<?=k-1?>].<?=xij?> * partial_alpha_l[<?=k-1?>]<?
+			?> - connBar_ull.<?=xk?>.<?=xij?> * partial_alpha_l[<?=k-1?>]<?
 		end
 			?>) + .5 * partial_alpha_l[<?=i-1?>] * partial_chi_l[<?=j-1?>] <?
 			?> + .5 * partial_alpha_l[<?=i-1?>] * partial_chi_l[<?=j-1?>] <?
@@ -251,7 +240,7 @@ else	-- not useChi
 	local i,j = from6to3x3(ij)
 ?>	D2_alpha_ll.<?=xij?> = partial2_alpha_ll[<?=ij-1?>]<?
 	for k,xk in ipairs(xNames) do 
-?> - conn_ull[<?=k-1?>].<?=xij?> * partial_alpha_l[<?=k-1?>]<?
+?> - conn_ull.<?=xk?>.<?=xij?> * partial_alpha_l[<?=k-1?>]<?
 	end ?>;
 <? 
 end
@@ -335,17 +324,18 @@ end
 	sym3 RBar_ll;
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
+	local xi,xj = xNames[i],xNames[j]
 ?>	RBar_ll.<?=xij?> = -.5 * tr_partial2_gammaBar_ll.<?=xij?>
 <?	for k,xk in ipairs(xNames) do
 ?>		+ .5 * U->gammaBar_ll.<?=sym(k,i)?> * partial_connBar_ul[<?=j-1?>].<?=xk?>
 		+ .5 * U->gammaBar_ll.<?=sym(k,j)?> * partial_connBar_ul[<?=i-1?>].<?=xk?>
-		+ .5 * connBar_u.<?=xk?> * (connBar_lll[<?=i-1?>].<?=sym(j,k)?> + connBar_lll[<?=j-1?>].<?=sym(i,k)?>)
+		+ .5 * connBar_u.<?=xk?> * (connBar_lll.<?=xi?>.<?=sym(j,k)?> + connBar_lll.<?=xj?>.<?=sym(i,k)?>)
 <?		for l,xl in ipairs(xNames) do
 			for m,xm in ipairs(xNames) do
 ?>		+ U->gammaBar_uu.<?=sym(k,m)?> * (
-			+ connBar_ull[<?=k-1?>].<?=sym(l,i)?> * connBar_lll[<?=j-1?>].<?=sym(k,m)?>
-			+ connBar_ull[<?=k-1?>].<?=sym(l,j)?> * connBar_lll[<?=i-1?>].<?=sym(k,m)?>
-			+ connBar_ull[<?=k-1?>].<?=sym(i,m)?> * connBar_lll[<?=k-1?>].<?=sym(l,j)?>
+			+ connBar_ull.<?=xk?>.<?=sym(l,i)?> * connBar_lll.<?=xj?>.<?=sym(k,m)?>
+			+ connBar_ull.<?=xk?>.<?=sym(l,j)?> * connBar_lll.<?=xi?>.<?=sym(k,m)?>
+			+ connBar_ull.<?=xk?>.<?=sym(i,m)?> * connBar_lll.<?=xk?>.<?=sym(l,j)?>
 		)
 <?			end
 		end
@@ -358,7 +348,7 @@ end
 <? for ij,xij in ipairs(symNames) do
 ?>	DBar2_phi_ll.<?=xij?> = partial2_phi_ll[<?=ij-1?>] <?
 	for k,xk in ipairs(xNames) do
-?> - connBar_ull[<?=k-1?>].<?=xij?> * partial_phi_l[<?=k-1?>]<?
+?> - connBar_ull.<?=xk?>.<?=xij?> * partial_phi_l[<?=k-1?>]<?
 	end
 ?>;
 <? end
@@ -508,7 +498,7 @@ end
 			local xik = sym(i,k)
 			local jk = from3x3to6(j,k)
 			local xjk = symNames[jk]
-?>		+ 2. * U->alpha * connBar_ull[<?=i-1?>].<?=xjk?> * ATilde_uu.<?=xjk?>
+?>		+ 2. * U->alpha * connBar_ull.<?=xi?>.<?=xjk?> * ATilde_uu.<?=xjk?>
 		+ 1./3. * U->gammaBar_uu.<?=xik?> * partial2_beta_ull[<?=jk-1?>].<?=xj?>
 		+ U->gammaBar_uu.<?=xjk?> * partial2_beta_ull[<?=jk-1?>].<?=xi?>
 <?		end

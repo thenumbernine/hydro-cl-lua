@@ -81,6 +81,13 @@ kernel void initState(
 	U->alpha = alpha;
 	U->gamma = gamma_ll;
 	U->K = K_ll;
+	
+	//Z_u n^u = 0
+	//Theta = alpha n_u Z^u = alpha Z^u
+	//for n_a = (-alpha, 0)
+	//n^a = (1/alpha, -beta^i/alpha)
+	//(Z_t - Z_i beta^i) / alpha = Theta ... = ?
+	//Z^t n_t + Z^i n_i = -alpha Z^t = Theta
 	U->Theta = 0;
 	U->Z = _real3(0,0,0);
 }

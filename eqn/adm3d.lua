@@ -30,13 +30,42 @@ ADM_BonaMasso_3D.consVars = table{
 }:append(fluxVars)
 
 
+-- no shift
+--ADM_BonaMasso_3D.useShift = false
+
+-- minimal distortion elliptic -- Alcubierre's book, eqn 4.3.14 and 4.3.15
+--ADM_BonaMasso_3D.useShift = 'MinimalDistortionElliptic'
+
+-- 2008 Alcubierre 4.3.37
+-- I see some problems in the warp bubble test ...
+ADM_BonaMasso_3D.useShift = 'HarmonicShiftCondition-FiniteDifference'
+
+
+if ADM_BonaMasso_3D.useShift == 'MinimalDistortionElliptic' then
+	ADM_BonaMasso_3D.consVars:insert{beta_u = 'real3'}
+	--[[ and maybe some of these ...
+	ADM_BonaMasso_3D.consVars:insert{gamma_uu = 'sym3'}
+	ADM_BonaMasso_3D.consVars:insert{conn_ull = '_3sym3'}
+	ADM_BonaMasso_3D.consVars:insert{R_ll = 'sym3'}
+	--]]
+
+elseif ADM_BonaMasso_3D.useShift == 'HarmonicShiftCondition-FiniteDifference' then
+	ADM_BonaMasso_3D.consVars:insert{beta_u = 'real3'}
+end
+
+
 --[[
 solve a smaller eigendecomposition that doesn't include the rows of variables whose d/dt is zero.
-kind of like how ideal MHD is an 8-var system, but the flux jacobian solved is a 7x7 because Bx,t = 0
+kind of like how ideal MHD is an 8-var system, but the flux jacobian solved is a 7x7 because Bx,t = 0.
 TODO make this a ctor arg - so solvers can run in parallel with and without this
 ...or why don't I just scrap the old code, because this runs a lot faster.
 --]]
 ADM_BonaMasso_3D.noZeroRowsInFlux = true
+
+-- NOTE this doesn't work when using shift ... because then all the eigenvalues are -beta^i, so none of them are zero (except the source-only alpha, beta^i, gamma_ij)
+if ADM_BonaMasso_3D.useShift then
+	ADM_BonaMasso_3D.noZeroRowsInFlux = false
+end
 
 if not ADM_BonaMasso_3D.noZeroRowsInFlux then
 	-- skip alpha and gamma
@@ -48,24 +77,10 @@ else
 end
 
 
+
+-- only count int vars after the shifts have been added
 ADM_BonaMasso_3D.numIntStates = makeStruct.countReals(ADM_BonaMasso_3D.consVars)
 
-
--- no shift
-ADM_BonaMasso_3D.useShift = false
-
--- minimal distortion elliptic -- Alcubierre's book, eqn 4.3.14 and 4.3.15
---ADM_BonaMasso_3D.useShift = 'MinimalDistortionElliptic'
-
-
-if ADM_BonaMasso_3D.useShift == 'MinimalDistortionElliptic' then
-	ADM_BonaMasso_3D.consVars:insert{beta_u = 'real3'}
-	--[[ and maybe some of these ...
-	ADM_BonaMasso_3D.consVars:insert{gamma_uu = 'sym3'}
-	ADM_BonaMasso_3D.consVars:insert{conn_ull = '_3sym3'}
-	ADM_BonaMasso_3D.consVars:insert{R_ll = 'sym3'}
-	--]]
-end
 
 
 ADM_BonaMasso_3D.hasCalcDT = true
@@ -110,9 +125,9 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	U->alpha = 1.;
 	U->gamma = _sym3(1,0,0,1,0,1);
 	U->a = _real3(0,0,0);
-	U->d[0] = _sym3(0,0,0,0,0,0);
-	U->d[1] = _sym3(0,0,0,0,0,0);
-	U->d[2] = _sym3(0,0,0,0,0,0);
+	U->d.x = _sym3(0,0,0,0,0,0);
+	U->d.y = _sym3(0,0,0,0,0,0);
+	U->d.z = _sym3(0,0,0,0,0,0);
 	U->K = _sym3(0,0,0,0,0,0);
 	U->V = _real3(0,0,0);
 <? if eqn.useShift then 
@@ -166,7 +181,7 @@ for i=1,solver.dim do
 ?>
 	U->a.<?=xi?> = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (grid_dx<?=i-1?> * U->alpha);
 	<? for jk,xjk in ipairs(symNames) do ?>
-	U->d[<?=i-1?>].<?=xjk?> = .5 * (U[stepsize.<?=xi?>].gamma.<?=xjk?> - U[-stepsize.<?=xi?>].gamma.<?=xjk?>) / grid_dx<?=i-1?>;
+	U->d.<?=xi?>.<?=xjk?> = .5 * (U[stepsize.<?=xi?>].gamma.<?=xjk?> - U[-stepsize.<?=xi?>].gamma.<?=xjk?>) / grid_dx<?=i-1?>;
 	<? end ?>
 <? 
 end 
@@ -174,7 +189,7 @@ for i=solver.dim+1,3 do
 	local xi = xNames[i]
 ?>
 	U->a.<?=xi?> = 0;
-	U->d[<?=i-1?>] = _sym3(0,0,0,0,0,0);
+	U->d.<?=xi?> = _sym3(0,0,0,0,0,0);
 <?
 end
 ?>
@@ -184,7 +199,7 @@ end
 	U->V.<?=xi?> = 0.<?
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
-?> + gammaU.<?=sym(j,k)?> * ( U->d[<?=i-1?>].<?=sym(j,k)?> - U->d[<?=j-1?>].<?=sym(k,i)?> )<?
+?> + gammaU.<?=sym(j,k)?> * ( U->d.<?=xi?>.<?=sym(j,k)?> - U->d.<?=xj?>.<?=sym(k,i)?> )<?
 		end
 	end ?>;
 <? end ?>
@@ -192,6 +207,7 @@ end
 ]]
 
 function ADM_BonaMasso_3D:getSolverCode()
+	local derivOrder = 2 * self.solver.numGhost
 	return template(file['eqn/adm3d.cl'], {
 		eqn = self,
 		solver = self.solver,
@@ -199,6 +215,8 @@ function ADM_BonaMasso_3D:getSolverCode()
 		symNames = symNames,
 		from6to3x3 = from6to3x3,
 		sym = sym,
+		makePartial = function(...) return require 'eqn.makepartial'.makePartial(derivOrder, self.solver, ...) end,
+		makePartial2 = function(...) return require 'eqn.makepartial'.makePartial2(derivOrder, self.solver, ...) end,
 	})
 end
 
@@ -282,7 +300,7 @@ momentum constraints
 		<? else ?>
 		sym3 di_gamma_jk = _sym3(0,0,0,0,0,0);
 		<? end ?>
-		*valuesym3 = sym3_sub(di_gamma_jk, sym3_scale(U->d[<?=i-1?>], 2.));
+		*valuesym3 = sym3_sub(di_gamma_jk, sym3_scale(U->d.<?=xi?>, 2.));
 		*valuesym3 = (sym3){<?
 	for jk,xjk in ipairs(symNames) do 
 ?>			.<?=xjk?> = fabs(valuesym3-><?=xjk?>),
@@ -302,11 +320,11 @@ momentum constraints
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
 	<? for i,xi in ipairs(xNames) do ?>{
-		real d1 = sym3_dot(U->d[<?=i-1?>], gammaU);
+		real d1 = sym3_dot(U->d.<?=xi?>, gammaU);
 		real d2 = 0.<?
 	for j=1,3 do
 		for k,xk in ipairs(xNames) do
-?> + U->d[<?=j-1?>].<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
+?> + U->d.<?=xj?>.<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
 		end
 	end ?>;
 		valuevec-><?=xi?> = U->V.<?=xi?> - (d1 - d2);
@@ -323,6 +341,9 @@ ADM_BonaMasso_3D.eigenVars = table{
 	-- sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
 	{sqrt_gammaUjj = 'real3'},
 }
+if ADM_BonaMasso_3D.useShift then
+	ADM_BonaMasso_3D.eigenVars:insert{beta_u = 'real3'}
+end
 
 function ADM_BonaMasso_3D:fillRandom(epsilon)
 	local ptr = ADM_BonaMasso_3D.super.fillRandom(self, epsilon)

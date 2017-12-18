@@ -226,21 +226,44 @@ static inline real real3_weightedLen(real3 a, sym3 m) {
 	return sqrt(real3_weightedLenSq(a, m));
 }
 
-//c^i_jk = a^il b_ljk
-<? for _,addr in ipairs{'', 'global'} do
-?>static void sym3_3sym3_mul_<?=addr?>(_3sym3 c, const sym3 a, <?=addr?> const _3sym3 b) {
-<? 
-for i,xi in ipairs(xNames) do
-?>	c[<?=i-1?>] = (sym3){
+<? for name,symbol in pairs{add='+', sub='-'} do ?>
+static inline _3sym3 _3sym3_<?=name?>(_3sym3 a, _3sym3 b) {
+	return (_3sym3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = {
 <?	for jk,xjk in ipairs(symNames) do
-?>		.<?=xjk?> = 0.<?
+?>			.<?=xjk?> = a.<?=xi?>.<?=xjk?> <?=symbol?> b.<?=xi?>.<?=xjk?>,
+<?	end
+?>		},
+<? end
+?>	};
+}
+<? end ?>
+
+static inline _3sym3 _3sym3_scale(_3sym3 a, real b) {
+	return (_3sym3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = {
+<?	for jk,xjk in ipairs(symNames) do
+?>			.<?=xjk?> = a.<?=xi?>.<?=xjk?> * b,
+<?	end
+?>		},
+<? end
+?>	};
+}
+
+//c^i_jk = a^il b_ljk
+static inline _3sym3 sym3_3sym3_mul(sym3 a, _3sym3 b) {
+	return (_3sym3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = (sym3){
+<?	for jk,xjk in ipairs(symNames) do
+?>			.<?=xjk?> = 0.<?
 		for l,xl in ipairs(xNames) do
-			?> + a.<?=sym(i,l)?> * b[<?=l-1?>].<?=xjk?><? 
+				?> + a.<?=sym(i,l)?> * b.<?=xl?>.<?=xjk?><? 
 		end ?>,
 <?	end
-?>	};
-<? 
-end
-?>}
+?>		},
 <? end
-?>
+?>	};
+}

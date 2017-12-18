@@ -29,9 +29,16 @@ kernel void calcDT(
 		
 		real lambdaGauge = lambdaLight * sqrt_f;
 		real lambda = (real)max(lambdaGauge, lambdaLight);
+
+		<? if eqn.useShift then ?>
+		real betaUi = U->beta_u.s<?=side?>;
+		<? else ?>
+		const real betaUi = 0.;
+		<? end ?>
 		
-		real lambdaMin = (real)min((real)0., -lambda);
-		real lambdaMax = (real)max((real)0., lambda);
+		real lambdaMin = (real)min((real)0., -betaUi - lambda);
+		real lambdaMax = (real)max((real)0., -betaUi + lambda);
+
 		dt = (real)min((real)dt, (real)(grid_dx<?=side?> / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
 	}<? end ?>
 	dtBuf[index] = dt; 
@@ -58,6 +65,10 @@ void eigen_forCell_<?=side?><?=suffix?>(
 	real det_gamma = sym3_det(U->gamma);
 	eig->gammaU = sym3_inv(U->gamma, det_gamma);
 	eig->sqrt_gammaUjj = _real3(sqrt(eig->gammaU.xx), sqrt(eig->gammaU.yy), sqrt(eig->gammaU.zz));
+	
+	<? if eqn.useShift then ?>
+	eig->beta_u = U->beta_u;
+	<? end ?>
 }
 <? 
 	end
@@ -83,13 +94,23 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 	<? end ?>
 	real lambdaGauge = lambdaLight * eig->sqrt_f;
 
+	//TODO maybe replace all these wave[]'s with a callback function that takes the eig_t and a number
+	// maybe the number can be a "template" parameter?
+	// Then we won't have to store anything more than the eigen_t ...
 <? if not eqn.noZeroRowsInFlux then ?>
+	<? if eqn.useShift then ?>
+	real betaUi = eig->beta_u.s<?=side?>;
+	<? else ?>
+	const real betaUi = 0.;
+	<? end ?>
+
 	wave[0] = -lambdaGauge;
-	<? for i=1,5 do ?> wave[<?=i?>] = -lambdaLight; <? end ?>
-	<? for i=6,23 do ?> wave[<?=i?>] = 0.; <? end ?>
-	<? for i=24,28 do ?> wave[<?=i?>] = lambdaLight; <? end ?>
+	<? for i=1,5 do ?> wave[<?=i?>] = -betaUi - lambdaLight; <? end ?>
+	<? for i=6,23 do ?> wave[<?=i?>] = -betaUi; <? end ?>
+	<? for i=24,28 do ?> wave[<?=i?>] = -betaUi + lambdaLight; <? end ?>
 	wave[29] = lambdaGauge;
 <? else ?>
+	// noZeroRowsInFlux implies not useShift
 	wave[0] = -lambdaGauge;
 	<? for i=1,5 do ?> wave[<?=i?>] = -lambdaLight; <? end ?>
 	wave[6] = 0.;
@@ -123,9 +144,15 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 	real lambdaMax = max(lambdaGauge, lambdaLight);
 	//= lambdaLight * max(sqrt(f), 1)
+	real lambdaMin = -lambdaMin;
+
+	<? if eqn.useShift then ?>
+	lambdaMin -= U->beta_u.s<?=side?>;
+	lambdaMax -= U->beta_u.s<?=side?>;
+	<? end ?>
 
 	return (range_t){
-		.min = -lambdaMax, 
+		.min = lambdaMin, 
 		.max = lambdaMax,
 	};
 }
@@ -155,6 +182,11 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	eig.sqrt_gammaUjj.x = sqrt(eig.gammaU.xx);
 	eig.sqrt_gammaUjj.y = sqrt(eig.gammaU.yy);
 	eig.sqrt_gammaUjj.z = sqrt(eig.gammaU.zz);
+	
+	<? if eqn.useShift then ?>
+	eig.beta_u = real3_scale(real3_add(UL->beta_u, UR->beta_u), .5);
+	<? end ?>
+
 	return eig;
 }
 
@@ -211,20 +243,20 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	results[7] = inputU->a.z;
 
 	//d_yij
-	results[8] = inputU->d[1].xx;
-	results[9] = inputU->d[1].xy;
-	results[10] = inputU->d[1].xz;
-	results[11] = inputU->d[1].yy;
-	results[12] = inputU->d[1].yz;
-	results[13] = inputU->d[1].zz;
+	results[8] = inputU->d.y.xx;
+	results[9] = inputU->d.y.xy;
+	results[10] = inputU->d.y.xz;
+	results[11] = inputU->d.y.yy;
+	results[12] = inputU->d.y.yz;
+	results[13] = inputU->d.y.zz;
 
 	//d_zij
-	results[14] = inputU->d[2].xx;
-	results[15] = inputU->d[2].xy;
-	results[16] = inputU->d[2].xz;
-	results[17] = inputU->d[2].yy;
-	results[18] = inputU->d[2].yz;
-	results[19] = inputU->d[2].zz;
+	results[14] = inputU->d.z.xx;
+	results[15] = inputU->d.z.xy;
+	results[16] = inputU->d.z.xz;
+	results[17] = inputU->d.z.yy;
+	results[18] = inputU->d.z.yz;
+	results[19] = inputU->d.z.zz;
 
 	//V_j
 	results[20] = inputU->V.x;
@@ -236,7 +268,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//a^x - f d^xj_j
 
 	real f = eig->sqrt_f * eig->sqrt_f;
-	real d_x_input = sym3_dot(eig->gammaU, inputU->d[0]);
+	real d_x_input = sym3_dot(eig->gammaU, inputU->d.x);
 	results[23] = inputU->a.x - f * d_x_input;
 
 	//gauge:
@@ -252,8 +284,8 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//light:
 	//sqrt(gamma^xx) K_xy +- (d^x_xy + .5 (a_y - d_yj^j) + V_y)
 
-	real d_y_input = sym3_dot(eig->gammaU, inputU->d[1]);
-	real dUx_xy_input = eig->gammaU.xx * inputU->d[0].xy + eig->gammaU.xy * inputU->d[1].xy + eig->gammaU.xz * inputU->d[2].xy;
+	real d_y_input = sym3_dot(eig->gammaU, inputU->d.y);
+	real dUx_xy_input = eig->gammaU.xx * inputU->d.x.xy + eig->gammaU.xy * inputU->d.y.xy + eig->gammaU.xz * inputU->d.z.xy;
 	real ev1b = .5 * (inputU->a.y - d_y_input) + inputU->V.y + dUx_xy_input;
 	results[1] = K_sqrt_gammaUxx.xy - ev1b;
 	results[24] = K_sqrt_gammaUxx.xy + ev1b;
@@ -261,8 +293,8 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//light:
 	//sqrt(gamma^xx) K_xz +- (d^x_xz + .5 (a_z - d_zj^j) + V_z)
 
-	real d_z_input = sym3_dot(eig->gammaU, inputU->d[2]);
-	real dUx_xz_input = eig->gammaU.xx * inputU->d[0].xz + eig->gammaU.xy * inputU->d[1].xz + eig->gammaU.xz * inputU->d[2].xz;
+	real d_z_input = sym3_dot(eig->gammaU, inputU->d.z);
+	real dUx_xz_input = eig->gammaU.xx * inputU->d.x.xz + eig->gammaU.xy * inputU->d.y.xz + eig->gammaU.xz * inputU->d.z.xz;
 	real ev2b = .5 * (inputU->a.z - d_z_input) + inputU->V.z + dUx_xz_input;
 	results[2] = K_sqrt_gammaUxx.xz - ev2b;
 	results[25] = K_sqrt_gammaUxx.xz + ev2b;
@@ -270,21 +302,21 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//light:
 	//sqrt(gamma^xx) K_yy +- d^x_yy
 
-	real dUx_yy_input = eig->gammaU.xx * inputU->d[0].yy + eig->gammaU.xy * inputU->d[1].yy + eig->gammaU.xz * inputU->d[2].yy;
+	real dUx_yy_input = eig->gammaU.xx * inputU->d.x.yy + eig->gammaU.xy * inputU->d.y.yy + eig->gammaU.xz * inputU->d.z.yy;
 	results[3] = K_sqrt_gammaUxx.yy - dUx_yy_input;
 	results[26] = K_sqrt_gammaUxx.yy + dUx_yy_input;
 
 	//light:
 	//sqrt(gamma^xx) K_yz +- d^x_yz
 
-	real dUx_yz_input = eig->gammaU.xx * inputU->d[0].yz + eig->gammaU.xy * inputU->d[1].yz + eig->gammaU.xz * inputU->d[2].yz;
+	real dUx_yz_input = eig->gammaU.xx * inputU->d.x.yz + eig->gammaU.xy * inputU->d.y.yz + eig->gammaU.xz * inputU->d.z.yz;
 	results[4] = K_sqrt_gammaUxx.yz - dUx_yz_input; 
 	results[27] = K_sqrt_gammaUxx.yz + dUx_yz_input;
 
 	//light:
 	//sqrt(gamma^xx) K_zz +- d^x_zz
 
-	real dUx_zz_input = eig->gammaU.xx * inputU->d[0].zz + eig->gammaU.xy * inputU->d[1].zz + eig->gammaU.xz * inputU->d[2].zz;
+	real dUx_zz_input = eig->gammaU.xx * inputU->d.x.zz + eig->gammaU.xy * inputU->d.y.zz + eig->gammaU.xz * inputU->d.z.zz;
 	results[5] = K_sqrt_gammaUxx.zz - dUx_zz_input;
 	results[28] = K_sqrt_gammaUxx.zz + dUx_zz_input;
 
@@ -295,20 +327,20 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	results[7] = inputU->a.z;
 
 	//d_xij
-	results[8] = inputU->d[0].xx;
-	results[9] = inputU->d[0].xy;
-	results[10] = inputU->d[0].xz;
-	results[11] = inputU->d[0].yy;
-	results[12] = inputU->d[0].yz;
-	results[13] = inputU->d[0].zz;
+	results[8] = inputU->d.x.xx;
+	results[9] = inputU->d.x.xy;
+	results[10] = inputU->d.x.xz;
+	results[11] = inputU->d.x.yy;
+	results[12] = inputU->d.x.yz;
+	results[13] = inputU->d.x.zz;
 	
 	//d_zij
-	results[14] = inputU->d[2].xx;
-	results[15] = inputU->d[2].xy;
-	results[16] = inputU->d[2].xz;
-	results[17] = inputU->d[2].yy;
-	results[18] = inputU->d[2].yz;
-	results[19] = inputU->d[2].zz;
+	results[14] = inputU->d.z.xx;
+	results[15] = inputU->d.z.xy;
+	results[16] = inputU->d.z.xz;
+	results[17] = inputU->d.z.yy;
+	results[18] = inputU->d.z.yz;
+	results[19] = inputU->d.z.zz;
 	
 	//V_j
 	results[20] = inputU->V.x;
@@ -320,7 +352,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//a^y - f d^yj_j
 
 	real f = eig->sqrt_f * eig->sqrt_f;
-	real d_y_input = sym3_dot(eig->gammaU, inputU->d[1]);
+	real d_y_input = sym3_dot(eig->gammaU, inputU->d.y);
 	results[23] = inputU->a.y - f * d_y_input;
 	
 	//gauge:
@@ -336,15 +368,15 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//light:
 	//sqrt(gamma^yy) K_xx +- d^y_xx
 
-	real dUy_xx_input = eig->gammaU.xy * inputU->d[0].xx + eig->gammaU.yy * inputU->d[1].xx + eig->gammaU.yz * inputU->d[2].xx;
+	real dUy_xx_input = eig->gammaU.xy * inputU->d.x.xx + eig->gammaU.yy * inputU->d.y.xx + eig->gammaU.yz * inputU->d.z.xx;
 	results[1] = K_sqrt_gammaUyy.xx - dUy_xx_input;
 	results[24] = K_sqrt_gammaUyy.xx + dUy_xx_input;
 
 	//light:
 	//sqrt(gamma^yy) K_xy +- (d^y_xy + .5 (a_x - d_xj^j) + V_x)
 
-	real d_x_input = sym3_dot(eig->gammaU, inputU->d[0]);
-	real dUy_xy_input = eig->gammaU.xy * inputU->d[0].xy + eig->gammaU.yy * inputU->d[1].xy + eig->gammaU.yz * inputU->d[2].xy;
+	real d_x_input = sym3_dot(eig->gammaU, inputU->d.x);
+	real dUy_xy_input = eig->gammaU.xy * inputU->d.x.xy + eig->gammaU.yy * inputU->d.y.xy + eig->gammaU.yz * inputU->d.z.xy;
 	real ev2b = dUy_xy_input + .5 * (inputU->a.x - d_x_input) + inputU->V.x;
 	results[2] = K_sqrt_gammaUyy.xy - ev2b;
 	results[25] = K_sqrt_gammaUyy.xy + ev2b;
@@ -352,15 +384,15 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//light:
 	//sqrt(gamma^yy) K_xz +- d^y_xz
 
-	real dUy_xz_input = eig->gammaU.xy * inputU->d[0].xz + eig->gammaU.yy * inputU->d[1].xz + eig->gammaU.yz * inputU->d[2].xz;
+	real dUy_xz_input = eig->gammaU.xy * inputU->d.x.xz + eig->gammaU.yy * inputU->d.y.xz + eig->gammaU.yz * inputU->d.z.xz;
 	results[3] = K_sqrt_gammaUyy.xz - dUy_xz_input;
 	results[26] = K_sqrt_gammaUyy.xz + dUy_xz_input;
 
 	//light:
 	//sqrt(gamma^yy) K_yz +- (d^y_yz + .5 (a_z - d_zj^j) + V_z)
 
-	real dUy_yz_input = eig->gammaU.xy * inputU->d[0].yz + eig->gammaU.yy * inputU->d[1].yz + eig->gammaU.yz * inputU->d[2].yz;
-	real d_z_input = sym3_dot(eig->gammaU, inputU->d[2]);
+	real dUy_yz_input = eig->gammaU.xy * inputU->d.x.yz + eig->gammaU.yy * inputU->d.y.yz + eig->gammaU.yz * inputU->d.z.yz;
+	real d_z_input = sym3_dot(eig->gammaU, inputU->d.z);
 	real ev4b = dUy_yz_input + .5 * (inputU->a.z - d_z_input) + inputU->V.z;
 	results[4] = K_sqrt_gammaUyy.yz - ev4b;
 	results[27] = K_sqrt_gammaUyy.yz + ev4b;
@@ -368,7 +400,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//light:
 	//sqrt(gamma^yy) K_zz +- d^y_zz
 
-	real dUy_zz_input = eig->gammaU.xy * inputU->d[0].zz + eig->gammaU.yy * inputU->d[1].zz + eig->gammaU.yz * inputU->d[2].zz;
+	real dUy_zz_input = eig->gammaU.xy * inputU->d.x.zz + eig->gammaU.yy * inputU->d.y.zz + eig->gammaU.yz * inputU->d.z.zz;
 	results[5] = K_sqrt_gammaUyy.zz - dUy_zz_input;
 	results[28] = K_sqrt_gammaUyy.zz - dUy_zz_input;
 	
@@ -379,20 +411,20 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	results[7] = inputU->a.y;
 	
 	//d_xij
-	results[8] =  inputU->d[0].xx;
-	results[9] =  inputU->d[0].xy;
-	results[10] = inputU->d[0].xz;
-	results[11] = inputU->d[0].yy;
-	results[12] = inputU->d[0].yz;
-	results[13] = inputU->d[0].zz;
+	results[8] =  inputU->d.x.xx;
+	results[9] =  inputU->d.x.xy;
+	results[10] = inputU->d.x.xz;
+	results[11] = inputU->d.x.yy;
+	results[12] = inputU->d.x.yz;
+	results[13] = inputU->d.x.zz;
 	
 	//d_yij
-	results[14] = inputU->d[1].xx;
-	results[15] = inputU->d[1].xy;
-	results[16] = inputU->d[1].xz;
-	results[17] = inputU->d[1].yy;
-	results[18] = inputU->d[1].yz;
-	results[19] = inputU->d[1].zz;
+	results[14] = inputU->d.y.xx;
+	results[15] = inputU->d.y.xy;
+	results[16] = inputU->d.y.xz;
+	results[17] = inputU->d.y.yy;
+	results[18] = inputU->d.y.yz;
+	results[19] = inputU->d.y.zz;
 	
 	//V_j
 	results[20] = inputU->V.x;
@@ -404,7 +436,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//a^z - f d^zj_j
 
 	real f = eig->sqrt_f * eig->sqrt_f;
-	real d_z_input = sym3_dot(eig->gammaU, inputU->d[2]);
+	real d_z_input = sym3_dot(eig->gammaU, inputU->d.z);
 	results[23] = inputU->a.z - f * d_z_input;
 
 	//gauge:
@@ -420,22 +452,22 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//light:
 	//sqrt(gamma^zz) K_xx +- d^z_xx
 	
-	real dUz_xx_input = eig->gammaU.xz * inputU->d[0].xx + eig->gammaU.yz * inputU->d[1].xx + eig->gammaU.zz * inputU->d[2].xx;
+	real dUz_xx_input = eig->gammaU.xz * inputU->d.x.xx + eig->gammaU.yz * inputU->d.y.xx + eig->gammaU.zz * inputU->d.z.xx;
 	results[1] = K_sqrt_gammaUzz.xx - dUz_xx_input;
 	results[24] = K_sqrt_gammaUzz.xx + dUz_xx_input;
 
 	//light:
 	//sqrt(gamma^zz) K_xy +- d^z_xy
 
-	real dUz_xy_input = eig->gammaU.xz * inputU->d[0].xy + eig->gammaU.yz * inputU->d[1].xy + eig->gammaU.zz * inputU->d[2].xy;
+	real dUz_xy_input = eig->gammaU.xz * inputU->d.x.xy + eig->gammaU.yz * inputU->d.y.xy + eig->gammaU.zz * inputU->d.z.xy;
 	results[2] = K_sqrt_gammaUzz.xy - dUz_xy_input;
 	results[25] = K_sqrt_gammaUzz.xy + dUz_xy_input;
 
 	//light:
 	//sqrt(gamma^zz) K_xz +- (d^z_xz + .5 (a_x - d_xj^j) + V_x)
 	
-	real d_x_input = sym3_dot(eig->gammaU, inputU->d[0]);
-	real dUz_xz_input = eig->gammaU.xz * inputU->d[0].xz + eig->gammaU.yz * inputU->d[1].xz + eig->gammaU.zz * inputU->d[2].xz;
+	real d_x_input = sym3_dot(eig->gammaU, inputU->d.x);
+	real dUz_xz_input = eig->gammaU.xz * inputU->d.x.xz + eig->gammaU.yz * inputU->d.y.xz + eig->gammaU.zz * inputU->d.z.xz;
 	real ev3b = .5 * (inputU->a.x - d_x_input) + inputU->V.x + dUz_xz_input;
 	results[3] = K_sqrt_gammaUzz.xz - ev3b;
 	results[26] = K_sqrt_gammaUzz.xz + ev3b;
@@ -443,15 +475,15 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	//light:
 	//sqrt(gamma^zz) K_yy +- d^z_yy
 
-	real dUz_yy_input = eig->gammaU.xz * inputU->d[0].yy + eig->gammaU.yz * inputU->d[1].yy + eig->gammaU.zz * inputU->d[2].yy;
+	real dUz_yy_input = eig->gammaU.xz * inputU->d.x.yy + eig->gammaU.yz * inputU->d.y.yy + eig->gammaU.zz * inputU->d.z.yy;
 	results[4] = K_sqrt_gammaUzz.yy - dUz_yy_input;
 	results[27] = K_sqrt_gammaUzz.yy + dUz_yy_input;
 	
 	//light:
 	//sqrt(gamma^zz) K_yz
 
-	real d_y_input = sym3_dot(eig->gammaU, inputU->d[1]);
-	real dUz_yz_input = eig->gammaU.xz * inputU->d[0].yz + eig->gammaU.yz * inputU->d[1].yz + eig->gammaU.zz * inputU->d[2].yz;
+	real d_y_input = sym3_dot(eig->gammaU, inputU->d.y);
+	real dUz_yz_input = eig->gammaU.xz * inputU->d.x.yz + eig->gammaU.yz * inputU->d.y.yz + eig->gammaU.zz * inputU->d.z.yz;
 	real ev5b = .5 * (inputU->a.y - d_y_input) + inputU->V.y + dUz_yz_input;
 	results[5] = K_sqrt_gammaUzz.yz - ev5b;
 	results[28] = K_sqrt_gammaUzz.yz + ev5b;
@@ -468,7 +500,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real a = inputU->a.s<?=side?>;
 
 	//now swap x and side on the sym3's
-	sym3 d = sym3_swap<?=side?>(inputU->d[<?=side?>]);
+	sym3 d = sym3_swap<?=side?>(inputU->d.v<?=side?>);
 	sym3 K = sym3_swap<?=side?>(inputU->K);
 	sym3 gammaU = sym3_swap<?=side?>(eig->gammaU);
 
@@ -511,19 +543,19 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	resultU->a.y = input[6];
 	resultU->a.z = input[7];
 	
-	resultU->d[1].xx = input[8];
-	resultU->d[1].xy = input[9];
-	resultU->d[1].xz = input[10];
-	resultU->d[1].yy = input[11];
-	resultU->d[1].yz = input[12];
-	resultU->d[1].zz = input[13];
+	resultU->d.y.xx = input[8];
+	resultU->d.y.xy = input[9];
+	resultU->d.y.xz = input[10];
+	resultU->d.y.yy = input[11];
+	resultU->d.y.yz = input[12];
+	resultU->d.y.zz = input[13];
 	
-	resultU->d[2].xx = input[14];
-	resultU->d[2].xy = input[15];
-	resultU->d[2].xz = input[16];
-	resultU->d[2].yy = input[17];
-	resultU->d[2].yz = input[18];
-	resultU->d[2].zz = input[19];
+	resultU->d.z.xx = input[14];
+	resultU->d.z.xy = input[15];
+	resultU->d.z.xz = input[16];
+	resultU->d.z.yy = input[17];
+	resultU->d.z.yz = input[18];
+	resultU->d.z.zz = input[19];
 	
 	resultU->V.x = input[20];
 	resultU->V.y = input[21];
@@ -569,7 +601,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real _1_sqrt_f = 1. / eig->sqrt_f;
 	real _1_f = _1_sqrt_f * _1_sqrt_f;
 
-	resultU->d[0].xx = -(
+	resultU->d.x.xx = -(
 			- K_input_minus
 			+ K_input_plus
 
@@ -606,7 +638,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			+ eig->gammaU.yz * input[12]
 		);
 	
-	resultU->d[0].xy = -(
+	resultU->d.x.xy = -(
 			input[1]
 			+ input[6]
 			- d_y_input
@@ -627,7 +659,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			+ eig->gammaU.yz * input[18]
 		);
 
-	resultU->d[0].xz = -(
+	resultU->d.x.xz = -(
 			input[2]
 			+ input[7]
 			- d_z_input
@@ -636,19 +668,19 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			+ 2. * input[22]
 			- input[25]
 		) * invDenom;
-	resultU->d[0].yy = -(
+	resultU->d.x.yy = -(
 			input[3]
 			+ 2. * eig->gammaU.xy * input[11]
 			+ 2. * eig->gammaU.xz * input[17]
 			- input[26]
 		) * invDenom;
-	resultU->d[0].yz = -(
+	resultU->d.x.yz = -(
 			input[4]
 			+ 2. * eig->gammaU.xy * input[12]
 			+ 2. * eig->gammaU.xz * input[18]
 			- input[27]
 		) * invDenom;
-	resultU->d[0].zz = -(
+	resultU->d.x.zz = -(
 			input[5]
 			+ 2. * eig->gammaU.xy * input[13]
 			+ 2. * eig->gammaU.xz * input[19]
@@ -677,19 +709,19 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	resultU->a.x = input[6];
 	resultU->a.z = input[7];
 	
-	resultU->d[0].xx = input[8];
-	resultU->d[0].xy = input[9];
-	resultU->d[0].xz = input[10];
-	resultU->d[0].yy = input[11];
-	resultU->d[0].yz = input[12];
-	resultU->d[0].zz = input[13];
+	resultU->d.x.xx = input[8];
+	resultU->d.x.xy = input[9];
+	resultU->d.x.xz = input[10];
+	resultU->d.x.yy = input[11];
+	resultU->d.x.yz = input[12];
+	resultU->d.x.zz = input[13];
 	
-	resultU->d[2].xx = input[14];
-	resultU->d[2].xy = input[15];
-	resultU->d[2].xz = input[16];
-	resultU->d[2].yy = input[17];
-	resultU->d[2].yz = input[18];
-	resultU->d[2].zz = input[19];
+	resultU->d.z.xx = input[14];
+	resultU->d.z.xy = input[15];
+	resultU->d.z.xz = input[16];
+	resultU->d.z.yy = input[17];
+	resultU->d.z.yz = input[18];
+	resultU->d.z.zz = input[19];
 	
 	resultU->V.x = input[20];
 	resultU->V.y = input[21];
@@ -716,7 +748,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			+ 4. * VUy_input
 		) * invDenom;
 
-	resultU->d[1].xx = -(
+	resultU->d.y.xx = -(
 			+ input[1]
 			- input[24]
 			+ 2. * eig->gammaU.xy * input[8]
@@ -734,7 +766,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			+ eig->gammaU.yz * input[12]
 		);
 	
-	resultU->d[1].xy = -(
+	resultU->d.y.xy = -(
 			+ input[2]
 			+ input[6]
 			- d_x_input			
@@ -744,7 +776,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			- input[25]
 		) * invDenom;
 	
-	resultU->d[1].xz = -(
+	resultU->d.y.xz = -(
 			+ input[3]
 			+ 2. * eig->gammaU.xy * input[10]
 			+ 2. * eig->gammaU.yz * input[16]
@@ -770,7 +802,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real _1_sqrt_f = 1. / eig->sqrt_f;
 	real _1_f = _1_sqrt_f  * _1_sqrt_f;
 
-	resultU->d[1].yy = -(
+	resultU->d.y.yy = -(
 			- K_input_minus	
 			+ K_input_plus	
 			
@@ -804,7 +836,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			+ eig->gammaU.xz * input[16]
 			+ eig->gammaU.yz * input[18]);
 
-	resultU->d[1].yz = -(
+	resultU->d.y.yz = -(
 			+ input[4]
 			+ input[7]
 			- d_z_input	
@@ -814,7 +846,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			- input[27]
 		) * invDenom;
 	
-	resultU->d[1].zz = -(
+	resultU->d.y.zz = -(
 			+ input[5]
 			- input[28]
 			+ 2. * eig->gammaU.xy * input[13]
@@ -843,19 +875,19 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	resultU->a.x = input[6];
 	resultU->a.y = input[7];
 	
-	resultU->d[0].xx = input[8];
-	resultU->d[0].xy = input[9];
-	resultU->d[0].xz = input[10];
-	resultU->d[0].yy = input[11];
-	resultU->d[0].yz = input[12];
-	resultU->d[0].zz = input[13];
+	resultU->d.x.xx = input[8];
+	resultU->d.x.xy = input[9];
+	resultU->d.x.xz = input[10];
+	resultU->d.x.yy = input[11];
+	resultU->d.x.yz = input[12];
+	resultU->d.x.zz = input[13];
 	
-	resultU->d[1].xx = input[14];
-	resultU->d[1].xy = input[15];
-	resultU->d[1].xz = input[16];
-	resultU->d[1].yy = input[17];
-	resultU->d[1].yz = input[18];
-	resultU->d[1].zz = input[19];
+	resultU->d.y.xx = input[14];
+	resultU->d.y.xy = input[15];
+	resultU->d.y.xz = input[16];
+	resultU->d.y.yy = input[17];
+	resultU->d.y.yz = input[18];
+	resultU->d.y.zz = input[19];
 
 	resultU->V.x = input[20];
 	resultU->V.y = input[21];
@@ -882,14 +914,14 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			+ 4. * VUz_input
 		) * invDenom;
 	
-	resultU->d[2].xx = -(
+	resultU->d.z.xx = -(
 			+ input[1]
 			- input[24]
 			+ 2. * eig->gammaU.xz * input[8]
 			+ 2. * eig->gammaU.yz * input[14]
 		) * invDenom;
 	
-	resultU->d[2].xy = -(
+	resultU->d.z.xy = -(
 			+ input[2]
 			- input[25]
 			+ 2. * eig->gammaU.xz * input[9]
@@ -906,7 +938,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			+ eig->gammaU.xz * input[10]
 			+ eig->gammaU.yz * input[12]);
 
-	resultU->d[2].xz = -(
+	resultU->d.z.xz = -(
 			+ input[3]
 			+ input[6]
 			- d_x_input
@@ -916,7 +948,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			- input[26]
 		) * invDenom;
 	
-	resultU->d[2].yy = -(
+	resultU->d.z.yy = -(
 			+ input[4]
 			- input[27]
 			+ 2. * eig->gammaU.xz * input[11]
@@ -933,7 +965,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 			+ eig->gammaU.xz * input[16]
 			+ eig->gammaU.yz * input[18]);
 
-	resultU->d[2].yz = -(
+	resultU->d.z.yz = -(
 			+ input[5]
 			+ input[7]
 			- d_y_input	
@@ -961,7 +993,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real _1_sqrt_f = 1. / eig->sqrt_f;
 	real _1_f = _1_sqrt_f * _1_sqrt_f;
 
-	resultU->d[2].zz = -(
+	resultU->d.z.zz = -(
 			- K_input_minus
 			+ K_input_plus
 			
@@ -1042,7 +1074,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<? end ?>
 
 	//now swap x and side on the sym3's
-	resultU->d[<?=side?>] = sym3_swap<?=side?>(d);
+	resultU->d.v<?=side?> = sym3_swap<?=side?>(d);
 	resultU->K = sym3_swap<?=side?>(K);
 
 <? end 	-- eqn.noZeroRowsInFlux ?>
@@ -1068,6 +1100,24 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	}
 
 <? if not eqn.noZeroRowsInFlux then ?>
+
+	// TODO make this a default implementation somewhere.
+	// If no one has provided one then just fall back on left / wave / right transform.
+	// TODO use that static function for the calc waves as well
+	
+	real wave[numWaves];
+	eigen_calcWaves_<?=side?>__<?=addr1?>(wave, eig, x);
+
+	real tmp[numWaves];
+	eigen_leftTransform_<?=side?>__<?=addr1?>_<?=addr2?>(tmp, eig, input, x);
+
+	//hmm, needs access to the wave buf ...
+	for (int i = 0; i < numWaves; ++i) {
+		tmp[i] *= wave[i];
+	}
+
+	eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_(results, eig, tmp, x);
+
 <? else -- noZeroRowsInFlux ?>
 
 	<?=addr2?> const <?=eqn.cons_t?>* inputU = (<?=addr2?> const <?=eqn.cons_t?>*)input;
@@ -1076,7 +1126,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real f = eig->sqrt_f * eig->sqrt_f;
 	
 	//now swap x and side on the sym3's
-	sym3 input_d = sym3_swap<?=side?>(inputU->d[<?=side?>]);
+	sym3 input_d = sym3_swap<?=side?>(inputU->d.v<?=side?>);
 	sym3 input_K = sym3_swap<?=side?>(inputU->K);
 	sym3 gammaU = sym3_swap<?=side?>(eig->gammaU);
 
@@ -1086,7 +1136,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	result_K.xx += (inputU->a.s<?=side?> - sym3_dot(input_d, gammaU)) * eig->alpha;
 
 	//now swap x and side on the sym3's
-	resultU->d[<?=side?>] = sym3_swap<?=side?>(result_d);
+	resultU->d.v<?=side?> = sym3_swap<?=side?>(result_d);
 	resultU->K = sym3_swap<?=side?>(result_K);
 
 <? end -- noZeroRowsInFlux ?>
@@ -1096,40 +1146,17 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 end
 ?>
 
+//TODO make this the default implementation of fluxFromCons
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-<? if not eqn.noZeroRowsInFlux then ?>
-	// !noZeroRowsInFlux doesn't have fluxTransform implemented
-
-	<?=eqn.eigen_t?> eig;
-	eigen_forCell_<?=side?>local(&eig, &U, x);
-
-	real wave[numWaves];
-	eigen_calcWaves_<?=side?>__(wave, &eig, x);
-
-	real charvars[numWaves];
-	eigen_leftTransform_<?=side?>___(charvars, &eig, U.ptr, x);
-	
-	for (int j = 0; j < numWaves; ++j) {
-		charvars[j] *= wave[j];
-	}
-			
-	<?=eqn.cons_t?> F;
-	eigen_rightTransform_<?=side?>___(F.ptr, &eig, charvars, x);
-
-<? else	-- noZeroRowsInFlux ?>
-	// noZeroRowsInFlux has fluxTransform implemented
-
 	<?=eqn.eigen_t?> eig;
 	eigen_forCell_<?=side?>local(&eig, &U, x);
 
 	<?=eqn.cons_t?> F;
 	eigen_fluxTransform_<?=side?>___(F.ptr, &eig, U.ptr, x);
-
-<? end -- noZeroRowsInFlux ?>
 
 	return F;
 }
@@ -1197,32 +1224,34 @@ kernel void addSource(
 	//d_llu = d_ij^k = d_ijl * gamma^lk
 	mat3 d_llu[3] = {
 <? for i,xi in ipairs(xNames) do
-?>		sym3_sym3_mul(U->d[<?=i-1?>], gammaU),
+?>		sym3_sym3_mul(U->d.<?=xi?>, gammaU),
 <? end
 ?>	};
 
 	//d_ull = d^i_jk = gamma^il d_ljk
-	sym3 d_ull[3] = {
-<? for i,xi in ipairs(xNames) do
-?>		(sym3){
-<?	for jk,xjk in ipairs(symNames) do
-?>			.<?=xjk?> = 0.<?
-		for l,xl in ipairs(xNames) do
-?> + gammaU.<?=sym(i,l)?> * U->d[<?=l-1?>].<?=xjk?><?
-		end ?>,
-<? end
-?>		},
-<? end
-?>	};
+	_3sym3 d_ull = sym3_3sym3_mul(gammaU, U->d);
 
 	//d3_l = d^j_ji
 	real3 d3_l = (real3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = 0.<?
 	for j,xj in ipairs(xNames) do
-		?> + d_ull[<?=j-1?>].<?=sym(j,i)?><?
+		?> + d_ull.<?=xj?>.<?=sym(j,i)?><?
 	end	?>,
 <? end
+?>	};
+
+	//conn^k_ij = d_ij^k + d_ji^k - d^k_ij
+	_3sym3 conn_ull = {
+<? for k,xk in ipairs(xNames) do 
+?>		.<?=xk?> = (sym3){
+<?	for ij,xij in ipairs(symNames) do
+		local i,j = from6to3x3(ij)
+		local xi,xj = xNames[i],xNames[j]
+?>			.<?=xij?> = d_llu[<?=i-1?>].<?=xj?>.<?=xk?> - d_llu[<?=j-1?>].<?=xi?>.<?=xk?> - U->d.<?=xk?>.<?=xij?>,
+<? end
+?>		},
+<? end 
 ?>	};
 
 	real3 a_V_d3_l = (real3){
@@ -1233,7 +1262,7 @@ kernel void addSource(
 	real3 a_V_d3_u = sym3_real3_mul(gammaU, a_V_d3_l);
 
 	//srcK_ij = (-a_i a_j 
-	//		+ (d_ij^k + d_ji^k - d^k_ij) (a_k + V_k - d^l_lk) 
+	//		+ conn^k_ij (a_k + V_k - d^l_lk) 
 	//		+ 2 d_ki^l d^k_jl
 	//		- 2 d_ki^l d_lj^k
 	//		+ 2 d_ki^l d_jl^k
@@ -1249,9 +1278,9 @@ kernel void addSource(
 			- U->a.<?=xi?> * U->a.<?=xj?>
 
 <? 	for k,xk in ipairs(xNames) do 
-?>			+ (d_llu[<?=i-1?>].<?=xj?>.<?=xk?> - d_llu[<?=j-1?>].<?=xi?>.<?=xk?> - U->d[<?=k-1?>].<?=xij?>) * a_V_d3_u.<?=xk?>
+?>			+ conn_ull.<?=xk?>.<?=xij?> * a_V_d3_u.<?=xk?>
 <?		for l,xl in ipairs(xNames) do
-?>			+ 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_ull[<?=k-1?>].<?=sym(j,l)?>
+?>			+ 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_ull.<?=xk?>.<?=sym(j,l)?>
 			- 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_llu[<?=l-1?>].<?=xj?>.<?=xk?>
 			+ 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_llu[<?=j-1?>].<?=xl?>.<?=xk?>
 			+ 2. * d_llu[<?=i-1?>].<?=xl?>.<?=xk?> * d_llu[<?=k-1?>].<?=xj?>.<?=xl?>
@@ -1287,7 +1316,7 @@ kernel void addSource(
 			+ 8. * M_PI * j_l.<?=xk?>
 <?	for j,xj in ipairs(xNames) do
 ?>			+ U->a.<?=xj?> * K_ul.<?=xj?>.<?=xk?>
-			- 4. * trK * d_ull[<?=j-1?>].<?=sym(j,k)?>
+			- 4. * trK * d_ull.<?=xj?>.<?=sym(j,k)?>
 			+ 2. * K_ul.<?=xj?>.<?=xk?> * d3_l.<?=xj?>
 			+ 2. * K_ul.<?=xj?>.<?=xk?> * d1_l.<?=xj?>
 <?		for i,xi in ipairs(xNames) do
@@ -1310,6 +1339,163 @@ kernel void addSource(
 
 	//V_k,t = first derivs + alpha srcV_k
 	real3_add(deriv->V, real3_scale(srcV_l, U->alpha));
+
+<? if eqn.useShift then ?>
+	
+	<? if eqn.useShift == 'HarmonicShiftCondition-FiniteDifference' then ?>
+
+	//TODO make each useShift option into an object
+	//and give it a method for producing the partial_beta_ul
+	// so the finite difference ones can use this
+	// and the state ones can just assign a variable
+	//then all this can be moved into the "if eqn.useShift then" block
+	//but then again, any FVS-based method will already have the U_,k beta^k terms incorporated into its eigensystem ...
+	//this means the useShift will also determine whether the flux has any shift terms
+	// for any '-FiniteDifference' shift, the flux won't have any shift terms.
+
+
+	//partial_beta_ul[j].i := beta^i_,j
+<?=makePartial('beta_u', 'real3')?>	
+
+	//= gamma_ik beta^k_,j
+	mat3 partial_beta_u_ll = (mat3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = sym3_real3_mul(gammaU, partial_beta_ul[<?=i-1?>]),
+<? end
+?>	};
+
+	//first add the Lie derivative beta terms to the time derivatives
+
+	//alpha_,t = alpha_,i beta^i + ...
+	// = alpha a_i beta^i + ..
+	deriv->alpha += real3_dot(U->beta_u, U->a) * U->alpha;
+
+	//gamma_ij,t = gamma_ij,k beta^k + gamma_kj beta^k_,i + gamma_ik beta^k_,j
+	// = 2 d_kij beta^k + gamma_kj beta^k_,i + gamma_ik beta^k_,j
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+	local xi,xj = xNames[i],xNames[j]
+?>	deriv->gamma.<?=xij?> += partial_beta_u_ll.<?=xi?>.<?=xj?>
+		+ partial_beta_u_ll.<?=xj?>.<?=xi?>
+<?	for k,xk in ipairs(xNames) do
+?> 		+ 2. * U->d.<?=xk?>.<?=xij?> * U->beta_u.<?=xk?>
+<?	end
+?>	;
+<? end ?>
+
+	//partial_a_l[j].i = a_i,j
+<?=makePartial('a', 'real3')?>
+
+	//a_i,t = a_i,j beta^j + a_j beta^j_,i
+<? for i,xi in ipairs(xNames) do
+?>	deriv->a.<?=xi?> += 0.<?
+	for j,xj in ipairs(xNames) do
+?>		+ partial_a_l[<?=j-1?>].<?=xi?> * U->beta_u.<?=xj?>
+		+ U->a.<?=xj?> * partial_beta_ul[<?=i-1?>].<?=xj?>
+<?	end
+?>	;
+<? end
+?>
+
+	//technically this can be represented as a sym3sym3 since d_ijk,l is symmetric with jk and il
+	//partial_d_l[k][l].ij = d_kij,l
+<?=makePartial('d', '_3sym3')?>
+
+	//d_kij,t = d_kij,l beta^l + d_lij beta^l_,k + d_klj beta^l_,i + d_kil beta^l_,j
+<? for k,xk in ipairs(xNames) do
+	for ij,xij in ipairs(symNames) do
+		local i,j = from6to3x3(ij)
+?>	deriv->d.<?=xk?>.<?=xij?> += 0.
+<?		for l,xl in ipairs(xNames) do
+?>			+ partial_d_l[<?=l-1?>].<?=xk?>.<?=xij?>
+<?		end
+?>	;
+<?	end
+end ?>
+
+	//partial_K_l[k].ij = K_ij,k
+<?=makePartial('K', 'sym3')?>
+
+	//K_ij,t = K_ij,k beta^k + K_kj beta^k_,i + K_ik beta^k_,j
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+?>
+	deriv->K.<?=xij?> += 0.
+<?	for k,xk in ipairs(xNames) do
+?>		+ partial_K_l[<?=k-1?>].<?=xij?> * U->beta_u.<?=xk?>
+		+ U->K.<?=sym(k,j)?> * partial_beta_ul[<?=i-1?>].<?=xk?>
+		+ U->K.<?=sym(i,k)?> * partial_beta_ul[<?=j-1?>].<?=xk?>
+<? 	end 
+?>	;
+<? end ?>
+
+	//partial_V_l[j].i = V_i,j
+<?=makePartial('V', 'real3')?>
+
+	//V_i,t = V_i,j beta^j + V_j beta^i_,j
+<? for i,xi in ipairs(xNames) do
+?>	deriv->V.<?=xi?> += 0. <?
+	for j,xj in ipairs(xNames) do
+?>		+ partial_V_l[<?=j-1?>].<?=xi?> * U->beta_u.<?=xj?>
+		+ U->V.<?=xj?> * partial_beta_ul[<?=j-1?>].<?=xi?>
+<?	end
+?>	;
+<? end
+?>
+
+
+	//next add the source for the particular useShift
+
+
+	// 2008 Alcubierre 4.3.37
+	//beta^i_,t = beta^j beta^i_,j - alpha alpha^,i + alpha^2 conn^i + beta^i / alpha (alpha_,t - beta^j alpha_,j + alpha^2 K)
+	//using alpha_,t = beta^i alpha_,i - alpha^2 f K
+	//= beta^j beta^i_,j + alpha^2 (conn^i - a^i) + beta^i (beta^j a_j - alpha f K - beta^j a_j + alpha K)
+	//= beta^j beta^i_,j + alpha^2 (conn^i - a^i) + alpha K beta^i (1 - f)
+
+	real3 dbeta_beta = (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = 0.<?
+	for j,xj in ipairs(xNames) do
+		?> + partial_beta_ul[<?=j-1?>].<?=xi?> * U->beta_u.<?=xj?><?
+	end ?>,
+<? end
+?>	};
+	
+	real3 a_u = sym3_real3_mul(gammaU, U->a);
+
+	//conn^i = conn^i_jk gamma^jk
+	real3 conn_u = (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = sym3_dot(conn_ull.<?=xi?>, gammaU),
+<? end
+?>	};
+
+	deriv->beta_u = 
+	real3_add(
+		deriv->beta_u,
+		real3_add(
+			real3_add(
+				dbeta_beta,
+				real3_scale(
+					U->beta_u,
+					U->alpha * trK * (1. - f)
+				)
+			),
+			real3_scale(
+				real3_sub(
+					conn_u,
+					a_u
+				),
+				U->alpha * U->alpha
+			)
+		)
+	);
+
+	<? else
+		error("I don't have any source terms implemented for this particular useShift")
+	end ?>
+<? end ?>
 
 	// and now for the first-order constraints
 
@@ -1335,7 +1521,7 @@ for i,xi in ipairs(xNames) do
 		<? else ?>
 		real di_gamma_jk = 0;
 		<? end ?>
-		deriv->d[<?=i-1?>].<?=xjk?> += gui_d_convCoeff * (.5 * di_gamma_jk - U->d[<?=i-1?>].<?=xjk?>);
+		deriv->d.<?=xi?>.<?=xjk?> += gui_d_convCoeff * (.5 * di_gamma_jk - U->d.<?=xi?>.<?=xjk?>);
 	}<? 
 	end
 end ?>
@@ -1371,11 +1557,11 @@ if constrainV ~= 'none' then
 
 	real3 delta;
 	<? for i,xi in ipairs(xNames) do ?>{
-		real d1 = sym3_dot(U->d[<?=i-1?>], gammaU);
+		real d1 = sym3_dot(U->d.<?=xi?>, gammaU);
 		real d2 = 0.<?
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
-?> + U->d[<?=j-1?>].<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
+?> + U->d.<?=xj?>.<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
 		end
 	end ?>;
 		delta.<?=xi?> = U->V.<?=xi?> - (d1 - d2);
@@ -1419,7 +1605,7 @@ so to solve this, you must solve a giant linear system of all variables
 			for jk,xjk in ipairs(symNames) do
 				local j,k = from6to3x3(jk)
 				local xk = xNames[k]
-?>	U->d[<?=i-1?>].<?=xjk?> += (
+?>	U->d.<?=xi?>.<?=xjk?> += (
 		delta.<?=xi?> * U->gamma.<?=xjk?> 
 		- delta.<?=xk?> * U->gamma.<?=sym(i,j)?>
 	) * d_weight;

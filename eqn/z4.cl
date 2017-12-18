@@ -743,8 +743,8 @@ for i,xi in ipairs(xNames) do
 end
 ?>	};
 
-	_3sym3 conn_ull; sym3_3sym3_mul_(conn_ull, gammaU, conn_lll);
-	_3sym3 d_ull; sym3_3sym3_mul_global(d_ull, gammaU, U->d);
+	_3sym3 conn_ull = sym3_3sym3_mul(gammaU, conn_lll);
+	_3sym3 d_ull = sym3_3sym3_mul(gammaU, U->d);
 
 	//conn^ij_k = gamma^jl conn^i_lk
 	_3sym3 conn_uul = {
@@ -757,7 +757,7 @@ end
 			local j,k = from6to3x3(jk)
 ?>			.<?=xjk?> = 0. <?
 			for l,xl in ipairs(xNames) do
-				?> + gammaU.<?=sym(l,j)?> * conn_ull[<?=i-1?>].<?=sym(l,k)?><?
+				?> + gammaU.<?=sym(l,j)?> * conn_ull.<?=xi?>.<?=sym(l,k)?><?
 			end	?>,
 <? end		
 ?>		},
@@ -790,7 +790,7 @@ end
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = 0. <?
 	for j,xj in ipairs(xNames) do
-?> + d_ull[<?=j-1?>].<?=sym(j,i)?><?
+?> + d_ull.<?=xj?>.<?=sym(j,i)?><?
 	end
 ?>,
 <? end
@@ -810,7 +810,7 @@ end
 			0. <?
 		for k,xk in ipairs(xNames) do
 			for l,xl in ipairs(xNames) do
-				?> + conn_ull[<?=k-1?>].<?=sym(l,i)?> * conn_ull[<?=l-1?>].<?=sym(k,j)?><?
+				?> + conn_ull.<?=xk?>.<?=sym(l,i)?> * conn_ull.<?=xl?>.<?=sym(k,j)?><?
 			end
 		end
 	?>,
@@ -836,7 +836,7 @@ for i,xi in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
 			for l,xl in ipairs(xNames) do
 				for m,xm in ipairs(xNames) do
-					?> + U->d[<?=i-1?>].<?=sym(j,l)?> * gammaU.<?=sym(l,m)?> * d_ull[<?=k-1?>].<?=sym(m,j)?>
+					?> + U->d[<?=i-1?>].<?=sym(j,l)?> * gammaU.<?=sym(l,m)?> * d_ull.<?=xk?>.<?=sym(m,j)?>
 <?
 				end
 			end
@@ -867,7 +867,7 @@ end
 	U->alpha * (
 		.5 * (1. + xi) * (
 		<? for k,xk in ipairs(xNames) do ?> 
-			-U->a.<?=xk?> * conn_ull[<?=k-1?>].<?=xij?>
+			-U->a.<?=xk?> * conn_ull.<?=xk?>.<?=xij?>
 		<? end ?>
 			+ .5 * (U->a.<?=xi?> * d.<?=xj?> + U->a.<?=xj?> * d.<?=xi?>)
 		)
@@ -885,7 +885,7 @@ end
 		<? end ?>
 		)
 		<? for k,xk in ipairs(xNames) do ?> 
-		+ (d.<?=xk?> + U->a.<?=xk?> - 2. * U->Z.<?=xk?>) * conn_ull[<?=k-1?>].<?=xij?>
+		+ (d.<?=xk?> + U->a.<?=xk?> - 2. * U->Z.<?=xk?>) * conn_ull.<?=xk?>.<?=xij?>
 		<? end ?>
 		- connSq_ll[<?=j-1?>][<?=i-1?>]
 		- U->a.<?=xi?> * U->Z.<?=xj?>
@@ -897,6 +897,8 @@ end
 	;
 <? end
 ?>
+	
+#if 0
 	
 	/*
 	Theta,t + ... = 
@@ -930,7 +932,7 @@ for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = 0.<?
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
-?> + K_ul.v[<?=k-1?>].s[<?=j-1?>] * conn_ull[<?=j-1?>].<?=sym(k,i)?><?
+?> + K_ul.v[<?=k-1?>].s[<?=j-1?>] * conn_ull.<?=xj?>.<?=sym(k,i)?><?
 		end
 	end	?>,
 <? 
@@ -959,4 +961,7 @@ end
 		- K_times_conn.<?=xi?>
 	);
 	<? end ?>
+
+#endif
+
 }
