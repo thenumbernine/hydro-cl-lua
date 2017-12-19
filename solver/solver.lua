@@ -19,6 +19,7 @@ local vec3sz = require 'ffi.vec.vec3sz'
 local tooltip = require 'tooltip'
 local roundup = require 'roundup'
 local time, getTime = table.unpack(require 'time')
+require 'common'(_G)	-- xNames, symNames
 
 --local tryingAMR = 'dt vs 2dt'
 --local tryingAMR = 'gradient'
@@ -962,7 +963,10 @@ function Solver:createCodePrefix()
 
 	-- real3
 	lines:insert(file['math.h'])
-	lines:insert(template(file['math.cl']))
+	lines:insert(template(file['math.cl'], {
+		xNames = xNames,
+		symNames = symNames,
+	}))
 
 	lines:append{
 		'#define geometry_'..self.geometry.name..' 1',

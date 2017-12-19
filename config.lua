@@ -4,7 +4,7 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -16,7 +16,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	integrator = 'backward Euler',
+	--integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	--cfl = .25/dim,
@@ -58,7 +58,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{64,64,1},
+				{128,128,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -155,7 +155,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -210,9 +210,9 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 
 
-	initState = 'Alcubierre warp bubble',
+	--initState = 'Alcubierre warp bubble',
 	
-	initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
+	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
 	--initStateArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
 	-- ... works with
@@ -250,7 +250,7 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
@@ -335,7 +335,7 @@ maxs = {6,1,1},
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-self.solvers:insert(require 'solver.bssnok-fd'(args))
+--self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 
 --self.solvers:insert(require 'solver.nls'(args))
