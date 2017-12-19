@@ -250,4 +250,17 @@ function MHD:getEigenTypeCode()
 	}:concat'\n'
 end
 
+function MHD:eigenWaveCode(side, eig, x, waveIndex)
+	eig = '('..eig..')'
+	return ({
+		eig..'->v.x - '..eig..'->Cf',
+		eig..'->v.x - '..eig..'->CAx',
+		eig..'->v.x - '..eig..'->Cs',
+		eig..'->v.x',
+		eig..'->v.x + '..eig..'->Cs',
+		eig..'->v.x + '..eig..'->CAx',
+		eig..'->v.x + '..eig..'->Cf',
+	})[waveIndex+1]
+end
+
 return MHD

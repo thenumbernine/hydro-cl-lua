@@ -152,9 +152,19 @@ end
 GRMaxwell.eigenVars = table{
 	{eps = 'real'},
 	{mu = 'real'},
-	{alpha = 'real'},
-	{det_gamma = 'real'},
-	{detg_gUjj = 'real'},	-- g g^jj
+	{lambda = 'real'},
 }
+
+function GRMaxwell:eigenWaveCode(side, eig, x, waveIndex)
+	if waveIndex == 0 or waveIndex == 1 then
+		return '-'..eig..'->lambda'
+	elseif waveIndex == 2 or waveIndex == 3 then
+		return '0'
+	elseif waveIndex == 4 or waveIndex == 5 then
+		return eig..'->lambda'
+	else
+		error'got a bad waveIndex'
+	end
+end
 
 return GRMaxwell

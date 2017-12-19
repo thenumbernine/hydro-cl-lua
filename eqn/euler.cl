@@ -120,14 +120,18 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	};
 }
 
+
 //this is also used by PLM for cell-centered waves
 //that's why it is split out
 //its use there could replace calcCellMinMaxEigenvalues
 //which is called by the default calcDT
 <?
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for side=0,solver.dim-1 do
+for side=0,solver.dim-1 do
+	for _,addrs in ipairs{
+		{'', ''},
+		{'global', 'global'},
+	} do
+		local addr0, addr1 = table.unpack(addrs)
 ?>
 void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 	<?=addr0?> real* wave,
@@ -142,15 +146,14 @@ void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
 	wave[3] = v_n;
 	wave[4] = v_n + Cs_sqrt_gU;
 }
-<?		end
-	end
+
+<?	end
 end
 ?>
 
 //this routine is pretty standard.
 //why not move it to Roe or somewhere similar?
 kernel void calcEigenBasis(
-	global real* waveBuf,			//[volume][dim][numWaves]
 	global <?=eqn.eigen_t?>* eigenBuf,		//[volume][dim]
 	<?= solver.getULRArg ?>
 ) {
@@ -172,9 +175,6 @@ kernel void calcEigenBasis(
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 		*eig = eigen_forSide(UL, UR, xInt);
-		
-		global real* wave = waveBuf + numWaves * indexInt;
-		eigen_calcWaves_<?=side?>_global_global(wave, eig, xInt);
 	}<? end ?>
 }
 
@@ -481,8 +481,7 @@ end
 
 
 <? for side=0,solver.dim-1 do ?>
-void eigen_forCell_<?=side?>(
-	<?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
 	global const <?=eqn.cons_t?>* U,
 	real3 x
 ) {
@@ -492,11 +491,13 @@ void eigen_forCell_<?=side?>(
 	real hTotal = calc_hTotal(W.rho, W.P, U->ETotal);
 	real CsSq = (heatCapacityRatio - 1.) * (hTotal - eKin);
 	real Cs = sqrt(CsSq);
-	eig->rho = W.rho;
-	eig->v = W.v;
-	eig->hTotal = hTotal;
-	eig->vSq = vSq;
-	eig->Cs = Cs;
+	return (<?=eqn.eigen_t?>){
+		.rho = W.rho,
+		.v = W.v,
+		.hTotal = hTotal,
+		.vSq = vSq,
+		.Cs = Cs,
+	};
 }
 <? end ?>
 

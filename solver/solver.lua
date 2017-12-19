@@ -24,7 +24,6 @@ require 'common'(_G)	-- xNames, symNames
 --local tryingAMR = 'dt vs 2dt'
 --local tryingAMR = 'gradient'
 
-local xs = table{'x', 'y', 'z'}
 local minmaxs = table{'min', 'max'}
 
 
@@ -86,7 +85,7 @@ function Solver:init(args)
 	self.boundaryMethods = {}
 	for i=1,3 do
 		for _,minmax in ipairs(minmaxs) do
-			local var = xs[i]..minmax
+			local var = xNames[i]..minmax
 			self.boundaryMethods[var] = self.boundaryOptions:find(
 				(args.boundary or {})[var] or 'freeflow',
 				function(option, search)
@@ -157,7 +156,7 @@ function Solver:createBoundaryOptions()
 	local tab = '\t\t\t'
 	self.boundaryOptions = table{
 		{periodic = function(args)
-			local gridSizeSide = 'gridSize_'..xs[args.side]
+			local gridSizeSide = 'gridSize_'..xNames[args.side]
 			if args.minmax == 'min' then
 				return tab..args.assign(
 					args.array('buf', args.index'j'), 
@@ -172,7 +171,7 @@ function Solver:createBoundaryOptions()
 			end
 		end},
 		{mirror = function(args)
-			local gridSizeSide = 'gridSize_'..xs[args.side]
+			local gridSizeSide = 'gridSize_'..xNames[args.side]
 			if args.minmax == 'min' then
 				return table{
 					tab..args.assign(
@@ -201,7 +200,7 @@ function Solver:createBoundaryOptions()
 			end
 		end},
 		{freeflow = function(args)
-			local gridSizeSide = 'gridSize_'..xs[args.side]
+			local gridSizeSide = 'gridSize_'..xNames[args.side]
 			if args.minmax == 'min' then
 				return tab..args.assign(
 					'buf['..args.index'j'..']',
@@ -235,7 +234,7 @@ args:
 	a table = sets each xmin...zmax boundaryMethod with the associated name
 --]]
 function Solver:setBoundaryMethods(args)
-	for _,x in ipairs(xs) do
+	for _,x in ipairs(xNames) do
 		for _,minmax in ipairs(minmaxs) do
 			local k = x..minmax
 			local name
@@ -975,7 +974,7 @@ function Solver:createCodePrefix()
 		'#define numStates '..self.eqn.numStates,
 		'#define numIntStates '..self.eqn.numIntStates,
 		'#define numWaves '..self.eqn.numWaves,
-	}:append(xs:map(function(x,i)
+	}:append(xNames:map(function(x,i)
 	-- coordinate space = u,v,w
 	-- cartesian space = x,y,z
 	-- min and max in coordinate space
@@ -984,7 +983,7 @@ function Solver:createCodePrefix()
 	end)):append{
 		'constant real3 mins = _real3(mins_x, '..(self.dim<2 and '0' or 'mins_y')..', '..(self.dim<3 and '0' or 'mins_z')..');', 
 		'constant real3 maxs = _real3(maxs_x, '..(self.dim<2 and '0' or 'maxs_y')..', '..(self.dim<3 and '0' or 'maxs_z')..');', 
-	}:append(xs:map(function(name,i)
+	}:append(xNames:map(function(name,i)
 	-- grid size
 		return '#define gridSize_'..name..' '..tonumber(self.gridSize[name])
 	end)):append{
@@ -1023,10 +1022,10 @@ function Solver:createCodePrefix()
 		end
 		return (('#define grid_dx{i} ((maxs_{x} - mins_{x}) / (real)(gridSize_{x} - '..(2*self.numGhost)..'))')
 			:gsub('{i}', i-1)
-			:gsub('{x}', xs[i]))
+			:gsub('{x}', xNames[i]))
 	end)):append(range(3):map(function(i)
 	-- mapping from index to coordinate 
-		return (('#define cell_x{i}(i) ((real)(i + '..clnumber(.5-self.numGhost)..') * grid_dx{i} + mins_'..xs[i]..')')
+		return (('#define cell_x{i}(i) ((real)(i + '..clnumber(.5-self.numGhost)..') * grid_dx{i} + mins_'..xNames[i]..')')
 			:gsub('{i}', i-1))
 	end)):append{
 		'#define cell_x(i) _real3(cell_x0(i.x), cell_x1(i.y), cell_x2(i.z))',
@@ -1547,7 +1546,7 @@ kernel void boundary(
 		end
 	
 		for _,minmax in ipairs{'min', 'max'} do
-			local method = args.methods[xs[side]..minmax]
+			local method = args.methods[xNames[side]..minmax]
 			lines:insert(method{
 				index = index,
 				assign = assign,
@@ -2032,7 +2031,7 @@ function Solver:updateGUIParams()
 
 		for i=1,self.dim do
 			for _,minmax in ipairs(minmaxs) do
-				local k = xs[i]..minmax
+				local k = xNames[i]..minmax
 				if tooltip.numberTable(k, self[minmax..'s'], i, ig.ImGuiInputTextFlags_EnterReturnsTrue) then
 					-- if the domain changes
 					-- then the dx has to change
@@ -2066,7 +2065,7 @@ function Solver:updateGUIParams()
 
 		for i=1,self.dim do
 			for _,minmax in ipairs(minmaxs) do
-				local var = xs[i]..minmax
+				local var = xNames[i]..minmax
 				if tooltip.comboTable(var, self.boundaryMethods, var, self.boundaryOptionNames) then
 					self:refreshBoundaryProgram()
 				end

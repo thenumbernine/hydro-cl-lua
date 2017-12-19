@@ -31,14 +31,14 @@ ADM_BonaMasso_3D.consVars = table{
 
 
 -- no shift
---ADM_BonaMasso_3D.useShift = false
+ADM_BonaMasso_3D.useShift = false
 
 -- minimal distortion elliptic -- Alcubierre's book, eqn 4.3.14 and 4.3.15
 --ADM_BonaMasso_3D.useShift = 'MinimalDistortionElliptic'
 
 -- 2008 Alcubierre 4.3.37
 -- I see some problems in the warp bubble test ...
-ADM_BonaMasso_3D.useShift = 'HarmonicShiftCondition-FiniteDifference'
+--ADM_BonaMasso_3D.useShift = 'HarmonicShiftCondition-FiniteDifference'
 
 
 if ADM_BonaMasso_3D.useShift == 'MinimalDistortionElliptic' then
@@ -322,7 +322,7 @@ momentum constraints
 	<? for i,xi in ipairs(xNames) do ?>{
 		real d1 = sym3_dot(U->d.<?=xi?>, gammaU);
 		real d2 = 0.<?
-	for j=1,3 do
+	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
 ?> + U->d.<?=xj?>.<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
 		end
@@ -344,6 +344,63 @@ ADM_BonaMasso_3D.eigenVars = table{
 if ADM_BonaMasso_3D.useShift then
 	ADM_BonaMasso_3D.eigenVars:insert{beta_u = 'real3'}
 end
+
+
+function ADM_BonaMasso_3D:eigenWaveCodePrefix(side, eig, x, waveIndex)
+	return template([[
+	<? if side==0 then ?>
+	real eig_lambdaLight = <?=eig?>->alpha * <?=eig?>->sqrt_gammaUjj.x;
+	<? elseif side==1 then ?>
+	real eig_lambdaLight = <?=eig?>->alpha * <?=eig?>->sqrt_gammaUjj.y;
+	<? elseif side==2 then ?>
+	real eig_lambdaLight = <?=eig?>->alpha * <?=eig?>->sqrt_gammaUjj.z;
+	<? end ?>
+	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>->sqrt_f;
+]], {
+		eig = '('..eig..')',
+		side = side,
+	})
+end
+
+function ADM_BonaMasso_3D:eigenWaveCode(side, eig, x, waveIndex)
+	if not self.noZeroRowsInFlux then
+
+		local betaUi
+		if self.useShift then
+			betaUi = eig..'->beta_u.'..xNames[side+1]
+		else
+			betaUi = '0'
+		end
+
+		if waveIndex == 0 then
+			return '-'..betaUi..' - eig_lambdaGauge'
+		elseif waveIndex >= 1 and waveIndex <= 5 then
+			return '-'..betaUi..' - eig_lambdaLight'
+		elseif waveIndex >= 6 and waveIndex <= 23 then
+			return '-'..betaUi
+		elseif waveIndex >= 24 and waveIndex <= 28 then
+			return '-'..betaUi..' + eig_lambdaLight'
+		elseif waveIndex == 29 then
+			return '-'..betaUi..' + eig_lambdaGauge'
+		end
+
+	else	-- noZeroRowsInFlux 
+		-- noZeroRowsInFlux implies not useShift
+		if waveIndex == 0 then
+			return '-eig_lambdaGauge'
+		elseif waveIndex >= 1 and waveIndex <= 5 then
+			return '-eig_lambdaLight'
+		elseif waveIndex == 6 then
+			return '0'
+		elseif waveIndex >= 7 and waveIndex <= 11 then
+			return 'eig_lambdaLight'
+		elseif waveIndex == 12 then
+			return 'eig_lambdaGauge'
+		end
+	end
+	error'got a bad waveIndex'
+end
+
 
 function ADM_BonaMasso_3D:fillRandom(epsilon)
 	local ptr = ADM_BonaMasso_3D.super.fillRandom(self, epsilon)

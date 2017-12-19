@@ -324,6 +324,22 @@ SRHD.eigenVars = {
 	{CMinus = 'real'},
 	{CPlus = 'real'},
 	{Kappa = 'real'},
+	{lambdaMin = 'real'},
+	{lambdaMax = 'real'},
 }
+
+function SRHD:eigenWaveCode(side, eig, x, waveIndex)
+	if waveIndex == 0 then
+		return '('..eig..')->lambdaMin'
+	elseif waveIndex >= 1 and waveIndex <= 3 then
+		-- v.x because v has been rotated so x points along the normal
+		return '('..eig..')->v.x'
+	elseif waveIndex == 4 then
+		return '('..eig..')->lambdaMax'
+	else
+		error'got a bad waveIndex'
+	end
+end
+
 
 return SRHD

@@ -73,40 +73,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 */
 
-//TODO this is exactly like calcCellMinMax, so just have this call it
-// ... but then the addr space of U ...
-<?
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for side=0,solver.dim-1 do
-?>
-void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
-	<?=addr1?> real* wave,
-	const <?=addr0?> <?=eqn.eigen_t?>* eig,
-	real3 x
-) {
-	real det_gamma = eig->det_gamma;
-	real det_gamma2 = det_gamma * det_gamma;
-	real det_gamma3 = det_gamma * det_gamma2;
-	
-	real lambda = eig->alpha / sqrt(eig->detg_gUjj / (det_gamma3 * eig->eps * eig->mu));
-	
-	wave[0] = -lambda;
-	wave[1] = -lambda;
-	wave[2] = 0;
-	wave[3] = 0;
-	wave[4] = lambda;
-	wave[5] = lambda;
-}
-<?
-		end
-	end
-end
-?>
-
 //same as in eqn/euler.cl
 kernel void calcEigenBasis(
-	global real* waveBuf,
 	global <?=eqn.eigen_t?>* eigenBuf,
 	<?= solver.getULRArg ?><?=
 	solver:getADMArgs()?>
@@ -137,28 +105,27 @@ kernel void calcEigenBasis(
 		//*eig = eigen_forSide(UL, UR, xInt);
 		eig->eps = .5 * (UL->eps + UR->eps),
 		eig->mu = .5 * (UL->mu + UR->mu),
-		eig->alpha = .5 * (alphaL + alphaR);
-		eig->det_gamma = .5 * (det_gammaL + det_gammaR);
+		real alpha = .5 * (alphaL + alphaR);
+		real det_gamma = .5 * (det_gammaL + det_gammaR);
 
 		<? if side == 0 then ?>
-		eig->detg_gUjj = .5 * (
+		real detg_gUjj = .5 * (
 			gammaL.yy * gammaL.zz - gammaL.yz * gammaL.yz
 			+ gammaR.yy * gammaR.zz - gammaR.yz * gammaR.yz
 		);
 		<? elseif side == 1 then ?>
-		eig->detg_gUjj = .5 * (
+		real detg_gUjj = .5 * (
 			gammaL.xx * gammaL.zz - gammaL.xz * gammaL.xz
 			+ gammaR.xx * gammaR.zz - gammaR.xz * gammaR.xz
 		);
 		<? elseif side == 2 then ?>
-		eig->detg_gUjj = .5 * (
+		real detg_gUjj = .5 * (
 			gammaL.xx * gammaL.yy - gammaL.xy * gammaL.xy
 			+ gammaR.xx * gammaR.yy - gammaR.xy * gammaR.xy
 		);
 		<? end ?>
-
-		global real* wave = waveBuf + numWaves * indexInt;
-		eigen_calcWaves_<?=side?>_global_global(wave, eig, xInt);
+		
+		eig->lambda = alpha / sqrt(detg_gUjj / (det_gamma3 * eig->eps * eig->mu));
 	}<? end ?>
 }
 		
@@ -340,15 +307,17 @@ kernel void addSource(
 
 //used by PLM
 
-
+//TODO FINISHME
 <? for side=0,solver.dim-1 do ?>
-void eigen_forCell_<?=side?>(
-	<?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
 	const global <?=eqn.cons_t?>* U,
 	real3 x
 ) {
-	eig->eps = U->eps;
-	eig->mu = U->mu;
+	<?=eqn.eigen_t?> eig;
+	eig.eps = U->eps;
+	eig.mu = U->mu;
+	//eig.lambda = eig.alpha / sqrt(eig.detg_gUjj / (det_gamma3 * eig.eps * eig.mu));
+	return eig;
 }
 <? end ?>
 

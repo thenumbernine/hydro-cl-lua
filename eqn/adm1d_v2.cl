@@ -27,37 +27,17 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 //used by PLM
 <? for side=0,solver.dim-1 do ?>
-void eigen_forCell_<?=side?>(
-	<?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
 	const global <?=eqn.cons_t?>* U,
 	real3 x
 ) {
 	real f = calc_f(U->alpha);
-	eig->alpha = U->alpha;
-	eig->sqrt_f_over_gamma_xx = sqrt(f / U->gamma_xx);
+	return (<?=eqn.eigen_t?>){
+		.alpha = U->alpha,
+		.sqrt_f_over_gamma_xx = sqrt(f / U->gamma_xx),
+	};
 }
 <? end ?>
-
-//used by PLM
-<?
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for side=0,solver.dim-1 do
-?>
-void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
-	<?=addr0?> real* wave,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	real3 x
-) {
-	real lambda = eig->alpha * eig->sqrt_f_over_gamma_xx;
-	wave[0] = -lambda;
-	wave[1] = 0;
-	wave[2] = lambda;	
-}
-<?		end
-	end
-end
-?>
 
 //used for interface eigen basis
 <?=eqn.eigen_t?> eigen_forSide(
@@ -75,7 +55,6 @@ end
 }
 
 kernel void calcEigenBasis(
-	global real* waveBuf,
 	global <?=eqn.eigen_t?>* eigenBuf,
 	<?= solver.getULRArg ?>
 ) {
@@ -92,9 +71,6 @@ kernel void calcEigenBasis(
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 		*eig = eigen_forSide(UL, UR, x);
-
-		global real* wave = waveBuf + numWaves * indexInt;
-		eigen_calcWaves_<?=side?>_global_global(wave, eig, x);
 	}<? end ?>
 }
 

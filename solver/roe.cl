@@ -3,7 +3,6 @@
 <? if solver.checkFluxError or solver.checkOrthoError then ?>
 kernel void calcErrors(
 	global error_t* errorBuf,
-	const global real* waveBuf,
 	const global <?=eqn.eigen_t?>* eigenBuf
 ) {
 	SETBOUNDS(0,0);
@@ -12,9 +11,8 @@ kernel void calcErrors(
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexInt = side + dim * index;
-		const global real* wave = waveBuf + numWaves * indexInt;
 		const global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		
+			
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 
@@ -44,7 +42,10 @@ kernel void calcErrors(
 		}
 <? 	end
 	if solver.checkFluxError then	
-?>		for (int k = 0; k < numIntStates; ++k) {
+?>
+		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
+
+		for (int k = 0; k < numIntStates; ++k) {
 			
 //TODO find out which left/right/fluxTransform functions are writing more than they should
 //I see errors in mhd and in adm3d
@@ -59,9 +60,11 @@ kernel void calcErrors(
 			eigen_leftTransform_<?=side?>__global_(eigenCoords, eig, basis, xInt);
 
 			real eigenScaled[numWaves];
-			for (int j = 0; j < numWaves; ++j) {
-				eigenScaled[j] = eigenCoords[j] * wave[j];
-			}
+			<? for j=0,eqn.numWaves-1 do ?>{
+				const int j = <?=j?>;
+				real wave_j = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', j)?>;
+				eigenScaled[j] = eigenCoords[j] * wave_j;
+			}<? end ?>
 		
 			//once again, only needs to be numIntStates
 			real newtransformed[numStates];
@@ -123,9 +126,10 @@ kernel void calcDeltaUEig(
 kernel void calcREig(
 	global real* rEigBuf,
 	const global real* deltaUEigBuf,
-	const global real* waveBuf
+	const global <?=eqn.eigen_t?>* eigenBuf
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
+	real3 xR = cell_x(i);
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexL = index - stepsize.s<?=side?>;
@@ -137,18 +141,26 @@ kernel void calcREig(
 		const global real* deltaUEig = deltaUEigBuf + indexInt * numWaves;
 		const global real* deltaUEigL = deltaUEigBuf + indexIntL * numWaves;
 		const global real* deltaUEigR = deltaUEigBuf + indexIntR * numWaves;
-		const global real* wave = waveBuf + indexInt * numWaves;
-		for (int j = 0; j < numWaves; ++j) {
+		
+		const global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
+		
+		real3 xInt = xR;
+		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
+		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
+		
+		<? for j=0,eqn.numWaves-1 do ?>{
+			const int j = <?=j?>;
 			if (deltaUEig[j] == 0) {
 				rEig[j] = 0;
 			} else {
-				if (wave[j] >= 0) {
+				real wave_j = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', j)?>;
+				if (wave_j >= 0) {
 					rEig[j] = deltaUEigL[j] / deltaUEig[j];
 				} else {
 					rEig[j] = deltaUEigR[j] / deltaUEig[j];
 				}
 			}
-		}
+		}<? end ?>
 	}<? end ?>
 }
 <? end ?>
@@ -157,7 +169,6 @@ kernel void calcREig(
 kernel void calcFlux(
 	global <?=eqn.cons_t?>* fluxBuf,
 	<?= solver.getULRArg ?>,
-	const global real* waveBuf, 
 	const global <?=eqn.eigen_t?>* eigenBuf, 
 	const global real* deltaUEigBuf,
 	real dt
@@ -181,6 +192,8 @@ kernel void calcFlux(
 		int indexInt = side + dim * index;
 		const global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 
+		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
+
 		real fluxEig[numWaves];
 <? if not eqn.hasFluxFromCons then ?>
 		<?=eqn.cons_t?> UAvg;
@@ -190,14 +203,14 @@ kernel void calcFlux(
 		eigen_leftTransform_<?=side?>__global_(fluxEig, eig, UAvg.ptr, xInt);
 <? end ?>
 
-		const global real* lambdas = waveBuf + numWaves * indexInt;
 		const global real* deltaUEig = deltaUEigBuf + numWaves * indexInt;
 <? if solver.fluxLimiter[0] > 0 then ?>
 		const global real* rEig = rEigBuf + numWaves * indexInt;
 <? end ?>
 
-		for (int j = 0; j < numWaves; ++j) {
-			real lambda = lambdas[j];
+		<? for j=0,eqn.numWaves-1 do ?>{
+			const int j = <?=j?>;
+			real lambda = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', j)?>;
 <? if not eqn.hasFluxFromCons then ?>
 			fluxEig[j] *= lambda;
 <? else ?>
@@ -218,7 +231,7 @@ kernel void calcFlux(
 
 <? end ?>			
 			);
-		}
+		}<? end ?>
 			
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
 		eigen_rightTransform_<?=side?>_global_global_(flux->ptr, eig, fluxEig, xInt);

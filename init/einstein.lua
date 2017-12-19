@@ -292,6 +292,7 @@ return table{
 			speed = warp bubble speed
 		--]]
 		init = function(self, solver, args)
+			args = args or {}
 			solver.eqn:addGuiVars{
 				{name = 'R', value = args.R or .5},
 				{name = 'sigma', value = args.sigma or 8},

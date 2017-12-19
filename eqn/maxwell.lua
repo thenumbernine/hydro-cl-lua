@@ -162,8 +162,28 @@ end
 end
 
 Maxwell.eigenVars = table{
-	{eps = 'real'},
-	{mu = 'real'},
+	{sqrt_eps = 'real'},
+	{sqrt_mu = 'real'},
 }
+
+function Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
+	return template([[
+	real eig_lambda = 1. / (<?=eig?>->sqrt_eps * <?=eig?>->sqrt_mu);
+]], {
+		eig = '('..eig..')',
+	})
+end
+
+function Maxwell:eigenWaveCode(side, eig, x, waveIndex)
+	if waveIndex == 0 or waveIndex == 1 then
+		return '-eig_lambda'
+	elseif waveIndex == 2 or waveIndex == 3 then
+		return '0'
+	elseif waveIndex == 4 or waveIndex == 5 then
+		return 'eig_lambda'
+	else
+		error'got a bad waveIndex'
+	end
+end
 
 return Maxwell

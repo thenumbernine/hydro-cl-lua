@@ -44,38 +44,13 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real3 x
 ) {
 	return (<?=eqn.eigen_t?>){
-		.eps = .5 * (UL->eps + UR->eps),
-		.mu = .5 * (UL->mu + UR->mu),
+		.sqrt_eps = sqrt(.5 * (UL->eps + UR->eps)),
+		.sqrt_mu = sqrt(.5 * (UL->mu + UR->mu)),
 	};
 }
 
-<?
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for side=0,solver.dim-1 do
-?>
-void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
-	<?=addr1?> real* wave,
-	const <?=addr0?> <?=eqn.eigen_t?>* eig,
-	real3 x
-) {
-	real lambda = 1. / sqrt(eig->eps * eig->mu);
-	wave[0] = -lambda;
-	wave[1] = -lambda;
-	wave[2] = 0;
-	wave[3] = 0;
-	wave[4] = lambda;
-	wave[5] = lambda;
-}
-<?
-		end
-	end
-end
-?>
-
 //same as in eqn/euler.cl
 kernel void calcEigenBasis(
-	global real* waveBuf,
 	global <?=eqn.eigen_t?>* eigenBuf,
 	<?= solver.getULRArg ?>
 ) {
@@ -97,9 +72,6 @@ kernel void calcEigenBasis(
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 		*eig = eigen_forSide(UL, UR, xInt);
-		
-		global real* wave = waveBuf + numWaves * indexInt;
-		eigen_calcWaves_<?=side?>_global_global(wave, eig, xInt);
 	}<? end ?>
 }
 		
@@ -116,8 +88,8 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* X,
 	real3 x
 ) {
-	const real ise = sqrt_1_2 / sqrt(eig->eps);
-	const real isu = sqrt_1_2 / sqrt(eig->mu);
+	const real ise = sqrt_1_2 / eig->sqrt_eps;
+	const real isu = sqrt_1_2 / eig->sqrt_mu;
 
 	<? if side==0 then ?>
 	
@@ -155,8 +127,8 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* X,
 	real3 x
 ) {
-	const real se = sqrt_1_2 * sqrt(eig->eps);
-	const real su = sqrt_1_2 * sqrt(eig->mu);
+	const real se = sqrt_1_2 * eig->sqrt_eps;
+	const real su = sqrt_1_2 * eig->sqrt_mu;
 
 	<? if side==0 then ?>
 /*
@@ -230,8 +202,8 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const <?=eqn.cons_t?>* X = (<?=addr2?> const <?=eqn.cons_t?>*)X_;
 	real3 epsE = X->epsE;
 	real3 B = X->B;
-	real eps = eig->eps;
-	real mu = eig->mu;
+	real eps = eig->sqrt_eps * eig->sqrt_eps;
+	real mu = eig->sqrt_mu * eig->sqrt_mu;
 
 	<? if side==0 then ?>
 	
@@ -289,13 +261,14 @@ kernel void addSource(
 
 
 <? for side=0,solver.dim-1 do ?>
-void eigen_forCell_<?=side?>(
-	<?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
 	const global <?=eqn.cons_t?>* U,
 	real3 x
 ) {
-	eig->eps = U->eps;
-	eig->mu = U->mu;
+	return (<?=eqn.eigen_t?>){
+		.sqrt_eps = sqrt(U->eps),
+		.sqrt_mu = sqrt(U->mu),
+	};
 }
 <? end ?>
 

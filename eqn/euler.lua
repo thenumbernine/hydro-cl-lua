@@ -250,4 +250,27 @@ Euler.eigenVars = table{
 	{Cs = 'real'},
 }
 
+function Euler:eigenWaveCodePrefix(side, eig, x)
+	return template([[
+	real Cs_sqrt_gU = <?=eig?>->Cs * coord_sqrt_gU<?=side..side?>(<?=x?>);
+	real v_n = <?=eig?>->v.s[<?=side?>];
+]], {
+		eig = '('..eig..')',
+		side = side,
+		x = x,
+	})
+end
+
+function Euler:eigenWaveCode(side, eig, x, waveIndex)
+	if waveIndex == 0 then
+		return '(v_n - Cs_sqrt_gU)'
+	elseif waveIndex >= 1 and waveIndex <= 3 then
+		return 'v_n'
+	elseif waveIndex == 4 then
+		return '(v_n + Cs_sqrt_gU)'
+	else
+		error'got a bad waveIndex'
+	end
+end
+
 return Euler

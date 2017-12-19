@@ -30,26 +30,6 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 <? end ?>
 
-<?
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for side=0,solver.dim-1 do
-?>
-void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
-	<?=addr1?> real* wave,
-	const <?=addr0?> <?=eqn.eigen_t?>* eig,
-	real3 x
-) {
-	real lambda = eig->alpha * sqrt(eig->f / eig->gamma_xx);
-	wave[0] = -lambda;
-	wave[1] = 0;
-	wave[2] = lambda;
-}
-<?		end
-	end
-end
-?>
-
 <?=eqn.eigen_t?> eigen_forSide(
 	const global <?=eqn.cons_t?>* UL,
 	const global <?=eqn.cons_t?>* UR,
@@ -64,7 +44,6 @@ end
 }
 
 kernel void calcEigenBasis(
-	global real* waveBuf,
 	global <?=eqn.eigen_t?>* eigenBuf,
 	<?= solver.getULRArg ?>
 ) {
@@ -80,9 +59,6 @@ kernel void calcEigenBasis(
 		int indexInt = side + dim * index;
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 		*eig = eigen_forSide(UL, UR, x);
-
-		global real* wave = waveBuf + numWaves * indexInt;
-		eigen_calcWaves_<?=side?>_global_global(wave, eig, x);
 	}<? end ?>
 }
 
@@ -188,13 +164,14 @@ kernel void addSource(
 
 
 <? for side=0,solver.dim-1 do ?>
-void eigen_forCell_<?=side?>(
-	<?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
 	global const <?=eqn.cons_t?>* U,
 	real3 x
 ) {
-	eig->alpha = U->alpha;
-	eig->gamma_xx = U->gamma_xx;
-	eig->f = calc_f(U->alpha);
+	return (<?=eqn.eigen_t?>){
+		.alpha = U->alpha,
+		.gamma_xx = U->gamma_xx,
+		.f = calc_f(U->alpha),
+	};
 }
 <? end ?>

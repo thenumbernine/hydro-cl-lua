@@ -94,8 +94,7 @@ NOTICE this is only going to use U->prim
 which means this function won't work with the PLM code
 */
 <? for side=0,solver.dim-1 do ?>
-void eigen_forCell_<?=side?>(
-	<?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
 	const global <?=eqn.cons_t?>* U,
 	real3 x
 ) {
@@ -104,7 +103,6 @@ void eigen_forCell_<?=side?>(
 <? end ?>
 
 kernel void calcEigenBasis(
-	global real* waveBuf,
 	global <?=eqn.eigen_t?>* eigenBuf,
 	
 	//TODO 
@@ -173,14 +171,6 @@ kernel void calcEigenBasis(
 		real lambdaMin = (v.x * (1. - csSq) - cs * discr) / (1. - vSq * csSq);
 		real lambdaMax = (v.x * (1. - csSq) + cs * discr) / (1. - vSq * csSq);
 
-		int indexInt = side + dim * index;	
-		global real* wave = waveBuf + numWaves * indexInt;
-		wave[0] = lambdaMin;
-		wave[1] = v.x;
-		wave[2] = v.x;
-		wave[3] = v.x;
-		wave[4] = lambdaMax;
-
 		//used by evL and evR
 		real ATildeMinus = (1. - vxSq) / (1. - v.x * lambdaMin);	//2008 Font eqn 113
 		real ATildePlus  = (1. - vxSq) / (1. - v.x * lambdaMax);	//2008 Font eqn 113
@@ -199,6 +189,7 @@ kernel void calcEigenBasis(
 		real Kappa = kappaTilde / (kappaTilde - csSq);	//2008 Font eqn 112.  
 		//Kappa = h;	//approx for ideal gas
 		
+		int indexInt = side + dim * index;	
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;	
 
 <?

@@ -71,8 +71,7 @@ kernel void calcDT(
 //or does the eigenbasis need to be derived from the variables being transformed?
 //shoud I PLM the U's then converge the prims ... and therefore track the prims on edges as well?
 <? for side=0,solver.dim-1 do ?>
-void eigen_forCell_<?=side?>(
-	<?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
 	const global <?=eqn.cons_t?>* U,
 	real3 x
 ) {

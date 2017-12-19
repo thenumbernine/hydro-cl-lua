@@ -48,51 +48,23 @@ for side=0,solver.dim-1 do
 	} do
 	local addr, suffix = next(addrAndSuffix)
 ?>
-void eigen_forCell_<?=side?><?=suffix?>(
-	<?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forCell_<?=side?><?=suffix?>(
 	<?=addr?> const <?=eqn.cons_t?>* U,
 	real3 x 
 ) {
-	eig->alpha = U->alpha;
-	eig->sqrt_f = sqrt(calc_f(U->alpha));
-	eig->gamma = U->gamma;
+	<?=eqn.eigen_t?> eig;
+	eig.alpha = U->alpha;
+	eig.sqrt_f = sqrt(calc_f(U->alpha));
+	eig.gamma = U->gamma;
 	real det_gamma = sym3_det(U->gamma);
-	eig->gammaU = sym3_inv(U->gamma, det_gamma);
-	eig->sqrt_gammaUjj = _real3(sqrt(eig->gammaU.xx), sqrt(eig->gammaU.yy), sqrt(eig->gammaU.zz));
+	eig.gammaU = sym3_inv(U->gamma, det_gamma);
+	eig.sqrt_gammaUjj = _real3(sqrt(eig.gammaU.xx), sqrt(eig.gammaU.yy), sqrt(eig.gammaU.zz));
+	return eig;
 }
 <? 
 	end
 end 
 ?>
-
-<?
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for side=0,solver.dim-1 do
-?>
-void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
-	<?=addr0?> real* wave,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	real3 x
-) {
-	<? if side==0 then ?>
-	real lambdaLight = eig->alpha * eig->sqrt_gammaUjj.x;
-	<? elseif side==1 then ?>
-	real lambdaLight = eig->alpha * eig->sqrt_gammaUjj.y;
-	<? elseif side==2 then ?>
-	real lambdaLight = eig->alpha * eig->sqrt_gammaUjj.z;
-	<? end ?>
-	real lambdaGauge = lambdaLight * eig->sqrt_f;
-	
-	wave[0] = -lambdaGauge;
-	<? for i=1,6 do ?> wave[<?=i?>] = -lambdaLight; <? end ?>
-	<? for i=7,23 do ?> wave[<?=i?>] = 0.; <? end ?>
-	<? for i=24,29 do ?> wave[<?=i?>] = lambdaLight; <? end ?>
-	wave[30] = lambdaGauge;
-}
-<?		end
-	end
-end ?>
 
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
@@ -150,7 +122,6 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 
 kernel void calcEigenBasis(
-	global real* waveBuf,
 	global <?=eqn.eigen_t?>* eigenBuf,
 	<?= solver.getULRArg ?>
 ) {
@@ -169,10 +140,6 @@ kernel void calcEigenBasis(
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 		*eig = eigen_forSide(UL, UR, xInt);
-		
-		global real* wave = waveBuf + numWaves * indexInt;
-		
-		eigen_calcWaves_<?=side?>_global_global(wave, eig, xInt);
 	}<? end ?>
 }
 
@@ -196,9 +163,9 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 	//input
 	real3 a = real3_swap<?=side?>(inputU->a);							//0-2
-	sym3 dx = sym3_swap<?=side?>(inputU->d[<?=side?>]);					//3-8
-	sym3 dy = sym3_swap<?=side?>(inputU->d[<?=side==1 and 0 or 1?>]);	//9-14
-	sym3 dz = sym3_swap<?=side?>(inputU->d[<?=side==2 and 0 or 2?>]);	//15-20
+	sym3 dx = sym3_swap<?=side?>(inputU->d.v<?=side?>);					//3-8
+	sym3 dy = sym3_swap<?=side?>(inputU->d.v<?=side==1 and 0 or 1?>);	//9-14
+	sym3 dz = sym3_swap<?=side?>(inputU->d.v<?=side==2 and 0 or 2?>);	//15-20
 	sym3 K = sym3_swap<?=side?>(inputU->K);								//21-26
 	real Theta = inputU->Theta;											//27
 	real3 Z = real3_swap<?=side?>(inputU->Z);							//28-30
@@ -423,7 +390,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	a.y = input[7];
 	a.z = input[8];
 	
-	sym3 d[3];
+	_3sym3 d;
 
 	<?=addr2?> const sym3 *sym3_1 = (<?=addr2?> const sym3*)(input+1);
 	<?=addr2?> const sym3 *sym3_9 = (<?=addr2?> const sym3*)(input+9);
@@ -437,11 +404,11 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 	real _2fPlus1 = 2. * f + 1.;
 
-	d[0] = sym3_scale(*sym3_9, -gammaU.xy);
-	d[0] = sym3_add(d[0], sym3_scale(*sym3_15, -gammaU.xz));
-	d[0] = sym3_add(d[0], sym3_scale(sym3_add(*sym3_1, *sym3_23), -.5));
+	d.x = sym3_scale(*sym3_9, -gammaU.xy);
+	d.x = sym3_add(d.x, sym3_scale(*sym3_15, -gammaU.xz));
+	d.x = sym3_add(d.x, sym3_scale(sym3_add(*sym3_1, *sym3_23), -.5));
 
-	d[0].xx += -.5 * (
+	d.x.xx += -.5 * (
 		(
 			(
 				input[0] 
@@ -480,24 +447,24 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ input[23]
 	);
 	
-	d[0].xy += -.5 * (
+	d.x.xy += -.5 * (
 		3. * input[7] 
 		- tr_9 * _2fPlus1
 		- 2. * input[22] 
 	);
 	
-	d[0].xz += -.5 * (
+	d.x.xz += -.5 * (
 		3. * input[8] 
 		- tr_15 * _2fPlus1
 		- 2. * input[23] 
 	);
 	
 
-	d[0] = sym3_scale(d[0], 1. / gammaU.xx);
+	d.x = sym3_scale(d.x, 1. / gammaU.xx);
 	
-	d[1] = *(<?=addr2?> const sym3*)(input+9);
+	d.y = *(<?=addr2?> const sym3*)(input+9);
 	
-	d[2] = *(<?=addr2?> const sym3*)(input+15);
+	d.z = *(<?=addr2?> const sym3*)(input+15);
 	
 	sym3 K = sym3_add( *sym3_1, sym3_scale( *sym3_23, .5));
 	
@@ -614,9 +581,9 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	resultsU->alpha = 0;
 	resultsU->gamma = _sym3(0,0,0,0,0,0);
 	resultsU->a = real3_swap<?=side?>(a);
-	resultsU->d[0] = sym3_swap<?=side?>(d[<?=side?>]);
-	resultsU->d[1] = sym3_swap<?=side?>(d[<?=side==1 and 0 or 1?>]);
-	resultsU->d[2] = sym3_swap<?=side?>(d[<?=side==2 and 0 or 2?>]);
+	resultsU->d.x = sym3_swap<?=side?>(d.v<?=side?>);
+	resultsU->d.y = sym3_swap<?=side?>(d.v<?=side==1 and 0 or 1?>);
+	resultsU->d.z = sym3_swap<?=side?>(d.v<?=side==2 and 0 or 2?>);
 	resultsU->K = sym3_swap<?=side?>(K);
 	resultsU->Theta = Theta;
 	resultsU->Z = real3_swap<?=side?>(Z);
@@ -657,19 +624,17 @@ end
 	//until then, use the eigenbasis ...
 	//TODO use this as a default for fluxFromCons as well
 
-	<?=eqn.eigen_t?> eig;
-	eigen_forCell_<?=side?>local(&eig, &U, x);
-
-	real wave[numWaves];
-	eigen_calcWaves_<?=side?>__(wave, &eig, x);
+	<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>local(&U, x);
 
 	real charvars[numWaves];
 	eigen_leftTransform_<?=side?>___(charvars, &eig, U.ptr, x);
-	
-	for (int j = 0; j < numWaves; ++j) {
-		charvars[j] *= wave[j];
-	}
-			
+
+	<?=eqn:eigenWaveCodePrefix(side, '&eig', 'x')?>
+
+<? for j=0,eqn.numWaves-1 do 
+?>	charvars[<?=j?>] *= <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
+<? end
+?>
 	<?=eqn.cons_t?> F;
 	eigen_rightTransform_<?=side?>___(F.ptr, &eig, charvars, x);
 
@@ -730,13 +695,14 @@ end
 
 	//conn_ijk = .5 * (g_ij,k + g_ik,j - g_jk,i) 
 	//= d_kij + d_jik - d_ijk
-	sym3 conn_lll[3] = {
+	_3sym3 conn_lll = {
 <? 
 for i,xi in ipairs(xNames) do
-?>		(sym3){
+?>		.<?=xi?> = (sym3){
 <? 	for jk,xjk in ipairs(symNames) do 
 		local j,k = from6to3x3(jk)
-?>			.<?=xjk?> = U->d[<?=k-1?>].<?=sym(i,j)?> + U->d[<?=j-1?>].<?=sym(i,k)?> - U->d[<?=i-1?>].<?=sym(j,k)?>,
+		local xj,xk = xNames[j],xNames[k]
+?>			.<?=xjk?> = U->d.<?=xk?>.<?=sym(i,j)?> + U->d.<?=xj?>.<?=sym(i,k)?> - U->d.<?=xi?>.<?=sym(j,k)?>,
 <? 	end 
 ?>		},
 <? 
@@ -751,7 +717,7 @@ end
 <? 
 	for i,xi in ipairs(xNames) do
 ?>
-		{
+		.<?=xi?> = {
 <? 
 		for jk,xjk in ipairs(symNames) do
 			local j,k = from6to3x3(jk)
@@ -771,7 +737,7 @@ for i,xi in ipairs(xNames) do
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
 			for l,xl in ipairs(xNames) do
-?> + U->d[<?=i-1?>].<?=sym(j,k)?> * conn_uul[<?=i-1?>].<?=sym(j,k)?> * gammaU.<?=sym(k,l)?><?
+?> + U->d.<?=xi?>.<?=sym(j,k)?> * conn_uul.<?=xi?>.<?=sym(j,k)?> * gammaU.<?=sym(k,l)?><?
 			end
 		end
 	end
@@ -781,7 +747,7 @@ end
 	//d_i = d_ik^k
 	real3 d = (real3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = sym3_dot(U->d[<?=i-1?>], gammaU),
+?>		.<?=xi?> = sym3_dot(U->d.<?=xi?>, gammaU),
 <? end
 ?>	};
 	
@@ -836,7 +802,7 @@ for i,xi in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
 			for l,xl in ipairs(xNames) do
 				for m,xm in ipairs(xNames) do
-					?> + U->d[<?=i-1?>].<?=sym(j,l)?> * gammaU.<?=sym(l,m)?> * d_ull.<?=xk?>.<?=sym(m,j)?>
+					?> + U->d.<?=xi?>.<?=sym(j,l)?> * gammaU.<?=sym(l,m)?> * d_ull.<?=xk?>.<?=sym(m,j)?>
 <?
 				end
 			end
@@ -873,7 +839,7 @@ end
 		)
 		+ .5 * (1. - xi) * (0.
 		<? for k,xk in ipairs(xNames) do ?> 
-			+ a_u.<?=xk?> * U->d[<?=k-1?>].<?=xij?>
+			+ a_u.<?=xk?> * U->d.<?=xk?>.<?=xij?>
 		<? end ?>
 			- .5 * ( 
 				U->a.<?=xj?> * (2. * e.<?=xi?> - d.<?=xi?>) 
@@ -881,7 +847,7 @@ end
 			)
 			+ 2. * (dsq.v[<?=i-1?>].s[<?=j-1?>] + dsq.v[<?=j-1?>].s[<?=i-1?>])
 		<? for k,xk in ipairs(xNames) do ?> 
-			- 2. * e_u.<?=xk?> * (U->d[<?=i-1?>].<?=sym(j,k)?> + U->d[<?=j-1?>].<?=sym(i,k)?>)
+			- 2. * e_u.<?=xk?> * (U->d.<?=xi?>.<?=sym(j,k)?> + U->d.<?=xj?>.<?=sym(i,k)?>)
 		<? end ?>
 		)
 		<? for k,xk in ipairs(xNames) do ?> 

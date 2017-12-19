@@ -153,9 +153,8 @@ works for adm1d_v1
 		real3 xIntR = x; xIntR.s<?=side?> += grid_dx<?=side?>;
 
 		//calc eigen values and vectors at cell center
-		<?=eqn.eigen_t?> eig; eigen_forCell_<?=side?>(&eig, U, x);
-		real wave[numWaves]; eigen_calcWaves_<?=side?>__(wave, &eig, x);
-		
+		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(U, x);
+			
 		real dULEig[numWaves], dUREig[numWaves], dUCEig[numWaves];
 		eigen_leftTransform_<?=side?>___(dULEig, &eig, dUL.ptr, xIntL);
 		eigen_leftTransform_<?=side?>___(dUREig, &eig, dUR.ptr, xIntR);
@@ -176,14 +175,18 @@ works for adm1d_v1
 	
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
+	
+		<?=eqn:eigenWaveCodePrefix(side, '&eig', 'xInt')?>
 
 		// slopes in characteristic space
 		real aL[numWaves], aR[numWaves];
-		for (int j = 0; j < numWaves; ++j) {
-			aL[j] = wave[j] < 0 ? 0 : dUMEig[j] * .5 * (1. - wave[j] * dt_dx);
-			aR[j] = wave[j] > 0 ? 0 : dUMEig[j] * .5 * (1. + wave[j] * dt_dx);
-		}
-
+		<? for j=0,eqn.numWaves-1 do ?>{
+			const int j = <?=j?>;
+			real wave_j = <?=eqn:eigenWaveCode(side, '&eig', 'xInt', j)?>;
+			aL[j] = wave_j < 0 ? 0 : dUMEig[j] * .5 * (1. - wave_j * dt_dx);
+			aR[j] = wave_j > 0 ? 0 : dUMEig[j] * .5 * (1. + wave_j * dt_dx);
+		}<? end ?>
+		
 		//convert back to conservation variable space
 		<?=eqn.cons_t?> sL, sR;
 		eigen_rightTransform_<?=side?>___(sL.ptr, &eig, aL, x);
@@ -264,9 +267,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 
 		//calc eigen values and vectors at cell center
 		//TODO calculate the eigenstate wrt W instead of U - to save some computations
-		<?=eqn.eigen_t?> eig; eigen_forCell_<?=side?>(&eig, U, x);
-		real wave[numWaves]; eigen_calcWaves_<?=side?>__(wave, &eig, x);
-	
+		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(U, x);
+			
 		//apply dU/dW before applying left/right eigenvectors so the eigenvectors are of the flux wrt primitives 
 		//RW = dW/dU RU, LW = LU dU/dW
 		<?=eqn.cons_t?> tmp;
@@ -291,16 +293,19 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
 
+		<?=eqn:eigenWaveCodePrefix(side, '&eig', 'xInt')?>
+
 <? 	if solver.usePLM == 'plm-eig-prim' then ?>
 		//without reference state
 
-
 		// calculate left and right slopes in characteristic space
  		real aL[numWaves], aR[numWaves];
- 		for (int j = 0; j < numWaves; ++j) {
-			aL[j] = wave[j] < 0 ? 0 : dWMEig[j] * .5 * (1. - wave[j] * dt_dx);
-			aR[j] = wave[j] > 0 ? 0 : dWMEig[j] * .5 * (1. + wave[j] * dt_dx);
-		}
+ 		<? for j=0,eqn.numWaves-1 do ?>{
+			const int j = <?=j?>;
+			real wave_j = <?=eqn:eigenWaveCode(side, '&eig', 'xInt', j)?>;
+			aL[j] = wave_j < 0 ? 0 : dWMEig[j] * .5 * (1. - wave_j * dt_dx);
+			aR[j] = wave_j > 0 ? 0 : dWMEig[j] * .5 * (1. + wave_j * dt_dx);
+		}<? end ?>
 
 		// transform slopes back to conserved variable space
 		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aL, xIntL); <?=eqn.prim_t?> sL; apply_dW_dU(&sL, &W, &tmp, xIntL);
@@ -322,10 +327,11 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 <?	elseif solver.usePLM == 'plm-eig-prim-ref' then ?>
 		//with reference state
 
-
 		//min and max waves
-		real waveMin = min(0., wave[0]);
-		real waveMax = max(0., wave[numWaves-1]);
+		//TODO use calcCellMinMaxEigenvalues ... except based on eigen_t
+		// so something like calcEigenMinMaxWaves ... 
+		real waveMin = min(0., <?=eqn:eigenWaveCode(side, '&eig', 'xInt', 0)?>);
+		real waveMax = max(0., <?=eqn:eigenWaveCode(side, '&eig', 'xInt', eqn.numWaves-1)?>);
 
 		//limited slope in primitive variable space
 		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, dWMEig, x);
@@ -344,10 +350,12 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 
 		// calculate left and right slopes in characteristic space
 		real aL[numWaves], aR[numWaves];
-		for (int j = 0; j < numWaves; ++j) {
-			aL[j] = wave[j] < 0 ? 0 : (dWMEig[j] * dt_dx * (waveMax - wave[j]));
-			aR[j] = wave[j] > 0 ? 0 : (dWMEig[j] * dt_dx * (waveMin - wave[j]));
-		}
+		<? for j=0,eqn.numWaves-1 do ?>{
+			const int j = <?=j?>;
+			real wave_j = <?=eqn:eigenWaveCode(side, '&eig', 'xInt', j)?>;
+			aL[j] = wave_j < 0 ? 0 : (dWMEig[j] * dt_dx * (waveMax - wave_j));
+			aR[j] = wave_j > 0 ? 0 : (dWMEig[j] * dt_dx * (waveMin - wave_j));
+		}<? end ?>
 
 		// transform slopes back to conserved variable space
 		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aL, xIntL); <?=eqn.prim_t?> sL; apply_dW_dU(&sL, &W, &tmp, xIntL);
@@ -379,10 +387,7 @@ elseif solver.usePLM == 'plm-athena' then
 		real3 xR = x; xR.s<?=side?> += grid_dx<?=side?>;
 
 		//calc eigen values and vectors at cell center
-		<?=eqn.eigen_t?> eig;
-		eigen_forCell_<?=side?>(&eig, U, x);
-		real wave[numWaves];
-		eigen_calcWaves_<?=side?>__(wave, &eig, x);
+		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(U, x);
 
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;

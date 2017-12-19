@@ -23,14 +23,14 @@ kernel void calcFlux(
 		// get min/max lambdas of UL, UR, and interface U (based on Roe averaging)
 		// TODO this in a more computationally efficient way
 		<?=eqn.eigen_t?> eigInt = eigen_forSide(UL, UR, xInt);
-		real lambdaInt[numWaves];
-		eigen_calcWaves_<?=side?>__(lambdaInt, &eigInt, xInt);
-
+		
+		<?=eqn:eigenWaveCodePrefix(side, '&eigInt', 'xInt')?>
+		
 		range_t lambdaL = calcCellMinMaxEigenvalues_<?=side?>(UL, xL);
 		range_t lambdaR = calcCellMinMaxEigenvalues_<?=side?>(UR, xR);
 
-		real sL = min(lambdaL.min, lambdaInt[0]);
-		real sR = max(lambdaR.max, lambdaInt[numWaves-1]);
+		real sL = min(lambdaL.min, <?=eqn:eigenWaveCode(side, '&eigInt', 'xInt', 0)?>);
+		real sR = max(lambdaR.max, <?=eqn:eigenWaveCode(side, '&eigInt', 'xInt', eqn.numWaves-1)?>);
 		
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
 		if (0 <= sL) {

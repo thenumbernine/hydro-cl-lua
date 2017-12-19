@@ -252,4 +252,22 @@ function GLM_MHD:getEigenTypeCode()
 	}:concat'\n'
 end
 
+function GLM_MHD:eigenWaveCode(side, eig, x, waveIndex)
+	eig = '('..eig..')'
+	return ({
+		eig..'->v.x - '..eig..'->Cf',
+		eig..'->v.x - '..eig..'->CAx',
+		eig..'->v.x - '..eig..'->Cs',
+		eig..'->v.x',
+		eig..'->v.x + '..eig..'->Cs',
+		eig..'->v.x + '..eig..'->CAx',
+		eig..'->v.x + '..eig..'->Cf',
+		
+		--#warning there's a few PLM routines that expect eigenvalues to be ordered ... so replace them with a eigen_calcMinMaxWaves
+		self.useFixedCh and '-Ch' or '-'..eig..'->Ch',
+		self.useFixedCh and 'Ch' or eig..'->Ch',
+	})[waveIndex+1]
+end
+
+
 return GLM_MHD

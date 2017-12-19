@@ -32,7 +32,6 @@ function Roe:createBuffers()
 	
 	local realSize = ffi.sizeof(self.app.real)
 
-	self:clalloc('waveBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
 	self:clalloc('eigenBuf', self.volume * self.dim * ffi.sizeof(self.eqn.eigen_t))
 	self:clalloc('deltaUEigBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
 	if self.fluxLimiter[0] > 0 then
@@ -74,7 +73,6 @@ function Roe:refreshSolverProgram()
 
 	self.calcEigenBasisKernelObj = self.solverProgramObj:kernel(
 		'calcEigenBasis',
-		self.waveBuf,
 		self.eigenBuf,
 		self.getULRBuf)
 
@@ -89,18 +87,17 @@ function Roe:refreshSolverProgram()
 			'calcREig',
 			self.rEigBuf,
 			self.deltaUEigBuf,
-			self.waveBuf)
+			self.eigenBuf)
 	end
 
 	self.calcFluxKernelObj = self.solverProgramObj:kernel(
 		'calcFlux',
 		self.fluxBuf,
 		self.getULRBuf,
-		self.waveBuf,
 		self.eigenBuf,
 		self.deltaUEigBuf)
 	if self.fluxLimiter[0] > 0 then
-		self.calcFluxKernelObj.obj:setArg(6, self.rEigBuf)
+		self.calcFluxKernelObj.obj:setArg(5, self.rEigBuf)
 	end
 
 	-- TODO put this in solver/solver.lua ?
@@ -113,7 +110,6 @@ function Roe:refreshSolverProgram()
 		self.calcErrorsKernelObj = self.solverProgramObj:kernel(
 			'calcErrors',
 			self.errorBuf,
-			self.waveBuf,
 			self.eigenBuf)
 	end
 end
@@ -121,6 +117,7 @@ end
 function Roe:addDisplayVars()
 	Roe.super.addDisplayVars(self)
 
+--[=[ TODO add eigen calc code here
 	for j,xj in ipairs(xNames) do
 		self:addDisplayVarGroup{
 			name = 'wave '..xj,
@@ -134,6 +131,7 @@ function Roe:addDisplayVars()
 			end),
 		}
 	end
+--]=]
 
 	-- TODO rename to 'getEigenDisplayVarDescs()'
 	local eigenDisplayVars = self.eqn:getEigenDisplayVars()
@@ -232,7 +230,7 @@ function Roe:calcDeriv(derivBuf, dt)
 		self.calcREigKernelObj()
 	end
 
-	self.calcFluxKernelObj.obj:setArg(5, dtArg)
+	self.calcFluxKernelObj.obj:setArg(4, dtArg)
 	self.calcFluxKernelObj()
 
 

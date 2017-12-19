@@ -10,7 +10,6 @@ local bufnames = {
 	'reduceBuf',
 	'rEigBuf',
 	'UBuf',
-	'waveBuf',
 }
 local imgs = table()
 for i=1,2 do

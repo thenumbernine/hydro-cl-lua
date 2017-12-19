@@ -146,41 +146,14 @@ void calcRoeValues(
 };
 
 <? 
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for side=0,solver.dim-1 do 
+for side=0,solver.dim-1 do 
 ?>
-void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
-	<?=addr0?> real* wave,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	real3 x
-) {
-	wave[0] = eig->v.x - eig->Cf;
-	wave[1] = eig->v.x - eig->CAx;
-	wave[2] = eig->v.x - eig->Cs;
-	wave[3] = eig->v.x;
-	wave[4] = eig->v.x + eig->Cs;
-	wave[5] = eig->v.x + eig->CAx;
-	wave[6] = eig->v.x + eig->Cf;	
-<? if not eqn.useFixedCh then ?>
-	real Ch = eig->Ch;
-<? end ?>
-	wave[7] = -Ch;
-	wave[8] = Ch;
-}
-<?
-		end
-	end 
-end
-
-for side=0,solver.dim-1 do
-	for _,addr1 in ipairs{'', 'global'} do 
-?>
-void eigen_forSide_<?=side?>_<?=addr1?>(
-	<?=addr1?> <?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forSide_<?=side?>(
 	Roe_t roe,
 	real3 x
 ) {
+	<?=eqn.eigen_t?> eig;
+	
 	const real gamma = heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
@@ -199,88 +172,87 @@ void eigen_forSide_<?=side?>_<?=addr1?>(
 	real BStarPerpSq = (gamma_1 - gamma_2 * Y) * BPerpSq;
 	real CAxSq = B.x*B.x*_1_rho;
 	real CASq = CAxSq + BPerpSq * _1_rho;
-	eig->hHydro = hTotal - CASq;
+	eig.hHydro = hTotal - CASq;
 	// hTotal = (EHydro + EMag + P)/rho
-	// eig->hHydro = hTotal - CASq, CASq = EMag/rho
-	// eig->hHydro = eHydro + P/rho = eKin + eInt + P/rho
-	// eig->hHydro - eKin = eInt + P/rho = (1./(gamma-1) + 1) P/rho = gamma/(gamma-1) P/rho
-	// a^2 = (gamma-1)(eig->hHydro - eKin) = gamma P / rho
-	eig->aTildeSq = max((gamma_1 * (eig->hHydro - .5 * vSq) - gamma_2 * X), 1e-20);
+	// eig.hHydro = hTotal - CASq, CASq = EMag/rho
+	// eig.hHydro = eHydro + P/rho = eKin + eInt + P/rho
+	// eig.hHydro - eKin = eInt + P/rho = (1./(gamma-1) + 1) P/rho = gamma/(gamma-1) P/rho
+	// a^2 = (gamma-1)(eig.hHydro - eKin) = gamma P / rho
+	eig.aTildeSq = max((gamma_1 * (eig.hHydro - .5 * vSq) - gamma_2 * X), 1e-20);
 
 	real BStarPerpSq_rho = BStarPerpSq * _1_rho;
 	real CATildeSq = CAxSq + BStarPerpSq_rho;
-	real CStarSq = .5 * (CATildeSq + eig->aTildeSq);
-	real CA_a_TildeSqDiff = .5 * (CATildeSq - eig->aTildeSq);
-	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + eig->aTildeSq * BStarPerpSq_rho);
+	real CStarSq = .5 * (CATildeSq + eig.aTildeSq);
+	real CA_a_TildeSqDiff = .5 * (CATildeSq - eig.aTildeSq);
+	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + eig.aTildeSq * BStarPerpSq_rho);
 	
-	eig->CAx = sqrt(CAxSq);
+	eig.CAx = sqrt(CAxSq);
 	
 	real CfSq = CStarSq + sqrtDiscr;
-	eig->Cf = sqrt(CfSq);
+	eig.Cf = sqrt(CfSq);
 	
-	real CsSq = eig->aTildeSq * CAxSq / CfSq;
-	eig->Cs = sqrt(CsSq);
+	real CsSq = eig.aTildeSq * CAxSq / CfSq;
+	eig.Cs = sqrt(CsSq);
 
 <? if not eqn.useFixedCh then ?>
-	eig->Ch = max(max(fabs(v.x) + eig->Cf, fabs(v.y) + eig->Cf), fabs(v.z) + eig->Cf);
+	eig.Ch = max(max(fabs(v.x) + eig.Cf, fabs(v.y) + eig.Cf), fabs(v.z) + eig.Cf);
 <? end ?>
 
 	real BPerpLen = sqrt(BPerpSq);
-	eig->BStarPerpLen = sqrt(BStarPerpSq);
+	eig.BStarPerpLen = sqrt(BStarPerpSq);
 	
 	if (BPerpLen == 0) {
-		eig->betaY = 1;
-		eig->betaZ = 0;
+		eig.betaY = 1;
+		eig.betaZ = 0;
 	} else {
-		eig->betaY = B.y / BPerpLen;
-		eig->betaZ = B.z / BPerpLen;
+		eig.betaY = B.y / BPerpLen;
+		eig.betaZ = B.z / BPerpLen;
 	}
-	eig->betaStarY = eig->betaY / sqrt(gamma_1 - gamma_2*Y);
-	eig->betaStarZ = eig->betaZ / sqrt(gamma_1 - gamma_2*Y);
-	eig->betaStarSq = eig->betaStarY*eig->betaStarY + eig->betaStarZ*eig->betaStarZ;
+	eig.betaStarY = eig.betaY / sqrt(gamma_1 - gamma_2*Y);
+	eig.betaStarZ = eig.betaZ / sqrt(gamma_1 - gamma_2*Y);
+	eig.betaStarSq = eig.betaStarY*eig.betaStarY + eig.betaStarZ*eig.betaStarZ;
 
 
 	if (CfSq - CsSq == 0) {
-		eig->alphaF = 1;
-		eig->alphaS = 0;
-	} else if (eig->aTildeSq - CsSq <= 0) {
-		eig->alphaF = 0;
-		eig->alphaS = 1;
-	} else if (CfSq - eig->aTildeSq <= 0) {
-		eig->alphaF = 1;
-		eig->alphaS = 0;
+		eig.alphaF = 1;
+		eig.alphaS = 0;
+	} else if (eig.aTildeSq - CsSq <= 0) {
+		eig.alphaF = 0;
+		eig.alphaS = 1;
+	} else if (CfSq - eig.aTildeSq <= 0) {
+		eig.alphaF = 1;
+		eig.alphaS = 0;
 	} else {
-		eig->alphaF = sqrt((eig->aTildeSq - CsSq) / (CfSq - CsSq));
-		eig->alphaS = sqrt((CfSq - eig->aTildeSq) / (CfSq - CsSq));
+		eig.alphaF = sqrt((eig.aTildeSq - CsSq) / (CfSq - CsSq));
+		eig.alphaS = sqrt((CfSq - eig.aTildeSq) / (CfSq - CsSq));
 	}
 
 
-	eig->sqrtRho = sqrt(rho);
-	real _1_sqrtRho = 1. / eig->sqrtRho;
-	eig->sbx = B.x >= 0 ? 1 : -1;
-	real aTilde = sqrt(eig->aTildeSq);
-	eig->Qf = eig->Cf * eig->alphaF * eig->sbx;
-	eig->Qs = eig->Cs * eig->alphaS * eig->sbx;
-	eig->Af = aTilde * eig->alphaF * _1_sqrtRho;
-	eig->As = aTilde * eig->alphaS * _1_sqrtRho;
+	eig.sqrtRho = sqrt(rho);
+	real _1_sqrtRho = 1. / eig.sqrtRho;
+	eig.sbx = B.x >= 0 ? 1 : -1;
+	real aTilde = sqrt(eig.aTildeSq);
+	eig.Qf = eig.Cf * eig.alphaF * eig.sbx;
+	eig.Qs = eig.Cs * eig.alphaS * eig.sbx;
+	eig.Af = aTilde * eig.alphaF * _1_sqrtRho;
+	eig.As = aTilde * eig.alphaS * _1_sqrtRho;
 
 
 	//used for eigenvectors and eigenvalues
 <? 	for _,kv in ipairs(eqn.roeVars) do
 		local name = next(kv) 
-?>	eig-><?=name?> = roe.<?=name?>;
+?>	eig.<?=name?> = roe.<?=name?>;
 <?	end
 ?>
 
+	return eig;
 }
 <? 
-	end 
 end
 ?>
 
 <? for side=0,solver.dim-1 do ?>
-void eigen_forCons_<?=side?>(
-	<?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forCons_<?=side?>(
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
@@ -295,7 +267,7 @@ void eigen_forCons_<?=side?>(
 		.X = 0,
 		.Y = 1,
 	};
-	eigen_forSide_<?=side?>_(eig, roe, x);
+	return eigen_forSide_<?=side?>(roe, x);
 }
 <? end ?>
 
@@ -327,8 +299,7 @@ void eigen_forCons_<?=side?>(
 	//TODO don't need the whole eigen here, just the Ch
 	real Ch = 0;
 	<? for side=0,solver.dim-1 do ?>{
-		<?=eqn.eigen_t?> eig;
-		eigen_forCons_<?=side?>(&eig, U, x);
+		<?=eqn.eigen_t?> eig = eigen_forCons_<?=side?>(U, x);
 		Ch = max(Ch, eig.Ch);
 	}<? end ?>
 <? end ?>
@@ -341,7 +312,6 @@ void eigen_forCons_<?=side?>(
 
 
 kernel void calcEigenBasis(
-	global real* waveBuf,			//[volume][dim][numWaves]
 	global <?=eqn.eigen_t?>* eigenBuf,		//[volume][dim]
 	<?= solver.getULRArg ?>
 ) {
@@ -365,12 +335,8 @@ kernel void calcEigenBasis(
 		Roe_t roe;
 		calcRoeValues(&roe, &UL_, &UR_, xInt);
 
-		global real* wave = waveBuf + numWaves * indexInt;
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-
-		eigen_forSide_<?=side?>_global(eig, roe, xInt);
-		
-		eigen_calcWaves_<?=side?>_global_global(wave, eig, xInt);
+		*eig = eigen_forSide_<?=side?>(roe, xInt);
 	}<? end ?>
 }
 
@@ -676,8 +642,7 @@ kernel void addSource(
 <? if not eqn.useFixedCh then ?>
 	real Ch = 0;
 	<? for side=0,solver.dim-1 do ?>{
-		<?=eqn.eigen_t?> eig;
-		eigen_forCons_<?=side?>(&eig, *U, x);
+		<?=eqn.eigen_t?> eig = eigen_forCons_<?=side?>(*U, x);
 		Ch = max(Ch, eig.Ch);
 	}<? end ?>
 <? end ?>
@@ -704,12 +669,11 @@ kernel void constrainU(
 
 //used by PLM
 <? for side=0,solver.dim-1 do ?>
-void eigen_forCell_<?=side?>(
-	<?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
 	global const <?=eqn.cons_t?>* U,
 	real3 x
 ) {
-	eigen_forCons_<?=side?>(eig, *U, x);
+	return eigen_forCons_<?=side?>(*U, x);
 }
 <? end ?>
 

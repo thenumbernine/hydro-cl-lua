@@ -55,72 +55,27 @@ for side=0,solver.dim-1 do
 	} do
 	local addr, suffix = next(addrAndSuffix)
 ?>
-void eigen_forCell_<?=side?><?=suffix?>(
-	<?=eqn.eigen_t?>* eig,
+<?=eqn.eigen_t?> eigen_forCell_<?=side?><?=suffix?>(
 	<?=addr?> const <?=eqn.cons_t?>* U,
 	real3 x 
 ) {
-	eig->alpha = U->alpha;
-	eig->sqrt_f = sqrt(calc_f(U->alpha));
+	<?=eqn.eigen_t?> eig;
+	eig.alpha = U->alpha;
+	eig.sqrt_f = sqrt(calc_f(U->alpha));
 	real det_gamma = sym3_det(U->gamma);
-	eig->gammaU = sym3_inv(U->gamma, det_gamma);
-	eig->sqrt_gammaUjj = _real3(sqrt(eig->gammaU.xx), sqrt(eig->gammaU.yy), sqrt(eig->gammaU.zz));
+	eig.gammaU = sym3_inv(U->gamma, det_gamma);
+	eig.sqrt_gammaUjj = _real3(sqrt(eig.gammaU.xx), sqrt(eig.gammaU.yy), sqrt(eig.gammaU.zz));
 	
 	<? if eqn.useShift then ?>
-	eig->beta_u = U->beta_u;
+	eig.beta_u = U->beta_u;
 	<? end ?>
+
+	return eig;
 }
 <? 
 	end
 end 
 ?>
-
-<?
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for side=0,solver.dim-1 do
-?>
-void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
-	<?=addr0?> real* wave,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	real3 x
-) {
-	<? if side==0 then ?>
-	real lambdaLight = eig->alpha * eig->sqrt_gammaUjj.x;
-	<? elseif side==1 then ?>
-	real lambdaLight = eig->alpha * eig->sqrt_gammaUjj.y;
-	<? elseif side==2 then ?>
-	real lambdaLight = eig->alpha * eig->sqrt_gammaUjj.z;
-	<? end ?>
-	real lambdaGauge = lambdaLight * eig->sqrt_f;
-
-	//TODO maybe replace all these wave[]'s with a callback function that takes the eig_t and a number
-	// maybe the number can be a "template" parameter?
-	// Then we won't have to store anything more than the eigen_t ...
-<? if not eqn.noZeroRowsInFlux then ?>
-	<? if eqn.useShift then ?>
-	real betaUi = eig->beta_u.s<?=side?>;
-	<? else ?>
-	const real betaUi = 0.;
-	<? end ?>
-
-	wave[0] = -lambdaGauge;
-	<? for i=1,5 do ?> wave[<?=i?>] = -betaUi - lambdaLight; <? end ?>
-	<? for i=6,23 do ?> wave[<?=i?>] = -betaUi; <? end ?>
-	<? for i=24,28 do ?> wave[<?=i?>] = -betaUi + lambdaLight; <? end ?>
-	wave[29] = lambdaGauge;
-<? else ?>
-	// noZeroRowsInFlux implies not useShift
-	wave[0] = -lambdaGauge;
-	<? for i=1,5 do ?> wave[<?=i?>] = -lambdaLight; <? end ?>
-	wave[6] = 0.;
-	<? for i=7,11 do ?> wave[<?=i?>] = lambdaLight; <? end ?>
-	wave[12] = lambdaGauge;
-<? end ?>
-}
-<?		end
-	end
-end ?>
 
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
@@ -191,7 +146,6 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 
 kernel void calcEigenBasis(
-	global real* waveBuf,
 	global <?=eqn.eigen_t?>* eigenBuf,
 	<?= solver.getULRArg ?>
 ) {
@@ -210,10 +164,6 @@ kernel void calcEigenBasis(
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 		*eig = eigen_forSide(UL, UR, xInt);
-		
-		global real* wave = waveBuf + numWaves * indexInt;
-		
-		eigen_calcWaves_<?=side?>_global_global(wave, eig, xInt);
 	}<? end ?>
 }
 
@@ -1105,17 +1055,17 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	// If no one has provided one then just fall back on left / wave / right transform.
 	// TODO use that static function for the calc waves as well
 	
-	real wave[numWaves];
-	eigen_calcWaves_<?=side?>__<?=addr1?>(wave, eig, x);
 
 	real tmp[numWaves];
 	eigen_leftTransform_<?=side?>__<?=addr1?>_<?=addr2?>(tmp, eig, input, x);
 
-	//hmm, needs access to the wave buf ...
-	for (int i = 0; i < numWaves; ++i) {
-		tmp[i] *= wave[i];
-	}
+	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
 
+	//hmm, needs access to the wave buf ...
+<? for j=0,eqn.numWaves-1 do 
+?>	tmp[<?=j?>] *= <?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>;
+<? end 
+?>
 	eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_(results, eig, tmp, x);
 
 <? else -- noZeroRowsInFlux ?>
@@ -1152,8 +1102,7 @@ end
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	<?=eqn.eigen_t?> eig;
-	eigen_forCell_<?=side?>local(&eig, &U, x);
+	<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>local(&U, x);
 
 	<?=eqn.cons_t?> F;
 	eigen_fluxTransform_<?=side?>___(F.ptr, &eig, U.ptr, x);

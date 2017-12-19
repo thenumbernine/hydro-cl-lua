@@ -142,7 +142,7 @@ function Equation:getDisplayVarsForStructVars(structVarInfos, ptrName)
 			displayVarInfos:insert{[varname] = '*valuesym3 = '..ptrName..varname..';', type='sym3'}
 		elseif vartype == '_3sym3' then
 			for i,xi in ipairs(xNames) do
-				displayVarInfos:insert{[varname..'_'..xi] = '*valuesym3 = '..ptrName..varname..'['..(i-1)..'];', type='sym3'}
+				displayVarInfos:insert{[varname..'_'..xi] = '*valuesym3 = '..ptrName..varname..'.'..xi..';', type='sym3'}
 			end
 		end
 	end
@@ -207,6 +207,10 @@ function Equation:getEigenDisplayVars()
 			return {['A_'..row..'_'..col] = '*value = eigen->A['..i..'];'}
 		end) or nil)
 	end
+end
+
+function Equation:eigenWaveCodePrefix(side, eig, x)
+	return ''
 end
 
 function Equation:resetState()

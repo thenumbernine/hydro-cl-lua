@@ -207,6 +207,26 @@ ADM_BonaMasso_1D_Alcubierre1997.eigenVars = {
 	{sqrt_f_over_gamma_xx = 'real'},
 }
 
+function ADM_BonaMasso_1D_Alcubierre1997:eigenWaveCodePrefix(side, eig, x, waveIndex)
+	return template([[
+	real eig_lambda = <?=eig?>->alpha * <?=eig?>->sqrt_f_over_gamma_xx;
+]], {
+		eig = '('..eig..')',
+	})
+end
+
+function ADM_BonaMasso_1D_Alcubierre1997:eigenWaveCode(side, eig, x, waveIndex)
+	if waveIndex == 0 then
+		return '-eig_lambda'
+	elseif waveIndex == 1 then
+		return '0'
+	elseif waveIndex == 2 then
+		return 'eig_lambda'
+	else
+		error'got a bad waveIndex'
+	end
+end
+
 function ADM_BonaMasso_1D_Alcubierre1997:fillRandom(epsilon)
 	local ptr = ADM_BonaMasso_1D_Alcubierre1997.super.fillRandom(self, epsilon)
 	local solver = self.solver

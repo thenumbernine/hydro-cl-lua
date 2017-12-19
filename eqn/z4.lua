@@ -49,9 +49,9 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	U->alpha = 1;
 	U->gamma = _sym3(1,0,0,1,0,1);
 	U->a = _real3(0,0,0);
-	U->d[0] = _sym3(0,0,0,0,0,0);
-	U->d[1] = _sym3(0,0,0,0,0,0);
-	U->d[2] = _sym3(0,0,0,0,0,0);
+	U->d.x = _sym3(0,0,0,0,0,0);
+	U->d.y = _sym3(0,0,0,0,0,0);
+	U->d.z = _sym3(0,0,0,0,0,0);
 	U->K = _sym3(0,0,0,0,0,0);
 	U->Theta = 0;
 	U->Z = _real3(0,0,0);
@@ -98,11 +98,11 @@ kernel void initDerivs(
 	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
-<? for i=0,2 do ?>
-	U->a.s<?=i?> = (U[stepsize.s<?=i?>].alpha - U[-stepsize.s<?=i?>].alpha) / (grid_dx<?=i?> * U->alpha);
+<? for i,xi in ipairs(xNames) do ?>
+	U->a.<?=xi?> = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (grid_dx<?=i-1?> * U->alpha);
 	<? for j=0,2 do ?>
 		<? for k=j,2 do ?>
-	U->d[<?=i?>].s<?=j..k?> = .5 * (U[stepsize.s<?=i?>].gamma.s<?=j..k?> - U[-stepsize.s<?=i?>].gamma.s<?=j..k?>) / grid_dx<?=i?>;
+	U->d.<?=xi?>.s<?=j..k?> = .5 * (U[stepsize.<?=xi?>].gamma.s<?=j..k?> - U[-stepsize.<?=xi?>].gamma.s<?=j..k?>) / grid_dx<?=i-1?>;
 		<? end ?>
 	<? end ?>
 <? end ?>
@@ -169,6 +169,48 @@ Z4.eigenVars = table{
 	{gammaU = 'sym3'},
 	{sqrt_gammaUjj = 'real3'},
 }
+
+function Z4:eigenWaveCodePrefix(side, eig, x, waveIndex)
+	return template([[
+	<? if side==0 then ?>
+	real eig_lambdaLight = <?=eig?>->alpha * <?=eig?>->sqrt_gammaUjj.x;
+	<? elseif side==1 then ?>
+	real eig_lambdaLight = <?=eig?>->alpha * <?=eig?>->sqrt_gammaUjj.y;
+	<? elseif side==2 then ?>
+	real eig_lambdaLight = <?=eig?>->alpha * <?=eig?>->sqrt_gammaUjj.z;
+	<? end ?>
+	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>->sqrt_f;
+]], {
+		eig = '('..eig..')',
+		side = side,
+	})
+end
+
+function Z4:eigenWaveCode(side, eig, x, waveIndex)
+
+	local betaUi
+	if self.useShift then
+		betaUi = eig..'->beta_u.'..xNames[side+1]
+	else
+		betaUi = '0'
+	end
+
+	if waveIndex == 0 then
+		return '-'..betaUi..' - eig_lambdaGauge'
+	elseif waveIndex >= 1 and waveIndex <= 6 then
+		return '-'..betaUi..' - eig_lambdaLight'
+	elseif waveIndex >= 7 and waveIndex <= 23 then
+		return '-'..betaUi
+	elseif waveIndex >= 24 and waveIndex <= 29 then
+		return '-'..betaUi..' + eig_lambdaLight'
+	elseif waveIndex == 30 then
+		return '-'..betaUi..' + eig_lambdaGauge'
+	end
+
+	error'got a bad waveIndex'
+end
+
+
 
 function Z4:fillRandom(epsilon)
 	local ptr = Z4.super.fillRandom(self, epsilon)
