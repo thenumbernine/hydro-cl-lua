@@ -25,6 +25,24 @@ Features:
 - numerical relativity via finite difference BSSNOK (Baumgarte & Shapiro 2010)
 - self-gravitation for some schemes (Euler equations)
 
+Example Videos:
+
+[![Rotating Black Hole / Ergosphere Formation](http://img.youtube.com/vi/i2rCutSayXE/0.jpg)](https://www.youtube.com/watch?v=i2rCutSayXE)
+
+[![3D Rotating Black Hole](http://img.youtube.com/vi/LrL-HKcNZLM/0.jpg)](https://www.youtube.com/watch?v=LrL-HKcNZLM)
+
+[![3D Alcubierre warp bubble](http://img.youtube.com/vi/QFwMSj1485M/0.jpg)](https://www.youtube.com/watch?v=QFwMSj1485M)
+
+[![3D Alcubierre warp bubble](http://img.youtube.com/vi/tfMLMxdRid8/0.jpg)](https://www.youtube.com/watch?v=tfMLMxdRid8)
+
+
+[![gravitational wave extrinsic curvature](http://img.youtube.com/vi/dDVYA4hPqf0/0.jpg)](http://www.youtube.com/watch?v=dDVYA4hPqf0 "gravitational wave extrinsic curvature")
+
+[![gravitational wave extrinsic curvature](http://img.youtube.com/vi/dDVYA4hPqf0/0.jpg)](http://www.youtube.com/watch?v=dDVYA4hPqf0 "gravitational wave extrinsic curvature")
+
+[![gravitational wave extrinsic curvature](http://img.youtube.com/vi/dDVYA4hPqf0/0.jpg)](http://www.youtube.com/watch?v=dDVYA4hPqf0 "gravitational wave extrinsic curvature")
+
+
 TODO:
 - ADM3D with shift as a hyperbolic conservation law system
 - ADM3D (and BSSNOK, and any other GR solver) for minimal-distortion elliptical shift (doesn't require extra time-iterating variables) 
