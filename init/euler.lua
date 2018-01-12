@@ -790,8 +790,8 @@ end ?>;
 		name = 'Maxwell default',
 		initState = function(self, solver)
 			return [[
-	E = _real3(1,0,0);
-	B = _real3(0, 1, lhs ? 1 : -1);
+	E.y = 1;
+	B.z = lhs ? 1 : -1;
 ]]
 		end,
 	},

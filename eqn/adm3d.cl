@@ -1290,8 +1290,14 @@ kernel void addSource(
 	real3_add(deriv->V, real3_scale(srcV_l, U->alpha));
 
 <? if eqn.useShift then ?>
+
+
+
+	<? if eqn.useShift == '2005 Bona / 2008 Yano' then ?>
 	
-	<? if eqn.useShift == 'HarmonicShiftCondition-FiniteDifference' then ?>
+	
+	
+	<? elseif eqn.useShift == 'HarmonicShiftCondition-FiniteDifference' then ?>
 
 	//TODO make each useShift option into an object
 	//and give it a method for producing the partial_beta_ul
@@ -1331,6 +1337,10 @@ kernel void addSource(
 <?	end
 ?>	;
 <? end ?>
+
+#if 0	//the hyperbolic vars should get shifted via the wavespeeds
+		//I should only need to manually shift the source-only vars
+
 
 	//partial_a_l[j].i = a_i,j
 <?=makePartial('a', 'real3')?>
@@ -1392,6 +1402,7 @@ end ?>
 <? end
 ?>
 
+#endif
 
 	//next add the source for the particular useShift
 
@@ -1441,6 +1452,10 @@ end ?>
 		)
 	);
 
+	<?
+	elseif eqn.useShift == 'LagrangianCoordinates' then
+	?>
+	//nothing for LagrangianCoordinates shift -- this is handled by the beta_u advection operation
 	<? else
 		error("I don't have any source terms implemented for this particular useShift")
 	end ?>

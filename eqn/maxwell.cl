@@ -184,7 +184,7 @@ x,  y,  z, z,  y,  x
 	
 	<? end ?>
 	
-	for (int i = 6; i < numStates; ++i) {
+	for (int i = numWaves; i < numStates; ++i) {
 		Y[i] = 0;
 	}
 }
@@ -234,7 +234,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		
 	<? end ?>
 	
-	for (int i = 6; i < numStates; ++i) {
+	for (int i = numWaves; i < numStates; ++i) {
 		Y[i] = 0;
 	}
 }

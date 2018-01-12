@@ -58,8 +58,8 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{128,128,1},
-				{32,32,32},
+				{256,256,1},
+				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
 		-- default size options
@@ -137,7 +137,7 @@ maxs = {6,1,1},
 
 	-- TODO separate initStates for each class of equation
 	-- this would cohese better with the combined solvers
-	-- i.e. a fluid initState, an EM init-state, and a GR init-state
+	-- i.e. a fluid initState, a Maxwell init-state, and a GR init-state
 	-- ... but that means splitting the MHD init-states across M and HD ...
 	-- how about just stacking initStates?
 	-- and letting each one assign what values it wants.
@@ -155,7 +155,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -190,16 +190,16 @@ maxs = {6,1,1},
 	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	
-	-- EM:
+	-- Maxwell:
 	--initState = 'Maxwell default',
 	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	
-	-- hmm, I think I need a fluid solver for this, not just an EM solver ...
+	-- hmm, I think I need a fluid solver for this, not just a Maxwell solver ...
 	--initState = 'Maxwell Lichtenberg',	
 
-	-- EM+HD
+	-- Maxwell+HD
 	--initState = 'two-fluid EMHD soliton ion',
 	--initState = 'two-fluid EMHD soliton electron',
 	--initState = 'two-fluid EMHD soliton maxwell',
@@ -210,9 +210,9 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 
 
-	initState = 'Alcubierre warp bubble',
+	--initState = 'Alcubierre warp bubble',
 	
-	initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
+	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
 	--initStateArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
 	-- ... works with
@@ -252,6 +252,9 @@ maxs = {6,1,1},
 -- Roe is actually running faster than HLL ...
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
+
+-- finite difference
+self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
 -- f.e. and b.e. are working, but none of the r.k. integrators 
@@ -297,20 +300,26 @@ maxs = {6,1,1},
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
 
--- EM
+-- Maxwell
+-- when the state is nonzero, at certain sizes there appear errors in the corners
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 
--- EM+HD two-fluid electron/ion solver
+-- Maxwell+HD two-fluid electron/ion solver
 -- I'm having some memory issues with two solvers running simultanously .. 
 --self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
 -- so to try and get around that, here the two are combined into one solver:
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 
--- GR+EM.  params go to the EM solver.
+-- GR+Maxwell.  params go to the Maxwell solver.
+
+-- This is a Maxwell solver with the extra terms to account for GR.
+-- It only simulates Maxwell -- it needs an additional GR solver to fully work correctly.
+-- (Without a GR solver it will just operate in Minkowski spacetime.)
 -- TODO this should be the einstein-maxwell eqns solver with flat space plugged into the metric
 -- TODO rename to einstein-maxwell-roe
 --self.solvers:insert(require 'solver.gr-maxwell-roe'(args))
+
 -- TODO and this should be the einstein-maxwell with an einstein solver plugged in
 -- TODO rename to einstein-maxwell-separate
 --self.solvers:insert(require 'solver.gr-em-separate'(args))
@@ -320,7 +329,7 @@ maxs = {6,1,1},
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'}))) -- TODO fixme
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))

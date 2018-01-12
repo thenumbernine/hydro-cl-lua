@@ -3,7 +3,7 @@
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
 	<?=eqn.cons_t?> U,
-	real3 x,<?=
+	real3 x<?=
 	solver:getADMArgs()?>
 ) {
 	<?=solver:getADMVarCode()?>
@@ -43,8 +43,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real3 x<?=
 	solver:getADMArgs()?>
 ) {
-	<?=solver:getADMVarCode()?>
-	
+	<?=solver:getADMVarCode()?>	
 	real det_gamma = sym3_det(gamma);	
 	real det_gamma2 = det_gamma * det_gamma;
 	real det_gamma3 = det_gamma * det_gamma2;
@@ -86,6 +85,8 @@ kernel void calcEigenBasis(
 	
 	<?=solver:getADMVarCode{suffix='R'} --[[ produce alphaR, betaR, gammaR at indexR ]] ?>
 	real det_gammaR = sym3_det(gammaR);
+	real det_gammaR2 = det_gammaR * det_gammaR;
+	real det_gammaR3 = det_gammaR * det_gammaR2;
 
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
@@ -96,6 +97,8 @@ kernel void calcEigenBasis(
 		
 		<?=solver:getADMVarCode{suffix='L'} --[[ produce alphaL, betaL, gammaL at indexL ]] ?>
 		real det_gammaL = sym3_det(gammaL);
+		real det_gammaL2 = det_gammaL * det_gammaL;
+		real det_gammaL3 = det_gammaL * det_gammaL2;
 		
 		int indexInt = side + dim * index;	
 		real3 xInt = x;
@@ -103,8 +106,8 @@ kernel void calcEigenBasis(
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 		//*eig = eigen_forSide(UL, UR, xInt);
-		eig->eps = .5 * (UL->eps + UR->eps),
-		eig->mu = .5 * (UL->mu + UR->mu),
+		eig->eps = .5 * (UL->eps + UR->eps);
+		eig->mu = .5 * (UL->mu + UR->mu);
 		real alpha = .5 * (alphaL + alphaR);
 		real det_gamma = .5 * (det_gammaL + det_gammaR);
 
@@ -124,11 +127,15 @@ kernel void calcEigenBasis(
 			+ gammaR.xx * gammaR.yy - gammaR.xy * gammaR.xy
 		);
 		<? end ?>
-		
+	
+		real det_gamma3 = sqrt(det_gammaL3 * det_gammaR3);
 		eig->lambda = alpha / sqrt(detg_gUjj / (det_gamma3 * eig->eps * eig->mu));
 	}<? end ?>
 }
-		
+
+/*
+TODO update this for Einstein-Maxwell (take the metric into consideration
+*/
 <? 
 for _,addr0 in ipairs{'', 'global'} do
 	for _,addr1 in ipairs{'', 'global'} do
@@ -146,13 +153,13 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	const real isu = sqrt_1_2 / sqrt(eig->mu);
 
 	<? if side == 0 then ?>
-	
-	Y[0] = X[2] *  ise + X[4] * isu;
-	Y[1] = X[1] * -ise + X[5] * isu;
-	Y[2] = X[0] * -ise + X[3] * isu;
-	Y[3] = X[0] *  ise + X[3] * isu;
-	Y[4] = X[1] *  ise + X[5] * isu;
-	Y[5] = X[2] * -ise + X[4] * isu;
+
+	Y[0] = 								X[2] *  ise 				+ X[4] * isu;
+	Y[1] = 				X[1] * -ise 												+ X[5] * isu;
+	Y[2] = X[0] * -ise 								+ X[3] * isu;
+	Y[3] = X[0] *  ise 								+ X[3] * isu;
+	Y[4] = 				X[1] *  ise 												+ X[5] * isu;
+	Y[5] = 								X[2] * -ise 				+ X[4] * isu;
 	
 	<? elseif side == 1 then ?>
 	
@@ -181,20 +188,20 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr2?> const real* X,
 	real3 x
 ) {
-	const real se = sqrt_1_2 * sqrt(eig->eps);
-	const real su = sqrt_1_2 * sqrt(eig->mu);
+	const real se = sqrt_1_2 * sqrt(eig->eps * eig->detg_gUjj);
+	const real su = sqrt_1_2 * sqrt(eig->mu * eig->detg_gUjj);
 
 	<? if side==0 then ?>
 /*
 z, -y, -x, x, y, -z
 y,  z,  x, x, z, y
 */
-	Y[0] = se * (-X[2] + X[3]);
-	Y[1] = se * (-X[1] + X[4]);
-	Y[2] = se * (X[0] + -X[5]);
-	Y[3] = su * (X[2] + X[3]);
-	Y[4] = su * (X[0] + X[5]);
-	Y[5] = su * (X[1] + X[4]);
+	Y[0] = se * (				-X[2] + X[3]					);
+	Y[1] = se * (		-X[1] 					+ X[4]			);
+	Y[2] = se * (X[0] 									+ -X[5]	);
+	Y[3] = su * (				X[2] + X[3]						);
+	Y[4] = su * (X[0] 									+ X[5]	);
+	Y[5] = su * (		X[1] 					+ X[4]			);
 	
 	<? elseif side==1 then ?>
 
@@ -285,6 +292,8 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	Y[5] = 0;
 		
 	<? end ?>
+
+	Y[6] = 0.;
 }
 <?
 				end

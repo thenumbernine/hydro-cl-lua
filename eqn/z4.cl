@@ -646,6 +646,7 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf)
 {
+#if 0
 	SETBOUNDS_NOGHOST();
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
@@ -863,9 +864,7 @@ end
 	;
 <? end
 ?>
-	
-#if 0
-	
+		
 	/*
 	Theta,t + ... = 
 		-Theta b_k^k 

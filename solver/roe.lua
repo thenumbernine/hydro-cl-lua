@@ -269,7 +269,6 @@ function Roe:calcDeriv(derivBuf, dt)
 
 	-- addSource adds to the derivative buffer
 	if self.eqn.useSourceTerm then
-		-- can't use call because this uses the without-border size
 		self.addSourceKernelObj(derivBuf)
 	end
 end

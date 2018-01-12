@@ -30,27 +30,73 @@ ADM_BonaMasso_3D.consVars = table{
 }:append(fluxVars)
 
 
+--[[
+how are shift conditions impmlemented?
+options for determining beta^i:
+1) by solving a constraint equation (minimal distortion elliptic solves it with a numerical Poisson solver)
+2) by solving an initial value problem
+
+Once beta^i is determined, how are the variables iterated?
+This question is split into a) and b):
+a) How are the source-only variables iterated wrt beta^i?
+options:
+1) put the Lie derivative terms into the source side of these variables 
+2) give them -beta^i eigenvalues?  this is the equivalent of rewriting the hyperbolic vars associated with these (a_i,d_kij) back into first-derivative 0th order vars (alpha, gamma_ij)
+
+b) How are the flux variables iterated wrt beta^i?
+options:
+1) this would be solved by offsetting the eigenvalues 
+	with the offset eigenvalues, 
+	the hyperbolic state vars' contributions get incorporated into the flux,
+	but there are still some shift-based terms that end up in the source ...
+	... so the shift is split between the flux and source ...
+2) ... and adding a few terms to the source
+
+--]]
+
+
 -- no shift
-ADM_BonaMasso_3D.useShift = false
+--ADM_BonaMasso_3D.useShift = false
 
 -- minimal distortion elliptic -- Alcubierre's book, eqn 4.3.14 and 4.3.15
 --ADM_BonaMasso_3D.useShift = 'MinimalDistortionElliptic'
+
+-- 2008 Yano et al, from 2005 Bona et al "Geometrically Motivated..."
+-- 2005 Bona mentions a few, but 2008 Yano picks the first one from the 2005 Bona paper.
+ADM_BonaMasso_3D.useShift = '2005 Bona / 2008 Yano'
 
 -- 2008 Alcubierre 4.3.37
 -- I see some problems in the warp bubble test ...
 --ADM_BonaMasso_3D.useShift = 'HarmonicShiftCondition-FiniteDifference'
 
+--[[
+Step backwards along shift vector and advect the state
+Idk how accurate this is ...
+Hmm, even if I implement the Lie derivative as Lagrangian coordinate advection
+I'll still be responsible for setting some beta^i_,t gauge
+so for the L_beta Lie derivative, we have some options:
+1) none (for no-shift)
+2) finite difference
+3) finite volume / absorb into the eigensystem
+4) Lagrangian coordinates
+and this should be a separate variable, separate of the shift gauge
 
-if ADM_BonaMasso_3D.useShift == 'MinimalDistortionElliptic' then
+so 
+one variable for what beta^i_,t is
+another variable for how to 
+--]]
+--ADM_BonaMasso_3D.useShift = 'LagrangianCoordinates'
+
+if ADM_BonaMasso_3D.useShift then
 	ADM_BonaMasso_3D.consVars:insert{beta_u = 'real3'}
+
 	--[[ and maybe some of these ...
-	ADM_BonaMasso_3D.consVars:insert{gamma_uu = 'sym3'}
-	ADM_BonaMasso_3D.consVars:insert{conn_ull = '_3sym3'}
-	ADM_BonaMasso_3D.consVars:insert{R_ll = 'sym3'}
+	if ADM_BonaMasso_3D.useShift == 'MinimalDistortionElliptic' then
+		ADM_BonaMasso_3D.consVars:insert{gamma_uu = 'sym3'}
+		ADM_BonaMasso_3D.consVars:insert{conn_ull = '_3sym3'}
+		ADM_BonaMasso_3D.consVars:insert{R_ll = 'sym3'}
+	end
 	--]]
-
-elseif ADM_BonaMasso_3D.useShift == 'HarmonicShiftCondition-FiniteDifference' then
-	ADM_BonaMasso_3D.consVars:insert{beta_u = 'real3'}
 end
 
 
@@ -63,9 +109,10 @@ TODO make this a ctor arg - so solvers can run in parallel with and without this
 ADM_BonaMasso_3D.noZeroRowsInFlux = true
 
 -- NOTE this doesn't work when using shift ... because then all the eigenvalues are -beta^i, so none of them are zero (except the source-only alpha, beta^i, gamma_ij)
-if ADM_BonaMasso_3D.useShift then
-	ADM_BonaMasso_3D.noZeroRowsInFlux = false
-end
+-- with the exception of the lagrangian shift.  if we split that operator out then we can first solve the non-shifted system, then second advect it by the shift vector ...
+--if ADM_BonaMasso_3D.useShift then
+--	ADM_BonaMasso_3D.noZeroRowsInFlux = false
+--end
 
 if not ADM_BonaMasso_3D.noZeroRowsInFlux then
 	-- skip alpha and gamma
@@ -94,6 +141,9 @@ function ADM_BonaMasso_3D:init(solver)
 	if self.useShift == 'MinimalDistortionElliptic' then
 		local MinimalDistortionEllipticShift = require 'solver.gr-shift-mde'
 		solver.ops:insert(MinimalDistortionEllipticShift{solver=solver})
+	elseif solver.useShift == 'LagrangianCoordinates' then
+		local LagrangianCoordinateShift = require 'solver.gr-shift-lc'
+		solver.ops:insert(LagrangianCoordinateShift{solver=solver})
 	end
 end
 
@@ -107,7 +157,13 @@ function ADM_BonaMasso_3D:createInitState()
 				'none',	-- as long as there is a damping term to the source, direct constraint methods aren't required.
 				'replace V',
 				'average',	-- TODO add averaging weights, from 100% V (which works) to 100% d (which doesn't yet work)
-			}
+			},
+			-- upon setting this, set useConstrainU accordingly (turn it off if we're not constraining U)
+			onChange = function(guivar, value, solver)
+				-- disable the solver's constrainU if we're not needing it
+				-- note that the kernel is still created, just now won't be called
+				solver.useConstrainU = value ~= 0
+			end,
 		},
 		{name='a_convCoeff', value=10},
 		{name='d_convCoeff', value=10},
@@ -341,6 +397,8 @@ ADM_BonaMasso_3D.eigenVars = table{
 	-- sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
 	{sqrt_gammaUjj = 'real3'},
 }
+
+-- hmm, only certain shift methods actually use beta_u ...
 if ADM_BonaMasso_3D.useShift then
 	ADM_BonaMasso_3D.eigenVars:insert{beta_u = 'real3'}
 end
@@ -363,6 +421,10 @@ function ADM_BonaMasso_3D:eigenWaveCodePrefix(side, eig, x, waveIndex)
 end
 
 function ADM_BonaMasso_3D:eigenWaveCode(side, eig, x, waveIndex)
+	-- TODO find out if -- if we use the lagrangian coordinate shift operation -- do we still need to offset the eigenvalues by -beta^i?
+	local shiftingLambdas = self.useShift 
+		--and self.useShift ~= 'LagrangianCoordinates'
+	
 	if not self.noZeroRowsInFlux then
 
 		local betaUi

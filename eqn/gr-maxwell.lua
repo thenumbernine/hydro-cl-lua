@@ -16,11 +16,12 @@ GRMaxwell.numWaves = 6
 GRMaxwell.numIntStates = 6
 
 GRMaxwell.consVars = {
+	-- the vectors are contravariant with ^t component that are zero
 	{epsE = 'real3'},
 	{B = 'real3'},
 	{BPot = 'real'},	-- used to calculate the B potential & remove div
 	
--- there's really no reason to store these, they're not dynamic at all
+	-- these aren't dynamic at all, but I don't want to allocate a separate buffer
 	{sigma = 'real'},
 	{eps = 'real'},
 	{mu = 'real'},
