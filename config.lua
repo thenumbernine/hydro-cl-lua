@@ -37,7 +37,7 @@ local args = {
 
 	--useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	geometry = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -78,7 +78,25 @@ maxs = {6,1,1},
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	--[[ cylinder
+	--[[ 1D radial
+	geometry = '1d_radial',
+	mins = cmdline.mins or {0, 0, 0},
+	maxs = cmdline.maxs or {1, 1, 1},
+	gridSize = ({
+		{256,1,1},
+		{32,32,1},
+		{32,32,32},
+	})[dim],
+	boundary = {
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'periodic',
+		ymax=cmdline.boundary or 'periodic',
+		zmin=cmdline.boundary or 'periodic',
+		zmax=cmdline.boundary or 'periodic',
+	},
+	--]]
+	-- [[ cylinder
 	geometry = 'cylinder',
 	mins = cmdline.mins or {.1, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},
@@ -147,7 +165,7 @@ maxs = {6,1,1},
 	--initState = cmdline.initState,
 	
 	-- Euler / SRHD / MHD initial states:
-	--initState = 'constant',
+	initState = 'constant',
 	--initState = 'constant with motion',
 	--initState = 'linear',
 	--initState = 'gaussian',
@@ -155,7 +173,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -250,11 +268,9 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
-
--- finite difference
-self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
 -- HD - Burgers
 -- f.e. and b.e. are working, but none of the r.k. integrators 
@@ -276,7 +292,7 @@ self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
 -- GRHD
 -- this is the solver with plug-ins for ADM metric, 
--- yet doesn't come coupled with any other solver
+-- yet doesn't come coupled with any other solver, so it will act just like a srhd solver
 --self.solvers:insert(require 'solver.grhd-roe'(args))
 
 -- GRHD+GR
@@ -304,6 +320,7 @@ self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 -- when the state is nonzero, at certain sizes there appear errors in the corners
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
+--self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 
 -- Maxwell+HD two-fluid electron/ion solver
 -- I'm having some memory issues with two solvers running simultanously .. 
@@ -337,8 +354,12 @@ self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='z4'}))) -- TODO fixme
 
+--self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='adm1d_v1', integrator='backward Euler'})))
+--self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='adm1d_v2', integrator='backward Euler'})))
+--self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='adm3d', integrator='backward Euler'})))
+--self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='z4', integrator='backward Euler'}))) -- TODO fixme
 
---
+
 -- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
 --  but something gets caught up in the freeflow boundary conditions, and it explodes
 -- so I have set constant Minkowski boundary conditions?

@@ -19,6 +19,7 @@ kernel void calcDerivFromFlux(
 		const global <?=eqn.cons_t?>* fluxR = fluxBuf + indexIntR;
 
 <? -- trying to apply Trangenstein to my holonomic coordinate code:
+	-- for cylindric, and for the correct source terms, it seems to work the same.
 if false
 and require 'geom.cylinder'.is(solver.geometry) 
 and solver.dim == 2
@@ -47,7 +48,7 @@ then
 		//or do I have to also scale by that here (in addition to scaling by the sides) ?
 		real volume = .5 * (rR*rR - rL*rL) * (thetaR - thetaL);
 
-<? else
+<? else	-- arbitrary geometry case 
 ?>		real3 xIntL = x;
 		xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
 		real volumeIntL = volume_at(xIntL);

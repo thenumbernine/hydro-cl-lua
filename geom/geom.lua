@@ -239,7 +239,7 @@ dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'(
 	-- code generation
 
 	local function substCoords(code)
-		code = code:gsub('{x^(%d)}', function(i)
+		code = code:gsub('{pt^(%d)}', function(i)
 			return self.coords[i+0]
 		end)
 		code = code:gsub('{v^(%d)}', function(i)
@@ -254,7 +254,7 @@ dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'(
 	
 	local toC = require 'symmath.tostring.C'
 	local toC_coordArgs = table.map(baseCoords, function(coord, i)
-		return {['{x^'..i..'}'] = coord}	-- 1-based
+		return {['{pt^'..i..'}'] = coord}	-- 1-based
 	end):append(range(dim):map(function(a)
 		return {[paramU[a].name] = paramU[a]}
 	end))
@@ -448,8 +448,8 @@ local clnumber = require 'cl.obj.number'
 local xs = table{'x', 'y', 'z'}
 
 local function convertParams(code)
-	code = code:gsub('{x^(%d)}', function(i)
-		return 'x.'..xs[i+0]
+	code = code:gsub('{pt^(%d)}', function(i)
+		return 'pt.'..xs[i+0]
 	end)
 	code = code:gsub('{v^(%d)}', function(i)
 		return 'v.'..xs[i+0]
@@ -459,7 +459,7 @@ end
 
 local function getCode_real3_to_real(name, code)
 	return template([[
-inline real <?=name?>(real3 x) {
+inline real <?=name?>(real3 pt) {
 	return <?=code?>;
 }]], {
 		name = name,
@@ -470,7 +470,7 @@ end
 -- f(x) where x is a point in the coordinate chart
 local function getCode_real3_to_real3(name, exprs)
 	return template([[
-inline real3 <?=name?>(real3 x) {
+inline real3 <?=name?>(real3 pt) {
 	return _real3(
 <? for i=1,3 do
 ?>		<?=exprs[i] and convertParams(exprs[i]) or '0.'
@@ -487,7 +487,7 @@ end
 -- f(v,x) where x is a point on the coordinate chart and v is most likely a tensor
 local function getCode_real3_real3_to_real(name, expr)
 	return template([[
-inline real <?=name?>(real3 v, real3 x) {
+inline real <?=name?>(real3 v, real3 pt) {
 	return <?=convertParams(expr)?>;
 }]], {
 		name = name,
@@ -498,7 +498,7 @@ end
 
 local function getCode_real3_real3_to_real3(name, exprs)
 	return template([[
-inline real3 <?=name?>(real3 v, real3 x) {
+inline real3 <?=name?>(real3 v, real3 pt) {
 	return _real3(
 <? for i=1,3 do
 ?>		<?=exprs[i] and convertParams(exprs[i]) or '0.'
@@ -514,7 +514,7 @@ end
 
 local function getCode_real3_to_sym3(name, exprs)
 	return template([[
-inline sym3 <?=name?>(real3 x) {
+inline sym3 <?=name?>(real3 pt) {
 	return (sym3){
 <? for i=1,3 do
 	for j=i,3 do
@@ -542,7 +542,7 @@ function Geometry:getCode(solver)
 		local code = self.dxCodes[i]
 		for j=1,3 do
 			code = code:gsub(
-				'{x^'..j..'}',
+				'{pt^'..j..'}',
 				'cell_x'..(j-1)..'(i.'..xs[j]..')')
 		end
 		return '#define dx'..(i-1)..'_at(i) (grid_dx'..(i-1)..' * ('..code..'))'
@@ -559,8 +559,8 @@ function Geometry:getCode(solver)
 	lines:append{
 		getCode_real3_real3_to_real('coordLenSq', self.uLenSqCode),
 		[[
-inline real coordLen(real3 r, real3 x) {
-	return sqrt(coordLenSq(r, x));
+inline real coordLen(real3 r, real3 pt) {
+	return sqrt(coordLenSq(r, pt));
 }]],
 	}
 
@@ -584,9 +584,9 @@ inline real coordLen(real3 r, real3 x) {
 			for i=1,3 do
 				for j=i,3 do
 					local code = (codes[i] and codes[i][j] and convertParams(codes[i][j]) or clnumber(i==j and 1 or 0))
-					lines:insert('#define '..name..(i-1)..(j-1)..'(r) '..code)
+					lines:insert('#define '..name..(i-1)..(j-1)..'(pt) '..code)
 					if i ~= j then
-						lines:insert('#define '..name..(j-1)..(i-1)..'(r) '..code)
+						lines:insert('#define '..name..(j-1)..(i-1)..'(pt) '..code)
 					end
 				end
 			end
@@ -604,10 +604,10 @@ inline real coordLen(real3 r, real3 x) {
 //converts a vector from cartesian coordinates to grid coordinates
 //by projecting the vector into the grid basis vectors 
 //at x, which is in grid coordinates
-real3 cartesianToCoord(real3 v, real3 x) {
+real3 cartesianToCoord(real3 v, real3 pt) {
 	real3 vCoord;
 	<? for i=0,solver.dim-1 do ?>{
-		real3 e = coordBasis<?=i?>(x);
+		real3 e = coordBasis<?=i?>(pt);
 		//anholonomic normalized
 		//vCoord.s<?=i?> = real3_dot(e, v); // / real3_len(e);
 		//holonomic
@@ -630,7 +630,7 @@ end
 function Geometry:getCoordMapCode()
 	return table{
 		getCode_real3_to_real3('coordMap', range(3):map(function(i)
-			return self.uCode[i] or '{x^'..i..'}'
+			return self.uCode[i] or '{pt^'..i..'}'
 		end)),
 	}:concat'\n'
 end

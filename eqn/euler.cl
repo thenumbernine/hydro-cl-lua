@@ -553,10 +553,54 @@ void apply_dW_dU(
 	};
 }
 
-//set Equation.useSourceTerm=true
-//this has the connection terms that aren't absorbed in the change-of-volum
-//for Euclidian this is -Conn^i_jk rho v^j v^k
-//hmm, doesn't seem to help
+/*
+set Equation.useSourceTerm=true
+This has the connection terms that aren't absorbed in the change-of-volume
+for Euclidian this is -Conn^i_jk rho v^j v^k
+
+rho_,t + (rho v^i)_;i = 0
+(rho v^j)_,t + (rho v^i v^j + P g^ij)_;i = 0
+ETotal_,t + (HTotal u^i)_;i = 0
+
+rho_,t + m^i_;i = 0
+m^j_,t + (m^i v^j + P g^ij)_;i = 0
+ETotal_,t + (HTotal u^i)_;i = 0
+
+rho_,t + m^i_,i + Conn^i_ki m^k = 0
+m^j_,t + (m^i v^j + P g^ij)_,i + Conn^i_ki (m^k v^j + P g^kj) + Conn^j_ki (m^i v^k + P g^ik) = 0
+ETotal_,t + (HTotal u^i)_,i + Conn^i_ki (HTotal u^k) = 0
+
+rho_,t + m^i_,i + 1/e e_,k m^k = 0
+m^j_,t + (m^i v^j + P g^ij)_,i + 1/e e_,k (m^k v^j + P g^kj) + Conn^j_ki (m^i v^k + P g^ik) = 0
+ETotal_,t + (HTotal u^i)_,i + 1/e e_,k (HTotal u^k) = 0
+... for e = sqrt(g), for g = det(g_ij)
+
+rho_,t + 1/e (e m^i)_,i = 0
+m^j_,t + 1/e (e (m^i v^j + P g^ij))_,i = -Conn^j_ki (m^i v^k + P g^ik)
+ETotal_,t + 1/e (e (HTotal u^i))_,i = 0
+
+... source terms:
+rho_,t += 0
+m^j_,t += -Conn^j_ki (rho v^k v^i + P g^ki)
+ETotal_,t += 0
+
+for cylindrical holonomic:
+Conn^phi_phi_r = Conn^phi_r_phi = 1/r
+Conn^r_phi_phi = -r
+...and the source term becomes...
+m^r_,t += -Conn^r_phi_phi (rho v^phi v^phi + P g^phi^phi)
+   ... += r (rho v^phi v^phi + P / r^2)
+   ... += r rho v^phi v^phi + P / r
+m^phi_,t += -(Conn^phi_phi_r + Conn^phi_r_phi) (rho v^r v^phi + P g^r^phi)
+     ... += -2 Conn^phi_phi_r rho v^r v^phi
+     ... += -2/r rho v^r v^phi
+
+
+for cylindrical anholonomic normalized:
+Conn^phi_r_phi = 1/r
+Conn^r_phi_phi = -1/r
+
+*/
 kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
@@ -567,11 +611,17 @@ kernel void addSource(
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
 #if defined(geometry_cylinder)
-#if 1	// holonomic coriolis force alone	
+#if 0	// holonomic coriolis force alone	
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
 	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(W.v, x), U->rho));	//-Gamma^i_jk v^j v^k rho
 	deriv->m = real3_add(deriv->m, real3_scale(coord_connTrace(x), W.P));		//+Gamma^i_jk g^jk P
-#elif 0	// holonomic: all covariant derivative terms (including the others that should be absorbed into the finite-volume computations
+#elif 1	// holonomic coriolis force alone ... explicitly written out ...
+		// works with holonomic geometry
+	real r = x.x, theta = x.y, z = x.z;
+	<?=eqn.prim_t?> W = primFromCons(*U, x); 
+	deriv->m.x += r * W.rho * W.v.y * W.v.y + W.P / r;
+	deriv->m.y -= 2. / r * W.rho * W.v.x * W.v.y;
+#elif 0	// holonomic: all covariant derivative terms (including the others that should be absorbed into the finite-volume computations)
 	real connTrace = coord_connTrace(x);
 	deriv->rho -= U->rho * connTrace;
 	deriv->m = real3_sub(
@@ -584,9 +634,9 @@ kernel void addSource(
 	real HTotal = calc_HTotal(W.P, U->ETotal);
 	//cylinder anholonomic connections: Conn^theta_r_theta = -Conn^r_theta_theta = 1/r
 	deriv->rho -= 1/r * U->m.x;
-	deriv->m.x -= 1/r * (U->m.x * W.v.x;
-	deriv->m.y -= 1/r * (U->m.x * W.v.y;
-	deriv->m.z -= 1/r * (U->m.x * W.v.z;
+	deriv->m.x -= 1/r * (U->m.x * W.v.x);
+	deriv->m.y -= 1/r * (U->m.x * W.v.y);
+	deriv->m.z -= 1/r * (U->m.x * W.v.z);
 	deriv->ETotal -= 1/r * W.v.x * HTotal;
 #endif
 #endif

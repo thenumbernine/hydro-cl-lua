@@ -7,7 +7,7 @@ local Solver = require 'solver.solver'
 local xNames = table{'x', 'y', 'z'}
 
 local BSSNOKFiniteDifferenceSolver = class(Solver)
-BSSNOKFiniteDifferenceSolver.name = 'BSSNOKFiniteDifferenceSolver'
+BSSNOKFiniteDifferenceSolver.name = 'BSSNOK_FiniteDifference'
 
 -- TODO make a gui variable for numGhost
 -- hmm, can I do that without rebuilding solverProgram every time it changes?

@@ -9,6 +9,7 @@ local template = require 'template'
 local Solver = require 'solver.solver'
 
 local FiniteDifferenceSolver = class(Solver)
+FiniteDifferenceSolver.name = 'FiniteDifference'
 
 function FiniteDifferenceSolver:createBuffers()
 	FiniteDifferenceSolver.super.createBuffers(self)
