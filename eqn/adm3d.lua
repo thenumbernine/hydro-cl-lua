@@ -210,6 +210,10 @@ kernel void initState(
 	sym3 gamma_ll = _sym3(1,0,0,1,0,1);
 	sym3 K_ll = _sym3(0,0,0,0,0,0);
 
+	//throw-away for ADM3D ... but not for BSSNOK
+	// TODO hold rho somewhere?
+	real rho = 0.;
+
 	<?=code?>
 
 	U->alpha = alpha;

@@ -1,10 +1,10 @@
-local dim = 2
+local dim = 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -16,7 +16,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	--integrator = 'backward Euler',
+	integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	--cfl = .25/dim,
@@ -37,7 +37,7 @@ local args = {
 
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	geometry = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -58,7 +58,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{256,256,1},
+				{64,64,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -96,22 +96,22 @@ maxs = {6,1,1},
 		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	geometry = 'cylinder',
 	mins = cmdline.mins or {.1, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
-		{32, 128, 1}, -- 2D
+		{32, 256, 1}, -- 2D
 		{16, 64, 16}, -- 3D
 	})[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',		-- hmm, how to treat the r=0 boundary ...
-		xmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
+		xmax=cmdline.boundary or 'mirror',
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'mirror',
+		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
 	--[[ sphere
@@ -165,8 +165,8 @@ maxs = {6,1,1},
 	--initState = cmdline.initState,
 	
 	-- Euler / SRHD / MHD initial states:
-	initState = 'constant',
-	--initState = 'constant with motion',
+	--initState = 'constant',
+	--initState = 'constant with velocity',
 	--initState = 'linear',
 	--initState = 'gaussian',
 	--initState = 'advect wave',
@@ -246,12 +246,81 @@ maxs = {6,1,1},
 	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee ... eventually explodes
 	--  size=64x64 solver=bssnok int=be flux-limiter=superbee ... eventually explodes as well
 
-
+	
 	--initState = 'black hole - Schwarzschild pseudocartesian',
-	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
-	--initState = 'binary black holes - isotropic',
+	
+	
+	initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
+
+	-- [[ single black hole, spinning, demonstrating ergosphere formation
+	initStateArgs = {
+		bodies = {
+			{
+				R = .0001,
+				P_u = {0,0,0},
+				S_u = {0,0,1},
+				pos = {0,0,0},
+			},
+		},
+	},
+	--]]
+	--[[ single black hole 
+	-- from 2006 Brugmann et al - "Calibration of a Moving Puncture Simulation" (though I'm not using moving puncture method)
+	-- set to 1/10th the scale 
+	initStateArgs = {
+		bodies = {
+			{
+				R = .0505,
+				P_u = {0,0,0},
+				S_u = {0,0,.0866},
+				pos = {0,0,0},
+			},
+		},
+	},
+	--]]
+	--[[ binary black hole, head-on collision 
+	initStateArgs = {
+		bodies = {
+			{
+				R = .01,
+				P_u = {-.01,0,0},
+				S_u = {0,0,0},
+				pos = {.5,0,0},
+			},
+			{
+				R = .01,
+				P_u = {.01,0,0},
+				S_u = {0,0,0},
+				pos = {-.5,0,0},
+			},
+		},
+	},
+	--]]
+
+	--[[ binary black hole from 2006 Brugmann et al, same as above
+	initStateArgs = {
+		bodies = {
+			{
+				R = .0505,
+				P_u = {0,.0133,0},
+				S_u = {0,0,.0866},
+				pos = {.3257,0,0},
+			},
+			{
+				R = .0505,
+				P_u = {0,-.0133,0},
+				S_u = {0,0,.0866},
+				pos = {-.3257,0,0},
+			},
+		},
+	},
+	--]]
+
+
 	--initState = 'stellar model',
 	--initState = '1D black hole - wormhole form',
+
+	
 	--initState = 'Gowdy waves',
 	--initState = 'testbed - robust',	-- not working with fv solvers
 	--initState = 'testbed - gauge wave',	-- not working with fd solvers
@@ -268,7 +337,7 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -365,7 +434,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
---self.solvers:insert(require 'solver.bssnok-fd'(args))
+self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 
 --self.solvers:insert(require 'solver.nls'(args))

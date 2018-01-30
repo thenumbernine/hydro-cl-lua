@@ -332,7 +332,11 @@ return table{
 ]]
 		end,
 	},
-	{	-- take the schwarzschild and apply a cartesian coordinate transform
+	
+	
+	
+	-- take the schwarzschild and apply a cartesian coordinate transform
+	{	
 		name = 'black hole - Schwarzschild pseudocartesian',
 		init = function(self, solver)
 			solver.eqn:addGuiVars{
@@ -354,6 +358,10 @@ return table{
 ]]
 		end,
 	},
+	
+	
+	
+	
 	{	-- Baumgarte & Shapiro, table 2.1, isotropic coordinates
 		-- also looking at ch 12.2 on binary black hole initial data
 		--[[
@@ -362,37 +370,47 @@ return table{
 		which is used to compute the psi parameter
 		--]]
 		name = 'black hole - isotropic',
-		init = function(self, solver)
-			-- numbers from 2006 Brugmann et al - "Calibration of a Moving Puncture Simulation" (though I'm not using moving puncture method)
-			-- ... and I'm setting them to 1/10th the paper.
-			-- TODO allow rescaling grid within initial conditions.
-			solver.eqn:addGuiVars{
-				{name = 'R', value = .0001},--.0505},-- Schwarzschild radius
-				{name = 'P', value = 0},--.0133},	-- linear momentum 
-				{name = 'S', value = 1},--.0866},	-- angular momentum 
-				{name = 'dist', value = 0},--.3257},	-- separation
+		--[[
+		args:
+			bodies:
+				R = Schwarzschild radius
+				P_u = linear momentum 
+				S_u = angular momentum 
+				pos = separation
+		--]]
+		init = function(self, solver, args)
+			args = args or {}
+			
+			local v = solver.eqn.guiVars
+			self.bodies = args.bodies or {
+				{
+					R = .0001,
+					P_u = {0,0,0},
+					S_u = {0,0,.01},
+					pos = {0,0,0},
+				},
 			}
+			
+			-- TODO allow rescaling grid within initial conditions.
+			--[[ TODO use these instead of bodies ... and have a parameter for # of bodies ... and add/subtract bodies ... 
+			for i,body in ipairs(self.bodies) do
+				local bodyPrefix = i..'.'
+				solver.eqn:addGuiVar{name = bodyPrefix..'R', value = body.R}
+				for j,xj in ipairs(xNames) do
+					solver.eqn:addGuiVar{name = bodyPrefix..'P'..xj, value = body.P_u[j]}
+				end
+				for j,xj in ipairs(xNames) do
+					solver.eqn:addGuiVar{name = bodyPrefix..'S'..xj, value = body.S_u[j]}
+				end
+				for j,xj in ipairs(xNames) do
+					solver.eqn:addGuiVar{name = bodyPrefix..'pos'..xj, value = body.S_u[j]}
+				end
+				solver.eqn:addGuiVar{name = bodyPrefix..'dist', value = body.dist}
+			end
+			--]]
 		end,
 		initState = function(self, solver)
 			solver:setBoundaryMethods'fixed'
-
-			local v = solver.eqn.guiVars
-			local bodies = {
-				{
-					R = v.R.value,
-					P_u = {0,v.P.value,0},
-					S_u = {0,0,v.S.value},
-					pos = {v.dist.value,0,0},
-				},
-				--[[
-				{
-					R = v.R.value,
-					P_u = {0,-v.P.value,0},
-					S_u = {0,0,v.S.value},
-					pos = {-v.dist.value,0,0},
-				},
-				--]]
-			}
 
 			--[[
 			I'm trying to follow 1997 Brandt & Brugmann, but here's what I've gathered:
@@ -502,40 +520,16 @@ return table{
 	}<? end ?>
 
 ]], {
-	bodies = bodies,
+	bodies = self.bodies,
 	clnumber = clnumber,
 })
 		end,
 	},
-	{
-		name = 'binary black holes - isotropic',
-		init = function(self, solver)
-			solver.eqn:addGuiVars{
-				{name = 'R1', value = .01},
-				{name = 'R2', value = .01},
-			}
-		end,
-		initState = function(self, solver)
-			return [[
-	const real R1 = gui_R1;
-	const real R2 = gui_R2;
 	
-	real3 pos1 = x; pos1.x -= .25;
-	real3 pos2 = x; pos2.x += .25;
 	
-	real r1 = real3_lenSq(pos1);
-	real r2 = real3_lenSq(pos2);
-
-	real psi = 1. + .25 * R1 / r1 + .25 * R2 / r2;
-	real psi2 = psi * psi;
-	real psi4 = psi2 * psi2;
-
-	alpha = (1. - .25 * R1 / r1 - .25 * R2 / r2) / psi;
-
-	gamma_ll = sym3_scale(sym3_ident(), psi4);
-]]
-		end,
-	},
+	
+	-- based on ch.23 of 1973 Misner, Thorne, Wheeler "Gravitation"
+	-- TODO add support for multiple bodies
 	{
 		name = 'stellar model',
 		init = function(self, solver)
@@ -595,6 +589,10 @@ return table{
 })
 		end,
 	},
+	
+	
+	
+	
 	--[=[
 	{
 		name = 'stellar model 3',
@@ -624,6 +622,10 @@ return table{
 				bodies={
 					{pos = {0,0,0}, radius = planet.radiusInCoords, mass = planet.massInCoords},
 	--]=]
+	
+	
+	
+	
 	--[[
 	2007 Alic et al "Efficient Implementation of finite volume methods in Numerical Relativity"
 	1D Black Hole in wormhole form
@@ -696,6 +698,10 @@ return table{
 			}
 		end,
 	},
+
+
+
+
 --[[
 2003 Alcubierre et al "Toward standard testbeds for numerical relativity"
 2004 Bona et al "A symmetry-breaking mechanism..."

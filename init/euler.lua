@@ -152,7 +152,7 @@ local initStates = table{
 		end,
 	},
 	{
-		name = 'constant with motion',
+		name = 'constant with velocity',
 		initState = function(self, solver) 
 			return [[
 	rho=1;
@@ -478,6 +478,7 @@ end ?>
 	v.z = sin(theta) * noise;
 #endif
 	v.<?=moveAxis?> += inside * velInside + (1. - inside) * velOutside;
+	v = cartesianFromCoord(v, x);
 	P = backgroundPressure;
 ]],				{
 					solver = solver,

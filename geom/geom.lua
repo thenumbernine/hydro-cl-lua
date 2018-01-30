@@ -618,6 +618,18 @@ real3 cartesianToCoord(real3 v, real3 pt) {
 	<? end ?>
 	return vCoord;
 }
+
+//converts a vector from cartesian to grid
+//by projecting it onto the basis ... ?
+real3 cartesianFromCoord(real3 v, real3 pt) {
+	real3 vGrid = _real3(0,0,0);
+	<? for i=0,solver.dim-1 do ?>{
+		real3 e = coordBasis<?=i?>(pt);
+		vGrid = real3_add(vGrid, real3_scale(e, v.s<?=i?>));
+	}<? end ?>
+	return vGrid;
+}
+
 ]], {
 		solver = solver,
 	}))

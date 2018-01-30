@@ -134,6 +134,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 <? end
 ?>
 
+//|g| = exp(12 phi)
 real calc_det_gamma(global const <?=eqn.cons_t?>* U) {
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	real det_gamma = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
@@ -282,7 +283,82 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	vars:append{
 		{S = '*value = sym3_dot(U->S_ll, calc_gamma_uu(U));'},
 		{volume = '*value = U->alpha * calc_det_gamma(U);'},
-		{expansion = '*value = -U->alpha * U->K;'},
+	
+--[[ expansion:
+2003 Thornburg:  ... from Wald ...
+Theta = n^i_;i + K_ij n^i n^j - K
+= n^i_,i + Gamma^i_ji n^j + K_ij (n^i n^j - gamma^ij)
+... in ADM: n^i = -beta^i / alpha ...
+= (-beta^i / alpha)_,i + Gamma^i_ji (-beta^j / alpha) + K_ij (beta^i beta^j / alpha^2 - gamma^ij)
+= -beta^i_,i / alpha
+	+ beta^i alpha_,i / alpha^2
+	- beta^i (1/2 |g|_,i / |g|) / alpha
+	+ K_ij beta^i beta^j / alpha^2
+	- K
+
+Gamma^j_ij = (ln sqrt(g))_,i = .5 (ln g)_,i = .5 g_,i / g
+
+(det g)_,i / (det g)
+... using phi ...
+=  exp(12 phi)_,i / exp(12 phi)
+= 12 exp(12 phi) phi_,i / exp(12 phi)
+= 12 phi_,i
+... using chi ...
+= (chi^-3)_,i / (chi^-3)
+= -3 chi_,i / chi^4 / (chi^-3)
+= -3 chi_,i / chi
+--]]
+		{expansion = template([[
+<? if eqn.useChi then
+?>	<?=makePartial('chi', 'real')?>
+<? else 
+?>	<?=makePartial('phi', 'real')?>
+<? end
+?>
+	<?=makePartial('alpha', 'real')?>
+	<?=makePartial('beta_u', 'real3')?>
+	real tr_partial_beta = 0. <?
+for i,xi in ipairs(xNames) do
+?> + partial_beta_ul[<?=i-1?>].<?=xi?><?
+end ?>;
+
+	real exp_4phi = 1. / calc_exp_neg4phi(U);
+
+	//gamma_ij = exp(4 phi) gammaBar_ij
+	sym3 gamma_ll = sym3_scale(U->gammaBar_ll, exp_4phi);
+
+	//K_ij = exp(4 phi) ATilde_ij + 1/3 gamma_ij K 
+	sym3 K_ll = sym3_add(
+		sym3_scale(U->ATilde_ll, exp_4phi),
+		sym3_scale(gamma_ll, U->K/3.));
+
+	*value = -tr_partial_beta / U->alpha
+<? 
+for i,xi in ipairs(xNames) do
+?>		 + U->beta_u.<?=xi?> * partial_alpha_l[<?=i-1?>] / (U->alpha * U->alpha) 
+		 - U->beta_u.<?=xi?> * partial_alpha_l[<?=i-1?>] / (U->alpha * U->alpha) 
+<? 	if eqn.useChi then
+?>		- 3. * partial_chi_l[<?=i-1?>] / U->chi
+<? 	else
+?>		+ 12. * partial_phi_l[<?=i-1?>]
+<? 	end
+		?> * -.5 * U->beta_u.<?=xi?> / U->alpha
+<?	for j,xj in ipairs(xNames) do
+?>		+ K_ll.<?=sym(i,j)?> * U->beta_u.<?=xi?> * U->beta_u.<?=xj?> / (U->alpha * U->alpha)
+<?	end
+end
+?>		- U->K;
+]], 			{
+					eqn = self,
+					solver = self.solver,
+					makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
+					xNames = xNames,
+					sym = sym,
+				}
+
+			)
+		},
+		
 		{f = '*value = calc_f(U->alpha);'},
 		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
 		{gamma_x = '*valuevec = real3_scale(sym3_x(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},

@@ -599,6 +599,11 @@ m^phi_,t += -(Conn^phi_phi_r + Conn^phi_r_phi) (rho v^r v^phi + P g^r^phi)
 for cylindrical anholonomic normalized:
 Conn^phi_r_phi = 1/r
 Conn^r_phi_phi = -1/r
+...and the source term becomes...
+m^r_,t += -Conn^r_phi_phi (rho v^phi v^phi + P g^phi^phi)
+   ... += 1/r (rho v^phi v^phi + P)
+m^phi_,t += -1/r (rho v^r v^phi)
+
 
 */
 kernel void addSource(
@@ -611,16 +616,21 @@ kernel void addSource(
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
 #if defined(geometry_cylinder)
-#if 0	// holonomic coriolis force alone	
+
+//these two work with holonomic geometry
+//they maintain constant initial conditions with zero velocity
+//it doesn't work so well with nonzero velocity
+#if 1	// holonomic coriolis force alone		
+	//m^j_,t += -Conn^j_ki (rho v^k v^i + P g^ki)
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
-	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(W.v, x), U->rho));	//-Gamma^i_jk v^j v^k rho
-	deriv->m = real3_add(deriv->m, real3_scale(coord_connTrace(x), W.P));		//+Gamma^i_jk g^jk P
-#elif 1	// holonomic coriolis force alone ... explicitly written out ...
-		// works with holonomic geometry
+	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(W.v, x), U->rho));	//-Conn^i_jk v^j v^k rho
+	deriv->m = real3_sub(deriv->m, real3_scale(coord_connTrace(x), W.P));		//-Conn^i_jk g^jk P = -Conn^i P
+#elif 0	// holonomic coriolis force alone ... explicitly written out for cylindrical geometry ...
 	real r = x.x, theta = x.y, z = x.z;
 	<?=eqn.prim_t?> W = primFromCons(*U, x); 
 	deriv->m.x += r * W.rho * W.v.y * W.v.y + W.P / r;
 	deriv->m.y -= 2. / r * W.rho * W.v.x * W.v.y;
+
 #elif 0	// holonomic: all covariant derivative terms (including the others that should be absorbed into the finite-volume computations)
 	real connTrace = coord_connTrace(x);
 	deriv->rho -= U->rho * connTrace;
@@ -628,16 +638,26 @@ kernel void addSource(
 		real3_sub(deriv->m, real3_scale(coord_conn(U->m, x), 1. / U->rho)),
 		real3_scale(U->m, connTrace));
 	deriv->ETotal -= U->ETotal * connTrace;
-#elif 0	//anholonomic  cylindrical
+#elif 0	//anholonomic
 	real r = x.x, theta = x.y, z = x.z;
 	<?=eqn.prim_t?> W = primFromCons(*U, x); 
 	real HTotal = calc_HTotal(W.P, U->ETotal);
-	//cylinder anholonomic connections: Conn^theta_r_theta = -Conn^r_theta_theta = 1/r
+	//anholonomic: Conn^theta_r_theta = -Conn^r_theta_theta = 1/r
 	deriv->rho -= 1/r * U->m.x;
 	deriv->m.x -= 1/r * (U->m.x * W.v.x);
 	deriv->m.y -= 1/r * (U->m.x * W.v.y);
 	deriv->m.z -= 1/r * (U->m.x * W.v.z);
 	deriv->ETotal -= 1/r * W.v.x * HTotal;
+#elif 0	//anholonomic coriolis force alone ... explicitly written out
+		// doesn't work with anholonomic geometry ... maybe because the volume terms in the flux shouldn't be there / are messed up?
+	real r = x.x, theta = x.y, z = x.z;
+	<?=eqn.prim_t?> W = primFromCons(*U, x); 
+	deriv->m.x += 1./r * (W.rho * W.v.y * W.v.y + W.P);
+	deriv->m.y -= 1./r * W.rho * W.v.x * W.v.y;
 #endif
+#else	//all other geometry -- general case for holonomic coordinates
+	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(W.v, x), U->rho));	//-Conn^i_jk v^j v^k rho
+	deriv->m = real3_sub(deriv->m, real3_scale(coord_connTrace(x), W.P));		//-Conn^i_jk g^jk P = -Conn^i P
 #endif
 }

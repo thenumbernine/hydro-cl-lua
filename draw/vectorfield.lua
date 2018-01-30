@@ -12,7 +12,7 @@ local arrow = {
 	{.5, 0.},
 }
 HydroCLApp.displayVectorField_scale = 1
-HydroCLApp.displayVectorField_step = 4
+HydroCLApp.displayVectorField_step = 1
 function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	self.view:projection(ar)
 	self.view:modelview()
