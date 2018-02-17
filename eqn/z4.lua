@@ -134,7 +134,7 @@ function Z4:getDisplayVars()
 		{expansion = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	*value = -U->alpha * sym3_dot(gammaU, U->K);
+	*value = -sym3_dot(gammaU, U->K);
 ]]		},
 --[=[
 	-- 1998 Bona et al

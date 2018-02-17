@@ -106,7 +106,7 @@ function ADM_BonaMasso_1D_Alcubierre2008:getDisplayVars()
 		{f = '*value = calc_f(U->alpha);'},
 		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
 		{K = '*value = U->KTilde / sqrt(U->gamma_xx);'},
-		{expansion = '*value = -U->alpha * U->KTilde / sqrt(U->gamma_xx);'},
+		{expansion = '*value = -U->KTilde / sqrt(U->gamma_xx);'},
 		{['gravity mag'] = '*value = -U->alpha * U->alpha * U->a_x / U->gamma_xx;'},
 	
 		{['alpha vs a_x'] = [[

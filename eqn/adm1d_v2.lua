@@ -179,7 +179,7 @@ function ADM_BonaMasso_1D_Alcubierre1997:getDisplayVars()
 		{f = '*value = calc_f(U->alpha);'},
 		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
 		{K = '*value = U->K_xx / U->gamma_xx;'},
-		{expansion = '*value = -U->alpha * U->K_xx / U->gamma_xx;'},
+		{expansion = '*value = -U->K_xx / U->gamma_xx;'},
 		{['gravity mag'] = '*value = -U->alpha * U->alpha * U->a_x / U->gamma_xx;'},
 	
 		{['alpha vs a_x'] = [[
