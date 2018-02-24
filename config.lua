@@ -1,4 +1,4 @@
-local dim = 3
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -58,7 +58,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{64,64,1},
+				{32,32,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -434,7 +434,10 @@ maxs = {6,1,1},
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-self.solvers:insert(require 'solver.bssnok-fd'(args))
+--self.solvers:insert(require 'solver.bssnok-fd'(args))
+
+-- TODO Z4c, combining BSSNOK and Z4
+self.solvers:insert(require 'solver.z4c-fd'(args))
 
 
 --self.solvers:insert(require 'solver.nls'(args))

@@ -1,6 +1,5 @@
 /*
-Baumgarte & Shapiro "Numerical Relativity: Solving Einstein's Equations on the Computer" 2010
-Alcubierre "Introduction to Numerical Relativity" 2008
+2011 Cao, Hilditch "Numerical stability of the Z4c formulation of general relativity"
 */
 
 <? local calcConstraints = true ?>
@@ -79,12 +78,8 @@ kernel void calcDeriv(
 	}<? end ?>
 
 <?=makePartial('alpha', 'real')?>		//partial_alpha_l[i] := alpha_,i
-<? if eqn.useChi then ?>
 <?=makePartial('chi', 'real')?>			//partial_chi_l[i] := chi_,i 
 <?=makePartial('gammaBar_uu', 'sym3')?>	//partial_gammaBar_uul[k].ij = gamma^ij_,k
-<? else ?>
-<?=makePartial('phi', 'real')?>			//partial_phi_l[i] := phi_,i 
-<? end ?>
 <?=makePartial('K', 'real')	?>			//partial_K_l[i] := K,i
 <?=makePartial('beta_u', 'real3')?>		//partial_beta_ul[j].i := beta^i_,j
 <?=makePartial('connBar_u', 'real3')?>	//partial_connBar_ul[j].i := connBar^i_,j
@@ -100,11 +95,7 @@ for i,xi in ipairs(xNames) do
 end ?>;
 
 <?=makePartial2('alpha', 'real')?>			//partial2_alpha_ll.ij := alpha_,ij
-<? if eqn.useChi then ?>
 <?=makePartial2('chi', 'real')?>			//partial2_chi_ll.ij := chi_,ij
-<? else ?>
-<?=makePartial2('phi', 'real')?>			//partial2_phi_ll.ij := phi_,ij
-<? end ?>
 <?=makePartial2('gammaBar_ll', 'sym3')?>	//partial2_gammaBar_llll[kl].ij = gammaBar_ij,kl
 <?=makePartial2('beta_u', 'real3')?>		//partial2_beta_ull[jk].i = beta^i_,jk
 
@@ -112,7 +103,6 @@ end ?>;
 	//TODO minimize using these 
 	real exp_4phi = 1. / exp_neg4phi;
 
-<? if eqn.useChi then ?>
 	real partial_phi_l[3] = {
 <? for i,xi in ipairs(xNames) do
 ?>		-partial_chi_l[<?=i-1?>] / (4. * U->chi),
@@ -125,7 +115,6 @@ end ?>;
 ?>		.25 * (-partial2_chi_ll[<?=ij-1?>] + partial_chi_l[<?=i-1?>] * partial_chi_l[<?=j-1?>] / U->chi) / U->chi,
 <? end
 ?>	};
-<? end ?>
 	
 	//gamma_ij = exp(4 phi) gammaBar_ij
 	//only used in K_ll calculation for H constraint
@@ -155,9 +144,8 @@ end
 
 	//from 2006 Campanelli "connBar^i is replaced by -gammaBar^ij_j wherever it is not differentiated"
 	// TODO ... but do that, I should track gammaBar^ij ...
-<? 
-if eqn.useChi then
-?>	real3 connBar_u = _real3(0,0,0);
+ 
+	real3 connBar_u = _real3(0,0,0);
 	//connBar^i = -gammaBar^ij_,j
 <?	for i,xi in ipairs(xNames) do
 ?>	connBar_u.<?=xi?> =<?
@@ -167,11 +155,7 @@ if eqn.useChi then
 ?>;
 <?
 	end
-else	-- not eqn.useChi
-?>	real3 connBar_u = U->connBar_u;
-<? 
-end
-?>
+?>	
 	//DBar^i phi = gammaBar^ij phi_,j
 	real3 DBar_phi_u = sym3_real3_mul(U->gammaBar_uu, *(real3*)partial_phi_l);
 
@@ -198,9 +182,6 @@ for i,xi in ipairs(xNames) do
 end
 ?>
 
-<? 
-if eqn.useChi then
-?>	
 	real partial_chi_bardot_partial_alpha = real3_weightedDot( *(real3*)partial_chi_l, *(real3*)partial_alpha_l, U->gammaBar_uu);
 	
 	//chi D_i D_j alpha = alpha,ij - connBar^k_ij alpha,k + 1/(2 chi) (alpha,i chi,j + alpha,j chi,i - gammaBar_ij gammaBar^kl alpha,k chi,l)
@@ -232,24 +213,6 @@ if eqn.useChi then
 ?>	real tr_D2_alpha = sym3_dot(U->gammaBar_uu, chi_D2_alpha_ll);
 
 <?	end
-else	-- not eqn.useChi
-?>	
-	
-	//D2_alpha_ll.ij = D_i D_j alpha = partial_i partial_j alpha - conn^k_ij partial_k alpha
-	sym3 D2_alpha_ll = _sym3(0,0,0,0,0,0);
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-?>	D2_alpha_ll.<?=xij?> = partial2_alpha_ll[<?=ij-1?>]<?
-	for k,xk in ipairs(xNames) do 
-?> - conn_ull.<?=xk?>.<?=xij?> * partial_alpha_l[<?=k-1?>]<?
-	end ?>;
-<? 
-end
-?>
-
-	//gamma^ij D_i D_j alpha
-	real tr_D2_alpha = sym3_dot(gamma_uu, D2_alpha_ll);
-<? end	-- eqn.useChi
 ?>
 
 	//Alcubierre 4.2.52 - Bona-Masso family of slicing
@@ -260,16 +223,9 @@ end
 	//alpha,t = -alpha^2 Q + alpha,i beta^i
 	deriv->alpha += -U->alpha * U->alpha * Q + real3_dot(*(real3*)partial_alpha_l, U->beta_u);
 
-<? if eqn.useChi then ?>
 	//2006 Campanelli eqn 2
 	//chi,t = 2/3 chi (alpha K - beta^i_,i) + beta^i chi_,i
 	deriv->chi += 2./3. * U->chi * (U->alpha * U->K - tr_partial_beta) + real3_dot(U->beta_u, *(real3*)partial_chi_l); 
-<? else ?>
-	//B&S 11.50
-	//Alcubierre 2.8.10
-	//phi,t = -1/6 alpha K + beta^i phi,i + 1/6 beta^i_,i
-	deriv->phi += -U->alpha * U->K / 6. + real3_dot(U->beta_u, *(real3*)partial_phi_l) + tr_partial_beta / 6.;
-<? end ?>
 
 	//B&S 11.51
 	//Alcubierre 2.8.9
@@ -384,8 +340,6 @@ end
 	
 	sym3 R_ll = sym3_add(RPhi_ll, RBar_ll);
 
-<? if eqn.useChi then
-?>
 	//TODO instead of R_ll, add in chi_tf_RPhi and chi_tf_RBar_ll
 	//then factor out one of the chis 
 	
@@ -412,33 +366,6 @@ end
 	);
 
 	sym3 chi_tracelessPart_ll = sym3_add(tf_chi_alpha_R_minus_S, chi_tf_D2_alpha);
-
-<? else
-?>
-	//traceless portion of -D^2 alpha + alpha (R_ij - 8 pi S_ij)
-	//...times chi = exp(-4 phi)
-#if 1	//all at once
-	sym3 tracelessPart_ll = sym3_sub(
-		sym3_scale(
-			sym3_add(R_ll, sym3_scale(U->S_ll, -8. * M_PI)), 
-			U->alpha),
-		D2_alpha_ll);
-	tracelessPart_ll = tracefree(tracelessPart_ll, U->gammaBar_ll, U->gammaBar_uu);
-#else	//each term separately
-	sym3 tracelessPart_ll = sym3_sub(
-		sym3_scale(
-			sym3_add(
-				tracefree(R_ll, gamma_ll, gamma_uu),
-				sym3_scale(
-					tracefree(U->S_ll, gamma_ll, gamma_uu), 
-					-8. * M_PI)), 
-			U->alpha),
-		tracefree(D2_alpha_ll, gamma_ll, gamma_uu)
-	);
-#endif
-	sym3 chi_tracelessPart_ll = sym3_scale(tracelessPart_ll, exp_neg4phi);
-<? end
-?>
 
 	//B&S 11.53
 	//Alcubierre 2.8.11
