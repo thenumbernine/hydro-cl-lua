@@ -29,7 +29,8 @@ local intVars = table{
 	{beta_u = 'real3'},         -- 3: beta^i
 	{gammaBar_ll = 'sym3'},		-- 6: gammaBar_ij, only 5 dof since det gammaBar_ij = 1
 	{chi = 'real'},				-- 1
-	{K = 'real'},               -- 1
+	{KHat = 'real'},			-- 1
+	{Theta = 'real'},			-- 1
 	{ATilde_ll = 'sym3'},       -- 6: ATilde_ij, only 5 dof since ATilde^k_k = 0
 	{connBar_u = 'real3'},      -- 3: connBar^i = gammaBar^jk connBar^i_jk = -partial_j gammaBar^ij
 }
@@ -99,7 +100,8 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	U->beta_u = _real3(0,0,0);
 	U->gammaBar_ll = _sym3(1,0,0,1,0,1);
 	U->chi = 1;
-	U->K = 0;
+	U->KHat = 0;
+	U->Theta = 0;
 	U->ATilde_ll = _sym3(1,0,0,1,0,1);
 	U->connBar_u = _real3(0,0,0);
 <? if eqn.useHypGammaDriver then
@@ -185,8 +187,11 @@ kernel void initState(
 ?>	
 ]]..[[	
 
-	U->K = sym3_dot(K_ll, gamma_uu);
-	sym3 A_ll = sym3_sub(K_ll, sym3_scale(gamma_ll, 1./3. * U->K));
+	U->Theta = 0.;	//TODO ... Theta = -Z^mu n_mu = alpha * Z^t ... which is?
+
+	real K = sym3_dot(K_ll, gamma_uu);
+	U->KHat = K - 2. * U->Theta;
+	sym3 A_ll = sym3_sub(K_ll, sym3_scale(gamma_ll, 1./3. * K));
 	U->ATilde_ll = sym3_scale(A_ll, exp_neg4phi);
 	
 	U->rho = rho;
@@ -214,7 +219,8 @@ kernel void initDerivs(
 
 <?=makePartial('gammaBar_uu', 'sym3')?>
 
-	//connBar^i = -gammaBar^ij_,j
+	//connBar^i = -gammaBar^ij_,j + 2 gammaBar^ij Z_j
+	//...= gammaBar_jk,l gammaBar^ij gammaBar^kl + 2 gammaBar^ij Z_j
 <? for i,xi in ipairs(xNames) do
 ?>	U->connBar_u.<?=xi?> =<?
 	for j,xj in ipairs(xNames) do
@@ -301,10 +307,13 @@ end ?>;
 	//gamma_ij = exp(4 phi) gammaBar_ij
 	sym3 gamma_ll = sym3_scale(U->gammaBar_ll, exp_4phi);
 
+	//K = KHat + 2 Theta
+	real K = U->KHat + 2. * U->Theta;
+
 	//K_ij = exp(4 phi) ATilde_ij + 1/3 gamma_ij K 
 	sym3 K_ll = sym3_add(
 		sym3_scale(U->ATilde_ll, exp_4phi),
-		sym3_scale(gamma_ll, U->K/3.));
+		sym3_scale(gamma_ll, K/3.));
 
 	*value = -tr_partial_beta / U->alpha
 <? 
@@ -316,7 +325,7 @@ for i,xi in ipairs(xNames) do
 ?>		+ K_ll.<?=sym(i,j)?> * U->beta_u.<?=xi?> * U->beta_u.<?=xj?> / (U->alpha * U->alpha)
 <?	end
 end
-?>		- U->K;
+?>		- K;
 ]], 			{
 					eqn = self,
 					solver = self.solver,
@@ -333,9 +342,9 @@ end
 		{gamma_x = '*valuevec = real3_scale(sym3_x(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},
 		{gamma_y = '*valuevec = real3_scale(sym3_y(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},
 		{gamma_z = '*valuevec = real3_scale(sym3_z(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},
-		{K_x = '*valuevec = real3_add(sym3_x(U->ATilde_ll), real3_scale(sym3_x(U->gammaBar_ll), U->K/3.));', type='real3'},
-		{K_y = '*valuevec = real3_add(sym3_y(U->ATilde_ll), real3_scale(sym3_y(U->gammaBar_ll), U->K/3.));', type='real3'},
-		{K_z = '*valuevec = real3_add(sym3_z(U->ATilde_ll), real3_scale(sym3_z(U->gammaBar_ll), U->K/3.));', type='real3'},
+		{K_x = '*valuevec = real3_add(sym3_x(U->ATilde_ll), real3_scale(sym3_x(U->gammaBar_ll), (U->KHat + 2. * U->Theta)/3.));', type='real3'},
+		{K_y = '*valuevec = real3_add(sym3_y(U->ATilde_ll), real3_scale(sym3_y(U->gammaBar_ll), (U->KHat + 2. * U->Theta)/3.));', type='real3'},
+		{K_z = '*valuevec = real3_add(sym3_z(U->ATilde_ll), real3_scale(sym3_z(U->gammaBar_ll), (U->KHat + 2. * U->Theta)/3.));', type='real3'},
 
 		--[[ ADM geodesic equation spatial terms:
 		-Gamma^i_tt = 

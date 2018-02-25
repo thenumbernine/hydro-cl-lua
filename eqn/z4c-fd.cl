@@ -79,8 +79,9 @@ kernel void calcDeriv(
 
 <?=makePartial('alpha', 'real')?>		//partial_alpha_l[i] := alpha_,i
 <?=makePartial('chi', 'real')?>			//partial_chi_l[i] := chi_,i 
+<?=makePartial('Theta', 'real')?>		//partial_Theta_l[i] := Theta_,i 
 <?=makePartial('gammaBar_uu', 'sym3')?>	//partial_gammaBar_uul[k].ij = gamma^ij_,k
-<?=makePartial('K', 'real')	?>			//partial_K_l[i] := K,i
+<?=makePartial('KHat', 'real')	?>		//partial_KHat_l[i] := KHat,i
 <?=makePartial('beta_u', 'real3')?>		//partial_beta_ul[j].i := beta^i_,j
 <?=makePartial('connBar_u', 'real3')?>	//partial_connBar_ul[j].i := connBar^i_,j
 <?=makePartial('gammaBar_ll', 'sym3')?>	//partial_gammaBar[k].ij := gammaBar_ij,k
@@ -215,17 +216,22 @@ end
 <?	end
 ?>
 
+	//2011 Cao eqn 11
+	//KHat = K - 2 Theta
+	//K = KHat + 2 Theta
+	real K = U->KHat + 2. * U->Theta;
+
 	//Alcubierre 4.2.52 - Bona-Masso family of slicing
 	//Q = f(alpha) K
-	real Q = calc_f(U->alpha) * U->K;
+	real Q = calc_f(U->alpha) * K;
 	
 	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
 	//alpha,t = -alpha^2 Q + alpha,i beta^i
 	deriv->alpha += -U->alpha * U->alpha * Q + real3_dot(*(real3*)partial_alpha_l, U->beta_u);
 
-	//2006 Campanelli eqn 2
-	//chi,t = 2/3 chi (alpha K - beta^i_,i) + beta^i chi_,i
-	deriv->chi += 2./3. * U->chi * (U->alpha * U->K - tr_partial_beta) + real3_dot(U->beta_u, *(real3*)partial_chi_l); 
+	//2011 Cao eqn 12
+	//chi,t = 2/3 chi (alpha (KHat + 2 Theta) - beta^i_,i) + chi_,j beta^j
+	deriv->chi += 2./3. * U->chi * (U->alpha * K - tr_partial_beta) + real3_dot(*(real3*)partial_chi_l, U->beta_u);
 
 	//B&S 11.51
 	//Alcubierre 2.8.9
@@ -247,14 +253,19 @@ end
 	real tr_ATilde_sq = sym3_dot(U->ATilde_ll, ATilde_uu);			//tr_ATilde_sq := tr(ATilde^2) = ATilde_ij ATilde^ji
 	
 	real S = sym3_dot(U->S_ll, gamma_uu);
-	
-	//B&S 11.52
-	//Alcubierre 2.8.12
-	//K_,t = -gamma^ij D_i D_j alpha + alpha (ATilde_ij ATilde^ij + K^2 / 3) + 4 pi alpha (rho + S) + beta^i K_,i
-	deriv->K += -tr_D2_alpha
-		+ U->alpha * (tr_ATilde_sq + U->K * U->K / 3.) 
+
+	const real kappa1 = 1.;
+	const real kappa2 = 0.;
+	//2011 Cao eqn 14
+	//KHat_,t = -gamma^ij D_i D_j alpha 
+	//			+ alpha (ATilde_ij ATilde^ij + 1/3 (KTilde + 2 Theta)^2
+	//				+ kappa1 (1 - kappa2) Theta)
+	//			+ 4 pi alpha (S + rho_ADM) + beta^i KHat_,i
+	deriv->KHat += -tr_D2_alpha
+		+ U->alpha * (tr_ATilde_sq + K * K / 3.) 
+		+ kappa1 * (1. - kappa2) * U->Theta
 		+ 4. * M_PI * U->alpha * (U->rho + S) 
-		+ real3_dot(U->beta_u, *(real3*)partial_K_l);
+		+ real3_dot(U->beta_u, *(real3*)partial_KHat_l);
 
 	//tr_partial2_gammaBar_ll.ij = gammaBar^kl gammaBar_ij,kl
 	sym3 tr_partial2_gammaBar_ll;	
@@ -381,7 +392,7 @@ end
 	local xi = xNames[i]
 	local xj = xNames[j]
 ?>	deriv->ATilde_ll.<?=xij?> += chi_tracelessPart_ll.<?=xij?>
-		+ U->alpha * U->K * U->ATilde_ll.<?=xij?> 
+		+ U->alpha * K * U->ATilde_ll.<?=xij?> 
 <?	for k,xk in ipairs(xNames) do
 ?>		- 2. * U->alpha * U->ATilde_ll.<?=sym(i,k)?> * ATilde_ul.<?=xk?>.<?=xj?>
 		+ partial_ATilde_lll[<?=k-1?>].<?=xij?> * U->beta_u.<?=xk?>
@@ -392,6 +403,13 @@ end
 <? end
 ?>
 	
+	//K,i = KHat__,i + 2 Theta_,i
+	real3 partial_K_l = real3_add(
+		*(real3*)partial_KHat_l,
+		real3_scale(
+			*(real3*)partial_Theta_l,
+			2.));
+
 	//connBar^i is the connection function / connection coefficient iteration with Hamiltonian constraint baked in (Baumgarte & Shapiro p.389, Alcubierre p.86).
 	//B&S 11.55
 	//Alcubierre 2.8.25
@@ -418,7 +436,7 @@ end
 		local jj = from3x3to6(j,j)
 ?>		- 2. * ATilde_uu.<?=xij?> * partial_alpha_l[<?=j-1?>]
 		+ 2. * U->alpha * (
-			-2./3. * U->gammaBar_uu.<?=xij?> * partial_K_l[<?=j-1?>] 
+			-2./3. * U->gammaBar_uu.<?=xij?> * partial_K_l.<?=xj?> 
 			+ 6. * ATilde_uu.<?=xij?> * partial_phi_l[<?=j-1?>])
 		+ U->beta_u.<?=xi?> * partial_connBar_ul[<?=j-1?>].<?=xi?>
 		- connBar_u.<?=xj?> * partial_beta_ul[<?=j-1?>].<?=xi?>
@@ -472,8 +490,6 @@ end
 	end
 end ?>
 
-<? if calcConstraints then ?>
-	
 #if 0
 	real RBar = sym3_dot(U->gammaBar_uu, RBar_ll);
 	real exp_phi = exp(U->phi);
@@ -514,25 +530,31 @@ end ?>
 		- 1./8. * RBar
 		+ exp_4phi * (
 			+ 1./8. * tr_ATilde_sq
-			- 1./12. * U->K * U->K
+			- 1./12. * K * K
 			+ 2. * M_PI * U->rho
 		)
 	);
 #endif
 #if 1
 	real R = sym3_dot(gamma_uu, R_ll);	//R = gamma^ij R_ij
-	
+
+	//2011 Cao eqn 16
+	deriv->Theta = .5 * U->alpha * (
+		R - tr_ATilde_sq + 2. / 3. * K - 16. * M_PI * U->rho 
+		- 2. * kappa1 * (2. + kappa2) * U->Theta
+	) + real3_dot(*(real3*)partial_Theta_l, U->beta_u);
+
 	//K_ij = A_ij + 1/3 gamma_ij K 
 	//A_ij = exp(4 phi) ATilde_ij
 	//K_ij = exp(4 phi) ATilde_ij + 1/3 gamma_ij K 
 	sym3 K_ll = sym3_add(
 		sym3_scale(U->ATilde_ll, exp_4phi),
-		sym3_scale(gamma_ll, U->K/3.));
+		sym3_scale(gamma_ll, K/3.));
 	mat3 K_ul = sym3_sym3_mul(gamma_uu, K_ll);
 	sym3 K_uu = mat3_sym3_to_sym3_mul(K_ul, gamma_uu);
 	
 	//Alcubierre 3.1.1
-	U->H = R + U->K * U->K - sym3_dot(K_uu, K_ll) - 16. * M_PI * U->rho;
+	U->H = R + K * K - sym3_dot(K_uu, K_ll) - 16. * M_PI * U->rho;
 #endif
 
 #if 0
@@ -557,7 +579,6 @@ end ?>
 	//0 = M^i = DBar_j (e^(6 phi) ATilde^ij) - 2/3 e^(6 phi) DBar^i K - 8 pi e^(6 phi) S^i
 #endif
 
-<? end	--calcConstraints ?>
 }
 
 kernel void addSource(
