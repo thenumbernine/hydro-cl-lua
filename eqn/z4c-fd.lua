@@ -22,7 +22,7 @@ Z4cFiniteDifferenceEquation.hasEigenCode = true
 
 -- needs to be defined up front
 -- otherwise rebuild intVars based on it ...
-Z4cFiniteDifferenceEquation.useHypGammaDriver = true
+Z4cFiniteDifferenceEquation.useHypGammaDriver = false
 
 local intVars = table{
 	{alpha = 'real'},			-- 1
@@ -72,7 +72,7 @@ function Z4cFiniteDifferenceEquation:createInitState()
 	self:addGuiVars{
 		{name='constrain_det_gammaBar_ll', value=true},
 		{name='constrain_tr_ATilde_ll', value=true},
-		{name='useGammaDriver', value=false},
+		{name='useGammaDriver', value=true},
 		{name='diffuseSigma', value=.01},
 	}
 end

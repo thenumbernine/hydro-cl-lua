@@ -223,7 +223,9 @@ end
 
 	//Alcubierre 4.2.52 - Bona-Masso family of slicing
 	//Q = f(alpha) K
-	real Q = calc_f(U->alpha) * K;
+	//2011 Cao eqn 22 ... where f == mu_L
+	//2011 Cau before eqn 24 ... mu_L = 2 / alpha
+	real Q = calc_f(U->alpha) * U->KHat;
 	
 	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
 	//alpha,t = -alpha^2 Q + alpha,i beta^i
@@ -463,14 +465,18 @@ end
 ?>
 <? if eqn.guiVars.useGammaDriver.value then ?>
 	//Gamma-driver
-	//B&S 4.82
-	//beta^i_,t = k (connBar^i_,t + eta connBar^i)
-	const real k = 0.;//3./4.;
-	const real eta = 0.;	// 1 / (2 M), for total mass M
-	deriv->beta_u = real3_add(deriv->beta_u,
-		real3_add(
-			real3_scale(dt_connBar_u, k),
-			real3_scale(connBar_u, eta)));
+	//2011 Cao eqn 23
+	//beta^i_,t = mu_S alpha^2 connBar^i - eta beta^i + beta^j beta^i_,j
+	real mu_S = 1. / (U->alpha * U->alpha);
+	real eta = .01;
+<? for i,xi in ipairs(xNames) do
+?>	deriv->beta_u.<?=xi?> += U->connBar_u.<?=xi?> * mu_S * U->alpha * U->alpha
+		- eta * U->beta_u.<?=xi?>
+<?	for j,xj in ipairs(xNames) do
+?>		+ partial_beta_ul[<?=j-1?>].<?=xi?> * U->beta_u.<?=xj?>
+<?	end ?>;
+<? end ?>
+	
 <? end ?>
 <? if eqn.useHypGammaDriver then ?>
 	//hyperbolic Gamma driver 
@@ -539,7 +545,7 @@ end ?>
 	real R = sym3_dot(gamma_uu, R_ll);	//R = gamma^ij R_ij
 
 	//2011 Cao eqn 16
-	deriv->Theta = .5 * U->alpha * (
+	deriv->Theta += .5 * U->alpha * (
 		R - tr_ATilde_sq + 2. / 3. * K - 16. * M_PI * U->rho 
 		- 2. * kappa1 * (2. + kappa2) * U->Theta
 	) + real3_dot(*(real3*)partial_Theta_l, U->beta_u);
