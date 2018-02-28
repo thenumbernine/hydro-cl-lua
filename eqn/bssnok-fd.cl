@@ -71,13 +71,6 @@ kernel void calcDeriv(
 
 	<?=calcConstraints and '' or 'const '?>global <?=eqn.cons_t?>* U = UBuf + index;
 
-	const global <?=eqn.cons_t?>* Up[dim];
-	const global <?=eqn.cons_t?>* Um[dim];
-	<? for i=0,solver.dim-1 do ?>{
-		Up[<?=i?>] = U + stepsize.s<?=i?>;
-		Um[<?=i?>] = U - stepsize.s<?=i?>;
-	}<? end ?>
-
 <?=makePartial('alpha', 'real')?>		//partial_alpha_l[i] := alpha_,i
 <? if eqn.useChi then ?>
 <?=makePartial('chi', 'real')?>			//partial_chi_l[i] := chi_,i 

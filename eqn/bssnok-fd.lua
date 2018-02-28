@@ -225,13 +225,6 @@ kernel void initDerivs(
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
-	
-	const global <?=eqn.cons_t?>* Up[dim];
-	const global <?=eqn.cons_t?>* Um[dim];
-	<? for j=0,solver.dim-1 do ?>{
-		Up[<?=j?>] = U + stepsize.s<?=j?>;
-		Um[<?=j?>] = U - stepsize.s<?=j?>;
-	}<? end ?>
 
 <?=makePartial('gammaBar_uu', 'sym3')?>
 

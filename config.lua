@@ -58,7 +58,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{32,32,1},
+				{128,128,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -206,7 +206,7 @@ maxs = {6,1,1},
 
 	-- MHD-only init states: (that use 'b')
 	--initState = 'Brio-Wu',
-	--initState = 'Orszag-Tang',
+	initState = 'Orszag-Tang',
 	
 	-- Maxwell:
 	--initState = 'Maxwell default',
@@ -250,9 +250,9 @@ maxs = {6,1,1},
 	--initState = 'black hole - Schwarzschild pseudocartesian',
 	
 	
-	initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
+	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 
-	-- [[ single black hole, spinning, demonstrating ergosphere formation
+	--[[ single black hole, spinning, demonstrating ergosphere formation
 	initStateArgs = {
 		bodies = {
 			{
@@ -383,7 +383,7 @@ maxs = {6,1,1},
 --  I need to rework eqn/mhd.cl to implement eigen_forSide
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
 
 -- Maxwell
 -- when the state is nonzero, at certain sizes there appear errors in the corners
@@ -437,7 +437,7 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- TODO Z4c, combining BSSNOK and Z4
-self.solvers:insert(require 'solver.z4c-fd'(args))
+--self.solvers:insert(require 'solver.z4c-fd'(args))
 
 
 --self.solvers:insert(require 'solver.nls'(args))

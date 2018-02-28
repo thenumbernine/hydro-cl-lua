@@ -292,7 +292,7 @@ end
 	F.m = real3_sub(real3_scale(U.m, vj), real3_scale(U.B, Bj / mu0));
 	F.m.s<?=side?> += PTotal;
 	F.B = real3_sub(real3_scale(U.B, vj), real3_scale(W.v, Bj));
-	F.B.s<?=side?> += F.BPot;
+	F.B.s<?=side?> += F.psi;
 	F.ETotal = HTotal * vj - BDotV * Bj / mu0;
 
 <? if not eqn.useFixedCh then ?>
@@ -304,7 +304,7 @@ end
 	}<? end ?>
 <? end ?>
 
-	F.BPot = Ch * Ch;
+	F.psi = Ch * Ch;
 	return F;
 }
 <? end ?>
@@ -449,8 +449,8 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	result[7] = inputU.B.x * .5;
 	result[8] = inputU.B.x * .5;
 	if (Ch != 0) {
-		result[7] += inputU.BPot * -.5 / Ch;
-		result[8] += inputU.BPot * .5 / Ch;
+		result[7] += inputU.psi * -.5 / Ch;
+		result[8] += inputU.psi * .5 / Ch;
 	}
 }
 
@@ -551,7 +551,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ input[4] * r73
 		+ input[5] * r72
 		+ input[6] * r71;
-	resultU.BPot = 
+	resultU.psi = 
 		  input[7] * -Ch
 		+ input[8] * Ch;
 	*(<?=addr0?> <?=eqn.cons_t?>*)result = cons_swapTo<?=side?>(resultU);
@@ -620,7 +620,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ inputU.m.x * B.z * _1_rho
 		+ inputU.m.z * -B.x * _1_rho
 		+ inputU.B.z * v.x;
-	resultU.BPot = inputU.BPot;
+	resultU.psi = inputU.psi;
 	*(<?=addr0?> <?=eqn.cons_t?>*)result = cons_swapTo<?=side?>(resultU);
 }
 <?				end
@@ -647,7 +647,7 @@ kernel void addSource(
 	}<? end ?>
 <? end ?>
 
-	deriv->BPot -= Ch * Ch / (Cp * Cp) * U->BPot;
+	deriv->psi -= Ch * Ch / (Cp * Cp) * U->psi;
 }
 
 kernel void constrainU(
@@ -697,7 +697,7 @@ void apply_dU_dW(
 			+ WA->rho * real3_dot(W->v, WA->v)
 			+ real3_dot(W->B, WA->B) / mu0
 			+ W->P / (heatCapacityRatio - 1.),
-		.BPot = W->BPot,
+		.psi = W->psi,
 	};
 }
 
@@ -722,6 +722,6 @@ void apply_dW_dU(
 			- real3_dot(U->m, WA->v)
 			- real3_dot(U->B, WA->B) / mu0
 			+ U->ETotal),
-		.BPot = U->BPot,
+		.psi = U->psi,
 	};
 }

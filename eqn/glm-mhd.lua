@@ -15,7 +15,7 @@ GLM_MHD.primVars = table{
 	{v = 'real3'},
 	{P = 'real'},
 	{B = 'real3'},
-	{BPot = 'real'},
+	{psi = 'real'},
 }
 
 GLM_MHD.consVars = table{
@@ -23,7 +23,7 @@ GLM_MHD.consVars = table{
 	{m = 'real3'},
 	{ETotal = 'real'},
 	{B = 'real3'},
-	{BPot = 'real'},
+	{psi = 'real'},
 }
 
 GLM_MHD.mirrorVars = {{'m.x', 'B.x'}, {'m.y', 'B.y'}, {'m.z', 'B.z'}}
@@ -85,7 +85,7 @@ inline <?=eqn.prim_t?> primFromCons(
 	W.P = EInt * (heatCapacityRatio - 1.);
 	W.P = max(W.P, (real)1e-7);
 	W.rho = max(W.rho, (real)1e-7);
-	W.BPot = U.BPot;
+	W.psi = U.psi;
 	return W;
 }
 
@@ -100,7 +100,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	real EMag = .5 * BSq;
 	real EInt = W.P / (heatCapacityRatio - 1.);
 	U.ETotal = EInt + EKin + EMag;
-	U.BPot = W.BPot;
+	U.psi = W.psi;
 	return U;
 }
 ]], {
@@ -131,11 +131,27 @@ kernel void initState(
 
 	<?=code?>
 	
-	<?=eqn.prim_t?> W = {.rho=rho, .v=v, .P=P, .B=B, .BPot=0};
+	<?=eqn.prim_t?> W = {.rho=rho, .v=v, .P=P, .B=B, .psi=0};
 	UBuf[index] = consFromPrim(W, x);
 }
 
-#warning TODO initDerivs to initialize BPot
+kernel void initDerivs(
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+	real3 x = cell_x(i);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+	U->psi = .5 * (0.
+<? 
+for j=0,solver.dim-1 do 
+?>		+ (U[stepsize.s<?=j?>].B.s<?=j?> 
+			- U[-stepsize.s<?=j?>].B.s<?=j?>
+		) / grid_dx<?=j?>
+<? 
+end 
+?>	);
+}
 ]]
 
 function GLM_MHD:getSolverCode()
