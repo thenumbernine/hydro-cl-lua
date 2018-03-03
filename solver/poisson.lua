@@ -112,15 +112,15 @@ function Poisson:updateGUI()
 	if ig.igCollapsingHeader'Poisson solver' then
 		if tooltip.checkboxTable('stop on epsilon', self, 'stopOnEpsilon') then
 			-- TODO just recompile the poisson program?
-			solver:refreshSolverProgram()
+			self.solver:refreshSolverProgram()
 		end
 		ig.igSameLine()
 		tooltip.numberTable('epsilon', self, 'stopEpsilon')
 		tooltip.intTable('maxiter', self, 'maxIters')
 		if self.stopOnEpsilon then
-			ig.igText('err = '..self.lastEpsilon)
+			ig.igText('err = '..tostring(self.lastEpsilon))
 		end
-		ig.igText('iter = '..self.lastIter)
+		ig.igText('iter = '..tostring(self.lastIter))
 	end
 	ig.igPopId()
 end

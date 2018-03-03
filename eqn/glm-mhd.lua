@@ -45,7 +45,7 @@ GLM_MHD.guiVars = table{
 }
 
 if GLM_MHD.useFixedCh then
-	GLM_MHD.guiVars:insert{name='Ch', value=0}
+	GLM_MHD.guiVars:insert{name='Ch', value=.1}
 end
 
 function GLM_MHD:getCodePrefix()

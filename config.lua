@@ -4,7 +4,7 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -16,12 +16,12 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	--integrator = 'backward Euler',
+	integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	--cfl = .25/dim,
 	
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
@@ -29,7 +29,7 @@ local args = {
 	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
 	--usePLM = 'plm-eig',			-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
 	--usePLM = 'plm-eig-prim',		-- works in primitive eigenspace, etc
-	--usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max
+	usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max
 	--usePLM = 'plm-athena',		-- based on Athena, idk about this one
 	--usePLM = 'ppm-experimental',	-- one more attempt to figure out all the PLM stuff, but I didn't get far
 
@@ -58,7 +58,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{128,128,1},
+				{64,64,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -169,7 +169,7 @@ maxs = {6,1,1},
 	--initState = 'constant with velocity',
 	--initState = 'linear',
 	--initState = 'gaussian',
-	--initState = 'advect wave',
+	initState = 'advect wave',
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
@@ -206,7 +206,7 @@ maxs = {6,1,1},
 
 	-- MHD-only init states: (that use 'b')
 	--initState = 'Brio-Wu',
-	initState = 'Orszag-Tang',
+	--initState = 'Orszag-Tang',
 	
 	-- Maxwell:
 	--initState = 'Maxwell default',
@@ -337,7 +337,7 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -383,7 +383,7 @@ maxs = {6,1,1},
 --  I need to rework eqn/mhd.cl to implement eigen_forSide
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
 
 -- Maxwell
 -- when the state is nonzero, at certain sizes there appear errors in the corners
