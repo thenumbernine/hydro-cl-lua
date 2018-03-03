@@ -34,7 +34,7 @@ function Roe:createBuffers()
 
 	self:clalloc('eigenBuf', self.volume * self.dim * ffi.sizeof(self.eqn.eigen_t))
 	self:clalloc('deltaUEigBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
-	if self.fluxLimiter[0] > 0 then
+	if self.fluxLimiter > 1 then
 		self:clalloc('rEigBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
 	end
 	
@@ -82,7 +82,7 @@ function Roe:refreshSolverProgram()
 		self.getULRBuf,
 		self.eigenBuf)
 
-	if self.fluxLimiter[0] > 0 then
+	if self.fluxLimiter > 1 then
 		self.calcREigKernelObj = self.solverProgramObj:kernel(
 			'calcREig',
 			self.rEigBuf,
@@ -96,7 +96,7 @@ function Roe:refreshSolverProgram()
 		self.getULRBuf,
 		self.eigenBuf,
 		self.deltaUEigBuf)
-	if self.fluxLimiter[0] > 0 then
+	if self.fluxLimiter > 1 then
 		self.calcFluxKernelObj.obj:setArg(5, self.rEigBuf)
 	end
 
@@ -169,7 +169,7 @@ function Roe:addDisplayVars()
 		}
 	end
 
-	if self.fluxLimiter[0] > 0 then
+	if self.fluxLimiter > 1 then
 		for j,xj in ipairs(xNames) do
 			self:addDisplayVarGroup{
 				name = 'rEig '..xj,
@@ -205,9 +205,15 @@ function Roe:addDisplayVars()
 	end
 end
 
+local realptr = ffi.new'real[1]'
+local function real(x)
+	realptr[0] = x
+	return realptr
+end
+
 -- NOTICE this adds the contents of derivBuf and does not clear it
 function Roe:calcDeriv(derivBuf, dt)
-	local dtArg = ffi.new('real[1]', dt)
+	local dtArg = real(dt)
 	
 	self:boundary()
 	
@@ -226,7 +232,7 @@ function Roe:calcDeriv(derivBuf, dt)
 	-- technically, if flux limiter isn't used, this can be merged into calcFlux (since no left/right reads need to be done)
 	self.calcDeltaUEigKernelObj()
 	
-	if self.fluxLimiter[0] > 0 then
+	if self.fluxLimiter > 1 then
 		self.calcREigKernelObj()
 	end
 
@@ -259,7 +265,7 @@ function Roe:calcDeriv(derivBuf, dt)
 		end
 		--]]
 		self.calcDeltaUEigKernelObj()
-		if self.fluxLimiter[0] > 0 then
+		if self.fluxLimiter > 1 then
 			self.calcREigKernelObj()
 		end
 		self.calcFluxKernelObj()

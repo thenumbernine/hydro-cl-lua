@@ -122,7 +122,7 @@ kernel void calcDeltaUEig(
 	}<? end ?>
 }
 
-<? if solver.fluxLimiter[0] > 0 then ?>
+<? if solver.fluxLimiter > 1 then ?>
 kernel void calcREig(
 	global real* rEigBuf,
 	const global real* deltaUEigBuf,
@@ -172,7 +172,7 @@ kernel void calcFlux(
 	const global <?=eqn.eigen_t?>* eigenBuf, 
 	const global real* deltaUEigBuf,
 	real dt
-<? if solver.fluxLimiter[0] > 0 then ?>
+<? if solver.fluxLimiter > 1 then ?>
 	,const global real* rEigBuf
 <? end ?>
 ) {
@@ -204,7 +204,7 @@ kernel void calcFlux(
 <? end ?>
 
 		const global real* deltaUEig = deltaUEigBuf + numWaves * indexInt;
-<? if solver.fluxLimiter[0] > 0 then ?>
+<? if solver.fluxLimiter > 1 then ?>
 		const global real* rEig = rEigBuf + numWaves * indexInt;
 <? end ?>
 
@@ -218,12 +218,12 @@ kernel void calcFlux(
 <? end ?>
 			real sgnLambda = lambda >= 0 ? 1 : -1;
 		
-<? if solver.fluxLimiter[0] > 0 then ?>
+<? if solver.fluxLimiter > 1 then ?>
 			real phi = fluxLimiter(rEig[j]);
 <? end ?>
 
 			fluxEig[j] -= .5 * lambda * deltaUEig[j] * (sgnLambda
-<? if solver.fluxLimiter[0] > 0 then ?>
+<? if solver.fluxLimiter > 1 then ?>
 				+ phi * (lambda * dt_dx - sgnLambda)
 
 // this makes my oscillations in >=2D go away ... but what is the correct fix?

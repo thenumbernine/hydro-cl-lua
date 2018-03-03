@@ -50,10 +50,16 @@ function NavierStokesIncompressible:project()
 	self.projectKernelObj()
 end
 
+local realptr = ffi.new'real[1]'
+local function real(x)
+	realptr[0] = x
+	return realptr
+end
+
 function NavierStokesIncompressible:step(dt)
 	local bufferSize = solver.volume * ffi.sizeof(self.eqn.cons_t)
 
-	self.diffuseKernelObj.obj:setArg(2, ffi.new('real[1]', dt))
+	self.diffuseKernelObj.obj:setArg(2, real(dt))
 	
 	-- diffuse
 	for i=1,self.numGaussSeidelSteps do

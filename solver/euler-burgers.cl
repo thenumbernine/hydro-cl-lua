@@ -95,11 +95,11 @@ kernel void calcFlux(
 			real theta = intVel >= 0. ? 1. : -1.;
 			real r = (intVel >= 0. ? deltaL : deltaR) / delta;
 		
-<? if solver.fluxLimiter[0] > 0 then ?>
+<? if solver.fluxLimiter > 1 then ?>
 			real phi = fluxLimiter(r);
 <? end ?>
 			flux->ptr[j] = .5 * intVel * ((1. + theta) * UL->ptr[j] + (1. - theta) * UR->ptr[j])
-<? if solver.fluxLimiter[0] > 0 then ?>
+<? if solver.fluxLimiter > 1 then ?>
 				+ .5 * delta * phi * fabs(intVel) * (1. - fabs(intVel * dt_dx))
 <? end ?>
 			;

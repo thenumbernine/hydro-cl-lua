@@ -24,11 +24,16 @@ function ForwardEuler:init(solver)
 	self.derivBuf = solver.app.ctx:buffer{rw=true, size=solver.volume * ffi.sizeof(solver.eqn.cons_t)}
 end
 
+local realptr = ffi.new'real[1]'
+local function real(x)
+	realptr[0] = x
+	return realptr
+end
 function ForwardEuler:integrate(dt, callback)
 	local solver = self.solver
 	solver.app.cmds:enqueueFillBuffer{buffer=self.derivBuf, size=solver.volume * ffi.sizeof(solver.eqn.cons_t)}
 	callback(self.derivBuf)
-	solver.multAddKernelObj(solver.UBuf, solver.UBuf, self.derivBuf, ffi.new('real[1]', dt))
+	solver.multAddKernelObj(solver.UBuf, solver.UBuf, self.derivBuf, real(dt))
 end
 
 return ForwardEuler

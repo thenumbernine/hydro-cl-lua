@@ -36,8 +36,13 @@ function HLL:refreshSolverProgram()
 	end
 end
 
+local realptr = ffi.new'real[1]'
+local function real(x)
+	realptr[0] = x
+	return realptr
+end
 function HLL:calcDeriv(derivBuf, dt)
-	local dtArg = ffi.new('real[1]', dt)
+	local dtArg = real(dt)
 	
 	self:boundary()
 	

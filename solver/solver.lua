@@ -105,14 +105,14 @@ function Solver:init(args)
 	self.initStateArgs = args.initStateArgs
 
 	self.integratorIndex = self.integratorNames:find(args.integrator) or 1
-	self.fluxLimiter = ffi.new('int[1]', (self.app.limiterNames:find(args.fluxLimiter) or 1)-1)
+	self.fluxLimiter = self.app.limiterNames:find(args.fluxLimiter) or 1
 
 
 	self.geometry = require('geom.'..args.geometry){solver=self}
 
 	self.usePLM = args.usePLM
-	assert(not self.usePLM or self.fluxLimiter[0] == 0, "are you sure you want to use flux and slope limiters at the same time?")
-	self.slopeLimiter = ffi.new('int[1]', (self.app.limiterNames:find(args.slopeLimiter) or 1)-1)
+	assert(not self.usePLM or self.fluxLimiter == 1, "are you sure you want to use flux and slope limiters at the same time?")
+	self.slopeLimiter = self.app.limiterNames:find(args.slopeLimiter) or 1
 	
 	self.useCTU = args.useCTU
 	assert(not self.useCTU or self.usePLM, "if you are using CTU then you need to use a slope limiter method")
@@ -1175,11 +1175,11 @@ end
 
 function Solver:getSolverCode()
 	local fluxLimiterCode = 'real fluxLimiter(real r) {'
-		.. self.app.limiters[1+self.fluxLimiter[0]].code 
+		.. self.app.limiters[self.fluxLimiter].code 
 		.. '}'
 
 	local slopeLimiterCode = 'real slopeLimiter(real r) {'
-		.. self.app.limiters[1+self.slopeLimiter[0]].code 
+		.. self.app.limiters[self.slopeLimiter].code 
 		.. '}'
 	
 	return table{
@@ -2059,7 +2059,7 @@ function Solver:updateGUIParams()
 			op:updateGUI()
 		end
 
-		if tooltip.combo('slope limiter', self.fluxLimiter, self.app.limiterNames) then
+		if tooltip.comboTable('slope limiter', self, 'fluxLimiter', self.app.limiterNames) then
 			self:refreshSolverProgram()
 		end
 

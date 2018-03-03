@@ -82,6 +82,11 @@ function SelfGravProblem:__call(initState, solver)
 	})
 end
 
+local realptr = ffi.new'real[1]'
+local function real(x)
+	realptr[0] = x
+	return realptr
+end
 local function addMaxwellOscillatingBoundary(solver)
 	-- this args is only for the UBuf boundary program -- not calle for the Poisson boundary program
 	function solver:getBoundaryProgramArgs()
@@ -121,7 +126,7 @@ local function addMaxwellOscillatingBoundary(solver)
 	-- this runs before refreshBoundaryProgram, so lets hijack refreshBoundaryProgram and add in our time-based boundary conditions
 	local oldBoundary = solver.boundary
 	function solver:boundary()
-		self.boundaryKernelObj.obj:setArg(1, ffi.new('real[1]', self.t))
+		self.boundaryKernelObj.obj:setArg(1, real(self.t))
 		oldBoundary(self)
 	end
 end
@@ -188,7 +193,7 @@ local initStates = table{
 	real3 xc = real3_sub(coordMap(x), _real3(-.5, 0, 0));
 	real rSq = real3_lenSq(xc);
 	rho = exp(-100*rSq) + 1.;
-	v.x = 1;
+	v.x = .5;
 	P = 1;
 ]]
 		end,

@@ -34,6 +34,11 @@ function RungeKutta:init(solver)
 	end
 end
 
+local realptr = ffi.new'real[1]'
+local function real(x)
+	realptr[0] = x
+	return realptr
+end
 function RungeKutta:integrate(dt, callback)
 	local solver = self.solver
 	local bufferSize = solver.volume * ffi.sizeof(solver.eqn.cons_t)
@@ -64,12 +69,12 @@ function RungeKutta:integrate(dt, callback)
 		for k=1,i-1 do
 			if self.alphas[i-1][k] ~= 0 then
 				solver.multAddKernelObj.obj:setArg(2, self.UBufs[k])
-				solver.multAddKernelObj.obj:setArg(3, ffi.new('real[1]', self.alphas[i-1][k]))
+				solver.multAddKernelObj.obj:setArg(3, real(self.alphas[i-1][k]))
 				solver.multAddKernelObj()
 			end
 			if self.betas[i-1][k] ~= 0 then
 				solver.multAddKernelObj.obj:setArg(2, self.derivBufs[k])
-				solver.multAddKernelObj.obj:setArg(3, ffi.new('real[1]', self.betas[i-1][k] * dt))
+				solver.multAddKernelObj.obj:setArg(3, real(self.betas[i-1][k] * dt))
 				solver.multAddKernelObj()
 			end
 		end

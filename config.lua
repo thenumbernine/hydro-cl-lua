@@ -4,7 +4,7 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -16,7 +16,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	integrator = 'backward Euler',
+	--integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	--cfl = .25/dim,

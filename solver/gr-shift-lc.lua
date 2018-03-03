@@ -98,9 +98,15 @@ function LagrangianCoordinateShift:refreshSolverProgram()
 		solver.UBuf)
 end
 
+local realptr = ffi.new'real[1]'
+local function real(x)
+	realptr[0] = x
+	return realptr
+end
+
 function LagrangianCoordinateShift:step(dt)
 	local solver = self.solver
-	self.lagrangianCoordinateAdvectKernelObj.obj:setArg(2, ffi.new('real[1]', dt))
+	self.lagrangianCoordinateAdvectKernelObj.obj:setArg(2, real(dt))
 	self.lagrangianCoordinateAdvectKernelObj()
 	self.cmds:enqueueCopyBuffer{
 		src = solver.integrator.derivBuf,
