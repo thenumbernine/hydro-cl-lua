@@ -27,12 +27,12 @@ Z4cFiniteDifferenceEquation.useHypGammaDriver = false
 local intVars = table{
 	{alpha = 'real'},			-- 1
 	{beta_u = 'real3'},         -- 3: beta^i
-	{gammaBar_ll = 'sym3'},		-- 6: gammaBar_ij, only 5 dof since det gammaBar_ij = 1
+	{gammaTilde_ll = 'sym3'},		-- 6: gammaTilde_ij, only 5 dof since det gammaTilde_ij = 1
 	{chi = 'real'},				-- 1
 	{KHat = 'real'},			-- 1
 	{Theta = 'real'},			-- 1
 	{ATilde_ll = 'sym3'},       -- 6: ATilde_ij, only 5 dof since ATilde^k_k = 0
-	{connBar_u = 'real3'},      -- 3: connBar^i = gammaBar^jk connBar^i_jk = -partial_j gammaBar^ij
+	{connBar_u = 'real3'},      -- 3: connBar^i = gammaTilde^jk connBar^i_jk = -partial_j gammaTilde^ij
 }
 
 if Z4cFiniteDifferenceEquation.useHypGammaDriver then
@@ -57,7 +57,7 @@ local consVars = table()
 	{M_u = 'real3'},			--3
 
 	-- aux variable
-	{gammaBar_uu = 'sym3'},		--6
+	{gammaTilde_uu = 'sym3'},		--6
 }
 
 Z4cFiniteDifferenceEquation.consVars = consVars
@@ -70,7 +70,7 @@ Z4cFiniteDifferenceEquation.useSourceTerm = true
 function Z4cFiniteDifferenceEquation:createInitState()
 	Z4cFiniteDifferenceEquation.super.createInitState(self)
 	self:addGuiVars{
-		{name='constrain_det_gammaBar_ll', value=true},
+		{name='constrain_det_gammaTilde_ll', value=true},
 		{name='constrain_tr_ATilde_ll', value=true},
 		{name='useGammaDriver', value=true},
 		{name='diffuseSigma', value=.01},
@@ -98,7 +98,7 @@ function Z4cFiniteDifferenceEquation:getExtraCLFuncs()
 void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	U->alpha = 1.;
 	U->beta_u = _real3(0,0,0);
-	U->gammaBar_ll = _sym3(1,0,0,1,0,1);
+	U->gammaTilde_ll = _sym3(1,0,0,1,0,1);
 	U->chi = 1;
 	U->KHat = 0;
 	U->Theta = 0;
@@ -107,7 +107,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 <? if eqn.useHypGammaDriver then
 ?>	U->B_u = _real3(0,0,0);
 <? end
-?>	U->gammaBar_uu = _sym3(1,0,0,1,0,1);
+?>	U->gammaTilde_uu = _sym3(1,0,0,1,0,1);
 
 	//what to do with the constraint vars and the source vars?
 	U->rho = 0;
@@ -128,7 +128,7 @@ real calc_det_gamma(global const <?=eqn.cons_t?>* U) {
 
 sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U) {
 	real exp_neg4phi = calc_exp_neg4phi(U);
-	sym3 gamma_uu = sym3_scale(U->gammaBar_uu, exp_neg4phi);
+	sym3 gamma_uu = sym3_scale(U->gammaTilde_uu, exp_neg4phi);
 	return gamma_uu;
 }
 
@@ -171,14 +171,14 @@ kernel void initState(
 	real det_gamma = sym3_det(gamma_ll);
 	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma);
 
-	//gammaBar_ij = e^(-4phi) gamma_ij
+	//gammaTilde_ij = e^(-4phi) gamma_ij
 	//real exp_neg4phi = exp(-4 * U->phi);
 	real exp_neg4phi = 1./cbrt(det_gamma);
 
 	U->chi = exp_neg4phi;
 	
-	U->gammaBar_ll = sym3_scale(gamma_ll, exp_neg4phi);
-	U->gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
+	U->gammaTilde_ll = sym3_scale(gamma_ll, exp_neg4phi);
+	U->gammaTilde_uu = sym3_inv(U->gammaTilde_ll, 1.);
 
 ]]--[[
 <? for _,x in ipairs(xNames) do
@@ -202,7 +202,7 @@ kernel void initState(
 	U->M_u = _real3(0,0,0);
 }
 
-//after popularing gammaBar_ll, use its finite-difference derivative to initialize connBar_u
+//after popularing gammaTilde_ll, use its finite-difference derivative to initialize connBar_u
 kernel void initDerivs(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -210,14 +210,14 @@ kernel void initDerivs(
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
-<?=makePartial('gammaBar_uu', 'sym3')?>
+<?=makePartial('gammaTilde_uu', 'sym3')?>
 
-	//connBar^i = -gammaBar^ij_,j + 2 gammaBar^ij Z_j
-	//...= gammaBar_jk,l gammaBar^ij gammaBar^kl + 2 gammaBar^ij Z_j
+	//connBar^i = -gammaTilde^ij_,j + 2 gammaTilde^ij Z_j
+	//...= gammaTilde_jk,l gammaTilde^ij gammaTilde^kl + 2 gammaTilde^ij Z_j
 <? for i,xi in ipairs(xNames) do
 ?>	U->connBar_u.<?=xi?> =<?
 	for j,xj in ipairs(xNames) do
-?> - partial_gammaBar_uul[<?=j-1?>].<?=sym(i,j)?><?
+?> - partial_gammaTilde_uul[<?=j-1?>].<?=sym(i,j)?><?
 	end
 ?>;
 <? end
@@ -251,7 +251,7 @@ end
 function Z4cFiniteDifferenceEquation:getDisplayVars()	
 	local vars = Z4cFiniteDifferenceEquation.super.getDisplayVars(self)
 
-	vars:insert{['det gammaBar-1'] = [[*value = -1. + sym3_det(U->gammaBar_ll);]]}	-- for logarithmic displays
+	vars:insert{['det gammaTilde-1'] = [[*value = -1. + sym3_det(U->gammaTilde_ll);]]}	-- for logarithmic displays
 	vars:insert{['det gamma based on phi'] = [[
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	*value = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);   
@@ -297,8 +297,8 @@ end ?>;
 
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 
-	//gamma_ij = exp(4 phi) gammaBar_ij
-	sym3 gamma_ll = sym3_scale(U->gammaBar_ll, exp_4phi);
+	//gamma_ij = exp(4 phi) gammaTilde_ij
+	sym3 gamma_ll = sym3_scale(U->gammaTilde_ll, exp_4phi);
 
 	//K = KHat + 2 Theta
 	real K = U->KHat + 2. * U->Theta;
@@ -332,12 +332,12 @@ end
 		
 		{f = '*value = calc_f(U->alpha);'},
 		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
-		{gamma_x = '*valuevec = real3_scale(sym3_x(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},
-		{gamma_y = '*valuevec = real3_scale(sym3_y(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},
-		{gamma_z = '*valuevec = real3_scale(sym3_z(U->gammaBar_ll), 1./calc_exp_neg4phi(U));', type='real3'},
-		{K_x = '*valuevec = real3_add(sym3_x(U->ATilde_ll), real3_scale(sym3_x(U->gammaBar_ll), (U->KHat + 2. * U->Theta)/3.));', type='real3'},
-		{K_y = '*valuevec = real3_add(sym3_y(U->ATilde_ll), real3_scale(sym3_y(U->gammaBar_ll), (U->KHat + 2. * U->Theta)/3.));', type='real3'},
-		{K_z = '*valuevec = real3_add(sym3_z(U->ATilde_ll), real3_scale(sym3_z(U->gammaBar_ll), (U->KHat + 2. * U->Theta)/3.));', type='real3'},
+		{gamma_x = '*valuevec = real3_scale(sym3_x(U->gammaTilde_ll), 1./calc_exp_neg4phi(U));', type='real3'},
+		{gamma_y = '*valuevec = real3_scale(sym3_y(U->gammaTilde_ll), 1./calc_exp_neg4phi(U));', type='real3'},
+		{gamma_z = '*valuevec = real3_scale(sym3_z(U->gammaTilde_ll), 1./calc_exp_neg4phi(U));', type='real3'},
+		{K_x = '*valuevec = real3_add(sym3_x(U->ATilde_ll), real3_scale(sym3_x(U->gammaTilde_ll), (U->KHat + 2. * U->Theta)/3.));', type='real3'},
+		{K_y = '*valuevec = real3_add(sym3_y(U->ATilde_ll), real3_scale(sym3_y(U->gammaTilde_ll), (U->KHat + 2. * U->Theta)/3.));', type='real3'},
+		{K_z = '*valuevec = real3_add(sym3_z(U->ATilde_ll), real3_scale(sym3_z(U->gammaTilde_ll), (U->KHat + 2. * U->Theta)/3.));', type='real3'},
 
 		--[[ ADM geodesic equation spatial terms:
 		-Gamma^i_tt = 
@@ -371,21 +371,21 @@ end
 	<?=makePartial('alpha', 'real')?>
 	<?=makePartial('beta_u', 'real3')?>
 
-	<?=makePartial('gammaBar_ll', 'sym3')?>
+	<?=makePartial('gammaTilde_ll', 'sym3')?>
 	
 	//chi = exp(-4 phi)
 	real _1_chi = 1. / U->chi;
 	
-	//gamma_ij = 1/chi gammaBar_ij
-	sym3 gamma_ll = sym3_scale(U->gammaBar_ll, _1_chi);
+	//gamma_ij = 1/chi gammaTilde_ij
+	sym3 gamma_ll = sym3_scale(U->gammaTilde_ll, _1_chi);
 	
-	//gamma_ij,k = 1/chi gammaBar_ij,k - chi,k / chi^2 gammaBar_ij
+	//gamma_ij,k = 1/chi gammaTilde_ij,k - chi,k / chi^2 gammaTilde_ij
 	<?=makePartial('chi', 'real')?>
 	_3sym3 partial_gamma_lll = {
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_sub(
-			sym3_scale(partial_gammaBar_lll[<?=i-1?>], _1_chi),
-			sym3_scale(U->gammaBar_ll, partial_chi_l[<?=i-1?>] * _1_chi * _1_chi)),
+			sym3_scale(partial_gammaTilde_lll[<?=i-1?>], _1_chi),
+			sym3_scale(U->gammaTilde_ll, partial_chi_l[<?=i-1?>] * _1_chi * _1_chi)),
 <? end
 ?>	};
 
@@ -477,9 +477,9 @@ function Z4cFiniteDifferenceEquation:fillRandom(epsilon)
 	local solver = self.solver
 	for i=0,solver.volume-1 do
 		ptr[i].alpha = ptr[i].alpha + 1
-		ptr[i].gammaBar_ll.xx = ptr[i].gammaBar_ll.xx + 1
-		ptr[i].gammaBar_ll.yy = ptr[i].gammaBar_ll.yy + 1
-		ptr[i].gammaBar_ll.zz = ptr[i].gammaBar_ll.zz + 1
+		ptr[i].gammaTilde_ll.xx = ptr[i].gammaTilde_ll.xx + 1
+		ptr[i].gammaTilde_ll.yy = ptr[i].gammaTilde_ll.yy + 1
+		ptr[i].gammaTilde_ll.zz = ptr[i].gammaTilde_ll.zz + 1
 	end
 	solver.UBufObj:fromCPU(ptr)
 	return ptr

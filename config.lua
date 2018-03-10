@@ -21,7 +21,7 @@ local args = {
 	--fixedDT = .0001,
 	--cfl = .25/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
@@ -29,11 +29,11 @@ local args = {
 	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
 	--usePLM = 'plm-eig',			-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
 	--usePLM = 'plm-eig-prim',		-- works in primitive eigenspace, etc
-	usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max
+	--usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max
 	--usePLM = 'plm-athena',		-- based on Athena, idk about this one
 	--usePLM = 'ppm-experimental',	-- one more attempt to figure out all the PLM stuff, but I didn't get far
 
-	slopeLimiter = 'minmod',
+	--slopeLimiter = 'minmod',
 
 	--useCTU = true,
 	
@@ -169,7 +169,7 @@ maxs = {6,1,1},
 	--initState = 'constant with velocity',
 	--initState = 'linear',
 	--initState = 'gaussian',
-	initState = 'advect wave',
+	--initState = 'advect wave',
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
@@ -250,9 +250,9 @@ maxs = {6,1,1},
 	--initState = 'black hole - Schwarzschild pseudocartesian',
 	
 	
-	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
+	initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 
-	--[[ single black hole, spinning, demonstrating ergosphere formation
+	-- [[ single black hole, spinning, demonstrating ergosphere formation
 	initStateArgs = {
 		bodies = {
 			{
@@ -337,7 +337,7 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -434,7 +434,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
---self.solvers:insert(require 'solver.bssnok-fd'(args))
+self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- TODO Z4c, combining BSSNOK and Z4
 --self.solvers:insert(require 'solver.z4c-fd'(args))

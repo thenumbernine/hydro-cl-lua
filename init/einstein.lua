@@ -423,9 +423,9 @@ return table{
 			7) and then there's something about the spherical coordinate inversion ...
 			
 			Here's the answer to the circular definitions of index raising/lowering with a metric that uses the variables we are solving for ...
-			B&S 12.2.1: "...so that gammaBar_ij = eta_ij..."
+			B&S 12.2.1: "...so that gammaTilde_ij = eta_ij..."
 			So all raising and lowering throughout these computations uses eta_ij?
-			This statement makes sense to consider raising/lowering of ABar and gammaBar using eta_ij.
+			This statement makes sense to consider raising/lowering of ABar and gammaTilde using eta_ij.
 			However it does not explain the raising/lowering of non-bar terms like n^i, S^i, P^i etc
 			And I would simply change the ABar computations from lower to upper, except even they include a term n_i S^i which will still require a metric.
 

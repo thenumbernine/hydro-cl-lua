@@ -33,7 +33,7 @@ GLM_MHD.useSourceTerm = true
 GLM_MHD.hasFluxFromCons = true
 GLM_MHD.useConstrianU = true
 
-GLM_MHD.useFixedCh = true	-- true = use a gui var, false = calculate by max(|v_i|+Cf)
+GLM_MHD.useFixedCh = false	-- true = use a gui var, false = calculate by max(|v_i|+Cf)
 
 -- hmm, we want init.euler and init.mhd here ...
 GLM_MHD.initStates = require 'init.euler'

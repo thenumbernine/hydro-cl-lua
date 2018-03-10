@@ -47,14 +47,14 @@ function BSSNOKFiniteDifferenceSolver:getDisplayInfosForType()
 	-- hmm, only works with U ... so it only applies to U ...
 	table.insert(t.real3, {
 		name = ' norm weighted',
-		code = '*value = real3_weightedLen(*valuevec, U->gammaBar_ll) / calc_exp_neg4phi(U);',
+		code = '*value = real3_weightedLen(*valuevec, U->gammaTilde_ll) / calc_exp_neg4phi(U);',
 	})
 
-	-- hmm, how to do the weighting stuff with gammaBar_ll ... 
-	-- also, how to determine which metric to raise by ... gamma vs gammaBar
+	-- hmm, how to do the weighting stuff with gammaTilde_ll ... 
+	-- also, how to determine which metric to raise by ... gamma vs gammaTilde
 	table.insert(t.sym3, {
 		name = ' tr weighted',
-		code = '*value = sym3_dot(U->gammaBar_uu, *valuesym3) / calc_det_gamma(U);',
+		code = '*value = sym3_dot(U->gammaTilde_uu, *valuesym3) / calc_det_gamma(U);',
 	})
 
 	return t

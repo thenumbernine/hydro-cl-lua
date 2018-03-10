@@ -71,7 +71,7 @@ function GRHDSeparateSolver:init(args)
 	const global <?=gr.eqn.cons_t?>* <?=args.U?> = grUBuf + <?=args.index?>;
 	real <?=args.alpha?> = <?=args.U?>->alpha;
 	real3 <?=args.beta?> = <?=args.U?>->beta_u;
-	sym3 <?=args.gamma?> = sym3_scale(<?=args.U?>->gammaBar_ll, 1. / calc_exp_neg4phi(<?=args.U?>));
+	sym3 <?=args.gamma?> = sym3_scale(<?=args.U?>->gammaTilde_ll, 1. / calc_exp_neg4phi(<?=args.U?>));
 ]], {gr=gr, args=args})
 	end
 	
@@ -178,7 +178,7 @@ hydroU->alpha = hydroPrim->alpha = grU->alpha;
 hydroU->beta = hydroPrim->beta = grU->beta_u;
 
 real exp_4phi = exp(4. * grU->phi);
-sym3 gamma_ll = sym3_scale(grU->gammaBar_ll, exp_4phi);
+sym3 gamma_ll = sym3_scale(grU->gammaTilde_ll, exp_4phi);
 hydroU->gamma = hydroPrim->gamma = gamma_ll;
 }
 ]], 		{

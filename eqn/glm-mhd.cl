@@ -647,7 +647,25 @@ kernel void addSource(
 	}<? end ?>
 <? end ?>
 
-	deriv->psi -= Ch * Ch / (Cp * Cp) * U->psi;
+	real divB = 0.<? 
+for i,xi in ipairs(xNames:sub(1,solver.dim)) do
+?> + (U[stepsize.<?=xi?>].B.<?=xi?> - U[-stepsize.<?=xi?>].B.<?=xi?>) / (2. * grid_dx<?=i?>) <?
+end ?>;
+
+	real3 grad_psi = (real3){
+<? for i,xi in ipairs(xNames:sub(1,solver.dim)) do
+?>		.<?=xi?> = (U[stepsize.<?=xi?>].psi - U[-stepsize.<?=xi?>].psi) / (2. * grid_dx<?=i?>),
+<? end 
+for i=solver.dim+1,3 do
+?>		.<?=xNames[i]?> = 0.,
+<? end
+?>	};
+
+<? for i,xi in ipairs(xNames) do
+?>	deriv->m.<?=xi?> -= -divB * deriv->B.<?=xi?>;
+<? end
+?>	deriv->ETotal -= real3_dot(U->B, grad_psi);
+	deriv->psi -= Ch * U->psi;
 }
 
 kernel void constrainU(
