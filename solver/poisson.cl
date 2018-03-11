@@ -21,7 +21,7 @@ discrete evaluation:
 //initialize the poisson solver field 
 //this is only called upon solver reset
 //each iteration uses the previous iteration's results as the starting point
-kernel void initPoissonPotential(
+kernel void initPoissonPotential<?=poisson.suffix?>(
 	global <?=poisson:getPotBufType()?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
@@ -32,7 +32,7 @@ kernel void initPoissonPotential(
 }
 
 //called every Jacobi method iteration
-kernel void solvePoissonJacobi(
+kernel void solvePoissonJacobi<?=poisson.suffix?>(
 	global <?=poisson:getPotBufType()?>* UBuf<?
 if poisson.stopOnEpsilon then ?>,
 	global real* reduceBuf<?

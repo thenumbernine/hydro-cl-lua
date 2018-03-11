@@ -279,6 +279,31 @@ local initStates = table{
 ]]
 		end,
 	},
+	
+	{
+		name = 'spinning magnetic fluid',
+		initState = function(self, solver)
+			solver.useGravity = true
+			return [[
+	real3 xc = x;//coordMap(x);
+	rho = .1;
+	P = 1;
+	
+	real3 delta = xc;
+	real dist = real3_len(delta);
+	real radius = .5;
+	real distPastRadius = dist - radius;
+	if (distPastRadius < 0.) {
+		rho = P = 1.;
+		v.x = -.1 * delta.y;
+		v.y = .1 * delta.x;
+		B = v;
+		B.z = .1 * delta.z;
+	}
+]]
+		end,
+	},
+	
 	-- http://www.cfd-online.com/Wiki/Explosion_test_in_2-D
 	{
 		name = 'sphere',

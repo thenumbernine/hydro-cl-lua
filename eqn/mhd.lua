@@ -12,7 +12,7 @@ MHD.name = 'MHD'
 
 MHD.numWaves = 7
 MHD.numIntStates = 8
-MHD.numStates = 9
+MHD.numStates = 10
 
 MHD.primVars = table{
 	{rho = 'real'},
@@ -20,6 +20,7 @@ MHD.primVars = table{
 	{P = 'real'},
 	{B = 'real3'},
 	{BPot = 'real'},
+	{ePot = 'real'},	-- for selfgrav
 }
 
 MHD.consVars = table{
@@ -28,6 +29,7 @@ MHD.consVars = table{
 	{ETotal = 'real'},
 	{B = 'real3'},
 	{BPot = 'real'},
+	{ePot = 'real'},	-- for selfgrav
 }
 
 MHD.mirrorVars = {{'m.x', 'B.x'}, {'m.y', 'B.y'}, {'m.z', 'B.z'}}
@@ -40,8 +42,14 @@ MHD.initStates = require 'init.euler'
 
 function MHD:init(solver)
 	MHD.super.init(self, solver)
+	
 	local NoDiv = require 'solver.nodiv'
 	solver.ops:insert(NoDiv{solver=solver})
+
+	-- hmm...
+	local SelfGrav = require 'solver.selfgrav'
+	self.gravOp = SelfGrav{solver=solver}
+	solver.ops:insert(self.gravOp)
 end
 
 MHD.guiVars = {
@@ -62,7 +70,7 @@ inline real calc_eMag(<?=eqn.prim_t?> W) { return calc_EMag(W) / W.rho; }
 inline real calc_PMag(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.B); }
 inline real calc_EHydro(<?=eqn.prim_t?> W) { return calc_EKin(W) + calc_EInt(W); }
 inline real calc_eHydro(<?=eqn.prim_t?> W) { return calc_EHydro(W) / W.rho; }
-inline real calc_ETotal(<?=eqn.prim_t?> W) { return calc_EKin(W) + calc_EInt(W) + calc_EMag(W); }
+inline real calc_ETotal(<?=eqn.prim_t?> W) { return calc_EKin(W) + calc_EInt(W) + calc_EMag(W) + W.rho * W.ePot; }
 inline real calc_eTotal(<?=eqn.prim_t?> W) { return calc_ETotal(W) / W.rho; }
 inline real calc_H(real P) { return P * (heatCapacityRatio / (heatCapacityRatio - 1.)); }
 inline real calc_h(real rho, real P) { return calc_H(P) / rho; }
@@ -82,11 +90,13 @@ inline <?=eqn.prim_t?> primFromCons(
 	real BSq = real3_lenSq(W.B);
 	real EKin = .5 * U.rho * vSq;
 	real EMag = .5 * BSq;
-	real EInt = U.ETotal - EKin - EMag;
+	real EPot = U.rho * U.ePot;
+	real EInt = U.ETotal - EKin - EMag - EPot;
 	W.P = EInt * (heatCapacityRatio - 1.);
 	W.P = max(W.P, (real)1e-7);
 	W.rho = max(W.rho, (real)1e-7);
 	W.BPot = U.BPot;
+	W.ePot = U.ePot;
 	return W;
 }
 
@@ -102,6 +112,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	real EInt = W.P / (heatCapacityRatio - 1.);
 	U.ETotal = EInt + EKin + EMag;
 	U.BPot = W.BPot;
+	U.ePot = W.ePot;
 	return U;
 }
 ]], {

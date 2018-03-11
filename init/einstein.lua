@@ -439,7 +439,7 @@ return table{
 	<? for _,body in ipairs(bodies) do ?>{
 		const real R = <?=clnumber(body.R)?>;
 		real3 pos = _real3(<?=clnumber(body.pos[1])?>, <?=clnumber(body.pos[2])?>, <?=clnumber(body.pos[3])?>);
-		real3 xrel = real3_sub(x, pos);
+		real3 xrel = real3_sub(xc, pos);
 		real r = real3_len(xrel);
 		
 		
@@ -474,7 +474,7 @@ return table{
 	<? for _,body in ipairs(bodies) do ?>{
 
 		real3 pos = _real3(<?=clnumber(body.pos[1])?>, <?=clnumber(body.pos[2])?>, <?=clnumber(body.pos[3])?>);
-		real3 xrel = real3_sub(x, pos);
+		real3 xrel = real3_sub(xc, pos);
 		real r = real3_len(xrel);
 		real rSq = r * r;
 		real rCubed = rSq * r;

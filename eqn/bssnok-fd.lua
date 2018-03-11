@@ -134,10 +134,10 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 <? end
 ?>
 
-//|g| = exp(12 phi)
-real calc_det_gamma(global const <?=eqn.cons_t?>* U) {
+//|g| = exp(12 phi) |g_grid|
+real calc_det_gamma(global const <?=eqn.cons_t?>* U, real3 x) {
 	real exp_neg4phi = calc_exp_neg4phi(U);
-	real det_gamma = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
+	real det_gamma = sqrt_det_g_grid(x) / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 	return det_gamma;
 }
 
@@ -168,6 +168,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);
+	real3 xc = coordMap(x);
 	real3 mids = real3_scale(real3_add(mins, maxs), .5);
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
@@ -188,12 +189,13 @@ kernel void initState(
 
 	//gammaTilde_ij = e^(-4phi) gamma_ij
 	//real exp_neg4phi = exp(-4 * U->phi);
-	real exp_neg4phi = 1./cbrt(det_gamma);
+	real det_gammaGrid = sqrt_det_g_grid(x);
+	real exp_neg4phi = cbrt(det_gammaGrid / det_gamma);
 
 <? if eqn.useChi then 
 ?>	U->chi = exp_neg4phi;
 <? else
-?>	U->phi = log(det_gamma) / 12.;
+?>	U->phi = log(det_gamma / det_gammaGrid) / 12.;
 <? end 
 ?>
 	U->gammaTilde_ll = sym3_scale(gamma_ll, exp_neg4phi);
@@ -275,7 +277,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	local derivOrder = 2 * self.solver.numGhost
 	vars:append{
 		{S = '*value = sym3_dot(U->S_ll, calc_gamma_uu(U));'},
-		{volume = '*value = U->alpha * calc_det_gamma(U);'},
+		{volume = '*value = U->alpha * calc_det_gamma(U, x);'},
 	
 --[[ expansion:
 2003 Thornburg:  ... from Wald ...

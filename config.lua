@@ -1,10 +1,10 @@
-local dim = 2
+local dim = 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -16,7 +16,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	integrator = 'backward Euler',
+	--integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	--cfl = .25/dim,
@@ -98,7 +98,7 @@ maxs = {6,1,1},
 	--]]
 	--[[ cylinder
 	geometry = 'cylinder',
-	mins = cmdline.mins or {.1, 0, -1},
+	mins = cmdline.mins or {.01, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
@@ -207,6 +207,7 @@ maxs = {6,1,1},
 	-- MHD-only init states: (that use 'b')
 	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
+	initState = 'spinning magnetic fluid',
 	
 	-- Maxwell:
 	--initState = 'Maxwell default',
@@ -250,9 +251,9 @@ maxs = {6,1,1},
 	--initState = 'black hole - Schwarzschild pseudocartesian',
 	
 	
-	initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
+	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 
-	-- [[ single black hole, spinning, demonstrating ergosphere formation
+	--[[ single black hole, spinning, demonstrating ergosphere formation
 	initStateArgs = {
 		bodies = {
 			{
@@ -377,7 +378,7 @@ maxs = {6,1,1},
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 
 -- TODO to get HLL working for MHD (even though it'll not simulate all those intermediate waves correctly)
 --  I need to rework eqn/mhd.cl to implement eigen_forSide
@@ -434,7 +435,7 @@ maxs = {6,1,1},
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-self.solvers:insert(require 'solver.bssnok-fd'(args))
+--self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- TODO Z4c, combining BSSNOK and Z4
 --self.solvers:insert(require 'solver.z4c-fd'(args))

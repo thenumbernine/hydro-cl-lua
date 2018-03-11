@@ -550,6 +550,7 @@ function Geometry:getCode(solver)
 	
 	-- volume
 	local volumeCode = '(' .. self.volumeCode .. ')'
+	lines:insert(getCode_real3_to_real('sqrt_det_g_grid', volumeCode))
 	for i=1,dim do
 		volumeCode = volumeCode .. ' * grid_dx'..(i-1)
 	end

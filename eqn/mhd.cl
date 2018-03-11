@@ -26,6 +26,7 @@ ideal-mhd, divergence-free, conservative-based eigensystem
 	F.B = real3_sub(real3_scale(U.B, vj), real3_scale(W.v, Bj));
 	F.ETotal = HTotal * vj - BDotV * Bj / mu0;
 	F.BPot = 0.;
+	F.ePot = 0.;
 	return F;
 }
 <? end ?>
@@ -139,12 +140,12 @@ void calcRoeValues(
 	<?=eqn.prim_t?> WL = primFromCons(*UL, x);
 	real sqrtRhoL = sqrt(UL->rho);
 	real PMagL = .5 * real3_lenSq(UL->B);
-	real hTotalL = (UL->ETotal + WL.P + PMagL) / UL->rho;
+	real hTotalL = (UL->ETotal + WL.P + PMagL) / UL->rho - UL->ePot;
 
 	<?=eqn.prim_t?> WR = primFromCons(*UR, x);
 	real sqrtRhoR = sqrt(UR->rho);
 	real PMagR = .5 * real3_lenSq(UR->B);
-	real hTotalR = (UR->ETotal + WR.P + PMagR) / UR->rho;
+	real hTotalR = (UR->ETotal + WR.P + PMagR) / UR->rho - UR->ePot;
 	
 	real dby = WL.B.y - WR.B.y;
 	real dbz = WL.B.z - WR.B.z;
@@ -617,8 +618,10 @@ void apply_dU_dW(
 		.ETotal = W->rho * .5 * real3_dot(WA->v, WA->v)
 			+ WA->rho * real3_dot(W->v, WA->v)
 			+ real3_dot(W->B, WA->B) / mu0
-			+ W->P / (heatCapacityRatio - 1.),
+			+ W->P / (heatCapacityRatio - 1.)
+			+ WA->rho * W->ePot,
 		.BPot = W->BPot,
+		.ePot = W->ePot,
 	};
 }
 
@@ -642,7 +645,9 @@ void apply_dW_dU(
 			.5 * U->rho * real3_dot(WA->v, WA->v)
 			- real3_dot(U->m, WA->v)
 			- real3_dot(U->B, WA->B) / mu0
-			+ U->ETotal),
+			+ U->ETotal
+			- WA->rho * U->ePot),
 		.BPot = U->BPot,
+		.ePot = U->ePot,
 	};
 }

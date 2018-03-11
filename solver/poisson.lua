@@ -10,9 +10,13 @@ local Poisson = class()
 
 Poisson.potentialField = 'ePot'
 
+local ident = 1
+
 function Poisson:init(args)
 	self.solver = assert(args.solver)
 	self.potentialField = args.potentialField
+	self.suffix = ''..ident
+	ident = ident + 1
 end
 
 function Poisson:getPotBufType()
@@ -49,8 +53,8 @@ end
 
 function Poisson:refreshSolverProgram()
 	local solver = self.solver
-	self.initPoissonPotentialKernelObj = solver.solverProgramObj:kernel('initPoissonPotential', self:getPotBuf())
-	self.solvePoissonJacobiKernelObj = solver.solverProgramObj:kernel('solvePoissonJacobi', self:getPotBuf())
+	self.initPoissonPotentialKernelObj = solver.solverProgramObj:kernel('initPoissonPotential'..self.suffix, self:getPotBuf())
+	self.solvePoissonJacobiKernelObj = solver.solverProgramObj:kernel('solvePoissonJacobi'..self.suffix, self:getPotBuf())
 	if self.stopOnEpsilon then
 		self.solvePoissonJacobiKernelObj.obj:setArg(1, solver.reduceBuf)
 	end
