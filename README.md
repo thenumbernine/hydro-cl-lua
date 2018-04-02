@@ -24,6 +24,7 @@ Features:
 - numerical relativity via Bona-Masso formalism described in Alcubierre 1997 and Alcubierre's 2008 book
 - numerical relativity via finite difference BSSNOK (Baumgarte & Shapiro 2010)
 - self-gravitation for some schemes (Euler equations)
+- Z4c from Cao, Hilditch 2011
 
 Example Videos:
 
@@ -38,9 +39,9 @@ Example Videos:
 
 TODO:
 - ADM3D with shift as a hyperbolic conservation law system
-- ADM3D (and BSSNOK, and any other GR solver) for minimal-distortion elliptical shift (doesn't require extra time-iterating variables) 
+- ADM3D (and BSSNOK, and any other GR solver) for minimal-distortion elliptical shift solved as a Poisson equation -- which doesn't require extra time-iterating variables. 
 - GR horizon tracking / moving puncture
-- FOBSSN would be nice.  something with the equation stability of BSSN and the algorithmic stability of finite-volume.
+- FOBSSN would be nice.  Something with the analytic stability of BSSN and the algorithmic stability of finite-volume.
 - Z4 ... I need to finish typing in the source terms.  I also need a shift condition.
 - implement eigen-stuff code in SRHD so that PLM can work 
 - PLM for BSSNOK-FD and Euler-Burgers
@@ -63,7 +64,6 @@ TODO:
 - Figure out what to do with self-gravitational potential energy in the Euler simulation.  offsetting it positive makes gravitational instability stable.  offsetting it too positive explodes -- even a forward euler integrator (why).  offsetting it negative causes more instability.
 - change vector field from immediate mode to buffered geometry, and gometry shaders if they're available
 - coroutines to iterative solvers?  so they don't stall the app execution?
-- Poisson SelfGrav seems to be pulling things slightly upwards
 - RHD W error in >1 dimension
 - GR flat space simulations make an initial wave.  but shouldn't flat space be stable?
 - 2D Maxwell Roe looks ugly 

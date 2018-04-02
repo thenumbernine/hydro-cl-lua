@@ -247,7 +247,9 @@ function Solver:setBoundaryMethods(args)
 			end
 			local i = self.boundaryOptions:find(nil, function(option) return next(option) == name end)
 			if not i then
-				io.stderr:write("unable to find boundary method "..name.." -- can't assign it to side "..k.."\n")
+				io.stderr:write("unable to find boundary method "..tostring(name)
+					..' ('..type(name)..')'
+					.." -- can't assign it to side "..k.."\n")
 				io.stderr:flush()
 			else
 				self.boundaryMethods[k] = i
@@ -1102,7 +1104,9 @@ function Solver:resetState()
 	self.app.cmds:finish()
 
 	for _,op in ipairs(self.ops) do
-		op:resetState()
+		if op.resetState then
+			op:resetState()
+		end
 	end
 end
 
@@ -1525,30 +1529,35 @@ kernel void boundary(
 			end
 		end
 
-		local function index(j)
+		local function indexv(j)
 			if self.dim == 1 then
-				return j
+				return j..',0,0'
 			elseif self.dim == 2 then
 				if side == 1 then
-					return 'INDEX('..j..',i,0)'
+					return j..',i,0'
 				elseif side == 2 then
-					return 'INDEX(i,'..j..',0)'
+					return 'i,'..j..',0'
 				end
 			elseif self.dim == 3 then
 				if side == 1 then
-					return 'INDEX('..j..',i.x,i.y)'
+					return j..',i.x,i.y'
 				elseif side == 2 then
-					return 'INDEX(i.x,'..j..',i.y)'
+					return 'i.x,'..j..',i.y'
 				elseif side == 3 then
-					return 'INDEX(i.x,i.y,'..j..')'
+					return 'i.x,i.y,'..j
 				end
 			end
+		end
+
+		local function index(j)
+			return 'INDEX('..indexv(j)..')'
 		end
 	
 		for _,minmax in ipairs{'min', 'max'} do
 			local method = args.methods[xNames[side]..minmax]
 			lines:insert(method{
 				index = index,
+				indexv = indexv,
 				assign = assign,
 				array = array,
 				field = field,
@@ -1585,6 +1594,9 @@ function Solver:getBoundaryProgramArgs()
 		-- remap from enum/combobox int values to functions from the solver.boundaryOptions table
 		methods = table.map(self.boundaryMethods, function(v)
 			if type(v) == 'function' then return v end
+			if not self.boundaryOptions[v] then
+				error("failed to find boundaryOption index "..v)
+			end
 			return (select(2, next(self.boundaryOptions[v])))
 		end),
 		mirrorVars = self.eqn.mirrorVars,
@@ -1596,7 +1608,9 @@ function Solver:refreshBoundaryProgram()
 		self:createBoundaryProgramAndKernel(self:getBoundaryProgramArgs())
 	self.boundaryKernelObj.obj:setArg(0, self.UBuf)
 	for _,op in ipairs(self.ops) do
-		op:refreshBoundaryProgram()
+		if op.refreshBoundaryProgram then
+			op:refreshBoundaryProgram()
+		end
 	end
 
 	if self.useCTU then
@@ -1669,7 +1683,7 @@ function Solver:calcDT()
 		self.calcDTKernelObj()
 		dt = self.cfl * self.reduceMin()
 		if not math.isfinite(dt) then
-			print("got a bad dt!") -- TODO dump all buffers
+			print("got a bad dt at time "..self.t) -- TODO dump all buffers
 		end
 		self.fixedDT = dt
 	end

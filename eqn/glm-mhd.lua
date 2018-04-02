@@ -38,6 +38,13 @@ GLM_MHD.useFixedCh = false	-- true = use a gui var, false = calculate by max(|v_
 -- hmm, we want init.euler and init.mhd here ...
 GLM_MHD.initStates = require 'init.euler'
 
+function GLM_MHD:init(solver)
+	GLM_MHD.super.init(self, solver)
+
+	local UpdatePsi = require 'solver.glm-mhd-update-psi'
+	solver.ops:insert(UpdatePsi{solver=solver})
+end
+
 GLM_MHD.guiVars = table{
 	{name='heatCapacityRatio', value=2},	-- 5/3 for most problems, but 2 for Brio-Wu, so I will just set it here for now (in case something else is reading it before it is set there)
 	{name='mu0', value=1},	-- this should be 4 pi for natural units, but I haven't verified that all mu0's are where they should be ...

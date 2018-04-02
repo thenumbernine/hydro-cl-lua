@@ -42,9 +42,11 @@ MHD.initStates = require 'init.euler'
 
 function MHD:init(solver)
 	MHD.super.init(self, solver)
-	
-	local NoDiv = require 'solver.nodiv'
-	solver.ops:insert(NoDiv{solver=solver})
+
+	if solver.dim > 1 then
+		local NoDiv = require 'solver.nodiv'
+		solver.ops:insert(NoDiv{solver=solver})
+	end
 
 	-- hmm...
 	local SelfGrav = require 'solver.selfgrav'

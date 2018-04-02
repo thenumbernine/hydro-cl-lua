@@ -285,25 +285,202 @@ local initStates = table{
 		initState = function(self, solver)
 			solver.useGravity = true
 			return [[
-	real3 xc = x;//coordMap(x);
+	real3 xc = coordMap(x);
 	rho = .1;
 	P = 1;
 	
 	real3 delta = xc;
 	real dist = real3_len(delta);
-	real radius = .5;
+	real radius = .2;
 	real distPastRadius = dist - radius;
 	if (distPastRadius < 0.) {
 		rho = P = 1.;
 		v.x = -.1 * delta.y;
 		v.y = .1 * delta.x;
-		B = v;
-		B.z = .1 * delta.z;
+		B = real3_scale(v, -1.);
 	}
 ]]
 		end,
 	},
-	
+
+	{
+		name = '2002 Dedner peak Bx',
+		initState = function(self, solver)
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 5/3
+			end
+			--bounds = [-.5, .5] x [-1.5, 1.5]
+			return template([[
+	rho = 1.;
+	v.x = 1.;
+	v.y = 1.;
+	real s = 128.;	//TODO
+	real r = 1. + s * s * (-128. + s * s * 4096.);
+	B.x = r * (x.x * x.x + x.y * x.y) * <?=clnumber(1 / math.sqrt(4 * math.pi))?>;
+	B.y = 0.;
+	B.z = <?=clnumber(1 / math.sqrt(4 * math.pi))?>;
+	P = 6.;
+]],		{
+			clnumber = clnumber,
+		})
+		end,
+	},
+
+	{
+		name = '2002 Dedner 1D Riemann',
+		initState = function(self, solver)
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
+			end
+			--bounds = [-.5, .5] x [-.25, .25]
+			return template([[
+	rho = 1.;
+	B.x = <?=clnumber(5 / math.sqrt(4 * math.pi))?>;
+	B.y = <?=clnumber(5 / math.sqrt(4 * math.pi))?>;
+	if (x.x < 0.) {
+		v.x = 10.;
+		P = 20.;
+	} else {
+		v.x = -10.;
+		P = 1.;
+	}
+]], 	{
+			clnumber = clnumber,
+		})
+		end,
+	},
+
+	{
+		name = '2002 Dedner Shock Reflection',
+		initState = function(self, solver)
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
+			end
+
+			local boundaryMethods = {}
+			for i,x in ipairs(xNames) do
+				for _,minmax in ipairs{'min', 'max'} do
+					boundaryMethods[x..minmax] = 'freeflow'
+				end
+			end
+			boundaryMethods.xmax = 'freeflow'
+			boundaryMethods.ymax = 'mirror'
+			solver:setBoundaryMethods(boundaryMethods)
+
+			-- left boundary
+			boundaryMethods.xmin = function(args)
+				local U = 'buf['..args.index'j'..']'
+				return template([[
+	//TODO 'i'
+	//args.index provides this ... post-converted to an integer
+	//I need the vector now
+	real3 x = cell_x((int4)(<?=args.indexv'j'?>,0));
+	<?=eqn.prim_t?> W = {
+		.rho = 1.,
+		.v = _real3(2.9, 0., 0.),
+		.B = _real3(.5, 0., 0.),
+		.P = 5. / 7.,
+<? if eqn.primVars:find(nil, function(var)
+	return next(var) == 'psi'
+end) then
+?>		.psi = 0.,
+<? end	
+?>	};
+	<?=U?> = consFromPrim(W, x);
+]], {U=U, eqn=solver.eqn, args=args})
+			end
+
+			-- left boundary
+			boundaryMethods.ymin = function(args)
+				local U = 'buf['..args.index'j'..']'
+				return template([[
+	real3 x = cell_x(i);
+	<?=eqn.prim_t?> W = {
+		.rho = 1.4598,
+		.v = _real3(2.717, -.4049, 0.),
+		.B = _real3(.6838, -.1019, 0.),
+		.P = 1.2229,
+<? if eqn.primVars:find(nil, function(var)
+	return next(var) == 'psi'
+end) then
+?>		.psi = 0.,
+<? end	
+?>	};
+	<?=U?> = consFromPrim(W, x);
+]], {U=U, eqn=solver.eqn})
+			end
+					
+			--bounds = [-1, 1] x [-.5, .5]
+			return [[
+	rho = 1.;
+	v.x = 2.9;
+	B.x = .5;
+	P = 5./7.;
+]]
+		end,
+	},
+
+	{
+		name = '2002 Dedner 2D Riemann problem',
+		initState = function(self, solver)
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 5/3
+			end
+			-- TODO dirichlet 
+			solver:setBoundaryMethods'freeflow'
+			-- boundary: [-1, 1] x [-1, 1]
+			return [[
+	bool xp = x.x > mids.x;
+	bool yp = x.y > mids.y;
+	real3 m = _real3(0., 0., 0.);
+	real eInt = 0.;
+	if (yp) {
+		if (xp) {	//I
+			rho = .9308;
+			m = _real3(1.4557, -.4633, .0575);
+			B = _real3(.3501, .9830, .3050);
+			eInt = 5.0838;
+		} else {	//II
+			rho = 1.0304;
+			m = _real3(1.5774, -1.0455, -0.1016);
+			B = _real3(0.3501, 0.5078, 0.1576);
+			eInt = 5.7813;
+		}
+	} else {
+		if (!xp) {	//III
+			rho = 1.0000;
+			m = _real3(1.7500, -1.0000, 0.0000);
+			B = _real3(0.5642, 0.5078, 0.2539);
+			eInt = 6.0000;
+		} else {	//IV
+			rho = 1.8887;
+			m = _real3(0.2334, -1.7422, 0.0733);
+			B = _real3(0.5642, 0.9830, 0.4915);
+			eInt = 12.999;
+		}
+	}
+	v = real3_scale(m, 1. / rho);
+	P = (heatCapacityRatio - 1.) * rho * eInt;
+]]
+		end,
+	},
+
+	{
+		name = '2002 Dedner Kelvin-Helmholtz',
+		initState = function(self, solver)
+			solver:setBoundaryMethods'periodic'
+			return [[
+	rho = 1.;
+	v.x = 5. * (tanh(20. * (x.y + .5)) - (tanh(20. * (x.y - .5)) + 1.));
+	v.y = .25 * sin(2. * M_PI * x.x) * (
+		exp(-100. * (x.y + .5) * (x.y + .5))
+		- exp(-100. * (x.y - .5) * (x.y - .5)));
+	B.x = 1.;
+	P = 50.;
+]]
+		end,
+	},
+
 	-- http://www.cfd-online.com/Wiki/Explosion_test_in_2-D
 	{
 		name = 'sphere',
@@ -1074,6 +1251,25 @@ kernel void addExtraSource(
 				clnumber = clnumber,
 				resistivities = resistivities,
 			})
+		end,
+	},
+
+	{
+		name = '2017 Degris et al',
+		initState = function(self, solver)
+			return [[
+	rho = 1.;
+	P = 1.;
+	if (x.x <= -.8) {
+		B.x = 0.;
+	} else if (x.x <= -.6) {
+		B.x = -2. * (x.x + .8);
+	} else if (x.x <= .6) {
+		B.x = exp(-.5 * (x.x / .11) * (x.x / .11));
+	} else { 
+		B.x = .5;
+	}
+]]
 		end,
 	},
 

@@ -638,6 +638,7 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
+#if 0
 	//TODO don't need the whole eigen here, just the Ch	
 <? if not eqn.useFixedCh then ?>
 	real Ch = 0;
@@ -646,6 +647,7 @@ kernel void addSource(
 		Ch = max(Ch, eig.Ch);
 	}<? end ?>
 <? end ?>
+#endif
 
 	real divB = 0.<? 
 for i,xi in ipairs(xNames:sub(1,solver.dim)) do
@@ -661,11 +663,33 @@ for i=solver.dim+1,3 do
 <? end
 ?>	};
 
+#if 0	//2009 Mignone eqn 3
+	deriv->psi -= Ch * U->psi;
+#endif
+#if 1	//2002 Dedner eqn 24 -- EGLM
 <? for i,xi in ipairs(xNames) do
-?>	deriv->m.<?=xi?> -= -divB * deriv->B.<?=xi?>;
+?>	deriv->m.<?=xi?> -= divB * U->B.<?=xi?>;
 <? end
 ?>	deriv->ETotal -= real3_dot(U->B, grad_psi);
-	deriv->psi -= Ch * U->psi;
+//	deriv->psi -= Ch * Ch / (Cp * Cp) * U->psi;
+#endif
+#if 0	//2002 Dedner eqn 38
+<? 
+for i,xi in ipairs(xNames) do
+?>	deriv->m.<?=xi?> -= divB * U->B.<?=xi?>;
+<? 
+end
+for i,xi in ipairs(xNames) do
+?>	deriv->B.<?=xi?> -= divB * U->m.<?=xi?> / U->rho;
+<?
+end
+?>	deriv->ETotal -= real3_dot(U->B, grad_psi) + real3_dot(U->m, U->B) * (divB / U->rho);
+	
+	//update this in the second step:
+	//psi[n+1] = psi[n] * exp(-dt * ch * ch / (cp * cp))
+	//deriv->psi -= Ch * Ch / (Cp * Cp) * U->psi;
+	deriv->psi -= real3_dot(U->m, grad_psi) / U->rho;
+#endif
 }
 
 kernel void constrainU(

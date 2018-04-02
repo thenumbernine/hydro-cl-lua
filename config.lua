@@ -1,4 +1,4 @@
-local dim = 3
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -33,7 +33,7 @@ local args = {
 	--usePLM = 'plm-athena',		-- based on Athena, idk about this one
 	--usePLM = 'ppm-experimental',	-- one more attempt to figure out all the PLM stuff, but I didn't get far
 
-	--slopeLimiter = 'minmod',
+	slopeLimiter = 'minmod',
 
 	--useCTU = true,
 	
@@ -207,8 +207,16 @@ maxs = {6,1,1},
 	-- MHD-only init states: (that use 'b')
 	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
-	initState = 'spinning magnetic fluid',
+	--initState = 'spinning magnetic fluid',
+	--initState = '2017 Degris et al',
 	
+	-- 2002 Dedner
+	--initState = '2002 Dedner peak Bx',
+	--initState = '2002 Dedner 1D Riemann',
+	--initState = '2002 Dedner Shock Reflection',
+	--initState = '2002 Dedner 2D Riemann problem',
+	initState = '2002 Dedner Kelvin-Helmholtz',
+
 	-- Maxwell:
 	--initState = 'Maxwell default',
 	--initState = 'Maxwell scattering around cylinder',
