@@ -679,10 +679,10 @@ so tau_ij,j = (mu_T (v_i,j + v_j,i - 2/3 delta_ij v_k,k) - 2/3 rho K delta_ij),j
 	+ rho,i (mu_T m_j,j - 2 K) / 3
 */
 <? if solver.useNavierStokesViscosityTerm then ?>
-<?=makePartial('rho', 'real');?>
-<?=makePartial2('rho', 'real');?>
-<?=makePartial('m', 'real3');?>
-<?=makePartial2('m', 'real3');?>
+<?=makePartial('rho', 'real')?>
+<?=makePartial2('rho', 'real')?>
+<?=makePartial('m', 'real3')?>
+<?=makePartial2('m', 'real3')?>
 
 <? for i,xi in ipairs(xNames) do
 ?>	deriv->m.<?=xi?> += 

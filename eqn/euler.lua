@@ -1,6 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
+local file = require 'ext.file'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
 
@@ -150,6 +151,8 @@ kernel void initState(
 
 function Euler:getSolverCode()
 	return template(file['eqn/euler.cl'], {
+		solver = self.solver,
+		eqn = self,
 		makePartial = makePartial,
 		makePartial2 = makePartial2,
 	})

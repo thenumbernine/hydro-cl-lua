@@ -1,10 +1,10 @@
-local dim = 3
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -16,7 +16,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	integrator = 'backward Euler',
+	--integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	--cfl = .25/dim,
@@ -178,7 +178,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -264,9 +264,9 @@ maxs = {6,1,1},
 	--initState = 'black hole - Schwarzschild pseudocartesian',
 	
 	
-	initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
+	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 
-	-- [[ single black hole, spinning, demonstrating ergosphere formation
+	--[[ single black hole, spinning, demonstrating ergosphere formation
 	initStateArgs = {
 		bodies = {
 			{
@@ -351,7 +351,7 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -451,7 +451,7 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- Z4c finite difference, combining BSSNOK and Z4
-self.solvers:insert(require 'solver.z4c-fd'(args))
+--self.solvers:insert(require 'solver.z4c-fd'(args))
 
 
 --self.solvers:insert(require 'solver.nls'(args))
