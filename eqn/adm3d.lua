@@ -201,6 +201,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
+	real3 xc = coordMap(x);
 	real3 mids = real3_scale(real3_add(mins, maxs), .5);
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
