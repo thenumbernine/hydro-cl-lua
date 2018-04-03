@@ -33,7 +33,7 @@ local args = {
 	--usePLM = 'plm-athena',		-- based on Athena, idk about this one
 	--usePLM = 'ppm-experimental',	-- one more attempt to figure out all the PLM stuff, but I didn't get far
 
-	slopeLimiter = 'minmod',
+	--slopeLimiter = 'minmod',
 
 	--useCTU = true,
 	
@@ -178,9 +178,9 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
-	--initState = 'Kelvin-Helmholtz',
+	initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
