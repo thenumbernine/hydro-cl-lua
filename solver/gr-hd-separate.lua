@@ -249,11 +249,11 @@ end
 
 function GRHDSeparateSolver:updateGUI()
 	for i,solver in ipairs(self.solvers) do
-		ig.igPushIdStr('subsolver '..i)
+		ig.igPushIDStr('subsolver '..i)
 		if ig.igCollapsingHeader('sub-solver '..solver.name..':') then
 			solver:updateGUI()
 		end
-		ig.igPopId()
+		ig.igPopID()
 	end
 end
 
