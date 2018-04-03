@@ -258,7 +258,7 @@ end
 
 function Poisson:updateGUI()
 	-- TODO unique name for other Poisson solvers?
-	ig.igPushIdStr'Poisson GMRES solver'
+	ig.igPushIDStr'Poisson GMRES solver'
 	-- TODO name from 'field' / 'enableField', though those aren't properties of Poisson
 	if ig.igCollapsingHeader'Poisson solver' then
 		tooltip.numberTable('Krylov epsilon', self.linearSolver.args, 'epsilon')
@@ -268,7 +268,7 @@ function Poisson:updateGUI()
 		ig.igText('err = '..self.last_err)
 		ig.igText('iter = '..self.last_iter)
 	end
-	ig.igPopId()
+	ig.igPopID()
 end
 
 return Poisson

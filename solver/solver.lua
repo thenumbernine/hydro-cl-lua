@@ -2068,11 +2068,11 @@ function Solver:updateGUIParams()
 		-- I think I'll display my GMRES # steps to converge / epsilon error ... 
 		if self.integrator.updateGUI then
 			ig.igSameLine()
-			ig.igPushIdStr'integrator'
+			ig.igPushIDStr'integrator'
 			if ig.igCollapsingHeader'' then
 				self.integrator:updateGUI()
 			end
-			ig.igPopId()
+			ig.igPopID()
 		end
 
 		for _,op in ipairs(self.ops) do
@@ -2110,7 +2110,7 @@ end
 do
 	-- display vars: TODO graph vars
 	local function handle(var, title)
-		ig.igPushIdStr(title)
+		ig.igPushIDStr(title)
 		
 		local enableChanged = tooltip.checkboxTable('enabled', var, 'enabled') 
 		ig.igSameLine()
@@ -2126,7 +2126,7 @@ do
 			tooltip.numberTable('value max', var, 'heatMapValueMax')
 		end
 		
-		ig.igPopId()
+		ig.igPopID()
 	
 		return enableChanged
 	end
@@ -2149,7 +2149,7 @@ do
 		local refresh 
 		if ig.igCollapsingHeader'display:' then
 			for i,displayVarGroup in ipairs(self.displayVarGroups) do
-				ig.igPushIdStr('display '..i)
+				ig.igPushIDStr('display '..i)
 				if ig.igCollapsingHeader(displayVarGroup.name) then				
 					for i=1,#fields do
 						all[fields[i]] = defaults[i]
@@ -2177,7 +2177,7 @@ do
 						refresh = refresh or enableChanged
 					end
 				end
-				ig.igPopId()
+				ig.igPopID()
 			end
 		end
 		if refresh then

@@ -901,7 +901,7 @@ function HydroCLApp:updateGUI()
 		if self.solvers[1] then
 			local dim = self.solvers[1].dim
 			if dim == 2 then
-				ig.igPushIdStr'2D'
+				ig.igPushIDStr'2D'
 				for i,method in ipairs(display2DMethods) do
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
@@ -912,11 +912,11 @@ function HydroCLApp:updateGUI()
 					tooltip.intTable('graph step', self, 'display2D_Graph_step')
 				end
 				
-				ig.igPopId()
+				ig.igPopID()
 			
 			
 			elseif dim == 3 then
-				ig.igPushIdStr'3D'
+				ig.igPushIDStr'3D'
 				ig.igCombo('Display Method', self.display3DMethod, display3DMethodNames)
 				
 				-- if we're doing 3D slice display 
@@ -925,7 +925,7 @@ function HydroCLApp:updateGUI()
 if useClipPlanes then
 					ig.igRadioButton("rotate camera", rotateClip, 0)
 					for i,clipInfo in ipairs(clipInfos) do
-						ig.igPushIdStr('clip '..i)
+						ig.igPushIDStr('clip '..i)
 						tooltip.checkbox('clip', clipInfo, 'enabled')
 						ig.igSameLine()
 						ig.igRadioButton('rotate', rotateClip, i)
@@ -933,7 +933,7 @@ if useClipPlanes then
 						if ig.igButton('reset') then
 							clipInfo.plane = makeDefaultPlane(i)
 						end
-						ig.igPopId()
+						ig.igPopID()
 					end				
 end					
 					tooltip.sliderTable('alpha', self, 'display3D_Slice_alpha', 0, 1)
@@ -948,7 +948,7 @@ end
 						tooltip.intTable('num slices', self, 'display3D_Slice_numSlices')
 					end
 				end
-				ig.igPopId()
+				ig.igPopID()
 			end
 		
 			--ig.igCheckbox('vector field', self.enableVectorField)
@@ -962,12 +962,12 @@ end
 	end
 	
 	for i,solver in ipairs(self.solvers) do
-		ig.igPushIdStr('solver '..i)
+		ig.igPushIDStr('solver '..i)
 		if ig.igCollapsingHeader(solver.name) then
 			-- TODO new window for each
 			solver:updateGUI()
 		end
-		ig.igPopId()
+		ig.igPopID()
 	end
 end
 

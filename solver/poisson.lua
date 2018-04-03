@@ -111,7 +111,7 @@ end
 
 function Poisson:updateGUI()
 	-- TODO unique name for other Poisson solvers?
-	ig.igPushIdStr'Poisson behavior'
+	ig.igPushIDStr'Poisson behavior'
 	-- TODO name from 'field' / 'enableField', though those aren't properties of Poisson
 	if ig.igCollapsingHeader'Poisson solver' then
 		if tooltip.checkboxTable('stop on epsilon', self, 'stopOnEpsilon') then
@@ -126,7 +126,7 @@ function Poisson:updateGUI()
 		end
 		ig.igText('iter = '..tostring(self.lastIter))
 	end
-	ig.igPopId()
+	ig.igPopID()
 end
 
 return Poisson
