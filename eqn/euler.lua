@@ -4,6 +4,11 @@ local range = require 'ext.range'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
 
+local makePartials = require 'eqn.makepartial'
+local makePartial = makePartials.makePartial
+local makePartial2 = makePartials.makePartial2
+
+
 local Euler = class(Equation)
 Euler.name = 'Euler'
 
@@ -143,7 +148,12 @@ kernel void initState(
 }
 ]]
 
-Euler.solverCodeFile = 'eqn/euler.cl'
+function Euler:getSolverCode()
+	return template(file['eqn/euler.cl'], {
+		makePartial = makePartial,
+		makePartial2 = makePartial2,
+	})
+end
 
 function Euler:getDisplayVarCodePrefix()
 	return template([[

@@ -382,6 +382,12 @@ function Solver:refreshEqnInitState()
 	--  and refreshInitStateProgram()
 	self.eqn:createInitState()
 
+	-- bounds don't get set until initState() is called, but code prefix needs them ...
+	-- TODO do a proper refresh so mins/maxs can be properly refreshed
+	local initState = self.eqn.initState
+	if initState.mins then self.mins = vec3(table.unpack(initState.mins)) end
+	if initState.maxs then self.maxs = vec3(table.unpack(initState.maxs)) end
+
 	self:refreshCodePrefix()
 end
 

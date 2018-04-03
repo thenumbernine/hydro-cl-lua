@@ -106,6 +106,12 @@ function SelfGrav:refreshSolverProgram()
 	self.offsetPotentialAndAddToTotalKernelObj = solver.solverProgramObj:kernel('offsetPotentialAndAddToTotal', solver.UBuf)
 end
 
+local realptr = ffi.new'real[1]'
+local function real(x)
+	realptr[0] = x
+	return realptr
+end
+
 function SelfGrav:resetState()
 	SelfGrav.super.resetState(self)
 
@@ -118,8 +124,8 @@ function SelfGrav:resetState()
 	local ePotMin = solver.reduceMin()
 	self.reduce_ePotKernelObj()
 	local ePotMax = solver.reduceMax()
-	
-	self.offsetPotentialAndAddToTotalKernelObj.obj:setArg(1, ffi.new('real[1]', ePotMin))
+
+	self.offsetPotentialAndAddToTotalKernelObj.obj:setArg(1, real(ePotMin))
 	self.offsetPotentialAndAddToTotalKernelObj()
 	
 	self.reduce_ePotKernelObj()

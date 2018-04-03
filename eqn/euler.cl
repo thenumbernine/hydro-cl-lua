@@ -660,4 +660,34 @@ kernel void addSource(
 	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(W.v, x), U->rho));	//-Conn^i_jk v^j v^k rho
 	deriv->m = real3_sub(deriv->m, real3_scale(coord_connTrace(x), W.P));		//-Conn^i_jk g^jk P = -Conn^i P
 #endif
+
+/*
+Navier-Stokes FANS source term: 2005 Uygun, Kirkkopru
+tau_ij,j
+for tau_ij = mu_T (v_i,j + v_j,i - 2/3 delta_ij v_k,k) - 2/3 rho K delta_ij
+so tau_ij,j = (mu_T (v_i,j + v_j,i - 2/3 delta_ij v_k,k) - 2/3 rho K delta_ij),j
+	= mu_T (v_i,j + v_j,i - 2/3 delta_ij v_k,k),j - (2/3 rho K delta_ij),j
+	= mu_T (v_i,jj + 1/3 v_j,ji) - 2/3 K rho,i
+	= mu_T (rho m)_i,jj + 1/3 mu_T (rho m)_j,ji - 2/3 K rho,i
+	= mu_T ( (rho,j m_i + rho m_i,j),j + 1/3 (rho,j m_j + rho m_j,j),i ) - 2/3 K rho,i
+	= mu_T ( 
+		rho,jj m_i 
+		+ 1/3 rho,ij m_j 
+		+ rho,j (2 m_i,j + 1/3 m_j,i)
+		+ rho (m_i,jj + 1/3 m_j,ij)
+	)
+	+ rho,i (mu_T m_j,j - 2 K) / 3
+*/
+<? if solver.useNavierStokesViscosityTerm then ?>
+<?=makePartial('rho', 'real');?>
+<?=makePartial2('rho', 'real');?>
+<?=makePartial('m', 'real3');?>
+<?=makePartial2('m', 'real3');?>
+
+<? for i,xi in ipairs(xNames) do
+?>	deriv->m.<?=xi?> += 
+	- 2./3. * K
+<? end
+?>;
+<? end ?>
 }

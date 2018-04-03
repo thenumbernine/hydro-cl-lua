@@ -83,12 +83,18 @@ function EulerBurgers:addDisplayVars()
 	end
 end
 
+local realptr = ffi.new'real[1]'
+local function real(x)
+	realptr[0] = x
+	return realptr
+end
+
 function EulerBurgers:step(dt)
 	-- calc deriv here
 	self.integrator:integrate(dt, function(derivBuf)
 		self.calcIntVelKernelObj()
 
-		self.calcFluxKernelObj.obj:setArg(3, ffi.new('real[1]', dt))
+		self.calcFluxKernelObj.obj:setArg(3, real(dt))
 		self.calcFluxKernelObj()
 	
 		self.calcDerivFromFluxKernelObj(derivBuf)

@@ -467,6 +467,8 @@ end) then
 
 	{
 		name = '2002 Dedner Kelvin-Helmholtz',
+		mins = {0,-1,-1},
+		maxs = {1,1,1},
 		initState = function(self, solver)
 			solver:setBoundaryMethods'periodic'
 			return [[
@@ -474,7 +476,8 @@ end) then
 	v.x = 5. * (tanh(20. * (x.y + .5)) - (tanh(20. * (x.y - .5)) + 1.));
 	v.y = .25 * sin(2. * M_PI * x.x) * (
 		exp(-100. * (x.y + .5) * (x.y + .5))
-		- exp(-100. * (x.y - .5) * (x.y - .5)));
+		- exp(-100. * (x.y - .5) * (x.y - .5))
+	);
 	B.x = 1.;
 	P = 50.;
 ]]
@@ -701,13 +704,15 @@ end ?>
 	-- TODO fixme 
 	{
 		name = 'Rayleigh-Taylor',
+		mins = {-3,-1,-1},
+		maxs = {3,1,1},
 		initState = function(self, solver)	
 			local xmid = (solver.mins + solver.maxs) * .5
 			
 			-- triple the length along the interface dimension
-			local k = solver.dim
-			solver.mins[k] = xmid[k] + (solver.mins[k] - xmid[k]) * 3
-			solver.maxs[k] = xmid[k] + (solver.maxs[k] - xmid[k]) * 3
+			--local k = solver.dim
+			--solver.mins[k] = xmid[k] + (solver.mins[k] - xmid[k]) * 3
+			--solver.maxs[k] = xmid[k] + (solver.maxs[k] - xmid[k]) * 3
 
 			-- triple resolution along interface dimension
 			--size[k] = size[k] * 3
@@ -741,10 +746,10 @@ end ?>;
 	--http://www.astro.virginia.edu/VITA/ATHENA/dmr.html
 	{
 		name = 'double mach reflection',
+		mins = {0,0,0},
+		maxs = {4,1,1},
 		initState = function(self, solver)
 			-- I am not correctly modeling the top boundary
-			solver.mins = vec3(0,0,0)
-			solver.maxs = vec3(4,1,1)
 			solver:setBoundaryMethods{
 				xmin = 'freeflow',
 				xmax = 'freeflow',
@@ -813,10 +818,9 @@ end ?>;
 
 	{
 		name = 'Richmyer-Meshkov',
+		mins = {-2,0,0},
+		maxs = {6,1,1},
 		initState = function(self, solver)
-			--solver.mins = vec3(-2,0,0)
-			--solver.maxs = vec3(6,1,1)
-			
 			solver:setBoundaryMethods'freeflow'
 			
 			local theta = math.pi / 4
