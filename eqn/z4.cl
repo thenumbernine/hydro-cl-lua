@@ -219,7 +219,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ (
 			+ f * (m - 2.) * (ZUx + eU.x - dU.x) / (sqrt_f * sqrt_gUxx)
 			+ (m * f - 2.) * Theta
-		) / f_minus_1	
+		) / f_minus_1
 	) / gammaU.xx;
 
 	result[30] = .5 * (
@@ -232,14 +232,14 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	) / gammaU.xx;
 
 	result[9] = -(
-		+ d_z
-		- e_z
+		+ d.z
+		- e.z
 		
-		+ d^x_xz
-		+ d^x_xz
+		+ d_ull.x.xz
+		+ d_ull.x.xz
 		
-		- d_zx^x
-		- d_xz^x
+		- d_llu.z.x.x
+		- d_llu.x.z.x
 		
 		- 2. * dx.xz * gammaU.xx
 		
@@ -256,6 +256,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ 2. * sqrt_gUxx * K_ul.x.z
 		+ 2. * Z.z * gammaU.xx
 	) / gammaU.xx;
+	
 	result[23] = (
 		+ a.z * gammaU.xx
 		
@@ -271,7 +272,6 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	
 	) / (2. * gammaU.xx);
 	result[24] = -(
-		+ a.z * gammaU.xx 
 		+ 2. * gammaU.xx * sqrt_gUxx * K.xz 
 		+ gammaU.xy * gammaU.xz * dy.zz 
 		- gammaU.xy * gammaU.xz * dz.yz 
@@ -283,29 +283,27 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ gammaU.yy * gammaU.xx * dz.yy 
 		- gammaU.yz * gammaU.xx * dy.zz 
 		+ gammaU.yz * gammaU.xx * dz.yz 
+		
+		+ a.z * gammaU.xx 
 		- 2. * Z.z * gammaU.xx
 	) / (4. * gammaU.xx);
-
 	result[2] = (
 		- a.y * gammaU.xx
 		
-		+ g^xx (d_zy^z - d_yz^z)
-		+ g^xz (d_yz^x - d_zy^x)
+		+ gammaU.xx * (d_llu.z.y.z - d_llu.y.z.z)
+		+ gammaU.xz * (d_llu.y.z.x - d_llu.z.y.x)
 		
 		+ 2. * sqrt_gUxx * K_ul.x.y
 		+ 2. * Z.y * gammaU.xx
 	) / (4. * gammaU.xx);
-	result[3] = (
-		- gammaU.xx * a.x
+	result[3] = .25 * (
 		+ aU.x
 	
-		+ g^xy (d_yz^z - d_zy^z)
-		+ g^xz (d_zy^y - d_yz^y)
+		+ gammaU.xy * (d_llu.y.z.z - d_llu.z.y.z)
+		+ gammaU.xz * (d_llu.z.y.y - d_llu.y.z.y)
 		
-		+ 2. * sqrt_gUxx * (K_ul.x.x - tr_K)
-		+ 2. * Theta * sqrt_gUxx
-		+ 2. * Z.x * gammaU.xx
-	) / (4. * gammaU.xx);
+		+ 2. * sqrt_gUxx * (K_ul.x.x - tr_K + Theta)
+	) / gammaU.xx - .25 * a.x + .5 * Z.x;
 	result[4] = (
 		+ eU.x
 		- dU.x
@@ -387,8 +385,9 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		
 		+ a.y
 		- 2. * Z.y
-		- 2. * dx.xy * gammaU.xx
-	) / (2. * gammaU.xx);
+	) / (2. * gammaU.xx)
+	+ dx.xy
+	;
 	
 	result[22] = -(
 		+ gammaU.xy * gammaU.xz * dy.yz 
@@ -399,45 +398,42 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ gammaU.yz * gammaU.xx * dz.yy 
 		- gammaU.zz * gammaU.xx * dy.zz 
 		+ gammaU.zz * gammaU.xx * dz.yz 
-		- a.y * gammaU.xx
-	) / (2. * gammaU.xx);
+	) / (2. * gammaU.xx)
+	+ .5 * a.y
+	;
 
 	result[25] = -(
 		+ 2. * gammaU.xx * sqrt_gUxx * K.xy 
+		+ 2. * gammaU.xy * K.yy * sqrt_gUxx 
+		+ 2. * gammaU.xz * K.yz * sqrt_gUxx 
+		
 		- gammaU.xy * gammaU.xz * dy.yz 
 		+ gammaU.xy * gammaU.xz * dz.yy 
-		+ 2. * gammaU.xy * K.yy * sqrt_gUxx 
 		- gammaU.xz * gammaU.xz * dy.zz 
 		+ gammaU.xz * gammaU.xz * dz.yz 
-		+ 2. * gammaU.xz * K.yz * sqrt_gUxx 
 		+ gammaU.yz * gammaU.xx * dy.yz 
 		- gammaU.yz * gammaU.xx * dz.yy 
 		+ gammaU.zz * gammaU.xx * dy.zz 
 		- gammaU.zz * gammaU.xx * dz.yz 
-		+ a.y * gammaU.xx 
-		- 2. * Z.y * gammaU.xx
-	) / (4. * gammaU.xx);
-	result[26] = (
+		
+	) / (4. * gammaU.xx)
+	- .25 * a.y
+	+ .5 * Z.y;
+	result[26] = .25 * (
 		+ aU.x
-		- gammaU.xx * a.x
 		
 		+ gammaU.xy * gammaU.yz * dy.yz 
 		- gammaU.xy * gammaU.yz * dz.yy 
 		+ gammaU.xy * gammaU.zz * dy.zz 
 		- gammaU.xy * gammaU.zz * dz.yz 
-		+ 2. * gammaU.xy * K.xy * sqrt_gUxx 
 		- gammaU.xz * gammaU.yy * dy.yz 
 		+ gammaU.xz * gammaU.yy * dz.yy 
 		- gammaU.xz * gammaU.yz * dy.zz 
 		+ gammaU.xz * gammaU.yz * dz.yz 
-		+ 2. * gammaU.xz * K.xz * sqrt_gUxx 
-		+ 2. * gammaU.yy * K.yy * sqrt_gUxx 
-		+ 4. * gammaU.yz * K.yz * sqrt_gUxx 
-		+ 2. * gammaU.zz * K.zz * sqrt_gUxx 
-		- 2. * Theta * sqrt_gUxx 
-		+ 2. * Z.x * gammaU.xx
-	) / (4. * gammaU.xx);
-	result[27] = -(
+	
+		- 2. * sqrt_gUxx * (K_ul.x.x - tr_K + Theta)
+	) / gammaU.xx - .25 * a.x + .5 * Z.x;
+	result[27] = -.5 * (
 		+ gammaU.xx * gammaU.yy * dy.xy 
 		- gammaU.xx * gammaU.yy * dx.yy 
 		+ gammaU.xx * gammaU.yz * dy.xz 
@@ -461,16 +457,14 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		- gammaU.xz * gammaU.xz * dz.xz 
 		+ gammaU.xz * gammaU.xz * dx.zz 
 		+ ZUx
-		- Theta * sqrt_gUxx
-	) / (2. * sqrt_gUxx);
-	result[28] = -(
+	) / sqrt_gUxx + .5 * Theta;
+	result[28] = -.5 * (
 		+ gammaU.xx * dz.xz 
 		- gammaU.xx * dx.zz 
 		- gammaU.xy * dy.zz 
 		+ gammaU.xy * dz.yz 
-		- K.zz * sqrt_gUxx
-	) / (2. * sqrt_gUxx);
-	result[29] = -(
+	) / sqrt_gUxx + .5 * K.zz;
+	result[29] = -.25 * (
 		+ gammaU.xx * dy.xz 
 		+ gammaU.xx * dz.xy 
 		- 2. * gammaU.xx * dx.yz 
@@ -478,8 +472,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ gammaU.xy * dz.yy 
 		+ gammaU.xz * dy.zz 
 		- gammaU.xz * dz.yz 
-		- 2. * K.yz * sqrt_gUxx
-	) / (4. * sqrt_gUxx);
+	) / sqrt_gUxx + .5 * K.yz;
 
 	result[10] = dy.xx;
 	result[11] = dy.xy;
@@ -493,7 +486,6 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	result[19] = dz.yy;
 	result[20] = dz.yz;
 	result[21] = dz.zz;
-
 }
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
