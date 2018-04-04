@@ -6,7 +6,7 @@ local ig = require 'ffi.imgui'
 local table = require 'ext.table'
 
 local function hoverTooltip(name)
-	if ig.igIsItemHovered() then
+	if ig.igIsItemHovered(ig.ImGuiHoveredFlags_Default) then
 		ig.igBeginTooltip()
 		ig.igText(name)
 		ig.igEndTooltip()
