@@ -2074,9 +2074,11 @@ function Solver:updateGUIParams()
 			end
 			ig.igPopID()
 		end
-
-		for _,op in ipairs(self.ops) do
+		
+		for i,op in ipairs(self.ops) do
+			ig.igPushIDInt(i)
 			op:updateGUI()
+			ig.igPopID()
 		end
 
 		if tooltip.comboTable('slope limiter', self, 'fluxLimiter', self.app.limiterNames) then
