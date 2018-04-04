@@ -43,7 +43,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <? end ?>
 
 //used for interface eigen basis
-<?=eqn.eigen_t?> eigen_forSide(
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.eigen_t?> eigen_forSide_<?=side?>(
 	global const <?=eqn.cons_t?>* UL,
 	global const <?=eqn.cons_t?>* UR,
 	real3 x
@@ -119,7 +120,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		.Cs = Cs,
 	};
 }
-
+<? end ?>
 
 //this is also used by PLM for cell-centered waves
 //that's why it is split out
@@ -174,7 +175,7 @@ kernel void calcEigenBasis(
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		*eig = eigen_forSide(UL, UR, xInt);
+		*eig = eigen_forSide_<?=side?>(UL, UR, xInt);
 	}<? end ?>
 }
 

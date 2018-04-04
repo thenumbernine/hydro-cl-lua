@@ -38,7 +38,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 <? end ?>
 
-<?=eqn.eigen_t?> eigen_forSide(
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.eigen_t?> eigen_forSide_<?=side?>(
 	global const <?=eqn.cons_t?>* UL,
 	global const <?=eqn.cons_t?>* UR,
 	real3 x
@@ -48,6 +49,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		.sqrt_mu = sqrt(.5 * (UL->mu + UR->mu)),
 	};
 }
+<? end ?>
 
 //same as in eqn/euler.cl
 kernel void calcEigenBasis(
@@ -71,7 +73,7 @@ kernel void calcEigenBasis(
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		*eig = eigen_forSide(UL, UR, xInt);
+		*eig = eigen_forSide_<?=side?>(UL, UR, xInt);
 	}<? end ?>
 }
 		

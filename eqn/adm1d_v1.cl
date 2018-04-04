@@ -30,7 +30,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 <? end ?>
 
-<?=eqn.eigen_t?> eigen_forSide(
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.eigen_t?> eigen_forSide_<?=side?>(
 	const global <?=eqn.cons_t?>* UL,
 	const global <?=eqn.cons_t?>* UR,
 	real3 x
@@ -42,6 +43,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		.f = calc_f(alpha),
 	};
 }
+<? end ?>
 
 kernel void calcEigenBasis(
 	global <?=eqn.eigen_t?>* eigenBuf,
@@ -58,7 +60,7 @@ kernel void calcEigenBasis(
 		
 		int indexInt = side + dim * index;
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		*eig = eigen_forSide(UL, UR, x);
+		*eig = eigen_forSide_<?=side?>(UL, UR, x);
 	}<? end ?>
 }
 
