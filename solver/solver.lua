@@ -2069,7 +2069,7 @@ function Solver:updateGUIParams()
 		if self.integrator.updateGUI then
 			ig.igSameLine()
 			ig.igPushIDStr'integrator'
-			if ig.igCollapsingHeader'' then
+			if ig.igCollapsingHeader':' then
 				self.integrator:updateGUI()
 			end
 			ig.igPopID()
