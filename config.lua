@@ -63,7 +63,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{64,64,1},
+				{256,256,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -178,7 +178,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -212,7 +212,7 @@ maxs = {6,1,1},
 	-- MHD-only init states: (that use 'b')
 	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
-	initState = 'MHD Rotor',
+	--initState = 'MHD rotor',
 	--initState = 'spinning magnetic fluid',
 	--initState = '2017 Degris et al',
 	
@@ -352,7 +352,7 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -393,8 +393,12 @@ maxs = {6,1,1},
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
-self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
+--self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='mhd'})))
+
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-mhd'})))
+--self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-mhd'})))
 
 -- Maxwell
 -- when the state is nonzero, at certain sizes there appear errors in the corners

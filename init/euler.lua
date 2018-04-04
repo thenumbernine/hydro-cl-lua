@@ -286,7 +286,7 @@ local initStates = table{
 	--	omega = 2, P = 1, gamma = 7/5
 	-- 	omega = 1, P = .5, gamma = 5/3
 	{
-		name = 'MHD Rotor',
+		name = 'MHD rotor',
 		initState = function(self, solver)
 			if solver.eqn.guiVars.heatCapacityRatio then	
 				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
