@@ -280,6 +280,48 @@ local initStates = table{
 		end,
 	},
 	
+	-- http://plutocode.ph.unito.it/Doxygen/Test_Problems/_m_h_d_2_rotor_2init_8c.html 
+	-- http://flash.uchicago.edu/~jbgallag/2012/flash4_ug/node34.html#SECTION08123000000000000000 
+	-- https://arxiv.org/pdf/0908.4362.pdf lists the following:
+	--	omega = 2, P = 1, gamma = 7/5
+	-- 	omega = 1, P = .5, gamma = 5/3
+	{
+		name = 'MHD Rotor',
+		initState = function(self, solver)
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
+			end
+			return [[
+	real3 xc = coordMap(x);
+	const real r0 = .1;
+	const real r1 = .115;
+	const real omega = 2.; 
+	real r = sqrt(xc.x * xc.x + xc.y * xc.y);
+	real vPhi = 0.;
+	if (r <= r0) {
+		rho = 10.;
+		v = cartesianFromCoord(_real3(
+			-omega * xc.y / r0,
+			omega * xc.x / r0,
+			0.
+		), x);
+	} else if (r <= r1) {
+		real f = (r1 - r) / (r1 - r0);
+		rho = 1 + 9 * f;
+		v = cartesianFromCoord(_real3(
+			-f * omega * xc.y / r,
+			f * omega * xc.x / r,
+			0.
+		), x);
+	} else {
+		rho = 1.;
+	}
+	P = 1.;
+	B.x = 5. / sqrt(4. * M_PI);
+]]
+		end,
+	},
+
 	{
 		name = 'spinning magnetic fluid',
 		initState = function(self, solver)

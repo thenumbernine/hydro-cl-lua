@@ -40,7 +40,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <? end ?>
 
 //used for interface eigen basis
-<?=eqn.eigen_t?> eigen_forSide(
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.eigen_t?> eigen_forSide_<?=side?>(
 	global const <?=eqn.cons_t?>* UL,
 	global const <?=eqn.cons_t?>* UR,
 	real3 x
@@ -53,6 +54,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		.sqrt_f_over_gamma_xx = sqrt(f / gamma_xx),
 	};
 }
+<? end ?>
 
 kernel void calcEigenBasis(
 	global <?=eqn.eigen_t?>* eigenBuf,
@@ -70,7 +72,7 @@ kernel void calcEigenBasis(
 		int indexInt = side + dim * index;	
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		*eig = eigen_forSide(UL, UR, x);
+		*eig = eigen_forSide_<?=side?>(UL, UR, x);
 	}<? end ?>
 }
 

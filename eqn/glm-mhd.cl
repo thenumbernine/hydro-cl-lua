@@ -145,10 +145,8 @@ void calcRoeValues(
 	W->Y = .5 * (UL->rho + UR->rho) / W->rho;
 };
 
-<? 
-for side=0,solver.dim-1 do 
-?>
-<?=eqn.eigen_t?> eigen_forSide_<?=side?>(
+//assumes the vector values are x-axis aligned with the interface normal
+<?=eqn.eigen_t?> eigen_forRoeAvgs(
 	Roe_t roe,
 	real3 x
 ) {
@@ -247,9 +245,23 @@ for side=0,solver.dim-1 do
 
 	return eig;
 }
-<? 
-end
-?>
+
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.eigen_t?> eigen_forSide_<?=side?>(
+	global const <?=eqn.cons_t?>* UL,
+	global const <?=eqn.cons_t?>* UR,
+	real3 x
+) {
+	//swap the sides with x here, so all the fluxes are in the 'x' direction
+	<?=eqn.cons_t?> UL_ = cons_swapFrom<?=side?>(*UL);
+	<?=eqn.cons_t?> UR_ = cons_swapFrom<?=side?>(*UR);
+
+	Roe_t roe;
+	calcRoeValues(&roe, &UL_, &UR_, x);
+
+	return eigen_forRoeAvgs(roe, x);
+}
+<? end ?>
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forCons_<?=side?>(
@@ -267,7 +279,7 @@ end
 		.X = 0,
 		.Y = 1,
 	};
-	return eigen_forSide_<?=side?>(roe, x);
+	return eigen_forRoeAvgs(roe, x);
 }
 <? end ?>
 
@@ -328,15 +340,8 @@ kernel void calcEigenBasis(
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 
-		//swap the sides with x here, so all the fluxes are in the 'x' direction
-		<?=eqn.cons_t?> UL_ = cons_swapFrom<?=side?>(*UL);
-		<?=eqn.cons_t?> UR_ = cons_swapFrom<?=side?>(*UR);
-
-		Roe_t roe;
-		calcRoeValues(&roe, &UL_, &UR_, xInt);
-
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		*eig = eigen_forSide_<?=side?>(roe, xInt);
+		*eig = eigen_forSide_<?=side?>(UL, UR, xInt);
 	}<? end ?>
 }
 

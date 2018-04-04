@@ -180,7 +180,7 @@ maxs = {6,1,1},
 	
 	--initState = 'Sod',
 	--initState = 'Sedov',
-	initState = 'Kelvin-Helmholtz',
+	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
@@ -212,6 +212,7 @@ maxs = {6,1,1},
 	-- MHD-only init states: (that use 'b')
 	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
+	initState = 'MHD Rotor',
 	--initState = 'spinning magnetic fluid',
 	--initState = '2017 Degris et al',
 	
@@ -351,7 +352,7 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -392,11 +393,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
-
--- TODO to get HLL working for MHD (even though it'll not simulate all those intermediate waves correctly)
---  I need to rework eqn/mhd.cl to implement eigen_forSide
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
-
+self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
 
 -- Maxwell
