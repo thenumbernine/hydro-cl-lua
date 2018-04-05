@@ -225,10 +225,6 @@ kernel void calcFlux(
 			fluxEig[j] -= .5 * lambda * deltaUEig[j] * (sgnLambda
 <? if solver.fluxLimiter > 1 then ?>
 				+ phi * (lambda * dt_dx - sgnLambda)
-
-// this makes my oscillations in >=2D go away ... but what is the correct fix?
-// * <?=clnumber(1/solver.dim)?>	
-
 <? end ?>			
 			);
 		}<? end ?>
