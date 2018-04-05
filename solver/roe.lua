@@ -239,7 +239,7 @@ function Roe:calcDeriv(derivBuf, dt)
 	self.calcFluxKernelObj.obj:setArg(4, dtArg)
 	self.calcFluxKernelObj()
 
-
+-- [=[ this is from the 2017 Zingale book
 	if self.useCTU then
 		-- if we're using CTU then ...
 		-- 1) calc fluxes based on a slope-limiter method (PLM, etc)
@@ -270,7 +270,8 @@ function Roe:calcDeriv(derivBuf, dt)
 		end
 		self.calcFluxKernelObj()
 	end
-
+--]=]
+	
 	self.calcDerivFromFluxKernelObj(derivBuf)
 
 	-- addSource adds to the derivative buffer

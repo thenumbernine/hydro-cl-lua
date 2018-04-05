@@ -53,6 +53,7 @@ function HLL:calcDeriv(derivBuf, dt)
 	
 	self.calcFluxKernelObj()
 
+-- [=[ this is from the 2017 Zingale book
 	if self.useCTU then	-- see solver/roe.lua for a description of why this is how this is
 		self.updateCTUKernelObj.obj:setArg(2, dtArg)
 		self.updateCTUKernelObj()
@@ -61,6 +62,7 @@ function HLL:calcDeriv(derivBuf, dt)
 		
 		self.calcFluxKernelObj()
 	end
+--]=]
 	
 	self.calcDerivFromFluxKernelObj(derivBuf)
 	

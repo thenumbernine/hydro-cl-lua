@@ -174,16 +174,32 @@ local initStates = table{
 			return '	rho=2+x.x; P=1;'
 		end,
 	},
+	
+	-- 2017 Zingale section 7.9.3
 	{
 		name = 'gaussian',
+		init = function(self, solver)
+			solver.eqn:addGuiVars{
+				{name = 'init_rho0', value = 1e-3},
+				{name = 'init_rho1', value = 1},
+				{name = 'init_sigma', value = .1},
+				{name = 'init_u0', value = 1},
+				{name = 'init_v0', value = 1},
+				{name = 'init_P0', value = 1e-6},
+			}
+		end,
+	
 		initState = function(self, solver)
-			return [[
-	real sigma = 1. / sqrt(10.);
+			return template([[
 	real3 xc = coordMap(x);
 	real xSq = real3_lenSq(xc);
-	rho = exp(-xSq / (sigma*sigma)) + .1;
-	P = 1 + .1 * (exp(-xSq / (sigma*sigma)) + 1) / ((heatCapacityRatio - 1.) * rho);
-]]
+	rho = (init_rho1 - init_rho0) * exp(-xSq / (init_sigma*init_sigma)) + init_rho0;
+	v.x = init_u0;
+	v.y = init_v0;
+	P = init_P0;
+]],		{
+			clnumber = clnumber,
+		})
 		end,
 	},
 	{
@@ -533,7 +549,8 @@ end) then
 			return [[
 	real3 xc = coordMap(x);
 	real rSq = real3_lenSq(xc);
-	bool inside = rSq < .5*.5;
+	const real R = .2;
+	bool inside = rSq < R*R;
 	rho = inside ? 1 : .1;
 	P = inside ? 1 : .1;
 ]]
