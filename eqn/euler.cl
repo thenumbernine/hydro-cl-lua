@@ -437,6 +437,8 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 }
 
 <?	if solver.checkFluxError then ?>
+//this is the dA/dU matrix
+//how about also implementing dA/dW and then implementing this as dA/dW * dW/dU * x = dA_dW(dW_dU(x))?  would it be less instructions?
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* Y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,

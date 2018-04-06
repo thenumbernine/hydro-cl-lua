@@ -119,10 +119,10 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 
 #define calc_exp_neg4phi(U) ((U)->chi)
 
-//|g| = exp(12 phi)
+//|g| = exp(12 phi) |g_grid|
 real calc_det_gamma(global const <?=eqn.cons_t?>* U) {
 	real exp_neg4phi = calc_exp_neg4phi(U);
-	real det_gamma = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
+	real det_gamma = sqrt_det_g_grid(x) / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 	return det_gamma;
 }
 
@@ -174,7 +174,8 @@ kernel void initState(
 
 	//gammaTilde_ij = e^(-4phi) gamma_ij
 	//real exp_neg4phi = exp(-4 * U->phi);
-	real exp_neg4phi = 1./cbrt(det_gamma);
+	real det_gammaGrid = sqrt_det_g_grid(x);
+	real exp_neg4phi = cbrt(det_gammaGrid / det_gamma);
 
 	U->chi = exp_neg4phi;
 	

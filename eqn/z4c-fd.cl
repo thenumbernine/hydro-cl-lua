@@ -33,21 +33,24 @@ kernel void constrainU(
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
 	/*
-	det(gammaTilde_ij) 
-	= det(gamma^-1/3 gamma_ij)
-	= gamma^-1 gamma
+	if the background is flat ...
+	then we need to force det(gammaTilde_ij) = 1
+	and we can do so with gammaTilde_ij := gammaTilde_ij / det(gammaTilde_ij)^(1/3)
+	so we find
+	det(gammaTilde_ij / det(gammaTilde_ij)^(1/3))
+	= det(gammaTilde_ij)) / det(gammaTilde_ij)
 	= 1
 	
-	det(a * 1/det(a)^(1/n) )
-	det(a) * 1/det(a)^(1/n)^n
-	det(a) * 1/det(a)
-	1
+	if the background is gammaHat_ij
+	then we need to force det(gammaTilde_ij) = det(gammaHat_ij)
+	do so with gammaTilde_ij := gammaTilde_ij * ( det(gammaHat_ij) / det(gammaTilde_ij) )^(1/3)
 	*/
 <? if eqn.guiVars.constrain_det_gammaTilde_ll.value then ?>
+	real det_gammaGrid = sqrt_det_g_grid(x);
 	real det_gammaTilde = sym3_det(U->gammaTilde_ll);
-	real _1_cbrt_det_gammaTilde = 1./cbrt(det_gammaTilde);
+	real rescaleMetric = cbrt(det_gammaGrid/det_gammaTilde);
 <? 	for ij,xij in ipairs(symNames) do
-?>	U->gammaTilde_ll.<?=xij?> *= _1_cbrt_det_gammaTilde;
+?>	U->gammaTilde_ll.<?=xij?> *= rescaleMetric;
 <? 	end
 end ?>
 
