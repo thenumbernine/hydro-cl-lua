@@ -281,9 +281,8 @@ function Euler:eigenWaveCode(side, eig, x, waveIndex)
 		return 'v_n'
 	elseif waveIndex == 4 then
 		return '(v_n + Cs_sqrt_gU)'
-	else
-		error'got a bad waveIndex'
 	end
+	error'got a bad waveIndex'
 end
 
 return Euler

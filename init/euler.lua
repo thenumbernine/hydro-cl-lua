@@ -204,12 +204,19 @@ local initStates = table{
 	},
 	{
 		name = 'advect wave',
+		init = function(self, solver)
+			solver.eqn:addGuiVars{
+				{name = 'v0x', value = .5},
+				{name = 'v0y', value = 0},
+			}
+		end,
 		initState = function(self, solver)
 			return [[
 	real3 xc = real3_sub(coordMap(x), _real3(-.5, 0, 0));
 	real rSq = real3_lenSq(xc);
 	rho = exp(-100*rSq) + 1.;
-	v.x = .5;
+	v.x = v0x;
+	v.y = v0y;
 	P = 1;
 ]]
 		end,

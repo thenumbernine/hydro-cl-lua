@@ -122,36 +122,6 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 <? end ?>
 
-//this is also used by PLM for cell-centered waves
-//that's why it is split out
-//its use there could replace calcCellMinMaxEigenvalues
-//which is called by the default calcDT
-<?
-for side=0,solver.dim-1 do
-	for _,addrs in ipairs{
-		{'', ''},
-		{'global', 'global'},
-	} do
-		local addr0, addr1 = table.unpack(addrs)
-?>
-void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
-	<?=addr0?> real* wave,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	real3 x
-) {
-	real Cs_sqrt_gU = eig->Cs * coord_sqrt_gU<?=side..side?>(x);
-	real v_n = eig->v.s[<?=side?>];
-	wave[0] = v_n - Cs_sqrt_gU;
-	wave[1] = v_n;
-	wave[2] = v_n;
-	wave[3] = v_n;
-	wave[4] = v_n + Cs_sqrt_gU;
-}
-
-<?	end
-end
-?>
-
 //this routine is pretty standard.
 //why not move it to Roe or somewhere similar?
 kernel void calcEigenBasis(

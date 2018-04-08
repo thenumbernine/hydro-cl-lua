@@ -1,4 +1,4 @@
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -111,12 +111,15 @@ maxs = {6,1,1},
 		{16, 64, 16}, -- 3D
 	})[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
-		xmax=cmdline.boundary or 'mirror',
+		-- r
+		xmin=cmdline.boundary or 'freeflow',		-- hmm, how to treat the r=0 boundary ...
+		xmax=cmdline.boundary or 'freeflow',
+		-- theta
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
-		zmin=cmdline.boundary or 'mirror',
-		zmax=cmdline.boundary or 'mirror',
+		-- z
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ sphere
@@ -173,7 +176,7 @@ maxs = {6,1,1},
 	--initState = 'constant',
 	--initState = 'constant with velocity',
 	--initState = 'linear',
-	initState = 'gaussian',
+	--initState = 'gaussian',
 	--initState = 'advect wave',
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
@@ -233,7 +236,7 @@ maxs = {6,1,1},
 	--initState = 'Maxwell Lichtenberg',	
 
 	-- Maxwell+HD
-	--initState = 'two-fluid EMHD soliton ion',
+	initState = 'two-fluid EMHD soliton ion',
 	--initState = 'two-fluid EMHD soliton electron',
 	--initState = 'two-fluid EMHD soliton maxwell',
 
@@ -352,7 +355,7 @@ maxs = {6,1,1},
 
 -- HD
 -- Roe is actually running faster than HLL ...
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -410,7 +413,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- I'm having some memory issues with two solvers running simultanously .. 
 --self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
 -- so to try and get around that, here the two are combined into one solver:
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 
 -- GR+Maxwell.  params go to the Maxwell solver.
 

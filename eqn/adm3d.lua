@@ -396,7 +396,7 @@ momentum constraints
 end
 
 ADM_BonaMasso_3D.eigenVars = table{
-	{alpha = 'real'},	--used only by eigen_calcWaves ... makes me think eigen_forCell / eigen_forSide should both calculate waves and basis variables in the same go
+	{alpha = 'real'},
 	{sqrt_f = 'real'},
 	{gammaU = 'sym3'},
 	-- sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)

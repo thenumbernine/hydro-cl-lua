@@ -121,41 +121,8 @@ end
 }
 <? end ?>
 
-<?
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for side=0,solver.dim-1 do
-?>
-void eigen_calcWaves_<?=side?>_<?=addr0?>_<?=addr1?>(
-	<?=addr0?> real* wave,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	real3 x
-) {
-<? for i,fluid in ipairs(fluids) do ?>
-	real <?=fluid?>_Cs_sqrt_gU = eig-><?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(x);
-	real <?=fluid?>_v_n = eig-><?=fluid?>_v.s[<?=side?>];
-	wave[<?=5*i-5?>] = <?=fluid?>_v_n - <?=fluid?>_Cs_sqrt_gU;
-	wave[<?=5*i-4?>] = <?=fluid?>_v_n;
-	wave[<?=5*i-3?>] = <?=fluid?>_v_n;
-	wave[<?=5*i-2?>] = <?=fluid?>_v_n;
-	wave[<?=5*i-1?>] = <?=fluid?>_v_n + <?=fluid?>_Cs_sqrt_gU;
-<? end ?>
-	real EM_lambda = 1. / sqrt(eig->eps * eig->mu);
-	wave[10] = -EM_lambda;
-	wave[11] = -EM_lambda;
-	wave[12] = 0;
-	wave[13] = 0;
-	wave[14] = EM_lambda;
-	wave[15] = EM_lambda;
-}
-<?		end
-	end
-end
-?>
-
 //same as in eqn/euler.cl
 kernel void calcEigenBasis(
-	global real* waveBuf,			//[volume][dim][numWaves]
 	global <?=eqn.eigen_t?>* eigenBuf,		//[volume][dim]
 	<?= solver.getULRArg ?>
 ) {
@@ -177,9 +144,6 @@ kernel void calcEigenBasis(
 
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 		*eig = eigen_forSide_<?=side?>(UL, UR, xInt);
-		
-		global real* wave = waveBuf + numWaves * indexInt;
-		eigen_calcWaves_<?=side?>_global_global(wave, eig, xInt);
 	}<? end ?>
 }
 

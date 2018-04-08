@@ -47,8 +47,6 @@ kernel void calcDT(
 //used by PLM
 <? 
 for side=0,solver.dim-1 do 
-	-- TODO add _'s to the default eigen_forCell name
-	-- to make it like eigen_calcWaves_...
 	for _,addrAndSuffix in ipairs{
 		{[''] = 'local'}, 	-- local addr has 'local' suffix
 		{global = ''},		-- global addr has no suffix

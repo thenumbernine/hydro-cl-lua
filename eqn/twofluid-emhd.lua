@@ -436,4 +436,40 @@ eigenVars:append{
 }
 TwoFluidEMHD.eigenVars = eigenVars
 
+function TwoFluidEMHD:eigenWaveCodePrefix(side, eig, x)
+	return template([[
+<? for i,fluid in ipairs(fluids) do ?>
+	real <?=fluid?>_Cs_sqrt_gU = <?=eig?>-><?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(x);
+	real <?=fluid?>_v_n = <?=eig?>-><?=fluid?>_v.s[<?=side?>];
+<? end ?>
+	real EM_lambda = 1. / sqrt(<?=eig?>->eps * <?=eig?>->mu);
+]], {
+		eig = '('..eig..')',
+		fluids = fluids,
+		side = side,
+	})
+end
+
+function TwoFluidEMHD:eigenWaveCode(side, eig, x, waveIndex)
+	for i,fluid in ipairs(fluids) do
+		if waveIndex == 0 + 5 * (i-1) then
+			return template('<?=fluid?>_v_n - <?=fluid?>_Cs_sqrt_gU', {fluid=fluid})
+		elseif waveIndex >= 1 + 5 * (i-1)
+		and waveIndex <= 3 + 5 * (i-1)
+		then
+			return template('<?=fluid?>_v_n', {fluid=fluid})
+		elseif waveIndex == 4 + 5 * (i-1) then
+			return template('<?=fluid?>_v_n + <?=fluid?>_Cs_sqrt_gU', {fluid=fluid})
+		end
+	end
+	if waveIndex == 0 + 5*#fluids or waveIndex == 1 + 5*#fluids then
+		return '-EM_lambda'
+	elseif waveIndex == 2 + 5*#fluids or waveIndex == 3 + 5*#fluids then
+		return '0'
+	elseif waveIndex == 4 + 5*#fluids or waveIndex == 5 + 5*#fluids then
+		return 'EM_lambda'
+	end
+	error('got a bad waveIndex: '..waveIndex)
+end
+
 return TwoFluidEMHD
