@@ -212,8 +212,8 @@ maxs = {6,1,1},
 	--initState = 'relativistic blast wave test problem 2',
 	--initState = 'relativistic blast wave interaction',
 
-	-- MHD-only init states: (that use 'b')
-	--initState = 'Brio-Wu',
+	-- states for ideal MHD or two-fluid (not two-fluid-separate)
+	initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'spinning magnetic fluid',
@@ -236,7 +236,7 @@ maxs = {6,1,1},
 	--initState = 'Maxwell Lichtenberg',	
 
 	-- Maxwell+HD
-	initState = 'two-fluid EMHD soliton ion',
+	--initState = 'two-fluid EMHD soliton ion',
 	--initState = 'two-fluid EMHD soliton electron',
 	--initState = 'two-fluid EMHD soliton maxwell',
 

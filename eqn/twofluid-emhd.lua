@@ -48,8 +48,8 @@ TwoFluidEMHD.consVars = table{
 	{elec_ePot = 'real'},
 	{BPot = 'real'},
 	{sigma = 'real'},
-	{eps = 'real'},
-	{mu = 'real'},
+	{sqrt_eps = 'real'},
+	{sqrt_mu = 'real'},
 }
 
 TwoFluidEMHD.primVars = table{
@@ -70,8 +70,8 @@ TwoFluidEMHD.primVars = table{
 	{elec_ePot = 'real'},
 	{BPot = 'real'},
 	{sigma = 'real'},
-	{eps = 'real'},
-	{mu = 'real'},
+	{sqrt_eps = 'real'},
+	{sqrt_mu = 'real'},
 }
 
 TwoFluidEMHD.mirrorVars = {
@@ -142,7 +142,10 @@ function TwoFluidEMHD:getCodePrefix()
 	return table{
 		TwoFluidEMHD.super.getCodePrefix(self),
 		template([[
-real ESq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.epsE) / (U.eps * U.eps); }
+real ESq(<?=eqn.cons_t?> U, real3 x) { 
+	real eps = U.sqrt_eps * U.sqrt_eps;
+	return real3_lenSq(U.epsE) / (eps * eps);
+}
 real BSq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.B); }
 
 inline real calc_H(real P) { return P * (heatCapacityRatio / (heatCapacityRatio - 1.)); }
@@ -178,12 +181,12 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 		.<?=fluid?>_P = (heatCapacityRatio - 1.) * <?=fluid?>_EInt,
 		.<?=fluid?>_ePot = U.<?=fluid?>_ePot,
 		<? end ?>
-		.E = real3_scale(U.epsE, 1./U.eps),
+		.E = real3_scale(U.epsE, 1./(U.sqrt_eps * U.sqrt_eps)),
 		.B = U.B,
 		.BPot = U.BPot,
 		.sigma = U.sigma,
-		.eps = U.eps,
-		.mu = U.mu,
+		.sqrt_eps = U.sqrt_eps,
+		.sqrt_mu = U.sqrt_mu,
 	};
 }
 
@@ -195,12 +198,12 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 		.<?=fluid?>_ETotal = calc_<?=fluid?>_ETotal(W, x),
 		.<?=fluid?>_ePot = W.<?=fluid?>_ePot,
 		<? end ?>
-		.epsE = real3_scale(W.E, W.eps),
+		.epsE = real3_scale(W.E, W.sqrt_eps * W.sqrt_eps),
 		.B = W.B,
 		.BPot = W.BPot,
 		.sigma = W.sigma,
-		.eps = W.eps,
-		.mu = W.mu,
+		.sqrt_eps = W.sqrt_eps,
+		.sqrt_mu = W.sqrt_mu,
 	};
 }
 ]], {
@@ -277,8 +280,8 @@ if eqn.useEulerInitState then
 		.B = B,
 		.BPot = 0,
 		.sigma = conductivity,
-		.eps = permittivity,
-		.mu = permeability,
+		.sqrt_eps = sqrt(permittivity),
+		.sqrt_mu = sqrt(permeability),
 
 <?	
 else	-- expect the initState to explicitly provide the ion_ and elec_ Euler fluid variables
@@ -295,8 +298,8 @@ end
 		.B = B,
 		.BPot = 0,
 		.sigma = conductivity,
-		.eps = permittivity,
-		.mu = permeability,
+		.sqrt_eps = sqrt(permittivity),
+		.sqrt_mu = sqrt(permeability),
 	};
 	UBuf[index] = consFromPrim(W, x);
 }
@@ -390,10 +393,10 @@ function TwoFluidEMHD:getDisplayVars()
 	end
 
 	vars:append{
-		{E = '*valuevec = real3_scale(U->epsE, 1./U->eps);', type='real3'},
+		{E = '*valuevec = real3_scale(U->epsE, 1./(U->sqrt_eps * U->sqrt_eps));', type='real3'},
 		{['EM energy'] = [[
-	//*value = .5 * (coordLen(U->epsE) + coordLen(U->B) / U->mu);
-	*value = .5 * (real3_len(U->epsE) + real3_len(U->B) / U->mu);
+	//*value = .5 * (coordLen(U->epsE) + coordLen(U->B) / (U->sqrt_mu * U->sqrt_mu));
+	*value = .5 * (real3_len(U->epsE) + real3_len(U->B) / (U->sqrt_mu * U->sqrt_mu));
 ]]},
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='epsE', B='B'})[var] )
@@ -408,7 +411,7 @@ for j=0,solver.dim-1 do
 end 
 ?>	)<? 
 if field == 'epsE' then 
-?> / U->eps<?
+?> / (U->sqrt_eps * U->sqrt_eps) <?
 end
 ?>;
 ]], {solver=self.solver, field=field})}
@@ -431,8 +434,8 @@ for _,fluid in ipairs(fluids) do
 	}
 end
 eigenVars:append{
-	{eps = 'real'},
-	{mu = 'real'},
+	{sqrt_eps = 'real'},
+	{sqrt_mu = 'real'},
 }
 TwoFluidEMHD.eigenVars = eigenVars
 
@@ -442,7 +445,7 @@ function TwoFluidEMHD:eigenWaveCodePrefix(side, eig, x)
 	real <?=fluid?>_Cs_sqrt_gU = <?=eig?>-><?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(x);
 	real <?=fluid?>_v_n = <?=eig?>-><?=fluid?>_v.s[<?=side?>];
 <? end ?>
-	real EM_lambda = 1. / sqrt(<?=eig?>->eps * <?=eig?>->mu);
+	real EM_lambda = 1. / (<?=eig?>->sqrt_eps * <?=eig?>->sqrt_mu);
 ]], {
 		eig = '('..eig..')',
 		fluids = fluids,
