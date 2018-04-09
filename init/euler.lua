@@ -103,8 +103,12 @@ local function addMaxwellOscillatingBoundary(solver)
 				--oldxmin(args) .. 
 				template([[
 	<?=U?>.B = _real3(0,0,0);
+<? if eqn.is(require 'eqn.glm-maxwell') then ?>
+	<?=U?>.E = _real3(0., (real)sin((real)10. * t), 0.);
+<? else ?>	
 	<?=U?>.epsE = _real3(0., (real)sin((real)10. * t) / <?=U?>.eps, 0.);
-]], {U=U})
+<? end ?>	
+]], {U=U, eqn=self.eqn})
 		end
 
 		-- same as super 
@@ -1130,7 +1134,7 @@ end ?>;
 			return [[
 	real3 xc = coordMap(x);
 	if (real3_lenSq(xc) < .2*.2) {
-		//conductivity = 0;
+		//conductivity = 1e-1;
 		permittivity = 10.;
 	}
 ]]
@@ -1291,8 +1295,13 @@ bool testTriangle(real3 xc) {
 kernel void addExtraSource(
 	global <?=eqn.cons_t?>* UBuf
 ) {
+<? if eqn.is(require 'eqn.glm-maxwell') then ?>
+	UBuf[INDEX(<?=src[1]?>,<?=src[2]?>,<?=src[3]?>)].E.x = -10;
+	UBuf[INDEX(<?=dst[1]?>,<?=dst[2]?>,<?=dst[3]?>)].E.x = -10;
+<? else ?>
 	UBuf[INDEX(<?=src[1]?>,<?=src[2]?>,<?=src[3]?>)].epsE.x = -10;
 	UBuf[INDEX(<?=dst[1]?>,<?=dst[2]?>,<?=dst[3]?>)].epsE.x = -10;
+<? end ?>
 }
 ]], {
 	eqn = solver.eqn,

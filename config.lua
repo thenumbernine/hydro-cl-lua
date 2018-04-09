@@ -1,4 +1,4 @@
-local dim = 1
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -228,7 +228,7 @@ maxs = {6,1,1},
 
 	-- Maxwell:
 	--initState = 'Maxwell default',
-	--initState = 'Maxwell scattering around cylinder',
+	initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	
@@ -236,7 +236,7 @@ maxs = {6,1,1},
 	--initState = 'Maxwell Lichtenberg',	
 
 	-- Maxwell+HD
-	initState = 'two-fluid emhd modified Brio-Wu',
+	--initState = 'two-fluid emhd modified Brio-Wu',
 	--initState = 'two-fluid EMHD soliton ion',
 	--initState = 'two-fluid EMHD soliton electron',
 	--initState = 'two-fluid EMHD soliton maxwell',
@@ -410,11 +410,13 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
+
 -- Maxwell+HD two-fluid electron/ion solver
 -- I'm having some memory issues with two solvers running simultanously .. 
 --self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
 -- so to try and get around that, here the two are combined into one solver:
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 
 -- GR+Maxwell.  params go to the Maxwell solver.
 
