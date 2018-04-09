@@ -1,5 +1,16 @@
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
+#define ionReferenceThermalVelocity (ionLarmorRadius * ionChargeMassRatio * referenceMagneticField)
+#define normalizedSpeedOfLight 		(speedOfLight / ionReferenceThermalVelocity)
+#define normalizedSpeedOfLightSq 	(normalizedSpeedOfLight * normalizedSpeedOfLight)
+#define normalizedLarmorRadius 		(ionLarmorRadius / referenceLength)
+
+
+
+//TODO timestep restriction
+// 2014 Abgrall, Kumar eqn 2.25
+// dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
+
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
 	<?=eqn.cons_t?> U,
@@ -25,24 +36,24 @@ end
 ?>
 
 	real3 B = U.B;
-	real3 epsE = U.epsE;
-	real mu = U.sqrt_mu * U.sqrt_mu;
-	real eps = U.sqrt_eps * U.sqrt_eps;
+	real3 E = U.E;
 
-	<? if side == 0 then ?>
-	F.epsE = _real3(0., B.z / mu, -B.y / mu);
-	F.B = _real3(0., -epsE.z / eps, epsE.y / eps);
-	<? elseif side == 1 then ?>
-	F.epsE = _real3(-B.z / mu, 0., B.x / mu);
-	F.B = _real3(epsE.z / eps, 0., -epsE.x / eps);
-	<? elseif side == 2 then ?>
-	F.epsE = _real3(B.y / mu, -B.x / mu, 0.);
-	F.B = _real3(-epsE.y / eps, epsE.x / eps, 0.);
-	<? end ?>
-	F.BPot = 0.;
-	F.sigma = 0.;
-	F.sqrt_eps = 0.;
-	F.sqrt_mu = 0.;
+<? if side == 0 then 
+?>	F.B = _real3(0., -E.z, E.y);
+	F.E = _real3(0., B.z, -B.y);
+<? elseif side == 1 then
+?>	F.B = _real3(E.z, 0., -E.x);
+	F.E = _real3(-B.z, 0., B.x);
+<? elseif side == 2 then
+?>	F.B = _real3(-E.y, E.x, 0.);
+	F.E = _real3(B.y, -B.x, 0.);
+<? end 
+?>	
+
+	F.B = real3_add(F.B, real3_scale(F.B, EM_kappa_coeff * U->psi));
+	F.E = real3_scale(real3_add(F.E, real3_scale(F.E, chi * U->phi)), normalizedSpeedOfLightSq);
+	F.phi = U.E.s<?=side?> * EM_xi_coeff;
+	F.psi = U.B.s<?=side?> * EM_kappa_coeff * normalizedSpeedOfLightSq;
 
 	return F;
 }
@@ -54,18 +65,25 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real3 x
 ) {
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
-	
-	real EM_lambda = 1. / (U->sqrt_eps * U->sqrt_mu);
-	range_t range = (range_t){-EM_lambda, EM_lambda};
 
-<? 
-for _,fluid in ipairs(fluids) do
+	real diff = EM_xi_coeff * normalizedSpeedOfLightSq - EM_kappa_coeff * psi;
+	eig.EM_lambda_A = EM_xi_coeff * normalizedSpeedOfLightSq + EM_kappa_coeff * psi;
+	eig.EM_lambda_B = sqrt(diff * diff + 4. * normalizedSpeedOfLightSq);
+
+	real EM_lambda_1 = EM_xi_coeff * normalizedSpeedOfLightSq;
+	real EM_lambda_2 = EM_kappa_coeff * U->psi;
+
+	range_t range = {
+		.min = min(min(.5 * (EM_lambda_A - EM_lambda_B), EM_lambda_1), EM_lambda_2),
+		.max = max(max(.5 * (EM_lambda_A + EM_lambda_B), EM_lambda_1), EM_lambda_2)
+	};
+
+<? for _,fluid in ipairs(fluids) do
 ?>	real <?=fluid?>_Cs = calc_<?=fluid?>_Cs(&W);
 	real <?=fluid?>_Cs_sqrt_gU = <?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(x);
 	range.min = min(range.min, W.<?=fluid?>_v.s<?=side?> - <?=fluid?>_Cs_sqrt_gU);
 	range.max = max(range.max, W.<?=fluid?>_v.s<?=side?> + <?=fluid?>_Cs_sqrt_gU);
-<? 
-end
+<? end
 ?>
 	return range;
 }
@@ -80,9 +98,6 @@ end
 	<?=eqn.prim_t?> WL = primFromCons(*UL, x);
 	<?=eqn.prim_t?> WR = primFromCons(*UR, x);
 	<?=eqn.eigen_t?> eig;
-
-	eig.sqrt_eps = .5 * (UL->sqrt_eps + UR->sqrt_eps);
-	eig.sqrt_mu = .5 * (UL->sqrt_mu + UR->sqrt_mu);
 
 <? for _,fluid in ipairs(fluids) do ?>
 
@@ -115,13 +130,20 @@ end
 	eig.<?=fluid?>_vSq = <?=fluid?>_vSq;
 	eig.<?=fluid?>_Cs = <?=fluid?>_Cs;
 
+	real psi = .5 * (UL->psi + UR->psi);
+
+	real diff = EM_xi_coeff * normalizedSpeedOfLightSq - EM_kappa_coeff * psi;
+	eig.EM_lambda_A = EM_xi_coeff * normalizedSpeedOfLightSq + EM_kappa_coeff * psi;
+	eig.EM_lambda_B = sqrt(diff * diff + 4. * normalizedSpeedOfLightSq);
+
 <? end ?>
 	
 	return eig;
 }
 <? end ?>
 
-//same as in eqn/euler.cl
+//fluid components are same as in eqn/euler.cl
+//Maxwell plus divergence is in a worksheet
 kernel void calcEigenBasis(
 	global <?=eqn.eigen_t?>* eigenBuf,		//[volume][dim]
 	<?= solver.getULRArg ?>
@@ -223,9 +245,6 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real elec_invDenom = 1. / elec_denom;
 
 	const real heatRatioMinusOne = heatCapacityRatio - 1.;
-	
-	const real ise = sqrt_1_2 / (eig->sqrt_eps);
-	const real isu = sqrt_1_2 / (eig->sqrt_mu);
 
 <? 
 				if side == 0 then 
@@ -362,8 +381,6 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real3 x
 ) {
 	<?=prefix?>
-	const real se = sqrt_1_2 * eig->sqrt_eps;
-	const real su = sqrt_1_2 * eig->sqrt_mu;
 <? 
 				if side == 0 then
 ?>
@@ -511,36 +528,34 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 <? 
 					end 
 ?>
-	real3 epsE = ((<?=addr2?> const <?=eqn.cons_t?>*)X)->epsE;
 	real3 B = ((<?=addr2?> const <?=eqn.cons_t?>*)X)->B;
-	real eps = eig->sqrt_eps * eig->sqrt_eps;
-	real mu = eig->sqrt_mu * eig->sqrt_mu;
+	real3 E = ((<?=addr2?> const <?=eqn.cons_t?>*)X)->E;
 <? 
 					if side==0 then 
 ?>
 	Y[10] = 0;
-	Y[11] = B.z / mu;
-	Y[12] = -B.y / mu;
+	Y[11] = B.z;
+	Y[12] = -B.y;
 	Y[13] = 0;
-	Y[14] = -epsE.z / eps;
-	Y[15] = epsE.y / eps;
+	Y[14] = -E.z;
+	Y[15] = E.y;
 <?
 					elseif side==1 then
 ?>
-	Y[10] = -B.z / mu;
+	Y[10] = -B.z;
 	Y[11] = 0;
-	Y[12] = B.x / mu;
-	Y[13] = epsE.z / eps;
+	Y[12] = B.x;
+	Y[13] = E.z;
 	Y[14] = 0;
-	Y[15] = -epsE.x / eps;
+	Y[15] = -E.x;
 <?
 					elseif side==2 then 
 ?>
-	Y[10] = B.y / mu;
-	Y[11] = -B.x / mu;
+	Y[10] = B.y;
+	Y[11] = -B.x;
 	Y[12] = 0;
-	Y[13] = -epsE.y / eps;
-	Y[14] = epsE.x / eps;
+	Y[13] = -E.y;
+	Y[14] = E.x;
 	Y[15] = 0;
 <?
 					end 
@@ -562,25 +577,41 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
-	real eps = U->sqrt_eps * U->sqrt_eps;
-	deriv->ion_m.x += (1. / ionLarmorRadius) * (U->ion_rho * U->epsE.x / eps + U->ion_m.y * U->B.z - U->ion_m.z * U->B.y);
-	deriv->ion_m.y += (1. / ionLarmorRadius) * (U->ion_rho * U->epsE.y / eps + U->ion_m.z * U->B.x - U->ion_m.x * U->B.z);
-	deriv->ion_m.z += (1. / ionLarmorRadius) * (U->ion_rho * U->epsE.z / eps + U->ion_m.x * U->B.y - U->ion_m.y * U->B.x);
-	deriv->ion_ETotal += (1. / ionLarmorRadius) * real3_dot(U->epsE, U->ion_m) / eps;
+	deriv->ion_m.x += (1. / normalizedLarmorRadius) * (U->ion_rho * U->E.x + U->ion_m.y * U->B.z - U->ion_m.z * U->B.y);
+	deriv->ion_m.y += (1. / normalizedLarmorRadius) * (U->ion_rho * U->E.y + U->ion_m.z * U->B.x - U->ion_m.x * U->B.z);
+	deriv->ion_m.z += (1. / normalizedLarmorRadius) * (U->ion_rho * U->E.z + U->ion_m.x * U->B.y - U->ion_m.y * U->B.x);
+	deriv->ion_ETotal += (1. / normalizedLarmorRadius) * real3_dot(U->E, U->ion_m);
 	
-	deriv->elec_m.x -= ionElectronMassRatio / ionLarmorRadius * (U->elec_rho * U->epsE.x / eps + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y);
-	deriv->elec_m.y -= ionElectronMassRatio / ionLarmorRadius * (U->elec_rho * U->epsE.y / eps + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z);
-	deriv->elec_m.z -= ionElectronMassRatio / ionLarmorRadius * (U->elec_rho * U->epsE.z / eps + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x);
-	deriv->elec_ETotal -= ionElectronMassRatio / ionLarmorRadius * real3_dot(U->epsE, U->elec_m) / eps;
+	deriv->elec_m.x -= ionElectronMassRatio / normalizedLarmorRadius * (U->elec_rho * U->E.x + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y);
+	deriv->elec_m.y -= ionElectronMassRatio / normalizedLarmorRadius * (U->elec_rho * U->E.y + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z);
+	deriv->elec_m.z -= ionElectronMassRatio / normalizedLarmorRadius * (U->elec_rho * U->E.z + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x);
+	deriv->elec_ETotal -= ionElectronMassRatio / normalizedLarmorRadius * real3_dot(U->E, U->elec_m);
 
 #define ionDebyeLengthSq (ionDebyeLength*ionDebyeLength)
-	deriv->epsE.x -= (U->ion_m.x * ionChargeMassRatio
+	deriv->E.x -= (U->ion_m.x * ionChargeMassRatio
 						+ U->elec_m.x * elecChargeMassRatio
-					) / ionDebyeLengthSq * ionLarmorRadius;
-	deriv->epsE.y -= (U->ion_m.y * ionChargeMassRatio
+					) / ionDebyeLengthSq * normalizedLarmorRadius;
+	deriv->E.y -= (U->ion_m.y * ionChargeMassRatio
 						+ U->elec_m.y * elecChargeMassRatio
-					) / (ionDebyeLengthSq * ionLarmorRadius);
-	deriv->epsE.z -= (U->ion_m.z * ionChargeMassRatio
+					) / (ionDebyeLengthSq * normalizedLarmorRadius);
+	deriv->E.z -= (U->ion_m.z * ionChargeMassRatio
 						+ U->elec_m.z * elecChargeMassRatio
-					) / (ionDebyeLengthSq * ionLarmorRadius);
+					) / (ionDebyeLengthSq * normalizedLarmorRadius);
+}
+
+kernel void constrainU(
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(0,0);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	real3 x = cell_x(i);
+	<?=eqn.prim_t?> W = primFromCons(*U, x);
+
+<? for _,fluid in ipairs(fluids) do
+?>	W.<?=fluid?>_rho = max((real)W.<?=fluid?>_rho, (real)min_<?=fluid?>_rho);
+	W.<?=fluid?>_P = max((real)W.<?=fluid?>_P, (real)min_<?=fluid?>_P);
+<? end
+?>
+	
+	*U = consFromPrim(W, x);
 }

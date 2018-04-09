@@ -26,9 +26,8 @@ local TwoFluidEMHD = class(Equation)
 TwoFluidEMHD.useEulerInitState = true
 
 TwoFluidEMHD.name = 'TwoFluidEMHD'
-TwoFluidEMHD.numStates = 22
-TwoFluidEMHD.numWaves = 16
-TwoFluidEMHD.numIntStates = 16
+TwoFluidEMHD.numWaves = 18
+TwoFluidEMHD.numIntStates = 18
 
 TwoFluidEMHD.consVars = table{
 	--integration variables		
@@ -40,16 +39,14 @@ TwoFluidEMHD.consVars = table{
 	{elec_m = 'real3'},
 	{elec_ETotal = 'real'},
 
-	{epsE = 'real3'},
 	{B = 'real3'},
+	{E = 'real3'},
+	{phi = 'real'},	-- div E
+	{psi = 'real'},	-- div B
 
 	--extra	
 	{ion_ePot = 'real'},
 	{elec_ePot = 'real'},
-	{BPot = 'real'},
-	{sigma = 'real'},
-	{sqrt_eps = 'real'},
-	{sqrt_mu = 'real'},
 }
 
 TwoFluidEMHD.primVars = table{
@@ -62,37 +59,25 @@ TwoFluidEMHD.primVars = table{
 	{elec_v = 'real3'},
 	{elec_P = 'real'},
 
-	{E = 'real3'},
 	{B = 'real3'},
+	{E = 'real3'},
+	{phi = 'real'},
+	{psi = 'real'},
 	
 	--extra	
 	{ion_ePot = 'real'},
 	{elec_ePot = 'real'},
-	{BPot = 'real'},
-	{sigma = 'real'},
-	{sqrt_eps = 'real'},
-	{sqrt_mu = 'real'},
 }
 
 TwoFluidEMHD.mirrorVars = {
-	{'ion_m.x', 'elec_m.x', 'epsE.x', 'B.x'}, 
-	{'ion_m.y', 'elec_m.y', 'epsE.y', 'B.y'}, 
-	{'ion_m.z', 'elec_m.z', 'epsE.z', 'B.z'},
+	{'ion_m.x', 'elec_m.x', 'E.x', 'B.x'}, 
+	{'ion_m.y', 'elec_m.y', 'E.y', 'B.y'}, 
+	{'ion_m.z', 'elec_m.z', 'E.z', 'B.z'},
 }
-
--- v_i^T = ion reference thermal velocity
--- B_0 = reference magnetic field 
--- x_0 = reference length
--- m_i = ion mass = 1
-TwoFluidEMHD.ionLarmorRadius = .05			-- lHat = l_r / x_0 = m_i v_i^T / (q_i B_0 x_0)
-TwoFluidEMHD.ionElectronMassRatio = 5		-- m = m_i / m_e
-TwoFluidEMHD.ionChargeMassRatio = 1			-- r_i = q_i / m_i
-TwoFluidEMHD.elecChargeMassRatio = .05		-- r_e = q_e / m_e
-TwoFluidEMHD.speedOfLight = 1				-- cHat = c / v_i^T
-TwoFluidEMHD.ionDebyeLength = 1				-- lambdaHat_d = lambda_d / l_r
 
 TwoFluidEMHD.hasEigenCode = true
 TwoFluidEMHD.useSourceTerm = true
+TwoFluidEMHD.useConstrainU = true
 TwoFluidEMHD.hasFluxFromCons = true
 
 if TwoFluidEMHD.useEulerInitState then
@@ -106,8 +91,8 @@ end
 function TwoFluidEMHD:init(solver)
 	TwoFluidEMHD.super.init(self, solver)
 
-	local NoDiv = require 'solver.nodiv'
-	solver.ops:insert(NoDiv{solver=solver})	-- nodiv on maxwell
+--	local NoDiv = require 'solver.nodiv'
+--	solver.ops:insert(NoDiv{solver=solver})	-- nodiv on maxwell ... or just use potentials 
 
 io.stderr:write'you need to give different selfgravs different names for twofluid selfgrav to work\n' 
 	--[[ TODO give each selfgrav a unique function name
@@ -127,25 +112,70 @@ end
 
 function TwoFluidEMHD:createInitState()
 	TwoFluidEMHD.super.createInitState(self)
-	self:addGuiVars{
+	
+	self:addGuiVars(table{
+		--never given, only stated as "speeds for the Maxwell equation"
+		-- of course, they're associated with the potentials, so... they could be arbitrary
+		{name='EM_kappa_coeff', value=1},
+		{name='EM_xi_coeff', value=1},
+		
+		-- gamma = heat capacity ratio
 		{name='heatCapacityRatio', value=5/3},
-		{name='ionLarmorRadius', value=.05},			-- lHat = l_r / x_0 = m_i v_i^T / (q_i B_0 x_0)
-		{name='ionElectronMassRatio', value=5},			-- m = m_i / m_e
-		{name='ionChargeMassRatio', value=1},			-- r_i = q_i / m_i
-		{name='elecChargeMassRatio', value=.05},		-- r_e = q_e / m_e
-		{name='speedOfLight', value=1},					-- cHat = c / v_i^T
-		{name='ionDebyeLength', value=1},				-- lambdaHat_d = lambda_d / l_r
-	}
+
+		-- x_0 = reference length
+		{name='referenceLength', value=1},
+
+		-- B_0 = reference magnetic field
+		{name='referenceMagneticField', value=1},
+
+		-- v_i^T = ion reference thermal velocity
+		--{name='ionReferenceThermalVelocity', value=1},
+		-- normalized Larmor radius:
+		-- lHat = l_r / x_0 = m_i v_i^T / (q_i B_0 x_0)	
+		-- therefore:
+		-- v_i^T = l_r B_0 q_i / m_i
+		-- just use this equation:
+		-- v_i^T = l_r r_i B_0
+
+		-- m_i = ion mass
+		{name='ionMass', value=1},
+	
+		-- c = speed of light
+		{name='speedOfLight', value=1},
+		-- normalized speed of light:
+		-- cHat = c / v_i^T
+		
+		-- l_r = larmor radius
+		{name='ionLarmorRadius', value=1},
+		
+		-- m = m_i / m_e
+		-- https://en.wikipedia.org/wiki/Proton-to-electron_mass_ratio
+		-- m_i / m_e = 1836.15267389
+		{name='ionElectronMassRatio', value=100},
+		
+		-- r_i = q_i / m_i
+		{name='ionChargeMassRatio', value=1},
+		
+		-- r_e = q_e / m_e
+		-- https://en.wikipedia.org/wiki/Mass-to-charge_ratio
+		-- q_e / m_e = -1.758820024e+11 C/kg
+		{name='elecChargeMassRatio', value=.05},
+		
+		-- lambdaHat_d = lambda_d / l_r
+		{name='ionDebyeLength', value=1},
+	}:append(fluids:map(function(fluid)
+		return table{
+			{name='min_'..fluid..'_rho', value=1e-4},
+			{name='min_'..fluid..'_P', value=1e-4},
+		}
+	end):unpack()))
 end
 
 function TwoFluidEMHD:getCodePrefix()
 	return table{
 		TwoFluidEMHD.super.getCodePrefix(self),
 		template([[
-real ESq(<?=eqn.cons_t?> U, real3 x) { 
-	real eps = U.sqrt_eps * U.sqrt_eps;
-	return real3_lenSq(U.epsE) / (eps * eps);
-}
+real ESq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.E); }
 real BSq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.B); }
 
 inline real calc_H(real P) { return P * (heatCapacityRatio / (heatCapacityRatio - 1.)); }
@@ -181,12 +211,10 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 		.<?=fluid?>_P = (heatCapacityRatio - 1.) * <?=fluid?>_EInt,
 		.<?=fluid?>_ePot = U.<?=fluid?>_ePot,
 		<? end ?>
-		.E = real3_scale(U.epsE, 1./(U.sqrt_eps * U.sqrt_eps)),
+		.E = U.E,
 		.B = U.B,
-		.BPot = U.BPot,
-		.sigma = U.sigma,
-		.sqrt_eps = U.sqrt_eps,
-		.sqrt_mu = U.sqrt_mu,
+		.psi = U.psi,
+		.phi = U.phi,
 	};
 }
 
@@ -198,12 +226,10 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 		.<?=fluid?>_ETotal = calc_<?=fluid?>_ETotal(W, x),
 		.<?=fluid?>_ePot = W.<?=fluid?>_ePot,
 		<? end ?>
-		.epsE = real3_scale(W.E, W.sqrt_eps * W.sqrt_eps),
+		.E = W.E,
 		.B = W.B,
-		.BPot = W.BPot,
-		.sigma = W.sigma,
-		.sqrt_eps = W.sqrt_eps,
-		.sqrt_mu = W.sqrt_mu,
+		.psi = W.psi,
+		.phi = W.phi,
 	};
 }
 ]], {
@@ -278,10 +304,7 @@ if eqn.useEulerInitState then
 
 		.E = E,
 		.B = B,
-		.BPot = 0,
-		.sigma = conductivity,
-		.sqrt_eps = sqrt(permittivity),
-		.sqrt_mu = sqrt(permeability),
+		.psi = 0,
 
 <?	
 else	-- expect the initState to explicitly provide the ion_ and elec_ Euler fluid variables
@@ -296,10 +319,7 @@ end
 ?>
 		.E = E,
 		.B = B,
-		.BPot = 0,
-		.sigma = conductivity,
-		.sqrt_eps = sqrt(permittivity),
-		.sqrt_mu = sqrt(permeability),
+		.psi = 0,
 	};
 	UBuf[index] = consFromPrim(W, x);
 }
@@ -393,13 +413,12 @@ function TwoFluidEMHD:getDisplayVars()
 	end
 
 	vars:append{
-		{E = '*valuevec = real3_scale(U->epsE, 1./(U->sqrt_eps * U->sqrt_eps));', type='real3'},
 		{['EM energy'] = [[
-	//*value = .5 * (coordLen(U->epsE) + coordLen(U->B) / (U->sqrt_mu * U->sqrt_mu));
-	*value = .5 * (real3_len(U->epsE) + real3_len(U->B) / (U->sqrt_mu * U->sqrt_mu));
+	//*value = .5 * (coordLen(U->E) + coordLen(U->B));
+	*value = .5 * (real3_len(U->E) + real3_len(U->B));
 ]]},
 	}:append(table{'E','B'}:map(function(var,i)
-		local field = assert( ({E='epsE', B='B'})[var] )
+		local field = assert( ({E='E', B='B'})[var] )
 		return {['div '..var] = template([[
 	*value = .5 * (0.
 <?
@@ -409,11 +428,7 @@ for j=0,solver.dim-1 do
 		) / grid_dx<?=j?>
 <?
 end 
-?>	)<? 
-if field == 'epsE' then 
-?> / (U->sqrt_eps * U->sqrt_eps) <?
-end
-?>;
+?>	);
 ]], {solver=self.solver, field=field})}
 	end))
 
@@ -433,9 +448,10 @@ for _,fluid in ipairs(fluids) do
 		{[fluid..'_Cs'] = 'real'},
 	}
 end
+error[[TODO here's my dilemma.  My eigenvalues aren't coming out to match the paper.  So... ]]
 eigenVars:append{
-	{sqrt_eps = 'real'},
-	{sqrt_mu = 'real'},
+	{EM_lambda_A = 'real'},
+	{EM_lambda_B = 'real'},
 }
 TwoFluidEMHD.eigenVars = eigenVars
 
@@ -445,7 +461,6 @@ function TwoFluidEMHD:eigenWaveCodePrefix(side, eig, x)
 	real <?=fluid?>_Cs_sqrt_gU = <?=eig?>-><?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(x);
 	real <?=fluid?>_v_n = <?=eig?>-><?=fluid?>_v.s[<?=side?>];
 <? end ?>
-	real EM_lambda = 1. / (<?=eig?>->sqrt_eps * <?=eig?>->sqrt_mu);
 ]], {
 		eig = '('..eig..')',
 		fluids = fluids,
@@ -466,11 +481,13 @@ function TwoFluidEMHD:eigenWaveCode(side, eig, x, waveIndex)
 		end
 	end
 	if waveIndex == 0 + 5*#fluids or waveIndex == 1 + 5*#fluids then
-		return '-EM_lambda'
-	elseif waveIndex == 2 + 5*#fluids or waveIndex == 3 + 5*#fluids then
-		return '0'
+		return template('.5 * (<?=eig?>->EM_lambda_A - <?=eig?>->EM_lambda_B)', {eig=eig})
+	elseif waveIndex == 2 + 5*#fluids then
+		return 'normalizedSpeedOfLightSq * EM_xi_coeff'
+	elseif waveIndex == 3 + 5*#fluids then
+		return template('EM_kappa_coeff * <?=eig?>->psi', {eig=eig})
 	elseif waveIndex == 4 + 5*#fluids or waveIndex == 5 + 5*#fluids then
-		return 'EM_lambda'
+		return template('.5 * (<?=eig?>->EM_lambda_A + <?=eig?>->EM_lambda_B)', {eig=eig})
 	end
 	error('got a bad waveIndex: '..waveIndex)
 end

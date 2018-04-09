@@ -260,19 +260,68 @@ local initStates = table{
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/brio-wu/Brio-Wu.html
 	{
 		name = 'Brio-Wu',
+		init = function(self, solver)
+			solver.eqn:addGuiVars{
+				{name = 'init_rhoL', value = 1},
+				{name = 'init_rhoR', value = .125},
+				{name = 'init_PL', value = 1},
+				{name = 'init_PR', value = .1},
+				{name = 'init_BxL', value = .75},
+				{name = 'init_BxR', value = .75},
+				{name = 'init_ByL', value = 1},
+				{name = 'init_ByR', value = -1},
+				{name = 'init_BzL', value = 0},
+				{name = 'init_BzR', value = 0},
+			}
+		end,
 		initState = function(self, solver)
 			if solver.eqn.guiVars.heatCapacityRatio then	
 				solver.eqn.guiVars.heatCapacityRatio.value = 2
 			end
 			return [[
-	rho = lhs ? 1 : .125;
-	P = lhs ? 1 : .1;
-	B.x = .75;
-	B.y = lhs ? 1 : -1;
-	B.z = 0;
+	rho = lhs ? init_rhoL : init_rhoR;
+	P = lhs ? init_PL : init_PR;
+	B.x = lhs ? init_BxL : init_BxR;
+	B.y = lhs ? init_ByL : init_ByR;
+	B.z = lhs ? init_BzL : init_BzR;
 ]]
 		end,
 	},
+
+	-- 2014 Abgrall, Kumar "Robust Finite Volume Scheme for Two-Fluid Plasma Equations"
+	-- TODO instead of providing this as an ideal MHD initial state
+	--  instead provide it as a two-fluid initial state
+	-- with distinct ion and electron values
+	{
+		name = 'two-fluid emhd modified Brio-Wu',
+		init = function(self, solver)
+			solver.eqn:addGuiVars{
+				{name = 'init_rhoL', value = 1},
+				{name = 'init_rhoR', value = .125},
+				{name = 'init_PL', value = 5e-5},
+				{name = 'init_PR', value = 5e-6},
+				{name = 'init_BxL', value = .75},
+				{name = 'init_BxR', value = .75},
+				{name = 'init_ByL', value = 1},
+				{name = 'init_ByR', value = -1},
+				{name = 'init_BzL', value = 0},
+				{name = 'init_BzR', value = 0},
+			}
+		end,
+		initState = function(self, solver)
+			if solver.eqn.guiVars.heatCapacityRatio then	
+				solver.eqn.guiVars.heatCapacityRatio.value = 2
+			end
+			return [[
+	rho = lhs ? init_rhoL : init_rhoR;
+	P = lhs ? init_PL : init_PR;
+	B.x = lhs ? init_BxL : init_BxR;
+	B.y = lhs ? init_ByL : init_ByR;
+	B.z = lhs ? init_BzL : init_BzR;
+]]
+		end,
+	},
+	
 	-- http://www.astro.virginia.edu/VITA/ATHENA/ot.html
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/orszag-tang/pagesource.html
 	{
