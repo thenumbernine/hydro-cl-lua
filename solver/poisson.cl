@@ -27,11 +27,28 @@ kernel void initPoissonPotential<?=poisson.suffix?>(
 	SETBOUNDS(numGhost,numGhost);
 	global <?=poisson:getPotBufType()?>* U = UBuf + index;
 	real rho = 0;
-	<?=calcRho?>
+	<?=poisson:getCalcRhoCode() or ''?>
 	UBuf[index].<?=poisson.potentialField?> = -rho;
 }
 
-//called every Jacobi method iteration
+/*
+called every Jacobi method iteration
+
+del phi = f
+(d/dx^2 + d/dy^2 + ...) phi = f
+sum_i ((phi[x+e[i] ] - 2 phi[x] + phi[x-e[i] ]) / dx[i]^2) = f
+sum_i (1 / dx[i]^2) phi[x+e[i] ] 
+	+ sum_i (-2 / dx[i]^2) phi[x] 
+	+ sum_i (1 / dx[i]^2) phi[x-e[i] ]
+	= f
+
+a_kk = sum_i (-2 / dx[i]^2)
+a_jk = sum_i (1 / dx[i]^2) for j != k
+
+jacobi update:
+phi[x,k+1] = (f[x] - sum_i,j!=k (phi[x+e[i],k] / dx[i]^2))
+	/ sum_i (-2 / dx[i]^2)
+*/
 kernel void solvePoissonJacobi<?=poisson.suffix?>(
 	global <?=poisson:getPotBufType()?>* UBuf<?
 if poisson.stopOnEpsilon then ?>,
@@ -105,7 +122,7 @@ end ?>
 #endif
 
 	real rho = 0;
-	<?=calcRho?>
+	<?=poisson:getCalcRhoCode() or ''?>
 
 	real oldU = U-><?=poisson.potentialField?>;
 	

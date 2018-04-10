@@ -25,20 +25,24 @@ Drude model: eps(omega) = eps_inf - omega_p^2 / (omega (omega + i Gamma))
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
+local range = require 'ext.range'
 local Equation = require 'eqn.eqn'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
 
 local Maxwell = class(Equation)
 Maxwell.name = 'Maxwell'
-Maxwell.numStates = 10
 Maxwell.numWaves = 6
 Maxwell.numIntStates = 6
 
 Maxwell.consVars = {
 	{epsE = 'real3'},
 	{B = 'real3'},
-	{BPot = 'real'},	-- used to calculate the B potential & remove div
+	
+	{epsEPot = 'real'},
+	{BPot = 'real'},
+	
+	{rhoCharge = 'real'},
 	{sigma = 'real'},
 	{eps = 'real'},
 	{mu = 'real'},
@@ -56,7 +60,15 @@ function Maxwell:init(solver)
 	Maxwell.super.init(self, solver)
 
 	local NoDiv = require 'solver.nodiv'
-	solver.ops:insert(NoDiv{solver=solver})
+	solver.ops:insert(NoDiv{
+		solver = solver,
+	})
+	-- should I be fixing div E = rhoCharge, 
+	-- or should I get rid of the rhoCharge field and the div E constraint?
+	solver.ops:insert(NoDiv{
+		solver = solver,
+		potentialField = 'epsEPot',
+	})
 end
 
 function Maxwell:getCodePrefix()
@@ -133,8 +145,56 @@ function Maxwell:getSolverCode()
 	return template(file['eqn/maxwell.cl'], {eqn=self, solver=self.solver})
 end
 
+-- k is 0,1,2
+local function curl(eqn,k,result,field)
+	local xs = {'x','y','z'}
+	local i = (k+1)%3
+	local j = (i+1)%3
+	return {['curl '..field..' '..xs[k+1]] = template([[
+	if (OOB(1,1)) {
+		<?=result?> = 0.;
+	} else {
+
+<? if i+1 <= solver.dim then ?>
+		global const <?=eqn.cons_t?>* Uim = U - stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Uip = U + stepsize.s<?=i?>;
+		real vim_j = Uim-><?=field?>.s<?=j?>;
+		real vip_j = Uip-><?=field?>.s<?=j?>;
+<? else ?>
+		real vim_j = 0.;
+		real vip_j = 0.;
+<? end?>
+
+<? if j+1 <= solver.dim then ?>
+		global const <?=eqn.cons_t?>* Ujm = U - stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = U + stepsize.s<?=j?>;
+		real vjm_i = Ujm-><?=field?>.s<?=i?>;
+		real vjp_i = Ujp-><?=field?>.s<?=i?>;
+<? else ?>
+		real vjm_i = 0.;
+		real vjp_i = 0.;
+<? end ?>
+
+		<?=result?> = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
+				- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
+	}
+]], {
+		i = i,
+		j = j,
+		eqn = eqn,
+		solver = eqn.solver,
+		result = result,
+		field = field,
+	})}
+end
+
+--[[
+for E = [0, sin(x-t), 0]
+dEy/dx = cos(x-t)
+so curl(E).z = -cos(x-t)
+--]]
 function Maxwell:getDisplayVars()
-	return Maxwell.super.getDisplayVars(self):append{ 
+	local vars = Maxwell.super.getDisplayVars(self):append{ 
 		{E = '*valuevec = real3_scale(U->epsE, 1. / U->eps);', type='real3'},
 		{S = '*valuevec = real3_scale(real3_cross(U->epsE, U->B), 1. / U->eps);', type='real3'},
 		{energy = [[
@@ -151,7 +211,7 @@ for j=0,solver.dim-1 do
 			- U[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
 		) / grid_dx<?=j?>
 <?
-end 
+end
 ?>	)<? 
 if field == 'epsE' then 
 ?> / U->eps<?
@@ -159,6 +219,19 @@ end
 ?>;
 ]], {solver=self.solver, field=field})}
 	end))
+
+	for _,field in ipairs{'epsE', 'B'} do
+		local v = range(0,2):map(function(i) 
+			return curl(self,i,'valuevec->s'..i,field) 
+		end)
+		vars:insert{['curl '..field]= template([[
+	<? for i=0,2 do ?>{
+		<?=select(2,next(v[i+1]))?>
+	}<? end ?>
+]], {v=v}), type='real3'}
+	end
+
+	return vars 
 end
 
 Maxwell.eigenVars = table{

@@ -127,14 +127,14 @@ end
 
 function Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 	return ({
-		'-speedOfLight * chi',
-		'-speedOfLight * gamma',
+		'-speedOfLight * divPhiWavespeed',
+		'-speedOfLight * divPsiWavespeed',
 		'-speedOfLight',
 		'-speedOfLight',
 		'speedOfLight',
 		'speedOfLight',
-		'speedOfLight * gamma',
-		'speedOfLight * chi',
+		'speedOfLight * divPsiWavespeed',
+		'speedOfLight * divPhiWavespeed',
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
 end
 

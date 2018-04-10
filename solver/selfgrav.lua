@@ -23,19 +23,17 @@ function SelfGrav:init(args)
 end
 
 -- params for solver/poisson.cl 
-function SelfGrav:getCodeParams()
-	return {
-		calcRho = template([[
-#define gravitationalConstant <?=clnumber(self.gravitationConstant)?>
+function SelfGrav:getCalcRhoCode()
+	return template([[
 	//maybe a 4pi?  or is that only in the continuous case?
-	rho = gravitationalConstant * U-><?=self.densityField?>;
+	rho = <?=clnumber(poisson.gravitationConstant)?>
+		* U-><?=poisson.densityField?>;
 ]], {
-			self = self,
-			solver = self.solver,
-			eqn = self.solver.eqn,
-			clnumber = require 'cl.obj.number',
-		}),
-	}
+		poisson = self,
+		solver = self.solver,
+		eqn = self.solver.eqn,
+		clnumber = require 'cl.obj.number',
+	})
 end
 
 function SelfGrav:getPoissonCode()

@@ -1,11 +1,11 @@
-#define chi 			1.
-#define gamma			1.
-#define sqrt_mu0 		1.
-#define sqrt_epsilon0 	1.
-#define mu_0			(sqrt_mu0 * sqrt_mu0)
-#define epsilon_0		(sqrt_epsilon0 * sqrt_epsilon0)
-#define speedOfLight	(1./(sqrt_mu0 * sqrt_epsilon0))
-#define speedOfLightSq (speedOfLight * speedOfLight)
+#define divPhiWavespeed 	1.
+#define divPsiWavespeed		1.
+#define sqrt_mu0 			1.
+#define sqrt_eps0 			1.
+#define mu0					(sqrt_mu0 * sqrt_mu0)
+#define eps0				(sqrt_eps0 * sqrt_eps0)
+#define speedOfLight		(1./(sqrt_mu0 * sqrt_eps0))
+#define speedOfLightSq		(speedOfLight * speedOfLight)
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
@@ -16,17 +16,17 @@
 	real3 E = U.E;
 	return (<?=eqn.cons_t?>){
 	<? if side == 0 then ?>
-		.E = _real3(speedOfLightSq * chi * U.phi, speedOfLightSq * B.z, -speedOfLightSq * B.y),
-		.B = _real3(gamma * U.psi, -E.z, E.y),
+		.E = _real3(speedOfLightSq * divPhiWavespeed * U.phi, speedOfLightSq * B.z, -speedOfLightSq * B.y),
+		.B = _real3(divPsiWavespeed * U.psi, -E.z, E.y),
 	<? elseif side == 1 then ?>
-		.E = _real3(-speedOfLightSq * B.z, speedOfLightSq * chi * U.phi, speedOfLightSq * B.x),
-		.B = _real3(E.z, gamma * U.psi, -E.x),
+		.E = _real3(-speedOfLightSq * B.z, speedOfLightSq * divPhiWavespeed * U.phi, speedOfLightSq * B.x),
+		.B = _real3(E.z, divPsiWavespeed * U.psi, -E.x),
 	<? elseif side == 2 then ?>
-		.E = _real3(speedOfLightSq * B.y, -speedOfLightSq * B.x, speedOfLightSq * chi * U.phi),
-		.B = _real3(-E.y, E.x, gamma * U.psi),
+		.E = _real3(speedOfLightSq * B.y, -speedOfLightSq * B.x, speedOfLightSq * divPhiWavespeed * U.phi),
+		.B = _real3(-E.y, E.x, divPsiWavespeed * U.psi),
 	<? end ?>
-		.phi = chi * E.s<?=side?>,
-		.psi = speedOfLightSq * gamma * B.s<?=side?>,
+		.phi = divPhiWavespeed * E.s<?=side?>,
+		.psi = speedOfLightSq * divPsiWavespeed * B.s<?=side?>,
 	
 		.conductivity = 0.,
 		.charge = 0.,
@@ -39,7 +39,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const global <?=eqn.cons_t?>* U,
 	real3 x
 ) {
-	real lambda = max(max(gamma, chi), 1.) * speedOfLight;
+	real lambda = max(max(divPsiWavespeed, divPhiWavespeed), 1.) * speedOfLight;
 	return (range_t){-lambda, lambda};
 }
 <? end ?>
@@ -203,9 +203,9 @@ kernel void addSource(
 	SETBOUNDS_NOGHOST();
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-	real3 J = real3_scale(U->E, mu_0 / U->conductivity);
+	real3 J = real3_scale(U->E, mu0 / U->conductivity);
 	deriv->E = real3_sub(deriv->E, J);
-	deriv->phi += U->charge * chi / epsilon_0;
+	deriv->phi += U->charge * divPhiWavespeed / eps0;
 }
 
 

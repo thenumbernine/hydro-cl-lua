@@ -39,16 +39,17 @@ Poisson.maxIters = 10000
 --Poisson.verbose = true
 
 function Poisson:getSolverCode()
-	return template(
-		table{
+	return table{
+		template(
 			file['solver/poisson.cl'],
-			self:getPoissonCode() or '',
-		}:concat'\n',
-		table(self:getCodeParams(), {
-			poisson = self,
-			solver = self.solver,
-			eqn = self.solver.eqn,
-		}))
+			{
+				poisson = self,
+				solver = self.solver,
+				eqn = self.solver.eqn,
+			}
+		),
+		self:getPoissonCode() or '',
+	}:concat'\n'
 end
 
 function Poisson:refreshSolverProgram()
