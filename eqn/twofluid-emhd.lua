@@ -39,14 +39,15 @@ TwoFluidEMHD.consVars = table{
 	{elec_m = 'real3'},
 	{elec_ETotal = 'real'},
 
-	{B = 'real3'},
 	{E = 'real3'},
-	{phi = 'real'},	-- div E
-	{psi = 'real'},	-- div B
+	{B = 'real3'},
+	{phi = 'real'},	-- E potential
+	{psi = 'real'},	-- B potential
 
 	--extra	
 	{ion_ePot = 'real'},
 	{elec_ePot = 'real'},
+	{rhoCharge = 'real'},
 }
 
 TwoFluidEMHD.primVars = table{
@@ -67,6 +68,7 @@ TwoFluidEMHD.primVars = table{
 	--extra	
 	{ion_ePot = 'real'},
 	{elec_ePot = 'real'},
+	{rhoCharge = 'real'},
 }
 
 TwoFluidEMHD.mirrorVars = {
@@ -116,8 +118,8 @@ function TwoFluidEMHD:createInitState()
 	self:addGuiVars(table{
 		--never given, only stated as "speeds for the Maxwell equation"
 		-- of course, they're associated with the potentials, so... they could be arbitrary
-		{name='EM_kappa_coeff', value=1},
-		{name='EM_xi_coeff', value=1},
+		{name='divPsiWavespeed', value=1},
+		{name='divPhiWavespeed', value=1},
 		
 		-- gamma = heat capacity ratio
 		{name='heatCapacityRatio', value=5/3},
@@ -448,11 +450,7 @@ for _,fluid in ipairs(fluids) do
 		{[fluid..'_Cs'] = 'real'},
 	}
 end
-error[[TODO here's my dilemma.  My eigenvalues aren't coming out to match the paper.  So... ]]
-eigenVars:append{
-	{EM_lambda_A = 'real'},
-	{EM_lambda_B = 'real'},
-}
+
 TwoFluidEMHD.eigenVars = eigenVars
 
 function TwoFluidEMHD:eigenWaveCodePrefix(side, eig, x)
@@ -480,14 +478,17 @@ function TwoFluidEMHD:eigenWaveCode(side, eig, x, waveIndex)
 			return template('<?=fluid?>_v_n + <?=fluid?>_Cs_sqrt_gU', {fluid=fluid})
 		end
 	end
-	if waveIndex == 0 + 5*#fluids or waveIndex == 1 + 5*#fluids then
-		return template('.5 * (<?=eig?>->EM_lambda_A - <?=eig?>->EM_lambda_B)', {eig=eig})
-	elseif waveIndex == 2 + 5*#fluids then
-		return 'normalizedSpeedOfLightSq * EM_xi_coeff'
-	elseif waveIndex == 3 + 5*#fluids then
-		return template('EM_kappa_coeff * <?=eig?>->psi', {eig=eig})
-	elseif waveIndex == 4 + 5*#fluids or waveIndex == 5 + 5*#fluids then
-		return template('.5 * (<?=eig?>->EM_lambda_A + <?=eig?>->EM_lambda_B)', {eig=eig})
+	if waveIndex >= 5*#fluids and waveIndex < 5*#fluids+8 then
+		return ({
+			'-speedOfLight * divPhiWavespeed',
+			'-speedOfLight * divPsiWavespeed',
+			'-speedOfLight',
+			'-speedOfLight',
+			'speedOfLight',
+			'speedOfLight',
+			'speedOfLight * divPsiWavespeed',
+			'speedOfLight * divPhiWavespeed',	
+		})[waveIndex - 5*#fluids + 1]
 	end
 	error('got a bad waveIndex: '..waveIndex)
 end

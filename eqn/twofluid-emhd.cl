@@ -6,7 +6,6 @@
 #define normalizedLarmorRadius 		(ionLarmorRadius / referenceLength)
 
 
-
 //TODO timestep restriction
 // 2014 Abgrall, Kumar eqn 2.25
 // dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
@@ -35,25 +34,25 @@ for _,fluid in ipairs(fluids) do
 end
 ?>
 
+	//taken from glm-maxwell instead of the 2014 Abgrall, Kumar
 	real3 B = U.B;
 	real3 E = U.E;
+	<? if side == 0 then ?>
+	F.E = _real3(normalizedSpeedOfLight * divPhiWavespeed * U.phi, normalizedSpeedOfLight * B.z, -normalizedSpeedOfLight * B.y);
+	F.B = _real3(divPsiWavespeed * U.psi, -E.z, E.y);
+	<? elseif side == 1 then ?>
+	F.E = _real3(-normalizedSpeedOfLight * B.z, normalizedSpeedOfLight * divPhiWavespeed * U.phi, normalizedSpeedOfLight * B.x);
+	F.B = _real3(E.z, divPsiWavespeed * U.psi, -E.x);
+	<? elseif side == 2 then ?>
+	F.E = _real3(normalizedSpeedOfLight * B.y, -normalizedSpeedOfLight * B.x, normalizedSpeedOfLight * divPhiWavespeed * U.phi);
+	F.B = _real3(-E.y, E.x, divPsiWavespeed * U.psi);
+	<? end ?>
+	F.phi = E.s<?=side?> * divPhiWavespeed;
+	F.psi = B.s<?=side?> * divPsiWavespeed * normalizedSpeedOfLight;
 
-<? if side == 0 then 
-?>	F.B = _real3(0., -E.z, E.y);
-	F.E = _real3(0., B.z, -B.y);
-<? elseif side == 1 then
-?>	F.B = _real3(E.z, 0., -E.x);
-	F.E = _real3(-B.z, 0., B.x);
-<? elseif side == 2 then
-?>	F.B = _real3(-E.y, E.x, 0.);
-	F.E = _real3(B.y, -B.x, 0.);
-<? end 
-?>	
-
-	F.B = real3_add(F.B, real3_scale(F.B, EM_kappa_coeff * U->psi));
-	F.E = real3_scale(real3_add(F.E, real3_scale(F.E, chi * U->phi)), normalizedSpeedOfLightSq);
-	F.phi = U.E.s<?=side?> * EM_xi_coeff;
-	F.psi = U.B.s<?=side?> * EM_kappa_coeff * normalizedSpeedOfLightSq;
+	F.ion_ePot = 0;
+	F.elec_ePot = 0;
+	F.rhoCharge = 0;
 
 	return F;
 }
@@ -66,17 +65,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 ) {
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
 
-	real diff = EM_xi_coeff * normalizedSpeedOfLightSq - EM_kappa_coeff * psi;
-	eig.EM_lambda_A = EM_xi_coeff * normalizedSpeedOfLightSq + EM_kappa_coeff * psi;
-	eig.EM_lambda_B = sqrt(diff * diff + 4. * normalizedSpeedOfLightSq);
-
-	real EM_lambda_1 = EM_xi_coeff * normalizedSpeedOfLightSq;
-	real EM_lambda_2 = EM_kappa_coeff * U->psi;
-
-	range_t range = {
-		.min = min(min(.5 * (EM_lambda_A - EM_lambda_B), EM_lambda_1), EM_lambda_2),
-		.max = max(max(.5 * (EM_lambda_A + EM_lambda_B), EM_lambda_1), EM_lambda_2)
-	};
+	real lambda = max(max(divPsiWavespeed, divPhiWavespeed), 1.) * normalizedSpeedOfLight;
+	range_t range = {-lambda, lambda};
 
 <? for _,fluid in ipairs(fluids) do
 ?>	real <?=fluid?>_Cs = calc_<?=fluid?>_Cs(&W);
@@ -129,12 +119,6 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	eig.<?=fluid?>_hTotal = <?=fluid?>_hTotal;
 	eig.<?=fluid?>_vSq = <?=fluid?>_vSq;
 	eig.<?=fluid?>_Cs = <?=fluid?>_Cs;
-
-	real psi = .5 * (UL->psi + UR->psi);
-
-	real diff = EM_xi_coeff * normalizedSpeedOfLightSq - EM_kappa_coeff * psi;
-	eig.EM_lambda_A = EM_xi_coeff * normalizedSpeedOfLightSq + EM_kappa_coeff * psi;
-	eig.EM_lambda_B = sqrt(diff * diff + 4. * normalizedSpeedOfLightSq);
 
 <? end ?>
 	
@@ -281,12 +265,17 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 					end
 ?>
 	//EM
-	Y[10] = X[12] *  ise + X[14] * isu;
-	Y[11] = X[11] * -ise + X[15] * isu;
-	Y[12] = X[10] * -ise + X[13] * isu;
-	Y[13] = X[10] *  ise + X[13] * isu;
-	Y[14] = X[11] *  ise + X[15] * isu;
-	Y[15] = X[12] * -ise + X[14] * isu;
+	X += 10;
+	Y += 10;
+	Y[0] = (X[0] - X[6] * normalizedSpeedOfLight) * .5;
+	Y[1] = (X[3] - X[7] / normalizedSpeedOfLight) * .5;
+	Y[2] = (X[1] - X[5] * normalizedSpeedOfLight) * .5;
+	Y[3] = (X[4] * normalizedSpeedOfLight + X[2]) * .5;
+	Y[4] = (X[5] * normalizedSpeedOfLight + X[1]) * .5;
+	Y[5] = (X[2] - X[4] * normalizedSpeedOfLight) * .5;
+	Y[6] = (X[7] / normalizedSpeedOfLight + X[3]) * .5;
+	Y[7] = (X[6] * normalizedSpeedOfLight + X[0]) * .5;
+
 <?
 				elseif side == 1 then 
 ?>
@@ -322,12 +311,17 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 					end 
 ?>
 	//EM
-	Y[10] = X[10] *  ise + X[15] * isu;
-	Y[11] = X[12] * -ise + X[13] * isu;
-	Y[12] = X[11] * -ise + X[14] * isu;
-	Y[13] = X[11] *  ise + X[14] * isu;
-	Y[14] = X[12] *  ise + X[13] * isu;
-	Y[15] = X[10] * -ise + X[15] * isu;
+	X += 10;
+	Y += 10;
+	Y[0] = (X[1] - X[6] * normalizedSpeedOfLight) * .5;
+	Y[1] = (X[4] - X[7] / normalizedSpeedOfLight) * .5;
+	Y[2] = (X[5] * normalizedSpeedOfLight + X[0]) * .5;
+	Y[3] = (X[2] - X[3] * normalizedSpeedOfLight) * .5;
+	Y[4] = (X[0] - X[5] * normalizedSpeedOfLight) * .5;
+	Y[5] = (X[3] * normalizedSpeedOfLight + X[2]) * .5;
+	Y[6] = (X[7] / normalizedSpeedOfLight + X[4]) * .5;
+	Y[7] = (X[6] * normalizedSpeedOfLight + X[1]) * .5;
+
 <? 
 				elseif side == 2 then
 ?>
@@ -363,12 +357,17 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 					end
 ?>
 	//EM
-	Y[10] = X[11] *  ise + X[13] * isu;
-	Y[11] = X[10] * -ise + X[14] * isu;
-	Y[12] = X[12] * -ise + X[15] * isu;
-	Y[13] = X[12] *  ise + X[15] * isu;
-	Y[14] = X[10] *  ise + X[14] * isu;
-	Y[15] = X[11] * -ise + X[13] * isu;
+	X += 10;
+	Y += 10;
+	Y[0] = (X[2] - X[6] * normalizedSpeedOfLight) * .5;
+	Y[1] = (X[5] - X[7] / normalizedSpeedOfLight) * .5;
+	Y[2] = (X[0] - X[4] * normalizedSpeedOfLight) * .5;
+	Y[3] = (X[3] * normalizedSpeedOfLight + X[1]) * .5;
+	Y[4] = (X[4] * normalizedSpeedOfLight + X[0]) * .5;
+	Y[5] = (X[1] - X[3] * normalizedSpeedOfLight) * .5;
+	Y[6] = (X[7] / normalizedSpeedOfLight + X[5]) * .5;
+	Y[7] = (X[6] * normalizedSpeedOfLight + X[2]) * .5;
+
 <?
 				end 
 ?>
@@ -409,12 +408,17 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 					end
 ?>
 	//EM
-	Y[10] = se * (-X[12] + X[13]);
-	Y[11] = se * (-X[11] + X[14]);
-	Y[12] = se * (X[10] + -X[15]);
-	Y[13] = su * (X[12] + X[13]);
-	Y[14] = su * (X[10] + X[15]);
-	Y[15] = su * (X[11] + X[14]);
+	X += 10;
+	Y += 10;
+	Y[0] = X[7] + X[0];
+	Y[1] = X[4] + X[2];
+	Y[2] = X[5] + X[3];
+	Y[3] = X[6] + X[1];
+	Y[4] = (X[3] - X[5]) / normalizedSpeedOfLight;
+	Y[5] = (X[4] - X[2]) / normalizedSpeedOfLight;
+	Y[6] = (X[7] - X[0]) / normalizedSpeedOfLight;
+	Y[7] = (X[6] - X[1]) * normalizedSpeedOfLight;
+
 <? 
 				elseif side == 1 then
 ?>
@@ -443,12 +447,16 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 					end
 ?>
 	//EM
-	Y[10] = se * (X[10] - X[15]);
-	Y[11] = se * (-X[12] + X[13]);
-	Y[12] = se * (-X[11] + X[14]);
-	Y[13] = su * (X[11] + X[14]);
-	Y[14] = su * (X[12] + X[13]);
-	Y[15] = su * (X[10] + X[15]);
+	X += 10;
+	Y += 10;
+	Y[0] = X[4] + X[2];
+	Y[1] = X[7] + X[0];
+	Y[2] = X[5] + X[3];
+	Y[3] = (X[5] - X[3]) / normalizedSpeedOfLight;
+	Y[4] = X[6] + X[1];
+	Y[5] = (X[2] - X[4]) / normalizedSpeedOfLight;
+	Y[6] = (X[7] - X[0]) / normalizedSpeedOfLight;
+	Y[7] = (X[6] - X[1]) * normalizedSpeedOfLight;
 
 <?
 				elseif side == 2 then
@@ -478,12 +486,17 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 					end
 ?>
 	//EM
-	Y[10] = se * (-X[11] + X[14]);
-	Y[11] = se * (X[10] - X[15]);
-	Y[12] = se * (-X[12] + X[13]);
-	Y[13] = su * (X[10] + X[15]);
-	Y[14] = su * (X[11] + X[14]);
-	Y[15] = su * (X[12] + X[13]);
+	X += 10;
+	Y += 10;
+	Y[0] = X[4] + X[2];
+	Y[1] = X[5] + X[3];
+	Y[2] = X[7] + X[0];
+	Y[3] = (X[3] - X[5]) / normalizedSpeedOfLight;
+	Y[4] = (X[4] - X[2]) / normalizedSpeedOfLight;
+	Y[5] = X[6] + X[1];
+	Y[6] = (X[7] - X[0]) / normalizedSpeedOfLight;
+	Y[7] = (X[6] - X[1]) * normalizedSpeedOfLight;
+
 <?
 				end
 ?>
@@ -499,67 +512,54 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real3 x
 ) {
 	<?=prefix?>
+	<?=addr0?> <?=eqn.cons_t?>* UY = (<?=addr0?> <?=eqn.cons_t?>*)Y;
+	<?=addr2?> const <?=eqn.cons_t?>* UX = (<?=addr2?> const <?=eqn.cons_t?>*)X;
 <?
 					for i,fluid	in ipairs(fluids) do 
 ?>
-	Y[<?=5*i-5?>] = X[<?=5*i-4?>] * nx 
+	UY-><?=fluid?>_rho = X[<?=5*i-4?>] * nx 
 		+ X[<?=5*i-3?>] * ny 
 		+ X[<?=5*i-2?>] * nz;
-	Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.x + (heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.x)
+	UY-><?=fluid?>_m.x = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.x + (heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.x)
 		+ X[<?=5*i-4?>] * (<?=fluid?>_v.x * nx - (heatCapacityRatio - 1.) * gUj.x * <?=fluid?>_vL.x + <?=fluid?>_v_n)
 		+ X[<?=5*i-3?>] * (<?=fluid?>_v.x * ny - (heatCapacityRatio - 1.) * gUj.x * <?=fluid?>_vL.y)
 		+ X[<?=5*i-2?>] * (<?=fluid?>_v.x * nz - (heatCapacityRatio - 1.) * gUj.x * <?=fluid?>_vL.z)
 		+ X[<?=5*i-1?>] * (heatCapacityRatio - 1.) * nx;
-	Y[<?=5*i-3?>] = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.y + (heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.y)
+	UY-><?=fluid?>_m.y = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.y + (heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.y)
 		+ X[<?=5*i-4?>] * (<?=fluid?>_v.y * nx - (heatCapacityRatio - 1.) * gUj.y * <?=fluid?>_vL.x)
 		+ X[<?=5*i-3?>] * (<?=fluid?>_v.y * ny - (heatCapacityRatio - 1.) * gUj.y * <?=fluid?>_vL.y + <?=fluid?>_v_n)
 		+ X[<?=5*i-2?>] * (<?=fluid?>_v.y * nz - (heatCapacityRatio - 1.) * gUj.y * <?=fluid?>_vL.z)
 		+ X[<?=5*i-1?>] * (heatCapacityRatio - 1.) * ny;
-	Y[<?=5*i-2?>] = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.z + (heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.z)
+	UY-><?=fluid?>_m.z = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.z + (heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.z)
 		+ X[<?=5*i-4?>] * (<?=fluid?>_v.z * nx - (heatCapacityRatio - 1.) * gUj.z * <?=fluid?>_vL.x)
 		+ X[<?=5*i-3?>] * (<?=fluid?>_v.z * ny - (heatCapacityRatio - 1.) * gUj.z * <?=fluid?>_vL.y)
 		+ X[<?=5*i-2?>] * (<?=fluid?>_v.z * nz - (heatCapacityRatio - 1.) * gUj.z * <?=fluid?>_vL.z + <?=fluid?>_v_n)
 		+ X[<?=5*i-1?>] * (heatCapacityRatio - 1.) * nz;
-	Y[<?=5*i-1?>] = X[<?=5*i-5?>] * <?=fluid?>_v_n * ((heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq - <?=fluid?>_hTotal)
+	UY-><?=fluid?>_ETotal = X[<?=5*i-5?>] * <?=fluid?>_v_n * ((heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq - <?=fluid?>_hTotal)
 		+ X[<?=5*i-4?>] * (-(heatCapacityRatio - 1.) * <?=fluid?>_v_n * <?=fluid?>_vL.x + nx * <?=fluid?>_hTotal)
 		+ X[<?=5*i-3?>] * (-(heatCapacityRatio - 1.) * <?=fluid?>_v_n * <?=fluid?>_vL.y + ny * <?=fluid?>_hTotal)
 		+ X[<?=5*i-2?>] * (-(heatCapacityRatio - 1.) * <?=fluid?>_v_n * <?=fluid?>_vL.z + nz * <?=fluid?>_hTotal)
 		+ X[<?=5*i-1?>] * heatCapacityRatio * <?=fluid?>_v_n;
 <? 
 					end 
-?>
-	real3 B = ((<?=addr2?> const <?=eqn.cons_t?>*)X)->B;
-	real3 E = ((<?=addr2?> const <?=eqn.cons_t?>*)X)->E;
-<? 
-					if side==0 then 
-?>
-	Y[10] = 0;
-	Y[11] = B.z;
-	Y[12] = -B.y;
-	Y[13] = 0;
-	Y[14] = -E.z;
-	Y[15] = E.y;
-<?
-					elseif side==1 then
-?>
-	Y[10] = -B.z;
-	Y[11] = 0;
-	Y[12] = B.x;
-	Y[13] = E.z;
-	Y[14] = 0;
-	Y[15] = -E.x;
-<?
-					elseif side==2 then 
-?>
-	Y[10] = B.y;
-	Y[11] = -B.x;
-	Y[12] = 0;
-	Y[13] = -E.y;
-	Y[14] = E.x;
-	Y[15] = 0;
-<?
-					end 
-?>
+?>	
+	
+	<? if side == 0 then ?>
+	UY->E = _real3(normalizedSpeedOfLightSq * divPhiWavespeed * UX->phi, normalizedSpeedOfLightSq * UX->B.z, -normalizedSpeedOfLightSq * UX->B.y);
+	UY->B = _real3(divPsiWavespeed * UX->psi, -UX->E.z, UX->E.y);
+	<? elseif side == 1 then ?>
+	UY->E = _real3(-normalizedSpeedOfLightSq * UX->B.z, normalizedSpeedOfLightSq * divPhiWavespeed * UX->phi, normalizedSpeedOfLightSq * UX->B.x);
+	UY->B = _real3(UX->E.z, divPsiWavespeed * UX->psi, -UX->E.x);
+	<? elseif side == 2 then ?>
+	UY->E = _real3(normalizedSpeedOfLightSq * UX->B.y, -normalizedSpeedOfLightSq * UX->B.x, normalizedSpeedOfLightSq * divPhiWavespeed * UX->phi);
+	UY->B = _real3(-UX->E.y, UX->E.x, divPsiWavespeed * UX->psi);
+	<? end ?>
+	UY->phi = divPhiWavespeed * UX->E.s<?=side?>;
+	UY->psi = normalizedSpeedOfLightSq * divPsiWavespeed * UX->B.s<?=side?>;
+
+	UY->ion_ePot = 0;
+	UY->elec_ePot = 0;
+	UY->rhoCharge = 0;
 }
 <?
 				end

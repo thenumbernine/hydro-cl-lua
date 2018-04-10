@@ -29,7 +29,7 @@
 		.psi = speedOfLightSq * divPsiWavespeed * B.s<?=side?>,
 	
 		.conductivity = 0.,
-		.charge = 0.,
+		.rhoCharge = 0.,
 	};
 }
 <? end ?>
@@ -205,7 +205,7 @@ kernel void addSource(
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	real3 mu0_J = real3_scale(U->E, mu0 / U->conductivity);
 	deriv->E = real3_sub(deriv->E, mu0_J);
-	deriv->phi += U->charge * divPhiWavespeed / eps0;
+	deriv->phi += U->rhoCharge * divPhiWavespeed / eps0;
 }
 
 

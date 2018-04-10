@@ -21,7 +21,7 @@ Maxwell.consVars = {
 	{phi = 'real'},
 	{psi = 'real'},
 	{conductivity = 'real'},
-	{charge = 'real'},
+	{rhoCharge = 'real'},
 }
 
 Maxwell.mirrorVars = {{'E.x', 'B.x'}, {'E.y', 'B.y'}, {'E.z', 'B.z'}}
@@ -88,7 +88,7 @@ kernel void initState(
 	U->phi = 0;
 	U->psi = 0;
 	U->conductivity = conductivity;
-	U->charge = 0;
+	U->rhoCharge = 0;
 }
 ]]
 

@@ -213,7 +213,7 @@ maxs = {6,1,1},
 	--initState = 'relativistic blast wave interaction',
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	--initState = 'Brio-Wu',
+	initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'spinning magnetic fluid',
@@ -228,7 +228,7 @@ maxs = {6,1,1},
 
 	-- Maxwell:
 	--initState = 'Maxwell default',
-	initState = 'Maxwell scattering around cylinder',
+	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	
@@ -410,7 +410,7 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-maxwell'})))
 
@@ -418,7 +418,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
 -- I'm having some memory issues with two solvers running simultanously .. 
 --self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
 -- so to try and get around that, here the two are combined into one solver:
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 
 -- GR+Maxwell.  params go to the Maxwell solver.
 
