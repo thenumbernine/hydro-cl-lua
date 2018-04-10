@@ -5,6 +5,7 @@ TODO incorporate H and D fields
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
+local range = require 'ext.range'
 local Equation = require 'eqn.eqn'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
@@ -95,8 +96,51 @@ function Maxwell:getSolverCode()
 	return template(file['eqn/glm-maxwell.cl'], {eqn=self, solver=self.solver})
 end
 
+-- k is 0,1,2
+local function curl(eqn,k,result,field)
+	local xs = {'x','y','z'}
+	local i = (k+1)%3
+	local j = (i+1)%3
+	return {['curl '..field..' '..xs[k+1]] = template([[
+	if (OOB(1,1)) {
+		<?=result?> = 0.;
+	} else {
+
+<? if i+1 <= solver.dim then ?>
+		global const <?=eqn.cons_t?>* Uim = U - stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Uip = U + stepsize.s<?=i?>;
+		real vim_j = Uim-><?=field?>.s<?=j?>;
+		real vip_j = Uip-><?=field?>.s<?=j?>;
+<? else ?>
+		real vim_j = 0.;
+		real vip_j = 0.;
+<? end?>
+
+<? if j+1 <= solver.dim then ?>
+		global const <?=eqn.cons_t?>* Ujm = U - stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = U + stepsize.s<?=j?>;
+		real vjm_i = Ujm-><?=field?>.s<?=i?>;
+		real vjp_i = Ujp-><?=field?>.s<?=i?>;
+<? else ?>
+		real vjm_i = 0.;
+		real vjp_i = 0.;
+<? end ?>
+
+		<?=result?> = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
+				- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
+	}
+]], {
+		i = i,
+		j = j,
+		eqn = eqn,
+		solver = eqn.solver,
+		result = result,
+		field = field,
+	})}
+end
+
 function Maxwell:getDisplayVars()
-	return Maxwell.super.getDisplayVars(self):append{ 
+	local vars = Maxwell.super.getDisplayVars(self):append{ 
 		{S = '*valuevec = real3_cross(U->E, U->B);', type='real3'},
 		{energy = [[
 	*value = .5 * (real3_lenSq(U->E) + real3_lenSq(U->B));
@@ -115,6 +159,19 @@ end
 ?>	);
 ]], {solver=self.solver, field=field})}
 	end))
+
+	for _,field in ipairs{'E', 'B'} do
+		local v = range(0,2):map(function(i) 
+			return curl(self,i,'valuevec->s'..i,field) 
+		end)
+		vars:insert{['curl '..field]= template([[
+	<? for i=0,2 do ?>{
+		<?=select(2,next(v[i+1]))?>
+	}<? end ?>
+]], {v=v}), type='real3'}
+	end
+
+	return vars
 end
 
 Maxwell.eigenVars = table{

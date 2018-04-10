@@ -18,7 +18,7 @@ D,t - curl H = 0
 B,t + curl E = 0
 D = eps0 eps_r E
 B = mu0 H
-div D = 0
+div D = rho_free
 div B = 0
 Drude model: eps(omega) = eps_inf - omega_p^2 / (omega (omega + i Gamma))
 --]]
