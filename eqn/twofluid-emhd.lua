@@ -47,7 +47,6 @@ TwoFluidEMHD.consVars = table{
 	--extra	
 	{ion_ePot = 'real'},
 	{elec_ePot = 'real'},
-	{rhoCharge = 'real'},
 }
 
 TwoFluidEMHD.primVars = table{
@@ -68,7 +67,6 @@ TwoFluidEMHD.primVars = table{
 	--extra	
 	{ion_ePot = 'real'},
 	{elec_ePot = 'real'},
-	{rhoCharge = 'real'},
 }
 
 TwoFluidEMHD.mirrorVars = {
@@ -162,9 +160,11 @@ function TwoFluidEMHD:createInitState()
 		-- https://en.wikipedia.org/wiki/Mass-to-charge_ratio
 		-- q_e / m_e = -1.758820024e+11 C/kg
 		{name='elecChargeMassRatio', value=.05},
-		
-		-- lambdaHat_d = lambda_d / l_r
+	
+		-- lambda_d = ion Debye length
 		{name='ionDebyeLength', value=1},
+		-- normalized ion Debye length: 
+		-- lambdaHat_d = lambda_d / l_r
 	}:append(fluids:map(function(fluid)
 		return table{
 			{name='min_'..fluid..'_rho', value=1e-4},
@@ -306,7 +306,11 @@ if eqn.useEulerInitState then
 
 		.E = E,
 		.B = B,
+		.phi = 0,
 		.psi = 0,
+		
+		.ion_ePot = 0,
+		.elec_ePot = 0,
 
 <?	
 else	-- expect the initState to explicitly provide the ion_ and elec_ Euler fluid variables
@@ -480,14 +484,14 @@ function TwoFluidEMHD:eigenWaveCode(side, eig, x, waveIndex)
 	end
 	if waveIndex >= 5*#fluids and waveIndex < 5*#fluids+8 then
 		return ({
-			'-speedOfLight * divPhiWavespeed',
-			'-speedOfLight * divPsiWavespeed',
-			'-speedOfLight',
-			'-speedOfLight',
-			'speedOfLight',
-			'speedOfLight',
-			'speedOfLight * divPsiWavespeed',
-			'speedOfLight * divPhiWavespeed',	
+			'-normalizedSpeedOfLight * divPhiWavespeed',
+			'-normalizedSpeedOfLight * divPsiWavespeed',
+			'-normalizedSpeedOfLight',
+			'-normalizedSpeedOfLight',
+			'normalizedSpeedOfLight',
+			'normalizedSpeedOfLight',
+			'normalizedSpeedOfLight * divPsiWavespeed',
+			'normalizedSpeedOfLight * divPhiWavespeed',	
 		})[waveIndex - 5*#fluids + 1]
 	end
 	error('got a bad waveIndex: '..waveIndex)

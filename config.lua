@@ -63,7 +63,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{128,128,1},
+				{32,32,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -213,8 +213,8 @@ maxs = {6,1,1},
 	--initState = 'relativistic blast wave interaction',
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	initState = 'Brio-Wu',
-	--initState = 'Orszag-Tang',
+	--initState = 'Brio-Wu',
+	initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'spinning magnetic fluid',
 	--initState = '2017 Degris et al',

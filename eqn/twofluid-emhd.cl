@@ -3,7 +3,8 @@
 #define ionReferenceThermalVelocity (ionLarmorRadius * ionChargeMassRatio * referenceMagneticField)
 #define normalizedSpeedOfLight 		(speedOfLight / ionReferenceThermalVelocity)
 #define normalizedSpeedOfLightSq 	(normalizedSpeedOfLight * normalizedSpeedOfLight)
-#define normalizedLarmorRadius 		(ionLarmorRadius / referenceLength)
+#define normalizedIonLarmorRadius 	(ionLarmorRadius / referenceLength)
+#define normalizedIonDebyeLength	(ionDebyeLength / ionLarmorRadius)
 
 
 //TODO timestep restriction
@@ -52,7 +53,6 @@ end
 
 	F.ion_ePot = 0;
 	F.elec_ePot = 0;
-	F.rhoCharge = 0;
 
 	return F;
 }
@@ -559,7 +559,6 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 	UY->ion_ePot = 0;
 	UY->elec_ePot = 0;
-	UY->rhoCharge = 0;
 }
 <?
 				end
@@ -577,26 +576,32 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
-	deriv->ion_m.x += (1. / normalizedLarmorRadius) * (U->ion_rho * U->E.x + U->ion_m.y * U->B.z - U->ion_m.z * U->B.y);
-	deriv->ion_m.y += (1. / normalizedLarmorRadius) * (U->ion_rho * U->E.y + U->ion_m.z * U->B.x - U->ion_m.x * U->B.z);
-	deriv->ion_m.z += (1. / normalizedLarmorRadius) * (U->ion_rho * U->E.z + U->ion_m.x * U->B.y - U->ion_m.y * U->B.x);
-	deriv->ion_ETotal += (1. / normalizedLarmorRadius) * real3_dot(U->E, U->ion_m);
+	deriv->ion_m.x += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.x + U->ion_m.y * U->B.z - U->ion_m.z * U->B.y);
+	deriv->ion_m.y += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.y + U->ion_m.z * U->B.x - U->ion_m.x * U->B.z);
+	deriv->ion_m.z += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.z + U->ion_m.x * U->B.y - U->ion_m.y * U->B.x);
+	deriv->ion_ETotal += (1. / normalizedIonLarmorRadius) * real3_dot(U->E, U->ion_m);
 	
-	deriv->elec_m.x -= ionElectronMassRatio / normalizedLarmorRadius * (U->elec_rho * U->E.x + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y);
-	deriv->elec_m.y -= ionElectronMassRatio / normalizedLarmorRadius * (U->elec_rho * U->E.y + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z);
-	deriv->elec_m.z -= ionElectronMassRatio / normalizedLarmorRadius * (U->elec_rho * U->E.z + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x);
-	deriv->elec_ETotal -= ionElectronMassRatio / normalizedLarmorRadius * real3_dot(U->E, U->elec_m);
+	deriv->elec_m.x -= ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.x + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y);
+	deriv->elec_m.y -= ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.y + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z);
+	deriv->elec_m.z -= ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.z + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x);
+	deriv->elec_ETotal -= ionElectronMassRatio / normalizedIonLarmorRadius * real3_dot(U->E, U->elec_m);
 
-#define ionDebyeLengthSq (ionDebyeLength*ionDebyeLength)
+#define normalizedIonDebyeLengthSq	(normalizedIonDebyeLength * normalizedIonDebyeLength)
 	deriv->E.x -= (U->ion_m.x * ionChargeMassRatio
 						+ U->elec_m.x * elecChargeMassRatio
-					) / ionDebyeLengthSq * normalizedLarmorRadius;
+					) / normalizedIonDebyeLengthSq * normalizedIonLarmorRadius;
 	deriv->E.y -= (U->ion_m.y * ionChargeMassRatio
 						+ U->elec_m.y * elecChargeMassRatio
-					) / (ionDebyeLengthSq * normalizedLarmorRadius);
+					) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
 	deriv->E.z -= (U->ion_m.z * ionChargeMassRatio
 						+ U->elec_m.z * elecChargeMassRatio
-					) / (ionDebyeLengthSq * normalizedLarmorRadius);
+					) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->phi += divPhiWavespeed 
+		/ (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius)
+		* (
+			U->ion_rho * ionChargeMassRatio 
+			+ U->elec_rho * elecChargeMassRatio 
+		);
 }
 
 kernel void constrainU(
