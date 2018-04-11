@@ -483,6 +483,7 @@ function TwoFluidEMHD:eigenWaveCode(side, eig, x, waveIndex)
 		end
 	end
 	if waveIndex >= 5*#fluids and waveIndex < 5*#fluids+8 then
+		-- 2014 Abgrall, Kumar eqn 1.9 says the eigenvalues are c, while the flux contains cHat ...
 		return ({
 			'-normalizedSpeedOfLight * divPhiWavespeed',
 			'-normalizedSpeedOfLight * divPsiWavespeed',

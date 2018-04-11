@@ -181,7 +181,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -214,7 +214,7 @@ maxs = {6,1,1},
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
 	--initState = 'Brio-Wu',
-	initState = 'Orszag-Tang',
+	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'spinning magnetic fluid',
 	--initState = '2017 Degris et al',

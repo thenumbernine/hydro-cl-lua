@@ -11,6 +11,9 @@
 // 2014 Abgrall, Kumar eqn 2.25
 // dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
 
+
+//this function is the same as making an eig_t from a conservative state, then applying eigen_fluxTransform to that state using that eig_t 
+//maybe that should be the default implementation of this function?
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
 	<?=eqn.cons_t?> U,

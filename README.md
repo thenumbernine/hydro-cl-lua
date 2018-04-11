@@ -17,8 +17,10 @@ Features:
 - integrators: Forward Euler, several Runge-Kutta and Runge-Kutta TVD, and implicit linearized GMRES on the GPU
 - GUI-driven everything.  no more restarting the program to switch solvers or initial conditions.
 - Euler equations from Toro's book (with some modifications for curved geometry) 
-- Maxwell equations from Trangenstein's book
+- Maxwell equations from Trangenstein's book with poisson solver constraints
+- Maxwell equations with GLM from 2000 Munz
 - ideal MHD from Stone et al 2008
+- two-fluid electron/ion plasma model from 2014 Abgrall, Kumar
 - SRHD from Marti & Muller 2008
 - GRHD from Font 2008
 - numerical relativity via Bona-Masso formalism described in Alcubierre 1997 and Alcubierre's 2008 book
@@ -52,7 +54,7 @@ TODO:
 - rename mhd to ideal-mhd
 - how about a GLM method for Maxwell equations, so I can remove the divergence-free constraint
 - get curved grid coordinates to work (cylindrical, sphere 1D radial, sphere 2D surface, sphere r+phi etc)
-- get two-fluid EMHD working (currently has nans)
+- get two-fluid-separate EMHD working, so I can update the glm-maxwell with an implicit and update the ion and electron with an explicit solver
 - currently seeing errors when two solvers run simultaneously ... which makes EM+HD difficult
 - add HLLC/D solvers
 - implement Navier-Stokes, compressible & incompressible
@@ -66,7 +68,6 @@ TODO:
 - coroutines to iterative solvers?  so they don't stall the app execution?
 - RHD W error in >1 dimension
 - GR flat space simulations make an initial wave.  but shouldn't flat space be stable?
-- 2D Maxwell Roe looks ugly 
 
 ### Sources:
 
@@ -94,8 +95,10 @@ TODO:
 * HLLC:
 	* http://math.lanl.gov/~shenli/publications/hllc_mhd.pdf
 	* http://marian.fsik.cvut.cz/~bodnar/PragueSum_2012/Toro_2-HLLC-RiemannSolver.pdf
-* MHD Roe:
+* ideal MHD Roe:
 	* Athena: A New Code for Astrophysical MHD (2008) https://arxiv.org/pdf/0804.0402v1.pdf
+* two-fluid plasma model:
+	* Abgrall, Kumar 2014
 * MUSCL:
 	* https://en.wikipedia.org/wiki/MUSCL_scheme
 * Euler Initial Conditoins:
