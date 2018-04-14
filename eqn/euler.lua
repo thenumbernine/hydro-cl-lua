@@ -29,6 +29,8 @@ Euler.hasFluxFromCons = true
 -- the only source term that the Euler equations has is the connection coefficients of the velocity vector
 -- maybe later I will automatically flag what elements are vectors
 -- and automatically add connection coefficients
+--
+-- I'm also using the source term for the viscosity ... if you choose to use FANS
 Euler.useSourceTerm = true
 
 Euler.initStates = require 'init.euler'
@@ -61,7 +63,12 @@ function Euler:createInitState()
 --in order to make things work, gamma needs to be set *HERE AND IN INIT/EULER*
 -- which means it is being read and written in multiple places
 -- TODO consolidate that
-	self:addGuiVar{name='heatCapacityRatio', value=7/5}
+	self:addGuiVars{
+		{name='heatCapacityRatio', value=7/5},
+		{name='useNavierStokesViscosityTerm', value=false},
+		{name='viscosity_K', value=.1},
+		{name='viscosity_mu_T', value=1e-3},
+	}
 end
 
 function Euler:getCodePrefix()
@@ -150,11 +157,12 @@ kernel void initState(
 ]]
 
 function Euler:getSolverCode()
+	local derivOrder = 2 * self.solver.numGhost
 	return template(file['eqn/euler.cl'], {
 		solver = self.solver,
 		eqn = self,
-		makePartial = makePartial,
-		makePartial2 = makePartial2,
+		makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
+		makePartial2 = function(...) return makePartial2(derivOrder, self.solver, ...) end,
 	})
 end
 

@@ -1,3 +1,6 @@
+--[[
+From 2010 Colliander, Simpso, Sulem - Numerical Simulations of the Energy-Supercritical nonlinear Schrodinger equation
+--]]
 local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'eqn.eqn'

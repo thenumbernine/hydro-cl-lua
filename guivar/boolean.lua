@@ -16,7 +16,6 @@ end
 
 function GuiBoolean:updateGUI(solver)
 	if tooltip.checkboxTable(self.name, self, 'value') then
-print'here'		
 		self:refresh(self.value, solver)
 	end
 end

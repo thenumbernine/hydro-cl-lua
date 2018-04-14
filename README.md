@@ -27,6 +27,7 @@ Features:
 - numerical relativity via finite difference BSSNOK (Baumgarte & Shapiro 2010)
 - self-gravitation for some schemes (Euler equations)
 - Z4c from Cao, Hilditch 2011
+- nonlinear Schrodinger equation from Colliander, Simpso, Sulem "Numerical Simulations of the Energy-Supercritical nonlinear Schrodinger equation" 2010 
 
 Example Videos:
 

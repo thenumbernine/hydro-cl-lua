@@ -641,26 +641,85 @@ for tau_ij = mu_T (v_i,j + v_j,i - 2/3 delta_ij v_k,k) - 2/3 rho K delta_ij
 so tau_ij,j = (mu_T (v_i,j + v_j,i - 2/3 delta_ij v_k,k) - 2/3 rho K delta_ij),j
 	= mu_T (v_i,j + v_j,i - 2/3 delta_ij v_k,k),j - (2/3 rho K delta_ij),j
 	= mu_T (v_i,jj + 1/3 v_j,ji) - 2/3 K rho,i
-	= mu_T (rho m)_i,jj + 1/3 mu_T (rho m)_j,ji - 2/3 K rho,i
-	= mu_T ( (rho,j m_i + rho m_i,j),j + 1/3 (rho,j m_j + rho m_j,j),i ) - 2/3 K rho,i
-	= mu_T ( 
-		rho,jj m_i 
-		+ 1/3 rho,ij m_j 
-		+ rho,j (2 m_i,j + 1/3 m_j,i)
-		+ rho (m_i,jj + 1/3 m_j,ij)
-	)
-	+ rho,i (mu_T m_j,j - 2 K) / 3
+	= mu_T (m_i / rho),jj + 1/3 mu_T (m_j / rho),ji - 2/3 K rho,i
+	= mu_T (m_i,j / rho - m_i / rho^2 rho,j),j + 1/3 mu_T (m_j,j / rho - m_j / rho^2 rho,j),i - 2/3 K rho,i
+	= mu_T (
+		m_i,jj / rho 
+		- m_i,j / rho^2 rho,j
+		- m_i,j / rho^2 rho,j
+		+ 2 m_i / rho^3 (rho,j)^2
+		- m_i / rho^2 rho,jj
+	) + 1/3 mu_T (
+		m_j,ji / rho 
+		- m_j,j / rho^2 rho,i
+		- m_j,i / rho^2 rho,j
+		+ 2 m_j / rho^3 rho,i rho,j
+		- m_j / rho^2 rho,ij
+	) - 2/3 K rho,i
+	
+	= mu_T (
+		(m_i,jj + 1/3 m_j,ji) / rho 
+		- ((2 m_i,j + 1/3 m_j,i) rho,j + 1/3 m_j,j rho,i) / rho^2
+		+ (
+			m_i (2 (rho,j)^2 - rho rho,jj)
+			+ m_j (2 rho,i rho,j - rho rho,ij)
+		) / rho^3
+	) - 2/3 K rho,i
+
+	= 
+		- 2/3 K rho,i
+		+ mu_T (
+			+ m_i,jj / rho
+			+ 1/3 m_j,ji / rho
+			- 2 m_i,j rho,j / rho^2 
+			- 1/3 m_j,i rho,j / rho^2 
+			- 1/3 m_j,j rho,i / rho^2
+			+ m_i 2 (rho,j)^2 / rho^3 
+			- m_i rho,jj / rho^2
+			+ 2 m_j rho,i rho,j / rho^3 
+			- m_j rho,ij / rho^2
+		)
 */
-<? if solver.useNavierStokesViscosityTerm then ?>
+<? if eqn.guiVars.useNavierStokesViscosityTerm then 
+?>
+	const real K = <?=clnumber(eqn.guiVars.viscosity_K)?>;
+	const real mu_T = <?=clnumber(eqn.guiVars.viscosity_mu_T)?>;
+
 <?=makePartial('rho', 'real')?>
 <?=makePartial2('rho', 'real')?>
-<?=makePartial('m', 'real3')?>
-<?=makePartial2('m', 'real3')?>
+<?=makePartial('m', 'real3')?>		//m_i,j = partial_m_l[j].i
+<?=makePartial2('m', 'real3')?>		//m_i,jk = partial2_m_ll[jk].i
+
+	real invRho = 1. / U->rho;
+	real invRho2 = invRho * invRho;
+	real invRho3 = invRho * invRho2;
 
 <? for i,xi in ipairs(xNames) do
 ?>	deriv->m.<?=xi?> += 
-	- 2./3. * K
+		-2./3. * K * partial_rho_l[<?=i-1?>]
+	+ mu_T * (0.
+<?	for j,xj in ipairs(xNames) do
+		local ij = from3x3to6(i,j)
+		local jj = from3x3to6(j,j)
+?>		
+		+ invRho * (
+			+ partial2_m_ll[<?=jj-1?>].<?=xi?>
+			+ 1./3. * partial2_m_ll[<?=ij-1?>].<?=xj?>
+			+ invRho * (
+				- 2. * partial_m_l[<?=j-1?>].<?=xi?> * partial_rho_l[<?=j-1?>]
+				- 1./3. * partial_m_l[<?=i-1?>].<?=xj?> * partial_rho_l[<?=j-1?>]
+				- 1./3. * partial_m_l[<?=j-1?>].<?=xj?> * partial_rho_l[<?=i-1?>]
+				- U->m.<?=xi?> * partial2_rho_ll[<?=jj-1?>]
+				- U->m.<?=xj?> * partial2_rho_ll[<?=ij-1?>]
+				+ invRho * 2. * partial_rho_l[<?=j-1?>] * (
+					+ U->m.<?=xi?> * partial_rho_l[<?=j-1?>] 
+					+ U->m.<?=xj?> * partial_rho_l[<?=i-1?>]
+				)
+			)
+		)
+<? 	end
+?>	);
 <? end
-?>;
+?>	
 <? end ?>
 }
