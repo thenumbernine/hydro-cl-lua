@@ -381,6 +381,7 @@ function Solver:refreshEqnInitState()
 	-- this influences createCodePrefix (via its call of eqn:getCodePrefix)
 	--  and refreshInitStateProgram()
 	self.eqn:createInitState()
+	
 	-- Right now within eqn:createInitState I'm adding any subclass-specific gui vars
 	-- so only after it finishes and all gui vars are created, ask the eqn.initState object if it wants to modify anything.
 	-- Don't do this during Solver:refreshInitStateProgram()->InitCond:initState() or the changes won't get into the header.

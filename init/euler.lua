@@ -182,17 +182,14 @@ local initStates = table{
 	-- 2017 Zingale section 7.9.3
 	{
 		name = 'gaussian',
-		init = function(self, solver)
-			solver.eqn:addGuiVars{
-				{name = 'init_rho0', value = 1e-3},
-				{name = 'init_rho1', value = 1},
-				{name = 'init_sigma', value = .1},
-				{name = 'init_u0', value = 1},
-				{name = 'init_v0', value = 1},
-				{name = 'init_P0', value = 1e-6},
-			}
-		end,
-	
+		guiVars = {
+			{name = 'init_rho0', value = 1e-3},
+			{name = 'init_rho1', value = 1},
+			{name = 'init_sigma', value = .1},
+			{name = 'init_u0', value = 1},
+			{name = 'init_v0', value = 1},
+			{name = 'init_P0', value = 1e-6},
+		},
 		initState = function(self, solver)
 			return template([[
 	real3 xc = coordMap(x);
@@ -208,12 +205,10 @@ local initStates = table{
 	},
 	{
 		name = 'advect wave',
-		init = function(self, solver)
-			solver.eqn:addGuiVars{
-				{name = 'v0x', value = .5},
-				{name = 'v0y', value = 0},
-			}
-		end,
+		guiVars = {
+			{name = 'v0x', value = .5},
+			{name = 'v0y', value = 0},
+		},
 		initState = function(self, solver)
 			return [[
 	real3 xc = real3_sub(coordMap(x), _real3(-.5, 0, 0));
@@ -229,14 +224,12 @@ local initStates = table{
 	
 	{
 		name = 'Sod',
-		init = function(self, solver)
-			solver.eqn:addGuiVars{
-				{name = 'init_rhoL', value = 1},
-				{name = 'init_PL', value = 1},
-				{name = 'init_rhoR', value = .125},
-				{name = 'init_PR', value = .1},
-			}
-		end,
+		guiVars = {
+			{name = 'init_rhoL', value = 1},
+			{name = 'init_PL', value = 1},
+			{name = 'init_rhoR', value = .125},
+			{name = 'init_PR', value = .1},
+		},
 		overrideGuiVars = {
 			heatCapacityRatio = 5/3,
 		},
@@ -260,20 +253,18 @@ local initStates = table{
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/brio-wu/Brio-Wu.html
 	{
 		name = 'Brio-Wu',
-		init = function(self, solver)
-			solver.eqn:addGuiVars{
-				{name = 'init_rhoL', value = 1},
-				{name = 'init_rhoR', value = .125},
-				{name = 'init_PL', value = 1},
-				{name = 'init_PR', value = .1},
-				{name = 'init_BxL', value = .75},
-				{name = 'init_BxR', value = .75},
-				{name = 'init_ByL', value = 1},
-				{name = 'init_ByR', value = -1},
-				{name = 'init_BzL', value = 0},
-				{name = 'init_BzR', value = 0},
-			}
-		end,
+		guiVars = {
+			{name = 'init_rhoL', value = 1},
+			{name = 'init_rhoR', value = .125},
+			{name = 'init_PL', value = 1},
+			{name = 'init_PR', value = .1},
+			{name = 'init_BxL', value = .75},
+			{name = 'init_BxR', value = .75},
+			{name = 'init_ByL', value = 1},
+			{name = 'init_ByR', value = -1},
+			{name = 'init_BzL', value = 0},
+			{name = 'init_BzR', value = 0},
+		},
 		overrideGuiVars = {
 			heatCapacityRatio = 2,
 		},
@@ -294,20 +285,18 @@ local initStates = table{
 	-- with distinct ion and electron values
 	{
 		name = 'two-fluid emhd modified Brio-Wu',
-		init = function(self, solver)
-			solver.eqn:addGuiVars{
-				{name = 'init_rhoL', value = 1},
-				{name = 'init_rhoR', value = .125},
-				{name = 'init_PL', value = 5e-5},
-				{name = 'init_PR', value = 5e-6},
-				{name = 'init_BxL', value = .75},
-				{name = 'init_BxR', value = .75},
-				{name = 'init_ByL', value = 1},
-				{name = 'init_ByR', value = -1},
-				{name = 'init_BzL', value = 0},
-				{name = 'init_BzR', value = 0},
-			}
-		end,
+		guiVars = {
+			{name = 'init_rhoL', value = 1},
+			{name = 'init_rhoR', value = .125},
+			{name = 'init_PL', value = 5e-5},
+			{name = 'init_PR', value = 5e-6},
+			{name = 'init_BxL', value = .75},
+			{name = 'init_BxR', value = .75},
+			{name = 'init_ByL', value = 1},
+			{name = 'init_ByR', value = -1},
+			{name = 'init_BzL', value = 0},
+			{name = 'init_BzR', value = 0},
+		},
 		overrideGuiVars = {
 			heatCapacityRatio = 2,
 		},
@@ -445,8 +434,9 @@ local initStates = table{
 		overrideGuiVars = {
 			heatCapacityRatio = 5/3,
 		},
+		mins = {-.5, -1.5, -1},
+		maxs = {.5, 1.5, 1},
 		initState = function(self, solver)
-			--bounds = [-.5, .5] x [-1.5, 1.5]
 			return template([[
 	rho = 1.;
 	v.x = 1.;
@@ -468,8 +458,9 @@ local initStates = table{
 		overrideGuiVars = {
 			heatCapacityRatio = 7/5,
 		},
+		mins = {-.5, -.25, -1},
+		maxs = {.5, .25, 1},
 		initState = function(self, solver)
-			--bounds = [-.5, .5] x [-.25, .25]
 			return template([[
 	rho = 1.;
 	B.x = <?=clnumber(5 / math.sqrt(4 * math.pi))?>;
@@ -492,6 +483,8 @@ local initStates = table{
 		overrideGuiVars = {
 			heatCapacityRatio = 7/5,
 		},
+		mins = {-1, -.5, -1},
+		maxs = {1, .5, 1},
 		initState = function(self, solver)
 
 			local boundaryMethods = {}
@@ -547,7 +540,6 @@ end) then
 ]], {U=U, eqn=solver.eqn})
 			end
 					
-			--bounds = [-1, 1] x [-.5, .5]
 			return [[
 	rho = 1.;
 	v.x = 2.9;
@@ -774,7 +766,6 @@ end) then
 	{
 		name = 'Kelvin-Helmholtz',
 		init = function(self, solver)
-			
 			local moveAxis = 1
 			local sliceAxis = 2
 			

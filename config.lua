@@ -21,9 +21,9 @@ local args = {
 	--fixedDT = .0001,
 	--cfl = .25/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	fluxLimiter = 'donor cell',
+	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
@@ -62,7 +62,7 @@ maxs = {6,1,1},
 				{32,32,32},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
-				{320,1,1},
+				{4096,1,1},
 				{32,32,1},
 				{16,16,16},
 			},
