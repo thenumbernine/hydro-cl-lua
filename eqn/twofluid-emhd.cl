@@ -68,8 +68,12 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 ) {
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
 
+#if 1	//using the EM wavespeed
 	real lambda = max(max(divPsiWavespeed, divPhiWavespeed), 1.) * normalizedSpeedOfLight;
 	range_t range = {-lambda, lambda};
+#else	//ignoring it
+	range_t range = {INFINITY, -INFINITY};
+#endif
 
 <? for _,fluid in ipairs(fluids) do
 ?>	real <?=fluid?>_Cs = calc_<?=fluid?>_Cs(&W);

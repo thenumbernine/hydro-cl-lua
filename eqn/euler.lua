@@ -3,6 +3,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
+local clnumber = require 'cl.obj.number'
 local Equation = require 'eqn.eqn'
 
 local makePartials = require 'eqn.makepartial'
@@ -161,6 +162,7 @@ function Euler:getSolverCode()
 	return template(file['eqn/euler.cl'], {
 		solver = self.solver,
 		eqn = self,
+		clnumber = clnumber,
 		makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
 		makePartial2 = function(...) return makePartial2(derivOrder, self.solver, ...) end,
 	})

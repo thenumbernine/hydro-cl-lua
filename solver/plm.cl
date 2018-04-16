@@ -70,9 +70,35 @@ works for adm1d_v1 freeflow with oscillations (fails for mirror)
 			//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)	
 			//https://en.wikipedia.org/wiki/MUSCL_scheme
 			
+/*
+minmod(r) = max(0, min(r, 1))
+superbee(r) = max(0, max(
+					min(1, 2*r),
+					min(2, r)
+				))
+
+minmod2(a,b) = a * b < 0  
+		? 0
+		: (|a| < |b| ? a : b)
+
+a = u[i+1] - u[i]
+b = u[i] - u[i-1]
+r = a / b = (u[i+1] - u[i]) / (u[i] - u[i-1])
+
+minmod2(a,b) = minmod2(rb, b) = |b| minmod2(r sgn b, sgn b)
+TODO oops I forgot r can be negative, and so this sgn b < 0 case is bad ...
+for sgn b < 0: 
+	minmod2(a,b) = |b| minmod2(-r, -1) = 0
+for sgn b >= 0:
+	minmod2(a,b) = |b| minmod2(r, 1) = 
+		|b| * (r * 1 < 0 ? 0
+						: (|r| < 1 ? r : 1))
+	minmod2(a,b) = |b| sgn r * max(0, min(|r|, 1))
+	minmod2(a,b) = |b| sgn r * minmod(|r|)
+*/
+
 			real r = dUR.ptr[j] == 0 ? 0 : (dUL.ptr[j] / dUR.ptr[j]);
 			real phi = slopeLimiter(r);	//works good with minmod, bad with superbee
-			
 			real sigma = phi * dUR.ptr[j];
 			
 			//q^n_i-1/2,R = q^n_i - 1/2 dx sigma	(Hydrodynamics II 6.58)
@@ -149,8 +175,8 @@ works for adm1d_v1
 			dUL.ptr[j] = dUR.ptr[j] = dUC.ptr[j] = 0;
 		}
 
-		real3 xIntL = x; xIntL.s<?=side?> -= grid_dx<?=side?>;
-		real3 xIntR = x; xIntR.s<?=side?> += grid_dx<?=side?>;
+		real3 xIntL = x; xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
+		real3 xIntR = x; xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
 
 		//calc eigen values and vectors at cell center
 		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(U, x);
@@ -164,6 +190,8 @@ works for adm1d_v1
 		//TODO make this based on the choice of slope limiter
 		real dUMEig[numWaves];
 		for (int j = 0; j < numWaves; ++j) {
+			//dUMEig[j] = minmod(minmod(2. * dULEig[j], 2. * dUREig[j]), dUCEig[j]);
+			
 			dUMEig[j] = dULEig[j] * dUREig[j] < 0 ? 0 : (
 				(dUCEig[j] >= 0. ? 1. : -1.)
 				* 2. * min3(

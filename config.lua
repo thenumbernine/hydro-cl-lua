@@ -1,4 +1,4 @@
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -21,9 +21,9 @@ local args = {
 	--fixedDT = .0001,
 	--cfl = .25/dim,
 	
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	--fluxLimiter = 'donor cell',
+	fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
@@ -62,8 +62,8 @@ maxs = {6,1,1},
 				{32,32,32},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
-				{256,1,1},
-				{256,256,1},
+				{320,1,1},
+				{32,32,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -217,6 +217,7 @@ maxs = {6,1,1},
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'spinning magnetic fluid',
+	--initState = 'magnetic fluid',
 	--initState = '2017 Degris et al',
 	
 	-- 2002 Dedner

@@ -81,14 +81,20 @@ end
 
 -- always call super first
 function Equation:createInitState()
+	-- first create the init state
+	assert(self.initStates, "expected Eqn.initStates")
+	self.initState = self.initStates[self.solver.initStateIndex](self.solver, self.solver.initStateArgs)
+	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)	
+
+	-- then setup the gui vars
 	self.guiVars = table()
 	local mt = getmetatable(self)
 	if mt.guiVars then
 		self:addGuiVars(mt.guiVars)
 	end
-	assert(self.initStates, "expected Eqn.initStates")
-	self.initState = self.initStates[self.solver.initStateIndex](self.solver, self.solver.initStateArgs)
-	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)	
+	if self.initState.guiVars then
+		self:addGuiVars(self.initState.guiVars)
+	end
 end
 
 function Equation:getCodePrefix()

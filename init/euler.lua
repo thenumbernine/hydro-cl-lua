@@ -138,10 +138,10 @@ end
 local initStates = table{
 	{
 		name = 'constant',
+		overrideGuiVars = {
+			heatCapacityRatio = 7/5,
+		},
 		initState = function(self, solver)
-			if solver.eqn.guiVars.heatCapacityRatio then	
-				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
-			end
 			return [[
 	rho = 1;
 	P = 1;
@@ -150,10 +150,10 @@ local initStates = table{
 	},
 	{
 		name = 'linear',
+		overrideGuiVars = {
+			heatCapacityRatio = 7/5,
+		},
 		initState = function(self, solver)
-			if solver.eqn.guiVars.heatCapacityRatio then	
-				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
-			end
 			return [[
 	rho = 1 + x.x;
 	P = 1 + x.x;
@@ -237,14 +237,10 @@ local initStates = table{
 				{name = 'init_PR', value = .1},
 			}
 		end,
+		overrideGuiVars = {
+			heatCapacityRatio = 5/3,
+		},
 		initState = function(self, solver)
-			-- TODO i've got no easy way to set vars from init conds
-			-- setting this will require a recompile for the code to reflect the change
-			--[[
-			if solver.eqn.guiVars.heatCapacityRatio then	
-				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
-			end
-			--]]
 			return [[
 	rho = lhs ? init_rhoL : init_rhoR;
 	P = lhs ? init_PL : init_PR;
@@ -278,10 +274,10 @@ local initStates = table{
 				{name = 'init_BzR', value = 0},
 			}
 		end,
+		overrideGuiVars = {
+			heatCapacityRatio = 2,
+		},
 		initState = function(self, solver)
-			if solver.eqn.guiVars.heatCapacityRatio then	
-				solver.eqn.guiVars.heatCapacityRatio.value = 2
-			end
 			return [[
 	rho = lhs ? init_rhoL : init_rhoR;
 	P = lhs ? init_PL : init_PR;
@@ -312,10 +308,10 @@ local initStates = table{
 				{name = 'init_BzR', value = 0},
 			}
 		end,
+		overrideGuiVars = {
+			heatCapacityRatio = 2,
+		},
 		initState = function(self, solver)
-			if solver.eqn.guiVars.heatCapacityRatio then	
-				solver.eqn.guiVars.heatCapacityRatio.value = 2
-			end
 			return [[
 	rho = lhs ? init_rhoL : init_rhoR;
 	P = lhs ? init_PL : init_PR;
@@ -330,6 +326,9 @@ local initStates = table{
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/orszag-tang/pagesource.html
 	{
 		name = 'Orszag-Tang',
+		overrideGuiVars = {
+			heatCapacityRatio = 5/3,
+		},
 		initState = function(self, solver)
 			local boundaryMethods = {}
 			for i,x in ipairs(xNames) do
@@ -339,9 +338,6 @@ local initStates = table{
 			end
 			solver:setBoundaryMethods(boundaryMethods)
 			
-			if solver.eqn.guiVars.heatCapacityRatio then	
-				solver.eqn.guiVars.heatCapacityRatio.value = 5/3
-			end
 			return [[
 	const real B0 = 1./sqrt(4. * M_PI);
 	rho = 25./(36.*M_PI);
@@ -363,10 +359,10 @@ local initStates = table{
 	-- 	omega = 1, P = .5, gamma = 5/3
 	{
 		name = 'MHD rotor',
+		overrideGuiVars = {
+			heatCapacityRatio = 7/5,
+		},
 		initState = function(self, solver)
-			if solver.eqn.guiVars.heatCapacityRatio then	
-				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
-			end
 			return [[
 	real3 xc = coordMap(x);
 	const real r0 = .1;
@@ -422,11 +418,34 @@ local initStates = table{
 	},
 
 	{
-		name = '2002 Dedner peak Bx',
+		name = 'magnetic fluid',
 		initState = function(self, solver)
-			if solver.eqn.guiVars.heatCapacityRatio then	
-				solver.eqn.guiVars.heatCapacityRatio.value = 5/3
-			end
+			solver.useGravity = true
+			return [[
+	real3 xc = coordMap(x);
+	rho = .1;
+	P = 1;
+	
+	real3 delta = xc;
+	real dist = real3_len(_real3(delta.x, delta.y, 0.));
+	real radius = .2;
+	real distPastRadius = dist - radius;
+	rho = .1;
+	P = 1;
+	if (distPastRadius < 0.) {
+		rho = 1;
+		v.z = 1;
+	}
+]]
+		end,
+	},
+
+	{
+		name = '2002 Dedner peak Bx',
+		overrideGuiVars = {
+			heatCapacityRatio = 5/3,
+		},
+		initState = function(self, solver)
 			--bounds = [-.5, .5] x [-1.5, 1.5]
 			return template([[
 	rho = 1.;
@@ -446,10 +465,10 @@ local initStates = table{
 
 	{
 		name = '2002 Dedner 1D Riemann',
+		overrideGuiVars = {
+			heatCapacityRatio = 7/5,
+		},
 		initState = function(self, solver)
-			if solver.eqn.guiVars.heatCapacityRatio then	
-				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
-			end
 			--bounds = [-.5, .5] x [-.25, .25]
 			return template([[
 	rho = 1.;
@@ -470,10 +489,10 @@ local initStates = table{
 
 	{
 		name = '2002 Dedner Shock Reflection',
+		overrideGuiVars = {
+			heatCapacityRatio = 7/5,
+		},
 		initState = function(self, solver)
-			if solver.eqn.guiVars.heatCapacityRatio then	
-				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
-			end
 
 			local boundaryMethods = {}
 			for i,x in ipairs(xNames) do
@@ -540,10 +559,10 @@ end) then
 
 	{
 		name = '2002 Dedner 2D Riemann problem',
+		overrideGuiVars = {
+			heatCapacityRatio = 5/3,
+		},
 		initState = function(self, solver)
-			if solver.eqn.guiVars.heatCapacityRatio then	
-				solver.eqn.guiVars.heatCapacityRatio.value = 5/3
-			end
 			-- TODO dirichlet 
 			solver:setBoundaryMethods'freeflow'
 			-- boundary: [-1, 1] x [-1, 1]
@@ -676,11 +695,11 @@ end) then
 	--from SRHD Marti & Muller 2000
 	{
 		name = 'relativistic shock reflection',
+		overrideGuiVars = {
+			heatCapacityRatio = 4/3,
+		},
 		initState = function(self, solver)
 			solver.cfl = .5	-- needs a slower cfl
-			if solver.eqn.guiVars.heatCapacityRatio then	
-				solver.eqn.guiVars.heatCapacityRatio.value = 4/3
-			end
 			return [[
 	rho = 1;
 	v.x = 1. - 1e-5;
@@ -690,11 +709,11 @@ end) then
 	},
 	{
 		name = 'relativistic blast wave test problem 1',
+		overrideGuiVars = {
+			heatCapacityRatio = 5/3,
+		},
 		initState = function(self, solver)
 			solver.cfl = .5	-- needs a slower cfl
-			if solver.eqn.guiVars.heatCapacityRatio then	
-				solver.eqn.guiVars.heatCapacityRatio.value = 5/3
-			end
 			return [[
 	rho = lhs ? 10 : 1;
 	P = (heatCapacityRatio - 1.) * rho * (lhs ? 2 : 1e-6);
@@ -703,11 +722,11 @@ end) then
 	},
 	{
 		name = 'relativistic blast wave test problem 2',
+		overrideGuiVars = {
+			heatCapacityRatio = 5/3,
+		},
 		initState = function(self, solver)
 			solver.cfl = .5	-- needs a slower cfl
-			if solver.eqn.guiVars.heatCapacityRatio then	
-				solver.eqn.guiVars.heatCapacityRatio.value = 5/3
-			end
 			return [[
 	rho = 1;
 	P = lhs ? 1000 : .01;
@@ -867,6 +886,9 @@ end ?>;
 		name = 'double mach reflection',
 		mins = {0,0,0},
 		maxs = {4,1,1},
+		overrideGuiVars = {
+			heatCapacityRatio = 7/5,
+		},
 		initState = function(self, solver)
 			-- I am not correctly modeling the top boundary
 			solver:setBoundaryMethods{
@@ -877,9 +899,6 @@ end ?>;
 				zmin = 'mirror',
 				zmax = 'mirror',
 			}
-			if solver.eqn.guiVars.heatCapacityRatio then	
-				solver.eqn.guiVars.heatCapacityRatio.value = 7/5
-			end
 			return table{
 	'#define sqrt1_3 '..clnumber(math.sqrt(1/3)),
 	[[

@@ -157,6 +157,28 @@ local display3DMethodNames =  display3DMethods:map(function(kv)
 end)
 
 
+--[[
+local printStateFile = io.open('out.txt', 'w')
+local function printState(solver)
+	local ptr = solver.UBufObj:toCPU()
+	
+	local cols = {0, 1, 4}
+	
+	for i=0,solver.volume-1 do
+		-- matching the cl defs:
+		local dx = (solver.maxs[1] - solver.mins[1]) / (tonumber(solver.gridSize.x) - (2*solver.numGhost))
+		local x = (i + .5 - solver.numGhost) * dx + solver.mins[1]
+		printStateFile:write(solver.t,'\t',x)
+		for _,j in ipairs(cols) do	-- only use rho, mx, ETotal
+		--for j=0,solver.eqn.numStates-1 do
+			printStateFile:write('\t',ptr[j + solver.eqn.numStates * i])
+		end
+		printStateFile:write'\n'
+	end
+	printStateFile:write'\n'
+	printStateFile:flush()
+end
+--]]
 
 function HydroCLApp:initGL(...)
 	if HydroCLApp.super.initGL then
@@ -387,8 +409,15 @@ void main() {
 	self.orthoView = require 'view.ortho'()
 	self.frustumView = require 'view.frustum'()
 	self.view = (#self.solvers > 0 and self.solvers[1].dim == 3) and self.frustumView or self.orthoView
+
+
+if printState then
+	for _,solver in ipairs(self.solvers) do
+		printState(solver)
+	end
 end
 
+end
 
 --[[
 rendering:
@@ -572,7 +601,14 @@ function HydroCLApp:update(...)
 		end)
 		if oldestSolver then 
 			oldestSolver:update() 
-	
+
+if printState then
+	for _,solver in ipairs(self.solvers) do
+		printState(solver)
+	end
+end
+
+
 			-- TODO should the time be oldestSolver.t after oldestSolver just updated?
 			-- or - if dumpFile is enabled - should we re-search-out the oldest solver and use its time?
 			dumpFile:update(self, oldestSolver.t)

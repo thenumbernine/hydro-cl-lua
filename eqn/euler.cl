@@ -636,8 +636,17 @@ kernel void addSource(
 
 /*
 Navier-Stokes FANS source term: 2005 Uygun, Kirkkopru
-tau_ij,j
-for tau_ij = mu_T (v_i,j + v_j,i - 2/3 delta_ij v_k,k) - 2/3 rho K delta_ij
+
+i'th term in the j'th direction
+F[m]_ij += tauTilde_ij
+F[ETotal]_j += ThetaTilde_j
+
+for tau_ij = mu_T (v_i,j + v_j,i) - 2/3 delta_ij (mu_T v_k,k + K rho) (eqn 3)
+Theta_j = tau_ij v_i + (kBar_L + k_T) * TTilde,j
+... but eqn 3 isn't used numerically ... eqn 11 is ... and that doesn't look so straightforward as the eqn above ... ( why does the tauTilde_xx term have a vTilde_y,y term?)
+
+
+
 so tau_ij,j = (mu_T (v_i,j + v_j,i - 2/3 delta_ij v_k,k) - 2/3 rho K delta_ij),j
 	= mu_T (v_i,j + v_j,i - 2/3 delta_ij v_k,k),j - (2/3 rho K delta_ij),j
 	= mu_T (v_i,jj + 1/3 v_j,ji) - 2/3 K rho,i
@@ -680,10 +689,10 @@ so tau_ij,j = (mu_T (v_i,j + v_j,i - 2/3 delta_ij v_k,k) - 2/3 rho K delta_ij),j
 			- m_j rho,ij / rho^2
 		)
 */
-<? if eqn.guiVars.useNavierStokesViscosityTerm then 
+<? if eqn.guiVars.useNavierStokesViscosityTerm.value then 
 ?>
-	const real K = <?=clnumber(eqn.guiVars.viscosity_K)?>;
-	const real mu_T = <?=clnumber(eqn.guiVars.viscosity_mu_T)?>;
+	const real K = <?=clnumber(eqn.guiVars.viscosity_K.value)?>;
+	const real mu_T = <?=clnumber(eqn.guiVars.viscosity_mu_T.value)?>;
 
 <?=makePartial('rho', 'real')?>
 <?=makePartial2('rho', 'real')?>
