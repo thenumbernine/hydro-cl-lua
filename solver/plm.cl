@@ -345,8 +345,13 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		}<? end ?>
 
 		// transform slopes back to conserved variable space
-		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aL, xIntL); <?=eqn.prim_t?> sL; apply_dW_dU(&sL, &W, &tmp, xIntL);
-		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aR, xIntR); <?=eqn.prim_t?> sR; apply_dW_dU(&sR, &W, &tmp, xIntR);
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aL, xIntL); 
+		<?=eqn.prim_t?> sL; 
+		apply_dW_dU(&sL, &W, &tmp, xIntL);
+		
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aR, xIntR); 
+		<?=eqn.prim_t?> sR; 
+		apply_dW_dU(&sR, &W, &tmp, xIntR);
 	
 		// linearly extrapolate the slopes forward and backward from the cell center
  		<?=eqn.prim_t?> W2L, W2R;
@@ -395,8 +400,13 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		}<? end ?>
 
 		// transform slopes back to conserved variable space
-		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aL, xIntL); <?=eqn.prim_t?> sL; apply_dW_dU(&sL, &W, &tmp, xIntL);
-		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aR, xIntR); <?=eqn.prim_t?> sR; apply_dW_dU(&sR, &W, &tmp, xIntR);
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aL, xIntL); 
+		<?=eqn.prim_t?> sL; 
+		apply_dW_dU(&sL, &W, &tmp, xIntL);
+		
+		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, aR, xIntR); 
+		<?=eqn.prim_t?> sR; 
+		apply_dW_dU(&sR, &W, &tmp, xIntR);
 	
 		// linearly extrapolate the slopes forward and backward from the cell center
 		<?=eqn.prim_t?> W2L, W2R;
@@ -650,11 +660,14 @@ elseif solver.usePLM == 'plm-athena' then
 		eigen_rightTransform_<?=side?>___(WresL.ptr, &eig, beta_xp, x);
 		eigen_rightTransform_<?=side?>___(WresR.ptr, &eig, beta_xm, x);
 		
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			WresL.ptr[j] = Wref_xp.ptr[j] - WresL.ptr[j];
 			WresR.ptr[j] = Wref_xm.ptr[j] - WresR.ptr[j];
 		}
-		
+		for (int j = numIntStates; j < numStates; ++j) {
+			WresL.ptr[j] = WresR.ptr[j] = 0;
+		}
+
 		ULR->L = consFromPrim(WresL, x);
 		ULR->R = consFromPrim(WresR, x);
 

@@ -157,7 +157,8 @@ local display3DMethodNames =  display3DMethods:map(function(kv)
 end)
 
 
---[[
+--[[ Cheap output of the state each frame so I can compare it to other solvers.
+-- 	This is what the dump-to-file is supposed to also do.
 local printStateFile = io.open('out.txt', 'w')
 local function printState(solver)
 	local ptr = solver.UBufObj:toCPU()
@@ -585,7 +586,8 @@ function HydroCLApp:screenshotToFile(fn)
 	self.ssflipped:save(fn)
 end
 
-HydroCLApp.running = nil
+--HydroCLApp.running = nil
+HydroCLApp.running = true
 
 local minDeltaY = 1e-7
 function HydroCLApp:update(...)

@@ -67,7 +67,7 @@ kernel void calcErrors(
 			}<? end ?>
 		
 			//once again, only needs to be numIntStates
-			real newtransformed[numStates];
+			real newtransformed[numIntStates];
 			eigen_rightTransform_<?=side?>__global_(newtransformed, eig, eigenScaled, xInt);
 
 //this shouldn't need to be reset here
@@ -77,7 +77,7 @@ for (int j = 0; j < numStates; ++j) {
 }
 
 			//once again, only needs to be numIntStates
-			real transformed[numStates];
+			real transformed[numIntStates];
 			eigen_fluxTransform_<?=side?>__global_(transformed, eig, basis, xInt);
 			
 			for (int j = 0; j < numIntStates; ++j) {
@@ -231,7 +231,10 @@ kernel void calcFlux(
 			
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
 		eigen_rightTransform_<?=side?>_global_global_(flux->ptr, eig, fluxEig, xInt);
-		
+		for (int j = numIntStates; j < numStates; ++j) {
+			flux->ptr[j] = 0;
+		}
+
 <? if eqn.hasFluxFromCons then ?>
 		
 		real3 xL = xR;

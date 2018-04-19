@@ -200,9 +200,9 @@ for _,addr0 in ipairs{'', 'global'} do
 ?>
 
 void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
+	<?=addr0?> real* Y/*[numWaves]*/,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X,
+	<?=addr2?> const real* X/*[numStates]*/,
 	real3 x
 ) { 
 	<?=prefix?>
@@ -316,9 +316,9 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 }
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
+	<?=addr0?> real* Y/*[numIntStates]*/,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X,
+	<?=addr2?> const real* X/*[numWaves]*/,
 	real3 x
 ) {
 	<?=prefix?>
@@ -344,7 +344,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[2] * v_n1 
 		+ X[3] * v_n2 
 		+ X[4] * (hTotal + v_n * Cs_over_sqrt_gUjj);
-#else	//math
+#else	//works for covariant formulation of Euler fluid equations
 <? if side == 0 then ?>	
 	real sqrt_gUxx = sqrt_gUjj;
 	Y[0] = X[0] + X[1] + X[4];
@@ -404,19 +404,13 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[4] * (hTotal + Cs * v.z / sqrt_gUzz);
 <? end ?>
 #endif
-
-	for (int j = numIntStates; j < numStates; ++j) {
-		Y[j] = 0;
-	}
 }
 
 <?	if solver.checkFluxError then ?>
-//this is the dA/dU matrix
-//how about also implementing dA/dW and then implementing this as dA/dW * dW/dU * x = dA_dW(dW_dU(x))?  would it be less instructions?
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
+	<?=addr0?> real* Y/*[numIntStates]*/,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X,
+	<?=addr2?> const real* X/*[numStates]*/,
 	real3 x
 ) {
 	<?=prefix?>
@@ -444,10 +438,6 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[2] * (-(heatCapacityRatio - 1.) * v_n * vL.y + ny * hTotal)
 		+ X[3] * (-(heatCapacityRatio - 1.) * v_n * vL.z + nz * hTotal)
 		+ X[4] * heatCapacityRatio * v_n;
-	
-	for (int j = numIntStates; j < numStates; ++j) {
-		Y[j] = 0;
-	}
 }
 <?
 				end

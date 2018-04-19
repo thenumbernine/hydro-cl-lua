@@ -620,8 +620,12 @@ function Solver:addDisplayVarGroup(args, cl)
 
 	local enableScalar = true
 	local enableVector = true
-enableScalar = nil
-enableVector = nil	
+
+if self.eqn.name == 'Euler' then
+	enableScalar = nil
+	enableVector = nil	
+end
+
 	for i,varInfo in ipairs(varInfos) do
 	
 		local name, code, vartype
@@ -646,7 +650,11 @@ enableVector = nil
 			then
 				if args.vartype ~= 'real3' then
 					enabled = enableScalar
-enabled = group.name == 'U' and name == 'rho'					
+
+if self.eqn.name == 'Euler' then
+	enabled = group.name == 'U' and name == 'rho'
+end					
+					
 					if self.dim ~= 1 then
 						enableScalar = nil
 					end
@@ -1732,6 +1740,11 @@ function Solver:update()
 		self.fpsIndex = (self.fpsIndex % self.fpsNumSamples) + 1
 		self.fpsSamples[self.fpsIndex] = fps
 		self.fps = self.fpsSamples:sum() / #self.fpsSamples
+
+if self.fpsIndex == 1 then
+	print(self.fps)	
+end
+	
 	end
 	self.lastFrameTime = thisTime
 

@@ -84,7 +84,7 @@ function Equation:createInitState()
 	-- first create the init state
 	assert(self.initStates, "expected Eqn.initStates")
 	self.initState = self.initStates[self.solver.initStateIndex](self.solver, self.solver.initStateArgs)
-	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)	
+	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)
 
 	-- then setup the gui vars
 	self.guiVars = table()
