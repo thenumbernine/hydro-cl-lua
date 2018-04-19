@@ -404,6 +404,10 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[4] * (hTotal + Cs * v.z / sqrt_gUzz);
 <? end ?>
 #endif
+
+	for (int j = numIntStates; j < numStates; ++j) {
+		Y[j] = 0;
+	}
 }
 
 <?	if solver.checkFluxError then ?>
@@ -440,6 +444,10 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ X[2] * (-(heatCapacityRatio - 1.) * v_n * vL.y + ny * hTotal)
 		+ X[3] * (-(heatCapacityRatio - 1.) * v_n * vL.z + nz * hTotal)
 		+ X[4] * heatCapacityRatio * v_n;
+	
+	for (int j = numIntStates; j < numStates; ++j) {
+		Y[j] = 0;
+	}
 }
 <?
 				end

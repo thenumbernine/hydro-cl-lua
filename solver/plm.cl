@@ -581,44 +581,66 @@ elseif solver.usePLM == 'plm-athena' then
 
 		//calc eigen values and vectors at cell center
 		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(U, x);
+		
 		<?=eqn:eigenWaveCodePrefix(side, '&eig', 'x')?>
-
-		real eval[numWaves];
+		real eval[numWaves] = {
 <? for j=0,eqn.numWaves-1 do
-?>		eval[<?=j?>] = <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
+?>			<?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>,
 <? end
-?>
+?>		};
 
-		<?=eqn.prim_t?> Ip, Im;
-		for (int j = 0; j < numWaves; ++j) {
-			real sigma = fabs(eval[j]) * dt_dx;
-			if (eval[j] >= 0.) {
-				Ip.ptr[j] = Wp.ptr[j] - .5 * sigma * (Wp.ptr[j] - Wm.ptr[j] - (1. - 2./3.*sigma) * W6[j]);
+		<?=eqn.prim_t?> Iplus[numWaves];
+		<?=eqn.prim_t?> Iminus[numWaves];
+		for (int m = 0; m < numWaves; ++m) {
+			real sigma = fabs(eval[m]) * dt_dx;
+			if (eval[m] >= 0) {
+				for (int n = 0; n < numStates; ++n) {
+					Iplus[m].ptr[n] = Wp.ptr[n] - .5 * sigma * (Wp.ptr[n] - Wm.ptr[n] - (1. - 2./3.*sigma) * W6[n]);
+				}
 			} else {
-				Ip.ptr[j] = W.ptr[j];
+				Iplus[m] = W;
 			}
-			if (eval[j] <= 0.) {
-				Im.ptr[j] = Wm.ptr[j] + .5 * sigma * (Wp.ptr[j] - Wm.ptr[j] + (1. - 2./3.*sigma) * W6[j]);
+			if (eval[m] <= 0) {
+				for (int n = 0; n < numStates; ++n) {
+					Iminus[m].ptr[n] = Wm.ptr[n] + .5 * sigma * (Wp.ptr[n] - Wm.ptr[n] + (1. - 2./3.*sigma) * W6[n]);
+				}
 			} else {
-				Im.ptr[j] = W.ptr[j];
+				Iminus[m] = W;
 			}
 		}
 
-		real waveMin = <?=eqn:eigenWaveCode(side, '&eig', 'x', 0)?>;
-		real waveMax = <?=eqn:eigenWaveCode(side, '&eig', 'x', eqn.numWaves-1)?>;
-		<?=eqn.prim_t?> Wref_xp = waveMax >= 0 ? Ip : W;
-		<?=eqn.prim_t?> Wref_xm = waveMin <= 0 ? Im : W;
+		<?=eqn.prim_t?> Wref_xp = eval[numWaves-1] < 0 ? W : Iplus[numWaves-1];
+		<?=eqn.prim_t?> Wref_xm = eval[0] > 0 ? W : Iminus[0];
 	
-		<?=eqn.prim_t?> Wref_xm_minus_Im, Wref_xp_minus_Ip;
-		for (int j = 0; j < numWaves; ++j) {
-			Wref_xm_minus_Im.ptr[j] = Wref_xm.ptr[j] - Im.ptr[j];
-			Wref_xp_minus_Ip.ptr[j] = Wref_xp.ptr[j] - Ip.ptr[j];
-		}
-
 		real beta_xm[numWaves];
 		real beta_xp[numWaves];
-		eigen_leftTransform_<?=side?>___(beta_xm, &eig, Wref_xm_minus_Im.ptr, x);
-		eigen_leftTransform_<?=side?>___(beta_xp, &eig, Wref_xp_minus_Ip.ptr, x);
+		for (int m = 0; m < numWaves; ++m) {
+			beta_xm[m] = beta_xp[m] = 0;
+		}
+		for (int m = 0; m < numWaves; ++m) {
+			<?=eqn.prim_t?> Wref_xm_minus_Im, Wref_xp_minus_Ip;
+			for (int n = 0; n < numStates; ++n) {
+				Wref_xm_minus_Im.ptr[n] = Wref_xm.ptr[n] - Iminus[m].ptr[n];
+				Wref_xp_minus_Ip.ptr[n] = Wref_xp.ptr[n] - Iplus[m].ptr[n];
+			}
+			
+			if (eval[m] >= 0) {
+				real beta_xp_add[numWaves];
+				eigen_leftTransform_<?=side?>___(beta_xp_add, &eig, Wref_xm_minus_Im.ptr, x);
+				for (int n = 0; n < numWaves; ++n) {
+					beta_xp[n] += beta_xp_add[n];
+				}
+			}
+			
+			if (eval[m] <= 0) {
+				real beta_xm_add[numWaves];
+				eigen_leftTransform_<?=side?>___(beta_xm_add, &eig, Wref_xp_minus_Ip.ptr, x);
+				for (int n = 0; n < numWaves; ++n) {
+					beta_xm[n] += beta_xm_add[n];
+				}
+			}
+		}
+		
 		for (int j = 0; j < numWaves; ++j) {
 			beta_xp[j] = max(0., beta_xp[j]);
 			beta_xm[j] = min(0., beta_xm[j]);
@@ -627,6 +649,7 @@ elseif solver.usePLM == 'plm-athena' then
 		<?=eqn.prim_t?> WresL, WresR;
 		eigen_rightTransform_<?=side?>___(WresL.ptr, &eig, beta_xp, x);
 		eigen_rightTransform_<?=side?>___(WresR.ptr, &eig, beta_xm, x);
+		
 		for (int j = 0; j < numStates; ++j) {
 			WresL.ptr[j] = Wref_xp.ptr[j] - WresL.ptr[j];
 			WresR.ptr[j] = Wref_xm.ptr[j] - WresR.ptr[j];
