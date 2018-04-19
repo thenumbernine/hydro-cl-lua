@@ -21,9 +21,9 @@ local args = {
 	--fixedDT = .0001,
 	--cfl = .25/dim,
 	
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	--fluxLimiter = 'donor cell',
+	fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
@@ -31,7 +31,7 @@ local args = {
 	--usePLM = 'plm-eig-prim',		-- works in primitive eigenspace, etc
 	--usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max
 	--usePLM = 'plm-athena',		-- based on Athena, idk about this one
-	--usePLM = 'ppm-experimental',	-- one more attempt to figure out all the PLM stuff, but I didn't get far
+	usePLM = 'ppm-experimental',	-- one more attempt to figure out all the PLM stuff, but I didn't get far
 
 	slopeLimiter = 'minmod',
 
@@ -62,7 +62,7 @@ maxs = {6,1,1},
 				{32,32,32},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
-				{4096,1,1},
+				{256,1,1},
 				{32,32,1},
 				{16,16,16},
 			},

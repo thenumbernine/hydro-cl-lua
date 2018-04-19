@@ -4,6 +4,11 @@ real min3(real x, real y, real z) {
 	return min(min(x, y), z);
 }
 
+real minmod(real a, real b) {
+	if (a * b < 0) return 0;
+	return fabs(a) < fabs(b) ? a : b;
+}
+
 kernel void calcLR(
 	global <?=eqn.consLR_t?>* ULRBuf,
 	const global <?=eqn.cons_t?>* UBuf,
@@ -23,7 +28,6 @@ kernel void calcLR(
 		global <?=eqn.consLR_t?>* ULR = ULRBuf + indexForSide;
 		
 		//piecewise-linear
-
 
 <? if solver.usePLM == 'plm-cons' then ?>
 /*
@@ -96,11 +100,16 @@ for sgn b >= 0:
 	minmod2(a,b) = |b| sgn r * max(0, min(|r|, 1))
 	minmod2(a,b) = |b| sgn r * minmod(|r|)
 */
-
+#if 1
 			real r = dUR.ptr[j] == 0 ? 0 : (dUL.ptr[j] / dUR.ptr[j]);
 			real phi = slopeLimiter(r);	//works good with minmod, bad with superbee
 			real sigma = phi * dUR.ptr[j];
-			
+#else
+			real sigma = minmod(minmod(fabs(dUL.ptr[j]), 
+                                    fabs(dUR.ptr[j])),
+                             fabs(.5 * (dUL.ptr[j] - dUR.ptr[j]))
+			) * sign(dUL.ptr[j] - dUR.ptr[j]);
+#endif
 			//q^n_i-1/2,R = q^n_i - 1/2 dx sigma	(Hydrodynamics II 6.58)
 			UHalfL.ptr[j] = U->ptr[j] - .5 * sigma;
 			
@@ -191,7 +200,6 @@ works for adm1d_v1
 		real dUMEig[numWaves];
 		for (int j = 0; j < numWaves; ++j) {
 			//dUMEig[j] = minmod(minmod(2. * dULEig[j], 2. * dUREig[j]), dUCEig[j]);
-			
 			dUMEig[j] = dULEig[j] * dUREig[j] < 0 ? 0 : (
 				(dUCEig[j] >= 0. ? 1. : -1.)
 				* 2. * min3(
@@ -204,13 +212,13 @@ works for adm1d_v1
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
 	
-		<?=eqn:eigenWaveCodePrefix(side, '&eig', 'xInt')?>
+		<?=eqn:eigenWaveCodePrefix(side, '&eig', 'x')?>
 
 		// slopes in characteristic space
 		real aL[numWaves], aR[numWaves];
 		<? for j=0,eqn.numWaves-1 do ?>{
 			const int j = <?=j?>;
-			real wave_j = <?=eqn:eigenWaveCode(side, '&eig', 'xInt', j)?>;
+			real wave_j = <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
 			aL[j] = wave_j < 0 ? 0 : dUMEig[j] * .5 * (1. - wave_j * dt_dx);
 			aR[j] = wave_j > 0 ? 0 : dUMEig[j] * .5 * (1. + wave_j * dt_dx);
 		}<? end ?>
@@ -277,9 +285,10 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		real3 xIntL = x; xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
 		real3 xIntR = x; xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
 		
-		//1) calc delta q's ... l r c (eqn 36)
 		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
 		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
+		
+		//1) calc delta q's ... l r c (eqn 36)
 		<?=eqn.prim_t?> W = primFromCons(*U, x);
 		<?=eqn.prim_t?> WL = primFromCons(*UL, xL);
 		<?=eqn.prim_t?> WR = primFromCons(*UR, xR);
@@ -321,7 +330,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
 
-		<?=eqn:eigenWaveCodePrefix(side, '&eig', 'xInt')?>
+		<?=eqn:eigenWaveCodePrefix(side, '&eig', 'x')?>
 
 <? 	if solver.usePLM == 'plm-eig-prim' then ?>
 		//without reference state
@@ -330,7 +339,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
  		real aL[numWaves], aR[numWaves];
  		<? for j=0,eqn.numWaves-1 do ?>{
 			const int j = <?=j?>;
-			real wave_j = <?=eqn:eigenWaveCode(side, '&eig', 'xInt', j)?>;
+			real wave_j = <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
 			aL[j] = wave_j < 0 ? 0 : dWMEig[j] * .5 * (1. - wave_j * dt_dx);
 			aR[j] = wave_j > 0 ? 0 : dWMEig[j] * .5 * (1. + wave_j * dt_dx);
 		}<? end ?>
@@ -358,8 +367,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		//min and max waves
 		//TODO use calcCellMinMaxEigenvalues ... except based on eigen_t
 		// so something like calcEigenMinMaxWaves ... 
-		real waveMin = min(0., <?=eqn:eigenWaveCode(side, '&eig', 'xInt', 0)?>);
-		real waveMax = max(0., <?=eqn:eigenWaveCode(side, '&eig', 'xInt', eqn.numWaves-1)?>);
+		real waveMin = min(0., <?=eqn:eigenWaveCode(side, '&eig', 'x', 0)?>);
+		real waveMax = max(0., <?=eqn:eigenWaveCode(side, '&eig', 'x', eqn.numWaves-1)?>);
 
 		//limited slope in primitive variable space
 		eigen_rightTransform_<?=side?>___(tmp.ptr, &eig, dWMEig, x);
@@ -380,7 +389,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		real aL[numWaves], aR[numWaves];
 		<? for j=0,eqn.numWaves-1 do ?>{
 			const int j = <?=j?>;
-			real wave_j = <?=eqn:eigenWaveCode(side, '&eig', 'xInt', j)?>;
+			real wave_j = <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
 			aL[j] = wave_j < 0 ? 0 : (dWMEig[j] * dt_dx * (waveMax - wave_j));
 			aR[j] = wave_j > 0 ? 0 : (dWMEig[j] * dt_dx * (waveMin - wave_j));
 		}<? end ?>
@@ -408,8 +417,8 @@ elseif solver.usePLM == 'plm-athena' then
 ?>
 		//based on Athena
 
-		real3 xIntL = x; xIntL.s<?=side?> -= grid_dx<?=side?>;
-		real3 xIntR = x; xIntR.s<?=side?> += grid_dx<?=side?>;
+		real3 xIntL = x; xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
+		real3 xIntR = x; xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
 		
 		real3 xL = x; xL.s<?=side?> -= grid_dx<?=side?>;
 		real3 xR = x; xR.s<?=side?> += grid_dx<?=side?>;
@@ -485,22 +494,146 @@ elseif solver.usePLM == 'plm-athena' then
 
 <? elseif solver.usePLM == 'ppm-experimental' then ?>
 //here's my attempt at Trangenstein section 5.12 PPM
+//with help from Zingale's ppm code
 
+		real3 xL = x; xL.s<?=side?> -= grid_dx<?=side?>;
+		real3 xR = x; xR.s<?=side?> += grid_dx<?=side?>;
 
-		alphas = evL * right side of U[i-1]
-		betas = evL * (left side of U[i+1] - right side of U[i-1])
-		gamma = 6 * (U[i] - alpha - .5 * beta)
-		...but then there are conditions on the definitions of left side and right side of U
-			based on beta .... but beta is defined in terms of the left and right sides of U
-			... so there's a circular definition.
-		Unless (in the text after 5.1) beta is specified for a particular situation
-			... if so, then what is the definition of beta?
-		hmm, section 5.9.4 defines left and right U as:
-			left side of U[i+1/2] = U[i] + .5 (1 - lambda[i] dt/dx) s[j] dx : lambda[i] > 0
-									= U[i] : lambda <= 0
-			right side of U[i+1/2] = U[i] - .5 (1 - lambda[i+1] dt/dx) s[j] dx : lambda[i+1] < 0
-									= U[i] : lambda[i+1] >= 0
-		...but this is for muscl, and s[j] is the minmod slope limiter ...
+		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
+	
+		//1984 Collela & Woodward eqn 1.7
+		<?=eqn.prim_t?> W = primFromCons(*U, x);
+		<?=eqn.prim_t?> WL = primFromCons(*UL, xL);
+		<?=eqn.prim_t?> WR = primFromCons(*UR, xR);
+		<?=eqn.prim_t?> WR2 = primFromCons(*UR, xR);
+		<?=eqn.prim_t?> dWL, dWR, dWR2, dWCL, dWCR;
+		for (int j = 0; j < numIntStates; ++j) {
+			dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
+			dWR.ptr[j] = WR.ptr[j] - W.ptr[j];
+			dWR2.ptr[j] = WR2.ptr[j] - WR.ptr[j];
+			dWCL.ptr[j] = .5 * (WR.ptr[j] - WL.ptr[j]);
+			dWCR.ptr[j] = .5 * (WR2.ptr[j] - W.ptr[j]);
+		}
+		for (int j = numIntStates; j < numStates; ++j) {
+			dWL.ptr[j] = dWR.ptr[j] = dWR2.ptr[j] = dWCL.ptr[j] = dWCR.ptr[j] = 0.;
+		}
+
+		//slope limiter
+		//1984 Collela & Woodward eqn 1.8
+		real dWML[numStates];
+		for (int j = 0; j < numStates; ++j) {
+			dWML[j] = dWL.ptr[j] * dWR.ptr[j] < 0 ? 0 : (
+				(dWCL.ptr[j] >= 0. ? 1. : -1.)
+				* 2. * min3(
+					fabs(dWL.ptr[j]),
+					fabs(dWR.ptr[j]),
+					fabs(dWCL.ptr[j])
+				)
+			);
+		}
+		real dWMR[numStates];
+		for (int j = 0; j < numStates; ++j) {
+			dWMR[j] = dWR.ptr[j] * dWR2.ptr[j] < 0 ? 0 : (
+				(dWCR.ptr[j] >= 0. ? 1. : -1.)
+				* 2. * min3(
+					fabs(dWR.ptr[j]),
+					fabs(dWR2.ptr[j]),
+					fabs(dWCR.ptr[j])
+				)
+			);
+		}
+
+		//1984 Collela & Woodward eqn 1.6
+		<?=eqn.prim_t?> Wp, Wm;
+		for (int j = 0; j < numStates; ++j) {
+			Wp.ptr[j] = Wm.ptr[j] = .5 * dWR.ptr[j] - 1./6. * (dWMR[j] - dWML[j]);
+		}
+
+		//1984 Collela & Woodward eqn 1.10
+		for (int j = 0; j < numStates; ++j) {
+			real dWp = Wp.ptr[j] - W.ptr[j];
+			real dWm = W.ptr[j] - Wm.ptr[j];
+			real dWpm = Wp.ptr[j] - Wm.ptr[j];
+			real avgWpm = .5 * (Wp.ptr[j] + Wm.ptr[j]);
+			if (dWp * dWm <= 0) {
+				Wp.ptr[j] = Wm.ptr[j] = W.ptr[j];
+			} else if (dWpm * (W.ptr[j] - avgWpm) > dWpm * dWpm / 6.) {
+				Wm.ptr[j] = 3. * W.ptr[j] - 2. * Wp.ptr[j];
+			} else if (-dWpm * dWpm / 6. > dWpm * (W.ptr[j] - avgWpm)) {
+				Wp.ptr[j] = 3. * W.ptr[j] - 2. * Wm.ptr[j];
+			}
+		}
+		
+		for (int j = 0; j < numStates; ++j) {
+			Wm.ptr[j] = .5 * (W.ptr[j] +  Wm.ptr[j]);
+			Wp.ptr[j] = .5 * (W.ptr[j] +  Wp.ptr[j]);
+		}
+
+		//1984 Collela & Woodward eqn 1.5
+		real W6[numStates];
+		for (int j = 0; j < numStates; ++j) {
+			W6[j] = 6. * W.ptr[j] - 3. * (Wp.ptr[j] + Wm.ptr[j]);
+		}
+		
+		real dx = dx<?=side?>_at(i);
+		real dt_dx = dt / dx;
+
+		//calc eigen values and vectors at cell center
+		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(U, x);
+		<?=eqn:eigenWaveCodePrefix(side, '&eig', 'x')?>
+
+		real eval[numWaves];
+<? for j=0,eqn.numWaves-1 do
+?>		eval[<?=j?>] = <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
+<? end
+?>
+
+		<?=eqn.prim_t?> Ip, Im;
+		for (int j = 0; j < numWaves; ++j) {
+			real sigma = fabs(eval[j]) * dt_dx;
+			if (eval[j] >= 0.) {
+				Ip.ptr[j] = Wp.ptr[j] - .5 * sigma * (Wp.ptr[j] - Wm.ptr[j] - (1. - 2./3.*sigma) * W6[j]);
+			} else {
+				Ip.ptr[j] = W.ptr[j];
+			}
+			if (eval[j] <= 0.) {
+				Im.ptr[j] = Wm.ptr[j] + .5 * sigma * (Wp.ptr[j] - Wm.ptr[j] + (1. - 2./3.*sigma) * W6[j]);
+			} else {
+				Im.ptr[j] = W.ptr[j];
+			}
+		}
+
+		real waveMin = <?=eqn:eigenWaveCode(side, '&eig', 'x', 0)?>;
+		real waveMax = <?=eqn:eigenWaveCode(side, '&eig', 'x', eqn.numWaves-1)?>;
+		<?=eqn.prim_t?> Wref_xp = waveMax >= 0 ? Ip : W;
+		<?=eqn.prim_t?> Wref_xm = waveMin <= 0 ? Im : W;
+	
+		<?=eqn.prim_t?> Wref_xm_minus_Im, Wref_xp_minus_Ip;
+		for (int j = 0; j < numWaves; ++j) {
+			Wref_xm_minus_Im.ptr[j] = Wref_xm.ptr[j] - Im.ptr[j];
+			Wref_xp_minus_Ip.ptr[j] = Wref_xp.ptr[j] - Ip.ptr[j];
+		}
+
+		real beta_xm[numWaves];
+		real beta_xp[numWaves];
+		eigen_leftTransform_<?=side?>___(beta_xm, &eig, Wref_xm_minus_Im.ptr, x);
+		eigen_leftTransform_<?=side?>___(beta_xp, &eig, Wref_xp_minus_Ip.ptr, x);
+		for (int j = 0; j < numWaves; ++j) {
+			beta_xp[j] = max(0., beta_xp[j]);
+			beta_xm[j] = min(0., beta_xm[j]);
+		}
+
+		<?=eqn.prim_t?> WresL, WresR;
+		eigen_rightTransform_<?=side?>___(WresL.ptr, &eig, beta_xp, x);
+		eigen_rightTransform_<?=side?>___(WresR.ptr, &eig, beta_xm, x);
+		for (int j = 0; j < numStates; ++j) {
+			WresL.ptr[j] = Wref_xp.ptr[j] - WresL.ptr[j];
+			WresR.ptr[j] = Wref_xm.ptr[j] - WresR.ptr[j];
+		}
+		
+		ULR->L = consFromPrim(WresL, x);
+		ULR->R = consFromPrim(WresR, x);
 
 <? end ?>
 

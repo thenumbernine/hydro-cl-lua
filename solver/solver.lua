@@ -620,6 +620,8 @@ function Solver:addDisplayVarGroup(args, cl)
 
 	local enableScalar = true
 	local enableVector = true
+enableScalar = nil
+enableVector = nil	
 	for i,varInfo in ipairs(varInfos) do
 	
 		local name, code, vartype
@@ -644,6 +646,7 @@ function Solver:addDisplayVarGroup(args, cl)
 			then
 				if args.vartype ~= 'real3' then
 					enabled = enableScalar
+enabled = group.name == 'U' and name == 'rho'					
 					if self.dim ~= 1 then
 						enableScalar = nil
 					end
