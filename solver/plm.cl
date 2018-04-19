@@ -632,7 +632,7 @@ elseif solver.usePLM == 'plm-athena' then
 			WresR.ptr[j] = Wref_xm.ptr[j] - WresR.ptr[j];
 		}
 		
-		ULR->L = consFromPrim(WresL, x);
+		ULR->L = consFromPrim(WresR, x);
 		ULR->R = consFromPrim(WresR, x);
 
 <? end ?>
