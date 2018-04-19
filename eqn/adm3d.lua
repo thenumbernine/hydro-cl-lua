@@ -56,14 +56,14 @@ options:
 
 
 -- no shift
---ADM_BonaMasso_3D.useShift = false
+ADM_BonaMasso_3D.useShift = false
 
 -- minimal distortion elliptic -- Alcubierre's book, eqn 4.3.14 and 4.3.15
 --ADM_BonaMasso_3D.useShift = 'MinimalDistortionElliptic'
 
 -- 2008 Yano et al, from 2005 Bona et al "Geometrically Motivated..."
 -- 2005 Bona mentions a few, but 2008 Yano picks the first one from the 2005 Bona paper.
-ADM_BonaMasso_3D.useShift = '2005 Bona / 2008 Yano'
+--ADM_BonaMasso_3D.useShift = '2005 Bona / 2008 Yano'
 
 -- 2008 Alcubierre 4.3.37
 -- I see some problems in the warp bubble test ...

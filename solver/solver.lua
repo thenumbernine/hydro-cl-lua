@@ -801,6 +801,7 @@ function Solver:createBuffers()
 
 	-- to get sizeof
 	ffi.cdef(self.eqn:getTypeCode())
+	ffi.cdef(self.eqn:getExtraTypeCode())
 	ffi.cdef(self:getConsLRTypeCode())
 
 	-- for twofluid, cons_t has been renamed to euler_maxwell_t and maxwell_cons_t
@@ -1061,7 +1062,8 @@ function Solver:createCodePrefix()
 	end)):append{
 		'#define cell_x(i) _real3(cell_x0(i.x), cell_x1(i.y), cell_x2(i.z))',
 
-		self.eqn.getTypeCode and self.eqn:getTypeCode() or '',
+		self.eqn:getTypeCode(),
+		self.eqn:getExtraTypeCode(),
 
 		-- run here for the code, and in buffer for the sizeof()
 		self.eqn:getEigenTypeCode() or '',

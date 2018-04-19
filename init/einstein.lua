@@ -201,6 +201,7 @@ return table{
 	-- from 1997 Alcubierre "The appearance of coorindate shocks in hyperbolic formalisms of General Relativity".
 	{
 		name = 'gaussian perturbation',
+		--[[
 		init = function(self, solver)
 			local size = solver.maxs[1] - solver.mins[1]
 			
@@ -220,6 +221,11 @@ return table{
 				{name = 'sigma', value = sigma},
 			}
 		end,
+		--]]
+		guiVars = {
+			{name = 'H', value = .05 * 2},
+			{name = 'sigma', value = .1 * 2},
+		},
 		initState = function(self, solver)
 			return [[
 	

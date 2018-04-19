@@ -25,19 +25,16 @@ kernel void calcErrors(
 		//so to test orthogonality for only numWaves dimensions, I will verify that Qinv Q v = v 
 		//I = L R
 		for (int k = 0; k < numWaves; ++k) {
-			real basis[numWaves];
-			for (int j = 0; j < numWaves; ++j) {
-				basis[j] = k == j ? 1 : 0;
+			<?=eqn.cons_t?> basis;
+			for (int j = 0; j < numStates; ++j) {
+				basis.ptr[j] = k == j ? 1 : 0;
 			}
 			
-			real eigenInvCoords[numIntStates];
-			eigen_rightTransform_<?=side?>__global_(eigenInvCoords, eig, basis, xInt);
+			<?=eqn.waves_t?> eigenCoords = eigen_leftTransform_<?=side?>(*eig, basis, xInt);
+			<?=eqn.cons_t?> newbasis = eigen_rightTransform_<?=side?>(*eig, eigenCoords, xInt);
 		
-			real newbasis[numWaves];
-			eigen_leftTransform_<?=side?>__global_(newbasis, eig, eigenInvCoords, xInt);
-			
 			for (int j = 0; j < numWaves; ++j) {
-				orthoError += fabs(newbasis[j] - basis[j]);
+				orthoError += fabs(newbasis.ptr[j] - basis.ptr[j]);
 			}
 		}
 <? 	end
@@ -51,37 +48,34 @@ kernel void calcErrors(
 //I see errors in mhd and in adm3d
 			//this only needs to be numIntStates in size
 			//but just in case the left/right transforms are reaching past that memory boundary ...
-			real basis[numStates];
+			<?=eqn.cons_t?> basis;
 			for (int j = 0; j < numStates; ++j) {
-				basis[j] = k == j ? 1 : 0;
+				basis.ptr[j] = k == j ? 1 : 0;
 			}
 
-			real eigenCoords[numWaves];
-			eigen_leftTransform_<?=side?>__global_(eigenCoords, eig, basis, xInt);
+			<?=eqn.waves_t?> eigenCoords = eigen_leftTransform_<?=side?>(*eig, basis, xInt);
 
-			real eigenScaled[numWaves];
+			<?=eqn.waves_t?> eigenScaled;
 			<? for j=0,eqn.numWaves-1 do ?>{
 				const int j = <?=j?>;
 				real wave_j = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', j)?>;
-				eigenScaled[j] = eigenCoords[j] * wave_j;
+				eigenScaled.ptr[j] = eigenCoords.ptr[j] * wave_j;
 			}<? end ?>
 		
 			//once again, only needs to be numIntStates
-			real newtransformed[numIntStates];
-			eigen_rightTransform_<?=side?>__global_(newtransformed, eig, eigenScaled, xInt);
+			<?=eqn.cons_t?> newtransformed = eigen_rightTransform_<?=side?>(*eig, eigenScaled, xInt);
 
 //this shouldn't need to be reset here
 // but it will if leftTransform does anything destructive
 for (int j = 0; j < numStates; ++j) {
-	basis[j] = k == j ? 1 : 0;
+	basis.ptr[j] = k == j ? 1 : 0;
 }
 
 			//once again, only needs to be numIntStates
-			real transformed[numIntStates];
-			eigen_fluxTransform_<?=side?>__global_(transformed, eig, basis, xInt);
+			<?=eqn.intStates_t?> transformed = eigen_fluxTransform_<?=side?>(*eig, basis, xInt);
 			
 			for (int j = 0; j < numIntStates; ++j) {
-				fluxError += fabs(newtransformed[j] - transformed[j]);
+				fluxError += fabs(newtransformed.ptr[j] - transformed.ptr[j]);
 			}
 		}
 <?	end
@@ -118,7 +112,7 @@ kernel void calcDeltaUEig(
 		int indexInt = side + dim * index;	
 		global real* deltaUEig = deltaUEigBuf + indexInt * numWaves;
 		const global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		eigen_leftTransform_<?=side?>_global_global_(deltaUEig, eig, deltaU.ptr, xInt);
+		*(global <?=eqn.waves_t?>*)deltaUEig = eigen_leftTransform_<?=side?>(*eig, deltaU, xInt);
 	}<? end ?>
 }
 
@@ -194,13 +188,13 @@ kernel void calcFlux(
 
 		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
 
-		real fluxEig[numWaves];
+		<?=eqn.waves_t?> fluxEig;
 <? if not eqn.hasFluxFromCons then ?>
 		<?=eqn.cons_t?> UAvg;
 		for (int j = 0; j < numIntStates; ++j) {
 			UAvg.ptr[j] = .5 * (UL->ptr[j] + UR->ptr[j]);
 		}
-		eigen_leftTransform_<?=side?>__global_(fluxEig, eig, UAvg.ptr, xInt);
+		fluxEig = eigen_leftTransform_<?=side?>(*eig, UAvg, xInt);
 <? end ?>
 
 		const global real* deltaUEig = deltaUEigBuf + numWaves * indexInt;
@@ -212,9 +206,9 @@ kernel void calcFlux(
 			const int j = <?=j?>;
 			real lambda = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', j)?>;
 <? if not eqn.hasFluxFromCons then ?>
-			fluxEig[j] *= lambda;
+			fluxEig.ptr[j] *= lambda;
 <? else ?>
-			fluxEig[j] = 0.;
+			fluxEig.ptr[j] = 0.;
 <? end ?>
 			real sgnLambda = lambda >= 0 ? 1 : -1;
 		
@@ -222,18 +216,15 @@ kernel void calcFlux(
 			real phi = fluxLimiter(rEig[j]);
 <? end ?>
 
-			fluxEig[j] -= .5 * lambda * deltaUEig[j] * (sgnLambda
+			fluxEig.ptr[j] -= .5 * lambda * deltaUEig[j] * (sgnLambda
 <? if solver.fluxLimiter > 1 then ?>
 				+ phi * (lambda * dt_dx - sgnLambda)
 <? end ?>			
 			);
 		}<? end ?>
-			
+		
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
-		eigen_rightTransform_<?=side?>_global_global_(flux->ptr, eig, fluxEig, xInt);
-		for (int j = numIntStates; j < numStates; ++j) {
-			flux->ptr[j] = 0;
-		}
+		*flux = eigen_rightTransform_<?=side?>(*eig, fluxEig, xInt);
 
 <? if eqn.hasFluxFromCons then ?>
 		

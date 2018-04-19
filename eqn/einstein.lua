@@ -69,22 +69,20 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) { return U; }
 
 inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) { return W; }
 
-inline void apply_dU_dW(
-	<?=eqn.cons_t?>* U, 
-	const <?=eqn.prim_t?>* WA, 
-	const <?=eqn.prim_t?>* W, 
+inline <?=eqn.cons_t?> apply_dU_dW(
+	<?=eqn.prim_t?> WA, 
+	<?=eqn.prim_t?> W, 
 	real3 x
 ) {
-	*U = *W;
+	return W;
 }
 
-inline void apply_dW_dU(
-	<?=eqn.prim_t?>* W,
-	const <?=eqn.prim_t?>* WA,
-	const <?=eqn.cons_t?>* U,
+inline <?=eqn.prim_t?> apply_dW_dU(
+	<?=eqn.prim_t?> WA,
+	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	*W = *U;
+	return U;
 }
 
 ]], {eqn=self}))
@@ -107,6 +105,5 @@ function EinsteinEqn:fillRandom(epsilon)
 	solver.UBufObj:fromCPU(ptr)
 	return ptr
 end
-
 
 return EinsteinEqn

@@ -28,6 +28,8 @@ function Equation:init(solver)
 	self.consLR_t = self:unique'consLR_t'
 	self.eigen_t = self:unique'eigen_t'
 
+	self.waves_t = self:unique'waves_t'
+
 	local numReals
 	if self.consVars then
 		numReals = makestruct.countReals(self.consVars)
@@ -81,17 +83,18 @@ end
 
 -- always call super first
 function Equation:createInitState()
+	self.guiVars = table()
+	local mt = getmetatable(self)
+	if mt.guiVars then
+		self:addGuiVars(mt.guiVars)
+	end
+	
 	-- first create the init state
 	assert(self.initStates, "expected Eqn.initStates")
 	self.initState = self.initStates[self.solver.initStateIndex](self.solver, self.solver.initStateArgs)
 	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)
 
 	-- then setup the gui vars
-	self.guiVars = table()
-	local mt = getmetatable(self)
-	if mt.guiVars then
-		self:addGuiVars(mt.guiVars)
-	end
 	if self.initState.guiVars then
 		self:addGuiVars(self.initState.guiVars)
 	end
@@ -101,6 +104,16 @@ function Equation:getCodePrefix()
 	return (self.guiVars and table.map(self.guiVars, function(var) 
 		return var:getCode()
 	end) or table()):concat'\n'
+end
+
+function Equation:getExtraTypeCode()
+	return template([[
+typedef struct { 
+	real ptr[<?=eqn.numWaves?>]; 
+} <?=eqn.waves_t?>;
+]],		{
+			eqn = self,
+		})
 end
 
 function Equation:getTypeCode()
