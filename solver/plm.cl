@@ -458,11 +458,12 @@ elseif solver.usePLM == 'plm-athena' then
 		for (int j = numIntStates; j < numStates; ++j) {
 			dWL.ptr[j] = dWR.ptr[j] = dWC.ptr[j] = dWG.ptr[j] = 0.;
 		}
-		
-		<?=eqn.waves_t?> dal = eigen_leftTransform_<?=side?>(eig, dWL, xIntL);
-		<?=eqn.waves_t?> dar = eigen_leftTransform_<?=side?>(eig, dWR, xIntR);
-		<?=eqn.waves_t?> dac = eigen_leftTransform_<?=side?>(eig, dWC, x);
-		<?=eqn.waves_t?> dag = eigen_leftTransform_<?=side?>(eig, dWG, x);
+	
+		//TODO shouldn't this be the dA/dW eigen transformation?
+		<?=eqn.waves_t?> dal = eigen_leftTransform_<?=side?>(eig, *(<?=eqn.cons_t?>*)&dWL, xIntL);
+		<?=eqn.waves_t?> dar = eigen_leftTransform_<?=side?>(eig, *(<?=eqn.cons_t?>*)&dWR, xIntR);
+		<?=eqn.waves_t?> dac = eigen_leftTransform_<?=side?>(eig, *(<?=eqn.cons_t?>*)&dWC, x);
+		<?=eqn.waves_t?> dag = eigen_leftTransform_<?=side?>(eig, *(<?=eqn.cons_t?>*)&dWG, x);
 
 		<?=eqn.waves_t?> da;
 		for (int j = 0; j < numWaves; ++j) {
@@ -473,8 +474,9 @@ elseif solver.usePLM == 'plm-athena' then
 				da.ptr[j] = sign(dac.ptr[j]) * min(2. * lim_slope1, lim_slope2);
 			}
 		}
-		
-		<?=eqn.prim_t?> dWm = eigen_rightTransform_<?=side?>(eig, da, x);
+	
+		<?=eqn.cons_t?> dWm_tmp = eigen_rightTransform_<?=side?>(eig, da, x);
+		<?=eqn.prim_t?> dWm = *(<?=eqn.prim_t?>*)&dWm_tmp;
 
 		<?=eqn.prim_t?> Wlv, Wrv;
 		for (int j = 0; j < numIntStates; ++j) {
@@ -619,6 +621,7 @@ elseif solver.usePLM == 'plm-athena' then
 		<?=eqn.prim_t?> Wref_xp = eval[numWaves-1] < 0 ? W : Iplus[numWaves-1];
 		<?=eqn.prim_t?> Wref_xm = eval[0] > 0 ? W : Iminus[0];
 
+		//TODO eigenvectors wrt dA/dW 
 		<?=eqn.waves_t?> beta_xm, beta_xp;
 		for (int m = 0; m < numWaves; ++m) {
 			beta_xm.ptr[m] = beta_xp.ptr[m] = 0;
@@ -631,14 +634,14 @@ elseif solver.usePLM == 'plm-athena' then
 			}
 			
 			if (eval[m] >= 0) {
-				<?=eqn.waves_t?> beta_xp_add = eigen_leftTransform_<?=side?>(eig, Wref_xm_minus_Im, x);
+				<?=eqn.waves_t?> beta_xp_add = eigen_leftTransform_<?=side?>(eig, *(<?=eqn.cons_t?>*)&Wref_xm_minus_Im, x);
 				for (int n = 0; n < numWaves; ++n) {
 					beta_xp.ptr[n] += beta_xp_add.ptr[n];
 				}
 			}
 			
 			if (eval[m] <= 0) {
-				<?=eqn.waves_t?> beta_xm_add = eigen_leftTransform_<?=side?>(eig, Wref_xp_minus_Ip, x);
+				<?=eqn.waves_t?> beta_xm_add = eigen_leftTransform_<?=side?>(eig, *(<?=eqn.cons_t?>*)&Wref_xp_minus_Ip, x);
 				for (int n = 0; n < numWaves; ++n) {
 					beta_xm.ptr[n] += beta_xm_add.ptr[n];
 				}
@@ -650,8 +653,11 @@ elseif solver.usePLM == 'plm-athena' then
 			beta_xm.ptr[j] = min(0., beta_xm.ptr[j]);
 		}
 
-		<?=eqn.prim_t?> WresL = eigen_rightTransform_<?=side?>(eig, beta_xp, x);
-		<?=eqn.prim_t?> WresR = eigen_rightTransform_<?=side?>(eig, beta_xm, x);
+		<?=eqn.cons_t?> tmp;
+		tmp = eigen_rightTransform_<?=side?>(eig, beta_xp, x);
+		<?=eqn.prim_t?> WresL = *(<?=eqn.prim_t?>*)&tmp;
+		tmp = eigen_rightTransform_<?=side?>(eig, beta_xm, x);
+		<?=eqn.prim_t?> WresR = *(<?=eqn.prim_t?>*)&tmp;
 		
 		for (int j = 0; j < numIntStates; ++j) {
 			WresL.ptr[j] = Wref_xp.ptr[j] - WresL.ptr[j];

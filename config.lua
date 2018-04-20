@@ -63,7 +63,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{128,128,1},
+				{256,256,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -181,7 +181,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -248,11 +248,11 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 
 
-	initState = 'Alcubierre warp bubble',
+	--initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
-	initStateArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
+	--initStateArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
 	-- ... works with
 	--	size=64x64 solver=adm3d int=fe plm=athena ctu
 	--  size=64x64 solver=adm3d int=fe plm=athena
@@ -356,8 +356,7 @@ maxs = {6,1,1},
 }
 
 -- HD
--- Roe is actually running faster than HLL ...
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -439,7 +438,7 @@ maxs = {6,1,1},
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'}))) -- TODO fixme
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
