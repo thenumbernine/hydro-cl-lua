@@ -305,17 +305,13 @@ kernel void calcEigenBasis(
 	}<? end ?>
 }
 
-<? for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for _,addr2 in ipairs{'', 'global'} do
-			for side=0,2 do ?>
-void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* result,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* input,
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.cons_t?> inputU,
 	real3 x
 ) {	
-	<?=eqn.cons_t?> inputU = cons_swapFrom<?=side?>(*(<?=addr2?> <?=eqn.cons_t?>*)input);
+	inputU = cons_swapFrom<?=side?>(inputU);
 	
 	const real gamma = heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
@@ -323,13 +319,13 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 <? for _,kv in ipairs(eqn.eigenVars) do
 	local name, ctype = next(kv)
-?> 	<?=ctype?> <?=name?> = eig-><?=name?>;
+?> 	<?=ctype?> <?=name?> = eig.<?=name?>;
 <? end ?>
 
 	real vSq = real3_lenSq(v);
 	
 	// left eigenvectors
-	real norm = .5 / eig->aTildeSq;
+	real norm = .5 / eig.aTildeSq;
 	real Cff = norm * alphaF * Cf;
 	real Css = norm * alphaS * Cs;
 	Qf = Qf * norm;
@@ -358,30 +354,30 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real l36 = -AHatF * QStarY - alphaS * B.y;
 	real l37 = -AHatF * QStarZ - alphaS * B.z;
 	
-
-	result[0] = 
-		  inputU.rho * (alphaF * (vSq - eig->hHydro) + Cff * (Cf + v.x) - Qs * vqstr - aspb) 
+	<?=eqn.waves_t?> result;
+	result.ptr[0] = 
+		  inputU.rho * (alphaF * (vSq - eig.hHydro) + Cff * (Cf + v.x) - Qs * vqstr - aspb) 
 		+ inputU.m.x * (-alphaF * v.x - Cff)
 		+ inputU.m.y * (-alphaF * v.y + Qs * QStarY)
 		+ inputU.m.z * (-alphaF * v.z + Qs * QStarZ)
 		+ inputU.ETotal * alphaF
 		+ inputU.B.y * l16
 		+ inputU.B.z * l17;
-	result[1] = 
+	result.ptr[1] = 
 		  inputU.rho * l21
 		+ inputU.m.y * l23
 		+ inputU.m.z * l24
 		+ inputU.B.y * l26
 		+ inputU.B.z * l27;
-	result[2] = 
-		  inputU.rho * (alphaS * (vSq - eig->hHydro) + Css * (Cs + v.x) + Qf * vqstr + afpb)
+	result.ptr[2] = 
+		  inputU.rho * (alphaS * (vSq - eig.hHydro) + Css * (Cs + v.x) + Qf * vqstr + afpb)
 		+ inputU.m.x * (-alphaS * v.x - Css)
 		+ inputU.m.y * (-alphaS * v.y - Qf * QStarY)
 		+ inputU.m.z * (-alphaS * v.z - Qf * QStarZ)
 		+ inputU.ETotal * alphaS
 		+ inputU.B.y * l36
 		+ inputU.B.z * l37;
-	result[3] = 
+	result.ptr[3] = 
 		  inputU.rho * (1. - norm * (.5 * vSq - gamma_2 * X / gamma_1))
 		+ inputU.m.x * norm*v.x
 		+ inputU.m.y * norm*v.y
@@ -389,34 +385,35 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ inputU.ETotal * -norm
 		+ inputU.B.y * norm*B.y
 		+ inputU.B.z * norm*B.z;
-	result[4] = 
-		  inputU.rho * (alphaS * (vSq - eig->hHydro) + Css * (Cs - v.x) - Qf * vqstr + afpb)
+	result.ptr[4] = 
+		  inputU.rho * (alphaS * (vSq - eig.hHydro) + Css * (Cs - v.x) - Qf * vqstr + afpb)
 		+ inputU.m.x * (-alphaS * v.x + Css)
 		+ inputU.m.y * (-alphaS * v.y + Qf * QStarY)
 		+ inputU.m.z * (-alphaS * v.z + Qf * QStarZ)
 		+ inputU.ETotal * alphaS
 		+ inputU.B.y * l36
 		+ inputU.B.z * l37;
-	result[5] = 
+	result.ptr[5] = 
 		  inputU.rho * -l21
 		+ inputU.m.y * -l23
 		+ inputU.m.z * -l24
 		+ inputU.B.y * l26
 		+ inputU.B.z * l27;
-	result[6] = 
-		  inputU.rho * (alphaF * (vSq - eig->hHydro) + Cff * (Cf - v.x) + Qs * vqstr - aspb)
+	result.ptr[6] = 
+		  inputU.rho * (alphaF * (vSq - eig.hHydro) + Cff * (Cf - v.x) + Qs * vqstr - aspb)
 		+ inputU.m.x * (-alphaF * v.x + Cff)
 		+ inputU.m.y * (-alphaF * v.y - Qs * QStarY)
 		+ inputU.m.z * (-alphaF * v.z - Qs * QStarZ)
 		+ inputU.ETotal * alphaF
 		+ inputU.B.y * l16
 		+ inputU.B.z * l17;
+
+	return result;
 }
 
-void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* result,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* input,
+<?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.waves_t?> input,
 	real3 x
 ) {
 	const real gamma = heatCapacityRatio;
@@ -425,19 +422,19 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 <? for _,kv in ipairs(eqn.eigenVars) do
 	local name, ctype = next(kv)
-?> 	<?=ctype?> <?=name?> = eig-><?=name?>;
+?> 	<?=ctype?> <?=name?> = eig.<?=name?>;
 <? end ?>
 
 	real vSq = real3_lenSq(v);
 	real vDotBeta = v.y*betaStarY + v.z*betaStarZ;
-	real _1_sqrtRho = 1. / eig->sqrtRho;
+	real _1_sqrtRho = 1. / eig.sqrtRho;
 	real Afpbb = Af * BStarPerpLen * betaStarSq;
 	real Aspbb = As * BStarPerpLen * betaStarSq;
 
-	real lambdaFastMin = eig->v.x - eig->Cf;
-	real lambdaSlowMin = eig->v.x - eig->Cs;
-	real lambdaSlowMax = eig->v.x + eig->Cs;
-	real lambdaFastMax = eig->v.x + eig->Cf;
+	real lambdaFastMin = eig.v.x - eig.Cf;
+	real lambdaSlowMin = eig.v.x - eig.Cs;
+	real lambdaSlowMax = eig.v.x + eig.Cs;
+	real lambdaFastMax = eig.v.x + eig.Cf;
 
 	// right eigenvectors
 	real qa3 = alphaF * v.y;
@@ -458,68 +455,66 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 	<?=eqn.cons_t?> resultU;
 	resultU.rho =
-		  input[0] * alphaF
-		+ input[2] * alphaS
-		+ input[3]
-		+ input[4] * alphaS
-		+ input[6] * alphaF;
+		  input.ptr[0] * alphaF
+		+ input.ptr[2] * alphaS
+		+ input.ptr[3]
+		+ input.ptr[4] * alphaS
+		+ input.ptr[6] * alphaF;
 	resultU.m.x =
-		  input[0] * alphaF * lambdaFastMin
-		+ input[2] * alphaS * lambdaSlowMin
-		+ input[3] * v.x
-		+ input[4] * alphaS * lambdaSlowMax
-		+ input[6] * alphaF * lambdaFastMax;
+		  input.ptr[0] * alphaF * lambdaFastMin
+		+ input.ptr[2] * alphaS * lambdaSlowMin
+		+ input.ptr[3] * v.x
+		+ input.ptr[4] * alphaS * lambdaSlowMax
+		+ input.ptr[6] * alphaF * lambdaFastMax;
 	resultU.m.y =
-		  input[0] * (qa3 + qc3)
-		+ input[1] * -betaZ
-		+ input[2] * (qb3 - qd3)
-		+ input[3] * v.y
-		+ input[4] * (qb3 + qd3)
-		+ input[5] * betaZ
-		+ input[6] * (qa3 - qc3);
+		  input.ptr[0] * (qa3 + qc3)
+		+ input.ptr[1] * -betaZ
+		+ input.ptr[2] * (qb3 - qd3)
+		+ input.ptr[3] * v.y
+		+ input.ptr[4] * (qb3 + qd3)
+		+ input.ptr[5] * betaZ
+		+ input.ptr[6] * (qa3 - qc3);
 	resultU.m.z =
-		  input[0] * (qa4 + qc4)
-		+ input[1] * betaY
-		+ input[2] * (qb4 - qd4)
-		+ input[3] * v.z
-		+ input[4] * (qb4 + qd4)
-		+ input[5] * -betaY
-		+ input[6] * (qa4 - qc4);
+		  input.ptr[0] * (qa4 + qc4)
+		+ input.ptr[1] * betaY
+		+ input.ptr[2] * (qb4 - qd4)
+		+ input.ptr[3] * v.z
+		+ input.ptr[4] * (qb4 + qd4)
+		+ input.ptr[5] * -betaY
+		+ input.ptr[6] * (qa4 - qc4);
 	resultU.ETotal =
-		  input[0] * (alphaF*(eig->hHydro - v.x*Cf) + Qs*vDotBeta + Aspbb)
-		+ input[1] * r52
-		+ input[2] * (alphaS*(eig->hHydro - v.x*Cs) - Qf*vDotBeta - Afpbb)
-		+ input[3] * (.5*vSq + gamma_2*X/gamma_1)
-		+ input[4] * (alphaS*(eig->hHydro + v.x*Cs) + Qf*vDotBeta - Afpbb)
-		+ input[5] * -r52
-		+ input[6] * (alphaF*(eig->hHydro + v.x*Cf) - Qs*vDotBeta + Aspbb);
+		  input.ptr[0] * (alphaF*(eig.hHydro - v.x*Cf) + Qs*vDotBeta + Aspbb)
+		+ input.ptr[1] * r52
+		+ input.ptr[2] * (alphaS*(eig.hHydro - v.x*Cs) - Qf*vDotBeta - Afpbb)
+		+ input.ptr[3] * (.5*vSq + gamma_2*X/gamma_1)
+		+ input.ptr[4] * (alphaS*(eig.hHydro + v.x*Cs) + Qf*vDotBeta - Afpbb)
+		+ input.ptr[5] * -r52
+		+ input.ptr[6] * (alphaF*(eig.hHydro + v.x*Cf) - Qs*vDotBeta + Aspbb);
 	resultU.B.x = 0;
 	resultU.B.y =
-		  input[0] * r61
-		+ input[1] * r62
-		+ input[2] * r63
-		+ input[4] * r63
-		+ input[5] * r62
-		+ input[6] * r61;
+		  input.ptr[0] * r61
+		+ input.ptr[1] * r62
+		+ input.ptr[2] * r63
+		+ input.ptr[4] * r63
+		+ input.ptr[5] * r62
+		+ input.ptr[6] * r61;
 	resultU.B.z =
-		  input[0] * r71
-		+ input[1] * r72
-		+ input[2] * r73
-		+ input[4] * r73
-		+ input[5] * r72
-		+ input[6] * r71;
+		  input.ptr[0] * r71
+		+ input.ptr[1] * r72
+		+ input.ptr[2] * r73
+		+ input.ptr[4] * r73
+		+ input.ptr[5] * r72
+		+ input.ptr[6] * r71;
 	resultU.BPot = 0;
-	*(<?=addr0?> <?=eqn.cons_t?>*)result = cons_swapTo<?=side?>(resultU);
+	return cons_swapTo<?=side?>(resultU);
 }
 
-<? 				if solver.checkFluxError then ?>
-void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* result,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* input,
+<?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.cons_t?> inputU,
 	real3 x
 ) {
-	<?=eqn.cons_t?> inputU = cons_swapFrom<?=side?>(*(<?=addr2?> <?=eqn.cons_t?>*)input);
+	inputU = cons_swapFrom<?=side?>(inputU);
 
 	const real gamma = heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
@@ -528,7 +523,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 <? for _,kv in ipairs(eqn.eigenVars) do
 	local name, ctype = next(kv)
-?> 	<?=ctype?> <?=name?> = eig-><?=name?>;
+?> 	<?=ctype?> <?=name?> = eig.<?=name?>;
 <? end ?>
 
 	real _1_rho = 1. / rho;
@@ -576,22 +571,16 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 		+ inputU.m.z * -B.x * _1_rho
 		+ inputU.B.z * v.x;
 	resultU.BPot = 0;
-	*(<?=addr0?> <?=eqn.cons_t?>*)result = cons_swapTo<?=side?>(resultU);
+	return cons_swapTo<?=side?>(resultU);
 }
-<?				end
-			end
-		end
-	end
-end ?>
 
-<? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forCell_<?=side?>(
-	global const <?=eqn.cons_t?>* U,
+	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	<?=eqn.prim_t?> W = primFromCons(U, x);
 	real PMag = .5 * real3_lenSq(W.B);
-	real hTotal = (U->ETotal + W.P + PMag) / W.rho;
+	real hTotal = (U.ETotal + W.P + PMag) / W.rho;
 	Roe_t roe = (Roe_t){
 		.rho = W.rho,
 		.v = W.v,
@@ -608,25 +597,24 @@ end ?>
 //WA = W components that make up the jacobian matrix
 //W = input
 //x = coordinate location
-void apply_dU_dW(
-	<?=eqn.cons_t?>* U, 
-	const <?=eqn.prim_t?>* WA, 
-	const <?=eqn.prim_t?>* W, 
+<?=eqn.cons_t?> apply_dU_dW(
+	<?=eqn.prim_t?> WA, 
+	<?=eqn.prim_t?> W, 
 	real3 x
 ) {
-	*U = (<?=eqn.cons_t?>){
-		.rho = W->rho,
+	return (<?=eqn.cons_t?>){
+		.rho = W.rho,
 		.m = real3_add(
-			real3_scale(WA->v, W->rho),
-			real3_scale(W->v, WA->rho)),
-		.B = WA->B,
-		.ETotal = W->rho * .5 * real3_dot(WA->v, WA->v)
-			+ WA->rho * real3_dot(W->v, WA->v)
-			+ real3_dot(W->B, WA->B) / mu0
-			+ W->P / (heatCapacityRatio - 1.)
-			+ WA->rho * W->ePot,
-		.BPot = W->BPot,
-		.ePot = W->ePot,
+			real3_scale(WA.v, W.rho),
+			real3_scale(W.v, WA.rho)),
+		.B = WA.B,
+		.ETotal = W.rho * .5 * real3_dot(WA.v, WA.v)
+			+ WA.rho * real3_dot(W.v, WA.v)
+			+ real3_dot(W.B, WA.B) / mu0
+			+ W.P / (heatCapacityRatio - 1.)
+			+ WA.rho * W.ePot,
+		.BPot = W.BPot,
+		.ePot = W.ePot,
 	};
 }
 
@@ -634,25 +622,24 @@ void apply_dU_dW(
 //WA = W components that make up the jacobian matrix
 //U = input
 //x = coordinate location
-void apply_dW_dU(
-	<?=eqn.prim_t?>* W,
-	const <?=eqn.prim_t?>* WA,
-	const <?=eqn.cons_t?>* U,
+<?=eqn.prim_t?> apply_dW_dU(
+	<?=eqn.prim_t?> WA,
+	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	*W = (<?=eqn.prim_t?>){
-		.rho = U->rho,
+	return (<?=eqn.prim_t?>){
+		.rho = U.rho,
 		.v = real3_sub(
-			real3_scale(U->m, 1. / WA->rho),
-			real3_scale(WA->v, U->rho / WA->rho)),
-		.B = U->B,
+			real3_scale(U.m, 1. / WA.rho),
+			real3_scale(WA.v, U.rho / WA.rho)),
+		.B = U.B,
 		.P = (heatCapacityRatio - 1.) *  (
-			.5 * U->rho * real3_dot(WA->v, WA->v)
-			- real3_dot(U->m, WA->v)
-			- real3_dot(U->B, WA->B) / mu0
-			+ U->ETotal
-			- WA->rho * U->ePot),
-		.BPot = U->BPot,
-		.ePot = U->ePot,
+			.5 * U.rho * real3_dot(WA.v, WA.v)
+			- real3_dot(U.m, WA.v)
+			- real3_dot(U.B, WA.B) / mu0
+			+ U.ETotal
+			- WA.rho * U.ePot),
+		.BPot = U.BPot,
+		.ePot = U.ePot,
 	};
 }
