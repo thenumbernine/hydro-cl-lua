@@ -160,73 +160,72 @@ kernel void calcEigenBasis(
 	}<? end ?>
 }
 
-<?
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for _,addr2 in ipairs{'', 'global'} do
-			for side=0,solver.dim-1 do 
-				local prefix
-				if side == 0 then
-					prefix = [[
+<? for side=0,solver.dim-1 do 
+	local prefix
+	if side == 0 then
+		prefix = [[
 	const real nx = 1, ny = 0, nz = 0;
 	const real n1x = 0, n1y = 1, n1z = 0;
 	const real n2x = 0, n2y = 0, n2z = 1;
 	real ion_v_n = ion_v.x, ion_v_n1 = ion_v.y, ion_v_n2 = ion_v.z;
 	real elec_v_n = elec_v.x, elec_v_n1 = elec_v.y, elec_v_n2 = elec_v.z;
 ]] 
-				elseif side == 1 then
-					prefix = [[
+	elseif side == 1 then
+		prefix = [[
 	const real nx = 0, ny = 1, nz = 0;
 	const real n1x = 0, n1y = 0, n1z = 1;
 	const real n2x = 1, n2y = 0, n2z = 0;
 	real ion_v_n = ion_v.y, ion_v_n1 = ion_v.z, ion_v_n2 = ion_v.x;
 	real elec_v_n = elec_v.y, elec_v_n1 = elec_v.z, elec_v_n2 = elec_v.x;
 ]] 
-				elseif side == 2 then
-					prefix = [[
+	elseif side == 2 then
+		prefix = [[
 	const real nx = 0, ny = 0, nz = 1;
 	const real n1x = 1, n1y = 0, n1z = 0;
 	const real n2x = 0, n2y = 1, n2z = 0;
 	real ion_v_n = ion_v.z, ion_v_n1 = ion_v.x, ion_v_n2 = ion_v.y;
 	real elec_v_n = elec_v.z, elec_v_n1 = elec_v.x, elec_v_n2 = elec_v.y;
 ]]
-				end
-				prefix = [[
+	end
+	prefix = [[
 	sym3 gU = coord_gU(x);
 	real gUjj = gU.s]]..side..side..[[;
 	real sqrt_gUjj = coord_sqrt_gU]]..side..side..[[(x);
 	
 	//g^ij for fixed j=side
-	real3 ion_v = eig->ion_v;
+	real3 ion_v = eig.ion_v;
 	real3 ion_vL = coord_lower(ion_v, x);
-	real ion_hTotal = eig->ion_hTotal;
+	real ion_hTotal = eig.ion_hTotal;
 	real ion_vSq = real3_dot(ion_v, ion_vL);
-	real ion_Cs = eig->ion_Cs;
+	real ion_Cs = eig.ion_Cs;
 	real ion_Cs_over_sqrt_gUjj = ion_Cs / sqrt_gUjj; 
 	
-	real3 elec_v = eig->elec_v;
+	real3 elec_v = eig.elec_v;
 	real3 elec_vL = coord_lower(elec_v, x);
-	real elec_hTotal = eig->elec_hTotal;
+	real elec_hTotal = eig.elec_hTotal;
 	real elec_vSq = real3_dot(elec_v, elec_vL);
-	real elec_Cs = eig->elec_Cs;
+	real elec_Cs = eig.elec_Cs;
 	real elec_Cs_over_sqrt_gUjj = elec_Cs / sqrt_gUjj; 
 
 ]] .. prefix
 
-				local gUdef = '\treal3 gUj = _real3(\n'
-				for i=0,2 do
-					gUdef = gUdef .. '\t\tcoord_gU'..side..i..'(x)'..(i<2 and ',' or '')..'\n'
-				end
-				gUdef = gUdef .. '\t);\n'
-				prefix = gUdef .. prefix
+	local gUdef = '\treal3 gUj = _real3(\n'
+	for i=0,2 do
+		gUdef = gUdef .. '\t\tcoord_gU'..side..i..'(x)'..(i<2 and ',' or '')..'\n'
+	end
+	gUdef = gUdef .. '\t);\n'
+	prefix = gUdef .. prefix
 ?>
 
-void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X,
+<?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.cons_t?> UX,
 	real3 x
 ) { 
+	<?=eqn.waves_t?> UY;
+	real* Y = UY.ptr;
+	real* X = UX.ptr;
+
 	<?=prefix?>
 
 	real ion_denom = 2. * ion_Cs * ion_Cs;
@@ -378,14 +377,18 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 <?
 				end 
 ?>
+	return UY;
 }
 
-void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,			//numIntStates = 16
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X,	//numWaves = 16
+<?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.waves_t?> UX,	//numWaves = 16
 	real3 x
 ) {
+	<?=eqn.cons_t?> UY;
+	real* Y = UY.ptr;
+	real* X = UX.ptr;
+
 	<?=prefix?>
 <? 
 				if side == 0 then
@@ -507,42 +510,40 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 <?
 				end
 ?>
+
+	return UY;
 }
 
-<?
-				if solver.checkFluxError then 
-?>
-void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X,
+<?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.cons_t?> UX,
 	real3 x
 ) {
 	<?=prefix?>
-	<?=addr0?> <?=eqn.cons_t?>* UY = (<?=addr0?> <?=eqn.cons_t?>*)Y;
-	<?=addr2?> const <?=eqn.cons_t?>* UX = (<?=addr2?> const <?=eqn.cons_t?>*)X;
+	<?=eqn.cons_t?> UY;
+	real* X = UX.ptr;
 <?
 					for i,fluid	in ipairs(fluids) do 
 ?>
-	UY-><?=fluid?>_rho = X[<?=5*i-4?>] * nx 
+	UY.<?=fluid?>_rho = X[<?=5*i-4?>] * nx 
 		+ X[<?=5*i-3?>] * ny 
 		+ X[<?=5*i-2?>] * nz;
-	UY-><?=fluid?>_m.x = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.x + (heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.x)
+	UY.<?=fluid?>_m.x = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.x + (heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.x)
 		+ X[<?=5*i-4?>] * (<?=fluid?>_v.x * nx - (heatCapacityRatio - 1.) * gUj.x * <?=fluid?>_vL.x + <?=fluid?>_v_n)
 		+ X[<?=5*i-3?>] * (<?=fluid?>_v.x * ny - (heatCapacityRatio - 1.) * gUj.x * <?=fluid?>_vL.y)
 		+ X[<?=5*i-2?>] * (<?=fluid?>_v.x * nz - (heatCapacityRatio - 1.) * gUj.x * <?=fluid?>_vL.z)
 		+ X[<?=5*i-1?>] * (heatCapacityRatio - 1.) * nx;
-	UY-><?=fluid?>_m.y = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.y + (heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.y)
+	UY.<?=fluid?>_m.y = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.y + (heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.y)
 		+ X[<?=5*i-4?>] * (<?=fluid?>_v.y * nx - (heatCapacityRatio - 1.) * gUj.y * <?=fluid?>_vL.x)
 		+ X[<?=5*i-3?>] * (<?=fluid?>_v.y * ny - (heatCapacityRatio - 1.) * gUj.y * <?=fluid?>_vL.y + <?=fluid?>_v_n)
 		+ X[<?=5*i-2?>] * (<?=fluid?>_v.y * nz - (heatCapacityRatio - 1.) * gUj.y * <?=fluid?>_vL.z)
 		+ X[<?=5*i-1?>] * (heatCapacityRatio - 1.) * ny;
-	UY-><?=fluid?>_m.z = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.z + (heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.z)
+	UY.<?=fluid?>_m.z = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.z + (heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.z)
 		+ X[<?=5*i-4?>] * (<?=fluid?>_v.z * nx - (heatCapacityRatio - 1.) * gUj.z * <?=fluid?>_vL.x)
 		+ X[<?=5*i-3?>] * (<?=fluid?>_v.z * ny - (heatCapacityRatio - 1.) * gUj.z * <?=fluid?>_vL.y)
 		+ X[<?=5*i-2?>] * (<?=fluid?>_v.z * nz - (heatCapacityRatio - 1.) * gUj.z * <?=fluid?>_vL.z + <?=fluid?>_v_n)
 		+ X[<?=5*i-1?>] * (heatCapacityRatio - 1.) * nz;
-	UY-><?=fluid?>_ETotal = X[<?=5*i-5?>] * <?=fluid?>_v_n * ((heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq - <?=fluid?>_hTotal)
+	UY.<?=fluid?>_ETotal = X[<?=5*i-5?>] * <?=fluid?>_v_n * ((heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq - <?=fluid?>_hTotal)
 		+ X[<?=5*i-4?>] * (-(heatCapacityRatio - 1.) * <?=fluid?>_v_n * <?=fluid?>_vL.x + nx * <?=fluid?>_hTotal)
 		+ X[<?=5*i-3?>] * (-(heatCapacityRatio - 1.) * <?=fluid?>_v_n * <?=fluid?>_vL.y + ny * <?=fluid?>_hTotal)
 		+ X[<?=5*i-2?>] * (-(heatCapacityRatio - 1.) * <?=fluid?>_v_n * <?=fluid?>_vL.z + nz * <?=fluid?>_hTotal)
@@ -552,28 +553,24 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 ?>	
 	
 	<? if side == 0 then ?>
-	UY->E = _real3(normalizedSpeedOfLightSq * divPhiWavespeed * UX->phi, normalizedSpeedOfLightSq * UX->B.z, -normalizedSpeedOfLightSq * UX->B.y);
-	UY->B = _real3(divPsiWavespeed * UX->psi, -UX->E.z, UX->E.y);
+	UY.E = _real3(normalizedSpeedOfLightSq * divPhiWavespeed * UX.phi, normalizedSpeedOfLightSq * UX.B.z, -normalizedSpeedOfLightSq * UX.B.y);
+	UY.B = _real3(divPsiWavespeed * UX.psi, -UX.E.z, UX.E.y);
 	<? elseif side == 1 then ?>
-	UY->E = _real3(-normalizedSpeedOfLightSq * UX->B.z, normalizedSpeedOfLightSq * divPhiWavespeed * UX->phi, normalizedSpeedOfLightSq * UX->B.x);
-	UY->B = _real3(UX->E.z, divPsiWavespeed * UX->psi, -UX->E.x);
+	UY.E = _real3(-normalizedSpeedOfLightSq * UX.B.z, normalizedSpeedOfLightSq * divPhiWavespeed * UX.phi, normalizedSpeedOfLightSq * UX.B.x);
+	UY.B = _real3(UX.E.z, divPsiWavespeed * UX.psi, -UX.E.x);
 	<? elseif side == 2 then ?>
-	UY->E = _real3(normalizedSpeedOfLightSq * UX->B.y, -normalizedSpeedOfLightSq * UX->B.x, normalizedSpeedOfLightSq * divPhiWavespeed * UX->phi);
-	UY->B = _real3(-UX->E.y, UX->E.x, divPsiWavespeed * UX->psi);
+	UY.E = _real3(normalizedSpeedOfLightSq * UX.B.y, -normalizedSpeedOfLightSq * UX.B.x, normalizedSpeedOfLightSq * divPhiWavespeed * UX.phi);
+	UY.B = _real3(-UX.E.y, UX.E.x, divPsiWavespeed * UX.psi);
 	<? end ?>
-	UY->phi = divPhiWavespeed * UX->E.s<?=side?>;
-	UY->psi = normalizedSpeedOfLightSq * divPsiWavespeed * UX->B.s<?=side?>;
+	UY.phi = divPhiWavespeed * UX.E.s<?=side?>;
+	UY.psi = normalizedSpeedOfLightSq * divPsiWavespeed * UX.B.s<?=side?>;
 
-	UY->ion_ePot = 0;
-	UY->elec_ePot = 0;
+	UY.ion_ePot = 0;
+	UY.elec_ePot = 0;
+
+	return UY;
 }
-<?
-				end
-			end
-		end
-	end
-end
-?>
+<? end ?>
 
 kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
