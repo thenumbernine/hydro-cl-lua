@@ -210,16 +210,3 @@ kernel void addSource(
 	return (<?=eqn.eigen_t?>){};
 }
 <? end ?>
-
-<?=eqn.cons_t?> apply_dU_dW(
-	<?=eqn.prim_t?> WA, 
-	<?=eqn.prim_t?> W, 
-	real3 x
-) { return W; }
-
-<?=eqn.cons_t?> apply_dW_dU(
-	<?=eqn.prim_t?> WA,
-	<?=eqn.cons_t?> U,
-	real3 x
-) { return U; }
-

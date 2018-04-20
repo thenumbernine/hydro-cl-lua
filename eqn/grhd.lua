@@ -119,10 +119,8 @@ function GRHD:createInitState()
 --]]
 end
 
-function GRHD:getCodePrefix()
-	return table{
-		GRHD.super.getCodePrefix(self),
-		template([[
+function GRHD:getCommonFuncCode()
+	return template([[
 
 //pressure function for ideal gas
 real calc_P(real rho, real eInt) {
@@ -178,9 +176,10 @@ real calc_h(real rho, real P, real eInt) {
 }
 ]], {
 	eqn = self,
-}),
-	}:concat'\n'
+})
 end
+
+function GRHD:getPrimConsCode() end
 
 GRHD.initStateCode = [[
 kernel void initState(

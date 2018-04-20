@@ -59,10 +59,8 @@ MHD.guiVars = {
 	{name='mu0', value=1},	-- this should be 4 pi for natural units, but I haven't verified that all mu0's are where they should be ...
 }
 
-function MHD:getCodePrefix()
-	return table{
-		MHD.super.getCodePrefix(self),
-		template([[
+function MHD:getCommonFuncCode()
+	return template([[
 inline real calc_eKin(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.v); }
 inline real calc_EKin(<?=eqn.prim_t?> W) { return W.rho * calc_eKin(W); }
 inline real calc_EInt(<?=eqn.prim_t?> W) { return W.P / (heatCapacityRatio - 1.); }
@@ -79,7 +77,13 @@ inline real calc_h(real rho, real P) { return calc_H(P) / rho; }
 inline real calc_HTotal(<?=eqn.prim_t?> W, real ETotal) { return W.P + calc_PMag(W) + ETotal; }
 inline real calc_hTotal(<?=eqn.prim_t?> W, real ETotal) { return calc_HTotal(W, ETotal) / W.rho; }
 inline real calc_Cs(<?=eqn.prim_t?> W) { return sqrt(heatCapacityRatio * W.P / W.rho); }
+]], {
+		eqn = self,
+	})
+end
 
+function MHD:getPrimConsCode()
+	return template([[
 inline <?=eqn.prim_t?> primFromCons(
 	<?=eqn.cons_t?> U,
 	real3 x
@@ -117,10 +121,52 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	U.ePot = W.ePot;
 	return U;
 }
+
+<?=eqn.cons_t?> apply_dU_dW(
+	<?=eqn.prim_t?> WA, 
+	<?=eqn.prim_t?> W, 
+	real3 x
+) {
+	return (<?=eqn.cons_t?>){
+		.rho = W.rho,
+		.m = real3_add(
+			real3_scale(WA.v, W.rho),
+			real3_scale(W.v, WA.rho)),
+		.B = WA.B,
+		.ETotal = W.rho * .5 * real3_dot(WA.v, WA.v)
+			+ WA.rho * real3_dot(W.v, WA.v)
+			+ real3_dot(W.B, WA.B) / mu0
+			+ W.P / (heatCapacityRatio - 1.)
+			+ WA.rho * W.ePot,
+		.BPot = W.BPot,
+		.ePot = W.ePot,
+	};
+}
+
+<?=eqn.prim_t?> apply_dW_dU(
+	<?=eqn.prim_t?> WA,
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	return (<?=eqn.prim_t?>){
+		.rho = U.rho,
+		.v = real3_sub(
+			real3_scale(U.m, 1. / WA.rho),
+			real3_scale(WA.v, U.rho / WA.rho)),
+		.B = U.B,
+		.P = (heatCapacityRatio - 1.) *  (
+			.5 * U.rho * real3_dot(WA.v, WA.v)
+			- real3_dot(U.m, WA.v)
+			- real3_dot(U.B, WA.B) / mu0
+			+ U.ETotal
+			- WA.rho * U.ePot),
+		.BPot = U.BPot,
+		.ePot = U.ePot,
+	};
+}
 ]], {
-	eqn = self,
-}),
-	}:concat'\n'
+		eqn = self,
+	})
 end
 
 MHD.initStateCode = [[

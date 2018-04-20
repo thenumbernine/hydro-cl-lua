@@ -92,8 +92,7 @@ function Z4cFiniteDifferenceEquation:getTemplateEnv()
 	}
 end
 
--- this is separated so both Z4c:getCodePrefix and GRHDSeparate's HydroSolver:createCodePrefix can get to it
-function Z4cFiniteDifferenceEquation:getExtraCLFuncs()
+function Z4cFiniteDifferenceEquation:getCommonFuncCode()
 	return template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	U->alpha = 1.;
@@ -120,7 +119,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 #define calc_exp_neg4phi(U) ((U)->chi)
 
 //|g| = exp(12 phi) |g_grid|
-real calc_det_gamma(global const <?=eqn.cons_t?>* U) {
+real calc_det_gamma(global const <?=eqn.cons_t?>* U, real3 x) {
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	real det_gamma = sqrt_det_g_grid(x) / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 	return det_gamma;
@@ -133,17 +132,6 @@ sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U) {
 }
 
 ]], {eqn=self})
-end
-
--- should this be getInitStateCode like in eqn/euler?
-function Z4cFiniteDifferenceEquation:getCodePrefix()
-	local lines = table()
-	
-	lines:insert(Z4cFiniteDifferenceEquation.super.getCodePrefix(self))
-	
-	lines:insert(self:getExtraCLFuncs())
-	
-	return lines:concat()
 end
 
 function Z4cFiniteDifferenceEquation:getInitStateCode()
@@ -262,7 +250,7 @@ function Z4cFiniteDifferenceEquation:getDisplayVars()
 	local derivOrder = 2 * self.solver.numGhost
 	vars:append{
 		{S = '*value = sym3_dot(U->S_ll, calc_gamma_uu(U));'},
-		{volume = '*value = U->alpha * calc_det_gamma(U);'},
+		{volume = '*value = U->alpha * calc_det_gamma(U, x);'},
 	
 --[[ expansion:
 2003 Thornburg:  ... from Wald ...

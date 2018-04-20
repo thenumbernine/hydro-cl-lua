@@ -127,12 +127,12 @@ function Equation:getCodePrefix()
 			or '',
 		
 		-- functions that prim-cons code will use, but which use macros:
-		self:getCommonFuncCode(),
+		self:getCommonFuncCode() or '',
 		
 		-- prim-cons goes here
 		-- it goes last so it has access to everything above it
 		-- but it must be in codeprefix so initstate has access to it
-		self:getPrimConsCode(),
+		self:getPrimConsCode() or '',
 	}:concat'\n'
 end
 
@@ -300,13 +300,10 @@ inline <?=eqn.cons_t?> consFromPrim(
 }
 
 /*
-U = output
 WA = W components that make up the jacobian matrix
-W = input
+W = input vector
 x = coordinate location
-
-TODO where does potential energy belong in this Jacobian?
- does it belong here at all?
+returns output vector
 */
 inline <?=eqn.cons_t?> apply_dU_dW(
 	<?=eqn.prim_t?> WA, 
@@ -317,10 +314,10 @@ inline <?=eqn.cons_t?> apply_dU_dW(
 }
 
 /*
-W = output
 WA = W components that make up the jacobian matrix
-U = input
+U = input vector
 x = coordinate location
+returns output vector
 */
 inline <?=eqn.prim_t?> apply_dW_dU(
 	<?=eqn.prim_t?> WA, 

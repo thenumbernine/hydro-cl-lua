@@ -173,10 +173,8 @@ function TwoFluidEMHD:createInitState()
 	end):unpack()))
 end
 
-function TwoFluidEMHD:getCodePrefix()
-	return table{
-		TwoFluidEMHD.super.getCodePrefix(self),
-		template([[
+function TwoFluidEMHD:getCommonFuncCode()
+	return template([[
 real ESq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.E); }
 real BSq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.B); }
 
@@ -199,7 +197,14 @@ inline real calc_<?=fluid?>_Cs(const <?=eqn.prim_t?>* W) {
 	return sqrt(heatCapacityRatio * W-><?=fluid?>_P / W-><?=fluid?>_rho);
 }
 <? end ?>
+]], {
+		eqn = self,
+		fluids = fluids,
+	})
+end
 
+function TwoFluidEMHD:getPrimConsCode()
+	return template([[
 inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 	<? for _,fluid in ipairs(fluids) do ?>
 	real <?=fluid?>_EPot = U.<?=fluid?>_rho * U.<?=fluid?>_ePot;
@@ -235,10 +240,9 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	};
 }
 ]], {
-	eqn = self,
-	fluids = fluids,
-}),
-	}:concat'\n'
+		eqn = self,
+		fluids = fluids,
+	})
 end
 
 -- overridden because it adds some extra parameters to the template args

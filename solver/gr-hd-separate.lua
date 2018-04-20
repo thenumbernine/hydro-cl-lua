@@ -42,7 +42,7 @@ function GRHDSeparateSolver:init(args)
 			gr.eqn:getTypeCode(),
 			
 			-- this is for calc_exp_neg4phi
-			gr.eqn:getExtraCLFuncs(),
+			gr.eqn:getCommonFuncCode(),
 		}:concat'\n'
 	end
 	function HydroSolver:init(args)

@@ -120,10 +120,8 @@ end
 
 -- YOU ARE HERE in converting stuff from SRHD to GRMHD
 
-function GRMHD:getCodePrefix()
-	return table{
-		GRMHD.super.getCodePrefix(self),
-		template([[
+function GRMHD:getCommonFuncCode()
+	return template([[
 
 //I'm going to fix metric coordinates at first
 //then later the transition to the evolved metric will be easier
@@ -176,10 +174,11 @@ real calc_h(real rho, real P, real eInt) {
 	return (<?=eqn.cons_t?>){.D=D, .S=S, .tau=tau};
 }
 ]], {
-	eqn = self,
-}),
-	}:concat'\n'
+		eqn = self,
+	})
 end
+
+function GRMHD:getPrimConsCode() end
 
 GRMHD.initStateCode = [[
 kernel void initState(

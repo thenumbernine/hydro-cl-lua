@@ -38,7 +38,7 @@ function GREMSeparateSolver:init(args)
 			gr.eqn:getTypeCode(),
 			
 			-- this is for gr's calc_exp_neg4phi, which em will need 
-			gr.eqn:getExtraCLFuncs(),
+			gr.eqn:getCommonFuncCode(),
 		}:concat'\n'
 	end
 	function GRMaxwellSolver:init(args)
@@ -157,7 +157,7 @@ function GREMSeparateSolver:replaceSourceKernels()
 	local lines = table{
 		self.codePrefix,
 		self.gr.eqn:getTypeCode(),
-		self.gr.eqn:getExtraCLFuncs(),
+		self.gr.eqn:getCommonFuncCode(),
 		self.em.eqn:getTypeCode(),
 		template([[
 kernel void computeGRStressEnergy(

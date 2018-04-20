@@ -30,6 +30,7 @@ kernel void constrainU(
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
+	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
 	/*

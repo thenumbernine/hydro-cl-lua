@@ -1,4 +1,4 @@
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -213,7 +213,7 @@ maxs = {6,1,1},
 	--initState = 'relativistic blast wave interaction',
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	--initState = 'Brio-Wu',
+	initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'spinning magnetic fluid',
@@ -248,11 +248,11 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 
 
-	initState = 'Alcubierre warp bubble',
+	--initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
-	initStateArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
+	--initStateArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
 	-- ... works with
 	--	size=64x64 solver=adm3d int=fe plm=athena ctu
 	--  size=64x64 solver=adm3d int=fe plm=athena
@@ -400,7 +400,7 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='mhd'})))
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-mhd'})))
 
@@ -439,7 +439,7 @@ maxs = {6,1,1},
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'}))) -- TODO fixme
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))

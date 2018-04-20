@@ -42,10 +42,8 @@ function GRMaxwell:init(solver)
 	solver.ops:insert(NoDiv{solver=solver})
 end
 
-function GRMaxwell:getCodePrefix()
-	return table{
-		GRMaxwell.super.getCodePrefix(self),
-		template([[
+function GRMaxwell:getCommonFuncCode()
+	return template([[
 real ESq(<?=eqn.cons_t?> U, sym3 gamma) { 
 	return real3_weightedLenSq(U.epsE, gamma) / (U.eps * U.eps);
 }
@@ -57,9 +55,8 @@ real BSq(<?=eqn.cons_t?> U, sym3 gamma) {
 inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) { return U; }
 inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) { return W; }
 ]], {
-	eqn = self,
-}),
-	}:concat'\n'
+		eqn = self,
+	})
 end
 
 GRMaxwell.initStateCode = [[

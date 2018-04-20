@@ -123,10 +123,8 @@ function SRHD:createInitState()
 	}
 end
 
-function SRHD:getCodePrefix()
-	return table{
-		SRHD.super.getCodePrefix(self),
-		template([[
+function SRHD:getCommonFuncCode()
+	return template([[
 
 //pressure function for ideal gas
 real calc_P(real rho, real eInt) {
@@ -176,10 +174,11 @@ real calc_h(real rho, real P, real eInt) {
 //...and PLM uses consFromPrim and primFromCons
 
 ]], {
-	eqn = self,
-}),
-	}:concat'\n'
+		eqn = self,
+	})
 end
+
+function SRHD:getPrimConsCode() end
 
 SRHD.initStateCode = [[
 kernel void initState(

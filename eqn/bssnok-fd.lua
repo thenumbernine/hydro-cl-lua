@@ -99,8 +99,7 @@ function BSSNOKFiniteDifferenceEquation:getTemplateEnv()
 	}
 end
 
--- this is separated so both BSSNOK:getCodePrefix and GRHDSeparate's HydroSolver:createCodePrefix can get to it
-function BSSNOKFiniteDifferenceEquation:getExtraCLFuncs()
+function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
 	return template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	U->alpha = 1.;
@@ -148,17 +147,6 @@ sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U) {
 }
 
 ]], {eqn=self})
-end
-
--- should this be getInitStateCode like in eqn/euler?
-function BSSNOKFiniteDifferenceEquation:getCodePrefix()
-	local lines = table()
-	
-	lines:insert(BSSNOKFiniteDifferenceEquation.super.getCodePrefix(self))
-	
-	lines:insert(self:getExtraCLFuncs())
-	
-	return lines:concat()
 end
 
 function BSSNOKFiniteDifferenceEquation:getInitStateCode()
