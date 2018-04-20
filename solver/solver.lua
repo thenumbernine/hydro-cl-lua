@@ -1141,11 +1141,6 @@ function Solver:resetState()
 	end
 end
 
-function Solver:getFluxFromConsCode()
-	if self.eqn.hasFluxFromCons then return end
-	return template(file['eqn/cl/fluxFromCons.cl'], {solver=self, eqn=self.eqn})
-end
-
 function Solver:refreshCommonProgram()
 	-- code that depend on real and nothing else
 	-- TODO move to app, along with reduceBuf
@@ -1230,6 +1225,7 @@ function Solver:getSolverCode()
 		
 		self.eqn:getSolverCode() or '',
 		self.eqn:getCalcDTCode() or '',
+		self.eqn:getFluxFromConsCode() or '',
 	
 		-- messing with this ...
 		self.usePLM and template(file['solver/plm.cl'], {solver=self, eqn=self.eqn}) or '',
