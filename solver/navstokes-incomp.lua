@@ -33,7 +33,6 @@ function NavierStokesIncompressible:refreshSolverProgram()
 	self.projectKernelObj = self.solverProgramObj:kernel{name='project', setArgs={self.UBuf, self.PBuf}, domain=self.domainWithoutBorder}
 end
 
-function NavierStokesIncompressible:getCalcDTCode() end
 function NavierStokesIncompressible:refreshCalcDTKernel() end
 function NavierStokesIncompressible:calcDT() return self.fixedDT end
 

@@ -487,4 +487,6 @@ function Z4cFiniteDifferenceEquation:fillRandom(epsilon)
 	return ptr
 end
 
+function Z4cFiniteDifferenceEquation:getCalcDTCode() end
+
 return Z4cFiniteDifferenceEquation

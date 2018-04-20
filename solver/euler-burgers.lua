@@ -19,14 +19,8 @@ end
 
 function EulerBurgers:createEqn()
 	self.eqn = require 'eqn.euler'(self)
+	self.eqn.getCalcDTCode = function() end	-- override calcDT 
 end
-
--- Usually the eqn provide their own 'calcDT'
--- but sometimes the solver needs it too ...
--- Maybe the eqn should flag whether it has 'calcDT'
--- and the solver should use it likewise?
--- This is also in solver/bssnok-fd.lua which also 
-function EulerBurgers:getCalcDTCode() return '' end
 
 function EulerBurgers:createBuffers()
 	EulerBurgers.super.createBuffers(self)

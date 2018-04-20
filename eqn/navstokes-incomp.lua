@@ -141,4 +141,6 @@ function NavierStokesDivFree:getDisplayVars()
 	return vars
 end
 
-return NavierStokesDivFree 
+function NavierStokesDivFree:getCalcDTCode() end
+
+return NavierStokesDivFree

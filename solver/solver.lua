@@ -1141,14 +1141,9 @@ function Solver:resetState()
 	end
 end
 
-function Solver:getCalcDTCode()
-	if self.eqn.hasCalcDT then return end
-	return template(file['solver/calcDT.cl'], {solver=self, eqn=self.eqn})
-end
-
 function Solver:getFluxFromConsCode()
 	if self.eqn.hasFluxFromCons then return end
-	return template(file['solver/fluxFromCons.cl'], {solver=self, eqn=self.eqn})
+	return template(file['eqn/cl/fluxFromCons.cl'], {solver=self, eqn=self.eqn})
 end
 
 function Solver:refreshCommonProgram()
@@ -1234,7 +1229,7 @@ function Solver:getSolverCode()
 		'typedef struct { real min, max; } range_t;',
 		self.eqn:getSolverCode() or '',
 
-		self:getCalcDTCode() or '',
+		self.eqn:getCalcDTCode() or '',
 	
 		-- messing with this ...
 		self.usePLM and template(file['solver/plm.cl'], {solver=self, eqn=self.eqn}) or '',

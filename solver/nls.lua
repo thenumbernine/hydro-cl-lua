@@ -53,7 +53,6 @@ function NLSSolver:createBoundaryOptions()
 	}
 end
 
-function NLSSolver:getCalcDTCode() end
 function NLSSolver:refreshCalcDTKernel() end
 function NLSSolver:calcDT() return self.fixedDT end
 

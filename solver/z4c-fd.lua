@@ -33,7 +33,6 @@ function Z4cFiniteDifferenceSolver:refreshSolverProgram()
 	self.calcDerivKernelObj.obj:setArg(1, self.UBuf)
 end
 
-function Z4cFiniteDifferenceSolver:getCalcDTCode() end
 function Z4cFiniteDifferenceSolver:refreshCalcDTKernel() end
 function Z4cFiniteDifferenceSolver:calcDT() return self.fixedDT end
 

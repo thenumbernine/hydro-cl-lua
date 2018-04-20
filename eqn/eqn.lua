@@ -10,10 +10,10 @@ local Equation = class()
 
 
 -- Whether the eqn has its own eigen_*** code.
--- Otherwise solver/eigen.cl is used, which depends on the default eigen_t structures.
+-- Otherwise eqn/cl/eigen.cl is used, which depends on the default eigen_t structures.
 Equation.hasEigenCode = nil
 
--- Whether the eqn has its own calcDT.  Otherwise solver/calcDT.cl is used. 
+-- Whether the eqn has its own calcDT.  Otherwise eqn/cl/calcDT.cl is used. 
 Equation.hasCalcDT = nil
 
 --[[
@@ -195,7 +195,7 @@ function Equation:getEigenTypeCode()
 		return makestruct.makeStruct(self.eigen_t, self.eigenVars)
 	
 	-- use the default matrix structures	
-	-- whose code is in solver/eigen.cl (included below)
+	-- whose code is in eqn/cl/eigen.cl (included below)
 	else
 		return template([[
 typedef struct {
@@ -216,7 +216,7 @@ end
 
 function Equation:getEigenCode()
 	if self.hasEigenCode then return end
-	return template(file['solver/eigen.cl'], {
+	return template(file['eqn/cl/eigen.cl'], {
 		solver = self.solver,
 		eqn = self,
 	})
@@ -251,6 +251,11 @@ end
 
 function Equation:resetState()
 	self.initState:resetState(self.solver)
+end
+
+function Equation:getCalcDTCode()
+	if self.hasCalcDT then return end
+	return template(file['eqn/cl/calcDT.cl'], {solver=self.solver, eqn=self})
 end
 
 return Equation

@@ -528,4 +528,6 @@ function BSSNOKFiniteDifferenceEquation:fillRandom(epsilon)
 	return ptr
 end
 
+function BSSNOKFiniteDifferenceEquation:getCalcDTCode() end
+
 return BSSNOKFiniteDifferenceEquation

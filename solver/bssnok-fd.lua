@@ -33,7 +33,6 @@ function BSSNOKFiniteDifferenceSolver:refreshSolverProgram()
 	self.calcDerivKernelObj.obj:setArg(1, self.UBuf)
 end
 
-function BSSNOKFiniteDifferenceSolver:getCalcDTCode() end
 function BSSNOKFiniteDifferenceSolver:refreshCalcDTKernel() end
 function BSSNOKFiniteDifferenceSolver:calcDT() return self.fixedDT end
 
