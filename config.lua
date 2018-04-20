@@ -21,12 +21,12 @@ local args = {
 	--fixedDT = .0001,
 	--cfl = .25/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
-	usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
+	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
 	--usePLM = 'plm-eig',			-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
 	--usePLM = 'plm-eig-prim',		-- works in primitive eigenspace, etc
 	--usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max.  doesn't work well with ideal mhd.
@@ -208,12 +208,12 @@ maxs = {6,1,1},
 	
 	-- those designed for SRHD / GRHD:
 	--initState = 'relativistic shock reflection',			-- not working.  these initial conditions are constant =P
-	--initState = 'relativistic blast wave test problem 1',
+	initState = 'relativistic blast wave test problem 1',
 	--initState = 'relativistic blast wave test problem 2',
 	--initState = 'relativistic blast wave interaction',
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	initState = 'Brio-Wu',
+	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'spinning magnetic fluid',
@@ -375,7 +375,7 @@ maxs = {6,1,1},
 -- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
---self.solvers:insert(require 'solver.srhd-roe'(args))
+self.solvers:insert(require 'solver.srhd-roe'(args))
 --self.solvers:insert(require 'solver.srhd-hll'(args))	-- TODO finishme
 
 -- GRHD
@@ -400,7 +400,7 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='mhd'})))
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-mhd'})))
 

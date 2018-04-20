@@ -1020,8 +1020,6 @@ kernel void calcEigenBasis(
 	<?=eqn.cons_t?> inputU,
 	real3 x
 ) {
-	<?=eqn.cons_t?> resultU;
-
 <? if not eqn.noZeroRowsInFlux then ?>
 
 	// TODO make this a default implementation somewhere.
@@ -1037,10 +1035,11 @@ kernel void calcEigenBasis(
 ?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
 <? end 
 ?>
-	resultU = eigen_rightTransform_<?=side?>(eig, waves, x);
+	return eigen_rightTransform_<?=side?>(eig, waves, x);
 
 <? else -- noZeroRowsInFlux ?>
 
+	<?=eqn.cons_t?> resultU;
 	for (int i = 0; i < numStates; ++i) {
 		resultU.ptr[i] = 0;
 	}

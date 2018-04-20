@@ -14,24 +14,20 @@ function SRHDSelfGrav:init(args)
 end
 
 -- params for solver/poisson.cl 
-function SRHDSelfGrav:getCodeParams()
-	return {
-		-- because solver/poisson.cl assumes it's UBuf, 
-		-- we gotta keep the name 'UBuf'
-		-- even though it's the primBuf ...
-		calcRho = template([[
-#define gravitationalConstant <?=clnumber(self.gravitationConstant)?>
+function SRHDSelfGrav:getCalcRhoCode()
+	-- because solver/poisson.cl assumes it's UBuf, 
+	-- we gotta keep the name 'UBuf'
+	-- even though it's the primBuf ...
+	return template([[
 	global <?=eqn.prim_t?>* prim = &UBuf[index].prim;
 	//maybe a 4pi?  or is that only in the continuous case?
-	rho = gravitationalConstant * prim->rho;
-]], 
-		{
-			self = self,
-			solver = self.solver,
-			eqn = self.solver.eqn,
-			clnumber = require 'cl.obj.number',
-		}),
-	}
+	rho = <?=clnumber(self.gravitationConstant)?> * prim->rho;
+]], {
+		self = self,
+		solver = self.solver,
+		eqn = self.solver.eqn,
+		clnumber = require 'cl.obj.number',
+	})
 end
 
 function SRHDSelfGrav:getPoissonCode()

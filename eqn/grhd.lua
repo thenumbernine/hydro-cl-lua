@@ -295,6 +295,20 @@ GRHD.eigenVars = {
 	{alpha = 'real'},
 	{beta = 'real3'},
 	{gamma = 'sym3'},
+	-- and these are for wavespeeds
+	{vU = 'real3'},
+	{lambdaMin = 'real'},
+	{lambdaMax = 'real'},
 }
+
+function GRHD:eigenWaveCode(side, eig, x, waveIndex)
+	return template(assert(({
+		'<?=eig?>->lambdaMin',
+		'<?=eig?>->vU.x * <?=eig?>->alpha - <?=eig?>->beta.s<?=side?>',
+		'<?=eig?>->vU.x * <?=eig?>->alpha - <?=eig?>->beta.s<?=side?>',
+		'<?=eig?>->vU.x * <?=eig?>->alpha - <?=eig?>->beta.s<?=side?>',
+		'<?=eig?>->lambdaMax',
+	})[waveIndex+1], "couldn't find code for waveIndex="..waveIndex), {side=side, eig='('..eig..')'})
+end
 
 return GRHD

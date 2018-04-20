@@ -4,13 +4,6 @@ Marti 1998
 Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 2008 
 */
 
-<? -- create code to initialize local vars of all the eig vars
-local eigVarCode = require 'ext.table'.map(eqn.eigenVars, function(field)
-	local name,ctype = next(field)
-	return '\t'..ctype..' '..name..' = eig->'..name..';\n'
-end):concat()
-?>
-
 //Eqn.hasFluxFromCons
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
@@ -95,10 +88,10 @@ which means this function won't work with the PLM code
 */
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forCell_<?=side?>(
-	const global <?=eqn.cons_t?>* U,
+	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	
+	return (<?=eqn.eigen_t?>){};
 }
 <? end ?>
 
@@ -202,26 +195,28 @@ for _,field in ipairs(eqn.eigenVars) do
 	}<? end ?>
 }
 
-
-<?
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for _,addr2 in ipairs{'', 'global'} do
-			for side=0,solver.dim-1 do 
+<? -- create code to initialize local vars of all the eig vars
+local eigVarCode = require 'ext.table'.map(eqn.eigenVars, function(field)
+	local name,ctype = next(field)
+	return '\t'..ctype..' '..name..' = eig.'..name..';\n'
+end):concat()
 ?>
-void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X_,
+
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.cons_t?> X_,
 	real3 x
 ) { 
+	<?=eqn.waves_t?> Y;
+
 	//rotate incoming v's in X
 	<? if side==0 then ?>
-	<?=addr2?> const real* X = X_;
+	<?=eqn.cons_t?> X = X_;
 	<? elseif side == 1 then ?>
-	real X[5] = {X_[0], X_[2], X_[1], X_[3], X_[4]};
+	<?=eqn.cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[2], X_.ptr[1], X_.ptr[3], X_.ptr[4]}};
 	<? elseif side == 2 then ?>
-	real X[5] = {X_[0], X_[3], X_[2], X_[1], X_[4]};
+	<?=eqn.cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[3], X_.ptr[2], X_.ptr[1], X_.ptr[4]}};
 	<? end ?>
 
 	<?=eigVarCode?>
@@ -239,53 +234,54 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real scale;
 	scale = hSq / Delta;
 	real l5minus = (1 - Kappa) * (-v.x + VPlus * (W2 * xi - 1.)) - Kappa * W2 * VPlus * xi;
-	Y[0] = (
-		X[0] * (hW * VPlus * xi + l5minus)
-		+ X[1] * (1 - Kappa * ATildePlus + (2. * Kappa - 1.) * VPlus * (W2 * v.x * xi - v.x))
-		+ X[2] * ((2. * Kappa - 1.) * VPlus * W2 * v.y * xi)
-		+ X[3] * ((2. * Kappa - 1.) * VPlus * W2 * v.z * xi)
-		+ X[4] * l5minus
+	Y.ptr[0] = (
+		X.ptr[0] * (hW * VPlus * xi + l5minus)
+		+ X.ptr[1] * (1 - Kappa * ATildePlus + (2. * Kappa - 1.) * VPlus * (W2 * v.x * xi - v.x))
+		+ X.ptr[2] * ((2. * Kappa - 1.) * VPlus * W2 * v.y * xi)
+		+ X.ptr[3] * ((2. * Kappa - 1.) * VPlus * W2 * v.z * xi)
+		+ X.ptr[4] * l5minus
 	) * scale;
 	//mid normal row	2008 Font eqn 115
 	scale = W / (Kappa - 1.);
-	Y[1] = (
-		X[0] * (h - W) 
-		+ X[1] * (W * v.x) 
-		+ X[2] * (W * v.y) 
-		+ X[3] * (W * v.z) 
-		+ X[4] * (-W)
+	Y.ptr[1] = (
+		X.ptr[0] * (h - W) 
+		+ X.ptr[1] * (W * v.x) 
+		+ X.ptr[2] * (W * v.y) 
+		+ X.ptr[3] * (W * v.z) 
+		+ X.ptr[4] * (-W)
 	) * scale;
 	//mid tangent A row	2008 Font eqn 116
 	scale = 1. / (h * xi);
-	Y[2] = (
-		X[0] * -vL.y
-		+ X[1] * v.x * vL.y
-		+ X[2] * ((1. - v.x * vL.x))
-		+ X[4] * -vL.y
+	Y.ptr[2] = (
+		X.ptr[0] * -vL.y
+		+ X.ptr[1] * v.x * vL.y
+		+ X.ptr[2] * ((1. - v.x * vL.x))
+		+ X.ptr[4] * -vL.y
 	) * scale;
 	//mid tangent B row	2008 Font eqn 117
-	Y[3] = (
-		X[0] * -vL.z
-		+ X[1] * v.x * vL.z
-		+ X[3] * (1. - vL.x * v.x)
-		+ X[4] * -vL.z
+	Y.ptr[3] = (
+		X.ptr[0] * -vL.z
+		+ X.ptr[1] * v.x * vL.z
+		+ X.ptr[3] * (1. - vL.x * v.x)
+		+ X.ptr[4] * -vL.z
 	) * scale;
 	//max row	2008 Font eqn 118
 	scale = -hSq / Delta;
 	real l5plus = (1 - Kappa) * (-v.x + VMinus * (W2 * xi - 1.)) - Kappa * W2 * VMinus * xi;
-	Y[4] = (
-		X[0] * (h * W * VMinus * xi + l5plus)
-		+ X[1] * (1 - Kappa * ATildeMinus + (2. * Kappa - 1.) * VMinus * (W2 * v.x * xi - v.x))
-		+ X[2] * ((2. * Kappa - 1.) * VMinus * W2 * v.y * xi)
-		+ X[3] * ((2. * Kappa - 1.) * VMinus * W2 * v.z * xi)
-		+ X[4] * l5plus
+	Y.ptr[4] = (
+		X.ptr[0] * (h * W * VMinus * xi + l5plus)
+		+ X.ptr[1] * (1 - Kappa * ATildeMinus + (2. * Kappa - 1.) * VMinus * (W2 * v.x * xi - v.x))
+		+ X.ptr[2] * ((2. * Kappa - 1.) * VMinus * W2 * v.y * xi)
+		+ X.ptr[3] * ((2. * Kappa - 1.) * VMinus * W2 * v.z * xi)
+		+ X.ptr[4] * l5plus
 	) * scale;
+	
+	return Y;
 }
 
-void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X,
+<?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.waves_t?> X,
 	real3 x
 ) {
 	<?=eigVarCode?>
@@ -294,71 +290,82 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real hW = h * W;
 	real W2 = W * W;
 
+	<?=eqn.cons_t?> Y;
 	//2008 Font eqns 108-111
-	Y[0] = X[0]
-		+ X[1] * (Kappa / hW)
-		+ X[2] * (W * vL.y)
-		+ X[3] * (W * vL.z)
-		+ X[4];
-	Y[1] = X[0] * (hW * CMinus)
-		+ X[1] * (vL.x)
-		+ X[2] * (h * 2. * W2 * vL.y * vL.x)
-		+ X[3] * (h * 2. * W2 * vL.x * vL.z)
-		+ X[4] * (hW * CPlus);
-	Y[2] = X[0] * (hW * vL.y)
-		+ X[1] * (vL.y)
-		+ X[2] * (h * (1. + 2. * W2 * vL.y * vL.y))
-		+ X[3] * (h * (2. * W2 * vL.y * vL.z))
-		+ X[4] * (hW * vL.y);
-	Y[3] = X[0] * (hW * vL.z)
-		+ X[1] * (vL.z)
-		+ X[2] * (h * (2. * W2 * vL.y * vL.z))
-		+ X[3] * (h * (1. + 2. * W2 * vL.z * vL.z))
-		+ X[4] * (hW * vL.z);
-	Y[4] =X[0] * (hW * ATildeMinus - 1.)
-		+ X[1] * (1. - Kappa / hW)
-		+ X[2] * (W * vL.y * (2. * hW - 1.))
-		+ X[3] * (W * vL.z * (2. * hW - 1.))
-		+ X[4] * (hW * ATildePlus - 1.);
+	Y.ptr[0] = X.ptr[0]
+		+ X.ptr[1] * (Kappa / hW)
+		+ X.ptr[2] * (W * vL.y)
+		+ X.ptr[3] * (W * vL.z)
+		+ X.ptr[4];
+	Y.ptr[1] = X.ptr[0] * (hW * CMinus)
+		+ X.ptr[1] * (vL.x)
+		+ X.ptr[2] * (h * 2. * W2 * vL.y * vL.x)
+		+ X.ptr[3] * (h * 2. * W2 * vL.x * vL.z)
+		+ X.ptr[4] * (hW * CPlus);
+	Y.ptr[2] = X.ptr[0] * (hW * vL.y)
+		+ X.ptr[1] * (vL.y)
+		+ X.ptr[2] * (h * (1. + 2. * W2 * vL.y * vL.y))
+		+ X.ptr[3] * (h * (2. * W2 * vL.y * vL.z))
+		+ X.ptr[4] * (hW * vL.y);
+	Y.ptr[3] = X.ptr[0] * (hW * vL.z)
+		+ X.ptr[1] * (vL.z)
+		+ X.ptr[2] * (h * (2. * W2 * vL.y * vL.z))
+		+ X.ptr[3] * (h * (1. + 2. * W2 * vL.z * vL.z))
+		+ X.ptr[4] * (hW * vL.z);
+	Y.ptr[4] =X.ptr[0] * (hW * ATildeMinus - 1.)
+		+ X.ptr[1] * (1. - Kappa / hW)
+		+ X.ptr[2] * (W * vL.y * (2. * hW - 1.))
+		+ X.ptr[3] * (W * vL.z * (2. * hW - 1.))
+		+ X.ptr[4] * (hW * ATildePlus - 1.);
 	
 	//rotate outgoing y's x's into side
 	<? if side ~= 0 then ?>
-	real tmp = Y[1];
-	Y[1] = Y[1+<?=side?>];
-	Y[1+<?=side?>] = tmp;
+	real tmp = Y.ptr[1];
+	Y.ptr[1] = Y.ptr[1+<?=side?>];
+	Y.ptr[1+<?=side?>] = tmp;
 	<? end ?>
+
+	for (int i = numWaves; i < numStates; ++i) {
+		Y.ptr[i] = 0;
+	}
+
+	return Y;
 }
 
-<?	if solver.checkFluxError then ?>
-void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X_,
+<?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.cons_t?> X_,
 	real3 x
 ) {
+#if 0
 	//rotate incoming v's in x
 	<? if side==0 then ?>
-	<?=addr2?> const real* X = X_;
+	<?=eqn.cons_t?> X = X_;
 	<? elseif side == 1 then ?>
-	real X[5] = {X_[0], X_[2], X_[1], X_[3], X_[4]};
+	<?=eqn.cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[2], X_.ptr[1], X_.ptr[3], X_.ptr[4]}};
 	<? elseif side == 2 then ?>
-	real X[5] = {X_[0], X_[3], X_[2], X_[1], X_[4]};
+	<?=eqn.cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[3], X_.ptr[2], X_.ptr[1], X_.ptr[4]}};
 	<? end ?>
 
 	//TODO do the matrix multiply here
 
 	//rotate outgoing y's x's into side
 	<? if side ~= 0 then ?>
-	real tmp = Y[1];
-	Y[1] = Y[1+<?=side?>];
-	Y[1+<?=side?>] = tmp;
+	real tmp = Y.ptr[1];
+	Y.ptr[1] = Y.ptr[1+<?=side?>];
+	Y.ptr[1+<?=side?>] = tmp;
 	<? end ?>
+#else
+	//default
+	<?=eqn.waves_t?> waves = eigen_leftTransform_<?=side?>(eig, X_, x);
+	<?=eqn:eigenWaveCodePrefix(side, '&eig', 'x')?>
+<? for j=0,eqn.numWaves-1 do 
+?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
+<? end 
+?>	return eigen_rightTransform_<?=side?>(eig, waves, x);
+#endif
 }
-<?				end
-			end
-		end
-	end
-end ?>
+<? end ?>
 
 kernel void constrainU(
 	global <?=eqn.cons_t?>* UBuf

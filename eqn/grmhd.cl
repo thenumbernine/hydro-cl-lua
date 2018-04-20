@@ -75,7 +75,7 @@ kernel void calcDT(
 	const global <?=eqn.cons_t?>* U,
 	real3 x
 ) {
-	
+	return (<?=eqn.eigen_t?>){};
 }
 <? end ?>
 

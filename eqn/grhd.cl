@@ -103,13 +103,12 @@ kernel void calcDT(
 	const global <?=eqn.cons_t?>* U,
 	real3 x
 ) {
-	
+	return (<?=eqn.eigen_t?>){};
 }
 <? end ?>
 
 
 kernel void calcEigenBasis(
-	global real* waveBuf,
 	global <?=eqn.eigen_t?>* eigenBuf,
 	
 	//TODO 
@@ -218,14 +217,6 @@ kernel void calcEigenBasis(
 		real lambdaMin = (vU.x * (1. - csSq) - cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
 		real lambdaMax = (vU.x * (1. - csSq) + cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
 
-		int indexInt = side + dim * index;	
-		global real* wave = waveBuf + numWaves * indexInt;
-		wave[0] = lambdaMin;
-		wave[1] = vU.x * alpha - betaUi;
-		wave[2] = vU.x * alpha - betaUi;
-		wave[3] = vU.x * alpha - betaUi;
-		wave[4] = lambdaMax;
-
 		real LambdaMin = (lambdaMin + betaUi) / alpha;	//2008 Font eqn 114
 		real LambdaMax = (lambdaMax + betaUi) / alpha;	//2008 Font eqn 114
 		
@@ -247,7 +238,8 @@ kernel void calcEigenBasis(
 		//used by evL and evR
 		real Kappa = kappaTilde / (kappaTilde - csSq);	//2008 Font eqn 112.  
 		//Kappa = h;	//approx for ideal gas
-		
+	
+		int indexInt = side + dim * index;
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 <?
 for _,field in ipairs(eqn.eigenVars) do
@@ -258,31 +250,28 @@ for _,field in ipairs(eqn.eigenVars) do
 	}<? end ?>
 }
 
-<?
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for _,addr2 in ipairs{'', 'global'} do
-			for side=0,solver.dim-1 do 
-				local prefix = require 'ext.table'.map(eqn.eigenVars, function(field)
-					local name,ctype = next(field)
-					return '\t'..ctype..' '..name..' = eig->'..name..';\n'
-				end):concat()
+<? for side=0,solver.dim-1 do 
+	local prefix = require 'ext.table'.map(eqn.eigenVars, function(field)
+		local name,ctype = next(field)
+		return '\t'..ctype..' '..name..' = eig.'..name..';\n'
+	end):concat()
 ?>
-void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X_,
+<?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.cons_t?> X_,
 	real3 x
 ) { 
+	<?=eqn.waves_t?> Y;
+
 	//rotate incoming v's in X
 	//this should match calcEigenBasis
-	//eig->beta and eig->gamma should already be rotated
+	//eig.beta and eig.gamma should already be rotated
 	<? if side==0 then ?>
-	<?=addr2?> const real* X = X_;
+	<?=eqn.cons_t?> X = X_;
 	<? elseif side == 1 then ?>
-	real X[5] = {X_[0], X_[2], -X_[1], X_[3], X_[4]};
+	<?=eqn.cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[2], -X_.ptr[1], X_.ptr[3], X_.ptr[4]}};
 	<? elseif side == 2 then ?>
-	real X[5] = {X_[0], X_[3], X_[2], -X_[1], X_[4]};
+	<?=eqn.cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[3], X_.ptr[2], -X_.ptr[1], X_.ptr[4]}};
 	<? end ?>
 	
 	<?=prefix?>
@@ -290,7 +279,6 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real det_gamma = sym3_det(gamma);
 	sym3 gammaU = sym3_inv(gamma, det_gamma);
 
-	real3 vU = sym3_real3_mul(gammaU, vL);
 	real vUxSq = vU.x * vU.x;
 	real hSq = h * h;
 	real hW = h * W;
@@ -306,55 +294,56 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real scale;
 	scale = hSq / Delta;
 	real l5minus = (1 - Kappa) * (-det_gamma * vU.x + VPlus * (W2 * xi - gamma_gammaUxx)) - Kappa * W2 * VPlus * xi;
-	Y[0] = (
-		X[0] * (hW * VPlus * xi + l5minus)
-		+ X[1] * (gamma_gammaUxx * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * vU.x * xi - gamma_gammaUxx * vU.x))
-		+ X[2] * (gamma_gammaUxy * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * vU.y * xi - gamma_gammaUxy * vU.x))
-		+ X[3] * (gamma_gammaUxz * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * vU.z * xi - gamma_gammaUxz * vU.x))
-		+ X[4] * l5minus
+	Y.ptr[0] = (
+		X.ptr[0] * (hW * VPlus * xi + l5minus)
+		+ X.ptr[1] * (gamma_gammaUxx * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * vU.x * xi - gamma_gammaUxx * vU.x))
+		+ X.ptr[2] * (gamma_gammaUxy * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * vU.y * xi - gamma_gammaUxy * vU.x))
+		+ X.ptr[3] * (gamma_gammaUxz * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * vU.z * xi - gamma_gammaUxz * vU.x))
+		+ X.ptr[4] * l5minus
 	) * scale;
 	//mid normal row	2008 Font eqn 115
 	scale = W / (Kappa - 1.);
-	Y[1] = (
-		X[0] * (h - W) 
-		+ X[1] * (W * vU.x) 
-		+ X[2] * (W * vU.y) 
-		+ X[3] * (W * vU.z) 
-		+ X[4] * (-W)
+	Y.ptr[1] = (
+		X.ptr[0] * (h - W) 
+		+ X.ptr[1] * (W * vU.x) 
+		+ X.ptr[2] * (W * vU.y) 
+		+ X.ptr[3] * (W * vU.z) 
+		+ X.ptr[4] * (-W)
 	) * scale;
 	//mid tangent A row	2008 Font eqn 116
 	scale = 1. / (h * xi);
-	Y[2] = (
-		X[0] * (-gamma.zz * vL.y + gamma.yz * vL.z) 
-		+ X[1] * vU.x * (gamma.zz * vL.y - gamma.yz * vL.z)
-		+ X[2] * (gamma.zz * (1. - vL.x * vU.x) + gamma.xz * vL.z * vU.x)
-		+ X[3] * (-gamma.yz * (1. - vL.x * vU.x) - gamma.xz * vL.y * vU.x)
-		+ X[4] * (-gamma.zz * vL.y + gamma.yz * vL.z)
+	Y.ptr[2] = (
+		X.ptr[0] * (-gamma.zz * vL.y + gamma.yz * vL.z) 
+		+ X.ptr[1] * vU.x * (gamma.zz * vL.y - gamma.yz * vL.z)
+		+ X.ptr[2] * (gamma.zz * (1. - vL.x * vU.x) + gamma.xz * vL.z * vU.x)
+		+ X.ptr[3] * (-gamma.yz * (1. - vL.x * vU.x) - gamma.xz * vL.y * vU.x)
+		+ X.ptr[4] * (-gamma.zz * vL.y + gamma.yz * vL.z)
 	) * scale;
 	//mid tangent B row	2008 Font eqn 117
-	Y[3] = (
-		X[0] * (-gamma.yy * vL.z + gamma.yz * vL.y)
-		+ X[1] * vU.x * (gamma.yy * vL.z - gamma.yz * vL.y)
-		+ X[2] * (-gamma.yz * (1. - vL.x * vU.x) - gamma.xy * vL.z * vU.x)
-		+ X[3] * (gamma.yy * (1. - vL.x * vU.x) + gamma.xy * vL.y * vU.x)
-		+ X[4] * (-gamma.yy * vL.z + gamma.yz * vL.y)
+	Y.ptr[3] = (
+		X.ptr[0] * (-gamma.yy * vL.z + gamma.yz * vL.y)
+		+ X.ptr[1] * vU.x * (gamma.yy * vL.z - gamma.yz * vL.y)
+		+ X.ptr[2] * (-gamma.yz * (1. - vL.x * vU.x) - gamma.xy * vL.z * vU.x)
+		+ X.ptr[3] * (gamma.yy * (1. - vL.x * vU.x) + gamma.xy * vL.y * vU.x)
+		+ X.ptr[4] * (-gamma.yy * vL.z + gamma.yz * vL.y)
 	) * scale;
 	//max row	2008 Font eqn 118
 	scale = -hSq / Delta;
 	real l5plus = (1 - Kappa) * (-det_gamma * vU.x + VMinus * (W2 * xi - gamma_gammaUxx)) - Kappa * W2 * VMinus * xi;
-	Y[4] = (
-		X[0] * (h * W * VMinus * xi + l5plus)
-		+ X[1] * (gamma_gammaUxx * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * vU.x * xi - gamma_gammaUxx * vU.x))
-		+ X[2] * (gamma_gammaUxy * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * vU.y * xi - gamma_gammaUxy * vU.x))
-		+ X[3] * (gamma_gammaUxz * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * vU.z * xi - gamma_gammaUxz * vU.x))
-		+ X[4] * l5plus
+	Y.ptr[4] = (
+		X.ptr[0] * (h * W * VMinus * xi + l5plus)
+		+ X.ptr[1] * (gamma_gammaUxx * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * vU.x * xi - gamma_gammaUxx * vU.x))
+		+ X.ptr[2] * (gamma_gammaUxy * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * vU.y * xi - gamma_gammaUxy * vU.x))
+		+ X.ptr[3] * (gamma_gammaUxz * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * vU.z * xi - gamma_gammaUxz * vU.x))
+		+ X.ptr[4] * l5plus
 	) * scale;
+	
+	return Y;
 }
 
-void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X,
+<?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.waves_t?> X,
 	real3 x
 ) {
 	<?=prefix?>
@@ -362,71 +351,79 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real hW = h * W;
 	real W2 = W * W;
 
+	<?=eqn.cons_t?> Y;
+
 	//2008 Font eqns 108-111
-	Y[0] = X[0]
-		+ X[1] * (Kappa / hW)
-		+ X[2] * (W * vL.y)
-		+ X[3] * (W * vL.z)
-		+ X[4];
-	Y[1] = X[0] * (hW * CMinus)
-		+ X[1] * (vL.x)
-		+ X[2] * (h * (gamma.xy + 2. * W2 * vL.y * vL.x))
-		+ X[3] * (h * (gamma.xz + 2. * W2 * vL.x * vL.z))
-		+ X[4] * (hW * CPlus);
-	Y[2] = X[0] * (hW * vL.y)
-		+ X[1] * (vL.y)
-		+ X[2] * (h * (gamma.yy + 2. * W2 * vL.y * vL.y))
-		+ X[3] * (h * (gamma.yz + 2. * W2 * vL.y * vL.z))
-		+ X[4] * (hW * vL.y);
-	Y[3] = X[0] * (hW * vL.z)
-		+ X[1] * (vL.z)
-		+ X[2] * (h * (gamma.yz + 2. * W2 * vL.y * vL.z))
-		+ X[3] * (h * (gamma.zz + 2. * W2 * vL.z * vL.z))
-		+ X[4] * (hW * vL.z);
-	Y[4] =X[0] * (hW * ATildeMinus - 1.)
-		+ X[1] * (1. - Kappa / hW)
-		+ X[2] * (W * vL.y * (2. * hW - 1.))
-		+ X[3] * (W * vL.z * (2. * hW - 1.))
-		+ X[4] * (hW * ATildePlus - 1.);
+	Y.ptr[0] = X.ptr[0]
+		+ X.ptr[1] * (Kappa / hW)
+		+ X.ptr[2] * (W * vL.y)
+		+ X.ptr[3] * (W * vL.z)
+		+ X.ptr[4];
+	Y.ptr[1] = X.ptr[0] * (hW * CMinus)
+		+ X.ptr[1] * (vL.x)
+		+ X.ptr[2] * (h * (gamma.xy + 2. * W2 * vL.y * vL.x))
+		+ X.ptr[3] * (h * (gamma.xz + 2. * W2 * vL.x * vL.z))
+		+ X.ptr[4] * (hW * CPlus);
+	Y.ptr[2] = X.ptr[0] * (hW * vL.y)
+		+ X.ptr[1] * (vL.y)
+		+ X.ptr[2] * (h * (gamma.yy + 2. * W2 * vL.y * vL.y))
+		+ X.ptr[3] * (h * (gamma.yz + 2. * W2 * vL.y * vL.z))
+		+ X.ptr[4] * (hW * vL.y);
+	Y.ptr[3] = X.ptr[0] * (hW * vL.z)
+		+ X.ptr[1] * (vL.z)
+		+ X.ptr[2] * (h * (gamma.yz + 2. * W2 * vL.y * vL.z))
+		+ X.ptr[3] * (h * (gamma.zz + 2. * W2 * vL.z * vL.z))
+		+ X.ptr[4] * (hW * vL.z);
+	Y.ptr[4] =X.ptr[0] * (hW * ATildeMinus - 1.)
+		+ X.ptr[1] * (1. - Kappa / hW)
+		+ X.ptr[2] * (W * vL.y * (2. * hW - 1.))
+		+ X.ptr[3] * (W * vL.z * (2. * hW - 1.))
+		+ X.ptr[4] * (hW * ATildePlus - 1.);
 	
 	//rotate outgoing y's x's into side
 	<? if side ~= 0 then ?>
-	real tmp = Y[1];
-	Y[1] = -Y[1+<?=side?>];
-	Y[1+<?=side?>] = tmp;
+	real tmp = Y.ptr[1];
+	Y.ptr[1] = -Y.ptr[1+<?=side?>];
+	Y.ptr[1+<?=side?>] = tmp;
 	<? end ?>
+
+	return Y;
 }
 
-<?	if solver.checkFluxError then ?>
-void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X_,
+<?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.cons_t?> X_,
 	real3 x
 ) {
+#if 0
 	//rotate incoming v's in x
 	<? if side==0 then ?>
-	<?=addr2?> const real* X = X_;
+	<?=eqn.cons_t?> X = X_;
 	<? elseif side == 1 then ?>
-	real X[5] = {X_[0], X_[2], -X_[1], X_[3], X_[4]};
+	<?=eqn.cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[2], -X_.ptr[1], X_.ptr[3], X_.ptr[4]}};
 	<? elseif side == 2 then ?>
-	real X[5] = {X_[0], X_[3], X_[2], -X_[1], X_[4]};
+	<?=eqn.cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[3], X_.ptr[2], -X_.ptr[1], X_.ptr[4]}};
 	<? end ?>
 
 	//TODO do the matrix multiply here
 
 	//rotate outgoing y's x's into side
 	<? if side ~= 0 then ?>
-	real tmp = Y[1];
-	Y[1] = Y[1+<?=side?>];
-	Y[1+<?=side?>] = tmp;
+	real tmp = Y.ptr[1];
+	Y.ptr[1] = Y[1+<?=side?>];
+	Y.ptr[1+<?=side?>] = tmp;
 	<? end ?>
+#else
+	//default
+	<?=eqn.waves_t?> waves = eigen_leftTransform_<?=side?>(eig, X_, x);
+	<?=eqn:eigenWaveCodePrefix(side, '&eig', 'x')?>
+<? for j=0,eqn.numWaves-1 do 
+?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
+<? end 
+?>	return eigen_rightTransform_<?=side?>(eig, waves, x);
+#endif
 }
-<?				end
-			end
-		end
-	end
-end ?>
+<? end ?>
 
 kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
