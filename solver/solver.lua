@@ -1146,6 +1146,11 @@ function Solver:getCalcDTCode()
 	return template(file['solver/calcDT.cl'], {solver=self, eqn=self.eqn})
 end
 
+function Solver:getFluxFromConsCode()
+	if self.eqn.hasFluxFromCons then return end
+	return template(file['solver/fluxFromCons.cl'], {solver=self, eqn=self.eqn})
+end
+
 function Solver:refreshCommonProgram()
 	-- code that depend on real and nothing else
 	-- TODO move to app, along with reduceBuf

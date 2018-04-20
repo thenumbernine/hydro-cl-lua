@@ -159,10 +159,6 @@ kernel void calcEigenBasis(
 
 <? for side=0,solver.dim-1 do ?>
 
-/*
-It looks like, using structs, this runs at 28 fps 
-versus pointers which run at 32 fps
-*/
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> inputU,
@@ -1033,15 +1029,15 @@ versus pointers which run at 32 fps
 	// TODO use that static function for the calc waves as well
 	
 
-	<?=eqn.waves_t?> tmp = eigen_leftTransform_<?=side?>(eig, inputU, x);
+	<?=eqn.waves_t?> waves = eigen_leftTransform_<?=side?>(eig, inputU, x);
 
 	<?=eqn:eigenWaveCodePrefix(side, '&eig', 'x')?>
 
 <? for j=0,eqn.numWaves-1 do 
-?>	tmp.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
+?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
 <? end 
 ?>
-	resultU = eigen_rightTransform_<?=side?>(eig, tmp, x);
+	resultU = eigen_rightTransform_<?=side?>(eig, waves, x);
 
 <? else -- noZeroRowsInFlux ?>
 
@@ -1069,18 +1065,6 @@ versus pointers which run at 32 fps
 	return resultU;
 }
 <? end ?>
-
-//TODO make this the default implementation of fluxFromCons
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(U, x);
-	return eigen_fluxTransform_<?=side?>(eig, U, x);
-}
-<? end ?>
-
 
 kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,

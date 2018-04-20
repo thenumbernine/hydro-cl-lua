@@ -80,121 +80,111 @@ kernel void calcEigenBasis(
 	}<? end ?>
 }
 		
-<? 
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for _,addr2 in ipairs{'', 'global'} do
-			for side=0,solver.dim-1 do 
-?>
+<? for side=0,solver.dim-1 do ?>
 
-void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X,
+<?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.cons_t?> X,
 	real3 x
 ) {
+	<?=eqn.waves_t?> Y;
+
 	<? if side==0 then ?>
 
-	Y[0] = (X[0] - X[6] * speedOfLight) * .5;
-	Y[1] = (X[3] - X[7] / speedOfLight) * .5;
-	Y[2] = (X[1] - X[5] * speedOfLight) * .5;
-	Y[3] = (X[4] * speedOfLight + X[2]) * .5;
-	Y[4] = (X[5] * speedOfLight + X[1]) * .5;
-	Y[5] = (X[2] - X[4] * speedOfLight) * .5;
-	Y[6] = (X[7] / speedOfLight + X[3]) * .5;
-	Y[7] = (X[6] * speedOfLight + X[0]) * .5;
+	Y.ptr[0] = (X.ptr[0] - X.ptr[6] * speedOfLight) * .5;
+	Y.ptr[1] = (X.ptr[3] - X.ptr[7] / speedOfLight) * .5;
+	Y.ptr[2] = (X.ptr[1] - X.ptr[5] * speedOfLight) * .5;
+	Y.ptr[3] = (X.ptr[4] * speedOfLight + X.ptr[2]) * .5;
+	Y.ptr[4] = (X.ptr[5] * speedOfLight + X.ptr[1]) * .5;
+	Y.ptr[5] = (X.ptr[2] - X.ptr[4] * speedOfLight) * .5;
+	Y.ptr[6] = (X.ptr[7] / speedOfLight + X.ptr[3]) * .5;
+	Y.ptr[7] = (X.ptr[6] * speedOfLight + X.ptr[0]) * .5;
    
    <? elseif side==1 then ?>
    
-	Y[0] = (X[1] - X[6] * speedOfLight) * .5;
-	Y[1] = (X[4] - X[7] / speedOfLight) * .5;
-	Y[2] = (X[5] * speedOfLight + X[0]) * .5;
-	Y[3] = (X[2] - X[3] * speedOfLight) * .5;
-	Y[4] = (X[0] - X[5] * speedOfLight) * .5;
-	Y[5] = (X[3] * speedOfLight + X[2]) * .5;
-	Y[6] = (X[7] / speedOfLight + X[4]) * .5;
-	Y[7] = (X[6] * speedOfLight + X[1]) * .5;
+	Y.ptr[0] = (X.ptr[1] - X.ptr[6] * speedOfLight) * .5;
+	Y.ptr[1] = (X.ptr[4] - X.ptr[7] / speedOfLight) * .5;
+	Y.ptr[2] = (X.ptr[5] * speedOfLight + X.ptr[0]) * .5;
+	Y.ptr[3] = (X.ptr[2] - X.ptr[3] * speedOfLight) * .5;
+	Y.ptr[4] = (X.ptr[0] - X.ptr[5] * speedOfLight) * .5;
+	Y.ptr[5] = (X.ptr[3] * speedOfLight + X.ptr[2]) * .5;
+	Y.ptr[6] = (X.ptr[7] / speedOfLight + X.ptr[4]) * .5;
+	Y.ptr[7] = (X.ptr[6] * speedOfLight + X.ptr[1]) * .5;
    
    <? elseif side==2 then ?>
    
-	Y[0] = (X[2] - X[6] * speedOfLight) * .5;
-	Y[1] = (X[5] - X[7] / speedOfLight) * .5;
-	Y[2] = (X[0] - X[4] * speedOfLight) * .5;
-	Y[3] = (X[3] * speedOfLight + X[1]) * .5;
-	Y[4] = (X[4] * speedOfLight + X[0]) * .5;
-	Y[5] = (X[1] - X[3] * speedOfLight) * .5;
-	Y[6] = (X[7] / speedOfLight + X[5]) * .5;
-	Y[7] = (X[6] * speedOfLight + X[2]) * .5;
+	Y.ptr[0] = (X.ptr[2] - X.ptr[6] * speedOfLight) * .5;
+	Y.ptr[1] = (X.ptr[5] - X.ptr[7] / speedOfLight) * .5;
+	Y.ptr[2] = (X.ptr[0] - X.ptr[4] * speedOfLight) * .5;
+	Y.ptr[3] = (X.ptr[3] * speedOfLight + X.ptr[1]) * .5;
+	Y.ptr[4] = (X.ptr[4] * speedOfLight + X.ptr[0]) * .5;
+	Y.ptr[5] = (X.ptr[1] - X.ptr[3] * speedOfLight) * .5;
+	Y.ptr[6] = (X.ptr[7] / speedOfLight + X.ptr[5]) * .5;
+	Y.ptr[7] = (X.ptr[6] * speedOfLight + X.ptr[2]) * .5;
 	
 	<? end ?>
+	
+	return Y;
 }
 
-void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X,
+<?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.waves_t?> X,
 	real3 x
 ) {
+	<?=eqn.cons_t?> Y;
 
 	<? if side==0 then ?>
 	
-	Y[0] = X[7] + X[0];
-	Y[1] = X[4] + X[2];
-	Y[2] = X[5] + X[3];
-	Y[3] = X[6] + X[1];
-	Y[4] = (X[3] - X[5]) / speedOfLight;
-	Y[5] = (X[4] - X[2]) / speedOfLight;
-	Y[6] = (X[7] - X[0]) / speedOfLight;
-	Y[7] = (X[6] - X[1]) * speedOfLight;
+	Y.ptr[0] = X.ptr[7] + X.ptr[0];
+	Y.ptr[1] = X.ptr[4] + X.ptr[2];
+	Y.ptr[2] = X.ptr[5] + X.ptr[3];
+	Y.ptr[3] = X.ptr[6] + X.ptr[1];
+	Y.ptr[4] = (X.ptr[3] - X.ptr[5]) / speedOfLight;
+	Y.ptr[5] = (X.ptr[4] - X.ptr[2]) / speedOfLight;
+	Y.ptr[6] = (X.ptr[7] - X.ptr[0]) / speedOfLight;
+	Y.ptr[7] = (X.ptr[6] - X.ptr[1]) * speedOfLight;
    
    <? elseif side==1 then ?>
 
-	Y[0] = X[4] + X[2];
-	Y[1] = X[7] + X[0];
-	Y[2] = X[5] + X[3];
-	Y[3] = (X[5] - X[3]) / speedOfLight;
-	Y[4] = X[6] + X[1];
-	Y[5] = (X[2] - X[4]) / speedOfLight;
-	Y[6] = (X[7] - X[0]) / speedOfLight;
-	Y[7] = (X[6] - X[1]) * speedOfLight;
+	Y.ptr[0] = X.ptr[4] + X.ptr[2];
+	Y.ptr[1] = X.ptr[7] + X.ptr[0];
+	Y.ptr[2] = X.ptr[5] + X.ptr[3];
+	Y.ptr[3] = (X.ptr[5] - X.ptr[3]) / speedOfLight;
+	Y.ptr[4] = X.ptr[6] + X.ptr[1];
+	Y.ptr[5] = (X.ptr[2] - X.ptr[4]) / speedOfLight;
+	Y.ptr[6] = (X.ptr[7] - X.ptr[0]) / speedOfLight;
+	Y.ptr[7] = (X.ptr[6] - X.ptr[1]) * speedOfLight;
    
    <? elseif side==2 then ?>
 
-	Y[0] = X[4] + X[2];
-	Y[1] = X[5] + X[3];
-	Y[2] = X[7] + X[0];
-	Y[3] = (X[3] - X[5]) / speedOfLight;
-	Y[4] = (X[4] - X[2]) / speedOfLight;
-	Y[5] = X[6] + X[1];
-	Y[6] = (X[7] - X[0]) / speedOfLight;
-	Y[7] = (X[6] - X[1]) * speedOfLight;
+	Y.ptr[0] = X.ptr[4] + X.ptr[2];
+	Y.ptr[1] = X.ptr[5] + X.ptr[3];
+	Y.ptr[2] = X.ptr[7] + X.ptr[0];
+	Y.ptr[3] = (X.ptr[3] - X.ptr[5]) / speedOfLight;
+	Y.ptr[4] = (X.ptr[4] - X.ptr[2]) / speedOfLight;
+	Y.ptr[5] = X.ptr[6] + X.ptr[1];
+	Y.ptr[6] = (X.ptr[7] - X.ptr[0]) / speedOfLight;
+	Y.ptr[7] = (X.ptr[6] - X.ptr[1]) * speedOfLight;
 	
 	<? end ?>
 	
-	for (int i = numWaves; i < numStates; ++i) {
-		Y[i] = 0;
+	for (int i = 8; i < numStates; ++i) {
+		Y.ptr[i] = 0;
 	}
+
+	return Y;
 }
 
-<? 
-				if solver.checkFluxError then 
-?>
-void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X_,
+<?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.cons_t?> X,
 	real3 x
 ) {
-	<?=addr2?> const <?=eqn.cons_t?>* X = (<?=addr2?> const <?=eqn.cons_t?>*)X_;
-	*(<?=addr0?> <?=eqn.cons_t?>*)Y = fluxFromCons_<?=side?>(*X, x);
+	return fluxFromCons_<?=side?>(X, x);
 }
-<?
-				end
-			end
-		end
-	end
-end
-?>
+
+<? end ?>
 
 kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
@@ -214,23 +204,22 @@ kernel void addSource(
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forCell_<?=side?>(
-	const global <?=eqn.cons_t?>* U,
+	<?=eqn.cons_t?> U,
 	real3 x
 ) {
 	return (<?=eqn.eigen_t?>){};
 }
 <? end ?>
 
-void apply_dU_dW(
-	<?=eqn.cons_t?>* U, 
-	const <?=eqn.prim_t?>* WA, 
-	const <?=eqn.prim_t?>* W, 
+<?=eqn.cons_t?> apply_dU_dW(
+	<?=eqn.prim_t?> WA, 
+	<?=eqn.prim_t?> W, 
 	real3 x
-) { *U = *W; }
+) { return W; }
 
-void apply_dW_dU(
-	<?=eqn.prim_t?>* W,
-	const <?=eqn.prim_t?>* WA,
-	const <?=eqn.cons_t?>* U,
+<?=eqn.cons_t?> apply_dW_dU(
+	<?=eqn.prim_t?> WA,
+	<?=eqn.cons_t?> U,
 	real3 x
-) { *W = *U; }
+) { return U; }
+

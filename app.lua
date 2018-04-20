@@ -586,7 +586,7 @@ function HydroCLApp:screenshotToFile(fn)
 	self.ssflipped:save(fn)
 end
 
---HydroCLApp.running = nil
+--HydroCLApp.running = false
 HydroCLApp.running = true
 
 local minDeltaY = 1e-7
@@ -594,7 +594,7 @@ function HydroCLApp:update(...)
 	if self.running then
 		if self.running == 'step' then 
 			print('performing single step...')
-			self.running = nil
+			self.running = false
 		end
 
 		-- update the one furthest behind
@@ -897,7 +897,7 @@ function HydroCLApp:updateGUI()
 			for _,solver in ipairs(self.solvers) do
 				solver:resetState()
 			end
-			self.running = nil
+			self.running = false
 		end
 
 		if ig.igButton'Save' then
@@ -1080,7 +1080,7 @@ function HydroCLApp:event(event, ...)
 				for _,solver in ipairs(self.solvers) do
 					solver:resetState()
 				end
-				self.running = nil
+				self.running = false
 			end
 		end
 	end
