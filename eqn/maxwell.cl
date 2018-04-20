@@ -77,72 +77,71 @@ kernel void calcEigenBasis(
 	}<? end ?>
 }
 		
-<? 
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for _,addr2 in ipairs{'', 'global'} do
-			for side=0,solver.dim-1 do 
-?>
+<? for side=0,solver.dim-1 do ?>
 
-void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X,
+<?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.cons_t?> X,
 	real3 x
 ) {
-	const real ise = sqrt_1_2 / eig->sqrt_eps;
-	const real isu = sqrt_1_2 / eig->sqrt_mu;
+	<?=eqn.waves_t?> Y;
+
+	const real ise = sqrt_1_2 / eig.sqrt_eps;
+	const real isu = sqrt_1_2 / eig.sqrt_mu;
 
 	<? if side==0 then ?>
 	
-	Y[0] = X[2] *  ise + X[4] * isu;
-	Y[1] = X[1] * -ise + X[5] * isu;
-	Y[2] = X[0] * -ise + X[3] * isu;
-	Y[3] = X[0] *  ise + X[3] * isu;
-	Y[4] = X[1] *  ise + X[5] * isu;
-	Y[5] = X[2] * -ise + X[4] * isu;
+	Y.ptr[0] = X.ptr[2] *  ise + X.ptr[4] * isu;
+	Y.ptr[1] = X.ptr[1] * -ise + X.ptr[5] * isu;
+	Y.ptr[2] = X.ptr[0] * -ise + X.ptr[3] * isu;
+	Y.ptr[3] = X.ptr[0] *  ise + X.ptr[3] * isu;
+	Y.ptr[4] = X.ptr[1] *  ise + X.ptr[5] * isu;
+	Y.ptr[5] = X.ptr[2] * -ise + X.ptr[4] * isu;
 	
 	<? elseif side==1 then ?>
 	
-	Y[0] = X[0] *  ise + X[5] * isu;
-	Y[1] = X[2] * -ise + X[3] * isu;
-	Y[2] = X[1] * -ise + X[4] * isu;
-	Y[3] = X[1] *  ise + X[4] * isu;
-	Y[4] = X[2] *  ise + X[3] * isu;
-	Y[5] = X[0] * -ise + X[5] * isu;
+	Y.ptr[0] = X.ptr[0] *  ise + X.ptr[5] * isu;
+	Y.ptr[1] = X.ptr[2] * -ise + X.ptr[3] * isu;
+	Y.ptr[2] = X.ptr[1] * -ise + X.ptr[4] * isu;
+	Y.ptr[3] = X.ptr[1] *  ise + X.ptr[4] * isu;
+	Y.ptr[4] = X.ptr[2] *  ise + X.ptr[3] * isu;
+	Y.ptr[5] = X.ptr[0] * -ise + X.ptr[5] * isu;
 	
 	<? elseif side==2 then ?>
 	
-	Y[0] = X[1] *  ise + X[3] * isu;
-	Y[1] = X[0] * -ise + X[4] * isu;
-	Y[2] = X[2] * -ise + X[5] * isu;
-	Y[3] = X[2] *  ise + X[5] * isu;
-	Y[4] = X[0] *  ise + X[4] * isu;
-	Y[5] = X[1] * -ise + X[3] * isu;
+	Y.ptr[0] = X.ptr[1] *  ise + X.ptr[3] * isu;
+	Y.ptr[1] = X.ptr[0] * -ise + X.ptr[4] * isu;
+	Y.ptr[2] = X.ptr[2] * -ise + X.ptr[5] * isu;
+	Y.ptr[3] = X.ptr[2] *  ise + X.ptr[5] * isu;
+	Y.ptr[4] = X.ptr[0] *  ise + X.ptr[4] * isu;
+	Y.ptr[5] = X.ptr[1] * -ise + X.ptr[3] * isu;
 	
 	<? end ?>
+
+	return Y;
 }
 
-void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X,
+<?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.waves_t?> X,
 	real3 x
 ) {
-	const real se = sqrt_1_2 * eig->sqrt_eps;
-	const real su = sqrt_1_2 * eig->sqrt_mu;
+	<?=eqn.cons_t?> Y;
+	
+	const real se = sqrt_1_2 * eig.sqrt_eps;
+	const real su = sqrt_1_2 * eig.sqrt_mu;
 
 	<? if side==0 then ?>
 /*
 z, -y, -x, x, y, -z
 y,  z,  x, x, z, y
 */
-	Y[0] = se * (-X[2] + X[3]);
-	Y[1] = se * (-X[1] + X[4]);
-	Y[2] = se * (X[0] + -X[5]);
-	Y[3] = su * (X[2] + X[3]);
-	Y[4] = su * (X[0] + X[5]);
-	Y[5] = su * (X[1] + X[4]);
+	Y.ptr[0] = se * (-X.ptr[2] + X.ptr[3]);
+	Y.ptr[1] = se * (-X.ptr[1] + X.ptr[4]);
+	Y.ptr[2] = se * (X.ptr[0] + -X.ptr[5]);
+	Y.ptr[3] = su * (X.ptr[2] + X.ptr[3]);
+	Y.ptr[4] = su * (X.ptr[0] + X.ptr[5]);
+	Y.ptr[5] = su * (X.ptr[1] + X.ptr[4]);
 	
 	<? elseif side==1 then ?>
 
@@ -157,12 +156,12 @@ z,  x,  y, y, x,  z
 0  0  1 1 0  0
 1  0  0 0 0  1
 */
-	Y[0] = se * (X[0] - X[5]);
-	Y[1] = se * (-X[2] + X[3]);
-	Y[2] = se * (-X[1] + X[4]);
-	Y[3] = su * (X[1] + X[4]);
-	Y[4] = su * (X[2] + X[3]);
-	Y[5] = su * (X[0] + X[5]);
+	Y.ptr[0] = se * (X.ptr[0] - X.ptr[5]);
+	Y.ptr[1] = se * (-X.ptr[2] + X.ptr[3]);
+	Y.ptr[2] = se * (-X.ptr[1] + X.ptr[4]);
+	Y.ptr[3] = su * (X.ptr[1] + X.ptr[4]);
+	Y.ptr[4] = su * (X.ptr[2] + X.ptr[3]);
+	Y.ptr[5] = su * (X.ptr[0] + X.ptr[5]);
 	
 	<? elseif side==2 then ?>
 
@@ -177,76 +176,70 @@ x,  y,  z, z,  y,  x
 0  1  0 0 1  0
 0  0  1 1 0  0
 */
-	Y[0] = se * (-X[1] + X[4]);
-	Y[1] = se * (X[0] - X[5]);
-	Y[2] = se * (-X[2] + X[3]);
-	Y[3] = su * (X[0] + X[5]);
-	Y[4] = su * (X[1] + X[4]);
-	Y[5] = su * (X[2] + X[3]);
+	Y.ptr[0] = se * (-X.ptr[1] + X.ptr[4]);
+	Y.ptr[1] = se * (X.ptr[0] - X.ptr[5]);
+	Y.ptr[2] = se * (-X.ptr[2] + X.ptr[3]);
+	Y.ptr[3] = su * (X.ptr[0] + X.ptr[5]);
+	Y.ptr[4] = su * (X.ptr[1] + X.ptr[4]);
+	Y.ptr[5] = su * (X.ptr[2] + X.ptr[3]);
 	
 	<? end ?>
 	
 	for (int i = numWaves; i < numStates; ++i) {
-		Y[i] = 0;
+		Y.ptr[i] = 0;
 	}
+
+	return Y;
 }
 
-<? 
-				if solver.checkFluxError then 
-?>
-void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X_,
+<?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.cons_t?> X,
 	real3 x
 ) {
-	//swap input dim x<->side
-	<?=addr2?> const <?=eqn.cons_t?>* X = (<?=addr2?> const <?=eqn.cons_t?>*)X_;
-	real3 epsE = X->epsE;
-	real3 B = X->B;
-	real eps = eig->sqrt_eps * eig->sqrt_eps;
-	real mu = eig->sqrt_mu * eig->sqrt_mu;
+	<?=eqn.cons_t?> Y;
+
+	real3 epsE = X.epsE;
+	real3 B = X.B;
+	real ieps = 1. / (eig.sqrt_eps * eig.sqrt_eps);
+	real imu = 1. / (eig.sqrt_mu * eig.sqrt_mu);
 
 	<? if side==0 then ?>
 	
-	Y[0] = 0;
-	Y[1] = B.z / mu;
-	Y[2] = -B.y / mu;
-	Y[3] = 0;
-	Y[4] = -epsE.z / eps;
-	Y[5] = epsE.y / eps;
+	Y.ptr[0] = 0;
+	Y.ptr[1] = B.z * imu;
+	Y.ptr[2] = -B.y * imu;
+	Y.ptr[3] = 0;
+	Y.ptr[4] = -epsE.z * ieps;
+	Y.ptr[5] = epsE.y * ieps;
 
 	<? elseif side==1 then ?>
 		
-	Y[0] = -B.z / mu;
-	Y[1] = 0;
-	Y[2] = B.x / mu;
-	Y[3] = epsE.z / eps;
-	Y[4] = 0;
-	Y[5] = -epsE.x / eps;
+	Y.ptr[0] = -B.z * imu;
+	Y.ptr[1] = 0;
+	Y.ptr[2] = B.x * imu;
+	Y.ptr[3] = epsE.z * ieps;
+	Y.ptr[4] = 0;
+	Y.ptr[5] = -epsE.x * ieps;
 		
 	<? elseif side==2 then ?>
 		
-	Y[0] = B.y / mu;
-	Y[1] = -B.x / mu;
-	Y[2] = 0;
-	Y[3] = -epsE.y / eps;
-	Y[4] = epsE.x / eps;
-	Y[5] = 0;
+	Y.ptr[0] = B.y * imu;
+	Y.ptr[1] = -B.x * imu;
+	Y.ptr[2] = 0;
+	Y.ptr[3] = -epsE.y * ieps;
+	Y.ptr[4] = epsE.x * ieps;
+	Y.ptr[5] = 0;
 		
 	<? end ?>
 	
 	for (int i = numWaves; i < numStates; ++i) {
-		Y[i] = 0;
+		Y.ptr[i] = 0;
 	}
+
+	return Y;
 }
-<?
-				end
-			end
-		end
-	end
-end
-?>
+<? end ?>
 
 kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
@@ -264,26 +257,24 @@ kernel void addSource(
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forCell_<?=side?>(
-	const global <?=eqn.cons_t?>* U,
+	<?=eqn.cons_t?> U,
 	real3 x
 ) {
 	return (<?=eqn.eigen_t?>){
-		.sqrt_eps = sqrt(U->eps),
-		.sqrt_mu = sqrt(U->mu),
+		.sqrt_eps = sqrt(U.eps),
+		.sqrt_mu = sqrt(U.mu),
 	};
 }
 <? end ?>
 
-void apply_dU_dW(
-	<?=eqn.cons_t?>* U, 
-	const <?=eqn.prim_t?>* WA, 
-	const <?=eqn.prim_t?>* W, 
+<?=eqn.cons_t?> apply_dU_dW(
+	<?=eqn.prim_t?> WA, 
+	<?=eqn.prim_t?> W, 
 	real3 x
-) { *U = *W; }
+) { return W; }
 
-void apply_dW_dU(
-	<?=eqn.prim_t?>* W,
-	const <?=eqn.prim_t?>* WA,
-	const <?=eqn.cons_t?>* U,
+<?=eqn.cons_t?> apply_dW_dU(
+	<?=eqn.prim_t?> WA,
+	<?=eqn.cons_t?> U,
 	real3 x
-) { *W = *U; }
+) { return U; }
