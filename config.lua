@@ -1,4 +1,4 @@
-local dim = 1
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -29,7 +29,7 @@ local args = {
 	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
 	--usePLM = 'plm-eig',			-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
 	--usePLM = 'plm-eig-prim',		-- works in primitive eigenspace, etc
-	--usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max.  doesn't work well with ideal mhd.
+	usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max.  doesn't work well with ideal mhd.
 	--usePLM = 'plm-athena',		-- based on Athena, idk about this one
 	--usePLM = 'ppm-experimental',	-- one more attempt to figure out all the PLM stuff, based on 2017 Zingale
 
@@ -214,7 +214,7 @@ maxs = {6,1,1},
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
 	--initState = 'Brio-Wu',
-	--initState = 'Orszag-Tang',
+	initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'spinning magnetic fluid',
 	--initState = 'magnetic fluid',
@@ -228,7 +228,7 @@ maxs = {6,1,1},
 	--initState = '2002 Dedner Kelvin-Helmholtz',
 
 	-- Maxwell:
-	initState = 'Maxwell default',
+	--initState = 'Maxwell default',
 	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
@@ -406,7 +406,7 @@ maxs = {6,1,1},
 
 -- Maxwell
 -- when the state is nonzero, at certain sizes there appear errors in the corners
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 
@@ -420,7 +420,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 
 -- ...so to try and get around that, here the two are combined into one solver:
 -- TODO still needs PLM support
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 
 -- GR+Maxwell.  params go to the Maxwell solver.
 

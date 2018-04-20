@@ -227,18 +227,74 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 
 inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
-		<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(fluids) do ?>
 		.<?=fluid?>_rho = W.<?=fluid?>_rho,
 		.<?=fluid?>_m = real3_scale(W.<?=fluid?>_v, W.<?=fluid?>_rho),
 		.<?=fluid?>_ETotal = calc_<?=fluid?>_ETotal(W, x),
 		.<?=fluid?>_ePot = W.<?=fluid?>_ePot,
-		<? end ?>
+<? end ?>
 		.E = W.E,
 		.B = W.B,
 		.psi = W.psi,
 		.phi = W.phi,
 	};
 }
+
+inline <?=eqn.cons_t?> apply_dU_dW(
+	<?=eqn.prim_t?> WA, 
+	<?=eqn.prim_t?> W, 
+	real3 x
+) {
+<? for _,fluid in ipairs(fluids) do ?>
+	real3 WA_<?=fluid?>_vL = coord_lower(WA.<?=fluid?>_v, x);
+<? end ?>
+	return (<?=eqn.cons_t?>){
+<? for _,fluid in ipairs(fluids) do ?>
+		.<?=fluid?>_rho = W.<?=fluid?>_rho,
+		.<?=fluid?>_m = real3_add(
+			real3_scale(WA.<?=fluid?>_v, W.<?=fluid?>_rho), 
+			real3_scale(W.<?=fluid?>_v, WA.<?=fluid?>_rho)),
+		.<?=fluid?>_ETotal = W.<?=fluid?>_rho * .5 * real3_dot(WA.<?=fluid?>_v, WA_<?=fluid?>_vL) 
+			+ WA.<?=fluid?>_rho * real3_dot(W.<?=fluid?>_v, WA_<?=fluid?>_vL)
+			+ W.<?=fluid?>_P / (heatCapacityRatio - 1.)
+			+ WA.<?=fluid?>_rho * W.<?=fluid?>_ePot,
+		.<?=fluid?>_ePot = W.<?=fluid?>_ePot,
+<? end ?>
+		.B = W.B,
+		.E = W.E,
+		.phi = W.phi,
+		.psi = W.psi,
+	};
+}
+
+inline <?=eqn.prim_t?> apply_dW_dU(
+	<?=eqn.prim_t?> WA,
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+<? for _,fluid in ipairs(fluids) do ?>
+	real3 WA_<?=fluid?>_vL = coord_lower(WA.<?=fluid?>_v, x);
+<? end ?>
+	return (<?=eqn.prim_t?>){
+<? for _,fluid in ipairs(fluids) do ?>
+		.<?=fluid?>_rho = U.<?=fluid?>_rho,
+		.<?=fluid?>_v = real3_sub(
+			real3_scale(U.<?=fluid?>_m, 1. / WA.<?=fluid?>_rho),
+			real3_scale(WA.<?=fluid?>_v, U.<?=fluid?>_rho / WA.<?=fluid?>_rho)),
+		.<?=fluid?>_P = (heatCapacityRatio - 1.) * (
+			.5 * real3_dot(WA.<?=fluid?>_v, WA_<?=fluid?>_vL) * U.<?=fluid?>_rho 
+			- real3_dot(U.<?=fluid?>_m, WA_<?=fluid?>_vL)
+			+ U.<?=fluid?>_ETotal 
+			- WA.<?=fluid?>_rho * U.<?=fluid?>_ePot),
+		.<?=fluid?>_ePot = U.<?=fluid?>_ePot,
+<? end ?>
+		.B = U.B,
+		.E = U.E,
+		.phi = U.phi,
+		.psi = U.psi,
+	};
+}
+
 ]], {
 		eqn = self,
 		fluids = fluids,

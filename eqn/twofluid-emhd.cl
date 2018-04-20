@@ -81,6 +81,29 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	
 	return eig;
 }
+
+<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	<?=eqn.prim_t?> W = primFromCons(U, x);
+<? for _,fluid in ipairs(fluids) do ?>
+	real <?=fluid?>_vSq = coordLenSq(W.<?=fluid?>_v, x);
+	real <?=fluid?>_eKin = .5 * <?=fluid?>_vSq;
+	real <?=fluid?>_hTotal = calc_hTotal(W.<?=fluid?>_rho, W.<?=fluid?>_P, U.<?=fluid?>_ETotal);
+	real <?=fluid?>_CsSq = (heatCapacityRatio - 1.) * (<?=fluid?>_hTotal - <?=fluid?>_eKin);
+	real <?=fluid?>_Cs = sqrt(<?=fluid?>_CsSq);
+<? end ?>	
+	return (<?=eqn.eigen_t?>){
+<? for _,fluid in ipairs(fluids) do ?>
+		.<?=fluid?>_rho = W.<?=fluid?>_rho,
+		.<?=fluid?>_v = W.<?=fluid?>_v,
+		.<?=fluid?>_hTotal = <?=fluid?>_hTotal,
+		.<?=fluid?>_vSq = <?=fluid?>_vSq,
+		.<?=fluid?>_Cs = <?=fluid?>_Cs,
+<? end ?>	
+	};
+}
 <? end ?>
 
 //fluid components are same as in eqn/euler.cl
