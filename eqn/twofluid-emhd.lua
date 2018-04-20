@@ -78,7 +78,7 @@ TwoFluidEMHD.mirrorVars = {
 TwoFluidEMHD.hasEigenCode = true
 TwoFluidEMHD.useSourceTerm = true
 TwoFluidEMHD.useConstrainU = true
-TwoFluidEMHD.hasFluxFromCons = true
+TwoFluidEMHD.roeUseFluxFromCons = true
 
 if TwoFluidEMHD.useEulerInitState then
 	TwoFluidEMHD.initStates = require 'init.euler'
@@ -500,6 +500,61 @@ function TwoFluidEMHD:eigenWaveCode(side, eig, x, waveIndex)
 		})[waveIndex - 5*#fluids + 1]
 	end
 	error('got a bad waveIndex: '..waveIndex)
+end
+
+function TwoFluidEMHD:getFluxFromConsCode()
+	return template([[
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	<?=eqn.prim_t?> W = primFromCons(U, x);
+	<?=eqn.cons_t?> F;
+
+<? 
+for _,fluid in ipairs(fluids) do
+?>	real <?=fluid?>_vj = W.<?=fluid?>_v.s<?=side?>;
+	real <?=fluid?>_HTotal = U.<?=fluid?>_ETotal + W.<?=fluid?>_P;
+	
+	F.<?=fluid?>_rho = U.<?=fluid?>_m.s<?=side?>;
+	F.<?=fluid?>_m = real3_scale(U.<?=fluid?>_m, <?=fluid?>_vj);
+<? 	for i=0,2 do
+?>	F.<?=fluid?>_m.s<?=i?> += coord_gU<?=i?><?=side?>(x) * W.<?=fluid?>_P;
+<? 	end
+?>	F.<?=fluid?>_ETotal = <?=fluid?>_HTotal * <?=fluid?>_vj;
+	F.<?=fluid?>_ePot = 0.;
+<? 
+end
+?>
+
+	//taken from glm-maxwell instead of the 2014 Abgrall, Kumar
+	real3 B = U.B;
+	real3 E = U.E;
+	<? if side == 0 then ?>
+	F.E = _real3(normalizedSpeedOfLight * divPhiWavespeed * U.phi, normalizedSpeedOfLight * B.z, -normalizedSpeedOfLight * B.y);
+	F.B = _real3(divPsiWavespeed * U.psi, -E.z, E.y);
+	<? elseif side == 1 then ?>
+	F.E = _real3(-normalizedSpeedOfLight * B.z, normalizedSpeedOfLight * divPhiWavespeed * U.phi, normalizedSpeedOfLight * B.x);
+	F.B = _real3(E.z, divPsiWavespeed * U.psi, -E.x);
+	<? elseif side == 2 then ?>
+	F.E = _real3(normalizedSpeedOfLight * B.y, -normalizedSpeedOfLight * B.x, normalizedSpeedOfLight * divPhiWavespeed * U.phi);
+	F.B = _real3(-E.y, E.x, divPsiWavespeed * U.psi);
+	<? end ?>
+	F.phi = E.s<?=side?> * divPhiWavespeed;
+	F.psi = B.s<?=side?> * divPsiWavespeed * normalizedSpeedOfLight;
+
+	F.ion_ePot = 0;
+	F.elec_ePot = 0;
+
+	return F;
+}
+<? end ?>
+]], {
+		eqn = self,
+		solver = self.solver,
+		fluids = fluids,
+	})
 end
 
 return TwoFluidEMHD

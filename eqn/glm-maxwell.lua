@@ -10,12 +10,12 @@ local Equation = require 'eqn.eqn'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
 
-local Maxwell = class(Equation)
-Maxwell.name = 'Maxwell'
-Maxwell.numWaves = 8
-Maxwell.numIntStates = 8
+local GLM_Maxwell = class(Equation)
+GLM_Maxwell.name = 'GLM_Maxwell'
+GLM_Maxwell.numWaves = 8
+GLM_Maxwell.numIntStates = 8
 
-Maxwell.consVars = {
+GLM_Maxwell.consVars = {
 	{E = 'real3'},
 	{B = 'real3'},
 	{phi = 'real'},
@@ -24,19 +24,19 @@ Maxwell.consVars = {
 	{rhoCharge = 'real'},
 }
 
-Maxwell.mirrorVars = {{'E.x', 'B.x'}, {'E.y', 'B.y'}, {'E.z', 'B.z'}}
+GLM_Maxwell.mirrorVars = {{'E.x', 'B.x'}, {'E.y', 'B.y'}, {'E.z', 'B.z'}}
 
-Maxwell.hasEigenCode = true
-Maxwell.useSourceTerm = true
-Maxwell.hasFluxFromCons = true
+GLM_Maxwell.hasEigenCode = true
+GLM_Maxwell.useSourceTerm = true
+GLM_Maxwell.roeUseFluxFromCons = true
 
-Maxwell.initStates = require 'init.euler'
+GLM_Maxwell.initStates = require 'init.euler'
 
-function Maxwell:init(solver)
-	Maxwell.super.init(self, solver)
+function GLM_Maxwell:init(solver)
+	GLM_Maxwell.super.init(self, solver)
 end
 
-function Maxwell:getCommonFuncCode()
+function GLM_Maxwell:getCommonFuncCode()
 	return template([[
 real ESq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.E); }
 real BSq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.B); }
@@ -45,7 +45,7 @@ real BSq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.B); }
 })
 end
 
-Maxwell.initStateCode = [[
+GLM_Maxwell.initStateCode = [[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -87,7 +87,7 @@ kernel void initState(
 }
 ]]
 
-function Maxwell:getSolverCode()
+function GLM_Maxwell:getSolverCode()
 	return template(file['eqn/glm-maxwell.cl'], {eqn=self, solver=self.solver})
 end
 
@@ -134,8 +134,8 @@ local function curl(eqn,k,result,field)
 	})}
 end
 
-function Maxwell:getDisplayVars()
-	local vars = Maxwell.super.getDisplayVars(self):append{ 
+function GLM_Maxwell:getDisplayVars()
+	local vars = GLM_Maxwell.super.getDisplayVars(self):append{ 
 		{S = '*valuevec = real3_cross(U->E, U->B);', type='real3'},
 		{energy = [[
 	*value = .5 * (real3_lenSq(U->E) + real3_lenSq(U->B));
@@ -169,15 +169,15 @@ end
 	return vars
 end
 
-Maxwell.eigenVars = table{
+GLM_Maxwell.eigenVars = table{
 	{nothing = 'real'},
 }
 
-function Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
+function GLM_Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	return ''
 end
 
-function Maxwell:eigenWaveCode(side, eig, x, waveIndex)
+function GLM_Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 	return ({
 		'-speedOfLight * divPhiWavespeed',
 		'-speedOfLight * divPsiWavespeed',
@@ -190,4 +190,38 @@ function Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
 end
 
-return Maxwell
+function GLM_Maxwell:getFluxFromConsCode()
+	return template([[
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	real3 B = U.B;
+	real3 E = U.E;
+	return (<?=eqn.cons_t?>){
+	<? if side == 0 then ?>
+		.E = _real3(speedOfLightSq * divPhiWavespeed * U.phi, speedOfLightSq * B.z, -speedOfLightSq * B.y),
+		.B = _real3(divPsiWavespeed * U.psi, -E.z, E.y),
+	<? elseif side == 1 then ?>
+		.E = _real3(-speedOfLightSq * B.z, speedOfLightSq * divPhiWavespeed * U.phi, speedOfLightSq * B.x),
+		.B = _real3(E.z, divPsiWavespeed * U.psi, -E.x),
+	<? elseif side == 2 then ?>
+		.E = _real3(speedOfLightSq * B.y, -speedOfLightSq * B.x, speedOfLightSq * divPhiWavespeed * U.phi),
+		.B = _real3(-E.y, E.x, divPsiWavespeed * U.psi),
+	<? end ?>
+		.phi = divPhiWavespeed * E.s<?=side?>,
+		.psi = speedOfLightSq * divPsiWavespeed * B.s<?=side?>,
+	
+		.conductivity = 0.,
+		.rhoCharge = 0.,
+	};
+}
+<? end ?>
+]],	{
+		eqn = self,
+		solver = self.solver,
+	})
+end
+
+return GLM_Maxwell

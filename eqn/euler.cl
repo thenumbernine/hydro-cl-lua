@@ -5,28 +5,6 @@ To get back to the original code,
 just replace all the g_ab stuff with their constant values and simplify away.
 */
 
-//needs Equation.hasFluxFromCons=true
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	<?=eqn.prim_t?> W = primFromCons(U, x);
-	real vj = W.v.s<?=side?>;
-	real HTotal = U.ETotal + W.P;
-	
-	<?=eqn.cons_t?> F;
-	F.rho = U.m.s<?=side?>;
-	F.m = real3_scale(U.m, vj);
-<? for i=0,2 do
-?>	F.m.s<?=i?> += coord_gU<?=i?><?=side?>(x) * W.P;
-<? end
-?>	F.ETotal = HTotal * vj;
-	F.ePot = 0;
-	return F;
-}
-<? end ?>
-
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const global <?=eqn.cons_t?>* U,

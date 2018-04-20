@@ -26,7 +26,7 @@ local args = {
 	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
-	usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
+	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
 	--usePLM = 'plm-eig',			-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
 	--usePLM = 'plm-eig-prim',		-- works in primitive eigenspace, etc
 	--usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max.  doesn't work well with ideal mhd.
@@ -228,7 +228,7 @@ maxs = {6,1,1},
 	--initState = '2002 Dedner Kelvin-Helmholtz',
 
 	-- Maxwell:
-	--initState = 'Maxwell default',
+	initState = 'Maxwell default',
 	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
@@ -248,11 +248,11 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 
 
-	initState = 'Alcubierre warp bubble',
+	--initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
-	initStateArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
+	--initStateArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
 	-- ... works with
 	--	size=64x64 solver=adm3d int=fe plm=athena ctu
 	--  size=64x64 solver=adm3d int=fe plm=athena
@@ -406,7 +406,7 @@ maxs = {6,1,1},
 
 -- Maxwell
 -- when the state is nonzero, at certain sizes there appear errors in the corners
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 
@@ -417,7 +417,9 @@ maxs = {6,1,1},
 -- Maxwell+HD two-fluid electron/ion solver
 -- I'm having some memory issues with two solvers running simultanously .. 
 --self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
--- so to try and get around that, here the two are combined into one solver:
+
+-- ...so to try and get around that, here the two are combined into one solver:
+-- TODO still needs PLM support
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 
 -- GR+Maxwell.  params go to the Maxwell solver.
@@ -437,7 +439,7 @@ maxs = {6,1,1},
 
 -- GR
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'}))) -- TODO fixme

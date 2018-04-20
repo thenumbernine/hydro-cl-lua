@@ -24,7 +24,7 @@ GRHD.mirrorVars = {
 
 -- GRHD fluxFromCons will need prims passed to it as well
 -- which means overriding the code that calls this? or the calc flux code?
---GRHD.hasFluxFromCons = true
+--GRHD.roeUseFluxFromCons = true
 
 GRHD.hasEigenCode = true 
 GRHD.hasCalcDT = true
@@ -308,6 +308,39 @@ function GRHD:eigenWaveCode(side, eig, x, waveIndex)
 		'<?=eig?>->vU.x * <?=eig?>->alpha - <?=eig?>->beta.s<?=side?>',
 		'<?=eig?>->lambdaMax',
 	})[waveIndex+1], "couldn't find code for waveIndex="..waveIndex), {side=side, eig='('..eig..')'})
+end
+
+function GRHD:getFluxFromConsCode()
+	return template([[
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_only_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_only_t?> U<?=
+	solver:getADMArgs()?>
+) {
+	<?=solver:getADMVarCode()?>
+	real det_gamma = sym3_det(gamma);
+	sym3 gammaU = sym3_inv(gamma, det_gamma);
+	
+	real vUi = gammaU.<?=sym(side+1,1)?> * prim.v.x
+			+ gammaU.<?=sym(side+1,2)?> * prim.v.y
+			+ gammaU.<?=sym(side+1,3)?> * prim.v.z;
+	real vUi_shift = vUi - U.beta.s<?=side?> / U.alpha;
+
+	<?=eqn.cons_only_t?> F;
+	F.D = U->D * vUi_shift;
+	F.S = real3_scale(U->S, vUi_shift);
+	F.S.s<?=side?> += prim->p;
+	F.tau = U->tau * vUi_shift + p * vUi;
+<? for i=eqn.numIntStates,eqn.numStates-1 do
+?>	F.ptr[<?=i?>] = 0.;
+<? end
+?>	return F;
+}
+<? end ?>
+]], {
+		eqn = self,
+		solver = self.solver,
+	})
 end
 
 return GRHD

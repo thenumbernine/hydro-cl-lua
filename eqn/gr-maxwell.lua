@@ -31,7 +31,7 @@ GRMaxwell.mirrorVars = {{'epsE.x', 'B.x'}, {'epsE.y', 'B.y'}, {'epsE.z', 'B.z'}}
 
 GRMaxwell.hasEigenCode = true
 GRMaxwell.useSourceTerm = true
-GRMaxwell.hasFluxFromCons = true
+GRMaxwell.roeUseFluxFromCons = true
 
 GRMaxwell.initStates = require 'init.euler'
 
@@ -163,6 +163,50 @@ function GRMaxwell:eigenWaveCode(side, eig, x, waveIndex)
 	else
 		error'got a bad waveIndex'
 	end
+end
+
+function GRMaxwell:getFluxFromConsCode()
+	return template([[
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x<?=
+	solver:getADMArgs()?>
+) {
+	<?=solver:getADMVarCode()?>
+	
+	real3 B_u = U.B;
+	real3 epsE_u = U.epsE;
+
+	//this only works for fluxFromCons
+	real3 B_l = sym3_real3_mul(gamma, B_u);
+	real3 epsE_l = sym3_real3_mul(gamma, epsE_u);
+	
+	real mu = U.mu;
+	real eps = U.eps;
+	
+	return (<?=eqn.cons_t?>){
+	<? if side == 0 then ?>
+		.epsE = _real3(0., B_l.z / mu, -B_l.y / mu),
+		.B = _real3(0., -epsE_l.z / eps, epsE_l.y / eps),
+	<? elseif side == 1 then ?>
+		.epsE = _real3(-B_l.z / mu, 0., B_l.x / mu),
+		.B = _real3(epsE_l.z / eps, 0., -epsE_l.x / eps),
+	<? elseif side == 2 then ?>
+		.epsE = _real3(B_l.y / mu, -B_l.x / mu, 0.),
+		.B = _real3(-epsE_l.y / eps, epsE_l.x / eps, 0.),
+	<? end ?>
+		.BPot = 0.,
+		.sigma = 0.,
+		.eps = 0.,
+		.mu = 0.,
+	};
+}
+<? end ?>
+]], {
+		eqn = self,
+		solver = self.solver,
+	})
 end
 
 return GRMaxwell

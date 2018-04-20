@@ -52,7 +52,7 @@ Maxwell.mirrorVars = {{'epsE.x', 'B.x'}, {'epsE.y', 'B.y'}, {'epsE.z', 'B.z'}}
 
 Maxwell.hasEigenCode = true
 Maxwell.useSourceTerm = true
-Maxwell.hasFluxFromCons = true
+Maxwell.roeUseFluxFromCons = true
 
 Maxwell.initStates = require 'init.euler'
 
@@ -252,6 +252,41 @@ function Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 	else
 		error'got a bad waveIndex'
 	end
+end
+
+function Maxwell:getFluxFromConsCode()
+	return template([[
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	real3 B = U.B;
+	real3 epsE = U.epsE;
+	real mu = U.mu;
+	real eps = U.eps;
+	return (<?=eqn.cons_t?>){
+	<? if side == 0 then ?>
+		.epsE = _real3(0., B.z / mu, -B.y / mu),
+		.B = _real3(0., -epsE.z / eps, epsE.y / eps),
+	<? elseif side == 1 then ?>
+		.epsE = _real3(-B.z / mu, 0., B.x / mu),
+		.B = _real3(epsE.z / eps, 0., -epsE.x / eps),
+	<? elseif side == 2 then ?>
+		.epsE = _real3(B.y / mu, -B.x / mu, 0.),
+		.B = _real3(-epsE.y / eps, epsE.x / eps, 0.),
+	<? end ?>
+		.BPot = 0.,
+		.sigma = 0.,
+		.eps = 0.,
+		.mu = 0.,
+	};
+}
+<? end ?>
+]], {
+		eqn = self,
+		solver = self.solver,
+	})
 end
 
 return Maxwell

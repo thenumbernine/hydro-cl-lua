@@ -189,7 +189,7 @@ kernel void calcFlux(
 		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
 
 		<?=eqn.waves_t?> fluxEig;
-<? if not eqn.hasFluxFromCons then ?>
+<? if not eqn.roeUseFluxFromCons then ?>
 		<?=eqn.cons_t?> UAvg;
 		for (int j = 0; j < numIntStates; ++j) {
 			UAvg.ptr[j] = .5 * (UL->ptr[j] + UR->ptr[j]);
@@ -205,7 +205,7 @@ kernel void calcFlux(
 		<? for j=0,eqn.numWaves-1 do ?>{
 			const int j = <?=j?>;
 			real lambda = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', j)?>;
-<? if not eqn.hasFluxFromCons then ?>
+<? if not eqn.roeUseFluxFromCons then ?>
 			fluxEig.ptr[j] *= lambda;
 <? else ?>
 			fluxEig.ptr[j] = 0.;
@@ -226,7 +226,7 @@ kernel void calcFlux(
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
 		*flux = eigen_rightTransform_<?=side?>(*eig, fluxEig, xInt);
 
-<? if eqn.hasFluxFromCons then ?>
+<? if eqn.roeUseFluxFromCons then ?>
 		
 		real3 xL = xR;
 		xL.s<?=side?> -= grid_dx<?=side?>;

@@ -1,20 +1,4 @@
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	real f = calc_f(U.alpha);
-	return (<?=eqn.cons_t?>){
-		.alpha = 0,
-		.gamma_xx = 0,
-		.a_x = U.alpha * U.K_xx * f / U.gamma_xx,
-		.d_xxx = U.alpha * U.K_xx,
-		.K_xx = U.alpha * U.a_x,
-	};
-}
-<? end ?>
-
-<? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const global <?=eqn.cons_t?>* U,
 	real3 x

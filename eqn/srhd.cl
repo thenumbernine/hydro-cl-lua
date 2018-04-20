@@ -4,33 +4,6 @@ Marti 1998
 Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 2008 
 */
 
-//Eqn.hasFluxFromCons
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	real vi = U.prim.v.s<?=side?>;
-	real P = calc_P(U.prim.rho, U.prim.eInt);
-
-	<?=eqn.cons_t?> F;
-	F.cons.D = U.cons.D * vi;
-	F.cons.S = real3_scale(U.cons.S, vi);
-	F.cons.S.s<?=side?> += P;
-	F.cons.tau = U.cons.tau * vi + P * vi;
-	
-	//make sure the rest is zero ...
-	F.prim = (<?=eqn.prim_t?>){
-		.rho = 0,
-		.v = {.s={0,0,0}},
-		.eInt = 0,
-	};
-	F.ePot = 0;
-
-	return F;
-}
-<? end ?>
-
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
 	global real* dtBuf,

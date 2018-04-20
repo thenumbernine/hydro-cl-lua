@@ -17,14 +17,14 @@ Equation.hasEigenCode = nil
 Equation.hasCalcDT = nil
 
 --[[
-Whether the eqn has 'fluxFromCons_<?=side?>'
+This flag determines whether the evR . lambda . evL is factored outside the other flux limiter computations.
+
 I found this was especially useful in providing with the ideal MHD and using in the Roe flux computation
 which, when using evR . lambda . evL, developed numerical errors that the flux didn't.
 
-I should rename this because fluxFromCons is now always required in the PLM code,
-and now this flag determines whether the evR . lambda . evL is factored outside the other flux limiter computations.
+I think other equations were better performing without this, like Euler.
 --]]
-Equation.hasFluxFromCons = nil
+Equation.roeUseFluxFromCons = nil
 
 -- whether to use the 'addSource' kernel
 Equation.useSourceTerm = nil
@@ -275,7 +275,6 @@ function Equation:getCalcDTCode()
 end
 
 function Equation:getFluxFromConsCode()
-	if self.hasFluxFromCons then return end
 	return template([[
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U, real3 x) {

@@ -2,24 +2,6 @@
 2010 Anton et al 
 */
 
-<? if eqn.hasFluxFromCons then ?>
-//Eqn.hasFluxFromCons
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U) {
-	real vi = W->v.s<?=side?>;
-	real vi_shift = vi - betaU.s<?=side?> / alpha;
-
-	//2008 Font eqn 34
-	<?=eqn.cons_t?> F;
-	F.D = U->D * vi_shift;
-	F.S = real3_scale(U->S, vi_shift);
-	F.S.s<?=side?> += W->p;
-	F.tau = U->tau * vi_shift + p * vi;
-	return F;
-}
-<? end ?>
-<? end ?>
-
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
 	global real* dtBuf,
