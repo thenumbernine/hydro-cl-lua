@@ -1,4 +1,4 @@
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,

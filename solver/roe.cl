@@ -72,7 +72,7 @@ for (int j = 0; j < numStates; ++j) {
 }
 
 			//once again, only needs to be numIntStates
-			<?=eqn.intStates_t?> transformed = eigen_fluxTransform_<?=side?>(*eig, basis, xInt);
+			<?=eqn.cons_t?> transformed = eigen_fluxTransform_<?=side?>(*eig, basis, xInt);
 			
 			for (int j = 0; j < numIntStates; ++j) {
 				fluxError += fabs(newtransformed.ptr[j] - transformed.ptr[j]);
