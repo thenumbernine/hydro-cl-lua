@@ -18,7 +18,7 @@ function EinsteinEqn:createInitState()
 	self:addGuiVars{
 		{
 			type = 'combo',
-			name = 'f',
+			name = 'f_eqn',
 			options = {
 				'2/alpha',	-- 1+log slicing
 				'1 + 1/alpha^2', 	-- Alcubierre 10.2.24: "shock avoiding condition" for Toy 1+1 spacetimes 
@@ -46,48 +46,6 @@ function EinsteinEqn:createBoundaryOptions()
 			return lines:concat'\n'
 		end,
 	}
-end
-
--- add the gui vars with a gui_ prefix
--- also add the initState's getCodePrefix
--- maybe I should do this everywhere?
-function EinsteinEqn:getCodePrefix(solver)
-	local lines = table()
-	
-	local guivars = EinsteinEqn.super.getCodePrefix(self)
-	guivars = guivars:gsub('define ', 'define gui_')
-	lines:insert(guivars)
-
-	if self.initState.getCodePrefix then
-		lines:insert(self.initState:getCodePrefix(self.solver))
-	end
-
-	-- prim and cons are the same for all Einstein solvers
-	lines:insert(template([[
-
-inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) { return U; }
-
-inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) { return W; }
-
-inline <?=eqn.cons_t?> apply_dU_dW(
-	<?=eqn.prim_t?> WA, 
-	<?=eqn.prim_t?> W, 
-	real3 x
-) {
-	return W;
-}
-
-inline <?=eqn.prim_t?> apply_dW_dU(
-	<?=eqn.prim_t?> WA,
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	return U;
-}
-
-]], {eqn=self}))
-
-	return lines:concat'\n'
 end
 
 -- and now for fillRandom ...

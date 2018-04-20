@@ -138,21 +138,19 @@ kernel void calcEigenBasis(
 /*
 TODO update this for Einstein-Maxwell (take the metric into consideration
 */
-<? 
-for _,addr0 in ipairs{'', 'global'} do
-	for _,addr1 in ipairs{'', 'global'} do
-		for _,addr2 in ipairs{'', 'global'} do
-			for side=0,solver.dim-1 do 
-?>
+<? for side=0,solver.dim-1 do ?>
 
-void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X,
+<?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.cons_t?> UX,
 	real3 x
 ) {
-	const real ise = sqrt_1_2 / sqrt(eig->eps);
-	const real isu = sqrt_1_2 / sqrt(eig->mu);
+	const real ise = sqrt_1_2 / sqrt(eig.eps);
+	const real isu = sqrt_1_2 / sqrt(eig.mu);
+
+	<?=eqn.waves_t?> UY;
+	real* X = UX.ptr;
+	real* Y = UY.ptr;
 
 	<? if side == 0 then ?>
 
@@ -182,16 +180,21 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	Y[5] = X[1] * -ise + X[3] * isu;
 	
 	<? end ?>
+
+	return UY;
 }
 
-void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X,
+<?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.waves_t?> UX,
 	real3 x
 ) {
-	const real se = sqrt_1_2 * sqrt(eig->eps * eig->detg_gUjj);
-	const real su = sqrt_1_2 * sqrt(eig->mu * eig->detg_gUjj);
+	const real se = sqrt_1_2 * sqrt(eig.eps * eig.detg_gUjj);
+	const real su = sqrt_1_2 * sqrt(eig.mu * eig.detg_gUjj);
+
+	<?=eqn.cons_t?> UY;
+	real* X = UX.ptr;
+	real* Y = UY.ptr;
 
 	<? if side==0 then ?>
 /*
@@ -248,62 +251,59 @@ x,  y,  z, z,  y,  x
 	<? end ?>
 	
 	Y[6] = 0;	//BPot
+
+	return UY;
 }
 
-<? 
-				if solver.checkFluxError then 
-?>
-void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
-	<?=addr0?> real* Y,
-	<?=addr1?> const <?=eqn.eigen_t?>* eig,
-	<?=addr2?> const real* X_,
+<?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	<?=eqn.eigen_t?> eig,
+	<?=eqn.cons_t?> UX,
 	real3 x
 ) {
 	//swap input dim x<->side
-	<?=addr2?> const <?=eqn.cons_t?>* X = (<?=addr2?> const <?=eqn.cons_t?>*)X_;
-	real3 epsE = X->epsE;
-	real3 B = X->B;
-	real eps = eig->eps;
-	real mu = eig->mu;
+	real3 epsE = UX.epsE;
+	real3 B = UX.B;
+	real ieps = 1. / eig.eps;
+	real imu = 1. / eig.mu;
+
+	<?=eqn.cons_t?> UY;
+	real* X = UX.ptr;
+	real* Y = UY.ptr;
 
 	<? if side==0 then ?>
 	
 	Y[0] = 0;
-	Y[1] = B.z / mu;
-	Y[2] = -B.y / mu;
+	Y[1] = B.z * imu;
+	Y[2] = -B.y * imu;
 	Y[3] = 0;
-	Y[4] = -epsE.z / eps;
-	Y[5] = epsE.y / eps;
+	Y[4] = -epsE.z * ieps;
+	Y[5] = epsE.y * ieps;
 
 	<? elseif side==1 then ?>
 		
-	Y[0] = -B.z / mu;
+	Y[0] = -B.z * imu;
 	Y[1] = 0;
-	Y[2] = B.x / mu;
-	Y[3] = epsE.z / eps;
+	Y[2] = B.x * imu;
+	Y[3] = epsE.z * ieps;
 	Y[4] = 0;
-	Y[5] = -epsE.x / eps;
+	Y[5] = -epsE.x * ieps;
 		
 	<? elseif side==2 then ?>
 		
-	Y[0] = B.y / mu;
-	Y[1] = -B.x / mu;
+	Y[0] = B.y * imu;
+	Y[1] = -B.x * imu;
 	Y[2] = 0;
-	Y[3] = -epsE.y / eps;
-	Y[4] = epsE.x / eps;
+	Y[3] = -epsE.y * ieps;
+	Y[4] = epsE.x * ieps;
 	Y[5] = 0;
 		
 	<? end ?>
 
 	Y[6] = 0.;
+
+	return UY;
 }
-<?
-				end
-			end
-		end
-	end
-end
-?>
+<? end ?>
 
 kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
@@ -321,27 +321,25 @@ kernel void addSource(
 //TODO FINISHME
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forCell_<?=side?>(
-	const global <?=eqn.cons_t?>* U,
+	<?=eqn.cons_t?> U,
 	real3 x
 ) {
 	<?=eqn.eigen_t?> eig;
-	eig.eps = U->eps;
-	eig.mu = U->mu;
+	eig.eps = U.eps;
+	eig.mu = U.mu;
 	//eig.lambda = eig.alpha / sqrt(eig.detg_gUjj / (det_gamma3 * eig.eps * eig.mu));
 	return eig;
 }
 <? end ?>
 
-void apply_dU_dW(
-	<?=eqn.cons_t?>* U, 
-	const <?=eqn.prim_t?>* WA, 
-	const <?=eqn.prim_t?>* W, 
+<?=eqn.cons_t?> apply_dU_dW(
+	<?=eqn.prim_t?> WA, 
+	<?=eqn.prim_t?> W, 
 	real3 x
-) { *U = *W; }
+) { return W; }
 
-void apply_dW_dU(
-	<?=eqn.prim_t?>* W,
-	const <?=eqn.prim_t?>* WA,
-	const <?=eqn.cons_t?>* U,
+<?=eqn.prim_t?> apply_dW_dU(
+	<?=eqn.prim_t?> WA,
+	<?=eqn.cons_t?> U,
 	real3 x
-) { *W = *U; }
+) { return U; }

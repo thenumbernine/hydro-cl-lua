@@ -110,10 +110,8 @@ function ADM_BonaMasso_1D_Alcubierre1997:createInitState()
 	}
 end
 
-function ADM_BonaMasso_1D_Alcubierre1997:getCodePrefix()
-	return table{
-		ADM_BonaMasso_1D_Alcubierre1997.super.getCodePrefix(self),
-		template([[
+function ADM_BonaMasso_1D_Alcubierre1997:getCommonFuncCode()
+	return template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	*U = (<?=eqn.cons_t?>){
 		.alpha = 1, 
@@ -123,8 +121,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 		.K_xx = 0,
 	};
 }
-]], {eqn=self}),
-	}:concat'\n'
+]], {eqn=self})
 end
 
 ADM_BonaMasso_1D_Alcubierre1997.initStateCode = [[

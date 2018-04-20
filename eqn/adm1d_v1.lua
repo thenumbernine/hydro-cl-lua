@@ -37,10 +37,8 @@ ADM_BonaMasso_1D_Alcubierre2008.guiVars = {
 }
 
 -- code that goes in initState and in the solver
-function ADM_BonaMasso_1D_Alcubierre2008:getCodePrefix()
-	return table{
-		ADM_BonaMasso_1D_Alcubierre2008.super.getCodePrefix(self),
-		template([[
+function ADM_BonaMasso_1D_Alcubierre2008:getCommonFuncCode()
+	return template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	*U = (<?=eqn.cons_t?>){
 		.alpha = 1, 
@@ -50,8 +48,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 		.KTilde = 0,
 	};
 }
-]], {eqn=self}),
-	}:concat'\n'
+]], {eqn=self})
 end
 
 ADM_BonaMasso_1D_Alcubierre2008.initStateCode = [[

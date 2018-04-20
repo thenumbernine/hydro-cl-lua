@@ -76,7 +76,7 @@ function EinsteinInitCond:getCodePrefix(solver)
 	local alphaVar = symmath.var'alpha'
 	-- TODO each eqn must be stated as a guiVar of the solver
 	-- make a parent class or something for all Einstein field eqns
-	local fGuiVar = solver.eqn.guiVars.f
+	local fGuiVar = solver.eqn.guiVars.f_eqn
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
 	
 	local f = assert(loadstring([[
@@ -184,7 +184,7 @@ end
 
 function EinsteinInitCond:buildFCCode(solver, diff)
 	local alphaVar = symmath.var'alpha'
-	local fGuiVar = solver.eqn.guiVars.f
+	local fGuiVar = solver.eqn.guiVars.f_eqn
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
 	
 	local f = assert(loadstring([[
@@ -201,7 +201,6 @@ return table{
 	-- from 1997 Alcubierre "The appearance of coorindate shocks in hyperbolic formalisms of General Relativity".
 	{
 		name = 'gaussian perturbation',
-		--[[
 		init = function(self, solver)
 			local size = solver.maxs[1] - solver.mins[1]
 			
@@ -217,23 +216,18 @@ return table{
 
 			-- TODO if only OpenCL allowed something like uniforms ...
 			solver.eqn:addGuiVars{
-				{name = 'H', value = H},
-				{name = 'sigma', value = sigma},
+				{name = 'init_H', value = H},
+				{name = 'init_sigma', value = sigma},
 			}
 		end,
-		--]]
-		guiVars = {
-			{name = 'H', value = .05 * 2},
-			{name = 'sigma', value = .1 * 2},
-		},
 		initState = function(self, solver)
 			return [[
 	
 	real3 c = real3_sub(x, mids);
 	real s = real3_lenSq(c);
 
-	const real H = gui_H;
-	const real sigma = gui_sigma;
+	const real H = init_H;
+	const real sigma = init_sigma;
 	const real sigma2 = sigma * sigma;
 	const real sigma4 = sigma2 * sigma2;
 	real h = H * exp(-s / sigma2);
@@ -276,13 +270,13 @@ return table{
 		name = 'plane gauge wave',
 		init = function(self, solver)
 			solver.eqn:addGuiVars{
-				{name = 'A', value = .1},
-				{name = 'L', value = 1},
+				{name = 'init_A', value = .1},
+				{name = 'init_L', value = 1},
 			}
 		end,
 		initState = function(self, solver)
 			return [[
-	real h = 1. - gui_A * sin((2. * M_PI / gui_L) * x.x);
+	real h = 1. - init_A * sin((2. * M_PI / init_L) * x.x);
 	alpha = sqrt(h);
 	gamma_ll.xx = h;
 
@@ -300,15 +294,15 @@ return table{
 		init = function(self, solver, args)
 			args = args or {}
 			solver.eqn:addGuiVars{
-				{name = 'R', value = args.R or .5},
-				{name = 'sigma', value = args.sigma or 8},
-				{name = 'speed', value = args.speed or .1},
+				{name = 'init_R', value = args.R or .5},
+				{name = 'init_sigma', value = args.sigma or 8},
+				{name = 'init_speed', value = args.speed or .1},
 			}
 		end,
 		initState = function(self, solver)
 			return [[
 	real x_s = 0;	//speed * t
-	real v_s = gui_speed;
+	real v_s = init_speed;
 	
 	real3 y = x; y.x -= x_s;
 	real r_s = real3_len(y);
@@ -316,8 +310,8 @@ return table{
 #define cosh(x)		(.5 * (exp(x) + exp(-x)))
 #define dtanh(x) 	(1./(cosh(x)*cosh(x)))
 
-	real fnum = tanh(gui_sigma * (r_s + gui_R)) - tanh(gui_sigma * (r_s - gui_R));
-	real fdenom = 2 * tanh(gui_sigma * gui_R);
+	real fnum = tanh(init_sigma * (r_s + init_R)) - tanh(init_sigma * (r_s - init_R));
+	real fdenom = 2 * tanh(init_sigma * init_R);
 	real f = fnum / fdenom;
 
 	beta_u.x = -v_s * f;
@@ -325,9 +319,9 @@ return table{
 	real3 dx_r_s = real3_scale(y, 1. / r_s);
 
 	real3 dx_f = real3_scale(dx_r_s, 
-		gui_sigma * (
-			dtanh(gui_sigma * (r_s + gui_R)) 
-			- dtanh(gui_sigma * (r_s - gui_R))
+		init_sigma * (
+			dtanh(init_sigma * (r_s + init_R)) 
+			- dtanh(init_sigma * (r_s - init_R))
 		) / fdenom);
 
 	alpha = 1;
@@ -346,12 +340,12 @@ return table{
 		name = 'black hole - Schwarzschild pseudocartesian',
 		init = function(self, solver)
 			solver.eqn:addGuiVars{
-				{name = 'R', value = .002},	-- Schwarzschild radius
+				{name = 'init_R', value = .002},	-- Schwarzschild radius
 			}
 		end,
 		initState = function(self, solver)
 			return [[
-	const real R = gui_R;
+	const real R = init_R;
 	
 	real r = real3_len(x);
 	alpha = sqrt(1. - R/r);
@@ -540,8 +534,8 @@ return table{
 		name = 'stellar model',
 		init = function(self, solver)
 			solver.eqn:addGuiVars{
-				{name = 'bodyMass', value = .001},
-				{name = 'bodyRadius', value = .1},
+				{name = 'init_bodyMass', value = .001},
+				{name = 'init_bodyRadius', value = .1},
 			}
 		end,
 		initState = function(self, solver)
@@ -562,14 +556,14 @@ return table{
 	real r = real3_len(ofs);
 	real3 l = real3_scale(ofs, 1./r);
 	
-	real m = r / gui_bodyRadius; m *= m * m; m = min(m, 1.); m *= gui_bodyMass;
+	real m = r / init_bodyRadius; m *= m * m; m = min(m, 1.); m *= init_bodyMass;
 	real R = 2. * m;
 
 	alpha -= 2*m/r;
 	gamma_ll = sym3_add(gamma_ll, sym3_scale(real3_outer(l,l), 1./(r/R - 1.)));
 
-	if (r < gui_bodyRadius) {
-		rho += gui_bodyMass / (4./3. * M_PI * gui_bodyRadius * gui_bodyRadius * gui_bodyRadius);
+	if (r < init_bodyRadius) {
+		rho += init_bodyMass / (4./3. * M_PI * init_bodyRadius * init_bodyRadius * init_bodyRadius);
 #if 0
 		local r = math.sqrt(rSq)
 		local rho0 = body.pressure or (body.mass / (4/3 * math.pi * body.radius * body.radius * body.radius))
@@ -756,19 +750,19 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 --			solver.maxs = vec3(-.5, -.5, -.5)
 			solver:setBoundaryMethods'periodic'
 			solver.eqn:addGuiVars{
-				{name='A', value=.1},	-- .1, .01
-				{name='d', value=1},
+				{name='init_A', value=.1},	-- .1, .01
+				{name='init_d', value=1},
 			}
 --			solver.eqn.guiVars.f.value = solver.eqn.guiVars.f.options:find'1'	-- set f=1
 		end,
 		initState = function(self, solver)
 			return [[
 	const real t = 0.;
-	real theta = 2. * M_PI / gui_d * (x.x - t);
-	real H = 1. + gui_A * sin(theta);
+	real theta = 2. * M_PI / init_d * (x.x - t);
+	real H = 1. + init_A * sin(theta);
 	alpha = sqrt(H);
 	gamma_ll.xx = H;
-	K_ll.xx = -M_PI * gui_A / gui_d * cos(theta) / alpha;
+	K_ll.xx = -M_PI * init_A / init_d * cos(theta) / alpha;
 ]]
 		end,
 	},
@@ -786,18 +780,18 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 --			solver.maxs = vec3(-.5, -.5, -.5)
 			solver:setBoundaryMethods'periodic'
 			solver.eqn:addGuiVars{
-				{name='A', value=1e-8},
-				{name='d', value=1},
+				{name='init_A', value=1e-8},
+				{name='init_d', value=1},
 			}
 		end,
 		initState = function(self, solver)
 			return [[
 	const real t = 0.;
-	real theta = 2. * M_PI / gui_d * (x.x - t);
-	real b = gui_A * sin(theta);
+	real theta = 2. * M_PI / init_d * (x.x - t);
+	real b = init_A * sin(theta);
 	gamma_ll.yy += b;
 	gamma_ll.zz -= b;
-	real db_dt = -2. * M_PI * gui_A / gui_d * cos(theta);
+	real db_dt = -2. * M_PI * init_A / init_d * cos(theta);
 	K_ll.yy = .5 * db_dt;
 	K_ll.zz = -.5 * db_dt;
 ]]

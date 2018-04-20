@@ -173,10 +173,8 @@ function ADM_BonaMasso_3D:createInitState()
 	-- but that means moving the consVars construction to the :init()
 end
 
-function ADM_BonaMasso_3D:getCodePrefix()
-	return table{
-		ADM_BonaMasso_3D.super.getCodePrefix(self),
-		template([[
+function ADM_BonaMasso_3D:getCommonFuncCode()
+	return template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	U->alpha = 1.;
 	U->gamma = _sym3(1,0,0,1,0,1);
@@ -191,8 +189,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 <? end 
 ?>
 }
-]], {eqn=self}),
-	}:concat'\n'
+]], {eqn=self})
 end
 
 ADM_BonaMasso_3D.initStateCode = [[

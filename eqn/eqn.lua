@@ -120,7 +120,20 @@ end
 function Equation:getCodePrefix()
 	return (self.guiVars and table.map(self.guiVars, function(var) 
 		return var:getCode()
-	end) or table()):concat'\n'
+	end) or table()):append{
+		
+		self.initState.getCodePrefix 
+			and self.initState:getCodePrefix(self.solver)
+			or '',
+		
+		-- functions that prim-cons code will use, but which use macros:
+		self:getCommonFuncCode(),
+		
+		-- prim-cons goes here
+		-- it goes last so it has access to everything above it
+		-- but it must be in codeprefix so initstate has access to it
+		self:getPrimConsCode(),
+	}:concat'\n'
 end
 
 function Equation:getExtraTypeCode()
@@ -256,6 +269,69 @@ end
 function Equation:getCalcDTCode()
 	if self.hasCalcDT then return end
 	return template(file['eqn/cl/calcDT.cl'], {solver=self.solver, eqn=self})
+end
+
+--[[
+Default code for the following:
+	primFromCons
+	consFromPrim
+	apply_dU_dW : prim_t -> cons_t 
+	apply_dW_dU : cons_t -> prim_t
+
+The default assumes prim_t == cons_t and this transformation is identity
+--]]
+function Equation:getPrimConsCode()
+	assert(not self.primVars, "if you're using the default prim<->cons code then you shouldn't have any primVars")
+
+	return template([[
+
+inline <?=eqn.prim_t?> primFromCons(
+	<?=eqn.cons_t?> U, 
+	real3 x
+) { 
+	return U; 
+}
+
+inline <?=eqn.cons_t?> consFromPrim(
+	<?=eqn.prim_t?> W, 
+	real3 x
+) { 
+	return W; 
+}
+
+/*
+U = output
+WA = W components that make up the jacobian matrix
+W = input
+x = coordinate location
+
+TODO where does potential energy belong in this Jacobian?
+ does it belong here at all?
+*/
+inline <?=eqn.cons_t?> apply_dU_dW(
+	<?=eqn.prim_t?> WA, 
+	<?=eqn.prim_t?> W, 
+	real3 x
+) { 
+	return W; 
+}
+
+/*
+W = output
+WA = W components that make up the jacobian matrix
+U = input
+x = coordinate location
+*/
+inline <?=eqn.prim_t?> apply_dW_dU(
+	<?=eqn.prim_t?> WA, 
+	<?=eqn.cons_t?> U, 
+	real3 x
+) { 
+	return U; 
+}
+]], {
+		eqn = self,
+	})
 end
 
 return Equation

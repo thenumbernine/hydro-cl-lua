@@ -477,60 +477,6 @@ for side=0,solver.dim-1 do
 <? end ?>
 
 /*
-U = output
-WA = W components that make up the jacobian matrix
-W = input
-x = coordinate location
-
-TODO where does potential energy belong in this Jacobian?
- does it belong here at all?
-*/
-<?=eqn.cons_t?> apply_dU_dW(
-	<?=eqn.prim_t?> WA, 
-	<?=eqn.prim_t?> W, 
-	real3 x
-) {
-	real3 WA_vL = coord_lower(WA.v, x);
-	return (<?=eqn.cons_t?>){
-		.rho = W.rho,
-		.m = real3_add(
-			real3_scale(WA.v, W.rho), 
-			real3_scale(W.v, WA.rho)),
-		.ETotal = W.rho * .5 * real3_dot(WA.v, WA_vL) 
-			+ WA.rho * real3_dot(W.v, WA_vL)
-			+ W.P / (heatCapacityRatio - 1.)
-			+ WA.rho * W.ePot,
-		.ePot = W.ePot,
-	};
-}
-
-/*
-W = output
-WA = W components that make up the jacobian matrix
-U = input
-x = coordinate location
-*/
-<?=eqn.prim_t?> apply_dW_dU(
-	<?=eqn.prim_t?> WA,
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	real3 WA_vL = coord_lower(WA.v, x);
-	return (<?=eqn.prim_t?>){
-		.rho = U.rho,
-		.v = real3_sub(
-			real3_scale(U.m, 1. / WA.rho),
-			real3_scale(WA.v, U.rho / WA.rho)),
-		.P = (heatCapacityRatio - 1.) * (
-			.5 * real3_dot(WA.v, WA_vL) * U.rho 
-			- real3_dot(U.m, WA_vL)
-			+ U.ETotal 
-			- WA.rho * U.ePot),
-		.ePot = U.ePot,
-	};
-}
-
-/*
 set Equation.useSourceTerm=true
 This has the connection terms that aren't absorbed in the change-of-volume
 for Euclidian this is -Conn^i_jk rho v^j v^k

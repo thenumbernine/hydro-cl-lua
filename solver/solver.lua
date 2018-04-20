@@ -1227,8 +1227,8 @@ function Solver:getSolverCode()
 		slopeLimiterCode,
 		
 		'typedef struct { real min, max; } range_t;',
+		
 		self.eqn:getSolverCode() or '',
-
 		self.eqn:getCalcDTCode() or '',
 	
 		-- messing with this ...

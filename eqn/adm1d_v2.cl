@@ -154,13 +154,13 @@ kernel void addSource(
 <? if eqn.guiVars.a_x_convCoeff.value ~= 0 then ?>
 	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
 	real dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * grid_dx0);
-	deriv->a_x += gui_a_x_convCoeff * (dx_alpha / alpha - a_x);
+	deriv->a_x += a_x_convCoeff * (dx_alpha / alpha - a_x);
 <? end -- eqn.guiVars.a_x_convCoeff.value  ?>
 	
 <? if eqn.guiVars.d_xxx_convCoeff.value ~= 0 then ?>
 	// d_xxx = .5 gamma_xx,x <=> d_xxx += eta (.5 gamma_xx,x - d_xxx)
 	real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * grid_dx0);
-	deriv->d_xxx += gui_d_xxx_convCoeff * (.5 * dx_gamma_xx - d_xxx);
+	deriv->d_xxx += d_xxx_convCoeff * (.5 * dx_gamma_xx - d_xxx);
 <? end -- eqn.guiVars.d_xxx_convCoeff.value  ?>
 
 	//Kreiss-Oligar diffusion, for stability's sake?

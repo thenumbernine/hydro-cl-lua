@@ -71,10 +71,8 @@ function Maxwell:init(solver)
 	})
 end
 
-function Maxwell:getCodePrefix()
-	return table{
-		Maxwell.super.getCodePrefix(self),
-		template([[
+function Maxwell:getCommonFuncCode()
+	return template([[
 //hmm, for E and B, even if the coord is 2D, we need all 3D components ...
 //this means we need coordLen functions with guaranteed dimensions, including tangent spaces
 
@@ -88,12 +86,9 @@ real BSq(<?=eqn.cons_t?> U, real3 x) {
 	return real3_lenSq(U.B);
 }
 
-inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) { return U; }
-inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) { return W; }
 ]], {
-	eqn = self,
-}),
-	}:concat'\n'
+		eqn = self,
+	})
 end
 
 Maxwell.initStateCode = [[

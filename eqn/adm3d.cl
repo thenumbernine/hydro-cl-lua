@@ -1423,7 +1423,7 @@ end ?>
 		<? else ?>
 		real di_alpha = 0.;
 		<? end ?>
-		deriv->a.<?=xi?> += gui_a_convCoeff * (di_alpha / U->alpha - U->a.<?=xi?>);
+		deriv->a.<?=xi?> += a_convCoeff * (di_alpha / U->alpha - U->a.<?=xi?>);
 	}<? end ?>	
 <? end -- eqn.guiVars.a_convCoeff.value  ?>
 	
@@ -1437,7 +1437,7 @@ for i,xi in ipairs(xNames) do
 		<? else ?>
 		real di_gamma_jk = 0;
 		<? end ?>
-		deriv->d.<?=xi?>.<?=xjk?> += gui_d_convCoeff * (.5 * di_gamma_jk - U->d.<?=xi?>.<?=xjk?>);
+		deriv->d.<?=xi?>.<?=xjk?> += d_convCoeff * (.5 * di_gamma_jk - U->d.<?=xi?>.<?=xjk?>);
 	}<? 
 	end
 end ?>
@@ -1449,7 +1449,7 @@ end ?>
 		deriv->V,
 		real3_scale(
 			real3_sub(real3_sub(d1_l, d3_l), U->V),
-			gui_V_convCoeff));
+			V_convCoeff));
 <? end -- eqn.guiVars.V_convCoeff.value  ?>
 
 	//Kreiss-Oligar diffusion, for stability's sake?

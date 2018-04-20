@@ -41,10 +41,8 @@ function Z4:createInitState()
 	self:addGuiVar{name = 'lambda', value = -1}
 end
 
-function Z4:getCodePrefix()
-	return table{
-		Z4.super.getCodePrefix(self),
-		template([[
+function Z4:getCommonFuncCode()
+	return template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	U->alpha = 1;
 	U->gamma = _sym3(1,0,0,1,0,1);
@@ -56,8 +54,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U) {
 	U->Theta = 0;
 	U->Z = _real3(0,0,0);
 }
-]], {eqn=self}),
-	}:concat()
+]], {eqn=self})
 end
 
 Z4.initStateCode = [[

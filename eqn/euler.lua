@@ -72,10 +72,8 @@ function Euler:createInitState()
 	}
 end
 
-function Euler:getCodePrefix()
-	return table{
-		Euler.super.getCodePrefix(self),
-		template([[
+function Euler:getCommonFuncCode()
+	return template([[
 
 inline real calc_H(real P) { return P * (heatCapacityRatio / (heatCapacityRatio - 1.)); }
 inline real calc_h(real rho, real P) { return calc_H(P) / rho; }
@@ -94,6 +92,13 @@ inline real calc_ETotal(<?=eqn.prim_t?> W, real3 x) {
 inline real calc_Cs(const <?=eqn.prim_t?>* W) {
 	return sqrt(heatCapacityRatio * W->P / W->rho);
 }
+]], {
+		eqn = self,
+	})
+end
+
+function Euler:getPrimConsCode()
+	return template([[
 
 inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 	real EPot = U.rho * U.ePot;
@@ -115,10 +120,50 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 		.ePot = W.ePot,
 	};
 }
-]], 	{
-			eqn = self,
-		})
-	}:concat'\n'
+
+<?=eqn.cons_t?> apply_dU_dW(
+	<?=eqn.prim_t?> WA, 
+	<?=eqn.prim_t?> W, 
+	real3 x
+) {
+	real3 WA_vL = coord_lower(WA.v, x);
+	return (<?=eqn.cons_t?>){
+		.rho = W.rho,
+		.m = real3_add(
+			real3_scale(WA.v, W.rho), 
+			real3_scale(W.v, WA.rho)),
+		.ETotal = W.rho * .5 * real3_dot(WA.v, WA_vL) 
+			+ WA.rho * real3_dot(W.v, WA_vL)
+			+ W.P / (heatCapacityRatio - 1.)
+			+ WA.rho * W.ePot,
+		.ePot = W.ePot,
+	};
+}
+
+<?=eqn.prim_t?> apply_dW_dU(
+	<?=eqn.prim_t?> WA,
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	real3 WA_vL = coord_lower(WA.v, x);
+	return (<?=eqn.prim_t?>){
+		.rho = U.rho,
+		.v = real3_sub(
+			real3_scale(U.m, 1. / WA.rho),
+			real3_scale(WA.v, U.rho / WA.rho)),
+		.P = (heatCapacityRatio - 1.) * (
+			.5 * real3_dot(WA.v, WA_vL) * U.rho 
+			- real3_dot(U.m, WA_vL)
+			+ U.ETotal 
+			- WA.rho * U.ePot),
+		.ePot = U.ePot,
+	};
+}
+
+
+]], {
+		eqn = self,
+	})
 end
 
 Euler.initStateCode = [[

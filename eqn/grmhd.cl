@@ -339,7 +339,6 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<? end ?>
 }
 
-<?	if solver.checkFluxError then ?>
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<?=addr0?> real* Y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
@@ -364,7 +363,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	Y[1+<?=side?>] = tmp;
 	<? end ?>
 }
-<?				end
+<?
 			end
 		end
 	end
