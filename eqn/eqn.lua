@@ -37,8 +37,8 @@ function Equation:unique(name)
 	return name..'_'..uid
 end
 
-function Equation:init(solver)
-	self.solver = assert(solver)
+function Equation:init(args)
+	self.solver = assert(args.solver)
 
 	self.prim_t = self:unique'prim_t'
 	self.cons_t = self:unique'cons_t'

@@ -35,11 +35,11 @@ GRMaxwell.roeUseFluxFromCons = true
 
 GRMaxwell.initStates = require 'init.euler'
 
-function GRMaxwell:init(solver)
-	GRMaxwell.super.init(self, solver)
+function GRMaxwell:init(args)
+	GRMaxwell.super.init(self, args)
 
 	local NoDiv = require 'solver.nodiv'
-	solver.ops:insert(NoDiv{solver=solver})
+	self.solver.ops:insert(NoDiv{solver=self.solver})
 end
 
 function GRMaxwell:getCommonFuncCode()

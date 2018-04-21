@@ -36,13 +36,13 @@ Euler.useSourceTerm = true
 
 Euler.initStates = require 'init.euler'
 
-function Euler:init(solver)
-	Euler.super.init(self, solver)
+function Euler:init(args)
+	Euler.super.init(self, args)
 
 	-- TODO ops folder
 	local SelfGrav = require 'solver.selfgrav'
-	self.gravOp = SelfGrav{solver=solver}
-	solver.ops:insert(self.gravOp)
+	self.gravOp = SelfGrav{solver=self.solver}
+	self.solver.ops:insert(self.gravOp)
 end
 
 Euler.primVars = table{

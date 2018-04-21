@@ -56,17 +56,17 @@ Maxwell.roeUseFluxFromCons = true
 
 Maxwell.initStates = require 'init.euler'
 
-function Maxwell:init(solver)
-	Maxwell.super.init(self, solver)
+function Maxwell:init(args)
+	Maxwell.super.init(self, args)
 
 	local NoDiv = require 'solver.nodiv'
-	solver.ops:insert(NoDiv{
-		solver = solver,
+	self.solver.ops:insert(NoDiv{
+		solver = self.solver,
 	})
 	-- should I be fixing div E = rhoCharge, 
 	-- or should I get rid of the rhoCharge field and the div E constraint?
-	solver.ops:insert(NoDiv{
-		solver = solver,
+	self.solver.ops:insert(NoDiv{
+		solver = self.solver,
 		potentialField = 'epsEPot',
 	})
 end

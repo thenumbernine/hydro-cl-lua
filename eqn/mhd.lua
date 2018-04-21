@@ -40,18 +40,18 @@ MHD.roeUseFluxFromCons = true
 -- hmm, we want init.euler and init.mhd here ...
 MHD.initStates = require 'init.euler'
 
-function MHD:init(solver)
-	MHD.super.init(self, solver)
+function MHD:init(args)
+	MHD.super.init(self, args)
 
-	if solver.dim > 1 then
+	if self.solver.dim > 1 then
 		local NoDiv = require 'solver.nodiv'
-		solver.ops:insert(NoDiv{solver=solver})
+		self.solver.ops:insert(NoDiv{solver=self.solver})
 	end
 
 	-- hmm...
 	local SelfGrav = require 'solver.selfgrav'
-	self.gravOp = SelfGrav{solver=solver}
-	solver.ops:insert(self.gravOp)
+	self.gravOp = SelfGrav{solver=self.solver}
+	self.solver.ops:insert(self.gravOp)
 end
 
 MHD.guiVars = {

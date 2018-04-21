@@ -32,10 +32,6 @@ GLM_Maxwell.roeUseFluxFromCons = true
 
 GLM_Maxwell.initStates = require 'init.euler'
 
-function GLM_Maxwell:init(solver)
-	GLM_Maxwell.super.init(self, solver)
-end
-
 function GLM_Maxwell:getCommonFuncCode()
 	return template([[
 real ESq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.E); }

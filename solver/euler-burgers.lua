@@ -11,6 +11,7 @@ local xNames = table{'x', 'y', 'z'}
 -- TODO make this work with ops, specifically Euler's SelfGrav
 local EulerBurgers = class(FiniteVolumeSolver)
 EulerBurgers.name = 'EulerBurgers'
+EulerBurgers.eqnName = 'euler'
 
 function EulerBurgers:init(...)
 	EulerBurgers.super.init(self, ...)
@@ -18,7 +19,7 @@ function EulerBurgers:init(...)
 end
 
 function EulerBurgers:createEqn()
-	self.eqn = require 'eqn.euler'(self)
+	EulerBurgers.super.createEqn(self)
 	self.eqn.getCalcDTCode = function() end	-- override calcDT 
 end
 

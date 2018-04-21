@@ -35,6 +35,9 @@ Solver.numGhost = 2
 Solver.integrators = require 'int.all'
 Solver.integratorNames = Solver.integrators:map(function(integrator) return integrator.name end)
 
+-- override to specify which eqn/*.lua to use as the equation
+Solver.eqnName = nil
+
 --[[
 args:
 	app
@@ -77,7 +80,10 @@ function Solver:init(args)
 
 		-- operators for this solver
 	self.ops = table()
-	self:createEqn(args.eqn)
+	
+	self.eqnName = args.eqn
+	self.eqnArgs = args.eqnArgs
+	self:createEqn()
 
 	self:createBoundaryOptions()
 	self:finalizeBoundaryOptions()
@@ -260,8 +266,11 @@ end
 
 -- this is the general function - which just assigns the eqn provided by the arg
 -- but it can be overridden for specific equations
-function Solver:createEqn(eqn)
-	self.eqn = require('eqn.'..assert(eqn))(self)
+function Solver:createEqn()
+	self.eqn = require('eqn.'..assert(self.eqnName))(table(
+		self.eqnArgs or {},
+		{solver = self}
+	))
 end
 
 

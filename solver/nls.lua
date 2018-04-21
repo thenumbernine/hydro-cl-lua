@@ -9,10 +9,7 @@ local Solver = require 'solver.solver'
 local NLSSolver = class(Solver)
 NLSSolver.name = 'NonLinearSchrodinger'
 NLSSolver.fixedDT = 1e-6
-
-function NLSSolver:createEqn(eqn)
-	self.eqn = require 'eqn.nls'(self)
-end
+NLSSolver.eqnName = 'nls'
 
 function NLSSolver:refreshSolverProgram()
 	NLSSolver.super.refreshSolverProgram(self)

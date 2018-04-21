@@ -1,7 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
-local Z4cFiniteDifferenceEquation = require 'eqn.z4c-fd'
 local Solver = require 'solver.solver'
 
 local xNames = table{'x', 'y', 'z'}
@@ -16,14 +15,11 @@ Z4cFiniteDifferenceSolver.name = 'Z4c_FiniteDifference'
 -- esp mirror boundary conditions?
 Z4cFiniteDifferenceSolver.numGhost = 2
 
+Z4cFiniteDifferenceSolver.eqnName = 'z4c-fd'
 
 function Z4cFiniteDifferenceSolver:init(...)
 	Z4cFiniteDifferenceSolver.super.init(self, ...)
 	self.name = nil	-- don't append the eqn name to this
-end
-
-function Z4cFiniteDifferenceSolver:createEqn(eqn)
-	self.eqn = Z4cFiniteDifferenceEquation(self)
 end
 
 function Z4cFiniteDifferenceSolver:refreshSolverProgram()

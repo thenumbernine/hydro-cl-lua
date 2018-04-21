@@ -38,11 +38,11 @@ GLM_MHD.useFixedCh = false	-- true = use a gui var, false = calculate by max(|v_
 -- hmm, we want init.euler and init.mhd here ...
 GLM_MHD.initStates = require 'init.euler'
 
-function GLM_MHD:init(solver)
-	GLM_MHD.super.init(self, solver)
+function GLM_MHD:init(args)
+	GLM_MHD.super.init(self, args)
 
 	local UpdatePsi = require 'solver.glm-mhd-update-psi'
-	solver.ops:insert(UpdatePsi{solver=solver})
+	self.solver.ops:insert(UpdatePsi{solver=self.solver})
 end
 
 GLM_MHD.guiVars = table{

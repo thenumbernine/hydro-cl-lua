@@ -36,13 +36,13 @@ SRHD.useConstrainU = true
 
 SRHD.initStates = require 'init.euler'
 
-function SRHD:init(solver)
-	SRHD.super.init(self, solver)
+function SRHD:init(args)
+	SRHD.super.init(self, args)
 
 	self.cons_only_t = self:unique'cons_only_t'
 
 	local SRHDSelfGrav = require 'solver.srhd-selfgrav'
-	solver.ops:insert(SRHDSelfGrav{solver=solver})
+	self.solver.ops:insert(SRHDSelfGrav{solver=self.solver})
 end
 
 --[[

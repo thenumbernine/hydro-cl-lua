@@ -10,7 +10,7 @@ return function(parent, eqn)
 	local templateClass = class(parent)
 	
 	function templateClass:createEqn()
-		self.eqn = eqn(self)
+		self.eqn = eqn{solver=self}
 	end
 
 	-- eqn/grhd.cl needs this implemented for deducing alpha, beta, gamma

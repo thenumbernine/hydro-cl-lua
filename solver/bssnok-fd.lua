@@ -1,7 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
-local BSSNOKFiniteDifferenceEquation = require 'eqn.bssnok-fd'
 local Solver = require 'solver.solver'
 
 local xNames = table{'x', 'y', 'z'}
@@ -16,14 +15,11 @@ BSSNOKFiniteDifferenceSolver.name = 'BSSNOK_FiniteDifference'
 -- esp mirror boundary conditions?
 BSSNOKFiniteDifferenceSolver.numGhost = 2
 
+BSSNOKFiniteDifferenceSolver.eqnName = 'bssnok-fd'
 
 function BSSNOKFiniteDifferenceSolver:init(...)
 	BSSNOKFiniteDifferenceSolver.super.init(self, ...)
 	self.name = nil	-- don't append the eqn name to this
-end
-
-function BSSNOKFiniteDifferenceSolver:createEqn(eqn)
-	self.eqn = BSSNOKFiniteDifferenceEquation(self)
 end
 
 function BSSNOKFiniteDifferenceSolver:refreshSolverProgram()

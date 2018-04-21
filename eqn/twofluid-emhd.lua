@@ -88,22 +88,22 @@ end
 
 -- TODO this has the symptoms of all the other CL kernels that intel's compiler bugged out on
 -- i.e. takes a minute to run a kernel on the GPU
-function TwoFluidEMHD:init(solver)
-	TwoFluidEMHD.super.init(self, solver)
+function TwoFluidEMHD:init(args)
+	TwoFluidEMHD.super.init(self, args)
 
 --	local NoDiv = require 'solver.nodiv'
---	solver.ops:insert(NoDiv{solver=solver})	-- nodiv on maxwell ... or just use potentials 
+--	self.solver.ops:insert(NoDiv{solver=self.solver})	-- nodiv on maxwell ... or just use potentials 
 
 io.stderr:write'you need to give different selfgravs different names for twofluid selfgrav to work\n' 
 	--[[ TODO give each selfgrav a unique function name
 	local SelfGrav = require 'solver.selfgrav'
-	solver.ops:insert(SelfGrav{
-		solver = solver,
+	self.solver.ops:insert(SelfGrav{
+		solver = self.solver,
 		densityField = 'ion_rho',
 		potentialField = 'ion_ePot',
 	})	-- selfgrav on ion 
-	solver.ops:insert(SelfGrav{
-		solver = solver,
+	self.solver.ops:insert(SelfGrav{
+		solver = self.solver,
 		densityField = 'elec_rho',
 		potentialField = 'elec_ePot',
 	})	-- selfgrav on electron

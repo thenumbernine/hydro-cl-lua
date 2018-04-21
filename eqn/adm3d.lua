@@ -135,15 +135,15 @@ ADM_BonaMasso_3D.hasEigenCode = true
 ADM_BonaMasso_3D.useSourceTerm = true
 ADM_BonaMasso_3D.useConstrainU = true
 
-function ADM_BonaMasso_3D:init(solver)
-	ADM_BonaMasso_3D.super.init(self, solver)
+function ADM_BonaMasso_3D:init(args)
+	ADM_BonaMasso_3D.super.init(self, args)
 
 	if self.useShift == 'MinimalDistortionElliptic' then
 		local MinimalDistortionEllipticShift = require 'solver.gr-shift-mde'
-		solver.ops:insert(MinimalDistortionEllipticShift{solver=solver})
-	elseif solver.useShift == 'LagrangianCoordinates' then
+		self.solver.ops:insert(MinimalDistortionEllipticShift{solver=self.solver})
+	elseif self.solver.useShift == 'LagrangianCoordinates' then
 		local LagrangianCoordinateShift = require 'solver.gr-shift-lc'
-		solver.ops:insert(LagrangianCoordinateShift{solver=solver})
+		self.solver.ops:insert(LagrangianCoordinateShift{solver=self.solver})
 	end
 end
 

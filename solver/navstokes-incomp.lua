@@ -3,10 +3,7 @@ local Solver = require 'solver.solver'
 
 local NavierStokesIncompressible = class(Solver)
 NavierStokesIncompressible.name = 'NavierStokesIncompressible' 
-
-function NavierStokesIncompressible:createEqn(eqn)
-	self.eqn = require 'eqn.navstokes-incomp'(self)
-end
+NavierStokesIncompressible.eqnName = 'navstokes-incomp'
 
 function NavierStokesIncompressible:createBuffers()
 	NavierStokesIncompressible.super.createBuffers(self)

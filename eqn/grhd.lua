@@ -33,8 +33,8 @@ GRHD.useConstrainU = true
 
 GRHD.initStates = require 'init.euler'
 
-function GRHD:init(...)
-	GRHD.super.init(self, ...)
+function GRHD:init(args)
+	GRHD.super.init(self, args)
 	self.cons_only_t = self:unique'cons_only_t'
 end
 
