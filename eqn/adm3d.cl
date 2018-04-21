@@ -104,18 +104,18 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 //used for interface eigen basis
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forSide_<?=side?>(
-	global const <?=eqn.cons_t?>* UL,
-	global const <?=eqn.cons_t?>* UR,
+	<?=eqn.cons_t?> UL,
+	<?=eqn.cons_t?> UR,
 	real3 x
 ) {
-	real alpha = .5 * (UL->alpha + UR->alpha);
+	real alpha = .5 * (UL.alpha + UR.alpha);
 	sym3 avg_gamma = (sym3){
-		.xx = .5 * (UL->gamma.xx + UR->gamma.xx),
-		.xy = .5 * (UL->gamma.xy + UR->gamma.xy),
-		.xz = .5 * (UL->gamma.xz + UR->gamma.xz),
-		.yy = .5 * (UL->gamma.yy + UR->gamma.yy),
-		.yz = .5 * (UL->gamma.yz + UR->gamma.yz),
-		.zz = .5 * (UL->gamma.zz + UR->gamma.zz),
+		.xx = .5 * (UL.gamma.xx + UR.gamma.xx),
+		.xy = .5 * (UL.gamma.xy + UR.gamma.xy),
+		.xz = .5 * (UL.gamma.xz + UR.gamma.xz),
+		.yy = .5 * (UL.gamma.yy + UR.gamma.yy),
+		.yz = .5 * (UL.gamma.yz + UR.gamma.yz),
+		.zz = .5 * (UL.gamma.zz + UR.gamma.zz),
 	};
 	real det_avg_gamma = sym3_det(avg_gamma);
 
@@ -128,7 +128,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	eig.sqrt_gammaUjj.z = sqrt(eig.gammaU.zz);
 	
 	<? if eqn.useShift then ?>
-	eig.beta_u = real3_scale(real3_add(UL->beta_u, UR->beta_u), .5);
+	eig.beta_u = real3_scale(real3_add(UL.beta_u, UR.beta_u), .5);
 	<? end ?>
 
 	return eig;
@@ -150,10 +150,9 @@ kernel void calcEigenBasis(
 		
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
-		int indexInt = side + dim * index;	
 		
-		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		*eig = eigen_forSide_<?=side?>(UL, UR, xInt);
+		int indexInt = side + dim * index;	
+		eigenBuf[indexInt] = eigen_forSide_<?=side?>(*UL, *UR, xInt);
 	}<? end ?>
 }
 

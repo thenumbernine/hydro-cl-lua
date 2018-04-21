@@ -19,8 +19,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forSide_<?=side?>(
-	global const <?=eqn.cons_t?>* UL,
-	global const <?=eqn.cons_t?>* UR,
+	<?=eqn.cons_t?> UL,
+	<?=eqn.cons_t?> UR,
 	real3 x
 ) {
 	return (<?=eqn.eigen_t?>){};
@@ -44,12 +44,11 @@ kernel void calcEigenBasis(
 		
 		<?= solver.getULRCode ?>
 		
-		int indexInt = side + dim * index;	
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 		
-		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		*eig = eigen_forSide_<?=side?>(UL, UR, xInt);
+		int indexInt = side + dim * index;	
+		eigenBuf[indexInt] = eigen_forSide_<?=side?>(*UL, *UR, xInt);
 	}<? end ?>
 }
 		

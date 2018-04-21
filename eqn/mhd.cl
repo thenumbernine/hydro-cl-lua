@@ -104,41 +104,44 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 //assumes UL and UR are already rotated so the 'x' direction is our flux direction
 void calcRoeValues(
-	Roe_t* W, 
-	const <?=eqn.cons_t?>* UL, 
-	const <?=eqn.cons_t?>* UR,
+	<?=eqn.cons_t?> UL, 
+	<?=eqn.cons_t?> UR,
 	real3 x
 ) {
+	Roe_t W;
+	
 	// should I use Bx, or BxL/R, for calculating the PMag at the L and R states?
 	<?=eqn.prim_t?> WL = primFromCons(*UL, x);
-	real sqrtRhoL = sqrt(UL->rho);
-	real PMagL = .5 * real3_lenSq(UL->B);
-	real hTotalL = (UL->ETotal + WL.P + PMagL) / UL->rho - UL->ePot;
+	real sqrtRhoL = sqrt(UL.rho);
+	real PMagL = .5 * real3_lenSq(UL.B);
+	real hTotalL = (UL.ETotal + WL.P + PMagL) / UL.rho - UL.ePot;
 
 	<?=eqn.prim_t?> WR = primFromCons(*UR, x);
-	real sqrtRhoR = sqrt(UR->rho);
-	real PMagR = .5 * real3_lenSq(UR->B);
-	real hTotalR = (UR->ETotal + WR.P + PMagR) / UR->rho - UR->ePot;
+	real sqrtRhoR = sqrt(UR.rho);
+	real PMagR = .5 * real3_lenSq(UR.B);
+	real hTotalR = (UR.ETotal + WR.P + PMagR) / UR.rho - UR.ePot;
 	
 	real dby = WL.B.y - WR.B.y;
 	real dbz = WL.B.z - WR.B.z;
 	
 	real invDenom = 1 / (sqrtRhoL + sqrtRhoR);
 	
-	W->rho  = sqrtRhoL * sqrtRhoR;
-	W->v = real3_scale(real3_add(
+	W.rho  = sqrtRhoL * sqrtRhoR;
+	W.v = real3_scale(real3_add(
 		real3_scale(WL.v, sqrtRhoL),
 		real3_scale(WR.v, sqrtRhoR)), invDenom);
 	
-	W->hTotal = (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR) * invDenom;
+	W.hTotal = (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR) * invDenom;
 	
-	W->B.x = (sqrtRhoL * WL.B.x + sqrtRhoR * WR.B.x) * invDenom;
+	W.B.x = (sqrtRhoL * WL.B.x + sqrtRhoR * WR.B.x) * invDenom;
 	// why does athena switch the weights of the By and Bz components?
-	W->B.y = (sqrtRhoR * WL.B.y + sqrtRhoL * WR.B.y) * invDenom;
-	W->B.z = (sqrtRhoR * WL.B.z + sqrtRhoL * WR.B.z) * invDenom;
+	W.B.y = (sqrtRhoR * WL.B.y + sqrtRhoL * WR.B.y) * invDenom;
+	W.B.z = (sqrtRhoR * WL.B.z + sqrtRhoL * WR.B.z) * invDenom;
 	
-	W->X = .5 * (dby * dby + dbz * dbz) * invDenom * invDenom;
-	W->Y = .5 * (UL->rho + UR->rho) / W->rho;
+	W.X = .5 * (dby * dby + dbz * dbz) * invDenom * invDenom;
+	W.Y = .5 * (UL.rho + UR.rho) / W.rho;
+
+	return W;
 };
 
 //assumes the vector values are x-axis aligned with the interface normal
@@ -241,17 +244,14 @@ void calcRoeValues(
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forSide_<?=side?>(
-	global const <?=eqn.cons_t?>* UL,
-	global const <?=eqn.cons_t?>* UR,
+	<?=eqn.cons_t?> UL,
+	<?=eqn.cons_t?> UR,
 	real3 x
 ) {
 	//swap the sides with x here, so all the fluxes are in the 'x' direction
-	<?=eqn.cons_t?> UL_ = cons_swapFrom<?=side?>(*UL);
-	<?=eqn.cons_t?> UR_ = cons_swapFrom<?=side?>(*UR);
-
-	Roe_t roe;
-	calcRoeValues(&roe, &UL_, &UR_, x);
-
+	<?=eqn.cons_t?> UL_ = cons_swapFrom<?=side?>(UL);
+	<?=eqn.cons_t?> UR_ = cons_swapFrom<?=side?>(UR);
+	Roe_t roe = calcRoeValues(UL_, UR_, x);
 	return eigen_forRoeAvgs(roe, x);
 }
 <? end ?>
@@ -269,12 +269,11 @@ kernel void calcEigenBasis(
 		int indexL = index - stepsize.s<?=side?>;
 		<?= solver.getULRCode ?>
 
-		int indexInt = side + dim * index;
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 
-		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		*eig = eigen_forSide_<?=side?>(UL, UR, xInt);
+		int indexInt = side + dim * index;
+		eigenBuf[indexInt] = eigen_forSide_<?=side?>(*UL, *UR, xInt);
 	}<? end ?>
 }
 

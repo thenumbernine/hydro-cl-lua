@@ -23,8 +23,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 //used for interface eigen basis
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forSide_<?=side?>(
-	global const <?=eqn.cons_t?>* UL,
-	global const <?=eqn.cons_t?>* UR,
+	<?=eqn.cons_t?> UL,
+	<?=eqn.cons_t?> UR,
 	real3 x
 ) {
 	/*
@@ -65,15 +65,15 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	... so the initial range of ePot influences the turbulence
 	*/
 
-	<?=eqn.prim_t?> WL = primFromCons(*UL, x);
+	<?=eqn.prim_t?> WL = primFromCons(UL, x);
 	real sqrtRhoL = sqrt(WL.rho);
 	real3 vL = WL.v;
-	real hTotalL = calc_hTotal(WL.rho, WL.P, UL->ETotal) - UL->ePot;
+	real hTotalL = calc_hTotal(WL.rho, WL.P, UL.ETotal) - UL.ePot;
 	
-	<?=eqn.prim_t?> WR = primFromCons(*UR, x);
+	<?=eqn.prim_t?> WR = primFromCons(UR, x);
 	real sqrtRhoR = sqrt(WR.rho);
 	real3 vR = WR.v;
-	real hTotalR = calc_hTotal(WR.rho, WR.P, UR->ETotal) - UR->ePot;
+	real hTotalR = calc_hTotal(WR.rho, WR.P, UR.ETotal) - UR.ePot;
 
 	real invDenom = 1./(sqrtRhoL + sqrtRhoR);
 	
@@ -108,22 +108,19 @@ kernel void calcEigenBasis(
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	real3 x = cell_x(i);
-	
 	int indexR = index;
 
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		
 		int indexL = index - stepsize.s<?=side?>;
 		
 		<?= solver.getULRCode ?>
 		
-		int indexInt = side + dim * index;	
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 		
-		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		*eig = eigen_forSide_<?=side?>(UL, UR, xInt);
+		int indexInt = side + dim * index;	
+		eigenBuf[indexInt] = eigen_forSide_<?=side?>(*UL, *UR, xInt);
 	}<? end ?>
 }
 

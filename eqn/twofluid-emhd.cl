@@ -38,23 +38,23 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forSide_<?=side?>(
-	global const <?=eqn.cons_t?>* UL,
-	global const <?=eqn.cons_t?>* UR,
+	<?=eqn.cons_t?> UL,
+	<?=eqn.cons_t?> UR,
 	real3 x
 ) {
-	<?=eqn.prim_t?> WL = primFromCons(*UL, x);
-	<?=eqn.prim_t?> WR = primFromCons(*UR, x);
+	<?=eqn.prim_t?> WL = primFromCons(UL, x);
+	<?=eqn.prim_t?> WR = primFromCons(UR, x);
 	<?=eqn.eigen_t?> eig;
 
 <? for _,fluid in ipairs(fluids) do ?>
 
 	real <?=fluid?>_sqrtRhoL = sqrt(WL.<?=fluid?>_rho);
 	real3 <?=fluid?>_vL = WL.<?=fluid?>_v;
-	real <?=fluid?>_hTotalL = calc_hTotal(WL.<?=fluid?>_rho, WL.<?=fluid?>_P, UL-><?=fluid?>_ETotal) - UL-><?=fluid?>_ePot;
+	real <?=fluid?>_hTotalL = calc_hTotal(WL.<?=fluid?>_rho, WL.<?=fluid?>_P, UL.<?=fluid?>_ETotal) - UL.<?=fluid?>_ePot;
 	
-	real <?=fluid?>_sqrtRhoR = sqrt(UR-><?=fluid?>_rho);
+	real <?=fluid?>_sqrtRhoR = sqrt(UR.<?=fluid?>_rho);
 	real3 <?=fluid?>_vR = WR.<?=fluid?>_v;
-	real <?=fluid?>_hTotalR = calc_hTotal(WR.<?=fluid?>_rho, WR.<?=fluid?>_P, UR-><?=fluid?>_ETotal) - UR-><?=fluid?>_ePot;
+	real <?=fluid?>_hTotalR = calc_hTotal(WR.<?=fluid?>_rho, WR.<?=fluid?>_P, UR.<?=fluid?>_ETotal) - UR.<?=fluid?>_ePot;
 
 	real <?=fluid?>_invDenom = 1./(<?=fluid?>_sqrtRhoL + <?=fluid?>_sqrtRhoR);
 	
@@ -119,17 +119,15 @@ kernel void calcEigenBasis(
 
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		
 		int indexL = index - stepsize.s<?=side?>;
 	
 		<?= solver.getULRCode ?>
 		
-		int indexInt = side + dim * index;	
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 
-		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		*eig = eigen_forSide_<?=side?>(UL, UR, xInt);
+		int indexInt = side + dim * index;	
+		eigenBuf[indexInt] = eigen_forSide_<?=side?>(*UL, *UR, xInt);
 	}<? end ?>
 }
 
