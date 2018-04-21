@@ -49,7 +49,6 @@ function Roe:createBuffers()
 	local realSize = ffi.sizeof(self.app.real)
 
 	self:clalloc('eigenBuf', self.volume * self.dim * ffi.sizeof(self.eqn.eigen_t))
-	self:clalloc('deltaUEigBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
 	
 	-- debug only
 	if self.checkFluxError or self.checkOrthoError then
@@ -89,18 +88,11 @@ function Roe:refreshSolverProgram()
 		self.eigenBuf,
 		self.getULRBuf)
 
-	self.calcDeltaUEigKernelObj = self.solverProgramObj:kernel(
-		'calcDeltaUEig',
-		self.deltaUEigBuf,
-		self.getULRBuf,
-		self.eigenBuf)
-
 	self.calcFluxKernelObj = self.solverProgramObj:kernel(
 		'calcFlux',
 		self.fluxBuf,
 		self.getULRBuf,
-		self.eigenBuf,
-		self.deltaUEigBuf)
+		self.eigenBuf)
 
 	-- TODO put this in solver/solver.lua ?
 	if self.eqn.useSourceTerm then
@@ -157,20 +149,6 @@ function Roe:addDisplayVars()
 		end
 	end
 
-	for j,xj in ipairs(xNames) do
-		self:addDisplayVarGroup{
-			name = 'deltaUEig '..xj, 
-			bufferField = 'deltaUEigBuf',
-			codePrefix = [[
-	int indexInt = ]]..(j-1)..[[ + dim * index;
-	const global real* deltaUEig = buf + indexInt * numWaves;
-]],
-			vars = range(0,self.eqn.numWaves-1):map(function(i)
-				return {[''..i] = '*value = deltaUEig['..i..'];'}
-			end),
-		}
-	end
-
 	-- TODO add kernels for each side
 	if self.checkFluxError or self.checkOrthoError then	
 		for j,xj in ipairs(xNames) do
@@ -215,10 +193,7 @@ function Roe:calcDeriv(derivBuf, dt)
 		self.calcErrorsKernelObj()
 	end
 
-	-- technically, if flux limiter isn't used, this can be merged into calcFlux (since no left/right reads need to be done)
-	self.calcDeltaUEigKernelObj()
-	
-	self.calcFluxKernelObj.obj:setArg(4, dtArg)
+	self.calcFluxKernelObj.obj:setArg(3, dtArg)
 	self.calcFluxKernelObj()
 
 -- [=[ this is from the 2017 Zingale book
@@ -241,12 +216,6 @@ function Roe:calcDeriv(derivBuf, dt)
 		-- maybe use 'repeat'?
 		
 		self.calcEigenBasisKernelObj()
-		--[[ hmm, error here or above?  only need it once.
-		if self.checkFluxError or self.checkOrthoError then
-			self.calcErrorsKernelObj()
-		end
-		--]]
-		self.calcDeltaUEigKernelObj()
 		self.calcFluxKernelObj()
 	end
 --]=]

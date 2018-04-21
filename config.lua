@@ -21,7 +21,7 @@ local args = {
 	--fixedDT = .0001,
 	--cfl = .25/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
@@ -356,7 +356,7 @@ maxs = {6,1,1},
 }
 
 -- HD
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -364,7 +364,7 @@ maxs = {6,1,1},
 -- f.e. and b.e. are working, but none of the r.k. integrators 
 -- PLM isn't implemented yet
 -- neither is source term / poisson stuff
-self.solvers:insert(require 'solver.euler-burgers'(args))
+--self.solvers:insert(require 'solver.euler-burgers'(args))
 
 -- SRHD.  
 -- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim

@@ -1341,23 +1341,29 @@ function Solver:refreshSolverProgram()
 	if self.usePLM then
 		self.getULRCode = function(self, args)
 			args = args or {}
+			local suffix = args.suffix or ''
 			return template([[
-	const global <?=eqn.cons_t?>* UL<?=suffix?> = &ULRBuf[side + dim * indexL<?=suffix?>].R;
-	const global <?=eqn.cons_t?>* UR<?=suffix?> = &ULRBuf[side + dim * indexR<?=suffix?>].L;
+	const global <?=eqn.cons_t?>* UL<?=suffix?> = &ULRBuf[side + dim * <?=indexL?>].R;
+	const global <?=eqn.cons_t?>* UR<?=suffix?> = &ULRBuf[side + dim * <?=indexR?>].L;
 ]],			{
 				eqn = self.eqn,
-				suffix = args.suffix or '',
+				suffix = suffix,
+				indexL = args.indexL or 'indexL'..suffix,
+				indexR = args.indexR or 'indexR'..suffix,
 			})
 		end
 	else 
 		self.getULRCode = function(self, args)
 			args = args or {}
+			local suffix = args.suffix or ''
 			return template([[
-	const global <?=eqn.cons_t?>* UL<?=suffix?> = UBuf + indexL<?=suffix?>;
-	const global <?=eqn.cons_t?>* UR<?=suffix?> = UBuf + indexR<?=suffix?>;
+	const global <?=eqn.cons_t?>* UL<?=suffix?> = UBuf + <?=indexL?>;
+	const global <?=eqn.cons_t?>* UR<?=suffix?> = UBuf + <?=indexR?>;
 ]],			{
 				eqn = self.eqn,
-				suffix = args.suffix or '',
+				suffix = suffix,
+				indexL = args.indexL or 'indexL'..suffix,
+				indexR = args.indexR or 'indexR'..suffix,
 			})
 		end
 	end
