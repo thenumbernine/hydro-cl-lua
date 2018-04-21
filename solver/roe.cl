@@ -116,49 +116,6 @@ kernel void calcDeltaUEig(
 	}<? end ?>
 }
 
-<? if solver.fluxLimiter > 1 then ?>
-kernel void calcREig(
-	global real* rEigBuf,
-	const global real* deltaUEigBuf,
-	const global <?=eqn.eigen_t?>* eigenBuf
-) {
-	SETBOUNDS(numGhost,numGhost-1);
-	real3 xR = cell_x(i);
-	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
-		int indexL = index - stepsize.s<?=side?>;
-		int indexR = index + stepsize.s<?=side?>;
-		int indexInt = side + dim * index;
-		int indexIntL = side + dim * indexL;
-		int indexIntR = side + dim * indexR;
-		global real* rEig = rEigBuf + indexInt * numWaves;
-		const global real* deltaUEig = deltaUEigBuf + indexInt * numWaves;
-		const global real* deltaUEigL = deltaUEigBuf + indexIntL * numWaves;
-		const global real* deltaUEigR = deltaUEigBuf + indexIntR * numWaves;
-		
-		const global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		
-		real3 xInt = xR;
-		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
-		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
-		
-		<? for j=0,eqn.numWaves-1 do ?>{
-			const int j = <?=j?>;
-			if (deltaUEig[j] == 0) {
-				rEig[j] = 0;
-			} else {
-				real wave_j = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', j)?>;
-				if (wave_j >= 0) {
-					rEig[j] = deltaUEigL[j] / deltaUEig[j];
-				} else {
-					rEig[j] = deltaUEigR[j] / deltaUEig[j];
-				}
-			}
-		}<? end ?>
-	}<? end ?>
-}
-<? end ?>
-
 //TODO entropy fix ... for the Euler equations at least
 kernel void calcFlux(
 	global <?=eqn.cons_t?>* fluxBuf,
@@ -166,9 +123,6 @@ kernel void calcFlux(
 	const global <?=eqn.eigen_t?>* eigenBuf, 
 	const global real* deltaUEigBuf,
 	real dt
-<? if solver.fluxLimiter > 1 then ?>
-	,const global real* rEigBuf
-<? end ?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	real3 xR = cell_x(i);
@@ -177,7 +131,7 @@ kernel void calcFlux(
 		const int side = <?=side?>;	
 		real dt_dx = dt / grid_dx<?=side?>;//dx<?=side?>_at(i);
 		int indexL = index - stepsize.s<?=side?>;
-
+		
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 	
@@ -185,7 +139,7 @@ kernel void calcFlux(
 		
 		int indexInt = side + dim * index;
 		const global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-
+		
 		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
 
 		<?=eqn.waves_t?> fluxEig;
@@ -199,12 +153,16 @@ kernel void calcFlux(
 
 		const global real* deltaUEig = deltaUEigBuf + numWaves * indexInt;
 <? if solver.fluxLimiter > 1 then ?>
-		const global real* rEig = rEigBuf + numWaves * indexInt;
+		int indexIntL = indexInt - dim * stepsize.s<?=side?>;
+		const global real* deltaUEigL = deltaUEigBuf + indexIntL * numWaves;
+		int indexIntR = indexInt + dim * stepsize.s<?=side?>;
+		const global real* deltaUEigR = deltaUEigBuf + indexIntR * numWaves;
 <? end ?>
 
 		<? for j=0,eqn.numWaves-1 do ?>{
 			const int j = <?=j?>;
 			real lambda = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', j)?>;
+
 <? if not eqn.roeUseFluxFromCons then ?>
 			fluxEig.ptr[j] *= lambda;
 <? else ?>
@@ -213,7 +171,17 @@ kernel void calcFlux(
 			real sgnLambda = lambda >= 0 ? 1 : -1;
 		
 <? if solver.fluxLimiter > 1 then ?>
-			real phi = fluxLimiter(rEig[j]);
+			real rEig;
+			if (deltaUEig[j] == 0) {
+				rEig = 0;
+			} else {
+				if (lambda >= 0) {
+					rEig = deltaUEigL[j] / deltaUEig[j];
+				} else {
+					rEig = deltaUEigR[j] / deltaUEig[j];
+				}
+			}
+			real phi = fluxLimiter(rEig);
 <? end ?>
 
 			fluxEig.ptr[j] -= .5 * lambda * deltaUEig[j] * (sgnLambda

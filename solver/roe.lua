@@ -20,8 +20,8 @@ Roe.name = 'Roe'
 
 -- enable these to verify accuracy
 -- disable these to save on allocation / speed
-Roe.checkFluxError = true
-Roe.checkOrthoError = true
+Roe.checkFluxError = false
+Roe.checkOrthoError = false
 
 --[[
 args specific to Roe:
@@ -50,9 +50,6 @@ function Roe:createBuffers()
 
 	self:clalloc('eigenBuf', self.volume * self.dim * ffi.sizeof(self.eqn.eigen_t))
 	self:clalloc('deltaUEigBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
-	if self.fluxLimiter > 1 then
-		self:clalloc('rEigBuf', self.volume * self.dim * self.eqn.numWaves * realSize)
-	end
 	
 	-- debug only
 	if self.checkFluxError or self.checkOrthoError then
@@ -98,23 +95,12 @@ function Roe:refreshSolverProgram()
 		self.getULRBuf,
 		self.eigenBuf)
 
-	if self.fluxLimiter > 1 then
-		self.calcREigKernelObj = self.solverProgramObj:kernel(
-			'calcREig',
-			self.rEigBuf,
-			self.deltaUEigBuf,
-			self.eigenBuf)
-	end
-
 	self.calcFluxKernelObj = self.solverProgramObj:kernel(
 		'calcFlux',
 		self.fluxBuf,
 		self.getULRBuf,
 		self.eigenBuf,
 		self.deltaUEigBuf)
-	if self.fluxLimiter > 1 then
-		self.calcFluxKernelObj.obj:setArg(5, self.rEigBuf)
-	end
 
 	-- TODO put this in solver/solver.lua ?
 	if self.eqn.useSourceTerm then
@@ -185,22 +171,6 @@ function Roe:addDisplayVars()
 		}
 	end
 
-	if self.fluxLimiter > 1 then
-		for j,xj in ipairs(xNames) do
-			self:addDisplayVarGroup{
-				name = 'rEig '..xj,
-				bufferField = 'rEigBuf',
-				codePrefix = [[
-	int indexInt = ]]..(j-1)..[[ + dim * index;
-	const global real* rEig = buf + indexInt * numWaves;
-]],
-				vars = range(0,self.eqn.numWaves-1):map(function(i)
-					return {[''..i] = '*value = rEig['..i..'];'}
-				end),
-			}
-		end
-	end
-	
 	-- TODO add kernels for each side
 	if self.checkFluxError or self.checkOrthoError then	
 		for j,xj in ipairs(xNames) do
@@ -248,10 +218,6 @@ function Roe:calcDeriv(derivBuf, dt)
 	-- technically, if flux limiter isn't used, this can be merged into calcFlux (since no left/right reads need to be done)
 	self.calcDeltaUEigKernelObj()
 	
-	if self.fluxLimiter > 1 then
-		self.calcREigKernelObj()
-	end
-
 	self.calcFluxKernelObj.obj:setArg(4, dtArg)
 	self.calcFluxKernelObj()
 
@@ -281,9 +247,6 @@ function Roe:calcDeriv(derivBuf, dt)
 		end
 		--]]
 		self.calcDeltaUEigKernelObj()
-		if self.fluxLimiter > 1 then
-			self.calcREigKernelObj()
-		end
 		self.calcFluxKernelObj()
 	end
 --]=]
