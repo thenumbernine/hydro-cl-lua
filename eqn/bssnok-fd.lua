@@ -11,67 +11,78 @@ local makePartials = require 'eqn.makepartial'
 local makePartial = makePartials.makePartial
 local makePartial2 = makePartials.makePartial2
 
-
 local BSSNOKFiniteDifferenceEquation = class(EinsteinEqn)
-
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
-
 BSSNOKFiniteDifferenceEquation.hasEigenCode = true
-
--- options:
-
--- needs to be defined up front
--- otherwise rebuild intVars based on it ...
-BSSNOKFiniteDifferenceEquation.useHypGammaDriver = true
-
--- use chi = 1/psi instead of phi, as described in 2006 Campanelli 
--- it should be used with the hyperbolic gamma driver
-BSSNOKFiniteDifferenceEquation.useChi = true
-
-local intVars = table{
-	{alpha = 'real'},			-- 1
-	{beta_u = 'real3'},         -- 3: beta^i
-	{gammaTilde_ll = 'sym3'},    -- 6: gammaTilde_ij, only 5 dof since det gammaTilde_ij = 1
-                                                                                                 
-	BSSNOKFiniteDifferenceEquation.useChi 
-		and {chi = 'real'}		-- 1
-		or {phi = 'real'},		-- 1
-	
-	{K = 'real'},               -- 1
-	{ATilde_ll = 'sym3'},       -- 6: ATilde_ij, only 5 dof since ATilde^k_k = 0
-	{connBar_u = 'real3'},      -- 3: connBar^i = gammaTilde^jk connBar^i_jk = -partial_j gammaTilde^ij
-}
-
-if BSSNOKFiniteDifferenceEquation.useHypGammaDriver then
-	intVars:insert{B_u = 'real3'}
-end
-
-local consVars = table()
-:append(intVars)
-:append{
-	--hyperbolic variables:
-	--real3 a;			//3: a_i
-	--_3sym3 dTilde;		//18: dTilde_ijk, only 15 dof since dTilde_ij^j = 0
-	--real3 Phi;			//3: Phi_i
-
-	--stress-energy variables:
-	{rho = 'real'},		--1: n_a n_b T^ab
-	{S_u = 'real3'},			--3: -gamma^ij n_a T_aj
-	{S_ll = 'sym3'},			--6: gamma_i^c gamma_j^d T_cd
-
-	--constraints:
-	{H = 'real'},				--1
-	{M_u = 'real3'},			--3
-
-	-- aux variable
-	{gammaTilde_uu = 'sym3'},		--6
-}
-
-BSSNOKFiniteDifferenceEquation.consVars = consVars
-BSSNOKFiniteDifferenceEquation.numIntStates = makestruct.countReals(intVars)
-
 BSSNOKFiniteDifferenceEquation.useConstrainU = true
 BSSNOKFiniteDifferenceEquation.useSourceTerm = true
+
+--[[
+args:
+	useHypGammaDriver (default true)
+	useChi (default true)
+--]]
+function BSSNOKFiniteDifferenceEquation:init(args)
+	-- options:
+
+	-- needs to be defined up front
+	-- otherwise rebuild intVars based on it ...
+	if args.useHypGammaDriver ~= nil then
+		self.useHypGammaDriver = args.useHypGammaDriver
+	else
+		self.useHypGammaDriver = true
+	end
+
+	-- use chi = 1/psi instead of phi, as described in 2006 Campanelli 
+	-- it should be used with the hyperbolic gamma driver
+	if args.useChi ~= nil then
+		self.useChi = args.useChi
+	else
+		self.useChi = true
+	end
+
+	local intVars = table{
+		{alpha = 'real'},			-- 1
+		{beta_u = 'real3'},         -- 3: beta^i
+		{gammaTilde_ll = 'sym3'},    -- 6: gammaTilde_ij, only 5 dof since det gammaTilde_ij = 1
+																									 
+		self.useChi 
+			and {chi = 'real'}		-- 1
+			or {phi = 'real'},		-- 1
+		
+		{K = 'real'},               -- 1
+		{ATilde_ll = 'sym3'},       -- 6: ATilde_ij, only 5 dof since ATilde^k_k = 0
+		{connBar_u = 'real3'},      -- 3: connBar^i = gammaTilde^jk connBar^i_jk = -partial_j gammaTilde^ij
+	}
+	if self.useHypGammaDriver then
+		intVars:insert{B_u = 'real3'}
+	end
+
+	self.consVars = table()
+	:append(intVars)
+	:append{
+		--hyperbolic variables:
+		--real3 a;			//3: a_i
+		--_3sym3 dTilde;		//18: dTilde_ijk, only 15 dof since dTilde_ij^j = 0
+		--real3 Phi;			//3: Phi_i
+
+		--stress-energy variables:
+		{rho = 'real'},		--1: n_a n_b T^ab
+		{S_u = 'real3'},			--3: -gamma^ij n_a T_aj
+		{S_ll = 'sym3'},			--6: gamma_i^c gamma_j^d T_cd
+
+		--constraints:
+		{H = 'real'},				--1
+		{M_u = 'real3'},			--3
+
+		-- aux variable
+		{gammaTilde_uu = 'sym3'},		--6
+	}
+	self.numIntStates = makestruct.countReals(intVars)
+	
+	-- call construction / build structures	
+	BSSNOKFiniteDifferenceEquation.super.init(self, args)
+end
 
 
 function BSSNOKFiniteDifferenceEquation:createInitState()
@@ -517,5 +528,6 @@ function BSSNOKFiniteDifferenceEquation:fillRandom(epsilon)
 end
 
 function BSSNOKFiniteDifferenceEquation:getCalcDTCode() end
+function BSSNOKFiniteDifferenceEquation:getFluxFromConsCode() end
 
 return BSSNOKFiniteDifferenceEquation

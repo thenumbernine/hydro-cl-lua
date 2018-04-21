@@ -11,61 +11,67 @@ local makePartials = require 'eqn.makepartial'
 local makePartial = makePartials.makePartial
 local makePartial2 = makePartials.makePartial2
 
-
 local Z4cFiniteDifferenceEquation = class(EinsteinEqn)
-
 Z4cFiniteDifferenceEquation.name = 'Z4c finite difference' 
-
 Z4cFiniteDifferenceEquation.hasEigenCode = true
-
--- options:
-
--- needs to be defined up front
--- otherwise rebuild intVars based on it ...
-Z4cFiniteDifferenceEquation.useHypGammaDriver = false
-
-local intVars = table{
-	{alpha = 'real'},			-- 1
-	{beta_u = 'real3'},         -- 3: beta^i
-	{gammaTilde_ll = 'sym3'},		-- 6: gammaTilde_ij, only 5 dof since det gammaTilde_ij = 1
-	{chi = 'real'},				-- 1
-	{KHat = 'real'},			-- 1
-	{Theta = 'real'},			-- 1
-	{ATilde_ll = 'sym3'},       -- 6: ATilde_ij, only 5 dof since ATilde^k_k = 0
-	{connBar_u = 'real3'},      -- 3: connBar^i = gammaTilde^jk connBar^i_jk = -partial_j gammaTilde^ij
-}
-
-if Z4cFiniteDifferenceEquation.useHypGammaDriver then
-	intVars:insert{B_u = 'real3'}
-end
-
-local consVars = table()
-:append(intVars)
-:append{
-	--hyperbolic variables:
-	--real3 a;			//3: a_i
-	--_3sym3 dTilde;		//18: dTilde_ijk, only 15 dof since dTilde_ij^j = 0
-	--real3 Phi;			//3: Phi_i
-
-	--stress-energy variables:
-	{rho = 'real'},		--1: n_a n_b T^ab
-	{S_u = 'real3'},			--3: -gamma^ij n_a T_aj
-	{S_ll = 'sym3'},			--6: gamma_i^c gamma_j^d T_cd
-
-	--constraints:
-	{H = 'real'},				--1
-	{M_u = 'real3'},			--3
-
-	-- aux variable
-	{gammaTilde_uu = 'sym3'},		--6
-}
-
-Z4cFiniteDifferenceEquation.consVars = consVars
-Z4cFiniteDifferenceEquation.numIntStates = makestruct.countReals(intVars)
-
 Z4cFiniteDifferenceEquation.useConstrainU = true
 Z4cFiniteDifferenceEquation.useSourceTerm = true
 
+--[[
+args:
+	useHypGammaDriver
+--]]
+function Z4cFiniteDifferenceEquation:init(args)
+	-- options:
+
+	-- needs to be defined up front
+	-- otherwise rebuild intVars based on it ...
+	if args.useHypGammaDriver ~= nil then
+		self.useHypGammaDriver = args.useHypGammaDriver
+	else
+		self.useHypGammaDriver = false
+	end
+
+	local intVars = table{
+		{alpha = 'real'},			-- 1
+		{beta_u = 'real3'},         -- 3: beta^i
+		{gammaTilde_ll = 'sym3'},		-- 6: gammaTilde_ij, only 5 dof since det gammaTilde_ij = 1
+		{chi = 'real'},				-- 1
+		{KHat = 'real'},			-- 1
+		{Theta = 'real'},			-- 1
+		{ATilde_ll = 'sym3'},       -- 6: ATilde_ij, only 5 dof since ATilde^k_k = 0
+		{connBar_u = 'real3'},      -- 3: connBar^i = gammaTilde^jk connBar^i_jk = -partial_j gammaTilde^ij
+	}
+
+	if self.useHypGammaDriver then
+		intVars:insert{B_u = 'real3'}
+	end
+
+	self.consVars = table()
+	:append(intVars)
+	:append{
+		--hyperbolic variables:
+		--real3 a;			//3: a_i
+		--_3sym3 dTilde;		//18: dTilde_ijk, only 15 dof since dTilde_ij^j = 0
+		--real3 Phi;			//3: Phi_i
+
+		--stress-energy variables:
+		{rho = 'real'},		--1: n_a n_b T^ab
+		{S_u = 'real3'},			--3: -gamma^ij n_a T_aj
+		{S_ll = 'sym3'},			--6: gamma_i^c gamma_j^d T_cd
+
+		--constraints:
+		{H = 'real'},				--1
+		{M_u = 'real3'},			--3
+
+		-- aux variable
+		{gammaTilde_uu = 'sym3'},		--6
+	}
+	self.numIntStates = makestruct.countReals(intVars)
+
+	-- call construction / build structures	
+	Z4cFiniteDifferenceEquation.super.init(self, args)
+end
 
 function Z4cFiniteDifferenceEquation:createInitState()
 	Z4cFiniteDifferenceEquation.super.createInitState(self)
@@ -476,5 +482,6 @@ function Z4cFiniteDifferenceEquation:fillRandom(epsilon)
 end
 
 function Z4cFiniteDifferenceEquation:getCalcDTCode() end
+function Z4cFiniteDifferenceEquation:getFluxFromConsCode() end
 
 return Z4cFiniteDifferenceEquation
