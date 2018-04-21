@@ -1338,13 +1338,29 @@ function Solver:refreshSolverProgram()
 	-- this code creates the const global cons_t* UL, UR variables
 	-- it assumes that indexL, indexR, and side are already defined
 	-- both UBuf and ULRBuf should be cell-centered
-	self.getULRCode = self.usePLM and ([[
-	const global ]]..self.eqn.cons_t..[[* UL = &ULRBuf[side + dim * indexL].R;
-	const global ]]..self.eqn.cons_t..[[* UR = &ULRBuf[side + dim * indexR].L;
-]]) or ([[
-	const global ]]..self.eqn.cons_t..[[* UL = UBuf + indexL;
-	const global ]]..self.eqn.cons_t..[[* UR = UBuf + indexR;
-]])
+	if self.usePLM then
+		self.getULRCode = function(self, args)
+			args = args or {}
+			return template([[
+	const global <?=eqn.cons_t?>* UL<?=suffix?> = &ULRBuf[side + dim * indexL<?=suffix?>].R;
+	const global <?=eqn.cons_t?>* UR<?=suffix?> = &ULRBuf[side + dim * indexR<?=suffix?>].L;
+]],			{
+				eqn = self.eqn,
+				suffix = args.suffix or '',
+			})
+		end
+	else 
+		self.getULRCode = function(self, args)
+			args = args or {}
+			return template([[
+	const global <?=eqn.cons_t?>* UL<?=suffix?> = UBuf + indexL<?=suffix?>;
+	const global <?=eqn.cons_t?>* UR<?=suffix?> = UBuf + indexR<?=suffix?>;
+]],			{
+				eqn = self.eqn,
+				suffix = args.suffix or '',
+			})
+		end
+	end
 
 	local code = self:getSolverCode()
 

@@ -18,7 +18,7 @@ kernel void calcFlux(
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 		int indexInt = side + dim * index;
 	
-<?= solver.getULRCode ?>
+		<?=solver:getULRCode()?>
 		
 		// get min/max lambdas of UL, UR, and interface U (based on Roe averaging)
 		// TODO this in a more computationally efficient way

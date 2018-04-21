@@ -102,7 +102,7 @@ kernel void calcDeltaUEig(
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 		
-		<?= solver.getULRCode ?>
+		<?=solver:getULRCode()?>
 
 		<?=eqn.cons_t?> deltaU;
 		for (int j = 0; j < numIntStates; ++j) {
@@ -135,7 +135,7 @@ kernel void calcFlux(
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 	
-		<?= solver.getULRCode ?>
+		<?=solver:getULRCode()?>
 		
 		int indexInt = side + dim * index;
 		const global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;

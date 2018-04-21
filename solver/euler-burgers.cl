@@ -25,20 +25,17 @@ kernel void calcDT(
 
 kernel void calcIntVel(
 	global real* intVelBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	<?=solver.getULRArg?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	real3 xR = cell_x(i);
-	
 	int indexR = index;
-	const global <?=eqn.cons_t?>* UR = UBuf + indexR;
 	
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexL = index - stepsize.s<?=side?>;
-		const global <?=eqn.cons_t?>* UL = UBuf + indexL;
 
-		// eventually: < ?= solver.getULRCode ? >
+		<?=solver:getULRCode()?>
 	
 		int indexInt = side + dim * index;
 		real3 xInt = xR;
@@ -56,29 +53,24 @@ kernel void calcIntVel(
 
 kernel void calcFlux(
 	global <?=eqn.cons_t?>* fluxBuf,
-	const global <?=eqn.cons_t?>* UBuf,
+	<?=solver.getULRArg?>,
 	const global real* intVelBuf,
 	real dt
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	real3 xR = cell_x(i);
 	int indexR = index;
-	const global <?=eqn.cons_t?>* UR = UBuf + indexR;
 
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		real dt_dx = dt / grid_dx<?=side?>;//dx<?=side?>_at(i);
 		
 		int indexL = index - stepsize.s<?=side?>;
-		const global <?=eqn.cons_t?>* UL = UBuf + indexL;
+		<?=solver:getULRCode()?>
 		
 		int indexL2 = indexL - stepsize.s<?=side?>;
-		const global <?=eqn.cons_t?>* UL2 = UBuf + indexL2;
-		
 		int indexR2 = index + stepsize.s<?=side?>;
-		const global <?=eqn.cons_t?>* UR2 = UBuf + indexR2;
-
-		// eventually: < ?= solver.getULRCode ? >
+		<?=solver:getULRCode{suffix='2'}?>
 	
 		int indexInt = side + dim * index;
 		real intVel = intVelBuf[indexInt];

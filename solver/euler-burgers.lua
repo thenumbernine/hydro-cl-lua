@@ -41,8 +41,8 @@ function EulerBurgers:refreshSolverProgram()
 
 	-- no mention of ULR just yet ...
 
-	self.calcIntVelKernelObj = self.solverProgramObj:kernel('calcIntVel', self.intVelBuf, self.UBuf)
-	self.calcFluxKernelObj = self.solverProgramObj:kernel('calcFlux', self.fluxBuf, self.UBuf, self.intVelBuf)
+	self.calcIntVelKernelObj = self.solverProgramObj:kernel('calcIntVel', self.intVelBuf, self.getULRBuf)
+	self.calcFluxKernelObj = self.solverProgramObj:kernel('calcFlux', self.fluxBuf, self.getULRBuf, self.intVelBuf)
 
 	self.computePressureKernelObj = self.solverProgramObj:kernel('computePressure', self.PBuf, self.UBuf) 
 	

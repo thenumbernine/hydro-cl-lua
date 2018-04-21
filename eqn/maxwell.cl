@@ -38,7 +38,7 @@ kernel void calcEigenBasis(
 		
 		int indexL = index - stepsize.s<?=side?>;
 		
-		<?= solver.getULRCode ?>
+		<?=solver:getULRCode()?>
 		
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;

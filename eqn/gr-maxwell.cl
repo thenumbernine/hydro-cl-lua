@@ -58,7 +58,7 @@ kernel void calcEigenBasis(
 		
 		int indexL = index - stepsize.s<?=side?>;
 		
-		<?= solver.getULRCode ?>
+		<?=solver:getULRCode()?>
 		
 		<?=solver:getADMVarCode{suffix='L'} --[[ produce alphaL, betaL, gammaL at indexL ]] ?>
 		real det_gammaL = sym3_det(gammaL);

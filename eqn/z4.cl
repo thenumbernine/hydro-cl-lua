@@ -122,7 +122,7 @@ kernel void calcEigenBasis(
 		const int side = <?=side?>;
 		int indexL = index - stepsize.s<?=side?>;
 		
-		<?= solver.getULRCode ?>	
+		<?=solver:getULRCode()?>	
 		
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;

@@ -35,7 +35,7 @@ kernel void calcEigenBasis(
 		const int side = <?=side?>;
 		int indexL = index - stepsize.s<?=side?>;
 	
-		<?= solver.getULRCode ?>
+		<?=solver:getULRCode()?>
 		
 		int indexInt = side + dim * index;
 		eigenBuf[indexInt] = eigen_forSide_<?=side?>(*UL, *UR, x);
