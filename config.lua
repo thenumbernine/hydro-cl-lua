@@ -4,7 +4,7 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -16,12 +16,12 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	integrator = 'backward Euler',
+	--integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	--cfl = .25/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
@@ -62,8 +62,8 @@ maxs = {6,1,1},
 				{32,32,32},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
-				{256,1,1},
-				{32,32,1},
+				{1024,1,1},
+				{128,128,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -214,11 +214,12 @@ maxs = {6,1,1},
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
 	--initState = 'Brio-Wu',
-	--initState = 'Orszag-Tang',
+	initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'spinning magnetic fluid',
 	--initState = 'magnetic fluid',
 	--initState = '2017 Degris et al',
+	--initState = 'that one mhd simulation from youtube',
 	
 	-- 2002 Dedner
 	--initState = '2002 Dedner peak Bx',
@@ -270,9 +271,9 @@ maxs = {6,1,1},
 	--initState = 'black hole - Schwarzschild pseudocartesian',
 	
 	
-	initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
+	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 
-	-- [[ single black hole, spinning, demonstrating ergosphere formation
+	--[[ single black hole, spinning, demonstrating ergosphere formation
 	initStateArgs = {
 		bodies = {
 			{
@@ -396,7 +397,7 @@ maxs = {6,1,1},
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='mhd'})))
 
@@ -463,7 +464,7 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- Z4c finite difference, combining BSSNOK and Z4
-self.solvers:insert(require 'solver.z4c-fd'(args))
+--self.solvers:insert(require 'solver.z4c-fd'(args))
 
 
 --self.solvers:insert(require 'solver.nls'(args))

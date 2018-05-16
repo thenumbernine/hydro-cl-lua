@@ -510,56 +510,50 @@ elseif solver.usePLM == 'plm-athena' then
 
 		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
 		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR2 = UR + stepsize.s<?=side?>;
 	
-		//1984 Collela & Woodward eqn 1.7
-		<?=eqn.prim_t?> W = primFromCons(*U, x);
 		<?=eqn.prim_t?> WL = primFromCons(*UL, xL);
+		<?=eqn.prim_t?> W = primFromCons(*U, x);
 		<?=eqn.prim_t?> WR = primFromCons(*UR, xR);
-		<?=eqn.prim_t?> WR2 = primFromCons(*UR, xR);
-		<?=eqn.prim_t?> dWL, dWR, dWR2, dWCL, dWCR;
-		for (int j = 0; j < numIntStates; ++j) {
-			dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
-			dWR.ptr[j] = WR.ptr[j] - W.ptr[j];
-			dWR2.ptr[j] = WR2.ptr[j] - WR.ptr[j];
-			dWCL.ptr[j] = .5 * (WR.ptr[j] - WL.ptr[j]);
-			dWCR.ptr[j] = .5 * (WR2.ptr[j] - W.ptr[j]);
-		}
-		for (int j = numIntStates; j < numStates; ++j) {
-			dWL.ptr[j] = dWR.ptr[j] = dWR2.ptr[j] = dWCL.ptr[j] = dWCR.ptr[j] = 0.;
+		<?=eqn.prim_t?> WR2 = primFromCons(*UR2, xR);
+	
+		<?=eqn.prim_t?> Qplus, Qminus;
+		for (int j = 0; j < numStates; ++j) {
+			real dq0 = .5 * (WR.ptr[j] - WL.ptr[j]);
+			real dqp = .5 * (WR2.ptr[j] - W.ptr[j]);
+		
+			if ((WR.ptr[j] - W.ptr[j]) * (W.ptr[j] - WL.ptr[j]) > 0) {
+				dq0 = (dq0 > 0 ? 1. : -1.) * min(
+					fabs(dq0), min(
+						2. * fabs(W.ptr[j] - WL.ptr[j]),
+						2. * fabs(WR.ptr[j] - W.ptr[j])
+					)
+				);
+			} else {
+				dq0 = 0.;
+			}
+		
+			if ((WR2.ptr[j] - WR.ptr[j]) * (WR.ptr[j] - W.ptr[j]) > 0) {
+				dqp = (dqp > 0 ? 1. : -1.) * min(
+					fabs(dqp), min(
+						2. * fabs(WR.ptr[j] - W.ptr[j]),
+						2. * fabs(WR2.ptr[j] - WR.ptr[j])
+					)
+				);
+			} else {
+				dqp = 0.;
+			}
+
+			//Qminus[i+1]
+			Qplus.ptr[j] = Qminus.ptr[j] = .5 * (W.ptr[j] + WR.ptr[j]) - 1./6. * (dqp - dq0);
+		
+			Qplus.ptr[j] = max(Qplus.ptr[j], min(W.ptr[j], WR.ptr[j]));
+			Qplus.ptr[j] = min(Qplus.ptr[j], max(W.ptr[j], WR.ptr[j]));
+		
+			Qminus.ptr[j] = max(Qminus.ptr[j], min(W.ptr[j], WR.ptr[j]));
+			Qminus.ptr[j] = min(Qminus.ptr[j], max(W.ptr[j], WR.ptr[j]));
 		}
 
-		//slope limiter
-		//1984 Collela & Woodward eqn 1.8
-		real dWML[numStates];
-		for (int j = 0; j < numStates; ++j) {
-			dWML[j] = dWL.ptr[j] * dWR.ptr[j] < 0 ? 0 : (
-				(dWCL.ptr[j] >= 0. ? 1. : -1.)
-				* 2. * min3(
-					fabs(dWL.ptr[j]),
-					fabs(dWR.ptr[j]),
-					fabs(dWCL.ptr[j])
-				)
-			);
-		}
-		real dWMR[numStates];
-		for (int j = 0; j < numStates; ++j) {
-			dWMR[j] = dWR.ptr[j] * dWR2.ptr[j] < 0 ? 0 : (
-				(dWCR.ptr[j] >= 0. ? 1. : -1.)
-				* 2. * min3(
-					fabs(dWR.ptr[j]),
-					fabs(dWR2.ptr[j]),
-					fabs(dWCR.ptr[j])
-				)
-			);
-		}
-
-		//1984 Collela & Woodward eqn 1.6
-		<?=eqn.prim_t?> Wp, Wm;
-		for (int j = 0; j < numStates; ++j) {
-			Wp.ptr[j] = Wm.ptr[j] = .5 * dWR.ptr[j] - 1./6. * (dWMR[j] - dWML[j]);
-		}
-
-		//1984 Collela & Woodward eqn 1.10
 		for (int j = 0; j < numStates; ++j) {
 			real dWp = Wp.ptr[j] - W.ptr[j];
 			real dWm = W.ptr[j] - Wm.ptr[j];

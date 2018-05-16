@@ -1411,6 +1411,27 @@ kernel void addExtraSource(
 		end,
 	},
 
+	{	-- from https://www.youtube.com/watch?v=Fe_f_mQCY6g
+		-- doesn't have much description to it
+		name = 'that one mhd simulation from youtube',
+		initState = function(self, solver)
+			-- I am not correctly modeling the top boundary
+			solver:setBoundaryMethods{
+				xmin = 'mirror',
+				xmax = 'mirror',
+				ymin = 'periodic',
+				ymax = 'periodic',
+				zmin = 'mirror',
+				zmax = 'mirror',
+			}
+			return [[
+	rho = 1.;
+	P = 1. + x.y + cos(M_PI * x.x);
+	B.y = 1.;
+]]
+		end,
+	},
+
 	{
 		name = 'two-fluid EMHD soliton ion',
 		initState = function(self, solver)

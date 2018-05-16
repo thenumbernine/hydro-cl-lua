@@ -103,7 +103,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <? end ?>
 
 //assumes UL and UR are already rotated so the 'x' direction is our flux direction
-void calcRoeValues(
+Roe_t calcRoeValues(
 	<?=eqn.cons_t?> UL, 
 	<?=eqn.cons_t?> UR,
 	real3 x
@@ -111,12 +111,12 @@ void calcRoeValues(
 	Roe_t W;
 	
 	// should I use Bx, or BxL/R, for calculating the PMag at the L and R states?
-	<?=eqn.prim_t?> WL = primFromCons(*UL, x);
+	<?=eqn.prim_t?> WL = primFromCons(UL, x);
 	real sqrtRhoL = sqrt(UL.rho);
 	real PMagL = .5 * real3_lenSq(UL.B);
 	real hTotalL = (UL.ETotal + WL.P + PMagL) / UL.rho - UL.ePot;
 
-	<?=eqn.prim_t?> WR = primFromCons(*UR, x);
+	<?=eqn.prim_t?> WR = primFromCons(UR, x);
 	real sqrtRhoR = sqrt(UR.rho);
 	real PMagR = .5 * real3_lenSq(UR.B);
 	real hTotalR = (UR.ETotal + WR.P + PMagR) / UR.rho - UR.ePot;

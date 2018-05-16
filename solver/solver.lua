@@ -1769,11 +1769,6 @@ function Solver:update()
 		self.fpsIndex = (self.fpsIndex % self.fpsNumSamples) + 1
 		self.fpsSamples[self.fpsIndex] = fps
 		self.fps = self.fpsSamples:sum() / #self.fpsSamples
-
-if self.fpsIndex == 1 then
-	print(self.fps)	
-end
-	
 	end
 	self.lastFrameTime = thisTime
 
