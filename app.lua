@@ -660,10 +660,9 @@ end
 	for _,varName in ipairs(varNamesEnabled) do
 		local xmin, xmax, ymin, ymax
 		for _,solver in ipairs(self.solvers) do
-			local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
+			local var = solver.displayVarForName[varName]
 			
-			if varIndex
-			and var.enabled
+			if var and var.enabled
 			--and solver.visiblePtr and solver.visiblePtr[0] 
 			then
 				useLog = var.useLog

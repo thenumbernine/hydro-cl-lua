@@ -242,8 +242,8 @@ function HydroCLApp:display3D_Isosurface(solvers, varName, ar, xmin, ymin, xmax,
 	gl.glBegin(gl.GL_TRIANGLES)
 
 	for _,solver in ipairs(solvers) do 
-		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
-		if varIndex and var.enabled then
+		local var = solver.displayVarForName[varName]
+		if var and var.enabled then
 			local valueMin, valueMax
 			if var.heatMapFixedRange then
 				valueMin = var.heatMapValueMin

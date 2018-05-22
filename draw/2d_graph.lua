@@ -11,8 +11,8 @@ function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin
 	gl.glEnable(gl.GL_DEPTH_TEST)
 
 	for _,solver in ipairs(solvers) do 
-		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
-		if varIndex and var.enabled then
+		local var = solver.displayVarForName[varName]
+		if var and var.enabled then
 			-- TODO allow a fixed, manual colormap range
 			local valueMin, valueMax
 			if var.heatMapFixedRange then

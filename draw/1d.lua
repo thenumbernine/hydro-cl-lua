@@ -2,7 +2,7 @@ local gl = require 'ffi.OpenGL'
 
 return function(HydroCLApp)
 
-function HydroCLApp:showDisplayVar1D(solver, varIndex, var)
+function HydroCLApp:showDisplayVar1D(solver, var)
 	solver:calcDisplayVarToTex(var)	
 	-- display
 
@@ -70,9 +70,9 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 
 	-- display here
 	for _,solver in ipairs(solvers) do
-		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
-		if varIndex and var.enabled then
-			self:showDisplayVar1D(solver, varIndex, var)
+		local var = solver.displayVarForName[varName]
+		if var and var.enabled then
+			self:showDisplayVar1D(solver, var)
 		end
 
 		if self.font then

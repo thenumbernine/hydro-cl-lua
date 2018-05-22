@@ -22,8 +22,8 @@ HydroCLApp.display3D_Slice_alphaGamma = 1
 HydroCLApp.display3D_Slice_numSlices = 255
 function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	for _,solver in ipairs(solvers) do 
-		local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
-		if varIndex and var.enabled then
+		local var = solver.displayVarForName[varName]
+		if var and var.enabled then
 			
 			self.view:projection(ar)
 			self.view:modelview()

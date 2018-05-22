@@ -16,8 +16,8 @@ function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, y
 
 	for _,solver in ipairs(solvers) do
 		if solver.dim == 2 then
-			local varIndex, var = solver.displayVars:find(nil, function(var) return var.name == varName end)
-			if varIndex and var.enabled then
+			local var = solver.displayVarForName[varName]
+			if var and var.enabled then
 				local magVar = assert(var.magVar, "tried to use a vector display on a var without an associated magVar")
 
 				--[[

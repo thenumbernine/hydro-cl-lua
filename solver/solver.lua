@@ -552,7 +552,6 @@ function Solver:newDisplayVarGroup(args)
 	return displayVarGroup
 end
 
-
 function Solver:getDisplayInfosForType()
 	return {
 		real3 = {
@@ -592,6 +591,11 @@ function Solver:createDisplayVars()
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
 		self.displayVars:append(displayVarGroup.vars)
 	end
+
+	-- make lookup by name
+	self.displayVarForName = self.displayVars:map(function(var)
+		return var, var.name
+	end)
 end
 
 -- still used by gr-hd-separate to add 'extraArgs'
@@ -630,11 +634,6 @@ function Solver:addDisplayVarGroup(args, cl)
 	local enableScalar = true
 	local enableVector = true
 
-if self.eqn.name == 'Euler' then
-	enableScalar = nil
-	enableVector = nil	
-end
-
 	for i,varInfo in ipairs(varInfos) do
 	
 		local name, code, vartype
@@ -659,10 +658,6 @@ end
 			then
 				if args.vartype ~= 'real3' then
 					enabled = enableScalar
-
-if self.eqn.name == 'Euler' then
-	enabled = group.name == 'U' and name == 'rho'
-end					
 					
 					if self.dim ~= 1 then
 						enableScalar = nil
