@@ -310,7 +310,7 @@ local initStates = table{
 ]]
 		end,
 	},
-	
+
 	-- http://www.astro.virginia.edu/VITA/ATHENA/ot.html
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/orszag-tang/pagesource.html
 	{
@@ -1417,17 +1417,17 @@ kernel void addExtraSource(
 		initState = function(self, solver)
 			-- I am not correctly modeling the top boundary
 			solver:setBoundaryMethods{
-				xmin = 'mirror',
-				xmax = 'mirror',
-				ymin = 'periodic',
-				ymax = 'periodic',
+				xmin = 'periodic',
+				xmax = 'periodic',
+				ymin = 'mirror',
+				ymax = 'mirror',
 				zmin = 'mirror',
 				zmax = 'mirror',
 			}
 			return [[
 	rho = 1.;
-	P = 1. + x.y + cos(M_PI * x.x);
-	B.y = 1.;
+	P = 1. + .1 * x.y + .1 * cos(M_PI * x.x) * cos(M_PI * .5 * x.y);
+	B.x = .1;
 ]]
 		end,
 	},

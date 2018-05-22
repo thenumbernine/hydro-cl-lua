@@ -3,6 +3,13 @@ local table = require 'ext.table'
 local template = require 'template'
 local time = table.unpack(require 'time')
 
+--[[
+name = name of the initial condition
+guiVars = any gui variables that the initial conditions wants to expose
+overrideGuiVars = any of the equation's gui vars that the initial conditions wants to override
+initState = function(self, solver) returns the OpenCL code for the initial conditions
+--]]
+
 local InitCond = class()
 
 function InitCond:refreshInitStateProgram(solver)
@@ -13,6 +20,7 @@ function InitCond:refreshInitStateProgram(solver)
 		solver.eqn:getInitStateCode(),
 	
 	}:concat'\n'
+	
 	time('compiling init state program', function()
 		solver.initStateProgramObj = solver.Program{
 			code = initStateCode,

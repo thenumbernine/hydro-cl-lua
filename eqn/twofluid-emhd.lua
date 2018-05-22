@@ -18,12 +18,8 @@ local template = require 'template'
 
 local fluids = table{'ion', 'elec'}
 
-local TwoFluidEMHD = class(Equation)
 
--- set this to 'true' to use the init.euler states
--- these states are only provided in terms of a single density and pressure variable,
--- so the subsequent ion and electron densities and pressures must be derived from this.
-TwoFluidEMHD.useEulerInitState = true
+local TwoFluidEMHD = class(Equation)
 
 TwoFluidEMHD.name = 'TwoFluidEMHD'
 TwoFluidEMHD.numWaves = 18
@@ -80,16 +76,25 @@ TwoFluidEMHD.useSourceTerm = true
 TwoFluidEMHD.useConstrainU = true
 TwoFluidEMHD.roeUseFluxFromCons = true
 
-if TwoFluidEMHD.useEulerInitState then
-	TwoFluidEMHD.initStates = require 'init.euler'
-else
-	TwoFluidEMHD.initStates = require 'init.twofluid-emhd'
-end
+TwoFluidEMHD.useEulerInitState = true	-- default to true.
 
 -- TODO this has the symptoms of all the other CL kernels that intel's compiler bugged out on
 -- i.e. takes a minute to run a kernel on the GPU
 function TwoFluidEMHD:init(args)
+	-- set this to 'true' to use the init.euler states
+	-- these states are only provided in terms of a single density and pressure variable,
+	-- so the subsequent ion and electron densities and pressures must be derived from this.
+	self.useEulerInitState = args.useEulerInitState
+
+	if self.useEulerInitState then
+		self.initStates = require 'init.euler'
+	else
+		self.initStates = require 'init.twofluid-emhd'
+	end
+
+
 	TwoFluidEMHD.super.init(self, args)
+
 
 --	local NoDiv = require 'solver.nodiv'
 --	self.solver.ops:insert(NoDiv{solver=self.solver})	-- nodiv on maxwell ... or just use potentials 
@@ -363,12 +368,7 @@ if eqn.useEulerInitState then
 
 		.ion_v = v,
 		.elec_v = v,
-
-		.E = E,
-		.B = B,
-		.phi = 0,
-		.psi = 0,
-		
+	
 		.ion_ePot = 0,
 		.elec_ePot = 0,
 
@@ -386,6 +386,7 @@ end
 		.E = E,
 		.B = B,
 		.psi = 0,
+		.phi = 0,
 	};
 	UBuf[index] = consFromPrim(W, x);
 }

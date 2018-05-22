@@ -22,7 +22,40 @@ ADM_BonaMasso_3D.useSourceTerm = true
 ADM_BonaMasso_3D.useConstrainU = true
 
 
+--[[
+args:
+useShift
+	
+	useShift = false	--  no shift
+	
+	useShift = 'MinimalDistortionElliptic' -- minimal distortion elliptic.  Alcubierre's book, eqn 4.3.14 and 4.3.15
 
+	useShift = '2005 Bona / 2008 Yano'
+	-- 2008 Yano et al, from 2005 Bona et al "Geometrically Motivated..."
+	-- 2005 Bona mentions a few, but 2008 Yano picks the first one from the 2005 Bona paper.
+
+	useShift = 'HarmonicShiftCondition-FiniteDifference'
+	-- 2008 Alcubierre 4.3.37
+	-- I see some problems in the warp bubble test ...
+
+	useShift = 'LagrangianCoordinates'
+	--[=[
+	Step backwards along shift vector and advect the state
+	Idk how accurate this is ...
+	Hmm, even if I implement the Lie derivative as Lagrangian coordinate advection
+	I'll still be responsible for setting some beta^i_,t gauge
+	so for the L_beta Lie derivative, we have some options:
+	1) none (for no-shift)
+	2) finite difference
+	3) finite volume / absorb into the eigensystem
+	4) Lagrangian coordinates
+	and this should be a separate variable, separate of the shift gauge
+
+	so 
+	one variable for what beta^i_,t is
+	another variable for how to 
+	--]=]
+--]]
 function ADM_BonaMasso_3D:init(args)
 
 	local fluxVars = table{
@@ -59,41 +92,9 @@ function ADM_BonaMasso_3D:init(args)
 		but there are still some shift-based terms that end up in the source ...
 		... so the shift is split between the flux and source ...
 	2) ... and adding a few terms to the source
-
 	--]]
 
-
-	-- no shift
-	self.useShift = false
-
-	-- minimal distortion elliptic -- Alcubierre's book, eqn 4.3.14 and 4.3.15
-	--self.useShift = 'MinimalDistortionElliptic'
-
-	-- 2008 Yano et al, from 2005 Bona et al "Geometrically Motivated..."
-	-- 2005 Bona mentions a few, but 2008 Yano picks the first one from the 2005 Bona paper.
-	--self.useShift = '2005 Bona / 2008 Yano'
-
-	-- 2008 Alcubierre 4.3.37
-	-- I see some problems in the warp bubble test ...
-	--self.useShift = 'HarmonicShiftCondition-FiniteDifference'
-
-	--[[
-	Step backwards along shift vector and advect the state
-	Idk how accurate this is ...
-	Hmm, even if I implement the Lie derivative as Lagrangian coordinate advection
-	I'll still be responsible for setting some beta^i_,t gauge
-	so for the L_beta Lie derivative, we have some options:
-	1) none (for no-shift)
-	2) finite difference
-	3) finite volume / absorb into the eigensystem
-	4) Lagrangian coordinates
-	and this should be a separate variable, separate of the shift gauge
-
-	so 
-	one variable for what beta^i_,t is
-	another variable for how to 
-	--]]
-	--self.useShift = 'LagrangianCoordinates'
+	self.useShift = args.useShift
 
 	if self.useShift then
 		self.consVars:insert{beta_u = 'real3'}

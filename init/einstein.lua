@@ -198,6 +198,13 @@ return ]]..fLuaCode))(alphaVar, symmath)
 end
 
 return table{
+	{
+		name = 'Minkowski',
+		initState = function(self, solver)
+			return ''
+		end,
+	},
+	
 	-- from 1997 Alcubierre "The appearance of coorindate shocks in hyperbolic formalisms of General Relativity".
 	{
 		name = 'gaussian perturbation',

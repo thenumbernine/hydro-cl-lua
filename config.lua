@@ -1,4 +1,4 @@
-local dim = 2
+local dim = 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -63,7 +63,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{1024,1,1},
-				{128,128,1},
+				{64,64,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -214,12 +214,13 @@ maxs = {6,1,1},
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
 	--initState = 'Brio-Wu',
-	initState = 'Orszag-Tang',
+	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'spinning magnetic fluid',
 	--initState = 'magnetic fluid',
 	--initState = '2017 Degris et al',
 	--initState = 'that one mhd simulation from youtube',
+	--initState = 'GEM challenge', eqnArgs = {useEulerInitState=false},
 	
 	-- 2002 Dedner
 	--initState = '2002 Dedner peak Bx',
@@ -245,7 +246,8 @@ maxs = {6,1,1},
 
 
 	-- Einstein
-	--initState = 'gaussian perturbation',
+	--initState = 'Minkowski',
+	initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 
 
@@ -397,7 +399,7 @@ maxs = {6,1,1},
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='mhd'})))
 
@@ -442,7 +444,8 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'}))) -- TODO fixme
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
