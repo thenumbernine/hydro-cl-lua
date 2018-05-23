@@ -37,7 +37,7 @@ local args = {
 
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	geometry = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -101,7 +101,7 @@ maxs = {6,1,1},
 		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	geometry = 'cylinder',
 	mins = cmdline.mins or {.1, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},
@@ -230,7 +230,7 @@ maxs = {6,1,1},
 	--initState = '2002 Dedner Kelvin-Helmholtz',
 
 	-- Maxwell:
-	--initState = 'Maxwell default',
+	initState = 'Maxwell default',
 	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
@@ -359,7 +359,7 @@ maxs = {6,1,1},
 }
 
 -- HD
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -409,7 +409,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 -- Maxwell
 -- when the state is nonzero, at certain sizes there appear errors in the corners
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 

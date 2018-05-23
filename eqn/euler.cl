@@ -513,13 +513,14 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
-
-	//covariant derivative - connection coefficients - source terms 
+#ifndef geometry_cartesian
+	//Source terms from the covariant derivative / connection coefficients 
 	//...for holonomic coordinate system
+	//Notice that the connections associated with all scalar state vars is already implemented in the calcDeriv.cl finite volume update.
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
 	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(W.v, x), U->rho));	//-Conn^i_jk v^j v^k rho
 	deriv->m = real3_sub(deriv->m, real3_scale(coord_connTrace(x), W.P));		//-Conn^i_jk g^jk P = -Conn^i P
-
+#endif
 
 /*
 Navier-Stokes FANS source term: 2005 Uygun, Kirkkopru

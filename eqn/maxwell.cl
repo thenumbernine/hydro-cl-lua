@@ -1,12 +1,31 @@
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
+//#define SUPPORT_CURVILINEAR
+
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const global <?=eqn.cons_t?>* U,
 	real3 x
 ) {
+#if !defined(SUPPORT_CURVILINEAR)	//cartesian
 	real lambda = 1. / sqrt(U->eps * U->mu);
 	return (range_t){-lambda, lambda};
+#else	//grid metric
+	real det_gamma = volume_at(x);
+	real det_gamma2 = det_gamma * det_gamma;
+	real det_gamma3 = det_gamma * det_gamma2;
+	
+	<? if side == 0 then ?>
+	real detg_gUjj = coord_g11(x) * coord_g22(x) - coord_g12(x) * coord_g12(x);
+	<? elseif side == 1 then ?>
+	real detg_gUjj = coord_g00(x) * coord_g22(x) - coord_g02(x) * coord_g02(x);
+	<? elseif side == 2 then ?>
+	real detg_gUjj = coord_g00(x) * coord_g11(x) - coord_g01(x) * coord_g01(x);
+	<? end ?>
+
+	real lambda = sqrt(detg_gUjj / (det_gamma3 * U->eps * U->mu));
+	return (range_t){-lambda, lambda};
+#endif
 }
 <? end ?>
 
@@ -16,10 +35,55 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	<?=eqn.cons_t?> UR,
 	real3 x
 ) {
+#if !defined(SUPPORT_CURVILINEAR)
 	return (<?=eqn.eigen_t?>){
 		.sqrt_eps = sqrt(.5 * (UL.eps + UR.eps)),
 		.sqrt_mu = sqrt(.5 * (UL.mu + UR.mu)),
 	};
+#else	
+	real3 xR = x;
+	xR.s<?=side?> += .5 * grid_dx<?=side?>;
+
+	real det_gammaR = volume_at(xR);
+	real det_gammaR2 = det_gammaR * det_gammaR;
+	real det_gammaR3 = det_gammaR * det_gammaR2;
+
+	real3 xL = x;
+	xL.s<?=side?> -= .5 * grid_dx<?=side?>;
+	
+	real det_gammaL = volume_at(xL);
+	real det_gammaL2 = det_gammaL * det_gammaL;
+	real det_gammaL3 = det_gammaL * det_gammaL2;
+
+	real eps = .5 * (UL->eps + UR->eps);
+	real mu = .5 * (UL->mu + UR->mu);
+
+	<? if side == 0 then ?>
+	real detg_gUjj = .5 * (
+		coord_g11(xL) * coord_g22(xL) - coord_g12(xL) * coord_g12(xL)
+		+ coord_g11(xR) * coord_g22(xR) - coord_g12(xR) * coord_g12(xR)
+	);
+	<? elseif side == 1 then ?>
+	real detg_gUjj = .5 * (
+		coord_g00(xL) * coord_g22(xL) - coord_g02(xL) * coord_g02(xL)
+		+ coord_g00(xR) * coord_g22(xR) - coord_g02(xR) * coord_g02(xR)
+	);
+	<? elseif side == 2 then ?>
+	real detg_gUjj = .5 * (
+		coord_g00(xL) * coord_g11(xL) - coord_g01(xL) * coord_g01(xL)
+		+ coord_g00(xR) * coord_g11(xR) - coord_g01(xR) * coord_g01(xR)
+	);
+	<? end ?>
+	
+	real det_gamma3 = sqrt(det_gammaL3 * det_gammaR3);
+	real lambda = 1. / sqrt(detg_gUjj / (det_gamma3 * eps * mu));
+	
+	return (<?=eqn.eigen_t?>){
+		.lambda = lambda,
+		.sqrt_eps = sqrt(eps),
+		.sqrt_mu = sqrt(mu),
+	};
+#endif
 }
 <? end ?>
 
@@ -35,19 +99,22 @@ kernel void calcEigenBasis(
 	
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		
+
 		int indexL = index - stepsize.s<?=side?>;
 		
 		<?=solver:getULRCode()?>
 		
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
-		
+
 		int indexInt = side + dim * index;	
 		eigenBuf[indexInt] = eigen_forSide_<?=side?>(*UL, *UR, xInt);
 	}<? end ?>
 }
 		
+/*
+TODO update this for Einstein-Maxwell (take the metric into consideration
+*/
 <? for side=0,solver.dim-1 do ?>
 
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
@@ -220,6 +287,10 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	deriv->epsE = real3_sub(deriv->epsE, real3_scale(U->epsE, 1. / U->eps * U->sigma));
+
+#ifndef geometry_cartesian
+	//grid coordinate connection coefficient source terms
+#endif
 }
 
 
@@ -231,9 +302,10 @@ kernel void addSource(
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	return (<?=eqn.eigen_t?>){
-		.sqrt_eps = sqrt(U.eps),
-		.sqrt_mu = sqrt(U.mu),
-	};
+	<?=eqn.eigen_t?> eig;
+	eig.sqrt_eps = sqrt(U.eps);
+	eig.sqrt_mu = sqrt(U.mu);
+	eig.lambda = 1. / (eig.sqrt_eps * eig.sqrt_mu);
+	return eig;
 }
 <? end ?>

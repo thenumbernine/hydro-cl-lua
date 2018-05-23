@@ -201,16 +201,7 @@ dprint'commutation:'
 dprint(var'c''_uv^w':eq(c'_uv^w'()))
 
 	local g = (e'_u^I' * e'_v^J' * eta'_IJ')()
-	--[[ TODO automatically do this ...
-	g = g:map(function(expr)
-		if symmath.op.pow.is(expr)
-		and expr[2] == const(2)
-		and symmath.cos.is(expr[1])
-		then
-			return 1 - symmath.sin(expr[1][1]:clone())^2
-		end
-	end)()
-	--]]
+
 dprint'metric:'
 dprint(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
 

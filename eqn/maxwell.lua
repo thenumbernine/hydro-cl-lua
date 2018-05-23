@@ -232,6 +232,7 @@ end
 Maxwell.eigenVars = table{
 	{sqrt_eps = 'real'},
 	{sqrt_mu = 'real'},
+	{lambda = 'real'},	-- only used for curvilinear coordinates
 }
 
 function Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
