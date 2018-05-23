@@ -94,8 +94,8 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 
 -- debugging
---local dprint = print
-local dprint = function() end
+local dprint = print
+--local dprint = function() end
 
 local Geometry = class()
 

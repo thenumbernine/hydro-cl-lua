@@ -20,15 +20,17 @@ kernel void calcDerivFromFlux(
 
 <? -- trying to apply Trangenstein to my holonomic coordinate code:
 	-- for cylindric, and for the correct source terms, it seems to work the same.
-if false
+if true
 and require 'geom.cylinder'.is(solver.geometry) 
 and solver.dim == 2
 then
 ?>
-		real rL = x.x - .5 * grid_dx0;
-		real rR = x.x + .5 * grid_dx0;
-		real thetaL = x.y - .5 * grid_dx1;
-		real thetaR = x.y + .5 * grid_dx1;
+		real r = x.x;
+		real rL = r - .5 * grid_dx0;
+		real rR = r + .5 * grid_dx0;
+		real theta = x.y;
+		real thetaL = theta - .5 * grid_dx1;
+		real thetaR = theta + .5 * grid_dx1;
 		real dr = rR - rL;
 		real dtheta = thetaR - thetaL;
 		
@@ -36,20 +38,32 @@ then
 		// is the integral of the jacobian determinant across the coord range of the cell
 		//so integral from r1 to r2 of r = r^2/2 at r2 - r1 = (r2^2-r1^2)/2
 <?	if side==0 then	-- r+ and r-
-?>		real areaL = rL * dtheta;
+?>		
+		real areaL = rL * dtheta;
 		real areaR = rR * dtheta;
+
 <?	elseif side==1 then	-- θ+ and θ-	
-?>		real areaL = dr;
-		real areaR = dr;
+?>		
+		real areaL = r * dr;
+		real areaR = r * dr;
+
 <?	end
 ?>
 		//so the next question is -- how to incorporate the d/dxi ln(sqrt(g)) ...
 		// is it magically already considered?
 		//or do I have to also scale by that here (in addition to scaling by the sides) ?
-		real volume = .5 * (rR*rR - rL*rL) * (thetaR - thetaL);
+		//real volume = .5 * (rR*rR - rL*rL) * (thetaR - thetaL);
 
 <? else	-- arbitrary geometry case 
-?>		real3 xIntL = x;
+?>		
+
+		//This is the covariant finite volume code that that represents the gradient of the metric determinant 
+		//All other covariant terms should be accounted for in the equation source update
+		//U^i_;t + F^ij_;j  = 0
+		//U^i_,t + F^ij_,j + Gamma^j_kj F^ik + Gamma^i1_kj F^i1^k + ... + Gamma^in_kj F^in^k = 0
+		//					(metric det gradient) 
+
+		real3 xIntL = x;
 		xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
 		real volumeIntL = volume_at(xIntL);
 		real areaL = volumeIntL / grid_dx<?=side?>;

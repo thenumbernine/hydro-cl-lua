@@ -898,14 +898,14 @@ function HydroCLApp:updateGUI()
 			end
 			self.running = false
 		end
-
+		
 		if ig.igButton'Save' then
 			-- save as cfits 
 			for i,solver in ipairs(self.solvers) do
 				solver:save(tostring(i))
 			end
 		end
-
+		
 		-- dump min/max(/avg?) of displayvars to a .txt file
 		tooltip.checkboxTable('dump to text file', dumpFile, 'enabled')
 
