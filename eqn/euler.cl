@@ -513,51 +513,13 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
-#if defined(geometry_cylinder)
 
-//these two work with holonomic geometry
-//they maintain constant initial conditions with zero velocity
-//it doesn't work so well with nonzero velocity
-#if 1	// holonomic coriolis force alone		
-	//m^j_,t += -Conn^j_ki (rho v^k v^i + P g^ki)
+	//covariant derivative - connection coefficients - source terms 
+	//...for holonomic coordinate system
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
 	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(W.v, x), U->rho));	//-Conn^i_jk v^j v^k rho
 	deriv->m = real3_sub(deriv->m, real3_scale(coord_connTrace(x), W.P));		//-Conn^i_jk g^jk P = -Conn^i P
-#elif 0	// holonomic coriolis force alone ... explicitly written out for cylindrical geometry ...
-	real r = x.x, theta = x.y, z = x.z;
-	<?=eqn.prim_t?> W = primFromCons(*U, x); 
-	deriv->m.x += r * W.rho * W.v.y * W.v.y + W.P / r;
-	deriv->m.y -= 2. / r * W.rho * W.v.x * W.v.y;
 
-#elif 0	// holonomic: all covariant derivative terms (including the others that should be absorbed into the finite-volume computations)
-	real connTrace = coord_connTrace(x);
-	deriv->rho -= U->rho * connTrace;
-	deriv->m = real3_sub(
-		real3_sub(deriv->m, real3_scale(coord_conn(U->m, x), 1. / U->rho)),
-		real3_scale(U->m, connTrace));
-	deriv->ETotal -= U->ETotal * connTrace;
-#elif 0	//anholonomic
-	real r = x.x, theta = x.y, z = x.z;
-	<?=eqn.prim_t?> W = primFromCons(*U, x); 
-	real HTotal = calc_HTotal(W.P, U->ETotal);
-	//anholonomic: Conn^theta_r_theta = -Conn^r_theta_theta = 1/r
-	deriv->rho -= 1/r * U->m.x;
-	deriv->m.x -= 1/r * (U->m.x * W.v.x);
-	deriv->m.y -= 1/r * (U->m.x * W.v.y);
-	deriv->m.z -= 1/r * (U->m.x * W.v.z);
-	deriv->ETotal -= 1/r * W.v.x * HTotal;
-#elif 0	//anholonomic coriolis force alone ... explicitly written out
-		// doesn't work with anholonomic geometry ... maybe because the volume terms in the flux shouldn't be there / are messed up?
-	real r = x.x, theta = x.y, z = x.z;
-	<?=eqn.prim_t?> W = primFromCons(*U, x); 
-	deriv->m.x += 1./r * (W.rho * W.v.y * W.v.y + W.P);
-	deriv->m.y -= 1./r * W.rho * W.v.x * W.v.y;
-#endif
-#else	//all other geometry -- general case for holonomic coordinates
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
-	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(W.v, x), U->rho));	//-Conn^i_jk v^j v^k rho
-	deriv->m = real3_sub(deriv->m, real3_scale(coord_connTrace(x), W.P));		//-Conn^i_jk g^jk P = -Conn^i P
-#endif
 
 /*
 Navier-Stokes FANS source term: 2005 Uygun, Kirkkopru
