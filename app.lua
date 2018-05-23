@@ -874,8 +874,8 @@ function HydroCLApp:display2D(...)
 end
 
 function HydroCLApp:display3D(...)
-	self.display3DMethod = self.display3DMethod or ffi.new('int[1]', 0)
-	select(2, next(display3DMethods[ self.display3DMethod[0]+1 ]))(self, ...)
+	self.display3DMethod = self.display3DMethod or 1 
+	select(2, next(display3DMethods[self.display3DMethod]))(self, ...)
 end
 
 require 'draw.vectorfield'(HydroCLApp)
@@ -954,10 +954,10 @@ function HydroCLApp:updateGUI()
 			
 			elseif dim == 3 then
 				ig.igPushIDStr'3D'
-				ig.igCombo('Display Method', self.display3DMethod, display3DMethodNames)
+				tooltip.combo('Display Method', self, 'display3DMethod', display3DMethodNames)
 				
 				-- if we're doing 3D slice display 
-				if HydroCLApp.display3D_Slice == select(2, next(display3DMethods[self.display3DMethod[0]+1])) then
+				if HydroCLApp.display3D_Slice == select(2, next(display3DMethods[self.display3DMethod])) then
 
 if useClipPlanes then
 					ig.igRadioButton("rotate camera", rotateClip, 0)
