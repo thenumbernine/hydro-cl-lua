@@ -43,20 +43,22 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 #else	
 	real3 xR = x;
 	xR.s<?=side?> += .5 * grid_dx<?=side?>;
+	
+	real3 xL = x;
+	xL.s<?=side?> -= .5 * grid_dx<?=side?>;
+
 
 	real det_gammaR = volume_at(xR);
 	real det_gammaR2 = det_gammaR * det_gammaR;
 	real det_gammaR3 = det_gammaR * det_gammaR2;
-
-	real3 xL = x;
-	xL.s<?=side?> -= .5 * grid_dx<?=side?>;
 	
 	real det_gammaL = volume_at(xL);
 	real det_gammaL2 = det_gammaL * det_gammaL;
 	real det_gammaL3 = det_gammaL * det_gammaL2;
 
-	real eps = .5 * (UL->eps + UR->eps);
-	real mu = .5 * (UL->mu + UR->mu);
+
+	real eps = .5 * (UL.eps + UR.eps);
+	real mu = .5 * (UL.mu + UR.mu);
 
 	<? if side == 0 then ?>
 	real detg_gUjj = .5 * (
@@ -287,7 +289,7 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	deriv->epsE = real3_sub(deriv->epsE, real3_scale(U->epsE, 1. / U->eps * U->sigma));
-
+	
 #ifndef geometry_cartesian
 	//grid coordinate connection coefficient source terms
 #endif

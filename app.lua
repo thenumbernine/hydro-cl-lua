@@ -242,7 +242,7 @@ function HydroCLApp:initGL(...)
 	-- don't wrap the colors, but do use GL_REPEAT
 	self.gradientTex:setWrap{s = gl.GL_REPEAT}
 
-	local graphShaderCode = file['graph.shader']
+	local graphShaderCode = file['draw/graph.shader']
 	self.graphShader = GLProgram{
 		vertexCode = '#define VERTEX_SHADER\n'..graphShaderCode,
 		fragmentCode = '#define FRAGMENT_SHADER\n'..graphShaderCode,
@@ -253,10 +253,10 @@ function HydroCLApp:initGL(...)
 		},
 	}
 	
-	local heatMapCode = file['heatmap2d.shader']
-	local volumetricCode = file['volumetric.shader']
-	local volumeSliceCode = file['slices3d.shader']
-	local vectorFieldCode = file['vectorfield.shader']
+	local heatMapCode = file['draw/heatmap2d.shader']
+	local volumetricCode = file['draw/volumetric.shader']
+	local volumeSliceCode = file['draw/slices3d.shader']
+	local vectorFieldCode = file['draw/vectorfield.shader']
 	for _,solver in ipairs(self.solvers) do
 		
 		local coordMapGLSLCode = solver.geometry:getCoordMapGLSLCode()

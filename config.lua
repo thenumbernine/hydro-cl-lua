@@ -1,4 +1,4 @@
-local dim = 2
+local dim = 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -37,7 +37,7 @@ local args = {
 
 	--useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	geometry = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -101,10 +101,10 @@ maxs = {6,1,1},
 		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
-	--[[ cylinder
+	-- [[ cylinder
 	geometry = 'cylinder',
-	mins = cmdline.mins or {.1, 0, -1},
-	maxs = cmdline.maxs or {1, 2*math.pi, 1},
+	mins = cmdline.mins or {.5, 0, -.25},
+	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
 		{32, 256, 1}, -- 2D
@@ -118,8 +118,8 @@ maxs = {6,1,1},
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
 		-- z
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'mirror',
+		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
 	--[[ sphere
@@ -127,9 +127,9 @@ maxs = {6,1,1},
 	mins = cmdline.mins or {0, -math.pi, .5},
 	maxs = cmdline.maxs or {math.pi, math.pi, 1},
 	gridSize = {
-		cmdline.gridSize or 64,
-		cmdline.gridSize or 128,
-		cmdline.gridSize or 64,
+		cmdline.gridSize or 16,
+		cmdline.gridSize or 16,
+		cmdline.gridSize or 16,
 	},
 	boundary = {
 		xmin=cmdline.boundary or 'mirror',
@@ -230,7 +230,7 @@ maxs = {6,1,1},
 	--initState = '2002 Dedner Kelvin-Helmholtz',
 
 	-- Maxwell:
-	initState = 'Maxwell default',
+	--initState = 'Maxwell default',
 	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
@@ -359,7 +359,7 @@ maxs = {6,1,1},
 }
 
 -- HD
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -409,7 +409,7 @@ maxs = {6,1,1},
 
 -- Maxwell
 -- when the state is nonzero, at certain sizes there appear errors in the corners
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 

@@ -16,7 +16,11 @@ function Sphere:init(args)
 	local r, theta, phi = symmath.vars('r', 'θ', 'φ')
 
 	-- [[ holonomic
-	args.coords = table{r, theta, phi}
+	args.coords = ({
+		function() return table{theta} end,
+		function() return table{theta, phi} end,
+		function() return table{r, theta, phi} end,
+	})[args.solver.dim]()
 	--]]
 	--[[ anholonomic
 	local thetaHat = symmath.var'thetaHat'
@@ -30,19 +34,18 @@ function Sphere:init(args)
 	args.coords = table{thetaHat, phiHat, r}:sub(1, args.solver.dim)
 	--]]
 	
-	args.chart = function() 
-		return ({
-			function() return Tensor('^I', theta) end,
-			function() return Tensor('^I', sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta)) end,
-			function() 
-				return Tensor('^I', 
-					r * sin(theta) * cos(phi), 
-					r * sin(theta) * sin(phi), 
-					r * cos(theta)
-				) 
-			end,
-		})[args.solver.dim]()
-	end
+	args.chart = ({
+		function() return Tensor('^I', theta) end,
+		function() return Tensor('^I', sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta)) end,
+		function() 
+			return Tensor('^I', 
+				r * sin(theta) * cos(phi), 
+				r * sin(theta) * sin(phi), 
+				r * cos(theta)
+			) 
+		end,
+	})[args.solver.dim]
+	
 	Sphere.super.init(self, args)
 end
 
