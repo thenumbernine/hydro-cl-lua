@@ -319,6 +319,8 @@ local initStates = table{
 			heatCapacityRatio = 5/3,
 		},
 		initState = function(self, solver)
+			
+			-- TODO hmm looks like it's not setting on init correctly...
 			local boundaryMethods = {}
 			for i,x in ipairs(xNames) do
 				for _,minmax in ipairs{'min', 'max'} do

@@ -233,13 +233,20 @@ dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'(
 		code = code:gsub('{pt^(%d)}', function(i)
 			return self.coords[i+0]
 		end)
+		code = code:gsub('{u^(%d)}', function(i)
+			return 'u'..self.coords[i+0]
+		end)
 		code = code:gsub('{v^(%d)}', function(i)
 			return 'v'..self.coords[i+0]
 		end)
 		return code
 	end
 
-	local paramU = Tensor('^a', function(a) 
+	local paramU = Tensor('^a', function(a)
+		return var('{u^'..a..'}')
+	end)
+	
+	local paramV = Tensor('^a', function(a)
 		return var('{v^'..a..'}')
 	end)
 	
@@ -248,6 +255,8 @@ dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'(
 		return {['{pt^'..i..'}'] = coord}	-- 1-based
 	end):append(range(dim):map(function(a)
 		return {[paramU[a].name] = paramU[a]}
+	end)):append(range(dim):map(function(a)
+		return {[paramV[a].name] = paramV[a]}
 	end))
 	local function compile(expr)
 		local orig = expr	
@@ -329,6 +338,7 @@ dprint('eHolLen['..i..'] = '..substCoords(eiHolLenCode))
 dprint('eUnitCode = ', tolua(self.eUnitCode, {indent=true}))
 --]=]
 
+	-- v^k -> v_k
 	local lowerExpr = paramU'_a'()
 	self.lowerCodes = range(dim):map(function(i)
 		local lowerCode = compile(lowerExpr[i])
@@ -336,12 +346,13 @@ dprint('lowerCode['..i..'] = '..substCoords(lowerCode))
 		return lowerCode
 	end)
 
+	-- v^k v_k
 	local lenSqExpr = (paramU'^a' * paramU'_a')()
 	self.uLenSqCode = compile(lenSqExpr)
 dprint('uLenSqCodes = '..substCoords(self.uLenSqCode))
 
-	-- Conn^i_jk(x) v^j v^k
-	local connExpr = (Gamma'^a_bc' * paramU'^b' * paramU'^c')()
+	-- Conn^i_jk(x) u^j v^k
+	local connExpr = (Gamma'^a_bc' * paramU'^b' * paramV'^c')()
 	self.connCodes = range(dim):map(function(i)
 		local conniCode = compile(connExpr[i])
 dprint('connCode['..i..'] = '..substCoords(conniCode))
@@ -410,6 +421,9 @@ local function convertParams(code)
 	code = code:gsub('{pt^(%d)}', function(i)
 		return 'pt.'..xs[i+0]
 	end)
+	code = code:gsub('{u^(%d)}', function(i)
+		return 'u.'..xs[i+0]
+	end)
 	code = code:gsub('{v^(%d)}', function(i)
 		return 'v.'..xs[i+0]
 	end)
@@ -446,7 +460,7 @@ end
 -- f(v,x) where x is a point on the coordinate chart and v is most likely a tensor
 local function getCode_real3_real3_to_real(name, expr)
 	return template([[
-inline real <?=name?>(real3 v, real3 pt) {
+inline real <?=name?>(real3 u, real3 pt) {
 	return <?=convertParams(expr)?>;
 }]], {
 		name = name,
@@ -457,7 +471,7 @@ end
 
 local function getCode_real3_real3_to_real3(name, exprs)
 	return template([[
-inline real3 <?=name?>(real3 v, real3 pt) {
+inline real3 <?=name?>(real3 u, real3 pt) {
 	return _real3(
 <? for i=1,3 do
 ?>		<?=exprs[i] and convertParams(exprs[i]) or '0.'
@@ -470,6 +484,23 @@ inline real3 <?=name?>(real3 v, real3 pt) {
 		convertParams = convertParams,
 	})
 end
+
+local function getCode_real3_real3_real3_to_real3(name, exprs)
+	return template([[
+inline real3 <?=name?>(real3 u, real3 v, real3 pt) {
+	return _real3(
+<? for i=1,3 do
+?>		<?=exprs[i] and convertParams(exprs[i]) or '0.'
+		?><?=i==3 and '' or ','?>
+<? end
+?>	);
+}]], {
+		name = name,
+		exprs = exprs,
+		convertParams = convertParams,
+	})
+end
+
 
 local function getCode_real3_to_sym3(name, exprs)
 	return template([[
@@ -524,7 +555,7 @@ inline real coordLen(real3 r, real3 pt) {
 }]],
 	}
 
-	lines:insert(getCode_real3_real3_to_real3('coord_conn', self.connCodes))
+	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn', self.connCodes))
 	lines:insert(getCode_real3_to_real3('coord_connTrace', self.connTraceCodes))
 
 	--[[
@@ -564,30 +595,30 @@ inline real coordLen(real3 r, real3 pt) {
 //converts a vector from cartesian coordinates to grid coordinates
 //by projecting the vector into the grid basis vectors 
 //at x, which is in grid coordinates
-real3 cartesianToCoord(real3 v, real3 pt) {
-	real3 vCoord;
+real3 cartesianToCoord(real3 u, real3 pt) {
+	real3 uCoord;
 	<? for i=0,solver.dim-1 do ?>{
 		real3 e = coordBasis<?=i?>(pt);
 		//anholonomic normalized
-		//vCoord.s<?=i?> = real3_dot(e, v); // / real3_len(e);
+		//uCoord.s<?=i?> = real3_dot(e, u); // / real3_len(e);
 		//holonomic
-		vCoord.s<?=i?> = real3_dot(e, v) / real3_lenSq(e);
+		uCoord.s<?=i?> = real3_dot(e, u) / real3_lenSq(e);
 	}<? end
 	for i=solver.dim,2 do ?>
-	vCoord.s<?=i?> = 0.;
+	uCoord.s<?=i?> = 0.;
 	<? end ?>
-	return vCoord;
+	return uCoord;
 }
 
 //converts a vector from cartesian to grid
 //by projecting it onto the basis ... ?
-real3 cartesianFromCoord(real3 v, real3 pt) {
-	real3 vGrid = _real3(0,0,0);
+real3 cartesianFromCoord(real3 u, real3 pt) {
+	real3 uGrid = _real3(0,0,0);
 	<? for i=0,solver.dim-1 do ?>{
 		real3 e = coordBasis<?=i?>(pt);
-		vGrid = real3_add(vGrid, real3_scale(e, v.s<?=i?>));
+		uGrid = real3_add(uGrid, real3_scale(e, u.s<?=i?>));
 	}<? end ?>
-	return vGrid;
+	return uGrid;
 }
 
 ]], {

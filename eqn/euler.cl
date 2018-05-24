@@ -518,12 +518,14 @@ kernel void addSource(
 	//...for holonomic coordinate system
 	//Notice that the connections associated with all scalar state vars is already implemented in the calcDeriv.cl finite volume update.
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
-	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(W.v, x), U->rho));	//-Conn^i_jk v^j v^k rho
+	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(W.v, W.v, x), U->rho));	//-Conn^i_jk v^j v^k rho
 	deriv->m = real3_sub(deriv->m, real3_scale(coord_connTrace(x), W.P));		//-Conn^i_jk g^jk P = -Conn^i P
 #endif
 
 /*
 Navier-Stokes FANS source term: 2005 Uygun, Kirkkopru
+
+NOTICE this is only for flat space!
 
 i'th term in the j'th direction
 F[m]_ij += tauTilde_ij
