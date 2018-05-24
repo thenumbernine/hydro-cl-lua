@@ -102,8 +102,8 @@ local Geometry = class()
 function Geometry:init(args)
 	local symmath = require 'symmath'
 	local const = symmath.Constant
-	
-	local dim = args.solver.dim
+
+	local dim = 3
 	local var = symmath.var
 	local vars = symmath.vars
 	local Matrix = symmath.Matrix
@@ -246,10 +246,7 @@ dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'(
 	local toC = require 'symmath.tostring.C'
 	local toC_coordArgs = table.map(baseCoords, function(coord, i)
 		return {['{pt^'..i..'}'] = coord}	-- 1-based
-	end):append(range(
-		3
-		--args.solver.dim
-	):map(function(a)
+	end):append(range(dim):map(function(a)
 		return {[paramU[a].name] = paramU[a]}
 	end))
 	local function compile(expr)
@@ -291,45 +288,13 @@ dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'(
 dprint('uCode['..i..'] = '..substCoords(uCode))
 		return uCode
 	end)
-
-	-- just giving up and manually writing this out
 	
-	local function cross(a,b)
-		return table{
-			(a[2]*b[3]-b[2]*a[3])(),
-			(a[3]*b[1]-b[3]*a[1])(),
-			(a[1]*b[2]-b[1]*a[2])(),
-		}
-	end
-
 	-- extend 'e' to full R3 
 	-- TODO should I do this from the start?
 	-- just provide the full R3 coordinates, and make no 'eExt' struct
-	local eExt = table()
-	eExt[1] = range(3):map(function(i) return e[1][i] or const(0) end)
-	if dim >= 2 then
-		eExt[2] = range(3):map(function(i) return e[2][i] or const(0) end)
-	else
-		-- e2 is the maximal length orthogonal to e1
-		local found = false
-		for i =1,3 do
-			local n = table{0,0,0}:map(function(x) return const(x) end)
-			n[i] = 1
-			eExt[2] = cross(n,eExt[1])
-			local e2len = symmath.sqrt(eExt[2]:sum())()
-			if e2len ~= const(0) then
-				found = true
-			end
-		end
-		if not found then
-			error("how can you not find a perpendicular basis for e1="..eExt[1]:map(tostring):concat', ')
-		end
-	end
-	if dim >= 3 then
-		eExt[3] = range(3):map(function(i) return e[3][i] or const(0) end)
-	else
-		eExt[3] = cross(eExt[1],eExt[2])
-	end
+	local eExt = range(dim):map(function(j)
+		return range(dim):map(function(i) return e[j][i] or const(0) end)
+	end)
 
 	self.eCode = eExt:map(function(ei,i) 
 		return ei:map(function(eij,j)

@@ -8,62 +8,16 @@ local FiniteVolumeSolver = require 'solver.fvsolver'
 
 local xNames = table{'x', 'y', 'z'}
 
--- this can be put in app.lua
-local errorType = 'error_t'
-local errorTypeCode = [[
-typedef struct { 
-	real ortho, flux;
-} ]]..errorType..';'
-
 local Roe = class(FiniteVolumeSolver)
 Roe.name = 'Roe'
-
--- enable these to verify accuracy
--- disable these to save on allocation / speed
-Roe.checkFluxError = false
-Roe.checkOrthoError = false
-
---[[
-args specific to Roe:
-	checkFluxError
-	checkOrthoError
---]]
-function Roe:init(args)
-	Roe.super.init(self, args)
-
-	if args.checkFluxError ~= nil then
-		self.checkFluxError = args.checkFluxError
-	end
-	if args.checkOrthoError ~= nil then
-		self.checkOrthoError = args.checkOrthoError
-	end
-end
 
 function Roe:createBuffers()
 	Roe.super.createBuffers(self)
 
 	-- to get sizeof
 	ffi.cdef(self.eqn:getEigenTypeCode())
-	ffi.cdef(errorTypeCode)
-	
-	local realSize = ffi.sizeof(self.app.real)
 
 	self:clalloc('eigenBuf', self.volume * self.dim * ffi.sizeof(self.eqn.eigen_t))
-	
-	-- debug only
-	if self.checkFluxError or self.checkOrthoError then
-		local errorTypeSize = ffi.sizeof(errorType)
-		self:clalloc('errorBuf', self.volume * self.dim * errorTypeSize)
-	end
-end
-
-function Roe:createCodePrefix()
-	Roe.super.createCodePrefix(self)
-	
-	self.codePrefix = table{	
-		self.codePrefix,
-		errorTypeCode,
-	}:concat'\n'
 end
 
 function Roe:getSolverCode()
@@ -98,13 +52,6 @@ function Roe:refreshSolverProgram()
 	if self.eqn.useSourceTerm then
 		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
 		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
-	end
-
-	if self.checkFluxError or self.checkOrthoError then
-		self.calcErrorsKernelObj = self.solverProgramObj:kernel(
-			'calcErrors',
-			self.errorBuf,
-			self.eigenBuf)
 	end
 end
 
@@ -149,23 +96,105 @@ function Roe:addDisplayVars()
 		end
 	end
 
-	-- TODO add kernels for each side
-	if self.checkFluxError or self.checkOrthoError then	
-		for j,xj in ipairs(xNames) do
-			self:addDisplayVarGroup{
-				name = 'error '..xj,
-				bufferField = 'errorBuf',
-				codePrefix = [[
-	int indexInt = ]]..(j-1)..[[ + dim * index;
-]],
-				useLog = true,
-				type = 'error_t',
-				vars = {
-					{ortho = '*value = buf[indexInt].ortho;'},
-					{flux = '*value = buf[indexInt].flux;'},
-				},
+	-- ortho
+	for side=0,self.dim-1 do
+		self:addDisplayVarGroup{
+			name = 'ortho error '..xNames[side+1],
+			bufferField = 'eigenBuf',
+			codePrefix = '',
+			useLog = true,
+			type = self.eqn.eigen_t,
+			vars = {
+				{['0'] = template([[
+	int indexInt = <?=side?> + dim * index;
+	const global <?=eqn.eigen_t?>* eig = buf + indexInt;
+	
+	*value = 0;
+	//the flux transform is F v = R Lambda L v, I = R L
+	//but if numWaves < numIntStates then certain v will map to the nullspace 
+	//so to test orthogonality for only numWaves dimensions, I will verify that Qinv Q v = v 
+	//I = L R
+	for (int k = 0; k < numWaves; ++k) {
+		<?=eqn.cons_t?> basis;
+		for (int j = 0; j < numStates; ++j) {
+			basis.ptr[j] = k == j ? 1 : 0;
+		}
+		
+		<?=eqn.waves_t?> eigenCoords = eigen_leftTransform_<?=side?>(*eig, basis, xInt[0]);
+		<?=eqn.cons_t?> newbasis = eigen_rightTransform_<?=side?>(*eig, eigenCoords, xInt[0]);
+	
+		for (int j = 0; j < numWaves; ++j) {
+			*value += fabs(newbasis.ptr[j] - basis.ptr[j]);
+		}
+	}
+]], {
+	solver = self,
+	eqn = self.eqn,
+	side = side,
+})},
 			}
-		end
+		}
+	end
+
+	-- flux
+	for side=0,self.dim-1 do
+		self:addDisplayVarGroup{
+			name = 'flux error '..xNames[side+1],
+			bufferField = 'eigenBuf',
+			codePrefix = '',
+			useLog = true,
+			type = self.eqn.eigen_t,
+			vars = {
+				{['0'] = template([[
+		int indexInt = <?=side?> + dim * index;
+		const global <?=eqn.eigen_t?>* eig = buf + indexInt;
+		
+		*value = 0;
+		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt[0]')?>
+
+		for (int k = 0; k < numIntStates; ++k) {
+			
+//TODO find out which left/right/fluxTransform functions are writing more than they should
+//I see errors in mhd and in adm3d
+			//this only needs to be numIntStates in size
+			//but just in case the left/right transforms are reaching past that memory boundary ...
+			<?=eqn.cons_t?> basis;
+			for (int j = 0; j < numStates; ++j) {
+				basis.ptr[j] = k == j ? 1 : 0;
+			}
+
+			<?=eqn.waves_t?> eigenCoords = eigen_leftTransform_<?=side?>(*eig, basis, xInt[0]);
+
+			<?=eqn.waves_t?> eigenScaled;
+			<? for j=0,eqn.numWaves-1 do ?>{
+				const int j = <?=j?>;
+				real wave_j = <?=eqn:eigenWaveCode(side, 'eig', 'xInt[0]', j)?>;
+				eigenScaled.ptr[j] = eigenCoords.ptr[j] * wave_j;
+			}<? end ?>
+		
+			//once again, only needs to be numIntStates
+			<?=eqn.cons_t?> newtransformed = eigen_rightTransform_<?=side?>(*eig, eigenScaled, xInt[0]);
+
+//this shouldn't need to be reset here
+// but it will if leftTransform does anything destructive
+for (int j = 0; j < numStates; ++j) {
+	basis.ptr[j] = k == j ? 1 : 0;
+}
+
+			//once again, only needs to be numIntStates
+			<?=eqn.cons_t?> transformed = eigen_fluxTransform_<?=side?>(*eig, basis, xInt[0]);
+			
+			for (int j = 0; j < numIntStates; ++j) {
+				*value += fabs(newtransformed.ptr[j] - transformed.ptr[j]);
+			}
+		}
+]], {
+	solver = self,
+	eqn = self.eqn,
+	side = side,
+})},
+			}
+		}
 	end
 end
 
@@ -188,10 +217,6 @@ function Roe:calcDeriv(derivBuf, dt)
 
 
 	self.calcEigenBasisKernelObj()
-
-	if self.checkFluxError or self.checkOrthoError then
-		self.calcErrorsKernelObj()
-	end
 
 	self.calcFluxKernelObj.obj:setArg(3, dtArg)
 	self.calcFluxKernelObj()

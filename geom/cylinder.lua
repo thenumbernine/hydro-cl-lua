@@ -13,14 +13,13 @@ Cylinder.coords = {'r', 'θ', 'z'}
 
 function Cylinder:init(args)
 	local x, y, z = symmath.vars('x', 'y', 'z')
-	args.embedded = table{x,y,z}:sub(1, args.solver.dim)
+	args.embedded = table{x,y,z}
 	
 	local r, theta = symmath.vars('r', 'θ')
 
 	-- [[ holonomic
-	-- this would need the conservation law equation delta^ij's swapped with g^ij's
-	-- which takes a new eigen-decomposition
-	args.coords = table{r, theta, z}:sub(1, args.solver.dim)
+	-- this requires conservation law equation delta^ij's to be swapped with g^ij's
+	args.coords = table{r, theta, z}
 	--]]
 	--[[ anholonomic
 	-- g^ij = delta^ij, so the Euler fluid equations match those in flat space
@@ -32,7 +31,7 @@ function Cylinder:init(args)
 	local thetaHat = symmath.var'thetaHat'
 	thetaHat.base = theta
 	function thetaHat:applyDiff(x) return x:diff(theta) / r end
-	args.coords = table{r, thetaHat, z}:sub(1, args.solver.dim)
+	args.coords = table{r, thetaHat, z}
 	--]]
 	-- the problem with anholonomic is that 
 	-- dx_at is always 1
@@ -47,13 +46,7 @@ function Cylinder:init(args)
 	-- TODO https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19870019781.pdf
 	-- it looks like all I need is the volume and I'm fine
 
-	args.chart = function() 
-		return ({
-			function() return Tensor('^I', r) end,
-			function() return Tensor('^I', r * cos(theta), r * sin(theta)) end,
-			function() return Tensor('^I', r * cos(theta), r * sin(theta), z) end,
-		})[args.solver.dim]()
-	end
+	args.chart = function() return Tensor('^I', r * cos(theta), r * sin(theta), z) end
 	
 	Cylinder.super.init(self, args)
 end

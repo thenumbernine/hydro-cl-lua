@@ -1,4 +1,4 @@
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -37,7 +37,7 @@ local args = {
 
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	geometry = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -62,7 +62,7 @@ maxs = {6,1,1},
 				{32,32,32},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
-				{1024,1,1},
+				{256,1,1},
 				{64,64,1},
 				{16,16,16},
 			},
@@ -83,6 +83,7 @@ maxs = {6,1,1},
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
+	-- TODO these next two seem very similar
 	--[[ 1D radial
 	geometry = '1d_radial',
 	mins = cmdline.mins or {0, 0, 0},
@@ -101,9 +102,28 @@ maxs = {6,1,1},
 		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ sphere1d -- used for 1D radial profiles of spheres
+	geometry = 'sphere1d',
+	mins = cmdline.mins or {.1, 0, -math.pi},
+	maxs = cmdline.maxs or {1, math.pi, math.pi},
+	gridSize = {
+		cmdline.gridSize or 256,
+		cmdline.gridSize or 128,
+		cmdline.gridSize or 64,
+	},
+	boundary = {
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
+	},
+	--]]
+	--[[ cylinder
+	-- for some reason [rmin, rmax] = [.5, 1] gets an explosion right at r=rmin, theta=0 ... but any other values work fine
 	geometry = 'cylinder',
-	mins = cmdline.mins or {.5, 0, -.25},
+	mins = cmdline.mins or {.45, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
@@ -133,30 +153,33 @@ maxs = {6,1,1},
 		cmdline.gridSize or 16,
 	},
 	boundary = {
-		xmin=cmdline.boundary or 'periodic',
-		xmax=cmdline.boundary or 'periodic',
+		xmin=cmdline.boundary or 'mirror',
+		xmax=cmdline.boundary or 'mirror',
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
 		zmin=cmdline.boundary or 'mirror',
 		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
-	--[[ sphere1d -- used for 1D radial profiles of spheres
-	geometry = 'sphere1d',
-	mins = cmdline.mins or {1, -math.pi, .5},
-	maxs = cmdline.maxs or {100, math.pi, 1},
+	-- symbolic math gets too complex
+	-- this is a good reason for arbitrary mesh support
+	--[[ torus
+	geometry = 'torus',
+	-- hmm, right now sphere's variables change per-dimension used ...
+	mins = cmdline.mins or {0, 0, 0},
+	maxs = cmdline.maxs or {2*math.pi, 2*math.pi, 1},
 	gridSize = {
-		cmdline.gridSize or 256,
-		cmdline.gridSize or 128,
-		cmdline.gridSize or 64,
+		cmdline.gridSize or 16,
+		cmdline.gridSize or 16,
+		cmdline.gridSize or 16,
 	},
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'periodic',
+		xmax=cmdline.boundary or 'periodic',
+		ymin=cmdline.boundary or 'periodic',
+		ymax=cmdline.boundary or 'periodic',
+		zmin=cmdline.boundary or 'mirror',
+		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
 

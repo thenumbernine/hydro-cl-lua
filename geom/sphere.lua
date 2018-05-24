@@ -9,14 +9,14 @@ local Tensor = symmath.Tensor
 local Sphere = class(Geometry)
 
 Sphere.name = 'sphere' 
-Sphere.coords = {'r', 'θ', 'φ'}
+Sphere.coords = {'θ', 'φ', 'r'}
 
 function Sphere:init(args)
-	args.embedded = table{symmath.vars('x', 'y', 'z')}:sub(1,args.solver.dim)
+	args.embedded = table{symmath.vars('x', 'y', 'z')}
 	local theta, phi, r = symmath.vars('θ', 'φ', 'r')
 
 	-- [[ holonomic
-	args.coords = table{theta, phi, r}	--:sub(1, args.solver.dim)
+	args.coords = table{theta, phi, r}
 	--]]
 	--[[ anholonomic
 	local thetaHat = symmath.var'thetaHat'

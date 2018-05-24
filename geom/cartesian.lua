@@ -9,11 +9,10 @@ Cartesian.name = 'cartesian'
 Cartesian.coords = {'x', 'y', 'z'}
 
 function Cartesian:init(args)
-	args.embedded = table{symmath.vars('x', 'y', 'z')}:sub(1, args.solver.dim)
+	local x,y,z = symmath.vars('x', 'y', 'z')
+	args.embedded = table{x,y,z}
 	args.coords = args.embedded
-	args.chart = function() 
-		return symmath.Tensor('^I', table.unpack(args.coords)) 
-	end
+	args.chart = function() return symmath.Tensor('^I', x,y,z) end
 	Cartesian.super.init(self, args)
 end
 

@@ -419,7 +419,6 @@ function Solver:refreshCodePrefix()
 	self:refreshIntegrator()	-- depends on eqn & gridSize ... & ffi.cdef cons_t
 	self:refreshInitStateProgram()
 	self:refreshSolverProgram()
-	self:refreshDisplayProgram()
 	-- changing initState calls this, and could change boundary programs, so I'm putting this here
 	-- bad excuse, I know
 	self:refreshBoundaryProgram()
@@ -1325,7 +1324,9 @@ kernel void initNodeFromRoot(
 			}),
 	}:append(self.ops:map(function(op)
 		return op:getSolverCode()
-	end)):concat'\n'
+	end)):append{
+		self:getDisplayCode(),
+	}:concat'\n'
 end
 
 -- depends on buffers
@@ -1405,6 +1406,35 @@ end
 	for _,op in ipairs(self.ops) do
 		op:refreshSolverProgram()
 	end
+
+	-- display stuff:
+
+	if self.app.useGLSharing then
+		for _,displayVarGroup in ipairs(self.displayVarGroups) do
+			for _,var in ipairs(displayVarGroup.vars) do
+				--[[
+				if var.enabled 
+				or (var.vecVar and var.vecVar.enabled)
+				then
+				--]]do
+					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id, self.texCLMem)
+				end
+			end
+		end
+	end
+
+	for _,displayVarGroup in ipairs(self.displayVarGroups) do
+		for _,var in ipairs(displayVarGroup.vars) do
+			--[[
+			if var.enabled 
+			or (var.vecVar and var.vecVar.enabled)
+			then
+			--]]do
+				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id, self.reduceBuf)
+			end
+		end
+	end
+
 end
 
 -- for solvers who don't rely on calcDT
@@ -1412,11 +1442,8 @@ function Solver:refreshCalcDTKernel()
 	self.calcDTKernelObj = self.solverProgramObj:kernel('calcDT', self.reduceBuf, self.UBuf)
 end
 
-function Solver:refreshDisplayProgram()
-
-	local lines = table{
-		self.codePrefix,
-	}
+function Solver:getDisplayCode()
+	local lines = table()
 	
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
 		for _,var in ipairs(displayVarGroup.vars) do
@@ -1427,9 +1454,11 @@ function Solver:refreshDisplayProgram()
 	if self.app.useGLSharing then
 		for _,displayVarGroup in ipairs(self.displayVarGroups) do
 			for _,var in ipairs(displayVarGroup.vars) do
-				if var.enabled 
+				--[[
+				if var.enabled
 				or (var.vecVar and var.vecVar.enabled)
 				then
+				--]]do
 					lines:append{
 						template(var.displayCode, {
 							solver = self,
@@ -1454,9 +1483,11 @@ function Solver:refreshDisplayProgram()
 
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
 		for _,var in ipairs(displayVarGroup.vars) do
+			--[[
 			if var.enabled 
 			or (var.vecVar and var.vecVar.enabled)
 			then
+			--]]do
 				lines:append{
 					template(var.displayCode, {
 						solver = self,
@@ -1477,32 +1508,8 @@ function Solver:refreshDisplayProgram()
 	end
 	
 	local code = lines:concat'\n'
-	time('compiling display program', function()
-		self.displayProgramObj = self.Program{code=code}
-		self.displayProgramObj:compile()
-	end)
-
-	if self.app.useGLSharing then
-		for _,displayVarGroup in ipairs(self.displayVarGroups) do
-			for _,var in ipairs(displayVarGroup.vars) do
-				if var.enabled 
-				or (var.vecVar and var.vecVar.enabled)
-				then
-					var.calcDisplayVarToTexKernelObj = self.displayProgramObj:kernel('calcDisplayVarToTex_'..var.id, self.texCLMem)
-				end
-			end
-		end
-	end
-
-	for _,displayVarGroup in ipairs(self.displayVarGroups) do
-		for _,var in ipairs(displayVarGroup.vars) do
-			if var.enabled 
-			or (var.vecVar and var.vecVar.enabled)
-			then
-				var.calcDisplayVarToBufferKernelObj = self.displayProgramObj:kernel('calcDisplayVarToBuffer_'..var.id, self.reduceBuf)
-			end
-		end
-	end
+	
+	return code
 end
 
 --[[
@@ -2212,7 +2219,7 @@ do
 						original[field] = all[field]
 					end
 					local enableChanged = handle(all, 'all')
-					refresh = refresh or enableChanged
+					--refresh = refresh or enableChanged
 					for _,field in ipairs(fields) do
 						if all[field] ~= original[field] then
 							for _,var in ipairs(displayVarGroup.vars) do
@@ -2223,14 +2230,15 @@ do
 
 					for _,var in ipairs(displayVarGroup.vars) do
 						local enableChanged = handle(var, displayVarGroup.name..' '..var.name)
-						refresh = refresh or enableChanged
+						--refresh = refresh or enableChanged
 					end
 				end
 				ig.igPopID()
 			end
 		end
 		if refresh then
-			self:refreshDisplayProgram()
+			-- solver and display are now tied together
+			self:refreshSolverProgram()
 		end
 	end
 end

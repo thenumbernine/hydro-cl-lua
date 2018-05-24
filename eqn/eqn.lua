@@ -214,9 +214,7 @@ function Equation:getEigenTypeCode()
 typedef struct {
 	real evL[<?=numIntStates * numWaves?>];
 	real evR[<?=numIntStates * numWaves?>];
-<? if solver.checkFluxError then ?>
 	real A[<?=numIntStates * numIntStates?>];
-<? end ?>
 } <?=eqn.eigen_t?>;
 ]], 	{
 			numIntStates = self.numIntStates,
@@ -250,11 +248,11 @@ function Equation:getEigenDisplayVars()
 			local row = (i-1)%self.numIntStates
 			local col = (i-1-row)/self.numIntStates
 			return {['evR_'..row..'_'..col] = '*value = eigen->evR['..i..'];'}
-		end)):append(self.solver.checkFluxError and range(self.numIntStates * self.numIntStates):map(function(i)
+		end)):append(range(self.numIntStates * self.numIntStates):map(function(i)
 			local row = (i-1)%self.numIntStates
 			local col = (i-1-row)/self.numIntStates
 			return {['A_'..row..'_'..col] = '*value = eigen->A['..i..'];'}
-		end) or nil)
+		end))
 	end
 end
 
