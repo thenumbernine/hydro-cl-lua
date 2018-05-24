@@ -1,4 +1,4 @@
-local dim = 3
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -124,23 +124,24 @@ maxs = {6,1,1},
 	--]]
 	--[[ sphere
 	geometry = 'sphere',
-	mins = cmdline.mins or {0, -math.pi, .5},
-	maxs = cmdline.maxs or {math.pi, math.pi, 1},
+	-- hmm, right now sphere's variables change per-dimension used ...
+	mins = cmdline.mins or {.1 * math.pi, -math.pi, .1},
+	maxs = cmdline.maxs or {.9 * math.pi, math.pi, 1},
 	gridSize = {
 		cmdline.gridSize or 16,
 		cmdline.gridSize or 16,
 		cmdline.gridSize or 16,
 	},
 	boundary = {
-		xmin=cmdline.boundary or 'mirror',
-		xmax=cmdline.boundary or 'mirror',
+		xmin=cmdline.boundary or 'periodic',
+		xmax=cmdline.boundary or 'periodic',
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
-		zmin=cmdline.boundary or 'periodic',
-		zmax=cmdline.boundary or 'periodic',
+		zmin=cmdline.boundary or 'mirror',
+		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
-	--[[ sphere1d
+	--[[ sphere1d -- used for 1D radial profiles of spheres
 	geometry = 'sphere1d',
 	mins = cmdline.mins or {1, -math.pi, .5},
 	maxs = cmdline.maxs or {100, math.pi, 1},

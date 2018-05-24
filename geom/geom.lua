@@ -246,7 +246,10 @@ dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'(
 	local toC = require 'symmath.tostring.C'
 	local toC_coordArgs = table.map(baseCoords, function(coord, i)
 		return {['{pt^'..i..'}'] = coord}	-- 1-based
-	end):append(range(dim):map(function(a)
+	end):append(range(
+		3
+		--args.solver.dim
+	):map(function(a)
 		return {[paramU[a].name] = paramU[a]}
 	end))
 	local function compile(expr)

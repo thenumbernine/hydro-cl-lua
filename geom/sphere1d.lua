@@ -10,9 +10,8 @@ local Sphere = class(geometry)
 Sphere.name = 'sphere1d'
 function Sphere:init(args)
 	args.embedded = table{symmath.vars('x', 'y', 'z')}:sub(1,args.solver.dim)
-	local r, theta, phi = symmath.vars('r', 'theta', 'phi')
-	
-	args.coords = table{r, theta, phi}:sub(1, args.solver.dim)
+	local r, theta, phi = symmath.vars('r', 'θ', 'φ')
+	args.coords = table{r, theta, phi}
 	args.chart = function() 
 		return assert(({
 			function() return Tensor('^I', r * r) end,
