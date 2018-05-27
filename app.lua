@@ -253,7 +253,7 @@ function HydroCLApp:initGL(...)
 		},
 	}
 	
-	local heatMapCode = file['draw/heatmap2d.shader']
+	local heatMapCode = file['draw/2d_heatmap.shader']
 	local volumetricCode = file['draw/volumetric.shader']
 	local volumeSliceCode = file['draw/slices3d.shader']
 	local vectorFieldCode = file['draw/vectorfield.shader']

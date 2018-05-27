@@ -359,13 +359,30 @@ dprint('connCode['..i..'] = '..substCoords(conniCode))
 		return conniCode
 	end)
 
+	-- u^j v^k Conn_jk^i(x)
+	local connLastExpr = (paramU'^b' * paramV'^c' * Gamma'_bc^a')()
+	self.connLastCodes = range(dim):map(function(i)
+		local connLastiCode = compile(connLastExpr[i])
+dprint('connLastCode['..i..'] = '..substCoords(connLastiCode))
+		return connLastiCode
+	end)
+	
 	-- Conn^i = Conn^i_jk g^jk
-	local connTraceExpr = (Gamma'^a_b^b')()
-	self.connTraceCodes = range(dim):map(function(i)
-		local connTraceiCode = compile(connTraceExpr[i])
-dprint('connTraceCode['..i..'] = '..substCoords(connTraceiCode))
+	local connTrace23Expr = (Gamma'^a_b^b')()
+	self.connTrace23Codes = range(dim):map(function(i)
+		local connTraceiCode = compile(connTrace23Expr[i])
+dprint('connTrace23Code['..i..'] = '..substCoords(connTraceiCode))
 		return connTraceiCode
 	end)
+
+	-- sqrt(g)_,i / sqrt(g) = Conn^j_ij
+	local connTrace13Expr = (Gamma'^b_ab')()
+	self.connTrace13Codes = range(dim):map(function(i)
+		local connTraceiCode = compile(connTrace13Expr[i])
+dprint('connTrace13Code['..i..'] = '..substCoords(connTraceiCode))
+		return connTraceiCode
+	end)
+
 
 	-- dx is the change across the grid
 	-- therefore it is based on the holonomic metric
@@ -556,7 +573,9 @@ inline real coordLen(real3 r, real3 pt) {
 	}
 
 	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn', self.connCodes))
-	lines:insert(getCode_real3_to_real3('coord_connTrace', self.connTraceCodes))
+	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_last', self.connLastCodes))
+	lines:insert(getCode_real3_to_real3('coord_conn_trace23', self.connTrace23Codes))
+	lines:insert(getCode_real3_to_real3('coord_conn_trace13', self.connTrace13Codes))
 
 	--[[
 	for i=0,dim-1 do

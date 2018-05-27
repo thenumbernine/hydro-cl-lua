@@ -4,7 +4,12 @@ varying vec2 texCoord;
 
 void main() {
 	texCoord = gl_MultiTexCoord0.xy;
+
+	//with coordinate mapping
 	vec4 x = vec4(coordMap(gl_Vertex.xyz), gl_Vertex.w);
+	//without (rectangular display, even with curvilinear coordinates)	
+	//vec4 x = gl_Vertex;
+	
 	gl_Position = gl_ModelViewProjectionMatrix * x;
 }
 

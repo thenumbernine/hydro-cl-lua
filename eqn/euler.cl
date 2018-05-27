@@ -513,13 +513,14 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
-#ifndef geometry_cartesian
-	//Source terms from the covariant derivative / connection coefficients 
-	//...for holonomic coordinate system
-	//Notice that the connections associated with all scalar state vars is already implemented in the calcDeriv.cl finite volume update.
+#if !defined(geometry_cartesian)
+	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
-	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn(W.v, W.v, x), U->rho));	//-Conn^i_jk v^j v^k rho
-	deriv->m = real3_sub(deriv->m, real3_scale(coord_connTrace(x), W.P));		//-Conn^i_jk g^jk P = -Conn^i P
+	real3 m_conn_vv = coord_conn(W.v, U->m, x);
+	deriv->m = real3_sub(deriv->m, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
+	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn_trace23(x), W.P));		//-Conn^i_jk g^jk P
+	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn_last(W.v, U->m, x), heatCapacityRatio - 1.));	//-(gamma-1) rho v^j v^k Conn_jk^i
+	deriv->ETotal -= real3_dot(coord_lower(W.v, x), m_conn_vv);
 #endif
 
 /*
