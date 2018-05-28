@@ -66,11 +66,18 @@ function Cylinder:init(args)
 end
 
 function Cylinder:getCoordMapInvGLSLCode()
-	return [[
+	local template = require 'template'	
+	return template([[
 vec3 coordMapInv(vec3 x) {
-	return vec3(length(x.xy), atan2(x.xy), x.z);
+	//coord bounds don't seem to matter anywhere else,
+	//except here in the renderer
+	//TODO use the solver's bounds?
+	float theta = mod(atan(x.y, x.x), <?=clnumber(2. * math.pi)?>);
+	return vec3(length(x.xy), theta, x.z);
 }
-]]
+]], {
+		clnumber = require 'cl.obj.number',
+	})
 end
 
 return Cylinder

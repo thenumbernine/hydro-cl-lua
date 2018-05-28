@@ -260,22 +260,33 @@ function HydroCLApp:initGL(...)
 	for _,solver in ipairs(self.solvers) do
 		
 		local coordMapGLSLCode = solver.geometry:getCoordMapGLSLCode()
+		local coordMapInvGLSLCode = solver.geometry:getCoordMapInvGLSLCode()
 		
 		solver.heatMap2DShader = GLProgram{
 			vertexCode = template(
 				table{
 					coordMapGLSLCode,
+					coordMapInvGLSLCode,
 					heatMapCode, 
 				}:concat'\n',
 				{
+					solver = solver,
 					vertexShader = true,
 				}
 			),
-			fragmentCode = template(heatMapCode, {
-				fragmentShader = true,
-				clnumber = clnumber,
-				gradTexWidth = gradTexWidth,
-			}),
+			fragmentCode = template(
+				table{
+					coordMapGLSLCode,
+					coordMapInvGLSLCode,
+					heatMapCode
+				}:concat'\n', 
+				{
+					fragmentShader = true,
+					clnumber = clnumber,
+					gradTexWidth = gradTexWidth,
+					solver = solver,
+				}
+			),
 			uniforms = {
 				valueMin = 0,
 				valueMax = 0,

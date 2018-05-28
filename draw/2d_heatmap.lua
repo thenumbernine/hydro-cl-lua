@@ -75,33 +75,12 @@ function HydroCLApp:display2D_Heatmap(solvers, varName, ar, graph_xmin, graph_ym
 			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 			gl.glEnable(gl.GL_BLEND)
 
-			local gridScale = 1
-			local udivs = math.ceil(tonumber(solver.gridSize.x-2*solver.numGhost)/gridScale)
-			local vdivs = math.ceil(tonumber(solver.gridSize.y-2*solver.numGhost)/gridScale)
-			
-			-- if we're using cartesian then we can have gridScale the whole size of the grid
-			if CartesianGeom.is(solver.geometry) then
-				udivs, vdivs = 1, 1
-			--elseif CylinderGeom.is(solver.geometry) then
-			--	udivs = 4
-			end	
-			for vbase=0,vdivs-1 do
-				gl.glBegin(gl.GL_TRIANGLE_STRIP)
-				for ui=0,udivs do
-					for vofs=0,1 do
-						local vi = vbase+vofs
-						local u = ui/udivs
-						local v = vi/vdivs
-						local tx = (u * tonumber(solver.sizeWithoutBorder.x) + solver.numGhost) / tonumber(solver.gridSize.x)
-						local ty = (v * tonumber(solver.sizeWithoutBorder.y) + solver.numGhost) / tonumber(solver.gridSize.y)
-						gl.glTexCoord2d(tx, ty)
-						gl.glVertex2d(
-							u * solver.maxs[1] + (1 - u) * solver.mins[1],
-							v * solver.maxs[2] + (1 - v) * solver.mins[2])
-					end
-				end
-				gl.glEnd()
-			end
+			gl.glBegin(gl.GL_QUADS)
+			gl.glVertex2d(xmin, ymin)
+			gl.glVertex2d(xmax, ymin)
+			gl.glVertex2d(xmax, ymax)
+			gl.glVertex2d(xmin, ymax)
+			gl.glEnd()
 	
 			gl.glDisable(gl.GL_BLEND)
 			

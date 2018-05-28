@@ -1,16 +1,10 @@
-varying vec2 texCoord;
+varying vec2 viewCoord;
 
 <?  if vertexShader then ?>
 
 void main() {
-	texCoord = gl_MultiTexCoord0.xy;
-
-	//with coordinate mapping
-	vec4 x = vec4(coordMap(gl_Vertex.xyz), gl_Vertex.w);
-	//without (rectangular display, even with curvilinear coordinates)	
-	//vec4 x = gl_Vertex;
-	
-	gl_Position = gl_ModelViewProjectionMatrix * x;
+	viewCoord = gl_Vertex.xy;
+	gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
 }
 
 <? end
@@ -26,6 +20,20 @@ uniform sampler2D tex;
 uniform sampler1D gradientTex;
 
 void main() {
+	//start in 2D coords, bounded by the screen space
+	//TODO if we are viewing this in 3D then we will have to draw a quad bigger than the intersection of the camera hull with the XY plane
+	vec2 gridCoord = coordMapInv(vec3(viewCoord.xy, 0.)).xy;
+	if (gridCoord.x < <?=clnumber(solver.mins[1])?> || gridCoord.x > <?=clnumber(solver.maxs[1])?> ||
+		gridCoord.y < <?=clnumber(solver.mins[2])?> || gridCoord.y > <?=clnumber(solver.maxs[2])?>
+	) {
+		discard;
+	}
+
+	vec2 texCoord = vec2(
+		((gridCoord.x - <?=clnumber(solver.mins[1])?>) / (<?=clnumber(solver.maxs[1])?> - <?=clnumber(solver.mins[1])?>) * <?=clnumber(solver.sizeWithoutBorder.x)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.x)?>,
+		((gridCoord.y - <?=clnumber(solver.mins[2])?>) / (<?=clnumber(solver.maxs[2])?> - <?=clnumber(solver.mins[2])?>) * <?=clnumber(solver.sizeWithoutBorder.y)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.y)?>
+	);
+
 	float value = texture2D(tex, texCoord).r;
 	if (useLog) {
 		//the abs() will get me in trouble when dealing with range calculations ...
