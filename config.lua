@@ -127,13 +127,13 @@ maxs = {6,1,1},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
-		{32, 256, 1}, -- 2D
+		{256, 256, 1}, -- 2D
 		{16, 64, 16}, -- 3D
 	})[dim],
 	boundary = {
 		-- r
-		xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
-		xmax=cmdline.boundary or 'mirror',
+		xmin=cmdline.boundary or 'freeflow',		-- hmm, how to treat the r=0 boundary ...
+		xmax=cmdline.boundary or 'freeflow',
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
@@ -144,7 +144,6 @@ maxs = {6,1,1},
 	--]]
 	--[[ sphere
 	geometry = 'sphere',
-	-- hmm, right now sphere's variables change per-dimension used ...
 	mins = cmdline.mins or {.1 * math.pi, -math.pi, .1},
 	maxs = cmdline.maxs or {.9 * math.pi, math.pi, 1},
 	gridSize = {

@@ -74,14 +74,16 @@ function HydroCLApp:display2D_Heatmap(solvers, varName, ar, graph_xmin, graph_ym
 	
 			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 			gl.glEnable(gl.GL_BLEND)
-	
-			local gridScale = 4
-			local udivs = math.ceil(tonumber(solver.gridSize.x)/gridScale)
-			local vdivs = math.ceil(tonumber(solver.gridSize.y)/gridScale)
+
+			local gridScale = 1
+			local udivs = math.ceil(tonumber(solver.gridSize.x-2*solver.numGhost)/gridScale)
+			local vdivs = math.ceil(tonumber(solver.gridSize.y-2*solver.numGhost)/gridScale)
+			
+			-- if we're using cartesian then we can have gridScale the whole size of the grid
 			if CartesianGeom.is(solver.geometry) then
 				udivs, vdivs = 1, 1
-			elseif CylinderGeom.is(solver.geometry) then
-				udivs = 1
+			--elseif CylinderGeom.is(solver.geometry) then
+			--	udivs = 4
 			end	
 			for vbase=0,vdivs-1 do
 				gl.glBegin(gl.GL_TRIANGLE_STRIP)

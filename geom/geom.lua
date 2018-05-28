@@ -665,5 +665,11 @@ function Geometry:getCoordMapGLSLCode()
 	)
 end
 
+-- until I get inverses on trig functions working better, I'll have this manually specified
+function Geometry:getCoordMapInvGLSLCode()
+	return [[
+vec3 coordMapInv(vec3 x) { return x; }
+]]
+end
 
 return Geometry

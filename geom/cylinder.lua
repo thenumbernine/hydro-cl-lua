@@ -1,3 +1,17 @@
+--[[
+exact volume: 
+int(theta=theta1,theta2 int(r=r1,r2 r dr) dtheta)
+= 1/2 (theta2-theta1) (r2^2 - r1^2)
+
+volume element: 
+r dr dtheta
+= r (r2 - r1) (theta2 - theta1)
+= (r2+r1)/2 (r2 - r1) (theta2 - theta1)
+= 1/2 (r2^2 - r1^2) (theta2 - theta1)
+
+same thing, good thing
+--]]
+
 local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
@@ -51,18 +65,12 @@ function Cylinder:init(args)
 	Cylinder.super.init(self, args)
 end
 
+function Cylinder:getCoordMapInvGLSLCode()
+	return [[
+vec3 coordMapInv(vec3 x) {
+	return vec3(length(x.xy), atan2(x.xy), x.z);
+}
+]]
+end
+
 return Cylinder
-
---[[
-exact volume: 
-int(theta=theta1,theta2 int(r=r1,r2 r dr) dtheta)
-= 1/2 (theta2-theta1) (r2^2 - r1^2)
-
-volume element: 
-r dr dtheta
-= r (r2 - r1) (theta2 - theta1)
-= (r2+r1)/2 (r2 - r1) (theta2 - theta1)
-= 1/2 (r2^2 - r1^2) (theta2 - theta1)
-
-same thing, good thing
---]]
