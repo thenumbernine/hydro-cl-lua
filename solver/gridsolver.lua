@@ -28,9 +28,9 @@ require 'common'(_G)	-- xNames, symNames
 local minmaxs = table{'min', 'max'}
 
 
-local Solver = class(SolverBase)
+local GridSolver = class(SolverBase)
 
-Solver.numGhost = 2
+GridSolver.numGhost = 2
 
 --[[
 args:
@@ -39,8 +39,8 @@ args:
 	maxs
 	boundary = boundary info
 --]]
-function Solver:init(args)
-	Solver.super.init(self, args)
+function GridSolver:init(args)
+	GridSolver.super.init(self, args)
 
 	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
 	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
@@ -114,14 +114,14 @@ function Solver:init(args)
 	self.Program = Program  
 end
 
-function Solver:postInit()
+function GridSolver:postInit()
 	self:refreshGridSize()
 end
 
 
--- this is only used by Solver, but each kernel gets its own,
+-- this is only used by GridSolver, but each kernel gets its own,
 -- so TODO get rid of this and just use kernel's sizes
-function Solver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
+function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	local localSize1d = math.min(maxWorkGroupSize, tonumber(self.gridSize:volume()))
 
 	local localSize2d
@@ -175,7 +175,7 @@ function Solver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	}
 end
 
-function Solver:refreshGridSize()
+function GridSolver:refreshGridSize()
 	self.stepSize = vec3sz()
 	self.stepSize.x = 1
 	for i=1,self.dim-1 do
@@ -222,8 +222,8 @@ end
 -- call this when the solver initializes or changes the codePrefix (or changes initState)
 -- it will build the code prefix and refresh everything related to it
 -- TODO if you change cons_t then call resetState etc (below the refreshEqnInitState() call a few lines above) in addition to this -- or else your values will get messed up
-function Solver:refreshEqnInitState()	
-	Solver.super.refreshEqnInitState(self)
+function GridSolver:refreshEqnInitState()	
+	GridSolver.super.refreshEqnInitState(self)
 
 	-- bounds don't get set until initState() is called, but code prefix needs them ...
 	-- TODO do a proper refresh so mins/maxs can be properly refreshed
@@ -234,8 +234,8 @@ end
 
 -- call this when a gui var changes
 -- it rebuilds the code prefix, but doesn't reset the initState
-function Solver:refreshCodePrefix()
-	Solver.super.refreshCodePrefix(self)	-- refresh integrator
+function GridSolver:refreshCodePrefix()
+	GridSolver.super.refreshCodePrefix(self)	-- refresh integrator
 	self:refreshInitStateProgram()
 	self:refreshSolverProgram()
 	-- changing initState calls this, and could change boundary programs, so I'm putting this here
@@ -244,7 +244,7 @@ function Solver:refreshCodePrefix()
 end
 
 
-function Solver:initDraw()
+function GridSolver:initDraw()
 	local GLProgram = require 'gl.program'
 	
 	local heatMapCode = file['draw/2d_heatmap.shader']
@@ -333,13 +333,13 @@ end
 
 -- my best idea to work around the stupid 8-arg max kernel restriction
 -- this is almost as bad of an idea as using OpenCL was to begin with
-Solver.allocateOneBigStructure = false
+GridSolver.allocateOneBigStructure = false
 
-function Solver:clalloc(name, size)
+function GridSolver:clalloc(name, size)
 	self.buffers:insert{name=name, size=size}
 end
 
-function Solver:finalizeCLAllocs()
+function GridSolver:finalizeCLAllocs()
 	local total = 0
 	for _,buffer in ipairs(self.buffers) do
 		buffer.offset = total
@@ -370,7 +370,7 @@ function Solver:finalizeCLAllocs()
 	end
 end
 
-function Solver:getConsLRTypeCode()
+function GridSolver:getConsLRTypeCode()
 	return template([[
 typedef union {
 	<?=eqn.cons_t?> LR[2];
@@ -389,7 +389,7 @@ typedef struct {
 })
 end
 
-function Solver:createBuffers()
+function GridSolver:createBuffers()
 	local realSize = ffi.sizeof(self.app.real)
 
 	-- to get sizeof
@@ -578,9 +578,9 @@ end
 	end
 end
 
-function Solver:createCodePrefix()
+function GridSolver:createCodePrefix()
 	local lines = table{
-		Solver.super.createCodePrefix(self),
+		GridSolver.super.createCodePrefix(self),
 	}
 
 	lines:append{
@@ -694,11 +694,11 @@ print'done building solver.codePrefix'
 --print(self.codePrefix)
 end
 
-function Solver:refreshInitStateProgram()
+function GridSolver:refreshInitStateProgram()
 	self.eqn.initState:refreshInitStateProgram(self)
 end
 
-function Solver:resetState()
+function GridSolver:resetState()
 	self.app.cmds:finish()
 		
 	-- start off by filling all buffers with zero, just in case initState forgets something ...
@@ -711,10 +711,10 @@ function Solver:resetState()
 		self.constrainUKernelObj()
 	end
 
-	Solver.super.resetState(self)
+	GridSolver.super.resetState(self)
 end
 
-function Solver:refreshCommonProgram()
+function GridSolver:refreshCommonProgram()
 	-- code that depend on real and nothing else
 	-- TODO move to app, along with reduceBuf
 
@@ -776,7 +776,7 @@ kernel void multAdd(
 	}
 end
 
-function Solver:getSolverCode()
+function GridSolver:getSolverCode()
 	local fluxLimiterCode = 'real fluxLimiter(real r) {'
 		.. self.app.limiters[self.fluxLimiter].code 
 		.. '}'
@@ -900,7 +900,7 @@ kernel void initNodeFromRoot(
 end
 
 -- depends on buffers
-function Solver:refreshSolverProgram()
+function GridSolver:refreshSolverProgram()
 	-- set pointer to the buffer holding the LR state information
 	-- for piecewise-constant that is the original UBuf
 	-- for piecewise-linear that is the ULRBuf
@@ -1008,7 +1008,7 @@ end
 end
 
 -- for solvers who don't rely on calcDT
-function Solver:refreshCalcDTKernel()
+function GridSolver:refreshCalcDTKernel()
 	self.calcDTKernelObj = self.solverProgramObj:kernel('calcDT', self.reduceBuf, self.UBuf)
 end
 
@@ -1019,12 +1019,12 @@ end
 
 
 -- subclass and override
-local DisplayVar = class(Solver.DisplayVar)
-Solver.DisplayVar = DisplayVar
+local DisplayVar = class(GridSolver.DisplayVar)
+GridSolver.DisplayVar = DisplayVar
 
 
 -- and this is the DisplayVar used for UBuf
-Solver.DisplayVar_U = DisplayVar
+GridSolver.DisplayVar_U = DisplayVar
 
 DisplayVar.type = 'real'	-- default
 
@@ -1122,8 +1122,8 @@ function DisplayVar:setToBufferArgs(var)
 end
 
 
-function Solver:addDisplayVars()
-	Solver.super.addDisplayVars(self)
+function GridSolver:addDisplayVars()
+	GridSolver.super.addDisplayVars(self)
 if tryingAMR == 'dt vs 2dt' then
 	self:addDisplayVarGroup{
 		name = 'U2',
@@ -1143,7 +1143,7 @@ elseif tryingAMR == 'gradient' then
 end
 end
 
-function Solver:getDisplayCode()
+function GridSolver:getDisplayCode()
 	local lines = table()
 	
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
@@ -1238,7 +1238,7 @@ boundaryOptions is a table of {name = args => assign code}
 
 this is such a mess.  it's practically an AST.
 --]]
-function Solver:createBoundaryOptions()
+function GridSolver:createBoundaryOptions()
 	local tab = '\t\t\t'
 	self.boundaryOptions = table{
 		{periodic = function(args)
@@ -1306,7 +1306,7 @@ function Solver:createBoundaryOptions()
 		self.eqn:createBoundaryOptions()
 	end
 end
-function Solver:finalizeBoundaryOptions()
+function GridSolver:finalizeBoundaryOptions()
 	self.boundaryOptionNames = self.boundaryOptions:map(function(option) return (next(option)) end)
 	-- hmm here's the one time that table.map using k,v comes in handy
 	self.boundaryOptionForName = self.boundaryOptions:map(function(option) local k,v = next(option) return v,k end)
@@ -1319,7 +1319,7 @@ args:
 	a string = sets all boundaryMethods to the boundaryOptions index with name of the string in args
 	a table = sets each xmin...zmax boundaryMethod with the associated name
 --]]
-function Solver:setBoundaryMethods(args)
+function GridSolver:setBoundaryMethods(args)
 	for _,x in ipairs(xNames) do
 		for _,minmax in ipairs(minmaxs) do
 			local k = x..minmax
@@ -1361,7 +1361,7 @@ args:
 	field = function(a,b) a.b
 	array = function(a,b) a[b]
 --]]
-function Solver:createBoundaryProgramAndKernel(args)
+function GridSolver:createBoundaryProgramAndKernel(args)
 	local assign = args.assign or function(a, b) return a .. ' = ' .. b end
 	local field = args.field or function(a, b) return a .. '.' .. b end
 	local array = args.array or function(a, b) return a .. '[' .. b .. ']' end
@@ -1483,7 +1483,7 @@ print(require 'template.showcode'(code))
 	return boundaryProgramObj, boundaryKernelObj
 end
 
-function Solver:getBoundaryProgramArgs()
+function GridSolver:getBoundaryProgramArgs()
 	return {
 		type = self.eqn.cons_t,
 		-- remap from enum/combobox int values to functions from the solver.boundaryOptions table
@@ -1498,7 +1498,7 @@ function Solver:getBoundaryProgramArgs()
 	}
 end
 
-function Solver:refreshBoundaryProgram()
+function GridSolver:refreshBoundaryProgram()
 	self.boundaryProgramObj, self.boundaryKernelObj = 
 		self:createBoundaryProgramAndKernel(self:getBoundaryProgramArgs())
 	self.boundaryKernelObj.obj:setArg(0, self.UBuf)
@@ -1518,7 +1518,7 @@ function Solver:refreshBoundaryProgram()
 end
 
 -- assumes the buffer is already in the kernel's arg
-function Solver:applyBoundaryToBuffer(kernelObj)
+function GridSolver:applyBoundaryToBuffer(kernelObj)
 	-- 1D:
 	if self.dim == 1 then
 		-- if you do change this size from anything but 1, make sure to add conditions to the boundary kernel code
@@ -1564,7 +1564,7 @@ function Solver:applyBoundaryToBuffer(kernelObj)
 	end
 end
 
-function Solver:boundary()
+function GridSolver:boundary()
 	self:applyBoundaryToBuffer(self.boundaryKernelObj)
 end
 
@@ -1574,7 +1574,7 @@ end
 -------------------------------------------------------------------------------
 
 
-function Solver:calcDT()
+function GridSolver:calcDT()
 	local dt
 	-- calc cell wavespeeds -> dts
 	if self.useFixedDT then
@@ -1591,8 +1591,8 @@ function Solver:calcDT()
 	return dt
 end
 
-function Solver:update()
-	Solver.super.update(self)
+function GridSolver:update()
+	GridSolver.super.update(self)
 	
 	if self.checkNaNs then
 		if self:checkFinite(self.UBufObj, self.volume) then return end
@@ -1769,7 +1769,7 @@ end
 
 end
 
-function Solver:step(dt)
+function GridSolver:step(dt)
 	self.integrator:integrate(dt, function(derivBuf)
 		self:calcDeriv(derivBuf, dt)
 	end)
@@ -1786,7 +1786,7 @@ function Solver:step(dt)
 	end
 end
 
-function Solver:printBuf(buf, ptr)
+function GridSolver:printBuf(buf, ptr)
 	ptr = ptr or buf:toCPU()
 	local max = #tostring(self.volume-1)
 	for i=0,self.volume-1 do
@@ -1800,7 +1800,7 @@ end
 
 -- check for nans
 -- expects buf to be of type cons_t, made up of numStates real variables
-function Solver:checkFinite(buf, volume)
+function GridSolver:checkFinite(buf, volume)
 	local ptr = buf:toCPU()
 	local found
 	for i=0,buf.size-1 do
@@ -1816,11 +1816,11 @@ function Solver:checkFinite(buf, volume)
 	return true
 end
 
-function Solver:getTex(var) 
+function GridSolver:getTex(var) 
 	return self.tex
 end
 
-function Solver:calcDisplayVarToTex(var)
+function GridSolver:calcDisplayVarToTex(var)
 	local app = self.app
 	local displayVarGroup = var.displayVarGroup
 	if app.useGLSharing then
@@ -1868,7 +1868,7 @@ function Solver:calcDisplayVarToTex(var)
 end
 
 -- used by the display code to dynamically adjust ranges
-function Solver:calcDisplayVarRange(var)
+function GridSolver:calcDisplayVarRange(var)
 	if var.lastTime == self.t then
 		return var.lastMin, var.lastMax
 	end
@@ -1888,7 +1888,7 @@ function Solver:calcDisplayVarRange(var)
 end
 
 -- used by the output to print out avg, min, max
-function Solver:calcDisplayVarRangeAndAvg(var)
+function GridSolver:calcDisplayVarRangeAndAvg(var)
 	local needsUpdate = var.lastTime ~= self.t
 
 	-- this will update lastTime if necessary
@@ -1906,7 +1906,7 @@ function Solver:calcDisplayVarRangeAndAvg(var)
 	return min, max, avg
 end
 
-function Solver:updateGUIParams()
+function GridSolver:updateGUIParams()
 	ig.igText('t: '..self.t)
 
 	-- hmm put fps somewhere else, or put ms update here
@@ -1934,7 +1934,7 @@ function Solver:updateGUIParams()
 			end
 		end
 
-		Solver.super.updateGUIParams(self)
+		GridSolver.super.updateGUIParams(self)
 		
 		if tooltip.comboTable('slope limiter', self, 'fluxLimiter', self.app.limiterNames) then
 			self:refreshSolverProgram()
@@ -1951,7 +1951,7 @@ function Solver:updateGUIParams()
 	end
 end
 
-function Solver:updateGUIEqnSpecific()
+function GridSolver:updateGUIEqnSpecific()
 	if ig.igCollapsingHeader'equation:' then
 		if tooltip.comboTable('init state', self, 'initStateIndex', self.eqn.initStateNames) then
 			-- TODO hmm ... the whole point of making a separate initStateProgram was to be able to refresh it without rebuilding all of the solver ...
@@ -2002,7 +2002,7 @@ do
 		original[field] = defaults[i]
 	end
 
-	function Solver:updateGUIDisplay()
+	function GridSolver:updateGUIDisplay()
 		local refresh 
 		if ig.igCollapsingHeader'display:' then
 			for i,displayVarGroup in ipairs(self.displayVarGroups) do
@@ -2044,7 +2044,7 @@ do
 	end
 end
 
-function Solver:updateGUI()
+function GridSolver:updateGUI()
 	self:updateGUIParams()
 	self:updateGUIEqnSpecific()
 	self:updateGUIDisplay()
@@ -2055,7 +2055,7 @@ function Solver:updateGUI()
 end
 
 local Image = require 'image'
-function Solver:save(prefix)
+function GridSolver:save(prefix)
 	-- TODO add planes to image, then have the FITS module use planes and not channels
 	-- so the dimension layout of the buffer is [channels][width][height][planes]
 	local width = tonumber(self.gridSize.x)
@@ -2103,4 +2103,4 @@ function Solver:save(prefix)
 	end
 end
 
-return Solver
+return GridSolver
