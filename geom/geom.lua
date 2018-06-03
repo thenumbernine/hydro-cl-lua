@@ -1,5 +1,10 @@
 --[[
 
+TODO rename all these to 'Coord'
+because they are coordinate system properties, not geometry properties
+
+
+
 This tells us the coordinate chart for our embedding in nD Cartesian (Euclidian?) geometry.
 There are a few options on how to do this.
 
@@ -351,19 +356,31 @@ dprint('lowerCode['..i..'] = '..substCoords(lowerCode))
 	self.uLenSqCode = compile(lenSqExpr)
 dprint('uLenSqCodes = '..substCoords(self.uLenSqCode))
 
+	self.connCodes = range(dim):map(function(i)
+		return range(dim):map(function(j)
+			return range(dim):map(function(k)
+				local code = compile(Gamma[i][j][k])
+if code ~= '0.' then
+	dprint('connCode['..i..j..k..'] = '..substCoords(code))
+end
+				return code
+			end)
+		end)
+	end)
+
 	-- Conn^i_jk(x) u^j v^k
 	local connExpr = (Gamma'^a_bc' * paramU'^b' * paramV'^c')()
-	self.connCodes = range(dim):map(function(i)
+	self.connApply23Codes = range(dim):map(function(i)
 		local conniCode = compile(connExpr[i])
-dprint('connCode['..i..'] = '..substCoords(conniCode))
+dprint('connApply23Code['..i..'] = '..substCoords(conniCode))
 		return conniCode
 	end)
 
 	-- u^j v^k Conn_jk^i(x)
 	local connLastExpr = (paramU'^b' * paramV'^c' * Gamma'_bc^a')()
-	self.connLastCodes = range(dim):map(function(i)
+	self.connApply12Codes = range(dim):map(function(i)
 		local connLastiCode = compile(connLastExpr[i])
-dprint('connLastCode['..i..'] = '..substCoords(connLastiCode))
+dprint('connApply12Code['..i..'] = '..substCoords(connLastiCode))
 		return connLastiCode
 	end)
 	
@@ -538,6 +555,31 @@ end
 	})
 end
 
+local function getCode_real3_to_3sym3(name, exprs)
+	return template([[
+inline _3sym3 <?=name?>(real3 pt) {
+	return (_3sym3){
+<? for i=1,3 do
+?>	.<?=xs[i]?> = {
+<?	for j=1,3 do
+		for k=j,3 do
+?>		.<?=xs[j]..xs[k]?> = <?=exprs[i] and exprs[i][j] and exprs[i][j][k]
+			and convertParams(exprs[i][j][k]) or '0.'?>,
+<?		end	
+	end
+?>	},
+<?
+end
+?>	};
+}]], {
+		xs = xs,
+		name = name,
+		exprs = exprs,
+		convertParams = convertParams,
+	})
+end
+
+
 function Geometry:getCode(solver)
 	local dim = solver.dim
 
@@ -558,10 +600,6 @@ function Geometry:getCode(solver)
 	-- volume
 	local volumeCode = '(' .. self.volumeCode .. ')'
 	lines:insert(getCode_real3_to_real('sqrt_det_g_grid', volumeCode))
-	for i=1,dim do
-		volumeCode = volumeCode .. ' * grid_dx'..(i-1)
-	end
-	lines:insert(getCode_real3_to_real('volume_at', volumeCode))
 	
 	-- coord len code: l(v) = v^i v^j g_ij
 	lines:append{
@@ -572,10 +610,11 @@ inline real coordLen(real3 r, real3 pt) {
 }]],
 	}
 
-	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn', self.connCodes))
-	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_last', self.connLastCodes))
+	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes))
+	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply12', self.connApply12Codes))
 	lines:insert(getCode_real3_to_real3('coord_conn_trace23', self.connTrace23Codes))
 	lines:insert(getCode_real3_to_real3('coord_conn_trace13', self.connTrace13Codes))
+	lines:insert(getCode_real3_to_3sym3('coord_conn', self.connCodes))
 
 	--[[
 	for i=0,dim-1 do
@@ -645,7 +684,9 @@ real3 cartesianFromCoord(real3 u, real3 pt) {
 	}))
 
 	lines:insert(self:getCoordMapCode())
-		
+
+--print(lines:concat'\n')
+
 	return lines:concat'\n'
 end
 

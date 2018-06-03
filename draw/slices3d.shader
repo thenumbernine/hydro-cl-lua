@@ -1,3 +1,7 @@
+<?
+local clnumber = require 'cl.obj.number'
+local app = solver.app
+?>
 varying vec3 texCoord;	//[0,1]^n
 
 <? local useClipPlanes = false ?>
@@ -6,6 +10,7 @@ varying vec3 pos;		//positive after coordinate mapping, before view transform
 <? end ?>
 
 <? if vertexShader then ?>
+<?=solver.geometry:getCoordMapGLSLCode()?>
 
 uniform vec3 mins, maxs;
 void main() {
@@ -83,7 +88,7 @@ void main() {
 ?>	float value = getTex(texCoord);
 	float frac = calcFrac(value);
 	//TODO insert the gradient tex size
-	float gradTC = (frac * <?=clnumber(gradTexWidth-1)?>) * <?=clnumber(1 / gradTexWidth)?>;
+	float gradTC = (frac * <?=clnumber(app.gradientTex.width-1)?>) * <?=clnumber(1 / app.gradientTex.width)?>;
 	vec4 voxelColor = texture1D(gradientTex, gradTC);
 
 	//don't bother with the gamma factor if we're using isobars

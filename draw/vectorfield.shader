@@ -1,13 +1,16 @@
+<?
+local clnumber = require 'cl.obj.number'
+local app = solver.app
+?>
 varying vec4 color;
 
-<? 
-if vertexShader then 
-?>
+<? if vertexShader then ?>
+<?=solver.geometry:getCoordMapGLSLCode()?>
 
 uniform vec3 mins, maxs;
 uniform float scale;
 
-<? if dim < 3 then ?>
+<? if solver.dim < 3 then ?>
 uniform sampler2D tex;
 <? else ?>
 uniform sampler3D tex;
@@ -23,7 +26,7 @@ uniform float valueMin, valueMax;
 uniform sampler1D gradientTex;
 
 void main() {
-<? if dim < 3 then ?> 
+<? if solver.dim < 3 then ?> 
 	
 	vec3 dir = texture2D(tex, gl_MultiTexCoord0.xy).rgb;
 	float value = length(dir);
@@ -71,7 +74,7 @@ void main() {
 		value = (value - valueMin) / (valueMax - valueMin);
 	}
 	float valuescale = scale * clamp(value, 0., 1.);
-	value = (value * <?=clnumber(gradTexWidth-1)?> + .5) / <?=clnumber(gradTexWidth)?>;
+	value = (value * <?=clnumber(app.gradientTex.width-1)?> + .5) / <?=clnumber(app.gradientTex.width)?>;
 	color = texture1D(gradientTex, value);
 
 
@@ -90,6 +93,4 @@ void main() {
 	gl_FragColor = color;
 }
 
-<?
-end
-?>
+<? end ?>

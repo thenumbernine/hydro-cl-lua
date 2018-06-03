@@ -286,12 +286,44 @@ kernel void addSource(
 	const global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS_NOGHOST();
+	real3 x = cell_x(i);
+	
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	deriv->epsE = real3_sub(deriv->epsE, real3_scale(U->epsE, 1. / U->eps * U->sigma));
 	
-#ifndef geometry_cartesian
-	//grid coordinate connection coefficient source terms
+#if !defined(geometry_cartesian)
+	//grid coordinate connection coefficient source terms for contravariant representation
+	//epsE^i += 2 / (mu_0 sqrt(g)) [ijk] Gamma_jkl B^l
+	//B^i -= 2 / (eps_0 sqrt(g)) [ijk] Gamma_jkl epsE^l
+	real sqrt_det_g = sqrt_det_g_grid(x);
+	_3sym3 conn = coord_conn(x);
+
+	deriv->epsE.x += 2. / (U->mu * sqrt_det_g) * (
+		(conn.y.xz - conn.z.xy) * U->B.x
+		+ (conn.y.yz - conn.z.yy) * U->B.y
+		+ (conn.y.zz - conn.z.yz) * U->B.z);
+	deriv->epsE.y += 2. / (U->mu * sqrt_det_g) * (
+		(conn.z.xx - conn.x.xz) * U->B.x
+		+ (conn.z.xy - conn.x.yz) * U->B.y
+		+ (conn.z.xz - conn.x.zz) * U->B.z);
+	deriv->epsE.z += 2. / (U->mu * sqrt_det_g) * (
+		(conn.x.xy - conn.y.xx) * U->B.x
+		+ (conn.x.yy - conn.y.xy) * U->B.y
+		+ (conn.x.yz - conn.y.xz) * U->B.z);
+	
+	deriv->B.x -= 2. / (U->eps * sqrt_det_g) * (
+		(conn.y.xz - conn.z.xy) * U->epsE.x
+		+ (conn.y.yz - conn.z.yy) * U->epsE.y
+		+ (conn.y.zz - conn.z.yz) * U->epsE.z);
+	deriv->B.y -= 2. / (U->eps * sqrt_det_g) * (
+		(conn.z.xx - conn.x.xz) * U->epsE.x
+		+ (conn.z.xy - conn.x.yz) * U->epsE.y
+		+ (conn.z.xz - conn.x.zz) * U->epsE.z);
+	deriv->B.z -= 2. / (U->eps * sqrt_det_g) * (
+		(conn.x.xy - conn.y.xx) * U->epsE.x
+		+ (conn.x.yy - conn.y.xy) * U->epsE.y
+		+ (conn.x.yz - conn.y.xz) * U->epsE.z);
 #endif
 }
 

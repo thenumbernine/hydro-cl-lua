@@ -1,6 +1,14 @@
+<?
+local clnumber = require 'cl.obj.number'
+local app = solver.app
+?>
+
 varying vec2 viewCoord;
 
-<?  if vertexShader then ?>
+<?=solver.geometry:getCoordMapGLSLCode()?>
+<?=solver.geometry:getCoordMapInvGLSLCode()?>
+
+<? if vertexShader then ?>
 
 void main() {
 	viewCoord = gl_Vertex.xy;
@@ -43,7 +51,7 @@ void main() {
 	} else {
 		value = (value - valueMin) / (valueMax - valueMin);
 	}
-	value = (value * <?=clnumber(gradTexWidth-1)?> + .5) / <?=clnumber(gradTexWidth)?>;
+	value = (value * <?=clnumber(app.gradientTex.width-1)?> + .5) / <?=clnumber(app.gradientTex.width)?>;
 	gl_FragColor = texture1D(gradientTex, value);
 }
 

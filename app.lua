@@ -213,13 +213,18 @@ function HydroCLApp:initGL(...)
 
 	self:setup{platformName=platformName, deviceName=deviceName}
 
+	-- now that we have all solvers, call their second init stuff (for post-first-init stuff, once buffers are initialized etc)
+	for _,solver in ipairs(self.solvers) do
+		solver:postInit()
+	end
+
+
 	-- This only looks good when overlaying vector fields on top of other graphs.
 	-- When it comes to separate variables, they usually look better apart.
 	self.displayAllTogether = self.solvers[1] and self.solvers[1].dim > 1 or false
 
 
-	local gradTexWidth = 1024
-	self.gradientTex = GLGradientTex(gradTexWidth, {
+	self.gradientTex = GLGradientTex(1024, {
 	-- [[ white, rainbow, black
 		{0,0,0,.5},	-- black ... ?
 		{0,0,1,1},	-- blue
@@ -242,6 +247,13 @@ function HydroCLApp:initGL(...)
 	-- don't wrap the colors, but do use GL_REPEAT
 	self.gradientTex:setWrap{s = gl.GL_REPEAT}
 
+
+
+	-- this will be per-solver
+	-- but is also tightly linked to the structured grid solvers
+
+
+
 	local graphShaderCode = file['draw/graph.shader']
 	self.graphShader = GLProgram{
 		vertexCode = '#define VERTEX_SHADER\n'..graphShaderCode,
@@ -252,129 +264,12 @@ function HydroCLApp:initGL(...)
 			ambient = 1,
 		},
 	}
-	
-	local heatMapCode = file['draw/2d_heatmap.shader']
-	local volumetricCode = file['draw/volumetric.shader']
-	local volumeSliceCode = file['draw/slices3d.shader']
-	local vectorFieldCode = file['draw/vectorfield.shader']
+
+	-- init all resources for all draw methods, so the user can switch between methods quickly
 	for _,solver in ipairs(self.solvers) do
-		
-		local coordMapGLSLCode = solver.geometry:getCoordMapGLSLCode()
-		local coordMapInvGLSLCode = solver.geometry:getCoordMapInvGLSLCode()
-		
-		solver.heatMap2DShader = GLProgram{
-			vertexCode = template(
-				table{
-					coordMapGLSLCode,
-					coordMapInvGLSLCode,
-					heatMapCode, 
-				}:concat'\n',
-				{
-					solver = solver,
-					vertexShader = true,
-				}
-			),
-			fragmentCode = template(
-				table{
-					coordMapGLSLCode,
-					coordMapInvGLSLCode,
-					heatMapCode
-				}:concat'\n', 
-				{
-					fragmentShader = true,
-					clnumber = clnumber,
-					gradTexWidth = gradTexWidth,
-					solver = solver,
-				}
-			),
-			uniforms = {
-				valueMin = 0,
-				valueMax = 0,
-				tex = 0,
-				gradientTex = 1,
-			},
-		}
-
-		if solver.dim == 3 then
-			-- raytracing (stalling)
-			
-			local maxiter = math.max(tonumber(solver.gridSize.x), tonumber(solver.gridSize.y), tonumber(solver.gridSize.z))
-			local volumeRayShader = GLProgram{
-				vertexCode = template(
-					table{
-						coordMapGLSLCode, 
-						volumetricCode,
-					}:concat'\n',
-					{
-						vertexShader = true,
-					}
-				),
-				fragmentCode = template(volumetricCode, {
-					fragmentShader = true,
-				}),
-				uniforms = {
-					tex = 0,
-					gradient = 1,
-					maxiter = maxiter,
-					oneOverDx = {(solver.maxs - solver.mins):unpack()},
-				},
-			}
-			solver.volumeRayShader = volumeRayShader
-
-			-- volume slices
-
-			solver.volumeSliceShader = GLProgram{
-				vertexCode = template(
-					table{
-						coordMapGLSLCode, 
-						volumeSliceCode,
-					}:concat'\n',
-					{
-						vertexShader = true,
-					}
-				),
-				fragmentCode = template(volumeSliceCode, {
-					fragmentShader = true,
-					clnumber = clnumber,
-					gradTexWidth = gradTexWidth,
-					clipInfos = useClipPlanes and clipInfos or nil,
-				}),
-				uniforms = {
-					volTex = 0,
-					gradientTex = 1,
-					valueMin = 0,
-					valueMax = 0,
-				},
-			}
-		end
-
-		solver.vectorFieldShader = GLProgram{
-			vertexCode = template(
-				table{
-					coordMapGLSLCode, 
-					vectorFieldCode,
-				}:concat'\n',
-				{
-				vertexShader = true,
-				dim = solver.dim,
-				clnumber = clnumber,
-				gradTexWidth = gradTexWidth,
-			}),
-			fragmentCode = template(vectorFieldCode, {
-				fragmentShader = true,
-				dim = solver.dim,
-				clnumber = clnumber,
-				gradTexWidth = gradTexWidth,
-			}),
-			uniforms = {
-				scale = 1,
-				valueMin = 0,
-				valueMax = 0,
-				tex = 0,
-				gradientTex = 1,
-			},
-		}
+		solver:initDraw()
 	end
+
 
 	self.isobarShader = GLProgram{
 		vertexCode = [[

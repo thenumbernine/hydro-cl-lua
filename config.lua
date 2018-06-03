@@ -37,7 +37,7 @@ local args = {
 
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	geometry = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -63,7 +63,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{64,64,1},
+				{256,256,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -120,20 +120,20 @@ maxs = {6,1,1},
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	-- for some reason [rmin, rmax] = [.5, 1] gets an explosion right at r=rmin, theta=0 ... but any other values work fine
 	geometry = 'cylinder',
 	mins = cmdline.mins or {.1, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
-		{256, 256, 1}, -- 2D
+		{64, 256, 1}, -- 2D
 		{16, 64, 16}, -- 3D
 	})[dim],
 	boundary = {
 		-- r
-		xmin=cmdline.boundary or 'freeflow',		-- hmm, how to treat the r=0 boundary ...
-		xmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
+		xmax=cmdline.boundary or 'mirror',
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
@@ -204,7 +204,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -382,7 +382,7 @@ maxs = {6,1,1},
 }
 
 -- HD
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -497,3 +497,12 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 
 --self.solvers:insert(require 'solver.nls'(args))
+
+
+
+
+
+-- the start of unstructured meshes
+--self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', meshfile='n0012_113-33'})))
+-- temp here -- to make sure ordinary solvers still run
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
