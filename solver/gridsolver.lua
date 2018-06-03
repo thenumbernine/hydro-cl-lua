@@ -8,10 +8,6 @@ local range = require 'ext.range'
 local file = require 'ext.file'
 local math = require 'ext.math'
 local vec3 = require 'vec.vec3'
-local CLImageGL = require 'cl.imagegl'
-local CLBuffer = require 'cl.obj.buffer'
-local GLTex2D = require 'gl.tex2d'
-local GLTex3D = require 'gl.tex3d'
 local glreport = require 'gl.report'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
@@ -20,7 +16,16 @@ local tooltip = require 'tooltip'
 local roundup = require 'roundup'
 local time, getTime = table.unpack(require 'time')
 local SolverBase = require 'solver.solverbase'
-require 'common'(_G)	-- xNames, symNames
+
+
+local common = require 'common'()	-- xNames, symNames
+local xNames = common.xNames
+local symNames = common.symNames
+local from3x3to6 = common.from3x3to6 
+local from6to3x3 = common.from6to3x3 
+local sym = common.sym
+
+
 
 --local tryingAMR = 'dt vs 2dt'
 --local tryingAMR = 'gradient'
@@ -340,6 +345,7 @@ function GridSolver:clalloc(name, size)
 end
 
 function GridSolver:finalizeCLAllocs()
+	local CLBuffer = require 'cl.obj.buffer'
 	local total = 0
 	for _,buffer in ipairs(self.buffers) do
 		buffer.offset = total
@@ -549,6 +555,8 @@ end
 	-- if I remove the border altogether then I get wrap-around
 	-- maybe I should just keep a border of 1?
 	-- for now i'll leave it as it is
+	local GLTex2D = require 'gl.tex2d'
+	local GLTex3D = require 'gl.tex3d'
 	local cl = self.dim < 3 and GLTex2D or GLTex3D
 	self.tex = cl{
 		width = tonumber(self.gridSize.x),
@@ -563,6 +571,7 @@ end
 		wrap = {s=gl.GL_REPEAT, t=gl.GL_REPEAT, r=gl.GL_REPEAT},
 	}
 
+	local CLImageGL = require 'cl.imagegl'
 	if self.app.useGLSharing then
 		self.texCLMem = CLImageGL{context=self.app.ctx, tex=self.tex, write=true}
 	else
@@ -1378,7 +1387,11 @@ kernel void boundary_<?=xNames[side]?>(
 	and ','..table.concat(args.extraArgs, ',\n\t')
 	or '' ?>
 ) {
-]], {args = args, side=side}))
+]], {
+		args = args,
+		side = side, 
+		xNames = xNames,
+	}))
 		if self.dim == 2 then
 			lines:insert[[
 	int i = get_global_id(0);
@@ -1466,9 +1479,6 @@ kernel void boundary_<?=xNames[side]?>(
 	end
 
 	local code = lines:concat'\n'
-
--- something is wrong in the boundary code ...
-print(require 'template.showcode'(code))
 
 	local boundaryProgramObj
 	time('compiling boundary program', function()

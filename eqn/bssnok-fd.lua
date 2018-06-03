@@ -200,12 +200,11 @@ kernel void initState(
 	U->gammaTilde_ll = sym3_scale(gamma_ll, exp_neg4phi);
 	U->gammaTilde_uu = sym3_inv(U->gammaTilde_ll, 1.);
 
-]]--[[
+<? if false then ?>
 <? for _,x in ipairs(xNames) do
 ?>	U->a.<?=x?> = calc_a_<?=x?>(x.x, x.y, x.z);
-<? end
-?>	
-]]..[[	
+<? end ?>
+<? end ?>
 
 	U->K = sym3_dot(K_ll, gamma_uu);
 	sym3 A_ll = sym3_sub(K_ll, sym3_scale(gamma_ll, 1./3. * U->K));
@@ -240,10 +239,8 @@ kernel void initDerivs(
 ?>
 }
 ]], table(self:getTemplateEnv(), {
-	code = self.initState.initState 
-		and self.initState:initState(self.solver) 
-		or '//no code from InitCond:initState() was provided',
-}))
+		code = self.initState:initState(self.solver),
+	}))
 end
 
 function BSSNOKFiniteDifferenceEquation:getSolverCode()

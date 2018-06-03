@@ -1,3 +1,12 @@
+<?
+local common = require 'common'()	-- xNames, symNames
+local xNames = common.xNames
+local symNames = common.symNames
+local from3x3to6 = common.from3x3to6 
+local from6to3x3 = common.from6to3x3 
+local sym = common.sym
+?>
+
 #define _real3(a,b,c) (real3){.s={a,b,c}}
 #define _sym3(a,b,c,d,e,f) (sym3){.s={a,b,c,d,e,f}}
 

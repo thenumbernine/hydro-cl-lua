@@ -86,7 +86,9 @@ end ?>
 <? end ?>
 	real volAtX = volume_at(cell_x(i));
 
-#if 1	//defined(coord_cartesian)
+<? 
+if true -- require 'coord.cartesian'.is(solver.coord) 
+then ?>
 	real skewSum = (0.
 <? for j=0,solver.dim-1 do ?>
 		+ volR.s<?=j?> * U[stepsize.s<?=j?>].<?=poisson.potentialField?> / (dx<?=j?> * dx<?=j?>)
@@ -99,7 +101,9 @@ end ?>
 		- (volR.s<?=j?> + volL.s<?=j?>) / (dx<?=j?> * dx<?=j?>)
 <? end ?>
 	) / volAtX;
-#else
+<? 
+else 
+?>
 	//f_;a^a = g^ab (f_,ab - Gamma^c_ab f,c)
 	// = 1/sqrt|g| (sqrt|g| g^ab f_,a)_,b
 	//I think I'm gonna use finite-differencing with the second one
@@ -123,7 +127,9 @@ end ?>
 	// f,rr + 1/r^2 f,theta_theta - 1/r f,r
 	// (f,r r),r / r + (f,theta r),theta / r
 	//so where do we put the r's?
-#endif
+<?
+end
+?>
 
 	real rho = 0;
 	<?=poisson:getCalcRhoCode() or ''?>

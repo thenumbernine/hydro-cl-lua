@@ -310,7 +310,6 @@ end
 -- should I either make a function for the template arg params
 -- or maybe I shouldn't have super-class'd the initState code to begin with ...
 function TwoFluidEMHD:getInitStateCode()
-	local code = self.initState:initState(self.solver)	
 	return template([[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
@@ -349,7 +348,7 @@ end
 	real permittivity = 1. / (4. * M_PI);
 	real permeability = 4. * M_PI;
 
-]]..code..[[
+	<?=code?>
 
 	<?=eqn.prim_t?> W = {
 <? 
@@ -391,6 +390,7 @@ end
 	UBuf[index] = consFromPrim(W, x);
 }
 ]], {
+		code = self.initState:initState(self.solver),
 		eqn = self,
 		fluids = fluids,
 		clnumber = clnumber,
@@ -436,10 +436,10 @@ function TwoFluidEMHD:getDisplayVars()
 
 		//TODO incorporate metric
 
-		real3 vim_j = Uim-><?=fluid?>_m.s<?=j?> / Uim-><?=fluid?>_rho;
-		real3 vip_j = Uip-><?=fluid?>_m.s<?=j?> / Uip-><?=fluid?>_rho;
-		real3 vjm_i = Ujm-><?=fluid?>_m.s<?=i?> / Ujm-><?=fluid?>_rho;
-		real3 vjp_i = Ujp-><?=fluid?>_m.s<?=i?> / Ujp-><?=fluid?>_rho;
+		real vim_j = Uim-><?=fluid?>_m.s<?=j?> / Uim-><?=fluid?>_rho;
+		real vip_j = Uip-><?=fluid?>_m.s<?=j?> / Uip-><?=fluid?>_rho;
+		real vjm_i = Ujm-><?=fluid?>_m.s<?=i?> / Ujm-><?=fluid?>_rho;
+		real vjp_i = Ujp-><?=fluid?>_m.s<?=i?> / Ujp-><?=fluid?>_rho;
 		
 		*value = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
 				- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
@@ -521,10 +521,11 @@ TwoFluidEMHD.eigenVars = eigenVars
 function TwoFluidEMHD:eigenWaveCodePrefix(side, eig, x)
 	return template([[
 <? for i,fluid in ipairs(fluids) do ?>
-	real <?=fluid?>_Cs_sqrt_gU = <?=eig?>-><?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(x);
+	real <?=fluid?>_Cs_sqrt_gU = <?=eig?>-><?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(<?=x?>);
 	real <?=fluid?>_v_n = <?=eig?>-><?=fluid?>_v.s[<?=side?>];
 <? end ?>
 ]], {
+		x = x,
 		eig = '('..eig..')',
 		fluids = fluids,
 		side = side,

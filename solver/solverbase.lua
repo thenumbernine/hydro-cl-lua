@@ -7,7 +7,14 @@ local template = require 'template'
 local vec3 = require 'vec.vec3'
 local tooltip = require 'tooltip'
 local time, getTime = table.unpack(require 'time')
-require 'common'(_G)	-- xNames, symNames
+
+
+local common = require 'common'()	-- xNames, symNames
+local xNames = common.xNames
+local symNames = common.symNames
+local from3x3to6 = common.from3x3to6 
+local from6to3x3 = common.from6to3x3 
+local sym = common.sym
 
 
 local integrators = require 'int.all'
@@ -126,13 +133,9 @@ function SolverBase:createCodePrefix()
 
 	-- real3
 	lines:insert(file['math.h'])
-	lines:insert(template(file['math.cl'], {
-		xNames = xNames,
-		symNames = symNames,
-	}))
+	lines:insert(template(file['math.cl']))
 
 	lines:append{
-		'#define coord_'..self.coord.name..' 1',
 		'#define dim '..self.dim,
 		'#define numStates '..self.eqn.numStates,
 		'#define numIntStates '..self.eqn.numIntStates,

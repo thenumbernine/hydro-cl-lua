@@ -63,7 +63,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{256,256,1},
+				{64,64,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -127,7 +127,7 @@ maxs = {6,1,1},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
-		{128, 512, 1}, -- 2D
+		{32, 128, 1}, -- 2D
 		{16, 64, 16}, -- 3D
 	})[dim],
 	boundary = {
@@ -204,7 +204,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -382,7 +382,7 @@ maxs = {6,1,1},
 }
 
 -- HD
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -505,4 +505,4 @@ maxs = {6,1,1},
 -- the start of unstructured meshes
 --self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', meshfile='n0012_113-33'})))
 -- temp here -- to make sure ordinary solvers still run
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))

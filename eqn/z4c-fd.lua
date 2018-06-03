@@ -176,12 +176,11 @@ kernel void initState(
 	U->gammaTilde_ll = sym3_scale(gamma_ll, exp_neg4phi);
 	U->gammaTilde_uu = sym3_inv(U->gammaTilde_ll, 1.);
 
-]]--[[
+<? if false then ?>
 <? for _,x in ipairs(xNames) do
 ?>	U->a.<?=x?> = calc_a_<?=x?>(x.x, x.y, x.z);
-<? end
-?>	
-]]..[[	
+<? end ?>	
+<? end ?>
 
 	U->Theta = 0.;	//TODO ... Theta = -Z^mu n_mu = alpha * Z^t ... which is?
 
@@ -220,10 +219,8 @@ kernel void initDerivs(
 ?>
 }
 ]], table(self:getTemplateEnv(), {
-	code = self.initState.initState 
-		and self.initState:initState(self.solver) 
-		or '//no code from InitCond:initState() was provided',
-}))
+		code = self.initState:initState(self.solver)
+	}))
 end
 
 function Z4cFiniteDifferenceEquation:getSolverCode()
@@ -335,6 +332,7 @@ end
 		{K_y = '*valuevec = real3_add(sym3_y(U->ATilde_ll), real3_scale(sym3_y(U->gammaTilde_ll), (U->KHat + 2. * U->Theta)/3.));', type='real3'},
 		{K_z = '*valuevec = real3_add(sym3_z(U->ATilde_ll), real3_scale(sym3_z(U->gammaTilde_ll), (U->KHat + 2. * U->Theta)/3.));', type='real3'},
 
+--[=[ TODO FIXME
 		--[[ ADM geodesic equation spatial terms:
 		-Gamma^i_tt = 
 			- gamma^ij alpha_,j
@@ -463,6 +461,7 @@ end ?>;
 			), 
 			type = 'real3',
 		},
+--]=]	
 	}
 	
 	return vars

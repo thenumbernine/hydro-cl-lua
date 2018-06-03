@@ -34,11 +34,9 @@ Euler.initStates = require 'init.euler'
 function Euler:init(args)
 	Euler.super.init(self, args)
 
-	--[[ TODO ops folder
 	local SelfGrav = require 'op.selfgrav'
-	self.gravOp = SelfGrav{solver=self.solver}
+	self.gravOp = SelfGrav{solver = self.solver}
 	self.solver.ops:insert(self.gravOp)
-	--]]
 end
 
 Euler.primVars = table{
@@ -171,7 +169,6 @@ kernel void initState(
 	real3 mids = real3_scale(real3_add(mins, maxs), .5);
 	bool lhs = true
 <?
--- I'm suspicious xNames comes from the fact that require 'common' is modifying _G
 for i=1,solver.dim do
 	local xi = xNames[i]
 ?>	&& x.<?=xi?> < mids.<?=xi?>
@@ -333,6 +330,7 @@ end
 
 function Euler:getFluxFromConsCode()
 	return template([[
+<? local solver = eqn.solver ?>
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
 	<?=eqn.cons_t?> U,
@@ -355,7 +353,6 @@ function Euler:getFluxFromConsCode()
 <? end ?>
 ]], {
 		eqn = self,
-		solver = self.solver,
 	})
 end
 

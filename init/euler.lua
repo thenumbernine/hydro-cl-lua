@@ -238,7 +238,7 @@ local initStates = table{
 		},
 		initState = function(self, solver)
 			return template([[
-#if 1	//offsetting the region	so I can see there's a problem at the boundary ...
+#if 0	//offsetting the region	so I can see there's a problem at the boundary ...
 	lhs = true 
 <?
 for i=1,solver.dim do

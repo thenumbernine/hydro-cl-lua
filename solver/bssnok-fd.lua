@@ -49,7 +49,7 @@ function BSSNOKFiniteDifferenceSolver:getDisplayInfosForType()
 	-- also, how to determine which metric to raise by ... gamma vs gammaTilde
 	table.insert(t.sym3, {
 		name = ' tr weighted',
-		code = '*value = sym3_dot(U->gammaTilde_uu, *valuesym3) / calc_det_gamma(U);',
+		code = '*value = sym3_dot(U->gammaTilde_uu, *valuesym3) / calc_det_gamma(U, x);',
 	})
 
 	return t

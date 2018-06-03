@@ -6,6 +6,15 @@ local file = require 'ext.file'
 local template = require 'template'
 local makestruct = require 'eqn.makestruct'
 
+
+local common = require 'common'()
+local xNames = common.xNames
+local symNames = common.symNames
+local from3x3to6 = common.from3x3to6 
+local from6to3x3 = common.from6to3x3 
+local sym = common.sym
+
+
 local Equation = class()
 
 
@@ -164,15 +173,23 @@ function Equation:getSolverCode()
 end
 
 function Equation:getInitStateCode()
-	return self.initState:getInitStateCode(self.solver)
+	assert(self.initStateCode, "expected solver.eqn.initStateCode")
+	return template(self.initStateCode, {
+		eqn = self,
+		code = self.initState:initState(self.solver),
+		solver = self.solver,
+		
+		-- used by Euler.initStateCode
+		xNames = xNames,
+	})
 end
 
 function Equation:getDisplayVarCodePrefix()
 	return template([[
 	const global <?=eqn.cons_t?>* U = buf + index;
 ]], {
-	eqn = self,
-})
+		eqn = self,
+	})
 end
 
 -- accepts a list of struct var info {name=type}
