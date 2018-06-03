@@ -1,6 +1,6 @@
 local class = require 'ext.class'
 local template = require 'template'
-local Poisson = require 'solver.poisson'
+local Poisson = require 'op.poisson'
 
 local SRHDSelfGrav = class(Poisson)
 
@@ -13,9 +13,9 @@ function SRHDSelfGrav:init(args)
 	self.densityField = args.densityField	
 end
 
--- params for solver/poisson.cl 
+-- params for op/poisson.cl 
 function SRHDSelfGrav:getCalcRhoCode()
-	-- because solver/poisson.cl assumes it's UBuf, 
+	-- because op/poisson.cl assumes it's UBuf, 
 	-- we gotta keep the name 'UBuf'
 	-- even though it's the primBuf ...
 	return template([[

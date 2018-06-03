@@ -37,7 +37,6 @@ args:
 	gridSize
 	mins
 	maxs
-	coord = coordinate system name to use, associated with coord/<name>.lua
 	boundary = boundary info
 --]]
 function Solver:init(args)
@@ -95,8 +94,6 @@ function Solver:init(args)
 	self.fluxLimiter = self.app.limiterNames:find(args.fluxLimiter) or 1
 
 
-	self.coord = require('coord.'..args.coord){solver=self}
-
 	self.usePLM = args.usePLM
 	assert(not self.usePLM or self.fluxLimiter == 1, "are you sure you want to use flux and slope limiters at the same time?")
 	self.slopeLimiter = self.app.limiterNames:find(args.slopeLimiter) or 1
@@ -121,131 +118,6 @@ function Solver:postInit()
 	self:refreshGridSize()
 end
 
---[[
-boundaryOptions is a table of {name = args => assign code}
-	args of the boundary function are:
-		index
-		assign = function(dst,src) 
-			assignment operator
-			default is dst = src
-			poisson uses dist.field = src.field
-		field
-		array
-		rhs
-		gridSizeSide = solver.gridSize[side]
-		side = 1,2,3
-		minmax = 'min' or 'max'
-		mirrorVars = which vars to reflect.
-			for solver.UBuf this is taken from eqn
-			for poisson this is nothing
-
-this is such a mess.  it's practically an AST.
---]]
-function Solver:createBoundaryOptions()
-	local tab = '\t\t\t'
-	self.boundaryOptions = table{
-		{periodic = function(args)
-			local gridSizeSide = 'gridSize_'..xNames[args.side]
-			if args.minmax == 'min' then
-				return tab..args.assign(
-					args.array('buf', args.index'j'), 
-					args.array('buf', args.index(gridSizeSide..'-2*numGhost+j'))
-				)..';'
-			elseif args.minmax == 'max' then
-				local rhs = gridSizeSide..'-numGhost+j'
-				return tab..args.assign(
-					args.array('buf', args.index(rhs)),
-					args.array('buf', args.index'numGhost+j')
-				)..';'
-			end
-		end},
-		{mirror = function(args)
-			local gridSizeSide = 'gridSize_'..xNames[args.side]
-			if args.minmax == 'min' then
-				return table{
-					tab..args.assign(
-						args.array('buf', args.index'j'),
-						args.array('buf', args.index'2*numGhost-1-j')
-					)..';'
-				}:append(table.map((args.mirrorVars or {})[args.side] or {}, function(var)
-					return tab..args.assign(
-						args.field(args.array('buf', args.index'j'), var),
-						args.field('-'..args.array('buf', args.index'j'), var)
-					)..';'
-				end)):concat'\n'
-			elseif args.minmax == 'max' then
-				local rhs = gridSizeSide..'-numGhost+j'
-				return table{
-					tab..args.assign(
-						args.array('buf', args.index(rhs)),
-						args.array('buf', args.index(gridSizeSide..'-numGhost-1-j'))
-					)..';'
-				}:append(table.map((args.mirrorVars or {})[args.side] or {}, function(var)
-					return tab..args.assign(
-						args.field(args.array('buf', args.index(rhs)), var),
-						args.field('-'..args.array('buf', args.index(rhs)), var)
-					)..';'
-				end)):concat'\n'
-			end
-		end},
-		{freeflow = function(args)
-			local gridSizeSide = 'gridSize_'..xNames[args.side]
-			if args.minmax == 'min' then
-				return tab..args.assign(
-					'buf['..args.index'j'..']',
-					'buf['..args.index'numGhost'..']'
-				)..';'
-			elseif args.minmax == 'max' then
-				local rhs = gridSizeSide..'-numGhost+j'
-				return tab..args.assign(
-					'buf['..args.index(rhs)..']',
-					'buf['..args.index(gridSizeSide..'-numGhost-1')..']'
-				)..';'
-			end
-		end},
-	}
-
-	if self.eqn.createBoundaryOptions then
-		self.eqn:createBoundaryOptions()
-	end
-end
-function Solver:finalizeBoundaryOptions()
-	self.boundaryOptionNames = self.boundaryOptions:map(function(option) return (next(option)) end)
-	-- hmm here's the one time that table.map using k,v comes in handy
-	self.boundaryOptionForName = self.boundaryOptions:map(function(option) local k,v = next(option) return v,k end)
-end
-
---[[
-this is shorthand for assignment
-you can also assign each solver.boundaryMethod.[x|y|z][min|max] to an index in solver.boundaryOptions
-args:
-	a string = sets all boundaryMethods to the boundaryOptions index with name of the string in args
-	a table = sets each xmin...zmax boundaryMethod with the associated name
---]]
-function Solver:setBoundaryMethods(args)
-	for _,x in ipairs(xNames) do
-		for _,minmax in ipairs(minmaxs) do
-			local k = x..minmax
-			local name
-			if type(args) == 'string' then
-				name = args	
-			elseif type(args) == 'table' then
-				name = args[k]
-			else
-				error("don't know how to deal with these args") 
-			end
-			local i = self.boundaryOptions:find(nil, function(option) return next(option) == name end)
-			if not i then
-				io.stderr:write("unable to find boundary method "..tostring(name)
-					..' ('..type(name)..')'
-					.." -- can't assign it to side "..k.."\n")
-				io.stderr:flush()
-			else
-				self.boundaryMethods[k] = i
-			end
-		end
-	end
-end
 
 -- this is only used by Solver, but each kernel gets its own,
 -- so TODO get rid of this and just use kernel's sizes
@@ -458,130 +330,6 @@ function Solver:initDraw()
 	}
 end
 
--- subclass and override
-local DisplayVar = class(Solver.DisplayVar)
-Solver.DisplayVar = DisplayVar
-
-
--- and this is the DisplayVar used for UBuf
-Solver.DisplayVar_U = DisplayVar
-
-DisplayVar.type = 'real'	-- default
-
--- TODO buf (dest) shouldn't have ghost cells
--- and dstIndex should be based on the size without ghost cells
-DisplayVar.displayCode = [[
-kernel void <?=name?>(
-	<?=input?>,
-	const global <?= var.type ?>* buf<?= 
-	var.extraArgs and #var.extraArgs > 0 
-		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
-		or '' 
-?>
-) {
-	SETBOUNDS(0,0);
-
-	int4 dsti = i;
-	int dstindex = index;
-	
-	real3 x = cell_x(i);
-	real3 xInt[<?=solver.dim?>];
-<? for i=0,solver.dim-1 do
-?>	xInt[<?=i?>] = x;
-	xInt[<?=i?>].s<?=i?> -= .5 * grid_dx<?=i?>;
-<? end
-?>
-	//now constrain
-	if (i.x < numGhost) i.x = numGhost;
-	if (i.x >= gridSize_x - numGhost) i.x = gridSize_x - numGhost-1;
-<? 
-if solver.dim >= 2 then
-?>	if (i.y < numGhost) i.y = numGhost;
-	if (i.y >= gridSize_y - numGhost) i.y = gridSize_y - numGhost-1;
-<? 
-end
-if solver.dim >= 3 then
-?>	if (i.z < numGhost) i.z = numGhost;
-	if (i.z >= gridSize_z - numGhost) i.z = gridSize_z - numGhost-1;
-<? end 
-?>
-	//and recalculate read index
-	index = INDEXV(i);
-
-	
-	real value[6] = {0,0,0,0,0,0};	//size of largest struct
-	sym3* valuesym3 = (sym3*)value;
-	real3* valuevec = (real3*)value;
-	real3* valuevec_hi = (real3*)(value+3);
-
-<?= var.codePrefix or '' ?>
-<?= var.code ?>
-
-<?= output ?>
-}
-]]
-
-function DisplayVar:init(args)
-	self.code = assert(args.code)
-	self.name = assert(args.name)
-	self.solver = assert(args.solver)
-	self.type = args.type	-- or self.type
-	self.displayCode = args.displayCode 	-- or self.displayCode
-	self.codePrefix = args.codePrefix
-	
-	-- display stuff
-	self.enabled = not not args.enabled 
-	self.useLog = args.useLog or false
-	self.color = vec3(math.random(), math.random(), math.random()):normalize()
-	self.heatMapFixedRange = false	-- args.name ~= 'error'
-	self.heatMapValueMin = 0
-	self.heatMapValueMax = 1
-
-	-- is it a vector or a scalar?
-	self.vectorField = args.vectorField
-
-	-- maybe this should be in args too?
-	-- or - instead of buffer - how about all the kernel's args?
-	-- but the reason I have to store the field here is that the buffer isn't made yet 
-	-- TODO? make display vars after buffers so I can store the buffer here?
-	self.bufferField = args.bufferField
-	self.extraArgs = args.extraArgs
-end
-
-function DisplayVar:setArgs(kernel)
-	local buffer = assert(self.solver[self.bufferField], "failed to find buffer "..tostring(self.bufferField))
-	kernel:setArg(1, buffer)
-end
-
-function DisplayVar:setToTexArgs()
-	self:setArgs(self.calcDisplayVarToTexKernelObj.obj)
-end
-
-function DisplayVar:setToBufferArgs(var)
-	self:setArgs(self.calcDisplayVarToBufferKernelObj.obj)
-end
-
-
-function Solver:addDisplayVars()
-	Solver.super.addDisplayVars(self)
-if tryingAMR == 'dt vs 2dt' then
-	self:addDisplayVarGroup{
-		name = 'U2',
-		type = self.eqn.cons_t,
-		vars = {
-			{[0] = '*value = buf[index].ptr[0];'},
-		}
-	}
-elseif tryingAMR == 'gradient' then
-	self:addDisplayVarGroup{
-		name = 'amrError',
-		type = 'real',
-		vars = {
-			{[0] = '*value = buf[index];'},
-		}
-	}
-end
-end
 
 -- my best idea to work around the stupid 8-arg max kernel restriction
 -- this is almost as bad of an idea as using OpenCL was to begin with
@@ -1264,6 +1012,137 @@ function Solver:refreshCalcDTKernel()
 	self.calcDTKernelObj = self.solverProgramObj:kernel('calcDT', self.reduceBuf, self.UBuf)
 end
 
+
+-------------------------------------------------------------------------------
+--                                 display vars                              --
+-------------------------------------------------------------------------------
+
+
+-- subclass and override
+local DisplayVar = class(Solver.DisplayVar)
+Solver.DisplayVar = DisplayVar
+
+
+-- and this is the DisplayVar used for UBuf
+Solver.DisplayVar_U = DisplayVar
+
+DisplayVar.type = 'real'	-- default
+
+-- TODO buf (dest) shouldn't have ghost cells
+-- and dstIndex should be based on the size without ghost cells
+DisplayVar.displayCode = [[
+kernel void <?=name?>(
+	<?=input?>,
+	const global <?= var.type ?>* buf<?= 
+	var.extraArgs and #var.extraArgs > 0 
+		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
+		or '' 
+?>
+) {
+	SETBOUNDS(0,0);
+
+	int4 dsti = i;
+	int dstindex = index;
+	
+	real3 x = cell_x(i);
+	real3 xInt[<?=solver.dim?>];
+<? for i=0,solver.dim-1 do
+?>	xInt[<?=i?>] = x;
+	xInt[<?=i?>].s<?=i?> -= .5 * grid_dx<?=i?>;
+<? end
+?>
+	//now constrain
+	if (i.x < numGhost) i.x = numGhost;
+	if (i.x >= gridSize_x - numGhost) i.x = gridSize_x - numGhost-1;
+<? 
+if solver.dim >= 2 then
+?>	if (i.y < numGhost) i.y = numGhost;
+	if (i.y >= gridSize_y - numGhost) i.y = gridSize_y - numGhost-1;
+<? 
+end
+if solver.dim >= 3 then
+?>	if (i.z < numGhost) i.z = numGhost;
+	if (i.z >= gridSize_z - numGhost) i.z = gridSize_z - numGhost-1;
+<? end 
+?>
+	//and recalculate read index
+	index = INDEXV(i);
+
+	
+	real value[6] = {0,0,0,0,0,0};	//size of largest struct
+	sym3* valuesym3 = (sym3*)value;
+	real3* valuevec = (real3*)value;
+	real3* valuevec_hi = (real3*)(value+3);
+
+<?= var.codePrefix or '' ?>
+<?= var.code ?>
+
+<?= output ?>
+}
+]]
+
+function DisplayVar:init(args)
+	self.code = assert(args.code)
+	self.name = assert(args.name)
+	self.solver = assert(args.solver)
+	self.type = args.type	-- or self.type
+	self.displayCode = args.displayCode 	-- or self.displayCode
+	self.codePrefix = args.codePrefix
+	
+	-- display stuff
+	self.enabled = not not args.enabled 
+	self.useLog = args.useLog or false
+	self.color = vec3(math.random(), math.random(), math.random()):normalize()
+	self.heatMapFixedRange = false	-- args.name ~= 'error'
+	self.heatMapValueMin = 0
+	self.heatMapValueMax = 1
+
+	-- is it a vector or a scalar?
+	self.vectorField = args.vectorField
+
+	-- maybe this should be in args too?
+	-- or - instead of buffer - how about all the kernel's args?
+	-- but the reason I have to store the field here is that the buffer isn't made yet 
+	-- TODO? make display vars after buffers so I can store the buffer here?
+	self.bufferField = args.bufferField
+	self.extraArgs = args.extraArgs
+end
+
+function DisplayVar:setArgs(kernel)
+	local buffer = assert(self.solver[self.bufferField], "failed to find buffer "..tostring(self.bufferField))
+	kernel:setArg(1, buffer)
+end
+
+function DisplayVar:setToTexArgs()
+	self:setArgs(self.calcDisplayVarToTexKernelObj.obj)
+end
+
+function DisplayVar:setToBufferArgs(var)
+	self:setArgs(self.calcDisplayVarToBufferKernelObj.obj)
+end
+
+
+function Solver:addDisplayVars()
+	Solver.super.addDisplayVars(self)
+if tryingAMR == 'dt vs 2dt' then
+	self:addDisplayVarGroup{
+		name = 'U2',
+		type = self.eqn.cons_t,
+		vars = {
+			{[0] = '*value = buf[index].ptr[0];'},
+		}
+	}
+elseif tryingAMR == 'gradient' then
+	self:addDisplayVarGroup{
+		name = 'amrError',
+		type = 'real',
+		vars = {
+			{[0] = '*value = buf[index];'},
+		}
+	}
+end
+end
+
 function Solver:getDisplayCode()
 	local lines = table()
 	
@@ -1332,6 +1211,137 @@ function Solver:getDisplayCode()
 	local code = lines:concat'\n'
 	
 	return code
+end
+
+
+-------------------------------------------------------------------------------
+--                              boundary                                     --
+-------------------------------------------------------------------------------
+
+--[[
+boundaryOptions is a table of {name = args => assign code}
+	args of the boundary function are:
+		index
+		assign = function(dst,src) 
+			assignment operator
+			default is dst = src
+			poisson uses dist.field = src.field
+		field
+		array
+		rhs
+		gridSizeSide = solver.gridSize[side]
+		side = 1,2,3
+		minmax = 'min' or 'max'
+		mirrorVars = which vars to reflect.
+			for solver.UBuf this is taken from eqn
+			for poisson this is nothing
+
+this is such a mess.  it's practically an AST.
+--]]
+function Solver:createBoundaryOptions()
+	local tab = '\t\t\t'
+	self.boundaryOptions = table{
+		{periodic = function(args)
+			local gridSizeSide = 'gridSize_'..xNames[args.side]
+			if args.minmax == 'min' then
+				return tab..args.assign(
+					args.array('buf', args.index'j'), 
+					args.array('buf', args.index(gridSizeSide..'-2*numGhost+j'))
+				)..';'
+			elseif args.minmax == 'max' then
+				local rhs = gridSizeSide..'-numGhost+j'
+				return tab..args.assign(
+					args.array('buf', args.index(rhs)),
+					args.array('buf', args.index'numGhost+j')
+				)..';'
+			end
+		end},
+		{mirror = function(args)
+			local gridSizeSide = 'gridSize_'..xNames[args.side]
+			if args.minmax == 'min' then
+				return table{
+					tab..args.assign(
+						args.array('buf', args.index'j'),
+						args.array('buf', args.index'2*numGhost-1-j')
+					)..';'
+				}:append(table.map((args.mirrorVars or {})[args.side] or {}, function(var)
+					return tab..args.assign(
+						args.field(args.array('buf', args.index'j'), var),
+						args.field('-'..args.array('buf', args.index'j'), var)
+					)..';'
+				end)):concat'\n'
+			elseif args.minmax == 'max' then
+				local rhs = gridSizeSide..'-numGhost+j'
+				return table{
+					tab..args.assign(
+						args.array('buf', args.index(rhs)),
+						args.array('buf', args.index(gridSizeSide..'-numGhost-1-j'))
+					)..';'
+				}:append(table.map((args.mirrorVars or {})[args.side] or {}, function(var)
+					return tab..args.assign(
+						args.field(args.array('buf', args.index(rhs)), var),
+						args.field('-'..args.array('buf', args.index(rhs)), var)
+					)..';'
+				end)):concat'\n'
+			end
+		end},
+		{freeflow = function(args)
+			local gridSizeSide = 'gridSize_'..xNames[args.side]
+			if args.minmax == 'min' then
+				return tab..args.assign(
+					'buf['..args.index'j'..']',
+					'buf['..args.index'numGhost'..']'
+				)..';'
+			elseif args.minmax == 'max' then
+				local rhs = gridSizeSide..'-numGhost+j'
+				return tab..args.assign(
+					'buf['..args.index(rhs)..']',
+					'buf['..args.index(gridSizeSide..'-numGhost-1')..']'
+				)..';'
+			end
+		end},
+	}
+
+	if self.eqn.createBoundaryOptions then
+		self.eqn:createBoundaryOptions()
+	end
+end
+function Solver:finalizeBoundaryOptions()
+	self.boundaryOptionNames = self.boundaryOptions:map(function(option) return (next(option)) end)
+	-- hmm here's the one time that table.map using k,v comes in handy
+	self.boundaryOptionForName = self.boundaryOptions:map(function(option) local k,v = next(option) return v,k end)
+end
+
+--[[
+this is shorthand for assignment
+you can also assign each solver.boundaryMethod.[x|y|z][min|max] to an index in solver.boundaryOptions
+args:
+	a string = sets all boundaryMethods to the boundaryOptions index with name of the string in args
+	a table = sets each xmin...zmax boundaryMethod with the associated name
+--]]
+function Solver:setBoundaryMethods(args)
+	for _,x in ipairs(xNames) do
+		for _,minmax in ipairs(minmaxs) do
+			local k = x..minmax
+			local name
+			if type(args) == 'string' then
+				name = args	
+			elseif type(args) == 'table' then
+				name = args[k]
+			else
+				error("don't know how to deal with these args") 
+			end
+			local i = self.boundaryOptions:find(nil, function(option) return next(option) == name end)
+			if not i then
+				io.stderr:write("unable to find boundary method "..tostring(name)
+					..' ('..type(name)..')'
+					.." -- can't assign it to side "..k.."\n")
+				io.stderr:flush()
+			else
+				self.boundaryMethods[k] = i
+			end
+		end
+	end
 end
 
 --[[
@@ -1459,6 +1469,9 @@ kernel void boundary(
 
 	local code = lines:concat'\n'
 
+-- something is wrong in the boundary code ...
+print(require 'template.showcode'(code))
+
 	local boundaryProgramObj
 	time('compiling boundary program', function()
 		boundaryProgramObj = self.Program{code=code}
@@ -1554,6 +1567,12 @@ end
 function Solver:boundary()
 	self:applyBoundaryToBuffer(self.boundaryKernelObj)
 end
+
+
+-------------------------------------------------------------------------------
+--                                                                           --
+-------------------------------------------------------------------------------
+
 
 function Solver:calcDT()
 	local dt

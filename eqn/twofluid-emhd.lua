@@ -96,12 +96,12 @@ function TwoFluidEMHD:init(args)
 	TwoFluidEMHD.super.init(self, args)
 
 
---	local NoDiv = require 'solver.nodiv'
+--	local NoDiv = require 'op.nodiv'
 --	self.solver.ops:insert(NoDiv{solver=self.solver})	-- nodiv on maxwell ... or just use potentials 
 
 io.stderr:write'you need to give different selfgravs different names for twofluid selfgrav to work\n' 
 	--[[ TODO give each selfgrav a unique function name
-	local SelfGrav = require 'solver.selfgrav'
+	local SelfGrav = require 'op.selfgrav'
 	self.solver.ops:insert(SelfGrav{
 		solver = self.solver,
 		densityField = 'ion_rho',

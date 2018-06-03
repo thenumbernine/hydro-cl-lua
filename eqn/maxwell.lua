@@ -59,7 +59,7 @@ Maxwell.initStates = require 'init.euler'
 function Maxwell:init(args)
 	Maxwell.super.init(self, args)
 
-	local NoDiv = require 'solver.nodiv'
+	local NoDiv = require 'op.nodiv'
 	self.solver.ops:insert(NoDiv{
 		solver = self.solver,
 	})

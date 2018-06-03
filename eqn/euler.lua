@@ -3,12 +3,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
-local clnumber = require 'cl.obj.number'
 local Equation = require 'eqn.eqn'
-
-local makePartials = require 'eqn.makepartial'
-local makePartial = makePartials.makePartial
-local makePartial2 = makePartials.makePartial2
 
 
 local Euler = class(Equation)
@@ -40,7 +35,7 @@ function Euler:init(args)
 	Euler.super.init(self, args)
 
 	-- TODO ops folder
-	local SelfGrav = require 'solver.selfgrav'
+	local SelfGrav = require 'op.selfgrav'
 	self.gravOp = SelfGrav{solver=self.solver}
 	self.solver.ops:insert(self.gravOp)
 end
@@ -173,14 +168,16 @@ kernel void initState(
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
 	real3 mids = real3_scale(real3_add(mins, maxs), .5);
-	bool lhs = x.x < mids.x
-#if dim > 1
-		&& x.y < mids.y
-#endif
-#if dim > 2
-		&& x.z < mids.z
-#endif
-	;
+	bool lhs = true
+<?
+-- I'm suspicious xNames comes from the fact that require 'common' is modifying _G
+for i=1,solver.dim do
+	local xi = xNames[i]
+?>	&& x.<?=xi?> < mids.<?=xi?>
+<?
+end
+?>;
+	
 	real rho = 0;
 	real3 v = _real3(0,0,0);
 	real P = 0;
@@ -203,14 +200,7 @@ kernel void initState(
 ]]
 
 function Euler:getSolverCode()
-	local derivOrder = 2 * self.solver.numGhost
-	return template(file['eqn/euler.cl'], {
-		solver = self.solver,
-		eqn = self,
-		clnumber = clnumber,
-		makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
-		makePartial2 = function(...) return makePartial2(derivOrder, self.solver, ...) end,
-	})
+	return template(file['eqn/euler.cl'], {eqn = self})
 end
 
 function Euler:getDisplayVarCodePrefix()

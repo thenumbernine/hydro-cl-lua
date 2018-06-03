@@ -4,8 +4,8 @@ local class = require 'ext.class'
 local tooltip = require 'tooltip'
 local template = require 'template'
 
-local Poisson = require 'solver.poisson'
---local Poisson = require 'solver.poisson_gmres'
+local Poisson = require 'op.poisson'
+--local Poisson = require 'op.poisson_gmres'
 
 local SelfGrav = class(Poisson)
 
@@ -22,7 +22,7 @@ function SelfGrav:init(args)
 	self.solver[self.enableField] = not not self.solver[self.enableField]
 end
 
--- params for solver/poisson.cl 
+-- params for op/poisson.cl 
 function SelfGrav:getCalcRhoCode()
 	return template([[
 	//maybe a 4pi?  or is that only in the continuous case?

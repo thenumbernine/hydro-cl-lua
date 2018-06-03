@@ -17,6 +17,10 @@ or is this already solved in the discrete case?
 discrete evaluation:
 1/sqrt(g) (sqrt(g(x+dxi/2)) g^ij(x+dxj/2) (f(x+dxj) - f(x)) / dx(x+dxj/2))_,i
 */
+<?
+local solver = poisson.solver
+local eqn = solver.eqn
+?>
 
 //initialize the poisson solver field 
 //this is only called upon solver reset

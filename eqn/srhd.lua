@@ -41,7 +41,7 @@ function SRHD:init(args)
 
 	self.cons_only_t = self:unique'cons_only_t'
 
-	local SRHDSelfGrav = require 'solver.srhd-selfgrav'
+	local SRHDSelfGrav = require 'op.srhd-selfgrav'
 	self.solver.ops:insert(SRHDSelfGrav{solver=self.solver})
 end
 

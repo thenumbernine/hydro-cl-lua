@@ -4,6 +4,16 @@ But I experimented with a curved-space solver.
 To get back to the original code,
 just replace all the g_ab stuff with their constant values and simplify away.
 */
+<?
+local solver = eqn.solver
+
+local clnumber = require 'cl.obj.number'
+local makePartials = require 'eqn.makepartial'
+
+local derivOrder = 2 * solver.numGhost
+local makePartial = function(...) return makePartials.makePartial(derivOrder, solver, ...) end
+local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end
+?>
 
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(

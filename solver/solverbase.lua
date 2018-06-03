@@ -27,6 +27,7 @@ args:
 	dim
 	eqn = name of eqn/<name>.lua to use
 	eqnArgs (optional) = args of eqn ctor
+	coord = coordinate system name to use, associated with coord/<name>.lua
 	initState = init state name
 	initStateArgs (optional) = args of init state ctor
 	integrator = name of integrator in int/all.lua to use
@@ -57,7 +58,11 @@ function SolverBase:init(args)
 
 
 	self.integratorIndex = integratorNames:find(args.integrator) or 1
-	
+
+
+	self.coord = require('coord.'..args.coord){solver=self}
+
+
 	self:createDisplayVars()	-- depends on eqn
 end
 

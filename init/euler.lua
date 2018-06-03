@@ -234,10 +234,25 @@ local initStates = table{
 			heatCapacityRatio = 5/3,
 		},
 		initState = function(self, solver)
-			return [[
+			return template([[
+#if 0	//offsetting the region	so I can see there's a problem at the boundary ...
+	lhs = true 
+<?
+for i=1,solver.dim do
+	local xi = xNames[i]
+?> 		&& x.<?=xi?> > .75 * mins.<?=xi?> + .25 * maxs.<?=xi?>
+		&& x.<?=xi?> < .25 * mins.<?=xi?> + .75 * maxs.<?=xi?>
+<?
+end
+?>;
+#endif
+
 	rho = lhs ? init_rhoL : init_rhoR;
 	P = lhs ? init_PL : init_PR;
-]]
+]], {
+		solver = solver,
+		xNames = xNames,
+	})
 		end,
 	},
 	{

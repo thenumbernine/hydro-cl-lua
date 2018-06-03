@@ -1,5 +1,5 @@
 local class = require 'ext.class'
-local Poisson = require 'solver.poisson'
+local Poisson = require 'op.poisson'
 local template = require 'template'
 
 local NoDiv = class(Poisson)

@@ -193,7 +193,7 @@ function Poisson:getSolverCode()
 	return table{
 		template(
 			table{
-				file['solver/poisson.cl'],
+				file['op/poisson.cl'],
 				poissonGMRESCode,
 				self:getPoissonCode() or '',
 			}:concat'\n',

@@ -44,12 +44,12 @@ function MHD:init(args)
 	MHD.super.init(self, args)
 
 	if self.solver.dim > 1 then
-		local NoDiv = require 'solver.nodiv'
+		local NoDiv = require 'op.nodiv'
 		self.solver.ops:insert(NoDiv{solver=self.solver})
 	end
 
 	-- hmm...
-	local SelfGrav = require 'solver.selfgrav'
+	local SelfGrav = require 'op.selfgrav'
 	self.gravOp = SelfGrav{solver=self.solver}
 	self.solver.ops:insert(self.gravOp)
 end
