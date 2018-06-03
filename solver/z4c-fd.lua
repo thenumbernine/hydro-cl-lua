@@ -1,11 +1,11 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
-local Solver = require 'solver.solver'
+local GridSolver = require 'solver.gridsolver'
 
 local xNames = table{'x', 'y', 'z'}
 
-local Z4cFiniteDifferenceSolver = class(Solver)
+local Z4cFiniteDifferenceSolver = class(GridSolver)
 Z4cFiniteDifferenceSolver.name = 'Z4c_FiniteDifference'
 
 -- TODO make a gui variable for numGhost

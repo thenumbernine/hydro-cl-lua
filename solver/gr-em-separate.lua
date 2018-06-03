@@ -152,7 +152,7 @@ function GREMSeparateSolver:replaceSourceKernels()
 	-- TODO
 
 	-- build self.codePrefix
-	require 'solver.solver'.createCodePrefix(self)
+	require 'solver.gridsolver'.createCodePrefix(self)
 	
 	local lines = table{
 		self.codePrefix,

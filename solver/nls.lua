@@ -4,9 +4,9 @@ from 2010 Colliander et al "Numerical Simulations ..."
 local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
-local Solver = require 'solver.solver'
+local GridSolver = require 'solver.gridsolver'
 
-local NLSSolver = class(Solver)
+local NLSSolver = class(GridSolver)
 NLSSolver.name = 'NonLinearSchrodinger'
 NLSSolver.fixedDT = 1e-6
 NLSSolver.eqnName = 'nls'

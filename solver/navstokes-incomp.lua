@@ -1,7 +1,7 @@
 local class = require 'ext.class'
-local Solver = require 'solver.solver'
+local GridSolver = require 'solver.gridsolver'
 
-local NavierStokesIncompressible = class(Solver)
+local NavierStokesIncompressible = class(GridSolver)
 NavierStokesIncompressible.name = 'NavierStokesIncompressible' 
 NavierStokesIncompressible.eqnName = 'navstokes-incomp'
 

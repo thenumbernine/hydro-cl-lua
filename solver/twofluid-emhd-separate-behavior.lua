@@ -113,7 +113,7 @@ local function TwoFluidEMHDBehavior(parent)
 		local eps0 = 1 / (4 * math.pi)
 
 		-- build self.codePrefix
-		require 'solver.solver'.createCodePrefix(self)
+		require 'solver.gridsolver'.createCodePrefix(self)
 
 		local lines = table{
 			self.codePrefix,

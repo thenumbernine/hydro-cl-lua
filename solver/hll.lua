@@ -29,7 +29,7 @@ function HLL:refreshSolverProgram()
 		self.fluxBuf,
 		self.getULRBuf)
 
-	-- TODO put this in solver/solver.lua ?
+	-- TODO put this in solver/gridsolver.lua ?
 	if self.eqn.useSourceTerm then
 		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
 		self.addSourceKernelObj.obj:setArg(1, self.UBuf)

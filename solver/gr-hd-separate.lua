@@ -155,7 +155,7 @@ function GRHDSeparateSolver:replaceSourceKernels()
 --[=[ instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver
 	
 	-- build self.codePrefix
-	require 'solver.solver'.createCodePrefix(self)
+	require 'solver.gridsolver'.createCodePrefix(self)
 	
 	local lines = table{
 		self.codePrefix,

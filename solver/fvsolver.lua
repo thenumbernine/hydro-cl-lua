@@ -8,11 +8,11 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
-local Solver = require 'solver.solver'
+local GridSolver = require 'solver.gridsolver'
 
 local xNames = table{'x', 'y', 'z'}
 
-local FiniteVolumeSolver = class(Solver)
+local FiniteVolumeSolver = class(GridSolver)
 
 function FiniteVolumeSolver:createBuffers()
 	FiniteVolumeSolver.super.createBuffers(self)

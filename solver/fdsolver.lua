@@ -6,9 +6,9 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local template = require 'template'
-local Solver = require 'solver.solver'
+local GridSolver = require 'solver.gridsolver'
 
-local FiniteDifferenceSolver = class(Solver)
+local FiniteDifferenceSolver = class(GridSolver)
 FiniteDifferenceSolver.name = 'FiniteDifference'
 
 function FiniteDifferenceSolver:createBuffers()

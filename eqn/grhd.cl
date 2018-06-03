@@ -4,7 +4,7 @@
 
 <? 
 -- also in eqn/bssnok-fd.lua
--- and in solver/solver, and a few other places
+-- and in solver/gridsolver, and a few other places
 local table = require 'ext.table'
 local xNames = table{'x', 'y', 'z'}
 
