@@ -529,8 +529,8 @@ kernel void addSource(
 	real3 m_conn_vv = coord_conn_apply23(W.v, U->m, x);
 	deriv->m = real3_sub(deriv->m, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
 	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn_trace23(x), W.P));		//-Conn^i_jk g^jk P
-	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn_apply12(W.v, U->m, x), heatCapacityRatio - 1.));	//-(gamma-1) rho v^j v^k Conn_jk^i
-	deriv->ETotal -= real3_dot(coord_lower(W.v, x), m_conn_vv);
+	//deriv->m = real3_sub(deriv->m, real3_scale(coord_conn_apply12(W.v, U->m, x), heatCapacityRatio - 1.));	//-(gamma-1) rho v^j v^k Conn_jk^i
+	//deriv->ETotal -= (heatCapacityRatio - 1.) * real3_dot(coord_lower(U->m, x), m_conn_vv);
 <? end ?>
 
 /*

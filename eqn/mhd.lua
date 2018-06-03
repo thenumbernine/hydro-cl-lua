@@ -37,6 +37,9 @@ MHD.mirrorVars = {{'m.x', 'B.x'}, {'m.y', 'B.y'}, {'m.z', 'B.z'}}
 MHD.hasEigenCode = true
 MHD.roeUseFluxFromCons = true
 
+-- for connections
+MHD.useSourceTerm = true
+
 -- hmm, we want init.euler and init.mhd here ...
 MHD.initStates = require 'init.euler'
 
@@ -61,13 +64,13 @@ MHD.guiVars = {
 
 function MHD:getCommonFuncCode()
 	return template([[
-inline real calc_eKin(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.v); }
+inline real calc_eKin(<?=eqn.prim_t?> W) { return .5 * coordLenSq(W.v, x); }
 inline real calc_EKin(<?=eqn.prim_t?> W) { return W.rho * calc_eKin(W); }
 inline real calc_EInt(<?=eqn.prim_t?> W) { return W.P / (heatCapacityRatio - 1.); }
 inline real calc_eInt(<?=eqn.prim_t?> W) { return calc_EInt(W) / W.rho; }
-inline real calc_EMag(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.B); }
+inline real calc_EMag(<?=eqn.prim_t?> W) { return .5 * coordLenSq(W.B, x); }
 inline real calc_eMag(<?=eqn.prim_t?> W) { return calc_EMag(W) / W.rho; }
-inline real calc_PMag(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.B); }
+inline real calc_PMag(<?=eqn.prim_t?> W) { return .5 * coordLenSq(W.B, x); }
 inline real calc_EHydro(<?=eqn.prim_t?> W) { return calc_EKin(W) + calc_EInt(W); }
 inline real calc_eHydro(<?=eqn.prim_t?> W) { return calc_EHydro(W) / W.rho; }
 inline real calc_ETotal(<?=eqn.prim_t?> W) { return calc_EKin(W) + calc_EInt(W) + calc_EMag(W) + W.rho * W.ePot; }
@@ -92,8 +95,8 @@ inline <?=eqn.prim_t?> primFromCons(
 	W.rho = U.rho;
 	W.v = real3_scale(U.m, 1./U.rho);
 	W.B = U.B;
-	real vSq = real3_lenSq(W.v);
-	real BSq = real3_lenSq(W.B);
+	real vSq = coordLenSq(W.v, x);
+	real BSq = coordLenSq(W.B, x);
 	real EKin = .5 * U.rho * vSq;
 	real EMag = .5 * BSq;
 	real EPot = U.rho * U.ePot;
@@ -111,8 +114,8 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	U.rho = W.rho;
 	U.m = real3_scale(W.v, W.rho);
 	U.B = W.B;
-	real vSq = real3_lenSq(W.v);
-	real BSq = real3_lenSq(W.B);
+	real vSq = coordLenSq(W.v, x);
+	real BSq = coordLenSq(W.B, x);
 	real EKin = .5 * W.rho * vSq;
 	real EMag = .5 * BSq;
 	real EInt = W.P / (heatCapacityRatio - 1.);
@@ -176,14 +179,15 @@ kernel void initState(
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
 	real3 mids = real3_scale(real3_add(mins, maxs), .5);
-	bool lhs = x.x < mids.x
-#if dim > 1
-		&& x.y < mids.y
-#endif
-#if dim > 2
-		&& x.z < mids.z
-#endif
-	;
+	bool lhs = true
+<?
+for i=1,solver.dim do
+	local xi = xNames[i]
+?>	&& x.<?=xi?> < mids.<?=xi?>
+<?
+end
+?>;
+
 	real rho = 0;
 	real3 v = _real3(0,0,0);
 	real P = 0;
@@ -191,7 +195,13 @@ kernel void initState(
 
 	<?=code?>
 	
-	<?=eqn.prim_t?> W = {.rho=rho, .v=v, .P=P, .B=B, .BPot=0};
+	<?=eqn.prim_t?> W = {
+		.rho = rho,
+		.v = v,//cartesianToCoord(v, x),
+		.P = P,
+		.B = B,//cartesianToCoord(B, x),
+		.BPot = 0,
+	};
 	UBuf[index] = consFromPrim(W, x);
 }
 ]]
@@ -332,9 +342,9 @@ function MHD:getFluxFromConsCode()
 	<?=eqn.prim_t?> W = primFromCons(U, x);
 	real vj = W.v.s<?=side?>;
 	real Bj = W.B.s<?=side?>;
-	real BSq = real3_lenSq(W.B);
+	real BSq = coordLenSq(W.B, x);
 	real BDotV = real3_dot(W.B, W.v);
-	real PMag = .5 * BSq;
+	real PMag = .5 * BSq / mu0;
 	real PTotal = W.P + PMag;
 	real HTotal = U.ETotal + PTotal;
 	

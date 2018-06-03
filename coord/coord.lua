@@ -685,7 +685,7 @@ real3 cartesianFromCoord(real3 u, real3 pt) {
 
 	lines:insert(self:getCoordMapCode())
 
---print(lines:concat'\n')
+--print(require 'template.showcode'(lines:concat'\n'))
 
 	return lines:concat'\n'
 end

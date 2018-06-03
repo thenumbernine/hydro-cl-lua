@@ -414,7 +414,7 @@ end
 	
 	real3 delta = xc;
 	real dist = real3_len(delta);
-	real radius = .2;
+	real radius = 1.;
 	real distPastRadius = dist - radius;
 	if (distPastRadius < 0.) {
 		rho = P = 1.;

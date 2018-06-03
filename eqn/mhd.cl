@@ -37,7 +37,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real3 v = W.v;
 	real3 B = W.B;
 	
-	real BSq = real3_lenSq(B);
+	real BSq = coordLenSq(B, x);
 	real invRho = 1./W.rho;
 	
 	real aSq = heatCapacityRatio * W.P * invRho;
@@ -61,12 +61,12 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real rho = W.rho;
 	real3 v = W.v;
 	real3 B = W.B;
-	real hTotal = .5 * real3_lenSq(W.v) + (W.P * gamma / gamma_1 + real3_lenSq(B)) / W.rho;
+	real hTotal = .5 * coordLenSq(W.v, x) + (W.P * gamma / gamma_1 + coordLenSq(B, x)) / W.rho;
 
 	//the rest of this matches calcEigenBasis:
 
 	real _1_rho = 1. / rho;
-	real vSq = real3_lenSq(v);
+	real vSq = coordLenSq(v, x);
 	real BPerpSq = B.y*B.y + B.z*B.z;
 	real BStarPerpSq = (gamma_1 - gamma_2) * BPerpSq;
 	real CAxSq = B.x*B.x*_1_rho;
@@ -113,12 +113,12 @@ Roe_t calcRoeValues(
 	// should I use Bx, or BxL/R, for calculating the PMag at the L and R states?
 	<?=eqn.prim_t?> WL = primFromCons(UL, x);
 	real sqrtRhoL = sqrt(UL.rho);
-	real PMagL = .5 * real3_lenSq(UL.B);
+	real PMagL = .5 * coordLenSq(UL.B, x);
 	real hTotalL = (UL.ETotal + WL.P + PMagL) / UL.rho - UL.ePot;
 
 	<?=eqn.prim_t?> WR = primFromCons(UR, x);
 	real sqrtRhoR = sqrt(UR.rho);
-	real PMagR = .5 * real3_lenSq(UR.B);
+	real PMagR = .5 * coordLenSq(UR.B, x);
 	real hTotalR = (UR.ETotal + WR.P + PMagR) / UR.rho - UR.ePot;
 	
 	real dby = WL.B.y - WR.B.y;
@@ -164,7 +164,7 @@ Roe_t calcRoeValues(
 	real Y = roe.Y;
 
 	real _1_rho = 1. / rho;
-	real vSq = real3_lenSq(v);
+	real vSq = coordLenSq(v, x);
 	real BPerpSq = B.y*B.y + B.z*B.z;
 	real BStarPerpSq = (gamma_1 - gamma_2 * Y) * BPerpSq;
 	real CAxSq = B.x*B.x*_1_rho;
@@ -294,7 +294,7 @@ kernel void calcEigenBasis(
 ?> 	<?=ctype?> <?=name?> = eig.<?=name?>;
 <? end ?>
 
-	real vSq = real3_lenSq(v);
+	real vSq = coordLenSq(v, x);
 	
 	// left eigenvectors
 	real norm = .5 / eig.aTildeSq;
@@ -397,7 +397,7 @@ kernel void calcEigenBasis(
 ?> 	<?=ctype?> <?=name?> = eig.<?=name?>;
 <? end ?>
 
-	real vSq = real3_lenSq(v);
+	real vSq = coordLenSq(v, x);
 	real vDotBeta = v.y*betaStarY + v.z*betaStarZ;
 	real _1_sqrtRho = 1. / eig.sqrtRho;
 	real Afpbb = Af * BStarPerpLen * betaStarSq;
@@ -499,7 +499,7 @@ kernel void calcEigenBasis(
 <? end ?>
 
 	real _1_rho = 1. / rho;
-	real vSq = real3_lenSq(v);
+	real vSq = coordLenSq(v, x);
 	real BDotV = real3_dot(B,v);
 
 	// dF/dU
@@ -551,7 +551,7 @@ kernel void calcEigenBasis(
 	real3 x
 ) {
 	<?=eqn.prim_t?> W = primFromCons(U, x);
-	real PMag = .5 * real3_lenSq(W.B);
+	real PMag = .5 * coordLenSq(W.B, x);
 	real hTotal = (U.ETotal + W.P + PMag) / W.rho;
 	Roe_t roe = (Roe_t){
 		.rho = W.rho,
@@ -564,3 +564,23 @@ kernel void calcEigenBasis(
 	return eigen_forRoeAvgs(roe, x);
 }
 <? end ?>
+
+kernel void addSource(
+	global <?=eqn.cons_t?>* derivBuf,
+	const global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS_NOGHOST();
+	real3 x = cell_x(i);
+	global <?=eqn.cons_t?>* deriv = derivBuf + index;
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+
+<? if not require 'coord.cartesian'.is(solver.coord) then ?>
+	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	real PMag = .5 * BSq / mu0;
+	real PTotal = W.P + PMag;
+	real3 m_conn_vv = coord_conn_apply23(W.v, U->m, x);
+	deriv->m = real3_sub(deriv->m, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
+	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn_trace23(x), P_total));		//-Conn^i_jk g^jk P_total
+	deriv->m = real3_add(deriv->m, real3_scale(coord_conn_apply23(U->B, U->B, x), 1. / mu0));	//+ 1/mu0 Conn^i_jk B^j B^k
+<? end ?>
+}

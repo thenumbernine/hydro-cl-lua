@@ -123,7 +123,7 @@ maxs = {6,1,1},
 	-- [[ cylinder
 	-- for some reason [rmin, rmax] = [.5, 1] gets an explosion right at r=rmin, theta=0 ... but any other values work fine
 	coord = 'cylinder',
-	mins = cmdline.mins or {.1, 0, -.25},
+	mins = cmdline.mins or {.5, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
@@ -132,14 +132,14 @@ maxs = {6,1,1},
 	})[dim],
 	boundary = {
 		-- r
-		xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
-		xmax=cmdline.boundary or 'mirror',
+		xmin=cmdline.boundary or 'freeflow',		-- hmm, how to treat the r=0 boundary ...
+		xmax=cmdline.boundary or 'freeflow',
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
 		-- z
-		zmin=cmdline.boundary or 'mirror',
-		zmax=cmdline.boundary or 'mirror',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ sphere
@@ -204,7 +204,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
@@ -239,7 +239,7 @@ maxs = {6,1,1},
 	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
-	--initState = 'spinning magnetic fluid',
+	initState = 'spinning magnetic fluid',
 	--initState = 'magnetic fluid',
 	--initState = '2017 Degris et al',
 	--initState = 'that one mhd simulation from youtube',
