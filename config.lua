@@ -127,7 +127,7 @@ maxs = {6,1,1},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
-		{64, 256, 1}, -- 2D
+		{128, 512, 1}, -- 2D
 		{16, 64, 16}, -- 3D
 	})[dim],
 	boundary = {

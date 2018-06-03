@@ -6,7 +6,8 @@ local template = require 'template'
 local ffi = require 'ffi'
 local InitState = require 'init.init'
 
-local xNames = {'x', 'y', 'z'}
+local common = require 'common'()
+local xNames = common.xNames
 
 local function quadrantProblem(args)
 	args.initState = function(self, solver)
@@ -130,7 +131,9 @@ local function addMaxwellOscillatingBoundary(solver)
 	-- this runs before refreshBoundaryProgram, so lets hijack refreshBoundaryProgram and add in our time-based boundary conditions
 	local oldBoundary = solver.boundary
 	function solver:boundary()
-		self.boundaryKernelObj.obj:setArg(1, real(self.t))
+		for _,obj in ipairs(self.boundaryKernelObjs) do
+			obj.obj:setArg(1, real(self.t))
+		end
 		oldBoundary(self)
 	end
 end
@@ -235,7 +238,7 @@ local initStates = table{
 		},
 		initState = function(self, solver)
 			return template([[
-#if 0	//offsetting the region	so I can see there's a problem at the boundary ...
+#if 1	//offsetting the region	so I can see there's a problem at the boundary ...
 	lhs = true 
 <?
 for i=1,solver.dim do

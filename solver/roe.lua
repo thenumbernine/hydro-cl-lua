@@ -233,7 +233,9 @@ function Roe:calcDeriv(derivBuf, dt)
 		-- now we need to calcBounds on the ULR
 		-- TODO this will break for mirror conditions
 		-- because I haven't got the boundary code flexible enough to operate on specific fields within the L & R fields of the ULRBuf
-		self.lrBoundaryKernelObj()
+		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
+			obj()
+		end
 
 		-- 3) use the final LR states to calculate the flux ...
 

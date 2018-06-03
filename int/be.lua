@@ -161,9 +161,13 @@ function BackwardEuler:init(solver)
 		-- doesn't seem to make a difference
 		-- TODO don't even include the boundary cells in the GMRES
 		-- in fact, should I even be storing ghost cells in memory, or just using conditions to provide their values?
-		solver.boundaryKernelObj.obj:setArg(0, UNext)
+		for _,obj in ipairs(solver.boundaryKernelObjs) do
+			obj.obj:setArg(0, UNext)
+		end
 		solver:boundary()
-		solver.boundaryKernelObj.obj:setArg(0, solver.UBuf)
+		for _,obj in ipairs(solver.boundaryKernelObjs) do
+			obj.obj:setArg(0, solver.UBuf)
+		end
 		--]]
 	end
 	--]=]

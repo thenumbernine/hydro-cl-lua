@@ -57,7 +57,7 @@ end
 function Poisson:refreshBoundaryProgram()
 	local solver = self.solver
 	-- only applies the boundary conditions to Poisson:potentialField
-	self.potentialBoundaryProgramObj, self.potentialBoundaryKernelObj =
+	self.potentialBoundaryProgramObj, self.potentialBoundaryKernelObjs =
 		solver:createBoundaryProgramAndKernel{
 			type = self:getPotBufType(),
 			methods = table.map(solver.boundaryMethods, function(v)
@@ -67,7 +67,9 @@ function Poisson:refreshBoundaryProgram()
 				return a..'.'..self.potentialField..' = '..b..'.'..self.potentialField
 			end,
 		}
-	self.potentialBoundaryKernelObj.obj:setArg(0, self:getPotBuf())
+	for _,obj in ipairs(self.potentialBoundaryKernelObjs) do
+		obj.obj:setArg(0, self:getPotBuf())
+	end
 end
 
 -- TODO
@@ -100,7 +102,7 @@ function Poisson:relax()
 end
 
 function Poisson:potentialBoundary()
-	self.solver:applyBoundaryToBuffer(self.potentialBoundaryKernelObj)
+	self.solver:applyBoundaryToBuffer(self.potentialBoundaryKernelObjs)
 end
 
 function Poisson:updateGUI()

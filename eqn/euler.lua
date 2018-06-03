@@ -34,10 +34,11 @@ Euler.initStates = require 'init.euler'
 function Euler:init(args)
 	Euler.super.init(self, args)
 
-	-- TODO ops folder
+	--[[ TODO ops folder
 	local SelfGrav = require 'op.selfgrav'
 	self.gravOp = SelfGrav{solver=self.solver}
 	self.solver.ops:insert(self.gravOp)
+	--]]
 end
 
 Euler.primVars = table{
@@ -263,6 +264,7 @@ function Euler:getDisplayVars()
 		{hTotal = '*value = calc_hTotal(W.rho, W.P, U->ETotal);'},
 		{['Speed of Sound'] = '*value = calc_Cs(&W);'},
 		{['Mach number'] = '*value = coordLen(W.v, x) / calc_Cs(&W);'},
+	}:append{self.gravOp and
 		{gravity = template([[
 	if (OOB(1,1)) {
 		*value = 0.;
@@ -278,9 +280,8 @@ for side=solver.dim,2 do ?>
 		valuevec->s<?=side?> = 0.;
 <? end ?>
 	}
-]], {eqn=self, solver=self.solver}), type='real3'},
-	
-	}
+]], {eqn=self, solver=self.solver}), type='real3'} or nil}
+
 	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
 	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
 		

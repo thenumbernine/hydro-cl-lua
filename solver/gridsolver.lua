@@ -1239,18 +1239,18 @@ boundaryOptions is a table of {name = args => assign code}
 this is such a mess.  it's practically an AST.
 --]]
 function GridSolver:createBoundaryOptions()
-	local tab = '\t\t\t'
+	local indent = '\t\t'
 	self.boundaryOptions = table{
 		{periodic = function(args)
 			local gridSizeSide = 'gridSize_'..xNames[args.side]
 			if args.minmax == 'min' then
-				return tab..args.assign(
+				return indent..args.assign(
 					args.array('buf', args.index'j'), 
 					args.array('buf', args.index(gridSizeSide..'-2*numGhost+j'))
 				)..';'
 			elseif args.minmax == 'max' then
 				local rhs = gridSizeSide..'-numGhost+j'
-				return tab..args.assign(
+				return indent..args.assign(
 					args.array('buf', args.index(rhs)),
 					args.array('buf', args.index'numGhost+j')
 				)..';'
@@ -1260,12 +1260,12 @@ function GridSolver:createBoundaryOptions()
 			local gridSizeSide = 'gridSize_'..xNames[args.side]
 			if args.minmax == 'min' then
 				return table{
-					tab..args.assign(
+					indent..args.assign(
 						args.array('buf', args.index'j'),
 						args.array('buf', args.index'2*numGhost-1-j')
 					)..';'
 				}:append(table.map((args.mirrorVars or {})[args.side] or {}, function(var)
-					return tab..args.assign(
+					return indent..args.assign(
 						args.field(args.array('buf', args.index'j'), var),
 						args.field('-'..args.array('buf', args.index'j'), var)
 					)..';'
@@ -1273,12 +1273,12 @@ function GridSolver:createBoundaryOptions()
 			elseif args.minmax == 'max' then
 				local rhs = gridSizeSide..'-numGhost+j'
 				return table{
-					tab..args.assign(
+					indent..args.assign(
 						args.array('buf', args.index(rhs)),
 						args.array('buf', args.index(gridSizeSide..'-numGhost-1-j'))
 					)..';'
 				}:append(table.map((args.mirrorVars or {})[args.side] or {}, function(var)
-					return tab..args.assign(
+					return indent..args.assign(
 						args.field(args.array('buf', args.index(rhs)), var),
 						args.field('-'..args.array('buf', args.index(rhs)), var)
 					)..';'
@@ -1288,13 +1288,13 @@ function GridSolver:createBoundaryOptions()
 		{freeflow = function(args)
 			local gridSizeSide = 'gridSize_'..xNames[args.side]
 			if args.minmax == 'min' then
-				return tab..args.assign(
+				return indent..args.assign(
 					'buf['..args.index'j'..']',
 					'buf['..args.index'numGhost'..']'
 				)..';'
 			elseif args.minmax == 'max' then
 				local rhs = gridSizeSide..'-numGhost+j'
-				return tab..args.assign(
+				return indent..args.assign(
 					'buf['..args.index(rhs)..']',
 					'buf['..args.index(gridSizeSide..'-numGhost-1')..']'
 				)..';'
@@ -1368,58 +1368,60 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 
 	local lines = table()
 	lines:insert(self.codePrefix)
-	lines:insert(template([[
-kernel void boundary(
+	
+	for side=1,self.dim do
+
+		lines:insert(template([[
+kernel void boundary_<?=xNames[side]?>(
 	global <?=args.type?>* buf
 <?= args.extraArgs and #args.extraArgs > 0 
 	and ','..table.concat(args.extraArgs, ',\n\t')
 	or '' ?>
 ) {
-]], {args = args}))
-	if self.dim == 2 then
-		lines:insert[[
+]], {args = args, side=side}))
+		if self.dim == 2 then
+			lines:insert[[
 	int i = get_global_id(0);
 ]]
-	elseif self.dim == 3 then
-		lines:insert[[
+		elseif self.dim == 3 then
+			lines:insert[[
 	int2 i = (int2)(get_global_id(0), get_global_id(1));
 ]]
-	end
+		end
 	
-	-- 1D: use a small 1D kernel and just run once 
-	-- 2D: use a 1D kernel the size of the max dim 
-		
-	lines:insert[[
-	for (int j = 0; j < numGhost; ++j) {
-]]
-
-	for side=1,self.dim do
-
+		-- 1D: use a small 1D kernel and just run once 
+		-- 2D: use a 1D kernel the size of the max dim 
+			
 		if self.dim == 2 then
 			if side == 1 then
 				lines:insert[[
-		if (i < gridSize_y) {
+	if (i >= gridSize_y) return;
 ]]
 			elseif side == 2 then
 				lines:insert[[
-		if (i < gridSize_x) {
+	if (i >= gridSize_x) return;
 ]]
 			end
 		elseif self.dim == 3 then
 			if side == 1 then
 				lines:insert[[
-		if (i.x < gridSize_y && i.y < gridSize_z) {
+	if (i.x >= gridSize_y || i.y >= gridSize_z) return;
 ]]
 			elseif side == 2 then
 				lines:insert[[
-		if (i.x < gridSize_x && i.y < gridSize_z) {
+	if (i.x >= gridSize_x || i.y >= gridSize_z) return;
 ]]
 			elseif side == 3 then
 				lines:insert[[
-		if (i.x < gridSize_x && i.y < gridSize_y) {
+	if (i.x >= gridSize_x || i.y >= gridSize_y) return;
 ]]
 			end
 		end
+
+		lines:insert[[
+	for (int j = 0; j < numGhost; ++j) {
+]]
+
 
 		local function indexv(j)
 			if self.dim == 1 then
@@ -1459,13 +1461,9 @@ kernel void boundary(
 			})
 		end
 	
-		if self.dim > 1 then
-			lines:insert'		}'
-		end
+		lines:insert'	}'
+		lines:insert'}'
 	end
-	
-	lines:insert'	}'
-	lines:insert'}'
 
 	local code = lines:concat'\n'
 
@@ -1477,10 +1475,13 @@ print(require 'template.showcode'(code))
 		boundaryProgramObj = self.Program{code=code}
 		boundaryProgramObj:compile()
 	end)
-	local boundaryKernelObj = boundaryProgramObj:kernel'boundary'
-	
+	local boundaryKernelObjs = table()
+	for i=1,self.dim do
+		boundaryKernelObjs:insert(boundaryProgramObj:kernel('boundary_'..xNames[i]))
+	end
+
 	-- TODO switch these over to obj
-	return boundaryProgramObj, boundaryKernelObj
+	return boundaryProgramObj, boundaryKernelObjs
 end
 
 function GridSolver:getBoundaryProgramArgs()
@@ -1499,9 +1500,10 @@ function GridSolver:getBoundaryProgramArgs()
 end
 
 function GridSolver:refreshBoundaryProgram()
-	self.boundaryProgramObj, self.boundaryKernelObj = 
-		self:createBoundaryProgramAndKernel(self:getBoundaryProgramArgs())
-	self.boundaryKernelObj.obj:setArg(0, self.UBuf)
+	self.boundaryProgramObj, self.boundaryKernelObjs = self:createBoundaryProgramAndKernel(self:getBoundaryProgramArgs())
+	for _,obj in ipairs(self.boundaryKernelObjs) do
+		obj.obj:setArg(0, self.UBuf)
+	end
 	for _,op in ipairs(self.ops) do
 		if op.refreshBoundaryProgram then
 			op:refreshBoundaryProgram()
@@ -1509,63 +1511,62 @@ function GridSolver:refreshBoundaryProgram()
 	end
 
 	if self.useCTU then
-		self.lrBoundaryProgramObj, self.lrBoundaryKernelObj =
-			self:createBoundaryProgramAndKernel(table(self:getBoundaryProgramArgs(), {
-				type = self.eqn.consLR_t..'_dim',
-			}))
-		self.lrBoundaryKernelObj.obj:setArg(0, self.ULRBuf)
+		self.lrBoundaryProgramObj, self.lrBoundaryKernelObjs = self:createBoundaryProgramAndKernel(table(self:getBoundaryProgramArgs(), {
+			type = self.eqn.consLR_t..'_dim',
+		}))
+		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
+			obj.obj:setArg(0, self.ULRBuf)
+		end
 	end
 end
 
 -- assumes the buffer is already in the kernel's arg
-function GridSolver:applyBoundaryToBuffer(kernelObj)
-	-- 1D:
-	if self.dim == 1 then
-		-- if you do change this size from anything but 1, make sure to add conditions to the boundary kernel code
-		self.app.cmds:enqueueNDRangeKernel{
-			kernel = kernelObj.obj,
-			globalSize = 1,
-			localSize = 1,
-		}
-	elseif self.dim == 2 then
-		-- TODO what happens when kernelObj.maxWorkGroupSize 
-		-- is lower than the grid size?
-		local maxSize = math.min(
-				roundup(
+function GridSolver:applyBoundaryToBuffer(kernelObjs)
+	for side,obj in ipairs(kernelObjs) do	
+		-- 1D:
+		if self.dim == 1 then
+			-- if you do change this size from anything but 1, make sure to add conditions to the boundary kernel code
+			self.app.cmds:enqueueNDRangeKernel{
+				kernel = obj.obj,
+				globalSize = 1,
+				localSize = 1,
+			}
+		elseif self.dim == 2 then
+			local localSize = math.min(self.localSize1d, self.maxWorkGroupSize)
+			local maxSize = roundup(
 					math.max(
 						tonumber(self.gridSize.x),
 						tonumber(self.gridSize.y)),
-				self.localSize1d),
-			kernelObj.maxWorkGroupSize)
-		local localSize = math.min(self.localSize1d, maxSize)
-		self.app.cmds:enqueueNDRangeKernel{
-			kernel = kernelObj.obj,
-			globalSize = maxSize, 
-			localSize = localSize,
-		}
-	elseif self.dim == 3 then
-		-- xy xz yz
-		local maxSizeX = roundup(
-			math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y)),
-			self.localSize2d[1])
-		local maxSizeY = roundup(
-			math.max(tonumber(self.gridSize.y), tonumber(self.gridSize.z)),
-			self.localSize2d[2])
-		self.app.cmds:enqueueNDRangeKernel{
-			kernel = kernelObj.obj,
-			globalSize = {maxSizeX, maxSizeY},
-			localSize = {
-				math.min(kernelObj.localSize2d[1], maxSizeX),
-				math.min(kernelObj.localSize2d[2], maxSizeY),
-			},
-		}
-	else
-		error("can't run boundary for dim "..tonumber(self.dim))
+				localSize)
+			self.app.cmds:enqueueNDRangeKernel{
+				kernel = obj.obj,
+				globalSize = maxSize,
+				localSize = localSize,
+			}
+		elseif self.dim == 3 then
+			-- xy xz yz
+			local maxSizeX = roundup(
+				math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y)),
+				self.localSize2d[1])
+			local maxSizeY = roundup(
+				math.max(tonumber(self.gridSize.y), tonumber(self.gridSize.z)),
+				self.localSize2d[2])
+			self.app.cmds:enqueueNDRangeKernel{
+				kernel = obj.obj,
+				globalSize = {maxSizeX, maxSizeY},
+				localSize = {
+					math.min(obj.localSize2d[1], maxSizeX),
+					math.min(obj.localSize2d[2], maxSizeY),
+				},
+			}
+		else
+			error("can't run boundary for dim "..tonumber(self.dim))
+		end
 	end
 end
 
 function GridSolver:boundary()
-	self:applyBoundaryToBuffer(self.boundaryKernelObj)
+	self:applyBoundaryToBuffer(self.boundaryKernelObjs)
 end
 
 

@@ -57,9 +57,11 @@ function HLL:calcDeriv(derivBuf, dt)
 	if self.useCTU then	-- see solver/roe.lua for a description of why this is how this is
 		self.updateCTUKernelObj.obj:setArg(2, dtArg)
 		self.updateCTUKernelObj()
-		
-		self.lrBoundaryKernelObj()
-		
+	
+		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
+			obj()
+		end
+
 		self.calcFluxKernelObj()
 	end
 --]=]
