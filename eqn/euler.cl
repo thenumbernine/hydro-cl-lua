@@ -513,7 +513,7 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
-#if !defined(geometry_cartesian)
+#if !defined(coord_cartesian)
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
 	real3 m_conn_vv = coord_conn_apply23(W.v, U->m, x);

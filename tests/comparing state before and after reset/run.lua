@@ -19,7 +19,7 @@ function App:setup()
 		dim = 3,
 		integrator = 'backward Euler',
 		fluxLimiter = 'superbee',
-		geometry = 'cartesian',
+		coord = 'cartesian',
 		mins = {-1, -1, -1},
 		maxs = {1, 1, 1},
 		gridSize = {32, 32, 32},

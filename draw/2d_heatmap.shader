@@ -5,8 +5,8 @@ local app = solver.app
 
 varying vec2 viewCoord;
 
-<?=solver.geometry:getCoordMapGLSLCode()?>
-<?=solver.geometry:getCoordMapInvGLSLCode()?>
+<?=solver.coord:getCoordMapGLSLCode()?>
+<?=solver.coord:getCoordMapInvGLSLCode()?>
 
 <? if vertexShader then ?>
 

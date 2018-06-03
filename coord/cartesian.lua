@@ -1,9 +1,9 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
-local Geometry = require 'geom.geom'
+local CoordinateSystem = require 'coord.coord'
 
-local Cartesian = class(Geometry)
+local Cartesian = class(CoordinateSystem)
 
 Cartesian.name = 'cartesian' 
 Cartesian.coords = {'x', 'y', 'z'}

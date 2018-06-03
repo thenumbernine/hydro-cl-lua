@@ -133,7 +133,7 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 	self.mins = vec3(self.hydro.mins:unpack())
 	self.maxs = vec3(self.hydro.maxs:unpack())
 
-	self.geometry = self.hydro.geometry
+	self.coord = self.hydro.coord
 	self.eqn = {
 		numStates = self.solvers:map(function(solver) return solver.eqn.numStates end):sum(),
 		numIntStates = self.solvers:map(function(solver) return solver.eqn.numIntStates end):sum(),

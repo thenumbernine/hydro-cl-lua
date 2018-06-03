@@ -27,7 +27,7 @@ function App:setup()
 		eqn = 'euler',
 		dim = 2,
 		fluxLimiter = 'superbee',
-		geometry = 'cartesian',
+		coord = 'cartesian',
 		mins = {-1, -1, -1},
 		maxs = {1, 1, 1},
 		gridSize = {128, 128, 128},

@@ -91,7 +91,7 @@ local function TwoFluidEMHDBehavior(parent)
 		self.maxs = vec3(self.ion.maxs:unpack())
 			
 		-- only used by createCodePrefix
-		self.geometry = self.ion.geometry
+		self.coord = self.ion.coord
 		self.eqn = {
 			numStates = self.solvers:map(function(solver) return solver.eqn.numStates end):sum(),
 			numWaves = self.solvers:map(function(solver) return solver.eqn.numWaves end):sum(),

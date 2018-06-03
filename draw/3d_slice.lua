@@ -1,6 +1,6 @@
 local gl = require 'ffi.OpenGL'
 local table = require 'ext.table'
-local CartesianGeom = require 'geom.cartesian'
+local CartesianCoordinateSystem = require 'coord.cartesian'
 
 return function(HydroCLApp)
 
@@ -107,7 +107,7 @@ end
 					fwddir == 2 and jdir or 0, 
 					fwddir == 3 and jdir or 0)
 						
-				if CartesianGeom.is(solver.geometry) then
+				if CartesianCoordinateSystem.is(solver.coord) then
 					-- [[	single quad
 					gl.glBegin(gl.GL_QUADS)
 					for j=jmin,jmax,jdir do

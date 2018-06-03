@@ -1,6 +1,4 @@
 local gl = require 'ffi.OpenGL'
-local CartesianGeom = require 'geom.cartesian'
-local CylinderGeom = require 'geom.cylinder'
 
 return function(HydroCLApp)
 

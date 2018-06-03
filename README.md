@@ -16,7 +16,7 @@ Features:
 - various boundary conditions
 - integrators: Forward Euler, several Runge-Kutta and Runge-Kutta TVD, and implicit linearized GMRES on the GPU
 - GUI-driven everything.  no more restarting the program to switch solvers or initial conditions.
-- Euler equations from Toro's book (with some modifications for curved geometry) 
+- Euler equations from Toro's book (with some modifications for curvilinear coordinate systems) 
 - Maxwell equations from Trangenstein's book with poisson solver constraints
 - Maxwell equations with GLM from 2000 Munz
 - ideal MHD from Stone et al 2008
@@ -54,12 +54,12 @@ TODO:
 - finish GLM-(ideal)MHD ... especially implement the source term as a second step with an exp(dt)  (which I'm not doing at the moment)
 - rename mhd to ideal-mhd
 - how about a GLM method for Maxwell equations, so I can remove the divergence-free constraint
-- get curved grid coordinates to work (cylindrical, sphere 1D radial, sphere 2D surface, sphere r+phi etc)
+- calculate and implement source terms for curvilinear coordinate systems (working on a tool to do this)
 - get two-fluid-separate EMHD working, so I can update the glm-maxwell with an implicit and update the ion and electron with an explicit solver
 - currently seeing errors when two solvers run simultaneously ... which makes EM+HD difficult
 - add HLLC/D solvers
 - implement Navier-Stokes, compressible & incompressible
-- initialize NR stuff to the geometry metric ... or decide what kind of geometry metric to use (holonomic vs anholonomic) ... or just use euclidian components and calculate the normals and volumes and surfaces using geom.
+- BSSN connections based on difference with grid coordinate system
 - test out the GR+HD solvers
 - add source terms to GRHD -- or at least plugins for 'gr-hd-separate' to fill in from the NR solver
 - finish the GR+EM solver

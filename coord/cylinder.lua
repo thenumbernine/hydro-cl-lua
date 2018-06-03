@@ -15,12 +15,12 @@ same thing, good thing
 local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
-local geometry = require 'geom.geom'
+local CoordinateSystem = require 'coord.coord'
 
 local sin, cos = symmath.sin, symmath.cos
 local Tensor = symmath.Tensor
 
-local Cylinder = class(geometry)
+local Cylinder = class(CoordinateSystem)
 
 Cylinder.name = 'cylinder' 
 Cylinder.coords = {'r', 'θ', 'z'}

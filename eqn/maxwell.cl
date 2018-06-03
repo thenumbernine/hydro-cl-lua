@@ -292,7 +292,7 @@ kernel void addSource(
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	deriv->epsE = real3_sub(deriv->epsE, real3_scale(U->epsE, 1. / U->eps * U->sigma));
 	
-#if !defined(geometry_cartesian)
+#if !defined(coord_cartesian)
 	//grid coordinate connection coefficient source terms for contravariant representation
 	//epsE^i += 2 / (mu_0 sqrt(g)) [ijk] Gamma_jkl B^l
 	//B^i -= 2 / (eps_0 sqrt(g)) [ijk] Gamma_jkl epsE^l

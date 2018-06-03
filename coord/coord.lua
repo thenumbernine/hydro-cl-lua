@@ -10,7 +10,7 @@ There are a few options on how to do this.
 
 1) The Engineer way:
 	Represent our eqn vector coordinates in Cartesian coordinates,
-	use our Geometry to determine the cell volumes, areas, centers, normals, etc.,
+	use our CoordinateSystem to determine the cell volumes, areas, centers, normals, etc.,
 	compute flux in Cartesian coordinates.
 	
 	This seems like the least change from a Cartesian grid, and should be easy to implement:
@@ -102,9 +102,9 @@ local range = require 'ext.range'
 local dprint = print
 --local dprint = function() end
 
-local Geometry = class()
+local CoordinateSystem = class()
 
-function Geometry:init(args)
+function CoordinateSystem:init(args)
 	local symmath = require 'symmath'
 	local const = symmath.Constant
 
@@ -580,7 +580,7 @@ end
 end
 
 
-function Geometry:getCode(solver)
+function CoordinateSystem:getCode(solver)
 	local dim = solver.dim
 
 	local lines = table()
@@ -690,7 +690,7 @@ real3 cartesianFromCoord(real3 u, real3 pt) {
 	return lines:concat'\n'
 end
 
-function Geometry:getCoordMapCode()
+function CoordinateSystem:getCoordMapCode()
 	return table{
 		getCode_real3_to_real3('coordMap', range(3):map(function(i)
 			return self.uCode[i] or '{pt^'..i..'}'
@@ -698,7 +698,7 @@ function Geometry:getCoordMapCode()
 	}:concat'\n'
 end
 
-function Geometry:getCoordMapGLSLCode()
+function CoordinateSystem:getCoordMapGLSLCode()
 	return (self:getCoordMapCode()
 		:gsub('inline%S*', '')
 		:gsub('_real3', 'vec3')	-- real3 constructor
@@ -707,10 +707,10 @@ function Geometry:getCoordMapGLSLCode()
 end
 
 -- until I get inverses on trig functions working better, I'll have this manually specified
-function Geometry:getCoordMapInvGLSLCode()
+function CoordinateSystem:getCoordMapInvGLSLCode()
 	return [[
 vec3 coordMapInv(vec3 x) { return x; }
 ]]
 end
 
-return Geometry
+return CoordinateSystem

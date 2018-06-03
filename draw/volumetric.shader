@@ -3,7 +3,7 @@ varying vec3 vertexStart;
 varying vec3 eye;
 
 <? if vertexShader then ?>
-<?=solver.geometry:getCoordMapGLSLCode()?>
+<?=solver.coord:getCoordMapGLSLCode()?>
 
 uniform vec3 mins, maxs;
 void main() {

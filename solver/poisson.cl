@@ -82,7 +82,7 @@ end ?>
 <? end ?>
 	real volAtX = volume_at(cell_x(i));
 
-#if 1	//defined(geometry_cartesian)
+#if 1	//defined(coord_cartesian)
 	real skewSum = (0.
 <? for j=0,solver.dim-1 do ?>
 		+ volR.s<?=j?> * U[stepsize.s<?=j?>].<?=poisson.potentialField?> / (dx<?=j?> * dx<?=j?>)

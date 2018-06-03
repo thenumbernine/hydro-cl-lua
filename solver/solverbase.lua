@@ -127,18 +127,17 @@ function SolverBase:createCodePrefix()
 	}))
 
 	lines:append{
-		'#define geometry_'..self.geometry.name..' 1',
+		'#define coord_'..self.coord.name..' 1',
 		'#define dim '..self.dim,
 		'#define numStates '..self.eqn.numStates,
 		'#define numIntStates '..self.eqn.numIntStates,
 		'#define numWaves '..self.eqn.numWaves,
 	}
 	
-	lines:insert(self.geometry:getCode(self))
+	lines:insert(self.coord:getCode(self))
 
 	-- this can use the coord_raise or coord_lower code
 	-- which is associated with the coordinate system,
-	-- TODO rename 'geom' to 'coord'
 	lines:append{
 		self.eqn:getTypeCode(),
 		self.eqn:getExtraTypeCode(),

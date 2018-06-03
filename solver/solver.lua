@@ -37,7 +37,7 @@ args:
 	gridSize
 	mins
 	maxs
-	geometry = name of geom/<name>.lua to use
+	coord = coordinate system name to use, associated with coord/<name>.lua
 	boundary = boundary info
 --]]
 function Solver:init(args)
@@ -95,7 +95,7 @@ function Solver:init(args)
 	self.fluxLimiter = self.app.limiterNames:find(args.fluxLimiter) or 1
 
 
-	self.geometry = require('geom.'..args.geometry){solver=self}
+	self.coord = require('coord.'..args.coord){solver=self}
 
 	self.usePLM = args.usePLM
 	assert(not self.usePLM or self.fluxLimiter == 1, "are you sure you want to use flux and slope limiters at the same time?")

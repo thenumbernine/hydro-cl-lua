@@ -5,7 +5,7 @@ local app = solver.app
 varying vec4 color;
 
 <? if vertexShader then ?>
-<?=solver.geometry:getCoordMapGLSLCode()?>
+<?=solver.coord:getCoordMapGLSLCode()?>
 
 uniform vec3 mins, maxs;
 uniform float scale;

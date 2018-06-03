@@ -273,7 +273,7 @@ for _,cfg in ipairs(configurations) do
 		integrator = cfg.integrator,
 		fluxLimiter = cfg.fluxLimiter,
 		usePLM = cfg.usePLM,
-		geometry = 'cartesian',
+		coord = 'cartesian',
 		mins = {-1,-1,-1},
 		maxs = {1,1,1},
 		gridSize = cfg.gridSize,

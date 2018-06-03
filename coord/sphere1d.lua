@@ -1,12 +1,12 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
-local geometry = require 'geom.geom'
+local CoordinateSystem = require 'coord.coord'
 
 local sin, cos = symmath.sin, symmath.cos
 local Tensor = symmath.Tensor
 
-local Sphere = class(geometry)
+local Sphere = class(CoordinateSystem)
 Sphere.name = 'sphere1d'
 Sphere.coords = table{'r', 'θ', 'φ'}
 function Sphere:init(args)

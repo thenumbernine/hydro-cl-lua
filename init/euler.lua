@@ -772,7 +772,7 @@ end) then
 			local sliceAxis = 2
 			
 			-- move around the cylinder
-			if solver.geometry.name == 'cylinder' then
+			if solver.coord.name == 'cylinder' then
 				moveAxis = 2
 				sliceAxis = 1
 			end
@@ -1000,7 +1000,7 @@ end ?>;
 					{center={0, 0, 0}, radius = radius},
 				},
 			}
-			if solver.geometry.name == 'cylinder' then
+			if solver.coord.name == 'cylinder' then
 				solver:setBoundaryMethods{
 					xmin = 'freeflow',
 					xmax = 'freeflow',

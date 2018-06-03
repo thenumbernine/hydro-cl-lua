@@ -1,11 +1,11 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
-local Geometry = require 'geom.geom'
+local CoordinateSystem = require 'coord.coord'
 
 local Tensor = symmath.Tensor
 
-local _1D_Radial = class(Geometry)
+local _1D_Radial = class(CoordinateSystem)
 _1D_Radial.name = '1d_radial'
 _1D_Radial.coords = {'r', 'θ', 'φ'}
 

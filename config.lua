@@ -37,8 +37,8 @@ local args = {
 
 	--useCTU = true,
 	
-	-- [[ Cartesian
-	geometry = 'cartesian',
+	--[[ Cartesian
+	coord = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
 
@@ -85,7 +85,7 @@ maxs = {6,1,1},
 	--]]
 	-- TODO these next two seem very similar
 	--[[ 1D radial
-	geometry = '1d_radial',
+	coord = '1d_radial',
 	mins = cmdline.mins or {0, 0, 0},
 	maxs = cmdline.maxs or {1, 1, 1},
 	gridSize = ({
@@ -103,7 +103,7 @@ maxs = {6,1,1},
 	},
 	--]]
 	--[[ sphere1d -- used for 1D radial profiles of spheres
-	geometry = 'sphere1d',
+	coord = 'sphere1d',
 	mins = cmdline.mins or {.1, 0, -math.pi},
 	maxs = cmdline.maxs or {1, math.pi, math.pi},
 	gridSize = {
@@ -120,9 +120,9 @@ maxs = {6,1,1},
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	--[[ cylinder
+	-- [[ cylinder
 	-- for some reason [rmin, rmax] = [.5, 1] gets an explosion right at r=rmin, theta=0 ... but any other values work fine
-	geometry = 'cylinder',
+	coord = 'cylinder',
 	mins = cmdline.mins or {.1, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	gridSize = ({
@@ -143,7 +143,7 @@ maxs = {6,1,1},
 	},
 	--]]
 	--[[ sphere
-	geometry = 'sphere',
+	coord = 'sphere',
 	mins = cmdline.mins or {.1 * math.pi, -math.pi, .1},
 	maxs = cmdline.maxs or {.9 * math.pi, math.pi, 1},
 	gridSize = {
@@ -163,7 +163,7 @@ maxs = {6,1,1},
 	-- symbolic math gets too complex
 	-- this is a good reason for arbitrary mesh support
 	--[[ torus
-	geometry = 'torus',
+	coord = 'torus',
 	-- hmm, right now sphere's variables change per-dimension used ...
 	mins = cmdline.mins or {0, 0, 0},
 	maxs = cmdline.maxs or {2*math.pi, 2*math.pi, 1},
