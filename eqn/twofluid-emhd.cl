@@ -577,6 +577,19 @@ kernel void addSource(
 			U->ion_rho * ionChargeMassRatio 
 			+ U->elec_rho * elecChargeMassRatio 
 		);
+
+<? if not require 'coord.cartesian'.is(solver.coord) then ?>
+	real3 x = cell_x(i);
+	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
+	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	real3 conn1_u = coord_conn_trace23(x);
+	<? for _,fluid in ipairs(fluids) do ?>{
+		real3 m_conn_vv = coord_conn_apply23(W.<?=fluid?>_v, U-><?=fluid?>_m, x);
+		deriv-><?=fluid?>_m = real3_sub(deriv-><?=fluid?>_m, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
+		deriv-><?=fluid?>_m = real3_sub(deriv-><?=fluid?>_m, real3_scale(conn1_u, W.<?=fluid?>_P));		//-Conn^i_jk g^jk P
+	}<? end ?>
+<? end ?>
+
 }
 
 kernel void constrainU(

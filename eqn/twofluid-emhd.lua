@@ -7,6 +7,15 @@ However OpenCL is having trouble with this.
 Maybe I have an oob memory write somewhere?
 Maybe running code from two separate programs doesn't propery block on the GPU?
 Either way, here's the three equations combined into one.
+
+
+When it comes to curvilinear coordinates, my Maxwell solver is unweighted by the metric volume,
+however my Euler solver is.
+I could work around this by scaling down the Maxwell eigenvalues by sqrt(det(g))
+ then calcDeriv will scale all variables back up -- and the Maxwell ones will be identity weighted once again.
+ then in the post-flux code, transform E and B by g_ij
+ and in the source terms, add to ion_ and elec_ m^i connection values
+
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
@@ -21,6 +30,14 @@ local fluids = table{'ion', 'elec'}
 
 local TwoFluidEMHD = class(Equation)
 
+TwoFluidEMHD.postComputeFluxCode = [[
+		//flux is computed raised via Levi-Civita upper
+		//so here we lower it
+		real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
+		flux.E = real3_scale(coord_lower(flux.E, x), _1_sqrt_det_g);
+		flux.B = real3_scale(coord_lower(flux.B, x), _1_sqrt_det_g);
+]]
+
 TwoFluidEMHD.name = 'TwoFluidEMHD'
 TwoFluidEMHD.numWaves = 18
 TwoFluidEMHD.numIntStates = 18
@@ -28,17 +45,17 @@ TwoFluidEMHD.numIntStates = 18
 TwoFluidEMHD.consVars = table{
 	--integration variables		
 	{ion_rho = 'real'},
-	{ion_m = 'real3'},
+	{ion_m = 'real3'},		-- m^i
 	{ion_ETotal = 'real'},
 	
 	{elec_rho = 'real'},
-	{elec_m = 'real3'},
+	{elec_m = 'real3'},		-- m^i
 	{elec_ETotal = 'real'},
 
-	{E = 'real3'},
-	{B = 'real3'},
-	{phi = 'real'},	-- E potential
-	{psi = 'real'},	-- B potential
+	{E = 'real3'},			-- E_i
+	{B = 'real3'},			-- B_i
+	{phi = 'real'},			-- E potential
+	{psi = 'real'},			-- B potential
 
 	--extra	
 	{ion_ePot = 'real'},
@@ -520,6 +537,7 @@ TwoFluidEMHD.eigenVars = eigenVars
 
 function TwoFluidEMHD:eigenWaveCodePrefix(side, eig, x)
 	return template([[
+	real _1_sqrt_det_g = 1. / sqrt_det_g_grid(cell_x(i));
 <? for i,fluid in ipairs(fluids) do ?>
 	real <?=fluid?>_Cs_sqrt_gU = <?=eig?>-><?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(<?=x?>);
 	real <?=fluid?>_v_n = <?=eig?>-><?=fluid?>_v.s[<?=side?>];
@@ -547,14 +565,14 @@ function TwoFluidEMHD:eigenWaveCode(side, eig, x, waveIndex)
 	if waveIndex >= 5*#fluids and waveIndex < 5*#fluids+8 then
 		-- 2014 Abgrall, Kumar eqn 1.9 says the eigenvalues are c, while the flux contains cHat ...
 		return ({
-			'-normalizedSpeedOfLight * divPhiWavespeed',
-			'-normalizedSpeedOfLight * divPsiWavespeed',
-			'-normalizedSpeedOfLight',
-			'-normalizedSpeedOfLight',
-			'normalizedSpeedOfLight',
-			'normalizedSpeedOfLight',
-			'normalizedSpeedOfLight * divPsiWavespeed',
-			'normalizedSpeedOfLight * divPhiWavespeed',	
+			'-normalizedSpeedOfLight * divPhiWavespeed * _1_sqrt_det_g',
+			'-normalizedSpeedOfLight * divPsiWavespeed * _1_sqrt_det_g',
+			'-normalizedSpeedOfLight * _1_sqrt_det_g',
+			'-normalizedSpeedOfLight * _1_sqrt_det_g',
+			'normalizedSpeedOfLight * _1_sqrt_det_g',
+			'normalizedSpeedOfLight * _1_sqrt_det_g',
+			'normalizedSpeedOfLight * divPsiWavespeed * _1_sqrt_det_g',
+			'normalizedSpeedOfLight * divPhiWavespeed * _1_sqrt_det_g',
 		})[waveIndex - 5*#fluids + 1]
 	end
 	error('got a bad waveIndex: '..waveIndex)
