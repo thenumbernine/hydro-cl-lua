@@ -64,21 +64,21 @@ MHD.guiVars = {
 
 function MHD:getCommonFuncCode()
 	return template([[
-inline real calc_eKin(<?=eqn.prim_t?> W) { return .5 * coordLenSq(W.v, x); }
-inline real calc_EKin(<?=eqn.prim_t?> W) { return W.rho * calc_eKin(W); }
+inline real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
+inline real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
 inline real calc_EInt(<?=eqn.prim_t?> W) { return W.P / (heatCapacityRatio - 1.); }
 inline real calc_eInt(<?=eqn.prim_t?> W) { return calc_EInt(W) / W.rho; }
-inline real calc_EMag(<?=eqn.prim_t?> W) { return .5 * coordLenSq(W.B, x); }
-inline real calc_eMag(<?=eqn.prim_t?> W) { return calc_EMag(W) / W.rho; }
-inline real calc_PMag(<?=eqn.prim_t?> W) { return .5 * coordLenSq(W.B, x); }
-inline real calc_EHydro(<?=eqn.prim_t?> W) { return calc_EKin(W) + calc_EInt(W); }
-inline real calc_eHydro(<?=eqn.prim_t?> W) { return calc_EHydro(W) / W.rho; }
-inline real calc_ETotal(<?=eqn.prim_t?> W) { return calc_EKin(W) + calc_EInt(W) + calc_EMag(W) + W.rho * W.ePot; }
-inline real calc_eTotal(<?=eqn.prim_t?> W) { return calc_ETotal(W) / W.rho; }
+inline real calc_EMag(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.B, x); }
+inline real calc_eMag(<?=eqn.prim_t?> W, real3 x) { return calc_EMag(W, x) / W.rho; }
+inline real calc_PMag(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.B, x); }
+inline real calc_EHydro(<?=eqn.prim_t?> W, real3 x) { return calc_EKin(W, x) + calc_EInt(W); }
+inline real calc_eHydro(<?=eqn.prim_t?> W, real3 x) { return calc_EHydro(W, x) / W.rho; }
+inline real calc_ETotal(<?=eqn.prim_t?> W, real3 x) { return calc_EKin(W, x) + calc_EInt(W) + calc_EMag(W, x) + W.rho * W.ePot; }
+inline real calc_eTotal(<?=eqn.prim_t?> W, real3 x) { return calc_ETotal(W, x) / W.rho; }
 inline real calc_H(real P) { return P * (heatCapacityRatio / (heatCapacityRatio - 1.)); }
 inline real calc_h(real rho, real P) { return calc_H(P) / rho; }
-inline real calc_HTotal(<?=eqn.prim_t?> W, real ETotal) { return W.P + calc_PMag(W) + ETotal; }
-inline real calc_hTotal(<?=eqn.prim_t?> W, real ETotal) { return calc_HTotal(W, ETotal) / W.rho; }
+inline real calc_HTotal(<?=eqn.prim_t?> W, real ETotal, real3 x) { return W.P + calc_PMag(W, x) + ETotal; }
+inline real calc_hTotal(<?=eqn.prim_t?> W, real ETotal, real3 x) { return calc_HTotal(W, ETotal, x) / W.rho; }
 inline real calc_Cs(<?=eqn.prim_t?> W) { return sqrt(heatCapacityRatio * W.P / W.rho); }
 ]], {
 		eqn = self,
@@ -197,9 +197,9 @@ end
 	
 	<?=eqn.prim_t?> W = {
 		.rho = rho,
-		.v = v,//cartesianToCoord(v, x),
+		.v = cartesianToCoord(v, x),
 		.P = P,
-		.B = B,//cartesianToCoord(B, x),
+		.B = cartesianToCoord(B, x),
 		.BPot = 0,
 	};
 	UBuf[index] = consFromPrim(W, x);
@@ -239,22 +239,22 @@ end
 ]], {solver=self.solver, field='B'})},
 		{['BPot'] = '*value = U->BPot;'},
 		{P = '*value = W.P;'},
-		--{PMag = '*value = calc_PMag(W);'},
-		--{PTotal = '*value = W.P + calc_PMag(W);'},
+		--{PMag = '*value = calc_PMag(W, x);'},
+		--{PTotal = '*value = W.P + calc_PMag(W, x);'},
 		--{eInt = '*value = calc_eInt(W);'},
 		{EInt = '*value = calc_EInt(W);'},
-		--{eKin = '*value = calc_eKin(W);'},
-		{EKin = '*value = calc_EKin(W);'},
-		--{eHydro = '*value = calc_eHydro(W);'},
-		{EHydro = '*value = calc_EHydro(W);'},
-		--{eMag = '*value = calc_eMag(W);'},
-		{EMag = '*value = calc_EMag(W);'},
+		--{eKin = '*value = calc_eKin(W, x);'},
+		{EKin = '*value = calc_EKin(W, x);'},
+		--{eHydro = '*value = calc_eHydro(W, x);'},
+		{EHydro = '*value = calc_EHydro(W, x);'},
+		--{eMag = '*value = calc_eMag(W, x);'},
+		{EMag = '*value = calc_EMag(W, x);'},
 		--{eTotal = '*value = U->ETotal / W.rho;'},
 		{S = '*value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
 		{H = '*value = calc_H(W.P);'},
 		--{h = '*value = calc_H(W.P) / W.rho;'},
-		--{HTotal = '*value = calc_HTotal(W, U->ETotal);'},
-		--{hTotal = '*value = calc_hTotal(W, U->ETotal);'},
+		--{HTotal = '*value = calc_HTotal(W, U->ETotal, x);'},
+		--{hTotal = '*value = calc_hTotal(W, U->ETotal, x);'},
 		--{Cs = '*value = calc_Cs(W); },
 		{['primitive reconstruction error'] = template([[
 		//prim have just been reconstructed from cons

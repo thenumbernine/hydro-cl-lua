@@ -683,7 +683,7 @@ function GridSolver:createCodePrefix()
 	lines:insert(template([[
 real volume_at(real3 x) {
 	return sqrt_det_g_grid(x)<?
-for i=1,solver.dim do
+for i=0,solver.dim-1 do
 ?> * grid_dx<?=i?><?
 end
 ?>;
@@ -1544,9 +1544,10 @@ function GridSolver:applyBoundaryToBuffer(kernelObjs)
 		elseif self.dim == 2 then
 			local localSize = math.min(self.localSize1d, self.maxWorkGroupSize)
 			local maxSize = roundup(
-					math.max(
-						tonumber(self.gridSize.x),
-						tonumber(self.gridSize.y)),
+					side == 1 
+					and tonumber(self.gridSize.y)
+					or tonumber(self.gridSize.x)
+					,
 				localSize)
 			self.app.cmds:enqueueNDRangeKernel{
 				kernel = obj.obj,

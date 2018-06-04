@@ -265,6 +265,7 @@ function SolverBase:addDisplayVarGroup(args, cl)
 
 	local enableScalar = true
 	local enableVector = true
+enableVector = false
 
 	for i,varInfo in ipairs(varInfos) do
 	

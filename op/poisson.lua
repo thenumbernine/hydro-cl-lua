@@ -40,7 +40,7 @@ Poisson.maxIters = 10000
 
 function Poisson:getSolverCode()
 	return table{
-		template(file['op/poisson.cl'], {poisson = self}),
+		template(file['op/poisson.cl'], {poisson=self}),
 		self:getPoissonCode() or '',
 	}:concat'\n'
 end

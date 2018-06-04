@@ -1,5 +1,18 @@
 --[[
 based on Trangenstein
+
+for curved space, I'll keep my vectors in covariant form
+this way the Levi-Civita tensor in teh flux, multiplied by the connection coefficents, when used in a holonomic basis, makes them cancel
+and when used in a static grid, the g^ij_,t terms vanish,
+and you get
+
+eps0 E_i,t - 1/sqrt(g) g_il 1/mu0  epsBar^ljk      B_k,j = -j_i
+     B_i,t + 1/sqrt(g) g_il 1/eps0 epsBar^ljk eps0 E_k,j =   0
+
+so during flux computation, I need to not apply the sqrt det g
+and after computing the flux vector I need to apply the metric
+
+
 but there's a more advanced version in the slides by Chatterjee "Finite Volume Time Domain (FVTD) Computations for Electromagnetic Scattering"
 B,t + curl E = -rho H
 D,t - curl H = -J_i - sigma E
@@ -27,10 +40,24 @@ local table = require 'ext.table'
 local file = require 'ext.file'
 local range = require 'ext.range'
 local Equation = require 'eqn.eqn'
-local clnumber = require 'cl.obj.number'
 local template = require 'template'
 
+local common = require 'common'()
+local xNames = common.xNames
+
 local Maxwell = class(Equation)
+
+-- don't incorporate the Conn^k_ij E_k terms into the flux
+Maxwell.weightFluxByGridVolume = false
+
+Maxwell.postComputeFluxCode = [[
+		//flux is computed raised via Levi-Civita upper
+		//so here we lower it
+		real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
+		flux.epsE = real3_scale(coord_lower(flux.epsE, x), _1_sqrt_det_g);
+		flux.B = real3_scale(coord_lower(flux.B, x), _1_sqrt_det_g);
+]]
+
 Maxwell.name = 'Maxwell'
 Maxwell.numWaves = 6
 Maxwell.numIntStates = 6
@@ -77,13 +104,11 @@ function Maxwell:getCommonFuncCode()
 //this means we need coordLen functions with guaranteed dimensions, including tangent spaces
 
 real ESq(<?=eqn.cons_t?> U, real3 x) { 
-	//return coordLenSq(U.epsE, x) / (U.eps * U.eps);
-	return real3_lenSq(U.epsE) / (U.eps * U.eps);
+	return coordLenSq(U.epsE, x) / (U.eps * U.eps);
 }
 
 real BSq(<?=eqn.cons_t?> U, real3 x) {
-	//return coordLenSq(U.B, x);
-	return real3_lenSq(U.B);
+	return coordLenSq(U.B, x);
 }
 
 ]], {
@@ -127,8 +152,8 @@ kernel void initState(
 	
 	<?=code?>
 	
-	U->epsE = real3_scale(E, permittivity);
-	U->B = B;
+	U->epsE = cartesianToCoord(real3_scale(E, permittivity), x);
+	U->B = cartesianToCoord(B, x);
 	U->BPot = 0;
 	U->sigma = conductivity;
 	U->eps = permittivity;
@@ -137,15 +162,14 @@ kernel void initState(
 ]]
 
 function Maxwell:getSolverCode()
-	return template(file['eqn/maxwell.cl'], {eqn=self, solver=self.solver})
+	return template(file['eqn/maxwell.cl'], {eqn=self})
 end
 
 -- k is 0,1,2
 local function curl(eqn,k,result,field)
-	local xs = {'x','y','z'}
 	local i = (k+1)%3
 	local j = (i+1)%3
-	return {['curl '..field..' '..xs[k+1]] = template([[
+	return {['curl '..field..' '..xNames[k+1]] = template([[
 	if (OOB(1,1)) {
 		<?=result?> = 0.;
 	} else {
@@ -193,8 +217,7 @@ function Maxwell:getDisplayVars()
 		{E = '*valuevec = real3_scale(U->epsE, 1. / U->eps);', type='real3'},
 		{S = '*valuevec = real3_scale(real3_cross(U->epsE, U->B), 1. / U->eps);', type='real3'},
 		{energy = [[
-	//*value = .5 * (coordLenSq(U->epsE) + coordLenSq(U->B) / (U->mu * U->mu));
-	*value = .5 * (real3_lenSq(U->epsE) + real3_lenSq(U->B) / (U->mu * U->mu));
+	*value = .5 * (coordLenSq(U->epsE, x) + coordLenSq(U->B, x) / (U->mu * U->mu));
 ]]},
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='epsE', B='B'})[var] )
@@ -232,7 +255,6 @@ end
 Maxwell.eigenVars = table{
 	{sqrt_eps = 'real'},
 	{sqrt_mu = 'real'},
-	{lambda = 'real'},	-- only used for curvilinear coordinates
 }
 
 function Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)

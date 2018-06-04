@@ -31,6 +31,7 @@ void main() {
 	//start in 2D coords, bounded by the screen space
 	//TODO if we are viewing this in 3D then we will have to draw a quad bigger than the intersection of the camera hull with the XY plane
 	vec2 gridCoord = coordMapInv(vec3(viewCoord.xy, 0.)).xy;
+	
 	if (gridCoord.x < <?=clnumber(solver.mins[1])?> || gridCoord.x > <?=clnumber(solver.maxs[1])?> ||
 		gridCoord.y < <?=clnumber(solver.mins[2])?> || gridCoord.y > <?=clnumber(solver.maxs[2])?>
 	) {

@@ -654,17 +654,19 @@ inline real coordLen(real3 r, real3 pt) {
 //by projecting the vector into the grid basis vectors 
 //at x, which is in grid coordinates
 real3 cartesianToCoord(real3 u, real3 pt) {
-	real3 uCoord;
+	real3 uCoord = _real3(0,0,0);
 	<? for i=0,solver.dim-1 do ?>{
 		real3 e = coordBasis<?=i?>(pt);
 		//anholonomic normalized
 		//uCoord.s<?=i?> = real3_dot(e, u); // / real3_len(e);
 		//holonomic
-		uCoord.s<?=i?> = real3_dot(e, u) / real3_lenSq(e);
-	}<? end
-	for i=solver.dim,2 do ?>
-	uCoord.s<?=i?> = 0.;
-	<? end ?>
+		real uei = real3_dot(e, u) / real3_lenSq(e);
+		uCoord.s<?=i?> = uei;
+		//subtract off this basis component from u
+		u = real3_sub(u, real3_scale(e, uei));
+	}<? end ?>
+	//add whatever's left of u
+	uCoord = real3_add(uCoord, u);
 	return uCoord;
 }
 

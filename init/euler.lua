@@ -55,7 +55,7 @@ end
 function SelfGravProblem:__call(initState, solver)
 	local args = self.args
 
-	solver.useGravity = true
+--	solver.useGravity = true
 	--[[ the boundary might not be necessary/appropriate, esp for cylindrical geometry
 	solver:setBoundaryMethods'freeflow'
 	--]]
@@ -406,21 +406,34 @@ end
 	{
 		name = 'spinning magnetic fluid',
 		initState = function(self, solver)
-			solver.useGravity = true
 			return [[
 	real3 xc = coordMap(x);
 	rho = .1;
 	P = 1;
 	
 	real3 delta = xc;
-	real dist = real3_len(delta);
+	real coord_r = real3_len(delta);
+	real3 eHat_r = real3_scale(delta, 1. / coord_r);
+	real3 eHat_theta = _real3(-eHat_r.y, eHat_r.x, 0.);
+	real3 eHat_z = _real3(0., 0., 1.);
 	real radius = 1.;
-	real distPastRadius = dist - radius;
+	real distPastRadius = coord_r - radius;
+	
+	real coord_R = coord_r - .5 * (mins.x + maxs.x);
+
 	if (distPastRadius < 0.) {
 		rho = P = 1.;
-		v.x = -.1 * delta.y;
-		v.y = .1 * delta.x;
-		B = real3_scale(v, -1.);
+		v = real3_scale(eHat_theta, .1);
+#if 0
+		B = real3_add(v, 
+			real3_add(
+				real3_scale(eHat_r, -x.z),
+				real3_scale(eHat_z, coord_R)
+			)
+		);
+#else
+		B = _real3(0,0,1);
+#endif
 	}
 ]]
 		end,
@@ -437,7 +450,7 @@ end
 	
 	real3 delta = xc;
 	real dist = real3_len(_real3(delta.x, delta.y, 0.));
-	real radius = .2;
+	real radius = 1.;
 	real distPastRadius = dist - radius;
 	rho = .1;
 	P = 1;
@@ -790,7 +803,7 @@ end) then
 			local sliceAxis = 2
 			
 			-- move around the cylinder
-			if solver.coord.name == 'cylinder' then
+			if require 'coord.cylinder'.is(solver.coord) then
 				moveAxis = 2
 				sliceAxis = 1
 			end
@@ -1018,7 +1031,7 @@ end ?>;
 					{center={0, 0, 0}, radius = radius},
 				},
 			}
-			if solver.coord.name == 'cylinder' then
+			if require 'coord.cylinder'.is(solver.coord) then
 				solver:setBoundaryMethods{
 					xmin = 'freeflow',
 					xmax = 'freeflow',
@@ -1027,13 +1040,8 @@ end ?>;
 					zmin = 'freeflow',
 					zmax = 'freeflow',
 				}
-				return template([[
-	P = 1;
-	rho = x.s[0] < <?=radius?> ? 1 : .1;
-]], {radius=radius})
-			else
-				return f(self, solver)
 			end
+			return f(self, solver)
 		end
 	},
 

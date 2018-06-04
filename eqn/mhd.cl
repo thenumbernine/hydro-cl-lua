@@ -576,11 +576,12 @@ kernel void addSource(
 
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	real BSq = coordLenSq(U->B, x);
 	real PMag = .5 * BSq / mu0;
 	real PTotal = W.P + PMag;
 	real3 m_conn_vv = coord_conn_apply23(W.v, U->m, x);
 	deriv->m = real3_sub(deriv->m, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
-	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn_trace23(x), P_total));		//-Conn^i_jk g^jk P_total
+	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn_trace23(x), PTotal));		//-Conn^i_jk g^jk P_total
 	deriv->m = real3_add(deriv->m, real3_scale(coord_conn_apply23(U->B, U->B, x), 1. / mu0));	//+ 1/mu0 Conn^i_jk B^j B^k
 <? end ?>
 }

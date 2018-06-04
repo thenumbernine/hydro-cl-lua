@@ -63,7 +63,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{64,64,1},
+				{128,128,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -123,7 +123,7 @@ maxs = {6,1,1},
 	-- [[ cylinder
 	-- for some reason [rmin, rmax] = [.5, 1] gets an explosion right at r=rmin, theta=0 ... but any other values work fine
 	coord = 'cylinder',
-	mins = cmdline.mins or {.5, 0, -.25},
+	mins = cmdline.mins or {.1, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
@@ -132,14 +132,14 @@ maxs = {6,1,1},
 	})[dim],
 	boundary = {
 		-- r
-		xmin=cmdline.boundary or 'freeflow',		-- hmm, how to treat the r=0 boundary ...
-		xmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
+		xmax=cmdline.boundary or 'mirror',
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
 		-- z
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'mirror',
+		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
 	--[[ sphere
@@ -239,7 +239,7 @@ maxs = {6,1,1},
 	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
-	initState = 'spinning magnetic fluid',
+	--initState = 'spinning magnetic fluid',
 	--initState = 'magnetic fluid',
 	--initState = '2017 Degris et al',
 	--initState = 'that one mhd simulation from youtube',
@@ -253,7 +253,7 @@ maxs = {6,1,1},
 	--initState = '2002 Dedner Kelvin-Helmholtz',
 
 	-- Maxwell:
-	--initState = 'Maxwell default',
+	initState = 'Maxwell default',
 	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
@@ -382,7 +382,7 @@ maxs = {6,1,1},
 }
 
 -- HD
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -432,7 +432,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 -- Maxwell
 -- when the state is nonzero, at certain sizes there appear errors in the corners
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 

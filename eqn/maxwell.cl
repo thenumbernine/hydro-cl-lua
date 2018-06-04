@@ -1,31 +1,19 @@
-#define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
+<?
+local solver = eqn.solver
 
-//#define SUPPORT_CURVILINEAR
+local common = require 'common'()
+local xNames = common.xNames
+local sym = common.sym
+?>
+#define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const global <?=eqn.cons_t?>* U,
 	real3 x
 ) {
-#if !defined(SUPPORT_CURVILINEAR)	//cartesian
 	real lambda = 1. / sqrt(U->eps * U->mu);
 	return (range_t){-lambda, lambda};
-#else	//grid metric
-	real det_gamma = volume_at(x);
-	real det_gamma2 = det_gamma * det_gamma;
-	real det_gamma3 = det_gamma * det_gamma2;
-	
-	<? if side == 0 then ?>
-	real detg_gUjj = coord_g11(x) * coord_g22(x) - coord_g12(x) * coord_g12(x);
-	<? elseif side == 1 then ?>
-	real detg_gUjj = coord_g00(x) * coord_g22(x) - coord_g02(x) * coord_g02(x);
-	<? elseif side == 2 then ?>
-	real detg_gUjj = coord_g00(x) * coord_g11(x) - coord_g01(x) * coord_g01(x);
-	<? end ?>
-
-	real lambda = sqrt(detg_gUjj / (det_gamma3 * U->eps * U->mu));
-	return (range_t){-lambda, lambda};
-#endif
 }
 <? end ?>
 
@@ -35,57 +23,10 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	<?=eqn.cons_t?> UR,
 	real3 x
 ) {
-#if !defined(SUPPORT_CURVILINEAR)
 	return (<?=eqn.eigen_t?>){
 		.sqrt_eps = sqrt(.5 * (UL.eps + UR.eps)),
 		.sqrt_mu = sqrt(.5 * (UL.mu + UR.mu)),
 	};
-#else	
-	real3 xR = x;
-	xR.s<?=side?> += .5 * grid_dx<?=side?>;
-	
-	real3 xL = x;
-	xL.s<?=side?> -= .5 * grid_dx<?=side?>;
-
-
-	real det_gammaR = volume_at(xR);
-	real det_gammaR2 = det_gammaR * det_gammaR;
-	real det_gammaR3 = det_gammaR * det_gammaR2;
-	
-	real det_gammaL = volume_at(xL);
-	real det_gammaL2 = det_gammaL * det_gammaL;
-	real det_gammaL3 = det_gammaL * det_gammaL2;
-
-
-	real eps = .5 * (UL.eps + UR.eps);
-	real mu = .5 * (UL.mu + UR.mu);
-
-	<? if side == 0 then ?>
-	real detg_gUjj = .5 * (
-		coord_g11(xL) * coord_g22(xL) - coord_g12(xL) * coord_g12(xL)
-		+ coord_g11(xR) * coord_g22(xR) - coord_g12(xR) * coord_g12(xR)
-	);
-	<? elseif side == 1 then ?>
-	real detg_gUjj = .5 * (
-		coord_g00(xL) * coord_g22(xL) - coord_g02(xL) * coord_g02(xL)
-		+ coord_g00(xR) * coord_g22(xR) - coord_g02(xR) * coord_g02(xR)
-	);
-	<? elseif side == 2 then ?>
-	real detg_gUjj = .5 * (
-		coord_g00(xL) * coord_g11(xL) - coord_g01(xL) * coord_g01(xL)
-		+ coord_g00(xR) * coord_g11(xR) - coord_g01(xR) * coord_g01(xR)
-	);
-	<? end ?>
-	
-	real det_gamma3 = sqrt(det_gammaL3 * det_gammaR3);
-	real lambda = 1. / sqrt(detg_gUjj / (det_gamma3 * eps * mu));
-	
-	return (<?=eqn.eigen_t?>){
-		.lambda = lambda,
-		.sqrt_eps = sqrt(eps),
-		.sqrt_mu = sqrt(mu),
-	};
-#endif
 }
 <? end ?>
 
@@ -291,40 +232,6 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	deriv->epsE = real3_sub(deriv->epsE, real3_scale(U->epsE, 1. / U->eps * U->sigma));
-
-<? if not require 'coord.cartesian'.is(solver.coord) then ?>
-	//grid coordinate connection coefficient source terms for contravariant representation
-	//epsE^i += 2 / (mu_0 sqrt(g)) [ijk] Gamma_jkl B^l
-	//B^i -= 2 / (eps_0 sqrt(g)) [ijk] Gamma_jkl epsE^l
-	real sqrt_det_g = sqrt_det_g_grid(x);
-	_3sym3 conn = coord_conn(x);
-
-	deriv->epsE.x += 2. / (U->mu * sqrt_det_g) * (
-		(conn.y.xz - conn.z.xy) * U->B.x
-		+ (conn.y.yz - conn.z.yy) * U->B.y
-		+ (conn.y.zz - conn.z.yz) * U->B.z);
-	deriv->epsE.y += 2. / (U->mu * sqrt_det_g) * (
-		(conn.z.xx - conn.x.xz) * U->B.x
-		+ (conn.z.xy - conn.x.yz) * U->B.y
-		+ (conn.z.xz - conn.x.zz) * U->B.z);
-	deriv->epsE.z += 2. / (U->mu * sqrt_det_g) * (
-		(conn.x.xy - conn.y.xx) * U->B.x
-		+ (conn.x.yy - conn.y.xy) * U->B.y
-		+ (conn.x.yz - conn.y.xz) * U->B.z);
-	
-	deriv->B.x -= 2. / (U->eps * sqrt_det_g) * (
-		(conn.y.xz - conn.z.xy) * U->epsE.x
-		+ (conn.y.yz - conn.z.yy) * U->epsE.y
-		+ (conn.y.zz - conn.z.yz) * U->epsE.z);
-	deriv->B.y -= 2. / (U->eps * sqrt_det_g) * (
-		(conn.z.xx - conn.x.xz) * U->epsE.x
-		+ (conn.z.xy - conn.x.yz) * U->epsE.y
-		+ (conn.z.xz - conn.x.zz) * U->epsE.z);
-	deriv->B.z -= 2. / (U->eps * sqrt_det_g) * (
-		(conn.x.xy - conn.y.xx) * U->epsE.x
-		+ (conn.x.yy - conn.y.xy) * U->epsE.y
-		+ (conn.x.yz - conn.y.xz) * U->epsE.z);
-<? end ?>
 }
 
 
@@ -339,7 +246,6 @@ kernel void addSource(
 	<?=eqn.eigen_t?> eig;
 	eig.sqrt_eps = sqrt(U.eps);
 	eig.sqrt_mu = sqrt(U.mu);
-	eig.lambda = 1. / (eig.sqrt_eps * eig.sqrt_mu);
 	return eig;
 }
 <? end ?>

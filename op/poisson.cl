@@ -104,29 +104,31 @@ then ?>
 <? 
 else 
 ?>
-	//f_;a^a = g^ab (f_,ab - Gamma^c_ab f,c)
-	// = 1/sqrt|g| (sqrt|g| g^ab f_,a)_,b
-	//I think I'm gonna use finite-differencing with the second one
-	// = 1/sqrt|g|(x) ((sqrt|g| g^ab)(x+h/2) (f(x+h)-f(x))/h - (sqrt|g| g^ab)(x-h/2) (f(x)-f(x-h))/h)/h
-	// = 1/sqrt|g|(x) ((sqrt|g| g^ab)(x+h/2) f(x+h)/h - ((sqrt|g| g^ab)(x+h/2) + (sqrt|g| g^ab)(x-h/2)) f(x)/h + (sqrt|g| g^ab)(x-h/2) f(x-h)/h)/h
-	//that's a lot of metric matrix multiplies ...
+/*
+for scalars:
+f_;a^a = g^ab (f_,ab - Gamma^c_ab f,c)
+ = 1/sqrt|g| (sqrt|g| g^ab f_,a)_,b
+I think I'm gonna use finite-differencing with the second one
+ = 1/sqrt|g|(x) ((sqrt|g| g^ab)(x+h/2) (f(x+h)-f(x))/h - (sqrt|g| g^ab)(x-h/2) (f(x)-f(x-h))/h)/h
+ = 1/sqrt|g|(x) ((sqrt|g| g^ab)(x+h/2) f(x+h)/h - ((sqrt|g| g^ab)(x+h/2) + (sqrt|g| g^ab)(x-h/2)) f(x)/h + (sqrt|g| g^ab)(x-h/2) f(x-h)/h)/h
 
-	//sqrt|g| = r, g_ab = diag(1, r^2)
-	// = 1/sqrt|g|(x) ((sqrt|g| g^ab)(x+h/2) (f(x+h)-f(x))/h - (sqrt|g| g^ab)(x-h/2) (f(x)-f(x-h))/h)/h
-	// = 1/r (
-	//		(diag(r+dr/2, 1/(r+dr/2)) (f(r+dr,th)-f(r,th))/dr - diag(r-dr/2, 1/(r-dr/2)) (f(r,th)-f(r-dr,th))/dr)/dr
-	//		+ (diag(r, 1/r) (f(r,th+dth)-f(r,th))/dth - diag(r, 1/r) (f(r,th)-f(r,th-dth))/dth)/dth			)
-	// = 1/r (
-	//		(diag(r+dr/2, 1/(r+dr/2)) (f(r+dr,th)-f(r,th))/dr - diag(r-dr/2, 1/(r-dr/2)) (f(r,th)-f(r-dr,th))/dr)/dr
-	//		+ (diag(r, 1/r) (f(r,th+dth)-f(r,th))/dth - diag(r, 1/r) (f(r,th)-f(r,th-dth))/dth)/dth			)
+or for arbitrary tensors:
+(wiki says (T_;ab - T_;ba) g^ab)
+t^i1..ip_j1..jq^;a_;a
+= (t^i1..ip_j1..jq_,a 
+	+ Sum_I=1..p Conn^iI_k_a t^i1..k..ip_j1..jq 
+	- Sum_J=1..q Conn^k_jJ_a t^i1..ip_j1..k..jq )_;b g^ab
+= (t^i1..ip_j1..jq_,ab 
+	+ (Sum_I=1..p Conn^iI_k_a t^i1..k..ip_j1..jq)_;b
+	- (Sum_J=1..q Conn^k_jJ_a t^i1..ip_j1..k..jq)_;b ) g^ab
+= (t^i1..ip_j1..jq_,ab 
+	+ Sum_I=1..p Conn^iI_k_a,b t^i1..k..ip_j1..jq 
+	- Sum_J=1..q Conn^k_jJ_a,b t^i1..ip_j1..k..jq 
+	+ Sum_I=1..p Conn^Ii_k_a t^i1..k..ip_j1..jq,b
+	- Sum_J=1..q Conn^k_jJ_a t^i1..ip_j1..k..jq,b 
+) g^ab
 
-	//ok now it's looking like i'll have to apply one component to the the half-step inverse metric evaluated at one point and the other component at another point  ... bad idea
-	// just do the easy way
-	//f_;a^b = g^ab (f_,ab - Gamma^c_ab f,c)
-	// = diag(1, 1/r^2) * (diag(f,rr; f,theta_theta) - [[0; 1/r f,theta], [1/r f,theta; -r f,r]])
-	// f,rr + 1/r^2 f,theta_theta - 1/r f,r
-	// (f,r r),r / r + (f,theta r),theta / r
-	//so where do we put the r's?
+*/
 <?
 end
 ?>

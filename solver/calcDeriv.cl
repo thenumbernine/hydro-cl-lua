@@ -1,8 +1,6 @@
 // used by all the finite volume solvers
-
 <?
--- this should add the connection terms Conn^k_jk u^I_,j (for the I'th conserved quantity u^I)
-local weightFluxByGridVolume = true
+local eqn = solver.eqn
 ?>
 
 kernel void calcDerivFromFlux(
@@ -13,10 +11,10 @@ kernel void calcDerivFromFlux(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	
 	real3 x = cell_x(i);
-<? if weightFluxByGridVolume then ?>	
-	real volume = volume_at(x);
+<? if eqn.weightFluxByGridVolume then ?>	
+	real sqrt_det_g = sqrt_det_g_grid(x);
 <? else ?>
-	const real volume = 1.;
+	const real sqrt_det_g = 1.;
 <? end ?>
 
 	<? for side=0,solver.dim-1 do ?>{
@@ -32,26 +30,36 @@ kernel void calcDerivFromFlux(
 		//U^i_,t + F^ij_,j + Gamma^j_kj F^ik + Gamma^i1_kj F^i1^k + ... + Gamma^in_kj F^in^k = 0
 		//					(metric det gradient) 
 
-<? if weightFluxByGridVolume then ?>	
+<? if eqn.weightFluxByGridVolume then ?>	
 		real3 xIntL = x;
 		xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
-		real volumeIntL = volume_at(xIntL);
-		real areaL = volumeIntL / grid_dx<?=side?>;
+		real sqrt_det_g_intL = sqrt_det_g_grid(xIntL);
+		real areaL = sqrt_det_g_intL / grid_dx<?=side?>;
 	
 		real3 xIntR = x;
 		xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
-		real volumeIntR = volume_at(xIntR);
-		real areaR = volumeIntR / grid_dx<?=side?>;
+		real sqrt_det_g_intR = sqrt_det_g_grid(xIntR);
+		real areaR = sqrt_det_g_intR / grid_dx<?=side?>;
 <? else ?>
 		const real areaL = 1.;
 		const real areaR = 1.;
 <? end ?>
 
+		<?=eqn.cons_t?> flux;
 		for (int j = 0; j < numIntStates; ++j) {
-			deriv->ptr[j] -= (
+			flux.ptr[j] = (
 				fluxR->ptr[j] * areaR
 				- fluxL->ptr[j] * areaL
-			) / volume;
+			) / sqrt_det_g;
 		}
+
+		{
+<?=eqn.postComputeFluxCode or ''?>
+		}
+
+		for (int j = 0; j < numIntStates; ++j) {
+			deriv->ptr[j] -= flux.ptr[j];
+		}
+	
 	}<? end ?>
 }
