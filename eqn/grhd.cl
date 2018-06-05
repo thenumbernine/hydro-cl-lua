@@ -3,17 +3,14 @@
 */
 
 <? 
--- also in eqn/bssnok-fd.lua
--- and in solver/gridsolver, and a few other places
 local table = require 'ext.table'
-local xNames = table{'x', 'y', 'z'}
 
-local function sym(a,b)
-	assert(a >= 1 and a <= 3, "tried to index sym with "..tostring(a)..", "..tostring(b))
-	assert(b >= 1 and b <= 3, "tried to index sym with "..tostring(a)..", "..tostring(b))
-	if a > b then a,b = b,a end
-	return xNames[a]..xNames[b]
-end
+local common = require 'common'()
+local xNames = common.xNames
+local symNames = common.symNames
+local from3x3to6 = common.from3x3to6 
+local from6to3x3 = common.from6to3x3 
+local sym = common.sym
 ?>
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
@@ -222,7 +219,7 @@ for _,field in ipairs(eqn.eigenVars) do
 }
 
 <? for side=0,solver.dim-1 do 
-	local prefix = require 'ext.table'.map(eqn.eigenVars, function(field)
+	local prefix = table.map(eqn.eigenVars, function(field)
 		local name,ctype = next(field)
 		return '\t'..ctype..' '..name..' = eig.'..name..';\n'
 	end):concat()

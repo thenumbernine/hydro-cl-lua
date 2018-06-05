@@ -6,7 +6,12 @@ local vec3 = require 'vec.vec3'
 local clnumber = require 'cl.obj.number'
 local InitCond = require 'init.init'
 
-require 'common'(_G)
+local common = require 'common'()
+local xNames = common.xNames
+local symNames = common.symNames
+local from3x3to6 = common.from3x3to6 
+local from6to3x3 = common.from6to3x3 
+local sym = common.sym
 
 local function getTemplateEnv(solver)
 	return {

@@ -11,8 +11,13 @@ local EinsteinEqn = require 'eqn.einstein'
 local symmath = require 'symmath'
 local makeStruct = require 'eqn.makestruct'
 
--- TODO assign these as locals instead of globals
-require 'common'(_G)
+local common = require 'common'()
+local xNames = common.xNames
+local symNames = common.symNames
+local from3x3to6 = common.from3x3to6 
+local from6to3x3 = common.from6to3x3 
+local sym = common.sym
+
 
 local ADM_BonaMasso_3D = class(EinsteinEqn)
 ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'

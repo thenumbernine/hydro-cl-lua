@@ -7,14 +7,18 @@ local table = require 'ext.table'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
 
-local EinsteinEqn = class(Equation)
+local common = require 'common'()
+local xNames = common.xNames
 
-local xNames = table{'x', 'y', 'z'}
+local EinsteinEquation = class(Equation)
 
-EinsteinEqn.initStates = require 'init.einstein'
+-- these hyperbolic formalisms usually take the metric into account themselves
+EinsteinEquation.weightFluxByGridVolume = false
 
-function EinsteinEqn:createInitState()
-	EinsteinEqn.super.createInitState(self)
+EinsteinEquation.initStates = require 'init.einstein'
+
+function EinsteinEquation:createInitState()
+	EinsteinEquation.super.createInitState(self)
 	self:addGuiVars{
 		{
 			type = 'combo',
@@ -30,7 +34,7 @@ function EinsteinEqn:createInitState()
 end
 
 -- add an option for fixed Minkowsky boundary spacetime
-function EinsteinEqn:createBoundaryOptions()
+function EinsteinEquation:createBoundaryOptions()
 	self.solver.boundaryOptions:insert{
 		fixed = function(args)
 			local lines = table()
@@ -51,7 +55,7 @@ end
 -- and now for fillRandom ...
 local ffi = require 'ffi'
 local function crand() return 2 * math.random() - 1 end
-function EinsteinEqn:fillRandom(epsilon)
+function EinsteinEquation:fillRandom(epsilon)
 	local solver = self.solver
 	local ptr = ffi.new(self.cons_t..'[?]', solver.volume)
 	ffi.fill(ptr, 0, ffi.sizeof(ptr))
@@ -64,4 +68,4 @@ function EinsteinEqn:fillRandom(epsilon)
 	return ptr
 end
 
-return EinsteinEqn
+return EinsteinEquation
