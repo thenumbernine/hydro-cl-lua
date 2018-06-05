@@ -298,10 +298,12 @@ return table{
 		end,
 		initState = function(self, solver)
 			return [[
+	real3 xc = coordMap(x);
+	
 	real x_s = 0;	//speed * t
 	real v_s = init_speed;
 	
-	real3 y = x; y.x -= x_s;
+	real3 y = xc; y.x -= x_s;
 	real r_s = real3_len(y);
 
 #define cosh(x)		(.5 * (exp(x) + exp(-x)))
@@ -342,16 +344,17 @@ return table{
 		end,
 		initState = function(self, solver)
 			return [[
+	real3 xc = coordMap(x);
 	const real R = init_R;
 	
-	real r = real3_len(x);
+	real r = real3_len(xc);
 	alpha = sqrt(1. - R/r);
 
-	real3 xu = real3_scale(x, 1. / r);
+	real3 xc_u = real3_scale(xc, 1. / r);
 
 	gamma_ll = sym3_add(
 		sym3_ident(),
-		sym3_scale(real3_outer(xu, xu), 1. / (r / R - 1)));
+		sym3_scale(real3_outer(xc_u, xc_u), 1. / (r / R - 1)));
 ]]
 		end,
 	},
@@ -545,10 +548,12 @@ return table{
 			}
 			
 			return template([[
+	real3 xc = coordMap(x);
+
 <? for _,body in ipairs(bodies) do
 ?>
 	real3 pos = _real3(<?=table.map(body.pos, clnumber):concat', '?>);
-	real3 ofs = real3_sub(x, pos);
+	real3 ofs = real3_sub(xc, pos);
 	
 	real r = real3_len(ofs);
 	real3 l = real3_scale(ofs, 1./r);
@@ -754,8 +759,9 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 		end,
 		initState = function(self, solver)
 			return [[
+	real3 xc = coordMap(x);
 	const real t = 0.;
-	real theta = 2. * M_PI / init_d * (x.x - t);
+	real theta = 2. * M_PI / init_d * (xc.x - t);
 	real H = 1. + init_A * sin(theta);
 	alpha = sqrt(H);
 	gamma_ll.xx = H;
@@ -783,8 +789,9 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 		end,
 		initState = function(self, solver)
 			return [[
+	real3 xc = coordMap(x);
 	const real t = 0.;
-	real theta = 2. * M_PI / init_d * (x.x - t);
+	real theta = 2. * M_PI / init_d * (xc.x - t);
 	real b = init_A * sin(theta);
 	gamma_ll.yy += b;
 	gamma_ll.zz -= b;

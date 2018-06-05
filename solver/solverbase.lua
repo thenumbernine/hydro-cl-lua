@@ -1,10 +1,12 @@
 -- TODO make this solver/solver.lua, and make the old solver.lua something like structured-grid-solver
 
+local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local template = require 'template'
 local vec3 = require 'vec.vec3'
+local roundup = require 'roundup'
 local tooltip = require 'tooltip'
 local time, getTime = table.unpack(require 'time')
 
@@ -70,12 +72,108 @@ function SolverBase:init(args)
 	self.coord = require('coord.'..args.coord){solver=self}
 
 
+	self.checkNaNs = false
+	self.useFixedDT = not not args.fixedDT
+	self.fixedDT = args.fixedDT or self.fixedDT or .001
+	self.cfl = args.cfl or .5	--/self.dim
+	self.fluxLimiter = self.app.limiterNames:find(args.fluxLimiter) or 1
+
+
+
 	self:createDisplayVars()	-- depends on eqn
 end
 
 function SolverBase:postInit()
+	-- [[
+	-- GridSolver calls refreshGridSize
+	--  refreshGridSize calls these:
+	
+	self.maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
+print('maxWorkGroupSize', self.maxWorkGroupSize)
+	
+	local sizeProps = self:getSizePropsForWorkGroupSize(self.maxWorkGroupSize)
+	for k,v in pairs(sizeProps) do
+print(k,v)	
+		self[k] = v
+	end
+	
+	self.buffers = table()
+	self:createBuffers()
+	self:finalizeCLAllocs()
+
 	self:refreshEqnInitState()
 	self:resetState()
+	--]]
+end
+
+function SolverBase:getSizePropsForWorkGroupSize(maxWorkGroupSize)
+	error'here'
+end
+
+function SolverBase:clalloc(name, size)
+	self.buffers:insert{name=name, size=size}
+end
+
+function SolverBase:finalizeCLAllocs()
+	local CLBuffer = require 'cl.obj.buffer'
+	local total = 0
+	for _,buffer in ipairs(self.buffers) do
+		buffer.offset = total
+		local name = buffer.name
+		local size = buffer.size
+		if not self.allocateOneBigStructure then
+			local mod = size % ffi.sizeof(self.app.env.real)
+			if mod ~= 0 then
+				-- WARNING?
+				size = size - mod + ffi.sizeof(self.app.env.real)
+				buffer.size = size
+			end
+		end
+		total = total + size
+		if not self.allocateOneBigStructure then
+			local bufObj = CLBuffer{
+				env = self.app.env,
+				name = name,
+				type = 'real',
+				size = size / ffi.sizeof(self.app.env.real),
+			}
+			self[name..'Obj'] = bufObj
+			self[name] = bufObj.obj
+		end
+	end
+	if self.allocateOneBigStructure then
+		self.oneBigBuf = self.app.ctx:buffer{rw=true, size=total}
+	end
+end
+
+
+function SolverBase:createBuffers()
+	local realSize = ffi.sizeof(self.app.real)
+	
+	-- for twofluid, cons_t has been renamed to euler_maxwell_t and maxwell_cons_t
+	if ffi.sizeof(self.eqn.cons_t) ~= self.eqn.numStates * realSize then
+	   error('Expected sizeof('..self.eqn.cons_t..') to be '
+		   ..self.eqn.numStates..' * sizeof(real) = '..(self.eqn.numStates * realSize)
+		   ..' but found '..ffi.sizeof(self.eqn.cons_t)..' = '..(ffi.sizeof(self.eqn.cons_t) / realSize)..' * sizeof(real). '
+		   ..'Maybe you need to update Eqn.numStates?')
+	end
+	if ffi.sizeof(self.eqn.cons_t) < ffi.sizeof(self.eqn.prim_t) then
+		error("for PLM's sake I might need sizeof(prim_t) <= sizeof(cons_t)")
+	end
+
+	local UBufSize = self.volume * ffi.sizeof(self.eqn.cons_t)
+	self:clalloc('UBuf', UBufSize)
+
+	-- used both by reduceMin and reduceMax
+	-- (and TODO use this by sum() in implicit solver as well?)
+	-- times three because this is also used by the displayVar 
+	-- on non-GL-sharing cards.
+	self:clalloc('reduceBuf', self.volume * realSize * 3)
+	local reduceSwapBufSize = roundup(self.volume * realSize / self.localSize1d, realSize)
+	self:clalloc('reduceSwapBuf', reduceSwapBufSize)
+	self.reduceResultPtr = ffi.new('real[1]', 0)
+
+	-- TODO CLImageGL ?
 end
 
 -- call this when the solver initializes or changes the codePrefix (or changes initState)
@@ -115,13 +213,68 @@ function SolverBase:createEqn()
 		self.eqnArgs or {},
 		{solver = self}
 	))
+	
+	ffi.cdef(self.eqn:getTypeCode())
+	ffi.cdef(self.eqn:getExtraTypeCode())
 end
-
 
 
 function SolverBase:refreshCodePrefix()
 	self:createCodePrefix()		-- depends on eqn, gridSize, displayVars
 	self:refreshIntegrator()	-- depends on eqn & gridSize ... & ffi.cdef cons_t
+	self:refreshInitStateProgram()
+	self:refreshSolverProgram()
+--[[ 
+TODO here -- refresh init state
+but what does that look like for mesh solvers?
+where should the initial state be stored?
+in an external file?
+or should it be calculated?
+or should overriding the state be allowed?
+--]]
+end
+
+function SolverBase:refreshSolverProgram()
+	local code = self:getSolverCode()
+
+	time('compiling solver program', function()
+		self.solverProgramObj = self.Program{code=code}
+		self.solverProgramObj:compile()
+	end)
+	
+	for _,op in ipairs(self.ops) do
+		op:refreshSolverProgram()
+	end
+end
+
+function SolverBase:getSolverCode()
+	local fluxLimiterCode = 'real fluxLimiter(real r) {'
+		.. self.app.limiters[self.fluxLimiter].code 
+		.. '}'
+
+	return table{
+		self.codePrefix,
+		
+		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
+		self.eqn:getEigenCode() or '',
+		
+		fluxLimiterCode,
+		
+		'typedef struct { real min, max; } range_t;',
+		
+		self.eqn:getSolverCode() or '',
+		self.eqn:getCalcDTCode() or '',
+		self.eqn:getFluxFromConsCode() or '',
+	
+	}:append(self.ops:map(function(op)
+		return op:getSolverCode()
+	end)):append{
+		self:getDisplayCode(),
+	}:concat'\n'
+end
+
+function SolverBase:refreshInitStateProgram()
+	self.eqn.initState:refreshInitStateProgram(self)
 end
 
 function SolverBase:createCodePrefix()
@@ -165,15 +318,22 @@ function SolverBase:resetState()
 	self.t = 0
 	self.app.cmds:finish()
 
-	self.eqn:resetState()
+	self:applyInitCond()
+	self:resetOps()
+end
 
+-- override this by the mesh solver ... since I don't know what it will be doing
+function SolverBase:applyInitCond()
+	self.eqn.initState:resetState(self)
+end
+
+function SolverBase:resetOps()
 	for _,op in ipairs(self.ops) do
 		if op.resetState then
 			op:resetState()
 		end
 	end
 end
-
 
 local DisplayVarGroup = class()
 

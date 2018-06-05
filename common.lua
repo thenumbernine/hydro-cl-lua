@@ -7,6 +7,9 @@ I wonder if there's a way to set these variables to the local scope env of the r
 --]]
 return function(env)
 	env = env or {}
+	
+	env.minmaxs = table{'min', 'max'}
+
 	local xNames = table{'x', 'y', 'z'}
 	env.xNames = xNames
 

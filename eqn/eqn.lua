@@ -280,10 +280,6 @@ function Equation:eigenWaveCodePrefix(side, eig, x)
 	return ''
 end
 
-function Equation:resetState()
-	self.initState:resetState(self.solver)
-end
-
 function Equation:getCalcDTCode()
 	if self.hasCalcDT then return end
 	return template(file['eqn/cl/calcDT.cl'], {

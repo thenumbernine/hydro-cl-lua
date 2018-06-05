@@ -34,12 +34,6 @@ function FiniteDifferenceSolver:refreshSolverProgram()
 
 	self.calcDerivFiniteDifferenceKernelObj = self.solverProgramObj:kernel'calcDerivFiniteDifference'
 	self.calcDerivFiniteDifferenceKernelObj.obj:setArg(1, self.fluxBuf)
-
-	-- TODO put this in solver/solver.lua ?
-	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
-	end
 end
 
 function FiniteDifferenceSolver:calcDeriv(derivBuf, dt)

@@ -99,6 +99,10 @@ function EulerBurgers:step(dt)
 		self.calcFluxKernelObj()
 	
 		self.calcDerivFromFluxKernelObj(derivBuf)
+	
+		if self.eqn.useSourceTerm then
+			self.addSourceKernelObj(derivBuf)
+		end
 	end)
 
 	self:boundary()
@@ -116,10 +120,6 @@ function EulerBurgers:step(dt)
 	self.integrator:integrate(dt, function(derivBuf)
 		self.diffuseWorkKernelObj(derivBuf)
 	end)
-
-	-- no addSource call just yet
-	-- it is invoked by individual solvers
-	-- however for eqn/euler there is nothing there except my messing with connection coefficients
 end
 
 return EulerBurgers

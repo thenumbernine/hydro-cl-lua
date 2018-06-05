@@ -1,6 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local InitState = require 'init.init'
+local InitCond = require 'init.init'
 return table{
 	{
 		name = 'Brio-Wu',
@@ -68,5 +68,5 @@ return table{
 	},
 
 }:map(function(cl)
-	return class(InitState, cl)
+	return class(InitCond, cl)
 end)

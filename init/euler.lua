@@ -4,10 +4,11 @@ local range = require 'ext.range'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
 local ffi = require 'ffi'
-local InitState = require 'init.init'
+local InitCond = require 'init.init'
 
 local common = require 'common'()
 local xNames = common.xNames
+local minmaxs = common.minmaxs
 
 local function quadrantProblem(args)
 	args.initState = function(self, solver)
@@ -341,7 +342,7 @@ end
 			-- TODO hmm looks like it's not setting on init correctly...
 			local boundaryMethods = {}
 			for i,x in ipairs(xNames) do
-				for _,minmax in ipairs{'min', 'max'} do
+				for _,minmax in ipairs(minmaxs) do
 					boundaryMethods[x..minmax] = 'periodic'
 				end
 			end
@@ -522,7 +523,7 @@ end
 
 			local boundaryMethods = {}
 			for i,x in ipairs(xNames) do
-				for _,minmax in ipairs{'min', 'max'} do
+				for _,minmax in ipairs(minmxas) do
 					boundaryMethods[x..minmax] = 'freeflow'
 				end
 			end
@@ -882,7 +883,7 @@ end ?>
 
 			local boundaryMethods = {}
 			for i,x in ipairs(xNames) do
-				for _,minmax in ipairs{'min', 'max'} do
+				for _,minmax in ipairs(minmaxs) do
 					boundaryMethods[x..minmax] = i == solver.dim and 'mirror' or 'periodic'
 				end
 			end
@@ -1367,7 +1368,7 @@ kernel void addExtraSource(
 		end,
 		resetState = function(self, solver)
 			-- super calls initStateKernel ...
-			InitState.resetState(self, solver)
+			InitCond.resetState(self, solver)
 			-- and here I'm going to fill the permittivity 'eps' with random noise
 			-- ... and put a source + and - current 'sigma' at two points on the image
 			local ptr = ffi.cast(solver.eqn.cons_t..'*', solver.UBufObj:toCPU())
@@ -1488,6 +1489,6 @@ kernel void addExtraSource(
 		end,
 	},
 }:map(function(cl)
-	return class(InitState, cl)
+	return class(InitCond, cl)
 end)
 return initStates

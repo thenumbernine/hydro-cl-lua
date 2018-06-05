@@ -70,6 +70,29 @@ function MeshSolver:init(args)
 	how about texture, and how about rendering?
 	texsize will have to be > #elems ... using size is fine as long as we need a gridsize
 	--]]
+
+	-- no longer is dim * volume the number of interfaces -- it is now dependent on the mesh
+	-- maybe I should rename this to numInterfaces?
+end
+
+function MeshSolver:refreshInitStateProgram()
+	-- override this until I know what to do...
+	--self.eqn.initState:refreshInitStateProgram(self)
+end
+
+function MeshSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
+	-- volume is the number of cells
+	-- maybe I should rename it to numCells
+	local volume = #self.mesh.cells
+	return {
+		volume = volume,
+		localSize1d = math.min(maxWorkGroupSize, volume),
+	}
+end
+
+function MeshSolver:applyInitCond()
+	assert(self.UBuf)
+	-- TODO read it in from a file?  and upload it?  or something?
 end
 
 function MeshSolver:update()

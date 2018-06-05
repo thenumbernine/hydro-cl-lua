@@ -28,12 +28,6 @@ function HLL:refreshSolverProgram()
 		'calcFlux',
 		self.fluxBuf,
 		self.getULRBuf)
-
-	-- TODO put this in solver/gridsolver.lua ?
-	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
-	end
 end
 
 local realptr = ffi.new'real[1]'
@@ -68,9 +62,7 @@ function HLL:calcDeriv(derivBuf, dt)
 	
 	self.calcDerivFromFluxKernelObj(derivBuf)
 	
-	-- addSource adds to the derivative buffer
 	if self.eqn.useSourceTerm then
-		-- can't use call because this uses the without-border size
 		self.addSourceKernelObj(derivBuf)
 	end
 end

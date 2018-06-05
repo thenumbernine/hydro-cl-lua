@@ -17,7 +17,8 @@ local roundup = require 'roundup'
 local time, getTime = table.unpack(require 'time')
 local SolverBase = require 'solver.solverbase'
 
-local common = require 'common'()	-- xNames, symNames
+local common = require 'common'()
+local minmaxs = common.minmaxs
 local xNames = common.xNames
 local symNames = common.symNames
 local from3x3to6 = common.from3x3to6 
@@ -27,8 +28,6 @@ local sym = common.sym
 
 --local tryingAMR = 'dt vs 2dt'
 --local tryingAMR = 'gradient'
-
-local minmaxs = table{'min', 'max'}
 
 
 local GridSolver = class(SolverBase)
@@ -86,15 +85,6 @@ function GridSolver:init(args)
 				end)
 		end
 	end
-
-
-	self.checkNaNs = false
-	self.useFixedDT = not not args.fixedDT
-	self.fixedDT = args.fixedDT or self.fixedDT or .001
-	self.cfl = args.cfl or .5	--/self.dim
-
-
-	self.fluxLimiter = self.app.limiterNames:find(args.fluxLimiter) or 1
 
 
 	self.usePLM = args.usePLM
@@ -239,8 +229,6 @@ end
 -- it rebuilds the code prefix, but doesn't reset the initState
 function GridSolver:refreshCodePrefix()
 	GridSolver.super.refreshCodePrefix(self)	-- refresh integrator
-	self:refreshInitStateProgram()
-	self:refreshSolverProgram()
 	-- changing initState calls this, and could change boundary programs, so I'm putting this here
 	-- bad excuse, I know
 	self:refreshBoundaryProgram()
@@ -338,42 +326,6 @@ end
 -- this is almost as bad of an idea as using OpenCL was to begin with
 GridSolver.allocateOneBigStructure = false
 
-function GridSolver:clalloc(name, size)
-	self.buffers:insert{name=name, size=size}
-end
-
-function GridSolver:finalizeCLAllocs()
-	local CLBuffer = require 'cl.obj.buffer'
-	local total = 0
-	for _,buffer in ipairs(self.buffers) do
-		buffer.offset = total
-		local name = buffer.name
-		local size = buffer.size
-		if not self.allocateOneBigStructure then
-			local mod = size % ffi.sizeof(self.app.env.real)
-			if mod ~= 0 then
-				-- WARNING?
-				size = size - mod + ffi.sizeof(self.app.env.real)
-				buffer.size = size
-			end
-		end
-		total = total + size
-		if not self.allocateOneBigStructure then
-			local bufObj = CLBuffer{
-				env = self.app.env,
-				name = name,
-				type = 'real',
-				size = size / ffi.sizeof(self.app.env.real),
-			}
-			self[name..'Obj'] = bufObj
-			self[name] = bufObj.obj
-		end
-	end
-	if self.allocateOneBigStructure then
-		self.oneBigBuf = self.app.ctx:buffer{rw=true, size=total}
-	end
-end
-
 function GridSolver:getConsLRTypeCode()
 	return template([[
 typedef union {
@@ -397,8 +349,6 @@ function GridSolver:createBuffers()
 	local realSize = ffi.sizeof(self.app.real)
 
 	-- to get sizeof
-	ffi.cdef(self.eqn:getTypeCode())
-	ffi.cdef(self.eqn:getExtraTypeCode())
 	ffi.cdef(self:getConsLRTypeCode())
 
 	-- for twofluid, cons_t has been renamed to euler_maxwell_t and maxwell_cons_t
@@ -701,10 +651,6 @@ print'done building solver.codePrefix'
 --print(self.codePrefix)
 end
 
-function GridSolver:refreshInitStateProgram()
-	self.eqn.initState:refreshInitStateProgram(self)
-end
-
 function GridSolver:resetState()
 	self.app.cmds:finish()
 		
@@ -784,36 +730,12 @@ kernel void multAdd(
 end
 
 function GridSolver:getSolverCode()
-	local fluxLimiterCode = 'real fluxLimiter(real r) {'
-		.. self.app.limiters[self.fluxLimiter].code 
-		.. '}'
-
 	local slopeLimiterCode = 'real slopeLimiter(real r) {'
 		.. self.app.limiters[self.slopeLimiter].code 
 		.. '}'
 	
-	return table{
-		self.codePrefix,
-		
-		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
-		self.eqn:getEigenCode() or '',
-		
-		fluxLimiterCode,
-		slopeLimiterCode,
-		
-		'typedef struct { real min, max; } range_t;',
-		
-		self.eqn:getSolverCode() or '',
-		self.eqn:getCalcDTCode() or '',
-		self.eqn:getFluxFromConsCode() or '',
-	
-		-- messing with this ...
-		self.usePLM and template(file['solver/plm.cl'], {solver=self, eqn=self.eqn}) or '',
-		self.useCTU and template(file['solver/ctu.cl'], {solver=self, eqn=self.eqn}) or '',
-
-		template(
-			({
-				['dt vs 2dt'] = [[
+	local amrCode = template(({
+		['dt vs 2dt'] = [[
 kernel void compareUvsU2(
 	global <?=eqn.cons_t?>* U2Buf,
 	const global <?=eqn.cons_t?>* UBuf
@@ -832,7 +754,7 @@ kernel void compareUvsU2(
 ?>	U2->ptr[0] = sum * 1e+5;
 }
 ]],
-				gradient = [==[
+		gradient = [==[
 kernel void calcAMRError(
 	global real* amrErrorBuf,
 	const global <?=eqn.cons_t?>* UBuf
@@ -894,15 +816,22 @@ kernel void initNodeFromRoot(
 	dstU[dstIndex] = UBuf[srcIndex];
 }
 ]==],
-			})[tryingAMR] or '', {
-				solver = self,
-				eqn = self.eqn,
-				clnumber = clnumber,
-			}),
-	}:append(self.ops:map(function(op)
-		return op:getSolverCode()
-	end)):append{
-		self:getDisplayCode(),
+	})[tryingAMR] or '', {
+		solver = self,
+		eqn = self.eqn,
+		clnumber = clnumber,
+	})
+
+	return table{
+		GridSolver.super.getSolverCode(self),
+			
+		slopeLimiterCode,
+		
+		-- messing with this ...
+		self.usePLM and template(file['solver/plm.cl'], {solver=self, eqn=self.eqn}) or '',
+		self.useCTU and template(file['solver/ctu.cl'], {solver=self, eqn=self.eqn}) or '',
+		
+		amrCode,
 	}:concat'\n'
 end
 
@@ -959,6 +888,13 @@ function GridSolver:refreshSolverProgram()
 
 	self:refreshCalcDTKernel()
 
+	-- this is created in the parent class, however it isn't called by the parent class.
+	--  instead it has to be called by the individual implementation classes
+	if self.eqn.useSourceTerm then
+		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
+		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
+	end
+
 	if self.eqn.useConstrainU then
 		self.constrainUKernelObj = self.solverProgramObj:kernel('constrainU', self.UBuf)
 	end
@@ -1011,7 +947,6 @@ end
 			end
 		end
 	end
-
 end
 
 -- for solvers who don't rely on calcDT
@@ -1458,7 +1393,7 @@ kernel void boundary_<?=xNames[side]?>(
 			return 'INDEX('..indexv(j)..')'
 		end
 	
-		for _,minmax in ipairs{'min', 'max'} do
+		for _,minmax in ipairs(minmaxs) do
 			local method = args.methods[xNames[side]..minmax]
 			lines:insert(method{
 				index = index,

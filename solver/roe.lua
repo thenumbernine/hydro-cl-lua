@@ -53,12 +53,6 @@ function Roe:refreshSolverProgram()
 		self.fluxBuf,
 		self.getULRBuf,
 		self.eigenBuf)
-
-	-- TODO put this in solver/gridsolver.lua ?
-	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
-	end
 end
 
 function Roe:addDisplayVars()
@@ -255,7 +249,6 @@ function Roe:calcDeriv(derivBuf, dt)
 	
 	self.calcDerivFromFluxKernelObj(derivBuf)
 
-	-- addSource adds to the derivative buffer
 	if self.eqn.useSourceTerm then
 		self.addSourceKernelObj(derivBuf)
 	end

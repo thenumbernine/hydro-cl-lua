@@ -3,6 +3,8 @@ changes I'm making to coincide with 2017 Ruchlin
 1) rename the gammaTilde_ll => gammaBar_ll
 2) rename ATilde_ll => ABar_ll
 3) separate gammaBar_ll = gammaHat_ll + epsilon_ll
+
+TODO implement these in eqn/ and solver/ bssnok-fd.lua
 --]]
 local file = require 'ext.file'
 local class = require 'ext.class'
