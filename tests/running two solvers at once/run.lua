@@ -45,7 +45,7 @@ function App:setup()
 	self.solvers:insert(cl(args))
 	local s1, s2 = self.solvers:unpack()
 
-	local numReals = s1.volume * s1.eqn.numStates
+	local numReals = s1.numCells * s1.eqn.numStates
 	local ptr1 = ffi.new('real[?]', numReals)
 	local ptr2 = ffi.new('real[?]', numReals)
 	local function compare(buf1, buf2)
@@ -107,7 +107,7 @@ function App:setup()
 		-- calcDeriv runs fine on its own
 		-- everything except calcDeriv runs on its own
 		-- but as soon as the two are put together, it dies
-		app.cmds:enqueueFillBuffer{buffer=self.integrator.derivBuf, size=self.volume * self.eqn.numStates * ffi.sizeof(app.real)}
+		app.cmds:enqueueFillBuffer{buffer=self.integrator.derivBuf, size=self.numCells * self.eqn.numStates * ffi.sizeof(app.real)}
 		-- this produces crap in s2
 		-- if it's not added into s2's UBuf then we're safe
 		-- if it isn't called and zero is added to s2's UBuf then we're safe
@@ -129,7 +129,7 @@ function App:setup()
 		--]]
 		--[[ fails with the other solver's forward-euler and multAddKernel
 		app.cmds:finish()
-		app.cmds:enqueueFillBuffer{buffer=s1.integrator.derivBuf, size=self.volume * self.eqn.numStates * ffi.sizeof(app.real)}
+		app.cmds:enqueueFillBuffer{buffer=s1.integrator.derivBuf, size=self.numCells * self.eqn.numStates * ffi.sizeof(app.real)}
 		self:calcDeriv(s1.integrator.derivBuf, dt)
 		s1.multAddKernelObj(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
 		app.cmds:finish()

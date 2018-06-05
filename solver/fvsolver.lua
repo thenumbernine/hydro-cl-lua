@@ -22,7 +22,7 @@ local FiniteVolumeSolver = class(GridSolver)
 
 function FiniteVolumeSolver:createBuffers()
 	FiniteVolumeSolver.super.createBuffers(self)
-	self:clalloc('fluxBuf', self.volume * self.dim * ffi.sizeof(self.eqn.cons_t))
+	self:clalloc('fluxBuf', self.numCells * self.dim * ffi.sizeof(self.eqn.cons_t))
 end
 
 function FiniteVolumeSolver:getSolverCode()

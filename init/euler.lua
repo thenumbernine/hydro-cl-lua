@@ -1372,7 +1372,7 @@ kernel void addExtraSource(
 			-- and here I'm going to fill the permittivity 'eps' with random noise
 			-- ... and put a source + and - current 'sigma' at two points on the image
 			local ptr = ffi.cast(solver.eqn.cons_t..'*', solver.UBufObj:toCPU())
-			for i=0,solver.volume-1 do
+			for i=0,solver.numCells-1 do
 				ptr[i].sigma = math.random() * 1e-4 + 1e-7
 			end
 			solver.UBufObj:fromCPU(ffi.cast('real*', ptr))

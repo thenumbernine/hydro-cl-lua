@@ -477,7 +477,7 @@ end
 function ADM_BonaMasso_3D:fillRandom(epsilon)
 	local ptr = ADM_BonaMasso_3D.super.fillRandom(self, epsilon)
 	local solver = self.solver
-	for i=0,solver.volume-1 do
+	for i=0,solver.numCells-1 do
 		ptr[i].alpha = ptr[i].alpha + 1
 		ptr[i].gamma.xx = ptr[i].gamma.xx + 1
 		ptr[i].gamma.yy = ptr[i].gamma.yy + 1

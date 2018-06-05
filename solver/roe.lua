@@ -23,7 +23,7 @@ function Roe:createBuffers()
 	-- to get sizeof
 	ffi.cdef(self.eqn:getEigenTypeCode())
 
-	self:clalloc('eigenBuf', self.volume * self.dim * ffi.sizeof(self.eqn.eigen_t))
+	self:clalloc('eigenBuf', self.numCells * self.dim * ffi.sizeof(self.eqn.eigen_t))
 end
 
 function Roe:getSolverCode()

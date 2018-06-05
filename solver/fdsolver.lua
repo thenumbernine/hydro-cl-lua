@@ -17,7 +17,7 @@ function FiniteDifferenceSolver:createBuffers()
 	-- while this is the same size as the finite-volume fluxBuf
 	-- that buffer stored the flux at interfaces of each side
 	-- while this stores the flux in each direction at the cell center
-	self:clalloc('fluxBuf', self.volume * self.dim * ffi.sizeof(self.eqn.cons_t))
+	self:clalloc('fluxBuf', self.numCells * self.dim * ffi.sizeof(self.eqn.cons_t))
 end
 
 function FiniteDifferenceSolver:getSolverCode()

@@ -38,7 +38,7 @@ function BackwardEuler:init(solver)
 
 -- formerly createBuffers
 
-	local bufferSize = solver.volume * ffi.sizeof(solver.eqn.cons_t)
+	local bufferSize = solver.numCells * ffi.sizeof(solver.eqn.cons_t)
 	local realSize = ffi.sizeof(solver.app.env.real)
 	for _,name in ipairs{
 		'krylov_b',
@@ -106,7 +106,7 @@ function BackwardEuler:init(solver)
 ]],
 	}
 	
-	local numreals = solver.volume * solver.eqn.numStates
+	local numreals = solver.numCells * solver.eqn.numStates
 	local volumeWithoutBorder = tonumber(solver.sizeWithoutBorder:volume())
 	local numRealsWithoutBorder = volumeWithoutBorder * solver.eqn.numStates
 	
@@ -208,7 +208,7 @@ end
 function BackwardEuler:updateGUI()
 	tooltip.numberTable('Krylov epsilon', self.linearSolver.args, 'epsilon')
 	tooltip.intTable('GMRES restart', self.linearSolver.args, 'restart')
-	tooltip.intTable('Krylov maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * volume * number of states
+	tooltip.intTable('Krylov maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
 	-- read-only:
 	ig.igText('err = '..self.last_err)	-- this is |r|
 	ig.igText('iter = '..self.last_iter)

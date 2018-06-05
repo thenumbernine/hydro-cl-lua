@@ -9,7 +9,7 @@ kernel void updateCTU(
 ) {
 	SETBOUNDS(0,1);
 	real3 x = cell_x(i);
-	real volume = volume_at(x);
+	real sqrt_det_g = sqrt_det_g_grid(x);
 
 	<? 
 for side=0,solver.dim-1 do 
@@ -24,13 +24,13 @@ for side=0,solver.dim-1 do
 			
 		real3 xIntL = x;
 		xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
-		real volumeIntL = volume_at(xIntL);
-		real areaL = volumeIntL / grid_dx<?=side?>;
+		real sqrt_det_g_intL = sqrt_det_g_grid(xIntL);
+		real areaL = sqrt_det_g_intL / grid_dx<?=side?>;
 	
 		real3 xIntR = x;
 		xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
-		real volumeIntR = volume_at(xIntR);
-		real areaR = volumeIntR / grid_dx<?=side?>;
+		real sqrt_det_g_intR = sqrt_det_g_grid(xIntR);
+		real areaR = sqrt_det_g_intR / grid_dx<?=side?>;
 	
 		<?
 	for side2=0,solver.dim-1 do
@@ -43,7 +43,7 @@ for side=0,solver.dim-1 do
 				real dF_dx = (
 					fluxR->ptr[j] * areaR
 					- fluxL->ptr[j] * areaL
-				) / volume;
+				) / sqrt_det_g;
 
 				ULR->L.ptr[j] -= .5 * dt * dF_dx;
 				ULR->R.ptr[j] -= .5 * dt * dF_dx;

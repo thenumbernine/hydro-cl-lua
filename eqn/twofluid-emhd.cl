@@ -109,7 +109,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 //fluid components are same as in eqn/euler.cl
 //Maxwell plus divergence is in a worksheet
 kernel void calcEigenBasis(
-	global <?=eqn.eigen_t?>* eigenBuf,		//[volume][dim]
+	global <?=eqn.eigen_t?>* eigenBuf,		//[numCells][dim]
 	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);

@@ -51,7 +51,7 @@ function Poisson:initSolver()
 			env = solver.app.env,
 			name = name,
 			type = 'real',
-			size = solver.volume,	-- without border?
+			size = solver.numCells,	-- without border?
 		}
 	end
 
@@ -265,7 +265,7 @@ function Poisson:updateGUI()
 	if ig.igCollapsingHeader'Poisson solver' then
 		tooltip.numberTable('Krylov epsilon', self.linearSolver.args, 'epsilon')
 		tooltip.intTable('GMRES restart', self.linearSolver.args, 'restart')
-		tooltip.intTable('Krylov maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * volume * number of states
+		tooltip.intTable('Krylov maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
 		-- read-only:
 		ig.igText('err = '..self.last_err)
 		ig.igText('iter = '..self.last_iter)

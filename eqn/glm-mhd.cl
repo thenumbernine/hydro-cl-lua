@@ -286,7 +286,7 @@ Roe_t calcRoeValues(
 
 
 kernel void calcEigenBasis(
-	global <?=eqn.eigen_t?>* eigenBuf,		//[volume][dim]
+	global <?=eqn.eigen_t?>* eigenBuf,		//[numCells][dim]
 	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);

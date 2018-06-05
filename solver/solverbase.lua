@@ -4,6 +4,7 @@ local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
+local math = require 'ext.math'
 local template = require 'template'
 local vec3 = require 'vec.vec3'
 local roundup = require 'roundup'
@@ -85,7 +86,7 @@ end
 
 function SolverBase:postInit()
 	-- [[
-	-- GridSolver calls refreshGridSize
+	-- SolverBase calls refreshGridSize
 	--  refreshGridSize calls these:
 	
 	self.maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
@@ -161,15 +162,15 @@ function SolverBase:createBuffers()
 		error("for PLM's sake I might need sizeof(prim_t) <= sizeof(cons_t)")
 	end
 
-	local UBufSize = self.volume * ffi.sizeof(self.eqn.cons_t)
+	local UBufSize = self.numCells * ffi.sizeof(self.eqn.cons_t)
 	self:clalloc('UBuf', UBufSize)
 
 	-- used both by reduceMin and reduceMax
 	-- (and TODO use this by sum() in implicit solver as well?)
 	-- times three because this is also used by the displayVar 
 	-- on non-GL-sharing cards.
-	self:clalloc('reduceBuf', self.volume * realSize * 3)
-	local reduceSwapBufSize = roundup(self.volume * realSize / self.localSize1d, realSize)
+	self:clalloc('reduceBuf', self.numCells * realSize * 3)
+	local reduceSwapBufSize = roundup(self.numCells * realSize / self.localSize1d, realSize)
 	self:clalloc('reduceSwapBuf', reduceSwapBufSize)
 	self.reduceResultPtr = ffi.new('real[1]', 0)
 
@@ -538,6 +539,26 @@ end
 
 SolverBase.fpsNumSamples = 30
 
+
+function SolverBase:calcDT()
+	local dt
+	-- calc cell wavespeeds -> dts
+	if self.useFixedDT then
+		dt = self.fixedDT
+	else
+		-- TODO this without the border, but that means changing reduce *and display*
+		self.calcDTKernelObj()
+		dt = self.cfl * self.reduceMin()
+		if not math.isfinite(dt) then
+			print("got a bad dt at time "..self.t) -- TODO dump all buffers
+		end
+		self.fixedDT = dt
+	end
+	return dt
+end
+
+
+
 function SolverBase:update()
 	--[[
 	Here's an update-based FPS counter.
@@ -559,9 +580,27 @@ function SolverBase:update()
 		self.fps = self.fpsSamples:sum() / #self.fpsSamples
 	end
 	self.lastFrameTime = thisTime
+
+	if self.checkNaNs then
+		if self:checkFinite(self.UBufObj, self.numCells) then return end
+	end
 end
 
 function SolverBase:updateGUIParams()
+	ig.igText('t: '..self.t)
+	
+	-- hmm put fps somewhere else, or put ms update here
+	ig.igText('fps: '..(self.fps and tostring(self.fps) or ''))
+		
+	tooltip.checkboxTable('check NaNs', self, 'checkNaNs')
+
+	tooltip.checkboxTable('use fixed dt', self, 'useFixedDT')
+	ig.igSameLine()
+	
+	tooltip.numberTable('fixed dt', self, 'fixedDT')
+	tooltip.numberTable('CFL', self, 'cfl')
+
+
 	if tooltip.comboTable('integrator', self, 'integratorIndex', integratorNames) then
 		self:refreshIntegrator()
 	end
@@ -580,6 +619,10 @@ function SolverBase:updateGUIParams()
 		ig.igPushIDInt(i)
 		op:updateGUI()
 		ig.igPopID()
+	end
+
+	if tooltip.comboTable('flux limiter', self, 'fluxLimiter', self.app.limiterNames) then
+		self:refreshSolverProgram()
 	end
 end
 

@@ -6,7 +6,7 @@ kernel void diffuse(
 	SETBOUNDS_NOGHOST()
 
 	const real viscosity = .001;
-	const real alpha = dt * <?=clnumber(solver.volume)?> * viscosity;
+	const real alpha = dt * <?=clnumber(solver.numCells)?> * viscosity;
 	const real diag = (1. + 2. * dim * alpha);
 	UNextBuf = (UBuf + source * dt + alpha * sumSkew) / diag;
 }

@@ -60,9 +60,9 @@ local ffi = require 'ffi'
 local function crand() return 2 * math.random() - 1 end
 function EinsteinEquation:fillRandom(epsilon)
 	local solver = self.solver
-	local ptr = ffi.new(self.cons_t..'[?]', solver.volume)
+	local ptr = ffi.new(self.cons_t..'[?]', solver.numCells)
 	ffi.fill(ptr, 0, ffi.sizeof(ptr))
-	for i=0,solver.volume-1 do
+	for i=0,solver.numCells-1 do
 		for j=0,self.numStates-1 do
 			ptr[i].ptr[j] = epsilon * crand()
 		end

@@ -160,7 +160,7 @@ local function crand() return 2 * math.random() - 1 end
 function ADM_BonaMasso_1D_Alcubierre2008:fillRandom(epsilon)
 	local ptr = ADM_BonaMasso_1D_Alcubierre2008.super.fillRandom(self, epsilon)
 	local solver = self.solver
-	for i=0,solver.volume-1 do
+	for i=0,solver.numCells-1 do
 		ptr[i].alpha = ptr[i].alpha + 1
 		ptr[i].gamma_xx = ptr[i].gamma_xx + 1
 	end

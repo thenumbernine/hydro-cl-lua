@@ -10,9 +10,12 @@ local solver = eqn.solver
 local clnumber = require 'cl.obj.number'
 local makePartials = require 'eqn.makepartial'
 
-local derivOrder = 2 * solver.numGhost
-local makePartial = function(...) return makePartials.makePartial(derivOrder, solver, ...) end
-local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end
+local derivOrder, makePartial, makePartial2
+if eqn.guiVars.useNavierStokesViscosityTerm.value then 
+	derivOrder = 2 * solver.numGhost
+	makePartial = function(...) return makePartials.makePartial(derivOrder, solver, ...) end
+	makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end
+end
 ?>
 
 <? for side=0,solver.dim-1 do ?>
@@ -113,13 +116,13 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 //this routine is pretty standard.
 //why not move it to Roe or somewhere similar?
 kernel void calcEigenBasis(
-	global <?=eqn.eigen_t?>* eigenBuf,		//[volume][dim]
+	global <?=eqn.eigen_t?>* eigenBuf,		//[numCells][dim]
 	<?= solver.getULRArg ?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	real3 x = cell_x(i);
 	int indexR = index;
-
+	
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexL = index - stepsize.s<?=side?>;

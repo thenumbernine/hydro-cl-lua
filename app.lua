@@ -165,7 +165,7 @@ local function printState(solver)
 	
 	local cols = {0, 1, 4}
 	
-	for i=0,solver.volume-1 do
+	for i=0,solver.numCells-1 do
 		-- matching the cl defs:
 		local dx = (solver.maxs[1] - solver.mins[1]) / (tonumber(solver.gridSize.x) - (2*solver.numGhost))
 		local x = (i + .5 - solver.numGhost) * dx + solver.mins[1]

@@ -155,7 +155,7 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	end
 	local volumeWithoutBorder = tonumber(sizeWithoutBorder:volume())
 	
-	local volume = tonumber(self.gridSize:volume())
+	local numCells = tonumber(self.gridSize:volume())
 
 	return {
 		localSize1d = localSize1d,
@@ -164,7 +164,7 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 		globalSize = globalSize,
 		sizeWithoutBorder = sizeWithoutBorder,
 		volumeWithoutBorder = volumeWithoutBorder,
-		volume = volume,
+		numCells = numCells,
 	}
 end
 
@@ -462,7 +462,7 @@ print('self.amrRootSizeInFromSize', self.amrRootSizeInFromSize)
 end
 
 	-- this much for the first level U data
-	local UBufSize = self.volume * ffi.sizeof(self.eqn.cons_t)
+	local UBufSize = self.numCells * ffi.sizeof(self.eqn.cons_t)
 if tryingARM == 'gradient' then	
 	UBufSize = UBufSize + self.amrMaxNodes * self.amrNodeSize:volume()
 end	
@@ -471,8 +471,8 @@ end
 
 if tryingAMR == 'dt vs 2dt' then
 	-- here's my start at AMR, using the 1989 Berger, Collela two-small-steps vs one-big-step method
-	self:clalloc('lastUBuf', self.volume * ffi.sizeof(self.eqn.cons_t))
-	self:clalloc('U2Buf', self.volume * ffi.sizeof(self.eqn.cons_t))
+	self:clalloc('lastUBuf', self.numCells * ffi.sizeof(self.eqn.cons_t))
+	self:clalloc('U2Buf', self.numCells * ffi.sizeof(self.eqn.cons_t))
 elseif tryingAMR == 'gradient' then
 	
 	-- this is going to be a single value for each leaf
@@ -485,15 +485,15 @@ elseif tryingAMR == 'gradient' then
 end
 
 	if self.usePLM then
-		self:clalloc('ULRBuf', self.volume * self.dim * ffi.sizeof(self.eqn.consLR_t))
+		self:clalloc('ULRBuf', self.numCells * self.dim * ffi.sizeof(self.eqn.consLR_t))
 	end
 
 	-- used both by reduceMin and reduceMax
 	-- (and TODO use this by sum() in implicit solver as well?)
 	-- times three because this is also used by the displayVar 
 	-- on non-GL-sharing cards.
-	self:clalloc('reduceBuf', self.volume * realSize * 3)
-	local reduceSwapBufSize = roundup(self.volume * realSize / self.localSize1d, realSize)
+	self:clalloc('reduceBuf', self.numCells * realSize * 3)
+	local reduceSwapBufSize = roundup(self.numCells * realSize / self.localSize1d, realSize)
 	self:clalloc('reduceSwapBuf', reduceSwapBufSize)
 	self.reduceResultPtr = ffi.new('real[1]', 0)
 
@@ -523,7 +523,7 @@ end
 	if self.app.useGLSharing then
 		self.texCLMem = CLImageGL{context=self.app.ctx, tex=self.tex, write=true}
 	else
-		self.calcDisplayVarToTexPtr = ffi.new(self.app.real..'[?]', self.volume * 3)
+		self.calcDisplayVarToTexPtr = ffi.new(self.app.real..'[?]', self.numCells * 3)
 		
 		--[[ PBOs?
 		self.calcDisplayVarToTexPBO = ffi.new('gl_int[1]', 0)
@@ -704,7 +704,7 @@ kernel void multAdd(
 	self.multAddKernelObj = self.commonProgramObj:kernel{name='multAdd', domain=self.domainWithoutBorder}
 
 	self.reduceMin = self.app.env:reduce{
-		size = self.volume,
+		size = self.numCells,
 		op = function(x,y) return 'min('..x..', '..y..')' end,
 		initValue = 'INFINITY',
 		buffer = self.reduceBuf,
@@ -712,7 +712,7 @@ kernel void multAdd(
 		result = self.reduceResultPtr,
 	}
 	self.reduceMax = self.app.env:reduce{
-		size = self.volume,
+		size = self.numCells,
 		op = function(x,y) return 'max('..x..', '..y..')' end,
 		initValue = '-INFINITY',
 		buffer = self.reduceBuf,
@@ -720,7 +720,7 @@ kernel void multAdd(
 		result = self.reduceResultPtr,
 	}
 	self.reduceSum = self.app.env:reduce{
-		size = self.volume,
+		size = self.numCells,
 		op = function(x,y) return x..' + '..y end,
 		initValue = '0.',
 		buffer = self.reduceBuf,
@@ -808,7 +808,7 @@ kernel void initNodeFromRoot(
 	int dstIndex = i.x + numGhost + <?=solver.amrNodeSize.x?> * (i.y + numGhost);
 	int srcIndex = from.x + (i.x>>1) + numGhost + gridSize_x * (from.y + (i.y>>1) + numGhost);
 
-	global <?=eqn.cons_t?>* dstU = UBuf + <?=solver.volume?> + toNodeIndex * <?=solver.amrNodeSize:volume()?>;
+	global <?=eqn.cons_t?>* dstU = UBuf + <?=solver.numCells?> + toNodeIndex * <?=solver.amrNodeSize:volume()?>;
 	
 	//blitter srcU sized solver.amrNodeFromSize (in a patch of size solver.gridSize)
 	// to dstU sized solver.amrNodeSize (in a patch of solver.amrNodeSize)
@@ -1519,30 +1519,9 @@ end
 -------------------------------------------------------------------------------
 
 
-function GridSolver:calcDT()
-	local dt
-	-- calc cell wavespeeds -> dts
-	if self.useFixedDT then
-		dt = self.fixedDT
-	else
-		-- TODO this without the border, but that means changing reduce *and display*
-		self.calcDTKernelObj()
-		dt = self.cfl * self.reduceMin()
-		if not math.isfinite(dt) then
-			print("got a bad dt at time "..self.t) -- TODO dump all buffers
-		end
-		self.fixedDT = dt
-	end
-	return dt
-end
-
 function GridSolver:update()
 	GridSolver.super.update(self)
 	
-	if self.checkNaNs then
-		if self:checkFinite(self.UBufObj, self.volume) then return end
-	end
-
 --local before = self.UBufObj:toCPU()
 --print'\nself.UBufObj before boundary:' self:printBuf(self.UBufObj) print(debug.traceback(),'\n\n')	
 	self:boundary()
@@ -1575,7 +1554,7 @@ end
 
 if tryingAMR == 'dt vs 2dt' then
 	-- back up the last buffer
-	self.app.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.lastUBuf, size=self.volume * self.eqn.numStates * ffi.sizeof(self.app.real)}
+	self.app.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.lastUBuf, size=self.numCells * self.eqn.numStates * ffi.sizeof(self.app.real)}
 end
 	
 	-- first do a big step
@@ -1584,8 +1563,8 @@ end
 	-- now copy it to the backup buffer
 if tryingAMR == 'dt vs 2dt' then
 	-- TODO have step() provide a target, and just update directly into U2Buf?
-	self.app.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.U2Buf, size=self.volume * self.eqn.numStates * ffi.sizeof(self.app.real)}
-	self.app.cmds:enqueueCopyBuffer{src=self.lastUBuf, dst=self.UBuf, size=self.volume * self.eqn.numStates * ffi.sizeof(self.app.real)}
+	self.app.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.U2Buf, size=self.numCells * self.eqn.numStates * ffi.sizeof(self.app.real)}
+	self.app.cmds:enqueueCopyBuffer{src=self.lastUBuf, dst=self.UBuf, size=self.numCells * self.eqn.numStates * ffi.sizeof(self.app.real)}
 
 	local t = self.t
 	self:step(.5 * dt)
@@ -1733,8 +1712,8 @@ end
 
 function GridSolver:printBuf(buf, ptr)
 	ptr = ptr or buf:toCPU()
-	local max = #tostring(self.volume-1)
-	for i=0,self.volume-1 do
+	local max = #tostring(self.numCells-1)
+	for i=0,self.numCells-1 do
 		io.write((' '):rep(max-#tostring(i)), i,':')
 		for j=0,self.eqn.numStates-1 do
 			io.write(' ', ptr[j + self.eqn.numStates * i])
@@ -1745,7 +1724,7 @@ end
 
 -- check for nans
 -- expects buf to be of type cons_t, made up of numStates real variables
-function GridSolver:checkFinite(buf, volume)
+function GridSolver:checkFinite(buf)
 	local ptr = buf:toCPU()
 	local found
 	for i=0,buf.size-1 do
@@ -1790,12 +1769,12 @@ function GridSolver:calcDisplayVarToTex(var)
 
 		var:setToBufferArgs()
 		var.calcDisplayVarToBufferKernelObj()
-		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.volume * channels, ptr=ptr}
+		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
 		local destPtr = ptr
 		if app.is64bit then
 			-- can this run in place?
 			destPtr = ffi.cast('float*', ptr)
-			for i=0,self.volume*channels-1 do
+			for i=0,self.numCells*channels-1 do
 				destPtr[i] = ptr[i]
 			end
 		end
@@ -1843,7 +1822,7 @@ function GridSolver:calcDisplayVarRangeAndAvg(var)
 	local avg
 	if needsUpdate then
 		var.calcDisplayVarToBufferKernelObj()
-		avg = self.reduceSum(nil, self.volume) / tonumber(self.volume)
+		avg = self.reduceSum(nil, self.numCells) / tonumber(self.numCells)
 	else
 		avg = var.lastAvg
 	end
@@ -1851,22 +1830,10 @@ function GridSolver:calcDisplayVarRangeAndAvg(var)
 	return min, max, avg
 end
 
-function GridSolver:updateGUIParams()
-	ig.igText('t: '..self.t)
-
-	-- hmm put fps somewhere else, or put ms update here
-	ig.igText('fps: '..(self.fps and tostring(self.fps) or ''))
-	
+function GridSolver:updateGUIParams()	
 	if ig.igCollapsingHeader'parameters:' then
-
-		tooltip.checkboxTable('check NaNs', self, 'checkNaNs')
-
-		tooltip.checkboxTable('use fixed dt', self, 'useFixedDT')
-		ig.igSameLine()
+		GridSolver.super.updateGUIParams(self)
 		
-		tooltip.numberTable('fixed dt', self, 'fixedDT')
-		tooltip.numberTable('CFL', self, 'cfl')
-
 		for i=1,self.dim do
 			for _,minmax in ipairs(minmaxs) do
 				local k = xNames[i]..minmax
@@ -1878,13 +1845,7 @@ function GridSolver:updateGUIParams()
 				end
 			end
 		end
-
-		GridSolver.super.updateGUIParams(self)
 		
-		if tooltip.comboTable('slope limiter', self, 'fluxLimiter', self.app.limiterNames) then
-			self:refreshSolverProgram()
-		end
-
 		for i=1,self.dim do
 			for _,minmax in ipairs(minmaxs) do
 				local var = xNames[i]..minmax
@@ -2009,13 +1970,13 @@ function GridSolver:save(prefix)
 
 	for _,bufferInfo in ipairs(self.buffers) do
 		local name = bufferInfo.name
-		local channels = bufferInfo.size / self.volume / ffi.sizeof(self.app.real)
+		local channels = bufferInfo.size / self.numCells / ffi.sizeof(self.app.real)
 		if channels ~= math.floor(channels) then
-			print("can't save buffer "..name.." due to its size not being divisible by the solver volume")
+			print("can't save buffer "..name.." due to its size not being divisible by the numCells")
 		else
 			local buffer = self[name]
 
-			local numReals = self.volume * channels
+			local numReals = self.numCells * channels
 --[[ 3D interleave the depth and the channels ... causes FV to break 
 			local image = Image(width, height, depth * channels, assert(self.app.real))
 			local function getIndex(ch,i,j,k) return i + width * (j + height * (ch + channels * k)) end

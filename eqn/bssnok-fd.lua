@@ -505,7 +505,7 @@ end
 function BSSNOKFiniteDifferenceEquation:fillRandom(epsilon)
 	local ptr = BSSNOKFiniteDifferenceEquation.super.fillRandom(self, epsilon)
 	local solver = self.solver
-	for i=0,solver.volume-1 do
+	for i=0,solver.numCells-1 do
 		ptr[i].alpha = ptr[i].alpha + 1
 		ptr[i].gammaTilde_ll.xx = ptr[i].gammaTilde_ll.xx + 1
 		ptr[i].gammaTilde_ll.yy = ptr[i].gammaTilde_ll.yy + 1

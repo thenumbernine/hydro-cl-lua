@@ -515,7 +515,7 @@ end
 function Z4cFiniteDifferenceEquation:fillRandom(epsilon)
 	local ptr = Z4cFiniteDifferenceEquation.super.fillRandom(self, epsilon)
 	local solver = self.solver
-	for i=0,solver.volume-1 do
+	for i=0,solver.numCells-1 do
 		ptr[i].alpha = ptr[i].alpha + 1
 	end
 	solver.UBufObj:fromCPU(ptr)
