@@ -28,7 +28,7 @@ end
 function FiniteVolumeSolver:getSolverCode()
 	return table{
 		FiniteVolumeSolver.super.getSolverCode(self),
-		template(file['solver/calcDeriv.cl'], {solver=self}),
+		template(file['solver/calcDerivFV.cl'], {solver=self}),
 	}:concat'\n'
 end
 

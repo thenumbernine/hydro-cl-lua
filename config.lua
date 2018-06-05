@@ -4,7 +4,7 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -16,7 +16,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	--integrator = 'backward Euler',
+	integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	--cfl = .25/dim,
@@ -37,7 +37,7 @@ local args = {
 
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -120,14 +120,14 @@ maxs = {6,1,1},
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	-- for some reason [rmin, rmax] = [.5, 1] gets an explosion right at r=rmin, theta=0 ... but any other values work fine
 	coord = 'cylinder',
 	mins = cmdline.mins or {.1, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
-		{16, 64, 1}, -- 2D
+		{64, 256, 1}, -- 2D
 		{16, 64, 16}, -- 3D
 	})[dim],
 	boundary = {
@@ -296,7 +296,7 @@ maxs = {6,1,1},
 	--initState = 'black hole - Schwarzschild pseudocartesian',
 	
 	
-	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
+	initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 
 	--[[ single black hole, spinning, demonstrating ergosphere formation
 	initStateArgs = {
@@ -375,6 +375,7 @@ maxs = {6,1,1},
 	--initState = 'testbed - linear wave - diagonal',
 	--initState = 'testbed - Gowdy',
 
+
 	-- NLS
 	--initState = 'Gaussian',
 	--initState = 'Ring',
@@ -422,7 +423,7 @@ maxs = {6,1,1},
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='mhd'})))
 
@@ -493,7 +494,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 --self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- Z4c finite difference, combining BSSNOK and Z4
---self.solvers:insert(require 'solver.z4c-fd'(args))
+self.solvers:insert(require 'solver.z4c-fd'(args))
 
 
 --self.solvers:insert(require 'solver.nls'(args))

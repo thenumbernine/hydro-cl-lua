@@ -276,3 +276,19 @@ static inline _3sym3 sym3_3sym3_mul(sym3 a, _3sym3 b) {
 <? end
 ?>	};
 }
+
+//c^i = a^i_jk b^jk
+static inline real3 _3sym3_sym3_dot23(_3sym3 a, sym3 b) {
+	return (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = 0.<?
+	for j,xj in ipairs(xNames) do
+		for k,xk in ipairs(xNames) do
+?> + a.<?=xi?>.<?=sym(j,k)?> * b.<?=sym(j,k)?><?
+		end
+	end ?>,
+<? end
+?>	};
+}
+
+

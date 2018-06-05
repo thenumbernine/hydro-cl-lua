@@ -28,6 +28,15 @@ function Z4cFiniteDifferenceSolver:init(...)
 	self.name = nil	-- don't append the eqn name to this
 end
 
+function Z4cFiniteDifferenceSolver:postInit(...)
+	Z4cFiniteDifferenceSolver.super.postInit(self, ...)
+	if not require 'int.be'.is(self.integrator) then
+		print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		print("!! you're using a finite difference solver without an implicit integrator !!")
+		print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+	end
+end
+
 function Z4cFiniteDifferenceSolver:refreshSolverProgram()
 	Z4cFiniteDifferenceSolver.super.refreshSolverProgram(self)
 	
@@ -48,14 +57,24 @@ function Z4cFiniteDifferenceSolver:getDisplayInfosForType()
 	-- hmm, only works with U ... so it only applies to U ...
 	table.insert(t.real3, {
 		name = ' norm weighted',
-		code = '*value = real3_weightedLen(*valuevec, U->gammaTilde_ll) / calc_exp_neg4phi(U);',
+		code = [[
+	{
+		sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+		real exp_4phi = 1. / calc_exp_neg4phi(U);
+		sym3 gamma_ll = sym3_scale(gammaBar_ll, exp_4phi);
+		*value = real3_weightedLen(*valuevec, gammaBar_ll);
+	}
+]],
 	})
 
-	-- hmm, how to do the weighting stuff with gammaTilde_ll ... 
-	-- also, how to determine which metric to raise by ... gamma vs gammaTilde
+	-- hmm, how to do the weighting stuff with gammaBar_ll ... 
+	-- also, how to determine which metric to raise by ... gamma vs gammaBar
 	table.insert(t.sym3, {
 		name = ' tr weighted',
-		code = '*value = sym3_dot(U->gammaTilde_uu, *valuesym3) / calc_det_gamma(U, x);',
+		code = [[
+	real det_gamma_ll = calc_det_gamma_ll(U, x);
+	*value = sym3_dot(U->gammaBar_uu, *valuesym3) / det_gamma_ll;
+]],
 	})
 
 	return t

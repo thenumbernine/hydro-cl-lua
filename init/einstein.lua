@@ -8,21 +8,6 @@ local InitCond = require 'init.init'
 
 local common = require 'common'()
 local xNames = common.xNames
-local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
-local sym = common.sym
-
-local function getTemplateEnv(solver)
-	return {
-		solver = solver,
-		xNames = xNames,
-		symNames = symNames,
-		from3x3to6 = from3x3to6,
-		from6to3x3 = from6to3x3,
-		clnumber = clnumber,
-	}
-end
 
 local function compileC(expr, name, vars)
 	assert(type(expr) == 'table', "expected table, found "..type(expr))

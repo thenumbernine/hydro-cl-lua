@@ -17,7 +17,7 @@ local sym = common.sym
 
 local Equation = class()
 
--- this is passed on to solver/calcDeriv.cl
+-- this is passed on to solver/calcDerivFV.cl
 -- it has the effect of adding the connection terms Conn^k_jk u^I_,j (for the I'th conserved quantity u^I)
 Equation.weightFluxByGridVolume = true
 

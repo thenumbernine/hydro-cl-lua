@@ -45,6 +45,14 @@ kernel void calcDerivFromFlux(
 		const real areaR = 1.;
 <? end ?>
 
+<? if not eqn.postComputeFluxCode then -- would the compiler know to optimize this? ?>
+		for (int j = 0; j < numIntStates; ++j) {
+			deriv->ptr[j] -= (
+				fluxR->ptr[j] * areaR
+				- fluxL->ptr[j] * areaL
+			) / sqrt_det_g;
+		}
+<? else ?>
 		<?=eqn.cons_t?> flux;
 		for (int j = 0; j < numIntStates; ++j) {
 			flux.ptr[j] = (
@@ -60,6 +68,7 @@ kernel void calcDerivFromFlux(
 		for (int j = 0; j < numIntStates; ++j) {
 			deriv->ptr[j] -= flux.ptr[j];
 		}
-	
+<? end ?>
+
 	}<? end ?>
 }

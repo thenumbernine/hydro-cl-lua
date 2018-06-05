@@ -39,13 +39,16 @@ function EinsteinEquation:createBoundaryOptions()
 		fixed = function(args)
 			local lines = table()
 			local gridSizeSide = 'gridSize_'..xNames[args.side]
-			for _,U in ipairs{
-				'buf['..args.index'j'..']',
-				'buf['..args.index(gridSizeSide..'-numGhost+j')..']',
-			} do
+			for _,j in ipairs{'j', gridSizeSide..'-numGhost+j'} do
+				local index = args.indexv(j)
+				local U = 'buf[INDEX('..index..')]'
 				lines:insert(template([[
-	setFlatSpace(&<?=U?>);
-]], {eqn=eqn, U=U}))
+	setFlatSpace(&<?=U?>, cell_x((int4)(<?=index?>, 0)));
+]], 			{
+					eqn = eqn,
+					U = U,
+					index = index,
+				}))
 			end
 			return lines:concat'\n'
 		end,

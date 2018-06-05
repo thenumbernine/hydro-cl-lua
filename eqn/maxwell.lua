@@ -51,6 +51,7 @@ local Maxwell = class(Equation)
 Maxwell.weightFluxByGridVolume = false
 
 Maxwell.postComputeFluxCode = [[
+		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
 		real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);

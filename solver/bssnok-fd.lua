@@ -29,6 +29,16 @@ function BSSNOKFiniteDifferenceSolver:init(...)
 	self.name = nil	-- don't append the eqn name to this
 end
 
+function BSSNOKFiniteDifferenceSolver:postInit(...)
+	Z4cFiniteDifferenceSolver.super.postInit(self, ...)
+	if not require 'int.be'.is(self.integrator) then
+		print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		print("!! you're using a finite difference solver without an implicit integrator !!")
+		print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+print(require 'ext.tolua'(self.integrator))	
+	end
+end
+
 function BSSNOKFiniteDifferenceSolver:refreshSolverProgram()
 	BSSNOKFiniteDifferenceSolver.super.refreshSolverProgram(self)
 	

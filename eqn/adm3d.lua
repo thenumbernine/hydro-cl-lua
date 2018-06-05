@@ -197,7 +197,7 @@ end
 
 function ADM_BonaMasso_3D:getCommonFuncCode()
 	return template([[
-void setFlatSpace(global <?=eqn.cons_t?>* U) {
+void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->alpha = 1.;
 	U->gamma = _sym3(1,0,0,1,0,1);
 	U->a = _real3(0,0,0);

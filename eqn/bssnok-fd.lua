@@ -5,13 +5,7 @@ local template = require 'template'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'eqn.einstein'
 local makestruct = require 'eqn.makestruct'
-
-local common = require 'common'()
-local xNames = common.xNames
-local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
-local sym = common.sym
+local applyCommon = require 'common'
 
 local makePartials = require 'eqn.makepartial'
 local makePartial = makePartials.makePartial
@@ -103,14 +97,9 @@ end
 
 function BSSNOKFiniteDifferenceEquation:getTemplateEnv()
 	local derivOrder = 2 * self.solver.numGhost
-	return {
+	return applyCommon{
 		eqn = self,
 		solver = self.solver,
-		xNames = xNames,
-		symNames = symNames,
-		from3x3to6 = from3x3to6,
-		from6to3x3 = from6to3x3,
-		sym = sym,
 		makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
 		makePartial2 = function(...) return makePartial2(derivOrder, self.solver, ...) end,
 	}
@@ -118,7 +107,7 @@ end
 
 function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
 	return template([[
-void setFlatSpace(global <?=eqn.cons_t?>* U) {
+void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->alpha = 1.;
 	U->beta_u = _real3(0,0,0);
 	U->gammaTilde_ll = _sym3(1,0,0,1,0,1);
@@ -231,7 +220,7 @@ kernel void initDerivs(
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
-
+	
 <?=makePartial('gammaTilde_uu', 'sym3')?>
 
 	//connBar^i = -gammaTilde^ij_,j
@@ -345,12 +334,10 @@ for i,xi in ipairs(xNames) do
 <?	end
 end
 ?>		- U->K;
-]], 			{
+]], 			applyCommon{
 					eqn = self,
 					solver = self.solver,
 					makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
-					xNames = xNames,
-					sym = sym,
 				}
 
 			)
@@ -502,12 +489,10 @@ end ?>;
 	; 
 <? end
 ?>
-]],				{
+]],				applyCommon{
 					eqn = self,
 					solver = self.solver,
 					makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
-					xNames = xNames,
-					sym = sym,
 				}
 			), 
 			type = 'real3',

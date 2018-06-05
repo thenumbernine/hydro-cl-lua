@@ -50,7 +50,7 @@ end
 
 function Z4:getCommonFuncCode()
 	return template([[
-void setFlatSpace(global <?=eqn.cons_t?>* U) {
+void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->alpha = 1;
 	U->gamma = _sym3(1,0,0,1,0,1);
 	U->a = _real3(0,0,0);
@@ -73,7 +73,7 @@ kernel void initState(
 	real3 mids = real3_scale(real3_add(mins, maxs), .5);
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
-	setFlatSpace(U);
+	setFlatSpace(U, x);
 
 	real alpha = 1.;
 	real3 beta_u = _real3(0,0,0);
