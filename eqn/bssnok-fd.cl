@@ -2,8 +2,22 @@
 Baumgarte & Shapiro "Numerical Relativity: Solving Einstein's Equations on the Computer" 2010
 Alcubierre "Introduction to Numerical Relativity" 2008
 */
+<? 
+local common = require 'common'()
+local xNames = common.xNames
+local symNames = common.symNames
+local from3x3to6 = common.from3x3to6 
+local from6to3x3 = common.from6to3x3 
+local sym = common.sym
 
-<? local calcConstraints = true ?>
+local makePartials = require 'eqn.makepartial'
+local derivOrder = 2 * solver.numGhost
+local makePartial = function(...) return makePartials.makePartial(derivOrder, solver, ...) end
+local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end
+
+local calcConstraints = true 
+
+?>
 
 /*
 TF(K_ij) = K_ij - 1/3 gamma_ij gamma^kl K_kl

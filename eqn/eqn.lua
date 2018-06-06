@@ -191,9 +191,13 @@ function Equation:getInitStateCode()
 	})
 end
 
+Equation.displayVarCodeUsesPrims = false
 function Equation:getDisplayVarCodePrefix()
 	return template([[
 	const global <?=eqn.cons_t?>* U = buf + index;
+<? if eqn.displayVarCodeUsesPrims then ?>
+	<?=eqn.prim_t?> W = primFromCons(*U, x);
+<? end ?>
 ]], {
 		eqn = self,
 	})

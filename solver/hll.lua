@@ -28,6 +28,11 @@ function HLL:refreshSolverProgram()
 		'calcFlux',
 		self.fluxBuf,
 		self.getULRBuf)
+
+	if self.eqn.useSourceTerm then
+		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
+		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
+	end
 end
 
 local realptr = ffi.new'real[1]'

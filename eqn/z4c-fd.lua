@@ -252,17 +252,9 @@ kernel void initDerivs(
 	}))
 end
 
-function Z4cFiniteDifferenceEquation:getSolverCode()
-	return template(file['eqn/z4c-fd.cl'], self:getTemplateEnv())
-end
+Z4cFiniteDifferenceEquation.solverCodeFile = 'eqn/z4c-fd.cl'
 
-function Z4cFiniteDifferenceEquation:getDisplayVarCodePrefix()
-	return template([[
-	const global <?=eqn.cons_t?>* U = buf + index;
-]], {
-		eqn = self,
-	})
-end
+function Z4cFiniteDifferenceEquation:getCalcEigenBasisCode() end
 
 function Z4cFiniteDifferenceEquation:getEigenTypeCode()
 	return template([[

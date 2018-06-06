@@ -799,13 +799,6 @@ function GridSolver:refreshSolverProgram()
 
 	self:refreshCalcDTKernel()
 
-	-- this is created in the parent class, however it isn't called by the parent class.
-	--  instead it has to be called by the individual implementation classes
-	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
-	end
-
 	if self.eqn.useConstrainU then
 		self.constrainUKernelObj = self.solverProgramObj:kernel('constrainU', self.UBuf)
 	end

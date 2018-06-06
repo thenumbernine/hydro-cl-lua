@@ -238,17 +238,9 @@ kernel void initDerivs(
 	}))
 end
 
-function BSSNOKFiniteDifferenceEquation:getSolverCode()
-	return template(file['eqn/bssnok-fd.cl'], self:getTemplateEnv())
-end
+BSSNOKFiniteDifferenceEquation.solverCodeFile = 'eqn/bssnok-fd.cl'
 
-function BSSNOKFiniteDifferenceEquation:getDisplayVarCodePrefix()
-	return template([[
-	const global <?=eqn.cons_t?>* U = buf + index;
-]], {
-		eqn = self,
-	})
-end
+function BSSNOKFiniteDifferenceEquation:getCalcEigenBasisCode() end
 
 function BSSNOKFiniteDifferenceEquation:getEigenTypeCode()
 	return template([[

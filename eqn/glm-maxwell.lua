@@ -4,7 +4,6 @@ TODO incorporate H and D fields
 
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
 local range = require 'ext.range'
 local Equation = require 'eqn.eqn'
 local clnumber = require 'cl.obj.number'
@@ -83,9 +82,7 @@ kernel void initState(
 }
 ]]
 
-function GLM_Maxwell:getSolverCode()
-	return template(file['eqn/glm-maxwell.cl'], {eqn=self, solver=self.solver})
-end
+GLM_Maxwell.solverCodeFile = 'eqn/glm-maxwell.cl'
 
 -- k is 0,1,2
 local function curl(eqn,k,result,field)

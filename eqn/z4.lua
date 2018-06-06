@@ -113,16 +113,7 @@ kernel void initDerivs(
 }
 ]]
 
-function Z4:getSolverCode()
-	return template(file['eqn/z4.cl'], {
-		eqn = self,
-		solver = self.solver,
-		xNames = xNames,
-		symNames = symNames,
-		from6to3x3 = from6to3x3,
-		sym = sym,
-	})
-end
+Z4.solverCodeFile = 'eqn/z4.cl'
 
 function Z4:getDisplayVars()
 	local vars = Z4.super.getDisplayVars(self)

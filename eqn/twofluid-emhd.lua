@@ -25,10 +25,11 @@ local Equation = require 'eqn.eqn'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
 
-local fluids = table{'ion', 'elec'}
-
 
 local TwoFluidEMHD = class(Equation)
+
+local fluids = table{'ion', 'elec'}
+TwoFluidEMHD.fluids = fluids
 
 TwoFluidEMHD.postComputeFluxCode = [[
 		//flux is computed raised via Levi-Civita upper
@@ -414,23 +415,9 @@ end
 	})
 end
 
-function TwoFluidEMHD:getSolverCode()
-	return template(file['eqn/twofluid-emhd.cl'], {
-		eqn = self, 
-		solver = self.solver,
-		fluids = fluids,
-		clnumber = clnumber,
-	})
-end
+TwoFluidEMHD.solverCodeFile = 'eqn/twofluid-emhd.cl'
 
-function TwoFluidEMHD:getDisplayVarCodePrefix()
-	return template([[
-	global const <?=eqn.cons_t?>* U = buf + index;
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
-]], {
-		eqn = self,
-	})
-end
+TwoFluidEMHD.displayVarCodeUsesPrims = true
 
 function TwoFluidEMHD:getDisplayVars()
 	local vars = TwoFluidEMHD.super.getDisplayVars(self)

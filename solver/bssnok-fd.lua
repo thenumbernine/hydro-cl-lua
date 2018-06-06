@@ -30,7 +30,7 @@ function BSSNOKFiniteDifferenceSolver:init(...)
 end
 
 function BSSNOKFiniteDifferenceSolver:postInit(...)
-	Z4cFiniteDifferenceSolver.super.postInit(self, ...)
+	BSSNOKFiniteDifferenceSolver.super.postInit(self, ...)
 	if not require 'int.be'.is(self.integrator) then
 		print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 		print("!! you're using a finite difference solver without an implicit integrator !!")

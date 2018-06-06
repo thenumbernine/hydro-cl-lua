@@ -1,7 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
-local file = require 'ext.file'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
 
@@ -197,18 +196,9 @@ end
 }
 ]]
 
-function Euler:getSolverCode()
-	return template(file['eqn/euler.cl'], {eqn = self})
-end
+Euler.solverCodeFile = 'eqn/euler.cl'
 
-function Euler:getDisplayVarCodePrefix()
-	return template([[
-	const global <?=eqn.cons_t?> *U = buf + index;
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
-]], {
-	eqn = self,
-})
-end
+Euler.displayVarCodeUsesPrims = true
 
 -- k is 0,1,2
 local function vorticity(eqn,k,result)

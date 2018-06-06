@@ -207,14 +207,7 @@ GLM_MHD.solverCodeFile = 'eqn/glm-mhd.cl'
 
 function GLM_MHD:getCalcEigenBasisCode() end
 
-function GLM_MHD:getDisplayVarCodePrefix()
-	return template([[
-	global const <?=eqn.cons_t?>* U = buf + index;
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
-]], {
-	eqn = self,
-})
-end
+GLM_MHD.displayVarCodeUsesPrims = true
 
 function GLM_MHD:getDisplayVars()
 	return GLM_MHD.super.getDisplayVars(self):append{

@@ -208,14 +208,7 @@ end
 
 MHD.solverCodeFile = 'eqn/mhd.cl'
 
-function MHD:getDisplayVarCodePrefix()
-	return template([[
-	global const <?=eqn.cons_t?>* U = buf + index;
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
-]], {
-	eqn = self,
-})
-end
+MHD.displayVarCodeUsesPrims = true
 
 function MHD:getDisplayVars()
 	return MHD.super.getDisplayVars(self):append{

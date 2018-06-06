@@ -60,17 +60,7 @@ kernel void initState(
 }
 ]]
 
-function NavierStokesDivFree:getSolverCode()
-	return template(file['eqn/euler.cl'], {eqn=self, solver=self.solver})
-end
-
-function NavierStokesDivFree:getDisplayVarCodePrefix()
-	return template([[
-	<?=eqn.cons_t?> U = buf[index];
-]], {
-		eqn = self,
-	})
-end
+NavierStokesDivFree.solverCodeFile = 'eqn/euler.cl'
 
 function NavierStokesDivFree:getDisplayVars()
 	-- k is 0,1,2
@@ -102,23 +92,23 @@ function NavierStokesDivFree:getDisplayVars()
 		})}
 	end
 	local vars = table{
-		{rho = '*value = U.rho;'},
-		{v = '*valuevec = U.v;', type='real3'},
-		{m = 'value = real3_scale(U.v, U.rho);', type='real3'},
+		{rho = '*value = U->rho;'},
+		{v = '*valuevec = U->v;', type='real3'},
+		{m = 'value = real3_scale(U->v, U->rho);', type='real3'},
 		--{P = '*value = W.P;'},
 		--{eInt = '*value = calc_eInt(W);'},
 		--{eKin = '*value = calc_eKin(W);'},
-		--{ePot = '*value = U.ePot;'},
-		--{eTotal = '*value = U.ETotal / W.rho;'},
+		--{ePot = '*value = U->ePot;'},
+		--{eTotal = '*value = U->ETotal / W.rho;'},
 		--{EInt = '*value = calc_EInt(W);'},
-		{EKin = '*value = .5 * U.rho * coordLen(U.v, x);'},
-		--{EPot = '*value = U.rho * U.ePot;'},
-		--{ETotal = '*value = U.ETotal;'},
+		{EKin = '*value = .5 * U->rho * coordLen(U->v, x);'},
+		--{EPot = '*value = U->rho * U->ePot;'},
+		--{ETotal = '*value = U->ETotal;'},
 		--{S = '*value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
 		--{H = '*value = calc_H(W.P);'},
 		--{h = '*value = calc_h(W.rho, W.P);'},
-		--{HTotal = '*value = calc_HTotal(W.P, U.ETotal);'},
-		--{hTotal = '*value = calc_hTotal(W.rho, W.P, U.ETotal);'},
+		--{HTotal = '*value = calc_HTotal(W.P, U->ETotal);'},
+		--{hTotal = '*value = calc_hTotal(W.rho, W.P, U->ETotal);'},
 		--{['Speed of Sound'] = '*value = calc_Cs(&W);'},
 		--{['Mach number'] = '*value = coordLen(W.v, x) / calc_Cs(&W);'},
 	}

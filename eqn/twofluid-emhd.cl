@@ -1,3 +1,8 @@
+<?
+local clnumber = require 'cl.obj.number'
+local fluids = solver.fluids
+?>
+
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
 #define ionReferenceThermalVelocity (ionLarmorRadius * ionChargeMassRatio * referenceMagneticField)

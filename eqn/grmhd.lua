@@ -219,21 +219,11 @@ GRMHD.solverCodeFile = 'eqn/srhd.cl'
 
 function GRMHD:getCalcEigenBasisCode() end
 
-function GRMHD:getDisplayVarCodePrefix()
-	return template([[
-	<?=eqn.cons_t?> U = buf[index];
-	<?=eqn.prim_t?> prim = primBuf[index];
-]], {
-	eqn = self,
-})
-end
+GRMHD.displayVarCodeUsesPrims = true
 
 function GRMHD:getDisplayVars()
-	return {
-		{D = '*value = U.D;'},
-		{S = '*valuevec = U.S;', type='real3'},
-		{tau = '*value = U.tau;'},
-		{W = '*value = U.D / prim.rho;'},
+	return GRMHD.super.getDisplayVars(self):append{
+		{W = '*value = U->D / prim.rho;'},
 		{['primitive reconstruction error'] = template([[
 			//prim have just been reconstructed from cons
 			//so reconstruct cons from prims again and calculate the difference
@@ -241,7 +231,7 @@ function GRMHD:getDisplayVars()
 				<?=eqn.cons_t?> U2 = consFromPrim(prim, x);
 				*value = 0;
 				for (int j = 0; j < numIntStates; ++j) {
-					*value += fabs(U.ptr[j] - U2.ptr[j]);
+					*value += fabs(U->ptr[j] - U2.ptr[j]);
 				}
 			}
 	]], {eqn=self})},
