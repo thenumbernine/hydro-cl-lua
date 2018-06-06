@@ -81,7 +81,9 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	
 	return eig;
 }
+<? end ?>
 
+<? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forCell_<?=side?>(
 	<?=eqn.cons_t?> U,
 	real3 x
@@ -105,31 +107,6 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	};
 }
 <? end ?>
-
-//fluid components are same as in eqn/euler.cl
-//Maxwell plus divergence is in a worksheet
-kernel void calcEigenBasis(
-	global <?=eqn.eigen_t?>* eigenBuf,		//[numCells][dim]
-	<?= solver.getULRArg ?>
-) {
-	SETBOUNDS(numGhost,numGhost-1);
-	real3 x = cell_x(i);
-	
-	int indexR = index;
-
-	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
-		int indexL = index - stepsize.s<?=side?>;
-	
-		<?=solver:getULRCode()?>
-		
-		real3 xInt = x;
-		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
-
-		int indexInt = side + dim * index;	
-		eigenBuf[indexInt] = eigen_forSide_<?=side?>(*UL, *UR, xInt);
-	}<? end ?>
-}
 
 <? for side=0,solver.dim-1 do 
 	local prefix

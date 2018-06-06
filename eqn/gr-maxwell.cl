@@ -37,7 +37,6 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <? end ?>
 */
 
-//same as in eqn/euler.cl
 kernel void calcEigenBasis(
 	global <?=eqn.eigen_t?>* eigenBuf,
 	<?= solver.getULRArg ?><?=

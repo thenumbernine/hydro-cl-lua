@@ -1,3 +1,17 @@
+<?
+local common = require 'common'
+local xNames = common.xNames
+local symNames = common.symNames
+local from3x3to6 = common.from3x3to6 
+local from6to3x3 = common.from6to3x3 
+local sym = common.sym
+
+local derivOrder = 2 * solver.numGhost
+local makePartials = return require 'eqn.makepartial'
+local makePartial = function(...) return makePartials.makePartial(derivOrder, solver, ...) end,
+local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end,
+?>
+
 kernel void calcDT(
 	global real* dtBuf,
 	const global <?=eqn.cons_t?>* UBuf
@@ -134,27 +148,6 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	return eig;
 }
 <? end ?>
-
-kernel void calcEigenBasis(
-	global <?=eqn.eigen_t?>* eigenBuf,
-	<?= solver.getULRArg ?>
-) {
-	SETBOUNDS(numGhost,numGhost-1);
-	real3 xR = cell_x(i);
-	int indexR = index;
-	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
-		int indexL = index - stepsize.s<?=side?>;
-		
-		<?=solver:getULRCode()?>	
-		
-		real3 xInt = xR;
-		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
-		
-		int indexInt = side + dim * index;	
-		eigenBuf[indexInt] = eigen_forSide_<?=side?>(*UL, *UR, xInt);
-	}<? end ?>
-}
 
 <? for side=0,solver.dim-1 do ?>
 

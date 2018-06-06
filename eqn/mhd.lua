@@ -206,9 +206,7 @@ end
 }
 ]]
 
-function MHD:getSolverCode()
-	return template(file['eqn/mhd.cl'], {eqn=self, solver=self.solver})
-end
+MHD.solverCodeFile = 'eqn/mhd.cl'
 
 function MHD:getDisplayVarCodePrefix()
 	return template([[

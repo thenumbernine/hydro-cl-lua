@@ -221,12 +221,9 @@ kernel void initState(
 }
 ]]
 
-function GRHD:getSolverCode()
-	return template(file['eqn/grhd.cl'], {
-		eqn = self,
-		solver = self.solver,
-	})
-end
+GRHD.solverCodeFile = 'eqn/grhd.cl'
+
+function GRHD:getCalcEigenBasisCode() end
 
 function GRHD:getDisplayVars()
 	return {

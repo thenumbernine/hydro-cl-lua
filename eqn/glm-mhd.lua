@@ -203,9 +203,9 @@ end
 }
 ]]
 
-function GLM_MHD:getSolverCode()
-	return template(file['eqn/glm-mhd.cl'], {eqn=self, solver=self.solver})
-end
+GLM_MHD.solverCodeFile = 'eqn/glm-mhd.cl'
+
+function GLM_MHD:getCalcEigenBasisCode() end
 
 function GLM_MHD:getDisplayVarCodePrefix()
 	return template([[

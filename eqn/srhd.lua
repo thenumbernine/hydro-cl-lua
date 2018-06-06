@@ -216,12 +216,9 @@ kernel void initState(
 }
 ]]
 
-function SRHD:getSolverCode()
-	return template(file['eqn/srhd.cl'], {
-		eqn = self,
-		solver = self.solver,
-	})
-end
+SRHD.solverCodeFile = 'eqn/srhd.cl'
+
+function SRHD:getCalcEigenBasisCode() end	-- within srhd.cl
 
 -- TODO put in common parent of Euler, SRHD, GRHD
 -- TODO use the automatic arbitrary finite difference generator in bssnok

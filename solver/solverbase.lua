@@ -1,6 +1,7 @@
 -- TODO make this solver/solver.lua, and make the old solver.lua something like structured-grid-solver
 
 local ffi = require 'ffi'
+local ig = require 'ffi.imgui'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
@@ -369,6 +370,7 @@ function SolverBase:getSolverCode()
 		self.eqn:getSolverCode() or '',
 		self.eqn:getCalcDTCode() or '',
 		self.eqn:getFluxFromConsCode() or '',
+		self.eqn:getCalcEigenBasisCode() or '',
 	
 	}:append(self.ops:map(function(op)
 		return op:getSolverCode()

@@ -104,12 +104,9 @@ kernel void initState(
 }
 ]]
 
-function GRMaxwell:getSolverCode()
-	return template(file['eqn/gr-maxwell.cl'], {
-		eqn=self,
-		solver=self.solver,
-	})
-end
+GRMaxwell.solverCodeFile = 'eqn/gr-maxwell.cl'
+
+function GRMaxwell:getCalcEigenBasisCode() end
 
 function GRMaxwell:getDisplayVars()
 	local solver = self.solver

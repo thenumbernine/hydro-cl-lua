@@ -87,9 +87,7 @@ kernel void initDerivs(
 }
 ]]
 
-function ADM_BonaMasso_1D_Alcubierre2008:getSolverCode()
-	return template(file['eqn/adm1d_v1.cl'], {eqn=self, solver=self.solver})
-end
+ADM_BonaMasso_1D_Alcubierre2008.solverCodeFile = 'eqn/adm1d_v1.cl'
 
 function ADM_BonaMasso_1D_Alcubierre2008:getDisplayVars()
 	return ADM_BonaMasso_1D_Alcubierre2008.super.getDisplayVars(self):append{

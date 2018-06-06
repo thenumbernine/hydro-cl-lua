@@ -284,28 +284,6 @@ Roe_t calcRoeValues(
 }
 <? end ?>
 
-
-kernel void calcEigenBasis(
-	global <?=eqn.eigen_t?>* eigenBuf,		//[numCells][dim]
-	<?= solver.getULRArg ?>
-) {
-	SETBOUNDS(numGhost,numGhost-1);
-	real3 x = cell_x(i);
-	int indexR = index;
-
-	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
-		int indexL = index - stepsize.s<?=side?>;
-		<?=solver:getULRCode()?>
-
-		real3 xInt = x;
-		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
-
-		int indexInt = side + dim * index;
-		eigenBuf[indexInt] = eigen_forSide_<?=side?>(*UL, *UR, xInt);
-	}<? end ?>
-}
-
 <? for side=0,2 do ?>
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
 	<?=eqn.eigen_t?> eig,

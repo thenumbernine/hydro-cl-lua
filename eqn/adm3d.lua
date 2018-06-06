@@ -14,8 +14,6 @@ local makeStruct = require 'eqn.makestruct'
 local common = require 'common'()
 local xNames = common.xNames
 local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
 local sym = common.sym
 
 
@@ -286,19 +284,7 @@ end
 }
 ]]
 
-function ADM_BonaMasso_3D:getSolverCode()
-	local derivOrder = 2 * self.solver.numGhost
-	return template(file['eqn/adm3d.cl'], {
-		eqn = self,
-		solver = self.solver,
-		xNames = xNames,
-		symNames = symNames,
-		from6to3x3 = from6to3x3,
-		sym = sym,
-		makePartial = function(...) return require 'eqn.makepartial'.makePartial(derivOrder, self.solver, ...) end,
-		makePartial2 = function(...) return require 'eqn.makepartial'.makePartial2(derivOrder, self.solver, ...) end,
-	})
-end
+ADM_BonaMasso_3D.solverFileName = 'eqn/adm3d.cl'
 
 function ADM_BonaMasso_3D:getDisplayVars()
 	local vars = ADM_BonaMasso_3D.super.getDisplayVars(self)

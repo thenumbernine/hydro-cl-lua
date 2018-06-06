@@ -12,9 +12,9 @@ kernel void calcDerivFromFlux(
 	
 	real3 x = cell_x(i);
 <? if eqn.weightFluxByGridVolume then ?>	
-	real sqrt_det_g = sqrt_det_g_grid(x);
+	real volume = volume_at(x);
 <? else ?>
-	const real sqrt_det_g = 1.;
+	const real volume = 1.<? for i=0,solver.dim-1 do ?> * grid_dx<?=i?><? end ?>;
 <? end ?>
 
 	<? for side=0,solver.dim-1 do ?>{
@@ -33,13 +33,13 @@ kernel void calcDerivFromFlux(
 <? if eqn.weightFluxByGridVolume then ?>	
 		real3 xIntL = x;
 		xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
-		real sqrt_det_g_intL = sqrt_det_g_grid(xIntL);
-		real areaL = sqrt_det_g_intL / grid_dx<?=side?>;
+		real volume_intL = volume_at(xIntL);
+		real areaL = volume_intL / grid_dx<?=side?>;
 	
 		real3 xIntR = x;
 		xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
-		real sqrt_det_g_intR = sqrt_det_g_grid(xIntR);
-		real areaR = sqrt_det_g_intR / grid_dx<?=side?>;
+		real volume_intR = volume_at(xIntR);
+		real areaR = volume_intR / grid_dx<?=side?>;
 <? else ?>
 		const real areaL = 1.;
 		const real areaR = 1.;
@@ -50,7 +50,7 @@ kernel void calcDerivFromFlux(
 			deriv->ptr[j] -= (
 				fluxR->ptr[j] * areaR
 				- fluxL->ptr[j] * areaL
-			) / sqrt_det_g;
+			) / volume;
 		}
 <? else ?>
 		<?=eqn.cons_t?> flux;
@@ -58,7 +58,7 @@ kernel void calcDerivFromFlux(
 			flux.ptr[j] = (
 				fluxR->ptr[j] * areaR
 				- fluxL->ptr[j] * areaL
-			) / sqrt_det_g;
+			) / volume;
 		}
 
 		{
