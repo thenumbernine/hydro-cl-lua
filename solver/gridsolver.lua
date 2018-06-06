@@ -94,21 +94,16 @@ function GridSolver:init(args)
 	self.useCTU = args.useCTU
 	assert(not self.useCTU or self.usePLM, "if you are using CTU then you need to use a slope limiter method")
 
-	local solver = self
-
 	-- my kernel objs are going to need workgroup info based on domain.size-2*noGhost as well as domain.size ... 
 	-- ...and rather than require an extra argument, I think I'll just take advantage of a closure
+	local solver = self
 	local Program = class(require 'cl.obj.program')
 	function Program:init(args)
 		args.env = solver.app.env
 		args.domain = solver.domain
 		Program.super.init(self, args)
 	end
-	self.Program = Program  
-end
-
-function GridSolver:postInit()
-	self:refreshGridSize()
+	self.Program = Program
 end
 
 
@@ -157,6 +152,24 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	
 	local numCells = tonumber(self.gridSize:volume())
 
+	local stepSize = vec3sz()
+	stepSize.x = 1
+	for i=1,self.dim-1 do
+		stepSize:ptr()[i] = stepSize:ptr()[i-1] * self.gridSize:ptr()[i-1]
+	end
+
+	local offset = vec3sz(0,0,0)
+	
+	self.domain = self.app.env:domain{
+		size = {self.gridSize:unpack()},
+		dim = self.dim,
+	}
+
+	self.domainWithoutBorder = self.app.env:domain{
+		size = {sizeWithoutBorder:unpack()},
+		dim = self.dim,
+	}
+
 	return {
 		localSize1d = localSize1d,
 		localSize2d = localSize2d,
@@ -165,53 +178,11 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 		sizeWithoutBorder = sizeWithoutBorder,
 		volumeWithoutBorder = volumeWithoutBorder,
 		numCells = numCells,
+		stepSize = stepSize,
+		offset = offset,
 	}
 end
 
-function GridSolver:refreshGridSize()
-	self.stepSize = vec3sz()
-	self.stepSize.x = 1
-	for i=1,self.dim-1 do
-		self.stepSize:ptr()[i] = self.stepSize:ptr()[i-1] * self.gridSize:ptr()[i-1]
-	end
-print('self.stepSize', self.stepSize)
-
-	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
-	-- product of all local sizes must be <= max workgroup size
-	self.maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
-print('maxWorkGroupSize', self.maxWorkGroupSize)
-
-	self.offset = vec3sz(0,0,0)
-	
-	self.domain = self.app.env:domain{
-		size = {self.gridSize:unpack()},
-		dim = self.dim,
-	}
-
-	local sizeProps = self:getSizePropsForWorkGroupSize(self.maxWorkGroupSize)
-	for k,v in pairs(sizeProps) do
-print(k,v)	
-		self[k] = v
-	end
-
-	self.domainWithoutBorder = self.app.env:domain{
-		size = {self.sizeWithoutBorder:unpack()},
-		dim = self.dim,
-	}
-
-	
-	-- depends on eqn & gridSize
-	self.buffers = table()
-	self:createBuffers()
-	self:finalizeCLAllocs()
-
-	-- create the code prefix, reflect changes
-	self:refreshEqnInitState()
-	-- initialize things dependent on cons_t alone
-	self:refreshCommonProgram()
-	self:resetState()
-end
-	
 -- call this when the solver initializes or changes the codePrefix (or changes initState)
 -- it will build the code prefix and refresh everything related to it
 -- TODO if you change cons_t then call resetState etc (below the refreshEqnInitState() call a few lines above) in addition to this -- or else your values will get messed up
@@ -536,8 +507,10 @@ end
 end
 
 function GridSolver:createCodePrefix()
+	GridSolver.super.createCodePrefix(self)
+	
 	local lines = table{
-		GridSolver.super.createCodePrefix(self),
+		self.codePrefix,
 	}
 
 	lines:append{
@@ -665,68 +638,6 @@ function GridSolver:resetState()
 	end
 
 	GridSolver.super.resetState(self)
-end
-
-function GridSolver:refreshCommonProgram()
-	-- code that depend on real and nothing else
-	-- TODO move to app, along with reduceBuf
-
-	local commonCode = table():append{
-		self.codePrefix,
-	}:append{
-		template([[
-kernel void multAdd(
-	global <?=eqn.cons_t?>* a,
-	const global <?=eqn.cons_t?>* b,
-	const global <?=eqn.cons_t?>* c,
-	real d
-) {
-	SETBOUNDS_NOGHOST();	
-<? for i=0,eqn.numIntStates-1 do
-?>	a[index].ptr[<?=i?>] = b[index].ptr[<?=i?>] + c[index].ptr[<?=i?>] * d;
-<? end
-?>}
-]], 	{
-			solver = self,
-			eqn = self.eqn,
-		})
-	}:concat'\n'
-
-	time('compiling common program', function()
-		-- TODO rename :compile() to :build() to be like cl.program?
-		self.commonProgramObj = self.Program{code=commonCode}
-		self.commonProgramObj:compile()
-	end)
-
-	-- used by the integrators
-	-- needs the same globalSize and localSize as the typical simulation kernels
-	-- TODO exclude states which are not supposed to be integrated
-	self.multAddKernelObj = self.commonProgramObj:kernel{name='multAdd', domain=self.domainWithoutBorder}
-
-	self.reduceMin = self.app.env:reduce{
-		size = self.numCells,
-		op = function(x,y) return 'min('..x..', '..y..')' end,
-		initValue = 'INFINITY',
-		buffer = self.reduceBuf,
-		swapBuffer = self.reduceSwapBuf,
-		result = self.reduceResultPtr,
-	}
-	self.reduceMax = self.app.env:reduce{
-		size = self.numCells,
-		op = function(x,y) return 'max('..x..', '..y..')' end,
-		initValue = '-INFINITY',
-		buffer = self.reduceBuf,
-		swapBuffer = self.reduceSwapBuf,
-		result = self.reduceResultPtr,
-	}
-	self.reduceSum = self.app.env:reduce{
-		size = self.numCells,
-		op = function(x,y) return x..' + '..y end,
-		initValue = '0.',
-		buffer = self.reduceBuf,
-		swapBuffer = self.reduceSwapBuf,
-		result = self.reduceResultPtr,
-	}
 end
 
 function GridSolver:getSolverCode()
@@ -968,102 +879,6 @@ GridSolver.DisplayVar = DisplayVar
 -- and this is the DisplayVar used for UBuf
 GridSolver.DisplayVar_U = DisplayVar
 
-DisplayVar.type = 'real'	-- default
-
--- TODO buf (dest) shouldn't have ghost cells
--- and dstIndex should be based on the size without ghost cells
-DisplayVar.displayCode = [[
-kernel void <?=name?>(
-	<?=input?>,
-	const global <?= var.type ?>* buf<?= 
-	var.extraArgs and #var.extraArgs > 0 
-		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
-		or '' 
-?>
-) {
-	SETBOUNDS(0,0);
-
-	int4 dsti = i;
-	int dstindex = index;
-	
-	real3 x = cell_x(i);
-	real3 xInt[<?=solver.dim?>];
-<? for i=0,solver.dim-1 do
-?>	xInt[<?=i?>] = x;
-	xInt[<?=i?>].s<?=i?> -= .5 * grid_dx<?=i?>;
-<? end
-?>
-	//now constrain
-	if (i.x < numGhost) i.x = numGhost;
-	if (i.x >= gridSize_x - numGhost) i.x = gridSize_x - numGhost-1;
-<? 
-if solver.dim >= 2 then
-?>	if (i.y < numGhost) i.y = numGhost;
-	if (i.y >= gridSize_y - numGhost) i.y = gridSize_y - numGhost-1;
-<? 
-end
-if solver.dim >= 3 then
-?>	if (i.z < numGhost) i.z = numGhost;
-	if (i.z >= gridSize_z - numGhost) i.z = gridSize_z - numGhost-1;
-<? end 
-?>
-	//and recalculate read index
-	index = INDEXV(i);
-
-	
-	real value[6] = {0,0,0,0,0,0};	//size of largest struct
-	sym3* valuesym3 = (sym3*)value;
-	real3* valuevec = (real3*)value;
-	real3* valuevec_hi = (real3*)(value+3);
-
-<?= var.codePrefix or '' ?>
-<?= var.code ?>
-
-<?= output ?>
-}
-]]
-
-function DisplayVar:init(args)
-	self.code = assert(args.code)
-	self.name = assert(args.name)
-	self.solver = assert(args.solver)
-	self.type = args.type	-- or self.type
-	self.displayCode = args.displayCode 	-- or self.displayCode
-	self.codePrefix = args.codePrefix
-	
-	-- display stuff
-	self.enabled = not not args.enabled 
-	self.useLog = args.useLog or false
-	self.color = vec3(math.random(), math.random(), math.random()):normalize()
-	self.heatMapFixedRange = false	-- args.name ~= 'error'
-	self.heatMapValueMin = 0
-	self.heatMapValueMax = 1
-
-	-- is it a vector or a scalar?
-	self.vectorField = args.vectorField
-
-	-- maybe this should be in args too?
-	-- or - instead of buffer - how about all the kernel's args?
-	-- but the reason I have to store the field here is that the buffer isn't made yet 
-	-- TODO? make display vars after buffers so I can store the buffer here?
-	self.bufferField = args.bufferField
-	self.extraArgs = args.extraArgs
-end
-
-function DisplayVar:setArgs(kernel)
-	local buffer = assert(self.solver[self.bufferField], "failed to find buffer "..tostring(self.bufferField))
-	kernel:setArg(1, buffer)
-end
-
-function DisplayVar:setToTexArgs()
-	self:setArgs(self.calcDisplayVarToTexKernelObj.obj)
-end
-
-function DisplayVar:setToBufferArgs(var)
-	self:setArgs(self.calcDisplayVarToBufferKernelObj.obj)
-end
-
-
 function GridSolver:addDisplayVars()
 	GridSolver.super.addDisplayVars(self)
 if tryingAMR == 'dt vs 2dt' then
@@ -1083,76 +898,6 @@ elseif tryingAMR == 'gradient' then
 		}
 	}
 end
-end
-
-function GridSolver:getDisplayCode()
-	local lines = table()
-	
-	for _,displayVarGroup in ipairs(self.displayVarGroups) do
-		for _,var in ipairs(displayVarGroup.vars) do
-			var.id = tostring(var):sub(10)
-		end
-	end
-
-	if self.app.useGLSharing then
-		for _,displayVarGroup in ipairs(self.displayVarGroups) do
-			for _,var in ipairs(displayVarGroup.vars) do
-				--[[
-				if var.enabled
-				or (var.vecVar and var.vecVar.enabled)
-				then
-				--]]do
-					lines:append{
-						template(var.displayCode, {
-							solver = self,
-							var = var,
-							name = 'calcDisplayVarToTex_'..var.id,
-							input = 'write_only '
-								..(self.dim == 3 
-									and 'image3d_t' 
-									or 'image2d_t'
-								)..' tex',
-							output = '	write_imagef(tex, '
-								..(self.dim == 3 
-									and '(int4)(dsti.x, dsti.y, dsti.z, 0)' 
-									or '(int2)(dsti.x, dsti.y)'
-								)..', (float4)(value[0], value[1], value[2], 0.));',
-						})
-					}
-				end
-			end
-		end
-	end
-
-	for _,displayVarGroup in ipairs(self.displayVarGroups) do
-		for _,var in ipairs(displayVarGroup.vars) do
-			--[[
-			if var.enabled 
-			or (var.vecVar and var.vecVar.enabled)
-			then
-			--]]do
-				lines:append{
-					template(var.displayCode, {
-						solver = self,
-						var = var,
-						name = 'calcDisplayVarToBuffer_'..var.id,
-						input = 'global real* dest',
-						output = var.vectorField and [[
-	dest[0+3*dstindex] = valuevec->x;
-	dest[1+3*dstindex] = valuevec->y;
-	dest[2+3*dstindex] = valuevec->z;
-]] or [[
-	dest[dstindex] = value[0];
-]],
-					})
-				}
-			end
-		end
-	end
-	
-	local code = lines:concat'\n'
-	
-	return code
 end
 
 

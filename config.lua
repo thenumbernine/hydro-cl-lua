@@ -504,6 +504,6 @@ maxs = {6,1,1},
 
 
 -- the start of unstructured meshes
---self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', meshfile='n0012_113-33'})))
+self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', meshfile='n0012_113-33'})))
 -- temp here -- to make sure ordinary solvers still run
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))

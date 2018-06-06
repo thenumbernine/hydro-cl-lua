@@ -85,10 +85,14 @@ function SolverBase:init(args)
 end
 
 function SolverBase:postInit()
-	-- [[
-	-- SolverBase calls refreshGridSize
-	--  refreshGridSize calls these:
-	
+	self:refreshGridSize()
+end
+
+-- despite the name, this doesn't have anything to do with the grid size ... 
+-- ... except in the GridSolver class
+function SolverBase:refreshGridSize()
+	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
+	-- product of all local sizes must be <= max workgroup size
 	self.maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
 print('maxWorkGroupSize', self.maxWorkGroupSize)
 	
@@ -98,17 +102,83 @@ print(k,v)
 		self[k] = v
 	end
 	
+	-- depends on eqn & gridSize
 	self.buffers = table()
 	self:createBuffers()
 	self:finalizeCLAllocs()
 
+	-- create the code prefix, reflect changes
 	self:refreshEqnInitState()
+	-- initialize things dependent on cons_t alone
+	self:refreshCommonProgram()
 	self:resetState()
-	--]]
 end
 
+function SolverBase:refreshCommonProgram()
+	-- code that depend on real and nothing else
+	-- TODO move to app, along with reduceBuf
+
+	local commonCode = table():append{
+		self.codePrefix,
+	}:append{
+		template([[
+kernel void multAdd(
+	global <?=eqn.cons_t?>* a,
+	const global <?=eqn.cons_t?>* b,
+	const global <?=eqn.cons_t?>* c,
+	real d
+) {
+	SETBOUNDS_NOGHOST();
+<? for i=0,eqn.numIntStates-1 do
+?>	a[index].ptr[<?=i?>] = b[index].ptr[<?=i?>] + c[index].ptr[<?=i?>] * d;
+<? end
+?>}
+]], 	{
+			solver = self,
+			eqn = self.eqn,
+		})
+	}:concat'\n'
+
+	time('compiling common program', function()
+		-- TODO rename :compile() to :build() to be like cl.program?
+		self.commonProgramObj = self.Program{code=commonCode}
+		self.commonProgramObj:compile()
+	end)
+
+	-- used by the integrators
+	-- needs the same globalSize and localSize as the typical simulation kernels
+	-- TODO exclude states which are not supposed to be integrated
+	self.multAddKernelObj = self.commonProgramObj:kernel{name='multAdd', domain=self.domainWithoutBorder}
+
+	self.reduceMin = self.app.env:reduce{
+		size = self.numCells,
+		op = function(x,y) return 'min('..x..', '..y..')' end,
+		initValue = 'INFINITY',
+		buffer = self.reduceBuf,
+		swapBuffer = self.reduceSwapBuf,
+		result = self.reduceResultPtr,
+	}
+	self.reduceMax = self.app.env:reduce{
+		size = self.numCells,
+		op = function(x,y) return 'max('..x..', '..y..')' end,
+		initValue = '-INFINITY',
+		buffer = self.reduceBuf,
+		swapBuffer = self.reduceSwapBuf,
+		result = self.reduceResultPtr,
+	}
+	self.reduceSum = self.app.env:reduce{
+		size = self.numCells,
+		op = function(x,y) return x..' + '..y end,
+		initValue = '0.',
+		buffer = self.reduceBuf,
+		swapBuffer = self.reduceSwapBuf,
+		result = self.reduceResultPtr,
+	}
+end
+
+-- here's another function that needs to be renamed ...
 function SolverBase:getSizePropsForWorkGroupSize(maxWorkGroupSize)
-	error'here'
+	error'abstract'
 end
 
 function SolverBase:clalloc(name, size)
@@ -236,13 +306,46 @@ or should overriding the state be allowed?
 end
 
 function SolverBase:refreshSolverProgram()
+	-- [[ from GritSolver:refreshSolverProgram
+	self.getULRBuf = self.UBuf
+	
+	self.getULRArg = 'const global '..self.eqn.cons_t..'* UBuf'
+	
+	self.getULRCode = function(self, args)
+		args = args or {}
+		local suffix = args.suffix or ''
+		return template([[
+	const global <?=eqn.cons_t?>* UL<?=suffix?> = UBuf + <?=indexL?>;
+	const global <?=eqn.cons_t?>* UR<?=suffix?> = UBuf + <?=indexR?>;
+]],		{
+			eqn = self.eqn,
+			suffix = suffix,
+			indexL = args.indexL or 'indexL'..suffix,
+			indexR = args.indexR or 'indexR'..suffix,
+		})
+	end
+	--]]
+
 	local code = self:getSolverCode()
 
 	time('compiling solver program', function()
 		self.solverProgramObj = self.Program{code=code}
 		self.solverProgramObj:compile()
 	end)
-	
+
+	self:refreshCalcDTKernel()
+
+	-- this is created in the parent class, however it isn't called by the parent class.
+	--  instead it has to be called by the individual implementation classes
+	if self.eqn.useSourceTerm then
+		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
+		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
+	end
+
+	if self.eqn.useConstrainU then
+		self.constrainUKernelObj = self.solverProgramObj:kernel('constrainU', self.UBuf)
+	end
+
 	for _,op in ipairs(self.ops) do
 		op:refreshSolverProgram()
 	end
@@ -273,6 +376,78 @@ function SolverBase:getSolverCode()
 		self:getDisplayCode(),
 	}:concat'\n'
 end
+
+function SolverBase:getDisplayCode()
+	local lines = table()
+	
+	for _,displayVarGroup in ipairs(self.displayVarGroups) do
+		for _,var in ipairs(displayVarGroup.vars) do
+			var.id = tostring(var):sub(10)
+		end
+	end
+
+	if self.app.useGLSharing then
+		for _,displayVarGroup in ipairs(self.displayVarGroups) do
+			for _,var in ipairs(displayVarGroup.vars) do
+				--[[
+				if var.enabled
+				or (var.vecVar and var.vecVar.enabled)
+				then
+				--]]do
+					lines:append{
+						template(var.displayCode, {
+							solver = self,
+							var = var,
+							name = 'calcDisplayVarToTex_'..var.id,
+							input = 'write_only '
+								..(self.dim == 3 
+									and 'image3d_t' 
+									or 'image2d_t'
+								)..' tex',
+							output = '	write_imagef(tex, '
+								..(self.dim == 3 
+									and '(int4)(dsti.x, dsti.y, dsti.z, 0)' 
+									or '(int2)(dsti.x, dsti.y)'
+								)..', (float4)(value[0], value[1], value[2], 0.));',
+						})
+					}
+				end
+			end
+		end
+	end
+
+	for _,displayVarGroup in ipairs(self.displayVarGroups) do
+		for _,var in ipairs(displayVarGroup.vars) do
+			--[[
+			if var.enabled 
+			or (var.vecVar and var.vecVar.enabled)
+			then
+			--]]do
+				lines:append{
+					template(var.displayCode, {
+						solver = self,
+						var = var,
+						name = 'calcDisplayVarToBuffer_'..var.id,
+						input = 'global real* dest',
+						output = var.vectorField and [[
+	dest[0+3*dstindex] = valuevec->x;
+	dest[1+3*dstindex] = valuevec->y;
+	dest[2+3*dstindex] = valuevec->z;
+]] or [[
+	dest[dstindex] = value[0];
+]],
+					})
+				}
+			end
+		end
+	end
+	
+	local code = lines:concat'\n'
+	
+	return code
+end
+
+
 
 function SolverBase:refreshInitStateProgram()
 	self.eqn.initState:refreshInitStateProgram(self)
@@ -307,7 +482,7 @@ function SolverBase:createCodePrefix()
 		self.eqn:getCodePrefix() or '',
 	}
 
-	return lines:concat'\n'
+	self.codePrefix = lines:concat'\n'
 end
 
 
@@ -349,6 +524,100 @@ local DisplayVar = class()
 -- this is the default DisplayVar
 SolverBase.DisplayVar = DisplayVar
 
+DisplayVar.type = 'real'	-- default
+
+-- TODO buf (dest) shouldn't have ghost cells
+-- and dstIndex should be based on the size without ghost cells
+DisplayVar.displayCode = [[
+kernel void <?=name?>(
+	<?=input?>,
+	const global <?= var.type ?>* buf<?= 
+	var.extraArgs and #var.extraArgs > 0 
+		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
+		or '' 
+?>
+) {
+	SETBOUNDS(0,0);
+
+	int4 dsti = i;
+	int dstindex = index;
+	
+	real3 x = cell_x(i);
+	real3 xInt[<?=solver.dim?>];
+<? for i=0,solver.dim-1 do
+?>	xInt[<?=i?>] = x;
+	xInt[<?=i?>].s<?=i?> -= .5 * grid_dx<?=i?>;
+<? end
+?>
+	//now constrain
+	if (i.x < numGhost) i.x = numGhost;
+	if (i.x >= gridSize_x - numGhost) i.x = gridSize_x - numGhost-1;
+<? 
+if solver.dim >= 2 then
+?>	if (i.y < numGhost) i.y = numGhost;
+	if (i.y >= gridSize_y - numGhost) i.y = gridSize_y - numGhost-1;
+<? 
+end
+if solver.dim >= 3 then
+?>	if (i.z < numGhost) i.z = numGhost;
+	if (i.z >= gridSize_z - numGhost) i.z = gridSize_z - numGhost-1;
+<? end 
+?>
+	//and recalculate read index
+	index = INDEXV(i);
+
+	
+	real value[6] = {0,0,0,0,0,0};	//size of largest struct
+	sym3* valuesym3 = (sym3*)value;
+	real3* valuevec = (real3*)value;
+	real3* valuevec_hi = (real3*)(value+3);
+
+<?= var.codePrefix or '' ?>
+<?= var.code ?>
+
+<?= output ?>
+}
+]]
+
+function DisplayVar:init(args)
+	self.code = assert(args.code)
+	self.name = assert(args.name)
+	self.solver = assert(args.solver)
+	self.type = args.type	-- or self.type
+	self.displayCode = args.displayCode 	-- or self.displayCode
+	self.codePrefix = args.codePrefix
+	
+	-- display stuff
+	self.enabled = not not args.enabled 
+	self.useLog = args.useLog or false
+	self.color = vec3(math.random(), math.random(), math.random()):normalize()
+	self.heatMapFixedRange = false	-- args.name ~= 'error'
+	self.heatMapValueMin = 0
+	self.heatMapValueMax = 1
+
+	-- is it a vector or a scalar?
+	self.vectorField = args.vectorField
+
+	-- maybe this should be in args too?
+	-- or - instead of buffer - how about all the kernel's args?
+	-- but the reason I have to store the field here is that the buffer isn't made yet 
+	-- TODO? make display vars after buffers so I can store the buffer here?
+	self.bufferField = args.bufferField
+	self.extraArgs = args.extraArgs
+end
+
+function DisplayVar:setArgs(kernel)
+	local buffer = assert(self.solver[self.bufferField], "failed to find buffer "..tostring(self.bufferField))
+	kernel:setArg(1, buffer)
+end
+
+function DisplayVar:setToTexArgs()
+	self:setArgs(self.calcDisplayVarToTexKernelObj.obj)
+end
+
+function DisplayVar:setToBufferArgs(var)
+	self:setArgs(self.calcDisplayVarToBufferKernelObj.obj)
+end
 
 
 function SolverBase:newDisplayVarGroup(args)

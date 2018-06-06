@@ -73,6 +73,15 @@ function MeshSolver:init(args)
 
 	-- no longer is dim * numCells the number of interfaces -- it is now dependent on the mesh
 	-- maybe I should rename this to numInterfaces?
+
+	local solver = self
+	local Program = class(require 'cl.obj.program')
+	function Program:init(args)
+		args.env = solver.app.env
+		args.domain = solver.domain
+		Program.super.init(self, args)
+	end
+	self.Program = Program
 end
 
 function MeshSolver:refreshInitStateProgram()
@@ -81,18 +90,44 @@ function MeshSolver:refreshInitStateProgram()
 end
 
 function MeshSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
+	local numCells = #self.mesh.cells
+	
 	-- numCells is the number of cells
 	-- maybe I should rename it to numCells
-	local numCells = #self.mesh.cells
+	local localSize1d = math.min(maxWorkGroupSize, numCells)
+	
+	self.domain = self.app.env:domain{
+		size = {localSize1d},
+		dim = self.dim,
+	}
+	
 	return {
 		numCells = numCells,
-		localSize1d = math.min(maxWorkGroupSize, numCells),
+		localSize1d = localSize1d, 
 	}
 end
+
 
 function MeshSolver:applyInitCond()
 	assert(self.UBuf)
 	-- TODO read it in from a file?  and upload it?  or something?
+end
+
+function MeshSolver:createCodePrefix()
+	MeshSolver.super.createCodePrefix(self)
+
+	local lines = table{
+		self.codePrefix,
+	}
+
+	lines:insert[[
+#define SETBOUNDS(lhs,rhs)	\
+	int4 i = globalInt4(); \
+	int index = 0;
+#define cell_x(i)			_real3(0,0,0)
+]]
+
+	self.codePrefix = lines:concat'\n'
 end
 
 function MeshSolver:update()

@@ -113,8 +113,16 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 <? end ?>
 
-//this routine is pretty standard.
-//why not move it to Roe or somewhere similar?
+/*
+This routine is pretty standard.
+Why not move it to Roe or somewhere similar?
+
+Also, to generalize this to meshes, how about 
+storing the # of interfaces in the solver:
+	numFaces = numCells * dim
+and then cycle across that,
+and - for grid-based solvers - deduce which interface to use based on the global index
+*/
 kernel void calcEigenBasis(
 	global <?=eqn.eigen_t?>* eigenBuf,		//[numCells][dim]
 	<?= solver.getULRArg ?>
