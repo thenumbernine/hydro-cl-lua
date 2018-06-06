@@ -39,7 +39,7 @@ Z4.consVars = table{
 Z4.numWaves = makeStruct.countReals(fluxVars)
 assert(Z4.numWaves == 31)
 
-Z4.hasCalcDT = true
+Z4.hasCalcDTCode = true
 Z4.hasEigenCode = true
 Z4.useSourceTerm = true
 

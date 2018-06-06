@@ -19,6 +19,7 @@ Euler.numIntStates = 5	-- don't bother integrate ePot
 Euler.mirrorVars = {{'m.x'}, {'m.y'}, {'m.z'}} 
 
 Euler.hasEigenCode = true
+Euler.hasFluxFromConsCode = true
 Euler.roeUseFluxFromCons = true
 
 -- the only source term that the Euler equations has is the connection coefficients of the velocity vector
@@ -316,34 +317,6 @@ function Euler:eigenWaveCode(side, eig, x, waveIndex)
 		return '(v_n + Cs_sqrt_gU)'
 	end
 	error'got a bad waveIndex'
-end
-
-function Euler:getFluxFromConsCode()
-	return template([[
-<? local solver = eqn.solver ?>
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	<?=eqn.prim_t?> W = primFromCons(U, x);
-	real vj = W.v.s<?=side?>;
-	real HTotal = U.ETotal + W.P;
-	
-	<?=eqn.cons_t?> F;
-	F.rho = U.m.s<?=side?>;
-	F.m = real3_scale(U.m, vj);
-<? for i=0,2 do
-?>	F.m.s<?=i?> += coord_gU<?=i?><?=side?>(x) * W.P;
-<? end
-?>	F.ETotal = HTotal * vj;
-	F.ePot = 0;
-	return F;
-}
-<? end ?>
-]], {
-		eqn = self,
-	})
 end
 
 return Euler

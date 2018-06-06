@@ -14,6 +14,8 @@ local makePartial2 = makePartials.makePartial2
 local BSSNOKFiniteDifferenceEquation = class(EinsteinEqn)
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
 BSSNOKFiniteDifferenceEquation.hasEigenCode = true
+BSSNOKFiniteDifferenceEquation.hasCalcDTCode = true
+BSSNOKFiniteDifferenceEquation.hasFluxFromConsCode = true
 BSSNOKFiniteDifferenceEquation.useConstrainU = true
 BSSNOKFiniteDifferenceEquation.useSourceTerm = true
 
@@ -506,8 +508,5 @@ function BSSNOKFiniteDifferenceEquation:fillRandom(epsilon)
 	solver.UBufObj:fromCPU(ptr)
 	return ptr
 end
-
-function BSSNOKFiniteDifferenceEquation:getCalcDTCode() end
-function BSSNOKFiniteDifferenceEquation:getFluxFromConsCode() end
 
 return BSSNOKFiniteDifferenceEquation

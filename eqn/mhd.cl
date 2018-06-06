@@ -4,6 +4,32 @@ based on Athena's version of eigenvectors of derivative of adiabatic MHD flux wr
 ideal-mhd, divergence-free, conservative-based eigensystem
 */
 
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	<?=eqn.prim_t?> W = primFromCons(U, x);
+	real vj = W.v.s<?=side?>;
+	real Bj = W.B.s<?=side?>;
+	real BSq = coordLenSq(W.B, x);
+	real BDotV = real3_dot(W.B, W.v);
+	real PMag = .5 * BSq / mu0;
+	real PTotal = W.P + PMag;
+	real HTotal = U.ETotal + PTotal;
+	
+	<?=eqn.cons_t?> F;
+	F.rho = U.m.s<?=side?>;
+	F.m = real3_sub(real3_scale(U.m, vj), real3_scale(U.B, Bj / mu0));
+	F.m.s<?=side?> += PTotal;
+	F.B = real3_sub(real3_scale(U.B, vj), real3_scale(W.v, Bj));
+	F.ETotal = HTotal * vj - BDotV * Bj / mu0;
+	F.BPot = 0.;
+	F.ePot = 0.;
+	return F;
+}
+<? end ?>
+
 <? for side=0,2 do ?>
 <?=eqn.cons_t?> cons_swapFrom<?=side?>(<?=eqn.cons_t?> U) {
 	//both work as good as the other ...

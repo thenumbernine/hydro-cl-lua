@@ -7,6 +7,9 @@ local Equation = require 'eqn.eqn'
 
 local NLSEqn = class(Equation)
 NLSEqn.name = 'NLSEqn'
+
+NLSEqn.hasCalcDTCode = true
+
 NLSEqn.consVars = {{re='real'}, {im='real'}}
 
 NLSEqn.initStates = require 'init.nls'
@@ -35,7 +38,5 @@ function NLSEqn:getDisplayVars()
 		{norm = '*value = sqrt(U->re*U->re + U->im*U->im);'},
 	}
 end
-
-function NLSEqn:getCalcDTCode() end
 
 return NLSEqn 

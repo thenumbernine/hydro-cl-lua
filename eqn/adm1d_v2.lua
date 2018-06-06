@@ -99,6 +99,7 @@ ADM_BonaMasso_1D_Alcubierre1997.consVars = {
 ADM_BonaMasso_1D_Alcubierre1997.mirrorVars = {{'gamma_xx', 'a_x', 'd_xxx', 'K_xx'}}
 
 ADM_BonaMasso_1D_Alcubierre1997.hasEigenCode = true
+ADM_BonaMasso_1D_Alcubierre1997.hasFluxFromConsCode = true
 ADM_BonaMasso_1D_Alcubierre1997.useSourceTerm = true
 
 function ADM_BonaMasso_1D_Alcubierre1997:createInitState()
@@ -231,29 +232,6 @@ function ADM_BonaMasso_1D_Alcubierre1997:fillRandom(epsilon)
 	end
 	solver.UBufObj:fromCPU(ptr)
 	return ptr
-end
-
-function ADM_BonaMasso_1D_Alcubierre1997:getFluxFromConsCode()
-	return template([[
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	real f = calc_f(U.alpha);
-	return (<?=eqn.cons_t?>){
-		.alpha = 0,
-		.gamma_xx = 0,
-		.a_x = U.alpha * U.K_xx * f / U.gamma_xx,
-		.d_xxx = U.alpha * U.K_xx,
-		.K_xx = U.alpha * U.a_x,
-	};
-}
-<? end ?>
-]], {
-		eqn = self,
-		solver = self.solver,
-	})
 end
 
 return ADM_BonaMasso_1D_Alcubierre1997

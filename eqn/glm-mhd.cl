@@ -5,6 +5,42 @@ tweaked it while looking at
 2009 Mignone, Tzeferacos - A Second-Order Unsplit Godunov Scheme for Cell-Centered MHD- the CTU-GLM scheme
 */
 
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	<?=eqn.prim_t?> W = primFromCons(U, x);
+	real vj = W.v.s<?=side?>;
+	real Bj = W.B.s<?=side?>;
+	real BSq = real3_lenSq(W.B);
+	real BDotV = real3_dot(W.B, W.v);
+	real PMag = .5 * BSq;
+	real PTotal = W.P + PMag;
+	real HTotal = U.ETotal + PTotal;
+	
+	<?=eqn.cons_t?> F;
+	F.rho = U.m.s<?=side?>;
+	F.m = real3_sub(real3_scale(U.m, vj), real3_scale(U.B, Bj / mu0));
+	F.m.s<?=side?> += PTotal;
+	F.B = real3_sub(real3_scale(U.B, vj), real3_scale(W.v, Bj));
+	F.B.s<?=side?> += F.psi;
+	F.ETotal = HTotal * vj - BDotV * Bj / mu0;
+
+<? if not eqn.useFixedCh then ?>
+	//TODO don't need the whole eigen here, just the Ch
+	real Ch = 0;
+	<? for side=0,solver.dim-1 do ?>{
+		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(U, x);
+		Ch = max(Ch, eig.Ch);
+	}<? end ?>
+<? end ?>
+
+	F.psi = Ch * Ch;
+	return F;
+}
+<? end ?>
+
 <? for side=0,2 do ?>
 <?=eqn.cons_t?> cons_swapFrom<?=side?>(<?=eqn.cons_t?> U) {
 	//U.m = real3_swap<?=side?>(U.m);

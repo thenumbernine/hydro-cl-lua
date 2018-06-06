@@ -26,6 +26,7 @@ GLM_Maxwell.consVars = {
 GLM_Maxwell.mirrorVars = {{'E.x', 'B.x'}, {'E.y', 'B.y'}, {'E.z', 'B.z'}}
 
 GLM_Maxwell.hasEigenCode = true
+GLM_Maxwell.hasFluxFromConsCode = true
 GLM_Maxwell.useSourceTerm = true
 GLM_Maxwell.roeUseFluxFromCons = true
 
@@ -181,40 +182,6 @@ function GLM_Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 		'speedOfLight * divPsiWavespeed',
 		'speedOfLight * divPhiWavespeed',
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
-end
-
-function GLM_Maxwell:getFluxFromConsCode()
-	return template([[
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	real3 B = U.B;
-	real3 E = U.E;
-	return (<?=eqn.cons_t?>){
-	<? if side == 0 then ?>
-		.E = _real3(speedOfLightSq * divPhiWavespeed * U.phi, speedOfLightSq * B.z, -speedOfLightSq * B.y),
-		.B = _real3(divPsiWavespeed * U.psi, -E.z, E.y),
-	<? elseif side == 1 then ?>
-		.E = _real3(-speedOfLightSq * B.z, speedOfLightSq * divPhiWavespeed * U.phi, speedOfLightSq * B.x),
-		.B = _real3(E.z, divPsiWavespeed * U.psi, -E.x),
-	<? elseif side == 2 then ?>
-		.E = _real3(speedOfLightSq * B.y, -speedOfLightSq * B.x, speedOfLightSq * divPhiWavespeed * U.phi),
-		.B = _real3(-E.y, E.x, divPsiWavespeed * U.psi),
-	<? end ?>
-		.phi = divPhiWavespeed * E.s<?=side?>,
-		.psi = speedOfLightSq * divPsiWavespeed * B.s<?=side?>,
-	
-		.conductivity = 0.,
-		.rhoCharge = 0.,
-	};
-}
-<? end ?>
-]],	{
-		eqn = self,
-		solver = self.solver,
-	})
 end
 
 return GLM_Maxwell

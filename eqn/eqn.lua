@@ -25,9 +25,6 @@ Equation.weightFluxByGridVolume = true
 -- Otherwise eqn/cl/eigen.cl is used, which depends on the default eigen_t structures.
 Equation.hasEigenCode = nil
 
--- Whether the eqn has its own calcDT.  Otherwise eqn/cl/calcDT.cl is used. 
-Equation.hasCalcDT = nil
-
 --[[
 This flag determines whether the evR . lambda . evL is factored outside the other flux limiter computations.
 
@@ -288,15 +285,21 @@ function Equation:eigenWaveCodePrefix(side, eig, x)
 	return ''
 end
 
+-- Whether the eqn has its own calcDT.  Otherwise eqn/cl/calcDT.cl is used. 
+Equation.hasCalcDTCode = nil
+
 function Equation:getCalcDTCode()
-	if self.hasCalcDT then return end
+	if self.hasCalcDTCode then return end
 	return template(file['eqn/cl/calcDT.cl'], {
 		solver = self.solver, 
 		eqn = self,
 	})
 end
 
+Equation.hasFluxFromConsCode = nil
+
 function Equation:getFluxFromConsCode()
+	if self.hasFluxFromConsCode then return end
 	return template([[
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U, real3 x) {

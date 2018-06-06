@@ -26,13 +26,15 @@ SRHD.mirrorVars = {
 	{'cons.S.z', 'prim.v.z'},
 }
 
+
+SRHD.hasEigenCode = true 
+SRHD.hasCalcDTCode = true
+SRHD.useConstrainU = true
+
 -- SRHD fluxFromCons will need prims passed to it as well
 -- which means overriding the code that calls this? or the calc flux code?
 --SRHD.roeUseFluxFromCons = true
-
-SRHD.hasEigenCode = true 
-SRHD.hasCalcDT = true
-SRHD.useConstrainU = true
+--SRHD.hasFluxFromConsCode = true
 
 SRHD.initStates = require 'init.euler'
 
@@ -336,40 +338,5 @@ function SRHD:eigenWaveCode(side, eig, x, waveIndex)
 		error'got a bad waveIndex'
 	end
 end
-
---[=[
-function SRHD:getFluxFromConsCode()
-	return template([[
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	real vi = U.prim.v.s<?=side?>;
-	real P = calc_P(U.prim.rho, U.prim.eInt);
-
-	<?=eqn.cons_t?> F;
-	F.cons.D = U.cons.D * vi;
-	F.cons.S = real3_scale(U.cons.S, vi);
-	F.cons.S.s<?=side?> += P;
-	F.cons.tau = U.cons.tau * vi + P * vi;
-	
-	//make sure the rest is zero ...
-	F.prim = (<?=eqn.prim_t?>){
-		.rho = 0,
-		.v = {.s={0,0,0}},
-		.eInt = 0,
-	};
-	F.ePot = 0;
-
-	return F;
-}
-<? end ?>
-]], {
-		eqn = self,
-		solver = self.solver,
-	})
-end
---]=]
 
 return SRHD

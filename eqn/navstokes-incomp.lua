@@ -5,6 +5,7 @@ local Equation = require 'eqn.eqn'
 
 local NavierStokesDivFree = class(Equation)
 NavierStokesDivFree.name = 'Navier-Stokes div-free' 
+NavierStokesDivFree.hasCalcDTCode = true
 NavierStokesDivFree.numStates = 4
 
 NavierStokesDivFree.mirrorVars = {{'v.x'}, {'v.y'}, {'v.z'}}
@@ -130,7 +131,5 @@ function NavierStokesDivFree:getDisplayVars()
 			
 	return vars
 end
-
-function NavierStokesDivFree:getCalcDTCode() end
 
 return NavierStokesDivFree

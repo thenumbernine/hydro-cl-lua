@@ -8,6 +8,33 @@
 #define speedOfLightSq		(speedOfLight * speedOfLight)
 
 <? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	real3 B = U.B;
+	real3 E = U.E;
+	return (<?=eqn.cons_t?>){
+	<? if side == 0 then ?>
+		.E = _real3(speedOfLightSq * divPhiWavespeed * U.phi, speedOfLightSq * B.z, -speedOfLightSq * B.y),
+		.B = _real3(divPsiWavespeed * U.psi, -E.z, E.y),
+	<? elseif side == 1 then ?>
+		.E = _real3(-speedOfLightSq * B.z, speedOfLightSq * divPhiWavespeed * U.phi, speedOfLightSq * B.x),
+		.B = _real3(E.z, divPsiWavespeed * U.psi, -E.x),
+	<? elseif side == 2 then ?>
+		.E = _real3(speedOfLightSq * B.y, -speedOfLightSq * B.x, speedOfLightSq * divPhiWavespeed * U.phi),
+		.B = _real3(-E.y, E.x, divPsiWavespeed * U.psi),
+	<? end ?>
+		.phi = divPhiWavespeed * E.s<?=side?>,
+		.psi = speedOfLightSq * divPsiWavespeed * B.s<?=side?>,
+	
+		.conductivity = 0.,
+		.rhoCharge = 0.,
+	};
+}
+<? end ?>
+
+<? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const global <?=eqn.cons_t?>* U,
 	real3 x

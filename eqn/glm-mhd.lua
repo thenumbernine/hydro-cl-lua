@@ -29,8 +29,9 @@ GLM_MHD.consVars = table{
 GLM_MHD.mirrorVars = {{'m.x', 'B.x'}, {'m.y', 'B.y'}, {'m.z', 'B.z'}}
 
 GLM_MHD.hasEigenCode = true
-GLM_MHD.useSourceTerm = true
+GLM_MHD.hasFluxFromConsCode = true
 GLM_MHD.roeUseFluxFromCons = true
+GLM_MHD.useSourceTerm = true
 GLM_MHD.useConstrianU = true
 
 GLM_MHD.useFixedCh = false	-- true = use a gui var, false = calculate by max(|v_i|+Cf)
@@ -325,49 +326,6 @@ function GLM_MHD:eigenWaveCode(side, eig, x, waveIndex)
 		self.useFixedCh and '-Ch' or '-'..eig..'->Ch',
 		self.useFixedCh and 'Ch' or eig..'->Ch',
 	})[waveIndex+1]
-end
-
-function GLM_MHD:getFluxFromConsCode()
-	return template([[
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	<?=eqn.prim_t?> W = primFromCons(U, x);
-	real vj = W.v.s<?=side?>;
-	real Bj = W.B.s<?=side?>;
-	real BSq = real3_lenSq(W.B);
-	real BDotV = real3_dot(W.B, W.v);
-	real PMag = .5 * BSq;
-	real PTotal = W.P + PMag;
-	real HTotal = U.ETotal + PTotal;
-	
-	<?=eqn.cons_t?> F;
-	F.rho = U.m.s<?=side?>;
-	F.m = real3_sub(real3_scale(U.m, vj), real3_scale(U.B, Bj / mu0));
-	F.m.s<?=side?> += PTotal;
-	F.B = real3_sub(real3_scale(U.B, vj), real3_scale(W.v, Bj));
-	F.B.s<?=side?> += F.psi;
-	F.ETotal = HTotal * vj - BDotV * Bj / mu0;
-
-<? if not eqn.useFixedCh then ?>
-	//TODO don't need the whole eigen here, just the Ch
-	real Ch = 0;
-	<? for side=0,solver.dim-1 do ?>{
-		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(U, x);
-		Ch = max(Ch, eig.Ch);
-	}<? end ?>
-<? end ?>
-
-	F.psi = Ch * Ch;
-	return F;
-}
-<? end ?>
-]], {
-		eqn = self,
-		solver = self.solver,
-	})
 end
 
 return GLM_MHD

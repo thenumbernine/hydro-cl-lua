@@ -35,6 +35,7 @@ MHD.consVars = table{
 MHD.mirrorVars = {{'m.x', 'B.x'}, {'m.y', 'B.y'}, {'m.z', 'B.z'}}
 
 MHD.hasEigenCode = true
+MHD.hasFluxFromConsCode = true
 MHD.roeUseFluxFromCons = true
 
 -- for connections
@@ -321,39 +322,6 @@ function MHD:eigenWaveCode(side, eig, x, waveIndex)
 		eig..'->v.x + '..eig..'->CAx',
 		eig..'->v.x + '..eig..'->Cf',
 	})[waveIndex+1]
-end
-
-function MHD:getFluxFromConsCode()
-	return template([[
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	<?=eqn.prim_t?> W = primFromCons(U, x);
-	real vj = W.v.s<?=side?>;
-	real Bj = W.B.s<?=side?>;
-	real BSq = coordLenSq(W.B, x);
-	real BDotV = real3_dot(W.B, W.v);
-	real PMag = .5 * BSq / mu0;
-	real PTotal = W.P + PMag;
-	real HTotal = U.ETotal + PTotal;
-	
-	<?=eqn.cons_t?> F;
-	F.rho = U.m.s<?=side?>;
-	F.m = real3_sub(real3_scale(U.m, vj), real3_scale(U.B, Bj / mu0));
-	F.m.s<?=side?> += PTotal;
-	F.B = real3_sub(real3_scale(U.B, vj), real3_scale(W.v, Bj));
-	F.ETotal = HTotal * vj - BDotV * Bj / mu0;
-	F.BPot = 0.;
-	F.ePot = 0.;
-	return F;
-}
-<? end ?>
-]], {
-		eqn = self,
-		solver = self.solver,
-	})
 end
 
 return MHD

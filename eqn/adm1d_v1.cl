@@ -1,3 +1,24 @@
+<? if false then ?>
+//the PLM version that uses this crashes
+//so maybe there's something wrong with this
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	real f = calc_f(U.alpha);
+	real alpha_over_sqrt_gamma_xx = U.alpha / sqrt(U.gamma_xx);
+	return (<?=eqn.cons_t?>){
+		.alpha = 0,
+		.gamma_xx = 0,
+		.a_x = U.KTilde * f * alpha_over_sqrt_gamma_xx,
+		.D_g = U.KTilde * 2. * alpha_over_sqrt_gamma_xx,
+		.KTilde = U.a_x * alpha_over_sqrt_gamma_xx,
+	};
+}
+<? end ?>
+<? end ?>
+
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const global <?=eqn.cons_t?>* U,

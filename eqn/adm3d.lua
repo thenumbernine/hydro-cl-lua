@@ -19,7 +19,7 @@ local sym = common.sym
 
 local ADM_BonaMasso_3D = class(EinsteinEqn)
 ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
-ADM_BonaMasso_3D.hasCalcDT = true
+ADM_BonaMasso_3D.hasCalcDTCode = true
 ADM_BonaMasso_3D.hasEigenCode = true
 ADM_BonaMasso_3D.useSourceTerm = true
 ADM_BonaMasso_3D.useConstrainU = true
