@@ -113,6 +113,9 @@ function Roe:addDisplayVars()
 				{['0'] = template([[
 	int indexInt = <?=side?> + dim * index;
 	const global <?=eqn.eigen_t?>* eig = buf + indexInt;
+
+	real3 xInt = x;
+	xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 	
 	*value = 0;
 	//the flux transform is F v = R Lambda L v, I = R L
@@ -125,8 +128,8 @@ function Roe:addDisplayVars()
 			basis.ptr[j] = k == j ? 1 : 0;
 		}
 		
-		<?=eqn.waves_t?> eigenCoords = eigen_leftTransform_<?=side?>(*eig, basis, xInt[0]);
-		<?=eqn.cons_t?> newbasis = eigen_rightTransform_<?=side?>(*eig, eigenCoords, xInt[0]);
+		<?=eqn.waves_t?> eigenCoords = eigen_leftTransform_<?=side?>(*eig, basis, xInt);
+		<?=eqn.cons_t?> newbasis = eigen_rightTransform_<?=side?>(*eig, eigenCoords, xInt);
 	
 		for (int j = 0; j < numWaves; ++j) {
 			*value += fabs(newbasis.ptr[j] - basis.ptr[j]);
@@ -153,9 +156,12 @@ function Roe:addDisplayVars()
 				{['0'] = template([[
 		int indexInt = <?=side?> + dim * index;
 		const global <?=eqn.eigen_t?>* eig = buf + indexInt;
-		
+	
+		real3 xInt = x;
+		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
+
 		*value = 0;
-		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt[0]')?>
+		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
 
 		for (int k = 0; k < numIntStates; ++k) {
 			
@@ -168,17 +174,17 @@ function Roe:addDisplayVars()
 				basis.ptr[j] = k == j ? 1 : 0;
 			}
 
-			<?=eqn.waves_t?> eigenCoords = eigen_leftTransform_<?=side?>(*eig, basis, xInt[0]);
+			<?=eqn.waves_t?> eigenCoords = eigen_leftTransform_<?=side?>(*eig, basis, xInt);
 
 			<?=eqn.waves_t?> eigenScaled;
 			<? for j=0,eqn.numWaves-1 do ?>{
 				const int j = <?=j?>;
-				real wave_j = <?=eqn:eigenWaveCode(side, 'eig', 'xInt[0]', j)?>;
+				real wave_j = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', j)?>;
 				eigenScaled.ptr[j] = eigenCoords.ptr[j] * wave_j;
 			}<? end ?>
 		
 			//once again, only needs to be numIntStates
-			<?=eqn.cons_t?> newtransformed = eigen_rightTransform_<?=side?>(*eig, eigenScaled, xInt[0]);
+			<?=eqn.cons_t?> newtransformed = eigen_rightTransform_<?=side?>(*eig, eigenScaled, xInt);
 
 //this shouldn't need to be reset here
 // but it will if leftTransform does anything destructive
@@ -187,7 +193,7 @@ for (int j = 0; j < numStates; ++j) {
 }
 
 			//once again, only needs to be numIntStates
-			<?=eqn.cons_t?> transformed = eigen_fluxTransform_<?=side?>(*eig, basis, xInt[0]);
+			<?=eqn.cons_t?> transformed = eigen_fluxTransform_<?=side?>(*eig, basis, xInt);
 			
 			for (int j = 0; j < numIntStates; ++j) {
 				*value += fabs(newtransformed.ptr[j] - transformed.ptr[j]);

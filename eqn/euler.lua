@@ -35,8 +35,14 @@ function Euler:init(args)
 	Euler.super.init(self, args)
 
 	local SelfGrav = require 'op.selfgrav'
-	self.gravOp = SelfGrav{solver = self.solver}
-	self.solver.ops:insert(self.gravOp)
+
+if require 'solver.meshsolver'.is(self.solver) then
+	print("not using selfgrav with mesh solvers yet")
+else
+		self.gravOp = SelfGrav{solver = self.solver}
+		self.solver.ops:insert(self.gravOp)
+end
+
 end
 
 Euler.primVars = table{
@@ -272,16 +278,18 @@ for side=solver.dim,2 do ?>
 
 	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
 	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
-		
-	if self.solver.dim == 2 then
-		vars:insert(vorticity(self,2,'*value'))
-	elseif self.solver.dim == 3 then
-		local v = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
-		vars:insert{vorticityVec = template([[
+	
+	if not require 'solver.meshsolver'.is(self.solver) then
+		if self.solver.dim == 2 then
+			vars:insert(vorticity(self,2,'*value'))
+		elseif self.solver.dim == 3 then
+			local v = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
+			vars:insert{vorticityVec = template([[
 	<? for i=0,2 do ?>{
 		<?=select(2,next(v[i+1]))?>
 	}<? end ?>
 ]], {v=v}), type='real3'}
+		end
 	end
 
 	return vars

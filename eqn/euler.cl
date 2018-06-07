@@ -54,51 +54,12 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 <? end ?>
 
-//used for interface eigen basis
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.eigen_t?> eigen_forSide_<?=side?>(
+//used by the mesh version
+<?=eqn.eigen_t?> eigen_forInterface(
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
 	real3 x
 ) {
-	/*
-	hmm, where should ePot be removed from eTotal?
-	before Roe averaging, or after?
-	I'm doing it after in my previous framework and it works fine
-	but here, removing after causes numerical errors
-	however in the previous framework, I never offset ePot to be always-positive like I'm doing here ... 
-	...tadaa! that's the issue.
-	so if we do offset potential to be positive, and don't remove potential energy at all from hTotal, the boundary stays static.
-	if we do offset potential to be positive and remove it after Roe averaging then the system explodes 
-		(probably because positive potential means subtracting out a positive number, means nonphysical cases ...
-		... even though as we offset the potential to be positive, we are also adding it into the total energy ...
-		... but somewhere through numerical error it might be getting too close to zero non-potential total energy?)
-	
-	if we do offset potential to be positive and remove ePot before Roe averaging then nothing special happens
-
-	but if we DON'T offset potential (so keep it negative) and then we remove it after Roe averaging
-		then we get this nice Rayleigh-Taylor ... or Jeans ... instability from self-gravitation.
-	and if we DON'T offset potential (keep negative) and remove ePot before Roe averaging, same thing
-
-	so in summary if ePot is positive then the system either blows up (remove after) or stays boring (remove before)
-	but if ePot is negative then it behaves and displays the correct(?) instability patterns 
-	
-	but which behavior is correct?
-	is the instability at the surface of my self-gravitating demos Jeans, or is it errors?
-	
-	--- 
-
-	let me take that back
-	with forward Euler integrator on a grid of 256x256 ...
-	... even with offsetting the potential energy to be positive ...
-	... it is working fine (when subtracting potential energy pre-averaging)
-	... even with radius same as yesterday, gridsize, ... idk why it was exploding before ...
-	
-	but still,
-	offsetting the ePot to be positive does reduce the gravitational turbulence a lot
-	... so the initial range of ePot influences the turbulence
-	*/
-
 	<?=eqn.prim_t?> WL = primFromCons(UL, x);
 	real sqrtRhoL = sqrt(WL.rho);
 	real3 vL = WL.v;
@@ -131,6 +92,18 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		.vSq = vSq,
 		.Cs = Cs,
 	};
+}
+
+//used for interface eigen basis
+//maybe I shouldn't use eigen_forSide after all ...
+// ... and store as much info in eigen_t for all sides?
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.eigen_t?> eigen_forSide_<?=side?>(
+	<?=eqn.cons_t?> UL,
+	<?=eqn.cons_t?> UR,
+	real3 x
+) {
+	return eigen_forInterface(UL, UR, x);
 }
 <? end ?>
 

@@ -853,11 +853,6 @@ end
 	end
 end
 
--- for solvers who don't rely on calcDT
-function GridSolver:refreshCalcDTKernel()
-	self.calcDTKernelObj = self.solverProgramObj:kernel('calcDT', self.reduceBuf, self.UBuf)
-end
-
 
 -------------------------------------------------------------------------------
 --                                 display vars                              --
@@ -1527,45 +1522,6 @@ function GridSolver:calcDisplayVarToTex(var)
 		tex:unbind()
 		glreport'here'
 	end
-end
-
--- used by the display code to dynamically adjust ranges
-function GridSolver:calcDisplayVarRange(var)
-	if var.lastTime == self.t then
-		return var.lastMin, var.lastMax
-	end
-	var.lastTime = self.t
-
-	var:setToBufferArgs()
-
-	var.calcDisplayVarToBufferKernelObj()
-	local min = self.reduceMin()
-	var.calcDisplayVarToBufferKernelObj()
-	local max = self.reduceMax()
-	
-	var.lastMin = min
-	var.lastMax = max
-	
-	return min, max
-end
-
--- used by the output to print out avg, min, max
-function GridSolver:calcDisplayVarRangeAndAvg(var)
-	local needsUpdate = var.lastTime ~= self.t
-
-	-- this will update lastTime if necessary
-	local min, max = self:calcDisplayVarRange(var)
-	-- displayVarGroup has already set up the appropriate args
-
-	local avg
-	if needsUpdate then
-		var.calcDisplayVarToBufferKernelObj()
-		avg = self.reduceSum(nil, self.numCells) / tonumber(self.numCells)
-	else
-		avg = var.lastAvg
-	end
-
-	return min, max, avg
 end
 
 function GridSolver:updateGUIParams()	

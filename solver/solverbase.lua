@@ -350,7 +350,41 @@ function SolverBase:refreshSolverProgram()
 	for _,op in ipairs(self.ops) do
 		op:refreshSolverProgram()
 	end
+
+	-- display stuff:
+
+	if self.app.useGLSharing then
+		for _,displayVarGroup in ipairs(self.displayVarGroups) do
+			for _,var in ipairs(displayVarGroup.vars) do
+				--[[
+				if var.enabled 
+				or (var.vecVar and var.vecVar.enabled)
+				then
+				--]]do
+					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id, self.texCLMem)
+				end
+			end
+		end
+	end
+
+	for _,displayVarGroup in ipairs(self.displayVarGroups) do
+		for _,var in ipairs(displayVarGroup.vars) do
+			--[[
+			if var.enabled 
+			or (var.vecVar and var.vecVar.enabled)
+			then
+			--]]do
+				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id, self.reduceBuf)
+			end
+		end
+	end
 end
+
+-- for solvers who don't rely on calcDT
+function SolverBase:refreshCalcDTKernel()
+	self.calcDTKernelObj = self.solverProgramObj:kernel('calcDT', self.reduceBuf, self.UBuf)
+end
+
 
 function SolverBase:getSolverCode()
 	local fluxLimiterCode = 'real fluxLimiter(real r) {'
@@ -360,13 +394,12 @@ function SolverBase:getSolverCode()
 	return table{
 		self.codePrefix,
 		
-		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
-		self.eqn:getEigenCode() or '',
-		
 		fluxLimiterCode,
 		
 		'typedef struct { real min, max; } range_t;',
 		
+		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
+		self.eqn:getEigenCode() or '',
 		self.eqn:getSolverCode() or '',
 		self.eqn:getCalcDTCode() or '',
 		self.eqn:getFluxFromConsCode() or '',
@@ -528,29 +561,34 @@ SolverBase.DisplayVar = DisplayVar
 
 DisplayVar.type = 'real'	-- default
 
--- TODO buf (dest) shouldn't have ghost cells
--- and dstIndex should be based on the size without ghost cells
+--[[
+TODO buf (dest) shouldn't have ghost cells
+and dstIndex should be based on the size without ghost cells
+
+why would I bother write to the ghost cells?
+the only reason I can think of is for good subtexel lookup when rendering
+--]]
 DisplayVar.displayCode = [[
 kernel void <?=name?>(
 	<?=input?>,
-	const global <?= var.type ?>* buf<?= 
+	const global <?= var.type ?>* buf
+<? if require 'solver.meshsolver'.is(solver) then ?>
+	,const global cell_t* cells			//[numCells]
+	,const global iface_t* ifaces		//[numInterfaces]
+<? end ?>
+	<?= 
 	var.extraArgs and #var.extraArgs > 0 
 		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
 		or '' 
 ?>
 ) {
 	SETBOUNDS(0,0);
-
+<? if not require 'solver.meshsolver'.is(solver) then ?>
 	int4 dsti = i;
 	int dstindex = index;
 	
 	real3 x = cell_x(i);
-	real3 xInt[<?=solver.dim?>];
-<? for i=0,solver.dim-1 do
-?>	xInt[<?=i?>] = x;
-	xInt[<?=i?>].s<?=i?> -= .5 * grid_dx<?=i?>;
-<? end
-?>
+
 	//now constrain
 	if (i.x < numGhost) i.x = numGhost;
 	if (i.x >= gridSize_x - numGhost) i.x = gridSize_x - numGhost-1;
@@ -567,7 +605,10 @@ if solver.dim >= 3 then
 ?>
 	//and recalculate read index
 	index = INDEXV(i);
-
+<? else	-- mesh ?>
+	int dstindex = index;
+	real3 x = cells[index].x;
+<? end 		-- mesh vs grid ?>
 	
 	real value[6] = {0,0,0,0,0,0};	//size of largest struct
 	sym3* valuesym3 = (sym3*)value;
@@ -779,8 +820,6 @@ enableVector = false
 	return args.group
 end
 
-
-
 function SolverBase:addDisplayVars()
 	self:addUBufDisplayVars()
 	
@@ -804,6 +843,49 @@ function SolverBase:createDisplayVars()
 		return var, var.name
 	end)
 end
+
+-- used by the display code to dynamically adjust ranges
+function SolverBase:calcDisplayVarRange(var)
+	if var.lastTime == self.t then
+		return var.lastMin, var.lastMax
+	end
+	var.lastTime = self.t
+	
+	var:setToBufferArgs()
+	
+	var.calcDisplayVarToBufferKernelObj()
+	local min = self.reduceMin()
+	var.calcDisplayVarToBufferKernelObj()
+	local max = self.reduceMax()
+	
+	var.lastMin = min
+	var.lastMax = max
+	
+	return min, max
+end
+
+-- used by the output to print out avg, min, max
+function SolverBase:calcDisplayVarRangeAndAvg(var)
+	local needsUpdate = var.lastTime ~= self.t
+
+	-- this will update lastTime if necessary
+	local min, max = self:calcDisplayVarRange(var)
+	-- displayVarGroup has already set up the appropriate args
+
+	local avg
+	if needsUpdate then
+		var.calcDisplayVarToBufferKernelObj()
+		avg = self.reduceSum(nil, self.numCells) / tonumber(self.numCells)
+	else
+		avg = var.lastAvg
+	end
+
+	return min, max, avg
+end
+
+
+
+
 
 function SolverBase:initDraw()
 end

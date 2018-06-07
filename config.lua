@@ -1,4 +1,4 @@
-local dim = 1
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -270,7 +270,7 @@ maxs = {6,1,1},
 
 	-- Einstein
 	--initState = 'Minkowski',
-	initState = 'gaussian perturbation',
+	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 
 
@@ -467,7 +467,7 @@ maxs = {6,1,1},
 -- GR
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- not implemented yet
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))	-- not implemented yet
@@ -506,4 +506,4 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 -- the start of unstructured meshes
 --self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', meshfile='n0012_113-33'})))
 -- temp here -- to make sure ordinary solvers still run
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
