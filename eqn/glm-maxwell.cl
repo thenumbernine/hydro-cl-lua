@@ -44,15 +44,13 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 <? end ?>
 
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.eigen_t?> eigen_forSide_<?=side?>(
+<?=eqn.eigen_t?> eigen_forInterface(
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
 	real3 x
 ) {
 	return (<?=eqn.eigen_t?>){};
 }
-<? end ?>
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(

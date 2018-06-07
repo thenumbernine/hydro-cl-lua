@@ -285,6 +285,7 @@ Roe_t calcRoeValues(
 	return eig;
 }
 
+#error FIXME
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forSide_<?=side?>(
 	<?=eqn.cons_t?> UL,

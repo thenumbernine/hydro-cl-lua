@@ -61,11 +61,11 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 <? end ?>
 
-//TODO HLL needs eigen_forSide, 
+//TODO HLL needs eigen_forInterface 
 //but it would have to pass the extra ADM args into it
 /*
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.eigen_t?> eigen_forSide_<?=side?>(
+<?=eqn.eigen_t?> eigen_forInterface(
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
 	real3 x
@@ -106,7 +106,7 @@ kernel void calcEigenBasis(
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		//*eig = eigen_forSide_<?=side?>(*UL, *UR, xInt);
+		//*eig = eigen_forInterface(*UL, *UR, xInt);
 		eig->eps = .5 * (UL->eps + UR->eps);
 		eig->mu = .5 * (UL->mu + UR->mu);
 		real alpha = .5 * (alphaL + alphaR);

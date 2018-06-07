@@ -94,19 +94,6 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	};
 }
 
-//used for interface eigen basis
-//maybe I shouldn't use eigen_forSide after all ...
-// ... and store as much info in eigen_t for all sides?
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.eigen_t?> eigen_forSide_<?=side?>(
-	<?=eqn.cons_t?> UL,
-	<?=eqn.cons_t?> UR,
-	real3 x
-) {
-	return eigen_forInterface(UL, UR, x);
-}
-<? end ?>
-
 <?
 for side=0,solver.dim-1 do 
 	local prefix

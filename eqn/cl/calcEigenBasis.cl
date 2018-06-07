@@ -6,10 +6,6 @@ storing the # of interfaces in the solver:
 	numFaces = numCells * dim
 and then cycle across that,
 and - for grid-based solvers - deduce which interface to use based on the global index
-
-Or maybe we can just make this routine for grids, and another for meshes, 
-and both can call eigen_forSide...
-...of course eigen_forSide is axis-aligned, so the mesh one will need to call a linear combination of all sides based on the normal ...
 */
 
 <?
@@ -36,7 +32,7 @@ kernel void calcEigenBasis(
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 		
 		int indexInt = side + dim * index;	
-		eigenBuf[indexInt] = eigen_forSide_<?=side?>(*UL, *UR, xInt);
+		eigenBuf[indexInt] = eigen_forInterface(*UL, *UR, xInt);
 	}<? end ?>
 }
 
