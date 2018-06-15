@@ -1043,9 +1043,33 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 
 	local lines = table()
 	lines:insert(self.codePrefix)
-	
-	for side=1,self.dim do
 
+	local iFields = ({
+		nil,
+		{''},	-- i
+		{'.x', '.y'},	-- i.x, i.y
+	})[self.dim]
+
+	for side=1,self.dim do
+		
+		local bxs = range(3)
+		bxs:remove(side)
+
+		local function indexv(j)
+			local v = table{'0','0','0'}
+			v[side] = j
+			
+			for k=1,self.dim-1 do
+				v[bxs[k]] = 'i'..iFields[k]
+			end
+			
+			return v:concat','
+		end
+
+		local function index(j)
+			return 'INDEX('..indexv(j)..')'
+		end
+	
 		lines:insert(template([[
 kernel void boundary_<?=xNames[side]?>(
 	global <?=args.type?>* buf
@@ -1053,95 +1077,53 @@ kernel void boundary_<?=xNames[side]?>(
 	and ','..table.concat(args.extraArgs, ',\n\t')
 	or '' ?>
 ) {
-]], {
-		args = args,
-		side = side, 
-		xNames = xNames,
-	}))
-		if self.dim == 2 then
-			lines:insert[[
+
+<? 
+-- 1D: use a small 1D kernel and just run once 
+-- 2D: use a 1D kernel the size of the max dim 
+if solver.dim == 2 then ?>
 	int i = get_global_id(0);
-]]
-		elseif self.dim == 3 then
-			lines:insert[[
+<? elseif solver.dim == 3 then ?>
 	int2 i = (int2)(get_global_id(0), get_global_id(1));
-]]
-		end
+<? end ?>
 	
-		-- 1D: use a small 1D kernel and just run once 
-		-- 2D: use a 1D kernel the size of the max dim 
-			
-		if self.dim == 2 then
-			if side == 1 then
-				lines:insert[[
-	if (i >= gridSize_y) return;
-]]
-			elseif side == 2 then
-				lines:insert[[
-	if (i >= gridSize_x) return;
-]]
-			end
-		elseif self.dim == 3 then
-			if side == 1 then
-				lines:insert[[
-	if (i.x >= gridSize_y || i.y >= gridSize_z) return;
-]]
-			elseif side == 2 then
-				lines:insert[[
-	if (i.x >= gridSize_x || i.y >= gridSize_z) return;
-]]
-			elseif side == 3 then
-				lines:insert[[
-	if (i.x >= gridSize_x || i.y >= gridSize_y) return;
-]]
-			end
-		end
+	if (false
+<?	for k=1,solver.dim-1 do
+?>		|| i<?=iFields[k]?> >= gridSize_<?=xNames[bxs[k] ]?>
+<?	end
+?>) 
+	{
+		return;
+	}
 
-		lines:insert[[
 	for (int j = 0; j < numGhost; ++j) {
-]]
+]], 	{
+			table = table,
+			bxs = bxs,
+			solver = self,
+			args = args,
+			side = side, 
+			xNames = xNames,
+			iFields = iFields,
+		}))
 
-
-		local function indexv(j)
-			if self.dim == 1 then
-				return j..',0,0'
-			elseif self.dim == 2 then
-				if side == 1 then
-					return j..',i,0'
-				elseif side == 2 then
-					return 'i,'..j..',0'
-				end
-			elseif self.dim == 3 then
-				if side == 1 then
-					return j..',i.x,i.y'
-				elseif side == 2 then
-					return 'i.x,'..j..',i.y'
-				elseif side == 3 then
-					return 'i.x,i.y,'..j
-				end
-			end
-		end
-
-		local function index(j)
-			return 'INDEX('..indexv(j)..')'
-		end
-	
 		for _,minmax in ipairs(minmaxs) do
-			local method = args.methods[xNames[side]..minmax]
-			lines:insert(method{
+			lines:insert(args.methods[xNames[side]..minmax]{
 				index = index,
 				indexv = indexv,
 				assign = assign,
 				array = array,
 				field = field,
 				side = side,
-				mirrorVars = args.mirrorVars,
+				mirrorVars = mirrorVars,
 				minmax = minmax,
 			})
-		end
-	
-		lines:insert'	}'
-		lines:insert'}'
+		end 
+
+lines:insert[[
+	}
+}
+]]
 	end
 
 	local code = lines:concat'\n'
@@ -1187,9 +1169,15 @@ function GridSolver:refreshBoundaryProgram()
 	end
 
 	if self.useCTU then
-		self.lrBoundaryProgramObj, self.lrBoundaryKernelObjs = self:createBoundaryProgramAndKernel(table(self:getBoundaryProgramArgs(), {
-			type = self.eqn.consLR_t..'_dim',
-		}))
+		self.lrBoundaryProgramObj, self.lrBoundaryKernelObjs 
+		= self:createBoundaryProgramAndKernel(
+			table(
+				self:getBoundaryProgramArgs(), 
+				{
+					type = self.eqn.consLR_t..'_dim',
+				}
+			)
+		)
 		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
 			obj.obj:setArg(0, self.ULRBuf)
 		end

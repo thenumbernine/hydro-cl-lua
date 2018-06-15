@@ -68,7 +68,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <?=eqn.eigen_t?> eigen_forInterface(
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
-	real3 x
+	real3 x,
+	real3 n
 ) {
 }
 <? end ?>
@@ -106,7 +107,7 @@ kernel void calcEigenBasis(
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
-		//*eig = eigen_forInterface(*UL, *UR, xInt);
+		//*eig = eigen_forInterface(*UL, *UR, xInt, normalForSide<?=side?>());
 		eig->eps = .5 * (UL->eps + UR->eps);
 		eig->mu = .5 * (UL->mu + UR->mu);
 		real alpha = .5 * (alphaL + alphaR);

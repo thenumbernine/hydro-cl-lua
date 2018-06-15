@@ -43,7 +43,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <?=eqn.eigen_t?> eigen_forInterface(
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
-	real3 x
+	real3 x,
+	real3 n
 ) {
 	real alpha = .5 * (UL.alpha + UR.alpha);
 	real gamma_xx = .5 * (UL.gamma_xx + UR.gamma_xx);

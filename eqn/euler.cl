@@ -4,19 +4,7 @@ But I experimented with a curved-space solver.
 To get back to the original code,
 just replace all the g_ab stuff with their constant values and simplify away.
 */
-<?
-local solver = eqn.solver
-
-local clnumber = require 'cl.obj.number'
-local makePartials = require 'eqn.makepartial'
-
-local derivOrder, makePartial, makePartial2
-if eqn.guiVars.useNavierStokesViscosityTerm.value then 
-	derivOrder = 2 * solver.numGhost
-	makePartial = function(...) return makePartials.makePartial(derivOrder, solver, ...) end
-	makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end
-end
-?>
+<? local solver = eqn.solver ?>
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
@@ -28,13 +16,18 @@ end
 	real HTotal = U.ETotal + W.P;
 	
 	<?=eqn.cons_t?> F;
+	
 	F.rho = U.m.s<?=side?>;
+	
 	F.m = real3_scale(U.m, vj);
+
 <? for i=0,2 do
 ?>	F.m.s<?=i?> += coord_gU<?=i?><?=side?>(x) * W.P;
 <? end
 ?>	F.ETotal = HTotal * vj;
+	
 	F.ePot = 0;
+	
 	return F;
 }
 <? end ?>
@@ -58,7 +51,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <?=eqn.eigen_t?> eigen_forInterface(
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
-	real3 x
+	real3 x,
+	real3 n
 ) {
 	<?=eqn.prim_t?> WL = primFromCons(UL, x);
 	real sqrtRhoL = sqrt(WL.rho);
@@ -97,14 +91,17 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <?
 for side=0,solver.dim-1 do 
 	local prefix
+	
 	if side == 0 then
-					prefix = [[
+					
+		prefix = [[
 	const real nx = 1, ny = 0, nz = 0;
 	const real n1x = 0, n1y = 1, n1z = 0;
 	const real n2x = 0, n2y = 0, n2z = 1;
 	real v_n = v.x, v_n1 = v.y, v_n2 = v.z;
 ]] 
 	elseif side == 1 then
+		
 		prefix = [[
 	const real nx = 0, ny = 1, nz = 0;
 	const real n1x = 0, n1y = 0, n1z = 1;
@@ -112,6 +109,7 @@ for side=0,solver.dim-1 do
 	real v_n = v.y, v_n1 = v.z, v_n2 = v.x;
 ]] 
 	elseif side == 2 then
+		
 		prefix = [[
 	const real nx = 0, ny = 0, nz = 1;
 	const real n1x = 1, n1y = 0, n1z = 0;
@@ -119,6 +117,7 @@ for side=0,solver.dim-1 do
 	real v_n = v.z, v_n1 = v.x, v_n2 = v.y;
 ]]
 	end
+	
 	prefix = [[
 	sym3 gU = coord_gU(x);
 	real gUjj = gU.s]]..side..side..[[;
@@ -151,7 +150,7 @@ for side=0,solver.dim-1 do
 	real denom = 2. * Cs * Cs;
 	real invDenom = 1. / denom;
 
-#if 0	//works but isn't correct for curved space
+#if 0	//works but isn't correct for curvilinear coordinates (which make use of g_ij)
 	Y[0] = (X.ptr[0] * ((heatCapacityRatio - 1.) * .5 * vSq + Cs_over_sqrt_gUjj * v_n)
 		+ X.ptr[1] * -(nx * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.x) 
 		+ X.ptr[2] * -(ny * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.y)
@@ -290,7 +289,7 @@ for side=0,solver.dim-1 do
 		+ X.ptr[2] * v_n1 
 		+ X.ptr[3] * v_n2 
 		+ X.ptr[4] * (hTotal + v_n * Cs_over_sqrt_gUjj);
-#else	//works for covariant formulation of Euler fluid equations
+#else	//works for contravariant formulation of Euler fluid equations
 <? if side == 0 then ?>	
 	real sqrt_gUxx = sqrt_gUjj;
 	return (<?=eqn.cons_t?>){.ptr={
@@ -422,57 +421,99 @@ for side=0,solver.dim-1 do
 <? end ?>
 
 /*
-set Equation.useSourceTerm=true
-This has the connection terms that aren't absorbed in the change-of-volume
-for Euclidian this is -Conn^i_jk rho v^j v^k
+Source terms:
 
-rho_,t + (rho v^i)_;i = 0
-(rho v^j)_,t + (rho v^i v^j + P g^ij)_;i = 0
-ETotal_,t + (HTotal u^i)_;i = 0
+rho,t + (rho v^j)_,j = 0
+(rho v^i),t + (rho v^i v^j + g^ij P)_,j = 0
+E_total,t + (v^j H_total)_,j = 0
 
-rho_,t + m^i_;i = 0
-m^j_,t + (m^i v^j + P g^ij)_;i = 0
-ETotal_,t + (HTotal u^i)_;i = 0
+m^i = rho v^i
+E_total = E_kin + E_int <=> E_int = E_total - E_kin
+P = (gamma - 1) E_int = (gamma - 1) (E_total - E_kin) = (gamma - 1) (E_total - 1/2 m^2 / rho)
+H_total = E_total + P = gamma E_total - 1/2 (gamma - 1) m^2 / rho
 
-rho_,t + m^i_,i + Conn^i_ki m^k = 0
-m^j_,t + (m^i v^j + P g^ij)_,i + Conn^i_ki (m^k v^j + P g^kj) + Conn^j_ki (m^i v^k + P g^ik) = 0
-ETotal_,t + (HTotal u^i)_,i + Conn^i_ki (HTotal u^k) = 0
+rho,t + m^j_,j = 0
+m^i_,t + (m^i m^j / rho + g^ij (gamma - 1) (E_total - 1/2 m^2 / rho))_,j = 0
+E_total,t + (m^j (gamma E_total / rho - 1/2 (gamma - 1) m^2 / rho^2))_,j = 0
 
-rho_,t + m^i_,i + 1/e e_,k m^k = 0
-m^j_,t + (m^i v^j + P g^ij)_,i + 1/e e_,k (m^k v^j + P g^kj) + Conn^j_ki (m^i v^k + P g^ik) = 0
-ETotal_,t + (HTotal u^i)_,i + 1/e e_,k (HTotal u^k) = 0
-... for e = sqrt(g), for g = det(g_ij)
+rho,t + m^j_,j = 0
+m^i_,t + m^i_,j m^j / rho + m^i m^j_,j / rho - m^i m^j rho_,j / rho^2 
+	+ g^ij_,j (gamma - 1) (E_total - 1/2 m^2 / rho) 
+	+ g^ij (gamma - 1) (E_total_,j - 1/2 m^2 / rho) 
+	+ g^ij (gamma - 1) (E_total - m^k_,j m_k / rho) 
+	+ g^ij (gamma - 1) (E_total - 1/2 m^k m^l g_kl,j / rho) 
+	+ g^ij (gamma - 1) (E_total + 1/2 m^2 / rho^2 rho_,j)
+	= 0
+E_total,t + m^j_,j (gamma E_total / rho - 1/2 (gamma - 1) m^2 / rho^2) 
+	+ m^j (gamma E_total_,j / rho - 1/2 (gamma - 1) m^2 / rho^2) 
+	+ m^j (-gamma E_total / rho^2 rho_,j - 1/2 (gamma - 1) m^2 / rho^2) 
+	+ m^j (gamma E_total / rho - (gamma - 1) m^k_,j m_k / rho^2) 
+	+ m^j (gamma E_total / rho - 1/2 (gamma - 1) m^k m^l g_kl,j / rho^2) 
+	+ m^j (gamma E_total / rho + (gamma - 1) m^2 rho_,j / rho^3) 
+	= 0
 
-rho_,t + 1/e (e m^i)_,i = 0
-m^j_,t + 1/e (e (m^i v^j + P g^ij))_,i = -Conn^j_ki (m^i v^k + P g^ik)
-ETotal_,t + 1/e (e (HTotal u^i))_,i = 0
+rho,t + m^j_,j = 0
+m^i_,t 
+	+ ((1/2 (gamma - 1) g^ij m^2 - m^i m^j) / rho^2) rho_,j
+	+ ((delta^i_k m^j + m^i delta^j_k - (gamma - 1) g^ij m_k) / rho) m^k_,j 
+	+ g^ij (gamma - 1) E_total_,j
+	+ (- g^ik g^lj P - 1/2 (gamma - 1) g^ij m^k m^l / rho) g_kl,j
+	 = 0
+E_total,t 
+	+ (( (gamma - 1) m^j m^2 / rho - gamma E_total) / rho^2) rho_,j
+	+ (delta^j_k h_total - (gamma - 1) m^j m_k / rho^2) m^k_,j
+	+ (gamma m^j / rho) E_total_,j 
+	+ (-1/2 (gamma - 1) m^j m^k m^l / rho^2) g_kl,j
+	 = 0
 
-... source terms:
-rho_,t += 0
-m^j_,t += -Conn^j_ki (rho v^k v^i + P g^ki)
-ETotal_,t += 0
+rho,t + m^j_,j = 0
+m^i_,t 
+	+ (1/2 (gamma - 1) g^ij v^2 - v^i v^j) rho_,j
+	+ (delta^i_k v^j + delta^j_k v^i - (gamma - 1) g^ij v_k) m^k_,j 
+	+ g^ij (gamma - 1) E_total_,j
+	+ (-g^ik g^lj P - 1/2 (gamma - 1) g^ij rho v^k v^l) g_kl,j
+	 = 0
+E_total,t 
+	+ ( (gamma - 1) v^j v^2 - gamma E_total / rho^2) rho_,j
+	+ (delta^j_k h_total - (gamma - 1) v^j v_k) m^k_,j
+	+ gamma v^j E_total_,j
+	+ (-1/2 (gamma - 1) rho v^j v^k v^l) g_kl,j
+	 = 0
 
-for cylindrical holonomic:
-Conn^phi_phi_r = Conn^phi_r_phi = 1/r
-Conn^r_phi_phi = -r
-...and the source term becomes...
-m^r_,t += -Conn^r_phi_phi (rho v^phi v^phi + P g^phi^phi)
-   ... += r (rho v^phi v^phi + P / r^2)
-   ... += r rho v^phi v^phi + P / r
-m^phi_,t += -(Conn^phi_phi_r + Conn^phi_r_phi) (rho v^r v^phi + P g^r^phi)
-     ... += -2 Conn^phi_phi_r rho v^r v^phi
-     ... += -2/r rho v^r v^phi
+rho,t + m^j_,j + Gamma^j_kj m^k = 0
+m^i_,t 
+	+ (1/2 (gamma - 1) g^ij v^2 - v^i v^j) rho_,j
+	+ (delta^i_k v^j + delta^j_k v^i - (gamma - 1) g^ij v_k) (m^k_,j + Gamma^k_lkj m^l)
+	+ g^ij (gamma - 1) E_total_,j
+	 = 0
+E_total,t 
+	+ ( (gamma - 1) v^j v^2 - gamma E_total / rho^2) rho_,j
+	+ (delta^j_k h_total - (gamma - 1) v^j v_k) (m^k_,j + Gamma^k_lj m^l)
+	+ gamma v^j E_total_,j
+	 = 0
+
+U^I_,t + F^Ij_,j + ...
+	... + Gamma^j_kj m^k = 0
+	... + (delta^i_k v^j + delta^j_k v^i - (gamma - 1) g^ij v_k) Gamma^k_lj m^l + (g^ik g^lj P + 1/2 (gamma - 1) g^ij m^k m^l / rho) (Gamma_klj + Gamma_lkj) = 0
+	... + (delta^j_k h_total - (gamma - 1) v^j v_k) Gamma^k_lj m^l + (1/2 (gamma - 1) m^j m^k m^l / rho^2) (Gamma_klj + Gamma_lkj) = 0
+
+U^I_,t + 1/sqrt(g) ( sqrt(g) F^Ij )_,j + ...
+	...   [                  0                 ]
+	... = [ -Gamma^i_jk (rho v^j v^k + P g^jk) ]
+	...   [                  0                 ]
 
 
-for cylindrical anholonomic normalized:
-Conn^phi_r_phi = 1/r
-Conn^r_phi_phi = -1/r
-...and the source term becomes...
-m^r_,t += -Conn^r_phi_phi (rho v^phi v^phi + P g^phi^phi)
-   ... += 1/r (rho v^phi v^phi + P)
-m^phi_,t += -1/r (rho v^r v^phi)
+~
 
+Or we could remove the metric from the flux:
 
+[  rho  ]     [1   0  0] [          rho v^j        ]      [ 0 ]
+[rho v^i]   + [0 g^ik 0] [rho v_k v^j + delta_k^j P]    = [ 0 ]
+[E_total],t   [0   0  1] [        v^j H_total      ]_,j   [ 0 ]
+
+the metric can be factored outside of the time partial derivatives, but only for static grids
+
+now we have a delta_k^j instead of a g^ij, but at the cost that the v_k v^j is no longer symmetric as the v^i v^j term would be
 */
 kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
@@ -489,107 +530,5 @@ kernel void addSource(
 	real3 m_conn_vv = coord_conn_apply23(W.v, U->m, x);
 	deriv->m = real3_sub(deriv->m, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
 	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn_trace23(x), W.P));		//-Conn^i_jk g^jk P
-	//deriv->m = real3_sub(deriv->m, real3_scale(coord_conn_apply12(W.v, U->m, x), heatCapacityRatio - 1.));	//-(gamma-1) rho v^j v^k Conn_jk^i
-	//deriv->ETotal -= (heatCapacityRatio - 1.) * real3_dot(coord_lower(U->m, x), m_conn_vv);
-<? end ?>
-
-/*
-Navier-Stokes FANS source term: 2005 Uygun, Kirkkopru
-
-NOTICE this is only for flat space!
-
-i'th term in the j'th direction
-F[m]_ij += tauTilde_ij
-F[ETotal]_j += ThetaTilde_j
-
-for tau_ij = mu_T (v_i,j + v_j,i) - 2/3 delta_ij (mu_T v_k,k + K rho) (eqn 3)
-Theta_j = tau_ij v_i + (kBar_L + k_T) * TTilde,j
-... but eqn 3 isn't used numerically ... eqn 11 is ... and that doesn't look so straightforward as the eqn above ... ( why does the tauTilde_xx term have a vTilde_y,y term?)
-
-
-
-so tau_ij,j = (mu_T (v_i,j + v_j,i - 2/3 delta_ij v_k,k) - 2/3 rho K delta_ij),j
-	= mu_T (v_i,j + v_j,i - 2/3 delta_ij v_k,k),j - (2/3 rho K delta_ij),j
-	= mu_T (v_i,jj + 1/3 v_j,ji) - 2/3 K rho,i
-	= mu_T (m_i / rho),jj + 1/3 mu_T (m_j / rho),ji - 2/3 K rho,i
-	= mu_T (m_i,j / rho - m_i / rho^2 rho,j),j + 1/3 mu_T (m_j,j / rho - m_j / rho^2 rho,j),i - 2/3 K rho,i
-	= mu_T (
-		m_i,jj / rho 
-		- m_i,j / rho^2 rho,j
-		- m_i,j / rho^2 rho,j
-		+ 2 m_i / rho^3 (rho,j)^2
-		- m_i / rho^2 rho,jj
-	) + 1/3 mu_T (
-		m_j,ji / rho 
-		- m_j,j / rho^2 rho,i
-		- m_j,i / rho^2 rho,j
-		+ 2 m_j / rho^3 rho,i rho,j
-		- m_j / rho^2 rho,ij
-	) - 2/3 K rho,i
-	
-	= mu_T (
-		(m_i,jj + 1/3 m_j,ji) / rho 
-		- ((2 m_i,j + 1/3 m_j,i) rho,j + 1/3 m_j,j rho,i) / rho^2
-		+ (
-			m_i (2 (rho,j)^2 - rho rho,jj)
-			+ m_j (2 rho,i rho,j - rho rho,ij)
-		) / rho^3
-	) - 2/3 K rho,i
-
-	= 
-		- 2/3 K rho,i
-		+ mu_T (
-			+ m_i,jj / rho
-			+ 1/3 m_j,ji / rho
-			- 2 m_i,j rho,j / rho^2 
-			- 1/3 m_j,i rho,j / rho^2 
-			- 1/3 m_j,j rho,i / rho^2
-			+ m_i 2 (rho,j)^2 / rho^3 
-			- m_i rho,jj / rho^2
-			+ 2 m_j rho,i rho,j / rho^3 
-			- m_j rho,ij / rho^2
-		)
-*/
-<? if eqn.guiVars.useNavierStokesViscosityTerm.value then 
-?>
-	const real K = <?=clnumber(eqn.guiVars.viscosity_K.value)?>;
-	const real mu_T = <?=clnumber(eqn.guiVars.viscosity_mu_T.value)?>;
-
-<?=makePartial('rho', 'real')?>
-<?=makePartial2('rho', 'real')?>
-<?=makePartial('m', 'real3')?>		//m_i,j = partial_m_l[j].i
-<?=makePartial2('m', 'real3')?>		//m_i,jk = partial2_m_ll[jk].i
-
-	real invRho = 1. / U->rho;
-	real invRho2 = invRho * invRho;
-	real invRho3 = invRho * invRho2;
-
-<? for i,xi in ipairs(xNames) do
-?>	deriv->m.<?=xi?> += 
-		-2./3. * K * partial_rho_l[<?=i-1?>]
-	+ mu_T * (0.
-<?	for j,xj in ipairs(xNames) do
-		local ij = from3x3to6(i,j)
-		local jj = from3x3to6(j,j)
-?>		
-		+ invRho * (
-			+ partial2_m_ll[<?=jj-1?>].<?=xi?>
-			+ 1./3. * partial2_m_ll[<?=ij-1?>].<?=xj?>
-			+ invRho * (
-				- 2. * partial_m_l[<?=j-1?>].<?=xi?> * partial_rho_l[<?=j-1?>]
-				- 1./3. * partial_m_l[<?=i-1?>].<?=xj?> * partial_rho_l[<?=j-1?>]
-				- 1./3. * partial_m_l[<?=j-1?>].<?=xj?> * partial_rho_l[<?=i-1?>]
-				- U->m.<?=xi?> * partial2_rho_ll[<?=jj-1?>]
-				- U->m.<?=xj?> * partial2_rho_ll[<?=ij-1?>]
-				+ invRho * 2. * partial_rho_l[<?=j-1?>] * (
-					+ U->m.<?=xi?> * partial_rho_l[<?=j-1?>] 
-					+ U->m.<?=xj?> * partial_rho_l[<?=i-1?>]
-				)
-			)
-		)
-<? 	end
-?>	);
-<? end
-?>	
 <? end ?>
 }

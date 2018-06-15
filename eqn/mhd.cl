@@ -30,24 +30,17 @@ ideal-mhd, divergence-free, conservative-based eigensystem
 }
 <? end ?>
 
-<? for side=0,2 do ?>
-<?=eqn.cons_t?> cons_swapFrom<?=side?>(<?=eqn.cons_t?> U) {
-	//both work as good as the other ...
-	//U.m = real3_swap<?=side?>(U.m);
-	//U.B = real3_swap<?=side?>(U.B);
-	U.m = real3_rotFrom<?=side?>(U.m);
-	U.B = real3_rotFrom<?=side?>(U.B);
+<?=eqn.cons_t?> cons_rotateFrom(<?=eqn.cons_t?> U, real3 n) {
+	U.m = real3_rotateFrom(U.m, n);
+	U.B = real3_rotateFrom(U.B, n);
 	return U;
 }
 
-<?=eqn.cons_t?> cons_swapTo<?=side?>(<?=eqn.cons_t?> U) {
-	//U.m = real3_swap<?=side?>(U.m);
-	//U.B = real3_swap<?=side?>(U.B);
-	U.m = real3_rotTo<?=side?>(U.m);
-	U.B = real3_rotTo<?=side?>(U.B);
+<?=eqn.cons_t?> cons_rotateTo(<?=eqn.cons_t?> U, real3 n) {
+	U.m = real3_rotateTo(U.m, n);
+	U.B = real3_rotateTo(U.B, n);
 	return U;
 }
-<? end ?>
 
 //called from calcDT
 <? for side=0,solver.dim-1 do ?>
@@ -55,7 +48,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const global <?=eqn.cons_t?>* U,
 	real3 x
 ) {
-	<?=eqn.cons_t?> U_ = cons_swapFrom<?=side?>(*U);
+	<?=eqn.cons_t?> U_ = cons_rotateFrom(*U, normalForSide<?=side?>());
 	<?=eqn.prim_t?> W = primFromCons(U_, x);
 	
 #if 0
@@ -268,20 +261,20 @@ Roe_t calcRoeValues(
 	return eig;
 }
 
-#error FIXME
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.eigen_t?> eigen_forSide_<?=side?>(
+<?=eqn.eigen_t?> eigen_forInterface(
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
-	real3 x
+	real3 x,
+	real3 n
 ) {
+	//rotate UL and UR to be x-aligned?  that takes the normal ...
+
 	//swap the sides with x here, so all the fluxes are in the 'x' direction
-	<?=eqn.cons_t?> UL_ = cons_swapFrom<?=side?>(UL);
-	<?=eqn.cons_t?> UR_ = cons_swapFrom<?=side?>(UR);
+	<?=eqn.cons_t?> UL_ = cons_rotateFrom(UL, n);
+	<?=eqn.cons_t?> UR_ = cons_rotateFrom(UR, n);
 	Roe_t roe = calcRoeValues(UL_, UR_, x);
 	return eigen_forRoeAvgs(roe, x);
 }
-<? end ?>
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
@@ -289,7 +282,7 @@ Roe_t calcRoeValues(
 	<?=eqn.cons_t?> inputU,
 	real3 x
 ) {	
-	inputU = cons_swapFrom<?=side?>(inputU);
+	inputU = cons_rotateFrom(inputU, normalForSide<?=side?>());
 	
 	const real gamma = heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
@@ -484,7 +477,7 @@ Roe_t calcRoeValues(
 		+ input.ptr[5] * r72
 		+ input.ptr[6] * r71;
 	resultU.BPot = 0;
-	return cons_swapTo<?=side?>(resultU);
+	return cons_rotateTo(resultU, normalForSide<?=side?>());
 }
 
 <?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
@@ -492,7 +485,7 @@ Roe_t calcRoeValues(
 	<?=eqn.cons_t?> inputU,
 	real3 x
 ) {
-	inputU = cons_swapFrom<?=side?>(inputU);
+	inputU = cons_rotateFrom(inputU, normalForSide<?=side?>());
 
 	const real gamma = heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
@@ -549,7 +542,7 @@ Roe_t calcRoeValues(
 		+ inputU.m.z * -B.x * _1_rho
 		+ inputU.B.z * v.x;
 	resultU.BPot = 0;
-	return cons_swapTo<?=side?>(resultU);
+	return cons_rotateTo(resultU, normalForSide<?=side?>());
 }
 
 <?=eqn.eigen_t?> eigen_forCell_<?=side?>(

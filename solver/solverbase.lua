@@ -497,14 +497,16 @@ function SolverBase:createCodePrefix()
 
 	-- real3
 	lines:insert(file['math.h'])
-	lines:insert(template(file['math.cl']))
-
+	
 	lines:append{
 		'#define dim '..self.dim,
 		'#define numStates '..self.eqn.numStates,
 		'#define numIntStates '..self.eqn.numIntStates,
 		'#define numWaves '..self.eqn.numWaves,
 	}
+	
+	-- real3_rotateFrom, real3_rotateTo depend on 'dim'
+	lines:insert(template(file['math.cl']))
 	
 	lines:insert(self.coord:getCode(self))
 

@@ -32,7 +32,7 @@ kernel void calcEigenBasis(
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 		
 		int indexInt = side + dim * index;	
-		eigenBuf[indexInt] = eigen_forInterface(*UL, *UR, xInt);
+		eigenBuf[indexInt] = eigen_forInterface(*UL, *UR, xInt, normalForSide<?=side?>());
 	}<? end ?>
 }
 
@@ -52,7 +52,7 @@ kernel void calcEigenBasis(
 	const global <?=eqn.cons_t?>* UL = UBuf + iface->cellIndex[0];
 	const global <?=eqn.cons_t?>* UR = UBuf + iface->cellIndex[1];
 
-	eigenBuf[ifaceIndex] = eigen_forInterface(*UL, *UR, iface->x);
+	eigenBuf[ifaceIndex] = eigen_forInterface(*UL, *UR, iface->x, normalForSide<?=side?>());
 }
 
 <? end -- mesh vs grid solver ?>

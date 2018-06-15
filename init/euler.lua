@@ -3,6 +3,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
+local materials = require 'materials'
 local ffi = require 'ffi'
 local InitCond = require 'init.init'
 
@@ -228,6 +229,7 @@ local initStates = table{
 	
 	{
 		name = 'Sod',
+-- [[ test-case vars
 		guiVars = {
 			{name = 'init_rhoL', value = 1},
 			{name = 'init_PL', value = 1},
@@ -237,6 +239,18 @@ local initStates = table{
 		overrideGuiVars = {
 			heatCapacityRatio = 5/3,
 		},
+--]]		
+--[[ real-world vars
+		guiVars = {
+			{name = 'init_rhoL', value = 8 * materials.Air.seaLevelDensity},	-- kg / m^3
+			{name = 'init_PL', value = 10 * materials.Air.seaLevelPressure},	-- Pa = N / m^2
+			{name = 'init_rhoR', value = materials.Air.seaLevelDensity},
+			{name = 'init_PR', value = materials.Air.seaLevelPressure},
+		},
+		overrideGuiVars = {
+			heatCapacityRatio = materials.Air.C_p / materials.Air.C_v,	-- ~1.4
+		},
+--]]
 		initState = function(self, solver)
 			return template([[
 #if 0	//offsetting the region	so I can see there's a problem at the boundary ...
@@ -259,6 +273,7 @@ end
 	})
 		end,
 	},
+	
 	{
 		name = 'Sedov',
 		initState = function(self, solver)
@@ -268,6 +283,50 @@ end
 ]]
 		end,
 	},
+	
+	-- http://www-troja.fjfi.cvut.cz/~liska/CompareEuler/compare8/node36_ct.html
+	{
+		name = 'Noh',
+--[[ I don't think this is setting correctly.  cell_x is still [-1,1]^n
+		mins = {0,0,0},
+		maxs = {1,1,1},
+--]]		
+		overrideGuiVars = {
+			heatCapacityRatio = 5/3,
+		},
+		initState = function(self, solver)
+			-- TODO add boundary condition of exact solution
+			return [[
+	rho = 1.;
+	P = 1e-6;
+	real r = real3_len(x);
+	v = real3_scale(x, -1./r);
+]]
+		end,
+	},
+	
+	-- http://www-troja.fjfi.cvut.cz/~liska/CompareEuler/compare8/node36_ct.html
+	{
+		name = 'implosion',
+		mins = {0,0,0},
+		maxs = {.3, .3, .3},
+		overrideGuiVars = {
+			heatCapacityRatio = 1.4,
+		},
+		initState = function(self, solver)
+			solver:setBoundaryMethods'mirror'
+			return [[
+	if (x.y < -1. - x.x) {
+		rho = .125;
+		P = .14;
+	} else {
+		rho = 1.;
+		P = 1.;
+	}
+]]
+		end,
+	},
+	
 	-- http://www.astro.uni-bonn.de/~jmackey/jmac/node7.html
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/brio-wu/Brio-Wu.html
 	{

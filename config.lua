@@ -1,4 +1,4 @@
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -33,7 +33,8 @@ local args = {
 	--usePLM = 'plm-athena',		-- based on Athena, idk about this one
 	--usePLM = 'ppm-experimental',	-- one more attempt to figure out all the PLM stuff, based on 2017 Zingale
 
-	slopeLimiter = 'minmod',
+	-- only enabled for certain usePLM methods
+	--slopeLimiter = 'minmod',
 
 	--useCTU = true,
 	
@@ -63,7 +64,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{128,128,1},
+				{256,256,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -75,12 +76,12 @@ maxs = {6,1,1},
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'mirror',
+		xmax=cmdline.boundary or 'mirror',
+		ymin=cmdline.boundary or 'mirror',
+		ymax=cmdline.boundary or 'mirror',
+		zmin=cmdline.boundary or 'mirror',
+		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
 	-- TODO these next two seem very similar
@@ -204,8 +205,10 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
+	--initState = 'Noh',
+	--initState = 'implosion',
 	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',
 	--initState = 'Colella-Woodward',
@@ -387,6 +390,8 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='navstokes-wilcox'})))
+
 -- HD - Burgers
 -- f.e. and b.e. are working, but none of the r.k. integrators 
 -- PLM isn't implemented yet
@@ -506,4 +511,4 @@ maxs = {6,1,1},
 -- the start of unstructured meshes
 --self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', meshfile='n0012_113-33'})))
 -- temp here -- to make sure ordinary solvers still run
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))

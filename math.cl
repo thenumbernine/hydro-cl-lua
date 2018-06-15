@@ -62,6 +62,33 @@ real3 real3_rotTo0(real3 v) { return v; }
 real3 real3_rotTo1(real3 v) { return _real3(-v.y, v.x, v.z); }
 real3 real3_rotTo2(real3 v) { return _real3(-v.z, v.y, v.x); }
 
+//rotate 'n' to x-axis
+real3 real3_rotateFrom(real3 v, real3 n) {
+#if dim == 1
+	return v;
+#elif dim == 2
+	return _real3(
+		v.x * n.x + v.y * n.y,
+		-v.x * n.y + v.y * n.x,
+		v.z);
+#elif dim == 3
+#error TODO
+#endif
+}
+
+//rotate x-axis to 'n'
+real3 real3_rotateTo(real3 v, real3 n) {
+#if dim == 1
+	return v;
+#elif dim == 2
+	return _real3(
+		v.x * n.x - v.y * n.y,
+		v.x * n.y + v.y * n.x,
+		v.z);
+#elif dim == 3
+#error TODO
+#endif
+}
 
 static inline sym3 sym3_ident() {
 	return _sym3(1,0,0,1,0,1);
@@ -291,4 +318,6 @@ static inline real3 _3sym3_sym3_dot23(_3sym3 a, sym3 b) {
 ?>	};
 }
 
-
+real3 normalForSide0() { return _real3(1,0,0); }
+real3 normalForSide1() { return _real3(0,1,0); }
+real3 normalForSide2() { return _real3(0,0,1); }

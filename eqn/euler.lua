@@ -1,3 +1,36 @@
+--[[
+P V = n R T = m R_spec T
+ideal gas EOS: P V_m = R T
+T = T_C + 273.15' C
+R = gas constant = 8.314459848 J / (mol K) 
+R_spec = 287.058 J / (kg K) for dry air 
+R_spec = R / M = k_B / m
+M = molar mass
+k_B = Boltzmann constant = 1.3806485279e-23 J / K
+m = mass within volume V	<-> rho = m / V
+R_spec = k_B rho V
+
+caloric perfect:
+P = (gamma - 1) rho e_int
+gamma = C_p / C_v = adiabatic index / ratio of specific heats
+e_int = C_v T = internal energy per unit mass / specific internal energy
+C_v = specific heat at constant volume
+C_p = specific heat at constant pressure
+P = rho R_spec T
+e_int = C_v T
+P = rho (C_p - C_v) e_int / C_v = rho (C_p / C_v - 1) e_int
+
+0 C = 273.15 K
+
+using some real-world numbers ...
+P = (gamma - 1) rho e_int
+101325 kg / (m s^2) = (C_p - C_v) / C_v (1.2754 kg / m^3) C_v T 
+101325 kg / (m s^2) = (1006 - 717.1) J / (kg K) (1.2754 kg / m^3) T 
+T = 274.99364522457 K
+T = 1.8436452245715 C ... should be
+
+--]]
+
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
@@ -74,7 +107,6 @@ end
 
 function Euler:getCommonFuncCode()
 	return template([[
-
 inline real calc_H(real P) { return P * (heatCapacityRatio / (heatCapacityRatio - 1.)); }
 inline real calc_h(real rho, real P) { return calc_H(P) / rho; }
 inline real calc_hTotal(real rho, real P, real ETotal) { return (P + ETotal) / rho; }
@@ -274,7 +306,16 @@ for side=solver.dim,2 do ?>
 		valuevec->s<?=side?> = 0.;
 <? end ?>
 	}
-]], {eqn=self, solver=self.solver}), type='real3'} or nil}
+]], {eqn=self, solver=self.solver}), type='real3'} or nil
+	}:append{
+		{['temp (C)'] = template([[
+<? local clnumber = require 'cl.obj.number' ?>
+<? local materials = require 'materials' ?>
+#define _0_C_in_K		273.15
+#define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
+	*value = calc_eInt(W) / C_v - _0_C_in_K;
+]])}
+	}
 
 	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
 	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]

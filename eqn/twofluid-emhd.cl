@@ -91,7 +91,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <?=eqn.eigen_t?> eigen_forInterface(
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
-	real3 x
+	real3 x,
+	real3 n
 ) {
 	<?=eqn.prim_t?> WL = primFromCons(UL, x);
 	<?=eqn.prim_t?> WR = primFromCons(UR, x);

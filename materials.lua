@@ -52,4 +52,23 @@ for _,material in pairs(materials) do
 	material.resistivity = material.resistivity * ohm	-- ohm-m = m^1
 	material.conductivity = material.conductivity * S	-- S/m = m^-1
 end
+
+-- https://www.engineeringtoolbox.com/air-properties-d_156.html
+-- measurements at 0' C at 1 bar
+-- C_p = specific heat at constant pressure (J / (kg K))
+-- C_v = specific heat at constant volume (J / (kg K))
+materials.Air.C_p = 1006
+materials.Air.C_v = 717.1
+materials.Air.heatCapacityRatio = 1006 / 717.1 -- ~ 1.4
+
+-- sea level air pressure 
+-- = 101.325 kPa 
+-- = 101325 N / m^2 
+-- = 101325 kg / (m s^2)
+materials.Air.seaLevelPressure = 101325
+
+-- https://en.wikipedia.org/wiki/Density_of_air
+-- sea level 0' C, density is 1.2754 kg / m^3
+materials.Air.seaLevelDensity = 1.2754
+
 return materials 

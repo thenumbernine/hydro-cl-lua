@@ -42,19 +42,19 @@ tweaked it while looking at
 <? end ?>
 
 <? for side=0,2 do ?>
-<?=eqn.cons_t?> cons_swapFrom<?=side?>(<?=eqn.cons_t?> U) {
+<?=eqn.cons_t?> cons_alignFrom(<?=eqn.cons_t?> U, real3 n) {
 	//U.m = real3_swap<?=side?>(U.m);
 	//U.B = real3_swap<?=side?>(U.B);
-	U.m = real3_rotFrom<?=side?>(U.m);
-	U.B = real3_rotFrom<?=side?>(U.B);
+	U.m = real3_rotFrom<?=side?>(U.m, n);
+	U.B = real3_rotFrom<?=side?>(U.B, n);
 	return U;
 }
 
-<?=eqn.cons_t?> cons_swapTo<?=side?>(<?=eqn.cons_t?> U) {
+<?=eqn.cons_t?> cons_alignTo(<?=eqn.cons_t?> U, real3 n) {
 	//U.m = real3_swap<?=side?>(U.m);
 	//U.B = real3_swap<?=side?>(U.B);
-	U.m = real3_rotTo<?=side?>(U.m);
-	U.B = real3_rotTo<?=side?>(U.B);
+	U.m = real3_rotTo<?=side?>(U.m, n);
+	U.B = real3_rotTo<?=side?>(U.B, n);
 	return U;
 }
 <? end ?>
@@ -285,20 +285,18 @@ Roe_t calcRoeValues(
 	return eig;
 }
 
-#error FIXME
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.eigen_t?> eigen_forSide_<?=side?>(
+<?=eqn.eigen_t?> eigen_forInterface(
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
-	real3 x
+	real3 x,
+	real3 n
 ) {
 	//swap the sides with x here, so all the fluxes are in the 'x' direction
-	<?=eqn.cons_t?> UL_ = cons_swapFrom<?=side?>(UL);
-	<?=eqn.cons_t?> UR_ = cons_swapFrom<?=side?>(UR);
+	<?=eqn.cons_t?> UL_ = cons_alignFrom(UL, n);
+	<?=eqn.cons_t?> UR_ = cons_alignFrom(UR, n);
 	Roe_t roe = calcRoeValues(UL_, UR_, x);
 	return eigen_forRoeAvgs(roe, x);
 }
-<? end ?>
 
 //used by PLM
 <? for side=0,solver.dim-1 do ?>
@@ -532,7 +530,9 @@ Roe_t calcRoeValues(
 	resultU.psi = 
 		  input.ptr[7] * -Ch
 		+ input.ptr[8] * Ch;
-	return cons_swapTo<?=side?>(resultU);
+
+	real3 n = _real3(0,0,0); n.s<?=side?> = 1.;
+	return cons_alignTo(resultU, n);
 }
 
 <?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
@@ -597,7 +597,9 @@ Roe_t calcRoeValues(
 		+ inputU.m.z * -B.x * _1_rho
 		+ inputU.B.z * v.x;
 	resultU.psi = inputU.psi;
-	return cons_swapTo<?=side?>(resultU);
+	
+	real3 n = _real3(0,0,0); n.s<?=side?> = 1.;
+	return cons_alignTo(resultU, n);
 }
 <? end ?>
 

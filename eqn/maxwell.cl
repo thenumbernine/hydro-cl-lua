@@ -48,7 +48,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <?=eqn.eigen_t?> eigen_forInterface(
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
-	real3 x
+	real3 x,
+	real3 n
 ) {
 	return (<?=eqn.eigen_t?>){
 		.sqrt_eps = sqrt(.5 * (UL.eps + UR.eps)),
