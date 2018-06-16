@@ -30,7 +30,7 @@ NavierStokesWilcox.initStates = require 'init.euler'
 function NavierStokesWilcox:init(args)
 	NavierStokesWilcox.super.init(self, args)
 
-	--[[ might have to change the selfgrav terms ...
+--[[ might have to change the selfgrav terms ...
 	local SelfGrav = require 'op.selfgrav'
 
 if require 'solver.meshsolver'.is(self.solver) then
@@ -39,9 +39,8 @@ else
 		self.gravOp = SelfGrav{solver = self.solver}
 		self.solver.ops:insert(self.gravOp)
 end
-	--]]
+--]]
 end
-
 
 NavierStokesWilcox.primVars = table{
 	{rhoBar = 'real'},
@@ -69,35 +68,39 @@ function NavierStokesWilcox:createInitState()
 	self:addGuiVars{
 		{name='C_v', value=materials.Air.C_v},
 		{name='C_p', value=materials.Air.C_p},
-		
-		-- R, gas constant
-		-- https://en.wikipedia.org/wiki/Gas_constant
 		{name='gasConstant', value=1},
+		{name='heatCapacityRatio', value=materials.Air.C_p / materials.Air.C_v},
+		{name='_0_C_in_K', value=273.15},
 	}
 end
 
 function NavierStokesWilcox:getCommonFuncCode()
 	return template([[
-inline real calc_PBar(<?=eqn.prim_t?> W) {
-	return W.PStar - 2./3. * W.rhoBar * W.k;
-}
+//inline real calc_H(real PStar) { return PStar * (heatCapacityRatio / (heatCapacityRatio - 1.)); }
+//inline real calc_h(real rhoBar, real PStar) { return calc_H(PStar) / rhoBar; }
+//inline real calc_hTotal(real rhoBar, real PStar, real rhoBar_eTotalTilde) { return (PStar + rhoBar_eTotalTilde) / rhoBar; }
+//inline real calc_HTotal(real PStar, real rhoBar_eTotalTilde) { return PStar + rhoBar_eTotalTilde; }
+inline real calc_eKinTilde(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.vTilde, x); }
+inline real calc_EKinTilde(<?=eqn.prim_t?> W, real3 x) { return W.rhoBar * calc_eKinTilde(W, x); }
 
-inline real calc_TTilde(<?=eqn.prim_t?> W) {
-	return calc_PBar(W) / (W.rhoBar * gasConstant);
-}
+//before
+//inline real calc_EIntTilde(<?=eqn.prim_t?> W) { return W.PStar / (heatCapacityRatio - 1.); }
+//inline real calc_eIntTilde(<?=eqn.prim_t?> W) { return calc_EIntTilde(W) / W.rhoBar; }
 
-inline real calc_eIntTilde(<?=eqn.prim_t?> W) {
-	return C_v * calc_TTilde(W);
-}
+//after
+inline real calc_PBar(<?=eqn.prim_t?> W) { return W.PStar - 2./3. * W.rhoBar * W.k; }
+inline real calc_TTilde(<?=eqn.prim_t?> W) { return calc_PBar(W) / (W.rhoBar * gasConstant); }
+inline real calc_eIntTilde(<?=eqn.prim_t?> W) { return C_v * calc_TTilde(W); }
+inline real calc_EIntTilde(<?=eqn.prim_t?> W) { return W.rhoBar * calc_eIntTilde(W); }
 
-//is this the technical term for the kinetic energy?
-// or should that also include k or omega?
-inline real calc_eKinTilde(<?=eqn.prim_t?> W, real3 x) {
-	return .5 * coordLenSq(W.vTilde, x);
+inline real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.rhoBar_vTilde, x) / U.rhoBar; }
+inline real calc_ETotal(<?=eqn.prim_t?> W, real3 x) {
+	real EPot = W.rhoBar * W.ePot;
+	return calc_EKinTilde(W, x) + calc_EIntTilde(W) + EPot;
 }
 
 inline real calc_Cs(const <?=eqn.prim_t?> W) {
-	return sqrt((gasConstant / C_v + 1.) * W.PStar / W.rhoBar);
+	return sqrt(heatCapacityRatio * W.PStar / W.rhoBar);
 }
 ]], {
 		eqn = self,
@@ -106,10 +109,21 @@ end
 
 function NavierStokesWilcox:getPrimConsCode()
 	return template([[
-inline <?=eqn.prim_t?> primFromCons(
-	<?=eqn.cons_t?> U,
-	real3 x)
-{
+
+inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
+#if 1	//original Euler
+	real EPot = U.rhoBar * U.ePot;
+	real EKin = calc_EKin_fromCons(U, x);
+	real EInt = U.rhoBar_eTotalTilde - EKin - EPot;
+	return (<?=eqn.prim_t?>){
+		.rhoBar = U.rhoBar,
+		.vTilde = real3_scale(U.rhoBar_vTilde, 1./U.rhoBar),
+		.PStar = (heatCapacityRatio - 1.) * EInt,
+		.k = U.rhoBar_k / U.rhoBar,
+		.omega = U.rhoBar_omega / U.rhoBar,
+		.ePot = U.ePot,
+	};
+#else	//should be
 	real3 vTilde = real3_scale(U.rhoBar_vTilde, 1. / U.rhoBar);
 	real vTildeSq = coordLenSq(vTilde, x);
 	real rhoBar_eIntTilde = U.rhoBar_eTotalTilde - .5 * U.rhoBar * vTildeSq - U.rhoBar_k - U.rhoBar * U.ePot;
@@ -125,12 +139,20 @@ inline <?=eqn.prim_t?> primFromCons(
 		.omega = U.rhoBar_omega / U.rhoBar,
 		.ePot = U.ePot,
 	};
+#endif
 }
 
-inline <?=eqn.cons_t?> consFromPrim(
-	<?=eqn.prim_t?> W,
-	real3 x)
-{
+inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
+#if 1	//original Euler	
+	return (<?=eqn.cons_t?>){
+		.rhoBar = W.rhoBar,
+		.rhoBar_vTilde = real3_scale(W.vTilde, W.rhoBar),
+		.rhoBar_eTotalTilde = calc_ETotal(W, x),
+		.rhoBar_k = 0,
+		.rhoBar_omega = 0,
+		.ePot = W.ePot,
+	};
+#else	//should be
 	real rhoBar_k = W.rhoBar * W.k;
 
 	//eqn 6: PStar = PBar + 2/3 rhoBar k
@@ -154,6 +176,7 @@ inline <?=eqn.cons_t?> consFromPrim(
 		.rhoBar_omega = W.rhoBar * W.omega,
 		.ePot = W.ePot,
 	};
+#endif
 }
 
 <?=eqn.cons_t?> apply_dU_dW(
@@ -161,19 +184,18 @@ inline <?=eqn.cons_t?> consFromPrim(
 	<?=eqn.prim_t?> W, 
 	real3 x
 ) {
-	real3 WA_vTildeL = coord_lower(WA.vTilde, x);
+	real3 WA_vL = coord_lower(WA.vTilde, x);
 	return (<?=eqn.cons_t?>){
 		.rhoBar = W.rhoBar,
 		.rhoBar_vTilde = real3_add(
 			real3_scale(WA.vTilde, W.rhoBar), 
 			real3_scale(W.vTilde, WA.rhoBar)),
-		.rhoBar_eTotalTilde = W.rhoBar * (.5 * real3_dot(WA.vTilde, WA_vTildeL) + (1. - 2./3. * C_v/gasConstant) * WA.k)
-			+ WA.rhoBar * real3_dot(W.vTilde, WA_vTildeL)
-			+ W.PStar * C_v / gasConstant
-			+ (1. - 2./3 * C_v/gasConstant) * WA.rhoBar * W.k,
+		.rhoBar_eTotalTilde = W.rhoBar * .5 * real3_dot(WA.vTilde, WA_vL) 
+			+ WA.rhoBar * real3_dot(W.vTilde, WA_vL)
+			+ W.PStar / (heatCapacityRatio - 1.)
 			+ WA.rhoBar * W.ePot,
-		.rhoBar_k = WA.k * W.rhoBar + WA.rhoBar * W.k,
-		.rhoBar_omega = WA.omega * W.rhoBar + WA.rhoBar * W.omega,
+		.rhoBar_k = 0,
+		.rhoBar_omega = 0,
 		.ePot = W.ePot,
 	};
 }
@@ -183,23 +205,24 @@ inline <?=eqn.cons_t?> consFromPrim(
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	real3 WA_vTildeL = coord_lower(WA.vTilde, x);
+	real3 WA_vL = coord_lower(WA.vTilde, x);
 	return (<?=eqn.prim_t?>){
 		.rhoBar = U.rhoBar,
 		.vTilde = real3_sub(
 			real3_scale(U.rhoBar_vTilde, 1. / WA.rhoBar),
 			real3_scale(WA.vTilde, U.rhoBar / WA.rhoBar)),
-		.PStar = gasConstant/C_v * (
-				.5 * real3_dot(WA.vTilde, WA_vTildeL) * U.rhoBar 
-				- real3_dot(U.rhoBar_vTilde, WA_vTildeL)
-				+ U.rhoBar_eTotalTilde 
-				- WA.rhoBar * U.ePot
-			) + (2./3. * gasConstant/C_v - 1.) * U.rhoBar_k,
-		.k = U.rhoBar_k / WA.rhoBar - WA.k / WA.rhoBar * U.rhoBar,
-		.omega = U.rhoBar_omega / WA.rhoBar - WA.omega / WA.rhoBar * U.rhoBar,
+		.PStar = (heatCapacityRatio - 1.) * (
+			.5 * real3_dot(WA.vTilde, WA_vL) * U.rhoBar 
+			- real3_dot(U.rhoBar_vTilde, WA_vL)
+			+ U.rhoBar_eTotalTilde 
+			- WA.rhoBar * U.ePot),
+		.k = 0,
+		.omega = 0,
 		.ePot = U.ePot,
 	};
 }
+
+
 ]], {
 		eqn = self,
 	})
@@ -225,31 +248,26 @@ end
 	real3 v = _real3(0,0,0);
 	real P = 0;
 	
-	real3 B = _real3(0,0,0);
+	//TODO make this B for Maxwell
+	
+	real3 B = _real3(0,0,0);	//set for MHD / thrown away for pure NavierStokesWilcox
 	real ePot = 0;
 
 	<?=code?>
 
-	//turbulent kinetic energy
-	const real k = 1.;
-	
-	//specific turbulent dissipation rate
-	const real omega = 1.;
-
-	UBuf[index] = consFromPrim((<?=eqn.prim_t?>){
+	<?=eqn.prim_t?> W = {
 		.rhoBar = rho,
-		.vTilde = cartesianToCoord(v, x),
+		.vTilde = cartesianToCoord(v, x),	//transform from cartesian to coordinate space 
 		.PStar = P,
-		.k = k,
-		.omega = omega,
+		.k = 0,
+		.omega = 0,
 		.ePot = ePot,
-	}, x);
+	};
+	UBuf[index] = consFromPrim(W, x);
 }
 ]]
 
 NavierStokesWilcox.solverCodeFile = 'eqn/navstokes-wilcox.cl'
-
-NavierStokesWilcox.displayVarCodeUsesPrims = true
 
 NavierStokesWilcox.displayVarCodeUsesPrims = true
 
@@ -291,23 +309,19 @@ function NavierStokesWilcox:getDisplayVars()
 	vars:append{
 		{vTilde = '*valuevec = W.vTilde;', type='real3'},
 		{PStar = '*value = W.PStar;'},
-		{PBar = '*value = calc_PBar(W);'},
 		{eIntTilde = '*value = calc_eIntTilde(W);'},
 		{eKinTilde = '*value = calc_eKinTilde(W, x);'},
-		{eTotalTilde = '*value = U->rhoBar_eTotalTilde / U->rhoBar;'},
-		{EIntTilde = '*value = calc_eIntTilde(W) * U->rhoBar;'},
-		{EKinTilde = '*value = calc_eKinTilde(W, x) * U->rhoBar;'},
+		{eTotalTilde = '*value = U->rhoBar_eTotalTilde / W.rhoBar;'},
+		{EIntTilde = '*value = calc_EIntTilde(W);'},
+		{EKinTilde = '*value = calc_EKinTilde(W, x);'},
 		{EPot = '*value = U->rhoBar * U->ePot;'},
-		-- TODO check these: I just copied them from euler.lua but don't know if the pressure term etc is the right one
-		{S = '*value = W.PStar / pow(W.rhoBar, (real)(gasConstant / C_v + 1.));'},
-		--[[
-		{H = '*value = calc_H(W.P);'},
-		{h = '*value = calc_h(W.rho, W.P);'},
-		{HTotal = '*value = calc_HTotal(W.P, U->ETotal);'},
-		{hTotal = '*value = calc_hTotal(W.rho, W.P, U->ETotal);'},
-		--]]
+		{S = '*value = W.PStar / pow(W.rhoBar, (real)heatCapacityRatio);'},
+		--{H = '*value = calc_H(W.PStar);'},
+		--{h = '*value = calc_h(W.rhoBar, W.PStar);'},
+		--{HTotal = '*value = calc_HTotal(W.PStar, U->rhoBar_eTotalTilde);'},
+		--{hTotal = '*value = calc_hTotal(W.rhoBar, W.PStar, U->rhoBar_eTotalTilde);'},
 		{['Speed of Sound'] = '*value = calc_Cs(W);'},
-		{['Mach number'] = '*value = coordLen(W.vTilde, x) / calc_Cs(W);'},
+		--{['Mach number'] = '*value = coordLen(W.vTilde, x) / calc_Cs(W);'},
 	}:append{self.gravOp and
 		{gravity = template([[
 	if (OOB(1,1)) {
@@ -326,25 +340,22 @@ for side=solver.dim,2 do ?>
 	}
 ]], {eqn=self, solver=self.solver}), type='real3'} or nil
 	}:append{
-		{['temp (C)'] = template([[
-#define _0_C_in_K		273.15
-	*value = calc_eIntTilde(W) / C_v - _0_C_in_K;
-]])}
+		{['temp (C)'] = '*value = calc_eIntTilde(W) / C_v - _0_C_in_K;'},
 	}
 
-	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
-	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
+	-- vorticity = [,x ,y ,z] [vTilde.x, vTilde.y, vTilde.z][
+	-- = [vTilde.z,y - vTilde.y,z; vTilde.x,z - vTilde.z,x; vTilde.y,x - vTilde.x,y]
 	
 	if not require 'solver.meshsolver'.is(self.solver) then
 		if self.solver.dim == 2 then
 			vars:insert(vorticity(self,2,'*value'))
 		elseif self.solver.dim == 3 then
-			local v = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
+			local vTilde = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
 			vars:insert{vorticityVec = template([[
 	<? for i=0,2 do ?>{
-		<?=select(2,next(v[i+1]))?>
+		<?=select(2,next(vTilde[i+1]))?>
 	}<? end ?>
-]], {v=v}), type='real3'}
+]], {vTilde=vTilde}), type='real3'}
 		end
 	end
 
@@ -355,7 +366,7 @@ NavierStokesWilcox.eigenVars = table{
 	-- Roe-averaged vars
 	{rhoBar = 'real'},
 	{vTilde = 'real3'},
-	{hTotal = 'real'},	-- technically this is eTotalTilde + PStar / rhoBar  ... idk if this is technically 'total enthalpy' or not ...
+	{hTotal = 'real'},
 	{k = 'real'},
 	{omega = 'real'},
 	-- derived vars
@@ -365,8 +376,8 @@ NavierStokesWilcox.eigenVars = table{
 
 function NavierStokesWilcox:eigenWaveCodePrefix(side, eig, x)
 	return template([[
-	real Cs_sqrt_gU = <?=eig?>->Cs * coord_sqrt_gU<?=side..side?>(x);
-	real vTilde_n = <?=eig?>->vTilde.s[<?=side?>];
+	real Cs_sqrt_gU = <?=eig?>->Cs * coord_sqrt_gU<?=side..side?>(<?=x?>);
+	real v_n = <?=eig?>->vTilde.s[<?=side?>];
 ]], {
 		eig = '('..eig..')',
 		side = side,
@@ -376,11 +387,11 @@ end
 
 function NavierStokesWilcox:eigenWaveCode(side, eig, x, waveIndex)
 	if waveIndex == 0 then
-		return '(vTilde_n - Cs_sqrt_gU)'
-	elseif waveIndex >= 1 and waveIndex <= 6 then
-		return 'vTilde_n'
-	elseif waveIndex == 7 then
-		return '(vTilde_n + Cs_sqrt_gU)'
+		return '(v_n - Cs_sqrt_gU)'
+	elseif waveIndex >= 1 and waveIndex <= 5 then
+		return 'v_n'
+	elseif waveIndex == 6 then
+		return '(v_n + Cs_sqrt_gU)'
 	end
 	error'got a bad waveIndex'
 end

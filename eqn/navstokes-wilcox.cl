@@ -1,7 +1,4 @@
 <? local solver = eqn.solver ?>
-	
-#define R_over_C_v (gasConstant / C_v)
-#define C_v_over_R (C_v / gasConstant)
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
@@ -9,25 +6,22 @@
 	real3 x
 ) {
 	<?=eqn.prim_t?> W = primFromCons(U, x);
-	real vTilde_j = W.vTilde.s<?=side?>;
-	
-	//this is the flux term used, but is it technically called 'HTotal' ?
-	//'HTotal' = rhoBar (1/2 vTilde^2 + (1 - 2/3/gamma_1) k) + 1/gamma_1 PStar ... + PStar
-	//'HTotal' = rhoBar (1/2 vTilde^2 + (1 - 2/3 C_v/R) k) + (1 + C_v/R) PStar
-	//'hTotal' = 1/2 vTilde^2 + (1 - 2/3 C_v/R) k + (1 + C_v/R) PStar / rhoBar
+	real vj = W.vTilde.s<?=side?>;
 	real HTotal = U.rhoBar_eTotalTilde + W.PStar;
 	
 	<?=eqn.cons_t?> F;
 	
 	F.rhoBar = U.rhoBar_vTilde.s<?=side?>;
 	
-	F.rhoBar_vTilde = real3_scale(U.rhoBar_vTilde, vTilde_j);
+	F.rhoBar_vTilde = real3_scale(U.rhoBar_vTilde, vj);
 
 <? for i=0,2 do
 ?>	F.rhoBar_vTilde.s<?=i?> += coord_gU<?=i?><?=side?>(x) * W.PStar;
 <? end
-?>	
-	F.rhoBar_eTotalTilde = HTotal * vTilde_j;
+?>	F.rhoBar_eTotalTilde = HTotal * vj;
+
+	F.rhoBar_k = 0;
+	F.rhoBar_omega = 0;
 
 	F.ePot = 0;
 	
@@ -59,57 +53,37 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 ) {
 	<?=eqn.prim_t?> WL = primFromCons(UL, x);
 	real sqrtRhoL = sqrt(WL.rhoBar);
-	real3 vTildeL = WL.vTilde;
-	real hTotalL = (WL.PStar + UL.rhoBar_eTotalTilde) / UL.rhoBar - UL.ePot;
-	real kL = WL.k;
-	real omegaL = WL.omega;
+	real3 vL = WL.vTilde;
+	//real hTotalL = calc_hTotal(WL.rhoBar, WL.PStar, UL.rhoBar_eTotalTilde) - UL.ePot;
+	real hTotalL = (WL.PStar + UL.rhoBar_eTotalTilde) / UL.rhoBar;
 
 	<?=eqn.prim_t?> WR = primFromCons(UR, x);
 	real sqrtRhoR = sqrt(WR.rhoBar);
-	real3 vTildeR = WR.vTilde;
-	real hTotalR = (WR.PStar + UR.rhoBar_eTotalTilde) / UR.rhoBar - UR.ePot;
-	real kR = WR.k;
-	real omegaR = WR.omega;
+	real3 vR = WR.vTilde;
+	//real hTotalR = calc_hTotal(WR.rhoBar, WR.PStar, UR.rhoBar_eTotalTilde) - UR.ePot;
+	real hTotalR = (WR.PStar + UR.rhoBar_eTotalTilde) / UR.rhoBar;
 
 	real invDenom = 1./(sqrtRhoL + sqrtRhoR);
 	
 	//Roe-averaged
 	real rhoBar = sqrtRhoL * sqrtRhoR;
 	real3 vTilde = real3_add(
-			real3_scale(vTildeL, sqrtRhoL * invDenom),
-			real3_scale(vTildeR, sqrtRhoR * invDenom));
+			real3_scale(vL, sqrtRhoL * invDenom),
+			real3_scale(vR, sqrtRhoR * invDenom));
 	real hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR);
-	//I'm making this part up:
-	real k = invDenom * (sqrtRhoL * kL + sqrtRhoR * kR);
-	real omega = invDenom * (sqrtRhoL * omegaL + sqrtRhoR * omegaR);
 
 	//derived:
 	real vTildeSq = coordLenSq(vTilde, x);
-	real eKinTilde = .5 * vTildeSq;
-/*	
-rhoBar eIntTilde = rhoBar eTotalTilde - 1/2 rhoBar vTilde^2 - rhoBar k - rhoBar ePot
-rhoBar TTilde C_v = rhoBar eIntTilde
-rhoBar TTilde = 1/C_v ( rhoBar eTotalTilde - 1/2 rhoBar vTilde^2 - rhoBar k - rhoBar ePot )
-PBar / R = rhoBar TTilde
-PBar = R/C_v ( rhoBar eTotalTilde - 1/2 rhoBar vTilde^2 - rhoBar k - rhoBar ePot )
-PBar = PStar - 2/3 rhoBar k
-PStar - 2/3 rhoBar k = R/C_v ( rhoBar eTotalTilde - 1/2 rhoBar vTilde^2 - rhoBar k - rhoBar ePot )
-
-rhoBar eTotalTilde = rhoBar (hTotalTilde + ePot) - PStar
-(R/C_v + 1) PStar / rhoBar = R/C_v (hTotalTilde - 1/2 vTilde^2 - (1 - 2/3 C_v/R) k)
-
-Cs^2 = (R/C_v+1) PStar / rhoBar
-Cs^2 = R/C_v (hTotalTilde - 1/2 vTilde^2 - (1 - 2/3 C_v/R) k)
-*/	
-	real CsSq = R_over_C_v * (hTotal - eKinTilde - k) + 2./3. * k;
+	real eKin = .5 * vTildeSq;
+	real CsSq = (heatCapacityRatio - 1.) * (hTotal - eKin);
 	real Cs = sqrt(CsSq);
 
 	return (<?=eqn.eigen_t?>){
 		.rhoBar = rhoBar, 
 		.vTilde = vTilde,
 		.hTotal = hTotal,
-		.k = k,
-		.omega = omega,
+		.k = 0,
+		.omega = 0,
 		.vTildeSq = vTildeSq,
 		.Cs = Cs,
 	};
@@ -125,7 +99,7 @@ for side=0,solver.dim-1 do
 	const real nx = 1, ny = 0, nz = 0;
 	const real n1x = 0, n1y = 1, n1z = 0;
 	const real n2x = 0, n2y = 0, n2z = 1;
-	real vTilde_n = vTilde.x, vTilde_n1 = vTilde.y, vTilde_n2 = vTilde.z;
+	real v_n = vTilde.x, v_n1 = vTilde.y, v_n2 = vTilde.z;
 ]] 
 	elseif side == 1 then
 		
@@ -133,7 +107,7 @@ for side=0,solver.dim-1 do
 	const real nx = 0, ny = 1, nz = 0;
 	const real n1x = 0, n1y = 0, n1z = 1;
 	const real n2x = 1, n2y = 0, n2z = 0;
-	real vTilde_n = vTilde.y, vTilde_n1 = vTilde.z, vTilde_n2 = vTilde.x;
+	real v_n = vTilde.y, v_n1 = vTilde.z, v_n2 = vTilde.x;
 ]] 
 	elseif side == 2 then
 		
@@ -141,7 +115,7 @@ for side=0,solver.dim-1 do
 	const real nx = 0, ny = 0, nz = 1;
 	const real n1x = 1, n1y = 0, n1z = 0;
 	const real n2x = 0, n2y = 1, n2z = 0;
-	real vTilde_n = vTilde.z, vTilde_n1 = vTilde.x, vTilde_n2 = vTilde.y;
+	real v_n = vTilde.z, v_n1 = vTilde.x, v_n2 = vTilde.y;
 ]]
 	end
 	
@@ -151,14 +125,11 @@ for side=0,solver.dim-1 do
 	real sqrt_gUjj = coord_sqrt_gU]]..side..side..[[(x);
 	
 	real3 vTilde = eig.vTilde;
-	real3 vTildeL = coord_lower(vTilde, x);
+	real3 vL = coord_lower(vTilde, x);
 	real hTotal = eig.hTotal;
-	real vTildeSq = real3_dot(vTilde, vTildeL);
+	real vTildeSq = real3_dot(vTilde, vL);
 	real Cs = eig.Cs;
 	real Cs_over_sqrt_gUjj = Cs / sqrt_gUjj; 
-	real rhoBar = eig.rhoBar;
-	real k = eig.k;
-	real omega = eig.omega;
 	//g^ij for fixed j=side
 ]] .. prefix
 
@@ -180,113 +151,95 @@ for side=0,solver.dim-1 do
 	real denom = 2. * Cs * Cs;
 	real invDenom = 1. / denom;
 
-	real invRhoBar = 1. / eig.rhoBar;
-
-	const real tmp = 1. - 2./3. * C_v_over_R;
-
+	const real heatRatioMinusOne = heatCapacityRatio - 1.;
 <? if side == 0 then ?>
 	real sqrt_gUxx = sqrt_gUjj;
 	return (<?=eqn.waves_t?>){.ptr={
-		(X.ptr[0] * (.5 * R_over_C_v * vTildeSq + Cs * vTilde.x / sqrt_gUxx)
-			+ X.ptr[1] * (-R_over_C_v * vTildeL.x - Cs / sqrt_gUxx)
-			+ X.ptr[2] * -R_over_C_v * vTildeL.y
-			+ X.ptr[3] * -R_over_C_v * vTildeL.z
-			+ X.ptr[4] * R_over_C_v
-			+ X.ptr[5] * (2./3. - R_over_C_v)
+		(X.ptr[0] * (.5 * heatRatioMinusOne * vTildeSq + Cs * vTilde.x / sqrt_gUxx)
+			+ X.ptr[1] * (-heatRatioMinusOne * vL.x - Cs / sqrt_gUxx)
+			+ X.ptr[2] * -heatRatioMinusOne * vL.y
+			+ X.ptr[3] * -heatRatioMinusOne * vL.z
+			+ X.ptr[4] * heatRatioMinusOne
 		) * invDenom,
-		(X.ptr[0] * (denom - R_over_C_v * vTildeSq)
-			+ X.ptr[1] * 2. * R_over_C_v * vTildeL.x
-			+ X.ptr[2] * 2. * R_over_C_v * vTildeL.y
-			+ X.ptr[3] * 2. * R_over_C_v * vTildeL.z
-			+ X.ptr[4] * -2. * R_over_C_v
-			+ X.ptr[5] * 2. * (R_over_C_v - 2./3.)
+		(X.ptr[0] * (denom - heatRatioMinusOne * vTildeSq)
+			+ X.ptr[1] * 2. * heatRatioMinusOne * vL.x
+			+ X.ptr[2] * 2. * heatRatioMinusOne * vL.y
+			+ X.ptr[3] * 2. * heatRatioMinusOne * vL.z
+			+ X.ptr[4] * -2. * heatRatioMinusOne
 		) * invDenom,
-		(X.ptr[0] * (vTilde.x * gU.xy / gU.xx - vTilde.y)
+		X.ptr[0] * (vTilde.x * gU.xy / gU.xx - vTilde.y)
 			+ X.ptr[1] * -gU.xy / gU.xx
-			+ X.ptr[2]) * invRhoBar,
-		(X.ptr[0] * (vTilde.x * gU.xz / gU.xx - vTilde.z)
+			+ X.ptr[2],
+		X.ptr[0] * (vTilde.x * gU.xz / gU.xx - vTilde.z)
 			+ X.ptr[1] * -gU.xz / gU.xx
-			+ X.ptr[3]) * invRhoBar,
-		(X.ptr[0] * -k
-			+ X.ptr[5]) * invRhoBar,
-		(X.ptr[0] * -omega
-			+ X.ptr[6]) * invRhoBar,
-		(X.ptr[0] * (.5 * R_over_C_v * vTildeSq - Cs * vTilde.x / sqrt_gUxx)
-			+ X.ptr[1] * (-R_over_C_v * vTildeL.x + Cs / sqrt_gUxx)
-			+ X.ptr[2] * -R_over_C_v * vTildeL.y
-			+ X.ptr[3] * -R_over_C_v * vTildeL.z
-			+ X.ptr[4] * R_over_C_v
-			+ X.ptr[5] * (2./3. - R_over_C_v)
+			+ X.ptr[3],
+		0,
+		0,
+		(X.ptr[0] * (.5 * heatRatioMinusOne * vTildeSq - Cs * vTilde.x / sqrt_gUxx)
+			+ X.ptr[1] * (-heatRatioMinusOne * vL.x + Cs / sqrt_gUxx)
+			+ X.ptr[2] * -heatRatioMinusOne * vL.y
+			+ X.ptr[3] * -heatRatioMinusOne * vL.z
+			+ X.ptr[4] * heatRatioMinusOne
 		) * invDenom,
 	}};
 <? elseif side == 1 then ?>
 	real sqrt_gUyy = sqrt_gUjj;
 	return (<?=eqn.waves_t?>){.ptr={
-		(X.ptr[0] * (.5 * R_over_C_v * vTildeSq + Cs * vTilde.y / sqrt_gUyy)
-			+ X.ptr[1] * -R_over_C_v * vTildeL.x
-			+ X.ptr[2] * (-R_over_C_v * vTildeL.y - Cs / sqrt_gUyy)
-			+ X.ptr[3] * -R_over_C_v * vTildeL.z
-			+ X.ptr[4] * R_over_C_v
-			+ X.ptr[5] * (2./3. - R_over_C_v)
+		(X.ptr[0] * (.5 * heatRatioMinusOne * vTildeSq + Cs * vTilde.y / sqrt_gUyy)
+			+ X.ptr[1] * -heatRatioMinusOne * vL.x
+			+ X.ptr[2] * (-heatRatioMinusOne * vL.y - Cs / sqrt_gUyy)
+			+ X.ptr[3] * -heatRatioMinusOne * vL.z
+			+ X.ptr[4] * heatRatioMinusOne
 		) * invDenom,
-		(X.ptr[0] * (vTilde.y * gU.xy / gU.yy - vTilde.x)
+		X.ptr[0] * (vTilde.y * gU.xy / gU.yy - vTilde.x)
 			+ X.ptr[1]
-			+ X.ptr[2] * -gU.xy / gU.yy) * invRhoBar,
-		(X.ptr[0] * (denom - R_over_C_v * vTildeSq)
-			+ X.ptr[1] * 2. * R_over_C_v * vTildeL.x
-			+ X.ptr[2] * 2. * R_over_C_v * vTildeL.y
-			+ X.ptr[3] * 2. * R_over_C_v * vTildeL.z
-			+ X.ptr[4] * -2. * R_over_C_v
-			+ X.ptr[5] * 2. * (R_over_C_v - 2./3.)
+			+ X.ptr[2] * -gU.xy / gU.yy,
+		(X.ptr[0] * (denom - heatRatioMinusOne * vTildeSq)
+			+ X.ptr[1] * 2. * heatRatioMinusOne * vL.x
+			+ X.ptr[2] * 2. * heatRatioMinusOne * vL.y
+			+ X.ptr[3] * 2. * heatRatioMinusOne * vL.z
+			+ X.ptr[4] * -2. * heatRatioMinusOne
 		) * invDenom,
-		(X.ptr[0] * (vTilde.y * gU.yz / gU.yy - vTilde.z)
+		X.ptr[0] * (vTilde.y * gU.yz / gU.yy - vTilde.z)
 			+ X.ptr[2] * -gU.yz / gU.yy
-			+ X.ptr[3]) * invRhoBar,
-		(X.ptr[0] * -k
-			+ X.ptr[5]) * invRhoBar,
-		(X.ptr[0] * -omega
-			+ X.ptr[6]) * invRhoBar,
-		(X.ptr[0] * (.5 * R_over_C_v * vTildeSq - Cs * vTilde.y / sqrt_gUyy)
-			+ X.ptr[1] * -R_over_C_v * vTildeL.x
-			+ X.ptr[2] * (-R_over_C_v * vTildeL.y + Cs / sqrt_gUyy)
-			+ X.ptr[3] * -R_over_C_v * vTildeL.z
-			+ X.ptr[4] * R_over_C_v
-			+ X.ptr[5] * (2./3. - R_over_C_v)
+			+ X.ptr[3],
+		0,
+		0,
+		(X.ptr[0] * (.5 * heatRatioMinusOne * vTildeSq - Cs * vTilde.y / sqrt_gUyy)
+			+ X.ptr[1] * -heatRatioMinusOne * vL.x
+			+ X.ptr[2] * (-heatRatioMinusOne * vL.y + Cs / sqrt_gUyy)
+			+ X.ptr[3] * -heatRatioMinusOne * vL.z
+			+ X.ptr[4] * heatRatioMinusOne
 		) * invDenom,
 	}};
 <? elseif side == 2 then ?>
 	real sqrt_gUzz = sqrt_gUjj;
 	return (<?=eqn.waves_t?>){.ptr={
-		(X.ptr[0] * (.5 * R_over_C_v * vTildeSq + Cs * vTilde.z / sqrt_gUzz)
-			+ X.ptr[1] * -R_over_C_v * vTildeL.x
-			+ X.ptr[2] * -R_over_C_v * vTildeL.y
-			+ X.ptr[3] * (-R_over_C_v * vTildeL.z - Cs / sqrt_gUzz)
-			+ X.ptr[4] * R_over_C_v
-			+ X.ptr[5] * (2./3. - R_over_C_v)
+		(X.ptr[0] * (.5 * heatRatioMinusOne * vTildeSq + Cs * vTilde.z / sqrt_gUzz)
+			+ X.ptr[1] * -heatRatioMinusOne * vL.x
+			+ X.ptr[2] * -heatRatioMinusOne * vL.y
+			+ X.ptr[3] * (-heatRatioMinusOne * vL.z - Cs / sqrt_gUzz)
+			+ X.ptr[4] * heatRatioMinusOne
 		) * invDenom,
-		(X.ptr[0] * (vTilde.z * gU.xz / gU.zz - vTilde.x)
+		X.ptr[0] * (vTilde.z * gU.xz / gU.zz - vTilde.x)
 			+ X.ptr[1]
-			+ X.ptr[3] * -gU.xz / gU.zz) * invRhoBar,
-		(X.ptr[0] * (vTilde.z * gU.yz / gU.zz - vTilde.y)
+			+ X.ptr[3] * -gU.xz / gU.zz,
+		X.ptr[0] * (vTilde.z * gU.yz / gU.zz - vTilde.y)
 			+ X.ptr[2]
-			+ X.ptr[3] * -gU.yz / gU.zz) * invRhoBar,
-		(X.ptr[0] * (denom - R_over_C_v * vTildeSq)
-			+ X.ptr[1] * 2. * R_over_C_v * vTildeL.x
-			+ X.ptr[2] * 2. * R_over_C_v * vTildeL.y
-			+ X.ptr[3] * 2. * R_over_C_v * vTildeL.z
-			+ X.ptr[4] * -2. * R_over_C_v
-			+ X.ptr[5] * 2. * (R_over_C_v - 2./3.)
+			+ X.ptr[3] * -gU.yz / gU.zz,
+		(X.ptr[0] * (denom - heatRatioMinusOne * vTildeSq)
+			+ X.ptr[1] * 2. * heatRatioMinusOne * vL.x
+			+ X.ptr[2] * 2. * heatRatioMinusOne * vL.y
+			+ X.ptr[3] * 2. * heatRatioMinusOne * vL.z
+			+ X.ptr[4] * -2. * heatRatioMinusOne
 		) * invDenom,
-		(X.ptr[0] * -k
-			+ X.ptr[5]) * invRhoBar,
-		(X.ptr[0] * -omega
-			+ X.ptr[6]) * invRhoBar,
-		(X.ptr[0] * (.5 * R_over_C_v * vTildeSq - Cs * vTilde.z / sqrt_gUzz)
-			+ X.ptr[1] * -R_over_C_v * vTildeL.x
-			+ X.ptr[2] * -R_over_C_v * vTildeL.y
-			+ X.ptr[3] * (-R_over_C_v * vTildeL.z + Cs / sqrt_gUzz)
-			+ X.ptr[4] * R_over_C_v
-			+ X.ptr[5] * (2./3. - R_over_C_v)
+		0,
+		0,
+		(X.ptr[0] * (.5 * heatRatioMinusOne * vTildeSq - Cs * vTilde.z / sqrt_gUzz)
+			+ X.ptr[1] * -heatRatioMinusOne * vL.x
+			+ X.ptr[2] * -heatRatioMinusOne * vL.y
+			+ X.ptr[3] * (-heatRatioMinusOne * vL.z + Cs / sqrt_gUzz)
+			+ X.ptr[4] * heatRatioMinusOne
 		) * invDenom,
 	}};
 <? end ?>
@@ -308,22 +261,17 @@ for side=0,solver.dim-1 do
 			+ X.ptr[6] * (vTilde.x + Cs * sqrt_gUxx),
 		X.ptr[0] * (vTilde.y - Cs * gU.xy / sqrt_gUxx)
 			+ X.ptr[1] * vTilde.y
-			+ X.ptr[2] * rhoBar
+			+ X.ptr[2]
 			+ X.ptr[6] * (vTilde.y + Cs * gU.xy / sqrt_gUxx),
 		X.ptr[0] * (vTilde.z - Cs * gU.xz / sqrt_gUxx)
 			+ X.ptr[1] * vTilde.z
-			+ X.ptr[3] * rhoBar
+			+ X.ptr[3]
 			+ X.ptr[6] * (vTilde.z + Cs * gU.xz / sqrt_gUxx),
 		X.ptr[0] * (hTotal - Cs * vTilde.x / sqrt_gUxx)
-			+ X.ptr[1] * (.5 * vTildeSq + (1. - 2./3. * C_v_over_R) * k)
-			+ X.ptr[2] * rhoBar * vTildeL.y
-			+ X.ptr[3] * rhoBar * vTildeL.z
-			+ X.ptr[4] * rhoBar * (1. - 2./3. * C_v_over_R)
+			+ X.ptr[1] * vTildeSq / 2.
+			+ X.ptr[2] * vL.y
+			+ X.ptr[3] * vL.z
 			+ X.ptr[6] * (hTotal + Cs * vTilde.x / sqrt_gUxx),
-		(X.ptr[0] + X.ptr[1] + X.ptr[6]) * k
-			+ X.ptr[4] * rhoBar,
-		(X.ptr[0] + X.ptr[1] + X.ptr[6]) * omega
-			+ X.ptr[5] * rhoBar,
 		0,
 	}};
 <? elseif side == 1 then ?>	
@@ -331,7 +279,7 @@ for side=0,solver.dim-1 do
 	return (<?=eqn.cons_t?>){.ptr={
 		X.ptr[0] + X.ptr[2] + X.ptr[6],
 		X.ptr[0] * (vTilde.x - Cs * gU.xy / sqrt_gUyy)
-			+ X.ptr[1] * rhoBar
+			+ X.ptr[1]
 			+ X.ptr[2] * vTilde.x
 			+ X.ptr[6] * (vTilde.x + Cs * gU.xy / sqrt_gUyy),
 		X.ptr[0] * (vTilde.y - Cs * sqrt_gUyy)
@@ -339,18 +287,13 @@ for side=0,solver.dim-1 do
 			+ X.ptr[6] * (vTilde.y + Cs * sqrt_gUyy),
 		X.ptr[0] * (vTilde.z - Cs * gU.yz / sqrt_gUyy)
 			+ X.ptr[2] * vTilde.z
-			+ X.ptr[3] * rhoBar
+			+ X.ptr[3]
 			+ X.ptr[6] * (vTilde.z + Cs * gU.yz / sqrt_gUyy),
 		X.ptr[0] * (hTotal - Cs * vTilde.y / sqrt_gUyy)
-			+ X.ptr[1] * rhoBar * vTildeL.x
-			+ X.ptr[2] * (.5 * vTildeSq + (1. - 2./3. * C_v_over_R) * k)
-			+ X.ptr[3] * rhoBar * vTildeL.z
-			+ X.ptr[4] * (1. - 2./3. * C_v_over_R) * k
+			+ X.ptr[1] * vL.x
+			+ X.ptr[2] * vTildeSq / 2.
+			+ X.ptr[3] * vL.z
 			+ X.ptr[6] * (hTotal + Cs * vTilde.y / sqrt_gUyy),
-		(X.ptr[0] + X.ptr[2] + X.ptr[6]) * k
-			+ X.ptr[4] * rhoBar,
-		(X.ptr[0] + X.ptr[2] + X.ptr[6]) * omega
-			+ X.ptr[5] * rhoBar,
 		0,
 	}};
 <? elseif side == 2 then ?>	
@@ -358,26 +301,21 @@ for side=0,solver.dim-1 do
 	return (<?=eqn.cons_t?>){.ptr={
 		X.ptr[0] + X.ptr[3] + X.ptr[6],
 		X.ptr[0] * (vTilde.x - Cs * gU.xz / sqrt_gUzz)
-			+ X.ptr[1] * rhoBar
+			+ X.ptr[1]
 			+ X.ptr[3] * vTilde.x
 			+ X.ptr[6] * (vTilde.x + Cs * gU.xz / sqrt_gUzz),
 		X.ptr[0] * (vTilde.y - Cs * gU.yz / sqrt_gUzz)
-			+ X.ptr[2] * rhoBar
+			+ X.ptr[2]
 			+ X.ptr[3] * vTilde.y
 			+ X.ptr[6] * (vTilde.y + Cs * gU.yz / sqrt_gUzz),
 		X.ptr[0] * (vTilde.z - Cs * sqrt_gUzz)
 			+ X.ptr[3] * vTilde.z
 			+ X.ptr[6] * (vTilde.z + Cs * sqrt_gUzz),
 		X.ptr[0] * (hTotal - Cs * vTilde.z / sqrt_gUzz)
-			+ X.ptr[1] * rhoBar * vTildeL.x
-			+ X.ptr[2] * rhoBar * vTildeL.y
-			+ X.ptr[3] * (.5 * vTildeSq + (1. - 2./3. * C_v_over_R) * k)
-			+ X.ptr[4] * (1. - 2./3. * C_v_over_R) * k
+			+ X.ptr[1] * vL.x
+			+ X.ptr[2] * vL.y
+			+ X.ptr[3] * vTildeSq / 2.
 			+ X.ptr[6] * (hTotal + Cs * vTilde.z / sqrt_gUzz),
-		(X.ptr[0] + X.ptr[3] + X.ptr[6]) * k
-			+ X.ptr[4] * rhoBar,
-		(X.ptr[0] + X.ptr[3] + X.ptr[6]) * omega
-			+ X.ptr[5] * rhoBar,
 		0,
 	}};
 <? end ?>
@@ -389,142 +327,34 @@ for side=0,solver.dim-1 do
 	real3 x
 ) {
 	<?=prefix?>
-
-	real CsSq = Cs * Cs;
-	real PStar = CsSq * rhoBar / (1. + R_over_C_v);
-
-<? if side == 0 then ?>	
 	return (<?=eqn.cons_t?>){.ptr={
-		X.ptr[1],
-		- X.ptr[0] * (vTilde.x * vTilde.x - .5 * gUj.x * R_over_C_v * vTildeSq)
-			+ X.ptr[1] * (2 * vTilde.x - gUj.x * R_over_C_v * vTildeL.x) 
-			- X.ptr[2] * gUj.x * R_over_C_v * vTildeL.y 
-			- X.ptr[3] * gUj.x * R_over_C_v * vTildeL.z 
-			+ X.ptr[4] * gUj.x * R_over_C_v
-			- X.ptr[5] * gUj.x * (R_over_C_v - 2./.3),
-		- X.ptr[0] * (vTilde.x * vTilde.y - .5 * gUj.y * R_over_C_v * vTildeSq)
-			+ X.ptr[1] * (vTilde.y - gUj.y * R_over_C_v * vTildeL.x)
-			+ X.ptr[2] * (vTilde.x - gUj.y * R_over_C_v * vTildeL.y) 
-			- X.ptr[3] * gUj.y * R_over_C_v * vTildeL.z 
-			+ X.ptr[4] * gUj.y * R_over_C_v
-			- X.ptr[5] * gUj.y * (R_over_C_v - 2./3.),
-		- X.ptr[0] * (vTilde.x * vTilde.z - .5 * gUj.z * R_over_C_v * vTildeSq)
-			+ X.ptr[1] * (vTilde.z - gUj.z * R_over_C_v * vTildeL.x)
-			- X.ptr[2] * gUj.z * R_over_C_v * vTildeL.y 
-			+ X.ptr[3] * (vTilde.x - gUj.z * R_over_C_v * vTildeL.z) 
-			+ X.ptr[4] * gUj.z * R_over_C_v
-			- X.ptr[5] * gUj.z * (R_over_C_v - 2./3.),
-		+ X.ptr[0] * vTilde.x * (.5 * R_over_C_v * vTildeSq - hTotal)
-			- X.ptr[1] * (R_over_C_v * vTildeL.x * vTilde.x - hTotal)
-			- X.ptr[2] * vTilde.x * R_over_C_v * vTildeL.y
-			- X.ptr[3] * vTilde.x * R_over_C_v * vTildeL.z
-			+ X.ptr[4] * vTilde.x * (R_over_C_v + 1.)
-			- X.ptr[5] * vTilde.x * (R_over_C_v - 2./3.),
-		- X.ptr[0] * k * vTilde.x
-			+ X.ptr[1] * k
-			+ X.ptr[5] * vTilde.x,
-		- X.ptr[0] * vTilde.x * omega
-			+ X.ptr[1] * omega
-			+ X.ptr[6] * vTilde.x,
-		0.
-	}};
-<? elseif side == 1 then ?>	
-	return (<?=eqn.cons_t?>){.ptr={
-		X.ptr[2],
-		-X.ptr[0] * (vTilde.x * vTilde.y - .5 * gUj.x * R_over_C_v * vTildeSq)
-			+ X.ptr[1] * (vTilde.y - gUj.x * R_over_C_v * vTildeL.x)
-			+ X.ptr[2] * (vTilde.x - gUj.x * R_over_C_v * vTildeL.y) 
-			- X.ptr[3] * gUj.x * R_over_C_v * vTildeL.z 
-			+ X.ptr[4] * gUj.x * R_over_C_v
-			- X.ptr[5] * gUj.x * (R_over_C_v - 2./3.),
-		-X.ptr[0] * (vTilde.y * vTilde.y - .5 * gUj.y * R_over_C_v * vTildeSq)
-			- X.ptr[1] * gUj.y * R_over_C_v * vTildeL.x 
-			+ X.ptr[2] * (2 * vTilde.y - gUj.y * R_over_C_v * vTildeL.y) 
-			- X.ptr[3] * gUj.y * R_over_C_v * vTildeL.z
-			+ X.ptr[4] * gUj.y * R_over_C_v
-			- X.ptr[5] * gUj.y * (R_over_C_v - 2./3.),
-		-X.ptr[0] * (vTilde.y * vTilde.z - .5 * gUj.z * R_over_C_v * vTildeSq)
-			- X.ptr[1] * gUj.z * R_over_C_v * vTildeL.x 
-			+ X.ptr[2] * (vTilde.z - gUj.z * R_over_C_v * vTildeL.y)
-			+ X.ptr[3] * (vTilde.y - gUj.z * R_over_C_v * vTildeL.z)
-			+ X.ptr[4] * gUj.z * R_over_C_v
-			- X.ptr[5] * gUj.z * (R_over_C_v - 2./3.)
-		X.ptr[0] * vTilde.y * (.5 * R_over_C_v * vTildeSq - hTotal)
-			- X.ptr[1] * vTildeL.x * vTilde.y * R_over_C_v
-			- X.ptr[2] * (R_over_C_v * vTildeL.y * vTilde.y - hTotal)
-			- X.ptr[3] * vTilde.y * R_over_C_v * vTildeL.z 
-			+ X.ptr[4] * vTilde.y * (R_over_C_v + 1.) 
-			- X.ptr[5] * vTilde.y * (R_over_C_v - 2./3.),
-		-X.ptr[0] * k * vTilde.y
-			+ X.ptr[2] * k
-			+ X.ptr[5] * vTilde.y,
-		-X.ptr[0] * omega * vTilde.y
-			+ X.ptr[2] * omega
-			+ X.ptr[6] * vTilde.y,
-		0.,
-	}};
-<? elseif side == 2 then ?>	
-	return (<?=eqn.cons_t?>){.ptr={
-		X.ptr[3],
-		- X.ptr[0] * (vTilde.x * vTilde.z - .5 * gUj.x * R_over_C_v * vTildeSq)
-			+ X.ptr[1] * (vTilde.z - gUj.x * R_over_C_v * vTildeL.x)
-			- X.ptr[2] * gUj.x * R_over_C_v * vTildeL.y 
-			+ X.ptr[3] * (vTilde.x - gUj.x * R_over_C_v * vTildeL.z) 
-			+ X.ptr[4] * gUj.x * R_over_C_v
-			- X.ptr[5] * gUj.x * (R_over_C_v - 2./3.),
-		- X.ptr[0] * (vTilde.y * vTilde.z - .5 * gUj.y * R_over_C_v * vTildeSq)
-			- X.ptr[1] * gUj.y * R_over_C_v * vTildeL.x 
-			+ X.ptr[2] * (vTilde.z - gUj.y * R_over_C_v * vTildeL.y)
-			+ X.ptr[3] * (vTilde.y - gUj.y * R_over_C_v * vTildeL.z)
-			+ X.ptr[4] * gUj.y * R_over_C_v
-			- X.ptr[5] * gUj.y * (R_over_C_v - 2./3.),
-		- X.ptr[0] * (vTilde.z * vTilde.z - .5 * gUj.z * R_over_C_v * vTildeSq)
-			- X.ptr[1] * gUj.z * R_over_C_v * vTildeL.x 
-			- X.ptr[2] * gUj.z * R_over_C_v * vTildeL.y
-			+ X.ptr[3] * (2. * vTilde.z - gUj.z * R_over_C_v * vTildeL.z)
-			+ X.ptr[4] * gUj.z * R_over_C_v
-			- X.ptr[5] * gUj.z * (R_over_C_v - 2./3.),
-		+ X.ptr[0] * vTilde.z * (.5 * R_over_C_v * vTildeSq - hTotal)
-			- X.ptr[1] * vTilde.z * vTildeL.x * R_over_C_v
-			- X.ptr[2] * vTilde.z * vTildeL.y * R_over_C_v
-			- X.ptr[3] * (R_over_C_v * vTildeL.z * vTilde.z - hTotal)
-			+ X.ptr[4] * vTilde.z * (R_over_C_v + 1.) 
-			- X.ptr[5] * vTilde.z * (R_over_C_v - 2./3.),
-		- X.ptr[0] * k * vTilde.z
-			+ X.ptr[5] * vTilde.z
-			+ X.ptr[3] * k,
-		- X.ptr[0] * omega * vTilde.z
-			+ X.ptr[6] * vTilde.z
-			+ X.ptr[3] * omega,
-		0.,
-	}};
-<? end ?>	
-#if 0 //euler	
-	return (<?=eqn.cons_t?>){.ptr={
-		X.ptr[1] * nx + X.ptr[2] * ny + X.ptr[3] * nz,
-		X.ptr[0] * (-vTilde_n * v.x + R_over_C_v * .5 * vTildeSq * gUj.x)
-			+ X.ptr[1] * (v.x * nx - R_over_C_v * gUj.x * vL.x + vTilde_n)
-			+ X.ptr[2] * (v.x * ny - R_over_C_v * gUj.x * vL.y)
-			+ X.ptr[3] * (v.x * nz - R_over_C_v * gUj.x * vL.z)
-			+ X.ptr[4] * R_over_C_v * nx,
-		X.ptr[0] * (-vTilde_n * v.y + R_over_C_v * .5 * vTildeSq * gUj.y)
-			+ X.ptr[1] * (v.y * nx - R_over_C_v * gUj.y * vL.x)
-			+ X.ptr[2] * (v.y * ny - R_over_C_v * gUj.y * vL.y + vTilde_n)
-			+ X.ptr[3] * (v.y * nz - R_over_C_v * gUj.y * vL.z)
-			+ X.ptr[4] * R_over_C_v * ny,
-		X.ptr[0] * (-vTilde_n * v.z + R_over_C_v * .5 * vTildeSq * gUj.z)
-			+ X.ptr[1] * (v.z * nx - R_over_C_v * gUj.z * vL.x)
-			+ X.ptr[2] * (v.z * ny - R_over_C_v * gUj.z * vL.y)
-			+ X.ptr[3] * (v.z * nz - R_over_C_v * gUj.z * vL.z + vTilde_n)
-			+ X.ptr[4] * R_over_C_v * nz,
-		X.ptr[0] * vTilde_n * (R_over_C_v * .5 * vTildeSq - hTotal)
-			+ X.ptr[1] * (-R_over_C_v * vTilde_n * vL.x + nx * hTotal)
-			+ X.ptr[2] * (-R_over_C_v * vTilde_n * vL.y + ny * hTotal)
-			+ X.ptr[3] * (-R_over_C_v * vTilde_n * vL.z + nz * hTotal)
-			+ X.ptr[4] * heatCapacityRatio * vTilde_n,
+		X.ptr[1] * nx 
+			+ X.ptr[2] * ny 
+			+ X.ptr[3] * nz,
+		X.ptr[0] * (-v_n * vTilde.x + (heatCapacityRatio - 1.) * .5 * vTildeSq * gUj.x)
+			+ X.ptr[1] * (vTilde.x * nx - (heatCapacityRatio - 1.) * gUj.x * vL.x + v_n)
+			+ X.ptr[2] * (vTilde.x * ny - (heatCapacityRatio - 1.) * gUj.x * vL.y)
+			+ X.ptr[3] * (vTilde.x * nz - (heatCapacityRatio - 1.) * gUj.x * vL.z)
+			+ X.ptr[4] * (heatCapacityRatio - 1.) * nx,
+		X.ptr[0] * (-v_n * vTilde.y + (heatCapacityRatio - 1.) * .5 * vTildeSq * gUj.y)
+			+ X.ptr[1] * (vTilde.y * nx - (heatCapacityRatio - 1.) * gUj.y * vL.x)
+			+ X.ptr[2] * (vTilde.y * ny - (heatCapacityRatio - 1.) * gUj.y * vL.y + v_n)
+			+ X.ptr[3] * (vTilde.y * nz - (heatCapacityRatio - 1.) * gUj.y * vL.z)
+			+ X.ptr[4] * (heatCapacityRatio - 1.) * ny,
+		X.ptr[0] * (-v_n * vTilde.z + (heatCapacityRatio - 1.) * .5 * vTildeSq * gUj.z)
+			+ X.ptr[1] * (vTilde.z * nx - (heatCapacityRatio - 1.) * gUj.z * vL.x)
+			+ X.ptr[2] * (vTilde.z * ny - (heatCapacityRatio - 1.) * gUj.z * vL.y)
+			+ X.ptr[3] * (vTilde.z * nz - (heatCapacityRatio - 1.) * gUj.z * vL.z + v_n)
+			+ X.ptr[4] * (heatCapacityRatio - 1.) * nz,
+		X.ptr[0] * v_n * ((heatCapacityRatio - 1.) * .5 * vTildeSq - hTotal)
+			+ X.ptr[1] * (-(heatCapacityRatio - 1.) * v_n * vL.x + nx * hTotal)
+			+ X.ptr[2] * (-(heatCapacityRatio - 1.) * v_n * vL.y + ny * hTotal)
+			+ X.ptr[3] * (-(heatCapacityRatio - 1.) * v_n * vL.z + nz * hTotal)
+			+ X.ptr[4] * heatCapacityRatio * v_n,
+		0,
+		0,
 		0,
 	}};
-#endif
 }
 <? end ?>
 
@@ -539,16 +369,17 @@ for side=0,solver.dim-1 do
 ) {
 	<?=eqn.prim_t?> W = primFromCons(U, x);
 	real vTildeSq = coordLenSq(W.vTilde, x);
-	real eKinTilde = .5 * vTildeSq;
-	real hTotal = (W.PStar + U.rhoBar_eTotalTilde) / U.rhoBar - U.ePot;
-	real CsSq = R_over_C_v * (hTotal - eKinTilde) + 2./3. * W.k;
+	real eKin = .5 * vTildeSq;
+	//real hTotal = calc_hTotal(W.rhoBar, W.PStar, U.rhoBar_eTotalTilde);
+	real hTotal = (W.PStar + U.rhoBar_eTotalTilde) / U.rhoBar;
+	real CsSq = (heatCapacityRatio - 1.) * (hTotal - eKin);
 	real Cs = sqrt(CsSq);
 	return (<?=eqn.eigen_t?>){
 		.rhoBar = W.rhoBar,
 		.vTilde = W.vTilde,
 		.hTotal = hTotal,
-		.k = W.k,
-		.omega = W.omega,
+		.k = 0,
+		.omega = 0,
 		.vTildeSq = vTildeSq,
 		.Cs = Cs,
 	};
@@ -568,7 +399,7 @@ kernel void addSource(
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
 	real3 m_conn_vv = coord_conn_apply23(W.vTilde, U->rhoBar_vTilde, x);
-	deriv->rhoBar_vTilde = real3_sub(deriv->rhoBar_vTilde, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
-	deriv->rhoBar_vTilde = real3_sub(deriv->rhoBar_vTilde, real3_scale(coord_conn_trace23(x), W.PStar));		//-Conn^i_jk g^jk P
+	deriv->rhoBar_vTilde = real3_sub(deriv->rhoBar_vTilde, m_conn_vv);	//-Conn^i_jk rhoBar vTilde^j vTilde^k 
+	deriv->rhoBar_vTilde = real3_sub(deriv->rhoBar_vTilde, real3_scale(coord_conn_trace23(x), W.PStar));		//-Conn^i_jk g^jk PStar
 <? end ?>
 }
