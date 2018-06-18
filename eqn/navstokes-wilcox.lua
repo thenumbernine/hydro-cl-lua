@@ -60,6 +60,7 @@ NavierStokesWilcox.consVars = table{
 	{ePot = 'real'},
 }
 
+local molarMass = 1	--TODO
 function NavierStokesWilcox:createInitState()
 	NavierStokesWilcox.super.createInitState(self)
 --in order to make things work, gamma needs to be set *HERE AND IN INIT/EULER*
@@ -68,7 +69,9 @@ function NavierStokesWilcox:createInitState()
 	self:addGuiVars{
 		{name='C_v', value=materials.Air.C_v},
 		{name='C_p', value=materials.Air.C_p},
-		{name='gasConstant', value=1},
+	
+		{name='gasConstant', value=(materials.Air.C_p - materials.Air.C_v) * molarMass},
+		
 		{name='heatCapacityRatio', value=materials.Air.C_p / materials.Air.C_v},
 		{name='_0_C_in_K', value=273.15},
 	}
@@ -76,7 +79,7 @@ end
 
 function NavierStokesWilcox:getCommonFuncCode()
 	return template([[
-//inline real calc_H(real PStar) { return PStar * (heatCapacityRatio / (heatCapacityRatio - 1.)); }
+//inline real calc_H(real PStar) { return PStar * ((gasConstant / C_v + 1.) / (gasConstant / C_v)); }
 //inline real calc_h(real rhoBar, real PStar) { return calc_H(PStar) / rhoBar; }
 //inline real calc_hTotal(real rhoBar, real PStar, real rhoBar_eTotalTilde) { return (PStar + rhoBar_eTotalTilde) / rhoBar; }
 //inline real calc_HTotal(real PStar, real rhoBar_eTotalTilde) { return PStar + rhoBar_eTotalTilde; }
@@ -84,7 +87,7 @@ inline real calc_eKinTilde(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(
 inline real calc_EKinTilde(<?=eqn.prim_t?> W, real3 x) { return W.rhoBar * calc_eKinTilde(W, x); }
 
 //before
-//inline real calc_EIntTilde(<?=eqn.prim_t?> W) { return W.PStar / (heatCapacityRatio - 1.); }
+//inline real calc_EIntTilde(<?=eqn.prim_t?> W) { return W.PStar * C_v / gasConstant; }
 //inline real calc_eIntTilde(<?=eqn.prim_t?> W) { return calc_EIntTilde(W) / W.rhoBar; }
 
 //after
@@ -100,7 +103,7 @@ inline real calc_ETotal(<?=eqn.prim_t?> W, real3 x) {
 }
 
 inline real calc_Cs(const <?=eqn.prim_t?> W) {
-	return sqrt(heatCapacityRatio * W.PStar / W.rhoBar);
+	return sqrt((gasConstant / C_v + 1.) * W.PStar / W.rhoBar);
 }
 ]], {
 		eqn = self,
@@ -109,21 +112,7 @@ end
 
 function NavierStokesWilcox:getPrimConsCode()
 	return template([[
-
 inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
-#if 1	//original Euler
-	real EPot = U.rhoBar * U.ePot;
-	real EKin = calc_EKin_fromCons(U, x);
-	real EInt = U.rhoBar_eTotalTilde - EKin - EPot;
-	return (<?=eqn.prim_t?>){
-		.rhoBar = U.rhoBar,
-		.vTilde = real3_scale(U.rhoBar_vTilde, 1./U.rhoBar),
-		.PStar = (heatCapacityRatio - 1.) * EInt,
-		.k = U.rhoBar_k / U.rhoBar,
-		.omega = U.rhoBar_omega / U.rhoBar,
-		.ePot = U.ePot,
-	};
-#else	//should be
 	real3 vTilde = real3_scale(U.rhoBar_vTilde, 1. / U.rhoBar);
 	real vTildeSq = coordLenSq(vTilde, x);
 	real rhoBar_eIntTilde = U.rhoBar_eTotalTilde - .5 * U.rhoBar * vTildeSq - U.rhoBar_k - U.rhoBar * U.ePot;
@@ -139,20 +128,9 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 		.omega = U.rhoBar_omega / U.rhoBar,
 		.ePot = U.ePot,
 	};
-#endif
 }
 
 inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
-#if 1	//original Euler	
-	return (<?=eqn.cons_t?>){
-		.rhoBar = W.rhoBar,
-		.rhoBar_vTilde = real3_scale(W.vTilde, W.rhoBar),
-		.rhoBar_eTotalTilde = calc_ETotal(W, x),
-		.rhoBar_k = 0,
-		.rhoBar_omega = 0,
-		.ePot = W.ePot,
-	};
-#else	//should be
 	real rhoBar_k = W.rhoBar * W.k;
 
 	//eqn 6: PStar = PBar + 2/3 rhoBar k
@@ -176,7 +154,6 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 		.rhoBar_omega = W.rhoBar * W.omega,
 		.ePot = W.ePot,
 	};
-#endif
 }
 
 <?=eqn.cons_t?> apply_dU_dW(
@@ -184,18 +161,20 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	<?=eqn.prim_t?> W, 
 	real3 x
 ) {
-	real3 WA_vL = coord_lower(WA.vTilde, x);
+	real3 WA_vTildeL = coord_lower(WA.vTilde, x);
 	return (<?=eqn.cons_t?>){
 		.rhoBar = W.rhoBar,
 		.rhoBar_vTilde = real3_add(
 			real3_scale(WA.vTilde, W.rhoBar), 
 			real3_scale(W.vTilde, WA.rhoBar)),
-		.rhoBar_eTotalTilde = W.rhoBar * .5 * real3_dot(WA.vTilde, WA_vL) 
-			+ WA.rhoBar * real3_dot(W.vTilde, WA_vL)
-			+ W.PStar / (heatCapacityRatio - 1.)
+		.rhoBar_eTotalTilde = W.rhoBar * (.5 * real3_dot(WA.vTilde, WA_vTildeL) 
+				+ (1. - 2./3. * C_v/gasConstant) * WA.k)
+			+ WA.rhoBar * real3_dot(W.vTilde, WA_vTildeL)
+			+ W.PStar * C_v / gasConstant
+			+ (1. - 2./3 * C_v / gasConstant) * WA.rhoBar * W.k,
 			+ WA.rhoBar * W.ePot,
-		.rhoBar_k = 0,
-		.rhoBar_omega = 0,
+		.rhoBar_k = WA.k * W.rhoBar + WA.rhoBar * W.k,
+		.rhoBar_omega = WA.omega * W.rhoBar + WA.rhoBar * W.omega,
 		.ePot = W.ePot,
 	};
 }
@@ -205,19 +184,20 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	real3 WA_vL = coord_lower(WA.vTilde, x);
+	real3 WA_vTildeL = coord_lower(WA.vTilde, x);
 	return (<?=eqn.prim_t?>){
 		.rhoBar = U.rhoBar,
 		.vTilde = real3_sub(
 			real3_scale(U.rhoBar_vTilde, 1. / WA.rhoBar),
 			real3_scale(WA.vTilde, U.rhoBar / WA.rhoBar)),
-		.PStar = (heatCapacityRatio - 1.) * (
-			.5 * real3_dot(WA.vTilde, WA_vL) * U.rhoBar 
-			- real3_dot(U.rhoBar_vTilde, WA_vL)
-			+ U.rhoBar_eTotalTilde 
-			- WA.rhoBar * U.ePot),
-		.k = 0,
-		.omega = 0,
+		.PStar = gasConstant/C_v * (
+				.5 * real3_dot(WA.vTilde, WA_vTildeL) * U.rhoBar 
+				- real3_dot(U.rhoBar_vTilde, WA_vTildeL)
+				+ U.rhoBar_eTotalTilde 
+				- WA.rhoBar * U.ePot
+			) + (2./3. * gasConstant/C_v - 1.) * U.rhoBar_k,
+		.k = U.rhoBar_k / WA.rhoBar - WA.k / WA.rhoBar * U.rhoBar,
+		.omega = U.rhoBar_omega / WA.rhoBar - WA.omega / WA.rhoBar * U.rhoBar,
 		.ePot = U.ePot,
 	};
 }
@@ -315,7 +295,7 @@ function NavierStokesWilcox:getDisplayVars()
 		{EIntTilde = '*value = calc_EIntTilde(W);'},
 		{EKinTilde = '*value = calc_EKinTilde(W, x);'},
 		{EPot = '*value = U->rhoBar * U->ePot;'},
-		{S = '*value = W.PStar / pow(W.rhoBar, (real)heatCapacityRatio);'},
+		{S = '*value = W.PStar / pow(W.rhoBar, gasConstant / C_v + 1. );'},
 		--{H = '*value = calc_H(W.PStar);'},
 		--{h = '*value = calc_h(W.rhoBar, W.PStar);'},
 		--{HTotal = '*value = calc_HTotal(W.PStar, U->rhoBar_eTotalTilde);'},
