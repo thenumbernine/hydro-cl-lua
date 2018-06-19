@@ -94,14 +94,8 @@ Euler.consVars = table{
 
 function Euler:createInitState()
 	Euler.super.createInitState(self)
---in order to make things work, gamma needs to be set *HERE AND IN INIT/EULER*
--- which means it is being read and written in multiple places
--- TODO consolidate that
 	self:addGuiVars{
 		{name='heatCapacityRatio', value=7/5},
-		{name='useNavierStokesViscosityTerm', value=false},
-		{name='viscosity_K', value=.1},
-		{name='viscosity_mu_T', value=1e-3},
 	}
 end
 

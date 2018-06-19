@@ -1115,7 +1115,7 @@ if solver.dim == 2 then ?>
 				array = array,
 				field = field,
 				side = side,
-				mirrorVars = mirrorVars,
+				mirrorVars = args.mirrorVars,
 				minmax = minmax,
 			})
 		end 

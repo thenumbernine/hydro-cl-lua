@@ -240,7 +240,8 @@ local initStates = table{
 			heatCapacityRatio = 5/3,
 		},
 --]]		
---[[ real-world vars
+--[[ real-world vars ... which are a few orders higher, and therefore screw up the backward-euler solver
+-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
 		guiVars = {
 			{name = 'init_rhoL', value = 8 * materials.Air.seaLevelDensity},	-- kg / m^3
 			{name = 'init_PL', value = 10 * materials.Air.seaLevelPressure},	-- Pa = N / m^2

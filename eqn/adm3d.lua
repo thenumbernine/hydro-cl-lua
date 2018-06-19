@@ -284,7 +284,7 @@ end
 }
 ]]
 
-ADM_BonaMasso_3D.solverFileName = 'eqn/adm3d.cl'
+ADM_BonaMasso_3D.solverCodeFile = 'eqn/adm3d.cl'
 
 function ADM_BonaMasso_3D:getDisplayVars()
 	local vars = ADM_BonaMasso_3D.super.getDisplayVars(self)

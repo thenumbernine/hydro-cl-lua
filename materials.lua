@@ -63,8 +63,7 @@ materials.Air.heatCapacityRatio = 1006 / 717.1 -- ~ 1.4
 
 -- sea level air pressure 
 -- = 101.325 kPa 
--- = 101325 N / m^2 
--- = 101325 kg / (m s^2)
+-- = 101325 Pa = N / m^2 = kg / (m s^2)
 materials.Air.seaLevelPressure = 101325
 
 -- https://en.wikipedia.org/wiki/Density_of_air

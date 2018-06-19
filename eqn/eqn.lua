@@ -285,6 +285,19 @@ function Equation:eigenWaveCodePrefix(side, eig, x)
 	return ''
 end
 
+function Equation:eigenWaveCode(side, eig, x, waveIndex)
+	error 'not implemented'
+end
+
+-- default implementation -- the first is the min and the last is the max
+-- however some don't do this
+function Equation:eigenMinWaveCode(side, eig, x)
+	return self:eigenWaveCode(side, eig, x, 0)
+end
+function Equation:eigenMaxWaveCode(side, eig, x)
+	return self:eigenWaveCode(side, eig, x, self.numWaves-1)
+end
+
 -- Whether the eqn has its own calcDT.  Otherwise eqn/cl/calcDT.cl is used. 
 Equation.hasCalcDTCode = nil
 

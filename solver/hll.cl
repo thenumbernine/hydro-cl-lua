@@ -25,13 +25,20 @@ kernel void calcFlux(
 		<?=eqn.eigen_t?> eigInt = eigen_forInterface(*UL, *UR, xInt, normalForSide<?=side?>());
 		
 		<?=eqn:eigenWaveCodePrefix(side, '&eigInt', 'xInt')?>
-		
+		real lambdaIntMin = <?=eqn:eigenMinWaveCode(side, '&eigInt', 'xInt')?>;
+		real lambdaIntMax = <?=eqn:eigenMaxWaveCode(side, '&eigInt', 'xInt')?>;
+	
+#if 0	//Davis direct
+		real sL = lambdaIntMin;
+		real sR = lambdaIntMax;
+#endif
+#if 1	//David direct bounded
 		range_t lambdaL = calcCellMinMaxEigenvalues_<?=side?>(UL, xL);
 		range_t lambdaR = calcCellMinMaxEigenvalues_<?=side?>(UR, xR);
+		real sL = min(lambdaL.min, lambdaIntMin);
+		real sR = max(lambdaR.max, lambdaIntMax);
+#endif
 
-		real sL = min(lambdaL.min, <?=eqn:eigenWaveCode(side, '&eigInt', 'xInt', 0)?>);
-		real sR = max(lambdaR.max, <?=eqn:eigenWaveCode(side, '&eigInt', 'xInt', eqn.numWaves-1)?>);
-		
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
 		if (0 <= sL) {
 			<?=eqn.cons_t?> FL = fluxFromCons_<?=side?>(*UL, xL);

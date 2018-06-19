@@ -8,12 +8,14 @@ local FVSolver = require 'solver.fvsolver'
 local HLL = class(FVSolver)
 HLL.name = 'HLL'
 
+HLL.solverCodeFile = 'solver/hll.cl'
+
 function HLL:getSolverCode()
 	return table{
 		HLL.super.getSolverCode(self),
 	
 		-- before this went above solver/plm.cl, now it's going after it ...
-		template(file['solver/hll.cl'], {
+		template(file[self.solverCodeFile], {
 			solver = self,
 			eqn = self.eqn,
 			clnumber = require 'cl.obj.number',
