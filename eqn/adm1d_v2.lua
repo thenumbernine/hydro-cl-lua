@@ -131,6 +131,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
+	real3 xc = coordMap(x);
 	real3 mids = real3_scale(real3_add(mins, maxs), .5);
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
@@ -205,7 +206,7 @@ ADM_BonaMasso_1D_Alcubierre1997.eigenVars = {
 
 function ADM_BonaMasso_1D_Alcubierre1997:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	return template([[
-	real eig_lambda = <?=eig?>->alpha * <?=eig?>->sqrt_f_over_gamma_xx;
+	real eig_lambda = <?=eig?>.alpha * <?=eig?>.sqrt_f_over_gamma_xx;
 ]], {
 		eig = '('..eig..')',
 	})
@@ -222,6 +223,17 @@ function ADM_BonaMasso_1D_Alcubierre1997:eigenWaveCode(side, eig, x, waveIndex)
 		error'got a bad waveIndex'
 	end
 end
+
+function ADM_BonaMasso_1D_Alcubierre1997:consWaveCodePrefix(side, U, x, waveIndex)
+	return template([[
+	real f = calc_f(<?=U?>.alpha);
+	real eig_lambda = <?=U?>.alpha * sqrt(f / <?=U?>.gamma_xx);
+]], {
+		U = '('..U..')',
+	})
+end
+ADM_BonaMasso_1D_Alcubierre1997.consWaveCode = ADM_BonaMasso_1D_Alcubierre1997.eigenWaveCode
+
 
 function ADM_BonaMasso_1D_Alcubierre1997:fillRandom(epsilon)
 	local ptr = ADM_BonaMasso_1D_Alcubierre1997.super.fillRandom(self, epsilon)

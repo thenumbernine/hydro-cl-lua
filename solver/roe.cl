@@ -29,7 +29,7 @@ kernel void calcFlux(
 		int indexInt = side + dim * index;
 		const global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 		
-		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
+		<?=eqn:eigenWaveCodePrefix(side, '*eig', 'xInt')?>
 
 		<?=eqn.waves_t?> fluxEig;
 <? if not eqn.roeUseFluxFromCons then ?>
@@ -68,7 +68,7 @@ kernel void calcFlux(
 
 		<? for j=0,eqn.numWaves-1 do ?>{
 			const int j = <?=j?>;
-			real lambda = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', j)?>;
+			real lambda = <?=eqn:eigenWaveCode(side, '*eig', 'xInt', j)?>;
 
 <? if not eqn.roeUseFluxFromCons then ?>
 			fluxEig.ptr[j] *= lambda;

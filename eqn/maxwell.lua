@@ -261,7 +261,7 @@ Maxwell.eigenVars = table{
 
 function Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	return template([[
-	real eig_lambda = 1. / (<?=eig?>->sqrt_eps * <?=eig?>->sqrt_mu);
+	real eig_lambda = 1. / (<?=eig?>.sqrt_eps * <?=eig?>.sqrt_mu);
 ]], {
 		eig = '('..eig..')',
 	})
@@ -278,5 +278,14 @@ function Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 		error'got a bad waveIndex'
 	end
 end
+
+function Maxwell:consWaveCodePrefix(side, U, x, waveIndex)
+	return template([[
+	real eig_lambda = 1. / sqrt(<?=U?>.eps * <?=U?>.mu);
+]], {
+		U = '('..U..')',
+	})
+end
+Maxwell.consWaveCode = Maxwell.eigenWaveCode
 
 return Maxwell

@@ -8,7 +8,8 @@ predefined vars:
 	eqn=
 	mins=
 	maxs=
-	float= set to false to override double precision
+	float= set to true to use 32 bit float instead of 64 
+	half= set to true to use 16 bit float instead of 64
 	cpu= set to use CPU instead of GPU
 	useGLSharing= set to false to disable GL sharing
 --]]
@@ -16,7 +17,7 @@ local cmdline = {}
 --[[
 for _,k in ipairs{
 	'dim', 'gridSize', 'fluxLimiter', 'boundary', 
-	'integrator', 'eqn', 'mins', 'maxs', 'float'
+	'integrator', 'eqn', 'mins', 'maxs', 'float', 'half'
 } do
 	cmdline[k] = _G[k]
 	_G[k] = nil
@@ -189,7 +190,7 @@ function HydroCLApp:initGL(...)
 	-- TODO favor cl_khr_gl_sharing, cl_khr_fp64, cl_khr_3d_image_writes
 	self.env = CLEnv{
 		verbose = true,
-		precision = cmdline.float and 'float' or nil,
+		precision = cmdline.float and 'float' or (cmdline.half and 'half' or nil),
 		cpu = cmdline.cpu,
 		useGLSharing = cmdline.useGLSharing ~= false,	-- let nil default to true 
 	}

@@ -14,17 +14,6 @@
 }
 <? end ?>
 
-<? for side=0,solver.dim-1 do ?>
-range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const global <?=eqn.cons_t?>* U,
-	real3 x
-) {
-	real f = calc_f(U->alpha);
-	real lambda = U->alpha * sqrt(f / U->gamma_xx);
-	return (range_t){.min=-lambda, .max=lambda};
-}
-<? end ?>
-
 //used by PLM
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forCell_<?=side?>(

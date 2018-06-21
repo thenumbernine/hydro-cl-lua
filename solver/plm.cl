@@ -211,14 +211,14 @@ works for adm1d_v1
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
 	
-		<?=eqn:eigenWaveCodePrefix(side, '&eig', 'x')?>
+		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
 
 		// slopes in characteristic space
 		<?=eqn.waves_t?> aL;
 		<?=eqn.waves_t?> aR;
 		<? for j=0,eqn.numWaves-1 do ?>{
 			const int j = <?=j?>;
-			real wave_j = <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
+			real wave_j = <?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>;
 			aL.ptr[j] = wave_j < 0 ? 0 : dUMEig.ptr[j] * .5 * (1. - wave_j * dt_dx);
 			aR.ptr[j] = wave_j > 0 ? 0 : dUMEig.ptr[j] * .5 * (1. + wave_j * dt_dx);
 		}<? end ?>
@@ -321,7 +321,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		//MUSCL slope of characteristic variables
 		<?=eqn.waves_t?> dWMEig;
 		for (int j = 0; j < numWaves; ++j) {
-			dWMEig.ptr[j] = dWLEig.ptr[j] * dWREig.ptr[j] < 0 ? 0 : (
+			dWMEig.ptr[j] = dWLEig.ptr[j] * dWREig.ptr[j] < 0. ? 0. : (
 				(dWCEig.ptr[j] >= 0. ? 1. : -1.)
 				* 2. * min3(
 					fabs(dWLEig.ptr[j]),
@@ -334,7 +334,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
 
-		<?=eqn:eigenWaveCodePrefix(side, '&eig', 'x')?>
+		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
 
 <? 	if solver.usePLM == 'plm-eig-prim' then ?>
 		//without reference state
@@ -343,7 +343,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
  		<?=eqn.waves_t?> aL, aR;
  		<? for j=0,eqn.numWaves-1 do ?>{
 			const int j = <?=j?>;
-			real wave_j = <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
+			real wave_j = <?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>;
 			aL.ptr[j] = wave_j < 0 ? 0 : dWMEig.ptr[j] * .5 * (1. - wave_j * dt_dx);
 			aR.ptr[j] = wave_j > 0 ? 0 : dWMEig.ptr[j] * .5 * (1. + wave_j * dt_dx);
 		}<? end ?>
@@ -374,8 +374,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		//min and max waves
 		//TODO use calcCellMinMaxEigenvalues ... except based on eigen_t
 		// so something like calcEigenMinMaxWaves ... 
-		real waveMin = min(0., <?=eqn:eigenWaveCode(side, '&eig', 'x', 0)?>);
-		real waveMax = max(0., <?=eqn:eigenWaveCode(side, '&eig', 'x', eqn.numWaves-1)?>);
+		real waveMin = min((real)0., <?=eqn:eigenWaveCode(side, 'eig', 'x', 0)?>);
+		real waveMax = max((real)0., <?=eqn:eigenWaveCode(side, 'eig', 'x', eqn.numWaves-1)?>);
 
 		//limited slope in primitive variable space
 		tmp = eigen_rightTransform_<?=side?>(eig, dWMEig, x);
@@ -395,7 +395,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		<?=eqn.waves_t?> aL, aR;
 		<? for j=0,eqn.numWaves-1 do ?>{
 			const int j = <?=j?>;
-			real wave_j = <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
+			real wave_j = <?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>;
 			aL.ptr[j] = wave_j < 0 ? 0 : (dWMEig.ptr[j] * dt_dx * (waveMax - wave_j));
 			aR.ptr[j] = wave_j > 0 ? 0 : (dWMEig.ptr[j] * dt_dx * (waveMin - wave_j));
 		}<? end ?>
@@ -471,7 +471,7 @@ elseif solver.usePLM == 'plm-athena' then
 			if (dal.ptr[j] * dar.ptr[j] > 0) {
 				real lim_slope1 = min(fabs(dal.ptr[j]), fabs(dar.ptr[j]));
 				real lim_slope2 = min(fabs(dac.ptr[j]), fabs(dag.ptr[j]));
-				da.ptr[j] = sign(dac.ptr[j]) * min(2. * lim_slope1, lim_slope2);
+				da.ptr[j] = sign(dac.ptr[j]) * min((real)2. * lim_slope1, lim_slope2);
 			}
 		}
 	
@@ -585,10 +585,10 @@ elseif solver.usePLM == 'plm-athena' then
 		//calc eigen values and vectors at cell center
 		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(*U, x);
 		
-		<?=eqn:eigenWaveCodePrefix(side, '&eig', 'x')?>
+		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
 		real eval[numWaves] = {
 <? for j=0,eqn.numWaves-1 do
-?>			<?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>,
+?>			<?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>,
 <? end
 ?>		};
 

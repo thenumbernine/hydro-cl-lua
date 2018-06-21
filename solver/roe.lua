@@ -161,7 +161,7 @@ function Roe:addDisplayVars()
 		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
 
 		*value = 0;
-		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
+		<?=eqn:eigenWaveCodePrefix(side, '*eig', 'xInt')?>
 
 		for (int k = 0; k < numIntStates; ++k) {
 			
@@ -179,7 +179,7 @@ function Roe:addDisplayVars()
 			<?=eqn.waves_t?> eigenScaled;
 			<? for j=0,eqn.numWaves-1 do ?>{
 				const int j = <?=j?>;
-				real wave_j = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', j)?>;
+				real wave_j = <?=eqn:eigenWaveCode(side, '*eig', 'xInt', j)?>;
 				eigenScaled.ptr[j] = eigenCoords.ptr[j] * wave_j;
 			}<? end ?>
 		

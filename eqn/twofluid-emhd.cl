@@ -1,6 +1,6 @@
 <?
 local clnumber = require 'cl.obj.number'
-local fluids = solver.fluids
+local fluids = eqn.fluids
 ?>
 
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
@@ -635,4 +635,30 @@ kernel void constrainU(
 ?>
 	
 	*U = consFromPrim(W, x);
+}
+
+//this is a temporary fix until I implement MHD's inline eigenvalue code
+
+kernel void calcDT(
+	global real* dtBuf,
+	const global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+	real3 x = cell_x(i);
+
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+
+	real dt = INFINITY;
+	<? for side=0,solver.dim-1 do ?>{
+		//use cell-centered eigenvalues
+		range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(U, x); 
+		lambda.min = (real)min((real)0., lambda.min);
+		lambda.max = (real)max((real)0., lambda.max);
+		dt = (real)min((real)dt, (real)(grid_dx<?=side?> / (fabs(lambda.max - lambda.min) + (real)1e-9)));
+	}<? end ?>
+	dtBuf[index] = dt;
 }

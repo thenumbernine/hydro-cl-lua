@@ -24,7 +24,6 @@ ADM_BonaMasso_3D.hasEigenCode = true
 ADM_BonaMasso_3D.useSourceTerm = true
 ADM_BonaMasso_3D.useConstrainU = true
 
-
 --[[
 args:
 useShift
@@ -213,6 +212,14 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 end
 
 ADM_BonaMasso_3D.initStateCode = [[
+<? 
+local common = require 'common'()
+local xNames = common.xNames 
+local symNames = common.symNames 
+local from3x3to6 = common.from3x3to6 
+local from6to3x3 = common.from6to3x3 
+local sym = common.sym 
+?>
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -403,13 +410,13 @@ end
 function ADM_BonaMasso_3D:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	return template([[
 	<? if side==0 then ?>
-	real eig_lambdaLight = <?=eig?>->alpha * <?=eig?>->sqrt_gammaUjj.x;
+	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x;
 	<? elseif side==1 then ?>
-	real eig_lambdaLight = <?=eig?>->alpha * <?=eig?>->sqrt_gammaUjj.y;
+	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.y;
 	<? elseif side==2 then ?>
-	real eig_lambdaLight = <?=eig?>->alpha * <?=eig?>->sqrt_gammaUjj.z;
+	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.z;
 	<? end ?>
-	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>->sqrt_f;
+	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>.sqrt_f;
 ]], {
 		eig = '('..eig..')',
 		side = side,
@@ -425,7 +432,7 @@ function ADM_BonaMasso_3D:eigenWaveCode(side, eig, x, waveIndex)
 
 		local betaUi
 		if self.useShift then
-			betaUi = eig..'->beta_u.'..xNames[side+1]
+			betaUi = eig..'.beta_u.'..xNames[side+1]
 		else
 			betaUi = '0'
 		end
@@ -458,6 +465,26 @@ function ADM_BonaMasso_3D:eigenWaveCode(side, eig, x, waveIndex)
 	end
 	error'got a bad waveIndex'
 end
+
+function ADM_BonaMasso_3D:consWaveCodePrefix(side, U, x, waveIndex)
+	return template([[
+	real det_gamma = sym3_det(<?=U?>.gamma);
+	sym3 gammaU = sym3_inv(<?=U?>.gamma, det_gamma);
+	<? if side==0 then ?>
+	real eig_lambdaLight = <?=U?>.alpha * sqrt(gammaU.xx);
+	<? elseif side==1 then ?>                          
+	real eig_lambdaLight = <?=U?>.alpha * sqrt(gammaU.yy);
+	<? elseif side==2 then ?>                          
+	real eig_lambdaLight = <?=U?>.alpha * sqrt(gammaU.zz);
+	<? end ?>
+	real f = calc_f(<?=U?>.alpha);
+	real eig_lambdaGauge = eig_lambdaLight * sqrt(f);
+]], {
+		U = '('..U..')',
+		side = side,
+	})
+end
+ADM_BonaMasso_3D.consWaveCode = ADM_BonaMasso_3D.eigenWaveCode
 
 
 function ADM_BonaMasso_3D:fillRandom(epsilon)

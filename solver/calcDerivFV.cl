@@ -41,8 +41,8 @@ kernel void calcDerivFromFlux(
 		real volume_intR = volume_at(xIntR);
 		real areaR = volume_intR / grid_dx<?=side?>;
 <? else ?>
-		const real areaL = 1.;
-		const real areaR = 1.;
+		const real areaL = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * grid_dx<?=i?><? end end ?>;
+		const real areaR = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * grid_dx<?=i?><? end end ?>;
 <? end ?>
 
 <? if not eqn.postComputeFluxCode then -- would the compiler know to optimize this? ?>

@@ -18,7 +18,7 @@ kernel void calcDT(
 	
 	real dt = INFINITY;
 <? for side=0,solver.dim-1 do 
-?>	dt = min(dt, grid_dx<?=side?> / (Cs + fabs(W.v.s<?=side?>)));
+?>	dt = min(dt, (real)grid_dx<?=side?> / (Cs + fabs(W.v.s<?=side?>)));
 <? end
 ?>	dtBuf[index] = dt;
 }

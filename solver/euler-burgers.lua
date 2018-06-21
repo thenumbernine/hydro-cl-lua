@@ -59,6 +59,11 @@ function EulerBurgers:refreshSolverProgram()
 	self.diffuseWorkKernelObj = self.solverProgramObj:kernel'diffuseWork'
 	self.diffuseWorkKernelObj.obj:setArg(1, self.UBuf)
 	self.diffuseWorkKernelObj.obj:setArg(2, self.PBuf)
+
+	if self.eqn.useSourceTerm then
+		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
+		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
+	end
 end
 
 function EulerBurgers:addDisplayVars()

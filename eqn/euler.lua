@@ -50,7 +50,7 @@ Euler.numWaves = 5
 Euler.numIntStates = 5	-- don't bother integrate ePot
 
 Euler.mirrorVars = {{'m.x'}, {'m.y'}, {'m.z'}} 
-
+Euler.hasCalcDTCode = true
 Euler.hasEigenCode = true
 Euler.hasFluxFromConsCode = true
 Euler.roeUseFluxFromCons = true
@@ -193,6 +193,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 end
 
 Euler.initStateCode = [[
+<? local xNames = require 'common'().xNames ?>
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -342,8 +343,8 @@ Euler.eigenVars = table{
 
 function Euler:eigenWaveCodePrefix(side, eig, x)
 	return template([[
-	real Cs_sqrt_gU = <?=eig?>->Cs * coord_sqrt_gU<?=side..side?>(<?=x?>);
-	real v_n = <?=eig?>->v.s[<?=side?>];
+	real Cs_sqrt_gU = <?=eig?>.Cs * coord_sqrt_gU<?=side..side?>(<?=x?>);
+	real v_n = <?=eig?>.v.s[<?=side?>];
 ]], {
 		eig = '('..eig..')',
 		side = side,
@@ -351,7 +352,24 @@ function Euler:eigenWaveCodePrefix(side, eig, x)
 	})
 end
 
-function Euler:eigenWaveCode(side, eig, x, waveIndex)
+-- W is an extra param specific to Euler's calcDT in this case
+function Euler:consWaveCodePrefix(side, U, x, W)
+	return template([[
+<? if not W then ?>
+	<?=eqn.prim_t?> W = primFromCons(<?=U?>, <?=x?>);
+<? end ?>
+	real Cs_sqrt_gU = calc_Cs(&<?=W or 'W'?>) * coord_sqrt_gU<?=side..side?>(<?=x?>);
+	real v_n = <?=W or 'W'?>.v.s[<?=side?>];
+]], {
+		eqn = self,
+		U = '('..U..')',
+		W = W and '('..W..')' or nil,
+		side = side,
+		x = x,
+	})
+end
+
+function Euler:consWaveCode(side, U, x, waveIndex)
 	if waveIndex == 0 then
 		return '(v_n - Cs_sqrt_gU)'
 	elseif waveIndex >= 1 and waveIndex <= 3 then
@@ -360,6 +378,45 @@ function Euler:eigenWaveCode(side, eig, x, waveIndex)
 		return '(v_n + Cs_sqrt_gU)'
 	end
 	error'got a bad waveIndex'
+end
+
+-- as long as U or eig isn't used, we can use this for both implementations
+Euler.eigenWaveCode = Euler.consWaveCode
+
+-- this one calcs cell prims once and uses it for all sides
+-- it is put here instead of in eqn/euler.cl so euler-burgers can override it
+function Euler:getCalcDTCode()
+	return template([[
+<? local solver = eqn.solver ?>
+kernel void calcDT(
+	global real* dtBuf,
+	const global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+	real3 x = cell_x(i);
+
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	real Cs = calc_Cs(&W);
+
+	real dt = INFINITY;
+	<? for side=0,solver.dim-1 do ?>{
+		//use cell-centered eigenvalues
+		real lambdaMin = W.v.s<?=side?> - Cs;
+		real lambdaMax = W.v.s<?=side?> + Cs;
+		lambdaMin = min((real)0., lambdaMin);
+		lambdaMax = max((real)0., lambdaMax);
+		dt = min(dt, ((real)grid_dx<?=side?> / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
+	}<? end ?>
+	dtBuf[index] = dt;
+}
+]], {
+		eqn = self,
+	})
 end
 
 return Euler

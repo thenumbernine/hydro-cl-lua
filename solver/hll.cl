@@ -24,20 +24,30 @@ kernel void calcFlux(
 		// TODO this in a more computationally efficient way
 		<?=eqn.eigen_t?> eigInt = eigen_forInterface(*UL, *UR, xInt, normalForSide<?=side?>());
 		
-		<?=eqn:eigenWaveCodePrefix(side, '&eigInt', 'xInt')?>
-		real lambdaIntMin = <?=eqn:eigenMinWaveCode(side, '&eigInt', 'xInt')?>;
-		real lambdaIntMax = <?=eqn:eigenMaxWaveCode(side, '&eigInt', 'xInt')?>;
+		<?=eqn:eigenWaveCodePrefix(side, 'eigInt', 'xInt')?>
+		real lambdaIntMin = <?=eqn:eigenMinWaveCode(side, 'eigInt', 'xInt')?>;
+		real lambdaIntMax = <?=eqn:eigenMaxWaveCode(side, 'eigInt', 'xInt')?>;
 	
-#if 0	//Davis direct
+<? if solver.calcWaveMethod == 'Davis direct' then ?>
 		real sL = lambdaIntMin;
 		real sR = lambdaIntMax;
-#endif
-#if 1	//David direct bounded
-		range_t lambdaL = calcCellMinMaxEigenvalues_<?=side?>(UL, xL);
-		range_t lambdaR = calcCellMinMaxEigenvalues_<?=side?>(UR, xR);
-		real sL = min(lambdaL.min, lambdaIntMin);
-		real sR = max(lambdaR.max, lambdaIntMax);
-#endif
+<? end ?>
+<? if solver.calcWaveMethod == 'Davis direct bounded' then ?>
+		real lambdaLMin;
+		{
+			<?=eqn:consWaveCodePrefix(side, '*UL', 'xL')?>
+			lambdaLMin = <?=eqn:consMinWaveCode(side, '*UL', 'xL')?>;
+		}
+
+		real lambdaRMax;
+		{
+			<?=eqn:consWaveCodePrefix(side, '*UR', 'xR')?>
+			lambdaRMax = <?=eqn:consMaxWaveCode(side, '*UR', 'xR')?>;
+		}
+		
+		real sL = min(lambdaLMin, lambdaIntMin);
+		real sR = max(lambdaRMax, lambdaIntMax);
+<? end ?>
 
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
 		if (0 <= sL) {

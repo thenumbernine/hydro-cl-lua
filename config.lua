@@ -1,4 +1,4 @@
-local dim = 1
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -64,7 +64,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{128,128,1},
+				{32,32,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -76,12 +76,12 @@ maxs = {6,1,1},
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'mirror',
-		xmax=cmdline.boundary or 'mirror',
-		ymin=cmdline.boundary or 'mirror',
-		ymax=cmdline.boundary or 'mirror',
-		zmin=cmdline.boundary or 'mirror',
-		zmax=cmdline.boundary or 'mirror',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	-- TODO these next two seem very similar
@@ -205,7 +205,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -240,7 +240,7 @@ maxs = {6,1,1},
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
 	--initState = 'Brio-Wu',
-	--initState = 'Orszag-Tang',
+	initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'spinning magnetic fluid',
 	--initState = 'magnetic fluid',
@@ -388,9 +388,10 @@ maxs = {6,1,1},
 -- HD
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
-self.solvers:insert(require 'solver.euler-hllc'(args))
+--self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
+-- still haven't added source terms to this
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='navstokes-wilcox'})))
 
 -- HD - Burgers
@@ -409,14 +410,16 @@ self.solvers:insert(require 'solver.euler-hllc'(args))
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
 --self.solvers:insert(require 'solver.srhd-roe'(args))
---self.solvers:insert(require 'solver.srhd-hll'(args))	-- TODO finishme
+--self.solvers:insert(require 'solver.srhd-hll'(args))		-- TODO finishme.  the last piece is 'eigen_forInterface'
 
 -- GRHD
+-- TODO FIXME
 -- this is the solver with plug-ins for ADM metric, 
 -- yet doesn't come coupled with any other solver, so it will act just like a srhd solver
 --self.solvers:insert(require 'solver.grhd-roe'(args))
 
 -- GRHD+GR
+-- TODO FIXME
 -- here's the GRHD solver with the BSSNOK plugged into it
 --self.solvers:insert(require 'solver.gr-hd-separate'(args))
 
@@ -430,9 +433,12 @@ self.solvers:insert(require 'solver.euler-hllc'(args))
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
---self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='mhd'})))
 
+-- this runs, but of course it's missing a few waves ...
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
+
+--self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='mhd'})))
+-- TODO FIXME
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-mhd'})))
@@ -443,6 +449,7 @@ self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 
+-- GLM Maxwell
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-maxwell'})))
@@ -453,7 +460,7 @@ self.solvers:insert(require 'solver.euler-hllc'(args))
 
 -- ...so to try and get around that, here the two are combined into one solver:
 -- TODO still needs PLM support
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 
 -- GR+Maxwell.  params go to the Maxwell solver.
 

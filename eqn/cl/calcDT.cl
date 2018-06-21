@@ -20,11 +20,12 @@ kernel void calcDT(
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
 		//use cell-centered eigenvalues
-		range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(U, x); 
-		lambda.min = (real)min((real)0., lambda.min);
-		lambda.max = (real)max((real)0., lambda.max);
-		
-		dt = (real)min((real)dt, (real)(grid_dx<?=side?> / (fabs(lambda.max - lambda.min) + (real)1e-9)));
+		<?=eqn:consWaveCodePrefix(side, '*U', 'x')?>
+		real lambdaMin = <?=eqn:consMinWaveCode(side, '*U', 'x')?>;
+		real lambdaMax = <?=eqn:consMaxWaveCode(side, '*U', 'x')?>;
+		lambdaMin = (real)min((real)0., lambdaMin);
+		lambdaMax = (real)max((real)0., lambdaMax);
+		dt = (real)min((real)dt, (real)(grid_dx<?=side?> / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
 	}<? end ?>
 	dtBuf[index] = dt;
 }
@@ -50,11 +51,12 @@ kernel void calcDT(
 		//which should we pick eigenvalues from?
 		<? for side=0,solver.dim-1 do ?>{
 			//use cell-centered eigenvalues
-			range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(U, cell->x); 
-			lambda.min = min(0., lambda.min);
-			lambda.max = max(0., lambda.max);
-			
-			dt = min(dt, (iface->dist / (fabs(lambda.max - lambda.min) + (real)1e-9)));
+			<?=eqn:consWaveCodePrefix(side, '*U', 'x')?>
+			real lambdaMin = <?=eqn:consMinWaveCode(side, '*U', 'x')?>;
+			real lambdaMax = <?=eqn:consMaxWaveCode(side, '*U', 'x')?>;
+			lambdaMin = (real)min((real)0., lambdaMin);
+			lambdaMax = (real)max((real)0., lambdaMax);
+			dt = min(dt, (iface->dist / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
 		}<? end ?>
 	}
 	dtBuf[cellIndex] = dt;

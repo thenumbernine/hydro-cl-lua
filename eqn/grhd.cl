@@ -410,9 +410,9 @@ for _,field in ipairs(eqn.eigenVars) do
 #else
 	//default
 	<?=eqn.waves_t?> waves = eigen_leftTransform_<?=side?>(eig, X_, x);
-	<?=eqn:eigenWaveCodePrefix(side, '&eig', 'x')?>
+	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
 <? for j=0,eqn.numWaves-1 do 
-?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
+?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>;
 <? end 
 ?>	return eigen_rightTransform_<?=side?>(eig, waves, x);
 #endif

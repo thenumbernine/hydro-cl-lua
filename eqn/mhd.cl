@@ -293,6 +293,7 @@ Roe_t calcRoeValues(
 ?> 	<?=ctype?> <?=name?> = eig.<?=name?>;
 <? end ?>
 
+#warning you can't use coordLenSq (which uses g_ij) after rotating coordinates 
 	real vSq = coordLenSq(v, x);
 	
 	// left eigenvectors
@@ -498,6 +499,7 @@ Roe_t calcRoeValues(
 <? end ?>
 
 	real _1_rho = 1. / rho;
+#warning you can't use coordLenSq (which uses g_ij) after rotating coordinates 
 	real vSq = coordLenSq(v, x);
 	real BDotV = real3_dot(B,v);
 
@@ -583,4 +585,30 @@ kernel void addSource(
 	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn_trace23(x), PTotal));		//-Conn^i_jk g^jk P_total
 	deriv->m = real3_add(deriv->m, real3_scale(coord_conn_apply23(U->B, U->B, x), 1. / mu0));	//+ 1/mu0 Conn^i_jk B^j B^k
 <? end ?>
+}
+
+//this is a temporary fix until I implement MHD's inline eigenvalue code
+
+kernel void calcDT(
+	global real* dtBuf,
+	const global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+	real3 x = cell_x(i);
+
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+
+	real dt = INFINITY;
+	<? for side=0,solver.dim-1 do ?>{
+		//use cell-centered eigenvalues
+		range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(U, x); 
+		lambda.min = (real)min((real)0., lambda.min);
+		lambda.max = (real)max((real)0., lambda.max);
+		dt = (real)min((real)dt, (real)(grid_dx<?=side?> / (fabs(lambda.max - lambda.min) + (real)1e-9)));
+	}<? end ?>
+	dtBuf[index] = dt;
 }

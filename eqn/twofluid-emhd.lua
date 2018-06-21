@@ -527,8 +527,8 @@ function TwoFluidEMHD:eigenWaveCodePrefix(side, eig, x)
 	return template([[
 	real _1_sqrt_det_g = 1. / sqrt_det_g_grid(cell_x(i));
 <? for i,fluid in ipairs(fluids) do ?>
-	real <?=fluid?>_Cs_sqrt_gU = <?=eig?>-><?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(<?=x?>);
-	real <?=fluid?>_v_n = <?=eig?>-><?=fluid?>_v.s[<?=side?>];
+	real <?=fluid?>_Cs_sqrt_gU = <?=eig?>.<?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(<?=x?>);
+	real <?=fluid?>_v_n = <?=eig?>.<?=fluid?>_v.s[<?=side?>];
 <? end ?>
 ]], {
 		x = x,
@@ -564,6 +564,28 @@ function TwoFluidEMHD:eigenWaveCode(side, eig, x, waveIndex)
 		})[waveIndex - 5*#fluids + 1]
 	end
 	error('got a bad waveIndex: '..waveIndex)
+end
+
+-- this is all temporary fix until I properly code the inlining
+
+TwoFluidEMHD.hasCalcDTCode = true
+
+function TwoFluidEMHD:consWaveCodePrefix(side, U, x)
+	return template([[
+	range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(&<?=U?>, <?=x?>); 
+]], {
+		side = side,
+		U = '('..U..')',
+		x = x,
+	})
+end
+
+function TwoFluidEMHD:consMinWaveCode(side, U, x)
+	return 'lambda.min'
+end
+
+function TwoFluidEMHD:consMaxWaveCode(side, U, x)
+	return 'lambda.max'
 end
 
 return TwoFluidEMHD

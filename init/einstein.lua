@@ -298,8 +298,6 @@ return table{
 		end,
 		initState = function(self, solver)
 			return [[
-	real3 xc = coordMap(x);
-	
 	real x_s = 0;	//speed * t
 	real v_s = init_speed;
 	

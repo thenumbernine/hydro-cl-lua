@@ -1,5 +1,5 @@
 <?
-local common = require 'common'
+local common = require 'common'()
 local xNames = common.xNames
 local symNames = common.symNames
 local from3x3to6 = common.from3x3to6 
@@ -7,9 +7,9 @@ local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
 local derivOrder = 2 * solver.numGhost
-local makePartials = return require 'eqn.makepartial'
-local makePartial = function(...) return makePartials.makePartial(derivOrder, solver, ...) end,
-local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end,
+local makePartials = require 'eqn.makepartial'
+local makePartial = function(...) return makePartials.makePartial(derivOrder, solver, ...) end
+local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end
 ?>
 
 kernel void calcDT(
@@ -1019,10 +1019,10 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 	<?=eqn.waves_t?> waves = eigen_leftTransform_<?=side?>(eig, inputU, x);
 
-	<?=eqn:eigenWaveCodePrefix(side, '&eig', 'x')?>
+	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
 
 <? for j=0,eqn.numWaves-1 do 
-?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, '&eig', 'x', j)?>;
+?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>;
 <? end 
 ?>
 	return eigen_rightTransform_<?=side?>(eig, waves, x);

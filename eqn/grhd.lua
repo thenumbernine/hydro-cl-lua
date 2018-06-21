@@ -300,11 +300,11 @@ GRHD.eigenVars = {
 
 function GRHD:eigenWaveCode(side, eig, x, waveIndex)
 	return template(assert(({
-		'<?=eig?>->lambdaMin',
-		'<?=eig?>->vU.x * <?=eig?>->alpha - <?=eig?>->beta.s<?=side?>',
-		'<?=eig?>->vU.x * <?=eig?>->alpha - <?=eig?>->beta.s<?=side?>',
-		'<?=eig?>->vU.x * <?=eig?>->alpha - <?=eig?>->beta.s<?=side?>',
-		'<?=eig?>->lambdaMax',
+		'<?=eig?>.lambdaMin',
+		'<?=eig?>.vU.x * <?=eig?>.alpha - <?=eig?>.beta.s<?=side?>',
+		'<?=eig?>.vU.x * <?=eig?>.alpha - <?=eig?>.beta.s<?=side?>',
+		'<?=eig?>.vU.x * <?=eig?>.alpha - <?=eig?>.beta.s<?=side?>',
+		'<?=eig?>.lambdaMax',
 	})[waveIndex+1], "couldn't find code for waveIndex="..waveIndex), {side=side, eig='('..eig..')'})
 end
 

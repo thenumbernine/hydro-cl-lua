@@ -80,6 +80,10 @@ inline real calc_H(real P) { return P * (heatCapacityRatio / (heatCapacityRatio 
 inline real calc_h(real rho, real P) { return calc_H(P) / rho; }
 inline real calc_HTotal(<?=eqn.prim_t?> W, real ETotal, real3 x) { return W.P + calc_PMag(W, x) + ETotal; }
 inline real calc_hTotal(<?=eqn.prim_t?> W, real ETotal, real3 x) { return calc_HTotal(W, ETotal, x) / W.rho; }
+
+//notice, this is speed of sound, to match the name convention of eqn/euler
+//but Cs in eigen_t is the slow speed
+//most the MHD papers use 'a' for the speed of sound
 inline real calc_Cs(<?=eqn.prim_t?> W) { return sqrt(heatCapacityRatio * W.P / W.rho); }
 ]], {
 		eqn = self,
@@ -174,6 +178,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 end
 
 MHD.initStateCode = [[
+<? local xNames = require 'common'().xNames ?>
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -314,14 +319,36 @@ end
 function MHD:eigenWaveCode(side, eig, x, waveIndex)
 	eig = '('..eig..')'
 	return ({
-		eig..'->v.x - '..eig..'->Cf',
-		eig..'->v.x - '..eig..'->CAx',
-		eig..'->v.x - '..eig..'->Cs',
-		eig..'->v.x',
-		eig..'->v.x + '..eig..'->Cs',
-		eig..'->v.x + '..eig..'->CAx',
-		eig..'->v.x + '..eig..'->Cf',
+		eig..'.v.x - '..eig..'.Cf',
+		eig..'.v.x - '..eig..'.CAx',
+		eig..'.v.x - '..eig..'.Cs',
+		eig..'.v.x',
+		eig..'.v.x + '..eig..'.Cs',
+		eig..'.v.x + '..eig..'.CAx',
+		eig..'.v.x + '..eig..'.Cf',
 	})[waveIndex+1]
+end
+
+-- this is all temporary fix until I properly code the inlining
+
+MHD.hasCalcDTCode = true
+
+function MHD:consWaveCodePrefix(side, U, x)
+	return template([[
+	range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(&<?=U?>, <?=x?>); 
+]], {
+		side = side,
+		U = '('..U..')',
+		x = x,
+	})
+end
+
+function MHD:consMinWaveCode(side, U, x)
+	return 'lambda.min'
+end
+
+function MHD:consMaxWaveCode(side, U, x)
+	return 'lambda.max'
 end
 
 return MHD

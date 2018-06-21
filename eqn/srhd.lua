@@ -328,15 +328,78 @@ SRHD.eigenVars = {
 
 function SRHD:eigenWaveCode(side, eig, x, waveIndex)
 	if waveIndex == 0 then
-		return '('..eig..')->lambdaMin'
+		return '('..eig..').lambdaMin'
 	elseif waveIndex >= 1 and waveIndex <= 3 then
 		-- v.x because v has been rotated so x points along the normal
-		return '('..eig..')->v.x'
+		return '('..eig..').v.x'
 	elseif waveIndex == 4 then
-		return '('..eig..')->lambdaMax'
+		return '('..eig..').lambdaMax'
 	else
 		error'got a bad waveIndex'
 	end
 end
+
+-- used by HLL
+-- extra params provided by calcDT, or calculated here if not provided (just like in Euler)
+function SRHD:consWaveCodePrefix(side, U, x,
+	prim, rho, eInt, vSq, P, h, csSq, cs
+)
+	return template([[	
+<? if not prim then ?>
+	<?=eqn.prim_t?> prim = <?=U?>.prim;
+	real rho = prim.rho;
+	real eInt = prim.eInt;
+	real vSq = coordLenSq(prim.v, x);
+	real P = calc_P(rho, eInt);
+	real h = calc_h(rho, P, eInt);
+	real csSq = heatCapacityRatio * P / (rho * h);
+	real cs = sqrt(csSq);
+<? 
+	prim = 'prim'
+end ?>
+	
+	//for the particular direction
+	real vi = <?=prim?>.v.s<?=side?>;
+	real viSq = vi * vi;
+	
+	// Marti 1998 eqn 19
+	// also Marti & Muller 2008 eqn 68
+	// also Font 2008 eqn 106
+	real discr = sqrt((1. - <?=vSq?>) * (1. - <?=vSq?> * <?=csSq?> - viSq * (1. - <?=csSq?>)));
+	real lambdaMin = (vi * (1. - <?=csSq?>) - <?=cs?> * discr) / (1. - <?=vSq?> * <?=csSq?>);
+	real lambdaMax = (vi * (1. - <?=csSq?>) + <?=cs?> * discr) / (1. - <?=vSq?> * <?=csSq?>);
+	// v.x because v has been rotated so x points along the normal
+	real v_n = prim.v.x;
+]], {
+		eqn = self,
+		side = side,
+		U = '('..U..')',
+		x = x,
+		-- extra params either provided or calculated
+		-- TODO I almost need two prefixes ... one for all sides, and one per-side
+		prim = prim,
+		rho = rho or 'rho',
+		eInt = eInt or 'eInt',
+		vSq = vSq or 'vSq',
+		P = P or 'P',
+		h = h or 'h',
+		csSq = csSq or 'csSq',
+		cs = cs or 'cs',
+	})
+end
+
+function SRHD:consWaveCode(side, U, x, waveIndex)
+	if waveIndex == 0 then
+		return 'lambdaMin'
+	elseif waveIndex >= 1 and waveIndex <= 3 then
+		return 'v_x'
+	elseif waveIndex == 4 then
+		return 'lambdaMax'
+	else
+		error'got a bad waveIndex'
+	end
+end
+
+
 
 return SRHD

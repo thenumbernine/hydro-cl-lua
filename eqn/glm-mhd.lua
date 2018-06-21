@@ -314,18 +314,40 @@ end
 function GLM_MHD:eigenWaveCode(side, eig, x, waveIndex)
 	eig = '('..eig..')'
 	return ({
-		eig..'->v.x - '..eig..'->Cf',
-		eig..'->v.x - '..eig..'->CAx',
-		eig..'->v.x - '..eig..'->Cs',
-		eig..'->v.x',
-		eig..'->v.x + '..eig..'->Cs',
-		eig..'->v.x + '..eig..'->CAx',
-		eig..'->v.x + '..eig..'->Cf',
+		eig..'.v.x - '..eig..'.Cf',
+		eig..'.v.x - '..eig..'.CAx',
+		eig..'.v.x - '..eig..'.Cs',
+		eig..'.v.x',
+		eig..'.v.x + '..eig..'.Cs',
+		eig..'.v.x + '..eig..'.CAx',
+		eig..'.v.x + '..eig..'.Cf',
 		
 		--#warning there's a few PLM routines that expect eigenvalues to be ordered ... so replace them with a eigen_calcMinMaxWaves
-		self.useFixedCh and '-Ch' or '-'..eig..'->Ch',
-		self.useFixedCh and 'Ch' or eig..'->Ch',
+		self.useFixedCh and '-Ch' or '-'..eig..'.Ch',
+		self.useFixedCh and 'Ch' or eig..'.Ch',
 	})[waveIndex+1]
+end
+
+-- this is all temporary fix until I properly code the inlining
+
+GLM_MHD.hasCalcDTCode = true
+
+function GLM_MHD:consWaveCodePrefix(side, U, x)
+	return template([[
+	range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(&<?=U?>, <?=x?>); 
+]], {
+		side = side,
+		U = '('..U..')',
+		x = x,
+	})
+end
+
+function GLM_MHD:consMinWaveCode(side, U, x)
+	return 'lambda.min'
+end
+
+function GLM_MHD:consMaxWaveCode(side, U, x)
+	return 'lambda.max'
 end
 
 return GLM_MHD

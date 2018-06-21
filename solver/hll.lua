@@ -10,6 +10,9 @@ HLL.name = 'HLL'
 
 HLL.solverCodeFile = 'solver/hll.cl'
 
+--HLL.calcWaveMethod = 'Davis direct'
+HLL.calcWaveMethod = 'Davis direct bounded'
+
 function HLL:getSolverCode()
 	return table{
 		HLL.super.getSolverCode(self),

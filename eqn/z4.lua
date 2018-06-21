@@ -168,13 +168,13 @@ Z4.eigenVars = table{
 function Z4:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	return template([[
 	<? if side==0 then ?>
-	real eig_lambdaLight = <?=eig?>->alpha * <?=eig?>->sqrt_gammaUjj.x;
+	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x;
 	<? elseif side==1 then ?>
-	real eig_lambdaLight = <?=eig?>->alpha * <?=eig?>->sqrt_gammaUjj.y;
+	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.y;
 	<? elseif side==2 then ?>
-	real eig_lambdaLight = <?=eig?>->alpha * <?=eig?>->sqrt_gammaUjj.z;
+	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.z;
 	<? end ?>
-	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>->sqrt_f;
+	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>.sqrt_f;
 ]], {
 		eig = '('..eig..')',
 		side = side,
@@ -185,7 +185,7 @@ function Z4:eigenWaveCode(side, eig, x, waveIndex)
 
 	local betaUi
 	if self.useShift then
-		betaUi = eig..'->beta_u.'..xNames[side+1]
+		betaUi = eig..'.beta_u.'..xNames[side+1]
 	else
 		betaUi = '0'
 	end

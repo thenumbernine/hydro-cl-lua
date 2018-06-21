@@ -933,32 +933,34 @@ function GridSolver:createBoundaryOptions()
 		end},
 		{mirror = function(args)
 			local gridSizeSide = 'gridSize_'..xNames[args.side]
+			local lines = table()
 			if args.minmax == 'min' then
-				return table{
-					indent..args.assign(
-						args.array('buf', args.index'j'),
-						args.array('buf', args.index'2*numGhost-1-j')
-					)..';'
-				}:append(table.map((args.mirrorVars or {})[args.side] or {}, function(var)
-					return indent..args.assign(
-						args.field(args.array('buf', args.index'j'), var),
-						args.field('-'..args.array('buf', args.index'j'), var)
-					)..';'
-				end)):concat'\n'
+				lines:insert(indent..args.assign(
+					args.array('buf', args.index'j'),
+					args.array('buf', args.index'2*numGhost-1-j'))..';')
+				if args.mirrorVars and args.mirrorVars[args.side] then
+					lines:append(table.map(args.mirrorVars[args.side], function(var)
+						return indent..args.assign(
+							args.field(args.array('buf', args.index'j'), var),
+							args.field('-'..args.array('buf', args.index'j'), var)
+						)..';'
+					end))
+				end
 			elseif args.minmax == 'max' then
 				local rhs = gridSizeSide..'-numGhost+j'
-				return table{
-					indent..args.assign(
-						args.array('buf', args.index(rhs)),
-						args.array('buf', args.index(gridSizeSide..'-numGhost-1-j'))
-					)..';'
-				}:append(table.map((args.mirrorVars or {})[args.side] or {}, function(var)
-					return indent..args.assign(
-						args.field(args.array('buf', args.index(rhs)), var),
-						args.field('-'..args.array('buf', args.index(rhs)), var)
-					)..';'
-				end)):concat'\n'
+				lines:insert(indent..args.assign(
+					args.array('buf', args.index(rhs)),
+					args.array('buf', args.index(gridSizeSide..'-numGhost-1-j')))..';')
+				if args.mirrorVars and args.mirrorVars[args.side] then
+					lines:append(table.map(args.mirrorVars[args.side], function(var)
+						return indent..args.assign(
+							args.field(args.array('buf', args.index(rhs)), var),
+							args.field('-'..args.array('buf', args.index(rhs)), var)
+						)..';'
+					end))
+				end
 			end
+			return lines:concat'\n'
 		end},
 		{freeflow = function(args)
 			local gridSizeSide = 'gridSize_'..xNames[args.side]
@@ -1127,6 +1129,9 @@ lines:insert[[
 	end
 
 	local code = lines:concat'\n'
+
+--print(code)
+--os.exit()
 
 	local boundaryProgramObj
 	time('compiling boundary program', function()

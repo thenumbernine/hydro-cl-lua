@@ -35,16 +35,6 @@ local sym = common.sym
 }
 <? end ?>
 
-<? for side=0,solver.dim-1 do ?>
-range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const global <?=eqn.cons_t?>* U,
-	real3 x
-) {
-	real lambda = 1. / sqrt(U->eps * U->mu);
-	return (range_t){-lambda, lambda};
-}
-<? end ?>
-
 <?=eqn.eigen_t?> eigen_forInterface(
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,

@@ -58,6 +58,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
+	real3 xc = coordMap(x);
 	real3 mids = real3_scale(real3_add(mins, maxs), .5);
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
@@ -133,7 +134,7 @@ ADM_BonaMasso_1D_Alcubierre2008.eigenVars = table{
 
 function ADM_BonaMasso_1D_Alcubierre2008:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	return template([[
-	real eig_lambda = <?=eig?>->alpha * sqrt(<?=eig?>->f / <?=eig?>->gamma_xx);
+	real eig_lambda = <?=eig?>.alpha * sqrt(<?=eig?>.f / <?=eig?>.gamma_xx);
 ]], {
 		eig = '('..eig..')',
 	})
@@ -151,10 +152,20 @@ function ADM_BonaMasso_1D_Alcubierre2008:eigenWaveCode(side, eig, x, waveIndex)
 	end
 end
 
+function ADM_BonaMasso_1D_Alcubierre2008:consWaveCodePrefix(side, U, x, waveIndex)
+	return template([[
+	real f = calc_f(<?=U?>.alpha);
+	real eig_lambda = <?=U?>.alpha * sqrt(f / <?=U?>.gamma_xx);
+]], {
+		U = '('..U..')',
+	})
+end
+
+ADM_BonaMasso_1D_Alcubierre2008.consWaveCode = ADM_BonaMasso_1D_Alcubierre2008.eigenWaveCode
+	
 
 -- TODO store flat values somewhere, then perturb all real values here
 --  then you can move this into the parent class
-local ffi = require 'ffi'
 local function crand() return 2 * math.random() - 1 end
 function ADM_BonaMasso_1D_Alcubierre2008:fillRandom(epsilon)
 	local ptr = ADM_BonaMasso_1D_Alcubierre2008.super.fillRandom(self, epsilon)

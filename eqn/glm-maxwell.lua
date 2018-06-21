@@ -167,10 +167,6 @@ GLM_Maxwell.eigenVars = table{
 	{nothing = 'real'},
 }
 
-function GLM_Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
-	return ''
-end
-
 function GLM_Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 	return ({
 		'-speedOfLight * divPhiWavespeed',
@@ -183,5 +179,8 @@ function GLM_Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 		'speedOfLight * divPhiWavespeed',
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
 end
+
+function GLM_Maxwell:consWaveCodePrefix(side, U, x, waveIndex) return '' end
+GLM_Maxwell.consWaveCode = GLM_Maxwell.eigenWaveCode
 
 return GLM_Maxwell
