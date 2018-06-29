@@ -456,11 +456,11 @@ maxs = {6,1,1},
 -- Maxwell+HD two-fluid electron/ion solver
 -- I'm having some memory issues with two solvers running simultanously .. 
 -- TODO, with the separate solver, use hll, so the ion, electron, and maxwell all use hll separately
---self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
+self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
 
 -- ...so to try and get around that, here the two are combined into one solver:
 -- TODO still needs PLM support
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 
 -- GR+Maxwell.  params go to the Maxwell solver.
 

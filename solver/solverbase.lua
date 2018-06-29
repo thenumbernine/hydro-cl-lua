@@ -99,7 +99,7 @@ print('maxWorkGroupSize', self.maxWorkGroupSize)
 	
 	local sizeProps = self:getSizePropsForWorkGroupSize(self.maxWorkGroupSize)
 	for k,v in pairs(sizeProps) do
-print(k,v)	
+print(k,v)
 		self[k] = v
 	end
 	
