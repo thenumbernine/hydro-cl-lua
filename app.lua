@@ -214,11 +214,6 @@ function HydroCLApp:initGL(...)
 
 	self:setup{platformName=platformName, deviceName=deviceName}
 
-	-- now that we have all solvers, call their second init stuff (for post-first-init stuff, once buffers are initialized etc)
-	for _,solver in ipairs(self.solvers) do
-		solver:postInit()
-	end
-
 
 	-- This only looks good when overlaying vector fields on top of other graphs.
 	-- When it comes to separate variables, they usually look better apart.

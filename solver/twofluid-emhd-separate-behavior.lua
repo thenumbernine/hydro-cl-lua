@@ -42,28 +42,28 @@ local function TwoFluidEMHDBehavior(parent)
 		--]]
 
 		local IonSolver = class(parent)
-		function IonSolver:init(table(args, {eqn='euler'}))
+		IonSolver.eqnName = 'euler'
+		function IonSolver:init(args)
 			IonSolver.super.init(self, table(args, {initState = ionInitState}))
 			self.name = 'ion '..self.name
 		end
 		self.ion = IonSolver(args)
 
 		local ElectronSolver = class(parent)
-		function ElectronSolver:init(table(args, {eqn='euler'}))
+		ElectronSolver.eqnName = 'euler'
+		function ElectronSolver:init(args)
 			ElectronSolver.super.init(self, table(args, {initState = electronInitState}))
 			self.name = 'electron '..self.name
 		end
 		self.electron = ElectronSolver(args)
 
 		local MaxwellSolver = class(parent)
+		MaxwellSolver.eqnName = 'glm-maxwell'
 		function MaxwellSolver:init(args)
 			MaxwellSolver.super.init(self, table(args, {initState = emhdInitState}))
 		end
 		self.maxwell = MaxwellSolver(args)
 
-		-- multiple Euler solvers are getting errors ...
-		-- and even if I allocate two solvers and run one,
-		-- the boundary program screws up
 		self.solvers = table{
 			self.ion, 
 			self.electron,
@@ -195,7 +195,7 @@ kernel void addSource_maxwell(
 			return solver[name](solver, args:unpack(1, args.n))
 		end):unpack()
 	end
-
+	
 	function templateClass:createEqn()
 		self:callAll'createEqn'
 	end

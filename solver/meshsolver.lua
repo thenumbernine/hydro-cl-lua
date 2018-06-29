@@ -57,8 +57,8 @@ args:
 NOTICE initState is tied closely to grid mins/maxs...
 so how should meshfiles use init states?
 --]]
-function MeshSolver:init(args)
-	MeshSolver.super.init(self, args)
+function MeshSolver:preInit(args)
+	MeshSolver.super.preInit(self, args)
 
 	ffi.cdef(self.meshTypeCode)
 

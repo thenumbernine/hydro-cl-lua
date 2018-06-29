@@ -41,8 +41,8 @@ args:
 	maxs
 	boundary = boundary info
 --]]
-function GridSolver:init(args)
-	GridSolver.super.init(self, args)
+function GridSolver:preInit(args)
+	GridSolver.super.preInit(self, args)
 
 	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
 	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))

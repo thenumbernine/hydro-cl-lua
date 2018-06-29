@@ -44,6 +44,11 @@ args:
 	integrator = name of integrator in int/all.lua to use
 --]]
 function SolverBase:init(args)
+	self:preInit(args)
+	self:postInit()
+end
+
+function SolverBase:preInit(args)
 	assert(args)
 	self.app = assert(args.app)
 	self.dim = assert(args.dim)
@@ -79,7 +84,6 @@ function SolverBase:init(args)
 	self.fixedDT = args.fixedDT or self.fixedDT or .001
 	self.cfl = args.cfl or .5	--/self.dim
 	self.fluxLimiter = self.app.limiterNames:find(args.fluxLimiter) or 1
-
 
 
 	self:createDisplayVars()	-- depends on eqn

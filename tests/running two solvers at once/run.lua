@@ -44,10 +44,6 @@ function App:setup()
 	self.solvers:insert(cl(args))
 	self.solvers:insert(cl(args))
 	
-	for _,solver in ipairs(self.solvers) do
-		solver:postInit()
-	end
-	
 	local s1, s2 = self.solvers:unpack()
 
 	local numReals = s1.numCells * s1.eqn.numStates
