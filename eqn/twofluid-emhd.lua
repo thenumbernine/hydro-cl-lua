@@ -566,14 +566,30 @@ function TwoFluidEMHD:eigenWaveCode(side, eig, x, waveIndex)
 	error('got a bad waveIndex: '..waveIndex)
 end
 
--- this is all temporary fix until I properly code the inlining
-
-TwoFluidEMHD.hasCalcDTCode = true
-
+--TODO timestep restriction
+-- 2014 Abgrall, Kumar eqn 2.25
+-- dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
 function TwoFluidEMHD:consWaveCodePrefix(side, U, x)
 	return template([[
-	range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(&<?=U?>, <?=x?>); 
+	<?=eqn.prim_t?> W = primFromCons(<?=U?>, <?=x?>);
+
+#if 1	//using the EM wavespeed
+	real consWaveCode_lambdaMax = max(max(divPsiWavespeed, divPhiWavespeed), 1.) * normalizedSpeedOfLight;
+#else	//ignoring it
+	real consWaveCode_lambdaMax = INFINITY;
+#endif
+	real consWaveCode_lambdaMin = -consWaveCode_lambdaMax;
+
+<? for _,fluid in ipairs(eqn.fluids) do
+?>	real <?=fluid?>_Cs = calc_<?=fluid?>_Cs(&W);
+	real <?=fluid?>_Cs_sqrt_gU = <?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(x);
+	consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, W.<?=fluid?>_v.s<?=side?> - <?=fluid?>_Cs_sqrt_gU);
+	consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, W.<?=fluid?>_v.s<?=side?> + <?=fluid?>_Cs_sqrt_gU);
+<? end
+?>
+
 ]], {
+		eqn = self,
 		side = side,
 		U = '('..U..')',
 		x = x,
@@ -581,11 +597,11 @@ function TwoFluidEMHD:consWaveCodePrefix(side, U, x)
 end
 
 function TwoFluidEMHD:consMinWaveCode(side, U, x)
-	return 'lambda.min'
+	return 'consWaveCode_lambdaMin'
 end
 
 function TwoFluidEMHD:consMaxWaveCode(side, U, x)
-	return 'lambda.max'
+	return 'consWaveCode_lambdaMax'
 end
 
 return TwoFluidEMHD

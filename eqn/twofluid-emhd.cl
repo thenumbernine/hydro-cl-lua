@@ -59,35 +59,6 @@ end
 }
 <? end ?>
 
-//TODO timestep restriction
-// 2014 Abgrall, Kumar eqn 2.25
-// dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
-
-<? for side=0,solver.dim-1 do ?>
-range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const global <?=eqn.cons_t?>* U,
-	real3 x
-) {
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
-
-#if 1	//using the EM wavespeed
-	real lambda = max(max(divPsiWavespeed, divPhiWavespeed), 1.) * normalizedSpeedOfLight;
-	range_t range = {-lambda, lambda};
-#else	//ignoring it
-	range_t range = {INFINITY, -INFINITY};
-#endif
-
-<? for _,fluid in ipairs(fluids) do
-?>	real <?=fluid?>_Cs = calc_<?=fluid?>_Cs(&W);
-	real <?=fluid?>_Cs_sqrt_gU = <?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(x);
-	range.min = min(range.min, W.<?=fluid?>_v.s<?=side?> - <?=fluid?>_Cs_sqrt_gU);
-	range.max = max(range.max, W.<?=fluid?>_v.s<?=side?> + <?=fluid?>_Cs_sqrt_gU);
-<? end
-?>
-	return range;
-}
-<? end ?>
-
 <?=eqn.eigen_t?> eigen_forInterface(
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
@@ -635,30 +606,4 @@ kernel void constrainU(
 ?>
 	
 	*U = consFromPrim(W, x);
-}
-
-//this is a temporary fix until I implement MHD's inline eigenvalue code
-
-kernel void calcDT(
-	global real* dtBuf,
-	const global <?=eqn.cons_t?>* UBuf
-) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-	real3 x = cell_x(i);
-
-	const global <?=eqn.cons_t?>* U = UBuf + index;
-
-	real dt = INFINITY;
-	<? for side=0,solver.dim-1 do ?>{
-		//use cell-centered eigenvalues
-		range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(U, x); 
-		lambda.min = (real)min((real)0., lambda.min);
-		lambda.max = (real)max((real)0., lambda.max);
-		dt = (real)min((real)dt, (real)(grid_dx<?=side?> / (fabs(lambda.max - lambda.min) + (real)1e-9)));
-	}<? end ?>
-	dtBuf[index] = dt;
 }
