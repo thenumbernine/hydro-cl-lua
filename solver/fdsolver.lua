@@ -13,6 +13,10 @@ then do finite-difference of the wave_t at each grid point
 now to reconstruct the wave_t ... 
 ... we are now faced with the problem of using char var info to reconstruct the info required for a right-eigen-transform
 
+..and then there's the issue of which direction do we perform the deconstruction?
+I'm sure the answer is 'all', but that might vary depending on the underlying equation
+For a 1D solver this makes no difference.
+
 
 --]]
 local ffi = require 'ffi'
