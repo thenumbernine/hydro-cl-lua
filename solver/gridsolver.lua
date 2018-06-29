@@ -316,11 +316,21 @@ typedef struct {
 })
 end
 
+local function safeFFICDef(code)
+	xpcall(function()
+		ffi.cdef(code)
+	end, function(msg)
+		print(require 'template.showcode'(code))
+		io.stderr:write(debug.traceback()..'\n'..msg)
+		os.exit(1)
+	end)
+end
+
 function GridSolver:createBuffers()
 	local realSize = ffi.sizeof(self.app.real)
 
 	-- to get sizeof
-	ffi.cdef(self:getConsLRTypeCode())
+	safeFFICDef(self:getConsLRTypeCode())
 
 	-- for twofluid, cons_t has been renamed to euler_maxwell_t and maxwell_cons_t
 	if ffi.sizeof(self.eqn.cons_t) ~= self.eqn.numStates * realSize then

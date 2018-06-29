@@ -146,7 +146,7 @@ real calc_h(real rho, real P, real eInt) {
 	return 1. + eInt + P / rho;
 }
 
-<?=eqn.cons_only_t?> consFromPrim(
+<?=eqn.cons_only_t?> consOnlyFromPrim(
 	<?=eqn.prim_t?> prim,
 	real alpha,
 	real3 beta,
@@ -159,7 +159,6 @@ real calc_h(real rho, real P, real eInt) {
 	real vSq = real3_dot(prim.v, vU);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
-	
 	real P = calc_P(prim.rho, prim.eInt);
 	real h = calc_h(prim.rho, P, prim.eInt);
 
@@ -176,8 +175,8 @@ real calc_h(real rho, real P, real eInt) {
 	};
 }
 ]], {
-	eqn = self,
-})
+		eqn = self,
+	})
 end
 
 function GRHD:getPrimConsCode() end
@@ -217,7 +216,7 @@ kernel void initState(
 	};
 	UBuf[index] = (<?=eqn.cons_t?>){
 		.prim = prim,
-		.cons = consFromPrim(prim, alpha, beta, gamma),
+		.cons = consOnlyFromPrim(prim, alpha, beta, gamma),
 	};
 }
 ]]
@@ -246,7 +245,7 @@ function GRHD:getDisplayVars()
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
 	<?=solver:getADMVarCode()?>
-	<?=eqn.cons_only_t?> U2 = consFromPrim(U->prim, alpha, beta, gamma);
+	<?=eqn.cons_only_t?> U2 = consOnlyFromPrim(U->prim, alpha, beta, gamma);
 	*value = 0;
 	for (int j = 0; j < numIntStates; ++j) {
 		*value += fabs(U->cons.ptr[j] - U2.ptr[j]);

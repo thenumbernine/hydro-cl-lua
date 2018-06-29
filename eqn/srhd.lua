@@ -59,9 +59,9 @@ function SRHD:getTypeCode()
 typedef union {
 	real ptr[5];
 	struct {
-		real D;
-		real3 S;
-		real tau;
+		real D;		//0 D = rho W
+		real3 S;	//1	S_j = rho h W^2 v_j
+		real tau;	//4 tau = rho h W^2 - P
 	};
 } <?=eqn.cons_only_t?>;
 
@@ -206,9 +206,6 @@ kernel void initState(
 	<?=code?>
 	
 	real eInt = calc_eInt_from_P(rho, P);
-	real vSq = coordLenSq(v, x);
-	real W = 1. / sqrt(1. - vSq);
-	real h = calc_h(rho, P, eInt);
 
 	<?=eqn.prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
 	UBuf[index] = (<?=eqn.cons_t?>){

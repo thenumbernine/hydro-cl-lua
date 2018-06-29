@@ -64,7 +64,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{32,32,1},
+				{128,128,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -205,7 +205,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -240,7 +240,7 @@ maxs = {6,1,1},
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
 	--initState = 'Brio-Wu',
-	initState = 'Orszag-Tang',
+	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'spinning magnetic fluid',
 	--initState = 'magnetic fluid',
@@ -413,10 +413,9 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.srhd-hll'(args))		-- TODO finishme.  the last piece is 'eigen_forInterface'
 
 -- GRHD
--- TODO FIXME
 -- this is the solver with plug-ins for ADM metric, 
 -- yet doesn't come coupled with any other solver, so it will act just like a srhd solver
---self.solvers:insert(require 'solver.grhd-roe'(args))
+self.solvers:insert(require 'solver.grhd-roe'(args))
 
 -- GRHD+GR
 -- TODO FIXME
@@ -456,11 +455,12 @@ maxs = {6,1,1},
 
 -- Maxwell+HD two-fluid electron/ion solver
 -- I'm having some memory issues with two solvers running simultanously .. 
+-- TODO, with the separate solver, use hll, so the ion, electron, and maxwell all use hll separately
 --self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
 
 -- ...so to try and get around that, here the two are combined into one solver:
 -- TODO still needs PLM support
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 
 -- GR+Maxwell.  params go to the Maxwell solver.
 

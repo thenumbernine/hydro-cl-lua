@@ -9,10 +9,6 @@ local template = require 'template'
 return function(parent, eqn)
 	local templateClass = class(parent)
 	
-	function templateClass:createEqn()
-		self.eqn = eqn{solver=self}
-	end
-
 	-- eqn/grhd.cl needs this implemented for deducing alpha, beta, gamma
 	function templateClass:getADMArgs()
 		return ''	

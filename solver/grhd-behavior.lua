@@ -1,6 +1,8 @@
+local class = require 'ext.class'
 local GRBehavior = require 'solver.gr-behavior'
 local RHDBehavior = require 'solver.rhd-behavior'
-local GRHDEqn = require 'eqn.grhd'
 return function(parent)
-	return GRBehavior(RHDBehavior(parent), GRHDEqn)
+	local template = class(GRBehavior(RHDBehavior(parent)))
+	template.eqnName = 'grhd'
+	return template
 end
