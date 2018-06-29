@@ -339,12 +339,13 @@ end
 		
 		{f = '*value = calc_f(U->alpha);'},
 		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
-		{gamma_x = '*valuevec = real3_scale(sym3_x(U->gammaTilde_ll), 1./calc_exp_neg4phi(U));', type='real3'},
-		{gamma_y = '*valuevec = real3_scale(sym3_y(U->gammaTilde_ll), 1./calc_exp_neg4phi(U));', type='real3'},
-		{gamma_z = '*valuevec = real3_scale(sym3_z(U->gammaTilde_ll), 1./calc_exp_neg4phi(U));', type='real3'},
-		{K_x = '*valuevec = real3_add(sym3_x(U->ATilde_ll), real3_scale(sym3_x(U->gammaTilde_ll), U->K/3.));', type='real3'},
-		{K_y = '*valuevec = real3_add(sym3_y(U->ATilde_ll), real3_scale(sym3_y(U->gammaTilde_ll), U->K/3.));', type='real3'},
-		{K_z = '*valuevec = real3_add(sym3_z(U->ATilde_ll), real3_scale(sym3_z(U->gammaTilde_ll), U->K/3.));', type='real3'},
+		{gamma_ll = [[
+	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	*valuesym3 = sym3_scale(U->gammaTilde_ll, exp_4phi);
+]], type='sym3'},
+		{K_ll = [[
+	*valuesym3 = sym3_add(U->ATilde_ll, sym3_scale(U->gammaTilde_ll, U->K/3.));
+]], type='sym3'},
 
 		--[[ ADM geodesic equation spatial terms:
 		-Gamma^i_tt = 

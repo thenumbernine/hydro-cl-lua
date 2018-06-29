@@ -4,7 +4,7 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -16,7 +16,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	--integrator = 'backward Euler',
+	integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	--cfl = .25/dim,
@@ -64,7 +64,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{256,256,1},
+				{64,64,1},
 				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
@@ -205,7 +205,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -277,7 +277,7 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 
 
-	--initState = 'Alcubierre warp bubble',
+	initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
@@ -287,13 +287,14 @@ maxs = {6,1,1},
 	--  size=64x64 solver=adm3d int=fe plm=athena
 	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee
 	
-	--initStateArgs = {R=.5, sigma=8, speed=2},		-- super-luminal 2x
+	initStateArgs = {R=.5, sigma=8, speed=2},		-- super-luminal 2x
 	-- ... works with
 	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee
 	
 	--initStateArgs = {R=.5, sigma=8, speed=10},		-- super-luminal 10x
-	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee ... eventually explodes
-	--  size=64x64 solver=bssnok int=be flux-limiter=superbee ... eventually explodes as well
+	--  size=64x64 solver=roe eqn=adm3d int=fe flux-limiter=superbee ... eventually explodes
+	--  size=64x64 solver=roe eqn=bssnok int=be flux-limiter=superbee ... eventually explodes as well
+	--  size=128x128 solver=hll eqn=adm3d int=fe flux-limiter=superbee ... runs for a really long time 
 
 	
 	--initState = 'black hole - Schwarzschild pseudocartesian',
@@ -388,7 +389,7 @@ maxs = {6,1,1},
 -- HD
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
-self.solvers:insert(require 'solver.euler-hllc'(args))
+--self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
 -- still haven't added source terms to this
@@ -504,7 +505,7 @@ self.solvers:insert(require 'solver.euler-hllc'(args))
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
---self.solvers:insert(require 'solver.bssnok-fd'(args))
+self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- Z4c finite difference, combining BSSNOK and Z4
 --self.solvers:insert(require 'solver.z4c-fd'(args))
