@@ -658,7 +658,7 @@ end
 			end
 		else
 			--if self.enableVectorField then
-			self:displayVectorField(self.solvers, varName, ar, xmin, ymin, xmax, ymax)
+			self:displayVectorField(self.solvers, ar, varName, xmin, ymin, xmax, ymax)
 			--end
 		end
 	
@@ -780,7 +780,7 @@ function HydroCLApp:display3D(...)
 	select(2, next(display3DMethods[self.display3DMethod]))(self, ...)
 end
 
-require 'draw.vectorfield'(HydroCLApp)
+require 'draw.vectorfield'.applyToApp(HydroCLApp)
 --require 'draw.vectorfield2'(HydroCLApp)
 
 function HydroCLApp:updateGUI()

@@ -986,4 +986,6 @@ function SolverBase:updateGUIParams()
 	end
 end
 
+require 'draw.vectorfield'.applyToSolver(SolverBase)
+
 return SolverBase

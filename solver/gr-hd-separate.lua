@@ -21,13 +21,15 @@ local GRHDSeparateSolver = class()
 GRHDSeparateSolver.name = 'GR+HD'
 
 function GRHDSeparateSolver:init(args)
+	local solverargs = args or {}	
+	local einsteinargs = solverargs.einstein or {}
 	self.app = assert(args.app)
 
-	local GRSolver = class(require 'solver.bssnok-fd')
+	local GRSolver = class(require 'solver.z4c-fd')
 	function GRSolver:init(args)
 		GRSolver.super.init(self, table(args, {
-			initState = 'black hole - isotropic',
-			integrator = 'backward Euler',
+			initState = einsteinargs.initState or 'Minkowski',
+			integrator = einsteinargs.integrator or 'backward Euler',
 		}))
 		self.name = 'GR '..self.name
 	end
@@ -71,7 +73,11 @@ function GRHDSeparateSolver:init(args)
 	const global <?=gr.eqn.cons_t?>* <?=args.U?> = grUBuf + <?=args.index?>;
 	real <?=args.alpha?> = <?=args.U?>->alpha;
 	real3 <?=args.beta?> = <?=args.U?>->beta_u;
-	sym3 <?=args.gamma?> = sym3_scale(<?=args.U?>->gammaTilde_ll, 1. / calc_exp_neg4phi(<?=args.U?>));
+	//sym3 gammaHat_ll = coord_g(x); // with x I get some redefinitions, without it I get some undefined x's...
+	sym3 gammaHat_ll = coord_g(cell_x(i));
+	sym3 gammaBar_ll = sym3_add(gammaHat_ll, <?=args.U?>->epsilon_ll);
+	real exp_4phi = 1. / calc_exp_neg4phi(<?=args.U?>);
+	sym3 <?=args.gamma?> = sym3_scale(gammaBar_ll, exp_4phi);
 ]], {gr=gr, args=args})
 	end
 	
@@ -97,7 +103,7 @@ function GRHDSeparateSolver:init(args)
 	-- now all of hydro's kernels need to be given the extra ADM arg
 io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 		self.calcDTKernelObj.obj:setArg(2, gr.UBuf)
-		self.calcEigenBasisKernelObj.obj:setArg(3, gr.UBuf)
+		self.calcEigenBasisKernelObj.obj:setArg(2, gr.UBuf)
 		self.addSourceKernelObj.obj:setArg(2, gr.UBuf)
 		self.updatePrimsKernelObj.obj:setArg(1, gr.UBuf)
 	end
@@ -121,6 +127,11 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 			var.name = i..'_'..var.name
 		end
 	end
+
+	-- make a lookup of all vars
+	self.displayVarForName = self.displayVars:map(function(var)
+		return var, var.name
+	end)
 
 	self.color = vec3(math.random(), math.random(), math.random()):normalize()
 
@@ -212,6 +223,14 @@ end
 
 function GRHDSeparateSolver:boundary()
 	self:callAll'boundary'
+end
+
+function GRHDSeparateSolver:initDraw()
+	self:callAll'initDraw'
+end
+
+function GRHDSeparateSolver:displayVectorField()
+	self:callAll'displayVectorField'
 end
 
 function GRHDSeparateSolver:calcDT()
