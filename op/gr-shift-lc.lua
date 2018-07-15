@@ -3,6 +3,7 @@ Why not just look back along the shift vector and advect?
 I'm sure there's something wrong with this
 --]]
 
+local ffi = require 'ffi'
 local class = require 'ext.class'
 local template = require 'template'
 

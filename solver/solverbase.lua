@@ -531,6 +531,7 @@ function SolverBase:refreshIntegrator()
 	self.integrator = integrators[self.integratorIndex](self)
 end
 
+SolverBase.t = 0
 function SolverBase:resetState()
 	self.t = 0
 	self.app.cmds:finish()

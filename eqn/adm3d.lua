@@ -158,10 +158,10 @@ function ADM_BonaMasso_3D:init(args)
 
 
 	if self.useShift == 'MinimalDistortionElliptic' then
-		local MinimalDistortionEllipticShift = require 'solver.gr-shift-mde'
+		local MinimalDistortionEllipticShift = require 'op.gr-shift-mde'
 		self.solver.ops:insert(MinimalDistortionEllipticShift{solver=self.solver})
-	elseif self.solver.useShift == 'LagrangianCoordinates' then
-		local LagrangianCoordinateShift = require 'solver.gr-shift-lc'
+	elseif self.useShift == 'LagrangianCoordinates' then
+		local LagrangianCoordinateShift = require 'op.gr-shift-lc'
 		self.solver.ops:insert(LagrangianCoordinateShift{solver=self.solver})
 	end
 end
@@ -313,10 +313,12 @@ function ADM_BonaMasso_3D:getDisplayVars()
 ]]		},
 	}:append{
 --[=[
-	-- 1998 Bona et al
 --[[
-H = 1/2 ( R + K^2 - K_ij K^ij ) - alpha^2 8 pi rho
-for 8 pi rho = G^00
+Alcubierre 3.1.1
+Baumgarte & Shapiro 2.90
+H = R + K^2 - K^ij K_ij - 16 pi rho
+for rho = n_a n_b T^ab (B&S eqn 2.89)
+and n_a = -alpha t_,a (B&S eqns 2.19, 2.22, 2.24)
 
 momentum constraints
 --]]
@@ -427,16 +429,16 @@ function ADM_BonaMasso_3D:eigenWaveCode(side, eig, x, waveIndex)
 	-- TODO find out if -- if we use the lagrangian coordinate shift operation -- do we still need to offset the eigenvalues by -beta^i?
 	local shiftingLambdas = self.useShift 
 		--and self.useShift ~= 'LagrangianCoordinates'
-	
+
+	local betaUi
+	if self.useShift then
+		betaUi = eig..'.beta_u.'..xNames[side+1]
+	else
+		betaUi = '0'
+	end
+
+
 	if not self.noZeroRowsInFlux then
-
-		local betaUi
-		if self.useShift then
-			betaUi = eig..'.beta_u.'..xNames[side+1]
-		else
-			betaUi = '0'
-		end
-
 		if waveIndex == 0 then
 			return '-'..betaUi..' - eig_lambdaGauge'
 		elseif waveIndex >= 1 and waveIndex <= 5 then
@@ -452,15 +454,15 @@ function ADM_BonaMasso_3D:eigenWaveCode(side, eig, x, waveIndex)
 	else	-- noZeroRowsInFlux 
 		-- noZeroRowsInFlux implies not useShift
 		if waveIndex == 0 then
-			return '-eig_lambdaGauge'
+			return '-'..betaUi..' - eig_lambdaGauge'
 		elseif waveIndex >= 1 and waveIndex <= 5 then
-			return '-eig_lambdaLight'
+			return '-'..betaUi..' - eig_lambdaLight'
 		elseif waveIndex == 6 then
-			return '0'
+			return '-'..betaUi
 		elseif waveIndex >= 7 and waveIndex <= 11 then
-			return 'eig_lambdaLight'
+			return '-'..betaUi..' + eig_lambdaLight'
 		elseif waveIndex == 12 then
-			return 'eig_lambdaGauge'
+			return '-'..betaUi..' + eig_lambdaGauge'
 		end
 	end
 	error'got a bad waveIndex'

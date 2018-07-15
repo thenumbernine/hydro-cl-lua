@@ -97,6 +97,7 @@ function Maxwell:init(args)
 	self.solver.ops:insert(NoDiv{
 		solver = self.solver,
 		potentialField = 'epsEPot',
+		chargeField = 'rhoCharge',
 	})
 end
 

@@ -117,6 +117,7 @@ function Poisson:updateGUI()
 		ig.igSameLine()
 		tooltip.numberTable('epsilon', self, 'stopEpsilon')
 		tooltip.intTable('maxiter', self, 'maxIters')
+		-- if it doesn't have to stop on epsilon then it doesn't calculate the error
 		if self.stopOnEpsilon then
 			ig.igText('err = '..tostring(self.lastEpsilon))
 		end

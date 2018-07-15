@@ -7,6 +7,29 @@ local from6to3x3 = common.from6to3x3
 local sym = common.sym
 ?>
 
+//assumes q is unit
+//returns the conjugate
+real4 quatUnitConj(real4 q) {
+	return (real4)(-q.x, -q.y, -q.z, q.x);
+}
+
+real4 quatMul(real4 q, real4 r) {
+	real a = (q.w + q.x) * (r.w + r.x);
+	real b = (q.z - q.y) * (r.y - r.z);
+	real c = (q.x - q.w) * (r.y + r.z);
+	real d = (q.y + q.z) * (r.x - r.w);
+	real e = (q.x + q.z) * (r.x + r.y);
+	real f = (q.x - q.z) * (r.x - r.y);
+	real g = (q.w + q.y) * (r.w - r.z);
+	real h = (q.w - q.y) * (r.w + r.z);
+
+	return (real4)(
+		 a - .5 * ( e + f + g + h), //x
+		-c + .5 * ( e - f + g - h), //y
+		-d + .5 * ( e - f - g + h), //z
+		 b + .5 * (-e - f + g + h)); //w
+}
+
 #define _real3(a,b,c) (real3){.s={a,b,c}}
 #define _sym3(a,b,c,d,e,f) (sym3){.s={a,b,c,d,e,f}}
 
@@ -63,6 +86,7 @@ real3 real3_rotTo1(real3 v) { return _real3(-v.y, v.x, v.z); }
 real3 real3_rotTo2(real3 v) { return _real3(-v.z, v.y, v.x); }
 
 //rotate 'n' to x-axis
+//assumes 'n' is unit
 real3 real3_rotateFrom(real3 v, real3 n) {
 #if dim == 1
 	return v;
@@ -72,7 +96,32 @@ real3 real3_rotateFrom(real3 v, real3 n) {
 		-v.x * n.y + v.y * n.x,
 		v.z);
 #elif dim == 3
-#error TODO
+	/*
+	axis is n cross x-axis
+	[ 1  0  0] x [nx ny nz] = [0, -nz, ny] / (ny^2 + nz^2)	
+	angle = acos(n.x)
+	cos angle = n.x
+	sin angle = sqrt(1 - nx^2)
+	cos (angle/2) = 
+
+	cos^2 theta + sin^2 theta = 1
+	sin^2 theta = 1 - cos^2
+	cos^2 theta - sin^2 theta = cos(2 theta) <-> 
+	cos(theta/2) = sqrt((1 + cos(theta))/2) <-> 
+	2 sin theta cos theta = sin(2 theta)
+	*/
+	real cosTheta = n.x;
+	real cosHalfTheta = sqrt(.5 * (1. + cosTheta));
+	real sinHalfTheta = sqrt(1. - cosHalfTheta * cosHalfTheta);
+	real n2 = sqrt(n.y * n.y + n.z * n.z);
+	real ax = 0.;
+	real ay = -n.z / n2;
+	real az = n.y / n2;
+	real4 q = (real4)(ax * sinHalfTheta, ay * sinHalfTheta, az * sinHalfTheta, cosHalfTheta);
+	real4 qInv = quatUnitConj(q);
+	real4 _v = (real4)(v.x, v.y, v.z, 0);
+	real4 vres = quatMul(quatMul(q, _v), qInv);
+	return _real3(vres.x, vres.y, vres.z);
 #endif
 }
 
@@ -86,7 +135,19 @@ real3 real3_rotateTo(real3 v, real3 n) {
 		v.x * n.y + v.y * n.x,
 		v.z);
 #elif dim == 3
-#error TODO
+	//same as above but with negative axis	
+	real cosTheta = n.x;
+	real cosHalfTheta = sqrt(.5 * (1. + cosTheta));
+	real sinHalfTheta = sqrt(1. - cosHalfTheta * cosHalfTheta);
+	real n2 = sqrt(n.y * n.y + n.z * n.z);
+	real ax = 0.;
+	real ay = n.z / n2;
+	real az = -n.y / n2;
+	real4 q = (real4)(ax * sinHalfTheta, ay * sinHalfTheta, az * sinHalfTheta, cosHalfTheta);
+	real4 qInv = quatUnitConj(q);
+	real4 _v = (real4)(v.x, v.y, v.z, 0);
+	real4 vres = quatMul(quatMul(q, _v), qInv);
+	return _real3(vres.x, vres.y, vres.z);
 #endif
 }
 

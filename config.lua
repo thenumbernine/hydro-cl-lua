@@ -1,10 +1,10 @@
-local dim = 2
+local dim = 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -16,7 +16,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	integrator = 'backward Euler',
+	--integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	--cfl = .25/dim,
@@ -65,13 +65,13 @@ maxs = {6,1,1},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
 				{64,64,1},
-				{16,16,16},
+				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
 		-- default size options
 		or {
 			{256,1,1},
-			{32,32,1},
+			{256,256,1},
 			{32,32,32},
 		}
 	)[dim],
@@ -257,7 +257,7 @@ maxs = {6,1,1},
 
 	-- Maxwell:
 	--initState = 'Maxwell default',
-	--initState = 'Maxwell scattering around cylinder',
+	initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	
@@ -277,7 +277,7 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 
 
-	initState = 'Alcubierre warp bubble',
+	--initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
@@ -287,7 +287,7 @@ maxs = {6,1,1},
 	--  size=64x64 solver=adm3d int=fe plm=athena
 	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee
 	
-	initStateArgs = {R=.5, sigma=8, speed=2},		-- super-luminal 2x
+	--initStateArgs = {R=.5, sigma=8, speed=2},		-- super-luminal 2x
 	-- ... works with
 	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee
 	
@@ -446,7 +446,7 @@ maxs = {6,1,1},
 -- Maxwell
 -- when the state is nonzero, at certain sizes there appear errors in the corners
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
+self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 
 -- GLM Maxwell
@@ -483,21 +483,22 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- not implemented yet
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))	-- not implemented yet
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='LagrangianCoordinates'}})))
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'}))) -- TODO fixme
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='LagrangianCoordinates'}})))	-- TODO finish me
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'}))) -- TODO finish me
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v2'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='z4'}))) -- TODO fixme
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='z4'}))) -- TODO finish me
 
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='adm1d_v1', integrator='backward Euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='adm1d_v2', integrator='backward Euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='adm3d', integrator='backward Euler'})))
---self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='z4', integrator='backward Euler'}))) -- TODO fixme
+--self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='z4', integrator='backward Euler'}))) -- TODO finish me
 
 
 -- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
@@ -505,7 +506,7 @@ maxs = {6,1,1},
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-self.solvers:insert(require 'solver.bssnok-fd'(args))
+--self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- Z4c finite difference, combining BSSNOK and Z4
 --self.solvers:insert(require 'solver.z4c-fd'(args))
