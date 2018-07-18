@@ -419,11 +419,9 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.grhd-roe'(args))
 
 -- GRHD+GR
--- TODO FIXME
 -- here's the GRHD solver with the BSSNOK plugged into it
-self.solvers:insert(require 'solver.gr-hd-separate'(table(args, {
-
-})))
+-- TODO inital condition root finding to make sure the EFE is satisifed
+self.solvers:insert(require 'solver.gr-hd-separate'(args))
 
 -- MHD. 
 -- with superbee flux lim:  

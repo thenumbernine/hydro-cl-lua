@@ -451,8 +451,19 @@ kernel void constrainU(
 }
 
 /*
+This is from 2008 Alcubierre eqn 7.3.11
+Also in 2013 Rezzolla, Zanotti eqn 7.17-7.22
+TODO verify this matches with the rest of the Font 2008 stuff
+because I remember seeing multiple definitions of u^i from v^i in GRHD, 
+between Marti & Muller, Font, Alcubierre, and Baumgarte & Shapiro
+
 W = alpha u^0
 v^i = (u^i / u^0 + beta^i) / alpha
+
+therefore 
+u^0 = W / alpha
+u^i = W (v^i - beta^i / alpha)
+W = sqrt(1 - v^i v^j gamma_ij)
 */
 kernel void updatePrims(
 	global <?=eqn.cons_t?>* UBuf<?=

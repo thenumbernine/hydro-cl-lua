@@ -156,10 +156,104 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 	-- call this after we've assigned 'self' all its fields
 	self:replaceSourceKernels()
 
+	self:createCalcStressEnergyKernel()
+
 	self.t = 0
 end
 
 function GRHDSeparateSolver:getConsLRTypeCode() return '' end
+
+function GRHDSeparateSolver:createCalcStressEnergyKernel()
+	-- build self.codePrefix
+	-- TODO FIXME not working
+	require 'solver.gridsolver'.createCodePrefix(self)
+	
+	local lines = table{
+		self.codePrefix,
+		self.gr.eqn:getTypeCode(),
+		self.hydro.eqn:getTypeCode(),
+		template([[
+kernel void calcStressEnergy(
+	global <?=hydro.eqn.cons_t?>* hydroUBuf,
+	global <?=gr.eqn.cons_t?>* grUBuf
+) {
+	SETBOUNDS(0,0);
+	
+	global <?=hydro.eqn.cons_only_t?>* hydroU = &hydroUBuf[index].cons;
+	global <?=hydro.eqn.prim_t?>* hydroPrim = &hydroUBuf[index].prim;
+	const global <?=gr.eqn.cons_t?>* grU = grUBuf + index;
+
+	//as long as t is a separate coordinate ...
+	real alpha = grU->alpha;
+	real3 beta_u = grU->beta_u;
+
+/*
+grU->rho = n^a * n^b * T_ab
+grU->S_u = -gamma^ij n^a T_aj
+grU->S_ll = gamma_i^c gamma_j^d T_cd
+
+is projection gamma^ij = g^ij + n^i n^j equal to the spatial metric inverse gamma^ij ?
+(g^ij + n^i n^j)
+= (gamma^ij - beta^i beta^j / alpha^2) + beta^i beta^j / alpha^2
+= gamma^ij
+yep.
+
+
+ok so what's our T_ab going to be ...
+relativistic fluid: T_ab = rho_mass h u_a u_b + P g_ab 
+so rho_gr = n^a n^b T_ab
+	= n^a n^b (rho_mass h u_a u_b + P g_ab) 
+n^a = (1/alpha, -beta^i/alpha), n_a = (-alpha, 0)
+n^a n^b g_ab = n^a n_a = -1 
+n_a u^a = -alpha u^t = -W
+rho_gr = (n^a u_a)^2 rho_mass h - P
+so rho_gr = W^2 rho_mass h - P
+*/
+	real W = hydroU->prim.W;
+	real rhoMass = hydroU->prim.rho;
+	real eInt = hydroU->prim.eInt;
+	real P = calc_P(rho, eInt);
+	real h = calc_h(rhoMass, P, eInt);
+	real rhoGR = W * W * rhoMass * h - P;
+	grU->rho = rhoGR;
+
+/*
+S^i = -gamma^ij n^a T_aj
+= -gamma^ij n^a (rho_mass h u_a u_j + P g_aj)
+= W rho_mass h u^i
+*/
+	real3 u_l = real3_add(
+		real3_scale(hydroU->prim.v, W),
+		real3_scale(beta_u, -W / alpha));
+	real3 u_u = sym3_mul(gamma_uu, u_l);
+	grU->S_u = real3_scale(u_u, W * rhoMass * h);
+
+/*
+S_ij = gamma_i^a gamma_j^b T_cd
+= (delta_i^a + n_i n^a) (delta_j^b + n_j n^b) (rho_mass h u_a u_b + P g_ab)
+= rho_mass h u_i u_j 
+	+ P g_ij 
+	+ P n_i n_j
+	- W rho_mass h u_i n_j
+	- W rho_mass h n_i u_j 
+	+ n_i n_j rho_mass h W^2 
+= rho_mass h u_i u_j + P gamma_ij 
+= rho_mass h u_i u_j + P gamma_ij 
+*/
+	grU->S_ll = sym3_add(
+		sym3_scale(real3_outer(u_l, u_l), rhoMass * h),
+		sym3_scale(gamma_ll, P));
+}
+]], 	{
+			hydro = self.hydro,
+			gr = self.gr,
+		}),
+	}
+	local code = lines:concat'\n'
+	self.calcStressEnergyProgramObj = self.gr.Program{code=code}
+	self.calcStressEnergyProgramObj:compile()
+	self.calcStressEnergyKernelObj = self.calcStressEnergyProgramObj:kernel('calcStressEnergy', self.hydro.UBuf, self.gr.UBuf)
+end
 
 function GRHDSeparateSolver:replaceSourceKernels()
 
@@ -174,25 +268,24 @@ function GRHDSeparateSolver:replaceSourceKernels()
 		self.hydro.eqn:getTypeCode(),
 		template([[
 kernel void copyMetricFromGRToHydro(
-// I can't remember which of these two uses it -- maybe both? 
-//TODO either just put it in one place ...
-// or better yet, just pass gr.UBuf into all the grhd functions?
-global <?=hydro.eqn.cons_t?>* hydroUBuf,
-global <?=hydro.eqn.prim_t?>* hydroPrimBuf,
-const global <?=gr.eqn.cons_t?>* grUBuf
+	// I can't remember which of these two uses it -- maybe both? 
+	//TODO either just put it in one place ...
+	// or better yet, just pass gr.UBuf into all the grhd functions?
+	global <?=hydro.eqn.cons_t?>* hydroUBuf,
+	const global <?=gr.eqn.cons_t?>* grUBuf
 ) {
-SETBOUNDS(0,0);
-global <?=hydro.eqn.cons_t?>* hydroU = hydroUBuf + index;
-global <?=hydro.eqn.prim_t?>* hydroPrim = hydroPrimBuf + index;
-const global <?=gr.eqn.cons_t?>* grU = grUBuf + index;
-hydroU->alpha = hydroPrim->alpha = grU->alpha;
-hydroU->beta = hydroPrim->beta = grU->beta_u;
+	SETBOUNDS(0,0);
+	global <?=hydro.eqn.cons_only_t?>* hydroU = &hydroUBuf[index].cons;
+	global <?=hydro.eqn.prim_t?>* hydroPrim = &hydroUBuf[index].prim;
+	const global <?=gr.eqn.cons_t?>* grU = grUBuf + index;
+	hydroU->alpha = hydroPrim->alpha = grU->alpha;
+	hydroU->beta = hydroPrim->beta = grU->beta_u;
 
-real exp_4phi = exp(4. * grU->phi);
-sym3 gamma_ll = sym3_scale(grU->gammaTilde_ll, exp_4phi);
-hydroU->gamma = hydroPrim->gamma = gamma_ll;
+	real exp_4phi = exp(4. * grU->phi);
+	sym3 gamma_ll = sym3_scale(grU->gammaTilde_ll, exp_4phi);
+	hydroU->gamma = hydroPrim->gamma = gamma_ll;
 }
-]], 		{
+]], 	{
 			hydro = self.hydro,
 			gr = self.gr,
 		}),
@@ -200,7 +293,7 @@ hydroU->gamma = hydroPrim->gamma = gamma_ll;
 	local code = lines:concat'\n'
 	self.copyMetricFromGRToHydroProgramObj = self.gr.Program{code=code}
 	self.copyMetricFromGRToHydroProgramObj:compile()
-	self.copyMetricFromGRToHydroKernelObj = self.copyMetricFromGRToHydroProgramObj:kernel('copyMetricFromGRToHydro', self.hydro.UBuf, self.hydro.primBuf, self.gr.UBuf)
+	self.copyMetricFromGRToHydroKernelObj = self.copyMetricFromGRToHydroProgramObj:kernel('copyMetricFromGRToHydro', self.hydro.UBuf, self.gr.UBuf)
 -- instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver ]=]
 end
 
@@ -242,6 +335,9 @@ function GRHDSeparateSolver:step(dt)
 --[=[ instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver
 	self.copyMetricFromGRToHydroKernelObj()
 -- instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver ]=]
+-- [=[ TODO eventually inline the stress-energy calcs.  until then ...
+	self.calcStressEnergyKernelObj()
+--]=]	
 	self:callAll('step', dt)
 end
 
