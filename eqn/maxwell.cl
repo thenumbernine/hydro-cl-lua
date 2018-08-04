@@ -13,19 +13,19 @@ local sym = common.sym
 	real3 x
 ) {
 	real3 B = U.B;
-	real3 epsE = U.epsE;
+	real3 D = U.D;
 	real mu = U.mu;
 	real eps = U.eps;
 	return (<?=eqn.cons_t?>){
 	<? if side == 0 then ?>
-		.epsE = _real3(0., B.z / mu, -B.y / mu),
-		.B = _real3(0., -epsE.z / eps, epsE.y / eps),
+		.D = _real3(0., B.z / mu, -B.y / mu),
+		.B = _real3(0., -D.z / eps, D.y / eps),
 	<? elseif side == 1 then ?>
-		.epsE = _real3(-B.z / mu, 0., B.x / mu),
-		.B = _real3(epsE.z / eps, 0., -epsE.x / eps),
+		.D = _real3(-B.z / mu, 0., B.x / mu),
+		.B = _real3(D.z / eps, 0., -D.x / eps),
 	<? elseif side == 2 then ?>
-		.epsE = _real3(B.y / mu, -B.x / mu, 0.),
-		.B = _real3(-epsE.y / eps, epsE.x / eps, 0.),
+		.D = _real3(B.y / mu, -B.x / mu, 0.),
+		.B = _real3(-D.y / eps, D.x / eps, 0.),
 	<? end ?>
 		.BPot = 0.,
 		.sigma = 0.,
@@ -172,7 +172,7 @@ x,  y,  z, z,  y,  x
 ) {
 	<?=eqn.cons_t?> Y;
 
-	real3 epsE = X.epsE;
+	real3 D = X.D;
 	real3 B = X.B;
 	real ieps = 1. / (eig.sqrt_eps * eig.sqrt_eps);
 	real imu = 1. / (eig.sqrt_mu * eig.sqrt_mu);
@@ -183,25 +183,25 @@ x,  y,  z, z,  y,  x
 	Y.ptr[1] = B.z * imu;
 	Y.ptr[2] = -B.y * imu;
 	Y.ptr[3] = 0;
-	Y.ptr[4] = -epsE.z * ieps;
-	Y.ptr[5] = epsE.y * ieps;
+	Y.ptr[4] = -D.z * ieps;
+	Y.ptr[5] = D.y * ieps;
 
 	<? elseif side==1 then ?>
 		
 	Y.ptr[0] = -B.z * imu;
 	Y.ptr[1] = 0;
 	Y.ptr[2] = B.x * imu;
-	Y.ptr[3] = epsE.z * ieps;
+	Y.ptr[3] = D.z * ieps;
 	Y.ptr[4] = 0;
-	Y.ptr[5] = -epsE.x * ieps;
+	Y.ptr[5] = -D.x * ieps;
 		
 	<? elseif side==2 then ?>
 		
 	Y.ptr[0] = B.y * imu;
 	Y.ptr[1] = -B.x * imu;
 	Y.ptr[2] = 0;
-	Y.ptr[3] = -epsE.y * ieps;
-	Y.ptr[4] = epsE.x * ieps;
+	Y.ptr[3] = -D.y * ieps;
+	Y.ptr[4] = D.x * ieps;
 	Y.ptr[5] = 0;
 		
 	<? end ?>
@@ -223,7 +223,7 @@ kernel void addSource(
 	
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-	deriv->epsE = real3_sub(deriv->epsE, real3_scale(U->epsE, 1. / U->eps * U->sigma));
+	deriv->D = real3_sub(deriv->D, real3_scale(U->D, 1. / U->eps * U->sigma));
 }
 
 

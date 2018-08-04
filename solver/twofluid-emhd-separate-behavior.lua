@@ -136,10 +136,10 @@ kernel void addSource_<?=species?>(
 	global <?=euler_cons_t?>* deriv = derivBuf + index;
 	const global <?=euler_cons_t?>* U = UBuf + index;
 	const global <?=maxwell_cons_t?>* maxwellU = maxwellUBuf + index;
-	deriv->m.x += chargeMassRatio_<?=species?> * (maxwellU->epsE.x / eps0 + U->m.y * maxwellU->B.z - U->m.z * maxwellU->B.y);
-	deriv->m.y += chargeMassRatio_<?=species?> * (maxwellU->epsE.y / eps0 + U->m.z * maxwellU->B.x - U->m.x * maxwellU->B.z);
-	deriv->m.z += chargeMassRatio_<?=species?> * (maxwellU->epsE.z / eps0 + U->m.x * maxwellU->B.y - U->m.y * maxwellU->B.x);
-	deriv->ETotal += chargeMassRatio_<?=species?> * real3_dot(maxwellU->epsE, U->m) / eps0;
+	deriv->m.x += chargeMassRatio_<?=species?> * (maxwellU->E.x / eps0 + U->m.y * maxwellU->B.z - U->m.z * maxwellU->B.y);
+	deriv->m.y += chargeMassRatio_<?=species?> * (maxwellU->E.y / eps0 + U->m.z * maxwellU->B.x - U->m.x * maxwellU->B.z);
+	deriv->m.z += chargeMassRatio_<?=species?> * (maxwellU->E.z / eps0 + U->m.x * maxwellU->B.y - U->m.y * maxwellU->B.x);
+	deriv->ETotal += chargeMassRatio_<?=species?> * real3_dot(maxwellU->E, U->m) / eps0;
 }
 
 <? end ?>
@@ -153,8 +153,8 @@ kernel void addSource_maxwell(
 	global <?=maxwell_cons_t?>* deriv = derivBuf + index;
 	const global <?=euler_cons_t?>* ionU = ionUBuf + index;
 	const global <?=euler_cons_t?>* electronU = electronUBuf + index;
-	deriv->epsE = real3_sub(deriv->epsE, real3_scale(ionU->m, chargeMassRatio_ion));
-	deriv->epsE = real3_sub(deriv->epsE, real3_scale(electronU->m, chargeMassRatio_electron));
+	deriv->E = real3_sub(deriv->E, real3_scale(ionU->m, chargeMassRatio_ion));
+	deriv->E = real3_sub(deriv->E, real3_scale(electronU->m, chargeMassRatio_electron));
 }
 
 ]]

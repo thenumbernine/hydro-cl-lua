@@ -1,4 +1,4 @@
-local dim = 1
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -234,7 +234,7 @@ maxs = {6,1,1},
 	
 	-- those designed for SRHD / GRHD:
 	--initState = 'relativistic shock reflection',			-- not working.  these initial conditions are constant =P
-	initState = 'relativistic blast wave test problem 1',
+	--initState = 'relativistic blast wave test problem 1',
 	--initState = 'relativistic blast wave test problem 2',
 	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
 
@@ -258,7 +258,7 @@ maxs = {6,1,1},
 	-- Maxwell:
 	--initState = 'Maxwell default',
 	--initState = 'Maxwell scattering around cylinder',
-	--initState = 'Maxwell scattering around Koch snowflake',
+	initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	
 	-- hmm, I think I need a fluid solver for this, not just a Maxwell solver ...
@@ -421,7 +421,7 @@ maxs = {6,1,1},
 -- GRHD+GR
 -- here's the GRHD solver with the BSSNOK plugged into it
 -- TODO inital condition root finding to make sure the EFE is satisifed
-self.solvers:insert(require 'solver.gr-hd-separate'(args))
+--self.solvers:insert(require 'solver.gr-hd-separate'(args))
 
 -- MHD. 
 -- with superbee flux lim:  
@@ -445,7 +445,7 @@ self.solvers:insert(require 'solver.gr-hd-separate'(args))
 
 -- Maxwell
 -- when the state is nonzero, at certain sizes there appear errors in the corners
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 

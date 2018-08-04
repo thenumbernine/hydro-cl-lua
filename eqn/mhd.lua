@@ -228,11 +228,7 @@ for j=0,solver.dim-1 do
 		) / grid_dx<?=j?>
 <? 
 end 
-?>	)<? 
-if field == 'epsE' then 
-?> / eps0<?
-end
-?>;
+?>	);
 ]], {solver=self.solver, field='B'})},
 		{['BPot'] = '*value = U->BPot;'},
 		{P = '*value = W.P;'},

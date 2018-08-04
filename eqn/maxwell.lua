@@ -12,28 +12,13 @@ eps0 E_i,t - 1/sqrt(g) g_il 1/mu0  epsBar^ljk      B_k,j = -j_i
 so during flux computation, I need to not apply the sqrt det g
 and after computing the flux vector I need to apply the metric
 
+How to add in the D and H fields...
 
-but there's a more advanced version in the slides by Chatterjee "Finite Volume Time Domain (FVTD) Computations for Electromagnetic Scattering"
-B,t + curl E = -rho H
-D,t - curl H = -J_i - sigma E
-D = eps' E
-B = mu' H
-sigma = omega eps"
-rho = omega mu"
-eps_r = eps' - j eps"
-mu_r = mu' - j mu"
-what is rho?
-what is sigma? conductance
-what is eps', eps", mu', mu", omega, j?
-then using Shokin, Fedurok, Lebedev, Chubarov "Parallel FVTD for Solving Maxwell Equations in Dielectric-Metal Composite Media"
-I get 
-D,t - curl H = 0
-B,t + curl E = 0
-D = eps0 eps_r E
-B = mu0 H
-div D = rho_free
-div B = 0
-Drude model: eps(omega) = eps_inf - omega_p^2 / (omega (omega + i Gamma))
+I am really tempted to change eps0 E -> E
+so that I can more freely mess with the aux fields:
+
+in fact, in materials, D is a better candidate anyways, since formula are in D,t and B,t, and D = epsilon E, so using eps0 E is a good start
+
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
@@ -55,7 +40,7 @@ Maxwell.postComputeFluxCode = [[
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
 		real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
-		flux.epsE = real3_scale(coord_lower(flux.epsE, x), _1_sqrt_det_g);
+		flux.D = real3_scale(coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = real3_scale(coord_lower(flux.B, x), _1_sqrt_det_g);
 ]]
 
@@ -64,19 +49,24 @@ Maxwell.numWaves = 6
 Maxwell.numIntStates = 6
 
 Maxwell.consVars = {
-	{epsE = 'real3'},
+	{D = 'real3'},
 	{B = 'real3'},
 	
-	{epsEPot = 'real'},
+	{DPot = 'real'},
 	{BPot = 'real'},
 	
 	{rhoCharge = 'real'},
 	{sigma = 'real'},
+	
+	-- TODO make these complex
+	-- but that means making E and B complex 
+	-- and that means complex math, and *drumroll* complex code generation of the coordLenSq functions
+	-- and this would be easier if OpenCL supported the 'complex' keyword
 	{eps = 'real'},
 	{mu = 'real'},
 }
 
-Maxwell.mirrorVars = {{'epsE.x', 'B.x'}, {'epsE.y', 'B.y'}, {'epsE.z', 'B.z'}}
+Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
 
 Maxwell.hasEigenCode = true
 Maxwell.hasFluxFromConsCode = true
@@ -96,7 +86,7 @@ function Maxwell:init(args)
 	-- or should I get rid of the rhoCharge field and the div E constraint?
 	self.solver.ops:insert(NoDiv{
 		solver = self.solver,
-		potentialField = 'epsEPot',
+		potentialField = 'DPot',
 		chargeField = 'rhoCharge',
 	})
 end
@@ -106,8 +96,15 @@ function Maxwell:getCommonFuncCode()
 //hmm, for E and B, even if the coord is 2D, we need all 3D components ...
 //this means we need coordLen functions with guaranteed dimensions, including tangent spaces
 
+/*
+|E| = E_i *E^i = (re E^i + i im E^i)  (re E^j - i im E^j) gamma_ij
+= ((re E^i re E^j + im E^i im E^j) + i (im E^i re E^j - re E^i im E^j)) gamma_ij
+= (re E^i re E^j + im E^i im E^j) gamma_ij
+re |E| = coordLenSq(re_E, re_E) + coordLenSq(im_E, im_E)
+im |E| = 0
+*/
 real ESq(<?=eqn.cons_t?> U, real3 x) { 
-	return coordLenSq(U.epsE, x) / (U.eps * U.eps);
+	return coordLenSq(U.D, x) / (U.eps * U.eps);
 }
 
 real BSq(<?=eqn.cons_t?> U, real3 x) {
@@ -141,11 +138,8 @@ kernel void initState(
 	real3 B = _real3(0,0,0);
 	real conductivity = 1.;
 	
-	//natural units say eps0 = 1/4pi, mu0 = 4pi
-	//but waves don't make it to the opposite side...
-	//mu0 eps0 = 1/c^2
-	real permittivity = 1.; //1. / (4. * M_PI);
-	real permeability = 1.; //4. * M_PI;
+	real permittivity = 1.;
+	real permeability = 1.;
 	
 	//throw-away
 	real rho = 0;
@@ -155,7 +149,7 @@ kernel void initState(
 	
 	<?=code?>
 	
-	U->epsE = cartesianToCoord(real3_scale(E, permittivity), x);
+	U->D = cartesianToCoord(real3_scale(E, permittivity), x);
 	U->B = cartesianToCoord(B, x);
 	U->BPot = 0;
 	U->sigma = conductivity;
@@ -217,13 +211,13 @@ so curl(E).z = -cos(x-t)
 --]]
 function Maxwell:getDisplayVars()
 	local vars = Maxwell.super.getDisplayVars(self):append{ 
-		{E = '*valuevec = real3_scale(U->epsE, 1. / U->eps);', type='real3'},
-		{S = '*valuevec = real3_scale(real3_cross(U->epsE, U->B), 1. / U->eps);', type='real3'},
+		{E = '*valuevec = real3_scale(U->D, 1. / U->eps);', type='real3'},
+		{S = '*valuevec = real3_scale(real3_cross(U->D, U->B), 1. / U->eps);', type='real3'},
 		{energy = [[
-	*value = .5 * (coordLenSq(U->epsE, x) + coordLenSq(U->B, x) / (U->mu * U->mu));
+	*value = .5 * (coordLenSq(U->D, x) + coordLenSq(U->B, x) / (U->mu * U->mu));
 ]]},
 	}:append(table{'E','B'}:map(function(var,i)
-		local field = assert( ({E='epsE', B='B'})[var] )
+		local field = assert( ({E='D', B='B'})[var] )
 		return {['div '..var] = template([[
 	*value = .5 * (0.
 <?
@@ -234,14 +228,14 @@ for j=0,solver.dim-1 do
 <?
 end
 ?>	)<? 
-if field == 'epsE' then 
+if field == 'D' then 
 ?> / U->eps<?
 end
 ?>;
 ]], {solver=self.solver, field=field})}
 	end))
 
-	for _,field in ipairs{'epsE', 'B'} do
+	for _,field in ipairs{'D', 'B'} do
 		local v = range(0,2):map(function(i) 
 			return curl(self,i,'valuevec->s'..i,field) 
 		end)
