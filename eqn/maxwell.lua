@@ -19,6 +19,18 @@ so that I can more freely mess with the aux fields:
 
 in fact, in materials, D is a better candidate anyways, since formula are in D,t and B,t, and D = epsilon E, so using eps0 E is a good start
 
+D_i,t - 1/sqrt(g) g_il epsBar^ljk  1/mu B_k,j = 1/sqrt(g) g_il epsBar^ljk  (1/mu)_,j B_k - J_i
+B_i,t + 1/sqrt(g) g_il epsBar^ljk 1/eps D_k,j = 1/sqrt(g) g_il epsBar^ljk (1/eps)_,j B_k
+
+D_i,t - 1/sqrt(g) g_il epsBar^ljk  1/mu B_k,j = -1/sqrt(g) g_il epsBar^ljk B_j  (1/mu)_,k - J_i
+B_i,t + 1/sqrt(g) g_il epsBar^ljk 1/eps D_k,j = -1/sqrt(g) g_il epsBar^ljk D_j (1/eps)_,k
+
+TODO now I need to add source terms of the permittivity and permeability gradients ...
+that will look like ...
+
+D_i,t - 1/sqrt(g) g_il epsBar^ljk  (1/mu)_k^l B_l,j = 1/sqrt(g) g_il epsBar^ljk  (1/mu)_k^l_,j B_l - J_i
+B_i,t + 1/sqrt(g) g_il epsBar^ljk (1/eps)_k^l D_l,j = 1/sqrt(g) g_il epsBar^ljk (1/eps)_k^l_,j B_l
+
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
@@ -62,8 +74,8 @@ Maxwell.consVars = {
 	-- but that means making E and B complex 
 	-- and that means complex math, and *drumroll* complex code generation of the coordLenSq functions
 	-- and this would be easier if OpenCL supported the 'complex' keyword
-	{eps = 'real'},
-	{mu = 'real'},
+	{_1_eps = 'real'},
+	{_1_mu = 'real'},
 }
 
 Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
@@ -104,7 +116,7 @@ re |E| = coordLenSq(re_E, re_E) + coordLenSq(im_E, im_E)
 im |E| = 0
 */
 real ESq(<?=eqn.cons_t?> U, real3 x) { 
-	return coordLenSq(U.D, x) / (U.eps * U.eps);
+	return coordLenSq(U.D, x) * U._1_eps * U._1_eps;
 }
 
 real BSq(<?=eqn.cons_t?> U, real3 x) {
@@ -153,8 +165,8 @@ kernel void initState(
 	U->B = cartesianToCoord(B, x);
 	U->BPot = 0;
 	U->sigma = conductivity;
-	U->eps = permittivity;
-	U->mu = permeability;
+	U->_1_eps = 1. / permittivity;
+	U->_1_mu = 1. / permeability;
 }
 ]]
 
@@ -211,10 +223,10 @@ so curl(E).z = -cos(x-t)
 --]]
 function Maxwell:getDisplayVars()
 	local vars = Maxwell.super.getDisplayVars(self):append{ 
-		{E = '*valuevec = real3_scale(U->D, 1. / U->eps);', type='real3'},
-		{S = '*valuevec = real3_scale(real3_cross(U->D, U->B), 1. / U->eps);', type='real3'},
+		{E = '*valuevec = real3_scale(U->D, U->_1_eps);', type='real3'},
+		{S = '*valuevec = real3_scale(real3_cross(U->D, U->B), U->_1_eps);', type='real3'},
 		{energy = [[
-	*value = .5 * (coordLenSq(U->D, x) + coordLenSq(U->B, x) / (U->mu * U->mu));
+	*value = .5 * (coordLenSq(U->D, x) + coordLenSq(U->B, x) * U->_1_mu * U->_1_mu);
 ]]},
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='D', B='B'})[var] )
@@ -229,7 +241,7 @@ for j=0,solver.dim-1 do
 end
 ?>	)<? 
 if field == 'D' then 
-?> / U->eps<?
+?> * U->_1_eps<?
 end
 ?>;
 ]], {solver=self.solver, field=field})}
@@ -250,13 +262,13 @@ end
 end
 
 Maxwell.eigenVars = table{
-	{sqrt_eps = 'real'},
-	{sqrt_mu = 'real'},
+	{sqrt_1_eps = 'real'},
+	{sqrt_1_mu = 'real'},
 }
 
 function Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	return template([[
-	real eig_lambda = 1. / (<?=eig?>.sqrt_eps * <?=eig?>.sqrt_mu);
+	real eig_lambda = <?=eig?>.sqrt_1_eps * <?=eig?>.sqrt_1_mu;
 ]], {
 		eig = '('..eig..')',
 	})
@@ -276,7 +288,7 @@ end
 
 function Maxwell:consWaveCodePrefix(side, U, x, waveIndex)
 	return template([[
-	real eig_lambda = 1. / sqrt(<?=U?>.eps * <?=U?>.mu);
+	real eig_lambda = sqrt(<?=U?>._1_eps * <?=U?>._1_mu);
 ]], {
 		U = '('..U..')',
 	})

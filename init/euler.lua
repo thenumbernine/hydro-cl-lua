@@ -109,7 +109,7 @@ local function addMaxwellOscillatingBoundary(solver)
 <? if eqn.is(require 'eqn.glm-maxwell') then ?>
 	<?=U?>.E = _real3(0., (real)sin((real)10. * t), 0.);
 <? else ?>	
-	<?=U?>.D = _real3(0., (real)sin((real)10. * t) / <?=U?>.eps, 0.);
+	<?=U?>.D = _real3(0., (real)sin((real)10. * t) * <?=U?>._1_eps, 0.);
 <? end ?>	
 ]], {U=U, eqn=self.eqn})
 		end

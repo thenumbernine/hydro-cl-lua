@@ -14,23 +14,23 @@ local sym = common.sym
 ) {
 	real3 B = U.B;
 	real3 D = U.D;
-	real mu = U.mu;
-	real eps = U.eps;
+	real _1_mu = U._1_mu;
+	real _1_eps = U._1_eps;
 	return (<?=eqn.cons_t?>){
 	<? if side == 0 then ?>
-		.D = _real3(0., B.z / mu, -B.y / mu),
-		.B = _real3(0., -D.z / eps, D.y / eps),
+		.D = _real3(0., B.z * _1_mu, -B.y * _1_mu),
+		.B = _real3(0., -D.z * _1_eps, D.y * _1_eps),
 	<? elseif side == 1 then ?>
-		.D = _real3(-B.z / mu, 0., B.x / mu),
-		.B = _real3(D.z / eps, 0., -D.x / eps),
+		.D = _real3(-B.z * _1_mu, 0., B.x * _1_mu),
+		.B = _real3(D.z * _1_eps, 0., -D.x * _1_eps),
 	<? elseif side == 2 then ?>
-		.D = _real3(B.y / mu, -B.x / mu, 0.),
-		.B = _real3(-D.y / eps, D.x / eps, 0.),
+		.D = _real3(B.y * _1_mu, -B.x * _1_mu, 0.),
+		.B = _real3(-D.y * _1_eps, D.x * _1_eps, 0.),
 	<? end ?>
 		.BPot = 0.,
 		.sigma = 0.,
-		.eps = 0.,
-		.mu = 0.,
+		._1_eps = 0.,
+		._1_mu = 0.,
 	};
 }
 <? end ?>
@@ -42,8 +42,8 @@ local sym = common.sym
 	real3 n
 ) {
 	return (<?=eqn.eigen_t?>){
-		.sqrt_eps = sqrt(.5 * (UL.eps + UR.eps)),
-		.sqrt_mu = sqrt(.5 * (UL.mu + UR.mu)),
+		.sqrt_1_eps = sqrt(.5 * (UL._1_eps + UR._1_eps)),
+		.sqrt_1_mu = sqrt(.5 * (UL._1_mu + UR._1_mu)),
 	};
 }
 
@@ -59,8 +59,8 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 ) {
 	<?=eqn.waves_t?> Y;
 
-	const real ise = sqrt_1_2 / eig.sqrt_eps;
-	const real isu = sqrt_1_2 / eig.sqrt_mu;
+	const real ise = sqrt_1_2 * eig.sqrt_1_eps;
+	const real isu = sqrt_1_2 * eig.sqrt_1_mu;
 
 	<? if side==0 then ?>
 	
@@ -101,8 +101,8 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 ) {
 	<?=eqn.cons_t?> Y;
 	
-	const real se = sqrt_1_2 * eig.sqrt_eps;
-	const real su = sqrt_1_2 * eig.sqrt_mu;
+	const real se = sqrt_1_2 / eig.sqrt_1_eps;
+	const real su = sqrt_1_2 / eig.sqrt_1_mu;
 
 	<? if side==0 then ?>
 /*
@@ -174,34 +174,34 @@ x,  y,  z, z,  y,  x
 
 	real3 D = X.D;
 	real3 B = X.B;
-	real ieps = 1. / (eig.sqrt_eps * eig.sqrt_eps);
-	real imu = 1. / (eig.sqrt_mu * eig.sqrt_mu);
+	real _1_eps = eig.sqrt_1_eps * eig.sqrt_1_eps;
+	real _1_mu = eig.sqrt_1_mu * eig.sqrt_1_mu;
 
 	<? if side==0 then ?>
 	
 	Y.ptr[0] = 0;
-	Y.ptr[1] = B.z * imu;
-	Y.ptr[2] = -B.y * imu;
+	Y.ptr[1] = B.z * _1_mu;
+	Y.ptr[2] = -B.y * _1_mu;
 	Y.ptr[3] = 0;
-	Y.ptr[4] = -D.z * ieps;
-	Y.ptr[5] = D.y * ieps;
+	Y.ptr[4] = -D.z * _1_eps;
+	Y.ptr[5] = D.y * _1_eps;
 
 	<? elseif side==1 then ?>
 		
-	Y.ptr[0] = -B.z * imu;
+	Y.ptr[0] = -B.z * _1_mu;
 	Y.ptr[1] = 0;
-	Y.ptr[2] = B.x * imu;
-	Y.ptr[3] = D.z * ieps;
+	Y.ptr[2] = B.x * _1_mu;
+	Y.ptr[3] = D.z * _1_eps;
 	Y.ptr[4] = 0;
-	Y.ptr[5] = -D.x * ieps;
+	Y.ptr[5] = -D.x * _1_eps;
 		
 	<? elseif side==2 then ?>
 		
-	Y.ptr[0] = B.y * imu;
-	Y.ptr[1] = -B.x * imu;
+	Y.ptr[0] = B.y * _1_mu;
+	Y.ptr[1] = -B.x * _1_mu;
 	Y.ptr[2] = 0;
-	Y.ptr[3] = -D.y * ieps;
-	Y.ptr[4] = D.x * ieps;
+	Y.ptr[3] = -D.y * _1_eps;
+	Y.ptr[4] = D.x * _1_eps;
 	Y.ptr[5] = 0;
 		
 	<? end ?>
@@ -223,7 +223,42 @@ kernel void addSource(
 	
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-	deriv->D = real3_sub(deriv->D, real3_scale(U->D, 1. / U->eps * U->sigma));
+	
+	//TODO J = J_f + J_b = J_f + J_P + J_M = J_f + dP/dt + curl M
+	deriv->D = real3_sub(deriv->D, real3_scale(U->D, U->_1_eps * U->sigma));
+
+
+	//for non-time-varying susceptibilities, here's the source term:
+	//D_i,t ... = 1/sqrt(g) g_il epsBar^ljk  (1/mu)_,j B_k - J_i
+	//B_i,t ... = 1/sqrt(g) g_il epsBar^ljk (1/eps)_,j B_k
+
+	real3 grad_1_mu = _real3(0,0,0);
+	<? for j=0,solver.dim-1 do 
+		local xj = xNames[j+1] ?>
+	grad_1_mu.<?=xj?> = (
+		U[stepsize.<?=xj?>]._1_mu
+		- U[-stepsize.<?=xj?>]._1_mu
+	) / grid_dx<?=j?>;
+	<? end ?>
+	
+	real3 grad_1_eps = _real3(0,0,0);
+	<? for j=0,solver.dim-1 do 
+		local xj = xNames[j+1] ?>
+	grad_1_mu.<?=xj?> = (
+		U[stepsize.<?=xj?>]._1_eps
+		- U[-stepsize.<?=xj?>]._1_eps
+	) / grid_dx<?=j?>;
+	<? end ?>
+
+	real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
+	<? for j=0,solver.dim-1 do 
+		local xj = xNames[j+1] ?>{
+		<?=eqn.cons_t?> flux = fluxFromCons_<?=j?>(*U, x);
+		flux.D = real3_scale(coord_lower(flux.D, x), _1_sqrt_det_g);
+		flux.B = real3_scale(coord_lower(flux.B, x), _1_sqrt_det_g);
+		deriv->D.<?=xj?> -= real3_dot(flux.D, grad_1_mu);
+		deriv->B.<?=xj?> -= real3_dot(flux.B, grad_1_eps);
+	}<? end ?>
 }
 
 
@@ -236,8 +271,8 @@ kernel void addSource(
 	real3 x
 ) {
 	<?=eqn.eigen_t?> eig;
-	eig.sqrt_eps = sqrt(U.eps);
-	eig.sqrt_mu = sqrt(U.mu);
+	eig.sqrt_1_eps = sqrt(U._1_eps);
+	eig.sqrt_1_mu = sqrt(U._1_mu);
 	return eig;
 }
 <? end ?>
