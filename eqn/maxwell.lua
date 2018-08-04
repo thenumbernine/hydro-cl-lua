@@ -83,19 +83,13 @@ another todo - max this a tensor
 some common susceptibility tensors are symmetric?  I thought I caught somewhere that they are often projection matrices...
 --]]
 
-Maxwell.susceptibilityTensor = false
+Maxwell.susc_t = Maxwell.scalar
+--Maxwell.susc_t = Maxwell.mat3x3
 
-if Maxwell.susceptibilityTensor then
-	Maxwell.consVars:append{
-		{_1_eps = Maxwell.mat3x3},
-		{_1_mu = Maxwell.mat3x3},
-	}
-else
-	Maxwell.consVars:append{
-		{_1_eps = Maxwell.scalar},
-		{_1_mu = Maxwell.scalar},
-	}
-end
+Maxwell.consVars:append{
+	{_1_eps = Maxwell.susc_t},
+	{_1_mu = Maxwell.susc_t},
+}
 
 Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
 
@@ -168,8 +162,8 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 
 <? end -- eqn.scalar ?>
 
-<?=eqn.vec3?> calc_E(<?=eqn.cons_t?> U) {
-	return <?=eqn.vec3?>_scale(U.D, U._1_eps);
+<?=eqn.vec3?> calc_E(<?=eqn.cons_t?> U) { 
+	return <?=eqn.susc_t?>_<?=eqn.vec3?>_mul(U._1_eps, U.D); 
 }
 
 /*
@@ -194,10 +188,16 @@ end
 
 Maxwell.initStateCode = [[
 
-<? local fromreal = eqn.scalar..'_from_real' ?>
+<? 
+local cons_t = eqn.cons_t
+local susc_t = eqn.susc_t
+local scalar = eqn.scalar
+local vec3 = eqn.vec3
+local zero = scalar..'_zero'
+?>
 
 kernel void initState(
-	global <?=eqn.cons_t?>* UBuf
+	global <?=cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
@@ -210,15 +210,15 @@ kernel void initState(
 		&& x.z < mids.z
 #endif
 	;
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?>* U = UBuf + index;
 
 	//used
 	real3 E = _real3(0,0,0);
 	real3 B = _real3(0,0,0);
-	real conductivity = 1.;
 	
-	real permittivity = 1.;
-	real permeability = 1.;
+	<?=scalar?> conductivity = <?=scalar?>_from_real(1.);
+	<?=susc_t?> permittivity = <?=susc_t?>_from_real(1.);
+	<?=susc_t?> permeability = <?=susc_t?>_from_real(1.);
 	
 	//throw-away
 	real rho = 0;
@@ -226,14 +226,14 @@ kernel void initState(
 	real P = 0;
 	real ePot = 0;
 	
-	<?=code?>
+<?=code?>
 	
-	U->D = eqn_cartesianToCoord(real3_scale(E, permittivity), x);
+	U->D = eqn_cartesianToCoord(<?=susc_t?>_<?=vec3?>_mul(permittivity, E), x);
 	U->B = eqn_cartesianToCoord(B, x);
-	U->BPot = <?=fromreal?>(0);
-	U->sigma = <?=fromreal?>(conductivity);
-	U->_1_eps = <?=fromreal?>(1. / permittivity);
-	U->_1_mu = <?=fromreal?>(1. / permeability);
+	U->BPot = <?=zero?>;
+	U->sigma = conductivity;
+	U->_1_eps = <?=susc_t?>_inv(permittivity);
+	U->_1_mu = <?=susc_t?>_inv(permeability);
 }
 ]]
 

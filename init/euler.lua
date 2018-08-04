@@ -1241,13 +1241,15 @@ end ?>;
 		name = 'Maxwell scattering around cylinder',
 		initState = function(self, solver)
 			addMaxwellOscillatingBoundary(solver)
-			return [[
+			return template([[
 	real3 xc = coordMap(x);
 	if (real3_lenSq(xc) < .2*.2) {
 		//conductivity = 1e-2;
-		permittivity = 5.;
+		permittivity = <?=eqn.susc_t?>_from_real(5.);
 	}
-]]
+]],	{
+	eqn = solver.eqn,
+})
 		end,
 	},
 

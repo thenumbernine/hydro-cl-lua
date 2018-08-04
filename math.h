@@ -12,7 +12,7 @@ makecplx('cplx', 'real')
 ?> 
 
 <? 
-local function makereal3(name, real) 
+local function makevec3(name, real) 
 ?>
 typedef union {
 	<?=real?> s[3];
@@ -21,8 +21,8 @@ typedef union {
 } <?=name?>;
 <? 
 end 
-makereal3('real3', 'real')
-makereal3('cplx3', 'cplx')
+makevec3('real3', 'real')
+makevec3('cplx3', 'cplx')
 ?> 
 
 typedef union {

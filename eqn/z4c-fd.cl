@@ -280,7 +280,7 @@ end
 <? end
 ?>
 	real3x3 ABar_ul = sym3_sym3_mul(U->gammaBar_uu, U->ABar_ll);		//ABar^i_j = gammaBar^kl ABar_kj
-	sym3 ABar_uu = mat3_sym3_to_sym3_mul(ABar_ul, U->gammaBar_uu);	//ABar^ij = gammaBar^ik ABar_kl gammaBar^lj
+	sym3 ABar_uu = real3x3_sym3_to_sym3_mul(ABar_ul, U->gammaBar_uu);	//ABar^ij = gammaBar^ik ABar_kl gammaBar^lj
 	real tr_ABar_sq = sym3_dot(U->ABar_ll, ABar_uu);			//tr_ABar_sq := tr(ABar^2) = ABar_ij ABar^ji
 	
 	real S = sym3_dot(U->S_ll, gamma_uu);
@@ -586,7 +586,7 @@ end ?>
 		sym3_scale(U->ABar_ll, exp_4phi),
 		sym3_scale(gamma_ll, K/3.));
 	real3x3 K_ul = sym3_sym3_mul(gamma_uu, K_ll);
-	sym3 K_uu = mat3_sym3_to_sym3_mul(K_ul, gamma_uu);
+	sym3 K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);
 	
 	//Alcubierre 3.1.1
 	U->H = R + K * K - sym3_dot(K_uu, K_ll) - 16. * M_PI * U->rho;

@@ -150,7 +150,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 	real3x3 K_ul = sym3_sym3_mul(gammaU, K);
 
-	real tr_K = mat3_trace(K_ul);
+	real tr_K = real3x3_trace(K_ul);
 
 	real sqrt_gUxx = eig.sqrt_gammaUjj.s<?=side?>;
 
@@ -1135,7 +1135,7 @@ for i,xi in ipairs(xNames) do
 end
 ?>	};
 
-	real tr_K = mat3_trace(K_ul);
+	real tr_K = real3x3_trace(K_ul);
 
 	//TODO correct source terms
 	//I'm taking this from the 2008 Yano et al "Flux-Vector Splitting..."
@@ -1249,7 +1249,7 @@ end
 ?>	};
 
 	//K_ik K^k_j
-	sym3 KSq_ll = sym3_mat3_to_sym3_mul(U->K, K_ul);
+	sym3 KSq_ll = sym3_real3x3_to_sym3_mul(U->K, K_ul);
 
 	real tr_KSq = sym3_dot(KSq_ll, gammaU);
 

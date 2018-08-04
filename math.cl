@@ -131,20 +131,20 @@ real4 quatMul(real4 q, real4 r) {
 
 
 <?
-function makereal3funcs(vec,real)
-	local add = real..'_add'
-	local sub = real..'_sub'
-	local mul = real..'_mul'
-	local real_mul = real..'_real_mul'
-	local conj = real..'_conj'
-	local add3 = real..'_add3'
+function makevec3(vec,scalar)
+	local add = scalar..'_add'
+	local sub = scalar..'_sub'
+	local mul = scalar..'_mul'
+	local real_mul = scalar..'_real_mul'
+	local conj = scalar..'_conj'
+	local add3 = scalar..'_add3'
 ?>
 
-#define <?=real?>_add3(a,b,c)	(<?=add?>(<?=add?>(a,b),c))
+#define <?=scalar?>_add3(a,b,c)	(<?=add?>(<?=add?>(a,b),c))
 #define _<?=vec?>(a,b,c) 		(<?=vec?>){.s={a,b,c}}
-#define <?=vec?>_zero			_<?=vec?>(<?=real?>_zero,<?=real?>_zero,<?=real?>_zero)
+#define <?=vec?>_zero			_<?=vec?>(<?=scalar?>_zero,<?=scalar?>_zero,<?=scalar?>_zero)
 
-static inline <?=real?> <?=vec?>_dot(<?=vec?> a, <?=vec?> b) {
+static inline <?=scalar?> <?=vec?>_dot(<?=vec?> a, <?=vec?> b) {
 	return <?=add3?>(
 		<?=mul?>(a.x, <?=conj?>(b.x)), 
 		<?=mul?>(a.y, <?=conj?>(b.y)),
@@ -152,7 +152,7 @@ static inline <?=real?> <?=vec?>_dot(<?=vec?> a, <?=vec?> b) {
 	);
 }
 
-static inline <?=vec?> <?=vec?>_scale(<?=vec?> a, <?=real?> s) {
+static inline <?=vec?> <?=vec?>_scale(<?=vec?> a, <?=scalar?> s) {
 	return _<?=vec?>(
 		<?=mul?>(a.x, s),
 		<?=mul?>(a.y, s),
@@ -182,10 +182,17 @@ static inline <?=vec?> <?=vec?>_real_mul(<?=vec?> a, real b) {
 		<?=real_mul?>(a.z, b));
 }
 
+static inline <?=vec?> real_<?=vec?>_mul(real a, <?=vec?> b) {
+	return _<?=vec?>(
+		<?=real_mul?>(b.x, a),
+		<?=real_mul?>(b.y, a),
+		<?=real_mul?>(b.z, a));
+}
+
 <?
 end
-makereal3funcs('real3', 'real')
-makereal3funcs('cplx3', 'cplx')
+makevec3('real3', 'real')
+makevec3('cplx3', 'cplx')
 ?>
 
 static inline real3 real3_cross(real3 a, real3 b) {
@@ -384,7 +391,7 @@ end
 ?>	return m;
 }
 
-static inline real3x3 mat3_sym3_mul(real3x3 a, sym3 b) {
+static inline real3x3 real3x3_sym3_mul(real3x3 a, sym3 b) {
 	real3x3 m;
 <? for i=0,2 do
 	for j=0,2 do
@@ -398,7 +405,7 @@ end
 ?>	return m;
 }
 
-static inline sym3 mat3_sym3_to_sym3_mul(real3x3 a, sym3 b) {
+static inline sym3 real3x3_sym3_to_sym3_mul(real3x3 a, sym3 b) {
 	sym3 m;
 <? for i=0,2 do
 	for j=i,2 do
@@ -413,7 +420,7 @@ end
 }
 
 //c_ik = a_ij b_jk when you know c_ik is going to be symmetric
-static inline sym3 sym3_mat3_to_sym3_mul(sym3 a, real3x3 b) {
+static inline sym3 sym3_real3x3_to_sym3_mul(sym3 a, real3x3 b) {
 	sym3 m;
 <? for i=0,2 do
 	for j=i,2 do
@@ -440,8 +447,9 @@ sym3 sym3_swap0(sym3 m) { return m; }
 sym3 sym3_swap1(sym3 m) { return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
 sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
 
+#define real3x3_zero (real3x3){.v={_real3(0,0,0),_real3(0,0,0),_real3(0,0,0)}}
 
-static inline real3x3 mat3_mat3_mul(real3x3 a, real3x3 b) {
+static inline real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b) {
 	real3x3 c;
 	for (int i = 0; i < 3; ++i) {
 		for (int j = 0; j < 3; ++j) {
@@ -455,8 +463,58 @@ static inline real3x3 mat3_mat3_mul(real3x3 a, real3x3 b) {
 	return c;
 }
 
-static inline real mat3_trace(real3x3 m) {
+static inline real3 real3x3_real3_mul(real3x3 a, real3 b) {
+	real3 c;
+	for (int i = 0; i < 3; ++i) {
+		real sum = 0.;
+		for (int j = 0; j < 3; ++j) {
+			sum += a.v[i].s[j] * b.s[j];
+		}
+		c.s[i] = sum;
+	}
+	return c;
+}
+
+static inline real real3x3_trace(real3x3 m) {
 	return m.x.x + m.y.y + m.z.z;
+}
+
+static inline real3x3 real3x3_from_real(real x) {
+	real3x3 m;
+	for (int i = 0; i < 3; ++i) {
+		for (int j = 0; j < 3; ++j) {
+			m.v[i].s[j] = (i == j) ? x : 0;
+		}
+	}
+	return m;
+}
+
+static inline real real3x3_det(real3x3 m) {
+	return m.x.x * (m.y.y * m.z.z - m.y.z * m.z.y)
+		- m.x.y * (m.y.x * m.z.z - m.y.z * m.z.x)
+		+ m.x.z * (m.y.x * m.z.y - m.y.y * m.z.x);
+}
+
+static inline real3x3 real3x3_inv(real3x3 m) {
+	real det = real3x3_det(m);
+	real3x3 n;
+	for (int i = 0; i < 3; ++i) {
+		for (int j = 0; j < 3; ++j) {
+			int i1 = (i+1)%3;
+			int i2 = (i+2)%3;
+			int j1 = (j+1)%3;
+			int j2 = (j+2)%3;
+			n.v[i].s[j] = (
+				m.v[j1].s[i1] * m.v[j2].s[i2] 
+				- m.v[j2].s[i1] * m.v[j1].s[i2]
+			) / det;
+		}
+	}
+	//n.x.x = (m.y.y * m.z.z - m.z.y * m.y.z) / det;
+	//n.x.y = (m.z.y * m.x.z - m.x.y * m.z.z) / det;
+	//n.x.z = (m.x.y * m.y.z - m.y.y * m.x.z) / det;
+	//...
+	return n;
 }
 
 
