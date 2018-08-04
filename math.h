@@ -55,7 +55,7 @@ typedef union {
 	struct {
 		real3 x,y,z;
 	};
-} mat3;
+} real3x3;
 
 
 

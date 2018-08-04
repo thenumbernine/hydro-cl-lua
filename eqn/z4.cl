@@ -148,7 +148,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	sym3 gamma = sym3_swap<?=side?>(eig.gamma);
 	sym3 gammaU = sym3_swap<?=side?>(eig.gammaU);
 
-	mat3 K_ul = sym3_sym3_mul(gammaU, K);
+	real3x3 K_ul = sym3_sym3_mul(gammaU, K);
 
 	real tr_K = mat3_trace(K_ul);
 
@@ -1120,7 +1120,7 @@ kernel void addSource(
 	real f = calc_f(U->alpha);	//could be based on alpha...
 
 	//K^i_j = gamma^ik K_kj
-	mat3 K_ul = (mat3){
+	real3x3 K_ul = (real3x3){
 <? 
 for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = (real3){
@@ -1254,7 +1254,7 @@ end
 	real tr_KSq = sym3_dot(KSq_ll, gammaU);
 
 	//dsq_ij = d_ikl gamma^lm d^k_mj
-	mat3 dsq = {
+	real3x3 dsq = {
 <? 
 for i,xi in ipairs(xNames) do
 ?>

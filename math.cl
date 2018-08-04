@@ -370,8 +370,8 @@ static inline real sym3_dot(sym3 a, sym3 b) {
 		+ 2. * (a.xy * b.xy + a.xz * b.xz + a.yz * b.yz);
 }
 
-static inline mat3 sym3_sym3_mul(sym3 a, sym3 b) {
-	mat3 m;
+static inline real3x3 sym3_sym3_mul(sym3 a, sym3 b) {
+	real3x3 m;
 <? for i=0,2 do
 	for j=0,2 do
 ?>	m.v<?=i?>.s<?=j?> = 0.
@@ -384,8 +384,8 @@ end
 ?>	return m;
 }
 
-static inline mat3 mat3_sym3_mul(mat3 a, sym3 b) {
-	mat3 m;
+static inline real3x3 mat3_sym3_mul(real3x3 a, sym3 b) {
+	real3x3 m;
 <? for i=0,2 do
 	for j=0,2 do
 ?>	m.v<?=i?>.s<?=j?> = 0.<?
@@ -398,7 +398,7 @@ end
 ?>	return m;
 }
 
-static inline sym3 mat3_sym3_to_sym3_mul(mat3 a, sym3 b) {
+static inline sym3 mat3_sym3_to_sym3_mul(real3x3 a, sym3 b) {
 	sym3 m;
 <? for i=0,2 do
 	for j=i,2 do
@@ -413,7 +413,7 @@ end
 }
 
 //c_ik = a_ij b_jk when you know c_ik is going to be symmetric
-static inline sym3 sym3_mat3_to_sym3_mul(sym3 a, mat3 b) {
+static inline sym3 sym3_mat3_to_sym3_mul(sym3 a, real3x3 b) {
 	sym3 m;
 <? for i=0,2 do
 	for j=i,2 do
@@ -441,8 +441,8 @@ sym3 sym3_swap1(sym3 m) { return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
 sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
 
 
-static inline mat3 mat3_mat3_mul(mat3 a, mat3 b) {
-	mat3 c;
+static inline real3x3 mat3_mat3_mul(real3x3 a, real3x3 b) {
+	real3x3 c;
 	for (int i = 0; i < 3; ++i) {
 		for (int j = 0; j < 3; ++j) {
 			real sum = 0.;
@@ -455,7 +455,7 @@ static inline mat3 mat3_mat3_mul(mat3 a, mat3 b) {
 	return c;
 }
 
-static inline real mat3_trace(mat3 m) {
+static inline real mat3_trace(real3x3 m) {
 	return m.x.x + m.y.y + m.z.z;
 }
 

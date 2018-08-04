@@ -51,8 +51,8 @@ Maxwell.name = 'Maxwell'
 Maxwell.numIntStates = 6
 
 -- I'm working on making complex numbers exchangeable
---Maxwell.scalar = 'real'
-Maxwell.scalar = 'cplx'
+Maxwell.scalar = 'real'
+--Maxwell.scalar = 'cplx'
 
 -- 1 for 'real', 2 for 'cplx'
 Maxwell.numRealsInScalar = ffi.sizeof(Maxwell.scalar) / ffi.sizeof'real'
@@ -60,6 +60,7 @@ Maxwell.numRealsInScalar = ffi.sizeof(Maxwell.scalar) / ffi.sizeof'real'
 Maxwell.numWaves = 6 * Maxwell.numRealsInScalar
 
 Maxwell.vec3 = Maxwell.scalar..'3'
+Maxwell.mat3x3 = Maxwell.scalar..'3x3'
 
 Maxwell.consVars = table{
 	{D = Maxwell.vec3},
@@ -81,10 +82,20 @@ and this would be easier if OpenCL supported the 'complex' keyword
 another todo - max this a tensor
 some common susceptibility tensors are symmetric?  I thought I caught somewhere that they are often projection matrices...
 --]]
-Maxwell.consVars:append{
-	{_1_eps = Maxwell.scalar},
-	{_1_mu = Maxwell.scalar},
-}
+
+Maxwell.susceptibilityTensor = false
+
+if Maxwell.susceptibilityTensor then
+	Maxwell.consVars:append{
+		{_1_eps = Maxwell.mat3x3},
+		{_1_mu = Maxwell.mat3x3},
+	}
+else
+	Maxwell.consVars:append{
+		{_1_eps = Maxwell.scalar},
+		{_1_mu = Maxwell.scalar},
+	}
+end
 
 Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
 

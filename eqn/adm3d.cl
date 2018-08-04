@@ -1108,12 +1108,12 @@ kernel void addSource(
 
 	// source terms
 	
-	mat3 K_ul = sym3_sym3_mul(gammaU, U->K);				//K^i_j
+	real3x3 K_ul = sym3_sym3_mul(gammaU, U->K);				//K^i_j
 	real trK = mat3_trace(K_ul);				//K^k_k
 	sym3 KSq_ll = sym3_mat3_to_sym3_mul(U->K, K_ul);	//KSq_ij = K_ik K^k_j
 
 	//d_llu = d_ij^k = d_ijl * gamma^lk
-	mat3 d_llu[3] = {
+	real3x3 d_llu[3] = {
 <? for i,xi in ipairs(xNames) do
 ?>		sym3_sym3_mul(U->d.<?=xi?>, gammaU),
 <? end
@@ -1255,7 +1255,7 @@ kernel void addSource(
 <?=makePartial('beta_u', 'real3')?>	
 
 	//= gamma_ik beta^k_,j
-	mat3 partial_beta_u_ll = (mat3){
+	real3x3 partial_beta_u_ll = (real3x3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_real3_mul(gammaU, partial_beta_ul[<?=i-1?>]),
 <? end

@@ -279,7 +279,7 @@ end
 ?>		- 2./3. * gammaBar_ll.<?=xij?> * tr_partial_beta;				//- 2/3 gammaBar_ij beta^k_,k
 <? end
 ?>
-	mat3 ABar_ul = sym3_sym3_mul(U->gammaBar_uu, U->ABar_ll);		//ABar^i_j = gammaBar^kl ABar_kj
+	real3x3 ABar_ul = sym3_sym3_mul(U->gammaBar_uu, U->ABar_ll);		//ABar^i_j = gammaBar^kl ABar_kj
 	sym3 ABar_uu = mat3_sym3_to_sym3_mul(ABar_ul, U->gammaBar_uu);	//ABar^ij = gammaBar^ik ABar_kl gammaBar^lj
 	real tr_ABar_sq = sym3_dot(U->ABar_ll, ABar_uu);			//tr_ABar_sq := tr(ABar^2) = ABar_ij ABar^ji
 	
@@ -585,7 +585,7 @@ end ?>
 	sym3 K_ll = sym3_add(
 		sym3_scale(U->ABar_ll, exp_4phi),
 		sym3_scale(gamma_ll, K/3.));
-	mat3 K_ul = sym3_sym3_mul(gamma_uu, K_ll);
+	real3x3 K_ul = sym3_sym3_mul(gamma_uu, K_ll);
 	sym3 K_uu = mat3_sym3_to_sym3_mul(K_ul, gamma_uu);
 	
 	//Alcubierre 3.1.1
