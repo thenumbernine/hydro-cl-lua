@@ -19,6 +19,8 @@ function Poisson:init(args)
 	ident = ident + 1
 end
 
+Poisson.scalar = 'real'
+
 function Poisson:getPotBufType()
 	return self.solver.eqn.cons_t
 end

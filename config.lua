@@ -256,8 +256,8 @@ maxs = {6,1,1},
 	--initState = '2002 Dedner Kelvin-Helmholtz',
 
 	-- Maxwell:
-	initState = 'Maxwell default',
-	--initState = 'Maxwell scattering around cylinder',
+	--initState = 'Maxwell default',
+	initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	

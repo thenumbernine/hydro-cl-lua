@@ -28,11 +28,15 @@ local eqn = solver.eqn
 kernel void initPoissonPotential<?=poisson.suffix?>(
 	global <?=poisson:getPotBufType()?>* UBuf
 ) {
+<?
+local scalar = poisson.scalar 
+local neg = scalar..'_neg'
+?>
 	SETBOUNDS(numGhost,numGhost);
 	global <?=poisson:getPotBufType()?>* U = UBuf + index;
-	real rho = 0;
+	<?=scalar?> rho = <?=scalar?>_zero;
 	<?=poisson:getCalcRhoCode() or ''?>
-	UBuf[index].<?=poisson.potentialField?> = -rho;
+	UBuf[index].<?=poisson.potentialField?> = <?=neg?>(rho);
 }
 
 /*
@@ -86,15 +90,28 @@ end ?>
 <? end ?>
 	real volAtX = volume_at(cell_x(i));
 
+<?
+local scalar = poisson.scalar
+local zero = scalar..'_zero'
+local add3 = scalar..'_add3'
+local sub = scalar..'_sub'
+local mul = scalar..'_mul'
+local lenSq = scalar..'_lenSq'
+local real_mul = scalar..'_real_mul'
+?>
+
 <? 
 if true -- require 'coord.cartesian'.is(solver.coord) 
-then ?>
-	real skewSum = (0.
+then 
+?>
+	<?=scalar?> skewSum = <?=scalar?>_zero;
+
 <? for j=0,solver.dim-1 do ?>
-		+ volR.s<?=j?> * U[stepsize.s<?=j?>].<?=poisson.potentialField?> / (dx<?=j?> * dx<?=j?>)
-		+ volL.s<?=j?> * U[-stepsize.s<?=j?>].<?=poisson.potentialField?> / (dx<?=j?> * dx<?=j?>)
-<? end 
-?>	) / volAtX;
+	skewSum = <?=add3?>(skewSum,
+		<?=real_mul?>(U[stepsize.s<?=j?>].<?=poisson.potentialField?>, volR.s<?=j?> / (dx<?=j?> * dx<?=j?>)),
+		<?=real_mul?>(U[-stepsize.s<?=j?>].<?=poisson.potentialField?>, volL.s<?=j?> / (dx<?=j?> * dx<?=j?>)));
+<? end ?>
+	skewSum = <?=real_mul?>(skewSum, 1. / volAtX);
 
 	const real diag = (0.
 <? for j=0,solver.dim-1 do ?>
@@ -133,18 +150,18 @@ t^i1..ip_j1..jq^;a_;a
 end
 ?>
 
-	real rho = 0;
+	<?=scalar?> rho = <?=zero?>;
 	<?=poisson:getCalcRhoCode() or ''?>
 
-	real oldU = U-><?=poisson.potentialField?>;
+	<?=scalar?> oldU = U-><?=poisson.potentialField?>;
 	
 	//Gauss-Seidel iteration: x_i = (b_i - A_ij x_j) / A_ii
-	real newU = (rho - skewSum) / diag;
+	<?=scalar?> newU = <?=real_mul?>(<?=sub?>(rho, skewSum), 1. / diag);
 
 <?
 if poisson.stopOnEpsilon then
-?>	real dU = newU - oldU;
-	reduceBuf[index] = dU * dU;
+?>	<?=scalar?> dU = <?=sub?>(newU, oldU);
+	reduceBuf[index] = <?=lenSq?>(dU);
 <?
 end
 ?>

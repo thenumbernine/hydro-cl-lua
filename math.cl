@@ -9,6 +9,7 @@ local sym = common.sym
 
 #define real_conj(x)		(x)
 #define real_from_real(x)	(x)
+#define real_to_real(x)		(x)
 #define real_zero			0
 #define real_neg(x)			(-(x))
 #define real_inv(x)			(1./(x))
@@ -17,11 +18,13 @@ local sym = common.sym
 #define real_mul(a,b)		((a) * (b))
 #define real_real_mul(a,b)	((a) * (b))
 #define real_div(a,b)		((a) / (b))
+#define real_lenSq(x)		((x) * (x))
 
 #define real_sqrt			sqrt
 
 #define _cplx(a,b) 			(cplx){.s={a,b}}
 #define cplx_from_real(x)	_cplx(x,0)
+#define cplx_to_real(x)		((x).re)
 #define cplx_zero 			cplx_from_real(0)
 
 

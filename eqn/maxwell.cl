@@ -6,16 +6,16 @@ local xNames = common.xNames
 local sym = common.sym
 ?>
 
-<? local real = eqn.real ?>
-<? local real3 = eqn.real3 ?>
-<? local zero = real..'_zero' ?>	
-<? local add = real..'_add' ?>
-<? local sub = real..'_sub' ?>
-<? local mul = real..'_mul' ?>
-<? local real_mul = real..'_real_mul' ?>
-<? local inv = real..'_inv' ?>
-<? local neg = real..'_neg' ?>
-<? local fromreal = real..'_from_real' ?>
+<? local scalar = eqn.scalar ?>
+<? local vec3 = eqn.vec3 ?>
+<? local zero = scalar..'_zero' ?>	
+<? local add = scalar..'_add' ?>
+<? local sub = scalar..'_sub' ?>
+<? local mul = scalar..'_mul' ?>
+<? local real_mul = scalar..'_real_mul' ?>
+<? local inv = scalar..'_inv' ?>
+<? local neg = scalar..'_neg' ?>
+<? local fromreal = scalar..'_from_real' ?>
 
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
@@ -24,20 +24,20 @@ local sym = common.sym
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	<?=real3?> B = U.B;
-	<?=real3?> D = U.D;
-	<?=real?> _1_mu = U._1_mu;
-	<?=real?> _1_eps = U._1_eps;
+	<?=vec3?> B = U.B;
+	<?=vec3?> D = U.D;
+	<?=scalar?> _1_mu = U._1_mu;
+	<?=scalar?> _1_eps = U._1_eps;
 	return (<?=eqn.cons_t?>){
 <? if side == 0 then 
-?>		.D = _<?=real3?>(<?=zero?>, <?=mul?>(B.z, _1_mu), <?=neg?>(<?=mul?>(B.y, _1_mu))),
-		.B = _<?=real3?>(<?=zero?>, <?=neg?>(<?=mul?>(D.z, _1_eps)), <?=mul?>(D.y, _1_eps)),
+?>		.D = _<?=vec3?>(<?=zero?>, <?=mul?>(B.z, _1_mu), <?=neg?>(<?=mul?>(B.y, _1_mu))),
+		.B = _<?=vec3?>(<?=zero?>, <?=neg?>(<?=mul?>(D.z, _1_eps)), <?=mul?>(D.y, _1_eps)),
 <? elseif side == 1 then 
-?>		.D = _<?=real3?>(<?=neg?>(<?=mul?>(B.z, _1_mu)), <?=zero?>, <?=mul?>(B.x, _1_mu)),
-		.B = _<?=real3?>(<?=mul?>(D.z, _1_eps), <?=zero?>, <?=neg?>(<?=mul?>(D.x, _1_eps))),
+?>		.D = _<?=vec3?>(<?=neg?>(<?=mul?>(B.z, _1_mu)), <?=zero?>, <?=mul?>(B.x, _1_mu)),
+		.B = _<?=vec3?>(<?=mul?>(D.z, _1_eps), <?=zero?>, <?=neg?>(<?=mul?>(D.x, _1_eps))),
 <? elseif side == 2 then 
-?>		.D = _<?=real3?>(<?=mul?>(B.y, _1_mu), <?=neg?>(<?=mul?>(B.x, _1_mu)), <?=zero?>),
-		.B = _<?=real3?>(<?=neg?>(<?=mul?>(D.y, _1_eps)), <?=mul?>(D.x, _1_eps), <?=zero?>),
+?>		.D = _<?=vec3?>(<?=mul?>(B.y, _1_mu), <?=neg?>(<?=mul?>(B.x, _1_mu)), <?=zero?>),
+		.B = _<?=vec3?>(<?=neg?>(<?=mul?>(D.y, _1_eps)), <?=mul?>(D.x, _1_eps), <?=zero?>),
 <? end 
 ?>		.BPot = <?=zero?>,
 		.sigma = <?=zero?>,
@@ -54,8 +54,8 @@ local sym = common.sym
 	real3 n
 ) {
 	return (<?=eqn.eigen_t?>){
-		.sqrt_1_eps = <?=real?>_sqrt(<?=mul?>(<?=add?>(UL._1_eps, UR._1_eps), <?=fromreal?>(.5))),
-		.sqrt_1_mu = <?=real?>_sqrt(<?=mul?>(<?=add?>(UL._1_mu, UR._1_mu), <?=fromreal?>(.5))),
+		.sqrt_1_eps = <?=scalar?>_sqrt(<?=mul?>(<?=add?>(UL._1_eps, UR._1_eps), <?=fromreal?>(.5))),
+		.sqrt_1_mu = <?=scalar?>_sqrt(<?=mul?>(<?=add?>(UL._1_mu, UR._1_mu), <?=fromreal?>(.5))),
 	};
 }
 
@@ -70,11 +70,11 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	real3 x
 ) {
 	<?=eqn.waves_t?> Y;
-	<?=real?> *Yp = (<?=real?>*)Y.ptr;
-	<?=real?> *Xp = (<?=real?>*)X.ptr;
+	<?=scalar?> *Yp = (<?=scalar?>*)Y.ptr;
+	<?=scalar?> *Xp = (<?=scalar?>*)X.ptr;
 
-	const <?=real?> ise = <?=real_mul?>(eig.sqrt_1_eps, sqrt_1_2);
-	const <?=real?> isu = <?=real_mul?>(eig.sqrt_1_mu, sqrt_1_2);
+	const <?=scalar?> ise = <?=real_mul?>(eig.sqrt_1_eps, sqrt_1_2);
+	const <?=scalar?> isu = <?=real_mul?>(eig.sqrt_1_mu, sqrt_1_2);
 
 	<? if side==0 then ?>
 	
@@ -114,11 +114,11 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	real3 x
 ) {
 	<?=eqn.cons_t?> Y;
-	<?=real?> *Yp = (<?=real?>*)Y.ptr;
-	<?=real?> *Xp = (<?=real?>*)X.ptr;
+	<?=scalar?> *Yp = (<?=scalar?>*)Y.ptr;
+	<?=scalar?> *Xp = (<?=scalar?>*)X.ptr;
 
-	const <?=real?> se = <?=real_mul?>(<?=inv?>(eig.sqrt_1_eps), sqrt_1_2);
-	const <?=real?> su = <?=real_mul?>(<?=inv?>(eig.sqrt_1_mu), sqrt_1_2);
+	const <?=scalar?> se = <?=real_mul?>(<?=inv?>(eig.sqrt_1_eps), sqrt_1_2);
+	const <?=scalar?> su = <?=real_mul?>(<?=inv?>(eig.sqrt_1_mu), sqrt_1_2);
 
 	<? if side==0 then ?>
 /*
@@ -187,13 +187,13 @@ x,  y,  z, z,  y,  x
 	real3 x
 ) {
 	<?=eqn.cons_t?> Y;
-	<?=real?> *Yp = (<?=real?>*)Y.ptr;
-	<?=real?> *Xp = (<?=real?>*)X.ptr;
+	<?=scalar?> *Yp = (<?=scalar?>*)Y.ptr;
+	<?=scalar?> *Xp = (<?=scalar?>*)X.ptr;
 
-	<?=real3?> D = X.D;
-	<?=real3?> B = X.B;
-	<?=real?> _1_eps = <?=mul?>(eig.sqrt_1_eps, eig.sqrt_1_eps);
-	<?=real?> _1_mu = <?=mul?>(eig.sqrt_1_mu, eig.sqrt_1_mu);
+	<?=vec3?> D = X.D;
+	<?=vec3?> B = X.B;
+	<?=scalar?> _1_eps = <?=mul?>(eig.sqrt_1_eps, eig.sqrt_1_eps);
+	<?=scalar?> _1_mu = <?=mul?>(eig.sqrt_1_mu, eig.sqrt_1_mu);
 
 	<? if side==0 then ?>
 	
@@ -243,9 +243,9 @@ kernel void addSource(
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	
 	//TODO J = J_f + J_b = J_f + J_P + J_M = J_f + dP/dt + curl M
-	deriv->D = <?=real3?>_sub(
+	deriv->D = <?=vec3?>_sub(
 		deriv->D, 
-		<?=real3?>_scale(
+		<?=vec3?>_scale(
 			U->D, 
 			<?=mul?>(U->_1_eps, U->sigma)
 		)
@@ -256,7 +256,7 @@ kernel void addSource(
 	//D_i,t ... = 1/sqrt(g) g_il epsBar^ljk  (1/mu)_,j B_k - J_i
 	//B_i,t ... = 1/sqrt(g) g_il epsBar^ljk (1/eps)_,j B_k
 
-	<?=real3?> grad_1_mu = <?=real3?>_zero;
+	<?=vec3?> grad_1_mu = <?=vec3?>_zero;
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>
 	grad_1_mu.<?=xj?> = <?=real_mul?>(
@@ -266,7 +266,7 @@ kernel void addSource(
 		), 1. / grid_dx<?=j?>);
 	<? end ?>
 	
-	<?=real3?> grad_1_eps = <?=real3?>_zero;
+	<?=vec3?> grad_1_eps = <?=vec3?>_zero;
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>
 	grad_1_mu.<?=xj?> = <?=real_mul?>(
@@ -280,10 +280,10 @@ kernel void addSource(
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>{
 		<?=eqn.cons_t?> flux = fluxFromCons_<?=j?>(*U, x);
-		flux.D = <?=real3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
-		flux.B = <?=real3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
-		deriv->D.<?=xj?> = <?=sub?>(deriv->D.<?=xj?>, <?=real3?>_dot(flux.D, grad_1_mu));
-		deriv->B.<?=xj?> = <?=sub?>(deriv->B.<?=xj?>, <?=real3?>_dot(flux.B, grad_1_eps));
+		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
+		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
+		deriv->D.<?=xj?> = <?=sub?>(deriv->D.<?=xj?>, <?=vec3?>_dot(flux.D, grad_1_mu));
+		deriv->B.<?=xj?> = <?=sub?>(deriv->B.<?=xj?>, <?=vec3?>_dot(flux.B, grad_1_eps));
 	}<? end ?>
 }
 
@@ -297,8 +297,8 @@ kernel void addSource(
 	real3 x
 ) {
 	<?=eqn.eigen_t?> eig;
-	eig.sqrt_1_eps = <?=real?>_sqrt(U._1_eps);
-	eig.sqrt_1_mu = <?=real?>_sqrt(U._1_mu);
+	eig.sqrt_1_eps = <?=scalar?>_sqrt(U._1_eps);
+	eig.sqrt_1_mu = <?=scalar?>_sqrt(U._1_mu);
 	return eig;
 }
 <? end ?>

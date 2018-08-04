@@ -109,14 +109,14 @@ local function addMaxwellOscillatingBoundary(solver)
 	<?=U?>.B = _real3(0,0,0);
 	<?=U?>.E = _real3(0., (real)sin((real)10. * t), 0.);
 <? else 
-	local real = eqn.real
-	local real3 = eqn.real3
-	local zero = real..'_zero'
-	local mul = real..'_mul'
-	local fromreal = eqn.real..'_from_real'
+	local scalar = eqn.scalar
+	local vec3 = eqn.vec3
+	local zero = scalar..'_zero'
+	local mul = scalar..'_mul'
+	local fromreal = scalar..'_from_real'
 ?>
-	<?=U?>.B = <?=real3?>_zero;
-	<?=U?>.D = _<?=real3?>(
+	<?=U?>.B = <?=vec3?>_zero;
+	<?=U?>.D = _<?=vec3?>(
 		<?=zero?>,
 		<?=mul?>(<?=fromreal?>(sin(10. * t)), <?=U?>._1_eps), 
 		<?=zero?>);
