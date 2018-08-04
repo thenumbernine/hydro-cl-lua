@@ -256,9 +256,9 @@ maxs = {6,1,1},
 	--initState = '2002 Dedner Kelvin-Helmholtz',
 
 	-- Maxwell:
-	--initState = 'Maxwell default',
+	initState = 'Maxwell default',
 	--initState = 'Maxwell scattering around cylinder',
-	initState = 'Maxwell scattering around Koch snowflake',
+	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	
 	-- hmm, I think I need a fluid solver for this, not just a Maxwell solver ...

@@ -7,6 +7,102 @@ local from6to3x3 = common.from6to3x3
 local sym = common.sym
 ?>
 
+#define real_conj(x)		(x)
+#define real_from_real(x)	(x)
+#define real_zero			0
+#define real_neg(x)			(-(x))
+#define real_inv(x)			(1./(x))
+#define real_add(a,b)		((a) + (b))
+#define real_sub(a,b)		((a) - (b))
+#define real_mul(a,b)		((a) * (b))
+#define real_real_mul(a,b)	((a) * (b))
+#define real_div(a,b)		((a) / (b))
+
+#define real_sqrt			sqrt
+
+#define _cplx(a,b) 			(cplx){.s={a,b}}
+#define cplx_from_real(x)	_cplx(x,0)
+#define cplx_zero 			cplx_from_real(0)
+
+
+#define _sym3(a,b,c,d,e,f) (sym3){.s={a,b,c,d,e,f}}
+
+static inline cplx cplx_conj(cplx a) {
+	return _cplx(a.re, -a.im);
+}
+
+static inline cplx cplx_neg(cplx a) { 
+	return _cplx(-a.re, -a.im); 
+}
+
+static inline real cplx_lenSq(cplx a) {
+	return a.re * a.re + a.im * a.im;
+}
+
+static inline real cplx_len(cplx a) {
+	return sqrt(cplx_lenSq(a));
+}
+
+static inline real cplx_arg(cplx a) {
+	return atan2(a.im, a.re);
+}
+
+static inline cplx cplx_add(cplx a, cplx b) {
+	return _cplx(
+		a.re + b.re,
+		a.im + b.im
+	);
+}
+
+static inline cplx cplx_sub(cplx a, cplx b) {
+	return _cplx(
+		a.re - b.re,
+		a.im - b.im
+	);
+}
+
+static inline cplx cplx_mul(cplx a, cplx b) {
+	return _cplx(
+		a.re * b.re - a.im * b.im,
+		a.re * b.im + a.im * b.re);
+}
+
+static inline cplx cplx_real_mul(cplx a, real b) {
+	return _cplx(a.re * b, a.im * b);
+}
+
+static inline cplx cplx_inv(cplx a) {
+	return cplx_real_mul(cplx_conj(a), 1. / cplx_lenSq(a));
+}
+
+static inline cplx cplx_div(cplx a, cplx b) {
+	return cplx_mul(a, cplx_inv(b));
+}
+
+static inline cplx cplx_exp(cplx a) {
+	real expre = exp(a.re);
+	return _cplx(
+		expre * cos(a.im),
+		expre * sin(a.im)
+	);
+}
+
+static inline cplx cplx_log(cplx a) {
+	return _cplx(
+		log(cplx_len(a)),
+		cplx_arg(a)
+	);
+}
+
+static inline cplx cplx_pow(cplx a, cplx b) {
+	return cplx_exp(cplx_mul(b, cplx_log(a)));
+}
+
+static inline cplx cplx_sqrt(cplx a) {
+	return cplx_pow(a, cplx_from_real(.5));
+}
+
+
 //assumes q is unit
 //returns the conjugate
 real4 quatUnitConj(real4 q) {
@@ -30,12 +126,64 @@ real4 quatMul(real4 q, real4 r) {
 		 b + .5 * (-e - f + g + h)); //w
 }
 
-#define _real3(a,b,c) (real3){.s={a,b,c}}
-#define _sym3(a,b,c,d,e,f) (sym3){.s={a,b,c,d,e,f}}
 
-static inline real real3_dot(real3 a, real3 b) {
-	return a.x * b.x + a.y * b.y + a.z * b.z;
+<?
+function makereal3funcs(vec,real)
+	local add = real..'_add'
+	local sub = real..'_sub'
+	local mul = real..'_mul'
+	local real_mul = real..'_real_mul'
+	local conj = real..'_conj'
+	local add3 = real..'_add3'
+?>
+
+#define <?=real?>_add3(a,b,c)	(<?=add?>(<?=add?>(a,b),c))
+#define _<?=vec?>(a,b,c) 		(<?=vec?>){.s={a,b,c}}
+#define <?=vec?>_zero			_<?=vec?>(<?=real?>_zero,<?=real?>_zero,<?=real?>_zero)
+
+static inline <?=real?> <?=vec?>_dot(<?=vec?> a, <?=vec?> b) {
+	return <?=add3?>(
+		<?=mul?>(a.x, <?=conj?>(b.x)), 
+		<?=mul?>(a.y, <?=conj?>(b.y)),
+		<?=mul?>(a.z, <?=conj?>(b.z))
+	);
 }
+
+static inline <?=vec?> <?=vec?>_scale(<?=vec?> a, <?=real?> s) {
+	return _<?=vec?>(
+		<?=mul?>(a.x, s),
+		<?=mul?>(a.y, s),
+		<?=mul?>(a.z, s));
+}
+
+static inline <?=vec?> <?=vec?>_add(<?=vec?> a, <?=vec?> b) {
+	return _<?=vec?>(
+		<?=add?>(a.x, b.x), 
+		<?=add?>(a.y, b.y), 
+		<?=add?>(a.z, b.z));
+}
+
+static inline <?=vec?> <?=vec?>_sub(<?=vec?> a, <?=vec?> b) {
+	return _<?=vec?>(
+		<?=sub?>(a.x, b.x),
+		<?=sub?>(a.y, b.y),
+		<?=sub?>(a.z, b.z));
+}
+
+//I'm using '_scale' for multipying a vector by its base type per-element
+//I'm using '_real_mul' for multiplying a vector by a real
+static inline <?=vec?> <?=vec?>_real_mul(<?=vec?> a, real b) {
+	return _<?=vec?>(
+		<?=real_mul?>(a.x, b),
+		<?=real_mul?>(a.y, b),
+		<?=real_mul?>(a.z, b));
+}
+
+<?
+end
+makereal3funcs('real3', 'real')
+makereal3funcs('cplx3', 'cplx')
+?>
 
 static inline real3 real3_cross(real3 a, real3 b) {
 	return _real3(
@@ -50,18 +198,6 @@ static inline real real3_lenSq(real3 a) {
 
 static inline real real3_len(real3 a) {
 	return sqrt(real3_lenSq(a));
-}
-
-static inline real3 real3_scale(real3 a, real s) {
-	return _real3(a.x * s, a.y * s, a.z * s);
-}
-
-static inline real3 real3_add(real3 a, real3 b) {
-	return _real3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
-
-static inline real3 real3_sub(real3 a, real3 b) {
-	return _real3(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 
 static inline sym3 real3_outer(real3 a, real3 b) {
@@ -150,6 +286,17 @@ real3 real3_rotateTo(real3 v, real3 n) {
 	return _real3(vres.x, vres.y, vres.z);
 #endif
 }
+
+cplx3 cplx3_from_real3(real3 re, real3 im) {
+	return (cplx3){
+		.x = {.re = re.x, .im = im.x},
+		.y = {.re = re.y, .im = im.y},
+		.z = {.re = re.z, .im = im.z},
+	};
+}
+
+real3 cplx3_re(cplx3 v) { return _real3(v.x.re, v.y.re, v.z.re); }
+real3 cplx3_im(cplx3 v) { return _real3(v.x.im, v.y.im, v.z.im); }
 
 static inline sym3 sym3_ident() {
 	return _sym3(1,0,0,1,0,1);

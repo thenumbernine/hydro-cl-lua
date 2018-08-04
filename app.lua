@@ -208,8 +208,16 @@ function HydroCLApp:initGL(...)
 
 	ffi.cdef('typedef '..self.real..' real;')
 
-	ffi.cdef(file['math.h'])
-	
+	do
+		local code = template(file['math.h'])
+		xpcall(function()
+			ffi.cdef(code)
+		end, function(err)
+			print(require 'template.showcode'(code))
+			error(err)
+		end)
+	end
+
 	self.solvers = table()
 
 	self:setup{platformName=platformName, deviceName=deviceName}

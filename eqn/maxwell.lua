@@ -32,13 +32,13 @@ D_i,t - 1/sqrt(g) g_il epsBar^ljk  (1/mu)_k^l B_l,j = 1/sqrt(g) g_il epsBar^ljk 
 B_i,t + 1/sqrt(g) g_il epsBar^ljk (1/eps)_k^l D_l,j = 1/sqrt(g) g_il epsBar^ljk (1/eps)_k^l_,j B_l
 
 --]]
+local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local range = require 'ext.range'
 local Equation = require 'eqn.eqn'
 local template = require 'template'
-
 local common = require 'common'()
 local xNames = common.xNames
 
@@ -47,36 +47,48 @@ local Maxwell = class(Equation)
 -- don't incorporate the Conn^k_ij E_k terms into the flux
 Maxwell.weightFluxByGridVolume = false
 
-Maxwell.postComputeFluxCode = [[
-		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
-		//flux is computed raised via Levi-Civita upper
-		//so here we lower it
-		real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
-		flux.D = real3_scale(coord_lower(flux.D, x), _1_sqrt_det_g);
-		flux.B = real3_scale(coord_lower(flux.B, x), _1_sqrt_det_g);
-]]
-
 Maxwell.name = 'Maxwell'
-Maxwell.numWaves = 6
 Maxwell.numIntStates = 6
 
-Maxwell.consVars = {
-	{D = 'real3'},
-	{B = 'real3'},
+-- I'm working on making complex numbers exchangeable
+Maxwell.real = 'real'
+--Maxwell.real = 'cplx'
+
+-- I should really call Maxwell.real something else ...
+-- 1 for 'real', 2 for 'cplx'
+Maxwell.numRealsInReal = ffi.sizeof(Maxwell.real) / ffi.sizeof'real'
+
+Maxwell.numWaves = 6 * Maxwell.numRealsInReal
+
+Maxwell.real3 = Maxwell.real..'3'
+
+Maxwell.consVars = table{
+	{D = Maxwell.real3},
+	{B = Maxwell.real3},
 	
-	{DPot = 'real'},
-	{BPot = 'real'},
+	{DPot = Maxwell.real},
+	{BPot = Maxwell.real},
 	
-	{rhoCharge = 'real'},
-	{sigma = 'real'},
-	
-	-- TODO make these complex
-	-- but that means making E and B complex 
-	-- and that means complex math, and *drumroll* complex code generation of the coordLenSq functions
-	-- and this would be easier if OpenCL supported the 'complex' keyword
-	{_1_eps = 'real'},
-	{_1_mu = 'real'},
+	{rhoCharge = Maxwell.real},
+	{sigma = Maxwell.real},
 }
+	
+--[[
+TODO make these complex
+but that means making E and B complex 
+and that means complex math, and *drumroll* complex code generation of the coordLenSq functions
+and this would be easier if OpenCL supported the 'complex' keyword
+
+another todo - max this a tensor
+some common susceptibility tensors are symmetric?  I thought I caught somewhere that they are often projection matrices...
+--]]
+Maxwell.susceptibilityType = 'real'
+if Maxwell.susceptibilityType == 'real' then
+	Maxwell.consVars:append{
+		{_1_eps = Maxwell.real},
+		{_1_mu = Maxwell.real},
+	}
+end
 
 Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
 
@@ -87,26 +99,80 @@ Maxwell.roeUseFluxFromCons = true
 
 Maxwell.initStates = require 'init.euler'
 
+Maxwell.postComputeFluxCode = template([[
+<? local real3 = eqn.real3 ?>
+		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
+		//flux is computed raised via Levi-Civita upper
+		//so here we lower it
+		real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
+		flux.D = <?=real3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
+		flux.B = <?=real3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
+]], {eqn=Maxwell})
+
 function Maxwell:init(args)
 	Maxwell.super.init(self, args)
 
-	local NoDiv = require 'op.nodiv'
-	self.solver.ops:insert(NoDiv{
-		solver = self.solver,
-	})
-	-- should I be fixing div E = rhoCharge, 
-	-- or should I get rid of the rhoCharge field and the div E constraint?
-	self.solver.ops:insert(NoDiv{
-		solver = self.solver,
-		potentialField = 'DPot',
-		chargeField = 'rhoCharge',
-	})
+	if self.real == 'cplx' then
+		io.stderr:write'divergence-free solvers not working with cplx scalars\n'
+	else
+		local NoDiv = require 'op.nodiv'
+		self.solver.ops:insert(NoDiv{
+			solver = self.solver,
+		})
+		-- should I be fixing div E = rhoCharge, 
+		-- or should I get rid of the rhoCharge field and the div E constraint?
+		self.solver.ops:insert(NoDiv{
+			solver = self.solver,
+			potentialField = 'DPot',
+			chargeField = 'rhoCharge',
+		})
+	end
 end
 
 function Maxwell:getCommonFuncCode()
 	return template([[
 //hmm, for E and B, even if the coord is 2D, we need all 3D components ...
 //this means we need coordLen functions with guaranteed dimensions, including tangent spaces
+
+<? if eqn.real == 'real' then ?>
+
+real eqn_coordLenSq(real3 v, real3 x) {
+	return coordLenSq(v, x);
+}
+
+#define eqn_cartesianToCoord cartesianToCoord
+#define eqn_coord_lower coord_lower
+
+#define eqn_real(x) 	(x)
+
+<? elseif eqn.real == 'cplx' then ?>
+
+real eqn_coordLenSq(cplx3 v, real3 x) {
+	return coordLenSq(cplx3_re(v), x)
+		+ coordLenSq(cplx3_im(v), x);
+}
+
+cplx3 eqn_cartesianToCoord(real3 v, real3 x) {
+	return cplx3_from_real3(
+		cartesianToCoord(v, x),
+		cartesianToCoord(_real3(0,0,0), x));
+}
+
+cplx3 eqn_coord_lower(cplx3 v, real3 x) {
+	return cplx3_from_real3(
+		coord_lower(cplx3_re(v), x),
+		coord_lower(cplx3_im(v), x));
+}
+
+cplx eqn_real(real x) {
+	return _cplx(x, 0);
+}
+
+<? end -- eqn.real ?>
+
+<?=eqn.real3?> calc_E(<?=eqn.cons_t?> U) {
+	return <?=eqn.real3?>_scale(U.D, U._1_eps);
+}
 
 /*
 |E| = E_i *E^i = (re E^i + i im E^i)  (re E^j - i im E^j) gamma_ij
@@ -115,12 +181,13 @@ function Maxwell:getCommonFuncCode()
 re |E| = coordLenSq(re_E, re_E) + coordLenSq(im_E, im_E)
 im |E| = 0
 */
-real ESq(<?=eqn.cons_t?> U, real3 x) { 
-	return coordLenSq(U.D, x) * U._1_eps * U._1_eps;
+real ESq(<?=eqn.cons_t?> U, real3 x) {
+	<?=eqn.real3?> E = calc_E(U);
+	return eqn_coordLenSq(E, x);
 }
 
 real BSq(<?=eqn.cons_t?> U, real3 x) {
-	return coordLenSq(U.B, x);
+	return eqn_coordLenSq(U.B, x);
 }
 
 ]], {
@@ -161,12 +228,12 @@ kernel void initState(
 	
 	<?=code?>
 	
-	U->D = cartesianToCoord(real3_scale(E, permittivity), x);
-	U->B = cartesianToCoord(B, x);
-	U->BPot = 0;
-	U->sigma = conductivity;
-	U->_1_eps = 1. / permittivity;
-	U->_1_mu = 1. / permeability;
+	U->D = eqn_cartesianToCoord(real3_scale(E, permittivity), x);
+	U->B = eqn_cartesianToCoord(B, x);
+	U->BPot = eqn_real(0);
+	U->sigma = eqn_real(conductivity);
+	U->_1_eps = eqn_real(1. / permittivity);
+	U->_1_mu = eqn_real(1. / permeability);
 }
 ]]
 
@@ -222,15 +289,17 @@ dEy/dx = cos(x-t)
 so curl(E).z = -cos(x-t)
 --]]
 function Maxwell:getDisplayVars()
-	local vars = Maxwell.super.getDisplayVars(self):append{ 
-		{E = '*valuevec = real3_scale(U->D, U->_1_eps);', type='real3'},
-		{S = '*valuevec = real3_scale(real3_cross(U->D, U->B), U->_1_eps);', type='real3'},
-		{energy = [[
+	if self.real == 'real' then
+		local vars = Maxwell.super.getDisplayVars(self)
+		vars:append{ 
+			{E = '*valuevec = real3_scale(U->D, U->_1_eps);', type='real3'},
+			{S = '*valuevec = real3_scale(real3_cross(U->D, U->B), U->_1_eps);', type='real3'},
+			{energy = [[
 	*value = .5 * (coordLenSq(U->D, x) + coordLenSq(U->B, x) * U->_1_mu * U->_1_mu);
 ]]},
-	}:append(table{'E','B'}:map(function(var,i)
-		local field = assert( ({E='D', B='B'})[var] )
-		return {['div '..var] = template([[
+		}:append(table{'E','B'}:map(function(var,i)
+			local field = assert( ({E='D', B='B'})[var] )
+			return {['div '..var] = template([[
 	*value = .5 * (0.
 <?
 for j=0,solver.dim-1 do
@@ -245,51 +314,79 @@ if field == 'D' then
 end
 ?>;
 ]], {solver=self.solver, field=field})}
-	end))
+		end))
 
-	for _,field in ipairs{'D', 'B'} do
-		local v = range(0,2):map(function(i) 
-			return curl(self,i,'valuevec->s'..i,field) 
-		end)
-		vars:insert{['curl '..field]= template([[
-	<? for i=0,2 do ?>{
-		<?=select(2,next(v[i+1]))?>
-	}<? end ?>
-]], {v=v}), type='real3'}
+		for _,field in ipairs{'D', 'B'} do
+			local v = range(0,2):map(function(i) 
+				return curl(self,i,'valuevec->s'..i,field) 
+			end)
+			vars:insert{['curl '..field]= template([[
+		<? for i=0,2 do ?>{
+			<?=select(2,next(v[i+1]))?>
+		}<? end ?>
+	]], {v=v}), type='real3'}
+		end
+
+		return vars 
+	elseif self.real == 'cplx' then
+		local vars = {
+			{['D re'] = '*valuevec = cplx3_re(U->D);'},
+			{['D im'] = '*valuevec = cplx3_im(U->D);'},
+			{['B re'] = '*valuevec = cplx3_re(U->B);'},
+			{['B im'] = '*valuevec = cplx3_im(U->B);'},
+		}
+		return vars
 	end
-
-	return vars 
 end
 
 Maxwell.eigenVars = table{
-	{sqrt_1_eps = 'real'},
-	{sqrt_1_mu = 'real'},
+	{sqrt_1_eps = Maxwell.real},
+	{sqrt_1_mu = Maxwell.real},
 }
 
 function Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	return template([[
-	real eig_lambda = <?=eig?>.sqrt_1_eps * <?=eig?>.sqrt_1_mu;
+	<?=eqn.real?> eig_lambda = <?=eqn.real?>_mul(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu);
 ]], {
+		eqn = self,
 		eig = '('..eig..')',
 	})
 end
 
 function Maxwell:eigenWaveCode(side, eig, x, waveIndex)
-	if waveIndex == 0 or waveIndex == 1 then
-		return '-eig_lambda'
-	elseif waveIndex == 2 or waveIndex == 3 then
-		return '0'
-	elseif waveIndex == 4 or waveIndex == 5 then
-		return 'eig_lambda'
-	else
-		error'got a bad waveIndex'
+	if self.real == 'real' then
+		if waveIndex == 0 or waveIndex == 1 then
+			return '-eig_lambda'
+		elseif waveIndex == 2 or waveIndex == 3 then
+			return '0'
+		elseif waveIndex == 4 or waveIndex == 5 then
+			return 'eig_lambda'
+		else
+			error'got a bad waveIndex'
+		end
+	elseif self.real == 'cplx' then
+		if waveIndex == 0 or waveIndex == 2 then
+			return '-eig_lambda.re'
+		elseif waveIndex == 1 or waveIndex == 3 then
+			return '-eig_lambda.im'
+		elseif waveIndex >= 4 or waveIndex <= 7 then
+			return '0'
+		elseif waveIndex == 8 or waveIndex == 10 then
+			return 'eig_lambda.re'
+		elseif waveIndex == 9 or waveIndex == 11 then
+			return 'eig_lambda.im'
+		else
+			error'got a bad waveIndex'
+		end
 	end
 end
 
 function Maxwell:consWaveCodePrefix(side, U, x, waveIndex)
 	return template([[
-	real eig_lambda = sqrt(<?=U?>._1_eps * <?=U?>._1_mu);
+<? local real = eqn.real ?>
+	<?=real?> eig_lambda = <?=real?>_sqrt(<?=real?>_mul(<?=U?>._1_eps, <?=U?>._1_mu));
 ]], {
+		eqn = self,
 		U = '('..U..')',
 	})
 end

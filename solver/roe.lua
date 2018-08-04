@@ -164,9 +164,6 @@ function Roe:addDisplayVars()
 		<?=eqn:eigenWaveCodePrefix(side, '*eig', 'xInt')?>
 
 		for (int k = 0; k < numIntStates; ++k) {
-			
-//TODO find out which left/right/fluxTransform functions are writing more than they should
-//I see errors in mhd and in adm3d
 			//this only needs to be numIntStates in size
 			//but just in case the left/right transforms are reaching past that memory boundary ...
 			<?=eqn.cons_t?> basis;

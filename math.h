@@ -1,8 +1,29 @@
+<? 
+local function makecplx(name, real) 
+?>
 typedef union {
-	real s[3];
-	struct { real s0, s1, s2; };
-	struct { real x, y, z; };
-} real3;
+	<?=real?> s[2];
+	struct { <?=real?> s0, s1; };
+	struct { <?=real?> re, im; };
+} <?=name?>;
+<? 
+end 
+makecplx('cplx', 'real')
+?> 
+
+<? 
+local function makereal3(name, real) 
+?>
+typedef union {
+	<?=real?> s[3];
+	struct { <?=real?> s0, s1, s2; };
+	struct { <?=real?> x, y, z; };
+} <?=name?>;
+<? 
+end 
+makereal3('real3', 'real')
+makereal3('cplx3', 'cplx')
+?> 
 
 typedef union {
 	real s[6];
@@ -35,3 +56,6 @@ typedef union {
 		real3 x,y,z;
 	};
 } mat3;
+
+
+

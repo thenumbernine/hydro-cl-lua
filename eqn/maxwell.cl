@@ -5,6 +5,18 @@ local common = require 'common'()
 local xNames = common.xNames
 local sym = common.sym
 ?>
+
+<? local real = eqn.real ?>
+<? local real3 = eqn.real3 ?>
+<? local zero = real..'_zero' ?>	
+<? local add = real..'_add' ?>
+<? local sub = real..'_sub' ?>
+<? local mul = real..'_mul' ?>
+<? local real_mul = real..'_real_mul' ?>
+<? local inv = real..'_inv' ?>
+<? local neg = real..'_neg' ?>
+<? local fromreal = real..'_from_real' ?>
+
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
 <? for side=0,solver.dim-1 do ?>
@@ -12,25 +24,25 @@ local sym = common.sym
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	real3 B = U.B;
-	real3 D = U.D;
-	real _1_mu = U._1_mu;
-	real _1_eps = U._1_eps;
+	<?=real3?> B = U.B;
+	<?=real3?> D = U.D;
+	<?=real?> _1_mu = U._1_mu;
+	<?=real?> _1_eps = U._1_eps;
 	return (<?=eqn.cons_t?>){
-	<? if side == 0 then ?>
-		.D = _real3(0., B.z * _1_mu, -B.y * _1_mu),
-		.B = _real3(0., -D.z * _1_eps, D.y * _1_eps),
-	<? elseif side == 1 then ?>
-		.D = _real3(-B.z * _1_mu, 0., B.x * _1_mu),
-		.B = _real3(D.z * _1_eps, 0., -D.x * _1_eps),
-	<? elseif side == 2 then ?>
-		.D = _real3(B.y * _1_mu, -B.x * _1_mu, 0.),
-		.B = _real3(-D.y * _1_eps, D.x * _1_eps, 0.),
-	<? end ?>
-		.BPot = 0.,
-		.sigma = 0.,
-		._1_eps = 0.,
-		._1_mu = 0.,
+<? if side == 0 then 
+?>		.D = _<?=real3?>(<?=zero?>, <?=mul?>(B.z, _1_mu), <?=neg?>(<?=mul?>(B.y, _1_mu))),
+		.B = _<?=real3?>(<?=zero?>, <?=neg?>(<?=mul?>(D.z, _1_eps)), <?=mul?>(D.y, _1_eps)),
+<? elseif side == 1 then 
+?>		.D = _<?=real3?>(<?=neg?>(<?=mul?>(B.z, _1_mu)), <?=zero?>, <?=mul?>(B.x, _1_mu)),
+		.B = _<?=real3?>(<?=mul?>(D.z, _1_eps), <?=zero?>, <?=neg?>(<?=mul?>(D.x, _1_eps))),
+<? elseif side == 2 then 
+?>		.D = _<?=real3?>(<?=mul?>(B.y, _1_mu), <?=neg?>(<?=mul?>(B.x, _1_mu)), <?=zero?>),
+		.B = _<?=real3?>(<?=neg?>(<?=mul?>(D.y, _1_eps)), <?=mul?>(D.x, _1_eps), <?=zero?>),
+<? end 
+?>		.BPot = <?=zero?>,
+		.sigma = <?=zero?>,
+		._1_eps = <?=zero?>,
+		._1_mu = <?=zero?>,
 	};
 }
 <? end ?>
@@ -42,8 +54,8 @@ local sym = common.sym
 	real3 n
 ) {
 	return (<?=eqn.eigen_t?>){
-		.sqrt_1_eps = sqrt(.5 * (UL._1_eps + UR._1_eps)),
-		.sqrt_1_mu = sqrt(.5 * (UL._1_mu + UR._1_mu)),
+		.sqrt_1_eps = <?=real?>_sqrt(<?=mul?>(<?=add?>(UL._1_eps, UR._1_eps), <?=fromreal?>(.5))),
+		.sqrt_1_mu = <?=real?>_sqrt(<?=mul?>(<?=add?>(UL._1_mu, UR._1_mu), <?=fromreal?>(.5))),
 	};
 }
 
@@ -58,36 +70,38 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	real3 x
 ) {
 	<?=eqn.waves_t?> Y;
+	<?=real?> *Yp = (<?=real?>*)Y.ptr;
+	<?=real?> *Xp = (<?=real?>*)X.ptr;
 
-	const real ise = sqrt_1_2 * eig.sqrt_1_eps;
-	const real isu = sqrt_1_2 * eig.sqrt_1_mu;
+	const <?=real?> ise = <?=real_mul?>(eig.sqrt_1_eps, sqrt_1_2);
+	const <?=real?> isu = <?=real_mul?>(eig.sqrt_1_mu, sqrt_1_2);
 
 	<? if side==0 then ?>
 	
-	Y.ptr[0] = X.ptr[2] *  ise + X.ptr[4] * isu;
-	Y.ptr[1] = X.ptr[1] * -ise + X.ptr[5] * isu;
-	Y.ptr[2] = X.ptr[0] * -ise + X.ptr[3] * isu;
-	Y.ptr[3] = X.ptr[0] *  ise + X.ptr[3] * isu;
-	Y.ptr[4] = X.ptr[1] *  ise + X.ptr[5] * isu;
-	Y.ptr[5] = X.ptr[2] * -ise + X.ptr[4] * isu;
+	Yp[0] = <?=add?>(<?=mul?>(isu, Xp[4]), <?=mul?>(ise, Xp[2]));
+	Yp[1] = <?=sub?>(<?=mul?>(isu, Xp[5]), <?=mul?>(ise, Xp[1]));
+	Yp[2] = <?=sub?>(<?=mul?>(isu, Xp[3]), <?=mul?>(ise, Xp[0]));
+	Yp[3] = <?=add?>(<?=mul?>(isu, Xp[3]), <?=mul?>(ise, Xp[0]));
+	Yp[4] = <?=add?>(<?=mul?>(isu, Xp[5]), <?=mul?>(ise, Xp[1]));
+	Yp[5] = <?=sub?>(<?=mul?>(isu, Xp[4]), <?=mul?>(ise, Xp[2]));
 	
 	<? elseif side==1 then ?>
 	
-	Y.ptr[0] = X.ptr[0] *  ise + X.ptr[5] * isu;
-	Y.ptr[1] = X.ptr[2] * -ise + X.ptr[3] * isu;
-	Y.ptr[2] = X.ptr[1] * -ise + X.ptr[4] * isu;
-	Y.ptr[3] = X.ptr[1] *  ise + X.ptr[4] * isu;
-	Y.ptr[4] = X.ptr[2] *  ise + X.ptr[3] * isu;
-	Y.ptr[5] = X.ptr[0] * -ise + X.ptr[5] * isu;
+	Yp[0] = <?=add?>(<?=mul?>(isu, Xp[5]), <?=mul?>(ise, Xp[0]));
+	Yp[1] = <?=sub?>(<?=mul?>(isu, Xp[3]), <?=mul?>(ise, Xp[2]));
+	Yp[2] = <?=sub?>(<?=mul?>(isu, Xp[4]), <?=mul?>(ise, Xp[1]));
+	Yp[3] = <?=add?>(<?=mul?>(isu, Xp[4]), <?=mul?>(ise, Xp[1]));
+	Yp[4] = <?=add?>(<?=mul?>(isu, Xp[3]), <?=mul?>(ise, Xp[2]));
+	Yp[5] = <?=sub?>(<?=mul?>(isu, Xp[5]), <?=mul?>(ise, Xp[0]));
 	
 	<? elseif side==2 then ?>
 	
-	Y.ptr[0] = X.ptr[1] *  ise + X.ptr[3] * isu;
-	Y.ptr[1] = X.ptr[0] * -ise + X.ptr[4] * isu;
-	Y.ptr[2] = X.ptr[2] * -ise + X.ptr[5] * isu;
-	Y.ptr[3] = X.ptr[2] *  ise + X.ptr[5] * isu;
-	Y.ptr[4] = X.ptr[0] *  ise + X.ptr[4] * isu;
-	Y.ptr[5] = X.ptr[1] * -ise + X.ptr[3] * isu;
+	Yp[0] = <?=add?>(<?=mul?>(isu, Xp[3]), <?=mul?>(ise, Xp[1]));
+	Yp[1] = <?=sub?>(<?=mul?>(isu, Xp[4]), <?=mul?>(ise, Xp[0]));
+	Yp[2] = <?=sub?>(<?=mul?>(isu, Xp[5]), <?=mul?>(ise, Xp[2]));
+	Yp[3] = <?=add?>(<?=mul?>(isu, Xp[5]), <?=mul?>(ise, Xp[2]));
+	Yp[4] = <?=add?>(<?=mul?>(isu, Xp[4]), <?=mul?>(ise, Xp[0]));
+	Yp[5] = <?=sub?>(<?=mul?>(isu, Xp[3]), <?=mul?>(ise, Xp[1]));
 	
 	<? end ?>
 
@@ -100,21 +114,23 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	real3 x
 ) {
 	<?=eqn.cons_t?> Y;
-	
-	const real se = sqrt_1_2 / eig.sqrt_1_eps;
-	const real su = sqrt_1_2 / eig.sqrt_1_mu;
+	<?=real?> *Yp = (<?=real?>*)Y.ptr;
+	<?=real?> *Xp = (<?=real?>*)X.ptr;
+
+	const <?=real?> se = <?=real_mul?>(<?=inv?>(eig.sqrt_1_eps), sqrt_1_2);
+	const <?=real?> su = <?=real_mul?>(<?=inv?>(eig.sqrt_1_mu), sqrt_1_2);
 
 	<? if side==0 then ?>
 /*
 z, -y, -x, x, y, -z
 y,  z,  x, x, z, y
 */
-	Y.ptr[0] = se * (-X.ptr[2] + X.ptr[3]);
-	Y.ptr[1] = se * (-X.ptr[1] + X.ptr[4]);
-	Y.ptr[2] = se * (X.ptr[0] + -X.ptr[5]);
-	Y.ptr[3] = su * (X.ptr[2] + X.ptr[3]);
-	Y.ptr[4] = su * (X.ptr[0] + X.ptr[5]);
-	Y.ptr[5] = su * (X.ptr[1] + X.ptr[4]);
+	Yp[0] = <?=mul?>(se, <?=sub?>(Xp[3], Xp[2]));
+	Yp[1] = <?=mul?>(se, <?=sub?>(Xp[4], Xp[1]));
+	Yp[2] = <?=mul?>(se, <?=sub?>(Xp[0], Xp[5]));
+	Yp[3] = <?=mul?>(su, <?=add?>(Xp[2], Xp[3]));
+	Yp[4] = <?=mul?>(su, <?=add?>(Xp[0], Xp[5]));
+	Yp[5] = <?=mul?>(su, <?=add?>(Xp[1], Xp[4]));
 	
 	<? elseif side==1 then ?>
 
@@ -129,12 +145,12 @@ z,  x,  y, y, x,  z
 0  0  1 1 0  0
 1  0  0 0 0  1
 */
-	Y.ptr[0] = se * (X.ptr[0] - X.ptr[5]);
-	Y.ptr[1] = se * (-X.ptr[2] + X.ptr[3]);
-	Y.ptr[2] = se * (-X.ptr[1] + X.ptr[4]);
-	Y.ptr[3] = su * (X.ptr[1] + X.ptr[4]);
-	Y.ptr[4] = su * (X.ptr[2] + X.ptr[3]);
-	Y.ptr[5] = su * (X.ptr[0] + X.ptr[5]);
+	Yp[0] = <?=mul?>(se, <?=sub?>(Xp[0], Xp[5]));
+	Yp[1] = <?=mul?>(se, <?=sub?>(Xp[3], Xp[2]));
+	Yp[2] = <?=mul?>(se, <?=sub?>(Xp[4], Xp[1]));
+	Yp[3] = <?=mul?>(su, <?=add?>(Xp[1], Xp[4]));
+	Yp[4] = <?=mul?>(su, <?=add?>(Xp[2], Xp[3]));
+	Yp[5] = <?=mul?>(su, <?=add?>(Xp[0], Xp[5]));
 	
 	<? elseif side==2 then ?>
 
@@ -149,12 +165,12 @@ x,  y,  z, z,  y,  x
 0  1  0 0 1  0
 0  0  1 1 0  0
 */
-	Y.ptr[0] = se * (-X.ptr[1] + X.ptr[4]);
-	Y.ptr[1] = se * (X.ptr[0] - X.ptr[5]);
-	Y.ptr[2] = se * (-X.ptr[2] + X.ptr[3]);
-	Y.ptr[3] = su * (X.ptr[0] + X.ptr[5]);
-	Y.ptr[4] = su * (X.ptr[1] + X.ptr[4]);
-	Y.ptr[5] = su * (X.ptr[2] + X.ptr[3]);
+	Yp[0] = <?=mul?>(se, <?=sub?>(Xp[4], Xp[1]));
+	Yp[1] = <?=mul?>(se, <?=sub?>(Xp[0], Xp[5]));
+	Yp[2] = <?=mul?>(se, <?=sub?>(Xp[3], Xp[2]));
+	Yp[3] = <?=mul?>(su, <?=add?>(Xp[0], Xp[5]));
+	Yp[4] = <?=mul?>(su, <?=add?>(Xp[1], Xp[4]));
+	Yp[5] = <?=mul?>(su, <?=add?>(Xp[2], Xp[3]));
 	
 	<? end ?>
 	
@@ -171,38 +187,40 @@ x,  y,  z, z,  y,  x
 	real3 x
 ) {
 	<?=eqn.cons_t?> Y;
+	<?=real?> *Yp = (<?=real?>*)Y.ptr;
+	<?=real?> *Xp = (<?=real?>*)X.ptr;
 
-	real3 D = X.D;
-	real3 B = X.B;
-	real _1_eps = eig.sqrt_1_eps * eig.sqrt_1_eps;
-	real _1_mu = eig.sqrt_1_mu * eig.sqrt_1_mu;
+	<?=real3?> D = X.D;
+	<?=real3?> B = X.B;
+	<?=real?> _1_eps = <?=mul?>(eig.sqrt_1_eps, eig.sqrt_1_eps);
+	<?=real?> _1_mu = <?=mul?>(eig.sqrt_1_mu, eig.sqrt_1_mu);
 
 	<? if side==0 then ?>
 	
-	Y.ptr[0] = 0;
-	Y.ptr[1] = B.z * _1_mu;
-	Y.ptr[2] = -B.y * _1_mu;
-	Y.ptr[3] = 0;
-	Y.ptr[4] = -D.z * _1_eps;
-	Y.ptr[5] = D.y * _1_eps;
+	Yp[0] = <?=zero?>;
+	Yp[1] = <?=mul?>(B.z, _1_mu);
+	Yp[2] = <?=neg?>(<?=mul?>(B.y, _1_mu));
+	Yp[3] = <?=zero?>;
+	Yp[4] = <?=neg?>(<?=mul?>(D.z, _1_eps));
+	Yp[5] = <?=mul?>(D.y, _1_eps);
 
 	<? elseif side==1 then ?>
 		
-	Y.ptr[0] = -B.z * _1_mu;
-	Y.ptr[1] = 0;
-	Y.ptr[2] = B.x * _1_mu;
-	Y.ptr[3] = D.z * _1_eps;
-	Y.ptr[4] = 0;
-	Y.ptr[5] = -D.x * _1_eps;
+	Yp[0] = <?=neg?>(<?=mul?>(B.z, _1_mu));
+	Yp[1] = <?=zero?>;
+	Yp[2] = <?=mul?>(B.x, _1_mu);
+	Yp[3] = <?=mul?>(D.z, _1_eps);
+	Yp[4] = <?=zero?>;
+	Yp[5] = <?=neg?>(<?=mul?>(D.x, _1_eps));
 		
 	<? elseif side==2 then ?>
 		
-	Y.ptr[0] = B.y * _1_mu;
-	Y.ptr[1] = -B.x * _1_mu;
-	Y.ptr[2] = 0;
-	Y.ptr[3] = -D.y * _1_eps;
-	Y.ptr[4] = D.x * _1_eps;
-	Y.ptr[5] = 0;
+	Yp[0] = <?=mul?>(B.y, _1_mu);
+	Yp[1] = <?=neg?>(<?=mul?>(B.x, _1_mu));
+	Yp[2] = <?=zero?>;
+	Yp[3] = <?=neg?>(<?=mul?>(D.y, _1_eps));
+	Yp[4] = <?=mul?>(D.x, _1_eps);
+	Yp[5] = <?=zero?>;
 		
 	<? end ?>
 	
@@ -225,39 +243,47 @@ kernel void addSource(
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	
 	//TODO J = J_f + J_b = J_f + J_P + J_M = J_f + dP/dt + curl M
-	deriv->D = real3_sub(deriv->D, real3_scale(U->D, U->_1_eps * U->sigma));
+	deriv->D = <?=real3?>_sub(
+		deriv->D, 
+		<?=real3?>_scale(
+			U->D, 
+			<?=mul?>(U->_1_eps, U->sigma)
+		)
+	);
 
 
 	//for non-time-varying susceptibilities, here's the source term:
 	//D_i,t ... = 1/sqrt(g) g_il epsBar^ljk  (1/mu)_,j B_k - J_i
 	//B_i,t ... = 1/sqrt(g) g_il epsBar^ljk (1/eps)_,j B_k
 
-	real3 grad_1_mu = _real3(0,0,0);
+	<?=real3?> grad_1_mu = <?=real3?>_zero;
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>
-	grad_1_mu.<?=xj?> = (
-		U[stepsize.<?=xj?>]._1_mu
-		- U[-stepsize.<?=xj?>]._1_mu
-	) / grid_dx<?=j?>;
+	grad_1_mu.<?=xj?> = <?=real_mul?>(
+		<?=sub?>(
+			U[stepsize.<?=xj?>]._1_mu,
+			U[-stepsize.<?=xj?>]._1_mu
+		), 1. / grid_dx<?=j?>);
 	<? end ?>
 	
-	real3 grad_1_eps = _real3(0,0,0);
+	<?=real3?> grad_1_eps = <?=real3?>_zero;
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>
-	grad_1_mu.<?=xj?> = (
-		U[stepsize.<?=xj?>]._1_eps
-		- U[-stepsize.<?=xj?>]._1_eps
-	) / grid_dx<?=j?>;
+	grad_1_mu.<?=xj?> = <?=real_mul?>(
+		<?=sub?>(
+			U[stepsize.<?=xj?>]._1_eps,
+			U[-stepsize.<?=xj?>]._1_eps
+		), 1. / grid_dx<?=j?>);
 	<? end ?>
 
 	real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>{
 		<?=eqn.cons_t?> flux = fluxFromCons_<?=j?>(*U, x);
-		flux.D = real3_scale(coord_lower(flux.D, x), _1_sqrt_det_g);
-		flux.B = real3_scale(coord_lower(flux.B, x), _1_sqrt_det_g);
-		deriv->D.<?=xj?> -= real3_dot(flux.D, grad_1_mu);
-		deriv->B.<?=xj?> -= real3_dot(flux.B, grad_1_eps);
+		flux.D = <?=real3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
+		flux.B = <?=real3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
+		deriv->D.<?=xj?> = <?=sub?>(deriv->D.<?=xj?>, <?=real3?>_dot(flux.D, grad_1_mu));
+		deriv->B.<?=xj?> = <?=sub?>(deriv->B.<?=xj?>, <?=real3?>_dot(flux.B, grad_1_eps));
 	}<? end ?>
 }
 
@@ -271,8 +297,8 @@ kernel void addSource(
 	real3 x
 ) {
 	<?=eqn.eigen_t?> eig;
-	eig.sqrt_1_eps = sqrt(U._1_eps);
-	eig.sqrt_1_mu = sqrt(U._1_mu);
+	eig.sqrt_1_eps = <?=real?>_sqrt(U._1_eps);
+	eig.sqrt_1_mu = <?=real?>_sqrt(U._1_mu);
 	return eig;
 }
 <? end ?>

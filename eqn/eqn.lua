@@ -40,10 +40,19 @@ Equation.useSourceTerm = nil
 
 
 -- static so that no names overlap across all equations
-local uid = 0
+local allnames = {}
 function Equation:unique(name)
-	uid = uid + 1
-	return name..'_'..uid
+	if not allnames[name] then
+		allnames[name] = true
+		return name
+	end
+	for i=2,math.huge do
+		local try = name..'_'..i
+		if not allnames[try] then
+			allnames[try] = true
+			return try
+		end
+	end
 end
 
 function Equation:init(args)

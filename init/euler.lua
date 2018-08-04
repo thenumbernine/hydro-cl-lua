@@ -105,11 +105,21 @@ local function addMaxwellOscillatingBoundary(solver)
 			return 
 				--oldxmin(args) .. 
 				template([[
-	<?=U?>.B = _real3(0,0,0);
 <? if eqn.is(require 'eqn.glm-maxwell') then ?>
+	<?=U?>.B = _real3(0,0,0);
 	<?=U?>.E = _real3(0., (real)sin((real)10. * t), 0.);
-<? else ?>	
-	<?=U?>.D = _real3(0., (real)sin((real)10. * t) * <?=U?>._1_eps, 0.);
+<? else 
+	local real = eqn.real
+	local real3 = eqn.real3
+	local zero = real..'_zero'
+	local mul = real..'_mul'
+	local fromreal = eqn.real..'_from_real'
+?>
+	<?=U?>.B = <?=real3?>_zero;
+	<?=U?>.D = _<?=real3?>(
+		<?=zero?>,
+		<?=mul?>(<?=fromreal?>(sin(10. * t)), <?=U?>._1_eps), 
+		<?=zero?>);
 <? end ?>	
 ]], {U=U, eqn=self.eqn})
 		end

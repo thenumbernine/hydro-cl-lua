@@ -500,7 +500,7 @@ function SolverBase:createCodePrefix()
 	end
 
 	-- real3
-	lines:insert(file['math.h'])
+	lines:insert(template(file['math.h']))
 	
 	lines:append{
 		'#define dim '..self.dim,
