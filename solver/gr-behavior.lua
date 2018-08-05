@@ -32,7 +32,7 @@ return function(parent, eqn)
 		return template([[
 	real <?=args.alpha?> = 1;
 	real3 <?=args.beta?> = real3_zero;
-	sym3 <?=args.gamma?> = _sym3(1,0,0,1,0,1);
+	sym3 <?=args.gamma?> = sym3_ident;
 ]], {args=args})
 	end
 

@@ -52,7 +52,7 @@ function Z4:getCommonFuncCode()
 	return template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->alpha = 1;
-	U->gamma = _sym3(1,0,0,1,0,1);
+	U->gamma = sym3_ident;
 	U->a = real3_zero;
 	U->d.x = sym3_zero;
 	U->d.y = sym3_zero;
@@ -77,7 +77,7 @@ kernel void initState(
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
-	sym3 gamma_ll = _sym3(1,0,0,1,0,1);
+	sym3 gamma_ll = sym3_ident;
 	sym3 K_ll = sym3_zero;
 
 	<?=code?>

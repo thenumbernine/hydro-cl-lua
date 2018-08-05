@@ -711,10 +711,10 @@ function SolverBase:getDisplayInfosForType()
 		},
 		
 		real3 = {
-			{name = ' x', code = '	*value_real3 = _real3(value_real3->x, 0, 0);'},
-			{name = ' y', code = '	*value_real3 = _real3(value_real3->y, 0, 0);'},
-			{name = ' z', code = '	*value_real3 = _real3(value_real3->z, 0, 0);'},
-			{name = ' mag', code = '	*value_real3 = _real3(real3_len(*value_real3), 0, 0);', magn=true},
+			{name = ' x', code = '	*value_real3 = real3_from_real(value_real3->x);'},
+			{name = ' y', code = '	*value_real3 = real3_from_real(value_real3->y);'},
+			{name = ' z', code = '	*value_real3 = real3_from_real(value_real3->z);'},
+			{name = ' mag', code = '	*value_real3 = real3_from_real(real3_len(*value_real3));', magn=true},
 		},
 
 		cplx3 = {

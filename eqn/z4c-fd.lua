@@ -125,7 +125,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->chi = 1;
 	U->KHat = 0;
 	U->Theta = 0;
-	U->ABar_ll = _sym3(1,0,0,1,0,1);
+	U->ABar_ll = sym3_ident;
 	U->Delta_u = real3_zero;
 <? if eqn.useHypGammaDriver then
 ?>	U->B_u = real3_zero;
@@ -174,7 +174,7 @@ kernel void initState(
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
-	sym3 gamma_ll = _sym3(1,0,0,1,0,1);
+	sym3 gamma_ll = sym3_ident;
 	sym3 K_ll = sym3_zero;
 	real rho = 0.;
 
