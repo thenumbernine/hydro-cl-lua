@@ -175,7 +175,7 @@ end
 	//from 2006 Campanelli "connBar^i is replaced by -gammaBar^ij_j wherever it is not differentiated"
 	// TODO ... but do that, I should track gammaBar^ij ...
  
-	real3 connBar_u = _real3(0,0,0);
+	real3 connBar_u = real3_zero;
 	//connBar^i = -gammaBar^ij_,j
 <?	for i,xi in ipairs(xNames) do
 ?>	connBar_u.<?=xi?> =<?

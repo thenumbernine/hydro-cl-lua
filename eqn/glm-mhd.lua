@@ -175,9 +175,9 @@ kernel void initState(
 #endif
 	;
 	real rho = 0;
-	real3 v = _real3(0,0,0);
+	real3 v = real3_zero;
 	real P = 0;
-	real3 B = _real3(0,0,0);
+	real3 B = real3_zero;
 
 	<?=code?>
 	
@@ -212,7 +212,7 @@ GLM_MHD.displayVarCodeUsesPrims = true
 
 function GLM_MHD:getDisplayVars()
 	return GLM_MHD.super.getDisplayVars(self):append{
-		{v = '*valuevec = W.v;', type='real3'},
+		{v = '*value_real3 = W.v;', type='real3'},
 		{['div B'] = template([[
 	*value = .5 * (0.
 <? 

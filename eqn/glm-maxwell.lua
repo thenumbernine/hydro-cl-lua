@@ -59,8 +59,8 @@ kernel void initState(
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
 	//used
-	real3 E = _real3(0,0,0);
-	real3 B = _real3(0,0,0);
+	real3 E = real3_zero;
+	real3 B = real3_zero;
 	real conductivity = 1.;
 	
 	real permittivity = 1.;
@@ -68,7 +68,7 @@ kernel void initState(
 	
 	//throw-away
 	real rho = 0;
-	real3 v = _real3(0,0,0);
+	real3 v = real3_zero;
 	real P = 0;
 	real ePot = 0;
 	
@@ -130,7 +130,7 @@ end
 
 function GLM_Maxwell:getDisplayVars()
 	local vars = GLM_Maxwell.super.getDisplayVars(self):append{ 
-		{S = '*valuevec = real3_cross(U->E, U->B);', type='real3'},
+		{S = '*value_real3 = real3_cross(U->E, U->B);', type='real3'},
 		{energy = [[
 	*value = .5 * (real3_lenSq(U->E) + real3_lenSq(U->B));
 ]]},
@@ -151,7 +151,7 @@ end
 
 	for _,field in ipairs{'E', 'B'} do
 		local v = range(0,2):map(function(i) 
-			return curl(self,i,'valuevec->s'..i,field) 
+			return curl(self,i,'value_real3->s'..i,field) 
 		end)
 		vars:insert{['curl '..field]= template([[
 	<? for i=0,2 do ?>{

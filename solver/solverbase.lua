@@ -469,9 +469,9 @@ function SolverBase:getDisplayCode()
 						name = 'calcDisplayVarToBuffer_'..var.id,
 						input = 'global real* dest',
 						output = var.vectorField and [[
-	dest[0+3*dstindex] = valuevec->x;
-	dest[1+3*dstindex] = valuevec->y;
-	dest[2+3*dstindex] = valuevec->z;
+	dest[0+3*dstindex] = value_real3->x;
+	dest[1+3*dstindex] = value_real3->y;
+	dest[2+3*dstindex] = value_real3->z;
 ]] or [[
 	dest[dstindex] = value[0];
 ]],
@@ -618,9 +618,11 @@ if solver.dim >= 3 then
 <? end 		-- mesh vs grid ?>
 	
 	real value[6] = {0,0,0,0,0,0};	//size of largest struct
+	cplx* value_cplx = (cplx*)value;
+	real3* value_real3 = (real3*)value;
+	real3* value_real3_hi = (real3*)(value+3);
 	sym3* valuesym3 = (sym3*)value;
-	real3* valuevec = (real3*)value;
-	real3* valuevec_hi = (real3*)(value+3);
+	cplx3* value_cplx3 = (cplx3*)value;
 
 <?= var.codePrefix or '' ?>
 <?= var.code ?>
@@ -701,20 +703,50 @@ end
 
 function SolverBase:getDisplayInfosForType()
 	return {
-		real3 = {
-			{name = ' x', code = '	*valuevec = _real3(valuevec->x,0,0);'},
-			{name = ' y', code = '	*valuevec = _real3(valuevec->y,0,0);'},
-			{name = ' z', code = '	*valuevec = _real3(valuevec->z,0,0);'},
-			{name = ' mag', code = '	*valuevec = _real3(real3_len(*valuevec),0,0);', magn=true},
+		cplx = {
+			{name = ' re', code = '	*value_cplx = cplx_from_real(value_cplx->re);'},
+			{name = ' im', code = '	*value_cplx = cplx_from_real(value_cplx->im);'},
+			{name = ' abs', code = '	*value_cplx = cplx_from_real(cplx_abs(*value_cplx));'},
+			{name = ' arg', code = '	*value_cplx = cplx_from_real(cplx_arg(*value_cplx));'},
 		},
 		
-		-- hmm, valuevec has to be bigger for this to work
-		-- but does that mean I have to store 6 components in valuevec?
+		real3 = {
+			{name = ' x', code = '	*value_real3 = _real3(value_real3->x, 0, 0);'},
+			{name = ' y', code = '	*value_real3 = _real3(value_real3->y, 0, 0);'},
+			{name = ' z', code = '	*value_real3 = _real3(value_real3->z, 0, 0);'},
+			{name = ' mag', code = '	*value_real3 = _real3(real3_len(*value_real3), 0, 0);', magn=true},
+		},
+
+		cplx3 = {
+			{name = ' mag', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx3_len(*value_cplx3)), cplx_zero, cplx_zero);', magn=true},
+			{name = ' re', code = '	*value_real3 = cplx3_re(*value_cplx3); *value_real3_hi = real3_zero;', vartype='real3'},
+			{name = ' im', code = '	*value_real3 = cplx3_im(*value_cplx3); *value_real3_hi = real3_zero;', vartype='real3'},
+			-- re and im will include re len, im len, re xyz, im xyz
+			-- but will skip the x,y,z cplx abs and arg:
+			{name = ' x abs', code = '	*value_cplx3 = _cplx3(cplx_abs(value_cplx3->x), cplx_zero, cplx_zero);'},
+			{name = ' y abs', code = '	*value_cplx3 = _cplx3(cplx_abs(value_cplx3->y), cplx_zero, cplx_zero);'},
+			{name = ' z abs', code = '	*value_cplx3 = _cplx3(cplx_abs(value_cplx3->z), cplx_zero, cplx_zero);'},
+			{name = ' x arg', code = '	*value_cplx3 = _cplx3(cplx_arg(value_cplx3->x), cplx_zero, cplx_zero);'},
+			{name = ' y arg', code = '	*value_cplx3 = _cplx3(cplx_arg(value_cplx3->y), cplx_zero, cplx_zero);'},
+			{name = ' z arg', code = '	*value_cplx3 = _cplx3(cplx_arg(value_cplx3->z), cplx_zero, cplx_zero);'},
+		},
+		cplx3 = {
+			{name = ' mag', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx3_len(*value_cplx3)), cplx_zero,cplx_zero);', magn=true},
+			{name = ' x re', code = '	*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->x.re), cplx_zero, cplx_zero);'},
+			{name = ' y re', code = '	*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->y.re), cplx_zero, cplx_zero);'},
+			{name = ' z re', code = '	*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->z.re), cplx_zero, cplx_zero);'},
+			{name = ' x im', code = '	*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->x.im), cplx_zero, cplx_zero);'},
+			{name = ' y im', code = '	*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->y.im), cplx_zero, cplx_zero);'},
+			{name = ' z im', code = '	*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->z.im), cplx_zero, cplx_zero);'},
+		},
+		
+		-- hmm, value_real3 has to be bigger for this to work
+		-- but does that mean I have to store 6 components in value_real3?
 		-- I suppose it does if I want a sym3-specific visualization
 		sym3 = {
-			{name = ' x', code = '	*valuevec = sym3_x(*valuesym3); *valuevec_hi = _real3(0,0,0);', vartype='real3'},
-			{name = ' y', code = '	*valuevec = sym3_y(*valuesym3); *valuevec_hi = _real3(0,0,0);', vartype='real3'},
-			{name = ' z', code = '	*valuevec = sym3_z(*valuesym3); *valuevec_hi = _real3(0,0,0);', vartype='real3'},
+			{name = ' x', code = '	*value_real3 = sym3_x(*valuesym3); *value_real3_hi = real3_zero;', vartype='real3'},
+			{name = ' y', code = '	*value_real3 = sym3_y(*valuesym3); *value_real3_hi = real3_zero;', vartype='real3'},
+			{name = ' z', code = '	*value_real3 = sym3_z(*valuesym3); *value_real3_hi = real3_zero;', vartype='real3'},
 	
 			--[[ these are already added through real3 x_i real x_j
 			{name = ' xx', code = '	*valuesym3 = _sym3(valuesym3->xx, 0,0,0,0,0);'},

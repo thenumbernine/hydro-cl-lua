@@ -64,9 +64,9 @@ kernel void initState(
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
 	real alpha = 1.;
-	real3 beta_u = _real3(0,0,0);
-	sym3 gamma_ll = _sym3(1,0,0,1,0,1);
-	sym3 K_ll = _sym3(0,0,0,0,0,0);
+	real3 beta_u = real3_zero;
+	sym3 gamma_ll = sym3_ident;
+	sym3 K_ll = sym3_zero;
 
 	<?=code?>
 

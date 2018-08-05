@@ -654,7 +654,7 @@ inline real coordLen(real3 r, real3 pt) {
 //by projecting the vector into the grid basis vectors 
 //at x, which is in grid coordinates
 real3 cartesianToCoord(real3 u, real3 pt) {
-	real3 uCoord = _real3(0,0,0);
+	real3 uCoord = real3_zero;
 	<? for i=0,solver.dim-1 do ?>{
 		real3 e = coordBasis<?=i?>(pt);
 		//anholonomic normalized
@@ -673,7 +673,7 @@ real3 cartesianToCoord(real3 u, real3 pt) {
 //converts a vector from cartesian to grid
 //by projecting it onto the basis ... ?
 real3 cartesianFromCoord(real3 u, real3 pt) {
-	real3 uGrid = _real3(0,0,0);
+	real3 uGrid = real3_zero;
 	<? for i=0,solver.dim-1 do ?>{
 		real3 e = coordBasis<?=i?>(pt);
 		uGrid = real3_add(uGrid, real3_scale(e, u.s<?=i?>));

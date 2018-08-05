@@ -198,10 +198,10 @@ kernel void initState(
 #endif
 	;
 	real rho = 0;
-	real3 v = _real3(0,0,0);
+	real3 v = real3_zero;
 	real P = 0;
 	//ignored:
-	real3 B = _real3(0,0,0);
+	real3 B = real3_zero;
 
 	<?=code?>
 	
@@ -259,13 +259,13 @@ end
 function SRHD:getDisplayVars()
 	local vars = table{
 		{D = '*value = U->cons.D;'},
-		{S = '*valuevec = U->cons.S;', type='real3'},
+		{S = '*value_real3 = U->cons.S;', type='real3'},
 		{tau = '*value = U->cons.tau;'},
 		{['W based on D'] = '*value = U->cons.D / U->prim.rho;'},
 		{['W based on v'] = '*value = 1. / sqrt(1. - coordLenSq(U->prim.v, x));'},
 		
 		{rho = '*value = U->prim.rho;'},
-		{v = '*valuevec = U->prim.v;', type='real3'},
+		{v = '*value_real3 = U->prim.v;', type='real3'},
 		{eInt = '*value = U->prim.eInt;'},
 		{P = '*value = calc_P(U->prim.rho, U->prim.eInt);'},
 		{h = '*value = calc_h(U->prim.rho, calc_P(U->prim.rho, U->prim.eInt), U->prim.eInt);'},

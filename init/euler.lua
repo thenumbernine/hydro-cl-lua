@@ -106,7 +106,7 @@ local function addMaxwellOscillatingBoundary(solver)
 				--oldxmin(args) .. 
 				template([[
 <? if eqn.is(require 'eqn.glm-maxwell') then ?>
-	<?=U?>.B = _real3(0,0,0);
+	<?=U?>.B = real3_zero;
 	<?=U?>.E = _real3(0., (real)sin((real)10. * t), 0.);
 <? else 
 	local scalar = eqn.scalar
@@ -666,7 +666,7 @@ end) then
 			return [[
 	bool xp = x.x > mids.x;
 	bool yp = x.y > mids.y;
-	real3 m = _real3(0., 0., 0.);
+	real3 m = real3_zero;
 	real eInt = 0.;
 	if (yp) {
 		if (xp) {	//I
@@ -1039,7 +1039,7 @@ end ?>;
 			solver:setBoundaryMethods'freeflow'
 			return [[
 	const real waveX = -.45;
-	real3 bubbleCenter = _real3(0,0,0);
+	real3 bubbleCenter = real3_zero;
 	real bubbleRadius = .2;
 	real3 delta = real3_sub(x, bubbleCenter);
 	real bubbleRSq = real3_lenSq(delta);

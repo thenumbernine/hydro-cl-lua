@@ -348,21 +348,21 @@ kernel void initState(
 if eqn.useEulerInitState then 
 ?>
 	real rho = 0.;
-	real3 v = _real3(0,0,0);
+	real3 v = real3_zero;
 	real P = 0;
 	real ePot = 0;
 <?
 else
 	 for _,fluid in ipairs(fluids) do
 ?>	real <?=fluid?>_rho = 0;
-	real3 <?=fluid?>_v = _real3(0,0,0);
+	real3 <?=fluid?>_v = real3_zero;
 	real <?=fluid?>_P = 0;
 	real <?=fluid?>_ePot = 0;
 <? 
 	end 
 end
-?>	real3 E = _real3(0,0,0);
-	real3 B = _real3(0,0,0);
+?>	real3 E = real3_zero;
+	real3 B = real3_zero;
 	real conductivity = 1.;
 	real permittivity = 1. / (4. * M_PI);
 	real permeability = 4. * M_PI;
@@ -458,7 +458,7 @@ function TwoFluidEMHD:getDisplayVars()
 		end
 		
 		vars:append{
-			{[fluid..' v'] = '*valuevec = W.'..fluid..'_v;', type='real3'},
+			{[fluid..' v'] = '*value_real3 = W.'..fluid..'_v;', type='real3'},
 			{[fluid..' P'] = '*value = W.'..fluid..'_P;'},
 			{[fluid..' eInt'] = '*value = calc_'..fluid..'_eInt(W);'},
 			{[fluid..' eKin'] = '*value = calc_'..fluid..'_eKin(W, x);'},

@@ -62,7 +62,7 @@ function Z4cFiniteDifferenceSolver:getDisplayInfosForType()
 		sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 		real exp_4phi = 1. / calc_exp_neg4phi(U);
 		sym3 gamma_ll = sym3_scale(gammaBar_ll, exp_4phi);
-		*value = real3_weightedLen(*valuevec, gammaBar_ll);
+		*value = real3_weightedLen(*value_real3, gammaBar_ll);
 	}
 ]],
 	})

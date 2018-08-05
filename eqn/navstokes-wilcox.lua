@@ -228,12 +228,12 @@ end
 ?>;
 	
 	real rho = 0;
-	real3 v = _real3(0,0,0);
+	real3 v = real3_zero;
 	real P = 0;
 	
 	//TODO make this B for Maxwell
 	
-	real3 B = _real3(0,0,0);	//set for MHD / thrown away for pure NavierStokesWilcox
+	real3 B = real3_zero;	//set for MHD / thrown away for pure NavierStokesWilcox
 	real ePot = 0;
 
 	<?=code?>
@@ -290,7 +290,7 @@ end
 function NavierStokesWilcox:getDisplayVars()
 	local vars = NavierStokesWilcox.super.getDisplayVars(self)
 	vars:append{
-		{vTilde = '*valuevec = W.vTilde;', type='real3'},
+		{vTilde = '*value_real3 = W.vTilde;', type='real3'},
 		{PStar = '*value = W.PStar;'},
 		{eIntTilde = '*value = calc_eIntTilde(W);'},
 		{eKinTilde = '*value = calc_eKinTilde(W, x);'},
@@ -314,11 +314,11 @@ function NavierStokesWilcox:getDisplayVars()
 for side=0,solver.dim-1 do ?>{
 			global const <?=eqn.cons_t?>* Um = U - stepsize.s<?=side?>;
 			global const <?=eqn.cons_t?>* Up = U + stepsize.s<?=side?>;
-			valuevec->s<?=side?> = -(Up-><?=eqn.gravOp.potentialField?> - Um-><?=eqn.gravOp.potentialField?>) / (2. * dx<?=side?>_at(i));
+			value_real3->s<?=side?> = -(Up-><?=eqn.gravOp.potentialField?> - Um-><?=eqn.gravOp.potentialField?>) / (2. * dx<?=side?>_at(i));
 		}<? 
 end
 for side=solver.dim,2 do ?>
-		valuevec->s<?=side?> = 0.;
+		value_real3->s<?=side?> = 0.;
 <? end ?>
 	}
 ]], {eqn=self, solver=self.solver}), type='real3'} or nil

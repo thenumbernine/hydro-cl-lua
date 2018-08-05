@@ -78,8 +78,8 @@ kernel void initState(
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
 	//used
-	real3 E = _real3(0,0,0);
-	real3 B = _real3(0,0,0);
+	real3 E = real3_zero;
+	real3 B = real3_zero;
 	real conductivity = 1.;
 	
 	//natural units say eps0 = 1/4pi, mu0 = 4pi
@@ -90,7 +90,7 @@ kernel void initState(
 	
 	//throw-away
 	real rho = 0;
-	real3 v = _real3(0,0,0);
+	real3 v = real3_zero;
 	real P = 0;
 	real ePot = 0;
 	
@@ -112,10 +112,10 @@ function GRMaxwell:getCalcEigenBasisCode() end
 function GRMaxwell:getDisplayVars()
 	local solver = self.solver
 	return GRMaxwell.super.getDisplayVars(self):append{ 
-		{E_u = '*valuevec = real3_scale(U->epsE, 1. / U->eps);', type='real3'},
+		{E_u = '*value_real3 = real3_scale(U->epsE, 1. / U->eps);', type='real3'},
 	
 		-- eps_ijk E^j B^k
-		{S_l = '*valuevec = real3_scale(real3_cross(U->epsE, U->B), 1. / U->eps);', type='real3'},
+		{S_l = '*value_real3 = real3_scale(real3_cross(U->epsE, U->B), 1. / U->eps);', type='real3'},
 		
 		{energy = template([[
 	<?=solver:getADMVarCode()?>

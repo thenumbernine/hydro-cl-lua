@@ -275,7 +275,7 @@ function MeshSolver:createCodePrefix()
 #define SETBOUNDS_NOGHOST()	\
 	int index = get_global_id(0); \
 	int4 i = (int4)(index,0,0,0);
-#define cell_x(i) _real3(0,0,0)
+#define cell_x(i) real3_zero
 ]]
 
 	self.codePrefix = lines:concat'\n'

@@ -80,10 +80,27 @@ and that means complex math, and *drumroll* complex code generation of the coord
 and this would be easier if OpenCL supported the 'complex' keyword
 
 another todo - max this a tensor
-some common susceptibility tensors are symmetric?  I thought I caught somewhere that they are often projection matrices...
+some common susceptibility tensors are symmetric?
+I thought I caught somewhere that they are often projection matrices...
+https://physics.stackexchange.com/questions/351012/how-can-i-deduce-the-magnetic-susceptibility-tensor-of-a-biaxial-liquid-crystal
+https://physics.stackexchange.com/questions/148634/equivalent-tensor-order-parameters-of-nematic-liquid-crystals?rq=1
+https://en.wikipedia.org/wiki/Permittivity#Tensorial_permittivity
+https://en.wikipedia.org/wiki/Electro-gyration
 --]]
 
 Maxwell.susc_t = Maxwell.scalar
+
+--[[ 
+there's a catch, if susceptibility is a tensor, 
+then it gets applied to the flux matrix, 
+and therefore it needs to be considered in the flux decomposition
+
+Therefore I don't just need the susceptibility tensor,
+I also need the eigen-decomposition of the susceptibility times the Levi-Civita tensor
+
+So I need to store the U, S, and V matrices of this...
+So we need three matrices and not just one ...
+--]]
 --Maxwell.susc_t = Maxwell.mat3x3
 
 Maxwell.consVars:append{
@@ -149,13 +166,13 @@ real eqn_coordLenSq(cplx3 v, real3 x) {
 }
 
 cplx3 eqn_cartesianToCoord(real3 v, real3 x) {
-	return cplx3_from_real3(
+	return cplx3_from_real3_real3(
 		cartesianToCoord(v, x),
-		cartesianToCoord(_real3(0,0,0), x));
+		cartesianToCoord(real3_zero, x));
 }
 
 cplx3 eqn_coord_lower(cplx3 v, real3 x) {
-	return cplx3_from_real3(
+	return cplx3_from_real3_real3(
 		coord_lower(cplx3_re(v), x),
 		coord_lower(cplx3_im(v), x));
 }
@@ -163,6 +180,13 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 <? end -- eqn.scalar ?>
 
 <?=eqn.vec3?> calc_E(<?=eqn.cons_t?> U) { 
+/*
+scalar type / susceptibility type:
+real/scalar => real_real3_mul
+cplx/scalar => cplx_cplx3_mul
+real/tensor => real3x3_real3_mul
+cplx/tensor => cplx3x3_cplx3_mul
+*/
 	return <?=eqn.susc_t?>_<?=eqn.vec3?>_mul(U._1_eps, U.D); 
 }
 
@@ -213,8 +237,8 @@ kernel void initState(
 	global <?=cons_t?>* U = UBuf + index;
 
 	//used
-	real3 E = _real3(0,0,0);
-	real3 B = _real3(0,0,0);
+	real3 E = real3_zero;
+	real3 B = real3_zero;
 	
 	<?=scalar?> conductivity = <?=scalar?>_from_real(1.);
 	<?=susc_t?> permittivity = <?=susc_t?>_from_real(1.);
@@ -222,13 +246,19 @@ kernel void initState(
 	
 	//throw-away
 	real rho = 0;
-	real3 v = _real3(0,0,0);
+	real3 v = real3_zero;
 	real P = 0;
 	real ePot = 0;
 	
 <?=code?>
 	
-	U->D = eqn_cartesianToCoord(<?=susc_t?>_<?=vec3?>_mul(permittivity, E), x);
+	U->D = eqn_cartesianToCoord(
+		<?=vec3?>_to_real3(
+			<?=susc_t?>_<?=vec3?>_mul(
+				permittivity,
+				<?=vec3?>_from_real3(E)
+			)
+		), x);
 	U->B = eqn_cartesianToCoord(B, x);
 	U->BPot = <?=zero?>;
 	U->sigma = conductivity;
@@ -289,17 +319,18 @@ dEy/dx = cos(x-t)
 so curl(E).z = -cos(x-t)
 --]]
 function Maxwell:getDisplayVars()
-	if self.scalar == 'real' then
-		local vars = Maxwell.super.getDisplayVars(self)
-		vars:append{ 
-			{E = '*valuevec = real3_scale(U->D, U->_1_eps);', type='real3'},
-			{S = '*valuevec = real3_scale(real3_cross(U->D, U->B), U->_1_eps);', type='real3'},
-			{energy = [[
+	local vec3 = self.vec3
+	
+	local vars = Maxwell.super.getDisplayVars(self)
+	vars:append{ 
+		{E = '*value_real3 = '..vec3..'_scale(U->D, U->_1_eps);', type=vec3},
+		{S = '*value_real3 = '..vec3..'_scale('..vec3..'_cross(U->D, U->B), U->_1_eps);', type=vec3},
+		{energy = [[
 	*value = .5 * (coordLenSq(U->D, x) + coordLenSq(U->B, x) * U->_1_mu * U->_1_mu);
 ]]},
-		}:append(table{'E','B'}:map(function(var,i)
-			local field = assert( ({E='D', B='B'})[var] )
-			return {['div '..var] = template([[
+	}:append(table{'E','B'}:map(function(var,i)
+		local field = assert( ({E='D', B='B'})[var] )
+		return {['div '..var] = template([[
 	*value = .5 * (0.
 <?
 for j=0,solver.dim-1 do
@@ -314,29 +345,20 @@ if field == 'D' then
 end
 ?>;
 ]], {solver=self.solver, field=field})}
-		end))
+	end))
 
-		for _,field in ipairs{'D', 'B'} do
-			local v = range(0,2):map(function(i) 
-				return curl(self,i,'valuevec->s'..i,field) 
-			end)
-			vars:insert{['curl '..field]= template([[
-		<? for i=0,2 do ?>{
-			<?=select(2,next(v[i+1]))?>
-		}<? end ?>
-	]], {v=v}), type='real3'}
-		end
-
-		return vars 
-	elseif self.scalar == 'cplx' then
-		local vars = {
-			{['D re'] = '*valuevec = cplx3_re(U->D);', type='real3'},
-			{['D im'] = '*valuevec = cplx3_im(U->D);', type='real3'},
-			{['B re'] = '*valuevec = cplx3_re(U->B);', type='real3'},
-			{['B im'] = '*valuevec = cplx3_im(U->B);', type='real3'},
-		}
-		return vars
+	for _,field in ipairs{'D', 'B'} do
+		local v = range(0,2):map(function(i) 
+			return curl(self,i,'value_'..vec3..'->s'..i,field) 
+		end)
+		vars:insert{['curl '..field]= template([[
+	<? for i=0,2 do ?>{
+		<?=select(2,next(v[i+1]))?>
+	}<? end ?>
+]], {v=v}), type=vec3}
 	end
+
+	return vars 
 end
 
 Maxwell.eigenVars = table{

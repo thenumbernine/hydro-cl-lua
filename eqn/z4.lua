@@ -53,13 +53,13 @@ function Z4:getCommonFuncCode()
 void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->alpha = 1;
 	U->gamma = _sym3(1,0,0,1,0,1);
-	U->a = _real3(0,0,0);
-	U->d.x = _sym3(0,0,0,0,0,0);
-	U->d.y = _sym3(0,0,0,0,0,0);
-	U->d.z = _sym3(0,0,0,0,0,0);
-	U->K = _sym3(0,0,0,0,0,0);
+	U->a = real3_zero;
+	U->d.x = sym3_zero;
+	U->d.y = sym3_zero;
+	U->d.z = sym3_zero;
+	U->K = sym3_zero;
 	U->Theta = 0;
-	U->Z = _real3(0,0,0);
+	U->Z = real3_zero;
 }
 ]], {eqn=self})
 end
@@ -76,9 +76,9 @@ kernel void initState(
 	setFlatSpace(U, x);
 
 	real alpha = 1.;
-	real3 beta_u = _real3(0,0,0);
+	real3 beta_u = real3_zero;
 	sym3 gamma_ll = _sym3(1,0,0,1,0,1);
-	sym3 K_ll = _sym3(0,0,0,0,0,0);
+	sym3 K_ll = sym3_zero;
 
 	<?=code?>
 
@@ -93,7 +93,7 @@ kernel void initState(
 	//(Z_t - Z_i beta^i) / alpha = Theta ... = ?
 	//Z^t n_t + Z^i n_i = -alpha Z^t = Theta
 	U->Theta = 0;
-	U->Z = _real3(0,0,0);
+	U->Z = real3_zero;
 }
 
 kernel void initDerivs(
@@ -150,7 +150,7 @@ momentum constraints
 		{gravity = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	*valuevec = real3_scale(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
+	*value_real3 = real3_scale(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
 ]], type='real3'},
 	}
 	

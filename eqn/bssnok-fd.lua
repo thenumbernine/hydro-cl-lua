@@ -111,27 +111,27 @@ function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
 	return template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->alpha = 1.;
-	U->beta_u = _real3(0,0,0);
-	U->gammaTilde_ll = _sym3(1,0,0,1,0,1);
+	U->beta_u = real3_zero;
+	U->gammaTilde_ll = sym3_ident;
 <? if eqn.useChi then 
 ?>	U->chi = 1;
 <? else
 ?>	U->phi = 0;
 <? end
 ?>	U->K = 0;
-	U->ATilde_ll = _sym3(1,0,0,1,0,1);
-	U->connBar_u = _real3(0,0,0);
+	U->ATilde_ll = sym3_ident;
+	U->connBar_u = real3_zero;
 <? if eqn.useHypGammaDriver then
-?>	U->B_u = _real3(0,0,0);
+?>	U->B_u = real3_zero;
 <? end
-?>	U->gammaTilde_uu = _sym3(1,0,0,1,0,1);
+?>	U->gammaTilde_uu = sym3_ident;
 
 	//what to do with the constraint vars and the source vars?
 	U->rho = 0;
-	U->S_u = _real3(0,0,0);
-	U->S_ll = _sym3(0,0,0,0,0,0);
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
 	U->H = 0;
-	U->M_u = _real3(0,0,0);
+	U->M_u = real3_zero;
 }
 
 <? if eqn.useChi then
@@ -170,9 +170,9 @@ kernel void initState(
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
 	real alpha = 1.;
-	real3 beta_u = _real3(0,0,0);
-	sym3 gamma_ll = _sym3(1,0,0,1,0,1);
-	sym3 K_ll = _sym3(0,0,0,0,0,0);
+	real3 beta_u = real3_zero;
+	sym3 gamma_ll = sym3_ident;
+	sym3 K_ll = sym3_zero;
 	real rho = 0.;
 
 	<?=code?>
@@ -208,11 +208,11 @@ kernel void initState(
 	U->ATilde_ll = sym3_scale(A_ll, exp_neg4phi);
 	
 	U->rho = rho;
-	U->S_u = _real3(0,0,0);
-	U->S_ll = _sym3(0,0,0,0,0,0);
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
 	
 	U->H = 0.;
-	U->M_u = _real3(0,0,0);
+	U->M_u = real3_zero;
 }
 
 //after popularing gammaTilde_ll, use its finite-difference derivative to initialize connBar_u
@@ -418,7 +418,7 @@ end
 
 	//TODO
 	real dt_alpha = 0.;
-	sym3 dt_gamma_ll = _sym3(0,0,0,0,0,0);
+	sym3 dt_gamma_ll = sym3_zero;
 
 
 	real _1_alpha = 1. / U->alpha;
@@ -462,7 +462,7 @@ end ?>;
 	real3 beta_beta_dgamma_u = sym3_real3_mul(gamma_uu, beta_beta_dgamma_l);
 
 <? for i,xi in ipairs(xNames) do
-?>	valuevec->s<?=i-1?> = -partial_alpha_u.<?=xi?>
+?>	value_real3->s<?=i-1?> = -partial_alpha_u.<?=xi?>
 
 		+ _1_alpha * (
 			beta_dbeta_u.<?=xi?>

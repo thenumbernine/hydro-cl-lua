@@ -44,11 +44,11 @@ kernel void initState(
 #endif
 	;
 	real rho = 0;
-	real3 v = _real3(0,0,0);
+	real3 v = real3_zero;
 	
 	// throw-away:
 	real P = 0;
-	real3 B = _real3(0,0,0);
+	real3 B = real3_zero;
 	real ePot = 0;
 
 	<?=code?>
@@ -94,7 +94,7 @@ function NavierStokesDivFree:getDisplayVars()
 	end
 	local vars = table{
 		{rho = '*value = U->rho;'},
-		{v = '*valuevec = U->v;', type='real3'},
+		{v = '*value_real3 = U->v;', type='real3'},
 		{m = 'value = real3_scale(U->v, U->rho);', type='real3'},
 		--{P = '*value = W.P;'},
 		--{eInt = '*value = calc_eInt(W);'},

@@ -125,7 +125,7 @@ function GRMHD:getCommonFuncCode()
 //I'm going to fix metric coordinates at first
 //then later the transition to the evolved metric will be easier
 constant const real alpha = 1;
-constant const real3 betaU = _real3(0,0,0);
+constant const real3 betaU = real3_zero;
 
 //pressure function for ideal gas
 real calc_P(real rho, real eInt) {
@@ -196,10 +196,10 @@ kernel void initState(
 #endif
 	;
 	real rho = 0;
-	real3 v = _real3(0,0,0);
+	real3 v = real3_zero;
 	real P = 0;
 	//ignored:
-	real3 B = _real3(0,0,0);
+	real3 B = real3_zero;
 
 	<?=code?>
 	

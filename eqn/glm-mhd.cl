@@ -546,7 +546,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		  input.ptr[7] * -Ch
 		+ input.ptr[8] * Ch;
 
-	real3 n = _real3(0,0,0); n.s<?=side?> = 1.;
+	real3 n = real3_zero; n.s<?=side?> = 1.;
 	return cons_alignTo(resultU, n);
 }
 
@@ -613,7 +613,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		+ inputU.B.z * v.x;
 	resultU.psi = inputU.psi;
 	
-	real3 n = _real3(0,0,0); n.s<?=side?> = 1.;
+	real3 n = real3_zero; n.s<?=side?> = 1.;
 	return cons_alignTo(resultU, n);
 }
 <? end ?>

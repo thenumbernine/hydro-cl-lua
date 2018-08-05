@@ -59,7 +59,7 @@ function BSSNOKFiniteDifferenceSolver:getDisplayInfosForType()
 	-- hmm, only works with U ... so it only applies to U ...
 	table.insert(t.real3, {
 		name = ' norm weighted',
-		code = '*value = real3_weightedLen(*valuevec, U->gammaTilde_ll) / calc_exp_neg4phi(U);',
+		code = '*value = real3_weightedLen(*value_real3, U->gammaTilde_ll) / calc_exp_neg4phi(U);',
 	})
 
 	-- hmm, how to do the weighting stuff with gammaTilde_ll ... 

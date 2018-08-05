@@ -31,7 +31,7 @@ return function(parent, eqn)
 		args.gamma = args.gamma or ('gamma'..args.suffix)
 		return template([[
 	real <?=args.alpha?> = 1;
-	real3 <?=args.beta?> = _real3(0,0,0);
+	real3 <?=args.beta?> = real3_zero;
 	sym3 <?=args.gamma?> = _sym3(1,0,0,1,0,1);
 ]], {args=args})
 	end

@@ -120,15 +120,15 @@ real calc_det_gammaBar_ll(real3 x) {
 
 void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->alpha = 1.;
-	U->beta_u = _real3(0,0,0);
-	U->epsilon_ll = _sym3(0,0,0,0,0,0);
+	U->beta_u = real3_zero;
+	U->epsilon_ll = sym3_zero;
 	U->chi = 1;
 	U->KHat = 0;
 	U->Theta = 0;
 	U->ABar_ll = _sym3(1,0,0,1,0,1);
-	U->Delta_u = _real3(0,0,0);
+	U->Delta_u = real3_zero;
 <? if eqn.useHypGammaDriver then
-?>	U->B_u = _real3(0,0,0);
+?>	U->B_u = real3_zero;
 <? end
 ?>	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	real det_gammaBar_ll = calc_det_gammaBar_ll(x);
@@ -136,10 +136,10 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 
 	//what to do with the constraint vars and the source vars?
 	U->rho = 0;
-	U->S_u = _real3(0,0,0);
-	U->S_ll = _sym3(0,0,0,0,0,0);
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
 	U->H = 0;
-	U->M_u = _real3(0,0,0);
+	U->M_u = real3_zero;
 }
 
 #define calc_exp_neg4phi(U) ((U)->chi)
@@ -173,9 +173,9 @@ kernel void initState(
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
 	real alpha = 1.;
-	real3 beta_u = _real3(0,0,0);
+	real3 beta_u = real3_zero;
 	sym3 gamma_ll = _sym3(1,0,0,1,0,1);
-	sym3 K_ll = _sym3(0,0,0,0,0,0);
+	sym3 K_ll = sym3_zero;
 	real rho = 0.;
 
 	<?=code?>
@@ -214,11 +214,11 @@ kernel void initState(
 	U->ABar_ll = sym3_scale(A_ll, exp_neg4phi);
 	
 	U->rho = rho;
-	U->S_u = _real3(0,0,0);
-	U->S_ll = _sym3(0,0,0,0,0,0);
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
 	
 	U->H = 0.;
-	U->M_u = _real3(0,0,0);
+	U->M_u = real3_zero;
 }
 
 //after popularing gammaBar_ll, use its finite-difference derivative to initialize connBar_u
@@ -426,7 +426,7 @@ end
 
 	//TODO
 	real dt_alpha = 0.;
-	sym3 dt_gamma_ll = _sym3(0,0,0,0,0,0);
+	sym3 dt_gamma_ll = sym3_zero;
 
 
 	real _1_alpha = 1. / U->alpha;
@@ -470,7 +470,7 @@ end ?>;
 	real3 beta_beta_dgamma_u = sym3_real3_mul(gamma_uu, beta_beta_dgamma_l);
 
 <? for i,xi in ipairs(xNames) do
-?>	valuevec->s<?=i-1?> = -partial_alpha_u.<?=xi?>
+?>	value_real3->s<?=i-1?> = -partial_alpha_u.<?=xi?>
 
 		+ _1_alpha * (
 			beta_dbeta_u.<?=xi?>

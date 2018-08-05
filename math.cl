@@ -42,7 +42,7 @@ static inline real cplx_lenSq(cplx a) {
 	return a.re * a.re + a.im * a.im;
 }
 
-static inline real cplx_len(cplx a) {
+static inline real cplx_abs(cplx a) {
 	return sqrt(cplx_lenSq(a));
 }
 
@@ -92,7 +92,7 @@ static inline cplx cplx_exp(cplx a) {
 
 static inline cplx cplx_log(cplx a) {
 	return _cplx(
-		log(cplx_len(a)),
+		log(cplx_abs(a)),
 		cplx_arg(a)
 	);
 }
@@ -152,12 +152,39 @@ static inline <?=scalar?> <?=vec?>_dot(<?=vec?> a, <?=vec?> b) {
 	);
 }
 
+//maybe I should just use <?=vec?>_<?=scale?>_mul ?
 static inline <?=vec?> <?=vec?>_scale(<?=vec?> a, <?=scalar?> s) {
 	return _<?=vec?>(
 		<?=mul?>(a.x, s),
 		<?=mul?>(a.y, s),
 		<?=mul?>(a.z, s));
 }
+
+//I'm using '_scale' for multipying a vector by its base type per-element
+//I'm using '_real_mul' for multiplying a vector by a real
+//maybe I should rename _scale to _<?=scalar?>_mul ?
+static inline <?=vec?> <?=vec?>_real_mul(<?=vec?> a, real b) {
+	return _<?=vec?>(
+		<?=real_mul?>(a.x, b),
+		<?=real_mul?>(a.y, b),
+		<?=real_mul?>(a.z, b));
+}
+
+static inline <?=vec?> <?=scalar?>_<?=vec?>_mul(<?=scalar?> a, <?=vec?> b) {
+	return _<?=vec?>(
+		<?=mul?>(a, b.x),
+		<?=mul?>(a, b.y),
+		<?=mul?>(a, b.z));
+}
+
+<? if scalar ~= 'real' then ?>
+static inline <?=vec?> real_<?=vec?>_mul(real a, <?=vec?> b) {
+	return _<?=vec?>(
+		<?=real_mul?>(b.x, a),
+		<?=real_mul?>(b.y, a),
+		<?=real_mul?>(b.z, a));
+}
+<? end ?>
 
 static inline <?=vec?> <?=vec?>_add(<?=vec?> a, <?=vec?> b) {
 	return _<?=vec?>(
@@ -173,20 +200,11 @@ static inline <?=vec?> <?=vec?>_sub(<?=vec?> a, <?=vec?> b) {
 		<?=sub?>(a.z, b.z));
 }
 
-//I'm using '_scale' for multipying a vector by its base type per-element
-//I'm using '_real_mul' for multiplying a vector by a real
-static inline <?=vec?> <?=vec?>_real_mul(<?=vec?> a, real b) {
+static inline <?=vec?> <?=vec?>_cross(<?=vec?> a, <?=vec?> b) {
 	return _<?=vec?>(
-		<?=real_mul?>(a.x, b),
-		<?=real_mul?>(a.y, b),
-		<?=real_mul?>(a.z, b));
-}
-
-static inline <?=vec?> real_<?=vec?>_mul(real a, <?=vec?> b) {
-	return _<?=vec?>(
-		<?=real_mul?>(b.x, a),
-		<?=real_mul?>(b.y, a),
-		<?=real_mul?>(b.z, a));
+		<?=sub?>(<?=mul?>(a.y, b.z), <?=mul?>(a.z, b.y)),
+		<?=sub?>(<?=mul?>(a.z, b.x), <?=mul?>(a.x, b.z)),
+		<?=sub?>(<?=mul?>(a.x, b.y), <?=mul?>(a.y, b.x)));
 }
 
 <?
@@ -195,12 +213,8 @@ makevec3('real3', 'real')
 makevec3('cplx3', 'cplx')
 ?>
 
-static inline real3 real3_cross(real3 a, real3 b) {
-	return _real3(
-		a.y * b.z - a.z * b.y,
-		a.z * b.x - a.x * b.z,
-		a.x * b.y - a.y * b.x);
-}
+#define real3_to_real3(x)	x
+#define real3_from_real3(x)	x
 
 static inline real real3_lenSq(real3 a) {
 	return real3_dot(a,a);
@@ -297,7 +311,17 @@ real3 real3_rotateTo(real3 v, real3 n) {
 #endif
 }
 
-cplx3 cplx3_from_real3(real3 re, real3 im) {
+#define cplx3_to_real3		cplx3_re
+
+cplx3 cplx3_from_real3(real3 re) {
+	return (cplx3){
+		.x = cplx_from_real(re.x),
+		.y = cplx_from_real(re.y),
+		.z = cplx_from_real(re.z),
+	};
+}
+
+cplx3 cplx3_from_real3_real3(real3 re, real3 im) {
 	return (cplx3){
 		.x = {.re = re.x, .im = im.x},
 		.y = {.re = re.y, .im = im.y},
@@ -308,9 +332,16 @@ cplx3 cplx3_from_real3(real3 re, real3 im) {
 real3 cplx3_re(cplx3 v) { return _real3(v.x.re, v.y.re, v.z.re); }
 real3 cplx3_im(cplx3 v) { return _real3(v.x.im, v.y.im, v.z.im); }
 
-static inline sym3 sym3_ident() {
-	return _sym3(1,0,0,1,0,1);
+real cplx3_lenSq(cplx3 v) {
+	return real3_lenSq(cplx3_re(v)) + real3_lenSq(cplx3_im(v));
 }
+
+real cplx3_len(cplx3 v) {
+	return sqrt(cplx3_lenSq(v));
+}
+
+#define sym3_zero	_sym3(0,0,0,0,0,0)
+#define sym3_ident	_sym3(1,0,0,1,0,1)
 
 static inline real sym3_det(sym3 m) {
 	return m.xx * (m.yy * m.zz - m.yz * m.yz)
@@ -447,7 +478,7 @@ sym3 sym3_swap0(sym3 m) { return m; }
 sym3 sym3_swap1(sym3 m) { return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
 sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
 
-#define real3x3_zero (real3x3){.v={_real3(0,0,0),_real3(0,0,0),_real3(0,0,0)}}
+#define real3x3_zero (real3x3){.v={real3_zero, real3_zero, real3_zero}}
 
 static inline real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b) {
 	real3x3 c;
@@ -530,6 +561,8 @@ static inline real real3_weightedLenSq(real3 a, sym3 m) {
 static inline real real3_weightedLen(real3 a, sym3 m) {
 	return sqrt(real3_weightedLenSq(a, m));
 }
+
+#define _3sym3_zero (_3sym3){.s={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}}
 
 <? for name,symbol in pairs{add='+', sub='-'} do ?>
 static inline _3sym3 _3sym3_<?=name?>(_3sym3 a, _3sym3 b) {

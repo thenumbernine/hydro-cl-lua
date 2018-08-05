@@ -462,7 +462,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 	//write zeros to the alpha and gammaLL terms
 	resultU.alpha = 0;
-	resultU.gamma = _sym3(0,0,0,0,0,0);
+	resultU.gamma = sym3_zero;
 
 	resultU.a.y = input.ptr[6];
 	resultU.a.z = input.ptr[7];
@@ -628,7 +628,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	
 	//write zeros to the alpha and gammaLL terms
 	resultU.alpha = 0;
-	resultU.gamma = _sym3(0,0,0,0,0,0);
+	resultU.gamma = sym3_zero;
 	
 	resultU.a.x = input.ptr[6];
 	resultU.a.z = input.ptr[7];
@@ -794,7 +794,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 	//write zeros to the alpha and gammaLL terms
 	resultU.alpha = 0;
-	resultU.gamma = _sym3(0,0,0,0,0,0);
+	resultU.gamma = sym3_zero;
 	
 	resultU.a.x = input.ptr[6];
 	resultU.a.y = input.ptr[7];
@@ -1070,11 +1070,11 @@ kernel void addSource(
 #if 0
 	real density = 0;//state[STATE_DENSITY];
 	real pressure = 0;//state[STATE_PRESSURE];
-	real3 vel3 = _real3(0,0,0);//(real4)(state[STATE_VELOCITY_X], state[STATE_VELOCITY_Y], state[STATE_VELOCITY_Z], 0.);
+	real3 vel3 = real3_zero;//(real4)(state[STATE_VELOCITY_X], state[STATE_VELOCITY_Y], state[STATE_VELOCITY_Z], 0.);
 	real vel3Sq = real3_dot(vel3, vel3);	//TODO use gamma
 	real LorentzFactor = 1. / sqrt(1. - vel3Sq);
 	real4 vel4_ = (real4)(vel3.x * LorentzFactor, vel3.y * LorentzFactor, vel3.z * LorentzFactor, LorentzFactor);
-	real3 beta_ = _real3(0,0,0);
+	real3 beta_ = real3_zero;
 #endif
 
 	//S_terms_ll[ij] = 4 pi (gamma_ij (S - rho) - 2 S_ij)
@@ -1096,13 +1096,13 @@ kernel void addSource(
 	
 	//momentum term: j_i = n^a proj T_ai
 #if 1
-	real3 j_l = _real3(0,0,0);
+	real3 j_l = real3_zero;
 #else
-	real3 j_l = (real3){
+	real3 j_l = _real3(
 		8. * M_PI * ((density + pressure) * vel4_.w * vel4_.x + pressure * beta_.x),
 		8. * M_PI * ((density + pressure) * vel4_.w * vel4_.y + pressure * beta_.y),
-		8. * M_PI * ((density + pressure) * vel4_.w * vel4_.z + pressure * beta_.z),
-	};
+		8. * M_PI * ((density + pressure) * vel4_.w * vel4_.z + pressure * beta_.z)
+	);
 #endif
 
 

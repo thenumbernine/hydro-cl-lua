@@ -196,15 +196,15 @@ function ADM_BonaMasso_3D:getCommonFuncCode()
 	return template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->alpha = 1.;
-	U->gamma = _sym3(1,0,0,1,0,1);
-	U->a = _real3(0,0,0);
-	U->d.x = _sym3(0,0,0,0,0,0);
-	U->d.y = _sym3(0,0,0,0,0,0);
-	U->d.z = _sym3(0,0,0,0,0,0);
-	U->K = _sym3(0,0,0,0,0,0);
-	U->V = _real3(0,0,0);
+	U->gamma = sym3_ident;
+	U->a = real3_zero;
+	U->d.x = sym3_zero;
+	U->d.y = sym3_zero;
+	U->d.z = sym3_zero;
+	U->K = sym3_zero;
+	U->V = real3_zero;
 <? if eqn.useShift then 
-?>	U->beta_u = _real3(0,0,0);
+?>	U->beta_u = real3_zero;
 <? end 
 ?>
 }
@@ -231,9 +231,9 @@ kernel void initState(
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
 	real alpha = 1.;
-	real3 beta_u = _real3(0,0,0);
-	sym3 gamma_ll = _sym3(1,0,0,1,0,1);
-	sym3 K_ll = _sym3(0,0,0,0,0,0);
+	real3 beta_u = real3_zero;
+	sym3 gamma_ll = sym3_ident;
+	sym3 K_ll = sym3_zero;
 
 	//throw-away for ADM3D ... but not for BSSNOK
 	// TODO hold rho somewhere?
@@ -244,7 +244,7 @@ kernel void initState(
 	U->alpha = alpha;
 	U->gamma = gamma_ll;
 	U->K = K_ll;
-	U->V = _real3(0,0,0);
+	U->V = real3_zero;
 <? if eqn.useShift then
 ?>	U->beta_u = beta_u;
 <? end
@@ -274,7 +274,7 @@ for i=solver.dim+1,3 do
 	local xi = xNames[i]
 ?>
 	U->a.<?=xi?> = 0;
-	U->d.<?=xi?> = _sym3(0,0,0,0,0,0);
+	U->d.<?=xi?> = sym3_zero;
 <?
 end
 ?>
@@ -334,23 +334,23 @@ momentum constraints
 	vars:insert{gravity = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	*valuevec = real3_scale(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
+	*value_real3 = real3_scale(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
 ]], type='real3'}
 
 	vars:insert{['alpha vs a_i'] = template([[
 	if (OOB(1,1)) {
-		*valuevec = _real3(0,0,0);
+		*value_real3 = real3_zero;
 	} else {
 		<? for i=1,solver.dim do
 			local xi = xNames[i]
 		?>{
 			real di_alpha = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (2. * grid_dx<?=i-1?>);
-			valuevec-><?=xi?> = fabs(di_alpha - U->alpha * U->a.<?=xi?>);
+			value_real3-><?=xi?> = fabs(di_alpha - U->alpha * U->a.<?=xi?>);
 		}<? end ?>
 		<? for i=solver.dim+1,3 do
 			local xi = xNames[i]
 		?>{
-			valuevec-><?=xi?> = 0;
+			value_real3-><?=xi?> = 0;
 		}<? end ?>
 	}
 ]], {
@@ -373,7 +373,7 @@ momentum constraints
 			1. / (2. * grid_dx<?=i-1?>)
 		);
 		<? else ?>
-		sym3 di_gamma_jk = _sym3(0,0,0,0,0,0);
+		sym3 di_gamma_jk = sym3_zero;
 		<? end ?>
 		*valuesym3 = sym3_sub(di_gamma_jk, sym3_scale(U->d.<?=xi?>, 2.));
 		*valuesym3 = (sym3){<?
@@ -402,7 +402,7 @@ momentum constraints
 ?> + U->d.<?=xj?>.<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
 		end
 	end ?>;
-		valuevec-><?=xi?> = U->V.<?=xi?> - (d1 - d2);
+		value_real3-><?=xi?> = U->V.<?=xi?> - (d1 - d2);
 	}<? end ?>
 ]], {sym=sym, xNames=xNames}), type='real3'}
 

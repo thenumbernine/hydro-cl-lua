@@ -42,7 +42,7 @@ kernel void calcGravityDeriv(
 	const global <?=eqn.cons_only_t?>* U = &UBuf[index].cons;
 	const global <?=eqn.prim_t?>* prim = &UBuf[index].prim;
 
-	real3 du_dt = _real3(0,0,0);
+	real3 du_dt = real3_zero;
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;

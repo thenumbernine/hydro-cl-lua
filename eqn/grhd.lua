@@ -198,10 +198,10 @@ kernel void initState(
 #endif
 	;
 	real rho = 0;
-	real3 v = _real3(0,0,0);
+	real3 v = real3_zero;
 	real P = 0;
 	//ignored:
-	real3 B = _real3(0,0,0);
+	real3 B = real3_zero;
 
 	<?=solver:getADMVarCode()?>
 
@@ -228,7 +228,7 @@ function GRHD:getCalcEigenBasisCode() end
 function GRHD:getDisplayVars()
 	return {
 		{D = '*value = U->cons.D;'},
-		{S = '*valuevec = U->cons.S;', type='real3'},
+		{S = '*value_real3 = U->cons.S;', type='real3'},
 		{['S weighted'] = template([[
 	<?=solver:getADMVarCode()?>
 	*value = real3_weightedLen(U->cons.S, gamma);
@@ -263,7 +263,7 @@ function GRHD:getDisplayVars()
 		{rho = '*value = U->prim.rho;'},
 		
 		-- TODO abstract the generators of real3 variables and add weighted norms automatically
-		{v = '*valuevec = U->prim.v;', type='real3'},
+		{v = '*value_real3 = U->prim.v;', type='real3'},
 		{['v weighted'] = template([[
 	<?=solver:getADMVarCode()?>
 	*value = real3_weightedLen(U->prim.v, gamma);
