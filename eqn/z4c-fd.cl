@@ -41,7 +41,7 @@ TFBar(K_ij) = K_ij - 1/3 gammaBar_ij gammaBar^kl K_kl
 */
 sym3 tracefree(sym3 A_ll, sym3 gamma_ll, sym3 gamma_uu) {
 	real tr_A = sym3_dot(A_ll, gamma_uu);
-	return sym3_sub(A_ll, sym3_scale(gamma_ll, tr_A / 3.));
+	return sym3_sub(A_ll, sym3_real_mul(gamma_ll, tr_A / 3.));
 }
 
 kernel void constrainU(
@@ -149,12 +149,12 @@ end ?>;
 	//gamma_ij = exp(4 phi) gammaBar_ij
 	//only used in K_ll calculation for H constraint
 	// exp_4phi could be singular
-	sym3 gamma_ll = sym3_scale(gammaBar_ll, exp_4phi);
+	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
 
 	//gammaBar_ij = exp(-4 phi) gamma_ij
 	//gammaBar^ij = exp(4 phi) gamma^ij
 	//gamma^ij = exp(-4 phi) gammaBar^ij
-	sym3 gamma_uu = sym3_scale(U->gammaBar_uu, exp_neg4phi);
+	sym3 gamma_uu = sym3_real_mul(U->gammaBar_uu, exp_neg4phi);
 
 	//connBar_lll[i].jk := connBar_ijk = 1/2 (gammaBar_ij,k + gammaBar_ik,j - gammaBar_jk,i)
 	_3sym3 connBar_lll;
@@ -386,8 +386,8 @@ end
 	//then factor out one of the chis 
 	
 	//(chi alpha (R_ij - 8 pi S_ij))^TF
-	sym3 tf_chi_alpha_R_minus_S = sym3_scale(
-		sym3_add(R_ll, sym3_scale(U->S_ll, -8. * M_PI)), 
+	sym3 tf_chi_alpha_R_minus_S = sym3_real_mul(
+		sym3_add(R_ll, sym3_real_mul(U->S_ll, -8. * M_PI)), 
 		U->chi * U->alpha);
 	tf_chi_alpha_R_minus_S = tracefree(tf_chi_alpha_R_minus_S, gammaBar_ll, U->gammaBar_uu);
 
@@ -395,7 +395,7 @@ end
 	//= chi D_i D_j alpha + gammaBar_ij ( 1/3 chi (connBar^k alpha,k - gammaBar^kl alpha,kl) + 1/6 gammaBar^kl chi,k alpha,l)
 	sym3 chi_tf_D2_alpha = sym3_add( 
 		chi_D2_alpha_ll,
-		sym3_scale(gammaBar_ll, 
+		sym3_real_mul(gammaBar_ll, 
 			1./3. * U->chi * (
 				real3_dot(connBar_u, *(real3*)partial_alpha_l)
 				- sym3_dot(U->gammaBar_uu, *(sym3*)partial2_alpha_ll)
@@ -437,7 +437,7 @@ end
 	//K,i = KHat__,i + 2 Theta_,i
 	real3 partial_K_l = real3_add(
 		*(real3*)partial_KHat_l,
-		real3_scale(
+		real3_real_mul(
 			*(real3*)partial_Theta_l,
 			2.));
 
@@ -514,10 +514,10 @@ end
 	//B^i_,t = connBar^i_,t - eta B^i ... maybe + beta^j B^i_,j (Rezolla says - beta^j B^i_,j)
 	const real eta = 0.;
 	deriv->beta_u = real3_add(deriv->beta_u,
-		real3_scale(U->B_u, 3./4. * U->alpha));
+		real3_real_mul(U->B_u, 3./4. * U->alpha));
 
 	deriv->B_u = real3_add(deriv->B_u, dt_connBar_u);
-	deriv->B_u = real3_sub(deriv->B_u, real3_scale(U->B_u, eta));
+	deriv->B_u = real3_sub(deriv->B_u, real3_real_mul(U->B_u, eta));
 <? 	for i,xi in ipairs(xNames) do
 		for j,xj in ipairs(xNames) do
 ?>	deriv->B_u.<?=xi?> -= U->beta_u.<?=xj?> * partial_B_ul[<?=i-1?>].<?=xj?>;
@@ -583,8 +583,8 @@ end ?>
 	//A_ij = exp(4 phi) ABar_ij
 	//K_ij = exp(4 phi) ABar_ij + 1/3 gamma_ij K 
 	sym3 K_ll = sym3_add(
-		sym3_scale(U->ABar_ll, exp_4phi),
-		sym3_scale(gamma_ll, K/3.));
+		sym3_real_mul(U->ABar_ll, exp_4phi),
+		sym3_real_mul(gamma_ll, K/3.));
 	real3x3 K_ul = sym3_sym3_mul(gamma_uu, K_ll);
 	sym3 K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);
 	

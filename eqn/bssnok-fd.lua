@@ -150,7 +150,7 @@ real calc_det_gamma(global const <?=eqn.cons_t?>* U, real3 x) {
 
 sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U) {
 	real exp_neg4phi = calc_exp_neg4phi(U);
-	sym3 gamma_uu = sym3_scale(U->gammaTilde_uu, exp_neg4phi);
+	sym3 gamma_uu = sym3_real_mul(U->gammaTilde_uu, exp_neg4phi);
 	return gamma_uu;
 }
 
@@ -165,7 +165,7 @@ kernel void initState(
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);
 	real3 xc = coordMap(x);
-	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
@@ -194,7 +194,7 @@ kernel void initState(
 ?>	U->phi = log(det_gamma / det_gammaGrid) / 12.;
 <? end 
 ?>
-	U->gammaTilde_ll = sym3_scale(gamma_ll, exp_neg4phi);
+	U->gammaTilde_ll = sym3_real_mul(gamma_ll, exp_neg4phi);
 	U->gammaTilde_uu = sym3_inv(U->gammaTilde_ll, 1.);
 
 <? if false then ?>
@@ -204,8 +204,8 @@ kernel void initState(
 <? end ?>
 
 	U->K = sym3_dot(K_ll, gamma_uu);
-	sym3 A_ll = sym3_sub(K_ll, sym3_scale(gamma_ll, 1./3. * U->K));
-	U->ATilde_ll = sym3_scale(A_ll, exp_neg4phi);
+	sym3 A_ll = sym3_sub(K_ll, sym3_real_mul(gamma_ll, 1./3. * U->K));
+	U->ATilde_ll = sym3_real_mul(A_ll, exp_neg4phi);
 	
 	U->rho = rho;
 	U->S_u = real3_zero;
@@ -305,12 +305,12 @@ end ?>;
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 
 	//gamma_ij = exp(4 phi) gammaTilde_ij
-	sym3 gamma_ll = sym3_scale(U->gammaTilde_ll, exp_4phi);
+	sym3 gamma_ll = sym3_real_mul(U->gammaTilde_ll, exp_4phi);
 
 	//K_ij = exp(4 phi) ATilde_ij + 1/3 gamma_ij K 
 	sym3 K_ll = sym3_add(
-		sym3_scale(U->ATilde_ll, exp_4phi),
-		sym3_scale(gamma_ll, U->K/3.));
+		sym3_real_mul(U->ATilde_ll, exp_4phi),
+		sym3_real_mul(gamma_ll, U->K/3.));
 
 	*value = -tr_partial_beta / U->alpha
 <? 
@@ -341,10 +341,10 @@ end
 		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
 		{gamma_ll = [[
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
-	*valuesym3 = sym3_scale(U->gammaTilde_ll, exp_4phi);
+	*valuesym3 = sym3_real_mul(U->gammaTilde_ll, exp_4phi);
 ]], type='sym3'},
 		{K_ll = [[
-	*valuesym3 = sym3_add(U->ATilde_ll, sym3_scale(U->gammaTilde_ll, U->K/3.));
+	*valuesym3 = sym3_add(U->ATilde_ll, sym3_real_mul(U->gammaTilde_ll, U->K/3.));
 ]], type='sym3'},
 
 		--[[ ADM geodesic equation spatial terms:
@@ -384,15 +384,15 @@ end
 
 	//gamma_ij = exp(4 phi) gammaTilde_ij
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
-	sym3 gamma_ll = sym3_scale(exp_4phi, U->gammaTilde_ll);
+	sym3 gamma_ll = sym3_real_mul(exp_4phi, U->gammaTilde_ll);
 
 	//gamma_ij,k = exp(4 phi) gammaTilde_ij,k + 4 phi,k exp(4 phi) gammaTilde_ij
 	<?=makePartial('phi', 'real')?>
 	_3sym3 partial_gamma_lll = {
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_add(
-			sym3_scale(partial_gammaTilde_lll[<?=i-1?>], exp_4phi),
-			sym3_scale(U->gammaTilde_ll, 4. * exp_4phi * partial_phi_l[<?=i-1?>])),
+			sym3_real_mul(partial_gammaTilde_lll[<?=i-1?>], exp_4phi),
+			sym3_real_mul(U->gammaTilde_ll, 4. * exp_4phi * partial_phi_l[<?=i-1?>])),
 <? end
 ?>	};
 
@@ -402,15 +402,15 @@ end
 	real _1_chi = 1. / U->chi;
 	
 	//gamma_ij = 1/chi gammaTilde_ij
-	sym3 gamma_ll = sym3_scale(U->gammaTilde_ll, _1_chi);
+	sym3 gamma_ll = sym3_real_mul(U->gammaTilde_ll, _1_chi);
 	
 	//gamma_ij,k = 1/chi gammaTilde_ij,k - chi,k / chi^2 gammaTilde_ij
 	<?=makePartial('chi', 'real')?>
 	_3sym3 partial_gamma_lll = {
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_sub(
-			sym3_scale(partial_gammaTilde_lll[<?=i-1?>], _1_chi),
-			sym3_scale(U->gammaTilde_ll, partial_chi_l[<?=i-1?>] * _1_chi * _1_chi)),
+			sym3_real_mul(partial_gammaTilde_lll[<?=i-1?>], _1_chi),
+			sym3_real_mul(U->gammaTilde_ll, partial_chi_l[<?=i-1?>] * _1_chi * _1_chi)),
 <? end
 ?>	};
 

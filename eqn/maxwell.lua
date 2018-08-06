@@ -51,8 +51,8 @@ Maxwell.name = 'Maxwell'
 Maxwell.numIntStates = 6
 
 -- I'm working on making complex numbers exchangeable
---Maxwell.scalar = 'real'
-Maxwell.scalar = 'cplx'
+Maxwell.scalar = 'real'
+--Maxwell.scalar = 'cplx'
 
 -- 1 for 'real', 2 for 'cplx'
 Maxwell.numRealsInScalar = ffi.sizeof(Maxwell.scalar) / ffi.sizeof'real'
@@ -72,7 +72,7 @@ Maxwell.consVars = table{
 	{rhoCharge = Maxwell.scalar},
 	{sigma = Maxwell.scalar},
 }
-	
+
 --[[
 TODO make these complex
 but that means making E and B complex 
@@ -225,7 +225,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
 	bool lhs = x.x < mids.x
 #if dim > 1
 		&& x.y < mids.y
@@ -268,24 +268,25 @@ kernel void initState(
 ]]
 
 function Maxwell:getSolverCode()
-	return template(file['eqn/maxwell.cl'], {eqn=self})
+	return template(file['eqn/maxwell.cl'], self:getScalarTemplateEnv())
 end
 
 function Maxwell:getScalarTemplateEnv()
-	local vec3 = self.vec3
 	local scalar = self.scalar
 	local env = {}
-	env.vec3 = vec3
-	env.scalar = scalar
-	env.scalar = scalar
 	env.eqn = self
 	env.solver = self.solver
+	env.vec3 = self.vec3
+	env.susc_t = self.susc_t
+	env.scalar = scalar
+	env.zero = scalar..'_zero'
+	env.inv = scalar..'_inv'
+	env.neg = scalar..'_neg'
 	env.fromreal = scalar..'_from_real'
 	env.add = scalar..'_add'
 	env.sub = scalar..'_sub'
 	env.mul = scalar..'_mul'
 	env.real_mul = scalar..'_real_mul'
-	env.zero = scalar..'_zero'
 	return env
 end
 
@@ -341,8 +342,8 @@ function Maxwell:getDisplayVars()
 
 	local vars = Maxwell.super.getDisplayVars(self)
 	vars:append{ 
-		{E = template([[	*value_<?=vec3?> = <?=vec3?>_scale(U->D, U->_1_eps);]], env), type=vec3},
-		{S = template([[	*value_<?=vec3?> = <?=vec3?>_scale(<?=vec3?>_cross(U->D, U->B), U->_1_eps);]], env), type=vec3},
+		{E = template([[	*value_<?=vec3?> = <?=susc_t?>_<?=vec3?>_mul(U->_1_eps, U->D);]], env), type=vec3},
+		{S = template([[	*value_<?=vec3?> = <?=susc_t?>_<?=vec3?>_mul(U->_1_eps, <?=vec3?>_cross(U->D, U->B));]], env), type=vec3},
 		{energy = template([[
 	*value_<?=scalar?> = <?=real_mul?>(
 		<?=add?>(

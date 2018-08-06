@@ -27,7 +27,7 @@ local function makePartial(order, solver, field, fieldType)
 	
 	local add = fieldType..'_add'
 	local sub = fieldType..'_sub'
-	local scale = fieldType..'_scale'
+	local real_mul = fieldType..'_real_mul'
 	local zero = fieldType..'_zero'
 
 	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)
@@ -37,12 +37,12 @@ local function makePartial(order, solver, field, fieldType)
 		local expr = zero
 		if i <= solver.dim then
 			for j,coeff in ipairs(d1coeffs) do
-				expr = add(expr, scale(sub(
+				expr = add(expr, real_mul(sub(
 						'U['..j..' * stepsize.'..xi..'].'..field,
 						'U[-'..j..' * stepsize.'..xi..'].'..field
 					), clnumber(coeff)))
 			end
-			expr = scale(expr, '1. / grid_dx'..(i-1))
+			expr = real_mul(expr, '1. / grid_dx'..(i-1))
 		end
 		lines:insert('\t'..namei..' = '..expr..';')
 	end
@@ -56,7 +56,7 @@ local function makePartial2(order, solver, field, fieldType, nameOverride)
 	
 	local add = fieldType..'_add'
 	local sub = fieldType..'_sub'
-	local scale = fieldType..'_scale'
+	local real_mul = fieldType..'_real_mul'
 	local zero = fieldType..'_zero'
 
 	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)
@@ -70,23 +70,23 @@ local function makePartial2(order, solver, field, fieldType, nameOverride)
 		if i > solver.dim or j > solver.dim then
 			lines:insert('\t'..nameij..' = '..zero..';')
 		elseif i == j then
-			local expr = scale('U->'..field, d2coeffs[0])
+			local expr = real_mul('U->'..field, d2coeffs[0])
 			for k,coeff in ipairs(d2coeffs) do
 				expr = add(
 					expr, 
-					scale(
+					real_mul(
 						add(
 							'U['..k..' * stepsize.s'..(i-1)..'].'..field,
 							'U[-'..k..' * stepsize.s'..(i-1)..'].'..field),
 						clnumber(coeff)))
 			end
-			expr = scale(expr, '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')
+			expr = real_mul(expr, '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')
 			lines:insert('\t'..nameij..' = '..expr..';')
 		else
 			local expr = zero
 			for k,coeff_k in ipairs(d1coeffs) do
 				for l,coeff_l in ipairs(d1coeffs) do
-					expr = add(expr, scale(
+					expr = add(expr, real_mul(
 						sub(
 							add(
 								'U['..k..' * stepsize.'..xi..' + '..l..' * stepsize.'..xj..'].'..field,
@@ -97,7 +97,7 @@ local function makePartial2(order, solver, field, fieldType, nameOverride)
 						clnumber(coeff_k * coeff_l)))
 				end
 			end
-			expr = scale(expr, '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')
+			expr = real_mul(expr, '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')
 			lines:insert('\t'..nameij..' = '..expr..';')
 		end
 	end

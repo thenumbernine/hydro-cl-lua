@@ -18,7 +18,7 @@
 	
 	F.rhoBar = U.rhoBar_vTilde.s<?=side?>;
 	
-	F.rhoBar_vTilde = real3_scale(U.rhoBar_vTilde, vTilde_j);
+	F.rhoBar_vTilde = real3_real_mul(U.rhoBar_vTilde, vTilde_j);
 
 <? for i=0,2 do
 ?>	F.rhoBar_vTilde.s<?=i?> += coord_gU<?=i?><?=side?>(x) * W.PStar;
@@ -75,8 +75,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	//Roe-averaged
 	real rhoBar = sqrtRhoL * sqrtRhoR;
 	real3 vTilde = real3_add(
-			real3_scale(vTildeL, sqrtRhoL * invDenom),
-			real3_scale(vTildeR, sqrtRhoR * invDenom));
+			real3_real_mul(vTildeL, sqrtRhoL * invDenom),
+			real3_real_mul(vTildeR, sqrtRhoR * invDenom));
 	real hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR);
 	//I'm making this part up:
 	real k = invDenom * (sqrtRhoL * kL + sqrtRhoR * kR);
@@ -541,6 +541,6 @@ kernel void addSource(
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
 	real3 m_conn_vv = coord_conn_apply23(W.vTilde, U->rhoBar_vTilde, x);
 	deriv->rhoBar_vTilde = real3_sub(deriv->rhoBar_vTilde, m_conn_vv);	//-Conn^i_jk rhoBar vTilde^j vTilde^k 
-	deriv->rhoBar_vTilde = real3_sub(deriv->rhoBar_vTilde, real3_scale(coord_conn_trace23(x), W.PStar));		//-Conn^i_jk g^jk PStar
+	deriv->rhoBar_vTilde = real3_sub(deriv->rhoBar_vTilde, real3_real_mul(coord_conn_trace23(x), W.PStar));		//-Conn^i_jk g^jk PStar
 <? end ?>
 }

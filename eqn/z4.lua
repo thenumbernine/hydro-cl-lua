@@ -70,7 +70,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	setFlatSpace(U, x);
@@ -150,7 +150,7 @@ momentum constraints
 		{gravity = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	*value_real3 = real3_scale(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
+	*value_real3 = real3_real_mul(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
 ]], type='real3'},
 	}
 	

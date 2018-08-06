@@ -38,7 +38,7 @@ TFBar(K_ij) = K_ij - 1/3 gammaTilde_ij gammaTilde^kl K_kl
 */
 sym3 tracefree(sym3 A_ll, sym3 gamma_ll, sym3 gamma_uu) {
 	real tr_A = sym3_dot(A_ll, gamma_uu);
-	return sym3_sub(A_ll, sym3_scale(gamma_ll, tr_A / 3.));
+	return sym3_sub(A_ll, sym3_real_mul(gamma_ll, tr_A / 3.));
 }
 
 kernel void constrainU(
@@ -141,12 +141,12 @@ end ?>;
 	//gamma_ij = exp(4 phi) gammaTilde_ij
 	//only used in K_ll calculation for H constraint
 	// exp_4phi could be singular
-	sym3 gamma_ll = sym3_scale(U->gammaTilde_ll, exp_4phi);
+	sym3 gamma_ll = sym3_real_mul(U->gammaTilde_ll, exp_4phi);
 
 	//gammaTilde_ij = exp(-4 phi) gamma_ij
 	//gammaTilde^ij = exp(4 phi) gamma^ij
 	//gamma^ij = exp(-4 phi) gammaTilde^ij
-	sym3 gamma_uu = sym3_scale(U->gammaTilde_uu, exp_neg4phi);
+	sym3 gamma_uu = sym3_real_mul(U->gammaTilde_uu, exp_neg4phi);
 
 	//connBar_lll[i].jk := connBar_ijk = 1/2 (gammaTilde_ij,k + gammaTilde_ik,j - gammaTilde_jk,i)
 	_3sym3 connBar_lll;
@@ -401,8 +401,8 @@ end
 	//then factor out one of the chis 
 	
 	//(chi alpha (R_ij - 8 pi S_ij))^TF
-	sym3 tf_chi_alpha_R_minus_S = sym3_scale(
-		sym3_add(R_ll, sym3_scale(U->S_ll, -8. * M_PI)), 
+	sym3 tf_chi_alpha_R_minus_S = sym3_real_mul(
+		sym3_add(R_ll, sym3_real_mul(U->S_ll, -8. * M_PI)), 
 		U->chi * U->alpha);
 	tf_chi_alpha_R_minus_S = tracefree(tf_chi_alpha_R_minus_S, U->gammaTilde_ll, U->gammaTilde_uu);
 
@@ -410,7 +410,7 @@ end
 	//= chi D_i D_j alpha + gammaTilde_ij ( 1/3 chi (connBar^k alpha,k - gammaTilde^kl alpha,kl) + 1/6 gammaTilde^kl chi,k alpha,l)
 	sym3 chi_tf_D2_alpha = sym3_add( 
 		chi_D2_alpha_ll,
-		sym3_scale(U->gammaTilde_ll, 
+		sym3_real_mul(U->gammaTilde_ll, 
 			1./3. * U->chi * (
 				real3_dot(U->connBar_u, *(real3*)partial_alpha_l)
 				- sym3_dot(U->gammaTilde_uu, *(sym3*)partial2_alpha_ll)
@@ -430,24 +430,24 @@ end
 	//...times chi = exp(-4 phi)
 #if 1	//all at once
 	sym3 tracelessPart_ll = sym3_sub(
-		sym3_scale(
-			sym3_add(R_ll, sym3_scale(U->S_ll, -8. * M_PI)), 
+		sym3_real_mul(
+			sym3_add(R_ll, sym3_real_mul(U->S_ll, -8. * M_PI)), 
 			U->alpha),
 		D2_alpha_ll);
 	tracelessPart_ll = tracefree(tracelessPart_ll, U->gammaTilde_ll, U->gammaTilde_uu);
 #else	//each term separately
 	sym3 tracelessPart_ll = sym3_sub(
-		sym3_scale(
+		sym3_real_mul(
 			sym3_add(
 				tracefree(R_ll, gamma_ll, gamma_uu),
-				sym3_scale(
+				sym3_real_mul(
 					tracefree(U->S_ll, gamma_ll, gamma_uu), 
 					-8. * M_PI)), 
 			U->alpha),
 		tracefree(D2_alpha_ll, gamma_ll, gamma_uu)
 	);
 #endif
-	sym3 chi_tracelessPart_ll = sym3_scale(tracelessPart_ll, exp_neg4phi);
+	sym3 chi_tracelessPart_ll = sym3_real_mul(tracelessPart_ll, exp_neg4phi);
 <? end
 ?>
 
@@ -535,8 +535,8 @@ end
 	const real eta = 0.;	// 1 / (2 M), for total mass M
 	deriv->beta_u = real3_add(deriv->beta_u,
 		real3_add(
-			real3_scale(dt_connBar_u, k),
-			real3_scale(connBar_u, eta)));
+			real3_real_mul(dt_connBar_u, k),
+			real3_real_mul(connBar_u, eta)));
 <? end ?>
 <? if eqn.useHypGammaDriver then ?>
 	//hyperbolic Gamma driver 
@@ -545,10 +545,10 @@ end
 	//B^i_,t = connBar^i_,t - eta B^i ... maybe + beta^j B^i_,j (Rezolla says - beta^j B^i_,j)
 	const real eta = 0.;
 	deriv->beta_u = real3_add(deriv->beta_u,
-		real3_scale(U->B_u, 3./4. * U->alpha));
+		real3_real_mul(U->B_u, 3./4. * U->alpha));
 
 	deriv->B_u = real3_add(deriv->B_u, dt_connBar_u);
-	deriv->B_u = real3_sub(deriv->B_u, real3_scale(U->B_u, eta));
+	deriv->B_u = real3_sub(deriv->B_u, real3_real_mul(U->B_u, eta));
 <? 	for i,xi in ipairs(xNames) do
 		for j,xj in ipairs(xNames) do
 ?>	deriv->B_u.<?=xi?> -= U->beta_u.<?=xj?> * partial_B_ul[<?=i-1?>].<?=xj?>;
@@ -610,8 +610,8 @@ end ?>
 	//A_ij = exp(4 phi) ATilde_ij
 	//K_ij = exp(4 phi) ATilde_ij + 1/3 gamma_ij K 
 	sym3 K_ll = sym3_add(
-		sym3_scale(U->ATilde_ll, exp_4phi),
-		sym3_scale(gamma_ll, U->K/3.));
+		sym3_real_mul(U->ATilde_ll, exp_4phi),
+		sym3_real_mul(gamma_ll, U->K/3.));
 	real3x3 K_ul = sym3_sym3_mul(gamma_uu, K_ll);
 	sym3 K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);
 	

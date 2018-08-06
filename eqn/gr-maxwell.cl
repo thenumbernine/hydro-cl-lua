@@ -312,7 +312,7 @@ kernel void addSource(
 	SETBOUNDS_NOGHOST();
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-	deriv->epsE = real3_sub(deriv->epsE, real3_scale(U->epsE, 1. / U->eps * U->sigma));
+	deriv->epsE = real3_sub(deriv->epsE, real3_real_mul(U->epsE, 1. / U->eps * U->sigma));
 }
 
 

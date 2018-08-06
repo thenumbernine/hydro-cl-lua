@@ -66,7 +66,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
 	bool lhs = x.x < mids.x
 #if dim > 1
 		&& x.y < mids.y
@@ -96,7 +96,7 @@ kernel void initState(
 	
 	<?=code?>
 	
-	U->epsE = real3_scale(E, permittivity);
+	U->epsE = real3_real_mul(E, permittivity);
 	U->B = B;
 	U->BPot = 0;
 	U->sigma = conductivity;
@@ -112,10 +112,10 @@ function GRMaxwell:getCalcEigenBasisCode() end
 function GRMaxwell:getDisplayVars()
 	local solver = self.solver
 	return GRMaxwell.super.getDisplayVars(self):append{ 
-		{E_u = '*value_real3 = real3_scale(U->epsE, 1. / U->eps);', type='real3'},
+		{E_u = '*value_real3 = real3_real_mul(U->epsE, 1. / U->eps);', type='real3'},
 	
 		-- eps_ijk E^j B^k
-		{S_l = '*value_real3 = real3_scale(real3_cross(U->epsE, U->B), 1. / U->eps);', type='real3'},
+		{S_l = '*value_real3 = real3_real_mul(real3_cross(U->epsE, U->B), 1. / U->eps);', type='real3'},
 		
 		{energy = template([[
 	<?=solver:getADMVarCode()?>

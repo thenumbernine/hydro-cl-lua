@@ -35,8 +35,8 @@ TwoFluidEMHD.postComputeFluxCode = [[
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
 		real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
-		flux.E = real3_scale(coord_lower(flux.E, x), _1_sqrt_det_g);
-		flux.B = real3_scale(coord_lower(flux.B, x), _1_sqrt_det_g);
+		flux.E = real3_real_mul(coord_lower(flux.E, x), _1_sqrt_det_g);
+		flux.B = real3_real_mul(coord_lower(flux.B, x), _1_sqrt_det_g);
 ]]
 
 TwoFluidEMHD.name = 'TwoFluidEMHD'
@@ -238,7 +238,7 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 	return (<?=eqn.prim_t?>){
 		<? for _,fluid in ipairs(fluids) do ?>
 		.<?=fluid?>_rho = U.<?=fluid?>_rho,
-		.<?=fluid?>_v = real3_scale(U.<?=fluid?>_m, 1./U.<?=fluid?>_rho),
+		.<?=fluid?>_v = real3_real_mul(U.<?=fluid?>_m, 1./U.<?=fluid?>_rho),
 		.<?=fluid?>_P = (heatCapacityRatio - 1.) * <?=fluid?>_EInt,
 		.<?=fluid?>_ePot = U.<?=fluid?>_ePot,
 		<? end ?>
@@ -253,7 +253,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
 <? for _,fluid in ipairs(fluids) do ?>
 		.<?=fluid?>_rho = W.<?=fluid?>_rho,
-		.<?=fluid?>_m = real3_scale(W.<?=fluid?>_v, W.<?=fluid?>_rho),
+		.<?=fluid?>_m = real3_real_mul(W.<?=fluid?>_v, W.<?=fluid?>_rho),
 		.<?=fluid?>_ETotal = calc_<?=fluid?>_ETotal(W, x),
 		.<?=fluid?>_ePot = W.<?=fluid?>_ePot,
 <? end ?>
@@ -276,8 +276,8 @@ inline <?=eqn.cons_t?> apply_dU_dW(
 <? for _,fluid in ipairs(fluids) do ?>
 		.<?=fluid?>_rho = W.<?=fluid?>_rho,
 		.<?=fluid?>_m = real3_add(
-			real3_scale(WA.<?=fluid?>_v, W.<?=fluid?>_rho), 
-			real3_scale(W.<?=fluid?>_v, WA.<?=fluid?>_rho)),
+			real3_real_mul(WA.<?=fluid?>_v, W.<?=fluid?>_rho), 
+			real3_real_mul(W.<?=fluid?>_v, WA.<?=fluid?>_rho)),
 		.<?=fluid?>_ETotal = W.<?=fluid?>_rho * .5 * real3_dot(WA.<?=fluid?>_v, WA_<?=fluid?>_vL) 
 			+ WA.<?=fluid?>_rho * real3_dot(W.<?=fluid?>_v, WA_<?=fluid?>_vL)
 			+ W.<?=fluid?>_P / (heatCapacityRatio - 1.)
@@ -303,8 +303,8 @@ inline <?=eqn.prim_t?> apply_dW_dU(
 <? for _,fluid in ipairs(fluids) do ?>
 		.<?=fluid?>_rho = U.<?=fluid?>_rho,
 		.<?=fluid?>_v = real3_sub(
-			real3_scale(U.<?=fluid?>_m, 1. / WA.<?=fluid?>_rho),
-			real3_scale(WA.<?=fluid?>_v, U.<?=fluid?>_rho / WA.<?=fluid?>_rho)),
+			real3_real_mul(U.<?=fluid?>_m, 1. / WA.<?=fluid?>_rho),
+			real3_real_mul(WA.<?=fluid?>_v, U.<?=fluid?>_rho / WA.<?=fluid?>_rho)),
 		.<?=fluid?>_P = (heatCapacityRatio - 1.) * (
 			.5 * real3_dot(WA.<?=fluid?>_v, WA_<?=fluid?>_vL) * U.<?=fluid?>_rho 
 			- real3_dot(U.<?=fluid?>_m, WA_<?=fluid?>_vL)
@@ -335,7 +335,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
 	bool lhs = x.x < mids.x
 #if dim > 1
 		&& x.y < mids.y

@@ -20,9 +20,9 @@ ideal-mhd, divergence-free, conservative-based eigensystem
 	
 	<?=eqn.cons_t?> F;
 	F.rho = U.m.s<?=side?>;
-	F.m = real3_sub(real3_scale(U.m, vj), real3_scale(U.B, Bj / mu0));
+	F.m = real3_sub(real3_real_mul(U.m, vj), real3_real_mul(U.B, Bj / mu0));
 	F.m.s<?=side?> += PTotal;
-	F.B = real3_sub(real3_scale(U.B, vj), real3_scale(W.v, Bj));
+	F.B = real3_sub(real3_real_mul(U.B, vj), real3_real_mul(W.v, Bj));
 	F.ETotal = HTotal * vj - BDotV * Bj / mu0;
 	F.BPot = 0.;
 	F.ePot = 0.;
@@ -146,9 +146,9 @@ Roe_t calcRoeValues(
 	real invDenom = 1 / (sqrtRhoL + sqrtRhoR);
 	
 	W.rho  = sqrtRhoL * sqrtRhoR;
-	W.v = real3_scale(real3_add(
-		real3_scale(WL.v, sqrtRhoL),
-		real3_scale(WR.v, sqrtRhoR)), invDenom);
+	W.v = real3_real_mul(real3_add(
+		real3_real_mul(WL.v, sqrtRhoL),
+		real3_real_mul(WR.v, sqrtRhoR)), invDenom);
 	
 	W.hTotal = (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR) * invDenom;
 	
@@ -582,8 +582,8 @@ kernel void addSource(
 	real PTotal = W.P + PMag;
 	real3 m_conn_vv = coord_conn_apply23(W.v, U->m, x);
 	deriv->m = real3_sub(deriv->m, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
-	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn_trace23(x), PTotal));		//-Conn^i_jk g^jk P_total
-	deriv->m = real3_add(deriv->m, real3_scale(coord_conn_apply23(U->B, U->B, x), 1. / mu0));	//+ 1/mu0 Conn^i_jk B^j B^k
+	deriv->m = real3_sub(deriv->m, real3_real_mul(coord_conn_trace23(x), PTotal));		//-Conn^i_jk g^jk P_total
+	deriv->m = real3_add(deriv->m, real3_real_mul(coord_conn_apply23(U->B, U->B, x), 1. / mu0));	//+ 1/mu0 Conn^i_jk B^j B^k
 <? end ?>
 }
 

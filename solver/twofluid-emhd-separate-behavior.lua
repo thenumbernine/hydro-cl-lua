@@ -153,8 +153,8 @@ kernel void addSource_maxwell(
 	global <?=maxwell_cons_t?>* deriv = derivBuf + index;
 	const global <?=euler_cons_t?>* ionU = ionUBuf + index;
 	const global <?=euler_cons_t?>* electronU = electronUBuf + index;
-	deriv->E = real3_sub(deriv->E, real3_scale(ionU->m, chargeMassRatio_ion));
-	deriv->E = real3_sub(deriv->E, real3_scale(electronU->m, chargeMassRatio_electron));
+	deriv->E = real3_sub(deriv->E, real3_real_mul(ionU->m, chargeMassRatio_ion));
+	deriv->E = real3_sub(deriv->E, real3_real_mul(electronU->m, chargeMassRatio_electron));
 }
 
 ]]

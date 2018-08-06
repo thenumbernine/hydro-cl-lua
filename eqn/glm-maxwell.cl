@@ -165,7 +165,7 @@ kernel void addSource(
 	SETBOUNDS_NOGHOST();
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-	real3 mu0_J = real3_scale(U->E, mu0 / U->conductivity);
+	real3 mu0_J = real3_real_mul(U->E, mu0 / U->conductivity);
 	deriv->E = real3_sub(deriv->E, mu0_J);
 	deriv->phi += U->rhoCharge * divPhiWavespeed / eps0;
 }

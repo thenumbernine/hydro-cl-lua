@@ -1152,7 +1152,7 @@ end
 	//V^i = d^i - e^i - Z^i
 	
 	//gamma_ij,t + ... = 2 beta^k d_kij + b_ji + b_ij - 2 alpha K_ij
-	deriv->gamma = sym3_add(deriv->gamma, sym3_scale(U->K, -2. * U->alpha));
+	deriv->gamma = sym3_add(deriv->gamma, sym3_real_mul(U->K, -2. * U->alpha));
 
 	//d_kij,t + ... = b_k^l d_lij - b_l^l d_kij
 

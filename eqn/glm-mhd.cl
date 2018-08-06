@@ -39,9 +39,9 @@ Roe_t calcRoeValues(
 	real invDenom = 1 / (sqrtRhoL + sqrtRhoR);
 	
 	W.rho  = sqrtRhoL * sqrtRhoR;
-	W.v = real3_scale(real3_add(
-		real3_scale(WL.v, sqrtRhoL),
-		real3_scale(WR.v, sqrtRhoR)), invDenom);
+	W.v = real3_real_mul(real3_add(
+		real3_real_mul(WL.v, sqrtRhoL),
+		real3_real_mul(WR.v, sqrtRhoR)), invDenom);
 	
 	W.hTotal = (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR) * invDenom;
 	
@@ -231,9 +231,9 @@ Roe_t calcRoeValues(
 	
 	<?=eqn.cons_t?> F;
 	F.rho = U.m.s<?=side?>;
-	F.m = real3_sub(real3_scale(U.m, vj), real3_scale(U.B, Bj / mu0));
+	F.m = real3_sub(real3_real_mul(U.m, vj), real3_real_mul(U.B, Bj / mu0));
 	F.m.s<?=side?> += PTotal;
-	F.B = real3_sub(real3_scale(U.B, vj), real3_scale(W.v, Bj));
+	F.B = real3_sub(real3_real_mul(U.B, vj), real3_real_mul(W.v, Bj));
 	F.B.s<?=side?> += F.psi;
 	F.ETotal = HTotal * vj - BDotV * Bj / mu0;
 

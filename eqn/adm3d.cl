@@ -142,7 +142,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	eig.sqrt_gammaUjj.z = sqrt(eig.gammaU.zz);
 	
 	<? if eqn.useShift then ?>
-	eig.beta_u = real3_scale(real3_add(UL.beta_u, UR.beta_u), .5);
+	eig.beta_u = real3_real_mul(real3_add(UL.beta_u, UR.beta_u), .5);
 	<? end ?>
 
 	return eig;
@@ -184,7 +184,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	results.ptr[21] = inputU.V.y;
 	results.ptr[22] = inputU.V.z;
 	
-	sym3 K_sqrt_gammaUxx = sym3_scale(inputU.K, eig.sqrt_gammaUjj.x);
+	sym3 K_sqrt_gammaUxx = sym3_real_mul(inputU.K, eig.sqrt_gammaUjj.x);
 
 	//a^x - f d^xj_j
 
@@ -268,7 +268,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	results.ptr[21] = inputU.V.y;
 	results.ptr[22] = inputU.V.z;
 	
-	sym3 K_sqrt_gammaUyy = sym3_scale(inputU.K, eig.sqrt_gammaUjj.y);
+	sym3 K_sqrt_gammaUyy = sym3_real_mul(inputU.K, eig.sqrt_gammaUjj.y);
 
 	//a^y - f d^yj_j
 
@@ -352,7 +352,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	results.ptr[21] = inputU.V.y;
 	results.ptr[22] = inputU.V.z;
 
-	sym3 K_sqrt_gammaUzz = sym3_scale(inputU.K, eig.sqrt_gammaUjj.z);
+	sym3 K_sqrt_gammaUzz = sym3_real_mul(inputU.K, eig.sqrt_gammaUjj.z);
 
 	//a^z - f d^zj_j
 
@@ -1042,8 +1042,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	sym3 gammaU = sym3_swap<?=side?>(eig.gammaU);
 
 	resultU.a.s<?=side?> = sym3_dot(input_K, gammaU) * eig.alpha * f;
-	sym3 result_d = sym3_scale(input_K, eig.alpha);
-	sym3 result_K = sym3_scale(input_d, eig.alpha * gammaU.xx);
+	sym3 result_d = sym3_real_mul(input_K, eig.alpha);
+	sym3 result_K = sym3_real_mul(input_d, eig.alpha * gammaU.xx);
 	result_K.xx += (inputU.a.s<?=side?> - sym3_dot(input_d, gammaU)) * eig.alpha;
 
 	//now swap x and side on the sym3's
@@ -1223,13 +1223,13 @@ kernel void addSource(
 	deriv->alpha += -U->alpha * U->alpha * f * trK;
 	
 	//gamma_ij,t = first derivs - 2 alpha K_ij
-	sym3_add(deriv->gamma, sym3_scale(U->K, -2. * U->alpha));
+	sym3_add(deriv->gamma, sym3_real_mul(U->K, -2. * U->alpha));
 	
 	//K_ij,t = first derivs + alpha srcK_ij
-	sym3_add(deriv->K, sym3_scale(srcK_ll, U->alpha));
+	sym3_add(deriv->K, sym3_real_mul(srcK_ll, U->alpha));
 
 	//V_k,t = first derivs + alpha srcV_k
-	real3_add(deriv->V, real3_scale(srcV_l, U->alpha));
+	real3_add(deriv->V, real3_real_mul(srcV_l, U->alpha));
 
 <? if eqn.useShift then ?>
 
@@ -1379,12 +1379,12 @@ end ?>
 		real3_add(
 			real3_add(
 				dbeta_beta,
-				real3_scale(
+				real3_real_mul(
 					U->beta_u,
 					U->alpha * trK * (1. - f)
 				)
 			),
-			real3_scale(
+			real3_real_mul(
 				real3_sub(
 					conn_u,
 					a_u
@@ -1437,7 +1437,7 @@ end ?>
 	//V_i = d_ik^k - d^k_ki <=> V_i += eta (d_ik^k - d^k_ki - V_i)
 	deriv->V = real3_add(
 		deriv->V,
-		real3_scale(
+		real3_real_mul(
 			real3_sub(real3_sub(d1_l, d3_l), U->V),
 			V_convCoeff));
 <? end -- eqn.guiVars.V_convCoeff.value  ?>
@@ -1505,7 +1505,7 @@ so to solve this, you must solve a giant linear system of all variables
 	const real v_weight = weight;
 	const real d_weight = (1. - weight) / 4.;
 
-	U->V = real3_sub(U->V, real3_scale(delta, v_weight));
+	U->V = real3_sub(U->V, real3_real_mul(delta, v_weight));
 <? 
 		for i,xi in ipairs(xNames) do 
 			for jk,xjk in ipairs(symNames) do

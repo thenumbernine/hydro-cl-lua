@@ -153,21 +153,11 @@ static inline <?=scalar?> <?=vec?>_dot(<?=vec?> a, <?=vec?> b) {
 }
 
 //maybe I should just use <?=vec?>_<?=scale?>_mul ?
-static inline <?=vec?> <?=vec?>_scale(<?=vec?> a, <?=scalar?> s) {
+static inline <?=vec?> <?=vec?>_<?=scalar?>_mul(<?=vec?> a, <?=scalar?> s) {
 	return _<?=vec?>(
 		<?=mul?>(a.x, s),
 		<?=mul?>(a.y, s),
 		<?=mul?>(a.z, s));
-}
-
-//I'm using '_scale' for multipying a vector by its base type per-element
-//I'm using '_real_mul' for multiplying a vector by a real
-//maybe I should rename _scale to _<?=scalar?>_mul ?
-static inline <?=vec?> <?=vec?>_real_mul(<?=vec?> a, real b) {
-	return _<?=vec?>(
-		<?=real_mul?>(a.x, b),
-		<?=real_mul?>(a.y, b),
-		<?=real_mul?>(a.z, b));
 }
 
 static inline <?=vec?> <?=scalar?>_<?=vec?>_mul(<?=scalar?> a, <?=vec?> b) {
@@ -178,6 +168,13 @@ static inline <?=vec?> <?=scalar?>_<?=vec?>_mul(<?=scalar?> a, <?=vec?> b) {
 }
 
 <? if scalar ~= 'real' then ?>
+static inline <?=vec?> <?=vec?>_real_mul(<?=vec?> a, real b) {
+	return _<?=vec?>(
+		<?=real_mul?>(a.x, b),
+		<?=real_mul?>(a.y, b),
+		<?=real_mul?>(a.z, b));
+}
+
 static inline <?=vec?> real_<?=vec?>_mul(real a, <?=vec?> b) {
 	return _<?=vec?>(
 		<?=real_mul?>(b.x, a),
@@ -391,7 +388,7 @@ static inline sym3 sym3_sub(sym3 a, sym3 b) {
 }
 
 
-static inline sym3 sym3_scale(sym3 a, real s) {
+static inline sym3 sym3_real_mul(sym3 a, real s) {
 	return (sym3){
 		.xx = a.xx * s,
 		.xy = a.xy * s,
@@ -578,7 +575,7 @@ static inline _3sym3 _3sym3_<?=name?>(_3sym3 a, _3sym3 b) {
 }
 <? end ?>
 
-static inline _3sym3 _3sym3_scale(_3sym3 a, real b) {
+static inline _3sym3 _3sym3_real_mul(_3sym3 a, real b) {
 	return (_3sym3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = {

@@ -77,7 +77,7 @@ kernel void calcDT(
 
 	<?=eqn.cons_t?> F;
 	F.cons.D = U.cons.D * vUi_shift;
-	F.S = real3_scale(U.cons.S, vUi_shift);
+	F.S = real3_real_mul(U.cons.S, vUi_shift);
 	F.S.s<?=side?> += U.prim.p;
 	F.tau = U.cons.tau * vUi_shift + p * vUi;
 	F.prim = (<?=eqn.prim_t?>){
@@ -139,12 +139,12 @@ kernel void calcEigenBasis(
 <? if true then -- arithmetic averaging ?>
 		<?=eqn.prim_t?> avg = (<?=eqn.prim_t?>){
 			.rho = .5 * (primL.rho + primR.rho),
-			.v = real3_scale(real3_add(primL.v, primR.v), .5),
+			.v = real3_real_mul(real3_add(primL.v, primR.v), .5),
 			.eInt = .5 * (primL.eInt + primR.eInt),
 		};
 		real alpha = .5 * (alphaL + alphaR);
-		real3 beta = real3_scale(real3_add(betaL, betaR), .5);
-		sym3 gamma = sym3_scale(sym3_add(gammaL, gammaR), .5);
+		real3 beta = real3_real_mul(real3_add(betaL, betaR), .5);
+		sym3 gamma = sym3_real_mul(sym3_add(gammaL, gammaR), .5);
 <? -- else -- Roe-averaging, Font 2008 eqn 38 ?>
 <? end ?>
 		
@@ -505,7 +505,7 @@ kernel void updatePrims(
 		real PError = fabs(1. - newP / P);
 		P = newP;
 		if (PError < solvePrimStopEpsilon) {
-			v = real3_scale(S, 1. / (tau + D + P));
+			v = real3_real_mul(S, 1. / (tau + D + P));
 			vSq = real3_weightedLenSq(v, gamma);
 			W = 1. / sqrt(1. - vSq);
 			rho = D / W;

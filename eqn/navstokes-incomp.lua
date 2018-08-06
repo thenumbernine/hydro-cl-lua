@@ -34,7 +34,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
 	bool lhs = x.x < mids.x
 #if dim > 1
 		&& x.y < mids.y
@@ -95,7 +95,7 @@ function NavierStokesDivFree:getDisplayVars()
 	local vars = table{
 		{rho = '*value = U->rho;'},
 		{v = '*value_real3 = U->v;', type='real3'},
-		{m = 'value = real3_scale(U->v, U->rho);', type='real3'},
+		{m = 'value = real3_real_mul(U->v, U->rho);', type='real3'},
 		--{P = '*value = W.P;'},
 		--{eInt = '*value = calc_eInt(W);'},
 		--{eKin = '*value = calc_eKin(W);'},

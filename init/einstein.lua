@@ -231,7 +231,7 @@ return table{
 
 	//h,i = (H exp(-(x-c)^2 / sigma^2)),i
 	// = -2 h / sigma^2 (x_i-c_i)
-	real3 dh = real3_scale(real3_sub(x, mids), -2. * h / sigma2);
+	real3 dh = real3_real_mul(real3_sub(x, mids), -2. * h / sigma2);
 
 	sym3 delta_ll = sym3_ident();
 
@@ -240,8 +240,8 @@ return table{
 	// = -2 (-2 h / sigma^2 (x-c)_i (x-c)_j) / sigma^2 - 2 h delta_ij / sigma^2
 	// = 4 h (x-c)_i (x-c)_j / sigma^4 - 2 h delta_ij / sigma^2
 	sym3 d2h = sym3_sub(
-		sym3_scale(real3_outer(c, c), 4. * h / sigma4),
-		sym3_scale(sym3_ident(), 2. * h / sigma2));
+		sym3_real_mul(real3_outer(c, c), 4. * h / sigma4),
+		sym3_real_mul(sym3_ident(), 2. * h / sigma2));
 
 #if 0
 	alpha = .5 * (
@@ -251,7 +251,7 @@ return table{
 #endif
 
 	gamma_ll = sym3_sub(delta_ll, real3_outer(dh, dh));
-	K_ll = sym3_scale(d2h, -1./sqrt(1. - real3_lenSq(dh)));
+	K_ll = sym3_real_mul(d2h, -1./sqrt(1. - real3_lenSq(dh)));
 
 //enable this if you want the ADM 3D run in 1D to match the ADM 1D's
 //disable this if you want things to run in higher dimensions
@@ -313,9 +313,9 @@ return table{
 
 	beta_u.x = -v_s * f;
 
-	real3 dx_r_s = real3_scale(y, 1. / r_s);
+	real3 dx_r_s = real3_real_mul(y, 1. / r_s);
 
-	real3 dx_f = real3_scale(dx_r_s, 
+	real3 dx_f = real3_real_mul(dx_r_s, 
 		init_sigma * (
 			dtanh(init_sigma * (r_s + init_R)) 
 			- dtanh(init_sigma * (r_s - init_R))
@@ -348,11 +348,11 @@ return table{
 	real r = real3_len(xc);
 	alpha = sqrt(1. - R/r);
 
-	real3 xc_u = real3_scale(xc, 1. / r);
+	real3 xc_u = real3_real_mul(xc, 1. / r);
 
 	gamma_ll = sym3_add(
 		sym3_ident(),
-		sym3_scale(real3_outer(xc_u, xc_u), 1. / (r / R - 1)));
+		sym3_real_mul(real3_outer(xc_u, xc_u), 1. / (r / R - 1)));
 ]]
 		end,
 	},
@@ -467,7 +467,7 @@ return table{
 	real psi4 = psi2 * psi2;
 
 
-	gamma_ll = sym3_scale(sym3_ident(), psi4);
+	gamma_ll = sym3_real_mul(sym3_ident(), psi4);
 
 	<? for _,body in ipairs(bodies) do ?>{
 
@@ -479,29 +479,29 @@ return table{
 
 		// upper is cartesian coordinates
 		// metric is isotropic
-		real3 n_u = r == 0 ? _real3(0,0,1) : real3_scale(xrel, 1./r);
-		real3 n_l = real3_scale(n_u, psi4);
+		real3 n_u = r == 0 ? _real3(0,0,1) : real3_real_mul(xrel, 1./r);
+		real3 n_l = real3_real_mul(n_u, psi4);
 
 		real3 P_u = _real3(<?=clnumber(body.P_u[1])?>, <?=clnumber(body.P_u[2])?>, <?=clnumber(body.P_u[3])?>);
 		real3 S_u = _real3(<?=clnumber(body.S_u[1])?>, <?=clnumber(body.S_u[2])?>, <?=clnumber(body.S_u[3])?>);
 
-		real3 P_l = real3_scale(P_u, psi4);
+		real3 P_l = real3_real_mul(P_u, psi4);
 		
 		real n_dot_P = real3_dot(n_l, P_u);
 		
 		//Alcubierre 3.4.22
 		//Bowen-York extrinsic curvature
 
-		sym3 ABar_boost_ll = sym3_scale(
+		sym3 ABar_boost_ll = sym3_real_mul(
 			sym3_sub(
 				sym3_add(real3_outer(P_l, n_l), real3_outer(n_l, P_l)),
-				sym3_scale(sym3_sub(real3_outer(n_l, n_l), sym3_ident()), n_dot_P)
+				sym3_real_mul(sym3_sub(real3_outer(n_l, n_l), sym3_ident()), n_dot_P)
 			), 1.5 / rSq);
 
 		//Levi-Civita density is det gamma for conformal metric, whose det is 1, so a cross product works with covariant Levi-Civita
 		real3 S_cross_n_l = real3_cross(S_u, n_u);
 
-		sym3 ABar_spin_ll = sym3_scale(
+		sym3 ABar_spin_ll = sym3_real_mul(
 			sym3_add(
 				real3_outer(S_cross_n_l, n_l),
 				real3_outer(n_l, S_cross_n_l)), 
@@ -514,7 +514,7 @@ return table{
 		//ATilde_ij = A_ij * exp(-4 phi)
 		//K = 0, so A_ij = K_ij
 		//likewise sum the K_ij's for each black hole (1997 Brandt & Brugmann eqn 7)
-		K_ll = sym3_add(K_ll, sym3_scale(ABar_ll, 1. / psi2));
+		K_ll = sym3_add(K_ll, sym3_real_mul(ABar_ll, 1. / psi2));
 	}<? end ?>
 
 ]], {
@@ -554,13 +554,13 @@ return table{
 	real3 ofs = real3_sub(xc, pos);
 	
 	real r = real3_len(ofs);
-	real3 l = real3_scale(ofs, 1./r);
+	real3 l = real3_real_mul(ofs, 1./r);
 	
 	real m = r / init_bodyRadius; m *= m * m; m = min(m, 1.); m *= init_bodyMass;
 	real R = 2. * m;
 
 	alpha -= 2*m/r;
-	gamma_ll = sym3_add(gamma_ll, sym3_scale(real3_outer(l,l), 1./(r/R - 1.)));
+	gamma_ll = sym3_add(gamma_ll, sym3_real_mul(real3_outer(l,l), 1./(r/R - 1.)));
 
 	if (r < init_bodyRadius) {
 		rho += init_bodyMass / (4./3. * M_PI * init_bodyRadius * init_bodyRadius * init_bodyRadius);

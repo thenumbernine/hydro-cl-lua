@@ -663,7 +663,7 @@ real3 cartesianToCoord(real3 u, real3 pt) {
 		real uei = real3_dot(e, u) / real3_lenSq(e);
 		uCoord.s<?=i?> = uei;
 		//subtract off this basis component from u
-		u = real3_sub(u, real3_scale(e, uei));
+		u = real3_sub(u, real3_real_mul(e, uei));
 	}<? end ?>
 	//add whatever's left of u
 	uCoord = real3_add(uCoord, u);
@@ -676,7 +676,7 @@ real3 cartesianFromCoord(real3 u, real3 pt) {
 	real3 uGrid = real3_zero;
 	<? for i=0,solver.dim-1 do ?>{
 		real3 e = coordBasis<?=i?>(pt);
-		uGrid = real3_add(uGrid, real3_scale(e, u.s<?=i?>));
+		uGrid = real3_add(uGrid, real3_real_mul(e, u.s<?=i?>));
 	}<? end ?>
 	return uGrid;
 }

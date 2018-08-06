@@ -6,20 +6,6 @@ local xNames = common.xNames
 local sym = common.sym
 ?>
 
-<? 
-local scalar = eqn.scalar
-local vec3 = eqn.vec3
-local susc_t = eqn.susc_t
-local zero = scalar..'_zero'	
-local add = scalar..'_add'
-local sub = scalar..'_sub'
-local mul = scalar..'_mul'
-local real_mul = scalar..'_real_mul'
-local inv = scalar..'_inv'
-local neg = scalar..'_neg'
-local fromreal = scalar..'_from_real'
-?>
-
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
 <? for side=0,solver.dim-1 do ?>
@@ -259,7 +245,7 @@ kernel void addSource(
 	//TODO J = J_f + J_b = J_f + J_P + J_M = J_f + dP/dt + curl M
 	deriv->D = <?=vec3?>_sub(
 		deriv->D, 
-		<?=vec3?>_scale(
+		<?=vec3?>_<?=scalar?>_mul(
 			U->D, 
 			<?=mul?>(U->_1_eps, U->sigma)
 		)

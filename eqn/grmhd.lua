@@ -164,8 +164,8 @@ real calc_h(real rho, real P, real eInt) {
 	
 	//momentum = T^0i = rho h u^0 u^i + P g^0i
 	real3 S = real3_add(
-		real3_scale(prim.v, prim.rho * h * WSq),
-		real3_scale(betaU, P / (alpha * alpha)));
+		real3_real_mul(prim.v, prim.rho * h * WSq),
+		real3_real_mul(betaU, P / (alpha * alpha)));
 	
 	//energy = T^00 = rho h u^0 u^0 + P g^00
 	real tau = prim.rho * h * WSq - D - P / (alpha * alpha);
@@ -186,7 +186,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
 	bool lhs = x.x < mids.x
 #if dim > 1
 		&& x.y < mids.y

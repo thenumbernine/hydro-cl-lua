@@ -77,7 +77,7 @@ function GRHDSeparateSolver:init(args)
 	sym3 gammaHat_ll = coord_g(cell_x(i));
 	sym3 gammaBar_ll = sym3_add(gammaHat_ll, <?=args.U?>->epsilon_ll);
 	real exp_4phi = 1. / calc_exp_neg4phi(<?=args.U?>);
-	sym3 <?=args.gamma?> = sym3_scale(gammaBar_ll, exp_4phi);
+	sym3 <?=args.gamma?> = sym3_real_mul(gammaBar_ll, exp_4phi);
 ]], {gr=gr, args=args})
 	end
 	
@@ -223,10 +223,10 @@ S^i = -gamma^ij n^a T_aj
 = W rho_mass h u^i
 */
 	real3 u_l = real3_add(
-		real3_scale(hydroU->prim.v, W),
-		real3_scale(beta_u, -W / alpha));
+		real3_real_mul(hydroU->prim.v, W),
+		real3_real_mul(beta_u, -W / alpha));
 	real3 u_u = sym3_mul(gamma_uu, u_l);
-	grU->S_u = real3_scale(u_u, W * rhoMass * h);
+	grU->S_u = real3_real_mul(u_u, W * rhoMass * h);
 
 /*
 S_ij = gamma_i^a gamma_j^b T_cd
@@ -241,8 +241,8 @@ S_ij = gamma_i^a gamma_j^b T_cd
 = rho_mass h u_i u_j + P gamma_ij 
 */
 	grU->S_ll = sym3_add(
-		sym3_scale(real3_outer(u_l, u_l), rhoMass * h),
-		sym3_scale(gamma_ll, P));
+		sym3_real_mul(real3_outer(u_l, u_l), rhoMass * h),
+		sym3_real_mul(gamma_ll, P));
 }
 ]], 	{
 			hydro = self.hydro,
@@ -282,7 +282,7 @@ kernel void copyMetricFromGRToHydro(
 	hydroU->beta = hydroPrim->beta = grU->beta_u;
 
 	real exp_4phi = exp(4. * grU->phi);
-	sym3 gamma_ll = sym3_scale(grU->gammaTilde_ll, exp_4phi);
+	sym3 gamma_ll = sym3_real_mul(grU->gammaTilde_ll, exp_4phi);
 	hydroU->gamma = hydroPrim->gamma = gamma_ll;
 }
 ]], 	{

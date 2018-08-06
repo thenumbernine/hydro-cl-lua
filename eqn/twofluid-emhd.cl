@@ -26,7 +26,7 @@ for _,fluid in ipairs(fluids) do
 	real <?=fluid?>_HTotal = U.<?=fluid?>_ETotal + W.<?=fluid?>_P;
 	
 	F.<?=fluid?>_rho = U.<?=fluid?>_m.s<?=side?>;
-	F.<?=fluid?>_m = real3_scale(U.<?=fluid?>_m, <?=fluid?>_vj);
+	F.<?=fluid?>_m = real3_real_mul(U.<?=fluid?>_m, <?=fluid?>_vj);
 <? 	for i=0,2 do
 ?>	F.<?=fluid?>_m.s<?=i?> += coord_gU<?=i?><?=side?>(x) * W.<?=fluid?>_P;
 <? 	end
@@ -84,8 +84,8 @@ end
 	//Roe-averaged
 	real <?=fluid?>_rho = <?=fluid?>_sqrtRhoL * <?=fluid?>_sqrtRhoR;
 	real3 <?=fluid?>_v = real3_add(
-			real3_scale(<?=fluid?>_vL, <?=fluid?>_sqrtRhoL * <?=fluid?>_invDenom),
-			real3_scale(<?=fluid?>_vR, <?=fluid?>_sqrtRhoR * <?=fluid?>_invDenom));
+			real3_real_mul(<?=fluid?>_vL, <?=fluid?>_sqrtRhoL * <?=fluid?>_invDenom),
+			real3_real_mul(<?=fluid?>_vR, <?=fluid?>_sqrtRhoR * <?=fluid?>_invDenom));
 	real <?=fluid?>_hTotal = <?=fluid?>_invDenom * (<?=fluid?>_sqrtRhoL * <?=fluid?>_hTotalL + <?=fluid?>_sqrtRhoR * <?=fluid?>_hTotalR);
 
 	//derived:
@@ -585,7 +585,7 @@ kernel void addSource(
 	<? for _,fluid in ipairs(fluids) do ?>{
 		real3 m_conn_vv = coord_conn_apply23(W.<?=fluid?>_v, U-><?=fluid?>_m, x);
 		deriv-><?=fluid?>_m = real3_sub(deriv-><?=fluid?>_m, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
-		deriv-><?=fluid?>_m = real3_sub(deriv-><?=fluid?>_m, real3_scale(conn1_u, W.<?=fluid?>_P));		//-Conn^i_jk g^jk P
+		deriv-><?=fluid?>_m = real3_sub(deriv-><?=fluid?>_m, real3_real_mul(conn1_u, W.<?=fluid?>_P));		//-Conn^i_jk g^jk P
 	}<? end ?>
 <? end ?>
 

@@ -57,7 +57,7 @@ kernel void calcDT(
 
 	<?=eqn.cons_t?> F;
 	F.cons.D = U.cons.D * vi;
-	F.cons.S = real3_scale(U.cons.S, vi);
+	F.cons.S = real3_real_mul(U.cons.S, vi);
 	F.cons.S.s<?=side?> += P;
 	F.cons.tau = U.cons.tau * vi + P * vi;
 	
@@ -126,7 +126,7 @@ kernel void calcEigenBasis(
 <? if true then -- arithmetic averaging ?>
 		<?=eqn.prim_t?> avg = (<?=eqn.prim_t?>){
 			.rho = .5 * (primL.rho + primR.rho),
-			.v = real3_scale(real3_add(primL.v, primR.v), .5),
+			.v = real3_real_mul(real3_add(primL.v, primR.v), .5),
 			.eInt = .5 * (primL.eInt + primR.eInt),
 		};
 <? -- else -- Roe-averaging, Font 2008 eqn 38 ?>
@@ -416,7 +416,7 @@ kernel void updatePrims(
 		real PError = fabs(1. - newP / P);
 		P = newP;
 		if (PError < solvePrimStopEpsilon) {
-			v = real3_scale(S, 1. / (tau + D + P));
+			v = real3_real_mul(S, 1. / (tau + D + P));
 			vSq = coordLenSq(v, x);
 			W = 1. / sqrt(1. - vSq);
 			rho = D / W;

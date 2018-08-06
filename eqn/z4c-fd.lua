@@ -153,7 +153,7 @@ real calc_det_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 
 sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U) {
 	real exp_neg4phi = calc_exp_neg4phi(U);
-	sym3 gamma_uu = sym3_scale(U->gammaBar_uu, exp_neg4phi);
+	sym3 gamma_uu = sym3_real_mul(U->gammaBar_uu, exp_neg4phi);
 	return gamma_uu;
 }
 
@@ -168,7 +168,7 @@ kernel void initState(
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);
 	real3 xc = coordMap(x);
-	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
@@ -194,7 +194,7 @@ kernel void initState(
 	real exp_neg4phi = cbrt(det_gammaBar_ll / det_gamma_ll);
 	U->chi = exp_neg4phi;
 	
-	sym3 gammaBar_ll = sym3_scale(gamma_ll, exp_neg4phi);
+	sym3 gammaBar_ll = sym3_real_mul(gamma_ll, exp_neg4phi);
 	sym3 gammaHat_ll = coord_g(x);
 	U->epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
 	U->gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar_ll);
@@ -210,8 +210,8 @@ kernel void initState(
 	real K = sym3_dot(K_ll, gamma_uu);
 	U->KHat = K - 2. * U->Theta;
 	
-	sym3 A_ll = sym3_sub(K_ll, sym3_scale(gamma_ll, 1./3. * K));
-	U->ABar_ll = sym3_scale(A_ll, exp_neg4phi);
+	sym3 A_ll = sym3_sub(K_ll, sym3_real_mul(gamma_ll, 1./3. * K));
+	U->ABar_ll = sym3_real_mul(A_ll, exp_neg4phi);
 	
 	U->rho = rho;
 	U->S_u = real3_zero;
@@ -316,15 +316,15 @@ end ?>;
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 
 	//gamma_ij = exp(4 phi) gammaBar_ij
-	sym3 gamma_ll = sym3_scale(calc_gammaBar_ll(U, x), exp_4phi);
+	sym3 gamma_ll = sym3_real_mul(calc_gammaBar_ll(U, x), exp_4phi);
 
 	//K = KHat + 2 Theta
 	real K = U->KHat + 2. * U->Theta;
 
 	//K_ij = exp(4 phi) ABar_ij + 1/3 gamma_ij K 
 	sym3 K_ll = sym3_add(
-		sym3_scale(U->ABar_ll, exp_4phi),
-		sym3_scale(gamma_ll, K/3.));
+		sym3_real_mul(U->ABar_ll, exp_4phi),
+		sym3_real_mul(gamma_ll, K/3.));
 
 	*value = -tr_partial_beta / U->alpha
 <? 
@@ -352,7 +352,7 @@ end
 	{
 		real exp_4phi = 1. / calc_exp_neg4phi(U);
 		sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-		*valuesym3 = sym3_scale(gammaBar_ll, exp_4phi);
+		*valuesym3 = sym3_real_mul(gammaBar_ll, exp_4phi);
 	}
 ]], type='sym3'},
 	
@@ -363,10 +363,10 @@ end
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 	real K = U->KHat + 2. * U->Theta;
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	*valuesym3 = sym3_scale(
+	*valuesym3 = sym3_real_mul(
 		sym3_add(
 			U->ABar_ll,
-			sym3_scale(gammaBar_ll, K / 3.)
+			sym3_real_mul(gammaBar_ll, K / 3.)
 		), exp_4phi);
 ]], type='sym3'},
 
@@ -412,15 +412,15 @@ end
 	
 	//gamma_ij = 1/chi gammaBar_ij
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	sym3 gamma_ll = sym3_scale(gammaBar_ll, _1_chi);
+	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, _1_chi);
 	
 	//gamma_ij,k = 1/chi gammaBar_ij,k - chi,k / chi^2 gammaBar_ij
 	<?=makePartial('chi', 'real')?>
 	_3sym3 partial_gamma_lll = {
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_sub(
-			sym3_scale(partial_epsilon_lll[<?=i-1?>], _1_chi),
-			sym3_scale(gammaBar_ll, partial_chi_l[<?=i-1?>] * _1_chi * _1_chi)),
+			sym3_real_mul(partial_epsilon_lll[<?=i-1?>], _1_chi),
+			sym3_real_mul(gammaBar_ll, partial_chi_l[<?=i-1?>] * _1_chi * _1_chi)),
 <? end
 ?>	};
 

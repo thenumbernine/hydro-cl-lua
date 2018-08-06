@@ -56,7 +56,7 @@ kernel void calcGravityDeriv(
 
 	//u = W v
 	real W = U->D / prim->rho;
-	real3 u = real3_scale(prim->v, W);
+	real3 u = real3_real_mul(prim->v, W);
 
 	/*
 	u,t = W,t v + W v,t
@@ -108,8 +108,8 @@ kernel void calcGravityDeriv(
 	*/
 	real uSq = real3_dot(u, u) / (1. - 2. * Phi);
 	real3 dv_dt = real3_add(
-		real3_scale(du_dt, 1. / W),
-		real3_scale(u, real3_dot(u, du_dt) / (W * (1. - 2. * Phi) * (1. + uSq)))
+		real3_real_mul(du_dt, 1. / W),
+		real3_real_mul(u, real3_dot(u, du_dt) / (W * (1. - 2. * Phi) * (1. + uSq)))
 	);
 
 	//W_,t = W^3 (v^i_,t v_i + v^i v^j gamma_ij,t / 2)
@@ -129,8 +129,8 @@ kernel void calcGravityDeriv(
 	//S,t = rho h (W,t u + W u,t)
 	deriv->cons.S = real3_sub(deriv->cons.S,
 		real3_add(
-			real3_scale(u, prim->rho * h * dW_dt),
-			real3_scale(du_dt, prim->rho * h * W)
+			real3_real_mul(u, prim->rho * h * dW_dt),
+			real3_real_mul(du_dt, prim->rho * h * W)
 		)
 	);
 	

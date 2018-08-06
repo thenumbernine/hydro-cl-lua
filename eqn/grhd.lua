@@ -165,7 +165,7 @@ real calc_h(real rho, real P, real eInt) {
 	//2008 Font, eqn 28-30:
 	
 	real D = prim.rho * W;
-	real3 S = real3_scale(prim.v, prim.rho * h * WSq);
+	real3 S = real3_real_mul(prim.v, prim.rho * h * WSq);
 	real tau = prim.rho * h * WSq - P - D;
 
 	return (<?=eqn.cons_only_t?>){
@@ -188,7 +188,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
 	bool lhs = x.x < mids.x
 #if dim > 1
 		&& x.y < mids.y

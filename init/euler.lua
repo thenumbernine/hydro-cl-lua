@@ -312,7 +312,7 @@ end
 	rho = 1.;
 	P = 1e-6;
 	real r = real3_len(x);
-	v = real3_scale(x, -1./r);
+	v = real3_real_mul(x, -1./r);
 ]]
 		end,
 	},
@@ -485,7 +485,7 @@ end
 	
 	real3 delta = xc;
 	real coord_r = real3_len(delta);
-	real3 eHat_r = real3_scale(delta, 1. / coord_r);
+	real3 eHat_r = real3_real_mul(delta, 1. / coord_r);
 	real3 eHat_theta = _real3(-eHat_r.y, eHat_r.x, 0.);
 	real3 eHat_z = _real3(0., 0., 1.);
 	real radius = 1.;
@@ -495,12 +495,12 @@ end
 
 	if (distPastRadius < 0.) {
 		rho = P = 1.;
-		v = real3_scale(eHat_theta, .1);
+		v = real3_real_mul(eHat_theta, .1);
 #if 0
 		B = real3_add(v, 
 			real3_add(
-				real3_scale(eHat_r, -x.z),
-				real3_scale(eHat_z, coord_R)
+				real3_real_mul(eHat_r, -x.z),
+				real3_real_mul(eHat_z, coord_R)
 			)
 		);
 #else
@@ -693,7 +693,7 @@ end) then
 			eInt = 12.999;
 		}
 	}
-	v = real3_scale(m, 1. / rho);
+	v = real3_real_mul(m, 1. / rho);
 	P = (heatCapacityRatio - 1.) * rho * eInt;
 ]]
 		end,
@@ -1275,7 +1275,7 @@ real3 branch<?=i?>(real3 x) {
 	real3 n = _real3(-n<?=i?>.y, n<?=i?>.x, 0);	//angle of rotation of the normal
 	x = _real3(n.x * x.x - n.y * x.y, n.x * x.y + n.y * x.x, 0.);	//rotate by 'n'
 	x.y -= sqrt3*3./8.;	//translate to center
-	x = real3_scale(x, 3.);	//scale up by 3
+	x = real3_real_mul(x, 3.);	//scale up by 3
 	x = _real3(-x.x, -x.y, 0);	//180 rotation
 	return x;
 }
@@ -1284,14 +1284,14 @@ real3 branch<?=i?>(real3 x) {
 //secondary branches
 real3 branch2_1(real3 x) {
 	x.x += sqrt3;
-	x = real3_scale(x, 3.);
+	x = real3_real_mul(x, 3.);
 	x.y -= .5*sqrt3;
 	return x;
 }
 
 real3 branch2_2(real3 x) {
 	x.x -= sqrt3;
-	x = real3_scale(x, 3.);
+	x = real3_real_mul(x, 3.);
 	x.y -= .5*sqrt3;
 	return x;
 }
@@ -1300,7 +1300,7 @@ real3 branch2_3(real3 x) {
 	real c = .5;
 	real s = sqrt3*.5;
 	x = _real3(x.x*c - x.y*s, x.x*s + x.y*c, 0.);	//rotate by c,s
-	x = real3_scale(x, 3);	//scale by 3
+	x = real3_real_mul(x, 3);	//scale by 3
 	x.y += sqrt3;	//translate to center
 	return x;
 }
@@ -1309,7 +1309,7 @@ real3 branch2_4(real3 x) {
 	real c = .5;
 	real s = -sqrt3*.5;
 	x = _real3(x.x*c - x.y*s, x.x*s + x.y*c, 0.);	//rotate by c,s
-	x = real3_scale(x, 3);	//scale by 3
+	x = real3_real_mul(x, 3);	//scale by 3
 	x.y += sqrt3;	//translate to center
 	return x;
 }
@@ -1347,7 +1347,7 @@ bool testTriangle(real3 xc) {
 			
 			return template([[
 	real3 xc = coordMap(x);
-	xc = real3_scale(xc, 2.);
+	xc = real3_real_mul(xc, 2.);
 	
 	//conductivity = <?=clnumber(1/resistivities.air)?>;
 

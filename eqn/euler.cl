@@ -19,7 +19,7 @@ just replace all the g_ab stuff with their constant values and simplify away.
 	
 	F.rho = U.m.s<?=side?>;
 	
-	F.m = real3_scale(U.m, vj);
+	F.m = real3_real_mul(U.m, vj);
 
 <? for i=0,2 do
 ?>	F.m.s<?=i?> += coord_gU<?=i?><?=side?>(x) * W.P;
@@ -69,8 +69,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	//Roe-averaged
 	real rho = sqrtRhoL * sqrtRhoR;
 	real3 v = real3_add(
-			real3_scale(vL, sqrtRhoL * invDenom),
-			real3_scale(vR, sqrtRhoR * invDenom));
+			real3_real_mul(vL, sqrtRhoL * invDenom),
+			real3_real_mul(vR, sqrtRhoR * invDenom));
 	real hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR);
 
 	//derived:
@@ -434,6 +434,6 @@ kernel void addSource(
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
 	real3 m_conn_vv = coord_conn_apply23(W.v, U->m, x);
 	deriv->m = real3_sub(deriv->m, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
-	deriv->m = real3_sub(deriv->m, real3_scale(coord_conn_trace23(x), W.P));		//-Conn^i_jk g^jk P
+	deriv->m = real3_sub(deriv->m, real3_real_mul(coord_conn_trace23(x), W.P));		//-Conn^i_jk g^jk P
 <? end ?>
 }

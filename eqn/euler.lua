@@ -99,7 +99,7 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 	real EInt = U.ETotal - EKin - EPot;
 	return (<?=eqn.prim_t?>){
 		.rho = U.rho,
-		.v = real3_scale(U.m, 1./U.rho),
+		.v = real3_real_mul(U.m, 1./U.rho),
 		.P = (heatCapacityRatio - 1.) * EInt,
 		.ePot = U.ePot,
 	};
@@ -108,7 +108,7 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
 		.rho = W.rho,
-		.m = real3_scale(W.v, W.rho),
+		.m = real3_real_mul(W.v, W.rho),
 		.ETotal = calc_ETotal(W, x),
 		.ePot = W.ePot,
 	};
@@ -123,8 +123,8 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
 		.rho = W.rho,
 		.m = real3_add(
-			real3_scale(WA.v, W.rho), 
-			real3_scale(W.v, WA.rho)),
+			real3_real_mul(WA.v, W.rho), 
+			real3_real_mul(W.v, WA.rho)),
 		.ETotal = W.rho * .5 * real3_dot(WA.v, WA_vL) 
 			+ WA.rho * real3_dot(W.v, WA_vL)
 			+ W.P / (heatCapacityRatio - 1.)
@@ -142,8 +142,8 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.prim_t?>){
 		.rho = U.rho,
 		.v = real3_sub(
-			real3_scale(U.m, 1. / WA.rho),
-			real3_scale(WA.v, U.rho / WA.rho)),
+			real3_real_mul(U.m, 1. / WA.rho),
+			real3_real_mul(WA.v, U.rho / WA.rho)),
 		.P = (heatCapacityRatio - 1.) * (
 			.5 * real3_dot(WA.v, WA_vL) * U.rho 
 			- real3_dot(U.m, WA_vL)
@@ -166,7 +166,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
 	bool lhs = true
 <?
 for i=1,solver.dim do

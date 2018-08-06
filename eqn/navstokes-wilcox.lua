@@ -116,7 +116,7 @@ end
 function NavierStokesWilcox:getPrimConsCode()
 	return template([[
 inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
-	real3 vTilde = real3_scale(U.rhoBar_vTilde, 1. / U.rhoBar);
+	real3 vTilde = real3_real_mul(U.rhoBar_vTilde, 1. / U.rhoBar);
 	real vTildeSq = coordLenSq(vTilde, x);
 	real rhoBar_eIntTilde = U.rhoBar_eTotalTilde - .5 * U.rhoBar * vTildeSq - U.rhoBar_k - U.rhoBar * U.ePot;
 	real rhoBar_TTilde = rhoBar_eIntTilde / C_v;
@@ -151,7 +151,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	
 	return (<?=eqn.cons_t?>){
 		.rhoBar = W.rhoBar,
-		.rhoBar_vTilde = real3_scale(W.vTilde, W.rhoBar),
+		.rhoBar_vTilde = real3_real_mul(W.vTilde, W.rhoBar),
 		.rhoBar_eTotalTilde = W.rhoBar * eTotalTilde,
 		.rhoBar_k = rhoBar_k,
 		.rhoBar_omega = W.rhoBar * W.omega,
@@ -168,8 +168,8 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
 		.rhoBar = W.rhoBar,
 		.rhoBar_vTilde = real3_add(
-			real3_scale(WA.vTilde, W.rhoBar), 
-			real3_scale(W.vTilde, WA.rhoBar)),
+			real3_real_mul(WA.vTilde, W.rhoBar), 
+			real3_real_mul(W.vTilde, WA.rhoBar)),
 		.rhoBar_eTotalTilde = W.rhoBar * (.5 * real3_dot(WA.vTilde, WA_vTildeL) 
 				+ (1. - 2./3. * C_v_over_R) * WA.k)
 			+ WA.rhoBar * real3_dot(W.vTilde, WA_vTildeL)
@@ -191,8 +191,8 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.prim_t?>){
 		.rhoBar = U.rhoBar,
 		.vTilde = real3_sub(
-			real3_scale(U.rhoBar_vTilde, 1. / WA.rhoBar),
-			real3_scale(WA.vTilde, U.rhoBar / WA.rhoBar)),
+			real3_real_mul(U.rhoBar_vTilde, 1. / WA.rhoBar),
+			real3_real_mul(WA.vTilde, U.rhoBar / WA.rhoBar)),
 		.PStar = R_over_C_v * (
 				.5 * real3_dot(WA.vTilde, WA_vTildeL) * U.rhoBar 
 				- real3_dot(U.rhoBar_vTilde, WA_vTildeL)
@@ -217,7 +217,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
 	bool lhs = true
 <?
 for i=1,solver.dim do

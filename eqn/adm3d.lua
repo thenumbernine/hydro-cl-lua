@@ -226,7 +226,7 @@ kernel void initState(
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
 	real3 xc = coordMap(x);
-	real3 mids = real3_scale(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
@@ -334,7 +334,7 @@ momentum constraints
 	vars:insert{gravity = [[
 	real det_gamma = sym3_det(U->gamma);
 	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	*value_real3 = real3_scale(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
+	*value_real3 = real3_real_mul(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
 ]], type='real3'}
 
 	vars:insert{['alpha vs a_i'] = template([[
@@ -365,7 +365,7 @@ momentum constraints
 		*valuesym3 = (sym3){.s={0,0,0,0,0,0}};
 	} else {
 		<? if i <= solver.dim then ?>
-		sym3 di_gamma_jk = sym3_scale(
+		sym3 di_gamma_jk = sym3_real_mul(
 			sym3_sub(
 				U[stepsize.<?=xi?>].gamma, 
 				U[-stepsize.<?=xi?>].gamma
@@ -375,7 +375,7 @@ momentum constraints
 		<? else ?>
 		sym3 di_gamma_jk = sym3_zero;
 		<? end ?>
-		*valuesym3 = sym3_sub(di_gamma_jk, sym3_scale(U->d.<?=xi?>, 2.));
+		*valuesym3 = sym3_sub(di_gamma_jk, sym3_real_mul(U->d.<?=xi?>, 2.));
 		*valuesym3 = (sym3){<?
 	for jk,xjk in ipairs(symNames) do 
 ?>			.<?=xjk?> = fabs(valuesym3-><?=xjk?>),
