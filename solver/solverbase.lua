@@ -616,12 +616,15 @@ if solver.dim >= 3 then
 	int dstindex = index;
 	real3 x = cells[index].x;
 <? end 		-- mesh vs grid ?>
-	
+
+	//TODO rename to value_real
 	real value[6] = {0,0,0,0,0,0};	//size of largest struct
+	sym3* valuesym3 = (sym3*)value;
+
+	real* value_real = value;
 	cplx* value_cplx = (cplx*)value;
 	real3* value_real3 = (real3*)value;
 	real3* value_real3_hi = (real3*)(value+3);
-	sym3* valuesym3 = (sym3*)value;
 	cplx3* value_cplx3 = (cplx3*)value;
 
 <?= var.codePrefix or '' ?>
@@ -711,10 +714,10 @@ function SolverBase:getDisplayInfosForType()
 		},
 		
 		real3 = {
-			{name = ' x', code = '	*value_real3 = real3_from_real(value_real3->x);'},
-			{name = ' y', code = '	*value_real3 = real3_from_real(value_real3->y);'},
-			{name = ' z', code = '	*value_real3 = real3_from_real(value_real3->z);'},
-			{name = ' mag', code = '	*value_real3 = real3_from_real(real3_len(*value_real3));', magn=true},
+			{name = ' x', code = '	*value_real3 = _real3(value_real3->x,0,0);'},
+			{name = ' y', code = '	*value_real3 = _real3(value_real3->y,0,0);'},
+			{name = ' z', code = '	*value_real3 = _real3(value_real3->z,0,0);'},
+			{name = ' mag', code = '	*value_real3 = _real3(real3_len(*value_real3),0,0);', magn=true},
 		},
 
 		cplx3 = {

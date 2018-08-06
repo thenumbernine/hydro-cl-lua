@@ -51,8 +51,8 @@ Maxwell.name = 'Maxwell'
 Maxwell.numIntStates = 6
 
 -- I'm working on making complex numbers exchangeable
-Maxwell.scalar = 'real'
---Maxwell.scalar = 'cplx'
+--Maxwell.scalar = 'real'
+Maxwell.scalar = 'cplx'
 
 -- 1 for 'real', 2 for 'cplx'
 Maxwell.numRealsInScalar = ffi.sizeof(Maxwell.scalar) / ffi.sizeof'real'
@@ -271,46 +271,64 @@ function Maxwell:getSolverCode()
 	return template(file['eqn/maxwell.cl'], {eqn=self})
 end
 
+function Maxwell:getScalarTemplateEnv()
+	local vec3 = self.vec3
+	local scalar = self.scalar
+	local env = {}
+	env.vec3 = vec3
+	env.scalar = scalar
+	env.scalar = scalar
+	env.eqn = self
+	env.solver = self.solver
+	env.fromreal = scalar..'_from_real'
+	env.add = scalar..'_add'
+	env.sub = scalar..'_sub'
+	env.mul = scalar..'_mul'
+	env.real_mul = scalar..'_real_mul'
+	env.zero = scalar..'_zero'
+	return env
+end
+
 -- k is 0,1,2
-local function curl(eqn,k,result,field)
+local function curl(eqn,k,result,field,env)
 	local i = (k+1)%3
 	local j = (i+1)%3
 	return {['curl '..field..' '..xNames[k+1]] = template([[
 	if (OOB(1,1)) {
-		<?=result?> = 0.;
+		<?=result?> = <?=zero?>;
 	} else {
 
 <? if i+1 <= solver.dim then ?>
 		global const <?=eqn.cons_t?>* Uim = U - stepsize.s<?=i?>;
 		global const <?=eqn.cons_t?>* Uip = U + stepsize.s<?=i?>;
-		real vim_j = Uim-><?=field?>.s<?=j?>;
-		real vip_j = Uip-><?=field?>.s<?=j?>;
+		<?=scalar?> vim_j = Uim-><?=field?>.s<?=j?>;
+		<?=scalar?> vip_j = Uip-><?=field?>.s<?=j?>;
 <? else ?>
-		real vim_j = 0.;
-		real vip_j = 0.;
+		<?=scalar?> vim_j = <?=zero?>;
+		<?=scalar?> vip_j = <?=zero?>;
 <? end?>
 
 <? if j+1 <= solver.dim then ?>
 		global const <?=eqn.cons_t?>* Ujm = U - stepsize.s<?=j?>;
 		global const <?=eqn.cons_t?>* Ujp = U + stepsize.s<?=j?>;
-		real vjm_i = Ujm-><?=field?>.s<?=i?>;
-		real vjp_i = Ujp-><?=field?>.s<?=i?>;
+		<?=scalar?> vjm_i = Ujm-><?=field?>.s<?=i?>;
+		<?=scalar?> vjp_i = Ujp-><?=field?>.s<?=i?>;
 <? else ?>
-		real vjm_i = 0.;
-		real vjp_i = 0.;
+		<?=scalar?> vjm_i = <?=zero?>;
+		<?=scalar?> vjp_i = <?=zero?>;
 <? end ?>
 
-		<?=result?> = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
-				- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
+		<?=result?> = <?=sub?>(
+			<?=real_mul?>(<?=sub?>(vjp_i, vjm_i), 1. / (2. * grid_dx<?=i?>)),
+			<?=real_mul?>(<?=sub?>(vip_j, vim_j), 1. / (2. * grid_dx<?=j?>))
+		);
 	}
-]], {
+]], table(env, {
 		i = i,
 		j = j,
-		eqn = eqn,
-		solver = eqn.solver,
 		result = result,
 		field = field,
-	})}
+	}))}
 end
 
 --[[
@@ -319,37 +337,46 @@ dEy/dx = cos(x-t)
 so curl(E).z = -cos(x-t)
 --]]
 function Maxwell:getDisplayVars()
-	local vec3 = self.vec3
-	
+	local env = self:getScalarTemplateEnv()
+
 	local vars = Maxwell.super.getDisplayVars(self)
 	vars:append{ 
-		{E = '*value_real3 = '..vec3..'_scale(U->D, U->_1_eps);', type=vec3},
-		{S = '*value_real3 = '..vec3..'_scale('..vec3..'_cross(U->D, U->B), U->_1_eps);', type=vec3},
-		{energy = [[
-	*value = .5 * (coordLenSq(U->D, x) + coordLenSq(U->B, x) * U->_1_mu * U->_1_mu);
-]]},
+		{E = template([[	*value_<?=vec3?> = <?=vec3?>_scale(U->D, U->_1_eps);]], env), type=vec3},
+		{S = template([[	*value_<?=vec3?> = <?=vec3?>_scale(<?=vec3?>_cross(U->D, U->B), U->_1_eps);]], env), type=vec3},
+		{energy = template([[
+	*value_<?=scalar?> = <?=real_mul?>(
+		<?=add?>(
+			<?=fromreal?>(eqn_coordLenSq(U->D, x)),
+			<?=real_mul?>(
+				<?=mul?>(U->_1_mu, U->_1_mu),
+				eqn_coordLenSq(U->B, x)
+			)
+		), .5);
+]], env), type=scalar},
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='D', B='B'})[var] )
 		return {['div '..var] = template([[
-	*value = .5 * (0.
-<?
-for j=0,solver.dim-1 do
-?>		+ (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 
-			- U[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		) / grid_dx<?=j?>
-<?
-end
-?>	)<? 
-if field == 'D' then 
-?> * U->_1_eps<?
-end
-?>;
-]], {solver=self.solver, field=field})}
+	<?=scalar?> v = <?=zero?>;
+<? for j=0,solver.dim-1 do ?>
+	v = <?=add?>(v, <?=real_mul?>(
+		<?=sub?>(
+			U[stepsize.s<?=j?>].<?=field?>.s<?=j?>,
+			U[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
+		), 1. / grid_dx<?=j?>));
+<? end ?>
+
+<? if field == 'D' then ?>
+	v = <?=mul?>(v, U->_1_eps);
+<? end ?>
+	
+	v = <?=real_mul?>(v, .5);
+	*value_<?=scalar?> = v;
+]], table(env, {field=field}))}
 	end))
 
 	for _,field in ipairs{'D', 'B'} do
-		local v = range(0,2):map(function(i) 
-			return curl(self,i,'value_'..vec3..'->s'..i,field) 
+		local v = range(0,2):map(function(i)
+			return curl(self,i,'value_'..env.vec3..'->s'..i,field,env)
 		end)
 		vars:insert{['curl '..field]= template([[
 	<? for i=0,2 do ?>{
