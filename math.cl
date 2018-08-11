@@ -138,9 +138,11 @@ function makevec3(vec,scalar)
 	local real_mul = scalar..'_real_mul'
 	local conj = scalar..'_conj'
 	local add3 = scalar..'_add3'
+	local mul3 = scalar..'_mul3'
 ?>
 
 #define <?=scalar?>_add3(a,b,c)	(<?=add?>(<?=add?>(a,b),c))
+#define <?=scalar?>_mul3(a,b,c)	(<?=mul?>(<?=mul?>(a,b),c))
 #define _<?=vec?>(a,b,c) 		(<?=vec?>){.s={a,b,c}}
 #define <?=vec?>_zero			_<?=vec?>(<?=scalar?>_zero,<?=scalar?>_zero,<?=scalar?>_zero)
 

@@ -22,17 +22,17 @@ local sym = common.sym
 	<?=scalar?> v_pSq = <?=mul?>(_1_eps, _1_mu);
 	return (<?=eqn.cons_t?>){
 	<? if side == 0 then ?>
-		.D = _real3(v_pSq * divPhiWavespeed * U.phi,  H.z, -H.y),
-		.B = _real3(v_pSq * divPsiWavespeed * U.psi, -E.z,  E.y),
+		.D = _<?=vec3?>(<?=real_mul?>(<?=mul?>(v_pSq, U.phi), divPhiWavespeed),  H.z, <?=neg?>(H.y)),
+		.B = _<?=vec3?>(<?=real_mul?>(<?=mul?>(v_pSq, U.psi), divPsiWavespeed), <?=neg?>(E.z),  E.y),
 	<? elseif side == 1 then ?>
-		.D = _real3(-H.z, v_pSq * divPhiWavespeed * U.phi,  H.x),
-		.B = _real3( E.z, v_pSq * divPsiWavespeed * U.psi, -E.x),
+		.D = _<?=vec3?>(<?=neg?>(H.z), <?=real_mul?>(<?=mul?>(v_pSq, U.phi), divPhiWavespeed),  H.x),
+		.B = _<?=vec3?>( E.z,          <?=real_mul?>(<?=mul?>(v_pSq, U.psi), divPsiWavespeed), <?=neg?>(E.x)),
 	<? elseif side == 2 then ?>
-		.D = _real3( H.y, -H.x, v_pSq * divPhiWavespeed * U.phi),
-		.B = _real3(-E.y,  E.x, v_pSq * divPsiWavespeed * U.psi),
+		.D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>(<?=mul?>(v_pSq, U.phi), divPhiWavespeed)),
+		.B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>(<?=mul?>(v_pSq, U.psi), divPsiWavespeed)),
 	<? end ?>
-		.phi = divPhiWavespeed * U.D.s<?=side?>,
-		.psi = divPsiWavespeed * U.B.s<?=side?>,
+		.phi = <?=real_mul?>(U.D.s<?=side?>, divPhiWavespeed),
+		.psi = <?=real_mul?>(U.B.s<?=side?>, divPsiWavespeed),
 	
 		.sigma = <?=zero?>,
 		.rhoCharge = <?=zero?>,
@@ -76,6 +76,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real3 x
 ) {
 	<?=eqn.waves_t?> Y;
+	<?=scalar?>* Xp = (<?=scalar?>*)X.ptr;
 	<?=scalar?>* Yp = (<?=scalar?>*)Y.ptr;
 
 	<?=scalar?> sqrt_1_eps = eig.sqrt_1_eps;
@@ -85,36 +86,36 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 	<? if side==0 then ?>
 
-	Yp[0] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[0], sqrt_mu ), <?=mul?>(X.ptr[6], sqrt_1_eps)));
-	Yp[1] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[3], sqrt_mu ), <?=mul?>(X.ptr[7], sqrt_1_eps)));
-	Yp[2] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[1], sqrt_mu ), <?=mul?>(X.ptr[5], sqrt_eps)));
-	Yp[3] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[4], sqrt_eps), <?=mul?>(X.ptr[2], sqrt_mu)));
-	Yp[4] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[5], sqrt_eps), <?=mul?>(X.ptr[1], sqrt_mu)));
-	Yp[5] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[2], sqrt_mu ), <?=mul?>(X.ptr[4], sqrt_eps)));
-	Yp[6] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[0], sqrt_mu ), <?=mul?>(X.ptr[6], sqrt_1_eps)));
-	Yp[7] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[3], sqrt_mu ), <?=mul?>(X.ptr[7], sqrt_1_eps)));
+	Yp[0] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[0], sqrt_mu ), <?=mul?>(Xp[6], sqrt_1_eps)), sqrt_1_2);
+	Yp[1] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[3], sqrt_mu ), <?=mul?>(Xp[7], sqrt_1_eps)), sqrt_1_2);
+	Yp[2] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[1], sqrt_mu ), <?=mul?>(Xp[5], sqrt_eps)), sqrt_1_2);
+	Yp[3] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[4], sqrt_eps), <?=mul?>(Xp[2], sqrt_mu)), sqrt_1_2);
+	Yp[4] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[5], sqrt_eps), <?=mul?>(Xp[1], sqrt_mu)), sqrt_1_2);
+	Yp[5] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[2], sqrt_mu ), <?=mul?>(Xp[4], sqrt_eps)), sqrt_1_2);
+	Yp[6] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[0], sqrt_mu ), <?=mul?>(Xp[6], sqrt_1_eps)), sqrt_1_2);
+	Yp[7] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[3], sqrt_mu ), <?=mul?>(Xp[7], sqrt_1_eps)), sqrt_1_2);
 	
 	<? elseif side==1 then ?>
 	
-	Yp[0] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[1], sqrt_mu ), <?=mul?>(X.ptr[6], sqrt_1_eps)));
-	Yp[1] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[4], sqrt_mu ), <?=mul?>(X.ptr[7], sqrt_1_eps)));
-	Yp[2] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[5], sqrt_eps), <?=mul?>(X.ptr[0], sqrt_mu)));
-	Yp[3] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[2], sqrt_mu ), <?=mul?>(X.ptr[3], sqrt_eps)));
-	Yp[4] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[0], sqrt_mu ), <?=mul?>(X.ptr[5], sqrt_eps)));
-	Yp[5] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[3], sqrt_eps), <?=mul?>(X.ptr[2], sqrt_mu)));
-	Yp[6] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[1], sqrt_mu ), <?=mul?>(X.ptr[6], sqrt_1_eps)));
-	Yp[7] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[4], sqrt_mu ), <?=mul?>(X.ptr[7], sqrt_1_eps)));
+	Yp[0] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[1], sqrt_mu ), <?=mul?>(Xp[6], sqrt_1_eps)), sqrt_1_2);
+	Yp[1] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[4], sqrt_mu ), <?=mul?>(Xp[7], sqrt_1_eps)), sqrt_1_2);
+	Yp[2] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[5], sqrt_eps), <?=mul?>(Xp[0], sqrt_mu)), sqrt_1_2);
+	Yp[3] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[2], sqrt_mu ), <?=mul?>(Xp[3], sqrt_eps)), sqrt_1_2);
+	Yp[4] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[0], sqrt_mu ), <?=mul?>(Xp[5], sqrt_eps)), sqrt_1_2);
+	Yp[5] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[3], sqrt_eps), <?=mul?>(Xp[2], sqrt_mu)), sqrt_1_2);
+	Yp[6] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[1], sqrt_mu ), <?=mul?>(Xp[6], sqrt_1_eps)), sqrt_1_2);
+	Yp[7] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[4], sqrt_mu ), <?=mul?>(Xp[7], sqrt_1_eps)), sqrt_1_2);
 	
 	<? elseif side==2 then ?>
 	
-	Yp[0] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[2], sqrt_mu ), <?=mul?>(X.ptr[6], sqrt_1_eps)));
-	Yp[1] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[5], sqrt_mu ), <?=mul?>(X.ptr[7], sqrt_1_eps)));
-	Yp[2] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[0], sqrt_mu ), <?=mul?>(X.ptr[4], sqrt_eps)));
-	Yp[3] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[3], sqrt_eps), <?=mul?>(X.ptr[1], sqrt_mu)));
-	Yp[4] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[4], sqrt_eps), <?=mul?>(X.ptr[0], sqrt_mu)));
-	Yp[5] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[1], sqrt_mu ), <?=mul?>(X.ptr[3], sqrt_eps)));
-	Yp[6] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[2], sqrt_mu ), <?=mul?>(X.ptr[6], sqrt_1_eps)));
-	Yp[7] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[5], sqrt_mu ), <?=mul?>(X.ptr[7], sqrt_1_eps)));
+	Yp[0] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[2], sqrt_mu ), <?=mul?>(Xp[6], sqrt_1_eps)), sqrt_1_2);
+	Yp[1] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[5], sqrt_mu ), <?=mul?>(Xp[7], sqrt_1_eps)), sqrt_1_2);
+	Yp[2] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[0], sqrt_mu ), <?=mul?>(Xp[4], sqrt_eps)), sqrt_1_2);
+	Yp[3] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[3], sqrt_eps), <?=mul?>(Xp[1], sqrt_mu)), sqrt_1_2);
+	Yp[4] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[4], sqrt_eps), <?=mul?>(Xp[0], sqrt_mu)), sqrt_1_2);
+	Yp[5] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[1], sqrt_mu ), <?=mul?>(Xp[3], sqrt_eps)), sqrt_1_2);
+	Yp[6] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[2], sqrt_mu ), <?=mul?>(Xp[6], sqrt_1_eps)), sqrt_1_2);
+	Yp[7] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[5], sqrt_mu ), <?=mul?>(Xp[7], sqrt_1_eps)), sqrt_1_2);
 
 	<? end ?>
 
@@ -127,6 +128,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real3 x
 ) {
 	<?=eqn.cons_t?> Y;
+	<?=scalar?>* Xp = (<?=scalar?>*)X.ptr;
 	<?=scalar?>* Yp = (<?=scalar?>*)Y.ptr;
 
 	<?=scalar?> sqrt_1_eps = eig.sqrt_1_eps;
@@ -136,40 +138,40 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 	<? if side==0 then ?>
 
-	Yp[0] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[6], sqrt_1_mu ), <?=mul?>(X.ptr[0], sqrt_1_mu)));
-	Yp[1] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[4], sqrt_1_mu ), <?=mul?>(X.ptr[2], sqrt_1_mu)));
-	Yp[2] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[5], sqrt_1_mu ), <?=mul?>(X.ptr[3], sqrt_1_mu)));
-	Yp[3] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[7], sqrt_1_mu ), <?=mul?>(X.ptr[1], sqrt_1_mu)));
-	Yp[4] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[3], sqrt_1_eps), <?=mul?>(X.ptr[5], sqrt_1_eps)));
-	Yp[5] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[4], sqrt_1_eps), <?=mul?>(X.ptr[2], sqrt_1_eps)));
-	Yp[6] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[6], sqrt_eps  ), <?=mul?>(X.ptr[0], sqrt_eps)));
-	Yp[7] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[7], sqrt_eps  ), <?=mul?>(X.ptr[1], sqrt_eps)));
+	Yp[0] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[6], sqrt_1_mu ), <?=mul?>(Xp[0], sqrt_1_mu)), sqrt_1_2);
+	Yp[1] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[4], sqrt_1_mu ), <?=mul?>(Xp[2], sqrt_1_mu)), sqrt_1_2);
+	Yp[2] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[5], sqrt_1_mu ), <?=mul?>(Xp[3], sqrt_1_mu)), sqrt_1_2);
+	Yp[3] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[7], sqrt_1_mu ), <?=mul?>(Xp[1], sqrt_1_mu)), sqrt_1_2);
+	Yp[4] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[3], sqrt_1_eps), <?=mul?>(Xp[5], sqrt_1_eps)), sqrt_1_2);
+	Yp[5] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[4], sqrt_1_eps), <?=mul?>(Xp[2], sqrt_1_eps)), sqrt_1_2);
+	Yp[6] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[6], sqrt_eps  ), <?=mul?>(Xp[0], sqrt_eps)), sqrt_1_2);
+	Yp[7] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[7], sqrt_eps  ), <?=mul?>(Xp[1], sqrt_eps)), sqrt_1_2);
 	
 	<? elseif side==1 then ?>
 	
-	Yp[0] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[4], sqrt_1_mu ), <?=mul?>(X.ptr[2], sqrt_1_mu)));
-	Yp[1] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[6], sqrt_1_mu ), <?=mul?>(X.ptr[0], sqrt_1_mu)));
-	Yp[2] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[5], sqrt_1_mu ), <?=mul?>(X.ptr[3], sqrt_1_mu)));
-	Yp[3] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[5], sqrt_1_eps), <?=mul?>(X.ptr[3], sqrt_1_eps)));
-	Yp[4] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[7], sqrt_1_mu ), <?=mul?>(X.ptr[1], sqrt_1_mu)));
-	Yp[5] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[2], sqrt_1_eps), <?=mul?>(X.ptr[4], sqrt_1_eps)));
-	Yp[6] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[6], sqrt_eps  ), <?=mul?>(X.ptr[0], sqrt_eps)));
-	Yp[7] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[7], sqrt_eps  ), <?=mul?>(X.ptr[1], sqrt_eps)));
+	Yp[0] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[4], sqrt_1_mu ), <?=mul?>(Xp[2], sqrt_1_mu)), sqrt_1_2);
+	Yp[1] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[6], sqrt_1_mu ), <?=mul?>(Xp[0], sqrt_1_mu)), sqrt_1_2);
+	Yp[2] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[5], sqrt_1_mu ), <?=mul?>(Xp[3], sqrt_1_mu)), sqrt_1_2);
+	Yp[3] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[5], sqrt_1_eps), <?=mul?>(Xp[3], sqrt_1_eps)), sqrt_1_2);
+	Yp[4] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[7], sqrt_1_mu ), <?=mul?>(Xp[1], sqrt_1_mu)), sqrt_1_2);
+	Yp[5] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[2], sqrt_1_eps), <?=mul?>(Xp[4], sqrt_1_eps)), sqrt_1_2);
+	Yp[6] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[6], sqrt_eps  ), <?=mul?>(Xp[0], sqrt_eps)), sqrt_1_2);
+	Yp[7] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[7], sqrt_eps  ), <?=mul?>(Xp[1], sqrt_eps)), sqrt_1_2);
 	
 	<? elseif side==2 then ?>
 	
-	Yp[0] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[4], sqrt_1_mu ), <?=mul?>(X.ptr[2], sqrt_1_mu)));
-	Yp[1] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[5], sqrt_1_mu ), <?=mul?>(X.ptr[3], sqrt_1_mu)));
-	Yp[2] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[6], sqrt_1_mu ), <?=mul?>(X.ptr[0], sqrt_1_mu)));
-	Yp[3] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[3], sqrt_1_eps), <?=mul?>(X.ptr[5], sqrt_1_eps)));
-	Yp[4] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[4], sqrt_1_eps), <?=mul?>(X.ptr[2], sqrt_1_eps)));
-	Yp[5] = <?=mul?>(sqrt_1_2, <?=add?>(<?=mul?>(X.ptr[7], sqrt_1_mu ), <?=mul?>(X.ptr[1], sqrt_1_mu)));
-	Yp[6] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[6], sqrt_eps  ), <?=mul?>(X.ptr[0], sqrt_eps)));
-	Yp[7] = <?=mul?>(sqrt_1_2, <?=sub?>(<?=mul?>(X.ptr[7], sqrt_eps  ), <?=mul?>(X.ptr[1], sqrt_eps)));
+	Yp[0] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[4], sqrt_1_mu ), <?=mul?>(Xp[2], sqrt_1_mu)), sqrt_1_2);
+	Yp[1] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[5], sqrt_1_mu ), <?=mul?>(Xp[3], sqrt_1_mu)), sqrt_1_2);
+	Yp[2] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[6], sqrt_1_mu ), <?=mul?>(Xp[0], sqrt_1_mu)), sqrt_1_2);
+	Yp[3] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[3], sqrt_1_eps), <?=mul?>(Xp[5], sqrt_1_eps)), sqrt_1_2);
+	Yp[4] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[4], sqrt_1_eps), <?=mul?>(Xp[2], sqrt_1_eps)), sqrt_1_2);
+	Yp[5] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[7], sqrt_1_mu ), <?=mul?>(Xp[1], sqrt_1_mu)), sqrt_1_2);
+	Yp[6] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[6], sqrt_eps  ), <?=mul?>(Xp[0], sqrt_eps)), sqrt_1_2);
+	Yp[7] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[7], sqrt_eps  ), <?=mul?>(Xp[1], sqrt_eps)), sqrt_1_2);
 
 	<? end ?>
 
-	for (int i = 8; i < numStates; ++i) {
+	for (int i = <?=eqn.numWaves?>; i < <?=eqn.numStates?>; ++i) {
 		Y.ptr[i] = 0;
 	}
 

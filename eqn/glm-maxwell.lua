@@ -25,8 +25,10 @@ GLM_Maxwell.name = 'GLM_Maxwell'
 GLM_Maxwell.numIntStates = 8
 
 -- I'm working on making complex numbers exchangeable
-GLM_Maxwell.scalar = 'real'
---GLM_Maxwell.scalar = 'cplx'
+--GLM_Maxwell.scalar = 'real'
+GLM_Maxwell.scalar = 'cplx'
+
+GLM_Maxwell.susc_t = GLM_Maxwell.scalar
 
 GLM_Maxwell.numRealsInScalar = ffi.sizeof(GLM_Maxwell.scalar) / ffi.sizeof'real'
 GLM_Maxwell.numWaves = 8 * GLM_Maxwell.numRealsInScalar
@@ -67,14 +69,13 @@ GLM_Maxwell.postComputeFluxCode = template([[
 function GLM_Maxwell:getCommonFuncCode()
 	return template([[
 <? -- in common with Maxwell ?>
-<? local vec3 = eqn.vec3 ?>
-<? if eqn.scalar == 'real' then ?>
+<? if scalar == 'real' then ?>
 
 #define eqn_coordLenSq coordLenSq
 #define eqn_cartesianToCoord cartesianToCoord
 #define eqn_coord_lower coord_lower
 
-<? elseif eqn.scalar == 'cplx' then ?>
+<? elseif scalar == 'cplx' then ?>
 
 real eqn_coordLenSq(cplx3 v, real3 x) {
 	return coordLenSq(cplx3_re(v), x)
@@ -93,22 +94,20 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 		coord_lower(cplx3_im(v), x));
 }
 
-<? end -- eqn.scalar ?>
+<? end -- scalar ?>
 
 
 
 <?=vec3?> calc_E(<?=eqn.cons_t?> U) { 
-	return <?=vec3?>_real_mul(U.D, U.sqrt_1_eps * U.sqrt_1_eps);
+	return <?=vec3?>_<?=scalar?>_mul(U.D, <?=mul?>(U.sqrt_1_eps, U.sqrt_1_eps));
 }
 <?=vec3?> calc_H(<?=eqn.cons_t?> U) { 
-	return <?=vec3?>_real_mul(U.B, U.sqrt_1_mu * U.sqrt_1_mu);
+	return <?=vec3?>_<?=scalar?>_mul(U.B, <?=mul?>(U.sqrt_1_mu, U.sqrt_1_mu));
 }
 
-real ESq(<?=eqn.cons_t?> U, <?=vec3?> x) { return eqn_coordLenSq(calc_E(U), x); }
-real BSq(<?=eqn.cons_t?> U, <?=vec3?> x) { return eqn_coordLenSq(U.B, x); }
-]], {
-	eqn = self,
-})
+real ESq(<?=eqn.cons_t?> U, real3 x) { return eqn_coordLenSq(calc_E(U), x); }
+real BSq(<?=eqn.cons_t?> U, real3 x) { return eqn_coordLenSq(U.B, x); }
+]], self:getScalarTemplateEnv())
 end
 
 GLM_Maxwell.initStateCode = [[
@@ -186,6 +185,7 @@ function GLM_Maxwell:getScalarTemplateEnv()
 	env.add = scalar..'_add'
 	env.sub = scalar..'_sub'
 	env.mul = scalar..'_mul'
+	env.mul3 = scalar..'_mul3'
 	env.real_mul = scalar..'_real_mul'
 	env.sqrt = scalar..'_sqrt'
 	env.abs = scalar..'_abs'
@@ -291,7 +291,16 @@ function GLM_Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
 end
 
 
+-- to use this, I really need cplx multiplications everywhere it is used
+-- which is in the roe solver and hll solver
 function GLM_Maxwell:eigenWaveCode(side, eig, x, waveIndex)
+	local i = waveIndex
+	local field = ''
+	if self.scalar == 'cplx' then
+		field = ({'.re', '.im'})[(i % 2) + 1]
+		i = math.floor(i / self.numRealsInScalar)
+	end
+	
 	return template(({
 		'<?=neg?>(<?=mul?>(v_p, divPhiWavespeed))',
 		'<?=neg?>(<?=mul?>(v_p, divPsiWavespeed))',
@@ -301,8 +310,8 @@ function GLM_Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 		'v_p',
 		'<?=mul?>(v_p, divPhiWavespeed)',
 		'<?=mul?>(v_p, divPsiWavespeed)',
-	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex), 
-		self:getScalarTemplateEnv())
+	})[i+1] or error('got a bad waveIndex: '..i), 
+		self:getScalarTemplateEnv())..field
 end
 
 function GLM_Maxwell:consWaveCodePrefix(side, U, x, waveIndex) 
