@@ -240,8 +240,8 @@ kernel void initState(
 	global <?=cons_t?>* U = UBuf + index;
 
 	//used
-	real3 E = real3_zero;
-	real3 B = real3_zero;
+	<?=vec3?> E = <?=vec3?>_zero;
+	<?=vec3?> B = <?=vec3?>_zero;
 	
 	<?=scalar?> conductivity = <?=scalar?>_from_real(1.);
 	<?=susc_t?> permittivity = <?=susc_t?>_from_real(1.);
@@ -255,13 +255,7 @@ kernel void initState(
 	
 <?=code?>
 	
-	U->D = eqn_cartesianToCoord(
-		<?=vec3?>_to_real3(
-			<?=susc_t?>_<?=vec3?>_mul(
-				permittivity,
-				<?=vec3?>_from_real3(E)
-			)
-		), x);
+	U->D = eqn_cartesianToCoord(<?=susc_t?>_<?=vec3?>_mul(permittivity, E), x);
 	U->B = eqn_cartesianToCoord(B, x);
 	U->BPot = <?=zero?>;
 	U->sigma = conductivity;
@@ -350,14 +344,10 @@ function Maxwell:getDisplayVars()
 	*value_<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));
 ]], env), type=vec3},
 		{energy = template([[
-	*value_<?=scalar?> = <?=real_mul?>(
-		<?=add?>(
-			<?=fromreal?>(eqn_coordLenSq(U->D, x)),
-			<?=fromreal?>(eqn_coordLenSq(calc_H(*U), x))
-		), .5);
+	*value = (eqn_coordLenSq(U->D, x) + eqn_coordLenSq(calc_H(*U), x)) * .5;
 ]], env), type=scalar},
-	}:append(table{'E','B'}:map(function(var,i)
-		local field = assert( ({E='D', B='B'})[var] )
+	}:append(table{'D','B'}:map(function(var,i)
+		local field = assert( ({D='D', B='B'})[var] )
 		return {['div '..var] = template([[
 	<?=scalar?> v = <?=zero?>;
 <? for j=0,solver.dim-1 do ?>
@@ -368,10 +358,6 @@ function Maxwell:getDisplayVars()
 		), 1. / grid_dx<?=j?>));
 <? end ?>
 
-<? if field == 'D' then ?>
-	v = <?=mul?>(v, U->_1_eps);
-<? end ?>
-	
 	v = <?=real_mul?>(v, .5);
 	*value_<?=scalar?> = v;
 ]], table(env, {field=field}))}

@@ -1,29 +1,47 @@
 --[[ 2000 Munz
 But then I changed the eigendecomposition to match my Trangenstein one with epsilons and mus
 And then I changed epsilon E -> D, so it's based on B and D 
---]]
 
+I'm still not completely sold on this technique.
+Relativistically we are doing:
+~F^uv = F^uv + eta^uv phi chi, ~F^uv_,v = mu j^u
+~*F^uv = *F^uv + eta^uv psi gamma, ~*F^uv_,v = 0
+except with the special twist of changing the coefficients next to the eta^tt term from chi or gamma to 1/chi or 1/gamma
+I'm still suspicious on this special exception.
+Not doing so means our wavespeeds are all the speed of light, and we can't control the propagation of GLM variables.
+
+--]]
+local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
+local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
 
 local GLM_Maxwell = class(Equation)
 GLM_Maxwell.name = 'GLM_Maxwell'
-GLM_Maxwell.numWaves = 8
 GLM_Maxwell.numIntStates = 8
 
+-- I'm working on making complex numbers exchangeable
+GLM_Maxwell.scalar = 'real'
+--GLM_Maxwell.scalar = 'cplx'
+
+GLM_Maxwell.numRealsInScalar = ffi.sizeof(GLM_Maxwell.scalar) / ffi.sizeof'real'
+GLM_Maxwell.numWaves = 8 * GLM_Maxwell.numRealsInScalar
+
+GLM_Maxwell.vec3 = GLM_Maxwell.scalar..'3'
+
 GLM_Maxwell.consVars = {
-	{D = 'real3'},
-	{B = 'real3'},
-	{phi = 'real'},
-	{psi = 'real'},
-	{rhoCharge = 'real'},
-	{sigma = 'real'},
-	{sqrt_1_eps = 'real'},
-	{sqrt_1_mu = 'real'},
+	{D = GLM_Maxwell.vec3},
+	{B = GLM_Maxwell.vec3},
+	{phi = GLM_Maxwell.scalar},
+	{psi = GLM_Maxwell.scalar},
+	{rhoCharge = GLM_Maxwell.scalar},
+	{sigma = GLM_Maxwell.scalar},
+	{sqrt_1_eps = GLM_Maxwell.scalar},
+	{sqrt_1_mu = GLM_Maxwell.scalar},
 }
 
 GLM_Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
@@ -36,32 +54,76 @@ GLM_Maxwell.roeUseFluxFromCons = true
 GLM_Maxwell.initStates = require 'init.euler'
 
 GLM_Maxwell.postComputeFluxCode = template([[
+<? local vec3 = eqn.vec3 ?>
 		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
 		real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
-		flux.D = real3_real_mul(coord_lower(flux.D, x), _1_sqrt_det_g);
-		flux.B = real3_real_mul(coord_lower(flux.B, x), _1_sqrt_det_g);
-]], {eqn=Maxwell})
+		flux.D = <?=vec3?>_real_mul(coord_lower(flux.D, x), _1_sqrt_det_g);
+		flux.B = <?=vec3?>_real_mul(coord_lower(flux.B, x), _1_sqrt_det_g);
+]], {eqn=GLM_Maxwell})
 
 
 function GLM_Maxwell:getCommonFuncCode()
 	return template([[
-real3 calc_E(<?=eqn.cons_t?> U) { 
-	return real3_real_mul(U.D, U.sqrt_1_eps * U.sqrt_1_eps);
-}
-real3 calc_H(<?=eqn.cons_t?> U) { 
-	return real3_real_mul(U.B, U.sqrt_1_mu * U.sqrt_1_mu);
+<? -- in common with Maxwell ?>
+<? local vec3 = eqn.vec3 ?>
+<? if eqn.scalar == 'real' then ?>
+
+#define eqn_coordLenSq coordLenSq
+#define eqn_cartesianToCoord cartesianToCoord
+#define eqn_coord_lower coord_lower
+
+<? elseif eqn.scalar == 'cplx' then ?>
+
+real eqn_coordLenSq(cplx3 v, real3 x) {
+	return coordLenSq(cplx3_re(v), x)
+		+ coordLenSq(cplx3_im(v), x);
 }
 
-real ESq(<?=eqn.cons_t?> U, real3 x) { return coordLenSq(calc_E(U), x); }
-real BSq(<?=eqn.cons_t?> U, real3 x) { return coordLenSq(U.B, x); }
+cplx3 eqn_cartesianToCoord(cplx3 v, real3 x) {
+	return cplx3_from_real3_real3(
+		cartesianToCoord(cplx3_re(v), x),
+		cartesianToCoord(cplx3_im(v), x));
+}
+
+cplx3 eqn_coord_lower(cplx3 v, real3 x) {
+	return cplx3_from_real3_real3(
+		coord_lower(cplx3_re(v), x),
+		coord_lower(cplx3_im(v), x));
+}
+
+<? end -- eqn.scalar ?>
+
+
+
+<?=vec3?> calc_E(<?=eqn.cons_t?> U) { 
+	return <?=vec3?>_real_mul(U.D, U.sqrt_1_eps * U.sqrt_1_eps);
+}
+<?=vec3?> calc_H(<?=eqn.cons_t?> U) { 
+	return <?=vec3?>_real_mul(U.B, U.sqrt_1_mu * U.sqrt_1_mu);
+}
+
+real ESq(<?=eqn.cons_t?> U, <?=vec3?> x) { return eqn_coordLenSq(calc_E(U), x); }
+real BSq(<?=eqn.cons_t?> U, <?=vec3?> x) { return eqn_coordLenSq(U.B, x); }
 ]], {
 	eqn = self,
 })
 end
 
 GLM_Maxwell.initStateCode = [[
+
+<? 
+local cons_t = eqn.cons_t
+local susc_t = eqn.susc_t
+local scalar = eqn.scalar
+local vec3 = eqn.vec3
+local zero = scalar..'_zero'
+local inv = scalar..'_inv'
+local fromreal = scalar..'_from_real'
+local sqrt = scalar..'_sqrt'
+?>
+
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -79,12 +141,12 @@ kernel void initState(
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
 	//used
-	real3 E = real3_zero;
-	real3 B = real3_zero;
-	real conductivity = 1.;
+	<?=vec3?> E = <?=vec3?>_zero;
+	<?=vec3?> B = <?=vec3?>_zero;
+	<?=scalar?> conductivity = <?=fromreal?>(1.);
 	
-	real permittivity = 1.;
-	real permeability = 1.;
+	<?=scalar?> permittivity = <?=fromreal?>(1.);
+	<?=scalar?> permeability = <?=fromreal?>(1.);
 	
 	//throw-away
 	real rho = 0;
@@ -94,27 +156,51 @@ kernel void initState(
 	
 	<?=code?>
 	
-	U->D = cartesianToCoord(real3_real_mul(E, permittivity), x);
-	U->B = cartesianToCoord(B, x);
-	U->phi = 0;
-	U->psi = 0;
+	U->D = eqn_cartesianToCoord(<?=vec3?>_<?=scalar?>_mul(E, permittivity), x);
+	U->B = eqn_cartesianToCoord(B, x);
+	U->phi = <?=zero?>;
+	U->psi = <?=zero?>;
 	U->sigma = conductivity;
-	U->rhoCharge = 0;
-	U->sqrt_1_eps = sqrt(1. / permittivity);
-	U->sqrt_1_mu = sqrt(1. / permeability);
+	U->rhoCharge = <?=zero?>;
+	U->sqrt_1_eps = <?=sqrt?>(<?=inv?>(permittivity));
+	U->sqrt_1_mu = <?=sqrt?>(<?=inv?>(permeability));
 }
 ]]
 
-GLM_Maxwell.solverCodeFile = 'eqn/glm-maxwell.cl'
+function GLM_Maxwell:getSolverCode()
+	return template(file['eqn/glm-maxwell.cl'], self:getScalarTemplateEnv())
+end
+
+function GLM_Maxwell:getScalarTemplateEnv()
+	local scalar = self.scalar
+	local env = {}
+	env.eqn = self
+	env.solver = self.solver
+	env.vec3 = self.vec3
+	env.susc_t = self.susc_t
+	env.scalar = scalar
+	env.zero = scalar..'_zero'
+	env.inv = scalar..'_inv'
+	env.neg = scalar..'_neg'
+	env.fromreal = scalar..'_from_real'
+	env.add = scalar..'_add'
+	env.sub = scalar..'_sub'
+	env.mul = scalar..'_mul'
+	env.real_mul = scalar..'_real_mul'
+	env.sqrt = scalar..'_sqrt'
+	env.abs = scalar..'_abs'
+	return env
+end
+
 
 -- k is 0,1,2
-local function curl(eqn,k,result,field)
+local function curl(eqn,k,result,field,env)
 	local xs = {'x','y','z'}
 	local i = (k+1)%3
 	local j = (i+1)%3
 	return {['curl '..field..' '..xs[k+1]] = template([[
 	if (OOB(1,1)) {
-		<?=result?> = 0.;
+		<?=result?> = <?=zero?>;
 	} else {
 
 <? if i+1 <= solver.dim then ?>
@@ -123,8 +209,8 @@ local function curl(eqn,k,result,field)
 		real vim_j = Uim-><?=field?>.s<?=j?>;
 		real vip_j = Uip-><?=field?>.s<?=j?>;
 <? else ?>
-		real vim_j = 0.;
-		real vip_j = 0.;
+		real vim_j = <?=zero?>;
+		real vip_j = <?=zero?>;
 <? end?>
 
 <? if j+1 <= solver.dim then ?>
@@ -133,49 +219,52 @@ local function curl(eqn,k,result,field)
 		real vjm_i = Ujm-><?=field?>.s<?=i?>;
 		real vjp_i = Ujp-><?=field?>.s<?=i?>;
 <? else ?>
-		real vjm_i = 0.;
-		real vjp_i = 0.;
+		real vjm_i = <?=zero?>;
+		real vjp_i = <?=zero?>;
 <? end ?>
 
-		<?=result?> = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
-				- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
+		<?=result?> = <?=sub?>(
+			<?=real_mul?>(<?=sub?>(vjp_i, vjm_i), 1. / (2. * grid_dx<?=i?>)),
+			<?=real_mul?>(<?=sub?>(vip_j, vim_j), 1. / (2. * grid_dx<?=j?>))
+		);
 	}
-]], {
+]], table(env, {
 		i = i,
 		j = j,
-		eqn = eqn,
-		solver = eqn.solver,
 		result = result,
 		field = field,
-	})}
+	}))}
 end
 
 function GLM_Maxwell:getDisplayVars()
+	local env = self:getScalarTemplateEnv()
+	
 	local vars = GLM_Maxwell.super.getDisplayVars(self):append{ 
-		{S = [[
-	*value_real3 = real3_cross(calc_E(*U), calc_H(*U));
-]], type='real3'},
-		{energy = [[
-	*value = .5 * (coordLenSq(U->D, x) + coordLenSq(calc_H(*U), x));
-]]},
+		{S = template([[
+	*value_<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));
+]], env), type='real3'},
+		{energy = template([[
+	*value = (eqn_coordLenSq(U->D, x) + eqn_coordLenSq(calc_H(*U), x)) * .5;
+]], env)},
 	}:append(table{'D','B'}:map(function(var,i)
 		local field = assert( ({D='D', B='B'})[var] )
 		return {['div '..var] = template([[
-	*value = .5 * (0.
-<?
-for j=0,solver.dim-1 do
-?>		+ (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 
-			- U[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		) / grid_dx<?=j?>
-<?
-end 
-?>	);
-]], {solver=self.solver, field=field})}
+	<?=scalar?> v = <?=zero?>;
+<? for j=0,solver.dim-1 do ?>
+	v = <?=add?>(v, <?=real_mul?>(
+		<?=sub?>(
+			U[stepsize.s<?=j?>].<?=field?>.s<?=j?>,
+			U[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
+	), 1. / grid_dx<?=j?>));
+<? end ?>	
+	v = <?=real_mul?>(v, .5);
+	*value_<?=scalar?> = v;
+]], table(env, {solver=self.solver, field=field}))}
 	end))
 
 	for _,field in ipairs{'D', 'B'} do
 		local v = range(0,2):map(function(i) 
-			return curl(self,i,'value_real3->s'..i,field) 
+			return curl(self,i,'value_real3->s'..i,field, env) 
 		end)
 		vars:insert{['curl '..field]= template([[
 	<? for i=0,2 do ?>{
@@ -188,40 +277,41 @@ end
 end
 
 GLM_Maxwell.eigenVars = table{
-	{sqrt_1_eps = 'real'},
-	{sqrt_1_mu = 'real'},
+	{sqrt_1_eps = GLM_Maxwell.scalar},
+	{sqrt_1_mu = GLM_Maxwell.scalar},
 }
 
 function GLM_Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	return template([[
-	real v_p = <?=eig?>.sqrt_1_eps * <?=eig?>.sqrt_1_mu;
-]], {
+	<?=scalar?> v_p = <?=mul?>(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu);
+]], table(self:getScalarTemplateEnv(), {
 		eqn = self,
 		eig = '('..eig..')',
-	})
+	}))
 end
 
 
 function GLM_Maxwell:eigenWaveCode(side, eig, x, waveIndex)
-	return ({
-		'-v_p * divPhiWavespeed',
-		'-v_p * divPsiWavespeed',
-		'-v_p',
-		'-v_p',
+	return template(({
+		'<?=neg?>(<?=mul?>(v_p, divPhiWavespeed))',
+		'<?=neg?>(<?=mul?>(v_p, divPsiWavespeed))',
+		'<?=neg?>(v_p)',
+		'<?=neg?>(v_p)',
 		'v_p',
 		'v_p',
-		'v_p * divPhiWavespeed',
-		'v_p * divPsiWavespeed',
-	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
+		'<?=mul?>(v_p, divPhiWavespeed)',
+		'<?=mul?>(v_p, divPsiWavespeed)',
+	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex), 
+		self:getScalarTemplateEnv())
 end
 
 function GLM_Maxwell:consWaveCodePrefix(side, U, x, waveIndex) 
 	return template([[
-	real v_p = <?=U?>.sqrt_1_eps * <?=U?>.sqrt_1_mu;
-]], {
+	<?=scalar?> v_p = <?=mul?>(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_mu);
+]], table(self:getScalarTemplateEnv(), {
 		eqn = self,
 		U = '('..U..')',
-	})
+	}))
 end
 GLM_Maxwell.consWaveCode = GLM_Maxwell.eigenWaveCode
 

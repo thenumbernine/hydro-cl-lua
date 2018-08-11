@@ -1,4 +1,4 @@
-local dim = 3
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -64,7 +64,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{256,256,1},
+				{128,128,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
