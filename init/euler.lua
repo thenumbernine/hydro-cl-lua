@@ -105,22 +105,24 @@ local function addMaxwellOscillatingBoundary(solver)
 			return 
 				--oldxmin(args) .. 
 				template([[
-<? if eqn.is(require 'eqn.glm-maxwell') then ?>
-	<?=U?>.B = real3_zero;
-	<?=U?>.E = _real3(0., (real)sin((real)10. * t), 0.);
-<? else 
-	local scalar = eqn.scalar
-	local vec3 = eqn.vec3
+<?	
+	local scalar = eqn.scalar or 'real'
+	local vec3 = eqn.vec3 or 'real3'
 	local zero = scalar..'_zero'
 	local mul = scalar..'_mul'
 	local fromreal = scalar..'_from_real'
-?>
+?>	
 	<?=U?>.B = <?=vec3?>_zero;
 	<?=U?>.D = _<?=vec3?>(
 		<?=zero?>,
-		<?=mul?>(<?=fromreal?>(sin(10. * t)), <?=U?>._1_eps), 
+		<?=mul?>(<?=fromreal?>(sin(10. * t)), 
+<? if require 'eqn.glm-maxwell'.is(eqn) then ?>			
+			<?=U?>.sqrt_1_eps * <?=U?>.sqrt_1_eps
+<? else ?>			
+			<?=U?>._1_eps
+<? end ?>		
+		), 
 		<?=zero?>);
-<? end ?>	
 ]], {U=U, eqn=self.eqn})
 		end
 
@@ -1231,7 +1233,7 @@ end ?>;
 		name = 'Maxwell default',
 		initState = function(self, solver)
 			return [[
-	E.y = 1;
+	D.y = 1;
 	B.z = lhs ? 1 : -1;
 ]]
 		end,
@@ -1407,13 +1409,8 @@ bool testTriangle(real3 xc) {
 kernel void addExtraSource(
 	global <?=eqn.cons_t?>* UBuf
 ) {
-<? if eqn.is(require 'eqn.glm-maxwell') then ?>
-	UBuf[INDEX(<?=src[1]?>,<?=src[2]?>,<?=src[3]?>)].E.x = -10;
-	UBuf[INDEX(<?=dst[1]?>,<?=dst[2]?>,<?=dst[3]?>)].E.x = -10;
-<? else ?>
 	UBuf[INDEX(<?=src[1]?>,<?=src[2]?>,<?=src[3]?>)].D.x = -10;
 	UBuf[INDEX(<?=dst[1]?>,<?=dst[2]?>,<?=dst[3]?>)].D.x = -10;
-<? end ?>
 }
 ]], {
 	eqn = solver.eqn,
@@ -1433,7 +1430,7 @@ kernel void addExtraSource(
 			function solver:step(dt)
 				oldStep(self, dt)
 				
-				-- I just want to add to the E field at a specific point ...
+				-- I just want to add to the D field at a specific point ...
 				-- should this be a cpu/gpu mem cpy and write?
 				-- or should this be a kernel with a single cell domain?
 				addExtraSourceKernelObj()
@@ -1476,7 +1473,7 @@ kernel void addExtraSource(
 				tungsten = 5.65e-8,
 			}:map(function(v) return v * Ohm_in_m end)
 			return template([[
-	E.x = 1;
+	D.x = 1;
 	
 	conductivity = <?=clnumber(1/resistivities.air)?>;
 	

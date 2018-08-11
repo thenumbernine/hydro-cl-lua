@@ -5,11 +5,10 @@ local xNames = common.xNames
 local sym = common.sym
 ?>
 
-#define divPhiWavespeed 	10.
-#define divPsiWavespeed		10.
+#define divPhiWavespeed 	1.
+#define divPsiWavespeed		1.
 
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
-<? local sqrt2 = math.sqrt(.5) ?>
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
@@ -77,40 +76,39 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real sqrt_1_mu = eig.sqrt_1_mu;
 	real sqrt_eps = 1. / sqrt_1_eps;
 	real sqrt_mu = 1. / sqrt_1_mu;
-	const real sqrt2 = <?=sqrt2?>;
 
 	<? if side==0 then ?>
 
-	Yp[0] = X.ptr[0] * sqrt_1_2 * sqrt_mu - X.ptr[6] * sqrt_1_2 * sqrt_1_eps;
-	Yp[1] = X.ptr[3] * sqrt_1_2 * sqrt_mu - X.ptr[7] * sqrt_1_2 * sqrt_1_eps;
-	Yp[2] = X.ptr[1] * sqrt_1_2 * sqrt_mu - X.ptr[5] * sqrt_eps * sqrt_1_2;
-	Yp[3] = X.ptr[4] * sqrt_eps * sqrt_1_2 + X.ptr[2] * sqrt_1_2 * sqrt_mu;
-	Yp[4] = X.ptr[5] * sqrt_eps * sqrt_1_2 + X.ptr[1] * sqrt_1_2 * sqrt_mu;
-	Yp[5] = X.ptr[2] * sqrt_1_2 * sqrt_mu - X.ptr[4] * sqrt_eps * sqrt_1_2;
-	Yp[6] = X.ptr[0] * sqrt_1_2 * sqrt_mu + X.ptr[6] * sqrt_1_2 * sqrt_1_eps;
-	Yp[7] = X.ptr[3] * sqrt_1_2 * sqrt_mu + X.ptr[7] * sqrt_1_2 * sqrt_1_eps;
+	Yp[0] = X.ptr[0] * sqrt_1_2 * sqrt_mu  - X.ptr[6] * sqrt_1_2 * sqrt_1_eps;
+	Yp[1] = X.ptr[3] * sqrt_1_2 * sqrt_mu  - X.ptr[7] * sqrt_1_2 * sqrt_1_eps;
+	Yp[2] = X.ptr[1] * sqrt_1_2 * sqrt_mu  - X.ptr[5] * sqrt_1_2 * sqrt_eps;
+	Yp[3] = X.ptr[4] * sqrt_1_2 * sqrt_eps + X.ptr[2] * sqrt_1_2 * sqrt_mu;
+	Yp[4] = X.ptr[5] * sqrt_1_2 * sqrt_eps + X.ptr[1] * sqrt_1_2 * sqrt_mu;
+	Yp[5] = X.ptr[2] * sqrt_1_2 * sqrt_mu  - X.ptr[4] * sqrt_1_2 * sqrt_eps;
+	Yp[6] = X.ptr[0] * sqrt_1_2 * sqrt_mu  + X.ptr[6] * sqrt_1_2 * sqrt_1_eps;
+	Yp[7] = X.ptr[3] * sqrt_1_2 * sqrt_mu  + X.ptr[7] * sqrt_1_2 * sqrt_1_eps;
 	
 	<? elseif side==1 then ?>
 	
-	Yp[0] = X.ptr[1] * sqrt_1_2 * sqrt_mu - X.ptr[6] * sqrt_1_2 * sqrt_1_eps;
-	Yp[1] = X.ptr[4] * sqrt_1_2 * sqrt_mu - X.ptr[7] * sqrt_1_2 * sqrt_1_eps;
-	Yp[2] = X.ptr[5] * sqrt_eps * sqrt_1_2 + X.ptr[0] * sqrt_1_2 * sqrt_mu;
-	Yp[3] = X.ptr[2] * sqrt_1_2 * sqrt_mu - X.ptr[3] * sqrt_eps * sqrt_1_2;
-	Yp[4] = X.ptr[0] * sqrt_1_2 * sqrt_mu - X.ptr[5] * sqrt_eps * sqrt_1_2;
-	Yp[5] = X.ptr[3] * sqrt_eps * sqrt_1_2 + X.ptr[2] * sqrt_1_2 * sqrt_mu;
-	Yp[6] = X.ptr[1] * sqrt_1_2 * sqrt_mu + X.ptr[6] * sqrt_1_2 * sqrt_1_eps;
-	Yp[7] = X.ptr[4] * sqrt_1_2 * sqrt_mu + X.ptr[7] * sqrt_1_2 * sqrt_1_eps;
+	Yp[0] = X.ptr[1] * sqrt_1_2 * sqrt_mu  - X.ptr[6] * sqrt_1_2 * sqrt_1_eps;
+	Yp[1] = X.ptr[4] * sqrt_1_2 * sqrt_mu  - X.ptr[7] * sqrt_1_2 * sqrt_1_eps;
+	Yp[2] = X.ptr[5] * sqrt_1_2 * sqrt_eps + X.ptr[0] * sqrt_1_2 * sqrt_mu;
+	Yp[3] = X.ptr[2] * sqrt_1_2 * sqrt_mu  - X.ptr[3] * sqrt_1_2 * sqrt_eps;
+	Yp[4] = X.ptr[0] * sqrt_1_2 * sqrt_mu  - X.ptr[5] * sqrt_1_2 * sqrt_eps;
+	Yp[5] = X.ptr[3] * sqrt_1_2 * sqrt_eps + X.ptr[2] * sqrt_1_2 * sqrt_mu;
+	Yp[6] = X.ptr[1] * sqrt_1_2 * sqrt_mu  + X.ptr[6] * sqrt_1_2 * sqrt_1_eps;
+	Yp[7] = X.ptr[4] * sqrt_1_2 * sqrt_mu  + X.ptr[7] * sqrt_1_2 * sqrt_1_eps;
 	
 	<? elseif side==2 then ?>
 	
-	Yp[0] = X.ptr[2] * sqrt_1_2 * sqrt_mu - X.ptr[6] * sqrt_1_2 * sqrt_1_eps;
-	Yp[1] = X.ptr[5] * sqrt_1_2 * sqrt_mu - X.ptr[7] * sqrt_1_2 * sqrt_1_eps;
-	Yp[2] = X.ptr[0] * sqrt_1_2 * sqrt_mu - X.ptr[4] * sqrt_eps * sqrt_1_2;
-	Yp[3] = X.ptr[3] * sqrt_eps * sqrt_1_2 + X.ptr[1] * sqrt_1_2 * sqrt_mu;
-	Yp[4] = X.ptr[4] * sqrt_eps * sqrt_1_2 + X.ptr[0] * sqrt_1_2 * sqrt_mu;
-	Yp[5] = X.ptr[1] * sqrt_1_2 * sqrt_mu - X.ptr[3] * sqrt_eps * sqrt_1_2;
-	Yp[6] = X.ptr[2] * sqrt_1_2 * sqrt_mu + X.ptr[6] * sqrt_1_2 * sqrt_1_eps;
-	Yp[7] = X.ptr[5] * sqrt_1_2 * sqrt_mu + X.ptr[7] * sqrt_1_2 * sqrt_1_eps;
+	Yp[0] = X.ptr[2] * sqrt_1_2 * sqrt_mu  - X.ptr[6] * sqrt_1_2 * sqrt_1_eps;
+	Yp[1] = X.ptr[5] * sqrt_1_2 * sqrt_mu  - X.ptr[7] * sqrt_1_2 * sqrt_1_eps;
+	Yp[2] = X.ptr[0] * sqrt_1_2 * sqrt_mu  - X.ptr[4] * sqrt_1_2 * sqrt_eps;
+	Yp[3] = X.ptr[3] * sqrt_1_2 * sqrt_eps + X.ptr[1] * sqrt_1_2 * sqrt_mu;
+	Yp[4] = X.ptr[4] * sqrt_1_2 * sqrt_eps + X.ptr[0] * sqrt_1_2 * sqrt_mu;
+	Yp[5] = X.ptr[1] * sqrt_1_2 * sqrt_mu  - X.ptr[3] * sqrt_1_2 * sqrt_eps;
+	Yp[6] = X.ptr[2] * sqrt_1_2 * sqrt_mu  + X.ptr[6] * sqrt_1_2 * sqrt_1_eps;
+	Yp[7] = X.ptr[5] * sqrt_1_2 * sqrt_mu  + X.ptr[7] * sqrt_1_2 * sqrt_1_eps;
 
 	<? end ?>
 
@@ -129,40 +127,39 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real sqrt_1_mu = eig.sqrt_1_mu;
 	real sqrt_eps = 1. / eig.sqrt_1_eps;
 	real sqrt_mu = 1. / eig.sqrt_1_mu;
-	const real sqrt2 = <?=sqrt2?>;
 
 	<? if side==0 then ?>
 
-	Yp[0] = X.ptr[6] * sqrt_1_mu * sqrt_1_2 + X.ptr[0] * sqrt_1_mu * sqrt_1_2;
-	Yp[1] = X.ptr[4] * sqrt_1_mu * sqrt_1_2 + X.ptr[2] * sqrt_1_mu * sqrt_1_2;
-	Yp[2] = X.ptr[5] * sqrt_1_mu * sqrt_1_2 + X.ptr[3] * sqrt_1_mu * sqrt_1_2;
-	Yp[3] = X.ptr[7] * sqrt_1_mu * sqrt_1_2 + X.ptr[1] * sqrt_1_mu * sqrt_1_2;
+	Yp[0] = X.ptr[6] * sqrt_1_2 * sqrt_1_mu  + X.ptr[0] * sqrt_1_2 * sqrt_1_mu;
+	Yp[1] = X.ptr[4] * sqrt_1_2 * sqrt_1_mu  + X.ptr[2] * sqrt_1_2 * sqrt_1_mu;
+	Yp[2] = X.ptr[5] * sqrt_1_2 * sqrt_1_mu  + X.ptr[3] * sqrt_1_2 * sqrt_1_mu;
+	Yp[3] = X.ptr[7] * sqrt_1_2 * sqrt_1_mu  + X.ptr[1] * sqrt_1_2 * sqrt_1_mu;
 	Yp[4] = X.ptr[3] * sqrt_1_2 * sqrt_1_eps - X.ptr[5] * sqrt_1_2 * sqrt_1_eps;
 	Yp[5] = X.ptr[4] * sqrt_1_2 * sqrt_1_eps - X.ptr[2] * sqrt_1_2 * sqrt_1_eps;
-	Yp[6] = X.ptr[6] * sqrt_eps * sqrt_1_2 - X.ptr[0] * sqrt_eps * sqrt_1_2;
-	Yp[7] = X.ptr[7] * sqrt_eps * sqrt_1_2 - X.ptr[1] * sqrt_eps * sqrt_1_2;
+	Yp[6] = X.ptr[6] * sqrt_1_2 * sqrt_eps   - X.ptr[0] * sqrt_1_2 * sqrt_eps;
+	Yp[7] = X.ptr[7] * sqrt_1_2 * sqrt_eps   - X.ptr[1] * sqrt_1_2 * sqrt_eps;
 	
 	<? elseif side==1 then ?>
 	
-	Yp[0] = X.ptr[4] * sqrt_1_mu * sqrt_1_2 + X.ptr[2] * sqrt_1_mu * sqrt_1_2;
-	Yp[1] = X.ptr[6] * sqrt_1_mu * sqrt_1_2 + X.ptr[0] * sqrt_1_mu * sqrt_1_2;
-	Yp[2] = X.ptr[5] * sqrt_1_mu * sqrt_1_2 + X.ptr[3] * sqrt_1_mu * sqrt_1_2;
-	Yp[3] = X.ptr[5] * sqrt_1_2 * sqrt_1_eps - X.ptr[3] * sqrt_1_2 * sqrt_1_eps;
-	Yp[4] = X.ptr[7] * sqrt_1_mu * sqrt_1_2 + X.ptr[1] * sqrt_1_mu * sqrt_1_2;
-	Yp[5] = X.ptr[2] * sqrt_1_2 * sqrt_1_eps - X.ptr[4] * sqrt_1_2 * sqrt_1_eps;
-	Yp[6] = X.ptr[6] * sqrt_eps * sqrt_1_2 - X.ptr[0] * sqrt_eps * sqrt_1_2;
-	Yp[7] = X.ptr[7] * sqrt_eps * sqrt_1_2 - X.ptr[1] * sqrt_eps * sqrt_1_2;
+	Yp[0] = X.ptr[4] * sqrt_1_2 * sqrt_1_mu   + X.ptr[2] * sqrt_1_2 * sqrt_1_mu;
+	Yp[1] = X.ptr[6] * sqrt_1_2 * sqrt_1_mu   + X.ptr[0] * sqrt_1_2 * sqrt_1_mu;
+	Yp[2] = X.ptr[5] * sqrt_1_2 * sqrt_1_mu   + X.ptr[3] * sqrt_1_2 * sqrt_1_mu;
+	Yp[3] = X.ptr[5] * sqrt_1_2 * sqrt_1_eps  - X.ptr[3] * sqrt_1_2 * sqrt_1_eps;
+	Yp[4] = X.ptr[7] * sqrt_1_2 * sqrt_1_mu   + X.ptr[1] * sqrt_1_2 * sqrt_1_mu;
+	Yp[5] = X.ptr[2] * sqrt_1_2 * sqrt_1_eps  - X.ptr[4] * sqrt_1_2 * sqrt_1_eps;
+	Yp[6] = X.ptr[6] * sqrt_1_2 * sqrt_eps    - X.ptr[0] * sqrt_1_2 * sqrt_eps;
+	Yp[7] = X.ptr[7] * sqrt_1_2 * sqrt_eps    - X.ptr[1] * sqrt_1_2 * sqrt_eps;
 	
 	<? elseif side==2 then ?>
 	
-	Yp[0] = X.ptr[4] * sqrt_1_mu * sqrt_1_2 + X.ptr[2] * sqrt_1_mu * sqrt_1_2;
-	Yp[1] = X.ptr[5] * sqrt_1_mu * sqrt_1_2 + X.ptr[3] * sqrt_1_mu * sqrt_1_2;
-	Yp[2] = X.ptr[6] * sqrt_1_mu * sqrt_1_2 + X.ptr[0] * sqrt_1_mu * sqrt_1_2;
+	Yp[0] = X.ptr[4] * sqrt_1_2 * sqrt_1_mu  + X.ptr[2] * sqrt_1_2 * sqrt_1_mu;
+	Yp[1] = X.ptr[5] * sqrt_1_2 * sqrt_1_mu  + X.ptr[3] * sqrt_1_2 * sqrt_1_mu;
+	Yp[2] = X.ptr[6] * sqrt_1_2 * sqrt_1_mu  + X.ptr[0] * sqrt_1_2 * sqrt_1_mu;
 	Yp[3] = X.ptr[3] * sqrt_1_2 * sqrt_1_eps - X.ptr[5] * sqrt_1_2 * sqrt_1_eps;
 	Yp[4] = X.ptr[4] * sqrt_1_2 * sqrt_1_eps - X.ptr[2] * sqrt_1_2 * sqrt_1_eps;
-	Yp[5] = X.ptr[7] * sqrt_1_mu * sqrt_1_2 + X.ptr[1] * sqrt_1_mu * sqrt_1_2;
-	Yp[6] = X.ptr[6] * sqrt_eps * sqrt_1_2 - X.ptr[0] * sqrt_eps * sqrt_1_2;
-	Yp[7] = X.ptr[7] * sqrt_eps * sqrt_1_2 - X.ptr[1] * sqrt_eps * sqrt_1_2;
+	Yp[5] = X.ptr[7] * sqrt_1_2 * sqrt_1_mu  + X.ptr[1] * sqrt_1_2 * sqrt_1_mu;
+	Yp[6] = X.ptr[6] * sqrt_1_2 * sqrt_eps   - X.ptr[0] * sqrt_1_2 * sqrt_eps;
+	Yp[7] = X.ptr[7] * sqrt_1_2 * sqrt_eps   - X.ptr[1] * sqrt_1_2 * sqrt_eps;
 
 	<? end ?>
 
