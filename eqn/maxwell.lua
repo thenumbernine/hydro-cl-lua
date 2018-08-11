@@ -187,9 +187,12 @@ cplx/scalar => cplx_cplx3_mul
 real/tensor => real3x3_real3_mul
 cplx/tensor => cplx3x3_cplx3_mul
 */
-	return <?=eqn.susc_t?>_<?=eqn.vec3?>_mul(U._1_eps, U.D); 
+	return <?=eqn.susc_t?>_<?=eqn.vec3?>_mul(U._1_eps, U.D);
 }
 
+<?=eqn.vec3?> calc_H(<?=eqn.cons_t?> U) { 
+	return <?=eqn.susc_t?>_<?=eqn.vec3?>_mul(U._1_mu, U.B);
+}
 /*
 |E| = E_i *E^i = (re E^i + i im E^i)  (re E^j - i im E^j) gamma_ij
 = ((re E^i re E^j + im E^i im E^j) + i (im E^i re E^j - re E^i im E^j)) gamma_ij
@@ -342,16 +345,15 @@ function Maxwell:getDisplayVars()
 
 	local vars = Maxwell.super.getDisplayVars(self)
 	vars:append{ 
-		{E = template([[	*value_<?=vec3?> = <?=susc_t?>_<?=vec3?>_mul(U->_1_eps, U->D);]], env), type=vec3},
-		{S = template([[	*value_<?=vec3?> = <?=susc_t?>_<?=vec3?>_mul(U->_1_eps, <?=vec3?>_cross(U->D, U->B));]], env), type=vec3},
+		{E = template([[	*value_<?=vec3?> = calc_E(*U);]], env), type=vec3},
+		{S = template([[
+	*value_<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));
+]], env), type=vec3},
 		{energy = template([[
 	*value_<?=scalar?> = <?=real_mul?>(
 		<?=add?>(
 			<?=fromreal?>(eqn_coordLenSq(U->D, x)),
-			<?=real_mul?>(
-				<?=mul?>(U->_1_mu, U->_1_mu),
-				eqn_coordLenSq(U->B, x)
-			)
+			<?=fromreal?>(eqn_coordLenSq(calc_H(*U), x))
 		), .5);
 ]], env), type=scalar},
 	}:append(table{'E','B'}:map(function(var,i)

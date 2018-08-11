@@ -1,6 +1,5 @@
 <?
 local solver = eqn.solver
-
 local common = require 'common'()
 local xNames = common.xNames
 local sym = common.sym
@@ -13,8 +12,8 @@ local sym = common.sym
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	<?=vec3?> E = <?=susc_t?>_<?=vec3?>_mul(U._1_eps, U.D);
-	<?=vec3?> H = <?=susc_t?>_<?=vec3?>_mul(U._1_mu, U.B);
+	<?=vec3?> E = calc_E(U);
+	<?=vec3?> H = calc_H(U);
 	return (<?=eqn.cons_t?>){
 <? if side == 0 then 
 ?>		.D = _<?=vec3?>(<?=zero?>, H.z, <?=neg?>(H.y)),
@@ -26,7 +25,9 @@ local sym = common.sym
 ?>		.D = _<?=vec3?>(H.y, <?=neg?>(H.x), <?=zero?>),
 		.B = _<?=vec3?>(<?=neg?>(E.y), E.x, <?=zero?>),
 <? end 
-?>		.BPot = <?=zero?>,
+?>		.DPot = <?=zero?>,
+		.BPot = <?=zero?>,
+		.rhoCharge = <?=zero?>,
 		.sigma = <?=zero?>,
 		._1_eps = <?=susc_t?>_zero,
 		._1_mu = <?=susc_t?>_zero,

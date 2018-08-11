@@ -1,5 +1,6 @@
 --[[ 2000 Munz
-TODO incorporate H and D fields
+But then I changed the eigendecomposition to match my Trangenstein one with epsilons and mus
+And then I changed epsilon E -> D, so it's based on B and D 
 --]]
 
 local class = require 'ext.class'
@@ -15,15 +16,17 @@ GLM_Maxwell.numWaves = 8
 GLM_Maxwell.numIntStates = 8
 
 GLM_Maxwell.consVars = {
-	{E = 'real3'},
+	{D = 'real3'},
 	{B = 'real3'},
 	{phi = 'real'},
 	{psi = 'real'},
-	{conductivity = 'real'},
 	{rhoCharge = 'real'},
+	{sigma = 'real'},
+	{sqrt_1_eps = 'real'},
+	{sqrt_1_mu = 'real'},
 }
 
-GLM_Maxwell.mirrorVars = {{'E.x', 'B.x'}, {'E.y', 'B.y'}, {'E.z', 'B.z'}}
+GLM_Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
 
 GLM_Maxwell.hasEigenCode = true
 GLM_Maxwell.hasFluxFromConsCode = true
@@ -32,10 +35,27 @@ GLM_Maxwell.roeUseFluxFromCons = true
 
 GLM_Maxwell.initStates = require 'init.euler'
 
+GLM_Maxwell.postComputeFluxCode = template([[
+		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
+		//flux is computed raised via Levi-Civita upper
+		//so here we lower it
+		real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
+		flux.D = real3_real_mul(coord_lower(flux.D, x), _1_sqrt_det_g);
+		flux.B = real3_real_mul(coord_lower(flux.B, x), _1_sqrt_det_g);
+]], {eqn=Maxwell})
+
+
 function GLM_Maxwell:getCommonFuncCode()
 	return template([[
-real ESq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.E); }
-real BSq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.B); }
+real3 calc_E(<?=eqn.cons_t?> U) { 
+	return real3_real_mul(U.D, U.sqrt_1_eps * U.sqrt_1_eps);
+}
+real3 calc_H(<?=eqn.cons_t?> U) { 
+	return real3_real_mul(U.B, U.sqrt_1_mu * U.sqrt_1_mu);
+}
+
+real ESq(<?=eqn.cons_t?> U, real3 x) { return coordLenSq(calc_E(U), x); }
+real BSq(<?=eqn.cons_t?> U, real3 x) { return coordLenSq(U.B, x); }
 ]], {
 	eqn = self,
 })
@@ -74,12 +94,14 @@ kernel void initState(
 	
 	<?=code?>
 	
-	U->E = E;
-	U->B = B;
+	U->D = cartesianToCoord(real3_real_mul(E, permittivity), x);
+	U->B = cartesianToCoord(B, x);
 	U->phi = 0;
 	U->psi = 0;
-	U->conductivity = conductivity;
+	U->sigma = conductivity;
 	U->rhoCharge = 0;
+	U->sqrt_1_eps = sqrt(1. / permittivity);
+	U->sqrt_1_mu = sqrt(1. / permeability);
 }
 ]]
 
@@ -130,12 +152,14 @@ end
 
 function GLM_Maxwell:getDisplayVars()
 	local vars = GLM_Maxwell.super.getDisplayVars(self):append{ 
-		{S = '*value_real3 = real3_cross(U->E, U->B);', type='real3'},
+		{S = [[
+	*value_real3 = real3_cross(calc_E(*U), calc_H(*U));
+]], type='real3'},
 		{energy = [[
-	*value = .5 * (real3_lenSq(U->E) + real3_lenSq(U->B));
+	*value = .5 * (coordLenSq(U->D, x) + coordLenSq(calc_H(*U), x));
 ]]},
-	}:append(table{'E','B'}:map(function(var,i)
-		local field = assert( ({E='E', B='B'})[var] )
+	}:append(table{'D','B'}:map(function(var,i)
+		local field = assert( ({D='D', B='B'})[var] )
 		return {['div '..var] = template([[
 	*value = .5 * (0.
 <?
@@ -149,7 +173,7 @@ end
 ]], {solver=self.solver, field=field})}
 	end))
 
-	for _,field in ipairs{'E', 'B'} do
+	for _,field in ipairs{'D', 'B'} do
 		local v = range(0,2):map(function(i) 
 			return curl(self,i,'value_real3->s'..i,field) 
 		end)
@@ -164,23 +188,41 @@ end
 end
 
 GLM_Maxwell.eigenVars = table{
-	{nothing = 'real'},
+	{sqrt_1_eps = 'real'},
+	{sqrt_1_mu = 'real'},
 }
+
+function GLM_Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
+	return template([[
+	real v_p = <?=eig?>.sqrt_1_eps * <?=eig?>.sqrt_1_mu;
+]], {
+		eqn = self,
+		eig = '('..eig..')',
+	})
+end
+
 
 function GLM_Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 	return ({
-		'-speedOfLight * divPhiWavespeed',
-		'-speedOfLight * divPsiWavespeed',
-		'-speedOfLight',
-		'-speedOfLight',
-		'speedOfLight',
-		'speedOfLight',
-		'speedOfLight * divPsiWavespeed',
-		'speedOfLight * divPhiWavespeed',
+		'-v_p * divPhiWavespeed',
+		'-v_p * divPsiWavespeed',
+		'-v_p',
+		'-v_p',
+		'v_p',
+		'v_p',
+		'v_p * divPhiWavespeed',
+		'v_p * divPsiWavespeed',
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
 end
 
-function GLM_Maxwell:consWaveCodePrefix(side, U, x, waveIndex) return '' end
+function GLM_Maxwell:consWaveCodePrefix(side, U, x, waveIndex) 
+	return template([[
+	real v_p = <?=U?>.sqrt_1_eps * <?=U?>.sqrt_1_mu;
+]], {
+		eqn = self,
+		U = '('..U..')',
+	})
+end
 GLM_Maxwell.consWaveCode = GLM_Maxwell.eigenWaveCode
 
 return GLM_Maxwell
