@@ -1,4 +1,4 @@
-local dim = 2
+local dim = 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -257,8 +257,8 @@ maxs = {6,1,1},
 
 	-- Maxwell:
 	--initState = 'Maxwell default',
-	--initState = 'Maxwell scattering around cylinder',
-	initState = 'Maxwell scattering around Koch snowflake',
+	initState = 'Maxwell scattering around cylinder',
+	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	
 	-- hmm, I think I need a fluid solver for this, not just a Maxwell solver ...
