@@ -720,27 +720,22 @@ function SolverBase:getDisplayInfosForType()
 			{name = ' mag', code = '	*value_real3 = _real3(real3_len(*value_real3),0,0);', magn=true},
 		},
 
+
 		cplx3 = {
 			{name = ' mag', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx3_len(*value_cplx3)), cplx_zero, cplx_zero);', magn=true},
+			
+			-- TODO these two are crashing
 			{name = ' re', code = '	*value_real3 = cplx3_re(*value_cplx3); *value_real3_hi = real3_zero;', vartype='real3'},
 			{name = ' im', code = '	*value_real3 = cplx3_im(*value_cplx3); *value_real3_hi = real3_zero;', vartype='real3'},
+			
 			-- re and im will include re len, im len, re xyz, im xyz
 			-- but will skip the x,y,z cplx abs and arg:
-			{name = ' x abs', code = '	*value_cplx3 = _cplx3(cplx_abs(value_cplx3->x), cplx_zero, cplx_zero);'},
-			{name = ' y abs', code = '	*value_cplx3 = _cplx3(cplx_abs(value_cplx3->y), cplx_zero, cplx_zero);'},
-			{name = ' z abs', code = '	*value_cplx3 = _cplx3(cplx_abs(value_cplx3->z), cplx_zero, cplx_zero);'},
-			{name = ' x arg', code = '	*value_cplx3 = _cplx3(cplx_arg(value_cplx3->x), cplx_zero, cplx_zero);'},
-			{name = ' y arg', code = '	*value_cplx3 = _cplx3(cplx_arg(value_cplx3->y), cplx_zero, cplx_zero);'},
-			{name = ' z arg', code = '	*value_cplx3 = _cplx3(cplx_arg(value_cplx3->z), cplx_zero, cplx_zero);'},
-		},
-		cplx3 = {
-			{name = ' mag', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx3_len(*value_cplx3)), cplx_zero,cplx_zero);', magn=true},
-			{name = ' x re', code = '	*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->x.re), cplx_zero, cplx_zero);'},
-			{name = ' y re', code = '	*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->y.re), cplx_zero, cplx_zero);'},
-			{name = ' z re', code = '	*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->z.re), cplx_zero, cplx_zero);'},
-			{name = ' x im', code = '	*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->x.im), cplx_zero, cplx_zero);'},
-			{name = ' y im', code = '	*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->y.im), cplx_zero, cplx_zero);'},
-			{name = ' z im', code = '	*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->z.im), cplx_zero, cplx_zero);'},
+			{name = ' x abs', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx_abs(value_cplx3->x)), cplx_zero, cplx_zero);'},
+			{name = ' y abs', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx_abs(value_cplx3->y)), cplx_zero, cplx_zero);'},
+			{name = ' z abs', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx_abs(value_cplx3->z)), cplx_zero, cplx_zero);'},
+			{name = ' x arg', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx_arg(value_cplx3->x)), cplx_zero, cplx_zero);'},
+			{name = ' y arg', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx_arg(value_cplx3->y)), cplx_zero, cplx_zero);'},
+			{name = ' z arg', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx_arg(value_cplx3->z)), cplx_zero, cplx_zero);'},
 		},
 		
 		-- hmm, value_real3 has to be bigger for this to work

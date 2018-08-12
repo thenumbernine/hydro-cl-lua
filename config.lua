@@ -257,7 +257,8 @@ maxs = {6,1,1},
 
 	-- Maxwell:
 	--initState = 'Maxwell default',
-	initState = 'Maxwell scattering around cylinder',
+	--initState = 'Maxwell scattering around cylinder',
+	initState = 'Maxwell scattering around pyramid',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	

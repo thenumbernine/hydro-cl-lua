@@ -90,7 +90,21 @@ local function real(x)
 	realptr[0] = x
 	return realptr
 end
-local function addMaxwellOscillatingBoundary(solver)
+
+--[[
+args:
+	solver = solver
+	side = which side, default xmin
+	amplitude = wave amplitude.  default 1
+	period = wave period.  default 1
+	dir = which direction the wave will point. default 'x'
+--]]
+local function addMaxwellOscillatingBoundary(args)
+	local solver = assert(args.solver)
+	local side = args.side or 'xmin'
+	local amplitude = args.amplitude or 1
+	local frequency = args.frequency or 1
+	local dir = args.dir or 'y'
 	-- this args is only for the UBuf boundary program -- not calle for the Poisson boundary program
 	function solver:getBoundaryProgramArgs()
 		-- i'm completely overriding this
@@ -99,31 +113,31 @@ local function addMaxwellOscillatingBoundary(solver)
 		local boundaryMethods = table(self.boundaryMethods)
 		-- TODO get the oscillations on 2D 256x256 in the upper left corner to stop
 		--local oldxmin = select(2, next(solver.boundaryOptions[boundaryMethods.xmin]))
-		boundaryMethods.xmin = function(args)
-			local U = 'buf['..args.index'j'..']'
+		boundaryMethods[side] = function(args)
+			local gridSizeSide = 'gridSize_'..xNames[args.side]
+			local U = args.array('buf', args.index(
+				side:sub(-3) == 'min' and 'j' or (gridSizeSide..'-numGhost-1-j')
+			))
 			-- TODO put the old code here
 			return 
 				--oldxmin(args) .. 
 				template([[
-<?	
-	local scalar = eqn.scalar or 'real'
-	local vec3 = eqn.vec3 or 'real3'
-	local zero = scalar..'_zero'
-	local mul = scalar..'_mul'
-	local fromreal = scalar..'_from_real'
-?>	
 	<?=U?>.B = <?=vec3?>_zero;
-	<?=U?>.D = _<?=vec3?>(
-		<?=zero?>,
-		<?=mul?>(<?=fromreal?>(sin(10. * t)), 
+	<?=U?>.D = <?=vec3?>_zero;
+	<?=U?>.D.<?=dir?> = <?=real_mul?>(
 <? if require 'eqn.glm-maxwell'.is(eqn) then ?>			
 			<?=mul?>(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_eps)
 <? else ?>			
 			<?=U?>._1_eps
 <? end ?>		
-		), 
-		<?=zero?>);
-]], {U=U, eqn=self.eqn})
+		, <?=amplitude?> * sin(2. * M_PI * <?=frequency?> * t)); 
+]], table(solver.eqn:getTemplateEnv(), {
+		U = U,
+		eqn = self.eqn,
+		frequency = clnumber(frequency),
+		amplitude = clnumber(amplitude),
+		dir = dir,
+	}))
 		end
 
 		-- same as super 
@@ -1242,16 +1256,55 @@ end ?>;
 	{
 		name = 'Maxwell scattering around cylinder',
 		initState = function(self, solver)
-			addMaxwellOscillatingBoundary(solver)
+			addMaxwellOscillatingBoundary{solver=solver}
 			return template([[
 	real3 xc = coordMap(x);
 	if (real3_lenSq(xc) < .2*.2) {
-		//conductivity = 1e-2;
-		permittivity = <?=eqn.susc_t or 'real'?>_from_real(5.);
+		permittivity = <?=eqn.susc_t?>_from_real(5.);
 	}
-]],	{
-	eqn = solver.eqn,
-})
+]], solver.eqn:getTemplateEnv())
+		end,
+	},
+
+	{
+		name = 'Maxwell scattering around pyramid',
+		header = function(self, solver)
+			return template([[
+#define sqrt3 <?=clnumber(math.sqrt(3))?>
+
+#define p1 _real3(0, .5, 0)
+#define p2 _real3(.25*sqrt3, -.25, 0.)
+#define p3 _real3(-.25*sqrt3, -.25, 0.)
+
+#define n1 _real3(0, 1, 0)
+#define n2 _real3(.5*sqrt3, -.5, 0)
+#define n3 _real3(-.5*sqrt3, -.5, 0)
+
+bool testTriangle(real3 xc) {
+	return (real3_dot(real3_sub(xc, p1), n1) < 0. &&
+		real3_dot(real3_sub(xc, p2), n2) < 0. &&
+		real3_dot(real3_sub(xc, p3), n3) < 0.);
+}
+]], {clnumber=clnumber})
+		end,
+		initState = function(self, solver)
+			-- hmm, choosing min or max doesn't matter, it always shows up on min...
+			addMaxwellOscillatingBoundary{
+				solver = solver,
+				side = xNames[solver.dim]..'max',
+				dir = xNames[solver.dim],
+				amplitude = -1,
+			}
+			return template([[
+	real3 xc = coordMap(x);
+
+	xc.y = -xc.y;
+	xc = real3_real_mul(xc, 2.);
+	if (testTriangle(xc)) {
+		//conductivity = 1e-2;
+		permittivity = _<?=eqn.susc_t?>(5., .1);
+	}
+]], solver.eqn:getTemplateEnv())
 		end,
 	},
 
@@ -1326,7 +1379,7 @@ bool testTriangle(real3 xc) {
 })
 		end,
 		initState = function(self, solver)
-			addMaxwellOscillatingBoundary(solver)
+			addMaxwellOscillatingBoundary{solver=solver}
 			
 			local c = 299792458
 			local s_in_m = 1 / c
@@ -1377,7 +1430,10 @@ bool testTriangle(real3 xc) {
 	) {
 		//conductivity = 0;
 		//conductivity = <?=clnumber(1/resistivities.copper)?>;
-		permittivity = 5.;
+		//permittivity = 5.;
+
+		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
+		permittivity = _cplx(5., .1);
 	}
 
 ]], {
@@ -1452,7 +1508,7 @@ kernel void addExtraSource(
 	{
 		name = 'Maxwell wire',
 		initState = function(self, solver)
-			addMaxwellOscillatingBoundary(solver)
+			addMaxwellOscillatingBoundary{solver=solver}
 			
 			local c = 299792458
 			local s_in_m = 1 / c

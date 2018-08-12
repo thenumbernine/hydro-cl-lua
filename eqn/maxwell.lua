@@ -265,10 +265,10 @@ kernel void initState(
 ]]
 
 function Maxwell:getSolverCode()
-	return template(file['eqn/maxwell.cl'], self:getScalarTemplateEnv())
+	return template(file['eqn/maxwell.cl'], self:getTemplateEnv())
 end
 
-function Maxwell:getScalarTemplateEnv()
+function Maxwell:getTemplateEnv()
 	local scalar = self.scalar
 	local env = {}
 	env.eqn = self
@@ -335,7 +335,7 @@ dEy/dx = cos(x-t)
 so curl(E).z = -cos(x-t)
 --]]
 function Maxwell:getDisplayVars()
-	local env = self:getScalarTemplateEnv()
+	local env = self:getTemplateEnv()
 
 	local vars = Maxwell.super.getDisplayVars(self)
 	vars:append{ 

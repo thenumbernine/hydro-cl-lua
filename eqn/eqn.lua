@@ -218,6 +218,8 @@ function Equation:getDisplayVarsForStructVars(structVarInfos, ptrName)
 			displayVarInfos:insert{[varname] = '*value = '..ptrName..varname..';'}
 		elseif vartype == 'real3' then
 			displayVarInfos:insert{[varname] = '*value_real3 = '..ptrName..varname..';', type='real3'}
+		elseif vartype == 'cplx' then
+			displayVarInfos:insert{[varname] = '*value_cplx = '..ptrName..varname..';', type='cplx'}
 		elseif vartype == 'cplx3' then
 			displayVarInfos:insert{[varname] = '*value_cplx3 = '..ptrName..varname..';', type='cplx3'}
 		elseif vartype == 'sym3' then

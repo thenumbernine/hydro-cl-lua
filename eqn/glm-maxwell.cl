@@ -62,7 +62,7 @@ local sym = common.sym
 ) {
 	<?=eqn.waves_t?> Y;
 	<?=scalar?>* Xp = (<?=scalar?>*)X.ptr;
-	<?=scalar?>* Yp = Y.ptr;
+	<?=scalar?>* Yp = (<?=scalar?>*)Y.ptr;
 
 	<?=scalar?> sqrt_1_eps = eig.sqrt_1_eps;
 	<?=scalar?> sqrt_1_mu = eig.sqrt_1_mu;
