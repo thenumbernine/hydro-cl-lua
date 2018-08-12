@@ -117,7 +117,7 @@ local function addMaxwellOscillatingBoundary(solver)
 		<?=zero?>,
 		<?=mul?>(<?=fromreal?>(sin(10. * t)), 
 <? if require 'eqn.glm-maxwell'.is(eqn) then ?>			
-			<?=U?>.sqrt_1_eps * <?=U?>.sqrt_1_eps
+			<?=mul?>(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_eps)
 <? else ?>			
 			<?=U?>._1_eps
 <? end ?>		

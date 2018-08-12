@@ -57,23 +57,23 @@ end
 
 function Equation:init(args)
 	self.solver = assert(args.solver)
-
+	
 	self.prim_t = self:unique'prim_t'
 	self.cons_t = self:unique'cons_t'
 	self.consLR_t = self:unique'consLR_t'
 	self.eigen_t = self:unique'eigen_t'
-
+	
 	self.waves_t = self:unique'waves_t'
-
+	
 	local numReals
 	if self.consVars then
-		numReals = makestruct.countReals(self.consVars)
+		numReals = makestruct.countScalars(self.consVars)
 		if self.primVars then
-			local numPrimReals = makestruct.countReals(self.primVars)
+			local numPrimReals = makestruct.countScalars(self.primVars)
 			assert(numPrimReals <= numReals, "hmm, this is awkward")
 		end
 	end
-
+	
 	if not self.numStates then 
 		self.numStates = numReals
 		if not self.numStates then
@@ -86,11 +86,11 @@ function Equation:init(args)
 	end
 	-- default # waves is the # of states
 	if not self.numWaves then self.numWaves = self.numStates end 
-
+	
 	-- how many states are integratable
 	-- (put static states at the end of your cons_t structures)
 	if not self.numIntStates then self.numIntStates = self.numStates end
-
+	
 	self.initStateNames = table.map(self.initStates, function(info) return info.name end)
 end
 
@@ -156,7 +156,7 @@ end
 
 function Equation:getExtraTypeCode()
 	return template([[
-typedef struct { 
+typedef union { 
 	real ptr[<?=eqn.numWaves?>]; 
 } <?=eqn.waves_t?>;
 ]],		{
@@ -235,7 +235,7 @@ function Equation:getDisplayVars()
 	return self:getDisplayVarsForStructVars(self.consVars)
 end
 
--- TODO autogen the name so multiple solvers don't collide
+-- does anyone even use this anymore?  nobody should...
 function Equation:getEigenTypeCode()
 	if self.eigenVars then
 		return makestruct.makeStruct(self.eigen_t, self.eigenVars)
@@ -243,6 +243,7 @@ function Equation:getEigenTypeCode()
 	-- use the default matrix structures	
 	-- whose code is in eqn/cl/eigen.cl (included below)
 	else
+error("this is deprecated")
 		return template([[
 typedef struct {
 	real evL[<?=numIntStates * numWaves?>];
@@ -360,19 +361,25 @@ function Equation:getPrimConsCode()
 
 	return template([[
 
+#define primFromCons(U, x)	U
+/*
 inline <?=eqn.prim_t?> primFromCons(
 	<?=eqn.cons_t?> U, 
 	real3 x
 ) { 
 	return U; 
 }
+*/
 
+#define consFromPrim(W, x)	W
+/*
 inline <?=eqn.cons_t?> consFromPrim(
 	<?=eqn.prim_t?> W, 
 	real3 x
 ) { 
 	return W; 
 }
+*/
 
 /*
 WA = W components that make up the jacobian matrix
@@ -380,6 +387,8 @@ W = input vector
 x = coordinate location
 returns output vector
 */
+#define apply_dU_dW(WA, W, x)	W
+/*
 inline <?=eqn.cons_t?> apply_dU_dW(
 	<?=eqn.prim_t?> WA, 
 	<?=eqn.prim_t?> W, 
@@ -387,6 +396,7 @@ inline <?=eqn.cons_t?> apply_dU_dW(
 ) { 
 	return W; 
 }
+*/
 
 /*
 WA = W components that make up the jacobian matrix
@@ -394,6 +404,8 @@ U = input vector
 x = coordinate location
 returns output vector
 */
+#define apply_dW_dU(WA, U, x)	U
+/*
 inline <?=eqn.prim_t?> apply_dW_dU(
 	<?=eqn.prim_t?> WA, 
 	<?=eqn.cons_t?> U, 
@@ -401,6 +413,7 @@ inline <?=eqn.prim_t?> apply_dW_dU(
 ) { 
 	return U; 
 }
+*/
 ]], {
 		eqn = self,
 	})

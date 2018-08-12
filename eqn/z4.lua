@@ -36,7 +36,7 @@ Z4.consVars = table{
 	{gamma = 'sym3'},
 }:append(fluxVars)
 
-Z4.numWaves = makeStruct.countReals(fluxVars)
+Z4.numWaves = makeStruct.countScalars(fluxVars)
 assert(Z4.numWaves == 31)
 
 Z4.hasCalcDTCode = true

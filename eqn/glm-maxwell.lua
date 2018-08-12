@@ -22,29 +22,6 @@ local template = require 'template'
 
 local GLM_Maxwell = class(Equation)
 GLM_Maxwell.name = 'GLM_Maxwell'
-GLM_Maxwell.numIntStates = 8
-
--- I'm working on making complex numbers exchangeable
---GLM_Maxwell.scalar = 'real'
-GLM_Maxwell.scalar = 'cplx'
-
-GLM_Maxwell.susc_t = GLM_Maxwell.scalar
-
-GLM_Maxwell.numRealsInScalar = ffi.sizeof(GLM_Maxwell.scalar) / ffi.sizeof'real'
-GLM_Maxwell.numWaves = 8 * GLM_Maxwell.numRealsInScalar
-
-GLM_Maxwell.vec3 = GLM_Maxwell.scalar..'3'
-
-GLM_Maxwell.consVars = {
-	{D = GLM_Maxwell.vec3},
-	{B = GLM_Maxwell.vec3},
-	{phi = GLM_Maxwell.scalar},
-	{psi = GLM_Maxwell.scalar},
-	{rhoCharge = GLM_Maxwell.scalar},
-	{sigma = GLM_Maxwell.scalar},
-	{sqrt_1_eps = GLM_Maxwell.scalar},
-	{sqrt_1_mu = GLM_Maxwell.scalar},
-}
 
 GLM_Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
 
@@ -55,16 +32,52 @@ GLM_Maxwell.roeUseFluxFromCons = true
 
 GLM_Maxwell.initStates = require 'init.euler'
 
-GLM_Maxwell.postComputeFluxCode = template([[
+
+function GLM_Maxwell:init(args)
+
+	--self.scalar = 'real'
+	self.scalar = 'cplx'
+	self.vec3 = self.scalar..'3'
+
+	-- TODO tensor susceptibilty support ... but that affects the eigendecomposition ...
+	self.susc_t = self.scalar
+
+	self.numRealsInScalar = ffi.sizeof(self.scalar) / ffi.sizeof'real'
+
+	self.numIntStates = 8 * self.numRealsInScalar
+	self.numWaves = 8 * self.numRealsInScalar
+
+
+	self.consVars = {
+		{D = self.vec3},
+		{B = self.vec3},
+		{phi = self.scalar},
+		{psi = self.scalar},
+		{rhoCharge = self.scalar},
+		{sigma = self.scalar},
+		{sqrt_1_eps = self.susc_t},
+		{sqrt_1_mu = self.susc_t},
+	}
+
+	self.eigenVars = table{
+		{sqrt_1_eps = self.scalar},
+		{sqrt_1_mu = self.scalar},
+	}
+
+
+	GLM_Maxwell.super.init(self, args)
+
+
+	self.postComputeFluxCode = template([[
 <? local vec3 = eqn.vec3 ?>
 		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
 		real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
-		flux.D = <?=vec3?>_real_mul(coord_lower(flux.D, x), _1_sqrt_det_g);
-		flux.B = <?=vec3?>_real_mul(coord_lower(flux.B, x), _1_sqrt_det_g);
-]], {eqn=GLM_Maxwell})
-
+		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
+		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
+	]], {eqn=self})
+end
 
 function GLM_Maxwell:getCommonFuncCode()
 	return template([[
@@ -107,7 +120,7 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 
 real ESq(<?=eqn.cons_t?> U, real3 x) { return eqn_coordLenSq(calc_E(U), x); }
 real BSq(<?=eqn.cons_t?> U, real3 x) { return eqn_coordLenSq(U.B, x); }
-]], self:getScalarTemplateEnv())
+]], self:getTemplateEnv())
 end
 
 GLM_Maxwell.initStateCode = [[
@@ -167,10 +180,10 @@ kernel void initState(
 ]]
 
 function GLM_Maxwell:getSolverCode()
-	return template(file['eqn/glm-maxwell.cl'], self:getScalarTemplateEnv())
+	return template(file['eqn/glm-maxwell.cl'], self:getTemplateEnv())
 end
 
-function GLM_Maxwell:getScalarTemplateEnv()
+function GLM_Maxwell:getTemplateEnv()
 	local scalar = self.scalar
 	local env = {}
 	env.eqn = self
@@ -206,21 +219,21 @@ local function curl(eqn,k,result,field,env)
 <? if i+1 <= solver.dim then ?>
 		global const <?=eqn.cons_t?>* Uim = U - stepsize.s<?=i?>;
 		global const <?=eqn.cons_t?>* Uip = U + stepsize.s<?=i?>;
-		real vim_j = Uim-><?=field?>.s<?=j?>;
-		real vip_j = Uip-><?=field?>.s<?=j?>;
+		<?=scalar?> vim_j = Uim-><?=field?>.s<?=j?>;
+		<?=scalar?> vip_j = Uip-><?=field?>.s<?=j?>;
 <? else ?>
-		real vim_j = <?=zero?>;
-		real vip_j = <?=zero?>;
+		<?=scalar?> vim_j = <?=zero?>;
+		<?=scalar?> vip_j = <?=zero?>;
 <? end?>
 
 <? if j+1 <= solver.dim then ?>
 		global const <?=eqn.cons_t?>* Ujm = U - stepsize.s<?=j?>;
 		global const <?=eqn.cons_t?>* Ujp = U + stepsize.s<?=j?>;
-		real vjm_i = Ujm-><?=field?>.s<?=i?>;
-		real vjp_i = Ujp-><?=field?>.s<?=i?>;
+		<?=scalar?> vjm_i = Ujm-><?=field?>.s<?=i?>;
+		<?=scalar?> vjp_i = Ujp-><?=field?>.s<?=i?>;
 <? else ?>
-		real vjm_i = <?=zero?>;
-		real vjp_i = <?=zero?>;
+		<?=scalar?> vjm_i = <?=zero?>;
+		<?=scalar?> vjp_i = <?=zero?>;
 <? end ?>
 
 		<?=result?> = <?=sub?>(
@@ -237,7 +250,7 @@ local function curl(eqn,k,result,field,env)
 end
 
 function GLM_Maxwell:getDisplayVars()
-	local env = self:getScalarTemplateEnv()
+	local env = self:getTemplateEnv()
 	
 	local vars = GLM_Maxwell.super.getDisplayVars(self):append{ 
 		{S = template([[
@@ -264,7 +277,7 @@ function GLM_Maxwell:getDisplayVars()
 
 	for _,field in ipairs{'D', 'B'} do
 		local v = range(0,2):map(function(i) 
-			return curl(self,i,'value_real3->s'..i,field, env) 
+			return curl(self,i,'value_'..env.vec3..'->s'..i,field, env) 
 		end)
 		vars:insert{['curl '..field]= template([[
 	<? for i=0,2 do ?>{
@@ -276,52 +289,79 @@ function GLM_Maxwell:getDisplayVars()
 	return vars
 end
 
-GLM_Maxwell.eigenVars = table{
-	{sqrt_1_eps = GLM_Maxwell.scalar},
-	{sqrt_1_mu = GLM_Maxwell.scalar},
-}
-
 function GLM_Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
+--[=[	
 	return template([[
 	<?=scalar?> v_p = <?=mul?>(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu);
-]], table(self:getScalarTemplateEnv(), {
+]], table(self:getTemplateEnv(), {
 		eqn = self,
 		eig = '('..eig..')',
 	}))
+--]=]
+-- [=[
+	local env = self:getTemplateEnv()
+	local code = template(
+		[[<?=mul?>(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu)]],
+		table(env, {
+			eqn = self,
+			eig = '('..eig..')',
+		})
+	)
+	if self.scalar == 'cplx' then
+		code = env.abs..'('..code..')'
+	end
+	return 'real v_p_abs = '..code..';'
+--]=]
 end
 
 
 -- to use this, I really need cplx multiplications everywhere it is used
 -- which is in the roe solver and hll solver
 function GLM_Maxwell:eigenWaveCode(side, eig, x, waveIndex)
-	local i = waveIndex
-	local field = ''
-	if self.scalar == 'cplx' then
-		field = ({'.re', '.im'})[(i % 2) + 1]
-		i = math.floor(i / self.numRealsInScalar)
-	end
-	
+	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
 	return template(({
-		'<?=neg?>(<?=mul?>(v_p, divPhiWavespeed))',
-		'<?=neg?>(<?=mul?>(v_p, divPsiWavespeed))',
-		'<?=neg?>(v_p)',
-		'<?=neg?>(v_p)',
-		'v_p',
-		'v_p',
-		'<?=mul?>(v_p, divPhiWavespeed)',
-		'<?=mul?>(v_p, divPsiWavespeed)',
-	})[i+1] or error('got a bad waveIndex: '..i), 
-		self:getScalarTemplateEnv())..field
+		'-v_p_abs * divPhiWavespeed',
+		'-v_p_abs * divPsiWavespeed',
+		'-v_p_abs',
+		'-v_p_abs',
+		'v_p_abs',
+		'v_p_abs',
+		'v_p_abs * divPhiWavespeed',
+		'v_p_abs * divPsiWavespeed',
+	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex), 
+		self:getTemplateEnv())
 end
 
+function GLM_Maxwell:eigenMinWaveCode(side, eig, x)
+	error'here'
+end
+function GLM_Maxwell:eigenMaxWaveCode(side, eig, x)
+	error'here'
+end
+
+
 function GLM_Maxwell:consWaveCodePrefix(side, U, x, waveIndex) 
-	return template([[
-	<?=scalar?> v_p = <?=mul?>(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_mu);
-]], table(self:getScalarTemplateEnv(), {
-		eqn = self,
-		U = '('..U..')',
-	}))
+	local env = self:getTemplateEnv()
+	local code = template(
+		[[<?=mul?>(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_mu)]],
+		table(env, {
+			eqn = self,
+			U = '('..U..')',
+		})
+	)
+	if self.scalar == 'cplx' then
+		code = env.abs..'('..code..')'
+	end
+	return 'real v_p_abs = '..code..';'
 end
 GLM_Maxwell.consWaveCode = GLM_Maxwell.eigenWaveCode
+
+function GLM_Maxwell:consMaxWaveCode(side, U, x)
+	return 'max(max(divPsiWavespeed, divPhiWavespeed), 1.) * v_p_abs;'
+end
+function GLM_Maxwell:consMinWaveCode(side, U, x)
+	return '-'..self:consMaxWaveCode(side, U, x)
+end
+
 
 return GLM_Maxwell

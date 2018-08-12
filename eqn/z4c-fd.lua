@@ -77,7 +77,7 @@ function Z4cFiniteDifferenceEquation:init(args)
 		-- aux variable
 		{gammaBar_uu = 'sym3'},		--6
 	}
-	self.numIntStates = makestruct.countReals(intVars)
+	self.numIntStates = makestruct.countScalars(intVars)
 
 	-- call construction / build structures	
 	Z4cFiniteDifferenceEquation.super.init(self, args)

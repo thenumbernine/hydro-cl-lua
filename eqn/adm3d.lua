@@ -127,7 +127,7 @@ function ADM_BonaMasso_3D:init(args)
 
 	if not self.noZeroRowsInFlux then
 		-- skip alpha and gamma
-		self.numWaves = makeStruct.countReals(fluxVars)
+		self.numWaves = makeStruct.countScalars(fluxVars)
 		assert(self.numWaves == 30)
 	else
 		-- skip alpha, gamma, a_q, d_qij, V_i for q != the direction of flux
@@ -135,7 +135,7 @@ function ADM_BonaMasso_3D:init(args)
 	end
 
 	-- only count int vars after the shifts have been added
-	self.numIntStates = makeStruct.countReals(self.consVars)
+	self.numIntStates = makeStruct.countScalars(self.consVars)
 
 
 	self.eigenVars = table{

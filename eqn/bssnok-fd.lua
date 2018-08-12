@@ -80,7 +80,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 		-- aux variable
 		{gammaTilde_uu = 'sym3'},		--6
 	}
-	self.numIntStates = makestruct.countReals(intVars)
+	self.numIntStates = makestruct.countScalars(intVars)
 	
 	-- call construction / build structures	
 	BSSNOKFiniteDifferenceEquation.super.init(self, args)

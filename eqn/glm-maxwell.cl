@@ -42,21 +42,6 @@ local sym = common.sym
 }
 <? end ?>
 
-<? for side=0,solver.dim-1 do ?>
-range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const global <?=eqn.cons_t?>* U,
-	real3 x
-) {
-<? if scalar == 'real' then ?>
-	real v_p = U->sqrt_1_eps * U->sqrt_1_mu;
-<? else ?>
-	real v_p = <?=abs?>(<?=mul?>(U->sqrt_1_eps, U->sqrt_1_mu));
-<? end ?>
-	real lambda = max(max(divPsiWavespeed, divPhiWavespeed), 1.) * v_p;
-	return (range_t){-lambda, lambda};
-}
-<? end ?>
-
 <?=eqn.eigen_t?> eigen_forInterface(
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
@@ -77,7 +62,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 ) {
 	<?=eqn.waves_t?> Y;
 	<?=scalar?>* Xp = (<?=scalar?>*)X.ptr;
-	<?=scalar?>* Yp = (<?=scalar?>*)Y.ptr;
+	<?=scalar?>* Yp = Y.ptr;
 
 	<?=scalar?> sqrt_1_eps = eig.sqrt_1_eps;
 	<?=scalar?> sqrt_1_mu = eig.sqrt_1_mu;
