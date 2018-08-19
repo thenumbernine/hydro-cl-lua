@@ -253,7 +253,6 @@ function GLM_Maxwell:getDisplayVars()
 	local env = self:getTemplateEnv()
 	
 	local vars = GLM_Maxwell.super.getDisplayVars(self)
-do return vars end	
 	vars:append{ 
 		{S = template([[
 	*value_<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));

@@ -1270,22 +1270,51 @@ end ?>;
 		name = 'Maxwell scattering around pyramid',
 		header = function(self, solver)
 			return template([[
-#define sqrt3 <?=clnumber(math.sqrt(3))?>
+<? 
+local table = require 'ext.table'
 
-#define p1 _real3(0, .5, 0)
-#define p2 _real3(.25*sqrt3, -.25, 0.)
-#define p3 _real3(-.25*sqrt3, -.25, 0.)
-
-#define n1 _real3(0, 1, 0)
-#define n2 _real3(.5*sqrt3, -.5, 0)
-#define n3 _real3(-.5*sqrt3, -.5, 0)
+local objs = table()
+local sqrt3 = math.sqrt(3)
+if solver.dim == 2 then
+	objs:insert{
+		{p={0, -.5, 0}, n={0, -1, 0}},
+		{p={.25*sqrt3, .25, 0}, n={.5*sqrt3, .5, 0}},
+		{p={-.25*sqrt3, .25, 0}, n={-.5*sqrt3, .5, 0}},
+	}
+elseif solver.dim == 3 then
+	objs:insert{
+		{p={0, 0, -.5}, n={0, 0, -1}},
+		{p={.25*sqrt3, 0, .25}, n={.5*sqrt3, 0, .5}},
+		{p={-.25*sqrt3, 0, .25}, n={-.5*sqrt3, 0, .5}},
+		{p={0, .25*sqrt3, .25}, n={0, .5*sqrt3, .5}},
+		{p={0, -.25*sqrt3, .25}, n={0, -.5*sqrt3, .5}},
+	}
+	-- if you want the floor... it is a separate CSG region
+	objs:insert{
+		{p={0, 0, -.5}, n={0, 0, 1}},
+	}
+end
+?>
 
 bool testTriangle(real3 xc) {
-	return (real3_dot(real3_sub(xc, p1), n1) < 0. &&
-		real3_dot(real3_sub(xc, p2), n2) < 0. &&
-		real3_dot(real3_sub(xc, p3), n3) < 0.);
+	return false
+<? for _,obj in ipairs(objs) do ?>
+		|| (true 
+<? 
+for _,pn in ipairs(obj) do
+	local p = table(pn.p):map(clnumber):concat', '
+	local n = table(pn.n):map(clnumber):concat', '
+?>
+			&& real3_dot(real3_sub(xc, _real3(<?=p?>)), _real3(<?=n?>)) < 0.
+<? end ?>
+		)
+<? end ?>
+	;
 }
-]], {clnumber=clnumber})
+]], {
+		solver = solver,
+		clnumber = clnumber,
+	})
 		end,
 		initState = function(self, solver)
 			-- hmm, choosing min or max doesn't matter, it always shows up on min...
@@ -1297,11 +1326,9 @@ bool testTriangle(real3 xc) {
 			}
 			return template([[
 	real3 xc = coordMap(x);
-
-	xc.y = -xc.y;
 	xc = real3_real_mul(xc, 2.);
 	if (testTriangle(xc)) {
-		//conductivity = 1e-2;
+		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
 		permittivity = _<?=eqn.susc_t?>(5., .1);
 	}
 ]], solver.eqn:getTemplateEnv())
@@ -1431,8 +1458,6 @@ bool testTriangle(real3 xc) {
 		//conductivity = 0;
 		//conductivity = <?=clnumber(1/resistivities.copper)?>;
 		//permittivity = 5.;
-
-		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
 		permittivity = _cplx(5., .1);
 	}
 
