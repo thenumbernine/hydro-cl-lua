@@ -65,7 +65,7 @@ maxs = {6,1,1},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
 				{128,128,1},
-				{32,32,32},
+				{24,24,24},
 			},
 		})[platformName..'/'..deviceName] 
 		-- default size options
@@ -451,8 +451,8 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 
 -- GLM Maxwell
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
+self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-maxwell'})))
 
 -- Maxwell+HD two-fluid electron/ion solver

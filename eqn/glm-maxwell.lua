@@ -333,11 +333,11 @@ function GLM_Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 		self:getTemplateEnv())
 end
 
-function GLM_Maxwell:eigenMinWaveCode(side, eig, x)
-	error'here'
-end
 function GLM_Maxwell:eigenMaxWaveCode(side, eig, x)
-	error'here'
+	return 'max(max(divPsiWavespeed, divPhiWavespeed), 1.) * v_p_abs;'
+end
+function GLM_Maxwell:eigenMinWaveCode(side, eig, x)
+	return '-'..self:eigenMaxWaveCode(side, eig, x)
 end
 
 
