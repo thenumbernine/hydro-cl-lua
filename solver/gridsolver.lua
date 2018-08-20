@@ -478,6 +478,13 @@ end
 	self:clalloc('reduceSwapBuf', reduceSwapBufSize)
 	self.reduceResultPtr = ffi.new('real[1]', 0)
 
+
+	if self.allowAccum then
+		-- as big as reduceBuf, because it is a replacement for reduceBuf
+		-- ... though I don't accum on vector fields yet, so it doesn't need the x3 really
+		self:clalloc('accumBuf', self.numCells * realSize * 3)
+	end
+
 	-- CL/GL interop
 
 	-- hmm, notice I'm still keeping the numGhost border on my texture 
@@ -1504,8 +1511,17 @@ function GridSolver:calcDisplayVarToTex(var)
 		local format = var.vectorField and gl.GL_RGB or gl.GL_RED
 
 		var:setToBufferArgs()
+		
+		if self.displayVarAccumFunc	then
+			var.calcDisplayVarToBufferKernelObj.obj:setArg(0, self.accumBuf)
+		end
 		var.calcDisplayVarToBufferKernelObj()
-		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
+		if self.displayVarAccumFunc then
+			app.cmds:enqueueReadBuffer{buffer=self.accumBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
+			var.calcDisplayVarToBufferKernelObj.obj:setArg(0, self.reduceBuf)
+		else
+			app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
+		end
 		local destPtr = ptr
 		if app.is64bit then
 			-- can this run in place?

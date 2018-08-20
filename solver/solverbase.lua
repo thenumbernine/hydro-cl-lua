@@ -32,6 +32,10 @@ SolverBase.name = 'Solver'
 -- override to specify which eqn/*.lua to use as the equation
 SolverBase.eqnName = nil
 
+-- enable for us to let the user accum/not.  requires an extra buffer allocation
+SolverBase.allowAccum = true
+SolverBase.displayVarAccumFunc = false
+
 --[[
 args:
 	app
@@ -223,6 +227,7 @@ function SolverBase:finalizeCLAllocs()
 end
 
 
+-- TODO this matches GridSolver very closely.  merge somehow?
 function SolverBase:createBuffers()
 	local realSize = ffi.sizeof(self.app.real)
 	
@@ -310,6 +315,7 @@ or should overriding the state be allowed?
 --]]
 end
 
+-- TODO this has a lot in common with GridSolver
 function SolverBase:refreshSolverProgram()
 	-- [[ from GritSolver:refreshSolverProgram
 	self.getULRBuf = self.UBuf
@@ -438,16 +444,28 @@ function SolverBase:getDisplayCode()
 							solver = self,
 							var = var,
 							name = 'calcDisplayVarToTex_'..var.id,
-							input = 'write_only '
-								..(self.dim == 3 
+							
+							input = 
+							
+							-- nvidia needed this, but I don't want to write only -- I want to accumulate and do other operations
+							--'write_only '	..
+							-- if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
+								
+								(self.dim == 3 
 									and 'image3d_t' 
 									or 'image2d_t'
 								)..' tex',
-							output = '	write_imagef(tex, '
-								..(self.dim == 3 
-									and '(int4)(dsti.x, dsti.y, dsti.z, 0)' 
-									or '(int2)(dsti.x, dsti.y)'
-								)..', (float4)(value[0], value[1], value[2], 0.));',
+							output = [[
+	write_imagef(
+		tex,
+		texCoord,
+		(float4)(
+			max(value[0], readValues.x),
+			max(value[1], readValues.y),
+			max(value[2], readValues.z), 
+			0.)
+	);
+]],
 						})
 					}
 				end
@@ -469,12 +487,23 @@ function SolverBase:getDisplayCode()
 						name = 'calcDisplayVarToBuffer_'..var.id,
 						input = 'global real* dest',
 						output = var.vectorField and [[
-	dest[0+3*dstindex] = value_real3->x;
-	dest[1+3*dstindex] = value_real3->y;
-	dest[2+3*dstindex] = value_real3->z;
-]] or [[
-	dest[dstindex] = value[0];
-]],
+	dest[0+3*dstindex] = value[0];
+	dest[1+3*dstindex] = value[1];
+	dest[2+3*dstindex] = value[2];
+]] or template([[
+	dest[dstindex] = <?
+if accumFunc then
+	?> 
+	<?=accumFunc?>(value[0], dest[dstindex])
+	<?
+else
+	?> value[0] <?
+end
+?>
+;
+]], {
+		accumFunc = self.displayVarAccumFunc and 'max' or nil, 
+	}),
 					})
 				}
 			end
@@ -485,7 +514,6 @@ function SolverBase:getDisplayCode()
 	
 	return code
 end
-
 
 
 function SolverBase:refreshInitStateProgram()
@@ -543,6 +571,9 @@ end
 -- override this by the mesh solver ... since I don't know what it will be doing
 function SolverBase:applyInitCond()
 	self.eqn.initState:resetState(self)
+	if self.allowAccum then
+		self.app.cmds:enqueueFillBuffer{buffer=self.accumBuf, size=ffi.sizeof(self.app.real) * self.numCells * 3}
+	end
 end
 
 function SolverBase:resetOps()
@@ -990,6 +1021,13 @@ function SolverBase:updateGUIParams()
 	tooltip.numberTable('fixed dt', self, 'fixedDT')
 	tooltip.numberTable('CFL', self, 'cfl')
 
+
+	if self.allowAccum then
+		if tooltip.checkboxTable('accum', self, 'displayVarAccumFunc') then
+			self:refreshSolverProgram()	-- I guess getDisplayCode is now in getSolverCode
+			self.app.cmds:enqueueFillBuffer{buffer=self.accumBuf, size=ffi.sizeof(self.app.real) * self.numCells * 3}
+		end
+	end
 
 	if tooltip.comboTable('integrator', self, 'integratorIndex', integratorNames) then
 		self:refreshIntegrator()
