@@ -1487,6 +1487,7 @@ function GridSolver:getTex(var)
 	return self.tex
 end
 
+
 function GridSolver:calcDisplayVarToTex(var)
 	local app = self.app
 	local displayVarGroup = var.displayVarGroup
@@ -1511,17 +1512,10 @@ function GridSolver:calcDisplayVarToTex(var)
 		local format = var.vectorField and gl.GL_RGB or gl.GL_RED
 
 		var:setToBufferArgs()
+	
+		self:calcDisplayVarToBuffer(var)
 		
-		if self.displayVarAccumFunc	then
-			var.calcDisplayVarToBufferKernelObj.obj:setArg(0, self.accumBuf)
-		end
-		var.calcDisplayVarToBufferKernelObj()
-		if self.displayVarAccumFunc then
-			app.cmds:enqueueReadBuffer{buffer=self.accumBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
-			var.calcDisplayVarToBufferKernelObj.obj:setArg(0, self.reduceBuf)
-		else
-			app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
-		end
+		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
 		local destPtr = ptr
 		if app.is64bit then
 			-- can this run in place?

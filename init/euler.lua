@@ -1281,6 +1281,10 @@ if solver.dim == 2 then
 		{p={.25*sqrt3, .25, 0}, n={.5*sqrt3, .5, 0}},
 		{p={-.25*sqrt3, .25, 0}, n={-.5*sqrt3, .5, 0}},
 	}
+	-- if you want the floor... it is a separate CSG region
+	objs:insert{
+		{p={0, -.5, 0}, n={0, 1, 0}},
+	}
 elseif solver.dim == 3 then
 	objs:insert{
 		{p={0, 0, -.5}, n={0, 0, -1}},

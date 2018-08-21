@@ -921,9 +921,9 @@ function SolverBase:calcDisplayVarRange(var)
 	
 	var:setToBufferArgs()
 	
-	var.calcDisplayVarToBufferKernelObj()
+	self:calcDisplayVarToBuffer(var)
 	local min = self.reduceMin()
-	var.calcDisplayVarToBufferKernelObj()
+	self:calcDisplayVarToBuffer(var)
 	local max = self.reduceMax()
 	
 	var.lastMin = min
@@ -942,7 +942,7 @@ function SolverBase:calcDisplayVarRangeAndAvg(var)
 
 	local avg
 	if needsUpdate then
-		var.calcDisplayVarToBufferKernelObj()
+		self:calcDisplayVarToBuffer(var)
 		avg = self.reduceSum(nil, self.numCells) / tonumber(self.numCells)
 	else
 		avg = var.lastAvg
@@ -1006,6 +1006,21 @@ function SolverBase:update()
 		if self:checkFinite(self.UBufObj, self.numCells) then return end
 	end
 end
+
+
+-- this is abstracted because accumBuf might want to be used ...
+function SolverBase:calcDisplayVarToBuffer(var)
+	local channels = var.vectorField and 3 or 1
+	local app = self.app
+	if self.displayVarAccumFunc	then
+		app.cmds:enqueueCopyBuffer{src=self.accumBuf, dst=self.reduceBuf, size=ffi.sizeof(app.real) * self.numCells * channels}
+	end
+	var.calcDisplayVarToBufferKernelObj()
+	if self.displayVarAccumFunc then
+		app.cmds:enqueueCopyBuffer{src=self.reduceBuf, dst=self.accumBuf, size=ffi.sizeof(app.real) * self.numCells * channels}
+	end
+end
+
 
 function SolverBase:updateGUIParams()
 	ig.igText('t: '..self.t)
