@@ -64,7 +64,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
-				{256,256,1},
+				{64,64,1},
 				{24,24,24},
 			},
 		})[platformName..'/'..deviceName] 
@@ -258,7 +258,7 @@ maxs = {6,1,1},
 	-- Maxwell:
 	--initState = 'Maxwell default',
 	--initState = 'Maxwell scattering around cylinder',
-	initState = 'Maxwell scattering around pyramid',
+	--initState = 'Maxwell scattering around pyramid',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	
@@ -278,7 +278,7 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 
 
-	--initState = 'Alcubierre warp bubble',
+	initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
@@ -451,7 +451,7 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 
 -- GLM Maxwell
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-maxwell'})))
 
@@ -483,7 +483,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator

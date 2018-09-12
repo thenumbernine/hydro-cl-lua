@@ -1327,6 +1327,7 @@ for _,pn in ipairs(obj) do
 				side = xNames[solver.dim]..'max',
 				dir = xNames[solver.dim],
 				amplitude = -1,
+				period = .1,
 			}
 			return template([[
 	real3 xc = coordMap(x);

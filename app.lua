@@ -36,9 +36,11 @@ for _,w in ipairs(arg or {}) do
 	end
 end
 
+local __disableGUI__ = cmdline.disableGUI
+
 local bit = require 'bit'
 local ffi = require 'ffi'
-local ig = require 'ffi.imgui'
+local ig = not __disableGUI__ and require 'ffi.imgui' or nil
 local cl = require 'ffi.OpenCL'
 local gl = require 'gl'
 local sdl = require 'ffi.sdl'
@@ -56,17 +58,11 @@ local GLTex2D = require 'gl.tex2d'
 local Font = require 'gui.font'
 local vec4d = require 'ffi.vec.vec4d'
 local vec3d = require 'ffi.vec.vec3d'
-local tooltip = require 'tooltip'
+local tooltip = not __disableGUI__ and require 'tooltip' or nil
 
 -- I tried making this a flag, and simply skipping the gui update if it wasn't set, but imgui still messes with the GL state and textures and stuff
 --  and I still get errors... so I'm cutting out imgui altogether, but now it takes a global flag to do so.
-local HydroCLApp
-if __disableGUI__ then
-	HydroCLApp = class(require 'glapp')
-else
-	HydroCLApp = class(require 'imguiapp')
-end
-
+local HydroCLApp = class(__disableGUI__ and require 'glapp' or require 'imguiapp')
 
 HydroCLApp.title = 'Hydrodynamics in OpenCL'
 
