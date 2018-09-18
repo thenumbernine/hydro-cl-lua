@@ -83,27 +83,27 @@ local file = require 'ext.file'
 local template = require 'template'
 local EinsteinEqn = require 'eqn.einstein'
 
-local ADM_BonaMasso_1D_Alcubierre1997 = class(EinsteinEqn)
-ADM_BonaMasso_1D_Alcubierre1997.name = 'ADM_BonaMasso_1D_Alcubierre1997'
+local ADM_BonaMasso_1D_1997Alcubierre = class(EinsteinEqn)
+ADM_BonaMasso_1D_1997Alcubierre.name = 'ADM Bona-Masso 1D (1997 Alcubierre)'
 
-ADM_BonaMasso_1D_Alcubierre1997.numStates = 5
-ADM_BonaMasso_1D_Alcubierre1997.numWaves = 3
+ADM_BonaMasso_1D_1997Alcubierre.numStates = 5
+ADM_BonaMasso_1D_1997Alcubierre.numWaves = 3
 
-ADM_BonaMasso_1D_Alcubierre1997.consVars = {
+ADM_BonaMasso_1D_1997Alcubierre.consVars = {
 	{alpha = 'real'},
 	{gamma_xx = 'real'},
 	{a_x = 'real'}, 
 	{d_xxx = 'real'}, 
 	{K_xx = 'real'},
 }
-ADM_BonaMasso_1D_Alcubierre1997.mirrorVars = {{'gamma_xx', 'a_x', 'd_xxx', 'K_xx'}}
+ADM_BonaMasso_1D_1997Alcubierre.mirrorVars = {{'gamma_xx', 'a_x', 'd_xxx', 'K_xx'}}
 
-ADM_BonaMasso_1D_Alcubierre1997.hasEigenCode = true
-ADM_BonaMasso_1D_Alcubierre1997.hasFluxFromConsCode = true
-ADM_BonaMasso_1D_Alcubierre1997.useSourceTerm = true
+ADM_BonaMasso_1D_1997Alcubierre.hasEigenCode = true
+ADM_BonaMasso_1D_1997Alcubierre.hasFluxFromConsCode = true
+ADM_BonaMasso_1D_1997Alcubierre.useSourceTerm = true
 
-function ADM_BonaMasso_1D_Alcubierre1997:createInitState()
-	ADM_BonaMasso_1D_Alcubierre1997.super.createInitState(self)
+function ADM_BonaMasso_1D_1997Alcubierre:createInitState()
+	ADM_BonaMasso_1D_1997Alcubierre.super.createInitState(self)
 	self:addGuiVars{
 		-- hmm, it is useful to make this proportional to dt ... since it's used for a constraint ...
 		{name='a_x_convCoeff', value=10},
@@ -111,7 +111,7 @@ function ADM_BonaMasso_1D_Alcubierre1997:createInitState()
 	}
 end
 
-function ADM_BonaMasso_1D_Alcubierre1997:getCommonFuncCode()
+function ADM_BonaMasso_1D_1997Alcubierre:getCommonFuncCode()
 	return template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	*U = (<?=eqn.cons_t?>){
@@ -125,7 +125,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 ]], {eqn=self})
 end
 
-ADM_BonaMasso_1D_Alcubierre1997.initStateCode = [[
+ADM_BonaMasso_1D_1997Alcubierre.initStateCode = [[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -162,10 +162,10 @@ kernel void initDerivs(
 }
 ]]
 
-ADM_BonaMasso_1D_Alcubierre1997.solverCodeFile = 'eqn/adm1d_v2.cl'
+ADM_BonaMasso_1D_1997Alcubierre.solverCodeFile = 'eqn/adm1d_v2.cl'
 
-function ADM_BonaMasso_1D_Alcubierre1997:getDisplayVars()
-	return ADM_BonaMasso_1D_Alcubierre1997.super.getDisplayVars(self):append{
+function ADM_BonaMasso_1D_1997Alcubierre:getDisplayVars()
+	return ADM_BonaMasso_1D_1997Alcubierre.super.getDisplayVars(self):append{
 		-- adm1d_v1 cons vars:
 		{D_g = '*value = 2. * U->d_xxx / U->gamma_xx;'},
 		{KTilde = '*value = U->K_xx / sqrt(U->gamma_xx);'},
@@ -199,12 +199,12 @@ function ADM_BonaMasso_1D_Alcubierre1997:getDisplayVars()
 	}
 end
 
-ADM_BonaMasso_1D_Alcubierre1997.eigenVars = {
+ADM_BonaMasso_1D_1997Alcubierre.eigenVars = {
 	{alpha = 'real'},
 	{sqrt_f_over_gamma_xx = 'real'},
 }
 
-function ADM_BonaMasso_1D_Alcubierre1997:eigenWaveCodePrefix(side, eig, x, waveIndex)
+function ADM_BonaMasso_1D_1997Alcubierre:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	return template([[
 	real eig_lambda = <?=eig?>.alpha * <?=eig?>.sqrt_f_over_gamma_xx;
 ]], {
@@ -212,7 +212,7 @@ function ADM_BonaMasso_1D_Alcubierre1997:eigenWaveCodePrefix(side, eig, x, waveI
 	})
 end
 
-function ADM_BonaMasso_1D_Alcubierre1997:eigenWaveCode(side, eig, x, waveIndex)
+function ADM_BonaMasso_1D_1997Alcubierre:eigenWaveCode(side, eig, x, waveIndex)
 	if waveIndex == 0 then
 		return '-eig_lambda'
 	elseif waveIndex == 1 then
@@ -224,7 +224,7 @@ function ADM_BonaMasso_1D_Alcubierre1997:eigenWaveCode(side, eig, x, waveIndex)
 	end
 end
 
-function ADM_BonaMasso_1D_Alcubierre1997:consWaveCodePrefix(side, U, x, waveIndex)
+function ADM_BonaMasso_1D_1997Alcubierre:consWaveCodePrefix(side, U, x, waveIndex)
 	return template([[
 	real f = calc_f(<?=U?>.alpha);
 	real eig_lambda = <?=U?>.alpha * sqrt(f / <?=U?>.gamma_xx);
@@ -232,11 +232,11 @@ function ADM_BonaMasso_1D_Alcubierre1997:consWaveCodePrefix(side, U, x, waveInde
 		U = '('..U..')',
 	})
 end
-ADM_BonaMasso_1D_Alcubierre1997.consWaveCode = ADM_BonaMasso_1D_Alcubierre1997.eigenWaveCode
+ADM_BonaMasso_1D_1997Alcubierre.consWaveCode = ADM_BonaMasso_1D_1997Alcubierre.eigenWaveCode
 
 
-function ADM_BonaMasso_1D_Alcubierre1997:fillRandom(epsilon)
-	local ptr = ADM_BonaMasso_1D_Alcubierre1997.super.fillRandom(self, epsilon)
+function ADM_BonaMasso_1D_1997Alcubierre:fillRandom(epsilon)
+	local ptr = ADM_BonaMasso_1D_1997Alcubierre.super.fillRandom(self, epsilon)
 	local solver = self.solver
 	for i=0,solver.numCells-1 do
 		ptr[i].alpha = ptr[i].alpha + 1
@@ -246,4 +246,4 @@ function ADM_BonaMasso_1D_Alcubierre1997:fillRandom(epsilon)
 	return ptr
 end
 
-return ADM_BonaMasso_1D_Alcubierre1997
+return ADM_BonaMasso_1D_1997Alcubierre

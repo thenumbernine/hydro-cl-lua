@@ -1,7 +1,5 @@
 --[[
-Based on Alcubierre 2008 "Introduction to 3+1 Numerical Relativity" on the chapter on hyperbolic formalisms. 
-With some hints from a few of the Z4 papers.
-(Which papers again?  The 2008 Alcubierre book doesn't have eigenvectors, and I got them from one of the papers, but the papers don't all have the same eigensystem (my favorite difference being whether sqrt(gamma^xx) shows up in the eigenvalues or not)) 
+Based on 2008 Yano
 --]]
 
 local class = require 'ext.class'
@@ -20,8 +18,8 @@ local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
 
-local Z4 = class(EinsteinEqn)
-Z4.name = 'Z4'
+local Z4_2008Yano = class(EinsteinEqn)
+Z4_2008Yano.name = 'Z4 (2008 Yano)'
 
 local fluxVars = table{
 	{a = 'real3'},
@@ -31,24 +29,24 @@ local fluxVars = table{
 	{Z = 'real3'},
 }
 
-Z4.consVars = table{
+Z4_2008Yano.consVars = table{
 	{alpha = 'real'},
 	{gamma = 'sym3'},
 }:append(fluxVars)
 
-Z4.numWaves = makeStruct.countScalars(fluxVars)
-assert(Z4.numWaves == 31)
+Z4_2008Yano.numWaves = makeStruct.countScalars(fluxVars)
+assert(Z4_2008Yano.numWaves == 31)
 
-Z4.hasCalcDTCode = true
-Z4.hasEigenCode = true
-Z4.useSourceTerm = true
+Z4_2008Yano.hasCalcDTCode = true
+Z4_2008Yano.hasEigenCode = true
+Z4_2008Yano.useSourceTerm = true
 
-function Z4:createInitState()
-	Z4.super.createInitState(self)
+function Z4_2008Yano:createInitState()
+	Z4_2008Yano.super.createInitState(self)
 	self:addGuiVar{name = 'lambda', value = -1}
 end
 
-function Z4:getCommonFuncCode()
+function Z4_2008Yano:getCommonFuncCode()
 	return template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->alpha = 1;
@@ -64,7 +62,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 ]], {eqn=self})
 end
 
-Z4.initStateCode = [[
+Z4_2008Yano.initStateCode = [[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -113,10 +111,10 @@ kernel void initDerivs(
 }
 ]]
 
-Z4.solverCodeFile = 'eqn/z4.cl'
+Z4_2008Yano.solverCodeFile = 'eqn/z4.cl'
 
-function Z4:getDisplayVars()
-	local vars = Z4.super.getDisplayVars(self)
+function Z4_2008Yano:getDisplayVars()
+	local vars = Z4_2008Yano.super.getDisplayVars(self)
 	vars:append{
 		{det_gamma = '*value = sym3_det(U->gamma);'},
 		{volume = '*value = U->alpha * sqrt(sym3_det(U->gamma));'},
@@ -157,7 +155,7 @@ momentum constraints
 	return vars
 end
 
-Z4.eigenVars = table{
+Z4_2008Yano.eigenVars = table{
 	{alpha = 'real'},
 	{sqrt_f = 'real'},
 	{gamma = 'sym3'},
@@ -165,7 +163,7 @@ Z4.eigenVars = table{
 	{sqrt_gammaUjj = 'real3'},
 }
 
-function Z4:eigenWaveCodePrefix(side, eig, x, waveIndex)
+function Z4_2008Yano:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	return template([[
 	<? if side==0 then ?>
 	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x;
@@ -181,7 +179,7 @@ function Z4:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	})
 end
 
-function Z4:eigenWaveCode(side, eig, x, waveIndex)
+function Z4_2008Yano:eigenWaveCode(side, eig, x, waveIndex)
 
 	local betaUi
 	if self.useShift then
@@ -207,8 +205,8 @@ end
 
 
 
-function Z4:fillRandom(epsilon)
-	local ptr = Z4.super.fillRandom(self, epsilon)
+function Z4_2008Yano:fillRandom(epsilon)
+	local ptr = Z4_2008Yano.super.fillRandom(self, epsilon)
 	local solver = self.solver
 	for i=0,solver.volume-1 do
 		ptr[i].alpha = ptr[i].alpha + 1
@@ -220,4 +218,4 @@ function Z4:fillRandom(epsilon)
 	return ptr
 end
 
-return Z4 
+return Z4_2008Yano

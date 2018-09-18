@@ -11,34 +11,34 @@ local template = require 'template'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'eqn.einstein'
 
-local ADM_BonaMasso_1D_Alcubierre2008 = class(EinsteinEqn)
+local ADM_BonaMasso_1D_2008Alcubierre = class(EinsteinEqn)
 
-ADM_BonaMasso_1D_Alcubierre2008.name = 'ADM_BonaMasso_1D_Alcubierre2008' 
+ADM_BonaMasso_1D_2008Alcubierre.name = 'ADM_BonaMasso_1D_2008Alcubierre' 
 
-ADM_BonaMasso_1D_Alcubierre2008.consVars = {
+ADM_BonaMasso_1D_2008Alcubierre.consVars = {
 	{alpha = 'real'}, 
 	{gamma_xx = 'real'}, 
 	{a_x = 'real'}, 
 	{D_g = 'real'}, 
 	{KTilde = 'real'},
 }
-ADM_BonaMasso_1D_Alcubierre2008.numWaves = 3	-- alpha and gamma_xx are source-term only
+ADM_BonaMasso_1D_2008Alcubierre.numWaves = 3	-- alpha and gamma_xx are source-term only
 
-ADM_BonaMasso_1D_Alcubierre2008.mirrorVars = {{'gamma_xx', 'a_x', 'D_g', 'KTilde'}}
+ADM_BonaMasso_1D_2008Alcubierre.mirrorVars = {{'gamma_xx', 'a_x', 'D_g', 'KTilde'}}
 
-ADM_BonaMasso_1D_Alcubierre2008.hasEigenCode = true
---ADM_BonaMasso_1D_Alcubierre2008.hasFluxFromConsCode = true
-ADM_BonaMasso_1D_Alcubierre2008.useSourceTerm = true
-ADM_BonaMasso_1D_Alcubierre2008.roeUseFluxFromCons = true
+ADM_BonaMasso_1D_2008Alcubierre.hasEigenCode = true
+--ADM_BonaMasso_1D_2008Alcubierre.hasFluxFromConsCode = true
+ADM_BonaMasso_1D_2008Alcubierre.useSourceTerm = true
+ADM_BonaMasso_1D_2008Alcubierre.roeUseFluxFromCons = true
 
 
-ADM_BonaMasso_1D_Alcubierre2008.guiVars = {
+ADM_BonaMasso_1D_2008Alcubierre.guiVars = {
 	{name='a_x_convCoeff', value=10},
 	{name='D_g_convCoeff', value=10},
 }
 
 -- code that goes in initState and in the solver
-function ADM_BonaMasso_1D_Alcubierre2008:getCommonFuncCode()
+function ADM_BonaMasso_1D_2008Alcubierre:getCommonFuncCode()
 	return template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	*U = (<?=eqn.cons_t?>){
@@ -52,7 +52,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 ]], {eqn=self})
 end
 
-ADM_BonaMasso_1D_Alcubierre2008.initStateCode = [[
+ADM_BonaMasso_1D_2008Alcubierre.initStateCode = [[
 kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -89,10 +89,10 @@ kernel void initDerivs(
 }
 ]]
 
-ADM_BonaMasso_1D_Alcubierre2008.solverCodeFile = 'eqn/adm1d_v1.cl'
+ADM_BonaMasso_1D_2008Alcubierre.solverCodeFile = 'eqn/adm1d_v1.cl'
 
-function ADM_BonaMasso_1D_Alcubierre2008:getDisplayVars()
-	return ADM_BonaMasso_1D_Alcubierre2008.super.getDisplayVars(self):append{
+function ADM_BonaMasso_1D_2008Alcubierre:getDisplayVars()
+	return ADM_BonaMasso_1D_2008Alcubierre.super.getDisplayVars(self):append{
 		-- adm1d_v2 cons vars:
 		{d_xxx = '*value = .5 * U->D_g * U->gamma_xx;'},
 		{K_xx = '*value = U->KTilde * sqrt(U->gamma_xx);'},
@@ -126,13 +126,13 @@ function ADM_BonaMasso_1D_Alcubierre2008:getDisplayVars()
 	}
 end
 
-ADM_BonaMasso_1D_Alcubierre2008.eigenVars = table{
+ADM_BonaMasso_1D_2008Alcubierre.eigenVars = table{
 	{f = 'real'},
 	{alpha = 'real'},
 	{gamma_xx = 'real'},
 }
 
-function ADM_BonaMasso_1D_Alcubierre2008:eigenWaveCodePrefix(side, eig, x, waveIndex)
+function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	return template([[
 	real eig_lambda = <?=eig?>.alpha * sqrt(<?=eig?>.f / <?=eig?>.gamma_xx);
 ]], {
@@ -140,7 +140,7 @@ function ADM_BonaMasso_1D_Alcubierre2008:eigenWaveCodePrefix(side, eig, x, waveI
 	})
 end
 
-function ADM_BonaMasso_1D_Alcubierre2008:eigenWaveCode(side, eig, x, waveIndex)
+function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCode(side, eig, x, waveIndex)
 	if waveIndex == 0 then
 		return '-eig_lambda'
 	elseif waveIndex == 1 then
@@ -152,7 +152,7 @@ function ADM_BonaMasso_1D_Alcubierre2008:eigenWaveCode(side, eig, x, waveIndex)
 	end
 end
 
-function ADM_BonaMasso_1D_Alcubierre2008:consWaveCodePrefix(side, U, x, waveIndex)
+function ADM_BonaMasso_1D_2008Alcubierre:consWaveCodePrefix(side, U, x, waveIndex)
 	return template([[
 	real f = calc_f(<?=U?>.alpha);
 	real eig_lambda = <?=U?>.alpha * sqrt(f / <?=U?>.gamma_xx);
@@ -161,14 +161,14 @@ function ADM_BonaMasso_1D_Alcubierre2008:consWaveCodePrefix(side, U, x, waveInde
 	})
 end
 
-ADM_BonaMasso_1D_Alcubierre2008.consWaveCode = ADM_BonaMasso_1D_Alcubierre2008.eigenWaveCode
+ADM_BonaMasso_1D_2008Alcubierre.consWaveCode = ADM_BonaMasso_1D_2008Alcubierre.eigenWaveCode
 	
 
 -- TODO store flat values somewhere, then perturb all real values here
 --  then you can move this into the parent class
 local function crand() return 2 * math.random() - 1 end
-function ADM_BonaMasso_1D_Alcubierre2008:fillRandom(epsilon)
-	local ptr = ADM_BonaMasso_1D_Alcubierre2008.super.fillRandom(self, epsilon)
+function ADM_BonaMasso_1D_2008Alcubierre:fillRandom(epsilon)
+	local ptr = ADM_BonaMasso_1D_2008Alcubierre.super.fillRandom(self, epsilon)
 	local solver = self.solver
 	for i=0,solver.numCells-1 do
 		ptr[i].alpha = ptr[i].alpha + 1
@@ -178,4 +178,4 @@ function ADM_BonaMasso_1D_Alcubierre2008:fillRandom(epsilon)
 	return ptr
 end
 
-return ADM_BonaMasso_1D_Alcubierre2008
+return ADM_BonaMasso_1D_2008Alcubierre

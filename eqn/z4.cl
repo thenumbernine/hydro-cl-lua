@@ -138,9 +138,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	//eig
 	real sqrt_f = eig.sqrt_f;
 	real f = sqrt_f * sqrt_f;	
-	real fSq = f * f;
-	real f_3_2 = f * sqrt_f;
-	real f_5_2 = fSq * sqrt_f;
+	real _1_sqrt_f = 1. / sqrt_f;
+	real _1_f = _1_sqrt_f * _1_sqrt_f;
 
 	real f_minus_1 = f - 1.;
 	real f_minus_1_sq = f_minus_1 * f_minus_1;
@@ -153,6 +152,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real tr_K = real3x3_trace(K_ul);
 
 	real sqrt_gUxx = eig.sqrt_gammaUjj.s<?=side?>;
+	real _1_sqrt_gUxx = 1. / sqrt_gUxx;
+	real _1_gammaUxx = _1_sqrt_gUxx * _1_sqrt_gUxx;
 
 	real aUx = a.x * gammaU.xx + a.y * gammaU.xy + a.z * gammaU.xz;
 	real ZUx = Z.x * gammaU.xx + Z.y * gammaU.xy + Z.z * gammaU.xz;
@@ -178,25 +179,91 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 ?>	};
 	real3 eU = sym3_real3_mul(gammaU, e);
 
-	result.ptr[0] = -.5 * (
-		+ aUx / (sqrt_f * sqrt_gUxx)
-		- tr_K 	
-		+ (
-			+ f * (m - 2.) * (ZUx + eU.x - dU.x) / (sqrt_f * sqrt_gUxx)
-			+ (m * f - 2.) * Theta
-		) / f_minus_1
-	) / gammaU.xx;
+	real tmp_0_30_a = .5 * _1_gammaUxx * tr_K;
+	real tmp_0_30_b = .5 * _1_gammaUxx * (
+			aUx * _1_sqrt_f * _1_sqrt_gUxx
+			+ (
+				+ f * (m - 2.) * (ZUx + eU.x - dU.x) * _1_sqrt_f * _1_sqrt_gUxx
+				- (m * f - 2.) * Theta
+			) / f_minus_1
+		);
+	result.ptr[0] = tmp_0_30_a - tmp_0_30_b;
+	result.ptr[30] = tmp_0_30_a + tmp_0_30_b;
 
-	result.ptr[30] = .5 * (
-		+ aUx / (sqrt_f * sqrt_gUxx)
-		+ tr_K
-		+ (
-			+ f * (m - 2.) * (ZUx + eU.x - dU.x) / (sqrt_f * sqrt_gUxx)
-			- (m * f - 2.) * Theta
-		) / f_minus_1
-	) / gammaU.xx;
+	real tmp_1_24_a = .25 * (
+			+ gammaU.xx * (d_llu.y.z.y - d_llu.z.y.y)
+			+ gammaU.xy * (d_llu.z.y.x - d_llu.y.z.x)
+		) * _1_gammaUxx
+		- .25 * a.z
+		+ .5 * Z.z;
+	real tmp_1_24_b = .5 * K_ul.x.z * _1_sqrt_gUxx;
+	result.ptr[1] = tmp_1_24_a + tmp_1_24_b;
+	result.ptr[24] = tmp_1_24_a - tmp_1_24_b;
 
-	result.ptr[9] = -(
+	real tmp_2_25_a = .25 * (
+			+ gammaU.xx * (d_llu.z.y.z - d_llu.y.z.z)
+			+ gammaU.xz * (d_llu.y.z.x - d_llu.z.y.x)
+		) * _1_gammaUxx
+		- .25 * a.y
+		+ .5 * Z.y;
+	real tmp_2_25_b = .5 * K_ul.x.y * _1_sqrt_gUxx;
+	result.ptr[2] = tmp_2_25_a + tmp_2_25_b;
+	result.ptr[25] = tmp_2_25_a - tmp_2_25_b;
+
+	real tmp_3_26_a = 
+		-.25 * a.x
+		+ .5 * Z.x
+		+ .25 * (
+			+ aU.x
+			+ gammaU.xy * (d_llu.y.z.z - d_llu.z.y.z)
+			+ gammaU.xz * (d_llu.z.y.y - d_llu.y.z.y)
+		) * _1_gammaUxx;
+	real tmp_3_26_b = 2. * _1_sqrt_gUxx * (K_ul.x.x - tr_K + Theta);
+	result.ptr[3] = tmp_3_26_a + tmp_3_26_b;
+	result.ptr[26] = tmp_3_26_a - tmp_3_26_b;
+
+	real tmp_4_27_a = .5 * Theta;
+	real tmp_4_27_b = .5 * (
+			+ eU.x
+			- dU.x
+			+ ZUx
+		) * _1_sqrt_gUxx;
+	result.ptr[4] = tmp_4_27_a + tmp_4_27_b;
+	result.ptr[27] = tmp_4_27_a - tmp_4_27_b;
+
+	real tmp_5_28_a = .5 * K.zz;
+	real tmp_5_28_b = .5 * (
+			+ d_llu.z.z.x
+			- d_ull.x.zz
+		) * _1_sqrt_gUxx;
+	result.ptr[5] = tmp_5_28_a + tmp_5_28_b;
+	result.ptr[28] = tmp_5_28_a - tmp_5_28_b;
+
+	real tmp_6_29_a = .5 * K.yz;
+	real tmp_6_29_b = .25 * (
+			+ d_llu.z.y.x 
+			+ d_llu.y.z.x 
+			- 2. * d_ull.x.yz
+		) * _1_sqrt_gUxx;
+	result.ptr[6] = tmp_6_29_a + tmp_6_29_b;
+	result.ptr[29] = tmp_6_29_a - tmp_6_29_b;
+
+	result.ptr[8] = -.5 * (
+		+ d.y
+		- e.y
+		
+		+ d_ull.x.xy
+		+ d_ull.x.xy
+		
+		- d_llu.x.y.x
+		- d_llu.y.x.x
+		
+		+ a.y
+		- 2. * Z.y
+	) * _1_gammaUxx
+	+ dx.xy;
+
+	result.ptr[9] = -.5 * (
 		+ d.z
 		- e.z
 		
@@ -206,199 +273,30 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		- d_llu.z.x.x
 		- d_llu.x.z.x
 		
-		- 2. * dx.xz * gammaU.xx
-		
 		+ a.z
 		- 2. * Z.z
-	) / (2. * gammaU.xx);
-
-	result.ptr[1] = .25 * (
-		- a.z * gammaU.xx
-
-		+ gammaU.xx * (d_llu.y.z.y - d_llu.z.y.y)
-		+ gammaU.xy * (d_llu.z.y.x - d_llu.y.z.x)
-
-		+ 2. * sqrt_gUxx * K_ul.x.z
-		+ 2. * Z.z * gammaU.xx
-	) / gammaU.xx;
+	) * _1_gammaU.xx
+	+ dx.xz;
 	
-	result.ptr[23] = (
-		+ a.z * gammaU.xx
-		
-		+ gammaU.yy * gammaU.xx * dz.yy 
-		+ gammaU.yz * gammaU.xx * dz.yz 
-		+ gammaU.xy * gammaU.xz * dy.zz 
-		+ gammaU.xy * gammaU.xy * dy.yz 
-		
-		- gammaU.xx * gammaU.yy * dy.yz 
-		- gammaU.xx * gammaU.yz * dy.zz 
-		- gammaU.xy * gammaU.xy * dz.yy 
-		- gammaU.xy * gammaU.xz * dz.yz 
-	
-	) / (2. * gammaU.xx);
-	result.ptr[24] = -(
-		+ 2. * gammaU.xx * sqrt_gUxx * K.xz 
-		+ gammaU.xy * gammaU.xz * dy.zz 
-		- gammaU.xy * gammaU.xz * dz.yz 
-		+ gammaU.xy * gammaU.xy * dy.yz 
-		- gammaU.xy * gammaU.xy * dz.yy 
-		+ 2. * gammaU.xy * K.yz * sqrt_gUxx 
-		+ 2. * gammaU.xz * K.zz * sqrt_gUxx 
-		- gammaU.yy * gammaU.xx * dy.yz 
-		+ gammaU.yy * gammaU.xx * dz.yy 
-		- gammaU.yz * gammaU.xx * dy.zz 
-		+ gammaU.yz * gammaU.xx * dz.yz 
-		
-		+ a.z * gammaU.xx 
-		- 2. * Z.z * gammaU.xx
-	) / (4. * gammaU.xx);
-	result.ptr[2] = (
-		- a.y * gammaU.xx
-		
-		+ gammaU.xx * (d_llu.z.y.z - d_llu.y.z.z)
-		+ gammaU.xz * (d_llu.y.z.x - d_llu.z.y.x)
-		
-		+ 2. * sqrt_gUxx * K_ul.x.y
-		+ 2. * Z.y * gammaU.xx
-	) / (4. * gammaU.xx);
-	result.ptr[3] = .25 * (
-		+ aU.x
-	
-		+ gammaU.xy * (d_llu.y.z.z - d_llu.z.y.z)
-		+ gammaU.xz * (d_llu.z.y.y - d_llu.y.z.y)
-		
-		+ 2. * sqrt_gUxx * (K_ul.x.x - tr_K + Theta)
-	) / gammaU.xx - .25 * a.x + .5 * Z.x;
-	result.ptr[4] = (
-		+ eU.x
-		- dU.x
-		
-		+ Theta * sqrt_gUxx
-		+ ZUx
-	) / (2. * sqrt_gUxx);
-	result.ptr[5] = (
-		+ d_llu.z.z.x
-		- d_ull.x.zz
-		
-		+ K.zz * sqrt_gUxx
-	) / (2. * sqrt_gUxx);
-	result.ptr[6] = (
-		+ d_llu.z.y.x + d_llu.y.z.x - 2. * d_ull.x.yz
-		
-		+ 2. * K.yz * sqrt_gUxx
-	) / (4. * sqrt_gUxx);
+	result.ptr[22] = .5 * (
+		- gammaU.xx * (d_llu.z.y.z - d_llu.y.z.z)
+		- gammaU.xz * (d_llu.y.z.x - d_llu.z.y.x)
+	) * _1_gammaUxx
+	+ .5 * a.y;
+
+	result.ptr[23] = .5 * (
+		- gammaU.xx * (d_llu.y.z.y - d_llu.z.y.y)
+		- gammaU.xy * (d_llu.z.y.x - d_llu.y.z.x)
+	) * _1_gammaUxx
+	+ .5 * a.z;
+
+
 	result.ptr[7] = -(
-		+ gammaU.xx * gammaU.yy * dy.xy
-		- gammaU.xx * gammaU.yy * dx.yy
-		- gammaU.xx * gammaU.yy * m * dy.xy
-		+ gammaU.xx * gammaU.yy * m * dx.yy
-		+ gammaU.xx * gammaU.yz * dy.xz
-		+ gammaU.xx * gammaU.yz * dz.xy
-		- 2. * gammaU.xx * gammaU.yz * dx.yz
-		- gammaU.xx * gammaU.yz * m * dy.xz
-		- gammaU.xx * gammaU.yz * m * dz.xy
-		+ 2. * gammaU.xx * gammaU.yz * m * dx.yz
-		+ gammaU.xx * gammaU.zz * dz.xz
-		- gammaU.xx * gammaU.zz * dx.zz
-		- gammaU.xx * gammaU.zz * m * dz.xz
-		+ gammaU.xx * gammaU.zz * m * dx.zz
-		- 2. * gammaU.xy * gammaU.xz * dy.xz
-		- 2. * gammaU.xy * gammaU.xz * dz.xy
-		+ 4. * gammaU.xy * gammaU.xz * dx.yz
-		+ gammaU.xy * gammaU.xz * m * dy.xz
-		+ gammaU.xy * gammaU.xz * m * dz.xy
-		- 2. * gammaU.xy * gammaU.xz * m * dx.yz
-		- 2. * gammaU.xy * gammaU.yz * dy.yz
-		+ 2. * gammaU.xy * gammaU.yz * dz.yy
-		+ gammaU.xy * gammaU.yz * m * dy.yz
-		- gammaU.xy * gammaU.yz * m * dz.yy
-		- 2. * gammaU.xy * gammaU.zz * dy.zz
-		+ 2. * gammaU.xy * gammaU.zz * dz.yz
-		+ gammaU.xy * gammaU.zz * m * dy.zz
-		- gammaU.xy * gammaU.zz * m * dz.yz
-		- 2. * gammaU.xy * gammaU.xy * dy.xy
-		+ 2. * gammaU.xy * gammaU.xy * dx.yy
-		+ gammaU.xy * gammaU.xy * m * dy.xy
-		- gammaU.xy * gammaU.xy * m * dx.yy
-		+ 2. * gammaU.xz * gammaU.yy * dy.yz
-		- 2. * gammaU.xz * gammaU.yy * dz.yy
-		- gammaU.xz * gammaU.yy * m * dy.yz
-		+ gammaU.xz * gammaU.yy * m * dz.yy
-		+ 2. * gammaU.xz * gammaU.yz * dy.zz
-		- 2. * gammaU.xz * gammaU.yz * dz.yz
-		- gammaU.xz * gammaU.yz * m * dy.zz
-		+ gammaU.xz * gammaU.yz * m * dz.yz
-		- 2. * gammaU.xz * gammaU.xz * dz.xz
-		+ 2. * gammaU.xz * gammaU.xz * dx.zz
-		+ gammaU.xz * gammaU.xz * m * dz.xz
-		- gammaU.xz * gammaU.xz * m * dx.zz
-		- gammaU.xx * gammaU.xx * dx.xx
 
-		+ gammaU.xx * a.x
-		- aU.x * f_minus_1 / f
-		- 2. * gammaU.xx * Z.x
-		- (m - 2.) * ZUx
-	) / (gammaU.xx * gammaU.xx);
-	result.ptr[8] = -(
-		+ d_y
-		- e_y
+		+ m * dU.x
+		- m * eU.x
 		
-		+ d_ull.x.xy
-		+ d_ull.x.xy
-		- d_llu.x.y.x
-		- d_llu.y.x.x
-		
-		+ a.y
-		- 2. * Z.y
-	) / (2. * gammaU.xx)
-	+ dx.xy
-	;
-	
-	result.ptr[22] = -(
-		+ gammaU.xy * gammaU.xz * dy.yz 
-		- gammaU.xy * gammaU.xz * dz.yy 
-		+ gammaU.xz * gammaU.xz * dy.zz 
-		- gammaU.xz * gammaU.xz * dz.yz 
-		- gammaU.yz * gammaU.xx * dy.yz 
-		+ gammaU.yz * gammaU.xx * dz.yy 
-		- gammaU.zz * gammaU.xx * dy.zz 
-		+ gammaU.zz * gammaU.xx * dz.yz 
-	) / (2. * gammaU.xx)
-	+ .5 * a.y
-	;
 
-	result.ptr[25] = -(
-		+ 2. * gammaU.xx * sqrt_gUxx * K.xy 
-		+ 2. * gammaU.xy * K.yy * sqrt_gUxx 
-		+ 2. * gammaU.xz * K.yz * sqrt_gUxx 
-		
-		- gammaU.xy * gammaU.xz * dy.yz 
-		+ gammaU.xy * gammaU.xz * dz.yy 
-		- gammaU.xz * gammaU.xz * dy.zz 
-		+ gammaU.xz * gammaU.xz * dz.yz 
-		+ gammaU.yz * gammaU.xx * dy.yz 
-		- gammaU.yz * gammaU.xx * dz.yy 
-		+ gammaU.zz * gammaU.xx * dy.zz 
-		- gammaU.zz * gammaU.xx * dz.yz 
-		
-	) / (4. * gammaU.xx)
-	- .25 * a.y
-	+ .5 * Z.y;
-	result.ptr[26] = .25 * (
-		+ aU.x
-		
-		+ gammaU.xy * gammaU.yz * dy.yz 
-		- gammaU.xy * gammaU.yz * dz.yy 
-		+ gammaU.xy * gammaU.zz * dy.zz 
-		- gammaU.xy * gammaU.zz * dz.yz 
-		- gammaU.xz * gammaU.yy * dy.yz 
-		+ gammaU.xz * gammaU.yy * dz.yy 
-		- gammaU.xz * gammaU.yz * dy.zz 
-		+ gammaU.xz * gammaU.yz * dz.yz 
-	
-		- 2. * sqrt_gUxx * (K_ul.x.x - tr_K + Theta)
-	) / gammaU.xx - .25 * a.x + .5 * Z.x;
-	result.ptr[27] = -.5 * (
 		+ gammaU.xx * gammaU.yy * dy.xy 
 		- gammaU.xx * gammaU.yy * dx.yy 
 		+ gammaU.xx * gammaU.yz * dy.xz 
@@ -406,39 +304,33 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		- 2. * gammaU.xx * gammaU.yz * dx.yz 
 		+ gammaU.xx * gammaU.zz * dz.xz 
 		- gammaU.xx * gammaU.zz * dx.zz 
-		- gammaU.xy * gammaU.xz * dy.xz 
-		- gammaU.xy * gammaU.xz * dz.xy 
-		+ 2. * gammaU.xy * gammaU.xz * dx.yz 
-		- gammaU.xy * gammaU.yz * dy.yz 
-		+ gammaU.xy * gammaU.yz * dz.yy 
-		- gammaU.xy * gammaU.zz * dy.zz 
-		+ gammaU.xy * gammaU.zz * dz.yz 
-		- gammaU.xy * gammaU.xy * dy.xy 
-		+ gammaU.xy * gammaU.xy * dx.yy 
-		+ gammaU.xz * gammaU.yy * dy.yz 
-		- gammaU.xz * gammaU.yy * dz.yy 
-		+ gammaU.xz * gammaU.yz * dy.zz 
-		- gammaU.xz * gammaU.yz * dz.yz 
-		- gammaU.xz * gammaU.xz * dz.xz 
-		+ gammaU.xz * gammaU.xz * dx.zz 
-		+ ZUx
-	) / sqrt_gUxx + .5 * Theta;
-	result.ptr[28] = -.5 * (
-		+ gammaU.xx * dz.xz 
-		- gammaU.xx * dx.zz 
-		- gammaU.xy * dy.zz 
-		+ gammaU.xy * dz.yz 
-	) / sqrt_gUxx + .5 * K.zz;
-	result.ptr[29] = -.25 * (
-		+ gammaU.xx * dy.xz 
-		+ gammaU.xx * dz.xy 
-		- 2. * gammaU.xx * dx.yz 
-		- gammaU.xy * dy.yz 
-		+ gammaU.xy * dz.yy 
-		+ gammaU.xz * dy.zz 
-		- gammaU.xz * dz.yz 
-	) / sqrt_gUxx + .5 * K.yz;
+		- 2. * gammaU.xy * gammaU.xz * dy.xz 
+		- 2. * gammaU.xy * gammaU.xz * dz.xy 
+		+ 4. * gammaU.xy * gammaU.xz * dx.yz 
+		- 2. * gammaU.xy * gammaU.yz * dy.yz 
+		+ 2. * gammaU.xy * gammaU.yz * dz.yy 
+		- 2. * gammaU.xy * gammaU.zz * dy.zz 
+		+ 2. * gammaU.xy * gammaU.zz * dz.yz 
+		- 2. * gammaU.xy * gammaU.xy * dy.xy 
+		+ 2. * gammaU.xy * gammaU.xy * dx.yy 
+		+ gammaU.xy * gammaU.xy * m * dy.xy 
+		+ 2. * gammaU.xz * gammaU.yy * dy.yz 
+		- 2. * gammaU.xz * gammaU.yy * dz.yy 
+		+ 2. * gammaU.xz * gammaU.yz * dy.zz 
+		- 2. * gammaU.xz * gammaU.yz * dz.yz 
+		- 2. * gammaU.xz * gammaU.xz * dz.xz 
+		+ 2. * gammaU.xz * gammaU.xz * dx.zz 
+		- dx.xx * gammaU.xx * gammaU.xx 
 
+
+
+		+ gammaU.xx * a.x
+		
+		- aU.x * f_minus_1 * _1_f
+		- 2. * gammaU.xx * Z.x
+		- (m - 2.) * ZUx
+	) * _1_gammaUxx * _1_gammaUxx;
+	
 	result.ptr[10] = dy.xx;
 	result.ptr[11] = dy.xy;
 	result.ptr[12] = dy.xz;
@@ -467,201 +359,218 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	sym3 gamma = sym3_swap<?=side?>(eig.gamma);
 	sym3 gammaU = sym3_swap<?=side?>(eig.gammaU);
 
-	a.x = (gammaU.xy * gammaU.yz * input.ptr[14] * 1. / sqrt(gammaU.xx) 
-		- gammaU.xy * gammaU.yz * input.ptr[14] * f * 1. / sqrt(gammaU.xx) 
-		- gammaU.xy * gammaU.yz * input.ptr[19] * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xy * gammaU.yz * input.ptr[19] * f * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xy * gammaU.zz * input.ptr[15] * 1. / sqrt(gammaU.xx) 
-		- gammaU.xy * gammaU.zz * input.ptr[15] * f * 1. / sqrt(gammaU.xx) 
-		- gammaU.xy * gammaU.zz * input.ptr[20] * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xy * gammaU.zz * input.ptr[20] * f * 1. / sqrt(gammaU.xx) 
-		- 2. * gammaU.xy * input.ptr[22] * 1. / sqrt(gammaU.xx) 
-		+ 2. * gammaU.xy * input.ptr[22] * f * 1. / sqrt(gammaU.xx) 
-		- gammaU.xz * gammaU.yy * input.ptr[14] * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xz * gammaU.yy * input.ptr[14] * f * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xz * gammaU.yy * input.ptr[19] * 1. / sqrt(gammaU.xx) 
-		- gammaU.xz * gammaU.yy * input.ptr[19] * f * 1. / sqrt(gammaU.xx) 
-		- gammaU.xz * gammaU.yz * input.ptr[15] * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xz * gammaU.yz * input.ptr[15] * f * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xz * gammaU.yz * input.ptr[20] * 1. / sqrt(gammaU.xx) 
-		- gammaU.xz * gammaU.yz * input.ptr[20] * f * 1. / sqrt(gammaU.xx) 
-		- 2. * gammaU.xz * input.ptr[23] * 1. / sqrt(gammaU.xx) 
-		+ 2. * gammaU.xz * input.ptr[23] * f * 1. / sqrt(gammaU.xx) 
-		+ f_3_2 * gammaU.xx * input.ptr[0] 
-		- sqrt_f * gammaU.xx * input.ptr[0] 
-		+ sqrt_f * gammaU.xx * input.ptr[30] 
-		- f_3_2 * gammaU.xx * input.ptr[30] 
-		+ 2. * f * input.ptr[27] 
-		- 2. * f * input.ptr[4] 
-		- f * m * input.ptr[27] 
-		+ f * m * input.ptr[4]) / (sqrt(gammaU.xx) * (1. 
-		- f));
-	a.y = (gammaU.xy * gammaU.xz * input.ptr[14] 
-		- gammaU.xy * gammaU.xz * input.ptr[19] 
+	real f_minus_1 = f - 1.;
+	real sqrt_gUxx = sqrt(gammaU.xx);
+	real _1_sqrt_gUxx = 1. / sqrt_gUxx;
+	real _1_gammaUxx = _1_sqrt_gUxx * _1_sqrt_gUxx;
+
+	a.x = -(
+		+ (	
+			- gammaU.xy * gammaU.yz * input.ptr[14] 
+			- gammaU.xy * gammaU.zz * input.ptr[15] 
+			+ gammaU.xy * gammaU.yz * input.ptr[19] 
+			+ gammaU.xy * gammaU.zz * input.ptr[20] 
+			+ gammaU.xy * .2 * input.ptr[22] 
+			
+			+ gammaU.xz * gammaU.yy * input.ptr[14] 
+			+ gammaU.xz * gammaU.yz * input.ptr[15] 
+			- gammaU.xz * gammaU.yy * input.ptr[19] 
+			- gammaU.xz * gammaU.yz * input.ptr[20] 
+			+ gammaU.xz * .2 * input.ptr[23] 
+		
+		) * _1_sqrt_gUxx
+
+		+ sqrt_f * gammaU.xx * (input.ptr[0] - input.ptr[30])
+		+ (m - 2.) * (input.ptr[4] - input.ptr[27]) * f / f_minus_1
+	
+	) * _1_sqrt_gUxx;
+	
+	a.y = (
+		+ gammaU.xz * gammaU.xy * input.ptr[14] 
 		+ gammaU.xz * gammaU.xz * input.ptr[15] 
+		- gammaU.xz * gammaU.xy * input.ptr[19] 
 		- gammaU.xz * gammaU.xz * input.ptr[20] 
-		- gammaU.yz * gammaU.xx * input.ptr[14] 
-		+ gammaU.yz * gammaU.xx * input.ptr[19] 
-		- gammaU.zz * gammaU.xx * input.ptr[15] 
-		+ gammaU.zz * gammaU.xx * input.ptr[20] 
-		+ 2. * input.ptr[22] * gammaU.xx) / gammaU.xx;
-	a.z = (
-		-(gammaU.xy * gammaU.xz * input.ptr[15] 
-		- gammaU.xy * gammaU.xz * input.ptr[20] 
-		+ gammaU.xy * gammaU.xy * input.ptr[14] 
-		- gammaU.xy * gammaU.xy * input.ptr[19] 
-		- gammaU.yy * gammaU.xx * input.ptr[14] 
-		+ gammaU.yy * gammaU.xx * input.ptr[19] 
-		- gammaU.yz * gammaU.xx * input.ptr[15] 
-		+ gammaU.yz * gammaU.xx * input.ptr[20] 
-		- 2. * input.ptr[23] * gammaU.xx)) / gammaU.xx;
-	dx.xx = (gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * f_3_2 * input.ptr[4] 
-		- gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * f_3_2 * m * input.ptr[4] 
-		- gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * input.ptr[27] * sqrt_f 
-		- sqrt(gammaU.xx) * gammaU.yy * input.ptr[4] * gammaU.xy * gammaU.xy * sqrt_f 
-		+ gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * input.ptr[4] * sqrt_f 
-		- 2. * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[29] * sqrt(gammaU.xx) * sqrt_f 
-		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * input.ptr[29] * 1. / sqrt(gammaU.xx) * sqrt_f 
-		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * input.ptr[29] * f_3_2 * 1. / sqrt(gammaU.xx) 
-		+ 2. * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[29] * f_3_2 * sqrt(gammaU.xx) 
-		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * input.ptr[6] * 1. / sqrt(gammaU.xx) * sqrt_f 
-		+ 2. * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[6] * sqrt(gammaU.xx) * sqrt_f 
-		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * input.ptr[6] * f_3_2 * 1. / sqrt(gammaU.xx) 
-		- 2. * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[6] * f_3_2 * sqrt(gammaU.xx) 
-		+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * input.ptr[25] * sqrt_f 
-		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * input.ptr[25] * f_3_2 
-		+ gammaU.xy * gammaU.yy * gammaU.yy * input.ptr[25] * f_3_2 * gammaU.xx 
-		- gammaU.xy * gammaU.yy * gammaU.yy * input.ptr[25] * sqrt_f * gammaU.xx 
-		+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * input.ptr[2] * sqrt_f 
-		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * input.ptr[2] * f_3_2 
-		+ gammaU.xy * gammaU.yy * gammaU.yy * input.ptr[2] * f_3_2 * gammaU.xx 
-		- gammaU.xy * gammaU.yy * gammaU.yy * input.ptr[2] * sqrt_f * gammaU.xx 
-		+ 2. * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[29] * sqrt(gammaU.xx) * gammaU.yy * sqrt_f 
-		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[29] * 1. / sqrt(gammaU.xx) * sqrt_f 
-		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[29] * f_3_2 * 1. / sqrt(gammaU.xx) 
-		- 2. * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[29] * f_3_2 * sqrt(gammaU.xx) * gammaU.yy 
-		- 2. * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[6] * sqrt(gammaU.xx) * gammaU.yy * sqrt_f 
-		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[6] * 1. / sqrt(gammaU.xx) * sqrt_f 
-		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[6] * f_3_2 * 1. / sqrt(gammaU.xx) 
-		+ 2. * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[6] * f_3_2 * sqrt(gammaU.xx) * gammaU.yy 
-		+ gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[28] * sqrt(gammaU.xx) * gammaU.yy * sqrt_f 
-		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[28] * 1. / sqrt(gammaU.xx) * sqrt_f 
-		+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[28] * f_3_2 * 1. / sqrt(gammaU.xx) 
-		- gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[28] * f_3_2 * sqrt(gammaU.xx) * gammaU.yy 
-		- gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[5] * sqrt(gammaU.xx) * gammaU.yy * sqrt_f 
-		+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[5] * 1. / sqrt(gammaU.xx) * sqrt_f 
-		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[5] * f_3_2 * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[5] * f_3_2 * sqrt(gammaU.xx) * gammaU.yy 
-		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * f_3_2 * input.ptr[27] * 1. / sqrt(gammaU.xx) 
-		+ 3. * gammaU.xy * gammaU.xy * f_3_2 * input.ptr[27] * sqrt(gammaU.xx) * gammaU.yy 
-		- 3. * gammaU.xy * gammaU.xy * input.ptr[26] * gammaU.yy * sqrt_f * gammaU.xx 
-		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[26] * sqrt_f 
-		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[26] * f_3_2 
-		+ 3. * gammaU.xy * gammaU.xy * input.ptr[26] * f_3_2 * gammaU.yy * gammaU.xx 
-		+ gammaU.xy * gammaU.xy * input.ptr[27] * sqrt(gammaU.xx) * gammaU.yy * sqrt_f 
-		+ 3. * gammaU.xy * gammaU.xy * input.ptr[3] * gammaU.yy * f_3_2 * gammaU.xx 
-		- 3. * gammaU.xy * gammaU.xy * input.ptr[3] * gammaU.yy * sqrt_f * gammaU.xx 
-		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[3] * sqrt_f 
-		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[3] * f_3_2 
-		- gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[1] * sqrt_f * gammaU.xx 
-		+ gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[1] * f_3_2 * gammaU.xx 
-		- gammaU.xz * gammaU.yy * input.ptr[1] * f_3_2 * gammaU.xy * gammaU.xy 
-		+ gammaU.xz * gammaU.yy * input.ptr[1] * sqrt_f * gammaU.xy * gammaU.xy 
-		+ gammaU.xz * gammaU.yy * input.ptr[24] * gammaU.xy * gammaU.xy * sqrt_f 
-		+ gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[24] * f_3_2 * gammaU.xx 
-		- gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[24] * sqrt_f * gammaU.xx 
-		- gammaU.xz * gammaU.yy * input.ptr[24] * f_3_2 * gammaU.xy * gammaU.xy 
-		+ gammaU.xz * gammaU.xz * gammaU.yy * input.ptr[28] * 1. / sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * sqrt_f 
-		- gammaU.xz * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[28] * sqrt(gammaU.xx) * sqrt_f 
-		+ gammaU.xz * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[28] * f_3_2 * sqrt(gammaU.xx) 
-		- gammaU.xz * gammaU.xz * gammaU.yy * input.ptr[28] * f_3_2 * 1. / sqrt(gammaU.xx) * gammaU.xy * gammaU.xy 
-		- gammaU.xz * gammaU.xz * gammaU.yy * input.ptr[5] * 1. / sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * sqrt_f 
-		+ gammaU.xz * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[5] * sqrt(gammaU.xx) * sqrt_f 
-		- gammaU.xz * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[5] * f_3_2 * sqrt(gammaU.xx) 
-		+ gammaU.xz * gammaU.xz * gammaU.yy * input.ptr[5] * f_3_2 * 1. / sqrt(gammaU.xx) * gammaU.xy * gammaU.xy 
-		+ gammaU.yy * gammaU.yy * input.ptr[26] * sqrt_f * gammaU.xx * gammaU.xx 
-		- gammaU.yy * gammaU.yy * input.ptr[26] * f_3_2 * gammaU.xx * gammaU.xx 
-		- gammaU.yy * gammaU.yy * input.ptr[3] * f_3_2 * gammaU.xx * gammaU.xx 
-		+ gammaU.yy * gammaU.yy * input.ptr[3] * sqrt_f * gammaU.xx * gammaU.xx 
-		- f_3_2 * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * input.ptr[27] 
-		+ 2. * f_3_2 * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[4] * 1. / sqrt(gammaU.xx) 
-		- 3. * f_3_2 * gammaU.xy * gammaU.xy * input.ptr[4] * sqrt(gammaU.xx) * gammaU.yy 
-		- f_3_2 * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * m * input.ptr[4] * 1. / sqrt(gammaU.xx) 
-		+ 2. * f_3_2 * gammaU.xy * gammaU.xy * m * input.ptr[4] * sqrt(gammaU.xx) * gammaU.yy 
-		+ f_3_2 * m * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * input.ptr[27] 
-		+ f_3_2 * m * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[27] * 1. / sqrt(gammaU.xx) 
-		- 2. * f_3_2 * m * gammaU.xy * gammaU.xy * input.ptr[27] * sqrt(gammaU.xx) * gammaU.yy 
-		+ input.ptr[0] * sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
-		- 2. * input.ptr[0] * gammaU.xx * sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.yy 
-		+ 2. * input.ptr[0] * gammaU.xx * sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.yy * f 
-		- input.ptr[0] * sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * f 
-		+ input.ptr[0] * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy 
-		- input.ptr[0] * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * f 
-		- input.ptr[30] * sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
-		+ 2. * input.ptr[30] * gammaU.xx * sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.yy 
-		- input.ptr[30] * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy 
-		+ input.ptr[30] * sqrt(gammaU.xx) * f * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
-		- 2. * input.ptr[30] * gammaU.xx * sqrt_gUxx * f * gammaU.xy * gammaU.xy * gammaU.yy 
-		+ input.ptr[30] * gammaU.xx * gammaU.xx * sqrt_gUxx * f * gammaU.yy * gammaU.yy 
+	) * _1_gammaUxx
+	- gammaU.yz * input.ptr[14] 
+	- gammaU.zz * input.ptr[15] 
+	+ gammaU.yz * input.ptr[19] 
+	+ gammaU.zz * input.ptr[20] 
+	+ 2. * input.ptr[22]
+	;
+	
+	a.z = -(
+		(
+			+ gammaU.xy * gammaU.xy * input.ptr[14] 
+			+ gammaU.xy * gammaU.xz * input.ptr[15] 
+			- gammaU.xy * gammaU.xy * input.ptr[19] 
+			- gammaU.xy * gammaU.xz * input.ptr[20] 
+		) * _1_gammaUxx
+			
+		- gammaU.yy * input.ptr[14] 
+		- gammaU.yz * input.ptr[15] 
+		+ gammaU.yy * input.ptr[19] 
+		+ gammaU.yz * input.ptr[20] 
+		- 2. * input.ptr[23]
+	);
+	
+	dx.xx = (
+		- (gammaU.xx * gammaU.yy - gammaU.xy * gammaU.xy) * (gammaU.xx * gammaU.yy - gammaU.xy * gammaU.xy) * input.ptr[0] * sqrt_gUxx * f_minus_1
+		+ (gammaU.xx * gammaU.yy - gammaU.xy * gammaU.xy) * gammaU.xz * gammaU.yy * input.ptr[1] * sqrt_f * f_minus_1
+		+ (gammaU.xx * gammaU.yy - gammaU.xy * gammaU.xy) * gammaU.xy * gammaU.yy * input.ptr[2] * sqrt_f * f_minus_1
+	
+		+ (
+			+ 3. * gammaU.xy * gammaU.xy * gammaU.yy * gammaU.xx
+			- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
+			- gammaU.yy * gammaU.yy * gammaU.xx * gammaU.xx 
+		) * input.ptr[3] * sqrt_f * f_minus_1
+
+		+ (
+			+ f * gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy 
+			- f * 3. * gammaU.xy * gammaU.xy * gammaU.xx * gammaU.yy 
+			+ f * 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
+			- gammaU.xx * gammaU.xy * gammaU.xy * gammaU.yy
+			+ gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy 
+		) * (input.ptr[4] - input.ptr[27]) * sqrt_f * _1_sqrt_gUxx
+
+		+ (gammaU.xx * gammaU.yy - gammaU.xy * gammaU.xy)
+			* (gammaU.xx * gammaU.yy - gammaU.xy * gammaU.xy)
+			* (input.ptr[4] - input.ptr[27])
+			* m * f_3_2 * _1_sqrt_gUxx
+	
+
+		- gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[5] * sqrt_gUxx * gammaU.yy * sqrt_f 
+		+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[5] * 1. / sqrt_gUxx * sqrt_f 
+		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[5] * f_3_2 * 1. / sqrt_gUxx 
+		+ gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[5] * f_3_2 * sqrt_gUxx * gammaU.yy 
+		- gammaU.xz * gammaU.xz * gammaU.yy * input.ptr[5] * 1. / sqrt_gUxx * gammaU.xy * gammaU.xy * sqrt_f 
+		+ gammaU.xz * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[5] * sqrt_gUxx * sqrt_f 
+		- gammaU.xz * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[5] * f_3_2 * sqrt_gUxx 
+		+ gammaU.xz * gammaU.xz * gammaU.yy * input.ptr[5] * f_3_2 * 1. / sqrt_gUxx * gammaU.xy * gammaU.xy 
+
+		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * input.ptr[6] * 1. / sqrt_gUxx * sqrt_f 
+		+ 2. * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[6] * sqrt_gUxx * sqrt_f 
+		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * input.ptr[6] * f_3_2 * 1. / sqrt_gUxx 
+		- 2. * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[6] * f_3_2 * sqrt_gUxx 
+		- 2. * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[6] * sqrt_gUxx * gammaU.yy * sqrt_f 
+		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[6] * 1. / sqrt_gUxx * sqrt_f 
+		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[6] * f_3_2 * 1. / sqrt_gUxx 
+		+ 2. * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[6] * f_3_2 * sqrt_gUxx * gammaU.yy 
+
 		- input.ptr[7] * gammaU.xx * gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy * sqrt_f 
 		+ input.ptr[7] * gammaU.xx * gammaU.xx * gammaU.xx * f_3_2 * gammaU.yy * gammaU.yy 
 		+ 2. * input.ptr[7] * gammaU.xy * gammaU.xy * gammaU.yy * sqrt_f * gammaU.xx * gammaU.xx 
 		- input.ptr[7] * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * sqrt_f * gammaU.xx 
 		+ input.ptr[7] * f_3_2 * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xx 
-		- 2. * input.ptr[7] * f_3_2 * gammaU.xy * gammaU.xy * gammaU.yy * gammaU.xx * gammaU.xx) / (
-		-gammaU.xx * sqrt_f * (gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
-		- f * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
-		- 2. * gammaU.xx * gammaU.xy * gammaU.xy * gammaU.yy 
-		+ 2. * gammaU.xx * f * gammaU.xy * gammaU.xy * gammaU.yy 
-		+ gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy 
-		- gammaU.xx * gammaU.xx * f * gammaU.yy * gammaU.yy));
-	dx.xy = (2. * sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[29] 
+		- 2. * input.ptr[7] * f_3_2 * gammaU.xy * gammaU.xy * gammaU.yy * gammaU.xx * gammaU.xx
+		
+		+ gammaU.xz * gammaU.yy * input.ptr[24] * gammaU.xy * gammaU.xy * sqrt_f 
+		+ gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[24] * f_3_2 * gammaU.xx 
+		- gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[24] * sqrt_f * gammaU.xx 
+		- gammaU.xz * gammaU.yy * input.ptr[24] * f_3_2 * gammaU.xy * gammaU.xy 
+	
+		+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * input.ptr[25] * sqrt_f 
+		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * input.ptr[25] * f_3_2 
+		+ gammaU.xy * gammaU.yy * gammaU.yy * input.ptr[25] * f_3_2 * gammaU.xx 
+		- gammaU.xy * gammaU.yy * gammaU.yy * input.ptr[25] * sqrt_f * gammaU.xx 
+
+		- 3. * gammaU.xy * gammaU.xy * input.ptr[26] * gammaU.yy * sqrt_f * gammaU.xx 
+		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[26] * sqrt_f 
+		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[26] * f_3_2 
+		+ 3. * gammaU.xy * gammaU.xy * input.ptr[26] * f_3_2 * gammaU.yy * gammaU.xx 
+		+ gammaU.yy * gammaU.yy * input.ptr[26] * sqrt_f * gammaU.xx * gammaU.xx 
+		- gammaU.yy * gammaU.yy * input.ptr[26] * f_3_2 * gammaU.xx * gammaU.xx 
+	
+		+ gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[28] * sqrt_gUxx * gammaU.yy * sqrt_f 
+		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[28] * 1. / sqrt_gUxx * sqrt_f 
+		+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[28] * f_3_2 * 1. / sqrt_gUxx 
+		- gammaU.xy * gammaU.xy * gammaU.zz * input.ptr[28] * f_3_2 * sqrt_gUxx * gammaU.yy 
+		+ gammaU.xz * gammaU.xz * gammaU.yy * input.ptr[28] * 1. / sqrt_gUxx * gammaU.xy * gammaU.xy * sqrt_f 
+		- gammaU.xz * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[28] * sqrt_gUxx * sqrt_f 
+		+ gammaU.xz * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[28] * f_3_2 * sqrt_gUxx 
+		- gammaU.xz * gammaU.xz * gammaU.yy * input.ptr[28] * f_3_2 * 1. / sqrt_gUxx * gammaU.xy * gammaU.xy 
+
+		- 2. * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[29] * sqrt_gUxx * sqrt_f 
+		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * input.ptr[29] * 1. / sqrt_gUxx * sqrt_f 
+		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * input.ptr[29] * f_3_2 * 1. / sqrt_gUxx 
+		+ 2. * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[29] * f_3_2 * sqrt_gUxx 
+		+ 2. * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[29] * sqrt_gUxx * gammaU.yy * sqrt_f 
+		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[29] * 1. / sqrt_gUxx * sqrt_f 
+		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[29] * f_3_2 * 1. / sqrt_gUxx 
+		- 2. * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[29] * f_3_2 * sqrt_gUxx * gammaU.yy 
+			
+		- input.ptr[30] * sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
+		+ 2. * input.ptr[30] * gammaU.xx * sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.yy 
+		- input.ptr[30] * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy 
+		+ input.ptr[30] * sqrt_gUxx * f * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
+		- 2. * input.ptr[30] * gammaU.xx * sqrt_gUxx * f * gammaU.xy * gammaU.xy * gammaU.yy 
+		+ input.ptr[30] * gammaU.xx * gammaU.xx * sqrt_gUxx * f * gammaU.yy * gammaU.yy 
+	) / (
+		-gammaU.xx * sqrt_f * (
+			+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
+			- f * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
+			- 2. * gammaU.xx * gammaU.xy * gammaU.xy * gammaU.yy 
+			+ 2. * gammaU.xx * f * gammaU.xy * gammaU.xy * gammaU.yy 
+			+ gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy 
+			- gammaU.xx * gammaU.xx * f * gammaU.yy * gammaU.yy
+		)
+	);
+	
+	dx.xy = (
+		+ 2. * sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[29] 
 		- 2. * gammaU.xx * sqrt_gUxx * gammaU.xy * gammaU.yz * input.ptr[29] * gammaU.yy 
-		- 2. * sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[6] 
+		- 2. * sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[6] 
 		+ 2. * gammaU.xx * sqrt_gUxx * gammaU.xy * gammaU.yz * input.ptr[6] * gammaU.yy 
-		+ gammaU.xy * gammaU.xy * gammaU.xy * sqrt(gammaU.xx) * gammaU.zz * input.ptr[28] 
+		+ gammaU.xy * gammaU.xy * gammaU.xy * sqrt_gUxx * gammaU.zz * input.ptr[28] 
 		- gammaU.xy * gammaU.xx * sqrt_gUxx * gammaU.zz * input.ptr[28] * gammaU.yy 
-		- gammaU.xy * gammaU.xy * gammaU.xy * sqrt(gammaU.xx) * gammaU.zz * input.ptr[5] 
+		- gammaU.xy * gammaU.xy * gammaU.xy * sqrt_gUxx * gammaU.zz * input.ptr[5] 
 		+ gammaU.xy * gammaU.xx * sqrt_gUxx * gammaU.zz * input.ptr[5] * gammaU.yy 
 		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * input.ptr[1] 
 		+ gammaU.xy * gammaU.xz * input.ptr[1] * gammaU.xx * gammaU.yy 
 		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * input.ptr[24] 
 		+ gammaU.xy * gammaU.xz * input.ptr[24] * gammaU.xx * gammaU.yy 
-		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[28] * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[28] * sqrt(gammaU.xx) * gammaU.yy 
-		+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[5] * 1. / sqrt(gammaU.xx) 
-		- gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[5] * sqrt(gammaU.xx) * gammaU.yy 
+		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[28] * 1. / sqrt_gUxx 
+		+ gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[28] * sqrt_gUxx * gammaU.yy 
+		+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[5] * 1. / sqrt_gUxx 
+		- gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[5] * sqrt_gUxx * gammaU.yy 
 		- gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[26] * gammaU.xx 
 		+ gammaU.xy * input.ptr[26] * gammaU.xx * gammaU.xx * gammaU.yy 
-		- gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[27] * sqrt(gammaU.xx) 
+		- gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[27] * sqrt_gUxx 
 		+ gammaU.xy * input.ptr[27] * gammaU.xx * sqrt_gUxx * gammaU.yy 
 		- gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[3] * gammaU.xx 
 		+ gammaU.xy * input.ptr[3] * gammaU.xx * gammaU.xx * gammaU.yy 
-		+ gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[4] * sqrt(gammaU.xx) 
+		+ gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[4] * sqrt_gUxx 
 		- gammaU.xy * input.ptr[4] * gammaU.xx * sqrt_gUxx * gammaU.yy 
 		+ gammaU.xz * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * input.ptr[29] 
 		- gammaU.xz * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * input.ptr[6] 
-		- gammaU.xz * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[29] * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xz * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[6] * 1. / sqrt(gammaU.xx) 
+		- gammaU.xz * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[29] * 1. / sqrt_gUxx 
+		+ gammaU.xz * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[6] * 1. / sqrt_gUxx 
 		+ gammaU.yy * gammaU.yy * input.ptr[25] * gammaU.xx * gammaU.xx 
 		- gammaU.yy * input.ptr[25] * gammaU.xy * gammaU.xy * gammaU.xx 
 		+ gammaU.yy * gammaU.yy * input.ptr[2] * gammaU.xx * gammaU.xx 
 		- gammaU.yy * input.ptr[2] * gammaU.xx * gammaU.xy * gammaU.xy 
 		- input.ptr[8] * gammaU.xx * gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy 
 		- input.ptr[8] * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xx 
-		+ 2. * input.ptr[8] * gammaU.xy * gammaU.xy * gammaU.xx * gammaU.xx * gammaU.yy) / (
-		-gammaU.xx * (gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
-		- 2. * gammaU.xx * gammaU.xy * gammaU.xy * gammaU.yy 
-		+ gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy));
-	dx.xz = (
-		-(gammaU.xy * input.ptr[29] * 1. / sqrt(gammaU.xx) 
-		- gammaU.xy * input.ptr[6] * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xz * input.ptr[28] * 1. / sqrt(gammaU.xx) 
-		- gammaU.xz * input.ptr[5] * 1. / sqrt(gammaU.xx) 
+		+ 2. * input.ptr[8] * gammaU.xy * gammaU.xy * gammaU.xx * gammaU.xx * gammaU.yy
+	) / (
+		-gammaU.xx * (
+			+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
+			- 2. * gammaU.xx * gammaU.xy * gammaU.xy * gammaU.yy 
+			+ gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy
+		)
+	);
+	
+	dx.xz = -(
+		+ gammaU.xy * input.ptr[29] * 1. / sqrt_gUxx 
+		- gammaU.xy * input.ptr[6] * 1. / sqrt_gUxx 
+		+ gammaU.xz * input.ptr[28] * 1. / sqrt_gUxx 
+		- gammaU.xz * input.ptr[5] * 1. / sqrt_gUxx 
 		+ input.ptr[1] 
 		+ input.ptr[24] 
-		- input.ptr[9] * gammaU.xx)) / gammaU.xx;
-	dx.yy = (2. * gammaU.xx * gammaU.yz * input.ptr[29] * gammaU.xy * gammaU.xy 
+		- input.ptr[9] * gammaU.xx
+	) / gammaU.xx;
+	
+	dx.yy = (
+		+ 2. * gammaU.xx * gammaU.yz * input.ptr[29] * gammaU.xy * gammaU.xy 
 		- 2. * gammaU.xx * gammaU.xx * gammaU.yz * input.ptr[29] * gammaU.yy 
 		- 2. * gammaU.xx * gammaU.yz * input.ptr[6] * gammaU.xy * gammaU.xy 
 		+ 2. * gammaU.xx * gammaU.xx * gammaU.yz * input.ptr[6] * gammaU.yy 
@@ -681,44 +590,55 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		+ 2. * gammaU.xy * gammaU.xz * input.ptr[29] * gammaU.xx * gammaU.yy 
 		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * input.ptr[6] 
 		- 2. * gammaU.xy * gammaU.xz * input.ptr[6] * gammaU.xx * gammaU.yy 
-		- gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[25] * sqrt(gammaU.xx) 
+		- gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[25] * sqrt_gUxx 
 		+ gammaU.xy * input.ptr[25] * gammaU.xx * sqrt_gUxx * gammaU.yy 
-		- gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[2] * sqrt(gammaU.xx) 
+		- gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[2] * sqrt_gUxx 
 		+ gammaU.xy * input.ptr[2] * gammaU.xx * sqrt_gUxx * gammaU.yy 
-		+ gammaU.xz * input.ptr[14] * 1. / sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
-		- 2. * gammaU.xz * input.ptr[14] * sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.yy 
+		+ gammaU.xz * input.ptr[14] * 1. / sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
+		- 2. * gammaU.xz * input.ptr[14] * sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.yy 
 		+ gammaU.xz * input.ptr[14] * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy 
-		- gammaU.xz * input.ptr[19] * 1. / sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
-		+ 2. * gammaU.xz * input.ptr[19] * sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.yy 
+		- gammaU.xz * input.ptr[19] * 1. / sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
+		+ 2. * gammaU.xz * input.ptr[19] * sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.yy 
 		- gammaU.xz * input.ptr[19] * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy 
 		+ gammaU.xz * input.ptr[1] * gammaU.xx * sqrt_gUxx * gammaU.yy 
-		- gammaU.xz * input.ptr[1] * gammaU.xy * gammaU.xy * sqrt(gammaU.xx) 
-		- gammaU.xz * input.ptr[24] * sqrt(gammaU.xx) * gammaU.xy * gammaU.xy 
+		- gammaU.xz * input.ptr[1] * gammaU.xy * gammaU.xy * sqrt_gUxx 
+		- gammaU.xz * input.ptr[24] * sqrt_gUxx * gammaU.xy * gammaU.xy 
 		+ gammaU.xz * input.ptr[24] * gammaU.xx * sqrt_gUxx * gammaU.yy 
 		+ gammaU.xz * gammaU.xz * input.ptr[28] * gammaU.xx * gammaU.yy 
 		- gammaU.xz * gammaU.xz * input.ptr[28] * gammaU.xy * gammaU.xy 
 		- gammaU.xz * gammaU.xz * input.ptr[5] * gammaU.xx * gammaU.yy 
 		+ gammaU.xz * gammaU.xz * input.ptr[5] * gammaU.xy * gammaU.xy 
-		+ input.ptr[11] * sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
+		+ input.ptr[11] * sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
 		- 2. * input.ptr[11] * gammaU.xx * sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.yy 
-		+ input.ptr[11] * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy) / (sqrt(gammaU.xx) * (gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
-		- 2. * gammaU.xx * gammaU.xy * gammaU.xy * gammaU.yy 
-		+ gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy));
-	dx.yz = (
-		-(gammaU.xy * input.ptr[14] * 1. / sqrt(gammaU.xx) 
-		- gammaU.xy * input.ptr[19] * 1. / sqrt(gammaU.xx) 
-		- gammaU.xz * input.ptr[15] * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xz * input.ptr[20] * 1. / sqrt(gammaU.xx) 
-		- input.ptr[12] * sqrt(gammaU.xx) 
-		- input.ptr[17] * sqrt(gammaU.xx) 
+		+ input.ptr[11] * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy
+	) / (
+		sqrt_gUxx * (
+			+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
+			- 2. * gammaU.xx * gammaU.xy * gammaU.xy * gammaU.yy 
+			+ gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy
+		)
+	);
+	
+	dx.yz = -.5 * (
+		+ gammaU.xy * input.ptr[14] * 1. / sqrt_gUxx 
+		+ gammaU.xz * input.ptr[20] * 1. / sqrt_gUxx 
+		- gammaU.xy * input.ptr[19] * 1. / sqrt_gUxx 
+		- gammaU.xz * input.ptr[15] * 1. / sqrt_gUxx 
+		
+		- input.ptr[12] * sqrt_gUxx 
+		- input.ptr[17] * sqrt_gUxx 
 		- 2. * input.ptr[29] 
-		+ 2. * input.ptr[6])) / (2. * sqrt(gammaU.xx));
-	dx.zz = (
-		-(gammaU.xy * input.ptr[15] * 1. / sqrt(gammaU.xx) 
-		- gammaU.xy * input.ptr[20] * 1. / sqrt(gammaU.xx) 
-		- input.ptr[18] * sqrt(gammaU.xx) 
+		+ 2. * input.ptr[6]
+	) * _1_sqrt_gUxx;
+	
+	dx.zz = -(
+		+ gammaU.xy * input.ptr[15] * 1. / sqrt_gUxx 
+		- gammaU.xy * input.ptr[20] * 1. / sqrt_gUxx 
+		- input.ptr[18] * sqrt_gUxx 
 		- input.ptr[28] 
-		+ input.ptr[5])) / sqrt(gammaU.xx);
+		+ input.ptr[5]
+	) * _1_sqrt_gUxx;
+	
 	dy.xx = input.ptr[10];
 	dy.xy = input.ptr[11];
 	dy.xz = input.ptr[12];
@@ -731,16 +651,20 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	dz.yy = input.ptr[19];
 	dz.yz = input.ptr[20];
 	dz.zz = input.ptr[21];
-	K.xx = (gammaU.xx * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[26] 
-		- gammaU.xx * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[26] * f 
+	
+	K.xx = (
+		+ gammaU.xx * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[26] 
 		- gammaU.xx * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[3] 
+		
+		- gammaU.xx * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[26] * f
 		+ gammaU.xx * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[3] * f 
+		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * input.ptr[29] * f 
+		+ 2. * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[29] * gammaU.xx * gammaU.xx * f
+		- 4. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[29] * gammaU.xx * f
+		
 		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * input.ptr[29] 
 		+ 4. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[29] * gammaU.xx 
 		- 2. * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[29] * gammaU.xx * gammaU.xx 
-		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * input.ptr[29] * f 
-		+ 2. * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[29] * f * gammaU.xx * gammaU.xx 
-		- 4. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[29] * f * gammaU.xx 
 		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * input.ptr[6] 
 		+ 4. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[6] * gammaU.xx 
 		- 2. * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[6] * gammaU.xx * gammaU.xx 
@@ -748,16 +672,16 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		+ 2. * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[6] * f * gammaU.xx * gammaU.xx 
 		- 4. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[6] * f * gammaU.xx 
 		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * gammaU.yy * input.ptr[25] * gammaU.xx * sqrt_gUxx 
-		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * input.ptr[25] * sqrt(gammaU.xx) 
+		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * input.ptr[25] * sqrt_gUxx 
 		- gammaU.xy * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[25] * gammaU.xx * gammaU.xx * sqrt_gUxx 
-		+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * input.ptr[25] * sqrt(gammaU.xx) * f 
+		+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * input.ptr[25] * sqrt_gUxx * f 
 		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * gammaU.yy * input.ptr[25] * gammaU.xx * sqrt_gUxx * f 
 		+ gammaU.xy * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[25] * gammaU.xx * gammaU.xx * sqrt_gUxx * f 
 		+ gammaU.xy * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[2] * gammaU.xx * gammaU.xx * sqrt_gUxx 
 		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * gammaU.yy * input.ptr[2] * gammaU.xx * sqrt_gUxx 
-		+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * input.ptr[2] * sqrt(gammaU.xx) 
+		+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * input.ptr[2] * sqrt_gUxx 
 		- gammaU.xy * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[2] * f * gammaU.xx * gammaU.xx * sqrt_gUxx 
-		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * input.ptr[2] * f * sqrt(gammaU.xx) 
+		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * input.ptr[2] * f * sqrt_gUxx 
 		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * gammaU.yy * input.ptr[2] * f * gammaU.xx * sqrt_gUxx 
 		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.1 * gammaU.yz * input.ptr[29] 
 		+ 2. * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[29] * gammaU.yy * gammaU.yy * gammaU.xx * gammaU.xx 
@@ -789,33 +713,33 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.1 * f * input.ptr[4] 
 		+ 4. * gammaU.xy * gammaU.xy * f * input.ptr[4] * gammaU.yy * gammaU.yy * gammaU.xx * gammaU.xx 
 		- 5. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * f * input.ptr[4] * gammaU.yy * gammaU.xx 
-		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.1 * input.ptr[26] * sqrt(gammaU.xx) 
+		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.1 * input.ptr[26] * sqrt_gUxx 
 		- 4. * gammaU.xy * gammaU.xy * input.ptr[26] * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy 
 		+ 5. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[26] * gammaU.xx * sqrt_gUxx * gammaU.yy 
 		+ 4. * gammaU.xy * gammaU.xy * input.ptr[26] * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * f 
-		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.1 * input.ptr[26] * sqrt(gammaU.xx) * f 
+		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.1 * input.ptr[26] * sqrt_gUxx * f 
 		- 5. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[26] * gammaU.xx * sqrt_gUxx * f * gammaU.yy 
 		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[27] * gammaU.yy * gammaU.xx 
 		+ 2. * gammaU.xy * gammaU.xy * input.ptr[27] * gammaU.yy * gammaU.yy * gammaU.xx * gammaU.xx 
-		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.1 * input.ptr[3] * sqrt(gammaU.xx) 
+		+ 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.1 * input.ptr[3] * sqrt_gUxx 
 		- 5. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[3] * gammaU.xx * sqrt_gUxx * gammaU.yy 
 		+ 4. * gammaU.xy * gammaU.xy * input.ptr[3] * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy 
-		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.1 * input.ptr[3] * f * sqrt(gammaU.xx) 
+		- 2. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.1 * input.ptr[3] * f * sqrt_gUxx 
 		- 4. * gammaU.xy * gammaU.xy * input.ptr[3] * f * gammaU.xx * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy 
 		+ 5. * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[3] * f * gammaU.xx * sqrt_gUxx * gammaU.yy 
 		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[4] * gammaU.yy * gammaU.xx 
 		+ 2. * gammaU.xy * gammaU.xy * input.ptr[4] * gammaU.yy * gammaU.yy * gammaU.xx * gammaU.xx 
 		+ gammaU.xz * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[1] * gammaU.xx * gammaU.xx * sqrt_gUxx 
 		- 2. * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[1] * gammaU.xy * gammaU.xy * gammaU.xx * sqrt_gUxx 
-		+ gammaU.xz * gammaU.yy * input.ptr[1] * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * sqrt(gammaU.xx) 
+		+ gammaU.xz * gammaU.yy * input.ptr[1] * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * sqrt_gUxx 
 		- gammaU.xz * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[1] * f * gammaU.xx * gammaU.xx * sqrt_gUxx 
 		+ 2. * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[1] * f * gammaU.xy * gammaU.xy * gammaU.xx * sqrt_gUxx 
-		- gammaU.xz * gammaU.yy * input.ptr[1] * f * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * sqrt(gammaU.xx) 
+		- gammaU.xz * gammaU.yy * input.ptr[1] * f * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * sqrt_gUxx 
 		- gammaU.xz * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[24] * gammaU.xx * gammaU.xx * sqrt_gUxx 
 		+ 2. * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[24] * gammaU.xx * sqrt_gUxx * gammaU.xy * gammaU.xy 
-		- gammaU.xz * gammaU.yy * input.ptr[24] * sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
+		- gammaU.xz * gammaU.yy * input.ptr[24] * sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
 		- 2. * gammaU.xz * gammaU.yy * gammaU.yy * input.ptr[24] * gammaU.xx * sqrt_gUxx * gammaU.xy * gammaU.xy * f 
-		+ gammaU.xz * gammaU.yy * input.ptr[24] * sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * f 
+		+ gammaU.xz * gammaU.yy * input.ptr[24] * sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * f 
 		+ gammaU.xz * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[24] * gammaU.xx * gammaU.xx * sqrt_gUxx * f 
 		- gammaU.xz * gammaU.xz * gammaU.yy * gammaU.yy * gammaU.yy * input.ptr[28] * gammaU.xx * gammaU.xx 
 		- gammaU.xz * gammaU.xz * gammaU.yy * input.ptr[28] * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
@@ -856,17 +780,23 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		- 3. * input.ptr[30] * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy * gammaU.xx * gammaU.xx 
 		- input.ptr[30] * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.1 * f * gammaU.xx 
 		- 3. * input.ptr[30] * gammaU.xy * gammaU.xy * f * gammaU.yy * gammaU.yy * gammaU.xx * gammaU.xx * gammaU.xx 
-		+ 3. * input.ptr[30] * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * f * gammaU.yy * gammaU.xx * gammaU.xx) / (gammaU.xx * (gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.1 
-		- 3. * gammaU.xx * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy 
-		+ 3. * gammaU.xx * gammaU.xx * gammaU.xy * gammaU.xy * gammaU.yy * gammaU.yy 
-		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.1 * f 
-		+ 3. * gammaU.xx * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * f * gammaU.yy 
-		- 3. * gammaU.xx * gammaU.xx * gammaU.xy * gammaU.xy * f * gammaU.yy * gammaU.yy 
-		- gammaU.xx * gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy * gammaU.yy 
-		+ gammaU.xx * gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy * gammaU.yy * f));
-	K.xy = (2. * sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[29] 
+		+ 3. * input.ptr[30] * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * f * gammaU.yy * gammaU.xx * gammaU.xx
+	) / (
+		+ gammaU.xx * (
+			+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.1 
+			- 3. * gammaU.xx * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yy 
+			+ 3. * gammaU.xx * gammaU.xx * gammaU.xy * gammaU.xy * gammaU.yy * gammaU.yy 
+			- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.1 * f 
+			+ 3. * gammaU.xx * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * f * gammaU.yy 
+			- 3. * gammaU.xx * gammaU.xx * gammaU.xy * gammaU.xy * f * gammaU.yy * gammaU.yy 
+			- gammaU.xx * gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy * gammaU.yy 
+			+ gammaU.xx * gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy * gammaU.yy * f
+		)
+	);
+		
+	K.xy = (2. * sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[29] 
 		- 2. * gammaU.xx * sqrt_gUxx * gammaU.xy * gammaU.yz * input.ptr[29] * gammaU.yy 
-		+ 2. * sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[6] 
+		+ 2. * sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.yz * input.ptr[6] 
 		- 2. * gammaU.xx * sqrt_gUxx * gammaU.xy * gammaU.yz * input.ptr[6] * gammaU.yy 
 		- gammaU.xx * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[26] 
 		+ gammaU.xx * gammaU.xx * gammaU.xy * input.ptr[26] * gammaU.yy 
@@ -876,43 +806,53 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		- gammaU.xx * gammaU.yy * input.ptr[25] * gammaU.xy * gammaU.xy 
 		- gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy * input.ptr[2] 
 		+ gammaU.xx * gammaU.yy * input.ptr[2] * gammaU.xy * gammaU.xy 
-		+ gammaU.xy * gammaU.xy * gammaU.xy * sqrt(gammaU.xx) * gammaU.zz * input.ptr[28] 
+		+ gammaU.xy * gammaU.xy * gammaU.xy * sqrt_gUxx * gammaU.zz * input.ptr[28] 
 		- gammaU.xy * gammaU.xx * sqrt_gUxx * gammaU.zz * input.ptr[28] * gammaU.yy 
-		+ gammaU.xy * gammaU.xy * gammaU.xy * sqrt(gammaU.xx) * gammaU.zz * input.ptr[5] 
+		+ gammaU.xy * gammaU.xy * gammaU.xy * sqrt_gUxx * gammaU.zz * input.ptr[5] 
 		- gammaU.xy * gammaU.xx * sqrt_gUxx * gammaU.zz * input.ptr[5] * gammaU.yy 
 		+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * input.ptr[1] 
 		- gammaU.xy * gammaU.xz * input.ptr[1] * gammaU.xx * gammaU.yy 
 		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * input.ptr[24] 
 		+ gammaU.xy * gammaU.xz * input.ptr[24] * gammaU.xx * gammaU.yy 
-		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[28] * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[28] * sqrt(gammaU.xx) * gammaU.yy 
-		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[5] * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[5] * sqrt(gammaU.xx) * gammaU.yy 
-		- gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[27] * sqrt(gammaU.xx) 
+		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[28] * 1. / sqrt_gUxx 
+		+ gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[28] * sqrt_gUxx * gammaU.yy 
+		- gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[5] * 1. / sqrt_gUxx 
+		+ gammaU.xy * gammaU.xz * gammaU.xz * input.ptr[5] * sqrt_gUxx * gammaU.yy 
+		- gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[27] * sqrt_gUxx 
 		+ gammaU.xy * input.ptr[27] * gammaU.xx * sqrt_gUxx * gammaU.yy 
-		- gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[4] * sqrt(gammaU.xx) 
+		- gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[4] * sqrt_gUxx 
 		+ gammaU.xy * input.ptr[4] * gammaU.xx * sqrt_gUxx * gammaU.yy 
 		+ gammaU.xz * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * input.ptr[29] 
 		+ gammaU.xz * gammaU.xx * sqrt_gUxx * gammaU.yy * gammaU.yy * input.ptr[6] 
-		- gammaU.xz * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[29] * 1. / sqrt(gammaU.xx) 
-		- gammaU.xz * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[6] * 1. / sqrt(gammaU.xx)) / (
-		-sqrt(gammaU.xx) * (gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
-		- 2. * gammaU.xx * gammaU.xy * gammaU.xy * gammaU.yy 
-		+ gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy));
-	K.xz = (
-		-(gammaU.xy * input.ptr[29] * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xy * input.ptr[6] * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xz * input.ptr[28] * 1. / sqrt(gammaU.xx) 
-		+ gammaU.xz * input.ptr[5] * 1. / sqrt(gammaU.xx) 
+		- gammaU.xz * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[29] * 1. / sqrt_gUxx 
+		- gammaU.xz * gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[6] * 1. / sqrt_gUxx
+	) / (
+		-sqrt_gUxx * (
+			+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
+			- 2. * gammaU.xx * gammaU.xy * gammaU.xy * gammaU.yy 
+			+ gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy
+		)
+	);
+	
+	K.xz = -(
+		+ (
+			+ gammaU.xy * input.ptr[29]
+			+ gammaU.xy * input.ptr[6]
+			+ gammaU.xz * input.ptr[28]
+			+ gammaU.xz * input.ptr[5]
+		) * _1_sqrt_gUxx
+		+ input.ptr[24]
 		- input.ptr[1] 
-		+ input.ptr[24])) / sqrt(gammaU.xx);
-	K.yy = (sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[25] 
+	) * _1_sqrt_gUxx;
+	
+	K.yy = -(
+		+ sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[25] 
 		- gammaU.xx * sqrt_gUxx * gammaU.xy * input.ptr[25] * gammaU.yy 
-		- sqrt(gammaU.xx) * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[2] 
+		- sqrt_gUxx * gammaU.xy * gammaU.xy * gammaU.xy * input.ptr[2] 
 		+ gammaU.xx * sqrt_gUxx * gammaU.xy * input.ptr[2] * gammaU.yy 
-		- sqrt(gammaU.xx) * gammaU.xz * input.ptr[1] * gammaU.xy * gammaU.xy 
+		- sqrt_gUxx * gammaU.xz * input.ptr[1] * gammaU.xy * gammaU.xy 
 		+ gammaU.xx * sqrt_gUxx * gammaU.xz * input.ptr[1] * gammaU.yy 
-		+ sqrt(gammaU.xx) * gammaU.xz * input.ptr[24] * gammaU.xy * gammaU.xy 
+		+ sqrt_gUxx * gammaU.xz * input.ptr[24] * gammaU.xy * gammaU.xy 
 		- gammaU.xx * sqrt_gUxx * gammaU.xz * input.ptr[24] * gammaU.yy 
 		- 2. * gammaU.xx * gammaU.yz * input.ptr[29] * gammaU.xy * gammaU.xy 
 		+ 2. * gammaU.xx * gammaU.xx * gammaU.yz * input.ptr[29] * gammaU.yy 
@@ -937,27 +877,26 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		- gammaU.xz * gammaU.xz * input.ptr[28] * gammaU.xx * gammaU.yy 
 		+ gammaU.xz * gammaU.xz * input.ptr[28] * gammaU.xy * gammaU.xy 
 		- gammaU.xz * gammaU.xz * input.ptr[5] * gammaU.xx * gammaU.yy 
-		+ gammaU.xz * gammaU.xz * input.ptr[5] * gammaU.xy * gammaU.xy) / (
-		-(gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy 
+		+ gammaU.xz * gammaU.xz * input.ptr[5] * gammaU.xy * gammaU.xy
+	) / (
+		+ gammaU.xx * gammaU.xx * gammaU.yy * gammaU.yy 
 		+ gammaU.xy * gammaU.xy * gammaU.xy * gammaU.xy 
-		- 2. * gammaU.xy * gammaU.xy * gammaU.xx * gammaU.yy));
-	K.yz = input.ptr[29] 
-		+ input.ptr[6];
-	K.zz = input.ptr[28] 
-		+ input.ptr[5];
-	Theta = input.ptr[27] 
-		+ input.ptr[4];
+		- 2. * gammaU.xy * gammaU.xy * gammaU.xx * gammaU.yy
+	);
+	
+	K.yz = input.ptr[29] + input.ptr[6];
+	K.zz = input.ptr[28] + input.ptr[5];
+	Theta = input.ptr[27] + input.ptr[4];
+	
 	Z.x = (
-		-(gammaU.xy * input.ptr[22] 
-		+ gammaU.xz * input.ptr[23] 
-		- input.ptr[26] * gammaU.xx 
-		- input.ptr[3] * gammaU.xx)) / gammaU.xx;
-	Z.y = input.ptr[22] 
-		+ input.ptr[25] 
-		+ input.ptr[2];
-	Z.z = input.ptr[1] 
-		+ input.ptr[23] 
-		+ input.ptr[24];
+		- input.ptr[22] * gammaU.xy 
+		- input.ptr[23] * gammaU.xz 
+		+ input.ptr[26] * gammaU.xx 
+		+ input.ptr[3] * gammaU.xx
+	) * _1_gammaUxx;
+	
+	Z.y = input.ptr[2] + input.ptr[22] + input.ptr[25];
+	Z.z = input.ptr[1] + input.ptr[23] + input.ptr[24];
 
 	<?=eqn.cons_t?> resultU;
 	for (int i = 0; i < numStates; ++i) {
