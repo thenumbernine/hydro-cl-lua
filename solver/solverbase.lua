@@ -531,6 +531,12 @@ function SolverBase:createCodePrefix()
 	lines:insert(template(file['math.h']))
 	
 	lines:append{
+		'#ifndef M_PI',
+		'#define M_PI '..('%.50f'):format(math.pi),
+		'#endif',
+	}
+
+	lines:append{
 		'#define dim '..self.dim,
 		'#define numStates '..self.eqn.numStates,
 		'#define numIntStates '..self.eqn.numIntStates,

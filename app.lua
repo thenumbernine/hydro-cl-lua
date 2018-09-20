@@ -14,6 +14,7 @@ predefined vars:
 	useGLSharing= set to false to disable GL sharing
 --]]
 local cmdline = {}
+
 --[[
 for _,k in ipairs{
 	'dim', 'gridSize', 'fluxLimiter', 'boundary', 
@@ -36,13 +37,19 @@ for _,w in ipairs(arg or {}) do
 	end
 end
 
-local __disableGUI__ = cmdline.disableGUI
+local disableGUI = cmdline.disableGUI
+
+-- if we are disabling the gui then replace the imgui and tooltip requires, so we don't try to unnecessarily load it
+if disableGUI then
+	package.loaded['ffi.imgui'] = {disabled=true}
+	package.tooltip = {disabled=true}
+end
 
 local bit = require 'bit'
 local ffi = require 'ffi'
-local ig = not __disableGUI__ and require 'ffi.imgui' or nil
 local cl = require 'ffi.OpenCL'
 local gl = require 'gl'
+local ig = require 'ffi.imgui'
 local sdl = require 'ffi.sdl'
 local class = require 'ext.class'
 local math = require 'ext.math'
@@ -58,11 +65,11 @@ local GLTex2D = require 'gl.tex2d'
 local Font = require 'gui.font'
 local vec4d = require 'ffi.vec.vec4d'
 local vec3d = require 'ffi.vec.vec3d'
-local tooltip = not __disableGUI__ and require 'tooltip' or nil
+local tooltip = require 'tooltip'
 
 -- I tried making this a flag, and simply skipping the gui update if it wasn't set, but imgui still messes with the GL state and textures and stuff
 --  and I still get errors... so I'm cutting out imgui altogether, but now it takes a global flag to do so.
-local HydroCLApp = class(__disableGUI__ and require 'glapp' or require 'imguiapp')
+local HydroCLApp = class(disableGUI and require 'glapp' or require 'imguiapp')
 
 HydroCLApp.title = 'Hydrodynamics in OpenCL'
 
@@ -292,20 +299,20 @@ void main() {
 ]],
 	}
 
-	-- [[ 
-	local fonttex = GLTex2D{
-		filename = 'font.png',
-		minFilter = gl.GL_LINEAR_MIPMAP_LINEAR,
-		magFilter = gl.GL_LINEAR,
-	}
-	if not pcall(function()
-		gl.glGenerateMipmap(gl.GL_TEXTURE_2D) 
-	end) then
-		gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
-		gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR) 
+	if not cmdline.disableFont then
+		local fonttex = GLTex2D{
+			filename = 'font.png',
+			minFilter = gl.GL_LINEAR_MIPMAP_LINEAR,
+			magFilter = gl.GL_LINEAR,
+		}
+		if not pcall(function()
+			gl.glGenerateMipmap(gl.GL_TEXTURE_2D) 
+		end) then
+			gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
+			gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR) 
+		end
+		self.font = Font{tex = fonttex}
 	end
-	self.font = Font{tex = fonttex}
-	--]]
 
 	-- todo reorganize me
 	self.display2DMethodsEnabled = display2DMethods:map(function(method, index)
@@ -924,8 +931,8 @@ function HydroCLApp:event(event, ...)
 	if HydroCLApp.super.event then
 		HydroCLApp.super.event(self, event, ...)
 	end
-	local canHandleMouse = not ig.igGetIO()[0].WantCaptureMouse
-	local canHandleKeyboard = not ig.igGetIO()[0].WantCaptureKeyboard
+	local canHandleMouse = not ig.disabled and not ig.igGetIO()[0].WantCaptureMouse
+	local canHandleKeyboard = not ig.disabled and not ig.igGetIO()[0].WantCaptureKeyboard
 	local shiftDown = leftShiftDown or rightShiftDown
 	local guiDown = leftGuiDown or rightGuiDown
 	if event.type == sdl.SDL_MOUSEMOTION then
