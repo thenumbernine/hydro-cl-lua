@@ -1,46 +1,34 @@
 --[[
 predefined vars:
-	dim=
-	gridSize=
-	fluxLimiter=
-	boundary=
-	integrator=
-	eqn=
-	mins=
-	maxs=
-	float= set to true to use 32 bit float instead of 64 
-	half= set to true to use 16 bit float instead of 64
-	cpu= set to use CPU instead of GPU
-	useGLSharing= set to false to disable GL sharing
+	dim =
+	gridSize =
+	fluxLimiter =
+	boundary =
+	integrator =
+	eqn =
+	mins =
+	maxs =
+	float = set to true to use 32 bit float instead of 64 
+	half = set to true to use 16 bit float instead of 64
+	cpu = set to use CPU instead of GPU
+	useGLSharing = set to false to disable GL sharing
+	disableGUI = set to disable GUI and prevent loading of imgui altogether
+	disableFont = set to disable loading of the font.png file
 --]]
 local cmdline = {}
 
---[[
-for _,k in ipairs{
-	'dim', 'gridSize', 'fluxLimiter', 'boundary', 
-	'integrator', 'eqn', 'mins', 'maxs', 'float', 'half'
-} do
-	cmdline[k] = _G[k]
-	_G[k] = nil
-	if cmdline[k] == nil then 
-		cmdline[k] = _G[k:lower()] 
-		_G[k:lower()] = nil
-	end
-end
---]]
+local fromlua = require 'ext.fromlua'
 for _,w in ipairs(arg or {}) do
 	local k,v = w:match'^(.-)=(.*)$'
 	if k then
-		cmdline[k] = assert(loadstring('return '..v))()
+		cmdline[k] = fromlua(v)
 	else
 		cmdline[w] = true
 	end
 end
 
-local disableGUI = cmdline.disableGUI
-
 -- if we are disabling the gui then replace the imgui and tooltip requires, so we don't try to unnecessarily load it
-if disableGUI then
+if cmdline.disableGUI then
 	package.loaded['ffi.imgui'] = {disabled=true}
 	package.tooltip = {disabled=true}
 end
@@ -69,7 +57,7 @@ local tooltip = require 'tooltip'
 
 -- I tried making this a flag, and simply skipping the gui update if it wasn't set, but imgui still messes with the GL state and textures and stuff
 --  and I still get errors... so I'm cutting out imgui altogether, but now it takes a global flag to do so.
-local HydroCLApp = class(disableGUI and require 'glapp' or require 'imguiapp')
+local HydroCLApp = class(cmdline.disableGUI and require 'glapp' or require 'imguiapp')
 
 HydroCLApp.title = 'Hydrodynamics in OpenCL'
 
@@ -931,8 +919,8 @@ function HydroCLApp:event(event, ...)
 	if HydroCLApp.super.event then
 		HydroCLApp.super.event(self, event, ...)
 	end
-	local canHandleMouse = not ig.disabled and not ig.igGetIO()[0].WantCaptureMouse
-	local canHandleKeyboard = not ig.disabled and not ig.igGetIO()[0].WantCaptureKeyboard
+	local canHandleMouse = not rawget(ig, 'disabled') and not ig.igGetIO()[0].WantCaptureMouse
+	local canHandleKeyboard = not rawget(ig, 'disabled') and not ig.igGetIO()[0].WantCaptureKeyboard
 	local shiftDown = leftShiftDown or rightShiftDown
 	local guiDown = leftGuiDown or rightGuiDown
 	if event.type == sdl.SDL_MOUSEMOTION then
