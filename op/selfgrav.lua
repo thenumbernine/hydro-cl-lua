@@ -104,7 +104,7 @@ function SelfGrav:refreshSolverProgram()
 	self.offsetPotentialAndAddToTotalKernelObj = solver.solverProgramObj:kernel('offsetPotentialAndAddToTotal', solver.UBuf)
 end
 
-local realptr = ffi.new'real[1]'
+local realptr = ffi.new'realparam[1]'
 local function real(x)
 	realptr[0] = x
 	return realptr

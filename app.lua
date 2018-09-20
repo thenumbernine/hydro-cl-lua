@@ -200,7 +200,7 @@ function HydroCLApp:initGL(...)
 	ffi.cdef('typedef '..self.real..' real;')
 
 	do
-		local code = template(file['math.h'])
+		local code = template(file['math.h'], {app=self})
 		xpcall(function()
 			ffi.cdef(code)
 		end, function(err)

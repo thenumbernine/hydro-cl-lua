@@ -34,7 +34,7 @@ function RungeKutta:init(solver)
 	end
 end
 
-local realptr = ffi.new'real[1]'
+local realptr = ffi.new'realparam[1]'
 local function real(x)
 	realptr[0] = x
 	return realptr

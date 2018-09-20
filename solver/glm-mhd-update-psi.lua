@@ -41,7 +41,7 @@ function GLM_MHD_UpdatePsi:refreshSolverProgram()
 	self.updatePsiKernelObj = solver.solverProgramObj:kernel('updatePsi', solver.UBuf)
 end
 
-local realptr = ffi.new'real[1]'
+local realptr = ffi.new'realparam[1]'
 local function real(x)
 	realptr[0] = x
 	return realptr

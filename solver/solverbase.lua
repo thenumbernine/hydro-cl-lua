@@ -135,7 +135,7 @@ kernel void multAdd(
 	global <?=eqn.cons_t?>* a,
 	const global <?=eqn.cons_t?>* b,
 	const global <?=eqn.cons_t?>* c,
-	real d
+	realparam d
 ) {
 	SETBOUNDS_NOGHOST();
 <? for i=0,eqn.numIntStates-1 do
@@ -191,6 +191,7 @@ function SolverBase:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 end
 
 function SolverBase:clalloc(name, size)
+	size = math.ceil(size / 4) * 4
 	self.buffers:insert{name=name, size=size}
 end
 
@@ -528,7 +529,7 @@ function SolverBase:createCodePrefix()
 	end
 
 	-- real3
-	lines:insert(template(file['math.h']))
+	lines:insert(template(file['math.h'], {app=self.app}))
 	
 	lines:append{
 		'#ifndef M_PI',

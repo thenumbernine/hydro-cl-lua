@@ -24,7 +24,7 @@ function ForwardEuler:init(solver)
 	self.derivBuf = solver.app.ctx:buffer{rw=true, size=solver.numCells * ffi.sizeof(solver.eqn.cons_t)}
 end
 
-local realptr = ffi.new'real[1]'
+local realptr = ffi.new'realparam[1]'
 local function real(x)
 	realptr[0] = x
 	return realptr

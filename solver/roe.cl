@@ -5,7 +5,7 @@ kernel void calcFlux(
 	global <?=eqn.cons_t?>* fluxBuf,
 	<?= solver.getULRArg ?>,
 	const global <?=eqn.eigen_t?>* eigenBuf, 
-	real dt
+	realparam dt
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	real3 xR = cell_x(i);
