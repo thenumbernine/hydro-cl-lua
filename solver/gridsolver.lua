@@ -327,7 +327,8 @@ local function safeFFICDef(code)
 end
 
 function GridSolver:createBuffers()
-	local realSize = ffi.sizeof(self.app.real)
+	local app = self.app
+	local realSize = ffi.sizeof(app.real)
 
 	-- to get sizeof
 	safeFFICDef(self:getConsLRTypeCode())
@@ -462,7 +463,7 @@ elseif tryingAMR == 'gradient' then
 	self:clalloc('amrErrorBuf', 
 		-- self.volume 
 		tonumber(self.amrRootSizeInFromSize:volume())
-		* ffi.sizeof(self.app.real))
+		* ffi.sizeof(app.real))
 end
 
 	if self.usePLM then
@@ -494,13 +495,15 @@ end
 	local GLTex2D = require 'gl.tex2d'
 	local GLTex3D = require 'gl.tex3d'
 	local cl = self.dim < 3 and GLTex2D or GLTex3D
+	-- TODO check for extension GL_ARB_half_float_pixel
+	local gltype = app.real == 'half' and gl.GL_HALF_FLOAT_ARB or gl.GL_FLOAT
 	self.tex = cl{
 		width = tonumber(self.gridSize.x),
 		height = tonumber(self.gridSize.y),
 		depth = tonumber(self.gridSize.z),
 		internalFormat = gl.GL_RGBA32F,
 		format = gl.GL_RGBA,
-		type = gl.GL_FLOAT,
+		type = gltype,
 		minFilter = gl.GL_NEAREST,
 		--magFilter = gl.GL_NEAREST,
 		magFilter = gl.GL_LINEAR,
@@ -508,16 +511,16 @@ end
 	}
 
 	local CLImageGL = require 'cl.imagegl'
-	if self.app.useGLSharing then
-		self.texCLMem = CLImageGL{context=self.app.ctx, tex=self.tex, write=true}
+	if app.useGLSharing then
+		self.texCLMem = CLImageGL{context=app.ctx, tex=self.tex, write=true}
 	else
-		self.calcDisplayVarToTexPtr = ffi.new(self.app.real..'[?]', self.numCells * 3)
+		self.calcDisplayVarToTexPtr = ffi.new(app.realparam..'[?]', self.numCells * 3)
 		
 		--[[ PBOs?
 		self.calcDisplayVarToTexPBO = ffi.new('gl_int[1]', 0)
 		gl.glGenBuffers(1, self.calcDisplayVarToTexPBO)
 		gl.glBindBuffer(gl.GL_PIXEL_UNPACK_BUFFER, self.calcDisplayVarToTexPBO[0])
-		gl.glBufferData(gl.GL_PIXEL_UNPACK_BUFFER, self.tex.width * self.tex.height * ffi.sizeof(self.app.real) * 4, nil, gl.GL_STREAM_READ)
+		gl.glBufferData(gl.GL_PIXEL_UNPACK_BUFFER, self.tex.width * self.tex.height * ffi.sizeof(app.real) * 4, nil, gl.GL_STREAM_READ)
 		gl.glBindBuffer(gl.GL_PIXEL_UNPACK_BUFFER, 0)
 		--]]
 	end
@@ -1517,8 +1520,10 @@ function GridSolver:calcDisplayVarToTex(var)
 		
 		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
 		local destPtr = ptr
-		if app.is64bit then
-			-- can this run in place?
+		-- TODO check for extension GL_ARB_half_float_pixel
+		local gltype = app.real == 'half' and gl.GL_HALF_FLOAT_ARB or gl.GL_FLOAT
+		if app.real == 'double' then
+			-- can this run in place?  seems like it
 			destPtr = ffi.cast('float*', ptr)
 			for i=0,self.numCells*channels-1 do
 				destPtr[i] = ptr[i]
@@ -1526,10 +1531,10 @@ function GridSolver:calcDisplayVarToTex(var)
 		end
 		tex:bind()
 		if self.dim < 3 then
-			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, tex.width, tex.height, format, gl.GL_FLOAT, destPtr)
+			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, tex.width, tex.height, format, gltype, destPtr)
 		else
 			for z=0,tex.depth-1 do
-				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, tex.width, tex.height, 1, format, gl.GL_FLOAT, destPtr + channels * tex.width * tex.height * z)
+				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, tex.width, tex.height, 1, format, gltype, destPtr + channels * tex.width * tex.height * z)
 			end
 		end
 		tex:unbind()
@@ -1667,8 +1672,9 @@ function GridSolver:updateGUI()
 	-- TODO volumetric var
 end
 
-local Image = require 'image'
 function GridSolver:save(prefix)
+	local Image = require 'image'
+	
 	-- TODO add planes to image, then have the FITS module use planes and not channels
 	-- so the dimension layout of the buffer is [channels][width][height][planes]
 	local width = tonumber(self.gridSize.x)

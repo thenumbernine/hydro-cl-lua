@@ -190,12 +190,14 @@ function HydroCLApp:initGL(...)
 	print(platformName)
 	print(deviceName)
 
-	self.is64bit = self.env.real == 'double'
 	self.useGLSharing = self.env.useGLSharing
 	self.device = self.env.device
 	self.ctx = self.env.ctx
 	self.cmds = self.env.cmds
 	self.real = self.env.real
+	
+	--half cannot be a kernel param, so this is a proxy type
+	self.realparam = self.real == 'half' and 'float' or self.real
 
 	ffi.cdef('typedef '..self.real..' real;')
 

@@ -74,7 +74,7 @@ kernel void reduce_ePot(
 //and if it is too big then it explodes
 kernel void offsetPotentialAndAddToTotal(
 	global <?=eqn.cons_t?>* UBuf,
-	real ePotMin
+	realparam ePotMin
 ) {
 	const real basePotential = 0.;
 	//const real basePotential = 1.;

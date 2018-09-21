@@ -1,4 +1,4 @@
-local dim = 3
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -205,7 +205,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -278,7 +278,7 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 
 
-	initState = 'Alcubierre warp bubble',
+	--initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
@@ -388,7 +388,7 @@ maxs = {6,1,1},
 }
 
 -- HD
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
@@ -483,7 +483,7 @@ maxs = {6,1,1},
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator

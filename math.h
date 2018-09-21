@@ -1,5 +1,4 @@
-//half cannot be a kernel param, so this is a proxy type
-typedef <?=app.real == 'half' and 'float' or app.real?> realparam;
+typedef <?=app.realparam?> realparam;
 
 <? 
 local function makecplx(name, real) 
