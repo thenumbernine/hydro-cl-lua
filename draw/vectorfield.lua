@@ -106,7 +106,7 @@ local function applyToApp(HydroCLApp)
 		gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
 		
 		for _,solver in ipairs(solvers) do
-			solver:displayVectorField(app, ...)
+			solver:displayVectorField(self, ...)
 		end
 	
 		gl.glDisable(gl.GL_DEPTH_TEST)
