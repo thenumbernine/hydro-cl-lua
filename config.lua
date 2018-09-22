@@ -278,7 +278,7 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 
 
-	initState = 'Alcubierre warp bubble',
+	--initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
@@ -301,9 +301,9 @@ maxs = {6,1,1},
 	--initState = 'black hole - Schwarzschild pseudocartesian',
 	
 	
-	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
+	initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 
-	--[[ single black hole, spinning, demonstrating ergosphere formation
+	-- [[ single black hole, spinning, demonstrating ergosphere formation
 	initStateArgs = {
 		bodies = {
 			{
@@ -483,10 +483,10 @@ maxs = {6,1,1},
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))	-- TODO finish me
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='LagrangianCoordinates'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'}))) -- TODO finish me
 

@@ -25,9 +25,9 @@ local function makePartial(order, solver, field, fieldType)
 	if not field:find'_' then suffix = '_' .. suffix end
 	local name = 'partial_'..field..suffix
 	
-	local add = fieldType..'_add'
-	local sub = fieldType..'_sub'
-	local real_mul = fieldType..'_real_mul'
+	local function add(x,y) return fieldType..'_add('..x..', '..y..')' end
+	local function sub(x,y) return fieldType..'_sub('..x..', '..y..')' end
+	local function real_mul(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
 	local zero = fieldType..'_zero'
 
 	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)
@@ -54,9 +54,9 @@ local function makePartial2(order, solver, field, fieldType, nameOverride)
 	if not field:find'_' then suffix = '_' .. suffix end
 	local name = nameOverride or ('partial2_'..field..suffix)
 	
-	local add = fieldType..'_add'
-	local sub = fieldType..'_sub'
-	local real_mul = fieldType..'_real_mul'
+	local function add(x,y) return fieldType..'_add('..x..', '..y..')' end
+	local function sub(x,y) return fieldType..'_sub('..x..', '..y..')' end
+	local function real_mul(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
 	local zero = fieldType..'_zero'
 
 	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)

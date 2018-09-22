@@ -233,7 +233,7 @@ return table{
 	// = -2 h / sigma^2 (x_i-c_i)
 	real3 dh = real3_real_mul(real3_sub(x, mids), -2. * h / sigma2);
 
-	sym3 delta_ll = sym3_ident();
+	sym3 delta_ll = sym3_ident;
 
 	//h,ij = h,i,j = (-2 h / sigma^2 (x_i-c_i)),j
 	// = -2 h,j / sigma^2 (x_i-c_i) - 2 h delta_ij / sigma^2
@@ -241,7 +241,7 @@ return table{
 	// = 4 h (x-c)_i (x-c)_j / sigma^4 - 2 h delta_ij / sigma^2
 	sym3 d2h = sym3_sub(
 		sym3_real_mul(real3_outer(c, c), 4. * h / sigma4),
-		sym3_real_mul(sym3_ident(), 2. * h / sigma2));
+		sym3_real_mul(sym3_ident, 2. * h / sigma2));
 
 #if 0
 	alpha = .5 * (
@@ -351,7 +351,7 @@ return table{
 	real3 xc_u = real3_real_mul(xc, 1. / r);
 
 	gamma_ll = sym3_add(
-		sym3_ident(),
+		sym3_ident,
 		sym3_real_mul(real3_outer(xc_u, xc_u), 1. / (r / R - 1)));
 ]]
 		end,
@@ -467,7 +467,7 @@ return table{
 	real psi4 = psi2 * psi2;
 
 
-	gamma_ll = sym3_real_mul(sym3_ident(), psi4);
+	gamma_ll = sym3_real_mul(sym3_ident, psi4);
 
 	<? for _,body in ipairs(bodies) do ?>{
 
@@ -495,7 +495,7 @@ return table{
 		sym3 ABar_boost_ll = sym3_real_mul(
 			sym3_sub(
 				sym3_add(real3_outer(P_l, n_l), real3_outer(n_l, P_l)),
-				sym3_real_mul(sym3_sub(real3_outer(n_l, n_l), sym3_ident()), n_dot_P)
+				sym3_real_mul(sym3_sub(real3_outer(n_l, n_l), sym3_ident), n_dot_P)
 			), 1.5 / rSq);
 
 		//Levi-Civita density is det gamma for conformal metric, whose det is 1, so a cross product works with covariant Levi-Civita

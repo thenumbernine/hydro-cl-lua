@@ -464,7 +464,7 @@ function ADM_BonaMasso_3D:eigenWaveCode(side, eig, x, waveIndex)
 
 	local betaUi
 	if self.useShift then
-		betaUi = eig..'.beta_u.'..xNames[side+1]
+		betaUi = '('..eig..').beta_u.'..xNames[side+1]
 	else
 		betaUi = '0'
 	end
