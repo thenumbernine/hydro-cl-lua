@@ -18,10 +18,10 @@ end
 function NoDiv:getCalcRhoCode()
 	if not self.chargeField then return end
 	return template([[
-	rho = <?=U?>-><?=poisson.chargeField?>; 
+	rho = <?=U?>-><?=op.chargeField?>; 
 ]], 
 	{
-		poisson = self,
+		op = self,
 		solver = self.solver,
 	})
 end
@@ -33,7 +33,7 @@ solve del^2 BPot = delta . B for BPot
 function NoDiv:getCalcRhoCode()
 	return template([[
 <?
-local scalar = poisson.scalar
+local scalar = op.scalar
 local zero = scalar..'_zero'
 local add = scalar..'_add'
 local sub = scalar..'_sub'
@@ -46,8 +46,8 @@ for j=0,solver.dim-1 do
 		divergence,
 		<?=real_mul?>(
 			<?=sub?>(
-				U[stepsize.s<?=j?>].<?=poisson.vectorField?>.s<?=j?>,
-				U[-stepsize.s<?=j?>].<?=poisson.vectorField?>.s<?=j?>
+				U[stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>,
+				U[-stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>
 			),
 			1. / grid_dx<?=j?>
 		)
@@ -60,12 +60,12 @@ end
 	
 	//because this is the discrete case, no 4pi
 	rho = divergence;
-<? if poisson.chargeField then ?>
-	rho = <?=add?>(rho, U-><?=poisson.chargeField?>);
+<? if op.chargeField then ?>
+	rho = <?=add?>(rho, U-><?=op.chargeField?>);
 <? end ?>
 ]], 
 	{
-		poisson = self,
+		op = self,
 		solver = self.solver,
 	})
 end
@@ -78,23 +78,23 @@ so delta . B' = delta . B - delta . del^-2 delta . B = ...should be 0
 function NoDiv:getPoissonCode()
 	return template([[
 <?
-local scalar = poisson.scalar
+local scalar = op.scalar
 local sub = scalar..'_sub'
 local real_mul = scalar..'_real_mul'
 ?>
-kernel void noDiv<?=poisson.suffix?>(
+kernel void noDiv<?=op.suffix?>(
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 <? for j=0,solver.dim-1 do ?> 
-	U-><?=poisson.vectorField?>.s<?=j?> = 
+	U-><?=op.vectorField?>.s<?=j?> = 
 		<?=sub?>(
-			U-><?=poisson.vectorField?>.s<?=j?>,
+			U-><?=op.vectorField?>.s<?=j?>,
 			<?=real_mul?>(
 				<?=sub?>(
-					U[stepsize.s<?=j?>].<?=poisson.potentialField?>,
-					U[-stepsize.s<?=j?>].<?=poisson.potentialField?>
+					U[stepsize.s<?=j?>].<?=op.potentialField?>,
+					U[-stepsize.s<?=j?>].<?=op.potentialField?>
 				), 1. / (2. * grid_dx<?=j?>)
 			)
 		);
@@ -102,7 +102,7 @@ kernel void noDiv<?=poisson.suffix?>(
 }
 
 ]], {
-		poisson = self,
+		op = self,
 		solver = self.solver,
 		eqn = self.solver.eqn,
 	})

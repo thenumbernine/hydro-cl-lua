@@ -18,25 +18,25 @@ discrete evaluation:
 1/sqrt(g) (sqrt(g(x+dxi/2)) g^ij(x+dxj/2) (f(x+dxj) - f(x)) / dx(x+dxj/2))_,i
 */
 <?
-local solver = poisson.solver
+local solver = op.solver
 local eqn = solver.eqn
 ?>
 
-//initialize the poisson solver field 
+//initialize the relaxation solver field 
 //this is only called upon solver reset
 //each iteration uses the previous iteration's results as the starting point
-kernel void initPoissonPotential<?=poisson.suffix?>(
-	global <?=poisson:getPotBufType()?>* UBuf
+kernel void initRelaxationPotential<?=op.suffix?>(
+	global <?=op:getPotBufType()?>* UBuf
 ) {
 <?
-local scalar = poisson.scalar 
+local scalar = op.scalar 
 local neg = scalar..'_neg'
 ?>
 	SETBOUNDS(numGhost,numGhost);
-	global <?=poisson:getPotBufType()?>* U = UBuf + index;
+	global <?=op:getPotBufType()?>* U = UBuf + index;
 	<?=scalar?> rho = <?=scalar?>_zero;
-	<?=poisson:getCalcRhoCode() or ''?>
-	UBuf[index].<?=poisson.potentialField?> = <?=neg?>(rho);
+	<?=op:getCalcRhoCode() or ''?>
+	UBuf[index].<?=op.potentialField?> = <?=neg?>(rho);
 }
 
 /*
@@ -57,13 +57,13 @@ jacobi update:
 phi[x,k+1] = (f[x] - sum_i,j!=k (phi[x+e[i],k] / dx[i]^2))
 	/ sum_i (-2 / dx[i]^2)
 */
-kernel void solvePoissonJacobi<?=poisson.suffix?>(
-	global <?=poisson:getPotBufType()?>* UBuf<?
-if poisson.stopOnEpsilon then ?>,
+kernel void solveRelaxationJacobi<?=op.suffix?>(
+	global <?=op:getPotBufType()?>* UBuf<?
+if op.stopOnEpsilon then ?>,
 	global real* reduceBuf<?
 end ?>
 ) {
-<? if not poisson.stopOnEpsilon then ?>
+<? if not op.stopOnEpsilon then ?>
 	SETBOUNDS(numGhost,numGhost);
 <? else ?>
 	SETBOUNDS(0,0);
@@ -73,7 +73,7 @@ end ?>
 	}
 <? end ?>
 
-	global <?=poisson:getPotBufType()?>* U = UBuf + index;
+	global <?=op:getPotBufType()?>* U = UBuf + index;
 
 <? for j=0,solver.dim-1 do ?>
 	real dx<?=j?> = dx<?=j?>_at(i);
@@ -91,7 +91,7 @@ end ?>
 	real volAtX = volume_at(cell_x(i));
 
 <?
-local scalar = poisson.scalar
+local scalar = op.scalar
 local zero = scalar..'_zero'
 local add3 = scalar..'_add3'
 local sub = scalar..'_sub'
@@ -108,8 +108,8 @@ then
 
 <? for j=0,solver.dim-1 do ?>
 	skewSum = <?=add3?>(skewSum,
-		<?=real_mul?>(U[stepsize.s<?=j?>].<?=poisson.potentialField?>, volR.s<?=j?> / (dx<?=j?> * dx<?=j?>)),
-		<?=real_mul?>(U[-stepsize.s<?=j?>].<?=poisson.potentialField?>, volL.s<?=j?> / (dx<?=j?> * dx<?=j?>)));
+		<?=real_mul?>(U[stepsize.s<?=j?>].<?=op.potentialField?>, volR.s<?=j?> / (dx<?=j?> * dx<?=j?>)),
+		<?=real_mul?>(U[-stepsize.s<?=j?>].<?=op.potentialField?>, volL.s<?=j?> / (dx<?=j?> * dx<?=j?>)));
 <? end ?>
 	skewSum = <?=real_mul?>(skewSum, 1. / volAtX);
 
@@ -151,19 +151,19 @@ end
 ?>
 
 	<?=scalar?> rho = <?=zero?>;
-	<?=poisson:getCalcRhoCode() or ''?>
+	<?=op:getCalcRhoCode() or ''?>
 
-	<?=scalar?> oldU = U-><?=poisson.potentialField?>;
+	<?=scalar?> oldU = U-><?=op.potentialField?>;
 	
 	//Gauss-Seidel iteration: x_i = (b_i - A_ij x_j) / A_ii
 	<?=scalar?> newU = <?=real_mul?>(<?=sub?>(rho, skewSum), 1. / diag);
 
 <?
-if poisson.stopOnEpsilon then
+if op.stopOnEpsilon then
 ?>	<?=scalar?> dU = <?=sub?>(newU, oldU);
 	reduceBuf[index] = <?=lenSq?>(dU);
 <?
 end
 ?>
-	U-><?=poisson.potentialField?> = newU;
+	U-><?=op.potentialField?> = newU;
 }

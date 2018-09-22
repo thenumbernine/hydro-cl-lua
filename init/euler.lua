@@ -57,7 +57,7 @@ end
 function SelfGravProblem:__call(initState, solver)
 	local args = self.args
 
---	solver.useGravity = true
+	solver.useGravity = true
 	--[[ the boundary might not be necessary/appropriate, esp for cylindrical geometry
 	solver:setBoundaryMethods'freeflow'
 	--]]
@@ -1246,10 +1246,10 @@ end ?>;
 	{
 		name = 'Maxwell default',
 		initState = function(self, solver)
-			return [[
-	D.y = 1;
-	B.z = lhs ? 1 : -1;
-]]
+			return template([[
+	D.y = <?=eqn.susc_t?>_from_real(1.);
+	B.z = <?=eqn.susc_t?>_from_real(lhs ? 1. : -1);
+]], solver.eqn:getTemplateEnv())
 		end,
 	},
 
@@ -1260,7 +1260,8 @@ end ?>;
 			return template([[
 	real3 xc = coordMap(x);
 	if (real3_lenSq(xc) < .2*.2) {
-		permittivity = <?=eqn.susc_t?>_from_real(5.);
+		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
+		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
 	}
 ]], solver.eqn:getTemplateEnv())
 		end,
@@ -1334,7 +1335,7 @@ for _,pn in ipairs(obj) do
 	xc = real3_real_mul(xc, 2.);
 	if (testTriangle(xc)) {
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
-		permittivity = _<?=eqn.susc_t?>(5., .1);
+		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
 	}
 ]], solver.eqn:getTemplateEnv())
 		end,
@@ -1462,14 +1463,13 @@ bool testTriangle(real3 xc) {
 	) {
 		//conductivity = 0;
 		//conductivity = <?=clnumber(1/resistivities.copper)?>;
-		//permittivity = 5.;
-		permittivity = _cplx(5., .1);
+		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
 	}
 
-]], {
-			clnumber = clnumber,
-			resistivities = resistivities,
-})
+]], 		table({
+				clnumber = clnumber,
+				resistivities = resistivities,
+			}, solver.eqn:getTemplateEnv()))
 		end,
 	},
 
@@ -1559,21 +1559,21 @@ kernel void addExtraSource(
 				tungsten = 5.65e-8,
 			}:map(function(v) return v * Ohm_in_m end)
 			return template([[
-	D.x = 1;
+	D.x = <?=eqn.susc_t?>_from_real(1.);
 	
-	conductivity = <?=clnumber(1/resistivities.air)?>;
+	conductivity = <?=eqn.susc_t?>_from_real(<?=clnumber(1/resistivities.air)?>);
 	
 	real r2 = x.y * x.y<? if solver.dim == 3 then ?> + x.z * x.z<? end ?>;	
 	
 	if (r2 < .1*.1) {
-		conductivity = <?=clnumber(1/resistivities.copper)?>;
-		//permittivity = 10;
+		conductivity = <?=eqn.susc_t?>_from_real(<?=clnumber(1/resistivities.copper)?>);
+		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
 	}
-]], 		{
+]], 		table({
 				solver = solver,
 				clnumber = clnumber,
 				resistivities = resistivities,
-			})
+			}, solver.eqn:getTemplateEnv()))
 		end,
 	},
 

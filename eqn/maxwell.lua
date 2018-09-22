@@ -165,10 +165,10 @@ real eqn_coordLenSq(cplx3 v, real3 x) {
 		+ coordLenSq(cplx3_im(v), x);
 }
 
-cplx3 eqn_cartesianToCoord(real3 v, real3 x) {
+cplx3 eqn_cartesianToCoord(cplx3 v, real3 x) {
 	return cplx3_from_real3_real3(
-		cartesianToCoord(v, x),
-		cartesianToCoord(real3_zero, x));
+		cartesianToCoord(cplx3_re(v), x),
+		cartesianToCoord(cplx3_im(v), x));
 }
 
 cplx3 eqn_coord_lower(cplx3 v, real3 x) {
@@ -240,7 +240,7 @@ kernel void initState(
 	global <?=cons_t?>* U = UBuf + index;
 
 	//used
-	<?=vec3?> E = <?=vec3?>_zero;
+	<?=vec3?> D = <?=vec3?>_zero;
 	<?=vec3?> B = <?=vec3?>_zero;
 	
 	<?=scalar?> conductivity = <?=scalar?>_from_real(1.);
@@ -255,7 +255,7 @@ kernel void initState(
 	
 <?=code?>
 	
-	U->D = eqn_cartesianToCoord(<?=susc_t?>_<?=vec3?>_mul(permittivity, E), x);
+	U->D = eqn_cartesianToCoord(D, x);
 	U->B = eqn_cartesianToCoord(B, x);
 	U->BPot = <?=zero?>;
 	U->sigma = conductivity;

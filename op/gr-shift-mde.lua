@@ -37,12 +37,16 @@ gamma^jk (D_j beta^i_,k + D_j Gamma^i_lk beta^l + Gamma^i_lk D_j beta^l) + 1/3 g
 	+ R^i_j beta^j 
 ) = 2 alpha_,j A^ij + 2 alpha A^ij_,j + 2 alpha Gamma^i_kj A^kj + 2 alpha Gamma^j_kj A^ik
 
+looks like I'll need a grid of gamma^ij, Gamma^i_jk, and R_ij...
 
-looks like I'll need a grid of gamma^ij, Gamma^i_jk, and R_ij
+TODO generalize relaxation solvers, between this an op/poisson
 --]]
 local class = require 'ext.class'
 
 local MinimalDistortionEllipticShift = class()
+
+function MinimalDistortionEllipticShift:getPotBufType() return 'real3' end
+function MinimalDistortionEllipticShift:getPotBuf() return self.solver.UBuf end
 
 function MinimalDistortionEllipticShift:init(args)
 	self.solver = args.solver
@@ -51,7 +55,10 @@ function MinimalDistortionEllipticShift:init(args)
 end
 
 function MinimalDistortionEllipticShift:getSolverCode()
-
+	return template(file['op/gr-solver-mde.cl'], {
+		op = self,
+		solver = self.solver,
+	})
 end
 
 function MinimalDistortionEllipticShift:refreshSolverProgram()

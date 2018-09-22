@@ -198,7 +198,7 @@ function Poisson:getSolverCode()
 				self:getPoissonCode() or '',
 			}:concat'\n',
 			table(self:getCodeParams(), {
-				poisson = self,
+				op = self,
 				solver = self.solver,
 				eqn = self.solver.eqn,
 			})),
@@ -208,7 +208,7 @@ end
 function Poisson:refreshSolverProgram()
 	local solver = self.solver
 	self:initSolver()
-	self.initPoissonPotentialKernelObj = solver.solverProgramObj:kernel('initPoissonPotential', self:getPotBuf())
+	self.initRelaxationPotentialKernelObj = solver.solverProgramObj:kernel('initRelaxationPotential', self:getPotBuf())
 	self.copyPotentialFieldToVecAndInitBKernelObj = solver.solverProgramObj:kernel('copyPotentialFieldToVecAndInitB', assert(self.krylov_xObj.obj), self.krylov_bObj.obj, self:getPotBuf())
 	self.copyVecToPotentialFieldKernelObj = solver.solverProgramObj:kernel('copyVecToPotentialField', self:getPotBuf(), self.krylov_xObj.obj)
 	self.poissonGMRESLinearFuncKernelObj = solver.solverProgramObj:kernel'poissonGMRESLinearFunc'
@@ -238,7 +238,7 @@ end
 function Poisson:resetState()
 	local solver = self.solver
 	if self.enableField and not solver[self.enableField] then return end
-	self.initPoissonPotentialKernelObj()
+	self.initRelaxationPotentialKernelObj()
 	solver:potentialBoundary()
 	self:relax()
 end

@@ -35,8 +35,8 @@ GLM_Maxwell.initStates = require 'init.euler'
 
 function GLM_Maxwell:init(args)
 
-	--self.scalar = 'real'
-	self.scalar = 'cplx'
+	self.scalar = 'real'
+	--self.scalar = 'cplx'
 	self.vec3 = self.scalar..'3'
 
 	-- TODO tensor susceptibilty support ... but that affects the eigendecomposition ...
@@ -153,7 +153,7 @@ kernel void initState(
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
 	//used
-	<?=vec3?> E = <?=vec3?>_zero;
+	<?=vec3?> D = <?=vec3?>_zero;
 	<?=vec3?> B = <?=vec3?>_zero;
 	<?=scalar?> conductivity = <?=fromreal?>(1.);
 	
@@ -168,7 +168,7 @@ kernel void initState(
 	
 	<?=code?>
 	
-	U->D = eqn_cartesianToCoord(<?=vec3?>_<?=scalar?>_mul(E, permittivity), x);
+	U->D = eqn_cartesianToCoord(D, x);
 	U->B = eqn_cartesianToCoord(B, x);
 	U->phi = <?=zero?>;
 	U->psi = <?=zero?>;

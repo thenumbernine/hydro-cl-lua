@@ -180,9 +180,10 @@ end
 	real3 v = real3_zero;
 	real P = 0;
 	
-	//TODO make this B for Maxwell
+	//set for MHD / Maxwell & thrown away for pure Euler
+	real3 D = real3_zero;
+	real3 B = real3_zero;
 	
-	real3 B = real3_zero;	//set for MHD / thrown away for pure Euler
 	real ePot = 0;
 
 	<?=code?>

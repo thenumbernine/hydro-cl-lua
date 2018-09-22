@@ -205,7 +205,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -256,11 +256,11 @@ maxs = {6,1,1},
 	--initState = '2002 Dedner Kelvin-Helmholtz',
 
 	-- Maxwell:
-	--initState = 'Maxwell default',
-	--initState = 'Maxwell scattering around cylinder',
-	--initState = 'Maxwell scattering around pyramid',
-	--initState = 'Maxwell scattering around Koch snowflake',
-	--initState = 'Maxwell wire',
+	--initState = 'Maxwell default',							-- cplx works poorly with non-GLM
+	--initState = 'Maxwell scattering around cylinder',			-- cplx doesn't work with non-GLM
+	--initState = 'Maxwell scattering around pyramid',			-- not working with the non-GLM cplx (but works for non-GLM real HLL .. but not non-GLM real Roe ...)
+	initState = 'Maxwell scattering around Koch snowflake',		-- not working, for non-GLM cplx (but works for non-GLM real)
+	--initState = 'Maxwell wire',									-- not working for non-GLM cplx (but works for non-GLM real)
 	
 	-- hmm, I think I need a fluid solver for this, not just a Maxwell solver ...
 	--initState = 'Maxwell Lichtenberg',	
@@ -388,7 +388,7 @@ maxs = {6,1,1},
 }
 
 -- HD
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
@@ -447,7 +447,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- Maxwell
 -- when the state is nonzero, at certain sizes there appear errors in the corners
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
+self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 
 -- GLM Maxwell

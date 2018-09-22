@@ -26,10 +26,10 @@ end
 function SelfGrav:getCalcRhoCode()
 	return template([[
 	//maybe a 4pi?  or is that only in the continuous case?
-	rho = <?=clnumber(poisson.gravitationConstant)?>
-		* U-><?=poisson.densityField?>;
+	rho = <?=clnumber(op.gravitationConstant)?>
+		* U-><?=op.densityField?>;
 ]], {
-		poisson = self,
+		op = self,
 		solver = self.solver,
 		eqn = self.solver.eqn,
 		clnumber = require 'cl.obj.number',
