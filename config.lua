@@ -259,7 +259,7 @@ maxs = {6,1,1},
 	--initState = 'Maxwell default',							-- cplx works poorly with non-GLM
 	--initState = 'Maxwell scattering around cylinder',			-- cplx doesn't work with non-GLM
 	--initState = 'Maxwell scattering around pyramid',			-- not working with the non-GLM cplx (but works for non-GLM real HLL .. but not non-GLM real Roe ...)
-	initState = 'Maxwell scattering around Koch snowflake',		-- not working, for non-GLM cplx (but works for non-GLM real)
+	--initState = 'Maxwell scattering around Koch snowflake',		-- not working, for non-GLM cplx (but works for non-GLM real)
 	--initState = 'Maxwell wire',									-- not working for non-GLM cplx (but works for non-GLM real)
 	
 	-- hmm, I think I need a fluid solver for this, not just a Maxwell solver ...
@@ -278,7 +278,7 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 
 
-	--initState = 'Alcubierre warp bubble',
+	initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
@@ -447,7 +447,7 @@ maxs = {6,1,1},
 -- Maxwell
 -- when the state is nonzero, at certain sizes there appear errors in the corners
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
-self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 
 -- GLM Maxwell
@@ -483,7 +483,7 @@ self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator

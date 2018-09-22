@@ -61,15 +61,15 @@ useShift
 function ADM_BonaMasso_3D:init(args)
 
 	local fluxVars = table{
-		{a = 'real3'},
+		{a_l = 'real3'},
 		{d = '_3sym3'},
-		{K = 'sym3'},
+		{K_ll = 'sym3'},
 		{V = 'real3'},
 	}
 
 	self.consVars = table{
 		{alpha = 'real'},
-		{gamma = 'sym3'},
+		{gamma_ll = 'sym3'},
 	}:append(fluxVars)
 
 
@@ -97,6 +97,9 @@ function ADM_BonaMasso_3D:init(args)
 	--]]
 
 	self.useShift = args.useShift
+	
+	-- set to false to disable rho, S_i, S^ij
+	self.useStressEnergyTerms = true
 
 	if self.useShift then
 		self.consVars:insert{beta_u = 'real3'}
@@ -118,6 +121,7 @@ function ADM_BonaMasso_3D:init(args)
 	...or why don't I just scrap the old code, because this runs a lot faster.
 	--]]
 	self.noZeroRowsInFlux = true
+	--self.noZeroRowsInFlux = false
 
 	-- NOTE this doesn't work when using shift ... because then all the eigenvalues are -beta^i, so none of them are zero (except the source-only alpha, beta^i, gamma_ij)
 	-- with the exception of the lagrangian shift.  if we split that operator out then we can first solve the non-shifted system, then second advect it by the shift vector ...
@@ -130,18 +134,31 @@ function ADM_BonaMasso_3D:init(args)
 		self.numWaves = makeStruct.countScalars(fluxVars)
 		assert(self.numWaves == 30)
 	else
-		-- skip alpha, gamma, a_q, d_qij, V_i for q != the direction of flux
+		-- skip alpha, gamma_ij, a_q, d_qij, V_i for q != the direction of flux
 		self.numWaves = 13
 	end
 
 	-- only count int vars after the shifts have been added
 	self.numIntStates = makeStruct.countScalars(self.consVars)
 
+	-- now add in the source terms (if you want them)
+	if self.useStressEnergyTerms then
+		self.consVars:append{
+			--stress-energy variables:
+			{rho = 'real'},					--1: n_a n_b T^ab
+			{S_u = 'real3'},				--3: -gamma^ij n_a T_aj
+			{S_ll = 'sym3'},				--6: gamma_i^c gamma_j^d T_cd
+										
+			--constraints:              
+			{H = 'real'},					--1
+			{M_u = 'real3'},				--3
+		}
+	end
 
 	self.eigenVars = table{
 		{alpha = 'real'},
 		{sqrt_f = 'real'},
-		{gammaU = 'sym3'},
+		{gamma_uu = 'sym3'},
 		-- sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
 		{sqrt_gammaUjj = 'real3'},
 	}
@@ -196,17 +213,25 @@ function ADM_BonaMasso_3D:getCommonFuncCode()
 	return template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->alpha = 1.;
-	U->gamma = sym3_ident;
-	U->a = real3_zero;
+	U->gamma_ll = sym3_ident;
+	U->a_l = real3_zero;
 	U->d.x = sym3_zero;
 	U->d.y = sym3_zero;
 	U->d.z = sym3_zero;
-	U->K = sym3_zero;
+	U->K_ll = sym3_zero;
 	U->V = real3_zero;
 <? if eqn.useShift then 
 ?>	U->beta_u = real3_zero;
 <? end 
-?>
+?>	
+<? if eqn.useStressEnergyTerms then ?>
+	//what to do with the constraint vars and the source vars?
+	U->rho = 0;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+	U->H = 0;
+	U->M_u = real3_zero;
+<? end ?>
 }
 ]], {eqn=self})
 end
@@ -242,13 +267,20 @@ kernel void initState(
 	<?=code?>
 
 	U->alpha = alpha;
-	U->gamma = gamma_ll;
-	U->K = K_ll;
+	U->gamma_ll = gamma_ll;
+	U->K_ll = K_ll;
 	U->V = real3_zero;
 <? if eqn.useShift then
 ?>	U->beta_u = beta_u;
 <? end
 ?>
+<? if eqn.useStressEnergyTerms then ?>
+	U->rho = 0;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+	U->H = 0;
+	U->M_u = real3_zero;
+<? end ?>
 }
 
 kernel void initDerivs(
@@ -257,23 +289,23 @@ kernel void initDerivs(
 	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
-	real det_gamma = sym3_det(U->gamma);
-	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
 
 <? 
 for i=1,solver.dim do 
 	local xi = xNames[i]
 ?>
-	U->a.<?=xi?> = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (grid_dx<?=i-1?> * U->alpha);
+	U->a_l.<?=xi?> = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (grid_dx<?=i-1?> * U->alpha);
 	<? for jk,xjk in ipairs(symNames) do ?>
-	U->d.<?=xi?>.<?=xjk?> = .5 * (U[stepsize.<?=xi?>].gamma.<?=xjk?> - U[-stepsize.<?=xi?>].gamma.<?=xjk?>) / grid_dx<?=i-1?>;
+	U->d.<?=xi?>.<?=xjk?> = .5 * (U[stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / grid_dx<?=i-1?>;
 	<? end ?>
 <? 
 end 
 for i=solver.dim+1,3 do
 	local xi = xNames[i]
 ?>
-	U->a.<?=xi?> = 0;
+	U->a_l.<?=xi?> = 0;
 	U->d.<?=xi?> = sym3_zero;
 <?
 end
@@ -284,7 +316,7 @@ end
 	U->V.<?=xi?> = 0.<?
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
-?> + gammaU.<?=sym(j,k)?> * ( U->d.<?=xi?>.<?=sym(j,k)?> - U->d.<?=xj?>.<?=sym(k,i)?> )<?
+?> + gamma_uu.<?=sym(j,k)?> * ( U->d.<?=xi?>.<?=sym(j,k)?> - U->d.<?=xj?>.<?=sym(k,i)?> )<?
 		end
 	end ?>;
 <? end ?>
@@ -297,19 +329,19 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	local vars = ADM_BonaMasso_3D.super.getDisplayVars(self)
 
 	vars:append{
-		{det_gamma = '*value = sym3_det(U->gamma);'},
-		{volume = '*value = U->alpha * sqrt(sym3_det(U->gamma));'},
+		{det_gamma = '*value = sym3_det(U->gamma_ll);'},
+		{volume = '*value = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
 		{f = '*value = calc_f(U->alpha);'},
 		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
-		{K = [[
-	real det_gamma = sym3_det(U->gamma);
-	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	*value = sym3_dot(gammaU, U->K);
+		{K_ll = [[
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	*value = sym3_dot(gamma_uu, U->K_ll);
 ]]		},
 		{expansion = [[
-	real det_gamma = sym3_det(U->gamma);
-	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	*value = -sym3_dot(gammaU, U->K);
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	*value = -sym3_dot(gamma_uu, U->K_ll);
 ]]		},
 	}:append{
 --[=[
@@ -332,9 +364,9 @@ momentum constraints
 	-- gravity with shift is much more complex
 	-- TODO add shift influence (which is lengthy)
 	vars:insert{gravity = [[
-	real det_gamma = sym3_det(U->gamma);
-	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
-	*value_real3 = real3_real_mul(sym3_real3_mul(gammaU, U->a), -U->alpha * U->alpha);
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	*value_real3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
 ]], type='real3'}
 
 	vars:insert{['alpha vs a_i'] = template([[
@@ -345,7 +377,7 @@ momentum constraints
 			local xi = xNames[i]
 		?>{
 			real di_alpha = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (2. * grid_dx<?=i-1?>);
-			value_real3-><?=xi?> = fabs(di_alpha - U->alpha * U->a.<?=xi?>);
+			value_real3-><?=xi?> = fabs(di_alpha - U->alpha * U->a_l.<?=xi?>);
 		}<? end ?>
 		<? for i=solver.dim+1,3 do
 			local xi = xNames[i]
@@ -367,8 +399,8 @@ momentum constraints
 		<? if i <= solver.dim then ?>
 		sym3 di_gamma_jk = sym3_real_mul(
 			sym3_sub(
-				U[stepsize.<?=xi?>].gamma, 
-				U[-stepsize.<?=xi?>].gamma
+				U[stepsize.<?=xi?>].gamma_ll, 
+				U[-stepsize.<?=xi?>].gamma_ll
 			), 
 			1. / (2. * grid_dx<?=i-1?>)
 		);
@@ -392,14 +424,14 @@ momentum constraints
 	end
 
 	vars:insert{['V constraint'] = template([[
-	real det_gamma = sym3_det(U->gamma);
-	sym3 gammaU = sym3_inv(U->gamma, det_gamma);
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
 	<? for i,xi in ipairs(xNames) do ?>{
-		real d1 = sym3_dot(U->d.<?=xi?>, gammaU);
+		real d1 = sym3_dot(U->d.<?=xi?>, gamma_uu);
 		real d2 = 0.<?
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
-?> + U->d.<?=xj?>.<?=sym(k,i)?> * gammaU.<?=sym(j,k)?><?
+?> + U->d.<?=xj?>.<?=sym(k,i)?> * gamma_uu.<?=sym(j,k)?><?
 		end
 	end ?>;
 		value_real3-><?=xi?> = U->V.<?=xi?> - (d1 - d2);
@@ -470,14 +502,14 @@ end
 
 function ADM_BonaMasso_3D:consWaveCodePrefix(side, U, x, waveIndex)
 	return template([[
-	real det_gamma = sym3_det(<?=U?>.gamma);
-	sym3 gammaU = sym3_inv(<?=U?>.gamma, det_gamma);
+	real det_gamma = sym3_det(<?=U?>.gamma_ll);
+	sym3 gamma_uu = sym3_inv(<?=U?>.gamma_ll, det_gamma);
 	<? if side==0 then ?>
-	real eig_lambdaLight = <?=U?>.alpha * sqrt(gammaU.xx);
+	real eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.xx);
 	<? elseif side==1 then ?>                          
-	real eig_lambdaLight = <?=U?>.alpha * sqrt(gammaU.yy);
+	real eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.yy);
 	<? elseif side==2 then ?>                          
-	real eig_lambdaLight = <?=U?>.alpha * sqrt(gammaU.zz);
+	real eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.zz);
 	<? end ?>
 	real f = calc_f(<?=U?>.alpha);
 	real eig_lambdaGauge = eig_lambdaLight * sqrt(f);
@@ -494,9 +526,9 @@ function ADM_BonaMasso_3D:fillRandom(epsilon)
 	local solver = self.solver
 	for i=0,solver.numCells-1 do
 		ptr[i].alpha = ptr[i].alpha + 1
-		ptr[i].gamma.xx = ptr[i].gamma.xx + 1
-		ptr[i].gamma.yy = ptr[i].gamma.yy + 1
-		ptr[i].gamma.zz = ptr[i].gamma.zz + 1
+		ptr[i].gamma_ll.xx = ptr[i].gamma_ll.xx + 1
+		ptr[i].gamma_ll.yy = ptr[i].gamma_ll.yy + 1
+		ptr[i].gamma_ll.zz = ptr[i].gamma_ll.zz + 1
 	end
 	solver.UBufObj:fromCPU(ptr)
 	return ptr
