@@ -164,80 +164,80 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	results.ptr[7] = inputU.a_l.z;
 
 	//d_yij
-	results.ptr[8] = inputU.d.y.xx;
-	results.ptr[9] = inputU.d.y.xy;
-	results.ptr[10] = inputU.d.y.xz;
-	results.ptr[11] = inputU.d.y.yy;
-	results.ptr[12] = inputU.d.y.yz;
-	results.ptr[13] = inputU.d.y.zz;
+	results.ptr[8] = inputU.d_lll.y.xx;
+	results.ptr[9] = inputU.d_lll.y.xy;
+	results.ptr[10] = inputU.d_lll.y.xz;
+	results.ptr[11] = inputU.d_lll.y.yy;
+	results.ptr[12] = inputU.d_lll.y.yz;
+	results.ptr[13] = inputU.d_lll.y.zz;
 
 	//d_zij
-	results.ptr[14] = inputU.d.z.xx;
-	results.ptr[15] = inputU.d.z.xy;
-	results.ptr[16] = inputU.d.z.xz;
-	results.ptr[17] = inputU.d.z.yy;
-	results.ptr[18] = inputU.d.z.yz;
-	results.ptr[19] = inputU.d.z.zz;
+	results.ptr[14] = inputU.d_lll.z.xx;
+	results.ptr[15] = inputU.d_lll.z.xy;
+	results.ptr[16] = inputU.d_lll.z.xz;
+	results.ptr[17] = inputU.d_lll.z.yy;
+	results.ptr[18] = inputU.d_lll.z.yz;
+	results.ptr[19] = inputU.d_lll.z.zz;
 
 	//V_j
-	results.ptr[20] = inputU.V.x;
-	results.ptr[21] = inputU.V.y;
-	results.ptr[22] = inputU.V.z;
+	results.ptr[20] = inputU.V_l.x;
+	results.ptr[21] = inputU.V_l.y;
+	results.ptr[22] = inputU.V_l.z;
 	
 	sym3 K_sqrt_gammaUxx = sym3_real_mul(inputU.K_ll, eig.sqrt_gammaUjj.x);
 
 	//a^x - f d^xj_j
 
 	real f = eig.sqrt_f * eig.sqrt_f;
-	real d_x_input = sym3_dot(eig.gamma_uu, inputU.d.x);
+	real d_x_input = sym3_dot(eig.gamma_uu, inputU.d_lll.x);
 	results.ptr[23] = inputU.a_l.x - f * d_x_input;
 
 	//gauge:
 	//sqrt(f gamma^xx) K +- (a^x + 2 V^x)
 
 	real ev0a = eig.sqrt_f * sym3_dot(eig.gamma_uu, K_sqrt_gammaUxx);
-	real ev0b = eig.gamma_uu.xx * (inputU.a_l.x + 2. * inputU.V.x) 
-				+ eig.gamma_uu.xy * (inputU.a_l.y + 2. * inputU.V.y)
-				+ eig.gamma_uu.xz * (inputU.a_l.z + 2. * inputU.V.z);
+	real ev0b = eig.gamma_uu.xx * (inputU.a_l.x + 2. * inputU.V_l.x) 
+				+ eig.gamma_uu.xy * (inputU.a_l.y + 2. * inputU.V_l.y)
+				+ eig.gamma_uu.xz * (inputU.a_l.z + 2. * inputU.V_l.z);
 	results.ptr[0] = ev0a - ev0b;
 	results.ptr[29] = ev0a + ev0b;
 
 	//light:
 	//sqrt(gamma^xx) K_xy +- (d^x_xy + .5 (a_y - d_yj^j) + V_y)
 
-	real d_y_input = sym3_dot(eig.gamma_uu, inputU.d.y);
-	real dUx_xy_input = eig.gamma_uu.xx * inputU.d.x.xy + eig.gamma_uu.xy * inputU.d.y.xy + eig.gamma_uu.xz * inputU.d.z.xy;
-	real ev1b = .5 * (inputU.a_l.y - d_y_input) + inputU.V.y + dUx_xy_input;
+	real d_y_input = sym3_dot(eig.gamma_uu, inputU.d_lll.y);
+	real dUx_xy_input = eig.gamma_uu.xx * inputU.d_lll.x.xy + eig.gamma_uu.xy * inputU.d_lll.y.xy + eig.gamma_uu.xz * inputU.d_lll.z.xy;
+	real ev1b = .5 * (inputU.a_l.y - d_y_input) + inputU.V_l.y + dUx_xy_input;
 	results.ptr[1] = K_sqrt_gammaUxx.xy - ev1b;
 	results.ptr[24] = K_sqrt_gammaUxx.xy + ev1b;
 
 	//light:
 	//sqrt(gamma^xx) K_xz +- (d^x_xz + .5 (a_z - d_zj^j) + V_z)
 
-	real d_z_input = sym3_dot(eig.gamma_uu, inputU.d.z);
-	real dUx_xz_input = eig.gamma_uu.xx * inputU.d.x.xz + eig.gamma_uu.xy * inputU.d.y.xz + eig.gamma_uu.xz * inputU.d.z.xz;
-	real ev2b = .5 * (inputU.a_l.z - d_z_input) + inputU.V.z + dUx_xz_input;
+	real d_z_input = sym3_dot(eig.gamma_uu, inputU.d_lll.z);
+	real dUx_xz_input = eig.gamma_uu.xx * inputU.d_lll.x.xz + eig.gamma_uu.xy * inputU.d_lll.y.xz + eig.gamma_uu.xz * inputU.d_lll.z.xz;
+	real ev2b = .5 * (inputU.a_l.z - d_z_input) + inputU.V_l.z + dUx_xz_input;
 	results.ptr[2] = K_sqrt_gammaUxx.xz - ev2b;
 	results.ptr[25] = K_sqrt_gammaUxx.xz + ev2b;
 
 	//light:
 	//sqrt(gamma^xx) K_yy +- d^x_yy
 
-	real dUx_yy_input = eig.gamma_uu.xx * inputU.d.x.yy + eig.gamma_uu.xy * inputU.d.y.yy + eig.gamma_uu.xz * inputU.d.z.yy;
+	real dUx_yy_input = eig.gamma_uu.xx * inputU.d_lll.x.yy + eig.gamma_uu.xy * inputU.d_lll.y.yy + eig.gamma_uu.xz * inputU.d_lll.z.yy;
 	results.ptr[3] = K_sqrt_gammaUxx.yy - dUx_yy_input;
 	results.ptr[26] = K_sqrt_gammaUxx.yy + dUx_yy_input;
 
 	//light:
 	//sqrt(gamma^xx) K_yz +- d^x_yz
 
-	real dUx_yz_input = eig.gamma_uu.xx * inputU.d.x.yz + eig.gamma_uu.xy * inputU.d.y.yz + eig.gamma_uu.xz * inputU.d.z.yz;
+	real dUx_yz_input = eig.gamma_uu.xx * inputU.d_lll.x.yz + eig.gamma_uu.xy * inputU.d_lll.y.yz + eig.gamma_uu.xz * inputU.d_lll.z.yz;
 	results.ptr[4] = K_sqrt_gammaUxx.yz - dUx_yz_input; 
 	results.ptr[27] = K_sqrt_gammaUxx.yz + dUx_yz_input;
 
 	//light:
 	//sqrt(gamma^xx) K_zz +- d^x_zz
 
-	real dUx_zz_input = eig.gamma_uu.xx * inputU.d.x.zz + eig.gamma_uu.xy * inputU.d.y.zz + eig.gamma_uu.xz * inputU.d.z.zz;
+	real dUx_zz_input = eig.gamma_uu.xx * inputU.d_lll.x.zz + eig.gamma_uu.xy * inputU.d_lll.y.zz + eig.gamma_uu.xz * inputU.d_lll.z.zz;
 	results.ptr[5] = K_sqrt_gammaUxx.zz - dUx_zz_input;
 	results.ptr[28] = K_sqrt_gammaUxx.zz + dUx_zz_input;
 
@@ -248,80 +248,80 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	results.ptr[7] = inputU.a_l.z;
 
 	//d_xij
-	results.ptr[8] = inputU.d.x.xx;
-	results.ptr[9] = inputU.d.x.xy;
-	results.ptr[10] = inputU.d.x.xz;
-	results.ptr[11] = inputU.d.x.yy;
-	results.ptr[12] = inputU.d.x.yz;
-	results.ptr[13] = inputU.d.x.zz;
+	results.ptr[8] = inputU.d_lll.x.xx;
+	results.ptr[9] = inputU.d_lll.x.xy;
+	results.ptr[10] = inputU.d_lll.x.xz;
+	results.ptr[11] = inputU.d_lll.x.yy;
+	results.ptr[12] = inputU.d_lll.x.yz;
+	results.ptr[13] = inputU.d_lll.x.zz;
 	
 	//d_zij
-	results.ptr[14] = inputU.d.z.xx;
-	results.ptr[15] = inputU.d.z.xy;
-	results.ptr[16] = inputU.d.z.xz;
-	results.ptr[17] = inputU.d.z.yy;
-	results.ptr[18] = inputU.d.z.yz;
-	results.ptr[19] = inputU.d.z.zz;
+	results.ptr[14] = inputU.d_lll.z.xx;
+	results.ptr[15] = inputU.d_lll.z.xy;
+	results.ptr[16] = inputU.d_lll.z.xz;
+	results.ptr[17] = inputU.d_lll.z.yy;
+	results.ptr[18] = inputU.d_lll.z.yz;
+	results.ptr[19] = inputU.d_lll.z.zz;
 	
 	//V_j
-	results.ptr[20] = inputU.V.x;
-	results.ptr[21] = inputU.V.y;
-	results.ptr[22] = inputU.V.z;
+	results.ptr[20] = inputU.V_l.x;
+	results.ptr[21] = inputU.V_l.y;
+	results.ptr[22] = inputU.V_l.z;
 	
 	sym3 K_sqrt_gammaUyy = sym3_real_mul(inputU.K_ll, eig.sqrt_gammaUjj.y);
 
 	//a^y - f d^yj_j
 
 	real f = eig.sqrt_f * eig.sqrt_f;
-	real d_y_input = sym3_dot(eig.gamma_uu, inputU.d.y);
+	real d_y_input = sym3_dot(eig.gamma_uu, inputU.d_lll.y);
 	results.ptr[23] = inputU.a_l.y - f * d_y_input;
 	
 	//gauge:
 	//sqrt(f gamma^yy) K +- (a^y + 2 V^y)
 
 	real ev0a = eig.sqrt_f * sym3_dot(eig.gamma_uu, K_sqrt_gammaUyy);
-	real ev0b = eig.gamma_uu.xy * (inputU.a_l.x + 2. * inputU.V.x)
-				+ eig.gamma_uu.yy * (inputU.a_l.y + 2. * inputU.V.y)
-				+ eig.gamma_uu.yz * (inputU.a_l.z + 2. * inputU.V.z);
+	real ev0b = eig.gamma_uu.xy * (inputU.a_l.x + 2. * inputU.V_l.x)
+				+ eig.gamma_uu.yy * (inputU.a_l.y + 2. * inputU.V_l.y)
+				+ eig.gamma_uu.yz * (inputU.a_l.z + 2. * inputU.V_l.z);
 	results.ptr[0] = ev0a - ev0b;
 	results.ptr[29] = ev0a + ev0b;
 
 	//light:
 	//sqrt(gamma^yy) K_xx +- d^y_xx
 
-	real dUy_xx_input = eig.gamma_uu.xy * inputU.d.x.xx + eig.gamma_uu.yy * inputU.d.y.xx + eig.gamma_uu.yz * inputU.d.z.xx;
+	real dUy_xx_input = eig.gamma_uu.xy * inputU.d_lll.x.xx + eig.gamma_uu.yy * inputU.d_lll.y.xx + eig.gamma_uu.yz * inputU.d_lll.z.xx;
 	results.ptr[1] = K_sqrt_gammaUyy.xx - dUy_xx_input;
 	results.ptr[24] = K_sqrt_gammaUyy.xx + dUy_xx_input;
 
 	//light:
 	//sqrt(gamma^yy) K_xy +- (d^y_xy + .5 (a_x - d_xj^j) + V_x)
 
-	real d_x_input = sym3_dot(eig.gamma_uu, inputU.d.x);
-	real dUy_xy_input = eig.gamma_uu.xy * inputU.d.x.xy + eig.gamma_uu.yy * inputU.d.y.xy + eig.gamma_uu.yz * inputU.d.z.xy;
-	real ev2b = dUy_xy_input + .5 * (inputU.a_l.x - d_x_input) + inputU.V.x;
+	real d_x_input = sym3_dot(eig.gamma_uu, inputU.d_lll.x);
+	real dUy_xy_input = eig.gamma_uu.xy * inputU.d_lll.x.xy + eig.gamma_uu.yy * inputU.d_lll.y.xy + eig.gamma_uu.yz * inputU.d_lll.z.xy;
+	real ev2b = dUy_xy_input + .5 * (inputU.a_l.x - d_x_input) + inputU.V_l.x;
 	results.ptr[2] = K_sqrt_gammaUyy.xy - ev2b;
 	results.ptr[25] = K_sqrt_gammaUyy.xy + ev2b;
 
 	//light:
 	//sqrt(gamma^yy) K_xz +- d^y_xz
 
-	real dUy_xz_input = eig.gamma_uu.xy * inputU.d.x.xz + eig.gamma_uu.yy * inputU.d.y.xz + eig.gamma_uu.yz * inputU.d.z.xz;
+	real dUy_xz_input = eig.gamma_uu.xy * inputU.d_lll.x.xz + eig.gamma_uu.yy * inputU.d_lll.y.xz + eig.gamma_uu.yz * inputU.d_lll.z.xz;
 	results.ptr[3] = K_sqrt_gammaUyy.xz - dUy_xz_input;
 	results.ptr[26] = K_sqrt_gammaUyy.xz + dUy_xz_input;
 
 	//light:
 	//sqrt(gamma^yy) K_yz +- (d^y_yz + .5 (a_z - d_zj^j) + V_z)
 
-	real dUy_yz_input = eig.gamma_uu.xy * inputU.d.x.yz + eig.gamma_uu.yy * inputU.d.y.yz + eig.gamma_uu.yz * inputU.d.z.yz;
-	real d_z_input = sym3_dot(eig.gamma_uu, inputU.d.z);
-	real ev4b = dUy_yz_input + .5 * (inputU.a_l.z - d_z_input) + inputU.V.z;
+	real dUy_yz_input = eig.gamma_uu.xy * inputU.d_lll.x.yz + eig.gamma_uu.yy * inputU.d_lll.y.yz + eig.gamma_uu.yz * inputU.d_lll.z.yz;
+	real d_z_input = sym3_dot(eig.gamma_uu, inputU.d_lll.z);
+	real ev4b = dUy_yz_input + .5 * (inputU.a_l.z - d_z_input) + inputU.V_l.z;
 	results.ptr[4] = K_sqrt_gammaUyy.yz - ev4b;
 	results.ptr[27] = K_sqrt_gammaUyy.yz + ev4b;
 
 	//light:
 	//sqrt(gamma^yy) K_zz +- d^y_zz
 
-	real dUy_zz_input = eig.gamma_uu.xy * inputU.d.x.zz + eig.gamma_uu.yy * inputU.d.y.zz + eig.gamma_uu.yz * inputU.d.z.zz;
+	real dUy_zz_input = eig.gamma_uu.xy * inputU.d_lll.x.zz + eig.gamma_uu.yy * inputU.d_lll.y.zz + eig.gamma_uu.yz * inputU.d_lll.z.zz;
 	results.ptr[5] = K_sqrt_gammaUyy.zz - dUy_zz_input;
 	results.ptr[28] = K_sqrt_gammaUyy.zz - dUy_zz_input;
 	
@@ -332,80 +332,80 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	results.ptr[7] = inputU.a_l.y;
 	
 	//d_xij
-	results.ptr[8] =  inputU.d.x.xx;
-	results.ptr[9] =  inputU.d.x.xy;
-	results.ptr[10] = inputU.d.x.xz;
-	results.ptr[11] = inputU.d.x.yy;
-	results.ptr[12] = inputU.d.x.yz;
-	results.ptr[13] = inputU.d.x.zz;
+	results.ptr[8] =  inputU.d_lll.x.xx;
+	results.ptr[9] =  inputU.d_lll.x.xy;
+	results.ptr[10] = inputU.d_lll.x.xz;
+	results.ptr[11] = inputU.d_lll.x.yy;
+	results.ptr[12] = inputU.d_lll.x.yz;
+	results.ptr[13] = inputU.d_lll.x.zz;
 	
 	//d_yij
-	results.ptr[14] = inputU.d.y.xx;
-	results.ptr[15] = inputU.d.y.xy;
-	results.ptr[16] = inputU.d.y.xz;
-	results.ptr[17] = inputU.d.y.yy;
-	results.ptr[18] = inputU.d.y.yz;
-	results.ptr[19] = inputU.d.y.zz;
+	results.ptr[14] = inputU.d_lll.y.xx;
+	results.ptr[15] = inputU.d_lll.y.xy;
+	results.ptr[16] = inputU.d_lll.y.xz;
+	results.ptr[17] = inputU.d_lll.y.yy;
+	results.ptr[18] = inputU.d_lll.y.yz;
+	results.ptr[19] = inputU.d_lll.y.zz;
 	
 	//V_j
-	results.ptr[20] = inputU.V.x;
-	results.ptr[21] = inputU.V.y;
-	results.ptr[22] = inputU.V.z;
+	results.ptr[20] = inputU.V_l.x;
+	results.ptr[21] = inputU.V_l.y;
+	results.ptr[22] = inputU.V_l.z;
 
 	sym3 K_sqrt_gammaUzz = sym3_real_mul(inputU.K_ll, eig.sqrt_gammaUjj.z);
 
 	//a^z - f d^zj_j
 
 	real f = eig.sqrt_f * eig.sqrt_f;
-	real d_z_input = sym3_dot(eig.gamma_uu, inputU.d.z);
+	real d_z_input = sym3_dot(eig.gamma_uu, inputU.d_lll.z);
 	results.ptr[23] = inputU.a_l.z - f * d_z_input;
 
 	//gauge:
 	//sqrt(f gamma^zz) K +- (a^z + 2 V^z)
 
 	real ev0a = eig.sqrt_f * sym3_dot(eig.gamma_uu, K_sqrt_gammaUzz);
-	real ev0b = eig.gamma_uu.xz * (inputU.a_l.x + 2. * inputU.V.x)
-				+ eig.gamma_uu.yz * (inputU.a_l.y + 2. * inputU.V.y)
-				+ eig.gamma_uu.zz * (inputU.a_l.z + 2. * inputU.V.z);
+	real ev0b = eig.gamma_uu.xz * (inputU.a_l.x + 2. * inputU.V_l.x)
+				+ eig.gamma_uu.yz * (inputU.a_l.y + 2. * inputU.V_l.y)
+				+ eig.gamma_uu.zz * (inputU.a_l.z + 2. * inputU.V_l.z);
 	results.ptr[0] = ev0a - ev0b;
 	results.ptr[29] = ev0a + ev0b;
 
 	//light:
 	//sqrt(gamma^zz) K_xx +- d^z_xx
 	
-	real dUz_xx_input = eig.gamma_uu.xz * inputU.d.x.xx + eig.gamma_uu.yz * inputU.d.y.xx + eig.gamma_uu.zz * inputU.d.z.xx;
+	real dUz_xx_input = eig.gamma_uu.xz * inputU.d_lll.x.xx + eig.gamma_uu.yz * inputU.d_lll.y.xx + eig.gamma_uu.zz * inputU.d_lll.z.xx;
 	results.ptr[1] = K_sqrt_gammaUzz.xx - dUz_xx_input;
 	results.ptr[24] = K_sqrt_gammaUzz.xx + dUz_xx_input;
 
 	//light:
 	//sqrt(gamma^zz) K_xy +- d^z_xy
 
-	real dUz_xy_input = eig.gamma_uu.xz * inputU.d.x.xy + eig.gamma_uu.yz * inputU.d.y.xy + eig.gamma_uu.zz * inputU.d.z.xy;
+	real dUz_xy_input = eig.gamma_uu.xz * inputU.d_lll.x.xy + eig.gamma_uu.yz * inputU.d_lll.y.xy + eig.gamma_uu.zz * inputU.d_lll.z.xy;
 	results.ptr[2] = K_sqrt_gammaUzz.xy - dUz_xy_input;
 	results.ptr[25] = K_sqrt_gammaUzz.xy + dUz_xy_input;
 
 	//light:
 	//sqrt(gamma^zz) K_xz +- (d^z_xz + .5 (a_x - d_xj^j) + V_x)
 	
-	real d_x_input = sym3_dot(eig.gamma_uu, inputU.d.x);
-	real dUz_xz_input = eig.gamma_uu.xz * inputU.d.x.xz + eig.gamma_uu.yz * inputU.d.y.xz + eig.gamma_uu.zz * inputU.d.z.xz;
-	real ev3b = .5 * (inputU.a_l.x - d_x_input) + inputU.V.x + dUz_xz_input;
+	real d_x_input = sym3_dot(eig.gamma_uu, inputU.d_lll.x);
+	real dUz_xz_input = eig.gamma_uu.xz * inputU.d_lll.x.xz + eig.gamma_uu.yz * inputU.d_lll.y.xz + eig.gamma_uu.zz * inputU.d_lll.z.xz;
+	real ev3b = .5 * (inputU.a_l.x - d_x_input) + inputU.V_l.x + dUz_xz_input;
 	results.ptr[3] = K_sqrt_gammaUzz.xz - ev3b;
 	results.ptr[26] = K_sqrt_gammaUzz.xz + ev3b;
 
 	//light:
 	//sqrt(gamma^zz) K_yy +- d^z_yy
 
-	real dUz_yy_input = eig.gamma_uu.xz * inputU.d.x.yy + eig.gamma_uu.yz * inputU.d.y.yy + eig.gamma_uu.zz * inputU.d.z.yy;
+	real dUz_yy_input = eig.gamma_uu.xz * inputU.d_lll.x.yy + eig.gamma_uu.yz * inputU.d_lll.y.yy + eig.gamma_uu.zz * inputU.d_lll.z.yy;
 	results.ptr[4] = K_sqrt_gammaUzz.yy - dUz_yy_input;
 	results.ptr[27] = K_sqrt_gammaUzz.yy + dUz_yy_input;
 	
 	//light:
 	//sqrt(gamma^zz) K_yz
 
-	real d_y_input = sym3_dot(eig.gamma_uu, inputU.d.y);
-	real dUz_yz_input = eig.gamma_uu.xz * inputU.d.x.yz + eig.gamma_uu.yz * inputU.d.y.yz + eig.gamma_uu.zz * inputU.d.z.yz;
-	real ev5b = .5 * (inputU.a_l.y - d_y_input) + inputU.V.y + dUz_yz_input;
+	real d_y_input = sym3_dot(eig.gamma_uu, inputU.d_lll.y);
+	real dUz_yz_input = eig.gamma_uu.xz * inputU.d_lll.x.yz + eig.gamma_uu.yz * inputU.d_lll.y.yz + eig.gamma_uu.zz * inputU.d_lll.z.yz;
+	real ev5b = .5 * (inputU.a_l.y - d_y_input) + inputU.V_l.y + dUz_yz_input;
 	results.ptr[5] = K_sqrt_gammaUzz.yz - ev5b;
 	results.ptr[28] = K_sqrt_gammaUzz.yz + ev5b;
 
@@ -421,23 +421,23 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real a_j = inputU.a_l.s<?=side?>;
 
 	//now swap x and side on the sym3's
-	sym3 d = sym3_swap<?=side?>(inputU.d.v<?=side?>);
+	sym3 d_lll = sym3_swap<?=side?>(inputU.d_lll.v<?=side?>);
 	sym3 K_ll = sym3_swap<?=side?>(inputU.K_ll);
 	sym3 gamma_uu = sym3_swap<?=side?>(eig.gamma_uu);
 
 	real K_dot_eig_gamma = sym3_dot(K_ll, gamma_uu);
-	real dj_dot_eig_gamma = sym3_dot(d, gamma_uu);
+	real dj_dot_eig_gamma = sym3_dot(d_lll, gamma_uu);
 
 	results.ptr[0] = (a_j * -sqrt_gammaUjj * _1_sqrt_f + K_dot_eig_gamma) * .5 * _1_gammaUjj;
 
 		<? for i=1,5 do ?>
-	results.ptr[<?=i?>] = .5 * (-sqrt_gammaUjj * d.s[<?=i?>] + K_ll.s[<?=i?>]);
+	results.ptr[<?=i?>] = .5 * (-sqrt_gammaUjj * d_lll.s[<?=i?>] + K_ll.s[<?=i?>]);
 		<? end ?>
 
 	results.ptr[6] = (-a_j * _1_f + dj_dot_eig_gamma) * _1_gammaUjj;
 
 		<? for i=1,5 do ?>
-	results.ptr[<?=6+i?>] = .5 * (sqrt_gammaUjj * d.s[<?=i?>] + K_ll.s[<?=i?>]);
+	results.ptr[<?=6+i?>] = .5 * (sqrt_gammaUjj * d_lll.s[<?=i?>] + K_ll.s[<?=i?>]);
 		<? end ?>
 
 	results.ptr[12] = (a_j * sqrt_gammaUjj * _1_sqrt_f + K_dot_eig_gamma) * .5 * _1_gammaUjj;
@@ -467,23 +467,23 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	resultU.a_l.y = input.ptr[6];
 	resultU.a_l.z = input.ptr[7];
 	
-	resultU.d.y.xx = input.ptr[8];
-	resultU.d.y.xy = input.ptr[9];
-	resultU.d.y.xz = input.ptr[10];
-	resultU.d.y.yy = input.ptr[11];
-	resultU.d.y.yz = input.ptr[12];
-	resultU.d.y.zz = input.ptr[13];
+	resultU.d_lll.y.xx = input.ptr[8];
+	resultU.d_lll.y.xy = input.ptr[9];
+	resultU.d_lll.y.xz = input.ptr[10];
+	resultU.d_lll.y.yy = input.ptr[11];
+	resultU.d_lll.y.yz = input.ptr[12];
+	resultU.d_lll.y.zz = input.ptr[13];
 	
-	resultU.d.z.xx = input.ptr[14];
-	resultU.d.z.xy = input.ptr[15];
-	resultU.d.z.xz = input.ptr[16];
-	resultU.d.z.yy = input.ptr[17];
-	resultU.d.z.yz = input.ptr[18];
-	resultU.d.z.zz = input.ptr[19];
+	resultU.d_lll.z.xx = input.ptr[14];
+	resultU.d_lll.z.xy = input.ptr[15];
+	resultU.d_lll.z.xz = input.ptr[16];
+	resultU.d_lll.z.yy = input.ptr[17];
+	resultU.d_lll.z.yz = input.ptr[18];
+	resultU.d_lll.z.zz = input.ptr[19];
 	
-	resultU.V.x = input.ptr[20];
-	resultU.V.y = input.ptr[21];
-	resultU.V.z = input.ptr[22];
+	resultU.V_l.x = input.ptr[20];
+	resultU.V_l.y = input.ptr[21];
+	resultU.V_l.z = input.ptr[22];
 
 	real sqrt_gammaUxx = eig.sqrt_gammaUjj.x;
 	real _1_sqrt_gammaUxx = 1. / sqrt_gammaUxx;
@@ -525,7 +525,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real _1_sqrt_f = 1. / eig.sqrt_f;
 	real _1_f = _1_sqrt_f * _1_sqrt_f;
 
-	resultU.d.x.xx = -(
+	resultU.d_lll.x.xx = -(
 			- K_input_minus
 			+ K_input_plus
 
@@ -562,7 +562,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 			+ eig.gamma_uu.yz * input.ptr[12]
 		);
 	
-	resultU.d.x.xy = -(
+	resultU.d_lll.x.xy = -(
 			input.ptr[1]
 			+ input.ptr[6]
 			- d_y_input
@@ -583,7 +583,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 			+ eig.gamma_uu.yz * input.ptr[18]
 		);
 
-	resultU.d.x.xz = -(
+	resultU.d_lll.x.xz = -(
 			input.ptr[2]
 			+ input.ptr[7]
 			- d_z_input
@@ -592,19 +592,19 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 			+ 2. * input.ptr[22]
 			- input.ptr[25]
 		) * invDenom;
-	resultU.d.x.yy = -(
+	resultU.d_lll.x.yy = -(
 			input.ptr[3]
 			+ 2. * eig.gamma_uu.xy * input.ptr[11]
 			+ 2. * eig.gamma_uu.xz * input.ptr[17]
 			- input.ptr[26]
 		) * invDenom;
-	resultU.d.x.yz = -(
+	resultU.d_lll.x.yz = -(
 			input.ptr[4]
 			+ 2. * eig.gamma_uu.xy * input.ptr[12]
 			+ 2. * eig.gamma_uu.xz * input.ptr[18]
 			- input.ptr[27]
 		) * invDenom;
-	resultU.d.x.zz = -(
+	resultU.d_lll.x.zz = -(
 			input.ptr[5]
 			+ 2. * eig.gamma_uu.xy * input.ptr[13]
 			+ 2. * eig.gamma_uu.xz * input.ptr[19]
@@ -633,23 +633,23 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	resultU.a_l.x = input.ptr[6];
 	resultU.a_l.z = input.ptr[7];
 	
-	resultU.d.x.xx = input.ptr[8];
-	resultU.d.x.xy = input.ptr[9];
-	resultU.d.x.xz = input.ptr[10];
-	resultU.d.x.yy = input.ptr[11];
-	resultU.d.x.yz = input.ptr[12];
-	resultU.d.x.zz = input.ptr[13];
+	resultU.d_lll.x.xx = input.ptr[8];
+	resultU.d_lll.x.xy = input.ptr[9];
+	resultU.d_lll.x.xz = input.ptr[10];
+	resultU.d_lll.x.yy = input.ptr[11];
+	resultU.d_lll.x.yz = input.ptr[12];
+	resultU.d_lll.x.zz = input.ptr[13];
 	
-	resultU.d.z.xx = input.ptr[14];
-	resultU.d.z.xy = input.ptr[15];
-	resultU.d.z.xz = input.ptr[16];
-	resultU.d.z.yy = input.ptr[17];
-	resultU.d.z.yz = input.ptr[18];
-	resultU.d.z.zz = input.ptr[19];
+	resultU.d_lll.z.xx = input.ptr[14];
+	resultU.d_lll.z.xy = input.ptr[15];
+	resultU.d_lll.z.xz = input.ptr[16];
+	resultU.d_lll.z.yy = input.ptr[17];
+	resultU.d_lll.z.yz = input.ptr[18];
+	resultU.d_lll.z.zz = input.ptr[19];
 	
-	resultU.V.x = input.ptr[20];
-	resultU.V.y = input.ptr[21];
-	resultU.V.z = input.ptr[22];
+	resultU.V_l.x = input.ptr[20];
+	resultU.V_l.y = input.ptr[21];
+	resultU.V_l.z = input.ptr[22];
 
 	real sqrt_gammaUyy = eig.sqrt_gammaUjj.y;
 	real _1_sqrt_gammaUyy = 1. / sqrt_gammaUyy;
@@ -672,7 +672,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 			+ 4. * VUy_input
 		) * invDenom;
 
-	resultU.d.y.xx = -(
+	resultU.d_lll.y.xx = -(
 			+ input.ptr[1]
 			- input.ptr[24]
 			+ 2. * eig.gamma_uu.xy * input.ptr[8]
@@ -690,7 +690,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 			+ eig.gamma_uu.yz * input.ptr[12]
 		);
 	
-	resultU.d.y.xy = -(
+	resultU.d_lll.y.xy = -(
 			+ input.ptr[2]
 			+ input.ptr[6]
 			- d_x_input			
@@ -700,7 +700,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 			- input.ptr[25]
 		) * invDenom;
 	
-	resultU.d.y.xz = -(
+	resultU.d_lll.y.xz = -(
 			+ input.ptr[3]
 			+ 2. * eig.gamma_uu.xy * input.ptr[10]
 			+ 2. * eig.gamma_uu.yz * input.ptr[16]
@@ -726,7 +726,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real _1_sqrt_f = 1. / eig.sqrt_f;
 	real _1_f = _1_sqrt_f  * _1_sqrt_f;
 
-	resultU.d.y.yy = -(
+	resultU.d_lll.y.yy = -(
 			- K_input_minus	
 			+ K_input_plus	
 			
@@ -760,7 +760,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 			+ eig.gamma_uu.xz * input.ptr[16]
 			+ eig.gamma_uu.yz * input.ptr[18]);
 
-	resultU.d.y.yz = -(
+	resultU.d_lll.y.yz = -(
 			+ input.ptr[4]
 			+ input.ptr[7]
 			- d_z_input	
@@ -770,7 +770,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 			- input.ptr[27]
 		) * invDenom;
 	
-	resultU.d.y.zz = -(
+	resultU.d_lll.y.zz = -(
 			+ input.ptr[5]
 			- input.ptr[28]
 			+ 2. * eig.gamma_uu.xy * input.ptr[13]
@@ -799,23 +799,23 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	resultU.a_l.x = input.ptr[6];
 	resultU.a_l.y = input.ptr[7];
 	
-	resultU.d.x.xx = input.ptr[8];
-	resultU.d.x.xy = input.ptr[9];
-	resultU.d.x.xz = input.ptr[10];
-	resultU.d.x.yy = input.ptr[11];
-	resultU.d.x.yz = input.ptr[12];
-	resultU.d.x.zz = input.ptr[13];
+	resultU.d_lll.x.xx = input.ptr[8];
+	resultU.d_lll.x.xy = input.ptr[9];
+	resultU.d_lll.x.xz = input.ptr[10];
+	resultU.d_lll.x.yy = input.ptr[11];
+	resultU.d_lll.x.yz = input.ptr[12];
+	resultU.d_lll.x.zz = input.ptr[13];
 	
-	resultU.d.y.xx = input.ptr[14];
-	resultU.d.y.xy = input.ptr[15];
-	resultU.d.y.xz = input.ptr[16];
-	resultU.d.y.yy = input.ptr[17];
-	resultU.d.y.yz = input.ptr[18];
-	resultU.d.y.zz = input.ptr[19];
+	resultU.d_lll.y.xx = input.ptr[14];
+	resultU.d_lll.y.xy = input.ptr[15];
+	resultU.d_lll.y.xz = input.ptr[16];
+	resultU.d_lll.y.yy = input.ptr[17];
+	resultU.d_lll.y.yz = input.ptr[18];
+	resultU.d_lll.y.zz = input.ptr[19];
 
-	resultU.V.x = input.ptr[20];
-	resultU.V.y = input.ptr[21];
-	resultU.V.z = input.ptr[22];
+	resultU.V_l.x = input.ptr[20];
+	resultU.V_l.y = input.ptr[21];
+	resultU.V_l.z = input.ptr[22];
 
 	real sqrt_gammaUzz = eig.sqrt_gammaUjj.z;
 	real _1_sqrt_gammaUzz = 1. / sqrt_gammaUzz;
@@ -838,14 +838,14 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 			+ 4. * VUz_input
 		) * invDenom;
 	
-	resultU.d.z.xx = -(
+	resultU.d_lll.z.xx = -(
 			+ input.ptr[1]
 			- input.ptr[24]
 			+ 2. * eig.gamma_uu.xz * input.ptr[8]
 			+ 2. * eig.gamma_uu.yz * input.ptr[14]
 		) * invDenom;
 	
-	resultU.d.z.xy = -(
+	resultU.d_lll.z.xy = -(
 			+ input.ptr[2]
 			- input.ptr[25]
 			+ 2. * eig.gamma_uu.xz * input.ptr[9]
@@ -862,7 +862,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 			+ eig.gamma_uu.xz * input.ptr[10]
 			+ eig.gamma_uu.yz * input.ptr[12]);
 
-	resultU.d.z.xz = -(
+	resultU.d_lll.z.xz = -(
 			+ input.ptr[3]
 			+ input.ptr[6]
 			- d_x_input
@@ -872,7 +872,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 			- input.ptr[26]
 		) * invDenom;
 	
-	resultU.d.z.yy = -(
+	resultU.d_lll.z.yy = -(
 			+ input.ptr[4]
 			- input.ptr[27]
 			+ 2. * eig.gamma_uu.xz * input.ptr[11]
@@ -889,7 +889,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 			+ eig.gamma_uu.xz * input.ptr[16]
 			+ eig.gamma_uu.yz * input.ptr[18]);
 
-	resultU.d.z.yz = -(
+	resultU.d_lll.z.yz = -(
 			+ input.ptr[5]
 			+ input.ptr[7]
 			- d_y_input	
@@ -917,7 +917,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real _1_sqrt_f = 1. / eig.sqrt_f;
 	real _1_f = _1_sqrt_f * _1_sqrt_f;
 
-	resultU.d.z.zz = -(
+	resultU.d_lll.z.zz = -(
 			- K_input_minus
 			+ K_input_plus
 			
@@ -981,14 +981,14 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 	resultU.a_l.s<?=side?> = eig.sqrt_f * sqrt_gammaUjj * (input.ptr[12] - input.ptr[0]);
 
-	sym3 d, K_ll;
-	d.xx = (
+	sym3 d_lll, K_ll;
+	d_lll.xx = (
 		(input.ptr[12] - input.ptr[0]) * _1_sqrt_f
 		+ (input1_dot_gammaU - input7_dot_gammaU) * _1_gammaUjj
 	) * _1_sqrt_gammaUjj + input.ptr[6];
 
 	<? for i=1,5 do ?>
-	d.s[<?=i?>] = (input.ptr[<?=i+6?>] - input.ptr[<?=i?>]) * _1_sqrt_gammaUjj;
+	d_lll.s[<?=i?>] = (input.ptr[<?=i+6?>] - input.ptr[<?=i?>]) * _1_sqrt_gammaUjj;
 	<? end ?>
 
 	K_ll.xx = input.ptr[0] + input.ptr[12] - (input1_dot_gammaU + input7_dot_gammaU) * _1_gammaUjj;
@@ -998,7 +998,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	<? end ?>
 
 	//now swap x and side on the sym3's
-	resultU.d.v<?=side?> = sym3_swap<?=side?>(d);
+	resultU.d_lll.v<?=side?> = sym3_swap<?=side?>(d_lll);
 	resultU.K_ll = sym3_swap<?=side?>(K_ll);
 
 <? end 	-- eqn.noZeroRowsInFlux ?>
@@ -1037,7 +1037,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real f = eig.sqrt_f * eig.sqrt_f;
 	
 	//now swap x and side on the sym3's
-	sym3 input_d = sym3_swap<?=side?>(inputU.d.v<?=side?>);
+	sym3 input_d = sym3_swap<?=side?>(inputU.d_lll.v<?=side?>);
 	sym3 input_K = sym3_swap<?=side?>(inputU.K_ll);
 	sym3 gamma_uu = sym3_swap<?=side?>(eig.gamma_uu);
 
@@ -1047,7 +1047,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	result_K.xx += (inputU.a_l.s<?=side?> - sym3_dot(input_d, gamma_uu)) * eig.alpha;
 
 	//now swap x and side on the sym3's
-	resultU.d.v<?=side?> = sym3_swap<?=side?>(result_d);
+	resultU.d_lll.v<?=side?> = sym3_swap<?=side?>(result_d);
 	resultU.K_ll = sym3_swap<?=side?>(result_K);
 
 	return resultU;
@@ -1070,26 +1070,28 @@ kernel void addSource(
 <? if eqn.useStressEnergyTerms then ?> 
 	real3 S_l = sym3_real3_mul(U->gamma_ll, U->S_u);
 	sym3 S_ll = U->S_ll;
+	real S = sym3_dot(S_ll, gamma_uu);
 <? else ?>
 	real3 S_l = real3_zero;
 	sym3 S_ll = sym3_zero;
+	real S = 0.;
 <? end ?>
 
 	// source terms
 	
-	real3x3 K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);				//K^i_j
+	real3x3 K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real trK = real3x3_trace(K_ul);								//K^k_k
 	sym3 KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
 
 	//d_llu = d_ij^k = d_ijl * gamma^lk
 	real3x3 d_llu[3] = {
 <? for i,xi in ipairs(xNames) do
-?>		sym3_sym3_mul(U->d.<?=xi?>, gamma_uu),
+?>		sym3_sym3_mul(U->d_lll.<?=xi?>, gamma_uu),
 <? end
 ?>	};
 
 	//d_ull = d^i_jk = gamma^il d_ljk
-	_3sym3 d_ull = sym3_3sym3_mul(gamma_uu, U->d);
+	_3sym3 d_ull = sym3_3sym3_mul(gamma_uu, U->d_lll);
 
 	//d3_l = d^j_ji
 	real3 d3_l = (real3){
@@ -1108,7 +1110,7 @@ kernel void addSource(
 <?	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
 		local xi,xj = xNames[i],xNames[j]
-?>			.<?=xij?> = d_llu[<?=i-1?>].<?=xj?>.<?=xk?> - d_llu[<?=j-1?>].<?=xi?>.<?=xk?> - U->d.<?=xk?>.<?=xij?>,
+?>			.<?=xij?> = d_llu[<?=i-1?>].<?=xj?>.<?=xk?> - d_llu[<?=j-1?>].<?=xi?>.<?=xk?> - U->d_lll.<?=xk?>.<?=xij?>,
 <? end
 ?>		},
 <? end 
@@ -1116,7 +1118,7 @@ kernel void addSource(
 
 	real3 a_V_d3_l = (real3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = U->a_l.<?=xi?> + U->V.<?=xi?> - d3_l.<?=xi?>,
+?>		.<?=xi?> = U->a_l.<?=xi?> + U->V_l.<?=xi?> - d3_l.<?=xi?>,
 <? end
 ?>	};
 	real3 a_V_d3_u = sym3_real3_mul(gamma_uu, a_V_d3_l);
@@ -1129,8 +1131,8 @@ kernel void addSource(
 	//		+ 2 d_il^k d_kj^l
 	//		- 3 d_il^k d_jk^l
 	//		+ K K_ij - 2 K_ik K^k_j
-	//		+ Sterms_ij
-	sym3 srcK_ll = (sym3){
+	//		+ (8 pi S_ij - 4 pi gamma_ij (S_kl gamma^kl - rho))
+	sym3 srcK_ll_over_alpha = (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi, xj = xNames[i], xNames[j]
@@ -1151,7 +1153,8 @@ kernel void addSource(
 			+ trK * U->K_ll.<?=xij?>
 			- 2. * KSq_ll.<?=xij?>
 			
-			- S_ll.<?=xij?>,
+			+ (8. * M_PI * S_ll.<?=xij?> - 4. * M_PI * U->gamma_ll.<?=xij?> * (S - U->rho))
+		,
 <? end
 ?>	};
 
@@ -1188,17 +1191,17 @@ kernel void addSource(
 ?>	};
 
 
-	//alpha_,t = first derivs - alpha^2 f gamma^ij K_ij
+	//alpha_,t = shift terms - alpha^2 f gamma^ij K_ij
 	deriv->alpha += -U->alpha * U->alpha * f * trK;
 	
-	//gamma_ij,t = first derivs - 2 alpha K_ij
+	//gamma_ij,t = shift terms - 2 alpha K_ij
 	sym3_add(deriv->gamma_ll, sym3_real_mul(U->K_ll, -2. * U->alpha));
 	
-	//K_ij,t = first derivs + alpha srcK_ij
-	sym3_add(deriv->K_ll, sym3_real_mul(srcK_ll, U->alpha));
+	//K_ij,t = shift terms + alpha srcK_ij
+	sym3_add(deriv->K_ll, sym3_real_mul(srcK_ll_over_alpha, U->alpha));
 
-	//V_k,t = first derivs + alpha srcV_k
-	real3_add(deriv->V, real3_real_mul(srcV_l, U->alpha));
+	//V_k,t = shift terms + alpha srcV_k
+	real3_add(deriv->V_l, real3_real_mul(srcV_l, U->alpha));
 
 <? if eqn.useShift then ?>
 
@@ -1236,15 +1239,27 @@ kernel void addSource(
 	// = alpha a_i beta^i + ..
 	deriv->alpha += real3_dot(U->beta_u, U->a_l) * U->alpha;
 
+	//Alcubierre 2.3.11
 	//gamma_ij,t = gamma_ij,k beta^k + gamma_kj beta^k_,i + gamma_ik beta^k_,j
 	// = 2 d_kij beta^k + gamma_kj beta^k_,i + gamma_ik beta^k_,j
+	//
+	//Alcubierre eqn 2.3.11 and B&S eqn 2.128 rewrite it as:
+	//gamma_ij,t = -2 alpha K_ij + D_i beta_j + D_j beta_i
+	//	= -2 alpha K_ij + D_i beta^k gamma_kj + D_j beta^k gamma_ki
+	//	= -2 alpha K_ij + (beta^k_,i + Gamma^k_li beta^l) gamma_kj + (beta^k_,j + Gamma^k_lj beta^l) gamma_ki
+	//	= -2 alpha K_ij + beta^k_,i gamma_kj + beta^k_,j gamma_ki + (Gamma_jki + Gamma_ikj) beta^k
+	//	= -2 alpha K_ij + beta^k_,i gamma_kj + beta^k_,j gamma_ki + (Gamma_jik + Gamma_ijk) beta^k
+	//Gamma_ijk = -d_ijk + d_jik + d_kij
+	//Gamma_jik = -d_jik + d_ijk + d_kji
+	//Gamma_ijk + Gamma_jik = 2 d_kij
+	//gamma_ij,t = -2 alpha K_ij + beta^k_,i gamma_kj + beta^k_,j gamma_ki + 2 d_kij beta^k
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
 ?>	deriv->gamma_ll.<?=xij?> += partial_beta_u_ll.<?=xi?>.<?=xj?>
 		+ partial_beta_u_ll.<?=xj?>.<?=xi?>
 <?	for k,xk in ipairs(xNames) do
-?> 		+ 2. * U->d.<?=xk?>.<?=xij?> * U->beta_u.<?=xk?>
+?> 		+ 2. * U->d_lll.<?=xk?>.<?=xij?> * U->beta_u.<?=xk?>
 <?	end
 ?>	;
 <? end ?>
@@ -1269,13 +1284,13 @@ kernel void addSource(
 
 	//technically this can be represented as a sym3sym3 since d_ijk,l is symmetric with jk and il
 	//partial_d_l[k][l].ij = d_kij,l
-<?=makePartial('d', '_3sym3')?>
+<?=makePartial('d_lll', '_3sym3')?>
 
 	//d_kij,t = d_kij,l beta^l + d_lij beta^l_,k + d_klj beta^l_,i + d_kil beta^l_,j
 <? for k,xk in ipairs(xNames) do
 	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
-?>	deriv->d.<?=xk?>.<?=xij?> += 0.
+?>	deriv->d_lll.<?=xk?>.<?=xij?> += 0.
 <?		for l,xl in ipairs(xNames) do
 ?>			+ partial_d_l[<?=l-1?>].<?=xk?>.<?=xij?>
 <?		end
@@ -1300,14 +1315,14 @@ end ?>
 <? end ?>
 
 	//partial_V_l[j].i = V_i,j
-<?=makePartial('V', 'real3')?>
+<?=makePartial('V_l', 'real3')?>
 
 	//V_i,t = V_i,j beta^j + V_j beta^i_,j
 <? for i,xi in ipairs(xNames) do
-?>	deriv->V.<?=xi?> += 0. <?
+?>	deriv->V_l.<?=xi?> += 0. <?
 	for j,xj in ipairs(xNames) do
 ?>		+ partial_V_l[<?=j-1?>].<?=xi?> * U->beta_u.<?=xj?>
-		+ U->V.<?=xj?> * partial_beta_ul[<?=j-1?>].<?=xi?>
+		+ U->V_l.<?=xj?> * partial_beta_ul[<?=j-1?>].<?=xi?>
 <?	end
 ?>	;
 <? end
@@ -1396,7 +1411,7 @@ for i,xi in ipairs(xNames) do
 		<? else ?>
 		real di_gamma_jk = 0;
 		<? end ?>
-		deriv->d.<?=xi?>.<?=xjk?> += d_convCoeff * (.5 * di_gamma_jk - U->d.<?=xi?>.<?=xjk?>);
+		deriv->d_lll.<?=xi?>.<?=xjk?> += d_convCoeff * (.5 * di_gamma_jk - U->d_lll.<?=xi?>.<?=xjk?>);
 	}<? 
 	end
 end ?>
@@ -1404,10 +1419,10 @@ end ?>
 
 <? if eqn.guiVars.V_convCoeff.value ~= 0 then ?>
 	//V_i = d_ik^k - d^k_ki <=> V_i += eta (d_ik^k - d^k_ki - V_i)
-	deriv->V = real3_add(
-		deriv->V,
+	deriv->V_l = real3_add(
+		deriv->V_l,
 		real3_real_mul(
-			real3_sub(real3_sub(d1_l, d3_l), U->V),
+			real3_sub(real3_sub(d1_l, d3_l), U->V_l),
 			V_convCoeff));
 <? end -- eqn.guiVars.V_convCoeff.value  ?>
 
@@ -1432,21 +1447,21 @@ if constrainV ~= 'none' then
 
 	real3 delta;
 	<? for i,xi in ipairs(xNames) do ?>{
-		real d1 = sym3_dot(U->d.<?=xi?>, gamma_uu);
+		real d1 = sym3_dot(U->d_lll.<?=xi?>, gamma_uu);
 		real d2 = 0.<?
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
-?> + U->d.<?=xj?>.<?=sym(k,i)?> * gamma_uu.<?=sym(j,k)?><?
+?> + U->d_lll.<?=xj?>.<?=sym(k,i)?> * gamma_uu.<?=sym(j,k)?><?
 		end
 	end ?>;
-		delta.<?=xi?> = U->V.<?=xi?> - (d1 - d2);
+		delta.<?=xi?> = U->V_l.<?=xi?> - (d1 - d2);
 	}<? end ?>
 
 <?
 	if constrainV == 'replace V' then
 ?>
 	//directly assign to V
-	U->V = real3_sub(U->V, delta);
+	U->V_l = real3_sub(U->V_l, delta);
 <?
 	elseif constrainV == 'average' then
 ?>
@@ -1474,13 +1489,13 @@ so to solve this, you must solve a giant linear system of all variables
 	const real v_weight = weight;
 	const real d_weight = (1. - weight) / 4.;
 
-	U->V = real3_sub(U->V, real3_real_mul(delta, v_weight));
+	U->V_l = real3_sub(U->V_l, real3_real_mul(delta, v_weight));
 <? 
 		for i,xi in ipairs(xNames) do 
 			for jk,xjk in ipairs(symNames) do
 				local j,k = from6to3x3(jk)
 				local xk = xNames[k]
-?>	U->d.<?=xi?>.<?=xjk?> += (
+?>	U->d_lll.<?=xi?>.<?=xjk?> += (
 		delta.<?=xi?> * U->gamma_ll.<?=xjk?> 
 		- delta.<?=xk?> * U->gamma_ll.<?=sym(i,j)?>
 	) * d_weight;

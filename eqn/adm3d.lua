@@ -62,9 +62,9 @@ function ADM_BonaMasso_3D:init(args)
 
 	local fluxVars = table{
 		{a_l = 'real3'},
-		{d = '_3sym3'},
+		{d_lll = '_3sym3'},
 		{K_ll = 'sym3'},
-		{V = 'real3'},
+		{V_l = 'real3'},
 	}
 
 	self.consVars = table{
@@ -215,11 +215,11 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->alpha = 1.;
 	U->gamma_ll = sym3_ident;
 	U->a_l = real3_zero;
-	U->d.x = sym3_zero;
-	U->d.y = sym3_zero;
-	U->d.z = sym3_zero;
+	U->d_lll.x = sym3_zero;
+	U->d_lll.y = sym3_zero;
+	U->d_lll.z = sym3_zero;
 	U->K_ll = sym3_zero;
-	U->V = real3_zero;
+	U->V_l = real3_zero;
 <? if eqn.useShift then 
 ?>	U->beta_u = real3_zero;
 <? end 
@@ -269,7 +269,7 @@ kernel void initState(
 	U->alpha = alpha;
 	U->gamma_ll = gamma_ll;
 	U->K_ll = K_ll;
-	U->V = real3_zero;
+	U->V_l = real3_zero;
 <? if eqn.useShift then
 ?>	U->beta_u = beta_u;
 <? end
@@ -298,7 +298,7 @@ for i=1,solver.dim do
 ?>
 	U->a_l.<?=xi?> = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (grid_dx<?=i-1?> * U->alpha);
 	<? for jk,xjk in ipairs(symNames) do ?>
-	U->d.<?=xi?>.<?=xjk?> = .5 * (U[stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / grid_dx<?=i-1?>;
+	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (U[stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / grid_dx<?=i-1?>;
 	<? end ?>
 <? 
 end 
@@ -306,17 +306,17 @@ for i=solver.dim+1,3 do
 	local xi = xNames[i]
 ?>
 	U->a_l.<?=xi?> = 0;
-	U->d.<?=xi?> = sym3_zero;
+	U->d_lll.<?=xi?> = sym3_zero;
 <?
 end
 ?>
 
 //V_i = d_ik^k - d^k_ki 
 <? for i,xi in ipairs(xNames) do ?>
-	U->V.<?=xi?> = 0.<?
+	U->V_l.<?=xi?> = 0.<?
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
-?> + gamma_uu.<?=sym(j,k)?> * ( U->d.<?=xi?>.<?=sym(j,k)?> - U->d.<?=xj?>.<?=sym(k,i)?> )<?
+?> + gamma_uu.<?=sym(j,k)?> * ( U->d_lll.<?=xi?>.<?=sym(j,k)?> - U->d_lll.<?=xj?>.<?=sym(k,i)?> )<?
 		end
 	end ?>;
 <? end ?>
@@ -407,7 +407,7 @@ momentum constraints
 		<? else ?>
 		sym3 di_gamma_jk = sym3_zero;
 		<? end ?>
-		*valuesym3 = sym3_sub(di_gamma_jk, sym3_real_mul(U->d.<?=xi?>, 2.));
+		*valuesym3 = sym3_sub(di_gamma_jk, sym3_real_mul(U->d_lll.<?=xi?>, 2.));
 		*valuesym3 = (sym3){<?
 	for jk,xjk in ipairs(symNames) do 
 ?>			.<?=xjk?> = fabs(valuesym3-><?=xjk?>),
@@ -427,14 +427,14 @@ momentum constraints
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
 	<? for i,xi in ipairs(xNames) do ?>{
-		real d1 = sym3_dot(U->d.<?=xi?>, gamma_uu);
+		real d1 = sym3_dot(U->d_lll.<?=xi?>, gamma_uu);
 		real d2 = 0.<?
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
-?> + U->d.<?=xj?>.<?=sym(k,i)?> * gamma_uu.<?=sym(j,k)?><?
+?> + U->d_lll.<?=xj?>.<?=sym(k,i)?> * gamma_uu.<?=sym(j,k)?><?
 		end
 	end ?>;
-		value_real3-><?=xi?> = U->V.<?=xi?> - (d1 - d2);
+		value_real3-><?=xi?> = U->V_l.<?=xi?> - (d1 - d2);
 	}<? end ?>
 ]], {sym=sym, xNames=xNames}), type='real3'}
 
