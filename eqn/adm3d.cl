@@ -10,6 +10,8 @@ local derivOrder = 2 * solver.numGhost
 local makePartials = require 'eqn.makepartial'
 local makePartial = function(...) return makePartials.makePartial(derivOrder, solver, ...) end
 local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end
+
+local calcConstraints = true 
 ?>
 
 kernel void calcDT(
@@ -1055,12 +1057,15 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 <? end ?>
 
+//TODO if we're calculating the constrains in the derivative
+// then we do save calculations / memory on the equations
+// but we also, for >FE integrators (which require multiple steps) are duplicating calculations
 kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
-	const global <?=eqn.cons_t?>* UBuf)
+	<?=calcConstraints and '' or 'const '?>global <?=eqn.cons_t?>* UBuf)
 {
 	SETBOUNDS_NOGHOST();
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	<?=calcConstraints and '' or 'const '?>global <?=eqn.cons_t?>* U = UBuf + index;
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 
 	real det_gamma = sym3_det(U->gamma_ll);
@@ -1116,31 +1121,15 @@ kernel void addSource(
 <? end 
 ?>	};
 
-	real3 a_V_d3_l = (real3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = U->a_l.<?=xi?> + U->V_l.<?=xi?> - d3_l.<?=xi?>,
-<? end
-?>	};
-	real3 a_V_d3_u = sym3_real3_mul(gamma_uu, a_V_d3_l);
-
-	//srcK_ij = (-a_i a_j 
-	//		+ conn^k_ij (a_k + V_k - d^l_lk) 
-	//		+ 2 d_ki^l d^k_jl
-	//		- 2 d_ki^l d_lj^k
-	//		+ 2 d_ki^l d_jl^k
-	//		+ 2 d_il^k d_kj^l
-	//		- 3 d_il^k d_jk^l
-	//		+ K K_ij - 2 K_ik K^k_j
-	//		+ (8 pi S_ij - 4 pi gamma_ij (S_kl gamma^kl - rho))
-	sym3 srcK_ll_over_alpha = (sym3){
+	sym3 R_ll = (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi, xj = xNames[i], xNames[j]
-?>		.<?=xij?> = 
-			- U->a_l.<?=xi?> * U->a_l.<?=xj?>
-
+?>		.<?=xij?> = 0.
 <? 	for k,xk in ipairs(xNames) do 
-?>			+ conn_ull.<?=xk?>.<?=xij?> * a_V_d3_u.<?=xk?>
+?>
+			+ conn_ull.<?=xk?>.<?=xij?> * (U->V_l.<?=xk?> - d3_l.<?=xk?>)
+
 <?		for l,xl in ipairs(xNames) do
 ?>			+ 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_ull.<?=xk?>.<?=sym(j,l)?>
 			- 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_llu[<?=l-1?>].<?=xj?>.<?=xk?>
@@ -1149,11 +1138,45 @@ kernel void addSource(
 			- 3. * d_llu[<?=i-1?>].<?=xl?>.<?=xk?> * d_llu[<?=j-1?>].<?=xk?>.<?=xl?>
 <? 		end
 	end
-?>
+?>		,
+<? end
+?>	};
+
+	//srcK_ij = 
+	
+	//lapse:
+	//	(-a_i a_j 
+	//		+ conn^k_ij a_k
+
+	//Riemann curvature:
+	//		+ conn^k_ij (V_k - d^l_lk) 
+	//		+ 2 d_ki^l d^k_jl
+	//		- 2 d_ki^l d_lj^k
+	//		+ 2 d_ki^l d_jl^k
+	//		+ 2 d_il^k d_kj^l
+	//		- 3 d_il^k d_jk^l
+	
+	//extrinsic curvature:
+	//		+ K K_ij - 2 K_ik K^k_j
+
+	//matter terms:
+	//		- 4 pi (2 S_ij - gamma_ij (S - rho))
+	
+	//...and the shift comes later ...
+	
+	sym3 srcK_ll_over_alpha = (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+	local xi, xj = xNames[i], xNames[j]
+?>		.<?=xij?> = 
+			- U->a_l.<?=xi?> * U->a_l.<?=xj?>
+<? 	for k,xk in ipairs(xNames) do 
+?>			+ conn_ull.<?=xk?>.<?=xij?> * U->a_l.<?=xk?>
+<?	end
+?>			+ R_ll.<?=xij?>
 			+ trK * U->K_ll.<?=xij?>
 			- 2. * KSq_ll.<?=xij?>
-			
-			+ (8. * M_PI * S_ll.<?=xij?> - 4. * M_PI * U->gamma_ll.<?=xij?> * (S - U->rho))
+			- (8. * M_PI * S_ll.<?=xij?> - 4. * M_PI * U->gamma_ll.<?=xij?> * (S - U->rho))
 		,
 <? end
 ?>	};
@@ -1427,6 +1450,20 @@ end ?>
 <? end -- eqn.guiVars.V_convCoeff.value  ?>
 
 	//Kreiss-Oligar diffusion, for stability's sake?
+
+
+<? if calcConstraints then ?>
+	//while you're here, calculate the Hamiltonian and momentum constraints
+	//scaled down by 1/8 to match B&S BSSNOK equations ... maybe I'll scale theirs up by 8 ...
+	//B&S eqn 2.125 ... divded by two
+	//Alcubierre eqn 2.5.9
+	//H = 1/2 (R + K^2 - K_ij K^ij) - 8 pi rho
+	real R = sym3_dot(R_ll, gamma_uu);
+	real tr_KSq = sym3_dot(KSq_ll, gamma_uu);
+	U->H = .5 * (R + trK * trK - tr_KSq) - 8. * M_PI * U->rho;
+
+	//momentum constraint
+<? end	--calcConstraints ?>
 }
 
 kernel void constrainU(

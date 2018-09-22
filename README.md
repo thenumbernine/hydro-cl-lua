@@ -46,6 +46,7 @@ TODO:
 - GR horizon tracking / moving puncture
 - FOBSSN would be nice.  Something with the analytic stability of BSSN and the algorithmic stability of finite-volume.
 - Z4 ... I need to finish typing in the source terms.  I also need a shift condition.
+- Z4 2008 Alcubierre implementation (I have the eigenvectors in 'numerical relativity codegen/run.lua') vs 2008 Yano (in 'numerical relativity codegen/verify 2008 yano')
 - implement eigen-stuff code in SRHD so that PLM can work 
 - PLM for BSSNOK-FD and Euler-Burgers
 - PPM
@@ -57,7 +58,7 @@ TODO:
 - calculate and implement source terms for curvilinear coordinate systems (working on a tool to do this)
 - get two-fluid-separate EMHD working, so I can update the glm-maxwell with an implicit and update the ion and electron with an explicit solver
 - currently seeing errors when two solvers run simultaneously ... which makes EM+HD difficult
-- add HLLC/D solvers
+- add HLLD solver
 - implement Navier-Stokes, compressible & incompressible
 - BSSN connections based on difference with grid coordinate system
 - test out the GR+HD solvers
@@ -69,6 +70,8 @@ TODO:
 - coroutines to iterative solvers?  so they don't stall the app execution?
 - RHD W error in >1 dimension
 - GR flat space simulations make an initial wave.  but shouldn't flat space be stable?
+- BSSN, ADM, Z4C, etc still need momentum constraints
+- not all of the Maxwell initial conditions are working with the non-GLM maxwell, especially with scalar vs complex
 
 ### Sources:
 

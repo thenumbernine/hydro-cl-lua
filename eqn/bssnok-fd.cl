@@ -80,6 +80,9 @@ end ?>
 <? end ?>
 }
 
+//TODO if we're calculating the constrains in the derivative
+// then we do save calculations / memory on the equations
+// but we also, for >FE integrators (which require multiple steps) are duplicating calculations
 kernel void calcDeriv(
 	global <?=eqn.cons_t?>* derivBuf,
 	<?=calcConstraints and '' or 'const '?>global <?=eqn.cons_t?>* UBuf
