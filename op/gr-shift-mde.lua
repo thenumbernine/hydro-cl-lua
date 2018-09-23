@@ -62,9 +62,15 @@ looks like I'll need a grid of gamma^ij, Gamma^i_jk, and R_ij...
 TODO generalize relaxation solvers, between this an op/poisson
 --]]
 local class = require 'ext.class'
+local file = require 'ext.file'
+local template = require 'template'
+local Relaxation = require 'op.relaxation'
 
-local MinimalDistortionEllipticShift = class()
+local MinimalDistortionEllipticShift = class(Relaxation)
 
+MinimalDistortionEllipticShift.name = 'MDEShift'
+
+MinimalDistortionEllipticShift.potentialField = 'betaLap_u'
 function MinimalDistortionEllipticShift:getPotBufType() return 'real3' end
 function MinimalDistortionEllipticShift:getPotBuf() return self.solver.UBuf end
 

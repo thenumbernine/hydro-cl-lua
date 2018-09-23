@@ -49,10 +49,10 @@ end
 
 function Relaxation:refreshSolverProgram()
 	local solver = self.solver
-	self.initRelaxationPotentialKernelObj = solver.solverProgramObj:kernel('initRelaxationPotential'..self.suffix, self:getPotBuf())
-	self.solveRelaxationJacobiKernelObj = solver.solverProgramObj:kernel('solveRelaxationJacobi'..self.suffix, self:getPotBuf())
+	self.initPotentialKernelObj = solver.solverProgramObj:kernel('initPotential'..self.name..self.suffix, self:getPotBuf())
+	self.solveJacobiKernelObj = solver.solverProgramObj:kernel('solveJacobi'..self.name..self.suffix, self:getPotBuf())
 	if self.stopOnEpsilon then
-		self.solveRelaxationJacobiKernelObj.obj:setArg(1, solver.reduceBuf)
+		self.solveJacobiKernelObj.obj:setArg(1, solver.reduceBuf)
 	end
 end
 
@@ -80,7 +80,7 @@ end
 function Relaxation:resetState()
 	local solver = self.solver
 	if self.enableField and not solver[self.enableField] then return end
-	self.initRelaxationPotentialKernelObj()
+	self.initPotentialKernelObj()
 	self:potentialBoundary()
 	self:relax()
 end
@@ -89,7 +89,7 @@ function Relaxation:relax()
 	local solver = self.solver
 	for i=1,self.maxIters do
 		self.lastIter = i
-		self.solveRelaxationJacobiKernelObj()
+		self.solveJacobiKernelObj()
 		self:potentialBoundary()
 
 		if self.stopOnEpsilon then

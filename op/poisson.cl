@@ -25,7 +25,7 @@ local eqn = solver.eqn
 //initialize the relaxation solver field 
 //this is only called upon solver reset
 //each iteration uses the previous iteration's results as the starting point
-kernel void initRelaxationPotential<?=op.suffix?>(
+kernel void initPotential<?=op.name?><?=op.suffix?>(
 	global <?=op:getPotBufType()?>* UBuf
 ) {
 <?
@@ -57,7 +57,7 @@ jacobi update:
 phi[x,k+1] = (f[x] - sum_i,j!=k (phi[x+e[i],k] / dx[i]^2))
 	/ sum_i (-2 / dx[i]^2)
 */
-kernel void solveRelaxationJacobi<?=op.suffix?>(
+kernel void solveJacobi<?=op.name?><?=op.suffix?>(
 	global <?=op:getPotBufType()?>* UBuf<?
 if op.stopOnEpsilon then ?>,
 	global real* reduceBuf<?

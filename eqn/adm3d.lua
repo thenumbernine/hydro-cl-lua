@@ -104,13 +104,9 @@ function ADM_BonaMasso_3D:init(args)
 	if self.useShift then
 		self.consVars:insert{beta_u = 'real3'}
 
-		--[[ and maybe some of these ...
 		if self.useShift == 'MinimalDistortionElliptic' then
-			self.consVars:insert{gamma_uu = 'sym3'}
-			self.consVars:insert{conn_ull = '_3sym3'}
-			self.consVars:insert{R_ll = 'sym3'}
+			self.consVars:insert{betaLap_u = 'real3'}
 		end
-		--]]
 	end
 
 

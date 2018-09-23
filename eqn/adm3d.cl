@@ -1229,14 +1229,13 @@ kernel void addSource(
 <? if eqn.useShift then ?>
 
 
+	<?
+	if eqn.useShift == 'HarmonicShiftCondition-FiniteDifference'
+	or eqn.useShift == 'MinimalDistortionElliptic'
+	then 
+	?>
 
-	<? if eqn.useShift == '2005 Bona / 2008 Yano' then ?>
-	
-	
-	
-	<? elseif eqn.useShift == 'HarmonicShiftCondition-FiniteDifference' then ?>
-
-	//TODO make each useShift option into an object
+	//make each useShift option into an object
 	//and give it a method for producing the partial_beta_ul
 	// so the finite difference ones can use this
 	// and the state ones can just assign a variable
@@ -1244,7 +1243,6 @@ kernel void addSource(
 	//but then again, any FVS-based method will already have the U_,k beta^k terms incorporated into its eigensystem ...
 	//this means the useShift will also determine whether the flux has any shift terms
 	// for any '-FiniteDifference' shift, the flux won't have any shift terms.
-
 
 	//partial_beta_ul[j].i := beta^i_,j
 <?=makePartial('beta_u', 'real3')?>	
@@ -1353,8 +1351,17 @@ end ?>
 
 #endif
 
-	//next add the source for the particular useShift
 
+	<? 
+	end	-- using partial_beta_ul to integrate alpha, gamma_ll, 
+	if eqn.useShift == '2005 Bona / 2008 Yano' then ?>
+	
+	
+	
+	<? elseif eqn.useShift == 'HarmonicShiftCondition-FiniteDifference' then 
+	?>
+
+	//next add the source for the particular useShift
 
 	// 2008 Alcubierre 4.3.37
 	//beta^i_,t = beta^j beta^i_,j - alpha alpha^,i + alpha^2 conn^i + beta^i / alpha (alpha_,t - beta^j alpha_,j + alpha^2 K)
@@ -1402,13 +1409,15 @@ end ?>
 	);
 
 	<?
-	elseif eqn.useShift == 'LagrangianCoordinates' then
-	?>
-	//nothing for LagrangianCoordinates shift -- this is handled by the beta_u advection operation
-	<? else
+	elseif eqn.useShift == 'LagrangianCoordinates' 
+	or eqn.useShift == 'MinimalDistortionElliptic' 
+	then
+		-- do nothing
+	else
 		error("I don't have any source terms implemented for this particular useShift")
 	end ?>
-<? end ?>
+
+<? end	-- eqn.useShift ?>
 
 	// and now for the first-order constraints
 
