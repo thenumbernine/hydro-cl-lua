@@ -62,11 +62,12 @@ function HydroCLApp:display2D_Heatmap(solvers, varName, ar, graph_xmin, graph_ym
 			end
 
 			solver:calcDisplayVarToTex(var)
-	
-			solver.heatMap2DShader:use()
-			gl.glUniform1i(solver.heatMap2DShader.uniforms.useLog.loc, var.useLog)
-			gl.glUniform1f(solver.heatMap2DShader.uniforms.valueMin.loc, valueMin)
-			gl.glUniform1f(solver.heatMap2DShader.uniforms.valueMax.loc, valueMax)
+
+			local heatMap2DShader = solver:getHeatMap2DShader(var)
+			heatMap2DShader:use()
+			gl.glUniform1i(heatMap2DShader.uniforms.useLog.loc, var.useLog)
+			gl.glUniform1f(heatMap2DShader.uniforms.valueMin.loc, valueMin)
+			gl.glUniform1f(heatMap2DShader.uniforms.valueMax.loc, valueMax)
 			solver:getTex(var):bind(0)
 			self.gradientTex:bind(1)
 	
@@ -84,7 +85,7 @@ function HydroCLApp:display2D_Heatmap(solvers, varName, ar, graph_xmin, graph_ym
 			
 			self.gradientTex:unbind(1)
 			solver:getTex(var):unbind(0)
-			solver.heatMap2DShader:useNone()
+			heatMap2DShader:useNone()
 			
 --			gl.glDisable(gl.GL_DEPTH_TEST)
 

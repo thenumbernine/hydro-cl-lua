@@ -200,9 +200,9 @@ maxs = {6,1,1},
 	--initState = 'constant',
 	--initState = 'constant with velocity',
 	--initState = 'linear',
-	initState = 'gaussian',
+	--initState = 'gaussian',
 	--initState = 'advect wave',
-	--initState = 'sphere',
+	initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
 	--initState = 'Sod',
@@ -428,7 +428,7 @@ maxs = {6,1,1},
 }
 
 -- HD
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
@@ -564,3 +564,8 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', meshfile='n0012_113-33'})))
 -- temp here -- to make sure ordinary solvers still run
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
+
+
+-- the start of AMR
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.amr'(require 'solver.roe', table(args, {eqn='euler'})))
