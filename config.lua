@@ -65,7 +65,7 @@ maxs = {6,1,1},
 			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
 				{256,1,1},
 				{64,64,1},
-				{32,32,32},
+				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
 		-- default size options
@@ -200,7 +200,7 @@ maxs = {6,1,1},
 	--initState = 'constant',
 	--initState = 'constant with velocity',
 	--initState = 'linear',
-	--initState = 'gaussian',
+	initState = 'gaussian',
 	--initState = 'advect wave',
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
@@ -242,11 +242,11 @@ maxs = {6,1,1},
 	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
+	--initState = 'GEM challenge', eqnArgs = {useEulerInitState=false},
 	--initState = 'spinning magnetic fluid',
 	--initState = 'magnetic fluid',
 	--initState = '2017 Degris et al',
 	--initState = 'that one mhd simulation from youtube',
-	--initState = 'GEM challenge', eqnArgs = {useEulerInitState=false},
 	
 	-- 2002 Dedner
 	--initState = '2002 Dedner peak Bx',
@@ -278,7 +278,7 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 
 
-	initState = 'Alcubierre warp bubble',
+	--initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
@@ -329,6 +329,46 @@ maxs = {6,1,1},
 		},
 	},
 	--]]
+
+	--[[ single black hole, boosted
+	initStateArgs = {
+		bodies = {
+			{
+				R = .05,
+				P_u = {.01,0,0},
+				S_u = {0,0,0},
+				pos = {0,0,0},
+			},
+		},
+	},
+	--]]
+
+	--[[ single black hole, spinning and boosted perpendicular to axis
+	initStateArgs = {
+		bodies = {
+			{
+				R = .05,
+				P_u = {.01,0,0},
+				S_u = {0,0,1},
+				pos = {0,0,0},
+			},
+		},
+	},
+	--]]
+
+	--[[ single black hole, spinning and boosted along axis
+	initStateArgs = {
+		bodies = {
+			{
+				R = .05,
+				P_u = {0,0,.01},
+				S_u = {0,0,1},
+				pos = {0,0,0},
+			},
+		},
+	},
+	--]]
+
 	--[[ binary black hole, head-on collision 
 	initStateArgs = {
 		bodies = {
@@ -388,7 +428,7 @@ maxs = {6,1,1},
 }
 
 -- HD
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
@@ -484,7 +524,8 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionEllipticEvolve'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='LagrangianCoordinates'}})))	-- TODO finish me

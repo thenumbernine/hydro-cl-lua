@@ -30,7 +30,9 @@ useShift
 	
 	useShift = false	--  no shift
 	
-	useShift = 'MinimalDistortionElliptic' -- minimal distortion elliptic.  Alcubierre's book, eqn 4.3.14 and 4.3.15
+	useShift = 'MinimalDistortionElliptic' -- minimal distortion elliptic via Poisson relaxation.  Alcubierre's book, eqn 4.3.14 and 4.3.15
+	
+	useShift = 'MinimalDistortionEllipticEvolve' -- minimal distortion elliptic via evolution.  eqn 10 of 1996 Balakrishna et al "Coordinate Conditions and their Implementations in 3D Numerical Relativity" 
 
 	useShift = '2005 Bona / 2008 Yano'
 	-- 2008 Yano et al, from 2005 Bona et al "Geometrically Motivated..."
@@ -104,7 +106,9 @@ function ADM_BonaMasso_3D:init(args)
 	if self.useShift then
 		self.consVars:insert{beta_u = 'real3'}
 
-		if self.useShift == 'MinimalDistortionElliptic' then
+		if self.useShift == 'MinimalDistortionElliptic' 
+		or self.useShift == 'MinimalDistortionEllipticEvolve' 
+		then
 			self.consVars:insert{betaLap_u = 'real3'}
 		end
 	end

@@ -92,6 +92,14 @@ then
 <? 	end
 end
 ?>
+
+	//TODO 'if constrain chi...'
+	const real chiMin = 1e-3;
+	U->chi = max(U->chi, chiMin);
+
+	//makes the spinning black hole simulations look ugly
+	const real alphaMin = 1e-7;
+	U->alpha = max(U->alpha, alphaMin);
 }
 
 kernel void calcDeriv(

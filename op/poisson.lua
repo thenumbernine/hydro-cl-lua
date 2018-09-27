@@ -1,10 +1,5 @@
 local table = require 'ext.table'
-local file = require 'ext.file'
 local class = require 'ext.class'
-local ffi = require 'ffi'
-local ig = require 'ffi.imgui'
-local tooltip = require 'tooltip'
-local template = require 'template'
 local Relaxation = require 'op.relaxation'
 
 local Poisson = class(Relaxation)

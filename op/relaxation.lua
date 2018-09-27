@@ -2,11 +2,10 @@ local class = require 'ext.class'
 local file = require 'ext.file'
 local table = require 'ext.table'
 local template = require 'template'
+local ig = require 'ffi.imgui'
+local tooltip = require 'tooltip'
 
 local Relaxation = class()
-
--- field we are solving for
-Relaxation.potentialField = 'ePot'
 
 Relaxation.name = 'Relaxation'
 
@@ -20,7 +19,11 @@ function Relaxation:init(args)
 end
 
 -- scalar type of our vectors -- real or cplx 
+-- TODO can be inferred from the type
 Relaxation.scalar = 'real'
+
+-- field we are solving for
+Relaxation.potentialField = 'ePot'
 
 -- type of the buffer holding the potential field
 -- TODO can this be inferred?
