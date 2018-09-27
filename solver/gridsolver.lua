@@ -35,10 +35,9 @@ args:
 	gridSize
 	mins
 	maxs
-	boundary = boundary info
 --]]
-function GridSolver:preInit(args)
-	GridSolver.super.preInit(self, args)
+function GridSolver:initL1(args)
+	GridSolver.super.initL1(self, args)
 
 	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
 	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
@@ -64,7 +63,14 @@ function GridSolver:preInit(args)
 
 	for i=0,self.dim-1 do self.gridSize:ptr()[i] = self.gridSize:ptr()[i] + 2 * self.numGhost end
 	for i=self.dim,2 do self.gridSize:ptr()[i] = 1 end
+end
 
+--[[
+args:
+	boundary = boundary info
+--]]
+function GridSolver:preInit(args)
+	GridSolver.super.preInit(self, args)
 	
 	self:createBoundaryOptions()
 	self:finalizeBoundaryOptions()
@@ -1162,11 +1168,13 @@ function GridSolver:calcDisplayVarToTex(var)
 			end
 		end
 		tex:bind()
+		local size = self[var.bufferField].sizevec or self.gridSize
+		assert(size.x <= tex.width and size.y <= tex.height)
 		if self.dim < 3 then
-			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, tex.width, tex.height, format, gltype, destPtr)
+			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, size.x, size.y, format, gltype, destPtr)
 		else
 			for z=0,tex.depth-1 do
-				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, tex.width, tex.height, 1, format, gltype, destPtr + channels * tex.width * tex.height * z)
+				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, size.x, size.y, 1, format, gltype, destPtr + channels * size.x * size.y * z)
 			end
 		end
 		tex:unbind()

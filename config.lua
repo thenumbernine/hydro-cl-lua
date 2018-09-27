@@ -568,4 +568,4 @@ maxs = {6,1,1},
 
 -- the start of AMR
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
-self.solvers:insert(require 'solver.amr'(require 'solver.roe', table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.amr'(require 'solver.roe')(table(args, {eqn='euler'})))

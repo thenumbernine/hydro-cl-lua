@@ -48,40 +48,36 @@ args:
 	integrator = name of integrator in int/all.lua to use
 --]]
 function SolverBase:init(args)
+	self:initL1(args)
 	self:preInit(args)
 	self:postInit()
 end
 
-function SolverBase:preInit(args)
+function SolverBase:initL1(args)
 	assert(args)
 	self.app = assert(args.app)
 	self.dim = assert(args.dim)
 	
 	self.color = vec3(math.random(), math.random(), math.random()):normalize()
 
-
 	-- operators for this solver
 	self.ops = table()
+end
 
-
+function SolverBase:preInit(args)
 	-- hmm, do some eqns create ops need to know the grid size? 
 	self.eqnName = args.eqn
 	self.eqnArgs = args.eqnArgs
 	self:createEqn()
 
-
 	self.name = self.eqn.name..' '..self.name
-
 
 	self.initStateIndex = table.find(self.eqn.initStateNames, args.initState) or 1
 	self.initStateArgs = args.initStateArgs
 
-
 	self.integratorIndex = integratorNames:find(args.integrator) or 1
 
-
 	self.coord = require('coord.'..args.coord){solver=self}
-
 
 	self.checkNaNs = false
 	self.useFixedDT = not not args.fixedDT
@@ -190,24 +186,24 @@ function SolverBase:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	error'abstract'
 end
 
-function SolverBase:clalloc(name, size)
+function SolverBase:clalloc(name, size, sizevec)
 	size = math.ceil(size / 4) * 4
-	self.buffers:insert{name=name, size=size}
+	self.buffers:insert{name=name, size=size, sizevec=sizevec}
 end
 
 function SolverBase:finalizeCLAllocs()
 	local CLBuffer = require 'cl.obj.buffer'
 	local total = 0
-	for _,buffer in ipairs(self.buffers) do
-		buffer.offset = total
-		local name = buffer.name
-		local size = buffer.size
+	for _,info in ipairs(self.buffers) do
+		info.offset = total
+		local name = info.name
+		local size = info.size
 		if not self.allocateOneBigStructure then
 			local mod = size % ffi.sizeof(self.app.env.real)
 			if mod ~= 0 then
 				-- WARNING?
 				size = size - mod + ffi.sizeof(self.app.env.real)
-				buffer.size = size
+				info.size = size
 			end
 		end
 		total = total + size
@@ -220,6 +216,9 @@ function SolverBase:finalizeCLAllocs()
 			}
 			self[name..'Obj'] = bufObj
 			self[name] = bufObj.obj
+			
+			-- I don't know where else to put this ...
+			self[name].sizevec = info.sizevec
 		end
 	end
 	if self.allocateOneBigStructure then
@@ -679,7 +678,7 @@ function DisplayVar:init(args)
 	self.type = args.type	-- or self.type
 	self.displayCode = args.displayCode 	-- or self.displayCode
 	self.codePrefix = args.codePrefix
-	
+
 	-- display stuff
 	self.enabled = not not args.enabled 
 	self.useLog = args.useLog or false
