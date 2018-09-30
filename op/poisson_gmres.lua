@@ -229,7 +229,7 @@ function Poisson:refreshBoundaryProgram()
 			end,
 		}
 	for _,obj in ipairs(self.potentialBoundaryKernelObjs) do
-		obj.obj:setArg(0, self:getPotBuf())
+		obj.obj:setArg(1, self:getPotBuf())
 	end
 end
 

@@ -711,6 +711,7 @@ this is such a mess.  it's practically an AST.
 function GridSolver:createBoundaryOptions()
 	local indent = '\t\t'
 	self.boundaryOptions = table{
+		-- TODO constant/'dirichlet' conditions
 		{periodic = function(args)
 			local gridSizeSide = 'gridSize_'..xNames[args.side]
 			if args.minmax == 'min' then
@@ -771,6 +772,24 @@ function GridSolver:createBoundaryOptions()
 					'buf['..args.index(gridSizeSide..'-numGhost-1')..']'
 				)..';'
 			end
+		end},
+		-- constant-derivative / linear extrapolation
+		{linear = function(args)
+			local gridSizeSide = 'gridSize_'..xNames[args.side]
+			if args.minmax == 'min' then
+				return 'for (int k = 0; k < numStates; ++k) {\n'
+					..indent..args.assign(
+						'buf['..args.index'j'..'].ptr[k]',
+						'(buf['..args.index'numGhost'..'].ptr[k] - buf['..args.index'numGhost+1'..'].ptr[k]) * (numGhost - j+1) + buf['..args.index'numGhost+1'..'].ptr[k]'
+					)..';\n}'
+			elseif args.minmax == 'max' then
+				local rhs = gridSizeSide..'-numGhost+j'
+				return 'for (int k = 0; k < numStates; ++k) {\n'
+					..indent..args.assign(
+						'buf['..args.index(rhs)..'].ptr[k]',
+						'(buf['..args.index(gridSizeSide..'-numGhost-1')..'].ptr[k] - buf['..args.index(gridSizeSide..'-numGhost-2')..'].ptr[k]) * (j+1) + buf['..args.index(gridSizeSide..'-numGhost-2')..'].ptr[k]'
+					)..';\n}'
+			end		
 		end},
 	}
 
@@ -869,6 +888,7 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 	
 		lines:insert(template([[
 kernel void boundary_<?=xNames[side]?>(
+	constant <?=solver.solver_t?>* solver,
 	global <?=args.type?>* buf
 <?= args.extraArgs and #args.extraArgs > 0 
 	and ','..table.concat(args.extraArgs, ',\n\t')
@@ -935,7 +955,9 @@ lines:insert[[
 	end)
 	local boundaryKernelObjs = table()
 	for i=1,self.dim do
-		boundaryKernelObjs:insert(boundaryProgramObj:kernel('boundary_'..xNames[i]))
+		local kernelObj = boundaryProgramObj:kernel('boundary_'..xNames[i])
+		boundaryKernelObjs:insert(kernelObj)
+		kernelObj.obj:setArg(0, self.solverBuf)
 	end
 
 	-- TODO switch these over to obj
@@ -960,7 +982,7 @@ end
 function GridSolver:refreshBoundaryProgram()
 	self.boundaryProgramObj, self.boundaryKernelObjs = self:createBoundaryProgramAndKernel(self:getBoundaryProgramArgs())
 	for _,obj in ipairs(self.boundaryKernelObjs) do
-		obj.obj:setArg(0, self.UBuf)
+		obj.obj:setArg(1, self.UBuf)
 	end
 	for _,op in ipairs(self.ops) do
 		if op.refreshBoundaryProgram then

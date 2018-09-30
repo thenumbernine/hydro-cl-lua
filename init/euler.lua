@@ -162,7 +162,7 @@ local function addMaxwellOscillatingBoundary(args)
 	function solver:boundary()
 assert(self.t)		
 		for _,obj in ipairs(self.boundaryKernelObjs) do
-			obj.obj:setArg(1, real(self.t))
+			obj.obj:setArg(2, real(self.t))
 		end
 		oldBoundary(self)
 	end

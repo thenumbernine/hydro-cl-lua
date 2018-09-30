@@ -408,7 +408,8 @@ return table{
 			--]]
 		end,
 		initState = function(self, solver)
-			solver:setBoundaryMethods'fixed'
+			--solver:setBoundaryMethods'fixed'
+			solver:setBoundaryMethods'linear'
 
 			--[[
 			I'm trying to follow 1997 Brandt & Brugmann, but here's what I've gathered:
