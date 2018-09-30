@@ -248,13 +248,11 @@ function HydroCLApp:initGL(...)
 
 	-- this will be per-solver
 	-- but is also tightly linked to the structured grid solvers
-
-
-
+	-- used for 1D
 	local graphShaderCode = file['draw/graph.shader']
 	self.graphShader = GLProgram{
-		vertexCode = '#define VERTEX_SHADER\n'..graphShaderCode,
-		fragmentCode = '#define FRAGMENT_SHADER\n'..graphShaderCode,
+		vertexCode = template(graphShaderCode, {vertexShader=true}),
+		fragmentCode = template(graphShaderCode, {fragmentShader=true}),
 		uniforms = {
 			tex = 0,
 			scale = 1,

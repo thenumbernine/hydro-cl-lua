@@ -32,21 +32,22 @@ function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin
 			gl.glColor3f(table.unpack((#self.solvers > 1 and solver or var).color))
 
 			solver:calcDisplayVarToTex(var)
-	
-			self.graphShader:use()
+
+			local graphShader = solver.graphShader
+			graphShader:use()
 			solver:getTex(var):bind()
 
 			local scale = 1 / (valueMax - valueMin)
 			local offset = valueMin
-			gl.glUniform1f(self.graphShader.uniforms.scale.loc, scale)
-			gl.glUniform1f(self.graphShader.uniforms.offset.loc, offset)
+			gl.glUniform1f(graphShader.uniforms.scale.loc, scale)
+			gl.glUniform1f(graphShader.uniforms.offset.loc, offset)
 			
-			gl.glUniform1f(self.graphShader.uniforms.ambient.loc, ambient)
-			gl.glUniform1i(self.graphShader.uniforms.axis.loc, solver.dim)
-			gl.glUniform1i(self.graphShader.uniforms.useLog.loc, var.useLog)
-			gl.glUniform2f(self.graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
-			gl.glUniform2f(self.graphShader.uniforms.xmin.loc, solver.mins[1], solver.mins[2])
-			gl.glUniform2f(self.graphShader.uniforms.xmax.loc, solver.maxs[1], solver.maxs[2])
+			gl.glUniform1f(graphShader.uniforms.ambient.loc, ambient)
+			gl.glUniform1i(graphShader.uniforms.axis.loc, solver.dim)
+			gl.glUniform1i(graphShader.uniforms.useLog.loc, var.useLog)
+			gl.glUniform2f(graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
+			gl.glUniform2f(graphShader.uniforms.xmin.loc, solver.mins[1], solver.mins[2])
+			gl.glUniform2f(graphShader.uniforms.xmax.loc, solver.maxs[1], solver.maxs[2])
 
 			gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
 
@@ -65,7 +66,7 @@ function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin
 			
 			gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 			
-			self.graphShader:useNone()
+			graphShader:useNone()
 		end
 	end
 	

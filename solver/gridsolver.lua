@@ -222,7 +222,24 @@ end
 
 function GridSolver:initDraw()
 	local GLProgram = require 'gl.program'
-	
+
+	local graphShaderCode = file['draw/graph.shader']
+	self.graphShader = GLProgram{
+		vertexCode = template(graphShaderCode, {
+			solver = self,
+			vertexShader = true,
+		}),
+		fragmentCode = template(graphShaderCode, {
+			solver = self,
+			fragmentShader = true,
+		}),
+		uniforms = {
+			tex = 0,
+			scale = 1,
+			ambient = 1,
+		},
+	}
+
 	local heatMapCode = file['draw/2d_heatmap.shader']
 	self.heatMap2DShader = GLProgram{
 		vertexCode = template(heatMapCode, {

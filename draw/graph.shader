@@ -1,7 +1,10 @@
 varying vec4 color;
 varying vec3 normal;
 
-#ifdef VERTEX_SHADER
+<?=solver and solver.coord:getCoordMapGLSLCode() or ''?>
+<?=solver and solver.coord:getCoordMapInvGLSLCode() or ''?>
+
+<? if vertexShader then ?>
 
 uniform sampler2D tex;
 uniform int axis;
@@ -37,12 +40,16 @@ void main() {
 	normal = normalize(cross(xp - xm, yp - ym));
 
 	color = gl_Color.rgba;
+
+<? if solver then ?>
+	vertex = coordMap(vertex);
+<? end ?>	
 	gl_Position = gl_ModelViewProjectionMatrix * vec4(vertex, 1.);
 }
 
-#endif	//VERTEX_SHADER
-
-#ifdef FRAGMENT_SHADER
+<?
+end
+if fragmentShader then ?>
 
 uniform float ambient;
 
@@ -55,4 +62,4 @@ void main() {
 	gl_FragColor.rgb *= lum;
 }
 
-#endif	//FRAGMENT_SHADER
+<? end ?>
