@@ -71,7 +71,19 @@ args:
 --]]
 function GridSolver:preInit(args)
 	GridSolver.super.preInit(self, args)
-	
+
+	-- do this before any call to createBuffers or createCodePrefix
+	self.solverPtrCPU.mins.x = self.mins[1]
+	self.solverPtrCPU.mins.y = self.dim <= 1 and 0 or self.mins[2]
+	self.solverPtrCPU.mins.z = self.dim <= 2 and 0 or self.mins[3]
+	self.solverPtrCPU.maxs.x = self.maxs[1]
+	self.solverPtrCPU.maxs.y = self.dim <= 1 and 0 or self.maxs[2]
+	self.solverPtrCPU.maxs.z = self.dim <= 2 and 0 or self.maxs[3]
+	self.solverPtrCPU.grid_dx.x = (self.solverPtrCPU.maxs.x - self.solverPtrCPU.mins.x) / (tonumber(self.gridSize.x) - 2*self.numGhost)
+	self.solverPtrCPU.grid_dx.y = (self.solverPtrCPU.maxs.y - self.solverPtrCPU.mins.y) / (tonumber(self.gridSize.y) - 2*self.numGhost)
+	self.solverPtrCPU.grid_dx.z = (self.solverPtrCPU.maxs.z - self.solverPtrCPU.mins.z) / (tonumber(self.gridSize.z) - 2*self.numGhost)
+	self.solverPtr:fromCPU(self.solverPtrCPU)
+
 	self:createBoundaryOptions()
 	self:finalizeBoundaryOptions()
 
@@ -188,7 +200,7 @@ end
 -- call this when the solver initializes or changes the codePrefix (or changes initState)
 -- it will build the code prefix and refresh everything related to it
 -- TODO if you change cons_t then call resetState etc (below the refreshEqnInitState() call a few lines above) in addition to this -- or else your values will get messed up
-function GridSolver:refreshEqnInitState()	
+function GridSolver:refreshEqnInitState()
 	GridSolver.super.refreshEqnInitState(self)
 
 	-- bounds don't get set until initState() is called, but code prefix needs them ...
@@ -318,22 +330,28 @@ typedef struct {
 })
 end
 
-local function safeFFICDef(code)
-	xpcall(function()
-		ffi.cdef(code)
-	end, function(msg)
-		print(require 'template.showcode'(code))
-		io.stderr:write(debug.traceback()..'\n'..msg)
-		os.exit(1)
-	end)
+function GridSolver:getSolverTypeCode()
+	-- this is moved from #define to constant, so AMR leaf nodes can change it.
+	-- coordinate space = u,v,w
+	-- cartesian space = x,y,z
+	-- min and max in coordinate space
+	assert(self.solver_t)
+	return template([[
+typedef struct {
+	real3 mins;
+	real3 maxs;
+	real3 grid_dx;
+} <?=solver.solver_t?>;
+]], {solver=self})
 end
 
+-- TODO some of this is copied in solverbase
 function GridSolver:createBuffers()
 	local app = self.app
 	local realSize = ffi.sizeof(app.real)
-
+	
 	-- to get sizeof
-	safeFFICDef(self:getConsLRTypeCode())
+	require'eqn.makestruct'.safeFFICDef(self:getConsLRTypeCode())
 
 	-- for twofluid, cons_t has been renamed to euler_maxwell_t and maxwell_cons_t
 	if ffi.sizeof(self.eqn.cons_t) ~= self.eqn.numStates * realSize then
@@ -347,6 +365,7 @@ function GridSolver:createBuffers()
 	end
 
 	-- should I put these all in one AoS?
+	-- or finally make use of constant args ...
 
 	-- this much for the first level U data
 	local UBufSize = self.numCells * ffi.sizeof(self.eqn.cons_t)
@@ -419,17 +438,10 @@ function GridSolver:createCodePrefix()
 		self.codePrefix,
 	}
 
+	lines:insert(self:getSolverTypeCode())
+
 	lines:append{
 		'#define numGhost '..self.numGhost,
-	}:append(xNames:map(function(x,i)
-	-- coordinate space = u,v,w
-	-- cartesian space = x,y,z
-	-- min and max in coordinate space
-		return '#define mins_'..x..' '..clnumber(self.mins[i])..'\n'
-			.. '#define maxs_'..x..' '..clnumber(self.maxs[i])..'\n'
-	end)):append{
-		'constant real3 mins = _real3(mins_x, '..(self.dim<2 and '0' or 'mins_y')..', '..(self.dim<3 and '0' or 'mins_z')..');', 
-		'constant real3 maxs = _real3(maxs_x, '..(self.dim<2 and '0' or 'maxs_y')..', '..(self.dim<3 and '0' or 'maxs_z')..');', 
 	}:append(xNames:map(function(name,i)
 	-- grid size
 		return '#define gridSize_'..name..' '..tonumber(self.gridSize[name])
@@ -460,20 +472,11 @@ function GridSolver:createCodePrefix()
 	--]]
 	
 	}:append(range(3):map(function(i)
-	-- this is the change in coordinate wrt the change in code
-	-- delta in coordinate space along one grid cell
-		if i > self.dim then 
--- why is this causing errors?
--- I think the grid_dx def is bad for dims outside the grid dim ...
---			return '#define grid_dx'..(i-1)..' 1.' 
-		end
-		return (('#define grid_dx{i} ((maxs_{x} - mins_{x}) / (real)(gridSize_{x} - '..(2*self.numGhost)..'))')
-			:gsub('{i}', i-1)
-			:gsub('{x}', xNames[i]))
-	end)):append(range(3):map(function(i)
 	-- mapping from index to coordinate 
-		return (('#define cell_x{i}(i) ((real)(i + '..clnumber(.5-self.numGhost)..') * grid_dx{i} + mins_'..xNames[i]..')')
-			:gsub('{i}', i-1))
+		return (('#define cell_x{i}(i) ((real)(i + '..clnumber(.5-self.numGhost)..') * solver->grid_dx.{x} + solver->mins.{x})')
+			:gsub('{i}', i-1)
+			:gsub('{x}', xNames[i])
+		)
 	end)):append{
 		'#define cell_x(i) _real3(cell_x0(i.x), cell_x1(i.y), cell_x2(i.z))',
 	
@@ -508,14 +511,17 @@ function GridSolver:createCodePrefix()
 	
 	-- volume of a cell = volume element times grid dx's 
 	lines:insert(template([[
-real volume_at(real3 x) {
+real volume_at(constant <?=solver.solver_t?>* solver, real3 x) {
 	return sqrt_det_g_grid(x)<?
-for i=0,solver.dim-1 do
-?> * grid_dx<?=i?><?
+for i=1,solver.dim do
+?> * solver->grid_dx.<?=xNames[i]?><?
 end
 ?>;
 }
-]], {solver = self}))
+]], {
+	solver = self,
+	xNames = xNames,
+}))
 
 	lines:append{
 		-- not messing with this one yet
@@ -644,7 +650,7 @@ function GridSolver:refreshSolverProgram()
 				or (var.vecVar and var.vecVar.enabled)
 				then
 				--]]do
-					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id, self.texCLMem)
+					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id, assert(self.solverPtr), self.texCLMem)
 				end
 			end
 		end
@@ -657,7 +663,7 @@ function GridSolver:refreshSolverProgram()
 			or (var.vecVar and var.vecVar.enabled)
 			then
 			--]]do
-				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id, self.reduceBuf)
+				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id, assert(self.solverPtr), self.reduceBuf)
 			end
 		end
 	end

@@ -25,7 +25,7 @@ function InitCond:refreshInitStateProgram(solver)
 		}
 		solver.initStateProgramObj:compile()
 	end)
-	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.UBuf)
+	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.solverPtr, solver.UBuf)
 
 	-- here's an ugly hack ...
 	-- I need a custom init state kernel for the GLM_MHD only

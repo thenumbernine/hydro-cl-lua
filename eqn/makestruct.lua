@@ -1,3 +1,4 @@
+-- TODO move this out of eqn/
 local ffi = require 'ffi'
 local table = require 'ext.table'
 
@@ -40,7 +41,35 @@ local function makeStruct(name, vars, scalar)
 	return lines:concat'\n'
 end
 
+-- static so that no names overlap across all equations
+local allnames = {}
+function uniqueName(name)
+	if not allnames[name] then
+		allnames[name] = true
+		return name
+	end
+	for i=2,math.huge do
+		local try = name..'_'..i
+		if not allnames[try] then
+			allnames[try] = true
+			return try
+		end
+	end
+end
+
+local function safeFFICDef(code)
+	xpcall(function()
+		ffi.cdef(code)
+	end, function(msg)
+		print(require 'template.showcode'(code))
+		io.stderr:write(msg..'\n'..debug.traceback())
+		os.exit(1)
+	end)
+end
+
 return {
 	makeStruct = makeStruct,
+	safeFFICDef = safeFFICDef,
 	countScalars = countScalars,
+	uniqueName = uniqueName,
 }

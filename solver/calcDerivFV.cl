@@ -4,6 +4,7 @@ local eqn = solver.eqn
 ?>
 
 kernel void calcDerivFromFlux(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* fluxBuf
 ) {
@@ -12,9 +13,9 @@ kernel void calcDerivFromFlux(
 	
 	real3 x = cell_x(i);
 <? if eqn.weightFluxByGridVolume then ?>	
-	real volume = volume_at(x);
+	real volume = volume_at(solver, x);
 <? else ?>
-	const real volume = 1.<? for i=0,solver.dim-1 do ?> * grid_dx<?=i?><? end ?>;
+	const real volume = 1.<? for i=0,solver.dim-1 do ?> * solver->grid_dx.s<?=i?><? end ?>;
 <? end ?>
 
 	<? for side=0,solver.dim-1 do ?>{
@@ -32,17 +33,17 @@ kernel void calcDerivFromFlux(
 
 <? if eqn.weightFluxByGridVolume then ?>	
 		real3 xIntL = x;
-		xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
-		real volume_intL = volume_at(xIntL);
-		real areaL = volume_intL / grid_dx<?=side?>;
+		xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		real volume_intL = volume_at(solver, xIntL);
+		real areaL = volume_intL / solver->grid_dx.s<?=side?>;
 	
 		real3 xIntR = x;
-		xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
-		real volume_intR = volume_at(xIntR);
-		real areaR = volume_intR / grid_dx<?=side?>;
+		xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
+		real volume_intR = volume_at(solver, xIntR);
+		real areaR = volume_intR / solver->grid_dx.s<?=side?>;
 <? else ?>
-		const real areaL = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * grid_dx<?=i?><? end end ?>;
-		const real areaR = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * grid_dx<?=i?><? end end ?>;
+		const real areaL = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * solver->grid_dx.s<?=i?><? end end ?>;
+		const real areaR = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * solver->grid_dx.s<?=i?><? end end ?>;
 <? end ?>
 
 <? if not eqn.postComputeFluxCode then -- would the compiler know to optimize this? ?>

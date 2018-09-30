@@ -39,31 +39,14 @@ Equation.roeUseFluxFromCons = nil
 Equation.useSourceTerm = nil
 
 
--- static so that no names overlap across all equations
-local allnames = {}
-function Equation:unique(name)
-	if not allnames[name] then
-		allnames[name] = true
-		return name
-	end
-	for i=2,math.huge do
-		local try = name..'_'..i
-		if not allnames[try] then
-			allnames[try] = true
-			return try
-		end
-	end
-end
-
 function Equation:init(args)
 	self.solver = assert(args.solver)
 	
-	self.prim_t = self:unique'prim_t'
-	self.cons_t = self:unique'cons_t'
-	self.consLR_t = self:unique'consLR_t'
-	self.eigen_t = self:unique'eigen_t'
-	
-	self.waves_t = self:unique'waves_t'
+	self.prim_t = makestruct.uniqueName'prim_t'
+	self.cons_t = makestruct.uniqueName'cons_t'
+	self.consLR_t = makestruct.uniqueName'consLR_t'
+	self.eigen_t = makestruct.uniqueName'eigen_t'
+	self.waves_t = makestruct.uniqueName'waves_t'
 	
 	local numReals
 	if self.consVars then

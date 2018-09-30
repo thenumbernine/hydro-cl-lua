@@ -83,7 +83,7 @@ function GREMSeparateSolver:init(args)
 	end
 	function GRMaxwellSolver:refreshInitStateProgram()
 		GRMaxwellSolver.super.refreshInitStateProgram(self)
-		self.initStateKernelObj.obj:setArg(1, gr.UBuf)
+		self.initStateKernelObj.obj:setArg(2, gr.UBuf)
 	end
 	function GRMaxwellSolver:refreshSolverProgram()
 		GRMaxwellSolver.super.refreshSolverProgram(self)
@@ -94,7 +94,7 @@ function GREMSeparateSolver:init(args)
 		-- ... just create a einstein-maxwell file that is missing alpha,beta,gamma variables
 		-- and have the GR solver provide that code
 io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
-		self.calcDTKernelObj.obj:setArg(2, gr.UBuf)
+		self.calcDTKernelObj.obj:setArg(3, gr.UBuf)
 		self.calcEigenBasisKernelObj.obj:setArg(3, gr.UBuf)
 		self.addSourceKernelObj.obj:setArg(2, gr.UBuf)
 	end

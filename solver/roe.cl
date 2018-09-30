@@ -2,6 +2,7 @@
 
 //TODO entropy fix ... for the Euler equations at least
 kernel void calcFlux(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* fluxBuf,
 	<?= solver.getULRArg ?>,
 	const global <?=eqn.eigen_t?>* eigenBuf, 
@@ -12,17 +13,17 @@ kernel void calcFlux(
 	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;	
-		real dt_dx = dt / grid_dx<?=side?>;//dx<?=side?>_at(i);
+		real dt_dx = dt / solver->grid_dx.s<?=side?>;//dx<?=side?>_at(i);
 		int indexL = index - stepsize.s<?=side?>;
 		
 		real3 xInt = xR;
-		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
+		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 
 		real3 xIntL = xInt;
-		xIntL.s<?=side?> -= grid_dx<?=side?>;
+		xIntL.s<?=side?> -= solver->grid_dx.s<?=side?>;
 		
 		real3 xIntR = xInt;
-		xIntR.s<?=side?> += grid_dx<?=side?>;
+		xIntR.s<?=side?> += solver->grid_dx.s<?=side?>;
 	
 		<?=solver:getULRCode()?>
 	
@@ -104,7 +105,7 @@ kernel void calcFlux(
 <? if eqn.roeUseFluxFromCons then ?>
 		
 		real3 xL = xR;
-		xL.s<?=side?> -= grid_dx<?=side?>;
+		xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
 		
 		<?=eqn.cons_t?> FL = fluxFromCons_<?=side?>(*UL, xL);
 		<?=eqn.cons_t?> FR = fluxFromCons_<?=side?>(*UR, xR);

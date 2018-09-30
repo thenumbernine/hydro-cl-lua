@@ -13,6 +13,7 @@ local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
+local makestruct = require 'eqn.makestruct'
 
 local SRHD = class(Equation)
 SRHD.name = 'SRHD'
@@ -41,7 +42,7 @@ SRHD.initStates = require 'init.euler'
 function SRHD:init(args)
 	SRHD.super.init(self, args)
 
-	self.cons_only_t = self:unique'cons_only_t'
+	self.cons_only_t = makestruct.uniqueName'cons_only_t'
 
 	local SRHDSelfGrav = require 'op.srhd-selfgrav'
 	self.solver.ops:insert(SRHDSelfGrav{solver=self.solver})

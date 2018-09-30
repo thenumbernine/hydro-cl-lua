@@ -39,6 +39,7 @@ end
 function SelfGrav:getPoissonCode()
 	return template([[
 kernel void calcGravityDeriv(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuffer,
 	global const <?=eqn.cons_t?>* UBuf
 ) {
@@ -96,7 +97,8 @@ function SelfGrav:refreshSolverProgram()
 	
 	local solver = self.solver
 	self.calcGravityDerivKernelObj = solver.solverProgramObj:kernel'calcGravityDeriv'
-	self.calcGravityDerivKernelObj.obj:setArg(1, solver.UBuf)
+	self.calcGravityDerivKernelObj.obj:setArg(0, assert(solver.solverPtr))
+	self.calcGravityDerivKernelObj.obj:setArg(2, solver.UBuf)
 
 	--TODO just use the display var kernels
 	self.reduce_ePotKernelObj = solver.solverProgramObj:kernel('reduce_ePot', solver.reduceBuf, solver.UBuf)
@@ -146,7 +148,8 @@ function SelfGrav:step(dt)
 	if not solver[self.enableField] then return end
 	solver.integrator:integrate(dt, function(derivBuf)
 		self:relax()
-		self.calcGravityDerivKernelObj(derivBuf)
+		self.calcGravityDerivKernelObj:setArg(1, derivBuf)
+		self.calcGravityDerivKernelObj()
 	end)
 end
 

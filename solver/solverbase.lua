@@ -6,6 +6,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local math = require 'ext.math'
+local CLBuffer = require 'cl.obj.buffer'
 local template = require 'template'
 local vec3 = require 'vec.vec3'
 local roundup = require 'roundup'
@@ -64,6 +65,11 @@ function SolverBase:initL1(args)
 	self.ops = table()
 end
 
+function SolverBase:getSolverTypeCode()
+	error("not implemented in base class")
+end
+
+
 function SolverBase:preInit(args)
 
 -- despite the name, this doesn't have anything to do with the grid size ... 
@@ -102,6 +108,20 @@ print(k,v)
 
 
 	self:createDisplayVars()	-- depends on eqn
+
+
+	-- do this before any call to createBuffers or createCodePrefix
+	self.solver_t = require 'eqn.makestruct'.uniqueName'solver_t'
+	require'eqn.makestruct'.safeFFICDef(self:getSolverTypeCode())
+	self.solverPtrCPU = ffi.new(self.solver_t)
+	self.solverPtr = CLBuffer{
+		env = self.app.env,
+		name = 'solver',
+		type = self.solver_t,
+		size = 1,	-- should be 'count'
+		--readwrite = 'read',
+	}
+	ffi.new(self.solver_t)
 end
 
 function SolverBase:postInit()
@@ -194,7 +214,6 @@ function SolverBase:clalloc(name, size, sizevec)
 end
 
 function SolverBase:finalizeCLAllocs()
-	local CLBuffer = require 'cl.obj.buffer'
 	local total = 0
 	for _,info in ipairs(self.buffers) do
 		info.offset = total
@@ -214,7 +233,7 @@ function SolverBase:finalizeCLAllocs()
 				env = self.app.env,
 				name = name,
 				type = 'real',
-				size = size / ffi.sizeof(self.app.env.real),
+				size = size / ffi.sizeof(self.app.real),
 			}
 			self[name..'Obj'] = bufObj
 			self[name] = bufObj.obj
@@ -373,7 +392,7 @@ function SolverBase:refreshSolverProgram()
 				or (var.vecVar and var.vecVar.enabled)
 				then
 				--]]do
-					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id, self.texCLMem)
+					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id, assert(self.solverPtr), self.texCLMem)
 				end
 			end
 		end
@@ -386,7 +405,7 @@ function SolverBase:refreshSolverProgram()
 			or (var.vecVar and var.vecVar.enabled)
 			then
 			--]]do
-				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id, self.reduceBuf)
+				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id, assert(self.solverPtr), self.reduceBuf)
 			end
 		end
 	end
@@ -394,7 +413,7 @@ end
 
 -- for solvers who don't rely on calcDT
 function SolverBase:refreshCalcDTKernel()
-	self.calcDTKernelObj = self.solverProgramObj:kernel('calcDT', self.reduceBuf, self.UBuf)
+	self.calcDTKernelObj = self.solverProgramObj:kernel('calcDT', self.solverPtr, self.reduceBuf, self.UBuf)
 end
 
 
@@ -616,6 +635,7 @@ the only reason I can think of is for good subtexel lookup when rendering
 --]]
 DisplayVar.displayCode = [[
 kernel void <?=name?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=input?>,
 	const global <?= var.type ?>* buf
 <? if require 'solver.meshsolver'.is(solver) then ?>
@@ -702,7 +722,7 @@ end
 
 function DisplayVar:setArgs(kernel)
 	local buffer = assert(self.solver[self.bufferField], "failed to find buffer "..tostring(self.bufferField))
-	kernel:setArg(1, buffer)
+	kernel:setArg(2, buffer)
 end
 
 function DisplayVar:setToTexArgs()

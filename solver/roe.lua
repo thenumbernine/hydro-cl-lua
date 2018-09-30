@@ -45,18 +45,21 @@ function Roe:refreshSolverProgram()
 
 	self.calcEigenBasisKernelObj = self.solverProgramObj:kernel(
 		'calcEigenBasis',
+		self.solverPtr,
 		self.eigenBuf,
 		self.getULRBuf)
 
 	self.calcFluxKernelObj = self.solverProgramObj:kernel(
 		'calcFlux',
+		self.solverPtr,
 		self.fluxBuf,
 		self.getULRBuf,
 		self.eigenBuf)
 
 	if self.eqn.useSourceTerm then
 		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
+		self.addSourceKernelObj.obj:setArg(0, self.solverPtr)
+		self.addSourceKernelObj.obj:setArg(2, self.UBuf)
 	end
 end
 
@@ -115,7 +118,7 @@ function Roe:addDisplayVars()
 	const global <?=eqn.eigen_t?>* eig = buf + indexInt;
 
 	real3 xInt = x;
-	xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
+	xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 	
 	*value = 0;
 	//the flux transform is F v = R Lambda L v, I = R L
@@ -158,7 +161,7 @@ function Roe:addDisplayVars()
 		const global <?=eqn.eigen_t?>* eig = buf + indexInt;
 	
 		real3 xInt = x;
-		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
+		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 
 		*value = 0;
 		<?=eqn:eigenWaveCodePrefix(side, '*eig', 'xInt')?>
@@ -226,7 +229,7 @@ function Roe:calcDeriv(derivBuf, dt)
 
 	self.calcEigenBasisKernelObj()
 
-	self.calcFluxKernelObj.obj:setArg(3, dtArg)
+	self.calcFluxKernelObj.obj:setArg(4, dtArg)
 	self.calcFluxKernelObj()
 
 -- [=[ this is from the 2017 Zingale book
@@ -255,10 +258,16 @@ function Roe:calcDeriv(derivBuf, dt)
 	end
 --]=]
 	
-	self.calcDerivFromFluxKernelObj(derivBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverPtr)
+	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
+	self.calcDerivFromFluxKernelObj()
 
 	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj(derivBuf)
+		self.addSourceKernelObj.obj:setArg(0, self.solverPtr)
+		self.addSourceKernelObj.obj:setArg(1, derivBuf)
+		self.addSourceKernelObj.obj:setArg(2, self.UBuf)
+		self.addSourceKernelObj()
 	end
 end
 

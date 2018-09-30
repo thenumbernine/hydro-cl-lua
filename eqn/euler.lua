@@ -162,11 +162,12 @@ end
 Euler.initStateCode = [[
 <? local xNames = require 'common'().xNames ?>
 kernel void initState(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool lhs = true
 <?
 for i=1,solver.dim do
@@ -224,8 +225,8 @@ local function vorticity(eqn,k,result)
 		real vjm_i = Ujm->m.s<?=i?> / Ujm->rho;
 		real vjp_i = Ujp->m.s<?=i?> / Ujp->rho;
 		
-		<?=result?> = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
-				- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
+		<?=result?> = (vjp_i - vjm_i) / (2. * solver->grid_dx.s<?=i?>)
+				- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
 	}
 ]], {
 		i = i,
@@ -357,6 +358,7 @@ function Euler:getCalcDTCode()
 	return template([[
 <? local solver = eqn.solver ?>
 kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
@@ -378,7 +380,7 @@ kernel void calcDT(
 		real lambdaMax = W.v.s<?=side?> + Cs;
 		lambdaMin = min((real)0., lambdaMin);
 		lambdaMax = max((real)0., lambdaMax);
-		dt = min(dt, ((real)grid_dx<?=side?> / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
+		dt = min(dt, (solver->grid_dx.s<?=side?> / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
 	}<? end ?>
 	dtBuf[index] = dt;
 }

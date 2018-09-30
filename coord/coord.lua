@@ -594,7 +594,7 @@ function CoordinateSystem:getCode(solver)
 				'{pt^'..j..'}',
 				'cell_x'..(j-1)..'(i.'..xs[j]..')')
 		end
-		return '#define dx'..(i-1)..'_at(i) (grid_dx'..(i-1)..' * ('..code..'))'
+		return '#define dx'..(i-1)..'_at(i) (solver->grid_dx.s'..(i-1)..' * ('..code..'))'
 	end))
 	
 	-- volume

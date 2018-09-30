@@ -15,6 +15,7 @@ local solver = eqn.solver
 <? if require 'solver.gridsolver'.is(solver) then ?>
 
 kernel void calcEigenBasis(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.eigen_t?>* eigenBuf,		//[numCells][dim]
 	<?=solver.getULRArg?>
 ) {
@@ -29,7 +30,7 @@ kernel void calcEigenBasis(
 		<?=solver:getULRCode()?>
 		
 		real3 xInt = x;
-		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
+		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		
 		int indexInt = side + dim * index;	
 		eigenBuf[indexInt] = eigen_forInterface(*UL, *UR, xInt, normalForSide<?=side?>());
@@ -39,6 +40,7 @@ kernel void calcEigenBasis(
 <? else -- mesh solver ?>
 
 kernel void calcEigenBasis(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.eigen_t?>* eigenBuf,	//[numInterfaces]
 	global <?=eqn.cons_t?>* UBuf,		//[numCells]
 	const global cell_t* cells,			//[numCells]

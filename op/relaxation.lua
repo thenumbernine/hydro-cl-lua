@@ -53,9 +53,9 @@ end
 function Relaxation:refreshSolverProgram()
 	local solver = self.solver
 	self.initPotentialKernelObj = solver.solverProgramObj:kernel('initPotential'..self.name..self.suffix, self:getPotBuf())
-	self.solveJacobiKernelObj = solver.solverProgramObj:kernel('solveJacobi'..self.name..self.suffix, self:getPotBuf())
+	self.solveJacobiKernelObj = solver.solverProgramObj:kernel('solveJacobi'..self.name..self.suffix, assert(self.solver.solverPtr), self:getPotBuf())
 	if self.stopOnEpsilon then
-		self.solveJacobiKernelObj.obj:setArg(1, solver.reduceBuf)
+		self.solveJacobiKernelObj.obj:setArg(2, solver.reduceBuf)
 	end
 end
 
