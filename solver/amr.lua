@@ -1,3 +1,9 @@
+--[[
+behavior that makes any GridSolver AMR-friendly
+
+now to change solver/gridsolver so I can somehow modify the mins/maxs without reloading any kernels
+...
+--]]
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
@@ -5,22 +11,57 @@ local template = require 'template'
 local vec3sz = require 'ffi.vec.vec3sz'
 local roundup = require 'roundup'
 
--- behavior that makes any GridSolver AMR-friendly
 return function(cl)
 	cl = class(cl)
-	
-	function cl:init(args)
-		-- init() calls createBuffers() etc, which depends on this being set
-		--self.amrMethod = 'dt vs 2dt'
-		self.amrMethod = 'gradient'
+
+	function cl:preInit(args)
+		cl.super.preInit(self, args)
 		
-		cl.super.init(self, args)
+		self.amr = args.amr
+		if not self.amr then
+			-- in this case, we are the root:
+			self.amr = {
+				depth = 0,
+				-- shared by all in the tree
+				ctx = {
+					--method = 'dt vs 2dt',
+					method = 'gradient',
+					maxdepth = 1,
+					splitThreshold = .001,
+					mergeThreshold = .0001,
+				
+					-- the size, in cells, which a node replaces
+					nodeFromSize = ({
+						vec3sz(8, 1, 1),
+						vec3sz(8, 8, 1),
+						vec3sz(8, 8, 8),
+					})[self.dim],
+
+					-- the size, in cells, of each node, excluding border, for each dimension
+					nodeSizeWithoutBorder = ({
+						vec3sz(16, 1, 1),
+						vec3sz(16, 16, 1),
+						vec3sz(16, 16, 16),
+					})[self.dim],
+				},
+			}
+		
+				-- size of the root level, in terms of nodes ('from' size)
+			self.amr.ctx.rootSizeInFromSize = vec3sz(1,1,1)
+			for i=0,self.dim-1 do
+				self.amr.ctx.rootSizeInFromSize:ptr()[i] = 
+					roundup(self.sizeWithoutBorder:ptr()[i], self.amr.ctx.nodeFromSize:ptr()[i]) 
+						/ self.amr.ctx.nodeFromSize:ptr()[i]
+			end
+		end
+
+		self.initArgs = table(args)
 	end
 
 	function cl:createBuffers()
 		cl.super.createBuffers(self)
 
-		if self.amrMethod == 'gradient' then
+		if self.amr.ctx.method == 'gradient' then
 			--[[
 			ok here's my thoughts on the size ...
 			I'm gonna try to do AMR
@@ -67,78 +108,37 @@ return function(cl)
 
 			--]]
 
-			-- the size, in cells, which a node replaces
-			self.amrNodeFromSize = ({
-				vec3sz(8, 1, 1),
-				vec3sz(8, 8, 1),
-				vec3sz(8, 8, 8),
-			})[self.dim]
-		print('self.amrNodeFromSize', self.amrNodeFromSize)
 
-			-- the size, in cells, of each node, excluding border, for each dimension
-			self.amrNodeSizeWithoutBorder = ({
-				vec3sz(16, 1, 1),
-				vec3sz(16, 16, 1),
-				vec3sz(16, 16, 16),
-			})[self.dim]
-		print('self.amrNodeSizeWithoutBorder', self.amrNodeSizeWithoutBorder)
 
-			-- size of the root level, in terms of nodes ('from' size)
-			self.amrRootSizeInFromSize = vec3sz(1,1,1)
-			for i=0,self.dim-1 do
-				self.amrRootSizeInFromSize:ptr()[i] = 
-					roundup(self.sizeWithoutBorder:ptr()[i], self.amrNodeFromSize:ptr()[i]) 
-						/ self.amrNodeFromSize:ptr()[i]
-			end
-		print('self.amrRootSizeInFromSize', self.amrRootSizeInFromSize)
+
 
 			-- how big each node is
-			self.amrNodeSize = self.amrNodeSizeWithoutBorder + 2 * self.numGhost
+			self.amrNodeSize = self.amr.ctx.nodeSizeWithoutBorder + 2 * self.numGhost
 
-			-- how many nodes to allocate and use
-			-- here's the next dilemma in terms of memory layout
-			-- specifically in terms of rendering
-			-- if I want to easily copy and render the texture information then I will need to package the leafs into the same texture as the root
-			-- which means extending the texture buffer in some particular direction.
-			-- since i'm already adding the leaf information to the end of the buffer
-			-- and since appending to the end of a texture buffer coincides with adding extra rows to the texture
-			-- why not just put our leafs in extra rows of -- both our display texture and of  
-			self.amrMaxNodes = 1
-			
-			-- this will hold info on what leafs have yet been used
-			self.amrLeafs = table()
-
-			-- hmm, this is the info for the root node ...
-			-- do I want to keep the root level data separate?
-			-- or do I just want to represent everything as a collection of leaf nodes?
-			-- I'll keep the root structure separate for now
-			-- so I can keep the original non-amr solver untouched
-			self.amrLayers = table()
-			self.amrLayers[1] = table()	-- here's the root
+			self.amr.child = table()
 		end
 			
 		-- TODO UBufSize used to go here
 
 		--[[ this used to go after createBuffers UBufSize
-		if self.amrMethod == 'gradient' then	
+		if self.amr.ctx.method == 'gradient' then	
 			UBufSize = UBufSize + self.amrMaxNodes * self.amrNodeSize:volume()
 		end	
 		--]]
 
-		if self.amrMethod == 'dt vs 2dt' then
+		if self.amr.ctx.method == 'dt vs 2dt' then
 			-- here's my start at AMR, using the 1989 Berger, Collela two-small-steps vs one-big-step method
 			self:clalloc('lastUBuf', self.numCells * ffi.sizeof(self.eqn.cons_t))
 			self:clalloc('U2Buf', self.numCells * ffi.sizeof(self.eqn.cons_t))
-		elseif self.amrMethod == 'gradient' then
-			
+		elseif self.amr.ctx.method == 'gradient' then
 			-- this is going to be a single value for each leaf
 			-- that means the destination will be the number of nodes it takes to cover the grid (excluding the border)
 			-- however, do I want this to be a larger buffer, and then perform reduce on it?
 			self:clalloc('amrErrorBuf', 
 				-- self.volume 
-				tonumber(self.amrRootSizeInFromSize:volume())
+				tonumber(self.amr.ctx.rootSizeInFromSize:volume())
 				* ffi.sizeof(self.app.real),
-				assert(self.amrRootSizeInFromSize))
+				assert(self.amr.ctx.rootSizeInFromSize))
 		end
 	end
 
@@ -173,24 +173,24 @@ kernel void calcAMRError(
 	const global <?=eqn.cons_t?>* UBuf
 ) {
 	int4 nodei = globalInt4();
-	if (nodei.x >= <?=solver.amrRootSizeInFromSize.x?> || 
-		nodei.y >= <?=solver.amrRootSizeInFromSize.y?>) 
+	if (nodei.x >= <?=solver.amr.ctx.rootSizeInFromSize.x?> || 
+		nodei.y >= <?=solver.amr.ctx.rootSizeInFromSize.y?>) 
 	{
 		return;
 	}
 
-	int nodeIndex = nodei.x + <?=solver.amrRootSizeInFromSize.x?> * nodei.y;
+	int nodeIndex = nodei.x + <?=solver.amr.ctx.rootSizeInFromSize.x?> * nodei.y;
 
 	real dV_dx;	
 	real sum = 0.;
 	
 	//hmm, it's less memory, but it's probably slower to iterate across all values as I build them here
-	for (int nx = 0; nx < <?=solver.amrNodeFromSize.x?>; ++nx) {
-		for (int ny = 0; ny < <?=solver.amrNodeFromSize.y?>; ++ny) {
+	for (int nx = 0; nx < <?=solver.amr.ctx.nodeFromSize.x?>; ++nx) {
+		for (int ny = 0; ny < <?=solver.amr.ctx.nodeFromSize.y?>; ++ny) {
 			int4 Ui = (int4)(0,0,0,0);
 			
-			Ui.x = nodei.x * <?=solver.amrNodeFromSize.x?> + nx + numGhost;
-			Ui.y = nodei.y * <?=solver.amrNodeFromSize.y?> + ny + numGhost;
+			Ui.x = nodei.x * <?=solver.amr.ctx.nodeFromSize.x?> + nx + numGhost;
+			Ui.y = nodei.y * <?=solver.amr.ctx.nodeFromSize.y?> + ny + numGhost;
 			
 			int Uindex = INDEXV(Ui);
 			const global <?=eqn.cons_t?>* U = UBuf + Uindex;
@@ -204,7 +204,7 @@ kernel void calcAMRError(
 <? end
 ?>		}
 	}
-	amrErrorBuf[nodeIndex] = sum * 1e-2 * <?=clnumber(1/tonumber( solver.amrNodeFromSize:volume() ))?>;
+	amrErrorBuf[nodeIndex] = sum * 1e-2 * <?=clnumber(1/tonumber( solver.amr.ctx.nodeFromSize:volume() ))?>;
 }
 
 //from is the position on the root level to read from
@@ -222,13 +222,13 @@ kernel void initNodeFromRoot(
 
 	global <?=eqn.cons_t?>* dstU = UBuf + <?=solver.numCells?> + toNodeIndex * <?=solver.amrNodeSize:volume()?>;
 	
-	//blitter srcU sized solver.amrNodeFromSize (in a patch of size solver.gridSize)
+	//blitter srcU sized solver.amr.ctx.nodeFromSize (in a patch of size solver.gridSize)
 	// to dstU sized solver.amrNodeSize (in a patch of solver.amrNodeSize)
 	
 	dstU[dstIndex] = UBuf[srcIndex];
 }
 ]==],
-			})[self.amrMethod] or '', {
+			})[self.amr.ctx.method] or '', {
 				solver = self,
 				eqn = self.eqn,
 			}),
@@ -238,18 +238,22 @@ kernel void initNodeFromRoot(
 	function cl:refreshSolverProgram()
 		cl.super.refreshSolverProgram(self)
 
-		if self.amrMethod == 'dt vs 2dt' then
+		if self.amr.ctx.method == 'dt vs 2dt' then
 			self.compareUvsU2KernelObj = self.solverProgramObj:kernel('compareUvsU2', self.U2Buf, self.UBuf)
-		elseif self.amrMethod == 'gradient' then
+		elseif self.amr.ctx.method == 'gradient' then
 			self.calcAMRErrorKernelObj = self.solverProgramObj:kernel('calcAMRError', self.amrErrorBuf, self.UBuf)
 			self.initNodeFromRootKernelObj = self.solverProgramObj:kernel('initNodeFromRoot', self.UBuf)
 		end
 	end
 
+	--[[ maybe something in here is messing me up?
+	-- after all, most display vars are typically all the same size
+	-- the AMR ones are the only ones that are different
+	-- nope...still got a crash...
 	function cl:addDisplayVars()
 		cl.super.addDisplayVars(self)
 
-		if self.amrMethod == 'dt vs 2dt' then
+		if self.amr.ctx.method == 'dt vs 2dt' then
 			self:addDisplayVarGroup{
 				name = 'U2',
 				bufferField = 'U2Buf',
@@ -258,7 +262,7 @@ kernel void initNodeFromRoot(
 					{[0] = '*value = buf[index].ptr[0];'},
 				}
 			}
-		elseif self.amrMethod == 'gradient' then
+		elseif self.amr.ctx.method == 'gradient' then
 			self:addDisplayVarGroup{
 				name = 'amrError',
 				bufferField = 'amrErrorBuf',
@@ -269,11 +273,12 @@ kernel void initNodeFromRoot(
 			}
 		end
 	end
+	--]]
 
 	function cl:update()
 		-- NOTICE this used to go after boundary() and before step()
 		local t
-		if self.amrMethod == 'dt vs 2dt' then
+		if self.amr.ctx.method == 'dt vs 2dt' then
 			t = self.t
 			-- back up the last buffer
 			self.app.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.lastUBuf, size=self.numCells * self.eqn.numStates * ffi.sizeof(self.app.real)}
@@ -282,7 +287,7 @@ kernel void initNodeFromRoot(
 		cl.super.update(self)
 	
 		-- now copy it to the backup buffer
-		if self.amrMethod == 'dt vs 2dt' then
+		if self.amr.ctx.method == 'dt vs 2dt' then
 			-- TODO have step() provide a target, and just update directly into U2Buf?
 			self.app.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.U2Buf, size=self.numCells * self.eqn.numStates * ffi.sizeof(self.app.real)}
 			self.app.cmds:enqueueCopyBuffer{src=self.lastUBuf, dst=self.UBuf, size=self.numCells * self.eqn.numStates * ffi.sizeof(self.app.real)}
@@ -294,14 +299,16 @@ kernel void initNodeFromRoot(
 
 			-- now compare UBuf and U2Buf, store in U2Buf in the first real of cons_t
 			self.compareUvsU2KernelObj()
-		elseif self.amrMethod == 'gradient' then
+		elseif self.amr.ctx.method == 'gradient' then
 			
 			-- 1) compute errors from gradient, sum up errors in each root node, and output on a per-node basis
 			local amrRootSizeInFromGlobalSize = vec3sz(
-				roundup(self.amrRootSizeInFromSize.x, self.localSize.x),
-				roundup(self.amrRootSizeInFromSize.y, self.localSize.y),
-				roundup(self.amrRootSizeInFromSize.z, self.localSize.z))
-			
+				roundup(self.amr.ctx.rootSizeInFromSize.x, self.localSize.x),
+				roundup(self.amr.ctx.rootSizeInFromSize.y, self.localSize.y),
+				roundup(self.amr.ctx.rootSizeInFromSize.z, self.localSize.z))
+--print('self.amr.ctx.rootSizeInFromSize', self.amr.ctx.rootSizeInFromSize) 
+--print('amrRootSizeInFromGlobalSize', amrRootSizeInFromGlobalSize) 
+--print('self.localSize', self.localSize)			
 			self.app.cmds:enqueueNDRangeKernel{
 				kernel = self.calcAMRErrorKernelObj.obj, 
 				dim = self.dim, 
@@ -330,78 +337,81 @@ kernel void initNodeFromRoot(
 				if it says to merge ...
 					clear the 'used' flag in the overall tree / in the layout of leafs in our state buffer
 			--]]
-			local vol = tonumber(self.amrRootSizeInFromSize:volume())
-			local ptr = ffi.new('real[?]', vol)
-			self.app.cmds:enqueueReadBuffer{buffer=self.amrErrorBuf, block=true, size=ffi.sizeof(self.app.real) * vol, ptr=ptr}
+			local volume = tonumber(self.amr.ctx.rootSizeInFromSize:volume())
+			local ptr = ffi.new('real[?]', volume)
+			self.app.cmds:enqueueReadBuffer{buffer=self.amrErrorBuf, block=true, size=ffi.sizeof(self.app.real) * volume, ptr=ptr}
 		
-			-- [[
+			--[[
 			print'amrErrors:'
-			for ny=0,tonumber(self.amrRootSizeInFromSize.y)-1 do
-				for nx=0,tonumber(self.amrRootSizeInFromSize.x)-1 do
-					local i = nx + self.amrRootSizeInFromSize.x * ny
+			for ny=0,tonumber(self.amr.ctx.rootSizeInFromSize.y)-1 do
+				for nx=0,tonumber(self.amr.ctx.rootSizeInFromSize.x)-1 do
+					local i = nx + self.amr.ctx.rootSizeInFromSize.x * ny
 					io.write('\t', ('%.5f'):format(ptr[i]))
 				end
 				print()
 			end
 			--]]
 
-			for ny=0,tonumber(self.amrRootSizeInFromSize.y)-1 do
-				for nx=0,tonumber(self.amrRootSizeInFromSize.x)-1 do
-					local i = nx + self.amrRootSizeInFromSize.x * ny
-					local nodeErr = ptr[i]
-					if nodeErr > .2 then
-						print('root node '..tostring(i)..' needs to be split')
-						
-						-- flag for a split
-						-- look for a free node to allocate in the buffer
-						-- if there's one available then ...
-						-- store it in a map
-
-						local amrLayer = self.amrLayers[1]
-						
-						-- see if there's an entry in this layer
-						-- if there's not then ...
-						-- allocate a new patch and make an entry
-						if not amrLayer[i+1] then
-						
-							-- next: find a new unused leaf
-							-- for now, just this one node
-							local leafIndex = 0
+			-- [[
+			if self.amr.depth < self.amr.ctx.maxdepth then
+				for ny=0,tonumber(self.amr.ctx.rootSizeInFromSize.y)-1 do
+					for nx=0,tonumber(self.amr.ctx.rootSizeInFromSize.x)-1 do
+						local i = nx + self.amr.ctx.rootSizeInFromSize.x * ny
+						local nodeErr = ptr[i]
+						if nodeErr > self.amr.ctx.splitThreshold then
+							if not self.amr.child[i+1] then
 							
-							if not self.amrLeafs[leafIndex+1] then
-						
-								print('splitting root node '..tostring(i)..' and putting in leaf node '..leafIndex)
-					
-								-- create info about the leaf
-								self.amrLeafs[leafIndex+1] = {
-									level = 0,	-- root
-									layer = amrLayer,
-									layerX = nx,		-- node x and y in the root
-									layerY = ny,
-									leafIndex = leafIndex,	-- which leaf we are using
-								}
-						
+								-- lazy way: just recreate the whole thing
+								-- except remap the mins/maxs
+								local dx = 1/tonumber(self.amr.ctx.rootSizeInFromSize.x)
+								local dy = 1/tonumber(self.amr.ctx.rootSizeInFromSize.y)
+								local ux = nx*dx
+								local uy = ny*dy
+								
+								local subsolver = cl(table(self.initArgs, {
+									mins = {
+										(self.maxs[1] - self.mins[1]) * nx * dx + self.mins[1],
+										(self.maxs[2] - self.mins[2]) * ny * dy + self.mins[2],
+										1},
+									maxs = {
+										(self.maxs[1] - self.mins[1]) * (nx+1) * dx + self.mins[1],
+										(self.maxs[2] - self.mins[2]) * (ny+1) * dy + self.mins[2],
+										1},
+									amr = {
+										depth = 1,
+										ctx = self.amr.ctx,
+									},
+								}))
+								
 								-- tell the root layer table which node is used
 								--  by pointing it back to the table of the leaf nodes 
-								amrLayer[i+1] = self.amrLeafs[1]
+								self.amr.child[i+1] = subsolver
 							
 								-- copy data from the root node location into the new node
 								-- upsample as we go ... by nearest?
 							
 								-- TODO setup kernel args
+								--[=[ this expects buffer info after UBuf, so it will error ...
 								self.initNodeFromRootKernelObj.obj:setArg(1, ffi.new('int[4]', {nx, ny, 0, 0}))
 								self.initNodeFromRootKernelObj.obj:setArg(2, ffi.new('int[1]', 0))
 								self.app.cmds:enqueueNDRangeKernel{
 									kernel = self.initNodeFromRootKernelObj.obj,
 									dim = self.dim, 
-									globalSize = self.amrNodeSizeWithoutBorder:ptr(),
-									localSize = self.amrNodeSizeWithoutBorder:ptr(),
+									globalSize = self.amr.ctx.nodeSizeWithoutBorder:ptr(),
+									localSize = self.amr.ctx.nodeSizeWithoutBorder:ptr(),
 								}
+								--]=]
+							
 							end
+						elseif nodeErr < self.amr.ctx.mergeThreshold then
+--							local subsolver= self.amr.child[i+1]
+--print('node '..nx..','..ny..' needs to be merged')						
+--							self.amr.child[i+1] = nil
 						end
 					end
 				end
 			end
+			--]]
 		end
 	end
 

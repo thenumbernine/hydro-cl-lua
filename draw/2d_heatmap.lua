@@ -68,7 +68,13 @@ function HydroCLApp:display2D_Heatmap(solvers, varName, ar, graph_xmin, graph_ym
 			gl.glUniform1i(heatMap2DShader.uniforms.useLog.loc, var.useLog)
 			gl.glUniform1f(heatMap2DShader.uniforms.valueMin.loc, valueMin)
 			gl.glUniform1f(heatMap2DShader.uniforms.valueMax.loc, valueMax)
-			solver:getTex(var):bind(0)
+		
+			local tex = solver:getTex(var)
+			local size = solver[var.bufferField].sizevec or solver.gridSize
+			gl.glUniform2f(heatMap2DShader.uniforms.texCoordMax.loc, 
+				tonumber(size.x) / tex.width,
+				tonumber(size.y) / tex.height)
+			tex:bind(0)
 			self.gradientTex:bind(1)
 	
 			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)

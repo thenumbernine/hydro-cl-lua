@@ -19,7 +19,7 @@ local args = {
 	--integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
-	--cfl = .25/dim,
+	cfl = cmdline.cfl or .5,
 	
 	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
@@ -567,5 +567,5 @@ maxs = {6,1,1},
 
 
 -- the start of AMR
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
-self.solvers:insert(require 'solver.amr'(require 'solver.roe')(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.amr'(require 'solver.roe')(table(args, {eqn='euler'})))

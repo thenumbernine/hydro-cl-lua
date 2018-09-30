@@ -1155,26 +1155,34 @@ function GridSolver:calcDisplayVarToTex(var)
 		var:setToBufferArgs()
 	
 		self:calcDisplayVarToBuffer(var)
+
+		local sizevec = self[var.bufferField].sizevec or self.gridSize
+		assert(sizevec.x <= tex.width and sizevec.y <= tex.height)
+		local volume = tonumber(sizevec:volume())
 		
-		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
+		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * volume * channels, ptr=ptr}
 		local destPtr = ptr
 		-- TODO check for extension GL_ARB_half_float_pixel
 		local gltype = app.real == 'half' and gl.GL_HALF_FLOAT_ARB or gl.GL_FLOAT
+		
 		if app.real == 'double' then
 			-- can this run in place?  seems like it
 			destPtr = ffi.cast('float*', ptr)
-			for i=0,self.numCells*channels-1 do
+			for i=0,volume*channels-1 do
 				destPtr[i] = ptr[i]
 			end
 		end
+--[[ wtf...
+for i=0,volume*channels-1 do
+destPtr[i] = i/(volume*channels-1)
+end
+--]]		
 		tex:bind()
-		local size = self[var.bufferField].sizevec or self.gridSize
-		assert(size.x <= tex.width and size.y <= tex.height)
 		if self.dim < 3 then
-			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, size.x, size.y, format, gltype, destPtr)
+			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, sizevec.x, sizevec.y, format, gltype, destPtr)
 		else
 			for z=0,tex.depth-1 do
-				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, size.x, size.y, 1, format, gltype, destPtr + channels * size.x * size.y * z)
+				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, sizevec.x, sizevec.y, 1, format, gltype, destPtr + channels * sizevec.x * sizevec.y * z)
 			end
 		end
 		tex:unbind()

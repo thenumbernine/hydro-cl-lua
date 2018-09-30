@@ -40,8 +40,8 @@ local wrap = table.map({
 	int = ig.igInputInt,
 	checkbox = ig.igCheckbox,
 	text = ig.igInputText,
-}, function(funcName, wrapName)
-	return makeWrapTooltip(funcName), wrapName
+}, function(f, wrapName)
+	return makeWrapTooltip(f), wrapName
 end)
 
 -- wrappers for table[key] access rather than ffi-allocated primitive access
@@ -87,6 +87,8 @@ end
 
 local int = ffi.new'int[1]'
 local function comboTable(title, t, k, ...)
+assert(t[k])
+assert(type(t[k]) == 'number')
 	int[0] = t[k]-1
 	if wrap.combo(title, int, ...) then
 		t[k] = int[0]+1

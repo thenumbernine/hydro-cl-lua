@@ -65,6 +65,21 @@ function SolverBase:initL1(args)
 end
 
 function SolverBase:preInit(args)
+
+-- despite the name, this doesn't have anything to do with the grid size ... 
+-- ... except in the GridSolver class
+	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
+	-- product of all local sizes must be <= max workgroup size
+	self.maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
+print('maxWorkGroupSize', self.maxWorkGroupSize)
+	
+	local sizeProps = self:getSizePropsForWorkGroupSize(self.maxWorkGroupSize)
+	for k,v in pairs(sizeProps) do
+print(k,v)
+		self[k] = v
+	end
+	
+	
 	-- hmm, do some eqns create ops need to know the grid size? 
 	self.eqnName = args.eqn
 	self.eqnArgs = args.eqnArgs
@@ -93,20 +108,7 @@ function SolverBase:postInit()
 	self:refreshGridSize()
 end
 
--- despite the name, this doesn't have anything to do with the grid size ... 
--- ... except in the GridSolver class
 function SolverBase:refreshGridSize()
-	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
-	-- product of all local sizes must be <= max workgroup size
-	self.maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
-print('maxWorkGroupSize', self.maxWorkGroupSize)
-	
-	local sizeProps = self:getSizePropsForWorkGroupSize(self.maxWorkGroupSize)
-	for k,v in pairs(sizeProps) do
-print(k,v)
-		self[k] = v
-	end
-	
 	-- depends on eqn & gridSize
 	self.buffers = table()
 	self:createBuffers()
@@ -926,16 +928,54 @@ function SolverBase:calcDisplayVarRange(var)
 	var.lastTime = self.t
 	
 	var:setToBufferArgs()
+
+	local channels = var.vectorField and 3 or 1
+	-- this size stuff is very GridSolver-based
+	local volume = self.numCells
+	local sizevec = self[var.bufferField].sizevec 
+	if sizevec then
+		volume = tonumber(sizevec:volume())
+	end
 	
 	self:calcDisplayVarToBuffer(var)
-	local min = self.reduceMin()
+
+-- why (when sizevec is explicitly set) does cpu reduce work, but gpu reduce not work?
+--[[
+if var.name == 'amrError 0' then
+local volume = tonumber(self.amrRootSizeInFromSize:volume())
+print('self.amrRootSizeInFromSize',self.amrRootSizeInFromSize)
+local ptr = ffi.new('real[?]', volume*channels)
+self.app.cmds:enqueueReadBuffer{buffer=self.amrErrorBuf, block=true, size=ffi.sizeof(self.app.real) * volume * channels, ptr=ptr}
+print'buffer:'
+local min = math.huge
+local max = -math.huge
+for ny=0,tonumber(self.amrRootSizeInFromSize.y)-1 do
+for nx=0,tonumber(self.amrRootSizeInFromSize.x)-1 do
+local i = nx + self.amrRootSizeInFromSize.x * ny
+io.write('\t', ('%.5f'):format(ptr[i]))
+min = math.min(min, ptr[i])
+max = math.max(max, ptr[i])
+end
+print()
+end
+print('reduce min',min,'max',max,'volume',volume,'name',var.name,'channels',channels)
+var.lastMin = min
+var.lastMax = max
+return min, max	
+else
+--]] do
+
+	local min = self.reduceMin(nil, volume*channels)
 	self:calcDisplayVarToBuffer(var)
-	local max = self.reduceMax()
-	
+	local max = self.reduceMax(nil, volume*channels)
+
+--print('reduce min',min,'max',max,'volume',volume,'name',var.name,'channels',channels)
 	var.lastMin = min
 	var.lastMax = max
-	
+
 	return min, max
+end
+
 end
 
 -- used by the output to print out avg, min, max
@@ -945,11 +985,18 @@ function SolverBase:calcDisplayVarRangeAndAvg(var)
 	-- this will update lastTime if necessary
 	local min, max = self:calcDisplayVarRange(var)
 	-- displayVarGroup has already set up the appropriate args
-
+	
+	-- duplicated in calcDisplayVarRange 
+	local size = self.numCells
+	local sizevec = self[var.bufferField].sizevec 
+	if sizevec then
+		size = tonumber(sizevec:volume())
+	end
+	
 	local avg
 	if needsUpdate then
 		self:calcDisplayVarToBuffer(var)
-		avg = self.reduceSum(nil, self.numCells) / tonumber(self.numCells)
+		avg = self.reduceSum(nil, size) / tonumber(size)
 	else
 		avg = var.lastAvg
 	end
@@ -1018,12 +1065,20 @@ end
 function SolverBase:calcDisplayVarToBuffer(var)
 	local channels = var.vectorField and 3 or 1
 	local app = self.app
+
+	-- duplicated in calcDisplayVarRange 
+	local volume = self.numCells
+	local sizevec = self[var.bufferField].sizevec 
+	if sizevec then
+		volume = tonumber(sizevec:volume())
+	end
+	
 	if self.displayVarAccumFunc	then
-		app.cmds:enqueueCopyBuffer{src=self.accumBuf, dst=self.reduceBuf, size=ffi.sizeof(app.real) * self.numCells * channels}
+		app.cmds:enqueueCopyBuffer{src=self.accumBuf, dst=self.reduceBuf, size=ffi.sizeof(app.real) * volume * channels}
 	end
 	var.calcDisplayVarToBufferKernelObj()
 	if self.displayVarAccumFunc then
-		app.cmds:enqueueCopyBuffer{src=self.reduceBuf, dst=self.accumBuf, size=ffi.sizeof(app.real) * self.numCells * channels}
+		app.cmds:enqueueCopyBuffer{src=self.reduceBuf, dst=self.accumBuf, size=ffi.sizeof(app.real) * volume * channels}
 	end
 end
 

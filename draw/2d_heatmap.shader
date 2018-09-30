@@ -24,6 +24,7 @@ float logmap(float x) { return log(1. + abs(x)) * _1_LN_10; }
 
 uniform bool useLog;
 uniform float valueMin, valueMax;
+uniform vec2 texCoordMax;
 uniform sampler2D tex;
 uniform sampler1D gradientTex;
 
@@ -41,7 +42,7 @@ void main() {
 	vec2 texCoord = vec2(
 		((gridCoord.x - <?=clnumber(solver.mins[1])?>) / (<?=clnumber(solver.maxs[1])?> - <?=clnumber(solver.mins[1])?>) * <?=clnumber(solver.sizeWithoutBorder.x)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.x)?>,
 		((gridCoord.y - <?=clnumber(solver.mins[2])?>) / (<?=clnumber(solver.maxs[2])?> - <?=clnumber(solver.mins[2])?>) * <?=clnumber(solver.sizeWithoutBorder.y)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.y)?>
-	);
+	) * texCoordMax;
 
 	float value = texture2D(tex, texCoord).r;
 	if (useLog) {
