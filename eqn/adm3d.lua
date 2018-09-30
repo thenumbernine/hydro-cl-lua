@@ -26,6 +26,9 @@ ADM_BonaMasso_3D.useConstrainU = true
 
 --[[
 args:
+noZeroRowsInFlux = true by default.
+	true = use 13 vars of a_x, d_xij, K_ij
+	false = use all 30 or so hyperbolic conservation variables
 useShift
 	
 	useShift = false	--  no shift
@@ -122,6 +125,9 @@ function ADM_BonaMasso_3D:init(args)
 	--]]
 	self.noZeroRowsInFlux = true
 	--self.noZeroRowsInFlux = false
+	if args.noZeroRowsInFlux ~= nil then
+		self.noZeroRowsInFlux = args.noZeroRowsInFlux
+	end
 
 	-- NOTE this doesn't work when using shift ... because then all the eigenvalues are -beta^i, so none of them are zero (except the source-only alpha, beta^i, gamma_ij)
 	-- with the exception of the lagrangian shift.  if we split that operator out then we can first solve the non-shifted system, then second advect it by the shift vector ...
@@ -252,7 +258,7 @@ kernel void initState(
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
 	real3 xc = coordMap(x);
-	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
 

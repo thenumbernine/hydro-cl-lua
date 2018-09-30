@@ -1,3 +1,4 @@
+-- slowly making this the home of all initial conditions...
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'

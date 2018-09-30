@@ -15,19 +15,29 @@ GRMaxwell.numStates = 10
 GRMaxwell.numWaves = 6
 GRMaxwell.numIntStates = 6
 
+-- I'm working on making complex numbers exchangeable
+GRMaxwell.scalar = 'real'
+--GRMaxwell.scalar = 'cplx'	-- not supported in the least bit at the moment
+
+GRMaxwell.vec3 = GRMaxwell.scalar..'3'
+GRMaxwell.mat3x3 = GRMaxwell.scalar..'3x3'
+
+GRMaxwell.susc_t = GRMaxwell.scalar
+
 GRMaxwell.consVars = {
 	-- the vectors are contravariant with ^t component that are zero
-	{epsE = 'real3'},
-	{B = 'real3'},
-	{BPot = 'real'},	-- used to calculate the B potential & remove div
+	{D = GRMaxwell.vec3},
+	{B = GRMaxwell.vec3},
+	{BPot = GRMaxwell.scalar},	-- used to calculate the B potential & remove div
 	
 	-- these aren't dynamic at all, but I don't want to allocate a separate buffer
-	{sigma = 'real'},
-	{eps = 'real'},
-	{mu = 'real'},
+	{sigma = GRMaxwell.scalar},
+	-- TODO: 1/eps, or 1/sqrt(eps) even better
+	{eps = GRMaxwell.susc_t},
+	{mu = GRMaxwell.susc_t},
 }
 
-GRMaxwell.mirrorVars = {{'epsE.x', 'B.x'}, {'epsE.y', 'B.y'}, {'epsE.z', 'B.z'}}
+GRMaxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
 
 GRMaxwell.hasEigenCode = true
 GRMaxwell.hasFluxFromConsCode = true
@@ -46,7 +56,7 @@ end
 function GRMaxwell:getCommonFuncCode()
 	return template([[
 real ESq(<?=eqn.cons_t?> U, sym3 gamma) { 
-	return real3_weightedLenSq(U.epsE, gamma) / (U.eps * U.eps);
+	return real3_weightedLenSq(U.D, gamma) / (U.eps * U.eps);
 }
 
 real BSq(<?=eqn.cons_t?> U, sym3 gamma) {
@@ -67,7 +77,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool lhs = x.x < mids.x
 #if dim > 1
 		&& x.y < mids.y
@@ -79,7 +89,7 @@ kernel void initState(
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
 	//used
-	real3 E = real3_zero;
+	real3 D = real3_zero;
 	real3 B = real3_zero;
 	real conductivity = 1.;
 	
@@ -97,7 +107,7 @@ kernel void initState(
 	
 	<?=code?>
 	
-	U->epsE = real3_real_mul(E, permittivity);
+	U->D = D;
 	U->B = B;
 	U->BPot = 0;
 	U->sigma = conductivity;
@@ -108,25 +118,49 @@ kernel void initState(
 
 GRMaxwell.solverCodeFile = 'eqn/gr-maxwell.cl'
 
+function GRMaxwell:getSolverCode()
+	return template(self.solverCodeFile, self:getTemplateEnv())
+end
+
+function GRMaxwell:getTemplateEnv()
+	local scalar = self.scalar
+	local env = {}
+	env.eqn = self
+	env.solver = self.solver
+	env.vec3 = self.vec3
+	env.susc_t = self.susc_t
+	env.scalar = scalar
+	env.zero = scalar..'_zero'
+	env.inv = scalar..'_inv'
+	env.neg = scalar..'_neg'
+	env.fromreal = scalar..'_from_real'
+	env.add = scalar..'_add'
+	env.sub = scalar..'_sub'
+	env.mul = scalar..'_mul'
+	env.real_mul = scalar..'_real_mul'
+	return env
+end
+
+
 function GRMaxwell:getCalcEigenBasisCode() end
 
 function GRMaxwell:getDisplayVars()
 	local solver = self.solver
 	return GRMaxwell.super.getDisplayVars(self):append{ 
-		{E_u = '*value_real3 = real3_real_mul(U->epsE, 1. / U->eps);', type='real3'},
+		{E_u = '*value_real3 = real3_real_mul(U->D, 1. / U->eps);', type='real3'},
 	
 		-- eps_ijk E^j B^k
-		{S_l = '*value_real3 = real3_real_mul(real3_cross(U->epsE, U->B), 1. / U->eps);', type='real3'},
+		{S_l = '*value_real3 = real3_real_mul(real3_cross(U->D, U->B), 1. / U->eps);', type='real3'},
 		
 		{energy = template([[
 	<?=solver:getADMVarCode()?>
-	*value = .5 * (real3_weightedLenSq(U->epsE, gamma) + real3_lenSq(U->B, gamma) / (U->mu * U->mu));
+	*value = .5 * (real3_weightedLenSq(U->D, gamma) + real3_lenSq(U->B, gamma) / (U->mu * U->mu));
 ]], {solver=solver})},
 
 	}
 	--[=[ div E and div B ... TODO redo this with metric (gamma) influence 
 	:append(table{'E','B'}:map(function(var,i)
-		local field = assert( ({E='epsE', B='B'})[var] )
+		local field = assert( ({D='D', B='B'})[var] )
 		return {['div '..var] = template([[
 	*value = .5 * (0.
 <?
@@ -137,7 +171,7 @@ for j=0,solver.dim-1 do
 <?
 end 
 ?>	)<? 
-if field == 'epsE' then 
+if field == 'D' then 
 ?> / U->eps<?
 end
 ?>;

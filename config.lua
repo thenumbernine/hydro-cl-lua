@@ -4,7 +4,7 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -16,7 +16,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	--integrator = 'backward Euler',
+	integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	cfl = cmdline.cfl or .5,	-- 1/dim,
@@ -205,7 +205,7 @@ maxs = {6,1,1},
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -233,7 +233,7 @@ maxs = {6,1,1},
 	--initState = 'self-gravitation soup',	--FIXME
 	
 	-- those designed for SRHD / GRHD:
-	--initState = 'relativistic shock reflection',			-- not working.  these initial conditions are constant =P
+	--initState = 'relativistic shock reflection',			-- FIXME.  these initial conditions are constant =P
 	--initState = 'relativistic blast wave test problem 1',
 	--initState = 'relativistic blast wave test problem 2',
 	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
@@ -278,7 +278,7 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 
 
-	--initState = 'Alcubierre warp bubble',
+	initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
@@ -451,18 +451,13 @@ maxs = {6,1,1},
 -- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-self.solvers:insert(require 'solver.srhd-roe'(args))
+--self.solvers:insert(require 'solver.srhd-roe'(args))
 --self.solvers:insert(require 'solver.srhd-hll'(args))		-- TODO finishme.  the last piece is 'eigen_forInterface'
 
 -- GRHD
 -- this is the solver with plug-ins for ADM metric, 
 -- yet doesn't come coupled with any other solver, so it will act just like a srhd solver
 --self.solvers:insert(require 'solver.grhd-roe'(args))
-
--- GRHD+GR
--- here's the GRHD solver with the BSSNOK plugged into it
--- TODO inital condition root finding to make sure the EFE is satisifed
---self.solvers:insert(require 'solver.gr-hd-separate'(args))
 
 -- MHD. 
 -- with superbee flux lim:  
@@ -498,31 +493,19 @@ self.solvers:insert(require 'solver.srhd-roe'(args))
 -- Maxwell+HD two-fluid electron/ion solver
 -- TODO FIXME
 -- TODO, with the separate solver, use hll, so the ion, electron, and maxwell all use hll separately
+-- TODO I made it even more difficult to implement with the addition of these real_ and cplx_ macros...
 --self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
 
 -- ...so to try and get around that, here the two are combined into one solver:
 -- TODO still needs PLM support
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 
--- GR+Maxwell.  params go to the Maxwell solver.
-
--- This is a Maxwell solver with the extra terms to account for GR.
--- It only simulates Maxwell -- it needs an additional GR solver to fully work correctly.
--- (Without a GR solver it will just operate in Minkowski spacetime.)
--- TODO this should be the einstein-maxwell eqns solver with flat space plugged into the metric
--- TODO rename to einstein-maxwell-roe
--- TODO it's unfinished
---self.solvers:insert(require 'solver.gr-maxwell-roe'(args))
-
--- TODO and this should be the einstein-maxwell with an einstein solver plugged in
--- TODO rename to einstein-maxwell-separate
---self.solvers:insert(require 'solver.gr-em-separate'(args))
-
 
 -- GR
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionEllipticEvolve'}})))	-- TODO finish me
@@ -551,13 +534,33 @@ self.solvers:insert(require 'solver.srhd-roe'(args))
 --self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- Z4c finite difference, combining BSSNOK and Z4
---self.solvers:insert(require 'solver.z4c-fd'(args))
+self.solvers:insert(require 'solver.z4c-fd'(args))
+
+
+
+-- GRHD+GR
+-- here's the GRHD solver with the BSSNOK plugged into it
+-- TODO inital condition root finding to make sure the EFE is satisifed
+--self.solvers:insert(require 'solver.gr-hd-separate'(args))
+
+
+-- GR+Maxwell.  params go to the Maxwell solver.
+
+-- This is a Maxwell solver with the extra terms to account for GR.
+-- It only simulates Maxwell -- it needs an additional GR solver to fully work correctly.
+-- (Without a GR solver it will just operate in Minkowski spacetime.)
+-- TODO this should be the einstein-maxwell eqns solver with flat space plugged into the metric
+-- TODO rename to einstein-maxwell-roe
+-- TODO it's unfinished
+--self.solvers:insert(require 'solver.gr-maxwell-roe'(args))
+
+-- TODO and this should be the einstein-maxwell with an einstein solver plugged in
+-- TODO rename to einstein-maxwell-separate
+--self.solvers:insert(require 'solver.gr-em-separate'(args))
+
 
 
 --self.solvers:insert(require 'solver.nls'(args))
-
-
-
 
 
 -- the start of unstructured meshes

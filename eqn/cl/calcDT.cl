@@ -26,7 +26,7 @@ kernel void calcDT(
 		real lambdaMax = <?=eqn:consMaxWaveCode(side, '*U', 'x')?>;
 		lambdaMin = (real)min((real)0., lambdaMin);
 		lambdaMax = (real)max((real)0., lambdaMax);
-		dt = (real)min((real)dt, (real)(solver->grid_dx<?=side?> / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
+		dt = (real)min((real)dt, (real)(solver->grid_dx.s<?=side?> / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
 	}<? end ?>
 	dtBuf[index] = dt;
 }

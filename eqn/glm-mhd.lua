@@ -42,7 +42,7 @@ GLM_MHD.initStates = require 'init.euler'
 function GLM_MHD:init(args)
 	GLM_MHD.super.init(self, args)
 
-	local UpdatePsi = require 'solver.glm-mhd-update-psi'
+	local UpdatePsi = require 'op.glm-mhd-update-psi'
 	self.solver.ops:insert(UpdatePsi{solver=self.solver})
 end
 
@@ -166,7 +166,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool lhs = x.x < mids.x
 #if dim > 1
 		&& x.y < mids.y

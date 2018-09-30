@@ -154,7 +154,8 @@ function SRHDSelfGrav:refreshSolverProgram()
 	
 	local solver = self.solver
 	self.calcGravityDerivKernelObj = solver.solverProgramObj:kernel'calcGravityDeriv'
-	self.calcGravityDerivKernelObj.obj:setArg(1, solver.UBuf)
+	self.calcGravityDerivKernelObj.obj:setArg(0, solver.solverBuf)
+	self.calcGravityDerivKernelObj.obj:setArg(2, solver.UBuf)
 end
 
 function SRHDSelfGrav:updateGUI()
@@ -169,7 +170,8 @@ function SRHDSelfGrav:step(dt)
 	if not solver[self.enableField] then return end
 	solver.integrator:integrate(dt, function(derivBuf)
 		self:relax()
-		self.calcGravityDerivKernelObj(derivBuf)
+		self.calcGravityDerivKernelObj.obj:setArg(1, derivBuf)
+		self.calcGravityDerivKernelObj()
 	end)
 end
 

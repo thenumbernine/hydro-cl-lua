@@ -26,6 +26,7 @@ local eqn = solver.eqn
 //this is only called upon solver reset
 //each iteration uses the previous iteration's results as the starting point
 kernel void initPotential<?=op.name?><?=op.suffix?>(
+	constant <?=solver.solver_t?>* solver,
 	global <?=op:getPotBufType()?>* UBuf
 ) {
 <?

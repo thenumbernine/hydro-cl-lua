@@ -6,7 +6,7 @@ make it a behavior for adding ADM args to eqns
 local class = require 'ext.class'
 local template = require 'template'
 
-return function(parent, eqn)
+return function(parent)
 	local templateClass = class(parent)
 	
 	-- eqn/grhd.cl needs this implemented for deducing alpha, beta, gamma

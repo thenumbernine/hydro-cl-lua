@@ -22,7 +22,6 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
-local clnumber = require 'cl.obj.number'
 local template = require 'template'
 
 
@@ -100,6 +99,13 @@ TwoFluidEMHD.useEulerInitState = true	-- default to true.
 -- TODO this has the symptoms of all the other CL kernels that intel's compiler bugged out on
 -- i.e. takes a minute to run a kernel on the GPU
 function TwoFluidEMHD:init(args)
+	
+	self.scalar = 'real'
+	--self.scalar = 'cplx'
+	self.vec3 = self.scalar..'3'
+
+	self.susc_t = self.scalar
+
 	-- set this to 'true' to use the init.euler states
 	-- these states are only provided in terms of a single density and pressure variable,
 	-- so the subsequent ion and electron densities and pressures must be derived from this.
@@ -330,13 +336,24 @@ end
 -- or maybe I shouldn't have super-class'd the initState code to begin with ...
 function TwoFluidEMHD:getInitStateCode()
 	return template([[
+<? 
+local cons_t = eqn.cons_t
+local susc_t = eqn.susc_t
+local scalar = eqn.scalar
+local vec3 = eqn.vec3
+local zero = scalar..'_zero'
+local inv = scalar..'_inv'
+local fromreal = scalar..'_from_real'
+local sqrt = scalar..'_sqrt'
+?>
+
 kernel void initState(
 	global <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool lhs = x.x < mids.x
 #if dim > 1
 		&& x.y < mids.y
@@ -362,11 +379,11 @@ else
 <? 
 	end 
 end
-?>	real3 E = real3_zero;
-	real3 B = real3_zero;
-	real conductivity = 1.;
-	real permittivity = 1. / (4. * M_PI);
-	real permeability = 4. * M_PI;
+?>	<?=vec3?> D = <?=vec3?>_zero;
+	<?=vec3?> B = <?=vec3?>_zero;
+	<?=scalar?> conductivity = <?=fromreal?>(1.);
+	<?=scalar?> permittivity = <?=fromreal?>(1. / (4. * M_PI));
+	<?=scalar?> permeability = <?=fromreal?>(4. * M_PI);
 
 	<?=code?>
 
@@ -402,22 +419,43 @@ else	-- expect the initState to explicitly provide the ion_ and elec_ Euler flui
 	end
 end
 ?>
-		.E = E,
+		.E = <?=vec3?>_<?=scalar?>_mul(D, <?=inv?>(permittivity)),
 		.B = B,
 		.psi = 0,
 		.phi = 0,
 	};
 	UBuf[index] = consFromPrim(W, x);
 }
-]], {
+]], table({
 		code = self.initState:initState(self.solver),
-		eqn = self,
 		fluids = fluids,
-		clnumber = clnumber,
-	})
+	}, self:getTemplateEnv()))
 end
 
 TwoFluidEMHD.solverCodeFile = 'eqn/twofluid-emhd.cl'
+
+function TwoFluidEMHD:getTemplateEnv()
+	local scalar = self.scalar
+	local env = {}
+	env.eqn = self
+	env.solver = self.solver
+	env.vec3 = self.vec3
+	env.susc_t = self.susc_t
+	env.scalar = scalar
+	env.zero = scalar..'_zero'
+	env.inv = scalar..'_inv'
+	env.neg = scalar..'_neg'
+	env.fromreal = scalar..'_from_real'
+	env.add = scalar..'_add'
+	env.sub = scalar..'_sub'
+	env.mul = scalar..'_mul'
+	env.mul3 = scalar..'_mul3'
+	env.real_mul = scalar..'_real_mul'
+	env.sqrt = scalar..'_sqrt'
+	env.abs = scalar..'_abs'
+	return env
+end
+
 
 TwoFluidEMHD.displayVarCodeUsesPrims = true
 

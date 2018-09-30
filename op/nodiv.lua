@@ -49,7 +49,7 @@ for j=0,solver.dim-1 do
 				U[stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>,
 				U[-stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>
 			),
-			1. / grid_dx<?=j?>
+			1. / solver->grid_dx.s<?=j?>
 		)
 	);
 <? 
@@ -83,6 +83,7 @@ local sub = scalar..'_sub'
 local real_mul = scalar..'_real_mul'
 ?>
 kernel void noDiv<?=op.suffix?>(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
@@ -95,7 +96,7 @@ kernel void noDiv<?=op.suffix?>(
 				<?=sub?>(
 					U[stepsize.s<?=j?>].<?=op.potentialField?>,
 					U[-stepsize.s<?=j?>].<?=op.potentialField?>
-				), 1. / (2. * grid_dx<?=j?>)
+				), 1. / (2. * solver->grid_dx.s<?=j?>)
 			)
 		);
 <? end ?>
@@ -111,7 +112,7 @@ end
 function NoDiv:refreshSolverProgram()
 	NoDiv.super.refreshSolverProgram(self)
 	local solver = self.solver
-	self.noDivKernelObj = solver.solverProgramObj:kernel('noDiv'..self.suffix, solver.UBuf)
+	self.noDivKernelObj = solver.solverProgramObj:kernel('noDiv'..self.suffix, solver.solverBuf, solver.UBuf)
 end
 
 function NoDiv:step(dt)

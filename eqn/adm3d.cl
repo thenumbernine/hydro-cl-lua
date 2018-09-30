@@ -1415,7 +1415,7 @@ end ?>
 	);
 
 	<?
-	elseif eqn.useShift = 'MinimalDistortionEllipticEvolve' then
+	elseif eqn.useShift == 'MinimalDistortionEllipticEvolve' then
 	?>
 
 	//beta^i_,t = epsilon (D^2 beta^i + 1/3 D^i D_j beta^j + R^i_j beta^j - D_j (2 alpha (K^ij - 1/3 K gamma^ij))

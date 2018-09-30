@@ -97,6 +97,7 @@ local function TwoFluidEMHDBehavior(parent)
 			numWaves = self.solvers:map(function(solver) return solver.eqn.numWaves end):sum(),
 			getEigenTypeCode = function() end,
 			getCodePrefix = function() end,
+			getTemplateEnv = function() return self.maxwell.eqn:getTemplateEnv() end,
 		}
 
 		-- call this after we've assigned 'self' all its fields

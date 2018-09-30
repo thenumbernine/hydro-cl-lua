@@ -111,6 +111,7 @@ kernel void calcDT(
 
 
 kernel void calcEigenBasis(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.eigen_t?>* eigenBuf,
 	
 	//TODO 

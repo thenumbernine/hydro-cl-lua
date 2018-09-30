@@ -23,15 +23,16 @@ GRHD.mirrorVars = {
 	{'cons.S.z', 'prim.v.z'},
 }
 
--- GRHD fluxFromCons will need prims passed to it as well
--- which means overriding the code that calls this? or the calc flux code?
---GRHD.roeUseFluxFromCons = true
 
 GRHD.hasEigenCode = true 
 GRHD.hasCalcDTCode = true
+GRHD.useConstrainU = true
+
+-- GRHD fluxFromCons will need prims passed to it as well
+-- which means overriding the code that calls this? or the calc flux code?
+--GRHD.roeUseFluxFromCons = true
 GRHD.hasFluxFromConsCode = true
 GRHD.useSourceTerm = true
-GRHD.useConstrainU = true
 
 GRHD.initStates = require 'init.euler'
 
@@ -74,51 +75,40 @@ end
 
 function GRHD:createInitState()
 	GRHD.super.createInitState(self)
-	
---[[ double precision
-	self:addGuiVar{name='heatCapacityRatio', value=7/5}
 
-	-- setting max iter to 100+ makes it freeze initially 
-	-- but setting it to 100 after the first iteration is fine ...
-	-- meaning the initial cons to prim is taking too long ...
-	self:addGuiVar{name='solvePrimMaxIter', type='int', value=10}	-- value=1000}
-	
-	self:addGuiVar{name='solvePrimStopEpsilon', value=1e-7}
-	
-	-- used by pressure solver
-	-- velocity epsilon is how close we can get to the speed of light
-	-- set ylabel "Lorentz factor"; set xlabel "velocity epsilon -log10"; set log xy; plot [1:10] 1/sqrt(1-(1-10**(-x))**2);
-	--velEpsilon = 1e-5	-- <=> handles up to W = 500
-	--velEpsilon = 1e-6	-- <=> handles up to W = 600
-	--velEpsilon = 1e-7	-- <=> handles up to W = 2,000
-	--velEpsilon = 1e-10	-- <=> handles up to W = 100,000
-	-- <=> smaller than 1e-15 gnuplot x11 terminal breaks down past W = 1e+7 ...
-	self:addGuiVar{name='solvePrimVelEpsilon', value=1e-15}	
-	
-	self:addGuiVar{name='solvePrimPMinEpsilon', value=1e-16}
-	
-	self:addGuiVar{name='rhoMin', value=1e-15}
-	self:addGuiVar{name='rhoMax', value=1e+20}
-	self:addGuiVar{name='eIntMax', value=1e+20}
-	self:addGuiVar{name='DMin', value=1e-15}
-	self:addGuiVar{name='DMax', value=1e+20}
-	self:addGuiVar{name='tauMin', value=1e-15}
-	self:addGuiVar{name='tauMax', value=1e+20}
---]]
--- [[ single precision?
-	self:addGuiVar{name='heatCapacityRatio', value=7/5}
-	self:addGuiVar{name='solvePrimMaxIter', type='int', value=10}	-- value=1000}
-	self:addGuiVar{name='solvePrimStopEpsilon', value=1e-7}
-	self:addGuiVar{name='solvePrimVelEpsilon', value=1e-7}	
-	self:addGuiVar{name='solvePrimPMinEpsilon', value=1e-7}
-	self:addGuiVar{name='rhoMin', value=1e-7}
-	self:addGuiVar{name='rhoMax', value=1e+20}
-	self:addGuiVar{name='eIntMax', value=1e+20}
-	self:addGuiVar{name='DMin', value=1e-7}
-	self:addGuiVar{name='DMax', value=1e+20}
-	self:addGuiVar{name='tauMin', value=1e-7}
-	self:addGuiVar{name='tauMax', value=1e+20}
---]]
+	-- hmm, setting the higher thresholds using double precision is less stable
+	local double = false --solver.app.real == 'double'
+
+	self:addGuiVars{
+		{name='heatCapacityRatio', value=7/5},
+		
+		-- setting max iter to 100+ makes it freeze initially 
+		-- but setting it to 100 after the first iteration is fine ...
+		-- meaning the initial cons to prim is taking too long ...
+		{name='solvePrimMaxIter', type='int', value=10},	-- value=1000},
+
+		{name='solvePrimStopEpsilon', value=1e-7},
+
+		-- used by pressure solver
+		-- velocity epsilon is how close we can get to the speed of light
+		-- set ylabel "Lorentz factor"; set xlabel "velocity epsilon -log10"; set log xy; plot [1:10] 1/sqrt(1-(1-10**(-x))**2);
+		--velEpsilon = 1e-5	-- <=> handles up to W = 500
+		--velEpsilon = 1e-6	-- <=> handles up to W = 600
+		--velEpsilon = 1e-7	-- <=> handles up to W = 2,000
+		--velEpsilon = 1e-10	-- <=> handles up to W = 100,000
+		-- <=> smaller than 1e-15 gnuplot x11 terminal breaks down past W = 1e+7 ...
+		{name='solvePrimVelEpsilon', value=double and 1e-15 or 1e-7},
+		
+		{name='solvePrimPMinEpsilon', value=double and 1e-16 or 1e-7},
+		
+		{name='rhoMin', value=double and 1e-15 or 1e-7},
+		{name='rhoMax', value=1e+20},
+		{name='eIntMax', value=1e+20},
+		{name='DMin', value=double and 1e-15 or 1e-7},
+		{name='DMax', value=1e+20},
+		{name='tauMin', value=double and 1e-15 or 1e-7},
+		{name='tauMax', value=1e+20},
+	}
 end
 
 function GRHD:getCommonFuncCode()
@@ -169,11 +159,7 @@ real calc_h(real rho, real P, real eInt) {
 	real3 S = real3_real_mul(prim.v, prim.rho * h * WSq);
 	real tau = prim.rho * h * WSq - P - D;
 
-	return (<?=eqn.cons_only_t?>){
-		.D = D,
-		.S = S,
-		.tau = tau,
-	};
+	return (<?=eqn.cons_only_t?>){.D=D, .S=S, .tau=tau};
 }
 ]], {
 		eqn = self,
@@ -190,7 +176,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool lhs = x.x < mids.x
 #if dim > 1
 		&& x.y < mids.y
@@ -211,11 +197,7 @@ kernel void initState(
 	
 	real eInt = calc_eInt_from_P(rho, P);
 
-	<?=eqn.prim_t?> prim = {
-		.rho = rho,
-		.v = v,
-		.eInt = eInt,
-	};
+	<?=eqn.prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
 	UBuf[index] = (<?=eqn.cons_t?>){
 		.prim = prim,
 		.cons = consOnlyFromPrim(prim, alpha, beta, gamma),
@@ -225,7 +207,7 @@ kernel void initState(
 
 GRHD.solverCodeFile = 'eqn/grhd.cl'
 
-function GRHD:getCalcEigenBasisCode() end
+function GRHD:getCalcEigenBasisCode() end	-- within grhd.cl
 
 function GRHD:getDisplayVars()
 	return {

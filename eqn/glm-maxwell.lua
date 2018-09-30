@@ -142,7 +142,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool lhs = x.x < mids.x
 #if dim > 1
 		&& x.y < mids.y
@@ -157,7 +157,6 @@ kernel void initState(
 	<?=vec3?> D = <?=vec3?>_zero;
 	<?=vec3?> B = <?=vec3?>_zero;
 	<?=scalar?> conductivity = <?=fromreal?>(1.);
-	
 	<?=scalar?> permittivity = <?=fromreal?>(1.);
 	<?=scalar?> permeability = <?=fromreal?>(1.);
 	

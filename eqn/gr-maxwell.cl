@@ -10,25 +10,26 @@
 	<?=solver:getADMVarCode()?>
 	
 	real3 B_u = U.B;
-	real3 epsE_u = U.epsE;
+	real3 D_u = U.D;
 
 	//this only works for fluxFromCons
 	real3 B_l = sym3_real3_mul(gamma, B_u);
-	real3 epsE_l = sym3_real3_mul(gamma, epsE_u);
+	real3 D_l = sym3_real3_mul(gamma, D_u);
 	
 	real mu = U.mu;
 	real eps = U.eps;
-	
+
+	//TODO update this and addSource to your worksheet
 	return (<?=eqn.cons_t?>){
 	<? if side == 0 then ?>
-		.epsE = _real3(0., B_l.z / mu, -B_l.y / mu),
-		.B = _real3(0., -epsE_l.z / eps, epsE_l.y / eps),
+		.D = _real3(0., B_l.z / mu, -B_l.y / mu),
+		.B = _real3(0., -D_l.z / eps, D_l.y / eps),
 	<? elseif side == 1 then ?>
-		.epsE = _real3(-B_l.z / mu, 0., B_l.x / mu),
-		.B = _real3(epsE_l.z / eps, 0., -epsE_l.x / eps),
+		.D = _real3(-B_l.z / mu, 0., B_l.x / mu),
+		.B = _real3(D_l.z / eps, 0., -D_l.x / eps),
 	<? elseif side == 2 then ?>
-		.epsE = _real3(B_l.y / mu, -B_l.x / mu, 0.),
-		.B = _real3(-epsE_l.y / eps, epsE_l.x / eps, 0.),
+		.D = _real3(B_l.y / mu, -B_l.x / mu, 0.),
+		.B = _real3(-D_l.y / eps, D_l.x / eps, 0.),
 	<? end ?>
 		.BPot = 0.,
 		.sigma = 0.,
@@ -266,7 +267,7 @@ x,  y,  z, z,  y,  x
 	real3 x
 ) {
 	//swap input dim x<->side
-	real3 epsE = UX.epsE;
+	real3 D = UX.D;
 	real3 B = UX.B;
 	real ieps = 1. / eig.eps;
 	real imu = 1. / eig.mu;
@@ -281,25 +282,25 @@ x,  y,  z, z,  y,  x
 	Y[1] = B.z * imu;
 	Y[2] = -B.y * imu;
 	Y[3] = 0;
-	Y[4] = -epsE.z * ieps;
-	Y[5] = epsE.y * ieps;
+	Y[4] = -D.z * ieps;
+	Y[5] = D.y * ieps;
 
 	<? elseif side==1 then ?>
 		
 	Y[0] = -B.z * imu;
 	Y[1] = 0;
 	Y[2] = B.x * imu;
-	Y[3] = epsE.z * ieps;
+	Y[3] = D.z * ieps;
 	Y[4] = 0;
-	Y[5] = -epsE.x * ieps;
+	Y[5] = -D.x * ieps;
 		
 	<? elseif side==2 then ?>
 		
 	Y[0] = B.y * imu;
 	Y[1] = -B.x * imu;
 	Y[2] = 0;
-	Y[3] = -epsE.y * ieps;
-	Y[4] = epsE.x * ieps;
+	Y[3] = -D.y * ieps;
+	Y[4] = D.x * ieps;
 	Y[5] = 0;
 		
 	<? end ?>
@@ -318,7 +319,7 @@ kernel void addSource(
 	SETBOUNDS_NOGHOST();
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-	deriv->epsE = real3_sub(deriv->epsE, real3_real_mul(U->epsE, 1. / U->eps * U->sigma));
+	deriv->D = real3_sub(deriv->D, real3_real_mul(U->D, 1. / U->eps * U->sigma));
 }
 
 

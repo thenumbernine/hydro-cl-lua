@@ -185,7 +185,7 @@ function SRHD:getPrimConsCode() end
 
 SRHD.initStateCode = [[
 kernel void initState(
-	global <?=solver.solver_t?>* solver,
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);

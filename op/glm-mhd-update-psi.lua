@@ -12,6 +12,7 @@ function GLM_MHD_UpdatePsi:getSolverCode()
 	local solver = self.solver
 	return template([[
 kernel void updatePsi(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,
 	real dt
 ) {
@@ -38,7 +39,7 @@ end
 
 function GLM_MHD_UpdatePsi:refreshSolverProgram()
 	local solver = self.solver
-	self.updatePsiKernelObj = solver.solverProgramObj:kernel('updatePsi', solver.UBuf)
+	self.updatePsiKernelObj = solver.solverProgramObj:kernel('updatePsi', solver.solverBuf, solver.UBuf)
 end
 
 local realptr = ffi.new'realparam[1]'
@@ -49,7 +50,7 @@ end
 
 function GLM_MHD_UpdatePsi:step(dt)
 	local dtArg = real(dt)
-	self.updatePsiKernelObj.obj:setArg(1, dtArg)
+	self.updatePsiKernelObj.obj:setArg(2, dtArg)
 end
 
 return GLM_MHD_UpdatePsi
