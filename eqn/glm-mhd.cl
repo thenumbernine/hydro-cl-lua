@@ -336,6 +336,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> inputU,
 	real3 x
@@ -447,6 +448,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 
 <?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.waves_t?> input,
 	real3 x
@@ -551,6 +553,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 
 <?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> inputU,
 	real3 x
@@ -619,6 +622,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <? end ?>
 
 kernel void addSource(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
@@ -640,12 +644,12 @@ kernel void addSource(
 
 	real divB = 0.<? 
 for i,xi in ipairs(xNames:sub(1,solver.dim)) do
-?> + (U[stepsize.<?=xi?>].B.<?=xi?> - U[-stepsize.<?=xi?>].B.<?=xi?>) / (2. * grid_dx<?=i?>) <?
+?> + (U[stepsize.<?=xi?>].B.<?=xi?> - U[-stepsize.<?=xi?>].B.<?=xi?>) / (2. * solver->grid_dx.s<?=i?>) <?
 end ?>;
 
 	real3 grad_psi = (real3){
 <? for i,xi in ipairs(xNames:sub(1,solver.dim)) do
-?>		.<?=xi?> = (U[stepsize.<?=xi?>].psi - U[-stepsize.<?=xi?>].psi) / (2. * grid_dx<?=i?>),
+?>		.<?=xi?> = (U[stepsize.<?=xi?>].psi - U[-stepsize.<?=xi?>].psi) / (2. * solver->grid_dx.s<?=i?>),
 <? end 
 for i=solver.dim+1,3 do
 ?>		.<?=xNames[i]?> = 0.,
@@ -682,6 +686,7 @@ end
 }
 
 kernel void constrainU(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -699,6 +704,7 @@ kernel void constrainU(
 //this is a temporary fix until I implement MHD's inline eigenvalue code
 
 kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
@@ -717,7 +723,7 @@ kernel void calcDT(
 		range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(U, x); 
 		lambda.min = (real)min((real)0., lambda.min);
 		lambda.max = (real)max((real)0., lambda.max);
-		dt = (real)min((real)dt, (real)(grid_dx<?=side?> / (fabs(lambda.max - lambda.min) + (real)1e-9)));
+		dt = (real)min((real)dt, (real)(solver->grid_dx.s<?=side?> / (fabs(lambda.max - lambda.min) + (real)1e-9)));
 	}<? end ?>
 	dtBuf[index] = dt;
 }

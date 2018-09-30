@@ -188,6 +188,7 @@ end
 ?>
 
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> UX,
 	real3 x
@@ -351,6 +352,7 @@ end
 }
 
 <?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.waves_t?> UX,	//numWaves = 16
 	real3 x
@@ -485,6 +487,7 @@ end
 }
 
 <?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> UX,
 	real3 x
@@ -543,6 +546,7 @@ end
 <? end ?>
 
 kernel void addSource(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
@@ -592,6 +596,7 @@ kernel void addSource(
 }
 
 kernel void constrainU(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);

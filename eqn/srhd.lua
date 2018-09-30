@@ -185,6 +185,7 @@ function SRHD:getPrimConsCode() end
 
 SRHD.initStateCode = [[
 kernel void initState(
+	global <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -246,8 +247,8 @@ local function vorticity(eqn,k,result)
 		real vjm_i = prim_jm->v.s<?=i?>;
 		real vjp_i = prim_jp->v.s<?=i?>;
 		
-		<?=result?> = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
-				- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
+		<?=result?> = (vjp_i - vjm_i) / (2. * solver->grid_dx.s<?=i?>)
+				- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
 	}
 ]], {
 		i = i,

@@ -114,7 +114,7 @@ function Poisson:initSolver()
 	linearSolverArgs.A = function(UNext, U)
 		-- A(x) = div x
 		-- but don't use the poisson.cl one, that's for in-place Gauss-Seidel
-		self.poissonGMRESLinearFuncKernelObj(UNext, U)
+		self.poissonGMRESLinearFuncKernelObj(solver.solverBuf, UNext, U)
 	end	
 	self.linearSolver = ThisGMRES(linearSolverArgs)
 end
@@ -122,6 +122,7 @@ end
 local poissonGMRESCode = [[
 
 kernel void poissonGMRESLinearFunc(
+	constant <?=solver.solver_t?>* solver,
 	global real* y,
 	global real* x
 ) {
@@ -139,12 +140,12 @@ kernel void poissonGMRESLinearFunc(
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do ?>
 	intIndex.s<?=j?> = i.s<?=j?> - .5;
-	volL.s<?=j?> = volume_at(cell_x(intIndex));
+	volL.s<?=j?> = volume_at(solver, cell_x(intIndex));
 	intIndex.s<?=j?> = i.s<?=j?> + .5;
-	volR.s<?=j?> = volume_at(cell_x(intIndex));
+	volR.s<?=j?> = volume_at(solver, cell_x(intIndex));
 	intIndex.s<?=j?> = i.s<?=j?>;
 <? end ?>
-	real volAtX = volume_at(cell_x(i));
+	real volAtX = volume_at(solver, cell_x(i));
 
 	real sum = (0.
 <? for j=0,solver.dim-1 do ?>

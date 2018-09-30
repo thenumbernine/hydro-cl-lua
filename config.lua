@@ -200,17 +200,17 @@ maxs = {6,1,1},
 	--initState = 'constant',
 	--initState = 'constant with velocity',
 	--initState = 'linear',
-	--initState = 'gaussian',
+	--initState = 'gaussian',	-- explodes with Euler/Roe
 	--initState = 'advect wave',
-	initState = 'sphere',
+	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
 	--initState = 'Kelvin-Helmholtz',
-	--initState = 'Rayleigh-Taylor',
+	--initState = 'Rayleigh-Taylor',	--FIXME
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
 	--initState = 'square cavity',
@@ -227,10 +227,10 @@ maxs = {6,1,1},
 	-- self-gravitation tests:
 	--initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
-	--initState = 'self-gravitation test 2',
+	--initState = 'self-gravitation test 2',		--FIXME
 	--initState = 'self-gravitation test 2 orbiting',
 	--initState = 'self-gravitation test 4',
-	--initState = 'self-gravitation soup',
+	--initState = 'self-gravitation soup',	--FIXME
 	
 	-- those designed for SRHD / GRHD:
 	--initState = 'relativistic shock reflection',			-- not working.  these initial conditions are constant =P
@@ -428,7 +428,7 @@ maxs = {6,1,1},
 }
 
 -- HD
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
@@ -567,5 +567,5 @@ maxs = {6,1,1},
 
 
 -- the start of AMR
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.amr'(require 'solver.roe')(table(args, {eqn='euler'})))

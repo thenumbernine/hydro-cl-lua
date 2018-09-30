@@ -45,6 +45,7 @@ sym3 tracefree(sym3 A_ll, sym3 gamma_ll, sym3 gamma_uu) {
 }
 
 kernel void constrainU(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
@@ -103,6 +104,7 @@ end
 }
 
 kernel void calcDeriv(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	<?=calcConstraints and '' or 'const '?>global <?=eqn.cons_t?>* UBuf
 ) {
@@ -625,6 +627,7 @@ end ?>
 }
 
 kernel void addSource(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS_NOGHOST();

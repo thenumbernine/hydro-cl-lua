@@ -76,6 +76,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 */
 
 kernel void calcEigenBasis(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.eigen_t?>* eigenBuf,
 	<?= solver.getULRArg ?><?=
 	solver:getADMArgs()?>
@@ -104,7 +105,7 @@ kernel void calcEigenBasis(
 		
 		int indexInt = side + dim * index;	
 		real3 xInt = x;
-		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
+		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 		//*eig = eigen_forInterface(*UL, *UR, xInt, normalForSide<?=side?>());
@@ -141,6 +142,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 <? for side=0,solver.dim-1 do ?>
 
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> UX,
 	real3 x
@@ -185,6 +187,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 }
 
 <?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.waves_t?> UX,
 	real3 x
@@ -256,6 +259,7 @@ x,  y,  z, z,  y,  x
 }
 
 <?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> UX,
 	real3 x
@@ -306,6 +310,7 @@ x,  y,  z, z,  y,  x
 <? end ?>
 
 kernel void addSource(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {

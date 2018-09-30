@@ -21,6 +21,7 @@
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
 	const global <?=eqn.prim_t?>* primBuf
 ) {
@@ -80,6 +81,7 @@ kernel void calcDT(
 
 
 kernel void calcEigenBasis(
+	constant <?=solver.solver_t?>* solver,
 	global real* waveBuf,
 	global <?=eqn.eigen_t?>* eigenBuf,
 	
@@ -105,7 +107,7 @@ kernel void calcEigenBasis(
 		<?=eqn.prim_t?> primL = primBuf[indexL];
 		
 		real3 xInt = x;
-		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
+		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		sym3 gammaU = coord_gU(xInt);
 
 <? if true then -- arithmetic averaging ?>
@@ -209,6 +211,7 @@ for _,addr0 in ipairs{'', 'global'} do
 				end):concat()
 ?>
 void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=addr0?> real* Y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* X_,
@@ -225,7 +228,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<? end ?>
 
 	<?=prefix?>
-	real gammaDet = volume_at(x);
+	real gammaDet = volume_at(solver, x);
 	sym3 gammaL = coord_g(x);
 	sym3 gammaU = coord_gU(x);
 
@@ -291,6 +294,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 }
 
 void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=addr0?> real* Y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* X,
@@ -339,6 +343,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 }
 
 void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=addr0?> real* Y,
 	<?=addr1?> const <?=eqn.eigen_t?>* eig,
 	<?=addr2?> const real* X_,
@@ -369,6 +374,7 @@ void eigen_fluxTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 end ?>
 
 kernel void constrainU(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -384,6 +390,7 @@ kernel void constrainU(
 
 //TODO update to include alphas, betas, and gammas
 kernel void updatePrims(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.prim_t?>* primBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {

@@ -110,6 +110,7 @@ local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, 
 ?>
 
 kernel void solveMinimalDistortionEllipticShift<?=op.suffix?>(
+	constant <?=solver.solver_t?>* solver,
 	global <?=op:getPotBufType()?>* UBuf<?
 if op.stopOnEpsilon then ?>,
 	global real* reduceBuf<?
@@ -135,12 +136,12 @@ end ?>
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do ?>
 	intIndex.s<?=j?> = i.s<?=j?> - .5;
-	volL.s<?=j?> = volume_at(cell_x(intIndex));
+	volL.s<?=j?> = volume_at(solver, cell_x(intIndex));
 	intIndex.s<?=j?> = i.s<?=j?> + .5;
-	volR.s<?=j?> = volume_at(cell_x(intIndex));
+	volR.s<?=j?> = volume_at(solver, ell_x(intIndex));
 	intIndex.s<?=j?> = i.s<?=j?>;
 <? end ?>
-	real volAtX = volume_at(cell_x(i));
+	real volAtX = volume_at(solver, cell_x(i));
 
 <?
 local scalar = op.scalar

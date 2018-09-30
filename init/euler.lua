@@ -286,8 +286,8 @@ local initStates = table{
 <?
 for i=1,solver.dim do
 	local xi = xNames[i]
-?> 		&& x.<?=xi?> > .75 * mins.<?=xi?> + .25 * maxs.<?=xi?>
-		&& x.<?=xi?> < .25 * mins.<?=xi?> + .75 * maxs.<?=xi?>
+?> 		&& x.<?=xi?> > .75 * solver->mins.<?=xi?> + .25 * solver->maxs.<?=xi?>
+		&& x.<?=xi?> < .25 * solver->mins.<?=xi?> + .75 * solver->maxs.<?=xi?>
 <?
 end
 ?>;
@@ -507,7 +507,7 @@ end
 	real radius = 1.;
 	real distPastRadius = coord_r - radius;
 	
-	real coord_R = coord_r - .5 * (mins.x + maxs.x);
+	real coord_R = coord_r - .5 * (solver->mins.x + solver->maxs.x);
 
 	if (distPastRadius < 0.) {
 		rho = P = 1.;
@@ -854,11 +854,11 @@ end) then
 	
 	bool wave1 = true
 <? for i=0,solver.dim-1 do ?>
-		&& x.s<?=i?> < .9 * mins.s<?=i?> + .1 * maxs.s<?=i?>
+		&& x.s<?=i?> < .9 * solver->mins.s<?=i?> + .1 * solver->maxs.s<?=i?>
 <? end ?>;
 	bool wave2 = true
 <? for i=0,solver.dim-1 do ?>
-		&& x.s<?=i?> > .1 * mins.s<?=i?> + .9 * maxs.s<?=i?>
+		&& x.s<?=i?> > .1 * solver->mins.s<?=i?> + .9 * solver->maxs.s<?=i?>
 <? end ?>;
 	rho = 1;
 	P = wave1 ? 1000 : (wave2 ? 100 : .01);
@@ -913,8 +913,8 @@ end) then
 			solver:setBoundaryMethods'periodic'			
 		
 			return template([[
-	real yq1 = mins.<?=sliceAxis?> * .75 + maxs.<?=sliceAxis?> * .25;
-	real yq2 = mins.<?=sliceAxis?> * .25 + maxs.<?=sliceAxis?> * .75;
+	real yq1 = solver->mins.<?=sliceAxis?> * .75 + solver->maxs.<?=sliceAxis?> * .25;
+	real yq2 = solver->mins.<?=sliceAxis?> * .25 + solver->maxs.<?=sliceAxis?> * .75;
 
 	real inside = (.5 + .5 * tanh((x.<?=sliceAxis?> - yq1) / thickness))
 				- (.5 + .5 * tanh((x.<?=sliceAxis?> - yq2) / thickness));
@@ -923,12 +923,12 @@ end) then
 <?
 for i=0,solver.dim-1 do 
 	if xNames[i+1] ~= sliceAxis then
-?>	theta *= (x.s<?=i?> - mins.s<?=i?>) / (maxs.s<?=i?> - mins.s<?=i?>);
+?>	theta *= (x.s<?=i?> - solver->mins.s<?=i?>) / (solver->maxs.s<?=i?> - solver->mins.s<?=i?>);
 <? 
 	end	
 end ?>
 
-	real noise = (maxs.x - mins.x) * amplitude;
+	real noise = (solver->maxs.x - solver->mins.x) * amplitude;
 	rho = inside * rhoInside + (1. - inside) * rhoOutside;
 	//v.x = cos(theta) * noise;
 #if dim == 2
@@ -976,11 +976,11 @@ end ?>
 			end
 			solver:setBoundaryMethods(boundaryMethods)
 		
-			return [[
+			return template([[
 	const real3 externalForce = _real3(0,1,0);
 	ePot = 0. <? 
 for side=0,solver.dim-1 do
-?> + (x.s<?=side?> - mins.s<?=side?>) * externalForce.s<?=side?><?
+?> + (x.s<?=side?> - solver->mins.s<?=side?>) * externalForce.s<?=side?><?
 end ?>;
 	int topdim = <?=solver.dim-1?>;
 	bool top = x.s[topdim] > mids.s[topdim];
@@ -988,7 +988,9 @@ end ?>;
 	rho = top ? 2 : 1;
 	P = 2.5 - rho * ePot;
 	// or maybe it is ... pressure = (gamma - 1) * density * (2.5 - potentialEnergy)
-]]
+]], {
+			solver = solver,
+		})
 		end,
 	},
 

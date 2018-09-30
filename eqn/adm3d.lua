@@ -246,6 +246,7 @@ local from6to3x3 = common.from6to3x3
 local sym = common.sym 
 ?>
 kernel void initState(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -284,6 +285,7 @@ kernel void initState(
 }
 
 kernel void initDerivs(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
@@ -296,9 +298,9 @@ kernel void initDerivs(
 for i=1,solver.dim do 
 	local xi = xNames[i]
 ?>
-	U->a_l.<?=xi?> = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (grid_dx<?=i-1?> * U->alpha);
+	U->a_l.<?=xi?> = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (solver->grid_dx.s<?=i-1?> * U->alpha);
 	<? for jk,xjk in ipairs(symNames) do ?>
-	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (U[stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / grid_dx<?=i-1?>;
+	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (U[stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / solver->grid_dx.s<?=i-1?>;
 	<? end ?>
 <? 
 end 
@@ -376,7 +378,7 @@ momentum constraints
 		<? for i=1,solver.dim do
 			local xi = xNames[i]
 		?>{
-			real di_alpha = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (2. * grid_dx<?=i-1?>);
+			real di_alpha = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (2. * solver->grid_dx.s<?=i-1?>);
 			value_real3-><?=xi?> = fabs(di_alpha - U->alpha * U->a_l.<?=xi?>);
 		}<? end ?>
 		<? for i=solver.dim+1,3 do
@@ -402,7 +404,7 @@ momentum constraints
 				U[stepsize.<?=xi?>].gamma_ll, 
 				U[-stepsize.<?=xi?>].gamma_ll
 			), 
-			1. / (2. * grid_dx<?=i-1?>)
+			1. / (2. * solver->grid_dx.s<?=i-1?>)
 		);
 		<? else ?>
 		sym3 di_gamma_jk = sym3_zero;

@@ -224,6 +224,7 @@ local zero = scalar..'_zero'
 ?>
 
 kernel void initState(
+	global <?=solver.solver_t?>* solver,
 	global <?=cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -317,8 +318,8 @@ local function curl(eqn,k,result,field,env)
 <? end ?>
 
 		<?=result?> = <?=sub?>(
-			<?=real_mul?>(<?=sub?>(vjp_i, vjm_i), 1. / (2. * grid_dx<?=i?>)),
-			<?=real_mul?>(<?=sub?>(vip_j, vim_j), 1. / (2. * grid_dx<?=j?>))
+			<?=real_mul?>(<?=sub?>(vjp_i, vjm_i), 1. / (2. * solver->grid_dx.s<?=i?>)),
+			<?=real_mul?>(<?=sub?>(vip_j, vim_j), 1. / (2. * solver->grid_dx.s<?=j?>))
 		);
 	}
 ]], table(env, {
@@ -355,7 +356,7 @@ function Maxwell:getDisplayVars()
 		<?=sub?>(
 			U[stepsize.s<?=j?>].<?=field?>.s<?=j?>,
 			U[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		), 1. / grid_dx<?=j?>));
+		), 1. / solver->grid_dx.s<?=j?>));
 <? end ?>
 
 	v = <?=real_mul?>(v, .5);

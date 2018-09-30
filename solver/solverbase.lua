@@ -113,13 +113,13 @@ print(k,v)
 	-- do this before any call to createBuffers or createCodePrefix
 	self.solver_t = require 'eqn.makestruct'.uniqueName'solver_t'
 	require'eqn.makestruct'.safeFFICDef(self:getSolverTypeCode())
-	self.solverPtrCPU = ffi.new(self.solver_t)
-	self.solverPtr = CLBuffer{
+	self.solverPtr = ffi.new(self.solver_t)
+	self.solverBuf = CLBuffer{
 		env = self.app.env,
 		name = 'solver',
 		type = self.solver_t,
 		size = 1,	-- should be 'count'
-		--readwrite = 'read',
+		readwrite = 'read',
 	}
 	ffi.new(self.solver_t)
 end
@@ -375,7 +375,7 @@ function SolverBase:refreshSolverProgram()
 	end
 
 	if self.eqn.useConstrainU then
-		self.constrainUKernelObj = self.solverProgramObj:kernel('constrainU', self.UBuf)
+		self.constrainUKernelObj = self.solverProgramObj:kernel('constrainU', self.solverBuf, self.UBuf)
 	end
 
 	for _,op in ipairs(self.ops) do
@@ -392,7 +392,7 @@ function SolverBase:refreshSolverProgram()
 				or (var.vecVar and var.vecVar.enabled)
 				then
 				--]]do
-					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id, assert(self.solverPtr), self.texCLMem)
+					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id, self.solverBuf, self.texCLMem)
 				end
 			end
 		end
@@ -405,7 +405,7 @@ function SolverBase:refreshSolverProgram()
 			or (var.vecVar and var.vecVar.enabled)
 			then
 			--]]do
-				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id, assert(self.solverPtr), self.reduceBuf)
+				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id, self.solverBuf, self.reduceBuf)
 			end
 		end
 	end
@@ -413,7 +413,7 @@ end
 
 -- for solvers who don't rely on calcDT
 function SolverBase:refreshCalcDTKernel()
-	self.calcDTKernelObj = self.solverProgramObj:kernel('calcDT', self.solverPtr, self.reduceBuf, self.UBuf)
+	self.calcDTKernelObj = self.solverProgramObj:kernel('calcDT', self.solverBuf, self.reduceBuf, self.UBuf)
 end
 
 

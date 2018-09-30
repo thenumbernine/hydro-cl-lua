@@ -50,7 +50,7 @@ local EinsteinInitCond = class(InitCond)
 
 function EinsteinInitCond:refreshInitStateProgram(solver)
 	EinsteinInitCond.super.refreshInitStateProgram(self, solver)
-	solver.initDerivsKernelObj = solver.initStateProgramObj:kernel('initDerivs', solver.UBuf)
+	solver.initDerivsKernelObj = solver.initStateProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf)
 end
 
 function EinsteinInitCond:resetState(solver)

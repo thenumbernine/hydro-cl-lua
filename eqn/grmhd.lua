@@ -181,6 +181,7 @@ function GRMHD:getPrimConsCode() end
 
 GRMHD.initStateCode = [[
 kernel void initState(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* consBuf,
 	global <?=eqn.prim_t?>* primBuf
 ) {

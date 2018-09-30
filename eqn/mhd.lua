@@ -180,6 +180,7 @@ end
 MHD.initStateCode = [[
 <? local xNames = require 'common'().xNames ?>
 kernel void initState(
+	global <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -225,7 +226,7 @@ function MHD:getDisplayVars()
 for j=0,solver.dim-1 do 
 ?>		+ (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 
 			- U[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		) / grid_dx<?=j?>
+		) / solver->grid_dx.s<?=j?>
 <? 
 end 
 ?>	);

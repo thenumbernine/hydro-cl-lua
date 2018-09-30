@@ -57,7 +57,8 @@ function FiniteDifferenceSolver:refreshSolverProgram()
 
 	if self.eqn.useSourceTerm then
 		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
+		self.addSourceKernelObj.obj:setArg(0, self.solverBuf)
+		self.addSourceKernelObj.obj:setArg(2, self.UBuf)
 	end
 end
 
@@ -70,7 +71,8 @@ function FiniteDifferenceSolver:calcDeriv(derivBuf, dt)
 	self.calcDerivFiniteDifferenceKernelObj()
 	
 	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj(derivBuf)
+		self.addSourceKernelObj.obj:setArg(1, derivBuf)
+		self.addSourceKernelObj()
 	end
 end
 

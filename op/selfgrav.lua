@@ -97,7 +97,7 @@ function SelfGrav:refreshSolverProgram()
 	
 	local solver = self.solver
 	self.calcGravityDerivKernelObj = solver.solverProgramObj:kernel'calcGravityDeriv'
-	self.calcGravityDerivKernelObj.obj:setArg(0, assert(solver.solverPtr))
+	self.calcGravityDerivKernelObj.obj:setArg(0, solver.solverBuf)
 	self.calcGravityDerivKernelObj.obj:setArg(2, solver.UBuf)
 
 	--TODO just use the display var kernels
@@ -148,7 +148,7 @@ function SelfGrav:step(dt)
 	if not solver[self.enableField] then return end
 	solver.integrator:integrate(dt, function(derivBuf)
 		self:relax()
-		self.calcGravityDerivKernelObj:setArg(1, derivBuf)
+		self.calcGravityDerivKernelObj.obj:setArg(1, derivBuf)
 		self.calcGravityDerivKernelObj()
 	end)
 end

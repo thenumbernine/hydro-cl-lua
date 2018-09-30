@@ -66,6 +66,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 <? for side=0,solver.dim-1 do ?>
 
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> X,
 	real3 x
@@ -110,6 +111,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 }
 
 <?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.waves_t?> X,
 	real3 x
@@ -234,6 +236,7 @@ x,  y,  z, z,  y,  x
 <? end ?>
 
 kernel void addSource(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
@@ -264,7 +267,7 @@ kernel void addSource(
 		<?=sub?>(
 			U[stepsize.<?=xj?>]._1_mu,
 			U[-stepsize.<?=xj?>]._1_mu
-		), 1. / grid_dx<?=j?>);
+		), 1. / solver->grid_dx.s<?=j?>);
 	<? end ?>
 	
 	<?=vec3?> grad_1_eps = <?=vec3?>_zero;
@@ -274,7 +277,7 @@ kernel void addSource(
 		<?=sub?>(
 			U[stepsize.<?=xj?>]._1_eps,
 			U[-stepsize.<?=xj?>]._1_eps
-		), 1. / grid_dx<?=j?>);
+		), 1. / solver->grid_dx.s<?=j?>);
 	<? end ?>
 
 	real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);

@@ -45,20 +45,20 @@ function Roe:refreshSolverProgram()
 
 	self.calcEigenBasisKernelObj = self.solverProgramObj:kernel(
 		'calcEigenBasis',
-		self.solverPtr,
+		self.solverBuf,
 		self.eigenBuf,
 		self.getULRBuf)
 
 	self.calcFluxKernelObj = self.solverProgramObj:kernel(
 		'calcFlux',
-		self.solverPtr,
+		self.solverBuf,
 		self.fluxBuf,
 		self.getULRBuf,
 		self.eigenBuf)
 
 	if self.eqn.useSourceTerm then
 		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-		self.addSourceKernelObj.obj:setArg(0, self.solverPtr)
+		self.addSourceKernelObj.obj:setArg(0, self.solverBuf)
 		self.addSourceKernelObj.obj:setArg(2, self.UBuf)
 	end
 end
@@ -131,8 +131,8 @@ function Roe:addDisplayVars()
 			basis.ptr[j] = k == j ? 1 : 0;
 		}
 		
-		<?=eqn.waves_t?> eigenCoords = eigen_leftTransform_<?=side?>(*eig, basis, xInt);
-		<?=eqn.cons_t?> newbasis = eigen_rightTransform_<?=side?>(*eig, eigenCoords, xInt);
+		<?=eqn.waves_t?> eigenCoords = eigen_leftTransform_<?=side?>(solver, *eig, basis, xInt);
+		<?=eqn.cons_t?> newbasis = eigen_rightTransform_<?=side?>(solver, *eig, eigenCoords, xInt);
 	
 		for (int j = 0; j < numWaves; ++j) {
 			*value += fabs(newbasis.ptr[j] - basis.ptr[j]);
@@ -174,7 +174,7 @@ function Roe:addDisplayVars()
 				basis.ptr[j] = k == j ? 1 : 0;
 			}
 
-			<?=eqn.waves_t?> eigenCoords = eigen_leftTransform_<?=side?>(*eig, basis, xInt);
+			<?=eqn.waves_t?> eigenCoords = eigen_leftTransform_<?=side?>(solver, *eig, basis, xInt);
 
 			<?=eqn.waves_t?> eigenScaled;
 			<? for j=0,eqn.numWaves-1 do ?>{
@@ -184,7 +184,7 @@ function Roe:addDisplayVars()
 			}<? end ?>
 		
 			//once again, only needs to be numIntStates
-			<?=eqn.cons_t?> newtransformed = eigen_rightTransform_<?=side?>(*eig, eigenScaled, xInt);
+			<?=eqn.cons_t?> newtransformed = eigen_rightTransform_<?=side?>(solver, *eig, eigenScaled, xInt);
 
 //this shouldn't need to be reset here
 // but it will if leftTransform does anything destructive
@@ -193,7 +193,7 @@ for (int j = 0; j < numStates; ++j) {
 }
 
 			//once again, only needs to be numIntStates
-			<?=eqn.cons_t?> transformed = eigen_fluxTransform_<?=side?>(*eig, basis, xInt);
+			<?=eqn.cons_t?> transformed = eigen_fluxTransform_<?=side?>(solver, *eig, basis, xInt);
 			
 			for (int j = 0; j < numIntStates; ++j) {
 				*value += fabs(newtransformed.ptr[j] - transformed.ptr[j]);
@@ -258,15 +258,11 @@ function Roe:calcDeriv(derivBuf, dt)
 	end
 --]=]
 	
-	self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverPtr)
 	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBuf)
-	self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
 	self.calcDerivFromFluxKernelObj()
 
 	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj.obj:setArg(0, self.solverPtr)
 		self.addSourceKernelObj.obj:setArg(1, derivBuf)
-		self.addSourceKernelObj.obj:setArg(2, self.UBuf)
 		self.addSourceKernelObj()
 	end
 end

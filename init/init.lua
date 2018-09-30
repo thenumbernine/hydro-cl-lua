@@ -25,14 +25,15 @@ function InitCond:refreshInitStateProgram(solver)
 		}
 		solver.initStateProgramObj:compile()
 	end)
-	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.solverPtr, solver.UBuf)
+	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.solverBuf, solver.UBuf)
 
 	-- here's an ugly hack ...
 	-- I need a custom init state kernel for the GLM_MHD only
 	-- and it shares init conditions with a lot of other solvers
 	-- so ...
+	-- (don't the Einstein solvers also use initDerivs?)
 	if require 'eqn.glm-mhd'.is(solver.eqn) then
-		solver.initDerivsKernelObj = solver.initStateProgramObj:kernel('initDerivs', solver.UBuf)
+		solver.initDerivsKernelObj = solver.initStateProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf)
 	end
 end
 

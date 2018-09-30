@@ -54,6 +54,7 @@ end
 
 ADM_BonaMasso_1D_2008Alcubierre.initStateCode = [[
 kernel void initState(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -76,13 +77,14 @@ kernel void initState(
 }
 
 kernel void initDerivs(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
-	real dx_alpha = (U[1].alpha - U[-1].alpha) / grid_dx0;
-	real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / grid_dx0;
+	real dx_alpha = (U[1].alpha - U[-1].alpha) / solver->grid_dx.x;
+	real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / solver->grid_dx.x;
 
 	U->a_x = dx_alpha / U->alpha;
 	U->D_g = dx_gamma_xx / U->gamma_xx;
@@ -110,7 +112,7 @@ function ADM_BonaMasso_1D_2008Alcubierre:getDisplayVars()
 	if (OOB(1,1)) {
 		*value = 0.;
 	} else {
-		real dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * grid_dx0);
+		real dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * solver->grid_dx.x);
 		*value = fabs(dx_alpha - U->alpha * U->a_x);
 	}
 ]]},
@@ -119,7 +121,7 @@ function ADM_BonaMasso_1D_2008Alcubierre:getDisplayVars()
 	if (OOB(1,1)) {
 		*value = 0.;
 	} else {
-		real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * grid_dx0);
+		real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * solver->grid_dx.x);
 		*value = fabs(dx_gamma_xx - U->gamma_xx * U->D_g);
 	}
 ]]},

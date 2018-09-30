@@ -10,12 +10,14 @@ NLSEqn.name = 'NLSEqn'
 
 NLSEqn.hasCalcDTCode = true
 
+-- TODO just use cplx_t?
 NLSEqn.consVars = {{re='real'}, {im='real'}}
 
 NLSEqn.initStates = require 'init.nls'
 
 NLSEqn.initStateCode = [[
 kernel void initState(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);

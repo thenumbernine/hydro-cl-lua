@@ -64,6 +64,7 @@ end
 
 Z4_2008Yano.initStateCode = [[
 kernel void initState(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -95,16 +96,17 @@ kernel void initState(
 }
 
 kernel void initDerivs(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
 <? for i,xi in ipairs(xNames) do ?>
-	U->a.<?=xi?> = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (grid_dx<?=i-1?> * U->alpha);
+	U->a.<?=xi?> = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (solver->grid_dx.s<?=i-1?> * U->alpha);
 	<? for j=0,2 do ?>
 		<? for k=j,2 do ?>
-	U->d.<?=xi?>.s<?=j..k?> = .5 * (U[stepsize.<?=xi?>].gamma.s<?=j..k?> - U[-stepsize.<?=xi?>].gamma.s<?=j..k?>) / grid_dx<?=i-1?>;
+	U->d.<?=xi?>.s<?=j..k?> = .5 * (U[stepsize.<?=xi?>].gamma.s<?=j..k?> - U[-stepsize.<?=xi?>].gamma.s<?=j..k?>) / solver->grid_dx.s<?=i-1?>;
 		<? end ?>
 	<? end ?>
 <? end ?>

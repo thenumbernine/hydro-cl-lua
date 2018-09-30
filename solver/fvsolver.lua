@@ -38,7 +38,8 @@ function FiniteVolumeSolver:refreshSolverProgram()
 	-- 'calcFlux' is usually provided, but the args vary, so I'll leave it to the subclass
 	
 	self.calcDerivFromFluxKernelObj = self.solverProgramObj:kernel{name='calcDerivFromFlux', domain=self.domainWithoutBorder}
-	self.calcDerivFromFluxKernelObj.obj:setArg(1, self.fluxBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
 end
 
 function FiniteVolumeSolver:addDisplayVars()

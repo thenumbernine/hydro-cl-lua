@@ -2,6 +2,7 @@
 // but the interface velocity is performed doing the calcDeriv, which ultimately depends on dt
 //So I could save one pass by flaggin whether the int vel is up-to-date or not.
 kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
@@ -18,12 +19,13 @@ kernel void calcDT(
 	
 	real dt = INFINITY;
 <? for side=0,solver.dim-1 do 
-?>	dt = min(dt, (real)grid_dx<?=side?> / (Cs + fabs(W.v.s<?=side?>)));
+?>	dt = min(dt, (real)solver->grid_dx.s<?=side?> / (Cs + fabs(W.v.s<?=side?>)));
 <? end
 ?>	dtBuf[index] = dt;
 }
 
 kernel void calcIntVel(
+	constant <?=solver.solver_t?>* solver,
 	global real* intVelBuf,
 	<?=solver.getULRArg?>
 ) {
@@ -39,7 +41,7 @@ kernel void calcIntVel(
 	
 		int indexInt = side + dim * index;
 		real3 xInt = xR;
-		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
+		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 
 		real rhoL = UL->rho;
 		real vL = UL->m.s<?=side?> / rhoL;
@@ -52,6 +54,7 @@ kernel void calcIntVel(
 }
 
 kernel void calcFlux(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* fluxBuf,
 	<?=solver.getULRArg?>,
 	const global real* intVelBuf,
@@ -63,7 +66,7 @@ kernel void calcFlux(
 
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		real dt_dx = dt / grid_dx<?=side?>;//dx<?=side?>_at(i);
+		real dt_dx = dt / solver->grid_dx.s<?=side?>;//dx<?=side?>_at(i);
 		
 		int indexL = index - stepsize.s<?=side?>;
 		<?=solver:getULRCode()?>
@@ -77,7 +80,7 @@ kernel void calcFlux(
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
 		
 		real3 xInt = xR;
-		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
+		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 
 		for (int j = 0; j < numIntStates; ++j) {
 			real deltaL = UL->ptr[j] - UL2->ptr[j];
@@ -100,6 +103,7 @@ kernel void calcFlux(
 }
 
 kernel void computePressure(
+	constant <?=solver.solver_t?>* solver,
 	global real* PBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
@@ -128,6 +132,7 @@ kernel void computePressure(
 }
 
 kernel void diffuseMomentum(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	const global real* PBuf
 ) {
@@ -138,11 +143,12 @@ kernel void diffuseMomentum(
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		real dP = P[stepsize.s<?=side?>] - P[-stepsize.s<?=side?>];
-		deriv->m.s<?=side?> -= .5 * dP / grid_dx<?=side?>;
+		deriv->m.s<?=side?> -= .5 * dP / solver->grid_dx.s<?=side?>;
 	}<? end ?>
 }
 
 kernel void diffuseWork(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf,
 	const global real* PBuf
@@ -162,7 +168,7 @@ kernel void diffuseWork(
 		real PR = P[stepsize.s<?=side?>];
 		real vL = UL->m.s<?=side?> / UL->rho;
 		real PL = P[-stepsize.s<?=side?>];
-		dE -= .5 * (PR * vR - PL * vL) / grid_dx<?=side?>;
+		dE -= .5 * (PR * vR - PL * vL) / solver->grid_dx.s<?=side?>;
 	}<? end ?>
 
 	deriv->ETotal += dE;

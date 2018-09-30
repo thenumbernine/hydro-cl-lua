@@ -38,7 +38,7 @@ kernel void calcFlux(
 		for (int j = 0; j < numIntStates; ++j) {
 			UAvg.ptr[j] = .5 * (UL->ptr[j] + UR->ptr[j]);
 		}
-		fluxEig = eigen_leftTransform_<?=side?>(*eig, UAvg, xInt);
+		fluxEig = eigen_leftTransform_<?=side?>(solver, *eig, UAvg, xInt);
 <? end ?>
 
 		<?=eqn.cons_t?> deltaU;	
@@ -59,12 +59,12 @@ kernel void calcFlux(
 <? end ?>	
 		}
 		
-		<?=eqn.waves_t?> deltaUEig = eigen_leftTransform_<?=side?>(*eig, deltaU, xInt);
+		<?=eqn.waves_t?> deltaUEig = eigen_leftTransform_<?=side?>(solver, *eig, deltaU, xInt);
 <? if solver.fluxLimiter > 1 then ?>
 		const global <?=eqn.eigen_t?>* eigL = eig - dim * stepsize.s<?=side?>;
 		const global <?=eqn.eigen_t?>* eigR = eig + dim * stepsize.s<?=side?>;
-		<?=eqn.waves_t?> deltaUEigL = eigen_leftTransform_<?=side?>(*eigL, deltaUL, xIntL);
-		<?=eqn.waves_t?> deltaUEigR = eigen_leftTransform_<?=side?>(*eigR, deltaUR, xIntR);
+		<?=eqn.waves_t?> deltaUEigL = eigen_leftTransform_<?=side?>(solver, *eigL, deltaUL, xIntL);
+		<?=eqn.waves_t?> deltaUEigR = eigen_leftTransform_<?=side?>(solver, *eigR, deltaUR, xIntR);
 <? end ?>
 
 		<? for j=0,eqn.numWaves-1 do ?>{
@@ -100,7 +100,7 @@ kernel void calcFlux(
 		}<? end ?>
 		
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
-		*flux = eigen_rightTransform_<?=side?>(*eig, fluxEig, xInt);
+		*flux = eigen_rightTransform_<?=side?>(solver, *eig, fluxEig, xInt);
 
 <? if eqn.roeUseFluxFromCons then ?>
 		

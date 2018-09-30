@@ -213,6 +213,7 @@ end
 
 NavierStokesWilcox.initStateCode = [[
 kernel void initState(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -276,8 +277,8 @@ local function vorticity(eqn,k,result)
 		real vjm_i = Ujm->rhoBar_vTilde.s<?=i?> / Ujm->rhoBar;
 		real vjp_i = Ujp->rhoBar_vTilde.s<?=i?> / Ujp->rhoBar;
 		
-		<?=result?> = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
-				- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
+		<?=result?> = (vjp_i - vjm_i) / (2. * solver->grid_dx.s<?=i?>)
+				- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
 	}
 ]], {
 		i = i,

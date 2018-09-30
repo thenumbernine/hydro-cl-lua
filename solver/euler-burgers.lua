@@ -48,21 +48,24 @@ function EulerBurgers:refreshSolverProgram()
 
 	-- no mention of ULR just yet ...
 
-	self.calcIntVelKernelObj = self.solverProgramObj:kernel('calcIntVel', self.intVelBuf, self.getULRBuf)
-	self.calcFluxKernelObj = self.solverProgramObj:kernel('calcFlux', self.fluxBuf, self.getULRBuf, self.intVelBuf)
+	self.calcIntVelKernelObj = self.solverProgramObj:kernel('calcIntVel', self.solverBuf, self.intVelBuf, self.getULRBuf)
+	self.calcFluxKernelObj = self.solverProgramObj:kernel('calcFlux', self.solverBuf, self.fluxBuf, self.getULRBuf, self.intVelBuf)
 
-	self.computePressureKernelObj = self.solverProgramObj:kernel('computePressure', self.PBuf, self.UBuf) 
+	self.computePressureKernelObj = self.solverProgramObj:kernel('computePressure', self.solverBuf, self.PBuf, self.UBuf) 
 	
 	self.diffuseMomentumKernelObj = self.solverProgramObj:kernel{name='diffuseMomentum', domain=self.domainWithoutBorder}
-	self.diffuseMomentumKernelObj.obj:setArg(1, self.PBuf)
+	self.diffuseMomentumKernelObj.obj:setArg(0, self.solverBuf)
+	self.diffuseMomentumKernelObj.obj:setArg(2, self.PBuf)
 	
 	self.diffuseWorkKernelObj = self.solverProgramObj:kernel'diffuseWork'
-	self.diffuseWorkKernelObj.obj:setArg(1, self.UBuf)
-	self.diffuseWorkKernelObj.obj:setArg(2, self.PBuf)
+	self.diffuseWorkKernelObj.obj:setArg(0, self.solverBuf)
+	self.diffuseWorkKernelObj.obj:setArg(2, self.UBuf)
+	self.diffuseWorkKernelObj.obj:setArg(3, self.PBuf)
 
 	if self.eqn.useSourceTerm then
 		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
+		self.addSourceKernelObj.obj:setArg(0, self.solverBuf)
+		self.addSourceKernelObj.obj:setArg(2, self.UBuf)
 	end
 end
 
@@ -100,13 +103,15 @@ function EulerBurgers:step(dt)
 	self.integrator:integrate(dt, function(derivBuf)
 		self.calcIntVelKernelObj()
 
-		self.calcFluxKernelObj.obj:setArg(3, real(dt))
+		self.calcFluxKernelObj.obj:setArg(4, real(dt))
 		self.calcFluxKernelObj()
 	
-		self.calcDerivFromFluxKernelObj(derivBuf)
+		self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBuf)
+		self.calcDerivFromFluxKernelObj()
 	
 		if self.eqn.useSourceTerm then
-			self.addSourceKernelObj(derivBuf)
+			self.addSourceKernelObj.obj:setArg(1, derivBuf)
+			self.addSourceKernelObj()
 		end
 	end)
 
@@ -117,13 +122,15 @@ function EulerBurgers:step(dt)
 	self.integrator:integrate(dt, function(derivBuf)
 		self.computePressureKernelObj()
 	
-		self.diffuseMomentumKernelObj(derivBuf)
+		self.diffuseMomentumKernelObj.obj:setArg(1, derivBuf)
+		self.diffuseMomentumKernelObj()
 	end)
 	
 	self:boundary()
 	
 	self.integrator:integrate(dt, function(derivBuf)
-		self.diffuseWorkKernelObj(derivBuf)
+		self.diffuseWorkKernelObj.obj:setArg(1, derivBuf)
+		self.diffuseWorkKernelObj()
 	end)
 end
 

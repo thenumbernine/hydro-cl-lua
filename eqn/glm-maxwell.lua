@@ -137,6 +137,7 @@ local sqrt = scalar..'_sqrt'
 ?>
 
 kernel void initState(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -237,8 +238,8 @@ local function curl(eqn,k,result,field,env)
 <? end ?>
 
 		<?=result?> = <?=sub?>(
-			<?=real_mul?>(<?=sub?>(vjp_i, vjm_i), 1. / (2. * grid_dx<?=i?>)),
-			<?=real_mul?>(<?=sub?>(vip_j, vim_j), 1. / (2. * grid_dx<?=j?>))
+			<?=real_mul?>(<?=sub?>(vjp_i, vjm_i), 1. / (2. * solver->grid_dx.s<?=i?>)),
+			<?=real_mul?>(<?=sub?>(vip_j, vim_j), 1. / (2. * solver->grid_dx.s<?=j?>))
 		);
 	}
 ]], table(env, {
@@ -269,7 +270,7 @@ function GLM_Maxwell:getDisplayVars()
 		<?=sub?>(
 			U[stepsize.s<?=j?>].<?=field?>.s<?=j?>,
 			U[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
-	), 1. / grid_dx<?=j?>));
+	), 1. / solver->grid_dx.s<?=j?>));
 <? end ?>	
 	v = <?=real_mul?>(v, .5);
 	*value_<?=scalar?> = v;

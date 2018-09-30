@@ -15,6 +15,7 @@ local sym = common.sym
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
 	const global <?=eqn.cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
@@ -257,6 +258,7 @@ for _,field in ipairs(eqn.eigenVars) do
 	end):concat()
 ?>
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> X_,
 	real3 x
@@ -342,6 +344,7 @@ for _,field in ipairs(eqn.eigenVars) do
 }
 
 <?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.waves_t?> X,
 	real3 x
@@ -391,6 +394,7 @@ for _,field in ipairs(eqn.eigenVars) do
 }
 
 <?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> X_,
 	real3 x
@@ -415,17 +419,18 @@ for _,field in ipairs(eqn.eigenVars) do
 	<? end ?>
 #else
 	//default
-	<?=eqn.waves_t?> waves = eigen_leftTransform_<?=side?>(eig, X_, x);
+	<?=eqn.waves_t?> waves = eigen_leftTransform_<?=side?>(solver, eig, X_, x);
 	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
 <? for j=0,eqn.numWaves-1 do 
 ?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>;
 <? end 
-?>	return eigen_rightTransform_<?=side?>(eig, waves, x);
+?>	return eigen_rightTransform_<?=side?>(solver, eig, waves, x);
 #endif
 }
 <? end ?>
 
 kernel void addSource(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
@@ -437,6 +442,7 @@ kernel void addSource(
 }
 
 kernel void constrainU(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -466,6 +472,7 @@ u^i = W (v^i - beta^i / alpha)
 W = sqrt(1 - v^i v^j gamma_ij)
 */
 kernel void updatePrims(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
 ) {

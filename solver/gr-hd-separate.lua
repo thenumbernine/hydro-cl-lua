@@ -105,7 +105,7 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 		self.calcDTKernelObj.obj:setArg(3, gr.UBuf)
 		self.calcEigenBasisKernelObj.obj:setArg(2, gr.UBuf)
 		self.addSourceKernelObj.obj:setArg(2, gr.UBuf)
-		self.updatePrimsKernelObj.obj:setArg(1, gr.UBuf)
+		self.updatePrimsKernelObj.obj:setArg(2, gr.UBuf)
 	end
 
 	local hydro = HydroSolver(args)

@@ -160,6 +160,7 @@ end
 function BSSNOKFiniteDifferenceEquation:getInitStateCode()
 	return template([[
 kernel void initState(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
@@ -217,6 +218,7 @@ kernel void initState(
 
 //after popularing gammaTilde_ll, use its finite-difference derivative to initialize connBar_u
 kernel void initDerivs(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);

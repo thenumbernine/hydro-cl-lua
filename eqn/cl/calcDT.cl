@@ -34,6 +34,7 @@ kernel void calcDT(
 <? else -- mesh solver ?>
 
 kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,					//[numCells]
 	const global <?=eqn.cons_t?>* UBuf,	//[numCells]
 	const global cell_t* cells,			//[numCells]

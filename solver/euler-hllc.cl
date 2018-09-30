@@ -3,6 +3,7 @@
 //http://marian.fsik.cvut.cz/~bodnar/PragueSum_2012/Toro_2-HLLC-RiemannSolver.pdf
 
 kernel void calcFlux(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* fluxBuf,
 	<?= solver.getULRArg ?>
 ) {
@@ -16,10 +17,10 @@ kernel void calcFlux(
 		
 		int indexL = index - stepsize.s<?=side?>;
 		real3 xL = xR;
-		xL.s<?=side?> -= grid_dx<?=side?>;
+		xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
 		
 		real3 xInt = xR;
-		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
+		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		int indexInt = side + dim * index;
 
 		<?=solver:getULRCode{suffix='_', indexL='indexL', indexR='indexR'}?>

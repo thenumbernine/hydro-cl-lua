@@ -170,6 +170,7 @@ for side=0,solver.dim-1 do
 ?>
 
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> X,
 	real3 x
@@ -292,6 +293,7 @@ for side=0,solver.dim-1 do
 }
 
 <?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.waves_t?> X,
 	real3 x
@@ -383,6 +385,7 @@ for side=0,solver.dim-1 do
 }
 
 <?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> X,
 	real3 x
@@ -528,6 +531,7 @@ for side=0,solver.dim-1 do
 <? end ?>
 
 kernel void addSource(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {

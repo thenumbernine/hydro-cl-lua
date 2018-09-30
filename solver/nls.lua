@@ -15,7 +15,8 @@ function NLSSolver:refreshSolverProgram()
 	NLSSolver.super.refreshSolverProgram(self)
 	
 	self.calcDerivKernelObj = self.solverProgramObj:kernel'calcDeriv'
-	self.calcDerivKernelObj.obj:setArg(1, self.UBuf)
+	self.calcDerivKernelObj.obj:setArg(0, self.solverBuf)
+	self.calcDerivKernelObj.obj:setArg(2, self.UBuf)
 end
 
 function NLSSolver:createBoundaryOptions()
@@ -54,7 +55,8 @@ function NLSSolver:refreshCalcDTKernel() end
 function NLSSolver:calcDT() return self.fixedDT end
 
 function NLSSolver:calcDeriv(derivBuf, dt)
-	self.calcDerivKernelObj(derivBuf)
+	self.calcDerivKernelObj.obj:setArg(1, derivBuf)
+	self.calcDerivKernelObj()
 end
 
 return NLSSolver

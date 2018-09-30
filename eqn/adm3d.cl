@@ -15,6 +15,7 @@ local calcConstraints = true
 ?>
 
 kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
@@ -55,7 +56,7 @@ kernel void calcDT(
 		real lambdaMin = (real)min((real)0., -betaUi - lambda);
 		real lambdaMax = (real)max((real)0., -betaUi + lambda);
 
-		dt = (real)min((real)dt, (real)(grid_dx<?=side?> / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
+		dt = (real)min((real)dt, (real)(solver->grid_dx.s<?=side?> / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
 	}<? end ?>
 	dtBuf[index] = dt; 
 }
@@ -152,6 +153,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> inputU,
 	real3 x 
@@ -449,6 +451,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 
 <?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.waves_t?> input,
 	real3 x
@@ -1008,6 +1011,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 
 <?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> inputU,
 	real3 x
@@ -1019,7 +1023,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	// TODO use that static function for the calc waves as well
 	
 
-	<?=eqn.waves_t?> waves = eigen_leftTransform_<?=side?>(eig, inputU, x);
+	<?=eqn.waves_t?> waves = eigen_leftTransform_<?=side?>(solver, eig, inputU, x);
 
 	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
 
@@ -1027,7 +1031,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 ?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>;
 <? end 
 ?>
-	return eigen_rightTransform_<?=side?>(eig, waves, x);
+	return eigen_rightTransform_<?=side?>(solver, eig, waves, x);
 
 <? else -- noZeroRowsInFlux ?>
 
@@ -1061,6 +1065,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 // then we do save calculations / memory on the equations
 // but we also, for >FE integrators (which require multiple steps) are duplicating calculations
 kernel void addSource(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	<?=calcConstraints and '' or 'const '?>global <?=eqn.cons_t?>* UBuf)
 {
@@ -1432,7 +1437,7 @@ end ?>
 	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
 	<? for i,xi in ipairs(xNames) do ?>{
 		<? if i <= solver.dim then ?>
-		real di_alpha = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (2. * grid_dx<?=i-1?>);
+		real di_alpha = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (2. * solver->grid_dx.s<?=i-1?>);
 		<? else ?>
 		real di_alpha = 0.;
 		<? end ?>
@@ -1446,7 +1451,7 @@ end ?>
 for i,xi in ipairs(xNames) do 
 	for jk,xjk in ipairs(symNames) do ?>{
 		<? if i <= solver.dim then ?>
-		real di_gamma_jk = (U[stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / (2. * grid_dx<?=i-1?>);
+		real di_gamma_jk = (U[stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / (2. * solver->grid_dx.s<?=i-1?>);
 		<? else ?>
 		real di_gamma_jk = 0;
 		<? end ?>
@@ -1483,6 +1488,7 @@ end ?>
 }
 
 kernel void constrainU(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 

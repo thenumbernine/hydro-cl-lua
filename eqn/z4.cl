@@ -8,6 +8,7 @@ local sym = common.sym
 ?>
 
 kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
@@ -41,7 +42,7 @@ kernel void calcDT(
 		
 		real lambdaMin = (real)min((real)0., -lambda);
 		real lambdaMax = (real)max((real)0., lambda);
-		dt = (real)min((real)dt, (real)(grid_dx<?=side?> / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
+		dt = (real)min((real)dt, (real)(solver->grid_dx.s<?=side?> / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
 	}<? end ?>
 	dtBuf[index] = dt; 
 }
@@ -120,6 +121,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> inputU,
 	real3 pt 
@@ -348,6 +350,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 
 <?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.waves_t?> input,
 	real3 unused
@@ -912,6 +915,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 
 <?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> input,
 	real3 pt 
@@ -1044,6 +1048,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <? end ?>
 
 kernel void addSource(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf)
 {

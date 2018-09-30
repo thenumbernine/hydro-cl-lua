@@ -30,6 +30,7 @@ end
 
 NavierStokesDivFree.initStateCode = [[
 kernel void initState(
+	global <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -83,8 +84,8 @@ function NavierStokesDivFree:getDisplayVars()
 		real3 vjm = Ujm->v;
 		real3 vjp = Ujp->v;
 		
-		<?=result?> = (vjp.s<?=i?> - vjm.s<?=i?>) / (2. * grid_dx<?=i?>)
-				- (vip.s<?=j?> - vim.s<?=j?>) / (2. * grid_dx<?=j?>);
+		<?=result?> = (vjp.s<?=i?> - vjm.s<?=i?>) / (2. * solver->grid_dx.s<?=i?>)
+				- (vip.s<?=j?> - vim.s<?=j?>) / (2. * solver->grid_dx.s<?=j?>);
 	}
 ]], 	{
 			i = i,

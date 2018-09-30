@@ -161,6 +161,7 @@ end
 
 GLM_MHD.initStateCode = [[
 kernel void initState(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -186,6 +187,7 @@ kernel void initState(
 }
 
 kernel void initDerivs(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
@@ -197,7 +199,7 @@ kernel void initDerivs(
 for j=0,solver.dim-1 do 
 ?>		+ (U[stepsize.s<?=j?>].B.s<?=j?> 
 			- U[-stepsize.s<?=j?>].B.s<?=j?>
-		) / grid_dx<?=j?>
+		) / solver->grid_dx.s<?=j?>
 <? 
 end 
 ?>	);
@@ -219,7 +221,7 @@ function GLM_MHD:getDisplayVars()
 for j=0,solver.dim-1 do 
 ?>		+ (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 
 			- U[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		) / grid_dx<?=j?>
+		) / solver->grid_dx.s<?=j?>
 <? 
 end 
 ?>	);

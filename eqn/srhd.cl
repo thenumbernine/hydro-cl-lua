@@ -6,6 +6,7 @@ Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 20
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
@@ -97,6 +98,7 @@ which means this function won't work with the PLM code
 <? end ?>
 
 kernel void calcEigenBasis(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.eigen_t?>* eigenBuf,
 	
 	//TODO 
@@ -121,7 +123,7 @@ kernel void calcEigenBasis(
 		<?=eqn.prim_t?> primL = UBuf[indexL].prim;
 		
 		real3 xInt = x;
-		xInt.s<?=side?> -= .5 * grid_dx<?=side?>;
+		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 
 <? if true then -- arithmetic averaging ?>
 		<?=eqn.prim_t?> avg = (<?=eqn.prim_t?>){
@@ -205,6 +207,7 @@ end):concat()
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> X_,
 	real3 x
@@ -281,6 +284,7 @@ end):concat()
 }
 
 <?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.waves_t?> X,
 	real3 x
@@ -334,6 +338,7 @@ end):concat()
 }
 
 <?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> X_,
 	real3 x
@@ -369,6 +374,7 @@ end):concat()
 <? end ?>
 
 kernel void constrainU(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -383,6 +389,7 @@ kernel void constrainU(
 }
 
 kernel void updatePrims(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost-1);

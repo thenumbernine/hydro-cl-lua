@@ -42,7 +42,7 @@ local function makePartial(order, solver, field, fieldType)
 						'U[-'..j..' * stepsize.'..xi..'].'..field
 					), clnumber(coeff)))
 			end
-			expr = real_mul(expr, '1. / grid_dx'..(i-1))
+			expr = real_mul(expr, '1. / solver->grid_dx.'..xi)
 		end
 		lines:insert('\t'..namei..' = '..expr..';')
 	end
@@ -80,7 +80,7 @@ local function makePartial2(order, solver, field, fieldType, nameOverride)
 							'U[-'..k..' * stepsize.s'..(i-1)..'].'..field),
 						clnumber(coeff)))
 			end
-			expr = real_mul(expr, '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')
+			expr = real_mul(expr, '1. / (solver->grid_dx.'..xi..' * solver->grid_dx.'..xi..')')
 			lines:insert('\t'..nameij..' = '..expr..';')
 		else
 			local expr = zero
@@ -97,7 +97,7 @@ local function makePartial2(order, solver, field, fieldType, nameOverride)
 						clnumber(coeff_k * coeff_l)))
 				end
 			end
-			expr = real_mul(expr, '1. / (grid_dx'..(i-1)..' * grid_dx'..(i-1)..')')
+			expr = real_mul(expr, '1. / (solver->grid_dx.'..xi..' * solver->grid_dx.'..xj..')')
 			lines:insert('\t'..nameij..' = '..expr..';')
 		end
 	end

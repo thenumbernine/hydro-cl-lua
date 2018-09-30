@@ -41,14 +41,16 @@ function Z4cFiniteDifferenceSolver:refreshSolverProgram()
 	Z4cFiniteDifferenceSolver.super.refreshSolverProgram(self)
 	
 	self.calcDerivKernelObj = self.solverProgramObj:kernel'calcDeriv'
-	self.calcDerivKernelObj.obj:setArg(1, self.UBuf)
+	self.calcDerivKernelObj.obj:setArg(0, self.solverBuf)
+	self.calcDerivKernelObj.obj:setArg(2, self.UBuf)
 end
 
 function Z4cFiniteDifferenceSolver:refreshCalcDTKernel() end
 function Z4cFiniteDifferenceSolver:calcDT() return self.fixedDT end
 
 function Z4cFiniteDifferenceSolver:calcDeriv(derivBuf, dt)
-	self.calcDerivKernelObj(derivBuf)
+	self.calcDerivKernelObj.obj:setArg(1, derivBuf)
+	self.calcDerivKernelObj()
 end
 
 function Z4cFiniteDifferenceSolver:getDisplayInfosForType()

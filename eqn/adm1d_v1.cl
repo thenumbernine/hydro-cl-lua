@@ -35,6 +35,7 @@
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> x,
 	real3 pt
@@ -48,6 +49,7 @@
 }
 
 <?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.waves_t?> x,
 	real3 pt 
@@ -62,6 +64,7 @@
 }
 
 <?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> x,
 	real3 pt 
@@ -78,6 +81,7 @@
 <? end ?>
 
 kernel void addSource(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
@@ -108,13 +112,13 @@ kernel void addSource(
 	
 <? if eqn.guiVars.a_x_convCoeff.value ~= 0 then ?>
 	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
-	real dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * grid_dx0);
+	real dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * solver->grid_dx.x);
 	deriv->a_x += a_x_convCoeff * (dx_alpha / alpha - a_x);
 <? end -- eqn.guiVars.a_x_convCoeff.value  ?>
 	
 <? if eqn.guiVars.D_g_convCoeff.value ~= 0 then ?>
 	// D_g = gamma_xx,x / gamma_xx <=> D_g += eta (gamma_xx,x / gamma_xx - D_g)
-	real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * grid_dx0);
+	real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * solver->grid_dx.x);
 	deriv->D_g += D_g_convCoeff * (dx_gamma_xx / gamma_xx - D_g);
 <? end -- eqn.guiVars.D_g_convCoeff.value  ?>
 

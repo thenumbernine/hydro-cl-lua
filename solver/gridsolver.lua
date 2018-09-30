@@ -73,16 +73,16 @@ function GridSolver:preInit(args)
 	GridSolver.super.preInit(self, args)
 
 	-- do this before any call to createBuffers or createCodePrefix
-	self.solverPtrCPU.mins.x = self.mins[1]
-	self.solverPtrCPU.mins.y = self.dim <= 1 and 0 or self.mins[2]
-	self.solverPtrCPU.mins.z = self.dim <= 2 and 0 or self.mins[3]
-	self.solverPtrCPU.maxs.x = self.maxs[1]
-	self.solverPtrCPU.maxs.y = self.dim <= 1 and 0 or self.maxs[2]
-	self.solverPtrCPU.maxs.z = self.dim <= 2 and 0 or self.maxs[3]
-	self.solverPtrCPU.grid_dx.x = (self.solverPtrCPU.maxs.x - self.solverPtrCPU.mins.x) / (tonumber(self.gridSize.x) - 2*self.numGhost)
-	self.solverPtrCPU.grid_dx.y = (self.solverPtrCPU.maxs.y - self.solverPtrCPU.mins.y) / (tonumber(self.gridSize.y) - 2*self.numGhost)
-	self.solverPtrCPU.grid_dx.z = (self.solverPtrCPU.maxs.z - self.solverPtrCPU.mins.z) / (tonumber(self.gridSize.z) - 2*self.numGhost)
-	self.solverPtr:fromCPU(self.solverPtrCPU)
+	self.solverPtr.mins.x = self.mins[1]
+	self.solverPtr.mins.y = self.dim <= 1 and 0 or self.mins[2]
+	self.solverPtr.mins.z = self.dim <= 2 and 0 or self.mins[3]
+	self.solverPtr.maxs.x = self.maxs[1]
+	self.solverPtr.maxs.y = self.dim <= 1 and 0 or self.maxs[2]
+	self.solverPtr.maxs.z = self.dim <= 2 and 0 or self.maxs[3]
+	self.solverPtr.grid_dx.x = (self.solverPtr.maxs.x - self.solverPtr.mins.x) / (tonumber(self.gridSize.x) - 2*self.numGhost)
+	self.solverPtr.grid_dx.y = (self.solverPtr.maxs.y - self.solverPtr.mins.y) / (tonumber(self.gridSize.y) - 2*self.numGhost)
+	self.solverPtr.grid_dx.z = (self.solverPtr.maxs.z - self.solverPtr.mins.z) / (tonumber(self.gridSize.z) - 2*self.numGhost)
+	self.solverBuf:fromCPU(self.solverPtr)
 
 	self:createBoundaryOptions()
 	self:finalizeBoundaryOptions()
@@ -622,7 +622,7 @@ function GridSolver:refreshSolverProgram()
 	self:refreshCalcDTKernel()
 
 	if self.eqn.useConstrainU then
-		self.constrainUKernelObj = self.solverProgramObj:kernel('constrainU', self.UBuf)
+		self.constrainUKernelObj = self.solverProgramObj:kernel('constrainU', self.solverBuf, self.UBuf)
 	end
 
 	if self.usePLM then
@@ -650,7 +650,7 @@ function GridSolver:refreshSolverProgram()
 				or (var.vecVar and var.vecVar.enabled)
 				then
 				--]]do
-					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id, assert(self.solverPtr), self.texCLMem)
+					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id, self.solverBuf, self.texCLMem)
 				end
 			end
 		end
@@ -663,7 +663,7 @@ function GridSolver:refreshSolverProgram()
 			or (var.vecVar and var.vecVar.enabled)
 			then
 			--]]do
-				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id, assert(self.solverPtr), self.reduceBuf)
+				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id, self.solverBuf, self.reduceBuf)
 			end
 		end
 	end

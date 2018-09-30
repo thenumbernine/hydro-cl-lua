@@ -31,12 +31,14 @@ function HLL:refreshSolverProgram()
 
 	self.calcFluxKernelObj = self.solverProgramObj:kernel(
 		'calcFlux',
+		self.solverBuf,
 		self.fluxBuf,
 		self.getULRBuf)
 
 	if self.eqn.useSourceTerm then
 		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
+		self.addSourceKernelObj.obj:setArg(0, self.solverBuf)
+		self.addSourceKernelObj.obj:setArg(2, self.UBuf)
 	end
 end
 
@@ -70,10 +72,12 @@ function HLL:calcDeriv(derivBuf, dt)
 	end
 --]=]
 	
-	self.calcDerivFromFluxKernelObj(derivBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBuf)
+	self.calcDerivFromFluxKernelObj()
 	
 	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj(derivBuf)
+		self.addSourceKernelObj.obj:setArg(1, derivBuf)
+		self.addSourceKernelObj()
 	end
 end
 

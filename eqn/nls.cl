@@ -11,6 +11,7 @@ real2 cplx_mul(real2 a, real2 b) {
 }
 
 kernel void calcDeriv(
+	constant <?=solver.solver_t?>* solver,
 	global real2* derivBuf,
 	const global real2* UBuf
 ) {
@@ -19,7 +20,7 @@ kernel void calcDeriv(
 	
 	//only 1D for now ...
 	real r = x.x;
-	const real dr = grid_dx0;
+	const real dr = solver->grid_dx.x;
 	
 	real2 q_2L = UBuf[index-2];
 	real2 q_1L = UBuf[index-1];

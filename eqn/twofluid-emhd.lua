@@ -331,6 +331,7 @@ end
 function TwoFluidEMHD:getInitStateCode()
 	return template([[
 kernel void initState(
+	global <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -446,8 +447,8 @@ function TwoFluidEMHD:getDisplayVars()
 		real vjm_i = Ujm-><?=fluid?>_m.s<?=i?> / Ujm-><?=fluid?>_rho;
 		real vjp_i = Ujp-><?=fluid?>_m.s<?=i?> / Ujp-><?=fluid?>_rho;
 		
-		*value = (vjp_i - vjm_i) / (2. * grid_dx<?=i?>)
-				- (vip_j - vim_j) / (2. * grid_dx<?=j?>);
+		*value = (vjp_i - vjm_i) / (2. * solver->grid_dx.s<?=i?>)
+				- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
 	}
 ]], 		{
 				i = i,
@@ -497,7 +498,7 @@ function TwoFluidEMHD:getDisplayVars()
 for j=0,solver.dim-1 do
 ?>		+ (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 
 			- U[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		) / grid_dx<?=j?>
+		) / solver->grid_dx.s<?=j?>
 <?
 end 
 ?>	);
