@@ -191,9 +191,9 @@ works for adm1d_v1
 		//calc eigen values and vectors at cell center
 		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(*U, x);
 			
-		<?=eqn.waves_t?> dULEig = eigen_leftTransform_<?=side?>(eig, dUL, xIntL);
-		<?=eqn.waves_t?> dUREig = eigen_leftTransform_<?=side?>(eig, dUR, xIntR);
-		<?=eqn.waves_t?> dUCEig = eigen_leftTransform_<?=side?>(eig, dUC, x);
+		<?=eqn.waves_t?> dULEig = eigen_leftTransform_<?=side?>(solver, eig, dUL, xIntL);
+		<?=eqn.waves_t?> dUREig = eigen_leftTransform_<?=side?>(solver, eig, dUR, xIntR);
+		<?=eqn.waves_t?> dUCEig = eigen_leftTransform_<?=side?>(solver, eig, dUC, x);
 
 		//MUSCL slope of characteristic variables
 		//TODO make this based on the choice of slope limiter
@@ -225,8 +225,8 @@ works for adm1d_v1
 		}<? end ?>
 		
 		//convert back to conservation variable space
-		<?=eqn.cons_t?> sL = eigen_rightTransform_<?=side?>(eig, aL, x);
-		<?=eqn.cons_t?> sR = eigen_rightTransform_<?=side?>(eig, aR, x);
+		<?=eqn.cons_t?> sL = eigen_rightTransform_<?=side?>(solver, eig, aL, x);
+		<?=eqn.cons_t?> sR = eigen_rightTransform_<?=side?>(solver, eig, aR, x);
 		
 		for (int j = 0; j < numIntStates; ++j) {
 			ULR->L.ptr[j] = U->ptr[j] - sR.ptr[j];
@@ -311,13 +311,13 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		<?=eqn.cons_t?> tmp;
 
 		tmp = apply_dU_dW(W, dWL, xIntL); 
-		<?=eqn.waves_t?> dWLEig = eigen_leftTransform_<?=side?>(eig, tmp, xIntL);
+		<?=eqn.waves_t?> dWLEig = eigen_leftTransform_<?=side?>(solver, eig, tmp, xIntL);
 		
 		tmp = apply_dU_dW(W, dWR, xIntR); 
-		<?=eqn.waves_t?> dWREig = eigen_leftTransform_<?=side?>(eig, tmp, xIntR);
+		<?=eqn.waves_t?> dWREig = eigen_leftTransform_<?=side?>(solver, eig, tmp, xIntR);
 		
 		tmp = apply_dU_dW(W, dWC, x); 
-		<?=eqn.waves_t?> dWCEig = eigen_leftTransform_<?=side?>(eig, tmp, x);
+		<?=eqn.waves_t?> dWCEig = eigen_leftTransform_<?=side?>(solver, eig, tmp, x);
 
 		//MUSCL slope of characteristic variables
 		<?=eqn.waves_t?> dWMEig;
@@ -350,10 +350,10 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		}<? end ?>
 
 		// transform slopes back to conserved variable space
-		tmp = eigen_rightTransform_<?=side?>(eig, aL, xIntL); 
+		tmp = eigen_rightTransform_<?=side?>(solver, eig, aL, xIntL); 
 		<?=eqn.prim_t?> sL = apply_dW_dU(W, tmp, xIntL);
 		
-		tmp = eigen_rightTransform_<?=side?>(eig, aR, xIntR); 
+		tmp = eigen_rightTransform_<?=side?>(solver, eig, aR, xIntR); 
 		<?=eqn.prim_t?> sR = apply_dW_dU(W, tmp, xIntR);
 	
 		// linearly extrapolate the slopes forward and backward from the cell center
@@ -379,7 +379,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		real waveMax = max((real)0., <?=eqn:eigenWaveCode(side, 'eig', 'x', eqn.numWaves-1)?>);
 
 		//limited slope in primitive variable space
-		tmp = eigen_rightTransform_<?=side?>(eig, dWMEig, x);
+		tmp = eigen_rightTransform_<?=side?>(solver, eig, dWMEig, x);
 		<?=eqn.prim_t?> dWM = apply_dW_dU(W, tmp, x);
 
 		//left and right reference states
@@ -402,10 +402,10 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		}<? end ?>
 
 		// transform slopes back to conserved variable space
-		tmp = eigen_rightTransform_<?=side?>(eig, aL, xIntL); 
+		tmp = eigen_rightTransform_<?=side?>(solver, eig, aL, xIntL); 
 		<?=eqn.prim_t?> sL = apply_dW_dU(W, tmp, xIntL);
 		
-		tmp = eigen_rightTransform_<?=side?>(eig, aR, xIntR); 
+		tmp = eigen_rightTransform_<?=side?>(solver, eig, aR, xIntR); 
 		<?=eqn.prim_t?> sR = apply_dW_dU(W, tmp, xIntR);
 	
 		// linearly extrapolate the slopes forward and backward from the cell center
@@ -461,10 +461,10 @@ elseif solver.usePLM == 'plm-athena' then
 		}
 	
 		//TODO shouldn't this be the dA/dW eigen transformation?
-		<?=eqn.waves_t?> dal = eigen_leftTransform_<?=side?>(eig, *(<?=eqn.cons_t?>*)&dWL, xIntL);
-		<?=eqn.waves_t?> dar = eigen_leftTransform_<?=side?>(eig, *(<?=eqn.cons_t?>*)&dWR, xIntR);
-		<?=eqn.waves_t?> dac = eigen_leftTransform_<?=side?>(eig, *(<?=eqn.cons_t?>*)&dWC, x);
-		<?=eqn.waves_t?> dag = eigen_leftTransform_<?=side?>(eig, *(<?=eqn.cons_t?>*)&dWG, x);
+		<?=eqn.waves_t?> dal = eigen_leftTransform_<?=side?>(solver, eig, *(<?=eqn.cons_t?>*)&dWL, xIntL);
+		<?=eqn.waves_t?> dar = eigen_leftTransform_<?=side?>(solver, eig, *(<?=eqn.cons_t?>*)&dWR, xIntR);
+		<?=eqn.waves_t?> dac = eigen_leftTransform_<?=side?>(solver, eig, *(<?=eqn.cons_t?>*)&dWC, x);
+		<?=eqn.waves_t?> dag = eigen_leftTransform_<?=side?>(solver, eig, *(<?=eqn.cons_t?>*)&dWG, x);
 
 		<?=eqn.waves_t?> da;
 		for (int j = 0; j < numWaves; ++j) {
@@ -476,7 +476,7 @@ elseif solver.usePLM == 'plm-athena' then
 			}
 		}
 	
-		<?=eqn.cons_t?> dWm_tmp = eigen_rightTransform_<?=side?>(eig, da, x);
+		<?=eqn.cons_t?> dWm_tmp = eigen_rightTransform_<?=side?>(solver, eig, da, x);
 		<?=eqn.prim_t?> dWm = *(<?=eqn.prim_t?>*)&dWm_tmp;
 
 		<?=eqn.prim_t?> Wlv, Wrv;
@@ -629,14 +629,14 @@ elseif solver.usePLM == 'plm-athena' then
 			}
 			
 			if (eval[m] >= 0) {
-				<?=eqn.waves_t?> beta_xp_add = eigen_leftTransform_<?=side?>(eig, *(<?=eqn.cons_t?>*)&Wref_xm_minus_Im, x);
+				<?=eqn.waves_t?> beta_xp_add = eigen_leftTransform_<?=side?>(solver, eig, *(<?=eqn.cons_t?>*)&Wref_xm_minus_Im, x);
 				for (int n = 0; n < numWaves; ++n) {
 					beta_xp.ptr[n] += beta_xp_add.ptr[n];
 				}
 			}
 			
 			if (eval[m] <= 0) {
-				<?=eqn.waves_t?> beta_xm_add = eigen_leftTransform_<?=side?>(eig, *(<?=eqn.cons_t?>*)&Wref_xp_minus_Ip, x);
+				<?=eqn.waves_t?> beta_xm_add = eigen_leftTransform_<?=side?>(solver, eig, *(<?=eqn.cons_t?>*)&Wref_xp_minus_Ip, x);
 				for (int n = 0; n < numWaves; ++n) {
 					beta_xm.ptr[n] += beta_xm_add.ptr[n];
 				}
@@ -649,9 +649,9 @@ elseif solver.usePLM == 'plm-athena' then
 		}
 
 		<?=eqn.cons_t?> tmp;
-		tmp = eigen_rightTransform_<?=side?>(eig, beta_xp, x);
+		tmp = eigen_rightTransform_<?=side?>(solver, eig, beta_xp, x);
 		<?=eqn.prim_t?> WresL = *(<?=eqn.prim_t?>*)&tmp;
-		tmp = eigen_rightTransform_<?=side?>(eig, beta_xm, x);
+		tmp = eigen_rightTransform_<?=side?>(solver, eig, beta_xm, x);
 		<?=eqn.prim_t?> WresR = *(<?=eqn.prim_t?>*)&tmp;
 		
 		for (int j = 0; j < numIntStates; ++j) {

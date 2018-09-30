@@ -21,17 +21,17 @@ local args = {
 	--fixedDT = .0001,
 	cfl = cmdline.cfl or .5,	-- 1/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
-	usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
+	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
 	--usePLM = 'plm-eig',			-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
 	--usePLM = 'plm-eig-prim',		-- works in primitive eigenspace, etc
 	--usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max.  doesn't work well with ideal mhd.
 	--usePLM = 'plm-athena',		-- based on Athena, idk about this one
-	--usePLM = 'ppm-experimental',	-- one more attempt to figure out all the PLM stuff, based on 2017 Zingale
+	--usePLM = 'ppm-experimental',	-- FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
 
 	-- only enabled for certain usePLM methods
 	--slopeLimiter = 'minmod',
@@ -76,12 +76,12 @@ maxs = {6,1,1},
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'mirror',
-		xmax=cmdline.boundary or 'mirror',
-		ymin=cmdline.boundary or 'mirror',
-		ymax=cmdline.boundary or 'mirror',
-		zmin=cmdline.boundary or 'mirror',
-		zmax=cmdline.boundary or 'mirror',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	-- TODO these next two seem very similar
