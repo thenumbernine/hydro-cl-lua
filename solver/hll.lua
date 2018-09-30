@@ -53,7 +53,7 @@ function HLL:calcDeriv(derivBuf, dt)
 	self:boundary()
 	
 	if self.usePLM then
-		self.calcLRKernelObj.obj:setArg(2, dtArg)
+		self.calcLRKernelObj.obj:setArg(3, dtArg)
 		self.calcLRKernelObj()
 	end
 	

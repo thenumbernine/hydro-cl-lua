@@ -626,7 +626,7 @@ function GridSolver:refreshSolverProgram()
 	end
 
 	if self.usePLM then
-		self.calcLRKernelObj = self.solverProgramObj:kernel('calcLR', self.ULRBuf, self.UBuf)
+		self.calcLRKernelObj = self.solverProgramObj:kernel('calcLR', self.solverBuf, self.ULRBuf, self.UBuf)
 	end
 	if self.useCTU then
 		-- currently implemented in solver/roe.cl

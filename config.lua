@@ -19,14 +19,14 @@ local args = {
 	--integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
-	cfl = cmdline.cfl or .5,
+	cfl = cmdline.cfl or .5,	-- 1/dim,
 	
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
-	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
+	usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
 	--usePLM = 'plm-eig',			-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
 	--usePLM = 'plm-eig-prim',		-- works in primitive eigenspace, etc
 	--usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max.  doesn't work well with ideal mhd.

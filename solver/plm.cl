@@ -10,6 +10,7 @@ real minmod(real a, real b) {
 }
 
 kernel void calcLR(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.consLR_t?>* ULRBuf,
 	const global <?=eqn.cons_t?>* UBuf,
 	real dt
@@ -66,8 +67,8 @@ works for adm1d_v1 freeflow with oscillations (fails for mirror)
 			dUL.ptr[j] = dUR.ptr[j] = 0;
 		}
 		
-		real3 xIntL = x; xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
-		real3 xIntR = x; xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
+		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 		
 		<?=eqn.cons_t?> UHalfL, UHalfR;
 		for (int j = 0; j < numIntStates; ++j) {
@@ -184,8 +185,8 @@ works for adm1d_v1
 			dUL.ptr[j] = dUR.ptr[j] = dUC.ptr[j] = 0;
 		}
 
-		real3 xIntL = x; xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
-		real3 xIntR = x; xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
+		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 
 		//calc eigen values and vectors at cell center
 		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(*U, x);
@@ -278,11 +279,11 @@ U_i+1/2,L = U( W_i + 1/2 dW/dU evR (aL + (1 - dt/dx max(wave)) dWMe) )
 based on Trangenstein, Athena, etc, except working on primitives like it says to
 */
 
-		real3 xL = x; xL.s<?=side?> -= grid_dx<?=side?>;
-		real3 xR = x; xR.s<?=side?> += grid_dx<?=side?>;
+		real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
+		real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
 		
-		real3 xIntL = x; xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
-		real3 xIntR = x; xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
+		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 		
 		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
 		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
@@ -426,11 +427,11 @@ elseif solver.usePLM == 'plm-athena' then
 ?>
 		//based on Athena
 
-		real3 xIntL = x; xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
-		real3 xIntR = x; xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
+		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 		
-		real3 xL = x; xL.s<?=side?> -= grid_dx<?=side?>;
-		real3 xR = x; xR.s<?=side?> += grid_dx<?=side?>;
+		real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
+		real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
 
 		//calc eigen values and vectors at cell center
 		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(*U, x);
@@ -505,8 +506,8 @@ elseif solver.usePLM == 'plm-athena' then
 //here's my attempt at Trangenstein section 5.12 PPM
 //with help from Zingale's ppm code
 
-		real3 xL = x; xL.s<?=side?> -= grid_dx<?=side?>;
-		real3 xR = x; xR.s<?=side?> += grid_dx<?=side?>;
+		real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
+		real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
 
 		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
 		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
