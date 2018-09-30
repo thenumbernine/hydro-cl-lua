@@ -7,8 +7,10 @@ eig provides the variables used to compute the left eigenvector linear transform
 	Notice I'm not holding the entire matrix, and I'm not multiplying the entire matrix -- only the variables used to reconstruct it.  Why waste memory and instructions?
 */
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> x
+	<?=eqn.cons_t?> x,
+	real3
 ) {
 	<?=eqn.waves_t?> y;
 	<?=addr1?> const real* A = eig.evL;
@@ -26,8 +28,10 @@ eig provides the variables used to compute the left eigenvector linear transform
 eig provides the variables used to compute the right eigenvector linear transformation.
 */
 <?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
-	<?=eqn.waves_t?> x
+	<?=eqn.waves_t?> x,
+	real3
 ) {
 	<?=eqn.cons_t?> y;
 	<?=addr1?> const real* A = eig.evR;
@@ -55,8 +59,10 @@ X accepts real[numWaves]
 How about also implementing dA/dW and then implementing this as dA/dW * dW/dU * x = dA_dW(dW_dU(x))?  would it be less instructions?.
 */
 <?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> x
+	<?=eqn.cons_t?> x,
+	real3
 ) {
 	<?=eqn.cons_t?> y;
 	<?=addr1?> const real* A = eig.A;

@@ -81,13 +81,13 @@ local hllcMethod = 2
 
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
 		if (0 <= sL) {
-			<?=eqn.cons_t?> FL = fluxFromCons_0(UL, xL);
+			<?=eqn.cons_t?> FL = fluxFromCons_0(solver, UL, xL);
 			*flux = FL;
 		
 <? if hllcMethod == 0 then ?>
 	
 	} else if (sL <= 0. && 0. <= sStar) {
-		<?=eqn.cons_t?> FL = fluxFromCons_0(UL, xL);
+		<?=eqn.cons_t?> FL = fluxFromCons_0(solver, UL, xL);
 		<?=eqn.cons_t?> ULStar;
 		ULStar.rho = UL.rho * (sL - WL.v.x) / (sL - sStar);
 		ULStar.m.x = UL.rho * sStar;
@@ -98,7 +98,7 @@ local hllcMethod = 2
 			flux->ptr[i] = FL.ptr[i] + sL * (ULStar.ptr[i] - UL.ptr[i]);
 		}
 	} else if (sStar <= 0. && 0. <= sR) {
-		<?=eqn.cons_t?> FR = fluxFromCons_0(UR, xR);
+		<?=eqn.cons_t?> FR = fluxFromCons_0(solver, UR, xR);
 		<?=eqn.cons_t?> URStar;
 		URStar.rho = UR.rho * (sR - WR.v.x) / (sR - sStar);
 		URStar.m.x = URStar.rho * sStar;
@@ -112,14 +112,14 @@ local hllcMethod = 2
 <? elseif hllcMethod == 1 then ?>
 		
 	} else if (sL <= 0. && 0. <= sStar) {
-		<?=eqn.cons_t?> FL = fluxFromCons_0(UL, xL);
+		<?=eqn.cons_t?> FL = fluxFromCons_0(solver, UL, xL);
 		flux->rho = (sStar * (sL * UL.rho - FL.rho)) / (sL - sStar);
 		flux->m.x = (sStar * (sL * UL.m.x - FL.m.x) + sL * (WL.P + WL.rho * (sL - WL.v.x) * (sStar - WL.v.x))) / (sL - sStar);
 		flux->m.y = (sStar * (sL * UL.m.y - FL.m.y)) / (sL - sStar);
 		flux->m.z = (sStar * (sL * UL.m.z - FL.m.z)) / (sL - sStar);
 		flux->ETotal = (sStar * (sL * UL.ETotal - FL.ETotal) + sL * (WL.P + WL.rho * (sL - WL.v.x) * (sStar - WL.v.x)) * sStar) / (sL - sStar);
 	} else if (sStar <= 0. && 0. <= sR) {
-		<?=eqn.cons_t?> FR = fluxFromCons_0(UR, xR);
+		<?=eqn.cons_t?> FR = fluxFromCons_0(solver, UR, xR);
 		flux->rho = (sStar * (sR * UR.rho - FR.rho)) / (sR - sStar);
 		flux->m.x = (sStar * (sR * UR.m.x - FR.m.x) + sR * (WR.P + WR.rho * (sR - WR.v.x) * (sStar - WR.v.x))) / (sR - sStar);
 		flux->m.y = (sStar * (sR * UR.m.y - FR.m.y)) / (sR - sStar);
@@ -129,7 +129,7 @@ local hllcMethod = 2
 <? elseif hllcMethod == 2 then ?>
 	
 	} else if (sL <= 0. && 0. <= sStar) {
-		<?=eqn.cons_t?> FL = fluxFromCons_0(UL, xL);
+		<?=eqn.cons_t?> FL = fluxFromCons_0(solver, UL, xL);
 		real PLR = .5 * (WL.P + WR.P + WL.rho * (sL - WL.v.x) * (sStar - WL.v.x) + WR.rho * (sR - WR.v.x) * (sStar - WR.v.x));
 		flux->rho = sStar * (sL * UL.rho - FL.rho) / (sL - sStar);
 		flux->m.x = (sStar * (sL * UL.m.x - FL.m.x) + sL * PLR) / (sL - sStar);
@@ -137,7 +137,7 @@ local hllcMethod = 2
 		flux->m.z = sStar * (sL * UL.m.z - FL.m.z) / (sL - sStar);
 		flux->ETotal = (sStar * (sL * UL.ETotal - FL.ETotal) + sL * PLR * sStar) / (sL - sStar);
 	} else if (sStar <= 0. && 0. <= sR) {
-		<?=eqn.cons_t?> FR = fluxFromCons_0(UR, xR);
+		<?=eqn.cons_t?> FR = fluxFromCons_0(solver, UR, xR);
 		real PLR = .5 * (WL.P + WR.P + WL.rho * (sL - WL.v.x) * (sStar - WL.v.x) + WR.rho * (sR - WR.v.x) * (sStar - WR.v.x));
 		flux->rho = sStar * (sR * UR.rho - FR.rho) / (sR - sStar);
 		flux->m.x = (sStar * (sR * UR.m.x - FR.m.x) + sR * PLR) / (sR - sStar);
@@ -148,11 +148,11 @@ local hllcMethod = 2
 <? end	--hllcMethod ?>
 		
 		} else if (sR <= 0) {
-			<?=eqn.cons_t?> FR = fluxFromCons_0(UR, xR);
+			<?=eqn.cons_t?> FR = fluxFromCons_0(solver, UR, xR);
 			*flux = FR;
 		} else if (sL <= 0 && 0 <= sR) {
-			<?=eqn.cons_t?> FL = fluxFromCons_0(UL, xL);
-			<?=eqn.cons_t?> FR = fluxFromCons_0(UR, xR);
+			<?=eqn.cons_t?> FL = fluxFromCons_0(solver, UL, xL);
+			<?=eqn.cons_t?> FR = fluxFromCons_0(solver, UR, xR);
 			for (int j = 0; j < numIntStates; ++j) {
 				flux->ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * (UR.ptr[j] - UL.ptr[j])) / (sR - sL);
 			}

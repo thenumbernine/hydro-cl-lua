@@ -33,6 +33,7 @@ end
 function SRHDSelfGrav:getPoissonCode()
 	return template([[
 kernel void calcGravityDeriv(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuffer,
 	global const <?=eqn.cons_t?>* UBuf
 ) {

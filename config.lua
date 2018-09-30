@@ -428,7 +428,7 @@ maxs = {6,1,1},
 }
 
 -- HD
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
@@ -451,7 +451,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
---self.solvers:insert(require 'solver.srhd-roe'(args))
+self.solvers:insert(require 'solver.srhd-roe'(args))
 --self.solvers:insert(require 'solver.srhd-hll'(args))		-- TODO finishme.  the last piece is 'eigen_forInterface'
 
 -- GRHD

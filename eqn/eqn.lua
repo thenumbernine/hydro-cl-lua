@@ -322,8 +322,12 @@ function Equation:getFluxFromConsCode()
 	if self.hasFluxFromConsCode then return end
 	return template([[
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(<?=eqn.cons_t?> U, real3 x) {
-	return eigen_fluxTransform_<?=side?>(eigen_forCell_<?=side?>(U, x), U, x);
+<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	return eigen_fluxTransform_<?=side?>(solver, eigen_forCell_<?=side?>(U, x), U, x);
 }
 <? end ?>
 ]], {

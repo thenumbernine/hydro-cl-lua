@@ -12,6 +12,7 @@ local sym = common.sym
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
@@ -56,6 +57,7 @@ local sym = common.sym
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> X,
 	real3 x
@@ -108,6 +110,7 @@ local sym = common.sym
 }
 
 <?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.waves_t?> X,
 	real3 x
@@ -164,16 +167,18 @@ local sym = common.sym
 }
 
 <?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> X,
 	real3 x
 ) {
-	return fluxFromCons_<?=side?>(X, x);
+	return fluxFromCons_<?=side?>(solver, X, x);
 }
 
 <? end ?>
 
 kernel void addSource(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
@@ -204,7 +209,7 @@ kernel void addSource(
 		<?=sub?>(
 			<?=mul?>(U[stepsize.<?=xj?>].sqrt_1_mu, U[stepsize.<?=xj?>].sqrt_1_mu),
 			<?=mul?>(U[-stepsize.<?=xj?>].sqrt_1_mu, U[-stepsize.<?=xj?>].sqrt_1_mu)
-		), 1. / grid_dx<?=j?>);
+		), 1. / solver->grid_dx.s<?=j?>);
 	<? end ?>
 	
 	<?=vec3?> grad_1_eps = <?=vec3?>_zero;
@@ -214,13 +219,13 @@ kernel void addSource(
 		<?=sub?>(
 			<?=mul?>(U[stepsize.<?=xj?>].sqrt_1_eps, U[stepsize.<?=xj?>].sqrt_1_eps),
 			<?=mul?>(U[-stepsize.<?=xj?>].sqrt_1_eps, U[-stepsize.<?=xj?>].sqrt_1_eps)
-		), 1. / grid_dx<?=j?>);
+		), 1. / solver->grid_dx.s<?=j?>);
 	<? end ?>
 
 	real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>{
-		<?=eqn.cons_t?> flux = fluxFromCons_<?=j?>(*U, x);
+		<?=eqn.cons_t?> flux = fluxFromCons_<?=j?>(solver, *U, x);
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 		deriv->D.<?=xj?> = <?=sub?>(deriv->D.<?=xj?>, <?=vec3?>_dot(flux.D, grad_1_mu));

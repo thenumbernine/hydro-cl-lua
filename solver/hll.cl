@@ -52,14 +52,14 @@ kernel void calcFlux(
 
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
 		if (0 <= sL) {
-			<?=eqn.cons_t?> FL = fluxFromCons_<?=side?>(*UL, xL);
+			<?=eqn.cons_t?> FL = fluxFromCons_<?=side?>(solver, *UL, xL);
 			*flux = FL;
 		} else if (sR <= 0) {
-			<?=eqn.cons_t?> FR = fluxFromCons_<?=side?>(*UR, xR);
+			<?=eqn.cons_t?> FR = fluxFromCons_<?=side?>(solver, *UR, xR);
 			*flux = FR;
 		} else if (sL <= 0 && 0 <= sR) {
-			<?=eqn.cons_t?> FL = fluxFromCons_<?=side?>(*UL, xL);
-			<?=eqn.cons_t?> FR = fluxFromCons_<?=side?>(*UR, xR);
+			<?=eqn.cons_t?> FL = fluxFromCons_<?=side?>(solver, *UL, xL);
+			<?=eqn.cons_t?> FR = fluxFromCons_<?=side?>(solver, *UR, xR);
 			for (int j = 0; j < numIntStates; ++j) {
 				flux->ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * (UR->ptr[j] - UL->ptr[j])) / (sR - sL);
 			}

@@ -124,8 +124,8 @@ for sgn b >= 0:
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
 
-		<?=eqn.cons_t?> FHalfL = fluxFromCons_<?=side?>(UHalfL, xIntL);
-		<?=eqn.cons_t?> FHalfR = fluxFromCons_<?=side?>(UHalfR, xIntR);
+		<?=eqn.cons_t?> FHalfL = fluxFromCons_<?=side?>(solver, UHalfL, xIntL);
+		<?=eqn.cons_t?> FHalfR = fluxFromCons_<?=side?>(solver, UHalfR, xIntR);
 	
 		for (int j = 0; j < numIntStates; ++j) {
 			real dF = FHalfR.ptr[j] - FHalfL.ptr[j];

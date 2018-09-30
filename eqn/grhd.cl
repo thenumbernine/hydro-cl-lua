@@ -64,6 +64,7 @@ kernel void calcDT(
 <? if false then ?>
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U<?=
 	solver:getADMArgs()?>
 ) {

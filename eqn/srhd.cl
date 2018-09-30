@@ -50,6 +50,7 @@ kernel void calcDT(
 <? if false then ?>
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
@@ -363,12 +364,12 @@ end):concat()
 	<? end ?>
 #else
 	//default
-	<?=eqn.waves_t?> waves = eigen_leftTransform_<?=side?>(eig, X_, x);
+	<?=eqn.waves_t?> waves = eigen_leftTransform_<?=side?>(solver, eig, X_, x);
 	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
 <? for j=0,eqn.numWaves-1 do 
 ?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>;
 <? end 
-?>	return eigen_rightTransform_<?=side?>(eig, waves, x);
+?>	return eigen_rightTransform_<?=side?>(solver, eig, waves, x);
 #endif
 }
 <? end ?>

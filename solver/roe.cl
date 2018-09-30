@@ -107,8 +107,8 @@ kernel void calcFlux(
 		real3 xL = xR;
 		xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
 		
-		<?=eqn.cons_t?> FL = fluxFromCons_<?=side?>(*UL, xL);
-		<?=eqn.cons_t?> FR = fluxFromCons_<?=side?>(*UR, xR);
+		<?=eqn.cons_t?> FL = fluxFromCons_<?=side?>(solver, *UL, xL);
+		<?=eqn.cons_t?> FR = fluxFromCons_<?=side?>(solver, *UR, xR);
 		for (int j = 0; j < numIntStates; ++j) {
 			flux->ptr[j] += .5 * (FL.ptr[j] + FR.ptr[j]);
 		}

@@ -9,6 +9,7 @@ local sym = common.sym
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
@@ -185,6 +186,7 @@ x,  y,  z, z,  y,  x
 }
 
 <?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> X,
 	real3 x
@@ -283,7 +285,7 @@ kernel void addSource(
 	real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>{
-		<?=eqn.cons_t?> flux = fluxFromCons_<?=j?>(*U, x);
+		<?=eqn.cons_t?> flux = fluxFromCons_<?=j?>(solver, *U, x);
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 		deriv->D.<?=xj?> = <?=sub?>(deriv->D.<?=xj?>, <?=vec3?>_dot(flux.D, grad_1_mu));
