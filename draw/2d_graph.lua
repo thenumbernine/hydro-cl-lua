@@ -24,7 +24,7 @@ function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin
 				var.heatMapValueMax = valueMax
 			end
 
-			local step = self.display2D_Graph_step 
+			local step = math.max(1, self.display2D_Graph_step)
 			-- TODO gui this somewhere
 			local ambient = .3
 			
@@ -51,9 +51,9 @@ function HydroCLApp:display2D_Graph(solvers, varName, ar, graph_xmin, graph_ymin
 
 			gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
 
-			for ybase=2,tonumber(solver.gridSize.y)-2-step,step do
+			for ybase=solver.numGhost,tonumber(solver.gridSize.y)-solver.numGhost-step,step do
 				gl.glBegin(gl.GL_TRIANGLE_STRIP)
-				for x=2,tonumber(solver.gridSize.x)-2,step do
+				for x=solver.numGhost,tonumber(solver.gridSize.x)-solver.numGhost,step do
 					for yofs=0,step,step do
 						local y = ybase + yofs
 						gl.glVertex2d(

@@ -79,9 +79,9 @@ function GridSolver:preInit(args)
 	self.solverPtr.maxs.x = self.maxs[1]
 	self.solverPtr.maxs.y = self.dim <= 1 and 0 or self.maxs[2]
 	self.solverPtr.maxs.z = self.dim <= 2 and 0 or self.maxs[3]
-	self.solverPtr.grid_dx.x = (self.solverPtr.maxs.x - self.solverPtr.mins.x) / (tonumber(self.gridSize.x) - 2*self.numGhost)
-	self.solverPtr.grid_dx.y = (self.solverPtr.maxs.y - self.solverPtr.mins.y) / (tonumber(self.gridSize.y) - 2*self.numGhost)
-	self.solverPtr.grid_dx.z = (self.solverPtr.maxs.z - self.solverPtr.mins.z) / (tonumber(self.gridSize.z) - 2*self.numGhost)
+	self.solverPtr.grid_dx.x = (self.solverPtr.maxs.x - self.solverPtr.mins.x) / tonumber(self.sizeWithoutBorder.x)
+	self.solverPtr.grid_dx.y = (self.solverPtr.maxs.y - self.solverPtr.mins.y) / tonumber(self.sizeWithoutBorder.y)
+	self.solverPtr.grid_dx.z = (self.solverPtr.maxs.z - self.solverPtr.mins.z) / tonumber(self.sizeWithoutBorder.z)
 	self.solverBuf:fromCPU(self.solverPtr)
 
 	self:createBoundaryOptions()
@@ -490,7 +490,7 @@ function GridSolver:createCodePrefix()
 	
 	}:append(range(3):map(function(i)
 	-- mapping from index to coordinate 
-		return (('#define cell_x{i}(i) ((real)(i + '..clnumber(.5-self.numGhost)..') * solver->grid_dx.{x} + solver->mins.{x})')
+		return (('#define cell_x{i}(i) (((real)(i) + .5 - (real)numGhost) * solver->grid_dx.{x} + solver->mins.{x})')
 			:gsub('{i}', i-1)
 			:gsub('{x}', xNames[i])
 		)
@@ -729,6 +729,11 @@ function GridSolver:createBoundaryOptions()
 	local indent = '\t\t'
 	self.boundaryOptions = table{
 		-- TODO constant/'dirichlet' conditions
+		-- and while you're at it, let boundary options register GUI controls, so we can treat the constant as a GUI-editable parameter 
+		
+		-- this is purely for debugging.  annnd it doesn't crash, whereas rectangular grids are crashing...
+		{none = function(args) return ''  end},
+		
 		{periodic = function(args)
 			local gridSizeSide = 'gridSize_'..xNames[args.side]
 			if args.minmax == 'min' then
@@ -794,18 +799,18 @@ function GridSolver:createBoundaryOptions()
 		{linear = function(args)
 			local gridSizeSide = 'gridSize_'..xNames[args.side]
 			if args.minmax == 'min' then
-				return 'for (int k = 0; k < numStates; ++k) {\n'
-					..indent..args.assign(
+				return indent..'for (int k = 0; k < numStates; ++k) {\n'
+					..indent..'\t'..args.assign(
 						'buf['..args.index'j'..'].ptr[k]',
 						'(buf['..args.index'numGhost'..'].ptr[k] - buf['..args.index'numGhost+1'..'].ptr[k]) * (numGhost - j+1) + buf['..args.index'numGhost+1'..'].ptr[k]'
-					)..';\n}'
+					)..';\n'..indent..'}'
 			elseif args.minmax == 'max' then
 				local rhs = gridSizeSide..'-numGhost+j'
-				return 'for (int k = 0; k < numStates; ++k) {\n'
-					..indent..args.assign(
+				return indent..'for (int k = 0; k < numStates; ++k) {\n'
+					..indent..'\t'..args.assign(
 						'buf['..args.index(rhs)..'].ptr[k]',
 						'(buf['..args.index(gridSizeSide..'-numGhost-1')..'].ptr[k] - buf['..args.index(gridSizeSide..'-numGhost-2')..'].ptr[k]) * (j+1) + buf['..args.index(gridSizeSide..'-numGhost-2')..'].ptr[k]'
-					)..';\n}'
+					)..';\n'..indent..'}'
 			end		
 		end},
 	}

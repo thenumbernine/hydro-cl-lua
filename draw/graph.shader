@@ -15,16 +15,36 @@ uniform float offset;
 uniform bool useLog;
 uniform vec2 size;
 
-//1/log(10)
-#define _1_LN_10 0.4342944819032517611567811854911269620060920715332
+<?
+local clnumber = require 'cl.obj.number'
+local sx, sy, s2x, s2y, g
+if solver then
+	sx = solver and solver.sizeWithoutBorder.x or 1
+	sy = solver and solver.sizeWithoutBorder.y or 1
+	s2x = solver and solver.gridSize.x or 1
+	s2y = solver and solver.gridSize.y or 1
+	g = solver.numGhost
+else
+	sx = 1
+	sy = 1
+	s2x = 1
+	s2y = 1
+	g = 0
+end
+sx = clnumber(sx)
+sy = clnumber(sy)
+s2x = clnumber(s2x)
+s2y = clnumber(s2y)
+g = clnumber(g)
+?>
 
 vec3 func(vec3 src) {
 	vec3 vertex = src.xyz;
-	vertex.x = vertex.x * (xmax.x - xmin.x) + xmin.x;
-	vertex.y = vertex.y * (xmax.y - xmin.y) + xmin.y;
+	vertex.x = (vertex.x * <?=s2x?> - <?=g?>) / <?=sx?> * (xmax.x - xmin.x) + xmin.x;
+	vertex.y = (vertex.y * <?=s2y?> - <?=g?>) / <?=sy?> * (xmax.y - xmin.y) + xmin.y;
 	vertex[axis] = (texture2D(tex, src.xy).r - offset) * scale;
 	if (useLog) {
-		vertex[axis] = log(max(0., vertex[axis])) * _1_LN_10;
+		vertex[axis] = log(max(0., vertex[axis])) * <?=('%.50f'):format(1/math.log(10))?>;
 	}
 	return vertex;
 }

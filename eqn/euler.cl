@@ -6,17 +6,25 @@ just replace all the g_ab stuff with their constant values and simplify away.
 */
 <? local solver = eqn.solver ?>
 
+//as long as no subsequent solvers' codes are tacked onto the end of this,
+//I can safely do this:
+typedef <?=eqn.prim_t?> prim_t;
+typedef <?=eqn.cons_t?> cons_t;
+typedef <?=eqn.eigen_t?> eigen_t;
+typedef <?=eqn.waves_t?> waves_t;
+typedef <?=solver.solver_t?> solver_t;
+
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
+cons_t fluxFromCons_<?=side?>(
+	constant solver_t* solver,
+	cons_t U,
 	real3 x
 ) {
-	<?=eqn.prim_t?> W = primFromCons(U, x);
+	prim_t W = primFromCons(U, x);
 	real vj = W.v.s<?=side?>;
 	real HTotal = U.ETotal + W.P;
 	
-	<?=eqn.cons_t?> F;
+	cons_t F;
 	
 	F.rho = U.m.s<?=side?>;
 	
@@ -35,10 +43,10 @@ just replace all the g_ab stuff with their constant values and simplify away.
 
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const global <?=eqn.cons_t?>* U,
+	const global cons_t* U,
 	real3 x
 ) {
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	prim_t W = primFromCons(*U, x);
 	real Cs = calc_Cs(&W);
 	real Cs_sqrt_gU = Cs * coord_sqrt_gU<?=side..side?>(x);
 	return (range_t){
@@ -49,18 +57,18 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <? end ?>
 
 //used by the mesh version
-<?=eqn.eigen_t?> eigen_forInterface(
-	<?=eqn.cons_t?> UL,
-	<?=eqn.cons_t?> UR,
+eigen_t eigen_forInterface(
+	cons_t UL,
+	cons_t UR,
 	real3 x,
 	real3 n
 ) {
-	<?=eqn.prim_t?> WL = primFromCons(UL, x);
+	prim_t WL = primFromCons(UL, x);
 	real sqrtRhoL = sqrt(WL.rho);
 	real3 vL = WL.v;
 	real hTotalL = calc_hTotal(WL.rho, WL.P, UL.ETotal) - UL.ePot;
 	
-	<?=eqn.prim_t?> WR = primFromCons(UR, x);
+	prim_t WR = primFromCons(UR, x);
 	real sqrtRhoR = sqrt(WR.rho);
 	real3 vR = WR.v;
 	real hTotalR = calc_hTotal(WR.rho, WR.P, UR.ETotal) - UR.ePot;
@@ -80,7 +88,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real CsSq = (heatCapacityRatio - 1.) * (hTotal - eKin);
 	real Cs = sqrt(CsSq);
 
-	return (<?=eqn.eigen_t?>){
+	return (eigen_t){
 		.rho = rho, 
 		.v = v,
 		.hTotal = hTotal,
@@ -141,10 +149,10 @@ for side=0,solver.dim-1 do
 	prefix = gUdef .. prefix
 ?>
 
-<?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> X,
+waves_t eigen_leftTransform_<?=side?>(
+	constant solver_t* solver,
+	eigen_t eig,
+	cons_t X,
 	real3 x
 ) { 
 	<?=prefix?>
@@ -177,7 +185,7 @@ for side=0,solver.dim-1 do
 	const real heatRatioMinusOne = heatCapacityRatio - 1.;
 <? if side == 0 then ?>
 	real sqrt_gUxx = sqrt_gUjj;
-	return (<?=eqn.waves_t?>){.ptr={
+	return (waves_t){.ptr={
 		(X.ptr[0] * (.5 * heatRatioMinusOne * vSq + Cs * v.x / sqrt_gUxx)
 			+ X.ptr[1] * (-heatRatioMinusOne * vL.x - Cs / sqrt_gUxx)
 			+ X.ptr[2] * -heatRatioMinusOne * vL.y
@@ -205,7 +213,7 @@ for side=0,solver.dim-1 do
 	}};
 <? elseif side == 1 then ?>
 	real sqrt_gUyy = sqrt_gUjj;
-	return (<?=eqn.waves_t?>){.ptr={
+	return (waves_t){.ptr={
 		(X.ptr[0] * (.5 * heatRatioMinusOne * vSq + Cs * v.y / sqrt_gUyy)
 			+ X.ptr[1] * -heatRatioMinusOne * vL.x
 			+ X.ptr[2] * (-heatRatioMinusOne * vL.y - Cs / sqrt_gUyy)
@@ -233,7 +241,7 @@ for side=0,solver.dim-1 do
 	}};
 <? elseif side == 2 then ?>
 	real sqrt_gUzz = sqrt_gUjj;
-	return (<?=eqn.waves_t?>){.ptr={
+	return (waves_t){.ptr={
 		(X.ptr[0] * (.5 * heatRatioMinusOne * vSq + Cs * v.z / sqrt_gUzz)
 			+ X.ptr[1] * -heatRatioMinusOne * vL.x
 			+ X.ptr[2] * -heatRatioMinusOne * vL.y
@@ -263,10 +271,10 @@ for side=0,solver.dim-1 do
 #endif
 }
 
-<?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.waves_t?> X,
+cons_t eigen_rightTransform_<?=side?>(
+	constant solver_t* solver,
+	eigen_t eig,
+	waves_t X,
 	real3 x
 ) {
 	<?=prefix?>
@@ -295,7 +303,7 @@ for side=0,solver.dim-1 do
 #else	//works for contravariant formulation of Euler fluid equations
 <? if side == 0 then ?>	
 	real sqrt_gUxx = sqrt_gUjj;
-	return (<?=eqn.cons_t?>){.ptr={
+	return (cons_t){.ptr={
 		X.ptr[0] + X.ptr[1] + X.ptr[4],
 		X.ptr[0] * (v.x - Cs * sqrt_gUxx)
 			+ X.ptr[1] * v.x
@@ -317,7 +325,7 @@ for side=0,solver.dim-1 do
 	}};
 <? elseif side == 1 then ?>	
 	real sqrt_gUyy = sqrt_gUjj;
-	return (<?=eqn.cons_t?>){.ptr={
+	return (cons_t){.ptr={
 		X.ptr[0] + X.ptr[2] + X.ptr[4],
 		X.ptr[0] * (v.x - Cs * gU.xy / sqrt_gUyy)
 			+ X.ptr[1]
@@ -339,7 +347,7 @@ for side=0,solver.dim-1 do
 	}};
 <? elseif side == 2 then ?>	
 	real sqrt_gUzz = sqrt_gUjj;
-	return (<?=eqn.cons_t?>){.ptr={
+	return (cons_t){.ptr={
 		X.ptr[0] + X.ptr[3] + X.ptr[4],
 		X.ptr[0] * (v.x - Cs * gU.xz / sqrt_gUzz)
 			+ X.ptr[1]
@@ -363,14 +371,14 @@ for side=0,solver.dim-1 do
 #endif
 }
 
-<?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> X,
+cons_t eigen_fluxTransform_<?=side?>(
+	constant solver_t* solver,
+	eigen_t eig,
+	cons_t X,
 	real3 x
 ) {
 	<?=prefix?>
-	return (<?=eqn.cons_t?>){.ptr={
+	return (cons_t){.ptr={
 		X.ptr[1] * nx 
 			+ X.ptr[2] * ny 
 			+ X.ptr[3] * nz,
@@ -404,17 +412,17 @@ for side=0,solver.dim-1 do
 
 
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
-	<?=eqn.cons_t?> U,
+eigen_t eigen_forCell_<?=side?>(
+	cons_t U,
 	real3 x
 ) {
-	<?=eqn.prim_t?> W = primFromCons(U, x);
+	prim_t W = primFromCons(U, x);
 	real vSq = coordLenSq(W.v, x);
 	real eKin = .5 * vSq;
 	real hTotal = calc_hTotal(W.rho, W.P, U.ETotal);
 	real CsSq = (heatCapacityRatio - 1.) * (hTotal - eKin);
 	real Cs = sqrt(CsSq);
-	return (<?=eqn.eigen_t?>){
+	return (eigen_t){
 		.rho = W.rho,
 		.v = W.v,
 		.hTotal = hTotal,
@@ -425,20 +433,35 @@ for side=0,solver.dim-1 do
 <? end ?>
 
 kernel void addSource(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* derivBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	constant solver_t* solver,
+	global cons_t* derivBuf,
+	const global cons_t* UBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	real3 x = cell_x(i);
-	global <?=eqn.cons_t?>* deriv = derivBuf + index;
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	global cons_t* deriv = derivBuf + index;
+	const global cons_t* U = UBuf + index;
 
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	prim_t W = primFromCons(*U, x);
 	real3 m_conn_vv = coord_conn_apply23(W.v, U->m, x);
 	deriv->m = real3_sub(deriv->m, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
 	deriv->m = real3_sub(deriv->m, real3_real_mul(coord_conn_trace23(x), W.P));		//-Conn^i_jk g^jk P
 <? end ?>
+}
+
+kernel void constrainU(
+	constant solver_t* solver,
+	global cons_t* UBuf
+) {
+	SETBOUNDS(numGhost,numGhost);	
+	global cons_t* U = UBuf + index;
+	real3 x = cell_x(i);
+	prim_t W = primFromCons(*U, x);
+
+	if (W.rho < rhoMin) W.rho = rhoMin;
+	if (W.P < PMin) W.P = PMin;
+
+	*U = consFromPrim(W, x);
 }

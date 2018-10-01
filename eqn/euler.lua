@@ -28,6 +28,7 @@ Euler.roeUseFluxFromCons = true
 --
 -- I'm also using the source term for the viscosity ... if you choose to use FANS
 Euler.useSourceTerm = true
+Euler.useConstrainU = true
 
 Euler.initStates = require 'init.euler'
 
@@ -61,8 +62,11 @@ Euler.consVars = table{
 
 function Euler:createInitState()
 	Euler.super.createInitState(self)
+	local double = false --solver.app.real == 'double'
 	self:addGuiVars{
 		{name='heatCapacityRatio', value=7/5},
+		{name='rhoMin', value=double and 1e-15 or 1e-7},
+		{name='PMin', value=double and 1e-15 or 1e-7},
 	}
 end
 
