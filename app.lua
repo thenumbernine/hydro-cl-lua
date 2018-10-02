@@ -27,8 +27,11 @@ for _,w in ipairs(arg or {}) do
 	end
 end
 
+-- allow the global to be set
+__disableGUI__ = __disableGUI__ or cmdline.disableGUI
+
 -- if we are disabling the gui then replace the imgui and tooltip requires, so we don't try to unnecessarily load it
-if cmdline.disableGUI then
+if __disableGUI__  then
 	package.loaded['ffi.imgui'] = {disabled=true}
 	package.tooltip = {disabled=true}
 end
@@ -57,7 +60,7 @@ local tooltip = require 'tooltip'
 
 -- I tried making this a flag, and simply skipping the gui update if it wasn't set, but imgui still messes with the GL state and textures and stuff
 --  and I still get errors... so I'm cutting out imgui altogether, but now it takes a global flag to do so.
-local HydroCLApp = class(cmdline.disableGUI and require 'glapp' or require 'imguiapp')
+local HydroCLApp = class(__disableGUI__ and require 'glapp' or require 'imguiapp')
 
 HydroCLApp.title = 'Hydrodynamics in OpenCL'
 
