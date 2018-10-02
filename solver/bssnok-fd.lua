@@ -55,6 +55,22 @@ function BSSNOKFiniteDifferenceSolver:calcDeriv(derivBuf, dt)
 	self.calcDerivKernelObj()
 end
 
+BSSNOKFiniteDifferenceSolver.predefinedDisplayVars = {
+	'U alpha',
+	'U beta_u mag',
+	'U chi',
+	'U KHat',
+	'U Theta',
+	'U ABar_ll tr weighted',
+	'U Delta_u mag',
+	'U H',
+	'U M_u mag',
+	'U det gammaBar - det gammaHat',
+	'U det gamma_ij based on phi',
+	'U volume',
+	'U f',
+}
+
 function BSSNOKFiniteDifferenceSolver:getDisplayInfosForType()
 	local t = BSSNOKFiniteDifferenceSolver.super.getDisplayInfosForType(self)
 

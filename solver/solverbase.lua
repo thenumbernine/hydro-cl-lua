@@ -114,14 +114,6 @@ print(k,v)
 	self.solver_t = require 'eqn.makestruct'.uniqueName'solver_t'
 	require'eqn.makestruct'.safeFFICDef(self:getSolverTypeCode())
 	self.solverPtr = ffi.new(self.solver_t)
-	self.solverBuf = CLBuffer{
-		env = self.app.env,
-		name = 'solver',
-		type = self.solver_t,
-		size = 1,	-- should be 'count'
-		readwrite = 'read',
-	}
-	ffi.new(self.solver_t)
 end
 
 function SolverBase:postInit()
@@ -129,6 +121,17 @@ function SolverBase:postInit()
 end
 
 function SolverBase:refreshGridSize()
+	
+	-- doesn't use clalloc ...
+	-- should happen before any other buffer allocs
+	self.solverBuf = CLBuffer{
+		env = self.app.env,
+		name = 'solver',
+		type = self.solver_t,
+		size = 1,	-- should be 'count'
+		readwrite = 'read',
+	}
+	
 	-- depends on eqn & gridSize
 	self.buffers = table()
 	self:createBuffers()
@@ -262,7 +265,7 @@ function SolverBase:createBuffers()
 	if ffi.sizeof(self.eqn.cons_t) < ffi.sizeof(self.eqn.prim_t) then
 		error("for PLM's sake I might need sizeof(prim_t) <= sizeof(cons_t)")
 	end
-
+	
 	local UBufSize = self.numCells * ffi.sizeof(self.eqn.cons_t)
 	self:clalloc('UBuf', UBufSize)
 
@@ -855,19 +858,26 @@ enableVector = false
 			-- enable the first scalar field
 			-- also enable the first vector field on non-1D simulations
 			local enabled
-			if group.name == 'U' 
-			or (group.name:sub(1,5) == 'error' and self.dim == 1) 
-			then
-				if args.vartype ~= 'real3' then
-					enabled = enableScalar
+			
+			-- TODO how about saving somewhere what should be enabled by default?
+			-- TODO pick predefined somewhere?
+			if self.predefinedDisplayVars then
+				enabled = not not table.find(self.predefinedDisplayVars, args.name)
+			else
+				if group.name == 'U' 
+				or (group.name:sub(1,5) == 'error' and self.dim == 1) 
+				then
+					if args.vartype ~= 'real3' then
+						enabled = enableScalar
 					
-					if self.dim ~= 1 then
-						enableScalar = nil
-					end
-				else
-					if self.dim ~= 1 then
-						enabled = enableVector
-						enableVector = nil
+						if self.dim ~= 1 then
+							enableScalar = nil
+						end
+					else
+						if self.dim ~= 1 then
+							enabled = enableVector
+							enableVector = nil
+						end
 					end
 				end
 			end
@@ -985,6 +995,7 @@ return min, max
 else
 --]] do
 
+	-- this is failing with 1D for channels == 3, for vectors (but works for 2D etc) 
 	local min = self.reduceMin(nil, volume*channels)
 	self:calcDisplayVarToBuffer(var)
 	local max = self.reduceMax(nil, volume*channels)

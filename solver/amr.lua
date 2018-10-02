@@ -38,15 +38,19 @@ return function(cl)
 					})[self.dim],
 
 					-- the size, in cells, of each node, excluding border, for each dimension
+					--[[ I'm going to cheat and make this equal to the root node size
+					-- this way I don't have to move the gridSize into the solver_t
 					nodeSizeWithoutBorder = ({
 						vec3sz(16, 1, 1),
 						vec3sz(16, 16, 1),
 						vec3sz(16, 16, 16),
 					})[self.dim],
+					--]]
+					nodeSizeWithoutBorder = vec3sz(self.sizeWithoutBorder),
 				},
 			}
-		
-				-- size of the root level, in terms of nodes ('from' size)
+			
+			-- size of the root level, in terms of nodes ('from' size)
 			self.amr.ctx.rootSizeInFromSize = vec3sz(1,1,1)
 			for i=0,self.dim-1 do
 				self.amr.ctx.rootSizeInFromSize:ptr()[i] = 
@@ -169,6 +173,7 @@ kernel void compareUvsU2(
 				gradient = [==[
 <? local clnumber = require 'cl.obj.number' ?>
 kernel void calcAMRError(
+	constant <?=solver.solver_t?>* solver,
 	global real* amrErrorBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
@@ -184,9 +189,15 @@ kernel void calcAMRError(
 	real dV_dx;	
 	real sum = 0.;
 	
-	//hmm, it's less memory, but it's probably slower to iterate across all values as I build them here
-	for (int nx = 0; nx < <?=solver.amr.ctx.nodeFromSize.x?>; ++nx) {
-		for (int ny = 0; ny < <?=solver.amr.ctx.nodeFromSize.y?>; ++ny) {
+//	for (int nx = 0; nx < <?=solver.amr.ctx.nodeFromSize.x?>; ++nx) {
+//		for (int ny = 0; ny < <?=solver.amr.ctx.nodeFromSize.y?>; ++ny) {
+	<?	-- without unrolling these for-loops, intel compiler takes 30 seconds (and produces bad asm)
+for nx=0,tonumber(solver.amr.ctx.nodeFromSize.x)-1 do
+	for ny=0,tonumber(solver.amr.ctx.nodeFromSize.y)-1 do
+?>{	
+		const int nx = <?=nx?>;
+		const int ny = <?=ny?>;
+			
 			int4 Ui = (int4)(0,0,0,0);
 			
 			Ui.x = nodei.x * <?=solver.amr.ctx.nodeFromSize.x?> + nx + numGhost;
@@ -199,11 +210,19 @@ kernel void calcAMRError(
 	// and TODO make this modular.  some papers use velocity vector instead of density.  
 	// why not total energy -- that incorporates everything?
 <? for i=0,solver.dim-1 do
-?>			dV_dx = (U[stepsize.s<?=i?>].rho - U[-stepsize.s<?=i?>].rho) / (2. * grid_dx<?=i?>);
+?>			dV_dx = (U[stepsize.s<?=i?>].rho - U[-stepsize.s<?=i?>].rho) / (2. * solver->grid_dx.s<?=i?>);
 			sum += dV_dx * dV_dx;
 <? end
-?>		}
-	}
+?>
+
+//		}
+//	}
+	
+	}<?
+	end
+end
+?>
+
 	amrErrorBuf[nodeIndex] = sum * 1e-2 * <?=clnumber(1/tonumber( solver.amr.ctx.nodeFromSize:volume() ))?>;
 }
 
@@ -241,7 +260,7 @@ kernel void initNodeFromRoot(
 		if self.amr.ctx.method == 'dt vs 2dt' then
 			self.compareUvsU2KernelObj = self.solverProgramObj:kernel('compareUvsU2', self.U2Buf, self.UBuf)
 		elseif self.amr.ctx.method == 'gradient' then
-			self.calcAMRErrorKernelObj = self.solverProgramObj:kernel('calcAMRError', self.amrErrorBuf, self.UBuf)
+			self.calcAMRErrorKernelObj = self.solverProgramObj:kernel('calcAMRError', self.solverBuf, self.amrErrorBuf, self.UBuf)
 			self.initNodeFromRootKernelObj = self.solverProgramObj:kernel('initNodeFromRoot', self.UBuf)
 		end
 	end
@@ -341,7 +360,7 @@ kernel void initNodeFromRoot(
 			local ptr = ffi.new('real[?]', volume)
 			self.app.cmds:enqueueReadBuffer{buffer=self.amrErrorBuf, block=true, size=ffi.sizeof(self.app.real) * volume, ptr=ptr}
 		
-			--[[
+			-- [[
 			print'amrErrors:'
 			for ny=0,tonumber(self.amr.ctx.rootSizeInFromSize.y)-1 do
 				for nx=0,tonumber(self.amr.ctx.rootSizeInFromSize.x)-1 do
@@ -360,25 +379,62 @@ kernel void initNodeFromRoot(
 						local nodeErr = ptr[i]
 						if nodeErr > self.amr.ctx.splitThreshold then
 							if not self.amr.child[i+1] then
-							
+print("creating depth "..tonumber(self.amr.depth).." child "..tonumber(i))
 								-- lazy way: just recreate the whole thing
 								-- except remap the mins/maxs
 								local dx = 1/tonumber(self.amr.ctx.rootSizeInFromSize.x)
 								local dy = 1/tonumber(self.amr.ctx.rootSizeInFromSize.y)
 								local ux = nx*dx
 								local uy = ny*dy
+							
+								local newmins = {
+									(self.maxs[1] - self.mins[1]) * nx * dx + self.mins[1],
+									(self.maxs[2] - self.mins[2]) * ny * dy + self.mins[2],
+									1}
+								local newmaxs = {
+									(self.maxs[1] - self.mins[1]) * (nx+1) * dx + self.mins[1],
+									(self.maxs[2] - self.mins[2]) * (ny+1) * dy + self.mins[2],
+									1}	
 								
-								local subsolver = cl(table(self.initArgs, {
-									mins = {
-										(self.maxs[1] - self.mins[1]) * nx * dx + self.mins[1],
-										(self.maxs[2] - self.mins[2]) * ny * dy + self.mins[2],
-										1},
-									maxs = {
-										(self.maxs[1] - self.mins[1]) * (nx+1) * dx + self.mins[1],
-										(self.maxs[2] - self.mins[2]) * (ny+1) * dy + self.mins[2],
-										1},
+								local _self = self
+							
+								local subcl = class(cl)
+
+								function subcl:preInit(args)
+									subcl.super.preInit(self, args)
+									self.solver_t = _self.solver_t
+								end
+								
+								function subcl:createEqn()
+									self.eqn = _self.eqn
+								end
+								
+								local function copyCLKeys(from, to)
+									local ks = table.keys(from):sort()
+									for _,k in ipairs(ks) do
+										if k:match'KernelObj$'
+										or k:match'ProgramObj$'
+										or k:match'Shader$'
+										then
+											to[k] = from[k]
+										end
+									end
+								end
+								
+								function subcl:refreshSolverProgram()
+									copyCLKeys(_self, self)
+									-- still needs to call ops refreshSolverProgram (or at least steal their kernels too)
+									for _,op in ipairs(self.ops) do
+										op:refreshSolverProgram()
+									end
+									-- and the display vars ...
+								end
+							
+								local subsolver = subcl(table(self.initArgs, {
+									mins = newmins,
+									maxs = newmaxs,
 									amr = {
-										depth = 1,
+										depth = self.amr.depth + 1,
 										ctx = self.amr.ctx,
 									},
 								}))

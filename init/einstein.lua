@@ -342,7 +342,6 @@ return table{
 		end,
 		initState = function(self, solver)
 			return [[
-	real3 xc = coordMap(x);
 	const real R = init_R;
 	
 	real r = real3_len(xc);
@@ -427,6 +426,8 @@ return table{
 			This statement makes sense to consider raising/lowering of ABar and gammaTilde using eta_ij.
 			However it does not explain the raising/lowering of non-bar terms like n^i, S^i, P^i etc
 			And I would simply change the ABar computations from lower to upper, except even they include a term n_i S^i which will still require a metric.
+
+			... or (for beta) just use 2015 Baumgarte's advice and initialize to beta=0 ... which I'm doing anyways
 
 			--]]
 			return template([[
@@ -547,8 +548,6 @@ return table{
 			}
 			
 			return template([[
-	real3 xc = coordMap(x);
-
 <? for _,body in ipairs(bodies) do
 ?>
 	real3 pos = _real3(<?=table.map(body.pos, clnumber):concat', '?>);
@@ -641,7 +640,7 @@ return table{
 		init = function(self, solver)
 			solver.eqn:addGuiVar{name='m', value=1}
 		end,
-		getCodePrefix = function(self, solver, getCodes)
+		getCodePrefix = function(self, solver)
 			local m = solver.eqn.guiVars.m.value
 		
 			-- TODO refreshCodePrefix ... except this is called by that ...
@@ -691,6 +690,7 @@ return table{
 			
 			return initEinstein{
 				solver = solver,
+				-- looks like I am no longer passing this into this function...
 				getCodes = getCodes,
 				vars = xs,
 				alpha = alpha,
@@ -736,6 +736,7 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 		name = 'testbed - robust',
 		-- pick epsilon so epsilon^2 = 0
 		-- eqn 4.1: pick epsilon from -1e-10 / rho^2 to 1e=10 / rho^2
+		-- the SENR/NumPy uses an epsilon of .02
 		init = function(self, solver)
 			solver.eqn:addGuiVar{name='epsilon', value=1e-10}
 		end,
@@ -758,7 +759,6 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 		end,
 		initState = function(self, solver)
 			return [[
-	real3 xc = coordMap(x);
 	const real t = 0.;
 	real theta = 2. * M_PI / init_d * (xc.x - t);
 	real H = 1. + init_A * sin(theta);
@@ -788,7 +788,6 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 		end,
 		initState = function(self, solver)
 			return [[
-	real3 xc = coordMap(x);
 	const real t = 0.;
 	real theta = 2. * M_PI / init_d * (xc.x - t);
 	real b = init_A * sin(theta);

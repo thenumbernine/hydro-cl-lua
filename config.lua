@@ -1,10 +1,10 @@
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -14,7 +14,7 @@ local args = {
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
 	--integrator = 'Runge-Kutta 3, TVD',
-	--integrator = 'Runge-Kutta 4, TVD',
+	integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
 	--integrator = 'backward Euler',
 	
@@ -38,7 +38,7 @@ local args = {
 
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -121,10 +121,10 @@ maxs = {6,1,1},
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	-- for some reason [rmin, rmax] = [.5, 1] gets an explosion right at r=rmin, theta=0 ... but any other values work fine
 	coord = 'cylinder',
-	mins = cmdline.mins or {.2, 0, -.25},
+	mins = cmdline.mins or {.1, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
@@ -133,8 +133,8 @@ maxs = {6,1,1},
 	})[dim],
 	boundary = {
 		-- r
-		xmin=cmdline.boundary or 'freeflow',		-- hmm, how to treat the r=0 boundary ...
-		xmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
+		xmax=cmdline.boundary or 'mirror',
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
@@ -198,7 +198,7 @@ maxs = {6,1,1},
 	
 	-- Euler / SRHD / MHD initial states:
 	--initState = 'constant',
-	initState = 'constant with velocity',
+	--initState = 'constant with velocity',
 	--initState = 'linear',
 	--initState = 'gaussian',	-- explodes with Euler/Roe
 	--initState = 'advect wave',
@@ -409,12 +409,12 @@ maxs = {6,1,1},
 
 
 	--initState = 'stellar model',
-	--initState = '1D black hole - wormhole form',
+	initState = '1D black hole - wormhole form',
 
 	
 	--initState = 'Gowdy waves',
 	--initState = 'testbed - robust',	-- not working with fv solvers
-	--initState = 'testbed - gauge wave',	-- not working with fd solvers
+	--initState = 'testbed - gauge wave',	-- not working with forward-euler finite-difference solvers
 	--initState = 'testbed - gauge wave - diagonal',
 	--initState = 'testbed - linear wave',
 	--initState = 'testbed - linear wave - diagonal',
@@ -428,7 +428,7 @@ maxs = {6,1,1},
 }
 
 -- HD
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
@@ -534,7 +534,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- Z4c finite difference, combining BSSNOK and Z4
---self.solvers:insert(require 'solver.z4c-fd'(args))
+self.solvers:insert(require 'solver.z4c-fd'(args))
 
 
 

@@ -509,12 +509,14 @@ end ?>;
 end
 
 function Z4cFiniteDifferenceEquation:fillRandom(epsilon)
+	print('filling random...')	
 	local ptr = Z4cFiniteDifferenceEquation.super.fillRandom(self, epsilon)
 	local solver = self.solver
 	for i=0,solver.numCells-1 do
 		ptr[i].alpha = ptr[i].alpha + 1
 	end
 	solver.UBufObj:fromCPU(ptr)
+	print('...done filling random')	
 	return ptr
 end
 

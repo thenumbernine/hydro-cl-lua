@@ -72,21 +72,8 @@ args:
 function GridSolver:preInit(args)
 	GridSolver.super.preInit(self, args)
 
-	-- do this before any call to createBuffers or createCodePrefix
-	self.solverPtr.mins.x = self.mins[1]
-	self.solverPtr.mins.y = self.dim <= 1 and 0 or self.mins[2]
-	self.solverPtr.mins.z = self.dim <= 2 and 0 or self.mins[3]
-	self.solverPtr.maxs.x = self.maxs[1]
-	self.solverPtr.maxs.y = self.dim <= 1 and 0 or self.maxs[2]
-	self.solverPtr.maxs.z = self.dim <= 2 and 0 or self.maxs[3]
-	self.solverPtr.grid_dx.x = (self.solverPtr.maxs.x - self.solverPtr.mins.x) / tonumber(self.sizeWithoutBorder.x)
-	self.solverPtr.grid_dx.y = (self.solverPtr.maxs.y - self.solverPtr.mins.y) / tonumber(self.sizeWithoutBorder.y)
-	self.solverPtr.grid_dx.z = (self.solverPtr.maxs.z - self.solverPtr.mins.z) / tonumber(self.sizeWithoutBorder.z)
-	self.solverBuf:fromCPU(self.solverPtr)
-
 	self:createBoundaryOptions()
 	self:finalizeBoundaryOptions()
-
 
 	self.boundaryMethods = {}
 	for i=1,3 do
@@ -366,7 +353,21 @@ end
 function GridSolver:createBuffers()
 	local app = self.app
 	local realSize = ffi.sizeof(app.real)
-	
+
+
+	-- do this before any call to createBuffers or createCodePrefix
+	self.solverPtr.mins.x = self.mins[1]
+	self.solverPtr.mins.y = self.dim <= 1 and 0 or self.mins[2]
+	self.solverPtr.mins.z = self.dim <= 2 and 0 or self.mins[3]
+	self.solverPtr.maxs.x = self.maxs[1]
+	self.solverPtr.maxs.y = self.dim <= 1 and 0 or self.maxs[2]
+	self.solverPtr.maxs.z = self.dim <= 2 and 0 or self.maxs[3]
+	self.solverPtr.grid_dx.x = (self.solverPtr.maxs.x - self.solverPtr.mins.x) / tonumber(self.sizeWithoutBorder.x)
+	self.solverPtr.grid_dx.y = (self.solverPtr.maxs.y - self.solverPtr.mins.y) / tonumber(self.sizeWithoutBorder.y)
+	self.solverPtr.grid_dx.z = (self.solverPtr.maxs.z - self.solverPtr.mins.z) / tonumber(self.sizeWithoutBorder.z)
+	self.solverBuf:fromCPU(self.solverPtr)
+
+
 	-- to get sizeof
 	require'eqn.makestruct'.safeFFICDef(self:getConsLRTypeCode())
 

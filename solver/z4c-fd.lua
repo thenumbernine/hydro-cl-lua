@@ -53,6 +53,22 @@ function Z4cFiniteDifferenceSolver:calcDeriv(derivBuf, dt)
 	self.calcDerivKernelObj()
 end
 
+Z4cFiniteDifferenceSolver.predefinedDisplayVars = {
+	'U alpha',
+	'U beta_u mag',
+	'U chi',
+	'U KHat',
+	'U Theta',
+	'U ABar_ll tr weighted',
+	'U Delta_u mag',
+	'U H',
+	'U M_u mag',
+	'U det gammaBar - det gammaHat',
+	'U det gamma_ij based on phi',
+	'U volume',
+	'U f',
+}
+
 function Z4cFiniteDifferenceSolver:getDisplayInfosForType()
 	local t = Z4cFiniteDifferenceSolver.super.getDisplayInfosForType(self)
 
