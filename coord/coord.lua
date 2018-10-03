@@ -99,8 +99,8 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 
 -- debugging
---local dprint = print
-local dprint = function() end
+local dprint = print
+--local dprint = function() end
 
 local CoordinateSystem = class()
 
@@ -154,6 +154,7 @@ dprint()
 			break
 		end
 	end
+	self.anholonomic = anholonomic
 dprint('is anholonomic? '..tostring(anholonomic))
 
 	-- for the sake of grid lengths, 
@@ -166,7 +167,7 @@ dprint('is anholonomic? '..tostring(anholonomic))
 			return u[I]:diff(baseCoords[a])()
 		end)
 dprint'holonomic embedded:'
-dprint(var'e''_u^I':eq(var'u''^I_,u'):eq(eHol'_u^I'()))
+dprint(var'eHol''_u^I':eq(var'u''^I_,u'):eq(eHol'_u^I'()))
 	end
 
 	-- commutation coefficients
@@ -216,20 +217,39 @@ dprint(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()
 	else
 		gHol = (eHol'_u^I' * eHol'_v^J' * eta'_IJ')()
 dprint'holonomic metric:'
-dprint(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(gHol'_uv'()))
+dprint(var'gHol''_uv':eq(var'eHol''_u^I' * var'eHol''_v^J' * var'\\eta''_IJ'):eq(gHol'_uv'()))
 	end	
 
 	Tensor.metric(g)
 
-	local GammaL = Tensor'_abc'
-	GammaL['_abc'] = ((g'_ab,c' + g'_ac,b' - g'_bc,a' + c'_abc' + c'_acb' - c'_bca') / 2)()
+	local Gamma_lll = Tensor'_abc'
+	Gamma_lll['_abc'] = ((g'_ab,c' + g'_ac,b' - g'_bc,a' + c'_abc' + c'_acb' - c'_bca') / 2)()
 dprint'1st kind Christoffel:'
-dprint(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(GammaL'_abc'()))
+dprint(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(Gamma_lll'_abc'()))
 
 	local Gamma = Tensor'^a_bc'
-	Gamma['^a_bc'] = GammaL'^a_bc'()
+	Gamma['^a_bc'] = Gamma_lll'^a_bc'()
 dprint'connection:'
 dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()))
+
+
+	-- for anholonomic coordinates, we also need the holonomic connections
+	--  for calculating the sqrt(det(g)) = grid volume
+	if self.anholonomic then
+		Tensor.metric(gHol)
+		
+		local GammaHol_lll = Tensor'_abc'
+		GammaHol_lll['_abc'] = ((gHol'_ab,c' + gHol'_ac,b' - gHol'_bc,a') / 2)()
+dprint'1st kind Christoffel of holonoic basis / Levi-Civita connection:'
+dprint(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'gHol''_ab,c' + var'gHol''_ac,b' - var'gHol''_bc,a')):eq(GammaHol_lll'_abc'()))
+	
+		local GammaHol_ull = Tensor'^a_bc'
+		GammaHol_ull['^a_bc'] = GammaHol_lll'^a_bc'()
+dprint'holonomic / Levi-Civita connection:'
+dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(GammaHol_ull'^a_bc'()))
+		
+		Tensor.metric(g)
+	end
 
 
 	-- code generation
@@ -299,7 +319,9 @@ dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'(
 	-- uCode is used to project the grid for displaying
 	self.uCode = range(dim):map(function(i) 
 		local uCode = compile(u[i])
-dprint('uCode['..i..'] = '..substCoords(uCode))
+if uCode ~= '0.' then
+	dprint('uCode['..i..'] = '..substCoords(uCode))
+end
 		return uCode
 	end)
 	
@@ -313,7 +335,9 @@ dprint('uCode['..i..'] = '..substCoords(uCode))
 	self.eCode = eExt:map(function(ei,i) 
 		return ei:map(function(eij,j)
 			local eijCode = compile(eij) 
-dprint('eCode['..i..']['..j..'] = '..substCoords(eijCode))
+if eijCode ~= '0.' then
+	dprint('eCode['..i..']['..j..'] = '..substCoords(eijCode))
+end			
 			return eijCode 
 		end)
 	end)
@@ -326,13 +350,13 @@ dprint('eCode['..i..']['..j..'] = '..substCoords(eijCode))
 			end):sum()
 		)()
 	end)
-
+	
 	self.eHolLenCode = eHolLen:map(function(eiHolLen, i)
 		local eiHolLenCode = compile(eiHolLen)
 dprint('eHolLen['..i..'] = '..substCoords(eiHolLenCode))
 		return eiHolLenCode
 	end)
-
+	
 	local eExtLen = eExt:map(function(ei,i)
 		return symmath.sqrt(ei:map(function(x) return x^2 end):sum())()
 	end)
@@ -355,7 +379,7 @@ dprint('lowerCode['..i..'] = '..substCoords(lowerCode))
 	local lenSqExpr = (paramU'^a' * paramU'_a')()
 	self.uLenSqCode = compile(lenSqExpr)
 dprint('uLenSqCodes = '..substCoords(self.uLenSqCode))
-
+	
 	self.connCodes = range(dim):map(function(i)
 		return range(dim):map(function(j)
 			return range(dim):map(function(k)
@@ -367,12 +391,14 @@ end
 			end)
 		end)
 	end)
-
+	
 	-- Conn^i_jk(x) u^j v^k
 	local connExpr = (Gamma'^a_bc' * paramU'^b' * paramV'^c')()
 	self.connApply23Codes = range(dim):map(function(i)
 		local conniCode = compile(connExpr[i])
-dprint('connApply23Code['..i..'] = '..substCoords(conniCode))
+if conniCode ~= '0.' then
+	dprint('connApply23Code['..i..'] = '..substCoords(conniCode))
+end		
 		return conniCode
 	end)
 
@@ -380,7 +406,9 @@ dprint('connApply23Code['..i..'] = '..substCoords(conniCode))
 	local connLastExpr = (paramU'^b' * paramV'^c' * Gamma'_bc^a')()
 	self.connApply12Codes = range(dim):map(function(i)
 		local connLastiCode = compile(connLastExpr[i])
-dprint('connApply12Code['..i..'] = '..substCoords(connLastiCode))
+if connLastiCode ~= '0.' then
+	dprint('connApply12Code['..i..'] = '..substCoords(connLastiCode))
+end		
 		return connLastiCode
 	end)
 	
@@ -388,7 +416,9 @@ dprint('connApply12Code['..i..'] = '..substCoords(connLastiCode))
 	local connTrace23Expr = (Gamma'^a_b^b')()
 	self.connTrace23Codes = range(dim):map(function(i)
 		local connTraceiCode = compile(connTrace23Expr[i])
-dprint('connTrace23Code['..i..'] = '..substCoords(connTraceiCode))
+if connTraceiCode ~= '0.' then
+	dprint('connTrace23Code['..i..'] = '..substCoords(connTraceiCode))
+end		
 		return connTraceiCode
 	end)
 
@@ -396,7 +426,9 @@ dprint('connTrace23Code['..i..'] = '..substCoords(connTraceiCode))
 	local connTrace13Expr = (Gamma'^b_ab')()
 	self.connTrace13Codes = range(dim):map(function(i)
 		local connTraceiCode = compile(connTrace13Expr[i])
-dprint('connTrace13Code['..i..'] = '..substCoords(connTraceiCode))
+if connTraceiCode ~= '0.' then
+	dprint('connTrace13Code['..i..'] = '..substCoords(connTraceiCode))
+end		
 		return connTraceiCode
 	end)
 
@@ -407,7 +439,9 @@ dprint('connTrace13Code['..i..'] = '..substCoords(connTraceiCode))
 		local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
 		local lenSqExpr = (dir'^a' * dir'^b' * gHol'_ab')()
 		local lenCode = compile((symmath.sqrt(lenSqExpr))())
-dprint('dxCode['..i..'] = '..substCoords(lenCode))
+if lenCode ~= '0.' then
+	dprint('dxCode['..i..'] = '..substCoords(lenCode))
+end	
 		return lenCode
 	end)
 
@@ -415,7 +449,9 @@ dprint('dxCode['..i..'] = '..substCoords(lenCode))
 	self.gCode = range(dim):map(function(i)
 		return range(i,dim):map(function(j)
 			local gijCode = compile(self.g[i][j])
-dprint('g['..i..']['..j..'] = '..substCoords(gijCode))
+if gijCode ~= '0.' then
+	dprint('g['..i..']['..j..'] = '..substCoords(gijCode))
+end			
 			return gijCode, j
 		end)
 	end)
@@ -425,7 +461,9 @@ dprint('g['..i..']['..j..'] = '..substCoords(gijCode))
 	self.gUCode = range(dim):map(function(i)
 		return range(i,dim):map(function(j)
 			local gUijCode = compile(self.gU[i][j])
-dprint('gU['..i..']['..j..'] = '..substCoords(gUijCode))
+if gUijCode ~= '0.' then
+	dprint('gU['..i..']['..j..'] = '..substCoords(gUijCode))
+end			
 			return gUijCode, j
 		end)
 	end)
@@ -434,12 +472,14 @@ dprint('gU['..i..']['..j..'] = '..substCoords(gUijCode))
 	self.sqrt_gUCode = range(dim):map(function(i)
 		return range(i,dim):map(function(j)
 			local sqrt_gUijCode = compile(sqrt_gU[i][j])
-dprint('sqrt(gU['..i..']['..j..']) = '..substCoords(sqrt_gUijCode))
+if sqrt_gUijCode ~= '0.' then
+	dprint('sqrt(gU['..i..']['..j..']) = '..substCoords(sqrt_gUijCode))
+end			
 			return sqrt_gUijCode, j
 		end)
 	end)
 
-	local volumeExpr = symmath.sqrt(symmath.Matrix.determinant(g))()
+	local volumeExpr = symmath.sqrt(symmath.Matrix.determinant(gHol))()
 	self.volumeCode = compile(volumeExpr)
 dprint('volumeCode = '..substCoords(self.volumeCode))
 end

@@ -12,7 +12,7 @@ kernel void calcDerivFromFlux(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	
 	real3 x = cell_x(i);
-<? if eqn.weightFluxByGridVolume then ?>	
+<? if eqn.weightFluxByGridVolume then ?>
 	real volume = volume_at(solver, x);
 <? else ?>
 	const real volume = 1.<? for i=0,solver.dim-1 do ?> * solver->grid_dx.s<?=i?><? end ?>;

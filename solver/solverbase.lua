@@ -98,7 +98,7 @@ print(k,v)
 
 	self.integratorIndex = integratorNames:find(args.integrator) or 1
 
-	self.coord = require('coord.'..args.coord){solver=self}
+	self.coord = require('coord.'..args.coord)(table({solver=self}, args.coordArgs))
 
 	self.checkNaNs = false
 	self.useFixedDT = not not args.fixedDT

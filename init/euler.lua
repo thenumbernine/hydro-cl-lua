@@ -188,8 +188,9 @@ local initStates = table{
 		},
 		initState = function(self, solver)
 			return [[
-	rho = 1 + x.x;
-	P = 1 + x.x;
+	real3 xc = coordMap(x);
+	rho = 1. + xc.x;
+	P = 1. + xc.x;
 ]]
 		end,
 	},
