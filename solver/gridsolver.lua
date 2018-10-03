@@ -349,12 +349,8 @@ typedef struct {
 ]], {solver=self})
 end
 
--- TODO some of this is copied in solverbase
-function GridSolver:createBuffers()
-	local app = self.app
-	local realSize = ffi.sizeof(app.real)
-
-
+function GridSolver:createSolverBuf()
+	GridSolver.super.createSolverBuf(self)
 	-- do this before any call to createBuffers or createCodePrefix
 	self.solverPtr.mins.x = self.mins[1]
 	self.solverPtr.mins.y = self.dim <= 1 and 0 or self.mins[2]
@@ -366,7 +362,12 @@ function GridSolver:createBuffers()
 	self.solverPtr.grid_dx.y = (self.solverPtr.maxs.y - self.solverPtr.mins.y) / tonumber(self.sizeWithoutBorder.y)
 	self.solverPtr.grid_dx.z = (self.solverPtr.maxs.z - self.solverPtr.mins.z) / tonumber(self.sizeWithoutBorder.z)
 	self.solverBuf:fromCPU(self.solverPtr)
+end
 
+-- TODO some of this is copied in solverbase
+function GridSolver:createBuffers()
+	local app = self.app
+	local realSize = ffi.sizeof(app.real)
 
 	-- to get sizeof
 	require'eqn.makestruct'.safeFFICDef(self:getConsLRTypeCode())

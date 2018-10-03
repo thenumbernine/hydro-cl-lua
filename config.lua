@@ -38,7 +38,7 @@ local args = {
 
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -121,7 +121,7 @@ maxs = {6,1,1},
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	coord = 'cylinder',
 
 	-- for some reason, with holonomic coordinates, with rmax=1, for any rmin < .1, I get an explosion
@@ -208,10 +208,10 @@ maxs = {6,1,1},
 	-- Euler / SRHD / MHD initial states:
 	--initState = 'constant',
 	--initState = 'constant with velocity',
-	initState = 'linear',
-	--initState = 'gaussian',	-- explodes with Euler/Roe
+	--initState = 'linear',
+	--initState = 'gaussian',
 	--initState = 'advect wave',
-	--initState = 'sphere',
+	initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
 	--initState = 'Sod',
@@ -437,7 +437,7 @@ maxs = {6,1,1},
 }
 
 -- HD
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
@@ -580,4 +580,4 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 -- the start of AMR
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
---self.solvers:insert(require 'solver.amr'(require 'solver.roe')(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.amr'(require 'solver.roe')(table(args, {eqn='euler'})))

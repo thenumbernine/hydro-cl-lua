@@ -11,6 +11,15 @@ local template = require 'template'
 local vec3sz = require 'ffi.vec.vec3sz'
 local roundup = require 'roundup'
 
+local int4ptr = ffi.new'int[4]'
+local function int4(a,b,c,d)
+	int4ptr[0] = a
+	int4ptr[1] = b
+	int4ptr[2] = c
+	int4ptr[3] = d
+	return int4ptr
+end
+
 return function(cl)
 	cl = class(cl)
 
@@ -39,7 +48,7 @@ return function(cl)
 
 					-- the size, in cells, of each node, excluding border, for each dimension
 					--[[ I'm going to cheat and make this equal to the root node size
-					-- this way I don't have to move the gridSize into the solver_t
+					-- this way I don't have to move the gridSize into the solver_t, and can reuse the same CL code for all nodes
 					nodeSizeWithoutBorder = ({
 						vec3sz(16, 1, 1),
 						vec3sz(16, 16, 1),
@@ -111,8 +120,6 @@ return function(cl)
 			so the next level has 2^(8+4) = 2^12 = 4096 bits = 2^9 = 512 bytes
 
 			--]]
-
-
 
 
 
@@ -217,7 +224,6 @@ for nx=0,tonumber(solver.amr.ctx.nodeFromSize.x)-1 do
 
 //		}
 //	}
-	
 	}<?
 	end
 end
@@ -226,25 +232,37 @@ end
 	amrErrorBuf[nodeIndex] = sum * 1e-2 * <?=clnumber(1/tonumber( solver.amr.ctx.nodeFromSize:volume() ))?>;
 }
 
-//from is the position on the root level to read from
-//to is which node to copy into
 kernel void initNodeFromRoot(
-	global <?=eqn.cons_t?>* UBuf,
-	int4 from,
-	int toNodeIndex
+	global <?=eqn.cons_t?>* childUBuf,
+	const global <?=eqn.cons_t?>* parentUBuf,
+	int4 from	//where in the child tree
 ) {
+	//'i' is the dest in the child node to write
 	int4 i = (int4)(0,0,0,0);
 	i.x = get_global_id(0);
 	i.y = get_global_id(1);
-	int dstIndex = i.x + numGhost + <?=solver.amrNodeSize.x?> * (i.y + numGhost);
-	int srcIndex = from.x + (i.x>>1) + numGhost + gridSize_x * (from.y + (i.y>>1) + numGhost);
-
-	global <?=eqn.cons_t?>* dstU = UBuf + <?=solver.numCells?> + toNodeIndex * <?=solver.amrNodeSize:volume()?>;
+	if (i.x >= <?=solver.amr.ctx.nodeSizeWithoutBorder.x?> || 
+		i.y >= <?=solver.amr.ctx.nodeSizeWithoutBorder.y?>) 
+	{
+		return;
+	}
 	
+	int dstIndex = i.x + numGhost + <?=solver.amrNodeSize.x?> * (i.y + numGhost);
+
+	//'srci' is the coords within the parent node to read, relative to the child's upper-left
+	int4 srci = (int4)(0,0,0,0);
+	srci.x = i.x / <?= solver.amr.ctx.nodeSizeWithoutBorder.x / solver.amr.ctx.nodeFromSize.x ?>;
+	srci.y = i.y / <?= solver.amr.ctx.nodeSizeWithoutBorder.y / solver.amr.ctx.nodeFromSize.y ?>;
+
+	int srcIndex = numGhost + srci.x + from.x * <?= solver.amr.ctx.nodeSizeWithoutBorder.x / solver.amr.ctx.nodeFromSize.x ?>
+		+ gridSize_x * (
+			numGhost + srci.y + from.y * <?= solver.amr.ctx.nodeSizeWithoutBorder.y / solver.amr.ctx.nodeFromSize.y ?>
+		);
+
 	//blitter srcU sized solver.amr.ctx.nodeFromSize (in a patch of size solver.gridSize)
 	// to dstU sized solver.amrNodeSize (in a patch of solver.amrNodeSize)
 	
-	dstU[dstIndex] = UBuf[srcIndex];
+	childUBuf[dstIndex] = parentUBuf[srcIndex];
 }
 ]==],
 			})[self.amr.ctx.method] or '', {
@@ -261,7 +279,8 @@ kernel void initNodeFromRoot(
 			self.compareUvsU2KernelObj = self.solverProgramObj:kernel('compareUvsU2', self.U2Buf, self.UBuf)
 		elseif self.amr.ctx.method == 'gradient' then
 			self.calcAMRErrorKernelObj = self.solverProgramObj:kernel('calcAMRError', self.solverBuf, self.amrErrorBuf, self.UBuf)
-			self.initNodeFromRootKernelObj = self.solverProgramObj:kernel('initNodeFromRoot', self.UBuf)
+			self.initNodeFromRootKernelObj = self.solverProgramObj:kernel'initNodeFromRoot'
+			self.initNodeFromRootKernelObj.obj:setArg(1, self.UBuf)
 		end
 	end
 
@@ -375,11 +394,12 @@ kernel void initNodeFromRoot(
 			if self.amr.depth < self.amr.ctx.maxdepth then
 				for ny=0,tonumber(self.amr.ctx.rootSizeInFromSize.y)-1 do
 					for nx=0,tonumber(self.amr.ctx.rootSizeInFromSize.x)-1 do
-						local i = nx + self.amr.ctx.rootSizeInFromSize.x * ny
+						local i = tonumber(nx + self.amr.ctx.rootSizeInFromSize.x * ny)
 						local nodeErr = ptr[i]
 						if nodeErr > self.amr.ctx.splitThreshold then
 							if not self.amr.child[i+1] then
 print("creating depth "..tonumber(self.amr.depth).." child "..tonumber(i))
+								-- [==[
 								-- lazy way: just recreate the whole thing
 								-- except remap the mins/maxs
 								local dx = 1/tonumber(self.amr.ctx.rootSizeInFromSize.x)
@@ -395,69 +415,104 @@ print("creating depth "..tonumber(self.amr.depth).." child "..tonumber(i))
 									(self.maxs[1] - self.mins[1]) * (nx+1) * dx + self.mins[1],
 									(self.maxs[2] - self.mins[2]) * (ny+1) * dy + self.mins[2],
 									1}	
-								
 								local _self = self
-							
+						
+								-- maybe I shouldn't make a subclass
+								-- maybe a patchlevel class is a better idea
 								local subcl = class(cl)
 
 								function subcl:preInit(args)
-									subcl.super.preInit(self, args)
+									self.maxWorkGroupSize = _self.maxWorkGroupSize
+									local sizeProps = self:getSizePropsForWorkGroupSize(self.maxWorkGroupSize)
+									for k,v in pairs(sizeProps) do
+										self[k] = v
+									end
+								
+									self:createEqn()
+									
+									--subcl.super.preInit(self, args)
 									self.solver_t = _self.solver_t
 								end
 								
 								function subcl:createEqn()
 									self.eqn = _self.eqn
 								end
-								
-								local function copyCLKeys(from, to)
-									local ks = table.keys(from):sort()
+
+								function subcl:createSolverBuf() 
+									self.solverBuf = _self.solverBuf
+								end
+
+								function subcl:refreshEqnInitState() end
+								function subcl:refreshCommonProgram() end
+								function subcl:resetState() end
+
+								function subcl:refreshSolverProgram()
+									local ks = table.keys(_self):sort()
 									for _,k in ipairs(ks) do
 										if k:match'KernelObj$'
+										or k:match'KernelObjs$'
 										or k:match'ProgramObj$'
 										or k:match'Shader$'
 										then
-											to[k] = from[k]
+											self[k] = _self[k]
 										end
 									end
-								end
-								
-								function subcl:refreshSolverProgram()
-									copyCLKeys(_self, self)
+									
 									-- still needs to call ops refreshSolverProgram (or at least steal their kernels too)
 									for _,op in ipairs(self.ops) do
 										op:refreshSolverProgram()
 									end
 									-- and the display vars ...
 								end
+
+								function subcl:createBuffers()
+									local ks = table.keys(_self):sort()
+									for _,k in ipairs(ks) do
+										-- as long as we have matching size, we can reuse all buffers (except the state buffers)
+										-- TODO will need to save primBufs as well
+										if (k:match'Buf$' and k ~= 'UBuf' and k ~= 'solverBuf')
+										or (k:match'BufObj$' and k ~= 'UBufObj')
+										then
+											self[k] = _self[k]
+										end
+									end
+									self.tex = _self.tex
+									self.texCLMem = _self.texCLMem
+									self.calcDisplayVarToTexPtr = _self.calcDisplayVarToTexPtr
+								
+									-- now for our own allocations...
+									-- this is copied from GridSolver:createBuffers
+print('creating subsolver ubuffer...')									
+									local UBufSize = self.numCells * ffi.sizeof(self.eqn.cons_t)
+									self:clalloc('UBuf', UBufSize)
+								end
 							
-								local subsolver = subcl(table(self.initArgs, {
+								local subsolver = subcl{
+									app = self.app,
+									dim = self.dim,
+									gridSize = self.sizeWithoutBorder,
+									coord = self.coord,
 									mins = newmins,
 									maxs = newmaxs,
 									amr = {
 										depth = self.amr.depth + 1,
 										ctx = self.amr.ctx,
 									},
-								}))
+								}
 								
 								-- tell the root layer table which node is used
 								--  by pointing it back to the table of the leaf nodes 
-								self.amr.child[i+1] = subsolver
+								self.amr.child[i+1] = assert(subsolver)
 							
 								-- copy data from the root node location into the new node
 								-- upsample as we go ... by nearest?
 							
-								-- TODO setup kernel args
-								--[=[ this expects buffer info after UBuf, so it will error ...
-								self.initNodeFromRootKernelObj.obj:setArg(1, ffi.new('int[4]', {nx, ny, 0, 0}))
-								self.initNodeFromRootKernelObj.obj:setArg(2, ffi.new('int[1]', 0))
-								self.app.cmds:enqueueNDRangeKernel{
-									kernel = self.initNodeFromRootKernelObj.obj,
-									dim = self.dim, 
-									globalSize = self.amr.ctx.nodeSizeWithoutBorder:ptr(),
-									localSize = self.amr.ctx.nodeSizeWithoutBorder:ptr(),
-								}
-								--]=]
-							
+								-- setup kernel args
+								self.initNodeFromRootKernelObj.obj:setArg(0, subsolver.UBuf)
+								self.initNodeFromRootKernelObj.obj:setArg(2, int4(nx,ny,0,0))
+								-- so long as node size = root size, we can use the solver.globalSize, and not --self.amr.ctx.nodeSizeWithoutBorder:ptr(),
+								self.initNodeFromRootKernelObj()
+								--]==]
 							end
 						elseif nodeErr < self.amr.ctx.mergeThreshold then
 --							local subsolver= self.amr.child[i+1]
@@ -469,6 +524,8 @@ print("creating depth "..tonumber(self.amr.depth).." child "..tonumber(i))
 			end
 			--]]
 		end
+
+cl.update = cl.super.update
 	end
 
 	return cl

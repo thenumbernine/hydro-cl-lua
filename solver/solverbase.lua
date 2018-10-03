@@ -85,7 +85,6 @@ print(k,v)
 		self[k] = v
 	end
 	
-	
 	-- hmm, do some eqns create ops need to know the grid size? 
 	self.eqnName = args.eqn
 	self.eqnArgs = args.eqnArgs
@@ -97,8 +96,12 @@ print(k,v)
 	self.initStateArgs = args.initStateArgs
 
 	self.integratorIndex = integratorNames:find(args.integrator) or 1
-
-	self.coord = require('coord.'..args.coord)(table({solver=self}, args.coordArgs))
+	
+	if require 'coord.coord'.is(args.coord) then
+		self.coord = args.coord	-- ptr copy expected by AMR
+	else
+		self.coord = require('coord.'..args.coord)(table({solver=self}, args.coordArgs))
+	end
 
 	self.checkNaNs = false
 	self.useFixedDT = not not args.fixedDT
@@ -120,8 +123,7 @@ function SolverBase:postInit()
 	self:refreshGridSize()
 end
 
-function SolverBase:refreshGridSize()
-	
+function SolverBase:createSolverBuf()
 	-- doesn't use clalloc ...
 	-- should happen before any other buffer allocs
 	self.solverBuf = CLBuffer{
@@ -131,6 +133,11 @@ function SolverBase:refreshGridSize()
 		size = 1,	-- should be 'count'
 		readwrite = 'read',
 	}
+end
+
+function SolverBase:refreshGridSize()
+
+	self:createSolverBuf()
 	
 	-- depends on eqn & gridSize
 	self.buffers = table()

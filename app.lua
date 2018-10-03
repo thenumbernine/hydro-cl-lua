@@ -490,8 +490,8 @@ function HydroCLApp:screenshotToFile(fn)
 	self.ssflipped:save(fn)
 end
 
---HydroCLApp.running = false
-HydroCLApp.running = true
+HydroCLApp.running = false
+--HydroCLApp.running = true
 
 local minDeltaY = 1e-7
 function HydroCLApp:update(...)
@@ -731,7 +731,7 @@ function HydroCLApp:drawGradientLegend(ar, varName, valueMin, valueMax)
 	if self.font then
 		local palwidth = (xmax - xmin) * .1
 		self.gradientTex:enable()
-		self.gradientTex:bind()
+		self.gradientTex:bind(0)
 		gl.glBegin(gl.GL_QUADS)
 		gl.glColor3f(1,1,1)
 		gl.glTexCoord1f(0) gl.glVertex2f(xmin, ymin)

@@ -1,12 +1,13 @@
 <?
 local clnumber = require 'cl.obj.number'
 local app = solver.app
+local coord = solver.coord
 ?>
 
 varying vec2 viewCoord;
 
-<?=solver.coord:getCoordMapGLSLCode()?>
-<?=solver.coord:getCoordMapInvGLSLCode()?>
+<?=coord:getCoordMapGLSLCode()?>
+<?=coord:getCoordMapInvGLSLCode()?>
 
 <? if vertexShader then ?>
 
@@ -28,20 +29,22 @@ uniform vec2 texCoordMax;
 uniform sampler2D tex;
 uniform sampler1D gradientTex;
 
+uniform vec2 solverMins, solverMaxs;
+
 void main() {
 	//start in 2D coords, bounded by the screen space
 	//TODO if we are viewing this in 3D then we will have to draw a quad bigger than the intersection of the camera hull with the XY plane
 	vec2 gridCoord = coordMapInv(vec3(viewCoord.xy, 0.)).xy;
 	
-	if (gridCoord.x < <?=clnumber(solver.mins[1])?> || gridCoord.x > <?=clnumber(solver.maxs[1])?> ||
-		gridCoord.y < <?=clnumber(solver.mins[2])?> || gridCoord.y > <?=clnumber(solver.maxs[2])?>
+	if (gridCoord.x < solverMins.x || gridCoord.x > solverMaxs.x ||
+		gridCoord.y < solverMins.y || gridCoord.y > solverMaxs.y
 	) {
 		discard;
 	}
 
 	vec2 texCoord = vec2(
-		((gridCoord.x - <?=clnumber(solver.mins[1])?>) / (<?=clnumber(solver.maxs[1])?> - <?=clnumber(solver.mins[1])?>) * <?=clnumber(solver.sizeWithoutBorder.x)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.x)?>,
-		((gridCoord.y - <?=clnumber(solver.mins[2])?>) / (<?=clnumber(solver.maxs[2])?> - <?=clnumber(solver.mins[2])?>) * <?=clnumber(solver.sizeWithoutBorder.y)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.y)?>
+		((gridCoord.x - solverMins.x) / (solverMaxs.x - solverMins.x) * <?=clnumber(solver.sizeWithoutBorder.x)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.x)?>,
+		((gridCoord.y - solverMins.y) / (solverMaxs.y - solverMins.y) * <?=clnumber(solver.sizeWithoutBorder.y)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.y)?>
 	) * texCoordMax;
 
 	float value = texture2D(tex, texCoord).r;
