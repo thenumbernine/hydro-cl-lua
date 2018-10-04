@@ -349,7 +349,6 @@ end
 -- TODO this has a lot in common with GridSolver
 function SolverBase:refreshSolverProgram()
 	-- [[ from GritSolver:refreshSolverProgram
-	self.getULRBuf = self.UBuf
 	
 	self.getULRArg = 'const global '..self.eqn.cons_t..'* UBuf'
 	
@@ -381,11 +380,10 @@ function SolverBase:refreshSolverProgram()
 	--  instead it has to be called by the individual implementation classes
 	if self.eqn.useSourceTerm then
 		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-		self.addSourceKernelObj.obj:setArg(1, self.UBuf)
 	end
 
 	if self.eqn.useConstrainU then
-		self.constrainUKernelObj = self.solverProgramObj:kernel('constrainU', self.solverBuf, self.UBuf)
+		self.constrainUKernelObj = self.solverProgramObj:kernel'constrainU'
 	end
 
 	for _,op in ipairs(self.ops) do
@@ -402,7 +400,8 @@ function SolverBase:refreshSolverProgram()
 				or (var.vecVar and var.vecVar.enabled)
 				then
 				--]]do
-					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id, self.solverBuf, self.texCLMem)
+					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id)
+					var.calcDisplayVarToTexKernelObj.obj:setArg(1, self.texCLMem)
 				end
 			end
 		end
@@ -415,7 +414,8 @@ function SolverBase:refreshSolverProgram()
 			or (var.vecVar and var.vecVar.enabled)
 			then
 			--]]do
-				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id, self.solverBuf, self.reduceBuf)
+				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id)
+				var.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
 			end
 		end
 	end
@@ -423,7 +423,8 @@ end
 
 -- for solvers who don't rely on calcDT
 function SolverBase:refreshCalcDTKernel()
-	self.calcDTKernelObj = self.solverProgramObj:kernel('calcDT', self.solverBuf, self.reduceBuf, self.UBuf)
+	self.calcDTKernelObj = self.solverProgramObj:kernel'calcDT'
+	self.calcDTKernelObj.obj:setArg(1, self.reduceBuf)
 end
 
 
@@ -732,6 +733,7 @@ end
 
 function DisplayVar:setArgs(kernel)
 	local buffer = assert(self.solver[self.bufferField], "failed to find buffer "..tostring(self.bufferField))
+	kernel:setArg(0, self.solver.solverBuf)
 	kernel:setArg(2, buffer)
 end
 
@@ -1059,6 +1061,8 @@ function SolverBase:calcDT()
 		dt = self.fixedDT
 	else
 		-- TODO this without the border, but that means changing reduce *and display*
+		self.calcDTKernelObj.obj:setArg(0, self.solverBuf)
+		self.calcDTKernelObj.obj:setArg(2, self.UBuf)
 		self.calcDTKernelObj()
 		dt = self.cfl * self.reduceMin()
 		if not math.isfinite(dt) then

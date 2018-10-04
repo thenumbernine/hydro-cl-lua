@@ -43,23 +43,15 @@ end
 function Roe:refreshSolverProgram()
 	Roe.super.refreshSolverProgram(self)
 
-	self.calcEigenBasisKernelObj = self.solverProgramObj:kernel(
-		'calcEigenBasis',
-		self.solverBuf,
-		self.eigenBuf,
-		self.getULRBuf)
+	self.calcEigenBasisKernelObj = self.solverProgramObj:kernel'calcEigenBasis'
+	self.calcEigenBasisKernelObj.obj:setArg(1, self.eigenBuf)
 
-	self.calcFluxKernelObj = self.solverProgramObj:kernel(
-		'calcFlux',
-		self.solverBuf,
-		self.fluxBuf,
-		self.getULRBuf,
-		self.eigenBuf)
+	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
+	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
+	self.calcFluxKernelObj.obj:setArg(3, self.eigenBuf)
 
 	if self.eqn.useSourceTerm then
 		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-		self.addSourceKernelObj.obj:setArg(0, self.solverBuf)
-		self.addSourceKernelObj.obj:setArg(2, self.UBuf)
 	end
 end
 
@@ -227,8 +219,12 @@ function Roe:calcDeriv(derivBuf, dt)
 	end
 
 
+	self.calcEigenBasisKernelObj.obj:setArg(0, self.solverBuf)
+	self.calcEigenBasisKernelObj.obj:setArg(2, self:getULRBuf())
 	self.calcEigenBasisKernelObj()
 
+	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
+	self.calcFluxKernelObj.obj:setArg(2, self:getULRBuf())
 	self.calcFluxKernelObj.obj:setArg(4, dtArg)
 	self.calcFluxKernelObj()
 
@@ -262,7 +258,7 @@ function Roe:calcDeriv(derivBuf, dt)
 	self.calcDerivFromFluxKernelObj()
 
 	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj.obj:setArg(1, derivBuf)
+		self.addSourceKernelObj.obj:setArgs(self.solverBuf, derivBuf, self.UBuf)
 		self.addSourceKernelObj()
 	end
 end

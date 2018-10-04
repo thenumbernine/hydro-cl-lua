@@ -568,7 +568,7 @@ function GridSolver:resetState()
 	
 	self:boundary()
 	if self.eqn.useConstrainU then
-		self.constrainUKernelObj()
+		self.constrainUKernelObj(self.solverBuf, self.UBuf)
 	end
 
 	GridSolver.super.resetState(self)
@@ -590,13 +590,15 @@ function GridSolver:getSolverCode()
 	}:concat'\n'
 end
 
--- depends on buffers
-function GridSolver:refreshSolverProgram()
+function GridSolver:getULRBuf()
 	-- set pointer to the buffer holding the LR state information
 	-- for piecewise-constant that is the original UBuf
 	-- for piecewise-linear that is the ULRBuf
-	self.getULRBuf = self.usePLM and self.ULRBuf or self.UBuf
+	return self.usePLM and self.ULRBuf or self.UBuf
+end
 
+-- depends on buffers
+function GridSolver:refreshSolverProgram()
 	self.getULRArg = self.usePLM 
 		and ('const global '..self.eqn.consLR_t..'* ULRBuf')
 		or ('const global '..self.eqn.cons_t..'* UBuf')
@@ -644,11 +646,12 @@ function GridSolver:refreshSolverProgram()
 	self:refreshCalcDTKernel()
 
 	if self.eqn.useConstrainU then
-		self.constrainUKernelObj = self.solverProgramObj:kernel('constrainU', self.solverBuf, self.UBuf)
+		self.constrainUKernelObj = self.solverProgramObj:kernel'constrainU'
 	end
 
 	if self.usePLM then
-		self.calcLRKernelObj = self.solverProgramObj:kernel('calcLR', self.solverBuf, self.ULRBuf, self.UBuf)
+		self.calcLRKernelObj = self.solverProgramObj:kernel'calcLR'
+		self.calcLRKernelObj.obj.setArg(1, self.ULRBuf)
 	end
 	if self.useCTU then
 		-- currently implemented in solver/roe.cl
@@ -672,7 +675,8 @@ function GridSolver:refreshSolverProgram()
 				or (var.vecVar and var.vecVar.enabled)
 				then
 				--]]do
-					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id, self.solverBuf, self.texCLMem)
+					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id)
+					var.calcDisplayVarToTexKernelObj.obj:setArg(1, self.texCLMem)
 				end
 			end
 		end
@@ -685,7 +689,8 @@ function GridSolver:refreshSolverProgram()
 			or (var.vecVar and var.vecVar.enabled)
 			then
 			--]]do
-				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id, self.solverBuf, self.reduceBuf)
+				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id)
+				var.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
 			end
 		end
 	end
@@ -1137,7 +1142,7 @@ function GridSolver:step(dt)
 	
 	if self.eqn.useConstrainU then
 		self:boundary()
-		self.constrainUKernelObj()
+		self.constrainUKernelObj(self.solverBuf, self.UBuf)
 	end
 
 	for _,op in ipairs(self.ops) do
