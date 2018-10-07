@@ -13,15 +13,10 @@ else
 	end
 end
 
-local function getn(...)
-	local t = {...}
-	t.n = select('#', ...)
-	return t
-end
 local function time(name, cb)
 	print(name..'...')
 	local startTime = getTime()
-	local result = getn(cb())
+	local result = table.pack(cb())
 	local endTime = getTime()
 	print('...done '..name..' ('..(endTime - startTime)..'s)')
 	return table.unpack(result, 1, result.n)

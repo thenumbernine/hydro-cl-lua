@@ -36,20 +36,11 @@ local function preInitAMR(self, args)
 			
 				-- the size, in cells, which a node replaces
 				nodeFromSize = ({
-					vec3sz(8, 1, 1),
-					vec3sz(8, 8, 1),
-					vec3sz(8, 8, 8),
+					vec3sz(32, 1, 1),
+					vec3sz(32, 32, 1),
+					vec3sz(32, 32, 32),
 				})[self.dim],
 
-				-- the size, in cells, of each node, excluding border, for each dimension
-				--[[ I'm going to cheat and make this equal to the root node size
-				-- this way I don't have to move the gridSize into the solver_t, and can reuse the same CL code for all nodes
-				nodeSizeWithoutBorder = ({
-					vec3sz(16, 1, 1),
-					vec3sz(16, 16, 1),
-					vec3sz(16, 16, 16),
-				})[self.dim],
-				--]]
 				nodeSizeWithoutBorder = vec3sz(self.sizeWithoutBorder),
 			},
 		}
@@ -63,6 +54,7 @@ local function preInitAMR(self, args)
 		end
 
 -- number of cells in the node. 
+-- I'm matching this with the root size.  if you want to change it then be prepared to change gridSize to be members of solver_t
 print('nodeSizeWithoutBorder', self.amr.ctx.nodeSizeWithoutBorder)
 
 -- number of cells that the node replaces
@@ -70,6 +62,12 @@ print('nodeFromSize', self.amr.ctx.nodeFromSize)
 
 -- how many nodes cover the parent
 print('parentSizeInFromSize', self.amr.ctx.parentSizeInFromSize)
+
+		-- make sure that the child boundary is at least as big as one cell in the parent
+		for i=0,2 do
+			assert(self.numGhost >= self.amr.ctx.parentSizeInFromSize:ptr()[i])
+		end
+
 		local volume = tonumber(self.amr.ctx.parentSizeInFromSize:volume())
 		self.amrErrorPtr = ffi.new('real[?]', volume)
 	end
@@ -79,56 +77,9 @@ end
 
 local function createBuffersAMR(self)
 	if self.amr.ctx.method == 'gradient' then
-		--[[
-		ok here's my thoughts on the size ...
-		I'm gonna try to do AMR
-		that means storing the nodes in the same buffer
-		I think I'll pad the end of the UBuf with the leaves
-		and then store a tree of index information somewhere else that says what leaf goes where
-		(maybe that will go at the end)
-		
-		how should memory breakdown look?
-		how big should the leaves be?
-
-		how about do like reduce ...
-		leaves can be 16x16 blocks
-		a kernel can cycle through the root leaves and sum te amrError 
-		-- in the same kernel as it is calculated
-		-- then I don't need to store so much memory, only one value per leaf, not per grid ...
-		-- then ... split or merge leaves, based on their error ...
-
-		how to modify that?  in anothe kernel of its own ...
-		bit array of whether each cell is divided ...
-		-- then in one kernel we update all leaves
-		-- in another kernel, populate leaf ghost cells
-		-- in another kernel, 
-		-- 		decide what should be merged and, based on that, copy from parent into this
-		--		if something should be split then look for unflagged children and copy into it
-		
-		how many bits will we need?
-		volume / leafSize bits for the root level
-		
-		then we have parameters of 
-		- how big each node is
-		- what level of refinement it is
-		
-		ex:
-		nodes in the root level are 2^4 x 2^4 = 2^8 = 256 cells = 256 bits = 2^5 = 32 bytes
-		
-
-		leafs are 2^4 x 2^4 = 2^8 = 256 cells
-		... but ghost cells are 2 border, so we need to allocate (2^n+2*2)^2 cells ... for n=4 this is 400 cells ... 
-			so we lose (2^n+2*2)^2 - 2^(2n) = 2^(2n) + 2^(n+3) + 2^4 - 2^(2n) = 2^(n+3) + 2^4) cells are lost
-		
-		so leafs multipy at a factor of 2^2 x 2^2 = 2^4 = 16
-		so the next level has 2^(8+4) = 2^12 = 4096 bits = 2^9 = 512 bytes
-
-		--]]
-
-
 
 		-- how big each node is
-		self.amrNodeSize = self.amr.ctx.nodeSizeWithoutBorder + 2 * self.numGhost
+		self.amr.nodeSize = self.amr.ctx.nodeSizeWithoutBorder + 2 * self.numGhost
 
 		self.amr.child = table()
 	end
@@ -137,7 +88,7 @@ local function createBuffersAMR(self)
 
 	--[[ this used to go after createBuffers UBufSize
 	if self.amr.ctx.method == 'gradient' then	
-		UBufSize = UBufSize + self.amrMaxNodes * self.amrNodeSize:volume()
+		UBufSize = UBufSize + self.amrMaxNodes * self.amr.nodeSize:volume()
 	end	
 	--]]
 
@@ -261,13 +212,13 @@ kernel void initNodeFromRoot(
 	int4 i = (int4)(0,0,0,0);
 	i.x = get_global_id(0);
 	i.y = get_global_id(1);
-	if (i.x >= <?=solver.amr.ctx.nodeSizeWithoutBorder.x?> || 
-		i.y >= <?=solver.amr.ctx.nodeSizeWithoutBorder.y?>) 
+	if (i.x >= <?=solver.amr.nodeSize.x?> || 
+		i.y >= <?=solver.amr.nodeSize.y?>) 
 	{
 		return;
 	}
 	
-	int dstIndex = i.x + numGhost + <?=solver.amrNodeSize.x?> * (i.y + numGhost);
+	int dstIndex = i.x + <?=solver.amr.nodeSize.x?> * i.y;
 
 	//'srci' is the coords within the parent node to read, relative to the child's upper-left
 	int4 srci = (int4)(0,0,0,0);
@@ -280,7 +231,7 @@ kernel void initNodeFromRoot(
 		);
 
 	//blitter srcU sized solver.amr.ctx.nodeFromSize (in a patch of size solver.gridSize)
-	// to dstU sized solver.amrNodeSize (in a patch of solver.amrNodeSize)
+	// to dstU sized solver.amr.nodeSize (in a patch of solver.amr.nodeSize)
 	
 	childUBuf[dstIndex] = parentUBuf[srcIndex];
 }
@@ -343,8 +294,6 @@ kernel void initNodeFromRoot(
 			self.app.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.lastUBuf, size=self.numCells * self.eqn.numStates * ffi.sizeof(self.app.real)}
 		end
 		
-		cl.super.update(self)
-
 		-- update children ... twice as many times, at half the timestep
 		local childDT = self.fixedDT * .5
 		for _,child in pairs(self.amr.child) do
@@ -384,27 +333,6 @@ kernel void initNodeFromRoot(
 				localSize = self.localSize:ptr(),
 			}
 
-			-- 2) based on what nodes' errors are past some value, split or merge...
-			--[[
-			1) initial tree will have nothing flagged as split
-			2) then we get some split data - gradients -> errors -> thresholds -> flags 
-				... which are lined up with the layout of the patches ...
-				... which doesn't necessarily match the tree structure ...
-			3) look through all used patches' error thresholds, min and max
-				if it says to split ... 
-					then look and see if we have room for any more free leafs in our state buffer
-				
-					the first iteration will request to split on some cells
-					so go through the error buffer for each (root?) node,
-					see if the error is bigger than some threshold then this node needs to be split
-						then we have to add a new leaf node
-					
-					so i have to hold a table of what in the U extra leaf buffer is used
-					which means looking
-				
-				if it says to merge ...
-					clear the 'used' flag in the overall tree / in the layout of leafs in our state buffer
-			--]]
 			local volume = tonumber(self.amr.ctx.parentSizeInFromSize:volume())
 			local ptr = assert(self.amrErrorPtr)
 			self.app.cmds:enqueueReadBuffer{buffer=self.amrErrorBuf, block=true, size=ffi.sizeof(self.app.real) * volume, ptr=ptr}
@@ -440,11 +368,11 @@ print("creating depth "..tonumber(self.amr.depth).." child "..tonumber(i))
 								local newmins = {
 									(self.maxs[1] - self.mins[1]) * nx * dx + self.mins[1],
 									(self.maxs[2] - self.mins[2]) * ny * dy + self.mins[2],
-									1}
+									0}
 								local newmaxs = {
 									(self.maxs[1] - self.mins[1]) * (nx+1) * dx + self.mins[1],
 									(self.maxs[2] - self.mins[2]) * (ny+1) * dy + self.mins[2],
-									1}	
+									0}	
 					
 -- when running the following, upon the next update, I start to get nans in the amr error buffer
 								local subsolver = subcl{
@@ -521,14 +449,6 @@ print("creating depth "..tonumber(self.amr.depth).." child "..tonumber(i))
 		self.eqn = self.parent.eqn
 	end
 
-	function subcl:createSolverBuf() 
-		subcl.super.createSolverBuf(self)
-
-		print('depth', self.amr.depth)
-		print('mins', self.mins, self.solverPtr.mins.x, self.solverPtr.mins.y, self.solverPtr.mins.z)
-		print('maxs', self.maxs, self.solverPtr.maxs.x, self.solverPtr.maxs.y, self.solverPtr.maxs.z)
-	end
-
 	function subcl:refreshEqnInitState() 
 		-- don't need to create init state ...
 		-- refreshCodePrefix is called next
@@ -542,7 +462,49 @@ print("creating depth "..tonumber(self.amr.depth).." child "..tonumber(i))
 		self.integrator = self.parent.integrator
 	end
 	function subcl:refreshInitStateProgram() end
-	function subcl:refreshBoundaryProgram() end
+
+	local template = require 'template'
+	function subcl:refreshBoundaryProgram() 
+--[=[
+		self.boundaryProgramObj, self.boundaryKernelObjs = self:createBoundaryProgramAndKernel(
+			table(
+				self:getBoundaryProgramArgs(),	-- should have the buffer and type
+				{
+					methods = {
+						xmin = 'freeflow',
+						xmax = 'freeflow',
+						ymin = 'freeflow',
+						ymax = 'freeflow',
+						zmin = 'freeflow',
+						zmax = 'freeflow',
+					},
+				}
+			)
+		)
+
+--]=]
+--[=[
+		local function copyBorder(args)
+			return template([[
+]])
+		end
+		self.boundaryProgramObj, self.boundaryKernelObjs = self:createBoundaryProgramAndKernel(
+			table(
+				self:getBoundaryProgramArgs(),	-- should have the buffer and type
+				methods = {
+					xmin = copyBorder,
+					xmax = copyBorder,
+					ymin = copyBorder,
+					ymax = copyBorder,
+					zmin = copyBorder,
+					zmax = copyBorder,
+				}
+			)
+		)
+		-- next comes the op's boundary programs
+		-- next comes the CTU's boundary programs
+--]=]
+	end
 	
 	function subcl:refreshSolverProgram()
 		local ks = table.keys(self.parent):sort()
@@ -592,11 +554,9 @@ print('creating subsolver ubuffer...')
 		createBuffersAMR(self)
 	end
 
-	function subcl:boundary()
+--	function subcl:boundary()
 		-- TODO give us a better boundary kernel, then this function can stay intact
-	end
-
-
+--	end
 
 	return cl
 end

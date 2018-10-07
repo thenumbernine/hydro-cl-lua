@@ -118,6 +118,7 @@ var.solver = origSolver
 				gl.glDisable(gl.GL_BLEND)
 		
 				self.gradientTex:unbind(1)
+				gl.glActiveTexture(gl.GL_TEXTURE0)
 				heatMap2DShader:useNone()
 			
 	--			gl.glDisable(gl.GL_DEPTH_TEST)

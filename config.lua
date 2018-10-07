@@ -67,6 +67,11 @@ maxs = {6,1,1},
 				{64,64,1},
 				{16,16,16},
 			},
+			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
+				{256,1,1},
+				{128,128,1},
+				{16,16,16},
+			},
 		})[platformName..'/'..deviceName] 
 		-- default size options
 		or {
@@ -211,10 +216,10 @@ maxs = {6,1,1},
 	--initState = 'linear',
 	--initState = 'gaussian',
 	--initState = 'advect wave',
-	initState = 'sphere',
+	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -579,5 +584,5 @@ maxs = {6,1,1},
 
 
 -- the start of AMR
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
-self.solvers:insert(require 'solver.amr'(require 'solver.roe')(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.amr'(require 'solver.roe')(table(args, {eqn='euler'})))
