@@ -444,7 +444,7 @@ maxs = {6,1,1},
 -- HD
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
---self.solvers:insert(require 'solver.euler-hllc'(args))
+self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
 -- still haven't added source terms to this
@@ -584,5 +584,5 @@ maxs = {6,1,1},
 
 
 -- the start of AMR
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.amr'(require 'solver.roe')(table(args, {eqn='euler'})))

@@ -29,11 +29,7 @@ end
 function HLL:refreshSolverProgram()
 	HLL.super.refreshSolverProgram(self)
 
-	self.calcFluxKernelObj = self.solverProgramObj:kernel(
-		'calcFlux',
-		self.solverBuf,
-		self.fluxBuf,
-		self.getULRBuf)
+	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
 
 	if self.eqn.useSourceTerm then
 		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
@@ -55,8 +51,8 @@ function HLL:calcDeriv(derivBuf, dt)
 	if self.usePLM then
 		self.calcLRKernelObj(self.solverBuf, self.ULRBuf, self.UBuf, dtArg)
 	end
-	
-	self.calcFluxKernelObj()
+
+	self.calcFluxKernelObj(self.solverBuf, self.fluxBuf, self:getULRBuf())
 
 -- [=[ this is from the 2017 Zingale book
 	if self.useCTU then	-- see solver/roe.lua for a description of why this is how this is
