@@ -214,8 +214,7 @@ function Roe:calcDeriv(derivBuf, dt)
 	self:boundary()
 	
 	if self.usePLM then
-		self.calcLRKernelObj.obj:setArg(3, dtArg)
-		self.calcLRKernelObj()
+		self.calcLRKernelObj(self.solverBuf, self.ULRBuf, self.UBuf, dtArg)
 	end
 
 
@@ -234,8 +233,7 @@ function Roe:calcDeriv(derivBuf, dt)
 		-- 1) calc fluxes based on a slope-limiter method (PLM, etc)
 		-- 2) at each interface, integrate each dimension's LR states by all other dimensions' fluxes with a timestep of -dt/2
 		--	( don't use the deriv buf because it already has the sum of all dimensions' flux differences)
-		self.updateCTUKernelObj.obj:setArg(2, dtArg)
-		self.updateCTUKernelObj()
+		self.updateCTUKernelObj(self.solverBuf, self.ULRBuf, self.fluxBuf, dtArg)
 
 		-- now we need to calcBounds on the ULR
 		-- TODO this will break for mirror conditions

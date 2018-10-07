@@ -65,7 +65,11 @@ print('parentSizeInFromSize', self.amr.ctx.parentSizeInFromSize)
 
 		-- make sure that the child boundary is at least as big as one cell in the parent
 		for i=0,2 do
-			assert(self.numGhost >= self.amr.ctx.parentSizeInFromSize:ptr()[i])
+			assert(self.numGhost >= self.amr.ctx.parentSizeInFromSize:ptr()[i],
+				require 'ext.tolua'{
+					['self.numGhost'] =self.numGhost,
+					['self.amr.ctx.parentSizeInFromSize:ptr()[i]'] = self.amr.ctx.parentSizeInFromSize:ptr()[i],
+				})
 		end
 
 		local volume = tonumber(self.amr.ctx.parentSizeInFromSize:volume())

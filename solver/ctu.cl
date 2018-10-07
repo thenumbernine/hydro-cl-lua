@@ -3,6 +3,7 @@ using the interface flux
 update the LR states by integrating dt/2 times the interface flux
 */
 kernel void updateCTU(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.consLR_t?>* ULRBuf,
 	const global <?=eqn.cons_t?>* fluxBuf,
 	real dt
@@ -23,14 +24,14 @@ for side=0,solver.dim-1 do
 		const global <?=eqn.cons_t?>* fluxR = fluxBuf + indexIntR;
 			
 		real3 xIntL = x;
-		xIntL.s<?=side?> -= .5 * grid_dx<?=side?>;
+		xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		real sqrt_det_g_intL = sqrt_det_g_grid(xIntL);
-		real areaL = sqrt_det_g_intL / grid_dx<?=side?>;
+		real areaL = sqrt_det_g_intL / solver->grid_dx.s<?=side?>;
 	
 		real3 xIntR = x;
-		xIntR.s<?=side?> += .5 * grid_dx<?=side?>;
+		xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 		real sqrt_det_g_intR = sqrt_det_g_grid(xIntR);
-		real areaR = sqrt_det_g_intR / grid_dx<?=side?>;
+		real areaR = sqrt_det_g_intR / solver->grid_dx.s<?=side?>;
 	
 		<?
 	for side2=0,solver.dim-1 do

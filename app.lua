@@ -490,8 +490,8 @@ function HydroCLApp:screenshotToFile(fn)
 	self.ssflipped:save(fn)
 end
 
-HydroCLApp.running = false
---HydroCLApp.running = true
+--HydroCLApp.running = false
+HydroCLApp.running = true
 
 local minDeltaY = 1e-7
 function HydroCLApp:update(...)

@@ -651,13 +651,12 @@ function GridSolver:refreshSolverProgram()
 
 	if self.usePLM then
 		self.calcLRKernelObj = self.solverProgramObj:kernel'calcLR'
-		self.calcLRKernelObj.obj.setArg(1, self.ULRBuf)
 	end
 	if self.useCTU then
 		-- currently implemented in solver/roe.cl
 		-- not available for any other flux method
 		assert(self.fluxBuf)
-		self.updateCTUKernelObj = self.solverProgramObj:kernel('updateCTU', self.ULRBuf, self.fluxBuf)
+		self.updateCTUKernelObj = self.solverProgramObj:kernel'updateCTU'
 	end
 
 
@@ -1033,7 +1032,7 @@ function GridSolver:refreshBoundaryProgram()
 			)
 		)
 		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
-			obj.obj:setArg(0, self.ULRBuf)
+			obj.obj:setArg(1, self.ULRBuf)
 		end
 	end
 end

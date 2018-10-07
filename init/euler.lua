@@ -906,7 +906,7 @@ end) then
 				{name='amplitude', value=1e-2},
 				{name='backgroundPressure', value=2.5},
 				{name='frequency', value=2.},
-				{name='thickness', value=.035},
+				{name='thickness', value=1e-7},--.035},
 				{name='velInside', value=-.5},
 				{name='velOutside', value=.5},
 			}
