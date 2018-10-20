@@ -19,7 +19,7 @@ Z4cFiniteDifferenceSolver.name = 'Z4c_FiniteDifference'
 -- probably not, courtesy of boundary
 -- in fact, how would boundary work with numGhost!=2?
 -- esp mirror boundary conditions?
-Z4cFiniteDifferenceSolver.numGhost = 2
+Z4cFiniteDifferenceSolver.numGhost = 4
 
 Z4cFiniteDifferenceSolver.eqnName = 'z4c-fd'
 

@@ -621,3 +621,21 @@ static inline real3 _3sym3_sym3_dot23(_3sym3 a, sym3 b) {
 real3 normalForSide0() { return _real3(1,0,0); }
 real3 normalForSide1() { return _real3(0,1,0); }
 real3 normalForSide2() { return _real3(0,0,1); }
+
+// https://community.amd.com/thread/169701
+// meh, not so great
+float crand() {
+	unsigned int seed = get_global_id(0)
+		+ 13 * get_global_id(1)
+		+ 87 * get_global_id(2);
+	seed = ((seed) * 16807 ) % 2147483647;
+	seed = ((seed) * 16807 ) % 2147483647;
+	seed = ((seed) * 16807 ) % 2147483647;
+	seed = ((seed) * 16807 ) % 2147483647;
+	seed = ((seed) * 16807 ) % 2147483647;
+	seed = ((seed) * 16807 ) % 2147483647;
+	seed = ((seed) * 16807 ) % 2147483647;
+	seed = ((seed) * 16807 ) % 2147483647;
+	return (float)(seed) * 4.6566129e-10;
+}
+

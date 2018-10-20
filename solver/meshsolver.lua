@@ -43,9 +43,9 @@ typedef struct cell_s {
 
 typedef struct iface_s {
 	real3 x;		//center.  realN.
-	int cellIndex[2];	//indexes of cells
 	real3 n;		//normal pointing from first to second
-	real area;
+	int cellIndex[2];	//indexes of cells
+	real area;		//edge length / surface area
 	real dist;		//dist between cell centers along 'n'	
 } iface_t;
 ]]
@@ -63,25 +63,44 @@ function MeshSolver:preInit(args)
 	ffi.cdef(self.meshTypeCode)
 
 	local meshfilename = assert(args.meshfile)
-	local data = string.split(string.trim(file['grids/'..meshfilename..'.p2dfmt']), '\n')
-		:map(function(l)
-			return string.split(string.trim(l), '%s+')
-		end)
-	local line1 = data:remove(1)
-	local size = data:remove(1)
-	
-	local vtxs = table()
-	for i=1,#data do
-		vtxs:append(data[i])
+	local ls = assert(file['grids/'..meshfilename..'.p2dfmt']):trim():split'\n'
+	local first = ls:remove(1)
+	local m, n = ls:remove(1):trim():split'%s+':map(function(l) return tonumber(l) end):unpack()
+	local x = ls:concat():trim():split'%s+':map(function(l) return tonumber(l) end)
+	assert(#x == 2*m*n)
+	print(m, n, m*n)
+	-- [[
+	local us = x:sub(1,m*n)
+	local vs = x:sub(m*n+1)
+	assert(#us == #vs)
+	local vtxs = matrix()
+	for i=1,#us do
+		local u,v = us[i], vs[i]
+		print(u,v)
+		vtxs[#vtxs+1] = matrix{u,v}
 	end
 
-	assert(size:product() == #vtxs / #size)
+	assert(#vtxs == m*n, "expected "..#vtxs.." to equal "..(m*n))
 	
-	-- or just matrix.reshape ...
-	local matrix = require 'matrix'
-	vtxs = matrix{#vtxs / #size, #size}:lambda(function(i,j)
-		return vtxs[#size * (i-1) + j]
-	end)
+	for i=1,n-1 do
+		for j=1,m-1 do
+			local c = addCell(
+				1 + j-1 + m * (i-1),
+				1 + j-1 + m * i,
+				1 + j + m * i,
+				1 + j + m * (i-1))
+			
+			c.U = consFromPrim(matrix{
+				1,
+				.1, 0, 0,
+				1
+			})
+		end
+	end
+
+
+error'fixme'
+
 
 	self.mins = matrix()
 	self.maxs = matrix()
@@ -177,6 +196,7 @@ function MeshSolver:preInit(args)
 		cells = cells,
 		ifaces = ifaces,
 	}
+	-- TODO put these in solver_t
 	self.numCells = #self.mesh.cells
 	self.numInterfaces = (size[1] - 1) * size[2] + size[1] * (size[2] - 1)
 

@@ -117,6 +117,13 @@ return function(cl)
 
 	local subcl
 
+	function cl:init(args)
+		-- overriding the gridsize ...
+		args = table(args)
+		args.gridSize = {64,64,1}
+		cl.super.init(self, args)
+	end
+
 	function cl:preInit(args)
 		cl.super.preInit(self, args)
 		preInitAMR(self, args)
@@ -558,9 +565,9 @@ print('creating subsolver ubuffer...')
 		createBuffersAMR(self)
 	end
 
---	function subcl:boundary()
-		-- TODO give us a better boundary kernel, then this function can stay intact
---	end
+	function subcl:boundary()
+  	-- TODO give us a better boundary kernel, then this function can stay intact
+	end
 
 	return cl
 end

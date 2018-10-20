@@ -904,6 +904,8 @@ end) then
 				{name='rhoInside', value=2.},
 				{name='rhoOutside', value=1.},
 				{name='amplitude', value=1e-2},
+				-- not seeing much of a difference
+				{name='noiseAmplitude', value=1e-4},
 				{name='backgroundPressure', value=2.5},
 				{name='frequency', value=2.},
 				{name='thickness', value=1e-7},--.035},
@@ -942,6 +944,11 @@ end ?>
 	v.<?=moveAxis?> += inside * velInside + (1. - inside) * velOutside;
 	v = cartesianFromCoord(v, x);
 	P = backgroundPressure;
+	rho += noiseAmplitude * crand();
+	v.x += noiseAmplitude * crand();
+	v.y += noiseAmplitude * crand();
+	v.z += noiseAmplitude * crand();
+	P += noiseAmplitude * crand();
 ]],				{
 					solver = solver,
 					moveAxis = solver.eqn.guiVars.moveAxis.options[solver.eqn.guiVars.moveAxis.value],
