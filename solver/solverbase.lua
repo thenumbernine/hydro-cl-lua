@@ -17,8 +17,8 @@ local time, getTime = table.unpack(require 'time')
 local common = require 'common'()	-- xNames, symNames
 local xNames = common.xNames
 local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
+local from3x3to6 = common.from3x3to6
+local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
 
@@ -72,7 +72,7 @@ end
 
 function SolverBase:preInit(args)
 
--- despite the name, this doesn't have anything to do with the grid size ... 
+-- despite the name, this doesn't have anything to do with the grid size ...
 -- ... except in the GridSolver class
 	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
 	-- product of all local sizes must be <= max workgroup size
@@ -85,7 +85,7 @@ print(k,v)
 		self[k] = v
 	end
 	
-	-- hmm, do some eqns create ops need to know the grid size? 
+	-- hmm, do some eqns create ops need to know the grid size?
 	self.eqnName = args.eqn
 	self.eqnArgs = args.eqnArgs
 	self:createEqn()
@@ -278,7 +278,7 @@ function SolverBase:createBuffers()
 
 	-- used both by reduceMin and reduceMax
 	-- (and TODO use this by sum() in implicit solver as well?)
-	-- times three because this is also used by the displayVar 
+	-- times three because this is also used by the displayVar
 	-- on non-GL-sharing cards.
 	self:clalloc('reduceBuf', self.numCells * realSize * 3)
 	local reduceSwapBufSize = roundup(self.numCells * realSize / self.localSize1d, realSize)
@@ -396,7 +396,7 @@ function SolverBase:refreshSolverProgram()
 		for _,displayVarGroup in ipairs(self.displayVarGroups) do
 			for _,var in ipairs(displayVarGroup.vars) do
 				--[[
-				if var.enabled 
+				if var.enabled
 				or (var.vecVar and var.vecVar.enabled)
 				then
 				--]]do
@@ -410,7 +410,7 @@ function SolverBase:refreshSolverProgram()
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
 		for _,var in ipairs(displayVarGroup.vars) do
 			--[[
-			if var.enabled 
+			if var.enabled
 			or (var.vecVar and var.vecVar.enabled)
 			then
 			--]]do
@@ -430,7 +430,7 @@ end
 
 function SolverBase:getSolverCode()
 	local fluxLimiterCode = 'real fluxLimiter(real r) {'
-		.. self.app.limiters[self.fluxLimiter].code 
+		.. self.app.limiters[self.fluxLimiter].code
 		.. '}'
 
 	return table{
@@ -480,24 +480,23 @@ function SolverBase:getDisplayCode()
 							input = 
 							
 							-- nvidia needed this, but I don't want to write only -- I want to accumulate and do other operations
-							--'write_only '	..
+							'write_only '	..
 							-- if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
 								
-								(self.dim == 3 
-									and 'image3d_t' 
+								(self.dim == 3
+									and 'image3d_t'
 									or 'image2d_t'
 								)..' tex',
-							output = [[
-	write_imagef(
-		tex,
-		texCoord,
-		(float4)(
-			max(value[0], readValues.x),
-			max(value[1], readValues.y),
-			max(value[2], readValues.z), 
-			0.)
-	);
-]],
+							output = template([[
+#warning no accum function support yet
+write_imagef(
+	tex,
+	<? if solver.dim == 3 then ?> i <? else ?> i.xy <? end ?>,
+	(float4)(value[0], value[1], value[2], 0.));
+]], {
+		solver = self,
+		accumFunc = self.displayVarAccumFunc and 'max' or nil,
+	}),
 						})
 					}
 				end
@@ -508,7 +507,7 @@ function SolverBase:getDisplayCode()
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
 		for _,var in ipairs(displayVarGroup.vars) do
 			--[[
-			if var.enabled 
+			if var.enabled
 			or (var.vecVar and var.vecVar.enabled)
 			then
 			--]]do
@@ -525,7 +524,7 @@ function SolverBase:getDisplayCode()
 ]] or template([[
 	dest[dstindex] = <?
 if accumFunc then
-	?> 
+	?>
 	<?=accumFunc?>(value[0], dest[dstindex])
 	<?
 else
@@ -534,7 +533,7 @@ end
 ?>
 ;
 ]], {
-		accumFunc = self.displayVarAccumFunc and 'max' or nil, 
+		accumFunc = self.displayVarAccumFunc and 'max' or nil,
 	}),
 					})
 				}
@@ -653,10 +652,10 @@ kernel void <?=name?>(
 	,const global cell_t* cells			//[numCells]
 	,const global iface_t* ifaces		//[numInterfaces]
 <? end ?>
-	<?= 
-	var.extraArgs and #var.extraArgs > 0 
+	<?=
+	var.extraArgs and #var.extraArgs > 0
 		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
-		or '' 
+		or ''
 ?>
 ) {
 	SETBOUNDS(0,0);
@@ -669,16 +668,16 @@ kernel void <?=name?>(
 	//now constrain
 	if (i.x < numGhost) i.x = numGhost;
 	if (i.x >= gridSize_x - numGhost) i.x = gridSize_x - numGhost-1;
-<? 
+<?
 if solver.dim >= 2 then
 ?>	if (i.y < numGhost) i.y = numGhost;
 	if (i.y >= gridSize_y - numGhost) i.y = gridSize_y - numGhost-1;
-<? 
+<?
 end
 if solver.dim >= 3 then
 ?>	if (i.z < numGhost) i.z = numGhost;
 	if (i.z >= gridSize_z - numGhost) i.z = gridSize_z - numGhost-1;
-<? end 
+<? end
 ?>
 	//and recalculate read index
 	index = INDEXV(i);
@@ -713,7 +712,7 @@ function DisplayVar:init(args)
 	self.codePrefix = args.codePrefix
 
 	-- display stuff
-	self.enabled = not not args.enabled 
+	self.enabled = not not args.enabled
 	self.useLog = args.useLog or false
 	self.color = vec3(math.random(), math.random(), math.random()):normalize()
 	self.heatMapFixedRange = false	-- args.name ~= 'error'
@@ -725,7 +724,7 @@ function DisplayVar:init(args)
 
 	-- maybe this should be in args too?
 	-- or - instead of buffer - how about all the kernel's args?
-	-- but the reason I have to store the field here is that the buffer isn't made yet 
+	-- but the reason I have to store the field here is that the buffer isn't made yet
 	-- TODO? make display vars after buffers so I can store the buffer here?
 	self.bufferField = args.bufferField
 	self.extraArgs = args.extraArgs
@@ -862,7 +861,7 @@ enableVector = false
 		end
 
 		-- this is a quick fix for the magn vars associated with the axis real3 vars of the sym3s
-		-- but it has lots of redundant symmetries for the sym3 real3 elements 
+		-- but it has lots of redundant symmetries for the sym3 real3 elements
 		local function addvar(args)
 			-- enable the first scalar field
 			-- also enable the first vector field on non-1D simulations
@@ -873,8 +872,8 @@ enableVector = false
 			if self.predefinedDisplayVars then
 				enabled = not not table.find(self.predefinedDisplayVars, args.name)
 			else
-				if group.name == 'U' 
-				or (group.name:sub(1,5) == 'error' and self.dim == 1) 
+				if group.name == 'U'
+				or (group.name:sub(1,5) == 'error' and self.dim == 1)
 				then
 					if args.vartype ~= 'real3' then
 						enabled = enableScalar
@@ -971,7 +970,7 @@ function SolverBase:calcDisplayVarRange(var)
 	local channels = var.vectorField and 3 or 1
 	-- this size stuff is very GridSolver-based
 	local volume = self.numCells
-	local sizevec = self[var.bufferField].sizevec 
+	local sizevec = self[var.bufferField].sizevec
 	if sizevec then
 		volume = tonumber(sizevec:volume())
 	end
@@ -1000,11 +999,11 @@ end
 print('reduce min',min,'max',max,'volume',volume,'name',var.name,'channels',channels)
 var.lastMin = min
 var.lastMax = max
-return min, max	
+return min, max
 else
 --]] do
 
-	-- this is failing with 1D for channels == 3, for vectors (but works for 2D etc) 
+	-- this is failing with 1D for channels == 3, for vectors (but works for 2D etc)
 	local min = self.reduceMin(nil, volume*channels)
 	self:calcDisplayVarToBuffer(var)
 	local max = self.reduceMax(nil, volume*channels)
@@ -1026,9 +1025,9 @@ function SolverBase:calcDisplayVarRangeAndAvg(var)
 	local min, max = self:calcDisplayVarRange(var)
 	-- displayVarGroup has already set up the appropriate args
 	
-	-- duplicated in calcDisplayVarRange 
+	-- duplicated in calcDisplayVarRange
 	local size = self.numCells
-	local sizevec = self[var.bufferField].sizevec 
+	local sizevec = self[var.bufferField].sizevec
 	if sizevec then
 		size = tonumber(sizevec:volume())
 	end
@@ -1080,7 +1079,7 @@ function SolverBase:update()
 	Here's an update-based FPS counter.
 	This isn't as precise as profiling events for all of my OpenCL calls
 	but it will give a general idea while running simulations continuously.
-	Because pauses will mess with the numbers, I'll only look at the last n many frames.  
+	Because pauses will mess with the numbers, I'll only look at the last n many frames.
 	Maybe just the last 1.
 	--]]
 	local thisTime = getTime()
@@ -1108,9 +1107,9 @@ function SolverBase:calcDisplayVarToBuffer(var)
 	local channels = var.vectorField and 3 or 1
 	local app = self.app
 
-	-- duplicated in calcDisplayVarRange 
+	-- duplicated in calcDisplayVarRange
 	local volume = self.numCells
-	local sizevec = self[var.bufferField].sizevec 
+	local sizevec = self[var.bufferField].sizevec
 	if sizevec then
 		volume = tonumber(sizevec:volume())
 	end
@@ -1151,7 +1150,7 @@ function SolverBase:updateGUIParams()
 		self:refreshIntegrator()
 	end
 
-	-- I think I'll display my GMRES # steps to converge / epsilon error ... 
+	-- I think I'll display my GMRES # steps to converge / epsilon error ...
 	if self.integrator.updateGUI then
 		ig.igSameLine()
 		ig.igPushIDStr'integrator'

@@ -922,8 +922,8 @@ function HydroCLApp:event(event, ...)
 	if HydroCLApp.super.event then
 		HydroCLApp.super.event(self, event, ...)
 	end
-	local canHandleMouse = not rawget(ig, 'disabled') and not ig.igGetIO()[0].WantCaptureMouse
-	local canHandleKeyboard = not rawget(ig, 'disabled') and not ig.igGetIO()[0].WantCaptureKeyboard
+	local canHandleMouse = rawget(ig, 'disabled') or not ig.igGetIO()[0].WantCaptureMouse
+	local canHandleKeyboard = rawget(ig, 'disabled') or not ig.igGetIO()[0].WantCaptureKeyboard
 	local shiftDown = leftShiftDown or rightShiftDown
 	local guiDown = leftGuiDown or rightGuiDown
 	if event.type == sdl.SDL_MOUSEMOTION then

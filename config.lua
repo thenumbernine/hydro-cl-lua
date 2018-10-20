@@ -69,7 +69,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{256,1,1},
-				{256,256,1},
+				{128,128,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -442,7 +442,7 @@ maxs = {6,1,1},
 }
 
 -- HD
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
@@ -578,7 +578,7 @@ maxs = {6,1,1},
 
 
 -- the start of unstructured meshes
-self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', meshfile='n0012_113-33'})))
+--self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', meshfile='n0012_113-33'})))
 -- temp here -- to make sure ordinary solvers still run
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
 
