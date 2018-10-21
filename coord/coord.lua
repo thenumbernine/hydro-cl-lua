@@ -123,7 +123,7 @@ function CoordinateSystem:init(args)
 		{variables=embedded, symbols='IJKLMN', metric=flatMetric},
 	}
 
-	local baseCoords = table.map(coords, function(coord)
+	local baseCoords = table.mapi(coords, function(coord)
 		return coord.base or coord
 	end)
 
@@ -184,7 +184,7 @@ dprint(var'eHol''_u^I':eq(var'u''^I_,u'):eq(eHol'_u^I'()))
 --dprint('$[',ui.name,',',uj.name,'] =$',diff:eq(diffEval))
 					diff = diff()
 --dprint('factor division',diff)
-					local dpsi = table.map(baseCoords, function(uk) return psi:diff(uk) end)
+					local dpsi = table.mapi(baseCoords, function(uk) return psi:diff(uk) end)
 --dprint('dpsi', dpsi:unpack())
 					local A,b = symmath.factorLinearSystem({diff}, dpsi)
 					-- now extract psi:diff(uk)
@@ -276,11 +276,11 @@ dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(GammaHol_ull'
 	end)
 	
 	local toC = require 'symmath.tostring.C'
-	local toC_coordArgs = table.map(baseCoords, function(coord, i)
+	local toC_coordArgs = table.mapi(baseCoords, function(coord, i)
 		return {['{pt^'..i..'}'] = coord}	-- 1-based
-	end):append(range(dim):map(function(a)
+	end):append(range(dim):mapi(function(a)
 		return {[paramU[a].name] = paramU[a]}
-	end)):append(range(dim):map(function(a)
+	end)):append(range(dim):mapi(function(a)
 		return {[paramV[a].name] = paramV[a]}
 	end))
 	local function compile(expr)
@@ -295,7 +295,7 @@ dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(GammaHol_ull'
 					if value == 1 then
 						return x[1]
 					else
-						return symmath.op.mul(range(value):map(function() 
+						return symmath.op.mul(range(value):mapi(function() 
 							return symmath.clone(x[1])
 						end):unpack())
 					end
@@ -317,7 +317,7 @@ dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(GammaHol_ull'
 	end
 
 	-- uCode is used to project the grid for displaying
-	self.uCode = range(dim):map(function(i) 
+	self.uCode = range(dim):mapi(function(i) 
 		local uCode = compile(u[i])
 if uCode ~= '0.' then
 	dprint('uCode['..i..'] = '..substCoords(uCode))
@@ -328,12 +328,12 @@ end
 	-- extend 'e' to full R3 
 	-- TODO should I do this from the start?
 	-- just provide the full R3 coordinates, and make no 'eExt' struct
-	local eExt = range(dim):map(function(j)
-		return range(dim):map(function(i) return e[j][i] or const(0) end)
+	local eExt = range(dim):mapi(function(j)
+		return range(dim):mapi(function(i) return e[j][i] or const(0) end)
 	end)
 
-	self.eCode = eExt:map(function(ei,i) 
-		return ei:map(function(eij,j)
+	self.eCode = eExt:mapi(function(ei,i) 
+		return ei:mapi(function(eij,j)
 			local eijCode = compile(eij) 
 if eijCode ~= '0.' then
 	dprint('eCode['..i..']['..j..'] = '..substCoords(eijCode))
@@ -343,33 +343,33 @@ end
 	end)
 	
 --[=[ not being used
-	local eHolLen = range(#eHol):map(function(i)
+	local eHolLen = range(#eHol):mapi(function(i)
 		return symmath.sqrt(
-			range(#eHol):map(function(j)
+			range(#eHol):mapi(function(j)
 				return eHol[i][j]^2
 			end):sum()
 		)()
 	end)
 	
-	self.eHolLenCode = eHolLen:map(function(eiHolLen, i)
+	self.eHolLenCode = eHolLen:mapi(function(eiHolLen, i)
 		local eiHolLenCode = compile(eiHolLen)
 dprint('eHolLen['..i..'] = '..substCoords(eiHolLenCode))
 		return eiHolLenCode
 	end)
 	
-	local eExtLen = eExt:map(function(ei,i)
-		return symmath.sqrt(ei:map(function(x) return x^2 end):sum())()
+	local eExtLen = eExt:mapi(function(ei,i)
+		return symmath.sqrt(ei:mapi(function(x) return x^2 end):sum())()
 	end)
-	local eExtUnit = eExt:map(function(ei,i)
-		return ei:map(function(eij) return (eij/eExtLen[i])() end)
+	local eExtUnit = eExt:mapi(function(ei,i)
+		return ei:mapi(function(eij) return (eij/eExtLen[i])() end)
 	end)
-	self.eUnitCode = eExtUnit:map(function(ei_unit,i) return ei_unit:map(compile) end)
+	self.eUnitCode = eExtUnit:mapi(function(ei_unit,i) return ei_unit:mapi(compile) end)
 dprint('eUnitCode = ', tolua(self.eUnitCode, {indent=true}))
 --]=]
 
 	-- v^k -> v_k
 	local lowerExpr = paramU'_a'()
-	self.lowerCodes = range(dim):map(function(i)
+	self.lowerCodes = range(dim):mapi(function(i)
 		local lowerCode = compile(lowerExpr[i])
 dprint('lowerCode['..i..'] = '..substCoords(lowerCode))
 		return lowerCode
@@ -380,9 +380,9 @@ dprint('lowerCode['..i..'] = '..substCoords(lowerCode))
 	self.uLenSqCode = compile(lenSqExpr)
 dprint('uLenSqCodes = '..substCoords(self.uLenSqCode))
 	
-	self.connCodes = range(dim):map(function(i)
-		return range(dim):map(function(j)
-			return range(dim):map(function(k)
+	self.connCodes = range(dim):mapi(function(i)
+		return range(dim):mapi(function(j)
+			return range(dim):mapi(function(k)
 				local code = compile(Gamma[i][j][k])
 if code ~= '0.' then
 	dprint('connCode['..i..j..k..'] = '..substCoords(code))
@@ -394,7 +394,7 @@ end
 	
 	-- Conn^i_jk(x) u^j v^k
 	local connExpr = (Gamma'^a_bc' * paramU'^b' * paramV'^c')()
-	self.connApply23Codes = range(dim):map(function(i)
+	self.connApply23Codes = range(dim):mapi(function(i)
 		local conniCode = compile(connExpr[i])
 if conniCode ~= '0.' then
 	dprint('connApply23Code['..i..'] = '..substCoords(conniCode))
@@ -404,7 +404,7 @@ end
 
 	-- u^j v^k Conn_jk^i(x)
 	local connLastExpr = (paramU'^b' * paramV'^c' * Gamma'_bc^a')()
-	self.connApply12Codes = range(dim):map(function(i)
+	self.connApply12Codes = range(dim):mapi(function(i)
 		local connLastiCode = compile(connLastExpr[i])
 if connLastiCode ~= '0.' then
 	dprint('connApply12Code['..i..'] = '..substCoords(connLastiCode))
@@ -414,7 +414,7 @@ end
 	
 	-- Conn^i = Conn^i_jk g^jk
 	local connTrace23Expr = (Gamma'^a_b^b')()
-	self.connTrace23Codes = range(dim):map(function(i)
+	self.connTrace23Codes = range(dim):mapi(function(i)
 		local connTraceiCode = compile(connTrace23Expr[i])
 if connTraceiCode ~= '0.' then
 	dprint('connTrace23Code['..i..'] = '..substCoords(connTraceiCode))
@@ -424,7 +424,7 @@ end
 
 	-- sqrt(g)_,i / sqrt(g) = Conn^j_ij
 	local connTrace13Expr = (Gamma'^b_ab')()
-	self.connTrace13Codes = range(dim):map(function(i)
+	self.connTrace13Codes = range(dim):mapi(function(i)
 		local connTraceiCode = compile(connTrace13Expr[i])
 if connTraceiCode ~= '0.' then
 	dprint('connTrace13Code['..i..'] = '..substCoords(connTraceiCode))
@@ -435,7 +435,7 @@ end
 
 	-- dx is the change across the grid
 	-- therefore it is based on the holonomic metric
-	self.dxCodes = range(dim):map(function(i)
+	self.dxCodes = range(dim):mapi(function(i)
 		local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
 		local lenSqExpr = (dir'^a' * dir'^b' * gHol'_ab')()
 		local lenCode = compile((symmath.sqrt(lenSqExpr))())
@@ -446,8 +446,8 @@ end
 	end)
 
 	self.g = g
-	self.gCode = range(dim):map(function(i)
-		return range(i,dim):map(function(j)
+	self.gCode = range(dim):mapi(function(i)
+		return range(i,dim):mapi(function(j)
 			local gijCode = compile(self.g[i][j])
 if gijCode ~= '0.' then
 	dprint('g['..i..']['..j..'] = '..substCoords(gijCode))
@@ -458,8 +458,8 @@ end
 
 	local gU = Tensor('^ab', table.unpack((Matrix.inverse(g))))
 	self.gU = gU
-	self.gUCode = range(dim):map(function(i)
-		return range(i,dim):map(function(j)
+	self.gUCode = range(dim):mapi(function(i)
+		return range(i,dim):mapi(function(j)
 			local gUijCode = compile(self.gU[i][j])
 if gUijCode ~= '0.' then
 	dprint('gU['..i..']['..j..'] = '..substCoords(gUijCode))
@@ -469,8 +469,8 @@ end
 	end)
 	
 	local sqrt_gU = Tensor('^ab', function(a,b) return symmath.sqrt(gU[a][b])() end)
-	self.sqrt_gUCode = range(dim):map(function(i)
-		return range(i,dim):map(function(j)
+	self.sqrt_gUCode = range(dim):mapi(function(i)
+		return range(i,dim):mapi(function(j)
 			local sqrt_gUijCode = compile(sqrt_gU[i][j])
 if sqrt_gUijCode ~= '0.' then
 	dprint('sqrt(gU['..i..']['..j..']) = '..substCoords(sqrt_gUijCode))
@@ -627,7 +627,7 @@ function CoordinateSystem:getCode(solver)
 	
 	-- dx0, ...
 	-- this is the change in cartesian wrt the change in grid
-	lines:append(range(dim):map(function(i)
+	lines:append(range(dim):mapi(function(i)
 		local code = self.dxCodes[i]
 		for j=1,3 do
 			code = code:gsub(
@@ -734,7 +734,7 @@ end
 
 function CoordinateSystem:getCoordMapCode()
 	return table{
-		getCode_real3_to_real3('coordMap', range(3):map(function(i)
+		getCode_real3_to_real3('coordMap', range(3):mapi(function(i)
 			return self.uCode[i] or '{pt^'..i..'}'
 		end)),
 	}:concat'\n'

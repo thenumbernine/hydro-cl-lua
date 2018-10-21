@@ -526,7 +526,41 @@ return table{
 		end,
 	},
 	
-	
+
+	{	-- initial data from SENR/NumPy jupyter notebooks:
+		-- https://hub.mybinder.org/user/zachetienne-nrpytutorial-a0u5aw7y/notebooks/Tutorial-ADM_Initial_Data-Brill-Lindquist.ipynb
+		name = 'black hole - SENR/NumPy',
+		init = function(self, solver)
+			args = args or {}
+			local v = solver.eqn.guiVars
+			self.bodies = args.bodies or {
+				{
+					R = .0001,
+					P_u = {0,0,0},
+					S_u = {0,0,.01},
+					pos = {0,0,0},
+				},
+			}
+		end,
+		initState = function(self, solver)
+			return template([[
+<? local clnumber = require 'cl.obj.number' ?>	
+	real psi = 1.;
+	<? for _,body in ipairs(bodies) do ?>{
+		const real R = <?=clnumber(body.R)?>;
+		real3 pos = _real3(<?=clnumber(body.pos[1])?>, <?=clnumber(body.pos[2])?>, <?=clnumber(body.pos[3])?>);
+		real3 xrel = real3_sub(xc, pos);
+		real r = real3_len(xrel);
+		psi += .25 * R / r;
+	}<? end ?>
+	real psi2 = psi*psi;
+	gamma_ll = sym3_real_mul(sym3_ident, psi2*psi2);
+	alpha = 1. / psi2;
+]], {
+	bodies = self.bodies,
+})
+		end,
+	},
 	
 	-- based on ch.23 of 1973 Misner, Thorne, Wheeler "Gravitation"
 	-- TODO add support for multiple bodies

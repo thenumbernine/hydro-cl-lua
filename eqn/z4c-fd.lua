@@ -39,7 +39,7 @@ function Z4cFiniteDifferenceEquation:init(args)
 	if args.useHypGammaDriver ~= nil then
 		self.useHypGammaDriver = args.useHypGammaDriver
 	else
-		self.useHypGammaDriver = false
+		self.useHypGammaDriver = true
 	end
 
 	local intVars = table{
@@ -88,7 +88,7 @@ function Z4cFiniteDifferenceEquation:createInitState()
 	self:addGuiVars{
 		{name='constrain_det_gammaBar_ll', value=true},
 		{name='constrain_tr_ABar_ll', value=true},
-		{name='useGammaDriver', value=true},
+		{name='useGammaDriver', value=false},
 		{name='diffuseSigma', value=.01},
 	}
 end

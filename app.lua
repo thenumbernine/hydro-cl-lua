@@ -54,6 +54,7 @@ local GLProgram = require 'gl.program'
 local GLGradientTex = require 'gl.gradienttex'
 local GLTex2D = require 'gl.tex2d'
 local Font = require 'gui.font'
+local Mouse = require 'gui.mouse'
 local vec4d = require 'ffi.vec.vec4d'
 local vec3d = require 'ffi.vec.vec3d'
 local tooltip = require 'tooltip'
@@ -87,7 +88,7 @@ HydroCLApp.limiters = table{
 	{name='superbee', code='return max((real)0., (real)max((real)min((real)1., (real)2. * r), (real)min((real)2., r)));'},
 	{name='Barth-Jespersen', code='return .5 * (r + 1.) * min(1., min(4. * r / (r + 1.), 4. / (r + 1.)));'},
 }
-HydroCLApp.limiterNames = HydroCLApp.limiters:map(function(limiter) return limiter.name end)
+HydroCLApp.limiterNames = HydroCLApp.limiters:mapi(function(limiter) return limiter.name end)
 
 --[[
 setup for the solver
@@ -106,7 +107,7 @@ function HydroCLApp:setup(args)
 	assert(load([[
 local ]]..keys:concat', '..[[ = ...
 ]] .. file['config.lua']))(
-	keys:map(function(key) return args[key] end):unpack()
+	keys:mapi(function(key) return args[key] end):unpack()
 )
 end
 
@@ -120,7 +121,7 @@ local function makeDefaultPlane(i)
 	plane:ptr()[math.min(i,3)-1] = -1
 	return plane
 end
-local clipInfos = range(4):map(function(i)
+local clipInfos = range(4):mapi(function(i)
 	return {
 		enabled = i == 3,
 		plane = makeDefaultPlane(i),
@@ -147,7 +148,7 @@ local display3DMethods = table{
 	{Raytrace = HydroCLApp.display3D_Ray},
 	{Isosurfaces = HydroCLApp.display3D_Isosurface},
 }
-local display3DMethodNames =  display3DMethods:map(function(kv)
+local display3DMethodNames =  display3DMethods:mapi(function(kv)
 	return (next(kv))
 end)
 
@@ -221,7 +222,7 @@ function HydroCLApp:initGL(...)
 
 	-- This only looks good when overlaying vector fields on top of other graphs.
 	-- When it comes to separate variables, they usually look better apart.
-	self.displayAllTogether = self.solvers[1] and self.solvers[1].dim > 1 or false
+	self.displayAllTogether = false	--self.solvers[1] and self.solvers[1].dim > 1 or false
 
 
 	self.gradientTex = GLGradientTex(1024, {
@@ -236,7 +237,7 @@ function HydroCLApp:initGL(...)
 		{1,1,1,1},	-- white
 	--]]
 	--[[ stripes 
-		range(32):map(function(i)
+		range(32):mapi(function(i)
 			return ({
 				{0,0,0,0},
 				{1,1,1,1},
@@ -306,7 +307,7 @@ void main() {
 	end
 
 	-- todo reorganize me
-	self.display2DMethodsEnabled = display2DMethods:map(function(method, index)
+	self.display2DMethodsEnabled = display2DMethods:mapi(function(method, index)
 		local name, func = next(method)
 		return index == 1, name
 	end)
@@ -493,8 +494,12 @@ end
 HydroCLApp.running = false
 --HydroCLApp.running = true
 
+local mouse = Mouse()
+local pushVarNamesEnabled
+
 local minDeltaY = 1e-7
 function HydroCLApp:update(...)
+	mouse:update()
 	if self.running then
 		if self.running == 'step' then 
 			print('performing single step...')
@@ -558,6 +563,8 @@ end
 	end
 
 	local ar = (w / graphsWide) / (h / graphsHigh)
+
+	local mouseClickedOnVar
 
 	local useLog
 	local vectorField
@@ -640,11 +647,20 @@ end
 		end
 
 		if not self.displayAllTogether then
-			gl.glViewport(
-				graphCol / graphsWide * w,
-				(1 - (graphRow + 1) / graphsHigh) * h,
-				w / graphsWide,
-				h / graphsHigh)
+			local vpxmin = graphCol / graphsWide * w
+			local vpymin = (1 - (graphRow + 1) / graphsHigh) * h
+			local vpw = w / graphsWide
+			local vph = h / graphsHigh
+			gl.glViewport(vpxmin, vpymin, vpw, vph)
+			local mx = mouse.pos[1] * self.width
+			local my = mouse.pos[2] * self.height
+			if mx >= vpxmin and mx < vpxmin + vpw
+			and my >= vpymin and my < vpymin + vph
+			and mouse.leftClick
+			--and mouse.leftDown and not mouse.lastLeftDown
+			then
+				mouseClickedOnVar = varName
+			end
 		end
 
 		-- TODO maybe find the first solver for this var and use it to choose 1D,2D,3D
@@ -681,7 +697,7 @@ end
 	gl.glLoadIdentity()
 
 	if self.font then
-		local solverNames = self.solvers:map(function(solver)
+		local solverNames = self.solvers:mapi(function(solver)
 			return {
 				text = ('(%.3f) %s'):format(solver.t, solver.name),
 				color = solver.color,
@@ -689,7 +705,7 @@ end
 		end)
 		local fontSizeX = .02
 		local fontSizeY = .02
-		local maxlen = solverNames:map(function(solverName)
+		local maxlen = solverNames:mapi(function(solverName)
 			return self.font:draw{
 				text = solverName.text,
 				fontSize = {fontSizeX, -fontSizeY},
@@ -719,6 +735,27 @@ end
 	if HydroCLApp.super.update then
 		HydroCLApp.super.update(self, ...)
 	end
+
+	if mouseClickedOnVar then
+		if not pushVarNamesEnabled then
+			pushVarNamesEnabled = table(varNamesEnabled)
+			-- and disable all except the one we clicked
+			for _,solver in ipairs(self.solvers) do
+				for i,var in ipairs(solver.displayVars) do
+					var.enabled = var.name == mouseClickedOnVar
+				end
+			end
+		else
+			-- restore those that were pushed
+			for _,solver in ipairs(self.solvers) do
+				for i,var in ipairs(solver.displayVars) do
+					var.enabled = pushVarNamesEnabled:find(var.name)
+				end
+			end
+			pushVarNamesEnabled = nil
+		end
+	end
+
 end
 
 require 'draw.1d'(HydroCLApp)
@@ -912,12 +949,8 @@ end
 	end
 end
 
-local leftButtonDown
-local rightButtonDown
-local leftShiftDown
-local rightShiftDown
-local leftGuiDown
-local rightGuiDown
+local leftShiftDown, rightShiftDown
+local leftGuiDown, rightGuiDown
 function HydroCLApp:event(event, ...)
 	if HydroCLApp.super.event then
 		HydroCLApp.super.event(self, event, ...)
@@ -930,7 +963,7 @@ function HydroCLApp:event(event, ...)
 		if canHandleMouse then
 			local dx = event.motion.xrel
 			local dy = event.motion.yrel
-			if leftButtonDown and not guiDown then
+			if mouse.leftDown and not guiDown then
 				if shiftDown then
 					if dx ~= 0 or dy ~= 0 then
 						self.view:mouseZoom(-dy, dy)
@@ -941,18 +974,6 @@ function HydroCLApp:event(event, ...)
 					end
 				end
 			end
-		end
-	elseif event.type == sdl.SDL_MOUSEBUTTONDOWN then
-		if event.button.button == sdl.SDL_BUTTON_LEFT then
-			leftButtonDown = true
-		elseif event.button.button == sdl.SDL_BUTTON_RIGHT then
-			rightButtonDown = true
-		end
-	elseif event.type == sdl.SDL_MOUSEBUTTONUP then
-		if event.button.button == sdl.SDL_BUTTON_LEFT then
-			leftButtonDown = false
-		elseif event.button.button == sdl.SDL_BUTTON_RIGHT then
-			rightButtonDown = false
 		end
 	elseif event.type == sdl.SDL_KEYDOWN then
 		if event.key.keysym.sym == sdl.SDLK_LSHIFT then
