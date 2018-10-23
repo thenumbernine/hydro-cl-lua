@@ -21,6 +21,7 @@ function InitCond:refreshInitStateProgram(solver)
 	
 	time('compiling init state program', function()
 		solver.initStateProgramObj = solver.Program{
+			name = 'initState',
 			code = initStateCode,
 		}
 		solver.initStateProgramObj:compile()

@@ -214,7 +214,7 @@ kernel void computeGRStressEnergy(
 		}),
 	}
 	local code = lines:concat'\n'
-	self.computeGRStressEnergyProgramObj = self.gr.Program{code=code}
+	self.computeGRStressEnergyProgramObj = self.gr.Program{name='computeGRStressEnergy', code=code}
 	self.computeGRStressEnergyProgramObj:compile()
 	self.computeGRStressEnergyKernelObj = self.computeGRStressEnergyProgramObj:kernel('computeGRStressEnergy', self.gr.UBuf, self.em.UBuf)
 end

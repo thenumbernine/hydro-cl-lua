@@ -16,6 +16,7 @@ local tooltip = require 'tooltip'
 local roundup = require 'roundup'
 local time, getTime = table.unpack(require 'time')
 local SolverBase = require 'solver.solverbase'
+local makestruct = require'eqn.makestruct'
 
 local common = require 'common'()
 local minmaxs = common.minmaxs
@@ -102,6 +103,7 @@ function GridSolver:preInit(args)
 	function Program:init(args)
 		args.env = solver.app.env
 		args.domain = solver.domain
+		args.cacheFile = 'cache-cl/'..makestruct.uniqueName(assert(args.name))
 		Program.super.init(self, args)
 	end
 	self.Program = Program
@@ -370,7 +372,7 @@ function GridSolver:createBuffers()
 	local realSize = ffi.sizeof(app.real)
 
 	-- to get sizeof
-	require'eqn.makestruct'.safeFFICDef(self:getConsLRTypeCode())
+	makestruct.safeFFICDef(self:getConsLRTypeCode())
 
 	-- for twofluid, cons_t has been renamed to euler_maxwell_t and maxwell_cons_t
 	if ffi.sizeof(self.eqn.cons_t) ~= self.eqn.numStates * realSize then
@@ -639,7 +641,7 @@ function GridSolver:refreshSolverProgram()
 	local code = self:getSolverCode()
 
 	time('compiling solver program', function()
-		self.solverProgramObj = self.Program{code=code}
+		self.solverProgramObj = self.Program{name='solver', code=code}
 		self.solverProgramObj:compile()
 	end)
 
@@ -674,7 +676,7 @@ function GridSolver:refreshSolverProgram()
 				or (var.vecVar and var.vecVar.enabled)
 				then
 				--]]do
-					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id)
+					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel(var.toTexKernelName)
 					var.calcDisplayVarToTexKernelObj.obj:setArg(1, self.texCLMem)
 				end
 			end
@@ -688,7 +690,7 @@ function GridSolver:refreshSolverProgram()
 			or (var.vecVar and var.vecVar.enabled)
 			then
 			--]]do
-				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id)
+				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel(var.toBufferKernelName)
 				var.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
 			end
 		end
@@ -981,7 +983,7 @@ lines:insert[[
 
 	local boundaryProgramObj
 	time('compiling boundary program', function()
-		boundaryProgramObj = self.Program{code=code}
+		boundaryProgramObj = self.Program{name='boundary', code=code}
 		boundaryProgramObj:compile()
 	end)
 	local boundaryKernelObjs = table()
@@ -1318,7 +1320,7 @@ do
 	local fields = {'enabled', 'useLog', 'heatMapFixedRange', 'heatMapValueMin', 'heatMapValueMax'}
 	local defaults = {true, true, true, math.huge, -math.huge}
 	local combines = {_and, _and, _and, math.min, math.max}
-	local all = {name='all'}
+	local all = {name='all', enabled=false}
 	for i=1,#fields do
 		all[fields[i]] = defaults[i]
 	end

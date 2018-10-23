@@ -250,7 +250,7 @@ S_ij = gamma_i^a gamma_j^b T_cd
 		}),
 	}
 	local code = lines:concat'\n'
-	self.calcStressEnergyProgramObj = self.gr.Program{code=code}
+	self.calcStressEnergyProgramObj = self.gr.Program{name='calcStressEnergy', code=code}
 	self.calcStressEnergyProgramObj:compile()
 	self.calcStressEnergyKernelObj = self.calcStressEnergyProgramObj:kernel('calcStressEnergy', self.hydro.UBuf, self.gr.UBuf)
 end
@@ -291,7 +291,7 @@ kernel void copyMetricFromGRToHydro(
 		}),
 	}
 	local code = lines:concat'\n'
-	self.copyMetricFromGRToHydroProgramObj = self.gr.Program{code=code}
+	self.copyMetricFromGRToHydroProgramObj = self.gr.Program{name='copyMetricFromGRToHydro', code=code}
 	self.copyMetricFromGRToHydroProgramObj:compile()
 	self.copyMetricFromGRToHydroKernelObj = self.copyMetricFromGRToHydroProgramObj:kernel('copyMetricFromGRToHydro', self.hydro.UBuf, self.gr.UBuf)
 -- instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver ]=]

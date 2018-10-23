@@ -219,6 +219,7 @@ error'fixme'
 	function Program:init(args)
 		args.env = solver.app.env
 		args.domain = solver.domain
+		args.cacheFile = 'cache-cl/'..makestruct.uniqueName(assert(args.name))
 		Program.super.init(self, args)
 	end
 	self.Program = Program

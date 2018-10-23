@@ -11,6 +11,7 @@ local template = require 'template'
 local vec3 = require 'vec.vec3'
 local roundup = require 'roundup'
 local tooltip = require 'tooltip'
+local makestruct = require 'eqn.makestruct'
 local time, getTime = table.unpack(require 'time')
 
 
@@ -178,7 +179,7 @@ kernel void multAdd(
 
 	time('compiling common program', function()
 		-- TODO rename :compile() to :build() to be like cl.program?
-		self.commonProgramObj = self.Program{code=commonCode}
+		self.commonProgramObj = self.Program{name='common', code=commonCode}
 		self.commonProgramObj:compile()
 	end)
 
@@ -370,7 +371,7 @@ function SolverBase:refreshSolverProgram()
 	local code = self:getSolverCode()
 
 	time('compiling solver program', function()
-		self.solverProgramObj = self.Program{code=code}
+		self.solverProgramObj = self.Program{name='solver', code=code}
 		self.solverProgramObj:compile()
 	end)
 
@@ -400,7 +401,7 @@ function SolverBase:refreshSolverProgram()
 				or (var.vecVar and var.vecVar.enabled)
 				then
 				--]]do
-					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel('calcDisplayVarToTex_'..var.id)
+					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel(var.toTexKernelName)
 					var.calcDisplayVarToTexKernelObj.obj:setArg(1, self.texCLMem)
 				end
 			end
@@ -414,7 +415,7 @@ function SolverBase:refreshSolverProgram()
 			or (var.vecVar and var.vecVar.enabled)
 			then
 			--]]do
-				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel('calcDisplayVarToBuffer_'..var.id)
+				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel(var.toBufferKernelName)
 				var.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
 			end
 		end
@@ -466,6 +467,7 @@ function SolverBase:getDisplayCode()
 	if self.app.useGLSharing then
 		for _,displayVarGroup in ipairs(self.displayVarGroups) do
 			for _,var in ipairs(displayVarGroup.vars) do
+				var.toTexKernelName = makestruct.uniqueName'calcDisplayVarToTex'
 				--[[
 				if var.enabled
 				or (var.vecVar and var.vecVar.enabled)
@@ -475,7 +477,7 @@ function SolverBase:getDisplayCode()
 						template(var.displayCode, {
 							solver = self,
 							var = var,
-							name = 'calcDisplayVarToTex_'..var.id,
+							name = var.toTexKernelName,
 							
 							input = 
 							
@@ -506,6 +508,7 @@ write_imagef(
 
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
 		for _,var in ipairs(displayVarGroup.vars) do
+			var.toBufferKernelName = makestruct.uniqueName'calcDisplayVarToBuffer'
 			--[[
 			if var.enabled
 			or (var.vecVar and var.vecVar.enabled)
@@ -515,7 +518,7 @@ write_imagef(
 					template(var.displayCode, {
 						solver = self,
 						var = var,
-						name = 'calcDisplayVarToBuffer_'..var.id,
+						name = var.toBufferKernelName,
 						input = 'global real* dest',
 						output = var.vectorField and [[
 	dest[0+3*dstindex] = value[0];

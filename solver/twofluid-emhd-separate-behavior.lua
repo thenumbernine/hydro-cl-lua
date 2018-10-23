@@ -172,7 +172,7 @@ kernel void addSource_maxwell(
 		-- the solver.Program is only unique to solvers wrt env and domain
 		-- and those will match between these multi solvers
 		-- so it doesn't matter which solver.Program I use
-		self.addSourceProgramObj = self.ion.Program{code=code}
+		self.addSourceProgramObj = self.ion.Program{name='addSource', code=code}
 		self.addSourceProgramObj:compile()
 
 		self.ion.addSourceKernelObj = self.addSourceProgramObj:kernel'addSource_ion'
