@@ -50,7 +50,7 @@ function uniqueName(name)
 		return name
 	end
 	--]]
-	for i=2,math.huge do
+	for i=1,math.huge do
 		local try = name..'_'..i
 		if not allnames[try] then
 			allnames[try] = true
