@@ -491,6 +491,16 @@ function HydroCLApp:screenshotToFile(fn)
 	self.ssflipped:save(fn)
 end
 
+local function canHandleMouse()
+	return rawget(ig, 'disabled') or not ig.igGetIO()[0].WantCaptureMouse
+end
+
+local function canHandleKeyboard()
+	return rawget(ig, 'disabled') or not ig.igGetIO()[0].WantCaptureKeyboard
+end
+
+
+
 HydroCLApp.running = false
 --HydroCLApp.running = true
 
@@ -499,7 +509,9 @@ local pushVarNamesEnabled
 
 local minDeltaY = 1e-7
 function HydroCLApp:update(...)
-	mouse:update()
+	if canHandleMouse() then
+		mouse:update()
+	end
 	if self.running then
 		if self.running == 'step' then 
 			print('performing single step...')
@@ -955,12 +967,10 @@ function HydroCLApp:event(event, ...)
 	if HydroCLApp.super.event then
 		HydroCLApp.super.event(self, event, ...)
 	end
-	local canHandleMouse = rawget(ig, 'disabled') or not ig.igGetIO()[0].WantCaptureMouse
-	local canHandleKeyboard = rawget(ig, 'disabled') or not ig.igGetIO()[0].WantCaptureKeyboard
 	local shiftDown = leftShiftDown or rightShiftDown
 	local guiDown = leftGuiDown or rightGuiDown
 	if event.type == sdl.SDL_MOUSEMOTION then
-		if canHandleMouse then
+		if canHandleMouse() then
 			local dx = event.motion.xrel
 			local dy = event.motion.yrel
 			if mouse.leftDown and not guiDown then
@@ -994,7 +1004,7 @@ function HydroCLApp:event(event, ...)
 			leftGuiDown = false
 		elseif event.key.keysym.sym == sdl.SDLK_RGUI then
 			rightGuiDown = false
-		elseif canHandleKeyboard then
+		elseif canHandleKeyboard() then
 			if event.key.keysym.sym == sdl.SDLK_SPACE then
 				self.running = not self.running
 			elseif event.key.keysym.sym == ('u'):byte() then
