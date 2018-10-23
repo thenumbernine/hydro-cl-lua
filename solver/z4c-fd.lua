@@ -56,13 +56,16 @@ end
 Z4cFiniteDifferenceSolver.predefinedDisplayVars = {
 	'U alpha',
 	'U beta_u mag',
+	'U epsilon_ll norm',
 	'U chi',
 	'U KHat',
 	'U Theta',
+	'U ABar_ll norm',
 	'U ABar_ll tr weighted',
 	'U Delta_u mag',
+	'U B_u mag',
 	'U H',
-	'U M_u mag',
+	--'U M_u mag',	-- not implemented yet ...
 	'U det gammaBar - det gammaHat',
 	'U det gamma_ij based on phi',
 	'U volume',
