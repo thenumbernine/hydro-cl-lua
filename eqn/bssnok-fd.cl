@@ -427,7 +427,7 @@ end
 		)
 	);
 
-	sym3 chi_tracelessPart_ll = sym3_add(tf_chi_alpha_R_minus_S, chi_tf_D2_alpha);
+	sym3 chi_tracelessPart_ll = sym3_sub(tf_chi_alpha_R_minus_S, chi_tf_D2_alpha);
 
 <? else
 ?>
