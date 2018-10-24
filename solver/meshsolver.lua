@@ -10,8 +10,9 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local string = require 'ext.string'
 local file = require 'ext.file'
-local SolverBase = require 'solver.solverbase'
 local vec3 = require 'vec.vec3'
+local unique = require 'util.unique'
+local SolverBase = require 'solver.solverbase'
 
 
 local MeshSolver = class(SolverBase)
@@ -219,7 +220,7 @@ error'fixme'
 	function Program:init(args)
 		args.env = solver.app.env
 		args.domain = solver.domain
-		args.cacheFile = 'cache-cl/'..makestruct.uniqueName(assert(args.name))
+		args.cacheFile = 'cache-cl/'..unique(assert(args.name))
 		Program.super.init(self, args)
 	end
 	self.Program = Program

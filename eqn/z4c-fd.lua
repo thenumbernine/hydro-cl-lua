@@ -29,18 +29,13 @@ Z4cFiniteDifferenceEquation.useSourceTerm = true
 
 --[[
 args:
-	useHypGammaDriver
+	useShift:
+		none
+		GammaDriver
+		HyperbolicGammaDriver
 --]]
-function Z4cFiniteDifferenceEquation:init(args)
-	-- options:
-	
-	-- needs to be defined up front
-	-- otherwise rebuild intVars based on it ...
-	if args.useHypGammaDriver ~= nil then
-		self.useHypGammaDriver = args.useHypGammaDriver
-	else
-		self.useHypGammaDriver = true
-	end
+function Z4cFiniteDifferenceEquation:init(args)	
+	self.useShift = args.useShift or 'none'
 
 	local intVars = table{
 		{alpha = 'real'},			-- 1
@@ -53,7 +48,7 @@ function Z4cFiniteDifferenceEquation:init(args)
 		{Delta_u = 'real3'},      	-- 3: Delta^i = gammaBar^jk Delta^i_jk
 	}
 
-	if self.useHypGammaDriver then
+	if self.useShift == 'HyperbolicGammaDriver' then
 		intVars:insert{B_u = 'real3'}
 	end
 
@@ -88,7 +83,6 @@ function Z4cFiniteDifferenceEquation:createInitState()
 	self:addGuiVars{
 		{name='constrain_det_gammaBar_ll', value=true},
 		{name='constrain_tr_ABar_ll', value=true},
-		{name='useGammaDriver', value=false},
 		{name='diffuseSigma', value=.01},
 	}
 end
@@ -127,7 +121,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->Theta = 0;
 	U->ABar_ll = sym3_ident;
 	U->Delta_u = real3_zero;
-<? if eqn.useHypGammaDriver then
+<? if eqn.useShift == 'HyperbolicGammaDriver' then
 ?>	U->B_u = real3_zero;
 <? end
 ?>	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);

@@ -1,7 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
-local time = table.unpack(require 'time')
+local time = table.unpack(require 'util.time')
 
 --[[
 name = name of the initial condition

@@ -4,7 +4,8 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
-local makestruct = require 'eqn.makestruct'
+local unique = require 'util.unique'
+local makestruct = require 'eqn..makestruct'
 
 
 local common = require 'common'()
@@ -42,11 +43,11 @@ Equation.useSourceTerm = nil
 function Equation:init(args)
 	self.solver = assert(args.solver)
 	
-	self.prim_t = makestruct.uniqueName'prim_t'
-	self.cons_t = makestruct.uniqueName'cons_t'
-	self.consLR_t = makestruct.uniqueName'consLR_t'
-	self.eigen_t = makestruct.uniqueName'eigen_t'
-	self.waves_t = makestruct.uniqueName'waves_t'
+	self.prim_t = unique'prim_t'
+	self.cons_t = unique'cons_t'
+	self.consLR_t = unique'consLR_t'
+	self.eigen_t = unique'eigen_t'
+	self.waves_t = unique'waves_t'
 	
 	local numReals
 	if self.consVars then

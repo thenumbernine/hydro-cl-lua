@@ -13,7 +13,7 @@ this could save us 1 less buffer, 1 less kernel call, and 1 less copy
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local Integrator = require 'int.int'
-local roundup = require 'roundup'
+local roundup = require 'util.roundup'
 
 local ForwardEuler = class(Integrator)
 

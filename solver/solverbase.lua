@@ -9,10 +9,11 @@ local math = require 'ext.math'
 local CLBuffer = require 'cl.obj.buffer'
 local template = require 'template'
 local vec3 = require 'vec.vec3'
-local roundup = require 'roundup'
 local tooltip = require 'tooltip'
-local makestruct = require 'eqn.makestruct'
-local time, getTime = table.unpack(require 'time')
+local unique = require 'util.unique'
+local makestruct = require'eqn.makestruct'
+local roundup = require 'util.roundup'
+local time, getTime = table.unpack(require 'util.time')
 
 
 local common = require 'common'()	-- xNames, symNames
@@ -115,8 +116,8 @@ print(k,v)
 
 
 	-- do this before any call to createBuffers or createCodePrefix
-	self.solver_t = require 'eqn.makestruct'.uniqueName'solver_t'
-	require'eqn.makestruct'.safeFFICDef(self:getSolverTypeCode())
+	self.solver_t = unique'solver_t'
+	makestruct.safeFFICDef(self:getSolverTypeCode())
 	self.solverPtr = ffi.new(self.solver_t)
 end
 
@@ -467,7 +468,7 @@ function SolverBase:getDisplayCode()
 	if self.app.useGLSharing then
 		for _,displayVarGroup in ipairs(self.displayVarGroups) do
 			for _,var in ipairs(displayVarGroup.vars) do
-				var.toTexKernelName = makestruct.uniqueName'calcDisplayVarToTex'
+				var.toTexKernelName = unique'calcDisplayVarToTex'
 				--[[
 				if var.enabled
 				or (var.vecVar and var.vecVar.enabled)
@@ -508,7 +509,7 @@ write_imagef(
 
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
 		for _,var in ipairs(displayVarGroup.vars) do
-			var.toBufferKernelName = makestruct.uniqueName'calcDisplayVarToBuffer'
+			var.toBufferKernelName = unique'calcDisplayVarToBuffer'
 			--[[
 			if var.enabled
 			or (var.vecVar and var.vecVar.enabled)

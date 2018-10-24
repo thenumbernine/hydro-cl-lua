@@ -35,9 +35,21 @@ tr(ABar_ij) = exp(-4 phi) tr(A_ij)
 = exp(-4 phi) * 0
 = 0
 
+using gammaBar metrics shouldn't make a difference (since the weights of the metric and inverse should cancel)
 TFBar(K_ij) = K_ij - 1/3 gammaBar_ij gammaBar^kl K_kl 
 	= K_ij - 1/3 gamma_ij gamma^kl K_kl
 	= TF(K_ij)
+
+
+tr(TF(K_ij)) = tr(K_ij) - 1/3 tr(gamma_ij K)
+	= K - 1/3 * K * gamma^ij gamma_ij
+	= K - 1/3 * K * 3 = K - K = 0
+
+trace-free is linear:
+tr(TF(A_ij + B_ij)) = gamma^ij ( A_ij + B_ij - 1/3 gamma_ij gamma^kl (A_kl + B_kl) )
+	= A + B - 1/3 * 3 * (A + B)
+	= A + B - A - B
+	= 0
 */
 sym3 tracefree(sym3 A_ll, sym3 gamma_ll, sym3 gamma_uu) {
 	real tr_A = sym3_dot(A_ll, gamma_uu);
@@ -123,7 +135,7 @@ kernel void calcDeriv(
 <?=makePartial('Delta_u', 'real3')?>	//partial_Delta_ul[j].i := Delta^i_,j
 <?=makePartial('epsilon_ll', 'sym3')?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k for static grids
 <?=makePartial('ABar_ll', 'sym3')?>	//partial_ABar_lll[k].ij = ABar_ij,k
-<? if eqn.useHypGammaDriver then ?>
+<? if eqn.useShift == 'HyperbolicGammaDriver' then ?>
 <?=makePartial('B_u', 'real3')?>
 <? end ?>
 	//tr_partial_beta := beta^i_,i
@@ -222,8 +234,9 @@ for i,xi in ipairs(xNames) do
 end
 ?>
 
+#if 0	//where is this equation from?
 	real partial_chi_bardot_partial_alpha = real3_weightedDot( *(real3*)partial_chi_l, *(real3*)partial_alpha_l, U->gammaBar_uu);
-	
+
 	//chi D_i D_j alpha = alpha,ij - connBar^k_ij alpha,k + 1/(2 chi) (alpha,i chi,j + alpha,j chi,i - gammaBar_ij gammaBar^kl alpha,k chi,l)
 	sym3 chi_D2_alpha_ll = (sym3){
 <? 	for ij,xij in ipairs(symNames) do
@@ -237,9 +250,23 @@ end
 			?> - .5 * gammaBar_ll.<?=xij?> * partial_chi_bardot_partial_alpha,
 <? 	end
 ?>	};
+#else
+	//D_i D_j alpha 
+	// = D_i alpha_,j 
+	// = alpha_,ij - conn^k_ij alpha_,k
+	sym3 D2_alpha_ll = (sym3){
+<?	for ij,xij in ipairs(symNames) do
+		local i,j = from6to3x3(ij)
+?>		.<?=xij?> = partial2_alpha_ll[<?=ij-1?>] 
+<?		for k,xk in ipairs(xNames) do
+?>			- conn_ull.<?=xk?>.<?=xij?> * partial_alpha_l[<?=k-1?>]
+<?		end ?>,
+<?	end
+?>	};
+#endif
 
-<? 	if false then -- why bother when I need to use chi D_i D_j alpha?  why not just take the trace?
-?>
+
+#if 0 	//why bother when I need to use chi D_i D_j alpha?  why not just take the trace?
 	//chi gammaBar^ij alpha,ij - chi connBar^i alpha,i - 1/2 gammaBar^ij chi,i alpha,j
 	real tr_D2_alpha = U->chi * (
 			sym3_dot(U->gammaBar_uu, *(sym3*)partial2_alpha_ll)
@@ -249,11 +276,11 @@ end
 			*(real3*)partial_chi_l,
 			*(real3*)partial_alpha_l,
 			U->gammaBar_uu);
-<? 	else 
-?>	real tr_D2_alpha = sym3_dot(U->gammaBar_uu, chi_D2_alpha_ll);
-
-<?	end
-?>
+#elif 0
+	real tr_D2_alpha = sym3_dot(U->gammaBar_uu, chi_D2_alpha_ll);
+#else
+	real tr_D2_alpha = sym3_dot(gamma_uu, D2_alpha_ll);
+#endif
 
 	//2011 Cao eqn 11
 	//KHat = K - 2 Theta
@@ -299,7 +326,7 @@ end
 	const real kappa2 = 0.;
 	//2011 Cao eqn 14
 	//KHat_,t = -gamma^ij D_i D_j alpha 
-	//			+ alpha (ABar_ij ABar^ij + 1/3 (KTilde + 2 Theta)^2
+	//			+ alpha (ABar_ij ABar^ij + 1/3 (KBar + 2 Theta)^2
 	//				+ kappa1 (1 - kappa2) Theta)
 	//			+ 4 pi alpha (S + rho_ADM) + beta^i KHat_,i
 	deriv->KHat += -tr_D2_alpha
@@ -371,9 +398,9 @@ end
 	// ... but I thought phi was ln(psi)?  Then why would you need to separate R_ij = RBar_ij + RPhi_ij ?  I thought the substitution showed that R_ij was RPhi_ij?
 	//phi = ln(psi), so DBar_i ln psi = partial_phi_i
 	//Alcubierre 2.8.18
-	//RPhi_ll.xij := -2 DTilde_i DTilde_j phi - 2 gammaBar_ij gammaBar^kl DTilde_k DTilde_l phi + 4 DTilde_i phi DTilde_j phi - 4 gammaBar_ij DTilde^k phi DTilde_k phi
-	//	= -2 (DTilde_i DTilde_j phi)
-	//		- 2 gammaBar_ij gammaBar^kl (DTilde_k DTilde_l phi)
+	//RPhi_ll.xij := -2 DBar_i DBar_j phi - 2 gammaBar_ij gammaBar^kl DBar_k DBar_l phi + 4 DBar_i phi DBar_j phi - 4 gammaBar_ij DBar^k phi DBar_k phi
+	//	= -2 (DBar_i DBar_j phi)
+	//		- 2 gammaBar_ij gammaBar^kl (DBar_k DBar_l phi)
 	//		+ 4 phi_,i phi_,j 
 	//		- 4 gammaBar_ij gammaBar^kl phi_,k phi_,l
 	//it looks like Alcubierre agrees with Baumgarte & Shapiro, except without the extra RBar_ij ...
@@ -395,15 +422,15 @@ end
 	//TODO instead of R_ll, add in chi_tf_RPhi and chi_tf_RBar_ll
 	//then factor out one of the chis 
 	
-	//(chi alpha (R_ij - 8 pi S_ij))^TF
-	sym3 tf_chi_alpha_R_minus_S = sym3_real_mul(
+	//(alpha (R_ij - 8 pi S_ij))^TF
+	sym3 alpha_R_minus_S_ll = sym3_real_mul(
 		sym3_add(R_ll, sym3_real_mul(U->S_ll, -8. * M_PI)), 
-		U->chi * U->alpha);
-	tf_chi_alpha_R_minus_S = tracefree(tf_chi_alpha_R_minus_S, gammaBar_ll, U->gammaBar_uu);
+		U->alpha);
 
+#if 0	//where is this from?
 	//(chi D_i D_j alpha)^TF
 	//= chi D_i D_j alpha + gammaBar_ij ( 1/3 chi (connBar^k alpha,k - gammaBar^kl alpha,kl) + 1/6 gammaBar^kl chi,k alpha,l)
-	sym3 chi_tf_D2_alpha = sym3_add( 
+	sym3 chi_D2_alpha = sym3_add( 
 		chi_D2_alpha_ll,
 		sym3_real_mul(gammaBar_ll, 
 			1./3. * U->chi * (
@@ -416,23 +443,28 @@ end
 			)
 		)
 	);
+#endif
 
-	sym3 chi_tracelessPart_ll = sym3_add(tf_chi_alpha_R_minus_S, chi_tf_D2_alpha);
+	//chi (alpha (R_ij - 8 pi S_ij) - D_i D_j alpha)^TF
+	sym3 dABar_tracelessPart_ll = sym3_sub(alpha_R_minus_S_ll, D2_alpha_ll);
+	dABar_tracelessPart_ll = tracefree(dABar_tracelessPart_ll, gammaBar_ll, U->gammaBar_uu);
 
+#if 1	//there's something in here skewed towards the x=y direction...
 	//B&S 11.53
 	//Alcubierre 2.8.11
 	//ABar_ij,t = 
-	//	exp(-4phi) (-(D_ij alpha) + alpha (R_ij - 8 pi S_ij) )^TF
-	//	+ alpha (K ABar_ij - 2 ABar_il ABar^l_j)
+	//	exp(-4phi) (-(D_i D_j alpha) + alpha (R_ij - 8 pi S_ij) )^TF
+	//	+ alpha K ABar_ij 
+	//	- 2 alpha ABar_ik ABar^k_j
 	//	+ beta^k ABar_ij,k 
 	//	+ ABar_ik beta^k_,j 
-	//	+ ATidle_kj beta^k_,i 
+	//	+ ABar_kj beta^k_,i 
 	//	- 2/3 ABar_ij beta^k_,k
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi = xNames[i]
 	local xj = xNames[j]
-?>	deriv->ABar_ll.<?=xij?> += chi_tracelessPart_ll.<?=xij?>
+?>	deriv->ABar_ll.<?=xij?> += U->chi * dABar_tracelessPart_ll.<?=xij?>
 		+ U->alpha * K * U->ABar_ll.<?=xij?> 
 <?	for k,xk in ipairs(xNames) do
 ?>		- 2. * U->alpha * U->ABar_ll.<?=sym(i,k)?> * ABar_ul.<?=xk?>.<?=xj?>
@@ -443,7 +475,8 @@ end
 ?>		- 2./3. * U->ABar_ll.<?=xij?> * tr_partial_beta;
 <? end
 ?>
-	
+#endif
+
 	//K,i = KHat__,i + 2 Theta_,i
 	real3 partial_K_l = real3_add(
 		*(real3*)partial_KHat_l,
@@ -495,14 +528,7 @@ end
 ?>
 	deriv->Delta_u = real3_add(deriv->Delta_u, dt_connBar_u);
 
-<? 
-if eqn.guiVars.useGammaDriver.value
-and eqn.useHypGammaDriver
-then
-	error("you can only enable either useGammaDriver or useHypGammaDriver.  I should make this a combo gui option")
-end
-?>
-<? if eqn.guiVars.useGammaDriver.value then ?>
+<? if eqn.useShift == 'GammaDriver' then ?>
 	//Gamma-driver
 	//2011 Cao eqn 23
 	//beta^i_,t = mu_S alpha^2 connBar^i - eta beta^i + beta^j beta^i_,j
@@ -516,8 +542,8 @@ end
 <?	end ?>;
 <? end ?>
 	
-<? end ?>
-<? if eqn.useHypGammaDriver then ?>
+<? elseif eqn.useShift == 'HyperbolicGammaDriver' then ?>
+	
 	//hyperbolic Gamma driver 
 	//B&S 4.83 
 	//beta^i_,t = 3/4 B^i (Rezolla says 3/4 alpha B^i, 2006 Campanelli says B^i but absorbs 3/4 into B^i)
