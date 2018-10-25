@@ -72,24 +72,25 @@ end
 
 function Euler:getCommonFuncCode()
 	return template([[
-inline real calc_H(real P) { return P * (heatCapacityRatio / (heatCapacityRatio - 1.)); }
-inline real calc_h(real rho, real P) { return calc_H(P) / rho; }
+inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
+inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
 inline real calc_hTotal(real rho, real P, real ETotal) { return (P + ETotal) / rho; }
 inline real calc_HTotal(real P, real ETotal) { return P + ETotal; }
 inline real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
 inline real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
-inline real calc_EInt(<?=eqn.prim_t?> W) { return W.P / (heatCapacityRatio - 1.); }
-inline real calc_eInt(<?=eqn.prim_t?> W) { return calc_EInt(W) / W.rho; }
+inline real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.P / (solver->heatCapacityRatio - 1.); }
+inline real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EInt(solver, W) / W.rho; }
 inline real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.m, x) / U.rho; }
-inline real calc_ETotal(<?=eqn.prim_t?> W, real3 x) {
+inline real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	real EPot = W.rho * W.ePot;
-	return calc_EKin(W, x) + calc_EInt(W) + EPot;
+	return calc_EKin(W, x) + calc_EInt(solver, W) + EPot;
 }
 
-inline real calc_Cs(const <?=eqn.prim_t?>* W) {
-	return sqrt(heatCapacityRatio * W->P / W->rho);
+inline real calc_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?>* W) {
+	return sqrt(solver->heatCapacityRatio * W->P / W->rho);
 }
 ]], {
+		solver = self.solver,
 		eqn = self,
 	})
 end
@@ -97,28 +98,29 @@ end
 function Euler:getPrimConsCode()
 	return template([[
 
-inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
+inline <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	real EPot = U.rho * U.ePot;
 	real EKin = calc_EKin_fromCons(U, x);
 	real EInt = U.ETotal - EKin - EPot;
 	return (<?=eqn.prim_t?>){
 		.rho = U.rho,
 		.v = real3_real_mul(U.m, 1./U.rho),
-		.P = (heatCapacityRatio - 1.) * EInt,
+		.P = (solver->heatCapacityRatio - 1.) * EInt,
 		.ePot = U.ePot,
 	};
 }
 
-inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
+inline <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
 		.rho = W.rho,
 		.m = real3_real_mul(W.v, W.rho),
-		.ETotal = calc_ETotal(W, x),
+		.ETotal = calc_ETotal(solver, W, x),
 		.ePot = W.ePot,
 	};
 }
 
 <?=eqn.cons_t?> apply_dU_dW(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA, 
 	<?=eqn.prim_t?> W, 
 	real3 x
@@ -131,13 +133,14 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 			real3_real_mul(W.v, WA.rho)),
 		.ETotal = W.rho * .5 * real3_dot(WA.v, WA_vL) 
 			+ WA.rho * real3_dot(W.v, WA_vL)
-			+ W.P / (heatCapacityRatio - 1.)
+			+ W.P / (solver->heatCapacityRatio - 1.)
 			+ WA.rho * W.ePot,
 		.ePot = W.ePot,
 	};
 }
 
 <?=eqn.prim_t?> apply_dW_dU(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA,
 	<?=eqn.cons_t?> U,
 	real3 x
@@ -148,7 +151,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 		.v = real3_sub(
 			real3_real_mul(U.m, 1. / WA.rho),
 			real3_real_mul(WA.v, U.rho / WA.rho)),
-		.P = (heatCapacityRatio - 1.) * (
+		.P = (solver->heatCapacityRatio - 1.) * (
 			.5 * real3_dot(WA.v, WA_vL) * U.rho 
 			- real3_dot(U.m, WA_vL)
 			+ U.ETotal 
@@ -159,6 +162,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 
 
 ]], {
+		solver = self.solver,
 		eqn = self,
 	})
 end
@@ -199,7 +203,7 @@ end
 		.P = P,
 		.ePot = ePot,
 	};
-	UBuf[index] = consFromPrim(W, x);
+	UBuf[index] = consFromPrim(solver, W, x);
 }
 ]]
 
@@ -245,19 +249,19 @@ function Euler:getDisplayVars()
 	vars:append{
 		{v = '*value_real3 = W.v;', type='real3'},
 		{P = '*value = W.P;'},
-		{eInt = '*value = calc_eInt(W);'},
+		{eInt = '*value = calc_eInt(solver, W);'},
 		{eKin = '*value = calc_eKin(W, x);'},
 		{eTotal = '*value = U->ETotal / W.rho;'},
-		{EInt = '*value = calc_EInt(W);'},
+		{EInt = '*value = calc_EInt(solver, W);'},
 		{EKin = '*value = calc_EKin(W, x);'},
 		{EPot = '*value = U->rho * U->ePot;'},
-		{S = '*value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
-		{H = '*value = calc_H(W.P);'},
-		{h = '*value = calc_h(W.rho, W.P);'},
+		{S = '*value = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
+		{H = '*value = calc_H(solver, W.P);'},
+		{h = '*value = calc_h(solver, W.rho, W.P);'},
 		{HTotal = '*value = calc_HTotal(W.P, U->ETotal);'},
 		{hTotal = '*value = calc_hTotal(W.rho, W.P, U->ETotal);'},
-		{['Speed of Sound'] = '*value = calc_Cs(&W);'},
-		{['Mach number'] = '*value = coordLen(W.v, x) / calc_Cs(&W);'},
+		{['Speed of Sound'] = '*value = calc_Cs(solver, &W);'},
+		{['Mach number'] = '*value = coordLen(W.v, x) / calc_Cs(solver, &W);'},
 	}:append{self.gravOp and
 		{gravity = template([[
 	if (OOB(1,1)) {
@@ -281,7 +285,7 @@ for side=solver.dim,2 do ?>
 <? local materials = require 'materials' ?>
 #define _0_C_in_K		273.15
 #define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
-	*value = calc_eInt(W) / C_v - _0_C_in_K;
+	*value = calc_eInt(solver, W) / C_v - _0_C_in_K;
 ]])}
 	}
 
@@ -329,9 +333,9 @@ end
 function Euler:consWaveCodePrefix(side, U, x, W)
 	return template([[
 <? if not W then ?>
-	<?=eqn.prim_t?> W = primFromCons(<?=U?>, <?=x?>);
+	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 <? end ?>
-	real Cs_sqrt_gU = calc_Cs(&<?=W or 'W'?>) * coord_sqrt_gU<?=side..side?>(<?=x?>);
+	real Cs_sqrt_gU = calc_Cs(solver, &<?=W or 'W'?>) * coord_sqrt_gU<?=side..side?>(<?=x?>);
 	real v_n = <?=W or 'W'?>.v.s[<?=side?>];
 ]], {
 		eqn = self,
@@ -374,8 +378,8 @@ kernel void calcDT(
 	real3 x = cell_x(i);
 
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
-	real Cs = calc_Cs(&W);
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+	real Cs = calc_Cs(solver, &W);
 
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{

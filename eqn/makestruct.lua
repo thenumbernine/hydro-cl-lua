@@ -19,14 +19,18 @@ local function countScalars(vars, scalar)
 	return numScalars
 end
 
-local function makeStruct(name, vars, scalar)
+local function makeStruct(name, vars, scalar, dontUnion)
 	scalar = scalar or 'real'
 	local numScalars = countScalars(vars, scalar)
 
 	local lines = table()
-	lines:insert'typedef union {'
-	lines:insert('	'..scalar..' ptr['..numScalars..'];')
-	lines:insert('	struct {')
+	if dontUnion then
+		lines:insert'typedef struct {'
+	else
+		lines:insert'typedef union {'
+		lines:insert('	'..scalar..' ptr['..numScalars..'];')
+		lines:insert('	struct {')
+	end	
 	for _,var in ipairs(vars) do
 		if type(var) == 'string' then
 			lines:insert('		'..scalar..' '..var..';')
@@ -36,7 +40,9 @@ local function makeStruct(name, vars, scalar)
 			lines:insert('		'..vt..' '..vn..';')
 		end
 	end
-	lines:insert('	};')
+	if not dontUnion then
+		lines:insert('	};')
+	end
 	lines:insert('} '..name..';')
 	return lines:concat'\n'
 end

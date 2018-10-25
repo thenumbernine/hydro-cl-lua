@@ -21,9 +21,9 @@ kernel void calcDT(
 	real rho = prim.rho;
 	real eInt = prim.eInt;
 	real vSq = coordLenSq(prim.v, x);
-	real P = calc_P(rho, eInt);
+	real P = calc_P(solver, rho, eInt);
 	real h = calc_h(rho, P, eInt);
-	real csSq = heatCapacityRatio * P / (rho * h);
+	real csSq = solver->heatCapacityRatio * P / (rho * h);
 	real cs = sqrt(csSq);
 	
 	real dt = INFINITY;
@@ -55,7 +55,7 @@ kernel void calcDT(
 	real3 x
 ) {
 	real vi = U.prim.v.s<?=side?>;
-	real P = calc_P(U.prim.rho, U.prim.eInt);
+	real P = calc_P(solver, U.prim.rho, U.prim.eInt);
 
 	<?=eqn.cons_t?> F;
 	F.cons.D = U.cons.D * vi;
@@ -148,7 +148,7 @@ kernel void calcEigenBasis(
 		real oneOverW = sqrt(oneOverW2);
 		real W = 1. / oneOverW;
 		real W2 = 1. / oneOverW2;
-		real P = (heatCapacityRatio - 1.) * rho * eInt;
+		real P = (solver->heatCapacityRatio - 1.) * rho * eInt;
 		real h = 1. + eInt + P / rho;
 
 		real hW = h * W;
@@ -161,7 +161,7 @@ kernel void calcEigenBasis(
 		// = 1/rho ( P + (gamma-1) P)
 		// = gamma P / rho
 		real vxSq = v.x * v.x;
-		real csSq = heatCapacityRatio * P / (rho * h);
+		real csSq = solver->heatCapacityRatio * P / (rho * h);
 		real cs = sqrt(csSq);
 
 		real discr = sqrt((1. - vSq) * ((1. - vSq * csSq) - vxSq * (1. - csSq)));
@@ -180,7 +180,7 @@ kernel void calcEigenBasis(
 		real CMinus = vL.x - VMinus;	//2008 Font eqn 112
 		real CPlus = vL.x - VPlus;	//2008 Font eqn 112
 
-		real kappa = calc_dP_deInt(rho, eInt);	//2008 Font note just after eqn 107
+		real kappa = calc_dP_deInt(solver, rho, eInt);	//2008 Font note just after eqn 107
 		real kappaTilde = kappa / rho;	//2008 Font eqn 112.  
 		//used by evL and evR
 		real Kappa = kappaTilde / (kappaTilde - csSq);	//2008 Font eqn 112.  
@@ -382,11 +382,11 @@ kernel void constrainU(
 
 	global <?=eqn.cons_only_t?>* U = &UBuf[index].cons;
 	
-	U->D = max(U->D, (real)DMin);
-	U->tau = max(U->tau, (real)tauMin);
+	U->D = max(U->D, (real)solver->DMin);
+	U->tau = max(U->tau, (real)solver->tauMin);
 
-	U->D = min(U->D, (real)DMax);
-	U->tau = min(U->tau, (real)tauMax);
+	U->D = min(U->D, (real)solver->DMax);
+	U->tau = min(U->tau, (real)solver->tauMax);
 }
 
 kernel void updatePrims(
@@ -405,8 +405,8 @@ kernel void updatePrims(
 	real3 v = prim->v;
 
 	real SLen = coordLen(S, x);
-	real PMin = max(SLen - tau - D + SLen * solvePrimVelEpsilon, solvePrimPMinEpsilon);
-	real PMax = (heatCapacityRatio - 1.) * tau;
+	real PMin = max(SLen - tau - D + SLen * solver->solvePrimVelEpsilon, solver->solvePrimPMinEpsilon);
+	real PMax = (solver->heatCapacityRatio - 1.) * tau;
 	PMax = max(PMax, PMin);
 	real P = .5 * (PMin + PMax);
 
@@ -416,22 +416,22 @@ kernel void updatePrims(
 		real W = 1. / sqrt(1. - vSq);
 		real eInt = (tau + D * (1. - W) + P * (1. - W*W)) / (D * W);
 		real rho = D / W;
-		real f = (heatCapacityRatio - 1.) * rho * eInt - P;
-		real csSq = (heatCapacityRatio - 1.) * (tau + D * (1. - W) + P) / (tau + D + P);
+		real f = (solver->heatCapacityRatio - 1.) * rho * eInt - P;
+		real csSq = (solver->heatCapacityRatio - 1.) * (tau + D * (1. - W) + P) / (tau + D + P);
 		real df_dP = vSq * csSq - 1.;
 		real newP = P - f / df_dP;
 		newP = max(newP, PMin);
 		real PError = fabs(1. - newP / P);
 		P = newP;
-		if (PError < solvePrimStopEpsilon) {
+		if (PError < solver->solvePrimStopEpsilon) {
 			v = real3_real_mul(S, 1. / (tau + D + P));
 			vSq = coordLenSq(v, x);
 			W = 1. / sqrt(1. - vSq);
 			rho = D / W;
-			rho = max(rho, (real)rhoMin);
-			rho = min(rho, (real)rhoMax);
-			eInt = P / (rho * (heatCapacityRatio - 1.));
-			eInt = min(eInt, (real)eIntMax);
+			rho = max(rho, (real)solver->rhoMin);
+			rho = min(rho, (real)solver->rhoMax);
+			eInt = P / (rho * (solver->heatCapacityRatio - 1.));
+			eInt = min(eInt, (real)solver->eIntMax);
 			prim->rho = rho;
 			prim->v = v;
 			prim->eInt = eInt;

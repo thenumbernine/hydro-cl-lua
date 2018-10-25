@@ -120,10 +120,9 @@ function Equation:createInitState()
 end
 
 function Equation:getCodePrefix()
-	return (self.guiVars and table.map(self.guiVars, function(var) 
-		return var:getCode()
+	return (self.guiVars and table.mapi(self.guiVars, function(var,i,t) 
+		return (var.compileTime and var:getCode() or nil), #t+1
 	end) or table()):append{
-		
 		self.initState.getCodePrefix 
 			and self.initState:getCodePrefix(self.solver)
 			or '',
@@ -183,7 +182,7 @@ function Equation:getDisplayVarCodePrefix()
 	return template([[
 	const global <?=eqn.cons_t?>* U = buf + index;
 <? if eqn.displayVarCodeUsesPrims then ?>
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
 <? end ?>
 ]], {
 		eqn = self,
@@ -328,7 +327,7 @@ function Equation:getFluxFromConsCode()
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	return eigen_fluxTransform_<?=side?>(solver, eigen_forCell_<?=side?>(U, x), U, x);
+	return eigen_fluxTransform_<?=side?>(solver, eigen_forCell_<?=side?>(solver, U, x), U, x);
 }
 <? end ?>
 ]], {

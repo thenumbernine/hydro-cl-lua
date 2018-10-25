@@ -81,8 +81,8 @@ end
 function Z4cFiniteDifferenceEquation:createInitState()
 	Z4cFiniteDifferenceEquation.super.createInitState(self)
 	self:addGuiVars{
-		{name='constrain_det_gammaBar_ll', value=true},
-		{name='constrain_tr_ABar_ll', value=true},
+		{name='constrain_det_gammaBar_ll', value=true, compileTime=true},
+		{name='constrain_tr_ABar_ll', value=true, compileTime=true},
 		{name='diffuseSigma', value=.01},
 	}
 end

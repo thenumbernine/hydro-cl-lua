@@ -21,6 +21,7 @@
 <? end ?>
 
 <?=eqn.eigen_t?> eigen_forInterface(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
 	real3 x,
@@ -111,17 +112,13 @@ kernel void addSource(
 
 	// and now for the first-order constraints
 	
-<? if eqn.guiVars.a_x_convCoeff.value ~= 0 then ?>
 	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
 	real dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * solver->grid_dx.x);
-	deriv->a_x += a_x_convCoeff * (dx_alpha / alpha - a_x);
-<? end -- eqn.guiVars.a_x_convCoeff.value  ?>
+	deriv->a_x += solver->a_x_convCoeff * (dx_alpha / alpha - a_x);
 	
-<? if eqn.guiVars.D_g_convCoeff.value ~= 0 then ?>
 	// D_g = gamma_xx,x / gamma_xx <=> D_g += eta (gamma_xx,x / gamma_xx - D_g)
 	real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * solver->grid_dx.x);
-	deriv->D_g += D_g_convCoeff * (dx_gamma_xx / gamma_xx - D_g);
-<? end -- eqn.guiVars.D_g_convCoeff.value  ?>
+	deriv->D_g += solver->D_g_convCoeff * (dx_gamma_xx / gamma_xx - D_g);
 
 	//Kreiss-Oligar diffusion, for stability's sake?
 }
@@ -132,6 +129,7 @@ kernel void addSource(
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forCell_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {

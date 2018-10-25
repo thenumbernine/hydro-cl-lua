@@ -668,6 +668,6 @@ for j,xj in ipairs(xNames) do
 ?> + partial2_Ui_ll[<?=jj-1?>]<?
 end
 ?>;
-		U->ptr[i] -= diffuseSigma/16. * lap;
+		U->ptr[i] -= solver->diffuseSigma/16. * lap;
 	}
 }

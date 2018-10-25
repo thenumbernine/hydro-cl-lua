@@ -64,6 +64,7 @@ kernel void calcDT(
 //used by PLM
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forCell_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x 
 ) {
@@ -120,6 +121,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 //used for interface eigen basis
 <?=eqn.eigen_t?> eigen_forInterface(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
 	real3 x,
@@ -1433,7 +1435,6 @@ end ?>
 
 	// and now for the first-order constraints
 
-<? if eqn.guiVars.a_convCoeff.value ~= 0 then ?>
 	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
 	<? for i,xi in ipairs(xNames) do ?>{
 		<? if i <= solver.dim then ?>
@@ -1441,12 +1442,10 @@ end ?>
 		<? else ?>
 		real di_alpha = 0.;
 		<? end ?>
-		deriv->a_l.<?=xi?> += a_convCoeff * (di_alpha / U->alpha - U->a_l.<?=xi?>);
+		deriv->a_l.<?=xi?> += solver->a_convCoeff * (di_alpha / U->alpha - U->a_l.<?=xi?>);
 	}<? end ?>	
-<? end -- eqn.guiVars.a_convCoeff.value  ?>
 	
 	// d_xxx = .5 gamma_xx,x <=> d_xxx += eta (.5 gamma_xx,x - d_xxx)
-<? if eqn.guiVars.d_convCoeff.value ~= 0 then ?>
 	<? 
 for i,xi in ipairs(xNames) do 
 	for jk,xjk in ipairs(symNames) do ?>{
@@ -1455,20 +1454,17 @@ for i,xi in ipairs(xNames) do
 		<? else ?>
 		real di_gamma_jk = 0;
 		<? end ?>
-		deriv->d_lll.<?=xi?>.<?=xjk?> += d_convCoeff * (.5 * di_gamma_jk - U->d_lll.<?=xi?>.<?=xjk?>);
+		deriv->d_lll.<?=xi?>.<?=xjk?> += solver->d_convCoeff * (.5 * di_gamma_jk - U->d_lll.<?=xi?>.<?=xjk?>);
 	}<? 
 	end
 end ?>
-<? end -- eqn.guiVars.d_convCoeff.value  ?>
 
-<? if eqn.guiVars.V_convCoeff.value ~= 0 then ?>
 	//V_i = d_ik^k - d^k_ki <=> V_i += eta (d_ik^k - d^k_ki - V_i)
 	deriv->V_l = real3_add(
 		deriv->V_l,
 		real3_real_mul(
 			real3_sub(real3_sub(d1_l, d3_l), U->V_l),
-			V_convCoeff));
-<? end -- eqn.guiVars.V_convCoeff.value  ?>
+			solver->V_convCoeff));
 
 	//Kreiss-Oligar diffusion, for stability's sake?
 

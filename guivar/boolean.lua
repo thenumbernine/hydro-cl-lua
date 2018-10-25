@@ -10,14 +10,24 @@ function GuiBoolean:init(args)
 	self.value = not not args.value
 end
 
-function GuiBoolean:getCode()
-	return '#define '..self.name..' '..(self.value and 1 or 0)
-end
-
 function GuiBoolean:updateGUI(solver)
 	if tooltip.checkboxTable(self.name, self, 'value') then
 		self:refresh(self.value, solver)
 	end
+end
+
+-- compile-time
+function GuiBoolean:getCode()
+	return '#define '..self.name..' '..(self.value and 1 or 0)
+end
+
+-- run-time
+function GuiBoolean:addToSolver(solver)
+	solver.solverVars:insert{[self.name] = 'int'}
+end
+
+function GuiBoolean:setToSolver(solver)
+	solver.solverPtr[self.name] = self.value and 1 or 0
 end
 
 return GuiBoolean

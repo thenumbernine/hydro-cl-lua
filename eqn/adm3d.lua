@@ -206,6 +206,7 @@ function ADM_BonaMasso_3D:createInitState()
 				-- note that the kernel is still created, just now won't be called
 				solver.useConstrainU = value ~= 0
 			end,
+			compileTime = true,
 		},
 		{name='a_convCoeff', value=10},
 		{name='d_convCoeff', value=10},

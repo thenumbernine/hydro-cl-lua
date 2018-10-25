@@ -4,21 +4,31 @@ local class = require 'ext.class'
 local GuiVar = require 'guivar.guivar'
 local clnumber = require 'cl.obj.number'
 
-local GuiFloat = class(GuiVar)
+local GuiNumber = class(GuiVar)
 
-function GuiFloat:init(args)
-	GuiFloat.super.init(self, args)
+function GuiNumber:init(args)
+	GuiNumber.super.init(self, args)
 	self.value = args.value or 0
 end
 
-function GuiFloat:getCode()
-	return '#define '..self.name..' '..clnumber(self.value)
-end
-
-function GuiFloat:updateGUI(solver)
+function GuiNumber:updateGUI(solver)
 	if tooltip.numberTable(self.name, self, 'value', ig.ImGuiInputTextFlags_EnterReturnsTrue) then
 		self:refresh(self.value, solver)
 	end
 end
 
-return GuiFloat
+-- compile-time
+function GuiNumber:getCode()
+	return '#define '..self.name..' '..clnumber(self.value)
+end
+
+-- run-time
+function GuiNumber:addToSolver(solver)
+	solver.solverVars:insert{[self.name] = 'real'}
+end
+
+function GuiNumber:setToSolver(solver)
+	solver.solverPtr[self.name] = self.value
+end
+
+return GuiNumber

@@ -67,25 +67,26 @@ function MHD:getCommonFuncCode()
 	return template([[
 inline real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
 inline real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
-inline real calc_EInt(<?=eqn.prim_t?> W) { return W.P / (heatCapacityRatio - 1.); }
-inline real calc_eInt(<?=eqn.prim_t?> W) { return calc_EInt(W) / W.rho; }
+inline real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.P / (solver->heatCapacityRatio - 1.); }
+inline real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EInt(solver, W) / W.rho; }
 inline real calc_EMag(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.B, x); }
 inline real calc_eMag(<?=eqn.prim_t?> W, real3 x) { return calc_EMag(W, x) / W.rho; }
 inline real calc_PMag(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.B, x); }
-inline real calc_EHydro(<?=eqn.prim_t?> W, real3 x) { return calc_EKin(W, x) + calc_EInt(W); }
-inline real calc_eHydro(<?=eqn.prim_t?> W, real3 x) { return calc_EHydro(W, x) / W.rho; }
-inline real calc_ETotal(<?=eqn.prim_t?> W, real3 x) { return calc_EKin(W, x) + calc_EInt(W) + calc_EMag(W, x) + W.rho * W.ePot; }
-inline real calc_eTotal(<?=eqn.prim_t?> W, real3 x) { return calc_ETotal(W, x) / W.rho; }
-inline real calc_H(real P) { return P * (heatCapacityRatio / (heatCapacityRatio - 1.)); }
-inline real calc_h(real rho, real P) { return calc_H(P) / rho; }
+inline real calc_EHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EKin(W, x) + calc_EInt(solver, W); }
+inline real calc_eHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EHydro(solver, W, x) / W.rho; }
+inline real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EKin(W, x) + calc_EInt(solver, W) + calc_EMag(W, x) + W.rho * W.ePot; }
+inline real calc_eTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_ETotal(solver, W, x) / W.rho; }
+inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
+inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
 inline real calc_HTotal(<?=eqn.prim_t?> W, real ETotal, real3 x) { return W.P + calc_PMag(W, x) + ETotal; }
 inline real calc_hTotal(<?=eqn.prim_t?> W, real ETotal, real3 x) { return calc_HTotal(W, ETotal, x) / W.rho; }
 
 //notice, this is speed of sound, to match the name convention of eqn/euler
 //but Cs in eigen_t is the slow speed
 //most the MHD papers use 'a' for the speed of sound
-inline real calc_Cs(<?=eqn.prim_t?> W) { return sqrt(heatCapacityRatio * W.P / W.rho); }
+inline real calc_Cs(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return sqrt(solver->heatCapacityRatio * W.P / W.rho); }
 ]], {
+		solver = self.solver,
 		eqn = self,
 	})
 end
@@ -93,6 +94,7 @@ end
 function MHD:getPrimConsCode()
 	return template([[
 inline <?=eqn.prim_t?> primFromCons(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
@@ -106,7 +108,7 @@ inline <?=eqn.prim_t?> primFromCons(
 	real EMag = .5 * BSq;
 	real EPot = U.rho * U.ePot;
 	real EInt = U.ETotal - EKin - EMag - EPot;
-	W.P = EInt * (heatCapacityRatio - 1.);
+	W.P = EInt * (solver->heatCapacityRatio - 1.);
 	W.P = max(W.P, (real)1e-7);
 	W.rho = max(W.rho, (real)1e-7);
 	W.BPot = U.BPot;
@@ -114,7 +116,11 @@ inline <?=eqn.prim_t?> primFromCons(
 	return W;
 }
 
-inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
+inline <?=eqn.cons_t?> consFromPrim(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.prim_t?> W,
+	real3 x
+) {
 	<?=eqn.cons_t?> U;
 	U.rho = W.rho;
 	U.m = real3_real_mul(W.v, W.rho);
@@ -123,7 +129,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	real BSq = coordLenSq(W.B, x);
 	real EKin = .5 * W.rho * vSq;
 	real EMag = .5 * BSq;
-	real EInt = W.P / (heatCapacityRatio - 1.);
+	real EInt = W.P / (solver->heatCapacityRatio - 1.);
 	U.ETotal = EInt + EKin + EMag;
 	U.BPot = W.BPot;
 	U.ePot = W.ePot;
@@ -131,6 +137,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 }
 
 <?=eqn.cons_t?> apply_dU_dW(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA, 
 	<?=eqn.prim_t?> W, 
 	real3 x
@@ -143,8 +150,8 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 		.B = WA.B,
 		.ETotal = W.rho * .5 * real3_dot(WA.v, WA.v)
 			+ WA.rho * real3_dot(W.v, WA.v)
-			+ real3_dot(W.B, WA.B) / mu0
-			+ W.P / (heatCapacityRatio - 1.)
+			+ real3_dot(W.B, WA.B) / solver->mu0
+			+ W.P / (solver->heatCapacityRatio - 1.)
 			+ WA.rho * W.ePot,
 		.BPot = W.BPot,
 		.ePot = W.ePot,
@@ -152,6 +159,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 }
 
 <?=eqn.prim_t?> apply_dW_dU(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA,
 	<?=eqn.cons_t?> U,
 	real3 x
@@ -162,10 +170,10 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 			real3_real_mul(U.m, 1. / WA.rho),
 			real3_real_mul(WA.v, U.rho / WA.rho)),
 		.B = U.B,
-		.P = (heatCapacityRatio - 1.) *  (
+		.P = (solver->heatCapacityRatio - 1.) *  (
 			.5 * U.rho * real3_dot(WA.v, WA.v)
 			- real3_dot(U.m, WA.v)
-			- real3_dot(U.B, WA.B) / mu0
+			- real3_dot(U.B, WA.B) / solver->mu0
 			+ U.ETotal
 			- WA.rho * U.ePot),
 		.BPot = U.BPot,
@@ -173,6 +181,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	};
 }
 ]], {
+		solver = self.solver,
 		eqn = self,
 	})
 end
@@ -180,7 +189,7 @@ end
 MHD.initStateCode = [[
 <? local xNames = require 'common'().xNames ?>
 kernel void initState(
-	global <?=solver.solver_t?>* solver,
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -209,7 +218,7 @@ end
 		.B = cartesianToCoord(B, x),
 		.BPot = 0,
 	};
-	UBuf[index] = consFromPrim(W, x);
+	UBuf[index] = consFromPrim(solver, W, x);
 }
 ]]
 
@@ -235,25 +244,25 @@ end
 		{P = '*value = W.P;'},
 		--{PMag = '*value = calc_PMag(W, x);'},
 		--{PTotal = '*value = W.P + calc_PMag(W, x);'},
-		--{eInt = '*value = calc_eInt(W);'},
-		{EInt = '*value = calc_EInt(W);'},
+		--{eInt = '*value = calc_eInt(solver, W);'},
+		{EInt = '*value = calc_EInt(solver, W);'},
 		--{eKin = '*value = calc_eKin(W, x);'},
 		{EKin = '*value = calc_EKin(W, x);'},
-		--{eHydro = '*value = calc_eHydro(W, x);'},
-		{EHydro = '*value = calc_EHydro(W, x);'},
+		--{eHydro = '*value = calc_eHydro(solver, W, x);'},
+		{EHydro = '*value = calc_EHydro(solver, W, x);'},
 		--{eMag = '*value = calc_eMag(W, x);'},
 		{EMag = '*value = calc_EMag(W, x);'},
 		--{eTotal = '*value = U->ETotal / W.rho;'},
-		{S = '*value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
-		{H = '*value = calc_H(W.P);'},
-		--{h = '*value = calc_H(W.P) / W.rho;'},
+		{S = '*value = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
+		{H = '*value = calc_H(solver, W.P);'},
+		--{h = '*value = calc_H(solver, W.P) / W.rho;'},
 		--{HTotal = '*value = calc_HTotal(W, U->ETotal, x);'},
 		--{hTotal = '*value = calc_hTotal(W, U->ETotal, x);'},
-		--{Cs = '*value = calc_Cs(W); },
+		--{Cs = '*value = calc_Cs(solver, W); },
 		{['primitive reconstruction error'] = template([[
 		//prim have just been reconstructed from cons
 		//so reconstruct cons from prims again and calculate the difference
-		<?=eqn.cons_t?> U2 = consFromPrim(W, x);
+		<?=eqn.cons_t?> U2 = consFromPrim(solver, W, x);
 		*value = 0;
 		for (int j = 0; j < numIntStates; ++j) {
 			*value += fabs(U->ptr[j] - U2.ptr[j]);
@@ -332,7 +341,7 @@ MHD.hasCalcDTCode = true
 
 function MHD:consWaveCodePrefix(side, U, x)
 	return template([[
-	range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(&<?=U?>, <?=x?>); 
+	range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(solver, &<?=U?>, <?=x?>); 
 ]], {
 		side = side,
 		U = '('..U..')',

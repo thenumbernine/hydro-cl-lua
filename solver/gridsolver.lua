@@ -28,6 +28,9 @@ local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
 
+-- whether to cache the opencl binaries
+local useCache = true
+
 local GridSolver = class(SolverBase)
 
 GridSolver.numGhost = 2
@@ -40,6 +43,15 @@ args:
 --]]
 function GridSolver:initL1(args)
 	GridSolver.super.initL1(self, args)
+
+	-- same as equations
+	-- but let equations/init conds add to the solver vars (as gui vars)
+	-- then we can edit them without recompiling the kernels
+	self.solverVars = table{
+		{mins = 'real3'},
+		{maxs = 'real3'},
+		{grid_dx = 'real3'},
+	}
 
 	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
 	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
@@ -104,7 +116,9 @@ function GridSolver:preInit(args)
 	function Program:init(args)
 		args.env = solver.app.env
 		args.domain = solver.domain
-		args.cacheFile = 'cache-cl/'..unique(assert(args.name))
+		if useCache then
+			args.cacheFile = 'cache-cl/'..unique(assert(args.name))
+		end
 		Program.super.init(self, args)
 	end
 	self.Program = Program
@@ -342,14 +356,7 @@ function GridSolver:getSolverTypeCode()
 	-- coordinate space = u,v,w
 	-- cartesian space = x,y,z
 	-- min and max in coordinate space
-	assert(self.solver_t)
-	return template([[
-typedef struct {
-	real3 mins;
-	real3 maxs;
-	real3 grid_dx;
-} <?=solver.solver_t?>;
-]], {solver=self})
+	return makestruct.makeStruct(self.solver_t, self.solverVars, nil, true)
 end
 
 function GridSolver:createSolverBuf()
@@ -364,6 +371,18 @@ function GridSolver:createSolverBuf()
 	self.solverPtr.grid_dx.x = (self.solverPtr.maxs.x - self.solverPtr.mins.x) / tonumber(self.sizeWithoutBorder.x)
 	self.solverPtr.grid_dx.y = (self.solverPtr.maxs.y - self.solverPtr.mins.y) / tonumber(self.sizeWithoutBorder.y)
 	self.solverPtr.grid_dx.z = (self.solverPtr.maxs.z - self.solverPtr.mins.z) / tonumber(self.sizeWithoutBorder.z)
+
+	-- while we're here, write all gui vars to the solver_t
+	for _,var in ipairs(self.eqn.guiVars) do
+		if not var.compileTime then
+			var:setToSolver(self)
+		end
+	end
+
+	self:refreshSolverBuf()
+end
+
+function GridSolver:refreshSolverBuf()
 	self.solverBuf:fromCPU(self.solverPtr)
 end
 
@@ -457,13 +476,11 @@ function GridSolver:createBuffers()
 end
 
 function GridSolver:createCodePrefix()
+	local lines = table()
+	
 	GridSolver.super.createCodePrefix(self)
 	
-	local lines = table{
-		self.codePrefix,
-	}
-
-	lines:insert(self:getSolverTypeCode())
+	lines:insert(self.codePrefix)
 
 	lines:append{
 		'#define numGhost '..self.numGhost,

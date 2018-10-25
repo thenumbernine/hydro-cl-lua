@@ -112,10 +112,28 @@ print(k,v)
 	self.fluxLimiter = self.app.limiterNames:find(args.fluxLimiter) or 1
 
 
+
+	-- this influences createCodePrefix (via its call of eqn:getCodePrefix)
+	--  and refreshInitStateProgram()
+	self.eqn:createInitState()
+
+	-- add eqn vars to solver_t
+	for _,var in ipairs(self.eqn.guiVars) do
+		if not var.compileTime then
+			var:addToSolver(self)
+		end
+	end
+	
 	self:createDisplayVars()	-- depends on eqn
 
-
 	-- do this before any call to createBuffers or createCodePrefix
+	-- make sure it's done after createEqn (for the solver_t struct to be filled out by the eqn)
+	-- actually this has to go after self.eqn:createInitState, 
+	--  which is called in refreshEqnInitState
+	--  which is called in refreshGridSize
+	--  which is called in postInit
+	-- the createInitState also creates kernels and runs them on the solver buffers
+	-- so I probably need a separate call to eqn.initState, earlier, which constructs the object and the guiVars, but runs no kernels
 	self.solver_t = unique'solver_t'
 	makestruct.safeFFICDef(self:getSolverTypeCode())
 	self.solverPtr = ffi.new(self.solver_t)
@@ -123,6 +141,13 @@ end
 
 function SolverBase:postInit()
 	self:refreshGridSize()
+
+	for _,var in ipairs(self.eqn.guiVars) do
+		if not var.compileTime then
+			var:setToSolver(self)
+		end
+	end
+	self:refreshSolverBuf()
 end
 
 function SolverBase:createSolverBuf()
@@ -138,7 +163,6 @@ function SolverBase:createSolverBuf()
 end
 
 function SolverBase:refreshGridSize()
-
 	self:createSolverBuf()
 	
 	-- depends on eqn & gridSize
@@ -148,6 +172,7 @@ function SolverBase:refreshGridSize()
 
 	-- create the code prefix, reflect changes
 	self:refreshEqnInitState()
+	
 	-- initialize things dependent on cons_t alone
 	self:refreshCommonProgram()
 	self:resetState()
@@ -293,18 +318,7 @@ end
 -- call this when the solver initializes or changes the codePrefix (or changes initState)
 -- it will build the code prefix and refresh everything related to it
 -- TODO if you change cons_t then call resetState etc (below the refreshEqnInitState() call a few lines above) in addition to this -- or else your values will get messed up
-function SolverBase:refreshEqnInitState()
-	--[[
-	circular dependency
-	... I want to createInitState when the initState changes
-	but if a gui var changes
-	then I want to call everything other than initState
-	--]]
-	
-	-- this influences createCodePrefix (via its call of eqn:getCodePrefix)
-	--  and refreshInitStateProgram()
-	self.eqn:createInitState()
-	
+function SolverBase:refreshEqnInitState()	
 	-- Right now within eqn:createInitState I'm adding any subclass-specific gui vars
 	-- so only after it finishes and all gui vars are created, ask the eqn.initState object if it wants to modify anything.
 	-- Don't do this during Solver:refreshInitStateProgram()->InitCond:initState() or the changes won't get into the header.
@@ -316,7 +330,7 @@ function SolverBase:refreshEqnInitState()
 			end
 		end
 	end
-
+	
 	self:refreshCodePrefix()
 end
 
@@ -586,10 +600,24 @@ function SolverBase:createCodePrefix()
 	-- this can use the coord_raise or coord_lower code
 	-- which is associated with the coordinate system,
 	lines:append{
+		'//SolverBase:createCodePrefix() begin',
+		
+		'//self.eqn:getTypeCode()',
 		self.eqn:getTypeCode(),
+		
+		'//self:getSolverTypeCode()',
+		self:getSolverTypeCode(),
+		
+		'//self.eqn:getExtraTypeCode()',
 		self.eqn:getExtraTypeCode(),
+		
+		'//self.eqn:getEigenTypeCode()',
 		self.eqn:getEigenTypeCode() or '',
+		
+		'//self.eqn:getCodePrefix()',
 		self.eqn:getCodePrefix() or '',
+		
+		'//SolverBase:createCodePrefix() end',
 	}
 
 	self.codePrefix = lines:concat'\n'

@@ -189,7 +189,7 @@ works for adm1d_v1
 		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 
 		//calc eigen values and vectors at cell center
-		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(*U, x);
+		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(solver, *U, x);
 			
 		<?=eqn.waves_t?> dULEig = eigen_leftTransform_<?=side?>(solver, eig, dUL, xIntL);
 		<?=eqn.waves_t?> dUREig = eigen_leftTransform_<?=side?>(solver, eig, dUR, xIntR);
@@ -289,9 +289,9 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
 		
 		//1) calc delta q's ... l r c (eqn 36)
-		<?=eqn.prim_t?> W = primFromCons(*U, x);
-		<?=eqn.prim_t?> WL = primFromCons(*UL, xL);
-		<?=eqn.prim_t?> WR = primFromCons(*UR, xR);
+		<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+		<?=eqn.prim_t?> WL = primFromCons(solver, *UL, xL);
+		<?=eqn.prim_t?> WR = primFromCons(solver, *UR, xR);
 		<?=eqn.prim_t?> dWL, dWR, dWC;
 		for (int j = 0; j < numIntStates; ++j) {
 			dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
@@ -304,19 +304,19 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 
 		//calc eigen values and vectors at cell center
 		//TODO calculate the eigenstate wrt W instead of U - to save some computations
-		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(*U, x);
+		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(solver, *U, x);
 			
 		//apply dU/dW before applying left/right eigenvectors so the eigenvectors are of the flux wrt primitives 
 		//RW = dW/dU RU, LW = LU dU/dW
 		<?=eqn.cons_t?> tmp;
 
-		tmp = apply_dU_dW(W, dWL, xIntL); 
+		tmp = apply_dU_dW(solver, W, dWL, xIntL); 
 		<?=eqn.waves_t?> dWLEig = eigen_leftTransform_<?=side?>(solver, eig, tmp, xIntL);
 		
-		tmp = apply_dU_dW(W, dWR, xIntR); 
+		tmp = apply_dU_dW(solver, W, dWR, xIntR); 
 		<?=eqn.waves_t?> dWREig = eigen_leftTransform_<?=side?>(solver, eig, tmp, xIntR);
 		
-		tmp = apply_dU_dW(W, dWC, x); 
+		tmp = apply_dU_dW(solver, W, dWC, x); 
 		<?=eqn.waves_t?> dWCEig = eigen_leftTransform_<?=side?>(solver, eig, tmp, x);
 
 		//MUSCL slope of characteristic variables
@@ -351,10 +351,10 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 
 		// transform slopes back to conserved variable space
 		tmp = eigen_rightTransform_<?=side?>(solver, eig, aL, xIntL); 
-		<?=eqn.prim_t?> sL = apply_dW_dU(W, tmp, xIntL);
+		<?=eqn.prim_t?> sL = apply_dW_dU(solver, W, tmp, xIntL);
 		
 		tmp = eigen_rightTransform_<?=side?>(solver, eig, aR, xIntR); 
-		<?=eqn.prim_t?> sR = apply_dW_dU(W, tmp, xIntR);
+		<?=eqn.prim_t?> sR = apply_dW_dU(solver, W, tmp, xIntR);
 	
 		// linearly extrapolate the slopes forward and backward from the cell center
  		<?=eqn.prim_t?> W2L, W2R;
@@ -365,8 +365,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		for (int j = numIntStates; j < numStates; ++j) {
 			W2L.ptr[j] = W2R.ptr[j] = W.ptr[j];
 		}
-		ULR->L = consFromPrim(W2L, xIntL);
-		ULR->R = consFromPrim(W2R, xIntR);
+		ULR->L = consFromPrim(solver, W2L, xIntL);
+		ULR->R = consFromPrim(solver, W2R, xIntR);
 
 
 <?	elseif solver.usePLM == 'plm-eig-prim-ref' then ?>
@@ -380,7 +380,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 
 		//limited slope in primitive variable space
 		tmp = eigen_rightTransform_<?=side?>(solver, eig, dWMEig, x);
-		<?=eqn.prim_t?> dWM = apply_dW_dU(W, tmp, x);
+		<?=eqn.prim_t?> dWM = apply_dW_dU(solver, W, tmp, x);
 
 		//left and right reference states
 		<?=eqn.prim_t?> WLRef, WRRef;
@@ -403,10 +403,10 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 
 		// transform slopes back to conserved variable space
 		tmp = eigen_rightTransform_<?=side?>(solver, eig, aL, xIntL); 
-		<?=eqn.prim_t?> sL = apply_dW_dU(W, tmp, xIntL);
+		<?=eqn.prim_t?> sL = apply_dW_dU(solver, W, tmp, xIntL);
 		
 		tmp = eigen_rightTransform_<?=side?>(solver, eig, aR, xIntR); 
-		<?=eqn.prim_t?> sR = apply_dW_dU(W, tmp, xIntR);
+		<?=eqn.prim_t?> sR = apply_dW_dU(solver, W, tmp, xIntR);
 	
 		// linearly extrapolate the slopes forward and backward from the cell center
 		<?=eqn.prim_t?> W2L, W2R;
@@ -418,8 +418,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 			W2R.ptr[j] = W2L.ptr[j] = W.ptr[j];
 		}
 		//TODO fix the x's
-		ULR->L = consFromPrim(W2R, xIntR);
-		ULR->R = consFromPrim(W2L, xIntL);
+		ULR->L = consFromPrim(solver, W2R, xIntR);
+		ULR->R = consFromPrim(solver, W2L, xIntL);
 
 
 <? 	end	-- solver.usePLM
@@ -434,7 +434,7 @@ elseif solver.usePLM == 'plm-athena' then
 		real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
 
 		//calc eigen values and vectors at cell center
-		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(*U, x);
+		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(solver, *U, x);
 
 		real dx = dx<?=side?>_at(i);
 		real dt_dx = dt / dx;
@@ -443,9 +443,9 @@ elseif solver.usePLM == 'plm-athena' then
 		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
 		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
 
-		<?=eqn.prim_t?> W = primFromCons(*U, x);
-		<?=eqn.prim_t?> WL = primFromCons(*UL, xL);
-		<?=eqn.prim_t?> WR = primFromCons(*UR, xR);
+		<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+		<?=eqn.prim_t?> WL = primFromCons(solver, *UL, xL);
+		<?=eqn.prim_t?> WR = primFromCons(solver, *UR, xR);
 		
 		<?=eqn.prim_t?> dWL, dWR, dWC, dWG;
 		for (int j = 0; j < numIntStates; ++j) {
@@ -498,8 +498,8 @@ elseif solver.usePLM == 'plm-athena' then
 			Wrv.ptr[j] = W.ptr[j];
 		}
 
-		ULR->L = consFromPrim(Wlv, xIntL);
-		ULR->R = consFromPrim(Wrv, xIntR);
+		ULR->L = consFromPrim(solver, Wlv, xIntL);
+		ULR->R = consFromPrim(solver, Wrv, xIntR);
 
 
 <? elseif solver.usePLM == 'ppm-experimental' then ?>
@@ -513,10 +513,10 @@ elseif solver.usePLM == 'plm-athena' then
 		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
 		const global <?=eqn.cons_t?>* UR2 = UR + stepsize.s<?=side?>;
 	
-		<?=eqn.prim_t?> WL = primFromCons(*UL, xL);
-		<?=eqn.prim_t?> W = primFromCons(*U, x);
-		<?=eqn.prim_t?> WR = primFromCons(*UR, xR);
-		<?=eqn.prim_t?> WR2 = primFromCons(*UR2, xR);
+		<?=eqn.prim_t?> WL = primFromCons(solver, *UL, xL);
+		<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+		<?=eqn.prim_t?> WR = primFromCons(solver, *UR, xR);
+		<?=eqn.prim_t?> WR2 = primFromCons(solver, *UR2, xR);
 	
 		<?=eqn.prim_t?> Qplus, Qminus;
 		for (int j = 0; j < numStates; ++j) {
@@ -584,7 +584,7 @@ elseif solver.usePLM == 'plm-athena' then
 		real dt_dx = dt / dx;
 
 		//calc eigen values and vectors at cell center
-		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(*U, x);
+		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(solver, *U, x);
 		
 		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
 		real eval[numWaves] = {
@@ -662,8 +662,8 @@ elseif solver.usePLM == 'plm-athena' then
 			WresL.ptr[j] = WresR.ptr[j] = 0;
 		}
 
-		ULR->L = consFromPrim(WresL, x);
-		ULR->R = consFromPrim(WresR, x);
+		ULR->L = consFromPrim(solver, WresL, x);
+		ULR->R = consFromPrim(solver, WresR, x);
 
 <? end ?>
 

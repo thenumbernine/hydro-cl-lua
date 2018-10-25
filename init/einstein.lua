@@ -223,8 +223,8 @@ return table{
 	real3 c = real3_sub(x, mids);
 	real s = real3_lenSq(c);
 
-	const real H = init_H;
-	const real sigma = init_sigma;
+	const real H = solver->init_H;
+	const real sigma = solver->init_sigma;
 	const real sigma2 = sigma * sigma;
 	const real sigma4 = sigma2 * sigma2;
 	real h = H * exp(-s / sigma2);
@@ -273,7 +273,7 @@ return table{
 		end,
 		initState = function(self, solver)
 			return [[
-	real h = 1. - init_A * sin((2. * M_PI / init_L) * x.x);
+	real h = 1. - solver->init_A * sin((2. * M_PI / solver->init_L) * x.x);
 	alpha = sqrt(h);
 	gamma_ll.xx = h;
 
@@ -299,7 +299,7 @@ return table{
 		initState = function(self, solver)
 			return [[
 	real x_s = 0;	//speed * t
-	real v_s = init_speed;
+	real v_s = solver->init_speed;
 	
 	real3 y = xc; y.x -= x_s;
 	real r_s = real3_len(y);
@@ -307,8 +307,8 @@ return table{
 #define cosh(x)		(.5 * (exp(x) + exp(-x)))
 #define dtanh(x) 	(1./(cosh(x)*cosh(x)))
 
-	real fnum = tanh(init_sigma * (r_s + init_R)) - tanh(init_sigma * (r_s - init_R));
-	real fdenom = 2 * tanh(init_sigma * init_R);
+	real fnum = tanh(solver->init_sigma * (r_s + solver->init_R)) - tanh(solver->init_sigma * (r_s - solver->init_R));
+	real fdenom = 2 * tanh(solver->init_sigma * solver->init_R);
 	real f = fnum / fdenom;
 
 	beta_u.x = -v_s * f;
@@ -316,9 +316,9 @@ return table{
 	real3 dx_r_s = real3_real_mul(y, 1. / r_s);
 
 	real3 dx_f = real3_real_mul(dx_r_s, 
-		init_sigma * (
-			dtanh(init_sigma * (r_s + init_R)) 
-			- dtanh(init_sigma * (r_s - init_R))
+		solver->init_sigma * (
+			dtanh(solver->init_sigma * (r_s + solver->init_R)) 
+			- dtanh(solver->init_sigma * (r_s - solver->init_R))
 		) / fdenom);
 
 	alpha = 1;
@@ -342,7 +342,7 @@ return table{
 		end,
 		initState = function(self, solver)
 			return [[
-	const real R = init_R;
+	const real R = solver->init_R;
 	
 	real r = real3_len(xc);
 	alpha = sqrt(1. - R/r);
@@ -590,14 +590,14 @@ return table{
 	real r = real3_len(ofs);
 	real3 l = real3_real_mul(ofs, 1./r);
 	
-	real m = r / init_bodyRadius; m *= m * m; m = min(m, 1.); m *= init_bodyMass;
+	real m = r / solver->init_bodyRadius; m *= m * m; m = min(m, 1.); m *= solver->init_bodyMass;
 	real R = 2. * m;
 
 	alpha -= 2*m/r;
 	gamma_ll = sym3_add(gamma_ll, sym3_real_mul(real3_outer(l,l), 1./(r/R - 1.)));
 
-	if (r < init_bodyRadius) {
-		rho += init_bodyMass / (4./3. * M_PI * init_bodyRadius * init_bodyRadius * init_bodyRadius);
+	if (r < solver->init_bodyRadius) {
+		rho += solver->init_bodyMass / (4./3. * M_PI * solver->init_bodyRadius * solver->init_bodyRadius * solver->init_bodyRadius);
 #if 0
 		local r = math.sqrt(rSq)
 		local rho0 = body.pressure or (body.mass / (4/3 * math.pi * body.radius * body.radius * body.radius))
@@ -795,10 +795,10 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 			return [[
 	const real t = 0.;
 	real theta = 2. * M_PI / init_d * (xc.x - t);
-	real H = 1. + init_A * sin(theta);
+	real H = 1. + solver->init_A * sin(theta);
 	alpha = sqrt(H);
 	gamma_ll.xx = H;
-	K_ll.xx = -M_PI * init_A / init_d * cos(theta) / alpha;
+	K_ll.xx = -M_PI * solver->init_A / init_d * cos(theta) / alpha;
 ]]
 		end,
 	},
@@ -824,10 +824,10 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 			return [[
 	const real t = 0.;
 	real theta = 2. * M_PI / init_d * (xc.x - t);
-	real b = init_A * sin(theta);
+	real b = solver->init_A * sin(theta);
 	gamma_ll.yy += b;
 	gamma_ll.zz -= b;
-	real db_dt = -2. * M_PI * init_A / init_d * cos(theta);
+	real db_dt = -2. * M_PI * solver->init_A / init_d * cos(theta);
 	K_ll.yy = .5 * db_dt;
 	K_ll.zz = -.5 * db_dt;
 ]]

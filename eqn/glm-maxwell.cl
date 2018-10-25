@@ -5,9 +5,6 @@ local xNames = common.xNames
 local sym = common.sym
 ?>
 
-#define divPhiWavespeed 	1.
-#define divPsiWavespeed		1.
-
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
 <? for side=0,solver.dim-1 do ?>
@@ -23,17 +20,17 @@ local sym = common.sym
 	<?=scalar?> v_pSq = <?=mul?>(_1_eps, _1_mu);
 	return (<?=eqn.cons_t?>){
 	<? if side == 0 then ?>
-		.D = _<?=vec3?>(<?=real_mul?>(<?=mul?>(v_pSq, U.phi), divPhiWavespeed),  H.z, <?=neg?>(H.y)),
-		.B = _<?=vec3?>(<?=real_mul?>(<?=mul?>(v_pSq, U.psi), divPsiWavespeed), <?=neg?>(E.z),  E.y),
+		.D = _<?=vec3?>(<?=real_mul?>(<?=mul?>(v_pSq, U.phi), solver->divPhiWavespeed),  H.z, <?=neg?>(H.y)),
+		.B = _<?=vec3?>(<?=real_mul?>(<?=mul?>(v_pSq, U.psi), solver->divPsiWavespeed), <?=neg?>(E.z),  E.y),
 	<? elseif side == 1 then ?>
-		.D = _<?=vec3?>(<?=neg?>(H.z), <?=real_mul?>(<?=mul?>(v_pSq, U.phi), divPhiWavespeed),  H.x),
-		.B = _<?=vec3?>( E.z,          <?=real_mul?>(<?=mul?>(v_pSq, U.psi), divPsiWavespeed), <?=neg?>(E.x)),
+		.D = _<?=vec3?>(<?=neg?>(H.z), <?=real_mul?>(<?=mul?>(v_pSq, U.phi), solver->divPhiWavespeed),  H.x),
+		.B = _<?=vec3?>( E.z,          <?=real_mul?>(<?=mul?>(v_pSq, U.psi), solver->divPsiWavespeed), <?=neg?>(E.x)),
 	<? elseif side == 2 then ?>
-		.D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>(<?=mul?>(v_pSq, U.phi), divPhiWavespeed)),
-		.B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>(<?=mul?>(v_pSq, U.psi), divPsiWavespeed)),
+		.D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>(<?=mul?>(v_pSq, U.phi), solver->divPhiWavespeed)),
+		.B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>(<?=mul?>(v_pSq, U.psi), solver->divPsiWavespeed)),
 	<? end ?>
-		.phi = <?=real_mul?>(U.D.s<?=side?>, divPhiWavespeed),
-		.psi = <?=real_mul?>(U.B.s<?=side?>, divPsiWavespeed),
+		.phi = <?=real_mul?>(U.D.s<?=side?>, solver->divPhiWavespeed),
+		.psi = <?=real_mul?>(U.B.s<?=side?>, solver->divPsiWavespeed),
 	
 		.sigma = <?=zero?>,
 		.rhoCharge = <?=zero?>,
@@ -44,6 +41,7 @@ local sym = common.sym
 <? end ?>
 
 <?=eqn.eigen_t?> eigen_forInterface(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
 	real3 x,
@@ -232,7 +230,7 @@ kernel void addSource(
 		deriv->B.<?=xj?> = <?=sub?>(deriv->B.<?=xj?>, <?=vec3?>_dot(flux.B, grad_1_eps));
 	}<? end ?>
 	
-	deriv->phi = <?=add?>(deriv->phi, <?=real_mul?>(U->rhoCharge, divPhiWavespeed));
+	deriv->phi = <?=add?>(deriv->phi, <?=real_mul?>(U->rhoCharge, solver->divPhiWavespeed));
 }
 
 

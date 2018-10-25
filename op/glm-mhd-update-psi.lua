@@ -24,7 +24,7 @@ kernel void updatePsi(
 <? if not eqn.useFixedCh then ?>
 	real Ch = 0;
 	<? for side=0,solver.dim-1 do ?>{
-		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(*U, x);
+		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(solver, *U, x);
 		Ch = max(Ch, eig.Ch);
 	}<? end ?>
 <? end ?>

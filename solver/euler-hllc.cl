@@ -31,12 +31,12 @@ kernel void calcFlux(
 		UL.m = real3_rotFrom<?=side?>(UL.m);
 		UR.m = real3_rotFrom<?=side?>(UR.m);
 		
-		<?=eqn.prim_t?> WL = primFromCons(UL, xInt);
-		<?=eqn.prim_t?> WR = primFromCons(UR, xInt);
+		<?=eqn.prim_t?> WL = primFromCons(solver, UL, xInt);
+		<?=eqn.prim_t?> WR = primFromCons(solver, UR, xInt);
 		
 		// get min/max lambdas of UL, UR, and interface U (based on Roe averaging)
 		// TODO this in a more computationally efficient way
-		<?=eqn.eigen_t?> eigInt = eigen_forInterface(UL, UR, xInt, normalForSide0());
+		<?=eqn.eigen_t?> eigInt = eigen_forInterface(solver, UL, UR, xInt, normalForSide0());
 		
 		real lambdaIntMin, lambdaIntMax;
 		{

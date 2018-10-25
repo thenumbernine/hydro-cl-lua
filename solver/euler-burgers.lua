@@ -48,8 +48,8 @@ function EulerBurgers:refreshSolverProgram()
 
 	-- no mention of ULR just yet ...
 
-	self.calcIntVelKernelObj = self.solverProgramObj:kernel('calcIntVel', self.solverBuf, self.intVelBuf, self.getULRBuf)
-	self.calcFluxKernelObj = self.solverProgramObj:kernel('calcFlux', self.solverBuf, self.fluxBuf, self.getULRBuf, self.intVelBuf)
+	self.calcIntVelKernelObj = self.solverProgramObj:kernel'calcIntVel'
+	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
 
 	self.computePressureKernelObj = self.solverProgramObj:kernel('computePressure', self.solverBuf, self.PBuf, self.UBuf) 
 	
@@ -101,10 +101,9 @@ end
 function EulerBurgers:step(dt)
 	-- calc deriv here
 	self.integrator:integrate(dt, function(derivBuf)
-		self.calcIntVelKernelObj()
+		self.calcIntVelKernelObj(self.solverBuf, self.intVelBuf, self:getULRBuf())
 
-		self.calcFluxKernelObj.obj:setArg(4, real(dt))
-		self.calcFluxKernelObj()
+		self.calcFluxKernelObj(self.solverBuf, self.fluxBuf, self:getULRBuf(), self.intVelBuf, real(dt))
 	
 		self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBuf)
 		self.calcDerivFromFluxKernelObj()

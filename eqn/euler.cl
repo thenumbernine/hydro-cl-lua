@@ -20,7 +20,7 @@ cons_t fluxFromCons_<?=side?>(
 	cons_t U,
 	real3 x
 ) {
-	prim_t W = primFromCons(U, x);
+	prim_t W = primFromCons(solver, U, x);
 	real vj = W.v.s<?=side?>;
 	real HTotal = U.ETotal + W.P;
 	
@@ -41,13 +41,15 @@ cons_t fluxFromCons_<?=side?>(
 }
 <? end ?>
 
+// used by PLM
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
+	constant solver_t* solver,
 	const global cons_t* U,
 	real3 x
 ) {
-	prim_t W = primFromCons(*U, x);
-	real Cs = calc_Cs(&W);
+	prim_t W = primFromCons(solver, *U, x);
+	real Cs = calc_Cs(solver, &W);
 	real Cs_sqrt_gU = Cs * coord_sqrt_gU<?=side..side?>(x);
 	return (range_t){
 		.min = W.v.s<?=side?> - Cs_sqrt_gU, 
@@ -58,17 +60,18 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 //used by the mesh version
 eigen_t eigen_forInterface(
+	constant solver_t* solver,
 	cons_t UL,
 	cons_t UR,
 	real3 x,
 	real3 n
 ) {
-	prim_t WL = primFromCons(UL, x);
+	prim_t WL = primFromCons(solver, UL, x);
 	real sqrtRhoL = sqrt(WL.rho);
 	real3 vL = WL.v;
 	real hTotalL = calc_hTotal(WL.rho, WL.P, UL.ETotal) - UL.ePot;
 	
-	prim_t WR = primFromCons(UR, x);
+	prim_t WR = primFromCons(solver, UR, x);
 	real sqrtRhoR = sqrt(WR.rho);
 	real3 vR = WR.v;
 	real hTotalR = calc_hTotal(WR.rho, WR.P, UR.ETotal) - UR.ePot;
@@ -85,7 +88,7 @@ eigen_t eigen_forInterface(
 	//derived:
 	real vSq = coordLenSq(v, x);
 	real eKin = .5 * vSq;
-	real CsSq = (heatCapacityRatio - 1.) * (hTotal - eKin);
+	real CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);
 	real Cs = sqrt(CsSq);
 
 	return (eigen_t){
@@ -161,28 +164,28 @@ waves_t eigen_leftTransform_<?=side?>(
 	real invDenom = 1. / denom;
 
 #if 0	//works but isn't correct for curvilinear coordinates (which make use of g_ij)
-	Y[0] = (X.ptr[0] * ((heatCapacityRatio - 1.) * .5 * vSq + Cs_over_sqrt_gUjj * v_n)
-		+ X.ptr[1] * -(nx * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.x) 
-		+ X.ptr[2] * -(ny * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.y)
-		+ X.ptr[3] * -(nz * Cs_over_sqrt_gUjj + (heatCapacityRatio - 1.) * vL.z)
-		+ X.ptr[4] * (heatCapacityRatio - 1.)
+	Y[0] = (X.ptr[0] * ((solver->heatCapacityRatio - 1.) * .5 * vSq + Cs_over_sqrt_gUjj * v_n)
+		+ X.ptr[1] * -(nx * Cs_over_sqrt_gUjj + (solver->heatCapacityRatio - 1.) * vL.x) 
+		+ X.ptr[2] * -(ny * Cs_over_sqrt_gUjj + (solver->heatCapacityRatio - 1.) * vL.y)
+		+ X.ptr[3] * -(nz * Cs_over_sqrt_gUjj + (solver->heatCapacityRatio - 1.) * vL.z)
+		+ X.ptr[4] * (solver->heatCapacityRatio - 1.)
 	) * invDenom;
-	Y[1] = (X.ptr[0] * (2.*Cs*Cs - (heatCapacityRatio - 1.) * vSq)
-		+ X.ptr[1] * (heatCapacityRatio - 1.) * v.x * 2
-		+ X.ptr[2] * (heatCapacityRatio - 1.) * v.y * 2
-		+ X.ptr[3] * (heatCapacityRatio - 1.) * v.z * 2
-		+ X.ptr[4] * -(heatCapacityRatio - 1.) * 2
+	Y[1] = (X.ptr[0] * (2.*Cs*Cs - (solver->heatCapacityRatio - 1.) * vSq)
+		+ X.ptr[1] * (solver->heatCapacityRatio - 1.) * v.x * 2
+		+ X.ptr[2] * (solver->heatCapacityRatio - 1.) * v.y * 2
+		+ X.ptr[3] * (solver->heatCapacityRatio - 1.) * v.z * 2
+		+ X.ptr[4] * -(solver->heatCapacityRatio - 1.) * 2
 	) * invDenom;
 	Y[2] = X.ptr[0] * -v_n1 + X.ptr[1] * n1x + X.ptr[2] * n1y + X.ptr[3] * n1z;
 	Y[3] = X.ptr[0] * -v_n2 + X.ptr[1] * n2x + X.ptr[2] * n2y + X.ptr[3] * n2z;
-	Y[4] = (X.ptr[0] * ((heatCapacityRatio - 1.) * .5 * vSq - Cs_over_sqrt_gUjj * v_n) 
-		+ X.ptr[1] * (nx * Cs_over_sqrt_gUjj - (heatCapacityRatio - 1.) * vL.x) 
-		+ X.ptr[2] * (ny * Cs_over_sqrt_gUjj - (heatCapacityRatio - 1.) * vL.y) 
-		+ X.ptr[3] * (nz * Cs_over_sqrt_gUjj - (heatCapacityRatio - 1.) * vL.z) 
-		+ X.ptr[4] * (heatCapacityRatio - 1.)
+	Y[4] = (X.ptr[0] * ((solver->heatCapacityRatio - 1.) * .5 * vSq - Cs_over_sqrt_gUjj * v_n) 
+		+ X.ptr[1] * (nx * Cs_over_sqrt_gUjj - (solver->heatCapacityRatio - 1.) * vL.x) 
+		+ X.ptr[2] * (ny * Cs_over_sqrt_gUjj - (solver->heatCapacityRatio - 1.) * vL.y) 
+		+ X.ptr[3] * (nz * Cs_over_sqrt_gUjj - (solver->heatCapacityRatio - 1.) * vL.z) 
+		+ X.ptr[4] * (solver->heatCapacityRatio - 1.)
 	) * invDenom;
 #else
-	const real heatRatioMinusOne = heatCapacityRatio - 1.;
+	const real heatRatioMinusOne = solver->heatCapacityRatio - 1.;
 <? if side == 0 then ?>
 	real sqrt_gUxx = sqrt_gUjj;
 	return (waves_t){.ptr={
@@ -382,26 +385,26 @@ cons_t eigen_fluxTransform_<?=side?>(
 		X.ptr[1] * nx 
 			+ X.ptr[2] * ny 
 			+ X.ptr[3] * nz,
-		X.ptr[0] * (-v_n * v.x + (heatCapacityRatio - 1.) * .5 * vSq * gUj.x)
-			+ X.ptr[1] * (v.x * nx - (heatCapacityRatio - 1.) * gUj.x * vL.x + v_n)
-			+ X.ptr[2] * (v.x * ny - (heatCapacityRatio - 1.) * gUj.x * vL.y)
-			+ X.ptr[3] * (v.x * nz - (heatCapacityRatio - 1.) * gUj.x * vL.z)
-			+ X.ptr[4] * (heatCapacityRatio - 1.) * nx,
-		X.ptr[0] * (-v_n * v.y + (heatCapacityRatio - 1.) * .5 * vSq * gUj.y)
-			+ X.ptr[1] * (v.y * nx - (heatCapacityRatio - 1.) * gUj.y * vL.x)
-			+ X.ptr[2] * (v.y * ny - (heatCapacityRatio - 1.) * gUj.y * vL.y + v_n)
-			+ X.ptr[3] * (v.y * nz - (heatCapacityRatio - 1.) * gUj.y * vL.z)
-			+ X.ptr[4] * (heatCapacityRatio - 1.) * ny,
-		X.ptr[0] * (-v_n * v.z + (heatCapacityRatio - 1.) * .5 * vSq * gUj.z)
-			+ X.ptr[1] * (v.z * nx - (heatCapacityRatio - 1.) * gUj.z * vL.x)
-			+ X.ptr[2] * (v.z * ny - (heatCapacityRatio - 1.) * gUj.z * vL.y)
-			+ X.ptr[3] * (v.z * nz - (heatCapacityRatio - 1.) * gUj.z * vL.z + v_n)
-			+ X.ptr[4] * (heatCapacityRatio - 1.) * nz,
-		X.ptr[0] * v_n * ((heatCapacityRatio - 1.) * .5 * vSq - hTotal)
-			+ X.ptr[1] * (-(heatCapacityRatio - 1.) * v_n * vL.x + nx * hTotal)
-			+ X.ptr[2] * (-(heatCapacityRatio - 1.) * v_n * vL.y + ny * hTotal)
-			+ X.ptr[3] * (-(heatCapacityRatio - 1.) * v_n * vL.z + nz * hTotal)
-			+ X.ptr[4] * heatCapacityRatio * v_n,
+		X.ptr[0] * (-v_n * v.x + (solver->heatCapacityRatio - 1.) * .5 * vSq * gUj.x)
+			+ X.ptr[1] * (v.x * nx - (solver->heatCapacityRatio - 1.) * gUj.x * vL.x + v_n)
+			+ X.ptr[2] * (v.x * ny - (solver->heatCapacityRatio - 1.) * gUj.x * vL.y)
+			+ X.ptr[3] * (v.x * nz - (solver->heatCapacityRatio - 1.) * gUj.x * vL.z)
+			+ X.ptr[4] * (solver->heatCapacityRatio - 1.) * nx,
+		X.ptr[0] * (-v_n * v.y + (solver->heatCapacityRatio - 1.) * .5 * vSq * gUj.y)
+			+ X.ptr[1] * (v.y * nx - (solver->heatCapacityRatio - 1.) * gUj.y * vL.x)
+			+ X.ptr[2] * (v.y * ny - (solver->heatCapacityRatio - 1.) * gUj.y * vL.y + v_n)
+			+ X.ptr[3] * (v.y * nz - (solver->heatCapacityRatio - 1.) * gUj.y * vL.z)
+			+ X.ptr[4] * (solver->heatCapacityRatio - 1.) * ny,
+		X.ptr[0] * (-v_n * v.z + (solver->heatCapacityRatio - 1.) * .5 * vSq * gUj.z)
+			+ X.ptr[1] * (v.z * nx - (solver->heatCapacityRatio - 1.) * gUj.z * vL.x)
+			+ X.ptr[2] * (v.z * ny - (solver->heatCapacityRatio - 1.) * gUj.z * vL.y)
+			+ X.ptr[3] * (v.z * nz - (solver->heatCapacityRatio - 1.) * gUj.z * vL.z + v_n)
+			+ X.ptr[4] * (solver->heatCapacityRatio - 1.) * nz,
+		X.ptr[0] * v_n * ((solver->heatCapacityRatio - 1.) * .5 * vSq - hTotal)
+			+ X.ptr[1] * (-(solver->heatCapacityRatio - 1.) * v_n * vL.x + nx * hTotal)
+			+ X.ptr[2] * (-(solver->heatCapacityRatio - 1.) * v_n * vL.y + ny * hTotal)
+			+ X.ptr[3] * (-(solver->heatCapacityRatio - 1.) * v_n * vL.z + nz * hTotal)
+			+ X.ptr[4] * solver->heatCapacityRatio * v_n,
 		0,
 	}};
 }
@@ -413,14 +416,15 @@ cons_t eigen_fluxTransform_<?=side?>(
 
 <? for side=0,solver.dim-1 do ?>
 eigen_t eigen_forCell_<?=side?>(
+	constant solver_t* solver,
 	cons_t U,
 	real3 x
 ) {
-	prim_t W = primFromCons(U, x);
+	prim_t W = primFromCons(solver, U, x);
 	real vSq = coordLenSq(W.v, x);
 	real eKin = .5 * vSq;
 	real hTotal = calc_hTotal(W.rho, W.P, U.ETotal);
-	real CsSq = (heatCapacityRatio - 1.) * (hTotal - eKin);
+	real CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);
 	real Cs = sqrt(CsSq);
 	return (eigen_t){
 		.rho = W.rho,
@@ -444,7 +448,7 @@ kernel void addSource(
 
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
-	prim_t W = primFromCons(*U, x);
+	prim_t W = primFromCons(solver, *U, x);
 	real3 m_conn_vv = coord_conn_apply23(W.v, U->m, x);
 	deriv->m = real3_sub(deriv->m, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
 	deriv->m = real3_sub(deriv->m, real3_real_mul(coord_conn_trace23(x), W.P));		//-Conn^i_jk g^jk P
@@ -458,10 +462,10 @@ kernel void constrainU(
 	SETBOUNDS(numGhost,numGhost);	
 	global cons_t* U = UBuf + index;
 	real3 x = cell_x(i);
-	prim_t W = primFromCons(*U, x);
+	prim_t W = primFromCons(solver, *U, x);
 
-	if (W.rho < rhoMin) W.rho = rhoMin;
-	if (W.P < PMin) W.P = PMin;
+	if (W.rho < solver->rhoMin) W.rho = solver->rhoMin;
+	if (W.P < solver->PMin) W.P = solver->PMin;
 
-	*U = consFromPrim(W, x);
+	*U = consFromPrim(solver, W, x);
 }

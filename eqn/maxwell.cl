@@ -37,6 +37,7 @@ local sym = common.sym
 <? end ?>
 
 <?=eqn.eigen_t?> eigen_forInterface(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
 	real3 x,
@@ -299,6 +300,7 @@ kernel void addSource(
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forCell_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {

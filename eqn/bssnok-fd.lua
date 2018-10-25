@@ -90,9 +90,9 @@ end
 function BSSNOKFiniteDifferenceEquation:createInitState()
 	BSSNOKFiniteDifferenceEquation.super.createInitState(self)
 	self:addGuiVars{
-		{name='constrain_det_gammaTilde_ll', value=true},
-		{name='constrain_tr_ATilde_ll', value=true},
-		{name='useGammaDriver', value=false},
+		{name='constrain_det_gammaTilde_ll', value=true, compileTime=true},
+		{name='constrain_tr_ATilde_ll', value=true, compileTime=true},
+		{name='useGammaDriver', value=false, compileTime=true},
 		{name='diffuseSigma', value=.01},
 	}
 end

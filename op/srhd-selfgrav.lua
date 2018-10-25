@@ -116,7 +116,7 @@ kernel void calcGravityDeriv(
 	//W_,t = W^3 (v^i_,t v_i + v^i v^j gamma_ij,t / 2)
 	//W_,t = W^3 (v^i_,t v^i) / (1 - 2 Phi)
 	real dW_dt = W * W * W * real3_dot(prim->v, dv_dt) / (1. - 2. * Phi);
-	real h = 1. + heatCapacityRatio * prim->eInt;
+	real h = 1. + solver->heatCapacityRatio * prim->eInt;
 
 	//why am I integrating negative again?
 	//why does "Hydrodynamics II" say to integrate negative for the Euler equations?	

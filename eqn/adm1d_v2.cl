@@ -18,6 +18,7 @@
 //used by PLM
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forCell_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
@@ -31,6 +32,7 @@
 
 //used for interface eigen basis
 <?=eqn.eigen_t?> eigen_forInterface(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
 	real3 x,
@@ -123,17 +125,13 @@ kernel void addSource(
 
 	// and now for the first-order constraints
 	
-<? if eqn.guiVars.a_x_convCoeff.value ~= 0 then ?>
 	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
 	real dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * solver->grid_dx.x);
-	deriv->a_x += a_x_convCoeff * (dx_alpha / alpha - a_x);
-<? end -- eqn.guiVars.a_x_convCoeff.value  ?>
+	deriv->a_x += solver->a_x_convCoeff * (dx_alpha / alpha - a_x);
 	
-<? if eqn.guiVars.d_xxx_convCoeff.value ~= 0 then ?>
 	// d_xxx = .5 gamma_xx,x <=> d_xxx += eta (.5 gamma_xx,x - d_xxx)
 	real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * solver->grid_dx.x);
-	deriv->d_xxx += d_xxx_convCoeff * (.5 * dx_gamma_xx - d_xxx);
-<? end -- eqn.guiVars.d_xxx_convCoeff.value  ?>
+	deriv->d_xxx += solver->d_xxx_convCoeff * (.5 * dx_gamma_xx - d_xxx);
 
 	//Kreiss-Oligar diffusion, for stability's sake?
 

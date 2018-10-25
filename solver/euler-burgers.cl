@@ -14,8 +14,8 @@ kernel void calcDT(
 	real3 x = cell_x(i);
 
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
-	real Cs = calc_Cs(&W);
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+	real Cs = calc_Cs(solver, &W);
 	
 	real dt = INFINITY;
 <? for side=0,solver.dim-1 do 
@@ -111,7 +111,7 @@ kernel void computePressure(
 	real3 x = cell_x(i);
 	
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
 	real P = W.P;
 
 <? if false then -- Von Newmannartificial viscosity

@@ -208,26 +208,27 @@ function TwoFluidEMHD:getCommonFuncCode()
 real ESq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.E); }
 real BSq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.B); }
 
-inline real calc_H(real P) { return P * (heatCapacityRatio / (heatCapacityRatio - 1.)); }
-inline real calc_h(real rho, real P) { return calc_H(P) / rho; }
-inline real calc_hTotal(real rho, real P, real ETotal) { return (P + ETotal) / rho; }
+inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
+inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
+inline real calc_hTotal(constant <?=solver.solver_t?>* solver, real rho, real P, real ETotal) { return (P + ETotal) / rho; }
 inline real calc_HTotal(real P, real ETotal) { return P + ETotal; }
 
 <? for _,fluid in ipairs(fluids) do ?>
 inline real calc_<?=fluid?>_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.<?=fluid?>_v, x); }
 inline real calc_<?=fluid?>_EKin(<?=eqn.prim_t?> W, real3 x) { return W.<?=fluid?>_rho * calc_<?=fluid?>_eKin(W, x); }
-inline real calc_<?=fluid?>_EInt(<?=eqn.prim_t?> W) { return W.<?=fluid?>_P / (heatCapacityRatio - 1.); }
-inline real calc_<?=fluid?>_eInt(<?=eqn.prim_t?> W) { return calc_<?=fluid?>_EInt(W) / W.<?=fluid?>_rho; }
+inline real calc_<?=fluid?>_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.<?=fluid?>_P / (solver->heatCapacityRatio - 1.); }
+inline real calc_<?=fluid?>_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_<?=fluid?>_EInt(solver, W) / W.<?=fluid?>_rho; }
 inline real calc_<?=fluid?>_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.<?=fluid?>_m, x) / U.<?=fluid?>_rho; }
-inline real calc_<?=fluid?>_ETotal(<?=eqn.prim_t?> W, real3 x) {
+inline real calc_<?=fluid?>_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	real EPot = W.<?=fluid?>_rho * W.<?=fluid?>_ePot;
-	return calc_<?=fluid?>_EKin(W, x) + calc_<?=fluid?>_EInt(W) + EPot;
+	return calc_<?=fluid?>_EKin(W, x) + calc_<?=fluid?>_EInt(solver, W) + EPot;
 }
-inline real calc_<?=fluid?>_Cs(const <?=eqn.prim_t?>* W) {
-	return sqrt(heatCapacityRatio * W-><?=fluid?>_P / W-><?=fluid?>_rho);
+inline real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?>* W) {
+	return sqrt(solver->heatCapacityRatio * W-><?=fluid?>_P / W-><?=fluid?>_rho);
 }
 <? end ?>
 ]], {
+		solver = self.solver,
 		eqn = self,
 		fluids = fluids,
 	})
@@ -235,7 +236,7 @@ end
 
 function TwoFluidEMHD:getPrimConsCode()
 	return template([[
-inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
+inline <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	<? for _,fluid in ipairs(fluids) do ?>
 	real <?=fluid?>_EPot = U.<?=fluid?>_rho * U.<?=fluid?>_ePot;
 	real <?=fluid?>_EKin = calc_<?=fluid?>_EKin_fromCons(U, x);
@@ -245,7 +246,7 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 		<? for _,fluid in ipairs(fluids) do ?>
 		.<?=fluid?>_rho = U.<?=fluid?>_rho,
 		.<?=fluid?>_v = real3_real_mul(U.<?=fluid?>_m, 1./U.<?=fluid?>_rho),
-		.<?=fluid?>_P = (heatCapacityRatio - 1.) * <?=fluid?>_EInt,
+		.<?=fluid?>_P = (solver->heatCapacityRatio - 1.) * <?=fluid?>_EInt,
 		.<?=fluid?>_ePot = U.<?=fluid?>_ePot,
 		<? end ?>
 		.E = U.E,
@@ -255,12 +256,12 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 	};
 }
 
-inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
+inline <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
 <? for _,fluid in ipairs(fluids) do ?>
 		.<?=fluid?>_rho = W.<?=fluid?>_rho,
 		.<?=fluid?>_m = real3_real_mul(W.<?=fluid?>_v, W.<?=fluid?>_rho),
-		.<?=fluid?>_ETotal = calc_<?=fluid?>_ETotal(W, x),
+		.<?=fluid?>_ETotal = calc_<?=fluid?>_ETotal(solver, W, x),
 		.<?=fluid?>_ePot = W.<?=fluid?>_ePot,
 <? end ?>
 		.E = W.E,
@@ -271,6 +272,7 @@ inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 }
 
 inline <?=eqn.cons_t?> apply_dU_dW(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA, 
 	<?=eqn.prim_t?> W, 
 	real3 x
@@ -286,7 +288,7 @@ inline <?=eqn.cons_t?> apply_dU_dW(
 			real3_real_mul(W.<?=fluid?>_v, WA.<?=fluid?>_rho)),
 		.<?=fluid?>_ETotal = W.<?=fluid?>_rho * .5 * real3_dot(WA.<?=fluid?>_v, WA_<?=fluid?>_vL) 
 			+ WA.<?=fluid?>_rho * real3_dot(W.<?=fluid?>_v, WA_<?=fluid?>_vL)
-			+ W.<?=fluid?>_P / (heatCapacityRatio - 1.)
+			+ W.<?=fluid?>_P / (solver->heatCapacityRatio - 1.)
 			+ WA.<?=fluid?>_rho * W.<?=fluid?>_ePot,
 		.<?=fluid?>_ePot = W.<?=fluid?>_ePot,
 <? end ?>
@@ -298,6 +300,7 @@ inline <?=eqn.cons_t?> apply_dU_dW(
 }
 
 inline <?=eqn.prim_t?> apply_dW_dU(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA,
 	<?=eqn.cons_t?> U,
 	real3 x
@@ -311,7 +314,7 @@ inline <?=eqn.prim_t?> apply_dW_dU(
 		.<?=fluid?>_v = real3_sub(
 			real3_real_mul(U.<?=fluid?>_m, 1. / WA.<?=fluid?>_rho),
 			real3_real_mul(WA.<?=fluid?>_v, U.<?=fluid?>_rho / WA.<?=fluid?>_rho)),
-		.<?=fluid?>_P = (heatCapacityRatio - 1.) * (
+		.<?=fluid?>_P = (solver->heatCapacityRatio - 1.) * (
 			.5 * real3_dot(WA.<?=fluid?>_v, WA_<?=fluid?>_vL) * U.<?=fluid?>_rho 
 			- real3_dot(U.<?=fluid?>_m, WA_<?=fluid?>_vL)
 			+ U.<?=fluid?>_ETotal 
@@ -326,6 +329,7 @@ inline <?=eqn.prim_t?> apply_dW_dU(
 }
 
 ]], {
+		solver = self.solver,
 		eqn = self,
 		fluids = fluids,
 	})
@@ -348,7 +352,7 @@ local sqrt = scalar..'_sqrt'
 ?>
 
 kernel void initState(
-	global <?=solver.solver_t?>* solver,
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -392,7 +396,7 @@ end
 if eqn.useEulerInitState then 
 ?>
 		.ion_rho = rho,
-		.elec_rho = rho / ionElectronMassRatio, 
+		.elec_rho = rho / solver->ionElectronMassRatio, 
 
 		// "the electron pressure is taken to be elec_P = 5 ion_rho"
 		// is that arbitrary?
@@ -400,7 +404,7 @@ if eqn.useEulerInitState then
 		
 		// "the ion pressure is 1/100th the electron pressure"
 		// is that from the mass ratio of ion/electron?
-		.ion_P = P / ionElectronMassRatio, 
+		.ion_P = P / solver->ionElectronMassRatio, 
 
 		.ion_v = v,
 		.elec_v = v,
@@ -424,9 +428,10 @@ end
 		.psi = 0,
 		.phi = 0,
 	};
-	UBuf[index] = consFromPrim(W, x);
+	UBuf[index] = consFromPrim(solver, W, x);
 }
 ]], table({
+		solver = self.solver,
 		code = self.initState:initState(self.solver),
 		fluids = fluids,
 	}, self:getTemplateEnv()))
@@ -499,20 +504,20 @@ function TwoFluidEMHD:getDisplayVars()
 		vars:append{
 			{[fluid..' v'] = '*value_real3 = W.'..fluid..'_v;', type='real3'},
 			{[fluid..' P'] = '*value = W.'..fluid..'_P;'},
-			{[fluid..' eInt'] = '*value = calc_'..fluid..'_eInt(W);'},
+			{[fluid..' eInt'] = '*value = calc_'..fluid..'_eInt(solver, W);'},
 			{[fluid..' eKin'] = '*value = calc_'..fluid..'_eKin(W, x);'},
 			{[fluid..' ePot'] = '*value = U->'..fluid..'_ePot;'},
-			{[fluid..' EInt'] = '*value = calc_'..fluid..'_EInt(W);'},
+			{[fluid..' EInt'] = '*value = calc_'..fluid..'_EInt(solver, W);'},
 			{[fluid..' EKin'] = '*value = calc_'..fluid..'_EKin(W, x);'},
 			{[fluid..' EPot'] = '*value = U->'..fluid..'_rho * U->'..fluid..'_ePot;'},
 			{[fluid..' ETotal'] = '*value = U->'..fluid..'_ETotal;'},
-			{[fluid..' S'] = '*value = W.'..fluid..'_P / pow(W.'..fluid..'_rho, (real)heatCapacityRatio);'},
-			{[fluid..' H'] = '*value = calc_H(W.'..fluid..'_P);'},
-			{[fluid..' h'] = '*value = calc_h(W.'..fluid..'_rho, W.'..fluid..'_P);'},
+			{[fluid..' S'] = '*value = W.'..fluid..'_P / pow(W.'..fluid..'_rho, (real)solver->heatCapacityRatio);'},
+			{[fluid..' H'] = '*value = calc_H(solver, W.'..fluid..'_P);'},
+			{[fluid..' h'] = '*value = calc_h(solver, W.'..fluid..'_rho, W.'..fluid..'_P);'},
 			{[fluid..' HTotal'] = '*value = calc_HTotal(W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
-			{[fluid..' hTotal'] = '*value = calc_hTotal(W.'..fluid..'_rho, W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
-			{[fluid..'Speed of Sound'] = '*value = calc_'..fluid..'_Cs(&W);'},
-			{[fluid..'Mach number'] = '*value = coordLen(W.'..fluid..'_v, x) / calc_'..fluid..'_Cs(&W);'},
+			{[fluid..' hTotal'] = '*value = calc_hTotal(solver, W.'..fluid..'_rho, W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
+			{[fluid..'Speed of Sound'] = '*value = calc_'..fluid..'_Cs(solver, &W);'},
+			{[fluid..'Mach number'] = '*value = coordLen(W.'..fluid..'_v, x) / calc_'..fluid..'_Cs(solver, &W);'},
 		}:append( ({
 		-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
 		-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
@@ -592,14 +597,14 @@ function TwoFluidEMHD:eigenWaveCode(side, eig, x, waveIndex)
 	if waveIndex >= 5*#fluids and waveIndex < 5*#fluids+8 then
 		-- 2014 Abgrall, Kumar eqn 1.9 says the eigenvalues are c, while the flux contains cHat ...
 		return ({
-			'-normalizedSpeedOfLight * divPhiWavespeed * _1_sqrt_det_g',
-			'-normalizedSpeedOfLight * divPsiWavespeed * _1_sqrt_det_g',
+			'-normalizedSpeedOfLight * solver->divPhiWavespeed * _1_sqrt_det_g',
+			'-normalizedSpeedOfLight * solver->divPsiWavespeed * _1_sqrt_det_g',
 			'-normalizedSpeedOfLight * _1_sqrt_det_g',
 			'-normalizedSpeedOfLight * _1_sqrt_det_g',
 			'normalizedSpeedOfLight * _1_sqrt_det_g',
 			'normalizedSpeedOfLight * _1_sqrt_det_g',
-			'normalizedSpeedOfLight * divPsiWavespeed * _1_sqrt_det_g',
-			'normalizedSpeedOfLight * divPhiWavespeed * _1_sqrt_det_g',
+			'normalizedSpeedOfLight * solver->divPsiWavespeed * _1_sqrt_det_g',
+			'normalizedSpeedOfLight * solver->divPhiWavespeed * _1_sqrt_det_g',
 		})[waveIndex - 5*#fluids + 1]
 	end
 	error('got a bad waveIndex: '..waveIndex)
@@ -610,17 +615,17 @@ end
 -- dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
 function TwoFluidEMHD:consWaveCodePrefix(side, U, x)
 	return template([[
-	<?=eqn.prim_t?> W = primFromCons(<?=U?>, <?=x?>);
+	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 
 #if 1	//using the EM wavespeed
-	real consWaveCode_lambdaMax = max(max(divPsiWavespeed, divPhiWavespeed), 1.) * normalizedSpeedOfLight;
+	real consWaveCode_lambdaMax = max(max(solver->divPsiWavespeed, solver->divPhiWavespeed), 1.) * normalizedSpeedOfLight;
 #else	//ignoring it
 	real consWaveCode_lambdaMax = INFINITY;
 #endif
 	real consWaveCode_lambdaMin = -consWaveCode_lambdaMax;
 
 <? for _,fluid in ipairs(eqn.fluids) do
-?>	real <?=fluid?>_Cs = calc_<?=fluid?>_Cs(&W);
+?>	real <?=fluid?>_Cs = calc_<?=fluid?>_Cs(solver, &W);
 	real <?=fluid?>_Cs_sqrt_gU = <?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(x);
 	consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, W.<?=fluid?>_v.s<?=side?> - <?=fluid?>_Cs_sqrt_gU);
 	consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, W.<?=fluid?>_v.s<?=side?> + <?=fluid?>_Cs_sqrt_gU);

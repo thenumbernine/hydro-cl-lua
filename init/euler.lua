@@ -228,10 +228,10 @@ local initStates = table{
 			return template([[
 	real3 xc = coordMap(x);
 	real xSq = real3_lenSq(xc);
-	rho = (init_rho1 - init_rho0) * exp(-xSq / (init_sigma*init_sigma)) + init_rho0;
-	v.x = init_u0;
-	v.y = init_v0;
-	P = init_P0;
+	rho = (solver->init_rho1 - solver->init_rho0) * exp(-xSq / (solver->init_sigma*solver->init_sigma)) + solver->init_rho0;
+	v.x = solver->init_u0;
+	v.y = solver->init_v0;
+	P = solver->init_P0;
 ]],		{
 			clnumber = clnumber,
 		})
@@ -295,8 +295,8 @@ end
 ?>;
 #endif
 
-	rho = lhs ? init_rhoL : init_rhoR;
-	P = lhs ? init_PL : init_PR;
+	rho = lhs ? solver->init_rhoL : solver->init_rhoR;
+	P = lhs ? solver->init_PL : solver->init_PR;
 ]], {
 		solver = solver,
 		xNames = xNames,
@@ -378,11 +378,11 @@ end
 		},
 		initState = function(self, solver)
 			return [[
-	rho = lhs ? init_rhoL : init_rhoR;
-	P = lhs ? init_PL : init_PR;
-	B.x = lhs ? init_BxL : init_BxR;
-	B.y = lhs ? init_ByL : init_ByR;
-	B.z = lhs ? init_BzL : init_BzR;
+	rho = lhs ? solver->init_rhoL : solver->init_rhoR;
+	P = lhs ? solver->init_PL : solver->init_PR;
+	B.x = lhs ? solver->init_BxL : solver->init_BxR;
+	B.y = lhs ? solver->init_ByL : solver->init_ByR;
+	B.z = lhs ? solver->init_BzL : solver->init_BzR;
 ]]
 		end,
 	},
@@ -410,11 +410,11 @@ end
 		},
 		initState = function(self, solver)
 			return [[
-	rho = lhs ? init_rhoL : init_rhoR;
-	P = lhs ? init_PL : init_PR;
-	B.x = lhs ? init_BxL : init_BxR;
-	B.y = lhs ? init_ByL : init_ByR;
-	B.z = lhs ? init_BzL : init_BzR;
+	rho = lhs ? solver->init_rhoL : solver->init_rhoR;
+	P = lhs ? solver->init_PL : solver->init_PR;
+	B.x = lhs ? solver->init_BxL : solver->init_BxR;
+	B.y = lhs ? solver->init_ByL : solver->init_ByR;
+	B.z = lhs ? solver->init_BzL : solver->init_BzR;
 ]]
 		end,
 	},

@@ -16,6 +16,7 @@ local sym = common.sym
 
 //assumes UL and UR are already rotated so the 'x' direction is our flux direction
 Roe_t calcRoeValues(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> UL, 
 	<?=eqn.cons_t?> UR,
 	real3 x
@@ -23,12 +24,12 @@ Roe_t calcRoeValues(
 	Roe_t W;
 
 	// should I use Bx, or BxL/R, for calculating the PMag at the L and R states?
-	<?=eqn.prim_t?> WL = primFromCons(UL, x);
+	<?=eqn.prim_t?> WL = primFromCons(solver, UL, x);
 	real sqrtRhoL = sqrt(UL.rho);
 	real PMagL = .5 * real3_lenSq(UL.B);
 	real hTotalL = (UL.ETotal + WL.P + PMagL) / UL.rho;
 
-	<?=eqn.prim_t?> WR = primFromCons(UR, x);
+	<?=eqn.prim_t?> WR = primFromCons(solver, UR, x);
 	real sqrtRhoR = sqrt(UR.rho);
 	real PMagR = .5 * real3_lenSq(UR.B);
 	real hTotalR = (UR.ETotal + WR.P + PMagR) / UR.rho;
@@ -58,12 +59,13 @@ Roe_t calcRoeValues(
 
 //assumes the vector values are x-axis aligned with the interface normal
 <?=eqn.eigen_t?> eigen_forRoeAvgs(
+	constant <?=solver.solver_t?>* solver,
 	Roe_t roe,
 	real3 x
 ) {
 	<?=eqn.eigen_t?> eig;
 	
-	const real gamma = heatCapacityRatio;
+	const real gamma = solver->heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
 	const real gamma_3 = gamma - 3.;
@@ -183,6 +185,7 @@ Roe_t calcRoeValues(
 <? end ?>
 
 <?=eqn.eigen_t?> eigen_forInterface(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
 	real3 x,
@@ -191,16 +194,17 @@ Roe_t calcRoeValues(
 	//swap the sides with x here, so all the fluxes are in the 'x' direction
 	<?=eqn.cons_t?> UL_ = cons_alignFrom(UL, n);
 	<?=eqn.cons_t?> UR_ = cons_alignFrom(UR, n);
-	Roe_t roe = calcRoeValues(UL_, UR_, x);
-	return eigen_forRoeAvgs(roe, x);
+	Roe_t roe = calcRoeValues(solver, UL_, UR_, x);
+	return eigen_forRoeAvgs(solver, roe, x);
 }
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forCell_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	<?=eqn.prim_t?> W = primFromCons(U, x);
+	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
 	real PMag = .5 * real3_lenSq(W.B);
 	real hTotal = (U.ETotal + W.P + PMag) / W.rho;
 	Roe_t roe = (Roe_t){
@@ -211,7 +215,7 @@ Roe_t calcRoeValues(
 		.X = 0,
 		.Y = 1,
 	};
-	return eigen_forRoeAvgs(roe, x);
+	return eigen_forRoeAvgs(solver, roe, x);
 }
 <? end ?>
 
@@ -221,7 +225,7 @@ Roe_t calcRoeValues(
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	<?=eqn.prim_t?> W = primFromCons(U, x);
+	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
 	real vj = W.v.s<?=side?>;
 	real Bj = W.B.s<?=side?>;
 	real BSq = real3_lenSq(W.B);
@@ -232,17 +236,17 @@ Roe_t calcRoeValues(
 	
 	<?=eqn.cons_t?> F;
 	F.rho = U.m.s<?=side?>;
-	F.m = real3_sub(real3_real_mul(U.m, vj), real3_real_mul(U.B, Bj / mu0));
+	F.m = real3_sub(real3_real_mul(U.m, vj), real3_real_mul(U.B, Bj / solver->mu0));
 	F.m.s<?=side?> += PTotal;
 	F.B = real3_sub(real3_real_mul(U.B, vj), real3_real_mul(W.v, Bj));
 	F.B.s<?=side?> += F.psi;
-	F.ETotal = HTotal * vj - BDotV * Bj / mu0;
+	F.ETotal = HTotal * vj - BDotV * Bj / solver->mu0;
 
 <? if not eqn.useFixedCh then ?>
 	//TODO don't need the whole eigen here, just the Ch
 	real Ch = 0;
 	<? for side=0,solver.dim-1 do ?>{
-		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(U, x);
+		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(solver, U, x);
 		Ch = max(Ch, eig.Ch);
 	}<? end ?>
 <? end ?>
@@ -255,21 +259,22 @@ Roe_t calcRoeValues(
 //called from calcDT
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	const global <?=eqn.cons_t?>* U,
 	real3 x
 ) {
 	<?=eqn.cons_t?> U_ = cons_swapFrom<?=side?>(*U);
-	<?=eqn.prim_t?> W = primFromCons(U_, x);
+	<?=eqn.prim_t?> W = primFromCons(solver, U_, x);
 	
 #if 0
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
 	real3 v = W.v;
 	real3 B = W.B;
 	
 	real BSq = real3_lenSq(B);
 	real invRho = 1./W.rho;
 	
-	real aSq = heatCapacityRatio * W.P * invRho;
+	real aSq = solver->heatCapacityRatio * W.P * invRho;
 	real CaxSq = B.s<?=side?> * B.s<?=side?> * invRho;
 	real CaSq = BSq * invRho;
 	
@@ -283,7 +288,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real Cs = sqrt(max(CsSq, 0.));
 	return (range_t){.min=v.s<?=side?> - Cf, .max=v.s<?=side?> + Cf};
 #else
-	const real gamma = heatCapacityRatio;
+	const real gamma = solver->heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
 	
@@ -344,7 +349,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 ) {	
 	inputU = cons_swapFrom<?=side?>(inputU);
 	
-	const real gamma = heatCapacityRatio;
+	const real gamma = solver->heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
 
@@ -454,7 +459,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	<?=eqn.waves_t?> input,
 	real3 x
 ) {
-	const real gamma = heatCapacityRatio;
+	const real gamma = solver->heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
 
@@ -561,7 +566,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 ) {
 	inputU = cons_swapFrom<?=side?>(inputU);
 
-	const real gamma = heatCapacityRatio;
+	const real gamma = solver->heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
 	const real gamma_3 = gamma - 3.;
@@ -637,7 +642,7 @@ kernel void addSource(
 <? if not eqn.useFixedCh then ?>
 	real Ch = 0;
 	<? for side=0,solver.dim-1 do ?>{
-		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(*U, x);
+		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(solver, *U, x);
 		Ch = max(Ch, eig.Ch);
 	}<? end ?>
 <? end ?>
@@ -694,12 +699,12 @@ kernel void constrainU(
 	real3 x = cell_x(i);
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
 
 	W.rho = max(W.rho, 1e-7);
 	W.P = max(W.P, 1e-7);
 
-	*U = consFromPrim(W, x);
+	*U = consFromPrim(solver, W, x);
 }
 
 //this is a temporary fix until I implement MHD's inline eigenvalue code
@@ -721,7 +726,7 @@ kernel void calcDT(
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
 		//use cell-centered eigenvalues
-		range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(U, x); 
+		range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(solver, U, x); 
 		lambda.min = (real)min((real)0., lambda.min);
 		lambda.max = (real)max((real)0., lambda.max);
 		dt = (real)min((real)dt, (real)(solver->grid_dx.s<?=side?> / (fabs(lambda.max - lambda.min) + (real)1e-9)));

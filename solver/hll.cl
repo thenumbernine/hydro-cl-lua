@@ -23,7 +23,7 @@ kernel void calcFlux(
 		
 		// get min/max lambdas of UL, UR, and interface U (based on Roe averaging)
 		// TODO this in a more computationally efficient way
-		<?=eqn.eigen_t?> eigInt = eigen_forInterface(*UL, *UR, xInt, normalForSide<?=side?>());
+		<?=eqn.eigen_t?> eigInt = eigen_forInterface(solver, *UL, *UR, xInt, normalForSide<?=side?>());
 		
 		<?=eqn:eigenWaveCodePrefix(side, 'eigInt', 'xInt')?>
 		real lambdaIntMin = <?=eqn:eigenMinWaveCode(side, 'eigInt', 'xInt')?>;

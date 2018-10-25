@@ -100,7 +100,7 @@ function SRHD:createInitState()
 		-- setting max iter to 100+ makes it freeze initially 
 		-- but setting it to 100 after the first iteration is fine ...
 		-- meaning the initial cons to prim is taking too long ...
-		{name='solvePrimMaxIter', type='int', value=10},	-- value=1000},
+		{name='solvePrimMaxIter', type='int', value=10, compileTime=true},	-- value=1000},
 
 		{name='solvePrimStopEpsilon', value=1e-7},
 
@@ -130,33 +130,33 @@ function SRHD:getCommonFuncCode()
 	return template([[
 
 //pressure function for ideal gas
-real calc_P(real rho, real eInt) {
-	return (heatCapacityRatio - 1.) * rho * eInt;
+real calc_P(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
+	return (solver->heatCapacityRatio - 1.) * rho * eInt;
 }	
 
 //chi in most papers
-real calc_dP_drho(real rho, real eInt) {
-	return (heatCapacityRatio - 1.) * eInt;
+real calc_dP_drho(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
+	return (solver->heatCapacityRatio - 1.) * eInt;
 }
 
 //kappa in most papers
-real calc_dP_deInt(real rho, real eInt) {
-	return (heatCapacityRatio - 1.) * rho;
+real calc_dP_deInt(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
+	return (solver->heatCapacityRatio - 1.) * rho;
 }
 
-real calc_eInt_from_P(real rho, real P) {
-	return P / ((heatCapacityRatio - 1.) * rho);
+real calc_eInt_from_P(constant <?=solver.solver_t?>* solver, real rho, real P) {
+	return P / ((solver->heatCapacityRatio - 1.) * rho);
 }
 
 real calc_h(real rho, real P, real eInt) {
 	return 1. + eInt + P / rho;
 }
 
-<?=eqn.cons_only_t?> consOnlyFromPrim(<?=eqn.prim_t?> prim, real3 x) {
+<?=eqn.cons_only_t?> consOnlyFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> prim, real3 x) {
 	real vSq = coordLenSq(prim.v, x);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
-	real P = calc_P(prim.rho, prim.eInt);
+	real P = calc_P(solver, prim.rho, prim.eInt);
 	real h = calc_h(prim.rho, P, prim.eInt);
 
 	//2008 Font, eqn 40-42:
@@ -178,6 +178,7 @@ real calc_h(real rho, real P, real eInt) {
 
 ]], {
 		eqn = self,
+		solver = self.solver,
 	})
 end
 
@@ -207,12 +208,12 @@ kernel void initState(
 
 	<?=code?>
 	
-	real eInt = calc_eInt_from_P(rho, P);
+	real eInt = calc_eInt_from_P(solver, rho, P);
 
 	<?=eqn.prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
 	UBuf[index] = (<?=eqn.cons_t?>){
 		.prim = prim,
-		.cons = consOnlyFromPrim(prim, x),
+		.cons = consOnlyFromPrim(solver, prim, x),
 	};
 }
 ]]
@@ -269,8 +270,8 @@ function SRHD:getDisplayVars()
 		{rho = '*value = U->prim.rho;'},
 		{v = '*value_real3 = U->prim.v;', type='real3'},
 		{eInt = '*value = U->prim.eInt;'},
-		{P = '*value = calc_P(U->prim.rho, U->prim.eInt);'},
-		{h = '*value = calc_h(U->prim.rho, calc_P(U->prim.rho, U->prim.eInt), U->prim.eInt);'},
+		{P = '*value = calc_P(solver, U->prim.rho, U->prim.eInt);'},
+		{h = '*value = calc_h(U->prim.rho, calc_P(solver, U->prim.rho, U->prim.eInt), U->prim.eInt);'},
 		
 		{ePot = '*value = U->ePot;'},
 		
@@ -278,7 +279,7 @@ function SRHD:getDisplayVars()
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
 	{
-		<?=eqn.cons_only_t?> U2 = consOnlyFromPrim(U->prim, x);
+		<?=eqn.cons_only_t?> U2 = consOnlyFromPrim(solver, U->prim, x);
 		*value = 0;
 		for (int j = 0; j < numIntStates; ++j) {
 			*value += fabs(U->cons.ptr[j] - U2.ptr[j]);
@@ -349,9 +350,9 @@ function SRHD:consWaveCodePrefix(side, U, x,
 	real rho = prim.rho;
 	real eInt = prim.eInt;
 	real vSq = coordLenSq(prim.v, x);
-	real P = calc_P(rho, eInt);
+	real P = calc_P(solver, rho, eInt);
 	real h = calc_h(rho, P, eInt);
-	real csSq = heatCapacityRatio * P / (rho * h);
+	real csSq = solver->heatCapacityRatio * P / (rho * h);
 	real cs = sqrt(csSq);
 <? 
 	prim = 'prim'

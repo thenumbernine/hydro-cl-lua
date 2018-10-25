@@ -4,7 +4,7 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -16,7 +16,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	--integrator = 'backward Euler',
+	integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	cfl = cmdline.cfl or .5,	-- 1/dim,
@@ -69,7 +69,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{256,1,1},
-				{32,32,1},
+				{64,64,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -81,12 +81,12 @@ maxs = {6,1,1},
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'periodic',
-		xmax=cmdline.boundary or 'periodic',
-		ymin=cmdline.boundary or 'periodic',
-		ymax=cmdline.boundary or 'periodic',
-		zmin=cmdline.boundary or 'periodic',
-		zmax=cmdline.boundary or 'periodic',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	-- TODO these next two seem very similar
@@ -292,7 +292,7 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 
 
-	--initState = 'Alcubierre warp bubble',
+	initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
@@ -317,7 +317,7 @@ maxs = {6,1,1},
 	
 	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 	
-	initState = 'black hole - SENR/NumPy',
+	--initState = 'black hole - SENR/NumPy',
 
 	--[[ single black hole, spinning, demonstrating ergosphere formation
 	initStateArgs = {
@@ -532,6 +532,7 @@ maxs = {6,1,1},
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v2'})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='z4'}))) -- TODO finish me
@@ -550,6 +551,7 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.bssnok-fd'(args))
 
 -- Z4c finite difference, combining BSSNOK and Z4
+-- FIXME something is asymmetric.  watch Theta.  Run warp bubble.
 self.solvers:insert(require 'solver.z4c-fd'(args))
 
 

@@ -5,11 +5,11 @@ local fluids = eqn.fluids
 
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
-#define ionReferenceThermalVelocity (ionLarmorRadius * ionChargeMassRatio * referenceMagneticField)
-#define normalizedSpeedOfLight 		(speedOfLight / ionReferenceThermalVelocity)
+#define ionReferenceThermalVelocity (solver->ionLarmorRadius * solver->ionChargeMassRatio * solver->referenceMagneticField)
+#define normalizedSpeedOfLight 		(solver->speedOfLight / ionReferenceThermalVelocity)
 #define normalizedSpeedOfLightSq 	(normalizedSpeedOfLight * normalizedSpeedOfLight)
-#define normalizedIonLarmorRadius 	(ionLarmorRadius / referenceLength)
-#define normalizedIonDebyeLength	(ionDebyeLength / ionLarmorRadius)
+#define normalizedIonLarmorRadius 	(solver->ionLarmorRadius / solver->referenceLength)
+#define normalizedIonDebyeLength	(solver->ionDebyeLength / solver->ionLarmorRadius)
 
 
 <? for side=0,solver.dim-1 do ?>
@@ -18,7 +18,7 @@ local fluids = eqn.fluids
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	<?=eqn.prim_t?> W = primFromCons(U, x);
+	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
 	<?=eqn.cons_t?> F;
 
 <? 
@@ -41,17 +41,17 @@ end
 	real3 B = U.B;
 	real3 E = U.E;
 	<? if side == 0 then ?>
-	F.E = _real3(normalizedSpeedOfLight * divPhiWavespeed * U.phi, normalizedSpeedOfLight * B.z, -normalizedSpeedOfLight * B.y);
-	F.B = _real3(divPsiWavespeed * U.psi, -E.z, E.y);
+	F.E = _real3(normalizedSpeedOfLight * solver->divPhiWavespeed * U.phi, normalizedSpeedOfLight * B.z, -normalizedSpeedOfLight * B.y);
+	F.B = _real3(solver->divPsiWavespeed * U.psi, -E.z, E.y);
 	<? elseif side == 1 then ?>
-	F.E = _real3(-normalizedSpeedOfLight * B.z, normalizedSpeedOfLight * divPhiWavespeed * U.phi, normalizedSpeedOfLight * B.x);
-	F.B = _real3(E.z, divPsiWavespeed * U.psi, -E.x);
+	F.E = _real3(-normalizedSpeedOfLight * B.z, normalizedSpeedOfLight * solver->divPhiWavespeed * U.phi, normalizedSpeedOfLight * B.x);
+	F.B = _real3(E.z, solver->divPsiWavespeed * U.psi, -E.x);
 	<? elseif side == 2 then ?>
-	F.E = _real3(normalizedSpeedOfLight * B.y, -normalizedSpeedOfLight * B.x, normalizedSpeedOfLight * divPhiWavespeed * U.phi);
-	F.B = _real3(-E.y, E.x, divPsiWavespeed * U.psi);
+	F.E = _real3(normalizedSpeedOfLight * B.y, -normalizedSpeedOfLight * B.x, normalizedSpeedOfLight * solver->divPhiWavespeed * U.phi);
+	F.B = _real3(-E.y, E.x, solver->divPsiWavespeed * U.psi);
 	<? end ?>
-	F.phi = E.s<?=side?> * divPhiWavespeed;
-	F.psi = B.s<?=side?> * divPsiWavespeed * normalizedSpeedOfLight;
+	F.phi = E.s<?=side?> * solver->divPhiWavespeed;
+	F.psi = B.s<?=side?> * solver->divPsiWavespeed * normalizedSpeedOfLight;
 
 	F.ion_ePot = 0;
 	F.elec_ePot = 0;
@@ -61,24 +61,25 @@ end
 <? end ?>
 
 <?=eqn.eigen_t?> eigen_forInterface(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
 	real3 x,
 	real3 n
 ) {
-	<?=eqn.prim_t?> WL = primFromCons(UL, x);
-	<?=eqn.prim_t?> WR = primFromCons(UR, x);
+	<?=eqn.prim_t?> WL = primFromCons(solver, UL, x);
+	<?=eqn.prim_t?> WR = primFromCons(solver, UR, x);
 	<?=eqn.eigen_t?> eig;
 
 <? for _,fluid in ipairs(fluids) do ?>
 
 	real <?=fluid?>_sqrtRhoL = sqrt(WL.<?=fluid?>_rho);
 	real3 <?=fluid?>_vL = WL.<?=fluid?>_v;
-	real <?=fluid?>_hTotalL = calc_hTotal(WL.<?=fluid?>_rho, WL.<?=fluid?>_P, UL.<?=fluid?>_ETotal) - UL.<?=fluid?>_ePot;
+	real <?=fluid?>_hTotalL = calc_hTotal(solver, WL.<?=fluid?>_rho, WL.<?=fluid?>_P, UL.<?=fluid?>_ETotal) - UL.<?=fluid?>_ePot;
 	
 	real <?=fluid?>_sqrtRhoR = sqrt(UR.<?=fluid?>_rho);
 	real3 <?=fluid?>_vR = WR.<?=fluid?>_v;
-	real <?=fluid?>_hTotalR = calc_hTotal(WR.<?=fluid?>_rho, WR.<?=fluid?>_P, UR.<?=fluid?>_ETotal) - UR.<?=fluid?>_ePot;
+	real <?=fluid?>_hTotalR = calc_hTotal(solver, WR.<?=fluid?>_rho, WR.<?=fluid?>_P, UR.<?=fluid?>_ETotal) - UR.<?=fluid?>_ePot;
 
 	real <?=fluid?>_invDenom = 1./(<?=fluid?>_sqrtRhoL + <?=fluid?>_sqrtRhoR);
 	
@@ -92,7 +93,7 @@ end
 	//derived:
 	real <?=fluid?>_vSq = coordLenSq(<?=fluid?>_v, x);
 	real <?=fluid?>_eKin = .5 * <?=fluid?>_vSq;
-	real <?=fluid?>_CsSq = (heatCapacityRatio - 1.) * (<?=fluid?>_hTotal - <?=fluid?>_eKin);
+	real <?=fluid?>_CsSq = (solver->heatCapacityRatio - 1.) * (<?=fluid?>_hTotal - <?=fluid?>_eKin);
 	real <?=fluid?>_Cs = sqrt(<?=fluid?>_CsSq);
 	
 	eig.<?=fluid?>_rho = <?=fluid?>_rho; 
@@ -108,15 +109,16 @@ end
 
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forCell_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-	<?=eqn.prim_t?> W = primFromCons(U, x);
+	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
 <? for _,fluid in ipairs(fluids) do ?>
 	real <?=fluid?>_vSq = coordLenSq(W.<?=fluid?>_v, x);
 	real <?=fluid?>_eKin = .5 * <?=fluid?>_vSq;
-	real <?=fluid?>_hTotal = calc_hTotal(W.<?=fluid?>_rho, W.<?=fluid?>_P, U.<?=fluid?>_ETotal);
-	real <?=fluid?>_CsSq = (heatCapacityRatio - 1.) * (<?=fluid?>_hTotal - <?=fluid?>_eKin);
+	real <?=fluid?>_hTotal = calc_hTotal(solver, W.<?=fluid?>_rho, W.<?=fluid?>_P, U.<?=fluid?>_ETotal);
+	real <?=fluid?>_CsSq = (solver->heatCapacityRatio - 1.) * (<?=fluid?>_hTotal - <?=fluid?>_eKin);
 	real <?=fluid?>_Cs = sqrt(<?=fluid?>_CsSq);
 <? end ?>	
 	return (<?=eqn.eigen_t?>){
@@ -206,7 +208,7 @@ end
 	real elec_denom = 2. * elec_Cs * elec_Cs;
 	real elec_invDenom = 1. / elec_denom;
 
-	const real heatRatioMinusOne = heatCapacityRatio - 1.;
+	const real heatRatioMinusOne = solver->heatCapacityRatio - 1.;
 
 <? 
 				if side == 0 then 
@@ -502,42 +504,42 @@ end
 	UY.<?=fluid?>_rho = X[<?=5*i-4?>] * nx 
 		+ X[<?=5*i-3?>] * ny 
 		+ X[<?=5*i-2?>] * nz;
-	UY.<?=fluid?>_m.x = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.x + (heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.x)
-		+ X[<?=5*i-4?>] * (<?=fluid?>_v.x * nx - (heatCapacityRatio - 1.) * gUj.x * <?=fluid?>_vL.x + <?=fluid?>_v_n)
-		+ X[<?=5*i-3?>] * (<?=fluid?>_v.x * ny - (heatCapacityRatio - 1.) * gUj.x * <?=fluid?>_vL.y)
-		+ X[<?=5*i-2?>] * (<?=fluid?>_v.x * nz - (heatCapacityRatio - 1.) * gUj.x * <?=fluid?>_vL.z)
-		+ X[<?=5*i-1?>] * (heatCapacityRatio - 1.) * nx;
-	UY.<?=fluid?>_m.y = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.y + (heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.y)
-		+ X[<?=5*i-4?>] * (<?=fluid?>_v.y * nx - (heatCapacityRatio - 1.) * gUj.y * <?=fluid?>_vL.x)
-		+ X[<?=5*i-3?>] * (<?=fluid?>_v.y * ny - (heatCapacityRatio - 1.) * gUj.y * <?=fluid?>_vL.y + <?=fluid?>_v_n)
-		+ X[<?=5*i-2?>] * (<?=fluid?>_v.y * nz - (heatCapacityRatio - 1.) * gUj.y * <?=fluid?>_vL.z)
-		+ X[<?=5*i-1?>] * (heatCapacityRatio - 1.) * ny;
-	UY.<?=fluid?>_m.z = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.z + (heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.z)
-		+ X[<?=5*i-4?>] * (<?=fluid?>_v.z * nx - (heatCapacityRatio - 1.) * gUj.z * <?=fluid?>_vL.x)
-		+ X[<?=5*i-3?>] * (<?=fluid?>_v.z * ny - (heatCapacityRatio - 1.) * gUj.z * <?=fluid?>_vL.y)
-		+ X[<?=5*i-2?>] * (<?=fluid?>_v.z * nz - (heatCapacityRatio - 1.) * gUj.z * <?=fluid?>_vL.z + <?=fluid?>_v_n)
-		+ X[<?=5*i-1?>] * (heatCapacityRatio - 1.) * nz;
-	UY.<?=fluid?>_ETotal = X[<?=5*i-5?>] * <?=fluid?>_v_n * ((heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq - <?=fluid?>_hTotal)
-		+ X[<?=5*i-4?>] * (-(heatCapacityRatio - 1.) * <?=fluid?>_v_n * <?=fluid?>_vL.x + nx * <?=fluid?>_hTotal)
-		+ X[<?=5*i-3?>] * (-(heatCapacityRatio - 1.) * <?=fluid?>_v_n * <?=fluid?>_vL.y + ny * <?=fluid?>_hTotal)
-		+ X[<?=5*i-2?>] * (-(heatCapacityRatio - 1.) * <?=fluid?>_v_n * <?=fluid?>_vL.z + nz * <?=fluid?>_hTotal)
-		+ X[<?=5*i-1?>] * heatCapacityRatio * <?=fluid?>_v_n;
+	UY.<?=fluid?>_m.x = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.x + (solver->heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.x)
+		+ X[<?=5*i-4?>] * (<?=fluid?>_v.x * nx - (solver->heatCapacityRatio - 1.) * gUj.x * <?=fluid?>_vL.x + <?=fluid?>_v_n)
+		+ X[<?=5*i-3?>] * (<?=fluid?>_v.x * ny - (solver->heatCapacityRatio - 1.) * gUj.x * <?=fluid?>_vL.y)
+		+ X[<?=5*i-2?>] * (<?=fluid?>_v.x * nz - (solver->heatCapacityRatio - 1.) * gUj.x * <?=fluid?>_vL.z)
+		+ X[<?=5*i-1?>] * (solver->heatCapacityRatio - 1.) * nx;
+	UY.<?=fluid?>_m.y = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.y + (solver->heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.y)
+		+ X[<?=5*i-4?>] * (<?=fluid?>_v.y * nx - (solver->heatCapacityRatio - 1.) * gUj.y * <?=fluid?>_vL.x)
+		+ X[<?=5*i-3?>] * (<?=fluid?>_v.y * ny - (solver->heatCapacityRatio - 1.) * gUj.y * <?=fluid?>_vL.y + <?=fluid?>_v_n)
+		+ X[<?=5*i-2?>] * (<?=fluid?>_v.y * nz - (solver->heatCapacityRatio - 1.) * gUj.y * <?=fluid?>_vL.z)
+		+ X[<?=5*i-1?>] * (solver->heatCapacityRatio - 1.) * ny;
+	UY.<?=fluid?>_m.z = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.z + (solver->heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.z)
+		+ X[<?=5*i-4?>] * (<?=fluid?>_v.z * nx - (solver->heatCapacityRatio - 1.) * gUj.z * <?=fluid?>_vL.x)
+		+ X[<?=5*i-3?>] * (<?=fluid?>_v.z * ny - (solver->heatCapacityRatio - 1.) * gUj.z * <?=fluid?>_vL.y)
+		+ X[<?=5*i-2?>] * (<?=fluid?>_v.z * nz - (solver->heatCapacityRatio - 1.) * gUj.z * <?=fluid?>_vL.z + <?=fluid?>_v_n)
+		+ X[<?=5*i-1?>] * (solver->heatCapacityRatio - 1.) * nz;
+	UY.<?=fluid?>_ETotal = X[<?=5*i-5?>] * <?=fluid?>_v_n * ((solver->heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq - <?=fluid?>_hTotal)
+		+ X[<?=5*i-4?>] * (-(solver->heatCapacityRatio - 1.) * <?=fluid?>_v_n * <?=fluid?>_vL.x + nx * <?=fluid?>_hTotal)
+		+ X[<?=5*i-3?>] * (-(solver->heatCapacityRatio - 1.) * <?=fluid?>_v_n * <?=fluid?>_vL.y + ny * <?=fluid?>_hTotal)
+		+ X[<?=5*i-2?>] * (-(solver->heatCapacityRatio - 1.) * <?=fluid?>_v_n * <?=fluid?>_vL.z + nz * <?=fluid?>_hTotal)
+		+ X[<?=5*i-1?>] * solver->heatCapacityRatio * <?=fluid?>_v_n;
 <? 
 					end 
 ?>	
 	
 	<? if side == 0 then ?>
-	UY.E = _real3(normalizedSpeedOfLightSq * divPhiWavespeed * UX.phi, normalizedSpeedOfLightSq * UX.B.z, -normalizedSpeedOfLightSq * UX.B.y);
-	UY.B = _real3(divPsiWavespeed * UX.psi, -UX.E.z, UX.E.y);
+	UY.E = _real3(normalizedSpeedOfLightSq * solver->divPhiWavespeed * UX.phi, normalizedSpeedOfLightSq * UX.B.z, -normalizedSpeedOfLightSq * UX.B.y);
+	UY.B = _real3(solver->divPsiWavespeed * UX.psi, -UX.E.z, UX.E.y);
 	<? elseif side == 1 then ?>
-	UY.E = _real3(-normalizedSpeedOfLightSq * UX.B.z, normalizedSpeedOfLightSq * divPhiWavespeed * UX.phi, normalizedSpeedOfLightSq * UX.B.x);
-	UY.B = _real3(UX.E.z, divPsiWavespeed * UX.psi, -UX.E.x);
+	UY.E = _real3(-normalizedSpeedOfLightSq * UX.B.z, normalizedSpeedOfLightSq * solver->divPhiWavespeed * UX.phi, normalizedSpeedOfLightSq * UX.B.x);
+	UY.B = _real3(UX.E.z, solver->divPsiWavespeed * UX.psi, -UX.E.x);
 	<? elseif side == 2 then ?>
-	UY.E = _real3(normalizedSpeedOfLightSq * UX.B.y, -normalizedSpeedOfLightSq * UX.B.x, normalizedSpeedOfLightSq * divPhiWavespeed * UX.phi);
-	UY.B = _real3(-UX.E.y, UX.E.x, divPsiWavespeed * UX.psi);
+	UY.E = _real3(normalizedSpeedOfLightSq * UX.B.y, -normalizedSpeedOfLightSq * UX.B.x, normalizedSpeedOfLightSq * solver->divPhiWavespeed * UX.phi);
+	UY.B = _real3(-UX.E.y, UX.E.x, solver->divPsiWavespeed * UX.psi);
 	<? end ?>
-	UY.phi = divPhiWavespeed * UX.E.s<?=side?>;
-	UY.psi = normalizedSpeedOfLightSq * divPsiWavespeed * UX.B.s<?=side?>;
+	UY.phi = solver->divPhiWavespeed * UX.E.s<?=side?>;
+	UY.psi = normalizedSpeedOfLightSq * solver->divPsiWavespeed * UX.B.s<?=side?>;
 
 	UY.ion_ePot = 0;
 	UY.elec_ePot = 0;
@@ -560,32 +562,32 @@ kernel void addSource(
 	deriv->ion_m.z += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.z + U->ion_m.x * U->B.y - U->ion_m.y * U->B.x);
 	deriv->ion_ETotal += (1. / normalizedIonLarmorRadius) * real3_dot(U->E, U->ion_m);
 	
-	deriv->elec_m.x -= ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.x + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y);
-	deriv->elec_m.y -= ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.y + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z);
-	deriv->elec_m.z -= ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.z + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x);
-	deriv->elec_ETotal -= ionElectronMassRatio / normalizedIonLarmorRadius * real3_dot(U->E, U->elec_m);
+	deriv->elec_m.x -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.x + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y);
+	deriv->elec_m.y -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.y + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z);
+	deriv->elec_m.z -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.z + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x);
+	deriv->elec_ETotal -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * real3_dot(U->E, U->elec_m);
 
 #define normalizedIonDebyeLengthSq	(normalizedIonDebyeLength * normalizedIonDebyeLength)
-	deriv->E.x -= (U->ion_m.x * ionChargeMassRatio
-						+ U->elec_m.x * elecChargeMassRatio
+	deriv->E.x -= (U->ion_m.x * solver->ionChargeMassRatio
+						+ U->elec_m.x * solver->elecChargeMassRatio
 					) / normalizedIonDebyeLengthSq * normalizedIonLarmorRadius;
-	deriv->E.y -= (U->ion_m.y * ionChargeMassRatio
-						+ U->elec_m.y * elecChargeMassRatio
+	deriv->E.y -= (U->ion_m.y * solver->ionChargeMassRatio
+						+ U->elec_m.y * solver->elecChargeMassRatio
 					) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
-	deriv->E.z -= (U->ion_m.z * ionChargeMassRatio
-						+ U->elec_m.z * elecChargeMassRatio
+	deriv->E.z -= (U->ion_m.z * solver->ionChargeMassRatio
+						+ U->elec_m.z * solver->elecChargeMassRatio
 					) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
-	deriv->phi += divPhiWavespeed 
+	deriv->phi += solver->divPhiWavespeed 
 		/ (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius)
 		* (
-			U->ion_rho * ionChargeMassRatio 
-			+ U->elec_rho * elecChargeMassRatio 
+			U->ion_rho * solver->ionChargeMassRatio 
+			+ U->elec_rho * solver->elecChargeMassRatio 
 		);
 
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 	real3 x = cell_x(i);
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
 	real3 conn1_u = coord_conn_trace23(x);
 	<? for _,fluid in ipairs(fluids) do ?>{
 		real3 m_conn_vv = coord_conn_apply23(W.<?=fluid?>_v, U-><?=fluid?>_m, x);
@@ -603,13 +605,13 @@ kernel void constrainU(
 	SETBOUNDS(0,0);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	real3 x = cell_x(i);
-	<?=eqn.prim_t?> W = primFromCons(*U, x);
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
 
 <? for _,fluid in ipairs(fluids) do
-?>	W.<?=fluid?>_rho = max((real)W.<?=fluid?>_rho, (real)min_<?=fluid?>_rho);
-	W.<?=fluid?>_P = max((real)W.<?=fluid?>_P, (real)min_<?=fluid?>_P);
+?>	W.<?=fluid?>_rho = max((real)W.<?=fluid?>_rho, (real)solver->min_<?=fluid?>_rho);
+	W.<?=fluid?>_P = max((real)W.<?=fluid?>_P, (real)solver->min_<?=fluid?>_P);
 <? end
 ?>
 	
-	*U = consFromPrim(W, x);
+	*U = consFromPrim(solver, W, x);
 }
