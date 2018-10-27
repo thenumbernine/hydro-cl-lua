@@ -139,7 +139,7 @@ end
 }
 ]]
 
-Z4_2008Yano.solverCodeFile = 'eqn/z4.cl'
+Z4_2008Yano.solverCodeFile = 'eqn/z4_2008yano.cl'
 
 function Z4_2008Yano:getDisplayVars()
 	local vars = Z4_2008Yano.super.getDisplayVars(self)

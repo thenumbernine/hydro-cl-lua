@@ -528,19 +528,19 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='LagrangianCoordinates'}})))	-- TODO finish me
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'}))) -- TODO finish me
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4_2008yano'}))) -- TODO fixme
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v2'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='z4'}))) -- TODO finish me
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='z4_2008yano'}))) -- TODO fixme
 
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='adm1d_v1', integrator='backward Euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='adm1d_v2', integrator='backward Euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='adm3d', integrator='backward Euler'})))
---self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='z4', integrator='backward Euler'}))) -- TODO finish me
+--self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='z4_2008yano', integrator='backward Euler'}))) -- TODO finish me
 
 
 -- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
