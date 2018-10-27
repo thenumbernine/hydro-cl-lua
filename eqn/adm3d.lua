@@ -154,12 +154,13 @@ function ADM_BonaMasso_3D:init(args)
 			{rho = 'real'},					--1: n_a n_b T^ab
 			{S_u = 'real3'},				--3: -gamma^ij n_a T_aj
 			{S_ll = 'sym3'},				--6: gamma_i^c gamma_j^d T_cd
-										
-			--constraints:              
-			{H = 'real'},					--1
-			{M_u = 'real3'},				--3
-		}
+		}								
 	end
+	self.consVars:append{
+		--constraints:              
+		{H = 'real'},					--1
+		{M_u = 'real3'},				--3
+	}
 
 	self.eigenVars = table{
 		{alpha = 'real'},
@@ -236,9 +237,9 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->rho = 0;
 	U->S_u = real3_zero;
 	U->S_ll = sym3_zero;
+<? end ?>
 	U->H = 0;
 	U->M_u = real3_zero;
-<? end ?>
 }
 ]], {eqn=self})
 end
@@ -286,9 +287,9 @@ kernel void initState(
 	U->rho = 0;
 	U->S_u = real3_zero;
 	U->S_ll = sym3_zero;
+<? end ?>
 	U->H = 0;
 	U->M_u = real3_zero;
-<? end ?>
 }
 
 kernel void initDerivs(

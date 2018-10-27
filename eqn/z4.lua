@@ -36,6 +36,14 @@ Z4_2008Yano.consVars = table{
 
 Z4_2008Yano.numWaves = makeStruct.countScalars(fluxVars)
 assert(Z4_2008Yano.numWaves == 31)
+	
+Z4_2008Yano.numIntStates = makeStruct.countScalars(Z4_2008Yano.consVars)
+
+Z4_2008Yano.consVars:append{
+	--constraints:              
+	{H = 'real'},					--1
+	{M_u = 'real3'},				--3
+}
 
 Z4_2008Yano.hasCalcDTCode = true
 Z4_2008Yano.hasEigenCode = true
@@ -111,14 +119,23 @@ kernel void initDerivs(
 	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
-<? for i,xi in ipairs(xNames) do ?>
+<? 
+for i=1,solver.dim do 
+	local xi = xNames[i]
+?>
 	U->a_l.<?=xi?> = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (solver->grid_dx.s<?=i-1?> * U->alpha);
-	<? for j=0,2 do ?>
-		<? for k=j,2 do ?>
-	U->d_lll.<?=xi?>.s<?=j..k?> = .5 * (U[stepsize.<?=xi?>].gamma_ll.s<?=j..k?> - U[-stepsize.<?=xi?>].gamma_ll.s<?=j..k?>) / solver->grid_dx.s<?=i-1?>;
-		<? end ?>
+	<? for jk,xjk in ipairs(symNames) do ?>
+	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (U[stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / solver->grid_dx.s<?=i-1?>;
 	<? end ?>
-<? end ?>
+<? end
+for i=solver.dim+1,3 do
+	local xi = xNames[i]
+?>
+	U->a_l.<?=xi?> = 0;
+	U->d_lll.<?=xi?> = sym3_zero;
+<?
+end
+?>
 }
 ]]
 
