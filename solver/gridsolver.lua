@@ -113,6 +113,7 @@ function GridSolver:preInit(args)
 	-- ...and rather than require an extra argument, I think I'll just take advantage of a closure
 	local solver = self
 	local Program = class(require 'cl.obj.program')
+	os.execute'mkdir cache-cl 2> /dev/null'
 	function Program:init(args)
 		args.env = solver.app.env
 		args.domain = solver.domain

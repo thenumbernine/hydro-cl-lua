@@ -5,7 +5,6 @@ it expects ffmpeg to be installed
 --]]
 
 local ffi = require 'ffi'
-package.cpath = package.cpath .. [[;C:\Users\moorece\lib\luajit-2.1.0-beta3\?.dll]]
 local lfs = require 'lfs'
 local rundir = lfs.currentdir()
 lfs.chdir'../..'

@@ -4,7 +4,7 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -16,7 +16,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	integrator = 'backward Euler',
+	--integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	cfl = cmdline.cfl or .5,	-- 1/dim,
@@ -69,7 +69,7 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{256,1,1},
-				{64,64,1},
+				{32,32,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -522,18 +522,18 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionEllipticEvolve'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='LagrangianCoordinates'}})))	-- TODO finish me
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'}))) -- TODO finish me
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'}))) -- TODO finish me
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v2'})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d', eqnArgs={useShift=false}})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='z4'}))) -- TODO finish me
 
@@ -552,7 +552,7 @@ maxs = {6,1,1},
 
 -- Z4c finite difference, combining BSSNOK and Z4
 -- FIXME something is asymmetric.  watch Theta.  Run warp bubble.
-self.solvers:insert(require 'solver.z4c-fd'(args))
+--self.solvers:insert(require 'solver.z4c-fd'(args))
 
 
 

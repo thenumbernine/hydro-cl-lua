@@ -278,7 +278,6 @@ end
 function Equation:eigenWaveCodePrefix(side, eig, x)
 	return ''
 end
-
 function Equation:eigenWaveCode(side, eig, x, waveIndex)
 	return '\n#error :eigenWaveCode() not implemented'
 end

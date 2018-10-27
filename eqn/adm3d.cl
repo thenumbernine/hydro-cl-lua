@@ -14,10 +14,16 @@ local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, 
 local calcConstraints = true 
 ?>
 
+typedef <?=eqn.prim_t?> prim_t;
+typedef <?=eqn.cons_t?> cons_t;
+typedef <?=eqn.eigen_t?> eigen_t;
+typedef <?=eqn.waves_t?> waves_t;
+typedef <?=solver.solver_t?> solver_t;
+
 kernel void calcDT(
-	constant <?=solver.solver_t?>* solver,
+	constant solver_t* solver,
 	global real* dtBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	const global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
@@ -25,7 +31,7 @@ kernel void calcDT(
 		return;
 	}
 		
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	const global cons_t* U = UBuf + index;
 	
 	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once
 	real f = calc_f(U->alpha);
@@ -63,12 +69,12 @@ kernel void calcDT(
 
 //used by PLM
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
+eigen_t eigen_forCell_<?=side?>(
+	constant solver_t* solver,
+	cons_t U,
 	real3 x 
 ) {
-	<?=eqn.eigen_t?> eig;
+	eigen_t eig;
 	eig.alpha = U.alpha;
 	eig.sqrt_f = sqrt(calc_f(U.alpha));
 	real det_gamma = sym3_det(U.gamma_ll);
@@ -85,7 +91,7 @@ kernel void calcDT(
 
 <? for side=0,solver.dim-1 do ?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
-	const global <?=eqn.cons_t?>* U,
+	const global cons_t* U,
 	real3 x
 ) {
 	real det_gamma = sym3_det(U->gamma_ll);
@@ -120,10 +126,10 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <? end ?>
 
 //used for interface eigen basis
-<?=eqn.eigen_t?> eigen_forInterface(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> UL,
-	<?=eqn.cons_t?> UR,
+eigen_t eigen_forInterface(
+	constant solver_t* solver,
+	cons_t UL,
+	cons_t UR,
 	real3 x,
 	real3 n
 ) {
@@ -138,7 +144,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	};
 	real det_avg_gamma = sym3_det(avg_gamma);
 
-	<?=eqn.eigen_t?> eig;
+	eigen_t eig;
 	eig.alpha = alpha;
 	eig.sqrt_f = sqrt(calc_f(alpha));
 	eig.gamma_uu = sym3_inv(avg_gamma, det_avg_gamma);
@@ -154,13 +160,13 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 }
 
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> inputU,
+waves_t eigen_leftTransform_<?=side?>(
+	constant solver_t* solver,
+	eigen_t eig,
+	cons_t inputU,
 	real3 x 
 ) {
-	<?=eqn.waves_t?> results;
+	waves_t results;
 <? if not eqn.noZeroRowsInFlux then ?>
 
 	<? if side == 0 then ?>
@@ -452,13 +458,13 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	return results;
 }
 
-<?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.waves_t?> input,
+cons_t eigen_rightTransform_<?=side?>(
+	constant solver_t* solver,
+	eigen_t eig,
+	waves_t input,
 	real3 x
 ) {
-	<?=eqn.cons_t?> resultU;
+	cons_t resultU;
 	for (int j = 0; j < numStates; ++j) {
 		resultU.ptr[j] = 0;
 	}
@@ -1012,10 +1018,10 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	return resultU;
 }
 
-<?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> inputU,
+cons_t eigen_fluxTransform_<?=side?>(
+	constant solver_t* solver,
+	eigen_t eig,
+	cons_t inputU,
 	real3 x
 ) {
 <? if not eqn.noZeroRowsInFlux then ?>
@@ -1025,7 +1031,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	// TODO use that static function for the calc waves as well
 	
 
-	<?=eqn.waves_t?> waves = eigen_leftTransform_<?=side?>(solver, eig, inputU, x);
+	waves_t waves = eigen_leftTransform_<?=side?>(solver, eig, inputU, x);
 
 	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
 
@@ -1037,7 +1043,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 <? else -- noZeroRowsInFlux ?>
 
-	<?=eqn.cons_t?> resultU;
+	cons_t resultU;
 	for (int i = 0; i < numStates; ++i) {
 		resultU.ptr[i] = 0;
 	}
@@ -1067,13 +1073,13 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 // then we do save calculations / memory on the equations
 // but we also, for >FE integrators (which require multiple steps) are duplicating calculations
 kernel void addSource(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* derivBuf,
-	<?=calcConstraints and '' or 'const '?>global <?=eqn.cons_t?>* UBuf)
+	constant solver_t* solver,
+	global cons_t* derivBuf,
+	<?=calcConstraints and '' or 'const '?>global cons_t* UBuf)
 {
 	SETBOUNDS_NOGHOST();
-	<?=calcConstraints and '' or 'const '?>global <?=eqn.cons_t?>* U = UBuf + index;
-	global <?=eqn.cons_t?>* deriv = derivBuf + index;
+	<?=calcConstraints and '' or 'const '?>global cons_t* U = UBuf + index;
+	global cons_t* deriv = derivBuf + index;
 
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
@@ -1484,8 +1490,8 @@ end ?>
 }
 
 kernel void constrainU(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
+	constant solver_t* solver,
+	global cons_t* UBuf
 ) {
 
 <?
@@ -1495,7 +1501,7 @@ if constrainV ~= 'none' then
 ?>	//gravitational_wave_sim uses this (for 1D), HydroGPU doesn't (for 2D/3D)
 	SETBOUNDS(numGhost,numGhost);	
 	
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global cons_t* U = UBuf + index;
 
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
