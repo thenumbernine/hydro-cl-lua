@@ -1483,11 +1483,10 @@ end ?>
 	real R = sym3_dot(R_ll, gamma_uu);
 	real tr_KSq = sym3_dot(KSq_ll, gamma_uu);
 	U->H = .5 * (R + trK * trK - tr_KSq) <? 
-if calcConstraints then ?>
+if eqn.useStressEnergyTerms then ?>
 	- 8. * M_PI * U->rho <? 
 end ?>;
 	//momentum constraint
-<? end	--calcConstraints ?>
 }
 
 kernel void constrainU(
