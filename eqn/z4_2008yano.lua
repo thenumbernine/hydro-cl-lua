@@ -194,12 +194,13 @@ Z4_2008Yano.eigenVars = table{
 function Z4_2008Yano:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	return template([[
 	<? if side==0 then ?>
-	real eig_lambdaGauge = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x * <?=eig?>.sqrt_f;
+	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x;
 	<? elseif side==1 then ?>
-	real eig_lambdaGauge = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.y * <?=eig?>.sqrt_f;
+	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.y;
 	<? elseif side==2 then ?>
-	real eig_lambdaGauge = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.z * <?=eig?>.sqrt_f;
+	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.z;
 	<? end ?>
+	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>.sqrt_f;
 ]], {
 		eig = '('..eig..')',
 		side = side,
@@ -207,45 +208,6 @@ function Z4_2008Yano:eigenWaveCodePrefix(side, eig, x, waveIndex)
 end
 
 function Z4_2008Yano:eigenWaveCode(side, eig, x, waveIndex)
-
-	local betaUi
-	if self.useShift then
-		betaUi = eig..'.beta_u.'..xNames[side+1]
-	else
-		betaUi = '0'
-	end
-
-	if waveIndex >= 0 and waveIndex <= 6 then
-		return '-'..betaUi..' - eig_lambdaGauge'
-	elseif waveIndex >= 7 and waveIndex <= 23 then
-		return '-'..betaUi
-	elseif waveIndex >= 24 and waveIndex <= 30 then
-		return '-'..betaUi..' + eig_lambdaGauge'
-	end
-
-	error'got a bad waveIndex'
-end
-
-function Z4_2008Yano:eigenWaveCodePrefix(side, eig, x, waveIndex)
-	return template([[
-	<? if side==0 then ?>
-	real eig_lambdaGauge = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x * <?=eig?>.sqrt_f;
-	<? elseif side==1 then ?>
-	real eig_lambdaGauge = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.y * <?=eig?>.sqrt_f;
-	<? elseif side==2 then ?>
-	real eig_lambdaGauge = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.z * <?=eig?>.sqrt_f;
-	<? end ?>
-]], {
-		eig = '('..eig..')',
-		side = side,
-	})
-end
-
-function Z4_2008Yano:eigenWaveCode(side, eig, x, waveIndex)
-	-- TODO find out if -- if we use the lagrangian coordinate shift operation -- do we still need to offset the eigenvalues by -beta^i?
-	local shiftingLambdas = self.useShift 
-		--and self.useShift ~= 'LagrangianCoordinates'
-
 	local betaUi
 	if self.useShift then
 		betaUi = '('..eig..').beta_u.'..xNames[side+1]
@@ -253,14 +215,17 @@ function Z4_2008Yano:eigenWaveCode(side, eig, x, waveIndex)
 		betaUi = '0'
 	end
 
-	if waveIndex >= 0 and waveIndex <= 6 then
+	if waveIndex == 0 then
 		return '-'..betaUi..' - eig_lambdaGauge'
+	elseif waveIndex >= 1 and waveIndex <= 6 then
+		return '-'..betaUi..' - eig_lambdaLight'
 	elseif waveIndex >= 7 and waveIndex <= 23 then
 		return '-'..betaUi
-	elseif waveIndex >= 24 and waveIndex <= 30 then
+	elseif waveIndex >= 24 and waveIndex <= 29 then
+		return '-'..betaUi..' + eig_lambdaLight'
+	elseif waveIndex == 30 then
 		return '-'..betaUi..' + eig_lambdaGauge'
 	end
-	
 	error'got a bad waveIndex'
 end
 
@@ -268,22 +233,21 @@ function Z4_2008Yano:consWaveCodePrefix(side, U, x, waveIndex)
 	return template([[
 	real det_gamma = sym3_det(<?=U?>.gamma_ll);
 	sym3 gamma_uu = sym3_inv(<?=U?>.gamma_ll, det_gamma);
-	real f = calc_f(<?=U?>.alpha);
 	<? if side==0 then ?>
-	real eig_lambdaGauge = <?=U?>.alpha * sqrt(gamma_uu.xx) * sqrt(f);
+	real eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.xx);
 	<? elseif side==1 then ?>                          
-	real eig_lambdaGauge = <?=U?>.alpha * sqrt(gamma_uu.yy) * sqrt(f);
+	real eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.yy);
 	<? elseif side==2 then ?>                          
-	real eig_lambdaGauge = <?=U?>.alpha * sqrt(gamma_uu.zz) * sqrt(f);
+	real eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.zz);
 	<? end ?>
+	real f = calc_f(<?=U?>.alpha);
+	real eig_lambdaGauge = eig_lambdaLight * sqrt(f);
 ]], {
 		U = '('..U..')',
 		side = side,
 	})
 end
 Z4_2008Yano.consWaveCode = Z4_2008Yano.eigenWaveCode
-
-
 
 function Z4_2008Yano:fillRandom(epsilon)
 	local ptr = Z4_2008Yano.super.fillRandom(self, epsilon)
