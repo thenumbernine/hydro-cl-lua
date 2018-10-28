@@ -10,8 +10,6 @@ local derivOrder = 2 * solver.numGhost
 local makePartials = require 'eqn.makepartial'
 local makePartial = function(...) return makePartials.makePartial(derivOrder, solver, ...) end
 local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end
-
-local calcConstraints = true 
 ?>
 
 typedef <?=eqn.prim_t?> prim_t;
@@ -53,7 +51,7 @@ kernel void calcDT(
 		real lambdaGauge = lambdaLight * sqrt_f;
 		real lambda = (real)max(lambdaGauge, lambdaLight);
 
-		<? if eqn.useShift then ?>
+		<? if eqn.useShift ~= 'none' then ?>
 		real betaUi = U->beta_u.s<?=side?>;
 		<? else ?>
 		const real betaUi = 0.;
@@ -81,7 +79,7 @@ eigen_t eigen_forCell_<?=side?>(
 	eig.gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
 	eig.sqrt_gammaUjj = _real3(sqrt(eig.gamma_uu.xx), sqrt(eig.gamma_uu.yy), sqrt(eig.gamma_uu.zz));
 	
-	<? if eqn.useShift then ?>
+	<? if eqn.useShift ~= 'none' then ?>
 	eig.beta_u = U.beta_u;
 	<? end ?>
 
@@ -113,7 +111,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	//= lambdaLight * max(sqrt(f), 1)
 	real lambdaMin = -lambdaMin;
 
-	<? if eqn.useShift then ?>
+	<? if eqn.useShift ~= 'none' then ?>
 	lambdaMin -= U->beta_u.s<?=side?>;
 	lambdaMax -= U->beta_u.s<?=side?>;
 	<? end ?>
@@ -152,7 +150,7 @@ eigen_t eigen_forInterface(
 	eig.sqrt_gammaUjj.y = sqrt(eig.gamma_uu.yy);
 	eig.sqrt_gammaUjj.z = sqrt(eig.gamma_uu.zz);
 	
-	<? if eqn.useShift then ?>
+	<? if eqn.useShift ~= 'none' then ?>
 	eig.beta_u = real3_real_mul(real3_add(UL.beta_u, UR.beta_u), .5);
 	<? end ?>
 
@@ -1075,11 +1073,11 @@ cons_t eigen_fluxTransform_<?=side?>(
 kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	<?=calcConstraints and '' or 'const '?>global cons_t* UBuf)
+	const global cons_t* UBuf)
 {
 	SETBOUNDS_NOGHOST();
-	<?=calcConstraints and '' or 'const '?>global cons_t* U = UBuf + index;
 	global cons_t* deriv = derivBuf + index;
+	const global cons_t* U = UBuf + index;
 
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
@@ -1098,7 +1096,7 @@ kernel void addSource(
 	// source terms
 	
 	real3x3 K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
-	real trK = real3x3_trace(K_ul);								//K^k_k
+	real tr_K = real3x3_trace(K_ul);								//K^k_k
 	sym3 KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
 
 	//d_llu = d_ij^k = d_ijl * gamma^lk
@@ -1111,8 +1109,8 @@ kernel void addSource(
 	//d_ull = d^i_jk = gamma^il d_ljk
 	_3sym3 d_ull = sym3_3sym3_mul(gamma_uu, U->d_lll);
 
-	//d3_l = d^j_ji
-	real3 d3_l = (real3){
+	//e_i = d^j_ji
+	real3 e_l = (real3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = 0.<?
 	for j,xj in ipairs(xNames) do
@@ -1141,7 +1139,7 @@ kernel void addSource(
 ?>		.<?=xij?> = 0.
 <? 	for k,xk in ipairs(xNames) do 
 ?>
-			+ conn_ull.<?=xk?>.<?=xij?> * (U->V_l.<?=xk?> - d3_l.<?=xk?>)
+			+ conn_ull.<?=xk?>.<?=xij?> * (U->V_l.<?=xk?> - e_l.<?=xk?>)
 
 <?		for l,xl in ipairs(xNames) do
 ?>			+ 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_ull.<?=xk?>.<?=sym(j,l)?>
@@ -1187,15 +1185,15 @@ kernel void addSource(
 ?>			+ conn_ull.<?=xk?>.<?=xij?> * U->a_l.<?=xk?>
 <?	end
 ?>			+ R_ll.<?=xij?>
-			+ trK * U->K_ll.<?=xij?>
+			+ tr_K * U->K_ll.<?=xij?>
 			- 2. * KSq_ll.<?=xij?>
 			- (8. * M_PI * S_ll.<?=xij?> - 4. * M_PI * U->gamma_ll.<?=xij?> * (S - U->rho))
 		,
 <? end
 ?>	};
 
-	//d1_l = d_ij^j
-	real3 d1_l = (real3){
+	//d_i = d_ij^j
+	real3 d_l = (real3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = real3x3_trace(d_llu[<?=i-1?>]),
 <? end
@@ -1211,13 +1209,13 @@ kernel void addSource(
 	//			+ 2 K^i_j d_ik^j 
 	real3 srcV_l = (real3){
 <? for k,xk in ipairs(xNames) do
-?>		.<?=xk?> = -trK * U->a_l.<?=xk?>
+?>		.<?=xk?> = -tr_K * U->a_l.<?=xk?>
 			- 8. * M_PI * S_l.<?=xk?>
 <?	for j,xj in ipairs(xNames) do
 ?>			+ U->a_l.<?=xj?> * K_ul.<?=xj?>.<?=xk?>
-			- 4. * trK * d_ull.<?=xj?>.<?=sym(j,k)?>
-			+ 2. * K_ul.<?=xj?>.<?=xk?> * d3_l.<?=xj?>
-			+ 2. * K_ul.<?=xj?>.<?=xk?> * d1_l.<?=xj?>
+			- 4. * tr_K * d_ull.<?=xj?>.<?=sym(j,k)?>
+			+ 2. * K_ul.<?=xj?>.<?=xk?> * e_l.<?=xj?>
+			+ 2. * K_ul.<?=xj?>.<?=xk?> * d_l.<?=xj?>
 <?		for i,xi in ipairs(xNames) do
 ?>			- K_ul.<?=xi?>.<?=xj?> * d_llu[<?=k-1?>].<?=xi?>.<?=xj?>
 			+ 2. * K_ul.<?=xi?>.<?=xj?> * d_llu[<?=i-1?>].<?=xk?>.<?=xj?>
@@ -1228,7 +1226,7 @@ kernel void addSource(
 
 
 	//alpha_,t = shift terms - alpha^2 f gamma^ij K_ij
-	deriv->alpha += -U->alpha * U->alpha * f * trK;
+	deriv->alpha += -U->alpha * U->alpha * f * tr_K;
 	
 	//gamma_ij,t = shift terms - 2 alpha K_ij
 	sym3_add(deriv->gamma_ll, sym3_real_mul(U->K_ll, -2. * U->alpha));
@@ -1239,7 +1237,7 @@ kernel void addSource(
 	//V_k,t = shift terms + alpha srcV_k
 	real3_add(deriv->V_l, real3_real_mul(srcV_l, U->alpha));
 
-<? if eqn.useShift then ?>
+<? if eqn.useShift ~= 'none' then ?>
 
 
 	<?
@@ -1253,7 +1251,7 @@ kernel void addSource(
 	//and give it a method for producing the partial_beta_ul
 	// so the finite difference ones can use this
 	// and the state ones can just assign a variable
-	//then all this can be moved into the "if eqn.useShift then" block
+	//then all this can be moved into the "if eqn.useShift ~= 'none' then" block
 	//but then again, any FVS-based method will already have the U_,k beta^k terms incorporated into its eigensystem ...
 	//this means the useShift will also determine whether the flux has any shift terms
 	// for any '-FiniteDifference' shift, the flux won't have any shift terms.
@@ -1318,7 +1316,7 @@ kernel void addSource(
 ?>
 
 	//technically this can be represented as a sym3sym3 since d_ijk,l is symmetric with jk and il
-	//partial_d_l[k][l].ij = d_kij,l
+	//partial_d_llll[k][l].ij = d_kij,l
 <?=makePartial('d_lll', '_3sym3')?>
 
 	//d_kij,t = d_kij,l beta^l + d_lij beta^l_,k + d_klj beta^l_,i + d_kil beta^l_,j
@@ -1327,7 +1325,7 @@ kernel void addSource(
 		local i,j = from6to3x3(ij)
 ?>	deriv->d_lll.<?=xk?>.<?=xij?> += 0.
 <?		for l,xl in ipairs(xNames) do
-?>			+ partial_d_l[<?=l-1?>].<?=xk?>.<?=xij?>
+?>			+ partial_d_llll[<?=l-1?>].<?=xk?>.<?=xij?>
 <?		end
 ?>	;
 <?	end
@@ -1409,7 +1407,7 @@ end ?>
 				dbeta_beta,
 				real3_real_mul(
 					U->beta_u,
-					U->alpha * trK * (1. - f)
+					U->alpha * tr_K * (1. - f)
 				)
 			),
 			real3_real_mul(
@@ -1469,42 +1467,31 @@ end ?>
 	deriv->V_l = real3_add(
 		deriv->V_l,
 		real3_real_mul(
-			real3_sub(real3_sub(d1_l, d3_l), U->V_l),
+			real3_sub(real3_sub(d_l, e_l), U->V_l),
 			solver->V_convCoeff));
 
 	//Kreiss-Oligar diffusion, for stability's sake?
-
-
-	//while you're here, calculate the Hamiltonian and momentum constraints
-	//scaled down by 1/8 to match B&S BSSNOK equations ... maybe I'll scale theirs up by 8 ...
-	//B&S eqn 2.125 ... divded by two
-	//Alcubierre eqn 2.5.9
-	//H = 1/2 (R + K^2 - K_ij K^ij) - 8 pi rho
-	real R = sym3_dot(R_ll, gamma_uu);
-	real tr_KSq = sym3_dot(KSq_ll, gamma_uu);
-	U->H = .5 * (R + trK * trK - tr_KSq) <? 
-if eqn.useStressEnergyTerms then ?>
-	- 8. * M_PI * U->rho <? 
-end ?>;
-	//momentum constraint
 }
 
 kernel void constrainU(
 	constant solver_t* solver,
 	global cons_t* UBuf
 ) {
+	SETBOUNDS(numGhost,numGhost);		
+	global cons_t* U = UBuf + index;
+	
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+
+	real3x3 K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
+	real tr_K = real3x3_trace(K_ul);								//K^k_k
+	sym3 KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
 
 <?
 local constrainVGuiVar = eqn.guiVars['constrain V']
 local constrainV = constrainVGuiVar.options[constrainVGuiVar.value]  
 if constrainV ~= 'none' then 
 ?>	//gravitational_wave_sim uses this (for 1D), HydroGPU doesn't (for 2D/3D)
-	SETBOUNDS(numGhost,numGhost);	
-	
-	global cons_t* U = UBuf + index;
-
-	real det_gamma = sym3_det(U->gamma_ll);
-	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
 
 	real3 delta;
 	<? for i,xi in ipairs(xNames) do ?>{
@@ -1569,6 +1556,72 @@ so to solve this, you must solve a giant linear system of all variables
 //...or linearly project out the [V_i, U->d_ijk] vector
 //...or do a single gradient descent step
 <?
-end
+end	-- constrain V
 ?>
+
+	//d_llu = d_ij^k = d_ijl * gamma^lk
+	real3x3 d_llu[3] = {
+<? for i,xi in ipairs(xNames) do
+?>		sym3_sym3_mul(U->d_lll.<?=xi?>, gamma_uu),
+<? end
+?>	};
+	
+	//d_ull = d^i_jk = gamma^il d_ljk
+	_3sym3 d_ull = sym3_3sym3_mul(gamma_uu, U->d_lll);
+
+	//e_i = d^j_ji
+	real3 e_l = (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = 0.<?
+	for j,xj in ipairs(xNames) do
+		?> + d_ull.<?=xj?>.<?=sym(j,i)?><?
+	end	?>,
+<? end
+?>	};
+
+	//conn^k_ij = d_ij^k + d_ji^k - d^k_ij
+	_3sym3 conn_ull = {
+<? for k,xk in ipairs(xNames) do 
+?>		.<?=xk?> = (sym3){
+<?	for ij,xij in ipairs(symNames) do
+		local i,j = from6to3x3(ij)
+		local xi,xj = xNames[i],xNames[j]
+?>			.<?=xij?> = d_llu[<?=i-1?>].<?=xj?>.<?=xk?> - d_llu[<?=j-1?>].<?=xi?>.<?=xk?> - U->d_lll.<?=xk?>.<?=xij?>,
+<? end
+?>		},
+<? end 
+?>	};
+
+	sym3 R_ll = (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+	local xi, xj = xNames[i], xNames[j]
+?>		.<?=xij?> = 0.
+<? 	for k,xk in ipairs(xNames) do 
+?>
+			+ conn_ull.<?=xk?>.<?=xij?> * (U->V_l.<?=xk?> - e_l.<?=xk?>)
+
+<?		for l,xl in ipairs(xNames) do
+?>			+ 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_ull.<?=xk?>.<?=sym(j,l)?>
+			- 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_llu[<?=l-1?>].<?=xj?>.<?=xk?>
+			+ 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_llu[<?=j-1?>].<?=xl?>.<?=xk?>
+			+ 2. * d_llu[<?=i-1?>].<?=xl?>.<?=xk?> * d_llu[<?=k-1?>].<?=xj?>.<?=xl?>
+			- 3. * d_llu[<?=i-1?>].<?=xl?>.<?=xk?> * d_llu[<?=j-1?>].<?=xk?>.<?=xl?>
+<? 		end
+	end
+?>		,
+<? end
+?>	};
+
+	//scaled down by 1/8 to match B&S BSSNOK equations ... maybe I'll scale theirs up by 8 ...
+	//B&S eqn 2.125 ... divded by two
+	//Alcubierre eqn 2.5.9
+	//H = 1/2 (R + K^2 - K_ij K^ij) - 8 pi rho
+	real R = sym3_dot(R_ll, gamma_uu);
+	real tr_KSq = sym3_dot(KSq_ll, gamma_uu);
+	U->H = .5 * (R + tr_K * tr_K - tr_KSq) <? 
+if eqn.useStressEnergyTerms then ?>
+	- 8. * M_PI * U->rho <? 
+end ?>;
+	//momentum constraint
 }

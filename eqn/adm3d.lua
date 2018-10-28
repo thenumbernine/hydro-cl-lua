@@ -31,7 +31,7 @@ noZeroRowsInFlux = true by default.
 	false = use all 30 or so hyperbolic conservation variables
 useShift
 	
-	useShift = false	--  no shift
+	useShift = 'none'
 	
 	useShift = 'MinimalDistortionElliptic' -- minimal distortion elliptic via Poisson relaxation.  Alcubierre's book, eqn 4.3.14 and 4.3.15
 	
@@ -101,12 +101,12 @@ function ADM_BonaMasso_3D:init(args)
 	2) ... and adding a few terms to the source
 	--]]
 
-	self.useShift = args.useShift
+	self.useShift = args.useShift or 'none'
 	
 	-- set to false to disable rho, S_i, S^ij
 	self.useStressEnergyTerms = true
 
-	if self.useShift then
+	if self.useShift ~= 'none' then
 		self.consVars:insert{beta_u = 'real3'}
 
 		if self.useShift == 'MinimalDistortionElliptic' 
@@ -131,7 +131,7 @@ function ADM_BonaMasso_3D:init(args)
 
 	-- NOTE this doesn't work when using shift ... because then all the eigenvalues are -beta^i, so none of them are zero (except the source-only alpha, beta^i, gamma_ij)
 	-- with the exception of the lagrangian shift.  if we split that operator out then we can first solve the non-shifted system, then second advect it by the shift vector ...
-	--if self.useShift then
+	--if self.useShift ~= 'none' then
 	--	self.noZeroRowsInFlux = false
 	--end
 
@@ -171,7 +171,7 @@ function ADM_BonaMasso_3D:init(args)
 	}
 
 	-- hmm, only certain shift methods actually use beta_u ...
-	if self.useShift then
+	if self.useShift ~= 'none' then
 		self.eigenVars:insert{beta_u = 'real3'}
 	end
 
@@ -228,7 +228,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->d_lll.z = sym3_zero;
 	U->K_ll = sym3_zero;
 	U->V_l = real3_zero;
-<? if eqn.useShift then 
+<? if eqn.useShift ~= 'none' then 
 ?>	U->beta_u = real3_zero;
 <? end 
 ?>	
@@ -279,7 +279,7 @@ kernel void initState(
 	U->gamma_ll = gamma_ll;
 	U->K_ll = K_ll;
 	U->V_l = real3_zero;
-<? if eqn.useShift then
+<? if eqn.useShift ~= 'none' then
 ?>	U->beta_u = beta_u;
 <? end
 ?>
@@ -480,11 +480,11 @@ end
 
 function ADM_BonaMasso_3D:eigenWaveCode(side, eig, x, waveIndex)
 	-- TODO find out if -- if we use the lagrangian coordinate shift operation -- do we still need to offset the eigenvalues by -beta^i?
-	local shiftingLambdas = self.useShift 
+	local shiftingLambdas = self.useShift ~= 'none'
 		--and self.useShift ~= 'LagrangianCoordinates'
 
 	local betaUi
-	if self.useShift then
+	if self.useShift ~= 'none' then
 		betaUi = '('..eig..').beta_u.'..xNames[side+1]
 	else
 		betaUi = '0'
@@ -505,7 +505,7 @@ function ADM_BonaMasso_3D:eigenWaveCode(side, eig, x, waveIndex)
 		end
 
 	else	-- noZeroRowsInFlux 
-		-- noZeroRowsInFlux implies not useShift
+		-- noZeroRowsInFlux implies useShift == 'none'
 		if waveIndex == 0 then
 			return '-'..betaUi..' - eig_lambdaGauge'
 		elseif waveIndex >= 1 and waveIndex <= 5 then

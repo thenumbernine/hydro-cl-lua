@@ -1279,6 +1279,15 @@ cons_t eigen_rightTransform_<?=side?>(
 		+ input.ptr[23] 
 		+ input.ptr[24];
 
+	resultU.a_l = real3_swap<?=side?>(resultU.a_l);							//0-2
+	resultU.d_lll = (_3sym3){
+		.x = sym3_swap<?=side?>(resultU.d_lll.v<?=side?>),					//3-8
+		.y = sym3_swap<?=side?>(resultU.d_lll.v<?=side==1 and 0 or 1?>),		//9-14
+		.z = sym3_swap<?=side?>(resultU.d_lll.v<?=side==2 and 0 or 2?>),		//15-20
+	};
+	resultU.K_ll = sym3_swap<?=side?>(resultU.K_ll);							//21-26
+	resultU.Z_l = real3_swap<?=side?>(resultU.Z_l);							//28-30
+
 	return resultU;
 }
 
@@ -1294,7 +1303,18 @@ cons_t eigen_fluxTransform_<?=side?>(
 	for (int i = 0; i < numStates; ++i) {
 		results.ptr[i] = 0;
 	}
-	
+
+	//input
+	real3 a_l = real3_swap<?=side?>(input.a_l);							//0-2
+	_3sym3 d_lll = (_3sym3){
+		.x = sym3_swap<?=side?>(input.d_lll.v<?=side?>),					//3-8
+		.y = sym3_swap<?=side?>(input.d_lll.v<?=side==1 and 0 or 1?>),		//9-14
+		.z = sym3_swap<?=side?>(input.d_lll.v<?=side==2 and 0 or 2?>),		//15-20
+	};
+	sym3 K_ll = sym3_swap<?=side?>(input.K_ll);							//21-26
+	real Theta = input.Theta;												//27
+	real3 Z_l = real3_swap<?=side?>(input.Z_l);							//28-30
+
 	sym3 gamma_ll = sym3_swap<?=side?>(eig.gamma_ll);
 	sym3 gamma_uu = sym3_swap<?=side?>(eig.gamma_uu);
 	
@@ -1302,7 +1322,10 @@ cons_t eigen_fluxTransform_<?=side?>(
 	real f = sqrt_f * sqrt_f;
 	
 	real m = solver->m;
-	
+
+	//TODO this still needs to know what vars are going into it
+	//so it can use the correctly swapped vars
+
 	results.ptr[0] = f * (gamma_uu.xx * input.ptr[21] 
 		+ 2. * gamma_uu.xy * input.ptr[22] 
 		+ 2. * gamma_uu.xz * input.ptr[23] 

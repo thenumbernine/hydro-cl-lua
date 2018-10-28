@@ -1,5 +1,5 @@
 --[[
-Based on 2008 Yano
+Based on 2008 Yano et al "Flux Vector Splitting..."
 --]]
 
 local class = require 'ext.class'
@@ -19,7 +19,7 @@ local sym = common.sym
 
 
 local Z4_2008Yano = class(EinsteinEqn)
-Z4_2008Yano.name = 'Z4 (2008 Yano)'
+Z4_2008Yano.name = 'Z4 (2008 Yano et al)'
 
 local fluxVars = table{
 	{a_l = 'real3'},		-- 3:  0-2
@@ -140,6 +140,19 @@ end
 ]]
 
 Z4_2008Yano.solverCodeFile = 'eqn/z4_2008yano.cl'
+
+Z4_2008Yano.predefinedDisplayVars = {
+	'U alpha',
+	'U gamma_ll x x',
+	'U d_lll_x x x',
+	'U K_ll x x',
+	'U Theta',
+	'U Z_l x',
+	'U H',
+	'U M_u',
+	'U volume',
+	'U f',
+}
 
 function Z4_2008Yano:getDisplayVars()
 	local vars = Z4_2008Yano.super.getDisplayVars(self)

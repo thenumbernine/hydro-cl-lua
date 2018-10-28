@@ -288,10 +288,11 @@ end
 BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U alpha',
 	'U beta_u mag',
+	'U epsilon_ll norm',
 	'U chi',
-	'U KHat',
-	'U Theta',
 	'U ABar_ll tr weighted',
+	'U connBar_u mag',
+	'U K',
 	'U Delta_u mag',
 	'U H',
 	'U M_u mag',
@@ -299,6 +300,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U det gamma_ij based on phi',
 	'U volume',
 	'U f',
+	'U gamma_ll tr weighted',
 }
 
 function BSSNOKFiniteDifferenceEquation:getDisplayVars()	

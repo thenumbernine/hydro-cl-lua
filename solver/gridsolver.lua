@@ -1339,7 +1339,7 @@ do
 	local fields = {'enabled', 'useLog', 'heatMapFixedRange', 'heatMapValueMin', 'heatMapValueMax'}
 	local defaults = {true, true, true, math.huge, -math.huge}
 	local combines = {_and, _and, _and, math.min, math.max}
-	local all = {name='all', enabled=false}
+	local all = {name='all'}
 	for i=1,#fields do
 		all[fields[i]] = defaults[i]
 	end
