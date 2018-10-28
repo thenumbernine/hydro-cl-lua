@@ -676,6 +676,7 @@ why would I bother write to the ghost cells?
 the only reason I can think of is for good subtexel lookup when rendering
 --]]
 DisplayVar.displayCode = [[
+//<?=var.name?>
 kernel void <?=name?>(
 	constant <?=solver.solver_t?>* solver,
 	<?=input?>,

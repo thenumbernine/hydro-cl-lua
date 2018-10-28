@@ -437,6 +437,19 @@ end
 		{
 			gravity = template([[
 	<?=makePartial('alpha', 'real')?>
+
+	real _1_alpha = 1. / U->alpha;
+
+	sym3 gamma_uu = calc_gamma_uu(U);
+	real3 partial_alpha_u = sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l);		//alpha_,j gamma^ij = alpha^,i
+	
+<? for i,xi in ipairs(xNames) do
+?>	value_real3-><?=xi?> = -partial_alpha_u.<?=xi?>;
+<? end
+?>
+
+<? if eqn.useShift ~= 'none' then ?>
+
 	<?=makePartial('beta_u', 'real3')?>
 
 	<?=makePartial('epsilon_ll', 'sym3')?>
@@ -482,12 +495,7 @@ end
 	//TODO
 	real dt_alpha = 0.;
 	sym3 dt_gamma_ll = sym3_zero;
-
-
-	real _1_alpha = 1. / U->alpha;
-
-	sym3 gamma_uu = calc_gamma_uu(U);
-	real3 partial_alpha_u = sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l);		//alpha_,j gamma^ij = alpha^,i
+	
 	real partial_alpha_dot_beta = real3_dot(U->beta_u, *(real3*)partial_alpha_l);	//beta^j alpha_,j
 
 	real3 beta_l = sym3_real3_mul(gamma_ll, U->beta_u);								//beta^j gamma_ij
@@ -525,9 +533,8 @@ end ?>;
 	real3 beta_beta_dgamma_u = sym3_real3_mul(gamma_uu, beta_beta_dgamma_l);
 
 <? for i,xi in ipairs(xNames) do
-?>	value_real3->s<?=i-1?> = -partial_alpha_u.<?=xi?>
-
-		+ _1_alpha * (
+?>	value_real3-><?=xi?> +=
+		_1_alpha * (
 			beta_dbeta_u.<?=xi?>
 			+ .5 * beta_beta_dgamma_u.<?=xi?>	
 			- U->B_u.<?=xi?>
@@ -547,6 +554,7 @@ end ?>;
 	; 
 <? end
 ?>
+<? end	-- eqn.useShift ?>
 ]],				applyCommon{
 					eqn = self,
 					solver = self.solver,
