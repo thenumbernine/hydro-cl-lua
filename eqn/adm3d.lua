@@ -335,6 +335,17 @@ end
 
 ADM_BonaMasso_3D.solverCodeFile = 'eqn/adm3d.cl'
 
+ADM_BonaMasso_3D.predefinedDisplayVars = {
+	'U alpha',
+	'U gamma_ll x x',
+	'U d_lll_x x x',
+	'U K_ll x x',
+	'U V_l x',
+	'U H',
+	'U volume',
+	'U f',
+}
+
 function ADM_BonaMasso_3D:getDisplayVars()
 	local vars = ADM_BonaMasso_3D.super.getDisplayVars(self)
 

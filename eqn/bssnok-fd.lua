@@ -46,15 +46,15 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	local intVars = table{
 		{alpha = 'real'},			-- 1
 		{beta_u = 'real3'},         -- 3: beta^i
-		{gammaTilde_ll = 'sym3'},    -- 6: gammaTilde_ij, only 5 dof since det gammaTilde_ij = 1
+		{gammaBar_ll = 'sym3'},    -- 6: gammaBar_ij, only 5 dof since det gammaBar_ij = 1
 																									 
 		self.useChi 
 			and {chi = 'real'}		-- 1
 			or {phi = 'real'},		-- 1
 		
 		{K = 'real'},               -- 1
-		{ATilde_ll = 'sym3'},       -- 6: ATilde_ij, only 5 dof since ATilde^k_k = 0
-		{connBar_u = 'real3'},      -- 3: connBar^i = gammaTilde^jk connBar^i_jk = -partial_j gammaTilde^ij
+		{ABar_ll = 'sym3'},       -- 6: ABar_ij, only 5 dof since ABar^k_k = 0
+		{connBar_u = 'real3'},      -- 3: connBar^i = gammaBar^jk connBar^i_jk = -partial_j gammaBar^ij
 	}
 	if self.useHypGammaDriver then
 		intVars:insert{B_u = 'real3'}
@@ -65,7 +65,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	:append{
 		--hyperbolic variables:
 		--real3 a;			//3: a_i
-		--_3sym3 dTilde;		//18: dTilde_ijk, only 15 dof since dTilde_ij^j = 0
+		--_3sym3 dBar;		//18: dBar_ijk, only 15 dof since dBar_ij^j = 0
 		--real3 Phi;			//3: Phi_i
 
 		--stress-energy variables:
@@ -78,7 +78,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 		{M_u = 'real3'},			--3
 
 		-- aux variable
-		{gammaTilde_uu = 'sym3'},		--6
+		{gammaBar_uu = 'sym3'},		--6
 	}
 	self.numIntStates = makestruct.countScalars(intVars)
 	
@@ -90,8 +90,8 @@ end
 function BSSNOKFiniteDifferenceEquation:createInitState()
 	BSSNOKFiniteDifferenceEquation.super.createInitState(self)
 	self:addGuiVars{
-		{name='constrain_det_gammaTilde_ll', value=true, compileTime=true},
-		{name='constrain_tr_ATilde_ll', value=true, compileTime=true},
+		{name='constrain_det_gammaBar_ll', value=true, compileTime=true},
+		{name='constrain_tr_ABar_ll', value=true, compileTime=true},
 		{name='useGammaDriver', value=false, compileTime=true},
 		{name='diffuseSigma', value=.01},
 	}
@@ -112,19 +112,19 @@ function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
 void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->alpha = 1.;
 	U->beta_u = real3_zero;
-	U->gammaTilde_ll = sym3_ident;
+	U->gammaBar_ll = sym3_ident;
 <? if eqn.useChi then 
 ?>	U->chi = 1;
 <? else
 ?>	U->phi = 0;
 <? end
 ?>	U->K = 0;
-	U->ATilde_ll = sym3_ident;
+	U->ABar_ll = sym3_ident;
 	U->connBar_u = real3_zero;
 <? if eqn.useHypGammaDriver then
 ?>	U->B_u = real3_zero;
 <? end
-?>	U->gammaTilde_uu = sym3_ident;
+?>	U->gammaBar_uu = sym3_ident;
 
 	//what to do with the constraint vars and the source vars?
 	U->rho = 0;
@@ -150,13 +150,13 @@ real calc_det_gamma(global const <?=eqn.cons_t?>* U, real3 x) {
 
 sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U) {
 	real exp_neg4phi = calc_exp_neg4phi(U);
-	sym3 gamma_uu = sym3_real_mul(U->gammaTilde_uu, exp_neg4phi);
+	sym3 gamma_uu = sym3_real_mul(U->gammaBar_uu, exp_neg4phi);
 	return gamma_uu;
 }
 
 sym3 calc_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
-	sym3 gamma_ll = sym3_real_mul(U->gammaTilde_ll, exp_4phi);
+	sym3 gamma_ll = sym3_real_mul(U->gammaBar_ll, exp_4phi);
 	return gamma_ll;
 }
 
@@ -190,7 +190,7 @@ kernel void initState(
 	real det_gamma = sym3_det(gamma_ll);
 	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma);
 
-	//gammaTilde_ij = e^(-4phi) gamma_ij
+	//gammaBar_ij = e^(-4phi) gamma_ij
 	//real exp_neg4phi = exp(-4 * U->phi);
 	real det_gammaGrid = sqrt_det_g_grid(x);
 	real exp_neg4phi = cbrt(det_gammaGrid / det_gamma);
@@ -201,8 +201,8 @@ kernel void initState(
 ?>	U->phi = log(det_gamma / det_gammaGrid) / 12.;
 <? end 
 ?>
-	U->gammaTilde_ll = sym3_real_mul(gamma_ll, exp_neg4phi);
-	U->gammaTilde_uu = sym3_inv(U->gammaTilde_ll, 1.);
+	U->gammaBar_ll = sym3_real_mul(gamma_ll, exp_neg4phi);
+	U->gammaBar_uu = sym3_inv(U->gammaBar_ll, 1.);
 
 <? if false then ?>
 <? for _,x in ipairs(xNames) do
@@ -212,7 +212,7 @@ kernel void initState(
 
 	U->K = sym3_dot(K_ll, gamma_uu);
 	sym3 A_ll = sym3_sub(K_ll, sym3_real_mul(gamma_ll, 1./3. * U->K));
-	U->ATilde_ll = sym3_real_mul(A_ll, exp_neg4phi);
+	U->ABar_ll = sym3_real_mul(A_ll, exp_neg4phi);
 	
 	U->rho = rho;
 	U->S_u = real3_zero;
@@ -222,7 +222,7 @@ kernel void initState(
 	U->M_u = real3_zero;
 }
 
-//after popularing gammaTilde_ll, use its finite-difference derivative to initialize connBar_u
+//after popularing gammaBar_ll, use its finite-difference derivative to initialize connBar_u
 kernel void initDerivs(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
@@ -231,13 +231,13 @@ kernel void initDerivs(
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
-<?=makePartial('gammaTilde_uu', 'sym3')?>
+<?=makePartial('gammaBar_uu', 'sym3')?>
 
-	//connBar^i = -gammaTilde^ij_,j
+	//connBar^i = -gammaBar^ij_,j
 <? for i,xi in ipairs(xNames) do
 ?>	U->connBar_u.<?=xi?> =<?
 	for j,xj in ipairs(xNames) do
-?> - partial_gammaTilde_uul[<?=j-1?>].<?=sym(i,j)?><?
+?> - partial_gammaBar_uul[<?=j-1?>].<?=sym(i,j)?><?
 	end
 ?>;
 <? end
@@ -277,7 +277,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 function BSSNOKFiniteDifferenceEquation:getDisplayVars()	
 	local vars = BSSNOKFiniteDifferenceEquation.super.getDisplayVars(self)
 
-	vars:insert{['det gammaTilde-1'] = [[*value = -1. + sym3_det(U->gammaTilde_ll);]]}	-- for logarithmic displays
+	vars:insert{['det gammaBar-1'] = [[*value = -1. + sym3_det(U->gammaBar_ll);]]}	-- for logarithmic displays
 	vars:insert{['det gamma based on phi'] = [[
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	*value = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);   
@@ -328,12 +328,12 @@ end ?>;
 
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 
-	//gamma_ij = exp(4 phi) gammaTilde_ij
-	sym3 gamma_ll = sym3_real_mul(U->gammaTilde_ll, exp_4phi);
+	//gamma_ij = exp(4 phi) gammaBar_ij
+	sym3 gamma_ll = sym3_real_mul(U->gammaBar_ll, exp_4phi);
 
-	//K_ij = exp(4 phi) ATilde_ij + 1/3 gamma_ij K 
+	//K_ij = exp(4 phi) ABar_ij + 1/3 gamma_ij K 
 	sym3 K_ll = sym3_add(
-		sym3_real_mul(U->ATilde_ll, exp_4phi),
+		sym3_real_mul(U->ABar_ll, exp_4phi),
 		sym3_real_mul(gamma_ll, U->K/3.));
 
 	*value = -tr_partial_beta / U->alpha
@@ -365,10 +365,10 @@ end
 		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
 		{gamma_ll = [[
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
-	*valuesym3 = sym3_real_mul(U->gammaTilde_ll, exp_4phi);
+	*valuesym3 = sym3_real_mul(U->gammaBar_ll, exp_4phi);
 ]], type='sym3'},
 		{K_ll = [[
-	*valuesym3 = sym3_add(U->ATilde_ll, sym3_real_mul(U->gammaTilde_ll, U->K/3.));
+	*valuesym3 = sym3_add(U->ABar_ll, sym3_real_mul(U->gammaBar_ll, U->K/3.));
 ]], type='sym3'},
 
 		--[[ ADM geodesic equation spatial terms:
@@ -403,20 +403,20 @@ end
 	<?=makePartial('alpha', 'real')?>
 	<?=makePartial('beta_u', 'real3')?>
 
-	<?=makePartial('gammaTilde_ll', 'sym3')?>
+	<?=makePartial('gammaBar_ll', 'sym3')?>
 <? if not eqn.useChi then ?>
 
-	//gamma_ij = exp(4 phi) gammaTilde_ij
+	//gamma_ij = exp(4 phi) gammaBar_ij
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
-	sym3 gamma_ll = sym3_real_mul(exp_4phi, U->gammaTilde_ll);
+	sym3 gamma_ll = sym3_real_mul(exp_4phi, U->gammaBar_ll);
 
-	//gamma_ij,k = exp(4 phi) gammaTilde_ij,k + 4 phi,k exp(4 phi) gammaTilde_ij
+	//gamma_ij,k = exp(4 phi) gammaBar_ij,k + 4 phi,k exp(4 phi) gammaBar_ij
 	<?=makePartial('phi', 'real')?>
 	_3sym3 partial_gamma_lll = {
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_add(
-			sym3_real_mul(partial_gammaTilde_lll[<?=i-1?>], exp_4phi),
-			sym3_real_mul(U->gammaTilde_ll, 4. * exp_4phi * partial_phi_l[<?=i-1?>])),
+			sym3_real_mul(partial_gammaBar_lll[<?=i-1?>], exp_4phi),
+			sym3_real_mul(U->gammaBar_ll, 4. * exp_4phi * partial_phi_l[<?=i-1?>])),
 <? end
 ?>	};
 
@@ -425,16 +425,16 @@ end
 	//chi = exp(-4 phi)
 	real _1_chi = 1. / U->chi;
 	
-	//gamma_ij = 1/chi gammaTilde_ij
-	sym3 gamma_ll = sym3_real_mul(U->gammaTilde_ll, _1_chi);
+	//gamma_ij = 1/chi gammaBar_ij
+	sym3 gamma_ll = sym3_real_mul(U->gammaBar_ll, _1_chi);
 	
-	//gamma_ij,k = 1/chi gammaTilde_ij,k - chi,k / chi^2 gammaTilde_ij
+	//gamma_ij,k = 1/chi gammaBar_ij,k - chi,k / chi^2 gammaBar_ij
 	<?=makePartial('chi', 'real')?>
 	_3sym3 partial_gamma_lll = {
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_sub(
-			sym3_real_mul(partial_gammaTilde_lll[<?=i-1?>], _1_chi),
-			sym3_real_mul(U->gammaTilde_ll, partial_chi_l[<?=i-1?>] * _1_chi * _1_chi)),
+			sym3_real_mul(partial_gammaBar_lll[<?=i-1?>], _1_chi),
+			sym3_real_mul(U->gammaBar_ll, partial_chi_l[<?=i-1?>] * _1_chi * _1_chi)),
 <? end
 ?>	};
 
@@ -526,9 +526,9 @@ function BSSNOKFiniteDifferenceEquation:fillRandom(epsilon)
 	local solver = self.solver
 	for i=0,solver.numCells-1 do
 		ptr[i].alpha = ptr[i].alpha + 1
-		ptr[i].gammaTilde_ll.xx = ptr[i].gammaTilde_ll.xx + 1
-		ptr[i].gammaTilde_ll.yy = ptr[i].gammaTilde_ll.yy + 1
-		ptr[i].gammaTilde_ll.zz = ptr[i].gammaTilde_ll.zz + 1
+		ptr[i].gammaBar_ll.xx = ptr[i].gammaBar_ll.xx + 1
+		ptr[i].gammaBar_ll.yy = ptr[i].gammaBar_ll.yy + 1
+		ptr[i].gammaBar_ll.zz = ptr[i].gammaBar_ll.zz + 1
 	end
 	solver.UBufObj:fromCPU(ptr)
 	return ptr

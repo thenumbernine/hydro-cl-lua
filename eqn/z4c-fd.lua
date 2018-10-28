@@ -57,7 +57,7 @@ function Z4cFiniteDifferenceEquation:init(args)
 	:append{
 		--hyperbolic variables:
 		--real3 a;			//3: a_i
-		--_3sym3 dTilde;		//18: dTilde_ijk, only 15 dof since dTilde_ij^j = 0
+		--_3sym3 dBar;		//18: dBar_ijk, only 15 dof since dBar_ij^j = 0
 		--real3 Phi;			//3: Phi_i
 
 		--stress-energy variables:
