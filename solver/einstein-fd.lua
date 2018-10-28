@@ -22,6 +22,8 @@ EinsteinFiniteDifferenceSolver.numGhost = 4
 
 EinsteinFiniteDifferenceSolver.name = 'EinsteinFiniteDifference'
 
+EinsteinFiniteDifferenceSolver.calcConstraints = true
+
 function EinsteinFiniteDifferenceSolver:init(...)
 	EinsteinFiniteDifferenceSolver.super.init(self, ...)
 	self.name = nil	-- don't append the eqn name to this
@@ -42,6 +44,10 @@ function EinsteinFiniteDifferenceSolver:refreshSolverProgram()
 	self.calcDerivKernelObj = self.solverProgramObj:kernel'calcDeriv'
 	self.calcDerivKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcDerivKernelObj.obj:setArg(2, self.UBuf)
+
+	self.calcConstraintsKernelObj = self.solverProgramObj:kernel'calcConstraints'
+	self.calcConstraintsKernelObj.obj:setArg(0, self.solverBuf)
+	self.calcConstraintsKernelObj.obj:setArg(1, self.UBuf)
 end
 
 function EinsteinFiniteDifferenceSolver:refreshCalcDTKernel() end
@@ -69,6 +75,12 @@ function EinsteinFiniteDifferenceSolver:getDisplayInfosForType()
 	})
 
 	return t
+end
+
+function EinsteinFiniteDifferenceSolver:step(dt)
+	EinsteinFiniteDifferenceSolver.super.step(self, dt)
+
+	self.calcConstraintsKernelObj()
 end
 
 return EinsteinFiniteDifferenceSolver

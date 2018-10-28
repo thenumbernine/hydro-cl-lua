@@ -21,19 +21,16 @@ BSSNOKFiniteDifferenceEquation.useSourceTerm = true
 
 --[[
 args:
-	useHypGammaDriver (default true)
+	useShift = 'none'
+				'GammaDriver'
+				'HyperbolicGammaDriver' (default)
 	useChi (default true)
 --]]
 function BSSNOKFiniteDifferenceEquation:init(args)
 	-- options:
-
 	-- needs to be defined up front
 	-- otherwise rebuild intVars based on it ...
-	if args.useHypGammaDriver ~= nil then
-		self.useHypGammaDriver = args.useHypGammaDriver
-	else
-		self.useHypGammaDriver = true
-	end
+	self.useShift = args.useShift or 'HyperbolicGammaDriver'
 
 	-- use chi = 1/psi instead of phi, as described in 2006 Campanelli 
 	-- it should be used with the hyperbolic gamma driver
@@ -56,7 +53,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 		{ABar_ll = 'sym3'},       -- 6: ABar_ij, only 5 dof since ABar^k_k = 0
 		{connBar_u = 'real3'},      -- 3: connBar^i = gammaBar^jk connBar^i_jk = -partial_j gammaBar^ij
 	}
-	if self.useHypGammaDriver then
+	if self.useShift == 'HyperbolicGammaDriver' then
 		intVars:insert{B_u = 'real3'}
 	end
 
@@ -92,7 +89,6 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 	self:addGuiVars{
 		{name='constrain_det_gammaBar_ll', value=true, compileTime=true},
 		{name='constrain_tr_ABar_ll', value=true, compileTime=true},
-		{name='useGammaDriver', value=false, compileTime=true},
 		{name='diffuseSigma', value=.01},
 	}
 end
@@ -121,7 +117,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 ?>	U->K = 0;
 	U->ABar_ll = sym3_ident;
 	U->connBar_u = real3_zero;
-<? if eqn.useHypGammaDriver then
+<? if eqn.useShift == 'HyperbolicGammaDriver' then
 ?>	U->B_u = real3_zero;
 <? end
 ?>	U->gammaBar_uu = sym3_ident;
