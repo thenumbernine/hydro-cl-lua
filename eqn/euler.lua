@@ -220,10 +220,10 @@ local function vorticity(eqn,k,result)
 	if (OOB(1,1)) {
 		<?=result?> = 0.;
 	} else {
-		global const <?=eqn.cons_t?>* Uim = U - stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Uip = U + stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Ujm = U - stepsize.s<?=j?>;
-		global const <?=eqn.cons_t?>* Ujp = U + stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Uim = U - solver->stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Uip = U + solver->stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
 
 		//TODO incorporate metric
 
@@ -269,8 +269,8 @@ function Euler:getDisplayVars()
 	} else {
 		<? 
 for side=0,solver.dim-1 do ?>{
-			global const <?=eqn.cons_t?>* Um = U - stepsize.s<?=side?>;
-			global const <?=eqn.cons_t?>* Up = U + stepsize.s<?=side?>;
+			global const <?=eqn.cons_t?>* Um = U - solver->stepsize.s<?=side?>;
+			global const <?=eqn.cons_t?>* Up = U + solver->stepsize.s<?=side?>;
 			value_real3->s<?=side?> = -(Up-><?=eqn.gravOp.potentialField?> - Um-><?=eqn.gravOp.potentialField?>) / (2. * dx<?=side?>_at(i));
 		}<? 
 end

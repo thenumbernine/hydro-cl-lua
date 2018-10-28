@@ -47,8 +47,8 @@ kernel void calcGravityDeriv(
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		int indexL = index - stepsize.s<?=side?>;
-		int indexR = index + stepsize.s<?=side?>;
+		int indexL = index - solver->stepsize.s<?=side?>;
+		int indexR = index + solver->stepsize.s<?=side?>;
 
 		du_dt.s<?=side?> = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * dx<?=side?>_at(i));
 	}<? end ?>

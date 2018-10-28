@@ -56,8 +56,8 @@ works for maxwell with oscillations
 works for adm1d_v1 freeflow with oscillations (fails for mirror)
 */
 
-		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
-		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
 		<?=eqn.cons_t?> dUL, dUR;
 		for (int j = 0; j < numIntStates; ++j) {
 			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
@@ -173,8 +173,8 @@ works for adm1d_v1
 */
 
 		//1) calc delta q's ... l r c (eqn 36)
-		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
-		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
 		<?=eqn.cons_t?> dUL, dUR, dUC;
 		for (int j = 0; j < numIntStates; ++j) {
 			dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
@@ -285,8 +285,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 		
-		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
-		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
 		
 		//1) calc delta q's ... l r c (eqn 36)
 		<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
@@ -440,8 +440,8 @@ elseif solver.usePLM == 'plm-athena' then
 		real dt_dx = dt / dx;
 
 		//1) calc delta q's ... l r c (eqn 36)
-		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
-		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
 
 		<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
 		<?=eqn.prim_t?> WL = primFromCons(solver, *UL, xL);
@@ -509,9 +509,9 @@ elseif solver.usePLM == 'plm-athena' then
 		real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
 		real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
 
-		const global <?=eqn.cons_t?>* UL = U - stepsize.s<?=side?>;
-		const global <?=eqn.cons_t?>* UR = U + stepsize.s<?=side?>;
-		const global <?=eqn.cons_t?>* UR2 = UR + stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR2 = UR + solver->stepsize.s<?=side?>;
 	
 		<?=eqn.prim_t?> WL = primFromCons(solver, *UL, xL);
 		<?=eqn.prim_t?> W = primFromCons(solver, *U, x);

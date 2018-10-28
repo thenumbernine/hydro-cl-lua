@@ -25,8 +25,8 @@ kernel void calcDerivFiniteDifference(
 
 	//2nd order.  TODO use n'th order.
 	<? for j=0,solver.dim-1 do ?>{
-		const global <?=eqn.cons_t?>* FL = F - dim * stepsize.s<?=j?> + <?=j?>;
-		const global <?=eqn.cons_t?>* FR = F + dim * stepsize.s<?=j?> + <?=j?>;
+		const global <?=eqn.cons_t?>* FL = F - dim * solver->stepsize.s<?=j?> + <?=j?>;
+		const global <?=eqn.cons_t?>* FR = F + dim * solver->stepsize.s<?=j?> + <?=j?>;
 		for (int k = 0; k < numIntStates; ++k) {
 			deriv->ptr[k] -= (FR->ptr[k] - FL->ptr[k]) / (2. * solver->grid_dx.s<?=j?>);
 		}

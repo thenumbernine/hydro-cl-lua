@@ -107,7 +107,7 @@ kernel void calcEigenBasis(
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		
-		int indexL = index - stepsize.s<?=side?>;
+		int indexL = index - solver->stepsize.s<?=side?>;
 		<?=eqn.prim_t?> primL = primBuf[indexL];
 		
 		real3 xInt = x;

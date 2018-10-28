@@ -20,7 +20,7 @@ for side=0,solver.dim-1 do
 		int indexIntL = side + dim * index;
 		const global <?=eqn.cons_t?>* fluxL = fluxBuf + indexIntL;
 		
-		int indexIntR = indexIntL + dim * stepsize.s<?=side?>; 
+		int indexIntR = indexIntL + dim * solver->stepsize.s<?=side?>; 
 		const global <?=eqn.cons_t?>* fluxR = fluxBuf + indexIntR;
 			
 		real3 xIntL = x;

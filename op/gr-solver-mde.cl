@@ -67,8 +67,8 @@ then
 
 <? for j=0,solver.dim-1 do ?>
 	skewSum = <?=add3?>(skewSum,
-		<?=real_mul?>(U[stepsize.s<?=j?>].<?=op.potentialField?>, volR.s<?=j?> / (dx<?=j?> * dx<?=j?>)),
-		<?=real_mul?>(U[-stepsize.s<?=j?>].<?=op.potentialField?>, volL.s<?=j?> / (dx<?=j?> * dx<?=j?>)));
+		<?=real_mul?>(U[solver->stepsize.s<?=j?>].<?=op.potentialField?>, volR.s<?=j?> / (dx<?=j?> * dx<?=j?>)),
+		<?=real_mul?>(U[-solver->stepsize.s<?=j?>].<?=op.potentialField?>, volL.s<?=j?> / (dx<?=j?> * dx<?=j?>)));
 <? end ?>
 	skewSum = <?=real_mul?>(skewSum, 1. / volAtX);
 

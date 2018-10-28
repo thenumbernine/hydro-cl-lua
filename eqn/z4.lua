@@ -1,6 +1,6 @@
 --[[
-Based on Alcubierre 2008 "Introduction to 3+1 Numerical Relativity" on the chapter on hyperbolic formalisms. 
-The first Bona-Masso formalism.
+based on whatever my numerical_relativity_codegen z4 is based on, which is probably a Bona-Masso paper,
+probably 2004 Bona et al "A symmetry-breaking mechanism for the Z4 general-covariant evolution system"
 --]]
 
 local class = require 'ext.class'
@@ -17,12 +17,12 @@ local symNames = common.symNames
 local sym = common.sym
 
 
-local ADM_BonaMasso_3D = class(EinsteinEqn)
-ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
-ADM_BonaMasso_3D.hasCalcDTCode = true
-ADM_BonaMasso_3D.hasEigenCode = true
-ADM_BonaMasso_3D.useSourceTerm = true
-ADM_BonaMasso_3D.useConstrainU = true
+local Z4_2004Bona = class(EinsteinEqn)
+Z4_2004Bona.name = 'Z4_2004Bona'
+Z4_2004Bona.hasCalcDTCode = true
+Z4_2004Bona.hasEigenCode = true
+Z4_2004Bona.useSourceTerm = true
+Z4_2004Bona.useConstrainU = true
 
 --[[
 args:
@@ -63,7 +63,7 @@ useShift
 	another variable for how to 
 	--]=]
 --]]
-function ADM_BonaMasso_3D:init(args)
+function Z4_2004Bona:init(args)
 
 	local fluxVars = table{
 		{a_l = 'real3'},
@@ -178,7 +178,7 @@ function ADM_BonaMasso_3D:init(args)
 
 	
 	-- build stuff around consVars	
-	ADM_BonaMasso_3D.super.init(self, args)
+	Z4_2004Bona.super.init(self, args)
 
 
 	if self.useShift == 'MinimalDistortionElliptic' then
@@ -190,8 +190,8 @@ function ADM_BonaMasso_3D:init(args)
 	end
 end
 
-function ADM_BonaMasso_3D:createInitState()
-	ADM_BonaMasso_3D.super.createInitState(self)
+function Z4_2004Bona:createInitState()
+	Z4_2004Bona.super.createInitState(self)
 	self:addGuiVars{
 		{
 			type = 'combo',
@@ -217,7 +217,7 @@ function ADM_BonaMasso_3D:createInitState()
 	-- but that means moving the consVars construction to the :init()
 end
 
-function ADM_BonaMasso_3D:getCommonFuncCode()
+function Z4_2004Bona:getCommonFuncCode()
 	return template([[
 void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->alpha = 1.;
@@ -244,7 +244,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 ]], {eqn=self})
 end
 
-ADM_BonaMasso_3D.initStateCode = [[
+Z4_2004Bona.initStateCode = [[
 <? 
 local common = require 'common'()
 local xNames = common.xNames 
@@ -333,9 +333,9 @@ end
 }
 ]]
 
-ADM_BonaMasso_3D.solverCodeFile = 'eqn/adm3d.cl'
+Z4_2004Bona.solverCodeFile = 'eqn/z4.cl'
 
-ADM_BonaMasso_3D.predefinedDisplayVars = {
+Z4_2004Bona.predefinedDisplayVars = {
 	'U alpha',
 	'U gamma_ll x x',
 	'U d_lll_x x x',
@@ -346,8 +346,8 @@ ADM_BonaMasso_3D.predefinedDisplayVars = {
 	'U f',
 }
 
-function ADM_BonaMasso_3D:getDisplayVars()
-	local vars = ADM_BonaMasso_3D.super.getDisplayVars(self)
+function Z4_2004Bona:getDisplayVars()
+	local vars = Z4_2004Bona.super.getDisplayVars(self)
 
 	vars:append{
 		{det_gamma = '*value = sym3_det(U->gamma_ll);'},
@@ -462,7 +462,7 @@ momentum constraints
 	return vars
 end
 
-function ADM_BonaMasso_3D:eigenWaveCodePrefix(side, eig, x, waveIndex)
+function Z4_2004Bona:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	return template([[
 	<? if side==0 then ?>
 	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x;
@@ -478,7 +478,7 @@ function ADM_BonaMasso_3D:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	})
 end
 
-function ADM_BonaMasso_3D:eigenWaveCode(side, eig, x, waveIndex)
+function Z4_2004Bona:eigenWaveCode(side, eig, x, waveIndex)
 	-- TODO find out if -- if we use the lagrangian coordinate shift operation -- do we still need to offset the eigenvalues by -beta^i?
 	local shiftingLambdas = self.useShift ~= 'none'
 		--and self.useShift ~= 'LagrangianCoordinates'
@@ -491,37 +491,22 @@ function ADM_BonaMasso_3D:eigenWaveCode(side, eig, x, waveIndex)
 	end
 
 
-	if not self.noZeroRowsInFlux then
-		if waveIndex == 0 then
-			return '-'..betaUi..' - eig_lambdaGauge'
-		elseif waveIndex >= 1 and waveIndex <= 5 then
-			return '-'..betaUi..' - eig_lambdaLight'
-		elseif waveIndex >= 6 and waveIndex <= 23 then
-			return '-'..betaUi
-		elseif waveIndex >= 24 and waveIndex <= 28 then
-			return '-'..betaUi..' + eig_lambdaLight'
-		elseif waveIndex == 29 then
-			return '-'..betaUi..' + eig_lambdaGauge'
-		end
-
-	else	-- noZeroRowsInFlux 
-		-- noZeroRowsInFlux implies useShift == 'none'
-		if waveIndex == 0 then
-			return '-'..betaUi..' - eig_lambdaGauge'
-		elseif waveIndex >= 1 and waveIndex <= 5 then
-			return '-'..betaUi..' - eig_lambdaLight'
-		elseif waveIndex == 6 then
-			return '-'..betaUi
-		elseif waveIndex >= 7 and waveIndex <= 11 then
-			return '-'..betaUi..' + eig_lambdaLight'
-		elseif waveIndex == 12 then
-			return '-'..betaUi..' + eig_lambdaGauge'
-		end
+	if waveIndex == 0 then
+		return '-'..betaUi..' - eig_lambdaGauge'
+	elseif waveIndex >= 1 and waveIndex <= 6 then
+		return '-'..betaUi..' - eig_lambdaLight'
+	elseif waveIndex >= 7 and waveIndex <= 23 then
+		return '-'..betaUi
+	elseif waveIndex >= 24 and waveIndex <= 29 then
+		return '-'..betaUi..' + eig_lambdaLight'
+	elseif waveIndex == 30 then
+		return '-'..betaUi..' + eig_lambdaGauge'
 	end
+	
 	error'got a bad waveIndex'
 end
 
-function ADM_BonaMasso_3D:consWaveCodePrefix(side, U, x, waveIndex)
+function Z4_2004Bona:consWaveCodePrefix(side, U, x, waveIndex)
 	return template([[
 	real det_gamma = sym3_det(<?=U?>.gamma_ll);
 	sym3 gamma_uu = sym3_inv(<?=U?>.gamma_ll, det_gamma);
@@ -539,11 +524,11 @@ function ADM_BonaMasso_3D:consWaveCodePrefix(side, U, x, waveIndex)
 		side = side,
 	})
 end
-ADM_BonaMasso_3D.consWaveCode = ADM_BonaMasso_3D.eigenWaveCode
+Z4_2004Bona.consWaveCode = Z4_2004Bona.eigenWaveCode
 
 
-function ADM_BonaMasso_3D:fillRandom(epsilon)
-	local ptr = ADM_BonaMasso_3D.super.fillRandom(self, epsilon)
+function Z4_2004Bona:fillRandom(epsilon)
+	local ptr = Z4_2004Bona.super.fillRandom(self, epsilon)
 	local solver = self.solver
 	for i=0,solver.numCells-1 do
 		ptr[i].alpha = ptr[i].alpha + 1
@@ -555,4 +540,4 @@ function ADM_BonaMasso_3D:fillRandom(epsilon)
 	return ptr
 end
 
-return ADM_BonaMasso_3D
+return Z4_2004Bona

@@ -199,7 +199,7 @@ for nx=0,tonumber(solver.amr.ctx.nodeFromSize.x)-1 do
 	// and TODO make this modular.  some papers use velocity vector instead of density.  
 	// why not total energy -- that incorporates everything?
 <? for i=0,solver.dim-1 do
-?>		dV_dx = (U[stepsize.s<?=i?>].rho - U[-stepsize.s<?=i?>].rho) / (2. * solver->grid_dx.s<?=i?>);
+?>		dV_dx = (U[solver->stepsize.s<?=i?>].rho - U[-solver->stepsize.s<?=i?>].rho) / (2. * solver->grid_dx.s<?=i?>);
 		sum += dV_dx * dV_dx;
 <? end
 ?>

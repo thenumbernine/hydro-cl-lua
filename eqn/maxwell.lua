@@ -298,8 +298,8 @@ local function curl(eqn,k,result,field,env)
 	} else {
 
 <? if i+1 <= solver.dim then ?>
-		global const <?=eqn.cons_t?>* Uim = U - stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Uip = U + stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Uim = U - solver->stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Uip = U + solver->stepsize.s<?=i?>;
 		<?=scalar?> vim_j = Uim-><?=field?>.s<?=j?>;
 		<?=scalar?> vip_j = Uip-><?=field?>.s<?=j?>;
 <? else ?>
@@ -308,8 +308,8 @@ local function curl(eqn,k,result,field,env)
 <? end?>
 
 <? if j+1 <= solver.dim then ?>
-		global const <?=eqn.cons_t?>* Ujm = U - stepsize.s<?=j?>;
-		global const <?=eqn.cons_t?>* Ujp = U + stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
 		<?=scalar?> vjm_i = Ujm-><?=field?>.s<?=i?>;
 		<?=scalar?> vjp_i = Ujp-><?=field?>.s<?=i?>;
 <? else ?>
@@ -354,8 +354,8 @@ function Maxwell:getDisplayVars()
 <? for j=0,solver.dim-1 do ?>
 	v = <?=add?>(v, <?=real_mul?>(
 		<?=sub?>(
-			U[stepsize.s<?=j?>].<?=field?>.s<?=j?>,
-			U[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
+			U[solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>,
+			U[-solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>
 		), 1. / solver->grid_dx.s<?=j?>));
 <? end ?>
 

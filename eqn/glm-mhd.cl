@@ -650,12 +650,12 @@ kernel void addSource(
 
 	real divB = 0.<? 
 for i,xi in ipairs(xNames:sub(1,solver.dim)) do
-?> + (U[stepsize.<?=xi?>].B.<?=xi?> - U[-stepsize.<?=xi?>].B.<?=xi?>) / (2. * solver->grid_dx.s<?=i?>) <?
+?> + (U[solver->stepsize.<?=xi?>].B.<?=xi?> - U[-solver->stepsize.<?=xi?>].B.<?=xi?>) / (2. * solver->grid_dx.s<?=i?>) <?
 end ?>;
 
 	real3 grad_psi = (real3){
 <? for i,xi in ipairs(xNames:sub(1,solver.dim)) do
-?>		.<?=xi?> = (U[stepsize.<?=xi?>].psi - U[-stepsize.<?=xi?>].psi) / (2. * solver->grid_dx.s<?=i?>),
+?>		.<?=xi?> = (U[solver->stepsize.<?=xi?>].psi - U[-solver->stepsize.<?=xi?>].psi) / (2. * solver->grid_dx.s<?=i?>),
 <? end 
 for i=solver.dim+1,3 do
 ?>		.<?=xNames[i]?> = 0.,

@@ -14,7 +14,7 @@ kernel void calcFlux(
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;	
 		real dt_dx = dt / solver->grid_dx.s<?=side?>;//dx<?=side?>_at(i);
-		int indexL = index - stepsize.s<?=side?>;
+		int indexL = index - solver->stepsize.s<?=side?>;
 		
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
@@ -43,8 +43,8 @@ kernel void calcFlux(
 
 		<?=eqn.cons_t?> deltaU;	
 <? if solver.fluxLimiter > 1 then ?>
-		int indexR2 = indexR + stepsize.s<?=side?>;
-		int indexL2 = indexL - stepsize.s<?=side?>;
+		int indexR2 = indexR + solver->stepsize.s<?=side?>;
+		int indexL2 = indexL - solver->stepsize.s<?=side?>;
 		<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}?>
 		<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}?>	
 			
@@ -61,8 +61,8 @@ kernel void calcFlux(
 		
 		<?=eqn.waves_t?> deltaUEig = eigen_leftTransform_<?=side?>(solver, *eig, deltaU, xInt);
 <? if solver.fluxLimiter > 1 then ?>
-		const global <?=eqn.eigen_t?>* eigL = eig - dim * stepsize.s<?=side?>;
-		const global <?=eqn.eigen_t?>* eigR = eig + dim * stepsize.s<?=side?>;
+		const global <?=eqn.eigen_t?>* eigL = eig - dim * solver->stepsize.s<?=side?>;
+		const global <?=eqn.eigen_t?>* eigR = eig + dim * solver->stepsize.s<?=side?>;
 		<?=eqn.waves_t?> deltaUEigL = eigen_leftTransform_<?=side?>(solver, *eigL, deltaUL, xIntL);
 		<?=eqn.waves_t?> deltaUEigR = eigen_leftTransform_<?=side?>(solver, *eigR, deltaUR, xIntR);
 <? end ?>

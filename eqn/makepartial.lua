@@ -38,8 +38,8 @@ local function makePartial(order, solver, field, fieldType)
 		if i <= solver.dim then
 			for j,coeff in ipairs(d1coeffs) do
 				expr = add(expr, real_mul(sub(
-						'U['..j..' * stepsize.'..xi..'].'..field,
-						'U[-'..j..' * stepsize.'..xi..'].'..field
+						'U['..j..' * solver->stepsize.'..xi..'].'..field,
+						'U[-'..j..' * solver->stepsize.'..xi..'].'..field
 					), clnumber(coeff)))
 			end
 			expr = real_mul(expr, '1. / solver->grid_dx.'..xi)
@@ -76,8 +76,8 @@ local function makePartial2(order, solver, field, fieldType, nameOverride)
 					expr, 
 					real_mul(
 						add(
-							'U['..k..' * stepsize.s'..(i-1)..'].'..field,
-							'U[-'..k..' * stepsize.s'..(i-1)..'].'..field),
+							'U['..k..' * solver->stepsize.s'..(i-1)..'].'..field,
+							'U[-'..k..' * solver->stepsize.s'..(i-1)..'].'..field),
 						clnumber(coeff)))
 			end
 			expr = real_mul(expr, '1. / (solver->grid_dx.'..xi..' * solver->grid_dx.'..xi..')')
@@ -89,11 +89,11 @@ local function makePartial2(order, solver, field, fieldType, nameOverride)
 					expr = add(expr, real_mul(
 						sub(
 							add(
-								'U['..k..' * stepsize.'..xi..' + '..l..' * stepsize.'..xj..'].'..field,
-								'U[-'..k..' * stepsize.'..xi..' - '..l..' * stepsize.'..xj..'].'..field),
+								'U['..k..' * solver->stepsize.'..xi..' + '..l..' * solver->stepsize.'..xj..'].'..field,
+								'U[-'..k..' * solver->stepsize.'..xi..' - '..l..' * solver->stepsize.'..xj..'].'..field),
 							add(
-								'U[-'..k..' * stepsize.'..xi..' + '..l..' * stepsize.'..xi..'].'..field,
-								'U['..k..' * stepsize.'..xi..' - '..l..' * stepsize.'..xi..'].'..field)), 
+								'U[-'..k..' * solver->stepsize.'..xi..' + '..l..' * solver->stepsize.'..xi..'].'..field,
+								'U['..k..' * solver->stepsize.'..xi..' - '..l..' * solver->stepsize.'..xi..'].'..field)), 
 						clnumber(coeff_k * coeff_l)))
 				end
 			end

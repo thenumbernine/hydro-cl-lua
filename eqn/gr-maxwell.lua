@@ -165,8 +165,8 @@ function GRMaxwell:getDisplayVars()
 	*value = .5 * (0.
 <?
 for j=0,solver.dim-1 do
-?>		+ (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 
-			- U[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
+?>		+ (U[solver->stepsize.s<?=j?>].<?=field?>.s<?=j?> 
+			- U[-solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>
 		) / solver->grid_dx.s<?=j?>
 <?
 end 

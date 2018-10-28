@@ -234,10 +234,10 @@ local function vorticity(eqn,k,result)
 	if (OOB(1,1)) {
 		<?=result?> = 0.;
 	} else {
-		global const <?=eqn.prim_t?>* prim_im = &buf[index - stepsize.s<?=i?>].prim;
-		global const <?=eqn.prim_t?>* prim_ip = &buf[index + stepsize.s<?=i?>].prim;
-		global const <?=eqn.prim_t?>* prim_jm = &buf[index - stepsize.s<?=j?>].prim;
-		global const <?=eqn.prim_t?>* prim_jp = &buf[index + stepsize.s<?=j?>].prim;
+		global const <?=eqn.prim_t?>* prim_im = &buf[index - solver->stepsize.s<?=i?>].prim;
+		global const <?=eqn.prim_t?>* prim_ip = &buf[index + solver->stepsize.s<?=i?>].prim;
+		global const <?=eqn.prim_t?>* prim_jm = &buf[index - solver->stepsize.s<?=j?>].prim;
+		global const <?=eqn.prim_t?>* prim_jp = &buf[index + solver->stepsize.s<?=j?>].prim;
 
 		//TODO incorporate metric
 		//TODO 3-vorticity vs 4-vorticity?

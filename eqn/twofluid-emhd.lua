@@ -478,10 +478,10 @@ function TwoFluidEMHD:getDisplayVars()
 	if (OOB(1,1)) {
 		*value = 0.;
 	} else {
-		global const <?=eqn.cons_t?>* Uim = U - stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Uip = U + stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Ujm = U - stepsize.s<?=j?>;
-		global const <?=eqn.cons_t?>* Ujp = U + stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Uim = U - solver->stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Uip = U + solver->stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
 
 		//TODO incorporate metric
 
@@ -539,8 +539,8 @@ function TwoFluidEMHD:getDisplayVars()
 	*value = .5 * (0.
 <?
 for j=0,solver.dim-1 do
-?>		+ (U[stepsize.s<?=j?>].<?=field?>.s<?=j?> 
-			- U[-stepsize.s<?=j?>].<?=field?>.s<?=j?>
+?>		+ (U[solver->stepsize.s<?=j?>].<?=field?>.s<?=j?> 
+			- U[-solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>
 		) / solver->grid_dx.s<?=j?>
 <?
 end 

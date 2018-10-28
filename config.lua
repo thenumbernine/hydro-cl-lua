@@ -1,4 +1,4 @@
-local dim = 2
+local dim = 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -69,8 +69,8 @@ maxs = {6,1,1},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{256,1,1},
-				{32,32,1},
-				{32,32,32},
+				{128,128,1},
+				{64,64,64},
 			},
 		})[platformName..'/'..deviceName] 
 		-- default size options
@@ -228,7 +228,7 @@ maxs = {6,1,1},
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
 	--initState = 'square cavity',
-	--initState = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
+	initState = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initState = 'Richmyer-Meshkov',
 
 	--initState = 'configuration 1',
@@ -292,7 +292,7 @@ maxs = {6,1,1},
 	--initState = 'plane gauge wave',
 
 
-	initState = 'Alcubierre warp bubble',
+	--initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
@@ -456,7 +456,7 @@ maxs = {6,1,1},
 -- f.e. and b.e. are working, but none of the r.k. integrators 
 -- PLM isn't implemented yet
 -- neither is source term / poisson stuff
---self.solvers:insert(require 'solver.euler-burgers'(args))
+self.solvers:insert(require 'solver.euler-burgers'(args))
 
 -- SRHD.  
 -- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
@@ -528,7 +528,7 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='LagrangianCoordinates'}})))	-- TODO finish me
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4_2008yano'}))) -- TODO fixme
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4_2008yano'}))) -- TODO fixme
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'}))) -- TODO fixme
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))

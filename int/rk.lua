@@ -43,7 +43,7 @@ function RungeKutta:integrate(dt, callback)
 	local solver = self.solver
 	local bufferSize = solver.numCells * ffi.sizeof(solver.eqn.cons_t)
 	
-	solver.multAddKernelObj.obj:setArgs(solver.UBuf, solver.UBuf)
+	solver.multAddKernelObj.obj:setArgs(solver.solverBuf, solver.UBuf, solver.UBuf)
 	
 	--u(0) = u^n
 	local needed = false
@@ -68,13 +68,13 @@ function RungeKutta:integrate(dt, callback)
 		solver.app.cmds:enqueueFillBuffer{buffer=solver.UBuf, size=bufferSize}
 		for k=1,i-1 do
 			if self.alphas[i-1][k] ~= 0 then
-				solver.multAddKernelObj.obj:setArg(2, self.UBufs[k])
-				solver.multAddKernelObj.obj:setArg(3, real(self.alphas[i-1][k]))
+				solver.multAddKernelObj.obj:setArg(3, self.UBufs[k])
+				solver.multAddKernelObj.obj:setArg(4, real(self.alphas[i-1][k]))
 				solver.multAddKernelObj()
 			end
 			if self.betas[i-1][k] ~= 0 then
-				solver.multAddKernelObj.obj:setArg(2, self.derivBufs[k])
-				solver.multAddKernelObj.obj:setArg(3, real(self.betas[i-1][k] * dt))
+				solver.multAddKernelObj.obj:setArg(3, self.derivBufs[k])
+				solver.multAddKernelObj.obj:setArg(4, real(self.betas[i-1][k] * dt))
 				solver.multAddKernelObj()
 			end
 		end

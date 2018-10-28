@@ -90,6 +90,7 @@ function BackwardEuler:init(solver)
 			{name='y', type=solver.eqn.cons_t, obj=true},
 		},
 		argsIn = {
+			{name='solver', type=solver.solver_t, obj=true},
 			{name='a', type=solver.eqn.cons_t, obj=true},
 			{name='b', type=solver.eqn.cons_t, obj=true},
 		},
@@ -115,7 +116,7 @@ function BackwardEuler:init(solver)
 		op = function(x,y) return x..' + '..y end,
 	}
 	local dotWithoutBorder = function(a,b)
-		mulWithoutBorder(sum.buffer, a, b)
+		mulWithoutBorder(sum.buffer, solver.solverBuf, a, b)
 		return sum()
 	end
 

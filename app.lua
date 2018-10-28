@@ -144,8 +144,8 @@ require 'draw.3d_ray'(HydroCLApp)
 require 'draw.3d_iso'(HydroCLApp)
 
 local display3DMethods = table{
-	{Slices = HydroCLApp.display3D_Slice},
 	{Raytrace = HydroCLApp.display3D_Ray},
+	{Slices = HydroCLApp.display3D_Slice},
 	{Isosurfaces = HydroCLApp.display3D_Isosurface},
 }
 local display3DMethodNames =  display3DMethods:mapi(function(kv)
@@ -202,9 +202,7 @@ function HydroCLApp:initGL(...)
 	
 	--half cannot be a kernel param, so this is a proxy type
 	self.realparam = self.real == 'half' and 'float' or self.real
-
-	ffi.cdef('typedef '..self.real..' real;')
-
+	
 	do
 		local code = template(file['math.h'], {app=self})
 		xpcall(function()

@@ -33,7 +33,7 @@ function ForwardEuler:integrate(dt, callback)
 	local solver = self.solver
 	solver.app.cmds:enqueueFillBuffer{buffer=self.derivBuf, size=solver.numCells * ffi.sizeof(solver.eqn.cons_t)}
 	callback(self.derivBuf)
-	solver.multAddKernelObj(solver.UBuf, solver.UBuf, self.derivBuf, real(dt))
+	solver.multAddKernelObj(solver.solverBuf, solver.UBuf, solver.UBuf, self.derivBuf, real(dt))
 end
 
 return ForwardEuler

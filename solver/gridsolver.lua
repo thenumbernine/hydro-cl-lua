@@ -9,7 +9,6 @@ local file = require 'ext.file'
 local math = require 'ext.math'
 local vec3 = require 'vec.vec3'
 local glreport = require 'gl.report'
-local clnumber = require 'cl.obj.number'
 local template = require 'template'
 local vec3sz = require 'ffi.vec.vec3sz'
 local tooltip = require 'tooltip'
@@ -48,6 +47,8 @@ function GridSolver:initL1(args)
 	-- but let equations/init conds add to the solver vars (as gui vars)
 	-- then we can edit them without recompiling the kernels
 	self.solverVars = table{
+		{gridSize = 'int4'},
+		{stepsize = 'int4'},
 		{mins = 'real3'},
 		{maxs = 'real3'},
 		{grid_dx = 'real3'},
@@ -266,21 +267,22 @@ function GridSolver:initDraw()
 	if self.dim == 3 then
 		-- raytracing (stalling)
 		
-		local maxiter = math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y), tonumber(self.gridSize.z))
+		self.display3D_Ray_maxiter = math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y), tonumber(self.gridSize.z))
 		local volumetricCode = file['draw/volumetric.shader']
 		self.volumeRayShader = GLProgram{
 			vertexCode = template(volumetricCode, {
+				app = self.app,
 				solver = self,
 				vertexShader = true,
 			}),
 			fragmentCode = template(volumetricCode, {
+				app = self.app,
 				solver = self,
 				fragmentShader = true,
 			}),
 			uniforms = {
 				tex = 0,
-				gradient = 1,
-				maxiter = maxiter,
+				gradientTex = 1,
 				oneOverDx = {(self.maxs - self.mins):unpack()},
 			},
 		}
@@ -363,6 +365,14 @@ end
 function GridSolver:createSolverBuf()
 	GridSolver.super.createSolverBuf(self)
 	-- do this before any call to createBuffers or createCodePrefix
+	self.solverPtr.gridSize.x = self.gridSize.x
+	self.solverPtr.gridSize.y = self.gridSize.y
+	self.solverPtr.gridSize.z = self.gridSize.z
+	self.solverPtr.gridSize.w = 1
+	self.solverPtr.stepsize.x = 1
+	self.solverPtr.stepsize.y = self.gridSize.x
+	self.solverPtr.stepsize.z = self.gridSize.x * self.gridSize.y
+	self.solverPtr.stepsize.w = self.gridSize.x * self.gridSize.y * self.gridSize.z
 	self.solverPtr.mins.x = self.mins[1]
 	self.solverPtr.mins.y = self.dim <= 1 and 0 or self.mins[2]
 	self.solverPtr.mins.z = self.dim <= 2 and 0 or self.mins[3]
@@ -485,18 +495,13 @@ function GridSolver:createCodePrefix()
 
 	lines:append{
 		'#define numGhost '..self.numGhost,
-	}:append(xNames:map(function(name,i)
-	-- grid size
-		return '#define gridSize_'..name..' '..tonumber(self.gridSize[name])
-	end)):append{
-		'constant int4 gridSize = (int4)(gridSize_x, gridSize_y, gridSize_z, 0);',
-		'constant int4 stepsize = (int4)(1, gridSize_x, gridSize_x * gridSize_y, gridSize_x * gridSize_y * gridSize_z);',
-		'#define INDEX(a,b,c)	((a) + gridSize_x * ((b) + gridSize_y * (c)))',
-		'#define INDEXV(i)		indexForInt4ForSize(i, gridSize_x, gridSize_y, gridSize_z)',
+	}:append{
+		'#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))',
+		'#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)',
 	
 	--[[
 	naming conventions ...
-	* the grid indexes i_1..i_n that span 1 through gridSize_1..gridSize_n
+	* the grid indexes i_1..i_n that span 1 through solver->gridSize.1..solver->gridSize.n
 	(between the index and the coordinate space:)
 		- grid_dx? is the change in coordinate space wrt the change in grid space
 		- cell_x(i) calculates the coordinates at index i
@@ -524,9 +529,9 @@ function GridSolver:createCodePrefix()
 		'#define cell_x(i) _real3(cell_x0(i.x), cell_x1(i.y), cell_x2(i.z))',
 	
 		-- bounds-check macro
-		'#define OOB(lhs,rhs) (i.x < (lhs) || i.x >= gridSize_x - (rhs)'
-			.. (self.dim < 2 and '' or ' || i.y < (lhs) || i.y >= gridSize_y - (rhs)')
-			.. (self.dim < 3 and '' or ' || i.z < (lhs) || i.z >= gridSize_z - (rhs)')
+		'#define OOB(lhs,rhs) (i.x < (lhs) || i.x >= solver->gridSize.x - (rhs)'
+			.. (self.dim < 2 and '' or ' || i.y < (lhs) || i.y >= solver->gridSize.y - (rhs)')
+			.. (self.dim < 3 and '' or ' || i.z < (lhs) || i.z >= solver->gridSize.z - (rhs)')
 			.. ')',
 		
 		template([[
@@ -765,7 +770,7 @@ function GridSolver:createBoundaryOptions()
 		{none = function(args) return ''  end},
 		
 		{periodic = function(args)
-			local gridSizeSide = 'gridSize_'..xNames[args.side]
+			local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
 			if args.minmax == 'min' then
 				return indent..args.assign(
 					args.array('buf', args.index'j'), 
@@ -780,7 +785,7 @@ function GridSolver:createBoundaryOptions()
 			end
 		end},
 		{mirror = function(args)
-			local gridSizeSide = 'gridSize_'..xNames[args.side]
+			local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
 			local lines = table()
 			if args.minmax == 'min' then
 				lines:insert(indent..args.assign(
@@ -811,7 +816,7 @@ function GridSolver:createBoundaryOptions()
 			return lines:concat'\n'
 		end},
 		{freeflow = function(args)
-			local gridSizeSide = 'gridSize_'..xNames[args.side]
+			local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
 			if args.minmax == 'min' then
 				return indent..args.assign(
 					'buf['..args.index'j'..']',
@@ -827,7 +832,7 @@ function GridSolver:createBoundaryOptions()
 		end},
 		-- constant-derivative / linear extrapolation
 		{linear = function(args)
-			local gridSizeSide = 'gridSize_'..xNames[args.side]
+			local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
 			if args.minmax == 'min' then
 				return indent..'for (int k = 0; k < numStates; ++k) {\n'
 					..indent..'\t'..args.assign(
@@ -958,7 +963,7 @@ if solver.dim == 2 then ?>
 	
 	if (false
 <?	for k=1,solver.dim-1 do
-?>		|| i<?=iFields[k]?> >= gridSize_<?=xNames[bxs[k] ]?>
+?>		|| i<?=iFields[k]?> >= solver->gridSize.<?=xNames[bxs[k] ]?>
 <?	end
 ?>) 
 	{

@@ -51,8 +51,8 @@ kernel void calcGravityDeriv(
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		int indexL = index - stepsize.s<?=side?>;
-		int indexR = index + stepsize.s<?=side?>;
+		int indexL = index - solver->stepsize.s<?=side?>;
+		int indexR = index + solver->stepsize.s<?=side?>;
 	
 		real gravity = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * dx<?=side?>_at(i));
 
@@ -63,6 +63,7 @@ kernel void calcGravityDeriv(
 
 //TODO just use the display var kernels
 kernel void reduce_ePot(
+	constant <?=solver.solver_t?>* solver,
 	global real* reduceBuf,
 	global const <?=eqn.cons_t?>* UBuf
 ) {
@@ -74,6 +75,7 @@ kernel void reduce_ePot(
 //but if it is positive, esp >1, then we get no extra behavior ... a static sphere
 //and if it is too big then it explodes
 kernel void offsetPotentialAndAddToTotal(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,
 	realparam ePotMin
 ) {
@@ -101,9 +103,9 @@ function SelfGrav:refreshSolverProgram()
 	self.calcGravityDerivKernelObj.obj:setArg(2, solver.UBuf)
 
 	--TODO just use the display var kernels
-	self.reduce_ePotKernelObj = solver.solverProgramObj:kernel('reduce_ePot', solver.reduceBuf, solver.UBuf)
+	self.reduce_ePotKernelObj = solver.solverProgramObj:kernel('reduce_ePot', solver.solverBuf, solver.reduceBuf, solver.UBuf)
 	
-	self.offsetPotentialAndAddToTotalKernelObj = solver.solverProgramObj:kernel('offsetPotentialAndAddToTotal', solver.UBuf)
+	self.offsetPotentialAndAddToTotalKernelObj = solver.solverProgramObj:kernel('offsetPotentialAndAddToTotal', solver.solverBuf, solver.UBuf)
 end
 
 local realptr = ffi.new'realparam[1]'
@@ -125,7 +127,7 @@ function SelfGrav:resetState()
 	self.reduce_ePotKernelObj()
 	local ePotMax = solver.reduceMax()
 
-	self.offsetPotentialAndAddToTotalKernelObj.obj:setArg(1, real(ePotMin))
+	self.offsetPotentialAndAddToTotalKernelObj.obj:setArg(2, real(ePotMin))
 	self.offsetPotentialAndAddToTotalKernelObj()
 	
 	self.reduce_ePotKernelObj()

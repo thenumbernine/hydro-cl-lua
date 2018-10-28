@@ -46,8 +46,8 @@ for j=0,solver.dim-1 do
 		divergence,
 		<?=real_mul?>(
 			<?=sub?>(
-				U[stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>,
-				U[-stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>
+				U[solver->stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>,
+				U[-solver->stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>
 			),
 			1. / solver->grid_dx.s<?=j?>
 		)
@@ -94,8 +94,8 @@ kernel void noDiv<?=op.suffix?>(
 			U-><?=op.vectorField?>.s<?=j?>,
 			<?=real_mul?>(
 				<?=sub?>(
-					U[stepsize.s<?=j?>].<?=op.potentialField?>,
-					U[-stepsize.s<?=j?>].<?=op.potentialField?>
+					U[solver->stepsize.s<?=j?>].<?=op.potentialField?>,
+					U[-solver->stepsize.s<?=j?>].<?=op.potentialField?>
 				), 1. / (2. * solver->grid_dx.s<?=j?>)
 			)
 		);

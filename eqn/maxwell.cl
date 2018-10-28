@@ -268,8 +268,8 @@ kernel void addSource(
 		local xj = xNames[j+1] ?>
 	grad_1_mu.<?=xj?> = <?=real_mul?>(
 		<?=sub?>(
-			U[stepsize.<?=xj?>]._1_mu,
-			U[-stepsize.<?=xj?>]._1_mu
+			U[solver->stepsize.<?=xj?>]._1_mu,
+			U[-solver->stepsize.<?=xj?>]._1_mu
 		), 1. / solver->grid_dx.s<?=j?>);
 	<? end ?>
 	
@@ -278,8 +278,8 @@ kernel void addSource(
 		local xj = xNames[j+1] ?>
 	grad_1_mu.<?=xj?> = <?=real_mul?>(
 		<?=sub?>(
-			U[stepsize.<?=xj?>]._1_eps,
-			U[-stepsize.<?=xj?>]._1_eps
+			U[solver->stepsize.<?=xj?>]._1_eps,
+			U[-solver->stepsize.<?=xj?>]._1_eps
 		), 1. / solver->grid_dx.s<?=j?>);
 	<? end ?>
 

@@ -11,7 +11,7 @@ kernel void calcFlux(
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;	
 		
-		int indexL = index - stepsize.s<?=side?>;
+		int indexL = index - solver->stepsize.s<?=side?>;
 		real3 xL = xR;
 		xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
 		

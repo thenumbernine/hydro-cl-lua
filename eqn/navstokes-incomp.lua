@@ -74,10 +74,10 @@ function NavierStokesDivFree:getDisplayVars()
 	if (OOB(1,1)) {
 		<?=result?> = 0.;
 	} else {
-		global const <?=eqn.cons_t?>* Uim = buf + index - stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Uip = buf + index + stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Ujm = buf + index - stepsize.s<?=j?>;
-		global const <?=eqn.cons_t?>* Ujp = buf + index + stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Uim = buf + index - solver->stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Uip = buf + index + solver->stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Ujm = buf + index - solver->stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = buf + index + solver->stepsize.s<?=j?>;
 		
 		real3 vim = Uim->v;
 		real3 vip = Uip->v;

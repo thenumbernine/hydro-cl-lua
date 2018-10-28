@@ -187,6 +187,7 @@ function SolverBase:refreshCommonProgram()
 	}:append{
 		template([[
 kernel void multAdd(
+	constant <?=solver.solver_t?>* solver,	// TODO just 'n'?
 	global <?=eqn.cons_t?>* a,
 	const global <?=eqn.cons_t?>* b,
 	const global <?=eqn.cons_t?>* c,
@@ -213,6 +214,7 @@ kernel void multAdd(
 	-- needs the same globalSize and localSize as the typical simulation kernels
 	-- TODO exclude states which are not supposed to be integrated
 	self.multAddKernelObj = self.commonProgramObj:kernel{name='multAdd', domain=self.domainWithoutBorder}
+	self.multAddKernelObj.obj:setArg(0, self.solverBuf)
 
 	self.reduceMin = self.app.env:reduce{
 		size = self.numCells,
@@ -700,16 +702,16 @@ kernel void <?=name?>(
 
 	//now constrain
 	if (i.x < numGhost) i.x = numGhost;
-	if (i.x >= gridSize_x - numGhost) i.x = gridSize_x - numGhost-1;
+	if (i.x >= solver->gridSize.x - numGhost) i.x = solver->gridSize.x - numGhost-1;
 <?
 if solver.dim >= 2 then
 ?>	if (i.y < numGhost) i.y = numGhost;
-	if (i.y >= gridSize_y - numGhost) i.y = gridSize_y - numGhost-1;
+	if (i.y >= solver->gridSize.y - numGhost) i.y = solver->gridSize.y - numGhost-1;
 <?
 end
 if solver.dim >= 3 then
 ?>	if (i.z < numGhost) i.z = numGhost;
-	if (i.z >= gridSize_z - numGhost) i.z = gridSize_z - numGhost-1;
+	if (i.z >= solver->gridSize.z - numGhost) i.z = solver->gridSize.z - numGhost-1;
 <? end
 ?>
 	//and recalculate read index

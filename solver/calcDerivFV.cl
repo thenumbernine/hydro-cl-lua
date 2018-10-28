@@ -22,7 +22,7 @@ kernel void calcDerivFromFlux(
 		int indexIntL = <?=side?> + dim * index;
 		const global <?=eqn.cons_t?>* fluxL = fluxBuf + indexIntL;
 		
-		int indexIntR = indexIntL + dim * stepsize.s<?=side?>; 
+		int indexIntR = indexIntL + dim * solver->stepsize.s<?=side?>; 
 		const global <?=eqn.cons_t?>* fluxR = fluxBuf + indexIntR;
 
 		//This is the covariant finite volume code that that represents the gradient of the metric determinant 
