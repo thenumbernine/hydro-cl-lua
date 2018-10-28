@@ -1442,7 +1442,7 @@ end ?>
 	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
 	<? for i,xi in ipairs(xNames) do ?>{
 		<? if i <= solver.dim then ?>
-		real di_alpha = (U[stepsize.<?=xi?>].alpha - U[-stepsize.<?=xi?>].alpha) / (2. * solver->grid_dx.s<?=i-1?>);
+		real di_alpha = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (2. * solver->grid_dx.s<?=i-1?>);
 		<? else ?>
 		real di_alpha = 0.;
 		<? end ?>
@@ -1454,7 +1454,7 @@ end ?>
 for i,xi in ipairs(xNames) do 
 	for jk,xjk in ipairs(symNames) do ?>{
 		<? if i <= solver.dim then ?>
-		real di_gamma_jk = (U[stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / (2. * solver->grid_dx.s<?=i-1?>);
+		real di_gamma_jk = (U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / (2. * solver->grid_dx.s<?=i-1?>);
 		<? else ?>
 		real di_gamma_jk = 0;
 		<? end ?>

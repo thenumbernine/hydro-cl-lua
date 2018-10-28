@@ -1,6 +1,9 @@
 local gl = require 'ffi.OpenGL'
 local glreport = require 'gl.report'
 
+-- TODO real raytracing:  
+-- instead of drawing the cube, draw a quad over the whole screen.
+
 -- 3D
 local vertexesInCube = {
 	0,0,0,
@@ -27,8 +30,8 @@ return function(HydroCLApp)
 HydroCLApp.display3D_Ray_useIsos = false
 HydroCLApp.display3D_Ray_numIsobars = 20
 HydroCLApp.display3D_Ray_useLighting = false
-HydroCLApp.display3D_Ray_alpha = .05
-HydroCLApp.display3D_Ray_alphaGamma = 1.1
+HydroCLApp.display3D_Ray_alpha = .15
+HydroCLApp.display3D_Ray_alphaGamma = 2
 
 function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	for _,solver in ipairs(solvers) do
@@ -56,7 +59,6 @@ function HydroCLApp:display3D_Ray(solvers, varName, ar, xmin, ymin, xmax, ymax, 
 				else
 					gl.glEnable(gl.GL_CULL_FACE)
 					gl.glCullFace(gl.GL_FRONT)
-					gl.glEnable(gl.GL_DEPTH_TEST)
 					gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 					gl.glEnable(gl.GL_BLEND)
 					solver.volumeRayShader:use()

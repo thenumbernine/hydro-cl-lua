@@ -144,8 +144,8 @@ require 'draw.3d_ray'(HydroCLApp)
 require 'draw.3d_iso'(HydroCLApp)
 
 local display3DMethods = table{
-	{Raytrace = HydroCLApp.display3D_Ray},
 	{Slices = HydroCLApp.display3D_Slice},
+	{Raytrace = HydroCLApp.display3D_Ray},
 	{Isosurfaces = HydroCLApp.display3D_Isosurface},
 }
 local display3DMethodNames =  display3DMethods:mapi(function(kv)

@@ -899,8 +899,8 @@ end) then
 			end
 			
 			solver.eqn:addGuiVars{
-				{name='moveAxis', type='combo', value=moveAxis, options={'x','y','z'}},
-				{name='sliceAxis', type='combo', value=sliceAxis, options={'x','y','z'}},
+				{name='moveAxis', type='combo', value=moveAxis, options={'x','y','z'}, compileTime=true},
+				{name='sliceAxis', type='combo', value=sliceAxis, options={'x','y','z'}, compileTime=true},
 				{name='rhoInside', value=2.},
 				{name='rhoOutside', value=1.},
 				{name='amplitude', value=1e-2},
@@ -920,10 +920,10 @@ end) then
 	real yq1 = solver->mins.<?=sliceAxis?> * .75 + solver->maxs.<?=sliceAxis?> * .25;
 	real yq2 = solver->mins.<?=sliceAxis?> * .25 + solver->maxs.<?=sliceAxis?> * .75;
 
-	real inside = (.5 + .5 * tanh((x.<?=sliceAxis?> - yq1) / thickness))
-				- (.5 + .5 * tanh((x.<?=sliceAxis?> - yq2) / thickness));
+	real inside = (.5 + .5 * tanh((x.<?=sliceAxis?> - yq1) / solver->thickness))
+				- (.5 + .5 * tanh((x.<?=sliceAxis?> - yq2) / solver->thickness));
 
-	real theta = frequency * 2. * M_PI;
+	real theta = solver->frequency * 2. * M_PI;
 <?
 for i=0,solver.dim-1 do 
 	if xNames[i+1] ~= sliceAxis then
@@ -932,8 +932,8 @@ for i=0,solver.dim-1 do
 	end	
 end ?>
 
-	real noise = (solver->maxs.x - solver->mins.x) * amplitude;
-	rho = inside * rhoInside + (1. - inside) * rhoOutside;
+	real noise = (solver->maxs.x - solver->mins.x) * solver->amplitude;
+	rho = inside * solver->rhoInside + (1. - inside) * solver->rhoOutside;
 	//v.x = cos(theta) * noise;
 #if dim == 2
 	v.y = sin(theta) * noise;
@@ -941,14 +941,14 @@ end ?>
 #if dim == 3
 	v.z = sin(theta) * noise;
 #endif
-	v.<?=moveAxis?> += inside * velInside + (1. - inside) * velOutside;
+	v.<?=moveAxis?> += inside * solver->velInside + (1. - inside) * solver->velOutside;
 	v = cartesianFromCoord(v, x);
-	P = backgroundPressure;
-	rho += noiseAmplitude * crand();
-	v.x += noiseAmplitude * crand();
-	v.y += noiseAmplitude * crand();
-	v.z += noiseAmplitude * crand();
-	P += noiseAmplitude * crand();
+	P = solver->backgroundPressure;
+	rho += solver->noiseAmplitude * crand();
+	v.x += solver->noiseAmplitude * crand();
+	v.y += solver->noiseAmplitude * crand();
+	v.z += solver->noiseAmplitude * crand();
+	P += solver->noiseAmplitude * crand();
 ]],				{
 					solver = solver,
 					moveAxis = solver.eqn.guiVars.moveAxis.options[solver.eqn.guiVars.moveAxis.value],
