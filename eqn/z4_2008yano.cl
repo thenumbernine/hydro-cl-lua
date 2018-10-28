@@ -1441,7 +1441,6 @@ kernel void addSource(
 	real3 S_l = real3_zero;
 	sym3 S_ll = sym3_zero;
 	real S = 0.;
-	real tau = 0.;
 	real rho = 0.;
 
 	// source terms
@@ -1553,7 +1552,7 @@ kernel void addSource(
 		- conn_ull.<?=xk?>.<?=sym(l,j)?> * conn_ull.<?=xl?>.<?=sym(k,i)?>
 <?		end
 	end
-?> - 8. * M_PI * (S_ll.<?=xij?> - .5 * U->gamma_ll.<?=xij?> * (-tau + S)));
+?> - 8. * M_PI * (S_ll.<?=xij?> - .5 * U->gamma_ll.<?=xij?> * (S - rho)));
 <? end
 ?>
 
@@ -1585,7 +1584,7 @@ for k,xk in ipairs(xNames) do
 <?		end
 	end
 end?>
-	) - 8. * M_PI * U->alpha * tau;
+	) - 8. * M_PI * U->alpha * rho;
 	
 	//while you're here, calculate the Hamiltonian and momentum constraints
 	//scaled down by 1/8 to match B&S BSSNOK equations ... maybe I'll scale theirs up by 8 ...
@@ -1594,5 +1593,5 @@ end?>
 	//H = 1/2 (R + K^2 - K_ij K^ij) - 8 pi rho
 	real R = sym3_dot(R_ll, gamma_uu);
 	real tr_KSq = sym3_dot(KSq_ll, gamma_uu);
-	U->H = .5 * (R + trK * trK - tr_KSq);
+	U->H = .5 * (R + trK * trK - tr_KSq) - 8. * M_PI * rho;
 }

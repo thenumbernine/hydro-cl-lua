@@ -154,6 +154,12 @@ sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U) {
 	return gamma_uu;
 }
 
+sym3 calc_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
+	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	sym3 gamma_ll = sym3_real_mul(U->gammaTilde_ll, exp_4phi);
+	return gamma_ll;
+}
+
 ]], {eqn=self})
 end
 
@@ -251,6 +257,22 @@ function BSSNOKFiniteDifferenceEquation:getEigenTypeCode()
 typedef struct { char unused; } <?=eqn.eigen_t?>;
 ]], {eqn=self})
 end
+
+BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
+	'U alpha',
+	'U beta_u mag',
+	'U chi',
+	'U KHat',
+	'U Theta',
+	'U ABar_ll tr weighted',
+	'U Delta_u mag',
+	'U H',
+	'U M_u mag',
+	'U det gammaBar - det gammaHat',
+	'U det gamma_ij based on phi',
+	'U volume',
+	'U f',
+}
 
 function BSSNOKFiniteDifferenceEquation:getDisplayVars()	
 	local vars = BSSNOKFiniteDifferenceEquation.super.getDisplayVars(self)

@@ -901,8 +901,8 @@ enableVector = false
 			
 			-- TODO how about saving somewhere what should be enabled by default?
 			-- TODO pick predefined somewhere?
-			if self.predefinedDisplayVars then
-				enabled = not not table.find(self.predefinedDisplayVars, args.name)
+			if self.eqn.predefinedDisplayVars then
+				enabled = not not table.find(self.eqn.predefinedDisplayVars, args.name)
 			else
 				if group.name == 'U'
 				or (group.name:sub(1,5) == 'error' and self.dim == 1)

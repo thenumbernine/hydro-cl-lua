@@ -151,6 +151,13 @@ sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U) {
 	return gamma_uu;
 }
 
+sym3 calc_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
+	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
+	return gamma_ll;
+}
+
 ]], {eqn=self})
 end
 
@@ -259,6 +266,25 @@ function Z4cFiniteDifferenceEquation:getEigenTypeCode()
 typedef struct { char unused; } <?=eqn.eigen_t?>;
 ]], {eqn=self})
 end
+
+Z4cFiniteDifferenceEquation.predefinedDisplayVars = {
+	'U alpha',
+	'U beta_u mag',
+	'U epsilon_ll norm',
+	'U chi',
+	'U KHat',
+	'U Theta',
+	'U ABar_ll norm',
+	'U ABar_ll tr weighted',
+	'U Delta_u mag',
+	'U B_u mag',
+	'U H',
+	--'U M_u mag',	-- not implemented yet ...
+	'U det gammaBar - det gammaHat',
+	'U det gamma_ij based on phi',
+	'U volume',
+	'U f',
+}
 
 function Z4cFiniteDifferenceEquation:getDisplayVars()	
 	local vars = Z4cFiniteDifferenceEquation.super.getDisplayVars(self)

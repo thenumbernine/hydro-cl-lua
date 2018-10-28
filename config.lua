@@ -528,7 +528,7 @@ maxs = {6,1,1},
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='LagrangianCoordinates'}})))	-- TODO finish me
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4_2008yano'}))) -- TODO fixme
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4_2008yano'}))) -- TODO fixme
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v2'})))
@@ -552,7 +552,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4_2008yano'}))) -- T
 
 -- Z4c finite difference, combining BSSNOK and Z4
 -- FIXME something is asymmetric.  watch Theta.  Run warp bubble.
---self.solvers:insert(require 'solver.z4c-fd'(args))
+self.solvers:insert(require 'solver.z4c-fd'(args))
 
 
 
