@@ -10,9 +10,6 @@ local makePartials = require 'eqn.makepartial'
 local derivOrder = 2 * solver.numGhost
 local makePartial = function(...) return makePartials.makePartial(derivOrder, solver, ...) end
 local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end
-
-local calcConstraints = true 
-
 ?>
 
 typedef <?=eqn.cons_t?> cons_t;
@@ -38,61 +35,6 @@ TFBar(K_ij) = K_ij - 1/3 gammaBar_ij gammaBar^kl K_kl
 sym3 tracefree(sym3 A_ll, sym3 gamma_ll, sym3 gamma_uu) {
 	real tr_A = sym3_dot(A_ll, gamma_uu);
 	return sym3_sub(A_ll, sym3_real_mul(gamma_ll, tr_A / 3.));
-}
-
-kernel void constrainU(
-	constant solver_t* solver,
-	global cons_t* UBuf
-) {
-	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
-	global cons_t* U = UBuf + index;
-
-<? 
-if eqn.guiVars.constrain_det_gammaBar_ll.value 
-or eqn.guiVars.constrain_tr_ABar_ll.value 
-then 
-?>
-	sym3 gammaHat_ll = coord_g(x);
-	sym3 gammaBar_ll = sym3_add(gammaHat_ll, U->epsilon_ll);
-
-	/*
-	if the background is flat ...
-	then we need to force det(gammaBar_ij) = 1
-	and we can do so with gammaBar_ij := gammaBar_ij / det(gammaBar_ij)^(1/3)
-	so we find
-	det(gammaBar_ij / det(gammaBar_ij)^(1/3))
-	= det(gammaBar_ij)) / det(gammaBar_ij)
-	= 1
-	
-	if the background is gammaHat_ij
-	then we need to force det(gammaBar_ij) = det(gammaHat_ij)
-	do so with gammaBar_ij := gammaBar_ij * ( det(gammaHat_ij) / det(gammaBar_ij) )^(1/3)
-	*/
-<?	if eqn.guiVars.constrain_det_gammaBar_ll.value then ?>
-	real det_gammaHat_ll = sqrt_det_g_grid(x);
-	real det_gammaBar_ll = sym3_det(gammaBar_ll);
-	real rescaleMetric = cbrt(det_gammaHat_ll/det_gammaBar_ll);
-<? 		for ij,xij in ipairs(symNames) do
-?>	gammaBar_ll.<?=xij?> *= rescaleMetric;
-<? 		end ?>
-	U->epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
-<?	end ?>
-
-	//here we refresh gammaBar_uu
-	U->gammaBar_uu = sym3_inv(gammaBar_ll, 1.);
-	
-	//in Buchman's paper it says he doesn't do this
-	//likewise in my own experiences, this can tend A to grow out of control 
-<? if eqn.guiVars.constrain_tr_ABar_ll.value then ?>
-	U->ABar_ll = tracefree(U->ABar_ll, gammaBar_ll, U->gammaBar_uu);
-<? end 
-end
-?>
-
-	//makes the spinning black hole simulations look ugly
-	const real alphaMin = 1e-7;
-	U->alpha = max(U->alpha, alphaMin);
 }
 
 //TODO if we're calculating the constrains in the derivative
@@ -570,15 +512,60 @@ end
 end ?>
 }
 
-<? if solver.calcConstraints then ?>
-//TODO merge this with 'constrainU'
-kernel void calcConstraints(
+
+kernel void constrainU(
 	constant solver_t* solver,
 	global cons_t* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);
 	global cons_t* U = UBuf + index;
+
+	sym3 gammaHat_ll = coord_g(x);
+	sym3 gammaBar_ll = sym3_add(gammaHat_ll, U->epsilon_ll);
+<? 
+if eqn.guiVars.constrain_det_gammaBar_ll.value 
+or eqn.guiVars.constrain_tr_ABar_ll.value 
+then 
+?>
+	/*
+	if the background is flat ...
+	then we need to force det(gammaBar_ij) = 1
+	and we can do so with gammaBar_ij := gammaBar_ij / det(gammaBar_ij)^(1/3)
+	so we find
+	det(gammaBar_ij / det(gammaBar_ij)^(1/3))
+	= det(gammaBar_ij)) / det(gammaBar_ij)
+	= 1
+	
+	if the background is gammaHat_ij
+	then we need to force det(gammaBar_ij) = det(gammaHat_ij)
+	do so with gammaBar_ij := gammaBar_ij * ( det(gammaHat_ij) / det(gammaBar_ij) )^(1/3)
+	*/
+<?	if eqn.guiVars.constrain_det_gammaBar_ll.value then ?>
+	real det_gammaHat_ll = sqrt_det_g_grid(x);
+	real det_gammaBar_ll = sym3_det(gammaBar_ll);
+	real rescaleMetric = cbrt(det_gammaHat_ll/det_gammaBar_ll);
+<? 		for ij,xij in ipairs(symNames) do
+?>	gammaBar_ll.<?=xij?> *= rescaleMetric;
+<? 		end ?>
+	U->epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
+<?	end ?>
+
+	//here we refresh gammaBar_uu
+	U->gammaBar_uu = sym3_inv(gammaBar_ll, 1.);
+	
+	//in Buchman's paper it says he doesn't do this
+	//likewise in my own experiences, this can tend A to grow out of control 
+<? if eqn.guiVars.constrain_tr_ABar_ll.value then ?>
+	U->ABar_ll = tracefree(U->ABar_ll, gammaBar_ll, U->gammaBar_uu);
+<? end 
+end
+?>
+
+	//makes the spinning black hole simulations look ugly
+	U->alpha = max(U->alpha, solver->alphaMin);
+
+<? if eqn.guiVars.calc_H_and_M and eqn.guiVars.calc_H_and_M.value then ?>
 
 <?=makePartial('epsilon_ll', 'sym3')?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
 <?=makePartial('ABar_ll', 'sym3')?>		//partial_ABar_lll[k].ij = ABar_ij,k
@@ -636,7 +623,6 @@ end
 	
 	sym3 gamma_uu = sym3_real_mul(U->gammaBar_uu, exp_neg4phi);
 	
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
 
 	real3x3 ABar_ul = sym3_sym3_mul(U->gammaBar_uu, U->ABar_ll);		//ABar^i_j = gammaBar^kl ABar_kj
@@ -854,7 +840,7 @@ end
 <? end ?>
 #endif
 }
-<? end	--calcConstraints ?>
+<? end	-- calc_H_and_M ?>
 
 kernel void addSource(
 	constant solver_t* solver,

@@ -111,8 +111,7 @@ end
 	U->chi = max(U->chi, chiMin);
 
 	//makes the spinning black hole simulations look ugly
-	const real alphaMin = 1e-7;
-	U->alpha = max(U->alpha, alphaMin);
+	U->alpha = max(U->alpha, solver->alphaMin);
 }
 
 kernel void calcDeriv(

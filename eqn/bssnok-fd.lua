@@ -97,7 +97,9 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 	self:addGuiVars{
 		{name='constrain_det_gammaBar_ll', value=true, compileTime=true},
 		{name='constrain_tr_ABar_ll', value=true, compileTime=true},
+		{name='calc_H_and_M', value=true, compileTime=true},
 		{name='diffuseSigma', value=.01},
+		{name='alphaMin', value=1e-7},
 	}
 end
 
