@@ -288,11 +288,11 @@ maxs = {6,1,1},
 
 	-- Einstein
 	--initState = 'Minkowski',
-	--initState = 'gaussian perturbation',
+	initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 
 
-	initState = 'Alcubierre warp bubble',
+	--initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
