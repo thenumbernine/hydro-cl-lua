@@ -69,7 +69,8 @@ function Z4_2004Bona:init(args)
 		{a_l = 'real3'},
 		{d_lll = '_3sym3'},
 		{K_ll = 'sym3'},
-		{V_l = 'real3'},
+		{Theta = 'real'},
+		{Z_l = 'real3'},
 	}
 
 	self.consVars = table{
@@ -165,6 +166,7 @@ function Z4_2004Bona:init(args)
 	self.eigenVars = table{
 		{alpha = 'real'},
 		{sqrt_f = 'real'},
+		{gamma_ll = 'sym3'},
 		{gamma_uu = 'sym3'},
 		-- sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
 		{sqrt_gammaUjj = 'real3'},
@@ -227,7 +229,8 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->d_lll.y = sym3_zero;
 	U->d_lll.z = sym3_zero;
 	U->K_ll = sym3_zero;
-	U->V_l = real3_zero;
+	U->Theta = 0.;
+	U->Z_l = real3_zero;
 <? if eqn.useShift ~= 'none' then 
 ?>	U->beta_u = real3_zero;
 <? end 
@@ -278,7 +281,8 @@ kernel void initState(
 	U->alpha = alpha;
 	U->gamma_ll = gamma_ll;
 	U->K_ll = K_ll;
-	U->V_l = real3_zero;
+	U->Theta = 0.;
+	U->Z_l = real3_zero;
 <? if eqn.useShift ~= 'none' then
 ?>	U->beta_u = beta_u;
 <? end
@@ -320,16 +324,6 @@ for i=solver.dim+1,3 do
 <?
 end
 ?>
-
-//V_i = d_ik^k - d^k_ki 
-<? for i,xi in ipairs(xNames) do ?>
-	U->V_l.<?=xi?> = 0.<?
-	for j,xj in ipairs(xNames) do
-		for k,xk in ipairs(xNames) do
-?> + gamma_uu.<?=sym(j,k)?> * ( U->d_lll.<?=xi?>.<?=sym(j,k)?> - U->d_lll.<?=xj?>.<?=sym(k,i)?> )<?
-		end
-	end ?>;
-<? end ?>
 }
 ]]
 
@@ -340,7 +334,8 @@ Z4_2004Bona.predefinedDisplayVars = {
 	'U gamma_ll x x',
 	'U d_lll_x x x',
 	'U K_ll x x',
-	'U V_l x',
+	'U Theta',
+	'U Z_l x',
 	'U H',
 	'U volume',
 	'U f',
@@ -443,21 +438,6 @@ momentum constraints
 	solver = self.solver,
 }), type='sym3'}
 	end
-
-	vars:insert{['V constraint'] = template([[
-	real det_gamma = sym3_det(U->gamma_ll);
-	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	<? for i,xi in ipairs(xNames) do ?>{
-		real d1 = sym3_dot(U->d_lll.<?=xi?>, gamma_uu);
-		real d2 = 0.<?
-	for j,xj in ipairs(xNames) do
-		for k,xk in ipairs(xNames) do
-?> + U->d_lll.<?=xj?>.<?=sym(k,i)?> * gamma_uu.<?=sym(j,k)?><?
-		end
-	end ?>;
-		value_real3-><?=xi?> = U->V_l.<?=xi?> - (d1 - d2);
-	}<? end ?>
-]], {sym=sym, xNames=xNames}), type='real3'}
 
 	return vars
 end
