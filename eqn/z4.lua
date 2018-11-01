@@ -22,7 +22,6 @@ Z4_2004Bona.name = 'Z4_2004Bona'
 Z4_2004Bona.hasCalcDTCode = true
 Z4_2004Bona.hasEigenCode = true
 Z4_2004Bona.useSourceTerm = true
-Z4_2004Bona.useConstrainU = true
 
 --[[
 args:
@@ -195,25 +194,7 @@ end
 function Z4_2004Bona:createInitState()
 	Z4_2004Bona.super.createInitState(self)
 	self:addGuiVars{
-		{
-			type = 'combo',
-			name = 'constrain V',
-			options = {
-				'none',	-- as long as there is a damping term to the source, direct constraint methods aren't required.
-				'replace V',
-				'average',	-- TODO add averaging weights, from 100% V (which works) to 100% d (which doesn't yet work)
-			},
-			-- upon setting this, set useConstrainU accordingly (turn it off if we're not constraining U)
-			onChange = function(guivar, value, solver)
-				-- disable the solver's constrainU if we're not needing it
-				-- note that the kernel is still created, just now won't be called
-				solver.useConstrainU = value ~= 0
-			end,
-			compileTime = true,
-		},
-		{name='a_convCoeff', value=10},
-		{name='d_convCoeff', value=10},
-		{name='V_convCoeff', value=10},
+		{name='m', value=-1},
 	}
 	-- TODO add shift option
 	-- but that means moving the consVars construction to the :init()
