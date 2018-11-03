@@ -1319,7 +1319,8 @@ do
 	-- display vars: TODO graph vars
 	local function handle(var, title)
 		ig.igPushIDStr(title)
-		
+
+		var.enabled = not not var.enabled
 		local enableChanged = tooltip.checkboxTable('enabled', var, 'enabled') 
 		ig.igSameLine()
 		

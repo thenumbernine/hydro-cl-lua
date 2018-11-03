@@ -60,8 +60,8 @@ function GLM_Maxwell:init(args)
 	}
 
 	self.eigenVars = table{
-		{sqrt_1_eps = self.scalar},
-		{sqrt_1_mu = self.scalar},
+		{sqrt_1_eps = self.susc_t},
+		{sqrt_1_mu = self.susc_t},
 	}
 
 

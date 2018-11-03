@@ -88,6 +88,9 @@ TwoFluidEMHD.mirrorVars = {
 	{'ion_m.z', 'elec_m.z', 'E.z', 'B.z'},
 }
 
+-- not sure it's working right ...
+--TwoFluidEMHD.hasCalcDTCode = true
+
 TwoFluidEMHD.hasEigenCode = true
 TwoFluidEMHD.hasFluxFromConsCode = true
 TwoFluidEMHD.roeUseFluxFromCons = true
@@ -176,7 +179,8 @@ function TwoFluidEMHD:createInitState()
 		-- cHat = c / v_i^T
 		
 		-- l_r = larmor radius
-		{name='ionLarmorRadius', value=1},
+		-- in the experimental section of 2014 Abgrall Kumar this is given fixed values
+		{name='ionLarmorRadius', value=.1},
 		
 		-- m = m_i / m_e
 		-- https://en.wikipedia.org/wiki/Proton-to-electron_mass_ratio
@@ -185,11 +189,6 @@ function TwoFluidEMHD:createInitState()
 		
 		-- r_i = q_i / m_i
 		{name='ionChargeMassRatio', value=1},
-		
-		-- r_e = q_e / m_e
-		-- https://en.wikipedia.org/wiki/Mass-to-charge_ratio
-		-- q_e / m_e = -1.758820024e+11 C/kg
-		{name='elecChargeMassRatio', value=.05},
 	
 		-- lambda_d = ion Debye length
 		{name='ionDebyeLength', value=1},
@@ -463,6 +462,13 @@ end
 
 
 TwoFluidEMHD.displayVarCodeUsesPrims = true
+
+TwoFluidEMHD.predefinedDisplayVars = {
+	'U ion_rho',
+	'U elec_rho',
+	'U E mag',
+	'U B mag',
+}
 
 function TwoFluidEMHD:getDisplayVars()
 	local vars = TwoFluidEMHD.super.getDisplayVars(self)

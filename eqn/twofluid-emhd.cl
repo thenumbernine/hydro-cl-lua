@@ -3,23 +3,66 @@ local clnumber = require 'cl.obj.number'
 local fluids = eqn.fluids
 ?>
 
-#define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
-
 #define ionReferenceThermalVelocity (solver->ionLarmorRadius * solver->ionChargeMassRatio * solver->referenceMagneticField)
 #define normalizedSpeedOfLight 		(solver->speedOfLight / ionReferenceThermalVelocity)
 #define normalizedSpeedOfLightSq 	(normalizedSpeedOfLight * normalizedSpeedOfLight)
 #define normalizedIonLarmorRadius 	(solver->ionLarmorRadius / solver->referenceLength)
 #define normalizedIonDebyeLength	(solver->ionDebyeLength / solver->ionLarmorRadius)
 
+// r_e = q_e / m_e
+// r_e = m q_e / m_i
+// if q_e = 1 then r_e = m / m_i
+// https://en.wikipedia.org/wiki/Mass-to-charge_ratio
+// q_e / m_e = -1.758820024e+11 C/kg
+#define elecChargeMassRatio			(solver->ionElectronMassRatio / solver->ionMass)
+
+typedef <?=eqn.prim_t?> prim_t;
+typedef <?=eqn.cons_t?> cons_t;
+typedef <?=eqn.eigen_t?> eigen_t;
+typedef <?=eqn.waves_t?> waves_t;
+typedef <?=solver.solver_t?> solver_t;
+
+<? if solver.hasCalcDTCode then ?>
+//2014 Abgrall, Kumar eqn 2.25
+// dt < sqrt(EInt_a/rho_a) sqrt(2) |lHat_r^a| / |E + v_a cross B|
+//lHat_r^a = lHat_r for a=i, -lHat_r/m for a=e
+kernel void calcDT(
+	constant solver_t* solver,
+	global real* dtBuf,
+	const global cons_t* UBuf
+) {
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+	
+	real3 x = cell_x(i);
+	const global cons_t* U = UBuf + index;
+
+	prim_t W = primFromCons(solver, *U, x);
+	real lHat_ion = normalizedIonLarmorRadius;
+	real lHat_elec = lHat_ion / solver->ionElectronMassRatio;
+<? for _,fluid in ipairs(fluids) do ?>
+	real EInt_<?=fluid?> = calc_<?=fluid?>_EInt(solver, W);
+	real LorentzForceSq_<?=fluid?> = coordLenSq(real3_add(W.E, real3_cross(W.<?=fluid?>_v, W.B)), x);
+	real sqrt_EInt_lHat_over_rho_<?=fluid?> = sqrt(2. * EInt_<?=fluid?> * lHat_<?=fluid?> / (W.<?=fluid?>_rho * LorentzForceSq_<?=fluid?>));
+<? end ?>
+
+	dtBuf[index] = min(
+		sqrt_EInt_lHat_over_rho_ion,
+		sqrt_EInt_lHat_over_rho_elec);
+}
+<? end ?>
 
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
+cons_t fluxFromCons_<?=side?>(
+	constant solver_t* solver,
+	cons_t U,
 	real3 x
 ) {
-	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
-	<?=eqn.cons_t?> F;
+	prim_t W = primFromCons(solver, U, x);
+	cons_t F;
 
 <? 
 for _,fluid in ipairs(fluids) do
@@ -60,16 +103,16 @@ end
 }
 <? end ?>
 
-<?=eqn.eigen_t?> eigen_forInterface(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> UL,
-	<?=eqn.cons_t?> UR,
+eigen_t eigen_forInterface(
+	constant solver_t* solver,
+	cons_t UL,
+	cons_t UR,
 	real3 x,
 	real3 n
 ) {
-	<?=eqn.prim_t?> WL = primFromCons(solver, UL, x);
-	<?=eqn.prim_t?> WR = primFromCons(solver, UR, x);
-	<?=eqn.eigen_t?> eig;
+	prim_t WL = primFromCons(solver, UL, x);
+	prim_t WR = primFromCons(solver, UR, x);
+	eigen_t eig;
 
 <? for _,fluid in ipairs(fluids) do ?>
 
@@ -108,12 +151,12 @@ end
 }
 
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
+eigen_t eigen_forCell_<?=side?>(
+	constant solver_t* solver,
+	cons_t U,
 	real3 x
 ) {
-	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
+	prim_t W = primFromCons(solver, U, x);
 <? for _,fluid in ipairs(fluids) do ?>
 	real <?=fluid?>_vSq = coordLenSq(W.<?=fluid?>_v, x);
 	real <?=fluid?>_eKin = .5 * <?=fluid?>_vSq;
@@ -121,7 +164,7 @@ end
 	real <?=fluid?>_CsSq = (solver->heatCapacityRatio - 1.) * (<?=fluid?>_hTotal - <?=fluid?>_eKin);
 	real <?=fluid?>_Cs = sqrt(<?=fluid?>_CsSq);
 <? end ?>	
-	return (<?=eqn.eigen_t?>){
+	return (eigen_t){
 <? for _,fluid in ipairs(fluids) do ?>
 		.<?=fluid?>_rho = W.<?=fluid?>_rho,
 		.<?=fluid?>_v = W.<?=fluid?>_v,
@@ -190,13 +233,13 @@ end
 	prefix = gUdef .. prefix
 ?>
 
-<?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> UX,
+waves_t eigen_leftTransform_<?=side?>(
+	constant solver_t* solver,
+	eigen_t eig,
+	cons_t UX,
 	real3 x
 ) { 
-	<?=eqn.waves_t?> UY;
+	waves_t UY;
 	real* Y = UY.ptr;
 	real* X = UX.ptr;
 
@@ -354,13 +397,13 @@ end
 	return UY;
 }
 
-<?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.waves_t?> UX,	//numWaves = 16
+cons_t eigen_rightTransform_<?=side?>(
+	constant solver_t* solver,
+	eigen_t eig,
+	waves_t UX,	//numWaves = 16
 	real3 x
 ) {
-	<?=eqn.cons_t?> UY;
+	cons_t UY;
 	real* Y = UY.ptr;
 	real* X = UX.ptr;
 
@@ -489,14 +532,14 @@ end
 	return UY;
 }
 
-<?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> UX,
+cons_t eigen_fluxTransform_<?=side?>(
+	constant solver_t* solver,
+	eigen_t eig,
+	cons_t UX,
 	real3 x
 ) {
 	<?=prefix?>
-	<?=eqn.cons_t?> UY;
+	cons_t UY;
 	real* X = UX.ptr;
 <?
 					for i,fluid	in ipairs(fluids) do 
@@ -549,13 +592,13 @@ end
 <? end ?>
 
 kernel void addSource(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* derivBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	constant solver_t* solver,
+	global cons_t* derivBuf,
+	const global cons_t* UBuf
 ) {
 	SETBOUNDS_NOGHOST();
-	global <?=eqn.cons_t?>* deriv = derivBuf + index;
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	global cons_t* deriv = derivBuf + index;
+	const global cons_t* U = UBuf + index;
 
 	deriv->ion_m.x += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.x + U->ion_m.y * U->B.z - U->ion_m.z * U->B.y);
 	deriv->ion_m.y += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.y + U->ion_m.z * U->B.x - U->ion_m.x * U->B.z);
@@ -569,25 +612,25 @@ kernel void addSource(
 
 #define normalizedIonDebyeLengthSq	(normalizedIonDebyeLength * normalizedIonDebyeLength)
 	deriv->E.x -= (U->ion_m.x * solver->ionChargeMassRatio
-						+ U->elec_m.x * solver->elecChargeMassRatio
+						+ U->elec_m.x * elecChargeMassRatio
 					) / normalizedIonDebyeLengthSq * normalizedIonLarmorRadius;
 	deriv->E.y -= (U->ion_m.y * solver->ionChargeMassRatio
-						+ U->elec_m.y * solver->elecChargeMassRatio
+						+ U->elec_m.y * elecChargeMassRatio
 					) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
 	deriv->E.z -= (U->ion_m.z * solver->ionChargeMassRatio
-						+ U->elec_m.z * solver->elecChargeMassRatio
+						+ U->elec_m.z * elecChargeMassRatio
 					) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
 	deriv->phi += solver->divPhiWavespeed 
 		/ (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius)
 		* (
 			U->ion_rho * solver->ionChargeMassRatio 
-			+ U->elec_rho * solver->elecChargeMassRatio 
+			+ U->elec_rho * elecChargeMassRatio 
 		);
 
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 	real3 x = cell_x(i);
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
-	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+	prim_t W = primFromCons(solver, *U, x);
 	real3 conn1_u = coord_conn_trace23(x);
 	<? for _,fluid in ipairs(fluids) do ?>{
 		real3 m_conn_vv = coord_conn_apply23(W.<?=fluid?>_v, U-><?=fluid?>_m, x);
@@ -599,13 +642,13 @@ kernel void addSource(
 }
 
 kernel void constrainU(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
+	constant solver_t* solver,
+	global cons_t* UBuf
 ) {
 	SETBOUNDS(0,0);
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global cons_t* U = UBuf + index;
 	real3 x = cell_x(i);
-	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+	prim_t W = primFromCons(solver, *U, x);
 
 <? for _,fluid in ipairs(fluids) do
 ?>	W.<?=fluid?>_rho = max((real)W.<?=fluid?>_rho, (real)solver->min_<?=fluid?>_rho);
