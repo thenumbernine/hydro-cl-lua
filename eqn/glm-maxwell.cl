@@ -205,8 +205,8 @@ kernel void addSource(
 		local xj = xNames[j+1] ?>
 	grad_1_mu.<?=xj?> = <?=real_mul?>(
 		<?=sub?>(
-			<?=mul?>(U[stepsize.<?=xj?>].sqrt_1_mu, U[stepsize.<?=xj?>].sqrt_1_mu),
-			<?=mul?>(U[-stepsize.<?=xj?>].sqrt_1_mu, U[-stepsize.<?=xj?>].sqrt_1_mu)
+			<?=mul?>(U[solver->stepsize.<?=xj?>].sqrt_1_mu, U[solver->stepsize.<?=xj?>].sqrt_1_mu),
+			<?=mul?>(U[-solver->stepsize.<?=xj?>].sqrt_1_mu, U[-solver->stepsize.<?=xj?>].sqrt_1_mu)
 		), 1. / solver->grid_dx.s<?=j?>);
 	<? end ?>
 	
@@ -215,8 +215,8 @@ kernel void addSource(
 		local xj = xNames[j+1] ?>
 	grad_1_mu.<?=xj?> = <?=real_mul?>(
 		<?=sub?>(
-			<?=mul?>(U[stepsize.<?=xj?>].sqrt_1_eps, U[stepsize.<?=xj?>].sqrt_1_eps),
-			<?=mul?>(U[-stepsize.<?=xj?>].sqrt_1_eps, U[-stepsize.<?=xj?>].sqrt_1_eps)
+			<?=mul?>(U[solver->stepsize.<?=xj?>].sqrt_1_eps, U[solver->stepsize.<?=xj?>].sqrt_1_eps),
+			<?=mul?>(U[-solver->stepsize.<?=xj?>].sqrt_1_eps, U[-solver->stepsize.<?=xj?>].sqrt_1_eps)
 		), 1. / solver->grid_dx.s<?=j?>);
 	<? end ?>
 

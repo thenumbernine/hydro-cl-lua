@@ -1,4 +1,4 @@
-local dim = 1
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -62,7 +62,7 @@ local args = {
 				{16,16,16},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
-				{10016,1,1},
+				{256,1,1},
 				{64,64,1},
 				{32,32,32},
 			},
@@ -496,7 +496,7 @@ local args = {
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 
 -- GLM Maxwell
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-maxwell'})))
 
@@ -507,8 +507,11 @@ local args = {
 --self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
 
 -- ...so to try and get around that, here the two are combined into one solver:
+-- it is stable, however since all variables are tied together, it integrates them together, which means everything is explicit-integration updated
+-- ...which means, with the Maxwell equations waves propagating at the speed of light, that it goes very slow
+-- TODO: I suppose I could make this work with my integrator by (1) removing the maxwell terms from the integration variable list and (2) providing a separate operator that updates them implicitly
 -- TODO still needs PLM support
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
