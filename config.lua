@@ -4,7 +4,7 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -14,7 +14,7 @@ local args = {
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
 	--integrator = 'Runge-Kutta 3, TVD',
-	--integrator = 'Runge-Kutta 4, TVD',
+	integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
 	--integrator = 'backward Euler',
 	
@@ -63,7 +63,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{256,1,1},
-				{256,256,1},
+				{512,512,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -75,12 +75,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'mirror',
+		xmax=cmdline.boundary or 'mirror',
+		ymin=cmdline.boundary or 'mirror',
+		ymax=cmdline.boundary or 'mirror',
+		zmin=cmdline.boundary or 'mirror',
+		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
 	-- TODO these next two seem very similar
@@ -213,7 +213,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -267,7 +267,7 @@ local args = {
 	--initState = 'Maxwell default',							-- cplx works poorly with non-GLM
 	--initState = 'Maxwell scattering around cylinder',			-- cplx doesn't work with non-GLM
 	--initState = 'Maxwell scattering around pyramid',			-- not working with the non-GLM cplx (but works for non-GLM real HLL .. but not non-GLM real Roe ...)
-	initState = 'Maxwell scattering around square',
+	--initState = 'Maxwell scattering around square',
 	--initState = 'Maxwell scattering around Koch snowflake',		-- not working, for non-GLM cplx (but works for non-GLM real)
 	--initState = 'Maxwell wire',									-- not working for non-GLM cplx (but works for non-GLM real)
 	
@@ -439,7 +439,8 @@ local args = {
 }
 
 -- HD
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
@@ -497,7 +498,7 @@ local args = {
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 
 -- GLM Maxwell
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-maxwell'})))
 
