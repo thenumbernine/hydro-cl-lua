@@ -42,6 +42,7 @@ void main() {
 		discard;
 	}
 
+#if 0
 const float epsilon = 1e-2;
 if (abs(gridCoord.x - solverMins.x) < epsilon ||
 	abs(gridCoord.x - solverMaxs.x) < epsilon ||
@@ -51,6 +52,7 @@ if (abs(gridCoord.x - solverMins.x) < epsilon ||
 	gl_FragColor = vec4(1.,1.,1.,1.);
 	return;
 }
+#endif
 
 	vec2 texCoord = vec2(
 		((gridCoord.x - solverMins.x) / (solverMaxs.x - solverMins.x) * <?=clnumber(solver.sizeWithoutBorder.x)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.x)?>,

@@ -5,12 +5,18 @@ local xNames = common.xNames
 local sym = common.sym
 ?>
 
+typedef <?=eqn.prim_t?> prim_t;
+typedef <?=eqn.cons_t?> cons_t;
+typedef <?=eqn.eigen_t?> eigen_t;
+typedef <?=eqn.waves_t?> waves_t;
+typedef <?=solver.solver_t?> solver_t;
+
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
+cons_t fluxFromCons_<?=side?>(
+	constant solver_t* solver,
+	cons_t U,
 	real3 x
 ) {
 	<?=vec3?> E = calc_E(U);
@@ -18,7 +24,7 @@ local sym = common.sym
 	<?=scalar?> _1_eps = <?=mul?>(U.sqrt_1_eps, U.sqrt_1_eps);
 	<?=scalar?> _1_mu = <?=mul?>(U.sqrt_1_mu, U.sqrt_1_mu);
 	<?=scalar?> v_pSq = <?=mul?>(_1_eps, _1_mu);
-	return (<?=eqn.cons_t?>){
+	return (cons_t){
 	<? if side == 0 then ?>
 		.D = _<?=vec3?>(<?=real_mul?>(<?=mul?>(v_pSq, U.phi), solver->divPhiWavespeed),  H.z, <?=neg?>(H.y)),
 		.B = _<?=vec3?>(<?=real_mul?>(<?=mul?>(v_pSq, U.psi), solver->divPsiWavespeed), <?=neg?>(E.z),  E.y),
@@ -40,27 +46,27 @@ local sym = common.sym
 }
 <? end ?>
 
-<?=eqn.eigen_t?> eigen_forInterface(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> UL,
-	<?=eqn.cons_t?> UR,
+eigen_t eigen_forInterface(
+	constant solver_t* solver,
+	cons_t UL,
+	cons_t UR,
 	real3 x,
 	real3 n
 ) {
-	return (<?=eqn.eigen_t?>){
+	return (eigen_t){
 		.sqrt_1_eps = <?=real_mul?>(<?=add?>(UL.sqrt_1_eps, UR.sqrt_1_eps), .5),
 		.sqrt_1_mu = <?=real_mul?>(<?=add?>(UL.sqrt_1_mu, UR.sqrt_1_mu), .5),
 	};
 }
 
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> X,
+waves_t eigen_leftTransform_<?=side?>(
+	constant solver_t* solver,
+	eigen_t eig,
+	cons_t X,
 	real3 x
 ) {
-	<?=eqn.waves_t?> Y;
+	waves_t Y;
 	<?=scalar?>* Xp = (<?=scalar?>*)X.ptr;
 	<?=scalar?>* Yp = (<?=scalar?>*)Y.ptr;
 
@@ -107,13 +113,13 @@ local sym = common.sym
 	return Y;
 }
 
-<?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.waves_t?> X,
+cons_t eigen_rightTransform_<?=side?>(
+	constant solver_t* solver,
+	eigen_t eig,
+	waves_t X,
 	real3 x
 ) {
-	<?=eqn.cons_t?> Y;
+	cons_t Y;
 	<?=scalar?>* Xp = (<?=scalar?>*)X.ptr;
 	<?=scalar?>* Yp = (<?=scalar?>*)Y.ptr;
 
@@ -164,10 +170,10 @@ local sym = common.sym
 	return Y;
 }
 
-<?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> X,
+cons_t eigen_fluxTransform_<?=side?>(
+	constant solver_t* solver,
+	eigen_t eig,
+	cons_t X,
 	real3 x
 ) {
 	return fluxFromCons_<?=side?>(solver, X, x);
@@ -176,15 +182,15 @@ local sym = common.sym
 <? end ?>
 
 kernel void addSource(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* derivBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	constant solver_t* solver,
+	global cons_t* derivBuf,
+	const global cons_t* UBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	real3 x = cell_x(i);
 
-	global <?=eqn.cons_t?>* deriv = derivBuf + index;
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	global cons_t* deriv = derivBuf + index;
+	const global cons_t* U = UBuf + index;
 
 	//TODO J = J_f + J_b = J_f + J_P + J_M = J_f + dP/dt + curl M
 	deriv->D = <?=vec3?>_sub(
@@ -223,7 +229,7 @@ kernel void addSource(
 	real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>{
-		<?=eqn.cons_t?> flux = fluxFromCons_<?=j?>(solver, *U, x);
+		cons_t flux = fluxFromCons_<?=j?>(solver, *U, x);
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 		deriv->D.<?=xj?> = <?=sub?>(deriv->D.<?=xj?>, <?=vec3?>_dot(flux.D, grad_1_mu));
@@ -238,11 +244,12 @@ kernel void addSource(
 
 
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
-	<?=eqn.cons_t?> U,
+eigen_t eigen_forCell_<?=side?>(
+	constant solver_t* solver,
+	cons_t U,
 	real3 x
 ) {
-	return (<?=eqn.eigen_t?>){
+	return (eigen_t){
 		.sqrt_1_eps = U.sqrt_1_eps,
 		.sqrt_1_mu = U.sqrt_1_mu,
 	};

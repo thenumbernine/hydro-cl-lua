@@ -474,17 +474,22 @@ function HydroCLApp:screenshotToFile(fn)
 		end
 	end
 	if not self.ssimg then
-		self.ssimg = Image(w, h, 3, 'unsigned char')
-		self.ssflipped = Image(w, h, 3, 'unsigned char')
+		-- using 3 channels had some alignment problems ... there's a bug to fix somewhere, maybe in the png write function?
+		self.ssimg = Image(w, h, 4, 'unsigned char')
+		self.ssflipped = Image(w, h, 4, 'unsigned char')
 	end
-	gl.glReadPixels(0, 0, w, h, gl.GL_RGB, gl.GL_UNSIGNED_BYTE, self.ssimg.buffer) 
+	gl.glReadPixels(0, 0, w, h, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, self.ssimg.buffer) 
 	-- reverse rows ...
 	-- TODO maybe ... for all projection matrix setups, have them check a screenshot flag and automatically flip?
 	for y=0,h-1 do
 		ffi.copy(
-			self.ssflipped.buffer + (h-y-1) * w * 3,
-			self.ssimg.buffer + y * w * 3,
-			w * 3)
+			self.ssflipped.buffer + (h-y-1) * w * 4,
+			self.ssimg.buffer + y * w * 4,
+			w * 4)
+	end
+	-- full alpha
+	for i=0,w*h-1 do
+		self.ssflipped.buffer[3+4*i] = 255
 	end
 	self.ssflipped:save(fn)
 end

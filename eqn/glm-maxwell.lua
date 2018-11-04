@@ -257,6 +257,12 @@ local function curl(eqn,k,result,field,env)
 	}))}
 end
 
+GLM_Maxwell.predefinedDisplayVars = {
+	'U D mag',
+	'U B mag',
+	'U energy',
+}
+
 function GLM_Maxwell:getDisplayVars()
 	local env = self:getTemplateEnv()
 	

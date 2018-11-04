@@ -115,7 +115,7 @@ local function addMaxwellOscillatingBoundary(args)
 		-- TODO get the oscillations on 2D 256x256 in the upper left corner to stop
 		--local oldxmin = select(2, next(solver.boundaryOptions[boundaryMethods.xmin]))
 		boundaryMethods[side] = function(args)
-			local gridSizeSide = 'gridSize_'..xNames[args.side]
+			local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
 			local U = args.array('buf', args.index(
 				side:sub(-3) == 'min' and 'j' or (gridSizeSide..'-numGhost-1-j')
 			))
@@ -1345,6 +1345,36 @@ for _,pn in ipairs(obj) do
 	real3 xc = coordMap(x);
 	xc = real3_real_mul(xc, 2.);
 	if (testTriangle(xc)) {
+		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
+		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
+	}
+]], solver.eqn:getTemplateEnv())
+		end,
+	},
+
+	{
+		name = 'Maxwell scattering around square',
+		initState = function(self, solver)
+			-- hmm, choosing min or max doesn't matter, it always shows up on min...
+			addMaxwellOscillatingBoundary{
+				solver = solver,
+				side = xNames[solver.dim]..'max',
+				dir = xNames[solver.dim],
+				amplitude = -1,
+				period = .1,
+			}
+			return template([[
+	real3 xc = coordMap(x);
+	xc = real3_real_mul(xc, 2.);
+	if (
+		xc.x > -.5 && xc.x < .5
+<? if solver.dim > 1 then ?>
+		&& xc.y > -.5 && xc.y < .5
+<? 	if solver.dim > 2 then ?>
+		&& xc.z > -.5 && xc.z < .5
+<? 	end 
+end	?>
+	) {
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
 		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
 	}
