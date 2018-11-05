@@ -36,11 +36,13 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.postComputeFluxCode = [[
 		real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
 		flux.E = real3_real_mul(coord_lower(flux.E, x), _1_sqrt_det_g);
 		flux.B = real3_real_mul(coord_lower(flux.B, x), _1_sqrt_det_g);
+		flux.E_g = real3_real_mul(coord_lower(flux.E_g, x), _1_sqrt_det_g);
+		flux.B_g = real3_real_mul(coord_lower(flux.B_g, x), _1_sqrt_det_g);
 ]]
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.name = 'TwoFluidEMHDDeDonderGaugeLinearizedGR'
-TwoFluidEMHDDeDonderGaugeLinearizedGR.numWaves = 18
-TwoFluidEMHDDeDonderGaugeLinearizedGR.numIntStates = 18
+TwoFluidEMHDDeDonderGaugeLinearizedGR.numWaves = 26
+TwoFluidEMHDDeDonderGaugeLinearizedGR.numIntStates = 26
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.consVars = table{
 	--integration variables		
@@ -146,7 +148,8 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 		-- v_i^T = ion reference thermal velocity
 		--{name='ionReferenceThermalVelocity', value=1},
 		-- normalized Larmor radius:
-		-- lHat = l_r / x_0 = m_i v_i^T / (q_i B_0 x_0)	
+		-- lHat = l_r / x_0 = gamma m_i v_i^T / (q_i B_0 x_0)	
+		-- the 2014 Abgrall, Kumar model has no gamma, but Wiki says to add gamma = Lorentz boost
 		-- therefore:
 		-- v_i^T = l_r B_0 q_i / m_i
 		-- just use this equation:
@@ -173,9 +176,15 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 		{name='ionChargeMassRatio', value=1},
 	
 		-- lambda_d = ion Debye length
+		-- lambda_d = sqrt(epsilon (v_i^T)^2 / n_0 q_i)
+		-- the 2014 Abgrall, Kumar model uses vacuum permittivity, whereas Wiki says material permittivity works
 		{name='ionDebyeLength', value=1},
 		-- normalized ion Debye length: 
 		-- lambdaHat_d = lambda_d / l_r
+
+		-- kappa from 2008 Tajmar, DeMatos
+		{name='kappa', value=1},
+	
 	}:append(fluids:map(function(fluid)
 		return table{
 			{name='min_'..fluid..'_rho', value=1e-4},
@@ -186,8 +195,8 @@ end
 
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:getCommonFuncCode()
 	return template([[
-real ESq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.E); }
-real BSq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.B); }
+real ESq(<?=eqn.cons_t?> U, real3 x) { return coordLenSq(U.E, x); }
+real BSq(<?=eqn.cons_t?> U, real3 x) { return coordLenSq(U.B, x); }
 
 inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
 inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
@@ -201,13 +210,16 @@ inline real calc_<?=fluid?>_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.p
 inline real calc_<?=fluid?>_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_<?=fluid?>_EInt(solver, W) / W.<?=fluid?>_rho; }
 inline real calc_<?=fluid?>_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.<?=fluid?>_m, x) / U.<?=fluid?>_rho; }
 inline real calc_<?=fluid?>_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
-	real EPot = W.<?=fluid?>_rho * W.<?=fluid?>_ePot;
-	return calc_<?=fluid?>_EKin(W, x) + calc_<?=fluid?>_EInt(solver, W) + EPot;
+	return calc_<?=fluid?>_EKin(W, x) + calc_<?=fluid?>_EInt(solver, W);
 }
 inline real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?>* W) {
 	return sqrt(solver->heatCapacityRatio * W-><?=fluid?>_P / W-><?=fluid?>_rho);
 }
 <? end ?>
+
+inline real calc_EM_energy(const global <?=eqn.cons_t?>* U, real3 x) {
+	return .5 * (coordLenSq(U->E, x) + coordLenSq(U->B, x));
+}
 ]], {
 		solver = self.solver,
 		eqn = self,
@@ -219,16 +231,14 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getPrimConsCode()
 	return template([[
 inline <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	<? for _,fluid in ipairs(fluids) do ?>
-	real <?=fluid?>_EPot = U.<?=fluid?>_rho * U.<?=fluid?>_ePot;
 	real <?=fluid?>_EKin = calc_<?=fluid?>_EKin_fromCons(U, x);
-	real <?=fluid?>_EInt = U.<?=fluid?>_ETotal - <?=fluid?>_EKin - <?=fluid?>_EPot;
+	real <?=fluid?>_EInt = U.<?=fluid?>_ETotal - <?=fluid?>_EKin;
 	<? end ?>
 	return (<?=eqn.prim_t?>){
 		<? for _,fluid in ipairs(fluids) do ?>
 		.<?=fluid?>_rho = U.<?=fluid?>_rho,
 		.<?=fluid?>_v = real3_real_mul(U.<?=fluid?>_m, 1./U.<?=fluid?>_rho),
 		.<?=fluid?>_P = (solver->heatCapacityRatio - 1.) * <?=fluid?>_EInt,
-		.<?=fluid?>_ePot = U.<?=fluid?>_ePot,
 		<? end ?>
 		.E = U.E,
 		.B = U.B,
@@ -247,7 +257,6 @@ inline <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eq
 		.<?=fluid?>_rho = W.<?=fluid?>_rho,
 		.<?=fluid?>_m = real3_real_mul(W.<?=fluid?>_v, W.<?=fluid?>_rho),
 		.<?=fluid?>_ETotal = calc_<?=fluid?>_ETotal(solver, W, x),
-		.<?=fluid?>_ePot = W.<?=fluid?>_ePot,
 <? end ?>
 		.E = W.E,
 		.B = W.B,
@@ -277,9 +286,7 @@ inline <?=eqn.cons_t?> apply_dU_dW(
 			real3_real_mul(W.<?=fluid?>_v, WA.<?=fluid?>_rho)),
 		.<?=fluid?>_ETotal = W.<?=fluid?>_rho * .5 * real3_dot(WA.<?=fluid?>_v, WA_<?=fluid?>_vL) 
 			+ WA.<?=fluid?>_rho * real3_dot(W.<?=fluid?>_v, WA_<?=fluid?>_vL)
-			+ W.<?=fluid?>_P / (solver->heatCapacityRatio - 1.)
-			+ WA.<?=fluid?>_rho * W.<?=fluid?>_ePot,
-		.<?=fluid?>_ePot = W.<?=fluid?>_ePot,
+			+ W.<?=fluid?>_P / (solver->heatCapacityRatio - 1.),
 <? end ?>
 		.B = W.B,
 		.E = W.E,
@@ -310,9 +317,7 @@ inline <?=eqn.prim_t?> apply_dW_dU(
 		.<?=fluid?>_P = (solver->heatCapacityRatio - 1.) * (
 			.5 * real3_dot(WA.<?=fluid?>_v, WA_<?=fluid?>_vL) * U.<?=fluid?>_rho 
 			- real3_dot(U.<?=fluid?>_m, WA_<?=fluid?>_vL)
-			+ U.<?=fluid?>_ETotal 
-			- WA.<?=fluid?>_rho * U.<?=fluid?>_ePot),
-		.<?=fluid?>_ePot = U.<?=fluid?>_ePot,
+			+ U.<?=fluid?>_ETotal),
 <? end ?>
 		.B = U.B,
 		.E = U.E,
@@ -412,7 +417,6 @@ else	-- expect the initState to explicitly provide the ion_ and elec_ Euler flui
 		.<?=fluid?>_rho = <?=fluid?>_rho,
 		.<?=fluid?>_v = cartesianToCoord(<?=fluid?>_v, x),
 		.<?=fluid?>_P = <?=fluid?>_P,
-		.<?=fluid?>_ePot = <?=fluid?>_ePot,
 <?
 	end
 end
@@ -462,6 +466,15 @@ end
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.displayVarCodeUsesPrims = true
 
+TwoFluidEMHDDeDonderGaugeLinearizedGR.predefinedDisplayVars = {
+	'U ion_rho',
+	'U elec_rho',
+	'U E mag',
+	'U B mag',
+	'U E_g mag',
+	'U B_g mag',
+}
+
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
 	local vars = TwoFluidEMHDDeDonderGaugeLinearizedGR.super.getDisplayVars(self)
 
@@ -504,10 +517,8 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
 			{[fluid..' P'] = '*value = W.'..fluid..'_P;'},
 			{[fluid..' eInt'] = '*value = calc_'..fluid..'_eInt(solver, W);'},
 			{[fluid..' eKin'] = '*value = calc_'..fluid..'_eKin(W, x);'},
-			{[fluid..' ePot'] = '*value = U->'..fluid..'_ePot;'},
 			{[fluid..' EInt'] = '*value = calc_'..fluid..'_EInt(solver, W);'},
 			{[fluid..' EKin'] = '*value = calc_'..fluid..'_EKin(W, x);'},
-			{[fluid..' EPot'] = '*value = U->'..fluid..'_rho * U->'..fluid..'_ePot;'},
 			{[fluid..' ETotal'] = '*value = U->'..fluid..'_ETotal;'},
 			{[fluid..' S'] = '*value = W.'..fluid..'_P / pow(W.'..fluid..'_rho, (real)solver->heatCapacityRatio);'},
 			{[fluid..' H'] = '*value = calc_H(solver, W.'..fluid..'_P);'},
@@ -528,8 +539,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
 
 	vars:append{
 		{['EM energy'] = [[
-	//*value = .5 * (coordLen(U->E) + coordLen(U->B));
-	*value = .5 * (real3_len(U->E) + real3_len(U->B));
+	*value = calc_EM_energy(U, x);
 ]]},
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='E', B='B'})[var] )
@@ -605,6 +615,19 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCode(side, eig, x, waveI
 			'normalizedSpeedOfLight * solver->divPhiWavespeed * _1_sqrt_det_g',
 		})[waveIndex - 5*#fluids + 1]
 	end
+	if waveIndex >= 5*#fluids+8 and waveIndex < 5*#fluids+16 then
+		-- 2014 Abgrall, Kumar eqn 1.9 says the eigenvalues are c, while the flux contains cHat ...
+		return ({
+			'-normalizedSpeedOfLight * solver->divPhiGWavespeed * _1_sqrt_det_g',
+			'-normalizedSpeedOfLight * solver->divPsiGWavespeed * _1_sqrt_det_g',
+			'-normalizedSpeedOfLight * _1_sqrt_det_g',
+			'-normalizedSpeedOfLight * _1_sqrt_det_g',
+			'normalizedSpeedOfLight * _1_sqrt_det_g',
+			'normalizedSpeedOfLight * _1_sqrt_det_g',
+			'normalizedSpeedOfLight * solver->divPsiGWavespeed * _1_sqrt_det_g',
+			'normalizedSpeedOfLight * solver->divPhiGWavespeed * _1_sqrt_det_g',
+		})[waveIndex - 5*#fluids - 8 + 1]
+	end
 	error('got a bad waveIndex: '..waveIndex)
 end
 
@@ -616,7 +639,12 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodePrefix(side, U, x)
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 
 #if 1	//using the EM wavespeed
-	real consWaveCode_lambdaMax = max(max(solver->divPsiWavespeed, solver->divPhiWavespeed), 1.) * normalizedSpeedOfLight;
+	real consWaveCode_lambdaMax = max(
+		max(
+			max(solver->divPsiWavespeed, solver->divPhiWavespeed),
+			max(solver->divPsiGWavespeed, solver->divPhiGWavespeed)
+		)
+		, 1.) * normalizedSpeedOfLight;
 #else	//ignoring it
 	real consWaveCode_lambdaMax = INFINITY;
 #endif

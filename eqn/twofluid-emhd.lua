@@ -164,7 +164,8 @@ function TwoFluidEMHD:createInitState()
 		-- v_i^T = ion reference thermal velocity
 		--{name='ionReferenceThermalVelocity', value=1},
 		-- normalized Larmor radius:
-		-- lHat = l_r / x_0 = m_i v_i^T / (q_i B_0 x_0)	
+		-- lHat = l_r / x_0 = gamma m_i v_i^T / (q_i B_0 x_0)	
+		-- the 2014 Abgrall, Kumar model has no gamma, but Wiki says to add gamma = Lorentz boost
 		-- therefore:
 		-- v_i^T = l_r B_0 q_i / m_i
 		-- just use this equation:
@@ -191,6 +192,8 @@ function TwoFluidEMHD:createInitState()
 		{name='ionChargeMassRatio', value=1},
 	
 		-- lambda_d = ion Debye length
+		-- lambda_d = sqrt(epsilon (v_i^T)^2 / n_0 q_i)
+		-- the 2014 Abgrall, Kumar model uses vacuum permittivity, whereas Wiki says material permittivity works
 		{name='ionDebyeLength', value=1},
 		-- normalized ion Debye length: 
 		-- lambdaHat_d = lambda_d / l_r
@@ -204,8 +207,8 @@ end
 
 function TwoFluidEMHD:getCommonFuncCode()
 	return template([[
-real ESq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.E); }
-real BSq(<?=eqn.cons_t?> U, real3 x) { return real3_lenSq(U.B); }
+real ESq(<?=eqn.cons_t?> U, real3 x) { return coordLenSq(U.E, x); }
+real BSq(<?=eqn.cons_t?> U, real3 x) { return coordLenSq(U.B, x); }
 
 inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
 inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
@@ -226,6 +229,10 @@ inline real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=e
 	return sqrt(solver->heatCapacityRatio * W-><?=fluid?>_P / W-><?=fluid?>_rho);
 }
 <? end ?>
+
+inline real calc_EM_energy(const global <?=eqn.cons_t?>* U, real3 x) {
+	return .5 * (coordLenSq(U->E, x) + coordLenSq(U->B, x));
+}
 ]], {
 		solver = self.solver,
 		eqn = self,
@@ -536,8 +543,7 @@ function TwoFluidEMHD:getDisplayVars()
 
 	vars:append{
 		{['EM energy'] = [[
-	//*value = .5 * (coordLen(U->E) + coordLen(U->B));
-	*value = .5 * (real3_len(U->E) + real3_len(U->B));
+	*value = calc_EM_energy(U, x);
 ]]},
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='E', B='B'})[var] )

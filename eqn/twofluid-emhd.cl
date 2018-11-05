@@ -610,22 +610,11 @@ kernel void addSource(
 	deriv->elec_m.z -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.z + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x);
 	deriv->elec_ETotal -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * real3_dot(U->E, U->elec_m);
 
-#define normalizedIonDebyeLengthSq	(normalizedIonDebyeLength * normalizedIonDebyeLength)
-	deriv->E.x -= (U->ion_m.x * solver->ionChargeMassRatio
-						+ U->elec_m.x * elecChargeMassRatio
-					) / normalizedIonDebyeLengthSq * normalizedIonLarmorRadius;
-	deriv->E.y -= (U->ion_m.y * solver->ionChargeMassRatio
-						+ U->elec_m.y * elecChargeMassRatio
-					) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
-	deriv->E.z -= (U->ion_m.z * solver->ionChargeMassRatio
-						+ U->elec_m.z * elecChargeMassRatio
-					) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
-	deriv->phi += solver->divPhiWavespeed 
-		/ (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius)
-		* (
-			U->ion_rho * solver->ionChargeMassRatio 
-			+ U->elec_rho * elecChargeMassRatio 
-		);
+	real normalizedIonDebyeLengthSq	= normalizedIonDebyeLength * normalizedIonDebyeLength;
+	deriv->E.x -= (U->ion_m.x * solver->ionChargeMassRatio + U->elec_m.x * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->E.y -= (U->ion_m.y * solver->ionChargeMassRatio + U->elec_m.y * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->E.z -= (U->ion_m.z * solver->ionChargeMassRatio + U->elec_m.z * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->phi += (U->ion_rho * solver->ionChargeMassRatio + U->elec_rho * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius) * solver->divPhiWavespeed;
 
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 	real3 x = cell_x(i);
