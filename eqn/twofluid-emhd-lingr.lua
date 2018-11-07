@@ -170,7 +170,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 		-- m = m_i / m_e
 		-- https://en.wikipedia.org/wiki/Proton-to-electron_mass_ratio
 		-- m_i / m_e = 1836.15267389
-		{name='ionElectronMassRatio', value=100},
+		{name='ionElectronMassRatio', value=1836},
 		
 		-- r_i = q_i / m_i
 		{name='ionChargeMassRatio', value=1},
@@ -182,13 +182,14 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 		-- normalized ion Debye length: 
 		-- lambdaHat_d = lambda_d / l_r
 
-		-- kappa from 2008 Tajmar, DeMatos
-		{name='kappa', value=1},
+		{name='eps', value=1},			-- permittivity
+		{name='mu', value=1},			-- permeability
+		{name='gravitationalConstant', value=6e-6},		-- 6.67408e-11 m^3 / (kg s^2)
 	
 	}:append(fluids:map(function(fluid)
 		return table{
-			{name='min_'..fluid..'_rho', value=1e-4},
-			{name='min_'..fluid..'_P', value=1e-4},
+			{name='min_'..fluid..'_rho', value=0},
+			{name='min_'..fluid..'_P', value=0},
 		}
 	end):unpack()))
 end
@@ -217,8 +218,8 @@ inline real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=e
 }
 <? end ?>
 
-inline real calc_EM_energy(const global <?=eqn.cons_t?>* U, real3 x) {
-	return .5 * (coordLenSq(U->E, x) + coordLenSq(U->B, x));
+inline real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
+	return .5 * (solver->eps * coordLenSq(U->E, x) + coordLenSq(U->B, x) / solver->mu);
 }
 ]], {
 		solver = self.solver,
@@ -471,8 +472,13 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.predefinedDisplayVars = {
 	'U elec_rho',
 	'U E mag',
 	'U B mag',
+	'U psi',
+	'U phi',
 	'U E_g mag',
 	'U B_g mag',
+	'U psi_g',
+	'U phi_g',
+	'U EM energy',
 }
 
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
@@ -539,7 +545,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
 
 	vars:append{
 		{['EM energy'] = [[
-	*value = calc_EM_energy(U, x);
+	*value = calc_EM_energy(solver, U, x);
 ]]},
 	}:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({E='E', B='B'})[var] )

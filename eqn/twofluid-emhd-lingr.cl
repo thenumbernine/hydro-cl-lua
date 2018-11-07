@@ -66,7 +66,6 @@ end
 	}
 
 	//same deal but with E_g and B_g
-#warning does kappa belong in here?
 	{
 		real3 B_g = U.B_g;
 		real3 E_g = U.E_g;
@@ -620,17 +619,21 @@ kernel void addSource(
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
-#warning all the E_g and B_g terms need rescaling
+	//TODO replace this with its long and complex correct derivation
+	real3 gravAccel = _real3(
+		U->E_g.x + U->B_g.x * solver->gravitationalConstant / (4 * M_PI),
+		U->E_g.y + U->B_g.y * solver->gravitationalConstant / (4 * M_PI),
+		U->E_g.z + U->B_g.z * solver->gravitationalConstant / (4 * M_PI));
 
-	deriv->ion_m.x += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.x + U->ion_m.y * U->B.z - U->ion_m.z * U->B.y) + U->ion_rho * (U->E_g + U->B_g);
-	deriv->ion_m.y += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.y + U->ion_m.z * U->B.x - U->ion_m.x * U->B.z) + U->ion_rho * (U->E_g + U->B_g);
-	deriv->ion_m.z += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.z + U->ion_m.x * U->B.y - U->ion_m.y * U->B.x) + U->ion_rho * (U->E_g + U->B_g);
-	deriv->ion_ETotal += (1. / normalizedIonLarmorRadius) * real3_dot(U->E, U->ion_m) + real3_dot(U->E_g, U->ion_m) + real3_dot(U->B_g, U->ion_m);
+	deriv->ion_m.x += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.x + U->ion_m.y * U->B.z - U->ion_m.z * U->B.y) + U->ion_rho * gravAccel.x;
+	deriv->ion_m.y += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.y + U->ion_m.z * U->B.x - U->ion_m.x * U->B.z) + U->ion_rho * gravAccel.y;
+	deriv->ion_m.z += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.z + U->ion_m.x * U->B.y - U->ion_m.y * U->B.x) + U->ion_rho * gravAccel.z;
+	deriv->ion_ETotal += (1. / normalizedIonLarmorRadius) * real3_dot(U->E, U->ion_m) + real3_dot(gravAccel, U->ion_m);
 	
-	deriv->elec_m.x -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.x + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y) + U->elec_rho * (U->E_g + U->B_g);
-	deriv->elec_m.y -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.y + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z) + U->elec_rho * (U->E_g + U->B_g);
-	deriv->elec_m.z -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.z + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x) + U->elec_rho * (U->E_g + U->B_g);
-	deriv->elec_ETotal -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * real3_dot(U->E, U->elec_m) + real3_dot(U->E_g, U->elec_m) + real3_dot(U->B_g, U->elec_m);
+	deriv->elec_m.x -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.x + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y) + U->elec_rho * gravAccel.x;
+	deriv->elec_m.y -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.y + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z) + U->elec_rho * gravAccel.y;
+	deriv->elec_m.z -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.z + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x) + U->elec_rho * gravAccel.z;
+	deriv->elec_ETotal -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * real3_dot(U->E, U->elec_m) + real3_dot(gravAccel, U->elec_m);
 
 	real normalizedIonDebyeLengthSq = normalizedIonDebyeLength * normalizedIonDebyeLength;
 	//source of E is the current
@@ -640,13 +643,23 @@ kernel void addSource(
 	//source of phi is the charge
 	deriv->phi += (U->ion_rho * solver->ionChargeMassRatio + U->elec_rho * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius) * solver->divPhiWavespeed;
 
-	real3 S = real3_cross(U->E, U->B);
-	//source of E_g is T_0i is the momentum + Poynting vector
-	deriv->E_g.x += S.x;
-	deriv->E_g.y += S.y;
-	deriv->E_g.z += S.z;
+	//source of E_g is T_ti is the momentum + Poynting vector
+	// I'm symmetrizing the stress-energy
+		//matter
+	deriv->E_g.x += (U->ion_m.x + U->elec_m.x) / normalizedSpeedOfLightSq;
+	deriv->E_g.y += (U->ion_m.y + U->elec_m.y) / normalizedSpeedOfLightSq;
+	deriv->E_g.z += (U->ion_m.z + U->elec_m.z) / normalizedSpeedOfLightSq;
+		//electromagnetism
+	real3 S = real3_real_mul(real3_cross(U->E, U->B), 1. / solver->mu);
+	real nSq = solver->eps * solver->mu;	// index of refraction^2 = 1 / phase vel^2 = permittivity * permeability
+	deriv->E_g.x += S.x / normalizedSpeedOfLight * (1. + nSq);
+	deriv->E_g.y += S.y / normalizedSpeedOfLight * (1. + nSq);
+	deriv->E_g.z += S.z / normalizedSpeedOfLight * (1. + nSq);
 	// source of phi_g is T_00 is rho + .5 (E^2 + B^2)
-	deriv->phi_g += U->ion_rho + U->elec_rho + calc_EM_energy(U, x);
+		//matter
+	deriv->phi_g += (U->ion_rho + U->elec_rho) / (normalizedSpeedOfLight * normalizedSpeedOfLight);
+		//electromagnetism			
+	deriv->phi_g += calc_EM_energy(solver, U, x) / (normalizedSpeedOfLight * normalizedSpeedOfLight);
 
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
