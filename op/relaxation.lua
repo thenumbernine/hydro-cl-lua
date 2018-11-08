@@ -9,13 +9,12 @@ local Relaxation = class()
 
 Relaxation.name = 'Relaxation'
 
-local ident = 1
-
 function Relaxation:init(args)
 	self.solver = assert(args.solver)
 	self.potentialField = args.potentialField
-	self.suffix = ''..ident
-	ident = ident + 1
+	
+	-- this assumes 'self.name' is the class name
+	self.name = args.solver.app:uniqueName(self.name)
 end
 
 -- scalar type of our vectors -- real or cplx 
@@ -52,8 +51,8 @@ end
 
 function Relaxation:refreshSolverProgram()
 	local solver = self.solver
-	self.initPotentialKernelObj = solver.solverProgramObj:kernel('initPotential'..self.name..self.suffix, solver.solverBuf, self:getPotBuf())
-	self.solveJacobiKernelObj = solver.solverProgramObj:kernel('solveJacobi'..self.name..self.suffix, self.solver.solverBuf, self:getPotBuf())
+	self.initPotentialKernelObj = solver.solverProgramObj:kernel('initPotential'..self.name, solver.solverBuf, self:getPotBuf())
+	self.solveJacobiKernelObj = solver.solverProgramObj:kernel('solveJacobi'..self.name, self.solver.solverBuf, self:getPotBuf())
 	if self.stopOnEpsilon then
 		self.solveJacobiKernelObj.obj:setArg(2, solver.reduceBuf)
 	end
@@ -112,7 +111,7 @@ end
 
 function Relaxation:updateGUI()
 	-- TODO unique name for other Relaxation solvers?
-	ig.igPushIDStr(self.name..' solver'..self.suffix)
+	ig.igPushIDStr(self.name..' solver'..self.name)
 	-- TODO name from 'field' / 'enableField', though those aren't properties of Relaxation
 	if ig.igCollapsingHeader(self.name..' solver') then
 		if tooltip.checkboxTable('stop on epsilon', self, 'stopOnEpsilon') then

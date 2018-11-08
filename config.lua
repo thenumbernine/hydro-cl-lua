@@ -439,7 +439,7 @@ local args = {
 }
 
 -- HD
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.euler-hllc'(args))
@@ -452,7 +452,7 @@ local args = {
 -- f.e. and b.e. are working, but none of the r.k. integrators 
 -- PLM isn't implemented yet
 -- neither is source term / poisson stuff
-self.solvers:insert(require 'solver.euler-burgers'(args))
+--self.solvers:insert(require 'solver.euler-burgers'(args))
 
 -- SRHD.  
 -- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim

@@ -82,7 +82,7 @@ local scalar = op.scalar
 local sub = scalar..'_sub'
 local real_mul = scalar..'_real_mul'
 ?>
-kernel void noDiv<?=op.suffix?>(
+kernel void noDiv<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
@@ -112,7 +112,7 @@ end
 function NoDiv:refreshSolverProgram()
 	NoDiv.super.refreshSolverProgram(self)
 	local solver = self.solver
-	self.noDivKernelObj = solver.solverProgramObj:kernel('noDiv'..self.suffix, solver.solverBuf, solver.UBuf)
+	self.noDivKernelObj = solver.solverProgramObj:kernel('noDiv'..self.name, solver.solverBuf, solver.UBuf)
 end
 
 function NoDiv:step(dt)
