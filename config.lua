@@ -1,4 +1,4 @@
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -75,12 +75,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'periodic',
+		xmax=cmdline.boundary or 'periodic',
+		ymin=cmdline.boundary or 'periodic',
+		ymax=cmdline.boundary or 'periodic',
+		zmin=cmdline.boundary or 'periodic',
+		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
 	-- TODO these next two seem very similar
@@ -209,7 +209,7 @@ local args = {
 	--initState = 'constant with velocity',
 	--initState = 'linear',
 	--initState = 'gaussian',
-	--initState = 'advect wave',
+	initState = 'advect wave',
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
@@ -217,7 +217,7 @@ local args = {
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
-	initState = 'Kelvin-Helmholtz',
+	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',	--FIXME
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
@@ -439,7 +439,7 @@ local args = {
 }
 
 -- HD
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.euler-hllc'(args))
@@ -517,7 +517,7 @@ local args = {
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
 
 
 -- GR

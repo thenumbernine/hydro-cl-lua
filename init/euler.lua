@@ -237,25 +237,38 @@ local initStates = table{
 		})
 		end,
 	},
+	
 	{
 		name = 'advect wave',
 		guiVars = {
-			{name = 'v0x', value = .5},
-			{name = 'v0y', value = 0},
+			{name = 'init_v0x', value = .5},
+			{name = 'init_v0y', value = 0},
+			{name = 'init_rho0', value = 1},
+			{name = 'init_rho1', value = .1},
+			{name = 'init_P0', value = 1},
 		},
 		initState = function(self, solver)
+			solver:setBoundaryMethods{
+				xmin = 'periodic',
+				xmax = 'periodic',
+				ymin = 'periodic',
+				ymax = 'periodic',
+				zmin = 'periodic',
+				zmax = 'periodic',
+			}
 			return [[
-	real3 xc = real3_sub(coordMap(x), _real3(-.5, 0, 0));
+	real3 xc = coordMap(x);
 	real rSq = real3_lenSq(xc);
-	rho = exp(-100*rSq) + 1.;
-	v.x = v0x;
-	v.y = v0y;
-	P = 1;
+	real width = solver->maxs.x - solver->mins.x;
+	real k0 = 2. * M_PI / width;
+	rho = solver->init_rho0 + solver->init_rho1 * sin(k0 * xc.x);
+	v.x = solver->init_v0x;
+	v.y = solver->init_v0y;
+	P = solver->init_P0;
 ]]
 		end,
 	},
 
-	
 	{
 		name = 'Sod',
 -- [[ test-case vars
