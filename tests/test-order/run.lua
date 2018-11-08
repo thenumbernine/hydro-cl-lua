@@ -26,7 +26,7 @@ local rundir = string.trim(io.readproc'pwd')
 require 'ffi.c.unistd'
 ffi.C.chdir'../..'
 
-__disableGUI__ = true	-- set this before require 'app'
+__useConsole__ = true	-- set this before require 'app'
 
 for k,v in pairs(require 'tests.util') do _G[k] = v end
 
@@ -39,22 +39,22 @@ local configurations = outer(
 	outer(
 		{ {eqn='euler'} },
 		{
-			{solver='hll', integrator='forward Euler'},
 			{solver='euler-burgers', integrator='forward Euler'},
-			{solver='euler-hllc', integrator='forward Euler'},
+--			{solver='hll', integrator='forward Euler'},
+--			{solver='euler-hllc', integrator='forward Euler'},
 			--{solver='roe', integrator='forward Euler', fluxLimiter='donor cell'},
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},
 			--{solver='roe', integrator='forward Euler', fluxLimiter='minmod'},
 			--{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},
-			{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
+--			{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
 			
-			{solver='weno5', integrator='forward Euler'}, -- usePLM='plm-cons'
+--			{solver='weno5', integrator='forward Euler'}, -- usePLM='plm-cons'
 			
 			--{solver='roe', integrator='forward Euler', usePLM='plm-cons'},
 			--{solver='roe', integrator='forward Euler', usePLM='plm-eig'},
 			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim'},
-			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
-			{solver='roe', integrator='forward Euler', usePLM='plm-athena'},
+--			{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+			--{solver='roe', integrator='forward Euler', usePLM='plm-athena'},
 			
 			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2'},
 			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2 Heun'},
@@ -65,17 +65,17 @@ local configurations = outer(
 			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2, TVD'},
 			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2, non-TVD'},
 			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 3, TVD'},
-			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 4, TVD'},
-			{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 4, non-TVD'},
+--			{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 4, TVD'},
+			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 4, non-TVD'},
 
-			{solver='roe', integrator='backward Euler', usePLM='plm-eig-prim-ref'},
-			{solver='weno5', integrator='backward Euler'}, --usePLM='plm-eig-prim-ref'
+--			{solver='roe', integrator='backward Euler', usePLM='plm-eig-prim-ref'},
+--			{solver='weno5', integrator='backward Euler'}, --usePLM='plm-eig-prim-ref'
 		}
 	)
 )
 
 local dim = 1
-local sizes = range(3,7):map(function(x) return 2^x end)
+local sizes = range(3,10):map(function(x) return 2^x end)
 local errorsForConfig = table()
 local errorNames = table()
 for _,cfg in ipairs(configurations) do
@@ -115,7 +115,11 @@ for _,cfg in ipairs(configurations) do
 	local srcdata = file[srcfn]
 	if srcdata then
 		errors = fromlua(srcdata)
-	else
+		if matrix(table.keys(errors):sort()) ~= matrix(sizes) then
+			errors = nil
+		end
+	end
+	if not errors then
 		errors = table()
 		for _,size in ipairs(sizes) do
 			args.gridSize = {size}
@@ -130,10 +134,6 @@ for _,cfg in ipairs(configurations) do
 				args.app = self
 				local solver = require('solver.'..cfg.solver)(args)
 				self.solvers:insert(solver)
-				for _,var in ipairs(solver.displayVars) do
-					-- hmm, if this isn't displayed then it fails to get copied back into the cpu mem ...
-					var.enabled = var.name == 'U rho'
-				end
 				self.exitTime = duration + startTime
 				self.running = true
 			end
@@ -153,11 +153,11 @@ for _,cfg in ipairs(configurations) do
 				self.cmds:enqueueReadBuffer{buffer=solver.reduceBuf, block=true, size=ffi.sizeof(self.real) * numCells, ptr=ptr}
 				-- now in ptr
 				
-				local xmin = solver.mins[1]
-				local xmax = solver.maxs[1]
+				local xmin = solver.solverPtr.mins.x
+				local xmax = solver.solverPtr.maxs.x
 				local width = xmax - xmin
 				local xs = range(numCells-2*numGhost):mapi(function(i)
-					return (i-numGhost-.5)/(numCells-2*numGhost) * width + xmin
+					return (i-.5) * solver.solverPtr.grid_dx.x + solver.solverPtr.mins.x
 				end)
 				local ys = range(numCells-2*numGhost):mapi(function(i)
 					return ptr[i+numGhost-1]

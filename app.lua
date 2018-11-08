@@ -545,6 +545,12 @@ function HydroCLApp:update(...)
 			return a.t < b.t
 		end)
 		if oldestSolver then 
+			-- check before :update(), in case we want to exit at t=0
+			if self.exitTime and oldestSolver.t >= self.exitTime then
+				self:requestExit()
+				return
+			end		
+			
 			oldestSolver:update() 
 
 if printState then
@@ -557,10 +563,6 @@ end
 			-- TODO should the time be oldestSolver.t after oldestSolver just updated?
 			-- or - if dumpFile is enabled - should we re-search-out the oldest solver and use its time?
 			dumpFile:update(self, oldestSolver.t)
-		
-			if self.exitTime and oldestSolver.t > self.exitTime then
-				self:requestExit()
-			end
 		end
 	else	
 		-- clear all 'lastFrameTime's of solvers so the rough fps calcs don't get messed with

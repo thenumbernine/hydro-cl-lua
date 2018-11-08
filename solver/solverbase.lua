@@ -1152,6 +1152,8 @@ function SolverBase:calcDisplayVarToBuffer(var)
 	if self.displayVarAccumFunc	then
 		app.cmds:enqueueCopyBuffer{src=self.accumBuf, dst=self.reduceBuf, size=ffi.sizeof(app.real) * volume * channels}
 	end
+var:setToBufferArgs()
+var.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
 	var.calcDisplayVarToBufferKernelObj()
 	if self.displayVarAccumFunc then
 		app.cmds:enqueueCopyBuffer{src=self.reduceBuf, dst=self.accumBuf, size=ffi.sizeof(app.real) * volume * channels}
