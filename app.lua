@@ -29,6 +29,7 @@ end
 
 -- allow the global to be set
 __disableGUI__ = __disableGUI__ or cmdline.disableGUI
+__useConsole__ = __useConsole__ or cmdline.useConsole
 
 -- if we are disabling the gui then replace the imgui and tooltip requires, so we don't try to unnecessarily load it
 if __disableGUI__  then
@@ -61,7 +62,22 @@ local tooltip = require 'tooltip'
 
 -- I tried making this a flag, and simply skipping the gui update if it wasn't set, but imgui still messes with the GL state and textures and stuff
 --  and I still get errors... so I'm cutting out imgui altogether, but now it takes a global flag to do so.
-local HydroCLApp = class(__disableGUI__ and require 'glapp' or require 'imguiapp')
+local HydroCLApp
+if __useConsole__ then
+	HydroCLApp = class()
+	function HydroCLApp:requestExit() self.done = true end
+	function HydroCLApp:run()
+		if self.initGL then self:initGL(gl, 'none') end
+		repeat
+			if self.update then self:update() end
+		until self.done
+		if self.exit then self:exit() end
+	end
+elseif __disableGUI__ then
+	HydroCLApp = class(require 'glapp')
+else
+	HydroCLApp = class(require 'imguiapp')
+end
 
 HydroCLApp.title = 'Hydrodynamics in OpenCL'
 
@@ -178,7 +194,9 @@ end
 --]]
 
 function HydroCLApp:initGL(...)
-	if HydroCLApp.super.initGL then
+	if HydroCLApp.super
+	and HydroCLApp.super.initGL 
+	then
 		HydroCLApp.super.initGL(self, ...)
 	end
 
@@ -251,25 +269,26 @@ function HydroCLApp:initGL(...)
 	-- this will be per-solver
 	-- but is also tightly linked to the structured grid solvers
 	-- used for 1D
-	local graphShaderCode = file['draw/graph.shader']
-	self.graphShader = GLProgram{
-		vertexCode = template(graphShaderCode, {vertexShader=true}),
-		fragmentCode = template(graphShaderCode, {fragmentShader=true}),
-		uniforms = {
-			tex = 0,
-			scale = 1,
-			ambient = 1,
-		},
-	}
+	if not __useConsole__ then
+		local graphShaderCode = file['draw/graph.shader']
+		self.graphShader = GLProgram{
+			vertexCode = template(graphShaderCode, {vertexShader=true}),
+			fragmentCode = template(graphShaderCode, {fragmentShader=true}),
+			uniforms = {
+				tex = 0,
+				scale = 1,
+				ambient = 1,
+			},
+		}
 
-	-- init all resources for all draw methods, so the user can switch between methods quickly
-	for _,solver in ipairs(self.solvers) do
-		solver:initDraw()
-	end
+		-- init all resources for all draw methods, so the user can switch between methods quickly
+		for _,solver in ipairs(self.solvers) do
+			solver:initDraw()
+		end
 
 
-	self.isobarShader = GLProgram{
-		vertexCode = [[
+		self.isobarShader = GLProgram{
+			vertexCode = [[
 varying vec4 color;
 void main() {
 	color = gl_Color;
@@ -287,33 +306,33 @@ void main() {
 	gl_FragColor = vec4(color.rgb * n.z, color.a);
 }
 ]],
-	}
-
-	if not cmdline.disableFont then
-		local fonttex = GLTex2D{
-			filename = 'font.png',
-			minFilter = gl.GL_LINEAR_MIPMAP_LINEAR,
-			magFilter = gl.GL_LINEAR,
 		}
-		if not pcall(function()
-			gl.glGenerateMipmap(gl.GL_TEXTURE_2D) 
-		end) then
-			gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
-			gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR) 
+
+		if not cmdline.disableFont then
+			local fonttex = GLTex2D{
+				filename = 'font.png',
+				minFilter = gl.GL_LINEAR_MIPMAP_LINEAR,
+				magFilter = gl.GL_LINEAR,
+			}
+			if not pcall(function()
+				gl.glGenerateMipmap(gl.GL_TEXTURE_2D) 
+			end) then
+				gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
+				gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR) 
+			end
+			self.font = Font{tex = fonttex}
 		end
-		self.font = Font{tex = fonttex}
+
+		-- todo reorganize me
+		self.display2DMethodsEnabled = display2DMethods:mapi(function(method, index)
+			local name, func = next(method)
+			return index == 1, name
+		end)
+
+		self.orthoView = require 'view.ortho'()
+		self.frustumView = require 'view.frustum'()
+		self.view = (#self.solvers > 0 and self.solvers[1].dim == 3) and self.frustumView or self.orthoView
 	end
-
-	-- todo reorganize me
-	self.display2DMethodsEnabled = display2DMethods:mapi(function(method, index)
-		local name, func = next(method)
-		return index == 1, name
-	end)
-
-	self.orthoView = require 'view.ortho'()
-	self.frustumView = require 'view.frustum'()
-	self.view = (#self.solvers > 0 and self.solvers[1].dim == 3) and self.frustumView or self.orthoView
-
 
 if printState then
 	for _,solver in ipairs(self.solvers) do
@@ -550,6 +569,8 @@ end
 		end
 	end
 
+	if __useConsole__ then return end
+
 	gl.glClear(bit.bor(gl.GL_COLOR_BUFFER_BIT, gl.GL_DEPTH_BUFFER_BIT))
 	
 	local w, h = self:size()
@@ -747,7 +768,9 @@ end
 		end
 	end
 
-	if HydroCLApp.super.update then
+	if HydroCLApp.super
+	and HydroCLApp.super.update 
+	then
 		HydroCLApp.super.update(self, ...)
 	end
 
