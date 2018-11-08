@@ -40,31 +40,36 @@ local configurations = outer(
 		{ {eqn='euler'} },
 		{
 			{solver='hll', integrator='forward Euler'},
-			{solver='roe', integrator='forward Euler', fluxLimiter='donor cell'},
-			{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},
-			{solver='roe', integrator='forward Euler', fluxLimiter='minmod'},
-			{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},
+			{solver='euler-burgers', integrator='forward Euler'},
+			{solver='euler-hllc', integrator='forward Euler'},
+			--{solver='roe', integrator='forward Euler', fluxLimiter='donor cell'},
+			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},
+			--{solver='roe', integrator='forward Euler', fluxLimiter='minmod'},
+			--{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},
 			{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
 			
-			{solver='roe', integrator='forward Euler', usePLM='plm-cons'},
-			{solver='roe', integrator='forward Euler', usePLM='plm-eig'},
-			{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim'},
-			{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
+			{solver='weno5', integrator='forward Euler'}, -- usePLM='plm-cons'
+			
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons'},
+			--{solver='roe', integrator='forward Euler', usePLM='plm-eig'},
+			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim'},
+			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
 			{solver='roe', integrator='forward Euler', usePLM='plm-athena'},
 			
-			{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2'},
-			{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2 Heun'},
-			{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2 Ralston'},
-			{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 3'},
-			{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 4'},
-			{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 4, 3/8ths rule'},
-			{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2, TVD'},
-			{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2, non-TVD'},
-			{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 3, TVD'},
-			{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 4, TVD'},
+			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2'},
+			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2 Heun'},
+			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2 Ralston'},
+			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 3'},
+			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 4'},
+			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 4, 3/8ths rule'},
+			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2, TVD'},
+			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2, non-TVD'},
+			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 3, TVD'},
+			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 4, TVD'},
 			{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 4, non-TVD'},
 
 			{solver='roe', integrator='backward Euler', usePLM='plm-eig-prim-ref'},
+			{solver='weno5', integrator='backward Euler'}, --usePLM='plm-eig-prim-ref'
 		}
 	)
 )
