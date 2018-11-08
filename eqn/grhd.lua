@@ -9,7 +9,6 @@ local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
-local unique = require 'util.unique'
 
 local GRHD = class(Equation)
 GRHD.name = 'GRHD'
@@ -38,7 +37,7 @@ GRHD.initStates = require 'init.euler'
 
 function GRHD:init(args)
 	GRHD.super.init(self, args)
-	self.cons_only_t = unique'cons_only_t'
+	self.cons_only_t = args.solver.app:uniqueName'cons_only_t'
 end
 
 function GRHD:getTypeCode()

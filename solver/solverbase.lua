@@ -10,7 +10,6 @@ local CLBuffer = require 'cl.obj.buffer'
 local template = require 'template'
 local vec3 = require 'vec.vec3'
 local tooltip = require 'tooltip'
-local unique = require 'util.unique'
 local makestruct = require'eqn.makestruct'
 local roundup = require 'util.roundup'
 local time, getTime = table.unpack(require 'util.time')
@@ -134,7 +133,7 @@ print(k,v)
 	--  which is called in postInit
 	-- the createInitState also creates kernels and runs them on the solver buffers
 	-- so I probably need a separate call to eqn.initState, earlier, which constructs the object and the guiVars, but runs no kernels
-	self.solver_t = unique'solver_t'
+	self.solver_t = self.app:uniqueName'solver_t'
 	makestruct.safeFFICDef(self:getSolverTypeCode())
 	self.solverPtr = ffi.new(self.solver_t)
 end
@@ -484,7 +483,7 @@ function SolverBase:getDisplayCode()
 	if self.app.useGLSharing then
 		for _,displayVarGroup in ipairs(self.displayVarGroups) do
 			for _,var in ipairs(displayVarGroup.vars) do
-				var.toTexKernelName = unique'calcDisplayVarToTex'
+				var.toTexKernelName = self.app:uniqueName'calcDisplayVarToTex'
 				--[[
 				if var.enabled
 				or (var.vecVar and var.vecVar.enabled)
@@ -525,7 +524,7 @@ write_imagef(
 
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
 		for _,var in ipairs(displayVarGroup.vars) do
-			var.toBufferKernelName = unique'calcDisplayVarToBuffer'
+			var.toBufferKernelName = self.app:uniqueName'calcDisplayVarToBuffer'
 			--[[
 			if var.enabled
 			or (var.vecVar and var.vecVar.enabled)

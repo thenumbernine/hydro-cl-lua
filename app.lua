@@ -1048,4 +1048,18 @@ function HydroCLApp:event(event, ...)
 	end
 end
 
+-- this was a function of its own, but i want it to be per-App (rather than per-Lua)
+-- so I'm merging it with App...
+function HydroCLApp:uniqueName(name)
+	self.allnames = self.allnames or {}
+	-- don't use the base name because I'm using the base name in my typedefs per-source file
+	for i=1,math.huge do
+		local try = name..'_'..i
+		if not self.allnames[try] then
+			self.allnames[try] = true
+			return try
+		end
+	end
+end
+
 return HydroCLApp

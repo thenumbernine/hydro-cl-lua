@@ -13,7 +13,6 @@ local template = require 'template'
 local vec3sz = require 'ffi.vec.vec3sz'
 local tooltip = require 'tooltip'
 local roundup = require 'util.roundup'
-local unique = require 'util.unique'
 local time, getTime = table.unpack(require 'util.time')
 local SolverBase = require 'solver.solverbase'
 local makestruct = require'eqn.makestruct'
@@ -119,7 +118,7 @@ function GridSolver:preInit(args)
 		args.env = solver.app.env
 		args.domain = solver.domain
 		if useCache then
-			args.cacheFile = 'cache-cl/'..unique(assert(args.name))
+			args.cacheFile = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
 		end
 		Program.super.init(self, args)
 	end
