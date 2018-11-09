@@ -48,6 +48,7 @@ args:
 	initState = init state name
 	initStateArgs (optional) = args of init state ctor
 	integrator = name of integrator in int/all.lua to use
+	integratorArgs = integrator args
 --]]
 function SolverBase:init(args)
 	self:initL1(args)
@@ -96,6 +97,7 @@ function SolverBase:preInit(args)
 	self.initStateIndex = table.find(self.eqn.initStateNames, args.initState) or 1
 	self.initStateArgs = args.initStateArgs
 
+	self.integratorArgs = args.integratorArgs
 	self.integratorIndex = integratorNames:find(args.integrator) or 1
 	
 	if require 'coord.coord'.is(args.coord) then
@@ -626,7 +628,7 @@ end
 
 
 function SolverBase:refreshIntegrator()
-	self.integrator = integrators[self.integratorIndex](self)
+	self.integrator = integrators[self.integratorIndex](self, self.integratorArgs)
 end
 
 SolverBase.t = 0

@@ -29,7 +29,7 @@ local BackwardEuler = class(Integrator)
 
 BackwardEuler.name = 'backward Euler'
 
-function BackwardEuler:init(solver)
+function BackwardEuler:init(solver, args)
 	self.solver = solver
 
 	-- gui vars:
@@ -120,13 +120,13 @@ function BackwardEuler:init(solver)
 		return sum()
 	end
 
-	local restart = 10
+	local restart = args and args.restart or 10
 
 	local linearSolverArgs = {
 		env = solver.app.env,
 		x = self.krylov_xObj,
 		size = numreals,
-		epsilon = 1e-10,
+		epsilon = args and args.epsilon or 1e-10,
 		--maxiter = 1000,
 		restart = restart,
 		maxiter = restart * numreals,

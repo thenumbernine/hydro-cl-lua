@@ -88,9 +88,18 @@ local configurations = outer(
 		--{solver='roe', integrator='Runge-Kutta 2', fluxLimiter='Lax-Wendroff'},			-- 1.2048891136515e-06
 
 		-- implicit integrators:
-		{solver='roe', integrator='backward Euler', fluxLimiter='Lax-Wendroff'},
-		{solver='weno5', integrator='backward Euler'},
+		-- backward euler with epsilon=1e-10
+		--{solver='weno5', integrator='backward Euler'},									-- 0.09925195780133
 		
+		-- all of these dip down at some optimal size for their epsilon, then pop back up
+		--{solver='roe', fluxLimiter='Lax-Wendroff', integrator='backward Euler', integratorArgs={restart=10, epsilon=1e-10}},	-- 9.4498933891175e-06
+		--{solver='roe', fluxLimiter='Lax-Wendroff', integrator='backward Euler', integratorArgs={restart=10, epsilon=1e-20}},	-- 7.0082322822353e-06
+		-- except this one, which just follows forward-Euler exactly
+		--{solver='roe', fluxLimiter='Lax-Wendroff', integrator='backward Euler', integratorArgs={restart=10, epsilon=1e-30}},	-- 1.178306878477e-06
+		
+		{solver='roe', fluxLimiter='Lax-Wendroff', integrator='backward Euler', integratorArgs={restart=20, epsilon=1e-10}},	-- 9.4498933891175e-06
+		{solver='roe', fluxLimiter='Lax-Wendroff', integrator='backward Euler', integratorArgs={restart=20, epsilon=1e-20}},	-- 8.1079737186957e-06
+		{solver='roe', fluxLimiter='Lax-Wendroff', integrator='backward Euler', integratorArgs={restart=20, epsilon=1e-30}},	-- 1.1257993855623e-06
 	}
 )
 
@@ -106,6 +115,7 @@ for _,cfg in ipairs(configurations) do
 		eqn = cfg.eqn,
 		dim = dim,
 		integrator = cfg.integrator,
+		integratorArgs = cfg.integratorArgs,
 		fluxLimiter = cfg.fluxLimiter,
 		usePLM = cfg.usePLM,
 		coord = 'cartesian',
@@ -128,6 +138,14 @@ for _,cfg in ipairs(configurations) do
 		or (
 			args.fluxLimiter and {'fluxLimiter='..args.fluxLimiter} or nil
 		)
+	):append(
+		args.integrator == 'backward Euler' 
+		and args.integratorArgs 
+		and table{
+			args.integratorArgs.epsilon and ('be.eps='..args.integratorArgs.epsilon) or nil
+		}:append{
+			args.integratorArgs.restart and ('be.restart='..args.integratorArgs.restart) or nil
+		} or nil
 	):concat', '
 	print(destName)
 
@@ -135,7 +153,9 @@ for _,cfg in ipairs(configurations) do
 	local srcfn = rundir..'/'..destName..'.lua'
 	local srcdata = file[srcfn]
 	if srcdata then
-		errors, storedSizes = table.unpack(fromlua(srcdata))
+		local res = fromlua(srcdata)
+		errors = res.errors
+		local storedSizes = res.sizes
 		if matrix(sizes) ~= matrix(storedSizes) then
 			errors = nil
 		end
