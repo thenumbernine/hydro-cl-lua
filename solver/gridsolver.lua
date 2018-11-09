@@ -579,7 +579,7 @@ end
 
 	self.codePrefix = lines:concat'\n'
 
-print'done building solver.codePrefix'
+--print'done building solver.codePrefix'
 --print(self.codePrefix)
 end
 
@@ -1449,7 +1449,7 @@ function GridSolver:save(prefix)
 			image.buffer = tmp
 		
 			local filename = prefix..'_'..name..'.fits'
-			print('saving '..filename)
+--print('saving '..filename)
 			image:save(filename)
 		end
 	end

@@ -78,11 +78,11 @@ function SolverBase:preInit(args)
 	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
 	-- product of all local sizes must be <= max workgroup size
 	self.maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
-print('maxWorkGroupSize', self.maxWorkGroupSize)
+--print('maxWorkGroupSize', self.maxWorkGroupSize)
 	
 	local sizeProps = self:getSizePropsForWorkGroupSize(self.maxWorkGroupSize)
 	for k,v in pairs(sizeProps) do
-print(k,v)
+--print(k,v)
 		self[k] = v
 	end
 	
@@ -446,9 +446,9 @@ end
 
 
 function SolverBase:getSolverCode()
-	local fluxLimiterCode = 'real fluxLimiter(real r) {'
-		.. self.app.limiters[self.fluxLimiter].code
-		.. '}'
+	local fluxLimiterCode = 'real fluxLimiter(real r) {\n'
+		.. '\t' ..self.app.limiters[self.fluxLimiter].code..'\n'
+		.. '}\n'
 
 	return table{
 		self.codePrefix,

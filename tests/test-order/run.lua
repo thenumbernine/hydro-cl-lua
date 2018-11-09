@@ -33,45 +33,65 @@ for k,v in pairs(require 'tests.util') do _G[k] = v end
 local configurations = outer(
 	{
 		{
+			eqn='euler',
 			initState = 'advect wave',
-		},
-	},
-	outer(
-		{ {eqn='euler'} },
-		{
-			{solver='euler-burgers', integrator='forward Euler'},
---			{solver='hll', integrator='forward Euler'},
---			{solver='euler-hllc', integrator='forward Euler'},
-			--{solver='roe', integrator='forward Euler', fluxLimiter='donor cell'},
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},
-			--{solver='roe', integrator='forward Euler', fluxLimiter='minmod'},
-			--{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},
---			{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},
-			
---			{solver='weno5', integrator='forward Euler'}, -- usePLM='plm-cons'
-			
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons'},
-			--{solver='roe', integrator='forward Euler', usePLM='plm-eig'},
-			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim'},
---			{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},
-			--{solver='roe', integrator='forward Euler', usePLM='plm-athena'},
-			
-			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2'},
-			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2 Heun'},
-			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2 Ralston'},
-			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 3'},
-			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 4'},
-			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 4, 3/8ths rule'},
-			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2, TVD'},
-			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 2, non-TVD'},
-			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 3, TVD'},
---			{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 4, TVD'},
-			--{solver='roe', usePLM='plm-eig-prim-cons', integrator = 'Runge-Kutta 4, non-TVD'},
-
---			{solver='roe', integrator='backward Euler', usePLM='plm-eig-prim-ref'},
---			{solver='weno5', integrator='backward Euler'}, --usePLM='plm-eig-prim-ref'
 		}
-	)
+	},
+		-- final error at n=1024 on the right:
+	{	
+		-- schemes
+		--{solver='weno5', integrator='forward Euler'},									-- 0.099267582810394
+		--{solver='hll', integrator='forward Euler'},									-- 0.00060136599076404
+		--{solver='euler-hllc', integrator='forward Euler'},							-- 0.00048873499978618
+		--{solver='euler-burgers', integrator='forward Euler'},							-- 0.0004752949543945
+
+		-- flux-limiters w/roe scheme:
+		--{solver='roe', integrator='forward Euler', fluxLimiter='smart'},				-- fails on n=1024
+		--{solver='roe', integrator='forward Euler', fluxLimiter='ospre'},				-- 0.99999990000004
+		--{solver='roe', integrator='forward Euler', fluxLimiter='Fromm'},				-- 0.99999990000003
+		--{solver='roe', integrator='forward Euler', fluxLimiter='CHARM'},				-- 0.99999990000003
+		--{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 1'},		-- 0.99999990000003
+		--{solver='roe', integrator='forward Euler', fluxLimiter='Barth-Jespersen'},	-- 0.99999990000003
+		--{solver='roe', integrator='forward Euler', fluxLimiter='Beam-Warming'},		-- 0.99999990000002
+		--{solver='roe', integrator='forward Euler', fluxLimiter='van Leer'},			-- 0.99999990000017
+		--{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 2'},		-- 0.9999999
+		--{solver='roe', integrator='forward Euler', fluxLimiter='donor cell'},			-- 0.00048873499978677
+		--{solver='roe', integrator='forward Euler', fluxLimiter='Oshker'},				-- 8.1594383698357e-05
+		--{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 8.0220379351244e-05
+		--{solver='roe', integrator='forward Euler', fluxLimiter='Sweby'},				-- 7.5406302510808e-05
+		--{solver='roe', integrator='forward Euler', fluxLimiter='HQUICK'},				-- 7.3985100798005e-05
+		--{solver='roe', integrator='forward Euler', fluxLimiter='Koren'},				-- 7.3374191905257e-05
+		--{solver='roe', integrator='forward Euler', fluxLimiter='HCUS'},				-- 7.155162562564e-05
+		--{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},	-- 6.8474331334665e-05
+		--{solver='roe', integrator='forward Euler', fluxLimiter='UMIST'},				-- 6.3705455038239e-05
+		--{solver='roe', integrator='forward Euler', fluxLimiter='minmod'},				-- 5.9129797191892e-05
+		{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},			-- 1.2048891136515e-06
+
+		-- my PLM attempts:
+		--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},			-- 0.00049148119638364
+		--{solver='roe', integrator='forward Euler', usePLM='plm-eig'},						-- 0.00049103769947135
+		--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim'},				-- 0.00049075156058252
+		--{solver='roe', integrator='forward Euler', usePLM='plm-cons'},					-- 0.00048873499978677
+		--{solver='roe', integrator='forward Euler', usePLM='plm-athena'},					-- 0.00014403561237557
+
+		-- various explicit integrators:
+		--{solver='roe', integrator='Runge-Kutta 2, non-TVD', fluxLimiter='Lax-Wendroff'},	-- 0.12722668099294
+		--{solver='roe', integrator='Runge-Kutta 2 Heun', fluxLimiter='Lax-Wendroff'},		-- 0.090030643072756
+		--{solver='roe', integrator='Runge-Kutta 2, TVD', fluxLimiter='Lax-Wendroff'},		-- 0.090030643072756
+		--{solver='roe', integrator='Runge-Kutta 3', fluxLimiter='Lax-Wendroff'},			-- 0.08997529488926
+		--{solver='roe', integrator='Runge-Kutta 3, TVD', fluxLimiter='Lax-Wendroff'},		-- 0.063645931031262
+		--{solver='roe', integrator='Runge-Kutta 2 Ralston', fluxLimiter='Lax-Wendroff'},	-- 0.048729889553282
+		--{solver='roe', integrator='Runge-Kutta 4', fluxLimiter='Lax-Wendroff'},			-- 0.032939577524704
+		--{solver='roe', integrator='Runge-Kutta 4, TVD', fluxLimiter='Lax-Wendroff'},		-- 0.032939577524698
+		--{solver='roe', integrator='Runge-Kutta 4, non-TVD', fluxLimiter='Lax-Wendroff'},	-- 0.03293957752469
+		--{solver='roe', integrator='Runge-Kutta 4, 3/8ths rule', fluxLimiter='Lax-Wendroff'},-- 0.024844936602353
+		--{solver='roe', integrator='Runge-Kutta 2', fluxLimiter='Lax-Wendroff'},			-- 1.2048891136515e-06
+
+		-- implicit integrators:
+		{solver='roe', integrator='backward Euler', fluxLimiter='Lax-Wendroff'},
+		{solver='weno5', integrator='backward Euler'},
+		
+	}
 )
 
 local dim = 1
@@ -82,6 +102,7 @@ for _,cfg in ipairs(configurations) do
 
 	local args = {
 		app = self,
+		cfl = .5,
 		eqn = cfg.eqn,
 		dim = dim,
 		integrator = cfg.integrator,
@@ -114,8 +135,8 @@ for _,cfg in ipairs(configurations) do
 	local srcfn = rundir..'/'..destName..'.lua'
 	local srcdata = file[srcfn]
 	if srcdata then
-		errors = fromlua(srcdata)
-		if matrix(table.keys(errors):sort()) ~= matrix(sizes) then
+		errors, storedSizes = table.unpack(fromlua(srcdata))
+		if matrix(sizes) ~= matrix(storedSizes) then
 			errors = nil
 		end
 	end
@@ -126,7 +147,9 @@ for _,cfg in ipairs(configurations) do
 	print()
 	print(size)
 	print()
-			local startTime = cfg.startTime or 0
+			
+			-- TODO make sure solver_t->init_v0x == 1/duration and solver_t->maxs.x - mins.x == 2
+			-- otherwise, for durations t=100 and t=1 the results look close enough to the same
 			local duration = cfg.duration or 1
 			
 			local App = class(require 'app')
@@ -134,7 +157,7 @@ for _,cfg in ipairs(configurations) do
 				args.app = self
 				local solver = require('solver.'..cfg.solver)(args)
 				self.solvers:insert(solver)
-				self.exitTime = duration + startTime
+				self.exitTime = duration
 				self.running = true
 			end
 			function App:requestExit()
@@ -168,7 +191,7 @@ for _,cfg in ipairs(configurations) do
 				local k0 = 2 * math.pi / width
 				local t1 = solver.t
 				local exact = xs:map(function(x,i)
-					return rho0 + rho1 * math.sin(k0 * (x - u0 * t1))
+					return rho0 + rho1 * math.cos(k0 * (x - u0 * t1))
 				end)
 
 				local diff = matrix(exact) - matrix(ys)
@@ -190,7 +213,7 @@ for _,cfg in ipairs(configurations) do
 		
 			if file.stop then file.stop = nil os.exit(1) end
 		end
-		file[srcfn] = tolua(errors)
+		file[srcfn] = tolua{errors=errors, sizes=sizes}
 	end
 	
 	errorsForConfig:insert(errors)

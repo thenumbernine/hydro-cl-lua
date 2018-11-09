@@ -241,7 +241,7 @@ local initStates = table{
 	{
 		name = 'advect wave',
 		guiVars = {
-			{name = 'init_v0x', value = .5},
+			{name = 'init_v0x', value = 1},
 			{name = 'init_v0y', value = 0},
 			{name = 'init_rho0', value = 1},
 			{name = 'init_rho1', value = .1},
@@ -261,7 +261,7 @@ local initStates = table{
 	real rSq = real3_lenSq(xc);
 	real width = solver->maxs.x - solver->mins.x;
 	real k0 = 2. * M_PI / width;
-	rho = solver->init_rho0 + solver->init_rho1 * sin(k0 * xc.x);
+	rho = solver->init_rho0 + solver->init_rho1 * cos(k0 * xc.x);
 	v.x = solver->init_v0x;
 	v.y = solver->init_v0y;
 	P = solver->init_P0;
