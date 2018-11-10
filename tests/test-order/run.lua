@@ -46,31 +46,31 @@ problems['advect wave'] = {
 		{	
 			-- schemes
 			--{solver='weno5', integrator='forward Euler'},									-- 0.099267582810394
-			{solver='hll', integrator='forward Euler'},									-- 0.00060136599076404
-			{solver='euler-hllc', integrator='forward Euler'},							-- 0.00048873499978618
-			{solver='euler-burgers', integrator='forward Euler'},							-- 0.0004752949543945
+			--{solver='hll', integrator='forward Euler'},									-- 0.00060136599076404
+			--{solver='euler-hllc', integrator='forward Euler'},							-- 0.00048873499978618
+			--{solver='euler-burgers', integrator='forward Euler'},							-- 0.0004752949543945
 
 			-- flux-limiters w/roe scheme:
-			{solver='roe', integrator='forward Euler', fluxLimiter='smart'},				-- fails on n=1024
-			{solver='roe', integrator='forward Euler', fluxLimiter='ospre'},				-- 0.99999990000004
-			{solver='roe', integrator='forward Euler', fluxLimiter='Fromm'},				-- 0.99999990000003
-			{solver='roe', integrator='forward Euler', fluxLimiter='CHARM'},				-- 0.99999990000003
-			{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 1'},		-- 0.99999990000003
-			{solver='roe', integrator='forward Euler', fluxLimiter='Barth-Jespersen'},	-- 0.99999990000003
-			{solver='roe', integrator='forward Euler', fluxLimiter='Beam-Warming'},		-- 0.99999990000002
-			{solver='roe', integrator='forward Euler', fluxLimiter='van Leer'},			-- 0.99999990000017
-			{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 2'},		-- 0.9999999
-			{solver='roe', integrator='forward Euler', fluxLimiter='donor cell'},			-- 0.00048873499978677
-			{solver='roe', integrator='forward Euler', fluxLimiter='Oshker'},				-- 8.1594383698357e-05
-			{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 8.0220379351244e-05
-			{solver='roe', integrator='forward Euler', fluxLimiter='Sweby'},				-- 7.5406302510808e-05
-			{solver='roe', integrator='forward Euler', fluxLimiter='HQUICK'},				-- 7.3985100798005e-05
-			{solver='roe', integrator='forward Euler', fluxLimiter='Koren'},				-- 7.3374191905257e-05
-			{solver='roe', integrator='forward Euler', fluxLimiter='HCUS'},				-- 7.155162562564e-05
-			{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},	-- 6.8474331334665e-05
-			{solver='roe', integrator='forward Euler', fluxLimiter='UMIST'},				-- 6.3705455038239e-05
-			{solver='roe', integrator='forward Euler', fluxLimiter='minmod'},				-- 5.9129797191892e-05
-			{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},			-- 1.2048891136515e-06
+			--{solver='roe', integrator='forward Euler', fluxLimiter='smart'},				-- fails on n=1024
+			--{solver='roe', integrator='forward Euler', fluxLimiter='ospre'},				-- 0.99999990000004
+			--{solver='roe', integrator='forward Euler', fluxLimiter='Fromm'},				-- 0.99999990000003
+			--{solver='roe', integrator='forward Euler', fluxLimiter='CHARM'},				-- 0.99999990000003
+			--{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 1'},		-- 0.99999990000003
+			--{solver='roe', integrator='forward Euler', fluxLimiter='Barth-Jespersen'},	-- 0.99999990000003
+			--{solver='roe', integrator='forward Euler', fluxLimiter='Beam-Warming'},		-- 0.99999990000002
+			--{solver='roe', integrator='forward Euler', fluxLimiter='van Leer'},			-- 0.99999990000017
+			--{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 2'},		-- 0.9999999
+			--{solver='roe', integrator='forward Euler', fluxLimiter='donor cell'},			-- 0.00048873499978677
+			--{solver='roe', integrator='forward Euler', fluxLimiter='Oshker'},				-- 8.1594383698357e-05
+			--{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 8.0220379351244e-05
+			--{solver='roe', integrator='forward Euler', fluxLimiter='Sweby'},				-- 7.5406302510808e-05
+			--{solver='roe', integrator='forward Euler', fluxLimiter='HQUICK'},				-- 7.3985100798005e-05
+			--{solver='roe', integrator='forward Euler', fluxLimiter='Koren'},				-- 7.3374191905257e-05
+			--{solver='roe', integrator='forward Euler', fluxLimiter='HCUS'},				-- 7.155162562564e-05
+			--{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},	-- 6.8474331334665e-05
+			--{solver='roe', integrator='forward Euler', fluxLimiter='UMIST'},				-- 6.3705455038239e-05
+			--{solver='roe', integrator='forward Euler', fluxLimiter='minmod'},				-- 5.9129797191892e-05
+			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},			-- 1.2048891136515e-06
 
 			-- my PLM attempts:
 			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},			-- 0.00049148119638364
@@ -80,18 +80,19 @@ problems['advect wave'] = {
 			--{solver='roe', integrator='forward Euler', usePLM='plm-athena'},					-- 0.00014403561237557
 
 			-- various explicit integrators:
-			--{solver='roe', integrator='Runge-Kutta 2, non-TVD', fluxLimiter='Lax-Wendroff'},	-- 0.12722668099294
-			--{solver='roe', integrator='Runge-Kutta 2 Heun', fluxLimiter='Lax-Wendroff'},		-- 0.090030643072756
-			--{solver='roe', integrator='Runge-Kutta 2, TVD', fluxLimiter='Lax-Wendroff'},		-- 0.090030643072756
-			--{solver='roe', integrator='Runge-Kutta 3', fluxLimiter='Lax-Wendroff'},			-- 0.08997529488926
-			--{solver='roe', integrator='Runge-Kutta 3, TVD', fluxLimiter='Lax-Wendroff'},		-- 0.063645931031262
-			--{solver='roe', integrator='Runge-Kutta 2 Ralston', fluxLimiter='Lax-Wendroff'},	-- 0.048729889553282
-			--{solver='roe', integrator='Runge-Kutta 4', fluxLimiter='Lax-Wendroff'},			-- 0.032939577524704
-			--{solver='roe', integrator='Runge-Kutta 4, TVD', fluxLimiter='Lax-Wendroff'},		-- 0.032939577524698
-			--{solver='roe', integrator='Runge-Kutta 4, non-TVD', fluxLimiter='Lax-Wendroff'},	-- 0.03293957752469
-			--{solver='roe', integrator='Runge-Kutta 4, 3/8ths rule', fluxLimiter='Lax-Wendroff'},-- 0.024844936602353
-			--{solver='roe', integrator='Runge-Kutta 2', fluxLimiter='Lax-Wendroff'},			-- 1.2048891136515e-06
-
+			--  once again, not so great
+			--{solver='roe', integrator='Runge-Kutta 3', fluxLimiter='Lax-Wendroff'},			-- 0.063626499155696
+			--{solver='roe', integrator='Runge-Kutta 3, TVD', fluxLimiter='Lax-Wendroff'},		-- 0.00012292610695107
+			--{solver='roe', integrator='Runge-Kutta 4, non-TVD', fluxLimiter='Lax-Wendroff'},	-- 0.0001229260915465
+			--{solver='roe', integrator='Runge-Kutta 4, TVD', fluxLimiter='Lax-Wendroff'},		-- 0.00012292609150301
+			--{solver='roe', integrator='Runge-Kutta 4', fluxLimiter='Lax-Wendroff'},			-- 0.0001229260914525
+			--{solver='roe', integrator='Runge-Kutta 2, non-TVD', fluxLimiter='Lax-Wendroff'},	-- 0.00012292557063657
+			--{solver='roe', integrator='Runge-Kutta 2, TVD', fluxLimiter='Lax-Wendroff'},		-- 0.00012292557063653
+			--{solver='roe', integrator='Runge-Kutta 2 Heun', fluxLimiter='Lax-Wendroff'},		-- 0.00012292557063543
+			--{solver='roe', integrator='Runge-Kutta 2 Ralston', fluxLimiter='Lax-Wendroff'},	-- 0.00012292557063505
+			--{solver='roe', integrator='Runge-Kutta 2', fluxLimiter='Lax-Wendroff'},			-- 0.00012292557063748
+			--{solver='roe', integrator='Runge-Kutta 4, 3/8ths rule', fluxLimiter='Lax-Wendroff'},-- 3.0773114456088e-05
+			
 			-- implicit integrators:
 			-- backward euler with epsilon=1e-10
 			--{solver='weno5', integrator='backward Euler'},									-- 0.09925195780133
@@ -145,7 +146,7 @@ problems.Sod = {
 			--{solver='euler-burgers', integrator='forward Euler'},							-- 0.0031694650615551
 
 			-- flux-limiters w/roe scheme:
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},		-- 0.47968895872093
+			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},		-- 0.47968895872093		-- the most accurate of the cosine test, the least accurate of the Sod test ...
 			--{solver='roe', integrator='forward Euler', fluxLimiter='donor cell'},			-- 0.0036660453357688
 			--{solver='roe', integrator='forward Euler', fluxLimiter='ospre'},				-- 0.0030672192288732
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Beam-Warming'},		-- 0.0022967397811603
@@ -161,32 +162,71 @@ problems.Sod = {
 			--{solver='roe', integrator='forward Euler', fluxLimiter='HCUS'},				-- 0.0018945018297761
 			--{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},	-- 0.0018898857563959
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Barth-Jespersen'},	-- 0.0018828276652798
-			{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 0.00187534979448
+			--{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 0.00187534979448
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Sweby'},				-- 0.0018687046583677
 			--{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 1'},		-- 0.001865866089593
 			--{solver='roe', integrator='forward Euler', fluxLimiter='smart'},				-- 0.0018130273610755	-- even though this is the lowest error of the flux limiters, it has a definite hiccup in it
 			
-			-- my PLM attempts:
+			-- plm-cons / slopeLimiter has funny behavior with Sod: it dips down but then gets worse.  
+			-- I wouldn't be surprised if my exact values are off, so maybe that's why
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='CHARM'},				-- 0.55596019731028
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='Lax-Wendroff'},		-- 0.47968895872093
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='Beam-Warming'},		-- 0.47968895872093
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='van Leer'},			-- 0.47968895872093
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='Fromm'},				-- 0.47968895872093
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='Barth-Jespersen'},	-- 0.47968895872093
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='smart'},				-- 0.47968895872093
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='superbee'},			-- 0.010762308094614
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='monotized central'},	-- 0.007499966899957
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='Koren'},				-- 0.006607365540715
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='HQUICK'},				-- 0.0064971868731382
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='HCUS'},				-- 0.0062065447431732
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='donor cell'},			-- 0.0056103088682637
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='UMIST'},				-- 0.0055130963289863
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='Sweby'},				-- 0.0049485758799912
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='ospre'},				-- 0.0046940581345551
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='Oshker'},				-- 0.0039681296941796
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='van Albada 1'},		-- 0.0038128702530365
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='van Albada 2'},		-- 0.0037230670653778
+			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='minmod'},				-- 0.0036575734195358
+
+			-- other PLM attempts:
 			--{solver='roe', integrator='forward Euler', usePLM='plm-cons'},				-- 0.0036660453357688
 			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},		-- 0.0023632029528882	-- plm-eig-prim-ref is worse than plm-eig-prim
 			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim'},			-- 0.0021682982996781	-- plm-eig-prim is worse than plm-eig
-			--{solver='roe', integrator='forward Euler', usePLM='plm-eig'},					-- 0.0019239440708115	
-			{solver='roe', integrator='forward Euler', usePLM='plm-athena'},				-- 0.0016947738688964	
-
+			--{solver='roe', integrator='forward Euler', usePLM='plm-eig'},					-- 0.0019239440708115
+			--{solver='roe', integrator='forward Euler', usePLM='plm-athena'},				-- 0.0016947738688964
+			--{solver='roe', integrator='forward Euler', usePLM='ppm-experimental'},		
+			
 			-- various explicit integrators:
 			-- RK2 is exactly the same as forward Euler ... which means it's broken
-			-- and everything else is worse
-			--{solver='roe', integrator='Runge-Kutta 2, non-TVD', fluxLimiter='superbee'},		-- 0.30989158592001
-			--{solver='roe', integrator='Runge-Kutta 3', fluxLimiter='superbee'},				-- 0.028049852882381
-			--{solver='roe', integrator='Runge-Kutta 2 Heun', fluxLimiter='superbee'},			-- 0.0277197399486
-			--{solver='roe', integrator='Runge-Kutta 2, TVD', fluxLimiter='superbee'},			-- 0.0277197399486
-			--{solver='roe', integrator='Runge-Kutta 3, TVD', fluxLimiter='superbee'},			-- 0.019060751585123
-			--{solver='roe', integrator='Runge-Kutta 2 Ralston', fluxLimiter='superbee'},		-- 0.014905909835352
-			--{solver='roe', integrator='Runge-Kutta 4', fluxLimiter='superbee'},				-- 0.010605564924952
-			--{solver='roe', integrator='Runge-Kutta 4, non-TVD', fluxLimiter='superbee'},		-- 0.010605564924952
-			--{solver='roe', integrator='Runge-Kutta 4, TVD', fluxLimiter='superbee'},			-- 0.010605515773635
-			--{solver='roe', integrator='Runge-Kutta 4, 3/8ths rule', fluxLimiter='superbee'},	-- 0.0083893332244032
-			--{solver='roe', integrator='Runge-Kutta 2', fluxLimiter='superbee'},				-- 0.00187534979448	-- this is exactly the same as Forward Euler, so... something is wrong
+			-- and everything else is worse														  before bug fix		after
+			--{solver='roe', integrator='Runge-Kutta 2, non-TVD', fluxLimiter='superbee'},		-- 0.30989158592001		-- 0.47968895872093
+			--{solver='roe', integrator='Runge-Kutta 3', fluxLimiter='superbee'},				-- 0.028049852882381    -- 0.038331373202177
+			--{solver='roe', integrator='Runge-Kutta 2', fluxLimiter='superbee'},				-- 0.00187534979448	    -- 0.0036943914318805
+			--{solver='roe', integrator='Runge-Kutta 2 Ralston', fluxLimiter='superbee'},		-- 0.014905909835352    -- 0.0036934820748332
+			--{solver='roe', integrator='Runge-Kutta 2, TVD', fluxLimiter='superbee'},			-- 0.0277197399486      -- 0.0036928026259879
+			--{solver='roe', integrator='Runge-Kutta 2 Heun', fluxLimiter='superbee'},			-- 0.0277197399486      -- 0.0036928026259879
+			--{solver='roe', integrator='Runge-Kutta 4', fluxLimiter='superbee'},				-- 0.010605564924952    -- 0.0036907642308442
+			--{solver='roe', integrator='Runge-Kutta 4, non-TVD', fluxLimiter='superbee'},		-- 0.010605564924952    -- 0.0036907642308437
+			--{solver='roe', integrator='Runge-Kutta 4, TVD', fluxLimiter='superbee'},			-- 0.010605515773635    -- 0.0036907403381736
+			--{solver='roe', integrator='Runge-Kutta 3, TVD', fluxLimiter='superbee'},			-- 0.019060751585123    -- 0.0036901766164101
+			--{solver='roe', integrator='Runge-Kutta 4, 3/8ths rule', fluxLimiter='superbee'},	-- 0.0083893332244032   -- 0.0034902119354803
+	
+			-- various RK's with PLM
+			-- even though plm-athena is the best among forward-Euler,
+			--  it doesn't seem to do too well with various RK integrators
+			--{solver='roe', integrator='Runge-Kutta 2, non-TVD', usePLM='plm-athena'},		-- 0.50027377262497
+			--{solver='roe', integrator='Runge-Kutta 3', usePLM='plm-athena'},				-- 0.038327167106819
+			--{solver='roe', integrator='Runge-Kutta 2', usePLM='plm-athena'},				-- 0.0035544851041015
+			--{solver='roe', integrator='Runge-Kutta 2 Ralston', usePLM='plm-athena'},		-- 0.0035579071138359
+			--{solver='roe', integrator='Runge-Kutta 2, TVD', usePLM='plm-athena'},			-- 0.0035580548511293
+			--{solver='roe', integrator='Runge-Kutta 2 Heun', usePLM='plm-athena'},			-- 0.0035580548511293
+			--{solver='roe', integrator='Runge-Kutta 4', usePLM='plm-athena'},				-- 0.0035465402301359
+			--{solver='roe', integrator='Runge-Kutta 4, non-TVD', usePLM='plm-athena'},		-- 0.0035465402301358
+			--{solver='roe', integrator='Runge-Kutta 4, TVD', usePLM='plm-athena'},			-- 0.0035465949424922
+			--{solver='roe', integrator='Runge-Kutta 3, TVD', usePLM='plm-athena'},			-- 0.0035456783040898
+			--{solver='roe', integrator='Runge-Kutta 4, 3/8ths rule', usePLM='plm-athena'},	-- 0.0035367821065472
 
 			-- implicit integrators:
 			-- backward euler with epsilon=1e-10
@@ -318,8 +358,8 @@ t = t * 4 / 3
 	duration = .2,
 }
 
-local problem = problems.Sod
---local problem = problems['advect wave']
+--local problem = problems.Sod
+local problem = problems['advect wave']
 
 
 local args = table{...}
@@ -341,6 +381,7 @@ for _,cfg in ipairs(problem.configurations) do
 		integrator = cfg.integrator,
 		integratorArgs = cfg.integratorArgs,
 		fluxLimiter = cfg.fluxLimiter,
+		slopeLimiter = cfg.slopeLimiter,
 		usePLM = cfg.usePLM,
 		coord = 'cartesian',
 		mins = {-1,-1,-1},

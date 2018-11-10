@@ -42,7 +42,9 @@ end
 function RungeKutta:integrate(dt, callback)
 	local solver = self.solver
 	local bufferSize = solver.numCells * ffi.sizeof(solver.eqn.cons_t)
-	
+
+--print("integrating rk with dt "..dt)
+--print('order = '..self.order)	
 	solver.multAddKernelObj.obj:setArgs(solver.solverBuf, solver.UBuf, solver.UBuf)
 	
 	--u(0) = u^n
@@ -51,6 +53,7 @@ function RungeKutta:integrate(dt, callback)
 		needed = needed or self.alphas[m][1] ~= 0
 	end
 	if needed then
+--print('UBufs[1] = UBuf')
 		solver.app.cmds:enqueueCopyBuffer{src=solver.UBuf, dst=self.UBufs[1], size=bufferSize}
 	end
 
@@ -60,25 +63,32 @@ function RungeKutta:integrate(dt, callback)
 		needed = needed or self.betas[m][1] ~= 0
 	end
 	if needed then
+--print('derivBufs[1] = dU/dt(UBuf)')
 		solver.app.cmds:enqueueFillBuffer{buffer=self.derivBufs[1], size=bufferSize}
+		callback(self.derivBufs[1])
 	end
 
 	for i=2,self.order+1 do
 		--u^(i) = sum k=0 to i-1 of (alpha_ik u^(k) + dt beta_ik L(u^(k)) )
+--io.write('UBuf = 0')	
 		solver.app.cmds:enqueueFillBuffer{buffer=solver.UBuf, size=bufferSize}
 		for k=1,i-1 do
+--io.write(' + UBufs['..k..'] * (a['..(i-1)..']['..k..'] = '..self.alphas[i-1][k]..')')
 			if self.alphas[i-1][k] ~= 0 then
 				solver.multAddKernelObj.obj:setArg(3, self.UBufs[k])
 				solver.multAddKernelObj.obj:setArg(4, real(self.alphas[i-1][k]))
 				solver.multAddKernelObj()
 			end
+		end
+		for k=1,i-1 do
+--io.write(' + derivBufs['..k..'] * (b['..(i-1)..']['..k..'] = '..self.betas[i-1][k]..') * dt')
 			if self.betas[i-1][k] ~= 0 then
 				solver.multAddKernelObj.obj:setArg(3, self.derivBufs[k])
 				solver.multAddKernelObj.obj:setArg(4, real(self.betas[i-1][k] * dt))
 				solver.multAddKernelObj()
 			end
 		end
-	
+--print()
 		if i <= self.order then
 			--only do this if alpha_mi != 0 for any m
 			--otherwise there's no need to store this buffer
@@ -87,6 +97,7 @@ function RungeKutta:integrate(dt, callback)
 				needed = needed or self.alphas[m][i] ~= 0
 			end
 			if needed then
+--print('UBufs['..i..'] = UBuf')
 				solver.app.cmds:enqueueCopyBuffer{src=solver.UBuf, dst=self.UBufs[i], size=bufferSize}
 			end
 		
@@ -97,6 +108,7 @@ function RungeKutta:integrate(dt, callback)
 				needed = needed or self.betas[m][i] ~= 0
 			end
 			if needed then
+--print('derivBufs['..i..'] = dU/dt(UBuf)')				
 				solver.app.cmds:enqueueFillBuffer{buffer=self.derivBufs[i], size=bufferSize}
 				callback(self.derivBufs[i])
 			end

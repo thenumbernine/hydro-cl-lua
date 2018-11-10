@@ -81,7 +81,7 @@ RungeKutta4_3_8thsRule.betas = {
 	{1./8., 3./8., 3./8., 1./8.},
 }
 
---the following are from http://www.ams.org/journals/mcom/1998-67-221/S0025-5718-98-00913-2/S0025-5718-98-00913-2.pdf
+--the following are from 1998 Gottleib, Shu "Total Variation Diminishing Runge-Kutta Methods"
 
 local RungeKutta2TVD = class(RungeKutta)
 RungeKutta2TVD.name = 'Runge-Kutta 2, TVD'
@@ -109,13 +109,13 @@ local RungeKutta3TVD = class(RungeKutta)
 RungeKutta3TVD.name = 'Runge-Kutta 3, TVD'
 RungeKutta3TVD.alphas = {
 	{1, 0, 0},
-	{3./4., 1./4., 0},
-	{1./3., 2./3., 0},
+	{3/4, 1/4, 0},
+	{1/3, 0, 2/3},
 }
 RungeKutta3TVD.betas = {
 	{1, 0, 0},
-	{0, 1./4., 0},
-	{0, 0, 2./3.},
+	{0, 1/4, 0},
+	{0, 0, 2/3},
 }
 
 local RungeKutta4TVD = class(RungeKutta)

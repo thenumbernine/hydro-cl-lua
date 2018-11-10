@@ -105,10 +105,10 @@ for sgn b >= 0:
 			real r = dUR.ptr[j] == 0 ? 0 : (dUL.ptr[j] / dUR.ptr[j]);
 			real phi = slopeLimiter(r);	//works good with minmod, bad with superbee
 			real sigma = phi * dUR.ptr[j];
-#else
+#else	//isn't as accurate anyways
 			real sigma = minmod(minmod(fabs(dUL.ptr[j]), 
-                                    fabs(dUR.ptr[j])),
-                             fabs(.5 * (dUL.ptr[j] - dUR.ptr[j]))
+				fabs(dUR.ptr[j])),
+				fabs(.5 * (dUL.ptr[j] - dUR.ptr[j]))
 			) * sign(dUL.ptr[j] - dUR.ptr[j]);
 #endif
 			//q^n_i-1/2,R = q^n_i - 1/2 dx sigma	(Hydrodynamics II 6.58)
@@ -556,28 +556,28 @@ elseif solver.usePLM == 'plm-athena' then
 		}
 
 		for (int j = 0; j < numStates; ++j) {
-			real dWp = Wp.ptr[j] - W.ptr[j];
-			real dWm = W.ptr[j] - Wm.ptr[j];
-			real dWpm = Wp.ptr[j] - Wm.ptr[j];
-			real avgWpm = .5 * (Wp.ptr[j] + Wm.ptr[j]);
-			if (dWp * dWm <= 0) {
-				Wp.ptr[j] = Wm.ptr[j] = W.ptr[j];
-			} else if (dWpm * (W.ptr[j] - avgWpm) > dWpm * dWpm / 6.) {
-				Wm.ptr[j] = 3. * W.ptr[j] - 2. * Wp.ptr[j];
-			} else if (-dWpm * dWpm / 6. > dWpm * (W.ptr[j] - avgWpm)) {
-				Wp.ptr[j] = 3. * W.ptr[j] - 2. * Wm.ptr[j];
+			real dWR = WR.ptr[j] - W.ptr[j];
+			real dWL = W.ptr[j] - WL.ptr[j];
+			real dWRm = WR.ptr[j] - WL.ptr[j];
+			real avgWRm = .5 * (WR.ptr[j] + WL.ptr[j]);
+			if (dWR * dWL <= 0) {
+				WR.ptr[j] = WL.ptr[j] = W.ptr[j];
+			} else if (dWRm * (W.ptr[j] - avgWRm) > dWRm * dWRm / 6.) {
+				WL.ptr[j] = 3. * W.ptr[j] - 2. * WR.ptr[j];
+			} else if (-dWRm * dWRm / 6. > dWRm * (W.ptr[j] - avgWRm)) {
+				WR.ptr[j] = 3. * W.ptr[j] - 2. * WL.ptr[j];
 			}
 		}
 		
 		for (int j = 0; j < numStates; ++j) {
-			Wm.ptr[j] = .5 * (W.ptr[j] +  Wm.ptr[j]);
-			Wp.ptr[j] = .5 * (W.ptr[j] +  Wp.ptr[j]);
+			WL.ptr[j] = .5 * (W.ptr[j] +  WL.ptr[j]);
+			WR.ptr[j] = .5 * (W.ptr[j] +  WR.ptr[j]);
 		}
 
 		//1984 Collela & Woodward eqn 1.5
 		real W6[numStates];
 		for (int j = 0; j < numStates; ++j) {
-			W6[j] = 6. * W.ptr[j] - 3. * (Wp.ptr[j] + Wm.ptr[j]);
+			W6[j] = 6. * W.ptr[j] - 3. * (WR.ptr[j] + WL.ptr[j]);
 		}
 		
 		real dx = dx<?=side?>_at(i);
@@ -599,14 +599,14 @@ elseif solver.usePLM == 'plm-athena' then
 			real sigma = fabs(eval[m]) * dt_dx;
 			if (eval[m] >= 0) {
 				for (int n = 0; n < numStates; ++n) {
-					Iplus[m].ptr[n] = Wp.ptr[n] - .5 * sigma * (Wp.ptr[n] - Wm.ptr[n] - (1. - 2./3.*sigma) * W6[n]);
+					Iplus[m].ptr[n] = WR.ptr[n] - .5 * sigma * (WR.ptr[n] - WL.ptr[n] - (1. - 2./3.*sigma) * W6[n]);
 				}
 			} else {
 				Iplus[m] = W;
 			}
 			if (eval[m] <= 0) {
 				for (int n = 0; n < numStates; ++n) {
-					Iminus[m].ptr[n] = Wm.ptr[n] + .5 * sigma * (Wp.ptr[n] - Wm.ptr[n] + (1. - 2./3.*sigma) * W6[n]);
+					Iminus[m].ptr[n] = WL.ptr[n] + .5 * sigma * (WR.ptr[n] - WL.ptr[n] + (1. - 2./3.*sigma) * W6[n]);
 				}
 			} else {
 				Iminus[m] = W;

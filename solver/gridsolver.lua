@@ -600,9 +600,9 @@ function GridSolver:resetState()
 end
 
 function GridSolver:getSolverCode()
-	local slopeLimiterCode = 'real slopeLimiter(real r) {'
-		.. self.app.limiters[self.slopeLimiter].code 
-		.. '}'
+	local slopeLimiterCode = 'real slopeLimiter(real r) {\n'
+		.. '\t'..self.app.limiters[self.slopeLimiter].code..'\n'
+		.. '}\n'
 	
 	return table{
 		GridSolver.super.getSolverCode(self),
