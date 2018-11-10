@@ -1047,15 +1047,22 @@ function GridSolver:refreshBoundaryProgram()
 	end
 
 	if self.useCTU then
-		self.lrBoundaryProgramObj, self.lrBoundaryKernelObjs 
-		= self:createBoundaryProgramAndKernel(
-			table(
-				self:getBoundaryProgramArgs(), 
-				{
-					type = self.eqn.consLR_t..'_dim',
-				}
-			)
-		)
+		local args = self:getBoundaryProgramArgs()
+		args.type = self.eqn.consLR_t..'_dim'
+		if args.mirrorVars then
+			local newvars = {}
+			for i=1,3 do
+				newvars[i] = table()
+				for _,var in ipairs(args.mirrorVars[i]) do
+					for j=0,self.dim-1 do
+						newvars[i]:insert('side['..j..'].L.'..var)
+						newvars[i]:insert('side['..j..'].R.'..var)
+					end
+				end
+			end
+			args.mirrorVars = newvars
+		end
+		self.lrBoundaryProgramObj, self.lrBoundaryKernelObjs = self:createBoundaryProgramAndKernel(args)
 		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
 			obj.obj:setArg(1, self.ULRBuf)
 		end

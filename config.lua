@@ -1,4 +1,4 @@
-local dim = 1
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -21,22 +21,23 @@ local args = {
 	--fixedDT = .0001,
 	cfl = cmdline.cfl or .5,	-- 1/dim,
 	
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
-	--usePLM = 'plm-cons',			-- works in conservative variable space, uses a slope limiter
-	--usePLM = 'plm-eig',			-- works in conservative eigenspace, uses 2 slopes for the limiter (TODO incorporate slopeLimiter)
-	--usePLM = 'plm-eig-prim',		-- works in primitive eigenspace, etc
-	--usePLM = 'plm-eig-prim-ref',	-- works in primitive eigenspace, etc, subtracts out min & max.  doesn't work well with ideal mhd.
-	--usePLM = 'plm-athena',		-- based on Athena, idk about this one
+	--usePLM = 'plm-cons',			-- #5
+	--usePLM = 'plm-eig',			-- #2 
+	--usePLM = 'plm-eig-prim',		-- #3 
+	--usePLM = 'plm-eig-prim-ref',	-- #4
+	usePLM = 'plm-athena',			-- based on Athena.  most accurate from 1D sod tests atm
 	--usePLM = 'ppm-experimental',	-- FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
 
 	-- only enabled for certain usePLM methods
 	--slopeLimiter = 'minmod',
 
-	--useCTU = true,
+	-- when using plm-athena with 2D, you can see diagonal shock waves building up, and they go away with this on
+	useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -63,7 +64,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{256,1,1},
-				{32,32,1},
+				{256,256,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -75,12 +76,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'mirror',
+		xmax=cmdline.boundary or 'mirror',
+		ymin=cmdline.boundary or 'mirror',
+		ymax=cmdline.boundary or 'mirror',
+		zmin=cmdline.boundary or 'mirror',
+		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
 	-- TODO these next two seem very similar
@@ -440,7 +441,7 @@ local args = {
 
 -- HD
 self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
---self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler'})))	-- numerically off
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
