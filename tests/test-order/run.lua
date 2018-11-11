@@ -32,6 +32,30 @@ for k,v in pairs(require 'tests.util') do _G[k] = v end
 __useConsole__ = true	-- set this before require 'app'
 
 
+local cmdline = {}
+for _,w in ipairs(arg or {}) do
+	local k,v = w:match'^(.-)=(.*)$'
+	if k then
+		cmdline[k] = fromlua(v)
+	else
+		cmdline[w] = true
+	end
+end
+
+-- which problem to use
+--local problemName = cmdline.init or 'Sod'
+local problemName = cmdline.init or 'advect wave'
+
+-- don't use cached results <-> regenerate results for selected tests
+local nocache = cmdline.nocache
+
+-- for the first configuration, run it at highest resolution, plot it with the exact solution, and quit
+local plotCompare = cmdline.compare
+
+-- exclusive with 'compare': don't use exact, instead use exponential regression
+local uselin = cmdline.uselin
+
+
 local problems = {}
 
 problems['advect wave'] = {
@@ -46,9 +70,9 @@ problems['advect wave'] = {
 		{	
 			-- schemes
 			--{solver='weno5', integrator='forward Euler'},									-- 0.099267582810394
-			--{solver='hll', integrator='forward Euler'},									-- 0.00060136599076404
-			--{solver='euler-hllc', integrator='forward Euler'},							-- 0.00048873499978618
-			--{solver='euler-burgers', integrator='forward Euler'},							-- 0.0004752949543945
+			{solver='hll', integrator='forward Euler'},									-- 0.00060136599076404
+			{solver='euler-hllc', integrator='forward Euler'},							-- 0.00048873499978618
+			{solver='euler-burgers', integrator='forward Euler'},							-- 0.0004752949543945
 
 			-- flux-limiters w/roe scheme:
 			--{solver='roe', integrator='forward Euler', fluxLimiter='smart'},				-- fails on n=1024
@@ -62,7 +86,7 @@ problems['advect wave'] = {
 			--{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 2'},		-- 0.9999999
 			--{solver='roe', integrator='forward Euler', fluxLimiter='donor cell'},			-- 0.00048873499978677
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Oshker'},				-- 8.1594383698357e-05
-			--{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 8.0220379351244e-05
+			{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 8.0220379351244e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Sweby'},				-- 7.5406302510808e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='HQUICK'},				-- 7.3985100798005e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Koren'},				-- 7.3374191905257e-05
@@ -358,13 +382,8 @@ t = t * 4 / 3
 	duration = .2,
 }
 
---local problem = problems.Sod
-local problem = problems['advect wave']
 
-
-local args = table{...}
-local nocache = args:find'nocache'
-local plotCompare = args:find'compare'
+local problem = problems[problemName]
 
 
 local dim = 1
@@ -416,88 +435,124 @@ for _,cfg in ipairs(problem.configurations) do
 	}:concat', '
 	print(destName)
 
-	local errors 
+	--[[
+	data cached per-test:
+	size[size]
+		.xs[index] 
+		.ys[index] 
+	--]]
+	local testdata
 	local srcfn = rundir..'/'..destName..'.lua'
-	local srcdata
-	if not nocache then 
-		srcdata = file[srcfn]
+	local srcfiledata = file[srcfn]
+	if srcfiledata then
+		testdata = fromlua(srcfiledata)
 	end
-	if srcdata then
-		local res = fromlua(srcdata)
-		errors = res.errors
-		local storedSizes = res.sizes
-		if matrix(sizes) ~= matrix(storedSizes) then
-			errors = nil
-		end
-	end
-	if not errors then
-		errors = table()
+	testdata = testdata or {}
+	do	--if nocache or not testdata.size then
+		testdata.size = testdata.size or table()
 		for _,size in ipairs(sizes) do
-			args.gridSize = {size}
+			testdata.size[size] = testdata.size[size] or table()
+			if nocache 
+			or not testdata.size[size].xs
+			or not testdata.size[size].ys
+			-- or either no exact or uselin
+			then
+				args.gridSize = {size}
 print()
 print(size)
 print()	
 			
-			local duration = tonumber(problem.duration) or error("expected problem.duration")
-			
-			local App = class(require 'app')
-			function App:setup(clArgs)
-				args.app = self
-				local solver = require('solver.'..cfg.solver)(args)
-				self.solvers:insert(solver)
-				self.exitTime = duration
-				self.running = true
-			end
-			function App:requestExit()
-				App.super.requestExit(self)
-			
-				-- now compare the U buffer to the exact 
-				assert(#self.solvers == 1)
-				local solver = self.solvers[1]
-				local _, var = solver.displayVars:find(nil, function(var) return var.name == 'U rho' end)
-				assert(var, "failed to find U rho var")
-				solver:calcDisplayVarToBuffer(var)	
-				-- now in solver.reduceBuf
-				local ptr = solver.calcDisplayVarToTexPtr
-				local numCells = solver.numCells
-				local numGhost = solver.numGhost
-				self.cmds:enqueueReadBuffer{buffer=solver.reduceBuf, block=true, size=ffi.sizeof(self.real) * numCells, ptr=ptr}
-				-- now in ptr
+				local duration = tonumber(problem.duration) or error("expected problem.duration")
 				
-				local xmin = solver.solverPtr.mins.x
-				local xmax = solver.solverPtr.maxs.x
-				local width = xmax - xmin
-				local xs = range(numCells-2*numGhost):mapi(function(i)
-					return (i-.5) * solver.solverPtr.grid_dx.x + solver.solverPtr.mins.x
-				end)
-				local ys = range(numCells-2*numGhost):mapi(function(i)
-					return ptr[i+numGhost-1]
-				end)
-				local exact = problem:makeExact(xs, solver)
-
-				local diff = matrix(exact) - matrix(ys)
-				errors:insert(diff:normL1() / #diff)
-			
-				if plotCompare then -- plotting immediately
-					gnuplot{
-						output = rundir..'/compare-graphs.png',
-						style = 'data lines',
-						data = {xs, ys, exact},
-						{using = '1:2', title=''..size},
-						{using = '1:3', title='exact'},
-					}
-					os.exit()				
+				local App = class(require 'app')
+				function App:setup(clArgs)
+					args.app = self
+					local solver = require('solver.'..cfg.solver)(args)
+					self.solvers:insert(solver)
+					self.exitTime = duration
+					self.running = true
 				end
+				
+				function App:requestExit()
+					App.super.requestExit(self)
+				
+					-- now compare the U buffer to the exact 
+					assert(#self.solvers == 1)
+					local solver = self.solvers[1]
+					local _, var = solver.displayVars:find(nil, function(var) return var.name == 'U rho' end)
+					assert(var, "failed to find U rho var")
+					solver:calcDisplayVarToBuffer(var)	
+					-- now in solver.reduceBuf
+					local ptr = solver.calcDisplayVarToTexPtr
+					local numCells = solver.numCells
+					local numGhost = solver.numGhost
+					self.cmds:enqueueReadBuffer{buffer=solver.reduceBuf, block=true, size=ffi.sizeof(self.real) * numCells, ptr=ptr}
+					-- now in ptr
+					
+					local xmin = solver.solverPtr.mins.x
+					local xmax = solver.solverPtr.maxs.x
+					local width = xmax - xmin
+					local xs = range(numCells-2*numGhost):mapi(function(i)
+						return (i-.5) * solver.solverPtr.grid_dx.x + solver.solverPtr.mins.x
+					end)
+					testdata.size[size].xs = xs
+					local ys = range(numCells-2*numGhost):mapi(function(i)
+						return ptr[i+numGhost-1]
+					end)
+					testdata.size[size].ys = ys
+					if not uselin then
+						local exact = problem:makeExact(xs, solver)
+						testdata.size[size].exact = exact
+					end
+				end	
+				
+				local app  = App()
+				app:run()
+				
 			end
 			
-			local app  = App()
-			app:run()
-		
+			local xs = setmetatable(assert(testdata.size[size].xs), table)
+			local ys = setmetatable(assert(testdata.size[size].ys), table)
+			local exact = not uselin and assert(testdata.size[size].exact)
+			
+			if uselin then
+				-- just use log/log regression to estimate where the best would be
+				-- technically this won't be best, because most our samples tend to flatten at the bottom
+				-- and in that case, the regression will point to a less accurate place than where it would if a smaller subset was used 
+				local xavg = xs:sum() / #xs
+				local yavg = ys:sum() / #ys
+
+				local b1 = range(#xs):map(function(i)
+					return (xs[i] - xavg) * (ys[i] - yavg)
+				end):sum() / range(#xs):map(function(i)
+					return (xs[i] - xavg)^2
+				end):sum()
+				local b0 = yavg - b1 * xavg
+				exact = xs:map(function(x)
+					return b0 + b1 * x
+				end)
+			end
+
+			local diff = matrix(exact) - matrix(ys)
+			testdata.size[size].error = diff:normL1() / #diff
+
+			if plotCompare then -- plotting immediately
+				gnuplot{
+					output = rundir..'/compare-graphs.png',
+					style = 'data lines',
+					data = {xs, ys, exact},
+					{using = '1:2', title=''..size},
+					exact and {using = '1:3', title='exact'} or nil,
+				}
+				os.exit()
+			end
+
 			if file.stop then file.stop = nil os.exit(1) end
 		end
-		file[srcfn] = tolua{errors=errors, sizes=sizes}
 	end
-print(table.last(errors))	
+	file[srcfn] = tolua(testdata)
+local errors = sizes:map(function(size) return testdata.size[size].error end)
+print(table.last(errors))
 	errorsForConfig:insert(errors)
 	errorNames:insert(destName)
 end
