@@ -143,6 +143,74 @@ for sgn b >= 0:
 		}
 
 
+<? 
+-- technically i should call the one above 'plm-cons-with-flux' and this one 'plm-cons'
+elseif solver.usePLM == 'plm-cons-alone' then ?>
+
+		// extrapolate slopes in primitive space
+
+		real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
+		real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
+
+		const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
+	
+		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
+
+		// minmod
+		ULR->L = *U;
+		ULR->R = *U;
+		for (int j = 0; j < numIntStates; ++j) {
+			real dUL = U->ptr[j] - UL->ptr[j];
+			real dUC = .5 * (UR->ptr[j] - UL->ptr[j]);
+			real dUR = UR->ptr[j] - U->ptr[j];
+			real adwl = fabs(dUL);
+			real adwr = fabs(dUR);
+			real adwc = fabs(dUC);
+			real mindw = min(min(adwl, adwr), adwc);
+			real dUM = .25 * fabs(sign(dUL) + sign(dUC)) * fabs(sign(dUL) + sign(dUR)) * mindw;
+			ULR->L.ptr[j] -= .5 * dUM; 
+			ULR->R.ptr[j] += .5 * dUM; 
+		}
+
+<? elseif solver.usePLM == 'plm-prim' then ?>
+
+		// extrapolate slopes in primitive space
+
+		real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
+		real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
+
+		const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
+		const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
+	
+		<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+		<?=eqn.prim_t?> WL = primFromCons(solver, *UL, xL);
+		<?=eqn.prim_t?> WR = primFromCons(solver, *UR, xR);
+		
+		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
+
+		// minmod
+		<?=eqn.prim_t?> nWL = W;
+		<?=eqn.prim_t?> nWR = W;
+		for (int j = 0; j < numIntStates; ++j) {
+			real dWL = W.ptr[j] - WL.ptr[j];
+			real dWC = .5 * (WR.ptr[j] - WL.ptr[j]);
+			real dWR = WR.ptr[j] - W.ptr[j];
+			real adwl = fabs(dWL);
+			real adwr = fabs(dWR);
+			real adwc = fabs(dWC);
+			real mindw = min(min(adwl, adwr), adwc);
+			real dWM = .25 * fabs(sign(dWL) + sign(dWC)) * fabs(sign(dWL) + sign(dWR)) * mindw;
+			nWL.ptr[j] -= .5 * dWM; 
+			nWR.ptr[j] += .5 * dWM; 
+		}
+	
+		//converting from cons->prim and then prim->cons might lose us accuracy? 
+		ULR->L = consFromPrim(solver, nWL, xIntL);
+		ULR->R = consFromPrim(solver, nWR, xIntR);
+
 <? elseif solver.usePLM == 'plm-eig' then ?>
 /*
 #2: next step, project into eigenspace

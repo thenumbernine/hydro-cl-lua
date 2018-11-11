@@ -241,10 +241,10 @@ local initStates = table{
 	{
 		name = 'advect wave',
 		guiVars = {
-			{name = 'init_v0x', value = 1},
+			{name = 'init_v0x', value = 1},	--.1
 			{name = 'init_v0y', value = 0},
 			{name = 'init_rho0', value = 1},
-			{name = 'init_rho1', value = .1},
+			{name = 'init_rho1', value = .1},	--.32
 			{name = 'init_P0', value = 1},
 		},
 		initState = function(self, solver)
@@ -258,7 +258,6 @@ local initStates = table{
 			}
 			return [[
 	real3 xc = coordMap(x);
-	real rSq = real3_lenSq(xc);
 	real width = solver->maxs.x - solver->mins.x;
 	real k0 = 2. * M_PI / width;
 	rho = solver->init_rho0 + solver->init_rho1 * cos(k0 * xc.x);
@@ -294,9 +293,20 @@ local initStates = table{
 			heatCapacityRatio = materials.Air.C_p / materials.Air.C_v,	-- ~1.4
 		},
 --]]
+--[[
+some various initial conditions from 2012 Toro "The HLLC Riemann Solver" http://marian.fsik.cvut.cz/~bodnar/PragueSum_2012/Toro_2-HLLC-RiemannSolver.pdf 
+Test	ρ L		u L		    p L		 ρ R		u R		    p R		   	
+1		1.0		0.75		1.0		 0.125		0.0		    0.1		
+2		1.0		-2.0		0.4		 1.0		2.0		    0.4		
+3		1.0		0.0		    1000.0	 1.0		0.0		    0.01		     
+4		5.99924	19.5975		460.894	 5.99242	-6.19633	46.0950				    	
+5		1.0		-19.59745	1000.0	 1.0		-19.59745	0.01			    	
+6		1.4		0.0		    1.0		 1.0		0.0		    1.0		
+7		1.4		0.1		    1.0		 1.0		0.1		    1.0		
+--]]
 		initState = function(self, solver)
 			return template([[
-#if 0	//offsetting the region	so I can see there's a problem at the boundary ...
+#if 0	//offsetting the region	so I can see if there's a problem at the boundary ...
 	lhs = true 
 <?
 for i=1,solver.dim do

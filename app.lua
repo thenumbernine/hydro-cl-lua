@@ -234,7 +234,9 @@ function HydroCLApp:initGL(...)
 	self.solvers = table()
 
 	self:setup{platformName=platformName, deviceName=deviceName}
-
+	if #self.solvers == 0 then
+		print("You didn't add any solvers in the HydroCLApp:setup() function.  Did you forget something?")
+	end
 
 	-- This only looks good when overlaying vector fields on top of other graphs.
 	-- When it comes to separate variables, they usually look better apart.

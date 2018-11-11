@@ -6,13 +6,14 @@ paper uses 25
 also puts ion pressure at 1/100'th the electron pressure
 
 --]]
-
+local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local ig = require 'ffi.imgui'
 local vec3sz = require 'ffi.vec.vec3sz'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
+local makestruct = require'eqn.makestruct'
 
 --[[
 parent is a solver... just Roe for now
@@ -94,16 +95,35 @@ local function TwoFluidEMHDBehavior(parent)
 		self.coord = self.ion.coord
 		self.eqn = {
 			numStates = self.solvers:map(function(solver) return solver.eqn.numStates end):sum(),
-			numWaves = self.solvers:map(function(solver) return solver.eqn.numWaves end):sum(),
+			numIntStates = 0,	-- hmm, nothing should be using this anyways ...
+			numWaves = 0,	-- nor this ..
+			getTypeCode = function()
+				return table{
+					self.electron.eqn:getTypeCode(),
+					self.ion.eqn:getTypeCode(),
+					self.maxwell.eqn:getTypeCode(),
+				}:concat'\n'
+			end,
 			getEigenTypeCode = function() end,
 			getCodePrefix = function() end,
 			getTemplateEnv = function() return self.maxwell.eqn:getTemplateEnv() end,
+			getExtraTypeCode = function() return '' end,
 		}
+		
+		self.solver_t = self.app:uniqueName'solver_t'
+		makestruct.safeFFICDef(self:getSolverTypeCode())
+		self.solverPtr = ffi.new(self.solver_t)
 
 		-- call this after we've assigned 'self' all its fields
 		self:replaceSourceKernels()
 
-		self.t = 0
+		self.t = 0		
+	end
+
+	-- same as in GridSolver
+	function templateClass:getSolverTypeCode()
+		self.solverVars = {}
+		return makestruct.makeStruct(self.solver_t, self.solverVars, nil, true)
 	end
 
 	function templateClass:getConsLRTypeCode() return '' end
@@ -118,9 +138,7 @@ local function TwoFluidEMHDBehavior(parent)
 
 		local lines = table{
 			self.codePrefix,
-			self.electron.eqn:getTypeCode(),
-			self.ion.eqn:getTypeCode(),
-			self.maxwell.eqn:getTypeCode(),
+			self.eqn:getTypeCode(),
 
 			'#define chargeMassRatio_ion '..clnumber(chargeMassRatio_ion),
 			'#define chargeMassRatio_electron '..clnumber(chargeMassRatio_electron),

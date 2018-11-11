@@ -1,5 +1,6 @@
 // WENO5 solver:
 // courtesy of Mara
+// and some matlab code
 
 inline real sqr(real x) { return x * x; }
 
@@ -26,9 +27,12 @@ for name,info in pairs{
 	local c, d = info.c, info.d
 ?>
 <?=eqn.waves_t?> weno5<?=name?>(const <?=eqn.waves_t?>* v) {
-	const real eps = 1e-6;
 	<?=eqn.waves_t?> result;
 	for (int k = 0; k < numWaves; ++k) {
+		real vs0 = <?=clnumber(c[1][1])?> * v[2].ptr[k] + <?=clnumber(c[1][2])?> * v[3].ptr[k] + <?=clnumber(c[1][3])?> * v[4].ptr[k];
+		real vs1 = <?=clnumber(c[2][1])?> * v[1].ptr[k] + <?=clnumber(c[2][2])?> * v[2].ptr[k] + <?=clnumber(c[2][3])?> * v[3].ptr[k];
+		real vs2 = <?=clnumber(c[3][1])?> * v[0].ptr[k] + <?=clnumber(c[3][2])?> * v[1].ptr[k] + <?=clnumber(c[3][3])?> * v[2].ptr[k];
+		
 		real B0 = 
 			 (13./12.)*sqr(  v[2].ptr[k] - 2*v[3].ptr[k] +   v[4].ptr[k]) +
 			 ( 1./ 4.)*sqr(3*v[2].ptr[k] - 4*v[3].ptr[k] +   v[4].ptr[k]);
@@ -39,14 +43,37 @@ for name,info in pairs{
 			 (13./12.)*sqr(  v[0].ptr[k] - 2*v[1].ptr[k] +   v[2].ptr[k]) +
 			 ( 1./ 4.)*sqr(  v[0].ptr[k] - 4*v[1].ptr[k] + 3*v[2].ptr[k]);
 
-		real vs0 = <?=clnumber(c[1][1])?> * v[2].ptr[k] + <?=clnumber(c[1][2])?> * v[3].ptr[k] + <?=clnumber(c[1][3])?> * v[4].ptr[k];
-		real vs1 = <?=clnumber(c[2][1])?> * v[1].ptr[k] + <?=clnumber(c[2][2])?> * v[2].ptr[k] + <?=clnumber(c[2][3])?> * v[3].ptr[k];
-		real vs2 = <?=clnumber(c[3][1])?> * v[0].ptr[k] + <?=clnumber(c[3][2])?> * v[1].ptr[k] + <?=clnumber(c[3][3])?> * v[2].ptr[k];
+<?
+if solver.weno5method == '1996 Jiang Shu' then 
+	local epsilon = clnumber(1e-6)
+?>
+		real w0 = <?=clnumber(d[1])?> / sqr(<?=epsilon?> + B0);
+		real w1 = <?=clnumber(d[2])?> / sqr(<?=epsilon?> + B1);
+		real w2 = <?=clnumber(d[3])?> / sqr(<?=epsilon?> + B2);
+<? elseif solver.weno5method == '2008 Borges' then 
+	local epsilon = clnumber(1e-14)
+?>
+		real tau5 = fabs(B0 - B2);
+		real w0 = <?=clnumber(d[1])?> * (1 + (tau5 / (B0 + <?=epsilon?>)));
+		real w1 = <?=clnumber(d[2])?> * (1 + (tau5 / (B1 + <?=epsilon?>)));
+		real w2 = <?=clnumber(d[3])?> * (1 + (tau5 / (B2 + <?=epsilon?>)));
+<? elseif solver.weno5method == '2010 Shen Zha' then 
+	local epsilon = clnumber(1e-10)
+	local shen_zha_A = clnumber(50)	-- 0-100
+?>
+		real minB = min(min(B0, B1), B2);
+		real maxB = max(max(B0, B1), B2);
+		real R0 = minB / (maxB + <?=epsilon?>);
+		B0 += R0 * <?=shen_zha_A?> * minB;
+		B1 += R0 * <?=shen_zha_A?> * minB;
+		B2 += R0 * <?=shen_zha_A?> * minB;
+		real w0 = <?=clnumber(d[1])?> / sqr(<?=epsilon?> + B0);
+		real w1 = <?=clnumber(d[2])?> / sqr(<?=epsilon?> + B1);
+		real w2 = <?=clnumber(d[3])?> / sqr(<?=epsilon?> + B2);
+<? else
+	error("unknown weno5method "..tostring(solver.weno5method))
+end ?>
 
-		real w0 = <?=clnumber(d[1])?> / sqr(eps + B0);
-		real w1 = <?=clnumber(d[2])?> / sqr(eps + B1);
-		real w2 = <?=clnumber(d[3])?> / sqr(eps + B2);
-		
 		real wtot = w0 + w1 + w2;
 		result.ptr[k] = (w0*vs0 + w1*vs1 + w2*vs2)/wtot;
 	}
@@ -60,7 +87,22 @@ kernel void calcFlux(
 	<?= solver.getULRArg ?>,
 	realparam dt
 ) {
+#if 0	
+	int4 i = globalInt4();
+	int index = INDEXV(i);
+	if (OOB(numGhost,numGhost)) {
+		for (int side = 0; side < dim; ++side) {
+			int indexInt = side + dim * index;
+			global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
+			for (int j = 0; j < numStates; ++j) {
+				flux->ptr[j] = 0;
+			}
+		}
+		return;
+	}
+#else	
 	SETBOUNDS(numGhost,numGhost);
+#endif	
 	real3 xR = cell_x(i);
 	int indexR = index;
 	const global <?=eqn.cons_t?>* UR = UBuf + indexR;
@@ -93,9 +135,10 @@ kernel void calcFlux(
 		for (int j = 0; j < 6; ++j) {
 			const global <?=eqn.cons_t?>* U = UBuf + indexR + (j-3) * solver->stepsize.s<?=side?>;
 			<?=eqn.cons_t?> F = fluxFromCons_<?=side?>(solver, *U, xInt);
-			for (int k = 0; k < numStates; ++k) {
-				Fp[j].ptr[k] = (F.ptr[k] + maxAbsLambda * U->ptr[k]) * .5;
-				Fm[j].ptr[k] = (F.ptr[k] - maxAbsLambda * U->ptr[k]) * .5;
+			Fp[j] = Fm[j] = F;
+			for (int k = 0; k < numIntStates; ++k) {
+				Fp[j].ptr[k] = .5 * (Fp[j].ptr[k] + maxAbsLambda * U->ptr[k]);
+				Fm[j].ptr[k] = .5 * (Fm[j].ptr[k] - maxAbsLambda * U->ptr[k]);
 			}
 		}
 
@@ -109,7 +152,9 @@ kernel void calcFlux(
 		<?=eqn.waves_t?> wfm = weno5l(fm+1);
 		<?=eqn.waves_t?> wf;
 		for (int j = 0; j < numWaves; ++j) {
-			wf.ptr[j] = .5 * (wfp.ptr[j] + wfm.ptr[j]);
+			// matlab code had .5 scale here, mara didn't
+			// i think one or the other should be, but not both
+			wf.ptr[j] = wfp.ptr[j] + wfm.ptr[j];
 		}
 
 		int indexInt = side + dim * index;

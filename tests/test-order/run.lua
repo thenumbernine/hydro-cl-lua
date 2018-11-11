@@ -69,10 +69,65 @@ problems['advect wave'] = {
 			-- final error at n=1024 on the right:
 		{	
 			-- schemes
-			--{solver='weno5', integrator='forward Euler'},									-- 0.099267582810394
-			{solver='hll', integrator='forward Euler'},									-- 0.00060136599076404
-			{solver='euler-hllc', integrator='forward Euler'},							-- 0.00048873499978618
-			{solver='euler-burgers', integrator='forward Euler'},							-- 0.0004752949543945
+			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='forward Euler'},		-- 0.092113212858329
+			--{solver='weno5', weno5method='2008 Borges', integrator='forward Euler'},		-- 0.16680010146205	
+			{solver='weno5', weno5method='2010 Shen Zha', integrator='forward Euler'},		-- 0.12853659670964	
+
+			--{solver='hll', integrator='forward Euler'},									-- 0.00060136599076404
+			--{solver='euler-burgers', integrator='forward Euler'},							-- 0.0004752949543945	
+
+			-- why is RK3-TVD worse than forward Euler in all my hllc solvers?
+			-- hllcMethod == 0
+			--{solver='euler-hllc', hllcMethod=0, integrator='forward Euler', usePLM='plm-cons-alone'},   	-- 0.00060495293676367
+			--{solver='euler-hllc', hllcMethod=0, integrator='forward Euler', usePLM='plm-prim'},         	-- 0.00060393770462868
+			--{solver='euler-hllc', hllcMethod=0, integrator='forward Euler'},								-- 0.00048873499978739
+			--{solver='euler-hllc', hllcMethod=0, integrator='forward Euler', usePLM='plm-cons'},         	-- 0.00048873499978739
+			--{solver='euler-hllc', hllcMethod=0, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim'},    	-- 0.00061365378346838
+			--{solver='euler-hllc', hllcMethod=0, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons-alone'},	-- 0.00061365378346796
+			--{solver='euler-hllc', hllcMethod=0, integrator='Runge-Kutta 3, TVD'},							-- 0.00061073285983012
+			--{solver='euler-hllc', hllcMethod=0, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons'},		-- 0.00061073285983012
+
+			-- hllcMethod == 1
+			--{solver='euler-hllc', hllcMethod=1, integrator='forward Euler', usePLM='plm-cons-alone'},   -- 0.00060445812904152
+			--{solver='euler-hllc', hllcMethod=1, integrator='forward Euler', usePLM='plm-prim'},         -- 0.00060393770417544
+			--{solver='euler-hllc', hllcMethod=1, integrator='forward Euler'},							-- 0.00048873499978869
+			--{solver='euler-hllc', hllcMethod=1, integrator='forward Euler', usePLM='plm-cons'},         -- 0.00048873499978869
+			--{solver='euler-hllc', hllcMethod=1, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim'},    -- 0.0006136537834679
+			--{solver='euler-hllc', hllcMethod=1, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons-alone'}--, 0.00061365378346811
+			--{solver='euler-hllc', hllcMethod=1, integrator='Runge-Kutta 3, TVD'},						-- 0.00061073285983055
+			--{solver='euler-hllc', hllcMethod=1, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons'},	-- 0.00061073285983055
+
+			-- hllcMethod == 2 (default)
+			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-cons-alone'},     	-- 0.00060447897937016
+			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-prim'},           	-- 0.00060393770371531
+			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler'},								-- 0.00048873499978778
+			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-cons'},           	-- 0.00048873499978778
+			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim'},      	-- 0.0006136537834683
+			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons-alone'},	-- 0.00061365378346809	
+			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD'},							-- 0.00061073285982937
+			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons'},	    -- 0.00061073285982937
+
+			-- hllcMethod == 2 (default), but only using left and right state eigenvalues for waves -- not interface at all
+			--  looks the same as the interface-based method, so ... why even use the interface waves?
+			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-cons-alone'},     	-- 0.00060449481040124
+			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-prim'},           	-- 0.00060393770360834
+			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler'},								-- 0.00048873499978885
+			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-cons'},           	-- 0.00048873499978885
+			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim'},      	-- 0.00061365378346831
+			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons-alone'},	-- 0.00061365378346856
+			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD'},							-- 0.0006107328598298
+			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons'},	    -- 0.0006107328598298
+
+			-- hllcMethod == 2 (default), but without that last needless condition
+			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-cons-alone'},     	-- 0.00060487383014966 -- .1% worse, rest are the same
+			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-prim'},           	-- 0.00060393770418051
+			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler'},									-- 0.00048873499978941
+			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-cons'},           	-- 0.00048873499978941
+			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim'},      	-- 0.00061365378346782
+			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons-alone'},	-- 0.00061365378346786
+			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD'},								-- 0.0006107328598304
+			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons'},	    	-- 0.0006107328598304
+
 
 			-- flux-limiters w/roe scheme:
 			--{solver='roe', integrator='forward Euler', fluxLimiter='smart'},				-- fails on n=1024
@@ -86,7 +141,7 @@ problems['advect wave'] = {
 			--{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 2'},		-- 0.9999999
 			--{solver='roe', integrator='forward Euler', fluxLimiter='donor cell'},			-- 0.00048873499978677
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Oshker'},				-- 8.1594383698357e-05
-			{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 8.0220379351244e-05
+			--{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 8.0220379351244e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Sweby'},				-- 7.5406302510808e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='HQUICK'},				-- 7.3985100798005e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Koren'},				-- 7.3374191905257e-05
@@ -94,7 +149,7 @@ problems['advect wave'] = {
 			--{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},	-- 6.8474331334665e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='UMIST'},				-- 6.3705455038239e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='minmod'},				-- 5.9129797191892e-05
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},			-- 1.2048891136515e-06
+			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},		-- 1.2048891136515e-06
 
 			-- my PLM attempts:
 			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},			-- 0.00049148119638364
@@ -138,11 +193,12 @@ problems['advect wave'] = {
 		local u0 = solver.solverPtr.init_v0x
 		local xmin = solver.solverPtr.mins.x
 		local xmax = solver.solverPtr.maxs.x
-		local width = xmax - xmin
-		local k0 = 2 * math.pi / width
+		--local width = xmax - xmin
+		local k0 = math.pi	--2 * math.pi / width
 		local t1 = solver.t
 		return xs:map(function(x,i)
-			return rho0 + rho1 * math.cos(k0 * (x - u0 * t1))
+			--return rho0 + rho1 * math.cos(k0 * (x - u0 * t1))
+			return rho0 + rho1 * math.cos(k0 * x - k0 * u0 * t1)
 		end)
 	end,
 
@@ -162,7 +218,7 @@ problems.Sod = {
 			}
 		},
 			-- final error at n=1024 on the right:
-		{	
+		{	-- (these numbers are all for duration=.1)
 			-- schemes
 			--{solver='weno5', integrator='forward Euler'},									-- 0.028050334485117
 			--{solver='hll', integrator='forward Euler'},									-- 0.0039886633966807
@@ -186,7 +242,7 @@ problems.Sod = {
 			--{solver='roe', integrator='forward Euler', fluxLimiter='HCUS'},				-- 0.0018945018297761
 			--{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},	-- 0.0018898857563959
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Barth-Jespersen'},	-- 0.0018828276652798
-			--{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 0.00187534979448
+			{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 0.00187534979448
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Sweby'},				-- 0.0018687046583677
 			--{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 1'},		-- 0.001865866089593
 			--{solver='roe', integrator='forward Euler', fluxLimiter='smart'},				-- 0.0018130273610755	-- even though this is the lowest error of the flux limiters, it has a definite hiccup in it
@@ -391,49 +447,21 @@ local sizes = plotCompare and {1024} or range(3,10):map(function(x) return 2^x e
 local errorsForConfig = table()
 local errorNames = table()
 for _,cfg in ipairs(problem.configurations) do
+	cfg = table(cfg)
 
-	local args = {
-		app = self,
-		cfl = .5,
-		eqn = cfg.eqn,
-		dim = dim,
-		integrator = cfg.integrator,
-		integratorArgs = cfg.integratorArgs,
-		fluxLimiter = cfg.fluxLimiter,
-		slopeLimiter = cfg.slopeLimiter,
-		usePLM = cfg.usePLM,
-		coord = 'cartesian',
-		mins = {-1,-1,-1},
-		maxs = {1,1,1},
-		initState = cfg.initState,
-	}
+	local destName = string.trim(tolua(cfg):match('^{(.*)}$'):gsub('%s+', ' '):gsub('"', ''))
+print(destName)
+
+	local destFilename = destName
+		:gsub('/', '')
+		:gsub('{', '(')
+		:gsub('}', ')')
 	
-	local destName = table{
-		'solver='..cfg.solver,
-		'integrator='..args.integrator:gsub('/','-'),
-	}:append(args.usePLM 
-		-- plm:
-		and table{
-			'plm='..args.usePLM,
-		}:append(
-			args.slopeLimiter and {'slopeLimiter='..args.slopeLimiter} or nil
-		)
-		-- non-plm: use flux limiter
-		or (
-			args.fluxLimiter and {'fluxLimiter='..args.fluxLimiter} or nil
-		)
-	):append(
-		args.integrator == 'backward Euler' 
-		and args.integratorArgs 
-		and table{
-			args.integratorArgs.epsilon and ('be.eps='..args.integratorArgs.epsilon) or nil
-		}:append{
-			args.integratorArgs.restart and ('be.restart='..args.integratorArgs.restart) or nil
-		} or nil
-	):append{
-		'init='..args.initState,
-	}:concat', '
-	print(destName)
+	cfg.dim = dim
+	cfg.cfl = .5
+	cfg.coord = 'cartesian'
+	cfg.mins = {-1,-1,-1}
+	cfg.maxs = {1,1,1}
 
 	--[[
 	data cached per-test:
@@ -442,7 +470,7 @@ for _,cfg in ipairs(problem.configurations) do
 		.ys[index] 
 	--]]
 	local testdata
-	local srcfn = rundir..'/'..destName..'.lua'
+	local srcfn = rundir..'/'..destFilename..'.lua'
 	local srcfiledata = file[srcfn]
 	if srcfiledata then
 		testdata = fromlua(srcfiledata)
@@ -457,17 +485,18 @@ for _,cfg in ipairs(problem.configurations) do
 			or not testdata.size[size].ys
 			-- or either no exact or uselin
 			then
-				args.gridSize = {size}
+				cfg = table(cfg)
+				cfg.gridSize = {size}
 print()
 print(size)
 print()	
-			
+	
 				local duration = tonumber(problem.duration) or error("expected problem.duration")
 				
 				local App = class(require 'app')
 				function App:setup(clArgs)
-					args.app = self
-					local solver = require('solver.'..cfg.solver)(args)
+					cfg.app = self
+					local solver = require('solver.'..cfg.solver)(cfg)
 					self.solvers:insert(solver)
 					self.exitTime = duration
 					self.running = true
@@ -508,7 +537,6 @@ print()
 				
 				local app  = App()
 				app:run()
-				
 			end
 			
 			local xs = setmetatable(assert(testdata.size[size].xs), table)

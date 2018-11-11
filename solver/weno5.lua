@@ -18,6 +18,20 @@ local WENO5 = class(FiniteVolumeSolver)
 WENO5.name = 'WENO5'
 WENO5.numGhost = 3
 
+--[[
+args:
+	weno5method =
+		'1996 Jiang Shu'
+		'2008 Borges'
+		'2010 Shen Zha'
+--]]
+WENO5.weno5method = '2010 Shen Zha'
+
+function WENO5:init(args)
+	self.weno5method = args.weno5method
+	WENO5.super.init(self, args)
+end
+
 function WENO5:createBuffers()
 	WENO5.super.createBuffers(self)
 end
@@ -68,12 +82,14 @@ function WENO5:calcDeriv(derivBuf, dt)
 	end
 
 	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
+self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 	self.calcFluxKernelObj.obj:setArg(2, self:getULRBuf())
 	self.calcFluxKernelObj.obj:setArg(3, dtArg)
 	self.calcFluxKernelObj()
 
 -- [=[ this is from the 2017 Zingale book
 	if self.useCTU then
+		self:boundary()
 		-- if we're using CTU then ...
 		-- 1) calc fluxes based on a slope-limiter method (PLM, etc)
 		-- 2) at each interface, integrate each dimension's LR states by all other dimensions' fluxes with a timestep of -dt/2
@@ -97,6 +113,8 @@ function WENO5:calcDeriv(derivBuf, dt)
 --]=]
 	
 	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBuf)
+self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)
+self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
 	self.calcDerivFromFluxKernelObj()
 
 	if self.eqn.useSourceTerm then
