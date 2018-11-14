@@ -196,12 +196,12 @@ problems['advect wave'] = {
 		local u0 = solver.solverPtr.init_v0x
 		local xmin = solver.solverPtr.mins.x
 		local xmax = solver.solverPtr.maxs.x
-		--local width = xmax - xmin
-		local k0 = math.pi	--2 * math.pi / width
-		local t1 = solver.t
+		local width = xmax - xmin
+		local k0 = 2 * math.pi / width
+		local t = solver.t
 		return xs:map(function(x,i)
-			--return rho0 + rho1 * math.cos(k0 * (x - u0 * t1))
-			return rho0 + rho1 * math.cos(k0 * x - k0 * u0 * t1)
+			--return rho0 + rho1 * math.cos(k0 * (x - u0 * t))
+			return rho0 + rho1 * math.cos(k0 * x - k0 * u0 * t)
 		end)
 	end,
 
@@ -453,8 +453,11 @@ local testdatas = table()
 local errorsForConfig = table()
 local errorNames = table()
 
+-- for history and compare, this is the size used
+local singleSize = 1024
+
 local dim = 1
-local sizes = (plotCompare or plotErrorHistory) and table{1024} or range(3,10):map(function(x) return 2^x end)
+local sizes = (plotCompare or plotErrorHistory) and table{singleSize} or range(3,10):map(function(x) return 2^x end)
 for _,cfg in ipairs(problem.configurations) do
 	cfg = table(cfg)
 
@@ -537,7 +540,8 @@ print()
 				local function calcAndSaveTimeAndError(solver)
 					local xs, ys, exact = getSolverGraph(solver)
 					testdata.size[size].ts:insert(solver.t)
-					testdata.size[size].errorsForTime:insert(calcError(exact, ys))
+					local err = calcError(exact, ys)
+					testdata.size[size].errorsForTime:insert(err)
 				end
 				
 				local App = class(require 'app')
@@ -569,8 +573,10 @@ print()
 					
 					local err = calcError(exact, ys)
 					testdata.size[size].error = err
-					testdata.size[size].ts:insert(solver.t)
-					testdata.size[size].errorsForTime:insert(err)
+					if plotErrorHistory then
+						testdata.size[size].ts:insert(solver.t)
+						testdata.size[size].errorsForTime:insert(err)
+					end
 				end	
 				
 				local app  = App()
@@ -641,11 +647,9 @@ gnuplot(
 ))
 --]]
 
-print"WHY IS THE FIRST TIME NOT T=0?!?!?!"
-print"WHY IS THE FIRST ERROR NOT 0?!?!?!"
 -- [[ plot error histories
 if plotErrorHistory then
-	local size = 1024
+	local size = singleSize 
 	local data = table()
 	for _,testdata in ipairs(testdatas) do
 		data:insert(assert(testdata.size[size].ts))
@@ -664,3 +668,4 @@ if plotErrorHistory then
 	))
 end
 --]]
+
