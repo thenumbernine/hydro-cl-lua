@@ -43,14 +43,17 @@ for _,w in ipairs(arg or {}) do
 end
 
 -- which problem to use
---local problemName = cmdline.init or 'Sod'
 local problemName = cmdline.init or 'advect wave'
+--local problemName = cmdline.init or 'Sod'
 
 -- don't use cached results <-> regenerate results for selected tests
 local nocache = cmdline.nocache
 
 -- for the first configuration, run it at highest resolution, plot it with the exact solution, and quit
 local plotCompare = cmdline.compare
+
+-- for the first configuration, plot error vs time from 0 to duration
+local plotErrorHistory = cmdline.history
 
 -- exclusive with 'compare': don't use exact, instead use exponential regression
 local uselin = cmdline.uselin
@@ -73,8 +76,8 @@ problems['advect wave'] = {
 			--{solver='weno5', weno5method='2008 Borges', integrator='forward Euler'},		-- 0.16680010146205	
 			{solver='weno5', weno5method='2010 Shen Zha', integrator='forward Euler'},		-- 0.12853659670964	
 
-			--{solver='hll', integrator='forward Euler'},									-- 0.00060136599076404
-			--{solver='euler-burgers', integrator='forward Euler'},							-- 0.0004752949543945	
+			{solver='hll', integrator='forward Euler'},									-- 0.00060136599076404
+			{solver='euler-burgers', integrator='forward Euler'},							-- 0.0004752949543945	
 
 			-- why is RK3-TVD worse than forward Euler in all my hllc solvers?
 			-- hllcMethod == 0
@@ -141,7 +144,7 @@ problems['advect wave'] = {
 			--{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 2'},		-- 0.9999999
 			--{solver='roe', integrator='forward Euler', fluxLimiter='donor cell'},			-- 0.00048873499978677
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Oshker'},				-- 8.1594383698357e-05
-			--{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 8.0220379351244e-05
+			{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 8.0220379351244e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Sweby'},				-- 7.5406302510808e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='HQUICK'},				-- 7.3985100798005e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Koren'},				-- 7.3374191905257e-05
@@ -149,7 +152,7 @@ problems['advect wave'] = {
 			--{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},	-- 6.8474331334665e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='UMIST'},				-- 6.3705455038239e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='minmod'},				-- 5.9129797191892e-05
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},		-- 1.2048891136515e-06
+			{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},		-- 1.2048891136515e-06
 
 			-- my PLM attempts:
 			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},			-- 0.00049148119638364
@@ -438,14 +441,20 @@ t = t * 4 / 3
 	duration = .2,
 }
 
+local function calcError(exact, ys)
+	local diff = matrix(exact) - matrix(ys)
+	local err = diff:normL1() / #diff
+	return err
+end
 
 local problem = problems[problemName]
 
-
-local dim = 1
-local sizes = plotCompare and {1024} or range(3,10):map(function(x) return 2^x end)
+local testdatas = table()
 local errorsForConfig = table()
 local errorNames = table()
+
+local dim = 1
+local sizes = (plotCompare or plotErrorHistory) and table{1024} or range(3,10):map(function(x) return 2^x end)
 for _,cfg in ipairs(problem.configurations) do
 	cfg = table(cfg)
 
@@ -479,7 +488,9 @@ print(destName)
 	do	--if nocache or not testdata.size then
 		testdata.size = testdata.size or table()
 		for _,size in ipairs(sizes) do
+			
 			testdata.size[size] = testdata.size[size] or table()
+					
 			if nocache 
 			or not testdata.size[size].xs
 			or not testdata.size[size].ys
@@ -490,8 +501,44 @@ print(destName)
 print()
 print(size)
 print()	
-	
+
+				if plotErrorHistory then
+					testdata.size[size].ts = table()
+					testdata.size[size].errorsForTime = table()
+				end
+
 				local duration = tonumber(problem.duration) or error("expected problem.duration")
+		
+				local function getSolverGraph(solver)
+					local _, var = solver.displayVars:find(nil, function(var) return var.name == 'U rho' end)
+					assert(var, "failed to find U rho var")
+					solver:calcDisplayVarToBuffer(var)	
+					-- now in solver.reduceBuf
+					local ptr = solver.calcDisplayVarToTexPtr
+					local numCells = solver.numCells
+					local numGhost = solver.numGhost
+					local app = solver.app
+					app.cmds:enqueueReadBuffer{buffer=solver.reduceBuf, block=true, size=ffi.sizeof(app.real) * numCells, ptr=ptr}
+					-- now in ptr
+					
+					local xs = range(numCells-2*numGhost):mapi(function(i)
+						return (i-.5) * solver.solverPtr.grid_dx.x + solver.solverPtr.mins.x
+					end)
+					local ys = range(numCells-2*numGhost):mapi(function(i)
+						return ptr[i+numGhost-1]
+					end)
+					local exact
+					if not uselin then
+						exact = problem:makeExact(xs, solver)
+					end			
+					return xs, ys, exact
+				end
+
+				local function calcAndSaveTimeAndError(solver)
+					local xs, ys, exact = getSolverGraph(solver)
+					testdata.size[size].ts:insert(solver.t)
+					testdata.size[size].errorsForTime:insert(calcError(exact, ys))
+				end
 				
 				local App = class(require 'app')
 				function App:setup(clArgs)
@@ -500,6 +547,13 @@ print()
 					self.solvers:insert(solver)
 					self.exitTime = duration
 					self.running = true
+					if plotErrorHistory then
+						local oldupdate = solver.update
+						solver.update = function(...)
+							calcAndSaveTimeAndError(solver)
+							return oldupdate(...)
+						end
+					end
 				end
 				
 				function App:requestExit()
@@ -508,31 +562,15 @@ print()
 					-- now compare the U buffer to the exact 
 					assert(#self.solvers == 1)
 					local solver = self.solvers[1]
-					local _, var = solver.displayVars:find(nil, function(var) return var.name == 'U rho' end)
-					assert(var, "failed to find U rho var")
-					solver:calcDisplayVarToBuffer(var)	
-					-- now in solver.reduceBuf
-					local ptr = solver.calcDisplayVarToTexPtr
-					local numCells = solver.numCells
-					local numGhost = solver.numGhost
-					self.cmds:enqueueReadBuffer{buffer=solver.reduceBuf, block=true, size=ffi.sizeof(self.real) * numCells, ptr=ptr}
-					-- now in ptr
-					
-					local xmin = solver.solverPtr.mins.x
-					local xmax = solver.solverPtr.maxs.x
-					local width = xmax - xmin
-					local xs = range(numCells-2*numGhost):mapi(function(i)
-						return (i-.5) * solver.solverPtr.grid_dx.x + solver.solverPtr.mins.x
-					end)
+					local xs,ys,exact = getSolverGraph(solver)
 					testdata.size[size].xs = xs
-					local ys = range(numCells-2*numGhost):mapi(function(i)
-						return ptr[i+numGhost-1]
-					end)
 					testdata.size[size].ys = ys
-					if not uselin then
-						local exact = problem:makeExact(xs, solver)
-						testdata.size[size].exact = exact
-					end
+					testdata.size[size].exact = exact
+					
+					local err = calcError(exact, ys)
+					testdata.size[size].error = err
+					testdata.size[size].ts:insert(solver.t)
+					testdata.size[size].errorsForTime:insert(err)
 				end	
 				
 				local app  = App()
@@ -561,9 +599,6 @@ print()
 				end)
 			end
 
-			local diff = matrix(exact) - matrix(ys)
-			testdata.size[size].error = diff:normL1() / #diff
-
 			if plotCompare then -- plotting immediately
 				gnuplot{
 					output = rundir..'/compare-graphs.png',
@@ -578,14 +613,16 @@ print()
 			if file.stop then file.stop = nil os.exit(1) end
 		end
 	end
+	testdata.name = destName
 	file[srcfn] = tolua(testdata)
 local errors = sizes:map(function(size) return testdata.size[size].error end)
 print(table.last(errors))
 	errorsForConfig:insert(errors)
 	errorNames:insert(destName)
+	testdatas:insert(testdata) 
 end
 
--- [[ plot errors 
+-- [[ plot errors per size
 gnuplot(
 	table({
 		output = rundir..'/results.png',
@@ -604,3 +641,26 @@ gnuplot(
 ))
 --]]
 
+print"WHY IS THE FIRST TIME NOT T=0?!?!?!"
+print"WHY IS THE FIRST ERROR NOT 0?!?!?!"
+-- [[ plot error histories
+if plotErrorHistory then
+	local size = 1024
+	local data = table()
+	for _,testdata in ipairs(testdatas) do
+		data:insert(assert(testdata.size[size].ts))
+		data:insert(assert(testdata.size[size].errorsForTime))
+	end
+	gnuplot(table(
+		{
+			output = rundir..'/error-history.png',
+			style = 'data lines',
+			log = 'xy',
+			data = data,
+		},
+		testdatas:map(function(testdata,i)
+			return {using=(2*i-1)..':'..(2*i), title=testdata.name}
+		end)
+	))
+end
+--]]
