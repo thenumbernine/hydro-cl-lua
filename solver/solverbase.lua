@@ -1133,7 +1133,10 @@ function SolverBase:update()
 	self.lastFrameTime = thisTime
 
 	if self.checkNaNs then
-		if self:checkFinite(self.UBufObj, self.numCells) then return end
+		if self:checkFinite(self.UBufObj, self.numCells) then 
+			self.app.running = false
+			return 
+		end
 	end
 end
 

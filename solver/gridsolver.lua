@@ -1208,8 +1208,8 @@ function GridSolver:checkFinite(buf)
 	end
 	if not found then return end
 --	self:printBuf(nil, ptr)
---	print(found:map(tostring):concat', ')
---	error'found non-finite numbers'
+	print(found:map(tostring):concat', ')
+	print'found non-finite numbers'
 	return true
 end
 

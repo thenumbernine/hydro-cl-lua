@@ -620,20 +620,33 @@ kernel void addSource(
 	const global cons_t* U = UBuf + index;
 
 	//TODO replace this with its long and complex correct derivation
-	real3 gravAccel = _real3(
-		U->E_g.x + U->B_g.x * solver->gravitationalConstant / (4 * M_PI),
-		U->E_g.y + U->B_g.y * solver->gravitationalConstant / (4 * M_PI),
-		U->E_g.z + U->B_g.z * solver->gravitationalConstant / (4 * M_PI));
 
-	deriv->ion_m.x += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.x + U->ion_m.y * U->B.z - U->ion_m.z * U->B.y) + U->ion_rho * gravAccel.x;
-	deriv->ion_m.y += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.y + U->ion_m.z * U->B.x - U->ion_m.x * U->B.z) + U->ion_rho * gravAccel.y;
-	deriv->ion_m.z += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.z + U->ion_m.x * U->B.y - U->ion_m.y * U->B.x) + U->ion_rho * gravAccel.z;
-	deriv->ion_ETotal += (1. / normalizedIonLarmorRadius) * real3_dot(U->E, U->ion_m) + real3_dot(gravAccel, U->ion_m);
-	
-	deriv->elec_m.x -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.x + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y) + U->elec_rho * gravAccel.x;
-	deriv->elec_m.y -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.y + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z) + U->elec_rho * gravAccel.y;
-	deriv->elec_m.z -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.z + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x) + U->elec_rho * gravAccel.z;
-	deriv->elec_ETotal -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * real3_dot(U->E, U->elec_m) + real3_dot(gravAccel, U->elec_m);
+	//E_g has units m^2/s^3
+	//1/c E_g has units m/s^2
+	//B_g has units m/s^2
+	//B_g * v/c has units m/s^2
+	//rho * (E + v * B)/c has units kg/(m^2 s^2)
+	real3 ionGravForce = _real3(
+		(U->ion_rho * U->E_g.x + 4. * (U->ion_m.y * U->B_g.z - U->ion_m.z * U->B_g.y)) / normalizedSpeedOfLight,
+		(U->ion_rho * U->E_g.y + 4. * (U->ion_m.z * U->B_g.x - U->ion_m.x * U->B_g.z)) / normalizedSpeedOfLight,
+		(U->ion_rho * U->E_g.z + 4. * (U->ion_m.x * U->B_g.y - U->ion_m.y * U->B_g.x)) / normalizedSpeedOfLight);
+
+	//ion_m has units kg/m^3 * m/s = kg/(m^2 s)
+	//ion_m,t has units kg/(m^2 s^2)
+	deriv->ion_m.x += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.x + U->ion_m.y * U->B.z - U->ion_m.z * U->B.y) + ionGravForce.x;
+	deriv->ion_m.y += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.y + U->ion_m.z * U->B.x - U->ion_m.x * U->B.z) + ionGravForce.y;
+	deriv->ion_m.z += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.z + U->ion_m.x * U->B.y - U->ion_m.y * U->B.x) + ionGravForce.z;
+	deriv->ion_ETotal += (1. / normalizedIonLarmorRadius) * real3_dot(U->E, U->ion_m) + real3_dot(U->E_g, U->ion_m);
+
+	real3 elecGravForce = _real3(
+		(U->elec_rho * U->E_g.x + 4. * (U->elec_m.y * U->B_g.z - U->elec_m.z * U->B_g.y)) / normalizedSpeedOfLight,
+		(U->elec_rho * U->E_g.y + 4. * (U->elec_m.z * U->B_g.x - U->elec_m.x * U->B_g.z)) / normalizedSpeedOfLight,
+		(U->elec_rho * U->E_g.z + 4. * (U->elec_m.x * U->B_g.y - U->elec_m.y * U->B_g.x)) / normalizedSpeedOfLight);
+
+	deriv->elec_m.x -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.x + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y) + elecGravForce.x;
+	deriv->elec_m.y -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.y + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z) + elecGravForce.y;
+	deriv->elec_m.z -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.z + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x) + elecGravForce.z;
+	deriv->elec_ETotal -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * real3_dot(U->E, U->elec_m) + real3_dot(U->E_g, U->elec_m);
 
 	real normalizedIonDebyeLengthSq = normalizedIonDebyeLength * normalizedIonDebyeLength;
 	//source of E is the current
@@ -643,23 +656,36 @@ kernel void addSource(
 	//source of phi is the charge
 	deriv->phi += (U->ion_rho * solver->ionChargeMassRatio + U->elec_rho * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius) * solver->divPhiWavespeed;
 
+	const real _4_pi_G = 4. * M_PI * solver->gravitationalConstant;
+	const real eps_g = 1. / _4_pi_G;
+	const real mu_g = _4_pi_G / normalizedSpeedOfLightSq;
+
 	//source of E_g is T_ti is the momentum + Poynting vector
+	real3 T_ti = real3_zero;
 	// I'm symmetrizing the stress-energy
 		//matter
-	deriv->E_g.x += (U->ion_m.x + U->elec_m.x) / normalizedSpeedOfLightSq;
-	deriv->E_g.y += (U->ion_m.y + U->elec_m.y) / normalizedSpeedOfLightSq;
-	deriv->E_g.z += (U->ion_m.z + U->elec_m.z) / normalizedSpeedOfLightSq;
+	T_ti.x -= U->ion_m.x * normalizedSpeedOfLight;
+	T_ti.y -= U->ion_m.y * normalizedSpeedOfLight;
+	T_ti.z -= U->ion_m.z * normalizedSpeedOfLight;
 		//electromagnetism
 	real3 S = real3_real_mul(real3_cross(U->E, U->B), 1. / solver->mu);
 	real nSq = solver->eps * solver->mu;	// index of refraction^2 = 1 / phase vel^2 = permittivity * permeability
-	deriv->E_g.x += S.x / normalizedSpeedOfLight * (1. + nSq);
-	deriv->E_g.y += S.y / normalizedSpeedOfLight * (1. + nSq);
-	deriv->E_g.z += S.z / normalizedSpeedOfLight * (1. + nSq);
+	T_ti.x -= .5 * S.x * (1. + nSq) / normalizedSpeedOfLight;
+	T_ti.y -= .5 * S.y * (1. + nSq) / normalizedSpeedOfLight;
+	T_ti.z -= .5 * S.z * (1. + nSq) / normalizedSpeedOfLight;
+	
+	deriv->E_g.x -= T_ti.x * mu_g / normalizedSpeedOfLight;
+	deriv->E_g.y -= T_ti.y * mu_g / normalizedSpeedOfLight;
+	deriv->E_g.z -= T_ti.z * mu_g / normalizedSpeedOfLight;
+
 	// source of phi_g is T_00 is rho + .5 (E^2 + B^2)
+	real T_tt = 0.;	
 		//matter
-	deriv->phi_g += (U->ion_rho + U->elec_rho) / (normalizedSpeedOfLight * normalizedSpeedOfLight);
+	T_tt += (U->ion_rho + U->elec_rho) * (normalizedSpeedOfLight * normalizedSpeedOfLight);
 		//electromagnetism			
-	deriv->phi_g += calc_EM_energy(solver, U, x) / (normalizedSpeedOfLight * normalizedSpeedOfLight);
+	T_tt += calc_EM_energy(solver, U, x);
+	
+	deriv->phi_g += T_tt * solver->divPhiGWavespeed / (normalizedSpeedOfLight * eps_g);
 
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
