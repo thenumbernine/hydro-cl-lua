@@ -40,6 +40,7 @@ local function TwoFluidEMHDBehavior(parent)
 		local ionInitState
 		local electronInitState
 		local emhdInitState
+		-- TODO scale elec->U.rho and elec->U.P down by 1/ionElectronMassRatio
 		--]]
 
 		local IonSolver = class(parent)

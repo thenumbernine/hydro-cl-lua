@@ -170,7 +170,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 		-- m = m_i / m_e
 		-- https://en.wikipedia.org/wiki/Proton-to-electron_mass_ratio
 		-- m_i / m_e = 1836.15267389
-		{name='ionElectronMassRatio', value=1836},
+		{name='ionElectronMassRatio', value=100},
 		
 		-- r_i = q_i / m_i
 		{name='ionChargeMassRatio', value=1},
@@ -184,12 +184,12 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 
 		{name='eps', value=1},			-- permittivity
 		{name='mu', value=1},			-- permeability
-		{name='gravitationalConstant', value=6e-6},		-- 6.67408e-11 m^3 / (kg s^2)
+		{name='gravitationalConstant', value=1},		-- 6.67408e-11 m^3 / (kg s^2)
 	
 	}:append(fluids:map(function(fluid)
 		return table{
-			{name='min_'..fluid..'_rho', value=0},
-			{name='min_'..fluid..'_P', value=0},
+			{name='min_'..fluid..'_rho', value=1e-4},
+			{name='min_'..fluid..'_P', value=1e-4},
 		}
 	end):unpack()))
 end
@@ -622,7 +622,6 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCode(side, eig, x, waveI
 		})[waveIndex - 5*#fluids + 1]
 	end
 	if waveIndex >= 5*#fluids+8 and waveIndex < 5*#fluids+16 then
-		-- 2014 Abgrall, Kumar eqn 1.9 says the eigenvalues are c, while the flux contains cHat ...
 		return ({
 			'-normalizedSpeedOfLight * solver->divPhiGWavespeed * _1_sqrt_det_g',
 			'-normalizedSpeedOfLight * solver->divPsiGWavespeed * _1_sqrt_det_g',
@@ -646,11 +645,11 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodePrefix(side, U, x)
 
 #if 1	//using the EM wavespeed
 	real consWaveCode_lambdaMax = max(
-		max(
+		//max(
 			max(solver->divPsiWavespeed, solver->divPhiWavespeed),
-			max(solver->divPsiGWavespeed, solver->divPhiGWavespeed)
-		)
-		, 1.) * normalizedSpeedOfLight;
+			//max(solver->divPsiGWavespeed, solver->divPhiGWavespeed)
+		//),
+		1.) * normalizedSpeedOfLight;
 #else	//ignoring it
 	real consWaveCode_lambdaMax = INFINITY;
 #endif

@@ -231,6 +231,7 @@ inline real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=e
 <? end ?>
 
 inline real calc_EM_energy(const global <?=eqn.cons_t?>* U, real3 x) {
+	// TODO E needs to be * eps, and B needs to be / mu
 	return .5 * (coordLenSq(U->E, x) + coordLenSq(U->B, x));
 }
 ]], {

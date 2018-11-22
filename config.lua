@@ -248,8 +248,8 @@ local args = {
 	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	--initState = 'Brio-Wu',
-	initState = 'Orszag-Tang',
+	initState = 'Brio-Wu',
+	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'GEM challenge', eqnArgs = {useEulerInitState=false},
 	--initState = 'spinning magnetic fluid',
@@ -510,7 +510,7 @@ local args = {
 -- TODO FIXME
 -- TODO, with the separate solver, use hll, so the ion, electron, and maxwell all use hll separately
 -- TODO I made it even more difficult to implement with the addition of these real_ and cplx_ macros...
---self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
+self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
 
 -- ...so to try and get around that, here the two are combined into one solver:
 -- it is stable, however since all variables are tied together, it integrates them together, which means everything is explicit-integration updated
@@ -521,7 +521,7 @@ local args = {
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
 
 
 -- GR
