@@ -100,9 +100,11 @@ local function TwoFluidEMHDBehavior(parent)
 			numWaves = 0,	-- nor this ..
 			getTypeCode = function()
 				return table{
+					'// TwoFluidEMHDSeparateBehavior.eqn:getTypeCode() begin',
 					self.electron.eqn:getTypeCode(),
 					self.ion.eqn:getTypeCode(),
 					self.maxwell.eqn:getTypeCode(),
+					'// TwoFluidEMHDSeparateBehavior.eqn:getTypeCode() end',
 				}:concat'\n'
 			end,
 			getEigenTypeCode = function() end,
@@ -110,7 +112,65 @@ local function TwoFluidEMHDBehavior(parent)
 			getTemplateEnv = function() return self.maxwell.eqn:getTemplateEnv() end,
 			getExtraTypeCode = function() return '' end,
 		}
+
+		setmetatable(self.eqn, require 'eqn.eqn')
+		-- taken from eqn/twofluid-emhd.lua
+		self.eqn:addGuiVars(self.eqn, table{
+			--never given, only stated as "speeds for the Maxwell equation"
+			-- of course, they're associated with the potentials, so... they could be arbitrary
+			{name='divPsiWavespeed', value=1},
+			{name='divPhiWavespeed', value=1},
+			
+			-- gamma = heat capacity ratio
+			{name='heatCapacityRatio', value=5/3},
+
+			-- x_0 = reference length
+			{name='referenceLength', value=1},
+
+			-- B_0 = reference magnetic field
+			{name='referenceMagneticField', value=1},
+
+			-- v_i^T = ion reference thermal velocity
+			--{name='ionReferenceThermalVelocity', value=1},
+			-- normalized Larmor radius:
+			-- lHat = l_r / x_0 = gamma m_i v_i^T / (q_i B_0 x_0)	
+			-- the 2014 Abgrall, Kumar model has no gamma, but Wiki says to add gamma = Lorentz boost
+			-- therefore:
+			-- v_i^T = l_r B_0 q_i / m_i
+			-- just use this equation:
+			-- v_i^T = l_r r_i B_0
+
+			-- m_i = ion mass
+			{name='ionMass', value=1},
 		
+			-- c = speed of light
+			{name='speedOfLight', value=1},
+			-- normalized speed of light:
+			-- cHat = c / v_i^T
+			
+			-- l_r = larmor radius
+			-- in the experimental section of 2014 Abgrall Kumar this is given fixed values
+			{name='ionLarmorRadius', value=.1},
+			
+			-- m = m_i / m_e
+			-- https://en.wikipedia.org/wiki/Proton-to-electron_mass_ratio
+			-- m_i / m_e = 1836.15267389
+			{name='ionElectronMassRatio', value=100},
+			
+			-- r_i = q_i / m_i
+			{name='ionChargeMassRatio', value=1},
+		
+			-- lambda_d = ion Debye length
+			-- lambda_d = sqrt(epsilon (v_i^T)^2 / n_0 q_i)
+			-- the 2014 Abgrall, Kumar model uses vacuum permittivity, whereas Wiki says material permittivity works
+			{name='ionDebyeLength', value=1},
+			-- normalized ion Debye length: 
+			-- lambdaHat_d = lambda_d / l_r
+				
+			{name='min_rho', value=1e-4},
+			{name='min_P', value=1e-4},
+		})
+
 		self.solver_t = self.app:uniqueName'solver_t'
 		makestruct.safeFFICDef(self:getSolverTypeCode())
 		self.solverPtr = ffi.new(self.solver_t)
@@ -123,8 +183,12 @@ local function TwoFluidEMHDBehavior(parent)
 
 	-- same as in GridSolver
 	function templateClass:getSolverTypeCode()
-		self.solverVars = {}
-		return makestruct.makeStruct(self.solver_t, self.solverVars, nil, true)
+		self.solverVars = table(require 'solver.gridsolver'.solverVars)
+		return table{
+			'// TwoFluidEMHDSeparateBehavior:getSolverTypeCode() end',
+			makestruct.makeStruct(self.solver_t, self.solverVars, nil, true),
+			'// TwoFluidEMHDSeparateBehavior:getSolverTypeCode() end',
+		}:concat'\n'
 	end
 
 	function templateClass:getConsLRTypeCode() return '' end
@@ -138,14 +202,21 @@ local function TwoFluidEMHDBehavior(parent)
 		require 'solver.gridsolver'.createCodePrefix(self)
 
 		local lines = table{
+			'// TwoFluidEMHDSeparateBehavior:replaceSourceKernels() end',
 			self.codePrefix,
-			self.eqn:getTypeCode(),
+--			self.eqn:getTypeCode(),
 
-			'#define chargeMassRatio_ion '..clnumber(chargeMassRatio_ion),
-			'#define chargeMassRatio_electron '..clnumber(chargeMassRatio_electron),
 			'#define eps0 '..clnumber(eps0),
 			[[
-<? for _,species in ipairs{'ion', 'electron'} do ?>
+<? for _,species in ipairs{'ion', 'electron'} do 
+
+	local speciesElectronMassRatio
+	if species == 'ion' then
+		speciesElectronMassRatio = 'solver->ionElectronMassRatio'
+	elseif species == 'electron' then
+		speciesElectronMassRatio = '1'
+	end
+?>
 
 kernel void addSource_<?=species?>(
 	constant <?=solver.solver_t?>* solver,
@@ -157,10 +228,11 @@ kernel void addSource_<?=species?>(
 	global <?=euler_cons_t?>* deriv = derivBuf + index;
 	const global <?=euler_cons_t?>* U = UBuf + index;
 	const global <?=maxwell_cons_t?>* maxwellU = maxwellUBuf + index;
-	deriv->m.x += chargeMassRatio_<?=species?> * (maxwellU->E.x / eps0 + U->m.y * maxwellU->B.z - U->m.z * maxwellU->B.y);
-	deriv->m.y += chargeMassRatio_<?=species?> * (maxwellU->E.y / eps0 + U->m.z * maxwellU->B.x - U->m.x * maxwellU->B.z);
-	deriv->m.z += chargeMassRatio_<?=species?> * (maxwellU->E.z / eps0 + U->m.x * maxwellU->B.y - U->m.y * maxwellU->B.x);
-	deriv->ETotal += chargeMassRatio_<?=species?> * real3_dot(maxwellU->E, U->m) / eps0;
+	
+	deriv->m.x += (<?=speciesElectronMassRatio?> / normalizedIonLarmorRadius) * (U->rho * maxwellU->E.x + U->m.y * maxwellU->B.z - U->m.z * maxwellU->B.y);
+	deriv->m.y += (<?=speciesElectronMassRatio?> / normalizedIonLarmorRadius) * (U->rho * maxwellU->E.y + U->m.z * maxwellU->B.x - U->m.x * maxwellU->B.z);
+	deriv->m.z += (<?=speciesElectronMassRatio?> / normalizedIonLarmorRadius) * (U->rho * maxwellU->E.z + U->m.x * maxwellU->B.y - U->m.y * maxwellU->B.x);
+	deriv->ETotal += (<?=speciesElectronMassRatio?> / normalizedIonLarmorRadius) * real3_dot(maxwellU->E, U->m);
 }
 
 <? end ?>
@@ -175,11 +247,19 @@ kernel void addSource_maxwell(
 	global <?=maxwell_cons_t?>* deriv = derivBuf + index;
 	const global <?=euler_cons_t?>* ionU = ionUBuf + index;
 	const global <?=euler_cons_t?>* electronU = electronUBuf + index;
-	deriv->E = real3_sub(deriv->E, real3_real_mul(ionU->m, chargeMassRatio_ion));
-	deriv->E = real3_sub(deriv->E, real3_real_mul(electronU->m, chargeMassRatio_electron));
+	deriv->D = real3_sub(deriv->D, real3_real_mul(ionU->m, chargeMassRatio_ion));
+	deriv->D = real3_sub(deriv->D, real3_real_mul(electronU->m, chargeMassRatio_electron));
+	
+	
+	real normalizedIonDebyeLengthSq	= normalizedIonDebyeLength * normalizedIonDebyeLength;
+	deriv->E.x -= (ionU->m.x * solver->ionChargeMassRatio + elecU->m.x * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->E.y -= (ionU->m.y * solver->ionChargeMassRatio + elecU->m.y * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->E.z -= (ionU->m.z * solver->ionChargeMassRatio + elecU->m.z * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->phi += (ionU->rho * solver->ionChargeMassRatio + elecU->rho * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius) * solver->divPhiWavespeed;
 }
 
-]]
+]],
+			'// TwoFluidEMHDSeparateBehavior:replaceSourceKernels() end',
 		}
 		local code = lines:concat'\n'
 		code = template(code, {

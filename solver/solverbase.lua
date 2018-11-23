@@ -605,19 +605,19 @@ function SolverBase:createCodePrefix()
 	lines:append{
 		'//SolverBase:createCodePrefix() begin',
 		
-		'//self.eqn:getTypeCode()',
+		'//...self.eqn:getTypeCode()',
 		self.eqn:getTypeCode(),
 		
-		'//self:getSolverTypeCode()',
+		'//...self:getSolverTypeCode()',
 		self:getSolverTypeCode(),
 		
-		'//self.eqn:getExtraTypeCode()',
+		'//...self.eqn:getExtraTypeCode()',
 		self.eqn:getExtraTypeCode(),
 		
-		'//self.eqn:getEigenTypeCode()',
+		'//...self.eqn:getEigenTypeCode()',
 		self.eqn:getEigenTypeCode() or '',
 		
-		'//self.eqn:getCodePrefix()',
+		'//...self.eqn:getCodePrefix()',
 		self.eqn:getCodePrefix() or '',
 		
 		'//SolverBase:createCodePrefix() end',

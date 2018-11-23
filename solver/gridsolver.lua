@@ -33,6 +33,14 @@ local GridSolver = class(SolverBase)
 
 GridSolver.numGhost = 2
 
+GridSolver.solverVars  = table{
+	{gridSize = 'int4'},
+	{stepsize = 'int4'},
+	{mins = 'real3'},
+	{maxs = 'real3'},
+	{grid_dx = 'real3'},
+}
+
 --[[
 args:
 	gridSize
@@ -45,13 +53,7 @@ function GridSolver:initL1(args)
 	-- same as equations
 	-- but let equations/init conds add to the solver vars (as gui vars)
 	-- then we can edit them without recompiling the kernels
-	self.solverVars = table{
-		{gridSize = 'int4'},
-		{stepsize = 'int4'},
-		{mins = 'real3'},
-		{maxs = 'real3'},
-		{grid_dx = 'real3'},
-	}
+	self.solverVars = table(self.solverVars)
 
 	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
 	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
