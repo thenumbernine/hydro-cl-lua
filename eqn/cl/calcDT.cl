@@ -24,9 +24,9 @@ kernel void calcDT(
 		<?=eqn:consWaveCodePrefix(side, '*U', 'x')?>
 		real lambdaMin = <?=eqn:consMinWaveCode(side, '*U', 'x')?>;
 		real lambdaMax = <?=eqn:consMaxWaveCode(side, '*U', 'x')?>;
-		lambdaMin = (real)min((real)0., lambdaMin);
-		lambdaMax = (real)max((real)0., lambdaMax);
-		dt = (real)min((real)dt, (real)(solver->grid_dx.s<?=side?> / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
+		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+		absLambdaMax = max((real)1e-9, absLambdaMax);
+		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
 	}<? end ?>
 	dtBuf[index] = dt;
 }
@@ -56,9 +56,9 @@ kernel void calcDT(
 			<?=eqn:consWaveCodePrefix(side, '*U', 'x')?>
 			real lambdaMin = <?=eqn:consMinWaveCode(side, '*U', 'x')?>;
 			real lambdaMax = <?=eqn:consMaxWaveCode(side, '*U', 'x')?>;
-			lambdaMin = (real)min((real)0., lambdaMin);
-			lambdaMax = (real)max((real)0., lambdaMax);
-			dt = min(dt, (iface->dist / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
+			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+			absLambdaMax = max((real)1e-9, absLambdaMax);
+			dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
 		}<? end ?>
 	}
 	dtBuf[cellIndex] = dt;

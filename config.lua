@@ -1,4 +1,4 @@
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -19,7 +19,7 @@ local args = {
 	--integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
-	cfl = cmdline.cfl or .5,	-- 1/dim,
+	cfl = cmdline.cfl or .6,	-- 1/dim,
 	
 	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
@@ -76,12 +76,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'periodic',
-		xmax=cmdline.boundary or 'periodic',
-		ymin=cmdline.boundary or 'periodic',
-		ymax=cmdline.boundary or 'periodic',
-		zmin=cmdline.boundary or 'periodic',
-		zmax=cmdline.boundary or 'periodic',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	-- TODO these next two seem very similar
@@ -128,7 +128,7 @@ local args = {
 	-- no such problem with anholonomic ... however anholonomic is creating an initial wave from rmin which destroys everything
 	-- [=[ anholonomic
 	coordArgs = {anholonomic=true},
-	mins = cmdline.mins or {0, 0, -.25},
+	mins = cmdline.mins or {.1, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	--]=]	
 	--[=[ holonomic
@@ -142,8 +142,8 @@ local args = {
 	})[dim],
 	boundary = {
 		-- r
-		xmin=cmdline.boundary or 'freeflow',		-- hmm, how to treat the r=0 boundary ...
-		xmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
+		xmax=cmdline.boundary or 'mirror',
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
@@ -214,7 +214,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -248,7 +248,7 @@ local args = {
 	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	initState = 'Brio-Wu',
+	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'GEM challenge', eqnArgs = {useEulerInitState=false},
@@ -447,7 +447,7 @@ local args = {
 
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='1996 Jiang Shu'})))
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2008 Borges'})))
---self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2010 Shen Zha'})))
+self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2010 Shen Zha'})))
 
 -- still haven't added source terms to this
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='navstokes-wilcox'})))
@@ -510,7 +510,7 @@ local args = {
 -- TODO FIXME
 -- TODO, with the separate solver, use hll, so the ion, electron, and maxwell all use hll separately
 -- TODO I made it even more difficult to implement with the addition of these real_ and cplx_ macros...
-self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
+--self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
 
 -- ...so to try and get around that, here the two are combined into one solver:
 -- it is stable, however since all variables are tied together, it integrates them together, which means everything is explicit-integration updated

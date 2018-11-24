@@ -386,9 +386,9 @@ kernel void calcDT(
 		//use cell-centered eigenvalues
 		real lambdaMin = W.v.s<?=side?> - Cs;
 		real lambdaMax = W.v.s<?=side?> + Cs;
-		lambdaMin = min((real)0., lambdaMin);
-		lambdaMax = max((real)0., lambdaMax);
-		dt = min(dt, (solver->grid_dx.s<?=side?> / (fabs(lambdaMax - lambdaMin) + (real)1e-9)));
+		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+		absLambdaMax = max((real)1e-9, absLambdaMax);
+		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
 	}<? end ?>
 	dtBuf[index] = dt;
 }

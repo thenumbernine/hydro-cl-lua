@@ -53,9 +53,9 @@ kernel void calcDT(
 		real discr = sqrt((1. - vSq) * (gammaU.xx * (1. - vSq * csSq) - vUiSq * (1. - csSq)));
 		real lambdaMin = (vUi * (1. - csSq) - cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
 		real lambdaMax = (vUi * (1. - csSq) + cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
-		lambdaMin = min((real)0., lambdaMin);
-		lambdaMax = max((real)0., lambdaMax);
-		dt = min(dt, (real)dx<?=side?>_at(i) / (fabs(lambdaMax - lambdaMin) + (real)1e-9));
+		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+		absLambdaMax = max((real)1e-9, absLambdaMax);
+		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
 	}<? end ?>
 	
 	dtBuf[index] = dt; 
