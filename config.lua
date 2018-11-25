@@ -1,4 +1,4 @@
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -36,7 +36,7 @@ local args = {
 	-- only enabled for certain usePLM methods
 	--slopeLimiter = 'minmod',
 
-	useCTU = true,
+	--useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -209,11 +209,11 @@ local args = {
 	--initState = 'constant with velocity',
 	--initState = 'linear',
 	--initState = 'gaussian',
-	--initState = 'advect wave',
+	initState = 'advect wave',
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -439,14 +439,14 @@ local args = {
 }
 
 -- HD
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='1996 Jiang Shu'})))
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2008 Borges'})))
---self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2010 Shen Zha'})))
+self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2010 Shen Zha'})))
 
 -- still haven't added source terms to this
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='navstokes-wilcox'})))

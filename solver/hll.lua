@@ -49,14 +49,14 @@ function HLL:calcDeriv(derivBuf, dt)
 	self:boundary()
 	
 	if self.usePLM then
-		self.calcLRKernelObj(self.solverBuf, self.ULRBuf, self.UBuf, dtArg)
+		self.calcLRKernelObj(self.solverBuf, self:getULRBuf(), self.UBuf, dtArg)
 	end
 
 	self.calcFluxKernelObj(self.solverBuf, self.fluxBuf, self:getULRBuf())
 
 -- [=[ this is from the 2017 Zingale book
 	if self.useCTU then	-- see solver/roe.lua for a description of why this is how this is
-		self.updateCTUKernelObj(self.solverBuf, self.ULRBuf, self.fluxBuf, dtArg)
+		self.updateCTUKernelObj(self.solverBuf, self:getULRBuf(), self.fluxBuf, dtArg)
 	
 		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
 			obj()
