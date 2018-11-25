@@ -5,7 +5,7 @@
 kernel void calcFlux(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* fluxBuf,
-	<?=solver.getULRArg?>
+	const global <?=solver.getULRArg?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	

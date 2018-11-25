@@ -369,7 +369,7 @@ end
 function SolverBase:refreshSolverProgram()
 	-- [[ from GritSolver:refreshSolverProgram
 	
-	self.getULRArg = 'const global '..self.eqn.cons_t..'* UBuf'
+	self.getULRArg = self.eqn.cons_t..'* UBuf'
 	
 	self.getULRCode = function(self, args)
 		args = args or {}
@@ -1135,7 +1135,7 @@ function SolverBase:update()
 	if self.checkNaNs then
 		if self:checkFinite(self.UBufObj, self.numCells) then 
 			self.app.running = false
-			return 
+			return
 		end
 	end
 end

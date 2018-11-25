@@ -80,7 +80,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 kernel void calcEigenBasis(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.eigen_t?>* eigenBuf,
-	<?= solver.getULRArg ?><?=
+	const global <?=solver.getULRArg?><?=
 	solver:getADMArgs()?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);

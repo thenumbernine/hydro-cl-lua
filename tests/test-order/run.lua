@@ -76,8 +76,8 @@ problems['advect wave'] = {
 			--{solver='weno5', weno5method='2008 Borges', integrator='forward Euler'},		-- 0.16680010146205	
 			{solver='weno5', weno5method='2010 Shen Zha', integrator='forward Euler'},		-- 0.12853659670964	
 
-			{solver='hll', integrator='forward Euler'},									-- 0.00060136599076404
-			{solver='euler-burgers', integrator='forward Euler'},							-- 0.0004752949543945	
+			--{solver='hll', integrator='forward Euler'},									-- 0.00060136599076404
+			--{solver='euler-burgers', integrator='forward Euler'},							-- 0.0004752949543945	
 
 			-- why is RK3-TVD worse than forward Euler in all my hllc solvers?
 			-- hllcMethod == 0
@@ -144,7 +144,7 @@ problems['advect wave'] = {
 			--{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 2'},		-- 0.9999999
 			--{solver='roe', integrator='forward Euler', fluxLimiter='donor cell'},			-- 0.00048873499978677
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Oshker'},				-- 8.1594383698357e-05
-			{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 8.0220379351244e-05
+			--{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 8.0220379351244e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Sweby'},				-- 7.5406302510808e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='HQUICK'},				-- 7.3985100798005e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Koren'},				-- 7.3374191905257e-05
@@ -152,7 +152,7 @@ problems['advect wave'] = {
 			--{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},	-- 6.8474331334665e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='UMIST'},				-- 6.3705455038239e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='minmod'},				-- 5.9129797191892e-05
-			{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},		-- 1.2048891136515e-06
+			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},		-- 1.2048891136515e-06
 
 			-- my PLM attempts:
 			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},			-- 0.00049148119638364
@@ -200,14 +200,17 @@ problems['advect wave'] = {
 		local k0 = 2 * math.pi / width
 		local t = solver.t
 		return xs:map(function(x,i)
-			--return rho0 + rho1 * math.cos(k0 * (x - u0 * t))
-			return rho0 + rho1 * math.cos(k0 * x - k0 * u0 * t)
+			return rho0 + rho1 * math.sin(k0 * (x - u0 * t))
 		end)
 	end,
 
 	-- TODO make sure solver_t->init_v0x == 1/duration and solver_t->maxs.x - mins.x == 2
 	-- otherwise, for durations t=100 and t=1 the results look close enough to the same
-	duration = 1,
+	-- or just use what the Mara demo had:
+	duration = 0.1,
+	
+	mins = {0,0,0},
+	maxs = {1,1,1},
 }
 
 
@@ -229,7 +232,7 @@ problems.Sod = {
 			--{solver='euler-burgers', integrator='forward Euler'},							-- 0.0031694650615551
 
 			-- flux-limiters w/roe scheme:
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},		-- 0.47968895872093		-- the most accurate of the cosine test, the least accurate of the Sod test ...
+			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},		-- 0.47968895872093		-- the most accurate of the sine test, the least accurate of the Sod test ...
 			--{solver='roe', integrator='forward Euler', fluxLimiter='donor cell'},			-- 0.0036660453357688
 			--{solver='roe', integrator='forward Euler', fluxLimiter='ospre'},				-- 0.0030672192288732
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Beam-Warming'},		-- 0.0022967397811603
@@ -437,7 +440,9 @@ t = t * 4 / 3
 			return rhos[r](x)	-- vs[r], Ps[r]
 		end)
 	end,
-	
+
+	mins = {-1,-1,-1},
+	maxs = {1,1,1},
 	duration = .2,
 }
 
@@ -454,7 +459,8 @@ local errorsForConfig = table()
 local errorNames = table()
 
 -- for history and compare, this is the size used
-local singleSize = 1024
+--local singleSize = 1024
+local singleSize = 64
 
 local dim = 1
 local sizes = (plotCompare or plotErrorHistory) and table{singleSize} or range(3,10):map(function(x) return 2^x end)
@@ -470,10 +476,10 @@ print(destName)
 		:gsub('}', ')')
 	
 	cfg.dim = dim
-	cfg.cfl = .5
+	cfg.cfl = .6
 	cfg.coord = 'cartesian'
-	cfg.mins = {-1,-1,-1}
-	cfg.maxs = {1,1,1}
+	cfg.mins = problem.mins
+	cfg.maxs = problem.maxs
 
 	--[[
 	data cached per-test:
@@ -511,7 +517,7 @@ print()
 				end
 
 				local duration = tonumber(problem.duration) or error("expected problem.duration")
-		
+				
 				local function getSolverGraph(solver)
 					local _, var = solver.displayVars:find(nil, function(var) return var.name == 'U rho' end)
 					assert(var, "failed to find U rho var")

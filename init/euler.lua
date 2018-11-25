@@ -241,10 +241,10 @@ local initStates = table{
 	{
 		name = 'advect wave',
 		guiVars = {
-			{name = 'init_v0x', value = 1},	--.1
+			{name = 'init_v0x', value = 1},
 			{name = 'init_v0y', value = 0},
 			{name = 'init_rho0', value = 1},
-			{name = 'init_rho1', value = .1},	--.32
+			{name = 'init_rho1', value = .32},
 			{name = 'init_P0', value = 1},
 		},
 		initState = function(self, solver)
@@ -260,7 +260,7 @@ local initStates = table{
 	real3 xc = coordMap(x);
 	real width = solver->maxs.x - solver->mins.x;
 	real k0 = 2. * M_PI / width;
-	rho = solver->init_rho0 + solver->init_rho1 * cos(k0 * xc.x);
+	rho = solver->init_rho0 + solver->init_rho1 * sin(k0 * xc.x);
 	v.x = solver->init_v0x;
 	v.y = solver->init_v0y;
 	P = solver->init_P0;

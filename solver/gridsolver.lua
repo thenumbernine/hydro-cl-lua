@@ -109,7 +109,6 @@ function GridSolver:preInit(args)
 	self.slopeLimiter = self.app.limiterNames:find(args.slopeLimiter) or 1
 	
 	self.useCTU = args.useCTU
-	assert(not self.useCTU or self.usePLM, "if you are using CTU then you need to use a slope limiter method")
 
 	-- my kernel objs are going to need workgroup info based on domain.size-2*noGhost as well as domain.size ... 
 	-- ...and rather than require an extra argument, I think I'll just take advantage of a closure
@@ -611,7 +610,6 @@ function GridSolver:getSolverCode()
 			
 		slopeLimiterCode,
 		
-		-- messing with this ...
 		self.usePLM and template(file['solver/plm.cl'], {solver=self, eqn=self.eqn}) or '',
 		self.useCTU and template(file['solver/ctu.cl'], {solver=self, eqn=self.eqn}) or '',
 	}:concat'\n'
@@ -627,8 +625,8 @@ end
 -- depends on buffers
 function GridSolver:refreshSolverProgram()
 	self.getULRArg = self.usePLM 
-		and ('const global '..self.eqn.consLR_t..'* ULRBuf')
-		or ('const global '..self.eqn.cons_t..'* UBuf')
+		and (self.eqn.consLR_t..'* ULRBuf')
+		or (self.eqn.cons_t..'* UBuf')
 
 	-- this code creates the const global cons_t* UL, UR variables
 	-- it assumes that indexL, indexR, and side are already defined
@@ -947,40 +945,46 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 		lines:insert(template([[
 kernel void boundary_<?=xNames[side]?>(
 	constant <?=solver.solver_t?>* solver,
-	global <?=args.type?>* buf
-<?= args.extraArgs and #args.extraArgs > 0 
+	global <?=args.type?>* buf<?= 
+args.extraArgs and #args.extraArgs > 0 
 	and ','..table.concat(args.extraArgs, ',\n\t')
 	or '' ?>
-) {
-
-<? 
+) {<? 
 -- 1D: use a small 1D kernel and just run once 
 -- 2D: use a 1D kernel the size of the max dim 
 if solver.dim == 2 then ?>
-	int i = get_global_id(0);
-<? elseif solver.dim == 3 then ?>
-	int2 i = (int2)(get_global_id(0), get_global_id(1));
-<? end ?>
-	
-	if (false
-<?	for k=1,solver.dim-1 do
-?>		|| i<?=iFields[k]?> >= solver->gridSize.<?=xNames[bxs[k] ]?>
-<?	end
-?>) 
-	{
-		return;
-	}
-
-	for (int j = 0; j < numGhost; ++j) {
-]], 	{
+	int i = get_global_id(0);<? 
+elseif solver.dim == 3 then ?>
+	int2 i = (int2)(get_global_id(0), get_global_id(1));<? 
+end 
+?>]], 	{
 			table = table,
-			bxs = bxs,
 			solver = self,
 			args = args,
 			side = side, 
 			xNames = xNames,
-			iFields = iFields,
 		}))
+
+		if self.dim > 1 then
+			lines:insert(template([=[
+	if (<?
+local sep = ''
+for k=1,solver.dim-1 do
+?><?=sep?>i<?=iFields[k]?> >= solver->gridSize.<?=xNames[bxs[k]]?><?	
+	sep = ' || '
+end
+?>) return;
+]=],		{
+				bxs = bxs,
+				solver = self,
+				xNames = xNames,
+				iFields = iFields,
+			}))
+		end
+
+		lines:insert[[
+	for (int j = 0; j < numGhost; ++j) {
+]]
 
 		for _,minmax in ipairs(minmaxs) do
 			lines:insert(args.methods[xNames[side]..minmax]{
@@ -1002,9 +1006,6 @@ lines:insert[[
 	end
 
 	local code = lines:concat'\n'
-
---print(code)
---os.exit()
 
 	local boundaryProgramObj
 	time('compiling boundary program', function()
@@ -1050,23 +1051,25 @@ function GridSolver:refreshBoundaryProgram()
 
 	if self.useCTU then
 		local args = self:getBoundaryProgramArgs()
-		args.type = self.eqn.consLR_t..'_dim'
-		if args.mirrorVars then
-			local newvars = {}
-			for i=1,3 do
-				newvars[i] = table()
-				for _,var in ipairs(args.mirrorVars[i]) do
-					for j=0,self.dim-1 do
-						newvars[i]:insert('side['..j..'].L.'..var)
-						newvars[i]:insert('side['..j..'].R.'..var)
+		if self.usePLM then
+			args.type = self.eqn.consLR_t..'_dim'
+			if args.mirrorVars then
+				local newvars = {}
+				for i=1,3 do
+					newvars[i] = table()
+					for _,var in ipairs(args.mirrorVars[i]) do
+						for j=0,self.dim-1 do
+							newvars[i]:insert('side['..j..'].L.'..var)
+							newvars[i]:insert('side['..j..'].R.'..var)
+						end
 					end
 				end
+				args.mirrorVars = newvars
 			end
-			args.mirrorVars = newvars
 		end
 		self.lrBoundaryProgramObj, self.lrBoundaryKernelObjs = self:createBoundaryProgramAndKernel(args)
 		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
-			obj.obj:setArg(1, self.ULRBuf)
+			obj.obj:setArg(1, self:getULRBuf())
 		end
 	end
 end
@@ -1160,7 +1163,7 @@ end
 --]]	
 	local dt = self:calcDT()
 	
-	-- first do a big step
+	-- first do a step
 	self:step(dt)
 
 	-- why was this moved out of :step() ?

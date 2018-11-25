@@ -17,7 +17,7 @@ local solver = eqn.solver
 kernel void calcEigenBasis(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.eigen_t?>* eigenBuf,		//[numCells][dim]
-	<?=solver.getULRArg?>
+	const global <?=solver.getULRArg?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	real3 x = cell_x(i);
