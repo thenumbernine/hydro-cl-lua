@@ -87,10 +87,10 @@ kernel void calcFlux(
 	const global <?= solver.getULRArg ?>,
 	realparam dt
 ) {
-#if 0	
+#if 0
 	int4 i = globalInt4();
 	int index = INDEXV(i);
-	if (OOB(numGhost,numGhost)) {
+	if (OOB(numGhost-1,numGhost)) {
 		for (int side = 0; side < dim; ++side) {
 			int indexInt = side + dim * index;
 			global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
@@ -100,9 +100,10 @@ kernel void calcFlux(
 		}
 		return;
 	}
-#else	
-	SETBOUNDS(numGhost,numGhost);
-#endif	
+#else
+	SETBOUNDS(numGhost-1,numGhost);
+#endif
+	
 	real3 xR = cell_x(i);
 	int indexR = index;
 	const global <?=eqn.cons_t?>* UR = UBuf + indexR;
@@ -119,7 +120,7 @@ kernel void calcFlux(
 
 		real maxAbsLambda = 0.;
 		for (int j = 0; j < 6; ++j) {
-			const global <?=eqn.cons_t?>* U = UBuf + indexR + (j-3) * solver->stepsize.s<?=side?>;
+			const global <?=eqn.cons_t?>* U = UBuf + indexR + (j-2) * solver->stepsize.s<?=side?>;
 			<?=eqn:consWaveCodePrefix(side, '*U', 'xInt')?>
 			for (int k = 0; k < numWaves; ++k) {
 				real lambdaMin = <?=eqn:consMinWaveCode(side, '*U', 'xInt')?>;
@@ -130,10 +131,10 @@ kernel void calcFlux(
 				maxAbsLambda = max(maxAbsLambda, lambda);
 			}
 		}
-
+		
 		<?=eqn.cons_t?> Fp[6], Fm[6];
 		for (int j = 0; j < 6; ++j) {
-			const global <?=eqn.cons_t?>* U = UBuf + indexR + (j-3) * solver->stepsize.s<?=side?>;
+			const global <?=eqn.cons_t?>* U = UBuf + indexR + (j-2) * solver->stepsize.s<?=side?>;
 			<?=eqn.cons_t?> F = fluxFromCons_<?=side?>(solver, *U, xInt);
 			Fp[j] = Fm[j] = F;
 			for (int k = 0; k < numIntStates; ++k) {
@@ -141,23 +142,21 @@ kernel void calcFlux(
 				Fm[j].ptr[k] = .5 * (Fm[j].ptr[k] - maxAbsLambda * U->ptr[k]);
 			}
 		}
-
+		
 		<?=eqn.waves_t?> fp[6], fm[6];
 		for (int j = 0; j < 6; ++j) {
 			fp[j] = eigen_leftTransform_<?=side?>(solver, eig, Fp[j], xInt);
 			fm[j] = eigen_leftTransform_<?=side?>(solver, eig, Fm[j], xInt);
 		}
-
+		
 		<?=eqn.waves_t?> wfp = weno5r(fp);
 		<?=eqn.waves_t?> wfm = weno5l(fm+1);
 		<?=eqn.waves_t?> wf;
 		for (int j = 0; j < numWaves; ++j) {
-			// matlab code had .5 scale here, mara didn't
-			// i think one or the other should be, but not both
 			wf.ptr[j] = wfp.ptr[j] + wfm.ptr[j];
 		}
-
-		int indexInt = side + dim * index;
+		
+		int indexInt = side + dim * (index + solver->stepsize.s<?=side?>);
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
 		*flux = eigen_rightTransform_<?=side?>(solver, eig, wf, xInt);
 	}<? end ?>

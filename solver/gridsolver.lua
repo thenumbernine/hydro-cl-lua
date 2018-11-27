@@ -550,7 +550,7 @@ function GridSolver:createCodePrefix()
 	int4 i = globalInt4(); \
 	if (OOB(0,2*numGhost)) return; \
 	i += (int4)(<?=range(4):map(function(i) 
-		return i <= solver.dim and '2' or '0' 
+		return i <= solver.dim and 'numGhost' or '0' 
 	end):concat','?>); \
 	int index = INDEXV(i);
 ]], {solver = self}),
@@ -973,8 +973,8 @@ for k=1,solver.dim-1 do
 ?><?=sep?>i<?=iFields[k]?> >= solver->gridSize.<?=xNames[bxs[k]]?><?	
 	sep = ' || '
 end
-?>) return;
-]=],		{
+?>) return;]=],
+			{
 				bxs = bxs,
 				solver = self,
 				xNames = xNames,
@@ -983,8 +983,7 @@ end
 		end
 
 		lines:insert[[
-	for (int j = 0; j < numGhost; ++j) {
-]]
+	for (int j = 0; j < numGhost; ++j) {]]
 
 		for _,minmax in ipairs(minmaxs) do
 			lines:insert(args.methods[xNames[side]..minmax]{

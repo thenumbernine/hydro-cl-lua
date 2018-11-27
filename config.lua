@@ -441,8 +441,11 @@ local args = {
 -- HD
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
---self.solvers:insert(require 'solver.euler-hllc'(args))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
+
+--self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=0})))
+--self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=1})))
+--self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=2})))
 
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='1996 Jiang Shu'})))
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2008 Borges'})))
