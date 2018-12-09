@@ -75,6 +75,8 @@ problems['advect wave'] = {
 			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='forward Euler'},		-- 0.092113212858329
 			--{solver='weno5', weno5method='2008 Borges', integrator='forward Euler'},		-- 0.16680010146205	
 			{solver='weno5', weno5method='2010 Shen Zha', integrator='forward Euler'},		-- 0.12853659670964	
+			
+			--{solver='hll', integrator='forward Euler', fixedDT=.0001},
 
 			--{solver='hll', integrator='forward Euler'},									-- 0.00060136599076404
 			--{solver='euler-burgers', integrator='forward Euler'},							-- 0.0004752949543945	
@@ -152,7 +154,7 @@ problems['advect wave'] = {
 			--{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},	-- 6.8474331334665e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='UMIST'},				-- 6.3705455038239e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='minmod'},				-- 5.9129797191892e-05
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},		-- 1.2048891136515e-06
+			{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},		-- 1.2048891136515e-06
 
 			-- my PLM attempts:
 			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},			-- 0.00049148119638364
@@ -463,7 +465,9 @@ local errorNames = table()
 local singleSize = 64
 
 local dim = 1
-local sizes = (plotCompare or plotErrorHistory) and table{singleSize} or range(3,10):map(function(x) return 2^x end)
+local sizes = (plotCompare or plotErrorHistory) 
+	and table{singleSize} 
+	or range(3,10):map(function(x) return 2^x end)
 for _,cfg in ipairs(problem.configurations) do
 	cfg = table(cfg)
 
@@ -488,7 +492,7 @@ print(destName)
 		.ys[index] 
 	--]]
 	local testdata
-	local srcfn = rundir..'/'..destFilename..'.lua'
+	local srcfn = rundir..'/cache/'..destFilename..'.lua'
 	local srcfiledata = file[srcfn]
 	if srcfiledata then
 		testdata = fromlua(srcfiledata)

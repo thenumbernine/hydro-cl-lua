@@ -212,8 +212,30 @@ function GridSolver:refreshEqnInitState()
 	-- bounds don't get set until initState() is called, but code prefix needs them ...
 	-- TODO do a proper refresh so mins/maxs can be properly refreshed
 	local initState = self.eqn.initState
-	if initState.mins then self.mins = vec3(table.unpack(initState.mins)) end
-	if initState.maxs then self.maxs = vec3(table.unpack(initState.maxs)) end
+	if initState.mins then 
+		self.mins = vec3(table.unpack(initState.mins)) 
+		for j=1,3 do
+			self.solverPtr.mins.s[j-1] = self.mins[j]
+		end
+	end
+	if initState.maxs then 
+		self.maxs = vec3(table.unpack(initState.maxs)) 
+		for j=1,3 do
+			self.solverPtr.maxs.s[j-1] = self.maxs[j]
+		end
+	end
+
+	-- there's a lot of overlap between this and the solverBuf creation... 
+	self:refreshSolverBufMinsMaxs()
+	
+	-- while we're here, write all gui vars to the solver_t
+	for _,var in ipairs(self.eqn.guiVars) do
+		if not var.compileTime then
+			var:setToSolver(self)
+		end
+	end
+	
+	self:refreshSolverBuf()
 end
 
 -- call this when a gui var changes
@@ -364,6 +386,7 @@ end
 
 function GridSolver:createSolverBuf()
 	GridSolver.super.createSolverBuf(self)
+	
 	-- do this before any call to createBuffers or createCodePrefix
 	self.solverPtr.gridSize.x = self.gridSize.x
 	self.solverPtr.gridSize.y = self.gridSize.y
@@ -373,15 +396,9 @@ function GridSolver:createSolverBuf()
 	self.solverPtr.stepsize.y = self.gridSize.x
 	self.solverPtr.stepsize.z = self.gridSize.x * self.gridSize.y
 	self.solverPtr.stepsize.w = self.gridSize.x * self.gridSize.y * self.gridSize.z
-	self.solverPtr.mins.x = self.mins[1]
-	self.solverPtr.mins.y = self.dim <= 1 and 0 or self.mins[2]
-	self.solverPtr.mins.z = self.dim <= 2 and 0 or self.mins[3]
-	self.solverPtr.maxs.x = self.maxs[1]
-	self.solverPtr.maxs.y = self.dim <= 1 and 0 or self.maxs[2]
-	self.solverPtr.maxs.z = self.dim <= 2 and 0 or self.maxs[3]
-	self.solverPtr.grid_dx.x = (self.solverPtr.maxs.x - self.solverPtr.mins.x) / tonumber(self.sizeWithoutBorder.x)
-	self.solverPtr.grid_dx.y = (self.solverPtr.maxs.y - self.solverPtr.mins.y) / tonumber(self.sizeWithoutBorder.y)
-	self.solverPtr.grid_dx.z = (self.solverPtr.maxs.z - self.solverPtr.mins.z) / tonumber(self.sizeWithoutBorder.z)
+
+	-- do I even need separate lua and C structures?
+	self:refreshSolverBufMinsMaxs()
 
 	-- while we're here, write all gui vars to the solver_t
 	for _,var in ipairs(self.eqn.guiVars) do
@@ -391,6 +408,18 @@ function GridSolver:createSolverBuf()
 	end
 
 	self:refreshSolverBuf()
+end
+
+function GridSolver:refreshSolverBufMinsMaxs()
+	self.solverPtr.mins.x = self.mins[1]
+	self.solverPtr.mins.y = self.dim <= 1 and 0 or self.mins[2]
+	self.solverPtr.mins.z = self.dim <= 2 and 0 or self.mins[3]
+	self.solverPtr.maxs.x = self.maxs[1]
+	self.solverPtr.maxs.y = self.dim <= 1 and 0 or self.maxs[2]
+	self.solverPtr.maxs.z = self.dim <= 2 and 0 or self.maxs[3]
+	self.solverPtr.grid_dx.x = (self.solverPtr.maxs.x - self.solverPtr.mins.x) / tonumber(self.sizeWithoutBorder.x)
+	self.solverPtr.grid_dx.y = (self.solverPtr.maxs.y - self.solverPtr.mins.y) / tonumber(self.sizeWithoutBorder.y)
+	self.solverPtr.grid_dx.z = (self.solverPtr.maxs.z - self.solverPtr.mins.z) / tonumber(self.sizeWithoutBorder.z)
 end
 
 function GridSolver:refreshSolverBuf()
@@ -592,9 +621,9 @@ function GridSolver:resetState()
 		self.app.cmds:enqueueFillBuffer{buffer=self[bufferInfo.name], size=bufferInfo.size}
 	end
 	
-	self:boundary()
 	if self.eqn.useConstrainU then
 		self.constrainUKernelObj(self.solverBuf, self.UBuf)
+		self:boundary()
 	end
 
 	GridSolver.super.resetState(self)
@@ -1130,11 +1159,16 @@ end
 
 
 function GridSolver:update()
+
+--[[
+print'\nself.UBufObj:'
+self:printBuf(self.UBufObj)
+--]]
+
 	GridSolver.super.update(self)
 	
 --local before = self.UBufObj:toCPU()
 --print'\nself.UBufObj before boundary:' self:printBuf(self.UBufObj) print(debug.traceback(),'\n\n')	
-	self:boundary()
 --[[
 local after = self.UBufObj:toCPU()
 print'\nself.UBufObj after boundary:' self:printBuf(self.UBufObj) print(debug.traceback(),'\n\n')	
@@ -1159,7 +1193,7 @@ if self.app.dim == 2 then
 		end
 	end
 end
---]]	
+--]]
 	local dt = self:calcDT()
 	
 	-- first do a step
@@ -1168,6 +1202,8 @@ end
 	-- why was this moved out of :step() ?
 	self.t = self.t + dt
 	self.dt = dt
+
+	self:boundary()
 end
 
 function GridSolver:step(dt)
@@ -1182,6 +1218,7 @@ function GridSolver:step(dt)
 
 	for _,op in ipairs(self.ops) do
 		if op.step then
+			self:boundary()
 			op:step(dt)
 		end
 	end
@@ -1193,9 +1230,12 @@ function GridSolver:printBuf(buf, ptr)
 	for i=0,self.numCells-1 do
 		io.write((' '):rep(max-#tostring(i)), i,':')
 		for j=0,self.eqn.numStates-1 do
-			io.write(' ', ptr[j + self.eqn.numStates * i])
+			print('\t'
+				..(j==0 and '[' or '')
+				..('%.50f'):format(ptr[j + self.eqn.numStates * i])
+				..(j==self.eqn.numStates-1 and ']' or ',')
+			)
 		end 
-		print()
 	end
 end
 

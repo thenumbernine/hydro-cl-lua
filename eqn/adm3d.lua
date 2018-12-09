@@ -209,8 +209,26 @@ function ADM_BonaMasso_3D:createInitState()
 			end,
 			compileTime = true,
 		},
-		{name='a_convCoeff', value=10},
-		{name='d_convCoeff', value=10},
+
+		-- K_ij source term stress constraint coefficient
+		{name='K_ll_srcStressCoeff', value=1},
+		
+		-- K_ij source term Hamiltonian constraint coefficient
+		{name='K_ll_srcHCoeff', value=-.5},
+
+		-- gamma_ij source term stress constraint coefficient
+		{name='gamma_ll_srcStressCoeff', value=1},
+	
+		-- gamma_ij source term Hamiltonian constraint coefficient
+		{name='gamma_ll_srcHCoeff', value=-.5},
+
+		-- convergence between finite-difference of alpha,i and alpha a_i
+		{name='a_convCoeff', value=0},
+		
+		-- convergence between finite-difference of 1/2 gamma_ij,k and d_kij
+		{name='d_convCoeff', value=0},
+		
+		-- convergence between V_k and d_kj^j - d^j_jk
 		{name='V_convCoeff', value=10},
 	}
 	-- TODO add shift option

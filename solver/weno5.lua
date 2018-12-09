@@ -112,12 +112,14 @@ self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 	end
 --]=]
 	
+	self:boundary()
 	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBuf)
 self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)
 self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
 	self.calcDerivFromFluxKernelObj()
 
 	if self.eqn.useSourceTerm then
+		self:boundary()
 		self.addSourceKernelObj.obj:setArgs(self.solverBuf, derivBuf, self.UBuf)
 		self.addSourceKernelObj()
 	end

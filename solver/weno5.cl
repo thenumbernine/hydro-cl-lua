@@ -33,19 +33,13 @@ for name,info in pairs{
 		real vs1 = <?=clnumber(c[2][1])?> * v[1].ptr[k] + <?=clnumber(c[2][2])?> * v[2].ptr[k] + <?=clnumber(c[2][3])?> * v[3].ptr[k];
 		real vs2 = <?=clnumber(c[3][1])?> * v[0].ptr[k] + <?=clnumber(c[3][2])?> * v[1].ptr[k] + <?=clnumber(c[3][3])?> * v[2].ptr[k];
 		
-		real B0 = 
-			 (13./12.)*sqr(  v[2].ptr[k] - 2*v[3].ptr[k] +   v[4].ptr[k]) +
-			 ( 1./ 4.)*sqr(3*v[2].ptr[k] - 4*v[3].ptr[k] +   v[4].ptr[k]);
-		real B1 =
-			 (13./12.)*sqr(  v[1].ptr[k] - 2*v[2].ptr[k] +   v[3].ptr[k]) +
-			 ( 1./ 4.)*sqr(  v[1].ptr[k]                 -   v[3].ptr[k]);
-		real B2 = 
-			 (13./12.)*sqr(  v[0].ptr[k] - 2*v[1].ptr[k] +   v[2].ptr[k]) +
-			 ( 1./ 4.)*sqr(  v[0].ptr[k] - 4*v[1].ptr[k] + 3*v[2].ptr[k]);
+		real B0 = (13./12.)*sqr( v[2].ptr[k] - 2*v[3].ptr[k] + v[4].ptr[k]) + ( 1./ 4.)*sqr(3*v[2].ptr[k] - 4*v[3].ptr[k] +   v[4].ptr[k]);
+		real B1 = (13./12.)*sqr( v[1].ptr[k] - 2*v[2].ptr[k] + v[3].ptr[k]) + ( 1./ 4.)*sqr(  v[1].ptr[k]                 -   v[3].ptr[k]);
+		real B2 = (13./12.)*sqr( v[0].ptr[k] - 2*v[1].ptr[k] + v[2].ptr[k]) + ( 1./ 4.)*sqr(  v[0].ptr[k] - 4*v[1].ptr[k] + 3*v[2].ptr[k]);
 
 <?
 if solver.weno5method == '1996 Jiang Shu' then 
-	local epsilon = clnumber(1e-6)
+	local epsilon = clnumber(1e-14)
 ?>
 		real w0 = <?=clnumber(d[1])?> / sqr(<?=epsilon?> + B0);
 		real w1 = <?=clnumber(d[2])?> / sqr(<?=epsilon?> + B1);
@@ -87,22 +81,7 @@ kernel void calcFlux(
 	const global <?= solver.getULRArg ?>,
 	realparam dt
 ) {
-#if 0
-	int4 i = globalInt4();
-	int index = INDEXV(i);
-	if (OOB(numGhost-1,numGhost)) {
-		for (int side = 0; side < dim; ++side) {
-			int indexInt = side + dim * index;
-			global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
-			for (int j = 0; j < numStates; ++j) {
-				flux->ptr[j] = 0;
-			}
-		}
-		return;
-	}
-#else
-	SETBOUNDS(numGhost-1,numGhost);
-#endif
+	SETBOUNDS(2,2);
 	
 	real3 xR = cell_x(i);
 	int indexR = index;
@@ -131,26 +110,27 @@ kernel void calcFlux(
 				maxAbsLambda = max(maxAbsLambda, lambda);
 			}
 		}
-		
+
 		<?=eqn.cons_t?> Fp[6], Fm[6];
 		for (int j = 0; j < 6; ++j) {
 			const global <?=eqn.cons_t?>* U = UBuf + indexR + (j-2) * solver->stepsize.s<?=side?>;
 			<?=eqn.cons_t?> F = fluxFromCons_<?=side?>(solver, *U, xInt);
-			Fp[j] = Fm[j] = F;
 			for (int k = 0; k < numIntStates; ++k) {
-				Fp[j].ptr[k] = .5 * (Fp[j].ptr[k] + maxAbsLambda * U->ptr[k]);
-				Fm[j].ptr[k] = .5 * (Fm[j].ptr[k] - maxAbsLambda * U->ptr[k]);
+				Fp[j].ptr[k] = .5 * (F.ptr[k] + maxAbsLambda * U->ptr[k]);
+				Fm[j].ptr[k] = .5 * (F.ptr[k] - maxAbsLambda * U->ptr[k]);
 			}
 		}
 		
-		<?=eqn.waves_t?> fp[6], fm[6];
-		for (int j = 0; j < 6; ++j) {
+		<?=eqn.waves_t?> fp[5], fm[5];
+		for (int j = 0; j < 5; ++j) {
 			fp[j] = eigen_leftTransform_<?=side?>(solver, eig, Fp[j], xInt);
-			fm[j] = eigen_leftTransform_<?=side?>(solver, eig, Fm[j], xInt);
+			fm[j] = eigen_leftTransform_<?=side?>(solver, eig, Fm[j+1], xInt);
 		}
-		
-		<?=eqn.waves_t?> wfp = weno5r(fp);
-		<?=eqn.waves_t?> wfm = weno5l(fm+1);
+	
+		//hmm, fp should get the R coeffs, and fm should get the L coeffs
+		// ... but that causes oscillations ... why?
+		<?=eqn.waves_t?> wfp = weno5l(fp);
+		<?=eqn.waves_t?> wfm = weno5r(fm);
 		<?=eqn.waves_t?> wf;
 		for (int j = 0; j < numWaves; ++j) {
 			wf.ptr[j] = wfp.ptr[j] + wfm.ptr[j];

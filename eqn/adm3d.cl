@@ -1097,7 +1097,7 @@ kernel void addSource(
 	// source terms
 	
 	real3x3 K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
-	real tr_K = real3x3_trace(K_ul);								//K^k_k
+	real tr_K = real3x3_trace(K_ul);							//K^k_k
 	sym3 KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
 
 	//d_llu = d_ij^k = d_ijl * gamma^lk
@@ -1175,7 +1175,16 @@ kernel void addSource(
 	//		- 4 pi (2 S_ij - gamma_ij (S - rho))
 	
 	//...and the shift comes later ...
-	
+
+	sym3 stressConstraint_ll = (sym3){
+<? for ij,xij in ipairs(symNames) do	
+?>		.<?=xij?> = R_ll.<?=xij?> + tr_K * U->K_ll.<?=xij?> - KSq_ll.<?=xij?>
+			- (8. * M_PI * S_ll.<?=xij?> - 4. * M_PI * U->gamma_ll.<?=xij?> * (S - U->rho)),
+<? end
+?>	};
+
+	real HamiltonianConstraint = sym3_dot(stressConstraint_ll, gamma_uu);
+
 	sym3 srcK_ll_over_alpha = (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
@@ -1185,10 +1194,9 @@ kernel void addSource(
 <? 	for k,xk in ipairs(xNames) do 
 ?>			+ conn_ull.<?=xk?>.<?=xij?> * U->a_l.<?=xk?>
 <?	end
-?>			+ R_ll.<?=xij?>
-			+ tr_K * U->K_ll.<?=xij?>
-			- 2. * KSq_ll.<?=xij?>
-			- (8. * M_PI * S_ll.<?=xij?> - 4. * M_PI * U->gamma_ll.<?=xij?> * (S - U->rho))
+?>			+ solver->K_ll_srcStressCoeff * stressConstraint_ll.<?=xij?>
+			+ solver->K_ll_srcHCoeff * U->gamma_ll.<?=xij?> * HamiltonianConstraint
+			- KSq_ll.<?=xij?>
 		,
 <? end
 ?>	};
@@ -1230,13 +1238,25 @@ kernel void addSource(
 	deriv->alpha += -U->alpha * U->alpha * f * tr_K;
 	
 	//gamma_ij,t = shift terms - 2 alpha K_ij
-	sym3_add(deriv->gamma_ll, sym3_real_mul(U->K_ll, -2. * U->alpha));
-	
-	//K_ij,t = shift terms + alpha srcK_ij
-	sym3_add(deriv->K_ll, sym3_real_mul(srcK_ll_over_alpha, U->alpha));
+<? for ij,xij in ipairs(symNames) do
+?>	deriv->gamma_ll.<?=xij?> += U->alpha * (
+		-2. * U->K_ll.<?=xij?>
+		+ solver->gamma_ll_srcStressCoeff * stressConstraint_ll.<?=xij?>
+		+ solver->gamma_ll_srcHCoeff * U->gamma_ll.<?=xij?> * HamiltonianConstraint
+	);
+<? end
+?>
 
+	//K_ij,t = shift terms + alpha srcK_ij
+<? for ij,xij in ipairs(symNames) do
+?>	deriv->K_ll.<?=xij?> += U->alpha * srcK_ll_over_alpha.<?=xij?>;
+<? end
+?>
 	//V_k,t = shift terms + alpha srcV_k
-	real3_add(deriv->V_l, real3_real_mul(srcV_l, U->alpha));
+<? for i,xi in ipairs(xNames) do
+?>	deriv->V_l.<?=xi?> += U->alpha * srcV_l.<?=xi?>;
+<? end
+?>
 
 <? if eqn.useShift ~= 'none' then ?>
 
@@ -1400,8 +1420,7 @@ end ?>
 <? end
 ?>	};
 
-	deriv->beta_u = 
-	real3_add(
+	deriv->beta_u = real3_add(
 		deriv->beta_u,
 		real3_add(
 			real3_add(
@@ -1485,7 +1504,7 @@ kernel void constrainU(
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
 
 	real3x3 K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
-	real tr_K = real3x3_trace(K_ul);								//K^k_k
+	real tr_K = real3x3_trace(K_ul);							//K^k_k
 	sym3 KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
 
 <?
