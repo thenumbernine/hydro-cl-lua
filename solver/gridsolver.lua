@@ -236,6 +236,30 @@ function GridSolver:refreshEqnInitState()
 	end
 	
 	self:refreshSolverBuf()
+
+
+-- [[
+local ptr = ffi.cast(self.eqn.cons_t..'*', self.UBufObj:toCPU())
+local t = self.t
+for i=1,tonumber(self.gridSize.x) do
+	local x = self.solverPtr.mins.x + self.solverPtr.grid_dx.x * (i - self.numGhost - .5)
+	local rho = 1 + .32 * math.sin(2 * math.pi * (x - t))
+	local vx = 1
+	local P = 1
+	local mx = rho * vx
+	local EKin = .5 * rho * vx * vx
+	local EInt = P / (self.solverPtr.heatCapacityRatio - 1)
+	local ETotal = EKin + EInt
+	ptr[i-1].rho = rho
+	ptr[i-1].m.x = mx
+	ptr[i-1].m.y = 0
+	ptr[i-1].m.z = 0
+	ptr[i-1].ETotal = ETotal
+	ptr[i-1].ePot = 0
+end
+self.UBufObj:fromCPU(ptr)
+--]]
+
 end
 
 -- call this when a gui var changes
@@ -1202,6 +1226,43 @@ end
 	-- why was this moved out of :step() ?
 	self.t = self.t + dt
 	self.dt = dt
+
+--[[ debugging the advect wave problem
+-- TODO have an optional field for all problems, to calculte the exact solution? 
+do
+	local ptr = ffi.cast(self.eqn.cons_t..'*', self.UBufObj:toCPU())
+	assert(self.dim == 1)
+	local n = self.gridSize.x
+	local ghost = self.numGhost
+	local t = self.t
+	local matrix = require 'matrix'
+	local err = 0
+	for i=ghost+1,tonumber(self.gridSize.x)-2*ghost do
+		--local x = self.xs[i+ghost]
+		local x = self.solverPtr.mins.x + self.solverPtr.grid_dx.x * (i - ghost - .5)
+		local rho = 1 + .32 * math.sin(2 * math.pi * (x - t))
+		local vx = 1
+		local P = 1
+		local mx = rho * vx
+		local EKin = .5 * rho * vx * vx
+		local EInt = P / (self.solverPtr.heatCapacityRatio - 1)
+		local ETotal = EKin + EInt
+		err = err
+			+ math.abs(rho - tonumber(ptr[i-1].rho))
+			+ math.abs(mx - tonumber(ptr[i-1].m.x))
+			+ math.abs(ETotal - tonumber(ptr[i-1].ETotal))
+	end
+	err = err / (3 * (tonumber(self.gridSize.x) - 2 * ghost))
+	print(
+		--'t='..
+		('%.50f'):format(t)
+		..' '
+		--..'L1-error='
+		..('%.50f'):format(err)
+	)
+end
+--]]
+
 
 	self:boundary()
 end

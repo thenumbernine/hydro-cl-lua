@@ -91,6 +91,7 @@ which means this function won't work with the PLM code
 */
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.eigen_t?> eigen_forCell_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
@@ -120,7 +121,7 @@ kernel void calcEigenBasis(
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		
-		int indexL = index - stepsize.s<?=side?>;
+		int indexL = index - solver->stepsize.s<?=side?>;
 		<?=eqn.prim_t?> primL = UBuf[indexL].prim;
 		
 		real3 xInt = x;

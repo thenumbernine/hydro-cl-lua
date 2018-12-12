@@ -135,7 +135,7 @@ function SelfGrav:resetState()
 	self.reduce_ePotKernelObj()
 	local new_ePotMax = solver.reduceMax()
 
-print('offsetting potential energy from '..ePotMin..','..ePotMax..' to '..new_ePotMin..','..new_ePotMax)
+	--print('offsetting potential energy from '..ePotMin..','..ePotMax..' to '..new_ePotMin..','..new_ePotMax)
 end
 
 function SelfGrav:updateGUI()

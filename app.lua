@@ -22,6 +22,7 @@ for _,w in ipairs(arg or {}) do
 	local k,v = w:match'^(.-)=(.*)$'
 	if k then
 		cmdline[k] = fromlua(v)
+		if cmdline[k] == nil then cmdline[k] = v end
 	else
 		cmdline[w] = true
 	end
@@ -200,6 +201,8 @@ function HydroCLApp:initGL(...)
 		HydroCLApp.super.initGL(self, ...)
 	end
 
+	self.cmdline = cmdline
+
 	-- TODO favor cl_khr_gl_sharing, cl_khr_fp64, cl_khr_3d_image_writes
 	self.env = CLEnv{
 		--verbose = true,
@@ -209,8 +212,11 @@ function HydroCLApp:initGL(...)
 	}
 	local platformName = self.env.platform:getName()
 	local deviceName = self.env.device:getName()
-	print(platformName)
-	print(deviceName)
+	--print(platformName)
+	--print(deviceName)
+
+	self.exitTime = cmdline.exitTime
+	if self.exitTime then self.running = true end
 
 	self.useGLSharing = self.env.useGLSharing
 	self.device = self.env.device

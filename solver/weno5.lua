@@ -21,9 +21,9 @@ WENO5.numGhost = 3
 --[[
 args:
 	weno5method =
-		'1996 Jiang Shu'
-		'2008 Borges'
-		'2010 Shen Zha'
+		'1996 Jiang Shu'        (WENO-JS)
+		'2008 Borges'           (WENO-Z)
+		'2010 Shen Zha'         (WENO-BS)
 --]]
 WENO5.weno5method = '2010 Shen Zha'
 
@@ -78,13 +78,12 @@ function WENO5:calcDeriv(derivBuf, dt)
 	self:boundary()
 	
 	if self.usePLM then
-		self.calcLRKernelObj(self.solverBuf, self:getULRBuf(), self.UBuf, dtArg)
+		self.calcLRKernelObj(self.solverBuf, self.UBuf, self.UBuf, dtArg)
 	end
 
 	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
 self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
-	self.calcFluxKernelObj.obj:setArg(2, self:getULRBuf())
-	self.calcFluxKernelObj.obj:setArg(3, dtArg)
+	self.calcFluxKernelObj.obj:setArg(2, self.UBuf)
 	self.calcFluxKernelObj()
 
 -- [=[ this is from the 2017 Zingale book
@@ -94,7 +93,7 @@ self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 		-- 1) calc fluxes based on a slope-limiter method (PLM, etc)
 		-- 2) at each interface, integrate each dimension's LR states by all other dimensions' fluxes with a timestep of -dt/2
 		--	( don't use the deriv buf because it already has the sum of all dimensions' flux differences)
-		self.updateCTUKernelObj(self.solverBuf, self:getULRBuf(), self.fluxBuf, dtArg)
+		self.updateCTUKernelObj(self.solverBuf, self.UBuf, self.fluxBuf, dtArg)
 
 		-- now we need to calcBounds on the ULR
 		-- TODO this will break for mirror conditions

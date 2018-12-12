@@ -270,7 +270,9 @@ local initStates = table{
 	rho = solver->init_rho0 + solver->init_rho1 * sin(k0 * (xc.x - xmin));
 	v.x = solver->init_v0x;
 	v.y = solver->init_v0y;
+	v.z = 0;
 	P = solver->init_P0;
+	ePot = 0;
 ]]
 		end,
 	},
@@ -943,8 +945,19 @@ end) then
 				{name='velOutside', value=.5},
 			}
 		end,
-		initState = function(self, solver)
-			solver:setBoundaryMethods'periodic'			
+		initState = function(self, solver)	
+			local boundaryMethods = {}
+			for i,x in ipairs(xNames) do
+				for _,minmax in ipairs(minmaxs) do
+					boundaryMethods[x..minmax] = 'periodic'
+					if require 'coord.cylinder'.is(solver.coord) 
+					and i == 1
+					then
+						boundaryMethods[x..minmax] = 'mirror'
+					end
+				end
+			end
+			solver:setBoundaryMethods(boundaryMethods)
 		
 			return template([[
 	real yq1 = solver->mins.<?=sliceAxis?> * .75 + solver->maxs.<?=sliceAxis?> * .25;
@@ -978,6 +991,7 @@ end ?>
 	v.x += solver->noiseAmplitude * crand();
 	v.y += solver->noiseAmplitude * crand();
 	v.z += solver->noiseAmplitude * crand();
+	
 	P += solver->noiseAmplitude * crand();
 ]],				{
 					solver = solver,

@@ -289,7 +289,7 @@ for side=solver.dim,2 do ?>
 ]])}
 	}
 
-	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
+	-- vorticity = [x ,y ,z] [v.x, v.y, v.z][
 	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
 	
 	if not require 'solver.meshsolver'.is(self.solver) then
@@ -362,6 +362,7 @@ Euler.eigenWaveCode = Euler.consWaveCode
 
 -- this one calcs cell prims once and uses it for all sides
 -- it is put here instead of in eqn/euler.cl so euler-burgers can override it
+-- TODO move the sqrt() out of the loop altogether?
 function Euler:getCalcDTCode()
 	return template([[
 <? local solver = eqn.solver ?>

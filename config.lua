@@ -4,12 +4,12 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	--integrator = 'Runge-Kutta 4',
+	integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -36,7 +36,7 @@ local args = {
 	-- only enabled for certain usePLM methods
 	--slopeLimiter = 'minmod',
 
-	--useCTU = true,
+	useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -75,12 +75,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'periodic',
-		xmax=cmdline.boundary or 'periodic',
-		ymin=cmdline.boundary or 'periodic',
-		ymax=cmdline.boundary or 'periodic',
-		zmin=cmdline.boundary or 'periodic',
-		zmax=cmdline.boundary or 'periodic',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	-- TODO these next two seem very similar
@@ -438,6 +438,11 @@ local args = {
 	--initState = 'Oscillatory',
 }
 
+if cmdline.solver then
+	self.solvers:insert(require('solver.'..cmdline.solver)(table(args, cmdline)))
+	return
+end
+
 -- HD
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
@@ -447,6 +452,7 @@ local args = {
 --self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=1})))
 --self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=2})))
 
+-- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='1996 Jiang Shu'})))
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2008 Borges'})))
 self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2010 Shen Zha'})))
