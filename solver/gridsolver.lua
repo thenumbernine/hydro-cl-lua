@@ -1229,7 +1229,7 @@ end
 
 --[[ debugging the advect wave problem
 -- TODO have an optional field for all problems, to calculte the exact solution? 
-do
+if cmdline.debugAdvectWave then
 	local ptr = ffi.cast(self.eqn.cons_t..'*', self.UBufObj:toCPU())
 	assert(self.dim == 1)
 	local n = self.gridSize.x

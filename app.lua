@@ -15,7 +15,8 @@ predefined vars:
 	disableGUI = set to disable GUI and prevent loading of imgui altogether
 	disableFont = set to disable loading of the font.png file
 --]]
-local cmdline = {}
+--local cmdline = {}
+cmdline = {}	--global
 
 local fromlua = require 'ext.fromlua'
 for _,w in ipairs(arg or {}) do

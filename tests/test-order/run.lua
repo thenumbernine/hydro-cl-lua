@@ -43,8 +43,8 @@ for _,w in ipairs(arg or {}) do
 end
 
 -- which problem to use
-local problemName = cmdline.init or 'advect wave'
---local problemName = cmdline.init or 'Sod'
+--local problemName = cmdline.init or 'advect wave'
+local problemName = cmdline.init or 'Sod'
 
 -- don't use cached results <-> regenerate results for selected tests
 local nocache = cmdline.nocache
@@ -72,13 +72,24 @@ problems['advect wave'] = {
 			-- final error at n=1024 on the right:
 		{	
 			-- schemes
-			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='forward Euler'},		-- 0.092113212858329
-			--{solver='weno5', weno5method='2008 Borges', integrator='forward Euler'},		-- 0.16680010146205	
-			{solver='weno5', weno5method='2010 Shen Zha', integrator='forward Euler'},		-- 0.12853659670964	
+			{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 2.8547661196782e-13
+			{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4'},		-- 4.1663070562969e-14
+			{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 4.6398106710865e-14
 			
-			--{solver='hll', integrator='forward Euler', fixedDT=.0001},
+			{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 2.8863543499735e-13
+			{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 4.4378454903959e-14
+			{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, TVD'},		-- 4.9176266357642e-14
+			
+			{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, non-TVD'},	-- 2.9465525071964e-13
+			{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, non-TVD'},		-- 5.0718977628872e-14
+			{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, non-TVD'},		-- 5.5362723953845e-14
+		
+			-- hmm, appears broken...
+			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, 3/8ths rule'},	-- 0.0016464642958323
+			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, 3/8ths rule'},		-- 0.99999990000008
+			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, 3/8ths rule'},		-- 0.99999990000045
 
-			--{solver='hll', integrator='forward Euler'},									-- 0.00060136599076404
+			--{solver='hll', integrator='forward Euler'},										-- 0.00037596796148831
 			--{solver='euler-burgers', integrator='forward Euler'},							-- 0.0004752949543945	
 
 			-- why is RK3-TVD worse than forward Euler in all my hllc solvers?
@@ -154,7 +165,7 @@ problems['advect wave'] = {
 			--{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},	-- 6.8474331334665e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='UMIST'},				-- 6.3705455038239e-05
 			--{solver='roe', integrator='forward Euler', fluxLimiter='minmod'},				-- 5.9129797191892e-05
-			{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},		-- 1.2048891136515e-06
+			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},		-- 7.5523449515221e-07
 
 			-- my PLM attempts:
 			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},			-- 0.00049148119638364
@@ -175,7 +186,7 @@ problems['advect wave'] = {
 			--{solver='roe', integrator='Runge-Kutta 2 Heun', fluxLimiter='Lax-Wendroff'},		-- 0.00012292557063543
 			--{solver='roe', integrator='Runge-Kutta 2 Ralston', fluxLimiter='Lax-Wendroff'},	-- 0.00012292557063505
 			--{solver='roe', integrator='Runge-Kutta 2', fluxLimiter='Lax-Wendroff'},			-- 0.00012292557063748
-			--{solver='roe', integrator='Runge-Kutta 4, 3/8ths rule', fluxLimiter='Lax-Wendroff'},-- 3.0773114456088e-05
+			--{solver='roe', integrator='Runge-Kutta 4, 3/8ths rule', fluxLimiter='Lax-Wendroff'},-- 2.4229063034059e-05
 			
 			-- implicit integrators:
 			-- backward euler with epsilon=1e-10
@@ -228,6 +239,24 @@ problems.Sod = {
 			-- final error at n=1024 on the right:
 		{	-- (these numbers are all for duration=.1)
 			-- schemes
+			
+				-- schemes
+			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 0.00083547649608835
+			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4'},		-- 0.00065052608192497
+			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 0.0006577467068069
+			
+			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 0.00083548986128969
+			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 0.00065117457189727
+			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, TVD'},		-- 0.00065850588526612
+			
+			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, non-TVD'},	-- 0.00083547649608855
+			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, non-TVD'},		-- 0.00065052608192513
+			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, non-TVD'},		-- 0.00065774670680693
+			
+			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='forward Euler'},		-- 0.001649584016202
+			--{solver='weno5', weno5method='2008 Borges', integrator='forward Euler'},		-- 0.008335196277728
+			{solver='weno5', weno5method='2010 Shen Zha', integrator='forward Euler'},		-- 0.01507478955836
+			
 			--{solver='weno5', integrator='forward Euler'},									-- 0.028050334485117
 			--{solver='hll', integrator='forward Euler'},									-- 0.0039886633966807
 			--{solver='euler-hllc', integrator='forward Euler'},							-- 0.0036984733332097
@@ -250,10 +279,10 @@ problems.Sod = {
 			--{solver='roe', integrator='forward Euler', fluxLimiter='HCUS'},				-- 0.0018945018297761
 			--{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},	-- 0.0018898857563959
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Barth-Jespersen'},	-- 0.0018828276652798
-			{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 0.00187534979448
+			--{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 0.00187534979448
 			--{solver='roe', integrator='forward Euler', fluxLimiter='Sweby'},				-- 0.0018687046583677
 			--{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 1'},		-- 0.001865866089593
-			--{solver='roe', integrator='forward Euler', fluxLimiter='smart'},				-- 0.0018130273610755	-- even though this is the lowest error of the flux limiters, it has a definite hiccup in it
+			--{solver='roe', integrator='forward Euler', fluxLimiter='smart'},				-- 0.0007492299582348	-- even though this is the lowest error of the flux limiters, it has a definite hiccup in it
 			
 			-- plm-cons / slopeLimiter has funny behavior with Sod: it dips down but then gets worse.  
 			-- I wouldn't be surprised if my exact values are off, so maybe that's why
@@ -344,9 +373,6 @@ problems.Sod = {
 		local vR = 0
 		local gamma = solver.solverPtr.heatCapacityRatio
 		local t = solver.t
-
--- why
-t = t * 4 / 3
 		
 		local muSq = (gamma - 1)/(gamma + 1)
 		local K = PL / rhoL^gamma
@@ -645,7 +671,7 @@ gnuplot(
 		terminal = 'png size 1200,700',
 		style = 'data linespoints',
 		log = 'xy',
-		xlabel = 'grid size',
+		xlabel = 'dx',
 		ylabel = 'L1 error',
 		data = table{
 			sizes:map(function(x) return 2/x end),	-- this assumes the domain is -1,1
