@@ -454,6 +454,10 @@ self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2008 Borges'})))
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2010 Shen Zha'})))
 
+--self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='1996 Jiang Shu', stencilSize=4})))
+--self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2008 Borges', stencilSize=4})))
+--self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2010 Shen Zha', stencilSize=4})))
+
 -- still haven't added source terms to this
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='navstokes-wilcox'})))
 

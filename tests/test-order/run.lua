@@ -72,18 +72,22 @@ problems['advect wave'] = {
 			-- final error at n=1024 on the right:
 		{	
 			-- schemes
-			{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 2.8547661196782e-13
-			{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4'},		-- 4.1663070562969e-14
-			{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 4.6398106710865e-14
+			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 2.8545210899872e-13
+			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4'},		-- 4.1704270245524e-14
+			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 4.6419357073446e-14
 			
-			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 2.8863543499735e-13
-			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 4.4378454903959e-14
-			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, TVD'},		-- 4.9176266357642e-14
+			{solver='weno5', weno5method='1996 Jiang Shu', stencilSize=4, integrator='Runge-Kutta 4'},		-- 2.8545210899872e-13
+			{solver='weno5', weno5method='2008 Borges', stencilSize=4, integrator='Runge-Kutta 4'},		-- 4.1704270245524e-14
+			{solver='weno5', weno5method='2010 Shen Zha', stencilSize=4, integrator='Runge-Kutta 4'},		-- 4.6419357073446e-14
 			
-			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, non-TVD'},	-- 2.9465525071964e-13
-			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, non-TVD'},		-- 5.0718977628872e-14
-			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, non-TVD'},		-- 5.5362723953845e-14
-		
+			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 2.8857580387787e-13
+			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 4.4666635841406e-14
+			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, TVD'},	-- 4.9166616958307e-14
+
+			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, non-TVD'},	-- 2.9467693476309e-13
+			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, non-TVD'},		-- 5.0624543619648e-14
+			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, non-TVD'},		-- 5.5364783937972e-14
+			
 			-- hmm, appears broken...
 			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, 3/8ths rule'},	-- 0.0016464642958323
 			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, 3/8ths rule'},		-- 0.99999990000008

@@ -17,24 +17,24 @@ local sym = common.sym
 local WENO5 = class(FiniteVolumeSolver)
 WENO5.name = 'WENO5'
 
-WENO5.stencilSize = 3	-- 3 for WENO-5
-
--- going off of 2016 Rathan, Raju "An improved Non-linear Weights for Seventh-Order WENO Scheme" 
---WENO5.stencilSize = 4	-- 4 for WENO-7 ... not working just yet
+-- 3 for WENO-5
+-- 4 for WENO-7 ... not working just yet
+WENO5.stencilSize = 3
 
 WENO5.numGhost = WENO5.stencilSize
 
+
+WENO5.weno5method = '1996 Jiang Shu'	-- (WENO-JS)
+--WENO5.weno5method = '2008 Borges'		-- (WENO-Z)
+--WENO5.weno5method = '2010 Shen Zha'	-- (WENO-BS)	
+
 --[[
 args:
-	weno5method =
-		'1996 Jiang Shu'        (WENO-JS)
-		'2008 Borges'           (WENO-Z)
-		'2010 Shen Zha'         (WENO-BS)
+	weno5method
 --]]
-WENO5.weno5method = '2010 Shen Zha'
-
 function WENO5:init(args)
 	self.weno5method = args.weno5method
+	self.stencilSize = args.stencilSize 
 	WENO5.super.init(self, args)
 end
 
