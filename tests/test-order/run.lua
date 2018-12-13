@@ -43,8 +43,8 @@ for _,w in ipairs(arg or {}) do
 end
 
 -- which problem to use
---local problemName = cmdline.init or 'advect wave'
-local problemName = cmdline.init or 'Sod'
+local problemName = cmdline.init or 'advect wave'
+--local problemName = cmdline.init or 'Sod'
 
 -- don't use cached results <-> regenerate results for selected tests
 local nocache = cmdline.nocache
@@ -76,13 +76,13 @@ problems['advect wave'] = {
 			{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4'},		-- 4.1663070562969e-14
 			{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 4.6398106710865e-14
 			
-			{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 2.8863543499735e-13
-			{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 4.4378454903959e-14
-			{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, TVD'},		-- 4.9176266357642e-14
+			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 2.8863543499735e-13
+			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 4.4378454903959e-14
+			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, TVD'},		-- 4.9176266357642e-14
 			
-			{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, non-TVD'},	-- 2.9465525071964e-13
-			{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, non-TVD'},		-- 5.0718977628872e-14
-			{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, non-TVD'},		-- 5.5362723953845e-14
+			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, non-TVD'},	-- 2.9465525071964e-13
+			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, non-TVD'},		-- 5.0718977628872e-14
+			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, non-TVD'},		-- 5.5362723953845e-14
 		
 			-- hmm, appears broken...
 			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, 3/8ths rule'},	-- 0.0016464642958323

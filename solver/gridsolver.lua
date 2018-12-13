@@ -1227,7 +1227,7 @@ end
 	self.t = self.t + dt
 	self.dt = dt
 
---[[ debugging the advect wave problem
+-- [[ debugging the advect wave problem
 -- TODO have an optional field for all problems, to calculte the exact solution? 
 if cmdline.debugAdvectWave then
 	local ptr = ffi.cast(self.eqn.cons_t..'*', self.UBufObj:toCPU())

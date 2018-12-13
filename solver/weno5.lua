@@ -16,7 +16,13 @@ local sym = common.sym
 
 local WENO5 = class(FiniteVolumeSolver)
 WENO5.name = 'WENO5'
-WENO5.numGhost = 3
+
+WENO5.stencilSize = 3	-- 3 for WENO-5
+
+-- going off of 2016 Rathan, Raju "An improved Non-linear Weights for Seventh-Order WENO Scheme" 
+--WENO5.stencilSize = 4	-- 4 for WENO-7 ... not working just yet
+
+WENO5.numGhost = WENO5.stencilSize
 
 --[[
 args:
