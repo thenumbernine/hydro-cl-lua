@@ -69,8 +69,8 @@ for _,l_or_r in ipairs{'l', 'r'} do
 <? 	end 
 
 	if solver.weno5method == '1996 Jiang Shu' then 		-- WENO-JS
-	--local epsilon = clnumber(1e-14)
-	local epsilon = clnumber(1e-6)
+		--local epsilon = clnumber(1e-14)
+		local epsilon = clnumber(1e-6)
 ?>
 <? 		for i=0,stencilSize-1 do
 ?>		real w<?=i?> = <?=clnumber(d[d0 + i * dd])?> / sqr(<?=epsilon?> + beta<?=i?>);
@@ -104,7 +104,7 @@ for _,l_or_r in ipairs{'l', 'r'} do
 	for i=0,stencilSize-1 do 
 ?>		real vs<?=i?> = 0.<?
 		for j=0,stencilSize-1 do
-		?> + <?=clnumber(c[cofs+i][j+1])?> * v[<?=i + j?>].ptr[k]<?
+		?> + <?=clnumber(c[cofs+i][j+1])?> * v[<?=i+j?>].ptr[k]<?
 		end ?>;
 <? 
 	end 

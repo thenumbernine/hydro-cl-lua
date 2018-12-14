@@ -450,11 +450,11 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=2})))
 
 -- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler
-self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='1996 Jiang Shu'})))
+--self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='1996 Jiang Shu'})))
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2008 Borges'})))
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2010 Shen Zha'})))
 
---self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='1996 Jiang Shu', stencilSize=4})))
+self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='1996 Jiang Shu', stencilSize=4})))
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2008 Borges', stencilSize=4})))
 --self.solvers:insert(require 'solver.weno5'(table(args, {eqn='euler', weno5method='2010 Shen Zha', stencilSize=4})))
 

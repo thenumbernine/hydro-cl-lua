@@ -21,8 +21,6 @@ WENO5.name = 'WENO5'
 -- 4 for WENO-7 ... not working just yet
 WENO5.stencilSize = 3
 
-WENO5.numGhost = WENO5.stencilSize
-
 
 WENO5.weno5method = '1996 Jiang Shu'	-- (WENO-JS)
 --WENO5.weno5method = '2008 Borges'		-- (WENO-Z)
@@ -35,6 +33,7 @@ args:
 function WENO5:init(args)
 	self.weno5method = args.weno5method
 	self.stencilSize = args.stencilSize 
+	self.numGhost = self.stencilSize
 	WENO5.super.init(self, args)
 end
 
