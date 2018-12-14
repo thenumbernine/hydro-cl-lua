@@ -72,26 +72,26 @@ problems['advect wave'] = {
 			-- final error at n=1024 on the right:
 		{	
 			-- schemes
-			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 2.8545210899872e-13
-			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4'},		-- 4.1704270245524e-14
-			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 4.6419357073446e-14
-			
-			{solver='weno5', weno5method='1996 Jiang Shu', stencilSize=4, integrator='Runge-Kutta 4'},		-- 2.8545210899872e-13
-			{solver='weno5', weno5method='2008 Borges', stencilSize=4, integrator='Runge-Kutta 4'},		-- 4.1704270245524e-14
-			{solver='weno5', weno5method='2010 Shen Zha', stencilSize=4, integrator='Runge-Kutta 4'},		-- 4.6419357073446e-14
-			
-			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 2.8857580387787e-13
-			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 4.4666635841406e-14
-			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, TVD'},	-- 4.9166616958307e-14
+			{solver='weno5', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 2.4115778818334e-13
+			{solver='weno5', wenoMethod='2008 Borges', integrator='Runge-Kutta 4'},		-- 4.1688549314023e-14
+			{solver='weno5', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 4.6263015120174e-14
 
-			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, non-TVD'},	-- 2.9467693476309e-13
-			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, non-TVD'},		-- 5.0624543619648e-14
-			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, non-TVD'},		-- 5.5364783937972e-14
+			{solver='weno5', wenoMethod='1996 Jiang Shu', stencilSize=4, integrator='Runge-Kutta 4'},		-- 1.3078320978271e-12
+			{solver='weno5', wenoMethod='2008 Borges', stencilSize=4, integrator='Runge-Kutta 4'},			-- 2.1310006181907e-07
+			{solver='weno5', wenoMethod='2010 Shen Zha', stencilSize=4, integrator='Runge-Kutta 4'},		-- 1.3080822232683e-12
+
+			--{solver='weno5', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 2.8857580387787e-13
+			--{solver='weno5', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 4.4666635841406e-14
+			--{solver='weno5', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4, TVD'},	-- 4.9166616958307e-14
+
+			--{solver='weno5', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, non-TVD'},	-- 2.9467693476309e-13
+			--{solver='weno5', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, non-TVD'},		-- 5.0624543619648e-14
+			--{solver='weno5', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4, non-TVD'},		-- 5.5364783937972e-14
 			
 			-- hmm, appears broken...
-			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, 3/8ths rule'},	-- 0.0016464642958323
-			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, 3/8ths rule'},		-- 0.99999990000008
-			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, 3/8ths rule'},		-- 0.99999990000045
+			--{solver='weno5', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, 3/8ths rule'},	-- 0.0016464642958323
+			--{solver='weno5', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, 3/8ths rule'},		-- 0.99999990000008
+			--{solver='weno5', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4, 3/8ths rule'},		-- 0.99999990000045
 
 			--{solver='hll', integrator='forward Euler'},										-- 0.00037596796148831
 			--{solver='euler-burgers', integrator='forward Euler'},							-- 0.0004752949543945	
@@ -245,21 +245,21 @@ problems.Sod = {
 			-- schemes
 			
 				-- schemes
-			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 0.00083547649608835
-			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4'},		-- 0.00065052608192497
-			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 0.0006577467068069
+			--{solver='weno5', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 0.00083547649608835
+			--{solver='weno5', wenoMethod='2008 Borges', integrator='Runge-Kutta 4'},		-- 0.00065052608192497
+			--{solver='weno5', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 0.0006577467068069
 			
-			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 0.00083548986128969
-			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 0.00065117457189727
-			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, TVD'},		-- 0.00065850588526612
+			--{solver='weno5', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 0.00083548986128969
+			--{solver='weno5', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 0.00065117457189727
+			--{solver='weno5', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4, TVD'},		-- 0.00065850588526612
 			
-			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='Runge-Kutta 4, non-TVD'},	-- 0.00083547649608855
-			--{solver='weno5', weno5method='2008 Borges', integrator='Runge-Kutta 4, non-TVD'},		-- 0.00065052608192513
-			--{solver='weno5', weno5method='2010 Shen Zha', integrator='Runge-Kutta 4, non-TVD'},		-- 0.00065774670680693
+			--{solver='weno5', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, non-TVD'},	-- 0.00083547649608855
+			--{solver='weno5', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, non-TVD'},		-- 0.00065052608192513
+			--{solver='weno5', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4, non-TVD'},		-- 0.00065774670680693
 			
-			--{solver='weno5', weno5method='1996 Jiang Shu', integrator='forward Euler'},		-- 0.001649584016202
-			--{solver='weno5', weno5method='2008 Borges', integrator='forward Euler'},		-- 0.008335196277728
-			{solver='weno5', weno5method='2010 Shen Zha', integrator='forward Euler'},		-- 0.01507478955836
+			--{solver='weno5', wenoMethod='1996 Jiang Shu', integrator='forward Euler'},		-- 0.001649584016202
+			--{solver='weno5', wenoMethod='2008 Borges', integrator='forward Euler'},		-- 0.008335196277728
+			{solver='weno5', wenoMethod='2010 Shen Zha', integrator='forward Euler'},		-- 0.01507478955836
 			
 			--{solver='weno5', integrator='forward Euler'},									-- 0.028050334485117
 			--{solver='hll', integrator='forward Euler'},									-- 0.0039886633966807

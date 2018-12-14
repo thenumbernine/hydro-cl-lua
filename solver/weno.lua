@@ -14,39 +14,43 @@ local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
 
-local WENO5 = class(FiniteVolumeSolver)
-WENO5.name = 'WENO5'
+local WENO = class(FiniteVolumeSolver)
+WENO.name = 'WENO'
 
--- 3 for WENO-5
--- 4 for WENO-7 ... not working just yet
-WENO5.stencilSize = 3
+WENO.stencilSize = 3
 
-
-WENO5.weno5method = '1996 Jiang Shu'	-- (WENO-JS)
---WENO5.weno5method = '2008 Borges'		-- (WENO-Z)
---WENO5.weno5method = '2010 Shen Zha'	-- (WENO-BS)	
+WENO.wenoMethod = '1996 Jiang Shu'	-- (WENO-JS)
+--WENO.wenoMethod = '2008 Borges'		-- (WENO-Z)
+--WENO.wenoMethod = '2010 Shen Zha'	-- (WENO-BS)	
 
 --[[
 args:
-	weno5method
+	wenoMethod
+	order (5 or 7 only)
 --]]
-function WENO5:init(args)
-	self.weno5method = args.weno5method
-	self.stencilSize = args.stencilSize 
+function WENO:init(args)
+	self.wenoMethod = args.wenoMethod
+	
+	local order = args.order
+	if order then
+		self.stencilSize = (order+1)/2
+	end
+	
 	self.numGhost = self.stencilSize
-	WENO5.super.init(self, args)
+	WENO.super.init(self, args)
 end
 
-function WENO5:createBuffers()
-	WENO5.super.createBuffers(self)
+-- TODO find what intermediate values to buffer for perf increase
+function WENO:createBuffers()
+	WENO.super.createBuffers(self)
 end
 
-function WENO5:getSolverCode()
+function WENO:getSolverCode()
 	return table{
-		WENO5.super.getSolverCode(self),
+		WENO.super.getSolverCode(self),
 	
 		-- before this went above solver/plm.cl, now it's going after it ...
-		template(file['solver/weno5.cl'], {
+		template(file['solver/weno.cl'], {
 			solver = self,
 			eqn = self.eqn,
 			clnumber = require 'cl.obj.number',
@@ -55,8 +59,8 @@ function WENO5:getSolverCode()
 end
 
 -- all these are found eqn's cl code
-function WENO5:refreshSolverProgram()
-	WENO5.super.refreshSolverProgram(self)
+function WENO:refreshSolverProgram()
+	WENO.super.refreshSolverProgram(self)
 
 	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
 	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
@@ -66,8 +70,8 @@ function WENO5:refreshSolverProgram()
 	end
 end
 
-function WENO5:addDisplayVars()
-	WENO5.super.addDisplayVars(self)
+function WENO:addDisplayVars()
+	WENO.super.addDisplayVars(self)
 end
 
 local realptr = ffi.new'realparam[1]'
@@ -77,7 +81,7 @@ local function real(x)
 end
 
 -- NOTICE this adds the contents of derivBuf and does not clear it
-function WENO5:calcDeriv(derivBuf, dt)
+function WENO:calcDeriv(derivBuf, dt)
 	local dtArg = real(dt)
 	
 	self:boundary()
@@ -129,4 +133,4 @@ self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
 	end
 end
 
-return WENO5
+return WENO

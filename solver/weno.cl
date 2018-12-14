@@ -1,6 +1,12 @@
-// WENO5 solver:
-// courtesy of Mara
-// and some matlab code
+/*
+WENO solver:
+sources:
+1998 Shu "Essentially Non-Oscillatory and Weighted Essentially Non-Oscillatory Schemes for Hyperbolic Conservation Laws"
+"A hybrid approach for the regularized long wave-Burgers equation"
+2016 Rathan, Raju "An improved Non-linear Weights for Seventh-Order WENO Scheme"
+https://github.com/jzrake/Mara for weno5 examples
+https://github.com/wme7/WENO7-Z/blob/master/WENO7ZresAdv1d.m for weno7 examples
+*/
 
 inline real sqr(real x) { return x * x; }
 
@@ -68,7 +74,7 @@ for _,l_or_r in ipairs{'l', 'r'} do
 		real beta3 = v[5].ptr[k] * ( 85641. * v[5].ptr[k] -  47214. * v[6].ptr[k]) + v[3].ptr[k] * ( 25729. * v[3].ptr[k] - 114894. * v[4].ptr[k] + 86214. * v[5].ptr[k] - 22778. * v[6].ptr[k]) +  6649. * sqr(v[6].ptr[k]) + v[4].ptr[k] * ( 134241. * v[4].ptr[k] - 210282. * v[5].ptr[k] + 56694. * v[6].ptr[k]);
 <? 	end 
 
-	if solver.weno5method == '1996 Jiang Shu' then 		-- WENO-JS
+	if solver.wenoMethod == '1996 Jiang Shu' then 		-- WENO-JS
 		--local epsilon = clnumber(1e-14)
 		local epsilon = clnumber(1e-6)
 ?>
@@ -76,15 +82,15 @@ for _,l_or_r in ipairs{'l', 'r'} do
 ?>		real w<?=i?> = <?=clnumber(d[d0 + i * dd])?> / sqr(<?=epsilon?> + beta<?=i?>);
 <? 		end 
 
-	elseif solver.weno5method == '2008 Borges' then 	-- WENO-Z
-		--local epsilon = clnumber(1e-14)	-- weno5
-		local epsilon = clnumber(1e-40)		-- weno7
+	elseif solver.wenoMethod == '2008 Borges' then 	-- WENO-Z
+		local epsilon = clnumber(1e-14)	-- weno5
+		--local epsilon = clnumber(1e-40)		-- weno7 ... but >64 grid sizes and this diverges?
 ?>		real tau = fabs(beta0 - beta<?=stencilSize-1?>);
 <? 		for i=0,stencilSize-1 do 
 ?>		real w<?=i?> = <?=clnumber(d[d0 + i * dd])?> * (1 + (tau / (beta<?=i?> + <?=epsilon?>)));
 <? 		end
 
-	elseif solver.weno5method == '2010 Shen Zha' then -- WENO-BS?
+	elseif solver.wenoMethod == '2010 Shen Zha' then -- WENO-BS?
 		local epsilon = clnumber(1e-10)
 		local shen_zha_A = clnumber(50)	-- 0-100
 ?>		real minB = min(min(beta0, beta1), beta2);
@@ -98,7 +104,7 @@ for _,l_or_r in ipairs{'l', 'r'} do
 <?	 	end 
  
 	else
-		error("unknown weno5method "..tostring(solver.weno5method))
+		error("unknown wenoMethod "..tostring(solver.wenoMethod))
 	end
 
 	for i=0,stencilSize-1 do 
