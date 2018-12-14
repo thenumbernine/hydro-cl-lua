@@ -23,9 +23,6 @@ local cs = {
 		{11/6, -7/6,  1/3},
 	},
 	[4] = {
-		-- from "A hybrid approach for the regularized long wave-Burgers equation"
-		-- and 2016 Rathan, Raju between eqn 6 and 7
-		-- and https://github.com/wme7/WENO7-Z/blob/master/WENO7ZresAdv1d.m
 		{ -3/12,  13/12, -23/12, 25/12, },
 		{  1/12,  -5/12,  13/12,  3/12, },
 		{ -1/12,   7/12,   7/12, -1/12, },
@@ -36,10 +33,7 @@ local cs = {
 local ds = {
 	[3] = { 3/10, 3/5, 1/10},
 	
-	-- from "A hybrid approach for the regularized long wave-Burgers equation"
-	-- and 2016 Rathan, Raju eqn 8 
-	--[4] = {4/35, 18/35, 12/35, 1/35},
-	[4] = {1/35, 12/35, 18/35, 4/35},
+	[4] = {4/35, 18/35, 12/35, 1/35},
 }
 
 local c = cs[stencilSize]
@@ -59,14 +53,14 @@ for _,l_or_r in ipairs{'l', 'r'} do
 		real beta1 = (13./12.)*sqr( v[1].ptr[k] - 2*v[2].ptr[k] + v[3].ptr[k]) + (1./4.)*sqr(  v[1].ptr[k]                 -   v[3].ptr[k]);
 		real beta2 = (13./12.)*sqr( v[2].ptr[k] - 2*v[3].ptr[k] + v[4].ptr[k]) + (1./4.)*sqr(3*v[2].ptr[k] - 4*v[3].ptr[k] +   v[4].ptr[k]);
 <? 	elseif stencilSize == 4 then 
-?>// weno7, from "A hybrid approach for the regularized long wave-Burgers equation" 
+?>
+// in 2018 Zeytinoglu et al "A hybrid approach for the regularized long wave-Burgers equation" 
 // and 2016 Rathan, Raju "An improved Non-linear Weights for Seventh-Order WENO Scheme"  in the Appendix for WENO-BS
 //		real beta0 = v[0].ptr[k] * ( 547 * v[0].ptr[k] - 3882 * v[1].ptr[k] + 4642 * v[2].ptr[k] - 1854 * v[3].ptr[k]) + v[1].ptr[k] * ( 7043 * v[1].ptr[k] - 17246 * v[2].ptr[k] + 7042 * v[3].ptr[k]) + v[2].ptr[k] * (11003 * v[2].ptr[k] - 9402 * v[3].ptr[k]) + v[3].ptr[k] * 2107 * v[3].ptr[k];
 //		real beta1 = v[1].ptr[k] * ( 267 * v[1].ptr[k] - 1642 * v[2].ptr[k] + 1602 * v[3].ptr[k] -  494 * v[4].ptr[k]) + v[2].ptr[k] * ( 2843 * v[2].ptr[k] -  5966 * v[3].ptr[k] + 1922 * v[4].ptr[k]) + v[3].ptr[k] * ( 3443 * v[3].ptr[k] - 2522 * v[4].ptr[k]) + v[4].ptr[k] *  547 * v[4].ptr[k];
 //		real beta2 = v[2].ptr[k] * ( 547 * v[2].ptr[k] - 2522 * v[3].ptr[k] + 1922 * v[4].ptr[k] -  494 * v[5].ptr[k]) + v[3].ptr[k] * ( 3443 * v[3].ptr[k] -  5966 * v[4].ptr[k] + 1602 * v[5].ptr[k]) + v[4].ptr[k] * ( 2843 * v[4].ptr[k] - 1642 * v[5].ptr[k]) + v[5].ptr[k] *  267 * v[5].ptr[k];
 //		real beta3 = v[3].ptr[k] * (2107 * v[3].ptr[k] - 9402 * v[4].ptr[k] + 7042 * v[5].ptr[k] - 1854 * v[6].ptr[k]) + v[4].ptr[k] * (11003 * v[4].ptr[k] - 17246 * v[5].ptr[k] + 4642 * v[6].ptr[k]) + v[5].ptr[k] * ( 7043 * v[5].ptr[k] - 3882 * v[6].ptr[k]) + v[6].ptr[k] *  547 * v[6].ptr[k];
 // 2016 Rathan, Raju after eqn 12 ... 
-//	... TODO
 // https://github.com/wme7/WENO7-Z/blob/master/WENO7ZresAdv1d.m
 		real beta0 = v[2].ptr[k] * (134241. * v[2].ptr[k] - 114894. * v[3].ptr[k]) + v[0].ptr[k] * ( 56694. * v[2].ptr[k] -  47214. * v[1].ptr[k] +  6649. * v[0].ptr[k] - 22778. * v[3].ptr[k]) + 25729. * sqr(v[3].ptr[k]) + v[1].ptr[k] * (-210282. * v[2].ptr[k] +  85641. * v[1].ptr[k] + 86214. * v[3].ptr[k]);
 		real beta1 = v[3].ptr[k] * ( 41001. * v[3].ptr[k] -  30414. * v[4].ptr[k]) + v[1].ptr[k] * (-19374. * v[2].ptr[k] +   3169. * v[1].ptr[k] + 19014. * v[3].ptr[k] -  5978. * v[4].ptr[k]) +  6649. * sqr(v[4].ptr[k]) + v[2].ptr[k] * (  33441. * v[2].ptr[k] -  70602. * v[3].ptr[k] + 23094. * v[4].ptr[k]);
@@ -85,9 +79,13 @@ for _,l_or_r in ipairs{'l', 'r'} do
 	elseif solver.wenoMethod == '2008 Borges' then 	-- WENO-Z
 		local epsilon = clnumber(1e-14)	-- weno5
 		--local epsilon = clnumber(1e-40)		-- weno7 ... but >64 grid sizes and this diverges?
+		if stencilSize == 4 then -- for 2016 Rathan, it suggests these:
+?>		real tau = fabs(beta0 + 3. * beta1 - 3. * beta2 - beta3);
+<?		else	-- for weno7, 2018 Zeytinoglu suggests this:
 ?>		real tau = fabs(beta0 - beta<?=stencilSize-1?>);
-<? 		for i=0,stencilSize-1 do 
-?>		real w<?=i?> = <?=clnumber(d[d0 + i * dd])?> * (1 + (tau / (beta<?=i?> + <?=epsilon?>)));
+<?		end
+ 		for i=0,stencilSize-1 do 
+?>		real w<?=i?> = <?=clnumber(d[d0 + i * dd])?> * (1. + (tau / (beta<?=i?> + <?=epsilon?>)));
 <? 		end
 
 	elseif solver.wenoMethod == '2010 Shen Zha' then -- WENO-BS?

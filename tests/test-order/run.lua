@@ -72,13 +72,13 @@ problems['advect wave'] = {
 			-- final error at n=1024 on the right:
 		{	
 			-- schemes
-			{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 2.4115778818334e-13
-			{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4'},		-- 4.1688549314023e-14
-			{solver='weno', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 4.6263015120174e-14
+			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 2.4115778818334e-13
+			--{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4'},		-- 4.1688549314023e-14
+			--{solver='weno', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 4.6263015120174e-14
 
-			{solver='weno', wenoMethod='1996 Jiang Shu', order=7, integrator='Runge-Kutta 4'},		-- 1.3078320978271e-12
-			{solver='weno', wenoMethod='2008 Borges', order=7, integrator='Runge-Kutta 4'},			-- 2.1310006181907e-07
-			{solver='weno', wenoMethod='2010 Shen Zha', order=7, integrator='Runge-Kutta 4'},		-- 1.3080822232683e-12
+			--{solver='weno', wenoMethod='1996 Jiang Shu', order=7, integrator='Runge-Kutta 4'},		-- 8.8720263774489e-15
+			{solver='weno', wenoMethod='2008 Borges', order=7, integrator='Runge-Kutta 4'},			-- 7.1445793625897e-08
+			--{solver='weno', wenoMethod='2010 Shen Zha', order=7, integrator='Runge-Kutta 4'},		-- 8.6255872236429e-15
 
 			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 2.8857580387787e-13
 			--{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 4.4666635841406e-14
