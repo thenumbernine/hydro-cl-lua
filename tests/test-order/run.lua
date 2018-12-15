@@ -71,13 +71,30 @@ problems['advect wave'] = {
 			-- final error at n=1024 on the right:
 		{	
 			-- schemes
-			{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 2.4105446371631e-13 
-			{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4'},		-- 4.1661335839493e-14
-			{solver='weno', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 4.6398974072603e-14
+			
+			--{solver='weno', wenoMethod='1996 Jiang Shu', order=3, integrator='Runge-Kutta 4'},		--  6.5344207972177e-08
+			--{solver='weno', wenoMethod='2008 Borges', order=3, integrator='Runge-Kutta 4'},			--  5.411076212645e-09
+			--{solver='weno', wenoMethod='2010 Shen Zha', order=3, integrator='Runge-Kutta 4'},		--  6.1547864245567e-07
 
-			{solver='weno', wenoMethod='1996 Jiang Shu', order=7, integrator='Runge-Kutta 4'},		-- 8.8720263774489e-15
-			{solver='weno', wenoMethod='2008 Borges', order=7, integrator='Runge-Kutta 4'},			-- 8.6886877900816e-15
-			{solver='weno', wenoMethod='2010 Shen Zha', order=7, integrator='Runge-Kutta 4'},		-- 8.6255872236429e-15
+			--{solver='weno', wenoMethod='1996 Jiang Shu', order=5, integrator='Runge-Kutta 4'},		-- 2.4105446371631e-13
+			--{solver='weno', wenoMethod='2008 Borges', order=5, integrator='Runge-Kutta 4'},			-- 4.1676731510343e-14
+			--{solver='weno', wenoMethod='2010 Shen Zha', order=5, integrator='Runge-Kutta 4'},		-- 4.6489179693354e-14
+
+			--{solver='weno', wenoMethod='1996 Jiang Shu', order=7, integrator='Runge-Kutta 4'},		-- 8.8720263774489e-15
+			--{solver='weno', wenoMethod='2008 Borges', order=7, integrator='Runge-Kutta 4'},			-- 8.6886877900816e-15
+			--{solver='weno', wenoMethod='2010 Shen Zha', order=7, integrator='Runge-Kutta 4'},		-- 8.6302492929846e-15
+			
+			--{solver='weno', wenoMethod='1996 Jiang Shu', order=9, integrator='Runge-Kutta 4'},		-- 7.7472750437124e-15
+			--{solver='weno', wenoMethod='2008 Borges', order=9, integrator='Runge-Kutta 4'},			-- 7.5951614789127e-15
+			--{solver='weno', wenoMethod='2010 Shen Zha', order=9, integrator='Runge-Kutta 4'},		-- 1.3525530521974e-14
+			
+			--{solver='weno', wenoMethod='1996 Jiang Shu', order=11, integrator='Runge-Kutta 4'},		-- 4.5288208946892e-15
+			--{solver='weno', wenoMethod='2008 Borges', order=11, integrator='Runge-Kutta 4'},		-- 4.5550585872633e-15
+			--{solver='weno', wenoMethod='2010 Shen Zha', order=11, integrator='Runge-Kutta 4'},		-- 8.7627387984623e-15
+			
+			--{solver='weno', wenoMethod='1996 Jiang Shu', order=13, integrator='Runge-Kutta 4'},		-- 7.364551676825e-15
+			--{solver='weno', wenoMethod='2008 Borges', order=13, integrator='Runge-Kutta 4'},		-- 7.1307976884372e-15
+			{solver='weno', wenoMethod='2010 Shen Zha', order=13, integrator='Runge-Kutta 4'},		-- 2.3296143659979e-14
 
 			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 2.8857580387787e-13
 			--{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 4.4666635841406e-14
@@ -682,15 +699,16 @@ end
 
 if cmdline.time then return end
 
--- [[ plot errors per size
+-- [[ plot errors per grid dx
 gnuplot(
 	table({
 		output = rundir..'/results.png',
-		terminal = 'png size 1200,700',
+		terminal = 'png size 2400,1400',
 		style = 'data linespoints',
 		log = 'xy',
 		xlabel = 'dx',
 		ylabel = 'L1 error',
+		key = 'left Left reverse',
 		data = table{
 			sizes:map(function(x) return 2/x end),	-- this assumes the domain is -1,1
 		}:append(errorsForConfig),
