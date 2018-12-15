@@ -29,13 +29,11 @@ local coeffs = {
 				{4/3},
 				{-19/3,25/3},
 				{11/3,-31/3,10/3},
-			},
-			{
+			}, {
 				{4/3},
 				{-13/3,13/3},
 				{5/3,-13/3,4/3},
-			},
-			{
+			}, {
 				{10/3},
 				{-31/3,25/3},
 				{11/3,-19/3,4/3},
@@ -50,6 +48,62 @@ local coeffs = {
 			{  1/12,  -5/12,  13/12,  3/12, },
 		},
 		d = {1/35, 12/35, 18/35, 4/35},
+		betaCoeffs = {
+
+--[[
+			{
+				{ 2107/240},
+				{-9402/240,  11003/240},
+				{ 7042/240, -17246/240,   7043/240},
+				{-1854/240,   4642/240,  -3882/240,    547/240},
+			},
+			{
+				{  547/240},
+				{-2522/240,   3443/240},
+				{ 1922/240,  -5966/240,   2843/240},
+				{ -494/240,   1602/240,  -1642/240,    267/240},
+			},
+			{
+				{  267/240},
+				{-1642/240,   2843/240},
+				{ 1602/240,  -5966/240,   3443/240},
+				{ -494/240,   1922/240,  -2522/240,    547/240},
+			},
+			{
+				{  547/240},
+				{-3882/240,   7043/240},
+				{ 4642/240, -17246/240,  11003/240},
+				{-1854/240,   7042/240,  -9402/240,   2107/240},
+			},
+--]]		
+-- [[ 2016 Rathan, Raju after eqn 12 ... 
+-- https://github.com/wme7/WENO7-Z/blob/master/WENO7ZresAdv1d.m
+			{
+				{  6649.},
+				{-47214.,	  85641.},
+				{ 56694.,	-210282.,	134241.},
+				{-22778.,	  86214.,	-114894.,	25729.},
+			},
+			{
+				{  3169.},
+				{-19374.,	 33441.},
+				{ 19014.,	-70602.,	 41001.},
+				{ -5978.,	 23094.,	-30414.,	6649.},
+			},
+			{
+				{  6649.},
+				{-30414.,	 41001.},
+				{ 23094.,	-70602.,	 33441.},
+				{ -5978.,	 19014.,	-19374.,	3169.},
+			},
+			{
+				{  25729.},
+				{-114894.,	134241.},
+				{  86214.,	-210282.,	 85641.},
+				{ -22778.,	  56694.,	-47214.,	6649.},
+			},
+--]]	
+		},
 	},
 }
 
@@ -69,32 +123,15 @@ for _,l_or_r in ipairs{'l', 'r'} do
 <?=eqn.waves_t?> weno_<?=l_or_r?>(const <?=eqn.waves_t?>* v) {
 	<?=eqn.waves_t?> result;
 	for (int k = 0; k < numWaves; ++k) {
-		
-<? 	if stencilSize == 3 then -- weno5 
-		for j=0,stencilSize-1 do 
+<? 	for j=0,stencilSize-1 do 
 ?>		real beta<?=j?> = 0.<?
-			for m=0,stencilSize-1 do
-				for n=0,m do
+		for m=0,stencilSize-1 do
+			for n=0,m do
 			?> + <?=clnumber(betaCoeffs[j+1][m+1][n+1])?> * v[<?=j+m?>].ptr[k] * v[<?=j+n?>].ptr[k]<?
-				end
-			end?>;
-<?		end
- 	elseif stencilSize == 4 then 
-?>
-// in 2018 Zeytinoglu et al "A hybrid approach for the regularized long wave-Burgers equation" 
-// and 2016 Rathan, Raju "An improved Non-linear Weights for Seventh-Order WENO Scheme"  in the Appendix for WENO-BS
-//		real beta0 = v[0].ptr[k] * ( 547 * v[0].ptr[k] - 3882 * v[1].ptr[k] + 4642 * v[2].ptr[k] - 1854 * v[3].ptr[k]) + v[1].ptr[k] * ( 7043 * v[1].ptr[k] - 17246 * v[2].ptr[k] + 7042 * v[3].ptr[k]) + v[2].ptr[k] * (11003 * v[2].ptr[k] - 9402 * v[3].ptr[k]) + v[3].ptr[k] * 2107 * v[3].ptr[k];
-//		real beta1 = v[1].ptr[k] * ( 267 * v[1].ptr[k] - 1642 * v[2].ptr[k] + 1602 * v[3].ptr[k] -  494 * v[4].ptr[k]) + v[2].ptr[k] * ( 2843 * v[2].ptr[k] -  5966 * v[3].ptr[k] + 1922 * v[4].ptr[k]) + v[3].ptr[k] * ( 3443 * v[3].ptr[k] - 2522 * v[4].ptr[k]) + v[4].ptr[k] *  547 * v[4].ptr[k];
-//		real beta2 = v[2].ptr[k] * ( 547 * v[2].ptr[k] - 2522 * v[3].ptr[k] + 1922 * v[4].ptr[k] -  494 * v[5].ptr[k]) + v[3].ptr[k] * ( 3443 * v[3].ptr[k] -  5966 * v[4].ptr[k] + 1602 * v[5].ptr[k]) + v[4].ptr[k] * ( 2843 * v[4].ptr[k] - 1642 * v[5].ptr[k]) + v[5].ptr[k] *  267 * v[5].ptr[k];
-//		real beta3 = v[3].ptr[k] * (2107 * v[3].ptr[k] - 9402 * v[4].ptr[k] + 7042 * v[5].ptr[k] - 1854 * v[6].ptr[k]) + v[4].ptr[k] * (11003 * v[4].ptr[k] - 17246 * v[5].ptr[k] + 4642 * v[6].ptr[k]) + v[5].ptr[k] * ( 7043 * v[5].ptr[k] - 3882 * v[6].ptr[k]) + v[6].ptr[k] *  547 * v[6].ptr[k];
-// 2016 Rathan, Raju after eqn 12 ... 
-// https://github.com/wme7/WENO7-Z/blob/master/WENO7ZresAdv1d.m
-		real beta0 = v[2].ptr[k] * (134241. * v[2].ptr[k] - 114894. * v[3].ptr[k]) + v[0].ptr[k] * ( 56694. * v[2].ptr[k] -  47214. * v[1].ptr[k] +  6649. * v[0].ptr[k] - 22778. * v[3].ptr[k]) + 25729. * sqr(v[3].ptr[k]) + v[1].ptr[k] * (-210282. * v[2].ptr[k] +  85641. * v[1].ptr[k] + 86214. * v[3].ptr[k]);
-		real beta1 = v[3].ptr[k] * ( 41001. * v[3].ptr[k] -  30414. * v[4].ptr[k]) + v[1].ptr[k] * (-19374. * v[2].ptr[k] +   3169. * v[1].ptr[k] + 19014. * v[3].ptr[k] -  5978. * v[4].ptr[k]) +  6649. * sqr(v[4].ptr[k]) + v[2].ptr[k] * (  33441. * v[2].ptr[k] -  70602. * v[3].ptr[k] + 23094. * v[4].ptr[k]);
-		real beta2 = v[4].ptr[k] * ( 33441. * v[4].ptr[k] -  19374. * v[5].ptr[k]) + v[2].ptr[k] * (  6649. * v[2].ptr[k] -  30414. * v[3].ptr[k] + 23094. * v[4].ptr[k] -  5978. * v[5].ptr[k]) +  3169. * sqr(v[5].ptr[k]) + v[3].ptr[k] * (  41001. * v[3].ptr[k] -  70602. * v[4].ptr[k] + 19014. * v[5].ptr[k]);
-		real beta3 = v[5].ptr[k] * ( 85641. * v[5].ptr[k] -  47214. * v[6].ptr[k]) + v[3].ptr[k] * ( 25729. * v[3].ptr[k] - 114894. * v[4].ptr[k] + 86214. * v[5].ptr[k] - 22778. * v[6].ptr[k]) +  6649. * sqr(v[6].ptr[k]) + v[4].ptr[k] * ( 134241. * v[4].ptr[k] - 210282. * v[5].ptr[k] + 56694. * v[6].ptr[k]);
-<? 	end 
-
+			end
+		end?>;
+<?	end
+	
 	if solver.wenoMethod == '1996 Jiang Shu' then 		-- WENO-JS
 		--local epsilon = clnumber(1e-14)
 		local epsilon = clnumber(1e-6)
@@ -104,8 +141,7 @@ for _,l_or_r in ipairs{'l', 'r'} do
 <? 		end 
 
 	elseif solver.wenoMethod == '2008 Borges' then 	-- WENO-Z
-		--local epsilon = clnumber(1e-14)	-- weno5
-		local epsilon = clnumber(1e-40)		-- weno7 ... but >64 grid sizes and this diverges?
+		local epsilon = clnumber(1e-6)
 		if false then 	--if stencilSize == 4 then -- for 2016 Rathan, it suggests these:
 ?>		real tau = fabs(beta0 + 3. * beta1 - 3. * beta2 - beta3);
 <?		else	-- for weno7, 2018 Zeytinoglu suggests this:

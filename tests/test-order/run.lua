@@ -71,13 +71,13 @@ problems['advect wave'] = {
 			-- final error at n=1024 on the right:
 		{	
 			-- schemes
-			{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 2.4115778818334e-13
-			--{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4'},		-- 4.1688549314023e-14
-			--{solver='weno', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 4.6263015120174e-14
+			{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 2.4105446371631e-13 
+			{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4'},		-- 4.1661335839493e-14
+			{solver='weno', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 4.6398974072603e-14
 
-			--{solver='weno', wenoMethod='1996 Jiang Shu', order=7, integrator='Runge-Kutta 4'},		-- 8.8720263774489e-15
-			--{solver='weno', wenoMethod='2008 Borges', order=7, integrator='Runge-Kutta 4'},			-- 9.3232316071491e-08
-			--{solver='weno', wenoMethod='2010 Shen Zha', order=7, integrator='Runge-Kutta 4'},		-- 8.6255872236429e-15
+			{solver='weno', wenoMethod='1996 Jiang Shu', order=7, integrator='Runge-Kutta 4'},		-- 8.8720263774489e-15
+			{solver='weno', wenoMethod='2008 Borges', order=7, integrator='Runge-Kutta 4'},			-- 8.6886877900816e-15
+			{solver='weno', wenoMethod='2010 Shen Zha', order=7, integrator='Runge-Kutta 4'},		-- 8.6255872236429e-15
 
 			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 2.8857580387787e-13
 			--{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 4.4666635841406e-14
@@ -668,7 +668,7 @@ print()
 			if endTime and startTime then
 				testdata.size[size].deltaTime = endTime - startTime
 			end	
-			print('time: '..testdata.size[size].deltaTime)
+			if cmdline.time then print('time: '..testdata.size[size].deltaTime) end
 		end
 	end
 	testdata.name = destName
