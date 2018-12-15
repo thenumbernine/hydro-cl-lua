@@ -24,36 +24,7 @@ local coeffs = {
 			{-1/6,  5/6,  2/6},
 		},
 		d = {1/10, 6/10, 3/10},
-	},
-	[4] = {
-		c = {	
-			{ 25/12, -23/12,  13/12, -3/12, },
-			{  3/12,  13/12,  -5/12,  1/12, },
-			{ -1/12,   7/12,   7/12, -1/12, },
-			{  1/12,  -5/12,  13/12,  3/12, },
-		},
-		d = {1/35, 12/35, 18/35, 4/35},
-	},
-}
-
-local coeff = coeffs[stencilSize]
-local c = coeff.c
-local d = coeff.d
-
-for _,l_or_r in ipairs{'l', 'r'} do
-	local ci0 = l_or_r == 'l' and stencilSize or 1
-	local cid = l_or_r == 'l' and -1 or 1
-	local cj0 = l_or_r == 'l' and 1 or stencilSize
-	local cjd = l_or_r == 'l' and 1 or -1
-	local d0 = l_or_r == 'l' and stencilSize or 1
-	local dd = l_or_r == 'l' and -1 or 1
-?>
-<?=eqn.waves_t?> weno_<?=l_or_r?>(const <?=eqn.waves_t?>* v) {
-	<?=eqn.waves_t?> result;
-	for (int k = 0; k < numWaves; ++k) {
-		
-<? 	if stencilSize == 3 then -- weno5 
-		local betaCoeffs = {
+		betaCoeffs = {
 			{
 				{4/3},
 				{-19/3,25/3},
@@ -69,8 +40,37 @@ for _,l_or_r in ipairs{'l', 'r'} do
 				{-31/3,25/3},
 				{11/3,-19/3,4/3},
 			},
-		}
+		},
+	},
+	[4] = {
+		c = {	
+			{ 25/12, -23/12,  13/12, -3/12, },
+			{  3/12,  13/12,  -5/12,  1/12, },
+			{ -1/12,   7/12,   7/12, -1/12, },
+			{  1/12,  -5/12,  13/12,  3/12, },
+		},
+		d = {1/35, 12/35, 18/35, 4/35},
+	},
+}
 
+local coeff = coeffs[stencilSize]
+local c = coeff.c
+local d = coeff.d
+local betaCoeffs = coeff.betaCoeffs
+
+for _,l_or_r in ipairs{'l', 'r'} do
+	local ci0 = l_or_r == 'l' and stencilSize or 1
+	local cid = l_or_r == 'l' and -1 or 1
+	local cj0 = l_or_r == 'l' and 1 or stencilSize
+	local cjd = l_or_r == 'l' and 1 or -1
+	local d0 = l_or_r == 'l' and stencilSize or 1
+	local dd = l_or_r == 'l' and -1 or 1
+?>
+<?=eqn.waves_t?> weno_<?=l_or_r?>(const <?=eqn.waves_t?>* v) {
+	<?=eqn.waves_t?> result;
+	for (int k = 0; k < numWaves; ++k) {
+		
+<? 	if stencilSize == 3 then -- weno5 
 		for j=0,stencilSize-1 do 
 ?>		real beta<?=j?> = 0.<?
 			for m=0,stencilSize-1 do
