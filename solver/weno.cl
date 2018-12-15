@@ -6,6 +6,7 @@ sources:
 2016 Rathan, Raju "An improved Non-linear Weights for Seventh-Order WENO Scheme"
 https://github.com/jzrake/Mara for weno5 examples
 https://github.com/wme7/WENO7-Z/blob/master/WENO7ZresAdv1d.m for weno7 examples
+https://github.com/python-hydro/hydro_examples/blob/master/compressible/weno_coefficients.py likewise
 */
 
 inline real sqr(real x) { return x * x; }
@@ -15,44 +16,70 @@ local clnumber = require 'cl.obj.number'
 
 local stencilSize = solver.stencilSize
 
-local cs = {
+local coeffs = {
 	[3] = {
-		{ 1/3, -7/6, 11/6},
-		{-1/6,  5/6,  1/3},
-		{ 1/3,  5/6, -1/6},
-		{11/6, -7/6,  1/3},
+		c = {
+			{11/6, -7/6,  2/6},
+			{ 2/6,  5/6, -1/6},
+			{-1/6,  5/6,  2/6},
+		},
+		d = {1/10, 6/10, 3/10},
 	},
 	[4] = {
-		{ -3/12,  13/12, -23/12, 25/12, },
-		{  1/12,  -5/12,  13/12,  3/12, },
-		{ -1/12,   7/12,   7/12, -1/12, },
-		{  3/12,  13/12,  -5/12,  1/12, },
-		{ 25/12, -23/12,  13/12, -3/12, },
+		c = {	
+			{ 25/12, -23/12,  13/12, -3/12, },
+			{  3/12,  13/12,  -5/12,  1/12, },
+			{ -1/12,   7/12,   7/12, -1/12, },
+			{  1/12,  -5/12,  13/12,  3/12, },
+		},
+		d = {1/35, 12/35, 18/35, 4/35},
 	},
 }
-local ds = {
-	[3] = { 3/10, 3/5, 1/10},
-	
-	[4] = {4/35, 18/35, 12/35, 1/35},
-}
 
-local c = cs[stencilSize]
-local d = ds[stencilSize]
+local coeff = coeffs[stencilSize]
+local c = coeff.c
+local d = coeff.d
 
 for _,l_or_r in ipairs{'l', 'r'} do
-	local cofs = l_or_r == 'l' and 2 or 1
-	local d0 = l_or_r == 'l' and 1 or stencilSize 
-	local dd = l_or_r == 'l' and 1 or -1
+	local ci0 = l_or_r == 'l' and stencilSize or 1
+	local cid = l_or_r == 'l' and -1 or 1
+	local cj0 = l_or_r == 'l' and 1 or stencilSize
+	local cjd = l_or_r == 'l' and 1 or -1
+	local d0 = l_or_r == 'l' and stencilSize or 1
+	local dd = l_or_r == 'l' and -1 or 1
 ?>
 <?=eqn.waves_t?> weno_<?=l_or_r?>(const <?=eqn.waves_t?>* v) {
 	<?=eqn.waves_t?> result;
 	for (int k = 0; k < numWaves; ++k) {
 		
 <? 	if stencilSize == 3 then -- weno5 
-?>		real beta0 = (13./12.)*sqr( v[0].ptr[k] - 2*v[1].ptr[k] + v[2].ptr[k]) + (1./4.)*sqr(  v[0].ptr[k] - 4*v[1].ptr[k] + 3*v[2].ptr[k]);
-		real beta1 = (13./12.)*sqr( v[1].ptr[k] - 2*v[2].ptr[k] + v[3].ptr[k]) + (1./4.)*sqr(  v[1].ptr[k]                 -   v[3].ptr[k]);
-		real beta2 = (13./12.)*sqr( v[2].ptr[k] - 2*v[3].ptr[k] + v[4].ptr[k]) + (1./4.)*sqr(3*v[2].ptr[k] - 4*v[3].ptr[k] +   v[4].ptr[k]);
-<? 	elseif stencilSize == 4 then 
+		local betaCoeffs = {
+			{
+				{4/3},
+				{-19/3,25/3},
+				{11/3,-31/3,10/3},
+			},
+			{
+				{4/3},
+				{-13/3,13/3},
+				{5/3,-13/3,4/3},
+			},
+			{
+				{10/3},
+				{-31/3,25/3},
+				{11/3,-19/3,4/3},
+			},
+		}
+
+		for j=0,stencilSize-1 do 
+?>		real beta<?=j?> = 0.<?
+			for m=0,stencilSize-1 do
+				for n=0,m do
+			?> + <?=clnumber(betaCoeffs[j+1][m+1][n+1])?> * v[<?=j+m?>].ptr[k] * v[<?=j+n?>].ptr[k]<?
+				end
+			end?>;
+<?		end
+ 	elseif stencilSize == 4 then 
 ?>
 // in 2018 Zeytinoglu et al "A hybrid approach for the regularized long wave-Burgers equation" 
 // and 2016 Rathan, Raju "An improved Non-linear Weights for Seventh-Order WENO Scheme"  in the Appendix for WENO-BS
@@ -73,19 +100,19 @@ for _,l_or_r in ipairs{'l', 'r'} do
 		local epsilon = clnumber(1e-6)
 ?>
 <? 		for i=0,stencilSize-1 do
-?>		real w<?=i?> = <?=clnumber(d[d0 + i * dd])?> / sqr(<?=epsilon?> + beta<?=i?>);
+?>		real alpha<?=i?> = <?=clnumber(d[d0 + i * dd])?> / sqr(<?=epsilon?> + beta<?=i?>);
 <? 		end 
 
 	elseif solver.wenoMethod == '2008 Borges' then 	-- WENO-Z
-		local epsilon = clnumber(1e-14)	-- weno5
-		--local epsilon = clnumber(1e-40)		-- weno7 ... but >64 grid sizes and this diverges?
-		if stencilSize == 4 then -- for 2016 Rathan, it suggests these:
+		--local epsilon = clnumber(1e-14)	-- weno5
+		local epsilon = clnumber(1e-40)		-- weno7 ... but >64 grid sizes and this diverges?
+		if false then 	--if stencilSize == 4 then -- for 2016 Rathan, it suggests these:
 ?>		real tau = fabs(beta0 + 3. * beta1 - 3. * beta2 - beta3);
 <?		else	-- for weno7, 2018 Zeytinoglu suggests this:
 ?>		real tau = fabs(beta0 - beta<?=stencilSize-1?>);
 <?		end
  		for i=0,stencilSize-1 do 
-?>		real w<?=i?> = <?=clnumber(d[d0 + i * dd])?> * (1. + (tau / (beta<?=i?> + <?=epsilon?>)));
+?>		real alpha<?=i?> = <?=clnumber(d[d0 + i * dd])?> * (1. + (tau / (beta<?=i?> + <?=epsilon?>)));
 <? 		end
 
 	elseif solver.wenoMethod == '2010 Shen Zha' then -- WENO-BS?
@@ -98,7 +125,7 @@ for _,l_or_r in ipairs{'l', 'r'} do
 ?>		beta<?=i?> += R0 * <?=shen_zha_A?> * minB;
 <? 		end 
  		for i=0,stencilSize-1 do 
-?>		real w<?=i?> = <?=clnumber(d[d0 + i * dd])?> / sqr(<?=epsilon?> + beta<?=i?>);
+?>		real alpha<?=i?> = <?=clnumber(d[d0 + i * dd])?> / sqr(<?=epsilon?> + beta<?=i?>);
 <?	 	end 
  
 	else
@@ -108,15 +135,15 @@ for _,l_or_r in ipairs{'l', 'r'} do
 	for i=0,stencilSize-1 do 
 ?>		real vs<?=i?> = 0.<?
 		for j=0,stencilSize-1 do
-		?> + <?=clnumber(c[cofs+i][j+1])?> * v[<?=i+j?>].ptr[k]<?
+		?> + <?=clnumber(c[ci0+cid*i][cj0+cjd*j])?> * v[<?=i+j?>].ptr[k]<?
 		end ?>;
 <? 
 	end 
-?>		real wtot = 0.<? for i=0,stencilSize-1 do ?> + w<?=i?><? end ?>;
+?>		real alphasum= 0.<? for i=0,stencilSize-1 do ?> + alpha<?=i?><? end ?>;
 		result.ptr[k] = (0.<?
 	for i=0,stencilSize-1 do
-		?> + w<?=i?> * vs<?=i?><?
-	end ?>) / wtot;
+		?> + alpha<?=i?> * vs<?=i?><?
+	end ?>) / alphasum;
 	}
 	return result;
 }

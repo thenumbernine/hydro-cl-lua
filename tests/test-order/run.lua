@@ -58,7 +58,6 @@ local plotErrorHistory = cmdline.history
 -- exclusive with 'compare': don't use exact, instead use exponential regression
 local uselin = cmdline.uselin
 
-
 local problems = {}
 
 problems['advect wave'] = {
@@ -72,12 +71,12 @@ problems['advect wave'] = {
 			-- final error at n=1024 on the right:
 		{	
 			-- schemes
-			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 2.4115778818334e-13
+			{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 2.4115778818334e-13
 			--{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4'},		-- 4.1688549314023e-14
 			--{solver='weno', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 4.6263015120174e-14
 
 			--{solver='weno', wenoMethod='1996 Jiang Shu', order=7, integrator='Runge-Kutta 4'},		-- 8.8720263774489e-15
-			{solver='weno', wenoMethod='2008 Borges', order=7, integrator='Runge-Kutta 4'},			-- 7.1445793625897e-08
+			--{solver='weno', wenoMethod='2008 Borges', order=7, integrator='Runge-Kutta 4'},			-- 9.3232316071491e-08
 			--{solver='weno', wenoMethod='2010 Shen Zha', order=7, integrator='Runge-Kutta 4'},		-- 8.6255872236429e-15
 
 			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 2.8857580387787e-13
@@ -498,6 +497,9 @@ local dim = 1
 local sizes = (plotCompare or plotErrorHistory) 
 	and table{singleSize} 
 	or range(3,10):map(function(x) return 2^x end)
+
+if cmdline.time then sizes = table{sizes:last()} end
+
 for _,cfg in ipairs(problem.configurations) do
 	cfg = table(cfg)
 
@@ -533,10 +535,13 @@ print(destName)
 		for _,size in ipairs(sizes) do
 			
 			testdata.size[size] = testdata.size[size] or table()
+			
+			local startTime, endTime
 					
 			if nocache 
 			or not testdata.size[size].xs
 			or not testdata.size[size].ys
+			or not testdata.size[size].deltaTime
 			-- or either no exact or uselin
 			then
 				cfg = table(cfg)
@@ -583,7 +588,7 @@ print()
 					local err = calcError(exact, ys)
 					testdata.size[size].errorsForTime:insert(err)
 				end
-				
+			
 				local App = class(require 'app')
 				function App:setup(clArgs)
 					cfg.app = self
@@ -598,9 +603,12 @@ print()
 							return oldupdate(...)
 						end
 					end
+					startTime = os.clock()
 				end
 				
 				function App:requestExit()
+					endTime = os.clock()	-- track time taken
+
 					App.super.requestExit(self)
 				
 					-- now compare the U buffer to the exact 
@@ -657,16 +665,22 @@ print()
 			end
 
 			if file.stop then file.stop = nil os.exit(1) end
+			if endTime and startTime then
+				testdata.size[size].deltaTime = endTime - startTime
+			end	
+			print('time: '..testdata.size[size].deltaTime)
 		end
 	end
 	testdata.name = destName
 	file[srcfn] = tolua(testdata)
 local errors = sizes:map(function(size) return testdata.size[size].error end)
-print(table.last(errors))
+print('error:',table.last(errors))
 	errorsForConfig:insert(errors)
 	errorNames:insert(destName)
 	testdatas:insert(testdata) 
 end
+
+if cmdline.time then return end
 
 -- [[ plot errors per size
 gnuplot(

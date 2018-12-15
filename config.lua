@@ -63,7 +63,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{64,1,1},
-				{256,256,1},
+				{64,64,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -450,13 +450,13 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=2})))
 
 -- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler
-self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu'})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha'})))
 
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=7})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=7})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=7})))
+self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=7})))
 
 -- still haven't added source terms to this
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='navstokes-wilcox'})))
