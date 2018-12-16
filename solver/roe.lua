@@ -49,10 +49,6 @@ function Roe:refreshSolverProgram()
 	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
 	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 	self.calcFluxKernelObj.obj:setArg(3, self.eigenBuf)
-
-	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-	end
 end
 
 function Roe:addDisplayVars()
@@ -211,8 +207,6 @@ end
 function Roe:calcDeriv(derivBuf, dt)
 	local dtArg = real(dt)
 	
-	self:boundary()
-	
 	if self.usePLM then
 		self.calcLRKernelObj(self.solverBuf, self:getULRBuf(), self.UBuf, dtArg)
 	end
@@ -254,11 +248,6 @@ function Roe:calcDeriv(derivBuf, dt)
 	
 	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBuf)
 	self.calcDerivFromFluxKernelObj()
-
-	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj.obj:setArgs(self.solverBuf, derivBuf, self.UBuf)
-		self.addSourceKernelObj()
-	end
 end
 
 return Roe

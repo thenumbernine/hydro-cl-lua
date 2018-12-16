@@ -643,13 +643,15 @@ function GridSolver:resetState()
 	for _,bufferInfo in ipairs(self.buffers) do
 		self.app.cmds:enqueueFillBuffer{buffer=self[bufferInfo.name], size=bufferInfo.size}
 	end
+
+	GridSolver.super.resetState(self)
+
+	self:boundary()
 	
 	if self.eqn.useConstrainU then
 		self.constrainUKernelObj(self.solverBuf, self.UBuf)
 		self:boundary()
 	end
-
-	GridSolver.super.resetState(self)
 end
 
 function GridSolver:getSolverCode()
@@ -675,6 +677,7 @@ function GridSolver:getULRBuf()
 end
 
 -- depends on buffers
+-- TODO this doesn't call super, but super has a lot in common with it
 function GridSolver:refreshSolverProgram()
 	self.getULRArg = self.usePLM 
 		and (self.eqn.consLR_t..'* ULRBuf')
@@ -721,6 +724,10 @@ function GridSolver:refreshSolverProgram()
 	end)
 
 	self:refreshCalcDTKernel()
+
+	if self.eqn.useSourceTerm then
+		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
+	end
 
 	if self.eqn.useConstrainU then
 		self.constrainUKernelObj = self.solverProgramObj:kernel'constrainU'
@@ -1267,10 +1274,21 @@ end
 end
 
 function GridSolver:step(dt)
-	self.integrator:integrate(dt, function(derivBuf)
+	self.integrator:integrate(dt, function(derivBuf)		
+		self:boundary()
+		if self.eqn.useConstrainU then
+			self.constrainUKernelObj(self.solverBuf, self.UBuf)
+			self:boundary()
+		end
+		
 		self:calcDeriv(derivBuf, dt)
-	end)
 	
+		if self.eqn.useSourceTerm then
+			self.addSourceKernelObj.obj:setArgs(self.solverBuf, derivBuf, self.UBuf)
+			self.addSourceKernelObj()
+		end
+	end)
+
 	if self.eqn.useConstrainU then
 		self:boundary()
 		self.constrainUKernelObj(self.solverBuf, self.UBuf)

@@ -394,7 +394,7 @@ kernel void constrainU(
 	SETBOUNDS(0,0);
 
 	global <?=eqn.cons_only_t?>* U = &UBuf[index].cons;
-	
+
 	U->D = max(U->D, (real)solver->DMin);
 	U->tau = max(U->tau, (real)solver->tauMin);
 

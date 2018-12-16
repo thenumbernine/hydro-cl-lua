@@ -72,29 +72,29 @@ problems['advect wave'] = {
 		{	
 			-- schemes
 			
-			--{solver='weno', wenoMethod='1996 Jiang Shu', order=3, integrator='Runge-Kutta 4'},		--  6.5344207972177e-08
-			--{solver='weno', wenoMethod='2008 Borges', order=3, integrator='Runge-Kutta 4'},			--  5.411076212645e-09
-			--{solver='weno', wenoMethod='2010 Shen Zha', order=3, integrator='Runge-Kutta 4'},		--  6.1547864245567e-07
-
-			--{solver='weno', wenoMethod='1996 Jiang Shu', order=5, integrator='Runge-Kutta 4'},		-- 2.4105446371631e-13
-			--{solver='weno', wenoMethod='2008 Borges', order=5, integrator='Runge-Kutta 4'},			-- 4.1676731510343e-14
-			--{solver='weno', wenoMethod='2010 Shen Zha', order=5, integrator='Runge-Kutta 4'},		-- 4.6489179693354e-14
-
-			--{solver='weno', wenoMethod='1996 Jiang Shu', order=7, integrator='Runge-Kutta 4'},		-- 8.8720263774489e-15
-			--{solver='weno', wenoMethod='2008 Borges', order=7, integrator='Runge-Kutta 4'},			-- 8.6886877900816e-15
-			--{solver='weno', wenoMethod='2010 Shen Zha', order=7, integrator='Runge-Kutta 4'},		-- 8.6302492929846e-15
+			{solver='weno', wenoMethod='1996 Jiang Shu', order=3, integrator='Runge-Kutta 4'},		-- 6.5344207715546e-08
+			{solver='weno', wenoMethod='2008 Borges', order=3, integrator='Runge-Kutta 4'},			-- 5.4110763364609e-09
+			{solver='weno', wenoMethod='2010 Shen Zha', order=3, integrator='Runge-Kutta 4'},		-- 6.1547863892486e-07
 			
-			--{solver='weno', wenoMethod='1996 Jiang Shu', order=9, integrator='Runge-Kutta 4'},		-- 7.7472750437124e-15
-			--{solver='weno', wenoMethod='2008 Borges', order=9, integrator='Runge-Kutta 4'},			-- 7.5951614789127e-15
-			--{solver='weno', wenoMethod='2010 Shen Zha', order=9, integrator='Runge-Kutta 4'},		-- 1.3525530521974e-14
+			{solver='weno', wenoMethod='1996 Jiang Shu', order=5, integrator='Runge-Kutta 4'},		-- 2.410380922635e-13
+			{solver='weno', wenoMethod='2008 Borges', order=5, integrator='Runge-Kutta 4'},			-- 4.1668057892963e-14
+			{solver='weno', wenoMethod='2010 Shen Zha', order=5, integrator='Runge-Kutta 4'},		-- 4.6350727075928e-14
 			
-			--{solver='weno', wenoMethod='1996 Jiang Shu', order=11, integrator='Runge-Kutta 4'},		-- 4.5288208946892e-15
-			--{solver='weno', wenoMethod='2008 Borges', order=11, integrator='Runge-Kutta 4'},		-- 4.5550585872633e-15
-			--{solver='weno', wenoMethod='2010 Shen Zha', order=11, integrator='Runge-Kutta 4'},		-- 8.7627387984623e-15
+			{solver='weno', wenoMethod='1996 Jiang Shu', order=7, integrator='Runge-Kutta 4'},		-- 9.0145989631307e-15
+			{solver='weno', wenoMethod='2008 Borges', order=7, integrator='Runge-Kutta 4'},			-- 8.7666419262833e-15
+			{solver='weno', wenoMethod='2010 Shen Zha', order=7, integrator='Runge-Kutta 4'},		-- 8.5568488059073e-15
 			
-			--{solver='weno', wenoMethod='1996 Jiang Shu', order=13, integrator='Runge-Kutta 4'},		-- 7.364551676825e-15
-			--{solver='weno', wenoMethod='2008 Borges', order=13, integrator='Runge-Kutta 4'},		-- 7.1307976884372e-15
-			{solver='weno', wenoMethod='2010 Shen Zha', order=13, integrator='Runge-Kutta 4'},		-- 2.3296143659979e-14
+			{solver='weno', wenoMethod='1996 Jiang Shu', order=9, integrator='Runge-Kutta 4'},		-- 7.7663570019482e-15
+			{solver='weno', wenoMethod='2008 Borges', order=9, integrator='Runge-Kutta 4'},			-- 7.6455768799333e-15
+			{solver='weno', wenoMethod='2010 Shen Zha', order=9, integrator='Runge-Kutta 4'},		-- 1.3655960043324e-14
+			
+			{solver='weno', wenoMethod='1996 Jiang Shu', order=11, integrator='Runge-Kutta 4'},		-- 4.5161357292711e-15
+			{solver='weno', wenoMethod='2008 Borges', order=11, integrator='Runge-Kutta 4'},		-- 4.4790560149721e-15
+			{solver='weno', wenoMethod='2010 Shen Zha', order=11, integrator='Runge-Kutta 4'},		-- 8.7559083247757e-15
+			
+			{solver='weno', wenoMethod='1996 Jiang Shu', order=13, integrator='Runge-Kutta 4'},		-- 7.406401880683e-15
+			{solver='weno', wenoMethod='2008 Borges', order=13, integrator='Runge-Kutta 4'},		-- 7.3191236057979e-15
+			{solver='weno', wenoMethod='2010 Shen Zha', order=13, integrator='Runge-Kutta 4'},		-- 2.3422127952422e-14
 
 			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 2.8857580387787e-13
 			--{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 4.4666635841406e-14

@@ -20,7 +20,6 @@ return function(parent)
 	--]]
 	function template:refreshSolverProgram()
 		template.super.refreshSolverProgram(self)
-
 		self.updatePrimsKernelObj = self.solverProgramObj:kernel('updatePrims', self.solverBuf, self.UBuf)
 	end
 
@@ -37,7 +36,6 @@ return function(parent)
 	-- and prims could converge *from* different prevoius values even when converging *to* the same destination UBuf 
 	function template:calcDeriv(derivBuf, dt)
 		self.updatePrimsKernelObj()
-
 		template.super.calcDeriv(self, derivBuf, dt)
 	end
 	--]]

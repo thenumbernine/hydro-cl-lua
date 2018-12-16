@@ -338,10 +338,16 @@ end
 	
 	{
 		name = 'Sedov',
+		guiVars = {
+			{name = 'init_rho0', value = 1},
+			{name = 'init_P0', value = 1},
+			{name = 'init_P1', value = 1e+3},
+		},
+	
 		initState = function(self, solver)
 			return [[
-	rho = 1;
-	P = (i.x == gridSize.x/2 && i.y == gridSize.y/2 && i.z == gridSize.z/2) ? 1e+3 : 1;
+	rho = solver->init_rho0;
+	P = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? solver->init_P1 : solver->init_P0;
 ]]
 		end,
 	},

@@ -637,6 +637,7 @@ function SolverBase:resetState()
 	self.app.cmds:finish()
 
 	self:applyInitCond()
+	self:boundary()
 	self:resetOps()
 end
 

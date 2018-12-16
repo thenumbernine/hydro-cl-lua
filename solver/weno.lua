@@ -69,10 +69,6 @@ function WENO:refreshSolverProgram()
 
 	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
 	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
-
-	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-	end
 end
 
 function WENO:addDisplayVars()
@@ -88,8 +84,6 @@ end
 -- NOTICE this adds the contents of derivBuf and does not clear it
 function WENO:calcDeriv(derivBuf, dt)
 	local dtArg = real(dt)
-	
-	self:boundary()
 	
 	if self.usePLM then
 		self.calcLRKernelObj(self.solverBuf, self.UBuf, self.UBuf, dtArg)
@@ -140,12 +134,6 @@ self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)
 self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
 	self.calcDerivFromFluxKernelObj()
-
-	if self.eqn.useSourceTerm then
-		self:boundary()
-		self.addSourceKernelObj.obj:setArgs(self.solverBuf, derivBuf, self.UBuf)
-		self.addSourceKernelObj()
-	end
 end
 
 return WENO

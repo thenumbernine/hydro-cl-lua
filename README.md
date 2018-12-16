@@ -50,7 +50,6 @@ TODO:
 - implement eigen-stuff code in SRHD so that PLM can work 
 - PLM for BSSNOK-FD and Euler-Burgers
 - PPM
-- higher-order polynomial stuff - WENO or whatever
 - better divergence removal (multigrid)
 - finish GLM-(ideal)MHD ... especially implement the source term as a second step with an exp(dt)  (which I'm not doing at the moment)
 - rename mhd to ideal-mhd
@@ -118,6 +117,15 @@ TODO:
 * Runge Kutta & TVD RK:
 	* https://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods#Classic_fourth-order_method	
 	* http://www.ams.org/journals/mcom/1998-67-221/S0025-5718-98-00913-2/S0025-5718-98-00913-2.pdf
-	* http://lsec.cc.ac.cn/lcfd/DEWENO/paper/WENO_1996.pdf
+	* 1996 Jiang, Shu, "Efficient Implementation of Weighted ENO Schemes"
 * OpenCL reduce:
 	* http://developer.amd.com/resources/documentation-articles/articles-whitepapers/opencl-optimization-case-study-simple-reductions/
+* WENO:
+	* 1996 Jiang, Shu, "Efficient Implementation of Weighted ENO Schemes"
+	* 1998 Shu "Essentially Non-Oscillatory and Weighted Essentially Non-Oscillatory Schemes for Hyperbolic Conservation Laws"
+	* "A hybrid approach for the regularized long wave-Burgers equation"
+	* 2016 Rathan, Raju "An improved Non-linear Weights for Seventh-Order WENO Scheme"
+	* https://github.com/jzrake/Mara for weno5 examples
+	* https://github.com/wme7/WENO7-Z/blob/master/WENO7ZresAdv1d.m for weno7 examples
+	* https://github.com/python-hydro/hydro_examples/blob/master/compressible/weno_coefficients.py for weno7-13 coefficients
+

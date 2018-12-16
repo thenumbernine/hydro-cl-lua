@@ -55,26 +55,13 @@ function FiniteDifferenceSolver:refreshSolverProgram()
 	self.calcDerivFiniteDifferenceKernelObj = self.solverProgramObj:kernel'calcDerivFiniteDifference'
 	self.calcDerivFiniteDifferenceKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcDerivFiniteDifferenceKernelObj.obj:setArg(2, self.fluxBuf)
-
-	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-		self.addSourceKernelObj.obj:setArg(0, self.solverBuf)
-		self.addSourceKernelObj.obj:setArg(2, self.UBuf)
-	end
 end
 
 function FiniteDifferenceSolver:calcDeriv(derivBuf, dt)
-	self:boundary()
-
 	self.calcFluxAtCellKernelObj()
 
 	self.calcDerivFiniteDifferenceKernelObj.obj:setArg(1, derivBuf)
 	self.calcDerivFiniteDifferenceKernelObj()
-	
-	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj.obj:setArg(1, derivBuf)
-		self.addSourceKernelObj()
-	end
 end
 
 return FiniteDifferenceSolver 

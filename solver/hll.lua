@@ -28,14 +28,8 @@ end
 
 function HLL:refreshSolverProgram()
 	HLL.super.refreshSolverProgram(self)
-
+	
 	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
-
-	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-		self.addSourceKernelObj.obj:setArg(0, self.solverBuf)
-		self.addSourceKernelObj.obj:setArg(2, self.UBuf)
-	end
 end
 
 local realptr = ffi.new'realparam[1]'
@@ -45,8 +39,6 @@ local function real(x)
 end
 function HLL:calcDeriv(derivBuf, dt)
 	local dtArg = real(dt)
-	
-	self:boundary()
 	
 	if self.usePLM then
 		self.calcLRKernelObj(self.solverBuf, self:getULRBuf(), self.UBuf, dtArg)
@@ -68,11 +60,6 @@ function HLL:calcDeriv(derivBuf, dt)
 	
 	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBuf)
 	self.calcDerivFromFluxKernelObj()
-	
-	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj.obj:setArg(1, derivBuf)
-		self.addSourceKernelObj()
-	end
 end
 
 return HLL
