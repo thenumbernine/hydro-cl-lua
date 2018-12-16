@@ -81,8 +81,8 @@ local function real(x)
 	return realptr
 end
 
--- NOTICE this adds the contents of derivBuf and does not clear it
-function WENO:calcDeriv(derivBuf, dt)
+-- NOTICE this adds the contents of derivBufObj and does not clear it
+function WENO:calcDeriv(derivBufObj, dt)
 	local dtArg = real(dt)
 	
 	if self.usePLM then
@@ -130,7 +130,7 @@ self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 --]=]
 	
 	self:boundary()
-	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBufObj.obj)
 self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)
 self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
 	self.calcDerivFromFluxKernelObj()

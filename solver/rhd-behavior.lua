@@ -34,9 +34,9 @@ return function(parent)
 	-- [[ method 2: update the before calcDeriv
 	-- this might take some extra calculations
 	-- and prims could converge *from* different prevoius values even when converging *to* the same destination UBuf 
-	function template:calcDeriv(derivBuf, dt)
+	function template:calcDeriv(derivBufObj, dt)
 		self.updatePrimsKernelObj()
-		template.super.calcDeriv(self, derivBuf, dt)
+		template.super.calcDeriv(self, derivBufObj, dt)
 	end
 	--]]
 

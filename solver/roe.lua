@@ -2,6 +2,7 @@ local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
+local math = require 'ext.math'
 local file = require 'ext.file'
 local template = require 'template'
 local FiniteVolumeSolver = require 'solver.fvsolver'
@@ -203,44 +204,53 @@ local function real(x)
 	return realptr
 end
 
--- NOTICE this adds the contents of derivBuf and does not clear it
-function Roe:calcDeriv(derivBuf, dt)
+-- NOTICE this adds the contents of derivBufObj and does not clear it
+function Roe:calcDeriv(derivBufObj, dt)
+if self.checkNaNs then assert(math.isfinite(dt)) end
 	local dtArg = real(dt)
 
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 	
 	if self.usePLM then
 		self.calcLRKernelObj(self.solverBuf, self:getULRBuf(), self.UBuf, dtArg)
 	end
 
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 
 	self.calcEigenBasisKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcEigenBasisKernelObj.obj:setArg(2, self:getULRBuf())
 	self.calcEigenBasisKernelObj()
 
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(self.eigenBufObj)) end
 
 	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcFluxKernelObj.obj:setArg(2, self:getULRBuf())
 	self.calcFluxKernelObj.obj:setArg(4, dtArg)
 	self.calcFluxKernelObj()
 
+if self.checkNaNs then assert(self:checkFinite(self.fluxBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 
 -- [=[ this is from the 2017 Zingale book
 	if self.useCTU then
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		-- if we're using CTU then ...
 		-- 1) calc fluxes based on a slope-limiter method (PLM, etc)
 		-- 2) at each interface, integrate each dimension's LR states by all other dimensions' fluxes with a timestep of -dt/2
 		--	( don't use the deriv buf because it already has the sum of all dimensions' flux differences)
 		self.updateCTUKernelObj(self.solverBuf, self:getULRBuf(), self.fluxBuf, dtArg)
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 
 		-- now we need to calcBounds on the ULR
 		-- TODO this will break for mirror conditions
 		-- because I haven't got the boundary code flexible enough to operate on specific fields within the L & R fields of the ULRBuf
 		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
 			obj()
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		end
 
 		-- 3) use the final LR states to calculate the flux ...
@@ -248,17 +258,24 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		-- the rest of this matches above
 		-- maybe use 'repeat'?
 		
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		self.calcEigenBasisKernelObj()
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		self.calcFluxKernelObj()
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(self.fluxBufObj)) end
 	end
 --]=]
 
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(self.fluxBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 	
-	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBufObj.obj)
 	self.calcDerivFromFluxKernelObj()
 
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 
 end
 

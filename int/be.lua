@@ -77,7 +77,7 @@ function BackwardEuler:init(solver, args)
 		-- ... is that the 'dt' of the overall step, 
 		-- or of the individual step within the integrator overall step?
 		self.integrateCallback(dUdtBuf)
-		--solver:calcDeriv(dUdtBuf.obj, self.linearSolverDT)
+		--solver:calcDeriv(dUdtBuf, self.linearSolverDT)
 
 --print'\ndUdtBuf:' solver:printBuf(dUdtBuf) print(debug.traceback(),'\n\n')
 --solver:checkFinite(dUdtBuf)

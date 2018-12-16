@@ -47,8 +47,8 @@ end
 function EinsteinFiniteDifferenceSolver:refreshCalcDTKernel() end
 function EinsteinFiniteDifferenceSolver:calcDT() return self.fixedDT end
 
-function EinsteinFiniteDifferenceSolver:calcDeriv(derivBuf, dt)
-	self.calcDerivKernelObj.obj:setArg(1, derivBuf)
+function EinsteinFiniteDifferenceSolver:calcDeriv(derivBufObj, dt)
+	self.calcDerivKernelObj.obj:setArg(1, derivBufObj.obj)
 	self.calcDerivKernelObj()
 end
 

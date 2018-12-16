@@ -112,7 +112,7 @@ function App:setup()
 		-- this produces crap in s2
 		-- if it's not added into s2's UBuf then we're safe
 		-- if it isn't called and zero is added to s2's UBuf then we're safe
-		self:calcDeriv(self.integrator.derivBufObj.obj, dt)
+		self:calcDeriv(self.integrator.derivBufObj, dt)
 		
 	-- why does derivBufObj differ?
 	-- something is corrupting every numStates data ... like something is writing out of bounds ...
@@ -131,7 +131,7 @@ function App:setup()
 		--[[ fails with the other solver's forward-euler and multAddKernel
 		app.cmds:finish()
 		app.cmds:enqueueFillBuffer{buffer=s1.integrator.derivBufObj.obj, size=self.numCells * self.eqn.numStates * ffi.sizeof(app.real)}
-		self:calcDeriv(s1.integrator.derivBufObj.obj, dt)
+		self:calcDeriv(s1.integrator.derivBufObj, dt)
 		s1.multAddKernelObj(self.UBuf, self.UBuf, s1.integrator.derivBufObj.obj, ffi.new('real[1]', dt))
 		app.cmds:finish()
 		--]]

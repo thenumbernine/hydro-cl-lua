@@ -37,7 +37,7 @@ local function real(x)
 	realptr[0] = x
 	return realptr
 end
-function HLL:calcDeriv(derivBuf, dt)
+function HLL:calcDeriv(derivBufObj, dt)
 	local dtArg = real(dt)
 	
 	if self.usePLM then
@@ -58,7 +58,7 @@ function HLL:calcDeriv(derivBuf, dt)
 	end
 --]=]
 	
-	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBufObj.obj)
 	self.calcDerivFromFluxKernelObj()
 end
 

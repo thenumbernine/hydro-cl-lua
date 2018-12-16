@@ -54,8 +54,8 @@ end
 function NLSSolver:refreshCalcDTKernel() end
 function NLSSolver:calcDT() return self.fixedDT end
 
-function NLSSolver:calcDeriv(derivBuf, dt)
-	self.calcDerivKernelObj.obj:setArg(1, derivBuf)
+function NLSSolver:calcDeriv(derivBufObj, dt)
+	self.calcDerivKernelObj.obj:setArg(1, derivBufObj.obj)
 	self.calcDerivKernelObj()
 end
 

@@ -1275,7 +1275,7 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		
 		self:boundary()	
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-		self:calcDeriv(derivBufObj.obj, dt)
+		self:calcDeriv(derivBufObj, dt)
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end

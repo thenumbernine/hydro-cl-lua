@@ -57,10 +57,10 @@ function FiniteDifferenceSolver:refreshSolverProgram()
 	self.calcDerivFiniteDifferenceKernelObj.obj:setArg(2, self.fluxBuf)
 end
 
-function FiniteDifferenceSolver:calcDeriv(derivBuf, dt)
+function FiniteDifferenceSolver:calcDeriv(derivBufObj, dt)
 	self.calcFluxAtCellKernelObj()
 
-	self.calcDerivFiniteDifferenceKernelObj.obj:setArg(1, derivBuf)
+	self.calcDerivFiniteDifferenceKernelObj.obj:setArg(1, derivBufObj.obj)
 	self.calcDerivFiniteDifferenceKernelObj()
 end
 
