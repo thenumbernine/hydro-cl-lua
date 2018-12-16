@@ -237,8 +237,7 @@ function GridSolver:refreshEqnInitState()
 	
 	self:refreshSolverBuf()
 
-
--- [[
+--[[
 local ptr = ffi.cast(self.eqn.cons_t..'*', self.UBufObj:toCPU())
 local t = self.t
 for i=1,tonumber(self.gridSize.x) do

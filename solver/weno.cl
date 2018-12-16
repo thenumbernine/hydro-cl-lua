@@ -385,10 +385,26 @@ for _,l_or_r in ipairs{'l', 'r'} do
 }
 <? end ?>
 
+kernel void calcCellFlux(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* fluxCellBuf,
+	const global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(0,0);
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+	<? for side=0,solver.dim-1 do ?>{
+		real3 xInt = cell_x(i);
+		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		global <?=eqn.cons_t?>* F = fluxCellBuf + <?=side?> + dim * index;
+		*F = fluxFromCons_<?=side?>(solver, *U, xInt);
+	}<? end ?>
+}
+
 kernel void calcFlux(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* fluxBuf,
 	const global <?=eqn.cons_t?>* UBuf
+//	,const global <?=eqn.cons_t?>* fluxCellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	
@@ -424,6 +440,7 @@ for side=0,solver.dim-1 do ?>{
 
 	<? for j=0,2*stencilSize-1 do ?>
 		const global <?=eqn.cons_t?>* U<?=j?> = U + <?=j - stencilSize?> * solver->stepsize.s<?=side?>;
+		//<?=eqn.cons_t?> F<?=j?> = fluxCellBuf[<?=side?> + dim * (index + <?=j - stencilSize?> * solver->stepsize.s<?=side?>)];
 		<?=eqn.cons_t?> F<?=j?> = fluxFromCons_<?=side?>(solver, *U<?=j?>, xInt);
 <?
 		if j < 2*stencilSize-1 then

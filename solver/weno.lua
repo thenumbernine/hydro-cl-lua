@@ -21,7 +21,7 @@ WENO.stencilSize = 3
 
 WENO.wenoMethod = '1996 Jiang Shu'	-- (WENO-JS)
 --WENO.wenoMethod = '2008 Borges'	-- (WENO-Z)
---WENO.wenoMethod = '2010 Shen Zha'	-- (WENO-BS)
+--WENO.wenoMethod = '2010 Shen Zha'	-- (WENO-BS?)
 
 --[[
 args:
@@ -43,6 +43,9 @@ end
 -- TODO find what intermediate values to buffer for perf increase
 function WENO:createBuffers()
 	WENO.super.createBuffers(self)
+
+	-- flux of cell-centered state values
+--	self:clalloc('fluxCellBuf', self.numCells * self.dim * ffi.sizeof(self.eqn.cons_t))
 end
 
 function WENO:getSolverCode()
@@ -61,6 +64,8 @@ end
 -- all these are found eqn's cl code
 function WENO:refreshSolverProgram()
 	WENO.super.refreshSolverProgram(self)
+	
+--	self.calcCellFluxKernelObj = self.solverProgramObj:kernel'calcCellFlux'
 
 	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
 	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
@@ -90,9 +95,17 @@ function WENO:calcDeriv(derivBuf, dt)
 		self.calcLRKernelObj(self.solverBuf, self.UBuf, self.UBuf, dtArg)
 	end
 
+--[[
+	self.calcCellFluxKernelObj.obj:setArg(0, self.solverBuf)
+	self.calcCellFluxKernelObj.obj:setArg(1, self.fluxCellBuf)
+	self.calcCellFluxKernelObj.obj:setArg(2, self.UBuf)
+	self.calcCellFluxKernelObj()
+--]]
+	
 	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
 self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 	self.calcFluxKernelObj.obj:setArg(2, self.UBuf)
+--	self.calcFluxKernelObj.obj:setArg(3, self.fluxCellBuf)
 	self.calcFluxKernelObj()
 
 -- [=[ this is from the 2017 Zingale book
@@ -104,6 +117,8 @@ self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 		--	( don't use the deriv buf because it already has the sum of all dimensions' flux differences)
 		self.updateCTUKernelObj(self.solverBuf, self.UBuf, self.fluxBuf, dtArg)
 
+--		self.calcCellFluxKernelObj()
+	
 		-- now we need to calcBounds on the ULR
 		-- TODO this will break for mirror conditions
 		-- because I haven't got the boundary code flexible enough to operate on specific fields within the L & R fields of the ULRBuf

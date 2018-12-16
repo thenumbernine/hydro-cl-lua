@@ -184,7 +184,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 
 		{name='eps', value=1},			-- permittivity
 		{name='mu', value=1},			-- permeability
-		{name='gravitationalConstant', value=1},		-- 6.67408e-11 m^3 / (kg s^2)
+		{name='gravitationalConstant', value=1e-7},		-- 6.67408e-11 m^3 / (kg s^2)
 	
 	}:append(fluids:map(function(fluid)
 		return table{

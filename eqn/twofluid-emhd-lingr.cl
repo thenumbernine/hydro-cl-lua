@@ -738,7 +738,6 @@ kernel void addSource(
 		deriv-><?=fluid?>_m = real3_sub(deriv-><?=fluid?>_m, real3_real_mul(conn1_u, W.<?=fluid?>_P));		//-Conn^i_jk g^jk P
 	}<? end ?>
 <? end ?>
-
 }
 
 kernel void constrainU(

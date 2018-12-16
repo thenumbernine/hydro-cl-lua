@@ -219,7 +219,7 @@ kernel void initState(
 
 SRHD.solverCodeFile = 'eqn/srhd.cl'
 
-function SRHD:getCalcEigenBasisCode() end	-- within srhd.cl
+function SRHD:getCalcEigenBasisCode() end      -- within srhd.cl
 
 -- TODO put in common parent of Euler, SRHD, GRHD
 -- TODO use the automatic arbitrary finite difference generator in bssnok
@@ -348,7 +348,7 @@ function SRHD:consWaveCodePrefix(side, U, x,
 	<?=eqn.prim_t?> prim = <?=U?>.prim;
 	real rho = prim.rho;
 	real eInt = prim.eInt;
-	real vSq = coordLenSq(prim.v, x);
+	real vSq = coordLenSq(prim.v, <?=x?>);
 	real P = calc_P(solver, rho, eInt);
 	real h = calc_h(rho, P, eInt);
 	real csSq = solver->heatCapacityRatio * P / (rho * h);
@@ -365,8 +365,8 @@ end ?>
 	// also Marti & Muller 2008 eqn 68
 	// also Font 2008 eqn 106
 	real discr = sqrt((1. - <?=vSq?>) * (1. - <?=vSq?> * <?=csSq?> - viSq * (1. - <?=csSq?>)));
-	real lambdaMin = (vi * (1. - <?=csSq?>) - <?=cs?> * discr) / (1. - <?=vSq?> * <?=csSq?>);
-	real lambdaMax = (vi * (1. - <?=csSq?>) + <?=cs?> * discr) / (1. - <?=vSq?> * <?=csSq?>);
+	real _srhd_lambdaMin = (vi * (1. - <?=csSq?>) - <?=cs?> * discr) / (1. - <?=vSq?> * <?=csSq?>);
+	real _srhd_lambdaMax = (vi * (1. - <?=csSq?>) + <?=cs?> * discr) / (1. - <?=vSq?> * <?=csSq?>);
 	// v.x because v has been rotated so x points along the normal
 	real v_n = prim.v.x;
 ]], {
@@ -389,11 +389,11 @@ end
 
 function SRHD:consWaveCode(side, U, x, waveIndex)
 	if waveIndex == 0 then
-		return 'lambdaMin'
+		return '_srhd_lambdaMin'
 	elseif waveIndex >= 1 and waveIndex <= 3 then
 		return 'v_x'
 	elseif waveIndex == 4 then
-		return 'lambdaMax'
+		return '_srhd_lambdaMax'
 	else
 		error'got a bad waveIndex'
 	end
