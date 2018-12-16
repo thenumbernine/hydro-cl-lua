@@ -106,7 +106,7 @@ function SolverBase:preInit(args)
 		self.coord = require('coord.'..args.coord)(table({solver=self}, args.coordArgs))
 	end
 
-	self.checkNaNs = false
+	self.checkNaNs = true
 	self.useFixedDT = not not args.fixedDT
 	self.fixedDT = args.fixedDT or self.fixedDT or .001
 	self.cfl = args.cfl or .5	--/self.dim
@@ -1134,13 +1134,32 @@ if math.floor(thisTime) ~= math.floor(self.lastFrameTime) then print(self.fps) e
 	end
 	self.lastFrameTime = thisTime
 
-	if self.checkNaNs then
-		if self:checkFinite(self.UBufObj, self.numCells) then 
-			self.app.running = false
-			return
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj, self.numCells)) end
+end
+
+-- check for nans
+-- expects buf to be of type cons_t, made up of numStates real variables
+function SolverBase:checkFinite(buf)
+	local ptr = buf:toCPU()
+	local ptr0size = tonumber(ffi.sizeof(buf.type))
+	local realSize = tonumber(ffi.sizeof'real')
+	local ptrsPerReal = ptr0size / realSize
+	assert(ptrsPerReal == math.floor(ptrsPerReal))
+	ptr = ffi.cast('real*', ptr)
+	local size = buf.size * ptrsPerReal
+	local found
+	for i=0,size-1 do
+		local x = tonumber(ptr[i])
+		if not math.isfinite(x) then
+			found = found or table()
+			found:insert{i, x}
 		end
 	end
+	if not found then return true end
+--	self:printBuf(nil, ptr)
+	return false, 'found non-finite offsets and numbers: '..require'ext.tolua'(found)
 end
+
 
 
 -- this is abstracted because accumBuf might want to be used ...

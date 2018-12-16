@@ -443,6 +443,7 @@ kernel void addSource(
 ) {
 	SETBOUNDS_NOGHOST();
 	real3 x = cell_x(i);
+	
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 

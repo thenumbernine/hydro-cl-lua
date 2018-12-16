@@ -76,7 +76,7 @@ function BackwardEuler:init(solver, args)
 		-- however for some 2nd order flux limiters, 'dt' is needed 
 		-- ... is that the 'dt' of the overall step, 
 		-- or of the individual step within the integrator overall step?
-		self.integrateCallback(dUdtBuf.obj)
+		self.integrateCallback(dUdtBuf)
 		--solver:calcDeriv(dUdtBuf.obj, self.linearSolverDT)
 
 --print'\ndUdtBuf:' solver:printBuf(dUdtBuf) print(debug.traceback(),'\n\n')

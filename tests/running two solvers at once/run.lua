@@ -94,50 +94,50 @@ function App:setup()
 	-- [==[ messing with step to find the problem
 	function s2:step(dt)
 		--[[ fails
-		s1.integrator:integrate(dt, function(derivBuf)
-			self:calcDeriv(derivBuf, dt)
+		s1.integrator:integrate(dt, function(derivBufObj)
+			self:calcDeriv(derivBufObj, dt)
 		end)
 		--]]
 		--[[ seems to work fine, but we're not adding to UBuf
-		self:calcDeriv(s1.integrator.derivBuf, dt)
+		self:calcDeriv(s1.integrator.derivBufObj, dt)
 		--]]
 		--[[ works as well .. but doesn't add to s2's UBuf
-		self:calcDeriv(self.integrator.derivBuf, dt)
+		self:calcDeriv(self.integrator.derivBufObj, dt)
 		--]]
 		-- [[ fails with inline forward euler
 		-- calcDeriv runs fine on its own
 		-- everything except calcDeriv runs on its own
 		-- but as soon as the two are put together, it dies
-		app.cmds:enqueueFillBuffer{buffer=self.integrator.derivBuf, size=self.numCells * self.eqn.numStates * ffi.sizeof(app.real)}
+		app.cmds:enqueueFillBuffer{buffer=self.integrator.derivBufObj.obj, size=self.numCells * self.eqn.numStates * ffi.sizeof(app.real)}
 		-- this produces crap in s2
 		-- if it's not added into s2's UBuf then we're safe
 		-- if it isn't called and zero is added to s2's UBuf then we're safe
-		self:calcDeriv(self.integrator.derivBuf, dt)
+		self:calcDeriv(self.integrator.derivBufObj.obj, dt)
 		
-	-- why does derivBuf differ?
+	-- why does derivBufObj differ?
 	-- something is corrupting every numStates data ... like something is writing out of bounds ...
-	--compare(s1.integrator.derivBuf, s2.integrator.derivBuf)
+	--compare(s1.integrator.derivBufObj.obj, s2.integrator.derivBufObj.obj)
 		
 		self.multAddKernelObj(
 			self.UBuf,
 			s1.UBuf,
 			
-			-- using self.integrator.derivBuf fails
-			-- but using s1.integrator.derivBuf works ... worked ....
-			s1.integrator.derivBuf,
+			-- using self.integrator.derivBufObj.obj fails
+			-- but using s1.integrator.derivBufObj.obj works ... worked ....
+			s1.integrator.derivBufObj.obj,
 			
 			ffi.new('real[1]', dt))
 		--]]
 		--[[ fails with the other solver's forward-euler and multAddKernel
 		app.cmds:finish()
-		app.cmds:enqueueFillBuffer{buffer=s1.integrator.derivBuf, size=self.numCells * self.eqn.numStates * ffi.sizeof(app.real)}
-		self:calcDeriv(s1.integrator.derivBuf, dt)
-		s1.multAddKernelObj(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
+		app.cmds:enqueueFillBuffer{buffer=s1.integrator.derivBufObj.obj, size=self.numCells * self.eqn.numStates * ffi.sizeof(app.real)}
+		self:calcDeriv(s1.integrator.derivBufObj.obj, dt)
+		s1.multAddKernelObj(self.UBuf, self.UBuf, s1.integrator.derivBufObj.obj, ffi.new('real[1]', dt))
 		app.cmds:finish()
 		--]]
 		--[[ just adding s1's deriv to s2?  works fine
-		s1.multAddKernelObj(self.UBuf, self.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
-		s1.multAddKernelObj.obj:setArgs(s1.UBuf, s1.UBuf, s1.integrator.derivBuf, ffi.new('real[1]', dt))
+		s1.multAddKernelObj(self.UBuf, self.UBuf, s1.integrator.derivBufObj.obj, ffi.new('real[1]', dt))
+		s1.multAddKernelObj.obj:setArgs(s1.UBuf, s1.UBuf, s1.integrator.derivBufObj.obj, ffi.new('real[1]', dt))
 		--]]
 		-- so the code in common is when calcDeriv is called by the 2nd solver ...
 		-- ... regardless of what buffer it is written to
@@ -146,7 +146,7 @@ function App:setup()
 	--[==[ comparing buffers.  tends to die on the boundaries even if it is working (why is that?)
 	function s2:update()
 		s1.update(self)
-		-- ...annd even when using s1's derivBuf, this dies once the wave hits a boundary
+		-- ...annd even when using s1's derivBufObj, this dies once the wave hits a boundary
 		-- complains about negative'd values (with mirror boundary conditions)
 		compare(s1.UBuf, s2.UBuf)
 	end

@@ -12,8 +12,9 @@ this could save us 1 less buffer, 1 less kernel call, and 1 less copy
 --]]
 local ffi = require 'ffi'
 local class = require 'ext.class'
-local Integrator = require 'int.int'
 local roundup = require 'util.roundup'
+local Integrator = require 'int.int'
+local CLBuffer = require 'cl.obj.buffer'
 
 local ForwardEuler = class(Integrator)
 
@@ -21,7 +22,12 @@ ForwardEuler.name = 'forward Euler'
 
 function ForwardEuler:init(solver)
 	self.solver = solver
-	self.derivBuf = solver.app.ctx:buffer{rw=true, size=solver.numCells * ffi.sizeof(solver.eqn.cons_t)}
+	self.derivBufObj = CLBuffer{
+		env = solver.app.env,
+		name = 'derivBuf',
+		type = solver.eqn.cons_t,
+		size = solver.numCells,
+	}
 end
 
 local realptr = ffi.new'realparam[1]'
@@ -31,9 +37,9 @@ local function real(x)
 end
 function ForwardEuler:integrate(dt, callback)
 	local solver = self.solver
-	solver.app.cmds:enqueueFillBuffer{buffer=self.derivBuf, size=solver.numCells * ffi.sizeof(solver.eqn.cons_t)}
-	callback(self.derivBuf)
-	solver.multAddKernelObj(solver.solverBuf, solver.UBuf, solver.UBuf, self.derivBuf, real(dt))
+	solver.app.cmds:enqueueFillBuffer{buffer=self.derivBufObj.obj, size=solver.numCells * ffi.sizeof(solver.eqn.cons_t)}
+	callback(self.derivBufObj)
+	solver.multAddKernelObj(solver.solverBuf, solver.UBuf, solver.UBuf, self.derivBufObj.obj, real(dt))
 end
 
 return ForwardEuler

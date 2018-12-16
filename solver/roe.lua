@@ -206,20 +206,27 @@ end
 -- NOTICE this adds the contents of derivBuf and does not clear it
 function Roe:calcDeriv(derivBuf, dt)
 	local dtArg = real(dt)
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	
 	if self.usePLM then
 		self.calcLRKernelObj(self.solverBuf, self:getULRBuf(), self.UBuf, dtArg)
 	end
 
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 	self.calcEigenBasisKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcEigenBasisKernelObj.obj:setArg(2, self:getULRBuf())
 	self.calcEigenBasisKernelObj()
 
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+
 	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcFluxKernelObj.obj:setArg(2, self:getULRBuf())
 	self.calcFluxKernelObj.obj:setArg(4, dtArg)
 	self.calcFluxKernelObj()
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 -- [=[ this is from the 2017 Zingale book
 	if self.useCTU then
@@ -245,9 +252,14 @@ function Roe:calcDeriv(derivBuf, dt)
 		self.calcFluxKernelObj()
 	end
 --]=]
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	
 	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBuf)
 	self.calcDerivFromFluxKernelObj()
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+
 end
 
 return Roe

@@ -652,6 +652,8 @@ function GridSolver:resetState()
 		self.constrainUKernelObj(self.solverBuf, self.UBuf)
 		self:boundary()
 	end
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 end
 
 function GridSolver:getSolverCode()
@@ -1179,7 +1181,9 @@ function GridSolver:applyBoundaryToBuffer(kernelObjs)
 end
 
 function GridSolver:boundary()
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	self:applyBoundaryToBuffer(self.boundaryKernelObjs)
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 end
 
 
@@ -1189,117 +1193,124 @@ end
 
 
 function GridSolver:update()
-
 --[[
-print'\nself.UBufObj:'
+print'\nGridSolver:update() begin, self.UBufObj:'
 self:printBuf(self.UBufObj)
 --]]
 
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+
 	GridSolver.super.update(self)
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	
---local before = self.UBufObj:toCPU()
---print'\nself.UBufObj before boundary:' self:printBuf(self.UBufObj) print(debug.traceback(),'\n\n')	
---[[
-local after = self.UBufObj:toCPU()
-print'\nself.UBufObj after boundary:' self:printBuf(self.UBufObj) print(debug.traceback(),'\n\n')	
-if self.app.dim == 2 then
-	for i=0,tonumber(self.gridSize.x)-1 do
-		for j=0,self.numGhost-1 do
-			for _,s in ipairs{0,4} do
-				for _,offset in ipairs{
-					s + self.eqn.numStates * (i + self.gridSize.x * j),
-					s + self.eqn.numStates * (j + self.gridSize.x * i),
-					s + self.eqn.numStates * (i + self.gridSize.x * (self.gridSize.y - 1 - j)),
-					s + self.eqn.numStates * ((self.gridSize.x - 1 - j) + self.gridSize.x * i),
-				} do
-					if after[offset] < 0 then
-						local msg = "negative found in boundary after :boundary() was called"
-						msg = msg .. "\nat position " .. tostring(offset / self.eqn.numStates)
-						msg = msg .. '\nit was '..(before[offset] < 0 and 'negative' or 'positive')..' before the boundary update'
-						error(msg)
-					end
-				end
-			end
-		end
-	end
-end
---]]
 	local dt = self:calcDT()
-	
+
 	-- first do a step
 	self:step(dt)
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 	-- why was this moved out of :step() ?
 	self.t = self.t + dt
 	self.dt = dt
 
--- [[ debugging the advect wave problem
--- TODO have an optional field for all problems, to calculte the exact solution? 
-if cmdline.debugAdvectWave then
-	local ptr = ffi.cast(self.eqn.cons_t..'*', self.UBufObj:toCPU())
-	assert(self.dim == 1)
-	local n = self.gridSize.x
-	local ghost = self.numGhost
-	local t = self.t
-	local matrix = require 'matrix'
-	local err = 0
-	for i=ghost+1,tonumber(self.gridSize.x)-2*ghost do
-		--local x = self.xs[i+ghost]
-		local x = self.solverPtr.mins.x + self.solverPtr.grid_dx.x * (i - ghost - .5)
-		local rho = 1 + .32 * math.sin(2 * math.pi * (x - t))
-		local vx = 1
-		local P = 1
-		local mx = rho * vx
-		local EKin = .5 * rho * vx * vx
-		local EInt = P / (self.solverPtr.heatCapacityRatio - 1)
-		local ETotal = EKin + EInt
-		err = err
-			+ math.abs(rho - tonumber(ptr[i-1].rho))
-			+ math.abs(mx - tonumber(ptr[i-1].m.x))
-			+ math.abs(ETotal - tonumber(ptr[i-1].ETotal))
+	-- [[ debugging the advect wave problem
+	-- TODO have an optional field for all problems, to calculte the exact solution? 
+	if cmdline.debugAdvectWave then
+		local ptr = ffi.cast(self.eqn.cons_t..'*', self.UBufObj:toCPU())
+		assert(self.dim == 1)
+		local n = self.gridSize.x
+		local ghost = self.numGhost
+		local t = self.t
+		local matrix = require 'matrix'
+		local err = 0
+		for i=ghost+1,tonumber(self.gridSize.x)-2*ghost do
+			--local x = self.xs[i+ghost]
+			local x = self.solverPtr.mins.x + self.solverPtr.grid_dx.x * (i - ghost - .5)
+			local rho = 1 + .32 * math.sin(2 * math.pi * (x - t))
+			local vx = 1
+			local P = 1
+			local mx = rho * vx
+			local EKin = .5 * rho * vx * vx
+			local EInt = P / (self.solverPtr.heatCapacityRatio - 1)
+			local ETotal = EKin + EInt
+			err = err
+				+ math.abs(rho - tonumber(ptr[i-1].rho))
+				+ math.abs(mx - tonumber(ptr[i-1].m.x))
+				+ math.abs(ETotal - tonumber(ptr[i-1].ETotal))
+		end
+		err = err / (3 * (tonumber(self.gridSize.x) - 2 * ghost))
+		print(
+			--'t='..
+			('%.50f'):format(t)
+			..' '
+			--..'L1-error='
+			..('%.50f'):format(err)
+		)
 	end
-	err = err / (3 * (tonumber(self.gridSize.x) - 2 * ghost))
-	print(
-		--'t='..
-		('%.50f'):format(t)
-		..' '
-		--..'L1-error='
-		..('%.50f'):format(err)
-	)
-end
---]]
+	--]]
 
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 	self:boundary()
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 end
 
 function GridSolver:step(dt)
-	self.integrator:integrate(dt, function(derivBuf)		
-		self:boundary()
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	
+	self.integrator:integrate(dt, function(derivBufObj)		
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		if self.eqn.useConstrainU then
-			self.constrainUKernelObj(self.solverBuf, self.UBuf)
 			self:boundary()
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+			self.constrainUKernelObj(self.solverBuf, self.UBuf)
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		end
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		
-		self:calcDeriv(derivBuf, dt)
+		self:boundary()	
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+		self:calcDeriv(derivBufObj.obj, dt)
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	
 		if self.eqn.useSourceTerm then
-			self.addSourceKernelObj.obj:setArgs(self.solverBuf, derivBuf, self.UBuf)
-			self.addSourceKernelObj()
+			self:boundary()
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+			self.addSourceKernelObj(self.solverBuf, derivBufObj.obj, self.UBuf)
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		end
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	
 	end)
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 	if self.eqn.useConstrainU then
 		self:boundary()
 		self.constrainUKernelObj(self.solverBuf, self.UBuf)
 	end
 
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	
 	for _,op in ipairs(self.ops) do
 		if op.step then
 			self:boundary()
 			op:step(dt)
 		end
 	end
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+
 end
 
 function GridSolver:printBuf(buf, ptr)
@@ -1315,24 +1326,6 @@ function GridSolver:printBuf(buf, ptr)
 			)
 		end 
 	end
-end
-
--- check for nans
--- expects buf to be of type cons_t, made up of numStates real variables
-function GridSolver:checkFinite(buf)
-	local ptr = buf:toCPU()
-	local found
-	for i=0,buf.size-1 do
-		if not math.isfinite(ptr[i]) then
-			found = found or table()
-			found:insert(i)
-		end
-	end
-	if not found then return end
---	self:printBuf(nil, ptr)
-	print(found:map(tostring):concat', ')
-	print'found non-finite numbers'
-	return true
 end
 
 function GridSolver:getTex(var) 

@@ -168,9 +168,9 @@ end
 function SRHDSelfGrav:step(dt)
 	local solver = self.solver
 	if not solver[self.enableField] then return end
-	solver.integrator:integrate(dt, function(derivBuf)
+	solver.integrator:integrate(dt, function(derivBufObj)
 		self:relax()
-		self.calcGravityDerivKernelObj.obj:setArg(1, derivBuf)
+		self.calcGravityDerivKernelObj.obj:setArg(1, derivBufObj.obj)
 		self.calcGravityDerivKernelObj()
 	end)
 end

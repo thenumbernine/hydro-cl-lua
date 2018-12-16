@@ -5,17 +5,23 @@ local xNames = common.xNames
 local sym = common.sym
 ?>
 
+typedef <?=eqn.prim_t?> prim_t;
+typedef <?=eqn.cons_t?> cons_t;
+typedef <?=eqn.eigen_t?> eigen_t;
+typedef <?=eqn.waves_t?> waves_t;
+typedef <?=solver.solver_t?> solver_t;
+
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
+cons_t fluxFromCons_<?=side?>(
+	constant solver_t* solver,
+	cons_t U,
 	real3 x
 ) {
 	<?=vec3?> E = calc_E(U);
 	<?=vec3?> H = calc_H(U);
-	return (<?=eqn.cons_t?>){
+	return (cons_t){
 <? if side == 0 then 
 ?>		.D = _<?=vec3?>(<?=zero?>, H.z, <?=neg?>(H.y)),
 		.B = _<?=vec3?>(<?=zero?>, <?=neg?>(E.z), E.y),
@@ -36,17 +42,17 @@ local sym = common.sym
 }
 <? end ?>
 
-<?=eqn.eigen_t?> eigen_forInterface(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> UL,
-	<?=eqn.cons_t?> UR,
+eigen_t eigen_forInterface(
+	constant solver_t* solver,
+	cons_t UL,
+	cons_t UR,
 	real3 x,
 	real3 n
 ) {
 	//this will fail with tensor susceptibility
 	//but it doesn't belong here -- this is only the scalar case
 	//for tensors, I should be eigen-decomposing the levi-civita times the tensor	
-	return (<?=eqn.eigen_t?>){
+	return (eigen_t){
 		.sqrt_1_eps = <?=susc_t?>_sqrt(
 			<?=susc_t?>_mul(
 				<?=susc_t?>_add(UL._1_eps, UR._1_eps),
@@ -67,13 +73,13 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 */
 <? for side=0,solver.dim-1 do ?>
 
-<?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> X,
+waves_t eigen_leftTransform_<?=side?>(
+	constant solver_t* solver,
+	eigen_t eig,
+	cons_t X,
 	real3 x
 ) {
-	<?=eqn.waves_t?> Y;
+	waves_t Y;
 	<?=scalar?> *Yp = (<?=scalar?>*)Y.ptr;
 	<?=scalar?> *Xp = (<?=scalar?>*)X.ptr;
 
@@ -112,13 +118,13 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	return Y;
 }
 
-<?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.waves_t?> X,
+cons_t eigen_rightTransform_<?=side?>(
+	constant solver_t* solver,
+	eigen_t eig,
+	waves_t X,
 	real3 x
 ) {
-	<?=eqn.cons_t?> Y;
+	cons_t Y;
 	<?=scalar?> *Yp = (<?=scalar?>*)Y.ptr;
 	<?=scalar?> *Xp = (<?=scalar?>*)X.ptr;
 
@@ -186,13 +192,13 @@ x,  y,  z, z,  y,  x
 	return Y;
 }
 
-<?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> X,
+cons_t eigen_fluxTransform_<?=side?>(
+	constant solver_t* solver,
+	eigen_t eig,
+	cons_t X,
 	real3 x
 ) {
-	<?=eqn.cons_t?> Y;
+	cons_t Y;
 	<?=scalar?> *Yp = (<?=scalar?>*)Y.ptr;
 	<?=scalar?> *Xp = (<?=scalar?>*)X.ptr;
 
@@ -239,26 +245,23 @@ x,  y,  z, z,  y,  x
 <? end ?>
 
 kernel void addSource(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* derivBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	constant solver_t* solver,
+	global cons_t* derivBuf,
+	const global cons_t* UBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	real3 x = cell_x(i);
 	
-	global <?=eqn.cons_t?>* deriv = derivBuf + index;
-	const global <?=eqn.cons_t?>* U = UBuf + index;
-	
+	global cons_t* deriv = derivBuf + index;
+	const global cons_t* U = UBuf + index;
+
 	//TODO J = J_f + J_b = J_f + J_P + J_M = J_f + dP/dt + curl M
-	deriv->D = <?=vec3?>_sub(
-		deriv->D, 
-		<?=vec3?>_<?=scalar?>_mul(
-			U->D, 
-			<?=mul?>(U->_1_eps, U->sigma)
-		)
+<? for i,xi in ipairs(xNames) do 
+?>	deriv->D.<?=xi?> = <?=sub?>(deriv->D.<?=xi?>,
+		<?=mul?>(U->D.<?=xi?>, <?=mul?>(U->_1_eps, U->sigma))
 	);
-
-
+<? end
+?>
 	//for non-time-varying susceptibilities, here's the source term:
 	//D_i,t ... = 1/sqrt(g) g_il epsBar^ljk  (1/mu)_,j B_k - J_i
 	//B_i,t ... = 1/sqrt(g) g_il epsBar^ljk (1/eps)_,j B_k
@@ -275,18 +278,19 @@ kernel void addSource(
 	
 	<?=vec3?> grad_1_eps = <?=vec3?>_zero;
 	<? for j=0,solver.dim-1 do 
-		local xj = xNames[j+1] ?>
-	grad_1_mu.<?=xj?> = <?=real_mul?>(
+		local xj = xNames[j+1]
+?>	grad_1_mu.<?=xj?> = <?=real_mul?>(
 		<?=sub?>(
 			U[solver->stepsize.<?=xj?>]._1_eps,
 			U[-solver->stepsize.<?=xj?>]._1_eps
 		), 1. / solver->grid_dx.s<?=j?>);
-	<? end ?>
-
+<? end
+?>
 	real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
 	<? for j=0,solver.dim-1 do 
-		local xj = xNames[j+1] ?>{
-		<?=eqn.cons_t?> flux = fluxFromCons_<?=j?>(solver, *U, x);
+		local xj = xNames[j+1] 
+	?>{
+		cons_t flux = fluxFromCons_<?=j?>(solver, *U, x);
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 		deriv->D.<?=xj?> = <?=sub?>(deriv->D.<?=xj?>, <?=vec3?>_dot(flux.D, grad_1_mu));
@@ -299,12 +303,12 @@ kernel void addSource(
 
 
 <? for side=0,solver.dim-1 do ?>
-<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
+eigen_t eigen_forCell_<?=side?>(
+	constant solver_t* solver,
+	cons_t U,
 	real3 x
 ) {
-	<?=eqn.eigen_t?> eig;
+	eigen_t eig;
 	eig.sqrt_1_eps = <?=scalar?>_sqrt(U._1_eps);
 	eig.sqrt_1_mu = <?=scalar?>_sqrt(U._1_mu);
 	return eig;

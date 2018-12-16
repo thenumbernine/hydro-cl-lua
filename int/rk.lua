@@ -1,9 +1,15 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local Integrator = require 'int.int'
+local CLBuffer = require 'cl.obj.buffer'
 
 local RungeKutta = class(Integrator)
 
+local realptr = ffi.new'realparam[1]'
+local function real(x)
+	realptr[0] = x
+	return realptr
+end
 function RungeKutta:init(solver)
 	self.solver = solver
 	self.order = #self.alphas
@@ -14,7 +20,7 @@ function RungeKutta:init(solver)
 	end
 
 	self.UBufs = {}
-	self.derivBufs = {}
+	self.derivBufObjs = {}
 	for i=1,self.order do
 		local needed = false
 		for m=i,self.order do
@@ -29,19 +35,22 @@ function RungeKutta:init(solver)
 			needed = needed or self.betas[m][i] ~= 0
 		end
 		if needed then
-			self.derivBufs[i] = solver.app.ctx:buffer{rw=true, size=solver.numCells * ffi.sizeof(solver.eqn.cons_t)}
+			self.derivBufObjs[i] = CLBuffer{
+				env = solver.app.env,
+				name = 'derivBuf'..i,
+				type = solver.eqn.cons_t,
+				size = solver.numCells,
+			}
+			self.derivBufObjs[i]:fill(real(0))
+if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[i])) end
 		end
 	end
 end
 
-local realptr = ffi.new'realparam[1]'
-local function real(x)
-	realptr[0] = x
-	return realptr
-end
 function RungeKutta:integrate(dt, callback)
 	local solver = self.solver
 	local bufferSize = solver.numCells * ffi.sizeof(solver.eqn.cons_t)
+if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
 
 --print("integrating rk with dt "..dt)
 --print('order = '..self.order)	
@@ -63,29 +72,36 @@ function RungeKutta:integrate(dt, callback)
 		needed = needed or self.betas[m][1] ~= 0
 	end
 	if needed then
---print('derivBufs[1] = dU/dt(UBuf)')
-		solver.app.cmds:enqueueFillBuffer{buffer=self.derivBufs[1], size=bufferSize}
-		callback(self.derivBufs[1])
+--print('derivBufObjs[1].obj = dU/dt(UBuf)')
+if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
+if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
+		self.derivBufObjs[1]:fill(real(0))
+if solver.checkNaNs then solver.app.cmds:finish() assert(solver:checkFinite(self.derivBufObjs[1])) end
+		callback(self.derivBufObjs[1])
+if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
 	end
 
 	for i=2,self.order+1 do
 		--u^(i) = sum k=0 to i-1 of (alpha_ik u^(k) + dt beta_ik L(u^(k)) )
 --io.write('UBuf = 0')	
-		solver.app.cmds:enqueueFillBuffer{buffer=solver.UBuf, size=bufferSize}
+		solver.UBufObj:fill(real(0))
 		for k=1,i-1 do
 --io.write(' + UBufs['..k..'] * (a['..(i-1)..']['..k..'] = '..self.alphas[i-1][k]..')')
 			if self.alphas[i-1][k] ~= 0 then
 				solver.multAddKernelObj.obj:setArg(3, self.UBufs[k])
 				solver.multAddKernelObj.obj:setArg(4, real(self.alphas[i-1][k]))
 				solver.multAddKernelObj()
+if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
 			end
 		end
 		for k=1,i-1 do
---io.write(' + derivBufs['..k..'] * (b['..(i-1)..']['..k..'] = '..self.betas[i-1][k]..') * dt')
+--io.write(' + derivBufObjs['..k..'] * (b['..(i-1)..']['..k..'] = '..self.betas[i-1][k]..') * dt')
 			if self.betas[i-1][k] ~= 0 then
-				solver.multAddKernelObj.obj:setArg(3, self.derivBufs[k])
+				solver.multAddKernelObj.obj:setArg(3, self.derivBufObjs[k].obj)
+if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[k])) end
 				solver.multAddKernelObj.obj:setArg(4, real(self.betas[i-1][k] * dt))
 				solver.multAddKernelObj()
+if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
 			end
 		end
 --print()
@@ -108,9 +124,12 @@ function RungeKutta:integrate(dt, callback)
 				needed = needed or self.betas[m][i] ~= 0
 			end
 			if needed then
---print('derivBufs['..i..'] = dU/dt(UBuf)')				
-				solver.app.cmds:enqueueFillBuffer{buffer=self.derivBufs[i], size=bufferSize}
-				callback(self.derivBufs[i])
+--print('derivBufObjs['..i..'].obj = dU/dt(UBuf)')				
+				self.derivBufObjs[i]:fill(real(0))
+if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
+if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[i])) end
+				callback(self.derivBufObjs[i])
+if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[i])) end
 			end
 		end
 		--else just leave the state in there
