@@ -223,8 +223,8 @@ if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 	self.calcEigenBasisKernelObj.obj:setArg(2, self:getULRBuf())
 	self.calcEigenBasisKernelObj()
 
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(self.eigenBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcFluxKernelObj.obj:setArg(2, self:getULRBuf())

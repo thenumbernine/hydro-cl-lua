@@ -34,6 +34,9 @@ SolverBase.name = 'Solver'
 -- override to specify which eqn/*.lua to use as the equation
 SolverBase.eqnName = nil
 
+-- whether to check for NaNs
+SolverBase.checkNaNs = false
+
 -- enable for us to let the user accum/not.  requires an extra buffer allocation
 SolverBase.allowAccum = true
 SolverBase.displayVarAccumFunc = false
@@ -106,7 +109,7 @@ function SolverBase:preInit(args)
 		self.coord = require('coord.'..args.coord)(table({solver=self}, args.coordArgs))
 	end
 
-	self.checkNaNs = true
+	self.checkNaNs = self.checkNaNs
 	self.useFixedDT = not not args.fixedDT
 	self.fixedDT = args.fixedDT or self.fixedDT or .001
 	self.cfl = args.cfl or .5	--/self.dim
@@ -195,9 +198,15 @@ kernel void multAdd(
 	realparam d
 ) {
 	SETBOUNDS_NOGHOST();
-<? for i=0,eqn.numIntStates-1 do
+<? 
+-- hmm, I only need numIntStates integrated
+-- but the remaining variables I need initialized at least
+-- and in RK, the U's are initialized to zero ...
+-- how to get around this?
+for i=0,eqn.numStates-1 do
 ?>	a[index].ptr[<?=i?>] = b[index].ptr[<?=i?>] + c[index].ptr[<?=i?>] * d;
-<? end
+<? 
+end
 ?>}
 ]], 	{
 			solver = self,
@@ -1158,6 +1167,28 @@ function SolverBase:checkFinite(buf)
 	if not found then return true end
 --	self:printBuf(nil, ptr)
 	return false, 'found non-finite offsets and numbers: '..require'ext.tolua'(found)
+end
+
+function SolverBase:printBuf(buf, ptr)
+	ptr = ptr or buf:toCPU()
+	local ptr0size = tonumber(ffi.sizeof(buf.type))
+	local realSize = tonumber(ffi.sizeof'real')
+	local ptrsPerReal = ptr0size / realSize
+	assert(ptrsPerReal == math.floor(ptrsPerReal))
+	ptr = ffi.cast('real*', ptr)
+	local size = buf.size * ptrsPerReal
+	local realsPerCell = math.floor(size / self.numCells)
+	local max = #tostring(size-1)
+	for i=0,self.numCells-1 do
+		io.write((' '):rep(max-#tostring(i)), i,':')
+		for j=0,realsPerCell-1 do
+			print('\t'
+				..(j==0 and '[' or '')
+				..('%.50f'):format(ptr[j + realsPerCell * i])
+				..(j==self.eqn.numStates-1 and ']' or ',')
+			)
+		end 
+	end
 end
 
 

@@ -1313,21 +1313,6 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 end
 
-function GridSolver:printBuf(buf, ptr)
-	ptr = ptr or buf:toCPU()
-	local max = #tostring(self.numCells-1)
-	for i=0,self.numCells-1 do
-		io.write((' '):rep(max-#tostring(i)), i,':')
-		for j=0,self.eqn.numStates-1 do
-			print('\t'
-				..(j==0 and '[' or '')
-				..('%.50f'):format(ptr[j + self.eqn.numStates * i])
-				..(j==self.eqn.numStates-1 and ']' or ',')
-			)
-		end 
-	end
-end
-
 function GridSolver:getTex(var) 
 	return self.tex
 end
