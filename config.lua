@@ -5,11 +5,11 @@ local args = {
 	dim = cmdline.dim or dim,
 	
 	--integrator = cmdline.integrator or 'forward Euler',	
-	integrator = 'Runge-Kutta 2',
+	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	--integrator = 'Runge-Kutta 4',
+	integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -62,7 +62,7 @@ local args = {
 				{16,16,16},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
-				{16,1,1},
+				{64,1,1},
 				{64,64,1},
 				{32,32,32},
 			},
@@ -209,7 +209,7 @@ local args = {
 	--initState = 'constant with velocity',
 	--initState = 'linear',
 	--initState = 'gaussian',
-	--initState = 'advect wave',
+	initState = 'advect wave',
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
@@ -247,7 +247,7 @@ local args = {
 	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	initState = 'Brio-Wu',
+	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'GEM challenge', eqnArgs = {useEulerInitState=false},
@@ -268,7 +268,7 @@ local args = {
 	--initState = 'Maxwell scattering around cylinder',			-- cplx doesn't work with non-GLM
 	--initState = 'Maxwell scattering around pyramid',			-- not working with the non-GLM cplx (but works for non-GLM real HLL .. but not non-GLM real Roe ...)
 	--initState = 'Maxwell scattering around square',
-	--initState = 'Maxwell scattering around Koch snowflake',		-- not working, for non-GLM cplx (but works for non-GLM real)
+	--initState = 'Maxwell scattering around Koch snowflake',		-- not working, for non-GLM
 	--initState = 'Maxwell wire',									-- not working for non-GLM cplx (but works for non-GLM real)
 	
 	-- hmm, I think I need a fluid solver for this, not just a Maxwell solver ...
@@ -456,7 +456,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=7})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=7})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=7})))
+self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=7})))
 
 -- past order=9, 2D Sod test, things tend to explode ... maybe I should take away the betaCoeffs denominator (since they get normalized anyways?)
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=9})))
@@ -493,7 +493,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --self.solvers:insert(require 'solver.srhd-roe'(args))
 	-- TODO can't use these until I get eigen_forInterface working in eqn/srhd.cl
 --self.solvers:insert(require 'solver.srhd-hll'(args))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=13})))
+--self.solvers:insert(require 'solver.srhd-weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=13})))
 
 -- GRHD
 -- this is the solver with plug-ins for ADM metric, 
@@ -525,15 +525,18 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-mhd'})))
 
 -- Maxwell
+-- TODO somehow I broke this.  It seems to be failing on everything.
 -- when the state is nonzero, at certain sizes there appear errors in the corners
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='maxwell', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='maxwell', wenoMethod='1996 Jiang Shu', order=5})))
 
 -- GLM Maxwell
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=7})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=13})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-maxwell'})))
 
 -- Maxwell+HD two-fluid electron/ion solver

@@ -219,8 +219,6 @@ kernel void initState(
 
 SRHD.solverCodeFile = 'eqn/srhd.cl'
 
-function SRHD:getCalcEigenBasisCode() end      -- within srhd.cl
-
 -- TODO put in common parent of Euler, SRHD, GRHD
 -- TODO use the automatic arbitrary finite difference generator in bssnok
 -- k is 0,1,2

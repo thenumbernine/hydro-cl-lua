@@ -275,6 +275,23 @@ local initStates = table{
 	ePot = 0;
 ]]
 		end,
+		-- TODO combine this with above, use a parser / transpiler to convert between Lua and OpenCL, and just write one equation?
+		-- TODO TODO do this with all math everywhere, and analyze the dependency graph of variables and automatically slice out what GPU calculations should be buffered / automatically inline equations
+		exactSolution = function(solver, x, t)
+			local solverPtr = solver.solverPtr
+			local k0 = 2 * math.pi / (solverPtr.maxs.x - solverPtr.mins.x)
+			local rho = solverPtr.init_rho0 + solverPtr.init_rho1 * math.sin(k0 * (x - t))
+			local mx = 1 * rho
+			local my = 0
+			local mz = 0
+			local P = 1
+			-- hmm, only good with cartesian geometry
+			local mSq = mx * mx + my * my + mz * mz 
+			local EKin = .5 * mSq  / rho
+			local EInt = P / (solverPtr.heatCapacityRatio - 1)
+			local ETotal = EKin + EInt
+			return rho, mx, my, mz, ETotal
+		end,
 	},
 
 	{

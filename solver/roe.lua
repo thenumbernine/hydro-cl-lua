@@ -248,10 +248,7 @@ if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		-- now we need to calcBounds on the ULR
 		-- TODO this will break for mirror conditions
 		-- because I haven't got the boundary code flexible enough to operate on specific fields within the L & R fields of the ULRBuf
-		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
-			obj()
-if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-		end
+		self:boundaryLR()
 
 		-- 3) use the final LR states to calculate the flux ...
 

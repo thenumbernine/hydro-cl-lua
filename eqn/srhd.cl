@@ -105,12 +105,12 @@ eigen_t eigen_forCell_<?=side?>(
 }
 <? end ?>
 
-<? for side=0,solver.dim-1 do ?>
-eigen_t eigen_forSide_<?=side?>(
+eigen_t eigen_forInterface(
 	constant solver_t* solver,
 	cons_t UL,
 	cons_t UR,
-	real3 xInt
+	real3 xInt,
+	real3 n
 ) {
 	prim_t primL = UL.prim;
 	prim_t primR = UR.prim;
@@ -125,8 +125,27 @@ eigen_t eigen_forSide_<?=side?>(
 <? end ?>
 
 	// rotate avg.v into n
+	// is numerically stable
+	//avg.v = real3_swap<?=side?>(avg.v);
+	// is not, but flexible for arbitrary normals
 	//avg.v = real3_rotateFrom(avg.v, n);
-	avg.v = real3_swap<?=side?>(avg.v);
+	// here's my improvision for the time being
+	real n2x = n.x * n.x;
+	real n2y = n.y * n.y;
+	real n2z = n.z * n.z;
+	if (n2x > n2y) {
+		if (n2x > n2z) {
+			avg.v = real3_swap0(avg.v);
+		} else {
+			avg.v = real3_swap2(avg.v);
+		}
+	} else {
+		if (n2y > n2z) {
+			avg.v = real3_swap1(avg.v);
+		} else {
+			avg.v = real3_swap2(avg.v);
+		}
+	}
 
 	real rho = avg.rho;
 	real3 v = avg.v;
@@ -186,30 +205,6 @@ local name,ctype = next(field)
 <? end ?>
 	
 	return eig;
-}
-<? end ?>
-
-kernel void calcEigenBasis(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.eigen_t?>* eigenBuf,		//[numCells][dim]
-	const global <?=solver.getULRArg?>
-) {
-	SETBOUNDS(numGhost,numGhost-1);
-	real3 x = cell_x(i);
-	int indexR = index;
-	
-	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
-		int indexL = index - solver->stepsize.s<?=side?>;
-		
-		<?=solver:getULRCode()?>
-		
-		real3 xInt = x;
-		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-		
-		int indexInt = side + dim * index;	
-		eigenBuf[indexInt] = eigen_forSide_<?=side?>(solver, *UL, *UR, xInt);
-	}<? end ?>
 }
 
 <? -- create code to initialize local vars of all the eig vars

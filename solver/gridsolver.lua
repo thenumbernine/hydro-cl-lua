@@ -678,6 +678,18 @@ function GridSolver:getULRBuf()
 	return self.usePLM and self.ULRBuf or self.UBuf
 end
 
+-- apply boundary to the ULRBuf ... or UBuf if it is not a PLM solver
+function GridSolver:boundaryLR()
+	if self.usePLM then
+		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
+			obj()
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+		end
+	else
+		self:boundary()
+	end
+end
+
 -- depends on buffers
 -- TODO this doesn't call super, but super has a lot in common with it
 function GridSolver:refreshSolverProgram()
@@ -1109,23 +1121,21 @@ function GridSolver:refreshBoundaryProgram()
 		end
 	end
 
-	if self.useCTU then
+	if self.useCTU and self.usePLM then
 		local args = self:getBoundaryProgramArgs()
-		if self.usePLM then
-			args.type = self.eqn.consLR_t..'_dim'
-			if args.mirrorVars then
-				local newvars = {}
-				for i=1,3 do
-					newvars[i] = table()
-					for _,var in ipairs(args.mirrorVars[i]) do
-						for j=0,self.dim-1 do
-							newvars[i]:insert('side['..j..'].L.'..var)
-							newvars[i]:insert('side['..j..'].R.'..var)
-						end
+		args.type = self.eqn.consLR_t..'_dim'
+		if args.mirrorVars then
+			local newvars = {}
+			for i=1,3 do
+				newvars[i] = table()
+				for _,var in ipairs(args.mirrorVars[i]) do
+					for j=0,self.dim-1 do
+						newvars[i]:insert('side['..j..'].L.'..var)
+						newvars[i]:insert('side['..j..'].R.'..var)
 					end
 				end
-				args.mirrorVars = newvars
 			end
+			args.mirrorVars = newvars
 		end
 		self.lrBoundaryProgramObj, self.lrBoundaryKernelObjs = self:createBoundaryProgramAndKernel(args)
 		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
@@ -1192,6 +1202,14 @@ end
 -------------------------------------------------------------------------------
 
 
+local function compareL1(ptr, ...)
+	local err = 0
+	for i=1,select('#', ...) do
+		err = err + math.abs(tonumber(ptr[i-1]) - select(i, ...))
+	end
+	return err
+end
+
 function GridSolver:update()
 --[[
 print'\nGridSolver:update() begin, self.UBufObj:'
@@ -1217,7 +1235,8 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 	-- [[ debugging the advect wave problem
 	-- TODO have an optional field for all problems, to calculte the exact solution? 
-	if cmdline.debugAdvectWave then
+	if cmdline.testAccuracy then
+		local exact = assert(self.eqn.initState.exactSolution, "can't test accuracy of a configuration that has no exact solution")
 		local ptr = ffi.cast(self.eqn.cons_t..'*', self.UBufObj:toCPU())
 		assert(self.dim == 1)
 		local n = self.gridSize.x
@@ -1228,19 +1247,9 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		for i=ghost+1,tonumber(self.gridSize.x)-2*ghost do
 			--local x = self.xs[i+ghost]
 			local x = self.solverPtr.mins.x + self.solverPtr.grid_dx.x * (i - ghost - .5)
-			local rho = 1 + .32 * math.sin(2 * math.pi * (x - t))
-			local vx = 1
-			local P = 1
-			local mx = rho * vx
-			local EKin = .5 * rho * vx * vx
-			local EInt = P / (self.solverPtr.heatCapacityRatio - 1)
-			local ETotal = EKin + EInt
-			err = err
-				+ math.abs(rho - tonumber(ptr[i-1].rho))
-				+ math.abs(mx - tonumber(ptr[i-1].m.x))
-				+ math.abs(ETotal - tonumber(ptr[i-1].ETotal))
+			err = err + compareL1(ptr[i-1].ptr, exact(self, x, t))
 		end
-		err = err / (3 * (tonumber(self.gridSize.x) - 2 * ghost))
+		err = err / (self.eqn.numIntStates * (tonumber(self.gridSize.x) - 2 * ghost))
 		print(
 			--'t='..
 			('%.50f'):format(t)

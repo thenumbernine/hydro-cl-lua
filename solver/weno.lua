@@ -23,6 +23,9 @@ WENO.wenoMethod = '1996 Jiang Shu'	-- (WENO-JS)
 --WENO.wenoMethod = '2008 Borges'	-- (WENO-Z)
 --WENO.wenoMethod = '2010 Shen Zha'	-- (WENO-BS?)
 
+WENO.fluxMethod = 'Lax-Friedrichs'
+--WENO.fluxMethod = 'Roe'
+
 --[[
 args:
 	wenoMethod
@@ -116,9 +119,7 @@ self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 		-- now we need to calcBounds on the ULR
 		-- TODO this will break for mirror conditions
 		-- because I haven't got the boundary code flexible enough to operate on specific fields within the L & R fields of the ULRBuf
-		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
-			obj()
-		end
+		self:boundaryLR()
 
 		-- 3) use the final LR states to calculate the flux ...
 
