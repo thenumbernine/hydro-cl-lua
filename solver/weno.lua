@@ -23,8 +23,8 @@ WENO.wenoMethod = '1996 Jiang Shu'	-- (WENO-JS)
 --WENO.wenoMethod = '2008 Borges'	-- (WENO-Z)
 --WENO.wenoMethod = '2010 Shen Zha'	-- (WENO-BS?)
 
---WENO.fluxMethod = 'Lax-Friedrichs'
-WENO.fluxMethod = 'Roe'	-- runs atm, but isn't as accurate on sine wave
+WENO.fluxMethod = 'Lax-Friedrichs'
+--WENO.fluxMethod = 'Roe'	-- runs atm, but isn't as accurate on sine wave
 
 --[[
 args:

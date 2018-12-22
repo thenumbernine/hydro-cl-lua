@@ -160,6 +160,7 @@ function ADM_BonaMasso_3D:init(args)
 		--constraints:              
 		{H = 'real'},					--1
 		{M_u = 'real3'},				--3
+		-- TODO stress constraint as well?  
 	}
 
 	self.eigenVars = table{

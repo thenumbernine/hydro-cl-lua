@@ -69,8 +69,9 @@ TODO:
 - coroutines to iterative solvers?  so they don't stall the app execution?
 - RHD W error in >1 dimension
 - GR flat space simulations make an initial wave.  but shouldn't flat space be stable?
-- BSSN, ADM, Z4C, etc still need momentum constraints
+- BSSN, ADM, Z4C, etc still need momentum constraints?
 - not all of the Maxwell initial conditions are working with the non-GLM maxwell, especially with scalar vs complex
+- right now I'm implementing weno similar to the 1996 Jiang Shu paper: 1) calc interface flux, 2) weno reconstruct interface flux 3) finite volume integrate.  There are alternative uses of WENO (using PLM or flux-limiters to find the initial interface flux values, using WENO on left and right states and then applying a flux (HLL, Roe, etc), etc).  Try these out?
 
 ### Sources:
 

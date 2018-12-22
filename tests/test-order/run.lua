@@ -72,29 +72,29 @@ problems['advect wave'] = {
 		{	
 			-- schemes
 			
-			{solver='weno', wenoMethod='1996 Jiang Shu', order=3, integrator='Runge-Kutta 4'},		-- 6.5344207715546e-08
-			{solver='weno', wenoMethod='2008 Borges', order=3, integrator='Runge-Kutta 4'},			-- 5.4110763364609e-09
-			{solver='weno', wenoMethod='2010 Shen Zha', order=3, integrator='Runge-Kutta 4'},		-- 6.1547863892486e-07
+			--{solver='weno', wenoMethod='1996 Jiang Shu', order=3, integrator='Runge-Kutta 4'},		-- 6.5344207715546e-08
+			--{solver='weno', wenoMethod='2008 Borges', order=3, integrator='Runge-Kutta 4'},			-- 5.4110763364609e-09
+			--{solver='weno', wenoMethod='2010 Shen Zha', order=3, integrator='Runge-Kutta 4'},		-- 6.1547863892486e-07
+			  
+			--{solver='weno', wenoMethod='1996 Jiang Shu', order=5, integrator='Runge-Kutta 4'},		-- 2.410380922635e-13
+			--{solver='weno', wenoMethod='2008 Borges', order=5, integrator='Runge-Kutta 4'},			-- 4.1668057892963e-14
+			--{solver='weno', wenoMethod='2010 Shen Zha', order=5, integrator='Runge-Kutta 4'},		-- 4.6350727075928e-14
 			
-			{solver='weno', wenoMethod='1996 Jiang Shu', order=5, integrator='Runge-Kutta 4'},		-- 2.410380922635e-13
-			{solver='weno', wenoMethod='2008 Borges', order=5, integrator='Runge-Kutta 4'},			-- 4.1668057892963e-14
-			{solver='weno', wenoMethod='2010 Shen Zha', order=5, integrator='Runge-Kutta 4'},		-- 4.6350727075928e-14
-			
-			{solver='weno', wenoMethod='1996 Jiang Shu', order=7, integrator='Runge-Kutta 4'},		-- 9.0145989631307e-15
-			{solver='weno', wenoMethod='2008 Borges', order=7, integrator='Runge-Kutta 4'},			-- 8.7666419262833e-15
+			--{solver='weno', wenoMethod='1996 Jiang Shu', order=7, integrator='Runge-Kutta 4'},		-- 9.0145989631307e-15
+			--{solver='weno', wenoMethod='2008 Borges', order=7, integrator='Runge-Kutta 4'},			-- 8.7666419262833e-15
 			{solver='weno', wenoMethod='2010 Shen Zha', order=7, integrator='Runge-Kutta 4'},		-- 8.5568488059073e-15
+			  
+			--{solver='weno', wenoMethod='1996 Jiang Shu', order=9, integrator='Runge-Kutta 4'},		-- 7.7663570019482e-15
+			--{solver='weno', wenoMethod='2008 Borges', order=9, integrator='Runge-Kutta 4'},			-- 7.6455768799333e-15
+			--{solver='weno', wenoMethod='2010 Shen Zha', order=9, integrator='Runge-Kutta 4'},		-- 1.3655960043324e-14
 			
-			{solver='weno', wenoMethod='1996 Jiang Shu', order=9, integrator='Runge-Kutta 4'},		-- 7.7663570019482e-15
-			{solver='weno', wenoMethod='2008 Borges', order=9, integrator='Runge-Kutta 4'},			-- 7.6455768799333e-15
-			{solver='weno', wenoMethod='2010 Shen Zha', order=9, integrator='Runge-Kutta 4'},		-- 1.3655960043324e-14
-			
-			{solver='weno', wenoMethod='1996 Jiang Shu', order=11, integrator='Runge-Kutta 4'},		-- 4.5161357292711e-15
-			{solver='weno', wenoMethod='2008 Borges', order=11, integrator='Runge-Kutta 4'},		-- 4.4790560149721e-15
-			{solver='weno', wenoMethod='2010 Shen Zha', order=11, integrator='Runge-Kutta 4'},		-- 8.7559083247757e-15
-			
-			{solver='weno', wenoMethod='1996 Jiang Shu', order=13, integrator='Runge-Kutta 4'},		-- 7.406401880683e-15
-			{solver='weno', wenoMethod='2008 Borges', order=13, integrator='Runge-Kutta 4'},		-- 7.3191236057979e-15
-			{solver='weno', wenoMethod='2010 Shen Zha', order=13, integrator='Runge-Kutta 4'},		-- 2.3422127952422e-14
+			--{solver='weno', wenoMethod='1996 Jiang Shu', order=11, integrator='Runge-Kutta 4'},		-- 4.5161357292711e-15
+			--{solver='weno', wenoMethod='2008 Borges', order=11, integrator='Runge-Kutta 4'},		-- 4.4790560149721e-15
+			--{solver='weno', wenoMethod='2010 Shen Zha', order=11, integrator='Runge-Kutta 4'},		-- 8.7559083247757e-15
+			  
+			--{solver='weno', wenoMethod='1996 Jiang Shu', order=13, integrator='Runge-Kutta 4'},		-- 7.406401880683e-15
+			--{solver='weno', wenoMethod='2008 Borges', order=13, integrator='Runge-Kutta 4'},		-- 7.3191236057979e-15
+			--{solver='weno', wenoMethod='2010 Shen Zha', order=13, integrator='Runge-Kutta 4'},		-- 2.3422127952422e-14
 
 			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 2.8857580387787e-13
 			--{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 4.4666635841406e-14
@@ -223,19 +223,6 @@ problems['advect wave'] = {
 			--{solver='roe', fluxLimiter='Lax-Wendroff', integrator='backward Euler', integratorArgs={restart=20, epsilon=1e-30}},	-- 1.1257993855623e-06
 		}
 	),
-	makeExact = function(problem, xs, solver)
-		local rho0 = solver.solverPtr.init_rho0
-		local rho1 = solver.solverPtr.init_rho1
-		local u0 = solver.solverPtr.init_v0x
-		local xmin = solver.solverPtr.mins.x
-		local xmax = solver.solverPtr.maxs.x
-		local width = xmax - xmin
-		local k0 = 2 * math.pi / width
-		local t = solver.t
-		return xs:map(function(x,i)
-			return rho0 + rho1 * math.sin(k0 * (x - u0 * t))
-		end)
-	end,
 
 	-- TODO make sure solver_t->init_v0x == 1/duration and solver_t->maxs.x - mins.x == 2
 	-- otherwise, for durations t=100 and t=1 the results look close enough to the same
@@ -261,10 +248,14 @@ problems.Sod = {
 			-- schemes
 			
 				-- schemes
-			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4'},		-- 0.00083547649608835
-			--{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4'},		-- 0.00065052608192497
-			--{solver='weno', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4'},		-- 0.0006577467068069
+			{solver='weno', wenoMethod='1996 Jiang Shu', wenoFlux='Lax-Friedrichs', order=5, integrator='Runge-Kutta 4'},		-- 0.00083547649608835
+			{solver='weno', wenoMethod='2008 Borges', wenoFlux='Lax-Friedrichs', order=5, integrator='Runge-Kutta 4'},			-- 0.00065052608192497
+			{solver='weno', wenoMethod='2010 Shen Zha', wenoFlux='Lax-Friedrichs', order=5, integrator='Runge-Kutta 4'},		-- 0.0006577467068069
 			
+			{solver='weno', wenoMethod='1996 Jiang Shu', wenoFlux='Roe', order=5, integrator='Runge-Kutta 4'},		-- hmm, bad 
+			{solver='weno', wenoMethod='2008 Borges', wenoFlux='Roe', order=5, integrator='Runge-Kutta 4'},			-- 
+			{solver='weno', wenoMethod='2010 Shen Zha', wenoFlux='Roe', order=5, integrator='Runge-Kutta 4'},		-- 
+
 			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 0.00083548986128969
 			--{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 0.00065117457189727
 			--{solver='weno', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4, TVD'},		-- 0.00065850588526612
@@ -275,7 +266,7 @@ problems.Sod = {
 			
 			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='forward Euler'},		-- 0.001649584016202
 			--{solver='weno', wenoMethod='2008 Borges', integrator='forward Euler'},		-- 0.008335196277728
-			{solver='weno', wenoMethod='2010 Shen Zha', integrator='forward Euler'},		-- 0.01507478955836
+			--{solver='weno', wenoMethod='2010 Shen Zha', integrator='forward Euler'},		-- 0.01507478955836
 			
 			--{solver='weno', integrator='forward Euler'},									-- 0.028050334485117
 			--{solver='hll', integrator='forward Euler'},									-- 0.0039886633966807
@@ -382,123 +373,10 @@ problems.Sod = {
 		}
 	),
 
-	-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
-	makeExact = function(problem, xs, solver)
-		-- TODO initial condition object to share these values with initialization
-		local rhoL = solver.solverPtr.init_rhoL
-		local rhoR = solver.solverPtr.init_rhoR
-		local PL = solver.solverPtr.init_PL
-		local PR = solver.solverPtr.init_PR
-		local vL = 0
-		local vR = 0
-		local gamma = solver.solverPtr.heatCapacityRatio
-		local t = solver.t
-		
-		local muSq = (gamma - 1)/(gamma + 1)
-		local K = PL / rhoL^gamma
-
-		local CsL = math.sqrt(gamma * PL / rhoL)
-		local CsR = math.sqrt(gamma * PR / rhoR)
-
-		local solveP3 = function()
-			local symmath = require 'symmath'
-			local P3 = symmath.var'P3'
-			local f = -2*CsL*(1 - (P3/PL)^((-1 + gamma)/(2*gamma)))/(CsR*(-1 + gamma)) + (-1 + P3/PR)*((1 - muSq)/(gamma*(muSq + P3/PR)))^.5
-			local df_dP3 = f:diff(P3)()	
-			local f_func = f:compile{P3}
-			local df_dP3_func = df_dP3:compile{P3}
-			local P3 = .5 * (PL + PR)
-			local epsilon = 1e-16	-- this is the limit for the sod.f before it oscillates
-			while true do
-				local dP3 = -f_func(P3) / df_dP3_func(P3)
-				--print(P3, dP3)
-				if math.abs(dP3) <= epsilon then break end
-				if not math.isfinite(dP3) then error('delta is not finite! '..tostring(dP3)) end
-				P3 = P3 + dP3 
-			end
-			return P3
-		end
-
-		local P3 = solveP3()
-		local P4 = P3
-
-		local rho3 = rhoL * (P3 / PL) ^ (1 / gamma)
-
-		local v3 = vR + 2 * CsL / (gamma - 1) * (1 - (P3 / PL)^((gamma - 1)/(2*gamma)))
-		local v4 = v3
-
-		local rho4 = rhoR * (P4 + muSq * PR) / (PR + muSq * P4)
-
-		local vshock = v4 * rho4 / (rho4 - rhoR)
-		local vtail = CsL - v4 / (1 - muSq)
-
-		local v2 = function(x) return (1 - muSq) * (x/t + CsL) end
-		-- Dullemon:
-		--local rho2 = function(x) return (rhoL^gamma / (gamma * PL) * (v2(x) - x/t)^2)^(1/(gamma-1)) end
-		-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
-		local rho2 = function(x) return rhoL * (-muSq * (x / (CsL * t)) + (1 - muSq))^(2/(gamma-1)) end
-
-		-- Dullemon:
-		--local P2 = K * rho2^gamma
-		-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
-		local P2 = function(x) return PL * (-muSq * (x / (CsL * t)) + (1 - muSq)) ^ (2*gamma/(gamma-1)) end
-
-		local C = function(c) return function() return c end end
-		local function makefunc(t)
-			return table(t):map(function(ti,i)
-				return type(ti) == 'function'and t[i]or C(t[i])
-			end)
-		end
-
-		local rhos = makefunc{rhoL, rho2, rho3, rho4, rhoR}
-		local vs = makefunc{vL, v2, v3, v4, vR}
-		local Ps = makefunc{PL, P2, P3, P4, PR}
-		
-		-- between regions 1 and 2
-		local s1 = -CsL	
-
-		-- between regions 2 and 3
-		-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
-		local s2 = -vtail
-
-		local s3 = v3	-- between regions 3 and 4
-
-		-- between regions 4 and 5 ...
-		local s4 = vshock
-
-		--print('wavespeeds:',s1,s2,s3,s4)
-
-		local region = function(x)
-			local xi = x / t
-			if xi < s1 then
-				return 1
-			elseif xi < s2 then
-				return 2
-			elseif xi < s3 then
-				return 3
-			elseif xi < s4 then
-				return 4
-			else
-				return 5
-			end
-		end
-
-		return xs:map(function(x)
-			local r = region(x)
-			return rhos[r](x)	-- vs[r], Ps[r]
-		end)
-	end,
-
 	mins = {-1,-1,-1},
 	maxs = {1,1,1},
 	duration = .2,
 }
-
-local function calcError(exact, ys)
-	local diff = matrix(exact) - matrix(ys)
-	local err = diff:normL1() / #diff
-	return err
-end
 
 local problem = problems[problemName]
 
@@ -511,7 +389,7 @@ local errorNames = table()
 local singleSize = 64
 
 local dim = 1
-local sizes = (plotCompare or plotErrorHistory) 
+local sizes = plotCompare 
 	and table{singleSize} 
 	or range(3,10):map(function(x) return 2^x end)
 
@@ -552,6 +430,7 @@ print(destName)
 		for _,size in ipairs(sizes) do
 			
 			testdata.size[size] = testdata.size[size] or table()
+			testdata.size[size].errorsForTime = testdata.size[size].errorsForTime or table() 
 			
 			local startTime, endTime
 					
@@ -567,45 +446,34 @@ print()
 print(size)
 print()	
 
-				if plotErrorHistory then
-					testdata.size[size].ts = table()
-					testdata.size[size].errorsForTime = table()
-				end
+				testdata.size[size].ts = table()
 
 				local duration = tonumber(problem.duration) or error("expected problem.duration")
 				
 				local function getSolverGraph(solver)
-					local _, var = solver.displayVars:find(nil, function(var) return var.name == 'U rho' end)
-					assert(var, "failed to find U rho var")
-					solver:calcDisplayVarToBuffer(var)	
+					local err, UBuf = solver:calcExactError(1)
+
 					-- now in solver.reduceBuf
-					local ptr = solver.calcDisplayVarToTexPtr
 					local numCells = solver.numCells
 					local numGhost = solver.numGhost
-					local app = solver.app
-					app.cmds:enqueueReadBuffer{buffer=solver.reduceBuf, block=true, size=ffi.sizeof(app.real) * numCells, ptr=ptr}
 					-- now in ptr
 					
 					local xs = range(numCells-2*numGhost):mapi(function(i)
 						return (i-.5) * solver.solverPtr.grid_dx.x + solver.solverPtr.mins.x
 					end)
 					local ys = range(numCells-2*numGhost):mapi(function(i)
-						return ptr[i+numGhost-1]
+						return UBuf[i+numGhost-1].rho
 					end)
 					local exact
 					if not uselin then
-						exact = problem:makeExact(xs, solver)
-					end			
-					return xs, ys, exact
+						-- TODO this only compares the first value, while 'testAccuracy' cmdline option compares all (integratable variable) state values
+						exact = xs:map(function(x)
+							return (solver.eqn.initState.exactSolution(solver, x, solver.t))
+						end)
+					end
+					return xs, ys, exact, assert(err)
 				end
 
-				local function calcAndSaveTimeAndError(solver)
-					local xs, ys, exact = getSolverGraph(solver)
-					testdata.size[size].ts:insert(solver.t)
-					local err = calcError(exact, ys)
-					testdata.size[size].errorsForTime:insert(err)
-				end
-			
 				local App = class(require 'app')
 				function App:setup(clArgs)
 					cfg.app = self
@@ -613,13 +481,15 @@ print()
 					self.solvers:insert(solver)
 					self.exitTime = duration
 					self.running = true
-					if plotErrorHistory then
-						local oldupdate = solver.update
-						solver.update = function(...)
-							calcAndSaveTimeAndError(solver)
-							return oldupdate(...)
-						end
+					
+					local oldupdate = solver.update
+					solver.update = function(...)
+						local xs, ys, exact, err = getSolverGraph(solver)
+						testdata.size[size].ts:insert(solver.t)
+						testdata.size[size].errorsForTime:insert(err)
+						return oldupdate(...)
 					end
+					
 					startTime = os.clock()
 				end
 				
@@ -631,17 +501,13 @@ print()
 					-- now compare the U buffer to the exact 
 					assert(#self.solvers == 1)
 					local solver = self.solvers[1]
-					local xs,ys,exact = getSolverGraph(solver)
+					local xs, ys, exact, err = getSolverGraph(solver)
 					testdata.size[size].xs = xs
 					testdata.size[size].ys = ys
 					testdata.size[size].exact = exact
-					
-					local err = calcError(exact, ys)
 					testdata.size[size].error = err
-					if plotErrorHistory then
-						testdata.size[size].ts:insert(solver.t)
-						testdata.size[size].errorsForTime:insert(err)
-					end
+					testdata.size[size].errorsForTime:insert(err)
+					testdata.size[size].ts:insert(solver.t)
 				end	
 				
 				local app  = App()
@@ -720,24 +586,31 @@ gnuplot(
 --]]
 
 -- [[ plot error histories
-if plotErrorHistory then
-	local size = singleSize 
-	local data = table()
-	for _,testdata in ipairs(testdatas) do
-		data:insert(assert(testdata.size[size].ts))
-		data:insert(assert(testdata.size[size].errorsForTime))
-	end
-	gnuplot(table(
-		{
-			output = rundir..'/error-history.png',
-			style = 'data lines',
-			log = 'xy',
-			data = data,
-		},
-		testdatas:map(function(testdata,i)
-			return {using=(2*i-1)..':'..(2*i), title=testdata.name}
+do
+	local data = table.append(testdatas:map(function(testdata)
+		return table.append(sizes:map(function(size)
+			local sizedata = testdata.size[size]
+			return {
+				sizedata.ts,
+				sizedata.errorsForTime,
+			}
+		end):unpack())
+	end):unpack())
+	local usings = table.append(testdatas:mapi(function(testdata,i)
+		return sizes:mapi(function(size,j)
+			local base = 1 + 2 * (j-1 + #sizes * (i-1))
+			return {using=base..':'..(base+1), title=testdata.name..', size='..size}
 		end)
-	))
+	end):unpack())
+	gnuplot(table({
+		output = rundir..'/error-history.png',
+		terminal = 'png size 2400,1400',
+		style = 'data linespoints',
+		log = 'xy',
+		xlabel = 'time',
+		ylabel = 'L1 error',
+		key = 'left Left reverse',
+		data = data,
+	}, usings))
 end
 --]]
-

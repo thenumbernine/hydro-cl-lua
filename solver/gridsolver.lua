@@ -1202,12 +1202,30 @@ end
 -------------------------------------------------------------------------------
 
 
-local function compareL1(ptr, ...)
+local function compareL1(ptr, n, ...)
 	local err = 0
-	for i=1,select('#', ...) do
+	n = n or select('#', ...)
+	for i=1,n do
 		err = err + math.abs(tonumber(ptr[i-1]) - select(i, ...))
 	end
 	return err
+end
+
+function GridSolver:calcExactError(numStates)
+	numStates = numStates or self.eqn.numIntStates
+	local exact = assert(self.eqn.initState.exactSolution, "can't test accuracy of a configuration that has no exact solution")
+	local ptr = ffi.cast(self.eqn.cons_t..'*', self.UBufObj:toCPU())
+	assert(self.dim == 1)
+	local n = self.gridSize.x
+	local ghost = self.numGhost
+	local err = 0
+	for i=ghost+1,tonumber(self.gridSize.x)-2*ghost do
+		--local x = self.xs[i+ghost]
+		local x = self.solverPtr.mins.x + self.solverPtr.grid_dx.x * (i - ghost - .5)
+		err = err + compareL1(ptr[i-1].ptr, numStates, exact(self, x, self.t))
+	end
+	err = err / (numStates * (tonumber(self.gridSize.x) - 2 * ghost))
+	return err, ptr
 end
 
 function GridSolver:update()
@@ -1236,23 +1254,10 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	-- [[ debugging the advect wave problem
 	-- TODO have an optional field for all problems, to calculte the exact solution? 
 	if cmdline.testAccuracy then
-		local exact = assert(self.eqn.initState.exactSolution, "can't test accuracy of a configuration that has no exact solution")
-		local ptr = ffi.cast(self.eqn.cons_t..'*', self.UBufObj:toCPU())
-		assert(self.dim == 1)
-		local n = self.gridSize.x
-		local ghost = self.numGhost
-		local t = self.t
-		local matrix = require 'matrix'
-		local err = 0
-		for i=ghost+1,tonumber(self.gridSize.x)-2*ghost do
-			--local x = self.xs[i+ghost]
-			local x = self.solverPtr.mins.x + self.solverPtr.grid_dx.x * (i - ghost - .5)
-			err = err + compareL1(ptr[i-1].ptr, exact(self, x, t))
-		end
-		err = err / (self.eqn.numIntStates * (tonumber(self.gridSize.x) - 2 * ghost))
+		local err = self:calcExactError()
 		print(
 			--'t='..
-			('%.50f'):format(t)
+			('%.50f'):format(self.t)
 			..' '
 			--..'L1-error='
 			..('%.50f'):format(err)

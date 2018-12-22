@@ -1444,7 +1444,37 @@ end ?>
 	elseif eqn.useShift == 'MinimalDistortionEllipticEvolve' then
 	?>
 
-	//beta^i_,t = epsilon (D^2 beta^i + 1/3 D^i D_j beta^j + R^i_j beta^j - D_j (2 alpha (K^ij - 1/3 K gamma^ij))
+	/*
+	beta^i_,t = epsilon (gamma^jk D_j D_k beta^i + 1/3 D^i D_j beta^j + R^i_j beta^j - D_j (2 alpha (K^ij - 1/3 K gamma^ij))
+	= epsilon (
+		gamma^jk D_j (beta^i_,k + Gamma^i_lk beta^l) 
+		+ 1/3 gamma^ik D_k (beta^j_,j + Gamma^j_lj beta^l) 
+		+ R^i_j beta^j 
+		- (2 alpha_,j (K^ij - 1/3 K gamma^ij)
+		- (2 alpha (D_j K^ij - 1/3 K_,j gamma^ij)
+	)
+	= epsilon (
+		- 2 alpha_,j K^ij 
+		+ 2/3 alpha_,j K gamma^ij
+		+ gamma^jk Gamma^i_lk,j beta^l 
+		+ 2 Gamma^ik_j beta^j_,k 
+		- Gamma^kj_j beta^i_,k 
+		+ 1/3 gamma^ik Gamma^j_lj beta^l_,k 
+		+ gamma^jk beta^i_,kj 
+		+ 1/3 gamma^ik beta^j_,jk 
+		+ 1/3 gamma^ik Gamma^j_lj,k beta^l 
+		- 2 alpha K^ij_,j 
+		+ 2/3 alpha K_,j gamma^ij
+		+ Gamma^i_jm Gamma^mj_l beta^l 
+		- Gamma^m_jl Gamma^ij_m beta^l 
+		- Gamma^mj_j Gamma^i_lm beta^l
+		+ Gamma^ij_l Gamma^l_kj beta^k
+		+ 1/3 gamma^ik Gamma^j_lj Gamma^l_mk beta^m
+		+ R^i_j beta^j 
+		- 2 alpha Gamma^i_kj K^ki 
+		- 2 alpha Gamma^j_kj K^ik 
+	)
+	*/
 
 	<?
 	elseif eqn.useShift == 'LagrangianCoordinates' 

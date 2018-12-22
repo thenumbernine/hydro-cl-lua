@@ -351,6 +351,122 @@ end
 		xNames = xNames,
 	})
 		end,
+		
+		-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
+		-- TODO it might be more efficient to hand this function the array, and have it return an array
+		-- or at least have it calculate certain values up front before iterating across all x's
+		exactSolution = function(solver, x, t)
+			local solverPtr = solver.solverPtr
+			-- TODO initial condition object to share these values with initialization
+			local rhoL = solverPtr.init_rhoL
+			local rhoR = solverPtr.init_rhoR
+			local PL = solverPtr.init_PL
+			local PR = solverPtr.init_PR
+			local vL = 0
+			local vR = 0
+			local gamma = solverPtr.heatCapacityRatio
+			local t = solver.t
+			
+			local muSq = (gamma - 1)/(gamma + 1)
+			local K = PL / rhoL^gamma
+
+			local CsL = math.sqrt(gamma * PL / rhoL)
+			local CsR = math.sqrt(gamma * PR / rhoR)
+
+			local solveP3 = function()
+				local symmath = require 'symmath'
+				local P3 = symmath.var'P3'
+				local f = -2*CsL*(1 - (P3/PL)^((-1 + gamma)/(2*gamma)))/(CsR*(-1 + gamma)) + (-1 + P3/PR)*((1 - muSq)/(gamma*(muSq + P3/PR)))^.5
+				local df_dP3 = f:diff(P3)()	
+				local f_func = f:compile{P3}
+				local df_dP3_func = df_dP3:compile{P3}
+				local P3 = .5 * (PL + PR)
+				local epsilon = 1e-16	-- this is the limit for the sod.f before it oscillates
+				while true do
+					local dP3 = -f_func(P3) / df_dP3_func(P3)
+					--print(P3, dP3)
+					if math.abs(dP3) <= epsilon then break end
+					if not math.isfinite(dP3) then error('delta is not finite! '..tostring(dP3)) end
+					P3 = P3 + dP3 
+				end
+				return P3
+			end
+
+			local P3 = solveP3()
+			local P4 = P3
+
+			local rho3 = rhoL * (P3 / PL) ^ (1 / gamma)
+
+			local v3 = vR + 2 * CsL / (gamma - 1) * (1 - (P3 / PL)^((gamma - 1)/(2*gamma)))
+			local v4 = v3
+
+			local rho4 = rhoR * (P4 + muSq * PR) / (PR + muSq * P4)
+
+			local vshock = v4 * rho4 / (rho4 - rhoR)
+			local vtail = CsL - v4 / (1 - muSq)
+
+			local v2 = function(x) return (1 - muSq) * (x/t + CsL) end
+			-- Dullemon:
+			--local rho2 = function(x) return (rhoL^gamma / (gamma * PL) * (v2(x) - x/t)^2)^(1/(gamma-1)) end
+			-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
+			local rho2 = function(x) return rhoL * (-muSq * (x / (CsL * t)) + (1 - muSq))^(2/(gamma-1)) end
+
+			-- Dullemon:
+			--local P2 = K * rho2^gamma
+			-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
+			local P2 = function(x) return PL * (-muSq * (x / (CsL * t)) + (1 - muSq)) ^ (2*gamma/(gamma-1)) end
+
+			local C = function(c) return function() return c end end
+			local function makefunc(t)
+				return table(t):map(function(ti,i)
+					return type(ti) == 'function'and t[i]or C(t[i])
+				end)
+			end
+
+			local rhos = makefunc{rhoL, rho2, rho3, rho4, rhoR}
+			local vs = makefunc{vL, v2, v3, v4, vR}
+			local Ps = makefunc{PL, P2, P3, P4, PR}
+			
+			-- between regions 1 and 2
+			local s1 = -CsL	
+
+			-- between regions 2 and 3
+			-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
+			local s2 = -vtail
+
+			local s3 = v3	-- between regions 3 and 4
+
+			-- between regions 4 and 5 ...
+			local s4 = vshock
+
+			--print('wavespeeds:',s1,s2,s3,s4)
+
+			local region = function(x)
+				local xi = x / t
+				if xi < s1 then
+					return 1
+				elseif xi < s2 then
+					return 2
+				elseif xi < s3 then
+					return 3
+				elseif xi < s4 then
+					return 4
+				else
+					return 5
+				end
+			end
+
+			local r = region(x)
+			local rho = rhos[r](x)
+			local vx = vs[r](x)
+			local vy = 0
+			local vz = 0
+			local P = Ps[r](x)
+			local EInt = P * (solverPtr.heatCapacityRatio - 1)
+			local EKin = .5 * rho * (vx*vx + vy*vy + vz*vz)
+			local ETotal = EKin + EInt
+			return rho, rho * vx, rho * vy, rho * vz, ETotal
+		end,
 	},
 	
 	{
