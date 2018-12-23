@@ -1255,6 +1255,9 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	-- TODO have an optional field for all problems, to calculte the exact solution? 
 	if cmdline.testAccuracy then
 		local err = self:calcExactError()
+		if #self.app.solvers > 1 then
+			io.write(self.name,'\t')
+		end
 		print(
 			--'t='..
 			('%.50f'):format(self.t)

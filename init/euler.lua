@@ -96,9 +96,9 @@ end
 args:
 	solver = solver
 	side = which side, default xmin
-	amplitude = wave amplitude.  default 1
-	period = wave period.  default 1
 	dir = which direction the wave will point. default 'x'
+	amplitude = wave amplitude.  default 1
+	frequency = wave frequency.  default 1
 --]]
 local function addMaxwellOscillatingBoundary(args)
 	local solver = assert(args.solver)
@@ -117,7 +117,7 @@ local function addMaxwellOscillatingBoundary(args)
 		boundaryMethods[side] = function(args)
 			local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
 			local U = args.array('buf', args.index(
-				side:sub(-3) == 'min' and 'j' or (gridSizeSide..'-numGhost-1-j')
+				side:sub(-3) == 'min' and 'j+1' or (gridSizeSide..'-numGhost-1-j')
 			))
 			-- TODO put the old code here
 			return 
@@ -126,12 +126,8 @@ local function addMaxwellOscillatingBoundary(args)
 	<?=U?>.B = <?=vec3?>_zero;
 	<?=U?>.D = <?=vec3?>_zero;
 	<?=U?>.D.<?=dir?> = <?=real_mul?>(
-<? if require 'eqn.glm-maxwell'.is(eqn) then ?>			
-			<?=mul?>(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_eps)
-<? else ?>			
-			<?=U?>._1_eps
-<? end ?>		
-		, <?=amplitude?> * sin(2. * M_PI * <?=frequency?> * t)); 
+		<?=mul?>(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_eps),
+		<?=amplitude?> * sin(2. * M_PI * <?=frequency?> * t)); 
 ]], table(solver.eqn:getTemplateEnv(), {
 		U = U,
 		eqn = self.eqn,
@@ -147,6 +143,11 @@ local function addMaxwellOscillatingBoundary(args)
 		-- (which I leave alone so Poisson can deal with it)
 		return {
 			type = self.eqn.cons_t,
+			
+			-- TODO just give the solver a parameter 't' ?
+			-- give it a parameter 'dt' while you're at it
+			-- that would save on a few kernel parameters
+			
 			extraArgs = {'real t'},
 			-- remap from enum/combobox int values to functions from the solver.boundaryOptions table
 			methods = table.map(boundaryMethods, function(v)
@@ -1448,9 +1449,29 @@ end ?>;
 	},
 
 	{
+		name = 'Maxwell empty waves',
+		initState = function(self, solver)
+			addMaxwellOscillatingBoundary{
+				solver = solver,
+				side = xNames[solver.dim]..'max',
+				dir = xNames[solver.dim],
+				amplitude = 1,
+				period = 10,
+			}
+			return ''
+		end,
+	},
+
+	{
 		name = 'Maxwell scattering around cylinder',
 		initState = function(self, solver)
-			addMaxwellOscillatingBoundary{solver=solver}
+			addMaxwellOscillatingBoundary{
+				solver = solver,
+				side = 'xmin',
+				dir = 'x',
+				amplitude = 1,
+				period = 10,
+			}
 			return template([[
 	real3 xc = coordMap(x);
 	if (real3_lenSq(xc) < .2*.2) {
@@ -1522,7 +1543,7 @@ for _,pn in ipairs(obj) do
 				side = xNames[solver.dim]..'max',
 				dir = xNames[solver.dim],
 				amplitude = -1,
-				period = .1,
+				period = 10,
 			}
 			return template([[
 	real3 xc = coordMap(x);
@@ -1544,7 +1565,7 @@ for _,pn in ipairs(obj) do
 				side = xNames[solver.dim]..'max',
 				dir = xNames[solver.dim],
 				amplitude = -1,
-				period = .1,
+				period = 10,
 			}
 			return template([[
 	real3 xc = coordMap(x);
@@ -1636,7 +1657,13 @@ bool testTriangle(real3 xc) {
 })
 		end,
 		initState = function(self, solver)
-			addMaxwellOscillatingBoundary{solver=solver}
+			addMaxwellOscillatingBoundary{
+				solver = solver,
+				side = xNames[solver.dim]..'max',
+				dir = xNames[solver.dim],
+				amplitude = 1,
+				period = 10,
+			}
 			
 			local c = 299792458
 			local s_in_m = 1 / c

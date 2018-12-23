@@ -36,8 +36,8 @@ cons_t fluxFromCons_<?=side?>(
 		.BPot = <?=zero?>,
 		.rhoCharge = <?=zero?>,
 		.sigma = <?=zero?>,
-		._1_eps = <?=susc_t?>_zero,
-		._1_mu = <?=susc_t?>_zero,
+		.sqrt_1_eps = <?=susc_t?>_zero,
+		.sqrt_1_mu = <?=susc_t?>_zero,
 	};
 }
 <? end ?>
@@ -53,17 +53,13 @@ eigen_t eigen_forInterface(
 	//but it doesn't belong here -- this is only the scalar case
 	//for tensors, I should be eigen-decomposing the levi-civita times the tensor	
 	return (eigen_t){
-		.sqrt_1_eps = <?=susc_t?>_sqrt(
-			<?=susc_t?>_mul(
-				<?=susc_t?>_add(UL._1_eps, UR._1_eps),
-				<?=susc_t?>_from_real(.5)
-			)
+		.sqrt_1_eps = <?=susc_t?>_mul(
+			<?=susc_t?>_add(UL.sqrt_1_eps, UR.sqrt_1_eps),
+			<?=susc_t?>_from_real(.5)
 		),
-		.sqrt_1_mu = <?=susc_t?>_sqrt(
-			<?=susc_t?>_mul(
-				<?=susc_t?>_add(UL._1_mu, UR._1_mu),
-				<?=susc_t?>_from_real(.5)
-			)
+		.sqrt_1_mu = <?=susc_t?>_mul(
+			<?=susc_t?>_add(UL.sqrt_1_mu, UR.sqrt_1_mu),
+			<?=susc_t?>_from_real(.5)
 		),
 	};
 }
@@ -257,8 +253,13 @@ kernel void addSource(
 
 	//TODO J = J_f + J_b = J_f + J_P + J_M = J_f + dP/dt + curl M
 <? for i,xi in ipairs(xNames) do 
-?>	deriv->D.<?=xi?> = <?=sub?>(deriv->D.<?=xi?>,
-		<?=mul?>(U->D.<?=xi?>, <?=mul?>(U->_1_eps, U->sigma))
+?>	deriv->D.<?=xi?> = <?=sub?>(
+		deriv->D.<?=xi?>,
+			<?=mul?>(U->D.<?=xi?>, <?=mul?>(
+				<?=susc_t?>_mul(U->sqrt_1_eps, U->sqrt_1_eps),
+				U->sigma
+			)
+		)
 	);
 <? end
 ?>
@@ -271,8 +272,12 @@ kernel void addSource(
 		local xj = xNames[j+1] ?>
 	grad_1_mu.<?=xj?> = <?=real_mul?>(
 		<?=sub?>(
-			U[solver->stepsize.<?=xj?>]._1_mu,
-			U[-solver->stepsize.<?=xj?>]._1_mu
+			<?=mul?>(
+				U[solver->stepsize.<?=xj?>].sqrt_1_mu,
+				U[solver->stepsize.<?=xj?>].sqrt_1_mu),
+			<?=mul?>(
+				U[-solver->stepsize.<?=xj?>].sqrt_1_mu,
+				U[-solver->stepsize.<?=xj?>].sqrt_1_mu)
 		), 1. / solver->grid_dx.s<?=j?>);
 	<? end ?>
 	
@@ -281,8 +286,12 @@ kernel void addSource(
 		local xj = xNames[j+1]
 ?>	grad_1_mu.<?=xj?> = <?=real_mul?>(
 		<?=sub?>(
-			U[solver->stepsize.<?=xj?>]._1_eps,
-			U[-solver->stepsize.<?=xj?>]._1_eps
+			<?=mul?>(
+				U[solver->stepsize.<?=xj?>].sqrt_1_eps,
+				U[solver->stepsize.<?=xj?>].sqrt_1_eps),
+			<?=mul?>(
+				U[-solver->stepsize.<?=xj?>].sqrt_1_eps,
+				U[-solver->stepsize.<?=xj?>].sqrt_1_eps)
 		), 1. / solver->grid_dx.s<?=j?>);
 <? end
 ?>
@@ -309,8 +318,8 @@ eigen_t eigen_forCell_<?=side?>(
 	real3 x
 ) {
 	eigen_t eig;
-	eig.sqrt_1_eps = <?=scalar?>_sqrt(U._1_eps);
-	eig.sqrt_1_mu = <?=scalar?>_sqrt(U._1_mu);
+	eig.sqrt_1_eps = U.sqrt_1_eps;
+	eig.sqrt_1_mu = U.sqrt_1_mu;
 	return eig;
 }
 <? end ?>

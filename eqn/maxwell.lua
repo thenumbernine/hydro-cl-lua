@@ -104,8 +104,8 @@ So we need three matrices and not just one ...
 --Maxwell.susc_t = Maxwell.mat3x3
 
 Maxwell.consVars:append{
-	{_1_eps = Maxwell.susc_t},
-	{_1_mu = Maxwell.susc_t},
+	{sqrt_1_eps = Maxwell.susc_t},
+	{sqrt_1_mu = Maxwell.susc_t},
 }
 
 Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
@@ -187,11 +187,15 @@ cplx/scalar => cplx_cplx3_mul
 real/tensor => real3x3_real3_mul
 cplx/tensor => cplx3x3_cplx3_mul
 */
-	return <?=eqn.susc_t?>_<?=eqn.vec3?>_mul(U._1_eps, U.D);
+	return <?=eqn.susc_t?>_<?=eqn.vec3?>_mul(
+		<?=eqn.susc_t?>_mul(U.sqrt_1_eps, U.sqrt_1_eps),
+		U.D);
 }
 
 <?=eqn.vec3?> calc_H(<?=eqn.cons_t?> U) { 
-	return <?=eqn.susc_t?>_<?=eqn.vec3?>_mul(U._1_mu, U.B);
+	return <?=eqn.susc_t?>_<?=eqn.vec3?>_mul(
+		<?=eqn.susc_t?>_mul(U.sqrt_1_mu, U.sqrt_1_mu),
+		U.B);
 }
 /*
 |E| = E_i *E^i = (re E^i + i im E^i)  (re E^j - i im E^j) gamma_ij
@@ -260,8 +264,8 @@ kernel void initState(
 	U->B = eqn_cartesianToCoord(B, x);
 	U->BPot = <?=zero?>;
 	U->sigma = conductivity;
-	U->_1_eps = <?=susc_t?>_inv(permittivity);
-	U->_1_mu = <?=susc_t?>_inv(permeability);
+	U->sqrt_1_eps = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permittivity));
+	U->sqrt_1_mu = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permeability));
 }
 ]]
 
@@ -379,13 +383,13 @@ function Maxwell:getDisplayVars()
 end
 
 Maxwell.eigenVars = table{
-	{sqrt_1_eps = Maxwell.scalar},
-	{sqrt_1_mu = Maxwell.scalar},
+	{sqrt_1_eps = Maxwell.susc_t},
+	{sqrt_1_mu = Maxwell.susc_t},
 }
 
 function Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
 	return template([[
-	<?=eqn.scalar?> eig_lambda = <?=eqn.scalar?>_mul(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu);
+	<?=eqn.susc_t?> eig_lambda = <?=eqn.susc_t?>_mul(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu);
 ]], {
 		eqn = self,
 		eig = '('..eig..')',
@@ -393,7 +397,7 @@ function Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
 end
 
 function Maxwell:eigenWaveCode(side, eig, x, waveIndex)
-	if self.scalar == 'real' then
+	if self.susc_t == 'real' then
 		if waveIndex == 0 or waveIndex == 1 then
 			return '-eig_lambda'
 		elseif waveIndex == 2 or waveIndex == 3 then
@@ -403,7 +407,7 @@ function Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 		else
 			error'got a bad waveIndex'
 		end
-	elseif self.scalar == 'cplx' then
+	elseif self.susc_t == 'cplx' then
 		if waveIndex == 0 or waveIndex == 2 then
 			return '-eig_lambda.re'
 		elseif waveIndex == 1 or waveIndex == 3 then
@@ -422,8 +426,8 @@ end
 
 function Maxwell:consWaveCodePrefix(side, U, x, waveIndex)
 	return template([[
-<? local scalar = eqn.scalar ?>
-	<?=scalar?> eig_lambda = <?=scalar?>_sqrt(<?=scalar?>_mul(<?=U?>._1_eps, <?=U?>._1_mu));
+<? local susc_t = eqn.susc_t ?>
+	<?=susc_t?> eig_lambda = <?=susc_t?>_mul(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_mu);
 ]], {
 		eqn = self,
 		U = '('..U..')',

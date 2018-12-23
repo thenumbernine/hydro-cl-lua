@@ -1,4 +1,4 @@
-local dim = 1
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -63,7 +63,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{64,1,1},
-				{64,64,1},
+				{256,256,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -209,7 +209,7 @@ local args = {
 	--initState = 'constant with velocity',
 	--initState = 'linear',
 	--initState = 'gaussian',
-	initState = 'advect wave',
+	--initState = 'advect wave',
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
@@ -264,12 +264,13 @@ local args = {
 	--initState = '2002 Dedner Kelvin-Helmholtz',
 
 	-- Maxwell:
-	--initState = 'Maxwell default',							-- cplx works poorly with non-GLM
-	--initState = 'Maxwell scattering around cylinder',			-- cplx doesn't work with non-GLM
-	--initState = 'Maxwell scattering around pyramid',			-- not working with the non-GLM cplx (but works for non-GLM real HLL .. but not non-GLM real Roe ...)
+	--initState = 'Maxwell default',
+	--initState = 'Maxwell empty waves',
+	initState = 'Maxwell scattering around cylinder',
+	--initState = 'Maxwell scattering around pyramid',
 	--initState = 'Maxwell scattering around square',
-	--initState = 'Maxwell scattering around Koch snowflake',		-- not working, for non-GLM
-	--initState = 'Maxwell wire',									-- not working for non-GLM cplx (but works for non-GLM real)
+	--initState = 'Maxwell scattering around Koch snowflake',
+	--initState = 'Maxwell wire',
 	
 	-- hmm, I think I need a fluid solver for this, not just a Maxwell solver ...
 	--initState = 'Maxwell Lichtenberg',	
@@ -470,7 +471,10 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- hmm, 2D Sod 64x64 RK4 fails at just past 1 second ... 
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=13})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=13})))
-self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=13})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=13})))
+
+-- blows up.  maybe I need an implicit RK scheme...
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=13, integrator='backward Euler'})))
 
 -- still haven't added source terms to this
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='navstokes-wilcox'})))
@@ -534,7 +538,7 @@ self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='
 
 -- GLM Maxwell
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
+self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=7})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=13})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-maxwell'})))
