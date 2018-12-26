@@ -45,16 +45,19 @@ end
 function FiniteVolumeSolver:addDisplayVars()
 	FiniteVolumeSolver.super.addDisplayVars(self)
 
-	-- TODO add kernels for each side
-	for j,xj in ipairs(xNames) do
+	for side=0,self.dim-1 do
+		local xj = xNames[side+1]
 		self:addDisplayVarGroup{
 			name = 'flux '..xj, 
 			bufferField = 'fluxBuf',
 			type = self.eqn.cons_t,
-			codePrefix = [[
-	int indexInt = ]]..(j-1)..[[ + dim * index;
-	const global ]]..self.eqn.cons_t..[[* flux = buf + indexInt;
-]],
+			codePrefix = template([[
+	int indexInt = <?=side?> + dim * index;
+	const global <?=eqn.cons_t?>* flux = buf + indexInt;
+]],			{
+				eqn = self.eqn,
+				side = side,
+			}),
 			vars = range(0,self.eqn.numIntStates-1):map(function(i)
 				return {[''..i] = '*value = flux->ptr['..i..'];'}
 			end),
