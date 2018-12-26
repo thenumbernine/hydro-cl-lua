@@ -85,20 +85,26 @@ function Roe:addDisplayVars()
 	end
 
 	-- TODO rename to 'getEigenDisplayVarDescs()'
--- TODO calculate automatically instead of read from buffer
---[=[	
 	local eigenDisplayVars = self.eqn:getEigenDisplayVars()
 	if eigenDisplayVars and #eigenDisplayVars > 0 then
-		for j=1,self.dim do
-			local xj = xNames[j]
+		for side=0,self.dim-1 do
+			local xj = xNames[side+1]
 			self:addDisplayVarGroup{
 				name = 'eigen '..xj,
-				bufferField = 'eigenBuf',
-				type = self.eqn.eigen_t,
-				codePrefix = [[
-	int indexInt = ]]..(j-1)..[[ + dim * index;
-	const global ]]..self.eqn.eigen_t..[[* eigen = buf + indexInt;
-]],
+				bufferField = self.getULRBufName,
+				type = self.getULRBufType,
+				codePrefix = template([[
+	int indexR = index;
+	int indexL = index - solver->stepsize.s<?=side?>;
+	real3 xInt = x;
+	xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+	<?=solver:getULRCode{bufName='buf'}?>
+	<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, normalForSide<?=side?>());
+]], 			{
+					solver = self,
+					eqn = self.eqn,
+					side = side,
+				}),
 				vars = table.map(eigenDisplayVars, function(kv)
 					return table.map(kv, function(v,k)
 						if k == 'type' then return v, k end
@@ -108,7 +114,6 @@ function Roe:addDisplayVars()
 			}
 		end
 	end
---]=]
 
 --[=[
 	-- ortho

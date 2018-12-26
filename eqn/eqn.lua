@@ -255,22 +255,22 @@ end
 function Equation:getEigenDisplayVars()
 	-- use the automatic codegen for display vars
 	if self.eigenVars then
-		return self:getDisplayVarsForStructVars(self.eigenVars, 'eigen')
+		return self:getDisplayVarsForStructVars(self.eigenVars, '(&eig)')
 
 	-- use the autogen left & right eigenvector matrices
 	else
 		return range(self.numIntStates * self.numWaves):map(function(i)
 			local row = (i-1)%self.numWaves
 			local col = (i-1-row)/self.numWaves
-			return {['evL_'..row..'_'..col] = '*value = eigen->evL['..i..'];'}
+			return {['evL_'..row..'_'..col] = '*value = eig.evL['..i..'];'}
 		end):append(range(self.numIntStates * self.numWaves):map(function(i)
 			local row = (i-1)%self.numIntStates
 			local col = (i-1-row)/self.numIntStates
-			return {['evR_'..row..'_'..col] = '*value = eigen->evR['..i..'];'}
+			return {['evR_'..row..'_'..col] = '*value = eig.evR['..i..'];'}
 		end)):append(range(self.numIntStates * self.numIntStates):map(function(i)
 			local row = (i-1)%self.numIntStates
 			local col = (i-1-row)/self.numIntStates
-			return {['A_'..row..'_'..col] = '*value = eigen->A['..i..'];'}
+			return {['A_'..row..'_'..col] = '*value = eig.A['..i..'];'}
 		end))
 	end
 end
