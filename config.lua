@@ -442,13 +442,13 @@ local args = {
 if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(table(args, cmdline))) return end
 
 -- HD
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
 --self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=0})))
 --self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=1})))
---self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=2})))
+self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=2})))
 
 -- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler
 -- TODO weno doesn't seem to work with self-gravitation
