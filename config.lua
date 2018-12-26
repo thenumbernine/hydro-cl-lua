@@ -4,12 +4,12 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	integrator = 'Runge-Kutta 4',
+	--integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -213,7 +213,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -266,7 +266,7 @@ local args = {
 	-- Maxwell:
 	--initState = 'Maxwell default',
 	--initState = 'Maxwell empty waves',
-	initState = 'Maxwell scattering around cylinder',
+	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around pyramid',
 	--initState = 'Maxwell scattering around square',
 	--initState = 'Maxwell scattering around Koch snowflake',
@@ -442,7 +442,7 @@ local args = {
 if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(table(args, cmdline))) return end
 
 -- HD
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -451,15 +451,16 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=2})))
 
 -- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu'})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges'})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha'})))
+-- TODO weno doesn't seem to work with self-gravitation
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=5})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=5})))
 
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=7})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=7})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=7})))
 
--- past order=9, 2D Sod test, things tend to explode ... maybe I should take away the betaCoeffs denominator (since they get normalized anyways?)
+-- order=9 and above 2D Sod test, things tend to explode ... maybe I should take away the betaCoeffs denominator (since they get normalized anyways?)
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=9})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=9})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=9})))
@@ -497,7 +498,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --self.solvers:insert(require 'solver.srhd-roe'(args))
 	-- TODO can't use these until I get eigen_forInterface working in eqn/srhd.cl
 --self.solvers:insert(require 'solver.srhd-hll'(args))
---self.solvers:insert(require 'solver.srhd-weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=13})))
+--self.solvers:insert(require 'solver.srhd-weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
 
 -- GRHD
 -- this is the solver with plug-ins for ADM metric, 
@@ -538,7 +539,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 
 -- GLM Maxwell
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
-self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=7})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=13})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-maxwell'})))

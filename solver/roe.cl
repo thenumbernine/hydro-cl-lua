@@ -5,7 +5,7 @@ kernel void calcFlux(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* fluxBuf,
 	const global <?=solver.getULRArg?>,
-	const global <?=eqn.eigen_t?>* eigenBuf, 
+	//const global <?=eqn.eigen_t?>* eigenBuf, 
 	realparam dt
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
@@ -28,9 +28,10 @@ kernel void calcFlux(
 		<?=solver:getULRCode()?>
 	
 		int indexInt = side + dim * index;
-		const global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
+		//const global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
+		<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, normalForSide<?=side?>());
 		
-		<?=eqn:eigenWaveCodePrefix(side, '*eig', 'xInt')?>
+		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
 
 		<?=eqn.waves_t?> fluxEig;
 <? if not eqn.roeUseFluxFromCons then ?>
@@ -38,7 +39,7 @@ kernel void calcFlux(
 		for (int j = 0; j < numIntStates; ++j) {
 			UAvg.ptr[j] = .5 * (UL->ptr[j] + UR->ptr[j]);
 		}
-		fluxEig = eigen_leftTransform_<?=side?>(solver, *eig, UAvg, xInt);
+		fluxEig = eigen_leftTransform_<?=side?>(solver, eig, UAvg, xInt);
 <? end ?>
 
 		<?=eqn.cons_t?> deltaU;	
@@ -59,17 +60,19 @@ kernel void calcFlux(
 <? end ?>	
 		}
 		
-		<?=eqn.waves_t?> deltaUEig = eigen_leftTransform_<?=side?>(solver, *eig, deltaU, xInt);
+		<?=eqn.waves_t?> deltaUEig = eigen_leftTransform_<?=side?>(solver, eig, deltaU, xInt);
 <? if solver.fluxLimiter > 1 then ?>
-		const global <?=eqn.eigen_t?>* eigL = eig - dim * solver->stepsize.s<?=side?>;
-		const global <?=eqn.eigen_t?>* eigR = eig + dim * solver->stepsize.s<?=side?>;
-		<?=eqn.waves_t?> deltaUEigL = eigen_leftTransform_<?=side?>(solver, *eigL, deltaUL, xIntL);
-		<?=eqn.waves_t?> deltaUEigR = eigen_leftTransform_<?=side?>(solver, *eigR, deltaUR, xIntR);
+		<?=eqn.eigen_t?> eigL = eigen_forInterface(solver, *UL_L, *UR_L, xInt, normalForSide<?=side?>());
+		<?=eqn.eigen_t?> eigR = eigen_forInterface(solver, *UL_R, *UR_R, xInt, normalForSide<?=side?>());
+		//const global <?=eqn.eigen_t?>* eigL = eig - dim * solver->stepsize.s<?=side?>;
+		//const global <?=eqn.eigen_t?>* eigR = eig + dim * solver->stepsize.s<?=side?>;
+		<?=eqn.waves_t?> deltaUEigL = eigen_leftTransform_<?=side?>(solver, eigL, deltaUL, xIntL);
+		<?=eqn.waves_t?> deltaUEigR = eigen_leftTransform_<?=side?>(solver, eigR, deltaUR, xIntR);
 <? end ?>
 
 		<? for j=0,eqn.numWaves-1 do ?>{
 			const int j = <?=j?>;
-			real lambda = <?=eqn:eigenWaveCode(side, '*eig', 'xInt', j)?>;
+			real lambda = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', j)?>;
 
 <? if not eqn.roeUseFluxFromCons then ?>
 			fluxEig.ptr[j] *= lambda;
@@ -100,7 +103,7 @@ kernel void calcFlux(
 		}<? end ?>
 		
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
-		*flux = eigen_rightTransform_<?=side?>(solver, *eig, fluxEig, xInt);
+		*flux = eigen_rightTransform_<?=side?>(solver, eig, fluxEig, xInt);
 
 <? if eqn.roeUseFluxFromCons then ?>
 		

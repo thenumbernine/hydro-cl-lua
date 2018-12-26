@@ -24,7 +24,7 @@ function Roe:createBuffers()
 	-- to get sizeof
 	ffi.cdef(self.eqn:getEigenTypeCode())
 
-	self:clalloc('eigenBuf', self.numCells * self.dim * ffi.sizeof(self.eqn.eigen_t))
+	--self:clalloc('eigenBuf', self.numCells * self.dim * ffi.sizeof(self.eqn.eigen_t))
 end
 
 function Roe:getSolverCode()
@@ -44,37 +44,53 @@ end
 function Roe:refreshSolverProgram()
 	Roe.super.refreshSolverProgram(self)
 
-	self.calcEigenBasisKernelObj = self.solverProgramObj:kernel'calcEigenBasis'
-	self.calcEigenBasisKernelObj.obj:setArg(1, self.eigenBuf)
+	--self.calcEigenBasisKernelObj = self.solverProgramObj:kernel'calcEigenBasis'
+	--self.calcEigenBasisKernelObj.obj:setArg(1, self.eigenBuf)
 
 	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
 	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
-	self.calcFluxKernelObj.obj:setArg(3, self.eigenBuf)
+	--self.calcFluxKernelObj.obj:setArg(3, self.eigenBuf)
 end
 
 function Roe:addDisplayVars()
 	Roe.super.addDisplayVars(self)
-
---[=[ TODO add eigen calc code here
-	for j,xj in ipairs(xNames) do
+	for side=0,self.dim-1 do
+		local xj = xNames[side+1]
 		self:addDisplayVarGroup{
 			name = 'wave '..xj,
-			bufferField = 'waveBuf',
-			codePrefix = [[
-	int indexInt = ]]..(j-1)..[[ + dim * index;
-	const global real* wave = buf + indexInt * numWaves;
-]],
+			bufferField = self.getULRBufName,
+			type = self.getULRBufType,
+			codePrefix = template([[
+	int indexR = index;
+	int indexL = index - solver->stepsize.s<?=side?>;
+	real3 xInt = x;
+	xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+	<?=solver:getULRCode{bufName='buf'}?>
+	<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, normalForSide<?=side?>());
+	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
+]], 		{
+				solver = self,
+				eqn = self.eqn,
+				side = side,
+			}),
 			vars = range(0, self.eqn.numWaves-1):map(function(i)
-				return {[''..i] = '*value = wave['..i..'];'}
+				return {[''..i] = template([[
+	*value = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', i)?>;
+]], {
+		eqn = self.eqn,
+		i = i,
+	})}
 			end),
 		}
 	end
---]=]
 
 	-- TODO rename to 'getEigenDisplayVarDescs()'
+-- TODO calculate automatically instead of read from buffer
+--[=[	
 	local eigenDisplayVars = self.eqn:getEigenDisplayVars()
 	if eigenDisplayVars and #eigenDisplayVars > 0 then
-		for j,xj in ipairs(xNames) do
+		for j=1,self.dim do
+			local xj = xNames[j]
 			self:addDisplayVarGroup{
 				name = 'eigen '..xj,
 				bufferField = 'eigenBuf',
@@ -92,7 +108,9 @@ function Roe:addDisplayVars()
 			}
 		end
 	end
+--]=]
 
+--[=[
 	-- ortho
 	for side=0,self.dim-1 do
 		self:addDisplayVarGroup{
@@ -135,7 +153,9 @@ function Roe:addDisplayVars()
 			}
 		}
 	end
+--]=]
 
+--[=[
 	-- flux
 	for side=0,self.dim-1 do
 		self:addDisplayVarGroup{
@@ -196,6 +216,7 @@ for (int j = 0; j < numStates; ++j) {
 			}
 		}
 	end
+--]=]
 end
 
 local realptr = ffi.new'realparam[1]'
@@ -219,16 +240,16 @@ if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 
-	self.calcEigenBasisKernelObj.obj:setArg(0, self.solverBuf)
-	self.calcEigenBasisKernelObj.obj:setArg(2, self:getULRBuf())
-	self.calcEigenBasisKernelObj()
+	--self.calcEigenBasisKernelObj.obj:setArg(0, self.solverBuf)
+	--self.calcEigenBasisKernelObj.obj:setArg(2, self:getULRBuf())
+	--self.calcEigenBasisKernelObj()
 
 if self.checkNaNs then assert(self:checkFinite(self.eigenBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcFluxKernelObj.obj:setArg(2, self:getULRBuf())
-	self.calcFluxKernelObj.obj:setArg(4, dtArg)
+	self.calcFluxKernelObj.obj:setArg(3, dtArg)
 	self.calcFluxKernelObj()
 
 if self.checkNaNs then assert(self:checkFinite(self.fluxBufObj)) end
@@ -255,8 +276,8 @@ if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		-- the rest of this matches above
 		-- maybe use 'repeat'?
 		
-if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-		self.calcEigenBasisKernelObj()
+--if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+--		self.calcEigenBasisKernelObj()
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		self.calcFluxKernelObj()
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end

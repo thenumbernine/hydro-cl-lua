@@ -127,8 +127,9 @@ function SolverBase:preInit(args)
 			var:addToSolver(self)
 		end
 	end
-	
-	self:createDisplayVars()	-- depends on eqn
+
+	self:refreshGetULR()
+	self:createDisplayVars()	-- depends on self.eqn
 
 	-- do this before any call to createBuffers or createCodePrefix
 	-- make sure it's done after createEqn (for the solver_t struct to be filled out by the eqn)
@@ -141,6 +142,27 @@ function SolverBase:preInit(args)
 	self.solver_t = self.app:uniqueName'solver_t'
 	makestruct.safeFFICDef(self:getSolverTypeCode())
 	self.solverPtr = ffi.new(self.solver_t)
+end
+
+function SolverBase:refreshGetULR()
+	self.getULRBufType = self.eqn.cons_t
+	self.getULRBufName = 'UBuf'
+	self.getULRArg = self.getULRBufType..'* '..self.getULRBufName
+	self.getULRCode = function(self, args)
+		args = args or {}
+		local suffix = args.suffix or ''
+		return template([[
+	const global <?=eqn.cons_t?>* UL<?=suffix?> = <?=bufName?> + <?=indexL?>;
+	const global <?=eqn.cons_t?>* UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
+]],		{
+			solver = self,
+			eqn = self.eqn,
+			suffix = suffix,
+			indexL = args.indexL or 'indexL'..suffix,
+			indexR = args.indexR or 'indexR'..suffix,
+			bufName = args.bufName or self.getULRBufName,	-- for displayVars the variable name is 'buf', so I need to override it either in displayCode or here
+		})
+	end
 end
 
 function SolverBase:postInit()
@@ -376,25 +398,6 @@ end
 
 -- TODO this has a lot in common with GridSolver
 function SolverBase:refreshSolverProgram()
-	-- [[ from GritSolver:refreshSolverProgram
-	
-	self.getULRArg = self.eqn.cons_t..'* UBuf'
-	
-	self.getULRCode = function(self, args)
-		args = args or {}
-		local suffix = args.suffix or ''
-		return template([[
-	const global <?=eqn.cons_t?>* UL<?=suffix?> = UBuf + <?=indexL?>;
-	const global <?=eqn.cons_t?>* UR<?=suffix?> = UBuf + <?=indexR?>;
-]],		{
-			eqn = self.eqn,
-			suffix = suffix,
-			indexL = args.indexL or 'indexL'..suffix,
-			indexR = args.indexR or 'indexR'..suffix,
-		})
-	end
-	--]]
-
 	local code = self:getSolverCode()
 
 	time('compiling solver program', function()
@@ -990,9 +993,10 @@ function SolverBase:addDisplayVars()
 	}
 end
 
+-- depends on self.eqn
 function SolverBase:createDisplayVars()
 	self.displayVarGroups = table()
-	self:addDisplayVars()
+	self:addDisplayVars()		
 	self.displayVars = table()
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
 		self.displayVars:append(displayVarGroup.vars)
@@ -1139,7 +1143,7 @@ function SolverBase:update()
 		self.fpsIndex = (self.fpsIndex % self.fpsNumSamples) + 1
 		self.fpsSamples[self.fpsIndex] = fps
 		self.fps = self.fpsSamples:sum() / #self.fpsSamples
-if math.floor(thisTime) ~= math.floor(self.lastFrameTime) then print(self.fps) end
+if math.floor(thisTime) ~= math.floor(self.lastFrameTime) then print('fps='..self.fps) end
 	end
 	self.lastFrameTime = thisTime
 

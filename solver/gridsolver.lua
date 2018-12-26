@@ -671,11 +671,9 @@ function GridSolver:getSolverCode()
 	}:concat'\n'
 end
 
+
 function GridSolver:getULRBuf()
-	-- set pointer to the buffer holding the LR state information
-	-- for piecewise-constant that is the original UBuf
-	-- for piecewise-linear that is the ULRBuf
-	return self.usePLM and self.ULRBuf or self.UBuf
+	return self[self.getULRBufName]
 end
 
 -- apply boundary to the ULRBuf ... or UBuf if it is not a PLM solver
@@ -690,12 +688,15 @@ if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 	end
 end
 
--- depends on buffers
--- TODO this doesn't call super, but super has a lot in common with it
-function GridSolver:refreshSolverProgram()
-	self.getULRArg = self.usePLM 
-		and (self.eqn.consLR_t..'* ULRBuf')
-		or (self.eqn.cons_t..'* UBuf')
+function GridSolver:refreshGetULR()
+	-- set pointer to the buffer holding the LR state information
+	-- for piecewise-constant that is the original UBuf
+	-- for piecewise-linear that is the ULRBuf
+	-- TODO do this after createBuffers and you can get rid of a lot of these
+	self.getULRBufType = self.usePLM and self.eqn.consLR_t or self.eqn.cons_t
+	self.getULRBufName = self.usePLM and 'ULRBuf' or 'UBuf'
+
+	self.getULRArg = self.getULRBufType..'* '..self.getULRBufName
 
 	-- this code creates the const global cons_t* UL, UR variables
 	-- it assumes that indexL, indexR, and side are already defined
@@ -705,9 +706,10 @@ function GridSolver:refreshSolverProgram()
 			args = args or {}
 			local suffix = args.suffix or ''
 			return template([[
-	const global <?=eqn.cons_t?>* UL<?=suffix?> = &ULRBuf[side + dim * <?=indexL?>].R;
-	const global <?=eqn.cons_t?>* UR<?=suffix?> = &ULRBuf[side + dim * <?=indexR?>].L;
+	const global <?=eqn.cons_t?>* UL<?=suffix?> = &<?=solver.getULRBufName?>[side + dim * <?=indexL?>].R;
+	const global <?=eqn.cons_t?>* UR<?=suffix?> = &<?=solver.getULRBufName?>[side + dim * <?=indexR?>].L;
 ]],			{
+				solver = self,
 				eqn = self.eqn,
 				suffix = suffix,
 				indexL = args.indexL or 'indexL'..suffix,
@@ -719,16 +721,24 @@ function GridSolver:refreshSolverProgram()
 			args = args or {}
 			local suffix = args.suffix or ''
 			return template([[
-	const global <?=eqn.cons_t?>* UL<?=suffix?> = UBuf + <?=indexL?>;
-	const global <?=eqn.cons_t?>* UR<?=suffix?> = UBuf + <?=indexR?>;
+	const global <?=eqn.cons_t?>* UL<?=suffix?> = <?=bufName?> + <?=indexL?>;
+	const global <?=eqn.cons_t?>* UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
 ]],			{
+				solver = self,
 				eqn = self.eqn,
 				suffix = suffix,
 				indexL = args.indexL or 'indexL'..suffix,
 				indexR = args.indexR or 'indexR'..suffix,
+				bufName = args.bufName or self.getULRBufName,	-- for displayVars the variable name is 'buf', so I need to override it either in displayCode or here
 			})
 		end
 	end
+end
+
+-- depends on buffers
+-- TODO this doesn't call super, but super has a lot in common with it
+function GridSolver:refreshSolverProgram()
+	self:refreshGetULR()	
 
 	local code = self:getSolverCode()
 
@@ -1251,22 +1261,13 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	self.t = self.t + dt
 	self.dt = dt
 
-	-- [[ debugging the advect wave problem
-	-- TODO have an optional field for all problems, to calculte the exact solution? 
 	if cmdline.testAccuracy then
 		local err = self:calcExactError()
 		if #self.app.solvers > 1 then
 			io.write(self.name,'\t')
 		end
-		print(
-			--'t='..
-			('%.50f'):format(self.t)
-			..' '
-			--..'L1-error='
-			..('%.50f'):format(err)
-		)
+		print('t='..self.t..' L1-error='..err)
 	end
-	--]]
 
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 

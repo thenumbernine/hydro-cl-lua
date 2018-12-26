@@ -532,8 +532,8 @@ end
 
 
 
-HydroCLApp.running = false
---HydroCLApp.running = true
+--HydroCLApp.running = false
+HydroCLApp.running = true
 
 local mouse = Mouse()
 local pushVarNamesEnabled

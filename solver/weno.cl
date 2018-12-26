@@ -38,28 +38,41 @@ local coeffs = {
 	},
 	
 	[3] = {
+-- [[		
 		d = {1/10, 6/10, 3/10},
 		a = {
 			{ 2/6,	-7/6, 11/6, },
 			{-1/6,	 5/6,  2/6, },
 			{ 2/6,	 5/6, -1/6, },
 		},
+--]]
+--[[ which paper is this from?
+		d = {1/16,	10/16,	5/16},
+		a = {
+			{3/8,	-10/8,	15/8},
+			{-1/8,	6/8,	3/8},
+			{3/8,	6/8,	-1/8},
+		},
+--]]	
 		betaCoeffs = {
 			{
 				{4/3},
-				{-19/3,25/3},
-				{11/3,-31/3,10/3},
+				{-19/3,	25/3},
+				{11/3,	-31/3,	10/3},
 			}, {
 				{4/3},
-				{-13/3,13/3},
-				{5/3,-13/3,4/3},
+				{-13/3,	13/3},
+				{5/3,	-13/3,	4/3},
 			}, {
 				{10/3},
-				{-31/3,25/3},
-				{11/3,-19/3,4/3},
+				{-31/3,	25/3},
+				{11/3,	-19/3,	4/3},
 			},
 		},
 	},
+	
+
+	
 	[4] = {
 		d = {1/35, 12/35, 18/35, 4/35},
 		a = {	
@@ -425,9 +438,16 @@ for side=0,solver.dim-1 do ?>{
 
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		
+		int fluxIndexInt = side + dim * index;
+		global <?=eqn.cons_t?>* flux = fluxBuf + fluxIndexInt;
 
+<?
+	
+	if solver.fluxMethod == 'Lax-Friedrichs' then
+
+?>
 		<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, normalForSide<?=side?>());
-
 		real maxAbsLambda = 0.;
 		for (int j = 0; j < <?=2*stencilSize?>; ++j) {
 			const global <?=eqn.cons_t?>* Uj = U + (j - <?=stencilSize?>) * solver->stepsize.s<?=side?>;
@@ -442,7 +462,6 @@ for side=0,solver.dim-1 do ?>{
 		}
 
 <? 	
-	if solver.fluxMethod == 'Lax-Friedrichs' then
 		for j=0,2*stencilSize-1 do
 ?>		const global <?=eqn.cons_t?>* U<?=j?> = U + <?=j - stencilSize?> * solver->stepsize.s<?=side?>;
 		//<?=eqn.cons_t?> F<?=j?> = fluxCellBuf[<?=side?> + dim * (index + <?=j - stencilSize?> * solver->stepsize.s<?=side?>)];
@@ -463,13 +482,102 @@ for side=0,solver.dim-1 do ?>{
 			end
 		end	
 ?>	
+		
 		<?=eqn.waves_t?> afp[<?=2*stencilSize-1?>], afm[<?=2*stencilSize-1?>];
 <? 		for j=0,2*stencilSize-2 do
 ?>		afp[<?=j?>] = eigen_leftTransform_<?=side?>(solver, eig, fp<?=j?>, xInt);
 		afm[<?=j?>] = eigen_leftTransform_<?=side?>(solver, eig, fm<?=j?>, xInt);
 <? 		end 
+?>
+		<?=eqn.waves_t?> waf;
+		<?=eqn.waves_t?> wafp = weno_r(afp);
+		<?=eqn.waves_t?> wafm = weno_l(afm);
+		for (int j = 0; j < numWaves; ++j) {
+			waf.ptr[j] = wafp.ptr[j] + wafm.ptr[j];
+		}
+		
+		*flux = eigen_rightTransform_<?=side?>(solver, eig, waf, xInt);
+<?
+	
+	elseif solver.fluxMethod == 'Marquina' then
+
+?>		<?=eqn.eigen_t?> eigL = eigen_forCell_<?=side?>(solver, *UL, xInt);
+		<?=eqn.eigen_t?> eigR = eigen_forCell_<?=side?>(solver, *UR, xInt);
+
+		real lambdaL[<?=eqn.numWaves?>];
+		real lambdaR[<?=eqn.numWaves?>];
+<? 		for _,lr in ipairs{'L', 'R'} do
+?>		{
+		<?=eqn:eigenWaveCodePrefix(side, 'eig'..lr, 'xInt'):gsub('\n', '\n\t\t')?>
+<? 		
+			for k=0,eqn.numWaves-1 do 
+?>			lambda<?=lr?>[<?=k?>] = <?=eqn:eigenWaveCode(side, 'U'..lr, 'xInt', k)?>;
+<?			end
+?>		}
+<?		end
+?>
+
+<? 		for j=0,2*stencilSize-1 do
+?>		const global <?=eqn.cons_t?>* U<?=j?> = U + (<?=j - stencilSize?>) * solver->stepsize.s<?=side?>;
+		<?=eqn.cons_t?> F<?=j?> = fluxFromCons_<?=side?>(solver, *U<?=j?>, xInt);
+		<?=eqn.waves_t?> al<?=j?> = eigen_leftTransform_<?=side?>(solver, eigL, *U<?=j?>, xInt);
+		<?=eqn.waves_t?> ar<?=j?> = eigen_leftTransform_<?=side?>(solver, eigR, *U<?=j?>, xInt);
+		<?=eqn.waves_t?> afl<?=j?> = eigen_leftTransform_<?=side?>(solver, eigL, F<?=j?>, xInt);
+		<?=eqn.waves_t?> afr<?=j?> = eigen_leftTransform_<?=side?>(solver, eigR, F<?=j?>, xInt);
+
+<?		end
+?>
+
+		<?=eqn.waves_t?> afp[<?=2*stencilSize-1?>], afm[<?=2*stencilSize-1?>];
+<? 
+		for k=0,eqn.numWaves-1 do 
+?>		if (lambdaL[<?=k?>] > 0.0 && lambdaR[<?=k?>] > 0.0) {
+<?			for j=0,2*stencilSize-1 do
+?>			afp[<?=j?>].ptr[<?=k?>] = afl<?=j?>.ptr[<?=k?>];
+			afm[<?=j?>].ptr[<?=k?>] = 0;
+<?			end
+?>		} else if (lambdaL[<?=k?>] < 0.0 && lambdaR[<?=k?>] < 0.0) {
+<?			for j=0,2*stencilSize-1 do
+?>			afp[<?=j?>].ptr[<?=k?>] = 0;
+			afm[<?=j?>].ptr[<?=k?>] = afr<?=j?>.ptr[<?=k?>];
+<?			end
+?>		} else {
+			double absLambdaL = fabs(lambdaL[<?=k?>]);
+			double absLambdaR = fabs(lambdaR[<?=k?>]);
+			double a, absa;
+			if (absLambdaL > absLambdaR) {
+				a = lambdaL[<?=k?>];
+				absa = absLambdaL;
+			} else {
+				a = lambdaR[<?=k?>];
+				absa = absLambdaR;
+			}
+<?			for j=0,2*stencilSize-1 do
+?>			afp[<?=j?>].ptr[<?=k?>] = .5 * (afl<?=j?>.ptr[<?=k?>] + absa * al<?=j?>.ptr[<?=k?>]);
+			afm[<?=j?>].ptr[<?=k?>] = .5 * (afr<?=j?>.ptr[<?=k?>] - absa * ar<?=j?>.ptr[<?=k?>]);
+<?			end
+?>		}
+<?		end
+?>	
+
+		<?=eqn.waves_t?> wafp = weno_r(afp);
+		<?=eqn.waves_t?> wafm = weno_l(afm);
+		
+		<?=eqn.cons_t?> fluxP = eigen_rightTransform_<?=side?>(solver, eigL, wafp, xInt);
+		<?=eqn.cons_t?> fluxM = eigen_rightTransform_<?=side?>(solver, eigR, wafm, xInt);
+		
+		for (int j = 0; j < numStates; ++j) {
+			flux->ptr[j] = fluxP.ptr[j] + fluxM.ptr[j];
+		}
+<?
 	
 	elseif solver.fluxMethod == 'Roe' then
+		
+		-- TODO make the following its own function, maybe in solver/roe.cl or solver/roe.lua
+		-- so we can call a function instead of copy/paste
+		-- but this means making it a function of the lua parameters, like flux limiter.
+		-- and a flux limiter means +1 to the numGhost
+
 ?>		<?=eqn.waves_t?> afp[<?=2*stencilSize-1?>], afm[<?=2*stencilSize-1?>];
 <?		for j=0,2*stencilSize-1 do
 ?>
@@ -477,9 +585,6 @@ for side=0,solver.dim-1 do ?>{
 			const global <?=eqn.cons_t?>* UL<?=j?> = U + <?=j - stencilSize?> * solver->stepsize.s<?=side?>;
 			const global <?=eqn.cons_t?>* UR<?=j?> = U + <?=j+1 - stencilSize?> * solver->stepsize.s<?=side?>;
 			<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, normalForSide<?=side?>());
-
-// TODO make the following its own function, maybe in solver/roe.cl or solver/roe.lua
-// so we can call a function instead of copy/paste
 
 			<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
 
@@ -512,11 +617,7 @@ for side=0,solver.dim-1 do ?>{
 		}
 <?
 		end 
-	else
-		error("unknown fluxMethod "..tostring(solver.fluxMethod))
-	end
-	?>
-	
+?>
 		<?=eqn.waves_t?> waf;
 		<?=eqn.waves_t?> wafp = weno_r(afp);
 		<?=eqn.waves_t?> wafm = weno_l(afm);
@@ -524,9 +625,13 @@ for side=0,solver.dim-1 do ?>{
 			waf.ptr[j] = wafp.ptr[j] + wafm.ptr[j];
 		}
 		
-		int fluxIndexInt = side + dim * index;
-		global <?=eqn.cons_t?>* flux = fluxBuf + fluxIndexInt;
+		<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, normalForSide<?=side?>());
 		*flux = eigen_rightTransform_<?=side?>(solver, eig, waf, xInt);
-	}<? 
+<?
+	
+	else
+		error("unknown fluxMethod "..tostring(solver.fluxMethod))
+	end
+?>	}<? 
 end ?>
 }
