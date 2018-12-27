@@ -2,6 +2,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
+local math = require 'ext.math'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
 local materials = require 'materials'
@@ -366,7 +367,6 @@ end
 			local vL = 0
 			local vR = 0
 			local gamma = solverPtr.heatCapacityRatio
-			local t = solver.t
 			
 			local muSq = (gamma - 1)/(gamma + 1)
 			local K = PL / rhoL^gamma
@@ -375,17 +375,33 @@ end
 			local CsR = math.sqrt(gamma * PR / rhoR)
 
 			local solveP3 = function()
+				-- hmm, for some reason, using the symmath-compiled code is resulting in memory corruption
+				-- it's not like symmath compile performs any ffi allocations ... maybe something is getting freed prematurely?
+				-- or maybe I'm passing in a cdata that is a number, and luajit is not agreeing with some implicit conversion to a Lua number somewhere?  I don't know...
+				-- so to fix this, I'll just print out the code and inline it myself
+				--[=[ using symmath-compiled functions
 				local symmath = require 'symmath'
-				local P3 = symmath.var'P3'
+				local P3, PL, PR, CsL, CsR, gamma = symmath.vars('P3', 'PL', 'PR', 'CsL', 'CsR', 'gamma')
 				local f = -2*CsL*(1 - (P3/PL)^((-1 + gamma)/(2*gamma)))/(CsR*(-1 + gamma)) + (-1 + P3/PR)*((1 - muSq)/(gamma*(muSq + P3/PR)))^.5
 				local df_dP3 = f:diff(P3)()	
-				local f_func = f:compile{P3}
-				local df_dP3_func = df_dP3:compile{P3}
+				local vars = {P3, PL, PR, CsL, CsR, gamma}
+				local f_func, f_code = f:compile(vars)
+				local df_dP3_func, df_dP3_code = df_dP3:compile(vars)
+				--print(f_code)
+				--print(df_dP3_code)
+				--os.exit()
+				--]=]
 				local P3 = .5 * (PL + PR)
 				local epsilon = 1e-16	-- this is the limit for the sod.f before it oscillates
 				while true do
+					--[=[ using symmath-compiled functions
 					local dP3 = -f_func(P3) / df_dP3_func(P3)
-					--print(P3, dP3)
+					--]=]
+					-- [=[ using inlining
+					local f = ((((-2 * CsL) * (1 - ((P3 / PL) ^ ((-1 + gamma) / (2 * gamma))))) / (CsR * (-1 + gamma))) + ((-1 + (P3 / PR)) * ((0.75 / (gamma * (0.25 + (P3 / PR)))) ^ 0.5))) 
+					local df_dP3 = ((-((((((1.5 * math.sqrt(0.75) * CsR * PR * (gamma ^ 1.5)) - ((0.75 ^ 1.5) * CsR * PR * math.sqrt(gamma))) - ((0.75 ^ 1.5) * CsR * (gamma ^ 2.5) * PR)) - (0.5 * P3 * math.sqrt(0.75) * CsR * math.sqrt(gamma))) - (0.5 * P3 * math.sqrt(0.75) * CsR * (gamma ^ 2.5))) + (((P3 * math.sqrt(0.75) * CsR * (gamma ^ 1.5)) - (0.25 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ (((-1) - gamma) / (2 * gamma))) * (PR ^ 1.5) * math.sqrt((P3 + (0.25 * PR))))) - ((PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ ((-(1 - gamma)) / (2 * gamma))) * math.sqrt(PR) * math.sqrt((P3 + (0.25 * PR))))) + (0.5 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ (((-1) - gamma) / (2 * gamma))) * (PR ^ 1.5) * gamma * math.sqrt((P3 + (0.25 * PR)))) + (((2 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ ((-(1 - gamma)) / (2 * gamma))) * math.sqrt(PR) * gamma * math.sqrt((P3 + (0.25 * PR)))) - (0.25 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ (((-1) - gamma) / (2 * gamma))) * (gamma ^ 2) * (PR ^ 1.5) * math.sqrt((P3 + (0.25 * PR))))) - ((PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ ((-(1 - gamma)) / (2 * gamma))) * (gamma ^ 2) * math.sqrt(PR) * math.sqrt((P3 + (0.25 * PR))))))) / (math.sqrt(PR) * CsR * ((P3 + (0.25 * PR)) ^ 1.5) * gamma * ((1 - (2 * gamma)) + (gamma ^ 2)))) 
+					local dP3 = -f / df_dP3
+					--]=]
 					if math.abs(dP3) <= epsilon then break end
 					if not math.isfinite(dP3) then error('delta is not finite! '..tostring(dP3)) end
 					P3 = P3 + dP3 
@@ -406,28 +422,7 @@ end
 			local vshock = v4 * rho4 / (rho4 - rhoR)
 			local vtail = CsL - v4 / (1 - muSq)
 
-			local v2 = function(x) return (1 - muSq) * (x/t + CsL) end
-			-- Dullemon:
-			--local rho2 = function(x) return (rhoL^gamma / (gamma * PL) * (v2(x) - x/t)^2)^(1/(gamma-1)) end
-			-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
-			local rho2 = function(x) return rhoL * (-muSq * (x / (CsL * t)) + (1 - muSq))^(2/(gamma-1)) end
-
-			-- Dullemon:
-			--local P2 = K * rho2^gamma
-			-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
-			local P2 = function(x) return PL * (-muSq * (x / (CsL * t)) + (1 - muSq)) ^ (2*gamma/(gamma-1)) end
-
-			local C = function(c) return function() return c end end
-			local function makefunc(t)
-				return table(t):map(function(ti,i)
-					return type(ti) == 'function'and t[i]or C(t[i])
-				end)
-			end
-
-			local rhos = makefunc{rhoL, rho2, rho3, rho4, rhoR}
-			local vs = makefunc{vL, v2, v3, v4, vR}
-			local Ps = makefunc{PL, P2, P3, P4, PR}
-			
+		
 			-- between regions 1 and 2
 			local s1 = -CsL	
 
@@ -442,28 +437,41 @@ end
 
 			--print('wavespeeds:',s1,s2,s3,s4)
 
-			local region = function(x)
-				local xi = x / t
-				if xi < s1 then
-					return 1
-				elseif xi < s2 then
-					return 2
-				elseif xi < s3 then
-					return 3
-				elseif xi < s4 then
-					return 4
-				else
-					return 5
-				end
+			local rho, vx, P
+			local xi = x / t
+			if xi < s1 then
+				rho = rhoL
+				vx = vL
+				P = PL
+			elseif xi < s2 then
+				vx = (1 - muSq) * (x/t + CsL)
+				
+				-- Dullemon:
+				--rho = (rhoL^gamma / (gamma * PL) * (v2(x) - x/t)^2)^(1/(gamma-1))
+				-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
+				rho = rhoL * (-muSq * (x / (CsL * t)) + (1 - muSq))^(2/(gamma-1))
+
+				-- Dullemon:
+				--P = K * rho2^gamma
+				-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
+				P = PL * (-muSq * (x / (CsL * t)) + (1 - muSq)) ^ (2*gamma/(gamma-1))
+			elseif xi < s3 then
+				rho = rho3
+				vx = v3
+				P = P3
+			elseif xi < s4 then
+				rho = rho4
+				vx = v4
+				P = P4
+			else
+				rho = rhoR
+				vx = vR
+				P = PR
 			end
 
-			local r = region(x)
-			local rho = rhos[r](x)
-			local vx = vs[r](x)
 			local vy = 0
 			local vz = 0
-			local P = Ps[r](x)
-			local EInt = P * (solverPtr.heatCapacityRatio - 1)
+			local EInt = P * (gamma - 1)
 			local EKin = .5 * rho * (vx*vx + vy*vy + vz*vz)
 			local ETotal = EKin + EInt
 			return rho, rho * vx, rho * vy, rho * vz, ETotal

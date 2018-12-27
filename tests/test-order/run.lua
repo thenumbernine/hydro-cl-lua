@@ -43,8 +43,8 @@ for _,w in ipairs(arg or {}) do
 end
 
 -- which problem to use
-local problemName = cmdline.init or 'advect wave'
---local problemName = cmdline.init or 'Sod'
+--local problemName = cmdline.init or 'advect wave'
+local problemName = cmdline.init or 'Sod'
 
 -- don't use cached results <-> regenerate results for selected tests
 local nocache = cmdline.nocache
@@ -58,6 +58,8 @@ local plotErrorHistory = cmdline.history
 -- exclusive with 'compare': don't use exact, instead use exponential regression
 local uselin = cmdline.uselin
 
+local schemeCfgs = require 'ext.fromlua'(file[rundir..'/schemes.lua'])
+
 local problems = {}
 
 problems['advect wave'] = {
@@ -69,170 +71,14 @@ problems['advect wave'] = {
 			}
 		},
 			-- final error at n=1024 on the right:
-		{	
-			-- schemes
-			
-			--{solver='weno', wenoMethod='1996 Jiang Shu', order=3, integrator='Runge-Kutta 4'},		-- 6.5344207715546e-08
-			--{solver='weno', wenoMethod='2008 Borges', order=3, integrator='Runge-Kutta 4'},			-- 5.4110763364609e-09
-			--{solver='weno', wenoMethod='2010 Shen Zha', order=3, integrator='Runge-Kutta 4'},		-- 6.1547863892486e-07
-			  
-			--{solver='weno', wenoMethod='1996 Jiang Shu', order=5, integrator='Runge-Kutta 4'},		-- 2.410380922635e-13
-			--{solver='weno', wenoMethod='2008 Borges', order=5, integrator='Runge-Kutta 4'},			-- 4.1668057892963e-14
-			--{solver='weno', wenoMethod='2010 Shen Zha', order=5, integrator='Runge-Kutta 4'},		-- 4.6350727075928e-14
-			
-			--{solver='weno', wenoMethod='1996 Jiang Shu', order=7, integrator='Runge-Kutta 4'},		-- 9.0145989631307e-15
-			--{solver='weno', wenoMethod='2008 Borges', order=7, integrator='Runge-Kutta 4'},			-- 8.7666419262833e-15
-			{solver='weno', wenoMethod='2010 Shen Zha', order=7, integrator='Runge-Kutta 4'},		-- 8.5568488059073e-15
-			  
-			--{solver='weno', wenoMethod='1996 Jiang Shu', order=9, integrator='Runge-Kutta 4'},		-- 7.7663570019482e-15
-			--{solver='weno', wenoMethod='2008 Borges', order=9, integrator='Runge-Kutta 4'},			-- 7.6455768799333e-15
-			--{solver='weno', wenoMethod='2010 Shen Zha', order=9, integrator='Runge-Kutta 4'},		-- 1.3655960043324e-14
-			
-			--{solver='weno', wenoMethod='1996 Jiang Shu', order=11, integrator='Runge-Kutta 4'},		-- 4.5161357292711e-15
-			--{solver='weno', wenoMethod='2008 Borges', order=11, integrator='Runge-Kutta 4'},		-- 4.4790560149721e-15
-			--{solver='weno', wenoMethod='2010 Shen Zha', order=11, integrator='Runge-Kutta 4'},		-- 8.7559083247757e-15
-			  
-			--{solver='weno', wenoMethod='1996 Jiang Shu', order=13, integrator='Runge-Kutta 4'},		-- 7.406401880683e-15
-			--{solver='weno', wenoMethod='2008 Borges', order=13, integrator='Runge-Kutta 4'},		-- 7.3191236057979e-15
-			--{solver='weno', wenoMethod='2010 Shen Zha', order=13, integrator='Runge-Kutta 4'},		-- 2.3422127952422e-14
-
-			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 2.8857580387787e-13
-			--{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 4.4666635841406e-14
-			--{solver='weno', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4, TVD'},	-- 4.9166616958307e-14
-
-			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, non-TVD'},	-- 2.9467693476309e-13
-			--{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, non-TVD'},		-- 5.0624543619648e-14
-			--{solver='weno', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4, non-TVD'},		-- 5.5364783937972e-14
-			
-			-- hmm, appears broken...
-			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, 3/8ths rule'},	-- 0.0016464642958323
-			--{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, 3/8ths rule'},		-- 0.99999990000008
-			--{solver='weno', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4, 3/8ths rule'},		-- 0.99999990000045
-
-			--{solver='hll', integrator='forward Euler'},										-- 0.00037596796148831
-			--{solver='euler-burgers', integrator='forward Euler'},							-- 0.0004752949543945	
-
-			-- why is RK3-TVD worse than forward Euler in all my hllc solvers?
-			-- hllcMethod == 0
-			--{solver='euler-hllc', hllcMethod=0, integrator='forward Euler', usePLM='plm-cons-alone'},   	-- 0.00060495293676367
-			--{solver='euler-hllc', hllcMethod=0, integrator='forward Euler', usePLM='plm-prim'},         	-- 0.00060393770462868
-			--{solver='euler-hllc', hllcMethod=0, integrator='forward Euler'},								-- 0.00048873499978739
-			--{solver='euler-hllc', hllcMethod=0, integrator='forward Euler', usePLM='plm-cons'},         	-- 0.00048873499978739
-			--{solver='euler-hllc', hllcMethod=0, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim'},    	-- 0.00061365378346838
-			--{solver='euler-hllc', hllcMethod=0, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons-alone'},	-- 0.00061365378346796
-			--{solver='euler-hllc', hllcMethod=0, integrator='Runge-Kutta 3, TVD'},							-- 0.00061073285983012
-			--{solver='euler-hllc', hllcMethod=0, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons'},		-- 0.00061073285983012
-
-			-- hllcMethod == 1
-			--{solver='euler-hllc', hllcMethod=1, integrator='forward Euler', usePLM='plm-cons-alone'},   -- 0.00060445812904152
-			--{solver='euler-hllc', hllcMethod=1, integrator='forward Euler', usePLM='plm-prim'},         -- 0.00060393770417544
-			--{solver='euler-hllc', hllcMethod=1, integrator='forward Euler'},							-- 0.00048873499978869
-			--{solver='euler-hllc', hllcMethod=1, integrator='forward Euler', usePLM='plm-cons'},         -- 0.00048873499978869
-			--{solver='euler-hllc', hllcMethod=1, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim'},    -- 0.0006136537834679
-			--{solver='euler-hllc', hllcMethod=1, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons-alone'}--, 0.00061365378346811
-			--{solver='euler-hllc', hllcMethod=1, integrator='Runge-Kutta 3, TVD'},						-- 0.00061073285983055
-			--{solver='euler-hllc', hllcMethod=1, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons'},	-- 0.00061073285983055
-
-			-- hllcMethod == 2 (default)
-			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-cons-alone'},     	-- 0.00060447897937016
-			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-prim'},           	-- 0.00060393770371531
-			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler'},								-- 0.00048873499978778
-			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-cons'},           	-- 0.00048873499978778
-			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim'},      	-- 0.0006136537834683
-			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons-alone'},	-- 0.00061365378346809	
-			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD'},							-- 0.00061073285982937
-			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons'},	    -- 0.00061073285982937
-
-			-- hllcMethod == 2 (default), but only using left and right state eigenvalues for waves -- not interface at all
-			--  looks the same as the interface-based method, so ... why even use the interface waves?
-			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-cons-alone'},     	-- 0.00060449481040124
-			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-prim'},           	-- 0.00060393770360834
-			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler'},								-- 0.00048873499978885
-			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-cons'},           	-- 0.00048873499978885
-			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim'},      	-- 0.00061365378346831
-			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons-alone'},	-- 0.00061365378346856
-			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD'},							-- 0.0006107328598298
-			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons'},	    -- 0.0006107328598298
-
-			-- hllcMethod == 2 (default), but without that last needless condition
-			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-cons-alone'},     	-- 0.00060487383014966 -- .1% worse, rest are the same
-			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-prim'},           	-- 0.00060393770418051
-			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler'},									-- 0.00048873499978941
-			--{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-cons'},           	-- 0.00048873499978941
-			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim'},      	-- 0.00061365378346782
-			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons-alone'},	-- 0.00061365378346786
-			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD'},								-- 0.0006107328598304
-			--{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons'},	    	-- 0.0006107328598304
-
-
-			-- flux-limiters w/roe scheme:
-			--{solver='roe', integrator='forward Euler', fluxLimiter='smart'},				-- fails on n=1024
-			--{solver='roe', integrator='forward Euler', fluxLimiter='ospre'},				-- 0.99999990000004
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Fromm'},				-- 0.99999990000003
-			--{solver='roe', integrator='forward Euler', fluxLimiter='CHARM'},				-- 0.99999990000003
-			--{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 1'},		-- 0.99999990000003
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Barth-Jespersen'},	-- 0.99999990000003
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Beam-Warming'},		-- 0.99999990000002
-			--{solver='roe', integrator='forward Euler', fluxLimiter='van Leer'},			-- 0.99999990000017
-			--{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 2'},		-- 0.9999999
-			--{solver='roe', integrator='forward Euler', fluxLimiter='donor cell'},			-- 0.00048873499978677
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Oshker'},				-- 8.1594383698357e-05
-			--{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 8.0220379351244e-05
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Sweby'},				-- 7.5406302510808e-05
-			--{solver='roe', integrator='forward Euler', fluxLimiter='HQUICK'},				-- 7.3985100798005e-05
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Koren'},				-- 7.3374191905257e-05
-			--{solver='roe', integrator='forward Euler', fluxLimiter='HCUS'},				-- 7.155162562564e-05
-			--{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},	-- 6.8474331334665e-05
-			--{solver='roe', integrator='forward Euler', fluxLimiter='UMIST'},				-- 6.3705455038239e-05
-			--{solver='roe', integrator='forward Euler', fluxLimiter='minmod'},				-- 5.9129797191892e-05
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},		-- 7.5523449515221e-07
-
-			-- my PLM attempts:
-			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},			-- 0.00049148119638364
-			--{solver='roe', integrator='forward Euler', usePLM='plm-eig'},						-- 0.00049103769947135
-			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim'},				-- 0.00049075156058252
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons'},					-- 0.00048873499978677
-			--{solver='roe', integrator='forward Euler', usePLM='plm-athena'},					-- 0.00014403561237557
-
-			-- various explicit integrators:
-			--  once again, not so great
-			--{solver='roe', integrator='Runge-Kutta 3', fluxLimiter='Lax-Wendroff'},			-- 0.063626499155696
-			--{solver='roe', integrator='Runge-Kutta 3, TVD', fluxLimiter='Lax-Wendroff'},		-- 0.00012292610695107
-			--{solver='roe', integrator='Runge-Kutta 4, non-TVD', fluxLimiter='Lax-Wendroff'},	-- 0.0001229260915465
-			--{solver='roe', integrator='Runge-Kutta 4, TVD', fluxLimiter='Lax-Wendroff'},		-- 0.00012292609150301
-			--{solver='roe', integrator='Runge-Kutta 4', fluxLimiter='Lax-Wendroff'},			-- 0.0001229260914525
-			--{solver='roe', integrator='Runge-Kutta 2, non-TVD', fluxLimiter='Lax-Wendroff'},	-- 0.00012292557063657
-			--{solver='roe', integrator='Runge-Kutta 2, TVD', fluxLimiter='Lax-Wendroff'},		-- 0.00012292557063653
-			--{solver='roe', integrator='Runge-Kutta 2 Heun', fluxLimiter='Lax-Wendroff'},		-- 0.00012292557063543
-			--{solver='roe', integrator='Runge-Kutta 2 Ralston', fluxLimiter='Lax-Wendroff'},	-- 0.00012292557063505
-			--{solver='roe', integrator='Runge-Kutta 2', fluxLimiter='Lax-Wendroff'},			-- 0.00012292557063748
-			--{solver='roe', integrator='Runge-Kutta 4, 3/8ths rule', fluxLimiter='Lax-Wendroff'},-- 2.4229063034059e-05
-			
-			-- implicit integrators:
-			-- backward euler with epsilon=1e-10
-			--{solver='weno', integrator='backward Euler'},									-- 0.09925195780133
-			
-			-- all of these dip down at some optimal size for their epsilon, then pop back up
-			--{solver='roe', fluxLimiter='Lax-Wendroff', integrator='backward Euler', integratorArgs={restart=10, epsilon=1e-10}},	-- 9.4498933891175e-06
-			--{solver='roe', fluxLimiter='Lax-Wendroff', integrator='backward Euler', integratorArgs={restart=10, epsilon=1e-20}},	-- 7.0082322822353e-06
-			-- except this one, which just follows forward-Euler exactly
-			--{solver='roe', fluxLimiter='Lax-Wendroff', integrator='backward Euler', integratorArgs={restart=10, epsilon=1e-30}},	-- 1.178306878477e-06
-			
-			--{solver='roe', fluxLimiter='Lax-Wendroff', integrator='backward Euler', integratorArgs={restart=20, epsilon=1e-10}},	-- 9.4498933891175e-06
-			--{solver='roe', fluxLimiter='Lax-Wendroff', integrator='backward Euler', integratorArgs={restart=20, epsilon=1e-20}},	-- 8.1079737186957e-06
-			--{solver='roe', fluxLimiter='Lax-Wendroff', integrator='backward Euler', integratorArgs={restart=20, epsilon=1e-30}},	-- 1.1257993855623e-06
-		}
+		schemeCfgs
 	),
 
 	-- TODO make sure solver_t->init_v0x == 1/duration and solver_t->maxs.x - mins.x == 2
 	-- otherwise, for durations t=100 and t=1 the results look close enough to the same
 	-- or just use what the Mara demo had:
-	duration = 0.1,
-	
-	mins = {0,0,0},
-	maxs = {1,1,1},
+	duration = .1,
 }
-
 
 problems.Sod = {
 	-- copy of the above problem ... maybe put somewhere else
@@ -244,138 +90,11 @@ problems.Sod = {
 			}
 		},
 			-- final error at n=1024 on the right:
-		{	-- (these numbers are all for duration=.1)
-			-- schemes
-			
-				-- schemes
-			{solver='weno', wenoMethod='1996 Jiang Shu', wenoFlux='Lax-Friedrichs', order=5, integrator='Runge-Kutta 4'},		-- 0.00083547649608835
-			{solver='weno', wenoMethod='2008 Borges', wenoFlux='Lax-Friedrichs', order=5, integrator='Runge-Kutta 4'},			-- 0.00065052608192497
-			{solver='weno', wenoMethod='2010 Shen Zha', wenoFlux='Lax-Friedrichs', order=5, integrator='Runge-Kutta 4'},		-- 0.0006577467068069
-			
-			{solver='weno', wenoMethod='1996 Jiang Shu', wenoFlux='Roe', order=5, integrator='Runge-Kutta 4'},		-- hmm, bad 
-			{solver='weno', wenoMethod='2008 Borges', wenoFlux='Roe', order=5, integrator='Runge-Kutta 4'},			-- 
-			{solver='weno', wenoMethod='2010 Shen Zha', wenoFlux='Roe', order=5, integrator='Runge-Kutta 4'},		-- 
-
-			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, TVD'},	-- 0.00083548986128969
-			--{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, TVD'},		-- 0.00065117457189727
-			--{solver='weno', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4, TVD'},		-- 0.00065850588526612
-			
-			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='Runge-Kutta 4, non-TVD'},	-- 0.00083547649608855
-			--{solver='weno', wenoMethod='2008 Borges', integrator='Runge-Kutta 4, non-TVD'},		-- 0.00065052608192513
-			--{solver='weno', wenoMethod='2010 Shen Zha', integrator='Runge-Kutta 4, non-TVD'},		-- 0.00065774670680693
-			
-			--{solver='weno', wenoMethod='1996 Jiang Shu', integrator='forward Euler'},		-- 0.001649584016202
-			--{solver='weno', wenoMethod='2008 Borges', integrator='forward Euler'},		-- 0.008335196277728
-			--{solver='weno', wenoMethod='2010 Shen Zha', integrator='forward Euler'},		-- 0.01507478955836
-			
-			--{solver='weno', integrator='forward Euler'},									-- 0.028050334485117
-			--{solver='hll', integrator='forward Euler'},									-- 0.0039886633966807
-			--{solver='euler-hllc', integrator='forward Euler'},							-- 0.0036984733332097
-			--{solver='euler-burgers', integrator='forward Euler'},							-- 0.0031694650615551
-
-			-- flux-limiters w/roe scheme:
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Lax-Wendroff'},		-- 0.47968895872093		-- the most accurate of the sine test, the least accurate of the Sod test ...
-			--{solver='roe', integrator='forward Euler', fluxLimiter='donor cell'},			-- 0.0036660453357688
-			--{solver='roe', integrator='forward Euler', fluxLimiter='ospre'},				-- 0.0030672192288732
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Beam-Warming'},		-- 0.0022967397811603
-			--{solver='roe', integrator='forward Euler', fluxLimiter='minmod'},				-- 0.0020333322754062
-			--{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 2'},		-- 0.0020307570851758
-			--{solver='roe', integrator='forward Euler', fluxLimiter='UMIST'},				-- 0.0019615353080538
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Oshker'},				-- 0.0019441809134923
-			--{solver='roe', integrator='forward Euler', fluxLimiter='CHARM'},				-- 0.0019170086674662
-			--{solver='roe', integrator='forward Euler', fluxLimiter='van Leer'},			-- 0.0019121788850881
-			--{solver='roe', integrator='forward Euler', fluxLimiter='HQUICK'},				-- 0.001908042213926
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Fromm'},				-- 0.0019069360974506
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Koren'},				-- 0.0018974481449319
-			--{solver='roe', integrator='forward Euler', fluxLimiter='HCUS'},				-- 0.0018945018297761
-			--{solver='roe', integrator='forward Euler', fluxLimiter='monotized central'},	-- 0.0018898857563959
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Barth-Jespersen'},	-- 0.0018828276652798
-			--{solver='roe', integrator='forward Euler', fluxLimiter='superbee'},			-- 0.00187534979448
-			--{solver='roe', integrator='forward Euler', fluxLimiter='Sweby'},				-- 0.0018687046583677
-			--{solver='roe', integrator='forward Euler', fluxLimiter='van Albada 1'},		-- 0.001865866089593
-			--{solver='roe', integrator='forward Euler', fluxLimiter='smart'},				-- 0.0007492299582348	-- even though this is the lowest error of the flux limiters, it has a definite hiccup in it
-			
-			-- plm-cons / slopeLimiter has funny behavior with Sod: it dips down but then gets worse.  
-			-- I wouldn't be surprised if my exact values are off, so maybe that's why
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='CHARM'},				-- 0.55596019731028
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='Lax-Wendroff'},		-- 0.47968895872093
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='Beam-Warming'},		-- 0.47968895872093
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='van Leer'},			-- 0.47968895872093
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='Fromm'},				-- 0.47968895872093
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='Barth-Jespersen'},	-- 0.47968895872093
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='smart'},				-- 0.47968895872093
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='superbee'},			-- 0.010762308094614
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='monotized central'},	-- 0.007499966899957
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='Koren'},				-- 0.006607365540715
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='HQUICK'},				-- 0.0064971868731382
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='HCUS'},				-- 0.0062065447431732
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='donor cell'},			-- 0.0056103088682637
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='UMIST'},				-- 0.0055130963289863
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='Sweby'},				-- 0.0049485758799912
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='ospre'},				-- 0.0046940581345551
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='Oshker'},				-- 0.0039681296941796
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='van Albada 1'},		-- 0.0038128702530365
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='van Albada 2'},		-- 0.0037230670653778
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons', slopeLimiter='minmod'},				-- 0.0036575734195358
-
-			-- other PLM attempts:
-			--{solver='roe', integrator='forward Euler', usePLM='plm-cons'},				-- 0.0036660453357688
-			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim-ref'},		-- 0.0023632029528882	-- plm-eig-prim-ref is worse than plm-eig-prim
-			--{solver='roe', integrator='forward Euler', usePLM='plm-eig-prim'},			-- 0.0021682982996781	-- plm-eig-prim is worse than plm-eig
-			--{solver='roe', integrator='forward Euler', usePLM='plm-eig'},					-- 0.0019239440708115
-			--{solver='roe', integrator='forward Euler', usePLM='plm-athena'},				-- 0.0016947738688964
-			--{solver='roe', integrator='forward Euler', usePLM='ppm-experimental'},		
-			
-			-- various explicit integrators:
-			-- RK2 is exactly the same as forward Euler ... which means it's broken
-			-- and everything else is worse														  before bug fix		after
-			--{solver='roe', integrator='Runge-Kutta 2, non-TVD', fluxLimiter='superbee'},		-- 0.30989158592001		-- 0.47968895872093
-			--{solver='roe', integrator='Runge-Kutta 3', fluxLimiter='superbee'},				-- 0.028049852882381    -- 0.038331373202177
-			--{solver='roe', integrator='Runge-Kutta 2', fluxLimiter='superbee'},				-- 0.00187534979448	    -- 0.0036943914318805
-			--{solver='roe', integrator='Runge-Kutta 2 Ralston', fluxLimiter='superbee'},		-- 0.014905909835352    -- 0.0036934820748332
-			--{solver='roe', integrator='Runge-Kutta 2, TVD', fluxLimiter='superbee'},			-- 0.0277197399486      -- 0.0036928026259879
-			--{solver='roe', integrator='Runge-Kutta 2 Heun', fluxLimiter='superbee'},			-- 0.0277197399486      -- 0.0036928026259879
-			--{solver='roe', integrator='Runge-Kutta 4', fluxLimiter='superbee'},				-- 0.010605564924952    -- 0.0036907642308442
-			--{solver='roe', integrator='Runge-Kutta 4, non-TVD', fluxLimiter='superbee'},		-- 0.010605564924952    -- 0.0036907642308437
-			--{solver='roe', integrator='Runge-Kutta 4, TVD', fluxLimiter='superbee'},			-- 0.010605515773635    -- 0.0036907403381736
-			--{solver='roe', integrator='Runge-Kutta 3, TVD', fluxLimiter='superbee'},			-- 0.019060751585123    -- 0.0036901766164101
-			--{solver='roe', integrator='Runge-Kutta 4, 3/8ths rule', fluxLimiter='superbee'},	-- 0.0083893332244032   -- 0.0034902119354803
-	
-			-- various RK's with PLM
-			-- even though plm-athena is the best among forward-Euler,
-			--  it doesn't seem to do too well with various RK integrators
-			--{solver='roe', integrator='Runge-Kutta 2, non-TVD', usePLM='plm-athena'},		-- 0.50027377262497
-			--{solver='roe', integrator='Runge-Kutta 3', usePLM='plm-athena'},				-- 0.038327167106819
-			--{solver='roe', integrator='Runge-Kutta 2', usePLM='plm-athena'},				-- 0.0035544851041015
-			--{solver='roe', integrator='Runge-Kutta 2 Ralston', usePLM='plm-athena'},		-- 0.0035579071138359
-			--{solver='roe', integrator='Runge-Kutta 2, TVD', usePLM='plm-athena'},			-- 0.0035580548511293
-			--{solver='roe', integrator='Runge-Kutta 2 Heun', usePLM='plm-athena'},			-- 0.0035580548511293
-			--{solver='roe', integrator='Runge-Kutta 4', usePLM='plm-athena'},				-- 0.0035465402301359
-			--{solver='roe', integrator='Runge-Kutta 4, non-TVD', usePLM='plm-athena'},		-- 0.0035465402301358
-			--{solver='roe', integrator='Runge-Kutta 4, TVD', usePLM='plm-athena'},			-- 0.0035465949424922
-			--{solver='roe', integrator='Runge-Kutta 3, TVD', usePLM='plm-athena'},			-- 0.0035456783040898
-			--{solver='roe', integrator='Runge-Kutta 4, 3/8ths rule', usePLM='plm-athena'},	-- 0.0035367821065472
-
-			-- implicit integrators:
-			-- backward euler with epsilon=1e-10
-			--{solver='weno', integrator='backward Euler'},									-- 0.028022560498779
-		
-			-- well, lower epsilon does better than higher epsilon 
-			-- restart doesn't matter
-			-- and implicit can't beat plm-athena
-			--{solver='roe', fluxLimiter='superbee', integrator='backward Euler', integratorArgs={restart=10, epsilon=1e-30}},	-- 0.0018753132626329
-			--{solver='roe', fluxLimiter='superbee', integrator='backward Euler', integratorArgs={restart=20, epsilon=1e-30}},	-- 0.0018703319992672
-			--{solver='roe', fluxLimiter='superbee', integrator='backward Euler', integratorArgs={restart=10, epsilon=1e-20}},	-- 0.0018700680964215
-			--{solver='roe', fluxLimiter='superbee', integrator='backward Euler', integratorArgs={restart=20, epsilon=1e-20}},	-- 0.0018586376742315
-			--{solver='roe', fluxLimiter='superbee', integrator='backward Euler', integratorArgs={restart=10, epsilon=1e-10}},	-- 0.0017705698680532
-			--{solver='roe', fluxLimiter='superbee', integrator='backward Euler', integratorArgs={restart=20, epsilon=1e-10}},	-- 0.0017705698680532
-		
-		}
+			-- (these numbers are all for duration=.1)
+		schemeCfgs
 	),
 
-	mins = {-1,-1,-1},
-	maxs = {1,1,1},
-	duration = .2,
+	duration = .1,
 }
 
 local problem = problems[problemName]
@@ -409,8 +128,6 @@ print(destName)
 	cfg.dim = dim
 	cfg.cfl = .6
 	cfg.coord = 'cartesian'
-	cfg.mins = problem.mins
-	cfg.maxs = problem.maxs
 
 	--[[
 	data cached per-test:
@@ -430,7 +147,7 @@ print(destName)
 		for _,size in ipairs(sizes) do
 			
 			testdata.size[size] = testdata.size[size] or table()
-			testdata.size[size].errorsForTime = testdata.size[size].errorsForTime or table() 
+			testdata.size[size].errorsForTime = setmetatable(testdata.size[size].errorsForTime or {}, table)
 			
 			local startTime, endTime
 					

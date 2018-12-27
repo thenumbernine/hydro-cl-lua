@@ -36,7 +36,7 @@ local args = {
 	-- only enabled for certain usePLM methods
 	--slopeLimiter = 'minmod',
 
-	--useCTU = true,
+	useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -63,7 +63,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{64,1,1},
-				{256,256,1},
+				{512,512,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -75,12 +75,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'mirror',
+		xmax=cmdline.boundary or 'mirror',
+		ymin=cmdline.boundary or 'mirror',
+		ymax=cmdline.boundary or 'mirror',
+		zmin=cmdline.boundary or 'mirror',
+		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
 	-- TODO these next two seem very similar
@@ -442,13 +442,13 @@ local args = {
 if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(table(args, cmdline))) return end
 
 -- HD
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
 --self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=0})))
 --self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=1})))
-self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=2})))
+--self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=2})))
 
 -- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler
 -- TODO weno doesn't seem to work with self-gravitation
