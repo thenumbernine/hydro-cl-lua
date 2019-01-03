@@ -277,8 +277,6 @@ end
 
 BSSNOKFiniteDifferenceEquation.solverCodeFile = 'eqn/bssnok-fd.cl'
 
-function BSSNOKFiniteDifferenceEquation:getCalcEigenBasisCode() end
-
 function BSSNOKFiniteDifferenceEquation:getEigenTypeCode()
 	return template([[
 typedef struct { char unused; } <?=eqn.eigen_t?>;

@@ -208,8 +208,6 @@ kernel void initState(
 
 GRHD.solverCodeFile = 'eqn/grhd.cl'
 
-function GRHD:getCalcEigenBasisCode() end	-- within grhd.cl
-
 function GRHD:getDisplayVars()
 	return {
 		{D = '*value = U->cons.D;'},

@@ -45,33 +45,35 @@ TODO:
 - ADM3D (and BSSNOK, and any other GR solver) for minimal-distortion elliptical shift solved as a Poisson equation -- which doesn't require extra time-iterating variables. 
 - GR horizon tracking / moving puncture
 - FOBSSN would be nice.  Something with the analytic stability of BSSN and the algorithmic stability of finite-volume.
-- Z4 ... I need to finish typing in the source terms.  I also need a shift condition.
 - Z4 2008 Alcubierre implementation (I have the eigenvectors in 'numerical relativity codegen/run.lua') vs 2008 Yano (in 'numerical relativity codegen/verify 2008 yano')
-- implement eigen-stuff code in SRHD so that PLM can work 
-- PLM for BSSNOK-FD and Euler-Burgers
+- Implement eigen-stuff code in SRHD so that PLM can work 
+- PLM for Euler-Burgers
+- Any kind of slope extrapolation for finite-difference solvers? (BSSN and Z4c)
 - PPM
-- better divergence removal (multigrid)
-- finish GLM-(ideal)MHD ... especially implement the source term as a second step with an exp(dt)  (which I'm not doing at the moment)
-- rename mhd to ideal-mhd
-- how about a GLM method for Maxwell equations, so I can remove the divergence-free constraint
-- calculate and implement source terms for curvilinear coordinate systems (working on a tool to do this)
-- get two-fluid-separate EMHD working, so I can update the glm-maxwell with an implicit and update the ion and electron with an explicit solver
-- currently seeing errors when two solvers run simultaneously ... which makes EM+HD difficult
-- add HLLD solver
-- implement Navier-Stokes, compressible & incompressible
+- Better divergence removal.  multigrid GPU?
+- Finish GLM-(ideal)MHD ... especially implement the source term as a second step with an exp(dt)  (which I'm not doing at the moment)
+- Rename mhd to ideal-mhd
+- How about a GLM method for Maxwell equations, so I can remove the divergence-free constraint
+- Calculate and implement source terms for curvilinear coordinate systems (working on a tool to do this)
+- Get two-fluid-separate EMHD working, so I can update the glm-maxwell with an implicit and update the ion and electron with an explicit solver
+- Currently seeing errors when two solvers run simultaneously ... which makes EM+HD difficult
+- Add HLLD solver
+- Finish implementing Navier-Stokes, compressible & incompressible
 - BSSN connections based on difference with grid coordinate system
-- test out the GR+HD solvers
-- add source terms to GRHD -- or at least plugins for 'gr-hd-separate' to fill in from the NR solver
-- finish the GR+EM solver
-- add EM+GR+HD by winning
+- Test out the GR+HD solvers
+- Add source terms to GRHD -- or at least plugins for 'gr-hd-separate' to fill in from the NR solver
+- Finish the GR+EM solver
+- Add EM+GR+HD by winning
 - Figure out what to do with self-gravitational potential energy in the Euler simulation.  offsetting it positive makes gravitational instability stable.  offsetting it too positive explodes -- even a forward euler integrator (why).  offsetting it negative causes more instability.
-- change vector field from immediate mode to buffered geometry, and gometry shaders if they're available
-- coroutines to iterative solvers?  so they don't stall the app execution?
+- Change vector field from immediate mode to buffered geometry, and gometry shaders if they're available
+- Coroutines to iterative solvers?  so they don't stall the app execution?
 - RHD W error in >1 dimension
 - GR flat space simulations make an initial wave.  but shouldn't flat space be stable?
 - BSSN, ADM, Z4C, etc still need momentum constraints?
-- not all of the Maxwell initial conditions are working with the non-GLM maxwell, especially with scalar vs complex
-- right now I'm implementing weno similar to the 1996 Jiang Shu paper: 1) calc interface flux, 2) weno reconstruct interface flux 3) finite volume integrate.  There are alternative uses of WENO (using PLM or flux-limiters to find the initial interface flux values, using WENO on left and right states and then applying a flux (HLL, Roe, etc), etc).  Try these out?
+- Not all of the Maxwell initial conditions are working with the non-GLM maxwell, especially with scalar vs complex
+- Right now I'm implementing weno similar to the 1996 Jiang Shu paper: 1) calc interface flux, 2) weno reconstruct interface flux 3) finite volume integrate.  There are alternative uses of WENO (using PLM or flux-limiters to find the initial interface flux values, using WENO on left and right states and then applying a flux (HLL, Roe, etc), etc).  Try these out?
+- Also, right now I am performing the PLM slope extrapolation in a separate kernel.  Not for WENO.  Combining kernels seems to run faster.  Maybe I should just inline the PLM stuff into the same kernel?
+- Cram as much into a single kernel as possible.  More inlining, more redundant calculations.  This seems to run faster than separate solvers and separate buffers.  Best would be a way to automate the inlining.
 
 ### Sources:
 

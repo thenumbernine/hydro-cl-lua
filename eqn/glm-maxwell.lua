@@ -272,7 +272,9 @@ function GLM_Maxwell:getDisplayVars()
 	*value_<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));
 ]], env), type='real3'},
 		{energy = template([[
-	*value = (eqn_coordLenSq(U->D, x) + eqn_coordLenSq(calc_H(*U), x)) * .5;
+	real _1_eps = U->sqrt_1_eps * U->sqrt_1_eps;
+	real _1_mu = U->sqrt_1_mu * U->sqrt_1_mu;
+	*value = (eqn_coordLenSq(U->D, x) * _1_eps + eqn_coordLenSq(U->B, x) * _1_mu) * .5;
 ]], env)},
 	}:append(table{'D','B'}:map(function(var,i)
 		local field = assert( ({D='D', B='B'})[var] )

@@ -260,8 +260,6 @@ end
 
 Z4cFiniteDifferenceEquation.solverCodeFile = 'eqn/z4c-fd.cl'
 
-function Z4cFiniteDifferenceEquation:getCalcEigenBasisCode() end
-
 function Z4cFiniteDifferenceEquation:getEigenTypeCode()
 	return template([[
 typedef struct { char unused; } <?=eqn.eigen_t?>;

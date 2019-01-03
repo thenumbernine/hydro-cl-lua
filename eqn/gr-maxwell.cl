@@ -77,6 +77,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 <? end ?>
 */
 
+#error calcEigenBasis has been removed, and eigen_t structs are now calculated inline ... soooo ... convert this to something compatible
 kernel void calcEigenBasis(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.eigen_t?>* eigenBuf,

@@ -476,7 +476,6 @@ function SolverBase:getSolverCode()
 		self.eqn:getSolverCode() or '',
 		self.eqn:getCalcDTCode() or '',
 		self.eqn:getFluxFromConsCode() or '',
-		self.eqn:getCalcEigenBasisCode() or '',
 	
 	}:append(self.ops:map(function(op)
 		return op:getSolverCode()

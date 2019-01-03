@@ -5,7 +5,6 @@ kernel void calcFlux(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* fluxBuf,
 	const global <?=solver.getULRArg?>,
-	//const global <?=eqn.eigen_t?>* eigenBuf, 
 	realparam dt
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
@@ -28,7 +27,6 @@ kernel void calcFlux(
 		<?=solver:getULRCode()?>
 	
 		int indexInt = side + dim * index;
-		//const global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 		<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, normalForSide<?=side?>());
 		
 		<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
@@ -64,8 +62,6 @@ kernel void calcFlux(
 <? if solver.fluxLimiter > 1 then ?>
 		<?=eqn.eigen_t?> eigL = eigen_forInterface(solver, *UL_L, *UR_L, xInt, normalForSide<?=side?>());
 		<?=eqn.eigen_t?> eigR = eigen_forInterface(solver, *UL_R, *UR_R, xInt, normalForSide<?=side?>());
-		//const global <?=eqn.eigen_t?>* eigL = eig - dim * solver->stepsize.s<?=side?>;
-		//const global <?=eqn.eigen_t?>* eigR = eig + dim * solver->stepsize.s<?=side?>;
 		<?=eqn.waves_t?> deltaUEigL = eigen_leftTransform_<?=side?>(solver, eigL, deltaUL, xIntL);
 		<?=eqn.waves_t?> deltaUEigR = eigen_leftTransform_<?=side?>(solver, eigR, deltaUR, xIntR);
 <? end ?>

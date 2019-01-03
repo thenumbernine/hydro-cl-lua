@@ -217,8 +217,6 @@ kernel void initState(
 
 GRMHD.solverCodeFile = 'eqn/srhd.cl'
 
-function GRMHD:getCalcEigenBasisCode() end
-
 GRMHD.displayVarCodeUsesPrims = true
 
 function GRMHD:getDisplayVars()

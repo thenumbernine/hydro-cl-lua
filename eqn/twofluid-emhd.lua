@@ -13,7 +13,7 @@ When it comes to curvilinear coordinates, my Maxwell solver is unweighted by the
 however my Euler solver is.
 I could work around this by scaling down the Maxwell eigenvalues by sqrt(det(g))
  then calcDeriv will scale all variables back up -- and the Maxwell ones will be identity weighted once again.
- then in the post-flux code, transform E and B by g_ij
+ then in the post-flux code, transform D and B by g_ij
  and in the source terms, add to ion_ and elec_ m^i connection values
 
 --]]
@@ -34,7 +34,7 @@ TwoFluidEMHD.postComputeFluxCode = [[
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
 		real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
-		flux.E = real3_real_mul(coord_lower(flux.E, x), _1_sqrt_det_g);
+		flux.D = real3_real_mul(coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = real3_real_mul(coord_lower(flux.B, x), _1_sqrt_det_g);
 ]]
 
@@ -52,9 +52,9 @@ TwoFluidEMHD.consVars = table{
 	{elec_m = 'real3'},		-- m^i
 	{elec_ETotal = 'real'},
 
-	{E = 'real3'},			-- E_i
+	{D = 'real3'},			-- E_i
 	{B = 'real3'},			-- B_i
-	{phi = 'real'},			-- E potential
+	{phi = 'real'},			-- D potential
 	{psi = 'real'},			-- B potential
 
 	--extra	
@@ -73,7 +73,7 @@ TwoFluidEMHD.primVars = table{
 	{elec_P = 'real'},
 
 	{B = 'real3'},
-	{E = 'real3'},
+	{D = 'real3'},
 	{phi = 'real'},
 	{psi = 'real'},
 	
@@ -83,9 +83,9 @@ TwoFluidEMHD.primVars = table{
 }
 
 TwoFluidEMHD.mirrorVars = {
-	{'ion_m.x', 'elec_m.x', 'E.x', 'B.x'}, 
-	{'ion_m.y', 'elec_m.y', 'E.y', 'B.y'}, 
-	{'ion_m.z', 'elec_m.z', 'E.z', 'B.z'},
+	{'ion_m.x', 'elec_m.x', 'D.x', 'B.x'}, 
+	{'ion_m.y', 'elec_m.y', 'D.y', 'B.y'}, 
+	{'ion_m.z', 'elec_m.z', 'D.z', 'B.z'},
 }
 
 -- not sure it's working right ...
@@ -190,6 +190,10 @@ function TwoFluidEMHD:createInitState()
 		
 		-- r_i = q_i / m_i
 		{name='ionChargeMassRatio', value=1},
+
+		-- hmm ...
+		{name='permeability', value=4 * math.pi},
+		{name='permittivity', value=1 / (4 * math.pi)},
 	
 		-- lambda_d = ion Debye length
 		-- lambda_d = sqrt(epsilon (v_i^T)^2 / n_0 q_i)
@@ -207,9 +211,6 @@ end
 
 function TwoFluidEMHD:getCommonFuncCode()
 	return template([[
-real ESq(<?=eqn.cons_t?> U, real3 x) { return coordLenSq(U.E, x); }
-real BSq(<?=eqn.cons_t?> U, real3 x) { return coordLenSq(U.B, x); }
-
 inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
 inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
 inline real calc_hTotal(constant <?=solver.solver_t?>* solver, real rho, real P, real ETotal) { return (P + ETotal) / rho; }
@@ -229,11 +230,6 @@ inline real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=e
 	return sqrt(solver->heatCapacityRatio * W-><?=fluid?>_P / W-><?=fluid?>_rho);
 }
 <? end ?>
-
-inline real calc_EM_energy(const global <?=eqn.cons_t?>* U, real3 x) {
-	// TODO E needs to be * eps, and B needs to be / mu
-	return .5 * (coordLenSq(U->E, x) + coordLenSq(U->B, x));
-}
 ]], {
 		solver = self.solver,
 		eqn = self,
@@ -256,7 +252,7 @@ inline <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eq
 		.<?=fluid?>_P = (solver->heatCapacityRatio - 1.) * <?=fluid?>_EInt,
 		.<?=fluid?>_ePot = U.<?=fluid?>_ePot,
 		<? end ?>
-		.E = U.E,
+		.D = U.D,
 		.B = U.B,
 		.psi = U.psi,
 		.phi = U.phi,
@@ -271,7 +267,7 @@ inline <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eq
 		.<?=fluid?>_ETotal = calc_<?=fluid?>_ETotal(solver, W, x),
 		.<?=fluid?>_ePot = W.<?=fluid?>_ePot,
 <? end ?>
-		.E = W.E,
+		.D = W.D,
 		.B = W.B,
 		.psi = W.psi,
 		.phi = W.phi,
@@ -300,7 +296,7 @@ inline <?=eqn.cons_t?> apply_dU_dW(
 		.<?=fluid?>_ePot = W.<?=fluid?>_ePot,
 <? end ?>
 		.B = W.B,
-		.E = W.E,
+		.D = W.D,
 		.phi = W.phi,
 		.psi = W.psi,
 	};
@@ -329,7 +325,7 @@ inline <?=eqn.prim_t?> apply_dW_dU(
 		.<?=fluid?>_ePot = U.<?=fluid?>_ePot,
 <? end ?>
 		.B = U.B,
-		.E = U.E,
+		.D = U.D,
 		.phi = U.phi,
 		.psi = U.psi,
 	};
@@ -430,7 +426,7 @@ else	-- expect the initState to explicitly provide the ion_ and elec_ Euler flui
 	end
 end
 ?>
-		.E = <?=vec3?>_<?=scalar?>_mul(D, <?=inv?>(permittivity)),
+		.D = D, 
 		.B = B,
 		.psi = 0,
 		.phi = 0,
@@ -474,7 +470,7 @@ TwoFluidEMHD.displayVarCodeUsesPrims = true
 TwoFluidEMHD.predefinedDisplayVars = {
 	'U ion_rho',
 	'U elec_rho',
-	'U E mag',
+	'U D mag',
 	'U B mag',
 }
 
@@ -544,10 +540,13 @@ function TwoFluidEMHD:getDisplayVars()
 
 	vars:append{
 		{['EM energy'] = [[
-	*value = calc_EM_energy(U, x);
+	*value = .5 * (
+		coordLenSq(U->D, x) / solver->permittivity
+		+ coordLenSq(U->B, x) / solver->permeability
+	);
 ]]},
-	}:append(table{'E','B'}:map(function(var,i)
-		local field = assert( ({E='E', B='B'})[var] )
+	}:append(table{'D','B'}:map(function(var,i)
+		local field = assert( ({D='D', B='B'})[var] )
 		return {['div '..var] = template([[
 	*value = .5 * (0.
 <?

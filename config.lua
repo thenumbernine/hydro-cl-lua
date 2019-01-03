@@ -26,17 +26,20 @@ local args = {
 	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
-	--usePLM = 'plm-cons',			-- #5
-	--usePLM = 'plm-eig',			-- #2 
-	--usePLM = 'plm-eig-prim',		-- #3 
-	--usePLM = 'plm-eig-prim-ref',	-- #4
+	--usePLM = 'plm-cons',
+	--usePLM = 'plm-cons-alone',
+	--usePLM = 'plm-prim-alone',
+	--usePLM = 'plm-eig',
+	--usePLM = 'plm-eig-prim',
+	--usePLM = 'plm-eig-prim-ref',
 	--usePLM = 'plm-athena',			-- based on Athena.  most accurate from 1D sod tests atm
 	--usePLM = 'ppm-experimental',	-- FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
+	-- TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then we can use CTU with WENO.
 	
 	-- only enabled for certain usePLM methods
 	--slopeLimiter = 'minmod',
 
-	useCTU = true,
+	--useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -63,7 +66,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{64,1,1},
-				{512,512,1},
+				{64,64,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -75,12 +78,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'mirror',
-		xmax=cmdline.boundary or 'mirror',
-		ymin=cmdline.boundary or 'mirror',
-		ymax=cmdline.boundary or 'mirror',
-		zmin=cmdline.boundary or 'mirror',
-		zmax=cmdline.boundary or 'mirror',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	-- TODO these next two seem very similar
@@ -213,7 +216,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -247,7 +250,7 @@ local args = {
 	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	--initState = 'Brio-Wu',
+	initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'GEM challenge', eqnArgs = {useEulerInitState=false},
@@ -442,7 +445,7 @@ local args = {
 if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(table(args, cmdline))) return end
 
 -- HD
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -555,13 +558,14 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- ...which means, with the Maxwell equations waves propagating at the speed of light, that it goes very slow
 -- TODO: I suppose I could make this work with my integrator by (1) removing the maxwell terms from the integration variable list and (2) providing a separate operator that updates them implicitly
 -- TODO still needs PLM support
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='1996 Jiang Shu', order=7})))	-- order=9 exploded...
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 
 
 -- GR

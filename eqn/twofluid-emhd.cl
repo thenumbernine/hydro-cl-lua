@@ -45,7 +45,11 @@ kernel void calcDT(
 	real lHat_elec = lHat_ion / solver->ionElectronMassRatio;
 <? for _,fluid in ipairs(fluids) do ?>
 	real EInt_<?=fluid?> = calc_<?=fluid?>_EInt(solver, W);
-	real LorentzForceSq_<?=fluid?> = coordLenSq(real3_add(W.E, real3_cross(W.<?=fluid?>_v, W.B)), x);
+	real LorentzForceSq_<?=fluid?> = coordLenSq(
+		real3_add(
+			real3_real_mul(W.D, 1. / solver->permittivity),
+			real3_cross(W.<?=fluid?>_v, W.B)
+		), x);
 	real sqrt_EInt_lHat_over_rho_<?=fluid?> = sqrt(2. * EInt_<?=fluid?> * lHat_<?=fluid?> / (W.<?=fluid?>_rho * LorentzForceSq_<?=fluid?>));
 <? end ?>
 
@@ -81,20 +85,40 @@ end
 ?>
 
 	//taken from glm-maxwell instead of the 2014 Abgrall, Kumar
-	real3 B = U.B;
-	real3 E = U.E;
+	real3 E = real3_real_mul(U.D, 1. / solver->permittivity);
+	real3 H = real3_real_mul(U.B, 1. / solver->permeability);
+	// right now permittivity * permeability == 1.  therefore phase vel should be approx 1.  if we change 1/eps * 1/mu == c^2 then we shoudl change phase vel too
+	real v_pSq = normalizedSpeedOfLight / (solver->permittivity * solver->permeability);
 	<? if side == 0 then ?>
-	F.E = _real3(normalizedSpeedOfLight * solver->divPhiWavespeed * U.phi, normalizedSpeedOfLight * B.z, -normalizedSpeedOfLight * B.y);
-	F.B = _real3(solver->divPsiWavespeed * U.psi, -E.z, E.y);
+	F.D = _real3(
+		normalizedSpeedOfLight * v_pSq * solver->divPhiWavespeed * U.phi,
+		normalizedSpeedOfLight * H.z, 
+		-normalizedSpeedOfLight * H.y);
+	F.B = _real3(
+		solver->divPsiWavespeed * v_pSq * U.psi,
+		-E.z,
+		E.y);
 	<? elseif side == 1 then ?>
-	F.E = _real3(-normalizedSpeedOfLight * B.z, normalizedSpeedOfLight * solver->divPhiWavespeed * U.phi, normalizedSpeedOfLight * B.x);
-	F.B = _real3(E.z, solver->divPsiWavespeed * U.psi, -E.x);
+	F.D = _real3(
+		-normalizedSpeedOfLight * H.z,
+		normalizedSpeedOfLight * v_pSq * solver->divPhiWavespeed * U.phi,
+		normalizedSpeedOfLight * H.x);
+	F.B = _real3(
+		E.z,
+		solver->divPsiWavespeed * v_pSq * U.psi,
+		-E.x);
 	<? elseif side == 2 then ?>
-	F.E = _real3(normalizedSpeedOfLight * B.y, -normalizedSpeedOfLight * B.x, normalizedSpeedOfLight * solver->divPhiWavespeed * U.phi);
-	F.B = _real3(-E.y, E.x, solver->divPsiWavespeed * U.psi);
+	F.D = _real3(
+		normalizedSpeedOfLight * H.y,
+		-normalizedSpeedOfLight * H.x,
+		normalizedSpeedOfLight * v_pSq * solver->divPhiWavespeed * U.phi);
+	F.B = _real3(
+		-E.y,
+		E.x,
+		solver->divPsiWavespeed * v_pSq * U.psi);
 	<? end ?>
-	F.phi = E.s<?=side?> * solver->divPhiWavespeed;
-	F.psi = B.s<?=side?> * solver->divPsiWavespeed * normalizedSpeedOfLight;
+	F.phi = U.D.s<?=side?> * solver->divPhiWavespeed;
+	F.psi = U.B.s<?=side?> * solver->divPsiWavespeed * normalizedSpeedOfLight;
 
 	F.ion_ePot = 0;
 	F.elec_ePot = 0;
@@ -572,16 +596,16 @@ cons_t eigen_fluxTransform_<?=side?>(
 ?>	
 	
 	<? if side == 0 then ?>
-	UY.E = _real3(normalizedSpeedOfLightSq * solver->divPhiWavespeed * UX.phi, normalizedSpeedOfLightSq * UX.B.z, -normalizedSpeedOfLightSq * UX.B.y);
-	UY.B = _real3(solver->divPsiWavespeed * UX.psi, -UX.E.z, UX.E.y);
+	UY.D = _real3(normalizedSpeedOfLightSq * solver->divPhiWavespeed * UX.phi, normalizedSpeedOfLightSq * UX.B.z, -normalizedSpeedOfLightSq * UX.B.y);
+	UY.B = _real3(solver->divPsiWavespeed * UX.psi, -UX.D.z, UX.D.y);
 	<? elseif side == 1 then ?>
-	UY.E = _real3(-normalizedSpeedOfLightSq * UX.B.z, normalizedSpeedOfLightSq * solver->divPhiWavespeed * UX.phi, normalizedSpeedOfLightSq * UX.B.x);
-	UY.B = _real3(UX.E.z, solver->divPsiWavespeed * UX.psi, -UX.E.x);
+	UY.D = _real3(-normalizedSpeedOfLightSq * UX.B.z, normalizedSpeedOfLightSq * solver->divPhiWavespeed * UX.phi, normalizedSpeedOfLightSq * UX.B.x);
+	UY.B = _real3(UX.D.z, solver->divPsiWavespeed * UX.psi, -UX.D.x);
 	<? elseif side == 2 then ?>
-	UY.E = _real3(normalizedSpeedOfLightSq * UX.B.y, -normalizedSpeedOfLightSq * UX.B.x, normalizedSpeedOfLightSq * solver->divPhiWavespeed * UX.phi);
-	UY.B = _real3(-UX.E.y, UX.E.x, solver->divPsiWavespeed * UX.psi);
+	UY.D = _real3(normalizedSpeedOfLightSq * UX.B.y, -normalizedSpeedOfLightSq * UX.B.x, normalizedSpeedOfLightSq * solver->divPhiWavespeed * UX.phi);
+	UY.B = _real3(-UX.D.y, UX.D.x, solver->divPsiWavespeed * UX.psi);
 	<? end ?>
-	UY.phi = solver->divPhiWavespeed * UX.E.s<?=side?>;
+	UY.phi = solver->divPhiWavespeed * UX.D.s<?=side?>;
 	UY.psi = normalizedSpeedOfLightSq * solver->divPsiWavespeed * UX.B.s<?=side?>;
 
 	UY.ion_ePot = 0;
@@ -600,20 +624,20 @@ kernel void addSource(
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
-	deriv->ion_m.x += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.x + U->ion_m.y * U->B.z - U->ion_m.z * U->B.y);
-	deriv->ion_m.y += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.y + U->ion_m.z * U->B.x - U->ion_m.x * U->B.z);
-	deriv->ion_m.z += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->E.z + U->ion_m.x * U->B.y - U->ion_m.y * U->B.x);
-	deriv->ion_ETotal += (1. / normalizedIonLarmorRadius) * real3_dot(U->E, U->ion_m);
+	deriv->ion_m.x += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->D.x + U->ion_m.y * U->B.z - U->ion_m.z * U->B.y);
+	deriv->ion_m.y += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->D.y + U->ion_m.z * U->B.x - U->ion_m.x * U->B.z);
+	deriv->ion_m.z += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->D.z + U->ion_m.x * U->B.y - U->ion_m.y * U->B.x);
+	deriv->ion_ETotal += (1. / normalizedIonLarmorRadius) * real3_dot(U->D, U->ion_m);
 	
-	deriv->elec_m.x -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.x + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y);
-	deriv->elec_m.y -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.y + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z);
-	deriv->elec_m.z -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->E.z + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x);
-	deriv->elec_ETotal -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * real3_dot(U->E, U->elec_m);
+	deriv->elec_m.x -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->D.x + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y);
+	deriv->elec_m.y -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->D.y + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z);
+	deriv->elec_m.z -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * (U->elec_rho * U->D.z + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x);
+	deriv->elec_ETotal -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * real3_dot(U->D, U->elec_m);
 
 	real normalizedIonDebyeLengthSq	= normalizedIonDebyeLength * normalizedIonDebyeLength;
-	deriv->E.x -= (U->ion_m.x * solver->ionChargeMassRatio + U->elec_m.x * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
-	deriv->E.y -= (U->ion_m.y * solver->ionChargeMassRatio + U->elec_m.y * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
-	deriv->E.z -= (U->ion_m.z * solver->ionChargeMassRatio + U->elec_m.z * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->D.x -= (U->ion_m.x * solver->ionChargeMassRatio + U->elec_m.x * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->D.y -= (U->ion_m.y * solver->ionChargeMassRatio + U->elec_m.y * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->D.z -= (U->ion_m.z * solver->ionChargeMassRatio + U->elec_m.z * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
 	deriv->phi += (U->ion_rho * solver->ionChargeMassRatio + U->elec_rho * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius) * solver->divPhiWavespeed;
 
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>

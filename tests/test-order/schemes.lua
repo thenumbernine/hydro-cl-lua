@@ -35,26 +35,26 @@
 	{solver='hll', integrator='forward Euler'},																				-- 0.00037540541165354  			0.0029204942118918
 	{solver='euler-burgers', integrator='forward Euler'},																	-- 0.00029551600678445  			0.0020825509821013
 	{solver='euler-hllc', hllcMethod=0, integrator='forward Euler', usePLM='plm-cons-alone'},		 	  	  	  	  	  	-- 0.00039212252597743  			0.0035041915046615
-	{solver='euler-hllc', hllcMethod=0, integrator='forward Euler', usePLM='plm-prim'},		 	 	 	 	 	 	 		-- 0.0003914811986822   			0.0033715333876716
+	{solver='euler-hllc', hllcMethod=0, integrator='forward Euler', usePLM='plm-prim-alone'},		 	 	 	 	 	 	-- 0.0003914811986822   			0.0033715333876716
 	{solver='euler-hllc', hllcMethod=0, integrator='forward Euler'},														-- 0.00029551600678424  			0.0026034369564245
 	{solver='euler-hllc', hllcMethod=0, integrator='forward Euler', usePLM='plm-cons'},		 	 	 	 	 	 	 		-- 0.00029551600678424  			0.0026034369564245
-	{solver='euler-hllc', hllcMethod=0, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim'},								-- 0.00039567583187226  			0.0038904131956502
+	{solver='euler-hllc', hllcMethod=0, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim-alone'},							-- 0.00039567583187226  			0.0038904131956502
 	{solver='euler-hllc', hllcMethod=0, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons-alone'},							-- 0.00039567583187237  			0.0039987798334505
 	{solver='euler-hllc', hllcMethod=0, integrator='Runge-Kutta 3, TVD'},													-- 0.00039208124005629  			0.0031547573035925
 	{solver='euler-hllc', hllcMethod=0, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons'},								-- 0.00039208124005629  			0.0031547573035925
 	{solver='euler-hllc', hllcMethod=1, integrator='forward Euler', usePLM='plm-cons-alone'},								-- 0.0003925245324907   			0.0035041915046615
-	{solver='euler-hllc', hllcMethod=1, integrator='forward Euler', usePLM='plm-prim'},										-- 0.00039148119870067  			0.0033715333876716
+	{solver='euler-hllc', hllcMethod=1, integrator='forward Euler', usePLM='plm-prim-alone'},								-- 0.00039148119870067  			0.0033715333876716
 	{solver='euler-hllc', hllcMethod=1, integrator='forward Euler'},														-- 0.0002955160067843   			0.0026034369564245
 	{solver='euler-hllc', hllcMethod=1, integrator='forward Euler', usePLM='plm-cons'},										-- 0.0002955160067843   			0.0026034369564245
-	{solver='euler-hllc', hllcMethod=1, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim'},								-- 0.0003956758318725   			0.0038904131956501
+	{solver='euler-hllc', hllcMethod=1, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim-alone'},							-- 0.0003956758318725   			0.0038904131956501
 	{solver='euler-hllc', hllcMethod=1, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons-alone'},							-- 0.00039567583187227  			0.0039987798334505
 	{solver='euler-hllc', hllcMethod=1, integrator='Runge-Kutta 3, TVD'},													-- 0.00039208124005635  			0.0031547573035925
 	{solver='euler-hllc', hllcMethod=1, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons'},								-- 0.00039208124005635  			0.0031547573035925
 	{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-cons-alone'},	 							-- 0.0003927495532771   			0.0035041915046615
-	{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-prim'},			 	  	  	  	  	  		-- 0.00039148119875762  			0.0033715333876716
+	{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-prim-alone'},			 	  	  	  	  	-- 0.00039148119875762  			0.0033715333876716
 	{solver='euler-hllc', hllcMethod=2, integrator='forward Euler'},														-- 0.00029551600678437  			0.0026034369564245
 	{solver='euler-hllc', hllcMethod=2, integrator='forward Euler', usePLM='plm-cons'},			  	  	  	  	  	  		-- 0.00029551600678437  			0.0026034369564245
-	{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim'},	  	 	 	 	 	 	 	-- 0.00039567583187248  			0.0038904131956501
+	{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-prim-alone'},	  	 	 	 	 	 	-- 0.00039567583187248  			0.0038904131956501
 	{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons-alone'},							-- 0.00039567583187241  			0.0039987798334505
 	{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD'},													-- 0.00039208124005633  			0.0031547573035925
 	{solver='euler-hllc', hllcMethod=2, integrator='Runge-Kutta 3, TVD', usePLM='plm-cons'},								-- 0.00039208124005633  			0.0031547573035925

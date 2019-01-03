@@ -142,8 +142,6 @@ function GRMaxwell:getTemplateEnv()
 end
 
 
-function GRMaxwell:getCalcEigenBasisCode() end
-
 function GRMaxwell:getDisplayVars()
 	local solver = self.solver
 	return GRMaxwell.super.getDisplayVars(self):append{ 

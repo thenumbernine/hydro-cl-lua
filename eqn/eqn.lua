@@ -164,10 +164,6 @@ function Equation:getSolverCode()
 	return template(file[self.solverCodeFile], {eqn=self, solver=self.solver})
 end
 
-function Equation:getCalcEigenBasisCode()
-	return template(file['eqn/cl/calcEigenBasis.cl'], {eqn=self})
-end
-
 function Equation:getInitStateCode()
 	assert(self.initStateCode, "expected solver.eqn.initStateCode")
 	return template(self.initStateCode, {

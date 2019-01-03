@@ -135,7 +135,6 @@ function FiniteVolumeSolver:addDisplayVars()
 			type = self.getULRBufType,
 			codePrefix = '',
 			useLog = true,
-			type = self.eqn.eigen_t,
 			vars = {
 				{['0'] = table{
 					getEigenCode{side=side},
@@ -178,7 +177,6 @@ function FiniteVolumeSolver:addDisplayVars()
 			type = self.getULRBufType,
 			codePrefix = '',
 			useLog = true,
-			type = self.eqn.eigen_t,
 			vars = {
 				{['0'] = table{
 					getEigenCode{side=side},

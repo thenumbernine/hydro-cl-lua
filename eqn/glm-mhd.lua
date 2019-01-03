@@ -217,8 +217,6 @@ end
 
 GLM_MHD.solverCodeFile = 'eqn/glm-mhd.cl'
 
-function GLM_MHD:getCalcEigenBasisCode() end
-
 GLM_MHD.displayVarCodeUsesPrims = true
 
 function GLM_MHD:getDisplayVars()

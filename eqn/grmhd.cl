@@ -84,6 +84,7 @@ kernel void calcDT(
 <? end ?>
 
 
+#error calcEigenBasis has been removed, and eigen_t structs are now calculated inline ... soooo ... convert this to something compatible
 kernel void calcEigenBasis(
 	constant <?=solver.solver_t?>* solver,
 	global real* waveBuf,
