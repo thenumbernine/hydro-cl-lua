@@ -41,7 +41,7 @@ local args = {
 
 	--useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -123,7 +123,7 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	--[[ cylinder
+	-- [[ cylinder
 	coord = 'cylinder',
 
 	-- for some reason, with holonomic coordinates, with rmax=1, for any rmin < .1, I get an explosion
@@ -517,7 +517,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 
 -- this runs, but of course it's missing a few waves ...
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
@@ -558,7 +558,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- ...which means, with the Maxwell equations waves propagating at the speed of light, that it goes very slow
 -- TODO: I suppose I could make this work with my integrator by (1) removing the maxwell terms from the integration variable list and (2) providing a separate operator that updates them implicitly
 -- TODO still needs PLM support
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='1996 Jiang Shu', order=7})))	-- order=9 exploded...
 
 

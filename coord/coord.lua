@@ -375,6 +375,14 @@ dprint('lowerCode['..i..'] = '..substCoords(lowerCode))
 		return lowerCode
 	end)
 
+	-- v^k -> v_k
+	local raiseExpr = paramU'_a'()
+	self.raiseCodes = range(dim):mapi(function(i)
+		local raiseCode = compile(raiseExpr[i])
+dprint('raiseCode['..i..'] = '..substCoords(raiseCode))
+		return raiseCode
+	end)
+
 	-- v^k v_k
 	local lenSqExpr = (paramU'^a' * paramU'_a')()
 	self.uLenSqCode = compile(lenSqExpr)
@@ -667,6 +675,7 @@ inline real coordLen(real3 r, real3 pt) {
 	end
 
 	lines:insert(getCode_real3_real3_to_real3('coord_lower', self.lowerCodes))
+	lines:insert(getCode_real3_real3_to_real3('coord_raise', self.raiseCodes))
 
 	do
 		local function addSym3Components(name, codes)

@@ -546,6 +546,6 @@ kernel void addSource(
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
 	real3 m_conn_vv = coord_conn_apply23(W.vTilde, U->rhoBar_vTilde, x);
 	deriv->rhoBar_vTilde = real3_sub(deriv->rhoBar_vTilde, m_conn_vv);	//-Conn^i_jk rhoBar vTilde^j vTilde^k 
-	deriv->rhoBar_vTilde = real3_sub(deriv->rhoBar_vTilde, real3_real_mul(coord_conn_trace23(x), W.PStar));		//-Conn^i_jk g^jk PStar
+	deriv->rhoBar_vTilde = real3_add(deriv->rhoBar_vTilde, real3_real_mul(coord_raise(coord_conn_trace13(x), x), W.PStar));		//+Conn^j_kj g^ki PStar
 <? end ?>
 }

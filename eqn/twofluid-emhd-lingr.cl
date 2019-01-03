@@ -735,7 +735,7 @@ kernel void addSource(
 	<? for _,fluid in ipairs(fluids) do ?>{
 		real3 m_conn_vv = coord_conn_apply23(W.<?=fluid?>_v, U-><?=fluid?>_m, x);
 		deriv-><?=fluid?>_m = real3_sub(deriv-><?=fluid?>_m, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
-		deriv-><?=fluid?>_m = real3_sub(deriv-><?=fluid?>_m, real3_real_mul(conn1_u, W.<?=fluid?>_P));		//-Conn^i_jk g^jk P
+		deriv-><?=fluid?>_m = real3_add(deriv-><?=fluid?>_m, real3_real_mul(coord_raise(coord_conn_trace13(x), x), W.<?=fluid?>_P));		//+Conn^j_kj g^ki P
 	}<? end ?>
 <? end ?>
 }

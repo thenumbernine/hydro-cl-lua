@@ -592,7 +592,7 @@ kernel void addSource(
 	real PTotal = W.P + PMag;
 	real3 m_conn_vv = coord_conn_apply23(W.v, U->m, x);
 	deriv->m = real3_sub(deriv->m, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
-	deriv->m = real3_sub(deriv->m, real3_real_mul(coord_conn_trace23(x), PTotal));		//-Conn^i_jk g^jk P_total
+	deriv->m = real3_add(deriv->m, real3_real_mul(coord_raise(coord_conn_trace13(x), x), PTotal));		//+Conn^j_kj g^ki PTotal
 	deriv->m = real3_add(deriv->m, real3_real_mul(coord_conn_apply23(U->B, U->B, x), 1. / solver->mu0));	//+ 1/mu0 Conn^i_jk B^j B^k
 <? end ?>
 }
