@@ -6,12 +6,6 @@ local fluids = eqn.fluids
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 #define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
 
-#define ionReferenceThermalVelocity (solver->ionLarmorRadius * solver->ionChargeMassRatio * solver->referenceMagneticField)
-#define normalizedSpeedOfLight 		(solver->speedOfLight / ionReferenceThermalVelocity)
-#define normalizedSpeedOfLightSq 	(normalizedSpeedOfLight * normalizedSpeedOfLight)
-#define normalizedIonLarmorRadius 	(solver->ionLarmorRadius / solver->referenceLength)
-#define normalizedIonDebyeLength	(solver->ionDebyeLength / solver->ionLarmorRadius)
-
 // r_e = q_e / m_e
 // r_e = m q_e / m_i
 // if q_e = 1 then r_e = m / m_i
@@ -632,15 +626,8 @@ kernel void addSource(
 	//B_g has units 1/s
 	//B_g * v/c has units 1/s
 	//rho * (E + v * B)/c has units kg/(m^2 s^2)
-	real3 ionGravForce = _real3(
-		(U->ion_rho * U->D_g.x + 4. * (U->ion_m.y * U->B_g.z - U->ion_m.z * U->B_g.y)) / normalizedSpeedOfLight,
-		(U->ion_rho * U->D_g.y + 4. * (U->ion_m.z * U->B_g.x - U->ion_m.x * U->B_g.z)) / normalizedSpeedOfLight,
-		(U->ion_rho * U->D_g.z + 4. * (U->ion_m.x * U->B_g.y - U->ion_m.y * U->B_g.x)) / normalizedSpeedOfLight);
-
-	real3 elecGravForce = _real3(
-		(U->elec_rho * U->D_g.x + 4. * (U->elec_m.y * U->B_g.z - U->elec_m.z * U->B_g.y)) / normalizedSpeedOfLight,
-		(U->elec_rho * U->D_g.y + 4. * (U->elec_m.z * U->B_g.x - U->elec_m.x * U->B_g.z)) / normalizedSpeedOfLight,
-		(U->elec_rho * U->D_g.z + 4. * (U->elec_m.x * U->B_g.y - U->elec_m.y * U->B_g.x)) / normalizedSpeedOfLight);
+	real3 ionGravForce = calcIonGravForce(solver, U, x);
+	real3 elecGravForce = calcElecGravForce(solver, U, x);
 
 	//source of D_g is T_0i is the momentum + Poynting vector
 	real3 T_0i = real3_zero;
@@ -667,9 +654,7 @@ kernel void addSource(
 		//matter
 	T_00 += (U->ion_rho + U->elec_rho) * normalizedSpeedOfLightSq * normalizedSpeedOfLightSq;
 		//electromagnetism			
-	//T_00 += calc_EM_energy(solver, U, x);
-	real EM_energy = .5 * (coordLenSq(U->D, x) / permittivity + coordLenSq(U->B, x) / permeability);
-	T_00 += EM_energy;
+	T_00 += calc_EM_energy(solver, U, x);
 	
 	deriv->phi_g += T_00 / normalizedSpeedOfLight * solver->divPhiWavespeed_g * permittivity_g;
 

@@ -197,6 +197,12 @@ end
 
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:getCommonFuncCode()
 	return template([[
+#define ionReferenceThermalVelocity (solver->ionLarmorRadius * solver->ionChargeMassRatio * solver->referenceMagneticField)
+#define normalizedSpeedOfLight 		(solver->speedOfLight / ionReferenceThermalVelocity)
+#define normalizedSpeedOfLightSq 	(normalizedSpeedOfLight * normalizedSpeedOfLight)
+#define normalizedIonLarmorRadius 	(solver->ionLarmorRadius / solver->referenceLength)
+#define normalizedIonDebyeLength	(solver->ionDebyeLength / solver->ionLarmorRadius)
+
 inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
 inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
 inline real calc_hTotal(constant <?=solver.solver_t?>* solver, real rho, real P, real ETotal) { return (P + ETotal) / rho; }
@@ -216,7 +222,6 @@ inline real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=e
 }
 <? end ?>
 
-#if 0
 inline real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
 	real sqrt_permittivity = solver->sqrt_permittivity_times_normalizedSpeedOfLight / normalizedSpeedOfLight;
 	real sqrt_permeability = solver->sqrt_permeability;
@@ -224,7 +229,21 @@ inline real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <
 	real permeability = sqrt_permeability * sqrt_permeability;
 	return .5 * (coordLenSq(U->D, x) / permittivity + coordLenSq(U->B, x) / permeability);
 }
-#endif
+
+inline real3 calcIonGravForce(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
+	return _real3(
+		(U->ion_rho * U->D_g.x + 4. * (U->ion_m.y * U->B_g.z - U->ion_m.z * U->B_g.y)) / normalizedSpeedOfLight,
+		(U->ion_rho * U->D_g.y + 4. * (U->ion_m.z * U->B_g.x - U->ion_m.x * U->B_g.z)) / normalizedSpeedOfLight,
+		(U->ion_rho * U->D_g.z + 4. * (U->ion_m.x * U->B_g.y - U->ion_m.y * U->B_g.x)) / normalizedSpeedOfLight);
+}
+
+inline real3 calcElecGravForce(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
+	return _real3(
+		(U->elec_rho * U->D_g.x + 4. * (U->elec_m.y * U->B_g.z - U->elec_m.z * U->B_g.y)) / normalizedSpeedOfLight,
+		(U->elec_rho * U->D_g.y + 4. * (U->elec_m.z * U->B_g.x - U->elec_m.x * U->B_g.z)) / normalizedSpeedOfLight,
+		(U->elec_rho * U->D_g.z + 4. * (U->elec_m.x * U->B_g.y - U->elec_m.y * U->B_g.x)) / normalizedSpeedOfLight);
+}
+
 ]], {
 		solver = self.solver,
 		eqn = self,
@@ -548,16 +567,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
 	end
 
 	vars:append{
-		{['EM energy'] = [[
-	real sqrt_permittivity = solver->sqrt_permittivity_times_normalizedSpeedOfLight / normalizedSpeedOfLight;
-	real sqrt_permeability = solver->sqrt_permeability;
-	real permittivity = sqrt_permittivity * sqrt_permittivity;
-	real permeability = sqrt_permeability * sqrt_permeability;
-	*value = .5 * (
-		coordLenSq(U->D, x) / permittivity
-		+ coordLenSq(U->B, x) / permeability
-	);
-]]},
+		{['EM energy'] = [[*value = calc_EM_energy(solver, U, x);]]},
 	}:append(table{'D','B'}:map(function(var,i)
 		local field = assert( ({D='D', B='B'})[var] )
 		return {['div '..var] = template([[
@@ -572,6 +582,11 @@ end
 ?>	);
 ]], {solver=self.solver, field=field})}
 	end))
+
+	vars:append{
+		{['ion grav force'] = [[*value_real3 = calcIonGravForce(solver, U, x);]], type='real3'},
+		{['elec grav force'] = [[*value_real3 = calcElecGravForce(solver, U, x);]], type='real3'},
+	}
 
 	return vars
 end
