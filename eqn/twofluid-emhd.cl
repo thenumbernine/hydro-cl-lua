@@ -16,6 +16,9 @@ local fluids = eqn.fluids
 // q_e / m_e = -1.758820024e+11 C/kg
 #define elecChargeMassRatio			(solver->ionElectronMassRatio / solver->ionMass)
 
+#define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
+#define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
+
 typedef <?=eqn.prim_t?> prim_t;
 typedef <?=eqn.cons_t?> cons_t;
 typedef <?=eqn.eigen_t?> eigen_t;
@@ -39,6 +42,11 @@ kernel void calcDT(
 	
 	real3 x = cell_x(i);
 	const global cons_t* U = UBuf + index;
+	
+	real sqrt_permittivity = solver->sqrt_permittivity_times_normalizedSpeedOfLight / normalizedSpeedOfLight;
+	real sqrt_permeability = solver->sqrt_permeability;
+	real permittivity = sqrt_permittivity * sqrt_permittivity;
+	real permeability = sqrt_permeability * sqrt_permeability;
 
 	prim_t W = primFromCons(solver, *U, x);
 	real lHat_ion = normalizedIonLarmorRadius;
@@ -47,7 +55,7 @@ kernel void calcDT(
 	real EInt_<?=fluid?> = calc_<?=fluid?>_EInt(solver, W);
 	real LorentzForceSq_<?=fluid?> = coordLenSq(
 		real3_add(
-			real3_real_mul(W.D, 1. / solver->permittivity),
+			real3_real_mul(W.D, 1. / permittivity),
 			real3_cross(W.<?=fluid?>_v, W.B)
 		), x);
 	real sqrt_EInt_lHat_over_rho_<?=fluid?> = sqrt(2. * EInt_<?=fluid?> * lHat_<?=fluid?> / (W.<?=fluid?>_rho * LorentzForceSq_<?=fluid?>));
@@ -83,12 +91,16 @@ for _,fluid in ipairs(fluids) do
 <? 
 end
 ?>
+	
+	real sqrt_permittivity = solver->sqrt_permittivity_times_normalizedSpeedOfLight / normalizedSpeedOfLight;
+	real sqrt_permeability = solver->sqrt_permeability;
+	real permittivity = sqrt_permittivity * sqrt_permittivity;
+	real permeability = sqrt_permeability * sqrt_permeability;
 
 	//taken from glm-maxwell instead of the 2014 Abgrall, Kumar
-	real3 E = real3_real_mul(U.D, 1. / solver->permittivity);
-	real3 H = real3_real_mul(U.B, 1. / solver->permeability);
-	// right now permittivity * permeability == 1.  therefore phase vel should be approx 1.  if we change 1/eps * 1/mu == c^2 then we shoudl change phase vel too
-	real v_pSq = normalizedSpeedOfLightSq / (solver->permittivity * solver->permeability);
+	real3 E = real3_real_mul(U.D, 1. / permittivity);
+	real3 H = real3_real_mul(U.B, 1. / permeability);
+	real v_pSq = 1. / (permittivity * permeability);
 	<? if side == 0 then ?>
 	F.D = _real3(v_pSq * U.phi * solver->divPhiWavespeed, H.z, -H.y);
 	F.B = _real3(v_pSq * U.psi * solver->divPsiWavespeed, -E.z, E.y);
@@ -259,6 +271,11 @@ waves_t eigen_leftTransform_<?=side?>(
 
 	const real heatRatioMinusOne = solver->heatCapacityRatio - 1.;
 
+	real sqrt_eps = solver->sqrt_permittivity_times_normalizedSpeedOfLight / normalizedSpeedOfLight;
+	real sqrt_mu = solver->sqrt_permeability;
+	real eps = sqrt_eps * sqrt_eps;
+	real mu = sqrt_mu * sqrt_mu;
+
 <? 
 				if side == 0 then 
 ?>
@@ -296,14 +313,14 @@ waves_t eigen_leftTransform_<?=side?>(
 	//EM
 	X += 10;
 	Y += 10;
-	Y[0] = (X[0] - X[6] * normalizedSpeedOfLight) * .5;
-	Y[1] = (X[3] - X[7] / normalizedSpeedOfLight) * .5;
-	Y[2] = (X[1] - X[5] * normalizedSpeedOfLight) * .5;
-	Y[3] = (X[4] * normalizedSpeedOfLight + X[2]) * .5;
-	Y[4] = (X[5] * normalizedSpeedOfLight + X[1]) * .5;
-	Y[5] = (X[2] - X[4] * normalizedSpeedOfLight) * .5;
-	Y[6] = (X[7] / normalizedSpeedOfLight + X[3]) * .5;
-	Y[7] = (X[6] * normalizedSpeedOfLight + X[0]) * .5;
+	Y[0] = ((-(sqrt_eps * (X[0] - X[6]))) / sqrt_2);
+	Y[1] = ((-(sqrt_eps * (X[3] - X[7]))) / sqrt_2);
+	Y[2] = (((X[2] * sqrt_mu) + (X[4] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
+	Y[3] = (((X[1] * sqrt_mu) - (X[5] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
+	Y[4] = ((-((X[2] * sqrt_mu) - (X[4] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));
+	Y[5] = (((X[1] * sqrt_mu) + (X[5] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
+	Y[6] = ((sqrt_eps * (X[0] + X[6])) / sqrt_2);
+	Y[7] = ((sqrt_eps * (X[3] + X[7])) / sqrt_2);
 
 <?
 				elseif side == 1 then 
@@ -342,14 +359,14 @@ waves_t eigen_leftTransform_<?=side?>(
 	//EM
 	X += 10;
 	Y += 10;
-	Y[0] = (X[1] - X[6] * normalizedSpeedOfLight) * .5;
-	Y[1] = (X[4] - X[7] / normalizedSpeedOfLight) * .5;
-	Y[2] = (X[5] * normalizedSpeedOfLight + X[0]) * .5;
-	Y[3] = (X[2] - X[3] * normalizedSpeedOfLight) * .5;
-	Y[4] = (X[0] - X[5] * normalizedSpeedOfLight) * .5;
-	Y[5] = (X[3] * normalizedSpeedOfLight + X[2]) * .5;
-	Y[6] = (X[7] / normalizedSpeedOfLight + X[4]) * .5;
-	Y[7] = (X[6] * normalizedSpeedOfLight + X[1]) * .5;
+	Y[0] = ((-(sqrt_eps * (X[1] - X[6]))) / sqrt_2);
+	Y[1] = ((-(sqrt_eps * (X[4] - X[7]))) / sqrt_2);
+	Y[2] = (((X[2] * sqrt_mu) - (X[3] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
+	Y[3] = (((X[0] * sqrt_mu) + (X[5] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
+	Y[4] = (((X[2] * sqrt_mu) + (X[3] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
+	Y[5] = ((-((X[0] * sqrt_mu) - (X[5] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));
+	Y[6] = ((sqrt_eps * (X[1] + X[6])) / sqrt_2);
+	Y[7] = ((sqrt_eps * (X[4] + X[7])) / sqrt_2);
 
 <? 
 				elseif side == 2 then
@@ -388,14 +405,14 @@ waves_t eigen_leftTransform_<?=side?>(
 	//EM
 	X += 10;
 	Y += 10;
-	Y[0] = (X[2] - X[6] * normalizedSpeedOfLight) * .5;
-	Y[1] = (X[5] - X[7] / normalizedSpeedOfLight) * .5;
-	Y[2] = (X[0] - X[4] * normalizedSpeedOfLight) * .5;
-	Y[3] = (X[3] * normalizedSpeedOfLight + X[1]) * .5;
-	Y[4] = (X[4] * normalizedSpeedOfLight + X[0]) * .5;
-	Y[5] = (X[1] - X[3] * normalizedSpeedOfLight) * .5;
-	Y[6] = (X[7] / normalizedSpeedOfLight + X[5]) * .5;
-	Y[7] = (X[6] * normalizedSpeedOfLight + X[2]) * .5;
+	Y[0] = ((-(sqrt_eps * (X[2] - X[6]))) / sqrt_2);
+	Y[1] = ((-(sqrt_eps * (X[5] - X[7]))) / sqrt_2);
+	Y[2] = (((X[1] * sqrt_mu) + (X[3] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
+	Y[3] = (((X[0] * sqrt_mu) - (X[4] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
+	Y[4] = (((X[1] * sqrt_mu) - (X[3] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
+	Y[5] = (((X[0] * sqrt_mu) + (X[4] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
+	Y[6] = ((sqrt_eps * (X[2] + X[6])) / sqrt_2);
+	Y[7] = ((sqrt_eps * (X[5] + X[7])) / sqrt_2);
 
 <?
 				end 
@@ -412,6 +429,11 @@ cons_t eigen_rightTransform_<?=side?>(
 	cons_t UY;
 	real* Y = UY.ptr;
 	real* X = UX.ptr;
+	
+	real sqrt_eps = solver->sqrt_permittivity_times_normalizedSpeedOfLight / normalizedSpeedOfLight;
+	real sqrt_mu = solver->sqrt_permeability;
+	real eps = sqrt_eps * sqrt_eps;
+	real mu = sqrt_mu * sqrt_mu;
 
 	<?=prefix?>
 <? 
@@ -444,15 +466,14 @@ cons_t eigen_rightTransform_<?=side?>(
 	//EM
 	X += 10;
 	Y += 10;
-	Y[0] = X[7] + X[0];
-	Y[1] = X[4] + X[2];
-	Y[2] = X[5] + X[3];
-	Y[3] = X[6] + X[1];
-	Y[4] = (X[3] - X[5]) / normalizedSpeedOfLight;
-	Y[5] = (X[4] - X[2]) / normalizedSpeedOfLight;
-	Y[6] = (X[7] - X[0]) / normalizedSpeedOfLight;
-	Y[7] = (X[6] - X[1]) * normalizedSpeedOfLight;
-
+	Y[0] = ((-(X[0] - X[6])) / (sqrt_2 * sqrt_eps));
+	Y[1] = ((-(sqrt_eps * (X[3] - X[5]))) / sqrt_2);
+	Y[2] = ((sqrt_eps * (X[2] - X[4])) / sqrt_2);
+	Y[3] = ((-(X[1] - X[7])) / (sqrt_2 * sqrt_eps));
+	Y[4] = ((sqrt_mu * (X[2] + X[4])) / sqrt_2);
+	Y[5] = ((sqrt_mu * (X[3] + X[5])) / sqrt_2);
+	Y[6] = ((X[0] + X[6]) / (sqrt_2 * sqrt_eps));
+	Y[7] = ((X[1] + X[7]) / (sqrt_2 * sqrt_eps));
 <? 
 				elseif side == 1 then
 ?>
@@ -483,14 +504,14 @@ cons_t eigen_rightTransform_<?=side?>(
 	//EM
 	X += 10;
 	Y += 10;
-	Y[0] = X[4] + X[2];
-	Y[1] = X[7] + X[0];
-	Y[2] = X[5] + X[3];
-	Y[3] = (X[5] - X[3]) / normalizedSpeedOfLight;
-	Y[4] = X[6] + X[1];
-	Y[5] = (X[2] - X[4]) / normalizedSpeedOfLight;
-	Y[6] = (X[7] - X[0]) / normalizedSpeedOfLight;
-	Y[7] = (X[6] - X[1]) * normalizedSpeedOfLight;
+	Y[0] = ((sqrt_eps * (X[3] - X[5])) / sqrt_2);
+	Y[1] = ((-(X[0] - X[6])) / (sqrt_2 * sqrt_eps));
+	Y[2] = ((-(sqrt_eps * (X[2] - X[4]))) / sqrt_2);
+	Y[3] = ((sqrt_mu * (X[2] + X[4])) / sqrt_2);
+	Y[4] = ((-(X[1] - X[7])) / (sqrt_2 * sqrt_eps));
+	Y[5] = ((sqrt_mu * (X[3] + X[5])) / sqrt_2);
+	Y[6] = ((X[0] + X[6]) / (sqrt_2 * sqrt_eps));
+	Y[7] = ((X[1] + X[7]) / (sqrt_2 * sqrt_eps));
 
 <?
 				elseif side == 2 then
@@ -522,14 +543,14 @@ cons_t eigen_rightTransform_<?=side?>(
 	//EM
 	X += 10;
 	Y += 10;
-	Y[0] = X[4] + X[2];
-	Y[1] = X[5] + X[3];
-	Y[2] = X[7] + X[0];
-	Y[3] = (X[3] - X[5]) / normalizedSpeedOfLight;
-	Y[4] = (X[4] - X[2]) / normalizedSpeedOfLight;
-	Y[5] = X[6] + X[1];
-	Y[6] = (X[7] - X[0]) / normalizedSpeedOfLight;
-	Y[7] = (X[6] - X[1]) * normalizedSpeedOfLight;
+	Y[0] = ((-(sqrt_eps * (X[3] - X[5]))) / sqrt_2);
+	Y[1] = ((sqrt_eps * (X[2] - X[4])) / sqrt_2);
+	Y[2] = ((-(X[0] - X[6])) / (sqrt_2 * sqrt_eps));
+	Y[3] = ((sqrt_mu * (X[2] + X[4])) / sqrt_2);
+	Y[4] = ((sqrt_mu * (X[3] + X[5])) / sqrt_2);
+	Y[5] = ((-(X[1] - X[7])) / (sqrt_2 * sqrt_eps));
+	Y[6] = ((X[0] + X[6]) / (sqrt_2 * sqrt_eps));
+	Y[7] = ((X[1] + X[7]) / (sqrt_2 * sqrt_eps));
 
 <?
 				end
@@ -605,6 +626,11 @@ kernel void addSource(
 	SETBOUNDS_NOGHOST();
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
+	
+	real sqrt_permittivity = solver->sqrt_permittivity_times_normalizedSpeedOfLight / normalizedSpeedOfLight;
+	real sqrt_permeability = solver->sqrt_permeability;
+	real permittivity = sqrt_permittivity * sqrt_permittivity;
+	real permeability = sqrt_permeability * sqrt_permeability;
 
 	deriv->ion_m.x += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->D.x + U->ion_m.y * U->B.z - U->ion_m.z * U->B.y);
 	deriv->ion_m.y += (1. / normalizedIonLarmorRadius) * (U->ion_rho * U->D.y + U->ion_m.z * U->B.x - U->ion_m.x * U->B.z);
@@ -617,10 +643,10 @@ kernel void addSource(
 	deriv->elec_ETotal -= solver->ionElectronMassRatio / normalizedIonLarmorRadius * real3_dot(U->D, U->elec_m);
 
 	real normalizedIonDebyeLengthSq	= normalizedIonDebyeLength * normalizedIonDebyeLength;
-	deriv->D.x -= (U->ion_m.x * solver->ionChargeMassRatio + U->elec_m.x * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
-	deriv->D.y -= (U->ion_m.y * solver->ionChargeMassRatio + U->elec_m.y * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
-	deriv->D.z -= (U->ion_m.z * solver->ionChargeMassRatio + U->elec_m.z * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
-	deriv->phi += (U->ion_rho * solver->ionChargeMassRatio + U->elec_rho * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius) * solver->divPhiWavespeed;
+	deriv->D.x -= permittivity * (U->ion_m.x * solver->ionChargeMassRatio + U->elec_m.x * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->D.y -= permittivity * (U->ion_m.y * solver->ionChargeMassRatio + U->elec_m.y * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->D.z -= permittivity * (U->ion_m.z * solver->ionChargeMassRatio + U->elec_m.z * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->phi += permittivity * (U->ion_rho * solver->ionChargeMassRatio + U->elec_rho * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius) * solver->divPhiWavespeed;
 
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 	real3 x = cell_x(i);

@@ -1,6 +1,10 @@
---[[ 2000 Munz
+--[[ 
+2000 Munz
 But then I changed the eigendecomposition to match my Trangenstein one with epsilons and mus
 And then I changed epsilon E -> D, so it's based on B and D 
+And I rescaled the wavespeeds and potential state variables so that there were no speed-of-lights (or, for varying susceptibility, phase velocities) that appeared
+
+Work is in my symmath-lua repo tests/output/Maxwell.html file and in my MathWorksheets repo 'Maxwell equations in hyperbolic form.html' file.
 
 I'm still not completely sold on this technique.
 Relativistically we are doing:

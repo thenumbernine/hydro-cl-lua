@@ -192,8 +192,8 @@ function TwoFluidEMHD:createInitState()
 		{name='ionChargeMassRatio', value=1},
 
 		-- hmm ...
-		{name='permeability', value=4 * math.pi},
-		{name='permittivity', value=1 / (4 * math.pi)},
+		{name='sqrt_permeability', value=4 * math.pi},
+		{name='sqrt_permittivity_times_normalizedSpeedOfLight', value=1 / (4 * math.pi)},
 	
 		-- lambda_d = ion Debye length
 		-- lambda_d = sqrt(epsilon (v_i^T)^2 / n_0 q_i)
@@ -540,9 +540,13 @@ function TwoFluidEMHD:getDisplayVars()
 
 	vars:append{
 		{['EM energy'] = [[
+	real sqrt_permittivity = solver->sqrt_permittivity_times_normalizedSpeedOfLight / normalizedSpeedOfLight;
+	real sqrt_permeability = solver->sqrt_permeability;
+	real permittivity = sqrt_permittivity * sqrt_permittivity;
+	real permeability = sqrt_permeability * sqrt_permeability;
 	*value = .5 * (
-		coordLenSq(U->D, x) / solver->permittivity
-		+ coordLenSq(U->B, x) / solver->permeability
+		coordLenSq(U->D, x) / permittivity
+		+ coordLenSq(U->B, x) / permeability
 	);
 ]]},
 	}:append(table{'D','B'}:map(function(var,i)
@@ -609,14 +613,14 @@ function TwoFluidEMHD:eigenWaveCode(side, eig, x, waveIndex)
 	if waveIndex >= 5*#fluids and waveIndex < 5*#fluids+8 then
 		-- 2014 Abgrall, Kumar eqn 1.9 says the eigenvalues are c, while the flux contains cHat ...
 		return ({
-			'-normalizedSpeedOfLight * solver->divPhiWavespeed * _1_sqrt_det_g',
-			'-normalizedSpeedOfLight * solver->divPsiWavespeed * _1_sqrt_det_g',
-			'-normalizedSpeedOfLight * _1_sqrt_det_g',
-			'-normalizedSpeedOfLight * _1_sqrt_det_g',
-			'normalizedSpeedOfLight * _1_sqrt_det_g',
-			'normalizedSpeedOfLight * _1_sqrt_det_g',
-			'normalizedSpeedOfLight * solver->divPsiWavespeed * _1_sqrt_det_g',
-			'normalizedSpeedOfLight * solver->divPhiWavespeed * _1_sqrt_det_g',
+			'-solver->divPhiWavespeed',
+			'-solver->divPsiWavespeed',
+			'-normalizedSpeedOfLight',
+			'-normalizedSpeedOfLight',
+			'normalizedSpeedOfLight',
+			'normalizedSpeedOfLight',
+			'solver->divPsiWavespeed',
+			'solver->divPhiWavespeed',
 		})[waveIndex - 5*#fluids + 1]
 	end
 	error('got a bad waveIndex: '..waveIndex)
@@ -630,7 +634,7 @@ function TwoFluidEMHD:consWaveCodePrefix(side, U, x)
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 
 #if 1	//using the EM wavespeed
-	real consWaveCode_lambdaMax = max(max(solver->divPsiWavespeed, solver->divPhiWavespeed), 1.) * normalizedSpeedOfLight;
+	real consWaveCode_lambdaMax = max(max(solver->divPsiWavespeed, solver->divPhiWavespeed), normalizedSpeedOfLight);
 #else	//ignoring it
 	real consWaveCode_lambdaMax = INFINITY;
 #endif
