@@ -133,8 +133,8 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 		{name='divPsiWavespeed', value=1},
 		{name='divPhiWavespeed', value=1},
 		
-		{name='divPsiGWavespeed', value=1},
-		{name='divPhiGWavespeed', value=1},
+		{name='divPsiWavespeed_g', value=1},
+		{name='divPhiWavespeed_g', value=1},
 		
 		-- gamma = heat capacity ratio
 		{name='heatCapacityRatio', value=5/3},
@@ -182,9 +182,10 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 		-- normalized ion Debye length: 
 		-- lambdaHat_d = lambda_d / l_r
 
-		{name='sqrt_1_eps', value=1},			-- permittivity
-		{name='sqrt_1_mu', value=1},			-- permeability
-		{name='gravitationalConstant', value=1e-7},		-- 6.67408e-11 m^3 / (kg s^2)
+		{name='sqrt_permeability', value=1},			-- permittivity
+		{name='sqrt_permittivity_times_normalizedSpeedOfLight', value=1},			-- permeability
+		
+		{name='sqrt_gravitationalConstant', value=1e-3},		-- sqrt(6.67408e-11 m^3 / (kg s^2))
 	
 	}:append(fluids:map(function(fluid)
 		return table{
@@ -215,11 +216,15 @@ inline real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=e
 }
 <? end ?>
 
+#if 0
 inline real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
-	real _1_eps = solver->sqrt_1_eps * solver->sqrt_1_eps;
-	real _1_mu = solver->sqrt_1_mu * solver->sqrt_1_mu;
-	return .5 * (coordLenSq(U->D, x) * _1_eps + coordLenSq(U->B, x) * _1_mu);
+	real sqrt_permittivity = solver->sqrt_permittivity_times_normalizedSpeedOfLight / normalizedSpeedOfLight;
+	real sqrt_permeability = solver->sqrt_permeability;
+	real permittivity = sqrt_permittivity * sqrt_permittivity;
+	real permeability = sqrt_permeability * sqrt_permeability;
+	return .5 * (coordLenSq(U->D, x) / permittivity + coordLenSq(U->B, x) / permeability);
 }
+#endif
 ]], {
 		solver = self.solver,
 		eqn = self,
@@ -544,7 +549,14 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
 
 	vars:append{
 		{['EM energy'] = [[
-	*value = calc_EM_energy(solver, U, x);
+	real sqrt_permittivity = solver->sqrt_permittivity_times_normalizedSpeedOfLight / normalizedSpeedOfLight;
+	real sqrt_permeability = solver->sqrt_permeability;
+	real permittivity = sqrt_permittivity * sqrt_permittivity;
+	real permeability = sqrt_permeability * sqrt_permeability;
+	*value = .5 * (
+		coordLenSq(U->D, x) / permittivity
+		+ coordLenSq(U->B, x) / permeability
+	);
 ]]},
 	}:append(table{'D','B'}:map(function(var,i)
 		local field = assert( ({D='D', B='B'})[var] )
@@ -582,7 +594,6 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.eigenVars = eigenVars
 
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCodePrefix(side, eig, x)
 	return template([[
-	real _1_sqrt_det_g = 1. / sqrt_det_g_grid(cell_x(i));
 <? for i,fluid in ipairs(fluids) do ?>
 	real <?=fluid?>_Cs_sqrt_gU = <?=eig?>.<?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(<?=x?>);
 	real <?=fluid?>_v_n = <?=eig?>.<?=fluid?>_v.s[<?=side?>];
@@ -610,26 +621,26 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCode(side, eig, x, waveI
 	if waveIndex >= 5*#fluids and waveIndex < 5*#fluids+8 then
 		-- 2014 Abgrall, Kumar eqn 1.9 says the eigenvalues are c, while the flux contains cHat ...
 		return ({
-			'-normalizedSpeedOfLight * solver->divPhiWavespeed * _1_sqrt_det_g',
-			'-normalizedSpeedOfLight * solver->divPsiWavespeed * _1_sqrt_det_g',
-			'-normalizedSpeedOfLight * _1_sqrt_det_g',
-			'-normalizedSpeedOfLight * _1_sqrt_det_g',
-			'normalizedSpeedOfLight * _1_sqrt_det_g',
-			'normalizedSpeedOfLight * _1_sqrt_det_g',
-			'normalizedSpeedOfLight * solver->divPsiWavespeed * _1_sqrt_det_g',
-			'normalizedSpeedOfLight * solver->divPhiWavespeed * _1_sqrt_det_g',
+			'-solver->divPhiWavespeed',
+			'-solver->divPsiWavespeed',
+			'-normalizedSpeedOfLight',
+			'-normalizedSpeedOfLight',
+			'normalizedSpeedOfLight',
+			'normalizedSpeedOfLight',
+			'solver->divPsiWavespeed',
+			'solver->divPhiWavespeed',
 		})[waveIndex - 5*#fluids + 1]
 	end
 	if waveIndex >= 5*#fluids+8 and waveIndex < 5*#fluids+16 then
 		return ({
-			'-normalizedSpeedOfLight * solver->divPhiGWavespeed * _1_sqrt_det_g',
-			'-normalizedSpeedOfLight * solver->divPsiGWavespeed * _1_sqrt_det_g',
-			'-normalizedSpeedOfLight * _1_sqrt_det_g',
-			'-normalizedSpeedOfLight * _1_sqrt_det_g',
-			'normalizedSpeedOfLight * _1_sqrt_det_g',
-			'normalizedSpeedOfLight * _1_sqrt_det_g',
-			'normalizedSpeedOfLight * solver->divPsiGWavespeed * _1_sqrt_det_g',
-			'normalizedSpeedOfLight * solver->divPhiGWavespeed * _1_sqrt_det_g',
+			'-solver->divPhiWavespeed_g',
+			'-solver->divPsiWavespeed_g',
+			'-normalizedSpeedOfLight',
+			'-normalizedSpeedOfLight',
+			'normalizedSpeedOfLight',
+			'normalizedSpeedOfLight',
+			'solver->divPsiWavespeed_g',
+			'solver->divPhiWavespeed_g',
 		})[waveIndex - 5*#fluids - 8 + 1]
 	end
 	error('got a bad waveIndex: '..waveIndex)
@@ -644,11 +655,11 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodePrefix(side, U, x)
 
 #if 1	//using the EM wavespeed
 	real consWaveCode_lambdaMax = max(
-		//max(
+		max(
 			max(solver->divPsiWavespeed, solver->divPhiWavespeed),
-			//max(solver->divPsiGWavespeed, solver->divPhiGWavespeed)
-		//),
-		1.) * normalizedSpeedOfLight;
+			max(solver->divPsiWavespeed_g, solver->divPhiWavespeed_g)
+		),
+		normalizedSpeedOfLight);
 #else	//ignoring it
 	real consWaveCode_lambdaMax = INFINITY;
 #endif

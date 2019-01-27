@@ -21,15 +21,13 @@ cons_t fluxFromCons_<?=side?>(
 ) {
 	<?=vec3?> E = calc_E(U);
 	<?=vec3?> H = calc_H(U);
-	<?=scalar?> _1_eps = <?=mul?>(U.sqrt_1_eps, U.sqrt_1_eps);
-	<?=scalar?> _1_mu = <?=mul?>(U.sqrt_1_mu, U.sqrt_1_mu);
 	return (cons_t){
 	<? if side == 0 then ?>
 		.D = _<?=vec3?>(<?=real_mul?>(U.phi, solver->divPhiWavespeed),  H.z, <?=neg?>(H.y)),
 		.B = _<?=vec3?>(<?=real_mul?>(U.psi, solver->divPsiWavespeed), <?=neg?>(E.z),  E.y),
 	<? elseif side == 1 then ?>
 		.D = _<?=vec3?>(<?=neg?>(H.z), <?=real_mul?>(U.phi, solver->divPhiWavespeed),  H.x),
-		.B = _<?=vec3?>( E.z,          <?=real_mul?>(U.psi, solver->divPsiWavespeed), <?=neg?>(E.x)),
+		.B = _<?=vec3?>( E.z, <?=real_mul?>(U.psi, solver->divPsiWavespeed), <?=neg?>(E.x)),
 	<? elseif side == 2 then ?>
 		.D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>(U.phi, solver->divPhiWavespeed)),
 		.B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>(U.psi, solver->divPsiWavespeed)),

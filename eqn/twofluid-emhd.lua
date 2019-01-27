@@ -585,7 +585,6 @@ TwoFluidEMHD.eigenVars = eigenVars
 
 function TwoFluidEMHD:eigenWaveCodePrefix(side, eig, x)
 	return template([[
-	real _1_sqrt_det_g = 1. / sqrt_det_g_grid(cell_x(i));
 <? for i,fluid in ipairs(fluids) do ?>
 	real <?=fluid?>_Cs_sqrt_gU = <?=eig?>.<?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(<?=x?>);
 	real <?=fluid?>_v_n = <?=eig?>.<?=fluid?>_v.s[<?=side?>];

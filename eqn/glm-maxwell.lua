@@ -130,8 +130,6 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 	return <?=vec3?>_<?=scalar?>_mul(U.B, <?=mul?>(U.sqrt_1_mu, U.sqrt_1_mu));
 }
 
-real ESq(<?=eqn.cons_t?> U, real3 x) { return eqn_coordLenSq(calc_E(U), x); }
-real BSq(<?=eqn.cons_t?> U, real3 x) { return eqn_coordLenSq(U.B, x); }
 ]], self:getTemplateEnv())
 end
 

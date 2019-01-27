@@ -3,6 +3,9 @@ local clnumber = require 'cl.obj.number'
 local fluids = eqn.fluids
 ?>
 
+#define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
+#define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
+
 #define ionReferenceThermalVelocity (solver->ionLarmorRadius * solver->ionChargeMassRatio * solver->referenceMagneticField)
 #define normalizedSpeedOfLight 		(solver->speedOfLight / ionReferenceThermalVelocity)
 #define normalizedSpeedOfLightSq 	(normalizedSpeedOfLight * normalizedSpeedOfLight)
@@ -15,9 +18,6 @@ local fluids = eqn.fluids
 // https://en.wikipedia.org/wiki/Mass-to-charge_ratio
 // q_e / m_e = -1.758820024e+11 C/kg
 #define elecChargeMassRatio			(solver->ionElectronMassRatio / solver->ionMass)
-
-#define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
-#define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
 
 typedef <?=eqn.prim_t?> prim_t;
 typedef <?=eqn.cons_t?> cons_t;
@@ -100,16 +100,15 @@ end
 	//taken from glm-maxwell instead of the 2014 Abgrall, Kumar
 	real3 E = real3_real_mul(U.D, 1. / permittivity);
 	real3 H = real3_real_mul(U.B, 1. / permeability);
-	real v_pSq = 1. / (permittivity * permeability);
 	<? if side == 0 then ?>
-	F.D = _real3(v_pSq * U.phi * solver->divPhiWavespeed, H.z, -H.y);
-	F.B = _real3(v_pSq * U.psi * solver->divPsiWavespeed, -E.z, E.y);
+	F.D = _real3(U.phi * solver->divPhiWavespeed, H.z, -H.y);
+	F.B = _real3(U.psi * solver->divPsiWavespeed, -E.z, E.y);
 	<? elseif side == 1 then ?>
-	F.D = _real3(-H.z, v_pSq * U.phi * solver->divPhiWavespeed, H.x);
-	F.B = _real3(E.z, v_pSq * U.psi * solver->divPsiWavespeed, -E.x);
+	F.D = _real3(-H.z, U.phi * solver->divPhiWavespeed, H.x);
+	F.B = _real3(E.z, U.psi * solver->divPsiWavespeed, -E.x);
 	<? elseif side == 2 then ?>
-	F.D = _real3(H.y, -H.x, v_pSq * U.phi * solver->divPhiWavespeed);
-	F.B = _real3(-E.y, E.x, v_pSq * U.psi * solver->divPsiWavespeed);
+	F.D = _real3(H.y, -H.x, U.phi * solver->divPhiWavespeed);
+	F.B = _real3(-E.y, E.x, U.psi * solver->divPsiWavespeed);
 	<? end ?>
 	F.phi = U.D.s<?=side?> * solver->divPhiWavespeed;
 	F.psi = U.B.s<?=side?> * solver->divPsiWavespeed;
@@ -598,18 +597,25 @@ cons_t eigen_fluxTransform_<?=side?>(
 					end 
 ?>	
 	
+	real sqrt_permittivity = solver->sqrt_permittivity_times_normalizedSpeedOfLight / normalizedSpeedOfLight;
+	real sqrt_permeability = solver->sqrt_permeability;
+	real permittivity = sqrt_permittivity * sqrt_permittivity;
+	real permeability = sqrt_permeability * sqrt_permeability;
+	
+	real3 E = real3_real_mul(U.D, 1. / permittivity);
+	real3 H = real3_real_mul(U.B, 1. / permeability);
 	<? if side == 0 then ?>
-	UY.D = _real3(normalizedSpeedOfLightSq * solver->divPhiWavespeed * UX.phi, normalizedSpeedOfLightSq * UX.B.z, -normalizedSpeedOfLightSq * UX.B.y);
-	UY.B = _real3(solver->divPsiWavespeed * UX.psi, -UX.D.z, UX.D.y);
+	UY.D = _real3(solver->divPhiWavespeed * UX.phi, H.z, -H.y);
+	UY.B = _real3(solver->divPsiWavespeed * UX.psi, -E.z, E.y);
 	<? elseif side == 1 then ?>
-	UY.D = _real3(-normalizedSpeedOfLightSq * UX.B.z, normalizedSpeedOfLightSq * solver->divPhiWavespeed * UX.phi, normalizedSpeedOfLightSq * UX.B.x);
-	UY.B = _real3(UX.D.z, solver->divPsiWavespeed * UX.psi, -UX.D.x);
+	UY.D = _real3(-H.z, solver->divPhiWavespeed * UX.phi, H.x);
+	UY.B = _real3(E.z, solver->divPsiWavespeed * UX.psi, -E.x);
 	<? elseif side == 2 then ?>
-	UY.D = _real3(normalizedSpeedOfLightSq * UX.B.y, -normalizedSpeedOfLightSq * UX.B.x, normalizedSpeedOfLightSq * solver->divPhiWavespeed * UX.phi);
-	UY.B = _real3(-UX.D.y, UX.D.x, solver->divPsiWavespeed * UX.psi);
+	UY.D = _real3(H.y, -H.x, solver->divPhiWavespeed * UX.phi);
+	UY.B = _real3(-E.y, E.x, solver->divPsiWavespeed * UX.psi);
 	<? end ?>
 	UY.phi = solver->divPhiWavespeed * UX.D.s<?=side?>;
-	UY.psi = normalizedSpeedOfLightSq * solver->divPsiWavespeed * UX.B.s<?=side?>;
+	UY.psi = solver->divPsiWavespeed * UX.B.s<?=side?>;
 
 	UY.ion_ePot = 0;
 	UY.elec_ePot = 0;
