@@ -1497,10 +1497,12 @@ do
 					end
 					local enableChanged = handle(all, 'all')
 					--refresh = refresh or enableChanged
-					for _,field in ipairs(fields) do
-						if all[field] ~= original[field] then
-							for _,var in ipairs(displayVarGroup.vars) do
-								var[field] = all[field]
+					if enableChanged then
+						for _,field in ipairs(fields) do
+							if all[field] ~= original[field] then
+								for _,var in ipairs(displayVarGroup.vars) do
+									var[field] = all[field]
+								end
 							end
 						end
 					end

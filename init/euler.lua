@@ -124,10 +124,17 @@ local function addMaxwellOscillatingBoundary(args)
 			return 
 				--oldxmin(args) .. 
 				template([[
+<?
+	local epsSrc = 
+		(require 'eqn.twofluid-emhd-lingr'.is(eqn) 
+			or require 'eqn.glm-maxwell'.is(eqn))
+		and U or 'solver'
+?>
+	
 	<?=U?>.B = <?=vec3?>_zero;
 	<?=U?>.D = <?=vec3?>_zero;
 	<?=U?>.D.<?=dir?> = <?=real_mul?>(
-		<?=mul?>(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_eps),
+		<?=mul?>(<?=epsSrc?>.sqrt_1_eps, <?=epsSrc?>.sqrt_1_eps),
 		<?=amplitude?> * sin(2. * M_PI * <?=frequency?> * t)); 
 ]], table(solver.eqn:getTemplateEnv(), {
 		U = U,
@@ -1450,8 +1457,10 @@ end ?>;
 		name = 'Maxwell default',
 		initState = function(self, solver)
 			return template([[
-	D.y = <?=eqn.susc_t?>_from_real(1.);
-	B.z = <?=eqn.susc_t?>_from_real(lhs ? 1. : -1);
+	D.x = <?=eqn.susc_t?>_from_real(lhs ? 1 : -1);
+	D.y = <?=eqn.susc_t?>_from_real(1);
+	B.y = <?=eqn.susc_t?>_from_real(-1);
+	B.z = <?=eqn.susc_t?>_from_real(lhs ? 1 : -1);
 ]], solver.eqn:getTemplateEnv())
 		end,
 	},

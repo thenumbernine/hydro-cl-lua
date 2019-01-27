@@ -21,11 +21,12 @@ local args = {
 	--fixedDT = .0001,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
 	
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
+	-- TODO rename this to 'calcLR' or something
 	--usePLM = 'plm-cons',
 	--usePLM = 'plm-cons-alone',
 	--usePLM = 'plm-prim-alone',
@@ -34,14 +35,17 @@ local args = {
 	--usePLM = 'plm-eig-prim-ref',
 	--usePLM = 'plm-athena',			-- based on Athena.  most accurate from 1D sod tests atm
 	--usePLM = 'ppm-experimental',	-- FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
+	--usePLM = 'weno',
 	-- TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then we can use CTU with WENO.
 	
 	-- only enabled for certain usePLM methods
 	--slopeLimiter = 'minmod',
 
+	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads, which isn't a good idea
+	--  so don't use this without usePLM
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -66,7 +70,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{64,1,1},
-				{64,64,1},
+				{128,128,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
@@ -78,12 +82,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'periodic',
+		xmax=cmdline.boundary or 'periodic',
+		ymin=cmdline.boundary or 'periodic',
+		ymax=cmdline.boundary or 'periodic',
+		zmin=cmdline.boundary or 'periodic',
+		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
 	-- TODO these next two seem very similar
@@ -123,7 +127,7 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	coord = 'cylinder',
 
 	-- for some reason, with holonomic coordinates, with rmax=1, for any rmin < .1, I get an explosion
@@ -250,7 +254,7 @@ local args = {
 	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	initState = 'Brio-Wu',
+	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'GEM challenge', eqnArgs = {useEulerInitState=false},
@@ -269,7 +273,7 @@ local args = {
 	-- Maxwell:
 	--initState = 'Maxwell default',
 	--initState = 'Maxwell empty waves',
-	--initState = 'Maxwell scattering around cylinder',
+	initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around pyramid',
 	--initState = 'Maxwell scattering around square',
 	--initState = 'Maxwell scattering around Koch snowflake',
@@ -517,7 +521,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 
 -- this runs, but of course it's missing a few waves ...
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
@@ -541,7 +545,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='maxwell', wenoMethod='1996 Jiang Shu', order=5})))
 
 -- GLM Maxwell
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=7})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=13})))
@@ -559,7 +563,8 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 -- TODO: I suppose I could make this work with my integrator by (1) removing the maxwell terms from the integration variable list and (2) providing a separate operator that updates them implicitly
 -- TODO still needs PLM support
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='1996 Jiang Shu', order=7})))	-- order=9 exploded...
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='1996 Jiang Shu', order=9})))	-- exploded...
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='2010 Shen Zha', order=5})))
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity

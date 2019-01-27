@@ -23,17 +23,16 @@ cons_t fluxFromCons_<?=side?>(
 	<?=vec3?> H = calc_H(U);
 	<?=scalar?> _1_eps = <?=mul?>(U.sqrt_1_eps, U.sqrt_1_eps);
 	<?=scalar?> _1_mu = <?=mul?>(U.sqrt_1_mu, U.sqrt_1_mu);
-	<?=scalar?> v_pSq = <?=mul?>(_1_eps, _1_mu);
 	return (cons_t){
 	<? if side == 0 then ?>
-		.D = _<?=vec3?>(<?=real_mul?>(<?=mul?>(v_pSq, U.phi), solver->divPhiWavespeed),  H.z, <?=neg?>(H.y)),
-		.B = _<?=vec3?>(<?=real_mul?>(<?=mul?>(v_pSq, U.psi), solver->divPsiWavespeed), <?=neg?>(E.z),  E.y),
+		.D = _<?=vec3?>(<?=real_mul?>(U.phi, solver->divPhiWavespeed),  H.z, <?=neg?>(H.y)),
+		.B = _<?=vec3?>(<?=real_mul?>(U.psi, solver->divPsiWavespeed), <?=neg?>(E.z),  E.y),
 	<? elseif side == 1 then ?>
-		.D = _<?=vec3?>(<?=neg?>(H.z), <?=real_mul?>(<?=mul?>(v_pSq, U.phi), solver->divPhiWavespeed),  H.x),
-		.B = _<?=vec3?>( E.z,          <?=real_mul?>(<?=mul?>(v_pSq, U.psi), solver->divPsiWavespeed), <?=neg?>(E.x)),
+		.D = _<?=vec3?>(<?=neg?>(H.z), <?=real_mul?>(U.phi, solver->divPhiWavespeed),  H.x),
+		.B = _<?=vec3?>( E.z,          <?=real_mul?>(U.psi, solver->divPsiWavespeed), <?=neg?>(E.x)),
 	<? elseif side == 2 then ?>
-		.D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>(<?=mul?>(v_pSq, U.phi), solver->divPhiWavespeed)),
-		.B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>(<?=mul?>(v_pSq, U.psi), solver->divPsiWavespeed)),
+		.D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>(U.phi, solver->divPhiWavespeed)),
+		.B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>(U.psi, solver->divPsiWavespeed)),
 	<? end ?>
 		.phi = <?=real_mul?>(U.D.s<?=side?>, solver->divPhiWavespeed),
 		.psi = <?=real_mul?>(U.B.s<?=side?>, solver->divPsiWavespeed),
@@ -74,39 +73,40 @@ waves_t eigen_leftTransform_<?=side?>(
 	<?=scalar?> sqrt_1_mu = eig.sqrt_1_mu;
 	<?=scalar?> sqrt_eps = <?=inv?>(sqrt_1_eps);
 	<?=scalar?> sqrt_mu = <?=inv?>(sqrt_1_mu);
+	<?=scalar?> sqrt_2 = <?=inv?>(sqrt_1_2);
 
 	<? if side==0 then ?>
 
-	Yp[0] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[0], sqrt_mu ), <?=mul?>(Xp[6], sqrt_1_eps)), sqrt_1_2);
-	Yp[1] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[3], sqrt_mu ), <?=mul?>(Xp[7], sqrt_1_eps)), sqrt_1_2);
-	Yp[2] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[1], sqrt_mu ), <?=mul?>(Xp[5], sqrt_eps)), sqrt_1_2);
-	Yp[3] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[4], sqrt_eps), <?=mul?>(Xp[2], sqrt_mu)), sqrt_1_2);
-	Yp[4] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[5], sqrt_eps), <?=mul?>(Xp[1], sqrt_mu)), sqrt_1_2);
-	Yp[5] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[2], sqrt_mu ), <?=mul?>(Xp[4], sqrt_eps)), sqrt_1_2);
-	Yp[6] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[0], sqrt_mu ), <?=mul?>(Xp[6], sqrt_1_eps)), sqrt_1_2);
-	Yp[7] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[3], sqrt_mu ), <?=mul?>(Xp[7], sqrt_1_eps)), sqrt_1_2);
-	
+	Yp[0] = ((-(sqrt_eps * (Xp[0] - Xp[6]))) / sqrt_2);
+	Yp[1] = ((-(sqrt_eps * (Xp[3] - Xp[7]))) / sqrt_2);
+	Yp[2] = (((Xp[2] * sqrt_mu) + (Xp[4] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
+	Yp[3] = (((Xp[1] * sqrt_mu) - (Xp[5] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
+	Yp[4] = ((-((Xp[2] * sqrt_mu) - (Xp[4] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));
+	Yp[5] = (((Xp[1] * sqrt_mu) + (Xp[5] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
+	Yp[6] = ((sqrt_eps * (Xp[0] + Xp[6])) / sqrt_2);
+	Yp[7] = ((sqrt_eps * (Xp[3] + Xp[7])) / sqrt_2);
+
 	<? elseif side==1 then ?>
-	
-	Yp[0] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[1], sqrt_mu ), <?=mul?>(Xp[6], sqrt_1_eps)), sqrt_1_2);
-	Yp[1] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[4], sqrt_mu ), <?=mul?>(Xp[7], sqrt_1_eps)), sqrt_1_2);
-	Yp[2] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[5], sqrt_eps), <?=mul?>(Xp[0], sqrt_mu)), sqrt_1_2);
-	Yp[3] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[2], sqrt_mu ), <?=mul?>(Xp[3], sqrt_eps)), sqrt_1_2);
-	Yp[4] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[0], sqrt_mu ), <?=mul?>(Xp[5], sqrt_eps)), sqrt_1_2);
-	Yp[5] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[3], sqrt_eps), <?=mul?>(Xp[2], sqrt_mu)), sqrt_1_2);
-	Yp[6] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[1], sqrt_mu ), <?=mul?>(Xp[6], sqrt_1_eps)), sqrt_1_2);
-	Yp[7] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[4], sqrt_mu ), <?=mul?>(Xp[7], sqrt_1_eps)), sqrt_1_2);
-	
+
+	Yp[0] = ((-(sqrt_eps * (Xp[1] - Xp[6]))) / sqrt_2);
+	Yp[1] = ((-(sqrt_eps * (Xp[4] - Xp[7]))) / sqrt_2);
+	Yp[2] = (((Xp[2] * sqrt_mu) - (Xp[3] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
+	Yp[3] = (((Xp[0] * sqrt_mu) + (Xp[5] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
+	Yp[4] = (((Xp[2] * sqrt_mu) + (Xp[3] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
+	Yp[5] = ((-((Xp[0] * sqrt_mu) - (Xp[5] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));
+	Yp[6] = ((sqrt_eps * (Xp[1] + Xp[6])) / sqrt_2);
+	Yp[7] = ((sqrt_eps * (Xp[4] + Xp[7])) / sqrt_2);
+
 	<? elseif side==2 then ?>
 	
-	Yp[0] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[2], sqrt_mu ), <?=mul?>(Xp[6], sqrt_1_eps)), sqrt_1_2);
-	Yp[1] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[5], sqrt_mu ), <?=mul?>(Xp[7], sqrt_1_eps)), sqrt_1_2);
-	Yp[2] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[0], sqrt_mu ), <?=mul?>(Xp[4], sqrt_eps)), sqrt_1_2);
-	Yp[3] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[3], sqrt_eps), <?=mul?>(Xp[1], sqrt_mu)), sqrt_1_2);
-	Yp[4] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[4], sqrt_eps), <?=mul?>(Xp[0], sqrt_mu)), sqrt_1_2);
-	Yp[5] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[1], sqrt_mu ), <?=mul?>(Xp[3], sqrt_eps)), sqrt_1_2);
-	Yp[6] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[2], sqrt_mu ), <?=mul?>(Xp[6], sqrt_1_eps)), sqrt_1_2);
-	Yp[7] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[5], sqrt_mu ), <?=mul?>(Xp[7], sqrt_1_eps)), sqrt_1_2);
+	Yp[0] = ((-(sqrt_eps * (Xp[2] - Xp[6]))) / sqrt_2);
+	Yp[1] = ((-(sqrt_eps * (Xp[5] - Xp[7]))) / sqrt_2);
+	Yp[2] = (((Xp[1] * sqrt_mu) + (Xp[3] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
+	Yp[3] = (((Xp[0] * sqrt_mu) - (Xp[4] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
+	Yp[4] = (((Xp[1] * sqrt_mu) - (Xp[3] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
+	Yp[5] = (((Xp[0] * sqrt_mu) + (Xp[4] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
+	Yp[6] = ((sqrt_eps * (Xp[2] + Xp[6])) / sqrt_2);
+	Yp[7] = ((sqrt_eps * (Xp[5] + Xp[7])) / sqrt_2);
 
 	<? end ?>
 
@@ -127,39 +127,40 @@ cons_t eigen_rightTransform_<?=side?>(
 	<?=scalar?> sqrt_1_mu = eig.sqrt_1_mu;
 	<?=scalar?> sqrt_eps = <?=inv?>(eig.sqrt_1_eps);
 	<?=scalar?> sqrt_mu = <?=inv?>(eig.sqrt_1_mu);
+	<?=scalar?> sqrt_2 = <?=inv?>(sqrt_1_2);
 
 	<? if side==0 then ?>
 
-	Yp[0] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[6], sqrt_1_mu ), <?=mul?>(Xp[0], sqrt_1_mu)), sqrt_1_2);
-	Yp[1] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[4], sqrt_1_mu ), <?=mul?>(Xp[2], sqrt_1_mu)), sqrt_1_2);
-	Yp[2] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[5], sqrt_1_mu ), <?=mul?>(Xp[3], sqrt_1_mu)), sqrt_1_2);
-	Yp[3] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[7], sqrt_1_mu ), <?=mul?>(Xp[1], sqrt_1_mu)), sqrt_1_2);
-	Yp[4] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[3], sqrt_1_eps), <?=mul?>(Xp[5], sqrt_1_eps)), sqrt_1_2);
-	Yp[5] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[4], sqrt_1_eps), <?=mul?>(Xp[2], sqrt_1_eps)), sqrt_1_2);
-	Yp[6] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[6], sqrt_eps  ), <?=mul?>(Xp[0], sqrt_eps)), sqrt_1_2);
-	Yp[7] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[7], sqrt_eps  ), <?=mul?>(Xp[1], sqrt_eps)), sqrt_1_2);
+	Yp[0] = ((-(Xp[0] - Xp[6])) / (sqrt_2 * sqrt_eps));
+	Yp[1] = ((-(sqrt_eps * (Xp[3] - Xp[5]))) / sqrt_2);
+	Yp[2] = ((sqrt_eps * (Xp[2] - Xp[4])) / sqrt_2);
+	Yp[3] = ((-(Xp[1] - Xp[7])) / (sqrt_2 * sqrt_eps));
+	Yp[4] = ((sqrt_mu * (Xp[2] + Xp[4])) / sqrt_2);
+	Yp[5] = ((sqrt_mu * (Xp[3] + Xp[5])) / sqrt_2);
+	Yp[6] = ((Xp[0] + Xp[6]) / (sqrt_2 * sqrt_eps));
+	Yp[7] = ((Xp[1] + Xp[7]) / (sqrt_2 * sqrt_eps));
 	
 	<? elseif side==1 then ?>
-	
-	Yp[0] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[4], sqrt_1_mu ), <?=mul?>(Xp[2], sqrt_1_mu)), sqrt_1_2);
-	Yp[1] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[6], sqrt_1_mu ), <?=mul?>(Xp[0], sqrt_1_mu)), sqrt_1_2);
-	Yp[2] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[5], sqrt_1_mu ), <?=mul?>(Xp[3], sqrt_1_mu)), sqrt_1_2);
-	Yp[3] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[5], sqrt_1_eps), <?=mul?>(Xp[3], sqrt_1_eps)), sqrt_1_2);
-	Yp[4] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[7], sqrt_1_mu ), <?=mul?>(Xp[1], sqrt_1_mu)), sqrt_1_2);
-	Yp[5] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[2], sqrt_1_eps), <?=mul?>(Xp[4], sqrt_1_eps)), sqrt_1_2);
-	Yp[6] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[6], sqrt_eps  ), <?=mul?>(Xp[0], sqrt_eps)), sqrt_1_2);
-	Yp[7] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[7], sqrt_eps  ), <?=mul?>(Xp[1], sqrt_eps)), sqrt_1_2);
+
+	Yp[0] = ((sqrt_eps * (Xp[3] - Xp[5])) / sqrt_2);
+	Yp[1] = ((-(Xp[0] - Xp[6])) / (sqrt_2 * sqrt_eps));
+	Yp[2] = ((-(sqrt_eps * (Xp[2] - Xp[4]))) / sqrt_2);
+	Yp[3] = ((sqrt_mu * (Xp[2] + Xp[4])) / sqrt_2);
+	Yp[4] = ((-(Xp[1] - Xp[7])) / (sqrt_2 * sqrt_eps));
+	Yp[5] = ((sqrt_mu * (Xp[3] + Xp[5])) / sqrt_2);
+	Yp[6] = ((Xp[0] + Xp[6]) / (sqrt_2 * sqrt_eps));
+	Yp[7] = ((Xp[1] + Xp[7]) / (sqrt_2 * sqrt_eps));
 	
 	<? elseif side==2 then ?>
-	
-	Yp[0] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[4], sqrt_1_mu ), <?=mul?>(Xp[2], sqrt_1_mu)), sqrt_1_2);
-	Yp[1] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[5], sqrt_1_mu ), <?=mul?>(Xp[3], sqrt_1_mu)), sqrt_1_2);
-	Yp[2] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[6], sqrt_1_mu ), <?=mul?>(Xp[0], sqrt_1_mu)), sqrt_1_2);
-	Yp[3] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[3], sqrt_1_eps), <?=mul?>(Xp[5], sqrt_1_eps)), sqrt_1_2);
-	Yp[4] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[4], sqrt_1_eps), <?=mul?>(Xp[2], sqrt_1_eps)), sqrt_1_2);
-	Yp[5] = <?=real_mul?>(<?=add?>(<?=mul?>(Xp[7], sqrt_1_mu ), <?=mul?>(Xp[1], sqrt_1_mu)), sqrt_1_2);
-	Yp[6] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[6], sqrt_eps  ), <?=mul?>(Xp[0], sqrt_eps)), sqrt_1_2);
-	Yp[7] = <?=real_mul?>(<?=sub?>(<?=mul?>(Xp[7], sqrt_eps  ), <?=mul?>(Xp[1], sqrt_eps)), sqrt_1_2);
+
+	Yp[0] = ((-(sqrt_eps * (Xp[3] - Xp[5]))) / sqrt_2);
+	Yp[1] = ((sqrt_eps * (Xp[2] - Xp[4])) / sqrt_2);
+	Yp[2] = ((-(Xp[0] - Xp[6])) / (sqrt_2 * sqrt_eps));
+	Yp[3] = ((sqrt_mu * (Xp[2] + Xp[4])) / sqrt_2);
+	Yp[4] = ((sqrt_mu * (Xp[3] + Xp[5])) / sqrt_2);
+	Yp[5] = ((-(Xp[1] - Xp[7])) / (sqrt_2 * sqrt_eps));
+	Yp[6] = ((Xp[0] + Xp[6]) / (sqrt_2 * sqrt_eps));
+	Yp[7] = ((Xp[1] + Xp[7]) / (sqrt_2 * sqrt_eps));
 
 	<? end ?>
 

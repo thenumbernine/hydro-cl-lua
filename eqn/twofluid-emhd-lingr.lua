@@ -13,7 +13,7 @@ When it comes to curvilinear coordinates, my Maxwell solver is unweighted by the
 however my Euler solver is.
 I could work around this by scaling down the Maxwell eigenvalues by sqrt(det(g))
  then calcDeriv will scale all variables back up -- and the Maxwell ones will be identity weighted once again.
- then in the post-flux code, transform E and B by g_ij
+ then in the post-flux code, transform D and B by g_ij
  and in the source terms, add to ion_ and elec_ m^i connection values
 
 --]]
@@ -34,9 +34,9 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.postComputeFluxCode = [[
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
 		real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
-		flux.E = real3_real_mul(coord_lower(flux.E, x), _1_sqrt_det_g);
+		flux.D = real3_real_mul(coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = real3_real_mul(coord_lower(flux.B, x), _1_sqrt_det_g);
-		flux.E_g = real3_real_mul(coord_lower(flux.E_g, x), _1_sqrt_det_g);
+		flux.D_g = real3_real_mul(coord_lower(flux.D_g, x), _1_sqrt_det_g);
 		flux.B_g = real3_real_mul(coord_lower(flux.B_g, x), _1_sqrt_det_g);
 ]]
 
@@ -54,12 +54,12 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.consVars = table{
 	{elec_m = 'real3'},		-- m^i
 	{elec_ETotal = 'real'},
 
-	{E = 'real3'},			-- E_i
+	{D = 'real3'},			-- E_i
 	{B = 'real3'},			-- B_i
-	{phi = 'real'},			-- E potential
+	{phi = 'real'},			-- D potential
 	{psi = 'real'},			-- B potential
 
-	{E_g = 'real3'},		-- (E_g)_i
+	{D_g = 'real3'},		-- (E_g)_i
 	{B_g = 'real3'},		-- (B_g)_i
 	{phi_g = 'real'},		-- E_g potential
 	{psi_g = 'real'},		-- B_g potential
@@ -75,21 +75,21 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.primVars = table{
 	{elec_v = 'real3'},
 	{elec_P = 'real'},
 
-	{E = 'real3'},
+	{D = 'real3'},
 	{B = 'real3'},
 	{phi = 'real'},
 	{psi = 'real'},
 	
-	{E_g = 'real3'},
+	{D_g = 'real3'},
 	{B_g = 'real3'},
 	{phi_g = 'real'},
 	{psi_g = 'real'},
 }
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.mirrorVars = {
-	{'ion_m.x', 'elec_m.x', 'E.x', 'B.x', 'E_g.x', 'B_g.x'}, 
-	{'ion_m.y', 'elec_m.y', 'E.y', 'B.y', 'E_g.y', 'B_g.y'}, 
-	{'ion_m.z', 'elec_m.z', 'E.z', 'B.z', 'E_g.z', 'B_g.z'},
+	{'ion_m.x', 'elec_m.x', 'D.x', 'B.x', 'D_g.x', 'B_g.x'}, 
+	{'ion_m.y', 'elec_m.y', 'D.y', 'B.y', 'D_g.y', 'B_g.y'}, 
+	{'ion_m.z', 'elec_m.z', 'D.z', 'B.z', 'D_g.z', 'B_g.z'},
 }
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.hasEigenCode = true
@@ -182,8 +182,8 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 		-- normalized ion Debye length: 
 		-- lambdaHat_d = lambda_d / l_r
 
-		{name='eps', value=1},			-- permittivity
-		{name='mu', value=1},			-- permeability
+		{name='sqrt_1_eps', value=1},			-- permittivity
+		{name='sqrt_1_mu', value=1},			-- permeability
 		{name='gravitationalConstant', value=1e-7},		-- 6.67408e-11 m^3 / (kg s^2)
 	
 	}:append(fluids:map(function(fluid)
@@ -196,9 +196,6 @@ end
 
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:getCommonFuncCode()
 	return template([[
-real ESq(<?=eqn.cons_t?> U, real3 x) { return coordLenSq(U.E, x); }
-real BSq(<?=eqn.cons_t?> U, real3 x) { return coordLenSq(U.B, x); }
-
 inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
 inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
 inline real calc_hTotal(constant <?=solver.solver_t?>* solver, real rho, real P, real ETotal) { return (P + ETotal) / rho; }
@@ -219,7 +216,9 @@ inline real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=e
 <? end ?>
 
 inline real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
-	return .5 * (solver->eps * coordLenSq(U->E, x) + coordLenSq(U->B, x) / solver->mu);
+	real _1_eps = solver->sqrt_1_eps * solver->sqrt_1_eps;
+	real _1_mu = solver->sqrt_1_mu * solver->sqrt_1_mu;
+	return .5 * (coordLenSq(U->D, x) * _1_eps + coordLenSq(U->B, x) * _1_mu);
 }
 ]], {
 		solver = self.solver,
@@ -241,11 +240,11 @@ inline <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eq
 		.<?=fluid?>_v = real3_real_mul(U.<?=fluid?>_m, 1./U.<?=fluid?>_rho),
 		.<?=fluid?>_P = (solver->heatCapacityRatio - 1.) * <?=fluid?>_EInt,
 		<? end ?>
-		.E = U.E,
+		.D = U.D,
 		.B = U.B,
 		.psi = U.psi,
 		.phi = U.phi,
-		.E_g = U.E_g,
+		.D_g = U.D_g,
 		.B_g = U.B_g,
 		.psi_g = U.psi_g,
 		.phi_g = U.phi_g,
@@ -259,11 +258,11 @@ inline <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eq
 		.<?=fluid?>_m = real3_real_mul(W.<?=fluid?>_v, W.<?=fluid?>_rho),
 		.<?=fluid?>_ETotal = calc_<?=fluid?>_ETotal(solver, W, x),
 <? end ?>
-		.E = W.E,
+		.D = W.D,
 		.B = W.B,
 		.psi = W.psi,
 		.phi = W.phi,
-		.E_g = W.E_g,
+		.D_g = W.D_g,
 		.B_g = W.B_g,
 		.psi_g = W.psi_g,
 		.phi_g = W.phi_g,
@@ -290,11 +289,11 @@ inline <?=eqn.cons_t?> apply_dU_dW(
 			+ W.<?=fluid?>_P / (solver->heatCapacityRatio - 1.),
 <? end ?>
 		.B = W.B,
-		.E = W.E,
+		.D = W.D,
 		.phi = W.phi,
 		.psi = W.psi,
 		.B_g = W.B_g,
-		.E_g = W.E_g,
+		.D_g = W.D_g,
 		.phi_g = W.phi_g,
 		.psi_g = W.psi_g,
 	};
@@ -321,11 +320,11 @@ inline <?=eqn.prim_t?> apply_dW_dU(
 			+ U.<?=fluid?>_ETotal),
 <? end ?>
 		.B = U.B,
-		.E = U.E,
+		.D = U.D,
 		.phi = U.phi,
 		.psi = U.psi,
 		.B_g = U.B_g,
-		.E_g = U.E_g,
+		.D_g = U.D_g,
 		.phi_g = U.phi_g,
 		.psi_g = U.psi_g,
 	};
@@ -422,11 +421,11 @@ else	-- expect the initState to explicitly provide the ion_ and elec_ Euler flui
 	end
 end
 ?>
-		.E = <?=vec3?>_<?=scalar?>_mul(D, <?=inv?>(permittivity)),
+		.D = D,
 		.B = B,
 		.psi = 0,
 		.phi = 0,
-		.E_g = <?=vec3?>_zero,
+		.D_g = <?=vec3?>_zero,
 		.B_g = <?=vec3?>_zero,
 		.psi_g = 0,
 		.phi_g = 0,
@@ -470,11 +469,11 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.displayVarCodeUsesPrims = true
 TwoFluidEMHDDeDonderGaugeLinearizedGR.predefinedDisplayVars = {
 	'U ion_rho',
 	'U elec_rho',
-	'U E mag',
+	'U D mag',
 	'U B mag',
 	'U psi',
 	'U phi',
-	'U E_g mag',
+	'U D_g mag',
 	'U B_g mag',
 	'U psi_g',
 	'U phi_g',
@@ -547,8 +546,8 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
 		{['EM energy'] = [[
 	*value = calc_EM_energy(solver, U, x);
 ]]},
-	}:append(table{'E','B'}:map(function(var,i)
-		local field = assert( ({E='E', B='B'})[var] )
+	}:append(table{'D','B'}:map(function(var,i)
+		local field = assert( ({D='D', B='B'})[var] )
 		return {['div '..var] = template([[
 	*value = .5 * (0.
 <?

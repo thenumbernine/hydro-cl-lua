@@ -185,8 +185,8 @@ function FiniteVolumeSolver:addDisplayVars()
 	
 	*value = 0;
 	for (int k = 0; k < numIntStates; ++k) {
-		//this only needs to be numIntStates in size
-		//but just in case the left/right transforms are reaching past that memory boundary ...
+		//This only needs to be numIntStates in size, but just in case the left/right transforms are reaching past that memory boundary ...
+		//Then again, how do I know what the non-integrated states should be?  Defaulting to zero is a bad idea.
 		<?=eqn.cons_t?> basis;
 		for (int j = 0; j < numStates; ++j) {
 			basis.ptr[j] = k == j ? 1 : 0;

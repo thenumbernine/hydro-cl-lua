@@ -258,8 +258,14 @@ local function curl(eqn,k,result,field,env)
 end
 
 GLM_Maxwell.predefinedDisplayVars = {
+	'U D',
 	'U D mag',
+	'U B',
 	'U B mag',
+	'U phi',
+	'U psi',
+	'U div D',
+	'U div B',
 	'U energy',
 }
 
@@ -337,20 +343,20 @@ end
 function GLM_Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
 	return template(({
-		'-v_p_abs * solver->divPhiWavespeed',
-		'-v_p_abs * solver->divPsiWavespeed',
+		'-solver->divPhiWavespeed',
+		'-solver->divPsiWavespeed',
 		'-v_p_abs',
 		'-v_p_abs',
 		'v_p_abs',
 		'v_p_abs',
-		'v_p_abs * solver->divPhiWavespeed',
-		'v_p_abs * solver->divPsiWavespeed',
+		'solver->divPhiWavespeed',
+		'solver->divPsiWavespeed',
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex), 
 		self:getTemplateEnv())
 end
 
 function GLM_Maxwell:eigenMaxWaveCode(side, eig, x)
-	return 'max(max(solver->divPsiWavespeed, solver->divPhiWavespeed), 1.) * v_p_abs;'
+	return 'max(max(solver->divPsiWavespeed, solver->divPhiWavespeed), v_p_abs);'
 end
 function GLM_Maxwell:eigenMinWaveCode(side, eig, x)
 	return '-'..self:eigenMaxWaveCode(side, eig, x)
@@ -374,7 +380,7 @@ end
 GLM_Maxwell.consWaveCode = GLM_Maxwell.eigenWaveCode
 
 function GLM_Maxwell:consMaxWaveCode(side, U, x)
-	return 'max(max(solver->divPsiWavespeed, solver->divPhiWavespeed), 1.) * v_p_abs;'
+	return 'max(max(solver->divPsiWavespeed, solver->divPhiWavespeed), v_p_abs);'
 end
 function GLM_Maxwell:consMinWaveCode(side, U, x)
 	return '-'..self:consMaxWaveCode(side, U, x)

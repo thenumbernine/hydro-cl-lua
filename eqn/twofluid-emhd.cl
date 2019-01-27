@@ -88,37 +88,19 @@ end
 	real3 E = real3_real_mul(U.D, 1. / solver->permittivity);
 	real3 H = real3_real_mul(U.B, 1. / solver->permeability);
 	// right now permittivity * permeability == 1.  therefore phase vel should be approx 1.  if we change 1/eps * 1/mu == c^2 then we shoudl change phase vel too
-	real v_pSq = normalizedSpeedOfLight / (solver->permittivity * solver->permeability);
+	real v_pSq = normalizedSpeedOfLightSq / (solver->permittivity * solver->permeability);
 	<? if side == 0 then ?>
-	F.D = _real3(
-		normalizedSpeedOfLight * v_pSq * solver->divPhiWavespeed * U.phi,
-		normalizedSpeedOfLight * H.z, 
-		-normalizedSpeedOfLight * H.y);
-	F.B = _real3(
-		solver->divPsiWavespeed * v_pSq * U.psi,
-		-E.z,
-		E.y);
+	F.D = _real3(v_pSq * U.phi * solver->divPhiWavespeed, H.z, -H.y);
+	F.B = _real3(v_pSq * U.psi * solver->divPsiWavespeed, -E.z, E.y);
 	<? elseif side == 1 then ?>
-	F.D = _real3(
-		-normalizedSpeedOfLight * H.z,
-		normalizedSpeedOfLight * v_pSq * solver->divPhiWavespeed * U.phi,
-		normalizedSpeedOfLight * H.x);
-	F.B = _real3(
-		E.z,
-		solver->divPsiWavespeed * v_pSq * U.psi,
-		-E.x);
+	F.D = _real3(-H.z, v_pSq * U.phi * solver->divPhiWavespeed, H.x);
+	F.B = _real3(E.z, v_pSq * U.psi * solver->divPsiWavespeed, -E.x);
 	<? elseif side == 2 then ?>
-	F.D = _real3(
-		normalizedSpeedOfLight * H.y,
-		-normalizedSpeedOfLight * H.x,
-		normalizedSpeedOfLight * v_pSq * solver->divPhiWavespeed * U.phi);
-	F.B = _real3(
-		-E.y,
-		E.x,
-		solver->divPsiWavespeed * v_pSq * U.psi);
+	F.D = _real3(H.y, -H.x, v_pSq * U.phi * solver->divPhiWavespeed);
+	F.B = _real3(-E.y, E.x, v_pSq * U.psi * solver->divPsiWavespeed);
 	<? end ?>
 	F.phi = U.D.s<?=side?> * solver->divPhiWavespeed;
-	F.psi = U.B.s<?=side?> * solver->divPsiWavespeed * normalizedSpeedOfLight;
+	F.psi = U.B.s<?=side?> * solver->divPsiWavespeed;
 
 	F.ion_ePot = 0;
 	F.elec_ePot = 0;

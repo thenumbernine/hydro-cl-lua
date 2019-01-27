@@ -812,6 +812,25 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 }
 
 <?
+
+	elseif solver.usePLM == 'plm-athena' then 
+
+-- TODO correlate between calcCellLR's U access and SETBOUNDS of calcLR()
+-- to make sure there's no OOB reads
+?>
+
+<?=eqn.consLR_t?> calcCellLR_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
+	const global <?=eqn.cons_t?>* U,
+	real dt,
+	real3 x,
+	int4 i
+) {
+
+
+}
+
+<?
 	end
 end
 ?>
