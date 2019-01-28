@@ -602,8 +602,8 @@ cons_t eigen_fluxTransform_<?=side?>(
 	real permittivity = sqrt_permittivity * sqrt_permittivity;
 	real permeability = sqrt_permeability * sqrt_permeability;
 	
-	real3 E = real3_real_mul(U.D, 1. / permittivity);
-	real3 H = real3_real_mul(U.B, 1. / permeability);
+	real3 E = real3_real_mul(UX.D, 1. / permittivity);
+	real3 H = real3_real_mul(UX.B, 1. / permeability);
 	<? if side == 0 then ?>
 	UY.D = _real3(solver->divPhiWavespeed * UX.phi, H.z, -H.y);
 	UY.B = _real3(solver->divPsiWavespeed * UX.psi, -E.z, E.y);
