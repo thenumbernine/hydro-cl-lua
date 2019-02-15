@@ -39,8 +39,18 @@ TwoFluidEMHD.postComputeFluxCode = [[
 ]]
 
 TwoFluidEMHD.name = 'TwoFluidEMHD'
-TwoFluidEMHD.numWaves = 18
-TwoFluidEMHD.numIntStates = 18
+
+-- set this to false to integrate the EM D,B,phi,psi variables together with the ion and electron Euler fluid equations
+-- set this to true to integrate them separately using an implicit method
+TwoFluidEMHD.implicitEMIntegration = false
+
+if not TwoFluidEMHD.implicitEMIntegration then
+	TwoFluidEMHD.numWaves = 18
+	TwoFluidEMHD.numIntStates = 18
+else
+	TwoFluidEMHD.numWaves = 10
+	TwoFluidEMHD.numIntStates = 10
+end
 
 TwoFluidEMHD.consVars = table{
 	--integration variables		
@@ -181,7 +191,7 @@ function TwoFluidEMHD:createInitState()
 		
 		-- l_r = larmor radius
 		-- in the experimental section of 2014 Abgrall Kumar this is given fixed values
-		{name='ionLarmorRadius', value=.1},
+		{name='ionLarmorRadius', value=1e-6},
 		
 		-- m = m_i / m_e
 		-- https://en.wikipedia.org/wiki/Proton-to-electron_mass_ratio
@@ -609,7 +619,7 @@ function TwoFluidEMHD:eigenWaveCode(side, eig, x, waveIndex)
 			return template('<?=fluid?>_v_n + <?=fluid?>_Cs_sqrt_gU', {fluid=fluid})
 		end
 	end
-	if waveIndex >= 5*#fluids and waveIndex < 5*#fluids+8 then
+	if not self.implicitEMIntegration and waveIndex >= 5*#fluids and waveIndex < 5*#fluids+8 then
 		-- 2014 Abgrall, Kumar eqn 1.9 says the eigenvalues are c, while the flux contains cHat ...
 		return ({
 			'-solver->divPhiWavespeed',
@@ -632,11 +642,12 @@ function TwoFluidEMHD:consWaveCodePrefix(side, U, x)
 	return template([[
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 
-#if 1	//using the EM wavespeed
+<? if eqn.implicitEMIntegration then 	--ignoring EM wavespeed	?>	
+	real consWaveCode_lambdaMax = -INFINITY;
+<? else 								--using EM wavespeed ?>
 	real consWaveCode_lambdaMax = max(max(solver->divPsiWavespeed, solver->divPhiWavespeed), normalizedSpeedOfLight);
-#else	//ignoring it
-	real consWaveCode_lambdaMax = INFINITY;
-#endif
+<? end ?>
+
 	real consWaveCode_lambdaMin = -consWaveCode_lambdaMax;
 
 <? for _,fluid in ipairs(eqn.fluids) do

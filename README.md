@@ -56,6 +56,7 @@ TODO:
 - How about a GLM method for Maxwell equations, so I can remove the divergence-free constraint
 - Calculate and implement source terms for curvilinear coordinate systems (working on a tool to do this)
 - Get two-fluid-separate EMHD working, so I can update the glm-maxwell with an implicit and update the ion and electron with an explicit solver
+- Two-fluid plasma EMHD combined has numerical issues: the ion wavespeeds surpass the speed of light
 - Currently seeing errors when two solvers run simultaneously ... which makes EM+HD difficult
 - Add HLLD solver
 - Finish implementing Navier-Stokes, compressible & incompressible

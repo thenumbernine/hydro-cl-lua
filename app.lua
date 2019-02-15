@@ -868,8 +868,8 @@ function HydroCLApp:display3D(...)
 	select(2, next(display3DMethods[self.display3DMethod]))(self, ...)
 end
 
-require 'draw.vectorfield'.applyToApp(HydroCLApp)
---require 'draw.vectorfield2'(HydroCLApp)
+--require 'draw.vectorfield'.applyToApp(HydroCLApp)
+require 'draw.vectorfield2'.applyToApp(HydroCLApp)
 
 function HydroCLApp:updateGUI()
 	if ig.igCollapsingHeader'simulation' then

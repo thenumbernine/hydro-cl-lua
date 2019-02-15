@@ -653,8 +653,10 @@ end ?>
 
 kernel void addSource(
 	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* derivBuf,
 	global <?=eqn.cons_t?>* UBuf
 ) {
+<? if false then ?>
 	SETBOUNDS_NOGHOST();
 
 	global <?=eqn.cons_t?>* U = UBuf + index;
@@ -670,6 +672,7 @@ for j,xj in ipairs(xNames) do
 ?> + partial2_Ui_ll[<?=jj-1?>]<?
 end
 ?>;
-		U->ptr[i] -= solver->diffuseSigma/16. * lap;
+		deriv->ptr[i] -= solver->diffuseSigma/16. * lap;
 	}
+<? end ?>
 }

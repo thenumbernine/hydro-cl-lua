@@ -844,11 +844,13 @@ end
 
 kernel void addSource(
 	constant solver_t* solver,
-	global cons_t* UBuf
+	global cons_t* derivBuf,
+	const global cons_t* UBuf
 ) {
+<? if false then ?>
 	SETBOUNDS_NOGHOST();
-
-	global cons_t* U = UBuf + index;
+	
+	global cons_t* deriv = derivBuf + index;
 
 	//Kreiss-Oligar dissipation
 	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
@@ -861,6 +863,7 @@ for j,xj in ipairs(xNames) do
 ?> + partial2_Ui_ll[<?=jj-1?>]<?
 end
 ?>;
-		U->ptr[i] -= solver->diffuseSigma/16. * lap;
+		deriv->ptr[i] -= solver->diffuseSigma/16. * lap;
 	}
+<? end ?>
 }

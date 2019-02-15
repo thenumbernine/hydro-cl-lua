@@ -38,7 +38,7 @@ function EinsteinEquation:createBoundaryOptions()
 	self.solver.boundaryOptions:insert{
 		fixed = function(args)
 			local lines = table()
-			local gridSizeSide = 'gridSize_'..xNames[args.side]
+			local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
 			for _,j in ipairs{'j', gridSizeSide..'-numGhost+j'} do
 				local index = args.indexv(j)
 				local U = 'buf[INDEX('..index..')]'

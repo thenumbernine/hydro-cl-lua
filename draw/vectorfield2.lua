@@ -2,19 +2,8 @@ local gl = require 'ffi.OpenGL'
 local glreport = require 'gl.report'
 local GLPingPong = require 'gl.pingpong'
 
-return function(HydroCLApp)
-
-HydroCLApp.displayVectorField_scale = 1
-HydroCLApp.displayVectorField_step = 1
-function HydroCLApp:displayVectorField(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
-	self.view:projection(ar)
-	self.view:modelview()
-
-	gl.glDisable(gl.GL_BLEND)
-	gl.glEnable(gl.GL_DEPTH_TEST)
-	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
-
-	for _,solver in ipairs(solvers) do
+local function applyToSolver(Solver)
+	function Solver:displayVectorField(app, varName, xmin, xmax, ymin, ymax, useLog)
 		if solver.dim == 2 then
 			local var = solver.displayVarForName[varName]
 			if var and var.enabled then
@@ -207,11 +196,32 @@ void main() {
 				solver.vectorFieldShader:useNone()
 			end
 		end
+
 	end
-	
-	gl.glDisable(gl.GL_DEPTH_TEST)
-	
-glreport'here'
 end
 
+local function applyToApp(HydroCLApp)
+	HydroCLApp.displayVectorField_scale = 1
+	HydroCLApp.displayVectorField_step = 1
+	function HydroCLApp:displayVectorField(solvers, ar, ...)
+		self.view:projection(ar)
+		self.view:modelview()
+
+		gl.glDisable(gl.GL_BLEND)
+		gl.glEnable(gl.GL_DEPTH_TEST)
+		gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
+
+		for _,solver in ipairs(solvers) do
+			solver:displayVectorField(self, ...)
+		end
+		
+		gl.glDisable(gl.GL_DEPTH_TEST)
+		
+	glreport'here'
+	end
 end
+
+return {
+	applyToApp = applyToApp,
+	applyToSolver = applyToSolver,
+}

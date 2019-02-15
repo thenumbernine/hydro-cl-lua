@@ -519,10 +519,10 @@ return table{
 		K_ll = sym3_add(K_ll, sym3_real_mul(ABar_ll, 1. / psi2));
 	}<? end ?>
 
-]], {
-	bodies = self.bodies,
-	clnumber = clnumber,
-})
+]], 		{
+				bodies = self.bodies,
+				clnumber = clnumber,
+			})
 		end,
 	},
 	
@@ -556,9 +556,9 @@ return table{
 	real psi2 = psi*psi;
 	gamma_ll = sym3_real_mul(sym3_ident, psi2*psi2);
 	alpha = 1. / psi2;
-]], {
-	bodies = self.bodies,
-})
+]], 		{
+				bodies = self.bodies,
+			})
 		end,
 	},
 	
@@ -616,11 +616,11 @@ return table{
 <? end ?>
 
 	alpha = sqrt(alpha);
-]], {
-	table = table,
-	clnumber = clnumber,
-	bodies = bodies,
-})
+]], 		{
+				table = table,
+				clnumber = clnumber,
+				bodies = bodies,
+			})
 		end,
 	},
 	
