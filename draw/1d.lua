@@ -31,7 +31,7 @@ function HydroCLApp:showDisplayVar1D(solver, var)
 	self.graphShader:useNone()
 end
 
-function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
+function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog, valueMin, valueMax)
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
 	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
@@ -91,7 +91,7 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 			end
 			self.font:draw{
 				pos={xmin, ymax},
-				text=varName,
+				text=('%s [%.3e, %.3e]'):format(varName, valueMin, valueMax),
 				color = {1,1,1,1},
 				fontSize={fontSizeX, -fontSizeY},
 				multiLine=false,

@@ -532,8 +532,8 @@ end
 
 
 
---HydroCLApp.running = false
-HydroCLApp.running = true
+HydroCLApp.running = false
+--HydroCLApp.running = true
 
 local mouse = Mouse()
 local pushVarNamesEnabled
@@ -612,6 +612,9 @@ end
 	local ar = (w / graphsWide) / (h / graphsHigh)
 
 	local mouseClickedOnVar
+				
+	-- varymin/max is the variable range
+	local varymin, varymax
 
 	local useLog
 	local vectorField
@@ -633,13 +636,19 @@ end
 					solverxmin = (solverxmin - center) * ar + center
 					solverxmax = (solverxmax - center) * ar + center
 				end
-
+	
+				-- solverymin/max is the view range
 				local solverymin, solverymax
+
+
 				if solver.dim > 1 then
 					solverymin, solverymax = solver.mins[2], solver.maxs[2]
 					solverymin, solverymax = 1.1 * solverymin - .1 * solverymax, 1.1 * solverymax - .1 * solverymin
 				else
 					solverymin, solverymax = solver:calcDisplayVarRange(var)
+					local thisvarymin, thisvarymax = solverymin, solverymax
+					varymin = varymin and math.min(thisvarymin, varymin) or thisvarymin
+					varymax = varymax and math.max(thisvarymax, varymax) or thisvarymax
 					
 					if useLog then
 						solverymin = math.log(solverymin, 10)
@@ -715,7 +724,7 @@ end
 		
 		if not vectorField then
 			if dim == 1 then
-				self:display1D(self.solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
+				self:display1D(self.solvers, varName, ar, xmin, ymin, xmax, ymax, useLog, varymin, varymax)
 			elseif dim == 2 then
 				self:display2D(self.solvers, varName, ar, xmin, ymin, xmax, ymax)
 			elseif dim == 3 then

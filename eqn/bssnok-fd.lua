@@ -200,7 +200,25 @@ kernel void initState(
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
+
+<? if require 'coord.cartesian'.is(solver.coord) then -- pseudocartesian ?> 
 	sym3 gamma_ll = sym3_ident;
+<? 	-- TODO FIXME
+	elseif require 'coord.1d_radial'.is(solver.coord) 
+	or require 'coord.sphere1d'.is(solver.coord) 
+	or require 'coord.sphere'.is(solver.coord) 
+then 
+?> 
+	sym3 gamma_ll = sym3_zero;
+	{
+		real r = real3_len(xc);
+		const real sinth = 1.;
+		gamma_ll.xx = 1.;
+		gamma_ll.yy = r * r;
+		gamma_ll.zz = r * r * sinth * sinth;
+	}
+<? end ?>
+	
 	sym3 K_ll = sym3_zero;
 	real rho = 0.;
 
@@ -285,20 +303,20 @@ end
 
 BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U alpha',
-	'U beta_u mag',
-	'U epsilon_ll norm',
-	'U chi',
-	'U ABar_ll tr weighted',
-	'U connBar_u mag',
-	'U K',
-	'U Delta_u mag',
-	'U H',
-	'U M_u mag',
-	'U det gammaBar - det gammaHat',
-	'U det gamma_ij based on phi',
-	'U volume',
-	'U f',
-	'U gamma_ll tr weighted',
+	--'U beta_u mag',
+	--'U epsilon_ll norm',
+	--'U chi',
+	--'U ABar_ll tr weighted',
+	--'U connBar_u mag',
+	--'U K',
+	--'U Delta_u mag',
+	--'U H',
+	--'U M_u mag',
+	--'U det gammaBar - det gammaHat',
+	--'U det gamma_ij based on phi',
+	--'U volume',
+	--'U f',
+	--'U gamma_ll tr weighted',
 }
 
 function BSSNOKFiniteDifferenceEquation:getDisplayVars()	

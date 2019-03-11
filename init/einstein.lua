@@ -334,25 +334,47 @@ return table{
 	
 	-- take the schwarzschild and apply a cartesian coordinate transform
 	{	
-		name = 'black hole - Schwarzschild pseudocartesian',
-		init = function(self, solver)
+		name = 'black hole - Schwarzschild',
+		init = function(self, solver, args)
+			args = args or {}
+			local bodies = args.bodies or {}
+			local body1 = bodies[1] or {}
+			local R = body1.R or .002	-- Schwarzschild radius
 			solver.eqn:addGuiVars{
-				{name = 'init_R', value = .002},	-- Schwarzschild radius
+				{name = 'init_R', value = R},
 			}
 		end,
 		initState = function(self, solver)
-			return [[
+			solver:setBoundaryMethods'linear'
+			return template([[
 	const real R = solver->init_R;
 	
 	real r = real3_len(xc);
 	alpha = sqrt(1. - R/r);
 
 	real3 xc_u = real3_real_mul(xc, 1. / r);
-
+<? if require 'coord.cartesian'.is(solver.coord) then -- pseudocartesian ?> 
 	gamma_ll = sym3_add(
 		sym3_ident,
 		sym3_real_mul(real3_outer(xc_u, xc_u), 1. / (r / R - 1)));
-]]
+<? 	-- right now I have very poor spherical support 
+elseif require 'coord.1d_radial'.is(solver.coord) 
+	or require 'coord.sphere1d'.is(solver.coord) 
+		-- TODO i wrote coord/sphere.lua to be toric in <3D ... 
+		-- TODO TODO coord.sphere is [theta, phi, r].  why did I do that?  for implicit sphere-surface when using 2D.
+		--  I'm starting to think I should just make unique coord's for each dimension #
+	or require 'coord.sphere'.is(solver.coord) 
+then 
+?> 
+	const real sinth = 1.;	//for now.  TODO right now sphere1d uses declination, so.... this is cos(theta) instead?
+	gamma_ll = sym3_zero;
+	gamma_ll.xx = 1.;
+	gamma_ll.yy = r * r;
+	gamma_ll.zz = r * r * sinth * sinth;
+<? end ?>
+]], 	{
+			solver = solver,
+		})
 		end,
 	},
 	

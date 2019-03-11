@@ -45,7 +45,7 @@ local args = {
 	--  so don't use this without usePLM
 	--useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -109,10 +109,10 @@ local args = {
 		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
-	--[[ sphere1d -- used for 1D radial profiles of spheres
+	-- [[ sphere1d -- used for 1D radial profiles of spheres
 	coord = 'sphere1d',
-	mins = cmdline.mins or {.1, 0, -math.pi},
-	maxs = cmdline.maxs or {1, math.pi, math.pi},
+	mins = cmdline.mins or {.5, 0, -math.pi},
+	maxs = cmdline.maxs or {10, math.pi, math.pi},
 	gridSize = {
 		cmdline.gridSize or 256,
 		cmdline.gridSize or 128,
@@ -158,7 +158,7 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	--[[ sphere
+	--[[ sphere ... 1D is cyclical, 2D is a sphere surface, 3D is spherical coordinates
 	coord = 'sphere',
 	mins = cmdline.mins or {.1 * math.pi, -math.pi, .1},
 	maxs = cmdline.maxs or {.9 * math.pi, math.pi, 1},
@@ -290,7 +290,7 @@ local args = {
 
 
 	-- Einstein
-	--initState = 'Minkowski',
+	initState = 'Minkowski',
 	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 
@@ -315,14 +315,14 @@ local args = {
 	--  size=128x128 solver=hll eqn=adm3d int=fe flux-limiter=superbee ... runs for a really long time 
 
 	
-	--initState = 'black hole - Schwarzschild pseudocartesian',
+	--initState = 'black hole - Schwarzschild',
 	
 	
-	initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
+	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 	
 	--initState = 'black hole - SENR/NumPy',
 
-	-- [[ single black hole, stationary
+	--[[ single black hole, stationary
 	initStateArgs = {
 		bodies = {
 			{
