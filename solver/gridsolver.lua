@@ -435,11 +435,11 @@ end
 
 function GridSolver:refreshSolverBufMinsMaxs()
 	self.solverPtr.mins.x = self.mins[1]
-	self.solverPtr.mins.y = self.dim <= 1 and 0 or self.mins[2]
-	self.solverPtr.mins.z = self.dim <= 2 and 0 or self.mins[3]
+	self.solverPtr.mins.y = self.mins[2]
+	self.solverPtr.mins.z = self.mins[3]
 	self.solverPtr.maxs.x = self.maxs[1]
-	self.solverPtr.maxs.y = self.dim <= 1 and 0 or self.maxs[2]
-	self.solverPtr.maxs.z = self.dim <= 2 and 0 or self.maxs[3]
+	self.solverPtr.maxs.y = self.maxs[2]
+	self.solverPtr.maxs.z = self.maxs[3]
 	self.solverPtr.grid_dx.x = (self.solverPtr.maxs.x - self.solverPtr.mins.x) / tonumber(self.sizeWithoutBorder.x)
 	self.solverPtr.grid_dx.y = (self.solverPtr.maxs.y - self.solverPtr.mins.y) / tonumber(self.sizeWithoutBorder.y)
 	self.solverPtr.grid_dx.z = (self.solverPtr.maxs.z - self.solverPtr.mins.z) / tonumber(self.sizeWithoutBorder.z)
@@ -571,9 +571,15 @@ function GridSolver:createCodePrefix()
 		Maybe I'll use 'xc' vs 'x', like I've already started to do in the initial conditions.
 	--]]
 	
-	}:append(range(3):map(function(i)
+	}:append(range(self.dim):map(function(i)
 	-- mapping from index to coordinate 
 		return (('#define cell_x{i}(i) (((real)(i) + .5 - (real)numGhost) * solver->grid_dx.{x} + solver->mins.{x})')
+			:gsub('{i}', i-1)
+			:gsub('{x}', xNames[i])
+		)
+	end)):append(range(self.dim+1,3):map(function(i)
+	-- non-dimension coordinates don't need ghosts (right)
+		return (('#define cell_x{i}(i) (((real)(i) + .5) * solver->grid_dx.{x} + solver->mins.{x})')
 			:gsub('{i}', i-1)
 			:gsub('{x}', xNames[i])
 		)

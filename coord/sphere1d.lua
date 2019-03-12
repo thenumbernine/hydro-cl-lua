@@ -1,7 +1,6 @@
 --[[
 This is just spherical
-I also used inclination instead of declination (lambda instead of theta)
-so I could keep coord1 at 0 and still be fine.
+but spherical is rearranged
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
@@ -13,16 +12,16 @@ local Tensor = symmath.Tensor
 
 local Sphere = class(CoordinateSystem)
 Sphere.name = 'sphere1d'
-Sphere.coords = table{'r', 'λ', 'φ'}
+Sphere.coords = table{'r', 'θ', 'φ'}
 function Sphere:init(args)
 	args.embedded = table{symmath.vars('x', 'y', 'z')}
-	local r, lambda, phi = symmath.vars('r', 'λ', 'φ')
-	args.coords = table{r, lambda, phi}
+	local r, theta, phi = symmath.vars('r', 'θ', 'φ')
+	args.coords = table{r, theta, phi}
 	args.chart = function() 
 		return Tensor('^I', 
-			r * cos(lambda) * cos(phi), 
-			r * cos(lambda) * sin(phi), 
-			r * sin(lambda)
+			r * sin(theta) * cos(phi), 
+			r * sin(theta) * sin(phi), 
+			r * cos(theta)
 		)
 	end
 	Sphere.super.init(self, args)

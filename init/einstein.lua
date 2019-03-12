@@ -350,7 +350,8 @@ return table{
 	const real R = solver->init_R;
 	
 	real r = real3_len(xc);
-	alpha = sqrt(1. - R/r);
+	real one_minus_R_over_r = 1. - R / r;
+	alpha = sqrt(one_minus_R_over_r);
 
 	real3 xc_u = real3_real_mul(xc, 1. / r);
 <? if require 'coord.cartesian'.is(solver.coord) then -- pseudocartesian ?> 
@@ -368,7 +369,7 @@ then
 ?> 
 	const real sinth = 1.;	//for now.  TODO right now sphere1d uses declination, so.... this is cos(theta) instead?
 	gamma_ll = sym3_zero;
-	gamma_ll.xx = 1.;
+	gamma_ll.xx = 1. / one_minus_R_over_r;
 	gamma_ll.yy = r * r;
 	gamma_ll.zz = r * r * sinth * sinth;
 <? end ?>

@@ -111,7 +111,7 @@ local args = {
 	--]]
 	-- [[ sphere1d -- used for 1D radial profiles of spheres
 	coord = 'sphere1d',
-	mins = cmdline.mins or {.5, 0, -math.pi},
+	mins = cmdline.mins or {1, 0, -math.pi},
 	maxs = cmdline.maxs or {10, math.pi, math.pi},
 	gridSize = {
 		cmdline.gridSize or 256,
@@ -119,7 +119,7 @@ local args = {
 		cmdline.gridSize or 64,
 	},
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'mirror',
 		xmax=cmdline.boundary or 'freeflow',
 		ymin=cmdline.boundary or 'freeflow',
 		ymax=cmdline.boundary or 'freeflow',

@@ -197,27 +197,12 @@ kernel void initState(
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
+	
+	sym3 gammaHat_ll = coord_g(x);
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
-
-<? if require 'coord.cartesian'.is(solver.coord) then -- pseudocartesian ?> 
-	sym3 gamma_ll = sym3_ident;
-<? 	-- TODO FIXME
-	elseif require 'coord.1d_radial'.is(solver.coord) 
-	or require 'coord.sphere1d'.is(solver.coord) 
-	or require 'coord.sphere'.is(solver.coord) 
-then 
-?> 
-	sym3 gamma_ll = sym3_zero;
-	{
-		real r = real3_len(xc);
-		const real sinth = 1.;
-		gamma_ll.xx = 1.;
-		gamma_ll.yy = r * r;
-		gamma_ll.zz = r * r * sinth * sinth;
-	}
-<? end ?>
+	sym3 gamma_ll = gammaHat_ll;
 	
 	sym3 K_ll = sym3_zero;
 	real rho = 0.;
@@ -245,7 +230,6 @@ then
 ?>
 
 	sym3 gammaBar_ll = sym3_real_mul(gamma_ll, exp_neg4phi);
-	sym3 gammaHat_ll = coord_g(x);
 	U->epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
 	U->gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar_ll);
 
