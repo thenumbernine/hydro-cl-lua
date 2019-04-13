@@ -1,5 +1,4 @@
 <? if require 'solver.gridsolver'.is(solver) then ?>
-
 /*
 run across each cell
 */
@@ -53,12 +52,14 @@ kernel void calcDT(
 		//which should we pick eigenvalues from?
 		<? for side=0,solver.dim-1 do ?>{
 			//use cell-centered eigenvalues
+			real3 x = cell->x;
 			<?=eqn:consWaveCodePrefix(side, '*U', 'x')?>
 			real lambdaMin = <?=eqn:consMinWaveCode(side, '*U', 'x')?>;
 			real lambdaMax = <?=eqn:consMaxWaveCode(side, '*U', 'x')?>;
 			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
 			absLambdaMax = max((real)1e-9, absLambdaMax);
-			dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
+			real dx = 
+			dt = (real)min(dt, dx / absLambdaMax);
 		}<? end ?>
 	}
 	dtBuf[cellIndex] = dt;

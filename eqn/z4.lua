@@ -250,7 +250,7 @@ kernel void initState(
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
-	sym3 gamma_ll = sym3_ident;
+	sym3 gamma_ll = coord_g(x);
 	sym3 K_ll = sym3_zero;
 
 	//throw-away for ADM3D ... but not for BSSNOK

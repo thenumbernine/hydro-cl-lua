@@ -41,6 +41,11 @@ SolverBase.checkNaNs = false
 SolverBase.allowAccum = true
 SolverBase.displayVarAccumFunc = false
 
+SolverBase.solverVars = table{
+	{mins = 'real3'},
+	{maxs = 'real3'},
+}
+
 --[[
 args:
 	app
@@ -71,9 +76,12 @@ function SolverBase:initL1(args)
 end
 
 function SolverBase:getSolverTypeCode()
-	error("not implemented in base class")
+	-- this is moved from #define to constant, so AMR leaf nodes can change it.
+	-- coordinate space = u,v,w
+	-- cartesian space = x,y,z
+	-- min and max in coordinate space
+	return makestruct.makeStruct(self.solver_t, self.solverVars, nil, true)
 end
-
 
 function SolverBase:preInit(args)
 
@@ -186,6 +194,10 @@ function SolverBase:createSolverBuf()
 		size = 1,	-- should be 'count'
 		readwrite = 'read',
 	}
+end
+
+function SolverBase:refreshSolverBuf()
+	self.solverBuf:fromCPU(self.solverPtr)
 end
 
 function SolverBase:refreshGridSize()
@@ -396,8 +408,10 @@ or should overriding the state be allowed?
 --]]
 end
 
--- TODO this has a lot in common with GridSolver
+-- depends on buffers
 function SolverBase:refreshSolverProgram()
+	self:refreshGetULR()	
+
 	local code = self:getSolverCode()
 
 	time('compiling solver program', function()
@@ -417,6 +431,17 @@ function SolverBase:refreshSolverProgram()
 		self.constrainUKernelObj = self.solverProgramObj:kernel'constrainU'
 	end
 
+	if self.usePLM then
+		self.calcLRKernelObj = self.solverProgramObj:kernel'calcLR'
+	end
+	if self.useCTU then
+		-- currently implemented in solver/roe.cl
+		-- not available for any other flux method
+		assert(self.fluxBuf)
+		self.updateCTUKernelObj = self.solverProgramObj:kernel'updateCTU'
+	end
+
+
 	for _,op in ipairs(self.ops) do
 		op:refreshSolverProgram()
 	end
@@ -427,7 +452,7 @@ function SolverBase:refreshSolverProgram()
 		for _,displayVarGroup in ipairs(self.displayVarGroups) do
 			for _,var in ipairs(displayVarGroup.vars) do
 				--[[
-				if var.enabled
+				if var.enabled 
 				or (var.vecVar and var.vecVar.enabled)
 				then
 				--]]do
@@ -441,7 +466,7 @@ function SolverBase:refreshSolverProgram()
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
 		for _,var in ipairs(displayVarGroup.vars) do
 			--[[
-			if var.enabled
+			if var.enabled 
 			or (var.vecVar and var.vecVar.enabled)
 			then
 			--]]do
@@ -451,6 +476,7 @@ function SolverBase:refreshSolverProgram()
 		end
 	end
 end
+
 
 -- for solvers who don't rely on calcDT
 function SolverBase:refreshCalcDTKernel()

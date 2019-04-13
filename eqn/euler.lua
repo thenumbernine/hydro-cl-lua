@@ -17,7 +17,6 @@ Euler.numWaves = 5
 Euler.numIntStates = 5	-- don't bother integrate ePot
 
 Euler.mirrorVars = {{'m.x'}, {'m.y'}, {'m.z'}} 
-Euler.hasCalcDTCode = true
 Euler.hasEigenCode = true
 Euler.hasFluxFromConsCode = true
 Euler.roeUseFluxFromCons = true
@@ -360,9 +359,11 @@ end
 -- as long as U or eig isn't used, we can use this for both implementations
 Euler.eigenWaveCode = Euler.consWaveCode
 
+--[=[
 -- this one calcs cell prims once and uses it for all sides
 -- it is put here instead of in eqn/euler.cl so euler-burgers can override it
 -- TODO move the sqrt() out of the loop altogether?
+Euler.hasCalcDTCode = false
 function Euler:getCalcDTCode()
 	return template([[
 <? local solver = eqn.solver ?>
@@ -397,6 +398,7 @@ kernel void calcDT(
 		eqn = self,
 	})
 end
+--]=]
 
 return Euler
 

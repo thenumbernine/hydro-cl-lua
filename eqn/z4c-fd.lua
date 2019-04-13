@@ -177,7 +177,10 @@ kernel void initState(
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
-	sym3 gamma_ll = sym3_ident;
+	
+	sym3 gammaHat_ll = coord_g(x);
+	sym3 gamma_ll = gammaHat_ll;
+	
 	sym3 K_ll = sym3_zero;
 	real rho = 0.;
 
@@ -198,7 +201,6 @@ kernel void initState(
 	U->chi = exp_neg4phi;
 	
 	sym3 gammaBar_ll = sym3_real_mul(gamma_ll, exp_neg4phi);
-	sym3 gammaHat_ll = coord_g(x);
 	U->epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
 	U->gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar_ll);
 

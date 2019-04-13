@@ -1,10 +1,10 @@
-local dim = 1
+local dim = 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -16,7 +16,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	integrator = 'backward Euler',
+	--integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
@@ -35,8 +35,7 @@ local args = {
 	--usePLM = 'plm-eig-prim-ref',
 	--usePLM = 'plm-athena',			-- based on Athena.  most accurate from 1D sod tests atm
 	--usePLM = 'ppm-experimental',	-- FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
-	--usePLM = 'weno',
-	-- TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then we can use CTU with WENO.
+	--usePLM = 'weno',				-- TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then we can use CTU with WENO.
 	
 	-- only enabled for certain usePLM methods
 	--slopeLimiter = 'minmod',
@@ -45,7 +44,7 @@ local args = {
 	--  so don't use this without usePLM
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -82,12 +81,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'periodic',
+		xmax=cmdline.boundary or 'periodic',
+		ymin=cmdline.boundary or 'periodic',
+		ymax=cmdline.boundary or 'periodic',
+		zmin=cmdline.boundary or 'periodic',
+		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
 	-- TODO these next two seem very similar
@@ -109,9 +108,9 @@ local args = {
 		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
-	-- [[ sphere1d -- used for 1D radial profiles of spheres
+	--[[ sphere1d -- used for 1D radial profiles of spheres
 	coord = 'sphere1d',
-	mins = cmdline.mins or {1, 0, -math.pi},
+	mins = cmdline.mins or {0, 0, -math.pi},
 	maxs = cmdline.maxs or {10, math.pi, math.pi},
 	gridSize = {
 		cmdline.gridSize or 256,
@@ -119,7 +118,7 @@ local args = {
 		cmdline.gridSize or 64,
 	},
 	boundary = {
-		xmin=cmdline.boundary or 'mirror',
+		xmin=cmdline.boundary or 'freeflow',	-- 'mirror',
 		xmax=cmdline.boundary or 'freeflow',
 		ymin=cmdline.boundary or 'freeflow',
 		ymax=cmdline.boundary or 'freeflow',
@@ -254,7 +253,7 @@ local args = {
 	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	--initState = 'Brio-Wu',
+	initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'GEM challenge', eqnArgs = {useEulerInitState=false},
@@ -290,7 +289,7 @@ local args = {
 
 
 	-- Einstein
-	initState = 'Minkowski',
+	--initState = 'Minkowski',
 	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 
@@ -622,7 +621,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is HyperbolicGammaDriver
+--self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is HyperbolicGammaDriver
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='none'}})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='GammaDriver'}})))
 
@@ -658,7 +657,7 @@ self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is Hyperb
 
 
 -- the start of unstructured meshes
---self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', meshfile='n0012_113-33'})))
+self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', meshfile='n0012_113-33'})))
 -- temp here -- to make sure ordinary solvers still run
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
 

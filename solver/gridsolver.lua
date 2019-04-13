@@ -33,11 +33,9 @@ local GridSolver = class(SolverBase)
 
 GridSolver.numGhost = 2
 
-GridSolver.solverVars  = table{
+GridSolver.solverVars  = table(GridSolver.super.solverVars):append{
 	{gridSize = 'int4'},
 	{stepsize = 'int4'},
-	{mins = 'real3'},
-	{maxs = 'real3'},
 	{grid_dx = 'real3'},
 }
 
@@ -399,14 +397,6 @@ typedef struct {
 })
 end
 
-function GridSolver:getSolverTypeCode()
-	-- this is moved from #define to constant, so AMR leaf nodes can change it.
-	-- coordinate space = u,v,w
-	-- cartesian space = x,y,z
-	-- min and max in coordinate space
-	return makestruct.makeStruct(self.solver_t, self.solverVars, nil, true)
-end
-
 function GridSolver:createSolverBuf()
 	GridSolver.super.createSolverBuf(self)
 	
@@ -434,6 +424,7 @@ function GridSolver:createSolverBuf()
 end
 
 function GridSolver:refreshSolverBufMinsMaxs()
+	-- always set this to the full range, even outside the used dimension, in case some dimensional value is supposed to be a non-zero constant, esp for cell volume calculations
 	self.solverPtr.mins.x = self.mins[1]
 	self.solverPtr.mins.y = self.mins[2]
 	self.solverPtr.mins.z = self.mins[3]
@@ -443,10 +434,6 @@ function GridSolver:refreshSolverBufMinsMaxs()
 	self.solverPtr.grid_dx.x = (self.solverPtr.maxs.x - self.solverPtr.mins.x) / tonumber(self.sizeWithoutBorder.x)
 	self.solverPtr.grid_dx.y = (self.solverPtr.maxs.y - self.solverPtr.mins.y) / tonumber(self.sizeWithoutBorder.y)
 	self.solverPtr.grid_dx.z = (self.solverPtr.maxs.z - self.solverPtr.mins.z) / tonumber(self.sizeWithoutBorder.z)
-end
-
-function GridSolver:refreshSolverBuf()
-	self.solverBuf:fromCPU(self.solverPtr)
 end
 
 -- TODO some of this is copied in solverbase
@@ -737,74 +724,6 @@ function GridSolver:refreshGetULR()
 				indexR = args.indexR or 'indexR'..suffix,
 				bufName = args.bufName or self.getULRBufName,	-- for displayVars the variable name is 'buf', so I need to override it either in displayCode or here
 			})
-		end
-	end
-end
-
--- depends on buffers
--- TODO this doesn't call super, but super has a lot in common with it
-function GridSolver:refreshSolverProgram()
-	self:refreshGetULR()	
-
-	local code = self:getSolverCode()
-
-	time('compiling solver program', function()
-		self.solverProgramObj = self.Program{name='solver', code=code}
-		self.solverProgramObj:compile()
-	end)
-
-	self:refreshCalcDTKernel()
-
-	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
-	end
-
-	if self.eqn.useConstrainU then
-		self.constrainUKernelObj = self.solverProgramObj:kernel'constrainU'
-	end
-
-	if self.usePLM then
-		self.calcLRKernelObj = self.solverProgramObj:kernel'calcLR'
-	end
-	if self.useCTU then
-		-- currently implemented in solver/roe.cl
-		-- not available for any other flux method
-		assert(self.fluxBuf)
-		self.updateCTUKernelObj = self.solverProgramObj:kernel'updateCTU'
-	end
-
-
-	for _,op in ipairs(self.ops) do
-		op:refreshSolverProgram()
-	end
-
-	-- display stuff:
-
-	if self.app.useGLSharing then
-		for _,displayVarGroup in ipairs(self.displayVarGroups) do
-			for _,var in ipairs(displayVarGroup.vars) do
-				--[[
-				if var.enabled 
-				or (var.vecVar and var.vecVar.enabled)
-				then
-				--]]do
-					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel(var.toTexKernelName)
-					var.calcDisplayVarToTexKernelObj.obj:setArg(1, self.texCLMem)
-				end
-			end
-		end
-	end
-
-	for _,displayVarGroup in ipairs(self.displayVarGroups) do
-		for _,var in ipairs(displayVarGroup.vars) do
-			--[[
-			if var.enabled 
-			or (var.vecVar and var.vecVar.enabled)
-			then
-			--]]do
-				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel(var.toBufferKernelName)
-				var.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
-			end
 		end
 	end
 end

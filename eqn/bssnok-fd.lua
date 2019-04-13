@@ -51,15 +51,16 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	local intVars = table{
 		{alpha = 'real'},			-- 1
 		{beta_u = 'real3'},         -- 3: beta^i
-		{epsilon_ll = 'sym3'},    -- 6: gammaBar_ij, only 5 dof since det gammaBar_ij = 1
+		{epsilon_ll = 'sym3'},    	-- 6: gammaBar_ij - gammaHat_ij, only 5 dof since det gammaBar_ij = 1
 																									 
 		self.useChi 
 			and {chi = 'real'}		-- 1
 			or {phi = 'real'},		-- 1
 		
 		{K = 'real'},               -- 1
-		{ABar_ll = 'sym3'},       -- 6: ABar_ij, only 5 dof since ABar^k_k = 0
-		{connBar_u = 'real3'},      -- 3: connBar^i = gammaBar^jk connBar^i_jk = -partial_j gammaBar^ij
+		{ABar_ll = 'sym3'},       	-- 6: ABar_ij, only 5 dof since ABar^k_k = 0
+		{LambdaBar_u = 'real3'},    -- 3: LambdaBar^i = C^i + Delta^i = C^i + gammaBar^jk (connBar^i_jk - connHat^i_jk)
+									-- TODO what is C^i ?
 	}
 	if self.useShift == 'HyperbolicGammaDriver' then
 		intVars:insert{B_u = 'real3'}
@@ -74,7 +75,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 		--real3 Phi;			//3: Phi_i
 
 		--stress-energy variables:
-		{rho = 'real'},		--1: n_a n_b T^ab
+		{rho = 'real'},				--1: n_a n_b T^ab
 		{S_u = 'real3'},			--3: -gamma^ij n_a T_aj
 		{S_ll = 'sym3'},			--6: gamma_i^c gamma_j^d T_cd
 
@@ -96,7 +97,8 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 	BSSNOKFiniteDifferenceEquation.super.createInitState(self)
 	self:addGuiVars{
 		{name='constrain_det_gammaBar_ll', value=true, compileTime=true},
-		{name='constrain_tr_ABar_ll', value=true, compileTime=true},
+		--{name='constrain_tr_ABar_ll', value=true, compileTime=true},
+{name='constrain_tr_ABar_ll', value=false, compileTime=true},
 		{name='calc_H_and_M', value=true, compileTime=true},
 		{name='diffuseSigma', value=.01},
 		{name='alphaMin', value=1e-7},
@@ -139,7 +141,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 <? end
 ?>	U->K = 0;
 	U->ABar_ll = sym3_ident;
-	U->connBar_u = real3_zero;
+	U->LambdaBar_u = real3_zero;
 <? if eqn.useShift == 'HyperbolicGammaDriver' then
 ?>	U->B_u = real3_zero;
 <? end
@@ -251,7 +253,7 @@ kernel void initState(
 	U->M_u = real3_zero;
 }
 
-//after popularing gammaBar_ll, use its finite-difference derivative to initialize connBar_u
+//after popularing gammaBar_ll, use its finite-difference derivative to initialize LambdaBar_u
 kernel void initDerivs(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
@@ -260,13 +262,25 @@ kernel void initDerivs(
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
-<?=makePartial('gammaBar_uu', 'sym3')?>
+<?=makePartial('epsilon_ll', 'sym3')?>
 
-	//connBar^i = -gammaBar^ij_,j
+	_3sym3 connHat_ull = coord_conn(x);
+
+	//connBar^i_jk - connHat^i_jk
+	//= 1/2 gammaBar^il (epsilon_lj,k + gamamBar_lk,j - epsilon_jk,l)
+
 <? for i,xi in ipairs(xNames) do
-?>	U->connBar_u.<?=xi?> =<?
-	for j,xj in ipairs(xNames) do
-?> - partial_gammaBar_uul[<?=j-1?>].<?=sym(i,j)?><?
+?>	U->LambdaBar_u.<?=xi?> =
+<?	for j,xj in ipairs(xNames) do 
+		for k,xk in ipairs(xNames) do
+			for l,xl in ipairs(xNames) do
+?> 		+ .5 * U->gammaBar_uu.<?=sym(j,k)?> * U->gammaBar_uu.<?=sym(i,l)?> * (
+			partial_epsilon_lll[<?=k-1?>].<?=sym(l,j)?> 
+			+ partial_epsilon_lll[<?=j-1?>].<?=sym(l,k)?> 
+			- partial_epsilon_lll[<?=l-1?>].<?=sym(j,k)?>
+		)
+<?			end
+		end
 	end
 ?>;
 <? end
@@ -287,15 +301,20 @@ end
 
 BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U alpha',
-	--'U beta_u mag',
+	'U beta_u mag',
 	--'U epsilon_ll norm',
-	--'U chi',
-	--'U ABar_ll tr weighted',
-	--'U connBar_u mag',
-	--'U K',
-	--'U Delta_u mag',
-	--'U H',
-	--'U M_u mag',
+	'U chi',
+	'U ABar_ll tr weighted',	-- has problems with spherical vacuum spacetime
+	'U ABar_ll x x',
+	'U ABar_ll x y',
+	'U ABar_ll x z',
+	'U ABar_ll y y',
+	'U ABar_ll y z',
+	'U ABar_ll z z',
+	'U K',
+	'U LambdaBar_u mag',
+	'U H',
+	'U M_u mag',
 	--'U det gammaBar - det gammaHat',
 	--'U det gamma_ij based on phi',
 	--'U volume',
