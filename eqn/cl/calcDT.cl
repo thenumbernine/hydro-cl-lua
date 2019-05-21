@@ -58,7 +58,7 @@ kernel void calcDT(
 			real lambdaMax = <?=eqn:consMaxWaveCode(side, '*U', 'x')?>;
 			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
 			absLambdaMax = max((real)1e-9, absLambdaMax);
-			real dx = 
+			real dx = cell->maxDist;
 			dt = (real)min(dt, dx / absLambdaMax);
 		}<? end ?>
 	}

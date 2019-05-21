@@ -21,7 +21,7 @@ local args = {
 	--fixedDT = .0001,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
@@ -69,14 +69,14 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{64,1,1},
-				{64,64,1},
+				{128,128,1},
 				{32,32,32},
 			},
 		})[platformName..'/'..deviceName] 
 		-- default size options
 		or {
 			{256,1,1},
-			{256,256,1},
+			{64,64,1},
 			{32,32,32},
 		}
 	)[dim],
@@ -219,7 +219,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -253,7 +253,7 @@ local args = {
 	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	initState = 'Brio-Wu',
+	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'GEM challenge', eqnArgs = {useEulerInitState=false},
@@ -277,6 +277,7 @@ local args = {
 	--initState = 'Maxwell scattering around square',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
+	--initState = 'Maxwell transverse waves',
 	
 	-- hmm, I think I need a fluid solver for this, not just a Maxwell solver ...
 	--initState = 'Maxwell Lichtenberg',	
@@ -580,7 +581,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 
@@ -657,7 +658,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 
 
 -- the start of unstructured meshes
-self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', meshfile='n0012_113-33'})))
+--self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', meshfile='n0012_113-33'})))
 -- temp here -- to make sure ordinary solvers still run
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
 

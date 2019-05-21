@@ -226,6 +226,14 @@ MHD.solverCodeFile = 'eqn/mhd.cl'
 
 MHD.displayVarCodeUsesPrims = true
 
+MHD.predefinedDisplayVars = {
+	'U rho',
+	'U m',
+	'U ETotal',
+	'U B',
+	'U div B',
+}
+
 function MHD:getDisplayVars()
 	return MHD.super.getDisplayVars(self):append{
 		{v = '*value_real3 = W.v;', type='real3'},

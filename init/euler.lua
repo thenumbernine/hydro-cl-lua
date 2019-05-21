@@ -1846,6 +1846,27 @@ kernel void addExtraSource(
 		end,
 	},
 
+	-- from 2000 Munz 'A Finite-Volume Method for the Maxwell Equations in the Time Domain', section 4
+	{
+		name = 'Maxwell transverse waves',
+		guiVars = {
+			{name = 'init_E0', value = 1, compileTime=true},
+			{name = 'init_m', value = 8, compileTime=true},
+			{name = 'init_n', value = 5, compileTime=true},
+			{name = 'init_x0', value = 2, compileTime=true},
+			{name = 'init_y0', value = 2, compileTime=true},
+		},
+		initState = function(self, solver)
+			return template([[
+	D.z = <?=eqn.susc_t?>_from_real( init_E0 * sin(init_m * M_PI * x.x / init_x0) * sin(init_n * M_PI * x.y / init_y0) );
+	conductivity = 0;
+]], 		table({
+				solver = solver,
+			}, solver.eqn:getTemplateEnv()))
+		end,
+	},
+
+
 	{
 		name = '2017 Degris et al',
 		initState = function(self, solver)

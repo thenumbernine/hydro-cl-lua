@@ -12,7 +12,7 @@ local fluids = eqn.fluids
 // https://en.wikipedia.org/wiki/Mass-to-charge_ratio
 // q_e / m_e = -1.758820024e+11 C/kg
 #define elecChargeMassRatio			(solver->ionElectronMassRatio / solver->ionMass)
-	
+
 #define sqrt_4_pi_G 			(<?=('%.50f'):format(4 * math.pi)?> * solver->sqrt_gravitationalConstant)
 #define sqrt_permittivity_g  	(1. / sqrt_4_pi_G)
 #define sqrt_permeability_g  	(sqrt_4_pi_G / normalizedSpeedOfLight)
@@ -656,7 +656,7 @@ kernel void addSource(
 		//electromagnetism			
 	T_00 += calc_EM_energy(solver, U, x);
 	
-	deriv->phi_g += T_00 / normalizedSpeedOfLight * solver->divPhiWavespeed_g * permittivity_g;
+	deriv->phi_g += T_00 * solver->divPhiWavespeed_g;
 
 	//ion_m has units kg/m^3 * m/s = kg/(m^2 s)
 	//ion_m,t has units kg/(m^2 s^2)
@@ -672,11 +672,11 @@ kernel void addSource(
 	
 	real normalizedIonDebyeLengthSq	= normalizedIonDebyeLength * normalizedIonDebyeLength;
 	//source of D is the current
-	deriv->D.x -= permittivity * (U->ion_m.x * solver->ionChargeMassRatio + U->elec_m.x * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
-	deriv->D.y -= permittivity * (U->ion_m.y * solver->ionChargeMassRatio + U->elec_m.y * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
-	deriv->D.z -= permittivity * (U->ion_m.z * solver->ionChargeMassRatio + U->elec_m.z * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->D.x -= (U->ion_m.x * solver->ionChargeMassRatio + U->elec_m.x * elecChargeMassRatio) * permittivity / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->D.y -= (U->ion_m.y * solver->ionChargeMassRatio + U->elec_m.y * elecChargeMassRatio) * permittivity / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
+	deriv->D.z -= (U->ion_m.z * solver->ionChargeMassRatio + U->elec_m.z * elecChargeMassRatio) * permittivity / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
 	//source of phi is the charge
-	deriv->phi += permittivity * (U->ion_rho * solver->ionChargeMassRatio + U->elec_rho * elecChargeMassRatio) / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius) * solver->divPhiWavespeed;
+	deriv->phi += (U->ion_rho * solver->ionChargeMassRatio + U->elec_rho * elecChargeMassRatio) * solver->divPhiWavespeed * permittivity / (normalizedIonDebyeLengthSq * normalizedIonLarmorRadius);
 
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system

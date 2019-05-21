@@ -17,6 +17,7 @@ Euler.numWaves = 5
 Euler.numIntStates = 5	-- don't bother integrate ePot
 
 Euler.mirrorVars = {{'m.x'}, {'m.y'}, {'m.z'}} 
+Euler.hasCalcDTCode = true
 Euler.hasEigenCode = true
 Euler.hasFluxFromConsCode = true
 Euler.roeUseFluxFromCons = true
@@ -359,14 +360,14 @@ end
 -- as long as U or eig isn't used, we can use this for both implementations
 Euler.eigenWaveCode = Euler.consWaveCode
 
---[=[
 -- this one calcs cell prims once and uses it for all sides
 -- it is put here instead of in eqn/euler.cl so euler-burgers can override it
 -- TODO move the sqrt() out of the loop altogether?
-Euler.hasCalcDTCode = false
 function Euler:getCalcDTCode()
 	return template([[
 <? local solver = eqn.solver ?>
+<? if require 'solver.gridsolver'.is(solver) then ?>
+
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
@@ -394,11 +395,48 @@ kernel void calcDT(
 	}<? end ?>
 	dtBuf[index] = dt;
 }
+
+<? else -- mesh solver ?>
+
+kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
+	global real* dtBuf,					//[numCells]
+	const global <?=eqn.cons_t?>* UBuf,	//[numCells]
+	const global cell_t* cells,			//[numCells]
+	const global iface_t* ifaces		//[numInterfaces]
+) {
+	int cellIndex = get_global_id(0);
+	if (cellIndex >= get_global_size(0)) return;
+	
+	const global <?=eqn.cons_t?>* U = UBuf + cellIndex;
+	const global cell_t* cell = cells + cellIndex;
+
+	real dt = INFINITY;
+	for (int i = 0; i < cell->numSides; ++i) {
+		const global iface_t* iface = ifaces + cell->ifaces[i];
+		//all sides? or only the most prominent side?
+		//which should we pick eigenvalues from?
+		<? for side=0,solver.dim-1 do ?>{
+			//use cell-centered eigenvalues
+			real3 x = cell->x;
+			<?=eqn:consWaveCodePrefix(side, '*U', 'x')?>
+			real lambdaMin = <?=eqn:consMinWaveCode(side, '*U', 'x')?>;
+			real lambdaMax = <?=eqn:consMaxWaveCode(side, '*U', 'x')?>;
+			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+			absLambdaMax = max((real)1e-9, absLambdaMax);
+			real dx = cell->maxDist;
+			dt = (real)min(dt, dx / absLambdaMax);
+		}<? end ?>
+	}
+	dtBuf[cellIndex] = dt;
+}
+
+
+<? end -- mesh vs grid solver ?>
 ]], {
 		eqn = self,
 	})
 end
---]=]
 
 return Euler
 

@@ -232,16 +232,16 @@ inline real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <
 
 inline real3 calcIonGravForce(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
 	return _real3(
-		(U->ion_rho * U->D_g.x + 4. * (U->ion_m.y * U->B_g.z - U->ion_m.z * U->B_g.y)) / normalizedSpeedOfLight,
-		(U->ion_rho * U->D_g.y + 4. * (U->ion_m.z * U->B_g.x - U->ion_m.x * U->B_g.z)) / normalizedSpeedOfLight,
-		(U->ion_rho * U->D_g.z + 4. * (U->ion_m.x * U->B_g.y - U->ion_m.y * U->B_g.x)) / normalizedSpeedOfLight);
+		(U->ion_rho * U->D_g.x + 4. * (U->ion_m.y * U->B_g.z - U->ion_m.z * U->B_g.y) / normalizedSpeedOfLight) / normalizedSpeedOfLight,
+		(U->ion_rho * U->D_g.y + 4. * (U->ion_m.z * U->B_g.x - U->ion_m.x * U->B_g.z) / normalizedSpeedOfLight) / normalizedSpeedOfLight,
+		(U->ion_rho * U->D_g.z + 4. * (U->ion_m.x * U->B_g.y - U->ion_m.y * U->B_g.x) / normalizedSpeedOfLight) / normalizedSpeedOfLight);
 }
 
 inline real3 calcElecGravForce(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
 	return _real3(
-		(U->elec_rho * U->D_g.x + 4. * (U->elec_m.y * U->B_g.z - U->elec_m.z * U->B_g.y)) / normalizedSpeedOfLight,
-		(U->elec_rho * U->D_g.y + 4. * (U->elec_m.z * U->B_g.x - U->elec_m.x * U->B_g.z)) / normalizedSpeedOfLight,
-		(U->elec_rho * U->D_g.z + 4. * (U->elec_m.x * U->B_g.y - U->elec_m.y * U->B_g.x)) / normalizedSpeedOfLight);
+		(U->elec_rho * U->D_g.x + 4. * (U->elec_m.y * U->B_g.z - U->elec_m.z * U->B_g.y) / normalizedSpeedOfLight) / normalizedSpeedOfLight,
+		(U->elec_rho * U->D_g.y + 4. * (U->elec_m.z * U->B_g.x - U->elec_m.x * U->B_g.z) / normalizedSpeedOfLight) / normalizedSpeedOfLight,
+		(U->elec_rho * U->D_g.z + 4. * (U->elec_m.x * U->B_g.y - U->elec_m.y * U->B_g.x) / normalizedSpeedOfLight) / normalizedSpeedOfLight);
 }
 
 ]], {
