@@ -55,8 +55,8 @@ end
 
 -- https://www.engineeringtoolbox.com/air-properties-d_156.html
 -- measurements at 0' C at 1 bar
--- C_p = specific heat at constant pressure (J / (kg K))
--- C_v = specific heat at constant volume (J / (kg K))
+-- C_p = specific heat at constant pressure, in J / (kg K) = m^2 / (K s^2)
+-- C_v = specific heat at constant volume, in J / (kg K)
 materials.Air.C_p = 1006
 materials.Air.C_v = 717.1
 materials.Air.heatCapacityRatio = 1006 / 717.1 -- ~ 1.4

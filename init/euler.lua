@@ -30,7 +30,7 @@ local function quadrantProblem(args)
 		if (xp) {
 			]]..build(1)..[[
 		} else {
-			]]..build(2)..[[	
+			]]..build(2)..[[
 		}
 	} else {
 		if (!xp) {
@@ -320,12 +320,12 @@ local initStates = table{
 -- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
 		guiVars = {
 			{name = 'init_rhoL', value = 8 * materials.Air.seaLevelDensity},	-- kg / m^3
-			{name = 'init_PL', value = 10 * materials.Air.seaLevelPressure},	-- Pa = N / m^2
+			{name = 'init_PL', value = 10 * materials.Air.seaLevelPressure},	-- Pa = N / m^2 = kg / (m s^2)
 			{name = 'init_rhoR', value = materials.Air.seaLevelDensity},
 			{name = 'init_PR', value = materials.Air.seaLevelPressure},
 		},
 		overrideGuiVars = {
-			heatCapacityRatio = materials.Air.C_p / materials.Air.C_v,	-- ~1.4
+			heatCapacityRatio = materials.Air.heatCapacityRatio,
 		},
 --]]
 --[[
@@ -341,18 +341,6 @@ Test	ρ L		u L		    p L		 ρ R		u R		    p R
 --]]
 		initState = function(self, solver)
 			return template([[
-#if 0	//offsetting the region	so I can see if there's a problem at the boundary ...
-	lhs = true 
-<?
-for i=1,solver.dim do
-	local xi = xNames[i]
-?> 		&& x.<?=xi?> > .75 * solver->mins.<?=xi?> + .25 * solver->maxs.<?=xi?>
-		&& x.<?=xi?> < .25 * solver->mins.<?=xi?> + .75 * solver->maxs.<?=xi?>
-<?
-end
-?>;
-#endif
-
 	rho = lhs ? solver->init_rhoL : solver->init_rhoR;
 	P = lhs ? solver->init_PL : solver->init_PR;
 ]], {
@@ -484,7 +472,39 @@ end
 			return rho, rho * vx, rho * vy, rho * vz, ETotal
 		end,
 	},
-	
+
+	{	-- just like Sod, but centered instead of to one side
+		name = 'rectangle',
+		guiVars = {
+			{name = 'init_rhoL', value = 1},
+			{name = 'init_PL', value = 1},
+			{name = 'init_rhoR', value = .125},
+			{name = 'init_PR', value = .1},
+		},
+		overrideGuiVars = {
+			heatCapacityRatio = 5/3,
+		},
+		initState = function(self, solver)
+			return template([[
+	lhs = true 
+<?
+for i=1,solver.dim do
+	local xi = xNames[i]
+?> 		&& x.<?=xi?> > .75 * solver->mins.<?=xi?> + .25 * solver->maxs.<?=xi?>
+		&& x.<?=xi?> < .25 * solver->mins.<?=xi?> + .75 * solver->maxs.<?=xi?>
+<?
+end
+?>;
+
+	rho = (lhs ? solver->init_rhoL : solver->init_rhoR) * unit_kg_per_m3;
+	P = (lhs ? solver->init_PL : solver->init_PR) * unit_kg_per_m3;
+]], {
+		solver = solver,
+		xNames = xNames,
+	})
+		end,
+	},
+
 	{
 		name = 'Sedov',
 		guiVars = {

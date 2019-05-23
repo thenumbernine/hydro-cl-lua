@@ -37,27 +37,29 @@ function Euler:init(args)
 
 	local SelfGrav = require 'op.selfgrav'
 
-if require 'solver.meshsolver'.is(self.solver) then
-	print("not using selfgrav with mesh solvers yet")
-else
+	if require 'solver.meshsolver'.is(self.solver) then
+		print("not using selfgrav with mesh solvers yet")
+	else
 		self.gravOp = SelfGrav{solver = self.solver}
 		self.solver.ops:insert(self.gravOp)
-end
+	end
 
 end
 
+-- hmm, how to store units alongside variables
+-- then I wouldn't need to worry about reference unit scales of the two-fluid plasma simulation
 Euler.primVars = table{
-	{rho = 'real'},
-	{v = 'real3'},
-	{P = 'real'},
-	{ePot = 'real'},
+	{rho = 'real'},		-- kg/m^3
+	{v = 'real3'},		-- m/s
+	{P = 'real'},		-- kg/(m s^2)
+	{ePot = 'real'},	-- m^2/s^2
 }
 
 Euler.consVars = table{
-	{rho = 'real'},
-	{m = 'real3'},
-	{ETotal = 'real'},
-	{ePot = 'real'},
+	{rho = 'real'},		-- kg/m^3
+	{m = 'real3'},		-- kg/(m^2 s)
+	{ETotal = 'real'},	-- kg/(m s^2)
+	{ePot = 'real'},	-- m^2/s^2
 }
 
 function Euler:createInitState()
@@ -280,12 +282,11 @@ for side=solver.dim,2 do ?>
 	}
 ]], {eqn=self, solver=self.solver}), type='real3'} or nil
 	}:append{
-		{['temp (C)'] = template([[
+		{temp = template([[
 <? local clnumber = require 'cl.obj.number' ?>
 <? local materials = require 'materials' ?>
-#define _0_C_in_K		273.15
 #define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
-	*value = calc_eInt(solver, W) / C_v - _0_C_in_K;
+	*value = calc_eInt(solver, W) / C_v / unit_K;
 ]])}
 	}
 

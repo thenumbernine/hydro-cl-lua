@@ -103,6 +103,16 @@ end
 -- always call super first
 function Equation:createInitState()
 	self.guiVars = table()
+
+	-- start with units
+	self:addGuiVars{
+		{name='meter', value=1},
+		{name='second', value=1},
+		{name='kilogram', value=1},
+		{name='coulomb', value=1},
+		{name='kelvin', value=1},
+	}
+
 	local mt = getmetatable(self)
 	if mt.guiVars then
 		self:addGuiVars(mt.guiVars)

@@ -58,6 +58,3 @@ typedef union {
 		real3 x,y,z;
 	};
 } real3x3;
-
-
-

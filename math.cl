@@ -7,6 +7,16 @@ local from6to3x3 = common.from6to3x3
 local sym = common.sym
 ?>
 
+#define unit_m			solver->meter
+#define unit_kg			solver->kilogram
+#define unit_s			solver->second
+#define unit_K			solver->kelvin
+#define unit_C			solver->coulomb
+#define unit_m2			unit_m * unit_m
+#define unit_m3			unit_m * unit_m * unit_m
+#define unit_kg_per_m3	unit_kg / unit_m3
+
+
 #define real_conj(x)		(x)
 #define real_from_real(x)	(x)
 #define real_from_cplx(x)	((x).re)

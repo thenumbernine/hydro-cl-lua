@@ -219,7 +219,8 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
+	initState = 'rectangle',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -462,7 +463,7 @@ local args = {
 if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(table(args, cmdline))) return end
 
 -- HD
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -581,7 +582,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 

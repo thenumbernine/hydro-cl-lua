@@ -206,7 +206,7 @@ function TwoFluidEMHD:createInitState()
 		{name='sqrt_permittivity_times_normalizedSpeedOfLight', value=1 / (4 * math.pi)},
 	
 		-- lambda_d = ion Debye length
-		-- lambda_d = sqrt(epsilon (v_i^T)^2 / n_0 q_i)
+		-- lambda_d = sqrt(epsilon (v_i^T)^2 m_i / n_0 q_i^2)
 		-- the 2014 Abgrall, Kumar model uses vacuum permittivity, whereas Wiki says material permittivity works
 		{name='ionDebyeLength', value=1},
 		-- normalized ion Debye length: 

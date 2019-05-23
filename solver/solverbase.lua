@@ -42,8 +42,10 @@ SolverBase.allowAccum = true
 SolverBase.displayVarAccumFunc = false
 
 SolverBase.solverVars = table{
+	-- [[ right now the mesh initial conditions use these, but otherwise they can be GridSolver-specific
 	{mins = 'real3'},
 	{maxs = 'real3'},
+	--]]
 }
 
 --[[
@@ -181,6 +183,7 @@ function SolverBase:postInit()
 			var:setToSolver(self)
 		end
 	end
+
 	self:refreshSolverBuf()
 end
 

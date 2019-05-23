@@ -73,7 +73,6 @@ function NavierStokesWilcox:createInitState()
 		{name='gasConstant', value=(materials.Air.C_p - materials.Air.C_v)},
 		
 		{name='heatCapacityRatio', value=materials.Air.C_p / materials.Air.C_v},
-		{name='_0_C_in_K', value=273.15},
 	}
 end
 
@@ -324,7 +323,7 @@ for side=solver.dim,2 do ?>
 	}
 ]], {eqn=self, solver=self.solver}), type='real3'} or nil
 	}:append{
-		{['temp (C)'] = '*value = calc_eIntTilde(W) / C_v - _0_C_in_K;'},
+		{temp = '*value = calc_eIntTilde(W) / C_v;'},
 	}
 
 	-- vorticity = [,x ,y ,z] [vTilde.x, vTilde.y, vTilde.z][
