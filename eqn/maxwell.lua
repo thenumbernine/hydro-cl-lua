@@ -63,14 +63,14 @@ Maxwell.vec3 = Maxwell.scalar..'3'
 Maxwell.mat3x3 = Maxwell.scalar..'3x3'
 
 Maxwell.consVars = table{
-	{D = Maxwell.vec3},
-	{B = Maxwell.vec3},
+	{D = Maxwell.vec3},				-- C/m^2
+	{B = Maxwell.vec3},				-- kg/(C s)
 	
-	{DPot = Maxwell.scalar},
-	{BPot = Maxwell.scalar},
+	{DPot = Maxwell.scalar},		-- C/m^2
+	{BPot = Maxwell.scalar},		-- kg/(C s)
 	
-	{rhoCharge = Maxwell.scalar},
-	{sigma = Maxwell.scalar},
+	{rhoCharge = Maxwell.scalar},	-- C/m^3
+	{sigma = Maxwell.scalar},		-- (C^2 s)/(kg m^3)
 }
 
 --[[
@@ -104,8 +104,8 @@ So we need three matrices and not just one ...
 --Maxwell.susc_t = Maxwell.mat3x3
 
 Maxwell.consVars:append{
-	{sqrt_1_eps = Maxwell.susc_t},
-	{sqrt_1_mu = Maxwell.susc_t},
+	{sqrt_1_eps = Maxwell.susc_t},		-- sqrt( (kg m^3)/(C^2 s^2) )
+	{sqrt_1_mu = Maxwell.susc_t},		-- sqrt( C^2/(kg m) )
 }
 
 Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
@@ -260,12 +260,12 @@ kernel void initState(
 	
 <?=code?>
 	
-	U->D = eqn_cartesianToCoord(D, x);
-	U->B = eqn_cartesianToCoord(B, x);
+	U->D = <?=vec3?>_real_mul(eqn_cartesianToCoord(D, x), unit_C_per_m2);
+	U->B = <?=vec3?>_real_mul(eqn_cartesianToCoord(B, x), unit_kg_per_C_s);
 	U->BPot = <?=zero?>;
-	U->sigma = conductivity;
-	U->sqrt_1_eps = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permittivity));
-	U->sqrt_1_mu = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permeability));
+	U->sigma = <?=susc_t?>_real_mul(conductivity, unit_C2_s_per_kg_m3);
+	U->sqrt_1_eps = <?=susc_t?>_sqrt(<?=susc_t?>_inv(<?=susc_t?>_real_mul(permittivity, unit_C2_s2_per_kg_m3)));
+	U->sqrt_1_mu = <?=susc_t?>_sqrt(<?=susc_t?>_inv(<?=susc_t?>_real_mul(permeability, unit_kg_m_per_C2)));
 }
 ]]
 

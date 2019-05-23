@@ -213,8 +213,8 @@ function HydroCLApp:initGL(...)
 	}
 	local platformName = self.env.platform:getName()
 	local deviceName = self.env.device:getName()
-	--print(platformName)
-	--print(deviceName)
+	print(platformName)
+	print(deviceName)
 
 	self.exitTime = cmdline.exitTime
 	if self.exitTime then self.running = true end

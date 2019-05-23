@@ -127,7 +127,9 @@ local function addMaxwellOscillatingBoundary(args)
 <?
 	local epsSrc = 
 		(require 'eqn.twofluid-emhd-lingr'.is(eqn) 
-			or require 'eqn.glm-maxwell'.is(eqn))
+			or require 'eqn.glm-maxwell'.is(eqn)
+			or require 'eqn.maxwell'.is(eqn)
+		)
 		and U or 'solver'
 ?>
 	
@@ -473,16 +475,22 @@ Test	ρ L		u L		    p L		 ρ R		u R		    p R
 		end,
 	},
 
-	{	-- just like Sod, but centered instead of to one side
+	{	-- just like Brio-Wu, but centered instead of to one side
 		name = 'rectangle',
 		guiVars = {
 			{name = 'init_rhoL', value = 1},
-			{name = 'init_PL', value = 1},
 			{name = 'init_rhoR', value = .125},
+			{name = 'init_PL', value = 1},
 			{name = 'init_PR', value = .1},
+			{name = 'init_BxL', value = .75},
+			{name = 'init_BxR', value = .75},
+			{name = 'init_ByL', value = 1},
+			{name = 'init_ByR', value = -1},
+			{name = 'init_BzL', value = 0},
+			{name = 'init_BzR', value = 0},
 		},
 		overrideGuiVars = {
-			heatCapacityRatio = 5/3,
+			heatCapacityRatio = 2,
 		},
 		initState = function(self, solver)
 			return template([[
@@ -495,13 +503,16 @@ for i=1,solver.dim do
 <?
 end
 ?>;
-
-	rho = (lhs ? solver->init_rhoL : solver->init_rhoR) * unit_kg_per_m3;
-	P = (lhs ? solver->init_PL : solver->init_PR) * unit_kg_per_m3;
-]], {
-		solver = solver,
-		xNames = xNames,
-	})
+	
+	rho = lhs ? solver->init_rhoL : solver->init_rhoR;
+	P = lhs ? solver->init_PL : solver->init_PR;
+	B.x = lhs ? solver->init_BxL : solver->init_BxR;
+	B.y = lhs ? solver->init_ByL : solver->init_ByR;
+	B.z = lhs ? solver->init_BzL : solver->init_BzR;
+]], 	{
+			solver = solver,
+			xNames = xNames,
+		}) 
 		end,
 	},
 

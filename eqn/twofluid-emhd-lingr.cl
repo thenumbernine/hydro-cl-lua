@@ -629,34 +629,34 @@ kernel void addSource(
 	real3 ionGravForce = calcIonGravForce(solver, U, x);
 	real3 elecGravForce = calcElecGravForce(solver, U, x);
 
-	//source of D_g is T_0i is the momentum + Poynting vector
-	real3 T_0i = real3_zero;
+	//source of D_g is J_g is the momentum + Poynting vector
+	real3 J_g = real3_zero;
 	// I'm symmetrizing the stress-energy
 		//matter
-	T_0i.x -= U->ion_m.x * normalizedSpeedOfLight;
-	T_0i.y -= U->ion_m.y * normalizedSpeedOfLight;
-	T_0i.z -= U->ion_m.z * normalizedSpeedOfLight;
+	J_g.x -= U->ion_m.x + U->elec_m.x;
+	J_g.y -= U->ion_m.y + U->elec_m.y;
+	J_g.z -= U->ion_m.z + U->elec_m.z;
 		//electromagnetism
 	real v_p = 1. / sqrt_permittivity * sqrt_permeability;		// phase vel = sqrt(1 / (eps * mu))
 	real v_pSq = v_p * v_p;
 	real nSq = 1. / v_pSq;		// index of refraction^2 = 1 / phase vel^2
 	real3 S = real3_real_mul(real3_cross(U->D, U->B), 1. / nSq);
-	T_0i.x -= .5 * S.x * (1. + nSq) / normalizedSpeedOfLight;
-	T_0i.y -= .5 * S.y * (1. + nSq) / normalizedSpeedOfLight;
-	T_0i.z -= .5 * S.z * (1. + nSq) / normalizedSpeedOfLight;
+	J_g.x -= .5 * S.x * (1. + nSq) / normalizedSpeedOfLightSq;
+	J_g.y -= .5 * S.y * (1. + nSq) / normalizedSpeedOfLightSq;
+	J_g.z -= .5 * S.z * (1. + nSq) / normalizedSpeedOfLightSq;
 	
-	deriv->D_g.x -= T_0i.x / normalizedSpeedOfLight;
-	deriv->D_g.y -= T_0i.y / normalizedSpeedOfLight;
-	deriv->D_g.z -= T_0i.z / normalizedSpeedOfLight;
+	deriv->D_g.x -= J_g.x;
+	deriv->D_g.y -= J_g.y;
+	deriv->D_g.z -= J_g.z;
 
 	// source of phi_g is T_00 is rho + .5 (D^2 + B^2)
-	real T_00 = 0.;	
+	real T_00_over_c2 = 0.;	
 		//matter
-	T_00 += (U->ion_rho + U->elec_rho) * normalizedSpeedOfLightSq * normalizedSpeedOfLightSq;
+	T_00_over_c2 += U->ion_rho + U->elec_rho;
 		//electromagnetism			
-	T_00 += calc_EM_energy(solver, U, x);
+	T_00_over_c2 += calc_EM_energy(solver, U, x) / normalizedSpeedOfLightSq;
 	
-	deriv->phi_g += T_00 * solver->divPhiWavespeed_g;
+	deriv->phi_g += T_00_over_c2 * solver->divPhiWavespeed_g;
 
 	//ion_m has units kg/m^3 * m/s = kg/(m^2 s)
 	//ion_m,t has units kg/(m^2 s^2)

@@ -53,19 +53,19 @@ function GLM_Maxwell:init(args)
 
 
 	self.consVars = {
-		{D = self.vec3},
-		{B = self.vec3},
-		{phi = self.scalar},
-		{psi = self.scalar},
-		{rhoCharge = self.scalar},
-		{sigma = self.scalar},
+		{D = self.vec3},			-- C/m^2
+		{B = self.vec3},			-- kg/(C s)
+		{phi = self.scalar},		-- C/m^2
+		{psi = self.scalar},		-- kg/(C s)
+		{rhoCharge = self.scalar},	-- C/m^3
+		{sigma = self.scalar},		-- (C^2 s)/(kg m^3)
 		{sqrt_1_eps = self.susc_t},
 		{sqrt_1_mu = self.susc_t},
 	}
 
 	self.eigenVars = table{
-		{sqrt_1_eps = self.susc_t},
-		{sqrt_1_mu = self.susc_t},
+		{sqrt_1_eps = self.susc_t},	-- sqrt( (kg m^3)/(C^2 s^2) )
+		{sqrt_1_mu = self.susc_t},	-- sqrt( C^2/(kg m) )
 	}
 
 
@@ -178,14 +178,14 @@ kernel void initState(
 	
 	<?=code?>
 	
-	U->D = eqn_cartesianToCoord(D, x);
-	U->B = eqn_cartesianToCoord(B, x);
+	U->D = <?=vec3?>_real_mul(eqn_cartesianToCoord(D, x), unit_C_per_m2);
+	U->B = <?=vec3?>_real_mul(eqn_cartesianToCoord(B, x), unit_kg_per_C_s);
 	U->phi = <?=zero?>;
 	U->psi = <?=zero?>;
-	U->sigma = conductivity;
+	U->sigma = <?=susc_t?>_real_mul(conductivity, unit_C2_s_per_kg_m3);
 	U->rhoCharge = <?=zero?>;
-	U->sqrt_1_eps = <?=sqrt?>(<?=inv?>(permittivity));
-	U->sqrt_1_mu = <?=sqrt?>(<?=inv?>(permeability));
+	U->sqrt_1_eps = <?=sqrt?>(<?=inv?>(<?=susc_t?>_real_mul(permittivity, unit_C2_s2_per_kg_m3)));
+	U->sqrt_1_mu = <?=sqrt?>(<?=inv?>(<?=susc_t?>_real_mul(permeability, unit_kg_m_per_C2)));
 }
 ]]
 

@@ -200,10 +200,10 @@ end
 	<?=code?>
 
 	<?=eqn.prim_t?> W = {
-		.rho = rho,
-		.v = cartesianToCoord(v, x),	//transform from cartesian to coordinate space 
-		.P = P,
-		.ePot = ePot,
+		.rho = rho * unit_kg_per_m3,
+		.v = real3_real_mul(cartesianToCoord(v, x), unit_m_per_s),
+		.P = P * unit_kg_per_m_s2,
+		.ePot = ePot * unit_kg_per_m_s2,
 	};
 	UBuf[index] = consFromPrim(solver, W, x);
 }

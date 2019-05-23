@@ -28,6 +28,7 @@ Features:
 - self-gravitation for some schemes (Euler equations)
 - Z4c from Cao, Hilditch 2011
 - nonlinear Schrodinger equation from Colliander, Simpso, Sulem "Numerical Simulations of the Energy-Supercritical nonlinear Schrodinger equation" 2010 
+- Modular system.  Integrators go in the 'int' folder.  Schemes go in the 'solver' folder.  Equations go in the 'eqn' folder.  The idea is that you can mix and match as you choose, provided the functionality matches up.
 
 Example Videos:
 

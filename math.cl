@@ -7,14 +7,25 @@ local from6to3x3 = common.from6to3x3
 local sym = common.sym
 ?>
 
-#define unit_m			solver->meter
-#define unit_kg			solver->kilogram
-#define unit_s			solver->second
-#define unit_K			solver->kelvin
-#define unit_C			solver->coulomb
-#define unit_m2			unit_m * unit_m
-#define unit_m3			unit_m * unit_m * unit_m
-#define unit_kg_per_m3	unit_kg / unit_m3
+
+#define unit_m					solver->meter
+#define unit_kg					solver->kilogram
+#define unit_s					solver->second
+#define unit_K					solver->kelvin
+#define unit_C					solver->coulomb
+
+#define unit_s2					(unit_s * unit_s)
+#define unit_m2					(unit_m * unit_m)
+#define unit_m3					(unit_m * unit_m * unit_m)
+#define unit_C2					(unit_C * unit_C)
+#define unit_m_per_s			(unit_m / unit_s)
+#define unit_kg_per_m3			(unit_kg / unit_m3)
+#define unit_kg_per_m_s2		(unit_kg / (unit_m * unit_s2))
+#define unit_C_per_m2			(unit_C / unit_m2)
+#define unit_kg_per_C_s			(unit_kg / (unit_C * unit_s))
+#define unit_kg_m_per_C2		(unit_kg * unit_m / unit_C2)
+#define unit_C2_s_per_kg_m3		((unit_C2 * unit_s) / (unit_kg * unit_m3))
+#define unit_C2_s2_per_kg_m3	((unit_C2 * unit_s2) / (unit_kg * unit_m3))
 
 
 #define real_conj(x)		(x)
