@@ -134,3 +134,12 @@ TODO:
 	* https://github.com/wme7/WENO7-Z/blob/master/WENO7ZresAdv1d.m for weno7 examples
 	* https://github.com/python-hydro/hydro_examples/blob/master/compressible/weno_coefficients.py for weno7-13 coefficients
 
+Intel OpenCL Ubuntu bugs I'm seeing:
+- non-static functions in large programs are crashing.  I've declared all non-kernel functions as 'static inline' and that stops the compiler from crashing.
+- assigning structs by value crashes.  this means no returning structs, no operator= on structs at all.
+	here's the line that's crashing:
+		W.D_g = real3_zero;
+	...and real3_zero is a macro for (real3){.s={0., 0., 0.}}
+	maybe it's only assigning to static global constants?
+	sure enough, changing the line to a function that accepts the pointer and sets the structure to zero compiles fine.
+	strangely previous lines look identical to this, assigning to zero.  but they compile fine.

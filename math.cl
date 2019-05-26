@@ -129,11 +129,11 @@ static inline cplx cplx_sqrt(cplx a) {
 
 //assumes q is unit
 //returns the conjugate
-real4 quatUnitConj(real4 q) {
+static inline real4 quatUnitConj(real4 q) {
 	return (real4)(-q.x, -q.y, -q.z, q.x);
 }
 
-real4 quatMul(real4 q, real4 r) {
+static inline real4 quatMul(real4 q, real4 r) {
 	real a = (q.w + q.x) * (r.w + r.x);
 	real b = (q.z - q.y) * (r.y - r.z);
 	real c = (q.x - q.w) * (r.y + r.z);
@@ -250,23 +250,23 @@ static inline sym3 real3_outer(real3 a, real3 b) {
 }
 
 //for swapping dimensions between x and 012
-real3 real3_swap0(real3 v) { return v; }
-real3 real3_swap1(real3 v) { return _real3(v.y, v.x, v.z); }
-real3 real3_swap2(real3 v) { return _real3(v.z, v.y, v.x); }
+static inline real3 real3_swap0(real3 v) { return v; }
+static inline real3 real3_swap1(real3 v) { return _real3(v.y, v.x, v.z); }
+static inline real3 real3_swap2(real3 v) { return _real3(v.z, v.y, v.x); }
 
 //rotate from a particular side xyz to put x forward
-real3 real3_rotFrom0(real3 v) { return v; }
-real3 real3_rotFrom1(real3 v) { return _real3(v.y, -v.x, v.z); }
-real3 real3_rotFrom2(real3 v) { return _real3(v.z, v.y, -v.x); }
+static inline real3 real3_rotFrom0(real3 v) { return v; }
+static inline real3 real3_rotFrom1(real3 v) { return _real3(v.y, -v.x, v.z); }
+static inline real3 real3_rotFrom2(real3 v) { return _real3(v.z, v.y, -v.x); }
 
 //rotate to put x back to the side 
-real3 real3_rotTo0(real3 v) { return v; }
-real3 real3_rotTo1(real3 v) { return _real3(-v.y, v.x, v.z); }
-real3 real3_rotTo2(real3 v) { return _real3(-v.z, v.y, v.x); }
+static inline real3 real3_rotTo0(real3 v) { return v; }
+static inline real3 real3_rotTo1(real3 v) { return _real3(-v.y, v.x, v.z); }
+static inline real3 real3_rotTo2(real3 v) { return _real3(-v.z, v.y, v.x); }
 
 //rotate 'n' to x-axis
 //assumes 'n' is unit
-real3 real3_rotateFrom(real3 v, real3 n) {
+static inline real3 real3_rotateFrom(real3 v, real3 n) {
 #if dim == 1
 	return v;
 #elif dim == 2
@@ -305,7 +305,7 @@ real3 real3_rotateFrom(real3 v, real3 n) {
 }
 
 //rotate x-axis to 'n'
-real3 real3_rotateTo(real3 v, real3 n) {
+static inline real3 real3_rotateTo(real3 v, real3 n) {
 #if dim == 1
 	return v;
 #elif dim == 2
@@ -332,7 +332,7 @@ real3 real3_rotateTo(real3 v, real3 n) {
 
 #define real3_from_cplx3		cplx3_re
 
-cplx3 cplx3_from_real3(real3 re) {
+static inline cplx3 cplx3_from_real3(real3 re) {
 	return (cplx3){
 		.x = cplx_from_real(re.x),
 		.y = cplx_from_real(re.y),
@@ -340,7 +340,7 @@ cplx3 cplx3_from_real3(real3 re) {
 	};
 }
 
-cplx3 cplx3_from_real3_real3(real3 re, real3 im) {
+static inline cplx3 cplx3_from_real3_real3(real3 re, real3 im) {
 	return (cplx3){
 		.x = {.re = re.x, .im = im.x},
 		.y = {.re = re.y, .im = im.y},
@@ -348,14 +348,14 @@ cplx3 cplx3_from_real3_real3(real3 re, real3 im) {
 	};
 }
 
-real3 cplx3_re(cplx3 v) { return _real3(v.x.re, v.y.re, v.z.re); }
-real3 cplx3_im(cplx3 v) { return _real3(v.x.im, v.y.im, v.z.im); }
+static inline real3 cplx3_re(cplx3 v) { return _real3(v.x.re, v.y.re, v.z.re); }
+static inline real3 cplx3_im(cplx3 v) { return _real3(v.x.im, v.y.im, v.z.im); }
 
-real cplx3_lenSq(cplx3 v) {
+static inline real cplx3_lenSq(cplx3 v) {
 	return real3_lenSq(cplx3_re(v)) + real3_lenSq(cplx3_im(v));
 }
 
-real cplx3_len(cplx3 v) {
+static inline real cplx3_len(cplx3 v) {
 	return sqrt(cplx3_lenSq(v));
 }
 
@@ -493,9 +493,9 @@ static inline real sym3_trace(sym3 m) {
 }
 
 //for swapping dimensions between x and 012
-sym3 sym3_swap0(sym3 m) { return m; }
-sym3 sym3_swap1(sym3 m) { return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
-sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
+static inline sym3 sym3_swap0(sym3 m) { return m; }
+static inline sym3 sym3_swap1(sym3 m) { return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
+static inline sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
 
 #define real3x3_zero (real3x3){.v={real3_zero, real3_zero, real3_zero}}
 
@@ -639,13 +639,13 @@ static inline real3 _3sym3_sym3_dot23(_3sym3 a, sym3 b) {
 ?>	};
 }
 
-real3 normalForSide0() { return _real3(1,0,0); }
-real3 normalForSide1() { return _real3(0,1,0); }
-real3 normalForSide2() { return _real3(0,0,1); }
+static inline real3 normalForSide0() { return _real3(1,0,0); }
+static inline real3 normalForSide1() { return _real3(0,1,0); }
+static inline real3 normalForSide2() { return _real3(0,0,1); }
 
 // https://community.amd.com/thread/169701
 // meh, not so great
-float crand() {
+static inline float crand() {
 	unsigned int seed = get_global_id(0)
 		+ 13 * get_global_id(1)
 		+ 87 * get_global_id(2);

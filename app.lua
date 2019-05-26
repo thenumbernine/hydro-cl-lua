@@ -204,17 +204,41 @@ function HydroCLApp:initGL(...)
 
 	self.cmdline = cmdline
 
-	-- TODO favor cl_khr_gl_sharing, cl_khr_fp64, cl_khr_3d_image_writes
+-- Latest intel-opencl-icd drivers are freezing my system, only for this program, and I don't know why.  Turning on vsync seems to fix it.
+sdl.SDL_GL_SetSwapInterval(1)
+
+	local useGLSharing = true
+	if cmdline.useGLSharing ~= nil then useGLSharing = cmdline.useGLSharing end
+
+	-- TODO if no identifier was specified by the cmdline then favor cl_khr_gl_sharing, cl_khr_fp64, cl_khr_3d_image_writes
+	local function getterForIdent(ident, identType)
+		return function(objs)
+			for i,obj in ipairs(objs) do
+				if type(ident) == 'nil' then
+					return obj
+				elseif type(ident) == 'number' then
+					if ident == i then return obj end
+				elseif type(ident) == 'string' then
+					if ident == obj:getName() then return obj end
+				end
+			end
+			error("couldn't find "..identType)
+		end
+	end
+
 	self.env = CLEnv{
 		--verbose = true,
 		precision = cmdline.float and 'float' or (cmdline.half and 'half' or nil),
 		cpu = cmdline.cpu,
-		useGLSharing = cmdline.useGLSharing ~= false,	-- let nil default to true 
+		useGLSharing = useGLSharing,
+		verbose = cmdline.verbose,
+		getPlatform = getterForIdent(cmdline.platform, 'platform'),
+		getDevice = getterForIdent(cmdline.device, 'device'),
 	}
 	local platformName = self.env.platform:getName()
 	local deviceName = self.env.device:getName()
-	print(platformName)
-	print(deviceName)
+	io.stderr:write(platformName,'\n')
+	io.stderr:write(deviceName,'\n')
 
 	self.exitTime = cmdline.exitTime
 	if self.exitTime then self.running = true end
@@ -227,7 +251,7 @@ function HydroCLApp:initGL(...)
 	
 	--half cannot be a kernel param, so this is a proxy type
 	self.realparam = self.real == 'half' and 'float' or self.real
-	
+
 	do
 		local code = template(file['math.h'], {app=self})
 		xpcall(function()

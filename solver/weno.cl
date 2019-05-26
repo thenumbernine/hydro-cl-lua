@@ -10,7 +10,7 @@ https://github.com/wme7/WENO7-Z/blob/master/WENO7ZresAdv1d.m for weno7 examples
 https://github.com/python-hydro/hydro_examples/blob/master/compressible/weno_coefficients.py likewise
 */
 
-inline real sqr(real x) { return x * x; }
+static inline real sqr(real x) { return x * x; }
 
 <? 
 local clnumber = require 'cl.obj.number'

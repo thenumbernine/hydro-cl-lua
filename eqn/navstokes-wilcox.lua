@@ -85,26 +85,26 @@ function NavierStokesWilcox:getCommonFuncCode()
 //inline real calc_h(real rhoBar, real PStar) { return calc_H(PStar) / rhoBar; }
 //inline real calc_hTotal(real rhoBar, real PStar, real rhoBar_eTotalTilde) { return (PStar + rhoBar_eTotalTilde) / rhoBar; }
 //inline real calc_HTotal(real PStar, real rhoBar_eTotalTilde) { return PStar + rhoBar_eTotalTilde; }
-inline real calc_eKinTilde(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.vTilde, x); }
-inline real calc_EKinTilde(<?=eqn.prim_t?> W, real3 x) { return W.rhoBar * calc_eKinTilde(W, x); }
+static inline real calc_eKinTilde(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.vTilde, x); }
+static inline real calc_EKinTilde(<?=eqn.prim_t?> W, real3 x) { return W.rhoBar * calc_eKinTilde(W, x); }
 
 //before
 //inline real calc_EIntTilde(<?=eqn.prim_t?> W) { return W.PStar * C_v_over_R; }
 //inline real calc_eIntTilde(<?=eqn.prim_t?> W) { return calc_EIntTilde(W) / W.rhoBar; }
 
 //after
-inline real calc_PBar(<?=eqn.prim_t?> W) { return W.PStar - 2./3. * W.rhoBar * W.k; }
-inline real calc_TTilde(<?=eqn.prim_t?> W) { return calc_PBar(W) / (W.rhoBar * gasConstant); }
-inline real calc_eIntTilde(<?=eqn.prim_t?> W) { return C_v * calc_TTilde(W); }
-inline real calc_EIntTilde(<?=eqn.prim_t?> W) { return W.rhoBar * calc_eIntTilde(W); }
+static inline real calc_PBar(<?=eqn.prim_t?> W) { return W.PStar - 2./3. * W.rhoBar * W.k; }
+static inline real calc_TTilde(<?=eqn.prim_t?> W) { return calc_PBar(W) / (W.rhoBar * gasConstant); }
+static inline real calc_eIntTilde(<?=eqn.prim_t?> W) { return C_v * calc_TTilde(W); }
+static inline real calc_EIntTilde(<?=eqn.prim_t?> W) { return W.rhoBar * calc_eIntTilde(W); }
 
-inline real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.rhoBar_vTilde, x) / U.rhoBar; }
-inline real calc_ETotal(<?=eqn.prim_t?> W, real3 x) {
+static inline real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.rhoBar_vTilde, x) / U.rhoBar; }
+static inline real calc_ETotal(<?=eqn.prim_t?> W, real3 x) {
 	real EPot = W.rhoBar * W.ePot;
 	return calc_EKinTilde(W, x) + calc_EIntTilde(W) + EPot;
 }
 
-inline real calc_Cs(const <?=eqn.prim_t?> W) {
+static inline real calc_Cs(const <?=eqn.prim_t?> W) {
 	return sqrt((R_over_C_v + 1.) * W.PStar / W.rhoBar);
 }
 ]], {
@@ -114,7 +114,7 @@ end
 
 function NavierStokesWilcox:getPrimConsCode()
 	return template([[
-inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
+static inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 	real3 vTilde = real3_real_mul(U.rhoBar_vTilde, 1. / U.rhoBar);
 	real vTildeSq = coordLenSq(vTilde, x);
 	real rhoBar_eIntTilde = U.rhoBar_eTotalTilde - .5 * U.rhoBar * vTildeSq - U.rhoBar_k - U.rhoBar * U.ePot;
@@ -132,7 +132,7 @@ inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 	};
 }
 
-inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
+static inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	real rhoBar_k = W.rhoBar * W.k;
 
 	//eqn 6: PStar = PBar + 2/3 rhoBar k

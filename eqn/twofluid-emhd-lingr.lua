@@ -203,26 +203,26 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getCommonFuncCode()
 #define normalizedIonLarmorRadius 	(solver->ionLarmorRadius / solver->referenceLength)
 #define normalizedIonDebyeLength	(solver->ionDebyeLength / solver->ionLarmorRadius)
 
-inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
-inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
-inline real calc_hTotal(constant <?=solver.solver_t?>* solver, real rho, real P, real ETotal) { return (P + ETotal) / rho; }
-inline real calc_HTotal(real P, real ETotal) { return P + ETotal; }
+static inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
+static inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
+static inline real calc_hTotal(constant <?=solver.solver_t?>* solver, real rho, real P, real ETotal) { return (P + ETotal) / rho; }
+static inline real calc_HTotal(real P, real ETotal) { return P + ETotal; }
 
 <? for _,fluid in ipairs(fluids) do ?>
-inline real calc_<?=fluid?>_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.<?=fluid?>_v, x); }
-inline real calc_<?=fluid?>_EKin(<?=eqn.prim_t?> W, real3 x) { return W.<?=fluid?>_rho * calc_<?=fluid?>_eKin(W, x); }
-inline real calc_<?=fluid?>_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.<?=fluid?>_P / (solver->heatCapacityRatio - 1.); }
-inline real calc_<?=fluid?>_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_<?=fluid?>_EInt(solver, W) / W.<?=fluid?>_rho; }
-inline real calc_<?=fluid?>_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.<?=fluid?>_m, x) / U.<?=fluid?>_rho; }
-inline real calc_<?=fluid?>_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
+static inline real calc_<?=fluid?>_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.<?=fluid?>_v, x); }
+static inline real calc_<?=fluid?>_EKin(<?=eqn.prim_t?> W, real3 x) { return W.<?=fluid?>_rho * calc_<?=fluid?>_eKin(W, x); }
+static inline real calc_<?=fluid?>_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.<?=fluid?>_P / (solver->heatCapacityRatio - 1.); }
+static inline real calc_<?=fluid?>_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_<?=fluid?>_EInt(solver, W) / W.<?=fluid?>_rho; }
+static inline real calc_<?=fluid?>_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.<?=fluid?>_m, x) / U.<?=fluid?>_rho; }
+static inline real calc_<?=fluid?>_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	return calc_<?=fluid?>_EKin(W, x) + calc_<?=fluid?>_EInt(solver, W);
 }
-inline real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?>* W) {
+static inline real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?>* W) {
 	return sqrt(solver->heatCapacityRatio * W-><?=fluid?>_P / W-><?=fluid?>_rho);
 }
 <? end ?>
 
-inline real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
+static inline real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
 	real sqrt_permittivity = solver->sqrt_permittivity_times_normalizedSpeedOfLight / normalizedSpeedOfLight;
 	real sqrt_permeability = solver->sqrt_permeability;
 	real permittivity = sqrt_permittivity * sqrt_permittivity;
@@ -230,14 +230,14 @@ inline real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <
 	return .5 * (coordLenSq(U->D, x) / permittivity + coordLenSq(U->B, x) / permeability);
 }
 
-inline real3 calcIonGravForce(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
+static inline real3 calcIonGravForce(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
 	return _real3(
 		(U->ion_rho * U->D_g.x + 4. * (U->ion_m.y * U->B_g.z - U->ion_m.z * U->B_g.y) / normalizedSpeedOfLight) / normalizedSpeedOfLight,
 		(U->ion_rho * U->D_g.y + 4. * (U->ion_m.z * U->B_g.x - U->ion_m.x * U->B_g.z) / normalizedSpeedOfLight) / normalizedSpeedOfLight,
 		(U->ion_rho * U->D_g.z + 4. * (U->ion_m.x * U->B_g.y - U->ion_m.y * U->B_g.x) / normalizedSpeedOfLight) / normalizedSpeedOfLight);
 }
 
-inline real3 calcElecGravForce(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
+static inline real3 calcElecGravForce(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
 	return _real3(
 		(U->elec_rho * U->D_g.x + 4. * (U->elec_m.y * U->B_g.z - U->elec_m.z * U->B_g.y) / normalizedSpeedOfLight) / normalizedSpeedOfLight,
 		(U->elec_rho * U->D_g.y + 4. * (U->elec_m.z * U->B_g.x - U->elec_m.x * U->B_g.z) / normalizedSpeedOfLight) / normalizedSpeedOfLight,
@@ -253,7 +253,7 @@ end
 
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:getPrimConsCode()
 	return template([[
-inline <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
+static inline <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	<? for _,fluid in ipairs(fluids) do ?>
 	real <?=fluid?>_EKin = calc_<?=fluid?>_EKin_fromCons(U, x);
 	real <?=fluid?>_EInt = U.<?=fluid?>_ETotal - <?=fluid?>_EKin;
@@ -275,7 +275,7 @@ inline <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eq
 	};
 }
 
-inline <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
+static inline <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
 <? for _,fluid in ipairs(fluids) do ?>
 		.<?=fluid?>_rho = W.<?=fluid?>_rho,
@@ -293,7 +293,7 @@ inline <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eq
 	};
 }
 
-inline <?=eqn.cons_t?> apply_dU_dW(
+static inline <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA, 
 	<?=eqn.prim_t?> W, 
@@ -323,7 +323,7 @@ inline <?=eqn.cons_t?> apply_dU_dW(
 	};
 }
 
-inline <?=eqn.prim_t?> apply_dW_dU(
+static inline <?=eqn.prim_t?> apply_dW_dU(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA,
 	<?=eqn.cons_t?> U,
@@ -417,43 +417,50 @@ end
 
 	<?=code?>
 
-	<?=eqn.prim_t?> W = {
+	// intel OpenCL compiler bug crashing when I initialize W with a struct assign
+	<?=eqn.prim_t?> W;
 <? 
 if eqn.useEulerInitState then 
 ?>
-		.ion_rho = rho,
-		.elec_rho = rho / solver->ionElectronMassRatio, 
+	W.ion_rho = rho;
+	W.elec_rho = rho / solver->ionElectronMassRatio;
 
-		// "the electron pressure is taken to be elec_P = 5 ion_rho"
-		// is that arbitrary?
-		.elec_P = 5. * rho,
-		
-		// "the ion pressure is 1/100th the electron pressure"
-		// is that from the mass ratio of ion/electron?
-		.ion_P = P / solver->ionElectronMassRatio, 
+	// "the electron pressure is taken to be elec_P = 5 ion_rho"
+	// is that arbitrary?
+	W.elec_P = 5. * rho;
+	
+	// "the ion pressure is 1/100th the electron pressure"
+	// is that from the mass ratio of ion/electron?
+	W.ion_P = P / solver->ionElectronMassRatio;
 
-		.ion_v = v,
-		.elec_v = v,
+	W.ion_v = v;
+	W.elec_v = v;
 
 <?	
 else	-- expect the initState to explicitly provide the ion_ and elec_ Euler fluid variables
 	for _,fluid in ipairs(fluids) do ?>
-		.<?=fluid?>_rho = <?=fluid?>_rho,
-		.<?=fluid?>_v = cartesianToCoord(<?=fluid?>_v, x),
-		.<?=fluid?>_P = <?=fluid?>_P,
+	W.<?=fluid?>_rho = <?=fluid?>_rho;
+	W.<?=fluid?>_v = cartesianToCoord(<?=fluid?>_v, x);
+	W.<?=fluid?>_P = <?=fluid?>_P;
 <?
 	end
 end
 ?>
-		.D = D,
-		.B = B,
-		.psi = 0,
-		.phi = 0,
-		.D_g = <?=vec3?>_zero,
-		.B_g = <?=vec3?>_zero,
-		.psi_g = 0,
-		.phi_g = 0,
-	};
+	W.D = D;
+	W.B = B;
+	W.psi = 0;
+	W.phi = 0;
+	// intel OpenCL compiler bug when I initialize D_g and B_g with a struct assign
+	//W.D_g = <?=vec3?>_zero;
+	W.D_g.x = 0.;
+	W.D_g.y = 0.;
+	W.D_g.z = 0.;
+	//W.B_g = <?=vec3?>_zero;
+	W.B_g.x = 0.;
+	W.B_g.y = 0.;
+	W.B_g.z = 0.;
+	W.psi_g = 0;
+	W.phi_g = 0;
 	UBuf[index] = consFromPrim(solver, W, x);
 }
 ]], table({

@@ -334,6 +334,13 @@ local function curl(eqn,k,result,field,env)
 	}))}
 end
 
+Maxwell.predefinedDisplayVars = {
+	'U D mag',
+	'U B mag',
+	'U div D',
+	'U div B',
+}
+
 --[[
 for E = [0, sin(x-t), 0]
 dEy/dx = cos(x-t)

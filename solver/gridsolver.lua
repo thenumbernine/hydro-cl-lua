@@ -2,6 +2,7 @@ local bit = require 'bit'
 local ffi = require 'ffi'
 local gl = require 'gl'
 local ig = require 'ffi.imgui'
+local io = require 'ext.io'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
@@ -116,9 +117,18 @@ function GridSolver:preInit(args)
 	function Program:init(args)
 		args.env = solver.app.env
 		args.domain = solver.domain
-		if useCache then
-			args.cacheFile = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
+		local path = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
+		-- [[ caching binaries, which doesn't write unless the program successfully compiles
+		if useCache then args.cacheFile = path end
+		--]]
+		--[[ immediately writing the code and caching nothing... or using the cached CL file (for CL modifying & debugging)
+		local clfn = path..'.cl'
+		if io.fileexists(clfn) then
+			args.code = file[clfn]
+		else
+			file[clfn] = args.code
 		end
+		--]]
 		Program.super.init(self, args)
 	end
 	self.Program = Program
@@ -604,7 +614,7 @@ function GridSolver:createCodePrefix()
 	
 	-- volume of a cell = volume element times grid dx's 
 	lines:insert(template([[
-real volume_at(constant <?=solver.solver_t?>* solver, real3 x) {
+static inline real volume_at(constant <?=solver.solver_t?>* solver, real3 x) {
 	return sqrt_det_g_grid(x)<?
 for i=1,solver.dim do
 ?> * solver->grid_dx.<?=xNames[i]?><?

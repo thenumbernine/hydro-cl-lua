@@ -58,22 +58,22 @@ end
 
 function GLM_MHD:getCommonFuncCode()
 	return template([[
-inline real calc_eKin(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.v); }
-inline real calc_EKin(<?=eqn.prim_t?> W) { return W.rho * calc_eKin(W); }
-inline real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.P / (solver->heatCapacityRatio - 1.); }
-inline real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EInt(solver, W) / W.rho; }
-inline real calc_EMag(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.B); }
-inline real calc_eMag(<?=eqn.prim_t?> W) { return calc_EMag(W) / W.rho; }
-inline real calc_PMag(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.B); }
-inline real calc_EHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EKin(W) + calc_EInt(solver, W); }
-inline real calc_eHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EHydro(solver, W) / W.rho; }
-inline real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EKin(W) + calc_EInt(solver, W) + calc_EMag(W); }
-inline real calc_eTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_ETotal(solver, W) / W.rho; }
-inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
-inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
-inline real calc_HTotal(<?=eqn.prim_t?> W, real ETotal) { return W.P + calc_PMag(W) + ETotal; }
-inline real calc_hTotal(<?=eqn.prim_t?> W, real ETotal) { return calc_HTotal(W, ETotal) / W.rho; }
-inline real calc_Cs(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return sqrt(solver->heatCapacityRatio * W.P / W.rho); }
+static inline real calc_eKin(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.v); }
+static inline real calc_EKin(<?=eqn.prim_t?> W) { return W.rho * calc_eKin(W); }
+static inline real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.P / (solver->heatCapacityRatio - 1.); }
+static inline real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EInt(solver, W) / W.rho; }
+static inline real calc_EMag(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.B); }
+static inline real calc_eMag(<?=eqn.prim_t?> W) { return calc_EMag(W) / W.rho; }
+static inline real calc_PMag(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.B); }
+static inline real calc_EHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EKin(W) + calc_EInt(solver, W); }
+static inline real calc_eHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EHydro(solver, W) / W.rho; }
+static inline real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EKin(W) + calc_EInt(solver, W) + calc_EMag(W); }
+static inline real calc_eTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_ETotal(solver, W) / W.rho; }
+static inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
+static inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
+static inline real calc_HTotal(<?=eqn.prim_t?> W, real ETotal) { return W.P + calc_PMag(W) + ETotal; }
+static inline real calc_hTotal(<?=eqn.prim_t?> W, real ETotal) { return calc_HTotal(W, ETotal) / W.rho; }
+static inline real calc_Cs(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return sqrt(solver->heatCapacityRatio * W.P / W.rho); }
 ]], {
 		solver = self.solver,
 		eqn = self,
@@ -82,7 +82,7 @@ end
 
 function GLM_MHD:getPrimConsCode()
 	return template([[
-inline <?=eqn.prim_t?> primFromCons(
+static inline <?=eqn.prim_t?> primFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x
@@ -103,7 +103,7 @@ inline <?=eqn.prim_t?> primFromCons(
 	return W;
 }
 
-inline <?=eqn.cons_t?> consFromPrim(
+static inline <?=eqn.cons_t?> consFromPrim(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> W,
 	real3 x

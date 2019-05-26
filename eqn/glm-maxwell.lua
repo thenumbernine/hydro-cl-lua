@@ -260,15 +260,15 @@ local function curl(eqn,k,result,field,env)
 end
 
 GLM_Maxwell.predefinedDisplayVars = {
-	'U D',
+	--'U D',
 	'U D mag',
-	'U B',
+	--'U B',
 	'U B mag',
-	'U phi',
-	'U psi',
+	--'U phi',
+	--'U psi',
 	'U div D',
 	'U div B',
-	'U energy',
+	--'U energy',
 }
 
 function GLM_Maxwell:getDisplayVars()

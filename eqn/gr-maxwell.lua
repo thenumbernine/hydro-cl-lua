@@ -63,8 +63,8 @@ real BSq(<?=eqn.cons_t?> U, sym3 gamma) {
 	return real3_weightedLenSq(U.B, gamma);
 }
 
-inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) { return U; }
-inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) { return W; }
+static inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) { return U; }
+static inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) { return W; }
 ]], {
 		eqn = self,
 	})
