@@ -113,23 +113,36 @@ function GridSolver:preInit(args)
 	-- ...and rather than require an extra argument, I think I'll just take advantage of a closure
 	local solver = self
 	local Program = class(require 'cl.obj.program')
-	os.execute'mkdir cache-cl 2> /dev/null'
+	if ffi.os == 'Windows' then
+		os.execute'mkdir cache-cl 2> nul'
+	else
+		os.execute'mkdir cache-cl 2> /dev/null'
+	end
 	function Program:init(args)
 		args.env = solver.app.env
 		args.domain = solver.domain
 		local path = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
 		-- [[ caching binaries, which doesn't write unless the program successfully compiles
 		if useCache then args.cacheFile = path end
+		Program.super.init(self, args)
 		--]]
-		--[[ immediately writing the code and caching nothing... or using the cached CL file (for CL modifying & debugging)
+		--[[ Write generated code the first time.  Subsequent times use the pre-existing code.  Useful for debugging things in the generated OpenCL.
 		local clfn = path..'.cl'
 		if io.fileexists(clfn) then
-			args.code = file[clfn]
+			local cachedCode = file[clfn]
+			assert(cachedCode:sub(1,#args.env.code) == args.env.code, "seems you have changed the cl env code")
+			args.code = cachedCode:sub(#args.env.code+1)
+			Program.super.init(self, args)
 		else
-			file[clfn] = args.code
+			Program.super.init(self, args)	-- do this so getCode() works
+			file[clfn] = self:getCode()
 		end
 		--]]
-		Program.super.init(self, args)
+	end
+	function Program:compile(args)
+		args = args or {}
+		args.buildOptions = '-w'	-- show warnings
+		return Program.super.compile(self, args)
 	end
 	self.Program = Program
 end

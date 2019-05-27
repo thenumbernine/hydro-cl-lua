@@ -126,7 +126,7 @@ function BackwardEuler:init(solver, args)
 		env = solver.app.env,
 		x = self.krylov_xObj,
 		size = numreals,
-		epsilon = args and args.epsilon or 1e-10,
+		epsilon = args and args.epsilon or 1e-24,
 		--maxiter = 1000,
 		restart = restart,
 		maxiter = restart * numreals,
@@ -204,6 +204,8 @@ function BackwardEuler:integrate(dt, callback)
 	self.krylov_xObj:copyFrom(solver.UBufObj)
 	self.linearSolver()
 	solver.UBufObj:copyFrom(self.krylov_xObj)
+
+print('gmres err='..self.last_err..' iter='..self.last_iter)
 end
 
 function BackwardEuler:updateGUI()

@@ -14,6 +14,7 @@ predefined vars:
 	useGLSharing = set to false to disable GL sharing
 	disableGUI = set to disable GUI and prevent loading of imgui altogether
 	disableFont = set to disable loading of the font.png file
+	vsync = set to enable vsync and slow down the simulation
 --]]
 --local cmdline = {}
 cmdline = {}	--global
@@ -204,8 +205,10 @@ function HydroCLApp:initGL(...)
 
 	self.cmdline = cmdline
 
--- Latest intel-opencl-icd drivers are freezing my system, only for this program, and I don't know why.  Turning on vsync seems to fix it.
-sdl.SDL_GL_SetSwapInterval(1)
+	if cmdline.vsync then
+		-- Latest intel-opencl-icd drivers are freezing my system, only for this program, and I don't know why.  Turning on vsync seems to fix it.
+		sdl.SDL_GL_SetSwapInterval(1)
+	end
 
 	local useGLSharing = true
 	if cmdline.useGLSharing ~= nil then useGLSharing = cmdline.useGLSharing end

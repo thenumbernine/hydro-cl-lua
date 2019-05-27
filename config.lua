@@ -4,7 +4,7 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -16,11 +16,11 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	--integrator = 'backward Euler',
+	integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
-	
+
 	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
@@ -40,8 +40,7 @@ local args = {
 	-- only enabled for certain usePLM methods
 	--slopeLimiter = 'minmod',
 
-	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads, which isn't a good idea
-	--  so don't use this without usePLM
+	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
 	-- [[ Cartesian
@@ -62,7 +61,7 @@ local args = {
 				{256,256,1},
 				{32,32,32},
 			},
-			['Intel(R) OpenCL/Intel(R) HD Graphics'] = {
+			['Intel(R) OpenCL/Intel(R) HD Graphics 520'] = {
 				{256,1,1},
 				{64,64,1},
 				{16,16,16},
@@ -220,7 +219,7 @@ local args = {
 	--initState = 'rarefaction wave',
 	
 	--initState = 'Sod',
-	initState = 'rectangle',
+	--initState = 'rectangle',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -296,7 +295,7 @@ local args = {
 	--initState = 'plane gauge wave',
 
 
-	--initState = 'Alcubierre warp bubble',
+	initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
@@ -582,7 +581,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 
@@ -629,7 +628,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'}
 
 -- Z4c finite difference, combining BSSNOK and Z4
 -- FIXME something is asymmetric.  watch Theta.  Run warp bubble.
---self.solvers:insert(require 'solver.z4c-fd'(args))
+self.solvers:insert(require 'solver.z4c-fd'(args))
 
 
 
