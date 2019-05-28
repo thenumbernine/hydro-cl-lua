@@ -178,23 +178,19 @@ kernel void initState(
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	bool lhs = true
-<?
+	bool lhs = true<?
 for i=1,solver.dim do
 	local xi = xNames[i]
-?>	&& x.<?=xi?> < mids.<?=xi?>
-<?
+?> && x.<?=xi?> < mids.<?=xi?><?
 end
 ?>;
-	
+
+	// these are all standard for all init/euler.lua initial conditions
 	real rho = 0;
 	real3 v = real3_zero;
 	real P = 0;
-	
-	//set for MHD / Maxwell & thrown away for pure Euler
 	real3 D = real3_zero;
 	real3 B = real3_zero;
-	
 	real ePot = 0;
 
 	<?=code?>
