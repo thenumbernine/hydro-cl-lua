@@ -138,7 +138,7 @@ function Equation:getCodePrefix()
 			or '',
 		
 		-- functions that prim-cons code will use, but which use macros:
-		self:getCommonFuncCode() or '',
+		self.getCommonFuncCode and self:getCommonFuncCode() or '',
 		
 		-- prim-cons goes here
 		-- it goes last so it has access to everything above it

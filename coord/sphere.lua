@@ -9,14 +9,20 @@ local Tensor = symmath.Tensor
 local Sphere = class(CoordinateSystem)
 
 Sphere.name = 'sphere' 
-Sphere.coords = {'θ', 'φ', 'r'}
+Sphere.coords = {'r', 'θ', 'φ'}
 
+--[[
+args
+	volumeDim = (TODO) change volume element etc to act as if we're in a higher dimension
+	
+	TODO add some other arg for rearranging the coordinate order so we can do 2D simulations of θ and φ alone
+--]]
 function Sphere:init(args)
 	args.embedded = table{symmath.vars('x', 'y', 'z')}
-	local theta, phi, r = symmath.vars('θ', 'φ', 'r')
+	local r, theta, phi = symmath.vars('r', 'θ', 'φ')
 
 	-- [[ holonomic
-	args.coords = table{theta, phi, r}
+	args.coords = table{r, theta, phi}
 	--]]
 	--[[ anholonomic
 	local thetaHat = symmath.var'thetaHat'
@@ -39,6 +45,28 @@ function Sphere:init(args)
 	end
 	
 	Sphere.super.init(self, args)
+end
+
+local template = require 'template'
+function Sphere:getCoordMapInvGLSLCode()
+	return template([[
+vec3 coordMapInv(vec3 x) {
+	float r = length(x);
+<? if solver.dim == 1 then
+?>	float theta = 0.;
+	float phi = 0.;
+<? elseif solver.dim == 2 then	-- xy -> rθ
+?>	float theta = acos(x.y / r);
+	float phi = 0.;
+<? elseif solver.dim == 3 then 	-- xyz - rθφ
+?>	float theta = acos(x.z / r);
+	float phi = atan(x.y, x.x);
+<? end 
+?>	return vec3(r, theta, phi);
+}
+]], {
+		solver = self.solver,
+	})
 end
 
 return Sphere

@@ -246,6 +246,18 @@ local function vorticity(eqn,k,result)
 	})}
 end
 
+Euler.predefinedDisplayVars = {
+	'U rho',
+	'U m x',
+	'U m y',
+	'U m z',
+	'U ETotal',
+	'U P',
+	'U S',
+	'U Speed of Sound',
+	'U Mach number',
+}
+
 function Euler:getDisplayVars()
 	local vars = Euler.super.getDisplayVars(self)
 	vars:append{

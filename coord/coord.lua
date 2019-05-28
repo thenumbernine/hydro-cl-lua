@@ -629,8 +629,8 @@ end
 
 
 function CoordinateSystem:getCode(solver)
+	self.solver = solver
 	local dim = solver.dim
-
 	local lines = table()
 	
 	-- dx0, ...

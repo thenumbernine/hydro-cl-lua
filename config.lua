@@ -1,15 +1,15 @@
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
 	dim = cmdline.dim or dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	integrator = 'Runge-Kutta 4',
+	--integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -88,43 +88,6 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- TODO these next two seem very similar.  1D radial allows arbitrary dim.
-	--[[ 1D radial
-	coord = '1d_radial',
-	mins = cmdline.mins or {-1, -1, -1},
-	maxs = cmdline.maxs or {1, 1, 1},
-	gridSize = ({
-		{256,1,1},
-		{32,32,1},
-		{32,32,32},
-	})[dim],
-	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'periodic',
-		ymax=cmdline.boundary or 'periodic',
-		zmin=cmdline.boundary or 'periodic',
-		zmax=cmdline.boundary or 'periodic',
-	},
-	--]]
-	--[[ sphere1d -- used for 1D radial profiles of spheres
-	coord = 'sphere1d',
-	mins = cmdline.mins or {0, 0, -math.pi},
-	maxs = cmdline.maxs or {10, math.pi, math.pi},
-	gridSize = {
-		cmdline.gridSize or 256,
-		cmdline.gridSize or 128,
-		cmdline.gridSize or 64,
-	},
-	boundary = {
-		xmin=cmdline.boundary or 'freeflow',	-- 'mirror',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
-	},
-	--]]
 	--[[ cylinder
 	coord = 'cylinder',
 
@@ -156,10 +119,11 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	--[[ sphere ... 1D is cyclical, 2D is a sphere surface, 3D is spherical coordinates
+	--[[ Sphere: r, θ, φ 
 	coord = 'sphere',
-	mins = cmdline.mins or {.1 * math.pi, -math.pi, .1},
-	maxs = cmdline.maxs or {.9 * math.pi, math.pi, 1},
+	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
+	mins = cmdline.mins or {.1, 0, -math.pi},
+	maxs = cmdline.maxs or {1, .5 * math.pi, math.pi},
 	gridSize = {
 		cmdline.gridSize or 16,
 		cmdline.gridSize or 16,
@@ -168,10 +132,10 @@ local args = {
 	boundary = {
 		xmin=cmdline.boundary or 'mirror',
 		xmax=cmdline.boundary or 'mirror',
-		ymin=cmdline.boundary or 'periodic',
-		ymax=cmdline.boundary or 'periodic',
-		zmin=cmdline.boundary or 'mirror',
-		zmax=cmdline.boundary or 'mirror',
+		ymin=cmdline.boundary or 'mirror',
+		ymax=cmdline.boundary or 'mirror',
+		zmin=cmdline.boundary or 'periodic',
+		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
 	-- symbolic math gets too complex
@@ -219,7 +183,7 @@ local args = {
 	--initState = 'rarefaction wave',
 	
 	--initState = 'Sod',
-	--initState = 'rectangle',
+	initState = 'rectangle',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -291,7 +255,7 @@ local args = {
 
 	-- Einstein
 	--initState = 'Minkowski',
-	initState = 'gaussian perturbation',
+	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 
 
@@ -501,7 +465,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='navstokes-wilcox'})))
 
 -- HD - Burgers
--- f.e. and b.e. are working, but none of the r.k. integrators 
+-- f.e. and b.e. are working, but none of the r.k. integrators
 -- PLM isn't implemented yet
 -- neither is source term / poisson stuff
 --self.solvers:insert(require 'solver.euler-burgers'(args))
@@ -622,7 +586,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
-self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is HyperbolicGammaDriver
+--self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is HyperbolicGammaDriver
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='none'}})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='GammaDriver'}})))
 
@@ -654,7 +618,7 @@ self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is Hyperb
 
 
 
---self.solvers:insert(require 'solver.nls'(args))
+self.solvers:insert(require 'solver.nls'(args))
 
 
 -- the start of unstructured meshes

@@ -90,27 +90,27 @@ local baseSystems = {
 
 -- I tried making this a flag, and simply skipping the gui update if it wasn't set, but imgui still messes with the GL state and textures and stuff
 --  and I still get errors... so I'm cutting out imgui altogether, but now it takes a global flag to do so.
-local target = 'imguiapp'
+local targetSystem = 'imguiapp'
 if __useConsole__ then 
-	target = 'console' 
+	targetSystem = 'console' 
 elseif __disableGUI__ then
-	target = 'glapp'
+	targetSystem = 'glapp'
 end
 
 local HydroCLApp
 for i,sys in ipairs(baseSystems) do
 	local name, loader = next(sys)
-	if target == name then
+	if targetSystem == name then
 		xpcall(function()
 			HydroCLApp = class(loader())
 		end, function(err)
 			io.stderr:write(err..'\n'..debug.traceback())
 		end)
 		if HydroCLApp then break end
-		io.stderr:write(target..'failed\n')
+		io.stderr:write(targetSystem..'failed\n')
 		if i < #baseSystems then
-			target = next(baseSystems[i+1])
-			io.stderr:write('falling back to '..target..'\n')
+			targetSystem = next(baseSystems[i+1])
+			io.stderr:write('falling back to '..targetSystem..'\n')
 		end
 	end
 end
