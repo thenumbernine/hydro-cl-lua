@@ -12,9 +12,15 @@ predefined vars:
 	half = set to true to use 16 bit float instead of 64
 	cpu = set to use CPU instead of GPU
 	useGLSharing = set to false to disable GL sharing
+	platform = name or numeric index of which OpenCL platform to use.  see clinfo utility (or my cl/tests/info.lua script) for identifying platforms.
+	device = name or numeric index of which OpenCL device to use.
 	disableGUI = set to disable GUI and prevent loading of imgui altogether
 	disableFont = set to disable loading of the font.png file
+	useConsole = set to use no graphics whatsoever
 	vsync = set to enable vsync and slow down the simulation
+	createAnimation = set to start off creating an animation / framedump
+	exitTime = start the app running, and exit it after the simulation reaches this time
+	verbose = output extra stuff
 --]]
 --local cmdline = {}
 cmdline = {}	--global
@@ -265,22 +271,22 @@ function HydroCLApp:initGL(...)
 		end
 	end
 
+	self.verbose = cmdline.verbose
 	self.env = CLEnv{
-		--verbose = true,
 		precision = cmdline.float and 'float' or (cmdline.half and 'half' or nil),
 		cpu = cmdline.cpu,
 		useGLSharing = useGLSharing,
-		verbose = cmdline.verbose,
+		verbose = self.verbose,
 		getPlatform = getterForIdent(cmdline.platform, 'platform'),
 		getDevice = getterForIdent(cmdline.device, 'device'),
 	}
 	local platformName = self.env.platform:getName()
 	local deviceName = self.env.device:getName()
-	io.stderr:write(platformName,'\n')
-	io.stderr:write(deviceName,'\n')
 
 	self.exitTime = cmdline.exitTime
 	if self.exitTime then self.running = true end
+
+	self.createAnimation = cmdline.createAnimation
 
 	self.useGLSharing = self.env.useGLSharing
 	self.device = self.env.device

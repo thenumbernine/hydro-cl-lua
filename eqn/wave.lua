@@ -130,7 +130,8 @@ end
 	UBuf[index] = (<?=eqn.cons_t?>){
 		//hmm, this might deserve its own initial conditions ...
 		// for the initialization of these variables:
-		.phi_t = rho,
+		//.phi_t = rho,
+		.phi_t = P,
 		.phi_i = real3_zero,
 	};
 }

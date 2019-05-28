@@ -98,15 +98,17 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 
--- debugging
-local dprint = print
---local dprint = function() end
-
 local CoordinateSystem = class()
 
 function CoordinateSystem:init(args)
 	local symmath = require 'symmath'
 	local const = symmath.Constant
+
+
+	-- debugging
+	local dprint = args.solver.app.verbose and print or function() end
+
+
 
 	local dim = 3
 	local var = symmath.var
@@ -117,7 +119,7 @@ function CoordinateSystem:init(args)
 	local flatMetric = Matrix:lambda({dim, dim}, function(i,j) return i==j and 1 or 0 end)
 	local coords = args.coords
 	local embedded = args.embedded
-	
+
 	Tensor.coords{
 		{variables=coords},
 		{variables=embedded, symbols='IJKLMN', metric=flatMetric},
