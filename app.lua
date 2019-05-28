@@ -30,22 +30,12 @@ for _,w in ipairs(arg or {}) do
 	end
 end
 
--- allow the global to be set
-__disableGUI__ = __disableGUI__ or cmdline.disableGUI
-__useConsole__ = __useConsole__ or cmdline.useConsole
-
--- if we are disabling the gui then replace the imgui and tooltip requires, so we don't try to unnecessarily load it
-if __disableGUI__  then
-	package.loaded['ffi.imgui'] = {disabled=true}
-	package.tooltip = {disabled=true}
-end
-
 local bit = require 'bit'
 local ffi = require 'ffi'
 local cl = require 'ffi.OpenCL'
 local gl = require 'gl'
-local ig = require 'ffi.imgui'
 local sdl = require 'ffi.sdl'
+local io = require 'ext.io'
 local class = require 'ext.class'
 local math = require 'ext.math'
 local table = require 'ext.table'
@@ -61,25 +51,71 @@ local Font = require 'gui.font'
 local Mouse = require 'gui.mouse'
 local vec4d = require 'ffi.vec.vec4d'
 local vec3d = require 'ffi.vec.vec3d'
-local tooltip = require 'tooltip'
+
+
+-- allow the global to be set
+-- if we are disabling the gui then replace the imgui and tooltip requires, so we don't try to unnecessarily load it
+__disableGUI__ = __disableGUI__ or cmdline.disableGUI
+__useConsole__ = __useConsole__ or cmdline.useConsole
+
+local ig, tooltip
+local baseSystems = {
+	{imguiapp = function() 
+		ig = require 'ffi.imgui'
+		tooltip  = require 'tooltip'
+		return require 'imguiapp' 
+	end},
+	{glapp = function() 
+		
+		package.loaded['ffi.imgui'] = {disabled=true}
+		package.loaded.tooltip = {disabled=true}
+		ig = require 'ffi.imgui'
+		tooltip  = require 'tooltip'
+		
+		return require 'glapp' 
+	end},
+	{console = function()
+		local cl = class()
+		function cl:requestExit() self.done = true end
+		function cl:run()
+			if self.initGL then self:initGL(gl, 'none') end
+			repeat
+				if self.update then self:update() end
+			until self.done
+			if self.exit then self:exit() end
+		end
+		return cl
+	end},
+}
 
 -- I tried making this a flag, and simply skipping the gui update if it wasn't set, but imgui still messes with the GL state and textures and stuff
 --  and I still get errors... so I'm cutting out imgui altogether, but now it takes a global flag to do so.
-local HydroCLApp
-if __useConsole__ then
-	HydroCLApp = class()
-	function HydroCLApp:requestExit() self.done = true end
-	function HydroCLApp:run()
-		if self.initGL then self:initGL(gl, 'none') end
-		repeat
-			if self.update then self:update() end
-		until self.done
-		if self.exit then self:exit() end
-	end
+local target = 'imguiapp'
+if __useConsole__ then 
+	target = 'console' 
 elseif __disableGUI__ then
-	HydroCLApp = class(require 'glapp')
-else
-	HydroCLApp = class(require 'imguiapp')
+	target = 'glapp'
+end
+
+local HydroCLApp
+for i,sys in ipairs(baseSystems) do
+	local name, loader = next(sys)
+	if target == name then
+		xpcall(function()
+			HydroCLApp = class(loader())
+		end, function(err)
+			io.stderr:write(err..'\n'..debug.traceback())
+		end)
+		if HydroCLApp then break end
+		io.stderr:write(target..'failed\n')
+		if i < #baseSystems then
+			target = next(baseSystems[i+1])
+			io.stderr:write('falling back to '..target..'\n')
+		end
+	end
+end
+if not HydroCLApp then
+	error 'Somehow you exhausted all possible targets.  At least the console system should have loaded.  Something must be wrong.'
 end
 
 HydroCLApp.title = 'Hydrodynamics in OpenCL'
@@ -301,7 +337,6 @@ function HydroCLApp:initGL(...)
 	self.gradientTex:setWrap{s = gl.GL_REPEAT}
 
 
-
 	-- this will be per-solver
 	-- but is also tightly linked to the structured grid solvers
 	-- used for 1D
@@ -482,9 +517,6 @@ function dumpFile:update(app, t)
 	f:flush()
 end
 
-
--- TODO split off plot and dump stuff into its own folder/files
-local io = require 'ext.io'
 
 -- dropdown options
 HydroCLApp.screenshotExts = {'png', 'bmp', 'jpeg', 'tiff', 'fits', 'tga', 'ppm'}

@@ -9,18 +9,18 @@ local args = {
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	--integrator = 'Runge-Kutta 4',
+	integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	integrator = 'backward Euler',
+	--integrator = 'backward Euler',
 	
 	--fixedDT = .0001,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
-
+	
 	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
@@ -80,18 +80,18 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'periodic',
-		xmax=cmdline.boundary or 'periodic',
-		ymin=cmdline.boundary or 'periodic',
-		ymax=cmdline.boundary or 'periodic',
-		zmin=cmdline.boundary or 'periodic',
-		zmax=cmdline.boundary or 'periodic',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- TODO these next two seem very similar
+	-- TODO these next two seem very similar.  1D radial allows arbitrary dim.
 	--[[ 1D radial
 	coord = '1d_radial',
-	mins = cmdline.mins or {0, 0, 0},
+	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
 	gridSize = ({
 		{256,1,1},
@@ -291,11 +291,11 @@ local args = {
 
 	-- Einstein
 	--initState = 'Minkowski',
-	--initState = 'gaussian perturbation',
+	initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 
 
-	initState = 'Alcubierre warp bubble',
+	--initState = 'Alcubierre warp bubble',
 	
 	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
@@ -622,13 +622,13 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
---self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is HyperbolicGammaDriver
+self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is HyperbolicGammaDriver
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='none'}})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='GammaDriver'}})))
 
 -- Z4c finite difference, combining BSSNOK and Z4
 -- FIXME something is asymmetric.  watch Theta.  Run warp bubble.
-self.solvers:insert(require 'solver.z4c-fd'(args))
+--self.solvers:insert(require 'solver.z4c-fd'(args))
 
 
 
