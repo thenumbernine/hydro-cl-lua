@@ -132,3 +132,25 @@ eigen_t eigen_forCell_<?=side?>(
 }
 <? end ?>
 
+kernel void addSource(
+	constant solver_t* solver,
+	global cons_t* derivBuf,
+	const global cons_t* UBuf
+) {
+	SETBOUNDS_NOGHOST();
+	real3 x = cell_x(i);
+	
+	global cons_t* deriv = derivBuf + index;
+	const global cons_t* U = UBuf + index;
+
+<? if not eqn.weightFluxByGridVolume then ?>
+	real c = solver->wavespeed;
+	deriv->phi_t -= c * c * real3_dot(coord_conn_trace23(x), U->phi_i);
+<? else ?>
+	real3 conn13 = coord_conn_trace13(x);
+	deriv->phi_i.x -= conn13.x * U->phi_t;
+	deriv->phi_i.y -= conn13.y * U->phi_t;
+	deriv->phi_i.z -= conn13.z * U->phi_t;
+<? end ?>
+}
+

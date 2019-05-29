@@ -1,4 +1,4 @@
-local dim = 2
+local dim = 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -104,7 +104,7 @@ local args = {
 	--]=]
 	gridSize = ({
 		{128, 1, 1}, -- 1D
-		{64, 256, 1}, -- 2D
+		{256, 1024, 1}, -- 2D
 		{16, 64, 16}, -- 3D
 	})[dim],
 	boundary = {
@@ -184,7 +184,7 @@ local args = {
 	
 	--initState = 'Sod',
 	--initState = 'rectangle',
-	initState = 'Sedov',
+	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
 	--initState = 'Kelvin-Helmholtz',
@@ -255,7 +255,7 @@ local args = {
 
 	-- Einstein
 	--initState = 'Minkowski',
-	--initState = 'gaussian perturbation',
+	initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 
 
@@ -423,15 +423,22 @@ local args = {
 	--initState = 'Oscillatory',
 }
 
+
 if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(table(args, cmdline))) return end
 
+
 -- wave equation
+
+
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
-self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
 
--- HD
+
+-- compressible Euler equations
+
+
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
@@ -470,13 +477,19 @@ self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2
 -- still haven't added source terms to this
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='navstokes-wilcox'})))
 
--- HD - Burgers
+
+-- compressible Euler equations - Burgers solver
+
+
 -- f.e. and b.e. are working, but none of the r.k. integrators
 -- PLM isn't implemented yet
 -- neither is source term / poisson stuff
 --self.solvers:insert(require 'solver.euler-burgers'(args))
 
--- SRHD.  
+
+-- special relativistic compressible hydrodynamics
+
+
 -- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
 -- rel blast wave interaction works with superbee flux lim in 1D works at 256, fails at 1024 with float (works with double)
 -- 	256x256 double fails with F.E., RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths,
@@ -490,12 +503,18 @@ self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2
 --self.solvers:insert(require 'solver.srhd-hll'(args))
 --self.solvers:insert(require 'solver.srhd-weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
 
--- GRHD
+
+-- general relativistic compressible hydrodynamics
+
+
 -- this is the solver with plug-ins for ADM metric, 
 -- yet doesn't come coupled with any other solver, so it will act just like a srhd solver
 --self.solvers:insert(require 'solver.grhd-roe'(args))
 
--- MHD. 
+
+-- ideal magnetohydrodynamics
+
+
 -- with superbee flux lim:  
 -- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.
 -- Orszag-Tang with forward Euler integrator fails at 64x64 around .7 or .8
@@ -519,7 +538,10 @@ self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-mhd'})))
 
+
 -- Maxwell
+
+
 -- TODO somehow I broke this.  It seems to be failing on everything.
 -- when the state is nonzero, at certain sizes there appear errors in the corners
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
@@ -527,12 +549,16 @@ self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='maxwell', wenoMethod='1996 Jiang Shu', order=5})))
 
+
 -- GLM Maxwell
+
+
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=7})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=13})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-maxwell'})))
+
 
 -- Maxwell+HD two-fluid electron/ion solver
 -- TODO FIXME
@@ -556,7 +582,8 @@ self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 
 
--- GR
+-- general relativity
+
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
@@ -592,7 +619,7 @@ self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2
 -- so I have set constant Minkowski boundary conditions?
 -- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
 -- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
---self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is HyperbolicGammaDriver
+self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is HyperbolicGammaDriver
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='none'}})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='GammaDriver'}})))
 

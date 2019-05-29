@@ -11,11 +11,11 @@ predefined vars:
 	float = set to true to use 32 bit float instead of 64 
 	half = set to true to use 16 bit float instead of 64
 	cpu = set to use CPU instead of GPU
-	useGLSharing = set to false to disable GL sharing
+	sys = subsystem to run under.  options are 'imguiapp', 'glapp', 'console'
+	useGLSharing = set to false to disable GL sharing.  automatically false if sys=console.
 	platform = name or numeric index of which OpenCL platform to use.  see clinfo utility (or my cl/tests/info.lua script) for identifying platforms.
 	device = name or numeric index of which OpenCL device to use.
-	disableGUI = set to disable GUI and prevent loading of imgui altogether
-	disableFont = set to disable loading of the font.png file
+	disableFont = set to disable loading of the font.png file.  automatically true if sys=console.
 	useConsole = set to use no graphics whatsoever
 	vsync = set to enable vsync and slow down the simulation
 	createAnimation = set to start off creating an animation / framedump
@@ -59,10 +59,16 @@ local vec4d = require 'ffi.vec.vec4d'
 local vec3d = require 'ffi.vec.vec3d'
 
 
+
+--[[
+options: console, glapp, imguiapp
+--]]
+local targetSystem = cmdline.sys or 'imguiapp'
+
 -- allow the global to be set
 -- if we are disabling the gui then replace the imgui and tooltip requires, so we don't try to unnecessarily load it
-__disableGUI__ = __disableGUI__ or cmdline.disableGUI
-__useConsole__ = __useConsole__ or cmdline.useConsole
+if __disableGUI__ then targetSystem = 'glapp' end
+if __useConsole__ then targetSystem = 'console' end
 
 local ig, tooltip
 local baseSystems = {
@@ -94,15 +100,6 @@ local baseSystems = {
 	end},
 }
 
--- I tried making this a flag, and simply skipping the gui update if it wasn't set, but imgui still messes with the GL state and textures and stuff
---  and I still get errors... so I'm cutting out imgui altogether, but now it takes a global flag to do so.
-local targetSystem = 'imguiapp'
-if __useConsole__ then 
-	targetSystem = 'console' 
-elseif __disableGUI__ then
-	targetSystem = 'glapp'
-end
-
 local HydroCLApp
 for i,sys in ipairs(baseSystems) do
 	local name, loader = next(sys)
@@ -122,6 +119,16 @@ for i,sys in ipairs(baseSystems) do
 end
 if not HydroCLApp then
 	error 'Somehow you exhausted all possible targets.  At least the console system should have loaded.  Something must be wrong.'
+end
+
+-- TODO organize this all better
+-- this is up above if the autosearch passes imguiapp
+-- and it is here if the cmdline explicitly asks for glapp or console
+if not ig then
+	package.loaded['ffi.imgui'] = {disabled=true}
+	package.loaded.tooltip = {disabled=true}
+	ig = require 'ffi.imgui'
+	tooltip  = require 'tooltip'
 end
 
 HydroCLApp.title = 'Hydrodynamics in OpenCL'
@@ -254,6 +261,7 @@ function HydroCLApp:initGL(...)
 
 	local useGLSharing = true
 	if cmdline.useGLSharing ~= nil then useGLSharing = cmdline.useGLSharing end
+	if targetSystem == 'console' then useGLSharing = false end
 
 	-- TODO if no identifier was specified by the cmdline then favor cl_khr_gl_sharing, cl_khr_fp64, cl_khr_3d_image_writes
 	local function getterForIdent(ident, identType)
@@ -346,7 +354,7 @@ function HydroCLApp:initGL(...)
 	-- this will be per-solver
 	-- but is also tightly linked to the structured grid solvers
 	-- used for 1D
-	if not __useConsole__ then
+	if targetSystem ~= 'console' then
 		local graphShaderCode = file['draw/graph.shader']
 		self.graphShader = GLProgram{
 			vertexCode = template(graphShaderCode, {vertexShader=true}),
@@ -645,7 +653,7 @@ end
 		end
 	end
 
-	if __useConsole__ then return end
+	if targetSystem == 'console' then return end
 
 	gl.glClear(bit.bor(gl.GL_COLOR_BUFFER_BIT, gl.GL_DEPTH_BUFFER_BIT))
 	

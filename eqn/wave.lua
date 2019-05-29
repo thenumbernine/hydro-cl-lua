@@ -1,71 +1,4 @@
---[[
-simple wave equation
-
-d'lambertian phi = 0
-
-phi_,tt - c^2 phi_;i^i = 0
-
-phi_,tt - c^2 g^ij phi_;ij = 0
-phi_,tt - c^2 g^ij (phi_,i)_;j = 0
-phi_,tt - c^2 g^ij (phi_,ij - conn^k_ij phi_,k) = 0
-phi_,tt - c^2 g^ij phi_,ij + c^2 conn^ij_j phi_,i = 0
-
-let a = phi,t
-let b_i = phi_,i 
-
-phi_,t = a
-a_,t - c^2 g^ij b_i,j = -c^2 conn^ij_j b_i
-b_i,t - a,i = 0
-
-produces:
-[ a ]      [     0       -c^2 g^jk ] [ a ]      [ -c^2 conn^ij_j b_i ]
-[b_i]_,t + [ -delta_i^k      0     ] [b_j]_,k = [        0           ]
-
-flux jacobian in x dir:
-[  0, -c^2 g^xx, -c^2 g^xy, -c^2 g^xz ]
-[ -1,     0    ,     0    ,     0     ]
-[  0,     0    ,     0    ,     0     ]
-[  0,     0    ,     0    ,     0     ]
-
-flux jacobian in y dir:
-[  0, -c^2 g^xy, -c^2 g^yy, -c^2 g^yz ]
-[  0,     0    ,     0    ,     0     ]
-[ -1,     0    ,     0    ,     0     ]
-[  0,     0    ,     0    ,     0     ]
-
-flux jacobian in z dir:
-[  0, -c^2 g^xz, -c^2 g^yz, -c^2 g^zz ]
-[  0,     0    ,     0    ,     0     ]
-[  0,     0    ,     0    ,     0     ]
-[ -1,     0    ,     0    ,     0     ]
-
-x dir has eigensystem:
-lambda = {0, 0, -c sqrt(g^xx), c sqrt(g^xx)} 
-eigenvectors = {
-	{0, -g^xy, g^xx, 0},
-	{0, -g^xz, 0, g^xx},
-	{c sqrt(g^xx), 0, 0, 0},
-	{-c sqrt(g^xx), 0, 0, 0},
-}
-
-y dir has eigensystem:
-lambda = {0, 0, -c sqrt(g^yy), c sqrt(g^yy)}
-eigenvectors = {
-	{0, -g^yy, g^xy, 0},
-	{0, -g^yz, 0, g^xy},
-	{sqrt(g^yy), 0, 1, 0},
-	{-sqrt(g^yy), 0, 1, 0},
-}
-
-z dir has eigensystem:
-lambda = {0, 0, -c sqrt(g^zz), c sqrt(g^zz)},
-eigenvectors = {
-	{0, -g^yz, g^xz, 0},
-	{0, -g^zz, 0, g^xz},
-	{sqrt(g^zz), 0, 0, 1},
-	{-sqrt(g^zz), 0, 0, 1},
-}
---]]
+-- check out my 'wave equation hyperbolic form' worksheet
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
@@ -75,15 +8,16 @@ local Equation = require 'eqn.eqn'
 local Wave = class(Equation)
 Wave.name = 'wave'
 
+Wave.weightFluxByGridVolume = true
+Wave.useSourceTerm = true
+
 Wave.numStates = 4
 
-Wave.mirrorVars = {{'v.x'}, {'v.y'}, {'v.z'}}
+Wave.mirrorVars = {{'phi_i.x'}, {'phi_i.y'}, {'phi_i.z'}}
 
 Wave.hasEigenCode = true
 Wave.hasFluxFromConsCode = true
 Wave.roeUseFluxFromCons = true
-
-Wave.useSourceTerm = false
 
 Wave.initStates = require 'init.euler'	 -- use rho as our initial condition
 
