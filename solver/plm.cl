@@ -113,7 +113,7 @@ for sgn b >= 0:
 		UHalfL.ptr[j] = UHalfR.ptr[j] = U->ptr[j];
 	}
 
-	real dx = dx<?=side?>_at(i);
+	real dx = cell_dx<?=side?>(i);
 	real dt_dx = dt / dx;
 
 	<?=eqn.cons_t?> FHalfL = fluxFromCons_<?=side?>(solver, UHalfL, xIntL);
@@ -306,7 +306,7 @@ works for adm1d_v1
 		);	
 	}
 
-	real dx = dx<?=side?>_at(i);
+	real dx = cell_dx<?=side?>(i);
 	real dt_dx = dt / dx;
 
 	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
@@ -444,7 +444,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		);
 	}
 
-	real dx = dx<?=side?>_at(i);
+	real dx = cell_dx<?=side?>(i);
 	real dt_dx = dt / dx;
 
 	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
@@ -568,7 +568,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	//calc eigen values and vectors at cell center
 	<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(solver, *U, x);
 
-	real dx = dx<?=side?>_at(i);
+	real dx = cell_dx<?=side?>(i);
 	real dt_dx = dt / dx;
 
 	//1) calc delta q's ... l r c (eqn 36)
@@ -723,7 +723,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		W6[j] = 6. * W.ptr[j] - 3. * (WR.ptr[j] + WL.ptr[j]);
 	}
 	
-	real dx = dx<?=side?>_at(i);
+	real dx = cell_dx<?=side?>(i);
 	real dt_dx = dt / dx;
 
 	//calc eigen values and vectors at cell center

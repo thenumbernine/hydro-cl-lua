@@ -314,7 +314,7 @@ function NavierStokesWilcox:getDisplayVars()
 for side=0,solver.dim-1 do ?>{
 			global const <?=eqn.cons_t?>* Um = U - solver->stepsize.s<?=side?>;
 			global const <?=eqn.cons_t?>* Up = U + solver->stepsize.s<?=side?>;
-			value_real3->s<?=side?> = -(Up-><?=eqn.gravOp.potentialField?> - Um-><?=eqn.gravOp.potentialField?>) / (2. * dx<?=side?>_at(i));
+			value_real3->s<?=side?> = -(Up-><?=eqn.gravOp.potentialField?> - Um-><?=eqn.gravOp.potentialField?>) / (2. * cell_dx<?=side?>(i));
 		}<? 
 end
 for side=solver.dim,2 do ?>

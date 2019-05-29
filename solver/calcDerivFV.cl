@@ -13,7 +13,7 @@ kernel void calcDerivFromFlux(
 	
 	real3 x = cell_x(i);
 <? if eqn.weightFluxByGridVolume then ?>
-	real volume = volume_at(solver, x);
+	real volume = cell_volume(solver, x);
 <? else ?>
 	const real volume = 1.<? for i=0,solver.dim-1 do ?> * solver->grid_dx.s<?=i?><? end ?>;
 <? end ?>
@@ -32,15 +32,11 @@ kernel void calcDerivFromFlux(
 		//					(metric det gradient) 
 
 <? if eqn.weightFluxByGridVolume then ?>	
-		real3 xIntL = x;
-		xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-		real volume_intL = volume_at(solver, xIntL);
-		real areaL = volume_intL / solver->grid_dx.s<?=side?>;
-	
-		real3 xIntR = x;
-		xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
-		real volume_intR = volume_at(solver, xIntR);
-		real areaR = volume_intR / solver->grid_dx.s<?=side?>;
+		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
+		real areaL = cell_volume(solver, xIntL) / solver->grid_dx.s<?=side?>;
+		real areaR = cell_volume(solver, xIntR) / solver->grid_dx.s<?=side?>;
+
 <? else ?>
 		const real areaL = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * solver->grid_dx.s<?=i?><? end end ?>;
 		const real areaR = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * solver->grid_dx.s<?=i?><? end end ?>;

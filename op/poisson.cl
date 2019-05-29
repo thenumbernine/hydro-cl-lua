@@ -78,19 +78,19 @@ end ?>
 	global <?=op:getPotBufType()?>* U = UBuf + index;
 
 <? for j=0,solver.dim-1 do ?>
-	real dx<?=j?> = dx<?=j?>_at(i);
+	real dx<?=j?> = cell_dx<?=j?>(i);
 <? end ?>
 
 	real3 intIndex = _real3(i.x, i.y, i.z);
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do ?>
 	intIndex.s<?=j?> = i.s<?=j?> - .5;
-	volL.s<?=j?> = volume_at(solver, cell_x(intIndex));
+	volL.s<?=j?> = cell_volume(solver, cell_x(intIndex));
 	intIndex.s<?=j?> = i.s<?=j?> + .5;
-	volR.s<?=j?> = volume_at(solver, cell_x(intIndex));
+	volR.s<?=j?> = cell_volume(solver, cell_x(intIndex));
 	intIndex.s<?=j?> = i.s<?=j?>;
 <? end ?>
-	real volAtX = volume_at(solver, cell_x(i));
+	real volAtX = cell_volume(solver, cell_x(i));
 
 <?
 local scalar = op.scalar

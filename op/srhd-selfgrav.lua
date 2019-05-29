@@ -50,7 +50,7 @@ kernel void calcGravityDeriv(
 		int indexL = index - solver->stepsize.s<?=side?>;
 		int indexR = index + solver->stepsize.s<?=side?>;
 
-		du_dt.s<?=side?> = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * dx<?=side?>_at(i));
+		du_dt.s<?=side?> = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * cell_dx<?=side?>(i));
 	}<? end ?>
 
 	real Phi = UBuf[index].<?=self.potentialField?>;

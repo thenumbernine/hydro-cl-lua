@@ -66,7 +66,7 @@ kernel void calcFlux(
 
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
-		real dt_dx = dt / solver->grid_dx.s<?=side?>;//dx<?=side?>_at(i);
+		real dt_dx = dt / solver->grid_dx.s<?=side?>;//cell_dx<?=side?>(i);
 		
 		int indexL = index - solver->stepsize.s<?=side?>;
 		<?=solver:getULRCode()?>

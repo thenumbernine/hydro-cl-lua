@@ -457,6 +457,11 @@ function GridSolver:refreshSolverBufMinsMaxs()
 	self.solverPtr.grid_dx.x = (self.solverPtr.maxs.x - self.solverPtr.mins.x) / tonumber(self.sizeWithoutBorder.x)
 	self.solverPtr.grid_dx.y = (self.solverPtr.maxs.y - self.solverPtr.mins.y) / tonumber(self.sizeWithoutBorder.y)
 	self.solverPtr.grid_dx.z = (self.solverPtr.maxs.z - self.solverPtr.mins.z) / tonumber(self.sizeWithoutBorder.z)
+	if self.app.verbose then
+		print('mins = '..self.solverPtr.mins.x..', '..self.solverPtr.mins.y..', '..self.solverPtr.mins.z)
+		print('maxs = '..self.solverPtr.maxs.x..', '..self.solverPtr.maxs.y..', '..self.solverPtr.maxs.z)
+		print('grid_dx = '..self.solverPtr.grid_dx.x..', '..self.solverPtr.grid_dx.y..', '..self.solverPtr.grid_dx.z)
+	end
 end
 
 -- TODO some of this is copied in solverbase
@@ -570,11 +575,11 @@ function GridSolver:createCodePrefix()
 	* the coordinates space x_1..x_n that spans mins.s1..maxs.sn
 	(between the coordinate and the embedded space:)
 		- vectors can be calculated from Cartesian by cartesianToCoord
-		- the length of the basis vectors wrt the change in indexes is given by dx?_at(x)
-		- the Cartesian length of the holonomic basis vectors is given by coordHolBasisLen.  
-			This is like dx?_at except not scaled by grid_dx?
+		- the length of the basis vectors wrt the change in indexes is given by cell_dx?(x)
+		- the Cartesian length of the holonomic basis vectors is given by coord_dx?(x).  
+			This is like cell_dx? except not scaled by grid_dx?
 			This is just the change in embedded wrt the change in coordinate, not wrt the change in grid
-		- volume_at(x) gives the volume between indexes at the coordinate x
+		- cell_volume(x) gives the volume between indexes at the coordinate x
 		- the Cartesian length of a vector in coordinate space is given by coordLen and coordLenSq
 	* the embedded Cartesian space ... idk what letters I should use for this.  
 		Some literature uses x^I vs coordinate space x^a, but that's still an 'x', no good for programming.
@@ -627,8 +632,8 @@ function GridSolver:createCodePrefix()
 	
 	-- volume of a cell = volume element times grid dx's 
 	lines:insert(template([[
-static inline real volume_at(constant <?=solver.solver_t?>* solver, real3 x) {
-	return sqrt_det_g_grid(x)<?
+static inline real cell_volume(constant <?=solver.solver_t?>* solver, real3 x) {
+	return coord_volume(x)<?
 for i=1,solver.dim do
 ?> * solver->grid_dx.<?=xNames[i]?><?
 end

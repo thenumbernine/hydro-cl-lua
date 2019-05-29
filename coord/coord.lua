@@ -442,17 +442,36 @@ end
 		return connTraceiCode
 	end)
 
+	local lenExprs = range(dim):mapi(function(i)
+		local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
+		local lenSqExpr = (dir'^a' * dir'^b' * gHol'_ab')()
+		local lenExpr = symmath.sqrt(lenSqExpr)()
+		return lenExpr
+	end)
 
 	-- dx is the change across the grid
 	-- therefore it is based on the holonomic metric
 	self.dxCodes = range(dim):mapi(function(i)
-		local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
-		local lenSqExpr = (dir'^a' * dir'^b' * gHol'_ab')()
-		local lenCode = compile((symmath.sqrt(lenSqExpr))())
-if lenCode ~= '0.' then
-	dprint('dxCode['..i..'] = '..substCoords(lenCode))
-end	
+		local lenCode = compile(lenExprs[i])
+dprint('dxCode['..i..'] = '..substCoords(lenCode))
 		return lenCode
+	end)
+
+	local areaExprs = range(dim):mapi(function(i)
+		local area = const(1)
+		for j=1,dim do
+			if j ~= i then
+				area = area * lenExprs[i]
+			end
+		end
+		return area()
+	end)
+
+	-- area of the side in each direction
+	self.areaCodes = range(dim):mapi(function(i)
+		local areaCode = compile(areaExprs[i])
+dprint('areaCode['..i..'] = '..substCoords(areaCode))
+		return areaCode
 	end)
 
 	self.g = g
@@ -629,12 +648,26 @@ end
 	})
 end
 
+--[[
+TODO rename these ...
+
+based on the coordinate system:
+coord_dx
+coord_area
+coord_volume
+
+including the grid's coordinate system:
+cell_dx
+cell_area
+cell_volume
+
+--]]
 
 function CoordinateSystem:getCode(solver)
 	self.solver = solver
 	local dim = solver.dim
 	local lines = table()
-	
+
 	-- dx0, ...
 	-- this is the change in cartesian wrt the change in grid
 	lines:append(range(dim):mapi(function(i)
@@ -644,12 +677,35 @@ function CoordinateSystem:getCode(solver)
 				'{pt^'..j..'}',
 				'cell_x'..(j-1)..'(i.'..xs[j]..')')
 		end
-		return '#define dx'..(i-1)..'_at(i) (solver->grid_dx.s'..(i-1)..' * ('..code..'))'
+		return table{
+			'#define coord_dx'..(i-1)..'(i) ('..code..')',
+			'#define cell_dx'..(i-1)..'(i) (coord_dx'..(i-1)..'(i) * solver->grid_dx.s'..(i-1)..')',
+		}:concat'\n'
 	end))
-	
+
+	-- area0, ...
+	lines:append(range(dim):mapi(function(i)
+		local code = self.areaCodes[i]
+		for j=1,3 do
+			code = code:gsub(
+				'{pt^'..j..'}',
+				'cell_x'..(j-1)..'(i.'..xs[j]..')')
+		end
+		code = '#define coord_area'..(i-1)..'(i) (('..code..')\n'
+		local prod
+		code = code .. '#define cell_area'..(i-1)..'(i) (coord_area'..(i-1)..'(i)'
+		for j=1,dim do
+			if j ~= i then
+				code = code .. ' * solver->grid_dx.s'..(j-1)
+			end
+		end
+		code = code .. ')'
+		return code
+	end))
+
 	-- volume
 	local volumeCode = '(' .. self.volumeCode .. ')'
-	lines:insert('static inline '..getCode_real3_to_real('sqrt_det_g_grid', volumeCode))
+	lines:insert('static inline '..getCode_real3_to_real('coord_volume', volumeCode))
 	
 	-- coord len code: l(v) = v^i v^j g_ij
 	lines:append{

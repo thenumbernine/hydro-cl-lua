@@ -9,7 +9,9 @@ local Wave = class(Equation)
 Wave.name = 'wave'
 
 Wave.weightFluxByGridVolume = true
-Wave.useSourceTerm = true
+
+Wave.useSourceTerm = false
+--Wave.useSourceTerm = true
 
 Wave.numStates = 4
 

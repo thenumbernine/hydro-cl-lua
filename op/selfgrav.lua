@@ -54,7 +54,7 @@ kernel void calcGravityDeriv(
 		int indexL = index - solver->stepsize.s<?=side?>;
 		int indexR = index + solver->stepsize.s<?=side?>;
 	
-		real gravity = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * dx<?=side?>_at(i));
+		real gravity = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * cell_dx<?=side?>(i));
 
 		deriv->m.s[side] -= U-><?=self.densityField?> * gravity;
 		deriv->ETotal -= U-><?=self.densityField?> * gravity * U->m.s[side];
