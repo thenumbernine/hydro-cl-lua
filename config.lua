@@ -43,7 +43,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -88,24 +88,24 @@ local args = {
 		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
-	--[[ cylinder
+	-- [[ cylinder
 	coord = 'cylinder',
 
 	-- for some reason, with holonomic coordinates, with rmax=1, for any rmin < .1, I get an explosion
 	-- no such problem with anholonomic ... however anholonomic is creating an initial wave from rmin which destroys everything
-	-- [=[ anholonomic
+	--[=[ anholonomic
 	coordArgs = {anholonomic=true},
 	mins = cmdline.mins or {.1, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	--]=]	
-	--[=[ holonomic
+	-- [=[ holonomic
 	mins = cmdline.mins or {.1, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	--]=]
 	gridSize = ({
 		{128, 1, 1}, -- 1D
-		{256, 1024, 1}, -- 2D
-		{16, 64, 16}, -- 3D
+		{64, 256, 1}, -- 2D
+		{32, 32, 32}, -- 3D
 	})[dim],
 	boundary = {
 		-- r
@@ -431,6 +431,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 
 
 self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))

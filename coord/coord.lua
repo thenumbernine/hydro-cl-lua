@@ -461,10 +461,11 @@ dprint('dxCode['..i..'] = '..substCoords(lenCode))
 		local area = const(1)
 		for j=1,dim do
 			if j ~= i then
-				area = area * lenExprs[i]
+				area = area * lenExprs[j]
 			end
 		end
-		return area()
+		area = area()
+		return area
 	end)
 
 	-- area of the side in each direction
@@ -649,51 +650,64 @@ end
 end
 
 --[[
-TODO rename these ...
+ok standardizing these macros ...
+we have a few manifolds to deal with ...
+1) grid coordiantes, I = 0..size-1
+2) manifold coordinates, X = grid coordinates rescaled to fit between solver->mins and solver->maxs  
+3) result coordinates, Y = cartesian output of the mapping of the coordinate system
 
-based on the coordinate system:
-coord_dx
-coord_area
-coord_volume
+coord_dx[_for_coord]<?=side?>(pt) gives the length of the dx of the coordinate in 'side' direction, for 'pt' in coordinates
+cell_dx[_for_coord]<?=side?>(pt) gives the length of the dx of the cell, which is just coord_dx times the grid_dx
+solver->grid_dx is the size of each solver cell, in coordintes 
 
-including the grid's coordinate system:
-cell_dx
-cell_area
-cell_volume
+but then we have these cell_x[_for_grid]<?=side?> functions which take an input of 'i'
+
+should I add these _for_coord _for_grid suffixes to specify what manfiold system the input parameter is? 
 
 --]]
-
 function CoordinateSystem:getCode(solver)
 	self.solver = solver
 	local dim = solver.dim
 	local lines = table()
 
-	-- dx0, ...
-	-- this is the change in cartesian wrt the change in grid
-	lines:append(range(dim):mapi(function(i)
-		local code = self.dxCodes[i]
+	local function convertInputFromGrid(code, inputVarName)
 		for j=1,3 do
 			code = code:gsub(
 				'{pt^'..j..'}',
-				'cell_x'..(j-1)..'(i.'..xs[j]..')')
+				'cell_x'..(j-1)..'('..inputVarName..'.'..xs[j]..')')
 		end
-		return table{
-			'#define coord_dx'..(i-1)..'(i) ('..code..')',
-			'#define cell_dx'..(i-1)..'(i) (coord_dx'..(i-1)..'(i) * solver->grid_dx.s'..(i-1)..')',
-		}:concat'\n'
+		return code
+	end
+
+	local function convertInputFromCoord(code, inputVarName)
+		for j=1,3 do
+			code = code:gsub('{pt^'..j..'}', inputVarName..'.'..xs[j])
+		end
+		return code
+	end
+	
+	-- dx0, ...
+	-- this is the change in cartesian wrt the change in grid
+	lines:append(range(dim):mapi(function(i)
+		local code = convertInputFromCoord(self.dxCodes[i], 'pt')
+		return '#define coord_dx'..(i-1)..'(pt) ('..code..')'
 	end))
 
 	-- area0, ...
 	lines:append(range(dim):mapi(function(i)
-		local code = self.areaCodes[i]
-		for j=1,3 do
-			code = code:gsub(
-				'{pt^'..j..'}',
-				'cell_x'..(j-1)..'(i.'..xs[j]..')')
-		end
-		code = '#define coord_area'..(i-1)..'(i) (('..code..')\n'
+		local code = convertInputFromCoord(self.areaCodes[i], 'pt')
+		return '#define coord_area'..(i-1)..'(pt) ('..code..')'
+	end))
+
+	lines:insert'\n'
+
+	lines:append(range(dim):mapi(function(i)
+		return '#define cell_dx'..(i-1)..'(pt) (coord_dx'..(i-1)..'(pt) * solver->grid_dx.s'..(i-1)..')'
+	end))
+	
+	lines:append(range(dim):mapi(function(i)
 		local prod
-		code = code .. '#define cell_area'..(i-1)..'(i) (coord_area'..(i-1)..'(i)'
+		local code = '#define cell_area'..(i-1)..'(pt) (coord_area'..(i-1)..'(pt)'
 		for j=1,dim do
 			if j ~= i then
 				code = code .. ' * solver->grid_dx.s'..(j-1)
@@ -702,6 +716,8 @@ function CoordinateSystem:getCode(solver)
 		code = code .. ')'
 		return code
 	end))
+	
+	lines:insert'\n'
 
 	-- volume
 	local volumeCode = '(' .. self.volumeCode .. ')'
