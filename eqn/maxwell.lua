@@ -122,7 +122,7 @@ Maxwell.postComputeFluxCode = template([[
 		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
-		real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
+		real _1_sqrt_det_g = 1. / coord_volume(x);
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 ]], {eqn=Maxwell})

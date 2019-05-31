@@ -110,7 +110,7 @@ sym3 calc_gammaBar_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 //det(gammaBar_ij) = det(gammaHat_ij + epsilon_ij)
 //however det(gammaHat_ij) == det(gammaBar_ij) by the eqn just before (6) in 2017 Ruchlin
 real calc_det_gammaBar_ll(real3 x) {
-	return sqrt_det_g_grid(x);
+	return coord_volume(x);
 }
 
 void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {

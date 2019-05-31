@@ -43,10 +43,10 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
-	mins = cmdline.mins or {-1, -1, -1},
-	maxs = cmdline.maxs or {1, 1, 1},
+	mins = cmdline.mins or {-5, -5, -5},
+	maxs = cmdline.maxs or {5, 5, 5},
 
 	-- 256^2 = 2^16 = 2 * 32^3
 	gridSize = (
@@ -63,7 +63,7 @@ local args = {
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics 520'] = {
 				{256,1,1},
-				{256,256,1},
+				{32,32,1},
 				{16,16,16},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
@@ -88,7 +88,7 @@ local args = {
 		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	coord = 'cylinder',
 
 	-- for some reason, with holonomic coordinates, with rmax=1, for any rmin < .1, I get an explosion
@@ -177,14 +177,14 @@ local args = {
 	--initState = 'constant',
 	--initState = 'constant with velocity',
 	--initState = 'linear',
-	--initState = 'gaussian',
+	initState = 'gaussian',
 	--initState = 'advect wave',
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
 	--initState = 'Sod',
 	--initState = 'rectangle',
-	initState = 'Sedov',
+	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
 	--initState = 'Kelvin-Helmholtz',
@@ -430,7 +430,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- wave equation
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
@@ -578,7 +578,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 

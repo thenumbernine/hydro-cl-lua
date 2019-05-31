@@ -295,7 +295,7 @@ kernel void addSource(
 		), 1. / solver->grid_dx.s<?=j?>);
 <? end
 ?>
-	real _1_sqrt_det_g = 1. / sqrt_det_g_grid(x);
+	real _1_sqrt_det_g = 1. / coord_volume(x);
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] 
 	?>{

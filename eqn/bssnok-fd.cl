@@ -578,7 +578,7 @@ then
 	do so with gammaBar_ij := gammaBar_ij * ( det(gammaHat_ij) / det(gammaBar_ij) )^(1/3)
 	*/
 <?	if eqn.guiVars.constrain_det_gammaBar_ll.value then ?>
-	real det_gammaHat_ll = sqrt_det_g_grid(x);
+	real det_gammaHat_ll = coord_volume(x);
 	real det_gammaBar_ll = sym3_det(gammaBar_ll);
 	real rescaleMetric = cbrt(det_gammaHat_ll/det_gammaBar_ll);
 <? 		for ij,xij in ipairs(symNames) do
