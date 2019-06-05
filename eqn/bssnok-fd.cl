@@ -138,6 +138,80 @@ end
 ?>	};
 
 
+	/*
+	partial_connHat_ulll[l].i.jk = connHat^i_jk,l
+	= (gammaHat^im connHat_mjk),l
+	= gammaHat^im_,l connHat_mjk + gammaHat^im connHat_mjk,l
+	= 
+		gammaHat^im (
+			1/2 ( 
+				gammaHat_mj,kl
+				+ gammaHat_mk,jl
+				- gammaHat_kj,ml
+			)
+			- gammaHat_mn,l connHat^n_jk 
+		)
+	*/
+	_3sym3 partial_connHat_ulll[3];
+<?
+for i,xi in ipairs(xNames) do
+	for jk,xjk in ipairs(symNames) do
+		local j,k = from6to3x3(jk)
+		local xj,xk = xNames[j],xNames[k]
+		for l,xl in ipairs(xNames) do
+?>	partial_connHat_ulll[<?=l-1?>].<?=xi?>.<?=xjk?> = 0.
+<?			for m,xm in ipairs(xNames) do
+?>		+ gammaHat_uu.<?=sym(i,m)?> * (
+			.5 * (
+				partial2_gammaHat_llll.<?=sym(m,j)?>.<?=sym(k,l)?>
+				+ partial2_gammaHat_llll.<?=sym(m,k)?>.<?=sym(j,l)?>
+				- partial2_gammaHat_llll.<?=sym(k,j)?>.<?=sym(m,l)?>
+			)
+<?				for n,xn in ipairs(xNames) do
+?>			- partial_gammaHat_lll.<?=xl?>.<?=sym(m,n)?> * connHat_ull.<?=xn?>.<?=sym(j,k)?>
+<?				end
+?>		
+		)
+<?			end
+?>	;
+<?
+		end
+	end
+end
+?>
+
+	_3sym3 partial_connBar_ulll[3];
+<?
+for i,xi in ipairs(xNames) do
+	for jk,xjk in ipairs(symNames) do
+		local j,k = from6to3x3(jk)
+		local xj,xk = xNames[j],xNames[k]
+		for l,xl in ipairs(xNames) do
+?>	partial_connBar_ulll[<?=l-1?>].<?=xi?>.<?=xjk?> = 0.
+<?			for m,xm in ipairs(xNames) do
+?>		+ gammaBar_uu.<?=sym(i,m)?> * (
+			.5 * (
+				partial2_epsilon_llll[<?=from3x3to6(m,j)-1?>].<?=sym(k,l)?>
+				+ partial2_epsilon_llll[<?=from3x3to6(m,k)-1?>].<?=sym(j,l)?>
+				- partial2_epsilon_llll[<?=from3x3to6(k,j)-1?>].<?=sym(m,l)?>
+				
+				+ partial2_gammaHat_llll.<?=sym(m,j)?>.<?=sym(k,l)?>
+				+ partial2_gammaHat_llll.<?=sym(m,k)?>.<?=sym(j,l)?>
+				- partial2_gammaHat_llll.<?=sym(k,j)?>.<?=sym(m,l)?>
+			)
+<?				for n,xn in ipairs(xNames) do
+?>			- partial_gammaBar_lll.<?=xl?>.<?=sym(m,n)?> * connBar_ull.<?=xn?>.<?=sym(j,k)?>
+<?				end
+?>		
+		)
+<?			end
+?>	;
+<?
+		end
+	end
+end
+?>
+
 
 	//DBar^i phi = gammaBar^ij phi_,j
 	real3 DBar_phi_u = sym3_real3_mul(gammaBar_uu, *(real3*)partial_phi_l);
@@ -271,62 +345,6 @@ end
 	;
 
 
-
-#if 1	//RBar_ll ... enable to use old calc (working), disable to use new calc for curved grids (not working)
-	
-	
-	//tr_partial2_gammaBar_ll.ij = gammaBar^kl gammaBar_ij,kl
-	sym3 tr_partial2_gammaBar_ll;	
-<? for ij,xij in ipairs(symNames) do
-?>	tr_partial2_gammaBar_ll.<?=xij?> = 0. <?
-	for k,xk in ipairs(xNames) do
-		for l,xl in ipairs(xNames) do
-?> + gammaBar_uu.<?=sym(k,l)?> * partial2_epsilon_llll[<?=from3x3to6(k,l)-1?>].<?=xij?><?
-		end
-	end
-?>;
-<? end
-?>
-	
-	/*
-	B&S 11.54
-	Alcubierre eqn 2.8.17
-	RBar_ij = -1/2 gammaBar^lm gammaBar_ij,lm 
-			+ 1/2 gammaBar_ki connBar^k_,j
-			+ 1/2 gammaBar_kj connBar^k_,i 
-			+ 1/2 connBar^k (connBar_ijk + connBar_jik)
-	 		+ gammaBar^lm (
-				connBar^k_li connBar_jkm
-				+ connBar^k_lj connBar_ikm
-				+ connBar^k_im connBar_klj)
-	*/
-	sym3 RBar_ll;
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi,xj = xNames[i],xNames[j]
-?>	RBar_ll.<?=xij?> = -.5 * tr_partial2_gammaBar_ll.<?=xij?>
-<?	for k,xk in ipairs(xNames) do
-?>		+ .5 * gammaBar_ll.<?=sym(k,i)?> * partial_LambdaBar_ul[<?=j-1?>].<?=xk?>
-		+ .5 * gammaBar_ll.<?=sym(k,j)?> * partial_LambdaBar_ul[<?=i-1?>].<?=xk?>
-		+ .5 * U->LambdaBar_u.<?=xk?> * (connBar_lll.<?=xi?>.<?=sym(j,k)?> + connBar_lll.<?=xj?>.<?=sym(i,k)?>)
-<?		for l,xl in ipairs(xNames) do
-			for m,xm in ipairs(xNames) do
-?>		+ gammaBar_uu.<?=sym(k,m)?> * (
-			+ connBar_ull.<?=xk?>.<?=sym(l,i)?> * connBar_lll.<?=xj?>.<?=sym(k,m)?>
-			+ connBar_ull.<?=xk?>.<?=sym(l,j)?> * connBar_lll.<?=xi?>.<?=sym(k,m)?>
-			+ connBar_ull.<?=xk?>.<?=sym(i,m)?> * connBar_lll.<?=xk?>.<?=sym(l,j)?>
-		)
-<?			end
-		end
-	end
-?>	;
-<? end
-?>
-
-
-#else	//RBar_ll
-
-
 	//tr_partial2_gammaBar_ll.ij = gammaBar^kl gammaBar_ij,kl
 	sym3 tr_partial2_gammaBar_ll;
 <? for ij,xij in ipairs(symNames) do
@@ -392,7 +410,7 @@ end
 			- connHat^m_jl gammaBar_nm
 		)
 		- connHat^n_jk (
-			gammaBar_in,lk
+			gammaBar_in,l
 			- connHat^m_il gammaBar_mn 
 			- connHat^m_nl gammaBar_im
 		)
@@ -403,27 +421,29 @@ end
 		)
 	)
 	= gammaBar^kl (
-		epsilon_ij,lk
-		gammaHat_ij,lk
+		gammaBar_ij,lk 
 		
-		- 1/2 (gammaBar_iq gammaHat^qm) (gammaHat_mj,lk + gammaHat_ml,jk - gammaHat_jl,mk)
-		- 1/2 (gammaBar_jq gammaHat^qm) (gammaHat_mi,lk + gammaHat_ml,ik - gammaHat_il,mk) 
+		- connHat^m_il,k gammaBar_mj 
+		- connHat^m_il gammaBar_mj,k 
 		
-		+ (gammaBar_iq gammaHat^qm) gammaHat_mn,k connHat^n_jl 
-		+ (gammaBar_jq gammaHat^qm) gammaHat_mn,k connHat^n_il 
+		- connHat^m_jl,k gammaBar_im
+		- connHat^m_jl gammaBar_im,k
 		
-		- 2 connHat^m_ik gammaBar_mj,l 
-		- 2 connHat^m_jk gammaBar_im,l
-		- connHat^m_lk gammaBar_ij,m 
-		
-		+ connHat^n_ik connHat^m_nl gammaBar_mj 
-		+ connHat^n_ik connHat^m_jl gammaBar_nm
-		
-		+ connHat^n_jk connHat^m_il gammaBar_mn 
-		+ connHat^n_jk connHat^m_nl gammaBar_im
-		
-		+ connHat^n_lk connHat^m_in gammaBar_mj 
-		+ connHat^n_lk connHat^m_jn gammaBar_im
+		- connHat^n_ik (
+			gammaBar_nj,l 
+			- connHat^m_nl gammaBar_mj 
+			- connHat^m_jl gammaBar_nm
+		)
+		- connHat^n_jk (
+			gammaBar_in,l
+			- connHat^m_il gammaBar_mn 
+			- connHat^m_nl gammaBar_im
+		)
+		- connHat^n_lk (
+			gammaBar_ij,n 
+			- connHat^m_in gammaBar_mj 
+			- connHat^m_jn gammaBar_im
+		)
 	)
 	*/
 
@@ -435,58 +455,37 @@ end
 	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do 
 			local kl = from3x3to6(k,l)
-?> 
-			- gammaBar_uu.<?=sym(k,l)?> * (
+?> 			+ gammaBar_uu.<?=sym(k,l)?> * (
 				partial2_epsilon_llll[<?=kl-1?>].<?=xij?>
 				+ partial2_gammaHat_llll.<?=sym(k,l)?>.<?=xij?>
 <?			for m,xm in ipairs(xNames) do
 ?>				
-				- .5 * gammaHat_to_gammaBar_ul.<?=xm?>.<?=xi?> * (
-					partial2_gammaHat_llll.<?=sym(m,j)?>.<?=sym(k,l)?>
-					+ partial2_gammaHat_llll.<?=sym(m,l)?>.<?=sym(j,k)?>
-					- partial2_gammaHat_llll.<?=sym(j,l)?>.<?=sym(m,k)?>
-				)
+				- partial_connHat_ulll[<?=k-1?>].<?=xm?>.<?=sym(i,l)?> * gammaBar_ll.<?=sym(m,j)?>
+				- connHat_ull.<?=xm?>.<?=sym(i,l)?> * partial_gammaBar_lll.<?=xk?>.<?=sym(j,m)?>
 				
-				- .5 * gammaHat_to_gammaBar_ul.<?=xm?>.<?=xj?> * (
-					partial2_gammaHat_llll.<?=sym(m,i)?>.<?=sym(k,l)?>
-					+ partial2_gammaHat_llll.<?=sym(m,l)?>.<?=sym(i,k)?>
-					- partial2_gammaHat_llll.<?=sym(i,l)?>.<?=sym(m,k)?>
-				)
-				
-				+ gammaHat_to_gammaBar_ul.<?=xm?>.<?=xi?> * (
-<?				for n,xn in ipairs(xNames) do
-?>					+ partial_gammaHat_lll.<?=xk?>.<?=sym(m,n)?> * connHat_ull.<?=xn?>.<?=sym(j,l)?>
-<?				end
-?>				)
-				
-				+ gammaHat_to_gammaBar_ul.<?=xm?>.<?=xj?> * (
-<?				for n,xn in ipairs(xNames) do
-?>					+ partial_gammaHat_lll.<?=xk?>.<?=sym(m,n)?> * connHat_ull.<?=xn?>.<?=sym(i,l)?>
-<?				end
-?>				)
-				
-				- 2. * connHat_ull.<?=xm?>.<?=sym(i,l)?> * partial_gammaBar_lll.<?=xk?>.<?=sym(m,j)?>
-				- 2. * connHat_ull.<?=xm?>.<?=sym(j,l)?> * partial_gammaBar_lll.<?=xk?>.<?=sym(m,i)?>
-				- connHat_ull.<?=xm?>.<?=sym(k,l)?> * partial_gammaBar_lll.<?=xm?>.<?=sym(i,j)?>
+				- partial_connHat_ulll[<?=k-1?>].<?=xm?>.<?=sym(j,l)?> * gammaBar_ll.<?=sym(m,i)?>
+				- connHat_ull.<?=xm?>.<?=sym(j,l)?> * partial_gammaBar_lll.<?=xk?>.<?=sym(i,m)?>
 
 <?				for n,xn in ipairs(xNames) do
-?>				
-				+ connHat_ull.<?=xn?>.<?=sym(i,k)?> * connHat_ull.<?=xm?>.<?=sym(n,l)?> * gammaBar_ll.<?=sym(m,j)?>
-				+ connHat_ull.<?=xn?>.<?=sym(i,k)?> * connHat_ull.<?=xm?>.<?=sym(j,l)?> * gammaBar_ll.<?=sym(m,n)?>
-				
-				+ connHat_ull.<?=xn?>.<?=sym(j,k)?> * connHat_ull.<?=xm?>.<?=sym(i,l)?> * gammaBar_ll.<?=sym(m,n)?>
-				+ connHat_ull.<?=xn?>.<?=sym(j,k)?> * connHat_ull.<?=xm?>.<?=sym(n,l)?> * gammaBar_ll.<?=sym(i,n)?>
-				
-				+ connHat_ull.<?=xn?>.<?=sym(l,k)?> * connHat_ull.<?=xm?>.<?=sym(i,n)?> * gammaBar_ll.<?=sym(m,j)?>
-				+ connHat_ull.<?=xn?>.<?=sym(l,k)?> * connHat_ull.<?=xm?>.<?=sym(j,l)?> * gammaBar_ll.<?=sym(m,i)?>
-
-<?				end
 ?>
-
-<?			end
-?>
-			
-			)
+				- connHat_ull.<?=xn?>.<?=sym(i,k)?> * (
+					partial_gammaBar_lll.<?=xl?>.<?=sym(n,j)?>
+					- connHat_ull.<?=xm?>.<?=sym(n,l)?> * gammaBar_ll.<?=sym(m,j)?>
+					- connHat_ull.<?=xm?>.<?=sym(j,l)?> * gammaBar_ll.<?=sym(n,m)?>
+				)
+				- connHat_ull.<?=xn?>.<?=sym(j,k)?> * (
+					partial_gammaBar_lll.<?=xl?>.<?=sym(i,n)?>
+					- connHat_ull.<?=xm?>.<?=sym(i,l)?> * gammaBar_ll.<?=sym(m,n)?>
+					- connHat_ull.<?=xm?>.<?=sym(n,l)?> * gammaBar_ll.<?=sym(i,m)?>
+				)
+				- connHat_ull.<?=xn?>.<?=sym(l,k)?> * (
+					partial_gammaBar_lll.<?=xn?>.<?=sym(i,j)?>
+					- connHat_ull.<?=xm?>.<?=sym(i,n)?> * gammaBar_ll.<?=sym(m,j)?>
+					- connHat_ull.<?=xm?>.<?=sym(j,n)?> * gammaBar_ll.<?=sym(i,m)?>
+				)
+<?				end
+			end
+?>			)
 <?		end
 	end	?>,
 <? end
@@ -529,11 +528,6 @@ end
 ?>,
 <? end
 ?>	};
-
-
-#endif	//RBar_ll
-
-
 
 
 	sym3 DBar2_phi_ll = (sym3){
@@ -608,82 +602,6 @@ end
 ?>		- 2./3. * U->ABar_ll.<?=xij?> * tr_partial_beta;
 <? end
 ?>
-
-
-	/*
-	partial_connHat_ulll[l].i.jk = connHat^i_jk,l
-	= (gammaHat^im connHat_mjk),l
-	= gammaHat^im_,l connHat_mjk + gammaHat^im connHat_mjk,l
-	= 
-		gammaHat^im (
-			1/2 ( 
-				gammaHat_mj,kl
-				+ gammaHat_mk,jl
-				- gammaHat_kj,ml
-			)
-			- gammaHat_mn,l connHat^n_jk 
-		)
-	*/
-	_3sym3 partial_connHat_ulll[3];
-<?
-for i,xi in ipairs(xNames) do
-	for jk,xjk in ipairs(symNames) do
-		local j,k = from6to3x3(jk)
-		local xj,xk = xNames[j],xNames[k]
-		for l,xl in ipairs(xNames) do
-?>	partial_connHat_ulll[<?=l-1?>].<?=xi?>.<?=xjk?> = 0.
-<?			for m,xm in ipairs(xNames) do
-?>		+ gammaHat_uu.<?=sym(i,m)?> * (
-			.5 * (
-				partial2_gammaHat_llll.<?=sym(m,j)?>.<?=sym(k,l)?>
-				+ partial2_gammaHat_llll.<?=sym(m,k)?>.<?=sym(j,l)?>
-				- partial2_gammaHat_llll.<?=sym(k,j)?>.<?=sym(m,l)?>
-			)
-<?				for n,xn in ipairs(xNames) do
-?>			- partial_gammaHat_lll.<?=xl?>.<?=sym(m,n)?> * connHat_ull.<?=xn?>.<?=sym(j,k)?>
-<?				end
-?>		
-		)
-<?			end
-?>	;
-<?
-		end
-	end
-end
-?>
-
-	_3sym3 partial_connBar_ulll[3];
-<?
-for i,xi in ipairs(xNames) do
-	for jk,xjk in ipairs(symNames) do
-		local j,k = from6to3x3(jk)
-		local xj,xk = xNames[j],xNames[k]
-		for l,xl in ipairs(xNames) do
-?>	partial_connBar_ulll[<?=l-1?>].<?=xi?>.<?=xjk?> = 0.
-<?			for m,xm in ipairs(xNames) do
-?>		+ gammaBar_uu.<?=sym(i,m)?> * (
-			.5 * (
-				partial2_epsilon_llll[<?=from3x3to6(m,j)-1?>].<?=sym(k,l)?>
-				+ partial2_epsilon_llll[<?=from3x3to6(m,k)-1?>].<?=sym(j,l)?>
-				- partial2_epsilon_llll[<?=from3x3to6(k,j)-1?>].<?=sym(m,l)?>
-				
-				+ partial2_gammaHat_llll.<?=sym(m,j)?>.<?=sym(k,l)?>
-				+ partial2_gammaHat_llll.<?=sym(m,k)?>.<?=sym(j,l)?>
-				- partial2_gammaHat_llll.<?=sym(k,j)?>.<?=sym(m,l)?>
-			)
-<?				for n,xn in ipairs(xNames) do
-?>			- partial_gammaBar_lll.<?=xl?>.<?=sym(m,n)?> * connBar_ull.<?=xn?>.<?=sym(j,k)?>
-<?				end
-?>		
-		)
-<?			end
-?>	;
-<?
-		end
-	end
-end
-?>
-
 
 
 	/*
@@ -931,61 +849,6 @@ end
 	sym3 ABar_uu = real3x3_sym3_to_sym3_mul(ABar_ul, gammaBar_uu);	//ABar^ij = gammaBar^ik ABar_kl gammaBar^lj
 
 
-#if 1	//RBar_ll ... enable to use old calc (working), disable to use new calc for curved grids (not working)
-	
-	
-	//tr_partial2_gammaBar_ll.ij = gammaBar^kl gammaBar_ij,kl
-	sym3 tr_partial2_gammaBar_ll;	
-<? for ij,xij in ipairs(symNames) do
-?>	tr_partial2_gammaBar_ll.<?=xij?> = 0. <?
-	for k,xk in ipairs(xNames) do
-		for l,xl in ipairs(xNames) do
-?> + gammaBar_uu.<?=sym(k,l)?> * partial2_epsilon_llll[<?=from3x3to6(k,l)-1?>].<?=xij?><?
-		end
-	end
-?>;
-<? end
-?>
-	
-	/*
-	B&S 11.54
-	Alcubierre eqn 2.8.17
-	RBar_ij = -1/2 gammaBar^lm gammaBar_ij,lm 
-			+ 1/2 gammaBar_ki connBar^k_,j
-			+ 1/2 gammaBar_kj connBar^k_,i 
-			+ 1/2 connBar^k (connBar_ijk + connBar_jik)
-	 		+ gammaBar^lm (
-				connBar^k_li connBar_jkm
-				+ connBar^k_lj connBar_ikm
-				+ connBar^k_im connBar_klj)
-	*/
-	sym3 RBar_ll;
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi,xj = xNames[i],xNames[j]
-?>	RBar_ll.<?=xij?> = -.5 * tr_partial2_gammaBar_ll.<?=xij?>
-<?	for k,xk in ipairs(xNames) do
-?>		+ .5 * gammaBar_ll.<?=sym(k,i)?> * partial_LambdaBar_ul[<?=j-1?>].<?=xk?>
-		+ .5 * gammaBar_ll.<?=sym(k,j)?> * partial_LambdaBar_ul[<?=i-1?>].<?=xk?>
-		+ .5 * U->LambdaBar_u.<?=xk?> * (connBar_lll.<?=xi?>.<?=sym(j,k)?> + connBar_lll.<?=xj?>.<?=sym(i,k)?>)
-<?		for l,xl in ipairs(xNames) do
-			for m,xm in ipairs(xNames) do
-?>		+ gammaBar_uu.<?=sym(k,m)?> * (
-			+ connBar_ull.<?=xk?>.<?=sym(l,i)?> * connBar_lll.<?=xj?>.<?=sym(k,m)?>
-			+ connBar_ull.<?=xk?>.<?=sym(l,j)?> * connBar_lll.<?=xi?>.<?=sym(k,m)?>
-			+ connBar_ull.<?=xk?>.<?=sym(i,m)?> * connBar_lll.<?=xk?>.<?=sym(l,j)?>
-		)
-<?			end
-		end
-	end
-?>	;
-<? end
-?>
-
-
-#else	//RBar_ll
-
-
 	_3sym3 connHat_ull = coord_conn_ull(x);
 
 
@@ -1205,9 +1068,6 @@ end
 ?>,
 <? end
 ?>	};
-
-
-#endif	//RBar_ll
 
 
 	sym3 DBar2_phi_ll = (sym3){
