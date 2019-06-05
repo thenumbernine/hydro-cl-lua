@@ -58,3 +58,15 @@ typedef union {
 		real3 x,y,z;
 	};
 } real3x3;
+
+typedef union {
+	real s[36];
+	sym3 v[6];
+	struct {
+		sym3 v0, v1, v2, v3, v4, v5;
+	};
+	struct {
+		sym3 xx, xy, xz, yy, yz, zz;
+	};
+} sym3sym3;
+

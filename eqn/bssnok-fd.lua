@@ -2,7 +2,7 @@
 Baumgarte & Shapiro "Numerical Relativity: Solving Einstein's Equations on the Computer" 2010
 Alcubierre "Introduction to Numerical Relativity" 2008
 
-then I'm applying 2017 Ruchlin changes..
+then I'm applying 2018 Ruchlin changes..
 separate gammaBar_ll = gammaHat_ll + epsilon_ll
 --]]
 
@@ -32,7 +32,6 @@ args:
 	useShift = 'none'
 				'GammaDriver'
 				'HyperbolicGammaDriver' (default)
-	useChi (default true)
 --]]
 function BSSNOKFiniteDifferenceEquation:init(args)
 	-- options:
@@ -40,24 +39,12 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	-- otherwise rebuild intVars based on it ...
 	self.useShift = args.useShift or 'HyperbolicGammaDriver'
 
-	-- use chi = 1/psi instead of phi, as described in 2006 Campanelli 
-	-- it should be used with the hyperbolic gamma driver
-	if args.useChi ~= nil then
-		self.useChi = args.useChi
-	else
-		self.useChi = true
-	end
-
 	local intVars = table{
 		{alpha = 'real'},			-- 1
 		{beta_u = 'real3'},         -- 3: beta^i
 		{epsilon_ll = 'sym3'},    	-- 6: gammaBar_ij - gammaHat_ij, only 5 dof since det gammaBar_ij = 1
-																									 
-		self.useChi 
-			and {chi = 'real'}		-- 1
-			or {phi = 'real'},		-- 1
-		
-		{K = 'real'},               -- 1
+		{W = 'real'},				-- 1: W = exp(-2 phi) = (det gammaHat_ij / det gamma_ij)^(1/6)
+		{K = 'real'},               -- 1: K = K^i_i
 		{ABar_ll = 'sym3'},       	-- 6: ABar_ij, only 5 dof since ABar^k_k = 0
 		{LambdaBar_u = 'real3'},    -- 3: LambdaBar^i = C^i + Delta^i = C^i + gammaBar^jk (connBar^i_jk - connHat^i_jk)
 									-- TODO what is C^i ?
@@ -125,7 +112,7 @@ sym3 calc_gammaBar_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 }
 
 //det(gammaBar_ij) = det(gammaHat_ij + epsilon_ij)
-//however det(gammaHat_ij) == det(gammaBar_ij) by the eqn just before (6) in 2017 Ruchlin
+//however det(gammaHat_ij) == det(gammaBar_ij) by the eqn just before (6) in 2018 Ruchlin
 real calc_det_gammaBar_ll(real3 x) {
 	return coord_volume(x);
 }
@@ -134,12 +121,8 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->alpha = 1.;
 	U->beta_u = real3_zero;
 	U->epsilon_ll = sym3_zero;
-<? if eqn.useChi then 
-?>	U->chi = 1;
-<? else
-?>	U->phi = 0;
-<? end
-?>	U->K = 0;
+	U->W = 1;
+	U->K = 0;
 	U->ABar_ll = sym3_ident;
 	U->LambdaBar_u = real3_zero;
 <? if eqn.useShift == 'HyperbolicGammaDriver' then
@@ -157,12 +140,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->M_u = real3_zero;
 }
 
-<? if eqn.useChi then
-?>#define calc_exp_neg4phi(U) ((U)->chi)
-<? else
-?>#define calc_exp_neg4phi(U) (exp(-4. * (U)->phi))
-<? end
-?>
+#define calc_exp_neg4phi(U) ((U)->W * (U)->W)
 
 //|g| = exp(12 phi) |g_grid|
 real calc_det_gamma(global const <?=eqn.cons_t?>* U, real3 x) {
@@ -224,22 +202,11 @@ kernel void initState(
 	//real exp_neg4phi = exp(-4 * U->phi);
 	real exp_neg4phi = cbrt(det_gammaBar_ll / det_gamma_ll);
 
-<? if eqn.useChi then 
-?>	U->chi = exp_neg4phi;
-<? else
-?>	U->phi = log(det_gamma / det_gammaGrid) / 12.;
-<? end 
-?>
+	U->W = sqrt(exp_neg4phi);
 
 	sym3 gammaBar_ll = sym3_real_mul(gamma_ll, exp_neg4phi);
 	U->epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
 	U->gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar_ll);
-
-<? if false then ?>
-<? for _,x in ipairs(xNames) do
-?>	U->a.<?=x?> = calc_a_<?=x?>(x.x, x.y, x.z);
-<? end ?>
-<? end ?>
 
 	U->K = sym3_dot(K_ll, gamma_uu);
 	sym3 A_ll = sym3_sub(K_ll, sym3_real_mul(gamma_ll, 1./3. * U->K));
@@ -264,7 +231,7 @@ kernel void initDerivs(
 	
 <?=makePartial('epsilon_ll', 'sym3')?>
 
-	_3sym3 connHat_ull = coord_conn(x);
+	_3sym3 connHat_ull = coord_conn_ull(x);
 
 	//connBar^i_jk - connHat^i_jk
 	//= 1/2 gammaBar^il (epsilon_lj,k + gamamBar_lk,j - epsilon_jk,l)
@@ -303,7 +270,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U alpha',
 	'U beta_u mag',
 	--'U epsilon_ll norm',
-	'U chi',
+	'U W',
 	'U ABar_ll tr weighted',	-- has problems with spherical vacuum spacetime
 	'U ABar_ll x x',
 	'U ABar_ll x y',
@@ -350,25 +317,17 @@ Theta = n^i_;i + K_ij n^i n^j - K
 	+ K_ij beta^i beta^j / alpha^2
 	- K
 
-Gamma^j_ij = (ln sqrt(g))_,i = .5 (ln g)_,i = .5 g_,i / g
-
-(det g)_,i / (det g)
-... using phi ...
-=  exp(12 phi)_,i / exp(12 phi)
-= 12 exp(12 phi) phi_,i / exp(12 phi)
-= 12 phi_,i
-... using chi ...
-= (chi^-3)_,i / (chi^-3)
-= -3 chi_,i / chi^4 / (chi^-3)
-= -3 chi_,i / chi
+Gamma^j_ij = (ln sqrt(gamma))_,i 
+= .5 (ln gamma)_,i 
+= .5 gamma_,i / gamma
+using gamma = gammaHat / W^6
+= .5 (gammaHat W^-6)_,i / (gammaHat W^-6)
+= .5 (gammaHat_,i W^-6 - 3 gammaHat W^-7) / (gammaHat W^-6)
+= .5 gammaHat_,i / gammaHat - 3 / W
+= GammaHat^j_ij - 3 / W
 --]]
 		{expansion = template([[
-<? if eqn.useChi then
-?>	<?=makePartial('chi', 'real')?>
-<? else 
-?>	<?=makePartial('phi', 'real')?>
-<? end
-?>
+	<?=makePartial('W', 'real')?>
 	<?=makePartial('alpha', 'real')?>
 	<?=makePartial('beta_u', 'real3')?>
 	real tr_partial_beta = 0. <?
@@ -389,14 +348,9 @@ end ?>;
 	*value = -tr_partial_beta / U->alpha
 <? 
 for i,xi in ipairs(xNames) do
-?>		 + U->beta_u.<?=xi?> * partial_alpha_l[<?=i-1?>] / (U->alpha * U->alpha) 
-		 - U->beta_u.<?=xi?> * partial_alpha_l[<?=i-1?>] / (U->alpha * U->alpha) 
-<? 	if eqn.useChi then
-?>		- 3. * partial_chi_l[<?=i-1?>] / U->chi
-<? 	else
-?>		+ 12. * partial_phi_l[<?=i-1?>]
-<? 	end
-		?> * -.5 * U->beta_u.<?=xi?> / U->alpha
+?>		+ U->beta_u.<?=xi?> * partial_alpha_l[<?=i-1?>] / (U->alpha * U->alpha) 
+		- U->beta_u.<?=xi?> * partial_alpha_l[<?=i-1?>] / (U->alpha * U->alpha) 
+		+ 3. * partial_W_l[<?=i-1?>] * U->beta_u.<?=xi?> / (U->W * U->alpha)
 <?	for j,xj in ipairs(xNames) do
 ?>		+ K_ll.<?=sym(i,j)?> * U->beta_u.<?=xi?> * U->beta_u.<?=xj?> / (U->alpha * U->alpha)
 <?	end
@@ -474,44 +428,23 @@ end
 	<?=makePartial('beta_u', 'real3')?>
 
 	<?=makePartial('epsilon_ll', 'sym3')?>
-<? if not eqn.useChi then ?>
 	
-	real exp_4phi = 1. / calc_exp_neg4phi(U);
-
-	//gamma_ij = exp(4 phi) gammaBar_ij
+	//W = exp(-2 phi)
+	real _1_W = 1. / U->W;
+	
+	//gamma_ij = W^-2 gammaBar_ij
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
-
-	//gamma_ij,k = exp(4 phi) gammaBar_ij,k + 4 phi,k exp(4 phi) gammaBar_ij
-	<?=makePartial('phi', 'real')?>
-	_3sym3 partial_gamma_lll = {
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = sym3_add(
-			sym3_real_mul(partial_epsilon_lll[<?=i-1?>], exp_4phi),
-			sym3_real_mul(gammaBar_ll, 4. * exp_4phi * partial_phi_l[<?=i-1?>])),
-<? end
-?>	};
-
-<? else -- useChi ?>
-
-	//chi = exp(-4 phi)
-	real _1_chi = 1. / U->chi;
+	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, _1_W * _1_W);
 	
-	//gamma_ij = 1/chi gammaBar_ij
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, _1_chi);
-	
-	//gamma_ij,k = 1/chi gammaBar_ij,k - chi,k / chi^2 gammaBar_ij
-	<?=makePartial('chi', 'real')?>
+	//gamma_ij,k = W^-2 gammaBar_ij,k - 2 W^-3 gammaBar_ij W_,k
+	<?=makePartial('W', 'real')?>
 	_3sym3 partial_gamma_lll = {
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_sub(
-			sym3_real_mul(partial_epsilon_lll[<?=i-1?>], _1_chi),
-			sym3_real_mul(gammaBar_ll, partial_chi_l[<?=i-1?>] * _1_chi * _1_chi)),
+			sym3_real_mul(partial_epsilon_lll[<?=i-1?>], _1_W * _1_W),
+			sym3_real_mul(gammaBar_ll, 2. * partial_W_l[<?=i-1?>] * _1_W * _1_W * _1_W)),
 <? end
 ?>	};
-
-<? end -- useChi ?>
 
 	//TODO
 	real dt_alpha = 0.;

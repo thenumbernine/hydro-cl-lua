@@ -200,7 +200,7 @@ return table{
 		name = 'gaussian perturbation',
 		init = function(self, solver)
 			local size = solver.maxs[1] - solver.mins[1]
-local size = 35			
+			
 			-- 1997 Alcubierre uses amplitude of 5 on a grid size of 300 with dx=1
 			--local H = 5 / 300 * size
 			--local sigma = 10 / 300 * size
@@ -208,8 +208,8 @@ local size = 35
 			--local H = .05 * size
 			--local sigma = math.sqrt(.05) * size
 			-- messing with it on my own
-			local H = .01 	-- * size
-			local sigma = 1	 --.1 * size
+			local H = .01 * size
+			local sigma = .1 * size
 
 			-- TODO if only OpenCL allowed something like uniforms ...
 			solver.eqn:addGuiVars{

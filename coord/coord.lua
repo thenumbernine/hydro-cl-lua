@@ -98,6 +98,14 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 
+local common = require 'common'()
+local xNames = common.xNames
+local symNames = common.symNames
+local from3x3to6 = common.from3x3to6 
+local from6to3x3 = common.from6to3x3 
+local sym = common.sym
+
+
 local CoordinateSystem = class()
 
 function CoordinateSystem:init(args)
@@ -224,15 +232,18 @@ dprint(var'gHol''_uv':eq(var'eHol''_u^I' * var'eHol''_v^J' * var'\\eta''_IJ'):eq
 
 	Tensor.metric(g)
 
+	local dg = Tensor'_cab'
+	dg['_cab'] = g'_ab,c'()
+
 	local Gamma_lll = Tensor'_abc'
-	Gamma_lll['_abc'] = ((g'_ab,c' + g'_ac,b' - g'_bc,a' + c'_abc' + c'_acb' - c'_bca') / 2)()
+	Gamma_lll['_abc'] = ((dg'_cab' + dg'_bac' - dg'_abc' + c'_abc' + c'_acb' - c'_bca') / 2)()
 dprint'1st kind Christoffel:'
 dprint(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(Gamma_lll'_abc'()))
 
-	local Gamma = Tensor'^a_bc'
-	Gamma['^a_bc'] = Gamma_lll'^a_bc'()
+	local Gamma_ull = Tensor'^a_bc'
+	Gamma_ull['^a_bc'] = Gamma_lll'^a_bc'()
 dprint'connection:'
-dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma'^a_bc'()))
+dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma_ull'^a_bc'()))
 
 
 	-- for anholonomic coordinates, we also need the holonomic connections
@@ -253,6 +264,8 @@ dprint(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(GammaHol_ull'
 		Tensor.metric(g)
 	end
 
+	local d2g = Tensor'_abcd'
+	d2g['_cdab'] = dg'_cab,d'()
 
 	-- code generation
 
@@ -389,13 +402,51 @@ dprint('raiseCode['..i..'] = '..substCoords(raiseCode))
 	local lenSqExpr = (paramU'^a' * paramU'_a')()
 	self.uLenSqCode = compile(lenSqExpr)
 dprint('uLenSqCodes = '..substCoords(self.uLenSqCode))
-	
-	self.connCodes = range(dim):mapi(function(i)
+
+	self.dg_lll_codes = range(dim):mapi(function(k)
+		return range(dim):mapi(function(i)
+			return range(dim):map(function(j)
+				local code = compile(dg[k][i][j])
+if code ~= '0.' then
+	dprint('dg['..k..i..j..'] = '..substCoords(code))
+end
+				return code
+			end)
+		end)
+	end)
+
+	self.d2g_llll_codes = range(dim):mapi(function(k)
+		return range(dim):mapi(function(l)
+			return range(dim):mapi(function(i)
+				return range(dim):map(function(j)
+					local code = compile(d2g[k][l][i][j])
+if code ~= '0.' then
+	dprint('d2g['..k..l..i..j..'] = '..substCoords(code))
+end
+					return code
+				end)
+			end)
+		end)
+	end)
+
+	self.conn_lll_codes = range(dim):mapi(function(i)
 		return range(dim):mapi(function(j)
 			return range(dim):mapi(function(k)
-				local code = compile(Gamma[i][j][k])
+				local code = compile(Gamma_lll[i][j][k])
 if code ~= '0.' then
-	dprint('connCode['..i..j..k..'] = '..substCoords(code))
+	dprint('connCode_lll['..i..j..k..'] = '..substCoords(code))
+end
+				return code
+			end)
+		end)
+	end)
+
+	self.conn_ull_codes = range(dim):mapi(function(i)
+		return range(dim):mapi(function(j)
+			return range(dim):mapi(function(k)
+				local code = compile(Gamma_ull[i][j][k])
+if code ~= '0.' then
+	dprint('connCode_ull['..i..j..k..'] = '..substCoords(code))
 end
 				return code
 			end)
@@ -403,7 +454,7 @@ end
 	end)
 	
 	-- Conn^i_jk(x) u^j v^k
-	local connExpr = (Gamma'^a_bc' * paramU'^b' * paramV'^c')()
+	local connExpr = (Gamma_ull'^a_bc' * paramU'^b' * paramV'^c')()
 	self.connApply23Codes = range(dim):mapi(function(i)
 		local conniCode = compile(connExpr[i])
 if conniCode ~= '0.' then
@@ -413,33 +464,33 @@ end
 	end)
 
 	-- u^j v^k Conn_jk^i(x)
-	local connLastExpr = (paramU'^b' * paramV'^c' * Gamma'_bc^a')()
+	local connLastExpr = (paramU'^b' * paramV'^c' * Gamma_ull'_bc^a')()
 	self.connApply12Codes = range(dim):mapi(function(i)
-		local connLastiCode = compile(connLastExpr[i])
-if connLastiCode ~= '0.' then
-	dprint('connApply12Code['..i..'] = '..substCoords(connLastiCode))
+		local code = compile(connLastExpr[i])
+if code ~= '0.' then
+	dprint('connApply12Code['..i..'] = '..substCoords(code))
 end		
-		return connLastiCode
+		return code
 	end)
 	
 	-- Conn^i = Conn^i_jk g^jk
-	local connTrace23Expr = (Gamma'^a_b^b')()
-	self.connTrace23Codes = range(dim):mapi(function(i)
-		local connTraceiCode = compile(connTrace23Expr[i])
-if connTraceiCode ~= '0.' then
-	dprint('connTrace23Code['..i..'] = '..substCoords(connTraceiCode))
+	local tr23_conn_u_codes = (Gamma_ull'^a_b^b')()
+	self.tr23_conn_u_codes = range(dim):mapi(function(i)
+		local code = compile(tr23_conn_u_codes[i])
+if code ~= '0.' then
+	dprint('tr23_conn_u_code['..i..'] = '..substCoords(code))
 end		
-		return connTraceiCode
+		return code
 	end)
 
 	-- sqrt(g)_,i / sqrt(g) = Conn^j_ij
-	local connTrace13Expr = (Gamma'^b_ab')()
-	self.connTrace13Codes = range(dim):mapi(function(i)
-		local connTraceiCode = compile(connTrace13Expr[i])
-if connTraceiCode ~= '0.' then
-	dprint('connTrace13Code['..i..'] = '..substCoords(connTraceiCode))
+	local tr13_conn_l_codes = (Gamma_ull'^b_ab')()
+	self.tr13_conn_l_codes = range(dim):mapi(function(i)
+		local code = compile(tr13_conn_l_codes[i])
+if code ~= '0.' then
+	dprint('tr13_conn_l_code['..i..'] = '..substCoords(code))
 end		
-		return connTraceiCode
+		return code
 	end)
 
 	local lenExprs = range(dim):mapi(function(i)
@@ -625,18 +676,19 @@ end
 	})
 end
 
+-- symmetric on 2nd & 3rd indexes
 local function getCode_real3_to_3sym3(name, exprs)
 	return template([[
 _3sym3 <?=name?>(real3 pt) {
 	return (_3sym3){
-<? for i=1,3 do
+<? 
+for i=1,3 do
 ?>	.<?=xs[i]?> = {
-<?	for j=1,3 do
-		for k=j,3 do
-?>		.<?=xs[j]..xs[k]?> = <?=exprs[i] and exprs[i][j] and exprs[i][j][k]
+<?	for jk,xjk in ipairs(symNames) do
+		local j,k = from6to3x3(jk)
+?>		.<?=xjk?> = <?=exprs[i] and exprs[i][j] and exprs[i][j][k]
 			and convertParams(exprs[i][j][k]) or '0.'?>,
-<?		end	
-	end
+<?	end	
 ?>	},
 <?
 end
@@ -646,6 +698,30 @@ end
 		name = name,
 		exprs = exprs,
 		convertParams = convertParams,
+		symNames = symNames,
+	})
+end
+
+-- symmetric on 1st & 2nd and on 3rd & 4th
+local function getCode_real3_to_sym3sym3(name, exprs)
+	return template([[
+sym3sym3 <?=name?>(real3 pt) {
+	return (sym3sym3){
+<? for kl,xkl in ipairs(symNames) do
+?>		.<?=xkl?> = (sym3){
+<?	for ij,xij in ipairs(symNames) do
+?>			.<?=xij?> = <?=exprs[i] and exprs[i][j] and exprs[i][j][k] and exprs[i][j][k][l]
+				and convertParams(exprs[i][j][k][l]) or '0.'?>,
+<?	end
+?>		},
+<? end
+?>	};
+}]], {
+		xs = xs,
+		name = name,
+		exprs = exprs,
+		convertParams = convertParams,
+		symNames = symNames,
 	})
 end
 
@@ -734,9 +810,12 @@ static inline real coordLen(real3 r, real3 pt) {
 
 	lines:insert('static inline '..getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes))
 	lines:insert('static inline '..getCode_real3_real3_real3_to_real3('coord_conn_apply12', self.connApply12Codes))
-	lines:insert('static inline '..getCode_real3_to_real3('coord_conn_trace23', self.connTrace23Codes))
-	lines:insert('static inline '..getCode_real3_to_real3('coord_conn_trace13', self.connTrace13Codes))
-	lines:insert('static inline '..getCode_real3_to_3sym3('coord_conn', self.connCodes))
+	lines:insert('static inline '..getCode_real3_to_real3('coord_conn_trace23', self.tr23_conn_u_codes))
+	lines:insert('static inline '..getCode_real3_to_real3('coord_conn_trace13', self.tr13_conn_l_codes))
+	lines:insert('static inline '..getCode_real3_to_3sym3('coord_dg_lll', self.dg_lll_codes))
+	lines:insert('static inline '..getCode_real3_to_sym3sym3('coord_d2g_llll', self.d2g_llll_codes))
+	lines:insert('static inline '..getCode_real3_to_3sym3('coord_conn_lll', self.conn_lll_codes))
+	lines:insert('static inline '..getCode_real3_to_3sym3('coord_conn_ull', self.conn_ull_codes))
 
 	--[[
 	for i=0,dim-1 do

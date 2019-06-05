@@ -251,7 +251,7 @@ kernel void initDerivs(
 	
 	//Delta^i = gammaBar^jk Delta^i_jk = gammaBar^jk (connBar^i_jk - connHat^i_jk)
 	//= gammaBar^jk Delta^i_jk = connBar^i - connHat^i
-	_3sym3 connHat_ull = coord_conn(x);
+	_3sym3 connHat_ull = coord_conn_ull(x);
 	real3 connHat_u = _3sym3_sym3_dot23(connHat_ull, U->gammaBar_uu);
 	U->Delta_u = real3_sub(connBar_u, connHat_u);
 }

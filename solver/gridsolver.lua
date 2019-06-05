@@ -119,6 +119,7 @@ function GridSolver:preInit(args)
 		os.execute'mkdir cache-cl 2> /dev/null'
 	end
 	function Program:init(args)
+		self.name = args.name
 		args.env = solver.app.env
 		args.domain = solver.domain
 		local path = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
@@ -142,7 +143,13 @@ function GridSolver:preInit(args)
 	function Program:compile(args)
 		args = args or {}
 		args.buildOptions = '-w'	-- show warnings
-		return Program.super.compile(self, args)
+		local results = Program.super.compile(self, args)
+		if self.obj then	-- did compile
+			print((self.name and self.name..' ' or '')..'log:')
+			--print(self:getLog())
+			print(self.obj:getLog(self.env.device))
+		end
+		return results
 	end
 	self.Program = Program
 end
