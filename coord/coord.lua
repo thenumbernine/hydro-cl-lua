@@ -560,7 +560,11 @@ end
 		end)
 	end)
 
-	local volumeExpr = symmath.sqrt(symmath.Matrix.determinant(gHol))()
+	local det_g_expr = symmath.Matrix.determinant(gHol)
+	self.det_g_code = compile(det_g_expr)
+dprint('det_g_code = '..substCoords(self.det_g_code))
+
+	local volumeExpr = symmath.sqrt(det_g_expr)()
 	self.volumeCode = compile(volumeExpr)
 dprint('volumeCode = '..substCoords(self.volumeCode))
 end
@@ -794,6 +798,10 @@ function CoordinateSystem:getCode(solver)
 	end))
 	
 	lines:insert'\n'
+
+	-- metric determinant = volume^2
+	local det_g_code = '(' .. self.det_g_code .. ')'
+	lines:insert('static inline '..getCode_real3_to_real('coord_det_g', det_g_code))
 
 	-- volume
 	local volumeCode = '(' .. self.volumeCode .. ')'
