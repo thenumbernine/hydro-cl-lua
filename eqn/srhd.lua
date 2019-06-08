@@ -308,19 +308,19 @@ end
 
 SRHD.eigenVars = {
 	-- needed by eigenvectors ...
-	{rho = 'real'},
-	{v = 'real3'},
-	{h = 'real'},
-	{W = 'real'},
-	{ATildeMinus = 'real'},
-	{ATildePlus = 'real'},
-	{VMinus = 'real'},
-	{VPlus = 'real'},
-	{CMinus = 'real'},
-	{CPlus = 'real'},
-	{Kappa = 'real'},
-	{lambdaMin = 'real'},
-	{lambdaMax = 'real'},
+	{name='rho', type='real'},
+	{name='v', type='real3'},
+	{name='h', type='real'},
+	{name='W', type='real'},
+	{name='ATildeMinus', type='real'},
+	{name='ATildePlus', type='real'},
+	{name='VMinus', type='real'},
+	{name='VPlus', type='real'},
+	{name='CMinus', type='real'},
+	{name='CPlus', type='real'},
+	{name='Kappa', type='real'},
+	{name='lambdaMin', type='real'},
+	{name='lambdaMax', type='real'},
 }
 
 function SRHD:eigenWaveCode(side, eig, x, waveIndex)

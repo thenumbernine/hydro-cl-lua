@@ -127,6 +127,11 @@ function Equation:createInitState()
 	if self.initState.guiVars then
 		self:addGuiVars(self.initState.guiVars)
 	end
+	for _,op in ipairs(self.solver.ops) do
+		if op.guiVars then
+			self:addGuiVars(op.guiVars)
+		end
+	end
 end
 
 function Equation:getCodePrefix()
@@ -202,7 +207,8 @@ function Equation:getDisplayVarsForStructVars(structVarInfos, ptrName)
 	ptrName = ptrName .. '->'
 	local displayVarInfos = table()
 	for _,structVarInfo in ipairs(structVarInfos) do
-		local varname, vartype = next(structVarInfo)
+		local varname = structVarInfo.name
+		local vartype = structVarInfo.type
 		if vartype == 'real' then
 			displayVarInfos:insert{[varname] = '*value = '..ptrName..varname..';'}
 		elseif vartype == 'real3' then

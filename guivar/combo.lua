@@ -27,7 +27,7 @@ end
 
 -- run-time
 function GuiCombo:addToSolver(solver)
-	solver.solverVars:insert{[self.name] = 'int'}
+	solver.solverVars:insert{name=self.name, type='int'}
 end
 
 function GuiCombo:setToSolver(solver)

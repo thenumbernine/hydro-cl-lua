@@ -713,8 +713,8 @@ end
 	//Gamma-driver
 	//B&S 4.82
 	//beta^i_,t = k (connBar^i_,t + eta connBar^i)
-	const real k = 0.;//3./4.;
-	const real eta = 0.;	// 1 / (2 M), for total mass M
+	const real k = 3./4.;
+	const real eta = 1.;	// 1 / (2 M), for total mass M
 	deriv->beta_u = real3_add(deriv->beta_u,
 		real3_add(
 			real3_real_mul(dt_LambdaBar_u, k),
@@ -784,6 +784,11 @@ then
 <? if eqn.guiVars.constrain_tr_ABar_ll.value then ?>
 	U->ABar_ll = tracefree(U->ABar_ll, gammaBar_ll, gammaBar_uu);
 <? end 
+else
+?>
+	real det_gammaHat_ll = coord_det_g(x);
+	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaHat_ll);
+<?
 end
 ?>
 

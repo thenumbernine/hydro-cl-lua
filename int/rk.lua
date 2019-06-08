@@ -39,7 +39,7 @@ function RungeKutta:init(solver)
 				env = solver.app.env,
 				name = 'derivBuf'..i,
 				type = solver.eqn.cons_t,
-				size = solver.numCells,
+				count = solver.numCells,
 			}
 			self.derivBufObjs[i]:fill(real(0))
 if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[i])) end

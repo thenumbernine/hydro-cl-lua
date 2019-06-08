@@ -340,9 +340,9 @@ end
 function MeshSolver:createBuffers()
 	MeshSolver.super.createBuffers(self)
 
-	self:clalloc('vtxBuf', self.numVtxs * ffi.sizeof'real3')
-	self:clalloc('cellsBuf', self.numCells * ffi.sizeof'cell_t')
-	self:clalloc('ifacesBuf', self.numInterfaces * ffi.sizeof'iface_t')
+	self:clalloc('vtxBuf', 'real3', self.numVtxs)
+	self:clalloc('cellsBuf', 'cell_t', self.numCells)
+	self:clalloc('ifacesBuf', 'iface_t', self.numInterfaces)
 end
 
 function MeshSolver:finalizeCLAllocs()

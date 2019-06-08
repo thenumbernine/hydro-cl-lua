@@ -32,8 +32,8 @@ end
 function EulerBurgers:createBuffers()
 	EulerBurgers.super.createBuffers(self)
 	
-	self:clalloc('intVelBuf', self.numCells * self.dim * ffi.sizeof(self.app.real))
-	self:clalloc('PBuf', self.numCells * ffi.sizeof(self.app.real))
+	self:clalloc('intVelBuf', self.app.real, self.numCells * self.dim)
+	self:clalloc('PBuf', self.app.real, self.numCells)
 end
 
 function EulerBurgers:getSolverCode()

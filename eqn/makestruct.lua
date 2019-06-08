@@ -2,18 +2,18 @@
 local ffi = require 'ffi'
 local table = require 'ext.table'
 
+--[[
+eqn consVars/primVars structure:
+vars = {
+	{name=name, type=type, units=units}, ...
+}
+--]]
+
 local function countScalars(vars, scalar)
 	scalar = scalar or 'real'
 	local structSize = 0
 	for _,var in ipairs(vars) do
-		local vartype
-		if type(var) == 'string' then
-			vartype = scalar
-		elseif type(var) == 'table' then
-			vartype = select(2, next(var))
-			assert(vartype, "expected vartype for var "..require 'ext.tolua'(var))
-		end
-		structSize = structSize + ffi.sizeof(vartype)
+		structSize = structSize + ffi.sizeof(var.type)
 	end
 	local numScalars = structSize / ffi.sizeof(scalar)
 	return numScalars
@@ -32,13 +32,7 @@ local function makeStruct(name, vars, scalar, dontUnion)
 		lines:insert('	struct {')
 	end	
 	for _,var in ipairs(vars) do
-		if type(var) == 'string' then
-			lines:insert('		'..scalar..' '..var..';')
-			vartype = 'real'
-		elseif type(var) == 'table' then
-			local vn, vt = next(var)
-			lines:insert('		'..vt..' '..vn..';')
-		end
+		lines:insert('		'..var.type..' '..var.name..';')
 	end
 	if not dontUnion then
 		lines:insert('	};')

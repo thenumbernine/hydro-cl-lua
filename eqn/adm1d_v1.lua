@@ -16,11 +16,11 @@ local ADM_BonaMasso_1D_2008Alcubierre = class(EinsteinEqn)
 ADM_BonaMasso_1D_2008Alcubierre.name = 'ADM_BonaMasso_1D_2008Alcubierre' 
 
 ADM_BonaMasso_1D_2008Alcubierre.consVars = {
-	{alpha = 'real'}, 
-	{gamma_xx = 'real'}, 
-	{a_x = 'real'}, 
-	{D_g = 'real'}, 
-	{KTilde = 'real'},
+	{name='alpha', type='real'}, 
+	{name='gamma_xx', type='real'}, 
+	{name='a_x', type='real'}, 
+	{name='D_g', type='real'}, 
+	{name='KTilde', type='real'},
 }
 ADM_BonaMasso_1D_2008Alcubierre.numWaves = 3	-- alpha and gamma_xx are source-term only
 
@@ -129,9 +129,9 @@ function ADM_BonaMasso_1D_2008Alcubierre:getDisplayVars()
 end
 
 ADM_BonaMasso_1D_2008Alcubierre.eigenVars = table{
-	{f = 'real'},
-	{alpha = 'real'},
-	{gamma_xx = 'real'},
+	{name='f', type='real'},
+	{name='alpha', type='real'},
+	{name='gamma_xx', type='real'},
 }
 
 function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCodePrefix(side, eig, x, waveIndex)

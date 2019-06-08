@@ -26,7 +26,7 @@ function ForwardEuler:init(solver)
 		env = solver.app.env,
 		name = 'derivBuf',
 		type = solver.eqn.cons_t,
-		size = solver.numCells,
+		count = solver.numCells,
 	}
 end
 

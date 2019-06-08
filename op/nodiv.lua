@@ -14,23 +14,11 @@ function NoDiv:init(args)
 	self.chargeField = args.chargeField
 end
 
--- template parameters forwarded back to getSolverCode
-function NoDiv:getCalcRhoCode()
-	if not self.chargeField then return end
-	return template([[
-	rho = <?=U?>-><?=op.chargeField?>; 
-]], 
-	{
-		op = self,
-		solver = self.solver,
-	})
-end
-
 --[[
 template parameters forwarded back to getSolverCode
 solve del^2 BPot = delta . B for BPot
 --]]
-function NoDiv:getCalcRhoCode()
+function NoDiv:getPoissonDivCode()
 	return template([[
 <?
 local scalar = op.scalar
@@ -59,9 +47,9 @@ end
 	divergence = <?=real_mul?>(divergence, .5);
 	
 	//because this is the discrete case, no 4pi
-	rho = divergence;
+	source = divergence;
 <? if op.chargeField then ?>
-	rho = <?=add?>(rho, U-><?=op.chargeField?>);
+	source = <?=add?>(source, U-><?=op.chargeField?>);
 <? end ?>
 ]], 
 	{

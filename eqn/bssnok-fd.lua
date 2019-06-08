@@ -40,17 +40,17 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	self.useShift = args.useShift or 'HyperbolicGammaDriver'
 
 	local intVars = table{
-		{alpha = 'real'},			-- 1
-		{beta_u = 'real3'},         -- 3: beta^i
-		{epsilon_ll = 'sym3'},    	-- 6: gammaBar_ij - gammaHat_ij, only 5 dof since det gammaBar_ij = 1
-		{W = 'real'},				-- 1: W = exp(-2 phi) = (det gammaHat_ij / det gamma_ij)^(1/6)
-		{K = 'real'},               -- 1: K = K^i_i
-		{ABar_ll = 'sym3'},       	-- 6: ABar_ij, only 5 dof since ABar^k_k = 0
-		{LambdaBar_u = 'real3'},    -- 3: LambdaBar^i = C^i + Delta^i = C^i + gammaBar^jk (connBar^i_jk - connHat^i_jk)
-									-- TODO what is C^i ?
+		{name='alpha', type='real'},			-- 1
+		{name='beta_u', type='real3'},		 	-- 3: beta^i
+		{name='epsilon_ll', type='sym3'},		-- 6: gammaBar_ij - gammaHat_ij, only 5 dof since det gammaBar_ij = 1
+		{name='W', type='real'},				-- 1: W = exp(-2 phi) = (det gammaHat_ij / det gamma_ij)^(1/6)
+		{name='K', type='real'},				-- 1: K = K^i_i
+		{name='ABar_ll', type='sym3'},			-- 6: ABar_ij, only 5 dof since ABar^k_k = 0
+		{name='LambdaBar_u', type='real3'},		-- 3: LambdaBar^i = C^i + Delta^i = C^i + gammaBar^jk (connBar^i_jk - connHat^i_jk)
+												-- TODO what is C^i ?
 	}
 	if self.useShift == 'HyperbolicGammaDriver' then
-		intVars:insert{B_u = 'real3'}
+		intVars:insert{name='B_u', type='real3'}
 	end
 
 	self.consVars = table()
@@ -62,13 +62,13 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 		--real3 Phi;			//3: Phi_i
 
 		--stress-energy variables:
-		{rho = 'real'},				--1: n_a n_b T^ab
-		{S_u = 'real3'},			--3: -gamma^ij n_a T_aj
-		{S_ll = 'sym3'},			--6: gamma_i^c gamma_j^d T_cd
+		{name='rho', type='real'},				--1: n_a n_b T^ab
+		{name='S_u', type='real3'},			--3: -gamma^ij n_a T_aj
+		{name='S_ll', type='sym3'},			--6: gamma_i^c gamma_j^d T_cd
 
 		--constraints:
-		{H = 'real'},				--1
-		{M_u = 'real3'},			--3
+		{name='H', type='real'},				--1
+		{name='M_u', type='real3'},			--3
 	}
 	self.numIntStates = makestruct.countScalars(intVars)
 	
@@ -80,12 +80,17 @@ end
 function BSSNOKFiniteDifferenceEquation:createInitState()
 	BSSNOKFiniteDifferenceEquation.super.createInitState(self)
 	self:addGuiVars{
-		{name='constrain_det_gammaBar_ll', value=true, compileTime=true},
+		--{name='constrain_det_gammaBar_ll', value=true, compileTime=true},
+		{name='constrain_det_gammaBar_ll', value=false, compileTime=true},
+
 		--{name='constrain_tr_ABar_ll', value=true, compileTime=true},
-{name='constrain_tr_ABar_ll', value=false, compileTime=true},
+		{name='constrain_tr_ABar_ll', value=false, compileTime=true},
+		
 		{name='calc_H_and_M', value=true, compileTime=true},
 		{name='diffuseSigma', value=.01},
-		{name='alphaMin', value=1e-7},
+		
+		--{name='alphaMin', value=1e-7},
+		{name='alphaMin', value=0},
 	}
 end
 

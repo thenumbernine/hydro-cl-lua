@@ -15,21 +15,21 @@ MHD.numIntStates = 8
 MHD.numStates = 10
 
 MHD.primVars = table{
-	{rho = 'real'},
-	{v = 'real3'},
-	{P = 'real'},
-	{B = 'real3'},
-	{BPot = 'real'},
-	{ePot = 'real'},	-- for selfgrav
+	{name='rho', type='real'},
+	{name='v', type='real3'},
+	{name='P', type='real'},
+	{name='B', type='real3'},
+	{name='BPot', type='real'},
+	{name='ePot', type='real'},	-- for selfgrav
 }
 
 MHD.consVars = table{
-	{rho = 'real'},
-	{m = 'real3'},
-	{ETotal = 'real'},
-	{B = 'real3'},
-	{BPot = 'real'},
-	{ePot = 'real'},	-- for selfgrav
+	{name='rho', type='real'},
+	{name='m', type='real3'},
+	{name='ETotal', type='real'},
+	{name='B', type='real3'},
+	{name='BPot', type='real'},
+	{name='ePot', type='real'},	-- for selfgrav
 }
 
 MHD.mirrorVars = {{'m.x', 'B.x'}, {'m.y', 'B.y'}, {'m.z', 'B.z'}}
@@ -285,41 +285,41 @@ end
 -- these are calculated based on cell-centered (or extrapolated) conserved vars
 -- they are used to calculate the eigensystem at a cell center or edge 
 MHD.roeVars = table{
-	{rho = 'real'},
-	{v = 'real3'},
-	{hTotal = 'real'},
-	{B = 'real3'},
-	{X = 'real'},
-	{Y = 'real'},
+	{name='rho', type='real'},
+	{name='v', type='real3'},
+	{name='hTotal', type='real'},
+	{name='B', type='real3'},
+	{name='X', type='real'},
+	{name='Y', type='real'},
 }
 
 
 -- here's the variables that an eigensystem uses to compute a left, right, or flux transform 
 MHD.eigenVars = table(MHD.roeVars):append{
 
-	{hHydro = 'real'},
-	{aTildeSq = 'real'},
+	{name='hHydro', type='real'},
+	{name='aTildeSq', type='real'},
 
-	{Cs = 'real'},
-	{CAx = 'real'},
-	{Cf = 'real'},
+	{name='Cs', type='real'},
+	{name='CAx', type='real'},
+	{name='Cf', type='real'},
 
-	{BStarPerpLen = 'real'},
-	{betaY = 'real'},
-	{betaZ = 'real'},
-	{betaStarY = 'real'},
-	{betaStarZ = 'real'},
-	{betaStarSq = 'real'},
+	{name='BStarPerpLen', type='real'},
+	{name='betaY', type='real'},
+	{name='betaZ', type='real'},
+	{name='betaStarY', type='real'},
+	{name='betaStarZ', type='real'},
+	{name='betaStarSq', type='real'},
 
-	{alphaF = 'real'},
-	{alphaS = 'real'},
+	{name='alphaF', type='real'},
+	{name='alphaS', type='real'},
 
-	{sqrtRho = 'real'},
-	{sbx = 'real'},
-	{Qf = 'real'},
-	{Qs = 'real'},
-	{Af = 'real'},
-	{As = 'real'},
+	{name='sqrtRho', type='real'},
+	{name='sbx', type='real'},
+	{name='Qf', type='real'},
+	{name='Qs', type='real'},
+	{name='Af', type='real'},
+	{name='As', type='real'},
 }
 
 

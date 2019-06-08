@@ -53,19 +53,19 @@ function GLM_Maxwell:init(args)
 
 
 	self.consVars = {
-		{D = self.vec3},			-- C/m^2
-		{B = self.vec3},			-- kg/(C s)
-		{phi = self.scalar},		-- C/m^2
-		{psi = self.scalar},		-- kg/(C s)
-		{rhoCharge = self.scalar},	-- C/m^3
-		{sigma = self.scalar},		-- (C^2 s)/(kg m^3)
-		{sqrt_1_eps = self.susc_t},
-		{sqrt_1_mu = self.susc_t},
+		{name='D', type=self.vec3},			-- C/m^2
+		{name='B', type=self.vec3},			-- kg/(C s)
+		{name='phi', type=self.scalar},		-- C/m^2
+		{name='psi', type=self.scalar},		-- kg/(C s)
+		{name='rhoCharge', type=self.scalar},	-- C/m^3
+		{name='sigma', type=self.scalar},		-- (C^2 s)/(kg m^3)
+		{name='sqrt_1_eps', type=self.susc_t},
+		{name='sqrt_1_mu', type=self.susc_t},
 	}
 
 	self.eigenVars = table{
-		{sqrt_1_eps = self.susc_t},	-- sqrt( (kg m^3)/(C^2 s^2) )
-		{sqrt_1_mu = self.susc_t},	-- sqrt( C^2/(kg m) )
+		{name='sqrt_1_eps', type=self.susc_t},	-- sqrt( (kg m^3)/(C^2 s^2) )
+		{name='sqrt_1_mu', type=self.susc_t},	-- sqrt( C^2/(kg m) )
 	}
 
 
@@ -177,15 +177,28 @@ kernel void initState(
 	real ePot = 0;
 	
 	<?=code?>
-	
-	U->D = <?=vec3?>_real_mul(eqn_cartesianToCoord(D, x), unit_C_per_m2);
-	U->B = <?=vec3?>_real_mul(eqn_cartesianToCoord(B, x), unit_kg_per_C_s);
+
+	U->D = eqn_cartesianToCoord(D, x);
+	U->B = eqn_cartesianToCoord(B, x);
 	U->phi = <?=zero?>;
 	U->psi = <?=zero?>;
-	U->sigma = <?=susc_t?>_real_mul(conductivity, unit_C2_s_per_kg_m3);
+	U->sigma = conductivity;
 	U->rhoCharge = <?=zero?>;
-	U->sqrt_1_eps = <?=sqrt?>(<?=inv?>(<?=susc_t?>_real_mul(permittivity, unit_C2_s2_per_kg_m3)));
-	U->sqrt_1_mu = <?=sqrt?>(<?=inv?>(<?=susc_t?>_real_mul(permeability, unit_kg_m_per_C2)));
+	U->sqrt_1_eps = <?=sqrt?>(<?=inv?>(permittivity));
+	U->sqrt_1_mu = <?=sqrt?>(<?=inv?>(permeability));
+
+#if defined(provideInitUnitsInSI)
+	U->D = <?=vec3?>_real_mul(U->D, 1. / unit_C_per_m2);
+	U->B = <?=vec3?>_real_mul(U->B, 1. / unit_kg_per_C_s);
+	U->phi = <?=scalar?>_real_mul(U->phi, );
+	U->psi = <?=scalar?>_real_mul(U->psi, );
+	U->sigma = <?=susc_t?>_real_mul(conductivity, 1. / unit_C2_s_per_kg_m3);
+	U->rhoCharge = <?=zero?>;
+	U->sqrt_1_eps = <?=sqrt?>(<?=inv?>(<?=susc_t?>_real_mul(permittivity, 1. / unit_C2_s2_per_kg_m3)));
+	U->sqrt_1_mu = <?=sqrt?>(<?=inv?>(<?=susc_t?>_real_mul(permeability, 1. / unit_kg_m_per_C2)));
+
+
+#endif
 }
 ]]
 

@@ -19,13 +19,21 @@ local sym = common.sym
 #define unit_m3					(unit_m * unit_m * unit_m)
 #define unit_C2					(unit_C * unit_C)
 #define unit_m_per_s			(unit_m / unit_s)
+#define unit_m2_per_s2			(unit_m2 / unit_s2)
+#define unit_m3_per_kg_s2		(unit_m3 / (unit_kg * unit_s2))
 #define unit_kg_per_m3			(unit_kg / unit_m3)
+#define unit_kg_per_m2_s		(unit_kg / (unit_m2 * unit_s))
 #define unit_kg_per_m_s2		(unit_kg / (unit_m * unit_s2))
 #define unit_C_per_m2			(unit_C / unit_m2)
 #define unit_kg_per_C_s			(unit_kg / (unit_C * unit_s))
 #define unit_kg_m_per_C2		(unit_kg * unit_m / unit_C2)
 #define unit_C2_s_per_kg_m3		((unit_C2 * unit_s) / (unit_kg * unit_m3))
 #define unit_C2_s2_per_kg_m3	((unit_C2 * unit_s2) / (unit_kg * unit_m3))
+
+//still not sure whether to use this or not
+//using this is convenient for intuitively for providing initial values
+//not using it means less numerical conversions to and from the initial values
+//#define provideInitUnitsInSI
 
 
 #define real_conj(x)		(x)
@@ -40,6 +48,7 @@ local sym = common.sym
 #define real_real_mul(a,b)	((a) * (b))
 #define real_div(a,b)		((a) / (b))
 #define real_lenSq(x)		((x) * (x))
+#define real_abs			fabs
 
 #define real_sqrt			sqrt
 

@@ -43,21 +43,21 @@ end
 end
 
 NavierStokesWilcox.primVars = table{
-	{rhoBar = 'real'},
-	{vTilde = 'real3'},
-	{PStar = 'real'},
-	{k = 'real'},
-	{omega = 'real'},
-	{ePot = 'real'},
+	{name='rhoBar', type='real'},
+	{name='vTilde', type='real3'},
+	{name='PStar', type='real'},
+	{name='k', type='real'},
+	{name='omega', type='real'},
+	{name='ePot', type='real'},
 }
 
 NavierStokesWilcox.consVars = table{
-	{rhoBar = 'real'},
-	{rhoBar_vTilde = 'real3'},
-	{rhoBar_eTotalTilde = 'real'},
-	{rhoBar_k = 'real'},
-	{rhoBar_omega = 'real'},
-	{ePot = 'real'},
+	{name='rhoBar', type='real'},
+	{name='rhoBar_vTilde', type='real3'},
+	{name='rhoBar_eTotalTilde', type='real'},
+	{name='rhoBar_k', type='real'},
+	{name='rhoBar_omega', type='real'},
+	{name='ePot', type='real'},
 }
 
 function NavierStokesWilcox:createInitState()
@@ -314,7 +314,7 @@ function NavierStokesWilcox:getDisplayVars()
 for side=0,solver.dim-1 do ?>{
 			global const <?=eqn.cons_t?>* Um = U - solver->stepsize.s<?=side?>;
 			global const <?=eqn.cons_t?>* Up = U + solver->stepsize.s<?=side?>;
-			value_real3->s<?=side?> = -(Up-><?=eqn.gravOp.potentialField?> - Um-><?=eqn.gravOp.potentialField?>) / (2. * cell_dx<?=side?>(i));
+			value_real3->s<?=side?> = -(Up-><?=eqn.gravOp.potentialField?> - Um-><?=eqn.gravOp.potentialField?>) / (2. * cell_dx<?=side?>(x));
 		}<? 
 end
 for side=solver.dim,2 do ?>
@@ -347,14 +347,14 @@ end
 
 NavierStokesWilcox.eigenVars = table{
 	-- Roe-averaged vars
-	{rhoBar = 'real'},
-	{vTilde = 'real3'},
-	{hTotal = 'real'},
-	{k = 'real'},
-	{omega = 'real'},
+	{name='rhoBar', type='real'},
+	{name='vTilde', type='real3'},
+	{name='hTotal', type='real'},
+	{name='k', type='real'},
+	{name='omega', type='real'},
 	-- derived vars
-	{vTildeSq = 'real'},
-	{Cs = 'real'},
+	{name='vTildeSq', type='real'},
+	{name='Cs', type='real'},
 }
 
 function NavierStokesWilcox:eigenWaveCodePrefix(side, eig, x)

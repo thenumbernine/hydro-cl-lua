@@ -129,7 +129,7 @@ end ?>
 	global <?=op:getPotBufType()?>* U = UBuf + index;
 
 <? for j=0,solver.dim-1 do ?>
-	real dx<?=j?> = cell_dx<?=j?>(i);
+	real dx<?=j?> = cell_dx<?=j?>(x);
 <? end ?>
 
 	real3 intIndex = _real3(i.x, i.y, i.z);
@@ -170,13 +170,13 @@ local real_mul = scalar..'_real_mul'
 	) / volAtX;
 
 
-	<?=scalar?> rho = <?=zero?>;
-	<?=op:getCalcRhoCode() or ''?>
+	<?=scalar?> source = <?=zero?>;
+<?=op:getPoissonDivCode() or ''?>
 
 	<?=scalar?> oldU = U-><?=op.potentialField?>;
 	
 	//Gauss-Seidel iteration: x_i = (b_i - A_ij x_j) / A_ii
-	<?=scalar?> newU = <?=real_mul?>(<?=sub?>(rho, skewSum), 1. / diag);
+	<?=scalar?> newU = <?=real_mul?>(<?=sub?>(source, skewSum), 1. / diag);
 
 <?
 if op.stopOnEpsilon then

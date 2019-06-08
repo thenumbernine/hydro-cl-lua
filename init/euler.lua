@@ -60,9 +60,6 @@ function SelfGravProblem:__call(initState, solver)
 	local args = self.args
 
 	solver.useGravity = true
-	--[[ the boundary might not be necessary/appropriate, esp for cylindrical geometry
-	solver:setBoundaryMethods'freeflow'
-	--]]
 
 	return template([[
 	rho = .1;
@@ -1351,25 +1348,44 @@ end ?>;
 	-- gravity potential test - equilibrium - Rayleigh-Taylor ... or is it Jeans? (still has an shock wave ... need to fix initial conditions?)
 
 	{
-		name = 'self-gravitation test 1',
+		name = 'self-gravitation - Earth',
+		mins = {-2,-2,-2},
+		maxs = {2,2,2},
+		overrideGuiVars = {
+			meter = 6.371e+6,	-- radius 1, grid = 2 M_Earth, so the sphere is M_Earth size
+			
+			-- 4/3 pi (1)^3 rho = m <=> rho = 3 m /(4 pi)
+			kilogram = 5.9722e+24 * 3 / (4 * math.pi),
+		
+			-- m^3 / (kg s^2) = 0.00027206228446278  
+			-- gravitational constant = 1.8157001565391e-14  
+		},
 		initState = function(self, solver)
-			local radius = .5
 			local f = SelfGravProblem{
 				solver = solver,
 				sources={
-					{center={0, 0, 0}, radius = radius},
+					{center={0, 0, 0}, radius = 1},
 				},
 			}
-			if require 'coord.cylinder'.is(solver.coord) then
-				solver:setBoundaryMethods{
-					xmin = 'freeflow',
-					xmax = 'freeflow',
-					ymin = 'periodic',
-					ymax = 'periodic',
-					zmin = 'freeflow',
-					zmax = 'freeflow',
-				}
-			end
+			return f(self, solver)
+		end
+	},
+
+
+	{
+		name = 'self-gravitation test 1',
+		mins = {-1,-1,-1},
+		maxs = {1,1,1},
+		overrideGuiVars = {
+			gravitationalConstant = 1,
+		},
+		initState = function(self, solver)
+			local f = SelfGravProblem{
+				solver = solver,
+				sources={
+					{center={0, 0, 0}, radius = .5},
+				},
+			}
 			return f(self, solver)
 		end
 	},

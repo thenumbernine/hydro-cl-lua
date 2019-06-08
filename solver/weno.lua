@@ -51,7 +51,7 @@ function WENO:createBuffers()
 	WENO.super.createBuffers(self)
 
 	-- flux of cell-centered state values
---	self:clalloc('fluxCellBuf', self.numCells * self.dim * ffi.sizeof(self.eqn.cons_t))
+--	self:clalloc('fluxCellBuf', self.eqn.cons_t, self.numCells * self.dim)
 end
 
 function WENO:getSolverCode()

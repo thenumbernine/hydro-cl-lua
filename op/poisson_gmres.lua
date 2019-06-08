@@ -8,16 +8,19 @@ local tooltip = require 'tooltip'
 local template = require 'template'
 
 local CLBuffer = require 'cl.obj.buffer'
-local CLGMRES = require 'solver.cl.gmres'
 
--- can I combine this with the CLGMRES in int/be.lua somehow?
-local ThisGMRES = class(CLGMRES)
+--local CLKrylov = require 'solver.cl.conjgrad'
+local CLKrylov = require 'solver.cl.conjres'
+--local CLKrylov = require 'solver.cl.gmres'
 
-function ThisGMRES:newBuffer(name)
+-- can I combine this with the CLKrylov in int/be.lua somehow?
+local ThisKrylov = class(CLKrylov)
+
+function ThisKrylov:newBuffer(name)
 	if not self.cache then self.cache = {} end
 	local cached = self.cache[name]
 	if cached then return cached end
-	cached = ThisGMRES.super.newBuffer(self, name)
+	cached = ThisKrylov.super.newBuffer(self, name)
 	cached:fill()
 	self.cache[name] = cached
 	return cached
@@ -25,19 +28,27 @@ end
 
 local Poisson = class()
 
+Poisson.name = 'Poisson'
+
 Poisson.potentialField = 'ePot'
 
-function Poisson:init(args)
-	self.solver = assert(args.solver)
-	self.potentialField = args.potentialField
-end
+Poisson.scalar = 'real'
 
 function Poisson:getPotBufType()
-	return self.solver.eqn.cons_t
+	return self.solver.UBufObj.type
 end
 
 function Poisson:getPotBuf()
 	return self.solver.UBuf
+end
+
+function Poisson:init(args)
+	local solver = assert(args.solver)
+	self.solver = solver
+	self.potentialField = args.potentialField
+
+	-- matches op/relaxation.lua
+	self.name = solver.app:uniqueName(self.name)
 end
 
 function Poisson:initSolver()
@@ -51,7 +62,7 @@ function Poisson:initSolver()
 			env = solver.app.env,
 			name = name,
 			type = 'real',
-			size = solver.numCells,	-- without border?
+			count = solver.numCells,	-- without border?
 		}
 	end
 
@@ -62,6 +73,7 @@ function Poisson:initSolver()
 			{name='y', type=solver.app.real, obj=true},
 		},
 		argsIn = {
+			solver.solverBuf,
 			{name='a', type=solver.app.real, obj=true},
 			{name='b', type=solver.app.real, obj=true},
 		},
@@ -76,32 +88,37 @@ function Poisson:initSolver()
 	local volumeWithoutBorder = tonumber(solver.sizeWithoutBorder:volume())
 
 	local sum = solver.app.env:reduce{
-		size = volumeWithoutBorder,
+		count = volumeWithoutBorder,
 		op = function(x,y) return x..' + '..y end,
 	}
 	local dotWithoutBorder = function(a,b)
-		mulWithoutBorder(sum.buffer, a, b)
+		mulWithoutBorder(sum.buffer, self.solverBuf, a, b)
 		return sum()
 	end
-
-	self.last_err = 0
-	self.last_iter = 0
+	
+	local restart = args and args.restart or 10
+	local epsilon = 1e-10
+	self.lastResidual = 0
+	self.lastIter = 0
 	local linearSolverArgs = {
 		env = solver.app.env,
 		x = self.krylov_xObj,
-		size = volumeWithoutBorder,
-		epsilon = 1e-10,
+		count = volumeWithoutBorder,
+		epsilon = epsilon,
 		--maxiter = 1000,
-		restart = 10,
-		maxiter = 10 * volumeWithoutBorder,
+		restart = restart,
+		maxiter = restart * volumeWithoutBorder,
 		-- logging:
-		errorCallback = function(err, iter, x, rLenSq)
-			self.last_err = err
-			self.last_iter = iter
-			
-			if not math.isfinite(err) then
-				print("got non-finite err: "..err)	-- error?
+		errorCallback = function(residual, iter, x, rLenSq)
+			local lastResidual, lastIter = self.lastResidual, self.lastIter
+			self.lastResidual, self.lastIter = residual, iter
+print('krylov iter', iter, 'residual', residual)			
+			if not math.isfinite(residual) then
+				print("got non-finite residual: "..residual)	-- error?
 				return true	-- fail
+			end
+			if math.abs(residual - lastResidual) < epsilon then
+				return true
 			end
 		end,
 		dot = function(a,b)
@@ -114,78 +131,77 @@ function Poisson:initSolver()
 	linearSolverArgs.A = function(UNext, U)
 		-- A(x) = div x
 		-- but don't use the poisson.cl one, that's for in-place Gauss-Seidel
-		self.poissonGMRESLinearFuncKernelObj(solver.solverBuf, UNext, U)
+		self.poissonKrylovLinearFuncKernelObj(solver.solverBuf, UNext, U)
 	end	
-	self.linearSolver = ThisGMRES(linearSolverArgs)
+	self.linearSolver = ThisKrylov(linearSolverArgs)
 end
 
-local poissonGMRESCode = [[
+local poissonKrylovCode = [[
 
-kernel void poissonGMRESLinearFunc(
+kernel void poissonKrylovLinearFunc<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
-	global real* y,
-	global real* x
+	global real* Y,
+	global real* X
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost, numGhost)) {
-		y[index] = 0.;
+		Y[index] = 0.;
 		return;
 	}
+	real3 x = cell_x(i);
 
 <? for j=0,solver.dim-1 do ?>
-	real dx<?=j?> = cell_dx<?=j?>(i);
+	real dx<?=j?> = cell_dx<?=j?>(x);
 <? end ?>
 
-	real3 intIndex = _real3(i.x, i.y, i.z);
+	real3 xInt = x;
 	real3 volL, volR;
-<? for j=0,solver.dim-1 do ?>
-	intIndex.s<?=j?> = i.s<?=j?> - .5;
-	volL.s<?=j?> = cell_volume(solver, cell_x(intIndex));
-	intIndex.s<?=j?> = i.s<?=j?> + .5;
-	volR.s<?=j?> = cell_volume(solver, cell_x(intIndex));
-	intIndex.s<?=j?> = i.s<?=j?>;
-<? end ?>
-	real volAtX = cell_volume(solver, cell_x(i));
+<? for j=0,solver.dim-1 do 
+?>	xInt.s<?=j?> = x.s<?=j?> - .5 * solver->grid_dx.s<?=j?>;
+	volL.s<?=j?> = cell_volume(solver, xInt);
+	xInt.s<?=j?> = x.s<?=j?> + .5 * solver->grid_dx.s<?=j?>;
+	volR.s<?=j?> = cell_volume(solver, xInt);
+	xInt.s<?=j?> = x.s<?=j?>;
+<? end 
+?>	real volAtX = cell_volume(solver, x);
 
 	real sum = (0.
 <? for j=0,solver.dim-1 do ?>
-		+ volR.s<?=j?> * x[index + solver->stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>)
-		+ volL.s<?=j?> * x[index - solver->stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>)
+		+ volR.s<?=j?> * X[index + solver->stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>)
+		+ volL.s<?=j?> * X[index - solver->stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>)
 <? end 
 ?>	) / volAtX;
 
-	sum += x[index] * (0.
+	sum += X[index] * (0.
 <? for j=0,solver.dim-1 do ?>
 		- (volR.s<?=j?> + volL.s<?=j?>) / (dx<?=j?> * dx<?=j?>)
 <? end ?>
 	) / volAtX;
 
-	y[index] = sum;
+	Y[index] = sum;
 }
 
-kernel void copyPotentialFieldToVecAndInitB(
+kernel void copyPotentialFieldToVecAndInitB<?=op.name?>(
+	constant <?=solver.solver_t?>* solver,
 	global real* x,
 	global real* b,
 	global const <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0, 0);
-
 	global const <?=eqn.cons_t?>* U = UBuf + index;
-
-	x[index] = U-><?=poisson.potentialField?>;
-	
-	real rho = 0.;
-	<?=calcRho?>
-	b[index] = rho;
+	x[index] = U-><?=op.potentialField?>;
+	real source = 0.;
+<?=op:getPoissonDivCode() or ''?>
+	b[index] = -source;
 }
 
-kernel void copyVecToPotentialField(
+kernel void copyVecToPotentialField<?=op.name?>(
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,
 	global const real* x
 ) {
 	SETBOUNDS(0, 0);
-	
-	UBuf[index].<?=poisson.potentialField?> = x[index];
+	UBuf[index].<?=op.potentialField?> = x[index];
 }
 ]]
 
@@ -195,26 +211,27 @@ function Poisson:getSolverCode()
 		template(
 			table{
 				file['op/poisson.cl'],
-				poissonGMRESCode,
+				poissonKrylovCode,
 				self:getPoissonCode() or '',
-			}:concat'\n',
-			table(self:getCodeParams(), {
+			}:concat'\n', {
 				op = self,
 				solver = self.solver,
 				eqn = self.solver.eqn,
-			})),
+			}
+		),
 	}:concat'\n'
 end
 
 function Poisson:refreshSolverProgram()
 	local solver = self.solver
 	self:initSolver()
-	self.initRelaxationPotentialKernelObj = solver.solverProgramObj:kernel('initRelaxationPotential', self:getPotBuf())
-	self.copyPotentialFieldToVecAndInitBKernelObj = solver.solverProgramObj:kernel('copyPotentialFieldToVecAndInitB', assert(self.krylov_xObj.obj), self.krylov_bObj.obj, self:getPotBuf())
-	self.copyVecToPotentialFieldKernelObj = solver.solverProgramObj:kernel('copyVecToPotentialField', self:getPotBuf(), self.krylov_xObj.obj)
-	self.poissonGMRESLinearFuncKernelObj = solver.solverProgramObj:kernel'poissonGMRESLinearFunc'
+	self.initPotentialKernelObj = solver.solverProgramObj:kernel('initPotential'..self.name, solver.solverBuf, self:getPotBuf())
+	self.copyPotentialFieldToVecAndInitBKernelObj = solver.solverProgramObj:kernel('copyPotentialFieldToVecAndInitB'..self.name, solver.solverBuf, assert(self.krylov_xObj.obj), self.krylov_bObj.obj, self:getPotBuf())
+	self.copyVecToPotentialFieldKernelObj = solver.solverProgramObj:kernel('copyVecToPotentialField'..self.name, solver.solverBuf, self:getPotBuf(), self.krylov_xObj.obj)
+	self.poissonKrylovLinearFuncKernelObj = solver.solverProgramObj:kernel('poissonKrylovLinearFunc'..self.name)
 end
 
+-- matches op/relaxation.lua
 function Poisson:refreshBoundaryProgram()
 	local solver = self.solver
 	-- only applies the boundary conditions to Poisson:potentialField
@@ -233,21 +250,23 @@ function Poisson:refreshBoundaryProgram()
 	end
 end
 
--- TODO
--- for Euler, add potential energy into total energy
--- then MAKE SURE TO SUBTRACT IT OUT everywhere internal energy is used
+-- matches op/relaxation.lua
 function Poisson:resetState()
 	local solver = self.solver
 	if self.enableField and not solver[self.enableField] then return end
-	self.initRelaxationPotentialKernelObj()
-	solver:potentialBoundary()
+	self.initPotentialKernelObj()
+	self:potentialBoundary()
 	self:relax()
 end
 
 function Poisson:relax()
 	local solver = self.solver
+	
+	-- apply boundary conditions to UBuf.potentialField before our iterative solution	
+	-- (TODO should we be applying it each iteration as well?)
+	self:potentialBoundary()
 	-- copy potential field into krylov_x
-	-- calculate krylov_b by Poisson:getCodeParams().calcRho
+	-- calculate krylov_b by Poisson:getCodeParams():getPoissonDivCode()
 	self.copyPotentialFieldToVecAndInitBKernelObj()
 	-- solve
 	self.linearSolver()
@@ -255,21 +274,21 @@ function Poisson:relax()
 	self.copyVecToPotentialFieldKernelObj()
 end
 
+-- matches to op/relaxation.lua
 function Poisson:potentialBoundary()
 	self.solver:applyBoundaryToBuffer(self.potentialBoundaryKernelObjs)
 end
 
+-- similar to op/relaxation.lua
 function Poisson:updateGUI()
-	-- TODO unique name for other Poisson solvers?
-	ig.igPushIDStr'Poisson GMRES solver'
+	ig.igPushIDStr(self.name..' solver')
 	-- TODO name from 'field' / 'enableField', though those aren't properties of Poisson
 	if ig.igCollapsingHeader'Poisson solver' then
 		tooltip.numberTable('Krylov epsilon', self.linearSolver.args, 'epsilon')
 		tooltip.intTable('GMRES restart', self.linearSolver.args, 'restart')
-		tooltip.intTable('Krylov maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
-		-- read-only:
-		ig.igText('err = '..self.last_err)
-		ig.igText('iter = '..self.last_iter)
+		tooltip.intTable('maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
+		ig.igText('residual = '..self.lastResidual)
+		ig.igText('iter = '..self.lastIter)
 	end
 	ig.igPopID()
 end

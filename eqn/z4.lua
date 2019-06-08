@@ -65,16 +65,16 @@ useShift
 function Z4_2004Bona:init(args)
 
 	local fluxVars = table{
-		{a_l = 'real3'},
-		{d_lll = '_3sym3'},
-		{K_ll = 'sym3'},
-		{Theta = 'real'},
-		{Z_l = 'real3'},
+		{name='a_l', type='real3'},
+		{name='d_lll', type='_3sym3'},
+		{name='K_ll', type='sym3'},
+		{name='Theta', type='real'},
+		{name='Z_l', type='real3'},
 	}
 
 	self.consVars = table{
-		{alpha = 'real'},
-		{gamma_ll = 'sym3'},
+		{name='alpha', type='real'},
+		{name='gamma_ll', type='sym3'},
 	}:append(fluxVars)
 
 
@@ -107,12 +107,12 @@ function Z4_2004Bona:init(args)
 	self.useStressEnergyTerms = true
 
 	if self.useShift ~= 'none' then
-		self.consVars:insert{beta_u = 'real3'}
+		self.consVars:insert{name='beta_u', type='real3'}
 
 		if self.useShift == 'MinimalDistortionElliptic' 
 		or self.useShift == 'MinimalDistortionEllipticEvolve' 
 		then
-			self.consVars:insert{betaLap_u = 'real3'}
+			self.consVars:insert{name='betaLap_u', type='real3'}
 		end
 	end
 
@@ -151,29 +151,29 @@ function Z4_2004Bona:init(args)
 	if self.useStressEnergyTerms then
 		self.consVars:append{
 			--stress-energy variables:
-			{rho = 'real'},					--1: n_a n_b T^ab
-			{S_u = 'real3'},				--3: -gamma^ij n_a T_aj
-			{S_ll = 'sym3'},				--6: gamma_i^c gamma_j^d T_cd
+			{name='rho', type='real'},					--1: n_a n_b T^ab
+			{name='S_u', type='real3'},				--3: -gamma^ij n_a T_aj
+			{name='S_ll', type='sym3'},				--6: gamma_i^c gamma_j^d T_cd
 		}								
 	end
 	self.consVars:append{
 		--constraints:              
-		{H = 'real'},					--1
-		{M_u = 'real3'},				--3
+		{name='H', type='real'},					--1
+		{name='M_u', type='real3'},				--3
 	}
 
 	self.eigenVars = table{
-		{alpha = 'real'},
-		{sqrt_f = 'real'},
-		{gamma_ll = 'sym3'},
-		{gamma_uu = 'sym3'},
+		{name='alpha', type='real'},
+		{name='sqrt_f', type='real'},
+		{name='gamma_ll', type='sym3'},
+		{name='gamma_uu', type='sym3'},
 		-- sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
-		{sqrt_gammaUjj = 'real3'},
+		{name='sqrt_gammaUjj', type='real3'},
 	}
 
 	-- hmm, only certain shift methods actually use beta_u ...
 	if self.useShift ~= 'none' then
-		self.eigenVars:insert{beta_u = 'real3'}
+		self.eigenVars:insert{name='beta_u', type='real3'}
 	end
 
 

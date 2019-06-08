@@ -2,7 +2,6 @@
 This is a Solver that uses a fluxBuffer
 and that uses calcDerivFromFlux to update it
 --]]
-local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
@@ -22,7 +21,7 @@ local FiniteVolumeSolver = class(GridSolver)
 
 function FiniteVolumeSolver:createBuffers()
 	FiniteVolumeSolver.super.createBuffers(self)
-	self:clalloc('fluxBuf', self.numCells * self.dim * ffi.sizeof(self.eqn.cons_t))
+	self:clalloc('fluxBuf', self.eqn.cons_t, self.numCells * self.dim)
 end
 
 function FiniteVolumeSolver:getSolverCode()

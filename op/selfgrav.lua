@@ -4,35 +4,29 @@ local class = require 'ext.class'
 local tooltip = require 'tooltip'
 local template = require 'template'
 
-local Poisson = require 'op.poisson'
---local Poisson = require 'op.poisson_gmres'
+--local Poisson = require 'op.poisson'
+local Poisson = require 'op.poisson_gmres'
 
 local SelfGrav = class(Poisson)
 
--- potential field is inhertied from Poisson: ePot
-SelfGrav.densityField = 'rho'
-
 SelfGrav.enableField = 'useGravity'
-
-SelfGrav.gravitationConstant = 1	---- 6.67384e-11 m^3 / (kg s^2)
 
 function SelfGrav:init(args)
 	SelfGrav.super.init(self, args)
-	self.densityField = args.densityField	
 	self.solver[self.enableField] = not not self.solver[self.enableField]
 end
 
+SelfGrav.guiVars = {
+	{name='gravitationalConstant', value=6.67384e-11},	-- m^3/(kg s^2)
+}
+
 -- params for op/poisson.cl 
-function SelfGrav:getCalcRhoCode()
+-- units of m^3/(kg*s^2) * kg/m^3 = 1/s^2
+function SelfGrav:getPoissonDivCode()
 	return template([[
-	//maybe a 4pi?  or is that only in the continuous case?
-	rho = <?=clnumber(op.gravitationConstant)?>
-		* U-><?=op.densityField?>;
+	source = solver->gravitationalConstant * unit_m3_per_kg_s2 * U->rho;
 ]], {
 		op = self,
-		solver = self.solver,
-		eqn = self.solver.eqn,
-		clnumber = require 'cl.obj.number',
 	})
 end
 
@@ -47,28 +41,35 @@ kernel void calcGravityDeriv(
 	
 	global <?=eqn.cons_t?>* deriv = derivBuffer + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-
+		
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		int indexL = index - solver->stepsize.s<?=side?>;
 		int indexR = index + solver->stepsize.s<?=side?>;
-	
-		real gravity = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * cell_dx<?=side?>(i));
 
-		deriv->m.s[side] -= U-><?=self.densityField?> * gravity;
-		deriv->ETotal -= U-><?=self.densityField?> * gravity * U->m.s[side];
+		// m/s^2
+		real accel_g = (
+			UBuf[indexR].<?=op.potentialField?> 
+			- UBuf[indexL].<?=op.potentialField?>
+		) / (2. * cell_dx<?=side?>(x));
+
+		// kg/(m^2 s) = kg/m^3 * m/s^2
+		deriv->m.s[side] -= U->rho * accel_g;
+	
+		// kg/(m s^2) = (kg m^2 / s) * m/s^2
+		deriv->ETotal -= U->m.s[side] * accel_g;
 	}<? end ?>
 }
 
 //TODO just use the display var kernels
-kernel void reduce_ePot(
+kernel void copyPotentialToReduce(
 	constant <?=solver.solver_t?>* solver,
 	global real* reduceBuf,
 	global const <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
-	reduceBuf[index] = UBuf[index].<?=self.potentialField?>;
+	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
 }
 
 //hmm, if ePot is negative then we get the cool turbulence effect
@@ -84,11 +85,13 @@ kernel void offsetPotentialAndAddToTotal(
 	
 	SETBOUNDS(0,0);
 	global <?=eqn.cons_t?>* U = UBuf + index;
-	U-><?=self.potentialField?> += basePotential - ePotMin;
-	U->ETotal += U-><?=self.densityField?> * U-><?=self.potentialField?>;
+	U-><?=op.potentialField?> += basePotential - ePotMin;
+	real source = 0.;
+<?=op:getPoissonDivCode()?>
+	U->ETotal += source * U-><?=op.potentialField?>;
 }
 ]], {
-		self = self,
+		op = self,
 		solver = self.solver,
 		eqn = self.solver.eqn,
 	})
@@ -102,9 +105,8 @@ function SelfGrav:refreshSolverProgram()
 	self.calcGravityDerivKernelObj.obj:setArg(0, solver.solverBuf)
 	self.calcGravityDerivKernelObj.obj:setArg(2, solver.UBuf)
 
-	--TODO just use the display var kernels
-	self.reduce_ePotKernelObj = solver.solverProgramObj:kernel('reduce_ePot', solver.solverBuf, solver.reduceBuf, solver.UBuf)
-	
+	--TODO just use the display var kernels?
+	self.copyPotentialToReduceKernelObj = solver.solverProgramObj:kernel('copyPotentialToReduce', solver.solverBuf, solver.reduceBuf, solver.UBuf)
 	self.offsetPotentialAndAddToTotalKernelObj = solver.solverProgramObj:kernel('offsetPotentialAndAddToTotal', solver.solverBuf, solver.UBuf)
 end
 
@@ -114,28 +116,31 @@ local function real(x)
 	return realptr
 end
 
+
+-- TODO easier way to reduce min/max on display var ePot
+--		but that means compiling the ePot dispaly var code even if the ePot display var is turned off ...
+-- TODO stop calling them 'display var' since they're not just used for displaying
 function SelfGrav:resetState()
+	local solver = self.solver
+
+	-- this does an initial relax()
 	SelfGrav.super.resetState(self)
 
-	local solver = self.solver
-	
-	-- TODO easier way to reduce min/max on display var ePot
-	--		but that means compiling the ePot dispaly var code even if the ePot display var is turned off ...
-	-- TODO stop calling them 'display var' since they're not just used for displaying
-	self.reduce_ePotKernelObj()
+	self.copyPotentialToReduceKernelObj()
+
 	local ePotMin = solver.reduceMin()
-	self.reduce_ePotKernelObj()
+	self.copyPotentialToReduceKernelObj()
 	local ePotMax = solver.reduceMax()
 
 	self.offsetPotentialAndAddToTotalKernelObj.obj:setArg(2, real(ePotMin))
 	self.offsetPotentialAndAddToTotalKernelObj()
 	
-	self.reduce_ePotKernelObj()
+	self.copyPotentialToReduceKernelObj()
 	local new_ePotMin = solver.reduceMin()
-	self.reduce_ePotKernelObj()
+	self.copyPotentialToReduceKernelObj()
 	local new_ePotMax = solver.reduceMax()
 
-	--print('offsetting potential energy from '..ePotMin..','..ePotMax..' to '..new_ePotMin..','..new_ePotMax)
+	print('offsetting potential energy from '..ePotMin..','..ePotMax..' to '..new_ePotMin..','..new_ePotMax)
 end
 
 function SelfGrav:updateGUI()
@@ -145,14 +150,13 @@ function SelfGrav:updateGUI()
 	ig.igPopID()
 end
 
-function SelfGrav:step(dt)
+function SelfGrav:addSource(derivBufObj)
 	local solver = self.solver
 	if not solver[self.enableField] then return end
-	solver.integrator:integrate(dt, function(derivBufObj)
-		self:relax()
-		self.calcGravityDerivKernelObj.obj:setArg(1, derivBufObj.obj)
-		self.calcGravityDerivKernelObj()
-	end)
+
+	self:relax()
+	self.calcGravityDerivKernelObj.obj:setArg(1, derivBufObj.obj)
+	self.calcGravityDerivKernelObj()
 end
 
 return SelfGrav

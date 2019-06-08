@@ -46,44 +46,44 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.numIntStates = 26
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.consVars = table{
 	--integration variables		
-	{ion_rho = 'real'},
-	{ion_m = 'real3'},		-- m^i
-	{ion_ETotal = 'real'},
+	{name='ion_rho', type='real'},
+	{name='ion_m', type='real3'},		-- m^i
+	{name='ion_ETotal', type='real'},
 	
-	{elec_rho = 'real'},
-	{elec_m = 'real3'},		-- m^i
-	{elec_ETotal = 'real'},
+	{name='elec_rho', type='real'},
+	{name='elec_m', type='real3'},		-- m^i
+	{name='elec_ETotal', type='real'},
 
-	{D = 'real3'},			-- E_i
-	{B = 'real3'},			-- B_i
-	{phi = 'real'},			-- D potential
-	{psi = 'real'},			-- B potential
+	{name='D', type='real3'},			-- E_i
+	{name='B', type='real3'},			-- B_i
+	{name='phi', type='real'},			-- D potential
+	{name='psi', type='real'},			-- B potential
 
-	{D_g = 'real3'},		-- (E_g)_i
-	{B_g = 'real3'},		-- (B_g)_i
-	{phi_g = 'real'},		-- E_g potential
-	{psi_g = 'real'},		-- B_g potential
+	{name='D_g', type='real3'},			-- (E_g)_i
+	{name='B_g', type='real3'},			-- (B_g)_i
+	{name='phi_g', type='real'},		-- E_g potential
+	{name='psi_g', type='real'},		-- B_g potential
 }
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.primVars = table{
 	--integration variables		
-	{ion_rho = 'real'},
-	{ion_v = 'real3'},
-	{ion_P = 'real'},
+	{name='ion_rho', type='real'},
+	{name='ion_v', type='real3'},
+	{name='ion_P', type='real'},
 	
-	{elec_rho = 'real'},
-	{elec_v = 'real3'},
-	{elec_P = 'real'},
+	{name='elec_rho', type='real'},
+	{name='elec_v', type='real3'},
+	{name='elec_P', type='real'},
 
-	{D = 'real3'},
-	{B = 'real3'},
-	{phi = 'real'},
-	{psi = 'real'},
+	{name='D', type='real3'},
+	{name='B', type='real3'},
+	{name='phi', type='real'},
+	{name='psi', type='real'},
 	
-	{D_g = 'real3'},
-	{B_g = 'real3'},
-	{phi_g = 'real'},
-	{psi_g = 'real'},
+	{name='D_g', type='real3'},
+	{name='B_g', type='real3'},
+	{name='phi_g', type='real'},
+	{name='psi_g', type='real'},
 }
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.mirrorVars = {
@@ -602,13 +602,13 @@ local eigenVars = table()
 for _,fluid in ipairs(fluids) do
 	eigenVars:append{
 		-- Roe-averaged vars
-		{[fluid..'_rho'] = 'real'},
-		{[fluid..'_v'] = 'real3'},
-		{[fluid..'_hTotal'] = 'real'},
+		{name=fluid..'_rho', type='real'},
+		{name=fluid..'_v', type='real3'},
+		{name=fluid..'_hTotal', type='real'},
 
 		-- derived vars
-		{[fluid..'_vSq'] = 'real'},
-		{[fluid..'_Cs'] = 'real'},
+		{name=fluid..'_vSq', type='real'},
+		{name=fluid..'_Cs', type='real'},
 	}
 end
 

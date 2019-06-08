@@ -22,16 +22,16 @@ local Z4_2008Yano = class(EinsteinEqn)
 Z4_2008Yano.name = 'Z4 (2008 Yano et al)'
 
 local fluxVars = table{
-	{a_l = 'real3'},		-- 3:  0-2
-	{d_lll = '_3sym3'},		-- 18: 3-20
-	{K_ll = 'sym3'},		-- 6:  21-26
-	{Theta = 'real'},		-- 1:  27
-	{Z_l = 'real3'},		-- 3:  28-30
+	{name='a_l', type='real3'},		-- 3:  0-2
+	{name='d_lll', type='_3sym3'},	-- 18: 3-20
+	{name='K_ll', type='sym3'},		-- 6:  21-26
+	{name='Theta', type='real'},	-- 1:  27
+	{name='Z_l', type='real3'},		-- 3:  28-30
 }
 
 Z4_2008Yano.consVars = table{
-	{alpha = 'real'},
-	{gamma_ll = 'sym3'},
+	{name='alpha', type='real'},
+	{name='gamma_ll', type='sym3'},
 }:append(fluxVars)
 
 Z4_2008Yano.numWaves = makeStruct.countScalars(fluxVars)
@@ -41,8 +41,8 @@ Z4_2008Yano.numIntStates = makeStruct.countScalars(Z4_2008Yano.consVars)
 
 Z4_2008Yano.consVars:append{
 	--constraints:              
-	{H = 'real'},					--1
-	{M_u = 'real3'},				--3
+	{name='H', type='real'},				--1
+	{name='M_u', type='real3'},				--3
 }
 
 Z4_2008Yano.hasCalcDTCode = true
@@ -197,11 +197,11 @@ momentum constraints
 end
 
 Z4_2008Yano.eigenVars = table{
-	{alpha = 'real'},
-	{sqrt_f = 'real'},
-	{gamma_ll = 'sym3'},
-	{gamma_uu = 'sym3'},
-	{sqrt_gammaUjj = 'real3'},
+	{name='alpha', type='real'},
+	{name='sqrt_f', type='real'},
+	{name='gamma_ll', type='sym3'},
+	{name='gamma_uu', type='sym3'},
+	{name='sqrt_gammaUjj', type='real3'},
 }
 
 function Z4_2008Yano:eigenWaveCodePrefix(side, eig, x, waveIndex)

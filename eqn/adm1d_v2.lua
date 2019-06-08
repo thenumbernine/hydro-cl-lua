@@ -90,11 +90,11 @@ ADM_BonaMasso_1D_1997Alcubierre.numStates = 5
 ADM_BonaMasso_1D_1997Alcubierre.numWaves = 3
 
 ADM_BonaMasso_1D_1997Alcubierre.consVars = {
-	{alpha = 'real'},
-	{gamma_xx = 'real'},
-	{a_x = 'real'}, 
-	{d_xxx = 'real'}, 
-	{K_xx = 'real'},
+	{name='alpha', type='real'},
+	{name='gamma_xx', type='real'},
+	{name='a_x', type='real'}, 
+	{name='d_xxx', type='real'}, 
+	{name='K_xx', type='real'},
 }
 ADM_BonaMasso_1D_1997Alcubierre.mirrorVars = {{'gamma_xx', 'a_x', 'd_xxx', 'K_xx'}}
 
@@ -202,8 +202,8 @@ function ADM_BonaMasso_1D_1997Alcubierre:getDisplayVars()
 end
 
 ADM_BonaMasso_1D_1997Alcubierre.eigenVars = {
-	{alpha = 'real'},
-	{sqrt_f_over_gamma_xx = 'real'},
+	{name='alpha', type='real'},
+	{name='sqrt_f_over_gamma_xx', type='real'},
 }
 
 function ADM_BonaMasso_1D_1997Alcubierre:eigenWaveCodePrefix(side, eig, x, waveIndex)

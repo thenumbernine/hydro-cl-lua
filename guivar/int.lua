@@ -24,7 +24,7 @@ end
 
 -- run-time
 function GuiInt:addToSolver(solver)
-	solver.solverVars:insert{[self.name] = 'int'}
+	solver.solverVars:insert{name=self.name, type='int'}
 end
 
 function GuiInt:setToSolver(solver)

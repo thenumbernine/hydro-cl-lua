@@ -63,14 +63,14 @@ Maxwell.vec3 = Maxwell.scalar..'3'
 Maxwell.mat3x3 = Maxwell.scalar..'3x3'
 
 Maxwell.consVars = table{
-	{D = Maxwell.vec3},				-- C/m^2
-	{B = Maxwell.vec3},				-- kg/(C s)
+	{name='D', type=Maxwell.vec3},				-- C/m^2
+	{name='B', type=Maxwell.vec3},				-- kg/(C s)
 	
-	{DPot = Maxwell.scalar},		-- C/m^2
-	{BPot = Maxwell.scalar},		-- kg/(C s)
+	{name='DPot', type=Maxwell.scalar},		-- C/m^2
+	{name='BPot', type=Maxwell.scalar},		-- kg/(C s)
 	
-	{rhoCharge = Maxwell.scalar},	-- C/m^3
-	{sigma = Maxwell.scalar},		-- (C^2 s)/(kg m^3)
+	{name='rhoCharge', type=Maxwell.scalar},	-- C/m^3
+	{name='sigma', type=Maxwell.scalar},		-- (C^2 s)/(kg m^3)
 }
 
 --[[
@@ -104,8 +104,8 @@ So we need three matrices and not just one ...
 --Maxwell.susc_t = Maxwell.mat3x3
 
 Maxwell.consVars:append{
-	{sqrt_1_eps = Maxwell.susc_t},		-- sqrt( (kg m^3)/(C^2 s^2) )
-	{sqrt_1_mu = Maxwell.susc_t},		-- sqrt( C^2/(kg m) )
+	{name='sqrt_1_eps', type=Maxwell.susc_t},		-- sqrt( (kg m^3)/(C^2 s^2) )
+	{name='sqrt_1_mu', type=Maxwell.susc_t},		-- sqrt( C^2/(kg m) )
 }
 
 Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
@@ -390,8 +390,8 @@ function Maxwell:getDisplayVars()
 end
 
 Maxwell.eigenVars = table{
-	{sqrt_1_eps = Maxwell.susc_t},
-	{sqrt_1_mu = Maxwell.susc_t},
+	{name='sqrt_1_eps', type=Maxwell.susc_t},
+	{name='sqrt_1_mu', type=Maxwell.susc_t},
 }
 
 function Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)

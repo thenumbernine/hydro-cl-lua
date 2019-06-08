@@ -6,27 +6,27 @@ local SRHDSelfGrav = class(Poisson)
 
 SRHDSelfGrav.enableField = 'useGravity'
 
-SRHDSelfGrav.gravitationConstant = 2	---- 6.67384e-11 m^3 / (kg s^2)
+SRHDSelfGrav.guiVars = {
+	{name='gravitationalConstant', value=2},	---- 6.67384e-11 m^3 / (kg s^2)
+}
 
 function SRHDSelfGrav:init(args)
 	SRHDSelfGrav.super.init(self, args)
 	self.densityField = args.densityField	
+	self.solver[self.enableField] = not not self.solver[self.enableField]
 end
 
 -- params for op/poisson.cl 
-function SRHDSelfGrav:getCalcRhoCode()
+function SRHDSelfGrav:getPoissonDivCode()
 	-- because op/poisson.cl assumes it's UBuf, 
 	-- we gotta keep the name 'UBuf'
 	-- even though it's the primBuf ...
 	return template([[
 	global <?=eqn.prim_t?>* prim = &UBuf[index].prim;
-	//maybe a 4pi?  or is that only in the continuous case?
-	rho = <?=clnumber(self.gravitationConstant)?> * prim->rho;
+	source = solver->gravitationalConstant * unit_m3_per_kg_s2 * prim-><?=op.densityField?>;
 ]], {
-		self = self,
-		solver = self.solver,
+		op = self,
 		eqn = self.solver.eqn,
-		clnumber = require 'cl.obj.number',
 	})
 end
 
@@ -50,7 +50,10 @@ kernel void calcGravityDeriv(
 		int indexL = index - solver->stepsize.s<?=side?>;
 		int indexR = index + solver->stepsize.s<?=side?>;
 
-		du_dt.s<?=side?> = (UBuf[indexR].<?=self.potentialField?> - UBuf[indexL].<?=self.potentialField?>) / (2. * cell_dx<?=side?>(i));
+		du_dt.s<?=side?> = (
+			UBuf[indexR].<?=self.potentialField?> 
+			- UBuf[indexL].<?=self.potentialField?>
+		) / (2. * cell_dx<?=side?>(x));
 	}<? end ?>
 
 	real Phi = UBuf[index].<?=self.potentialField?>;
@@ -165,14 +168,13 @@ function SRHDSelfGrav:updateGUI()
 	ig.igPopID()
 end
 
-function SRHDSelfGrav:step(dt)
+function SRHDSelfGrav:addSource(derivBufObj)
 	local solver = self.solver
 	if not solver[self.enableField] then return end
-	solver.integrator:integrate(dt, function(derivBufObj)
-		self:relax()
-		self.calcGravityDerivKernelObj.obj:setArg(1, derivBufObj.obj)
-		self.calcGravityDerivKernelObj()
-	end)
+		
+	self:relax()
+	self.calcGravityDerivKernelObj.obj:setArg(1, derivBufObj.obj)
+	self.calcGravityDerivKernelObj()
 end
 
 return SRHDSelfGrav

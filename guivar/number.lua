@@ -24,7 +24,7 @@ end
 
 -- run-time
 function GuiNumber:addToSolver(solver)
-	solver.solverVars:insert{[self.name] = 'real'}
+	solver.solverVars:insert{name=self.name, type='real'}
 end
 
 function GuiNumber:setToSolver(solver)

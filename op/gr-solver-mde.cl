@@ -17,25 +17,14 @@ kernel void initPotential<?=op.name?>(
 
 kernel void solveJacobi<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
-	global <?=op:getPotBufType()?>* UBuf<?
-if op.stopOnEpsilon then ?>,
-	global real* reduceBuf<?
-end ?>
+	global <?=op:getPotBufType()?>* UBuf
 ) {
-<? if not op.stopOnEpsilon then ?>
 	SETBOUNDS(numGhost,numGhost);
-<? else ?>
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		reduceBuf[index] = 0.;
-		return;
-	}
-<? end ?>
 
 	global <?=op:getPotBufType()?>* U = UBuf + index;
 
 <? for j=0,solver.dim-1 do ?>
-	real dx<?=j?> = cell_dx<?=j?>(i);
+	real dx<?=j?> = cell_dx<?=j?>(x);
 <? end ?>
 
 	real3 intIndex = _real3(i.x, i.y, i.z);
@@ -109,20 +98,13 @@ t^i1..ip_j1..jq^;a_;a
 end
 ?>
 
-	<?=scalar?> rho = <?=zero?>;
-	<?=op:getCalcRhoCode() or ''?>
+	<?=scalar?> source = <?=zero?>;
+<?=op:getPoissonDivCode() or ''?>
 
 	<?=scalar?> oldU = U-><?=op.potentialField?>;
 	
 	//Gauss-Seidel iteration: x_i = (b_i - A_ij x_j) / A_ii
-	<?=scalar?> newU = <?=real_mul?>(<?=sub?>(rho, skewSum), 1. / diag);
+	<?=scalar?> newU = <?=real_mul?>(<?=sub?>(source, skewSum), 1. / diag);
 
-<?
-if op.stopOnEpsilon then
-?>	<?=scalar?> dU = <?=sub?>(newU, oldU);
-	reduceBuf[index] = <?=lenSq?>(dU);
-<?
-end
-?>
 	U-><?=op.potentialField?> = newU;
 }

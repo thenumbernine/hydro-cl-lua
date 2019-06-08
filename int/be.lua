@@ -49,7 +49,7 @@ function BackwardEuler:init(solver, args)
 			env = solver.app.env,
 			name = name,
 			type = 'real',
-			size = bufferSize / realSize,
+			count = bufferSize / realSize,
 		}
 	end
 
@@ -112,7 +112,7 @@ function BackwardEuler:init(solver, args)
 	local numRealsWithoutBorder = volumeWithoutBorder * solver.eqn.numStates
 	
 	local sum = solver.app.env:reduce{
-		size = numreals,
+		count = numreals,
 		op = function(x,y) return x..' + '..y end,
 	}
 	local dotWithoutBorder = function(a,b)
@@ -125,7 +125,7 @@ function BackwardEuler:init(solver, args)
 	local linearSolverArgs = {
 		env = solver.app.env,
 		x = self.krylov_xObj,
-		size = numreals,
+		count = numreals,
 		epsilon = args and args.epsilon or 1e-24,
 		--maxiter = 1000,
 		restart = restart,

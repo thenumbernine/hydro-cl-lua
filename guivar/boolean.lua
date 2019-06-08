@@ -23,7 +23,7 @@ end
 
 -- run-time
 function GuiBoolean:addToSolver(solver)
-	solver.solverVars:insert{[self.name] = 'int'}
+	solver.solverVars:insert{name=self.name, type='int'}
 end
 
 function GuiBoolean:setToSolver(solver)

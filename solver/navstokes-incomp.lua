@@ -8,9 +8,9 @@ NavierStokesIncompressible.eqnName = 'navstokes-incomp'
 function NavierStokesIncompressible:createBuffers()
 	NavierStokesIncompressible.super.createBuffers(self)
 
-	self:clalloc('UNextBuf', self.numCells * ffi.sizeof(self.eqn.cons_t))
-	self:clalloc('divBuf', self.numCells * ffi.sizeof(self.app.real))
-	self:clalloc('PBuf', self.numCells * ffi.sizeof(self.app.real))
+	self:clalloc('UNextBuf', self.eqn.cons_t, self.numCells)
+	self:clalloc('divBuf', self.app.real, self.numCells)
+	self:clalloc('PBuf', self.app.real, self.numCells)
 end
 
 function NavierStokesIncompressible:getSolverCode()
@@ -23,11 +23,11 @@ end
 function NavierStokesIncompressible:refreshSolverProgram()
 	NavierStokesIncompressible.super.refreshSolverProgram(self)
 
-	self.diffuseKernelObj = self.solverProgramObj:kernel{name='diffuse', setArgs={self.UNextBuf, self.UBuf}, domain=self.domainWithoutBorder}
-	self.advectKernelObj = self.solverProgramObj:kernel{name='advect', setArgs={self.UNextBuf, self.UBuf}, domain=self.domainWithoutBorder}
-	self.calcDivKernelObj = self.solverProgramObj:kernel{name='calcDiv', setArgs={self.divBuf, self.UBuf}, domain=self.domainWithoutBorder}
-	self.diffusePressureKernelObj = self.solverProgramObj:kernel{name='diffusePressure', setArgs={self.PBuf, self.divBuf}, domain=self.domainWithoutBorder}
-	self.projectKernelObj = self.solverProgramObj:kernel{name='project', setArgs={self.UBuf, self.PBuf}, domain=self.domainWithoutBorder}
+	self.diffuseKernelObj = self.solverProgramObj:kernel{name='diffuse', args={self.UNextBuf, self.UBuf}, domain=self.domainWithoutBorder}
+	self.advectKernelObj = self.solverProgramObj:kernel{name='advect', args={self.UNextBuf, self.UBuf}, domain=self.domainWithoutBorder}
+	self.calcDivKernelObj = self.solverProgramObj:kernel{name='calcDiv', args={self.divBuf, self.UBuf}, domain=self.domainWithoutBorder}
+	self.diffusePressureKernelObj = self.solverProgramObj:kernel{name='diffusePressure', args={self.PBuf, self.divBuf}, domain=self.domainWithoutBorder}
+	self.projectKernelObj = self.solverProgramObj:kernel{name='project', args={self.UBuf, self.PBuf}, domain=self.domainWithoutBorder}
 end
 
 function NavierStokesIncompressible:refreshCalcDTKernel() end

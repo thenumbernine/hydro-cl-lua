@@ -26,15 +26,15 @@ GRMaxwell.susc_t = GRMaxwell.scalar
 
 GRMaxwell.consVars = {
 	-- the vectors are contravariant with ^t component that are zero
-	{D = GRMaxwell.vec3},
-	{B = GRMaxwell.vec3},
-	{BPot = GRMaxwell.scalar},	-- used to calculate the B potential & remove div
+	{name='D', type=GRMaxwell.vec3},
+	{name='B', type=GRMaxwell.vec3},
+	{name='BPot', type=GRMaxwell.scalar},	-- used to calculate the B potential & remove div
 	
 	-- these aren't dynamic at all, but I don't want to allocate a separate buffer
-	{sigma = GRMaxwell.scalar},
+	{name='sigma', type=GRMaxwell.scalar},
 	-- TODO: 1/eps, or 1/sqrt(eps) even better
-	{eps = GRMaxwell.susc_t},
-	{mu = GRMaxwell.susc_t},
+	{name='eps', type=GRMaxwell.susc_t},
+	{name='mu', type=GRMaxwell.susc_t},
 }
 
 GRMaxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
@@ -179,9 +179,9 @@ end
 end
 
 GRMaxwell.eigenVars = table{
-	{eps = 'real'},
-	{mu = 'real'},
-	{lambda = 'real'},
+	{name='eps', type='real'},
+	{name='mu', type='real'},
+	{name='lambda', type='real'},
 }
 
 function GRMaxwell:eigenWaveCode(side, eig, x, waveIndex)

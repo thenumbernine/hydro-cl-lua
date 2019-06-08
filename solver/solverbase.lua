@@ -43,8 +43,8 @@ SolverBase.displayVarAccumFunc = false
 
 SolverBase.solverVars = table{
 	-- [[ right now the mesh initial conditions use these, but otherwise they can be GridSolver-specific
-	{mins = 'real3'},
-	{maxs = 'real3'},
+	{name='mins', type='real3'},
+	{name='maxs', type='real3'},
 	--]]
 }
 
@@ -194,8 +194,9 @@ function SolverBase:createSolverBuf()
 		env = self.app.env,
 		name = 'solver',
 		type = self.solver_t,
-		size = 1,	-- should be 'count'
+		count = 1,
 		readwrite = 'read',
+		constant = true,
 	}
 end
 
@@ -264,7 +265,7 @@ end
 	self.multAddKernelObj.obj:setArg(0, self.solverBuf)
 
 	self.reduceMin = self.app.env:reduce{
-		size = self.numCells,
+		count = self.numCells,
 		op = function(x,y) return 'min('..x..', '..y..')' end,
 		initValue = 'INFINITY',
 		buffer = self.reduceBuf,
@@ -272,7 +273,7 @@ end
 		result = self.reduceResultPtr,
 	}
 	self.reduceMax = self.app.env:reduce{
-		size = self.numCells,
+		count = self.numCells,
 		op = function(x,y) return 'max('..x..', '..y..')' end,
 		initValue = '-INFINITY',
 		buffer = self.reduceBuf,
@@ -280,7 +281,7 @@ end
 		result = self.reduceResultPtr,
 	}
 	self.reduceSum = self.app.env:reduce{
-		size = self.numCells,
+		count = self.numCells,
 		op = function(x,y) return x..' + '..y end,
 		initValue = '0.',
 		buffer = self.reduceBuf,
@@ -294,42 +295,47 @@ function SolverBase:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	error'abstract'
 end
 
-function SolverBase:clalloc(name, size, sizevec)
-	size = math.ceil(size / 4) * 4
-	self.buffers:insert{name=name, size=size, sizevec=sizevec}
+--[[
+name = name of the buffer.  The buffer is assigned to self[name].
+ctype = buffer type
+count = the number of the elements in the buffer
+sizevec = used to specify the grid size of the buffer, used with overriding the default solver gridsize, was going to be used with AMR
+--]]
+function SolverBase:clalloc(name, ctype, count, sizevec)
+	self.buffers:insert{
+		name = name,
+		count = count,
+		type = ctype,
+		sizevec = sizevec,
+	}
 end
 
 function SolverBase:finalizeCLAllocs()
-	local total = 0
 	for _,info in ipairs(self.buffers) do
-		info.offset = total
 		local name = info.name
-		local size = info.size
-		if not self.allocateOneBigStructure then
-			local mod = size % ffi.sizeof(self.app.env.real)
-			if mod ~= 0 then
-				-- WARNING?
-				size = size - mod + ffi.sizeof(self.app.env.real)
-				info.size = size
-			end
+		local ctype = info.type
+		local count = info.count
+		local size = count * ffi.sizeof(ctype)
+		local mod = size % ffi.sizeof(self.app.real)
+		if mod ~= 0 then
+			-- WARNING?
+			print('resizing buffer to be aligned with sizeof('..self.app.real..')')
+			size = size - mod + ffi.sizeof(self.app.real)
+			info.size = size
+			count = count + math.ceil(ffi.sizeof(self.app.real) / ffi.sizeof(ctype))
+			info.count = count
 		end
-		total = total + size
-		if not self.allocateOneBigStructure then
-			local bufObj = CLBuffer{
-				env = self.app.env,
-				name = name,
-				type = 'real',
-				size = size / ffi.sizeof(self.app.real),
-			}
-			self[name..'Obj'] = bufObj
-			self[name] = bufObj.obj
-			
-			-- I don't know where else to put this ...
-			self[name].sizevec = info.sizevec
-		end
-	end
-	if self.allocateOneBigStructure then
-		self.oneBigBuf = self.app.ctx:buffer{rw=true, size=total}
+		local bufObj = CLBuffer{
+			env = self.app.env,
+			name = name,
+			type = ctype,
+			count = count,
+		}
+		self[name..'Obj'] = bufObj
+		self[name] = bufObj.obj
+		
+		-- I don't know where else to put this ...
+		self[name].sizevec = info.sizevec
 	end
 end
 
@@ -349,16 +355,14 @@ function SolverBase:createBuffers()
 		error("for PLM's sake I might need sizeof(prim_t) <= sizeof(cons_t)")
 	end
 	
-	local UBufSize = self.numCells * ffi.sizeof(self.eqn.cons_t)
-	self:clalloc('UBuf', UBufSize)
+	self:clalloc('UBuf', self.eqn.cons_t, self.numCells)
 
 	-- used both by reduceMin and reduceMax
 	-- (and TODO use this by sum() in implicit solver as well?)
 	-- times three because this is also used by the displayVar
 	-- on non-GL-sharing cards.
-	self:clalloc('reduceBuf', self.numCells * realSize * 3)
-	local reduceSwapBufSize = roundup(self.numCells * realSize / self.localSize1d, realSize)
-	self:clalloc('reduceSwapBuf', reduceSwapBufSize)
+	self:clalloc('reduceBuf', self.app.real, self.numCells * 3)
+	self:clalloc('reduceSwapBuf', self.app.real, math.ceil(self.numCells / self.localSize1d))
 	self.reduceResultPtr = ffi.new('real[1]', 0)
 
 	-- TODO CLImageGL ?

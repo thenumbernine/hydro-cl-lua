@@ -49,26 +49,26 @@ end
 -- hmm, how to store units alongside variables
 -- then I wouldn't need to worry about reference unit scales of the two-fluid plasma simulation
 Euler.primVars = table{
-	{rho = 'real'},		-- kg/m^3
-	{v = 'real3'},		-- m/s
-	{P = 'real'},		-- kg/(m s^2)
-	{ePot = 'real'},	-- m^2/s^2
+	{name='rho', type='real', units='kg/m^3'},
+	{name='v', type='real3', units='m/s'},
+	{name='P', type='real', units='kg/(m*s^2)'},
+	{name='ePot', type='real', units='m^2/s^2'},
 }
 
 Euler.consVars = table{
-	{rho = 'real'},		-- kg/m^3
-	{m = 'real3'},		-- kg/(m^2 s)
-	{ETotal = 'real'},	-- kg/(m s^2)
-	{ePot = 'real'},	-- m^2/s^2
+	{name='rho', type='real', units='kg/m^3'},
+	{name='m', type='real3', units='kg/(m^2*s)'},
+	{name='ETotal', type='real', units='kg/(m*s^2)'},
+	{name='ePot', type='real', units='m^2/s^2'},
 }
 
 function Euler:createInitState()
 	Euler.super.createInitState(self)
 	local double = false --solver.app.real == 'double'
-	self:addGuiVars{
-		{name='heatCapacityRatio', value=7/5},
-		{name='rhoMin', value=double and 1e-15 or 1e-7},
-		{name='PMin', value=double and 1e-15 or 1e-7},
+	self:addGuiVars{	
+		{name='heatCapacityRatio', value=7/5},				-- unitless
+		{name='rhoMin', value=double and 1e-15 or 1e-7},	-- kg/m^3
+		{name='PMin', value=double and 1e-15 or 1e-7},		-- kg/m^3
 	}
 end
 
@@ -196,11 +196,19 @@ end
 	<?=code?>
 
 	<?=eqn.prim_t?> W = {
-		.rho = rho * unit_kg_per_m3,
-		.v = real3_real_mul(cartesianToCoord(v, x), unit_m_per_s),
-		.P = P * unit_kg_per_m_s2,
-		.ePot = ePot * unit_kg_per_m_s2,
+		.rho = rho,
+		.v = cartesianToCoord(v, x),
+		.P = P,
+		.ePot = ePot,
 	};
+
+#if defined(provideInitUnitsInSI)
+	W.rho /= unit_kg_per_m3;
+	W.v = real3_real_mul(W.v, 1. / unit_m_per_s);
+	W.P /= unit_kg_per_m_s2;
+	W.ePot /= unit_kg_per_m_s2;
+#endif
+	
 	UBuf[index] = consFromPrim(solver, W, x);
 }
 ]]
@@ -243,20 +251,64 @@ local function vorticity(eqn,k,result)
 end
 
 Euler.predefinedDisplayVars = {
+-- [[	
+	'U rho (kg/m^3)',
+	'U v (m/s) x',
+	'U v (m/s) y',
+	'U v (m/s) z',
+	'U P (kg/(m s^2))',
+--]]
+--[[
 	'U rho',
-	'U m x',
-	'U m y',
-	'U m z',
-	'U ETotal',
+	'U v x',
+	'U v y',
+	'U v z',
 	'U P',
-	'U S',
-	'U Speed of Sound',
-	'U Mach number',
+--]]
+	'U ePot (m^2/s^2)',
+	'U gravity mag',
+	'U gravity (m/s) mag',
 }
+
+function Euler:getCalcGravityCode()
+	return template([[
+	if (OOB(1,1)) {
+		*value = 0.;
+	} else {
+		<? 
+for side=0,solver.dim-1 do ?>{
+			global const <?=eqn.cons_t?>* Um = U - solver->stepsize.s<?=side?>;
+			global const <?=eqn.cons_t?>* Up = U + solver->stepsize.s<?=side?>;
+			value_real3->s<?=side?> = -(
+				Up-><?=eqn.gravOp.potentialField?> 
+				- Um-><?=eqn.gravOp.potentialField?>
+			) / (2. * cell_dx<?=side?>(x));
+		}<? 
+end
+for side=solver.dim,2 do ?>
+		value_real3->s<?=side?> = 0.;
+<? end ?>
+	}
+]], {
+		eqn=self,
+		solver=self.solver,
+	})
+end
 
 function Euler:getDisplayVars()
 	local vars = Euler.super.getDisplayVars(self)
+	vars = table{
+		{['rho (kg/m^3)'] = '*value = U->rho * unit_kg_per_m3;'},
+		{['m (kg/(m^2 s))'] = '*value_real3 = real3_real_mul(W.v, unit_kg_per_m2_s);', type='real3'},
+		{['ETotal (kg/(m s^2))'] = '*value_real = U->ETotal * unit_kg_per_m_s2;'},
+		{['ePot (m^2/s^2)'] = '*value_real = U->ePot * unit_m2_per_s2;'},
+		{['v (m/s)'] = '*value_real3 = real3_real_mul(W.v, unit_m_per_s);', type='real3'},
+		{['P (kg/(m s^2))'] = '*value = W.P * unit_kg_per_m_s2;'},
+		{['EPot (m^2/s^2)'] = '*value_real = U->rho * U->ePot * unit_kg_per_m_s2;'},
+	}:append(vars)
 	vars:append{
+		-- TODO should the default display generated of variables be in solver units or SI units?
+		-- should SI unit displays be auto generated as well?
 		{v = '*value_real3 = W.v;', type='real3'},
 		{P = '*value = W.P;'},
 		{eInt = '*value = calc_eInt(solver, W);'},
@@ -270,31 +322,21 @@ function Euler:getDisplayVars()
 		{h = '*value = calc_h(solver, W.rho, W.P);'},
 		{HTotal = '*value = calc_HTotal(W.P, U->ETotal);'},
 		{hTotal = '*value = calc_hTotal(W.rho, W.P, U->ETotal);'},
-		{['Speed of Sound'] = '*value = calc_Cs(solver, &W);'},
+		{['speed of sound (m/s)'] = '*value = calc_Cs(solver, &W) * unit_m_per_s;'},
 		{['Mach number'] = '*value = coordLen(W.v, x) / calc_Cs(solver, &W);'},
-	}:append{self.gravOp and
-		{gravity = template([[
-	if (OOB(1,1)) {
-		*value = 0.;
-	} else {
-		<? 
-for side=0,solver.dim-1 do ?>{
-			global const <?=eqn.cons_t?>* Um = U - solver->stepsize.s<?=side?>;
-			global const <?=eqn.cons_t?>* Up = U + solver->stepsize.s<?=side?>;
-			value_real3->s<?=side?> = -(Up-><?=eqn.gravOp.potentialField?> - Um-><?=eqn.gravOp.potentialField?>) / (2. * cell_dx<?=side?>(i));
-		}<? 
-end
-for side=solver.dim,2 do ?>
-		value_real3->s<?=side?> = 0.;
-<? end ?>
-	}
-]], {eqn=self, solver=self.solver}), type='real3'} or nil
-	}:append{
-		{temp = template([[
+	}:append(self.gravOp and
+		{
+			{gravity = self:getCalcGravityCode(), type='real3'},
+			{['gravity (m/s)'] = self:getCalcGravityCode()..[[
+	*value_real3 = real3_real_mul(*value_real3, unit_m_per_s);
+]], type='real3'},
+		} or nil
+	):append{
+		{['temp (K)'] = template([[
 <? local clnumber = require 'cl.obj.number' ?>
 <? local materials = require 'materials' ?>
 #define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
-	*value = calc_eInt(solver, W) / C_v / unit_K;
+	*value = calc_eInt(solver, W) / C_v * unit_K;
 ]])}
 	}
 
@@ -319,12 +361,12 @@ end
 
 Euler.eigenVars = table{
 	-- Roe-averaged vars
-	{rho = 'real'},
-	{v = 'real3'},
-	{hTotal = 'real'},
+	{name='rho', type='real'},
+	{name='v', type='real3'},
+	{name='hTotal', type='real'},
 	-- derived vars
-	{vSq = 'real'},
-	{Cs = 'real'},
+	{name='vSq', type='real'},
+	{name='Cs', type='real'},
 }
 
 function Euler:eigenWaveCodePrefix(side, eig, x)

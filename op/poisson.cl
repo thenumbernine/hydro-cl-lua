@@ -20,7 +20,18 @@ discrete evaluation:
 <?
 local solver = op.solver
 local eqn = solver.eqn
+
+local scalar = op.scalar 
+local neg = scalar..'_neg'
+local zero = scalar..'_zero'
+local add3 = scalar..'_add3'
+local sub = scalar..'_sub'
+local mul = scalar..'_mul'
+local abs = scalar..'_abs'
+local real_mul = scalar..'_real_mul'
 ?>
+
+
 
 //initialize the relaxation solver field 
 //this is only called upon solver reset
@@ -29,19 +40,19 @@ kernel void initPotential<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=op:getPotBufType()?>* UBuf
 ) {
-<?
-local scalar = op.scalar 
-local neg = scalar..'_neg'
-?>
 	SETBOUNDS(numGhost,numGhost);
 	global <?=op:getPotBufType()?>* U = UBuf + index;
-	<?=scalar?> rho = <?=scalar?>_zero;
-	<?=op:getCalcRhoCode() or ''?>
-	UBuf[index].<?=op.potentialField?> = <?=neg?>(rho);
+	<?=scalar?> source = <?=scalar?>_zero;
+<?=op:getPoissonDivCode() or ''?>
+	UBuf[index].<?=op.potentialField?> = <?=neg?>(source);
 }
 
 /*
 called every Jacobi method iteration
+
+reads from UBuf
+writes to writeBuf
+optionally writes to reduceBuf the delta if stopOnEpsilon is enabled
 
 del phi = f
 (d/dx^2 + d/dy^2 + ...) phi = f
@@ -57,69 +68,63 @@ a_jk = sum_i (1 / dx[i]^2) for j != k
 jacobi update:
 phi[x,k+1] = (f[x] - sum_i,j!=k (phi[x+e[i],k] / dx[i]^2))
 	/ sum_i (-2 / dx[i]^2)
+
+input is poisson source divergence, in 1/s^2
+output is potentialField, in m^2/s^2
 */
 kernel void solveJacobi<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
-	global <?=op:getPotBufType()?>* UBuf<?
-if op.stopOnEpsilon then ?>,
-	global real* reduceBuf<?
-end ?>
+	global real* writeBuf,
+	const global <?=op:getPotBufType()?>* UBuf<?
+if op.stopOnEpsilon then	
+?>,
+	global real* reduceBuf<? 
+end?>
 ) {
-<? if not op.stopOnEpsilon then ?>
-	SETBOUNDS(numGhost,numGhost);
-<? else ?>
 	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		reduceBuf[index] = 0.;
-		return;
+	if (OOB(numGhost, numGhost)) {
+		writeBuf[index] = UBuf[index].<?=op.potentialField?>;
+<? if op.stopOnEpsilon then	
+?>		reduceBuf[index] = 0;
+<? end
+?>		return;
 	}
-<? end ?>
+	
+	real3 x = cell_x(i);
 
 	global <?=op:getPotBufType()?>* U = UBuf + index;
 
-<? for j=0,solver.dim-1 do ?>
-	real dx<?=j?> = cell_dx<?=j?>(i);
-<? end ?>
-
-	real3 intIndex = _real3(i.x, i.y, i.z);
+<? for j=0,solver.dim-1 do
+?>	real dx<?=j?> = cell_dx<?=j?>(x);
+<? end
+?>
+	real3 xInt = x;
 	real3 volL, volR;
-<? for j=0,solver.dim-1 do ?>
-	intIndex.s<?=j?> = i.s<?=j?> - .5;
-	volL.s<?=j?> = cell_volume(solver, cell_x(intIndex));
-	intIndex.s<?=j?> = i.s<?=j?> + .5;
-	volR.s<?=j?> = cell_volume(solver, cell_x(intIndex));
-	intIndex.s<?=j?> = i.s<?=j?>;
-<? end ?>
-	real volAtX = cell_volume(solver, cell_x(i));
+<? for j=0,solver.dim-1 do 
+?>	xInt.s<?=j?> = x.s<?=j?> - .5 * solver->grid_dx.s<?=j?>;
+	volL.s<?=j?> = cell_volume(solver, xInt);
+	xInt.s<?=j?> = x.s<?=j?> + .5 * solver->grid_dx.s<?=j?>;
+	volR.s<?=j?> = cell_volume(solver, xInt);
+	xInt.s<?=j?> = x.s<?=j?>;
+<? end 
+?>	real volAtX = cell_volume(solver, x);
 
-<?
-local scalar = op.scalar
-local zero = scalar..'_zero'
-local add3 = scalar..'_add3'
-local sub = scalar..'_sub'
-local mul = scalar..'_mul'
-local lenSq = scalar..'_lenSq'
-local real_mul = scalar..'_real_mul'
-?>
-
-<? 
-if true -- require 'coord.cartesian'.is(solver.coord) 
+<? if true -- require 'coord.cartesian'.is(solver.coord) 
 then 
-?>
-	<?=scalar?> skewSum = <?=scalar?>_zero;
+?>	<?=scalar?> skewSum = <?=scalar?>_zero;
 
-<? for j=0,solver.dim-1 do ?>
-	skewSum = <?=add3?>(skewSum,
+<? for j=0,solver.dim-1 do 
+?>	skewSum = <?=add3?>(skewSum,
 		<?=real_mul?>(U[solver->stepsize.s<?=j?>].<?=op.potentialField?>, volR.s<?=j?> / (dx<?=j?> * dx<?=j?>)),
 		<?=real_mul?>(U[-solver->stepsize.s<?=j?>].<?=op.potentialField?>, volL.s<?=j?> / (dx<?=j?> * dx<?=j?>)));
-<? end ?>
-	skewSum = <?=real_mul?>(skewSum, 1. / volAtX);
+<? end 
+?>	skewSum = <?=real_mul?>(skewSum, 1. / volAtX);
 
 	const real diag = (0.
-<? for j=0,solver.dim-1 do ?>
-		- (volR.s<?=j?> + volL.s<?=j?>) / (dx<?=j?> * dx<?=j?>)
-<? end ?>
-	) / volAtX;
+<? for j=0,solver.dim-1 do 
+?>		- (volR.s<?=j?> + volL.s<?=j?>) / (dx<?=j?> * dx<?=j?>)
+<? end 
+?>	) / volAtX;
 <? 
 else 
 ?>
@@ -152,20 +157,28 @@ t^i1..ip_j1..jq^;a_;a
 end
 ?>
 
-	<?=scalar?> rho = <?=zero?>;
-	<?=op:getCalcRhoCode() or ''?>
+	//source is 4 pi G rho delta(x) is the laplacian of the gravitational potential field, which is integrated across discretely here
+	//in units of 1/s^2
+	<?=scalar?> source = <?=zero?>;
+<?=op:getPoissonDivCode() or ''?>
 
 	<?=scalar?> oldU = U-><?=op.potentialField?>;
 	
 	//Gauss-Seidel iteration: x_i = (b_i - A_ij x_j) / A_ii
-	<?=scalar?> newU = <?=real_mul?>(<?=sub?>(rho, skewSum), 1. / diag);
+	<?=scalar?> newU = <?=real_mul?>(<?=sub?>(source, skewSum), 1. / diag);
 
-<?
-if op.stopOnEpsilon then
-?>	<?=scalar?> dU = <?=sub?>(newU, oldU);
-	reduceBuf[index] = <?=lenSq?>(dU);
-<?
-end
+	writeBuf[index] = newU;	
+<? if op.stopOnEpsilon then	
+?>	reduceBuf[index] = fabs(newU - oldU);
+<? end
 ?>
-	U-><?=op.potentialField?> = newU;
+}
+
+kernel void copyWriteToPotentialNoGhost(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* UBuf,
+	global const real* writeBuf
+) {
+	SETBOUNDS_NOGHOST();
+	UBuf[index].<?=op.potentialField?> = writeBuf[index];
 }

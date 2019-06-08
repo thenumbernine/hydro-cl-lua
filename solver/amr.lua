@@ -98,17 +98,18 @@ local function createBuffersAMR(self)
 
 	if self.amr.ctx.method == 'dt vs 2dt' then
 		-- here's my start at AMR, using the 1989 Berger, Collela two-small-steps vs one-big-step method
-		self:clalloc('lastUBuf', self.numCells * ffi.sizeof(self.eqn.cons_t))
-		self:clalloc('U2Buf', self.numCells * ffi.sizeof(self.eqn.cons_t))
+		self:clalloc('lastUBuf', self.eqn.cons_t, self.numCells)
+		self:clalloc('U2Buf', self.eqn.cons_t, self.numCells)
 	elseif self.amr.ctx.method == 'gradient' then
 		-- this is going to be a single value for each leaf
 		-- that means the destination will be the number of nodes it takes to cover the grid (excluding the border)
 		-- however, do I want this to be a larger buffer, and then perform reduce on it?
-		self:clalloc('amrErrorBuf', 
+		self:clalloc('amrErrorBuf', 'real',
 			-- self.volume 
-			tonumber(self.amr.ctx.parentSizeInFromSize:volume())
-			* ffi.sizeof(self.app.real),
-			assert(self.amr.ctx.parentSizeInFromSize))
+			tonumber(self.amr.ctx.parentSizeInFromSize:volume()),
+			-- here is our one use of buffer 'sizevec':
+			assert(self.amr.ctx.parentSizeInFromSize)
+		)
 	end
 end
 
@@ -559,8 +560,7 @@ print("creating depth "..tonumber(self.amr.depth).." child "..tonumber(i))
 		-- now for our own allocations...
 		-- this is copied from GridSolver:createBuffers
 print('creating subsolver ubuffer...')									
-		local UBufSize = self.numCells * ffi.sizeof(self.eqn.cons_t)
-		self:clalloc('UBuf', UBufSize)
+		self:clalloc('UBuf', self.eqn.cons_t, self.numCells)
 		
 		createBuffersAMR(self)
 	end

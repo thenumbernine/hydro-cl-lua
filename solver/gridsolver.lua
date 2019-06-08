@@ -1,4 +1,3 @@
-local bit = require 'bit'
 local ffi = require 'ffi'
 local gl = require 'gl'
 local ig = require 'ffi.imgui'
@@ -8,6 +7,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
 local math = require 'ext.math'
+local string = require 'ext.string'
 local vec3 = require 'vec.vec3'
 local glreport = require 'gl.report'
 local template = require 'template'
@@ -35,9 +35,9 @@ local GridSolver = class(SolverBase)
 GridSolver.numGhost = 2
 
 GridSolver.solverVars  = table(GridSolver.super.solverVars):append{
-	{gridSize = 'int4'},
-	{stepsize = 'int4'},
-	{grid_dx = 'real3'},
+	{name='gridSize', type='int4'},
+	{name='stepsize', type='int4'},
+	{name='grid_dx', type='real3'},
 }
 
 --[[
@@ -146,8 +146,7 @@ function GridSolver:preInit(args)
 		local results = Program.super.compile(self, args)
 		if self.obj then	-- did compile
 			print((self.name and self.name..' ' or '')..'log:')
-			--print(self:getLog())
-			print(self.obj:getLog(self.env.device))
+			print(string.trim(self.obj:getLog(self.env.device)))
 		end
 		return results
 	end
@@ -494,27 +493,25 @@ function GridSolver:createBuffers()
 	-- or finally make use of constant args ...
 
 	-- this much for the first level U data
-	local UBufSize = self.numCells * ffi.sizeof(self.eqn.cons_t)
-	self:clalloc('UBuf', UBufSize)
+	self:clalloc('UBuf', self.eqn.cons_t, self.numCells)
 
 	if self.usePLM then
-		self:clalloc('ULRBuf', self.numCells * self.dim * ffi.sizeof(self.eqn.consLR_t))
+		self:clalloc('ULRBuf', self.eqn.consLR_t, self.numCells * self.dim)
 	end
 
 	-- used both by reduceMin and reduceMax
 	-- (and TODO use this by sum() in implicit solver as well?)
 	-- times three because this is also used by the displayVar 
 	-- on non-GL-sharing cards.
-	self:clalloc('reduceBuf', self.numCells * realSize * 3)
-	local reduceSwapBufSize = roundup(self.numCells * realSize / self.localSize1d, realSize)
-	self:clalloc('reduceSwapBuf', reduceSwapBufSize)
+	self:clalloc('reduceBuf', self.app.real, self.numCells * 3)
+	self:clalloc('reduceSwapBuf', self.app.real, math.ceil(self.numCells / self.localSize1d))
 	self.reduceResultPtr = ffi.new('real[1]', 0)
 
 
 	if self.allowAccum then
 		-- as big as reduceBuf, because it is a replacement for reduceBuf
 		-- ... though I don't accum on vector fields yet, so it doesn't need the x3 really
-		self:clalloc('accumBuf', self.numCells * realSize * 3)
+		self:clalloc('accumBuf', self.app.real, self.numCells * 3)
 	end
 
 	-- CL/GL interop
@@ -538,8 +535,8 @@ function GridSolver:createBuffers()
 		minFilter = gl.GL_NEAREST,
 	
 		-- TODO toggle this in the gui:
-		--magFilter = gl.GL_NEAREST,
-		magFilter = gl.GL_LINEAR,
+		magFilter = gl.GL_NEAREST,
+		--magFilter = gl.GL_LINEAR,
 		
 		wrap = {s=gl.GL_REPEAT, t=gl.GL_REPEAT, r=gl.GL_REPEAT},
 	}
@@ -669,7 +666,7 @@ function GridSolver:resetState()
 		
 	-- start off by filling all buffers with zero, just in case initState forgets something ...
 	for _,bufferInfo in ipairs(self.buffers) do
-		self.app.cmds:enqueueFillBuffer{buffer=self[bufferInfo.name], size=bufferInfo.size}
+		self.app.cmds:enqueueFillBuffer{buffer=self[bufferInfo.name], size=bufferInfo.count * ffi.sizeof(bufferInfo.type)}
 	end
 
 	GridSolver.super.resetState(self)
@@ -1268,7 +1265,13 @@ if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		end
 
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-	
+
+		for _,op in ipairs(self.ops) do
+			if op.addSource then
+				op:addSource(derivBufObj)
+			end
+		end
+
 	end)
 
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
@@ -1492,7 +1495,7 @@ function GridSolver:updateGUI()
 	-- TODO volumetric var
 end
 
-function GridSolver:save(prefix)
+function GridSolver:saveBuffer(name, prefix)
 	local Image = require 'image'
 	
 	-- TODO add planes to image, then have the FITS module use planes and not channels
@@ -1500,45 +1503,56 @@ function GridSolver:save(prefix)
 	local width = tonumber(self.gridSize.x)
 	local height = tonumber(self.gridSize.y)
 	local depth = tonumber(self.gridSize.z)
+	
+	if prefix then prefix = prefix .. '_' else prefix = '' end
+	local buffer = self[name]
+	local channels = buffer.size / self.numCells / ffi.sizeof(self.app.real)
+	if channels ~= math.floor(channels) then
+		print("can't save buffer "..name.." due to its size not being divisible by the numCells")
+	else
 
-	for _,bufferInfo in ipairs(self.buffers) do
-		local name = bufferInfo.name
-		local channels = bufferInfo.size / self.numCells / ffi.sizeof(self.app.real)
-		if channels ~= math.floor(channels) then
-			print("can't save buffer "..name.." due to its size not being divisible by the numCells")
-		else
-			local buffer = self[name]
-
-			local numReals = self.numCells * channels
+		local numReals = self.numCells * channels
 --[[ 3D interleave the depth and the channels ... causes FV to break 
-			local image = Image(width, height, depth * channels, assert(self.app.real))
-			local function getIndex(ch,i,j,k) return i + width * (j + height * (ch + channels * k)) end
+		local image = Image(width, height, depth * channels, assert(self.app.real))
+		local function getIndex(ch,i,j,k) return i + width * (j + height * (ch + channels * k)) end
 --]]
 -- [[ 3D interleave the depth and the width
-			local image = Image(width * depth, height, channels, assert(self.app.real))
-			local function getIndex(ch,i,j,k) return i + width * (k + depth * (j + height * ch)) end
+		local image = Image(width * depth, height, channels, assert(self.app.real))
+		local function getIndex(ch,i,j,k) return i + width * (k + depth * (j + height * ch)) end
 --]]
-			self.app.cmds:enqueueReadBuffer{buffer=buffer, block=true, size=ffi.sizeof(self.app.real) * numReals, ptr=image.buffer}
-			local src = image.buffer
-			
-			-- now convert from interleaved to planar
-			-- *OR* add planes to the FITS output
-			local tmp = ffi.new(self.app.real..'[?]', numReals)
-			for ch=0,channels-1 do
-				for k=0,depth-1 do
-					for j=0,height-1 do
-						for i=0,width-1 do
-							tmp[getIndex(ch,i,j,k)] = src[ch + channels * (i + width * (j + height * k))]
-						end
+		self.app.cmds:enqueueReadBuffer{buffer=buffer, block=true, size=ffi.sizeof(self.app.real) * numReals, ptr=image.buffer}
+		local src = image.buffer
+		
+		-- now convert from interleaved to planar
+		-- *OR* add planes to the FITS output
+		local tmp = ffi.new(self.app.real..'[?]', numReals)
+		for ch=0,channels-1 do
+			for k=0,depth-1 do
+				for j=0,height-1 do
+					for i=0,width-1 do
+						tmp[getIndex(ch,i,j,k)] = src[ch + channels * (i + width * (j + height * k))]
 					end
 				end
 			end
-			image.buffer = tmp
-		
-			local filename = prefix..'_'..name..'.fits'
---print('saving '..filename)
-			image:save(filename)
 		end
+		image.buffer = tmp
+	
+		local filename = prefix..name..'.fits'
+--print('saving '..filename)
+		image:save(filename)
+	end
+end
+
+local debugSaveBufferIndex = 0
+function GridSolver:debugSaveBuffer(name, msg)
+	debugSaveBufferIndex = debugSaveBufferIndex + 1  
+	msg = table{debugSaveBufferIndex, msg}:concat'_' 
+	self:saveBuffer(name, msg) 
+end
+
+function GridSolver:save(prefix)
+	for _,bufferInfo in ipairs(self.buffers) do
+		self:saveBuffer(bufferInfo.name, prefix)
 	end
 end
 

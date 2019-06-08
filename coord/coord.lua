@@ -101,7 +101,6 @@ local range = require 'ext.range'
 local common = require 'common'()
 local xNames = common.xNames
 local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
 local from6to3x3 = common.from6to3x3 
 local sym = common.sym
 
@@ -703,6 +702,7 @@ end
 		exprs = exprs,
 		convertParams = convertParams,
 		symNames = symNames,
+		from6to3x3 = from6to3x3,
 	})
 end
 

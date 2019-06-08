@@ -18,7 +18,10 @@ NLSEqn.hasEigenCode = true
 NLSEqn.hasFluxFromConsCode = true
 
 -- TODO just use cplx_t?
-NLSEqn.consVars = {{re='real'}, {im='real'}}
+NLSEqn.consVars = {
+	{name='re', type='real'},
+	{name='im', type='real'},
+}
 
 function NLSEqn:createBoundaryOptions()
 	self.solver.boundaryOptions:insert{

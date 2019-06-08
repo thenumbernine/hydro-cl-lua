@@ -22,8 +22,8 @@ Wave.roeUseFluxFromCons = true
 Wave.initStates = require 'init.euler'	 -- use rho as our initial condition
 
 Wave.consVars = table{
-	{phi_t = 'real'},
-	{phi_i = 'real3'},
+	{name='phi_t', type='real'},
+	{name='phi_i', type='real3'},
 }
 
 function Wave:createInitState()
@@ -73,7 +73,9 @@ end
 
 Wave.solverCodeFile = 'eqn/wave.cl'
 
-Wave.eigenVars = {{unused = 'real'}}
+Wave.eigenVars = {
+	{name='unused', type='real'},
+}
 
 function Wave:eigenWaveCodePrefix(side, eig, x)
 	return template([[

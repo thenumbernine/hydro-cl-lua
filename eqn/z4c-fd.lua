@@ -38,18 +38,18 @@ function Z4cFiniteDifferenceEquation:init(args)
 	self.useShift = args.useShift or 'none'
 
 	local intVars = table{
-		{alpha = 'real'},			-- 1
-		{beta_u = 'real3'},         -- 3: beta^i
-		{epsilon_ll = 'sym3'},		-- 6: epsilon_ij = gammaBar_ij - gammaHat_ij, where gammaHat_ij = grid metric. This has only 5 dof since det gammaBar_ij = 1
-		{chi = 'real'},				-- 1
-		{KHat = 'real'},			-- 1
-		{Theta = 'real'},			-- 1
-		{ABar_ll = 'sym3'},       	-- 6: ABar_ij, only 5 dof since ABar^k_k = 0
-		{Delta_u = 'real3'},      	-- 3: Delta^i = gammaBar^jk Delta^i_jk
+		{name='alpha', type='real'},			-- 1
+		{name='beta_u', type='real3'},         -- 3: beta^i
+		{name='epsilon_ll', type='sym3'},		-- 6: epsilon_ij = gammaBar_ij - gammaHat_ij, where gammaHat_ij = grid metric. This has only 5 dof since det gammaBar_ij = 1
+		{name='chi', type='real'},				-- 1
+		{name='KHat', type='real'},			-- 1
+		{name='Theta', type='real'},			-- 1
+		{name='ABar_ll', type='sym3'},       	-- 6: ABar_ij, only 5 dof since ABar^k_k = 0
+		{name='Delta_u', type='real3'},      	-- 3: Delta^i = gammaBar^jk Delta^i_jk
 	}
 
 	if self.useShift == 'HyperbolicGammaDriver' then
-		intVars:insert{B_u = 'real3'}
+		intVars:insert{name='B_u', type='real3'}
 	end
 
 	self.consVars = table()
@@ -61,16 +61,16 @@ function Z4cFiniteDifferenceEquation:init(args)
 		--real3 Phi;			//3: Phi_i
 
 		--stress-energy variables:
-		{rho = 'real'},		--1: n_a n_b T^ab
-		{S_u = 'real3'},			--3: -gamma^ij n_a T_aj
-		{S_ll = 'sym3'},			--6: gamma_i^c gamma_j^d T_cd
+		{name='rho', type='real'},			--1: n_a n_b T^ab
+		{name='S_u', type='real3'},			--3: -gamma^ij n_a T_aj
+		{name='S_ll', type='sym3'},			--6: gamma_i^c gamma_j^d T_cd
 
 		--constraints:
-		{H = 'real'},				--1
-		{M_u = 'real3'},			--3
+		{name='H', type='real'},			--1
+		{name='M_u', type='real3'},			--3
 
 		-- aux variable
-		{gammaBar_uu = 'sym3'},		--6
+		{name='gammaBar_uu', type='sym3'},	--6
 	}
 	self.numIntStates = makestruct.countScalars(intVars)
 
