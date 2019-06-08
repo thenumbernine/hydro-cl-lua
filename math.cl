@@ -9,14 +9,14 @@ local sym = common.sym
 
 
 #define unit_m					solver->meter
-#define unit_kg					solver->kilogram
 #define unit_s					solver->second
-#define unit_K					solver->kelvin
+#define unit_kg					solver->kilogram
 #define unit_C					solver->coulomb
+#define unit_K					solver->kelvin
 
-#define unit_s2					(unit_s * unit_s)
 #define unit_m2					(unit_m * unit_m)
 #define unit_m3					(unit_m * unit_m * unit_m)
+#define unit_s2					(unit_s * unit_s)
 #define unit_C2					(unit_C * unit_C)
 #define unit_m_per_s			(unit_m / unit_s)
 #define unit_m2_per_s2			(unit_m2 / unit_s2)

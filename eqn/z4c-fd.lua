@@ -375,7 +375,7 @@ end
 	{
 		real exp_4phi = 1. / calc_exp_neg4phi(U);
 		sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-		*valuesym3 = sym3_real_mul(gammaBar_ll, exp_4phi);
+		*value_sym3 = sym3_real_mul(gammaBar_ll, exp_4phi);
 	}
 ]], type='sym3'},
 	
@@ -386,7 +386,7 @@ end
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 	real K = U->KHat + 2. * U->Theta;
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	*valuesym3 = sym3_real_mul(
+	*value_sym3 = sym3_real_mul(
 		sym3_add(
 			U->ABar_ll,
 			sym3_real_mul(gammaBar_ll, K / 3.)

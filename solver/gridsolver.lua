@@ -535,8 +535,8 @@ function GridSolver:createBuffers()
 		minFilter = gl.GL_NEAREST,
 	
 		-- TODO toggle this in the gui:
-		magFilter = gl.GL_NEAREST,
-		--magFilter = gl.GL_LINEAR,
+		--magFilter = gl.GL_NEAREST,
+		magFilter = gl.GL_LINEAR,
 		
 		wrap = {s=gl.GL_REPEAT, t=gl.GL_REPEAT, r=gl.GL_REPEAT},
 	}

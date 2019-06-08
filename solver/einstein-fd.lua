@@ -65,7 +65,7 @@ function EinsteinFiniteDifferenceSolver:getDisplayInfosForType()
 	-- also, how to determine which metric to raise by ... gamma vs gammaBar
 	table.insert(t.sym3, {
 		name = ' tr weighted',
-		code = '	*value = sym3_dot(*valuesym3, calc_gamma_uu(U, x));',
+		code = '	*value = sym3_dot(*value_sym3, calc_gamma_uu(U, x));',
 	})
 
 	return t

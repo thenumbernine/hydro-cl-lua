@@ -391,7 +391,7 @@ momentum constraints
 	for i,xi in ipairs(xNames) do
 		vars:insert{['gamma_ij vs d_'..xi..'ij'] = template([[
 	if (OOB(1,1)) {
-		*valuesym3 = (sym3){.s={0,0,0,0,0,0}};
+		*value_sym3 = sym3_zero;
 	} else {
 		<? if i <= solver.dim then ?>
 		sym3 di_gamma_jk = sym3_real_mul(
@@ -404,10 +404,10 @@ momentum constraints
 		<? else ?>
 		sym3 di_gamma_jk = sym3_zero;
 		<? end ?>
-		*valuesym3 = sym3_sub(di_gamma_jk, sym3_real_mul(U->d_lll.<?=xi?>, 2.));
-		*valuesym3 = (sym3){<?
+		*value_sym3 = sym3_sub(di_gamma_jk, sym3_real_mul(U->d_lll.<?=xi?>, 2.));
+		*value_sym3 = (sym3){<?
 	for jk,xjk in ipairs(symNames) do 
-?>			.<?=xjk?> = fabs(valuesym3-><?=xjk?>),
+?>			.<?=xjk?> = fabs(value_sym3-><?=xjk?>),
 <?	end
 ?>		};
 	}

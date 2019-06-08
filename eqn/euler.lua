@@ -297,26 +297,20 @@ end
 
 function Euler:getDisplayVars()
 	local vars = Euler.super.getDisplayVars(self)
-	vars = table{
-		{['rho (kg/m^3)'] = '*value = U->rho * unit_kg_per_m3;'},
-		{['m (kg/(m^2 s))'] = '*value_real3 = real3_real_mul(W.v, unit_kg_per_m2_s);', type='real3'},
-		{['ETotal (kg/(m s^2))'] = '*value_real = U->ETotal * unit_kg_per_m_s2;'},
-		{['ePot (m^2/s^2)'] = '*value_real = U->ePot * unit_m2_per_s2;'},
-		{['v (m/s)'] = '*value_real3 = real3_real_mul(W.v, unit_m_per_s);', type='real3'},
-		{['P (kg/(m s^2))'] = '*value = W.P * unit_kg_per_m_s2;'},
-		{['EPot (m^2/s^2)'] = '*value_real = U->rho * U->ePot * unit_kg_per_m_s2;'},
-	}:append(vars)
 	vars:append{
 		-- TODO should the default display generated of variables be in solver units or SI units?
 		-- should SI unit displays be auto generated as well?
 		{v = '*value_real3 = W.v;', type='real3'},
+		{['v (m/s)'] = '*value_real3 = real3_real_mul(W.v, unit_m_per_s);', type='real3'},
 		{P = '*value = W.P;'},
+		{['P (kg/(m s^2))'] = '*value = W.P * unit_kg_per_m_s2;'},
 		{eInt = '*value = calc_eInt(solver, W);'},
 		{eKin = '*value = calc_eKin(W, x);'},
 		{eTotal = '*value = U->ETotal / W.rho;'},
 		{EInt = '*value = calc_EInt(solver, W);'},
 		{EKin = '*value = calc_EKin(W, x);'},
 		{EPot = '*value = U->rho * U->ePot;'},
+		{['EPot (kg/(m s^2)))'] = '*value = U->rho * U->ePot * unit_kg_per_m_s2;'},
 		{S = '*value = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
 		{H = '*value = calc_H(solver, W.P);'},
 		{h = '*value = calc_h(solver, W.rho, W.P);'},

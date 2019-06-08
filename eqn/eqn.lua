@@ -200,28 +200,72 @@ function Equation:getDisplayVarCodePrefix()
 	})
 end
 
--- accepts a list of struct var info {name=type}
+-- accepts a list of struct var info {name=..., [type=..., units=...]}
 -- returns a list of display var construction info
 function Equation:getDisplayVarsForStructVars(structVarInfos, ptrName)
 	ptrName = ptrName or 'U'
 	ptrName = ptrName .. '->'
 	local displayVarInfos = table()
 	for _,structVarInfo in ipairs(structVarInfos) do
+
+		-- TODO use some kind of standard, like 'value_'..type
+		local assignForType = {
+			real = 'value',
+			real3 = 'value_real3',
+			cplx = 'value_cplx',
+			cplx3 = 'value_cplx3',
+			sym3 = 'value_sym3',
+		}
+	
+		local function addvar(varname, vartype)
+			local assignvar = '*'..assignForType[vartype]
+			displayVarInfos:insert{
+				[varname] = assignvar..' = '..ptrName..varname..';', 
+				type = vartype,
+				units = structVarInfo.units
+			}
+			
+			-- TODO don't do the non- and unit-based display here.  instead do it wherever display vars are created.
+			local units = structVarInfo.units
+			if units then
+				local suffix = ' ('..units:gsub('%*', ' ')..')'
+				local code = units
+				-- expand powers
+				code = code:gsub('(%w+)%^(%d+)', function(w,n)
+					return string.rep(w, n, ' * ')
+				end)
+				-- replace unit letters with variables
+				code = code:gsub('%w+', function(w)
+					return assert(({
+						m = 'solver->meter',
+						s = 'solver->second',
+						kg = 'solver->kilogram',
+						C = 'solver->coulomb',
+						K = 'solver->kelvin',
+					})[w], "couldn't find unit "..w)
+				end)
+				displayVarInfos:insert{
+					[varname..suffix] = assignvar..' = '..vartype..'_real_mul('..ptrName..varname..', '..code..');', 
+					type = vartype,
+				}		
+			end
+		end
+
 		local varname = structVarInfo.name
 		local vartype = structVarInfo.type
 		if vartype == 'real' then
-			displayVarInfos:insert{[varname] = '*value = '..ptrName..varname..';'}
+			addvar(varname, vartype)
 		elseif vartype == 'real3' then
-			displayVarInfos:insert{[varname] = '*value_real3 = '..ptrName..varname..';', type='real3'}
+			addvar(varname, vartype)
 		elseif vartype == 'cplx' then
-			displayVarInfos:insert{[varname] = '*value_cplx = '..ptrName..varname..';', type='cplx'}
+			addvar(varname, vartype)
 		elseif vartype == 'cplx3' then
-			displayVarInfos:insert{[varname] = '*value_cplx3 = '..ptrName..varname..';', type='cplx3'}
+			addvar(varname, vartype)
 		elseif vartype == 'sym3' then
-			displayVarInfos:insert{[varname] = '*valuesym3 = '..ptrName..varname..';', type='sym3'}
+			addvar(varname, vartype)
 		elseif vartype == '_3sym3' then
 			for i,xi in ipairs(xNames) do
-				displayVarInfos:insert{[varname..'_'..xi] = '*valuesym3 = '..ptrName..varname..'.'..xi..';', type='sym3'}
+				addvar(varname..'_'..xi, 'sym3')
 			end
 		end
 	end

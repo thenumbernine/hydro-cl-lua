@@ -768,8 +768,8 @@ if solver.dim >= 3 then
 <? end 		-- mesh vs grid ?>
 
 	//TODO rename to value_real
-	real value[6] = {0,0,0,0,0,0};	//size of largest struct
-	sym3* valuesym3 = (sym3*)value;
+	real value[6] = {0,0,0,0,0,0};	//size of largest struct.  TODO how about a union?
+	sym3* value_sym3 = (sym3*)value;
 
 	real* value_real = value;
 	cplx* value_cplx = (cplx*)value;
@@ -893,21 +893,21 @@ function SolverBase:getDisplayInfosForType()
 		-- but does that mean I have to store 6 components in value_real3?
 		-- I suppose it does if I want a sym3-specific visualization
 		sym3 = {
-			{name = ' x', code = '	*value_real3 = sym3_x(*valuesym3); *value_real3_hi = real3_zero;', vartype='real3'},
-			{name = ' y', code = '	*value_real3 = sym3_y(*valuesym3); *value_real3_hi = real3_zero;', vartype='real3'},
-			{name = ' z', code = '	*value_real3 = sym3_z(*valuesym3); *value_real3_hi = real3_zero;', vartype='real3'},
+			{name = ' x', code = '	*value_real3 = sym3_x(*value_sym3); *value_real3_hi = real3_zero;', vartype='real3'},
+			{name = ' y', code = '	*value_real3 = sym3_y(*value_sym3); *value_real3_hi = real3_zero;', vartype='real3'},
+			{name = ' z', code = '	*value_real3 = sym3_z(*value_sym3); *value_real3_hi = real3_zero;', vartype='real3'},
 	
 			--[[ these are already added through real3 x_i real x_j
-			{name = ' xx', code = '	*valuesym3 = _sym3(valuesym3->xx, 0,0,0,0,0);'},
-			{name = ' xy', code = '	*valuesym3 = _sym3(valuesym3->xy, 0,0,0,0,0);'},
-			{name = ' xz', code = '	*valuesym3 = _sym3(valuesym3->xz, 0,0,0,0,0);'},
-			{name = ' yy', code = '	*valuesym3 = _sym3(valuesym3->yy, 0,0,0,0,0);'},
-			{name = ' yz', code = '	*valuesym3 = _sym3(valuesym3->yz, 0,0,0,0,0);'},
-			{name = ' zz', code = '	*valuesym3 = _sym3(valuesym3->zz, 0,0,0,0,0);'},
+			{name = ' xx', code = '	*value_sym3 = _sym3(value_sym3->xx, 0,0,0,0,0);'},
+			{name = ' xy', code = '	*value_sym3 = _sym3(value_sym3->xy, 0,0,0,0,0);'},
+			{name = ' xz', code = '	*value_sym3 = _sym3(value_sym3->xz, 0,0,0,0,0);'},
+			{name = ' yy', code = '	*value_sym3 = _sym3(value_sym3->yy, 0,0,0,0,0);'},
+			{name = ' yz', code = '	*value_sym3 = _sym3(value_sym3->yz, 0,0,0,0,0);'},
+			{name = ' zz', code = '	*value_sym3 = _sym3(value_sym3->zz, 0,0,0,0,0);'},
 			--]]
 
-			{name = ' norm', code = '	*valuesym3 = _sym3( sqrt(sym3_dot(*valuesym3, *valuesym3)), 0,0,0,0,0);'},
-			{name = ' tr', code = '	*valuesym3 = _sym3( sym3_trace(*valuesym3), 0,0,0,0,0);'},
+			{name = ' norm', code = '	*value_sym3 = _sym3( sqrt(sym3_dot(*value_sym3, *value_sym3)), 0,0,0,0,0);'},
+			{name = ' tr', code = '	*value_sym3 = _sym3( sym3_trace(*value_sym3), 0,0,0,0,0);'},
 		}
 	}
 end
