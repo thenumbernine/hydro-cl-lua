@@ -46,8 +46,7 @@ function Euler:init(args)
 
 end
 
--- hmm, how to store units alongside variables
--- then I wouldn't need to worry about reference unit scales of the two-fluid plasma simulation
+-- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
 Euler.primVars = table{
 	{name='rho', type='real', units='kg/m^3'},
 	{name='v', type='real3', units='m/s'},
@@ -240,7 +239,7 @@ local function vorticity(eqn,k,result)
 		real vjp_i = Ujp->m.s<?=i?> / Ujp->rho;
 		
 		<?=result?> = (vjp_i - vjm_i) / (2. * solver->grid_dx.s<?=i?>)
-				- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
+					- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
 	}
 ]], {
 		i = i,
@@ -300,38 +299,30 @@ function Euler:getDisplayVars()
 	vars:append{
 		-- TODO should the default display generated of variables be in solver units or SI units?
 		-- should SI unit displays be auto generated as well?
-		{v = '*value_real3 = W.v;', type='real3'},
-		{['v (m/s)'] = '*value_real3 = real3_real_mul(W.v, unit_m_per_s);', type='real3'},
-		{P = '*value = W.P;'},
-		{['P (kg/(m s^2))'] = '*value = W.P * unit_kg_per_m_s2;'},
+		{v = '*value_real3 = W.v;', type='real3', units='m/s'},
+		{P = '*value = W.P;', units='kg/(m*s^2)'},
 		{eInt = '*value = calc_eInt(solver, W);'},
 		{eKin = '*value = calc_eKin(W, x);'},
 		{eTotal = '*value = U->ETotal / W.rho;'},
 		{EInt = '*value = calc_EInt(solver, W);'},
 		{EKin = '*value = calc_EKin(W, x);'},
-		{EPot = '*value = U->rho * U->ePot;'},
-		{['EPot (kg/(m s^2)))'] = '*value = U->rho * U->ePot * unit_kg_per_m_s2;'},
+		{EPot = '*value = U->rho * U->ePot;', units='kg/(m*s^2)'},
 		{S = '*value = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
 		{H = '*value = calc_H(solver, W.P);'},
 		{h = '*value = calc_h(solver, W.rho, W.P);'},
 		{HTotal = '*value = calc_HTotal(W.P, U->ETotal);'},
 		{hTotal = '*value = calc_hTotal(W.rho, W.P, U->ETotal);'},
-		{['speed of sound (m/s)'] = '*value = calc_Cs(solver, &W) * unit_m_per_s;'},
+		{['speed of sound'] = '*value = calc_Cs(solver, &W);', units='m/s'},
 		{['Mach number'] = '*value = coordLen(W.v, x) / calc_Cs(solver, &W);'},
 	}:append(self.gravOp and
-		{
-			{gravity = self:getCalcGravityCode(), type='real3'},
-			{['gravity (m/s)'] = self:getCalcGravityCode()..[[
-	*value_real3 = real3_real_mul(*value_real3, unit_m_per_s);
-]], type='real3'},
-		} or nil
+		{{gravity = self:getCalcGravityCode(), type='real3', units='m/s'}} or nil
 	):append{
-		{['temp (K)'] = template([[
+		{temp = template([[
 <? local clnumber = require 'cl.obj.number' ?>
 <? local materials = require 'materials' ?>
 #define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
-	*value = calc_eInt(solver, W) / C_v * unit_K;
-]])}
+	*value = calc_eInt(solver, W) / C_v;
+]]), units='K'}
 	}
 
 	-- vorticity = [x ,y ,z] [v.x, v.y, v.z][

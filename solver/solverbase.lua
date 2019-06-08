@@ -544,7 +544,7 @@ function SolverBase:getDisplayCode()
 							input = 
 							
 							-- nvidia needed this, but I don't want to write only -- I want to accumulate and do other operations
-							'write_only '	..
+							'write_only '..
 							-- if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
 								
 								(self.dim == 3
@@ -769,13 +769,16 @@ if solver.dim >= 3 then
 
 	//TODO rename to value_real
 	real value[6] = {0,0,0,0,0,0};	//size of largest struct.  TODO how about a union?
-	sym3* value_sym3 = (sym3*)value;
 
+	//value-for-type:
 	real* value_real = value;
+	sym3* value_sym3 = (sym3*)value;
 	cplx* value_cplx = (cplx*)value;
 	real3* value_real3 = (real3*)value;
-	real3* value_real3_hi = (real3*)(value+3);
 	cplx3* value_cplx3 = (cplx3*)value;
+
+	//special access
+	real3* value_real3_hi = (real3*)(value+3);
 
 <?= var.codePrefix or '' ?>
 <?= var.code ?>
@@ -858,56 +861,56 @@ end
 function SolverBase:getDisplayInfosForType()
 	return {
 		cplx = {
-			{name = ' re', code = '	*value_cplx = cplx_from_real(value_cplx->re);'},
-			{name = ' im', code = '	*value_cplx = cplx_from_real(value_cplx->im);'},
-			{name = ' abs', code = '	*value_cplx = cplx_from_real(cplx_abs(*value_cplx));'},
-			{name = ' arg', code = '	*value_cplx = cplx_from_real(cplx_arg(*value_cplx));'},
+			{name = ' re', code = '\t*value_cplx = cplx_from_real(value_cplx->re);'},
+			{name = ' im', code = '\t*value_cplx = cplx_from_real(value_cplx->im);'},
+			{name = ' abs', code = '\t*value_cplx = cplx_from_real(cplx_abs(*value_cplx));'},
+			{name = ' arg', code = '\t*value_cplx = cplx_from_real(cplx_arg(*value_cplx));'},
 		},
 		
 		real3 = {
-			{name = ' x', code = '	*value_real3 = _real3(value_real3->x,0,0);'},
-			{name = ' y', code = '	*value_real3 = _real3(value_real3->y,0,0);'},
-			{name = ' z', code = '	*value_real3 = _real3(value_real3->z,0,0);'},
-			{name = ' mag', code = '	*value_real3 = _real3(real3_len(*value_real3),0,0);', magn=true},
+			{name = ' x', code = '\t*value_real3 = _real3(value_real3->x,0,0);'},
+			{name = ' y', code = '\t*value_real3 = _real3(value_real3->y,0,0);'},
+			{name = ' z', code = '\t*value_real3 = _real3(value_real3->z,0,0);'},
+			{name = ' mag', code = '\t*value_real3 = _real3(real3_len(*value_real3),0,0);', magn=true},
 		},
 
 
 		cplx3 = {
-			{name = ' mag', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx3_len(*value_cplx3)), cplx_zero, cplx_zero);', magn=true},
+			{name = ' mag', code = '\t*value_cplx3 = _cplx3(cplx_from_real(cplx3_len(*value_cplx3)), cplx_zero, cplx_zero);', magn=true},
 			
 			-- TODO these two are crashing
-			{name = ' re', code = '	*value_real3 = cplx3_re(*value_cplx3); *value_real3_hi = real3_zero;', vartype='real3'},
-			{name = ' im', code = '	*value_real3 = cplx3_im(*value_cplx3); *value_real3_hi = real3_zero;', vartype='real3'},
+			{name = ' re', code = '\t*value_real3 = cplx3_re(*value_cplx3); *value_real3_hi = real3_zero;', vartype='real3'},
+			{name = ' im', code = '\t*value_real3 = cplx3_im(*value_cplx3); *value_real3_hi = real3_zero;', vartype='real3'},
 			
 			-- re and im will include re len, im len, re xyz, im xyz
 			-- but will skip the x,y,z cplx abs and arg:
-			{name = ' x abs', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx_abs(value_cplx3->x)), cplx_zero, cplx_zero);'},
-			{name = ' y abs', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx_abs(value_cplx3->y)), cplx_zero, cplx_zero);'},
-			{name = ' z abs', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx_abs(value_cplx3->z)), cplx_zero, cplx_zero);'},
-			{name = ' x arg', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx_arg(value_cplx3->x)), cplx_zero, cplx_zero);'},
-			{name = ' y arg', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx_arg(value_cplx3->y)), cplx_zero, cplx_zero);'},
-			{name = ' z arg', code = '	*value_cplx3 = _cplx3(cplx_from_real(cplx_arg(value_cplx3->z)), cplx_zero, cplx_zero);'},
+			{name = ' x abs', code = '\t*value_cplx3 = _cplx3(cplx_from_real(cplx_abs(value_cplx3->x)), cplx_zero, cplx_zero);'},
+			{name = ' y abs', code = '\t*value_cplx3 = _cplx3(cplx_from_real(cplx_abs(value_cplx3->y)), cplx_zero, cplx_zero);'},
+			{name = ' z abs', code = '\t*value_cplx3 = _cplx3(cplx_from_real(cplx_abs(value_cplx3->z)), cplx_zero, cplx_zero);'},
+			{name = ' x arg', code = '\t*value_cplx3 = _cplx3(cplx_from_real(cplx_arg(value_cplx3->x)), cplx_zero, cplx_zero);'},
+			{name = ' y arg', code = '\t*value_cplx3 = _cplx3(cplx_from_real(cplx_arg(value_cplx3->y)), cplx_zero, cplx_zero);'},
+			{name = ' z arg', code = '\t*value_cplx3 = _cplx3(cplx_from_real(cplx_arg(value_cplx3->z)), cplx_zero, cplx_zero);'},
 		},
 		
 		-- hmm, value_real3 has to be bigger for this to work
 		-- but does that mean I have to store 6 components in value_real3?
 		-- I suppose it does if I want a sym3-specific visualization
 		sym3 = {
-			{name = ' x', code = '	*value_real3 = sym3_x(*value_sym3); *value_real3_hi = real3_zero;', vartype='real3'},
-			{name = ' y', code = '	*value_real3 = sym3_y(*value_sym3); *value_real3_hi = real3_zero;', vartype='real3'},
-			{name = ' z', code = '	*value_real3 = sym3_z(*value_sym3); *value_real3_hi = real3_zero;', vartype='real3'},
+			{name = ' x', code = '\t*value_real3 = sym3_x(*value_sym3); *value_real3_hi = real3_zero;', vartype='real3'},
+			{name = ' y', code = '\t*value_real3 = sym3_y(*value_sym3); *value_real3_hi = real3_zero;', vartype='real3'},
+			{name = ' z', code = '\t*value_real3 = sym3_z(*value_sym3); *value_real3_hi = real3_zero;', vartype='real3'},
 	
 			--[[ these are already added through real3 x_i real x_j
-			{name = ' xx', code = '	*value_sym3 = _sym3(value_sym3->xx, 0,0,0,0,0);'},
-			{name = ' xy', code = '	*value_sym3 = _sym3(value_sym3->xy, 0,0,0,0,0);'},
-			{name = ' xz', code = '	*value_sym3 = _sym3(value_sym3->xz, 0,0,0,0,0);'},
-			{name = ' yy', code = '	*value_sym3 = _sym3(value_sym3->yy, 0,0,0,0,0);'},
-			{name = ' yz', code = '	*value_sym3 = _sym3(value_sym3->yz, 0,0,0,0,0);'},
-			{name = ' zz', code = '	*value_sym3 = _sym3(value_sym3->zz, 0,0,0,0,0);'},
+			{name = ' xx', code = '\t*value_sym3 = _sym3(value_sym3->xx, 0,0,0,0,0);'},
+			{name = ' xy', code = '\t*value_sym3 = _sym3(value_sym3->xy, 0,0,0,0,0);'},
+			{name = ' xz', code = '\t*value_sym3 = _sym3(value_sym3->xz, 0,0,0,0,0);'},
+			{name = ' yy', code = '\t*value_sym3 = _sym3(value_sym3->yy, 0,0,0,0,0);'},
+			{name = ' yz', code = '\t*value_sym3 = _sym3(value_sym3->yz, 0,0,0,0,0);'},
+			{name = ' zz', code = '\t*value_sym3 = _sym3(value_sym3->zz, 0,0,0,0,0);'},
 			--]]
 
-			{name = ' norm', code = '	*value_sym3 = _sym3( sqrt(sym3_dot(*value_sym3, *value_sym3)), 0,0,0,0,0);'},
-			{name = ' tr', code = '	*value_sym3 = _sym3( sym3_trace(*value_sym3), 0,0,0,0,0);'},
+			{name = ' norm', code = '\t*value_sym3 = _sym3( sqrt(sym3_dot(*value_sym3, *value_sym3)), 0,0,0,0,0);'},
+			{name = ' tr', code = '\t*value_sym3 = _sym3( sym3_trace(*value_sym3), 0,0,0,0,0);'},
 		}
 	}
 end
@@ -923,6 +926,56 @@ function SolverBase:addDisplayVarGroup(args, cl)
 
 	local group = args.group
 	local varInfos = args.vars
+
+	-- do a first-pass on the vars
+	-- find any with units specified
+	-- and insert a duplicate except with unit conversion
+	varInfos = table(varInfos)
+	for i=#varInfos,1,-1 do
+		local varInfo = varInfos[i]
+		if varInfo.units then
+			local units = varInfo.units
+			varInfos[i] = table(varInfo)
+			varInfos[i].units = nil
+
+			local name, code, vartype
+			for k,v in pairs(varInfos[i]) do
+				if k == 'type' then
+					vartype = v
+				else
+					assert(not name and not code)
+					name = k
+					code = v
+				end
+			end
+			vartype = vartype or 'real'
+		
+
+			-- TODO don't do the non- and unit-based display here.  instead do it wherever display vars are created.
+			local suffix = ' ('..units:gsub('%*', ' ')..')'
+			local unitcode = units
+			-- expand powers
+			unitcode = unitcode:gsub('(%w+)%^(%d+)', function(w,n)
+				return '('..string.rep(w, n, ' * ')..')'
+			end)
+			-- replace unit letters with variables
+			unitcode = unitcode:gsub('%w+', function(w)
+				return assert(({
+					m = 'solver->meter',
+					s = 'solver->second',
+					kg = 'solver->kilogram',
+					C = 'solver->coulomb',
+					K = 'solver->kelvin',
+				})[w], "couldn't find unit "..w)
+			end)
+			local assignvar = 'value_'..vartype..'[0]'
+			varInfos:insert(i+1, {
+				[name..suffix] = code..'\n\t'..assignvar..' = '..vartype..'_real_mul('..assignvar..', '..unitcode..');\n', 
+				type = vartype,
+			})
+	
+		end
+	end
 
 	local enableScalar = true
 	local enableVector = true

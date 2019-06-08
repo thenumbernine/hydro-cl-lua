@@ -207,66 +207,24 @@ function Equation:getDisplayVarsForStructVars(structVarInfos, ptrName)
 	ptrName = ptrName .. '->'
 	local displayVarInfos = table()
 	for _,structVarInfo in ipairs(structVarInfos) do
-
-		-- TODO use some kind of standard, like 'value_'..type
-		local assignForType = {
-			real = 'value',
-			real3 = 'value_real3',
-			cplx = 'value_cplx',
-			cplx3 = 'value_cplx3',
-			sym3 = 'value_sym3',
-		}
-	
+		
 		local function addvar(varname, vartype)
-			local assignvar = '*'..assignForType[vartype]
+			local assignvar = '*value_'..vartype
 			displayVarInfos:insert{
 				[varname] = assignvar..' = '..ptrName..varname..';', 
 				type = vartype,
 				units = structVarInfo.units
 			}
-			
-			-- TODO don't do the non- and unit-based display here.  instead do it wherever display vars are created.
-			local units = structVarInfo.units
-			if units then
-				local suffix = ' ('..units:gsub('%*', ' ')..')'
-				local code = units
-				-- expand powers
-				code = code:gsub('(%w+)%^(%d+)', function(w,n)
-					return string.rep(w, n, ' * ')
-				end)
-				-- replace unit letters with variables
-				code = code:gsub('%w+', function(w)
-					return assert(({
-						m = 'solver->meter',
-						s = 'solver->second',
-						kg = 'solver->kilogram',
-						C = 'solver->coulomb',
-						K = 'solver->kelvin',
-					})[w], "couldn't find unit "..w)
-				end)
-				displayVarInfos:insert{
-					[varname..suffix] = assignvar..' = '..vartype..'_real_mul('..ptrName..varname..', '..code..');', 
-					type = vartype,
-				}		
-			end
 		end
 
 		local varname = structVarInfo.name
 		local vartype = structVarInfo.type
-		if vartype == 'real' then
-			addvar(varname, vartype)
-		elseif vartype == 'real3' then
-			addvar(varname, vartype)
-		elseif vartype == 'cplx' then
-			addvar(varname, vartype)
-		elseif vartype == 'cplx3' then
-			addvar(varname, vartype)
-		elseif vartype == 'sym3' then
-			addvar(varname, vartype)
-		elseif vartype == '_3sym3' then
+		if vartype == '_3sym3' then
 			for i,xi in ipairs(xNames) do
 				addvar(varname..'_'..xi, 'sym3')
 			end
+		else
+			addvar(varname, vartype)
 		end
 	end
 	return displayVarInfos	
