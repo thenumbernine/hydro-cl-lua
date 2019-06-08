@@ -1495,7 +1495,8 @@ function GridSolver:updateGUI()
 	-- TODO volumetric var
 end
 
-function GridSolver:saveBuffer(name, prefix)
+function GridSolver:saveBuffer(buffer, basefn)
+	buffer = buffer.obj or buffer
 	local Image = require 'image'
 	
 	-- TODO add planes to image, then have the FITS module use planes and not channels
@@ -1504,11 +1505,9 @@ function GridSolver:saveBuffer(name, prefix)
 	local height = tonumber(self.gridSize.y)
 	local depth = tonumber(self.gridSize.z)
 	
-	if prefix then prefix = prefix .. '_' else prefix = '' end
-	local buffer = self[name]
 	local channels = buffer.size / self.numCells / ffi.sizeof(self.app.real)
 	if channels ~= math.floor(channels) then
-		print("can't save buffer "..name.." due to its size not being divisible by the numCells")
+		print("can't save buffer due to its size not being divisible by the numCells")
 	else
 
 		local numReals = self.numCells * channels
@@ -1537,22 +1536,24 @@ function GridSolver:saveBuffer(name, prefix)
 		end
 		image.buffer = tmp
 	
-		local filename = prefix..name..'.fits'
+		local filename = basefn..'.fits'
 --print('saving '..filename)
 		image:save(filename)
 	end
 end
 
+-- global
 local debugSaveBufferIndex = 0
-function GridSolver:debugSaveBuffer(name, msg)
+function GridSolver:debugSaveBuffer(buffer, msg)
 	debugSaveBufferIndex = debugSaveBufferIndex + 1  
 	msg = table{debugSaveBufferIndex, msg}:concat'_' 
-	self:saveBuffer(name, msg) 
+	self:saveBuffer(buffer, msg) 
 end
 
 function GridSolver:save(prefix)
 	for _,bufferInfo in ipairs(self.buffers) do
-		self:saveBuffer(bufferInfo.name, prefix)
+		local name = bufferInfo.name
+		self:saveBuffer(self[name], (prefix and prefix..'_' or '')..name)
 	end
 end
 

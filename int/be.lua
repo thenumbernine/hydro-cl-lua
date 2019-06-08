@@ -108,7 +108,7 @@ function BackwardEuler:init(solver, args)
 	}
 	
 	local numreals = solver.numCells * solver.eqn.numStates
-	local volumeWithoutBorder = tonumber(solver.sizeWithoutBorder:volume())
+	local volumeWithoutBorder = solver.volumeWithoutBorder
 	local numRealsWithoutBorder = volumeWithoutBorder * solver.eqn.numStates
 	
 	local sum = solver.app.env:reduce{

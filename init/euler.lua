@@ -1356,9 +1356,9 @@ end ?>;
 			
 			-- 4/3 pi (1)^3 rho = m <=> rho = 3 m /(4 pi)
 			kilogram = 5.9722e+24 * 3 / (4 * math.pi),
-		
-			-- m^3 / (kg s^2) = 0.00027206228446278  
-			-- gravitational constant = 1.8157001565391e-14  
+	
+			-- in units of m^3/(kg s^2)
+			gravitationalConstant = 6.67384e-11,
 		},
 		initState = function(self, solver)
 			local f = SelfGravProblem{
@@ -1376,9 +1376,6 @@ end ?>;
 		name = 'self-gravitation test 1',
 		mins = {-1,-1,-1},
 		maxs = {1,1,1},
-		overrideGuiVars = {
-			gravitationalConstant = 1,
-		},
 		initState = function(self, solver)
 			local f = SelfGravProblem{
 				solver = solver,

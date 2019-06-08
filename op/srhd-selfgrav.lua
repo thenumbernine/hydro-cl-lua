@@ -7,7 +7,7 @@ local SRHDSelfGrav = class(Poisson)
 SRHDSelfGrav.enableField = 'useGravity'
 
 SRHDSelfGrav.guiVars = {
-	{name='gravitationalConstant', value=2},	---- 6.67384e-11 m^3 / (kg s^2)
+	{name='gravitationalConstant', value=2},
 }
 
 function SRHDSelfGrav:init(args)

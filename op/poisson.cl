@@ -44,7 +44,7 @@ kernel void initPotential<?=op.name?>(
 	global <?=op:getPotBufType()?>* U = UBuf + index;
 	<?=scalar?> source = <?=scalar?>_zero;
 <?=op:getPoissonDivCode() or ''?>
-	UBuf[index].<?=op.potentialField?> = <?=neg?>(source);
+	UBuf[index].<?=op.potentialField?> = source;	//<?=neg?>(source);
 }
 
 /*
@@ -181,4 +181,13 @@ kernel void copyWriteToPotentialNoGhost(
 ) {
 	SETBOUNDS_NOGHOST();
 	UBuf[index].<?=op.potentialField?> = writeBuf[index];
+}
+
+kernel void copyPotentialToWriteNoGhost(
+	constant <?=solver.solver_t?>* solver,
+	global real* writeBuf,
+	global const <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS_NOGHOST();
+	writeBuf[index] = UBuf[index].<?=op.potentialField?>;
 }

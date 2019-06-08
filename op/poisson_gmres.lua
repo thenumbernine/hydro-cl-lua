@@ -26,23 +26,25 @@ function ThisKrylov:newBuffer(name)
 	return cached
 end
 
-local Poisson = class()
+local PoissonKrylov = class()
 
-Poisson.name = 'Poisson'
+PoissonKrylov.name = 'PoissonKrylov'
 
-Poisson.potentialField = 'ePot'
+PoissonKrylov.potentialField = 'ePot'
 
-Poisson.scalar = 'real'
+PoissonKrylov.scalar = 'real'
 
-function Poisson:getPotBufType()
+PoissonKrylov.verbose = false
+
+function PoissonKrylov:getPotBufType()
 	return self.solver.UBufObj.type
 end
 
-function Poisson:getPotBuf()
+function PoissonKrylov:getPotBuf()
 	return self.solver.UBuf
 end
 
-function Poisson:init(args)
+function PoissonKrylov:init(args)
 	local solver = assert(args.solver)
 	self.solver = solver
 	self.potentialField = args.potentialField
@@ -51,7 +53,7 @@ function Poisson:init(args)
 	self.name = solver.app:uniqueName(self.name)
 end
 
-function Poisson:initSolver()
+function PoissonKrylov:initSolver()
 	local solver = self.solver
 	
 	for _,name in ipairs{
@@ -85,10 +87,13 @@ function Poisson:initSolver()
 	y[index] = a[index] * b[index];
 ]],
 	}
-	local volumeWithoutBorder = tonumber(solver.sizeWithoutBorder:volume())
+	
+	local numreals = solver.numCells
+	local volumeWithoutBorder = solver.volumeWithoutBorder
+	local numRealsWithoutBorder = volumeWithoutBorder
 
 	local sum = solver.app.env:reduce{
-		count = volumeWithoutBorder,
+		count = numreals,
 		op = function(x,y) return x..' + '..y end,
 	}
 	local dotWithoutBorder = function(a,b)
@@ -103,16 +108,18 @@ function Poisson:initSolver()
 	local linearSolverArgs = {
 		env = solver.app.env,
 		x = self.krylov_xObj,
-		count = volumeWithoutBorder,
+		count = numreals,
 		epsilon = epsilon,
 		--maxiter = 1000,
 		restart = restart,
-		maxiter = restart * volumeWithoutBorder,
+		maxiter = restart * numreals,
 		-- logging:
 		errorCallback = function(residual, iter, x, rLenSq)
 			local lastResidual, lastIter = self.lastResidual, self.lastIter
 			self.lastResidual, self.lastIter = residual, iter
-print('krylov iter', iter, 'residual', residual)			
+			if self.verbose then
+				print('krylov iter', iter, 'residual', residual)
+			end
 			if not math.isfinite(residual) then
 				print("got non-finite residual: "..residual)	-- error?
 				return true	-- fail
@@ -122,7 +129,7 @@ print('krylov iter', iter, 'residual', residual)
 			end
 		end,
 		dot = function(a,b)
-			return dotWithoutBorder(a,b) / volumeWithoutBorder 
+			return dotWithoutBorder(a,b) / numRealsWithoutBorder
 		end,
 	}
 
@@ -206,7 +213,7 @@ kernel void copyVecToPotentialField<?=op.name?>(
 ]]
 
 -- TODO rename to 'getCode'
-function Poisson:getSolverCode()
+function PoissonKrylov:getSolverCode()
 	return table{
 		template(
 			table{
@@ -222,7 +229,7 @@ function Poisson:getSolverCode()
 	}:concat'\n'
 end
 
-function Poisson:refreshSolverProgram()
+function PoissonKrylov:refreshSolverProgram()
 	local solver = self.solver
 	self:initSolver()
 	self.initPotentialKernelObj = solver.solverProgramObj:kernel('initPotential'..self.name, solver.solverBuf, self:getPotBuf())
@@ -232,9 +239,9 @@ function Poisson:refreshSolverProgram()
 end
 
 -- matches op/relaxation.lua
-function Poisson:refreshBoundaryProgram()
+function PoissonKrylov:refreshBoundaryProgram()
 	local solver = self.solver
-	-- only applies the boundary conditions to Poisson:potentialField
+	-- only applies the boundary conditions to PoissonKrylov:potentialField
 	self.potentialBoundaryProgramObj, self.potentialBoundaryKernelObjs =
 		solver:createBoundaryProgramAndKernel{
 			type = self:getPotBufType(),
@@ -251,7 +258,7 @@ function Poisson:refreshBoundaryProgram()
 end
 
 -- matches op/relaxation.lua
-function Poisson:resetState()
+function PoissonKrylov:resetState()
 	local solver = self.solver
 	if self.enableField and not solver[self.enableField] then return end
 	self.initPotentialKernelObj()
@@ -259,31 +266,32 @@ function Poisson:resetState()
 	self:relax()
 end
 
-function Poisson:relax()
+function PoissonKrylov:relax()
 	local solver = self.solver
-	
 	-- apply boundary conditions to UBuf.potentialField before our iterative solution	
 	-- (TODO should we be applying it each iteration as well?)
 	self:potentialBoundary()
 	-- copy potential field into krylov_x
-	-- calculate krylov_b by Poisson:getCodeParams():getPoissonDivCode()
+	-- calculate krylov_b by PoissonKrylov:getCodeParams():getPoissonDivCode()
 	self.copyPotentialFieldToVecAndInitBKernelObj()
+
 	-- solve
 	self.linearSolver()
+	
 	-- copy krylov_x back to potential field
 	self.copyVecToPotentialFieldKernelObj()
 end
 
 -- matches to op/relaxation.lua
-function Poisson:potentialBoundary()
+function PoissonKrylov:potentialBoundary()
 	self.solver:applyBoundaryToBuffer(self.potentialBoundaryKernelObjs)
 end
 
 -- similar to op/relaxation.lua
-function Poisson:updateGUI()
+function PoissonKrylov:updateGUI()
 	ig.igPushIDStr(self.name..' solver')
-	-- TODO name from 'field' / 'enableField', though those aren't properties of Poisson
-	if ig.igCollapsingHeader'Poisson solver' then
+	-- TODO name from 'field' / 'enableField', though those aren't properties of PoissonKrylov
+	if ig.igCollapsingHeader'PoissonKrylov solver' then
 		tooltip.numberTable('Krylov epsilon', self.linearSolver.args, 'epsilon')
 		tooltip.intTable('GMRES restart', self.linearSolver.args, 'restart')
 		tooltip.intTable('maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
@@ -293,4 +301,4 @@ function Poisson:updateGUI()
 	ig.igPopID()
 end
 
-return Poisson
+return PoissonKrylov

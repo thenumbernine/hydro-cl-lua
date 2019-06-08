@@ -2,17 +2,17 @@ local table = require 'ext.table'
 local class = require 'ext.class'
 local Relaxation = require 'op.relaxation'
 
-local Poisson = class(Relaxation)
+local PoissonGaussSeidel = class(Relaxation)
 
-Poisson.name = 'Poisson'
+PoissonGaussSeidel.name = 'PoissonGaussSeidel'
 
-Poisson.solverCodeFile = 'op/poisson.cl'
+PoissonGaussSeidel.solverCodeFile = 'op/poisson.cl'
 
-function Poisson:getSolverCode()
+function PoissonGaussSeidel:getSolverCode()
 	return table{
-		Poisson.super.getSolverCode(self),
+		PoissonGaussSeidel.super.getSolverCode(self),
 		self:getPoissonCode() or '',
 	}:concat'\n'
 end
 
-return Poisson
+return PoissonGaussSeidel
