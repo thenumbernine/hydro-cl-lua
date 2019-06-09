@@ -16,7 +16,6 @@ predefined vars:
 	platform = name or numeric index of which OpenCL platform to use.  see clinfo utility (or my cl/tests/info.lua script) for identifying platforms.
 	device = name or numeric index of which OpenCL device to use.
 	disableFont = set to disable loading of the font.png file.  automatically true if sys=console.
-	useConsole = set to use no graphics whatsoever
 	vsync = set to enable vsync and slow down the simulation
 	createAnimation = set to start off creating an animation / framedump
 	exitTime = start the app running, and exit it after the simulation reaches this time

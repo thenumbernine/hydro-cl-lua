@@ -9,32 +9,13 @@ local template = require 'template'
 
 local CLBuffer = require 'cl.obj.buffer'
 
---local CLKrylov = require 'solver.cl.conjgrad'
-local CLKrylov = require 'solver.cl.conjres'
---local CLKrylov = require 'solver.cl.gmres'
-
--- can I combine this with the CLKrylov in int/be.lua somehow?
-local ThisKrylov = class(CLKrylov)
-
-function ThisKrylov:newBuffer(name)
-	if not self.cache then self.cache = {} end
-	local cached = self.cache[name]
-	if cached then return cached end
-	cached = ThisKrylov.super.newBuffer(self, name)
-	cached:fill()
-	self.cache[name] = cached
-	return cached
-end
-
 local PoissonKrylov = class()
 
 PoissonKrylov.name = 'PoissonKrylov'
-
-PoissonKrylov.potentialField = 'ePot'
-
 PoissonKrylov.scalar = 'real'
-
+PoissonKrylov.potentialField = 'ePot'
 PoissonKrylov.verbose = false
+PoissonKrylov.linearSolverType = 'gmres'
 
 function PoissonKrylov:getPotBufType()
 	return self.solver.UBufObj.type
@@ -47,7 +28,10 @@ end
 function PoissonKrylov:init(args)
 	local solver = assert(args.solver)
 	self.solver = solver
+	
 	self.potentialField = args.potentialField
+	self.verbose = args.verbose
+	self.linearSolverType = args.linearSolver
 
 	-- matches op/relaxation.lua
 	self.name = solver.app:uniqueName(self.name)
@@ -55,6 +39,24 @@ end
 
 function PoissonKrylov:initSolver()
 	local solver = self.solver
+
+
+	local CLKrylov = require('solver.cl.'..self.linearSolverType)
+
+	-- can I combine this with the CLKrylov in int/be.lua somehow?
+	local ThisKrylov = class(CLKrylov)
+
+	function ThisKrylov:newBuffer(name)
+		if not self.cache then self.cache = {} end
+		local cached = self.cache[name]
+		if cached then return cached end
+		cached = ThisKrylov.super.newBuffer(self, name)
+		cached:fill()
+		self.cache[name] = cached
+		return cached
+	end
+
+	
 	
 	for _,name in ipairs{
 		'krylov_b',
@@ -115,10 +117,29 @@ function PoissonKrylov:initSolver()
 		maxiter = restart * numreals,
 		-- logging:
 		errorCallback = function(residual, iter, x, rLenSq)
+			residual = residual / numRealsWithoutBorder
 			local lastResidual, lastIter = self.lastResidual, self.lastIter
 			self.lastResidual, self.lastIter = residual, iter
 			if self.verbose then
-				print('krylov iter', iter, 'residual', residual)
+				--print('krylov iter', iter, 'residual', residual)
+			
+-- [[
+solver.app.env.cmds:enqueueCopyBuffer{
+	src=assert(x.obj),
+	dst=assert(solver.reduceBuf),
+	size = ffi.sizeof(solver.app.real) * numreals,
+}
+local xmin = solver.reduceMin()
+solver.app.env.cmds:enqueueCopyBuffer{
+	src=assert(x.obj),
+	dst=assert(solver.reduceBuf),
+	size = ffi.sizeof(solver.app.real) * numreals,
+}
+local xmax = solver.reduceMax()
+io.stderr:write(table{iter, residual, xmin, xmax}:map(tostring):concat'\t','\n')
+--]]
+		
+			
 			end
 			if not math.isfinite(residual) then
 				print("got non-finite residual: "..residual)	-- error?
@@ -129,7 +150,8 @@ function PoissonKrylov:initSolver()
 			end
 		end,
 		dot = function(a,b)
-			return dotWithoutBorder(a,b) / numRealsWithoutBorder
+			return dotWithoutBorder(a,b)
+				--/ numRealsWithoutBorder
 		end,
 	}
 

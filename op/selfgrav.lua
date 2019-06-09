@@ -4,14 +4,29 @@ local class = require 'ext.class'
 local tooltip = require 'tooltip'
 local template = require 'template'
 
+-- TODO make this a parameter of selfgrav (and then of equation)
 --local Poisson = require 'op.poisson'
-local Poisson = require 'op.poisson_gmres'
+--local Poisson = require 'op.poisson_krylov'
+local Poisson = require(
+	cmdline.selfGravPoissonSolver 
+	and 'op.'..cmdline.selfGravPoissonSolver
+	or 'op.poisson_krylov'
+)
 
 local SelfGrav = class(Poisson)
 
 SelfGrav.enableField = 'useGravity'
 
 function SelfGrav:init(args)
+	-- TODO build super class based on what argument we chose?
+
+-- for krylov superclass:
+--args.linearSolver = 'conjgrad'
+--args.linearSolver = 'conjres'
+--args.linearSolver = 'gmres'
+args.linearSolver = cmdline.selfGravLinearSolver
+args.verbose = cmdline.selfGravVerbose
+
 	SelfGrav.super.init(self, args)
 	self.solver[self.enableField] = not not self.solver[self.enableField]
 end

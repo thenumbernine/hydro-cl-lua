@@ -44,7 +44,13 @@ kernel void initPotential<?=op.name?>(
 	global <?=op:getPotBufType()?>* U = UBuf + index;
 	<?=scalar?> source = <?=scalar?>_zero;
 <?=op:getPoissonDivCode() or ''?>
-	UBuf[index].<?=op.potentialField?> = source;	//<?=neg?>(source);
+	
+<? if cmdline.selfGravInitPotentialPositive then
+?>	UBuf[index].<?=op.potentialField?> = source;
+<? else
+?>	UBuf[index].<?=op.potentialField?> = <?=neg?>(source);
+<? end
+?>
 }
 
 /*

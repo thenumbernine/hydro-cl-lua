@@ -18,15 +18,15 @@ Relaxation.scalar = 'real'
 Relaxation.potentialField = 'ePot'
 
 Relaxation.stopOnEpsilon = true
--- [[ realtime
+--[[ realtime
 Relaxation.stopEpsilon = 1e-18
 Relaxation.maxIters = 20
 --]]
---[[ safe
+-- [[ safe
 Relaxation.stopEpsilon = 1e-20
-Relaxation.maxIters = 10000
+Relaxation.maxIters = 10000	-- 10 * numreals
 --]]
---Relaxation.verbose = true
+Relaxation.verbose = true
 
 -- child class needs to provide this:
 Relaxation.solverCodeFile = nil
@@ -116,7 +116,7 @@ function Relaxation:relax()
 		-- writes new potentialField to writeBuf
 		-- stores deltas in reduceBuf
 		self.solveJacobiKernelObj()
-		
+
 		-- copy new values back from writeBuf to UBuf potentialField
 		self.copyWriteToPotentialNoGhostKernelObj()
 
@@ -128,7 +128,15 @@ function Relaxation:relax()
 			
 			self.lastResidual = residual
 			if self.verbose then
-				print('gauss seidel iter '..i..' residual '..residual)
+				--print('relaxation iter '..i..' residual '..residual)
+
+-- [[
+self.copyPotentialToReduceKernelObj()
+local xmin = solver.reduceMin()
+self.copyPotentialToReduceKernelObj()
+local xmax = solver.reduceMax()
+io.stderr:write(table{i, residual, xmin, xmax}:map(tostring):concat'\t','\n')
+--]]			
 			end
 			if residual <= self.stopEpsilon then break end
 		end

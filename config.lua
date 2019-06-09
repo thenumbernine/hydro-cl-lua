@@ -63,7 +63,7 @@ local args = {
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics 520'] = {
 				{256,1,1},
-				{128,128,1},
+				{64,64,1},
 				{48,48,48},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
@@ -183,7 +183,7 @@ local args = {
 	--initState = 'rarefaction wave',
 	
 	--initState = 'Sod',
-	initState = 'rectangle',
+	--initState = 'rectangle',
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
@@ -204,7 +204,7 @@ local args = {
 
 	-- self-gravitation tests:
 	--initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.  TODO this doesn't produce 9.8 m/s^2 just yet
-	--initState = 'self-gravitation test 1',
+	initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
 	--initState = 'self-gravitation test 2',		--FIXME
 	--initState = 'self-gravitation test 2 orbiting',
