@@ -31,7 +31,7 @@ function SRHDSelfGrav:getPoissonDivCode()
 	-- we gotta keep the name 'UBuf'
 	-- even though it's the primBuf ...
 	return template([[
-<? local eqn = self.solver.eqn ?>
+<? local eqn = op.solver.eqn ?>
 	global <?=eqn.prim_t?>* prim = &UBuf[index].prim;
 	source = solver->gravitationalConstant * unit_m3_per_kg_s2 * prim-><?=op.densityField?>;
 ]], {
@@ -41,6 +41,10 @@ end
 
 function SRHDSelfGrav:getPoissonCode()
 	return template([[
+<?
+local solver = op.solver
+local eqn = solver.eqn
+?>
 kernel void calcGravityDeriv<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuffer,
@@ -60,12 +64,12 @@ kernel void calcGravityDeriv<?=op.name?>(
 		int indexR = index + solver->stepsize.s<?=side?>;
 
 		du_dt.s<?=side?> = (
-			UBuf[indexR].<?=self.potentialField?> 
-			- UBuf[indexL].<?=self.potentialField?>
+			UBuf[indexR].<?=op.potentialField?> 
+			- UBuf[indexL].<?=op.potentialField?>
 		) / (2. * cell_dx<?=side?>(x));
 	}<? end ?>
 
-	real Phi = UBuf[index].<?=self.potentialField?>;
+	real Phi = UBuf[index].<?=op.potentialField?>;
 
 	//u = W v
 	real W = U->D / prim->rho;
@@ -155,9 +159,7 @@ kernel void calcGravityDeriv<?=op.name?>(
 
 ]],
 	{
-		self = self,
-		solver = self.solver,
-		eqn = self.solver.eqn,
+		op = self,
 	})
 end
 

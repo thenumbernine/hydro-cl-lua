@@ -127,6 +127,7 @@ function PoissonKrylov:initSolver()
 	end
 	
 	local restart = args and args.restart or 10
+	self.lastResidual = 0
 	self.lastXNorm = 0
 	self.lastIter = 0
 	local linearSolverArgs = {
@@ -135,18 +136,19 @@ function PoissonKrylov:initSolver()
 		count = numreals,
 		epsilon = self.stopEpsilon,
 		restart = restart,
-		--maxiter = 1000,
-		maxiter = cmdline.selfGravPoissonMaxIter or restart * numreals,
+		maxiter = cmdline.selfGravPoissonMaxIter or 20,	--restart * numreals,
 		-- logging:
 		errorCallback = function(residual, iter, x, rLenSq)
 			-- square from x to reduceBuf
 			squareKernelObj(solver.reduceBuf, solver.solverBuf, x)
 			local xNorm = math.sqrt(solver.reduceSum()) / numRealsWithoutBorder
 			
-			local lastXNorm, lastIter = self.lastXNorm, self.lastIter
-			self.lastXNorm, self.lastIter = xNorm, iter
+			local lastResidual, lastIter = self.lastResidual, self.lastIter
+			local lastXNorm = self.lastXNorm
+			self.lastResidual, self.lastIter = residual, iter
+			self.lastXNorm = xNorm
 			if self.verbose then
-				--print('krylov iter', iter, 'xNorm', xNorm)
+				--print('krylov iter', iter, 'residual', residual)
 			
 -- [[
 solver.app.env.cmds:enqueueCopyBuffer{
@@ -161,7 +163,7 @@ solver.app.env.cmds:enqueueCopyBuffer{
 	size = ffi.sizeof(solver.app.real) * numreals,
 }
 local xmax = solver.reduceMax()
-io.stderr:write(table{iter, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
+io.stderr:write(table{iter, xNorm, xmin, xmax, residual}:map(tostring):concat'\t','\n')
 --]]
 		
 			
@@ -170,13 +172,12 @@ io.stderr:write(table{iter, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
 				print("got non-finite xNorm: "..xNorm)	-- error?
 				return true	-- fail
 			end
-			if math.abs(xNorm - lastXNorm) < self.stopEpsilon then
+			if math.abs(residual) < self.stopEpsilon then
 				return true
 			end
 		end,
 		dot = function(a,b)
-			return dotWithoutBorder(a,b)
-				--/ numRealsWithoutBorder
+			return dotWithoutBorder(a,b) / numRealsWithoutBorder
 		end,
 	}
 
@@ -340,7 +341,7 @@ function PoissonKrylov:updateGUI()
 		tooltip.numberTable('Krylov epsilon', self.linearSolver.args, 'epsilon')
 		tooltip.intTable('GMRES restart', self.linearSolver.args, 'restart')
 		tooltip.intTable('maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
-		ig.igText('xNorm = '..self.lastXNorm)
+		ig.igText('residual = '..self.lastResidual)
 		ig.igText('iter = '..self.lastIter)
 	end
 	ig.igPopID()

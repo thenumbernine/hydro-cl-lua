@@ -17,7 +17,8 @@ local args = {
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
 	--integrator = 'backward Euler',
-	
+	--integratorArgs = {verbose=true},
+
 	--fixedDT = .0001,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
 	
@@ -80,12 +81,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'mirror',
-		xmax=cmdline.boundary or 'mirror',
-		ymin=cmdline.boundary or 'mirror',
-		ymax=cmdline.boundary or 'mirror',
-		zmin=cmdline.boundary or 'mirror',
-		zmax=cmdline.boundary or 'mirror',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
@@ -204,7 +205,7 @@ local args = {
 
 	-- self-gravitation tests:
 	--initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.  TODO this doesn't produce 9.8 m/s^2 just yet
-	--initState = 'self-gravitation test 1',
+	initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
 	--initState = 'self-gravitation test 2',		--FIXME
 	--initState = 'self-gravitation test 2 orbiting',
@@ -235,7 +236,7 @@ local args = {
 	--initState = '2002 Dedner Kelvin-Helmholtz',
 
 	-- Maxwell:
-	initState = 'Maxwell default',
+	--initState = 'Maxwell default',
 	--initState = 'Maxwell empty waves',
 	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around pyramid',
@@ -441,7 +442,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -546,7 +547,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 
 -- TODO somehow I broke this.  It seems to be failing on everything.
 -- when the state is nonzero, at certain sizes there appear errors in the corners
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='maxwell', wenoMethod='1996 Jiang Shu', order=5})))

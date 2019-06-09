@@ -24,11 +24,7 @@ local eqn = solver.eqn
 local scalar = op.scalar 
 local neg = scalar..'_neg'
 local zero = scalar..'_zero'
-local add3 = scalar..'_add3'
-local sub = scalar..'_sub'
-local mul = scalar..'_mul'
-local abs = scalar..'_abs'
-local real_mul = scalar..'_real_mul'
+local lenSq = scalar..'_lenSq'
 ?>
 
 /*
@@ -43,7 +39,7 @@ kernel void initPotential<?=op.name?>(
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	global <?=op:getPotBufType()?>* U = UBuf + index;
-	<?=scalar?> source = <?=scalar?>_zero;
+	<?=scalar?> source = <?=zero?>;
 <?=op:getPoissonDivCode() or ''?>
 	
 <? if cmdline.selfGravInitPotential == '+' then
@@ -62,4 +58,14 @@ kernel void copyWriteToPotentialNoGhost<?=op.name?>(
 ) {
 	SETBOUNDS_NOGHOST();
 	UBuf[index].<?=op.potentialField?> = writeBuf[index];
+}
+
+//used by op/relaxation.lua
+kernel void setReduceToPotentialSquared<?=op.name?>(
+	constant <?=solver.solver_t?>* solver,
+	global real* reduceBuf,
+	const global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS_NOGHOST();
+	reduceBuf[index] = <?=lenSq?>(UBuf[index].<?=op.potentialField?>);
 }

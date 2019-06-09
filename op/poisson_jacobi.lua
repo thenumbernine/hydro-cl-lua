@@ -20,7 +20,7 @@ local zero = scalar..'_zero'
 local add3 = scalar..'_add3'
 local sub = scalar..'_sub'
 local mul = scalar..'_mul'
-local abs = scalar..'_abs'
+local lenSq = scalar..'_lenSq'
 local real_mul = scalar..'_real_mul'
 ?>
 
@@ -145,8 +145,8 @@ end
 
 	writeBuf[index] = newU;	
 <? if op.stopOnEpsilon then
-?>	// TODO what to plot/test that is comparable to Krylov solvers' residuals?  For now I will just compare the norms.
-	reduceBuf[index] = newU * newU;
+?>	<?=scalar?> deltaU = <?=sub?>(newU, oldU);
+	reduceBuf[index] = <?=lenSq?>(deltaU);
 <? end
 ?>
 }

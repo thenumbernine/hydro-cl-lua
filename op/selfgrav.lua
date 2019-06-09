@@ -11,8 +11,8 @@ local Poisson = require(
 	-- Jacobi seems to be converging fastest atm. 
 	-- however Jacobi seems to be most unstable for 3D.
 	-- TODO multigrid or FFT?
-	--or 'op.poisson_krylov'		-- Krylov
-	or 'op.poisson_jacobi'		-- Jacobi
+	or 'op.poisson_krylov'		-- Krylov
+	--or 'op.poisson_jacobi'		-- Jacobi
 )
 
 -- TODO Schurr filter instead of 2n+1 point filter.
@@ -49,6 +49,10 @@ end
 
 function SelfGrav:getPoissonCode()
 	return template([[
+<?
+local solver = op.solver
+local eqn = solver.eqn
+?>
 kernel void calcGravityDeriv<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuffer,
@@ -105,8 +109,6 @@ kernel void offsetPotentialAndAddToTotal<?=op.name?>(
 }
 ]], {
 		op = self,
-		solver = self.solver,
-		eqn = self.solver.eqn,
 	})
 end
 

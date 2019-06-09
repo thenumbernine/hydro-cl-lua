@@ -19,14 +19,8 @@ Relaxation.scalar = 'real'
 Relaxation.potentialField = 'ePot'
 
 Relaxation.stopOnEpsilon = true
---[[ realtime
-Relaxation.stopEpsilon = 1e-18
-Relaxation.maxIters = 20
---]]
--- [[ safe
 Relaxation.stopEpsilon = 1e-10
 Relaxation.maxIters = cmdline.selfGravPoissonMaxIter or 20	-- 10 * numreals
---]]
 Relaxation.verbose = false
 
 -- child class needs to provide this:
@@ -83,24 +77,17 @@ function Relaxation:refreshSolverProgram()
 		domain=solver.domainWithoutBorder,
 	}
 
-	
-	self.squareKernelObj = solver.domain:kernel{
-		name = 'Poisson_square'..self.name,
-		header = solver.codePrefix,
-		argsOut = {
-			{name = 'y', type=solver.app.real, obj=true},
-		},
-		argsIn = {
+	self.setReduceToPotentialSquaredKernelObj = solver.solverProgramObj:kernel{
+		name='setReduceToPotentialSquared'..self.name,
+		setArgs={
 			solver.solverBuf,
-			{name = 'x', type=solver.app.real, obj=true},
+			solver.reduceBuf,
+			solver.UBuf,
 		},
-		body = [[
-	if (OOB(0,0)) return;
-	y[index] = x[index] * x[index];
-]],
+		domain=solver.domainWithoutBorder,
 	}
 	
-	self.lastXNorm = 0
+	self.lastResidual = 0
 end
 
 function Relaxation:refreshBoundaryProgram()
@@ -145,27 +132,26 @@ function Relaxation:relax()
 		self:potentialBoundary()
 
 		if self.stopOnEpsilon then
-			-- copy write to reduce
-			self.squareKernelObj(
-				solver.reduceBuf,
-				solver.solverBuf,
-				self.writeBufObj)
+			local residual = math.sqrt(solver.reduceSum()) / tonumber(solver.volumeWithoutBorder)
 			
+			self.setReduceToPotentialSquaredKernelObj()
 			local xNorm = math.sqrt(solver.reduceSum()) / tonumber(solver.volumeWithoutBorder)
-			local lastXNorm = self.lastXNorm	
-			self.lastXNorm = xNorm
+			local lastResidual = self.lastResidual	
+			self.lastResidual = residual
 			if self.verbose then
-				--print('relaxation iter '..i..' xNorm '..xNorm)
+				--print('jacobi iter', iter, 'residual', residual)
 
 -- [[
 self.copyPotentialToReduceKernelObj()
 local xmin = solver.reduceMin()
 self.copyPotentialToReduceKernelObj()
 local xmax = solver.reduceMax()
-io.stderr:write(table{i, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
+io.stderr:write(table{i, xNorm, xmin, xmax, residual}:map(tostring):concat'\t','\n')
 --]]			
 			end
-			if math.abs(xNorm - lastXNorm) <= self.stopEpsilon then break end
+			
+			-- TODO compare residual
+			if math.abs(residual) <= self.stopEpsilon then break end
 		end
 	end
 end
@@ -187,7 +173,7 @@ function Relaxation:updateGUI()
 		tooltip.intTable('maxiter', self, 'maxIters')
 		-- if it doesn't have to stop on epsilon then it doesn't calculate the x norm
 		if self.stopOnEpsilon then
-			ig.igText('x norm = '..tostring(self.lastXNorm))
+			ig.igText('residual = '..tostring(self.lastResidual))
 		end
 		ig.igText('iter = '..tostring(self.lastIter))
 	end

@@ -74,6 +74,9 @@ so delta . B' = delta . B - delta . del^-2 delta . B = ...should be 0
 function NoDiv:getPoissonCode()
 	return template([[
 <?
+local solver = op.solver
+local eqn = solver.eqn
+
 local scalar = op.scalar
 local sub = scalar..'_sub'
 local real_mul = scalar..'_real_mul'
@@ -97,11 +100,8 @@ kernel void noDiv<?=op.name?>(
 		);
 <? end ?>
 }
-
 ]], {
 		op = self,
-		solver = self.solver,
-		eqn = self.solver.eqn,
 	})
 end
 

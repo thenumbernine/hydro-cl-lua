@@ -31,10 +31,11 @@ BackwardEuler.name = 'backward Euler'
 
 function BackwardEuler:init(solver, args)
 	self.solver = solver
+	self.verbose = args and args.verbose or nil
 
 	-- gui vars:
-	self.last_err = 0
-	self.last_iter = 0
+	self.lastResidual = 0
+	self.lastIter = 0
 
 -- formerly createBuffers
 
@@ -126,17 +127,20 @@ function BackwardEuler:init(solver, args)
 		env = solver.app.env,
 		x = self.krylov_xObj,
 		count = numreals,
-		epsilon = args and args.epsilon or 1e-24,
+		epsilon = args and args.epsilon or 1e-20,
 		--maxiter = 1000,
 		restart = restart,
 		maxiter = restart * numreals,
 		-- logging:
-		errorCallback = function(err, iter, x, rLenSq)
-			self.last_err = err
-			self.last_iter = iter
-			
-			if not math.isfinite(err) then
-				print("got non-finite err: "..err)	-- error?
+		errorCallback = function(residual, iter, x, rLenSq)
+			self.lastResidual = residual
+			self.lastIter = iter
+			if residual < self.linearSolver.args.epsilon then return true end
+			if self.verbose then
+				print('iter', iter, 'residual', residual)
+			end
+			if not math.isfinite(residual) then
+				print("got non-finite residual: "..residual)	-- error?
 				return true	-- fail
 			end
 		end,
@@ -205,7 +209,9 @@ function BackwardEuler:integrate(dt, callback)
 	self.linearSolver()
 	solver.UBufObj:copyFrom(self.krylov_xObj)
 
-print('gmres err='..self.last_err..' iter='..self.last_iter)
+	if self.verbose then
+		print('gmres residual='..self.lastResidual..' iter='..self.lastIter)
+	end
 end
 
 function BackwardEuler:updateGUI()
@@ -213,8 +219,8 @@ function BackwardEuler:updateGUI()
 	tooltip.intTable('GMRES restart', self.linearSolver.args, 'restart')
 	tooltip.intTable('Krylov maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
 	-- read-only:
-	ig.igText('err = '..self.last_err)	-- this is |r|
-	ig.igText('iter = '..self.last_iter)
+	ig.igText('residual = '..self.lastResidual)	-- this is |r|
+	ig.igText('iter = '..self.lastIter)
 end
 
 return BackwardEuler
