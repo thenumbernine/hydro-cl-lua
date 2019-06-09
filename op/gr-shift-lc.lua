@@ -13,8 +13,12 @@ function LagrangianCoordinateShift:init(args)
 	self.solver = args.solver
 end
 
-function LagrangianCoordinateShift:getSolverCode()
+function LagrangianCoordinateShift:getCode()
 	return template([[
+<?
+local solver = op.solver
+local eqn = solver.eqn
+?>
 kernel void lagrangianCoordinateAdvect(
 	const <?=eqn.cons_t?>* dstUBuf,
 	const global <?=eqn.cons_t?>* UBuf,
@@ -86,8 +90,7 @@ end
 ?>
 }
 ]], {
-		solver = self.solver,
-		eqn = self.solver.eqn,
+		op = self,
 	})
 end
 

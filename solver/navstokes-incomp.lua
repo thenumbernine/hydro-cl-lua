@@ -34,12 +34,12 @@ function NavierStokesIncompressible:refreshCalcDTKernel() end
 function NavierStokesIncompressible:calcDT() return self.fixedDT end
 
 -- TODO options for other solvers?
-NavierStokesIncompressible.numGaussSeidelSteps = 20
+NavierStokesIncompressible.numJacobiSteps = 20
 
 function NavierStokesIncompressible:project()
 	self.calcDivKernelObj()
 
-	for i=1,self.numGaussSeidelSteps do
+	for i=1,self.numJacobiSteps do
 		self.diffusePressureKernelObj()
 	end
 	
@@ -58,7 +58,7 @@ function NavierStokesIncompressible:step(dt)
 	self.diffuseKernelObj.obj:setArg(2, real(dt))
 	
 	-- diffuse
-	for i=1,self.numGaussSeidelSteps do
+	for i=1,self.numJacobiSteps do
 		self.diffuseKernelObj()
 		solver.app.cmds:enqueueCopyBuffer{src=solver.UNextBuf, dst=self.UBuf, size=bufferSize}
 	end

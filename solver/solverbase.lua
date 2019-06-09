@@ -510,8 +510,8 @@ function SolverBase:getSolverCode()
 		self.eqn:getCalcDTCode() or '',
 		self.eqn:getFluxFromConsCode() or '',
 	
-	}:append(self.ops:map(function(op)
-		return op:getSolverCode()
+	}:append(self.ops:mapi(function(op)
+		return op:getCode() or ''
 	end)):append{
 		self:getDisplayCode(),
 	}:concat'\n'

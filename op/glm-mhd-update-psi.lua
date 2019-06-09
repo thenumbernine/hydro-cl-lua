@@ -8,9 +8,12 @@ function GLM_MHD_UpdatePsi:init(args)
 	self.solver = assert(args.solver)
 end
 
-function GLM_MHD_UpdatePsi:getSolverCode()
-	local solver = self.solver
+function GLM_MHD_UpdatePsi:getCode()
 	return template([[
+<?
+local solver = op.solver
+local eqn = solver.eqn
+?>
 kernel void updatePsi(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,
@@ -32,8 +35,7 @@ kernel void updatePsi(
 	U->psi *= exp(-dt * Ch * Ch / (Cp * Cp) * U->psi);
 }
 ]], {
-		solver = solver,
-		eqn = solver.eqn,
+		op = self,
 	})
 end
 

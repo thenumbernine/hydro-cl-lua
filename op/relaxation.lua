@@ -3,6 +3,7 @@ local file = require 'ext.file'
 local table = require 'ext.table'
 local template = require 'template'
 local ig = require 'ffi.imgui'
+local ffi = require 'ffi'
 local tooltip = require 'tooltip'
 local CLBuffer = require 'cl.obj.buffer'
 
@@ -23,10 +24,10 @@ Relaxation.stopEpsilon = 1e-18
 Relaxation.maxIters = 20
 --]]
 -- [[ safe
-Relaxation.stopEpsilon = 1e-20
-Relaxation.maxIters = 10000	-- 10 * numreals
+Relaxation.stopEpsilon = 1e-10
+Relaxation.maxIters = cmdline.selfGravPoissonMaxIter or 20	-- 10 * numreals
 --]]
-Relaxation.verbose = true
+Relaxation.verbose = false
 
 -- child class needs to provide this:
 Relaxation.solverCodeFile = nil
@@ -48,7 +49,8 @@ function Relaxation:init(args)
 	local solver = assert(args.solver)
 	self.solver = solver
 	self.potentialField = args.potentialField
-	
+	self.verbose = args.verbose
+
 	-- this assumes 'self.name' is the class name
 	self.name = solver.app:uniqueName(self.name)
 
@@ -60,8 +62,8 @@ function Relaxation:init(args)
 	}
 end
 
-function Relaxation:getSolverCode()
-	return template(file[self.solverCodeFile], {op=self})
+function Relaxation:getCode()
+	return template(file[self.solverCodeFile], {op = self})
 end
 
 function Relaxation:refreshSolverProgram()
@@ -80,6 +82,25 @@ function Relaxation:refreshSolverProgram()
 		},
 		domain=solver.domainWithoutBorder,
 	}
+
+	
+	self.squareKernelObj = solver.domain:kernel{
+		name = 'Poisson_square'..self.name,
+		header = solver.codePrefix,
+		argsOut = {
+			{name = 'y', type=solver.app.real, obj=true},
+		},
+		argsIn = {
+			solver.solverBuf,
+			{name = 'x', type=solver.app.real, obj=true},
+		},
+		body = [[
+	if (OOB(0,0)) return;
+	y[index] = x[index] * x[index];
+]],
+	}
+	
+	self.lastXNorm = 0
 end
 
 function Relaxation:refreshBoundaryProgram()
@@ -124,21 +145,27 @@ function Relaxation:relax()
 		self:potentialBoundary()
 
 		if self.stopOnEpsilon then
-			local residual = solver.reduceSum() / tonumber(solver.volumeWithoutBorder)
+			-- copy write to reduce
+			self.squareKernelObj(
+				solver.reduceBuf,
+				solver.solverBuf,
+				self.writeBufObj)
 			
-			self.lastResidual = residual
+			local xNorm = math.sqrt(solver.reduceSum()) / tonumber(solver.volumeWithoutBorder)
+			local lastXNorm = self.lastXNorm	
+			self.lastXNorm = xNorm
 			if self.verbose then
-				--print('relaxation iter '..i..' residual '..residual)
+				--print('relaxation iter '..i..' xNorm '..xNorm)
 
 -- [[
 self.copyPotentialToReduceKernelObj()
 local xmin = solver.reduceMin()
 self.copyPotentialToReduceKernelObj()
 local xmax = solver.reduceMax()
-io.stderr:write(table{i, residual, xmin, xmax}:map(tostring):concat'\t','\n')
+io.stderr:write(table{i, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
 --]]			
 			end
-			if residual <= self.stopEpsilon then break end
+			if math.abs(xNorm - lastXNorm) <= self.stopEpsilon then break end
 		end
 	end
 end
@@ -158,9 +185,9 @@ function Relaxation:updateGUI()
 		ig.igSameLine()
 		tooltip.numberTable('epsilon', self, 'stopEpsilon')
 		tooltip.intTable('maxiter', self, 'maxIters')
-		-- if it doesn't have to stop on epsilon then it doesn't calculate the residual
+		-- if it doesn't have to stop on epsilon then it doesn't calculate the x norm
 		if self.stopOnEpsilon then
-			ig.igText('residual = '..tostring(self.lastResidual))
+			ig.igText('x norm = '..tostring(self.lastXNorm))
 		end
 		ig.igText('iter = '..tostring(self.lastIter))
 	end

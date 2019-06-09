@@ -1,6 +1,13 @@
 local class = require 'ext.class'
-local Poisson = require 'op.poisson'
 local template = require 'template'
+
+-- TODO make this a ctor parameter 
+local Poisson = require(
+	cmdline.noDivPoissonSolver 
+	and 'op.poisson_'..cmdline.noDivPoissonSolver
+	--or 'op.poisson_krylov'		-- Krylov
+	or 'op.poisson_jacobi'		-- Jacobi
+)
 
 local NoDiv = class(Poisson)
 
@@ -15,12 +22,14 @@ function NoDiv:init(args)
 end
 
 --[[
-template parameters forwarded back to getSolverCode
+template parameters forwarded back to getCode
 solve del^2 BPot = delta . B for BPot
 --]]
 function NoDiv:getPoissonDivCode()
 	return template([[
 <?
+local solver = self.solver
+
 local scalar = op.scalar
 local zero = scalar..'_zero'
 local add = scalar..'_add'
@@ -54,7 +63,6 @@ end
 ]], 
 	{
 		op = self,
-		solver = self.solver,
 	})
 end
 

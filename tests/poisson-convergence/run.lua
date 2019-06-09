@@ -1,11 +1,19 @@
 #!/usr/bin/env luajit
 -- todo paths for non-windows
+
+local function exec(cmd)
+	print(cmd)
+	return os.execute(cmd)
+end
+
+local commonArgs = 'sys=console selfGravVerbose exitTime=0 selfGravPoissonMaxIter=10000'
+
 for _,info in ipairs{
-	--{name='gauss_seidel', args='selfGravPoissonSolver=poisson'},
-	{name='conjgrad', args='selfGravPoissonSolver=poisson_krylov selfGravLinearSolver=conjgrad'},
-	{name='conjres', args='selfGravPoissonSolver=poisson_krylov selfGravLinearSolver=conjres'},
-	{name='gmres', args='selfGravPoissonSolver=poisson_krylov selfGravLinearSolver=gmres'},
+	{name='jacobi', args='selfGravPoissonSolver=jacobi'},
+	--{name='conjgrad', args='selfGravPoissonSolver=krylov selfGravLinearSolver=conjgrad'},
+	--{name='conjres', args='selfGravPoissonSolver=krylov selfGravLinearSolver=conjres'},
+	--{name='gmres', args='selfGravPoissonSolver=krylov selfGravLinearSolver=gmres'},
 } do
-	os.execute([[cd ..\.. && luajit run.lua sys=console selfGravVerbose exitTime=0 selfGravInitPotentialPositive ]]..info.args..[[ 2> tests\poisson-convergence\init-]]..info.name..[[-pos.txt"]])
-	os.execute([[cd ..\.. && luajit run.lua sys=console selfGravVerbose exitTime=0 ]]..info.args..[[ 2> tests\poisson-convergence\init-]]..info.name..[[-neg.txt"]])
+	exec([[cd ..\.. && luajit run.lua ]]..commonArgs..' '..info.args..[[ selfGravInitPotential=+ 2> tests\poisson-convergence\init-]]..info.name..[[-pos.txt"]])
+	exec([[cd ..\.. && luajit run.lua ]]..commonArgs..' '..info.args..[[ 2> tests\poisson-convergence\init-]]..info.name..[[-neg.txt"]])
 end

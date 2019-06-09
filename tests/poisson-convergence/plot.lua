@@ -9,7 +9,7 @@ os.execute('gnuplot -p -e "'..table{
 	"set output 'out.png'",
 	"set style data lines",
 	"set log y",
-	"plot [0:200] "..fs:map(function(f)
+	"plot [0:100] "..fs:map(function(f)
 		return "'"..f.."' using 1:2"
 	end):concat', '
 }:concat'; ')

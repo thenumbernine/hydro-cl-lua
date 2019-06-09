@@ -14,6 +14,8 @@ local PoissonKrylov = class()
 PoissonKrylov.name = 'PoissonKrylov'
 PoissonKrylov.scalar = 'real'
 PoissonKrylov.potentialField = 'ePot'
+	
+PoissonKrylov.stopEpsilon = 1e-10
 PoissonKrylov.verbose = false
 PoissonKrylov.linearSolverType = 'gmres'
 
@@ -70,8 +72,8 @@ function PoissonKrylov:initSolver()
 		}
 	end
 
-	local mulWithoutBorder = solver.domain:kernel{
-		name = 'Poisson_mulWithoutBorder',
+	local mulWithoutBorderKernelObj = solver.domain:kernel{
+		name = 'Poisson_mulWithoutBorder'..self.name,
 		header = solver.codePrefix,
 		argsOut = {
 			{name='y', type=solver.app.real, obj=true},
@@ -89,7 +91,23 @@ function PoissonKrylov:initSolver()
 	y[index] = a[index] * b[index];
 ]],
 	}
-	
+
+	local squareKernelObj = solver.domain:kernel{
+		name = 'Poisson_square'..self.name,
+		header = solver.codePrefix,
+		argsOut = {
+			{name = 'y', type=solver.app.real, obj=true},
+		},
+		argsIn = {
+			solver.solverBuf,
+			{name = 'x', type=solver.app.real, obj=true},
+		},
+		body = [[
+	if (OOB(0,0)) return;
+	y[index] = x[index] * x[index];
+]],
+	}
+
 	local numreals = solver.numCells
 	local volumeWithoutBorder = solver.volumeWithoutBorder
 	local numRealsWithoutBorder = volumeWithoutBorder
@@ -99,29 +117,31 @@ function PoissonKrylov:initSolver()
 		op = function(x,y) return x..' + '..y end,
 	}
 	local dotWithoutBorder = function(a,b)
-		mulWithoutBorder(sum.buffer, self.solverBuf, a, b)
+		mulWithoutBorderKernelObj(sum.buffer, self.solverBuf, a, b)
 		return sum()
 	end
 	
 	local restart = args and args.restart or 10
-	local epsilon = 1e-10
-	self.lastResidual = 0
+	self.lastXNorm = 0
 	self.lastIter = 0
 	local linearSolverArgs = {
 		env = solver.app.env,
 		x = self.krylov_xObj,
 		count = numreals,
-		epsilon = epsilon,
-		--maxiter = 1000,
+		epsilon = self.stopEpsilon,
 		restart = restart,
-		maxiter = restart * numreals,
+		--maxiter = 1000,
+		maxiter = cmdline.selfGravPoissonMaxIter or restart * numreals,
 		-- logging:
 		errorCallback = function(residual, iter, x, rLenSq)
-			residual = residual / numRealsWithoutBorder
-			local lastResidual, lastIter = self.lastResidual, self.lastIter
-			self.lastResidual, self.lastIter = residual, iter
+			-- square from x to reduceBuf
+			squareKernelObj(solver.reduceBuf, solver.solverBuf, x)
+			local xNorm = math.sqrt(solver.reduceSum()) / numRealsWithoutBorder
+			
+			local lastXNorm, lastIter = self.lastXNorm, self.lastIter
+			self.lastXNorm, self.lastIter = xNorm, iter
 			if self.verbose then
-				--print('krylov iter', iter, 'residual', residual)
+				--print('krylov iter', iter, 'xNorm', xNorm)
 			
 -- [[
 solver.app.env.cmds:enqueueCopyBuffer{
@@ -136,16 +156,16 @@ solver.app.env.cmds:enqueueCopyBuffer{
 	size = ffi.sizeof(solver.app.real) * numreals,
 }
 local xmax = solver.reduceMax()
-io.stderr:write(table{iter, residual, xmin, xmax}:map(tostring):concat'\t','\n')
+io.stderr:write(table{iter, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
 --]]
 		
 			
 			end
-			if not math.isfinite(residual) then
-				print("got non-finite residual: "..residual)	-- error?
+			if not math.isfinite(xNorm) then
+				print("got non-finite xNorm: "..xNorm)	-- error?
 				return true	-- fail
 			end
-			if math.abs(residual - lastResidual) < epsilon then
+			if math.abs(xNorm - lastXNorm) < self.stopEpsilon then
 				return true
 			end
 		end,
@@ -159,13 +179,17 @@ io.stderr:write(table{iter, residual, xmin, xmax}:map(tostring):concat'\t','\n')
 	
 	linearSolverArgs.A = function(UNext, U)
 		-- A(x) = div x
-		-- but don't use the poisson.cl one, that's for in-place Gauss-Seidel
+		-- but don't use the routine in op/poisson.cl, that's for Jacobi
 		self.poissonKrylovLinearFuncKernelObj(solver.solverBuf, UNext, U)
 	end	
 	self.linearSolver = ThisKrylov(linearSolverArgs)
 end
 
 local poissonKrylovCode = [[
+<?
+local solver = self.solver
+local eqn = self.solver.eqn
+?>
 
 kernel void poissonKrylovLinearFunc<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
@@ -221,7 +245,7 @@ kernel void copyPotentialFieldToVecAndInitB<?=op.name?>(
 	x[index] = U-><?=op.potentialField?>;
 	real source = 0.;
 <?=op:getPoissonDivCode() or ''?>
-	b[index] = -source;
+	b[index] = source;
 }
 
 kernel void copyVecToPotentialField<?=op.name?>(
@@ -234,21 +258,15 @@ kernel void copyVecToPotentialField<?=op.name?>(
 }
 ]]
 
--- TODO rename to 'getCode'
-function PoissonKrylov:getSolverCode()
-	return table{
-		template(
-			table{
-				file['op/poisson.cl'],
-				poissonKrylovCode,
-				self:getPoissonCode() or '',
-			}:concat'\n', {
-				op = self,
-				solver = self.solver,
-				eqn = self.solver.eqn,
-			}
-		),
-	}:concat'\n'
+function PoissonKrylov:getCode()
+	return template(
+		file['op/poisson.cl']..'\n'
+		..poissonKrylovCode,
+		{
+			op = self,
+		}
+	)..'\n'
+	..(self:getPoissonCode() or '')
 end
 
 function PoissonKrylov:refreshSolverProgram()
@@ -317,7 +335,7 @@ function PoissonKrylov:updateGUI()
 		tooltip.numberTable('Krylov epsilon', self.linearSolver.args, 'epsilon')
 		tooltip.intTable('GMRES restart', self.linearSolver.args, 'restart')
 		tooltip.intTable('maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
-		ig.igText('residual = '..self.lastResidual)
+		ig.igText('xNorm = '..self.lastXNorm)
 		ig.igText('iter = '..self.lastIter)
 	end
 	ig.igPopID()

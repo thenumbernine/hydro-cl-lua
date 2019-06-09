@@ -1,6 +1,14 @@
 local class = require 'ext.class'
 local template = require 'template'
-local Poisson = require 'op.poisson'
+
+-- TODO make this a ctor parameter 
+local Poisson = require(
+	cmdline.srhdSelfGravPoissonSolver 
+	and 'op.poisson_'..cmdline.srhdSelfGravPoissonSolver
+	or 'op.poisson_krylov'		-- Krylov
+	--or 'op.poisson_jacobi'		-- Jacobi
+)
+
 
 local SRHDSelfGrav = class(Poisson)
 
@@ -22,11 +30,11 @@ function SRHDSelfGrav:getPoissonDivCode()
 	-- we gotta keep the name 'UBuf'
 	-- even though it's the primBuf ...
 	return template([[
+<? local eqn = self.solver.eqn ?>
 	global <?=eqn.prim_t?>* prim = &UBuf[index].prim;
 	source = solver->gravitationalConstant * unit_m3_per_kg_s2 * prim-><?=op.densityField?>;
 ]], {
 		op = self,
-		eqn = self.solver.eqn,
 	})
 end
 

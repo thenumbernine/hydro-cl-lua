@@ -4,14 +4,18 @@ local class = require 'ext.class'
 local tooltip = require 'tooltip'
 local template = require 'template'
 
--- TODO make this a parameter of selfgrav (and then of equation)
---local Poisson = require 'op.poisson'
---local Poisson = require 'op.poisson_krylov'
+-- TODO make this a ctor parameter
 local Poisson = require(
 	cmdline.selfGravPoissonSolver 
-	and 'op.'..cmdline.selfGravPoissonSolver
-	or 'op.poisson_krylov'
+	and 'op.poisson_'..cmdline.selfGravPoissonSolver
+	-- Jacobi seems to be converging fastest atm. 
+	-- however Jacobi seems to be most unstable for 3D.
+	-- TODO multigrid or FFT?
+	--or 'op.poisson_krylov'		-- Krylov
+	or 'op.poisson_jacobi'		-- Jacobi
 )
+
+-- TODO Schurr filter instead of 2n+1 point filter.
 
 local SelfGrav = class(Poisson)
 
@@ -19,13 +23,10 @@ SelfGrav.enableField = 'useGravity'
 
 function SelfGrav:init(args)
 	-- TODO build super class based on what argument we chose?
+	args.verbose = cmdline.selfGravVerbose
 
--- for krylov superclass:
---args.linearSolver = 'conjgrad'
---args.linearSolver = 'conjres'
---args.linearSolver = 'gmres'
-args.linearSolver = cmdline.selfGravLinearSolver
-args.verbose = cmdline.selfGravVerbose
+	-- for krylov superclass:
+	args.linearSolver = cmdline.selfGravLinearSolver
 
 	SelfGrav.super.init(self, args)
 	self.solver[self.enableField] = not not self.solver[self.enableField]
@@ -87,9 +88,7 @@ kernel void copyPotentialToReduce(
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
 }
 
-//hmm, if ePot is negative then we get the cool turbulence effect
-//but if it is positive, esp >1, then we get no extra behavior ... a static sphere
-//and if it is too big then it explodes
+//keep energy positive
 kernel void offsetPotentialAndAddToTotal(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,
@@ -101,9 +100,7 @@ kernel void offsetPotentialAndAddToTotal(
 	SETBOUNDS(0,0);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	U-><?=op.potentialField?> += basePotential - ePotMin;
-	real source = 0.;
-<?=op:getPoissonDivCode()?>
-	U->ETotal += source * U-><?=op.potentialField?>;
+	U->ETotal += U->rho * U-><?=op.potentialField?>;
 }
 ]], {
 		op = self,

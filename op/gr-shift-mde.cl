@@ -1,3 +1,6 @@
+<?
+local solver = op.solver
+?>
 /*
 this will use an inverse Laplace equation solver to converge the shift 
 
@@ -111,20 +114,20 @@ local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, 
 
 kernel void solveMinimalDistortionEllipticShift<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
+	global real* writeBuf,
 	global <?=op:getPotBufType()?>* UBuf<?
 if op.stopOnEpsilon then ?>,
 	global real* reduceBuf<?
 end ?>
 ) {
-<? if not op.stopOnEpsilon then ?>
-	SETBOUNDS(numGhost,numGhost);
-<? else ?>
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
-		reduceBuf[index] = 0.;
-		return;
+		writeBuf[index] = 0.;
+<? if op.stopOnEpsilon then 
+?>		reduceBuf[index] = 0.;
+<? end 
+?>		return;
 	}
-<? end ?>
 
 	global <?=op:getPotBufType()?>* U = UBuf + index;
 
@@ -175,15 +178,12 @@ local real_mul = scalar..'_real_mul'
 
 	<?=scalar?> oldU = U-><?=op.potentialField?>;
 	
-	//Gauss-Seidel iteration: x_i = (b_i - A_ij x_j) / A_ii
+	//Jacobi iteration: x_i = (b_i - A_ij x_j) / A_ii
 	<?=scalar?> newU = <?=real_mul?>(<?=sub?>(source, skewSum), 1. / diag);
 
-<?
-if op.stopOnEpsilon then
-?>	<?=scalar?> dU = <?=sub?>(newU, oldU);
-	reduceBuf[index] = <?=lenSq?>(dU);
-<?
-end
+	writeBuf[index] = newU;
+<? if op.stopOnEpsilon then
+?>	reduceBuf[index] = <?=lenSq?>(newU);
+<? end 
 ?>
-	U-><?=op.potentialField?> = newU;
 }

@@ -28,7 +28,9 @@ local fromlua = require 'ext.fromlua'
 for _,w in ipairs(arg or {}) do
 	local k,v = w:match'^(.-)=(.*)$'
 	if k then
-		cmdline[k] = fromlua(v)
+		pcall(function()
+			cmdline[k] = fromlua(v)
+		end)
 		if cmdline[k] == nil then cmdline[k] = v end
 	else
 		cmdline[w] = true
@@ -60,6 +62,7 @@ local vec3d = require 'ffi.vec.vec3d'
 
 
 --[[
+TODO 'targetPlatform'?
 options: console, glapp, imguiapp
 --]]
 local targetSystem = cmdline.sys or 'imguiapp'
@@ -252,6 +255,7 @@ function HydroCLApp:initGL(...)
 	end
 
 	self.cmdline = cmdline
+	self.targetSystem = targetSystem
 
 	if cmdline.vsync then
 		-- Latest intel-opencl-icd drivers are freezing my system, only for this program, and I don't know why.  Turning on vsync seems to fix it.
@@ -260,7 +264,7 @@ function HydroCLApp:initGL(...)
 
 	local useGLSharing = true
 	if cmdline.useGLSharing ~= nil then useGLSharing = cmdline.useGLSharing end
-	if targetSystem == 'console' then useGLSharing = false end
+	if self.targetSystem == 'console' then useGLSharing = false end
 
 	-- TODO if no identifier was specified by the cmdline then favor cl_khr_gl_sharing, cl_khr_fp64, cl_khr_3d_image_writes
 	local function getterForIdent(ident, identType)
@@ -353,7 +357,7 @@ function HydroCLApp:initGL(...)
 	-- this will be per-solver
 	-- but is also tightly linked to the structured grid solvers
 	-- used for 1D
-	if targetSystem ~= 'console' then
+	if self.targetSystem ~= 'console' then
 		local graphShaderCode = file['draw/graph.shader']
 		self.graphShader = GLProgram{
 			vertexCode = template(graphShaderCode, {vertexShader=true}),
@@ -652,7 +656,7 @@ end
 		end
 	end
 
-	if targetSystem == 'console' then return end
+	if self.targetSystem == 'console' then return end
 
 	gl.glClear(bit.bor(gl.GL_COLOR_BUFFER_BIT, gl.GL_DEPTH_BUFFER_BIT))
 	
