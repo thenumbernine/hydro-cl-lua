@@ -14,8 +14,13 @@ local PoissonKrylov = class()
 PoissonKrylov.name = 'PoissonKrylov'
 PoissonKrylov.scalar = 'real'
 PoissonKrylov.potentialField = 'ePot'
-	
+
+--[[
+TODO how to make this universal across all linear solver (including Jacobi).
+Right now I'm comparing it to the norm of x.  I should be using the residual.
+--]]
 PoissonKrylov.stopEpsilon = 1e-10
+
 PoissonKrylov.verbose = false
 PoissonKrylov.linearSolverType = 'gmres'
 
@@ -187,8 +192,8 @@ end
 
 local poissonKrylovCode = [[
 <?
-local solver = self.solver
-local eqn = self.solver.eqn
+local solver = op.solver
+local eqn = op.solver.eqn
 ?>
 
 kernel void poissonKrylovLinearFunc<?=op.name?>(

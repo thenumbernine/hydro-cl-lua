@@ -19,6 +19,7 @@ local Poisson = require(
 
 local SelfGrav = class(Poisson)
 
+SelfGrav.name = 'SelfGrav'
 SelfGrav.enableField = 'useGravity'
 
 function SelfGrav:init(args)
@@ -48,7 +49,7 @@ end
 
 function SelfGrav:getPoissonCode()
 	return template([[
-kernel void calcGravityDeriv(
+kernel void calcGravityDeriv<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuffer,
 	global const <?=eqn.cons_t?>* UBuf
@@ -79,7 +80,7 @@ kernel void calcGravityDeriv(
 }
 
 //TODO just use the display var kernels
-kernel void copyPotentialToReduce(
+kernel void copyPotentialToReduce<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global real* reduceBuf,
 	global const <?=eqn.cons_t?>* UBuf
@@ -89,7 +90,7 @@ kernel void copyPotentialToReduce(
 }
 
 //keep energy positive
-kernel void offsetPotentialAndAddToTotal(
+kernel void offsetPotentialAndAddToTotal<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,
 	realparam ePotMin
@@ -113,13 +114,13 @@ function SelfGrav:refreshSolverProgram()
 	SelfGrav.super.refreshSolverProgram(self)
 	
 	local solver = self.solver
-	self.calcGravityDerivKernelObj = solver.solverProgramObj:kernel'calcGravityDeriv'
+	self.calcGravityDerivKernelObj = solver.solverProgramObj:kernel('calcGravityDeriv'..self.name)
 	self.calcGravityDerivKernelObj.obj:setArg(0, solver.solverBuf)
 	self.calcGravityDerivKernelObj.obj:setArg(2, solver.UBuf)
 
 	--TODO just use the display var kernels?
-	self.copyPotentialToReduceKernelObj = solver.solverProgramObj:kernel('copyPotentialToReduce', solver.solverBuf, solver.reduceBuf, solver.UBuf)
-	self.offsetPotentialAndAddToTotalKernelObj = solver.solverProgramObj:kernel('offsetPotentialAndAddToTotal', solver.solverBuf, solver.UBuf)
+	self.copyPotentialToReduceKernelObj = solver.solverProgramObj:kernel('copyPotentialToReduce'..self.name, solver.solverBuf, solver.reduceBuf, solver.UBuf)
+	self.offsetPotentialAndAddToTotalKernelObj = solver.solverProgramObj:kernel('offsetPotentialAndAddToTotal'..self.name, solver.solverBuf, solver.UBuf)
 end
 
 local realptr = ffi.new'realparam[1]'

@@ -12,6 +12,7 @@ local Poisson = require(
 
 local SRHDSelfGrav = class(Poisson)
 
+SRHDSelfGrav.name = 'SRHDSelfGrav'
 SRHDSelfGrav.enableField = 'useGravity'
 
 SRHDSelfGrav.guiVars = {
@@ -40,7 +41,7 @@ end
 
 function SRHDSelfGrav:getPoissonCode()
 	return template([[
-kernel void calcGravityDeriv(
+kernel void calcGravityDeriv<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuffer,
 	global const <?=eqn.cons_t?>* UBuf
@@ -164,7 +165,7 @@ function SRHDSelfGrav:refreshSolverProgram()
 	SRHDSelfGrav.super.refreshSolverProgram(self)
 	
 	local solver = self.solver
-	self.calcGravityDerivKernelObj = solver.solverProgramObj:kernel'calcGravityDeriv'
+	self.calcGravityDerivKernelObj = solver.solverProgramObj:kernel('calcGravityDeriv'..self.name)
 	self.calcGravityDerivKernelObj.obj:setArg(0, solver.solverBuf)
 	self.calcGravityDerivKernelObj.obj:setArg(2, solver.UBuf)
 end

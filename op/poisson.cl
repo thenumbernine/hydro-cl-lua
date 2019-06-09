@@ -31,11 +31,12 @@ local abs = scalar..'_abs'
 local real_mul = scalar..'_real_mul'
 ?>
 
-
-
-//initialize the relaxation solver field 
-//this is only called upon solver reset
-//each iteration uses the previous iteration's results as the starting point
+/*
+used by op/poisson_krylov.lua and op/relaxation.lua
+initialize the relaxation solver field 
+this is only called upon solver reset
+each iteration uses the previous iteration's results as the starting point
+*/
 kernel void initPotential<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=op:getPotBufType()?>* UBuf
@@ -53,20 +54,12 @@ kernel void initPotential<?=op.name?>(
 ?>
 }
 
-kernel void copyWriteToPotentialNoGhost(
+//used by op/relaxation.lua
+kernel void copyWriteToPotentialNoGhost<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,
 	global const real* writeBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	UBuf[index].<?=op.potentialField?> = writeBuf[index];
-}
-
-kernel void copyPotentialToWriteNoGhost(
-	constant <?=solver.solver_t?>* solver,
-	global real* writeBuf,
-	global const <?=eqn.cons_t?>* UBuf
-) {
-	SETBOUNDS_NOGHOST();
-	writeBuf[index] = UBuf[index].<?=op.potentialField?>;
 }

@@ -5,8 +5,8 @@ local template = require 'template'
 local Poisson = require(
 	cmdline.noDivPoissonSolver 
 	and 'op.poisson_'..cmdline.noDivPoissonSolver
-	--or 'op.poisson_krylov'		-- Krylov
-	or 'op.poisson_jacobi'		-- Jacobi
+	or 'op.poisson_krylov'		-- Krylov
+	--or 'op.poisson_jacobi'		-- Jacobi
 )
 
 local NoDiv = class(Poisson)
@@ -28,7 +28,7 @@ solve del^2 BPot = delta . B for BPot
 function NoDiv:getPoissonDivCode()
 	return template([[
 <?
-local solver = self.solver
+local solver = op.solver
 
 local scalar = op.scalar
 local zero = scalar..'_zero'

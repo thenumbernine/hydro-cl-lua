@@ -74,7 +74,7 @@ function Relaxation:refreshSolverProgram()
 		self.solveJacobiKernelObj.obj:setArg(3, solver.reduceBuf)
 	end
 	self.copyWriteToPotentialNoGhostKernelObj = solver.solverProgramObj:kernel{
-		name='copyWriteToPotentialNoGhost',
+		name='copyWriteToPotentialNoGhost'..self.name,
 		setArgs={
 			solver.solverBuf,
 			solver.UBuf,
