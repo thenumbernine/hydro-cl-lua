@@ -63,14 +63,14 @@ Maxwell.vec3 = Maxwell.scalar..'3'
 Maxwell.mat3x3 = Maxwell.scalar..'3x3'
 
 Maxwell.consVars = table{
-	{name='D', type=Maxwell.vec3},				-- C/m^2
-	{name='B', type=Maxwell.vec3},				-- kg/(C s)
+	{name='D', type=Maxwell.vec3, units='C/m^2'},
+	{name='B', type=Maxwell.vec3, units='kg/(C*s)'},
 	
-	{name='DPot', type=Maxwell.scalar},		-- C/m^2
-	{name='BPot', type=Maxwell.scalar},		-- kg/(C s)
+	{name='DPot', type=Maxwell.scalar, units='C/m^2'},
+	{name='BPot', type=Maxwell.scalar, units='kg/(C*s)'},
 	
-	{name='rhoCharge', type=Maxwell.scalar},	-- C/m^3
-	{name='sigma', type=Maxwell.scalar},		-- (C^2 s)/(kg m^3)
+	{name='rhoCharge', type=Maxwell.scalar, units='C/m^3'},
+	{name='sigma', type=Maxwell.scalar, units='(C^2*s)/(kg*m^3)'},
 }
 
 --[[
@@ -260,12 +260,12 @@ kernel void initState(
 	
 <?=code?>
 	
-	U->D = <?=vec3?>_real_mul(eqn_cartesianToCoord(D, x), unit_C_per_m2);
-	U->B = <?=vec3?>_real_mul(eqn_cartesianToCoord(B, x), unit_kg_per_C_s);
+	U->D = eqn_cartesianToCoord(D, x);
+	U->B = eqn_cartesianToCoord(B, x);
 	U->BPot = <?=zero?>;
-	U->sigma = <?=susc_t?>_real_mul(conductivity, unit_C2_s_per_kg_m3);
-	U->sqrt_1_eps = <?=susc_t?>_sqrt(<?=susc_t?>_inv(<?=susc_t?>_real_mul(permittivity, unit_C2_s2_per_kg_m3)));
-	U->sqrt_1_mu = <?=susc_t?>_sqrt(<?=susc_t?>_inv(<?=susc_t?>_real_mul(permeability, unit_kg_m_per_C2)));
+	U->sigma = conductivity;
+	U->sqrt_1_eps = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permittivity));
+	U->sqrt_1_mu = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permeability));
 }
 ]]
 
@@ -351,16 +351,17 @@ function Maxwell:getDisplayVars()
 
 	local vars = Maxwell.super.getDisplayVars(self)
 	vars:append{ 
-		{E = template([[	*value_<?=vec3?> = calc_E(*U);]], env), type=vec3},
+		{E = template([[	*value_<?=vec3?> = calc_E(*U);]], env), type=vec3, units='(kg*m)/(C*s)'},
 		{S = template([[
 	*value_<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));
-]], env), type=vec3},
+]], env), type=env.vec3, units='kg/s^3'},
 		{energy = template([[
 	*value = (eqn_coordLenSq(U->D, x) + eqn_coordLenSq(calc_H(*U), x)) * .5;
-]], env), type=scalar},
-	}:append(table{'D','B'}:map(function(var,i)
-		local field = assert( ({D='D', B='B'})[var] )
-		return {['div '..var] = template([[
+]], env), type=scalar, units='kg/(m*s^2)'},
+	}:append(table{'D', 'B'}:map(function(field,i)
+		local field = assert( ({D='D', B='B'})[field] )
+		return {
+			['div '..field] = template([[
 	<?=scalar?> v = <?=zero?>;
 <? for j=0,solver.dim-1 do ?>
 	v = <?=add?>(v, <?=real_mul?>(
@@ -372,26 +373,39 @@ function Maxwell:getDisplayVars()
 
 	v = <?=real_mul?>(v, .5);
 	*value_<?=scalar?> = v;
-]], table(env, {field=field}))}
+]], table(env, {field=field})), 
+			type = scalar, 
+			units = ({
+				D = 'C/m^3',
+				B = 'kg/(C*m*s)',
+			})[field],
+		}
 	end))
 
 	for _,field in ipairs{'D', 'B'} do
 		local v = range(0,2):map(function(i)
 			return curl(self,i,'value_'..env.vec3..'->s'..i,field,env)
 		end)
-		vars:insert{['curl '..field]= template([[
+		vars:insert{
+			['curl '..field] = template([[
 	<? for i=0,2 do ?>{
 		<?=select(2,next(v[i+1]))?>
 	}<? end ?>
-]], {v=v}), type=vec3}
+]], {v=v}),
+			type = env.vec3,
+			units = ({
+				D = 'C/m^3',
+				B = 'kg/(C*m*s)',
+			})[field],
+		}
 	end
 
 	return vars 
 end
 
 Maxwell.eigenVars = table{
-	{name='sqrt_1_eps', type=Maxwell.susc_t},
-	{name='sqrt_1_mu', type=Maxwell.susc_t},
+	{name='sqrt_1_eps', type=Maxwell.susc_t, type=self.susc_t, units='(m^3*kg)^.5/(C*s)'},
+	{name='sqrt_1_mu', type=Maxwell.susc_t, type=self.susc_t, units='C/(kg*m)^.5'},
 }
 
 function Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)

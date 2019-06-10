@@ -22,6 +22,11 @@ local SelfGrav = class(Poisson)
 SelfGrav.name = 'SelfGrav'
 SelfGrav.enableField = 'useGravity'
 
+-- source field we are using
+SelfGrav.field_rho = 'rho'
+SelfGrav.field_m = 'm'
+SelfGrav.field_ETotal = 'ETotal'
+
 function SelfGrav:init(args)
 	-- TODO build super class based on what argument we chose?
 	args.verbose = cmdline.selfGravVerbose
@@ -30,18 +35,24 @@ function SelfGrav:init(args)
 	args.linearSolver = cmdline.selfGravLinearSolver
 
 	SelfGrav.super.init(self, args)
+
+	self.field_rho = args.field_rho
+	self.field_m = args.field_m
+	self.field_ETotal = args.field_ETotal
+
+
 	self.solver[self.enableField] = not not self.solver[self.enableField]
 end
 
 SelfGrav.guiVars = {
-	{name='gravitationalConstant', value=1},	-- m^3/(kg s^2)
+	{name='gravitationalConstant', value=1, units='m^3/(kg*s^2)'},
 }
 
 -- params for op/poisson.cl 
 -- units of m^3/(kg*s^2) * kg/m^3 = 1/s^2
 function SelfGrav:getPoissonDivCode()
 	return template([[
-	source = solver->gravitationalConstant * unit_m3_per_kg_s2 * U->rho;
+	source = solver->gravitationalConstant * unit_m3_per_kg_s2 * U-><?=op.field_rho?>;
 ]], {
 		op = self,
 	})
@@ -76,10 +87,10 @@ kernel void calcGravityDeriv<?=op.name?>(
 		) / (2. * cell_dx<?=side?>(x));
 
 		// kg/(m^2 s) = kg/m^3 * m/s^2
-		deriv->m.s[side] -= U->rho * accel_g;
+		deriv-><?=op.field_m?>.s[side] -= U-><?=op.field_rho?> * accel_g;
 	
 		// kg/(m s^2) = (kg m^2 / s) * m/s^2
-		deriv->ETotal -= U->m.s[side] * accel_g;
+		deriv-><?=op.field_ETotal?> -= U-><?=op.field_m?>.s[side] * accel_g;
 	}<? end ?>
 }
 
@@ -105,7 +116,7 @@ kernel void offsetPotentialAndAddToTotal<?=op.name?>(
 	SETBOUNDS(0,0);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	U-><?=op.potentialField?> += basePotential - ePotMin;
-	U->ETotal += U->rho * U-><?=op.potentialField?>;
+	U-><?=op.field_ETotal?> += U-><?=op.field_rho?> * U-><?=op.potentialField?>;
 }
 ]], {
 		op = self,

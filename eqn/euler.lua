@@ -201,13 +201,6 @@ end
 		.ePot = ePot,
 	};
 
-#if defined(provideInitUnitsInSI)
-	W.rho /= unit_kg_per_m3;
-	W.v = real3_real_mul(W.v, 1. / unit_m_per_s);
-	W.P /= unit_kg_per_m_s2;
-	W.ePot /= unit_kg_per_m_s2;
-#endif
-	
 	UBuf[index] = consFromPrim(solver, W, x);
 }
 ]]
@@ -301,9 +294,9 @@ function Euler:getDisplayVars()
 		-- should SI unit displays be auto generated as well?
 		{v = '*value_real3 = W.v;', type='real3', units='m/s'},
 		{P = '*value = W.P;', units='kg/(m*s^2)'},
-		{eInt = '*value = calc_eInt(solver, W);'},
-		{eKin = '*value = calc_eKin(W, x);'},
-		{eTotal = '*value = U->ETotal / W.rho;'},
+		{eInt = '*value = calc_eInt(solver, W);', units='m^2/s^2'},
+		{eKin = '*value = calc_eKin(W, x);', units='m^2/s^2'},
+		{eTotal = '*value = U->ETotal / W.rho;', units='m^2/s^2'},
 		{EInt = '*value = calc_EInt(solver, W);'},
 		{EKin = '*value = calc_EKin(W, x);'},
 		{EPot = '*value = U->rho * U->ePot;', units='kg/(m*s^2)'},
@@ -346,12 +339,12 @@ end
 
 Euler.eigenVars = table{
 	-- Roe-averaged vars
-	{name='rho', type='real'},
-	{name='v', type='real3'},
-	{name='hTotal', type='real'},
+	{name='rho', type='real', units='kg/m^3'},
+	{name='v', type='real3', units='m/s'},
+	{name='hTotal', type='real', units='m^2/s^2'},
 	-- derived vars
-	{name='vSq', type='real'},
-	{name='Cs', type='real'},
+	{name='vSq', type='real', units='m^2/s^2'},
+	{name='Cs', type='real', units='m/s'},
 }
 
 function Euler:eigenWaveCodePrefix(side, eig, x)

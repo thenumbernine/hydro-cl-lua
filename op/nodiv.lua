@@ -35,12 +35,10 @@ local zero = scalar..'_zero'
 local add = scalar..'_add'
 local sub = scalar..'_sub'
 local real_mul = scalar..'_real_mul'
-?>
-	<?=scalar?> divergence = <?=zero?>;
-<? 
+
 for j=0,solver.dim-1 do
-?>	divergence = <?=add?>(
-		divergence,
+?>	source = <?=add?>(
+		source,
 		<?=real_mul?>(
 			<?=sub?>(
 				U[solver->stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>,
@@ -53,13 +51,13 @@ for j=0,solver.dim-1 do
 end 
 ?>	
 	
-	divergence = <?=real_mul?>(divergence, .5);
+	source = <?=real_mul?>(source, .5);
 	
 	//because this is the discrete case, no 4pi
-	source = divergence;
-<? if op.chargeField then ?>
-	source = <?=add?>(source, U-><?=op.chargeField?>);
-<? end ?>
+<? if op.chargeField then 
+?>	source = <?=add?>(source, U-><?=op.chargeField?>);
+<? end 
+?>
 ]], 
 	{
 		op = self,

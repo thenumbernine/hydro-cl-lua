@@ -53,19 +53,19 @@ function GLM_Maxwell:init(args)
 
 
 	self.consVars = {
-		{name='D', type=self.vec3},			-- C/m^2
-		{name='B', type=self.vec3},			-- kg/(C s)
-		{name='phi', type=self.scalar},		-- C/m^2
-		{name='psi', type=self.scalar},		-- kg/(C s)
-		{name='rhoCharge', type=self.scalar},	-- C/m^3
-		{name='sigma', type=self.scalar},		-- (C^2 s)/(kg m^3)
-		{name='sqrt_1_eps', type=self.susc_t},
-		{name='sqrt_1_mu', type=self.susc_t},
+		{name='D', type=self.vec3, units='C/m^2'},
+		{name='B', type=self.vec3, units='kg/(C*s)'},
+		{name='phi', type=self.scalar, units='C/m^2'},
+		{name='psi', type=self.scalar, units='kg/(C*s)'},
+		{name='rhoCharge', type=self.scalar, units='C/m^3'},
+		{name='sigma', type=self.scalar, units='(C^2*s)/(kg*m^3)'},
+		{name='sqrt_1_eps', type=self.susc_t, units='(m^3*kg)^.5/(C*s)'},
+		{name='sqrt_1_mu', type=self.susc_t, units='C/(kg*m)^.5'},
 	}
 
 	self.eigenVars = table{
-		{name='sqrt_1_eps', type=self.susc_t},	-- sqrt( (kg m^3)/(C^2 s^2) )
-		{name='sqrt_1_mu', type=self.susc_t},	-- sqrt( C^2/(kg m) )
+		{name='sqrt_1_eps', type=self.susc_t, units='(m^3*kg)^.5/(C*s)'},
+		{name='sqrt_1_mu', type=self.susc_t, units='C/(kg*m)^.5'},
 	}
 
 
@@ -186,19 +186,6 @@ kernel void initState(
 	U->rhoCharge = <?=zero?>;
 	U->sqrt_1_eps = <?=sqrt?>(<?=inv?>(permittivity));
 	U->sqrt_1_mu = <?=sqrt?>(<?=inv?>(permeability));
-
-#if defined(provideInitUnitsInSI)
-	U->D = <?=vec3?>_real_mul(U->D, 1. / unit_C_per_m2);
-	U->B = <?=vec3?>_real_mul(U->B, 1. / unit_kg_per_C_s);
-	U->phi = <?=scalar?>_real_mul(U->phi, );
-	U->psi = <?=scalar?>_real_mul(U->psi, );
-	U->sigma = <?=susc_t?>_real_mul(conductivity, 1. / unit_C2_s_per_kg_m3);
-	U->rhoCharge = <?=zero?>;
-	U->sqrt_1_eps = <?=sqrt?>(<?=inv?>(<?=susc_t?>_real_mul(permittivity, 1. / unit_C2_s2_per_kg_m3)));
-	U->sqrt_1_mu = <?=sqrt?>(<?=inv?>(<?=susc_t?>_real_mul(permeability, 1. / unit_kg_m_per_C2)));
-
-
-#endif
 }
 ]]
 
@@ -289,17 +276,31 @@ function GLM_Maxwell:getDisplayVars()
 	
 	local vars = GLM_Maxwell.super.getDisplayVars(self)
 	vars:append{ 
-		{S = template([[
+		{
+			E = template([[	*value_<?=vec3?> = calc_E(*U);]], env),
+			type = env.vec3,
+			units = '(kg*m)/(C*s)',
+		},
+		{
+			S = template([[
 	*value_<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));
-]], env), type='real3'},
-		{energy = template([[
+]], env), 
+			type = 'real3',
+			units = 'kg/s^3',
+		},
+		{
+			energy = template([[
 	real _1_eps = U->sqrt_1_eps * U->sqrt_1_eps;
 	real _1_mu = U->sqrt_1_mu * U->sqrt_1_mu;
 	*value = (eqn_coordLenSq(U->D, x) * _1_eps + eqn_coordLenSq(U->B, x) * _1_mu) * .5;
-]], env)},
-	}:append(table{'D','B'}:map(function(var,i)
-		local field = assert( ({D='D', B='B'})[var] )
-		return {['div '..var] = template([[
+]], env), 
+			type = scalar,
+			units = 'kg/(m*s^2)',
+		},
+	}:append(table{'D','B'}:map(function(field,i)
+		local field = assert( ({D='D', B='B'})[field] )
+		return {
+			['div '..field] = template([[
 	<?=scalar?> v = <?=zero?>;
 <? for j=0,solver.dim-1 do ?>
 	v = <?=add?>(v, <?=real_mul?>(
@@ -310,18 +311,31 @@ function GLM_Maxwell:getDisplayVars()
 <? end ?>	
 	v = <?=real_mul?>(v, .5);
 	*value_<?=scalar?> = v;
-]], table(env, {solver=self.solver, field=field}))}
+]], table(env, {field=field})),
+			type = scalar, 
+			units = ({
+				D = 'C/m^3',
+				B = 'kg/(C*m*s)',
+			})[field],
+		}
 	end))
 
 	for _,field in ipairs{'D', 'B'} do
 		local v = range(0,2):map(function(i) 
 			return curl(self,i,'value_'..env.vec3..'->s'..i,field, env) 
 		end)
-		vars:insert{['curl '..field]= template([[
+		vars:insert{
+			['curl '..field] = template([[
 	<? for i=0,2 do ?>{
 		<?=select(2,next(v[i+1]))?>
 	}<? end ?>
-]], {v=v}), type='real3'}
+]], {v=v}),
+			type = env.vec3,
+			units = ({
+				D = 'C/m^3',
+				B = 'kg/(C*m*s)',
+			})[field],	
+		}
 	end
 
 	return vars

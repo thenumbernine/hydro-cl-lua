@@ -54,40 +54,55 @@ end
 
 TwoFluidEMHD.consVars = table{
 	--integration variables		
-	{name='ion_rho', type='real'},
-	{name='ion_m', type='real3'},		-- m^i
-	{name='ion_ETotal', type='real'},
+	{name='ion_rho', type='real', units='kg/m^3'},
+	{name='ion_m', type='real3', units='kg/(m^2*s)'},	-- m^i
+	{name='ion_ETotal', type='real', units='kg/(m*s^2)'},
 	
-	{name='elec_rho', type='real'},
-	{name='elec_m', type='real3'},		-- m^i
-	{name='elec_ETotal', type='real'},
+	{name='elec_rho', type='real', units='kg/m^3'},
+	{name='elec_m', type='real3', units='kg/(m^2*s)'},		-- m^i
+	{name='elec_ETotal', type='real', units='kg/(m*s^2)'},
 
-	{name='D', type='real3'},			-- E_i
-	{name='B', type='real3'},			-- B_i
-	{name='phi', type='real'},			-- D potential
-	{name='psi', type='real'},			-- B potential
+	{name='D', type='real3', units='C/m^2'},			-- D_i
+	{name='B', type='real3', units='kg/(C*s)'},			-- B_i
+	{name='phi', type='real', units='C/m^2'},			-- div D potential
+	{name='psi', type='real', units='kg/(C*s)'},		-- div B potential
 
 	--extra	
-	{name='ePot', type='real'},
+	-- TODO how to handle potential energy?
+	-- should we calculate an individual potential energy for each fluid
+	--  then adding to total energy of each is easy
+	--  but gravitation would need to combine all ePot's to come up with the gravitational gradient
+	-- or do we just use one ePot
+	--  but then how do we incorporate it into the densitized ETotal of each fluid?
+	-- or we make a ePot for each fluid, make a grav force calc for each fluid, and have it add itself to both fluids
+	--[[
+	{name='ion_ePot', type='real', units='m^2/s^2'},
+	{name='elec_ePot', type='real', units='m^2/s^2'},
+	--]]
+	{name='ePot', type='real', units='m^2/s^2'},
 }
 
 TwoFluidEMHD.primVars = table{
 	--integration variables		
-	{name='ion_rho', type='real'},
-	{name='ion_v', type='real3'},
-	{name='ion_P', type='real'},
+	{name='ion_rho', type='real', units='kg/m^3'},
+	{name='ion_v', type='real3', units='m/s'},
+	{name='ion_P', type='real', units='kg/(m*s^2)'},
 	
-	{name='elec_rho', type='real'},
-	{name='elec_v', type='real3'},
-	{name='elec_P', type='real'},
+	{name='elec_rho', type='real', units='kg/m^3'},
+	{name='elec_v', type='real3', units='m/s'},
+	{name='elec_P', type='real', units='kg/(m*s^2)'},
 
-	{name='B', type='real3'},
-	{name='D', type='real3'},
-	{name='phi', type='real'},
-	{name='psi', type='real'},
+	{name='D', type='real3', units='C/m^2'},			-- D_i
+	{name='B', type='real3', units='kg/(C*s)'},			-- B_i
+	{name='phi', type='real', units='C/m^2'},			-- div D potential
+	{name='psi', type='real', units='kg/(C*s)'},		-- div B potential
 	
 	--extra	
-	{name='ePot', type='real'},
+	--[[
+	{name='ion_ePot', type='real', units='m^2/s^2'},
+	{name='elec_ePot', type='real', units='m^2/s^2'},
+	--]]
+	{name='ePot', type='real', units='m^2/s^2'},
 }
 
 TwoFluidEMHD.mirrorVars = {
@@ -135,16 +150,34 @@ function TwoFluidEMHD:init(args)
 --	local NoDiv = require 'op.nodiv'
 --	self.solver.ops:insert(NoDiv{solver=self.solver})	-- nodiv on maxwell ... or just use potentials 
 
-	local TwoFluidSelfGrav = require 'op.twofluid-selfgrav'
-	self.solver.ops:insert(TwoFluidSelfGrav{
-		solver = self.solver,
-	})
+--[[
+	local SelfGrav = class(require 'op.selfgrav')
+	SelfGrav.guiVars = {}
+	for _,fluid in ipairs(fluids) do
+		self.solver.ops:insert(SelfGrav{
+			solver = self.solver,
+			field_rho = fluid..'_rho',
+			field_m = fluid..'_m',
+			field_ETotal = fluid..'_ETotal',
+			potentialField = fluid..'_ePot',
+		})
+	end
+	-- now TODO in addSource, add an extra call that applies the gravity of each fluid onto each other fluids
+	-- notice that means all fluids get all gravities, not just their own
+--]]
+-- [[
+	self.solver.ops:insert(require 'op.twofluid-selfgrav'{solver=self.solver})
+--]]
 end
 
 function TwoFluidEMHD:createInitState()
 	TwoFluidEMHD.super.createInitState(self)
 	
 	self:addGuiVars(table{
+		
+		-- removed from SelfGrav and inserted here
+		--{name='gravitationalConstant', value=1, units='m^3/(kg*s^2)'},
+		
 		--never given, only stated as "speeds for the Maxwell equation"
 		-- of course, they're associated with the potentials, so... they could be arbitrary
 		{name='divPsiWavespeed', value=1},
@@ -214,6 +247,28 @@ static inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real 
 static inline real calc_hTotal(constant <?=solver.solver_t?>* solver, real rho, real P, real ETotal) { return (P + ETotal) / rho; }
 static inline real calc_HTotal(real P, real ETotal) { return P + ETotal; }
 
+static inline real calc_EPot(<?=eqn.cons_t?> U) {
+	real rho = 0.;
+<? for _,fluid in ipairs(fluids) do 
+?>	rho += U.<?=fluid?>_rho;
+<? end 
+?>	return rho * U.ePot;
+}
+
+static inline real calc_rho_from_W(<?=eqn.prim_t?> W) {
+	real rho = 0.;
+<? for _,fluid in ipairs(fluids) do 
+?>	rho += W.<?=fluid?>_rho;
+<? end 
+?>	return rho;
+}
+
+static inline real calc_EPot_from_W(<?=eqn.prim_t?> W) {
+	return calc_rho_from_W(W) * W.ePot;
+}
+
+
+
 <? for _,fluid in ipairs(fluids) do ?>
 static inline real calc_<?=fluid?>_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.<?=fluid?>_v, x); }
 static inline real calc_<?=fluid?>_EKin(<?=eqn.prim_t?> W, real3 x) { return W.<?=fluid?>_rho * calc_<?=fluid?>_eKin(W, x); }
@@ -221,7 +276,8 @@ static inline real calc_<?=fluid?>_EInt(constant <?=solver.solver_t?>* solver, <
 static inline real calc_<?=fluid?>_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_<?=fluid?>_EInt(solver, W) / W.<?=fluid?>_rho; }
 static inline real calc_<?=fluid?>_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.<?=fluid?>_m, x) / U.<?=fluid?>_rho; }
 static inline real calc_<?=fluid?>_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
-	real EPot = W.<?=fluid?>_rho * W.<?=fluid?>_ePot;
+	//real EPot = W.<?=fluid?>_rho * W.<?=fluid?>_EPot;
+	real EPot = calc_EPot_from_W(W);
 	return calc_<?=fluid?>_EKin(W, x) + calc_<?=fluid?>_EInt(solver, W) + EPot;
 }
 static inline real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?>* W) {
@@ -238,22 +294,26 @@ end
 function TwoFluidEMHD:getPrimConsCode()
 	return template([[
 static inline <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
+	real EPot = calc_EPot(U);
 	<? for _,fluid in ipairs(fluids) do ?>
-	real <?=fluid?>_EPot = U.<?=fluid?>_rho * U.<?=fluid?>_ePot;
+	//real <?=fluid?>_EPot = U.<?=fluid?>_rho * U.<?=fluid?>_ePot;
 	real <?=fluid?>_EKin = calc_<?=fluid?>_EKin_fromCons(U, x);
-	real <?=fluid?>_EInt = U.<?=fluid?>_ETotal - <?=fluid?>_EKin - <?=fluid?>_EPot;
+	real <?=fluid?>_EInt = U.<?=fluid?>_ETotal - <?=fluid?>_EKin 
+		//- <?=fluid?>_EPot;
+		- EPot;
 	<? end ?>
 	return (<?=eqn.prim_t?>){
 		<? for _,fluid in ipairs(fluids) do ?>
 		.<?=fluid?>_rho = U.<?=fluid?>_rho,
 		.<?=fluid?>_v = real3_real_mul(U.<?=fluid?>_m, 1./U.<?=fluid?>_rho),
 		.<?=fluid?>_P = (solver->heatCapacityRatio - 1.) * <?=fluid?>_EInt,
-		.<?=fluid?>_ePot = U.<?=fluid?>_ePot,
+		//.<?=fluid?>_ePot = U.<?=fluid?>_ePot,
 		<? end ?>
 		.D = U.D,
 		.B = U.B,
 		.psi = U.psi,
 		.phi = U.phi,
+		.ePot = U.ePot,
 	};
 }
 
@@ -263,12 +323,13 @@ static inline <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver
 		.<?=fluid?>_rho = W.<?=fluid?>_rho,
 		.<?=fluid?>_m = real3_real_mul(W.<?=fluid?>_v, W.<?=fluid?>_rho),
 		.<?=fluid?>_ETotal = calc_<?=fluid?>_ETotal(solver, W, x),
-		.<?=fluid?>_ePot = W.<?=fluid?>_ePot,
+		//.<?=fluid?>_ePot = W.<?=fluid?>_ePot,
 <? end ?>
 		.D = W.D,
 		.B = W.B,
 		.psi = W.psi,
 		.phi = W.phi,
+		.ePot = W.ePot,
 	};
 }
 
@@ -290,13 +351,16 @@ static inline <?=eqn.cons_t?> apply_dU_dW(
 		.<?=fluid?>_ETotal = W.<?=fluid?>_rho * .5 * real3_dot(WA.<?=fluid?>_v, WA_<?=fluid?>_vL) 
 			+ WA.<?=fluid?>_rho * real3_dot(W.<?=fluid?>_v, WA_<?=fluid?>_vL)
 			+ W.<?=fluid?>_P / (solver->heatCapacityRatio - 1.)
-			+ WA.<?=fluid?>_rho * W.<?=fluid?>_ePot,
-		.<?=fluid?>_ePot = W.<?=fluid?>_ePot,
+			//+ WA.<?=fluid?>_rho * W.<?=fluid?>_ePot
+			+ calc_rho_from_W(WA) * W.ePot
+			,
+		//.<?=fluid?>_ePot = W.<?=fluid?>_ePot,
 <? end ?>
 		.B = W.B,
 		.D = W.D,
 		.phi = W.phi,
 		.psi = W.psi,
+		.ePot = W.ePot,
 	};
 }
 
@@ -319,13 +383,16 @@ static inline <?=eqn.prim_t?> apply_dW_dU(
 			.5 * real3_dot(WA.<?=fluid?>_v, WA_<?=fluid?>_vL) * U.<?=fluid?>_rho 
 			- real3_dot(U.<?=fluid?>_m, WA_<?=fluid?>_vL)
 			+ U.<?=fluid?>_ETotal 
-			- WA.<?=fluid?>_rho * U.<?=fluid?>_ePot),
-		.<?=fluid?>_ePot = U.<?=fluid?>_ePot,
+			//- WA.<?=fluid?>_rho * U.<?=fluid?>_ePot
+			- calc_rho_from_W(WA) * U.ePot
+			),
+		//.<?=fluid?>_ePot = U.<?=fluid?>_ePot,
 <? end ?>
 		.B = U.B,
 		.D = U.D,
 		.phi = U.phi,
 		.psi = U.psi,
+		.ePot = U.ePot,
 	};
 }
 
@@ -410,8 +477,8 @@ if eqn.useEulerInitState then
 		.ion_v = v,
 		.elec_v = v,
 	
-		.ion_ePot = 0,
-		.elec_ePot = 0,
+		//.ion_ePot = 0,
+		//.elec_ePot = 0,
 
 <?	
 else	-- expect the initState to explicitly provide the ion_ and elec_ Euler fluid variables
@@ -419,7 +486,7 @@ else	-- expect the initState to explicitly provide the ion_ and elec_ Euler flui
 		.<?=fluid?>_rho = <?=fluid?>_rho,
 		.<?=fluid?>_v = cartesianToCoord(<?=fluid?>_v, x),
 		.<?=fluid?>_P = <?=fluid?>_P,
-		.<?=fluid?>_ePot = <?=fluid?>_ePot,
+		//.<?=fluid?>_ePot = <?=fluid?>_ePot,
 <?
 	end
 end
@@ -428,6 +495,8 @@ end
 		.B = B,
 		.psi = 0,
 		.phi = 0,
+	
+		.ePot = 0,
 	};
 	UBuf[index] = consFromPrim(solver, W, x);
 }
@@ -510,22 +579,22 @@ function TwoFluidEMHD:getDisplayVars()
 		end
 		
 		vars:append{
-			{[fluid..' v'] = '*value_real3 = W.'..fluid..'_v;', type='real3'},
-			{[fluid..' P'] = '*value = W.'..fluid..'_P;'},
-			{[fluid..' eInt'] = '*value = calc_'..fluid..'_eInt(solver, W);'},
-			{[fluid..' eKin'] = '*value = calc_'..fluid..'_eKin(W, x);'},
-			{[fluid..' ePot'] = '*value = U->'..fluid..'_ePot;'},
+			{[fluid..' v'] = '*value_real3 = W.'..fluid..'_v;', type='real3', units='m/s'},
+			{[fluid..' P'] = '*value = W.'..fluid..'_P;', units='kg/(m*s^2)'},
+			{[fluid..' eInt'] = '*value = calc_'..fluid..'_eInt(solver, W);', units='m^2/s^2'},
+			{[fluid..' eKin'] = '*value = calc_'..fluid..'_eKin(W, x);', units='m^2/s^2'},
+			--{[fluid..' ePot'] = '*value = U->'..fluid..'_ePot;', units='m^2/s^2'},
 			{[fluid..' EInt'] = '*value = calc_'..fluid..'_EInt(solver, W);'},
 			{[fluid..' EKin'] = '*value = calc_'..fluid..'_EKin(W, x);'},
-			{[fluid..' EPot'] = '*value = U->'..fluid..'_rho * U->'..fluid..'_ePot;'},
+			--{[fluid..' EPot'] = '*value = U->'..fluid..'_rho * U->'..fluid..'_ePot;'},
 			{[fluid..' ETotal'] = '*value = U->'..fluid..'_ETotal;'},
 			{[fluid..' S'] = '*value = W.'..fluid..'_P / pow(W.'..fluid..'_rho, (real)solver->heatCapacityRatio);'},
 			{[fluid..' H'] = '*value = calc_H(solver, W.'..fluid..'_P);'},
 			{[fluid..' h'] = '*value = calc_h(solver, W.'..fluid..'_rho, W.'..fluid..'_P);'},
 			{[fluid..' HTotal'] = '*value = calc_HTotal(W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
 			{[fluid..' hTotal'] = '*value = calc_hTotal(solver, W.'..fluid..'_rho, W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
-			{[fluid..'Speed of Sound'] = '*value = calc_'..fluid..'_Cs(solver, &W);'},
-			{[fluid..'Mach number'] = '*value = coordLen(W.'..fluid..'_v, x) / calc_'..fluid..'_Cs(solver, &W);'},
+			{[fluid..' speed of sound'] = '*value = calc_'..fluid..'_Cs(solver, &W);', units='m/s'},
+			{[fluid..' Mach number'] = '*value = coordLen(W.'..fluid..'_v, x) / calc_'..fluid..'_Cs(solver, &W);'},
 		}:append( ({
 		-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
 		-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
@@ -547,9 +616,10 @@ function TwoFluidEMHD:getDisplayVars()
 		+ coordLenSq(U->B, x) / permeability
 	);
 ]]},
-	}:append(table{'D','B'}:map(function(var,i)
-		local field = assert( ({D='D', B='B'})[var] )
-		return {['div '..var] = template([[
+	}:append(table{'D', 'B'}:map(function(field, i)
+		local field = assert( ({D='D', B='B'})[field] )
+		return {
+			['div '..field] = template([[
 	*value = .5 * (0.
 <?
 for j=0,solver.dim-1 do
@@ -559,7 +629,12 @@ for j=0,solver.dim-1 do
 <?
 end 
 ?>	);
-]], {solver=self.solver, field=field})}
+]], {solver=self.solver, field=field}),
+			units = ({
+				D = 'C/m^3',
+				B = 'kg/(C*m*s)',
+			})[field],	
+		}
 	end))
 
 	return vars
@@ -569,13 +644,13 @@ local eigenVars = table()
 for _,fluid in ipairs(fluids) do
 	eigenVars:append{
 		-- Roe-averaged vars
-		{name=fluid..'_rho', type='real'},
-		{name=fluid..'_v', type='real3'},
-		{name=fluid..'_hTotal', type='real'},
+		{name=fluid..'_rho', type='real', units='kg/m^3'},
+		{name=fluid..'_v', type='real3', units='m/s'},
+		{name=fluid..'_hTotal', type='real', units='m^2/s^2'},
 
 		-- derived vars
-		{name=fluid..'_vSq', type='real'},
-		{name=fluid..'_Cs', type='real'},
+		{name=fluid..'_vSq', type='real', units='m^2/s^2'},
+		{name=fluid..'_Cs', type='real', units='m/s'},
 	}
 end
 

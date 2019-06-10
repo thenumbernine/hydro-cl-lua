@@ -42,6 +42,8 @@ end
 function Relaxation:init(args)
 	local solver = assert(args.solver)
 	self.solver = solver
+	
+	-- TODO rename to field_ePot to be like op/selfgrav.lua
 	self.potentialField = args.potentialField
 	self.verbose = args.verbose
 

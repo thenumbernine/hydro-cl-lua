@@ -30,11 +30,6 @@ local sym = common.sym
 #define unit_C2_s_per_kg_m3		((unit_C2 * unit_s) / (unit_kg * unit_m3))
 #define unit_C2_s2_per_kg_m3	((unit_C2 * unit_s2) / (unit_kg * unit_m3))
 
-//still not sure whether to use this or not
-//using this is convenient for intuitively for providing initial values
-//not using it means less numerical conversions to and from the initial values
-//#define provideInitUnitsInSI
-
 
 #define real_conj(x)		(x)
 #define real_from_real(x)	(x)

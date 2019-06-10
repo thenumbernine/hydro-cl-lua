@@ -954,20 +954,37 @@ function SolverBase:addDisplayVarGroup(args, cl)
 			-- TODO don't do the non- and unit-based display here.  instead do it wherever display vars are created.
 			local suffix = ' ('..units:gsub('%*', ' ')..')'
 			local unitcode = units
-			-- expand powers
-			unitcode = unitcode:gsub('(%w+)%^(%d+)', function(w,n)
-				return '('..string.rep(w, n, ' * ')..')'
+			-- substitute (expr)^n
+			unitcode = unitcode:gsub('(%([^%)]+%))%^(%-?[%d%.e%+%-]+)', function(a, b)
+				if b == math.floor(b) then
+					-- expand integer powers
+					return '('..string.rep(a, b, ' * ')..')'
+				else
+					-- replace non-integer powers with pow() function
+					return 'pow('..a..', '..b..')'
+				end
+			end)
+			-- substitute var^n
+			unitcode = unitcode:gsub('([%a_]%w*)%^(%-?[%d%.e%+%-]+)', function(a, b)
+				if b == math.floor(b) then
+					return '('..string.rep(a, b, ' * ')..')'
+				else
+					return 'pow('..a..', '..b..')'
+				end
 			end)
 			-- replace unit letters with variables
-			unitcode = unitcode:gsub('%w+', function(w)
+			unitcode = unitcode:gsub('[%a_]%w*', function(w)
 				return assert(({
 					m = 'solver->meter',
 					s = 'solver->second',
 					kg = 'solver->kilogram',
 					C = 'solver->coulomb',
 					K = 'solver->kelvin',
+					pow = 'pow',	-- let this pass through
 				})[w], "couldn't find unit "..w)
 			end)
+
+			
 			local assignvar = 'value_'..vartype..'[0]'
 			varInfos:insert(i+1, {
 				[name..suffix] = code..'\n\t'..assignvar..' = '..vartype..'_real_mul('..assignvar..', '..unitcode..');\n', 
