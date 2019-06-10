@@ -1171,7 +1171,11 @@ end
 
 -- used by the output to print out avg, min, max
 function SolverBase:calcDisplayVarRangeAndAvg(var)
-	local needsUpdate = var.lastTime ~= self.t
+	if var.lastTime == self.t then
+		return var.lastMin, var.lastMax, var.lastAvg
+	end
+	--don't do this -- instead let calcDisplayVarRange update and do this:
+	-- var.lastTime = self.t
 
 	-- this will update lastTime if necessary
 	local min, max = self:calcDisplayVarRange(var)
@@ -1184,14 +1188,10 @@ function SolverBase:calcDisplayVarRangeAndAvg(var)
 		size = tonumber(sizevec:volume())
 	end
 	
-	local avg
-	if needsUpdate then
-		self:calcDisplayVarToBuffer(var)
-		avg = self.reduceSum(nil, size) / tonumber(size)
-	else
-		avg = var.lastAvg
-	end
-
+	self:calcDisplayVarToBuffer(var)
+	local avg = self.reduceSum(nil, size) / tonumber(size)
+	var.lastAvg = avg
+	
 	return min, max, avg
 end
 

@@ -5,9 +5,13 @@ it expects ffmpeg to be installed
 --]]
 
 local ffi = require 'ffi'
-local lfs = require 'lfs'
-local rundir = lfs.currentdir()
-lfs.chdir'../..'
+local unistd = require 'ffi.c.unistd'
+
+require 'ffi.c.stdlib'
+local rundirp = unistd.getcwd(nil, 0)
+local rundir = ffi.string(rundirp)
+ffi.C.free(rundirp)
+unistd.chdir'../..'
 
 local sdl = require 'ffi.sdl'
 local class = require 'ext.class'
@@ -15,7 +19,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local io = require 'ext.io'
 
-__disableGUI__ = true	-- set this before require 'app'
+cmdline = {sys='console'}	-- set this before require 'app'
 
 for k,v in pairs(require 'tests.util') do _G[k] = v end
 

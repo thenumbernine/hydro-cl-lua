@@ -1,15 +1,15 @@
 #!/usr/bin/env luajit
 local ffi = require 'ffi'
-require 'ffi.c.unistd'
+local unistd = require 'ffi.c.unistd'
 require 'ffi.c.stdlib'
-local dirp = ffi.C.getcwd(nil, 0)
+local dirp = unistd.getcwd(nil, 0)
 local dir = ffi.string(dirp)
 ffi.C.free(dirp)
 
 -- chdir to the base
 -- (another alternative would be to execute this script from the base)
 -- I think that's what the Relativity project did
-ffi.C.chdir'../..'
+unistd.chdir'../..'
 
 local table = require 'ext.table'
 local class = require 'ext.class'
@@ -18,6 +18,8 @@ local cols = table()
 local rows = table()
 
 local f = io.open(dir..'/var-ranges.txt', 'w')
+
+cmdline = {sys='console'}
 
 local App = class(require 'app')
 
@@ -51,10 +53,11 @@ function App:setup()
 	self.trackVars = table()
 
 	for _,var in ipairs(solver.displayVars) do
-		if var.name:sub(1,2) == 'U_' then
+		if var.name:sub(1,2) == 'U ' 
+		and not var.vectorField
+		then
 			self.trackVars:insert(var)
 		end
-		var.enabled = false
 	end
 
 	-- initialize what variables to track

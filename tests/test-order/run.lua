@@ -19,13 +19,15 @@ local string = require 'ext.string'
 local io = require 'ext.io'
 local matrix = require 'matrix'
 local gnuplot = require 'gnuplot'
-require 'ffi.c.unistd'
+local unistd = require 'ffi.c.unistd'
 
-local rundir = string.trim(io.readproc'pwd')
+local rundirp = unistd.getcwd(nil, 0)
+local rundir = ffi.string(rundirp)
+ffi.C.free(rundirp)
 
 -- from here on the require's expect us to be in the hydro-cl directory
 -- I should change this, and prefix all hydro-cl's require()s with 'hydro-cl', so it is require()able from other projects
-ffi.C.chdir'../..'
+unistd.chdir'../..'
 
 for k,v in pairs(require 'tests.util') do _G[k] = v end
 

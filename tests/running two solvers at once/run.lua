@@ -1,12 +1,12 @@
 #!/usr/bin/env luajit
 require 'ext'
 local ffi = require 'ffi'
-require 'ffi.c.unistd'
+local unistd = require 'ffi.c.unistd'
 require 'ffi.c.stdlib'
-local dirp = ffi.C.getcwd(nil, 0)
+local dirp = unistd.getcwd(nil, 0)
 local dir = ffi.string(dirp)
 ffi.C.free(dirp)
-ffi.C.chdir'../..'
+unistd.chdir'../..'
 
 -- honestly what's App used for anyways, beyond the gui?
 -- the cl.env ... can I build a solver without app, but just with a cl.env?

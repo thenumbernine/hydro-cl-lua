@@ -21,8 +21,7 @@ predefined vars:
 	exitTime = start the app running, and exit it after the simulation reaches this time
 	verbose = output extra stuff
 --]]
---local cmdline = {}
-cmdline = {}	--global
+cmdline = cmdline or {}	--global
 
 local fromlua = require 'ext.fromlua'
 for _,w in ipairs(arg or {}) do
@@ -525,9 +524,9 @@ function dumpFile:update(app, t)
 			end
 		end
 		--]]
-		-- [[ gmres error
-		f:write('\t'..solver.integrator.last_err)
-		f:write('\t'..solver.integrator.last_iter)
+		-- [[ gmres residual
+		f:write('\t'..solver.integrator.lastResidual)
+		f:write('\t'..solver.integrator.lastIter)
 		--]]
 	end
 	f:write'\n'

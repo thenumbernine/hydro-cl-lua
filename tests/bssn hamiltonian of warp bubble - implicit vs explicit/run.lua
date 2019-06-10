@@ -1,27 +1,29 @@
 #!/usr/bin/env luajit
 
 local ffi = require 'ffi'
-require 'ffi.c.unistd'
+local unistd = require 'ffi.c.unistd'
 require 'ffi.c.stdlib'
-local dirp = ffi.C.getcwd(nil, 0)
+local dirp = unistd.getcwd(nil, 0)
 local dir = ffi.string(dirp)
 ffi.C.free(dirp)
 
 -- chdir to the base
 -- (another alternative would be to execute this script from the base)
 -- I think that's what the Relativity project did
-ffi.C.chdir'../..'
+unistd.chdir'../..'
 
 local table = require 'ext.table'
 local class = require 'ext.class'
 
-__disableGUI__ = true -- set before require 'app'
+-- global
+cmdline = {sys='console'}
 
 local cols = table()
 local rows = table()
 
 for _,info in ipairs{
 	{'fe', 'forward Euler'},
+	{'rk4', 'Runge-Kutta 4'},
 	{'be', 'backward Euler'},
 } do
 	local suffix, integrator= table.unpack(info)
@@ -30,10 +32,10 @@ for _,info in ipairs{
 	local App = class(require 'app')
 	
 	function App:setup()
-		local solver = require 'solver.z4c-fd'{
+		--local solver = require 'solver.z4c-fd'{
+		local solver = require 'solver.bssnok-fd'{
 			app = self, 
 			dim = 2,
-			fluxLimiter = 'superbee',
 			coord = 'cartesian',
 			mins = {-1, -1, -1},
 			maxs = {1, 1, 1},
@@ -53,11 +55,6 @@ for _,info in ipairs{
 
 		self.trackVars = table()
 
-		-- so this is interesting
-		-- calcDisplayVarRange uses a kernel that is only created upon necessity
-		-- which seems slick, except that 
-		-- now I want the kernel for output and not for displaying
-		-- but lazy me will enable it for displaying for the time being
 		for _,var in ipairs(solver.displayVars) do
 			if var.name:sub(1,2) == 'U ' 
 			-- seems to be crashing when reducing vector fields ...
@@ -65,7 +62,6 @@ for _,info in ipairs{
 			then
 				self.trackVars:insert(var)
 			end
-			var.enabled = false
 		end
 
 		-- initialize what variables to track

@@ -131,7 +131,7 @@ function BackwardEuler:init(solver, args)
 		env = solver.app.env,
 		x = self.krylov_xObj,
 		count = numreals,
-		epsilon = args and args.epsilon or 1e-10,
+		epsilon = args and args.epsilon or 1e-24,
 		--maxiter = 1000,
 		restart = restart,
 		maxiter = restart * numreals,
