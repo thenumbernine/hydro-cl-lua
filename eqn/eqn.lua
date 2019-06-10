@@ -208,10 +208,10 @@ function Equation:getDisplayVarsForStructVars(structVarInfos, ptrName)
 	local displayVarInfos = table()
 	for _,structVarInfo in ipairs(structVarInfos) do
 		
-		local function addvar(varname, vartype)
+		local function addvar(name, varname, vartype)
 			local assignvar = '*value_'..vartype
 			displayVarInfos:insert{
-				[varname] = assignvar..' = '..ptrName..varname..';', 
+				[name] = assignvar..' = '..ptrName..varname..';', 
 				type = vartype,
 				units = structVarInfo.units
 			}
@@ -221,10 +221,10 @@ function Equation:getDisplayVarsForStructVars(structVarInfos, ptrName)
 		local vartype = structVarInfo.type
 		if vartype == '_3sym3' then
 			for i,xi in ipairs(xNames) do
-				addvar(varname..'_'..xi, 'sym3')
+				addvar(varname..' '..xi, varname..'.'..xi, 'sym3')
 			end
 		else
-			addvar(varname, vartype)
+			addvar(varname, varname, vartype)
 		end
 	end
 	return displayVarInfos	

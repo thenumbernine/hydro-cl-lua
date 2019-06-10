@@ -242,9 +242,7 @@ void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
 	U->alpha = 1.;
 	U->gamma_ll = sym3_ident;
 	U->a_l = real3_zero;
-	U->d_lll.x = sym3_zero;
-	U->d_lll.y = sym3_zero;
-	U->d_lll.z = sym3_zero;
+	U->d_lll = _3sym3_zero;
 	U->K_ll = sym3_zero;
 	U->V_l = real3_zero;
 <? if eqn.useShift ~= 'none' then 
@@ -357,7 +355,7 @@ ADM_BonaMasso_3D.solverCodeFile = 'eqn/adm3d.cl'
 ADM_BonaMasso_3D.predefinedDisplayVars = {
 	'U alpha',
 	'U gamma_ll x x',
-	'U d_lll_x x x',
+	'U d_lll x x x',
 	'U K_ll x x',
 	'U V_l x',
 	'U H',
@@ -434,7 +432,7 @@ momentum constraints
 	for i,xi in ipairs(xNames) do
 		vars:insert{['gamma_ij vs d_'..xi..'ij'] = template([[
 	if (OOB(1,1)) {
-		*value_sym3 = (sym3){.s={0,0,0,0,0,0}};
+		*value_sym3 = sym3_zero;
 	} else {
 		<? if i <= solver.dim then ?>
 		sym3 di_gamma_jk = sym3_real_mul(

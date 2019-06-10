@@ -12,9 +12,6 @@ local xNames = common.xNames
 
 local EinsteinEquation = class(Equation)
 
--- these hyperbolic formalisms usually take the metric into account themselves
-EinsteinEquation.weightFluxByGridVolume = false
-
 EinsteinEquation.initStates = require 'init.einstein'
 
 function EinsteinEquation:createInitState()

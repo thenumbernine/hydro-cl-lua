@@ -721,20 +721,27 @@ end
 			real3_real_mul(U->LambdaBar_u, eta)));
 <? elseif eqn.useShift == 'HyperbolicGammaDriver' then ?>
 	//hyperbolic Gamma driver 
-	//B&S 4.83 
-	//beta^i_,t = 3/4 B^i (Rezolla says 3/4 alpha B^i, 2006 Campanelli says B^i but absorbs 3/4 into B^i)
-	//B^i_,t = connBar^i_,t - eta B^i ... maybe + beta^j B^i_,j (Rezolla says - beta^j B^i_,j)
-	const real eta = 0.;
-	deriv->beta_u = real3_add(deriv->beta_u,
-		real3_real_mul(U->B_u, 3./4. * U->alpha));
+	//2018 Ruchlin et al, eqn 14a, 14b
+	//beta^i_,t = B^i
+	//B^i_,t = 3/4 (LambdaBar^i_,t - LambdaBar^i_,j beta^j + LambdaBar^j beta^i_,j) - eta B^i + B^i_,j beta^j - B^j beta^i_,j
+	deriv->beta_u = real3_add(deriv->beta_u, U->B_u);
 
-	deriv->B_u = real3_add(deriv->B_u, dt_LambdaBar_u);
-	deriv->B_u = real3_sub(deriv->B_u, real3_real_mul(U->B_u, eta));
-<? 	for i,xi in ipairs(xNames) do
-		for j,xj in ipairs(xNames) do
-?>	deriv->B_u.<?=xi?> -= U->beta_u.<?=xj?> * partial_B_ul[<?=i-1?>].<?=xj?>;
-<? 		end
-	end
+	const real eta = 0.;
+<?	for i,xi in ipairs(xNames) do
+?>	deriv->B_u.<?=xi?> += .75 * (
+			dt_LambdaBar_u.<?=xi?>
+<? 		for j,xj in ipairs(xNames) do
+?>			- partial_LambdaBar_ul[<?=j-1?>].<?=xi?> * U->beta_u.<?=xj?>
+			+ partial_beta_ul[<?=j-1?>].<?=xi?> * U->LambdaBar_u.<?=xj?>
+<?		end
+?>		)
+		- eta * U->B_u.<?=xi?>
+<?		for j,xj in ipairs(xNames) do
+?>		+ partial_B_ul[<?=j-1?>].<?=xi?> * U->beta_u.<?=xj?>
+		- partial_beta_ul[<?=j-1?>].<?=xi?> * U->B_u.<?=xj?>
+<?		end
+?>	;
+<? 	end 
 end ?>
 }
 

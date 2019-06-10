@@ -27,6 +27,8 @@ BSSNOKFiniteDifferenceEquation.hasFluxFromConsCode = true
 BSSNOKFiniteDifferenceEquation.useConstrainU = true
 BSSNOKFiniteDifferenceEquation.useSourceTerm = true
 
+BSSNOKFiniteDifferenceEquation.weightFluxByGridVolume = false
+
 --[[
 args:
 	useShift = 'none'

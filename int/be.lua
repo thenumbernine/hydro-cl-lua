@@ -11,15 +11,19 @@ local math = require 'ext.math'
 local tooltip = require 'tooltip'
 local Integrator = require 'int.int'
 local CLBuffer = require 'cl.obj.buffer'
-local CLGMRES = require 'solver.cl.gmres'
 
-local ThisGMRES = class(CLGMRES)
 
-function ThisGMRES:newBuffer(name)
+--local CLKrylov = require 'solver.cl.conjgrad'
+--local CLKrylov = require 'solver.cl.conjres'
+local CLKrylov = require 'solver.cl.gmres'
+
+local ThisKrylov = class(CLKrylov)
+
+function ThisKrylov:newBuffer(name)
 	if not self.cache then self.cache = {} end
 	local cached = self.cache[name]
 	if cached then return cached end
-	cached = ThisGMRES.super.newBuffer(self, name)
+	cached = ThisKrylov.super.newBuffer(self, name)
 	cached:fill()
 	self.cache[name] = cached
 	return cached
@@ -127,7 +131,7 @@ function BackwardEuler:init(solver, args)
 		env = solver.app.env,
 		x = self.krylov_xObj,
 		count = numreals,
-		epsilon = args and args.epsilon or 1e-20,
+		epsilon = args and args.epsilon or 1e-10,
 		--maxiter = 1000,
 		restart = restart,
 		maxiter = restart * numreals,
@@ -135,7 +139,6 @@ function BackwardEuler:init(solver, args)
 		errorCallback = function(residual, iter, x, rLenSq)
 			self.lastResidual = residual
 			self.lastIter = iter
-			if residual < self.linearSolver.args.epsilon then return true end
 			if self.verbose then
 				print('iter', iter, 'residual', residual)
 			end
@@ -143,6 +146,7 @@ function BackwardEuler:init(solver, args)
 				print("got non-finite residual: "..residual)	-- error?
 				return true	-- fail
 			end
+			if residual < self.linearSolver.args.epsilon then return true end
 		end,
 		dot = function(a,b)
 			return dotWithoutBorder(a,b) / numRealsWithoutBorder
@@ -190,7 +194,7 @@ function BackwardEuler:init(solver, args)
 	--]=]
 
 	-- set up gmres solver here
-	self.linearSolver = ThisGMRES(linearSolverArgs)
+	self.linearSolver = ThisKrylov(linearSolverArgs)
 end
 
 -- step contains integrating flux and source terms

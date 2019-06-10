@@ -27,6 +27,8 @@ Z4cFiniteDifferenceEquation.hasFluxFromConsCode = true
 Z4cFiniteDifferenceEquation.useConstrainU = true
 Z4cFiniteDifferenceEquation.useSourceTerm = true
 
+Z4cFiniteDifferenceEquation.weightFluxByGridVolume = false
+
 --[[
 args:
 	useShift:
