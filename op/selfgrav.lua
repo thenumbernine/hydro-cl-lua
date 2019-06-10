@@ -12,8 +12,8 @@ local Poisson = require(
 	-- Jacobi seems to be converging fastest atm. 
 	-- however Jacobi seems to be most unstable for 3D.
 	-- TODO multigrid or FFT?
-	or 'op.poisson_krylov'		-- Krylov
-	--or 'op.poisson_jacobi'		-- Jacobi
+	--or 'op.poisson_krylov'		-- Krylov. was working for a moment, but I broke it and now it is diverging.
+	or 'op.poisson_jacobi'		-- Jacobi
 )
 
 -- TODO Schurr filter instead of 2n+1 point filter.
@@ -27,13 +27,12 @@ SelfGrav.enableField = 'useGravity'
 
 function SelfGrav:init(args)
 	-- TODO build super class based on what argument we chose?
-	args.verbose = cmdline.selfGravVerbose
 
 	-- for krylov superclass:
+	args.verbose = cmdline.selfGravVerbose
 	args.linearSolver = cmdline.selfGravLinearSolver
 
 	SelfGrav.super.init(self, args)
-
 
 	self.solver[self.enableField] = not not self.solver[self.enableField]
 end

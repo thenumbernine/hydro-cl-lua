@@ -149,7 +149,7 @@ self.copyPotentialToReduceKernelObj()
 local xmin = solver.reduceMin()
 self.copyPotentialToReduceKernelObj()
 local xmax = solver.reduceMax()
-io.stderr:write(table{i-1, xNorm, xmin, xmax, residual}:map(tostring):concat'\t','\n')
+io.stderr:write(table{i-1, residual, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
 --]]			
 			end
 			

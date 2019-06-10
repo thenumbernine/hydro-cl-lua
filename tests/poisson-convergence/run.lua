@@ -15,5 +15,5 @@ for _,info in ipairs{
 	{name='gmres', args='selfGravPoissonSolver=krylov selfGravLinearSolver=gmres'},
 } do
 	exec([[cd ..\.. && luajit run.lua ]]..commonArgs..' '..info.args..[[ selfGravInitPotential=+ 2> tests\poisson-convergence\init-]]..info.name..[[-pos.txt"]])
-	exec([[cd ..\.. && luajit run.lua ]]..commonArgs..' '..info.args..[[ 2> tests\poisson-convergence\init-]]..info.name..[[-neg.txt"]])
+	exec([[cd ..\.. && luajit run.lua ]]..commonArgs..' '..info.args..[[ selfGravInitPotential=- 2> tests\poisson-convergence\init-]]..info.name..[[-neg.txt"]])
 end

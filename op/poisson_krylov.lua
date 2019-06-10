@@ -22,7 +22,7 @@ Right now I'm comparing it to the norm of x.  I should be using the residual.
 PoissonKrylov.stopEpsilon = 1e-10
 
 PoissonKrylov.verbose = false
-PoissonKrylov.linearSolverType = 'gmres'
+PoissonKrylov.linearSolverType = 'conjres'
 
 function PoissonKrylov:getPotBufType()
 	return self.solver.UBufObj.type
@@ -163,7 +163,7 @@ solver.app.env.cmds:enqueueCopyBuffer{
 	size = ffi.sizeof(solver.app.real) * numreals,
 }
 local xmax = solver.reduceMax()
-io.stderr:write(table{iter, xNorm, xmin, xmax, residual}:map(tostring):concat'\t','\n')
+io.stderr:write(table{iter, residual, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
 --]]
 		
 			

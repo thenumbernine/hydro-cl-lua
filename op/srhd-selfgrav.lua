@@ -20,6 +20,8 @@ SRHDSelfGrav.guiVars = {
 }
 
 function SRHDSelfGrav:init(args)
+	args.verbose = cmdline.selfGravVerbose
+	args.linearSolver = cmdline.selfGravLinearSolver or 'conjres'	-- so far works best for selfgrav
 	SRHDSelfGrav.super.init(self, args)
 	self.densityField = args.densityField	
 	self.solver[self.enableField] = not not self.solver[self.enableField]
