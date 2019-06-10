@@ -140,8 +140,8 @@ function PoissonKrylov:initSolver()
 		-- logging:
 		errorCallback = function(residual, iter, x, rLenSq)
 			-- square from x to reduceBuf
-			squareKernelObj(solver.reduceBuf, solver.solverBuf, x)
-			local xNorm = math.sqrt(solver.reduceSum()) / numRealsWithoutBorder
+			squareKernelObj(x, solver.solverBuf, x)
+			local xNorm = math.sqrt(solver.reduceSum() / numRealsWithoutBorder)
 			
 			local lastResidual, lastIter = self.lastResidual, self.lastIter
 			local lastXNorm = self.lastXNorm

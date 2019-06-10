@@ -29,7 +29,7 @@ called every Jacobi method iteration
 
 reads from UBuf
 writes to writeBuf
-optionally writes to reduceBuf the delta if stopOnEpsilon is enabled
+optionally if stopOnEpsilon is enabled, writes residual component-wise squared to reduceBuf
 
 del phi = f
 (d/dx^2 + d/dy^2 + ...) phi = f
@@ -140,13 +140,14 @@ end
 
 	<?=scalar?> oldU = U-><?=op.potentialField?>;
 	
-	//Jacobi iteration: x_i = (b_i - A_ij x_j) / A_ii
+	//Jacobi iteration: x_i = sum i!=j of (b_i - A_ij x_j) / A_ii
 	<?=scalar?> newU = <?=real_mul?>(<?=sub?>(source, skewSum), 1. / diag);
 
 	writeBuf[index] = newU;	
 <? if op.stopOnEpsilon then
-?>	<?=scalar?> deltaU = <?=sub?>(newU, oldU);
-	reduceBuf[index] = <?=lenSq?>(deltaU);
+?>	//residual = b_i - A_ij x_j
+	<?=scalar?> residual = <?=sub?>(<?=sub?>(source, skewSum), <?=mul?>(diag, U-><?=op.potentialField?>));
+	reduceBuf[index] = <?=lenSq?>(residual);
 <? end
 ?>
 }

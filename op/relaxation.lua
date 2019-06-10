@@ -128,16 +128,17 @@ function Relaxation:relax()
 		self.solveJacobiKernelObj()
 
 		-- copy new values back from writeBuf to UBuf potentialField
+		-- copies square of increment into reduceBuf
 		self.copyWriteToPotentialNoGhostKernelObj()
 
 		-- apply boundary to UBuf.potentialField
 		self:potentialBoundary()
 
 		if self.stopOnEpsilon then
-			local residual = math.sqrt(solver.reduceSum()) / tonumber(solver.volumeWithoutBorder)
+			local residual = math.sqrt(solver.reduceSum() / tonumber(solver.volumeWithoutBorder))
 			
 			self.setReduceToPotentialSquaredKernelObj()
-			local xNorm = math.sqrt(solver.reduceSum()) / tonumber(solver.volumeWithoutBorder)
+			local xNorm = math.sqrt(solver.reduceSum() / tonumber(solver.volumeWithoutBorder))
 			local lastResidual = self.lastResidual	
 			self.lastResidual = residual
 			if self.verbose then
@@ -148,7 +149,7 @@ self.copyPotentialToReduceKernelObj()
 local xmin = solver.reduceMin()
 self.copyPotentialToReduceKernelObj()
 local xmax = solver.reduceMax()
-io.stderr:write(table{i, xNorm, xmin, xmax, residual}:map(tostring):concat'\t','\n')
+io.stderr:write(table{i-1, xNorm, xmin, xmax, residual}:map(tostring):concat'\t','\n')
 --]]			
 			end
 			
