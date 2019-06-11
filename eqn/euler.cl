@@ -69,12 +69,12 @@ eigen_t eigen_forInterface(
 	prim_t WL = primFromCons(solver, UL, x);
 	real sqrtRhoL = sqrt(WL.rho);
 	real3 vL = WL.v;
-	real hTotalL = calc_hTotal(WL.rho, WL.P, UL.ETotal) - UL.ePot;
+	real hTotalL = calc_hTotal(WL.rho, WL.P, UL.ETotal);
 	
 	prim_t WR = primFromCons(solver, UR, x);
 	real sqrtRhoR = sqrt(WR.rho);
 	real3 vR = WR.v;
-	real hTotalR = calc_hTotal(WR.rho, WR.P, UR.ETotal) - UR.ePot;
+	real hTotalR = calc_hTotal(WR.rho, WR.P, UR.ETotal);
 
 	real invDenom = 1./(sqrtRhoL + sqrtRhoR);
 	

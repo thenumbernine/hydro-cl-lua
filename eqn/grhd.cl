@@ -87,7 +87,6 @@ kernel void calcDT(
 		.v = {.s={0,0,0}},
 		.eInt = 0,
 	};
-	F.ePot = 0;
 
 	return F;
 }

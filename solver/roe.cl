@@ -12,11 +12,15 @@ kernel void calcFlux(
 	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;	
-		real dt_dx = dt / cell_dx<?=side?>(x);
 		int indexL = index - solver->stepsize.s<?=side?>;
 		
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		
+		//this is used for the flux limiter
+		//should it be using the coordinate dx or the grid dx?
+		//real dt_dx = dt / cell_dx<?=side?>(xInt);
+		real dt_dx = dt / solver->grid_dx.s<?=side?>;
 
 		real3 xIntL = xInt;
 		xIntL.s<?=side?> -= solver->grid_dx.s<?=side?>;

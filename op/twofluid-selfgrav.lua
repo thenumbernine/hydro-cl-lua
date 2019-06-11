@@ -65,22 +65,15 @@ kernel void copyPotentialToReduce<?=op.name?>(
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
 }
 
-//keep energy positive
-kernel void offsetPotentialAndAddToTotal<?=op.name?>(
+//keep potential energy negative
+kernel void offsetPotential<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,
-	realparam ePotMin
+	realparam ePotMax
 ) {
-	const real basePotential = 0.;
-	//const real basePotential = 1.;
-	
 	SETBOUNDS(0,0);
 	global <?=eqn.cons_t?>* U = UBuf + index;
-	U-><?=op.potentialField?> += basePotential - ePotMin;
-<? for _,fluid in ipairs(fluids) do
-?>	U-><?=fluid?>_ETotal += U-><?=fluid?>_rho * U-><?=op.potentialField?>;
-<? end
-?>
+	U-><?=op.potentialField?> -= ePotMax;
 }
 
 ]], {op=self})

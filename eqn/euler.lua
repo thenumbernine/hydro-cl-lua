@@ -75,16 +75,15 @@ function Euler:getCommonFuncCode()
 	return template([[
 static inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
 static inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
-static inline real calc_hTotal(real rho, real P, real ETotal) { return (P + ETotal) / rho; }
 static inline real calc_HTotal(real P, real ETotal) { return P + ETotal; }
+static inline real calc_hTotal(real rho, real P, real ETotal) { return calc_HTotal(P, ETotal) / rho; }
 static inline real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
 static inline real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
 static inline real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.P / (solver->heatCapacityRatio - 1.); }
 static inline real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EInt(solver, W) / W.rho; }
 static inline real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.m, x) / U.rho; }
 static inline real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
-	real EPot = W.rho * W.ePot;
-	return calc_EKin(W, x) + calc_EInt(solver, W) + EPot;
+	return calc_EKin(W, x) + calc_EInt(solver, W);
 }
 
 static inline real calc_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?>* W) {
@@ -100,9 +99,8 @@ function Euler:getPrimConsCode()
 	return template([[
 
 static inline <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
-	real EPot = U.rho * U.ePot;
 	real EKin = calc_EKin_fromCons(U, x);
-	real EInt = U.ETotal - EKin - EPot;
+	real EInt = U.ETotal - EKin;
 	return (<?=eqn.prim_t?>){
 		.rho = U.rho,
 		.v = real3_real_mul(U.m, 1./U.rho),
@@ -134,8 +132,7 @@ static inline <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver
 			real3_real_mul(W.v, WA.rho)),
 		.ETotal = W.rho * .5 * real3_dot(WA.v, WA_vL) 
 			+ WA.rho * real3_dot(W.v, WA_vL)
-			+ W.P / (solver->heatCapacityRatio - 1.)
-			+ WA.rho * W.ePot,
+			+ W.P / (solver->heatCapacityRatio - 1.),
 		.ePot = W.ePot,
 	};
 }
@@ -155,8 +152,7 @@ static inline <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver
 		.P = (solver->heatCapacityRatio - 1.) * (
 			.5 * real3_dot(WA.v, WA_vL) * U.rho 
 			- real3_dot(U.m, WA_vL)
-			+ U.ETotal 
-			- WA.rho * U.ePot),
+			+ U.ETotal),
 		.ePot = U.ePot,
 	};
 }
@@ -269,11 +265,11 @@ function Euler:getCalcGravityCode()
 	} else {
 		<? 
 for side=0,solver.dim-1 do ?>{
-			global const <?=eqn.cons_t?>* Um = U - solver->stepsize.s<?=side?>;
-			global const <?=eqn.cons_t?>* Up = U + solver->stepsize.s<?=side?>;
+			global const <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
+			global const <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
 			value_real3->s<?=side?> = -(
-				Up-><?=eqn.gravOp.potentialField?> 
-				- Um-><?=eqn.gravOp.potentialField?>
+				UR-><?=eqn.gravOp.potentialField?> 
+				- UL-><?=eqn.gravOp.potentialField?>
 			) / (2. * cell_dx<?=side?>(x));
 		}<? 
 end
@@ -297,14 +293,14 @@ function Euler:getDisplayVars()
 		{eInt = '*value = calc_eInt(solver, W);', units='m^2/s^2'},
 		{eKin = '*value = calc_eKin(W, x);', units='m^2/s^2'},
 		{eTotal = '*value = U->ETotal / W.rho;', units='m^2/s^2'},
-		{EInt = '*value = calc_EInt(solver, W);'},
-		{EKin = '*value = calc_EKin(W, x);'},
+		{EInt = '*value = calc_EInt(solver, W);', units='kg/(m*s^2)'},
+		{EKin = '*value = calc_EKin(W, x);', units='kg/(m*s^2)'},
 		{EPot = '*value = U->rho * U->ePot;', units='kg/(m*s^2)'},
 		{S = '*value = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
-		{H = '*value = calc_H(solver, W.P);'},
-		{h = '*value = calc_h(solver, W.rho, W.P);'},
-		{HTotal = '*value = calc_HTotal(W.P, U->ETotal);'},
-		{hTotal = '*value = calc_hTotal(W.rho, W.P, U->ETotal);'},
+		{H = '*value = calc_H(solver, W.P);', units='kg/(m*s^2)'},
+		{h = '*value = calc_h(solver, W.rho, W.P);', units='m^2/s^2'},
+		{HTotal = '*value = calc_HTotal(W.P, U->ETotal);', units='kg/(m*s^2)'},
+		{hTotal = '*value = calc_hTotal(W.rho, W.P, U->ETotal);', units='m^2/s^2'},
 		{['speed of sound'] = '*value = calc_Cs(solver, &W);', units='m/s'},
 		{['Mach number'] = '*value = coordLen(W.v, x) / calc_Cs(solver, &W);'},
 	}:append(self.gravOp and
@@ -330,7 +326,7 @@ function Euler:getDisplayVars()
 	<? for i=0,2 do ?>{
 		<?=select(2,next(v[i+1]))?>
 	}<? end ?>
-]], {v=v}), type='real3'}
+]], {v=v}), type='real3', units='m/s^2'}
 		end
 	end
 

@@ -1349,13 +1349,15 @@ end ?>;
 
 	{
 		name = 'self-gravitation - Earth',
-		mins = {-2,-2,-2},
-		maxs = {2,2,2},
+		mins = {-1,-1,-1},
+		maxs = {1,1,1},
 		overrideGuiVars = {
-			meter = 6.371e+6,	-- radius 1, grid = 2 M_Earth, so the sphere is M_Earth size
+			--meter = 6.371e+6,	-- radius 1, grid = 2 M_Earth, so the sphere is M_Earth size
+			meter = 2 * 6.371e+6,	-- radius .5, grid = 2 M_Earth, so the sphere is M_Earth size
 			
+			-- 4/3 pi (.5)^3 rho = m <=> rho = 6 m / pi
 			-- 4/3 pi (1)^3 rho = m <=> rho = 3 m /(4 pi)
-			kilogram = 5.9722e+24 * 3 / (4 * math.pi),
+			kilogram = 5.9722e+24 * 6 / math.pi,
 	
 			-- in units of m^3/(kg s^2)
 			gravitationalConstant = 6.67384e-11,
@@ -1364,7 +1366,7 @@ end ?>;
 			local f = SelfGravProblem{
 				solver = solver,
 				sources={
-					{center={0, 0, 0}, radius = 1},
+					{center={0, 0, 0}, radius = .5},
 				},
 			}
 			return f(self, solver)

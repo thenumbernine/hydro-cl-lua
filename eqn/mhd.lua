@@ -74,7 +74,7 @@ static inline real calc_eMag(<?=eqn.prim_t?> W, real3 x) { return calc_EMag(W, x
 static inline real calc_PMag(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.B, x); }
 static inline real calc_EHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EKin(W, x) + calc_EInt(solver, W); }
 static inline real calc_eHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EHydro(solver, W, x) / W.rho; }
-static inline real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EKin(W, x) + calc_EInt(solver, W) + calc_EMag(W, x) + W.rho * W.ePot; }
+static inline real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EKin(W, x) + calc_EInt(solver, W) + calc_EMag(W, x); }
 static inline real calc_eTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_ETotal(solver, W, x) / W.rho; }
 static inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
 static inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
@@ -106,8 +106,7 @@ static inline <?=eqn.prim_t?> primFromCons(
 	real BSq = coordLenSq(W.B, x);
 	real EKin = .5 * U.rho * vSq;
 	real EMag = .5 * BSq;
-	real EPot = U.rho * U.ePot;
-	real EInt = U.ETotal - EKin - EMag - EPot;
+	real EInt = U.ETotal - EKin - EMag;
 	W.P = EInt * (solver->heatCapacityRatio - 1.);
 	W.P = max(W.P, (real)1e-7);
 	W.rho = max(W.rho, (real)1e-7);
@@ -151,8 +150,7 @@ static inline <?=eqn.cons_t?> consFromPrim(
 		.ETotal = W.rho * .5 * real3_dot(WA.v, WA.v)
 			+ WA.rho * real3_dot(W.v, WA.v)
 			+ real3_dot(W.B, WA.B) / solver->mu0
-			+ W.P / (solver->heatCapacityRatio - 1.)
-			+ WA.rho * W.ePot,
+			+ W.P / (solver->heatCapacityRatio - 1.),
 		.BPot = W.BPot,
 		.ePot = W.ePot,
 	};
@@ -174,8 +172,7 @@ static inline <?=eqn.cons_t?> consFromPrim(
 			.5 * U.rho * real3_dot(WA.v, WA.v)
 			- real3_dot(U.m, WA.v)
 			- real3_dot(U.B, WA.B) / solver->mu0
-			+ U.ETotal
-			- WA.rho * U.ePot),
+			+ U.ETotal),
 		.BPot = U.BPot,
 		.ePot = U.ePot,
 	};
@@ -208,6 +205,7 @@ end
 	real3 v = real3_zero;
 	real P = 0;
 	real3 B = real3_zero;
+	real ePot = 0;
 
 	<?=code?>
 	
@@ -217,6 +215,7 @@ end
 		.P = P,
 		.B = cartesianToCoord(B, x),
 		.BPot = 0,
+		.ePot = ePot,
 	};
 	UBuf[index] = consFromPrim(solver, W, x);
 }

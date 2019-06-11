@@ -136,12 +136,12 @@ Roe_t calcRoeValues(
 	<?=eqn.prim_t?> WL = primFromCons(solver, UL, x);
 	real sqrtRhoL = sqrt(UL.rho);
 	real PMagL = .5 * coordLenSq(UL.B, x);
-	real hTotalL = (UL.ETotal + WL.P + PMagL) / UL.rho - UL.ePot;
+	real hTotalL = (UL.ETotal + WL.P + PMagL) / UL.rho;
 
 	<?=eqn.prim_t?> WR = primFromCons(solver, UR, x);
 	real sqrtRhoR = sqrt(UR.rho);
 	real PMagR = .5 * coordLenSq(UR.B, x);
-	real hTotalR = (UR.ETotal + WR.P + PMagR) / UR.rho - UR.ePot;
+	real hTotalR = (UR.ETotal + WR.P + PMagR) / UR.rho;
 	
 	real dby = WL.B.y - WR.B.y;
 	real dbz = WL.B.z - WR.B.z;

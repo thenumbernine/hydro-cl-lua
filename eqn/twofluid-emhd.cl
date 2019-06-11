@@ -87,7 +87,6 @@ for _,fluid in ipairs(fluids) do
 ?>	F.<?=fluid?>_m.s<?=i?> += coord_gU<?=i?><?=side?>(x) * W.<?=fluid?>_P;
 <? 	end
 ?>	F.<?=fluid?>_ETotal = <?=fluid?>_HTotal * <?=fluid?>_vj;
-	//F.<?=fluid?>_ePot = 0.;
 <? 
 end
 ?>	F.ePot = 0.;
@@ -132,15 +131,11 @@ eigen_t eigen_forInterface(
 
 	real <?=fluid?>_sqrtRhoL = sqrt(WL.<?=fluid?>_rho);
 	real3 <?=fluid?>_vL = WL.<?=fluid?>_v;
-	real <?=fluid?>_hTotalL = calc_hTotal(solver, WL.<?=fluid?>_rho, WL.<?=fluid?>_P, UL.<?=fluid?>_ETotal) 
-		//- UL.<?=fluid?>_ePot;
-		- UL.ePot;
-	
+	real <?=fluid?>_hTotalL = calc_hTotal(solver, WL.<?=fluid?>_rho, WL.<?=fluid?>_P, UL.<?=fluid?>_ETotal);
+
 	real <?=fluid?>_sqrtRhoR = sqrt(UR.<?=fluid?>_rho);
 	real3 <?=fluid?>_vR = WR.<?=fluid?>_v;
-	real <?=fluid?>_hTotalR = calc_hTotal(solver, WR.<?=fluid?>_rho, WR.<?=fluid?>_P, UR.<?=fluid?>_ETotal) 
-		//- UR.<?=fluid?>_ePot;
-		- UR.ePot;
+	real <?=fluid?>_hTotalR = calc_hTotal(solver, WR.<?=fluid?>_rho, WR.<?=fluid?>_P, UR.<?=fluid?>_ETotal);
 
 	real <?=fluid?>_invDenom = 1./(<?=fluid?>_sqrtRhoL + <?=fluid?>_sqrtRhoR);
 	
@@ -617,9 +612,6 @@ cons_t eigen_fluxTransform_<?=side?>(
 	<? end ?>
 	UY.phi = solver->divPhiWavespeed * UX.D.s<?=side?>;
 	UY.psi = solver->divPsiWavespeed * UX.B.s<?=side?>;
-
-	//UY.ion_ePot = 0;
-	//UY.elec_ePot = 0;
 	UY.ePot = 0;
 
 	return UY;

@@ -22,7 +22,7 @@ local args = {
 	--fixedDT = .0001,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
@@ -185,7 +185,7 @@ local args = {
 	
 	--initState = 'Sod',
 	--initState = 'rectangle',
-	initState = 'Sedov',
+	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
 	--initState = 'Kelvin-Helmholtz',
@@ -204,7 +204,7 @@ local args = {
 	--initState = 'configuration 6',
 
 	-- self-gravitation tests:
-	--initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.  TODO this doesn't produce 9.8 m/s^2 just yet
+	initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.  TODO this doesn't produce 9.8 m/s^2 just yet
 	--initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
 	--initState = 'self-gravitation test 2',		--FIXME
@@ -432,7 +432,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- wave equation
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
@@ -442,7 +442,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 

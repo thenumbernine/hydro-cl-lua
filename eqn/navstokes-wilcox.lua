@@ -100,8 +100,7 @@ static inline real calc_EIntTilde(<?=eqn.prim_t?> W) { return W.rhoBar * calc_eI
 
 static inline real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.rhoBar_vTilde, x) / U.rhoBar; }
 static inline real calc_ETotal(<?=eqn.prim_t?> W, real3 x) {
-	real EPot = W.rhoBar * W.ePot;
-	return calc_EKinTilde(W, x) + calc_EIntTilde(W) + EPot;
+	return calc_EKinTilde(W, x) + calc_EIntTilde(W);
 }
 
 static inline real calc_Cs(const <?=eqn.prim_t?> W) {
@@ -117,7 +116,7 @@ function NavierStokesWilcox:getPrimConsCode()
 static inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 	real3 vTilde = real3_real_mul(U.rhoBar_vTilde, 1. / U.rhoBar);
 	real vTildeSq = coordLenSq(vTilde, x);
-	real rhoBar_eIntTilde = U.rhoBar_eTotalTilde - .5 * U.rhoBar * vTildeSq - U.rhoBar_k - U.rhoBar * U.ePot;
+	real rhoBar_eIntTilde = U.rhoBar_eTotalTilde - .5 * U.rhoBar * vTildeSq - U.rhoBar_k;
 	real rhoBar_TTilde = rhoBar_eIntTilde / C_v;
 	real PBar = rhoBar_TTilde * gasConstant;
 	real PStar = PBar + 2./3. * U.rhoBar_k;
@@ -145,8 +144,8 @@ static inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	real eIntTilde = C_v * TTilde;
 	
 	//eqn 6: eTotalTilde = eIntTilde + 1/2 vTilde^2 + W.k
-	//so eTotalTilde = C_v PStar / rhoBar + 1/2 vTilde^2 + (1 - 2/3 C_v / gasConstant) k + ePot
-	real eTotalTilde = eIntTilde + .5 * coordLenSq(W.vTilde, x) + W.k + W.ePot;
+	//so eTotalTilde = C_v PStar / rhoBar + 1/2 vTilde^2 + (1 - 2/3 C_v / gasConstant) k
+	real eTotalTilde = eIntTilde + .5 * coordLenSq(W.vTilde, x) + W.k;
 	
 	return (<?=eqn.cons_t?>){
 		.rhoBar = W.rhoBar,
@@ -174,7 +173,6 @@ static inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 			+ WA.rhoBar * real3_dot(W.vTilde, WA_vTildeL)
 			+ W.PStar * C_v_over_R
 			+ (1. - 2./3 * C_v_over_R) * WA.rhoBar * W.k,
-			+ WA.rhoBar * W.ePot,
 		.rhoBar_k = WA.k * W.rhoBar + WA.rhoBar * W.k,
 		.rhoBar_omega = WA.omega * W.rhoBar + WA.rhoBar * W.omega,
 		.ePot = W.ePot,
@@ -195,8 +193,7 @@ static inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 		.PStar = R_over_C_v * (
 				.5 * real3_dot(WA.vTilde, WA_vTildeL) * U.rhoBar 
 				- real3_dot(U.rhoBar_vTilde, WA_vTildeL)
-				+ U.rhoBar_eTotalTilde 
-				- WA.rhoBar * U.ePot
+				+ U.rhoBar_eTotalTilde
 			) + (2./3. * R_over_C_v - 1.) * U.rhoBar_k,
 		.k = U.rhoBar_k / WA.rhoBar - WA.k / WA.rhoBar * U.rhoBar,
 		.omega = U.rhoBar_omega / WA.rhoBar - WA.omega / WA.rhoBar * U.rhoBar,

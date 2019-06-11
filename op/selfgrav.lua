@@ -45,7 +45,8 @@ SelfGrav.guiVars = {
 -- units of m^3/(kg*s^2) * kg/m^3 = 1/s^2
 function SelfGrav:getPoissonDivCode()
 	return template([[
-	source = solver->gravitationalConstant * unit_m3_per_kg_s2 * U->rho;
+	source = 4. * M_PI * U->rho
+		* (solver->gravitationalConstant / unit_m3_per_kg_s2);	//'G'
 ]], {op=self})
 end
 
@@ -96,19 +97,15 @@ kernel void copyPotentialToReduce<?=op.name?>(
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
 }
 
-//keep energy positive
-kernel void offsetPotentialAndAddToTotal<?=op.name?>(
+//keep potential energy negative
+kernel void offsetPotential<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,
-	realparam ePotMin
+	realparam ePotMax
 ) {
-	const real basePotential = 0.;
-	//const real basePotential = 1.;
-	
 	SETBOUNDS(0,0);
 	global <?=eqn.cons_t?>* U = UBuf + index;
-	U-><?=op.potentialField?> += basePotential - ePotMin;
-	U->ETotal += U->rho * U-><?=op.potentialField?>;
+	U-><?=op.potentialField?> -= ePotMax;
 }
 ]], {op=self})
 end
@@ -123,7 +120,7 @@ function SelfGrav:refreshSolverProgram()
 
 	--TODO just use the display var kernels?
 	self.copyPotentialToReduceKernelObj = solver.solverProgramObj:kernel('copyPotentialToReduce'..self.name, solver.solverBuf, solver.reduceBuf, solver.UBuf)
-	self.offsetPotentialAndAddToTotalKernelObj = solver.solverProgramObj:kernel('offsetPotentialAndAddToTotal'..self.name, solver.solverBuf, solver.UBuf)
+	self.offsetPotentialKernelObj = solver.solverProgramObj:kernel('offsetPotential'..self.name, solver.solverBuf, solver.UBuf)
 end
 
 local realptr = ffi.new'realparam[1]'
@@ -142,21 +139,7 @@ function SelfGrav:resetState()
 	-- this does an initial relax()
 	SelfGrav.super.resetState(self)
 
-	self.copyPotentialToReduceKernelObj()
-
-	local ePotMin = solver.reduceMin()
-	self.copyPotentialToReduceKernelObj()
-	local ePotMax = solver.reduceMax()
-
-	self.offsetPotentialAndAddToTotalKernelObj.obj:setArg(2, real(ePotMin))
-	self.offsetPotentialAndAddToTotalKernelObj()
-	
-	self.copyPotentialToReduceKernelObj()
-	local new_ePotMin = solver.reduceMin()
-	self.copyPotentialToReduceKernelObj()
-	local new_ePotMax = solver.reduceMax()
-
-	print('offsetting potential energy from '..ePotMin..','..ePotMax..' to '..new_ePotMin..','..new_ePotMax)
+	self:offsetPotential()
 end
 
 function SelfGrav:updateGUI()
@@ -173,6 +156,33 @@ function SelfGrav:addSource(derivBufObj)
 	self:relax()
 	self.calcGravityDerivKernelObj.obj:setArg(1, derivBufObj.obj)
 	self.calcGravityDerivKernelObj()
+
+	-- while we are here, make sure the potential doesn't grow out of control
+	self:offsetPotential()
+end
+
+function SelfGrav:offsetPotential()
+	local solver = self.solver
+	local ePotMin
+	if self.verbose then
+		self.copyPotentialToReduceKernelObj()
+		ePotMin = solver.reduceMin()
+	end
+	self.copyPotentialToReduceKernelObj()
+	local ePotMax = solver.reduceMax()
+	
+	self.offsetPotentialKernelObj.obj:setArg(2, real(ePotMax))
+	self.offsetPotentialKernelObj()
+
+	local new_ePotMin, new_ePotMax
+	if self.verbose then
+		self.copyPotentialToReduceKernelObj()
+		new_ePotMin = solver.reduceMin()
+		self.copyPotentialToReduceKernelObj()
+		new_ePotMax = solver.reduceMax()
+	
+		print('offsetting potential energy from '..ePotMin..','..ePotMax..' to '..new_ePotMin..','..new_ePotMax)
+	end
 end
 
 return SelfGrav
