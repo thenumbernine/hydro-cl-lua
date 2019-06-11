@@ -241,9 +241,9 @@ end
 Euler.predefinedDisplayVars = {
 -- [[	
 	'U rho (kg/m^3)',
-	'U v (m/s) x',
-	'U v (m/s) y',
-	'U v (m/s) z',
+	'U v x (m/s)',
+	'U v y (m/s)',
+	'U v z (m/s)',
 	'U P (kg/(m s^2))',
 --]]
 --[[
@@ -254,34 +254,8 @@ Euler.predefinedDisplayVars = {
 	'U P',
 --]]
 	'U ePot (m^2/s^2)',
-	'U gravity mag',
-	'U gravity (m/s) mag',
+	'U gravity mag (m/s)',
 }
-
-function Euler:getCalcGravityCode()
-	return template([[
-	if (OOB(1,1)) {
-		*value = 0.;
-	} else {
-		<? 
-for side=0,solver.dim-1 do ?>{
-			global const <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
-			global const <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
-			value_real3->s<?=side?> = -(
-				UR-><?=eqn.gravOp.potentialField?> 
-				- UL-><?=eqn.gravOp.potentialField?>
-			) / (2. * cell_dx<?=side?>(x));
-		}<? 
-end
-for side=solver.dim,2 do ?>
-		value_real3->s<?=side?> = 0.;
-<? end ?>
-	}
-]], {
-		eqn=self,
-		solver=self.solver,
-	})
-end
 
 function Euler:getDisplayVars()
 	local vars = Euler.super.getDisplayVars(self)
@@ -304,7 +278,11 @@ function Euler:getDisplayVars()
 		{['speed of sound'] = '*value = calc_Cs(solver, &W);', units='m/s'},
 		{['Mach number'] = '*value = coordLen(W.v, x) / calc_Cs(solver, &W);'},
 	}:append(self.gravOp and
-		{{gravity = self:getCalcGravityCode(), type='real3', units='m/s'}} or nil
+		{{gravity = template([[
+	if (!OOB(1,1)) {
+		*value_real3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U);
+	}
+]], {eqn=self}), type='real3', units='m/s'}} or nil
 	):append{
 		{temp = template([[
 <? local clnumber = require 'cl.obj.number' ?>

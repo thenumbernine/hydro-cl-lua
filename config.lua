@@ -442,7 +442,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -574,7 +574,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- ...which means, with the Maxwell equations waves propagating at the speed of light, that it goes very slow
 -- TODO: I suppose I could make this work with my integrator by (1) removing the maxwell terms from the integration variable list and (2) providing a separate operator that updates them implicitly
 -- TODO still needs PLM support
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='1996 Jiang Shu', order=9})))	-- exploded...
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='2010 Shen Zha', order=5})))
 

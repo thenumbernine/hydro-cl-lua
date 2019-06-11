@@ -135,7 +135,9 @@ function TwoFluidEMHD:init(args)
 --	local NoDiv = require 'op.nodiv'
 --	self.solver.ops:insert(NoDiv{solver=self.solver})	-- nodiv on maxwell ... or just use potentials 
 
-	self.solver.ops:insert(require 'op.twofluid-selfgrav'{solver=self.solver})
+	local TwoFluidSelfGrav = require 'op.twofluid-selfgrav'
+	self.gravOp = TwoFluidSelfGrav{solver=self.solver}
+	self.solver.ops:insert(self.gravOp)
 end
 
 function TwoFluidEMHD:createInitState()
@@ -212,8 +214,8 @@ function TwoFluidEMHD:getCommonFuncCode()
 	return template([[
 static inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
 static inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
-static inline real calc_hTotal(constant <?=solver.solver_t?>* solver, real rho, real P, real ETotal) { return (P + ETotal) / rho; }
 static inline real calc_HTotal(real P, real ETotal) { return P + ETotal; }
+static inline real calc_hTotal(constant <?=solver.solver_t?>* solver, real rho, real P, real ETotal) { return calc_HTotal(P, ETotal) / rho; }
 
 static inline real calc_rho_from_U(<?=eqn.cons_t?> U) {
 	real rho = 0.;
@@ -479,10 +481,15 @@ end
 TwoFluidEMHD.displayVarCodeUsesPrims = true
 
 TwoFluidEMHD.predefinedDisplayVars = {
-	'U ion_rho',
-	'U elec_rho',
-	'U D mag',
-	'U B mag',
+	'U ion_rho (kg/m^3)',
+	'U elec_rho (kg/m^3)',
+	'U ion P (kg/(m s^2))',
+	'U elec P (kg/(m s^2))',
+	'U D mag (C/m^2)',
+	'U B mag (kg/(C s))',
+	
+	'U ePot (m^2/s^2)',
+	'U gravity mag (m/s^2)',
 }
 
 function TwoFluidEMHD:getDisplayVars()
@@ -548,6 +555,9 @@ function TwoFluidEMHD:getDisplayVars()
 	end
 
 	vars:append{
+		{gravity = template([[
+	if (!OOB(1,1)) *value_real3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U);
+]], {eqn=self}), type='real3', units='m/s^2'},
 		{EPot = '*value = calc_rho_from_U(*U) * U->ePot;', units='kg/(m*s^2)'},
 		{['EM energy'] = [[
 	real sqrt_permittivity = solver->sqrt_permittivity_times_normalizedSpeedOfLight / normalizedSpeedOfLight;
@@ -558,7 +568,7 @@ function TwoFluidEMHD:getDisplayVars()
 		coordLenSq(U->D, x) / permittivity
 		+ coordLenSq(U->B, x) / permeability
 	);
-]]},
+]], units='kg/(m*s^2)'},
 	}:append(table{'D', 'B'}:map(function(field, i)
 		local field = assert( ({D='D', B='B'})[field] )
 		return {

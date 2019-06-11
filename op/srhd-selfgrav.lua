@@ -35,7 +35,7 @@ function SRHDSelfGrav:getPoissonDivCode()
 	return template([[
 <? local eqn = op.solver.eqn ?>
 	global <?=eqn.prim_t?>* prim = &UBuf[index].prim;
-	source = solver->gravitationalConstant * unit_m3_per_kg_s2 * prim-><?=op.densityField?>;
+	source = (solver->gravitationalConstant / unit_m3_per_kg_s2) * prim-><?=op.densityField?>;
 ]], {
 		op = self,
 	})

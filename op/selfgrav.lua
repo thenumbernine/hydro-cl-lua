@@ -46,7 +46,7 @@ SelfGrav.guiVars = {
 function SelfGrav:getPoissonDivCode()
 	return template([[
 	source = 4. * M_PI * U->rho
-		* (solver->gravitationalConstant / unit_m3_per_kg_s2);	//'G'
+		* solver->gravitationalConstant / unit_m3_per_kg_s2;	//'G'
 ]], {op=self})
 end
 
@@ -57,6 +57,23 @@ local solver = op.solver
 local eqn = solver.eqn
 ?>
 
+real3 calcGravityAccel<?=op.name?>(
+	constant <?=solver.solver_t?>* solver,
+	global const <?=eqn.cons_t?>* U
+) {
+	real3 accel_g = real3_zero;
+
+	<? for side=0,solver.dim-1 do ?>{
+		// m/s^2
+		accel_g.s<?=side?> = (
+			U[solver->stepsize.s<?=side?>].<?=op.potentialField?> 
+			- U[-solver->stepsize.s<?=side?>].<?=op.potentialField?>
+		) / (2. * cell_dx<?=side?>(x));
+	}<? end ?>
+
+	return accel_g;
+}
+
 kernel void calcGravityDeriv<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuffer,
@@ -66,25 +83,14 @@ kernel void calcGravityDeriv<?=op.name?>(
 	
 	global <?=eqn.cons_t?>* deriv = derivBuffer + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-		
-	//for (int side = 0; side < dim; ++side) {
-	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
-		int indexL = index - solver->stepsize.s<?=side?>;
-		int indexR = index + solver->stepsize.s<?=side?>;
 
-		// m/s^2
-		real accel_g = (
-			UBuf[indexR].<?=op.potentialField?> 
-			- UBuf[indexL].<?=op.potentialField?>
-		) / (2. * cell_dx<?=side?>(x));
+	real3 accel_g = calcGravityAccel<?=op.name?>(solver, U);
 
-		// kg/(m^2 s) = kg/m^3 * m/s^2
-		deriv->m.s[side] -= U->rho * accel_g;
+	// kg/(m^2 s) = kg/m^3 * m/s^2
+	deriv->m = real3_sub(deriv->m, real3_real_mul(accel_g, U->rho));
 	
-		// kg/(m s^2) = (kg m^2 / s) * m/s^2
-		deriv->ETotal -= U->m.s[side] * accel_g;
-	}<? end ?>
+	// kg/(m s^2) = (kg m^2 / s) * m/s^2
+	deriv->ETotal -= real3_dot(U->m, accel_g);
 }
 
 //TODO just use the display var kernels

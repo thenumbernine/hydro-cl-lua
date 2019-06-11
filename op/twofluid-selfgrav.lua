@@ -7,9 +7,8 @@ TwoFluidSelfGrav.name = 'TwoFluidSelfGrav'
 
 function TwoFluidSelfGrav:getPoissonDivCode()
 	return [[
-	source = solver->gravitationalConstant
-		* unit_m3_per_kg_s2
-		* (U->ion_rho + U->elec_rho);
+	source = 4. * M_PI * calc_rho_from_U(*U)
+		* solver->gravitationalConstant / unit_m3_per_kg_s2;	//'G'
 ]]
 end
 
@@ -20,6 +19,24 @@ local solver = op.solver
 local eqn = solver.eqn
 local fluids = eqn.fluids
 ?>
+
+real3 calcGravityAccel<?=op.name?>(
+	constant <?=solver.solver_t?>* solver,
+	global const <?=eqn.cons_t?>* U
+) {
+	real3 accel_g = real3_zero;
+	
+	<? for side=0,solver.dim-1 do ?>{
+		// m/s^2
+		accel_g.s<?=side?> = (
+			U[solver->stepsize.s<?=side?>].<?=op.potentialField?>
+			- U[-solver->stepsize.s<?=side?>].<?=op.potentialField?>
+		) / (2. * cell_dx<?=side?>(x));
+	}<? end ?>
+
+	return accel_g;
+}
+
 kernel void calcGravityDeriv<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuffer,
@@ -29,33 +46,22 @@ kernel void calcGravityDeriv<?=op.name?>(
 	
 	global <?=eqn.cons_t?>* deriv = derivBuffer + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
-		
-	//for (int side = 0; side < dim; ++side) {
-	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
-		int indexL = index - solver->stepsize.s<?=side?>;
-		int indexR = index + solver->stepsize.s<?=side?>;
+	
+	real3 accel_g = calcGravityAccel<?=op.name?>(solver, U);
 
-		// m/s^2
-		real accel_g = (
-			UBuf[indexR].<?=op.potentialField?> 
-			- UBuf[indexL].<?=op.potentialField?>
-		) / (2. * cell_dx<?=side?>(x));
-
-		// kg/(m^2 s) = kg/m^3 * m/s^2
+	// kg/(m^2 s) = kg/m^3 * m/s^2
 <? for _,fluid in ipairs(fluids) do	
-?>		deriv-><?=fluid?>_m.s[side] -= U-><?=fluid?>_rho * accel_g;
+?>	deriv-><?=fluid?>_m = real3_sub(deriv-><?=fluid?>_m, real3_real_mul(accel_g, U-><?=fluid?>_rho));
 <? end	
 ?>
-		// kg/(m s^2) = (kg m^2 / s) * m/s^2
+	// kg/(m s^2) = (kg m^2 / s) * m/s^2
 <? for _,fluid in ipairs(fluids) do	
-?>		deriv-><?=fluid?>_ETotal -= U-><?=fluid?>_m.s[side] * accel_g;
+?>	deriv-><?=fluid?>_ETotal -= real3_dot(U-><?=fluid?>_m, accel_g);
 <? end	
 ?>
-	}<? end ?>
 }
 
-//TODO just use the display var kernels
+// this matches op/selfgrav.lua
 kernel void copyPotentialToReduce<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global real* reduceBuf,
@@ -65,7 +71,7 @@ kernel void copyPotentialToReduce<?=op.name?>(
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
 }
 
-//keep potential energy negative
+// this matches op/selfgrav.lua
 kernel void offsetPotential<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,

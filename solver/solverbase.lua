@@ -927,78 +927,15 @@ function SolverBase:addDisplayVarGroup(args, cl)
 	local group = args.group
 	local varInfos = args.vars
 
-	-- do a first-pass on the vars
-	-- find any with units specified
-	-- and insert a duplicate except with unit conversion
-	varInfos = table(varInfos)
-	for i=#varInfos,1,-1 do
-		local varInfo = varInfos[i]
-		if varInfo.units then
-			local units = varInfo.units
-			varInfos[i] = table(varInfo)
-			varInfos[i].units = nil
-
-			local name, code, vartype
-			for k,v in pairs(varInfos[i]) do
-				if k == 'type' then
-					vartype = v
-				else
-					assert(not name and not code)
-					name = k
-					code = v
-				end
-			end
-			vartype = vartype or 'real'
-		
-
-			-- TODO don't do the non- and unit-based display here.  instead do it wherever display vars are created.
-			local suffix = ' ('..units:gsub('%*', ' ')..')'
-			local unitcode = units
-			-- substitute (expr)^n
-			unitcode = unitcode:gsub('(%([^%)]+%))%^(%-?[%d%.e%+%-]+)', function(a, b)
-				if b == math.floor(b) then
-					-- expand integer powers
-					return '('..string.rep(a, b, ' * ')..')'
-				else
-					-- replace non-integer powers with pow() function
-					return 'pow('..a..', '..b..')'
-				end
-			end)
-			-- substitute var^n
-			unitcode = unitcode:gsub('([%a_]%w*)%^(%-?[%d%.e%+%-]+)', function(a, b)
-				if b == math.floor(b) then
-					return '('..string.rep(a, b, ' * ')..')'
-				else
-					return 'pow('..a..', '..b..')'
-				end
-			end)
-			-- replace unit letters with variables
-			unitcode = unitcode:gsub('[%a_]%w*', function(w)
-				return assert(({
-					m = 'solver->meter',
-					s = 'solver->second',
-					kg = 'solver->kilogram',
-					C = 'solver->coulomb',
-					K = 'solver->kelvin',
-					pow = 'pow',	-- let this pass through
-				})[w], "couldn't find unit "..w)
-			end)
-
-			
-			local assignvar = 'value_'..vartype..'[0]'
-			varInfos:insert(i+1, {
-				[name..suffix] = code..'\n\t'..assignvar..' = '..vartype..'_real_mul('..assignvar..', '..unitcode..');\n', 
-				type = vartype,
-			})
-	
-		end
-	end
-
 	local enableScalar = true
 	local enableVector = true
 enableVector = false
 
 	for i,varInfo in ipairs(varInfos) do
+
+		local units = varInfo.units
+		varInfo = table(varInfo)
+		varInfo.units = nil
 	
 		local name, code, vartype
 		for k,v in pairs(varInfo) do
@@ -1014,6 +951,8 @@ enableVector = false
 		-- this is a quick fix for the magn vars associated with the axis real3 vars of the sym3s
 		-- but it has lots of redundant symmetries for the sym3 real3 elements
 		local function addvar(args)
+			local vartype = args.vartype
+			
 			-- enable the first scalar field
 			-- also enable the first vector field on non-1D simulations
 			local enabled
@@ -1026,7 +965,7 @@ enableVector = false
 				if group.name == 'U'
 				or (group.name:sub(1,5) == 'error' and self.dim == 1)
 				then
-					if args.vartype ~= 'real3' then
+					if vartype ~= 'real3' then
 						enabled = enableScalar
 					
 						if self.dim ~= 1 then
@@ -1042,14 +981,14 @@ enableVector = false
 			end
 
 			local var = cl(table(args, {
-				vectorField = args.vartype == 'real3',
+				vectorField = vartype == 'real3',
 				enabled = enabled,
 			}))
 			group.vars:insert(var)
 
 			local infosForType = self:getDisplayInfosForType()
 
-			local infos = infosForType[args.vartype]
+			local infos = infosForType[vartype]
 			if infos then
 				for _,info in ipairs(infos) do
 					local scalarVar = addvar(table(args, {
@@ -1070,6 +1009,55 @@ enableVector = false
 					end
 				end
 			end
+
+			-- if the var has units associated with it then create a new copy that includes the units conversion
+			-- only do this for real types, so the non-real types can generate per-component subtypes
+			if args.units and vartype == 'real' then
+				local units = args.units
+				local unitsArgs = table(args)
+				unitsArgs.units = nil
+				
+				-- TODO don't do the non- and unit-based display here.  instead do it wherever display vars are created.
+				local suffix = ' ('..units:gsub('%*', ' ')..')'
+				local unitcode = units
+				-- substitute (expr)^n
+				unitcode = unitcode:gsub('(%([^%)]+%))%^(%-?[%d%.e%+%-]+)', function(a, b)
+					if b == math.floor(b) then
+						-- expand integer powers
+						return '('..string.rep(a, b, ' * ')..')'
+					else
+						-- replace non-integer powers with pow() function
+						return 'pow('..a..', '..b..')'
+					end
+				end)
+				-- substitute var^n
+				unitcode = unitcode:gsub('([%a_]%w*)%^(%-?[%d%.e%+%-]+)', function(a, b)
+					if b == math.floor(b) then
+						return '('..string.rep(a, b, ' * ')..')'
+					else
+						return 'pow('..a..', '..b..')'
+					end
+				end)
+				-- replace unit letters with variables
+				unitcode = unitcode:gsub('[%a_]%w*', function(w)
+					return assert(({
+						m = 'solver->meter',
+						s = 'solver->second',
+						kg = 'solver->kilogram',
+						C = 'solver->coulomb',
+						K = 'solver->kelvin',
+						pow = 'pow',	-- let this pass through
+					})[w], "couldn't find unit "..w)
+				end)
+
+				unitsArgs.name = unitsArgs.name .. suffix
+				
+				local assignvar = 'value_'..vartype..'[0]'
+				unitsArgs.code = unitsArgs.code .. '\n\t'
+					..assignvar..' = '..vartype..'_real_mul('..assignvar..', '..unitcode..');\n'
+
+				addvar(unitsArgs)
+			end
 		
 			return var
 		end
@@ -1079,6 +1067,7 @@ enableVector = false
 			name = group.name .. ' ' .. name,
 			code = code,
 			vartype = vartype or 'real',
+			units = units
 		}))
 	end
 
