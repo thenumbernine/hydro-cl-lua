@@ -25,7 +25,7 @@ ideal-mhd, divergence-free, conservative-based eigensystem
 	F.m.s<?=side?> += PTotal;
 	F.B = real3_sub(real3_real_mul(U.B, vj), real3_real_mul(W.v, Bj));
 	F.ETotal = HTotal * vj - BDotV * Bj / solver->mu0;
-	F.BPot = 0.;
+	F.divBPot = 0.;
 	F.ePot = 0.;
 	return F;
 }
@@ -484,7 +484,7 @@ Roe_t calcRoeValues(
 		+ input.ptr[4] * r73
 		+ input.ptr[5] * r72
 		+ input.ptr[6] * r71;
-	resultU.BPot = 0;
+	resultU.divBPot = 0;
 	return cons_rotateTo(resultU, normalForSide<?=side?>());
 }
 
@@ -551,7 +551,7 @@ Roe_t calcRoeValues(
 		+ inputU.m.x * B.z * _1_rho
 		+ inputU.m.z * -B.x * _1_rho
 		+ inputU.B.z * v.x;
-	resultU.BPot = 0;
+	resultU.divBPot = 0;
 	return cons_rotateTo(resultU, normalForSide<?=side?>());
 }
 

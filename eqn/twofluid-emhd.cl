@@ -417,6 +417,8 @@ cons_t eigen_rightTransform_<?=side?>(
 	
 	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
 	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
+	real sqrt_eps = sqrt(eps);	// TODO sqrt units
+	real sqrt_mu = sqrt(mu);
 
 	<?=prefix?>
 <? 

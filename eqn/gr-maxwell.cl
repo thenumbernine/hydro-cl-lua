@@ -31,7 +31,7 @@
 		.D = _real3(B_l.y / mu, -B_l.x / mu, 0.),
 		.B = _real3(-D_l.y / eps, D_l.x / eps, 0.),
 	<? end ?>
-		.BPot = 0.,
+		.divBPot = 0.,
 		.sigma = 0.,
 		.eps = 0.,
 		.mu = 0.,
@@ -256,7 +256,7 @@ x,  y,  z, z,  y,  x
 	
 	<? end ?>
 	
-	Y[6] = 0;	//BPot
+	Y[6] = 0;	//divBPot
 
 	return UY;
 }

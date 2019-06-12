@@ -44,9 +44,6 @@ local xNames = common.xNames
 
 local Maxwell = class(Equation)
 
--- don't incorporate the Conn^k_ij E_k terms into the flux
-Maxwell.weightFluxByGridVolume = false
-
 Maxwell.name = 'Maxwell'
 Maxwell.numIntStates = 6
 
@@ -66,8 +63,8 @@ Maxwell.consVars = table{
 	{name='D', type=Maxwell.vec3, units='C/m^2'},
 	{name='B', type=Maxwell.vec3, units='kg/(C*s)'},
 	
-	{name='DPot', type=Maxwell.scalar, units='C/m^2'},
-	{name='BPot', type=Maxwell.scalar, units='kg/(C*s)'},
+	{name='divDPot', type=Maxwell.scalar, units='C/m^2'},
+	{name='divBPot', type=Maxwell.scalar, units='kg/(C*s)'},
 	
 	{name='rhoCharge', type=Maxwell.scalar, units='C/m^3'},
 	{name='sigma', type=Maxwell.scalar, units='(C^2*s)/(kg*m^3)'},
@@ -104,8 +101,8 @@ So we need three matrices and not just one ...
 --Maxwell.susc_t = Maxwell.mat3x3
 
 Maxwell.consVars:append{
-	{name='sqrt_1_eps', type=Maxwell.susc_t},		-- sqrt( (kg m^3)/(C^2 s^2) )
-	{name='sqrt_1_mu', type=Maxwell.susc_t},		-- sqrt( C^2/(kg m) )
+	{name='sqrt_1_eps', type=Maxwell.susc_t, units='(kg*m^3)^.5/(C*s)'},
+	{name='sqrt_1_mu', type=Maxwell.susc_t, units='C/(kg*m)^.5'},
 }
 
 Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
@@ -114,6 +111,9 @@ Maxwell.hasEigenCode = true
 Maxwell.hasFluxFromConsCode = true
 Maxwell.useSourceTerm = true
 Maxwell.roeUseFluxFromCons = true
+
+-- don't incorporate the Conn^k_ij E_k terms into the flux
+Maxwell.weightFluxByGridVolume = false
 
 Maxwell.initStates = require 'init.euler'
 
@@ -130,16 +130,21 @@ Maxwell.postComputeFluxCode = template([[
 function Maxwell:init(args)
 	Maxwell.super.init(self, args)
 
-	local NoDiv = class(require 'op.nodiv')
-	NoDiv.scalar = self.scalar
+	local NoDiv = require 'op.nodiv'{
+		poissonSolver = require'op.poisson_jacobi',
+	}
+
 	self.solver.ops:insert(NoDiv{
 		solver = self.solver,
+		scalar = self.scalar,
 	})
+	
 	-- should I be fixing div E = rhoCharge, 
 	-- or should I get rid of the rhoCharge field and the div E constraint?
 	self.solver.ops:insert(NoDiv{
 		solver = self.solver,
-		potentialField = 'DPot',
+		scalar = self.scalar,
+		potentialField = 'divDPot',
 		chargeField = 'rhoCharge',
 	})
 end
@@ -247,7 +252,6 @@ kernel void initState(
 	//used
 	<?=vec3?> D = <?=vec3?>_zero;
 	<?=vec3?> B = <?=vec3?>_zero;
-	
 	<?=scalar?> conductivity = <?=scalar?>_from_real(1.);
 	<?=susc_t?> permittivity = <?=susc_t?>_from_real(1.);
 	<?=susc_t?> permeability = <?=susc_t?>_from_real(1.);
@@ -262,7 +266,7 @@ kernel void initState(
 	
 	U->D = eqn_cartesianToCoord(D, x);
 	U->B = eqn_cartesianToCoord(B, x);
-	U->BPot = <?=zero?>;
+	U->divBPot = <?=zero?>;
 	U->sigma = conductivity;
 	U->sqrt_1_eps = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permittivity));
 	U->sqrt_1_mu = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permeability));
@@ -404,8 +408,8 @@ function Maxwell:getDisplayVars()
 end
 
 Maxwell.eigenVars = table{
-	{name='sqrt_1_eps', type=Maxwell.susc_t, type=self.susc_t, units='(m^3*kg)^.5/(C*s)'},
-	{name='sqrt_1_mu', type=Maxwell.susc_t, type=self.susc_t, units='C/(kg*m)^.5'},
+	{name='sqrt_1_eps', type=Maxwell.susc_t, units='(m^3*kg)^.5/(C*s)'},
+	{name='sqrt_1_mu', type=Maxwell.susc_t, units='C/(kg*m)^.5'},
 }
 
 function Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
@@ -419,29 +423,29 @@ end
 
 function Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 	if self.susc_t == 'real' then
-		if waveIndex == 0 or waveIndex == 1 then
-			return '-eig_lambda'
-		elseif waveIndex == 2 or waveIndex == 3 then
-			return '0'
-		elseif waveIndex == 4 or waveIndex == 5 then
-			return 'eig_lambda'
-		else
-			error'got a bad waveIndex'
-		end
+		return ({
+			'-eig_lambda',
+			'-eig_lambda',
+			'0',
+			'0',
+			'eig_lambda',
+			'eig_lambda',
+		})[waveIndex+1] or error'got a bad waveIndex'
 	elseif self.susc_t == 'cplx' then
-		if waveIndex == 0 or waveIndex == 2 then
-			return '-eig_lambda.re'
-		elseif waveIndex == 1 or waveIndex == 3 then
-			return '-eig_lambda.im'
-		elseif waveIndex >= 4 or waveIndex <= 7 then
-			return '0'
-		elseif waveIndex == 8 or waveIndex == 10 then
-			return 'eig_lambda.re'
-		elseif waveIndex == 9 or waveIndex == 11 then
-			return 'eig_lambda.im'
-		else
-			error'got a bad waveIndex'
-		end
+		return ({
+			'-eig_lambda.re',
+			'-eig_lambda.im',
+			'-eig_lambda.re',
+			'-eig_lambda.im',
+			'0',
+			'0',
+			'0',
+			'0',
+			'eig_lambda.re',
+			'eig_lambda.im',
+			'eig_lambda.re',
+			'eig_lambda.im',
+		})[waveIndex+1] or error'got a bad waveIndex'
 	end
 end
 

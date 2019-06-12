@@ -32,8 +32,8 @@ cons_t fluxFromCons_<?=side?>(
 ?>		.D = _<?=vec3?>(H.y, <?=neg?>(H.x), <?=zero?>),
 		.B = _<?=vec3?>(<?=neg?>(E.y), E.x, <?=zero?>),
 <? end 
-?>		.DPot = <?=zero?>,
-		.BPot = <?=zero?>,
+?>		.divDPot = <?=zero?>,
+		.divBPot = <?=zero?>,
 		.rhoCharge = <?=zero?>,
 		.sigma = <?=zero?>,
 		.sqrt_1_eps = <?=susc_t?>_zero,

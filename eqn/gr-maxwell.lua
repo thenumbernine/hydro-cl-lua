@@ -28,7 +28,7 @@ GRMaxwell.consVars = {
 	-- the vectors are contravariant with ^t component that are zero
 	{name='D', type=GRMaxwell.vec3},
 	{name='B', type=GRMaxwell.vec3},
-	{name='BPot', type=GRMaxwell.scalar},	-- used to calculate the B potential & remove div
+	{name='divBPot', type=GRMaxwell.scalar},	-- used to calculate the B potential & remove div
 	
 	-- these aren't dynamic at all, but I don't want to allocate a separate buffer
 	{name='sigma', type=GRMaxwell.scalar},
@@ -49,7 +49,7 @@ GRMaxwell.initStates = require 'init.euler'
 function GRMaxwell:init(args)
 	GRMaxwell.super.init(self, args)
 
-	local NoDiv = require 'op.nodiv'
+	local NoDiv = require 'op.nodiv'()
 	self.solver.ops:insert(NoDiv{solver=self.solver})
 end
 
@@ -109,7 +109,7 @@ kernel void initState(
 	
 	U->D = D;
 	U->B = B;
-	U->BPot = 0;
+	U->divBPot = 0;
 	U->sigma = conductivity;
 	U->eps = permittivity;
 	U->mu = permeability;

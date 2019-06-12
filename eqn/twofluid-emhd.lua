@@ -132,7 +132,7 @@ function TwoFluidEMHD:init(args)
 	TwoFluidEMHD.super.init(self, args)
 
 
---	local NoDiv = require 'op.nodiv'
+--	local NoDiv = require 'op.nodiv'()
 --	self.solver.ops:insert(NoDiv{solver=self.solver})	-- nodiv on maxwell ... or just use potentials 
 
 	local TwoFluidSelfGrav = require 'op.twofluid-selfgrav'
@@ -145,11 +145,17 @@ function TwoFluidEMHD:createInitState()
 	
 	local speedOfLight = 1	--require 'constants'.speedOfLight_in_m_per_s -- m/s
 	local CoulombConstant = 1	--require 'constants'.CoulombConstant_in_kg_m3_per_C2_s2  -- (kg m^3)/(C^2 s)
-	
+
+	--[[
 	local vacuumPermittivity = 1 / (4 * math.pi * CoulombConstant)	-- (C^2 s^2)/(kg m^3)
 	local vacuumPermittivityTimesSpeedOfLightSquared = speedOfLight * speedOfLight * vacuumPermittivity	-- C^2/(kg m)
 	local vacuumPermeability = 1 / vacuumPermittivityTimesSpeedOfLightSquared	-- (kg m)/C^2
-
+	--]]
+	-- [[
+	local vacuumPermittivity = 1
+	local vacuumPermeability = 1
+	--]]
+	
 	self:addGuiVars(table{
 		--never given, only stated as "speeds for the Maxwell equation"
 		-- of course, they're associated with the potentials, so... they could be arbitrary
@@ -163,7 +169,7 @@ function TwoFluidEMHD:createInitState()
 		{name='ionMass', value=1, units='kg'},
 	
 		-- c = speed of light
-		{name='speedOfLight', value=1, units='m/s'},
+		{name='speedOfLight', value=speedOfLight, units='m/s'},
 		
 		-- m = m_i / m_e
 		-- https://en.wikipedia.org/wiki/Proton-to-electron_mass_ratio
@@ -174,8 +180,10 @@ function TwoFluidEMHD:createInitState()
 		{name='ionChargeMassRatio', value=1, units='C/kg'},
 
 		-- hmm ...
-		{name='sqrt_mu', value=4 * math.pi, units='(kg m)^.5/C'},
-+		{name='sqrt_eps', value=1 / math.sqrt(vacuumPermeability), units='(C*s)/(kg m^3)^.5'},
+		--{name='sqrt_mu', value=math.sqrt(vacuumPermittivity), units='(kg m)^.5/C'},
+		--{name='sqrt_eps', value=math.sqrt(vacuumPermeability), units='(C*s)/(kg*m^3)^.5'},
+		{name='sqrt_mu', value=1, units='(kg m)^.5/C'},
+		{name='sqrt_eps', value=1, units='(C*s)/(kg*m^3)^.5'},
 	
 		-- lambda_d = ion Debye length
 		-- lambda_d = sqrt(epsilon (v_i^T)^2 m_i / n_0 q_i^2)

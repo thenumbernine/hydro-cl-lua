@@ -15,21 +15,21 @@ MHD.numIntStates = 8
 MHD.numStates = 10
 
 MHD.primVars = table{
-	{name='rho', type='real'},
-	{name='v', type='real3'},
-	{name='P', type='real'},
-	{name='B', type='real3'},
-	{name='BPot', type='real'},
-	{name='ePot', type='real'},	-- for selfgrav
+	{name='rho', type='real', units='kg/m^3'},
+	{name='v', type='real3', units='m/s'},
+	{name='P', type='real', units='kg/(m*s^2)'},
+	{name='B', type='real3', units='kg/(C*s)'},
+	{name='divBPot', type='real', units='kg/(C*s)'},
+	{name='ePot', type='real', units='m^2/s^2'},
 }
 
 MHD.consVars = table{
-	{name='rho', type='real'},
-	{name='m', type='real3'},
-	{name='ETotal', type='real'},
-	{name='B', type='real3'},
-	{name='BPot', type='real'},
-	{name='ePot', type='real'},	-- for selfgrav
+	{name='rho', type='real', units='kg/m^3'},
+	{name='m', type='real3', units='kg/(m^2*s)'},
+	{name='ETotal', type='real', units='kg/(m*s^2)'},
+	{name='B', type='real3', units='kg/(C*s)'},
+	{name='divBPot', type='real', units='kg/(C*s)'},
+	{name='ePot', type='real', units='m^2/s^2'},
 }
 
 MHD.mirrorVars = {{'m.x', 'B.x'}, {'m.y', 'B.y'}, {'m.z', 'B.z'}}
@@ -48,7 +48,7 @@ function MHD:init(args)
 	MHD.super.init(self, args)
 
 	if self.solver.dim > 1 then
-		local NoDiv = require 'op.nodiv'
+		local NoDiv = require 'op.nodiv'()
 		self.solver.ops:insert(NoDiv{solver=self.solver})
 	end
 
@@ -110,7 +110,7 @@ static inline <?=eqn.prim_t?> primFromCons(
 	W.P = EInt * (solver->heatCapacityRatio - 1.);
 	W.P = max(W.P, (real)1e-7);
 	W.rho = max(W.rho, (real)1e-7);
-	W.BPot = U.BPot;
+	W.divBPot = U.divBPot;
 	W.ePot = U.ePot;
 	return W;
 }
@@ -130,7 +130,7 @@ static inline <?=eqn.cons_t?> consFromPrim(
 	real EMag = .5 * BSq;
 	real EInt = W.P / (solver->heatCapacityRatio - 1.);
 	U.ETotal = EInt + EKin + EMag;
-	U.BPot = W.BPot;
+	U.divBPot = W.divBPot;
 	U.ePot = W.ePot;
 	return U;
 }
@@ -151,7 +151,7 @@ static inline <?=eqn.cons_t?> consFromPrim(
 			+ WA.rho * real3_dot(W.v, WA.v)
 			+ real3_dot(W.B, WA.B) / solver->mu0
 			+ W.P / (solver->heatCapacityRatio - 1.),
-		.BPot = W.BPot,
+		.divBPot = W.divBPot,
 		.ePot = W.ePot,
 	};
 }
@@ -173,7 +173,7 @@ static inline <?=eqn.cons_t?> consFromPrim(
 			- real3_dot(U.m, WA.v)
 			- real3_dot(U.B, WA.B) / solver->mu0
 			+ U.ETotal),
-		.BPot = U.BPot,
+		.divBPot = U.divBPot,
 		.ePot = U.ePot,
 	};
 }
@@ -214,7 +214,7 @@ end
 		.v = cartesianToCoord(v, x),
 		.P = P,
 		.B = cartesianToCoord(B, x),
-		.BPot = 0,
+		.divBPot = 0,
 		.ePot = ePot,
 	};
 	UBuf[index] = consFromPrim(solver, W, x);
@@ -247,7 +247,6 @@ for j=0,solver.dim-1 do
 end 
 ?>	);
 ]], {solver=self.solver, field='B'})},
-		{['BPot'] = '*value = U->BPot;'},
 		{P = '*value = W.P;'},
 		--{PMag = '*value = calc_PMag(W, x);'},
 		--{PTotal = '*value = W.P + calc_PMag(W, x);'},

@@ -46,7 +46,7 @@ typedef union {
 		real eInt;	
 		
 		real3 B;
-		real BPot;
+		real divBPot;
 	};
 } <?=eqn.prim_t?>;
 
@@ -60,7 +60,7 @@ typedef union {
 		
 		// TODO fix this.
 		// it is here because prim_t is expected to be the same size as cons_t
-		real BPot;
+		real divBPot;
 	};
 } <?=eqn.cons_t?>;
 ]], {

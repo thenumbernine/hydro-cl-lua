@@ -34,6 +34,9 @@ GLM_Maxwell.hasFluxFromConsCode = true
 GLM_Maxwell.useSourceTerm = true
 GLM_Maxwell.roeUseFluxFromCons = true
 
+-- don't incorporate the Conn^k_ij E_k terms into the flux
+GLM_Maxwell.weightFluxByGridVolume = false
+
 GLM_Maxwell.initStates = require 'init.euler'
 
 
@@ -64,7 +67,7 @@ function GLM_Maxwell:init(args)
 	}
 
 	self.eigenVars = table{
-		{name='sqrt_1_eps', type=self.susc_t, units='(m^3*kg)^.5/(C*s)'},
+		{name='sqrt_1_eps', type=self.susc_t, units='(kg*m^3)^.5/(C*s)'},
 		{name='sqrt_1_mu', type=self.susc_t, units='C/(kg*m)^.5'},
 	}
 
@@ -351,7 +354,7 @@ function GLM_Maxwell:getDisplayVars()
 end
 
 function GLM_Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
---[=[	
+--[=[
 	return template([[
 	<?=scalar?> v_p = <?=mul?>(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu);
 ]], table(self:getTemplateEnv(), {

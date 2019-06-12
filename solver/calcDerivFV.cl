@@ -15,7 +15,10 @@ kernel void calcDerivFromFlux(
 <? if eqn.weightFluxByGridVolume then ?>
 	real volume = coord_volume(x);
 <? else ?>
-	const real volume = 1.<? for i=0,solver.dim-1 do ?> * solver->grid_dx.s<?=i?><? end ?>;
+	const real volume = 1.<? 
+	for i=0,solver.dim-1 do 
+		?> * solver->grid_dx.s<?=i?><? 
+	end ?>;
 <? end ?>
 
 	<? for side=0,solver.dim-1 do ?>{
@@ -37,10 +40,9 @@ kernel void calcDerivFromFlux(
 	
 		real areaL = coord_volume(xIntL);
 		real areaR = coord_volume(xIntR);
-
 <? else ?>
-		real areaL = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * solver->grid_dx.s<?=i?><? end end ?>;
-		real areaR = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * solver->grid_dx.s<?=i?><? end end ?>;
+		real areaL = volume;
+		real areaR = volume;
 <? end ?>
 
 <? if not eqn.postComputeFluxCode then -- would the compiler know to optimize this? ?>

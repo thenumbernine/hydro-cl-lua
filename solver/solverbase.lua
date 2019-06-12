@@ -701,6 +701,39 @@ function SolverBase:resetOps()
 	end
 end
 
+function SolverBase:convertToSIUnitsCode(units)
+	self.unitCodeCache = self.unitCodeCache or {}
+	if self.unitCodeCache[units] then return self.unitCodeCache[units] end
+	local symmath = require 'symmath'
+	local vars = symmath.vars
+	local m, s, kg, C, K = vars('m', 's', 'kg', 'C', 'K')
+	local expr = assert(load([[
+local m, s, kg, C, K = ...
+return ]]..units))(m, s, kg, C, K)
+	expr = expr()
+	expr = expr:map(function(ex)
+		if symmath.op.pow.is(ex) then
+			local power = ex[2].value
+			assert(type(power) == 'number')
+			if power == math.floor(power) and power > 0 then
+				if power == 1 then return ex[1] end
+				return symmath.op.mul(table{ex[1]}:rep(power):unpack())
+			end
+		end
+	end)
+	local code = expr:compile({
+		{__solver_meter = m}, 
+		{__solver_second = s},
+		{__solver_kilogram = kg},
+		{__solver_coulomb = C},
+		{__solver_kelvin = K},
+	}, 'C')
+	code = code:gsub('__solver_', 'solver->')
+	code = assert((code:match'{ return (.*); }'), "failed to find code block")
+	self.unitCodeCache[units] = code
+	return code
+end
+
 local DisplayVarGroup = class()
 
 function DisplayVarGroup:init(args)
@@ -1019,37 +1052,7 @@ enableVector = false
 				
 				-- TODO don't do the non- and unit-based display here.  instead do it wherever display vars are created.
 				local suffix = ' ('..units:gsub('%*', ' ')..')'
-				local unitcode = units
-				-- substitute (expr)^n
-				unitcode = unitcode:gsub('(%([^%)]+%))%^(%-?[%d%.e%+%-]+)', function(a, b)
-					if b == math.floor(b) then
-						-- expand integer powers
-						return '('..string.rep(a, b, ' * ')..')'
-					else
-						-- replace non-integer powers with pow() function
-						return 'pow('..a..', '..b..')'
-					end
-				end)
-				-- substitute var^n
-				unitcode = unitcode:gsub('([%a_]%w*)%^(%-?[%d%.e%+%-]+)', function(a, b)
-					if b == math.floor(b) then
-						return '('..string.rep(a, b, ' * ')..')'
-					else
-						return 'pow('..a..', '..b..')'
-					end
-				end)
-				-- replace unit letters with variables
-				unitcode = unitcode:gsub('[%a_]%w*', function(w)
-					return assert(({
-						m = 'solver->meter',
-						s = 'solver->second',
-						kg = 'solver->kilogram',
-						C = 'solver->coulomb',
-						K = 'solver->kelvin',
-						pow = 'pow',	-- let this pass through
-					})[w], "couldn't find unit "..w)
-				end)
-
+				local unitcode = self:convertToSIUnitsCode(units)
 				unitsArgs.name = unitsArgs.name .. suffix
 				
 				local assignvar = 'value_'..vartype..'[0]'

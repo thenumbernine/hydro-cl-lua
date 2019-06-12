@@ -1361,6 +1361,8 @@ end ?>;
 		
 				-- in units of m^3/(kg s^2)
 				gravitationalConstant = require 'constants'.gravitationalConstant_in_m3_per_kg_s2,
+				
+				coulombConstant = require 'constants'.CoulombConstant_in_kg_m3_per_C2_s2,
 			},
 			initState = function(self, solver)
 				local f = SelfGravProblem{
@@ -1376,7 +1378,6 @@ end ?>;
 			end
 		}
 	end)(),
-
 
 	{
 		name = 'self-gravitation test 1',

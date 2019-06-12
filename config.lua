@@ -204,7 +204,7 @@ local args = {
 	--initState = 'configuration 6',
 
 	-- self-gravitation tests:
-	initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.  TODO this doesn't produce 9.8 m/s^2 just yet
+	--initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.  TODO this doesn't produce 9.8 m/s^2 just yet
 	--initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
 	--initState = 'self-gravitation test 2',		--FIXME
@@ -238,7 +238,7 @@ local args = {
 	-- Maxwell:
 	--initState = 'Maxwell default',
 	--initState = 'Maxwell empty waves',
-	--initState = 'Maxwell scattering around cylinder',
+	initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around pyramid',
 	--initState = 'Maxwell scattering around square',
 	--initState = 'Maxwell scattering around Koch snowflake',
@@ -442,7 +442,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -545,8 +545,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- Maxwell
 
 
--- TODO somehow I broke this.  It seems to be failing on everything.
--- when the state is nonzero, at certain sizes there appear errors in the corners
+-- TODO somehow I broke this.  it doesn't look right
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
@@ -556,7 +555,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- GLM Maxwell
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=7})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=13})))
