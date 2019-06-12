@@ -15,17 +15,17 @@ ideal-mhd, divergence-free, conservative-based eigensystem
 	real Bj = W.B.s<?=side?>;
 	real BSq = coordLenSq(W.B, x);
 	real BDotV = real3_dot(W.B, W.v);
-	real PMag = .5 * BSq / solver->mu0;
+	real PMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);
 	real PTotal = W.P + PMag;
 	real HTotal = U.ETotal + PTotal;
 	
 	<?=eqn.cons_t?> F;
 	F.rho = U.m.s<?=side?>;
-	F.m = real3_sub(real3_real_mul(U.m, vj), real3_real_mul(U.B, Bj / solver->mu0));
+	F.m = real3_sub(real3_real_mul(U.m, vj), real3_real_mul(U.B, Bj / (solver->mu0 / unit_kg_m_per_C2)));
 	F.m.s<?=side?> += PTotal;
 	F.B = real3_sub(real3_real_mul(U.B, vj), real3_real_mul(W.v, Bj));
-	F.ETotal = HTotal * vj - BDotV * Bj / solver->mu0;
-	F.divBPot = 0.;
+	F.ETotal = HTotal * vj - BDotV * Bj / (solver->mu0 / unit_kg_m_per_C2);
+	F.psi = 0.;
 	F.ePot = 0.;
 	return F;
 }
@@ -42,6 +42,8 @@ ideal-mhd, divergence-free, conservative-based eigensystem
 	U.B = real3_rotateTo(U.B, n);
 	return U;
 }
+
+// TODO find out where mu_0 goes in the code below
 
 //called from calcDT
 <? for side=0,solver.dim-1 do ?>
@@ -256,9 +258,8 @@ Roe_t calcRoeValues(
 
 
 	//used for eigenvectors and eigenvalues
-<? 	for _,kv in ipairs(eqn.roeVars) do
-		local name = next(kv) 
-?>	eig.<?=name?> = roe.<?=name?>;
+<? 	for _,var in ipairs(eqn.roeVars) do
+?>	eig.<?=var.name?> = roe.<?=var.name?>;
 <?	end
 ?>
 
@@ -294,9 +295,8 @@ Roe_t calcRoeValues(
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
 
-<? for _,kv in ipairs(eqn.eigenVars) do
-	local name, ctype = next(kv)
-?> 	<?=ctype?> <?=name?> = eig.<?=name?>;
+<? for _,var in ipairs(eqn.eigenVars) do
+?> 	<?=var.type or 'real'?> <?=var.name?> = eig.<?=var.name?>;
 <? end ?>
 
 #warning you can't use coordLenSq (which uses g_ij) after rotating coordinates 
@@ -399,9 +399,8 @@ Roe_t calcRoeValues(
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
 
-<? for _,kv in ipairs(eqn.eigenVars) do
-	local name, ctype = next(kv)
-?> 	<?=ctype?> <?=name?> = eig.<?=name?>;
+<? for _,var in ipairs(eqn.eigenVars) do
+?> 	<?=var.type or 'real'?> <?=var.name?> = eig.<?=var.name?>;
 <? end ?>
 
 	real vSq = coordLenSq(v, x);
@@ -484,7 +483,7 @@ Roe_t calcRoeValues(
 		+ input.ptr[4] * r73
 		+ input.ptr[5] * r72
 		+ input.ptr[6] * r71;
-	resultU.divBPot = 0;
+	resultU.psi = 0;
 	return cons_rotateTo(resultU, normalForSide<?=side?>());
 }
 
@@ -501,9 +500,8 @@ Roe_t calcRoeValues(
 	const real gamma_2 = gamma - 2.;
 	const real gamma_3 = gamma - 3.;
 
-<? for _,kv in ipairs(eqn.eigenVars) do
-	local name, ctype = next(kv)
-?> 	<?=ctype?> <?=name?> = eig.<?=name?>;
+<? for _,var in ipairs(eqn.eigenVars) do
+?> 	<?=var.type or 'real'?> <?=var.name?> = eig.<?=var.name?>;
 <? end ?>
 
 	real _1_rho = 1. / rho;
@@ -551,7 +549,7 @@ Roe_t calcRoeValues(
 		+ inputU.m.x * B.z * _1_rho
 		+ inputU.m.z * -B.x * _1_rho
 		+ inputU.B.z * v.x;
-	resultU.divBPot = 0;
+	resultU.psi = 0;
 	return cons_rotateTo(resultU, normalForSide<?=side?>());
 }
 
@@ -595,31 +593,4 @@ kernel void addSource(
 	deriv->m = real3_add(deriv->m, real3_real_mul(coord_raise(coord_conn_trace13(x), x), PTotal));		//+Conn^j_kj g^ki PTotal
 	deriv->m = real3_add(deriv->m, real3_real_mul(coord_conn_apply23(U->B, U->B, x), 1. / solver->mu0));	//+ 1/mu0 Conn^i_jk B^j B^k
 <? end ?>
-}
-
-//this is a temporary fix until I implement MHD's inline eigenvalue code
-
-kernel void calcDT(
-	constant <?=solver.solver_t?>* solver,
-	global real* dtBuf,
-	const global <?=eqn.cons_t?>* UBuf
-) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-	real3 x = cell_x(i);
-
-	const global <?=eqn.cons_t?>* U = UBuf + index;
-
-	real dt = INFINITY;
-	<? for side=0,solver.dim-1 do ?>{
-		//use cell-centered eigenvalues
-		range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(solver, U, x); 
-		real absLambdaMax = max(fabs(lambda.min), fabs(lambda.max));
-		absLambdaMax = max((real)1e-9, absLambdaMax);
-		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
-	}<? end ?>
-	dtBuf[index] = dt;
 }

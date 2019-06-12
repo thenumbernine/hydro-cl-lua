@@ -102,26 +102,26 @@ function Maxwell:init(args)
 ]], {eqn=self})
 
 
---[[
-	local NoDiv = require 'op.nodiv'{
-		poissonSolver = require'op.poisson_jacobi',
-	}
+	if self.solver.dim > 1 then
+		local NoDiv = require 'op.nodiv'{
+			poissonSolver = require'op.poisson_jacobi',
+		}
 
-	self.solver.ops:insert(NoDiv{
-		solver = self.solver,
-		scalar = self.scalar,
-		potentialField = 'psi',
-		verbose = true,
-	})
+		self.solver.ops:insert(NoDiv{
+			solver = self.solver,
+			scalar = self.scalar,
+			potentialField = 'psi',
+			verbose = true,
+		})
 
-	self.solver.ops:insert(NoDiv{
-		solver = self.solver,
-		scalar = self.scalar,
-		potentialField = 'phi',
-		chargeField = 'rhoCharge',
-		verbose = true,
-	})
---]]
+		self.solver.ops:insert(NoDiv{
+			solver = self.solver,
+			scalar = self.scalar,
+			potentialField = 'phi',
+			chargeField = 'rhoCharge',
+			verbose = true,
+		})
+	end
 end
 
 function Maxwell:getCommonFuncCode()

@@ -714,7 +714,7 @@ function SolverBase:convertToSIUnitsCode(units)
 	local m, s, kg, C, K = vars('m', 's', 'kg', 'C', 'K')
 	local expr = assert(load([[
 local m, s, kg, C, K = ...
-return ]]..units))(m, s, kg, C, K)
+return ]]..units), "failed to compile unit expression "..units)(m, s, kg, C, K)
 	expr = expr()
 	expr = expr:map(function(ex)
 		if symmath.op.pow.is(ex) then
