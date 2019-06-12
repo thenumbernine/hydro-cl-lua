@@ -35,75 +35,15 @@ B_i,t + 1/sqrt(g) g_il epsBar^ljk (1/eps)_k^l D_l,j = 1/sqrt(g) g_il epsBar^ljk 
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
 local range = require 'ext.range'
+local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local template = require 'template'
 local common = require 'common'()
 local xNames = common.xNames
 
 local Maxwell = class(Equation)
-
 Maxwell.name = 'Maxwell'
-Maxwell.numIntStates = 6
-
--- I'm working on making complex numbers exchangeable
-Maxwell.scalar = 'real'
---Maxwell.scalar = 'cplx'
-
--- 1 for 'real', 2 for 'cplx'
-Maxwell.numRealsInScalar = ffi.sizeof(Maxwell.scalar) / ffi.sizeof'real'
-
-Maxwell.numWaves = 6 * Maxwell.numRealsInScalar
-
-Maxwell.vec3 = Maxwell.scalar..'3'
-Maxwell.mat3x3 = Maxwell.scalar..'3x3'
-
-Maxwell.consVars = table{
-	{name='D', type=Maxwell.vec3, units='C/m^2'},
-	{name='B', type=Maxwell.vec3, units='kg/(C*s)'},
-	
-	{name='divDPot', type=Maxwell.scalar, units='C/m^2'},
-	{name='divBPot', type=Maxwell.scalar, units='kg/(C*s)'},
-	
-	{name='rhoCharge', type=Maxwell.scalar, units='C/m^3'},
-	{name='sigma', type=Maxwell.scalar, units='(C^2*s)/(kg*m^3)'},
-}
-
---[[
-TODO make these complex
-but that means making E and B complex 
-and that means complex math, and *drumroll* complex code generation of the coordLenSq functions
-and this would be easier if OpenCL supported the 'complex' keyword
-
-another todo - max this a tensor
-some common susceptibility tensors are symmetric?
-I thought I caught somewhere that they are often projection matrices...
-https://physics.stackexchange.com/questions/351012/how-can-i-deduce-the-magnetic-susceptibility-tensor-of-a-biaxial-liquid-crystal
-https://physics.stackexchange.com/questions/148634/equivalent-tensor-order-parameters-of-nematic-liquid-crystals?rq=1
-https://en.wikipedia.org/wiki/Permittivity#Tensorial_permittivity
-https://en.wikipedia.org/wiki/Electro-gyration
---]]
-
-Maxwell.susc_t = Maxwell.scalar
-
---[[ 
-there's a catch, if susceptibility is a tensor, 
-then it gets applied to the flux matrix, 
-and therefore it needs to be considered in the flux decomposition
-
-Therefore I don't just need the susceptibility tensor,
-I also need the eigen-decomposition of the susceptibility times the Levi-Civita tensor
-
-So I need to store the U, S, and V matrices of this...
-So we need three matrices and not just one ...
---]]
---Maxwell.susc_t = Maxwell.mat3x3
-
-Maxwell.consVars:append{
-	{name='sqrt_1_eps', type=Maxwell.susc_t, units='(kg*m^3)^.5/(C*s)'},
-	{name='sqrt_1_mu', type=Maxwell.susc_t, units='C/(kg*m)^.5'},
-}
 
 Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
 
@@ -117,7 +57,41 @@ Maxwell.weightFluxByGridVolume = false
 
 Maxwell.initStates = require 'init.euler'
 
-Maxwell.postComputeFluxCode = template([[
+function Maxwell:init(args)
+	self.scalar = 'real'
+	--self.scalar = 'cplx'
+	
+	self.vec3 = self.scalar..'3'
+	self.mat3x3 = self.scalar..'3x3'
+
+	-- TODO tensor susceptibilty support ... but that affects the eigendecomposition ...
+	self.susc_t = self.scalar
+	--self.susc_t = self.mat3x3
+
+	self.numRealsInScalar = ffi.sizeof(self.scalar) / ffi.sizeof'real'
+
+	self.numIntStates = 6 * self.numRealsInScalar
+	self.numWaves = 6
+
+	self.consVars = {
+		{name='D', type=self.vec3, units='C/m^2'},
+		{name='B', type=self.vec3, units='kg/(C*s)'},
+		{name='phi', type=self.scalar, units='C/m^2'},
+		{name='psi', type=self.scalar, units='kg/(C*s)'},
+		{name='rhoCharge', type=self.scalar, units='C/m^3'},
+		{name='sigma', type=self.scalar, units='(C^2*s)/(kg*m^3)'},
+		{name='sqrt_1_eps', type=self.susc_t, units='(kg*m^3)^.5/(C*s)'},
+		{name='sqrt_1_mu', type=self.susc_t, units='C/(kg*m)^.5'},
+	}
+	
+	self.eigenVars = table{
+		{name='sqrt_1_eps', type=self.susc_t, units='(kg*m^3)^.5/(C*s)'},
+		{name='sqrt_1_mu', type=self.susc_t, units='C/(kg*m)^.5'},
+	}
+
+	Maxwell.super.init(self, args)
+
+	self.postComputeFluxCode = template([[
 <? local vec3 = eqn.vec3 ?>
 		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
 		//flux is computed raised via Levi-Civita upper
@@ -125,11 +99,10 @@ Maxwell.postComputeFluxCode = template([[
 		real _1_sqrt_det_g = 1. / coord_volume(x);
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
-]], {eqn=Maxwell})
+]], {eqn=self})
 
-function Maxwell:init(args)
-	Maxwell.super.init(self, args)
 
+--[[
 	local NoDiv = require 'op.nodiv'{
 		poissonSolver = require'op.poisson_jacobi',
 	}
@@ -137,33 +110,29 @@ function Maxwell:init(args)
 	self.solver.ops:insert(NoDiv{
 		solver = self.solver,
 		scalar = self.scalar,
+		potentialField = 'psi',
+		verbose = true,
 	})
-	
-	-- should I be fixing div E = rhoCharge, 
-	-- or should I get rid of the rhoCharge field and the div E constraint?
+
 	self.solver.ops:insert(NoDiv{
 		solver = self.solver,
 		scalar = self.scalar,
-		potentialField = 'divDPot',
+		potentialField = 'phi',
 		chargeField = 'rhoCharge',
+		verbose = true,
 	})
+--]]
 end
 
 function Maxwell:getCommonFuncCode()
 	return template([[
-//hmm, for E and B, even if the coord is 2D, we need all 3D components ...
-//this means we need coordLen functions with guaranteed dimensions, including tangent spaces
+<? if scalar == 'real' then ?>
 
-<? if eqn.scalar == 'real' then ?>
-
-real eqn_coordLenSq(real3 v, real3 x) {
-	return coordLenSq(v, x);
-}
-
+#define eqn_coordLenSq coordLenSq
 #define eqn_cartesianToCoord cartesianToCoord
 #define eqn_coord_lower coord_lower
 
-<? elseif eqn.scalar == 'cplx' then ?>
+<? elseif scalar == 'cplx' then ?>
 
 real eqn_coordLenSq(cplx3 v, real3 x) {
 	return coordLenSq(cplx3_re(v), x)
@@ -182,44 +151,15 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 		coord_lower(cplx3_im(v), x));
 }
 
-<? end -- eqn.scalar ?>
+<? end -- scalar ?>
 
-<?=eqn.vec3?> calc_E(<?=eqn.cons_t?> U) { 
-/*
-scalar type / susceptibility type:
-real/scalar => real_real3_mul
-cplx/scalar => cplx_cplx3_mul
-real/tensor => real3x3_real3_mul
-cplx/tensor => cplx3x3_cplx3_mul
-*/
-	return <?=eqn.susc_t?>_<?=eqn.vec3?>_mul(
-		<?=eqn.susc_t?>_mul(U.sqrt_1_eps, U.sqrt_1_eps),
-		U.D);
+<?=vec3?> calc_E(<?=eqn.cons_t?> U) { 
+	return <?=vec3?>_<?=susc_t?>_mul(U.D, <?=susc_t?>_mul(U.sqrt_1_eps, U.sqrt_1_eps));
 }
-
-<?=eqn.vec3?> calc_H(<?=eqn.cons_t?> U) { 
-	return <?=eqn.susc_t?>_<?=eqn.vec3?>_mul(
-		<?=eqn.susc_t?>_mul(U.sqrt_1_mu, U.sqrt_1_mu),
-		U.B);
+<?=vec3?> calc_H(<?=eqn.cons_t?> U) { 
+	return <?=vec3?>_<?=susc_t?>_mul(U.B, <?=susc_t?>_mul(U.sqrt_1_mu, U.sqrt_1_mu));
 }
-/*
-|E| = E_i *E^i = (re E^i + i im E^i)  (re E^j - i im E^j) gamma_ij
-= ((re E^i re E^j + im E^i im E^j) + i (im E^i re E^j - re E^i im E^j)) gamma_ij
-= (re E^i re E^j + im E^i im E^j) gamma_ij
-re |E| = coordLenSq(re_E, re_E) + coordLenSq(im_E, im_E)
-im |E| = 0
-*/
-real ESq(<?=eqn.cons_t?> U, real3 x) {
-	return eqn_coordLenSq(calc_E(U), x);
-}
-
-real BSq(<?=eqn.cons_t?> U, real3 x) {
-	return eqn_coordLenSq(U.B, x);
-}
-
-]], {
-		eqn = self,
-	})
+]], self:getTemplateEnv())
 end
 
 Maxwell.initStateCode = [[
@@ -233,7 +173,7 @@ local zero = scalar..'_zero'
 ?>
 
 kernel void initState(
-	global <?=solver.solver_t?>* solver,
+	constant <?=solver.solver_t?>* solver,
 	global <?=cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
@@ -266,8 +206,10 @@ kernel void initState(
 	
 	U->D = eqn_cartesianToCoord(D, x);
 	U->B = eqn_cartesianToCoord(B, x);
-	U->divBPot = <?=zero?>;
+	U->phi = <?=zero?>;
+	U->psi = <?=zero?>;
 	U->sigma = conductivity;
+	U->rhoCharge = <?=zero?>;
 	U->sqrt_1_eps = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permittivity));
 	U->sqrt_1_mu = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permeability));
 }
@@ -292,7 +234,10 @@ function Maxwell:getTemplateEnv()
 	env.add = scalar..'_add'
 	env.sub = scalar..'_sub'
 	env.mul = scalar..'_mul'
+	env.mul3 = scalar..'_mul3'
 	env.real_mul = scalar..'_real_mul'
+	env.sqrt = scalar..'_sqrt'
+	env.abs = scalar..'_abs'
 	return env
 end
 
@@ -339,29 +284,40 @@ local function curl(eqn,k,result,field,env)
 end
 
 Maxwell.predefinedDisplayVars = {
-	'U D mag',
-	'U B mag',
-	'U div D',
-	'U div B',
+	'U D x (C/m^2)',
+--	'U D y (C/m^2)',
+--	'U D z (C/m^2)',
+	'U D mag (C/m^2)',
+	'U div D (C/m^3)',
+	'U phi (C/m^2)',
+--	'U B x (kg/(C s))',
+--	'U B y (kg/(C s))',
+--	'U B z (kg/(C s))',
+--	'U B mag (kg/(C s))',
+--	'U div B (kg/(C m s))',
+--	'U psi (kg/(C s))',
 }
 
---[[
-for E = [0, sin(x-t), 0]
-dEy/dx = cos(x-t)
-so curl(E).z = -cos(x-t)
---]]
 function Maxwell:getDisplayVars()
 	local env = self:getTemplateEnv()
-
+	
 	local vars = Maxwell.super.getDisplayVars(self)
 	vars:append{ 
-		{E = template([[	*value_<?=vec3?> = calc_E(*U);]], env), type=vec3, units='(kg*m)/(C*s)'},
-		{S = template([[
-	*value_<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));
-]], env), type=env.vec3, units='kg/s^3'},
-		{energy = template([[
-	*value = (eqn_coordLenSq(U->D, x) + eqn_coordLenSq(calc_H(*U), x)) * .5;
-]], env), type=scalar, units='kg/(m*s^2)'},
+		{E = template([[	*value_<?=vec3?> = calc_E(*U);]], env), type=env.vec3, units='(kg*m)/(C*s)'},
+		{H = template([[	*value_<?=vec3?> = calc_H(*U);]], env), type=env.vec3, units='C/(m*s)'},
+		{S = template([[	*value_<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));]], env), type=env.vec3, units='kg/s^3'},
+		{
+			energy = template([[
+	<?=susc_t?> _1_eps = <?=susc_t?>_mul(U->sqrt_1_eps, U->sqrt_1_eps);
+	<?=susc_t?> _1_mu = <?=susc_t?>_mul(U->sqrt_1_mu, U->sqrt_1_mu);
+	*value = <?=real_mul?>(<?=add?>(
+		<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(U->D, x), _1_eps),
+		<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(calc_H(*U), x), _1_mu)
+	), .5);
+]], env), 
+			type = scalar,
+			units = 'kg/(m*s^2)',
+		},
 	}:append(table{'D', 'B'}:map(function(field,i)
 		local field = assert( ({D='D', B='B'})[field] )
 		return {
@@ -372,12 +328,10 @@ function Maxwell:getDisplayVars()
 		<?=sub?>(
 			U[solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>,
 			U[-solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		), 1. / solver->grid_dx.s<?=j?>));
+		), 2. / solver->grid_dx.s<?=j?>));
 <? end ?>
-
-	v = <?=real_mul?>(v, .5);
 	*value_<?=scalar?> = v;
-]], table(env, {field=field})), 
+]], table(env, {field=field})),
 			type = scalar, 
 			units = ({
 				D = 'C/m^3',
@@ -388,7 +342,7 @@ function Maxwell:getDisplayVars()
 
 	for _,field in ipairs{'D', 'B'} do
 		local v = range(0,2):map(function(i)
-			return curl(self,i,'value_'..env.vec3..'->s'..i,field,env)
+			return curl(self,i,'value_'..env.vec3..'->s'..i,field, env)
 		end)
 		vars:insert{
 			['curl '..field] = template([[
@@ -404,60 +358,74 @@ function Maxwell:getDisplayVars()
 		}
 	end
 
-	return vars 
+	return vars
 end
 
-Maxwell.eigenVars = table{
-	{name='sqrt_1_eps', type=Maxwell.susc_t, units='(m^3*kg)^.5/(C*s)'},
-	{name='sqrt_1_mu', type=Maxwell.susc_t, units='C/(kg*m)^.5'},
-}
-
 function Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
+--[=[
 	return template([[
-	<?=eqn.susc_t?> eig_lambda = <?=eqn.susc_t?>_mul(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu);
-]], {
+	<?=scalar?> v_p_abs = <?=mul?>(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu);
+]], table(self:getTemplateEnv(), {
 		eqn = self,
 		eig = '('..eig..')',
-	})
+	}))
+--]=]
+-- [=[
+	local env = self:getTemplateEnv()
+	local code = template(
+		[[<?=mul?>(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu)]],
+		table(env, {
+			eqn = self,
+			eig = '('..eig..')',
+		})
+	)
+	if self.scalar == 'cplx' then
+		code = env.abs..'('..code..')'
+	end
+	return 'real v_p_abs = '..code..';'
+--]=]
 end
 
 function Maxwell:eigenWaveCode(side, eig, x, waveIndex)
-	if self.susc_t == 'real' then
-		return ({
-			'-eig_lambda',
-			'-eig_lambda',
-			'0',
-			'0',
-			'eig_lambda',
-			'eig_lambda',
-		})[waveIndex+1] or error'got a bad waveIndex'
-	elseif self.susc_t == 'cplx' then
-		return ({
-			'-eig_lambda.re',
-			'-eig_lambda.im',
-			'-eig_lambda.re',
-			'-eig_lambda.im',
-			'0',
-			'0',
-			'0',
-			'0',
-			'eig_lambda.re',
-			'eig_lambda.im',
-			'eig_lambda.re',
-			'eig_lambda.im',
-		})[waveIndex+1] or error'got a bad waveIndex'
-	end
+	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
+	return ({
+		'-v_p_abs',
+		'-v_p_abs',
+		'0',
+		'0',
+		'v_p_abs',
+		'v_p_abs',
+	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
+end
+
+function Maxwell:eigenMaxWaveCode(side, eig, x)
+	return 'v_p_abs'
+end
+function Maxwell:eigenMinWaveCode(side, eig, x)
+	return '-'..self:eigenMaxWaveCode(side, eig, x)
 end
 
 function Maxwell:consWaveCodePrefix(side, U, x, waveIndex)
-	return template([[
-<? local susc_t = eqn.susc_t ?>
-	<?=susc_t?> eig_lambda = <?=susc_t?>_mul(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_mu);
-]], {
-		eqn = self,
-		U = '('..U..')',
-	})
+	local env = self:getTemplateEnv()
+	local code = template(
+		[[<?=mul?>(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_mu)]],
+		table(env, {
+			eqn = self,
+			U = '('..U..')',
+		})
+	)
+	if self.scalar == 'cplx' then
+		code = env.abs..'('..code..')'
+	end
+	return 'real v_p_abs = '..code..';'
 end
 Maxwell.consWaveCode = Maxwell.eigenWaveCode
+
+function Maxwell:consMaxWaveCode(side, U, x)
+	return 'v_p_abs'
+end
+function Maxwell:consMinWaveCode(side, U, x)
+	return '-'..self:consMaxWaveCode(side, U, x)
+end
 
 return Maxwell

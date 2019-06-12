@@ -82,7 +82,12 @@ function SolverBase:getSolverTypeCode()
 	-- coordinate space = u,v,w
 	-- cartesian space = x,y,z
 	-- min and max in coordinate space
-	return makestruct.makeStruct(self.solver_t, self.solverVars, nil, true)
+	local code = makestruct.makeStruct(self.solver_t, self.solverVars, nil, true)
+	if self.lastSolverTypeCode then
+		assert(code == self.lastSolverTypeCode)
+	end
+	self.lastSolverTypeCode = code
+	return code
 end
 
 function SolverBase:preInit(args)
@@ -1253,7 +1258,7 @@ function SolverBase:checkFinite(buf)
 	local ptrsPerReal = ptr0size / realSize
 	assert(ptrsPerReal == math.floor(ptrsPerReal))
 	ptr = ffi.cast('real*', ptr)
-	local size = buf.size * ptrsPerReal
+	local size = buf.count * ptrsPerReal
 	local found
 	for i=0,size-1 do
 		local x = tonumber(ptr[i])

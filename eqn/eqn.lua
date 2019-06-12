@@ -65,7 +65,7 @@ function Equation:init(args)
 		end
 	else
 		if numReals then
-			assert(self.numStates == numReals)
+			assert(self.numStates == numReals, "found numStates="..self.numStates.." but found numReals="..numReals)
 		end
 	end
 	-- default # waves is the # of states

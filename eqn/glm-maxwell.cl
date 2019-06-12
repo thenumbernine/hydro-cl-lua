@@ -34,11 +34,10 @@ cons_t fluxFromCons_<?=side?>(
 	<? end ?>
 		.phi = <?=real_mul?>(U.D.s<?=side?>, solver->divPhiWavespeed / unit_m_per_s),
 		.psi = <?=real_mul?>(U.B.s<?=side?>, solver->divPsiWavespeed / unit_m_per_s),
-	
 		.sigma = <?=zero?>,
 		.rhoCharge = <?=zero?>,
-		.sqrt_1_eps = <?=zero?>,
-		.sqrt_1_mu = <?=zero?>,
+		.sqrt_1_eps = <?=susc_t?>_zero,
+		.sqrt_1_mu = <?=susc_t?>_zero,
 	};
 }
 <? end ?>
@@ -50,12 +49,18 @@ eigen_t eigen_forInterface(
 	real3 x,
 	real3 n
 ) {
+	//this will fail with tensor susceptibility
+	//but it doesn't belong here -- this is only the scalar case
+	//for tensors, I should be eigen-decomposing the levi-civita times the tensor	
 	return (eigen_t){
-		.sqrt_1_eps = <?=real_mul?>(<?=add?>(UL.sqrt_1_eps, UR.sqrt_1_eps), .5),
-		.sqrt_1_mu = <?=real_mul?>(<?=add?>(UL.sqrt_1_mu, UR.sqrt_1_mu), .5),
+		.sqrt_1_eps = <?=susc_t?>_real_mul(<?=susc_t?>_add(UL.sqrt_1_eps, UR.sqrt_1_eps), .5),
+		.sqrt_1_mu = <?=susc_t?>_real_mul(<?=susc_t?>_add(UL.sqrt_1_mu, UR.sqrt_1_mu), .5),
 	};
 }
 
+/*
+TODO update this for Einstein-Maxwell (take the metric into consideration
+*/
 <? for side=0,solver.dim-1 do ?>
 waves_t eigen_leftTransform_<?=side?>(
 	constant solver_t* solver,
@@ -67,13 +72,13 @@ waves_t eigen_leftTransform_<?=side?>(
 	<?=scalar?>* Xp = (<?=scalar?>*)X.ptr;
 	<?=scalar?>* Yp = (<?=scalar?>*)Y.ptr;
 
-	<?=scalar?> sqrt_1_eps = eig.sqrt_1_eps;		//(m^3 kg)^.5/(C s)
-	<?=scalar?> sqrt_eps = <?=inv?>(sqrt_1_eps);	//(C s)/(m^3 kg)^.5
-	<?=scalar?> sqrt_1_mu = eig.sqrt_1_mu;			//C/(kg m)^.5
-	<?=scalar?> sqrt_mu = <?=inv?>(sqrt_1_mu);		//(kg m)^.5/C
-	<?=scalar?> v_p = <?=mul?>(sqrt_1_eps, sqrt_1_mu);	//m/s
+	<?=susc_t?> sqrt_1_eps = eig.sqrt_1_eps;					//(m^3 kg)^.5/(C s)
+	<?=susc_t?> sqrt_eps = <?=susc_t?>_inv(sqrt_1_eps);			//(C s)/(m^3 kg)^.5
+	<?=susc_t?> sqrt_1_mu = eig.sqrt_1_mu;						//C/(kg m)^.5
+	<?=susc_t?> sqrt_mu = <?=susc_t?>_inv(sqrt_1_mu);			//(kg m)^.5/C
+	<?=susc_t?> v_p = <?=susc_t?>_mul(sqrt_1_eps, sqrt_1_mu);	//m/s
 
-	<? if side==0 then ?>
+	<? if side == 0 then ?>
 
 	Yp[0] = (Xp[6] - Xp[0]) * sqrt_eps * sqrt_1_2;					//(C^2 s)/(m^3.5 kg^.5)
 	Yp[1] = (Xp[7] - Xp[3]) * sqrt_eps * sqrt_1_2;					//kg^.5/m^1.5
@@ -84,7 +89,7 @@ waves_t eigen_leftTransform_<?=side?>(
 	Yp[6] = (Xp[0] + Xp[6]) * sqrt_eps * sqrt_1_2;					//(C^2 s)/(m^3.5 kg^.5)
 	Yp[7] = (Xp[3] + Xp[7]) * sqrt_eps * sqrt_1_2;					//kg^.5/m^1.5
 
-	<? elseif side==1 then ?>
+	<? elseif side == 1 then ?>
 
 	//same units as x dir
 	Yp[0] = (Xp[6] - Xp[1]) * sqrt_eps * sqrt_1_2;
@@ -96,7 +101,7 @@ waves_t eigen_leftTransform_<?=side?>(
 	Yp[6] = (Xp[1] + Xp[6]) * sqrt_eps * sqrt_1_2;
 	Yp[7] = (Xp[4] + Xp[7]) * sqrt_eps * sqrt_1_2;
 
-	<? elseif side==2 then ?>
+	<? elseif side == 2 then ?>
 	
 	//same units as x dir
 	Yp[0] = (Xp[6] - Xp[2]) * sqrt_eps * sqrt_1_2;
@@ -129,7 +134,7 @@ cons_t eigen_rightTransform_<?=side?>(
 	<?=scalar?> sqrt_mu = <?=inv?>(eig.sqrt_1_mu);
 	<?=scalar?> sqrt_2 = <?=inv?>(sqrt_1_2);
 
-	<? if side==0 then ?>
+	<? if side == 0 then ?>
 
 	Yp[0] = ((-(Xp[0] - Xp[6])) / (sqrt_2 * sqrt_eps));
 	Yp[1] = ((-(sqrt_eps * (Xp[3] - Xp[5]))) / sqrt_2);
@@ -140,7 +145,7 @@ cons_t eigen_rightTransform_<?=side?>(
 	Yp[6] = ((Xp[0] + Xp[6]) / (sqrt_2 * sqrt_eps));
 	Yp[7] = ((Xp[1] + Xp[7]) / (sqrt_2 * sqrt_eps));
 	
-	<? elseif side==1 then ?>
+	<? elseif side == 1 then ?>
 
 	Yp[0] = ((sqrt_eps * (Xp[3] - Xp[5])) / sqrt_2);
 	Yp[1] = ((-(Xp[0] - Xp[6])) / (sqrt_2 * sqrt_eps));
@@ -151,7 +156,7 @@ cons_t eigen_rightTransform_<?=side?>(
 	Yp[6] = ((Xp[0] + Xp[6]) / (sqrt_2 * sqrt_eps));
 	Yp[7] = ((Xp[1] + Xp[7]) / (sqrt_2 * sqrt_eps));
 	
-	<? elseif side==2 then ?>
+	<? elseif side == 2 then ?>
 
 	Yp[0] = ((-(sqrt_eps * (Xp[3] - Xp[5]))) / sqrt_2);
 	Yp[1] = ((sqrt_eps * (Xp[2] - Xp[4])) / sqrt_2);
@@ -189,7 +194,7 @@ kernel void addSource(
 ) {
 	SETBOUNDS_NOGHOST();
 	real3 x = cell_x(i);
-
+	
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
@@ -201,12 +206,11 @@ kernel void addSource(
 			<?=mul?>(<?=mul?>(U->sqrt_1_eps, U->sqrt_1_eps), U->sigma)
 		)
 	);
-
-
+	
 	//for non-time-varying susceptibilities, here's the source term:
 	//D_i,t ... = 1/sqrt(g) g_il epsBar^ljk  (1/mu)_,j B_k - J_i
 	//B_i,t ... = 1/sqrt(g) g_il epsBar^ljk (1/eps)_,j B_k
-
+	
 	<?=vec3?> grad_1_mu = <?=vec3?>_zero;
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>
@@ -226,7 +230,7 @@ kernel void addSource(
 			<?=mul?>(U[-solver->stepsize.<?=xj?>].sqrt_1_eps, U[-solver->stepsize.<?=xj?>].sqrt_1_eps)
 		), 1. / solver->grid_dx.s<?=j?>);
 	<? end ?>
-
+	
 	real _1_sqrt_det_g = 1. / coord_volume(x);
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>{

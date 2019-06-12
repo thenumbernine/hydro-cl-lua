@@ -28,38 +28,36 @@ return function(args)
 	--]]
 	function NoDiv:getPoissonDivCode()
 		return template([[
-	<?
-	local solver = op.solver
+<?
+local solver = op.solver
 
-	local scalar = op.scalar
-	local zero = scalar..'_zero'
-	local add = scalar..'_add'
-	local sub = scalar..'_sub'
-	local real_mul = scalar..'_real_mul'
+local scalar = op.scalar
+local zero = scalar..'_zero'
+local add = scalar..'_add'
+local sub = scalar..'_sub'
+local real_mul = scalar..'_real_mul'
 
-	for j=0,solver.dim-1 do
-	?>	source = <?=add?>(
-			source,
-			<?=real_mul?>(
-				<?=sub?>(
-					U[solver->stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>,
-					U[-solver->stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>
-				),
-				1. / solver->grid_dx.s<?=j?>
-			)
-		);
-	<? 
-	end 
-	?>	
-		
-		source = <?=real_mul?>(source, .5);
-		
-		//because this is the discrete case, no 4pi
-	<? if op.chargeField then 
-	?>	source = <?=add?>(source, U-><?=op.chargeField?>);
-	<? end 
-	?>
-	]], 
+for j=0,solver.dim-1 do
+?>	source = <?=add?>(
+		source,
+		<?=real_mul?>(
+			<?=sub?>(
+				U[solver->stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>,
+				U[-solver->stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>
+			),
+			2. / solver->grid_dx.s<?=j?>
+		)
+	);
+<? 
+end 
+?>	
+	
+	//because this is the discrete case, no 4pi
+<? if op.chargeField then 
+?>	source = <?=add?>(source, U-><?=op.chargeField?>);
+<? end 
+?>
+]], 
 		{
 			op = self,
 		})
@@ -72,34 +70,44 @@ return function(args)
 	--]]
 	function NoDiv:getPoissonCode()
 		return template([[
-	<?
-	local solver = op.solver
-	local eqn = solver.eqn
+<?
+local solver = op.solver
+local eqn = solver.eqn
 
-	local scalar = op.scalar
-	local sub = scalar..'_sub'
-	local real_mul = scalar..'_real_mul'
-	?>
-	kernel void noDiv<?=op.name?>(
-		constant <?=solver.solver_t?>* solver,
-		global <?=eqn.cons_t?>* UBuf
-	) {
-		SETBOUNDS(numGhost,numGhost);
-		global <?=eqn.cons_t?>* U = UBuf + index;
-	<? for j=0,solver.dim-1 do ?> 
-		U-><?=op.vectorField?>.s<?=j?> = 
-			<?=sub?>(
-				U-><?=op.vectorField?>.s<?=j?>,
-				<?=real_mul?>(
-					<?=sub?>(
-						U[solver->stepsize.s<?=j?>].<?=op.potentialField?>,
-						U[-solver->stepsize.s<?=j?>].<?=op.potentialField?>
-					), 1. / (2. * solver->grid_dx.s<?=j?>)
-				)
-			);
-	<? end ?>
-	}
-	]], {
+local scalar = op.scalar
+local sub = scalar..'_sub'
+local real_mul = scalar..'_real_mul'
+?>
+kernel void noDiv<?=op.name?>(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+<? for j=0,solver.dim-1 do ?> 
+	U-><?=op.vectorField?>.s<?=j?> = 
+		<?=sub?>(
+			U-><?=op.vectorField?>.s<?=j?>,
+			<?=real_mul?>(
+				<?=sub?>(
+					U[solver->stepsize.s<?=j?>].<?=op.potentialField?>,
+					U[-solver->stepsize.s<?=j?>].<?=op.potentialField?>
+				), 1. / (2. * solver->grid_dx.s<?=j?>)
+			)
+		);
+<? end ?>
+}
+
+//TODO just use the display var kernels
+kernel void copyPotentialToReduce<?=op.name?>(
+	constant <?=solver.solver_t?>* solver,
+	global real* reduceBuf,
+	global const <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(0,0);
+	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
+}
+]], 	{
 			op = self,
 		})
 	end
@@ -108,6 +116,7 @@ return function(args)
 		NoDiv.super.refreshSolverProgram(self)
 		local solver = self.solver
 		self.noDivKernelObj = solver.solverProgramObj:kernel('noDiv'..self.name, solver.solverBuf, solver.UBuf)
+		self.copyPotentialToReduceKernelObj = solver.solverProgramObj:kernel('copyPotentialToReduce'..self.name, solver.solverBuf, solver.reduceBuf, solver.UBuf)
 	end
 
 	function NoDiv:step(dt)
