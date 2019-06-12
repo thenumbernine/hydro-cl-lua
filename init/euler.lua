@@ -1347,31 +1347,35 @@ end ?>;
 
 	-- gravity potential test - equilibrium - Rayleigh-Taylor ... or is it Jeans? (still has an shock wave ... need to fix initial conditions?)
 
-	{
-		name = 'self-gravitation - Earth',
-		mins = {-1,-1,-1},
-		maxs = {1,1,1},
-		overrideGuiVars = {
-			--meter = 6.371e+6,	-- radius 1, grid = 2 M_Earth, so the sphere is M_Earth size
-			meter = 2 * 6.371e+6,	-- radius .5, grid = 2 M_Earth, so the sphere is M_Earth size
-			
-			-- 4/3 pi (.5)^3 rho = m <=> rho = 6 m / pi
-			-- 4/3 pi (1)^3 rho = m <=> rho = 3 m /(4 pi)
-			kilogram = 5.9722e+24 * 6 / math.pi,
-	
-			-- in units of m^3/(kg s^2)
-			gravitationalConstant = 6.67384e-11,
-		},
-		initState = function(self, solver)
-			local f = SelfGravProblem{
-				solver = solver,
-				sources={
-					{center={0, 0, 0}, radius = .5},
-				},
-			}
-			return f(self, solver)
-		end
-	},
+	(function()
+		local coordRadius = .5
+		return {
+			name = 'self-gravitation - Earth',
+			mins = {-2*coordRadius, -2*coordRadius, -2*coordRadius}, 
+			maxs = {2*coordRadius, 2*coordRadius, 2*coordRadius}, 
+			overrideGuiVars = {
+				meter = require 'constants'.EarthRadius_in_m / coordRadius,	-- radius .5, grid = 2 M_Earth, so the sphere is M_Earth size
+				
+				-- 4/3 pi r^3 rho = m <=> rho = 3 m / (4 pi r^3)
+				kilogram = require 'constants'.EarthMass_in_kg * 3 / (4 * math.pi * coordRadius^3),
+		
+				-- in units of m^3/(kg s^2)
+				gravitationalConstant = require 'constants'.gravitationalConstant_in_m3_per_kg_s2,
+			},
+			initState = function(self, solver)
+				local f = SelfGravProblem{
+					solver = solver,
+					sources={
+						{
+							center={0, 0, 0}, 
+							radius = coordRadius,
+						},
+					},
+				}
+				return f(self, solver)
+			end
+		}
+	end)(),
 
 
 	{
@@ -1501,6 +1505,10 @@ end ?>;
 
 	{
 		name = 'Maxwell default',
+		overrideGuiVars = {
+			--meter = require 'constants'.speedOfLight_in_m_per_s,
+			--speedOfLight = require 'constants'.speedOfLight_in_m_per_s,
+		},
 		initState = function(self, solver)
 			return template([[
 	D.x = <?=eqn.susc_t?>_from_real(lhs ? 1 : -1);
@@ -1728,11 +1736,11 @@ bool testTriangle(real3 xc) {
 				period = 10,
 			}
 			
-			local c = 299792458
+			local c = require 'constants'.speedOfLight_in_m_per_s
 			local s_in_m = 1 / c
-			local G = 6.6740831e-11
+			local G = require 'constants'.gravitationalConstant_in_m3_per_kg_s2
 			local kg_in_m = G / c^2
-			local ke = 8.9875517873681764e+9
+			local ke = require 'constants'.CoulombConstant_in_kg_m3_per_C2_s2
 			local C_in_m = math.sqrt(ke * G) / c^2	-- m
 			local Ohm_in_m = kg_in_m / (s_in_m * C_in_m^2)	-- m^0
 			local resistivities = table{	-- at 20' Celsius, in Ohm m
@@ -1855,11 +1863,11 @@ kernel void addExtraSource(
 		initState = function(self, solver)
 			addMaxwellOscillatingBoundary{solver=solver}
 			
-			local c = 299792458
+			local c = require 'constants'.speedOfLight_in_m_per_s
 			local s_in_m = 1 / c
-			local G = 6.6740831e-11
+			local G = require 'constants'.gravitationalConstant_in_m3_per_kg_s2
 			local kg_in_m = G / c^2
-			local ke = 8.9875517873681764e+9
+			local ke = require 'constants'.CoulombConstant_in_kg_m3_per_C2_s2
 			local C_in_m = math.sqrt(ke * G) / c^2	-- m
 			local Ohm_in_m = kg_in_m / (s_in_m * C_in_m^2)	-- m^0
 			local resistivities = table{	-- at 20' Celsius, in Ohm m

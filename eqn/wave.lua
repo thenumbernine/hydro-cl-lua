@@ -22,14 +22,15 @@ Wave.roeUseFluxFromCons = true
 Wave.initStates = require 'init.euler'	 -- use rho as our initial condition
 
 Wave.consVars = table{
-	{name='phi_t', type='real'},
-	{name='phi_i', type='real3'},
+	-- assuming phi is pressure ... since I'm using that for its initial value 
+	{name='phi_t', type='real', units='kg/(m*s^3)'},
+	{name='phi_i', type='real3', units='kg/(m^2*s^2)'},
 }
 
 function Wave:createInitState()
 	Wave.super.createInitState(self)
 	self:addGuiVars{
-		{name='wavespeed', value=1},
+		{name='wavespeed', value=1, units='m/s'},
 	}
 end
 
@@ -79,7 +80,7 @@ Wave.eigenVars = {
 
 function Wave:eigenWaveCodePrefix(side, eig, x)
 	return template([[
-	real c_sqrt_gU = solver->wavespeed * coord_sqrt_gU<?=side..side?>(<?=x?>);
+	real c_sqrt_gU = solver->wavespeed / unit_m_per_s * coord_sqrt_gU<?=side..side?>(<?=x?>);
 ]], {
 		side = side,
 		x = x,

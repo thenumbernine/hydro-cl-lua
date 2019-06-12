@@ -185,7 +185,8 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 		{name='sqrt_permeability', value=1},			-- permittivity
 		{name='sqrt_permittivity_times_normalizedSpeedOfLight', value=1},			-- permeability
 		
-		{name='sqrt_gravitationalConstant', value=1e-3},		-- sqrt(6.67408e-11 m^3 / (kg s^2))
+		--{name='sqrt_gravitationalConstant', value=math.sqrt(require 'constants'.gravitationalConstant_in_m3_per_kg_s2)},		-- m^1.5/(kg^.5 s)
+		{name='sqrt_gravitationalConstant', value=1e-3},		-- m^1.5/(kg^.5 s)
 	
 	}:append(fluids:map(function(fluid)
 		return table{

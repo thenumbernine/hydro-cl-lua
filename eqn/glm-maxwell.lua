@@ -55,11 +55,11 @@ function GLM_Maxwell:init(args)
 	self.consVars = {
 		{name='D', type=self.vec3, units='C/m^2'},
 		{name='B', type=self.vec3, units='kg/(C*s)'},
-		{name='phi', type=self.scalar, units='C/m^2'},
-		{name='psi', type=self.scalar, units='kg/(C*s)'},
+		{name='phi', type=self.scalar, units='C/m^2'},		-- div D potential
+		{name='psi', type=self.scalar, units='kg/(C*s)'},	-- div B potential
 		{name='rhoCharge', type=self.scalar, units='C/m^3'},
 		{name='sigma', type=self.scalar, units='(C^2*s)/(kg*m^3)'},
-		{name='sqrt_1_eps', type=self.susc_t, units='(m^3*kg)^.5/(C*s)'},
+		{name='sqrt_1_eps', type=self.susc_t, units='(kg*m^3)^.5/(C*s)'},
 		{name='sqrt_1_mu', type=self.susc_t, units='C/(kg*m)^.5'},
 	}
 
@@ -85,9 +85,13 @@ end
 
 function GLM_Maxwell:createInitState()
 	GLM_Maxwell.super.createInitState(self)
+
+	--local speedOfLight = require 'constants'.speedOfLight_in_m_per_s
+	local speedOfLight = 1
+	
 	self:addGuiVars{
-		{name='divPhiWavespeed', value=1},
-		{name='divPsiWavespeed', value=1},
+		{name='divPhiWavespeed', value=speedOfLight, units='m/s'},
+		{name='divPsiWavespeed', value=speedOfLight, units='m/s'},
 	}
 end
 
@@ -261,13 +265,13 @@ end
 
 GLM_Maxwell.predefinedDisplayVars = {
 	--'U D',
-	'U D mag',
+	'U D mag (C/m^2)',
 	--'U B',
-	'U B mag',
+	'U B mag (kg/(C s))',
 	--'U phi',
 	--'U psi',
-	'U div D',
-	'U div B',
+	'U div D (C/m^3)',
+	'U div B (kg/(C m s))',
 	--'U energy',
 }
 
@@ -280,6 +284,11 @@ function GLM_Maxwell:getDisplayVars()
 			E = template([[	*value_<?=vec3?> = calc_E(*U);]], env),
 			type = env.vec3,
 			units = '(kg*m)/(C*s)',
+		},
+		{
+			H = template([[	*value_<?=vec3?> = calc_H(*U);]], env),
+			type = env.vec3,
+			units = 'C/(m*s)',
 		},
 		{
 			S = template([[
@@ -372,20 +381,20 @@ end
 function GLM_Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
 	return template(({
-		'-solver->divPhiWavespeed',
-		'-solver->divPsiWavespeed',
+		'-solver->divPhiWavespeed / unit_m_per_s',
+		'-solver->divPsiWavespeed / unit_m_per_s',
 		'-v_p_abs',
 		'-v_p_abs',
 		'v_p_abs',
 		'v_p_abs',
-		'solver->divPhiWavespeed',
-		'solver->divPsiWavespeed',
+		'solver->divPhiWavespeed / unit_m_per_s',
+		'solver->divPsiWavespeed / unit_m_per_s',
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex), 
 		self:getTemplateEnv())
 end
 
 function GLM_Maxwell:eigenMaxWaveCode(side, eig, x)
-	return 'max(max(solver->divPsiWavespeed, solver->divPhiWavespeed), v_p_abs);'
+	return 'max(max(solver->divPsiWavespeed / unit_m_per_s, solver->divPhiWavespeed / unit_m_per_s), v_p_abs);'
 end
 function GLM_Maxwell:eigenMinWaveCode(side, eig, x)
 	return '-'..self:eigenMaxWaveCode(side, eig, x)

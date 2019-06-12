@@ -23,17 +23,17 @@ cons_t fluxFromCons_<?=side?>(
 	<?=vec3?> H = calc_H(U);
 	return (cons_t){
 	<? if side == 0 then ?>
-		.D = _<?=vec3?>(<?=real_mul?>(U.phi, solver->divPhiWavespeed),  H.z, <?=neg?>(H.y)),
-		.B = _<?=vec3?>(<?=real_mul?>(U.psi, solver->divPsiWavespeed), <?=neg?>(E.z),  E.y),
+		.D = _<?=vec3?>(<?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s),  H.z, <?=neg?>(H.y)),
+		.B = _<?=vec3?>(<?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.z),  E.y),
 	<? elseif side == 1 then ?>
-		.D = _<?=vec3?>(<?=neg?>(H.z), <?=real_mul?>(U.phi, solver->divPhiWavespeed),  H.x),
-		.B = _<?=vec3?>( E.z, <?=real_mul?>(U.psi, solver->divPsiWavespeed), <?=neg?>(E.x)),
+		.D = _<?=vec3?>(<?=neg?>(H.z), <?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s),  H.x),
+		.B = _<?=vec3?>( E.z, <?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.x)),
 	<? elseif side == 2 then ?>
-		.D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>(U.phi, solver->divPhiWavespeed)),
-		.B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>(U.psi, solver->divPsiWavespeed)),
+		.D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s)),
+		.B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s)),
 	<? end ?>
-		.phi = <?=real_mul?>(U.D.s<?=side?>, solver->divPhiWavespeed),
-		.psi = <?=real_mul?>(U.B.s<?=side?>, solver->divPsiWavespeed),
+		.phi = <?=real_mul?>(U.D.s<?=side?>, solver->divPhiWavespeed / unit_m_per_s),
+		.psi = <?=real_mul?>(U.B.s<?=side?>, solver->divPsiWavespeed / unit_m_per_s),
 	
 		.sigma = <?=zero?>,
 		.rhoCharge = <?=zero?>,
@@ -67,44 +67,46 @@ waves_t eigen_leftTransform_<?=side?>(
 	<?=scalar?>* Xp = (<?=scalar?>*)X.ptr;
 	<?=scalar?>* Yp = (<?=scalar?>*)Y.ptr;
 
-	<?=scalar?> sqrt_1_eps = eig.sqrt_1_eps;
-	<?=scalar?> sqrt_1_mu = eig.sqrt_1_mu;
-	<?=scalar?> sqrt_eps = <?=inv?>(sqrt_1_eps);
-	<?=scalar?> sqrt_mu = <?=inv?>(sqrt_1_mu);
-	<?=scalar?> sqrt_2 = <?=inv?>(sqrt_1_2);
+	<?=scalar?> sqrt_1_eps = eig.sqrt_1_eps;		//(m^3 kg)^.5/(C s)
+	<?=scalar?> sqrt_eps = <?=inv?>(sqrt_1_eps);	//(C s)/(m^3 kg)^.5
+	<?=scalar?> sqrt_1_mu = eig.sqrt_1_mu;			//C/(kg m)^.5
+	<?=scalar?> sqrt_mu = <?=inv?>(sqrt_1_mu);		//(kg m)^.5/C
+	<?=scalar?> v_p = <?=mul?>(sqrt_1_eps, sqrt_1_mu);	//m/s
 
 	<? if side==0 then ?>
 
-	Yp[0] = ((-(sqrt_eps * (Xp[0] - Xp[6]))) / sqrt_2);
-	Yp[1] = ((-(sqrt_eps * (Xp[3] - Xp[7]))) / sqrt_2);
-	Yp[2] = (((Xp[2] * sqrt_mu) + (Xp[4] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
-	Yp[3] = (((Xp[1] * sqrt_mu) - (Xp[5] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
-	Yp[4] = ((-((Xp[2] * sqrt_mu) - (Xp[4] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));
-	Yp[5] = (((Xp[1] * sqrt_mu) + (Xp[5] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
-	Yp[6] = ((sqrt_eps * (Xp[0] + Xp[6])) / sqrt_2);
-	Yp[7] = ((sqrt_eps * (Xp[3] + Xp[7])) / sqrt_2);
+	Yp[0] = (Xp[6] - Xp[0]) * sqrt_eps * sqrt_1_2;					//(C^2 s)/(m^3.5 kg^.5)
+	Yp[1] = (Xp[7] - Xp[3]) * sqrt_eps * sqrt_1_2;					//kg^.5/m^1.5
+	Yp[2] = (Xp[4] * sqrt_eps + Xp[2] * sqrt_mu) * v_p * sqrt_1_2;	//kg^.5/(m^.5 s) 
+	Yp[3] = (Xp[5] * sqrt_eps - Xp[1] * sqrt_mu) * v_p * sqrt_1_2;	//kg^.5/(m^.5 s) 
+	Yp[4] = (Xp[4] * sqrt_eps - Xp[2] * sqrt_mu) * v_p * sqrt_1_2;	//kg^.5/(m^.5 s) 
+	Yp[5] = (Xp[5] * sqrt_eps + Xp[1] * sqrt_mu) * v_p * sqrt_1_2;	//kg^.5/(m^.5 s) 
+	Yp[6] = (Xp[0] + Xp[6]) * sqrt_eps * sqrt_1_2;					//(C^2 s)/(m^3.5 kg^.5)
+	Yp[7] = (Xp[3] + Xp[7]) * sqrt_eps * sqrt_1_2;					//kg^.5/m^1.5
 
 	<? elseif side==1 then ?>
 
-	Yp[0] = ((-(sqrt_eps * (Xp[1] - Xp[6]))) / sqrt_2);
-	Yp[1] = ((-(sqrt_eps * (Xp[4] - Xp[7]))) / sqrt_2);
-	Yp[2] = (((Xp[2] * sqrt_mu) - (Xp[3] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
-	Yp[3] = (((Xp[0] * sqrt_mu) + (Xp[5] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
-	Yp[4] = (((Xp[2] * sqrt_mu) + (Xp[3] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
-	Yp[5] = ((-((Xp[0] * sqrt_mu) - (Xp[5] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));
-	Yp[6] = ((sqrt_eps * (Xp[1] + Xp[6])) / sqrt_2);
-	Yp[7] = ((sqrt_eps * (Xp[4] + Xp[7])) / sqrt_2);
+	//same units as x dir
+	Yp[0] = (Xp[6] - Xp[1]) * sqrt_eps * sqrt_1_2;
+	Yp[1] = (Xp[7] - Xp[4]) * sqrt_eps * sqrt_1_2;
+	Yp[2] = (Xp[3] * sqrt_eps - Xp[2] * sqrt_mu) * v_p * sqrt_1_2;
+	Yp[3] = (Xp[5] * sqrt_eps + Xp[0] * sqrt_mu) * v_p * sqrt_1_2;
+	Yp[4] = (Xp[3] * sqrt_eps + Xp[2] * sqrt_mu) * v_p * sqrt_1_2;
+	Yp[5] = (Xp[5] * sqrt_eps - Xp[0] * sqrt_mu) * v_p * sqrt_1_2;
+	Yp[6] = (Xp[1] + Xp[6]) * sqrt_eps * sqrt_1_2;
+	Yp[7] = (Xp[4] + Xp[7]) * sqrt_eps * sqrt_1_2;
 
 	<? elseif side==2 then ?>
 	
-	Yp[0] = ((-(sqrt_eps * (Xp[2] - Xp[6]))) / sqrt_2);
-	Yp[1] = ((-(sqrt_eps * (Xp[5] - Xp[7]))) / sqrt_2);
-	Yp[2] = (((Xp[1] * sqrt_mu) + (Xp[3] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
-	Yp[3] = (((Xp[0] * sqrt_mu) - (Xp[4] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
-	Yp[4] = (((Xp[1] * sqrt_mu) - (Xp[3] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
-	Yp[5] = (((Xp[0] * sqrt_mu) + (Xp[4] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
-	Yp[6] = ((sqrt_eps * (Xp[2] + Xp[6])) / sqrt_2);
-	Yp[7] = ((sqrt_eps * (Xp[5] + Xp[7])) / sqrt_2);
+	//same units as x dir
+	Yp[0] = (Xp[6] - Xp[2]) * sqrt_eps * sqrt_1_2;
+	Yp[1] = (Xp[7] - Xp[5]) * sqrt_eps * sqrt_1_2;
+	Yp[2] = (Xp[3] * sqrt_eps + Xp[1] * sqrt_mu) * v_p * sqrt_1_2;
+	Yp[3] = (Xp[4] * sqrt_eps - Xp[0] * sqrt_mu) * v_p * sqrt_1_2;
+	Yp[4] = (Xp[3] * sqrt_eps - Xp[1] * sqrt_mu) * v_p * sqrt_1_2;
+	Yp[5] = (Xp[4] * sqrt_eps + Xp[0] * sqrt_mu) * v_p * sqrt_1_2;
+	Yp[6] = (Xp[2] + Xp[6]) * sqrt_eps * sqrt_1_2;
+	Yp[7] = (Xp[5] + Xp[7]) * sqrt_eps * sqrt_1_2;
 
 	<? end ?>
 
@@ -235,7 +237,7 @@ kernel void addSource(
 		deriv->B.<?=xj?> = <?=sub?>(deriv->B.<?=xj?>, <?=vec3?>_dot(flux.B, grad_1_eps));
 	}<? end ?>
 	
-	deriv->phi = <?=add?>(deriv->phi, <?=real_mul?>(U->rhoCharge, solver->divPhiWavespeed));
+	deriv->phi = <?=add?>(deriv->phi, <?=real_mul?>(U->rhoCharge, solver->divPhiWavespeed / unit_m_per_s));
 }
 
 

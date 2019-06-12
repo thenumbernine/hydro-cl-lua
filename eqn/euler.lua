@@ -254,6 +254,7 @@ Euler.predefinedDisplayVars = {
 	'U P',
 --]]
 	'U ePot (m^2/s^2)',
+	'U EPot (kg/(m s^2))',
 	'U gravity mag (m/s)',
 }
 

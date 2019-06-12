@@ -660,12 +660,12 @@ then
 			earth mass = 5.9736e+24 kg = 5.9736e+24 * 6.6738480e-11 / 299792458^2 m
 			earth mass = Em * G / c^2 in meters
 			--]]
-			local G = 6.6738480e-11 -- kg m^3/s^2
-			local c = 299792458     -- m/s
+			local G = require 'constants'.gravitationalConstant_in_m_per_s  -- kg m^3/s^2
+			local c = require 'constants'.speedOfLight_in_m_per_s -- m/s
 			-- massInRadii is the order of 1e-9.  much more subtle than the default 1e-3 demo
-			local earth = {radiusInM = 6.37101e+6, massInKg = 5.9736e+24}
+			local earth = {radiusInM = require 'constants'.EarthRadius_in_m, massInKg = require 'constants'.EarthMass_in_kg}
 			-- massInRadii is on the order of 1e-6
-			local sun = {radiusInM = 6.960e+8, massInKg = 1.9891e+30}
+			local sun = {radiusInM = require 'constants'.SolarRadius_in_m, massInKg = require 'constants'.SolarMass_in_kg}
 
 			local planet = sun
 			planet.massInM = planet.massInKg * G / c^2
