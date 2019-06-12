@@ -11,6 +11,7 @@ typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
 
+#define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
 <? for side=0,solver.dim-1 do ?>
@@ -77,35 +78,33 @@ waves_t eigen_leftTransform_<?=side?>(
 	<?=susc_t?> sqrt_1_mu = eig.sqrt_1_mu;						//C/(kg m)^.5
 	<?=susc_t?> sqrt_mu = <?=susc_t?>_inv(sqrt_1_mu);			//(kg m)^.5/C
 	<?=susc_t?> v_p = <?=susc_t?>_mul(sqrt_1_eps, sqrt_1_mu);	//m/s
-	<?=susc_t?> eps = <?=susc_t?>_mul(sqrt_eps, sqrt_eps);
-	<?=susc_t?> mu = <?=susc_t?>_mul(sqrt_mu, sqrt_mu);
 
 	<? if side == 0 then ?>
 
-	Yp[0] = Xp[1] * sqrt_1_2-(Xp[5] * eps * (sqrt_1_eps * sqrt_1_mu)) * sqrt_1_2;
-	Yp[1] = (Xp[4] * eps * (sqrt_1_eps * sqrt_1_mu)) * sqrt_1_2+Xp[2] * sqrt_1_2;
-	Yp[2] = Xp[0];
-	Yp[3] = Xp[3];
-	Yp[4] = (Xp[5] * eps * (sqrt_1_eps * sqrt_1_mu)) * sqrt_1_2+Xp[1] * sqrt_1_2;
-	Yp[5] = Xp[2] * sqrt_1_2-(Xp[4] * eps * (sqrt_1_eps * sqrt_1_mu)) * sqrt_1_2;
+	Yp[0] = (((Xp[2] * sqrt_mu) + (Xp[4] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
+	Yp[1] = (((Xp[1] * sqrt_mu) - (Xp[5] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
+	Yp[2] = (sqrt_2 * Xp[0]);
+	Yp[3] = (sqrt_2 * Xp[3]);
+	Yp[4] = ((-((Xp[2] * sqrt_mu) - (Xp[4] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));
+	Yp[5] = (((Xp[1] * sqrt_mu) + (Xp[5] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
 
 	<? elseif side == 1 then ?>
-	
-	Yp[0] = (Xp[5] * eps * (sqrt_1_eps * sqrt_1_mu)) * sqrt_1_2+Xp[0] * sqrt_1_2;
-	Yp[1] = Xp[2] * sqrt_1_2-(Xp[3] * eps * (sqrt_1_eps * sqrt_1_mu)) * sqrt_1_2;
-	Yp[2] = Xp[1];
-	Yp[3] = Xp[4];
-	Yp[4] = Xp[0] * sqrt_1_2-(Xp[5] * eps * (sqrt_1_eps * sqrt_1_mu)) * sqrt_1_2;
-	Yp[5] = (Xp[3] * eps * (sqrt_1_eps * sqrt_1_mu)) * sqrt_1_2+Xp[2] * sqrt_1_2;
+
+	Yp[0] = (((Xp[2] * sqrt_mu) - (Xp[3] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
+	Yp[1] = (((Xp[0] * sqrt_mu) + (Xp[5] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
+	Yp[2] = (sqrt_2 * Xp[1]);
+	Yp[3] = (sqrt_2 * Xp[4]);
+	Yp[4] = (((Xp[2] * sqrt_mu) + (Xp[3] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
+	Yp[5] = ((-((Xp[0] * sqrt_mu) - (Xp[5] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));
 
 	<? elseif side == 2 then ?>
 
-	Yp[0] = Xp[0] * sqrt_1_2-(Xp[4] * eps * (sqrt_1_eps * sqrt_1_mu)) * sqrt_1_2;
-	Yp[1] = Xp[3]/(sqrt_2 * (sqrt_1_eps * sqrt_1_mu) * mu)+Xp[1] * sqrt_1_2;
-	Yp[2] = Xp[2];
-	Yp[3] = Xp[5];
-	Yp[4] = (Xp[4] * eps * (sqrt_1_eps * sqrt_1_mu)) * sqrt_1_2+Xp[0] * sqrt_1_2;
-	Yp[5] = Xp[1] * sqrt_1_2-Xp[3]/(sqrt_2 * (sqrt_1_eps * sqrt_1_mu) * mu);
+	Yp[0] = (((Xp[1] * sqrt_mu) + (Xp[3] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
+	Yp[1] = (((Xp[0] * sqrt_mu) - (Xp[4] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
+	Yp[2] = (sqrt_2 * Xp[2]);
+	Yp[3] = (sqrt_2 * Xp[5]);
+	Yp[4] = ((-((Xp[1] * sqrt_mu) - (Xp[3] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));
+	Yp[5] = (((Xp[0] * sqrt_mu) + (Xp[4] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
 
 	<? end ?>
 
@@ -122,37 +121,38 @@ cons_t eigen_rightTransform_<?=side?>(
 	<?=scalar?> *Yp = (<?=scalar?>*)Y.ptr;
 	<?=scalar?> *Xp = (<?=scalar?>*)X.ptr;
 	
-	real sqrt_1_eps = eig.sqrt_1_eps;
-	real sqrt_1_mu = eig.sqrt_1_mu;
-	real eps = 1. / (sqrt_1_eps * sqrt_1_eps);
-	real mu = 1. / (sqrt_1_mu * sqrt_1_mu);
+	<?=susc_t?> sqrt_1_eps = eig.sqrt_1_eps;					//(m^3 kg)^.5/(C s)
+	<?=susc_t?> sqrt_eps = <?=susc_t?>_inv(sqrt_1_eps);			//(C s)/(m^3 kg)^.5
+	<?=susc_t?> sqrt_1_mu = eig.sqrt_1_mu;						//C/(kg m)^.5
+	<?=susc_t?> sqrt_mu = <?=susc_t?>_inv(sqrt_1_mu);			//(kg m)^.5/C
+	<?=susc_t?> v_p = <?=susc_t?>_mul(sqrt_1_eps, sqrt_1_mu);	//m/s
 
 	<? if side == 0 then ?>
 
-	Yp[0] = Xp[2];
-	Yp[1] = Xp[4] * sqrt_1_2+Xp[0] * sqrt_1_2;
-	Yp[2] = Xp[5] * sqrt_1_2+Xp[1] * sqrt_1_2;
-	Yp[3] = Xp[3];
-	Yp[4] = (Xp[1] * (sqrt_1_eps * sqrt_1_mu) * mu) * sqrt_1_2-(Xp[5] * (sqrt_1_eps * sqrt_1_mu) * mu) * sqrt_1_2;
-	Yp[5] = (Xp[4] * (sqrt_1_eps * sqrt_1_mu) * mu) * sqrt_1_2-(Xp[0] * (sqrt_1_eps * sqrt_1_mu) * mu) * sqrt_1_2;
+	Yp[0] = (Xp[2] / sqrt_2);
+	Yp[1] = ((-(sqrt_eps * (Xp[1] - Xp[5]))) / sqrt_2);
+	Yp[2] = ((sqrt_eps * (Xp[0] - Xp[4])) / sqrt_2);
+	Yp[3] = (Xp[3] / sqrt_2);
+	Yp[4] = ((sqrt_mu * (Xp[0] + Xp[4])) / sqrt_2);
+	Yp[5] = ((sqrt_mu * (Xp[1] + Xp[5])) / sqrt_2);
 
 	<? elseif side == 1 then ?>
 
-	Yp[0] = Xp[4] * sqrt_1_2+Xp[0] * sqrt_1_2;
-	Yp[1] = Xp[2];
-	Yp[2] = Xp[5] * sqrt_1_2+Xp[1] * sqrt_1_2;
-	Yp[3] = (Xp[5] * (sqrt_1_eps * sqrt_1_mu) * mu) * sqrt_1_2-(Xp[1] * (sqrt_1_eps * sqrt_1_mu) * mu) * sqrt_1_2;
-	Yp[4] = Xp[3];
-	Yp[5] = (Xp[0] * (sqrt_1_eps * sqrt_1_mu) * mu) * sqrt_1_2-(Xp[4] * (sqrt_1_eps * sqrt_1_mu) * mu) * sqrt_1_2;
+	Yp[0] = ((sqrt_eps * (Xp[1] - Xp[5])) / sqrt_2);
+	Yp[1] = (Xp[2] / sqrt_2);
+	Yp[2] = ((-(sqrt_eps * (Xp[0] - Xp[4]))) / sqrt_2);
+	Yp[3] = ((sqrt_mu * (Xp[0] + Xp[4])) / sqrt_2);
+	Yp[4] = (Xp[3] / sqrt_2);
+	Yp[5] = ((sqrt_mu * (Xp[1] + Xp[5])) / sqrt_2);
 
 	<? elseif side == 2 then ?>
 
-	Yp[0] = Xp[4] * sqrt_1_2+Xp[0] * sqrt_1_2;
-	Yp[1] = Xp[5] * sqrt_1_2+Xp[1] * sqrt_1_2;
-	Yp[2] = Xp[2];
-	Yp[3] = (Xp[1] * (sqrt_1_eps * sqrt_1_mu) * mu) * sqrt_1_2-(Xp[5] * (sqrt_1_eps * sqrt_1_mu) * mu) * sqrt_1_2;
-	Yp[4] = Xp[4]/(sqrt_2 * eps * (sqrt_1_eps * sqrt_1_mu))-Xp[0]/(sqrt_2 * eps * (sqrt_1_eps * sqrt_1_mu));
-	Yp[5] = Xp[3];
+	Yp[0] = ((-(sqrt_eps * (Xp[1] - Xp[5]))) / sqrt_2);
+	Yp[1] = ((sqrt_eps * (Xp[0] - Xp[4])) / sqrt_2);
+	Yp[2] = (Xp[2] / sqrt_2);
+	Yp[3] = ((sqrt_mu * (Xp[0] + Xp[4])) / sqrt_2);
+	Yp[4] = ((sqrt_mu * (Xp[1] + Xp[5])) / sqrt_2);
+	Yp[5] = (Xp[3] / sqrt_2);
 
 	<? end ?>
 
