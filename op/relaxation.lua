@@ -135,21 +135,16 @@ function Relaxation:relax()
 
 		if self.stopOnEpsilon then
 			local residual = math.sqrt(solver.reduceSum() / tonumber(solver.volumeWithoutBorder))
-			
-			self.setReduceToPotentialSquaredKernelObj()
-			local xNorm = math.sqrt(solver.reduceSum() / tonumber(solver.volumeWithoutBorder))
 			local lastResidual = self.lastResidual	
 			self.lastResidual = residual
 			if self.verbose then
-				--print('jacobi iter', iter, 'residual', residual)
-
--- [[
-self.copyPotentialToReduceKernelObj()
-local xmin = solver.reduceMin()
-self.copyPotentialToReduceKernelObj()
-local xmax = solver.reduceMax()
-io.stderr:write(table{i-1, residual, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
---]]
+				self.setReduceToPotentialSquaredKernelObj()
+				local xNorm = math.sqrt(solver.reduceSum() / tonumber(solver.volumeWithoutBorder))
+				self.copyPotentialToReduceKernelObj()
+				local xmin = solver.reduceMin()
+				self.copyPotentialToReduceKernelObj()
+				local xmax = solver.reduceMax()
+				io.stderr:write(table{i-1, residual, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
 			end
 			
 			-- TODO compare residual

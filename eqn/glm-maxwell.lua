@@ -259,17 +259,17 @@ end
 
 GLM_Maxwell.predefinedDisplayVars = {
 	'U D x (C/m^2)',
---	'U D y (C/m^2)',
---	'U D z (C/m^2)',
+	'U D y (C/m^2)',
+	'U D z (C/m^2)',
 	'U D mag (C/m^2)',
 	'U div D (C/m^3)',
 	'U phi (C/m^2)',
---	'U B x (kg/(C s))',
---	'U B y (kg/(C s))',
---	'U B z (kg/(C s))',
---	'U B mag (kg/(C s))',
---	'U div B (kg/(C m s))',
---	'U psi (kg/(C s))',
+	'U B x (kg/(C s))',
+	'U B y (kg/(C s))',
+	'U B z (kg/(C s))',
+	'U B mag (kg/(C s))',
+	'U div B (kg/(C m s))',
+	'U psi (kg/(C s))',
 }
 
 function GLM_Maxwell:getDisplayVars()
@@ -302,7 +302,7 @@ function GLM_Maxwell:getDisplayVars()
 		<?=sub?>(
 			U[solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>,
 			U[-solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		), 2. / solver->grid_dx.s<?=j?>));
+		), .5 / solver->grid_dx.s<?=j?>));
 <? end ?>
 	*value_<?=scalar?> = v;
 ]], table(env, {field=field})),

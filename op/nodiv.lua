@@ -3,28 +3,30 @@ return function(args)
 	if cmdline.noDivPoissonSolver then
 		parentClass = require('op.poisson_'..cmdline.noDivPoissonSolver)
 	else
-		parentClass = args.poissonSolver or require 'op.poisson_krylov'
+		parentClass = args and args.poissonSolver or require 'op.poisson_krylov'
 	end
 
 	local class = require 'ext.class'
 	local template = require 'template'
 
 	local NoDiv = class(parentClass)
+	NoDiv.name = 'NoDiv'
 
 	-- which cons_t field to store the solved potential value in
 	NoDiv.vectorField = 'B'
-	NoDiv.potentialField = 'divBPot'
+	NoDiv.potentialField = 'psi'
 	NoDiv.chargeField = nil	-- nil means zero
 
 	function NoDiv:init(args)
 		self.scalar = args.scalar
 		NoDiv.super.init(self, args)
 		self.chargeField = args.chargeField
+		self.vectorField = args.vectorField
 	end
 
 	--[[
 	template parameters forwarded back to getCode
-	solve del^2 divBPot = delta . B for divBPot
+	solve del^2 psi = delta . B for psi
 	--]]
 	function NoDiv:getPoissonDivCode()
 		return template([[
@@ -45,14 +47,13 @@ for j=0,solver.dim-1 do
 				U[solver->stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>,
 				U[-solver->stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>
 			),
-			2. / solver->grid_dx.s<?=j?>
+			.5 / solver->grid_dx.s<?=j?>
 		)
 	);
 <? 
 end 
 ?>	
 	
-	//because this is the discrete case, no 4pi
 <? if op.chargeField then 
 ?>	source = <?=add?>(source, U-><?=op.chargeField?>);
 <? end 
@@ -65,7 +66,7 @@ end
 
 	--[[
 	subtract the gradient of the divergence potential from the vector field
-	so B' = B - grad divBPot
+	so B' = B - grad psi
 	so delta . B' = delta . B - delta . del^-2 delta . B = ...should be 0
 	--]]
 	function NoDiv:getPoissonCode()

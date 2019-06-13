@@ -49,8 +49,8 @@ Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
 
 Maxwell.hasEigenCode = true
 Maxwell.hasFluxFromConsCode = true
-Maxwell.useSourceTerm = true
 Maxwell.roeUseFluxFromCons = true
+Maxwell.useSourceTerm = true
 
 -- don't incorporate the Conn^k_ij E_k terms into the flux
 Maxwell.weightFluxByGridVolume = false
@@ -102,26 +102,24 @@ function Maxwell:init(args)
 ]], {eqn=self})
 
 
-	if self.solver.dim > 1 then
-		local NoDiv = require 'op.nodiv'{
-			poissonSolver = require'op.poisson_jacobi',
-		}
+	local NoDiv = require 'op.nodiv'{
+		poissonSolver = require 'op.poisson_jacobi',
+	}
 
-		self.solver.ops:insert(NoDiv{
-			solver = self.solver,
-			scalar = self.scalar,
-			potentialField = 'psi',
-			verbose = true,
-		})
+	self.solver.ops:insert(NoDiv{
+		solver = self.solver,
+		scalar = self.scalar,
+		vectorField = 'B',
+		potentialField = 'psi',
+	})
 
-		self.solver.ops:insert(NoDiv{
-			solver = self.solver,
-			scalar = self.scalar,
-			potentialField = 'phi',
-			chargeField = 'rhoCharge',
-			verbose = true,
-		})
-	end
+	self.solver.ops:insert(NoDiv{
+		solver = self.solver,
+		scalar = self.scalar,
+		vectorField = 'D',
+		potentialField = 'phi',
+		chargeField = 'rhoCharge',
+	})
 end
 
 function Maxwell:getCommonFuncCode()
@@ -285,17 +283,17 @@ end
 
 Maxwell.predefinedDisplayVars = {
 	'U D x (C/m^2)',
---	'U D y (C/m^2)',
---	'U D z (C/m^2)',
+	'U D y (C/m^2)',
+	'U D z (C/m^2)',
 	'U D mag (C/m^2)',
 	'U div D (C/m^3)',
 	'U phi (C/m^2)',
---	'U B x (kg/(C s))',
---	'U B y (kg/(C s))',
---	'U B z (kg/(C s))',
---	'U B mag (kg/(C s))',
---	'U div B (kg/(C m s))',
---	'U psi (kg/(C s))',
+	'U B x (kg/(C s))',
+	'U B y (kg/(C s))',
+	'U B z (kg/(C s))',
+	'U B mag (kg/(C s))',
+	'U div B (kg/(C m s))',
+	'U psi (kg/(C s))',
 }
 
 function Maxwell:getDisplayVars()
@@ -328,7 +326,7 @@ function Maxwell:getDisplayVars()
 		<?=sub?>(
 			U[solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>,
 			U[-solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		), 2. / solver->grid_dx.s<?=j?>));
+		), .5 / solver->grid_dx.s<?=j?>));
 <? end ?>
 	*value_<?=scalar?> = v;
 ]], table(env, {field=field})),

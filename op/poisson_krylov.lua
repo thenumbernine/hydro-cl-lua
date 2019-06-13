@@ -128,7 +128,6 @@ function PoissonKrylov:initSolver()
 	
 	local restart = args and args.restart or 10
 	self.lastResidual = 0
-	self.lastXNorm = 0
 	self.lastIter = 0
 	local linearSolverArgs = {
 		env = solver.app.env,
@@ -139,38 +138,26 @@ function PoissonKrylov:initSolver()
 		maxiter = cmdline.selfGravPoissonMaxIter or 20,	--restart * numreals,
 		-- logging:
 		errorCallback = function(residual, iter, x, rLenSq)
-			-- square from x to reduceBuf
-			squareKernelObj(x, solver.solverBuf, x)
-			local xNorm = math.sqrt(solver.reduceSum() / numRealsWithoutBorder)
-			
 			local lastResidual, lastIter = self.lastResidual, self.lastIter
-			local lastXNorm = self.lastXNorm
 			self.lastResidual, self.lastIter = residual, iter
-			self.lastXNorm = xNorm
 			if self.verbose then
-				--print('krylov iter', iter, 'residual', residual)
-			
--- [[
-solver.app.env.cmds:enqueueCopyBuffer{
-	src=assert(x.obj),
-	dst=assert(solver.reduceBuf),
-	size = ffi.sizeof(solver.app.real) * numreals,
-}
-local xmin = solver.reduceMin()
-solver.app.env.cmds:enqueueCopyBuffer{
-	src=assert(x.obj),
-	dst=assert(solver.reduceBuf),
-	size = ffi.sizeof(solver.app.real) * numreals,
-}
-local xmax = solver.reduceMax()
-io.stderr:write(table{iter, residual, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
---]]
-		
-			
-			end
-			if not math.isfinite(xNorm) then
-				print("got non-finite xNorm: "..xNorm)	-- error?
-				return true	-- fail
+				-- square from x to reduceBuf
+				squareKernelObj(x, solver.solverBuf, x)
+				local xNorm = math.sqrt(solver.reduceSum() / numRealsWithoutBorder)
+				
+				solver.app.env.cmds:enqueueCopyBuffer{
+					src=assert(x.obj),
+					dst=assert(solver.reduceBuf),
+					size = ffi.sizeof(solver.app.real) * numreals,
+				}
+				local xmin = solver.reduceMin()
+				solver.app.env.cmds:enqueueCopyBuffer{
+					src=assert(x.obj),
+					dst=assert(solver.reduceBuf),
+					size = ffi.sizeof(solver.app.real) * numreals,
+				}
+				local xmax = solver.reduceMax()
+				io.stderr:write(table{iter, residual, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
 			end
 			if math.abs(residual) < self.stopEpsilon then
 				return true
