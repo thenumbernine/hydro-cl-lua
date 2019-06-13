@@ -27,15 +27,6 @@ function EinsteinFiniteDifferenceSolver:init(...)
 	self.name = nil	-- don't append the eqn name to this
 end
 
-function EinsteinFiniteDifferenceSolver:postInit(...)
-	EinsteinFiniteDifferenceSolver.super.postInit(self, ...)
-	if not require 'int.be'.is(self.integrator) then
-		print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-		print("!! you're using a finite difference solver without an implicit integrator !!")
-		print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-	end
-end
-
 function EinsteinFiniteDifferenceSolver:refreshSolverProgram()
 	EinsteinFiniteDifferenceSolver.super.refreshSolverProgram(self)
 	

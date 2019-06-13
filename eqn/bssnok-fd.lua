@@ -303,6 +303,21 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	--'U volume',
 	--'U f',
 	--'U gamma_ll tr weighted',
+
+-- [[ debugging derivatives
+	'deriv alpha',
+	'deriv beta_u mag',
+	'deriv W',
+	'deriv ABar_ll tr weighted',
+	'deriv ABar_ll x x',
+	'deriv ABar_ll x y',
+	'deriv ABar_ll x z',
+	'deriv ABar_ll y y',
+	'deriv ABar_ll y z',
+	'deriv ABar_ll z z',
+	'deriv K',
+	'deriv LambdaBar_u mag',
+--]]
 }
 
 function BSSNOKFiniteDifferenceEquation:getDisplayVars()	
