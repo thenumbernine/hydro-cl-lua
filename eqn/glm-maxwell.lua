@@ -54,7 +54,7 @@ function GLM_Maxwell:init(args)
 	self.numRealsInScalar = ffi.sizeof(self.scalar) / ffi.sizeof'real'
 
 	self.numIntStates = 8 * self.numRealsInScalar
-	self.numWaves = 8
+	self.numWaves = 8 * self.numRealsInScalar
 
 	self.consVars = {
 		{name='D', type=self.vec3, units='C/m^2'},

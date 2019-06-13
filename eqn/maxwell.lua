@@ -71,7 +71,7 @@ function Maxwell:init(args)
 	self.numRealsInScalar = ffi.sizeof(self.scalar) / ffi.sizeof'real'
 
 	self.numIntStates = 6 * self.numRealsInScalar
-	self.numWaves = 6
+	self.numWaves = 6 * self.numRealsInScalar
 
 	self.consVars = {
 		{name='D', type=self.vec3, units='C/m^2'},
