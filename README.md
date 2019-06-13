@@ -54,7 +54,6 @@ TODO:
 - Better divergence removal.  multigrid GPU?
 - Finish GLM-(ideal)MHD ... especially implement the source term as a second step with an exp(dt)  (which I'm not doing at the moment)
 - Rename mhd to ideal-mhd
-- How about a GLM method for Maxwell equations, so I can remove the divergence-free constraint
 - Calculate and implement source terms for curvilinear coordinate systems (working on a tool to do this)
 - Get two-fluid-separate EMHD working, so I can update the glm-maxwell with an implicit and update the ion and electron with an explicit solver
 - Two-fluid plasma EMHD combined has numerical issues: the ion wavespeeds surpass the speed of light
@@ -66,13 +65,10 @@ TODO:
 - Add source terms to GRHD -- or at least plugins for 'gr-hd-separate' to fill in from the NR solver
 - Finish the GR+EM solver
 - Add EM+GR+HD by winning
-- Figure out what to do with self-gravitational potential energy in the Euler simulation.  offsetting it positive makes gravitational instability stable.  offsetting it too positive explodes -- even a forward euler integrator (why).  offsetting it negative causes more instability.
 - Change vector field from immediate mode to buffered geometry, and gometry shaders if they're available
 - Coroutines to iterative solvers?  so they don't stall the app execution?
 - RHD W error in >1 dimension
 - GR flat space simulations make an initial wave.  but shouldn't flat space be stable?
-- BSSN, ADM, Z4C, etc still need momentum constraints?
-- Not all of the Maxwell initial conditions are working with the non-GLM maxwell, especially with scalar vs complex
 - Right now I'm implementing weno similar to the 1996 Jiang Shu paper: 1) calc interface flux, 2) weno reconstruct interface flux 3) finite volume integrate.  There are alternative uses of WENO (using PLM or flux-limiters to find the initial interface flux values, using WENO on left and right states and then applying a flux (HLL, Roe, etc), etc).  Try these out?
 - Also, right now I am performing the PLM slope extrapolation in a separate kernel.  Not for WENO.  Combining kernels seems to run faster.  Maybe I should just inline the PLM stuff into the same kernel?
 - Cram as much into a single kernel as possible.  More inlining, more redundant calculations.  This seems to run faster than separate solvers and separate buffers.  Best would be a way to automate the inlining.
@@ -88,6 +84,7 @@ TODO:
 	* https://en.wikipedia.org/wiki/Flux_limiter
 * Electromagnetics:
 	* Trangenstein "Numerical Simulation of Hyperbolic Conservation Laws"
+	* Munz (2000)
 * Einstein Field Equations- ADM, BSSN, etc:
 	* Alcubierre, Miguel. Introduction to 3+1 Numerical Relativity. Oxford Science Publications, Oxford, 2008.
 	* Baumgarte, Shapiro. Numerical Relativity: Solving Einstein's Equations on the Computer, 2010.

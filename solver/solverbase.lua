@@ -1086,10 +1086,24 @@ function SolverBase:addDisplayVars()
 	self:addUBufDisplayVars()
 	
 	-- might contain nonsense :-p
+	-- TODO it also might contain vector components
 	self:addDisplayVarGroup{
 		name = 'reduce', 
 		vars = {{['0'] = '*value = buf[index];'}},
 	}
+
+--[[
+	-- TODO flexible for our integrator
+	if self.integrator.derivBufObj then
+		local args = self:getUBufDisplayVarsArgs()
+		args.bufferField = nil	-- TODO pass the actual buffer?
+		-- args.buffer = self.integrator.derivBufObj.obj
+		args.name = 'deriv'
+		args.vars = self.eqn:getDisplayVars()
+		-- why in addUBufDisplayVars() do I make a new group and assign args.group to it?
+		self:addDisplayVarGroup(args, self.DisplayVar_U)
+	end
+--]]
 end
 
 -- depends on self.eqn

@@ -24,7 +24,6 @@ local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local template = require 'template'
 
-
 local TwoFluidEMHD = class(Equation)
 
 local fluids = table{'ion', 'elec'}
