@@ -144,7 +144,6 @@ function SolverBase:preInit(args)
 	end
 
 	self:refreshGetULR()
-	self:createDisplayVars()	-- depends on self.eqn
 
 	-- do this before any call to createBuffers or createCodePrefix
 	-- make sure it's done after createEqn (for the solver_t struct to be filled out by the eqn)
@@ -181,7 +180,8 @@ function SolverBase:refreshGetULR()
 end
 
 function SolverBase:postInit()
-	self:refreshGridSize()
+	self:createDisplayVars()	-- depends on self.eqn
+	self:refreshGridSize()		-- depends on createDisplayVars
 
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
@@ -269,8 +269,9 @@ end
 	self.multAddKernelObj = self.commonProgramObj:kernel{name='multAdd', domain=self.domainWithoutBorder}
 	self.multAddKernelObj.obj:setArg(0, self.solverBuf)
 
+	local maxChannels = 3
 	self.reduceMin = self.app.env:reduce{
-		count = self.numCells,
+		count = self.numCells * maxChannels,
 		op = function(x,y) return 'min('..x..', '..y..')' end,
 		initValue = 'INFINITY',
 		buffer = self.reduceBuf,
@@ -278,7 +279,7 @@ end
 		result = self.reduceResultPtr,
 	}
 	self.reduceMax = self.app.env:reduce{
-		count = self.numCells,
+		count = self.numCells * maxChannels,
 		op = function(x,y) return 'max('..x..', '..y..')' end,
 		initValue = '-INFINITY',
 		buffer = self.reduceBuf,
@@ -286,7 +287,7 @@ end
 		result = self.reduceResultPtr,
 	}
 	self.reduceSum = self.app.env:reduce{
-		count = self.numCells,
+		count = self.numCells * maxChannels,
 		op = function(x,y) return x..' + '..y end,
 		initValue = '0.',
 		buffer = self.reduceBuf,
@@ -409,7 +410,7 @@ function SolverBase:refreshCodePrefix()
 	self:createCodePrefix()		-- depends on eqn, gridSize, displayVars
 	self:refreshIntegrator()	-- depends on eqn & gridSize ... & ffi.cdef cons_t
 	self:refreshInitStateProgram()
-	self:refreshSolverProgram()
+	self:refreshSolverProgram()	-- depends on createDisplayVars
 --[[ 
 TODO here -- refresh init state
 but what does that look like for mesh solvers?
@@ -424,7 +425,7 @@ end
 function SolverBase:refreshSolverProgram()
 	self:refreshGetULR()	
 
-	local code = self:getSolverCode()
+	local code = self:getSolverCode()	-- depends on createDisplayVars
 
 	time('compiling solver program', function()
 		self.solverProgramObj = self.Program{name='solver', code=code}
@@ -848,12 +849,18 @@ function DisplayVar:init(args)
 	-- or - instead of buffer - how about all the kernel's args?
 	-- but the reason I have to store the field here is that the buffer isn't made yet
 	-- TODO? make display vars after buffers so I can store the buffer here?
-	self.bufferField = args.bufferField
+	self.getBuffer = args.getBuffer
+	if not self.getBuffer then
+	local bufferField = args.bufferField
+		self.getBuffer = function()
+			return self.solver[bufferField]
+		end
+	end
 	self.extraArgs = args.extraArgs
 end
 
 function DisplayVar:setArgs(kernel)
-	local buffer = assert(self.solver[self.bufferField], "failed to find buffer "..tostring(self.bufferField))
+	local buffer = assert(self.getBuffer(), "failed to find buffer for var "..tostring(self.name))
 	kernel:setArg(0, self.solver.solverBuf)
 	kernel:setArg(2, buffer)
 end
@@ -1089,21 +1096,23 @@ function SolverBase:addDisplayVars()
 	-- TODO it also might contain vector components
 	self:addDisplayVarGroup{
 		name = 'reduce', 
+		getBuffer = function() return self.reduceBuf end,
 		vars = {{['0'] = '*value = buf[index];'}},
 	}
 
---[[
+
 	-- TODO flexible for our integrator
-	if self.integrator.derivBufObj then
+	-- if I put this here then integrator isn't created yet
+	-- but if I put this after integrator then display variable init has already happened
+	do	--if self.integrator.derivBufObj then
+		local group = self:newDisplayVarGroup{name='deriv'}
 		local args = self:getUBufDisplayVarsArgs()
-		args.bufferField = nil	-- TODO pass the actual buffer?
-		-- args.buffer = self.integrator.derivBufObj.obj
-		args.name = 'deriv'
+		args.getBuffer = function() return self.integrator.derivBufObj.obj end
+		args.group = group
 		args.vars = self.eqn:getDisplayVars()
 		-- why in addUBufDisplayVars() do I make a new group and assign args.group to it?
 		self:addDisplayVarGroup(args, self.DisplayVar_U)
 	end
---]]
 end
 
 -- depends on self.eqn
@@ -1133,7 +1142,7 @@ function SolverBase:calcDisplayVarRange(var)
 	local channels = var.vectorField and 3 or 1
 	-- this size stuff is very GridSolver-based
 	local volume = self.numCells
-	local sizevec = self[var.bufferField].sizevec
+	local sizevec = var.getBuffer().sizevec
 	if sizevec then
 		volume = tonumber(sizevec:volume())
 	end
@@ -1194,7 +1203,7 @@ function SolverBase:calcDisplayVarRangeAndAvg(var)
 	
 	-- duplicated in calcDisplayVarRange
 	local size = self.numCells
-	local sizevec = self[var.bufferField].sizevec
+	local sizevec = var.getBuffer().sizevec
 	if sizevec then
 		size = tonumber(sizevec:volume())
 	end
@@ -1317,7 +1326,7 @@ function SolverBase:calcDisplayVarToBuffer(var)
 
 	-- duplicated in calcDisplayVarRange
 	local volume = self.numCells
-	local sizevec = self[var.bufferField].sizevec
+	local sizevec = var.getBuffer().sizevec
 	if sizevec then
 		volume = tonumber(sizevec:volume())
 	end

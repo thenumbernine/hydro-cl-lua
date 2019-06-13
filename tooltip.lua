@@ -50,7 +50,7 @@ local function makeTableAccess(prim, orig)
 	local ptr = ffi.new(prim..'[1]')
 	return function(title, t, k, ...)
 		if t[k] == nil then
-			error("failed to find value "..k.." in table "..tostring(t)..' '..require'ext.tolua'(t))
+			error("failed to find value "..k.." in table "..tostring(t))
 		end
 		ptr[0] = t[k]
 		if orig(title, ptr, ...) then
@@ -96,6 +96,19 @@ assert(type(t[k]) == 'number')
 	end
 end
 
+-- TODO dynamic sized buffer?
+local str = ffi.new'char[256]'
+local function textTable(title, t, k, ...)
+	local src = tostring(t[k])
+	local len = math.min(ffi.sizeof(str)-1, #src)
+	ffi.copy(str, src, len)
+	str[len] = 0
+	if wrap.text(title, str, ffi.sizeof(str), ...) then
+		t[k] = ffi.string(str)
+		return true
+	end
+end
+
 -- tooltip wrappers
 
 local tooltip = {
@@ -111,6 +124,7 @@ local tooltip = {
 	numberTable = numberTable,
 	comboTable = comboTable,
 	text = wrap.text,
+	textTable = textTable,
 	label = tooltipLabel,
 }
 

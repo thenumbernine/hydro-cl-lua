@@ -1330,7 +1330,7 @@ function GridSolver:calcDisplayVarToTex(var)
 	
 		self:calcDisplayVarToBuffer(var)
 
-		local sizevec = self[var.bufferField].sizevec or self.gridSize
+		local sizevec = var.getBuffer().sizevec or self.gridSize
 		assert(sizevec.x <= tex.width and sizevec.y <= tex.height)
 		local volume = tonumber(sizevec:volume())
 		
@@ -1444,11 +1444,14 @@ do
 	end
 
 	function GridSolver:updateGUIDisplay()
+		if self.guiDisplayFilterStr == nil then self.guiDisplayFilterStr = '' end
 		local refresh 
 		if ig.igCollapsingHeader'display:' then
+			tooltip.textTable('filter', self, 'guiDisplayFilterStr')
+			
 			for i,displayVarGroup in ipairs(self.displayVarGroups) do
 				ig.igPushIDStr('display '..i)
-				if ig.igCollapsingHeader(displayVarGroup.name) then				
+				if ig.igCollapsingHeader(displayVarGroup.name) then
 					for i=1,#fields do
 						all[fields[i]] = defaults[i]
 					end
@@ -1466,15 +1469,25 @@ do
 						for _,field in ipairs(fields) do
 							if all[field] ~= original[field] then
 								for _,var in ipairs(displayVarGroup.vars) do
-									var[field] = all[field]
+									local title = displayVarGroup.name..' '..var.name
+									if #self.guiDisplayFilterStr == 0
+									or title:find(self.guiDisplayFilterStr)
+									then
+										var[field] = all[field]
+									end
 								end
 							end
 						end
 					end
 
 					for _,var in ipairs(displayVarGroup.vars) do
-						local enableChanged = handle(var, displayVarGroup.name..' '..var.name)
-						--refresh = refresh or enableChanged
+						local title = displayVarGroup.name..' '..var.name
+						if #self.guiDisplayFilterStr == 0
+						or title:find(self.guiDisplayFilterStr)
+						then
+							local enableChanged = handle(var, title)
+							--refresh = refresh or enableChanged
+						end
 					end
 				end
 				ig.igPopID()

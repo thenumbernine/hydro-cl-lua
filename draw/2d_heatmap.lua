@@ -14,7 +14,7 @@ var.solver = solver
 		gl.glUniform2f(heatMap2DShader.uniforms.solverMaxs.loc, solver.maxs[1], solver.maxs[2])
 
 		local tex = solver:getTex(var)
-		local size = solver[var.bufferField].sizevec or solver.gridSize
+		local size = solver[var.getBuffer()].sizevec or solver.gridSize
 		gl.glUniform2f(heatMap2DShader.uniforms.texCoordMax.loc, 
 			tonumber(size.x) / tex.width,
 			tonumber(size.y) / tex.height)
