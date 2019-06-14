@@ -632,7 +632,7 @@ function SolverBase:createCodePrefix()
 	end
 
 	-- real3
-	lines:insert(template(file['math.h'], {app=self.app}))
+	lines:insert(template(file['math.types.h'], {app=self.app}))
 	
 	lines:append{
 		'#ifndef M_PI',
@@ -1135,6 +1135,7 @@ end
 
 -- used by the display code to dynamically adjust ranges
 function SolverBase:calcDisplayVarRange(var)
+	assert(not self.vectorField, "can't calculate variable range on a vector field")
 	if var.lastTime == self.t then
 		return var.lastMin, var.lastMax
 	end

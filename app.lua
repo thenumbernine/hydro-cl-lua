@@ -308,7 +308,7 @@ function HydroCLApp:initGL(...)
 	self.realparam = self.real == 'half' and 'float' or self.real
 
 	do
-		local code = template(file['math.h'], {app=self})
+		local code = template(file['math.types.h'], {app=self})
 		xpcall(function()
 			ffi.cdef(code)
 		end, function(err)
@@ -722,7 +722,7 @@ end
 					solverymin, solverymax = solver.mins[2], solver.maxs[2]
 					solverymin, solverymax = 1.1 * solverymin - .1 * solverymax, 1.1 * solverymax - .1 * solverymin
 				else
-					solverymin, solverymax = solver:calcDisplayVarRange(var)
+					solverymin, solverymax = solver:calcDisplayVarRange(var.vectorField and var.magVar or var)
 					local thisvarymin, thisvarymax = solverymin, solverymax
 					varymin = varymin and math.min(thisvarymin, varymin) or thisvarymin
 					varymax = varymax and math.max(thisvarymax, varymax) or thisvarymax
