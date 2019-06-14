@@ -3,6 +3,16 @@ local gl = require 'ffi.OpenGL'
 return function(HydroCLApp)
 
 function HydroCLApp:showDisplayVar1D(solver, var)
+	local valueMin, valueMax
+	if var.heatMapFixedRange then
+		valueMin = var.heatMapValueMin
+		valueMax = var.heatMapValueMax
+	else
+		valueMin, valueMax = solver:calcDisplayVarRange(var)
+		var.heatMapValueMin = valueMin
+		var.heatMapValueMax = valueMax
+	end
+	
 	solver:calcDisplayVarToTex(var)	
 	-- display
 
