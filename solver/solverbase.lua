@@ -269,9 +269,11 @@ end
 	self.multAddKernelObj = self.commonProgramObj:kernel{name='multAdd', domain=self.domainWithoutBorder}
 	self.multAddKernelObj.obj:setArg(0, self.solverBuf)
 
-	local maxChannels = 3
+	-- TODO vectors won't reduce anymore unless the reduceMin is constructed with 3* the # of count
+	-- but this breaks reduce for scalars (it includes those extra zeros)
+	-- which makes calcDT fail
 	self.reduceMin = self.app.env:reduce{
-		count = self.numCells * maxChannels,
+		count = self.numCells,
 		op = function(x,y) return 'min('..x..', '..y..')' end,
 		initValue = 'INFINITY',
 		buffer = self.reduceBuf,
@@ -279,7 +281,7 @@ end
 		result = self.reduceResultPtr,
 	}
 	self.reduceMax = self.app.env:reduce{
-		count = self.numCells * maxChannels,
+		count = self.numCells,
 		op = function(x,y) return 'max('..x..', '..y..')' end,
 		initValue = '-INFINITY',
 		buffer = self.reduceBuf,
@@ -287,7 +289,7 @@ end
 		result = self.reduceResultPtr,
 	}
 	self.reduceSum = self.app.env:reduce{
-		count = self.numCells * maxChannels,
+		count = self.numCells,
 		op = function(x,y) return x..' + '..y end,
 		initValue = '0.',
 		buffer = self.reduceBuf,
@@ -644,7 +646,10 @@ function SolverBase:createCodePrefix()
 		'#define numIntStates '..self.eqn.numIntStates,
 		'#define numWaves '..self.eqn.numWaves,
 	}
-	
+
+	-- TODO compile the code of CommonCode into a bin of its own
+	--  and link against it instead of recopying and recompiling
+
 	-- real3_rotateFrom, real3_rotateTo depend on 'dim'
 	lines:insert(template(file['math.cl']))
 	
@@ -816,9 +821,6 @@ if solver.dim >= 3 then
 	real3* value_real3 = (real3*)value;
 	cplx3* value_cplx3 = (cplx3*)value;
 
-	//special access
-	real3* value_real3_hi = (real3*)(value+3);
-
 <?= var.codePrefix or '' ?>
 <?= var.code ?>
 
@@ -924,8 +926,8 @@ function SolverBase:getDisplayInfosForType()
 			{name = ' mag', code = '\t*value_cplx3 = _cplx3(cplx_from_real(cplx3_len(*value_cplx3)), cplx_zero, cplx_zero);', magn=true},
 			
 			-- TODO these two are crashing
-			{name = ' re', code = '\t*value_real3 = cplx3_re(*value_cplx3); *value_real3_hi = real3_zero;', vartype='real3'},
-			{name = ' im', code = '\t*value_real3 = cplx3_im(*value_cplx3); *value_real3_hi = real3_zero;', vartype='real3'},
+			{name = ' re', code = '\t*value_real3 = cplx3_re(*value_cplx3); *(real3*)(value+3) = real3_zero;', vartype='real3'},
+			{name = ' im', code = '\t*value_real3 = cplx3_im(*value_cplx3); *(real3*)(value+3) = real3_zero;', vartype='real3'},
 			
 			-- re and im will include re len, im len, re xyz, im xyz
 			-- but will skip the x,y,z cplx abs and arg:
@@ -941,9 +943,10 @@ function SolverBase:getDisplayInfosForType()
 		-- but does that mean I have to store 6 components in value_real3?
 		-- I suppose it does if I want a sym3-specific visualization
 		sym3 = {
-			{name = ' x', code = '\t*value_real3 = sym3_x(*value_sym3); *value_real3_hi = real3_zero;', vartype='real3'},
-			{name = ' y', code = '\t*value_real3 = sym3_y(*value_sym3); *value_real3_hi = real3_zero;', vartype='real3'},
-			{name = ' z', code = '\t*value_real3 = sym3_z(*value_sym3); *value_real3_hi = real3_zero;', vartype='real3'},
+			-- TODO somehow -- don't add yx zx zy when you're adding the subtypes
+			{name = ' x', code = '\t*value_real3 = sym3_x(*value_sym3); *(real3*)(value+3) = real3_zero;', vartype='real3'},
+			{name = ' y', code = '\t*value_real3 = sym3_y(*value_sym3); *(real3*)(value+3) = real3_zero;', vartype='real3'},
+			{name = ' z', code = '\t*value_real3 = sym3_z(*value_sym3); *(real3*)(value+3) = real3_zero;', vartype='real3'},
 	
 			--[[ these are already added through real3 x_i real x_j
 			{name = ' xx', code = '\t*value_sym3 = _sym3(value_sym3->xx, 0,0,0,0,0);'},

@@ -18,12 +18,12 @@ function HydroCLApp:showDisplayVar1D(solver, var)
 	gl.glUniform1i(self.graphShader.uniforms.axis.loc, solver.dim)
 	gl.glUniform2f(self.graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
 
-	gl.glColor3f(table.unpack((#self.solvers > 1 and solver or var).color))
+	gl.glColor3d(table.unpack((#self.solvers > 1 and solver or var).color))
 	gl.glBegin(gl.GL_LINE_STRIP)
 	local step = 1
 	for i=2,tonumber(solver.gridSize.x)-2,step do
 		local x = (i+.5)/tonumber(solver.gridSize.x)
-		gl.glVertex2f(x, 0)
+		gl.glVertex2d(x, 0)
 	end
 	gl.glEnd()
 	
@@ -38,15 +38,15 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 	gl.glMatrixMode(gl.GL_MODELVIEW)
 	gl.glLoadIdentity()
 
-	gl.glColor3f(.1, .1, .1)
+	gl.glColor3d(.1, .1, .1)
 	local xrange = xmax - xmin
 	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
 	local xticmin = math.floor(xmin/xstep)
 	local xticmax = math.ceil(xmax/xstep)
 	gl.glBegin(gl.GL_LINES)
 	for x=xticmin,xticmax do
-		gl.glVertex2f(x*xstep,ymin)
-		gl.glVertex2f(x*xstep,ymax)
+		gl.glVertex2d(x*xstep,ymin)
+		gl.glVertex2d(x*xstep,ymax)
 	end
 	gl.glEnd()
 	local yrange = ymax - ymin
@@ -55,17 +55,17 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 	local yticmax = math.ceil(ymax/ystep)
 	gl.glBegin(gl.GL_LINES)
 	for y=yticmin,yticmax do
-		gl.glVertex2f(xmin,y*ystep)
-		gl.glVertex2f(xmax,y*ystep)
+		gl.glVertex2d(xmin,y*ystep)
+		gl.glVertex2d(xmax,y*ystep)
 	end
 	gl.glEnd()
 
-	gl.glColor3f(.5, .5, .5)
+	gl.glColor3d(.5, .5, .5)
 	gl.glBegin(gl.GL_LINES)
-	gl.glVertex2f(xmin, 0)
-	gl.glVertex2f(xmax, 0)
-	gl.glVertex2f(0, ymin)
-	gl.glVertex2f(0, ymax)
+	gl.glVertex2d(xmin, 0)
+	gl.glVertex2d(xmax, 0)
+	gl.glVertex2d(0, ymin)
+	gl.glVertex2d(0, ymax)
 	gl.glEnd()
 
 	-- display here

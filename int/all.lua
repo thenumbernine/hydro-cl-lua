@@ -1,5 +1,6 @@
 local class = require 'ext.class'
 local ForwardEuler = require 'int.fe'
+local IterativeCrankNicolson = require 'int.icn'
 local BackwardEuler = require 'int.be'
 local RungeKutta = require 'int.rk'
 
@@ -152,6 +153,7 @@ RungeKutta4NonTVD.betas = {
 
 return require 'ext.table'{
 	ForwardEuler,
+	IterativeCrankNicolson,
 	RungeKutta2,
 	RungeKutta2Heun,
 	RungeKutta2Ralston,

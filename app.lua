@@ -613,7 +613,9 @@ HydroCLApp.running = false
 local mouse = Mouse()
 local pushVarNamesEnabled
 
-local minDeltaY = 1e-7
+-- any smaller than this and the font starts to screw up (maybe because it is using floating point?)
+local minDeltaY = 1e-5
+
 function HydroCLApp:update(...)
 	if canHandleMouse() then
 		mouse:update()

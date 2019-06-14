@@ -5,6 +5,7 @@ local args = {
 	dim = dim,
 	
 	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -125,11 +126,11 @@ local args = {
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
 	mins = cmdline.mins or {.1, 0, -math.pi},
 	maxs = cmdline.maxs or {1, .5 * math.pi, math.pi},
-	gridSize = {
-		cmdline.gridSize or 16,
-		cmdline.gridSize or 16,
-		cmdline.gridSize or 16,
-	},
+	gridSize = ({
+		{256, 1, 1}, -- 1D
+		{32, 32, 1}, -- 2D
+		{16, 16, 16}, -- 3D
+	})[dim],
 	boundary = {
 		xmin=cmdline.boundary or 'mirror',
 		xmax=cmdline.boundary or 'mirror',
@@ -241,7 +242,7 @@ local args = {
 	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around pyramid',
 	--initState = 'Maxwell scattering around square',
-	initState = 'Maxwell scattering around Koch snowflake',
+	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	--initState = 'Maxwell transverse waves',
 	
@@ -256,7 +257,7 @@ local args = {
 
 
 	-- Einstein
-	--initState = 'Minkowski',
+	initState = 'Minkowski',
 	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 

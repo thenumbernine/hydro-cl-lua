@@ -878,29 +878,29 @@ function CoordinateSystem:getCode(solver)
 
 	-- metric determinant = volume^2
 	local det_g_code = '(' .. self.det_g_code .. ')'
-	lines:insert('static inline '..getCode_real3_to_real('coord_det_g', det_g_code))
+	lines:insert(getCode_real3_to_real('coord_det_g', det_g_code))
 
 	-- volume
 	local volumeCode = '(' .. self.volumeCode .. ')'
-	lines:insert('static inline '..getCode_real3_to_real('coord_volume', volumeCode))
+	lines:insert(getCode_real3_to_real('coord_volume', volumeCode))
 	
 	-- coord len code: l(v) = v^i v^j g_ij
 	lines:append{
-		'static inline '..getCode_real3_real3_to_real('coordLenSq', self.uLenSqCode),
+		getCode_real3_real3_to_real('coordLenSq', self.uLenSqCode),
 		[[
-static inline real coordLen(real3 r, real3 pt) {
+real coordLen(real3 r, real3 pt) {
 	return sqrt(coordLenSq(r, pt));
 }]],
 	}
 
-	lines:insert('static inline '..getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes))
-	lines:insert('static inline '..getCode_real3_real3_real3_to_real3('coord_conn_apply12', self.connApply12Codes))
-	lines:insert('static inline '..getCode_real3_to_real3('coord_conn_trace23', self.tr23_conn_u_codes))
-	lines:insert('static inline '..getCode_real3_to_real3('coord_conn_trace13', self.tr13_conn_l_codes))
-	lines:insert('static inline '..getCode_real3_to_3sym3('coord_dg_lll', self.dg_lll_codes))
-	lines:insert('static inline '..getCode_real3_to_sym3sym3('coord_d2g_llll', self.d2g_llll_codes))
-	lines:insert('static inline '..getCode_real3_to_3sym3('coord_conn_lll', self.conn_lll_codes))
-	lines:insert('static inline '..getCode_real3_to_3sym3('coord_conn_ull', self.conn_ull_codes))
+	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes))
+	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply12', self.connApply12Codes))
+	lines:insert(getCode_real3_to_real3('coord_conn_trace23', self.tr23_conn_u_codes))
+	lines:insert(getCode_real3_to_real3('coord_conn_trace13', self.tr13_conn_l_codes))
+	lines:insert(getCode_real3_to_3sym3('coord_dg_lll', self.dg_lll_codes))
+	lines:insert(getCode_real3_to_sym3sym3('coord_d2g_llll', self.d2g_llll_codes))
+	lines:insert(getCode_real3_to_3sym3('coord_conn_lll', self.conn_lll_codes))
+	lines:insert(getCode_real3_to_3sym3('coord_conn_ull', self.conn_ull_codes))
 
 	--[[
 	for i=0,dim-1 do
@@ -909,11 +909,11 @@ static inline real coordLen(real3 r, real3 pt) {
 	--]]
 
 	for i,eiCode in ipairs(self.eCode) do
-		lines:insert('static inline '..getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
+		lines:insert(getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
 	end
 
-	lines:insert('static inline '..getCode_real3_real3_to_real3('coord_lower', self.lowerCodes))
-	lines:insert('static inline '..getCode_real3_real3_to_real3('coord_raise', self.raiseCodes))
+	lines:insert(getCode_real3_real3_to_real3('coord_lower', self.lowerCodes))
+	lines:insert(getCode_real3_real3_to_real3('coord_raise', self.raiseCodes))
 
 	do
 		local function addSym3Components(name, codes)
@@ -931,8 +931,8 @@ static inline real coordLen(real3 r, real3 pt) {
 		addSym3Components('coord_g', self.gCode)
 		addSym3Components('coord_gU', self.gUCode)
 		addSym3Components('coord_sqrt_gU', self.sqrt_gUCode)
-		lines:insert('static inline '..getCode_real3_to_sym3('coord_g', self.gCode))
-		lines:insert('static inline '..getCode_real3_to_sym3('coord_gU', self.gUCode))
+		lines:insert(getCode_real3_to_sym3('coord_g', self.gCode))
+		lines:insert(getCode_real3_to_sym3('coord_gU', self.gUCode))
 	end
 
 	lines:insert(template([[
@@ -940,7 +940,7 @@ static inline real coordLen(real3 r, real3 pt) {
 //converts a vector from cartesian coordinates to grid coordinates
 //by projecting the vector into the grid basis vectors 
 //at x, which is in grid coordinates
-static inline real3 cartesianToCoord(real3 u, real3 pt) {
+real3 cartesianToCoord(real3 u, real3 pt) {
 	real3 uCoord = real3_zero;
 	<? for i=0,solver.dim-1 do ?>{
 		real3 e = coordBasis<?=i?>(pt);
@@ -959,7 +959,7 @@ static inline real3 cartesianToCoord(real3 u, real3 pt) {
 
 //converts a vector from cartesian to grid
 //by projecting it onto the basis ... ?
-static inline real3 cartesianFromCoord(real3 u, real3 pt) {
+real3 cartesianFromCoord(real3 u, real3 pt) {
 	real3 uGrid = real3_zero;
 	<? for i=0,solver.dim-1 do ?>{
 		real3 e = coordBasis<?=i?>(pt);
@@ -972,7 +972,7 @@ static inline real3 cartesianFromCoord(real3 u, real3 pt) {
 		solver = solver,
 	}))
 
-	lines:insert('static inline '..self:getCoordMapCode())
+	lines:insert(self:getCoordMapCode())
 
 --print(require 'template.showcode'(lines:concat'\n'))
 

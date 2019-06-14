@@ -35,9 +35,6 @@ function EinsteinFiniteDifferenceSolver:refreshSolverProgram()
 	self.calcDerivKernelObj.obj:setArg(2, self.UBuf)
 end
 
-function EinsteinFiniteDifferenceSolver:refreshCalcDTKernel() end
-function EinsteinFiniteDifferenceSolver:calcDT() return self.fixedDT end
-
 function EinsteinFiniteDifferenceSolver:calcDeriv(derivBufObj, dt)
 	self.calcDerivKernelObj.obj:setArg(1, derivBufObj.obj)
 	self.calcDerivKernelObj()

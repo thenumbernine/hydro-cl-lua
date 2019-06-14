@@ -365,7 +365,7 @@ function Equation:getPrimConsCode()
 
 #define primFromCons(solver, U, x)	U
 /*
-static inline <?=eqn.prim_t?> primFromCons(
+<?=eqn.prim_t?> primFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U, 
 	real3 x
@@ -376,7 +376,7 @@ static inline <?=eqn.prim_t?> primFromCons(
 
 #define consFromPrim(solver, W, x)	W
 /*
-static inline <?=eqn.cons_t?> consFromPrim(
+<?=eqn.cons_t?> consFromPrim(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> W, 
 	real3 x
@@ -393,7 +393,7 @@ returns output vector
 */
 #define apply_dU_dW(solver, WA, W, x)	W
 /*
-static inline <?=eqn.cons_t?> apply_dU_dW(
+<?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA, 
 	<?=eqn.prim_t?> W, 
@@ -411,7 +411,7 @@ returns output vector
 */
 #define apply_dW_dU(solver, WA, U, x)	U
 /*
-static inline <?=eqn.prim_t?> apply_dW_dU(
+<?=eqn.prim_t?> apply_dW_dU(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA, 
 	<?=eqn.cons_t?> U, 

@@ -151,6 +151,12 @@ real calc_det_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 	return det_gamma_ll;
 }
 
+sym3 calc_gammaBar_uu(global const <?=eqn.cons_t?>* U, real3 x) {
+	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+	real det_gammaBar_ll = calc_det_gammaBar_ll(x);
+	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar_ll);
+}
+
 sym3 calc_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
@@ -304,7 +310,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	--'U f',
 	--'U gamma_ll tr weighted',
 
--- [[ debugging derivatives
+--[[ debugging derivatives
 	'deriv alpha',
 	'deriv beta_u mag',
 	'deriv W',
@@ -323,19 +329,37 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 function BSSNOKFiniteDifferenceEquation:getDisplayVars()	
 	local vars = BSSNOKFiniteDifferenceEquation.super.getDisplayVars(self)
 
-	vars:insert{['det gammaBar - det gammaHat'] = [[
+	vars:append{
+		{gamma_ll = [[	*value_sym3 = calc_gamma_ll(U, x);]], type='sym3'},
+		{gammaHat_ll = [[	*value_sym3 = coord_g(x);]], type='sym3'},
+		{gammaBar_ll = [[	*value_sym3 = calc_gammaBar_ll(U, x);]], type='sym3'},
+		{gamma_uu = [[	*value_sym3 = calc_gamma_uu(U, x);]], type='sym3'},
+		{gammaHat_uu = [[	*value_sym3 = coord_gU(x);]], type='sym3'},
+		{gammaBar_uu = [[	*value_sym3 = calc_gammaBar_uu(U, x);]], type='sym3'},
+		{K_ll = [[
+	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+	*value_sym3 = sym3_real_mul(
+		sym3_add(
+			U->ABar_ll,
+			sym3_real_mul(gammaBar_ll, U->K / 3.)
+		), exp_4phi);
+]], type='sym3'},
+
+		{['det gammaBar - det gammaHat'] = [[
 	*value = sym3_det(calc_gammaBar_ll(U, x)) - calc_det_gammaBar_ll(x);
-]]}	-- for logarithmic displays
-	vars:insert{['det gamma based on phi'] = [[
+]]},
+		{['det gamma based on phi'] = [[
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	real exp_12phi = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 	*value = exp_12phi * calc_det_gammaBar_ll(x);
-]]}
-	
-	local derivOrder = 2 * self.solver.numGhost
-	vars:append{
+]]},
 		{S = '*value = sym3_dot(U->S_ll, calc_gamma_uu(U, x));'},
 		{volume = '*value = U->alpha * calc_det_gamma_ll(U, x);'},
+	}
+
+	local derivOrder = 2 * self.solver.numGhost
+	vars:append{
 	
 --[[ expansion:
 2003 Thornburg:  ... from Wald ...
@@ -399,20 +423,6 @@ end
 		
 		{f = '*value = calc_f(U->alpha);'},
 		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
-		{gamma_ll = [[
-	real exp_4phi = 1. / calc_exp_neg4phi(U);
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	*value_sym3 = sym3_real_mul(gammaBar_ll, exp_4phi);
-]], type='sym3'},
-		{K_ll = [[
-	real exp_4phi = 1. / calc_exp_neg4phi(U);
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	*value_sym3 = sym3_real_mul(
-		sym3_add(
-			U->ABar_ll,
-			sym3_real_mul(gammaBar_ll, U->K / 3.)
-		), exp_4phi);
-]], type='sym3'},
 
 		--[[ ADM geodesic equation spatial terms:
 		-Gamma^i_tt = 

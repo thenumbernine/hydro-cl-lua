@@ -1443,11 +1443,18 @@ do
 		original[field] = defaults[i]
 	end
 
+	local function search(str, what)
+		return str:match(what:gsub('%s+', '.*'))
+	end
+
 	function GridSolver:updateGUIDisplay()
 		if self.guiDisplayFilterStr == nil then self.guiDisplayFilterStr = '' end
+		if self.guiDisplayFilterEnabledVars == nil then self.guiDisplayFilterEnabledVars = false end
 		local refresh 
 		if ig.igCollapsingHeader'display:' then
 			tooltip.textTable('filter', self, 'guiDisplayFilterStr')
+			ig.igSameLine()
+			tooltip.checkboxTable('filter enabled', self, 'guiDisplayFilterEnabledVars')
 			
 			for i,displayVarGroup in ipairs(self.displayVarGroups) do
 				ig.igPushIDStr('display '..i)
@@ -1456,8 +1463,13 @@ do
 						all[fields[i]] = defaults[i]
 					end
 					for _,var in ipairs(displayVarGroup.vars) do
-						for i,field in ipairs(fields) do
-							all[field] = combines[i](all[field], var[field])
+						local title = displayVarGroup.name..' '..var.name
+						if (#self.guiDisplayFilterStr == 0 or search(title, self.guiDisplayFilterStr))
+						and (not self.guiDisplayFilterEnabledVars or var.enabled)
+						then
+							for i,field in ipairs(fields) do
+								all[field] = combines[i](all[field], var[field])
+							end
 						end
 					end
 					for _,field in ipairs(fields) do
@@ -1470,8 +1482,8 @@ do
 							if all[field] ~= original[field] then
 								for _,var in ipairs(displayVarGroup.vars) do
 									local title = displayVarGroup.name..' '..var.name
-									if #self.guiDisplayFilterStr == 0
-									or title:find(self.guiDisplayFilterStr)
+									if (#self.guiDisplayFilterStr == 0 or search(title, self.guiDisplayFilterStr))
+									and (not self.guiDisplayFilterEnabledVars or var.enabled)
 									then
 										var[field] = all[field]
 									end
@@ -1482,8 +1494,8 @@ do
 
 					for _,var in ipairs(displayVarGroup.vars) do
 						local title = displayVarGroup.name..' '..var.name
-						if #self.guiDisplayFilterStr == 0
-						or title:find(self.guiDisplayFilterStr)
+						if (#self.guiDisplayFilterStr == 0 or search(title, self.guiDisplayFilterStr))
+						and (not self.guiDisplayFilterEnabledVars or var.enabled)
 						then
 							local enableChanged = handle(var, title)
 							--refresh = refresh or enableChanged
