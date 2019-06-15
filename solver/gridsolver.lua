@@ -1052,7 +1052,7 @@ lines:insert[[
 	local code = lines:concat'\n'
 
 	local boundaryProgramObj
-	time('compiling boundary program', function()
+	time('building boundary program', function()
 		boundaryProgramObj = self.Program{name='boundary', code=code}
 		boundaryProgramObj:compile()
 	end)

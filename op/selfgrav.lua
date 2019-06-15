@@ -68,7 +68,7 @@ real3 calcGravityAccel<?=op.name?>(
 		accel_g.s<?=side?> = (
 			U[solver->stepsize.s<?=side?>].<?=op.potentialField?> 
 			- U[-solver->stepsize.s<?=side?>].<?=op.potentialField?>
-		) / (2. * cell_dx<?=side?>(x));
+		) / (2. * solver->grid_dx.s<?=side?>);	//TODO grid coordinate influence?
 	}<? end ?>
 
 	return accel_g;

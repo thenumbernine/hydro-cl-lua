@@ -79,6 +79,8 @@ function GREMSeparateSolver:init(args)
 		local args = GRMaxwellSolver.super.getUBufDisplayVarsArgs(self)
 		args.extraArgs = args.extraArgs or {}
 		table.insert(args.extraArgs, 'const global '..gr.eqn.cons_t..'* grUBuf')
+		args.extraArgNames = args.extraArgNames or {}
+		table.insert(args.extraArgNames, 'grUBuf')
 		return args
 	end
 	function GRMaxwellSolver:refreshInitStateProgram()

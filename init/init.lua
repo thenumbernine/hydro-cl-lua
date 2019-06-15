@@ -71,7 +71,7 @@ print('CL_PROGRAM_KERNEL_NAMES', #s, s)
 os.exit()
 else	-- not useCLLinkLibraries
 	local file = require 'ext.file'
-	time('compiling init state program', function()
+	time('building init state program', function()
 		solver.initStateProgramObj = solver.Program{
 			name = 'initState',
 			code = initStateCode,

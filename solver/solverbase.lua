@@ -260,7 +260,7 @@ end
 		})
 	}:concat'\n'
 
-	time('compiling common program', function()
+	time('building common program', function()
 		-- TODO rename :compile() to :build() to be like cl.program?
 		self.commonProgramObj = self.Program{name='common', code=commonCode}
 		self.commonProgramObj:compile()
@@ -472,7 +472,7 @@ if SolverBase.useCLLinkLibraries then
 		}
 	end)
 else
-	time('linking solver program', function()
+	time('building solver program', function()
 		self.solverProgramObj = self.Program{
 			name = 'solver',
 			code = code,
@@ -577,61 +577,86 @@ function SolverBase:getDisplayCode()
 	
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
 		for _,var in ipairs(displayVarGroup.vars) do
-			var.id = tostring(var):sub(10)
-		end
-	end
+			var.id = tostring(var):sub(10)	-- is this used anymore?
+	
+			lines:insert('//'..var.name..'\n')
 
-	if self.app.useGLSharing then
-		for _,displayVarGroup in ipairs(self.displayVarGroups) do
-			for _,var in ipairs(displayVarGroup.vars) do
+			if var.prefixFuncCode then
+				lines:insert(var.prefixFuncCode)
+			end
+
+			var.clFuncName = self.app:uniqueName'calcDisplayVar'
+
+			lines:insert(template([[
+void <?=var.clFuncName?>(
+	constant <?=solver.solver_t?>* solver,
+	const global <?= var.type ?>* buf,
+	int4 i,
+	int index, 
+	int4 dsti,
+	int dstindex,
+	real3 x,
+	real* value<?=
+	var.extraArgs and #var.extraArgs > 0
+		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
+		or ''
+?>
+) {
+	real* value_real = value;
+	sym3* value_sym3 = (sym3*)value;
+	cplx* value_cplx = (cplx*)value;
+	real3* value_real3 = (real3*)value;
+	cplx3* value_cplx3 = (cplx3*)value;
+<?=var.codePrefix or ''?>
+<?=var.code?>
+}
+]], 		{
+				solver = self,
+				var = var,
+			}))
+
+			if self.app.useGLSharing then
 				var.toTexKernelName = self.app:uniqueName'calcDisplayVarToTex'
 				--[[
 				if var.enabled
 				or (var.vecVar and var.vecVar.enabled)
 				then
 				--]]do
-					lines:append{
+					lines:insert(
 						template(var.displayCode, {
 							solver = self,
 							var = var,
 							name = var.toTexKernelName,
-							
+						
 							input = 
-							
-							-- nvidia needed this, but I don't want to write only -- I want to accumulate and do other operations
-							'write_only '..
-							-- if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
-								
+								-- nvidia needed this, but I don't want to write only -- I want to accumulate and do other operations
+								'write_only '..
+								-- if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
 								(self.dim == 3
 									and 'image3d_t'
 									or 'image2d_t'
 								)..' tex',
+							-- TODO no accum function support yet
 							output = template([[
-#warning no accum function support yet
-write_imagef(
-	tex,
-	<? if solver.dim == 3 then ?> i <? else ?> i.xy <? end ?>,
-	(float4)(value[0], value[1], value[2], 0.));
+	write_imagef(tex, <? 
+if solver.dim == 3 then ?>i<? else ?>i.xy<? end 
+?>, (float4)(value[0], value[1], value[2], 0.));
 ]], {
 		solver = self,
 		accumFunc = self.displayVarAccumFunc and 'max' or nil,
 	}),
 						})
-					}
+					)
 				end
 			end
-		end
-	end
 
-	for _,displayVarGroup in ipairs(self.displayVarGroups) do
-		for _,var in ipairs(displayVarGroup.vars) do
 			var.toBufferKernelName = self.app:uniqueName'calcDisplayVarToBuffer'
 			--[[
 			if var.enabled
 			or (var.vecVar and var.vecVar.enabled)
 			then
 			--]]do
-				lines:append{
+				lines:insert(
 					template(var.displayCode, {
 						solver = self,
 						var = var,
@@ -650,13 +675,12 @@ if accumFunc then
 else
 	?> value[0] <?
 end
-?>
-;
+?>;
 ]], {
 		accumFunc = self.displayVarAccumFunc and 'max' or nil,
 	}),
 					})
-				}
+				)
 			end
 		end
 	end
@@ -834,64 +858,41 @@ why would I bother write to the ghost cells?
 the only reason I can think of is for good subtexel lookup when rendering
 --]]
 DisplayVar.displayCode = [[
-//<?=var.name?>
 kernel void <?=name?>(
 	constant <?=solver.solver_t?>* solver,
 	<?=input?>,
 	const global <?= var.type ?>* buf
-<? if require 'solver.meshsolver'.is(solver) then ?>
-	,const global cell_t* cells			//[numCells]
+<? if require 'solver.meshsolver'.is(solver) then 
+?>	,const global cell_t* cells			//[numCells]
 	,const global iface_t* ifaces		//[numInterfaces]
-<? end ?>
-	<?=
+<? end 
+?><?=
 	var.extraArgs and #var.extraArgs > 0
 		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
 		or ''
-?>
-) {
+?>) {
 	SETBOUNDS(0,0);
-<? if not require 'solver.meshsolver'.is(solver) then ?>
-	int4 dsti = i;
+<? if not require 'solver.meshsolver'.is(solver) then 
+?>	int4 dsti = i;
 	int dstindex = index;
-	
 	real3 x = cell_x(i);
-
-	//now constrain
-	if (i.x < numGhost) i.x = numGhost;
-	if (i.x >= solver->gridSize.x - numGhost) i.x = solver->gridSize.x - numGhost-1;
-<?
-if solver.dim >= 2 then
-?>	if (i.y < numGhost) i.y = numGhost;
-	if (i.y >= solver->gridSize.y - numGhost) i.y = solver->gridSize.y - numGhost-1;
-<?
-end
-if solver.dim >= 3 then
-?>	if (i.z < numGhost) i.z = numGhost;
-	if (i.z >= solver->gridSize.z - numGhost) i.z = solver->gridSize.z - numGhost-1;
+<? for j=0,solver.dim-1 do 
+?>	i.s<?=j?> = clamp(i.s<?=j?>, numGhost, solver->gridSize.s<?=j?> - numGhost - 1);
 <? end
-?>
-	//and recalculate read index
-	index = INDEXV(i);
-<? else	-- mesh ?>
-	int dstindex = index;
+?>	index = INDEXV(i);
+<? else	-- mesh 
+?>	int dstindex = index;
 	real3 x = cells[index].x;
-<? end 		-- mesh vs grid ?>
-
-	//TODO rename to value_real
-	real value[6] = {0,0,0,0,0,0};	//size of largest struct.  TODO how about a union?
-
-	//value-for-type:
-	real* value_real = value;
-	sym3* value_sym3 = (sym3*)value;
-	cplx* value_cplx = (cplx*)value;
-	real3* value_real3 = (real3*)value;
-	cplx3* value_cplx3 = (cplx3*)value;
-
-<?= var.codePrefix or '' ?>
-<?= var.code ?>
-
-<?= output ?>
-}
+<? end 		-- mesh vs grid 
+?>	real value[6] = {0,0,0,0,0,0};	<? -- size of largest struct.  TODO how about a union? ?>
+	<?=var.clFuncName?>(solver, buf, i, index, dsti, dstindex, x, value<?=
+		var.extraArgNames 
+		and #var.extraArgNames > 0 
+		and ', '..var.extraArgNames:concat', '
+		or ''
+	?>);
+<?=output
+?>}
 ]]
 
 function DisplayVar:init(args)
@@ -1100,26 +1101,92 @@ enableVector = false
 			}))
 			group.vars:insert(var)
 
+			-- TODO put in DisplayVar ctor?
+			var.prefixFuncCode = args.prefixFuncCode
+			var.prefixFuncName = args.prefixFuncName
+
+			--[[
+			TODO instead of just duplicating the code,
+			insert a function for the calculation and have the subsequent vars reference that function
+			--]]
 			local infosForType = self:getDisplayInfosForType()
 
 			local infos = infosForType[vartype]
 			if infos then
+				
+				-- var gets the prefix func appended to it
+				-- TODO do we need to save this?
+				local prefixFuncName = self.app:uniqueName'calcDisplayVarPrefixFunc'
+		
+					var.prefixFuncCode = 
+						-- save previous prefix functions
+						(var.prefixFuncCode and var.prefixFuncCode..'\n' or '')
+						-- add our new one
+						..template([[
+void <?=prefixFuncName?>(
+	constant <?=solver.solver_t?>* solver,
+	const global <?= var.type ?>* buf,
+	int4 i,
+	int index, 
+	int4 dsti,
+	int dstindex,
+	real3 x,
+	real* value<?=
+	var.extraArgs and #var.extraArgs > 0
+		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
+		or ''
+?>
+) {
+	real* value_real = value;
+	sym3* value_sym3 = (sym3*)value;
+	cplx* value_cplx = (cplx*)value;
+	real3* value_real3 = (real3*)value;
+	cplx3* value_cplx3 = (cplx3*)value;
+	<?=var.codePrefix or ''?>
+	<?=args.code?>
+}
+]], {
+		solver = self,
+		var = var,
+		args = args,
+		prefixFuncName = prefixFuncName,
+	})
+
+
+				-- hmm, replace the var's code
+				-- should I even be using 'args' past the point of var creation?
+				local code = template([[
+	<?=prefixFuncName?>(solver, buf, i, index, dsti, dstindex, x, value<?=
+		var.extraArgNames 
+		and #var.extraArgNames > 0 
+		and ', '..var.extraArgNames:concat', '
+		or ''
+	?>);]], 
+	{
+		var = var,
+		args = args,
+		prefixFuncName = prefixFuncName,
+	})	
+				var.code = code
+				args.code = code
+
 				for _,info in ipairs(infos) do
-					local scalarVar = addvar(table(args, {
-						name = args.name .. info.name,
-						code = args.code .. info.code,
-						vartype = info.vartype or 'real',
-						magn = info.magn or false,
-						vectorField = info.vartype == 'real3',
-						enabled = group.name == 'U' and self.dim == 1 and info.vartype ~= 'real3',
-					}))
+					local subVarArgs = table(args)
+					subVarArgs.name = args.name .. info.name
+					subVarArgs.code = args.code .. info.code
+					subVarArgs.vartype = info.vartype or 'real'
+					subVarArgs.magn = info.magn or false
+					subVarArgs.vectorField = info.vartype == 'real3'
+					subVarArgs.enabled = group.name == 'U' and self.dim == 1 and info.vartype ~= 'real3'
+					
+					local subVar = addvar(subVarArgs)
 				
 					-- tie together vectors and magnitudes,
 					-- since reduceMin and Max applied to vectors is gonna reduce their magnitude
 					-- so I need to always compile the magnitude kernels, even if they are not enabled
 					if info.magn then
-						var.magVar = scalarVar
-						scalarVar.vecVar = var
+						var.magVar = subVar
+						subVar.vecVar = var
 					end
 				end
 			end
@@ -1170,9 +1237,12 @@ function SolverBase:addDisplayVars()
 	}
 
 
-	-- TODO flexible for our integrator
+--[[ use for debugging only for the time being
+	-- TODO make this flexible for our integrator
 	-- if I put this here then integrator isn't created yet
 	-- but if I put this after integrator then display variable init has already happened
+	-- also TODO - either only use the UBuf's state variables, 
+	-- or don't regen all the display var code somehow and just bind derivbuf to the ubuf functions
 	do	--if self.integrator.derivBufObj then
 		local group = self:newDisplayVarGroup{name='deriv'}
 		local args = self:getUBufDisplayVarsArgs()
@@ -1182,6 +1252,7 @@ function SolverBase:addDisplayVars()
 		-- why in addUBufDisplayVars() do I make a new group and assign args.group to it?
 		self:addDisplayVarGroup(args, self.DisplayVar_U)
 	end
+--]]
 end
 
 -- depends on self.eqn
