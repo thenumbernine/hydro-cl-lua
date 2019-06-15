@@ -34,6 +34,9 @@ SolverBase.name = 'Solver'
 -- override to specify which eqn/*.lua to use as the equation
 SolverBase.eqnName = nil
 
+-- whether to use separate linked binaries.  would it save on compile time?
+SolverBase.useCLLinkLibraries = false
+
 -- whether to check for NaNs
 SolverBase.checkNaNs = false
 
@@ -423,16 +426,60 @@ or should overriding the state be allowed?
 --]]
 end
 
+function SolverBase:buildMathCLUnlinked()
+if not SolverBase.useCLLinkLibraries then return end
+	if self.mathUnlinkedObj then return end
+	-- build math cl binary obj
+	time('compiling math program', function()
+		self.mathUnlinkedObj = self.Program{
+			name = 'math',
+			code = template(table{
+				file['math.types.h'],
+				file['math.h'],
+				file['math.cl'],
+			}:concat'\n', {app=self.app}),
+		}
+		self.mathUnlinkedObj:compile{
+			dontLink = true,
+			buildOptions = '-create-library',
+		}
+	end)
+end
+
 -- depends on buffers
 function SolverBase:refreshSolverProgram()
 	self:refreshGetULR()	
 
-	local code = self:getSolverCode()	-- depends on createDisplayVars
+	self:buildMathCLUnlinked()
 
+	local code
+	time('generating solver code', function()
+		code = self:getSolverCode()	-- depends on createDisplayVars
+	end)
+
+if SolverBase.useCLLinkLibraries then 
 	time('compiling solver program', function()
-		self.solverProgramObj = self.Program{name='solver', code=code}
+		self.solverUnlinkedObj = self.Program{
+			name = 'solver',
+			code = code,
+		}
+		self.solverUnlinkedObj:compile{dontLink=true}
+	end)
+
+	time('linking solver program', function()
+		self.solverProgramObj = self.Program{
+			programs = {self.mathUnlinkedObj, self.solverUnlinkedObj},
+		}
+	end)
+else
+	time('linking solver program', function()
+		self.solverProgramObj = self.Program{
+			name = 'solver',
+			code = code,
+		}
 		self.solverProgramObj:compile()
 	end)
+end
 
 	self:refreshCalcDTKernel()
 
@@ -624,16 +671,21 @@ function SolverBase:refreshInitStateProgram()
 	self.eqn.initState:refreshInitStateProgram(self)
 end
 
-function SolverBase:createCodePrefix()
+-- TODO compile the code of CommonCode into a bin of its own
+--  and link against it instead of recopying and recompiling
+function SolverBase:createCodePrefixHeader()
+	-- header
+	
 	local lines = table()
 	
+	-- real3
+	lines:insert(template(file['math.types.h'], {app=self.app}))
+	lines:insert(template(file['math.h']))
+
 	if self.dim == 3 then
 		lines:insert'#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable'
 	end
 
-	-- real3
-	lines:insert(template(file['math.types.h'], {app=self.app}))
-	
 	lines:append{
 		'#ifndef M_PI',
 		'#define M_PI '..('%.50f'):format(math.pi),
@@ -647,38 +699,52 @@ function SolverBase:createCodePrefix()
 		'#define numWaves '..self.eqn.numWaves,
 	}
 
-	-- TODO compile the code of CommonCode into a bin of its own
-	--  and link against it instead of recopying and recompiling
-
-	-- real3_rotateFrom, real3_rotateTo depend on 'dim'
-	lines:insert(template(file['math.cl']))
-	
-	lines:insert(self.coord:getCode(self))
-
 	-- this can use the coord_raise or coord_lower code
 	-- which is associated with the coordinate system,
 	lines:append{
 		'//SolverBase:createCodePrefix() begin',
 		
-		'//...self.eqn:getTypeCode()',
+		'//SolverBase.eqn:getTypeCode()',
 		self.eqn:getTypeCode(),
 		
-		'//...self:getSolverTypeCode()',
+		'//SolverBase:getSolverTypeCode()',
 		self:getSolverTypeCode(),
 		
-		'//...self.eqn:getExtraTypeCode()',
+		'//SolverBase.eqn:getExtraTypeCode()',
 		self.eqn:getExtraTypeCode(),
 		
-		'//...self.eqn:getEigenTypeCode()',
+		'//SolverBase.eqn:getEigenTypeCode()',
 		self.eqn:getEigenTypeCode() or '',
-		
-		'//...self.eqn:getCodePrefix()',
-		self.eqn:getCodePrefix() or '',
-		
-		'//SolverBase:createCodePrefix() end',
 	}
+	
+	return lines:concat'\n'
+end
 
-	self.codePrefix = lines:concat'\n'
+-- TODO split 'codePrefix' into the common header and common source
+
+function SolverBase:createCodePrefixSource()
+	lines = table()
+if not SolverBase.useCLLinkLibraries then 
+	lines:append{
+		'//math.ch',
+		template(file['math.cl']),
+	}
+end	
+	lines:append{
+		'//solver.coord:getCode()',
+		self.coord:getCode(self) or '',
+		
+		'//solver.eqn:getCodePrefix()',
+		self.eqn:getCodePrefix() or '',
+	}
+	return lines:concat'\n'
+end
+
+function SolverBase:createCodePrefix()
+	self.codePrefix = table{
+		self:createCodePrefixHeader(),
+		self:createCodePrefixSource(),
+	}:concat'\n'
 end
 
 

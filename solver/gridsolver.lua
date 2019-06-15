@@ -122,12 +122,15 @@ function GridSolver:preInit(args)
 		self.name = args.name
 		args.env = solver.app.env
 		args.domain = solver.domain
-		local path = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
 		-- [[ caching binaries, which doesn't write unless the program successfully compiles
-		if useCache then args.cacheFile = path end
+		if args.name then
+			local path = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
+			if useCache then args.cacheFile = path end
+		end
 		Program.super.init(self, args)
 		--]]
 		--[[ Write generated code the first time.  Subsequent times use the pre-existing code.  Useful for debugging things in the generated OpenCL.
+		local path = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
 		local clfn = path..'.cl'
 		if io.fileexists(clfn) then
 			local cachedCode = file[clfn]

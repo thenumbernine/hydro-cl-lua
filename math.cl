@@ -1,68 +1,13 @@
+// This file needs to be templated, so it must be processed and manually inserted
+// I could write out the templated math.h file into the cache-cl folder, and then add that to the CL compiler include folder, and include it from there ...
+//#include "math.h"
+
 <?
 local common = require 'common'()	-- xNames, symNames
 local xNames = common.xNames
 local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
 local sym = common.sym
 ?>
-
-/*
-unit conversion variables.
-my current convention is this:
-- initial conditions should provide variables to eqn pre-converted to unitless if they so desire.
-- (therefore) state variables should be considered unitless.
-- solver variables are not yet converted to unitless.  every time they are referenced, factor out the units.
-- right now I'm dividing by units to convert to unitless, and multiplying by units to convert out.  This might be the inverse of what I should be doing.  The plus side is when inputting units to the conversion, you don't have to invert so often. 'meter = 6.3716' gives you 1 distance unit = 6.3716 meters.
-*/
-
-#define unit_m					solver->meter
-#define unit_s					solver->second
-#define unit_kg					solver->kilogram
-#define unit_C					solver->coulomb
-#define unit_K					solver->kelvin
-
-#define unit_m2					(unit_m * unit_m)
-#define unit_m3					(unit_m * unit_m * unit_m)
-#define unit_s2					(unit_s * unit_s)
-#define unit_C2					(unit_C * unit_C)
-#define unit_m_per_s			(unit_m / unit_s)
-#define unit_m2_per_s2			(unit_m2 / unit_s2)
-#define unit_m3_per_kg_s2		(unit_m3 / (unit_kg * unit_s2))
-#define unit_kg_per_m3			(unit_kg / unit_m3)
-#define unit_kg_per_m2_s		(unit_kg / (unit_m2 * unit_s))
-#define unit_kg_per_m_s2		(unit_kg / (unit_m * unit_s2))
-#define unit_C_per_kg			(unit_C / unit_kg)
-#define unit_C_per_m2			(unit_C / unit_m2)
-#define unit_kg_per_C_s			(unit_kg / (unit_C * unit_s))
-#define unit_kg_m_per_C2		(unit_kg * unit_m / unit_C2)
-#define unit_C2_s_per_kg_m3		((unit_C2 * unit_s) / (unit_kg * unit_m3))
-#define unit_C2_s2_per_kg_m3	((unit_C2 * unit_s2) / (unit_kg * unit_m3))
-
-
-#define real_conj(x)		(x)
-#define real_from_real(x)	(x)
-#define real_from_cplx(x)	((x).re)
-#define real_zero			0
-#define real_neg(x)			(-(x))
-#define real_inv(x)			(1./(x))
-#define real_add(a,b)		((a) + (b))
-#define real_sub(a,b)		((a) - (b))
-#define real_mul(a,b)		((a) * (b))
-#define real_real_mul(a,b)	((a) * (b))
-#define real_div(a,b)		((a) / (b))
-#define real_lenSq(x)		((x) * (x))
-#define real_abs			fabs
-
-#define real_sqrt			sqrt
-
-#define _cplx(a,b) 			(cplx){.s={a,b}}
-#define cplx_from_real(x)	_cplx(x,0)
-#define cplx_from_cplx(x)	(x)
-#define cplx_zero 			cplx_from_real(0)
-
-
-#define _sym3(a,b,c,d,e,f) (sym3){.s={a,b,c,d,e,f}}
 
 cplx cplx_conj(cplx a) {
 	return _cplx(a.re, -a.im);
@@ -174,11 +119,6 @@ function makevec3(vec,scalar)
 	local add3 = scalar..'_add3'
 	local mul3 = scalar..'_mul3'
 ?>
-
-#define <?=scalar?>_add3(a,b,c)	(<?=add?>(<?=add?>(a,b),c))
-#define <?=scalar?>_mul3(a,b,c)	(<?=mul?>(<?=mul?>(a,b),c))
-#define _<?=vec?>(a,b,c) 		(<?=vec?>){.s={a,b,c}}
-#define <?=vec?>_zero			_<?=vec?>(<?=scalar?>_zero,<?=scalar?>_zero,<?=scalar?>_zero)
 
 <?=scalar?> <?=vec?>_dot(<?=vec?> a, <?=vec?> b) {
 	return <?=add3?>(
