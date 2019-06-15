@@ -78,10 +78,12 @@ else	-- not useCLLinkLibraries
 		}
 		solver.initStateProgramObj:compile()
 	end)
+--[[ works
 local cl = require 'ffi.OpenCL'
 print('CL_PROGRAM_KERNEL_NAMES', cl.CL_PROGRAM_KERNEL_NAMES)
 local s = solver.initStateProgramObj.obj:getInfo'CL_PROGRAM_KERNEL_NAMES'
 print('CL_PROGRAM_KERNEL_NAMES', #s, s)
+--]]
 end
 	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.solverBuf, solver.UBuf)
 

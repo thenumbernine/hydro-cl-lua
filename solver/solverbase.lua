@@ -184,7 +184,15 @@ end
 
 function SolverBase:postInit()
 	self:createDisplayVars()	-- depends on self.eqn
+	
 	self:refreshGridSize()		-- depends on createDisplayVars
+	-- refreshGridSize calls refreshCodePrefix 
+	-- ... calls refreshEqnInitState
+	-- ... calls refreshSolverProgram 
+	-- ... which needs display vars
+	-- TODO get rid of this 'refresh' stuff.  
+	-- it was designed for callbacks when changing grid resolution, integrator, etc while the simulation was live.
+	-- doing this now is unreasonable, considering how solver_t is tightly wound with initState, eqn, and the scheme
 
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
@@ -1236,8 +1244,7 @@ function SolverBase:addDisplayVars()
 		vars = {{['0'] = '*value = buf[index];'}},
 	}
 
-
---[[ use for debugging only for the time being
+-- [[ use for debugging only for the time being
 	-- TODO make this flexible for our integrator
 	-- if I put this here then integrator isn't created yet
 	-- but if I put this after integrator then display variable init has already happened

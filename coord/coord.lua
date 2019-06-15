@@ -366,7 +366,7 @@ function CoordinateSystem:init(args)
 	-- uCode is used to project the grid for displaying
 	self.uCode = range(dim):mapi(function(i) 
 		local uCode = compile(u[i])
-		if cmdline.corodVerbose then
+		if cmdline.coordVerbose then
 			if uCode ~= '0.' then
 				print('uCode['..i..'] = '..substCoords(uCode))
 			end
@@ -384,7 +384,7 @@ function CoordinateSystem:init(args)
 	self.eCode = eExt:mapi(function(ei,i) 
 		return ei:mapi(function(eij,j)
 			local eijCode = compile(eij) 
-			if cmdline.corodVerbose then
+			if cmdline.coordVerbose then
 				if eijCode ~= '0.' then
 					print('eCode['..i..']['..j..'] = '..substCoords(eijCode))
 				end			
@@ -404,7 +404,7 @@ function CoordinateSystem:init(args)
 	
 	self.eHolLenCode = eHolLen:mapi(function(eiHolLen, i)
 		local eiHolLenCode = compile(eiHolLen)
-		if cmdline.corodVerbose then
+		if cmdline.coordVerbose then
 			print('eHolLen['..i..'] = '..substCoords(eiHolLenCode))
 		end
 		return eiHolLenCode
@@ -417,7 +417,7 @@ function CoordinateSystem:init(args)
 		return ei:mapi(function(eij) return (eij/eExtLen[i])() end)
 	end)
 	self.eUnitCode = eExtUnit:mapi(function(ei_unit,i) return ei_unit:mapi(compile) end)
-	if cmdline.corodVerbose then
+	if cmdline.coordVerbose then
 		print('eUnitCode = ', tolua(self.eUnitCode, {indent=true}))
 	end
 --]=]
@@ -426,7 +426,7 @@ function CoordinateSystem:init(args)
 	local lowerExpr = paramU'_a'()
 	self.lowerCodes = range(dim):mapi(function(i)
 		local lowerCode = compile(lowerExpr[i])
-		if cmdline.corodVerbose then
+		if cmdline.coordVerbose then
 			print('lowerCode['..i..'] = '..substCoords(lowerCode))
 		end
 		return lowerCode
@@ -436,7 +436,7 @@ function CoordinateSystem:init(args)
 	local raiseExpr = paramU'_a'()
 	self.raiseCodes = range(dim):mapi(function(i)
 		local raiseCode = compile(raiseExpr[i])
-		if cmdline.corodVerbose then
+		if cmdline.coordVerbose then
 			print('raiseCode['..i..'] = '..substCoords(raiseCode))
 		end
 		return raiseCode
@@ -445,7 +445,7 @@ function CoordinateSystem:init(args)
 	-- v^k v_k
 	local lenSqExpr = (paramU'^a' * paramU'_a')()
 	self.uLenSqCode = compile(lenSqExpr)
-	if cmdline.corodVerbose then
+	if cmdline.coordVerbose then
 		print('uLenSqCodes = '..substCoords(self.uLenSqCode))
 	end
 
@@ -453,7 +453,7 @@ function CoordinateSystem:init(args)
 		return range(dim):mapi(function(i)
 			return range(dim):map(function(j)
 				local code = compile(dg[k][i][j])
-				if cmdline.corodVerbose then
+				if cmdline.coordVerbose then
 					if code ~= '0.' then
 						print('dg['..k..i..j..'] = '..substCoords(code))
 					end
@@ -468,7 +468,7 @@ function CoordinateSystem:init(args)
 			return range(dim):mapi(function(i)
 				return range(dim):map(function(j)
 					local code = compile(d2g[k][l][i][j])
-					if cmdline.corodVerbose then
+					if cmdline.coordVerbose then
 						if code ~= '0.' then
 							print('d2g['..k..l..i..j..'] = '..substCoords(code))
 						end
@@ -483,7 +483,7 @@ function CoordinateSystem:init(args)
 		return range(dim):mapi(function(j)
 			return range(dim):mapi(function(k)
 				local code = compile(Gamma_lll[i][j][k])
-				if cmdline.corodVerbose then
+				if cmdline.coordVerbose then
 					if code ~= '0.' then
 						print('connCode_lll['..i..j..k..'] = '..substCoords(code))
 					end
@@ -497,7 +497,7 @@ function CoordinateSystem:init(args)
 		return range(dim):mapi(function(j)
 			return range(dim):mapi(function(k)
 				local code = compile(Gamma_ull[i][j][k])
-				if cmdline.corodVerbose then
+				if cmdline.coordVerbose then
 					if code ~= '0.' then
 						print('connCode_ull['..i..j..k..'] = '..substCoords(code))
 					end
@@ -511,7 +511,7 @@ function CoordinateSystem:init(args)
 	local connExpr = (Gamma_ull'^a_bc' * paramU'^b' * paramV'^c')()
 	self.connApply23Codes = range(dim):mapi(function(i)
 		local conniCode = compile(connExpr[i])
-		if cmdline.corodVerbose then
+		if cmdline.coordVerbose then
 			if conniCode ~= '0.' then
 				print('connApply23Code['..i..'] = '..substCoords(conniCode))
 			end		
@@ -523,7 +523,7 @@ function CoordinateSystem:init(args)
 	local connLastExpr = (paramU'^b' * paramV'^c' * Gamma_ull'_bc^a')()
 	self.connApply12Codes = range(dim):mapi(function(i)
 		local code = compile(connLastExpr[i])
-		if cmdline.corodVerbose then
+		if cmdline.coordVerbose then
 			if code ~= '0.' then
 				print('connApply12Code['..i..'] = '..substCoords(code))
 			end		
@@ -535,7 +535,7 @@ function CoordinateSystem:init(args)
 	local tr23_conn_u_codes = (Gamma_ull'^a_b^b')()
 	self.tr23_conn_u_codes = range(dim):mapi(function(i)
 		local code = compile(tr23_conn_u_codes[i])
-		if cmdline.corodVerbose then
+		if cmdline.coordVerbose then
 			if code ~= '0.' then
 				print('tr23_conn_u_code['..i..'] = '..substCoords(code))
 			end		
@@ -547,7 +547,7 @@ function CoordinateSystem:init(args)
 	local tr13_conn_l_codes = (Gamma_ull'^b_ab')()
 	self.tr13_conn_l_codes = range(dim):mapi(function(i)
 		local code = compile(tr13_conn_l_codes[i])
-		if cmdline.corodVerbose then
+		if cmdline.coordVerbose then
 			if code ~= '0.' then
 				print('tr13_conn_l_code['..i..'] = '..substCoords(code))
 			end		
@@ -566,7 +566,7 @@ function CoordinateSystem:init(args)
 	-- therefore it is based on the holonomic metric
 	self.dxCodes = range(dim):mapi(function(i)
 		local lenCode = compile(lenExprs[i])
-		if cmdline.corodVerbose then
+		if cmdline.coordVerbose then
 			print('dxCode['..i..'] = '..substCoords(lenCode))
 		end
 		return lenCode
@@ -586,7 +586,7 @@ function CoordinateSystem:init(args)
 	-- area of the side in each direction
 	self.areaCodes = range(dim):mapi(function(i)
 		local areaCode = compile(areaExprs[i])
-		if cmdline.corodVerbose then
+		if cmdline.coordVerbose then
 			print('areaCode['..i..'] = '..substCoords(areaCode))
 		end
 		return areaCode
@@ -596,7 +596,7 @@ function CoordinateSystem:init(args)
 	self.gCode = range(dim):mapi(function(i)
 		return range(i,dim):mapi(function(j)
 			local gijCode = compile(self.g[i][j])
-			if cmdline.corodVerbose then
+			if cmdline.coordVerbose then
 				if gijCode ~= '0.' then
 					print('g['..i..']['..j..'] = '..substCoords(gijCode))
 				end			
@@ -610,7 +610,7 @@ function CoordinateSystem:init(args)
 	self.gUCode = range(dim):mapi(function(i)
 		return range(i,dim):mapi(function(j)
 			local gUijCode = compile(self.gU[i][j])
-			if cmdline.corodVerbose then
+			if cmdline.coordVerbose then
 				if gUijCode ~= '0.' then
 					print('gU['..i..']['..j..'] = '..substCoords(gUijCode))
 				end			
@@ -623,7 +623,7 @@ function CoordinateSystem:init(args)
 	self.sqrt_gUCode = range(dim):mapi(function(i)
 		return range(i,dim):mapi(function(j)
 			local sqrt_gUijCode = compile(sqrt_gU[i][j])
-			if cmdline.corodVerbose then
+			if cmdline.coordVerbose then
 				if sqrt_gUijCode ~= '0.' then
 					print('sqrt(gU['..i..']['..j..']) = '..substCoords(sqrt_gUijCode))
 				end			
@@ -634,13 +634,13 @@ function CoordinateSystem:init(args)
 
 	local det_g_expr = symmath.Matrix.determinant(gHol)
 	self.det_g_code = compile(det_g_expr)
-	if cmdline.corodVerbose then
+	if cmdline.coordVerbose then
 		print('det_g_code = '..substCoords(self.det_g_code))
 	end
 
 	local volumeExpr = symmath.sqrt(det_g_expr)()
 	self.volumeCode = compile(volumeExpr)
-	if cmdline.corodVerbose then
+	if cmdline.coordVerbose then
 		print('volumeCode = '..substCoords(self.volumeCode))
 	end
 end
