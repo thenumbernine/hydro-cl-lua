@@ -555,7 +555,7 @@ function CoordinateSystem:init(args)
 		return code
 	end)
 
-	local lenExprs = range(dim):mapi(function(i)
+	self.lenExprs = range(dim):mapi(function(i)
 		local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
 		local lenSqExpr = (dir'^a' * dir'^b' * gHol'_ab')()
 		local lenExpr = symmath.sqrt(lenSqExpr)()
@@ -565,7 +565,7 @@ function CoordinateSystem:init(args)
 	-- dx is the change across the grid
 	-- therefore it is based on the holonomic metric
 	self.dxCodes = range(dim):mapi(function(i)
-		local lenCode = compile(lenExprs[i])
+		local lenCode = compile(self.lenExprs[i])
 		if cmdline.coordVerbose then
 			print('dxCode['..i..'] = '..substCoords(lenCode))
 		end
@@ -576,7 +576,7 @@ function CoordinateSystem:init(args)
 		local area = const(1)
 		for j=1,dim do
 			if j ~= i then
-				area = area * lenExprs[j]
+				area = area * self.lenExprs[j]
 			end
 		end
 		area = area()
@@ -928,11 +928,34 @@ real coordLen(real3 r, real3 pt) {
 			end
 		end
 		
-		addSym3Components('coord_g', self.gCode)
-		addSym3Components('coord_gU', self.gUCode)
-		addSym3Components('coord_sqrt_gU', self.sqrt_gUCode)
-		lines:insert(getCode_real3_to_sym3('coord_g', self.gCode))
-		lines:insert(getCode_real3_to_sym3('coord_gU', self.gUCode))
+		addSym3Components('coord_g_ll', self.gCode)
+		lines:insert(getCode_real3_to_sym3('coord_g_ll', self.gCode))
+		
+		addSym3Components('coord_g_uu', self.gUCode)
+		lines:insert(getCode_real3_to_sym3('coord_g_uu', self.gUCode))
+		
+		addSym3Components('coord_sqrt_g_uu', self.sqrt_gUCode)
+	
+		-- now, for num rel in spherical, I need to transform the metric to remove the singularities ...
+		local symmath = require 'symmath'
+		local Matrix = symmath.Matrix
+		local Tensor = symmath.Tensor
+		
+		local rescale = Tensor('^a_b', function(i,j)
+			return i == j and (1 / self.lenExprs[i]) or 0
+		end)
+		print'rescaling transform:'
+		print(rescale)
+		local Tensor = symmath.Tensor
+		local rescaleInv = Tensor('_a^b', table.unpack((Matrix.inverse(rescale))))
+		print'rescaling inverse transform:'
+		print(rescaleInv)
+		local gRescaled = (self.g'_ab' * rescale'^a_u' * rescale'^b_v')()
+		print'g_ij, in rescaled coordinates:'
+		print(gRescaled)
+		local gRescaledU = (self.gU'^ab' * rescaleInv'_u^a' * rescaleInv'_v^b')()
+		print'g^ij, in rescaled coordinates:'
+		print(gRescaledU)
 	end
 
 	lines:insert(template([[
@@ -944,11 +967,12 @@ real3 cartesianToCoord(real3 u, real3 pt) {
 	real3 uCoord = real3_zero;
 	<? for i=0,solver.dim-1 do ?>{
 		real3 e = coordBasis<?=i?>(pt);
-		//anholonomic normalized
-		//uCoord.s<?=i?> = real3_dot(e, u); // / real3_len(e);
-		//holonomic
-		real uei = real3_dot(e, u) / real3_lenSq(e);
-		uCoord.s<?=i?> = uei;
+<? if coord.anholonomic then	-- anholonomic normalized
+?>		uCoord.s<?=i?> = real3_dot(e, u); // / real3_len(e);
+<? else		-- holonomic
+?>		real uei = real3_dot(e, u) / real3_lenSq(e);
+<? end		
+?>		uCoord.s<?=i?> = uei;
 		//subtract off this basis component from u
 		u = real3_sub(u, real3_real_mul(e, uei));
 	}<? end ?>
@@ -970,6 +994,7 @@ real3 cartesianFromCoord(real3 u, real3 pt) {
 
 ]], {
 		solver = solver,
+		coord = self,
 	}))
 
 	lines:insert(self:getCoordMapCode())

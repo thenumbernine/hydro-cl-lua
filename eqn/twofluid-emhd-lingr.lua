@@ -618,7 +618,7 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.eigenVars = eigenVars
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCodePrefix(side, eig, x)
 	return template([[
 <? for i,fluid in ipairs(fluids) do ?>
-	real <?=fluid?>_Cs_sqrt_gU = <?=eig?>.<?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(<?=x?>);
+	real <?=fluid?>_Cs_sqrt_gU = <?=eig?>.<?=fluid?>_Cs * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
 	real <?=fluid?>_v_n = <?=eig?>.<?=fluid?>_v.s[<?=side?>];
 <? end ?>
 ]], {
@@ -690,7 +690,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodePrefix(side, U, x)
 
 <? for _,fluid in ipairs(eqn.fluids) do
 ?>	real <?=fluid?>_Cs = calc_<?=fluid?>_Cs(solver, &W);
-	real <?=fluid?>_Cs_sqrt_gU = <?=fluid?>_Cs * coord_sqrt_gU<?=side..side?>(x);
+	real <?=fluid?>_Cs_sqrt_gU = <?=fluid?>_Cs * coord_sqrt_g_uu<?=side..side?>(x);
 	consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, W.<?=fluid?>_v.s<?=side?> - <?=fluid?>_Cs_sqrt_gU);
 	consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, W.<?=fluid?>_v.s<?=side?> + <?=fluid?>_Cs_sqrt_gU);
 <? end

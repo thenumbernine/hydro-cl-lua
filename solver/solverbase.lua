@@ -4,6 +4,7 @@ local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
 local class = require 'ext.class'
 local table = require 'ext.table'
+local string = require 'ext.string'
 local file = require 'ext.file'
 local math = require 'ext.math'
 local CLBuffer = require 'cl.obj.buffer'
@@ -580,23 +581,58 @@ function SolverBase:getSolverCode()
 	}:concat'\n'
 end
 
+local function shouldDeferCode(code)
+	return #string.split(string.trim(code), '\n') > 3
+end
+
 function SolverBase:getDisplayCode()
 	local lines = table()
+
+--[[
+-- ok here's another idea for saving lines of code
+-- add some predefined functions for getters for real, real3, sym3, cplx, cplx3
+-- and - if your variable is just a member of a struct of one of these types, use that.
+-- (this means adding in an extra param for display: the offset)
+	local gettersBuilt = {}
+	local function buildSimpleGetters(var.type)
+		if gettersBuilt[var.type] then return end
+		gettersBuilt[var.type] = true
 	
+		local name = 'calcDisplayVarSimple'
+		for _,ctype in ipairs{'real', 'real3', 'sym3', 'cplx', 'cplx3'} do
+			-- TODO how to know if it is Tex vs Buf?
+			lines:insert(template(self.displayCode, {
+				name = name..'_'..ctype,
+				var = table(var, {
+					code = '*value_'..ctype..' = U->'..var.field..';\n'
+				}),
+			}))
+		end
+		return name
+	end
+--]]
+
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
 		for _,var in ipairs(displayVarGroup.vars) do
-			var.id = tostring(var):sub(10)	-- is this used anymore?
-	
+--[[ thinking on how to reduce the display code
+--	one solution: create predefined display var code for simple types
+--	TODO don't forget to include _mag, and all the other derived values in getDisplayInfosForType()
+			if var.field then
+				-- TODO change var.type to var.bufferType
+				-- and var.vartype to var.type
+				buildSimpleGetters(var.type)
+			end
+--]]			
 			lines:insert('//'..var.name..'\n')
 
 			if var.prefixFuncCode then
 				lines:insert(var.prefixFuncCode)
 			end
 
-			var.clFuncName = self.app:uniqueName'calcDisplayVar'
-
-			lines:insert(template([[
-void <?=var.clFuncName?>(
+			if shouldDeferCode(var.code) then
+				local clFuncName = self.app:uniqueName'calcDisplayVar'
+				lines:insert(template([[
+void <?=clFuncName?>(
 	constant <?=solver.solver_t?>* solver,
 	const global <?= var.type ?>* buf,
 	int4 i,
@@ -618,10 +654,40 @@ void <?=var.clFuncName?>(
 <?=var.codePrefix or ''?>
 <?=var.code?>
 }
-]], 		{
-				solver = self,
-				var = var,
-			}))
+]], 			{
+					solver = self,
+					var = var,
+					clFuncName = clFuncName,
+				}))
+			
+				var.code = template([[
+	<?=clFuncName?>(solver, buf, i, index, dsti, dstindex, x, value<?=
+		var.extraArgNames 
+		and #var.extraArgNames > 0 
+		and ', '..var.extraArgNames:concat', '
+		or ''
+	?>);
+]], 			{
+					var = var,
+					clFuncName = clFuncName,
+				})
+			else
+				-- hmm, this will change its success the next time through this test
+				-- so this is destructive, only run it once per display var?
+				-- or better yet TODO somewhere earlier, maybe before the 'prefix func' stuff,
+				-- prepend 'var.codePrefix' onto 'var.code'
+				var.code = template([[
+	real* value_real = value;
+	sym3* value_sym3 = (sym3*)value;
+	cplx* value_cplx = (cplx*)value;
+	real3* value_real3 = (real3*)value;
+	cplx3* value_cplx3 = (cplx3*)value;
+<?=var.codePrefix or ''?>
+<?=var.code?>
+]],				{
+					var = var,
+				})
+			end
 
 			if self.app.useGLSharing then
 				var.toTexKernelName = self.app:uniqueName'calcDisplayVarToTex'
@@ -869,16 +935,14 @@ DisplayVar.displayCode = [[
 kernel void <?=name?>(
 	constant <?=solver.solver_t?>* solver,
 	<?=input?>,
-	const global <?= var.type ?>* buf
-<? if require 'solver.meshsolver'.is(solver) then 
-?>	,const global cell_t* cells			//[numCells]
-	,const global iface_t* ifaces		//[numInterfaces]
-<? end 
-?><?=
-	var.extraArgs and #var.extraArgs > 0
+	const global <?= var.type ?>* buf<?
+if require 'solver.meshsolver'.is(solver) then ?>
+	,const global cell_t* cells			//[numCells]
+	,const global iface_t* ifaces		//[numInterfaces]<?
+end ?><?= var.extraArgs and #var.extraArgs > 0
 		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
-		or ''
-?>) {
+		or '' ?>
+) {
 	SETBOUNDS(0,0);
 <? if not require 'solver.meshsolver'.is(solver) then 
 ?>	int4 dsti = i;
@@ -893,12 +957,7 @@ kernel void <?=name?>(
 	real3 x = cells[index].x;
 <? end 		-- mesh vs grid 
 ?>	real value[6] = {0,0,0,0,0,0};	<? -- size of largest struct.  TODO how about a union? ?>
-	<?=var.clFuncName?>(solver, buf, i, index, dsti, dstindex, x, value<?=
-		var.extraArgNames 
-		and #var.extraArgNames > 0 
-		and ', '..var.extraArgNames:concat', '
-		or ''
-	?>);
+	<?=var.code?>
 <?=output
 ?>}
 ]]
@@ -1121,11 +1180,10 @@ enableVector = false
 
 			local infos = infosForType[vartype]
 			if infos then
-				
-				-- var gets the prefix func appended to it
-				-- TODO do we need to save this?
-				local prefixFuncName = self.app:uniqueName'calcDisplayVarPrefixFunc'
-		
+				if shouldDeferCode(var.code) then
+					-- var gets the prefix func appended to it
+					-- TODO do we need to save this?
+					local prefixFuncName = self.app:uniqueName'calcDisplayVarPrefixFunc'
 					var.prefixFuncCode = 
 						-- save previous prefix functions
 						(var.prefixFuncCode and var.prefixFuncCode..'\n' or '')
@@ -1153,30 +1211,30 @@ void <?=prefixFuncName?>(
 	<?=var.codePrefix or ''?>
 	<?=args.code?>
 }
-]], {
-		solver = self,
-		var = var,
-		args = args,
-		prefixFuncName = prefixFuncName,
-	})
+]], 				{
+						solver = self,
+						var = var,
+						args = args,
+						prefixFuncName = prefixFuncName,
+					})
 
 
-				-- hmm, replace the var's code
-				-- should I even be using 'args' past the point of var creation?
-				local code = template([[
+					-- hmm, replace the var's code
+					-- should I even be using 'args' past the point of var creation?
+					local code = template([[
 	<?=prefixFuncName?>(solver, buf, i, index, dsti, dstindex, x, value<?=
 		var.extraArgNames 
 		and #var.extraArgNames > 0 
 		and ', '..var.extraArgNames:concat', '
 		or ''
-	?>);]], 
-	{
-		var = var,
-		args = args,
-		prefixFuncName = prefixFuncName,
-	})	
-				var.code = code
-				args.code = code
+	?>);]], 		{
+						var = var,
+						args = args,
+						prefixFuncName = prefixFuncName,
+					})	
+					var.code = code
+					args.code = code
+				end
 
 				for _,info in ipairs(infos) do
 					local subVarArgs = table(args)
@@ -1255,7 +1313,7 @@ function SolverBase:addDisplayVars()
 		local args = self:getUBufDisplayVarsArgs()
 		args.getBuffer = function() return self.integrator.derivBufObj.obj end
 		args.group = group
-		args.vars = self.eqn:getDisplayVars()
+		args.vars = self.eqn:getDisplayVarsForStructVars(self.eqn.consVars)
 		-- why in addUBufDisplayVars() do I make a new group and assign args.group to it?
 		self:addDisplayVarGroup(args, self.DisplayVar_U)
 	end

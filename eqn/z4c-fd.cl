@@ -69,7 +69,7 @@ if eqn.guiVars.constrain_det_gammaBar_ll.value
 or eqn.guiVars.constrain_tr_ABar_ll.value 
 then 
 ?>
-	sym3 gammaHat_ll = coord_g(x);
+	sym3 gammaHat_ll = coord_g_ll(x);
 	sym3 gammaBar_ll = sym3_add(gammaHat_ll, U->epsilon_ll);
 
 	/*

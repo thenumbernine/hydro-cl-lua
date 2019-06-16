@@ -111,7 +111,7 @@ function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
 
 //gammaBar_ij = gammaHat_ij + epsilon_ij
 sym3 calc_gammaBar_ll(global const <?=eqn.cons_t?>* U, real3 x) {
-	sym3 gammaHat_ll = coord_g(x);
+	sym3 gammaHat_ll = coord_g_ll(x);
 	return sym3_add(gammaHat_ll, U->epsilon_ll);
 }
 
@@ -189,7 +189,7 @@ kernel void initState(
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
-	sym3 gammaHat_ll = coord_g(x);
+	sym3 gammaHat_ll = coord_g_ll(x);
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
@@ -331,10 +331,10 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 
 	vars:append{
 		{gamma_ll = [[	*value_sym3 = calc_gamma_ll(U, x);]], type='sym3'},
-		{gammaHat_ll = [[	*value_sym3 = coord_g(x);]], type='sym3'},
+		{gammaHat_ll = [[	*value_sym3 = coord_g_ll(x);]], type='sym3'},
 		{gammaBar_ll = [[	*value_sym3 = calc_gammaBar_ll(U, x);]], type='sym3'},
 		{gamma_uu = [[	*value_sym3 = calc_gamma_uu(U, x);]], type='sym3'},
-		{gammaHat_uu = [[	*value_sym3 = coord_gU(x);]], type='sym3'},
+		{gammaHat_uu = [[	*value_sym3 = coord_g_uu(x);]], type='sym3'},
 		{gammaBar_uu = [[	*value_sym3 = calc_gammaBar_uu(U, x);]], type='sym3'},
 		{K_ll = [[
 	real exp_4phi = 1. / calc_exp_neg4phi(U);

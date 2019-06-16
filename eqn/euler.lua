@@ -324,7 +324,7 @@ Euler.eigenVars = table{
 
 function Euler:eigenWaveCodePrefix(side, eig, x)
 	return template([[
-	real Cs_sqrt_gU = <?=eig?>.Cs * coord_sqrt_gU<?=side..side?>(<?=x?>);
+	real Cs_sqrt_gU = <?=eig?>.Cs * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
 	real v_n = <?=eig?>.v.s[<?=side?>];
 ]], {
 		eig = '('..eig..')',
@@ -339,7 +339,7 @@ function Euler:consWaveCodePrefix(side, U, x, W)
 <? if not W then ?>
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 <? end ?>
-	real Cs_sqrt_gU = calc_Cs(solver, &<?=W or 'W'?>) * coord_sqrt_gU<?=side..side?>(<?=x?>);
+	real Cs_sqrt_gU = calc_Cs(solver, &<?=W or 'W'?>) * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
 	real v_n = <?=W or 'W'?>.v.s[<?=side?>];
 ]], {
 		eqn = self,

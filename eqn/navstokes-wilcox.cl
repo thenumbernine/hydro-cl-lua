@@ -22,7 +22,7 @@
 	F.rhoBar_vTilde = real3_real_mul(U.rhoBar_vTilde, vTilde_j);
 
 <? for i=0,2 do
-?>	F.rhoBar_vTilde.s<?=i?> += coord_gU<?=i?><?=side?>(x) * W.PStar;
+?>	F.rhoBar_vTilde.s<?=i?> += coord_g_uu<?=i?><?=side?>(x) * W.PStar;
 <? end
 ?>	
 	F.rhoBar_eTotalTilde = HTotal * vTilde_j;
@@ -43,7 +43,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 ) {
 	<?=eqn.prim_t?> W = primFromCons(*U, x);
 	real Cs = calc_Cs(W);
-	real Cs_sqrt_gU = Cs * coord_sqrt_gU<?=side..side?>(x);
+	real Cs_sqrt_gU = Cs * coord_sqrt_g_uu<?=side..side?>(x);
 	return (range_t){
 		.min = W.vTilde.s<?=side?> - Cs_sqrt_gU, 
 		.max = W.vTilde.s<?=side?> + Cs_sqrt_gU,
@@ -146,9 +146,9 @@ for side=0,solver.dim-1 do
 	end
 	
 	prefix = [[
-	sym3 gU = coord_gU(x);
+	sym3 gU = coord_g_uu(x);
 	real gUjj = gU.s]]..side..side..[[;
-	real sqrt_gUjj = coord_sqrt_gU]]..side..side..[[(x);
+	real sqrt_gUjj = coord_sqrt_g_uu]]..side..side..[[(x);
 	
 	real3 vTilde = eig.vTilde;
 	real3 vTildeL = coord_lower(vTilde, x);
@@ -164,7 +164,7 @@ for side=0,solver.dim-1 do
 
 	local gUdef = '\treal3 gUj = _real3(\n'
 	for i=0,2 do
-		gUdef = gUdef .. '\t\tcoord_gU'..side..i..'(x)'..(i<2 and ',' or '')..'\n'
+		gUdef = gUdef .. '\t\tcoord_g_uu'..side..i..'(x)'..(i<2 and ',' or '')..'\n'
 	end
 	gUdef = gUdef .. '\t);\n'
 	prefix = gUdef .. prefix

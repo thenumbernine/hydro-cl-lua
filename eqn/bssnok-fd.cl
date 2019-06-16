@@ -333,7 +333,7 @@ end ?>;
 <? end
 ?>	};
 	
-	sym3 gammaHat_uu = coord_gU(x);
+	sym3 gammaHat_uu = coord_g_uu(x);
 	_3sym3 connHat_lll = coord_conn_lll(x);
 	_3sym3 connHat_ull = coord_conn_ull(x);
 	sym3sym3 partial2_gammaHat_llll = coord_d2g_llll(x);
@@ -805,7 +805,7 @@ kernel void constrainU(
 	real3 x = cell_x(i);
 	global cons_t* U = UBuf + index;
 
-	sym3 gammaHat_ll = coord_g(x);
+	sym3 gammaHat_ll = coord_g_ll(x);
 	sym3 gammaBar_ll = sym3_add(gammaHat_ll, U->epsilon_ll);
 <? 
 if eqn.guiVars.constrain_det_gammaBar_ll.value 
@@ -921,7 +921,7 @@ end
 	_3sym3 Delta_lll = sym3_3sym3_mul(gammaBar_ll, Delta_ull);
 
 	sym3sym3 partial2_gammaHat_llll = coord_d2g_llll(x);
-	sym3 gammaHat_uu = coord_gU(x);
+	sym3 gammaHat_uu = coord_g_uu(x);
 
 	_3sym3 partial_gammaHat_lll = coord_dg_lll(x);
 	_3sym3 partial_gammaBar_lll = {

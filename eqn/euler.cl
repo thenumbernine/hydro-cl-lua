@@ -31,7 +31,7 @@ cons_t fluxFromCons_<?=side?>(
 	F.m = real3_real_mul(U.m, vj);
 
 <? for i=0,2 do
-?>	F.m.s<?=i?> += coord_gU<?=i?><?=side?>(x) * W.P;
+?>	F.m.s<?=i?> += coord_g_uu<?=i?><?=side?>(x) * W.P;
 <? end
 ?>	F.ETotal = HTotal * vj;
 	
@@ -50,7 +50,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 ) {
 	prim_t W = primFromCons(solver, *U, x);
 	real Cs = calc_Cs(solver, &W);
-	real Cs_sqrt_gU = Cs * coord_sqrt_gU<?=side..side?>(x);
+	real Cs_sqrt_gU = Cs * coord_sqrt_g_uu<?=side..side?>(x);
 	return (range_t){
 		.min = W.v.s<?=side?> - Cs_sqrt_gU, 
 		.max = W.v.s<?=side?> + Cs_sqrt_gU,
@@ -131,9 +131,9 @@ for side=0,solver.dim-1 do
 	end
 	
 	prefix = [[
-	sym3 gU = coord_gU(x);
+	sym3 gU = coord_g_uu(x);
 	real gUjj = gU.s]]..side..side..[[;
-	real sqrt_gUjj = coord_sqrt_gU]]..side..side..[[(x);
+	real sqrt_gUjj = coord_sqrt_g_uu]]..side..side..[[(x);
 	
 	real3 v = eig.v;
 	real3 vL = coord_lower(v, x);
@@ -146,7 +146,7 @@ for side=0,solver.dim-1 do
 
 	local gUdef = '\treal3 gUj = _real3(\n'
 	for i=0,2 do
-		gUdef = gUdef .. '\t\tcoord_gU'..side..i..'(x)'..(i<2 and ',' or '')..'\n'
+		gUdef = gUdef .. '\t\tcoord_g_uu'..side..i..'(x)'..(i<2 and ',' or '')..'\n'
 	end
 	gUdef = gUdef .. '\t);\n'
 	prefix = gUdef .. prefix

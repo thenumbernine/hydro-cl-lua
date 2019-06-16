@@ -35,7 +35,7 @@ kernel void calcDT(
 		return;
 	}
 	real3 x = cell_x(i);
-	sym3 gammaU = coord_gU(x);
+	sym3 gammaU = coord_g_uu(x);
 
 	<?=eqn.prim_t?> prim = primBuf[index];
 	real rho = prim.rho;
@@ -113,7 +113,7 @@ kernel void calcEigenBasis(
 		
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-		sym3 gammaU = coord_gU(xInt);
+		sym3 gammaU = coord_g_uu(xInt);
 
 <? if true then -- arithmetic averaging ?>
 		<?=eqn.prim_t?> avg = (<?=eqn.prim_t?>){
@@ -234,8 +234,8 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 
 	<?=prefix?>
 	real gammaDet = coord_volume(solver, x);
-	sym3 gammaL = coord_g(x);
-	sym3 gammaU = coord_gU(x);
+	sym3 gammaL = coord_g_ll(x);
+	sym3 gammaU = coord_g_uu(x);
 
 	real3 vL = coord_lower(v, x);
 	real vxSq = v.x * v.x;
@@ -306,7 +306,7 @@ void eigen_rightTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	real3 x
 ) {
 	<?=prefix?>
-	sym3 gammaL = coord_g(x);
+	sym3 gammaL = coord_g_ll(x);
 	
 	real3 vL = coord_lower(v, x);
 	real hW = h * W;

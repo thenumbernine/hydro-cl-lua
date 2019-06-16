@@ -12,10 +12,10 @@ typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
 
 <? for side=0,2 do ?>
-static inline real3 coord_gU<?=side?>(real3 x) {
+static inline real3 coord_g_uu<?=side?>(real3 x) {
 	return _real3(<?
 	for j=0,2 do
-		?>coord_gU<?=side <= j and side..j or j..side?>(x)<?
+		?>coord_g_uu<?=side <= j and side..j or j..side?>(x)<?
 		if j < 2 then ?>, <? end
 	end ?>);
 }
@@ -28,7 +28,7 @@ cons_t fluxFromCons_<?=side?>(
 	real3 x
 ) {
 	cons_t F;
-	F.phi_t = solver->wavespeed * solver->wavespeed * real3_dot(coord_gU<?=side?>(x), U.phi_i),
+	F.phi_t = solver->wavespeed * solver->wavespeed * real3_dot(coord_g_uu<?=side?>(x), U.phi_i),
 	F.phi_i = _real3(0,0,0);
 	F.phi_i.s<?=side?> = U.phi_t;
 	return F;
@@ -41,7 +41,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const global cons_t* U,
 	real3 x
 ) {
-	real c_sqrt_gUii = solver->wavespeed * coord_sqrt_gU<?=side..side?>(x);
+	real c_sqrt_gUii = solver->wavespeed * coord_sqrt_g_uu<?=side..side?>(x);
 	return (range_t){
 		.min = -c_sqrt_gUii,
 		.max = c_sqrt_gUii,
@@ -73,9 +73,9 @@ waves_t eigen_leftTransform_<?=side?>(
 	real c = solver->wavespeed;
 	real cSq = c * c;
 	
-	real sqrt_gUii = coord_sqrt_gU<?=side..side?>(x);
+	real sqrt_gUii = coord_sqrt_g_uu<?=side..side?>(x);
 	real gUii = sqrt_gUii * sqrt_gUii;
-	real phiUi = real3_dot(X.phi_i, coord_gU<?=side?>(x));
+	real phiUi = real3_dot(X.phi_i, coord_g_uu<?=side?>(x));
 	Y.ptr[0] = .5 * (-phiUi / gUii + X.phi_t / (c * sqrt_gUii));
 	Y.ptr[1] = -X.phi_i.s<?=side1?> / (cSq * gUii);
 	Y.ptr[2] = -X.phi_i.s<?=side2?> / (cSq * gUii);
@@ -94,12 +94,12 @@ cons_t eigen_rightTransform_<?=side?>(
 	real c = solver->wavespeed;
 	real cSq = c * c;
 	
-	real sqrt_gUii = coord_sqrt_gU<?=side..side?>(x);
+	real sqrt_gUii = coord_sqrt_g_uu<?=side..side?>(x);
 	real gUii = sqrt_gUii * sqrt_gUii;
 	Y.phi_t = c * sqrt_gUii * (X.ptr[0] - X.ptr[3]);
 	Y.phi_i.s<?=side?> = -X.ptr[0] - X.ptr[3] + cSq * (
-		coord_gU<?=side <= side1 and side..side1 or side1..side?>(x) * X.ptr[1] 
-		+ coord_gU<?=side <= side2 and side..side2 or side2..side?>(x) * X.ptr[2]
+		coord_g_uu<?=side <= side1 and side..side1 or side1..side?>(x) * X.ptr[1] 
+		+ coord_g_uu<?=side <= side2 and side..side2 or side2..side?>(x) * X.ptr[2]
 	);
 	Y.phi_i.s<?=side1?> = -cSq * gUii * X.ptr[1];
 	Y.phi_i.s<?=side2?> = -cSq * gUii * X.ptr[2];

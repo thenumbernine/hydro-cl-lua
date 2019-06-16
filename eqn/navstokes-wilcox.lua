@@ -356,7 +356,7 @@ NavierStokesWilcox.eigenVars = table{
 
 function NavierStokesWilcox:eigenWaveCodePrefix(side, eig, x)
 	return template([[
-	real Cs_sqrt_gU = <?=eig?>->Cs * coord_sqrt_gU<?=side..side?>(<?=x?>);
+	real Cs_sqrt_gU = <?=eig?>->Cs * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
 	real v_n = <?=eig?>->vTilde.s[<?=side?>];
 ]], {
 		eig = '('..eig..')',

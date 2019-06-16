@@ -44,7 +44,7 @@ for _,fluid in ipairs(fluids) do
 	F.<?=fluid?>_rho = U.<?=fluid?>_m.s<?=side?>;
 	F.<?=fluid?>_m = real3_real_mul(U.<?=fluid?>_m, <?=fluid?>_vj);
 <? 	for i=0,2 do
-?>	F.<?=fluid?>_m.s<?=i?> += coord_gU<?=i?><?=side?>(x) * W.<?=fluid?>_P;
+?>	F.<?=fluid?>_m.s<?=i?> += coord_g_uu<?=i?><?=side?>(x) * W.<?=fluid?>_P;
 <? 	end
 ?>	F.<?=fluid?>_ETotal = <?=fluid?>_HTotal * <?=fluid?>_vj;
 <? 
@@ -180,9 +180,9 @@ eigen_t eigen_forCell_<?=side?>(
 ]]
 	end
 	prefix = [[
-	sym3 gU = coord_gU(x);
+	sym3 gU = coord_g_uu(x);
 	real gUjj = gU.s]]..side..side..[[;
-	real sqrt_gUjj = coord_sqrt_gU]]..side..side..[[(x);
+	real sqrt_gUjj = coord_sqrt_g_uu]]..side..side..[[(x);
 	
 	//g^ij for fixed j=side
 	real3 ion_v = eig.ion_v;
@@ -203,7 +203,7 @@ eigen_t eigen_forCell_<?=side?>(
 
 	local gUdef = '\treal3 gUj = _real3(\n'
 	for i=0,2 do
-		gUdef = gUdef .. '\t\tcoord_gU'..side..i..'(x)'..(i<2 and ',' or '')..'\n'
+		gUdef = gUdef .. '\t\tcoord_g_uu'..side..i..'(x)'..(i<2 and ',' or '')..'\n'
 	end
 	gUdef = gUdef .. '\t);\n'
 	prefix = gUdef .. prefix

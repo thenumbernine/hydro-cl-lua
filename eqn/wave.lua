@@ -91,7 +91,7 @@ Wave.eigenVars = {
 
 function Wave:eigenWaveCodePrefix(side, eig, x)
 	return template([[
-	real c_sqrt_gU = solver->wavespeed / unit_m_per_s * coord_sqrt_gU<?=side..side?>(<?=x?>);
+	real c_sqrt_gU = solver->wavespeed / unit_m_per_s * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
 ]], {
 		side = side,
 		x = x,

@@ -105,7 +105,7 @@ function Z4cFiniteDifferenceEquation:getCommonFuncCode()
 
 //gammaBar_ij = gammaHat_ij + epsilon_ij
 sym3 calc_gammaBar_ll(global const <?=eqn.cons_t?>* U, real3 x) {
-	sym3 gammaHat_ll = coord_g(x);
+	sym3 gammaHat_ll = coord_g_ll(x);
 	return sym3_add(gammaHat_ll, U->epsilon_ll);
 }
 
@@ -180,7 +180,7 @@ kernel void initState(
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
 	
-	sym3 gammaHat_ll = coord_g(x);
+	sym3 gammaHat_ll = coord_g_ll(x);
 	sym3 gamma_ll = gammaHat_ll;
 	
 	sym3 K_ll = sym3_zero;
