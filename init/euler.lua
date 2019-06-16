@@ -235,7 +235,8 @@ local initStates = table{
 		initState = function(self, solver)
 			return template([[
 	real3 xc = coordMap(x);
-	real xSq = real3_lenSq(xc);
+	//real xSq = real3_lenSq(xc);
+	real xSq = real3_lenSq(real3_sub(xc, _real3(-.5, -.5, 0.)));
 	rho = (solver->init_rho1 - solver->init_rho0) * exp(-xSq / (solver->init_sigma*solver->init_sigma)) + solver->init_rho0;
 	v.x = solver->init_u0;
 	v.y = solver->init_v0;

@@ -21,11 +21,21 @@ Wave.roeUseFluxFromCons = true
 
 Wave.initStates = require 'init.euler'	 -- use rho as our initial condition
 
-Wave.consVars = table{
-	-- assuming phi is pressure ... since I'm using that for its initial value 
-	{name='phi_t', type='real', units='kg/(m*s^3)'},
-	{name='phi_i', type='real3', units='kg/(m^2*s^2)'},
-}
+-- Sedov initial conditions uses pressure
+-- gaussian, etc use density
+Wave.usePressure = false
+
+if Wave.usePressure then
+	Wave.consVars = table{
+		{name='phi_t', type='real', units='kg/(m*s^3)'},
+		{name='phi_i', type='real3', units='kg/(m^2*s^2)'},
+	}
+else
+	Wave.consVars = table{
+		{name='phi_t', type='real', units='kg/(m^3*s)'},
+		{name='phi_i', type='real3', units='kg/(m^4)'},
+	}
+end
 
 function Wave:createInitState()
 	Wave.super.createInitState(self)
@@ -63,11 +73,12 @@ end
 	<?=code?>
 
 	UBuf[index] = (<?=eqn.cons_t?>){
-		//hmm, this might deserve its own initial conditions ...
-		// for the initialization of these variables:
-		//.phi_t = rho,
-		.phi_t = P,
-		.phi_i = real3_zero,
+<? if eqn.usePressure then
+?>		.phi_t = P,
+<? else		
+?>		.phi_t = rho,
+<? end		
+?>		.phi_i = v,
 	};
 }
 ]]

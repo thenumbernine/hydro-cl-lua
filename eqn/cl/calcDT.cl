@@ -25,6 +25,7 @@ kernel void calcDT(
 		real lambdaMax = <?=eqn:consMaxWaveCode(side, '*U', 'x')?>;
 		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
 		absLambdaMax = max((real)1e-9, absLambdaMax);
+		//TODO cell_dx instead of grid_dx?
 		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
 	}<? end ?>
 	dtBuf[index] = dt;
