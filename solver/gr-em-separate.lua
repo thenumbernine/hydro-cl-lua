@@ -179,8 +179,9 @@ kernel void computeGRStressEnergy(
 	sym3 g_uu = sym3_sub(
 		gamma_uu, 
 		real3_outer(
-			grU->beta_u, 
-			real3_real_mul(grU->beta_u, 1. / (grU->alpha * grU->alpha))));
+			real3_real_mul(
+				grU->beta_u, 
+				1. / grU->alpha)));
 	
 	real3 B_u = emU->B;
 	real3 B_l = sym3_real3_mul(gamma_ll, B_u);
@@ -203,8 +204,8 @@ kernel void computeGRStressEnergy(
 		sym3_real_mul(gamma_ll, ESqBSq / (8. * M_PI)),
 		sym3_real_mul(
 			sym3_add(
-				real3_outer(E_l, E_l),
-				real3_outer(B_l, B_l)
+				real3_outer(E_l),
+				real3_outer(B_l)
 			), 1. / (4. * M_PI)
 		)
 	);

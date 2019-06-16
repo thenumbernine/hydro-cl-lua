@@ -115,6 +115,7 @@ function makevec3(vec,scalar)
 	local sub = scalar..'_sub'
 	local mul = scalar..'_mul'
 	local real_mul = scalar..'_real_mul'
+	local neg = scalar..'_neg'
 	local conj = scalar..'_conj'
 	local add3 = scalar..'_add3'
 	local mul3 = scalar..'_mul3'
@@ -173,6 +174,10 @@ function makevec3(vec,scalar)
 		<?=sub?>(a.z, b.z));
 }
 
+<?=vec?> <?=vec?>_neg(<?=vec?> a) {
+	return _<?=vec?>(<?=neg?>(a.x), <?=neg?>(a.y), <?=neg?>(a.z));
+}
+
 <?=vec?> <?=vec?>_cross(<?=vec?> a, <?=vec?> b) {
 	return _<?=vec?>(
 		<?=sub?>(<?=mul?>(a.y, b.z), <?=mul?>(a.z, b.y)),
@@ -196,10 +201,34 @@ real real3_len(real3 a) {
 	return sqrt(real3_lenSq(a));
 }
 
-sym3 real3_outer(real3 a, real3 b) {
-	return _sym3(
-		a.x * b.x, a.x * b.y, a.x * b.z,
-		a.y * b.y, a.y * b.z, a.z * b.z);
+//outer with yourself
+sym3 real3_outer(real3 a) {
+	return (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+	local xi,xj = xNames[i],xNames[j]
+?>		.<?=xij?> = a.<?=xi?> * a.<?=xj?>,
+<? end
+?>	};
+}
+
+/*
+a^T * b
+= a^i b_j
+   [a.x b.x, a.x b.y, a.x b.z]
+ = [a.y b.x, a.y b.y, a.y b.z]
+   [a.z b.x, a.z b.y, a.z b.z]
+*/
+real3x3 real3_real3_outer(real3 a, real3 b) {
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = {
+<?	for j,xj in ipairs(xNames) do
+?>			.<?=xj?> = a.<?=xi?> * b.<?=xj?>,
+<?	end
+?>		},
+<? end
+?>	};
 }
 
 //for swapping dimensions between x and 012
@@ -340,6 +369,14 @@ real3 sym3_real3_mul(sym3 m, real3 v) {
 		m.xz * v.z + m.yz * v.y + m.zz * v.z);
 }
 
+sym3 sym3_neg(sym3 a) {
+	return (sym3){
+<? for ij,xij in ipairs(symNames) do
+?>		.<?=xij?> = -a.<?=xij?>,
+<? end
+?>	};
+}
+
 sym3 sym3_add(sym3 a, sym3 b) {
 	return (sym3){
 		.xx = a.xx + b.xx,
@@ -380,61 +417,84 @@ real sym3_dot(sym3 a, sym3 b) {
 		+ 2. * (a.xy * b.xy + a.xz * b.xz + a.yz * b.yz);
 }
 
+real sym3_real3x3_dot(sym3 a, real3x3 b) {
+	return 0.
+<? for i,xi in ipairs(xNames) do
+?>		<?
+	for j,xj in ipairs(xNames) do
+?> + a.<?=sym(i,j)?> * b.<?=xi?>.<?=xj?><?
+	end ?>
+<? end ?>;
+}
+
 real3x3 sym3_sym3_mul(sym3 a, sym3 b) {
-	real3x3 m;
-<? for i=0,2 do
-	for j=0,2 do
-?>	m.v<?=i?>.s<?=j?> = 0.
-<?		for k=0,2 do
-?>		+ a.s<?=i<=k and i..k or k..i?> * b.s<?=k<=j and k..j or j..k?>
-<?		end
-?>	;
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = {
+<?	for j,xj in ipairs(xNames) do
+?>			.<?=xj?> = 0.<?
+		for k,xk in ipairs(xNames) do
+?> + a.<?=sym(i,k)?> * b.<?=sym(k,j)?><?
+		end ?>,
 <?	end
-end 
-?>	return m;
+?>		},
+<? end 
+?>	};
 }
 
 real3x3 real3x3_sym3_mul(real3x3 a, sym3 b) {
-	real3x3 m;
-<? for i=0,2 do
-	for j=0,2 do
-?>	m.v<?=i?>.s<?=j?> = 0.<?
-		for k=0,2 do
-?> + a.v<?=i?>.s<?=k?> * b.s<?=k<=j and k..j or j..k?><?
-		end
-?>;
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = {
+<?	for j,xj in ipairs(xNames) do
+?>			.<?=xj?> = 0.<?
+		for k,xk in ipairs(xNames) do
+?> + a.<?=xi?>.<?=xk?> * b.<?=sym(k,j)?><?
+		end ?>,
 <?	end
-end 
-?>	return m;
+?>		},
+<? end 
+?>	};
 }
 
 sym3 real3x3_sym3_to_sym3_mul(real3x3 a, sym3 b) {
-	sym3 m;
-<? for i=0,2 do
-	for j=i,2 do
-?>	m.s<?=i?><?=j?> = 0.<?
-		for k=0,2 do
-?> + a.v<?=i?>.s<?=k?> * b.s<?=k<=j and k..j or j..k?><?
-		end
-?>;
+	return (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+	local xi,xj = xNames[i],xNames[j]
+?>		.<?=xij?> = 0.<?
+		for k,xk in ipairs(xNames) do
+?> + a.<?=xi?>.<?=xk?> * b.<?=sym(k,j)?><?
+		end ?>,
 <?	end
-end 
-?>	return m;
+?>	};
 }
 
 //c_ik = a_ij b_jk when you know c_ik is going to be symmetric
 sym3 sym3_real3x3_to_sym3_mul(sym3 a, real3x3 b) {
-	sym3 m;
-<? for i=0,2 do
-	for j=i,2 do
-?>	m.s<?=i?><?=j?> = 0.<?
-		for k=0,2 do
-?> + a.s<?=i<=k and i..k or k..i?> * b.v<?=k?>.s<?=j?><?
-		end
-?>;
-<?	end
-end 
-?>	return m;
+	return (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+	local xi,xj = xNames[i],xNames[j]
+?>		.<?=xij?> = 0.<?
+	for k,xk in ipairs(xNames) do
+?> + a.<?=sym(i,k)?> * b.<?=xk?>.<?=xj?><?
+	end
+?>,
+<? end
+?>	};
+}
+
+//a_ij = b_ij + b_ji
+//doesn't do the .5 ... that is left to you
+sym3 sym3_from_real3x3(real3x3 a) {
+	return (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+	local xi,xj = xNames[i],xNames[j]
+?>		.<?=xij?> = a.<?=xi?>.<?=xj?> + a.<?=xj?>.<?=xi?>,
+<? end
+?>	};
 }
 
 real3 sym3_x(sym3 m) { return _real3(m.xx, m.xy, m.xz); }
@@ -452,30 +512,57 @@ sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
 
 #define real3x3_zero (real3x3){.v={real3_zero, real3_zero, real3_zero}}
 
-real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b) {
-	real3x3 c;
-	for (int i = 0; i < 3; ++i) {
-		for (int j = 0; j < 3; ++j) {
-			real sum = 0.;
-			for (int k = 0; k < 3; ++k) {
-				sum += a.v[i].s[k] * b.v[k].s[j];
-			}
-			c.v[i].s[j] = sum;
-		}
-	}
-	return c;
+//c_ij = a_ij + b_ji
+real3x3 real3x3_addT(real3x3 a, real3x3 b) {
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = {
+<?	for j,xj in ipairs(xNames) do
+?>			.<?=xj?> = a.<?=xi?>.<?=xj?> + b.<?=xj?>.<?=xi?>,
+<?	end
+?>		},
+<? end
+?>	};
 }
 
+real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b) {
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = {
+<?	for j,xj in ipairs(xNames) do
+?>			.<?=xj?> = 0.<?
+		for k,xk in ipairs(xNames) do
+?> + a.<?=xi?>.<?=xk?> * b.<?=xk?>.<?=xj?><? 
+		end ?>,
+<? 	end
+?>		},
+<? end
+?>	};
+}
+
+//c_i = a_ij * b^j
 real3 real3x3_real3_mul(real3x3 a, real3 b) {
-	real3 c;
-	for (int i = 0; i < 3; ++i) {
-		real sum = 0.;
-		for (int j = 0; j < 3; ++j) {
-			sum += a.v[i].s[j] * b.s[j];
-		}
-		c.s[i] = sum;
-	}
-	return c;
+	return (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = 0.<?
+	for j,xj in ipairs(xNames) do
+?> + a.<?=xi?>.<?=xj?> * b.<?=xj?><?
+	end ?>,
+<? end
+?>	};
+}
+
+//c_j = a^i * b_ij = b_ji * a^i
+//so this is the same behavior as transpose(A) * b
+real3 real3_real3x3_mul(real3 a, real3x3 b) {
+	return (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = 0.<?
+	for j,xj in ipairs(xNames) do
+?> + a.<?=xj?> * b.<?=xj?>.<?=xi?><?
+	end ?>,
+<? end
+?>	};
 }
 
 real real3x3_trace(real3x3 m) {
@@ -483,13 +570,14 @@ real real3x3_trace(real3x3 m) {
 }
 
 real3x3 real3x3_from_real(real x) {
-	real3x3 m;
-	for (int i = 0; i < 3; ++i) {
-		for (int j = 0; j < 3; ++j) {
-			m.v[i].s[j] = (i == j) ? x : 0;
-		}
-	}
-	return m;
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = {<?
+	for j,xj in ipairs(xNames) do
+		if i~=j then ?>0.<? else ?>x<? end ?>, <?
+	end ?>},
+<? end
+?>	};
 }
 
 real real3x3_det(real3x3 m) {
@@ -499,25 +587,25 @@ real real3x3_det(real3x3 m) {
 }
 
 real3x3 real3x3_inv(real3x3 m) {
-	real det = real3x3_det(m);
-	real3x3 n;
-	for (int i = 0; i < 3; ++i) {
-		for (int j = 0; j < 3; ++j) {
-			int i1 = (i+1)%3;
-			int i2 = (i+2)%3;
-			int j1 = (j+1)%3;
-			int j2 = (j+2)%3;
-			n.v[i].s[j] = (
-				m.v[j1].s[i1] * m.v[j2].s[i2] 
-				- m.v[j2].s[i1] * m.v[j1].s[i2]
-			) / det;
-		}
-	}
-	//n.x.x = (m.y.y * m.z.z - m.z.y * m.y.z) / det;
-	//n.x.y = (m.z.y * m.x.z - m.x.y * m.z.z) / det;
-	//n.x.z = (m.x.y * m.y.z - m.y.y * m.x.z) / det;
-	//...
-	return n;
+	real invDet = 1. / real3x3_det(m);
+	return (real3x3){
+<? 
+--n.x.x = (m.y.y * m.z.z - m.z.y * m.y.z) / det;
+--n.x.y = (m.z.y * m.x.z - m.x.y * m.z.z) / det;
+--n.x.z = (m.x.y * m.y.z - m.y.y * m.x.z) / det;
+--...
+for i=0,2 do
+	local i1 = (i+1)%3;
+	local i2 = (i+2)%3;
+?>		.v<?=i?> = {
+<? 	for j=0,2 do
+		local j1 = (j+1)%3;
+		local j2 = (j+2)%3;
+?>			.s<?=j?> = (m.v<?=j1?>.s<?=i1?> * m.v<?=j2?>.s<?=i2?> - m.v<?=j2?>.s<?=i1?> * m.v<?=j1?>.s<?=i2?>) * invDet,
+<? end
+?>		},
+<? end	
+?>	};
 }
 
 
@@ -582,12 +670,77 @@ _3sym3 sym3_3sym3_mul(sym3 a, _3sym3 b) {
 real3 _3sym3_sym3_dot23(_3sym3 a, sym3 b) {
 	return (real3){
 <? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = sym3_dot(a.<?=xi?>, b),
+<? end
+?>	};
+}
+
+//c_i = a^jk b_jki
+real3 sym3_3sym3_dot12(sym3 a, _3sym3 b) {
+	return (real3){
+<? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = 0.<?
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
-?> + a.<?=xi?>.<?=sym(j,k)?> * b.<?=sym(j,k)?><?
+?> + a.<?=sym(j,k)?> * b.<?=xj?>.<?=sym(k,i)?><?
 		end
 	end ?>,
+<? end
+?>	};
+}
+
+//c_ij = a_k b^k_ij
+sym3 real3_3sym3_dot1(real3 a, _3sym3 b) {
+	return (sym3){
+<? for ij,xij in ipairs(symNames) do
+?>		.<?=xij?> = 0.<?
+	for k,xk in ipairs(xNames) do
+?> + a.<?=xk?> * b.<?=xk?>.<?=xij?><?
+	end ?>,
+<? end
+?>	};
+}
+
+//c_i = a^j_ji
+real3 _3sym3_tr12(_3sym3 a) {
+	return (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = 0.<?
+	for j,xj in ipairs(xNames) do
+?> + a.<?=xj?>.<?=sym(j,i)?><?
+	end ?>,
+<? end
+?>	};
+}
+
+//c_ij = a^k b_ijk 
+real3x3 real3_dot3_3sym3(real3 a, _3sym3 b) {
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = {
+<? 	for j,xj in ipairs(xNames) do
+?>			.<?=xj?> = 0.<?
+		for k,xk in ipairs(xNames) do
+?> + a.<?=xk?> * b.<?=xi?>.<?=sym(j,k)?><?
+		end ?>,
+<? end
+?>		},
+<? end
+?>	};
+}
+
+real3 sym3_real3x3x3_dot23(sym3 a, real3x3x3 b) {
+	return (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = sym3_real3x3_dot(a, b.<?=xi?>),
+<? end
+?>	};
+}
+
+sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b) {
+	return (sym3sym3){
+<? for ij,xij in ipairs(symNames) do
+?>		.<?=xij?> = sym3_add(a.<?=xij?>, b.<?=xij?>),
 <? end
 ?>	};
 }

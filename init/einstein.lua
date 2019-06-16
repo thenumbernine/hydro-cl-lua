@@ -240,7 +240,7 @@ return table{
 	// = -2 (-2 h / sigma^2 (x-c)_i (x-c)_j) / sigma^2 - 2 h delta_ij / sigma^2
 	// = 4 h (x-c)_i (x-c)_j / sigma^4 - 2 h delta_ij / sigma^2
 	sym3 d2h = sym3_sub(
-		sym3_real_mul(real3_outer(c, c), 4. * h / sigma4),
+		sym3_real_mul(real3_outer(c), 4. * h / sigma4),
 		sym3_real_mul(sym3_ident, 2. * h / sigma2));
 
 #if 0
@@ -250,7 +250,7 @@ return table{
 	);
 #endif
 
-	gamma_ll = sym3_sub(delta_ll, real3_outer(dh, dh));
+	gamma_ll = sym3_sub(delta_ll, real3_outer(dh));
 	K_ll = sym3_real_mul(d2h, -1./sqrt(1. - real3_lenSq(dh)));
 
 //enable this if you want the ADM 3D run in 1D to match the ADM 1D's
@@ -357,7 +357,7 @@ return table{
 <? if require 'coord.cartesian'.is(solver.coord) then -- pseudocartesian ?> 
 	gamma_ll = sym3_add(
 		sym3_ident,
-		sym3_real_mul(real3_outer(xc_u, xc_u), 1. / (r / R - 1)));
+		sym3_real_mul(real3_outer(xc_u), 1. / (r / R - 1)));
 <? 	-- right now I have very poor spherical support 
 elseif require 'coord.1d_radial'.is(solver.coord) 
 	or require 'coord.sphere1d'.is(solver.coord) 
@@ -519,17 +519,15 @@ then
 
 		sym3 ABar_boost_ll = sym3_real_mul(
 			sym3_sub(
-				sym3_add(real3_outer(P_l, n_l), real3_outer(n_l, P_l)),
-				sym3_real_mul(sym3_sub(real3_outer(n_l, n_l), sym3_ident), n_dot_P)
+				sym3_from_real3x3(real3_real3_outer(P_l, n_l)),
+				sym3_real_mul(sym3_sub(real3_outer(n_l), sym3_ident), n_dot_P)
 			), 1.5 / rSq);
 
 		//Levi-Civita density is det gamma for conformal metric, whose det is 1, so a cross product works with covariant Levi-Civita
 		real3 S_cross_n_l = real3_cross(S_u, n_u);
 
 		sym3 ABar_spin_ll = sym3_real_mul(
-			sym3_add(
-				real3_outer(S_cross_n_l, n_l),
-				real3_outer(n_l, S_cross_n_l)), 
+			sym3_from_real3x3(real3_real3_outer(S_cross_n_l, n_l)), 
 			3. / rCubed);
 
 		sym3 ABar_ll = sym3_add(ABar_boost_ll, ABar_spin_ll);
@@ -617,7 +615,7 @@ then
 	real R = 2. * m;
 
 	alpha -= 2*m/r;
-	gamma_ll = sym3_add(gamma_ll, sym3_real_mul(real3_outer(l,l), 1./(r/R - 1.)));
+	gamma_ll = sym3_add(gamma_ll, sym3_real_mul(real3_outer(l), 1./(r/R - 1.)));
 
 	if (r < solver->init_bodyRadius) {
 		rho += solver->init_bodyMass / (4./3. * M_PI * solver->init_bodyRadius * solver->init_bodyRadius * solver->init_bodyRadius);

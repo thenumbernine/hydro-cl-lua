@@ -40,7 +40,7 @@ typedef union {
 typedef union {
 	real s[18];
 	struct {
-		sym3 v0,v1,v2;
+		sym3 v0,v1,v2;	//why not s0,s1,s2?
 	};
 	struct {
 		sym3 x,y,z;
@@ -60,6 +60,17 @@ typedef union {
 } real3x3;
 
 typedef union {
+	real s[27];
+	real3x3 v[3];
+	struct {
+		real3x3 v0,v1,v2;
+	};
+	struct {
+		real3x3 x,y,z;
+	};
+} real3x3x3;
+
+typedef union {
 	real s[36];
 	sym3 v[6];
 	struct {
@@ -69,4 +80,3 @@ typedef union {
 		sym3 xx, xy, xz, yy, yz, zz;
 	};
 } sym3sym3;
-

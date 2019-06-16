@@ -559,6 +559,56 @@ end ?>;
 			), 
 			type = 'real3',
 		},
+--[=[	
+		{
+			Ricci = template([[
+	_3sym3 connHat_ull = coord_conn_ull(x);
+	
+	_3sym3 Delta_ull = _3sym3_sub(connBar_ull, connHat_ull);
+	real3 Delta_u = _3sym3_sym3_dot23(Delta_ull, gammaBar_uu);
+	_3sym3 Delta_lll = sym3_3sym3_mul(gammaBar_ll, Delta_ull);
+	
+	sym3sym3 partial2_gammaHat_llll = coord_d2g_llll(x);
+	sym3 gammaHat_uu = coord_g_uu(x);
+	
+	_3sym3 partial_gammaHat_lll = coord_dg_lll(x);
+	_3sym3 partial_gammaBar_lll = _3sym3_add(*(_3sym3*)partial_epsilon_lll, partial_gammaHat_lll);
+	
+	_3sym3 partial_connHat_ulll[3];
+	calc_partial_conn_ulll(partial_connHat_ulll, connHat_ull, gammaHat_uu, partial_gammaHat_lll, partial2_gammaHat_llll);
+	
+	sym3sym3 partial2_gammaBar_llll = sym3sym3_add(*(sym3sym3*)partial2_epsilon_llll, partial2_gammaHat_llll);
+	sym3 RBar_ll = calc_RBar_ll(U, gammaBar_ll, gammaBar_uu, connHat_ull, partial_connHat_ulll, partial2_gammaBar_llll, partial_gammaBar_lll, partial_LambdaBar_ul, Delta_u, Delta_lll, Delta_ull);
+	
+	//2008 Alcubierre eqn 2.8.18
+	//2010 Baumgarte, Shapiro eqn 3.10
+	sym3 RPhi_ll = {
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+?>		.<?=xij?> = 
+			- 2. * DBar2_phi_ll.<?=xij?>
+			+ 4. * partial_phi_l[<?=i-1?>] * partial_phi_l[<?=j-1?>]
+			+ gammaBar_ll.<?=xij?> * (
+				- 2. * tr_DBar2_phi
+				- 4. * real3_weightedLenSq(
+					*(real3*)partial_phi_l,
+					gammaBar_uu
+				)
+			),
+<? end
+?>	};
+
+	sym3 R_ll = sym3_add(RPhi_ll, RBar_ll);
+	*value_sym3 = R_ll;
+]],				applyCommon{
+					eqn = self,
+					solver = self.solver,
+					makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
+				}
+			),
+			type = 'sym3',
+		},
+--]=]	
 	}
 	
 	return vars

@@ -242,7 +242,7 @@ S_ij = gamma_i^a gamma_j^b T_cd
 = rho_mass h u_i u_j + P gamma_ij 
 */
 	grU->S_ll = sym3_add(
-		sym3_real_mul(real3_outer(u_l, u_l), rhoMass * h),
+		sym3_real_mul(real3_outer(u_l), rhoMass * h),
 		sym3_real_mul(gamma_ll, P));
 }
 ]], 	{
