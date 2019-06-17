@@ -7,6 +7,7 @@ local common = require 'common'()	-- xNames, symNames
 local xNames = common.xNames
 local symNames = common.symNames
 local sym = common.sym
+local from6to3x3 = common.from6to3x3
 ?>
 
 cplx cplx_conj(cplx a) {

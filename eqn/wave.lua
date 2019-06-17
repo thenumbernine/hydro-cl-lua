@@ -22,8 +22,10 @@ Wave.roeUseFluxFromCons = true
 Wave.initStates = require 'init.euler'	 -- use rho as our initial condition
 
 -- Sedov initial conditions uses pressure
+Wave.usePressure = true
 -- gaussian, etc use density
-Wave.usePressure = false
+--Wave.usePressure = false
+
 
 if Wave.usePressure then
 	Wave.consVars = table{
