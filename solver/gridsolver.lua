@@ -1052,10 +1052,25 @@ lines:insert[[
 	local code = lines:concat'\n'
 
 	local boundaryProgramObj
+if self.useCLLinkLibraries then 
+	time('compiling boundary program', function()
+		boundaryUnlinkedObj = self.Program{name='boundary', code=code}
+		boundaryUnlinkedObj:compile{dontLink=true}
+	end)
+	time('linking boundary program', function()
+		boundaryProgramObj = self.Program{
+			programs = {
+				self.mathUnlinkedObj, 
+				boundaryUnlinkedObj,
+			},
+		}
+	end)
+else	
 	time('building boundary program', function()
 		boundaryProgramObj = self.Program{name='boundary', code=code}
 		boundaryProgramObj:compile()
 	end)
+end	
 	local boundaryKernelObjs = table()
 	for i=1,self.dim do
 		local kernelObj = boundaryProgramObj:kernel('boundary_'..xNames[i])

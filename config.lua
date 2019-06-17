@@ -45,7 +45,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -90,7 +90,7 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	coord = 'cylinder',
 	-- for some reason, with holonomic coordinates, with rmax=1, for any rmin < .1, I get an explosion
 	-- no such problem with anholonomic ... however anholonomic is creating an initial wave from rmin which destroys everything
@@ -183,9 +183,9 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'rectangle',
-	initState = 'Sedov',
+	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
 	--initState = 'Kelvin-Helmholtz',
@@ -433,7 +433,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
-self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
@@ -442,7 +442,7 @@ self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 

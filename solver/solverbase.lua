@@ -36,7 +36,7 @@ SolverBase.name = 'Solver'
 SolverBase.eqnName = nil
 
 -- whether to use separate linked binaries.  would it save on compile time?
-SolverBase.useCLLinkLibraries = false
+SolverBase.useCLLinkLibraries = true
 
 -- whether to check for NaNs
 SolverBase.checkNaNs = false
@@ -269,11 +269,25 @@ end
 		})
 	}:concat'\n'
 
+if self.useCLLinkLibraries then 
+	time('compiling common program', function()
+		self.commonUnlinkedObj = self.Program{name='common', code=commonCode}
+		self.commonUnlinkedObj:compile{dontLink=true}
+	end)
+	time('linking common program', function()
+		self.commonProgramObj = self.Program{
+			programs = {
+				self.mathUnlinkedObj, 
+				self.commonUnlinkedObj,
+			},
+		}
+	end)
+else
 	time('building common program', function()
-		-- TODO rename :compile() to :build() to be like cl.program?
 		self.commonProgramObj = self.Program{name='common', code=commonCode}
 		self.commonProgramObj:compile()
 	end)
+end
 
 	-- used by the integrators
 	-- needs the same globalSize and localSize as the typical simulation kernels

@@ -276,6 +276,32 @@ substitute gammaBar_im,j connHat^m_kl = S_ijkl (symmetric in 3 & 4)
 <? end
 ?>	};
 
+
+	//Delta^k Delta_ikj
+	real3x3 Delta_dot1_Delta_ll = real3_3sym3_dot2(Delta_u, Delta_lll);
+
+	//Delta^k (Delta_ikj + Delta_jki)
+	//= Delta^k (gammaBar_ij,k - gammaHat_ij,k)
+	//NOTICE: INLINING THIS PARAMETER SCREWS UP THE SIMULATION
+	sym3 sym_Delta_dot1_Delta_ll = sym3_from_real3x3(Delta_dot1_Delta_ll);
+
+	//Delta_llu.i.j.k := Delta_ij^k
+	real3x3x3 Delta_llu = _3sym3_sym3_mul(Delta_lll, gammaBar_uu);
+
+	//Delta^m_ki Delta_jm^k
+	real3x3 Delta_dot_12_23_Delta_ll = _3sym3_real3x3x3_dot12_23(Delta_ull, Delta_llu);
+	
+	//Delta^m_ki Delta_jm^k + Delta^m_kj Delta_im^k
+	sym3 sym3_Delta_dot_12_23_Delta_ll = sym3_from_real3x3(Delta_dot_12_23_Delta_ll);
+
+	//Delta^m_ik Delta_mj^k
+	sym3 Delta_dot13_Delta_ll = _3sym3_real3x3x3_dot13_to_sym3(Delta_ull, Delta_llu);
+
+	//real3x3 DHat_LambdaBar_times_gammaBar_ll = real3x3_sym3_mul(DHat_LambdaBar_ul, gammaBar_ll);
+	real3x3 DHat_LambdaBar_times_gammaBar_ll = sym3_real3x3_mul(gammaBar_ll, DHat_LambdaBar_ul);
+	//NOTICE: INLINING THIS PARAMETER SCREWS UP THE SIMULATION
+	sym3 sym_DHat_LambdaBar_times_gammaBar_ll = sym3_from_real3x3(DHat_LambdaBar_times_gammaBar_ll);
+
 	/*
 	2018 Ruchlin eqn 12
 	RBar_ij = 
@@ -289,16 +315,39 @@ substitute gammaBar_im,j connHat^m_kl = S_ijkl (symmetric in 3 & 4)
 			+ Delta^m_kj Delta_iml
 			+ Delta^m_ik Delta_mjl
 		)
+	
+	RBar_ij = 
+		-1/2 gammaBar^kl DHat_k DHat_l gammaBar_ij
+		+ 1/2 gammaBar_ki DHat_j LambdaBar^k
+		+ 1/2 gammaBar_kj DHat_i LambdaBar^k
+		+ 1/2 Delta^k Delta_ikj
+		+ 1/2 Delta^k Delta_jki
+		+ Delta^m_ki Delta_jm^k
+		+ Delta^m_kj Delta_im^k
+		+ Delta^m_ik Delta_mj^k
 	*/
-	sym3 RBar_ll = {
+	sym3 RBar_ll = sym3_add5(
+		sym3_real_mul(trBar_DHat2_gammaBar_ll, -.5),
+		sym3_real_mul(sym_DHat_LambdaBar_times_gammaBar_ll, .5),
+		sym3_real_mul(sym_Delta_dot1_Delta_ll, .5),
+		sym3_Delta_dot_12_23_Delta_ll,
+		Delta_dot13_Delta_ll);
+
+#if 1	//old version, which is still working
+	RBar_ll = (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
 ?>		.<?=xij?> = 0.
-			- .5 * trBar_DHat2_gammaBar_ll.<?=xij?>	//diverges
+			- .5 * trBar_DHat2_gammaBar_ll.<?=xij?>
+			
+//			+ .5 * sym_DHat_LambdaBar_times_gammaBar_ll.<?=xij?>
+
 <?	for k,xk in ipairs(xNames) do
-?>			+ .5 * gammaBar_ll.<?=sym(k,i)?> * DHat_LambdaBar_ul.<?=xj?>.<?=xk?>
-			+ .5 * gammaBar_ll.<?=sym(k,j)?> * DHat_LambdaBar_ul.<?=xi?>.<?=xk?>
+?>
+			+ .5 * DHat_LambdaBar_ul.<?=xi?>.<?=xk?> * gammaBar_ll.<?=sym(k,j)?>
+			+ .5 * DHat_LambdaBar_ul.<?=xj?>.<?=xk?> * gammaBar_ll.<?=sym(k,i)?>
+			
 			+ .5 * Delta_u.<?=xk?> * (Delta_lll.<?=xi?>.<?=sym(j,k)?> + Delta_lll.<?=xj?>.<?=sym(i,k)?>)
 <?		for l,xl in ipairs(xNames) do
 			for m,xm in ipairs(xNames) do
@@ -313,6 +362,7 @@ substitute gammaBar_im,j connHat^m_kl = S_ijkl (symmetric in 3 & 4)
 ?>,
 <? end
 ?>	};
+#endif
 }
 
 //TODO if we're calculating the constrains in the derivative

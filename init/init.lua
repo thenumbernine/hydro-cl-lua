@@ -25,50 +25,21 @@ function InitCond:refreshInitStateProgram(solver)
 	end)
 
 if solver.useCLLinkLibraries then 
+	--local code = initStateCode
+	local code = initStateCode..'\n'..template(require'ext.io'.readfile'math.cl')
 	time('compiling init state program', function()
-		solver.initStateUnlinkedObj = solver.Program{
-			name = 'initState',
-			--code = initStateCode,
-			code = initStateCode..'\n'..template(require'ext.io'.readfile'math.cl'),
-		}
-		solver.initStateUnlinkedObj:compile{
-			dontLink = true,
-			buildOptions = table{
-				'-Werror',
-				'-cl-std=CL2.0',
-				'-cl-kernel-arg-info',
-				'-g',
-				'-create-library',
-				'-enable-link-options',
-			}:concat' ',
-		}
+		solver.initStateUnlinkedObj = solver.Program{name='initState', code=code}
+		solver.initStateUnlinkedObj:compile{dontLink=true}
 	end)
-	
+
 	time('linking init state program', function()
 		solver.initStateProgramObj = solver.Program{
 			programs = {
-				--solver.mathUnlinkedObj, 
+				solver.mathUnlinkedObj, 
 				solver.initStateUnlinkedObj,
 			},
-			buildOptions =  table{
-				'-Werror',
-				'-cl-std=CL2.0',
-				'-cl-kernel-arg-info',
-				'-g',
-				'-create-library',
-				'-enable-link-options',
-			}:concat' ',
 		}
 	end)
-
-local cl = require 'ffi.OpenCL'
---not supported?
---print('CL_PROGRAM_NUM_KERNELS', cl.CL_PROGRAM_NUM_KERNELS)
---print('CL_PROGRAM_NUM_KERNELS', solver.initStateProgramObj.obj:getInfo'CL_PROGRAM_NUM_KERNELS')
-print('CL_PROGRAM_KERNEL_NAMES', cl.CL_PROGRAM_KERNEL_NAMES)
-local s = solver.initStateProgramObj.obj:getInfo'CL_PROGRAM_KERNEL_NAMES'
-print('CL_PROGRAM_KERNEL_NAMES', #s, s)
-os.exit()
 else	-- not useCLLinkLibraries
 	local file = require 'ext.file'
 	time('building init state program', function()
