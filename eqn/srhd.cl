@@ -197,20 +197,16 @@ eigen_t eigen_forInterface(
 	//Kappa = h;	//approx for ideal gas
 	
 	eigen_t eig;
-<?
-for _,field in ipairs(eqn.eigenVars) do
-local name,ctype = next(field)
-?>
-	eig.<?=name?> = <?=name?>;
-<? end ?>
-	
+<? for _,var in ipairs(eqn.eigenVars) do
+?>	eig.<?=var.name?> = <?=var.name?>;
+<? end 
+?>	
 	return eig;
 }
 
 <? -- create code to initialize local vars of all the eig vars
-local eigVarCode = require 'ext.table'.map(eqn.eigenVars, function(field)
-	local name,ctype = next(field)
-	return '\t'..ctype..' '..name..' = eig.'..name..';\n'
+local eigVarCode = require 'ext.table'.map(eqn.eigenVars, function(var)
+	return '\t'..var.type..' '..var.name..' = eig.'..var.name..';\n'
 end):concat()
 ?>
 

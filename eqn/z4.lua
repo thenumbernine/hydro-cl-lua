@@ -326,16 +326,16 @@ function Z4_2004Bona:getDisplayVars()
 	local vars = Z4_2004Bona.super.getDisplayVars(self)
 
 	vars:append{
-		{det_gamma = '*value = sym3_det(U->gamma_ll);'},
-		{volume = '*value = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
-		{f = '*value = calc_f(U->alpha);'},
-		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
-		{K_ll = [[
+		{name='det_gamma', code='*value = sym3_det(U->gamma_ll);'},
+		{name='volume', code='*value = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
+		{name='f', code='*value = calc_f(U->alpha);'},
+		{name='df/dalpha', code='*value = calc_dalpha_f(U->alpha);'},
+		{name='K_ll', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
 	*value = sym3_dot(gamma_uu, U->K_ll);
 ]]		},
-		{expansion = [[
+		{name='expansion', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
 	*value = -sym3_dot(gamma_uu, U->K_ll);
@@ -360,13 +360,13 @@ momentum constraints
 	-- shift-less gravity only
 	-- gravity with shift is much more complex
 	-- TODO add shift influence (which is lengthy)
-	vars:insert{gravity = [[
+	vars:insert{name='gravity', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
 	*value_real3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
 ]], type='real3'}
 
-	vars:insert{['alpha vs a_i'] = template([[
+	vars:insert{name='alpha vs a_i', code=template([[
 	if (OOB(1,1)) {
 		*value_real3 = real3_zero;
 	} else {
@@ -389,7 +389,7 @@ momentum constraints
 
 	-- d_kij = gamma_ij,k
 	for i,xi in ipairs(xNames) do
-		vars:insert{['gamma_ij vs d_'..xi..'ij'] = template([[
+		vars:insert{name='gamma_ij vs d_'..xi..'ij', code=template([[
 	if (OOB(1,1)) {
 		*value_sym3 = sym3_zero;
 	} else {

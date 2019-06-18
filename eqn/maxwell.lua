@@ -301,11 +301,11 @@ function Maxwell:getDisplayVars()
 	
 	local vars = Maxwell.super.getDisplayVars(self)
 	vars:append{ 
-		{E = template([[	*value_<?=vec3?> = calc_E(*U);]], env), type=env.vec3, units='(kg*m)/(C*s)'},
-		{H = template([[	*value_<?=vec3?> = calc_H(*U);]], env), type=env.vec3, units='C/(m*s)'},
-		{S = template([[	*value_<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));]], env), type=env.vec3, units='kg/s^3'},
+		{name='E', code=template([[	*value_<?=vec3?> = calc_E(*U);]], env), type=env.vec3, units='(kg*m)/(C*s)'},
+		{name='H', code=template([[	*value_<?=vec3?> = calc_H(*U);]], env), type=env.vec3, units='C/(m*s)'},
+		{name='S', code=template([[	*value_<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));]], env), type=env.vec3, units='kg/s^3'},
 		{
-			energy = template([[
+			name='energy', code=template([[
 	<?=susc_t?> _1_eps = <?=susc_t?>_mul(U->sqrt_1_eps, U->sqrt_1_eps);
 	<?=susc_t?> _1_mu = <?=susc_t?>_mul(U->sqrt_1_mu, U->sqrt_1_mu);
 	*value = <?=real_mul?>(<?=add?>(
@@ -319,7 +319,8 @@ function Maxwell:getDisplayVars()
 	}:append(table{'D', 'B'}:map(function(field,i)
 		local field = assert( ({D='D', B='B'})[field] )
 		return {
-			['div '..field] = template([[
+			name='div '..field, 
+			code=template([[
 	<?=scalar?> v = <?=zero?>;
 <? for j=0,solver.dim-1 do ?>
 	v = <?=add?>(v, <?=real_mul?>(
@@ -343,7 +344,8 @@ function Maxwell:getDisplayVars()
 			return curl(self,i,'value_'..env.vec3..'->s'..i,field, env)
 		end)
 		vars:insert{
-			['curl '..field] = template([[
+			name='curl '..field, 
+			code=template([[
 	<? for i=0,2 do ?>{
 		<?=select(2,next(v[i+1]))?>
 	}<? end ?>

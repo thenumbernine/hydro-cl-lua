@@ -231,12 +231,20 @@ local initStates = table{
 			{name = 'init_u0', value = 1},
 			{name = 'init_v0', value = 1},
 			{name = 'init_P0', value = 1e-6},
+			{name = 'init_x0', value = .5},
+			{name = 'init_y0', value = .5},
+			{name = 'init_z0', value = 0},
 		},
 		initState = function(self, solver)
 			return template([[
 	real3 xc = coordMap(x);
 	//real xSq = real3_lenSq(xc);
-	real xSq = real3_lenSq(real3_sub(xc, _real3(-.5, -.5, 0.)));
+	real xSq = real3_lenSq(real3_sub(xc, 
+		_real3(
+			solver->init_x0,
+			solver->init_y0, 
+			solver->init_z0
+		)));
 	rho = (solver->init_rho1 - solver->init_rho0) * exp(-xSq / (solver->init_sigma*solver->init_sigma)) + solver->init_rho0;
 	v.x = solver->init_u0;
 	v.y = solver->init_v0;

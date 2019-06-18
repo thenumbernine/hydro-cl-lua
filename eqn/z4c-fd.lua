@@ -292,18 +292,18 @@ Z4cFiniteDifferenceEquation.predefinedDisplayVars = {
 function Z4cFiniteDifferenceEquation:getDisplayVars()	
 	local vars = Z4cFiniteDifferenceEquation.super.getDisplayVars(self)
 
-	vars:insert{['det gammaBar - det gammaHat'] = [[
+	vars:insert{name='det gammaBar - det gammaHat', code=[[
 	*value = sym3_det(calc_gammaBar_ll(U, x)) - calc_det_gammaBar_ll(x);
 ]]}	-- for logarithmic displays
-	vars:insert{['det gamma_ij based on phi'] = [[
+	vars:insert{name='det gamma_ij based on phi', code=[[
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	*value = calc_det_gammaBar_ll(x) / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 ]]}
 	
 	local derivOrder = 2 * self.solver.numGhost
 	vars:append{
-		{S = '*value = sym3_dot(U->S_ll, calc_gamma_uu(U));'},
-		{volume = '*value = U->alpha * calc_det_gamma_ll(U, x);'},
+		{name='S', code='*value = sym3_dot(U->S_ll, calc_gamma_uu(U));'},
+		{name='volume', code='*value = U->alpha * calc_det_gamma_ll(U, x);'},
 	
 --[[ expansion:
 2003 Thornburg:  ... from Wald ...
@@ -329,7 +329,7 @@ Gamma^j_ij = (ln sqrt(g))_,i = .5 (ln g)_,i = .5 g_,i / g
 = -3 chi_,i / chi^4 / (chi^-3)
 = -3 chi_,i / chi
 --]]
-		{expansion = template([[
+		{name='expansion', code=template([[
 	<?=makePartial('chi', 'real')?>
 	<?=makePartial('alpha', 'real')?>
 	<?=makePartial('beta_u', 'real3')?>
@@ -371,9 +371,9 @@ end
 			)
 		},
 		
-		{f = '*value = calc_f(U->alpha);'},
-		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
-		{gamma_ll = [[
+		{name='f', code='*value = calc_f(U->alpha);'},
+		{name='df/dalpha', code='*value = calc_dalpha_f(U->alpha);'},
+		{name='gamma_ll', code=[[
 	{
 		real exp_4phi = 1. / calc_exp_neg4phi(U);
 		sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
@@ -384,7 +384,7 @@ end
 		-- K_ij = exp(4 phi) ABar_ij + K/3 gamma_ij  
 		-- gamma_ij = exp(4 phi) gammaBar_ij
 		-- K_ij = exp(4 phi) (ABar_ij + K/3 gammaBar_ij)
-		{K_ll = [[
+		{name='K_ll', code=[[
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 	real K = U->KHat + 2. * U->Theta;
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
@@ -424,7 +424,8 @@ end
 		gamma_jk,t = -2 alpha K_jk + gamma_jk,l beta^l + gamma_lj beta^l_,k + gamma_lk beta^l_,j
 		--]]
 		{
-			gravity = template([[
+			name = 'gravity',
+			code = template([[
 	<?=makePartial('alpha', 'real')?>
 	<?=makePartial('beta_u', 'real3')?>
 

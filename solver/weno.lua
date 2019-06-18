@@ -77,10 +77,6 @@ function WENO:refreshSolverProgram()
 	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 end
 
-function WENO:addDisplayVars()
-	WENO.super.addDisplayVars(self)
-end
-
 local realptr = ffi.new'realparam[1]'
 local function real(x)
 	realptr[0] = x

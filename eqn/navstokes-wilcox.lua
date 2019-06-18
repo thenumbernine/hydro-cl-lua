@@ -78,8 +78,8 @@ end
 
 function NavierStokesWilcox:getCommonFuncCode()
 	return template([[
-#define R_over_C_v (gasConstant / C_v)
-#define C_v_over_R (C_v / gasConstant)
+#define R_over_C_v (solver->gasConstant / solver->C_v)
+#define C_v_over_R (solver->C_v / solver->gasConstant)
 
 //inline real calc_H(real PStar) { return PStar * ((R_over_C_v + 1.) / (R_over_C_v)); }
 //inline real calc_h(real rhoBar, real PStar) { return calc_H(PStar) / rhoBar; }
@@ -94,8 +94,8 @@ static inline real calc_EKinTilde(<?=eqn.prim_t?> W, real3 x) { return W.rhoBar 
 
 //after
 static inline real calc_PBar(<?=eqn.prim_t?> W) { return W.PStar - 2./3. * W.rhoBar * W.k; }
-static inline real calc_TTilde(<?=eqn.prim_t?> W) { return calc_PBar(W) / (W.rhoBar * gasConstant); }
-static inline real calc_eIntTilde(<?=eqn.prim_t?> W) { return C_v * calc_TTilde(W); }
+static inline real calc_TTilde(<?=eqn.prim_t?> W) { return calc_PBar(W) / (W.rhoBar * solver->gasConstant); }
+static inline real calc_eIntTilde(<?=eqn.prim_t?> W) { return solver->C_v * calc_TTilde(W); }
 static inline real calc_EIntTilde(<?=eqn.prim_t?> W) { return W.rhoBar * calc_eIntTilde(W); }
 
 static inline real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.rhoBar_vTilde, x) / U.rhoBar; }
@@ -117,8 +117,8 @@ static inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) {
 	real3 vTilde = real3_real_mul(U.rhoBar_vTilde, 1. / U.rhoBar);
 	real vTildeSq = coordLenSq(vTilde, x);
 	real rhoBar_eIntTilde = U.rhoBar_eTotalTilde - .5 * U.rhoBar * vTildeSq - U.rhoBar_k;
-	real rhoBar_TTilde = rhoBar_eIntTilde / C_v;
-	real PBar = rhoBar_TTilde * gasConstant;
+	real rhoBar_TTilde = rhoBar_eIntTilde / solver->C_v;
+	real PBar = rhoBar_TTilde * solver->gasConstant;
 	real PStar = PBar + 2./3. * U.rhoBar_k;
 	
 	return (<?=eqn.prim_t?>){
@@ -138,13 +138,13 @@ static inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	real PBar = W.PStar - 2./3. * rhoBar_k;
 
 	//eqn 10: PBar = rhoBar R TTilde
-	real TTilde = PBar / (W.rhoBar * gasConstant);
+	real TTilde = PBar / (W.rhoBar * solver->gasConstant);
 	
 	//eqn 6: eIntTilde = C_v TTilde
-	real eIntTilde = C_v * TTilde;
+	real eIntTilde = solver->C_v * TTilde;
 	
 	//eqn 6: eTotalTilde = eIntTilde + 1/2 vTilde^2 + W.k
-	//so eTotalTilde = C_v PStar / rhoBar + 1/2 vTilde^2 + (1 - 2/3 C_v / gasConstant) k
+	//so eTotalTilde = C_v PStar / rhoBar + 1/2 vTilde^2 + (1 - 2/3 C_v / solver->gasConstant) k
 	real eTotalTilde = eIntTilde + .5 * coordLenSq(W.vTilde, x) + W.k;
 	
 	return (<?=eqn.cons_t?>){
@@ -208,6 +208,10 @@ static inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 end
 
 NavierStokesWilcox.initStateCode = [[
+<?
+local common = require 'common'()
+local xNames = common.xNames
+?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
@@ -256,7 +260,9 @@ local function vorticity(eqn,k,result)
 	local xs = {'x','y','z'}
 	local i = (k+1)%3
 	local j = (i+1)%3
-	return {['vorticity '..xs[k+1]] = template([[
+	return {
+		name = 'vorticity '..xs[k+1], 
+		code = template([[
 	if (OOB(1,1)) {
 		<?=result?> = 0.;
 	} else {
@@ -287,23 +293,23 @@ end
 function NavierStokesWilcox:getDisplayVars()
 	local vars = NavierStokesWilcox.super.getDisplayVars(self)
 	vars:append{
-		{vTilde = '*value_real3 = W.vTilde;', type='real3'},
-		{PStar = '*value = W.PStar;'},
-		{eIntTilde = '*value = calc_eIntTilde(W);'},
-		{eKinTilde = '*value = calc_eKinTilde(W, x);'},
-		{eTotalTilde = '*value = U->rhoBar_eTotalTilde / W.rhoBar;'},
-		{EIntTilde = '*value = calc_EIntTilde(W);'},
-		{EKinTilde = '*value = calc_EKinTilde(W, x);'},
-		{EPot = '*value = U->rhoBar * U->ePot;'},
-		{S = '*value = W.PStar / pow(W.rhoBar, R_over_C_v + 1. );'},
-		--{H = '*value = calc_H(W.PStar);'},
-		--{h = '*value = calc_h(W.rhoBar, W.PStar);'},
-		--{HTotal = '*value = calc_HTotal(W.PStar, U->rhoBar_eTotalTilde);'},
-		--{hTotal = '*value = calc_hTotal(W.rhoBar, W.PStar, U->rhoBar_eTotalTilde);'},
-		{['Speed of Sound'] = '*value = calc_Cs(W);'},
-		--{['Mach number'] = '*value = coordLen(W.vTilde, x) / calc_Cs(W);'},
+		{name='vTilde', code='*value_real3 = W.vTilde;', type='real3'},
+		{name='PStar', code='*value = W.PStar;'},
+		{name='eIntTilde', code='*value = calc_eIntTilde(W);'},
+		{name='eKinTilde', code='*value = calc_eKinTilde(W, x);'},
+		{name='eTotalTilde', code='*value = U->rhoBar_eTotalTilde / W.rhoBar;'},
+		{name='EIntTilde', code='*value = calc_EIntTilde(W);'},
+		{name='EKinTilde', code='*value = calc_EKinTilde(W, x);'},
+		{name='EPot', code='*value = U->rhoBar * U->ePot;'},
+		{name='S', code='*value = W.PStar / pow(W.rhoBar, R_over_C_v + 1. );'},
+		--{name='H', code='*value = calc_H(W.PStar);'},
+		--{name='h', code='*value = calc_h(W.rhoBar, W.PStar);'},
+		--{name='HTotal', code='*value = calc_HTotal(W.PStar, U->rhoBar_eTotalTilde);'},
+		--{name='hTotal', code='*value = calc_hTotal(W.rhoBar, W.PStar, U->rhoBar_eTotalTilde);'},
+		{name='Speed of Sound', code='*value = calc_Cs(W);'},
+		--{name='Mach number', code='*value = coordLen(W.vTilde, x) / calc_Cs(W);'},
 	}:append{self.gravOp and
-		{gravity = template([[
+		{name='gravity', code=template([[
 	if (OOB(1,1)) {
 		*value = 0.;
 	} else {
@@ -320,7 +326,7 @@ for side=solver.dim,2 do ?>
 	}
 ]], {eqn=self, solver=self.solver}), type='real3'} or nil
 	}:append{
-		{temp = '*value = calc_eIntTilde(W) / C_v;'},
+		{name='temp', code='*value = calc_eIntTilde(W) / solver->C_v;'},
 	}
 
 	-- vorticity = [,x ,y ,z] [vTilde.x, vTilde.y, vTilde.z][
@@ -331,7 +337,7 @@ for side=solver.dim,2 do ?>
 			vars:insert(vorticity(self,2,'*value'))
 		elseif self.solver.dim == 3 then
 			local vTilde = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
-			vars:insert{vorticityVec = template([[
+			vars:insert{name='vorticityVec', code=template([[
 	<? for i=0,2 do ?>{
 		<?=select(2,next(vTilde[i+1]))?>
 	}<? end ?>

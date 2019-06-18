@@ -58,7 +58,7 @@ function FiniteVolumeSolver:addDisplayVars()
 				side = side,
 			}),
 			vars = range(0,self.eqn.numIntStates-1):map(function(i)
-				return {[''..i] = '*value = flux->ptr['..i..'];'}
+				return {name=tostring(i), code='*value = flux->ptr['..i..'];'}
 			end),
 		}
 	end
@@ -95,12 +95,12 @@ function FiniteVolumeSolver:addDisplayVars()
 				}),
 			}:concat'\n',
 			vars = range(0, self.eqn.numWaves-1):map(function(i)
-				return {[''..i] = template([[
+				return {name=tostring(i), code=template([[
 	*value = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', i)?>;
-]], {
-		eqn = self.eqn,
-		i = i,
-	})}
+]], 			{
+					eqn = self.eqn,
+					i = i,
+				})}
 			end),
 		}
 	end
@@ -115,12 +115,7 @@ function FiniteVolumeSolver:addDisplayVars()
 				bufferField = self.getULRBufName,
 				type = self.getULRBufType,
 				codePrefix = getEigenCode{side=side},
-				vars = table.map(eigenDisplayVars, function(kv)
-					return table.map(kv, function(v,k)
-						if k == 'type' then return v, k end
-						return v, k
-					end)
-				end),
+				vars = eigenDisplayVars,
 			}
 		end
 	end
@@ -135,7 +130,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			codePrefix = '',
 			useLog = true,
 			vars = {
-				{['0'] = table{
+				{name='0', code=table{
 					getEigenCode{side=side},
 					template([[
 	*value = 0;
@@ -177,7 +172,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			codePrefix = '',
 			useLog = true,
 			vars = {
-				{['0'] = table{
+				{name='0', code=table{
 					getEigenCode{side=side},
 					template([[
 	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>

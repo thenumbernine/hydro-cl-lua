@@ -240,8 +240,8 @@ MHD.predefinedDisplayVars = {
 
 function MHD:getDisplayVars()
 	return MHD.super.getDisplayVars(self):append{
-		{v = '*value_real3 = W.v;', type='real3', units='m/s'},
-		{['div B'] = template([[
+		{name='v', code='*value_real3 = W.v;', type='real3', units='m/s'},
+		{name='div B', code=template([[
 	*value = .5 * (0.
 <? 
 for j=0,solver.dim-1 do 
@@ -252,24 +252,24 @@ for j=0,solver.dim-1 do
 end 
 ?>	);
 ]], {solver=self.solver, field='B'}), units='kg/(C*m*s)'},
-		{P = '*value = W.P;', units='kg/(m*s^2)'},
-		--{PMag = '*value = calc_PMag(solver, W, x);'},
-		--{PTotal = '*value = W.P + calc_PMag(solver, W, x);'},
-		--{eInt = '*value = calc_eInt(solver, W);'},
-		{EInt = '*value = calc_EInt(solver, W);'},
-		--{eKin = '*value = calc_eKin(W, x);'},
-		{EKin = '*value = calc_EKin(W, x);'},
-		--{eHydro = '*value = calc_eHydro(solver, W, x);'},
-		{EHydro = '*value = calc_EHydro(solver, W, x);'},
-		{['EM energy'] = '*value = calc_EM_energy(solver, W, x);'},
-		--{eTotal = '*value = U->ETotal / W.rho;'},
-		{S = '*value = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
-		{H = '*value = calc_H(solver, W.P);'},
-		--{h = '*value = calc_H(solver, W.P) / W.rho;'},
-		--{HTotal = '*value = calc_HTotal(solver, W, U->ETotal, x);'},
-		--{hTotal = '*value = calc_hTotal(solver, W, U->ETotal, x);'},
-		--{Cs = '*value = calc_Cs(solver, W); },
-		{['primitive reconstruction error'] = template([[
+		{name='P', code='*value = W.P;', units='kg/(m*s^2)'},
+		--{name='PMag', code='*value = calc_PMag(solver, W, x);'},
+		--{name='PTotal', code='*value = W.P + calc_PMag(solver, W, x);'},
+		--{name='eInt', code='*value = calc_eInt(solver, W);'},
+		{name='EInt', code='*value = calc_EInt(solver, W);'},
+		--{name='eKin', code='*value = calc_eKin(W, x);'},
+		{name='EKin', code='*value = calc_EKin(W, x);'},
+		--{name='eHydro', code='*value = calc_eHydro(solver, W, x);'},
+		{name='EHydro', code='*value = calc_EHydro(solver, W, x);'},
+		{name='EM energy', code='*value = calc_EM_energy(solver, W, x);'},
+		--{name='eTotal', code='*value = U->ETotal / W.rho;'},
+		{name='S', code='*value = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
+		{name='H', code='*value = calc_H(solver, W.P);'},
+		--{name='h', code='*value = calc_H(solver, W.P) / W.rho;'},
+		--{name='HTotal', code='*value = calc_HTotal(solver, W, U->ETotal, x);'},
+		--{name='hTotal', code='*value = calc_hTotal(solver, W, U->ETotal, x);'},
+		--{name='Cs', code='*value = calc_Cs(solver, W); },
+		{name='primitive reconstruction error', code=template([[
 		//prim have just been reconstructed from cons
 		//so reconstruct cons from prims again and calculate the difference
 		<?=eqn.cons_t?> U2 = consFromPrim(solver, W, x);

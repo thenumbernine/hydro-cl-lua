@@ -69,7 +69,7 @@ function EulerBurgers:addDisplayVars()
 	self:addDisplayVarGroup{
 		name = 'P', 
 		vars = {
-			{P = '*value = buf[index];'},
+			{name='P', code='*value = buf[index];'},
 		},
 	}
 
@@ -80,7 +80,7 @@ function EulerBurgers:addDisplayVars()
 	int indexInt = ]]..(j-1)..[[ + dim * index;
 ]],
 			vars = range(0,self.dim-1):map(function(i)
-				return {[xj..'_'..i] = '*value = buf['..i..' + indexInt];'}
+				return {name=xj..'_'..i, code='*value = buf['..i..' + indexInt];'}
 			end),
 		}
 	end

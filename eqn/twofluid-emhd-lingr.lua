@@ -522,7 +522,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
 			local xs = {'x','y','z'}
 			local i = (k+1)%3
 			local j = (i+1)%3
-			return {[fluid..' vorticity '..xs[k+1]] = template([[
+			return {name=fluid..' vorticity '..xs[k+1], code=template([[
 	if (OOB(1,1)) {
 		*value = 0.;
 	} else {
@@ -550,20 +550,20 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
 		end
 		
 		vars:append{
-			{[fluid..' v'] = '*value_real3 = W.'..fluid..'_v;', type='real3'},
-			{[fluid..' P'] = '*value = W.'..fluid..'_P;'},
-			{[fluid..' eInt'] = '*value = calc_'..fluid..'_eInt(solver, W);'},
-			{[fluid..' eKin'] = '*value = calc_'..fluid..'_eKin(W, x);'},
-			{[fluid..' EInt'] = '*value = calc_'..fluid..'_EInt(solver, W);'},
-			{[fluid..' EKin'] = '*value = calc_'..fluid..'_EKin(W, x);'},
-			{[fluid..' ETotal'] = '*value = U->'..fluid..'_ETotal;'},
-			{[fluid..' S'] = '*value = W.'..fluid..'_P / pow(W.'..fluid..'_rho, (real)solver->heatCapacityRatio);'},
-			{[fluid..' H'] = '*value = calc_H(solver, W.'..fluid..'_P);'},
-			{[fluid..' h'] = '*value = calc_h(solver, W.'..fluid..'_rho, W.'..fluid..'_P);'},
-			{[fluid..' HTotal'] = '*value = calc_HTotal(W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
-			{[fluid..' hTotal'] = '*value = calc_hTotal(solver, W.'..fluid..'_rho, W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
-			{[fluid..'Speed of Sound'] = '*value = calc_'..fluid..'_Cs(solver, &W);'},
-			{[fluid..'Mach number'] = '*value = coordLen(W.'..fluid..'_v, x) / calc_'..fluid..'_Cs(solver, &W);'},
+			{name=fluid..' v', code='*value_real3 = W.'..fluid..'_v;', type='real3'},
+			{name=fluid..' P', code='*value = W.'..fluid..'_P;'},
+			{name=fluid..' eInt', code='*value = calc_'..fluid..'_eInt(solver, W);'},
+			{name=fluid..' eKin', code='*value = calc_'..fluid..'_eKin(W, x);'},
+			{name=fluid..' EInt', code='*value = calc_'..fluid..'_EInt(solver, W);'},
+			{name=fluid..' EKin', code='*value = calc_'..fluid..'_EKin(W, x);'},
+			{name=fluid..' ETotal', code='*value = U->'..fluid..'_ETotal;'},
+			{name=fluid..' S', code='*value = W.'..fluid..'_P / pow(W.'..fluid..'_rho, (real)solver->heatCapacityRatio);'},
+			{name=fluid..' H', code='*value = calc_H(solver, W.'..fluid..'_P);'},
+			{name=fluid..' h', code='*value = calc_h(solver, W.'..fluid..'_rho, W.'..fluid..'_P);'},
+			{name=fluid..' HTotal', code='*value = calc_HTotal(W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
+			{name=fluid..' hTotal', code='*value = calc_hTotal(solver, W.'..fluid..'_rho, W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
+			{name=fluid..'Speed of Sound', code='*value = calc_'..fluid..'_Cs(solver, &W);'},
+			{name=fluid..'Mach number', code='*value = coordLen(W.'..fluid..'_v, x) / calc_'..fluid..'_Cs(solver, &W);'},
 		}:append( ({
 		-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
 		-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
@@ -575,10 +575,10 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
 	end
 
 	vars:append{
-		{['EM energy'] = [[*value = calc_EM_energy(solver, U, x);]]},
+		{name='EM energy', code=[[*value = calc_EM_energy(solver, U, x);]]},
 	}:append(table{'D','B'}:map(function(var,i)
 		local field = assert( ({D='D', B='B'})[var] )
-		return {['div '..var] = template([[
+		return {name='div '..var, code=template([[
 	*value = .5 * (0.
 <?
 for j=0,solver.dim-1 do
@@ -592,8 +592,8 @@ end
 	end))
 
 	vars:append{
-		{['ion grav force'] = [[*value_real3 = calcIonGravForce(solver, U, x);]], type='real3'},
-		{['elec grav force'] = [[*value_real3 = calcElecGravForce(solver, U, x);]], type='real3'},
+		{name='ion grav force', code=[[*value_real3 = calcIonGravForce(solver, U, x);]], type='real3'},
+		{name='elec grav force', code=[[*value_real3 = calcElecGravForce(solver, U, x);]], type='real3'},
 	}
 
 	return vars

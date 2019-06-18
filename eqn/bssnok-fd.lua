@@ -310,7 +310,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	--'U f',
 	--'U gamma_ll tr weighted',
 
---[[ debugging derivatives
+-- [[ debugging derivatives
 	'deriv alpha',
 	'deriv beta_u mag',
 	'deriv W',
@@ -330,13 +330,13 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	local vars = BSSNOKFiniteDifferenceEquation.super.getDisplayVars(self)
 
 	vars:append{
-		{gamma_ll = [[	*value_sym3 = calc_gamma_ll(U, x);]], type='sym3'},
-		{gammaHat_ll = [[	*value_sym3 = coord_g_ll(x);]], type='sym3'},
-		{gammaBar_ll = [[	*value_sym3 = calc_gammaBar_ll(U, x);]], type='sym3'},
-		{gamma_uu = [[	*value_sym3 = calc_gamma_uu(U, x);]], type='sym3'},
-		{gammaHat_uu = [[	*value_sym3 = coord_g_uu(x);]], type='sym3'},
-		{gammaBar_uu = [[	*value_sym3 = calc_gammaBar_uu(U, x);]], type='sym3'},
-		{K_ll = [[
+		{name='gamma_ll', code=[[	*value_sym3 = calc_gamma_ll(U, x);]], type='sym3'},
+		{name='gammaHat_ll', code=[[	*value_sym3 = coord_g_ll(x);]], type='sym3'},
+		{name='gammaBar_ll', code=[[	*value_sym3 = calc_gammaBar_ll(U, x);]], type='sym3'},
+		{name='gamma_uu', code=[[	*value_sym3 = calc_gamma_uu(U, x);]], type='sym3'},
+		{name='gammaHat_uu', code=[[	*value_sym3 = coord_g_uu(x);]], type='sym3'},
+		{name='gammaBar_uu', code=[[	*value_sym3 = calc_gammaBar_uu(U, x);]], type='sym3'},
+		{name='K_ll', code=[[
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	*value_sym3 = sym3_real_mul(
@@ -346,16 +346,16 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 		), exp_4phi);
 ]], type='sym3'},
 
-		{['det gammaBar - det gammaHat'] = [[
+		{name='det gammaBar - det gammaHat', code=[[
 	*value = sym3_det(calc_gammaBar_ll(U, x)) - calc_det_gammaBar_ll(x);
 ]]},
-		{['det gamma based on phi'] = [[
+		{name='det gamma based on phi', code=[[
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	real exp_12phi = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 	*value = exp_12phi * calc_det_gammaBar_ll(x);
 ]]},
-		{S = '*value = sym3_dot(U->S_ll, calc_gamma_uu(U, x));'},
-		{volume = '*value = U->alpha * calc_det_gamma_ll(U, x);'},
+		{name='S', code='*value = sym3_dot(U->S_ll, calc_gamma_uu(U, x));'},
+		{name='volume', code='*value = U->alpha * calc_det_gamma_ll(U, x);'},
 	}
 
 	local derivOrder = 2 * self.solver.numGhost
@@ -382,7 +382,7 @@ using gamma = gammaHat / W^6
 = .5 gammaHat_,i / gammaHat - 3 / W
 = GammaHat^j_ij - 3 / W
 --]]
-		{expansion = template([[
+		{name='expansion', code=template([[
 	<?=makePartial('W', 'real')?>
 	<?=makePartial('alpha', 'real')?>
 	<?=makePartial('beta_u', 'real3')?>
@@ -421,8 +421,8 @@ end
 			)
 		},
 		
-		{f = '*value = calc_f(U->alpha);'},
-		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
+		{name='f', code='*value = calc_f(U->alpha);'},
+		{name='df/dalpha', code='*value = calc_dalpha_f(U->alpha);'},
 
 		--[[ ADM geodesic equation spatial terms:
 		-Gamma^i_tt = 
@@ -452,7 +452,8 @@ end
 		gamma_jk,t = -2 alpha K_jk + gamma_jk,l beta^l + gamma_lj beta^l_,k + gamma_lk beta^l_,j
 		--]]
 		{
-			gravity = template([[
+			name = 'gravity',
+			code= template([[
 	<?=makePartial('alpha', 'real')?>
 
 	real _1_alpha = 1. / U->alpha;
@@ -561,7 +562,8 @@ end ?>;
 		},
 --[=[	
 		{
-			Ricci = template([[
+			nmae = 'Ricci',
+			code = template([[
 	_3sym3 connHat_ull = coord_conn_ull(x);
 	
 	_3sym3 Delta_ull = _3sym3_sub(connBar_ull, connHat_ull);

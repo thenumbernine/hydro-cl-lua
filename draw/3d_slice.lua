@@ -49,6 +49,12 @@ end
 
 			solver.volumeSliceShader:use()
 			solver:getTex(var):bind(0)
+			if self.displayBilinearTextures then
+				gl.glTexParameteri(gl.GL_TEXTURE_3D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+			else
+				gl.glTexParameteri(gl.GL_TEXTURE_3D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
+			end		
+			
 			self.gradientTex:bind(1)
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha.loc, self.display3D_Slice_alpha)
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, self.display3D_Slice_alphaGamma)

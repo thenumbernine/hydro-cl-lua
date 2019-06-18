@@ -2,7 +2,7 @@ local gl = require 'ffi.OpenGL'
 
 return function(HydroCLApp)
 
-	local function drawSolverWithVar(solver, var, heatMap2DShader, xmin, xmax, ymin, ymax)
+	local function drawSolverWithVar(app, solver, var, heatMap2DShader, xmin, xmax, ymin, ymax)
 
 -- hmm ... this is needed for sub-solvers
 local origSolver = var.solver
@@ -19,6 +19,11 @@ var.solver = solver
 			tonumber(size.x) / tex.width,
 			tonumber(size.y) / tex.height)
 		tex:bind(0)
+		if app.displayBilinearTextures then
+			gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+		else
+			gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
+		end
 
 		gl.glBegin(gl.GL_QUADS)
 		gl.glVertex2d(xmin, ymin)
@@ -105,12 +110,12 @@ var.solver = origSolver
 				gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 				gl.glEnable(gl.GL_BLEND)
 				
-				drawSolverWithVar(solver, var, heatMap2DShader, xmin, xmax, ymin, ymax)
+				drawSolverWithVar(self, solver, var, heatMap2DShader, xmin, xmax, ymin, ymax)
 
 -- [[
 				if solver.amr then
 					for k,subsolver in pairs(solver.amr.child) do
-						drawSolverWithVar(subsolver, var, heatMap2DShader, xmin, xmax, ymin, ymax)
+						drawSolverWithVar(self, subsolver, var, heatMap2DShader, xmin, xmax, ymin, ymax)
 					end
 				end
 --]]

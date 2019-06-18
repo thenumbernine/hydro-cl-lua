@@ -210,7 +210,9 @@ local function vorticity(eqn,k,result)
 	local xs = {'x','y','z'}
 	local i = (k+1)%3
 	local j = (i+1)%3
-	return {['vorticity '..xs[k+1]] = template([[
+	return {
+		name = 'vorticity '..xs[k+1],
+		code = template([[
 	if (OOB(1,1)) {
 		<?=result?> = 0.;
 	} else {
@@ -263,29 +265,29 @@ function Euler:getDisplayVars()
 	vars:append{
 		-- TODO should the default display generated of variables be in solver units or SI units?
 		-- should SI unit displays be auto generated as well?
-		{v = '*value_real3 = W.v;', type='real3', units='m/s'},
-		{P = '*value = W.P;', units='kg/(m*s^2)'},
-		{eInt = '*value = calc_eInt(solver, W);', units='m^2/s^2'},
-		{eKin = '*value = calc_eKin(W, x);', units='m^2/s^2'},
-		{eTotal = '*value = U->ETotal / W.rho;', units='m^2/s^2'},
-		{EInt = '*value = calc_EInt(solver, W);', units='kg/(m*s^2)'},
-		{EKin = '*value = calc_EKin(W, x);', units='kg/(m*s^2)'},
-		{EPot = '*value = U->rho * U->ePot;', units='kg/(m*s^2)'},
-		{S = '*value = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
-		{H = '*value = calc_H(solver, W.P);', units='kg/(m*s^2)'},
-		{h = '*value = calc_h(solver, W.rho, W.P);', units='m^2/s^2'},
-		{HTotal = '*value = calc_HTotal(W.P, U->ETotal);', units='kg/(m*s^2)'},
-		{hTotal = '*value = calc_hTotal(W.rho, W.P, U->ETotal);', units='m^2/s^2'},
-		{['speed of sound'] = '*value = calc_Cs(solver, &W);', units='m/s'},
-		{['Mach number'] = '*value = coordLen(W.v, x) / calc_Cs(solver, &W);'},
+		{name='v', code='*value_real3 = W.v;', type='real3', units='m/s'},
+		{name='P', code='*value = W.P;', units='kg/(m*s^2)'},
+		{name='eInt', code='*value = calc_eInt(solver, W);', units='m^2/s^2'},
+		{name='eKin', code='*value = calc_eKin(W, x);', units='m^2/s^2'},
+		{name='eTotal', code='*value = U->ETotal / W.rho;', units='m^2/s^2'},
+		{name='EInt', code='*value = calc_EInt(solver, W);', units='kg/(m*s^2)'},
+		{name='EKin', code='*value = calc_EKin(W, x);', units='kg/(m*s^2)'},
+		{name='EPot', code='*value = U->rho * U->ePot;', units='kg/(m*s^2)'},
+		{name='S', code='*value = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
+		{name='H', code='*value = calc_H(solver, W.P);', units='kg/(m*s^2)'},
+		{name='h', code='*value = calc_h(solver, W.rho, W.P);', units='m^2/s^2'},
+		{name='HTotal', code='*value = calc_HTotal(W.P, U->ETotal);', units='kg/(m*s^2)'},
+		{name='hTotal', code='*value = calc_hTotal(W.rho, W.P, U->ETotal);', units='m^2/s^2'},
+		{name='speed of sound', code='*value = calc_Cs(solver, &W);', units='m/s'},
+		{name='Mach number', code='*value = coordLen(W.v, x) / calc_Cs(solver, &W);'},
 	}:append(self.gravOp and
-		{{gravity = template([[
+		{{name='gravity', code=template([[
 	if (!OOB(1,1)) {
 		*value_real3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U);
 	}
 ]], {eqn=self}), type='real3', units='m/s'}} or nil
 	):append{
-		{temp = template([[
+		{name='temp', code=template([[
 <? local clnumber = require 'cl.obj.number' ?>
 <? local materials = require 'materials' ?>
 #define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
@@ -301,7 +303,7 @@ function Euler:getDisplayVars()
 			vars:insert(vorticity(self,2,'*value'))
 		elseif self.solver.dim == 3 then
 			local v = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
-			vars:insert{vorticityVec = template([[
+			vars:insert{name='vorticityVec', code=template([[
 	<? for i=0,2 do ?>{
 		<?=select(2,next(v[i+1]))?>
 	}<? end ?>

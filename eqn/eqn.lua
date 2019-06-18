@@ -211,7 +211,8 @@ function Equation:getDisplayVarsForStructVars(structVarInfos, ptrName)
 		local function addvar(name, varname, vartype)
 			local assignvar = '*value_'..vartype
 			displayVarInfos:insert{
-				[name] = assignvar..' = '..ptrName..varname..';', 
+				name = name,
+				code = assignvar..' = '..ptrName..varname..';', 
 				type = vartype,
 				units = structVarInfo.units
 			}
@@ -276,15 +277,15 @@ function Equation:getEigenDisplayVars()
 		return range(self.numIntStates * self.numWaves):map(function(i)
 			local row = (i-1)%self.numWaves
 			local col = (i-1-row)/self.numWaves
-			return {['evL_'..row..'_'..col] = '*value = eig.evL['..i..'];'}
+			return {name='evL_'..row..'_'..col, code='*value = eig.evL['..i..'];'}
 		end):append(range(self.numIntStates * self.numWaves):map(function(i)
 			local row = (i-1)%self.numIntStates
 			local col = (i-1-row)/self.numIntStates
-			return {['evR_'..row..'_'..col] = '*value = eig.evR['..i..'];'}
+			return {name='evR_'..row..'_'..col, code='*value = eig.evR['..i..'];'}
 		end)):append(range(self.numIntStates * self.numIntStates):map(function(i)
 			local row = (i-1)%self.numIntStates
 			local col = (i-1-row)/self.numIntStates
-			return {['A_'..row..'_'..col] = '*value = eig.A['..i..'];'}
+			return {name='A_'..row..'_'..col, code='*value = eig.A['..i..'];'}
 		end))
 	end
 end

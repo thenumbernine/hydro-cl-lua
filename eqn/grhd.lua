@@ -210,21 +210,21 @@ GRHD.solverCodeFile = 'eqn/grhd.cl'
 
 function GRHD:getDisplayVars()
 	return {
-		{D = '*value = U->cons.D;'},
-		{S = '*value_real3 = U->cons.S;', type='real3'},
-		{['S weighted'] = template([[
+		{name='D', code='*value = U->cons.D;'},
+		{name='S', code='*value_real3 = U->cons.S;', type='real3'},
+		{name='S weighted', code=template([[
 	<?=solver:getADMVarCode()?>
 	*value = real3_weightedLen(U->cons.S, gamma);
 ]], {solver=self.solver})},
-		{tau = '*value = U->cons.tau;'},
-		{['W based on D'] = '*value = U->cons.D / U->prim.rho;'},
-		{['W based on v'] = template([[
+		{name='tau', code='*value = U->cons.tau;'},
+		{name='W based on D', code='*value = U->cons.D / U->prim.rho;'},
+		{name='W based on v', code=template([[
 	<?=solver:getADMVarCode()?>
 	real det_gamma = sym3_det(gamma);
 	sym3 gammaU = sym3_inv(gamma, det_gamma);
 	*value = 1. / sqrt(1. - real3_weightedLenSq(U->prim.v, gammaU));
 ]], {solver=self.solver})},
-		{['primitive reconstruction error'] = template([[
+		{name='primitive reconstruction error', code=template([[
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
 	<?=solver:getADMVarCode()?>
@@ -234,7 +234,7 @@ function GRHD:getDisplayVars()
 		*value += fabs(U->cons.ptr[j] - U2.ptr[j]);
 	}
 ]], {eqn=self, solver=self.solver})},
-		{['W error'] = template([[
+		{name='W error', code=template([[
 	real W1 = U->cons.D / U->prim.rho;
 	<?=solver:getADMVarCode()?>
 	real det_gamma = sym3_det(gamma);
@@ -243,41 +243,41 @@ function GRHD:getDisplayVars()
 	*value = fabs(W1 - W2);
 ]], {solver=self.solver})},
 
-		{rho = '*value = U->prim.rho;'},
+		{name='rho', code='*value = U->prim.rho;'},
 		
 		-- TODO abstract the generators of real3 variables and add weighted norms automatically
-		{v = '*value_real3 = U->prim.v;', type='real3'},
-		{['v weighted'] = template([[
+		{name='v', code='*value_real3 = U->prim.v;', type='real3'},
+		{name='v weighted', code=template([[
 	<?=solver:getADMVarCode()?>
 	*value = real3_weightedLen(U->prim.v, gamma);
 ]], {solver=self.solver})},
 
-		{eInt = '*value = U->prim.eInt;'},
-		{P = '*value = calc_P(solver, U->prim.rho, U->prim.eInt);'},
-		{h = '*value = calc_h(U->prim.rho, calc_P(solver, U->prim.rho, U->prim.eInt), U->prim.eInt);'},
+		{name='eInt', code='*value = U->prim.eInt;'},
+		{name='P', code='*value = calc_P(solver, U->prim.rho, U->prim.eInt);'},
+		{name='h', code='*value = calc_h(U->prim.rho, calc_P(solver, U->prim.rho, U->prim.eInt), U->prim.eInt);'},
 	}
 end
 
 GRHD.eigenVars = {
-	{rho = 'real'},
-	{vL = 'real3'},
-	{h = 'real'},
-	{W = 'real'},
-	{ATildeMinus = 'real'},
-	{ATildePlus = 'real'},
-	{VMinus = 'real'},
-	{VPlus = 'real'},
-	{CMinus = 'real'},
-	{CPlus = 'real'},
-	{Kappa = 'real'},
+	{name='rho', type='real'},
+	{name='vL', type='real3'},
+	{name='h', type='real'},
+	{name='W', type='real'},
+	{name='ATildeMinus', type='real'},
+	{name='ATildePlus', type='real'},
+	{name='VMinus', type='real'},
+	{name='VPlus', type='real'},
+	{name='CMinus', type='real'},
+	{name='CPlus', type='real'},
+	{name='Kappa', type='real'},
 	-- hmm, I could just as easily re-average these ...
-	{alpha = 'real'},
-	{beta = 'real3'},
-	{gamma = 'sym3'},
+	{name='alpha', type='real'},
+	{name='beta', type='real3'},
+	{name='gamma', type='sym3'},
 	-- and these are for wavespeeds
-	{vU = 'real3'},
-	{lambdaMin = 'real'},
-	{lambdaMax = 'real'},
+	{name='vU', type='real3'},
+	{name='lambdaMin', type='real'},
+	{name='lambdaMax', type='real'},
 }
 
 function GRHD:eigenWaveCode(side, eig, x, waveIndex)

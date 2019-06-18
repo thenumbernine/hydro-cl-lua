@@ -169,19 +169,19 @@ ADM_BonaMasso_1D_1997Alcubierre.solverCodeFile = 'eqn/adm1d_v2.cl'
 function ADM_BonaMasso_1D_1997Alcubierre:getDisplayVars()
 	return ADM_BonaMasso_1D_1997Alcubierre.super.getDisplayVars(self):append{
 		-- adm1d_v1 cons vars:
-		{D_g = '*value = 2. * U->d_xxx / U->gamma_xx;'},
-		{KTilde = '*value = U->K_xx / sqrt(U->gamma_xx);'},
+		{name='D_g', code='*value = 2. * U->d_xxx / U->gamma_xx;'},
+		{name='KTilde', code='*value = U->K_xx / sqrt(U->gamma_xx);'},
 		-- aux:
-		{dx_alpha = '*value = U->alpha * U->a_x;'},
-		{dx_gamma_xx = '*value = 2. * U->d_xxx;'},
-		{volume = '*value = U->alpha * sqrt(U->gamma_xx);'},
-		{f = '*value = calc_f(U->alpha);'},
-		{['df/dalpha'] = '*value = calc_dalpha_f(U->alpha);'},
-		{K = '*value = U->K_xx / U->gamma_xx;'},
-		{expansion = '*value = -U->K_xx / U->gamma_xx;'},
-		{['gravity mag'] = '*value = -U->alpha * U->alpha * U->a_x / U->gamma_xx;'},
+		{name='dx_alpha', code='*value = U->alpha * U->a_x;'},
+		{name='dx_gamma_xx', code='*value = 2. * U->d_xxx;'},
+		{name='volume', code='*value = U->alpha * sqrt(U->gamma_xx);'},
+		{name='f', code='*value = calc_f(U->alpha);'},
+		{name='df/dalpha', code='*value = calc_dalpha_f(U->alpha);'},
+		{name='K', code='*value = U->K_xx / U->gamma_xx;'},
+		{name='expansion', code='*value = -U->K_xx / U->gamma_xx;'},
+		{name='gravity mag', code='*value = -U->alpha * U->alpha * U->a_x / U->gamma_xx;'},
 	
-		{['alpha vs a_x'] = [[
+		{name='alpha vs a_x', code=[[
 	if (OOB(1,1)) {
 		*value = 0.;
 	} else {
@@ -190,7 +190,7 @@ function ADM_BonaMasso_1D_1997Alcubierre:getDisplayVars()
 	}
 ]]},
 
-		{['gamma_xx vs d_xxx'] = [[
+		{name='gamma_xx vs d_xxx', code=[[
 	if (OOB(1,1)) {
 		*value = 0.;
 	} else {

@@ -111,7 +111,7 @@ function CoordinateSystem:init(args)
 	local symmath = require 'symmath'
 	local const = symmath.Constant
 
-	local verbose = cmdline.coordVerbose or cmdline.verbose
+	self.verbose = cmdline.coordVerbose or cmdline.verbose
 
 	local dim = 3
 	local var = symmath.var
@@ -132,7 +132,7 @@ function CoordinateSystem:init(args)
 		return coord.base or coord
 	end)
 	--[[
-	if verbose then
+	if self.verbose then
 		print('coordinates:', table.unpack(coords))
 		print('base coords:', table.unpack(baseCoords))
 		print('embedding:', table.unpack(embedded))
@@ -141,7 +141,7 @@ function CoordinateSystem:init(args)
 
 	local eta = Tensor('_IJ', table.unpack(flatMetric)) 
 	--[[
-	if verbose then
+	if self.verbose then
 		print'flat metric:'
 		print(var'\\eta''_IJ':eq(eta'_IJ'()))
 		print()
@@ -149,7 +149,7 @@ function CoordinateSystem:init(args)
 	--]]
 
 	local u = args.chart()
-	if verbose then
+	if self.verbose then
 		print'coordinate chart:'
 		print(var'u''^I':eq(u'^I'()))
 		print()
@@ -157,7 +157,7 @@ function CoordinateSystem:init(args)
 
 	local e = Tensor'_u^I'
 	e['_u^I'] = u'^I_,u'()
-	if verbose then
+	if self.verbose then
 		print'embedded:'
 		print(var'e''_u^I':eq(var'u''^I_,u'):eq(e'_u^I'()))
 		print()
@@ -171,7 +171,7 @@ function CoordinateSystem:init(args)
 		end
 	end
 	self.anholonomic = anholonomic
-	if verbose then
+	if self.verbose then
 		print('is anholonomic? '..tostring(anholonomic))
 	end
 
@@ -184,7 +184,7 @@ function CoordinateSystem:init(args)
 		eHol = Tensor('_u^I', function(a,I)
 			return u[I]:diff(baseCoords[a])()
 		end)
-		if verbose then
+		if self.verbose then
 			print'holonomic embedded:'
 			print(var'eHol''_u^I':eq(var'u''^I_,u'):eq(eHol'_u^I'()))
 		end
@@ -193,7 +193,7 @@ function CoordinateSystem:init(args)
 	-- commutation coefficients
 	local c = Tensor'_ab^c'
 	if anholonomic then
-		if verbose then
+		if self.verbose then
 			print'connection coefficients:'
 			print(var'c''_uv^w' * var'e''_w','$=[ e_u, e_v ]$')
 		end
@@ -203,15 +203,15 @@ function CoordinateSystem:init(args)
 				local diff = ui:applyDiff(uj:applyDiff(psi)) - uj:applyDiff(ui:applyDiff(psi))
 				local diffEval = diff()
 				if diffEval ~= const(0) then
-					if verbose then
+					if self.verbose then
 						print('$[',ui.name,',',uj.name,'] =$',diff:eq(diffEval))
 					end
 					diff = diff()
-					if verbose then
+					if self.verbose then
 						print('factor division',diff)
 					end
 					local dpsi = table.mapi(baseCoords, function(uk) return psi:diff(uk) end)
-					if verbose then
+					if self.verbose then
 						print('dpsi', dpsi:unpack())
 					end
 					local A,b = symmath.factorLinearSystem({diff}, dpsi)
@@ -231,14 +231,14 @@ function CoordinateSystem:init(args)
 			end
 		end
 	end
-	if verbose then
+	if self.verbose then
 		print'commutation:'
 		print(var'c''_uv^w':eq(c'_uv^w'()))
 	end
 
 	local g = (e'_u^I' * e'_v^J' * eta'_IJ')()
 
-	if verbose then
+	if self.verbose then
 		print'metric:'
 		print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
 	end
@@ -248,7 +248,7 @@ function CoordinateSystem:init(args)
 		gHol = g
 	else
 		gHol = (eHol'_u^I' * eHol'_v^J' * eta'_IJ')()
-		if verbose then
+		if self.verbose then
 			print'holonomic metric:'
 			print(var'gHol''_uv':eq(var'eHol''_u^I' * var'eHol''_v^J' * var'\\eta''_IJ'):eq(gHol'_uv'()))
 		end
@@ -258,17 +258,24 @@ function CoordinateSystem:init(args)
 
 	local dg = Tensor'_cab'
 	dg['_cab'] = g'_ab,c'()
-
+self.dg = dg
+	if self.verbose then
+		print'metric partial:'
+		print(var'g''_ab,c':eq(dg'_cab'()))
+	end
+	
 	local Gamma_lll = Tensor'_abc'
 	Gamma_lll['_abc'] = ((dg'_cab' + dg'_bac' - dg'_abc' + c'_abc' + c'_acb' - c'_bca') / 2)()
-	if verbose then
+self.Gamma_lll = Gamma_lll	
+	if self.verbose then
 		print'1st kind Christoffel:'
 		print(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(Gamma_lll'_abc'()))
 	end
 
 	local Gamma_ull = Tensor'^a_bc'
 	Gamma_ull['^a_bc'] = Gamma_lll'^a_bc'()
-	if verbose then
+self.Gamma_ull = Gamma_ull	
+	if self.verbose then
 		print'connection:'
 		print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma_ull'^a_bc'()))
 	end
@@ -280,14 +287,14 @@ function CoordinateSystem:init(args)
 		
 		local GammaHol_lll = Tensor'_abc'
 		GammaHol_lll['_abc'] = ((gHol'_ab,c' + gHol'_ac,b' - gHol'_bc,a') / 2)()
-		if verbose then
+		if self.verbose then
 			print'1st kind Christoffel of holonoic basis / Levi-Civita connection:'
 			print(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'gHol''_ab,c' + var'gHol''_ac,b' - var'gHol''_bc,a')):eq(GammaHol_lll'_abc'()))
 		end
 
 		local GammaHol_ull = Tensor'^a_bc'
 		GammaHol_ull['^a_bc'] = GammaHol_lll'^a_bc'()
-		if verbose then
+		if self.verbose then
 			print'holonomic / Levi-Civita connection:'
 			print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(GammaHol_ull'^a_bc'()))
 		end
@@ -355,7 +362,7 @@ function CoordinateSystem:init(args)
 		):match'return (.*);'
 
 		--[[
-		if verbose then
+		if self.verbose then
 			print('compiling...'..orig..'...to...'..code)
 		end
 		--]]
@@ -532,9 +539,9 @@ function CoordinateSystem:init(args)
 	end)
 	
 	-- Conn^i = Conn^i_jk g^jk
-	local tr23_conn_u_codes = (Gamma_ull'^a_b^b')()
+	self.tr23_conn_u_expr = (Gamma_ull'^a_b^b')()
 	self.tr23_conn_u_codes = range(dim):mapi(function(i)
-		local code = compile(tr23_conn_u_codes[i])
+		local code = compile(self.tr23_conn_u_expr[i])
 		if cmdline.coordVerbose then
 			if code ~= '0.' then
 				print('tr23_conn_u_code['..i..'] = '..substCoords(code))
@@ -642,6 +649,76 @@ function CoordinateSystem:init(args)
 	self.volumeCode = compile(volumeExpr)
 	if cmdline.coordVerbose then
 		print('volumeCode = '..substCoords(self.volumeCode))
+	end
+
+
+
+
+	-- Now, for num rel in spherical, I need to transform the metric to remove the singularities ...
+	-- It is funny to include this alongside the anholonomic stuff.  It seems you would need one or the other but not both.
+	
+	local J = Tensor('^a_b', function(i,j)
+		return i == j and (1 / self.lenExprs[i]) or 0
+	end)
+	if self.verbose then
+		print'rescaling transform:'
+		print(J)
+	end
+	local Tensor = symmath.Tensor
+	local JInv = Tensor('_a^b', table.unpack((Matrix.inverse(J))))
+	if self.verbose then
+		print'rescaling inverse transform:'
+		print(JInv)
+	end
+	local gJ_ll = (self.g'_ab' * J'^a_u' * J'^b_v')()
+	if self.verbose then
+		print'g_ij, in rescaled coordinates:'
+		print(gJ_ll)
+	end
+	local gJ_uu = (self.gU'^ab' * JInv'_a^u' * JInv'_b^v')()
+	if self.verbose then
+		print'g^ij, in rescaled coordinates:'
+		print(gJ_uu)
+	end
+	self.gJ_uu_code = range(dim):mapi(function(i)
+		return range(i,dim):mapi(function(j)
+			local gJ_uu_ij_code = compile(gJ_uu[i][j])
+			if cmdline.coordVerbose then
+				if gJ_uu_ij_code ~= '0.' then
+					print('gJ_uu['..i..']['..j..'] = '..substCoords(gJ_uu_ij_code))
+				end			
+			end			
+			return gJ_uu_ij_code, j
+		end)
+	end)
+
+	local sqrt_gJ_uu_expr = Tensor('^ab', function(a,b) return symmath.sqrt(gJ_uu[a][b])() end)
+	self.sqrt_gJ_uu_code = range(dim):mapi(function(i)
+		return range(i,dim):mapi(function(j)
+			local sqrt_gJ_uu_ij_code = compile(sqrt_gJ_uu_expr[i][j])
+			if cmdline.coordVerbose then
+				if sqrt_gJ_uu_ij_code ~= '0.' then
+					print('sqrt(gJ_uu['..i..']['..j..']) = '..substCoords(sqrt_gJ_uu_ij_code))
+				end			
+			end			
+			return sqrt_gJ_uu_ij_code, j
+		end)
+	end)
+	
+	local dgJ_lll = (self.dg'_abc' * J'^a_u' * J'^b_v' * J'^c_w')()
+	if self.verbose then
+		print'g_ij,k in rescaled coordinates:'
+		print(dgJ_lll)
+	end
+	local connJ_lll = (self.Gamma_lll'_abc' * J'^a_u' * J'^b_v' * J'^c_w')()
+	if self.verbose then
+		print'Gamma_ijk in rescaled coordinates:'
+		print(connJ_lll)
+	end
+	local connJ_ull = (self.Gamma_ull'^a_bc' * JInv'_a^u' * J'^b_v' * J'^c_w')()
+	if self.verbose then
+		print'Gamma^i_jk in rescaled coordinates:'
+		print(connJ_ull)
 	end
 end
 
@@ -936,26 +1013,42 @@ real coordLen(real3 r, real3 pt) {
 		
 		addSym3Components('coord_sqrt_g_uu', self.sqrt_gUCode)
 	
-		-- now, for num rel in spherical, I need to transform the metric to remove the singularities ...
-		local symmath = require 'symmath'
-		local Matrix = symmath.Matrix
-		local Tensor = symmath.Tensor
 		
-		local rescale = Tensor('^a_b', function(i,j)
-			return i == j and (1 / self.lenExprs[i]) or 0
-		end)
-		print'rescaling transform:'
-		print(rescale)
-		local Tensor = symmath.Tensor
-		local rescaleInv = Tensor('_a^b', table.unpack((Matrix.inverse(rescale))))
-		print'rescaling inverse transform:'
-		print(rescaleInv)
-		local gRescaled = (self.g'_ab' * rescale'^a_u' * rescale'^b_v')()
-		print'g_ij, in rescaled coordinates:'
-		print(gRescaled)
-		local gRescaledU = (self.gU'^ab' * rescaleInv'_u^a' * rescaleInv'_v^b')()
-		print'g^ij, in rescaled coordinates:'
-		print(gRescaledU)
+		-- gJ = g times jacobian = g times rescaling
+		-- TODO better naming for this
+		
+		addSym3Components('coordRescaled_g_uu', self.gJ_uu_code)
+		
+		addSym3Components('coordRescaled_sqrt_g_uu', self.sqrt_gJ_uu_code)
+	
+		-- coord rescaling
+		lines:insert(template([[
+<? local dim = solver.dim ?>
+real3 coord_rescale(real3 v, real3 x) {
+	return _real3(
+		v.x / coord_dx0(x),
+		v.y<? if dim > 1 then ?> / coord_dx1(x)<? end ?>,
+		v.z<? if dim > 2 then ?> / coord_dx2(x)<? end ?>);
+}
+
+real3 coord_rescaleInv(real3 v, real3 x) {
+	return _real3(
+		v.x * coord_dx0(x),
+		v.y<? if dim > 1 then ?> * coord_dx1(x)<? end ?>,
+		v.z<? if dim > 2 then ?> * coord_dx2(x)<? end ?>);
+}
+
+//c^i_jk g^jk = c^i, rescaled by the inverse change-of-basis
+real3 coordRescaled_conn_trace23(real3 x) { 
+	return coord_rescaleInv(coord_conn_trace23(x), x); 
+}
+
+//c^i_jk = c_i, rescaled by forward change-of-basis
+real3 coordRescaled_conn_trace13(real3 x) {
+	return coord_rescale(coord_conn_trace13(x), x);
+}
+
+]], {solver=solver}))
 	end
 
 	lines:insert(template([[

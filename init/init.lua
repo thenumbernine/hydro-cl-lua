@@ -31,7 +31,6 @@ if solver.useCLLinkLibraries then
 		solver.initStateUnlinkedObj = solver.Program{name='initState', code=code}
 		solver.initStateUnlinkedObj:compile{dontLink=true}
 	end)
-
 	time('linking init state program', function()
 		solver.initStateProgramObj = solver.Program{
 			programs = {
@@ -49,12 +48,6 @@ else	-- not useCLLinkLibraries
 		}
 		solver.initStateProgramObj:compile()
 	end)
---[[ works
-local cl = require 'ffi.OpenCL'
-print('CL_PROGRAM_KERNEL_NAMES', cl.CL_PROGRAM_KERNEL_NAMES)
-local s = solver.initStateProgramObj.obj:getInfo'CL_PROGRAM_KERNEL_NAMES'
-print('CL_PROGRAM_KERNEL_NAMES', #s, s)
---]]
 end
 	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.solverBuf, solver.UBuf)
 

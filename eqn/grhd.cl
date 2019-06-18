@@ -245,18 +245,16 @@ kernel void calcEigenBasis(
 		int indexInt = side + dim * index;
 		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
 <?
-for _,field in ipairs(eqn.eigenVars) do
-	local name,ctype = next(field)
-?>	eig-><?=name?> = <?=name?>;
+for _,var in ipairs(eqn.eigenVars) do
+?>	eig-><?=var.name?> = <?=var.name?>;
 <? end
 ?>
 	}<? end ?>
 }
 
 <? for side=0,solver.dim-1 do 
-	local prefix = table.map(eqn.eigenVars, function(field)
-		local name,ctype = next(field)
-		return '\t'..ctype..' '..name..' = eig.'..name..';\n'
+	local prefix = table.map(eqn.eigenVars, function(var)
+		return '\t'..var.type..' '..var.name..' = eig.'..var.name..';\n'
 	end):concat()
 ?>
 <?=eqn.waves_t?> eigen_leftTransform_<?=side?>(

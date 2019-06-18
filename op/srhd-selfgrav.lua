@@ -23,7 +23,6 @@ function SRHDSelfGrav:init(args)
 	args.verbose = cmdline.selfGravVerbose
 	args.linearSolver = cmdline.selfGravLinearSolver or 'conjres'	-- so far works best for selfgrav
 	SRHDSelfGrav.super.init(self, args)
-	self.densityField = args.densityField	
 	self.solver[self.enableField] = not not self.solver[self.enableField]
 end
 
@@ -35,7 +34,7 @@ function SRHDSelfGrav:getPoissonDivCode()
 	return template([[
 <? local eqn = op.solver.eqn ?>
 	global <?=eqn.prim_t?>* prim = &UBuf[index].prim;
-	source = 4. * M_PI * (solver->gravitationalConstant / unit_m3_per_kg_s2) * prim-><?=op.densityField?>;
+	source = 4. * M_PI * (solver->gravitationalConstant / unit_m3_per_kg_s2) * prim->rho;
 ]], {
 		op = self,
 	})

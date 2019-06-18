@@ -328,6 +328,7 @@ function HydroCLApp:initGL(...)
 	-- When it comes to separate variables, they usually look better apart.
 	self.displayAllTogether = false	--self.solvers[1] and self.solvers[1].dim > 1 or false
 
+	self.displayBilinearTextures = true
 
 	self.gradientTex = GLGradientTex(1024, {
 	-- [[ white, rainbow, black
@@ -997,6 +998,8 @@ function HydroCLApp:updateGUI()
 		end
 
 		tooltip.checkboxTable('stack graphs', self, 'displayAllTogether')
+
+		tooltip.checkboxTable('bilinear textures', self, 'displayBilinearTextures')
 
 		if ig.igRadioButtonBool('ortho', self.view == self.orthoView) then
 			self.view = self.orthoView

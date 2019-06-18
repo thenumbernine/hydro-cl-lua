@@ -221,8 +221,8 @@ GRMHD.displayVarCodeUsesPrims = true
 
 function GRMHD:getDisplayVars()
 	return GRMHD.super.getDisplayVars(self):append{
-		{W = '*value = U->D / prim.rho;'},
-		{['primitive reconstruction error'] = template([[
+		{name='W', code='*value = U->D / prim.rho;'},
+		{name='primitive reconstruction error', code=template([[
 			//prim have just been reconstructed from cons
 			//so reconstruct cons from prims again and calculate the difference
 			{
@@ -245,17 +245,17 @@ function GRMHD:getPrimDisplayVarCodePrefix()
 end
 
 GRMHD.eigenVars = {
-	{rho = 'real'},
-	{v = 'real3'},
-	{h = 'real'},
-	{W = 'real'},
-	{ATildeMinus = 'real'},
-	{ATildePlus = 'real'},
-	{VMinus = 'real'},
-	{VPlus = 'real'},
-	{CMinus = 'real'},
-	{CPlus = 'real'},
-	{Kappa = 'real'},
+	{name='rho', type='real'},
+	{name='v', type='real3'},
+	{name='h', type='real'},
+	{name='W', type='real'},
+	{name='ATildeMinus', type='real'},
+	{name='ATildePlus', type='real'},
+	{name='VMinus', type='real'},
+	{name='VPlus', type='real'},
+	{name='CMinus', type='real'},
+	{name='CPlus', type='real'},
+	{name='Kappa', type='real'},
 }
 
 return GRMHD

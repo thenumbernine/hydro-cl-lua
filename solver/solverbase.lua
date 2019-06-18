@@ -36,7 +36,8 @@ SolverBase.name = 'Solver'
 SolverBase.eqnName = nil
 
 -- whether to use separate linked binaries.  would it save on compile time?
-SolverBase.useCLLinkLibraries = true
+-- this does work, however I don't have caching for linked libraries set up yet
+SolverBase.useCLLinkLibraries = false
 
 -- whether to check for NaNs
 SolverBase.checkNaNs = false
@@ -602,29 +603,30 @@ end
 function SolverBase:getDisplayCode()
 	local lines = table()
 
---[[
+--[=[
 -- ok here's another idea for saving lines of code
 -- add some predefined functions for getters for real, real3, sym3, cplx, cplx3
 -- and - if your variable is just a member of a struct of one of these types, use that.
 -- (this means adding in an extra param for display: the offset)
-	local gettersBuilt = {}
-	local function buildSimpleGetters(var.type)
-		if gettersBuilt[var.type] then return end
-		gettersBuilt[var.type] = true
 	
-		local name = 'calcDisplayVarSimple'
-		for _,ctype in ipairs{'real', 'real3', 'sym3', 'cplx', 'cplx3'} do
-			-- TODO how to know if it is Tex vs Buf?
-			lines:insert(template(self.displayCode, {
-				name = name..'_'..ctype,
-				var = table(var, {
-					code = '*value_'..ctype..' = U->'..var.field..';\n'
-				}),
-			}))
-		end
-		return name
+	for _,ctype in ipairs{'real', 'real3', 'sym3', 'cplx', 'cplx3'} do
+		-- TODO how to know if it is Tex vs Buf?
+		lines:insert(template(self.displayCode, {
+			name = 'calcDisplayVarSimple',
+			var = table(var, {
+				code = template([[
+	*value_<?=ctype?> = *(global const <?=ctype?> *)((global const byte*)buf + index * structSize + structOffset);
+]], 			{
+					ctype = ctype,
+				}),			
+			}),
+			extraArgs = {
+				'int structSize',
+				'int structOffset',
+			},
+		}))
 	end
---]]
+--]=]
 
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
 		for _,var in ipairs(displayVarGroup.vars) do
@@ -1133,16 +1135,9 @@ enableVector = false
 		varInfo = table(varInfo)
 		varInfo.units = nil
 	
-		local name, code, vartype
-		for k,v in pairs(varInfo) do
-			if k == 'type' then
-				vartype = v
-			else
-				assert(not name and not code)
-				name = k
-				code = v
-			end
-		end
+		local name = assert(varInfo.name, "expected to find name in "..require'ext.tolua'(varInfo))
+		local code = assert(varInfo.code, "expected to find code")
+		local vartype = varInfo.type
 
 		-- this is a quick fix for the magn vars associated with the axis real3 vars of the sym3s
 		-- but it has lots of redundant symmetries for the sym3 real3 elements
@@ -1313,10 +1308,10 @@ function SolverBase:addDisplayVars()
 	self:addDisplayVarGroup{
 		name = 'reduce', 
 		getBuffer = function() return self.reduceBuf end,
-		vars = {{['0'] = '*value = buf[index];'}},
+		vars = {{name='0', code='*value = buf[index];'}},
 	}
 
--- [[ use for debugging only for the time being
+--[[ use for debugging only for the time being
 	-- TODO make this flexible for our integrator
 	-- if I put this here then integrator isn't created yet
 	-- but if I put this after integrator then display variable init has already happened

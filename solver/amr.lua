@@ -280,7 +280,7 @@ kernel void initNodeFromRoot(
 				bufferField = 'U2Buf',
 				type = self.eqn.cons_t,
 				vars = {
-					{[0] = '*value = buf[index].ptr[0];'},
+					{name='0', code='*value = buf[index].ptr[0];'},
 				}
 			}
 		elseif self.amr.ctx.method == 'gradient' then
@@ -289,7 +289,7 @@ kernel void initNodeFromRoot(
 				bufferField = 'amrErrorBuf',
 				type = 'real',
 				vars = {
-					{[0] = '*value = buf[index];'},
+					{name='0', code='*value = buf[index];'},
 				}
 			}
 		end

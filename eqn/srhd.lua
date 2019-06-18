@@ -226,7 +226,9 @@ local function vorticity(eqn,k,result)
 	local xs = {'x','y','z'}
 	local i = (k+1)%3
 	local j = (i+1)%3
-	return {['vorticity '..xs[k+1]] = template([[
+	return {
+		name = 'vorticity '..xs[k+1],
+		code = template([[
 	
 	if (OOB(1,1)) {
 		<?=result?> = 0.;
@@ -248,31 +250,32 @@ local function vorticity(eqn,k,result)
 		<?=result?> = (vjp_i - vjm_i) / (2. * solver->grid_dx.s<?=i?>)
 				- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
 	}
-]], {
-		i = i,
-		j = j,
-		eqn = eqn,
-		result = result,
-	})}
+]], 	{
+			i = i,
+			j = j,
+			eqn = eqn,
+			result = result,
+		})
+	}
 end
 
 function SRHD:getDisplayVars()
 	local vars = table{
-		{D = '*value = U->cons.D;'},
-		{S = '*value_real3 = U->cons.S;', type='real3'},
-		{tau = '*value = U->cons.tau;'},
-		{['W based on D'] = '*value = U->cons.D / U->prim.rho;'},
-		{['W based on v'] = '*value = 1. / sqrt(1. - coordLenSq(U->prim.v, x));'},
+		{name='D', code='*value = U->cons.D;'},
+		{name='S', code='*value_real3 = U->cons.S;', type='real3'},
+		{name='tau', code='*value = U->cons.tau;'},
+		{name='W based on D', code='*value = U->cons.D / U->prim.rho;'},
+		{name='W based on v', code='*value = 1. / sqrt(1. - coordLenSq(U->prim.v, x));'},
 		
-		{rho = '*value = U->prim.rho;'},
-		{v = '*value_real3 = U->prim.v;', type='real3'},
-		{eInt = '*value = U->prim.eInt;'},
-		{P = '*value = calc_P(solver, U->prim.rho, U->prim.eInt);'},
-		{h = '*value = calc_h(U->prim.rho, calc_P(solver, U->prim.rho, U->prim.eInt), U->prim.eInt);'},
+		{name='rho', code='*value = U->prim.rho;'},
+		{name='v', code='*value_real3 = U->prim.v;', type='real3'},
+		{name='eInt', code='*value = U->prim.eInt;'},
+		{name='P', code='*value = calc_P(solver, U->prim.rho, U->prim.eInt);'},
+		{name='h', code='*value = calc_h(U->prim.rho, calc_P(solver, U->prim.rho, U->prim.eInt), U->prim.eInt);'},
 		
-		{ePot = '*value = U->ePot;'},
+		{name='ePot', code='*value = U->ePot;'},
 		
-		{['primitive reconstruction error'] = template([[
+		{name='primitive reconstruction error', code=template([[
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
 	{
@@ -283,7 +286,7 @@ function SRHD:getDisplayVars()
 		}
 	}
 	]], {eqn=self})},
-		{['W error'] = [[
+		{name='W error', code=[[
 	real W1 = U->cons.D / U->prim.rho;
 	real W2 = 1. / sqrt(1. - coordLenSq(U->prim.v, x));
 	*value = fabs(W1 - W2);
@@ -294,7 +297,9 @@ function SRHD:getDisplayVars()
 		vars:insert(vorticity(self,2,'*value'))
 	elseif self.solver.dim == 3 then
 		local v = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
-		vars:insert{vorticityVec = template([[
+		vars:insert{
+			name = 'vorticityVec',
+			code = template([[
 	<? for i=0,2 do ?>{
 		<?=select(2,next(v[i+1]))?>
 		++value;

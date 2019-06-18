@@ -1,4 +1,4 @@
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -432,7 +432,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- wave equation
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
@@ -442,7 +442,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -510,6 +510,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- general relativistic compressible hydrodynamics
 
 
+-- TODO remove calcEigenBasis from eqn/grhd.cl
 -- this is the solver with plug-ins for ADM metric, 
 -- yet doesn't come coupled with any other solver, so it will act just like a srhd solver
 --self.solvers:insert(require 'solver.grhd-roe'(args))
@@ -615,11 +616,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 
 
--- the BSSNOK solver works similar to the adm3d for the warp bubble simulation
---  but something gets caught up in the freeflow boundary conditions, and it explodes
--- so I have set constant Minkowski boundary conditions?
--- the BSSNOK solver sometimes explodes / gets errors / nonzero Hamiltonian constraint for forward euler
--- however they tend to not explode with backward euler ... though these numerical perturbations still appear, but at least they don't explode
+-- bssnok is working in 1D spherical for RK4 but diverging for Euler
 --self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is HyperbolicGammaDriver
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='none'}})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='GammaDriver'}})))

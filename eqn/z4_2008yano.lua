@@ -157,15 +157,15 @@ Z4_2008Yano.predefinedDisplayVars = {
 function Z4_2008Yano:getDisplayVars()
 	local vars = Z4_2008Yano.super.getDisplayVars(self)
 	vars:append{
-		{det_gamma = '*value = sym3_det(U->gamma_ll);'},
-		{volume = '*value = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
-		{f = '*value = calc_f(U->alpha);'},
-		{K_ll = [[
+		{name='det_gamma', code='*value = sym3_det(U->gamma_ll);'},
+		{name='volume', code='*value = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
+		{name='f', code='*value = calc_f(U->alpha);'},
+		{name='K_ll', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
 	*value = sym3_dot(gamma_uu, U->K_ll);
 ]]		},
-		{expansion = [[
+		{name='expansion', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
 	*value = -sym3_dot(gamma_uu, U->K_ll);
@@ -186,7 +186,7 @@ momentum constraints
 	-- shift-less gravity only
 	-- gravity with shift is much more complex
 	-- TODO add shift influence (which is lengthy)
-		{gravity = [[
+		{name='gravity', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
 	*value_real3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
