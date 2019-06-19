@@ -1371,7 +1371,7 @@ function SolverBase:addDisplayVars()
 		vars = {{name='0', code='*value = buf[index];'}},
 	}
 
--- [[ use for debugging only for the time being
+--[[ use for debugging only for the time being
 	-- TODO make this flexible for our integrator
 	-- if I put this here then integrator isn't created yet
 	-- but if I put this after integrator then display variable init has already happened

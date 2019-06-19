@@ -1414,21 +1414,22 @@ function GridSolver:updateGUIEqnSpecific()
 end
 
 do
-	-- display vars: TODO graph vars
 	local function handle(self, var, title)
+		local anyChanged = false
 		ig.igPushIDStr(title)
 
 		var.enabled = not not var.enabled
 		local enableChanged = tooltip.checkboxTable('enabled', var, 'enabled') 
+		anyChanged = anyChanged or enableChanged
 		ig.igSameLine()
 		
-		tooltip.checkboxTable('log', var, 'useLog')
+		anyChanged = anyChanged or tooltip.checkboxTable('log', var, 'useLog')
 		ig.igSameLine()
 
-		tooltip.checkboxTable('units', var, 'showInUnits') 
+		anyChanged = anyChanged or tooltip.checkboxTable('units', var, 'showInUnits') 
 		ig.igSameLine()
 
-		tooltip.checkboxTable('fixed range', var, 'heatMapFixedRange')
+		anyChanged = anyChanged or tooltip.checkboxTable('fixed range', var, 'heatMapFixedRange')
 		ig.igSameLine()
 		
 		if ig.igCollapsingHeader(var.name) then
@@ -1438,8 +1439,8 @@ do
 				var.heatMapValueMin = var.heatMapValueMin * unitScale
 				var.heatMapValueMax = var.heatMapValueMax * unitScale
 			end
-			tooltip.numberTable('value min', var, 'heatMapValueMin')
-			tooltip.numberTable('value max', var, 'heatMapValueMax')
+			anyChanged = anyChanged or tooltip.numberTable('value min', var, 'heatMapValueMin')
+			anyChanged = anyChanged or tooltip.numberTable('value max', var, 'heatMapValueMax')
 			if var.units and var.showInUnits then -- convert our ranges from raw to units
 				var.heatMapValueMin = var.heatMapValueMin / unitScale
 				var.heatMapValueMax = var.heatMapValueMax / unitScale
@@ -1448,7 +1449,7 @@ do
 		
 		ig.igPopID()
 	
-		return enableChanged
+		return enableChanged, anyChanged
 	end
 
 	-- do one for 'all'
@@ -1497,9 +1498,9 @@ do
 					for _,field in ipairs(fields) do
 						original[field] = all[field]
 					end
-					local enableChanged = handle(self, all, 'all')
+					local enableChanged, anyChanged = handle(self, all, 'all')
 					--refresh = refresh or enableChanged
-					if enableChanged then
+					if anyChanged then
 						for _,field in ipairs(fields) do
 							if all[field] ~= original[field] then
 								for _,var in ipairs(displayVarGroup.vars) do

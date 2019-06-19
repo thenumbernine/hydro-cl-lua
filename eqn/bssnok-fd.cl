@@ -550,7 +550,7 @@ end ?>;
 			sym3_add4(
 				sym3_real_mul(DBar2_phi_ll, -2.),
 				sym3_real_mul(partial_phi_outer_partial_phi_ll, 4.),
-				RBar_ll,
+sym3_zero,//				RBar_ll,
 				sym3_real_mul(U->S_ll, - 8. * M_PI)),
 			U->alpha)
 		);
