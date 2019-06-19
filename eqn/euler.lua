@@ -240,6 +240,7 @@ local function vorticity(eqn,k,result)
 	})}
 end
 
+-- [=[
 Euler.predefinedDisplayVars = {
 -- [[	
 	'U rho (kg/m^3)',
@@ -259,6 +260,7 @@ Euler.predefinedDisplayVars = {
 	'U EPot (kg/(m s^2))',
 	'U gravity mag (m/s)',
 }
+--]=]
 
 function Euler:getDisplayVars()
 	local vars = Euler.super.getDisplayVars(self)
@@ -305,7 +307,7 @@ function Euler:getDisplayVars()
 			local v = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
 			vars:insert{name='vorticityVec', code=template([[
 	<? for i=0,2 do ?>{
-		<?=select(2,next(v[i+1]))?>
+		<?=v[i+1].code?>
 	}<? end ?>
 ]], {v=v}), type='real3', units='m/s^2'}
 		end

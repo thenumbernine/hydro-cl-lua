@@ -214,7 +214,12 @@ function Equation:getDisplayVarsForStructVars(structVarInfos, ptrName)
 				name = name,
 				code = assignvar..' = '..ptrName..varname..';', 
 				type = vartype,
-				units = structVarInfo.units
+				units = structVarInfo.units,
+				
+				-- if a display var has 'field' set then use a predefined calcDisplayVar function to just read the field directly (without any computations required)
+				-- ... unless it has units too ... in which case ... I'll be scaling the units
+				-- ... of course I could do the scaling after reading the value ...
+				field = varname,
 			}
 		end
 

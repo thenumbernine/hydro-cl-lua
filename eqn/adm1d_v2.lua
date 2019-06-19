@@ -113,7 +113,11 @@ end
 
 function ADM_BonaMasso_1D_1997Alcubierre:getCommonFuncCode()
 	return template([[
-void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
+void setFlatSpace(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* U,
+	real3 x
+) {
 	*U = (<?=eqn.cons_t?>){
 		.alpha = 1, 
 		.gamma_xx = 1,

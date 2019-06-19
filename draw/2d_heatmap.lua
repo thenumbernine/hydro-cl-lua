@@ -102,7 +102,7 @@ var.solver = origSolver
 				local heatMap2DShader = solver:getHeatMap2DShader(var)
 				heatMap2DShader:use()
 				self.gradientTex:bind(1)
-				
+
 				gl.glUniform1i(heatMap2DShader.uniforms.useLog.loc, var.useLog)
 				gl.glUniform1f(heatMap2DShader.uniforms.valueMin.loc, valueMin)
 				gl.glUniform1f(heatMap2DShader.uniforms.valueMax.loc, valueMax)
@@ -128,7 +128,15 @@ var.solver = origSolver
 			
 	--			gl.glDisable(gl.GL_DEPTH_TEST)
 
-				self:drawGradientLegend(ar, varName, valueMin, valueMax)
+				-- TODO only draw the first
+				local gradientValueMin = valueMin
+				local gradientValueMax = valueMax
+				if var.showInUnits and var.units then
+					local unitScale = solver:convertToSIUnitsCode(var.units).func()
+					gradientValueMin = gradientValueMin * unitScale
+					gradientValueMax = gradientValueMax * unitScale
+				end
+				self:drawGradientLegend(ar, varName, gradientValueMin, gradientValueMax)
 			
 	--			gl.glEnable(gl.GL_DEPTH_TEST)
 			end

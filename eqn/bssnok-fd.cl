@@ -80,36 +80,6 @@ sym3 tracefree(sym3 A_ll, sym3 g_ll, sym3 g_uu) {
 	return sym3_sub(A_ll, sym3_real_mul(g_ll, tr_A / 3.));
 }
 
-_3sym3 calc_connBar_lll(
-	sym3 partial_epsilon_lll[3],
-	_3sym3 connHat_lll
-) {
-	/*
-	connBar_lll[i].jk := connBar_ijk 
-	= 1/2 (gammaBar_ij,k + gammaBar_ik,j - gammaBar_jk,i)
-	= 1/2 (
-		epsilon_ij,k + gammaHat_ij,k 
-		+ epsilon_ik,j + gammaHat_ik,j 
-		- epsilon_jk,i - gammaHat_jk,i
-	)
-	= 1/2 (epsilon_ij,k + epsilon_ik,j - epsilon_jk,i) + connHat_ijk
-	*/
-	return (_3sym3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {	
-<?	for jk,xjk in ipairs(symNames) do
-		local j,k = from6to3x3(jk)
-?>			.<?=xjk?> = .5 * (
-				partial_epsilon_lll[<?=k-1?>].<?=sym(i,j)?> 
-				+ partial_epsilon_lll[<?=j-1?>].<?=sym(i,k)?> 
-				- partial_epsilon_lll[<?=i-1?>].<?=xjk?>
-			) + connHat_lll.<?=xi?>.<?=xjk?>,
-<?	end
-?>		},
-<? end
-?>	};
-}
-
 void calc_partial_conn_ulll(
 	_3sym3 partial_conn_ulll[3],
 	_3sym3 conn_ull,
@@ -163,7 +133,7 @@ sym3 calc_RBar_ll(
 	sym3sym3 partial2_gammaBar_llll,
 	_3sym3 partial_gammaBar_lll,
 	real3 partial_LambdaBar_ul[3],
-	real3 Delta_u,
+	real3 Delta_u,	//TODO just use U->LambdaBar_u?  
 	_3sym3 Delta_lll,
 	_3sym3 Delta_ull
 ) {
@@ -419,7 +389,7 @@ end ?>;
 	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar_ll);
 
 	//connBar_lll.i.jk := connBar^i_jk
-	_3sym3 connBar_lll = calc_connBar_lll(partial_epsilon_lll, connHat_lll);
+	_3sym3 connBar_lll = calc_connBar_lll(*(_3sym3*)partial_epsilon_lll, connHat_lll, x);
 
 	//connBar_ull[i].jk := connBar^i_jk = gammaBar^il connBar_ljk
 	_3sym3 connBar_ull = sym3_3sym3_mul(gammaBar_uu, connBar_lll);
@@ -826,24 +796,19 @@ kernel void constrainU(
 	global cons_t* U = UBuf + index;
 
 	sym3 gammaHat_ll = coord_g_ll(x);
-	sym3 gammaBar_ll = sym3_add(gammaHat_ll, U->epsilon_ll);
+	sym3 gammaBar_ll = sym3_add(gammaHat_ll, sym3_rescaleToCoord_ll(U->epsilon_ll, x));
 <? 
 if eqn.guiVars.constrain_det_gammaBar_ll.value 
 or eqn.guiVars.constrain_tr_ABar_ll.value 
 then 
 ?>
 	/*
-	if the background is flat ...
-	then we need to force det(gammaBar_ij) = 1
-	and we can do so with gammaBar_ij := gammaBar_ij / det(gammaBar_ij)^(1/3)
+	we need to force det(gammaBar_ij) = det(gammaHat_ij)
+	and we can do so with gammaBar_ij := gammaBar_ij * (det(gammaHat_ij) / det(gammaBar_ij))^(1/3)
 	so we find
-	det(gammaBar_ij / det(gammaBar_ij)^(1/3))
-	= det(gammaBar_ij)) / det(gammaBar_ij)
-	= 1
-	
-	if the background is gammaHat_ij
-	then we need to force det(gammaBar_ij) = det(gammaHat_ij)
-	do so with gammaBar_ij := gammaBar_ij * ( det(gammaHat_ij) / det(gammaBar_ij) )^(1/3)
+	det(gammaBar_ij * (det(gammaHat_ij) / det(gammaBar_ij))^(1/3) )
+	= det(gammaBar_ij) * (det(gammaHat_ij) / det(gammaBar_ij))
+	= det(gammaHat_ij)
 	*/
 <?	if eqn.guiVars.constrain_det_gammaBar_ll.value then ?>
 	real det_gammaHat_ll = coord_det_g(x);
@@ -852,7 +817,7 @@ then
 <? 		for ij,xij in ipairs(symNames) do
 ?>	gammaBar_ll.<?=xij?> *= rescaleMetric;
 <? 		end ?>
-	U->epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
+	U->epsilon_ll = sym3_rescaleFromCoord_ll(sym3_sub(gammaBar_ll, gammaHat_ll), x);
 <?	end ?>
 
 	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaHat_ll);
@@ -898,7 +863,7 @@ end
 	_3sym3 connHat_ull = coord_conn_ull(x);
 
 	//connBar_lll.i.jk := connBar^i_jk
-	_3sym3 connBar_lll = calc_connBar_lll(partial_epsilon_lll, connHat_lll);
+	_3sym3 connBar_lll = calc_connBar_lll(*(_3sym3*)partial_epsilon_lll, connHat_lll, x);
 
 	//connBar_ull[i].jk := connBar^i_jk = gammaBar^il connBar_ljk
 	_3sym3 connBar_ull = sym3_3sym3_mul(gammaBar_uu, connBar_lll);
@@ -917,12 +882,12 @@ end
 	sym3 gammaHat_uu = coord_g_uu(x);
 
 	_3sym3 partial_gammaHat_lll = coord_dg_lll(x);
-	_3sym3 partial_gammaBar_lll = _3sym3_add(*(_3sym3*)partial_epsilon_lll, partial_gammaHat_lll);
+	_3sym3 partial_gammaBar_lll = _3sym3_add(_3sym3_rescaleToCoord_lll(*(_3sym3*)partial_epsilon_lll, x), partial_gammaHat_lll);
 
 	_3sym3 partial_connHat_ulll[3];
 	calc_partial_conn_ulll(partial_connHat_ulll, connHat_ull, gammaHat_uu, partial_gammaHat_lll, partial2_gammaHat_llll);
 	
-	sym3sym3 partial2_gammaBar_llll = sym3sym3_add(*(sym3sym3*)partial2_epsilon_llll, partial2_gammaHat_llll);
+	sym3sym3 partial2_gammaBar_llll = sym3sym3_add(sym3sym3_rescaleToCoord_llll(*(sym3sym3*)partial2_epsilon_llll, x), partial2_gammaHat_llll);
 	
 	sym3 RBar_ll = calc_RBar_ll(U, gammaBar_ll, gammaBar_uu, connHat_ull, partial_connHat_ulll, partial2_gammaBar_llll, partial_gammaBar_lll, partial_LambdaBar_ul, Delta_u, Delta_lll, Delta_ull);
 	

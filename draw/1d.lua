@@ -85,15 +85,28 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 			self:showDisplayVar1D(solver, var)
 		end
 
+		local unitScale = 1
+		local thisValueMin = valueMin
+		local thisValueMax = valueMax
+		if var.showInUnits and var.units then
+			unitScale = solver:convertToSIUnitsCode(var.units).func()
+			thisValueMin = thisValueMin * unitScale
+			thisValueMax = thisValueMax * unitScale
+		end			
+	
 		if self.font then
 			local fontSizeX = (xmax - xmin) * .05
 			local fontSizeY = (ymax - ymin) * .05
 			local ystep = ystep * 2
 			for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
 				local realY = useLog and 10^y or y
+				local value = (y - ymin) * (thisValueMax - thisValueMin) / (ymax - ymin) + thisValueMin
+				local absvalue = math.abs(value)
 				self.font:draw{
 					pos={xmin * .9 + xmax * .1, y + fontSizeY * .5},
-					text=tostring(realY),
+					text=(
+						(absvalue > 1e+5 or absvalue < 1e-5)
+						and ('%.5e'):format(value) or ('%.5f'):format(value)),
 					color = {1,1,1,1},
 					fontSize={fontSizeX, -fontSizeY},
 					multiLine=false,
@@ -101,7 +114,7 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 			end
 			self.font:draw{
 				pos={xmin, ymax},
-				text=('%s [%.3e, %.3e]'):format(varName, valueMin, valueMax),
+				text=('%s [%.3e, %.3e]'):format(varName, thisValueMin, thisValueMax),
 				color = {1,1,1,1},
 				fontSize={fontSizeX, -fontSizeY},
 				multiLine=false,

@@ -115,7 +115,11 @@ real calc_det_gammaBar_ll(real3 x) {
 	return coord_volume(x);
 }
 
-void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
+void setFlatSpace(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* U,
+	real3 x
+) {
 	U->alpha = 1.;
 	U->beta_u = real3_zero;
 	U->epsilon_ll = sym3_zero;

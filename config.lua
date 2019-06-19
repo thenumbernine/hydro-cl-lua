@@ -1,4 +1,4 @@
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -96,9 +96,9 @@ local args = {
 	-- no such problem with anholonomic ... however anholonomic is creating an initial wave from rmin which destroys everything
 	--[=[ anholonomic
 	coordArgs = {anholonomic=true},
-	mins = cmdline.mins or {.1, 0, -.25},
+	mins = cmdline.mins or {0, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
-	--]=]	
+	--]=]
 	-- [=[ holonomic
 	mins = cmdline.mins or {0, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
@@ -183,7 +183,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'rectangle',
 	--initState = 'Sedov',
 	--initState = 'Noh',
@@ -204,7 +204,7 @@ local args = {
 	--initState = 'configuration 6',
 
 	-- self-gravitation tests:
-	--initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.  TODO this doesn't produce 9.8 m/s^2 just yet
+	initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.  TODO this doesn't produce 9.8 m/s^2 just yet
 	--initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
 	--initState = 'self-gravitation test 2',		--FIXME
@@ -432,7 +432,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- wave equation
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
@@ -442,7 +442,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 

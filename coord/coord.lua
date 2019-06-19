@@ -1024,31 +1024,122 @@ real coordLen(real3 r, real3 pt) {
 		-- coord rescaling
 		lines:insert(template([[
 <? local dim = solver.dim ?>
-real3 coord_rescale(real3 v, real3 x) {
-	return _real3(
-		v.x / coord_dx0(x),
-		v.y<? if dim > 1 then ?> / coord_dx1(x)<? end ?>,
-		v.z<? if dim > 2 then ?> / coord_dx2(x)<? end ?>);
-}
 
-real3 coord_rescaleInv(real3 v, real3 x) {
-	return _real3(
-		v.x * coord_dx0(x),
-		v.y<? if dim > 1 then ?> * coord_dx1(x)<? end ?>,
-		v.z<? if dim > 2 then ?> * coord_dx2(x)<? end ?>);
-}
+#if 0	//rescaling, used for bssn finite-difference, but I am tempted to try it with other coordinate systems with singularities
 
-//c^i_jk g^jk = c^i, rescaled by the inverse change-of-basis
-real3 coordRescaled_conn_trace23(real3 x) { 
-	return coord_rescaleInv(coord_conn_trace23(x), x); 
+//apply this to lower indexes to convert from coordinate metric to better metric
+//apply this to upper indexes to convert from better metric to coordinate metric
+real3 real3_rescaleFromCoord_l(real3 v, real3 x) {
+	return (real3){
+		.x = v.x / coord_dx0(x),
+		.y = v.y<? if dim > 1 then ?> / coord_dx1(x)<? end ?>,
+		.z = v.z<? if dim > 2 then ?> / coord_dx2(x)<? end ?>,
+	};
 }
+#define real3_rescaleToCoord_u real3_rescaleFromCoord_l
 
-//c^i_jk = c_i, rescaled by forward change-of-basis
-real3 coordRescaled_conn_trace13(real3 x) {
-	return coord_rescale(coord_conn_trace13(x), x);
+//convert coord upper to better
+//convert better lower to coord
+real3 real3_rescaleToCoord_l(real3 v, real3 x) {
+	return (real3){
+		.x = v.x * coord_dx0(x),
+		.y = v.y<? if dim > 1 then ?> * coord_dx1(x)<? end ?>,
+		.z = v.z<? if dim > 2 then ?> * coord_dx2(x)<? end ?>,
+	};
 }
+#define real3_rescaleFromCoord_u real3_rescaleToCoord_l
 
-]], {solver=solver}))
+sym3 sym3_rescaleFromCoord_ll(sym3 a, real3 x) {
+	return (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+?>		.<?=xij?> = a.<?=xij?> / (<?
+	if i <= dim then ?>coord_dx<?=i-1?>(x)<? else ?>1.<? end
+			?> * <?
+	if j <= dim then ?>coord_dx<?=j-1?>(x)<? else ?>1.<? end
+			?>),
+<? end
+?>	};
+}
+#define sym3_rescaleToCoord_uu sym3_rescaleFromCoord_ll
+
+sym3 sym3_rescaleToCoord_ll(sym3 a, real3 x) {
+	return (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+?>		.<?=xij?> = a.<?=xij?> * (<?
+	if i <= dim then ?>coord_dx<?=i-1?>(x)<? else ?>1.<? end
+			?> * <?
+	if j <= dim then ?>coord_dx<?=j-1?>(x)<? else ?>1.<? end
+			?>),
+<? end
+?>	};
+}
+#define sym3_rescaleFromCoord_uu sym3_rescaleToCoord_ll
+
+_3sym3 _3sym3_rescaleFromCoord_lll(_3sym3 a, real3 x) {
+	return (_3sym3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = sym3_rescaleFromCoord_ll(a.<?=xi?>, x),
+<? end
+?>	};
+}
+#define _3sym3_rescaleToCoord_uuu _3sym3_rescaleFromCoord_lll
+
+_3sym3 _3sym3_rescaleToCoord_lll(_3sym3 a, real3 x) {
+	return (_3sym3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = sym3_rescaleToCoord_ll(a.<?=xi?>, x),
+<? end
+?>	};
+}
+#define _3sym3_rescaleFromCoord_uuu _3sym3_rescaleToCoord_lll
+
+sym3sym3 sym3sym3_rescaleFromCoord_lll(sym3sym3 a, real3 x) {
+	return (sym3sym3){
+<? for ij,xij in ipairs(symNames) do
+?>		.<?=xij?> = sym3_rescaleFromCoord_ll(a.<?=xij?>, x),
+<? end
+?>	};
+}
+#define sym3sym3_rescaleToCoord_uuuu sym3sym3_rescaleFromCoord_llll
+
+sym3sym3 sym3sym3_rescaleToCoord_llll(sym3sym3 a, real3 x) {
+	return (sym3sym3){
+<? for ij,xij in ipairs(symNames) do
+?>		.<?=xij?> = sym3_rescaleToCoord_ll(a.<?=xij?>, x),
+<? end
+?>	};
+}
+#define sym3sym3_rescaleFromCoord_uuuu sym3sym3_rescaleToCoord_llll
+
+#else	//debugging -- turning it off
+
+#define real3_rescaleFromCoord_l(a,x) a
+#define real3_rescaleToCoord_u(a,x) a
+#define real3_rescaleToCoord_l(a,x) a
+#define real3_rescaleFromCoord_u(a,x) a
+#define sym3_rescaleFromCoord_ll(a,x) a
+#define sym3_rescaleToCoord_uu(a,x) a
+#define sym3_rescaleToCoord_ll(a,x) a
+#define sym3_rescaleFromCoord_uu(a,x) a
+#define _3sym3_rescaleFromCoord_lll(a,x) a
+#define _3sym3_rescaleToCoord_uuu(a,x) a
+#define _3sym3_rescaleToCoord_lll(a,x) a
+#define _3sym3_rescaleFromCoord_uuu(a,x) a
+#define sym3sym3_rescaleFromCoord_lll(a,x) a
+#define sym3sym3_rescaleToCoord_uuuu(a,x) a
+#define sym3sym3_rescaleToCoord_llll(a,x) a
+#define sym3sym3_rescaleFromCoord_uuuu (a,x) a
+
+#endif
+
+]], 	{
+			solver = solver,
+			xNames = xNames,
+			symNames = symNames,
+			from6to3x3 = from6to3x3 ,
+		}))
 	end
 
 	lines:insert(template([[

@@ -601,6 +601,53 @@ local function shouldDeferCode(code)
 end
 
 function SolverBase:getDisplayCode()
+	local texVsBufInfo = {
+		Tex = {
+			input = function(var)
+				-- nvidia needed this, but I don't want to write only -- I want to accumulate and do other operations
+				return 'write_only '..
+				-- if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
+				(self.dim == 3
+					and 'image3d_t'
+					or 'image2d_t'
+				)..' tex'
+			end,
+			output = function(var)
+				-- TODO no accum function support yet, because that involves reading from the tex as well
+				return template([[
+	write_imagef(tex, <? 
+if solver.dim == 3 then ?>i<? else ?>i.xy<? end 
+?>, (float4)(value[0], value[1], value[2], 0.));
+]], 			{
+					solver = self,
+					accumFunc = self.displayVarAccumFunc and 'max' or nil,
+				})
+			end,
+		},
+		Buffer = {
+			input = function(var) 
+				return 'global real* dest' 
+			end,
+			output = function(var)
+				return var.vectorField and [[
+	dest[0+3*dstindex] = value[0];
+	dest[1+3*dstindex] = value[1];
+	dest[2+3*dstindex] = value[2];
+]] or template([[
+	dest[dstindex] = <?
+if accumFunc then
+	?><?=accumFunc?>(value[0], dest[dstindex])<?
+else
+	?>value[0]<?
+end
+?>;
+]], 			{
+					accumFunc = self.displayVarAccumFunc and 'max' or nil,
+				})
+			end,
+		},
+	}
+	
 	local lines = table()
 
 --[=[
@@ -610,21 +657,26 @@ function SolverBase:getDisplayCode()
 -- (this means adding in an extra param for display: the offset)
 	
 	for _,ctype in ipairs{'real', 'real3', 'sym3', 'cplx', 'cplx3'} do
-		-- TODO how to know if it is Tex vs Buf?
-		lines:insert(template(self.displayCode, {
-			name = 'calcDisplayVarSimple',
-			var = table(var, {
+		for _, texVsBuf in ipairs{'Tex', 'Buffer'} do	
+			local tempvar = {
 				code = template([[
-	*value_<?=ctype?> = *(global const <?=ctype?> *)((global const byte*)buf + index * structSize + structOffset);
+	*(<?=ctype?>*)value = *(global const <?=ctype?> *)((global const byte*)buf + index * structSize + structOffset);
 ]], 			{
 					ctype = ctype,
-				}),			
-			}),
-			extraArgs = {
-				'int structSize',
-				'int structOffset',
-			},
-		}))
+				}),
+			}
+			lines:insert(template(self.displayCode, {
+				solver = self,
+				var = tempvar,
+				name = 'calcDisplayVarTo'..texVsBuf..'_Simple_'..ctype,
+				input = texVsBufInfo[texVsBuf].input(var),
+				output = texVsBufInfo[texVsBuf].output(var),
+				extraArgs = {
+					'int structSize',
+					'int structOffset',
+				},
+			}))
+		end
 	end
 --]=]
 
@@ -717,24 +769,8 @@ void <?=clFuncName?>(
 							solver = self,
 							var = var,
 							name = var.toTexKernelName,
-						
-							input = 
-								-- nvidia needed this, but I don't want to write only -- I want to accumulate and do other operations
-								'write_only '..
-								-- if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
-								(self.dim == 3
-									and 'image3d_t'
-									or 'image2d_t'
-								)..' tex',
-							-- TODO no accum function support yet
-							output = template([[
-	write_imagef(tex, <? 
-if solver.dim == 3 then ?>i<? else ?>i.xy<? end 
-?>, (float4)(value[0], value[1], value[2], 0.));
-]], {
-		solver = self,
-		accumFunc = self.displayVarAccumFunc and 'max' or nil,
-	}),
+							input = texVsBufInfo.Tex.input(var),
+							output = texVsBufInfo.Tex.output(var),
 						})
 					)
 				end
@@ -751,24 +787,8 @@ if solver.dim == 3 then ?>i<? else ?>i.xy<? end
 						solver = self,
 						var = var,
 						name = var.toBufferKernelName,
-						input = 'global real* dest',
-						output = var.vectorField and [[
-	dest[0+3*dstindex] = value[0];
-	dest[1+3*dstindex] = value[1];
-	dest[2+3*dstindex] = value[2];
-]] or template([[
-	dest[dstindex] = <?
-if accumFunc then
-	?>
-	<?=accumFunc?>(value[0], dest[dstindex])
-	<?
-else
-	?> value[0] <?
-end
-?>;
-]], {
-		accumFunc = self.displayVarAccumFunc and 'max' or nil,
-	}),
+						input = texVsBufInfo.Buffer.input(var),
+						output = texVsBufInfo.Buffer.output(var),
 					})
 				)
 			end
@@ -894,7 +914,9 @@ end
 
 function SolverBase:convertToSIUnitsCode(units)
 	self.unitCodeCache = self.unitCodeCache or {}
-	if self.unitCodeCache[units] then return self.unitCodeCache[units] end
+	if self.unitCodeCache[units] then 
+		return self.unitCodeCache[units]
+	end
 	local symmath = require 'symmath'
 	local vars = symmath.vars
 	local m, s, kg, C, K = vars('m', 's', 'kg', 'C', 'K')
@@ -912,15 +934,32 @@ return ]]..units), "failed to compile unit expression "..units)(m, s, kg, C, K)
 			end
 		end
 	end)
-	local code = expr:compile({
+	
+	local Ccode = expr:compile({
 		{__solver_meter = m}, 
 		{__solver_second = s},
 		{__solver_kilogram = kg},
 		{__solver_coulomb = C},
 		{__solver_kelvin = K},
 	}, 'C')
-	code = code:gsub('__solver_', 'solver->')
-	code = assert((code:match'{ return (.*); }'), "failed to find code block")
+	Ccode = Ccode:gsub('__solver_', 'solver->')
+	Ccode = assert((Ccode:match'{ return (.*); }'), "failed to find code block")
+
+	local luaFunc, luaCode = expr:compile{m, s, kg, C, K}
+
+	local code = {
+		C = Ccode,
+		lua = luaCode,
+		func = function()
+			return luaFunc(
+				self.solverPtr.meter,
+				self.solverPtr.second,
+				self.solverPtr.kilogram,
+				self.solverPtr.coulomb,
+				self.solverPtr.kelvin)
+		end,
+	}
+	
 	self.unitCodeCache[units] = code
 	return code
 end
@@ -985,6 +1024,10 @@ function DisplayVar:init(args)
 	self.type = args.type	-- or self.type
 	self.displayCode = args.displayCode 	-- or self.displayCode
 	self.codePrefix = args.codePrefix
+	
+	-- used in rescaling after calcDisplayVar, and in displaying.  toggled by a flag
+	self.units = args.units
+	self.showInUnits = true	-- set to false to display raw values, true to display in units.
 
 	-- display stuff
 	self.enabled = not not args.enabled
@@ -1143,7 +1186,14 @@ enableVector = false
 		-- but it has lots of redundant symmetries for the sym3 real3 elements
 		local function addvar(args)
 			local vartype = args.vartype
-			
+
+			-- add units suffix
+			-- don't add it to args.name in case subvars are created
+			local varname = args.name
+			if args.units then
+				varname = varname .. ' ('..args.units:gsub('%*', ' ')..')'
+			end
+
 			-- enable the first scalar field
 			-- also enable the first vector field on non-1D simulations
 			local enabled
@@ -1151,7 +1201,7 @@ enableVector = false
 			-- TODO how about saving somewhere what should be enabled by default?
 			-- TODO pick predefined somewhere?
 			if self.eqn.predefinedDisplayVars then
-				enabled = not not table.find(self.eqn.predefinedDisplayVars, args.name)
+				enabled = not not table.find(self.eqn.predefinedDisplayVars, varname)
 			else
 				if group.name == 'U'
 				or (group.name:sub(1,5) == 'error' and self.dim == 1)
@@ -1171,10 +1221,39 @@ enableVector = false
 				end
 			end
 
-			local var = cl(table(args, {
-				vectorField = vartype == 'real3',
-				enabled = enabled,
-			}))
+
+			--[=[
+			--[[
+			if the var has units associated with it then create a new copy that includes the units conversion
+			only do this for real types, so the non-real types can generate per-component subtypes
+			
+			TODO this is creating too many display variables. 
+			how about a flag for units vs raw - and have it do like the 'log' checkbox ... which has to be built into each shader and also wrapped around the Lua code in the grid display
+			it would be ugly, but it would cut down on the # of display variables
+			--]]
+			if args.units and vartype == 'real' then
+				local units = args.units
+				local unitsArgs = table(args)
+				unitsArgs.units = nil
+				
+				-- TODO don't do the non- and unit-based display here.  instead do it wherever display vars are created.
+				local suffix = ' ('..units:gsub('%*', ' ')..')'
+				local unitcode = self:convertToSIUnitsCode(units)
+				
+				local assignvar = 'value_'..vartype..'[0]'
+				unitsArgs.code = unitsArgs.code .. '\n\t'
+					..assignvar..' = '..vartype..'_real_mul('..assignvar..', '..unitcode..');\n'
+
+				addvar(unitsArgs)
+			end
+			--]=]
+			
+			local ctorArgs = table(args)
+			ctorArgs.name = varname
+			ctorArgs.vectorField = vartype == 'real3'
+			ctorArgs.enabled = enabled
+			ctorArgs.units = args.units	-- units are only used for displaying, but all storage is unitless
+			local var = cl(ctorArgs)
 			group.vars:insert(var)
 
 			-- TODO put in DisplayVar ctor?
@@ -1265,25 +1344,6 @@ void <?=prefixFuncName?>(
 					end
 				end
 			end
-
-			-- if the var has units associated with it then create a new copy that includes the units conversion
-			-- only do this for real types, so the non-real types can generate per-component subtypes
-			if args.units and vartype == 'real' then
-				local units = args.units
-				local unitsArgs = table(args)
-				unitsArgs.units = nil
-				
-				-- TODO don't do the non- and unit-based display here.  instead do it wherever display vars are created.
-				local suffix = ' ('..units:gsub('%*', ' ')..')'
-				local unitcode = self:convertToSIUnitsCode(units)
-				unitsArgs.name = unitsArgs.name .. suffix
-				
-				local assignvar = 'value_'..vartype..'[0]'
-				unitsArgs.code = unitsArgs.code .. '\n\t'
-					..assignvar..' = '..vartype..'_real_mul('..assignvar..', '..unitcode..');\n'
-
-				addvar(unitsArgs)
-			end
 		
 			return var
 		end
@@ -1311,7 +1371,7 @@ function SolverBase:addDisplayVars()
 		vars = {{name='0', code='*value = buf[index];'}},
 	}
 
---[[ use for debugging only for the time being
+-- [[ use for debugging only for the time being
 	-- TODO make this flexible for our integrator
 	-- if I put this here then integrator isn't created yet
 	-- but if I put this after integrator then display variable init has already happened
@@ -1345,6 +1405,7 @@ function SolverBase:createDisplayVars()
 end
 
 -- used by the display code to dynamically adjust ranges
+-- this returns raw values, not scaled by units
 function SolverBase:calcDisplayVarRange(var)
 	assert(not self.vectorField, "can't calculate variable range on a vector field")
 	if var.lastTime == self.t then
@@ -1390,7 +1451,7 @@ return min, max
 else
 --]] do
 
-	-- this is failing with 1D for channels == 3, for vectors (but works for 2D etc)
+	-- this fails with 1D for channels == 3, for vectors (but works for 2D etc)
 	local min = self.reduceMin(nil, volume*channels)
 	self:calcDisplayVarToBuffer(var)
 	local max = self.reduceMax(nil, volume*channels)

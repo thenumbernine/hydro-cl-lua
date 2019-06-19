@@ -40,7 +40,7 @@ function EinsteinEquation:createBoundaryOptions()
 				local index = args.indexv(j)
 				local U = 'buf[INDEX('..index..')]'
 				lines:insert(template([[
-	setFlatSpace(&<?=U?>, cell_x((int4)(<?=index?>, 0)));
+	setFlatSpace(solver, &<?=U?>, cell_x((int4)(<?=index?>, 0)));
 ]], 			{
 					eqn = eqn,
 					U = U,

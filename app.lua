@@ -520,6 +520,7 @@ function dumpFile:update(app, t)
 		for _,var in ipairs(solver.displayVars) do
 			if var.enabled then
 				local ymin, ymax = solver:calcDisplayVarRange(var)
+				-- TODO adjust the range by units
 				f:write(('\t%.16e'):format(ymin))
 				f:write(('\t%.16e'):format(ymax))
 			end

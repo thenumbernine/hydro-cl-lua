@@ -56,7 +56,11 @@ end
 
 function Z4_2008Yano:getCommonFuncCode()
 	return template([[
-void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
+void setFlatSpace(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* U,
+	real3 x
+) {
 	U->alpha = 1;
 	U->gamma_ll = sym3_ident;
 	U->a_l = real3_zero;

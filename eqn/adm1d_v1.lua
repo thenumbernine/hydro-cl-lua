@@ -40,7 +40,11 @@ ADM_BonaMasso_1D_2008Alcubierre.guiVars = {
 -- code that goes in initState and in the solver
 function ADM_BonaMasso_1D_2008Alcubierre:getCommonFuncCode()
 	return template([[
-void setFlatSpace(global <?=eqn.cons_t?>* U, real3 x) {
+void setFlatSpace(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* U,
+	real3 x
+) {
 	*U = (<?=eqn.cons_t?>){
 		.alpha = 1, 
 		.gamma_xx = 1,

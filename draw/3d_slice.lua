@@ -161,8 +161,15 @@ end
 			self.gradientTex:unbind(1)
 			solver:getTex(var):unbind(0)
 			solver.volumeSliceShader:useNone()
-		
-			self:drawGradientLegend(ar, varName, valueMin, valueMax)
+	
+			local gradientValueMin = valueMin
+			local gradientValueMax = valueMax
+			if var.showInUnits and var.units then
+				local unitScale = solver:convertToSIUnitsCode(var.units).func()
+				gradientValueMin = gradientValueMin * unitScale
+				gradientValueMax = gradientValueMax * unitScale
+			end
+			self:drawGradientLegend(ar, varName, gradientValueMin, gradientValueMax)
 		end
 	end
 end

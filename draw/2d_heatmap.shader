@@ -25,6 +25,9 @@ float logmap(float x) { return log(1. + abs(x)) * _1_LN_10; }
 
 uniform bool useLog;
 uniform float valueMin, valueMax;
+uniform bool showInUnits;
+uniform float unitScale;
+
 uniform vec2 texCoordMax;
 uniform sampler2D tex;
 uniform sampler1D gradientTex;

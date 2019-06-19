@@ -1360,11 +1360,6 @@ function GridSolver:calcDisplayVarToTex(var)
 				destPtr[i] = ptr[i]
 			end
 		end
---[[ wtf...
-for i=0,volume*channels-1 do
-destPtr[i] = i/(volume*channels-1)
-end
---]]		
 		tex:bind()
 		if self.dim < 3 then
 			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, sizevec.x, sizevec.y, format, gltype, destPtr)
@@ -1420,7 +1415,7 @@ end
 
 do
 	-- display vars: TODO graph vars
-	local function handle(var, title)
+	local function handle(self, var, title)
 		ig.igPushIDStr(title)
 
 		var.enabled = not not var.enabled
@@ -1430,12 +1425,25 @@ do
 		tooltip.checkboxTable('log', var, 'useLog')
 		ig.igSameLine()
 
+		tooltip.checkboxTable('units', var, 'showInUnits') 
+		ig.igSameLine()
+
 		tooltip.checkboxTable('fixed range', var, 'heatMapFixedRange')
 		ig.igSameLine()
 		
 		if ig.igCollapsingHeader(var.name) then
+			local unitScale = 1
+			if var.units and var.showInUnits then -- convert our ranges from raw to units
+				unitScale = self:convertToSIUnitsCode(var.units).func()
+				var.heatMapValueMin = var.heatMapValueMin * unitScale
+				var.heatMapValueMax = var.heatMapValueMax * unitScale
+			end
 			tooltip.numberTable('value min', var, 'heatMapValueMin')
 			tooltip.numberTable('value max', var, 'heatMapValueMax')
+			if var.units and var.showInUnits then -- convert our ranges from raw to units
+				var.heatMapValueMin = var.heatMapValueMin / unitScale
+				var.heatMapValueMax = var.heatMapValueMax / unitScale
+			end
 		end
 		
 		ig.igPopID()
@@ -1444,10 +1452,10 @@ do
 	end
 
 	-- do one for 'all'
-	local function _and(a,b) return a and b end
-	local fields = {'enabled', 'useLog', 'heatMapFixedRange', 'heatMapValueMin', 'heatMapValueMax'}
-	local defaults = {true, true, true, math.huge, -math.huge}
-	local combines = {_and, _and, _and, math.min, math.max}
+	local op = require 'ext.op'
+	local fields = {'enabled', 'useLog', 'showInUnits', 'heatMapFixedRange', 'heatMapValueMin', 'heatMapValueMax'}
+	local defaults = {true, true, true, true, math.huge, -math.huge}
+	local combines = {op.land, op.land, op.land, op.land, math.min, math.max}
 	local all = {name='all'}
 	for i=1,#fields do
 		all[fields[i]] = defaults[i]
@@ -1489,7 +1497,7 @@ do
 					for _,field in ipairs(fields) do
 						original[field] = all[field]
 					end
-					local enableChanged = handle(all, 'all')
+					local enableChanged = handle(self, all, 'all')
 					--refresh = refresh or enableChanged
 					if enableChanged then
 						for _,field in ipairs(fields) do
@@ -1511,7 +1519,7 @@ do
 						if (#self.guiDisplayFilterStr == 0 or search(title, self.guiDisplayFilterStr))
 						and (not self.guiDisplayFilterEnabledVars or var.enabled)
 						then
-							local enableChanged = handle(var, title)
+							local enableChanged = handle(self, var, title)
 							--refresh = refresh or enableChanged
 						end
 					end
