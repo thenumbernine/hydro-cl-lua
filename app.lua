@@ -737,12 +737,12 @@ end
 						solverymin = math.max(-30, solverymin)
 						solverymax = math.max(-30, solverymax)
 						solverymax = math.max(solverymax, solverymin + minDeltaY)
-					end			
+					end
 					
 					if solverymin
-					and solverymax 
-					and solverymin == solverymin 
-					and solverymax == solverymax 
+					and solverymax
+					and solverymin == solverymin
+					and solverymax == solverymax
 					then
 						local base = 10	-- round to nearest base-10
 						local scale = 10 -- ...with increments of 10

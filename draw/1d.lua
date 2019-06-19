@@ -92,15 +92,18 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 			unitScale = solver:convertToSIUnitsCode(var.units).func()
 			thisValueMin = thisValueMin * unitScale
 			thisValueMax = thisValueMax * unitScale
-		end			
+		end
 	
 		if self.font then
 			local fontSizeX = (xmax - xmin) * .05
 			local fontSizeY = (ymax - ymin) * .05
 			local ystep = ystep * 2
 			for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
-				local realY = useLog and 10^y or y
-				local value = (y - ymin) * (thisValueMax - thisValueMin) / (ymax - ymin) + thisValueMin
+				local value = y
+				if useLog then
+					value = 10^value
+				end
+				value = value * unitScale
 				local absvalue = math.abs(value)
 				self.font:draw{
 					pos={xmin * .9 + xmax * .1, y + fontSizeY * .5},

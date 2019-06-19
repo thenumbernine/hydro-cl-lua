@@ -628,10 +628,11 @@ end ?>;
 	_3sym3 partial_gammaBar_lll = _3sym3_add(_3sym3_rescaleToCoord(*(_3sym3*)partial_epsilon_lll, x), partial_gammaHat_lll);
 	
 	_3sym3 partial_connHat_ulll[3];
-	calc_partial_conn_ulll(partial_connHat_ulll, connHat_ull, gammaHat_uu, partial_gammaHat_lll, partial2_gammaHat_llll);
+	calc_partial_conn_ulll(partial_connHat_ulll, &connHat_ull, &gammaHat_uu, &partial_gammaHat_lll, &partial2_gammaHat_llll);
 	
 	sym3sym3 partial2_gammaBar_llll = sym3sym3_add(*(sym3sym3*)partial2_epsilon_llll, partial2_gammaHat_llll);
-	sym3 RBar_ll = calc_RBar_ll(U, gammaBar_ll, gammaBar_uu, connHat_ull, partial_connHat_ulll, partial2_gammaBar_llll, partial_gammaBar_lll, partial_LambdaBar_ul, Delta_u, Delta_lll, Delta_ull);
+	sym3 RBar_ll;
+	calc_RBar_ll(RBar_ll, U, &gammaBar_ll, &gammaBar_uu, &connHat_ull, &partial_connHat_ulll, &partial2_gammaBar_llll, &partial_gammaBar_lll, &partial_LambdaBar_ul, &Delta_u, &Delta_lll, &Delta_ull);
 	
 	//2008 Alcubierre eqn 2.8.18
 	//2010 Baumgarte, Shapiro eqn 3.10
