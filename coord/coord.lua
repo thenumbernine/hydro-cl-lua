@@ -51,13 +51,19 @@ There are a few options on how to do this.
 	with connections / holonomic volume derivatives *with* extra rescaling to the anholonomic basis.
 
 3) The Mathematician way:
-	Represent our eqn vector coordinates as holonomic coordinates.  No normalization.
+	Represent our eqn vector components in a holonomic basis.  No normalization.
 	This would mean keeping that g^ij in front of the pressure term, and therefore adjusting the eigen-decomposition of the Euler fluid equations.
 	It would also mean performing our dx's in coordinate space.  No anholonomic readjustments.
 
 	This is like the Physicist way except *without* extra normalization for the holonomic-anholonomic basis exchanges.
 	It is also made to work with a metric, and therefore works easiest when the metric is a dynamic variable (right?  where will the change-in-metric stuff have to go?)
 	Turns out this is similar to the conservative form for relativistic solvers mentioned in papers by Font and company.
+
+(and after reading the coordinate-invariant BSSN papers0
+4) the Mathematician+Physicist way:
+	Represent all equations as tensors.  Use a holonomic basis.  Use a final change of coordinates that normalizes the basis vector lengths.
+	You get the best of both worlds: coordinates invariant to transform, and unit length basis vectors.
+	But how about the partial spatial derivatives -- wouldn't those also incur an extra term of the partial of the extra change-of-coordinate system?
 
 TODO
 charts per dimension
@@ -901,7 +907,9 @@ should I add these _for_coord _for_grid suffixes to specify what manfiold system
 --]]
 function CoordinateSystem:getCode(solver)
 	self.solver = solver
-	local dim = solver.dim
+	-- 3 since all our base types are in 'real3', 'sym3', etc
+	-- what about removing this restriction?
+	local dim = 3
 	local lines = table()
 
 	local function convertInputFromGrid(code, inputVarName)
@@ -1032,8 +1040,8 @@ real coordLen(real3 r, real3 pt) {
 real3 real3_rescaleFromCoord_l(real3 v, real3 x) {
 	return (real3){
 		.x = v.x / coord_dx0(x),
-		.y = v.y<? if dim > 1 then ?> / coord_dx1(x)<? end ?>,
-		.z = v.z<? if dim > 2 then ?> / coord_dx2(x)<? end ?>,
+		.y = v.y / coord_dx1(x),
+		.z = v.z / coord_dx2(x),
 	};
 }
 #define real3_rescaleToCoord_u real3_rescaleFromCoord_l
@@ -1043,8 +1051,8 @@ real3 real3_rescaleFromCoord_l(real3 v, real3 x) {
 real3 real3_rescaleToCoord_l(real3 v, real3 x) {
 	return (real3){
 		.x = v.x * coord_dx0(x),
-		.y = v.y<? if dim > 1 then ?> * coord_dx1(x)<? end ?>,
-		.z = v.z<? if dim > 2 then ?> * coord_dx2(x)<? end ?>,
+		.y = v.y * coord_dx1(x),
+		.z = v.z * coord_dx2(x),
 	};
 }
 #define real3_rescaleFromCoord_u real3_rescaleToCoord_l
@@ -1053,11 +1061,7 @@ sym3 sym3_rescaleFromCoord_ll(sym3 a, real3 x) {
 	return (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-?>		.<?=xij?> = a.<?=xij?> / (<?
-	if i <= dim then ?>coord_dx<?=i-1?>(x)<? else ?>1.<? end
-			?> * <?
-	if j <= dim then ?>coord_dx<?=j-1?>(x)<? else ?>1.<? end
-			?>),
+?>		.<?=xij?> = a.<?=xij?> / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x)),
 <? end
 ?>	};
 }
@@ -1067,11 +1071,7 @@ sym3 sym3_rescaleToCoord_ll(sym3 a, real3 x) {
 	return (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-?>		.<?=xij?> = a.<?=xij?> * (<?
-	if i <= dim then ?>coord_dx<?=i-1?>(x)<? else ?>1.<? end
-			?> * <?
-	if j <= dim then ?>coord_dx<?=j-1?>(x)<? else ?>1.<? end
-			?>),
+?>		.<?=xij?> = a.<?=xij?> * (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x)),
 <? end
 ?>	};
 }

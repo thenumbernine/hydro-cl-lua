@@ -10,7 +10,7 @@ local sym = common.sym
 local from6to3x3 = common.from6to3x3
 ?>
 
-// cplx
+////////////////////////// cplx //////////////////////////
 
 cplx cplx_conj(cplx a) { return _cplx(a.re, -a.im); }
 cplx cplx_neg(cplx a) { return _cplx(-a.re, -a.im); }
@@ -60,7 +60,7 @@ cplx cplx_log(cplx a) {
 cplx cplx_pow(cplx a, cplx b) { return cplx_exp(cplx_mul(b, cplx_log(a))); }
 cplx cplx_sqrt(cplx a) { return cplx_pow(a, cplx_from_real(.5)); }
 
-// quat
+////////////////////////// quat //////////////////////////
 
 //assumes q is unit
 //returns the conjugate
@@ -85,7 +85,7 @@ real4 quatMul(real4 q, real4 r) {
 		 b + .5 * (-e - f + g + h)); //w
 }
 
-// real3, cplx3
+////////////////////////// real3, cplx3 //////////////////////////
 
 <?
 function makevec3(vec,scalar)
@@ -107,7 +107,6 @@ function makevec3(vec,scalar)
 	);
 }
 
-//maybe I should just use <?=vec?>_<?=scale?>_mul ?
 <?=vec?> <?=vec?>_<?=scalar?>_mul(<?=vec?> a, <?=scalar?> s) {
 	return _<?=vec?>(
 		<?=mul?>(a.x, s),
@@ -169,9 +168,7 @@ makevec3('real3', 'real')
 makevec3('cplx3', 'cplx')
 ?>
 
-// real3-specified
-
-#define real3_from_real3(x)	x
+////////////////////////// real3 //////////////////////////
 
 real real3_lenSq(real3 a) {
 	return real3_dot(a,a);
@@ -179,36 +176,6 @@ real real3_lenSq(real3 a) {
 
 real real3_len(real3 a) {
 	return sqrt(real3_lenSq(a));
-}
-
-//outer with yourself
-sym3 real3_outer(real3 a) {
-	return (sym3){
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi,xj = xNames[i],xNames[j]
-?>		.<?=xij?> = a.<?=xi?> * a.<?=xj?>,
-<? end
-?>	};
-}
-
-/*
-a^T * b
-= a^i b_j
-   [a.x b.x, a.x b.y, a.x b.z]
- = [a.y b.x, a.y b.y, a.y b.z]
-   [a.z b.x, a.z b.y, a.z b.z]
-*/
-real3x3 real3_real3_outer(real3 a, real3 b) {
-	return (real3x3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {
-<?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = a.<?=xi?> * b.<?=xj?>,
-<?	end
-?>		},
-<? end
-?>	};
 }
 
 //for swapping dimensions between x and 012
@@ -292,7 +259,7 @@ real3 real3_rotateTo(real3 v, real3 n) {
 #endif
 }
 
-#define real3_from_cplx3		cplx3_re
+////////////////////////// cplx3 //////////////////////////
 
 cplx3 cplx3_from_real3(real3 re) {
 	return (cplx3){
@@ -321,8 +288,18 @@ real cplx3_len(cplx3 v) {
 	return sqrt(cplx3_lenSq(v));
 }
 
-#define sym3_zero	_sym3(0,0,0,0,0,0)
-#define sym3_ident	_sym3(1,0,0,1,0,1)
+////////////////////////// sym3 //////////////////////////
+
+//outer with yourself
+sym3 real3_outer(real3 a) {
+	return (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+	local xi,xj = xNames[i],xNames[j]
+?>		.<?=xij?> = a.<?=xi?> * a.<?=xj?>,
+<? end
+?>	};
+}
 
 real sym3_det(sym3 m) {
 	return m.xx * (m.yy * m.zz - m.yz * m.yz)
@@ -395,6 +372,53 @@ sym3 sym3_real_mul(sym3 a, real s) {
 real sym3_dot(sym3 a, sym3 b) {
 	return a.xx * b.xx + a.yy * b.yy + a.zz * b.zz
 		+ 2. * (a.xy * b.xy + a.xz * b.xz + a.yz * b.yz);
+}
+
+real3 sym3_x(sym3 m) { return _real3(m.xx, m.xy, m.xz); }
+real3 sym3_y(sym3 m) { return _real3(m.xy, m.yy, m.yz); }
+real3 sym3_z(sym3 m) { return _real3(m.xz, m.yz, m.zz); }
+
+real sym3_trace(sym3 m) {
+	return m.xx + m.yy + m.zz;
+}
+
+//for swapping dimensions between x and 012
+sym3 sym3_swap0(sym3 m) { return m; }
+sym3 sym3_swap1(sym3 m) { return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
+sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
+
+//weighted inner product using 'm'
+real real3_weightedDot(real3 a, real3 b, sym3 m) {
+	return real3_dot(a, sym3_real3_mul(m, b));
+}
+
+real real3_weightedLenSq(real3 a, sym3 m) {
+	return real3_weightedDot(a, a, m);
+}
+
+real real3_weightedLen(real3 a, sym3 m) {
+	return sqrt(real3_weightedLenSq(a, m));
+}
+
+////////////////////////// real3x3 //////////////////////////
+
+/*
+a^T * b
+= a^i b_j
+   [a.x b.x, a.x b.y, a.x b.z]
+ = [a.y b.x, a.y b.y, a.y b.z]
+   [a.z b.x, a.z b.y, a.z b.z]
+*/
+real3x3 real3_real3_outer(real3 a, real3 b) {
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = {
+<?	for j,xj in ipairs(xNames) do
+?>			.<?=xj?> = a.<?=xi?> * b.<?=xj?>,
+<?	end
+?>		},
+<? end
+?>	};
 }
 
 real sym3_real3x3_dot(sym3 a, real3x3 b) {
@@ -492,20 +516,6 @@ sym3 sym3_from_real3x3(real3x3 a) {
 ?>	};
 }
 
-real3 sym3_x(sym3 m) { return _real3(m.xx, m.xy, m.xz); }
-real3 sym3_y(sym3 m) { return _real3(m.xy, m.yy, m.yz); }
-real3 sym3_z(sym3 m) { return _real3(m.xz, m.yz, m.zz); }
-
-real sym3_trace(sym3 m) {
-	return m.xx + m.yy + m.zz;
-}
-
-//for swapping dimensions between x and 012
-sym3 sym3_swap0(sym3 m) { return m; }
-sym3 sym3_swap1(sym3 m) { return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
-sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
-
-#define real3x3_zero (real3x3){.v={real3_zero, real3_zero, real3_zero}}
 
 //c_ij = a_ij + b_ji
 real3x3 real3x3_addT(real3x3 a, real3x3 b) {
@@ -603,21 +613,7 @@ for i=0,2 do
 ?>	};
 }
 
-
-//weighted inner product using 'm'
-real real3_weightedDot(real3 a, real3 b, sym3 m) {
-	return real3_dot(a, sym3_real3_mul(m, b));
-}
-
-real real3_weightedLenSq(real3 a, sym3 m) {
-	return real3_weightedDot(a, a, m);
-}
-
-real real3_weightedLen(real3 a, sym3 m) {
-	return sqrt(real3_weightedLenSq(a, m));
-}
-
-#define _3sym3_zero (_3sym3){.s={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}}
+////////////////////////// _3sym3 //////////////////////////
 
 <? for name,symbol in pairs{add='+', sub='-'} do ?>
 _3sym3 _3sym3_<?=name?>(_3sym3 a, _3sym3 b) {
@@ -656,26 +652,6 @@ _3sym3 sym3_3sym3_mul(sym3 a, _3sym3 b) {
 				?> + a.<?=sym(i,l)?> * b.<?=xl?>.<?=xjk?><? 
 		end ?>,
 <?	end
-?>		},
-<? end
-?>	};
-}
-
-//c_ij^k = a_ijl b^lk
-real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b) {
-	return (real3x3x3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {
-<?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = {
-<?		for k,xk in ipairs(xNames) do
-?>				.<?=xk?> = 0.<?
-			for l,xl in ipairs(xNames) do
-?> + a.<?=xi?>.<?=sym(j,l)?> * b.<?=sym(l,k)?><?
-			end ?>,
-<? end
-?>			},
-<? end
 ?>		},
 <? end
 ?>	};
@@ -728,16 +704,39 @@ real3 _3sym3_tr12(_3sym3 a) {
 ?>	};
 }
 
-//c_ij = a^k b_ijk 
-real3x3 real3_dot3_3sym3(real3 a, _3sym3 b) {
+//c_ij = a^k b_ikj
+real3x3 real3_3sym3_dot2(real3 a, _3sym3 b) {
 	return (real3x3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = {
-<? 	for j,xj in ipairs(xNames) do
+<?	for j,xj in ipairs(xNames) do
 ?>			.<?=xj?> = 0.<?
 		for k,xk in ipairs(xNames) do
-?> + a.<?=xk?> * b.<?=xi?>.<?=sym(j,k)?><?
+?> + a.<?=xk?> * b.<?=xi?>.<?=sym(k,j)?><?
 		end ?>,
+<?	end
+?>		},
+<? end
+?>	};
+}
+
+
+////////////////////////// real3x3x3 //////////////////////////
+
+//c_ij^k = a_ijl b^lk
+real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b) {
+	return (real3x3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = {
+<?	for j,xj in ipairs(xNames) do
+?>			.<?=xj?> = {
+<?		for k,xk in ipairs(xNames) do
+?>				.<?=xk?> = 0.<?
+			for l,xl in ipairs(xNames) do
+?> + a.<?=xi?>.<?=sym(j,l)?> * b.<?=sym(l,k)?><?
+			end ?>,
+<? end
+?>			},
 <? end
 ?>		},
 <? end
@@ -748,14 +747,6 @@ real3 sym3_real3x3x3_dot23(sym3 a, real3x3x3 b) {
 	return (real3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_real3x3_dot(a, b.<?=xi?>),
-<? end
-?>	};
-}
-
-sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b) {
-	return (sym3sym3){
-<? for ij,xij in ipairs(symNames) do
-?>		.<?=xij?> = sym3_add(a.<?=xij?>, b.<?=xij?>),
 <? end
 ?>	};
 }
@@ -779,22 +770,6 @@ real3x3 _3sym3_real3x3x3_dot12_23(_3sym3 a, real3x3x3 b) {
 ?>	};
 }
 
-//c_ij = a^k b_ikj
-real3x3 real3_3sym3_dot2(real3 a, _3sym3 b) {
-	return (real3x3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {
-<?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = 0.<?
-		for k,xk in ipairs(xNames) do
-?> + a.<?=xk?> * b.<?=xi?>.<?=sym(k,j)?><?
-		end ?>,
-<?	end
-?>		},
-<? end
-?>	};
-}
-
 //c_ij = a^k_il b_kj^l
 //assuming the result is symmetric
 sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b) {
@@ -812,6 +787,18 @@ sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b) {
 <? end
 ?>	};
 }
+
+////////////////////////// sym3sym3 //////////////////////////
+
+sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b) {
+	return (sym3sym3){
+<? for ij,xij in ipairs(symNames) do
+?>		.<?=xij?> = sym3_add(a.<?=xij?>, b.<?=xij?>),
+<? end
+?>	};
+}
+
+////////////////////////// extra //////////////////////////
 
 real3 normalForSide0() { return _real3(1,0,0); }
 real3 normalForSide1() { return _real3(0,1,0); }

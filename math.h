@@ -55,8 +55,6 @@ my current convention is this:
 #define cplx_zero 			cplx_from_real(0)
 
 
-#define _sym3(a,b,c,d,e,f) (sym3){.s={a,b,c,d,e,f}}
-
 cplx cplx_conj(cplx a);
 cplx cplx_neg(cplx a);
 real cplx_lenSq(cplx a);
@@ -80,10 +78,10 @@ function makevec3(vec, scalar)
 	local add = scalar..'_add'
 	local mul = scalar..'_mul'
 ?>
-#define <?=scalar?>_add3(a,b,c)	(<?=add?>(<?=add?>(a,b),c))
-#define <?=scalar?>_mul3(a,b,c)	(<?=mul?>(<?=mul?>(a,b),c))
-#define _<?=vec?>(a,b,c) 		(<?=vec?>){.s={a,b,c}}
-#define <?=vec?>_zero			_<?=vec?>(<?=scalar?>_zero,<?=scalar?>_zero,<?=scalar?>_zero)
+#define <?=scalar?>_add3(a,b,c)		(<?=add?>(<?=add?>(a,b),c))
+#define <?=scalar?>_mul3(a,b,c)		(<?=mul?>(<?=mul?>(a,b),c))
+#define _<?=vec?>(a,b,c) 			(<?=vec?>){.s={a,b,c}}
+#define <?=vec?>_zero				_<?=vec?>(<?=scalar?>_zero,<?=scalar?>_zero,<?=scalar?>_zero)
 
 <?=scalar?> <?=vec?>_dot(<?=vec?> a, <?=vec?> b);
 <?=vec?> <?=vec?>_<?=scalar?>_mul(<?=vec?> a, <?=scalar?> s);
@@ -103,12 +101,12 @@ makevec3('real3', 'real')
 makevec3('cplx3', 'cplx')
 ?>
 
+#define real3_from_real3(x)	x
+
 real real3_lenSq(real3 a);
 real real3_len(real3 a);
 real real3_lenSq(real3 a);
 real real3_len(real3 a);
-sym3 real3_outer(real3 a);
-real3x3 real3_real3_outer(real3 a, real3 b);
 real3 real3_swap0(real3 v);
 real3 real3_swap1(real3 v);
 real3 real3_swap2(real3 v);
@@ -120,12 +118,21 @@ real3 real3_rotTo1(real3 v);
 real3 real3_rotTo2(real3 v);
 real3 real3_rotateFrom(real3 v, real3 n);
 real3 real3_rotateTo(real3 v, real3 n);
+
+#define real3_from_cplx3		cplx3_re
+
 cplx3 cplx3_from_real3(real3 re);
 cplx3 cplx3_from_real3_real3(real3 re, real3 im);
 real3 cplx3_re(cplx3 v);
 real3 cplx3_im(cplx3 v);
 real cplx3_lenSq(cplx3 v);
 real cplx3_len(cplx3 v);
+
+#define _sym3(a,b,c,d,e,f) (sym3){.s={a,b,c,d,e,f}}
+#define sym3_zero	_sym3(0,0,0,0,0,0)
+#define sym3_ident	_sym3(1,0,0,1,0,1)
+
+sym3 real3_outer(real3 a);
 real sym3_det(sym3 m);
 sym3 sym3_inv(sym3 m, real det);
 real3 sym3_real3_mul(sym3 m, real3 v);
@@ -133,10 +140,6 @@ sym3 sym3_add(sym3 a, sym3 b);
 sym3 sym3_sub(sym3 a, sym3 b);
 sym3 sym3_real_mul(sym3 a, real s);
 real sym3_dot(sym3 a, sym3 b);
-real3x3 sym3_sym3_mul(sym3 a, sym3 b);
-real3x3 real3x3_sym3_mul(real3x3 a, sym3 b);
-sym3 real3x3_sym3_to_sym3_mul(real3x3 a, sym3 b);
-sym3 sym3_real3x3_to_sym3_mul(sym3 a, real3x3 b);
 real3 sym3_x(sym3 m);
 real3 sym3_y(sym3 m);
 real3 sym3_z(sym3 m);
@@ -144,19 +147,47 @@ real sym3_trace(sym3 m);
 sym3 sym3_swap0(sym3 m);
 sym3 sym3_swap1(sym3 m);
 sym3 sym3_swap2(sym3 m);
+real real3_weightedDot(real3 a, real3 b, sym3 m);
+real real3_weightedLenSq(real3 a, sym3 m);
+real real3_weightedLen(real3 a, sym3 m);
+
+#define real3x3_zero (real3x3){.v={real3_zero, real3_zero, real3_zero}}
+
+real3x3 real3_real3_outer(real3 a, real3 b);
+real sym3_real3x3_dot(sym3 a, real3x3 b);
+real3x3 sym3_sym3_mul(sym3 a, sym3 b);
+real3x3 real3x3_sym3_mul(real3x3 a, sym3 b);
+real3x3 sym3_real3x3_mul(sym3 a, real3x3 b);
+sym3 real3x3_sym3_to_sym3_mul(real3x3 a, sym3 b);
+sym3 sym3_real3x3_to_sym3_mul(sym3 a, real3x3 b);
+sym3 sym3_from_real3x3(real3x3 a);
+real3x3 real3x3_addT(real3x3 a, real3x3 b);
 real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b);
 real3 real3x3_real3_mul(real3x3 a, real3 b);
 real real3x3_trace(real3x3 m);
 real3x3 real3x3_from_real(real x);
 real real3x3_det(real3x3 m);
 real3x3 real3x3_inv(real3x3 m);
-real real3_weightedDot(real3 a, real3 b, sym3 m);
-real real3_weightedLenSq(real3 a, sym3 m);
-real real3_weightedLen(real3 a, sym3 m);
-_3sym3 _3sym3_<?=name?>(_3sym3 a, _3sym3 b);
+
+#define _3sym3_zero (_3sym3){.s={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}}
+
+_3sym3 _3sym3_add(_3sym3 a, _3sym3 b);
+_3sym3 _3sym3_sub(_3sym3 a, _3sym3 b);
 _3sym3 _3sym3_real_mul(_3sym3 a, real b);
 _3sym3 sym3_3sym3_mul(sym3 a, _3sym3 b);
 real3 _3sym3_sym3_dot23(_3sym3 a, sym3 b);
+real3 sym3_3sym3_dot12(sym3 a, _3sym3 b);
+sym3 real3_3sym3_dot1(real3 a, _3sym3 b);
+real3 _3sym3_tr12(_3sym3 a);
+real3x3 real3_3sym3_dot2(real3 a, _3sym3 b);
+
+real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b);
+real3 sym3_real3x3x3_dot23(sym3 a, real3x3x3 b);
+real3x3 _3sym3_real3x3x3_dot12_23(_3sym3 a, real3x3x3 b);
+sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b);
+
+sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b);
+
 real3 normalForSide0();
 real3 normalForSide1();
 real3 normalForSide2();

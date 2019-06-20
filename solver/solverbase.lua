@@ -1371,7 +1371,7 @@ function SolverBase:addDisplayVars()
 		vars = {{name='0', code='*value = buf[index];'}},
 	}
 
---[[ use for debugging only for the time being
+-- [[ use for debugging only for the time being
 	-- TODO make this flexible for our integrator
 	-- if I put this here then integrator isn't created yet
 	-- but if I put this after integrator then display variable init has already happened
@@ -1380,7 +1380,14 @@ function SolverBase:addDisplayVars()
 	do	--if self.integrator.derivBufObj then
 		local group = self:newDisplayVarGroup{name='deriv'}
 		local args = self:getUBufDisplayVarsArgs()
-		args.getBuffer = function() return self.integrator.derivBufObj.obj end
+		args.getBuffer = function() 
+			local int = self.integrator
+			-- Euler's deriv buffer
+			if int.derivBufObj then return int.derivBufObj.obj end
+			-- RK4's first deriv buffer
+			if int.derivBufObjs[1] then return int.derivBufObjs[1].obj end
+			error"HERE"
+		end
 		args.group = group
 		args.vars = self.eqn:getDisplayVarsForStructVars(self.eqn.consVars)
 		-- why in addUBufDisplayVars() do I make a new group and assign args.group to it?

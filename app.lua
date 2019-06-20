@@ -261,7 +261,13 @@ function HydroCLApp:initGL(...)
 		sdl.SDL_GL_SetSwapInterval(1)
 	end
 
-	local useGLSharing = true
+	-- This used to be on by default, 
+	-- but for now the 'calcDisplayVarToTex' code has grown out of hand and now doubles the compile times
+	-- and I can't perceive a performance difference with or without it,
+	-- so I will keep this disabled for now.
+	--local useGLSharing = true
+	local useGLSharing = false
+
 	if cmdline.useGLSharing ~= nil then useGLSharing = cmdline.useGLSharing end
 	if self.targetSystem == 'console' then useGLSharing = false end
 

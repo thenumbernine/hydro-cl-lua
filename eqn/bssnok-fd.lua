@@ -83,11 +83,11 @@ end
 function BSSNOKFiniteDifferenceEquation:createInitState()
 	BSSNOKFiniteDifferenceEquation.super.createInitState(self)
 	self:addGuiVars{
-		--{name='constrain_det_gammaBar_ll', value=true, compileTime=true},
-		{name='constrain_det_gammaBar_ll', value=false, compileTime=true},
+		{name='constrain_det_gammaBar_ll', value=true, compileTime=true},
+		--{name='constrain_det_gammaBar_ll', value=false, compileTime=true},
 
-		--{name='constrain_tr_ABar_ll', value=true, compileTime=true},
-		{name='constrain_tr_ABar_ll', value=false, compileTime=true},
+		{name='constrain_tr_ABar_ll', value=true, compileTime=true},
+		--{name='constrain_tr_ABar_ll', value=false, compileTime=true},
 		
 		{name='calc_H_and_M', value=true, compileTime=true},
 		{name='diffuseSigma', value=.01},
@@ -275,6 +275,8 @@ kernel void initState(
 	
 	U->H = 0.;
 	U->M_u = real3_zero;
+
+setFlatSpace(solver, U, x);
 }
 
 //after popularing gammaBar_ll, use its finite-difference derivative to initialize LambdaBar_u
@@ -337,7 +339,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U beta_u mag',
 	--'U epsilon_ll norm',
 	'U W',
-	'U ABar_ll tr weighted',	-- has problems with spherical vacuum spacetime
+	'U ABar_ll tr weighted',
 	'U ABar_ll x x',
 	'U ABar_ll x y',
 	'U ABar_ll x z',
@@ -368,6 +370,9 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'deriv K',
 	'deriv LambdaBar_u mag',
 --]]
+	
+	-- debugging
+	'U ABarSq_ll tr weighted',	-- has problems with spherical vacuum spacetime
 }
 
 function BSSNOKFiniteDifferenceEquation:getDisplayVars()	
@@ -404,7 +409,21 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 
 	local derivOrder = 2 * self.solver.numGhost
 	vars:append{
-	
+
+		{name='f', code='*value = calc_f(U->alpha);'},
+		{name='df/dalpha', code='*value = calc_dalpha_f(U->alpha);'},
+		{
+			name = 'ABarSq_ll',
+			type = 'sym3',
+			code = [[
+	sym3 gammaBar_uu = calc_gammaBar_uu(U, x);
+	real3x3 ABar_ul = sym3_sym3_mul(gammaBar_uu, U->ABar_ll);		//ABar^i_j = gammaBar^ik ABar_kj
+	sym3 ABarSq_ll = sym3_real3x3_to_sym3_mul(U->ABar_ll, ABar_ul);
+	*value_sym3 = ABarSq_ll;
+]],
+		},
+
+--[=[
 --[[ expansion:
 2003 Thornburg:  ... from Wald ...
 Theta = n^i_;i + K_ij n^i n^j - K
@@ -464,10 +483,8 @@ end
 
 			)
 		},
-		
-		{name='f', code='*value = calc_f(U->alpha);'},
-		{name='df/dalpha', code='*value = calc_dalpha_f(U->alpha);'},
-
+--]=]		
+--[=[
 		--[[ ADM geodesic equation spatial terms:
 		-Gamma^i_tt = 
 			- gamma^ij alpha_,j
@@ -604,6 +621,7 @@ end ?>;
 			), 
 			type = 'real3',
 		},
+--]=]
 --[=[	
 		{
 			name = 'Ricci',
