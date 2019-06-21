@@ -1212,12 +1212,15 @@ kernel void calcDT(
 	speed of light in i'th direction 
 	c = alpha sqrt(gamma^ii)
 	*/
-	sym3 gamma_uu = calc_gamma_uu(U, x);
+	//sym3 gamma_uu = calc_gamma_uu(U, x);
+	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
 		//this is asserting alpha and W >0, which they should be
-		real absLambdaMax = U->alpha * sqrt(gamma_uu.<?=sym(side+1,side+1)?>);
+		//real absLambdaMax = U->alpha * sqrt(gamma_uu.<?=sym(side+1,side+1)?>);
+		//2017 Ruchlin, eqn. 53
+		real absLambdaMax = U->alpha * sqrt(gammaBar_ll.<?=sym(side+1,side+1)?>);
 		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
 	}<? end ?>
 	dtBuf[index] = dt;

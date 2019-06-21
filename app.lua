@@ -20,6 +20,19 @@ predefined vars:
 	createAnimation = set to start off creating an animation / framedump
 	exitTime = start the app running, and exit it after the simulation reaches this time
 	verbose = output extra stuff
+
+	coordVerbose = output extra info from coord/coord.lua
+	
+	intVerbose = output extra info from int/*.lua
+	intBEEpsilon = backwards Euler stop on residual less than this epsilon
+	intBERestart = backwards Euler GMRES restart
+	intBEMaxIter = backwards Euler Krylov max iter
+
+	noDivPoissonSolver = 'jacobi' or 'krylov'
+	selfGravPoissonSolver
+	selfGravPoissonMaxIter
+	selfGravVerbose
+	selfGravLinearSolver = 'conjgrad', 'conjres', 'bicgstab', 'gmres'
 --]]
 cmdline = cmdline or {}	--global
 

@@ -35,7 +35,7 @@ BackwardEuler.name = 'backward Euler'
 
 function BackwardEuler:init(solver, args)
 	self.solver = solver
-	self.verbose = args and args.verbose or nil
+	self.verbose = cmdline.intVerbose or (args and args.verbose) or nil
 
 	-- gui vars:
 	self.lastResidual = 0
@@ -125,22 +125,22 @@ function BackwardEuler:init(solver, args)
 		return sum()
 	end
 
-	local restart = args and args.restart or 10
+	local restart = cmdline.intBERestart or (args and args.restart) or 10
 
 	local linearSolverArgs = {
 		env = solver.app.env,
 		x = self.krylov_xObj,
 		count = numreals,
-		epsilon = args and args.epsilon or 1e-24,
+		epsilon = cmdline.intBEEpsilon or (args and args.epsilon) or 1e-24,
 		--maxiter = 1000,
 		restart = restart,
-		maxiter = restart * numreals,
+		maxiter = cmdline.intBEMaxIter or restart * numreals,
 		-- logging:
 		errorCallback = function(residual, iter, x, rLenSq)
 			self.lastResidual = residual
 			self.lastIter = iter
 			if self.verbose then
-				print('iter', iter, 'residual', residual)
+				print('t', solver.t, 'iter', iter, 'residual', residual)
 			end
 			if not math.isfinite(residual) then
 				print("got non-finite residual: "..residual)	-- error?
@@ -212,10 +212,6 @@ function BackwardEuler:integrate(dt, callback)
 	self.krylov_xObj:copyFrom(solver.UBufObj)
 	self.linearSolver()
 	solver.UBufObj:copyFrom(self.krylov_xObj)
-
-	if self.verbose then
-		print('gmres residual='..self.lastResidual..' iter='..self.lastIter)
-	end
 end
 
 function BackwardEuler:updateGUI()
