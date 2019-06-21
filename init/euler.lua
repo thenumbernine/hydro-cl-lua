@@ -1360,6 +1360,7 @@ end ?>;
 		local coordRadius = .5
 		return {
 			name = 'self-gravitation - Earth',
+			-- TODO what about spherical coordinates
 			mins = {-2*coordRadius, -2*coordRadius, -2*coordRadius}, 
 			maxs = {2*coordRadius, 2*coordRadius, 2*coordRadius}, 
 			overrideGuiVars = {
@@ -1390,8 +1391,9 @@ end ?>;
 
 	{
 		name = 'self-gravitation test 1',
-		mins = {-1,-1,-1},
-		maxs = {1,1,1},
+		-- hmm, what about spherical coordinates...
+		--mins = {-1,-1,-1},
+		--maxs = {1,1,1},
 		initState = function(self, solver)
 			local f = SelfGravProblem{
 				solver = solver,

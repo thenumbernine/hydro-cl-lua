@@ -22,7 +22,8 @@ local fluids = eqn.fluids
 
 real3 calcGravityAccel<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
-	global const <?=eqn.cons_t?>* U
+	global const <?=eqn.cons_t?>* U,
+	real3 x
 ) {
 	real3 accel_g = real3_zero;
 	
@@ -43,11 +44,12 @@ kernel void calcGravityDeriv<?=op.name?>(
 	global const <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
+	real3 x = cell_x(i);
 	
 	global <?=eqn.cons_t?>* deriv = derivBuffer + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	
-	real3 accel_g = calcGravityAccel<?=op.name?>(solver, U);
+	real3 accel_g = calcGravityAccel<?=op.name?>(solver, U, x);
 
 	// kg/(m^2 s) = kg/m^3 * m/s^2
 <? for _,fluid in ipairs(fluids) do	

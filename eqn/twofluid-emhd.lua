@@ -574,7 +574,7 @@ function TwoFluidEMHD:getDisplayVars()
 		{
 			name = 'gravity',
 			code = template([[
-	if (!OOB(1,1)) *value_real3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U);
+	if (!OOB(1,1)) *value_real3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U, x);
 ]], {eqn=self}), type='real3', units='m/s^2'},
 		{name = 'EPot', code = '*value = calc_rho_from_U(*U) * U->ePot;', units='kg/(m*s^2)'},
 		{name='EM energy', code=[[

@@ -110,6 +110,9 @@ end
 function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
 	return template([[
 
+//TODO 2017 Ruchlin eqn. 8, what is C^i?
+#define mystery_C_u	real3_zero
+
 //gammaBar_ij = gammaHat_ij + epsilon_ij
 sym3 calc_gammaBar_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 	sym3 gammaHat_ll = coord_g_ll(x);
@@ -200,11 +203,10 @@ void setFlatSpace(
 	U->W = 1;
 	U->K = 0;
 	U->ABar_ll = sym3_ident;
-	
+
 	//LambdaBar^i = Delta^i + C^i = Delta^i_jk gammaBar^jk = (connBar^i_jk - connHat^i_jk) gammaBar^jk + C^i
 	//but when space is flat we have connBar^i_jk = connHat^i_jk and therefore Delta^i_jk = 0, Delta^i = 0, and LambdaBar^i = 0
-	// TODO what is C^i?
-	U->LambdaBar_u = real3_zero;
+	U->LambdaBar_u = mystery_C_u;
 
 <? if eqn.useShift == 'HyperbolicGammaDriver' then
 ?>	U->B_u = real3_zero;
@@ -275,8 +277,6 @@ kernel void initState(
 	
 	U->H = 0.;
 	U->M_u = real3_zero;
-
-setFlatSpace(solver, U, x);
 }
 
 //after popularing gammaBar_ll, use its finite-difference derivative to initialize LambdaBar_u
@@ -288,7 +288,16 @@ kernel void initDerivs(
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
+#if 0	
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		setFlatSpace(solver, U, x);
+		return;
+	}
+#endif
+
 <?=makePartial('epsilon_ll', 'sym3')?>
+	
 	// TODO see other warning about partial_epsilon_lll and rescaling
 	*(_3sym3*)partial_epsilon_lll = _3sym3_rescaleToCoord_lll(*(_3sym3*)partial_epsilon_lll, x);
 
@@ -298,28 +307,74 @@ kernel void initDerivs(
 	// TODO I am suspicious that I should be creating connBar_ull another way, 
 	// maybe by using LambdaBar^i and W?	
 	//connBar_lll[i].jk := connBar_ijk = 1/2 (gammaBar_ij,k + gammaBar_ik,j - gammaBar_jk,i)
+	//Not here, of course.  This is where LambdaBar^i is initialized.
 	_3sym3 connBar_lll;
 <? 
 for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
 ?>	connBar_lll.<?=xi?>.<?=xjk?> = .5 * (
+//the next three sums are diverging 
+// unless I add this '0. +' to it ... hmm ...
+		0. +
 			partial_epsilon_lll[<?=k-1?>].<?=sym(i,j)?>
 			+ partial_epsilon_lll[<?=j-1?>].<?=sym(i,k)?> 
 			- partial_epsilon_lll[<?=i-1?>].<?=xjk?>
-		) + connHat_lll.<?=xi?>.<?=xjk?>;
+		)
+		+ connHat_lll.<?=xi?>.<?=xjk?>
+	;
 <?	end
 end
 ?>	
 	sym3 gammaBar_uu = calc_gammaBar_uu(U, x);
 
 	//connBar_ull[i].jk := connBar^i_jk = gammaBar^il connBar_ljk
+#if 0
 	_3sym3 connBar_ull = sym3_3sym3_mul(gammaBar_uu, connBar_lll);
+#else
+	_3sym3 connBar_ull;
+<? for i,xi in ipairs(xNames) do
+	for jk,xjk in ipairs(symNames) do
+?>	connBar_ull.<?=xi?>.<?=xjk?> = 0.
+<?		for l,xl in ipairs(xNames) do
+?>		+ gammaBar_uu.<?=sym(i,l)?> * connBar_lll.<?=xl?>.<?=xjk?>
+<?		end
+?>	;
+<?	end
+end
+?>
+#endif
 
 	//Delta^i_jk = connBar^i_jk - connHat^i_jk
+#if 0	
 	_3sym3 Delta_ull = _3sym3_sub(connBar_ull, connHat_ull);
+#else	
+	_3sym3 Delta_ull;
+<? 
+for i,xi in ipairs(xNames) do
+	for jk,xjk in ipairs(symNames) do
+?>	Delta_ull.<?=xi?>.<?=xjk?> = connBar_ull.<?=xi?>.<?=xjk?> - connHat_ull.<?=xi?>.<?=xjk?>;
+<?	end
+end
+?>
+#endif
 
-	U->LambdaBar_u = real3_rescaleFromCoord_u(_3sym3_sym3_dot23(Delta_ull, gammaBar_uu), x);
+#if 0
+	U->LambdaBar_u = _3sym3_sym3_dot23(Delta_ull, gammaBar_uu);
+#else
+<? for i,xi in ipairs(xNames) do
+?>	U->LambdaBar_u.<?=xi?> = 0.
+<?	for j,xj in ipairs(xNames) do
+		for k,xk in ipairs(xNames) do
+?>		+ Delta_ull.<?=xi?>.<?=sym(j,k)?> * gammaBar_uu.<?=sym(j,k)?>		
+<?		end
+	end
+?>	;
+<? end
+?>
+#endif
+
+	U->LambdaBar_u = real3_rescaleFromCoord_u(U->LambdaBar_u, x);
 }
 ]], table(self:getTemplateEnv(), {
 		code = self.initState:initState(self.solver),
@@ -631,14 +686,8 @@ end ?>;
 	_3sym3 connBar_lll = calc_connBar_lll(*(_sym3*)partial_epsilon_lll, connHat_lll, x);
 	_3sym3 connBar_ull = sym3_3sym3_mul(gammaBar_uu, connBar_lll);
 	_3sym3 Delta_ull = _3sym3_sub(connBar_ull, connHat_ull);
-	
-	//wait a second, LambdaBar^i = Delta^i + C^i
-	// why not just use U->LambdaBar_u instead of Delta_u ?
-	// TODO what is C^i?
-	real3 Delta_u = _3sym3_sym3_dot23(Delta_ull, gammaBar_uu);
-	
 	_3sym3 Delta_lll = sym3_3sym3_mul(gammaBar_ll, Delta_ull);
-	
+
 	sym3sym3 partial2_gammaHat_llll = coord_d2g_llll(x);
 	sym3 gammaHat_uu = coord_g_uu(x);
 	
@@ -650,7 +699,7 @@ end ?>;
 	
 	sym3sym3 partial2_gammaBar_llll = sym3sym3_add(*(sym3sym3*)partial2_epsilon_llll, partial2_gammaHat_llll);
 	sym3 RBar_ll;
-	calc_RBar_ll(RBar_ll, U, &gammaBar_ll, &gammaBar_uu, &connHat_ull, &partial_connHat_ulll, &partial2_gammaBar_llll, &partial_gammaBar_lll, &partial_LambdaBar_ul, &Delta_u, &Delta_lll, &Delta_ull);
+	calc_RBar_ll(RBar_ll, U, &gammaBar_ll, &gammaBar_uu, &connHat_ull, &partial_connHat_ulll, &partial2_gammaBar_llll, &partial_gammaBar_lll, &partial_LambdaBar_ul, &Delta_lll, &Delta_ull);
 	
 	//2008 Alcubierre eqn 2.8.18
 	//2010 Baumgarte, Shapiro eqn 3.10

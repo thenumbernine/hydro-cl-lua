@@ -51,15 +51,17 @@ local template = require 'template'
 function Sphere:getCoordMapInvGLSLCode()
 	return template([[
 vec3 coordMapInv(vec3 x) {
-	float r = length(x);
 <? if solver.dim == 1 then
-?>	float theta = 0.;
+?>	float r = abs(x.x);
+	float theta = 0.;
 	float phi = 0.;
 <? elseif solver.dim == 2 then	-- xy -> rθ
-?>	float theta = acos(x.y / r);
+?>	float r = length(x.xy);
+	float theta = acos(x.y / r);
 	float phi = 0.;
 <? elseif solver.dim == 3 then 	-- xyz - rθφ
-?>	float theta = acos(x.z / r);
+?>	float r = length(x);
+	float theta = acos(x.z / r);
 	float phi = atan(x.y, x.x);
 <? end 
 ?>	return vec3(r, theta, phi);

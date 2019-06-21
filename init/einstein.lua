@@ -57,6 +57,7 @@ function EinsteinInitCond:resetState(solver)
 	EinsteinInitCond.super.resetState(self, solver)
 	solver:boundary()
 	solver.initDerivsKernelObj()
+	solver:boundary()
 end
 
 function EinsteinInitCond:getCodePrefix(solver)
