@@ -26,9 +26,14 @@ uniform float valueMin, valueMax;
 uniform sampler1D gradientTex;
 
 void main() {
+	
+	//manifold coords
+	vec3 pt = gl_MultiTexCoord1.xyz * (maxs - mins) + mins;
+
 <? if solver.dim < 3 then ?> 
 	
 	vec3 dir = texture2D(tex, gl_MultiTexCoord0.xy).rgb;
+	dir = cartesianFromCoord(dir, pt);	
 	float value = length(dir);
 	dir /= value;
 
@@ -37,6 +42,7 @@ void main() {
 <? else ?>
 	
 	vec3 dir = texture3D(tex, gl_MultiTexCoord0.xyz).rgb;
+	dir = cartesianFromCoord(dir, pt);
 	float value = length(dir);
 	dir /= value;
 	
@@ -73,14 +79,20 @@ void main() {
 	} else {
 		value = (value - valueMin) / (valueMax - valueMin);
 	}
-	float valuescale = scale * clamp(value, 0., 1.);
+//TODO make this a flag, whether to normalize vectors or not? 
+	float valuescale = scale;// * clamp(value, 0., 1.);
 	value = (value * <?=clnumber(app.gradientTex.width-1)?> + .5) / <?=clnumber(app.gradientTex.width)?>;
+//hmm, better color scheme, I can't see black vectors against a black background
+// of course also TODO show the gradient
+//	color = texture1D(gradientTex, value * .5 + .5);
 	color = texture1D(gradientTex, value);
 
 
 	vec2 offset = gl_Vertex.xy;
-	vec3 v = gl_MultiTexCoord1.xyz * (maxs - mins) + mins + valuescale * (offset.x * dir + offset.y * tv);
-	v = coordMap(v);
+
+	//cartesian coords
+	vec3 v = coordMap(pt) + valuescale * (offset.x * dir + offset.y * tv);
+	
 	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(v, 1.);
 }
 

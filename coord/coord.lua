@@ -115,6 +115,11 @@ local sym = common.sym
 
 local CoordinateSystem = class()
 
+--[[
+args:
+	anholonomic = use anholonomic coordinate system (normalized basis vectors)
+		this causes the Coord object to use commutation coefficients, and therefore will have asymmetric connections
+--]]
 function CoordinateSystem:init(args)
 	local symmath = require 'symmath'
 	local const = symmath.Constant
@@ -127,18 +132,45 @@ function CoordinateSystem:init(args)
 	local Matrix = symmath.Matrix
 	local Tensor = symmath.Tensor
 	
+	local baseCoords = self.baseCoords
+	if not self.anholonomic then
+		self.coords = table(baseCoords)
+	else
+		-- TODO this is why symmath needs CAS function objects
+		-- and instead of overriding :applyDiff, just make operators a CAS function object
+		local nonCoords = table()
+		local nonCoordLinExpr = (self.eHolToE * baseCoords)()
+		for i=1,3 do
+			local baseCoord = baseCoords[i]
+			-- the non-coordinate = the coordinate, so use the original variable 
+			if nonCoordLinExpr[i] == baseCoord then
+			-- the non-coordinate ~= the coordinate, so make a new non-coord var and modify its 'applyDiff' function
+				nonCoords[i] = baseCoord
+			else
+				local nonCoord = symmath.var(baseCoord.name..'Hat')
+				nonCoord.base = baseCoord
+				function nonCoord:applyDiff(x)
+					local xPartial = symmath.Matrix:lambda({dim}, function(j) 
+						return x:diff(baseCoords[j])
+					end)
+					return self.eHolToE[i] * xPartial
+				end
+				nonCoords[i] = nonCoord
+			end
+		end
+		self.coords = nonCoords
+	end
+	local coords = self.coords
+
+
 	local flatMetric = Matrix:lambda({dim, dim}, function(i,j) return i==j and 1 or 0 end)
-	local coords = args.coords
-	local embedded = args.embedded
+	local embedded = self.embedded
 
 	Tensor.coords{
 		{variables=coords},
 		{variables=embedded, symbols='IJKLMN', metric=flatMetric},
 	}
 
-	local baseCoords = table.mapi(coords, function(coord)
-		return coord.base or coord
-	end)
 	--[[
 	if self.verbose then
 		print('coordinates:', table.unpack(coords))
@@ -156,7 +188,7 @@ function CoordinateSystem:init(args)
 	end
 	--]]
 
-	local u = args.chart()
+	local u = self.chart()
 	if self.verbose then
 		print'coordinate chart:'
 		print(var'u''^I':eq(u'^I'()))
@@ -195,6 +227,7 @@ function CoordinateSystem:init(args)
 		if self.verbose then
 			print'holonomic embedded:'
 			print(var'eHol''_u^I':eq(var'u''^I_,u'):eq(eHol'_u^I'()))
+			print(var'{e_{iHol}}^i':eq(self.eHolToE))
 		end
 	end
 
@@ -245,90 +278,28 @@ function CoordinateSystem:init(args)
 	end
 
 	local g = (e'_u^I' * e'_v^J' * eta'_IJ')()
-
 	if self.verbose then
 		print'metric:'
 		print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
 	end
-
-	local gHol
-	if not anholonomic then
-		gHol = g
-	else
-		gHol = (eHol'_u^I' * eHol'_v^J' * eta'_IJ')()
-		if self.verbose then
-			print'holonomic metric:'
-			print(var'gHol''_uv':eq(var'eHol''_u^I' * var'eHol''_v^J' * var'\\eta''_IJ'):eq(gHol'_uv'()))
-		end
-	end	
-
 	Tensor.metric(g)
 
-	local dg = Tensor'_cab'
-	dg['_cab'] = g'_ab,c'()
-self.dg = dg
-	if self.verbose then
-		print'metric partial:'
-		print(var'g''_ab,c':eq(dg'_cab'()))
-	end
 	
-	local Gamma_lll = Tensor'_abc'
-	Gamma_lll['_abc'] = ((dg'_cab' + dg'_bac' - dg'_abc' + c'_abc' + c'_acb' - c'_bca') / 2)()
-self.Gamma_lll = Gamma_lll	
-	if self.verbose then
-		print'1st kind Christoffel:'
-		print(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(Gamma_lll'_abc'()))
-	end
-
-	local Gamma_ull = Tensor'^a_bc'
-	Gamma_ull['^a_bc'] = Gamma_lll'^a_bc'()
-self.Gamma_ull = Gamma_ull	
-	if self.verbose then
-		print'connection:'
-		print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma_ull'^a_bc'()))
-	end
-
-	-- for anholonomic coordinates, we also need the holonomic connections
-	--  for calculating the sqrt(det(g)) = grid volume
-	-- TODO do we?  finite volume uses the holonomic metric determinant derivative, which is ident -> 1 -> zero
-	if self.anholonomic then
-		Tensor.metric(gHol)
-		
-		local GammaHol_lll = Tensor'_abc'
-		GammaHol_lll['_abc'] = ((gHol'_ab,c' + gHol'_ac,b' - gHol'_bc,a') / 2)()
-		if self.verbose then
-			print'1st kind Christoffel of holonoic basis / Levi-Civita connection:'
-			print(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'gHol''_ab,c' + var'gHol''_ac,b' - var'gHol''_bc,a')):eq(GammaHol_lll'_abc'()))
-		end
-
-		local GammaHol_ull = Tensor'^a_bc'
-		GammaHol_ull['^a_bc'] = GammaHol_lll'^a_bc'()
-		if self.verbose then
-			print'holonomic / Levi-Civita connection:'
-			print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(GammaHol_ull'^a_bc'()))
-		end
-
-		Tensor.metric(g)
-	end
-
-	local d2g = Tensor'_abcd'
-	d2g['_cdab'] = dg'_cab,d'()
-
 	-- code generation
 
 	-- for output
 	local function substCoords(code)
 		code = code:gsub('{pt^(%d)}', function(i)
-			return self.coords[i+0]
+			return self.baseCoords[i+0].name
 		end)
 		code = code:gsub('{u^(%d)}', function(i)
-			return 'u'..self.coords[i+0]
+			return 'u'..self.baseCoords[i+0].name
 		end)
 		code = code:gsub('{v^(%d)}', function(i)
-			return 'v'..self.coords[i+0]
+			return 'v'..self.baseCoords[i+0].name
 		end)
 		code = code:gsub('{w^(%d)}', function(i)
-			return 'w'..self.coords[i+0]
+			return 'w'..self.baseCoords[i+0].name
 		end)
 		return code
 	end
@@ -422,13 +393,6 @@ self.Gamma_ull = Gamma_ull
 				--..require 'ext.tolua'(expr))
 		end
 	end
-	--[[
-	local function compileTensorField(field)
-		local codeField = field..'Code'
-		self[codeField] = compileTensor(self[field])
-		printNonZeroField(codeField)
-	end
-	--]]
 	local function compileTensorField(field, expr)
 		self[field] = compileTensor(expr)
 		printNonZeroField(field)
@@ -441,7 +405,7 @@ self.Gamma_ull = Gamma_ull
 	-- TODO should I do this from the start?
 	-- just provide the full R3 coordinates, and make no 'eExt' struct?
 	local eExt = symmath.Array:lambda({dim, dim}, function(i,j)
-		return e[j][i] or const(0)
+		return e[i][j] or const(0)
 	end)
 	compileTensorField('eCode', eExt)
 	
@@ -476,12 +440,42 @@ self.Gamma_ull = Gamma_ull
 	local lenSqExpr = (paramU'^a' * paramU'_a')()
 	compileTensorField('uLenSqCode', lenSqExpr)
 
+	-- c_ab^b
+	local tr23_c = c'_ab^b'()
+	if self.verbose then
+		print(var'c''_ab^b':eq(tr23_c))
+	end
+	compileTensorField('tr23_cCode', tr23_c)
+
+	local dg = Tensor'_cab'
+	dg['_cab'] = g'_ab,c'()
+self.dg = dg
+	if self.verbose then
+		print'metric partial:'
+		print(var'g''_ab,c':eq(dg'_cab'()))
+	end
 	compileTensorField('dg_lll_codes', dg)
 
+	local d2g = Tensor'_abcd'
+	d2g['_cdab'] = dg'_cab,d'()
 	compileTensorField('d2g_llll_codes', d2g)
-	
+
+	local Gamma_lll = Tensor'_abc'
+	Gamma_lll['_abc'] = ((dg'_cab' + dg'_bac' - dg'_abc' + c'_abc' + c'_acb' - c'_bca') / 2)()
+self.Gamma_lll = Gamma_lll	
+	if self.verbose then
+		print'1st kind Christoffel:'
+		print(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(Gamma_lll'_abc'()))
+	end
 	compileTensorField('conn_lll_codes', Gamma_lll)
 
+	local Gamma_ull = Tensor'^a_bc'
+	Gamma_ull['^a_bc'] = Gamma_lll'^a_bc'()
+self.Gamma_ull = Gamma_ull	
+	if self.verbose then
+		print'connection:'
+		print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma_ull'^a_bc'()))
+	end
 	compileTensorField('conn_ull_codes', Gamma_ull)
 	
 	-- u^i v^j b^k Conn_ijk(x)
@@ -507,6 +501,42 @@ self.Gamma_ull = Gamma_ull
 	-- sqrt(g)_,i / sqrt(g) = Conn^j_ij
 	local connExpr = (Gamma_ull'^b_ab')()
 	compileTensorField('tr13_conn_l_codes', connExpr)
+
+	local gHol
+	if not anholonomic then
+		gHol = g
+	else
+		gHol = (eHol'_u^I' * eHol'_v^J' * eta'_IJ')()
+		if self.verbose then
+			print'holonomic metric:'
+			print(var'gHol''_uv':eq(var'eHol''_u^I' * var'eHol''_v^J' * var'\\eta''_IJ'):eq(gHol'_uv'()))
+		end
+	end
+
+--[[
+	-- for anholonomic coordinates, we also need the holonomic connections
+	--  for calculating the sqrt(det(g)) = grid volume
+	-- TODO do we?  finite volume uses the holonomic metric determinant derivative, which is ident -> 1 -> zero
+	if self.anholonomic then
+		Tensor.metric(gHol)
+
+		local GammaHol_lll = Tensor'_abc'
+		GammaHol_lll['_abc'] = ((gHol'_ab,c' + gHol'_ac,b' - gHol'_bc,a') / 2)()
+		if self.verbose then
+			print'1st kind Christoffel of holonoic basis / Levi-Civita connection:'
+			print(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'gHol''_ab,c' + var'gHol''_ac,b' - var'gHol''_bc,a')):eq(GammaHol_lll'_abc'()))
+		end
+
+		local GammaHol_ull = Tensor'^a_bc'
+		GammaHol_ull['^a_bc'] = GammaHol_lll'^a_bc'()
+		if self.verbose then
+			print'holonomic / Levi-Civita connection:'
+			print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(GammaHol_ull'^a_bc'()))
+		end
+		
+		Tensor.metric(g)
+	end
+--]]
 
 	self.lenExprs = symmath.Array:lambda({dim}, function(i)
 		local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
@@ -552,19 +582,15 @@ self.Gamma_ull = Gamma_ull
 
 
 	-- Now, for num rel in spherical, I need to transform the metric to remove the singularities ...
-	-- It is funny to include this alongside the anholonomic stuff.  It seems you would need one or the other but not both.
-	
+	-- TODO this is redundant, it is identical to anholonomic normalized 'eHolToE'
+
 	local J = Tensor('^a_b', function(a,b)
-		return a == b and (1 / self.lenExprs[a]) or 0
---[[
-print('i',i,'j',j,self.lenExprs[i])		
-		return i ~= j 
+		return a ~= b
 			and 0
 			or (self.anholonomic 
 					and 1 
-					or (1 / self.lenExprs[i])
+					or (1 / self.lenExprs[a])
 				)
---]]	
 	end)
 	if self.verbose then
 		print'rescaling transform:'
@@ -861,14 +887,12 @@ function CoordinateSystem:getCode(solver)
 	lines:insert(getCode_real3_to_real('coord_sqrt_det_g', sqrt_det_gCode))
 	
 	-- coord len code: l(v) = v^i v^j g_ij
-	lines:append{
-		getCode_real3_real3_to_real('coordLenSq', self.uLenSqCode),
-		[[
+	lines:insert(getCode_real3_real3_to_real('coordLenSq', self.uLenSqCode))
+	lines:insert[[
 real coordLen(real3 r, real3 pt) {
 	return sqrt(coordLenSq(r, pt));
-}]],
-	}
-
+}]]
+	lines:insert(getCode_real3_to_real3('coord_tr23_c', self.tr23_cCode))
 	lines:insert(getCode_real3_real3_real3_to_real('coord_conn_apply123', self.connApply123Code))
 	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply12', self.connApply12Codes))
 	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply13', self.connApply13Codes))
@@ -885,10 +909,6 @@ real coordLen(real3 r, real3 pt) {
 		lines:insert(getCode_real3_to_real('coordHolBasisLen'..i, self.eHolLenCode[i+1]))
 	end
 	--]]
-
-	for i,eiCode in ipairs(self.eCode) do
-		lines:insert(getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
-	end
 
 	lines:insert(getCode_real3_real3_to_real3('coord_lower', self.lowerCodes))
 	lines:insert(getCode_real3_real3_to_real3('coord_raise', self.raiseCodes))
@@ -1035,21 +1055,42 @@ sym3sym3 sym3sym3_rescaleToCoord_llll(sym3sym3 a, real3 x) {
 		}))
 	end
 
-	lines:insert(template([[
+	lines:insert(self:getCoordMapCode())
 
+--print(require 'template.showcode'(lines:concat'\n'))
+
+	return lines:concat'\n'
+end
+
+function CoordinateSystem:getCoordMapCode()
+	local lines = table()
+		
+	lines:insert(getCode_real3_to_real3(
+		'coordMap',
+		range(3):mapi(function(i)
+			return self.uCode[i] or '{pt^'..i..'}'
+		end)))
+	
+	for i,eiCode in ipairs(self.eCode) do
+		lines:insert(getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
+	end
+
+	lines:insert(template([[
 //converts a vector from cartesian coordinates to grid coordinates
 //by projecting the vector into the grid basis vectors 
 //at x, which is in grid coordinates
 real3 cartesianToCoord(real3 u, real3 pt) {
 	real3 uCoord = real3_zero;
-	<? for i=0,solver.dim-1 do ?>{
+	<? for i=0,solver.dim-1 do 
+	local xi = xNames[i+1]
+	?>{
 		real3 e = coordBasis<?=i?>(pt);
 <? if coord.anholonomic then	-- anholonomic normalized
-?>		real uei = real3_dot(e, u); // / real3_len(e);
+?>		real uei = real3_dot(e, u);
 <? else		-- holonomic
 ?>		real uei = real3_dot(e, u) / real3_lenSq(e);
 <? end		
-?>		uCoord.s<?=i?> = uei;
+?>		uCoord.<?=xi?> = uei;
 		//subtract off this basis component from u
 		u = real3_sub(u, real3_real_mul(e, uei));
 	}<? end ?>
@@ -1062,39 +1103,37 @@ real3 cartesianToCoord(real3 u, real3 pt) {
 //by projecting it onto the basis ... ?
 real3 cartesianFromCoord(real3 u, real3 pt) {
 	real3 uGrid = real3_zero;
-	<? for i=0,solver.dim-1 do ?>{
+	<? for i=0,solver.dim-1 do 
+	local xi = xNames[i+1]
+	?>{
 		real3 e = coordBasis<?=i?>(pt);
-		uGrid = real3_add(uGrid, real3_real_mul(e, u.s<?=i?>));
+		uGrid = real3_add(uGrid, real3_real_mul(e, u.<?=xi?>));
 	}<? end ?>
 	return uGrid;
 }
-
 ]], {
-		solver = solver,
+		solver = self.solver,
 		coord = self,
+		xNames = xNames,
 	}))
-
-	lines:insert(self:getCoordMapCode())
-
---print(require 'template.showcode'(lines:concat'\n'))
-
+	
 	return lines:concat'\n'
 end
 
-function CoordinateSystem:getCoordMapCode()
-	return table{
-		getCode_real3_to_real3('coordMap', range(3):mapi(function(i)
-			return self.uCode[i] or '{pt^'..i..'}'
-		end)),
-	}:concat'\n'
-end
-
 function CoordinateSystem:getCoordMapGLSLCode()
-	return (self:getCoordMapCode()
-		:gsub('inline%S*', '')
-		:gsub('_real3', 'vec3')	-- real3 constructor
-		:gsub('real3', 'vec3')	-- real3 type
-	)
+	return table{
+		'#define inline',
+		'#define real float',
+		'#define _real3 vec3',
+		'#define real3 vec3',
+		'#define real3_zero vec3(0.,0.,0.)',
+		'#define real3_add(a,b) ((a)+(b))',
+		'#define real3_sub(a,b) ((a)-(b))',
+		'#define real3_real_mul(a,b) ((a)*(b))',
+		'#define real3_dot dot',
+		'real real3_lenSq(real3 a) { return dot(a,a); }',
+		self:getCoordMapCode(),
+	}:concat'\n'
 end
 
 -- until I get inverses on trig functions working better, I'll have this manually specified

@@ -100,7 +100,7 @@ local args = {
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	--]=]
 	-- [=[ holonomic
-	mins = cmdline.mins or {.1, 0, -.25},
+	mins = cmdline.mins or {0, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	--]=]
 	gridSize = ({
@@ -111,7 +111,7 @@ local args = {
 	boundary = {
 		-- r
 		xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
-		xmax=cmdline.boundary or 'mirror',
+		xmax=cmdline.boundary or 'freeflow',
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
@@ -176,14 +176,14 @@ local args = {
 	
 	-- Euler / SRHD / MHD initial states:
 	--initState = 'constant',
-	--initState = 'constant with velocity',
+	initState = 'constant with velocity',
 	--initState = 'linear',
 	--initState = 'gaussian',
 	--initState = 'advect wave',
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'rectangle',
 	--initState = 'Sedov',
 	--initState = 'Noh',
@@ -432,7 +432,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- wave equation
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
@@ -442,7 +442,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 

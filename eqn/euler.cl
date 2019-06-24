@@ -463,8 +463,16 @@ kernel void addSource(
 	//- (gamma-1) rho v^j v^k v^l Gamma_jkl
 	deriv->ETotal -= (solver->heatCapacityRatio - 1.) * coord_conn_apply123(W.v, W.v, U->m, x);	
 
-<? print"TODO ANHOLONOMIC COMMUNTATION TERMS AS WELL ... + c_jk^k * Flux" ?>	
-
+	//+ c_jk^k * Flux^Ij
+<? 	if solver.coord.anholonomic then ?>
+	real3 commTrace = coord_tr23_c(x);
+	<? for i=0,solver.dim-1 do ?>{
+		cons_t flux = calcFluxFromCons(*U, x);
+		for (int j = 0; j < numIntStates; ++j) {
+			deriv->ptr[j] += commTrace.s<?=i?> * flux.ptr[j];
+		}
+	}<? end ?>
+<? 	end ?>
 <? end ?>
 }
 

@@ -7,9 +7,7 @@ local sin, cos = symmath.sin, symmath.cos
 local Tensor = symmath.Tensor
 
 local Sphere = class(CoordinateSystem)
-
 Sphere.name = 'sphere' 
-Sphere.coords = {'r', 'θ', 'φ'}
 
 --[[
 args
@@ -18,25 +16,18 @@ args
 	TODO add some other arg for rearranging the coordinate order so we can do 2D simulations of θ and φ alone
 --]]
 function Sphere:init(args)
-	args.embedded = table{symmath.vars('x', 'y', 'z')}
+	self.embedded = table{symmath.vars('x', 'y', 'z')}
 	local r, theta, phi = symmath.vars('r', 'θ', 'φ')
 
-	-- [[ holonomic
-	args.coords = table{r, theta, phi}
-	--]]
-	--[[ anholonomic
-	local thetaHat = symmath.var'thetaHat'
-	thetaHat.base = theta
-	function thetaHat:applyDiff(expr) return expr:diff(theta) / r end
+	self.baseCoords = table{r, theta, phi}
 
-	local phiHat = symmath.var'phiHat'
-	phiHat.base = phi
-	function phiHat:applyDiff(expr) return expr:diff(phi) / (r * sin(theta)) end
+	self.eHolToE = symmath.Matrix{
+		{1, 0, 0},
+		{0, 1/r, 0},
+		{0, 0, 1/(r*symmath.sin(theta))},
+	}
 	
-	args.coords = table{thetaHat, phiHat, r}:sub(1, args.solver.dim)
-	--]]
-	
-	args.chart = function() 
+	self.chart = function() 
 		return Tensor('^I', 
 			r * sin(theta) * cos(phi), 
 			r * sin(theta) * sin(phi), 

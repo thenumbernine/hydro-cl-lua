@@ -83,12 +83,21 @@ end
 <? else		
 ?>		.phi_t = rho,
 <? end		
-?>		.phi_i = v,
+?>		.phi_i = cartesianToCoord(v, x),
 	};
 }
 ]]
 
 Wave.solverCodeFile = 'eqn/wave.cl'
+
+Wave.predefinedDisplayVars = {
+	'U phi_t (kg/(m s^3))',
+	'U phi_i (kg/(m^2 s^2))',
+	'U phi_i x (kg/(m^2 s^2))',
+	'U phi_i y (kg/(m^2 s^2))',
+	'U phi_i z (kg/(m^2 s^2))',
+	'U phi_i mag (kg/(m^2 s^2))',
+}
 
 Wave.eigenVars = {
 	{name='unused', type='real'},

@@ -10,8 +10,12 @@ kernel void calcDerivFromFlux(
 ) {
 	SETBOUNDS_NOGHOST();
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
-	
 	real3 x = cell_x(i);
+
+<? if solver.coord.anholonomic then ?>
+	<?=eqn.cons_t?> fluxes[dim];
+<? end ?>
+	
 <? if eqn.weightFluxByGridVolume then ?>
 	real volume = coord_sqrt_det_g(x);
 <? else ?>
@@ -45,9 +49,11 @@ kernel void calcDerivFromFlux(
 		real areaR = volume;
 <? end ?>
 
-<? print"TODO - IF WE ARE USING ANHOLONOMIC THEN WE MUST TRANSFORM EACH FLUX COMPONENT INTO THE COORDINATE BASIS BEFORE DOING FINITE DIFFERENCE" ?>
-<? print"THAT MEANS STORING EACH SIDE OF THE FLUX AND THEN TRANSFORMING THEM ALL" ?>
-<? if not eqn.postComputeFluxCode then -- would the compiler know to optimize this? ?>
+<? if 
+not eqn.postComputeFluxCode -- would the compiler know to optimize this?
+and not solver.coord.anholonomic
+then 
+?>
 		for (int j = 0; j < numIntStates; ++j) {
 			deriv->ptr[j] -= (
 				fluxR->ptr[j] * areaR
@@ -71,10 +77,25 @@ kernel void calcDerivFromFlux(
 <?=eqn.postComputeFluxCode or ''?>
 		}
 
+<?	if not solver.coord.anholonomic then ?>
 		for (int j = 0; j < numIntStates; ++j) {
 			deriv->ptr[j] -= flux.ptr[j];
 		}
+<?	else ?>
+		fluxes[<?=side?>] = flux;
+<? 	end ?>
 <? end ?>
 
 	}<? end ?>
+
+<? if solver.coord.anholonomic then ?>
+	for (int j = 0; j < numIntStates; ++j) {
+		<? for k=0,dim-1 do ?>{
+			real3 e_k = coordBasis<?=k?>(x);
+			<? for l=0,dim-1 do ?>{
+				deriv->ptr[j] -= e_k.s<?=l?> * fluxes[<?=l?>].ptr[j];
+			}<? end ?>
+		}<? end ?>
+	}
+<? end ?>
 }
