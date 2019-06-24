@@ -218,7 +218,7 @@ kernel void addSource(
 		), 1. / solver->grid_dx.s<?=j?>);
 	<? end ?>
 	
-	real _1_sqrt_det_g = 1. / coord_volume(x);
+	real _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>{
 		cons_t flux = fluxFromCons_<?=j?>(solver, *U, x);

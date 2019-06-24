@@ -33,7 +33,7 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.fluids = fluids
 TwoFluidEMHDDeDonderGaugeLinearizedGR.postComputeFluxCode = [[
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
-		real _1_sqrt_det_g = 1. / coord_volume(x);
+		real _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
 		flux.D = real3_real_mul(coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = real3_real_mul(coord_lower(flux.B, x), _1_sqrt_det_g);
 		flux.D_g = real3_real_mul(coord_lower(flux.D_g, x), _1_sqrt_det_g);

@@ -45,7 +45,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -90,7 +90,7 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	--[[ cylinder
+	-- [[ cylinder
 	coord = 'cylinder',
 	-- for some reason, with holonomic coordinates, with rmax=1, for any rmin < .1, I get an explosion
 	-- no such problem with anholonomic ... however anholonomic is creating an initial wave from rmin which destroys everything
@@ -100,7 +100,7 @@ local args = {
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	--]=]
 	-- [=[ holonomic
-	mins = cmdline.mins or {0, 0, -.25},
+	mins = cmdline.mins or {.1, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	--]=]
 	gridSize = ({
@@ -111,7 +111,7 @@ local args = {
 	boundary = {
 		-- r
 		xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
-		xmax=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'mirror',
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
@@ -123,8 +123,8 @@ local args = {
 	--[[ Sphere: r, θ, φ 
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
-	mins = cmdline.mins or {.5, 0, -math.pi},
-	maxs = cmdline.maxs or {1, .5 * math.pi, math.pi},
+	mins = cmdline.mins or {1, 0, -math.pi},
+	maxs = cmdline.maxs or {10, .5 * math.pi, math.pi},
 	gridSize = ({
 		{256, 1, 1}, -- 1D
 		{32, 32, 1}, -- 2D
@@ -183,7 +183,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'rectangle',
 	--initState = 'Sedov',
 	--initState = 'Noh',
@@ -257,7 +257,7 @@ local args = {
 
 	-- Einstein
 	--initState = 'Minkowski',
-	initState = 'gaussian perturbation',
+	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 
 
@@ -442,7 +442,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -617,7 +617,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 
 
 -- bssnok is working in 1D spherical for RK4 but diverging for Euler
-self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is HyperbolicGammaDriver
+--self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is HyperbolicGammaDriver
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='none'}})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='GammaDriver'}})))
 

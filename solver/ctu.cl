@@ -11,7 +11,7 @@ kernel void updateCTU(
 	SETBOUNDS(0,1);
 	real3 x = cell_x(i);
 <? if eqn.weightFluxByGridVolume then ?>
-	real volume = cell_volume(solver, x);
+	real volume = cell_sqrt_det_g(solver, x);
 <? else ?>
 	const real volume = 1.<? for i=0,solver.dim-1 do ?> * solver->grid_dx.s<?=i?><? end ?>;
 <? end ?>
@@ -30,12 +30,12 @@ for side=0,solver.dim-1 do
 <? if eqn.weightFluxByGridVolume then ?>	
 		real3 xIntL = x;
 		xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-		real volume_intL = cell_volume(solver, xIntL);
+		real volume_intL = cell_sqrt_det_g(solver, xIntL);
 		real areaL = volume_intL / solver->grid_dx.s<?=side?>;
 	
 		real3 xIntR = x;
 		xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
-		real volume_intR = cell_volume(solver, xIntR);
+		real volume_intR = cell_sqrt_det_g(solver, xIntR);
 		real areaR = volume_intR / solver->grid_dx.s<?=side?>;
 <? else ?>
 		const real areaL = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * solver->grid_dx.s<?=i?><? end end ?>;

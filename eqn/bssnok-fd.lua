@@ -86,8 +86,8 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 		{name='constrain_det_gammaBar_ll', value=true, compileTime=true},
 		--{name='constrain_det_gammaBar_ll', value=false, compileTime=true},
 
-		{name='constrain_tr_ABar_ll', value=true, compileTime=true},
-		--{name='constrain_tr_ABar_ll', value=false, compileTime=true},
+		--{name='constrain_tr_ABar_ll', value=true, compileTime=true},
+		{name='constrain_tr_ABar_ll', value=false, compileTime=true},
 		
 		{name='calc_H_and_M', value=true, compileTime=true},
 		{name='diffuseSigma', value=.01},
@@ -156,14 +156,15 @@ sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U, real3 x) {
 	return gamma_uu;
 }
 
-_3sym3 calc_connBar_lll(
-	_3sym3 partial_epsilon_lll,
-	_3sym3 connHat_lll,
+void calc_connBar_lll(
+	_3sym3* connBar_lll,
+	const sym3* partial_epsilon_lll,//[3]
+	const _3sym3* connHat_lll,
 	real3 x
 ) {
 	//assumes partial_epsilon_lll is rescaled to remove grid coordinate singularities
 	//so rescale it
-	partial_epsilon_lll = _3sym3_rescaleToCoord_lll(partial_epsilon_lll, x);
+//	_3sym3 partial_epsilon_lll = _3sym3_rescaleToCoord_lll(*(_3sym3*)_partial_epsilon_lll, x);
 
 	/*
 	connBar_lll[i].jk := connBar_ijk 
@@ -175,21 +176,19 @@ _3sym3 calc_connBar_lll(
 	)
 	= 1/2 (epsilon_ij,k + epsilon_ik,j - epsilon_jk,i) + connHat_ijk
 	*/
-	return (_3sym3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {	
-<?	for jk,xjk in ipairs(symNames) do
+<? 
+for i,xi in ipairs(xNames) do
+	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
 		local xj,xk = xNames[j],xNames[k]
-?>			.<?=xjk?> = .5 * (
-				partial_epsilon_lll.<?=xk?>.<?=sym(i,j)?>
-				+ partial_epsilon_lll.<?=xj?>.<?=sym(i,k)?> 
-				- partial_epsilon_lll.<?=xi?>.<?=xjk?>
-			) + connHat_lll.<?=xi?>.<?=xjk?>,
+?>	connBar_lll-><?=xi?>.<?=xjk?> = .5 * (0.
+			+ partial_epsilon_lll[<?=k-1?>].<?=sym(i,j)?>
+			+ partial_epsilon_lll[<?=j-1?>].<?=sym(i,k)?> 
+			- partial_epsilon_lll[<?=i-1?>].<?=xjk?>
+		) + connHat_lll-><?=xi?>.<?=xjk?>;
 <?	end
-?>		},
-<? end
-?>	};
+end
+?>
 }
 
 void setFlatSpace(
@@ -299,7 +298,7 @@ kernel void initDerivs(
 <?=makePartial('epsilon_ll', 'sym3')?>
 	
 	// TODO see other warning about partial_epsilon_lll and rescaling
-	*(_3sym3*)partial_epsilon_lll = _3sym3_rescaleToCoord_lll(*(_3sym3*)partial_epsilon_lll, x);
+	//*(_3sym3*)partial_epsilon_lll = _3sym3_rescaleToCoord_lll(*(_3sym3*)partial_epsilon_lll, x);
 
 	_3sym3 connHat_lll = coord_conn_lll(x);
 	_3sym3 connHat_ull = coord_conn_ull(x);
@@ -683,7 +682,8 @@ end ?>;
 			code = template([[
 	_3sym3 connHat_ull = coord_conn_ull(x);
 <?=makePartial('epsilon_ll', 'sym3')?>
-	_3sym3 connBar_lll = calc_connBar_lll(*(_sym3*)partial_epsilon_lll, connHat_lll, x);
+	_3sym3 connBar_lll;
+	calc_connBar_lll(&connBar_lll, partial_epsilon_lll, &connHat_lll, x);
 	_3sym3 connBar_ull = sym3_3sym3_mul(gammaBar_uu, connBar_lll);
 	_3sym3 Delta_ull = _3sym3_sub(connBar_ull, connHat_ull);
 	_3sym3 Delta_lll = sym3_3sym3_mul(gammaBar_ll, Delta_ull);

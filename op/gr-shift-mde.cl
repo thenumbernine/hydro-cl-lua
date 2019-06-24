@@ -139,12 +139,12 @@ end ?>
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do ?>
 	intIndex.s<?=j?> = i.s<?=j?> - .5;
-	volL.s<?=j?> = coord_volume(solver, cell_x(intIndex));
+	volL.s<?=j?> = coord_sqrt_det_g(solver, cell_x(intIndex));
 	intIndex.s<?=j?> = i.s<?=j?> + .5;
-	volR.s<?=j?> = coord_volume(solver, ell_x(intIndex));
+	volR.s<?=j?> = coord_sqrt_det_g(solver, ell_x(intIndex));
 	intIndex.s<?=j?> = i.s<?=j?>;
 <? end ?>
-	real volAtX = coord_volume(solver, cell_x(i));
+	real volAtX = coord_sqrt_det_g(solver, cell_x(i));
 
 <?
 local scalar = op.scalar

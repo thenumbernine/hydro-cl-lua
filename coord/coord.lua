@@ -103,6 +103,8 @@ here's another rehashing of my options
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
+local template = require 'template'
+local clnumber = require 'cl.obj.number'
 
 local common = require 'common'()
 local xNames = common.xNames
@@ -288,6 +290,7 @@ self.Gamma_ull = Gamma_ull
 
 	-- for anholonomic coordinates, we also need the holonomic connections
 	--  for calculating the sqrt(det(g)) = grid volume
+	-- TODO do we?  finite volume uses the holonomic metric determinant derivative, which is ident -> 1 -> zero
 	if self.anholonomic then
 		Tensor.metric(gHol)
 		
@@ -313,6 +316,7 @@ self.Gamma_ull = Gamma_ull
 
 	-- code generation
 
+	-- for output
 	local function substCoords(code)
 		code = code:gsub('{pt^(%d)}', function(i)
 			return self.coords[i+0]
@@ -322,6 +326,9 @@ self.Gamma_ull = Gamma_ull
 		end)
 		code = code:gsub('{v^(%d)}', function(i)
 			return 'v'..self.coords[i+0]
+		end)
+		code = code:gsub('{w^(%d)}', function(i)
+			return 'w'..self.coords[i+0]
 		end)
 		return code
 	end
@@ -333,6 +340,10 @@ self.Gamma_ull = Gamma_ull
 	local paramV = Tensor('^a', function(a)
 		return var('{v^'..a..'}')
 	end)
+
+	local paramW = Tensor('^a', function(a)
+		return var('{w^'..a..'}')
+	end)
 	
 	local toC = require 'symmath.tostring.C'
 	local toC_coordArgs = table.mapi(baseCoords, function(coord, i)
@@ -341,6 +352,8 @@ self.Gamma_ull = Gamma_ull
 		return {[paramU[a].name] = paramU[a]}
 	end)):append(range(dim):mapi(function(a)
 		return {[paramV[a].name] = paramV[a]}
+	end)):append(range(dim):mapi(function(a)
+		return {[paramW[a].name] = paramW[a]}
 	end))
 	local function compile(expr)
 		local orig = expr	
@@ -376,35 +389,61 @@ self.Gamma_ull = Gamma_ull
 		return code
 	end
 
-	-- uCode is used to project the grid for displaying
-	self.uCode = range(dim):mapi(function(i) 
-		local uCode = compile(u[i])
-		if cmdline.coordVerbose then
-			if uCode ~= '0.' then
-				print('uCode['..i..'] = '..substCoords(uCode))
+	local function printNonZero(name, code)
+		if not self.verbose then return end
+		local codetype = type(code)
+		if codetype == 'string' then
+			if code ~= '0.' then
+				print(name..' = '..substCoords(code))
 			end
+		elseif codetype == 'table' then
+			for i=1,#code do
+				printNonZero(name..'['..i..']', code[i])
+			end
+		else
+			error("can't print code "..('%q'):format(name).." of type "..codetype)
 		end
-		return uCode
-	end)
-	
+	end
+	local function printNonZeroField(field)
+		printNonZero(field, self[field])
+	end
+
+	--compile a tensor of expressions to a nested table of codes
+	local function compileTensor(expr)
+		if symmath.Array.is(expr) then
+			return table.mapi(expr, compileTensor)
+		elseif symmath.Expression.is(expr) then
+			return compile(expr)
+		elseif type(expr) == 'number' then
+			return clnumber(expr)
+		else
+			error("don't know how to compile "
+				..symmath.Verbose(expr))
+				--..require 'ext.tolua'(expr))
+		end
+	end
+	--[[
+	local function compileTensorField(field)
+		local codeField = field..'Code'
+		self[codeField] = compileTensor(self[field])
+		printNonZeroField(codeField)
+	end
+	--]]
+	local function compileTensorField(field, expr)
+		self[field] = compileTensor(expr)
+		printNonZeroField(field)
+	end
+
+	-- uCode is used to project the grid for displaying
+	compileTensorField('uCode', u)
+
 	-- extend 'e' to full R3 
 	-- TODO should I do this from the start?
-	-- just provide the full R3 coordinates, and make no 'eExt' struct
-	local eExt = range(dim):mapi(function(j)
-		return range(dim):mapi(function(i) return e[j][i] or const(0) end)
+	-- just provide the full R3 coordinates, and make no 'eExt' struct?
+	local eExt = symmath.Array:lambda({dim, dim}, function(i,j)
+		return e[j][i] or const(0)
 	end)
-
-	self.eCode = eExt:mapi(function(ei,i) 
-		return ei:mapi(function(eij,j)
-			local eijCode = compile(eij) 
-			if cmdline.coordVerbose then
-				if eijCode ~= '0.' then
-					print('eCode['..i..']['..j..'] = '..substCoords(eijCode))
-				end			
-			end			
-			return eijCode 
-		end)
-	end)
+	compileTensorField('eCode', eExt)
 	
 --[=[ not being used
 	local eHolLen = range(#eHol):mapi(function(i)
@@ -414,178 +453,74 @@ self.Gamma_ull = Gamma_ull
 			end):sum()
 		)()
 	end)
-	
-	self.eHolLenCode = eHolLen:mapi(function(eiHolLen, i)
-		local eiHolLenCode = compile(eiHolLen)
-		if cmdline.coordVerbose then
-			print('eHolLen['..i..'] = '..substCoords(eiHolLenCode))
-		end
-		return eiHolLenCode
-	end)
-	
+	compileTensorField('eHolLenCode', eHolLen)
+
 	local eExtLen = eExt:mapi(function(ei,i)
 		return symmath.sqrt(ei:mapi(function(x) return x^2 end):sum())()
 	end)
 	local eExtUnit = eExt:mapi(function(ei,i)
 		return ei:mapi(function(eij) return (eij/eExtLen[i])() end)
 	end)
-	self.eUnitCode = eExtUnit:mapi(function(ei_unit,i) return ei_unit:mapi(compile) end)
-	if cmdline.coordVerbose then
-		print('eUnitCode = ', tolua(self.eUnitCode, {indent=true}))
-	end
+	compileTensorField('eUnitCode', eExtUnit)
 --]=]
 
 	-- v^k -> v_k
 	local lowerExpr = paramU'_a'()
-	self.lowerCodes = range(dim):mapi(function(i)
-		local lowerCode = compile(lowerExpr[i])
-		if cmdline.coordVerbose then
-			print('lowerCode['..i..'] = '..substCoords(lowerCode))
-		end
-		return lowerCode
-	end)
+	compileTensorField('lowerCodes', lowerExpr)
 
 	-- v^k -> v_k
 	local raiseExpr = paramU'_a'()
-	self.raiseCodes = range(dim):mapi(function(i)
-		local raiseCode = compile(raiseExpr[i])
-		if cmdline.coordVerbose then
-			print('raiseCode['..i..'] = '..substCoords(raiseCode))
-		end
-		return raiseCode
-	end)
+	compileTensorField('raiseCodes', raiseExpr)
 
 	-- v^k v_k
 	local lenSqExpr = (paramU'^a' * paramU'_a')()
-	self.uLenSqCode = compile(lenSqExpr)
-	if cmdline.coordVerbose then
-		print('uLenSqCodes = '..substCoords(self.uLenSqCode))
-	end
+	compileTensorField('uLenSqCode', lenSqExpr)
 
-	self.dg_lll_codes = range(dim):mapi(function(k)
-		return range(dim):mapi(function(i)
-			return range(dim):map(function(j)
-				local code = compile(dg[k][i][j])
-				if cmdline.coordVerbose then
-					if code ~= '0.' then
-						print('dg['..k..i..j..'] = '..substCoords(code))
-					end
-				end
-				return code
-			end)
-		end)
-	end)
+	compileTensorField('dg_lll_codes', dg)
 
-	self.d2g_llll_codes = range(dim):mapi(function(k)
-		return range(dim):mapi(function(l)
-			return range(dim):mapi(function(i)
-				return range(dim):map(function(j)
-					local code = compile(d2g[k][l][i][j])
-					if cmdline.coordVerbose then
-						if code ~= '0.' then
-							print('d2g['..k..l..i..j..'] = '..substCoords(code))
-						end
-					end
-					return code
-				end)
-			end)
-		end)
-	end)
+	compileTensorField('d2g_llll_codes', d2g)
+	
+	compileTensorField('conn_lll_codes', Gamma_lll)
 
-	self.conn_lll_codes = range(dim):mapi(function(i)
-		return range(dim):mapi(function(j)
-			return range(dim):mapi(function(k)
-				local code = compile(Gamma_lll[i][j][k])
-				if cmdline.coordVerbose then
-					if code ~= '0.' then
-						print('connCode_lll['..i..j..k..'] = '..substCoords(code))
-					end
-				end
-				return code
-			end)
-		end)
-	end)
+	compileTensorField('conn_ull_codes', Gamma_ull)
+	
+	-- u^i v^j b^k Conn_ijk(x)
+	local connExpr = (paramU'^a' * paramV'^b' * paramW'^c' * Gamma_lll'_abc')()
+	compileTensorField('connApply123Code', connExpr)
 
-	self.conn_ull_codes = range(dim):mapi(function(i)
-		return range(dim):mapi(function(j)
-			return range(dim):mapi(function(k)
-				local code = compile(Gamma_ull[i][j][k])
-				if cmdline.coordVerbose then
-					if code ~= '0.' then
-						print('connCode_ull['..i..j..k..'] = '..substCoords(code))
-					end
-				end
-				return code
-			end)
-		end)
-	end)
+	-- u^j v^k Conn_jk^i(x)
+	local connExpr = (paramU'^b' * paramV'^c' * Gamma_lll'_bc^a')()
+	compileTensorField('connApply12Codes', connExpr)
+
+	-- u^j v^k Conn_j^i_k(x)
+	local connExpr = (paramU'^b' * paramV'^c' * Gamma_lll'_b^a_c')()
+	compileTensorField('connApply13Codes', connExpr)
 	
 	-- Conn^i_jk(x) u^j v^k
 	local connExpr = (Gamma_ull'^a_bc' * paramU'^b' * paramV'^c')()
-	self.connApply23Codes = range(dim):mapi(function(i)
-		local conniCode = compile(connExpr[i])
-		if cmdline.coordVerbose then
-			if conniCode ~= '0.' then
-				print('connApply23Code['..i..'] = '..substCoords(conniCode))
-			end		
-		end		
-		return conniCode
-	end)
-
-	-- u^j v^k Conn_jk^i(x)
-	local connLastExpr = (paramU'^b' * paramV'^c' * Gamma_ull'_bc^a')()
-	self.connApply12Codes = range(dim):mapi(function(i)
-		local code = compile(connLastExpr[i])
-		if cmdline.coordVerbose then
-			if code ~= '0.' then
-				print('connApply12Code['..i..'] = '..substCoords(code))
-			end		
-		end		
-		return code
-	end)
+	compileTensorField('connApply23Codes', connExpr)
 	
 	-- Conn^i = Conn^i_jk g^jk
-	self.tr23_conn_u_expr = (Gamma_ull'^a_b^b')()
-	self.tr23_conn_u_codes = range(dim):mapi(function(i)
-		local code = compile(self.tr23_conn_u_expr[i])
-		if cmdline.coordVerbose then
-			if code ~= '0.' then
-				print('tr23_conn_u_code['..i..'] = '..substCoords(code))
-			end		
-		end		
-		return code
-	end)
+	local connExpr = (Gamma_ull'^a_b^b')()
+	compileTensorField('tr23_conn_u_codes', connExpr)
 
 	-- sqrt(g)_,i / sqrt(g) = Conn^j_ij
-	local tr13_conn_l_codes = (Gamma_ull'^b_ab')()
-	self.tr13_conn_l_codes = range(dim):mapi(function(i)
-		local code = compile(tr13_conn_l_codes[i])
-		if cmdline.coordVerbose then
-			if code ~= '0.' then
-				print('tr13_conn_l_code['..i..'] = '..substCoords(code))
-			end		
-		end		
-		return code
-	end)
+	local connExpr = (Gamma_ull'^b_ab')()
+	compileTensorField('tr13_conn_l_codes', connExpr)
 
-	self.lenExprs = range(dim):mapi(function(i)
+	self.lenExprs = symmath.Array:lambda({dim}, function(i)
 		local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
 		local lenSqExpr = (dir'^a' * dir'^b' * gHol'_ab')()
 		local lenExpr = symmath.sqrt(lenSqExpr)()
 		return lenExpr
 	end)
+	printNonZeroField'lenExprs'
 
 	-- dx is the change across the grid
 	-- therefore it is based on the holonomic metric
-	self.dxCodes = range(dim):mapi(function(i)
-		local lenCode = compile(self.lenExprs[i])
-		if cmdline.coordVerbose then
-			print('dxCode['..i..'] = '..substCoords(lenCode))
-		end
-		return lenCode
-	end)
+	compileTensorField('dxCodes', self.lenExprs)
 
-	local areaExprs = range(dim):mapi(function(i)
+	local areaExprs = symmath.Array:lambda({dim}, function(i)
 		local area = const(1)
 		for j=1,dim do
 			if j ~= i then
@@ -597,74 +532,39 @@ self.Gamma_ull = Gamma_ull
 	end)
 
 	-- area of the side in each direction
-	self.areaCodes = range(dim):mapi(function(i)
-		local areaCode = compile(areaExprs[i])
-		if cmdline.coordVerbose then
-			print('areaCode['..i..'] = '..substCoords(areaCode))
-		end
-		return areaCode
-	end)
+	compileTensorField('areaCodes', areaExprs)
 
 	self.g = g
-	self.gCode = range(dim):mapi(function(i)
-		return range(i,dim):mapi(function(j)
-			local gijCode = compile(self.g[i][j])
-			if cmdline.coordVerbose then
-				if gijCode ~= '0.' then
-					print('g['..i..']['..j..'] = '..substCoords(gijCode))
-				end			
-			end			
-			return gijCode, j
-		end)
-	end)
+	compileTensorField('gCode', self.g)
 
 	local gU = Tensor('^ab', table.unpack((Matrix.inverse(g))))
 	self.gU = gU
-	self.gUCode = range(dim):mapi(function(i)
-		return range(i,dim):mapi(function(j)
-			local gUijCode = compile(self.gU[i][j])
-			if cmdline.coordVerbose then
-				if gUijCode ~= '0.' then
-					print('gU['..i..']['..j..'] = '..substCoords(gUijCode))
-				end			
-			end			
-			return gUijCode, j
-		end)
-	end)
+	compileTensorField('gUCode', self.gU)
 	
 	local sqrt_gU = Tensor('^ab', function(a,b) return symmath.sqrt(gU[a][b])() end)
-	self.sqrt_gUCode = range(dim):mapi(function(i)
-		return range(i,dim):mapi(function(j)
-			local sqrt_gUijCode = compile(sqrt_gU[i][j])
-			if cmdline.coordVerbose then
-				if sqrt_gUijCode ~= '0.' then
-					print('sqrt(gU['..i..']['..j..']) = '..substCoords(sqrt_gUijCode))
-				end			
-			end			
-			return sqrt_gUijCode, j
-		end)
-	end)
+	compileTensorField('sqrt_gUCode', sqrt_gU)
 
-	local det_g_expr = symmath.Matrix.determinant(gHol)
-	self.det_g_code = compile(det_g_expr)
-	if cmdline.coordVerbose then
-		print('det_g_code = '..substCoords(self.det_g_code))
-	end
+	local det_g_expr = symmath.Matrix.determinant(g)
+	compileTensorField('det_g_code', det_g_expr)
 
-	local volumeExpr = symmath.sqrt(det_g_expr)()
-	self.volumeCode = compile(volumeExpr)
-	if cmdline.coordVerbose then
-		print('volumeCode = '..substCoords(self.volumeCode))
-	end
-
-
+	local sqrt_det_gExpr = symmath.sqrt(det_g_expr)()
+	compileTensorField('sqrt_det_gCode', sqrt_det_gExpr)
 
 
 	-- Now, for num rel in spherical, I need to transform the metric to remove the singularities ...
 	-- It is funny to include this alongside the anholonomic stuff.  It seems you would need one or the other but not both.
 	
-	local J = Tensor('^a_b', function(i,j)
-		return i == j and (1 / self.lenExprs[i]) or 0
+	local J = Tensor('^a_b', function(a,b)
+		return a == b and (1 / self.lenExprs[a]) or 0
+--[[
+print('i',i,'j',j,self.lenExprs[i])		
+		return i ~= j 
+			and 0
+			or (self.anholonomic 
+					and 1 
+					or (1 / self.lenExprs[i])
+				)
+--]]	
 	end)
 	if self.verbose then
 		print'rescaling transform:'
@@ -686,31 +586,11 @@ self.Gamma_ull = Gamma_ull
 		print'g^ij, in rescaled coordinates:'
 		print(gJ_uu)
 	end
-	self.gJ_uu_code = range(dim):mapi(function(i)
-		return range(i,dim):mapi(function(j)
-			local gJ_uu_ij_code = compile(gJ_uu[i][j])
-			if cmdline.coordVerbose then
-				if gJ_uu_ij_code ~= '0.' then
-					print('gJ_uu['..i..']['..j..'] = '..substCoords(gJ_uu_ij_code))
-				end			
-			end			
-			return gJ_uu_ij_code, j
-		end)
-	end)
+	compileTensorField('gJ_uu_code', gJ_uu)
 
 	local sqrt_gJ_uu_expr = Tensor('^ab', function(a,b) return symmath.sqrt(gJ_uu[a][b])() end)
-	self.sqrt_gJ_uu_code = range(dim):mapi(function(i)
-		return range(i,dim):mapi(function(j)
-			local sqrt_gJ_uu_ij_code = compile(sqrt_gJ_uu_expr[i][j])
-			if cmdline.coordVerbose then
-				if sqrt_gJ_uu_ij_code ~= '0.' then
-					print('sqrt(gJ_uu['..i..']['..j..']) = '..substCoords(sqrt_gJ_uu_ij_code))
-				end			
-			end			
-			return sqrt_gJ_uu_ij_code, j
-		end)
-	end)
-	
+	compileTensorField('sqrt_gJ_uu_code', sqrt_gJ_uu_expr)
+
 	local dgJ_lll = (self.dg'_abc' * J'^a_u' * J'^b_v' * J'^c_w')()
 	if self.verbose then
 		print'g_ij,k in rescaled coordinates:'
@@ -729,12 +609,9 @@ self.Gamma_ull = Gamma_ull
 end
 
 
-
-local template = require 'template'
-local clnumber = require 'cl.obj.number'
-
 local xs = table{'x', 'y', 'z'}
 
+-- for code generation
 local function convertParams(code)
 	code = code:gsub('{pt^(%d)}', function(i)
 		return 'pt.'..xs[i+0]
@@ -743,6 +620,9 @@ local function convertParams(code)
 		return 'u.'..xs[i+0]
 	end)
 	code = code:gsub('{v^(%d)}', function(i)
+		return 'v.'..xs[i+0]
+	end)
+	code = code:gsub('{w^(%d)}', function(i)
 		return 'v.'..xs[i+0]
 	end)
 	return code
@@ -799,6 +679,17 @@ real3 <?=name?>(real3 u, real3 pt) {
 }]], {
 		name = name,
 		exprs = exprs,
+		convertParams = convertParams,
+	})
+end
+
+local function getCode_real3_real3_real3_to_real(name, expr)
+	return template([[
+real <?=name?>(real3 u, real3 v, real3 w, real3 pt) {
+	return <?=convertParams(expr)?>;
+}]], {
+		name = name,
+		expr = expr,
 		convertParams = convertParams,
 	})
 end
@@ -961,13 +852,13 @@ function CoordinateSystem:getCode(solver)
 	
 	lines:insert'\n'
 
-	-- metric determinant = volume^2
+	-- metric determinant ...  det_g = volume^2 for holonomic basis
 	local det_g_code = '(' .. self.det_g_code .. ')'
 	lines:insert(getCode_real3_to_real('coord_det_g', det_g_code))
 
-	-- volume
-	local volumeCode = '(' .. self.volumeCode .. ')'
-	lines:insert(getCode_real3_to_real('coord_volume', volumeCode))
+	-- sqrt_det_g ... volume for holonomic basis
+	local sqrt_det_gCode = '(' .. self.sqrt_det_gCode .. ')'
+	lines:insert(getCode_real3_to_real('coord_sqrt_det_g', sqrt_det_gCode))
 	
 	-- coord len code: l(v) = v^i v^j g_ij
 	lines:append{
@@ -978,8 +869,10 @@ real coordLen(real3 r, real3 pt) {
 }]],
 	}
 
-	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes))
+	lines:insert(getCode_real3_real3_real3_to_real('coord_conn_apply123', self.connApply123Code))
 	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply12', self.connApply12Codes))
+	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply13', self.connApply13Codes))
+	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes))
 	lines:insert(getCode_real3_to_real3('coord_conn_trace23', self.tr23_conn_u_codes))
 	lines:insert(getCode_real3_to_real3('coord_conn_trace13', self.tr13_conn_l_codes))
 	lines:insert(getCode_real3_to_3sym3('coord_dg_lll', self.dg_lll_codes))
@@ -1152,7 +1045,7 @@ real3 cartesianToCoord(real3 u, real3 pt) {
 	<? for i=0,solver.dim-1 do ?>{
 		real3 e = coordBasis<?=i?>(pt);
 <? if coord.anholonomic then	-- anholonomic normalized
-?>		uCoord.s<?=i?> = real3_dot(e, u); // / real3_len(e);
+?>		real uei = real3_dot(e, u); // / real3_len(e);
 <? else		-- holonomic
 ?>		real uei = real3_dot(e, u) / real3_lenSq(e);
 <? end		

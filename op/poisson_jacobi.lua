@@ -79,16 +79,37 @@ end ?>
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do 
 ?>	xInt.s<?=j?> = x.s<?=j?> - .5 * solver->grid_dx.s<?=j?>;
-	volL.s<?=j?> = cell_volume(solver, xInt);
+	volL.s<?=j?> = cell_sqrt_det_g(solver, xInt);
 	xInt.s<?=j?> = x.s<?=j?> + .5 * solver->grid_dx.s<?=j?>;
-	volR.s<?=j?> = cell_volume(solver, xInt);
+	volR.s<?=j?> = cell_sqrt_det_g(solver, xInt);
 	xInt.s<?=j?> = x.s<?=j?>;
 <? end 
-?>	real volAtX = cell_volume(solver, x);
+?>	real volAtX = cell_sqrt_det_g(solver, x);
 
-<? if true -- require 'coord.cartesian'.is(solver.coord) 
+<? 
+--[=[
+volume-weighted ... however volume-weighted laplace beltrami looks like this:
+lap phi = 1/sqrt|g| ( sqrt|g| g^ij phi_,j )_,i
+...so I should be sampling sqrt|g| g^ij phi_,j at the + and - on each dimension
+= 1/sqrt|g| (
+	[( sqrt|g| g^ij phi_,j )|(x+dx_i) 
+	- ( sqrt|g| g^ij phi_,j )|(x-dx_i)] / (2*dx_i)
+)
+= 1/sqrt|g|(x) (
+	[
+		( sqrt|g|(x+dx_i) g^ij(x+dx_i) 
+			* (phi(x+dx_i+dx_j) - phi(x+dx_i-dx_j)) / (2*dx_j) 
+		)|(x+dx_i) 
+		- ( sqrt|g|(x+dx_i) g^ij(x+dx_i) 
+			* (phi(x-dx_i+dx_j) - phi(x-dx_i-dx_j)) / (2*dx_j) 
+		)|(x-dx_i)
+	] / (2*dx_i)
+)
+--]=]
+if true 
 then 
-?>	<?=scalar?> skewSum = <?=scalar?>_zero;
+?>	
+	<?=scalar?> skewSum = <?=scalar?>_zero;
 
 <? for j=0,solver.dim-1 do 
 ?>	skewSum = <?=add3?>(skewSum,
@@ -102,8 +123,9 @@ then
 ?>		- (volR.s<?=j?> + volL.s<?=j?>) / (dx<?=j?> * dx<?=j?>)
 <? end 
 ?>	) / volAtX;
+
 <? 
-else 
+else 	-- not cartesian
 ?>
 /*
 for scalars:

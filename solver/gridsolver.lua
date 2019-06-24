@@ -637,8 +637,8 @@ function GridSolver:createCodePrefix()
 	
 	-- volume of a cell = volume element times grid dx's 
 	lines:insert(template([[
-static inline real cell_volume(constant <?=solver.solver_t?>* solver, real3 x) {
-	return coord_volume(x)<?
+static inline real cell_sqrt_det_g(constant <?=solver.solver_t?>* solver, real3 x) {
+	return coord_sqrt_det_g(x)<?
 for i=1,solver.dim do
 ?> * solver->grid_dx.<?=xNames[i]?><?
 end

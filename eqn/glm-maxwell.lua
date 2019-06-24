@@ -79,7 +79,7 @@ function GLM_Maxwell:init(args)
 		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
-		real _1_sqrt_det_g = 1. / coord_volume(x);
+		real _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 ]], {eqn=self})

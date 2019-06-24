@@ -450,9 +450,21 @@ kernel void addSource(
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
 	prim_t W = primFromCons(solver, *U, x);
-	real3 m_conn_vv = coord_conn_apply23(W.v, U->m, x);
-	deriv->m = real3_sub(deriv->m, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
-	deriv->m = real3_add(deriv->m, real3_real_mul(coord_raise(coord_conn_trace13(x), x), W.P));		//+Conn^j_kj g^ki P
+	
+	//- Conn^i_jk rho v^j v^k 
+	deriv->m = real3_sub(deriv->m, coord_conn_apply23(W.v, U->m, x));	
+	
+	//- Conn^i_jk g^jk P
+	deriv->m = real3_sub(deriv->m, real3_real_mul(coord_conn_trace23(x), W.P));		
+	
+	//+ (gamma-1) rho v^k v^l Gamma_kjl g^ij
+	deriv->m = real3_add(deriv->m, real3_real_mul(coord_conn_apply13(W.v, U->m, x), (solver->heatCapacityRatio - 1.) ));	
+	
+	//- (gamma-1) rho v^j v^k v^l Gamma_jkl
+	deriv->ETotal -= (solver->heatCapacityRatio - 1.) * coord_conn_apply123(W.v, W.v, U->m, x);	
+
+<? print"TODO ANHOLONOMIC COMMUNTATION TERMS AS WELL ... + c_jk^k * Flux" ?>	
+
 <? end ?>
 }
 

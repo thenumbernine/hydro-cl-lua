@@ -233,7 +233,7 @@ void eigen_leftTransform_<?=side?>_<?=addr0?>_<?=addr1?>_<?=addr2?>(
 	<? end ?>
 
 	<?=prefix?>
-	real gammaDet = coord_volume(solver, x);
+	real gammaDet = coord_sqrt_det_g(solver, x);
 	sym3 gammaL = coord_g_ll(x);
 	sym3 gammaU = coord_g_uu(x);
 

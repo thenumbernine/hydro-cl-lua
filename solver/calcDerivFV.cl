@@ -13,7 +13,7 @@ kernel void calcDerivFromFlux(
 	
 	real3 x = cell_x(i);
 <? if eqn.weightFluxByGridVolume then ?>
-	real volume = coord_volume(x);
+	real volume = coord_sqrt_det_g(x);
 <? else ?>
 	const real volume = 1.<? 
 	for i=0,solver.dim-1 do 
@@ -38,19 +38,23 @@ kernel void calcDerivFromFlux(
 		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 	
-		real areaL = coord_volume(xIntL);
-		real areaR = coord_volume(xIntR);
+		real areaL = coord_sqrt_det_g(xIntL);
+		real areaR = coord_sqrt_det_g(xIntR);
 <? else ?>
 		real areaL = volume;
 		real areaR = volume;
 <? end ?>
 
+<? print"TODO - IF WE ARE USING ANHOLONOMIC THEN WE MUST TRANSFORM EACH FLUX COMPONENT INTO THE COORDINATE BASIS BEFORE DOING FINITE DIFFERENCE" ?>
+<? print"THAT MEANS STORING EACH SIDE OF THE FLUX AND THEN TRANSFORMING THEM ALL" ?>
 <? if not eqn.postComputeFluxCode then -- would the compiler know to optimize this? ?>
 		for (int j = 0; j < numIntStates; ++j) {
 			deriv->ptr[j] -= (
 				fluxR->ptr[j] * areaR
 				- fluxL->ptr[j] * areaL
-			) / (volume * solver->grid_dx.s<?=side?>);
+			) / (volume 
+				* solver->grid_dx.s<?=side?>
+			);
 		}
 <? else ?>
 		<?=eqn.cons_t?> flux;
@@ -58,7 +62,9 @@ kernel void calcDerivFromFlux(
 			flux.ptr[j] = (
 				fluxR->ptr[j] * areaR
 				- fluxL->ptr[j] * areaL
-			) / (volume * solver->grid_dx.s<?=side?>);
+			) / (volume 
+				* solver->grid_dx.s<?=side?>
+			);
 		}
 
 		{
