@@ -141,7 +141,6 @@ kernel void addSource(
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
-<? if not solver.coord.anholonomic then ?>
 <? if not eqn.weightFluxByGridVolume then ?>
 	real c = solver->wavespeed;
 	deriv->phi_t -= c * c * real3_dot(coord_conn_trace23(x), U->phi_i);
@@ -151,5 +150,4 @@ kernel void addSource(
 	deriv->phi_i.y -= conn12.y * U->phi_t;
 	deriv->phi_i.z -= conn12.z * U->phi_t;
 <? end ?>
-<? end -- anholonomic ?>
 }

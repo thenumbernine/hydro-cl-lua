@@ -35,23 +35,24 @@ kernel void calcDerivFromFlux(
 		//U^i_;t + F^ij_;j  = 0
 		//U^i_,t + F^ij_,j + Gamma^j_kj F^ik + Gamma^i1_kj F^i1^k + ... + Gamma^in_kj F^in^k = 0
 		//					(metric det gradient) 
-
+<? if solver.coord.anholonomic then ?>
+		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
+		
+		real areaL = cell_area<?=side?>(xIntL);
+		real areaR = cell_area<?=side?>(xIntR);
+<? else ?>
 <? if eqn.weightFluxByGridVolume then ?>	
 		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 
-<? if solver.coord.anholonomic then ?>
-		real areaL = cell_area<?=side?>(xIntL);
-		real areaR = cell_area<?=side?>(xIntR);
-<? else ?>
 		real areaL = coord_sqrt_det_g(xIntL);
 		real areaR = coord_sqrt_det_g(xIntR);
-<? end ?>
-
 <? else ?>
 		real areaL = volume;
 		real areaR = volume;
 <? end ?>
+<? end	-- anholonomic ?>
 
 <? if solver.coord.anholonomic then ?>
 		for (int j = 0; j < numIntStates; ++j) {

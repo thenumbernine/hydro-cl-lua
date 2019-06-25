@@ -945,18 +945,6 @@ function CoordinateSystem:getCode(solver)
 		return '#define cell_dx'..(i-1)..'(pt) (coord_dx'..(i-1)..'(pt) * solver->grid_dx.s'..(i-1)..')'
 	end))
 	
-	lines:append(range(dim):mapi(function(i)
-		local prod
-		local code = '#define cell_area'..(i-1)..'(pt) (coord_area'..(i-1)..'(pt)'
-		for j=1,dim do
-			if j ~= i then
-				code = code .. ' * solver->grid_dx.s'..(j-1)
-			end
-		end
-		code = code .. ')'
-		return code
-	end))
-	
 	lines:insert'\n'
 
 	-- metric determinant ...  det_g = volume^2 for holonomic basis

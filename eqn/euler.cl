@@ -447,6 +447,7 @@ kernel void addSource(
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
+<? if not solver.coord.anholonomic then ?>
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
 	prim_t W = primFromCons(solver, *U, x);
@@ -464,7 +465,7 @@ kernel void addSource(
 	deriv->ETotal -= (solver->heatCapacityRatio - 1.) * coord_conn_apply123(W.v, W.v, U->m, x);	
 
 	//+ c_jk^k * Flux^Ij
-<? 	if solver.coord.anholonomic then ?>
+<? 	if false and solver.coord.anholonomic then ?>
 	real3 commTrace = coord_tr23_c(x);
 	<? for i=0,solver.dim-1 do ?>{
 		cons_t flux = calcFluxFromCons(*U, x);
@@ -474,6 +475,7 @@ kernel void addSource(
 	}<? end ?>
 <? 	end ?>
 <? end ?>
+<? end -- anholonomic ?>
 }
 
 kernel void constrainU(
