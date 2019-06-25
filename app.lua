@@ -351,7 +351,7 @@ function HydroCLApp:initGL(...)
 
 	self.gradientTex = GLGradientTex(1024, {
 	-- [[ white, rainbow, black
-		{0,0,0,.5},	-- black ... ?
+--		{0,0,0,.5},	-- black ... ? maybe I shouldn't be using black...
 		{0,0,1,1},	-- blue
 		{0,1,1,1},	-- cyan
 		{0,1,0,1},	-- green

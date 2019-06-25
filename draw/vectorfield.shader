@@ -82,9 +82,6 @@ void main() {
 //TODO make this a flag, whether to normalize vectors or not? 
 	float valuescale = scale;// * clamp(value, 0., 1.);
 	value = (value * <?=clnumber(app.gradientTex.width-1)?> + .5) / <?=clnumber(app.gradientTex.width)?>;
-//hmm, better color scheme, I can't see black vectors against a black background
-// of course also TODO show the gradient
-//	color = texture1D(gradientTex, value * .5 + .5);
 	color = texture1D(gradientTex, value);
 
 

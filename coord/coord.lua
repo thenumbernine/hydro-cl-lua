@@ -125,21 +125,28 @@ function CoordinateSystem:init(args)
 	local const = symmath.Constant
 
 	self.verbose = cmdline.coordVerbose or cmdline.verbose
+	self.anholonomic = args.anholonomic
 
 	local dim = 3
 	local var = symmath.var
 	local vars = symmath.vars
 	local Matrix = symmath.Matrix
 	local Tensor = symmath.Tensor
-	
+
+	local eHolToE = self.eHolToE
+	if not eHolToE then
+		eHolToE = Matrix.identity(3)
+	end
+
 	local baseCoords = self.baseCoords
 	if not self.anholonomic then
 		self.coords = table(baseCoords)
 	else
+		
 		-- TODO this is why symmath needs CAS function objects
 		-- and instead of overriding :applyDiff, just make operators a CAS function object
 		local nonCoords = table()
-		local nonCoordLinExpr = (self.eHolToE * baseCoords)()
+		local nonCoordLinExpr = (eHolToE * baseCoords)()
 		for i=1,3 do
 			local baseCoord = baseCoords[i]
 			-- the non-coordinate = the coordinate, so use the original variable 
@@ -150,10 +157,19 @@ function CoordinateSystem:init(args)
 				local nonCoord = symmath.var(baseCoord.name..'Hat')
 				nonCoord.base = baseCoord
 				function nonCoord:applyDiff(x)
-					local xPartial = symmath.Matrix:lambda({dim}, function(j) 
+					local xPartial = symmath.Matrix:lambda({dim, 1}, function(j,_)
 						return x:diff(baseCoords[j])
 					end)
-					return self.eHolToE[i] * xPartial
+					local result = Matrix:lambda({1,dim}, function(_,j) 
+						assert(not symmath.Array.is(eHolToE[i][j]))
+						return eHolToE[i][j] 
+					end) 
+						* xPartial
+					result = result()
+					assert(symmath.Matrix.is(result))
+					result = result[1][1]
+					assert(symmath.Expression.is(result) and not symmath.Array.is(result))
+					return result
 				end
 				nonCoords[i] = nonCoord
 			end
@@ -227,7 +243,7 @@ function CoordinateSystem:init(args)
 		if self.verbose then
 			print'holonomic embedded:'
 			print(var'eHol''_u^I':eq(var'u''^I_,u'):eq(eHol'_u^I'()))
-			print(var'{e_{iHol}}^i':eq(self.eHolToE))
+			print(var'{e_{iHol}}^i':eq(eHolToE))
 		end
 	end
 
@@ -326,7 +342,7 @@ function CoordinateSystem:init(args)
 	end)):append(range(dim):mapi(function(a)
 		return {[paramW[a].name] = paramW[a]}
 	end))
-	local function compile(expr)
+	local function compile(expr, extraArgs)
 		local orig = expr	
 		-- replace pow(x,2) with x*x
 		expr = expr:map(function(x)
@@ -345,11 +361,13 @@ function CoordinateSystem:init(args)
 				end
 			end
 		end)
-		
-		local code = toC:compile(
-			expr,
-			toC_coordArgs
-		):match'return (.*);'
+	
+		local args = toC_coordArgs
+		if extraArgs then
+			args = table(args):append(extraArgs)
+		end
+
+		local code = toC:compile(expr, args):match'return (.*);'
 
 		--[[
 		if self.verbose then
@@ -380,11 +398,13 @@ function CoordinateSystem:init(args)
 	end
 
 	--compile a tensor of expressions to a nested table of codes
-	local function compileTensor(expr)
+	local function compileTensor(expr, extraArgs)
 		if symmath.Array.is(expr) then
-			return table.mapi(expr, compileTensor)
+			return table.mapi(expr, function(expri) 
+				return compileTensor(expri, extraArgs)
+			end)
 		elseif symmath.Expression.is(expr) then
-			return compile(expr)
+			return compile(expr, extraArgs)
 		elseif type(expr) == 'number' then
 			return clnumber(expr)
 		else
@@ -393,8 +413,8 @@ function CoordinateSystem:init(args)
 				--..require 'ext.tolua'(expr))
 		end
 	end
-	local function compileTensorField(field, expr)
-		self[field] = compileTensor(expr)
+	local function compileTensorField(field, expr, extraArgs)
+		self[field] = compileTensor(expr, extraArgs)
 		printNonZeroField(field)
 	end
 
@@ -498,6 +518,10 @@ self.Gamma_ull = Gamma_ull
 	local connExpr = (Gamma_ull'^a_b^b')()
 	compileTensorField('tr23_conn_u_codes', connExpr)
 
+	-- sqrt(g)_,i / sqrt(g) - c_ij^j = Conn^j_ji
+	local connExpr = (Gamma_ull'^b_ba')()
+	compileTensorField('tr12_conn_l_codes', connExpr)
+
 	-- sqrt(g)_,i / sqrt(g) = Conn^j_ij
 	local connExpr = (Gamma_ull'^b_ab')()
 	compileTensorField('tr13_conn_l_codes', connExpr)
@@ -550,7 +574,24 @@ self.Gamma_ull = Gamma_ull
 	-- therefore it is based on the holonomic metric
 	compileTensorField('dxCodes', self.lenExprs)
 
-	local areaExprs = symmath.Array:lambda({dim}, function(i)
+
+	local integralArgs = table()
+	for i=1,dim do
+		integralArgs:insert(symmath.var('u'..i..'L'))
+		integralArgs:insert(symmath.var('u'..i..'R'))
+	end
+	
+	-- mapping 
+	-- u#L -> pt.s# - .5 * grid_dx#
+	-- u#R -> pt.s# + .5 * grid_dx#
+	local mappedIntegralArgs = integralArgs:map(function(var)
+		local i, LR = var.name:match'^u(%d)([LR])$'
+		assert(i and LR)
+		local addsub = assert(({L='-', R='+'})[LR])
+		return {['({pt^'..i..'} '..addsub..' .5 * solver->grid_dx.s'..(i-1)..')'] = var}
+	end)
+	
+	local coord_area_exprs = symmath.Array:lambda({dim}, function(i)
 		local area = const(1)
 		for j=1,dim do
 			if j ~= i then
@@ -558,11 +599,45 @@ self.Gamma_ull = Gamma_ull
 			end
 		end
 		area = area()
+
+		local params = table()
+		for j=1,dim do
+			params:append{uL, uR}
+			if j ~= i then
+				local u = self.baseCoords[j]
+				local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
+				area = area:integrate(u, uL, uR)()
+			end
+		end
+
+		-- TODO add in extra code function parameters
 		return area
 	end)
 
 	-- area of the side in each direction
-	compileTensorField('areaCodes', areaExprs)
+	compileTensorField('cell_area_codes', coord_area_exprs, mappedIntegralArgs)
+
+	do
+		local volume = const(1)
+		for j=1,dim do
+			volume = volume * self.lenExprs[j]
+		end
+		local volumeSq = (volume^2)()
+		local gHolDet = Matrix.determinant(gHol)()
+		if volumeSq ~= gHolDet then
+			print('gHolDet')
+			print(gHolDet)
+			print('volumeSq')
+			print(volumeSq)
+			error'these should be the same'
+		end
+		for j=1,dim do
+			local u = self.baseCoords[j]
+			local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
+			volume = volume:integrate(u, uL, uR)()
+		end
+		compileTensorField('cell_volume_code', volume, mappedIntegralArgs)
+	end
 
 	self.g = g
 	compileTensorField('gCode', self.g)
@@ -823,6 +898,8 @@ should I add these _for_coord _for_grid suffixes to specify what manfiold system
 
 --]]
 function CoordinateSystem:getCode(solver)
+	if self.code then return self.code end
+	
 	self.solver = solver
 	-- 3 since all our base types are in 'real3', 'sym3', etc
 	-- what about removing this restriction?
@@ -845,18 +922,22 @@ function CoordinateSystem:getCode(solver)
 		return code
 	end
 	
-	-- dx0, ...
+	-- dx0, dx1, ...
 	-- this is the change in cartesian wrt the change in grid
+	-- this is also the normalization factor for the anholonomic ( ... is it?)
 	lines:append(range(dim):mapi(function(i)
 		local code = convertInputFromCoord(self.dxCodes[i], 'pt')
 		return '#define coord_dx'..(i-1)..'(pt) ('..code..')'
 	end))
 
-	-- area0, ...
+	-- area0, area1, ...
+	-- area_i = integral of u_j, j!=i of product of dx_j, j!=i
 	lines:append(range(dim):mapi(function(i)
-		local code = convertInputFromCoord(self.areaCodes[i], 'pt')
-		return '#define coord_area'..(i-1)..'(pt) ('..code..')'
+		local code = convertInputFromCoord(self.cell_area_codes[i], 'pt')
+		return '#define cell_area'..(i-1)..'(pt) ('..code..')'
 	end))
+
+	lines:insert('#define cell_volume(pt) ('..convertInputFromCoord(self.cell_volume_code, 'pt')..')')
 
 	lines:insert'\n'
 
@@ -897,8 +978,9 @@ real coordLen(real3 r, real3 pt) {
 	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply12', self.connApply12Codes))
 	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply13', self.connApply13Codes))
 	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes))
-	lines:insert(getCode_real3_to_real3('coord_conn_trace23', self.tr23_conn_u_codes))
+	lines:insert(getCode_real3_to_real3('coord_conn_trace12', self.tr12_conn_l_codes))
 	lines:insert(getCode_real3_to_real3('coord_conn_trace13', self.tr13_conn_l_codes))
+	lines:insert(getCode_real3_to_real3('coord_conn_trace23', self.tr23_conn_u_codes))
 	lines:insert(getCode_real3_to_3sym3('coord_dg_lll', self.dg_lll_codes))
 	lines:insert(getCode_real3_to_sym3sym3('coord_d2g_llll', self.d2g_llll_codes))
 	lines:insert(getCode_real3_to_3sym3('coord_conn_lll', self.conn_lll_codes))
@@ -1059,7 +1141,8 @@ sym3sym3 sym3sym3_rescaleToCoord_llll(sym3sym3 a, real3 x) {
 
 --print(require 'template.showcode'(lines:concat'\n'))
 
-	return lines:concat'\n'
+	self.code = lines:concat'\n'
+	return self.code
 end
 
 function CoordinateSystem:getCoordMapCode()

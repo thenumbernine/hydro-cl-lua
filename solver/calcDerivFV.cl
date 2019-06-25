@@ -13,10 +13,8 @@ kernel void calcDerivFromFlux(
 	real3 x = cell_x(i);
 
 <? if solver.coord.anholonomic then ?>
-	<?=eqn.cons_t?> fluxes[dim];
-<? end ?>
-	
-<? if eqn.weightFluxByGridVolume then ?>
+	real volume = cell_volume(x);
+<? elseif eqn.weightFluxByGridVolume then ?>
 	real volume = coord_sqrt_det_g(x);
 <? else ?>
 	const real volume = 1.<? 
@@ -41,18 +39,28 @@ kernel void calcDerivFromFlux(
 <? if eqn.weightFluxByGridVolume then ?>	
 		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
-	
+
+<? if solver.coord.anholonomic then ?>
+		real areaL = cell_area<?=side?>(xIntL);
+		real areaR = cell_area<?=side?>(xIntR);
+<? else ?>
 		real areaL = coord_sqrt_det_g(xIntL);
 		real areaR = coord_sqrt_det_g(xIntR);
+<? end ?>
+
 <? else ?>
 		real areaL = volume;
 		real areaR = volume;
 <? end ?>
 
-<? if 
-not eqn.postComputeFluxCode -- would the compiler know to optimize this?
-and not solver.coord.anholonomic
-then 
+<? if solver.coord.anholonomic then ?>
+		for (int j = 0; j < numIntStates; ++j) {
+			deriv->ptr[j] -= (
+				fluxR->ptr[j] * areaR
+				- fluxL->ptr[j] * areaL
+			) / volume;
+		}
+<? elseif not eqn.postComputeFluxCode then -- would the compiler know to optimize this?
 ?>
 		for (int j = 0; j < numIntStates; ++j) {
 			deriv->ptr[j] -= (
@@ -77,25 +85,10 @@ then
 <?=eqn.postComputeFluxCode or ''?>
 		}
 
-<?	if not solver.coord.anholonomic then ?>
 		for (int j = 0; j < numIntStates; ++j) {
 			deriv->ptr[j] -= flux.ptr[j];
 		}
-<?	else ?>
-		fluxes[<?=side?>] = flux;
-<? 	end ?>
 <? end ?>
 
 	}<? end ?>
-
-<? if solver.coord.anholonomic then ?>
-	for (int j = 0; j < numIntStates; ++j) {
-		<? for k=0,dim-1 do ?>{
-			real3 e_k = coordBasis<?=k?>(x);
-			<? for l=0,dim-1 do ?>{
-				deriv->ptr[j] -= e_k.s<?=l?> * fluxes[<?=l?>].ptr[j];
-			}<? end ?>
-		}<? end ?>
-	}
-<? end ?>
 }

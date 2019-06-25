@@ -80,7 +80,6 @@ waves_t eigen_leftTransform_<?=side?>(
 	Y.ptr[1] = X.phi_i.s<?=side1?> / (cSq * gUii);
 	Y.ptr[2] = X.phi_i.s<?=side2?> / (cSq * gUii);
 	Y.ptr[3] = .5 * (phiUi / gUii - X.phi_t / (c * sqrt_gUii));
-	
 	return Y;
 }
 
@@ -103,7 +102,6 @@ cons_t eigen_rightTransform_<?=side?>(
 	);
 	Y.phi_i.s<?=side1?> = cSq * gUii * X.ptr[1];
 	Y.phi_i.s<?=side2?> = cSq * gUii * X.ptr[2];
-	
 	return Y;
 }
 
@@ -143,14 +141,15 @@ kernel void addSource(
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
+<? if not solver.coord.anholonomic then ?>
 <? if not eqn.weightFluxByGridVolume then ?>
 	real c = solver->wavespeed;
 	deriv->phi_t -= c * c * real3_dot(coord_conn_trace23(x), U->phi_i);
 <? else ?>
-	real3 conn13 = coord_conn_trace13(x);
-	deriv->phi_i.x -= conn13.x * U->phi_t;
-	deriv->phi_i.y -= conn13.y * U->phi_t;
-	deriv->phi_i.z -= conn13.z * U->phi_t;
+	real3 conn12 = coord_conn_trace12(x);
+	deriv->phi_i.x -= conn12.x * U->phi_t;
+	deriv->phi_i.y -= conn12.y * U->phi_t;
+	deriv->phi_i.z -= conn12.z * U->phi_t;
 <? end ?>
+<? end -- anholonomic ?>
 }
-

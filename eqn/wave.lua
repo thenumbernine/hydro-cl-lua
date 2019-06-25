@@ -9,11 +9,12 @@ local Wave = class(Equation)
 Wave.name = 'wave'
 
 -- depending on which you use, the source terms change
-Wave.weightFluxByGridVolume = true
---Wave.weightFluxByGridVolume = false
+--Wave.weightFluxByGridVolume = true
+Wave.weightFluxByGridVolume = false
 
 Wave.useSourceTerm = true
 
+-- TODO count this from consVars?
 Wave.numStates = 4
 
 Wave.mirrorVars = {{'phi_i.x'}, {'phi_i.y'}, {'phi_i.z'}}

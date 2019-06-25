@@ -32,11 +32,11 @@ function Cylinder:init(args)
 
 	-- anholonomic linear transform 
 	-- e_iHol = e_iHol^i partial_i 
-	self.eHolToE = symmath.Matrix{
+	self.eHolToE = symmath.Matrix(
 		{1, 0, 0},
 		{0, 1/r, 0},
-		{0, 0, 1},
-	}
+		{0, 0, 1}
+	)
 	
 	-- https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19870019781.pdf
 	-- it looks like all I need is the volume and I'm fine

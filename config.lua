@@ -92,17 +92,9 @@ local args = {
 	--]]
 	-- [[ cylinder
 	coord = 'cylinder',
-	-- for some reason, with holonomic coordinates, with rmax=1, for any rmin < .1, I get an explosion
-	-- no such problem with anholonomic ... however anholonomic is creating an initial wave from rmin which destroys everything
-	--[=[ anholonomic
-	coordArgs = {anholonomic=true},
+	coordArgs = {anholonomic=true},			-- disable to use non-physical, holonomic coordinates
 	mins = cmdline.mins or {0, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
-	--]=]
-	-- [=[ holonomic
-	mins = cmdline.mins or {0, 0, -.25},
-	maxs = cmdline.maxs or {1, 2*math.pi, .25},
-	--]=]
 	gridSize = ({
 		{128, 1, 1}, -- 1D
 		{64, 256, 1}, -- 2D
@@ -110,7 +102,7 @@ local args = {
 	})[dim],
 	boundary = {
 		-- r
-		xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
+		xmin=cmdline.boundary or 'freeflow',		-- hmm, how to treat the r=0 boundary ...
 		xmax=cmdline.boundary or 'freeflow',
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
