@@ -15,13 +15,13 @@ local useCalcDeriv = true
 local useCalcDeriv_alpha = true
 local useCalcDeriv_W = true
 local useCalcDeriv_epsilon_LL = true
-local useCalcDeriv_K = true				-- this exhibits some checkerboard noise, as if the derivs were too high
-local useCalcDeriv_ABar_LL = true		-- this causes nans at the end of the buffer?
-local useCalcDeriv_LambdaBar_U = false	-- still seeing nans with ABar_ij,t disabled and this enabled...
-local useCalcDeriv_beta_U = false
+local useCalcDeriv_K = true
+local useCalcDeriv_ABar_LL = true
+local useCalcDeriv_LambdaBar_U = true
+local useCalcDeriv_beta_U = true
 
 -- constrains det gammaBar_ij = det gammaHat_ij, ABar^i_i = 0, and calculates H and M^i ... if the associated flags are set
-local useConstrainU = false
+local useConstrainU = true
 
 -- does Kreiss-Oligar dissipation
 local useAddSource = false
@@ -163,20 +163,20 @@ kernel void calcDeriv(
 	const global cons_t* U = UBuf + index;
 
 //TODO these need to be pre-scaled back to coordinates before computing the weighted finite difference, and then rescale them after finite difference ...
-<?=makePartial'alpha'?>			//partial_alpha_l[i] := alpha_,i
-<?=makePartial'beta_U'?>		//partial_beta_ul[j].i := beta^i_,j
-<?=makePartial'epsilon_LL'?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
-<?=makePartial'W'?>				//partial_W_l[i] := W_,i 
-<?=makePartial'K'	?>			//partial_K_l[i] := K,i
-<?=makePartial'ABar_LL'?>		//partial_ABar_lll[k].ij = ABar_ij,k
-<?=makePartial'LambdaBar_U'?>	//partial_LambdaBar_ul[j].i := connBar^i_,j
-<?=makePartial2'alpha'?>		//partial2_alpha_ll.ij := alpha_,ij
-<?=makePartial2'beta_U'?>		//partial2_beta_ull[jk].i = beta^i_,jk
-<?=makePartial2'epsilon_LL'?>	//partial2_epsilon_llll[kl].ij = epsilon_ij,kl = gammaBar_ij,kl
-<?=makePartial2'W'?>			//partial2_W_ll.ij := W_,ij
+<?=eqn:makePartial'alpha'?>			//partial_alpha_l[i] := alpha_,i
+<?=eqn:makePartial'beta_U'?>		//partial_beta_ul[j].i := beta^i_,j
+<?=eqn:makePartial'epsilon_LL'?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
+<?=eqn:makePartial'W'?>				//partial_W_l[i] := W_,i 
+<?=eqn:makePartial'K'	?>			//partial_K_l[i] := K,i
+<?=eqn:makePartial'ABar_LL'?>		//partial_ABar_lll[k].ij = ABar_ij,k
+<?=eqn:makePartial'LambdaBar_U'?>	//partial_LambdaBar_ul[j].i := connBar^i_,j
+<?=eqn:makePartial2'alpha'?>		//partial2_alpha_ll.ij := alpha_,ij
+<?=eqn:makePartial2'beta_U'?>		//partial2_beta_ull[jk].i = beta^i_,jk
+<?=eqn:makePartial2'epsilon_LL'?>	//partial2_epsilon_llll[kl].ij = epsilon_ij,kl = gammaBar_ij,kl
+<?=eqn:makePartial2'W'?>			//partial2_W_ll.ij := W_,ij
 	//partial_B[i] := B^i_,t
 <? if eqn.useShift == 'HyperbolicGammaDriver' then ?>
-<?=makePartial'B_U'?>
+<?=eqn:makePartial'B_U'?>
 <? end ?>
 
 	real3 beta_u = real3_rescaleToCoord_U(U->beta_U, x);
@@ -545,13 +545,13 @@ for i,xi in ipairs(xNames) do
 ?>	DHat2_beta_u.<?=xi?>.<?=xj?>.<?=xk?> = 
 		partial2_beta_ull[<?=jk-1?>].<?=xi?>
 <?		for l,xl in ipairs(xNames) do
-?>		+ partial_connHat_ulll[<?=k-1?>].<?=xi?>.<?=sym(l,j)?> * U->beta_u.<?=xl?>
+?>		+ partial_connHat_ulll[<?=k-1?>].<?=xi?>.<?=sym(l,j)?> * beta_u.<?=xl?>
 		+ connHat_ull.<?=xi?>.<?=sym(l,j)?> * partial_beta_ul[<?=k-1?>].<?=xl?>
 		+ connHat_ull.<?=xi?>.<?=sym(l,k)?> * partial_beta_ul[<?=j-1?>].<?=xl?>
 		- connHat_ull.<?=xl?>.<?=sym(j,k)?> * partial_beta_ul[<?=l-1?>].<?=xi?>
 <?			for m,xm in ipairs(xNames) do
-?>		+ connHat_ull.<?=xi?>.<?=sym(m,k)?> * connHat_ull.<?=xm?>.<?=sym(l,j)?> * U->beta_u.<?=xl?>
-		- connHat_ull.<?=xi?>.<?=sym(m,l)?> * connHat_ull.<?=xm?>.<?=sym(k,j)?> * U->beta_u.<?=xl?>
+?>		+ connHat_ull.<?=xi?>.<?=sym(m,k)?> * connHat_ull.<?=xm?>.<?=sym(l,j)?> * beta_u.<?=xl?>
+		- connHat_ull.<?=xi?>.<?=sym(m,l)?> * connHat_ull.<?=xm?>.<?=sym(k,j)?> * beta_u.<?=xl?>
 <?			end
 		end
 ?>	;
@@ -559,8 +559,6 @@ for i,xi in ipairs(xNames) do
 	end 
 end
 ?>
-	//Delta_u.i := Delta^i = LambdaBar^i - C^i
-	real3 Delta_u = real3_sub(U->LambdaBar_u, mystery_C_u);
 
 	/*
 	tr12_partial2_beta_l.i := beta^j_,ji
@@ -606,7 +604,7 @@ end
 	}
 
 	//beta_times_tr12_partial_connBar_l.i := beta^j connBar^k_kj,i
-	real3 beta_times_tr12_partial_connBar_l = real3_real3x3_mul(U->beta_u, tr12_partial_connBar_ll);
+	real3 beta_times_tr12_partial_connBar_l = real3_real3x3_mul(beta_u, tr12_partial_connBar_ll);
 
 	//partial_beta_times_tr12_connBar_l.i := beta^j_,i connBar^k_jk
 	real3 partial_beta_times_tr12_connBar_l;
@@ -683,9 +681,9 @@ end
 ?>		+ 2. * Delta_ull.<?=xi?>.<?=xjk?> * ABar_uu.<?=xjk?>
 <?		end
 	end
-?>	) * coord_dx<?=i?>(x)
+?>	) * coord_dx<?=i-1?>(x)
 <?	for j,xj in ipairs(xNames) do
-?>		- LambdaBar_U.<?=xj?> * partial_beta_UL.<?=xi?>.<?=xj?>
+?>		- U->LambdaBar_U.<?=xj?> * partial_beta_UL.<?=xi?>.<?=xj?>
 <?	end
 ?>	;
 <? end
@@ -782,16 +780,21 @@ then
 
 	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaHat_ll);
 	
+	sym3 gammaBar_LL = sym3_rescaleFromCoord_ll(gammaBar_ll, x);
+	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
+	
 	//in Buchman's paper it says he doesn't do this
-	//likewise in my own experiences, this can tend A to grow out of control 
+	//and in the new arbitrary-coord formalism, there is a tr ABar_ij term
 <? if eqn.guiVars.constrain_tr_ABar_ll.value then ?>
-	U->ABar_ll = tracefree(U->ABar_ll, gammaBar_ll, gammaBar_uu);
+	U->ABar_LL = tracefree(U->ABar_LL, gammaBar_LL, gammaBar_UU);
 <? end	-- constrain_tr_ABar_ll ?>
 
 <? else -- constrain_det_gammaBar_ll or constrain_tr_ABar_ll ?>
 	real det_gammaHat_ll = coord_det_g(x);
 	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaHat_ll);
-
+	
+	sym3 gammaBar_LL = sym3_rescaleFromCoord_ll(gammaBar_ll, x);
+	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
 <? end -- constrain_det_gammaBar_ll or constrain_tr_ABar_ll ?>
 
 	//makes the spinning black hole simulations look ugly
@@ -800,13 +803,13 @@ then
 <? if eqn.guiVars.calc_H_and_M and eqn.guiVars.calc_H_and_M.value then ?>
 
 //TODO these need to be pre-scaled back to coordinates before computing the weighted finite difference
-<?=makePartial'epsilon_LL'?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
-<?=makePartial'ABar_LL'?>		//partial_ABar_lll[k].ij = ABar_ij,k
-<?=makePartial'K'	?>			//partial_K_l[i] := K,i
-<?=makePartial'W'?>				//partial_W_l[i] := phi_,i 
-<?=makePartial'LambdaBar_U'?>	//partial_LambdaBar_ul[j].i := connBar^i_,j
-<?=makePartial2'W'?>			//partial2_W_ll.ij := phi_,ij
-<?=makePartial2'epsilon_LL'?>
+<?=eqn:makePartial'epsilon_LL'?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
+<?=eqn:makePartial'ABar_LL'?>		//partial_ABar_lll[k].ij = ABar_ij,k
+<?=eqn:makePartial'K'	?>			//partial_K_l[i] := K,i
+<?=eqn:makePartial'W'?>				//partial_W_l[i] := phi_,i 
+<?=eqn:makePartial'LambdaBar_U'?>	//partial_LambdaBar_ul[j].i := connBar^i_,j
+<?=eqn:makePartial2'W'?>			//partial2_W_ll.ij := phi_,ij
+<?=eqn:makePartial2'epsilon_LL'?>
 
 	real3 partial_phi_l;
 <? for i,xi in ipairs(xNames) do
@@ -822,9 +825,6 @@ then
 		) / U->W;
 <? end ?>
 	
-	sym3 gammaBar_LL = sym3_rescaleFromCoord_ll(gammaBar_ll, x);
-	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
-
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	
 	_3sym3 connHat_lll = coord_conn_lll(x);
@@ -845,6 +845,11 @@ then
 	
 	_3sym3 Delta_ull = _3sym3_sub(connBar_ull, connHat_ull);
 	_3sym3 Delta_lll = sym3_3sym3_mul(gammaBar_ll, Delta_ull);
+	
+	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
+	real3 Delta_u = real3_rescaleToCoord_U(Delta_U, x);
+	
+	real3 LambdaBar_u = real3_rescaleToCoord_U(U->LambdaBar_U, x);
 
 	sym3sym3 partial2_gammaHat_llll = coord_d2g_llll(x);
 	sym3 gammaHat_uu = coord_g_uu(x);
@@ -970,7 +975,7 @@ kernel void addSource(
 	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 	//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
 	for (int i = 0; i < numIntStates; ++i) {
-<?=makePartial2('ptr[i]', 'real', 'partial2_Ui_ll', false)?>
+<?=eqn:makePartial2('ptr[i]', 'real', 'partial2_Ui_ll', false)?>
 		real lap = 0<?
 for j,xj in ipairs(xNames) do
 	local jj = from3x3to6(j,j)

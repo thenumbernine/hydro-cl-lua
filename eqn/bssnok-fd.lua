@@ -86,11 +86,11 @@ end
 function BSSNOKFiniteDifferenceEquation:createInitState()
 	BSSNOKFiniteDifferenceEquation.super.createInitState(self)
 	self:addGuiVars{
-		--{name='constrain_det_gammaBar_ll', value=true, compileTime=true},
-		{name='constrain_det_gammaBar_ll', value=false, compileTime=true},
+		{name='constrain_det_gammaBar_ll', value=true, compileTime=true},
+		--{name='constrain_det_gammaBar_ll', value=false, compileTime=true},
 
-		--{name='constrain_tr_ABar_ll', value=true, compileTime=true},
-		{name='constrain_tr_ABar_ll', value=false, compileTime=true},
+		{name='constrain_tr_ABar_ll', value=true, compileTime=true},
+		--{name='constrain_tr_ABar_ll', value=false, compileTime=true},
 		
 		{name='calc_H_and_M', value=true, compileTime=true},
 		{name='diffuseSigma', value=.01},
@@ -128,8 +128,6 @@ function BSSNOKFiniteDifferenceEquation:getTemplateEnv()
 	return applyCommon{
 		eqn = self,
 		solver = self.solver,
-		makePartial = function(...) return self:makePartial(...) end,
-		makePartial2 = function(...) return self:makePartial2(...) end,
 	}
 end
 
@@ -158,6 +156,7 @@ sym3 calc_gammaBar_uu(global const <?=eqn.cons_t?>* U, real3 x) {
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	real det_gammaBar_ll = calc_det_gammaBar_ll(x);
 	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar_ll);
+	return gammaBar_uu;
 }
 
 sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U, real3 x) {
@@ -342,7 +341,6 @@ substitute gammaBar_im,j connHat^m_kl = S_ijkl (symmetric in 3 & 4)
 		+ Delta^m_kj Delta_im^k
 		+ Delta^m_ik Delta_mj^k
 	*/
-#warning the RBar_ij calculation is the only thing not working 
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
@@ -455,7 +453,7 @@ kernel void initDerivs(
 	}
 #endif
 
-<?=makePartial'epsilon_LL'?>
+<?=eqn:makePartial'epsilon_LL'?>
 
 	_3sym3 connHat_lll = coord_conn_lll(x);
 	_3sym3 connHat_ull = coord_conn_ull(x);
@@ -665,9 +663,9 @@ using gamma = gammaHat / W^6
 = GammaHat^j_ij - 3 / W
 --]]
 		{name='expansion', code=template([[
-	<?=makePartial'W'?>
-	<?=makePartial'alpha'?>
-	<?=makePartial'beta_U'?>
+	<?=eqn:makePartial'W'?>
+	<?=eqn:makePartial'alpha'?>
+	<?=eqn:makePartial'beta_U'?>
 	real tr_partial_beta = 0. <?
 for i,xi in ipairs(xNames) do
 ?> + partial_beta_ul[<?=i-1?>].<?=xi?><?
@@ -697,7 +695,6 @@ end
 ]], 			applyCommon{
 					eqn = self,
 					solver = self.solver,
-					makePartial = function(...) return self:makePartial(...) end,
 				}
 
 			)
@@ -734,7 +731,7 @@ end
 		{
 			name = 'gravity',
 			code= template([[
-	<?=makePartial'alpha'?>
+	<?=eqn:makePartial'alpha'?>
 
 	real _1_alpha = 1. / U->alpha;
 
@@ -748,9 +745,9 @@ end
 
 <? if eqn.useShift ~= 'none' then ?>
 
-	<?=makePartial'beta_u'?>
+	<?=eqn:makePartial'beta_u'?>
 
-	<?=makePartial'epsilon_LL', 'partial_epsilon_lll'?>
+	<?=eqn:makePartial'epsilon_LL', 'partial_epsilon_lll'?>
 	
 	//W = exp(-2 phi)
 	real _1_W = 1. / U->W;
@@ -760,7 +757,7 @@ end
 	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, _1_W * _1_W);
 	
 	//gamma_ij,k = W^-2 gammaBar_ij,k - 2 W^-3 gammaBar_ij W_,k
-	<?=makePartial'W'?>
+	<?=eqn:makePartial'W'?>
 	_3sym3 partial_gamma_lll = {
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_sub(
@@ -835,22 +832,36 @@ end ?>;
 ]],				applyCommon{
 					eqn = self,
 					solver = self.solver,
-					makePartial = function(...) return self:makePartial(...) end,
 				}
 			), 
 			type = 'real3',
 		},
 --]=]
---[=[	
+-- [=[	
 		{
 			name = 'RBar_ll',
 			type = 'sym3',
 			code = template([[
+<?=eqn:makePartial'epsilon_LL'?>
+<?=eqn:makePartial'LambdaBar_U'?>
+<?=eqn:makePartial2'epsilon_LL'?>
+
+	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+	real det_gammaBar_ll = calc_det_gammaBar_ll(x);
+	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar_ll);
+
+	_3sym3 connHat_lll = coord_conn_lll(x);
 	_3sym3 connHat_ull = coord_conn_ull(x);
-<?=makePartial'epsilon_LL'?>
+	
 	_3sym3 connBar_lll;
 	calc_connBar_lll(&connBar_lll, partial_epsilon_lll, &connHat_lll, x);
+	
 	_3sym3 connBar_ull = sym3_3sym3_mul(gammaBar_uu, connBar_lll);
+
+	real3 LambdaBar_u = real3_rescaleToCoord_U(U->LambdaBar_U, x);
+	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
+	real3 Delta_u = real3_rescaleToCoord_U(Delta_U, x);
+
 	_3sym3 Delta_ull = _3sym3_sub(connBar_ull, connHat_ull);
 	_3sym3 Delta_lll = sym3_3sym3_mul(gammaBar_ll, Delta_ull);
 
@@ -858,7 +869,14 @@ end ?>;
 	sym3 gammaHat_uu = coord_g_uu(x);
 	
 	_3sym3 partial_gammaHat_lll = coord_dg_lll(x);
-	_3sym3 partial_gammaBar_lll = _3sym3_add(_3sym3_rescaleToCoord(*(_3sym3*)partial_epsilon_lll, x), partial_gammaHat_lll);
+	_3sym3 partial_gammaBar_lll;
+<? 
+for k,xk in ipairs(xNames) do
+	for ij,xij in ipairs(symNames) do
+?>	partial_gammaBar_lll.<?=xk?>.<?=xij?> = partial_epsilon_lll[<?=k-1?>].<?=xij?> + partial_gammaHat_lll.<?=xk?>.<?=xij?>;
+<?	end
+end
+?>
 	
 	_3sym3 partial_connHat_ulll[3];
 	calc_partial_conn_ulll(partial_connHat_ulll, &connHat_ull, &gammaHat_uu, &partial_gammaHat_lll, &partial2_gammaHat_llll);
@@ -878,7 +896,6 @@ end
 ]], applyCommon{
 					eqn = self,
 					solver = self.solver,
-					makePartial = function(...) return self:makePartial(...) end,
 				}
 			),
 		},
@@ -886,18 +903,59 @@ end
 			name = 'RPhi_ll',
 			type = 'sym3',
 			code = template([[
+
+<?=eqn:makePartial'epsilon_LL'?>
+<?=eqn:makePartial'W'?>
+<?=eqn:makePartial2'W'?>
+
+	real3 partial_phi_l;
+<? for i,xi in ipairs(xNames) do
+?>	partial_phi_l.<?=xi?> = -partial_W_l[<?=i-1?>] / (2. * U->W);
+<? end ?>
+
+	sym3 partial2_phi_ll;
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+?>	partial2_phi_ll.<?=xij?> = .5 * (
+			-partial2_W_ll[<?=ij-1?>] 
+			+ partial_W_l[<?=i-1?>] * partial_W_l[<?=j-1?>] / U->W
+		) / U->W;
+<? end ?>
+	
+	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+	real det_gammaBar_ll = calc_det_gammaBar_ll(x);
+	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar_ll);
+	
+	_3sym3 connHat_lll = coord_conn_lll(x);
+	
+	_3sym3 connBar_lll;
+	calc_connBar_lll(&connBar_lll, partial_epsilon_lll, &connHat_lll, x);
+	
+	_3sym3 connBar_ull = sym3_3sym3_mul(gammaBar_uu, connBar_lll);
+	
+	sym3 DBar2_phi_ll = sym3_sub(
+		partial2_phi_ll,
+		real3_3sym3_dot1(
+			partial_phi_l,
+			connBar_ull
+		)
+	);
+
+	real tr_DBar2_phi = sym3_dot(gammaBar_uu, DBar2_phi_ll);
+
 	//2008 Alcubierre eqn 2.8.18
 	//2010 Baumgarte, Shapiro eqn 3.10
 	sym3 RPhi_ll = {
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
+	local xi,xj = xNames[i],xNames[j]
 ?>		.<?=xij?> = 
 			- 2. * DBar2_phi_ll.<?=xij?>
-			+ 4. * partial_phi_l[<?=i-1?>] * partial_phi_l[<?=j-1?>]
+			+ 4. * partial_phi_l.<?=xi?> * partial_phi_l.<?=xj?>
 			+ gammaBar_ll.<?=xij?> * (
 				- 2. * tr_DBar2_phi
 				- 4. * real3_weightedLenSq(
-					*(real3*)partial_phi_l,
+					partial_phi_l,
 					gammaBar_uu
 				)
 			),
@@ -908,7 +966,6 @@ end
 ]],				applyCommon{
 					eqn = self,
 					solver = self.solver,
-					makePartial = function(...) return self:makePartial(...) end,
 				}
 			),
 		},
