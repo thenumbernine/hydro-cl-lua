@@ -32,24 +32,27 @@ end
 
 -- add an option for fixed Minkowsky boundary spacetime
 function EinsteinEquation:createBoundaryOptions()
-	self.solver.boundaryOptions:insert{
-		fixed = function(args)
-			local lines = table()
-			local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-			for _,j in ipairs{'j', gridSizeSide..'-numGhost+j'} do
-				local index = args.indexv(j)
-				local U = 'buf[INDEX('..index..')]'
-				lines:insert(template([[
+	local Boundary = self.solver.Boudary
+	local BoundaryFixed = class(Boundary)
+	BoundaryFixed.name = 'fixed'
+	function BoundaryFixed:getCode(args)
+		local lines = table()
+		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+		for _,j in ipairs{'j', gridSizeSide..'-numGhost+j'} do
+			local index = args.indexv(j)
+			local U = 'buf[INDEX('..index..')]'
+			lines:insert(template([[
 	setFlatSpace(solver, &<?=U?>, cell_x((int4)(<?=index?>, 0)));
-]], 			{
-					eqn = eqn,
-					U = U,
-					index = index,
-				}))
-			end
-			return lines:concat'\n'
-		end,
-	}
+]], 		{
+				eqn = eqn,
+				U = U,
+				index = index,
+			}))
+		end
+		return lines:concat'\n'
+	end
+	
+	self.solver:addBoundaryOption(BoundaryFixed)
 end
 
 -- and now for fillRandom ...

@@ -447,6 +447,30 @@ kernel void addSource(
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
+<? if solver.coord.anholonomic 
+and require 'coord.cylinder'.is(solver.coord) 
+then ?>
+<? 	if true then -- 2009 Trangenstein, p.474, 1999 Toro, p.29, eqn.1.104, 1.105 ?>
+	<? for side=0,1 do ?>{
+		real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
+		real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
+		
+		real PL = calc_P(solver, U[-solver->stepsize.s<?=side?>], xL);
+		real PR = calc_P(solver, U[solver->stepsize.s<?=side?>], xR);
+	
+		deriv->m.s<?=side?> -= (PR - PL) / (2. * solver->grid_dx.s<?=side?>);
+	}<? end ?>
+<?	end ?>
+<?	if false then -- 1999 Toro p.28 eqn.1.102, 1.103 ?>
+	cons_t F = fluxFromCons_0(solver, *U, x);
+	deriv->rho -= F.rho / x.x;
+	deriv->m.x -= F.m.x / x.x;
+	deriv->m.y -= F.m.y / x.x;
+	deriv->m.z -= F.m.z / x.x;
+	deriv->ETotal -= F.ETotal / x.x;
+<?	end ?>
+<? end ?>
+
 <? if not solver.coord.anholonomic then ?>
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system

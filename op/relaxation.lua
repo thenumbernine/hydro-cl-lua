@@ -97,9 +97,7 @@ function Relaxation:refreshBoundaryProgram()
 	self.potentialBoundaryProgramObj, self.potentialBoundaryKernelObjs =
 		solver:createBoundaryProgramAndKernel{
 			type = self:getPotBufType(),
-			methods = table.map(solver.boundaryMethods, function(v)
-				return (select(2, next(solver.boundaryOptions[v])))
-			end),
+			methods = solver.boundaryMethods,
 			assign = function(a,b)
 				return a..'.'..self.potentialField..' = '..b..'.'..self.potentialField
 			end,

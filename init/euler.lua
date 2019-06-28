@@ -104,23 +104,19 @@ local function addMaxwellOscillatingBoundary(args)
 	local amplitude = args.amplitude or 1
 	local frequency = args.frequency or 1
 	local dir = args.dir or 'y'
-	-- this args is only for the UBuf boundary program -- not calle for the Poisson boundary program
-	function solver:getBoundaryProgramArgs()
-		-- i'm completely overriding this
-		-- so I can completely override boundaryMethods for the solver boundary kernel
-		-- yet not for the poisson boundary kernel
-		local boundaryMethods = table(self.boundaryMethods)
-		-- TODO get the oscillations on 2D 256x256 in the upper left corner to stop
-		--local oldxmin = select(2, next(solver.boundaryOptions[boundaryMethods.xmin]))
-		boundaryMethods[side] = function(args)
-			local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-			local U = args.array('buf', args.index(
-				side:sub(-3) == 'min' and 'j+1' or (gridSizeSide..'-numGhost-1-j')
-			))
-			-- TODO put the old code here
-			return 
-				--oldxmin(args) .. 
-				template([[
+
+	-- TODO addBoundaryOption?  only do this once?
+	local BoundaryOscillating = class(solver.Boundary)
+	BoundaryOscillating.name = 'oscillating'
+	function BoundaryOscillating:getCode(args)
+		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+		local U = args.array('buf', args.index(
+			side:sub(-3) == 'min' and 'j+1' or (gridSizeSide..'-numGhost-1-j')
+		))
+		-- TODO put the old code here
+		return 
+			--oldxmin(args) .. 
+			template([[
 <?
 	local epsSrc = 
 		(require 'eqn.twofluid-emhd-lingr'.is(eqn) 
@@ -135,15 +131,25 @@ local function addMaxwellOscillatingBoundary(args)
 	<?=U?>.D.<?=dir?> = <?=real_mul?>(
 		<?=mul?>(<?=epsSrc?>.sqrt_1_eps, <?=epsSrc?>.sqrt_1_eps),
 		<?=amplitude?> * sin(2. * M_PI * <?=frequency?> * t)); 
-]], table(solver.eqn:getTemplateEnv(), {
-		U = U,
-		eqn = self.eqn,
-		frequency = clnumber(frequency),
-		amplitude = clnumber(amplitude),
-		dir = dir,
-	}))
-		end
-
+]], 	table(solver.eqn:getTemplateEnv(), {
+			U = U,
+			eqn = self.eqn,
+			frequency = clnumber(frequency),
+			amplitude = clnumber(amplitude),
+			dir = dir,
+		}))
+	end
+	
+	-- this args is only for the UBuf boundary program -- not calle for the Poisson boundary program
+	function solver:getBoundaryProgramArgs()
+		-- i'm completely overriding this
+		-- so I can completely override boundaryMethods for the solver boundary kernel
+		-- yet not for the poisson boundary kernel
+		local boundaryMethods = table(self.boundaryMethods)
+		-- TODO get the oscillations on 2D 256x256 in the upper left corner to stop
+		--local oldxmin = select(2, next(solver.boundaryOptions[boundaryMethods.xmin]))
+		boundaryMethods[side] = BoundaryOscillating()
+		
 		-- same as super 
 		-- except with extraAgs
 		-- and using boundaryMethods instead of self.boundaryMethods
@@ -156,11 +162,7 @@ local function addMaxwellOscillatingBoundary(args)
 			-- that would save on a few kernel parameters
 			
 			extraArgs = {'real t'},
-			-- remap from enum/combobox int values to functions from the solver.boundaryOptions table
-			methods = table.map(boundaryMethods, function(v)
-				if type(v) == 'function' then return v end
-				return (select(2, next(self.boundaryOptions[v])))
-			end),
+			methods = boundaryMethods,
 			mirrorVars = self.eqn.mirrorVars,
 		}
 	end

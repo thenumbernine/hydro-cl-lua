@@ -4,13 +4,13 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	integrator = 'Runge-Kutta 4',
+	--integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -45,7 +45,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -66,12 +66,12 @@ local args = {
 			['Intel(R) OpenCL/Intel(R) HD Graphics 520'] = {
 				{256,1,1},
 				{128,128,1},
-				{48,48,48},
+				{16,16,16},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{64,1,1},
 				{64,64,1},
-				{32,32,32},
+				{16,16,16},
 			},
 		})[platformName..'/'..deviceName] 
 		-- default size options
@@ -90,10 +90,10 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	--[[ cylinder
+	-- [[ cylinder
 	coord = 'cylinder',
 	coordArgs = {anholonomic=true},			-- disable to use non-physical, holonomic coordinates
-	mins = cmdline.mins or {.1, 0, -.25},
+	mins = cmdline.mins or {.2, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
@@ -102,7 +102,7 @@ local args = {
 	})[dim],
 	boundary = {
 		-- r
-		xmin=cmdline.boundary or 'freeflow',		-- hmm, how to treat the r=0 boundary ...
+		xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
 		xmax=cmdline.boundary or 'freeflow',
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
@@ -115,15 +115,15 @@ local args = {
 	--[[ Sphere: r, θ, φ 
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
-	mins = cmdline.mins or {1, 0, -math.pi},
-	maxs = cmdline.maxs or {10, .5 * math.pi, math.pi},
+	mins = cmdline.mins or {.1, 0, -math.pi},
+	maxs = cmdline.maxs or {1, .5 * math.pi, math.pi},
 	gridSize = ({
 		{256, 1, 1}, -- 1D
 		{32, 32, 1}, -- 2D
 		{16, 16, 16}, -- 3D
 	})[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'mirror',
+		xmin=cmdline.boundary or 'freeflow',
 		xmax=cmdline.boundary or 'freeflow',
 		ymin=cmdline.boundary or 'mirror',
 		ymax=cmdline.boundary or 'mirror',
@@ -168,7 +168,7 @@ local args = {
 	
 	-- Euler / SRHD / MHD initial states:
 	--initState = 'constant',
-	--initState = 'constant with velocity',
+	initState = 'constant with velocity',
 	--initState = 'linear',
 	--initState = 'gaussian',
 	--initState = 'advect wave',
@@ -249,7 +249,7 @@ local args = {
 
 	-- Einstein
 	--initState = 'Minkowski',
-	initState = 'gaussian perturbation',
+	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 
 
@@ -434,7 +434,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -609,7 +609,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 
 
 -- bssnok is working in 1D spherical for RK4 but diverging for Euler
-self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is HyperbolicGammaDriver
+--self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is HyperbolicGammaDriver
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='none'}})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='GammaDriver'}})))
 

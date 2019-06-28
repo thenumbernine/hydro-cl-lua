@@ -72,21 +72,21 @@ kernel void calcDerivFromFlux(
 <?		else	-- my attempt ?>
 		real rR = x.x + .5 * solver->grid_dx.x;
 		real rL = x.x - .5 * solver->grid_dx.x;
-		real deltaVolume = .5 * (rR * rR - rL * rL) * solver->grid_dx.y * solver->grid_dx.z;
+		real volume = .5 * (rR * rR - rL * rL) * solver->grid_dx.y * solver->grid_dx.z;
 <? 			if side == 0 then ?>
-		real deltaAreaR = rR * solver->grid_dx.y * solver->grid_dx.z;
-		real deltaAreaL = rL * solver->grid_dx.y * solver->grid_dx.z;
+		real areaR = rR * solver->grid_dx.y * solver->grid_dx.z;
+		real areaL = rL * solver->grid_dx.y * solver->grid_dx.z;
 <? 			elseif side == 1 then ?>
-		real deltaArea = solver->grid_dx.x * solver->grid_dx.z;
-		real deltaAreaR = deltaArea;
-		real deltaAreaL = deltaArea;
+		real area = solver->grid_dx.x * solver->grid_dx.z;
+		real areaR = area;
+		real areaL = area;
 <? 			elseif side == 2 then ?>
-		real deltaArea = .5 * (rR * rR - rL * rL) * solver->grid_dx.y;
-		real deltaAreaR = deltaArea;
-		real deltaAreaL = deltaArea;
+		real area = .5 * (rR * rR - rL * rL) * solver->grid_dx.y;
+		real areaR = area;
+		real areaL = area;
 <? 			end ?>
 		for (int j = 0; j < numIntStates; ++j) {
-			deriv->ptr[j] -= (deltaAreaR * fluxR->ptr[j] - deltaAreaL * fluxL->ptr[j]) / deltaVolume;
+			deriv->ptr[j] -= (areaR * fluxR->ptr[j] - areaL * fluxL->ptr[j]) / volume;
 		}
 <?		end ?>
 <? 	else ?>

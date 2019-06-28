@@ -86,29 +86,30 @@ args:
 --]]
 function GridSolver:preInit(args)
 	GridSolver.super.preInit(self, args)
-
+	
 	self:createBoundaryOptions()
-	self:finalizeBoundaryOptions()
 
 	self.boundaryMethods = {}
 	for i=1,3 do
 		for _,minmax in ipairs(minmaxs) do
 			local var = xNames[i]..minmax
-			self.boundaryMethods[var] = self.boundaryOptions:find(
-				(args.boundary or {})[var] or 'freeflow',
-				function(option, search)
-					return search == next(option)
-				end)
+			local name = (args.boundary or {})[var] or 'freeflow'
+			local boundaryObjArgs
+			if type(name) == 'table' then
+				boundaryObjArgs = name.args
+				name = name.name
+			end
+			local boundaryClass = assert(self.boundaryOptionForName[name], "failed to find boundary method named "..name)
+			self.boundaryMethods[var] = boundaryClass(boundaryObjArgs)
 		end
 	end
-
-
+	
 	self.usePLM = args.usePLM
 	assert(not self.usePLM or self.fluxLimiter == 1, "are you sure you want to use flux and slope limiters at the same time?")
 	self.slopeLimiter = self.app.limiterNames:find(args.slopeLimiter) or 1
 	
 	self.useCTU = args.useCTU
-
+	
 	-- my kernel objs are going to need workgroup info based on domain.size-2*noGhost as well as domain.size ... 
 	-- ...and rather than require an extra argument, I think I'll just take advantage of a closure
 	local solver = self
@@ -779,125 +780,188 @@ GridSolver.DisplayVar_U = DisplayVar
 -------------------------------------------------------------------------------
 --                              boundary                                     --
 -------------------------------------------------------------------------------
+		
+-- TODO constant/'dirichlet' conditions
+-- and while you're at it, let boundary options register GUI controls, so we can treat the constant as a GUI-editable parameter 
+
+local Boundary = class()
+GridSolver.Boundary = Boundary
 
 --[[
-boundaryOptions is a table of {name = args => assign code}
-	args of the boundary function are:
-		index
-		assign = function(dst,src) 
-			assignment operator
-			default is dst = src
-			poisson uses dist.field = src.field
-		field
-		array
-		rhs
-		gridSizeSide = solver.gridSize[side]
-		side = 1,2,3
-		minmax = 'min' or 'max'
-		mirrorVars = which vars to reflect.
-			for solver.UBuf this is taken from eqn
-			for poisson this is nothing
+args of the BoundaryMethod:getCode are:
+	index
+	assign = function(dst,src) 
+		assignment operator
+		default is dst = src
+		poisson uses dist.field = src.field
+	field
+	array
+	rhs
+	gridSizeSide = solver.gridSize[side]
+	side = 1,2,3
+	minmax = 'min' or 'max'
+	mirrorVars = which vars to reflect.
+		for solver.UBuf this is taken from eqn
+		for poisson this is nothing
 
-this is such a mess.  it's practically an AST.
+This is such a mess.  It's practically an AST.
+--]]
+function Boundary:getCode(args)
+	error("implement me")
+end
+
+-- this is purely for debugging.  annnd it doesn't crash, whereas rectangular grids are crashing...
+local BoundaryNone = class(Boundary)
+BoundaryNone.name = 'none'
+function BoundaryNone:getCode(args)
+	return ''
+end
+
+-- boundary code indentation
+local indent = '\t\t'
+
+local BoundaryPeriodic = class(Boundary)
+BoundaryPeriodic.name = 'periodic'
+function BoundaryPeriodic:getCode(args)
+	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	if args.minmax == 'min' then
+		return indent..args.assign(
+			args.array('buf', args.index'j'), 
+			args.array('buf', args.index(gridSizeSide..'-2*numGhost+j'))
+		)..';'
+	elseif args.minmax == 'max' then
+		local rhs = gridSizeSide..'-numGhost+j'
+		return indent..args.assign(
+			args.array('buf', args.index(rhs)),
+			args.array('buf', args.index'numGhost+j')
+		)..';'
+	end
+end
+
+local BoundaryMirror = class(Boundary)
+BoundaryMirror.name = 'mirror'
+function BoundaryMirror:getCode(args)
+	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	local lines = table()
+	if args.minmax == 'min' then
+		lines:insert(indent..args.assign(
+			args.array('buf', args.index'j'),
+			args.array('buf', args.index'2*numGhost-1-j'))..';')
+		if args.mirrorVars and args.mirrorVars[args.side] then
+			lines:append(table.map(args.mirrorVars[args.side], function(var)
+				return indent..args.assign(
+					args.field(args.array('buf', args.index'j'), var),
+					args.field('-'..args.array('buf', args.index'j'), var)
+				)..';'
+			end))
+		end
+	elseif args.minmax == 'max' then
+		local rhs = gridSizeSide..'-numGhost+j'
+		lines:insert(indent..args.assign(
+			args.array('buf', args.index(rhs)),
+			args.array('buf', args.index(gridSizeSide..'-numGhost-1-j')))..';')
+		if args.mirrorVars and args.mirrorVars[args.side] then
+			lines:append(table.map(args.mirrorVars[args.side], function(var)
+				return indent..args.assign(
+					args.field(args.array('buf', args.index(rhs)), var),
+					args.field('-'..args.array('buf', args.index(rhs)), var)
+				)..';'
+			end))
+		end
+	end
+	return lines:concat'\n'
+end
+
+local BoundaryFreeFlow = class(Boundary)
+BoundaryFreeFlow.name = 'freeflow'
+function BoundaryFreeFlow:getCode(args)
+	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	if args.minmax == 'min' then
+		return indent..args.assign(
+			'buf['..args.index'j'..']',
+			'buf['..args.index'numGhost'..']'
+		)..';'
+	elseif args.minmax == 'max' then
+		local rhs = gridSizeSide..'-numGhost+j'
+		return indent..args.assign(
+			'buf['..args.index(rhs)..']',
+			'buf['..args.index(gridSizeSide..'-numGhost-1')..']'
+		)..';'
+	end
+end
+
+-- constant-derivative / linear extrapolation
+local BoundaryLinear = class(Boundary)
+BoundaryLinear.name = 'linear'
+function BoundaryLinear:getCode(args)
+	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	if args.minmax == 'min' then
+		return indent..'for (int k = 0; k < numStates; ++k) {\n'
+			..indent..'\t'..args.assign(
+				'buf['..args.index'j'..'].ptr[k]',
+				'(buf['..args.index'numGhost'..'].ptr[k] - buf['..args.index'numGhost+1'..'].ptr[k]) * (numGhost - j+1) + buf['..args.index'numGhost+1'..'].ptr[k]'
+			)..';\n'..indent..'}'
+	elseif args.minmax == 'max' then
+		local rhs = gridSizeSide..'-numGhost+j'
+		return indent..'for (int k = 0; k < numStates; ++k) {\n'
+			..indent..'\t'..args.assign(
+				'buf['..args.index(rhs)..'].ptr[k]',
+				'(buf['..args.index(gridSizeSide..'-numGhost-1')..'].ptr[k] - buf['..args.index(gridSizeSide..'-numGhost-2')..'].ptr[k]) * (j+1) + buf['..args.index(gridSizeSide..'-numGhost-2')..'].ptr[k]'
+			)..';\n'..indent..'}'
+	end		
+end
+
+BoundaryFixed = class(Boundary)
+function BoundaryFixed:init(fixedCode)
+	-- fixed values to use
+	self.code = fixedCode
+end
+BoundaryFixed.name = 'fixed'
+function BoundaryFixed:getCode(args)
+	local fixedCode = template(self.code, {
+		solver = args.solver,
+		eqn = args.solver.eqn,
+		args = args,
+	})
+	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	if args.minmax == 'min' then
+		return indent..'buf['..args.index'j'..'] = '..fixedCode..';'
+	elseif args.minmax == 'max' then
+		local rhs = gridSizeSide..'-numGhost+j'
+		return indent..'buf['..args.index(rhs)..'] = '..fixedCode..';'
+	end
+end
+
+--[[
+-- boundaryOptions is a table of classes
 --]]
 function GridSolver:createBoundaryOptions()
-	local indent = '\t\t'
-	self.boundaryOptions = table{
-		-- TODO constant/'dirichlet' conditions
-		-- and while you're at it, let boundary options register GUI controls, so we can treat the constant as a GUI-editable parameter 
-		
-		-- this is purely for debugging.  annnd it doesn't crash, whereas rectangular grids are crashing...
-		{none = function(args) return ''  end},
-		
-		{periodic = function(args)
-			local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-			if args.minmax == 'min' then
-				return indent..args.assign(
-					args.array('buf', args.index'j'), 
-					args.array('buf', args.index(gridSizeSide..'-2*numGhost+j'))
-				)..';'
-			elseif args.minmax == 'max' then
-				local rhs = gridSizeSide..'-numGhost+j'
-				return indent..args.assign(
-					args.array('buf', args.index(rhs)),
-					args.array('buf', args.index'numGhost+j')
-				)..';'
-			end
-		end},
-		{mirror = function(args)
-			local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-			local lines = table()
-			if args.minmax == 'min' then
-				lines:insert(indent..args.assign(
-					args.array('buf', args.index'j'),
-					args.array('buf', args.index'2*numGhost-1-j'))..';')
-				if args.mirrorVars and args.mirrorVars[args.side] then
-					lines:append(table.map(args.mirrorVars[args.side], function(var)
-						return indent..args.assign(
-							args.field(args.array('buf', args.index'j'), var),
-							args.field('-'..args.array('buf', args.index'j'), var)
-						)..';'
-					end))
-				end
-			elseif args.minmax == 'max' then
-				local rhs = gridSizeSide..'-numGhost+j'
-				lines:insert(indent..args.assign(
-					args.array('buf', args.index(rhs)),
-					args.array('buf', args.index(gridSizeSide..'-numGhost-1-j')))..';')
-				if args.mirrorVars and args.mirrorVars[args.side] then
-					lines:append(table.map(args.mirrorVars[args.side], function(var)
-						return indent..args.assign(
-							args.field(args.array('buf', args.index(rhs)), var),
-							args.field('-'..args.array('buf', args.index(rhs)), var)
-						)..';'
-					end))
-				end
-			end
-			return lines:concat'\n'
-		end},
-		{freeflow = function(args)
-			local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-			if args.minmax == 'min' then
-				return indent..args.assign(
-					'buf['..args.index'j'..']',
-					'buf['..args.index'numGhost'..']'
-				)..';'
-			elseif args.minmax == 'max' then
-				local rhs = gridSizeSide..'-numGhost+j'
-				return indent..args.assign(
-					'buf['..args.index(rhs)..']',
-					'buf['..args.index(gridSizeSide..'-numGhost-1')..']'
-				)..';'
-			end
-		end},
-		-- constant-derivative / linear extrapolation
-		{linear = function(args)
-			local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-			if args.minmax == 'min' then
-				return indent..'for (int k = 0; k < numStates; ++k) {\n'
-					..indent..'\t'..args.assign(
-						'buf['..args.index'j'..'].ptr[k]',
-						'(buf['..args.index'numGhost'..'].ptr[k] - buf['..args.index'numGhost+1'..'].ptr[k]) * (numGhost - j+1) + buf['..args.index'numGhost+1'..'].ptr[k]'
-					)..';\n'..indent..'}'
-			elseif args.minmax == 'max' then
-				local rhs = gridSizeSide..'-numGhost+j'
-				return indent..'for (int k = 0; k < numStates; ++k) {\n'
-					..indent..'\t'..args.assign(
-						'buf['..args.index(rhs)..'].ptr[k]',
-						'(buf['..args.index(gridSizeSide..'-numGhost-1')..'].ptr[k] - buf['..args.index(gridSizeSide..'-numGhost-2')..'].ptr[k]) * (j+1) + buf['..args.index(gridSizeSide..'-numGhost-2')..'].ptr[k]'
-					)..';\n'..indent..'}'
-			end		
-		end},
+	self.boundaryOptions = table()
+	self.boundaryOptionNames = table()
+	self.boundaryOptionForName = {}
+	
+	self:addBoundaryOptions{
+		BoundaryNone,
+		BoundaryPeriodic,
+		BoundaryMirror,
+		BoundaryFreeFlow,
+		BoundaryLinear,
+		BoundaryFixed,
 	}
 
 	if self.eqn.createBoundaryOptions then
 		self.eqn:createBoundaryOptions()
 	end
 end
-function GridSolver:finalizeBoundaryOptions()
-	self.boundaryOptionNames = self.boundaryOptions:map(function(option) return (next(option)) end)
-	-- hmm here's the one time that table.map using k,v comes in handy
-	self.boundaryOptionForName = self.boundaryOptions:map(function(option) local k,v = next(option) return v,k end)
+function GridSolver:addBoundaryOptions(args)
+	for _,arg in ipairs(args) do
+		self:addBoundaryOption(arg)
+	end
+end
+function GridSolver:addBoundaryOption(boundaryClass)
+	self.boundaryOptions:insert(assert(boundaryClass))
+	self.boundaryOptionNames:insert(assert(boundaryClass.name))
+	self.boundaryOptionForName[boundaryClass.name] = boundaryClass
 end
 
 --[[
@@ -919,14 +983,19 @@ function GridSolver:setBoundaryMethods(args)
 			else
 				error("don't know how to deal with these args") 
 			end
-			local i = self.boundaryOptions:find(nil, function(option) return next(option) == name end)
-			if not i then
+			local boundaryObjArgs
+			if type(name) == 'table' then
+				boundaryObjArgs = name.args
+				name = name.name
+			end
+			local boundaryClass = self.boundaryOptionForName[name]
+			if not boundaryClass then
 				io.stderr:write("unable to find boundary method "..tostring(name)
 					..' ('..type(name)..')'
 					.." -- can't assign it to side "..k.."\n")
 				io.stderr:flush()
 			else
-				self.boundaryMethods[k] = i
+				self.boundaryMethods[k] = boundaryClass(boundaryObjArgs)
 			end
 		end
 	end
@@ -937,9 +1006,7 @@ args:
 	type = type of buffer to create boundary information
 	extraArgs = any extra args to add to the kernel (other than a global of the buffer type)
 	methods = {
-		[x|y|z..min|max] = 
-			either 'peroidic', 'mirror', 'freeflow',
-			or a function of the name of variable pointer 
+		[x|y|z..min|max] = a Boundary subclass who has function getCode(args)
 			that returns the code to apply to that particular pointer 
 	}
 	mirrorVars = {x vars, y vars, z vars} = table of tables of strings of what fields should be negative'd on mirror condition
@@ -1027,7 +1094,8 @@ end
 	for (int j = 0; j < numGhost; ++j) {]]
 
 		for _,minmax in ipairs(minmaxs) do
-			lines:insert(args.methods[xNames[side]..minmax]{
+			lines:insert(args.methods[xNames[side]..minmax]:getCode{
+				solver = self,
 				index = index,
 				indexv = indexv,
 				assign = assign,
@@ -1082,13 +1150,7 @@ function GridSolver:getBoundaryProgramArgs()
 	return {
 		type = self.eqn.cons_t,
 		-- remap from enum/combobox int values to functions from the solver.boundaryOptions table
-		methods = table.map(self.boundaryMethods, function(v)
-			if type(v) == 'function' then return v end
-			if not self.boundaryOptions[v] then
-				error("failed to find boundaryOption index "..v)
-			end
-			return (select(2, next(self.boundaryOptions[v])))
-		end),
+		methods = self.boundaryMethods,
 		mirrorVars = self.eqn.mirrorVars,
 	}
 end

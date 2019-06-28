@@ -24,36 +24,40 @@ NLSEqn.consVars = {
 }
 
 function NLSEqn:createBoundaryOptions()
-	self.solver.boundaryOptions:insert{
-		oscillating = function(args)
-			local index = args.index
-			local assign = args.assign
-			local lines = table()
-			local gridSizeSide = 'gridSize_'..xNames[args.side]
-			if args.minmax == 'min' then
-				-- buf[0] = buf[4]
-				-- buf[1] = buf[3]
-				-- buf[2] is ... ?
-				lines:insert(
-					assign('buf['..index'j'..']',
-						'buf['..index('2*numGhost-j')..']'))
-			elseif args.minmax == 'max' then
-				lines:insert(
-					assign('buf['..index(gridSizeSide..'-1-j')..']',
-						'buf['..index(gridSizeSide..'-2*numGhost-2+j')..']'))
-			end
-			return lines:concat'\n'
-		end,
-	}
-	self.solver.boundaryOptions:insert{
-		fixed = function(args)
-			if args.minmax == 'min' then
-				assign('buf['..index'j'..']', '0')
-			elseif args.minmax == 'max' then
-				assign('buf['..index(gridSizeSide'-1-j')..']', '0')
-			end
-		end,
-	}
+	local Boundary = self.solver.Boudary
+	local BoundaryOscillating = class(Boundary)
+	BoundaryOscillating.name = 'oscillating'
+	function BoundaryOscillating:getCode(args)
+		local index = args.index
+		local assign = args.assign
+		local lines = table()
+		local gridSizeSide = 'gridSize_'..xNames[args.side]
+		if args.minmax == 'min' then
+			-- buf[0] = buf[4]
+			-- buf[1] = buf[3]
+			-- buf[2] is ... ?
+			lines:insert(
+				assign('buf['..index'j'..']',
+					'buf['..index('2*numGhost-j')..']'))
+		elseif args.minmax == 'max' then
+			lines:insert(
+				assign('buf['..index(gridSizeSide..'-1-j')..']',
+					'buf['..index(gridSizeSide..'-2*numGhost-2+j')..']'))
+		end
+		return lines:concat'\n'
+	end
+	self.solver:addBoundaryOption(BoundaryOscillating)
+	
+	local BoundaryFixed = class(Boundary)	
+	BoundaryFixed.name = 'fixed'
+	function BoundaryFixed:getCode(args)
+		if args.minmax == 'min' then
+			assign('buf['..index'j'..']', '0')
+		elseif args.minmax == 'max' then
+			assign('buf['..index(gridSizeSide'-1-j')..']', '0')
+		end
+	end
+	self.solver:addBoundaryOption(BoundaryFixed)
 end
 
 NLSEqn.initStates = require 'init.nls'

@@ -18,7 +18,7 @@ local EinsteinFiniteDifferenceSolver = class(GridSolver)
 -- probably not, courtesy of boundary
 -- in fact, how would boundary work with numGhost!=2?
 -- esp mirror boundary conditions?
-EinsteinFiniteDifferenceSolver.numGhost = 2
+EinsteinFiniteDifferenceSolver.numGhost = 4
 
 EinsteinFiniteDifferenceSolver.name = 'EinsteinFiniteDifference'
 

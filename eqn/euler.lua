@@ -73,22 +73,29 @@ end
 
 function Euler:getCommonFuncCode()
 	return template([[
-static inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
-static inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
-static inline real calc_HTotal(real P, real ETotal) { return P + ETotal; }
-static inline real calc_hTotal(real rho, real P, real ETotal) { return calc_HTotal(P, ETotal) / rho; }
-static inline real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
-static inline real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
-static inline real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.P / (solver->heatCapacityRatio - 1.); }
-static inline real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EInt(solver, W) / W.rho; }
-static inline real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.m, x) / U.rho; }
-static inline real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
+real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
+real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
+real calc_HTotal(real P, real ETotal) { return P + ETotal; }
+real calc_hTotal(real rho, real P, real ETotal) { return calc_HTotal(P, ETotal) / rho; }
+real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
+real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
+real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.P / (solver->heatCapacityRatio - 1.); }
+real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EInt(solver, W) / W.rho; }
+real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.m, x) / U.rho; }
+real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	return calc_EKin(W, x) + calc_EInt(solver, W);
 }
 
-static inline real calc_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?>* W) {
+real calc_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?>* W) {
 	return sqrt(solver->heatCapacityRatio * W->P / W->rho);
 }
+
+real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
+	real EKin = calc_EKin_fromCons(U, x);
+	real EInt = U.ETotal - EKin;
+	return (solver->heatCapacityRatio - 1.) * EInt;
+}
+
 ]], {
 		solver = self.solver,
 		eqn = self,
@@ -98,18 +105,16 @@ end
 function Euler:getPrimConsCode()
 	return template([[
 
-static inline <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
-	real EKin = calc_EKin_fromCons(U, x);
-	real EInt = U.ETotal - EKin;
+<?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	return (<?=eqn.prim_t?>){
 		.rho = U.rho,
 		.v = real3_real_mul(U.m, 1./U.rho),
-		.P = (solver->heatCapacityRatio - 1.) * EInt,
+		.P = calc_P(solver, U, x),
 		.ePot = U.ePot,
 	};
 }
 
-static inline <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
+<?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
 		.rho = W.rho,
 		.m = real3_real_mul(W.v, W.rho),
@@ -244,6 +249,7 @@ end
 Euler.predefinedDisplayVars = {
 -- [[	
 	'U rho (kg/m^3)',
+	'U v (m/s)',
 	'U v x (m/s)',
 	'U v y (m/s)',
 	'U v z (m/s)',
@@ -399,7 +405,12 @@ kernel void calcDT(
 		real lambdaMax = W.v.s<?=side?> + Cs;
 		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
 		absLambdaMax = max((real)1e-9, absLambdaMax);
-		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
+<? if solver.coord.anholonomic then ?>
+		real dx = cell_dx<?=side?>(x); 
+<? else ?>
+		real dx = solver->grid_dx.s<?=side?>;
+<? end ?>	
+		dt = (real)min(dt, dx / absLambdaMax);
 	}<? end ?>
 	dtBuf[index] = dt;
 }

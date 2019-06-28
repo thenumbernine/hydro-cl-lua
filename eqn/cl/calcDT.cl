@@ -28,7 +28,7 @@ kernel void calcDT(
 <? if solver.coord.anholonomic then ?>
 		real dx = cell_dx<?=side?>(x); 
 <? else ?>
-		real dx = solver->grid_dx.s<?=side?>
+		real dx = solver->grid_dx.s<?=side?>;
 <? end ?>
 		dt = (real)min(dt, dx / absLambdaMax);
 	}<? end ?>
