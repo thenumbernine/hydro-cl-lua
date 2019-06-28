@@ -352,13 +352,13 @@ function HydroCLApp:initGL(...)
 	self.gradientTex = GLGradientTex(1024, {
 	-- [[ white, rainbow, black
 --		{0,0,0,.5},	-- black ... ? maybe I shouldn't be using black...
-		{0,0,1,1},	-- blue
-		{0,1,1,1},	-- cyan
-		{0,1,0,1},	-- green
-		{1,1,0,1},	-- yellow
-		{1,.5,0,1},	-- orange
-		{1,0,0,1},	-- red
-		{1,1,1,1},	-- white
+		{0,0,1,.8},	-- blue
+		{0,1,1,.8},	-- cyan
+		{0,1,0,.8},	-- green
+		{1,1,0,.8},	-- yellow
+		{1,.5,0,.8},	-- orange
+		{1,0,0,.8},	-- red
+		{1,1,1,.8},	-- white
 	--]]
 	--[[ stripes 
 		range(32):mapi(function(i)

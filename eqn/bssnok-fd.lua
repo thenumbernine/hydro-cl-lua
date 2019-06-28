@@ -5,6 +5,9 @@ Alcubierre "Introduction to Numerical Relativity" 2008
 then I'm applying 2017 Ruchlin changes...
 *) separate gammaBar_ll - gammaHat_ll = epsilon_ll
 *) coordinate-transform beta^i, epsilon_ij, ABar_ij, LambdaBar^i to eliminate singularities from the metric
+
+tensors are denoted with suffixes _u _l etc for upper and lower
+rescaled tensors are denoted _U _L etc
 --]]
 
 local file = require 'ext.file'
@@ -28,6 +31,7 @@ BSSNOKFiniteDifferenceEquation.hasFluxFromConsCode = true
 BSSNOKFiniteDifferenceEquation.useConstrainU = true
 BSSNOKFiniteDifferenceEquation.useSourceTerm = true
 
+-- not used with finite-difference schemes anyways
 BSSNOKFiniteDifferenceEquation.weightFluxByGridVolume = false
 
 --[[
@@ -44,34 +48,34 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 
 	local intVars = table{
 		{name='alpha', type='real'},			-- 1
-		{name='beta_u', type='real3'},		 	-- 3: beta^i
-		{name='epsilon_ll', type='sym3'},		-- 6: gammaBar_ij - gammaHat_ij, only 5 dof since det gammaBar_ij = 1
+		{name='beta_U', type='real3'},		 	-- 3: beta^i
+		{name='epsilon_LL', type='sym3'},		-- 6: gammaBar_ij - gammaHat_ij, only 5 dof since det gammaBar_ij = 1
 		{name='W', type='real'},				-- 1: W = exp(-2 phi) = (det gammaHat_ij / det gamma_ij)^(1/6)
 		{name='K', type='real'},				-- 1: K = K^i_i
-		{name='ABar_ll', type='sym3'},			-- 6: ABar_ij, only 5 dof since ABar^k_k = 0
-		{name='LambdaBar_u', type='real3'},		-- 3: LambdaBar^i = C^i + Delta^i = C^i + gammaBar^jk (connBar^i_jk - connHat^i_jk)
+		{name='ABar_LL', type='sym3'},			-- 6: ABar_ij, only 5 dof since ABar^k_k = 0
+		{name='LambdaBar_U', type='real3'},		-- 3: LambdaBar^i = C^i + Delta^i = C^i + gammaBar^jk (connBar^i_jk - connHat^i_jk)
 												-- TODO what is C^i ?
 	}
 	if self.useShift == 'HyperbolicGammaDriver' then
-		intVars:insert{name='B_u', type='real3'}
+		intVars:insert{name='B_U', type='real3'}
 	end
 
 	self.consVars = table()
 	:append(intVars)
 	:append{
 		--hyperbolic variables:
-		--real3 a;			//3: a_i
-		--_3sym3 dBar;		//18: dBar_ijk, only 15 dof since dBar_ij^j = 0
+		--real3 a;				//3: a_i
+		--_3sym3 dBar;			//18: dBar_ijk, only 15 dof since dBar_ij^j = 0
 		--real3 Phi;			//3: Phi_i
 
 		--stress-energy variables:
 		{name='rho', type='real'},				--1: n_a n_b T^ab
-		{name='S_u', type='real3'},			--3: -gamma^ij n_a T_aj
-		{name='S_ll', type='sym3'},			--6: gamma_i^c gamma_j^d T_cd
+		{name='S_u', type='real3'},				--3: -gamma^ij n_a T_aj
+		{name='S_ll', type='sym3'},				--6: gamma_i^c gamma_j^d T_cd
 
 		--constraints:
 		{name='H', type='real'},				--1
-		{name='M_u', type='real3'},			--3
+		{name='M_u', type='real3'},				--3
 	}
 	self.numIntStates = makestruct.countScalars(intVars)
 	
@@ -79,15 +83,14 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	BSSNOKFiniteDifferenceEquation.super.init(self, args)
 end
 
-
 function BSSNOKFiniteDifferenceEquation:createInitState()
 	BSSNOKFiniteDifferenceEquation.super.createInitState(self)
 	self:addGuiVars{
 		{name='constrain_det_gammaBar_ll', value=true, compileTime=true},
 		--{name='constrain_det_gammaBar_ll', value=false, compileTime=true},
 
-		--{name='constrain_tr_ABar_ll', value=true, compileTime=true},
-		{name='constrain_tr_ABar_ll', value=false, compileTime=true},
+		{name='constrain_tr_ABar_ll', value=true, compileTime=true},
+		--{name='constrain_tr_ABar_ll', value=false, compileTime=true},
 		
 		{name='calc_H_and_M', value=true, compileTime=true},
 		{name='diffuseSigma', value=.01},
@@ -97,13 +100,36 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 	}
 end
 
+function BSSNOKFiniteDifferenceEquation:makePartial(field, fieldType, nameOverride, rescale)
+	if fieldType == nil then
+		local _, var = self.consVars:find(nil, function(v) return v.name == field end)
+		assert(var)
+		fieldType = var.type
+	end
+	if rescale == nil then rescale = true end
+	local derivOrder = 2 * self.solver.numGhost
+	return makePartial(derivOrder, self.solver, field, fieldType, nameOverride, rescale)
+end
+
+function BSSNOKFiniteDifferenceEquation:makePartial2(field, fieldType, nameOverride, rescale)
+	if fieldType == nil then
+		local _, var = self.consVars:find(nil, function(v) return v.name == field end)
+		assert(var)
+		fieldType = var.type
+	end
+	if rescale == nil then rescale = true end
+	local derivOrder = 2 * self.solver.numGhost
+	return makePartial2(derivOrder, self.solver, field, fieldType, nameOverride, rescale)
+end
+
+
 function BSSNOKFiniteDifferenceEquation:getTemplateEnv()
 	local derivOrder = 2 * self.solver.numGhost
 	return applyCommon{
 		eqn = self,
 		solver = self.solver,
-		makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
-		makePartial2 = function(...) return makePartial2(derivOrder, self.solver, ...) end,
+		makePartial = function(...) return self:makePartial(...) end,
+		makePartial2 = function(...) return self:makePartial2(...) end,
 	}
 end
 
@@ -111,12 +137,13 @@ function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
 	return template([[
 
 //TODO 2017 Ruchlin eqn. 8, what is C^i?
-#define mystery_C_u	real3_zero
+#define mystery_C_U	real3_zero
 
 //gammaBar_ij = gammaHat_ij + epsilon_ij
 sym3 calc_gammaBar_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 	sym3 gammaHat_ll = coord_g_ll(x);
-	return sym3_add(gammaHat_ll, sym3_rescaleToCoord_ll(U->epsilon_ll, x));
+	sym3 epsilon_ll = sym3_rescaleToCoord_LL(U->epsilon_LL, x);
+	return sym3_add(gammaHat_ll, epsilon_ll);
 }
 
 //det(gammaBar_ij) = det(gammaHat_ij + epsilon_ij)
@@ -156,16 +183,22 @@ sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U, real3 x) {
 	return gamma_uu;
 }
 
+//used by solver/bssnok-fd.lua
+sym3 calc_gammaBar_LL(global const <?=eqn.cons_t?>* U, real3 x) {
+	return sym3_rescaleFromCoord_ll(calc_gammaBar_ll(U, x), x);
+}
+
+//used by solver/bssonk-fd.lua
+sym3 calc_gamma_UU(global const <?=eqn.cons_t?>* U, real3 x) {
+	return sym3_rescaleFromCoord_uu(calc_gamma_uu(U, x), x);
+}
+
 void calc_connBar_lll(
 	_3sym3* connBar_lll,
 	const sym3* partial_epsilon_lll,//[3]
 	const _3sym3* connHat_lll,
 	real3 x
 ) {
-	//assumes partial_epsilon_lll is rescaled to remove grid coordinate singularities
-	//so rescale it
-//	_3sym3 partial_epsilon_lll = _3sym3_rescaleToCoord_lll(*(_3sym3*)_partial_epsilon_lll, x);
-
 	/*
 	connBar_lll[i].jk := connBar_ijk 
 	= 1/2 (gammaBar_ij,k + gammaBar_ik,j - gammaBar_jk,i)
@@ -197,18 +230,18 @@ void setFlatSpace(
 	real3 x
 ) {
 	U->alpha = 1.;
-	U->beta_u = real3_zero;
-	U->epsilon_ll = sym3_zero;
+	U->beta_U = real3_zero;
+	U->epsilon_LL = sym3_zero;
 	U->W = 1;
 	U->K = 0;
-	U->ABar_ll = sym3_ident;
+	U->ABar_LL = sym3_zero;
 
 	//LambdaBar^i = Delta^i + C^i = Delta^i_jk gammaBar^jk = (connBar^i_jk - connHat^i_jk) gammaBar^jk + C^i
 	//but when space is flat we have connBar^i_jk = connHat^i_jk and therefore Delta^i_jk = 0, Delta^i = 0, and LambdaBar^i = 0
-	U->LambdaBar_u = mystery_C_u;
+	U->LambdaBar_U = real3_rescaleFromCoord_u(mystery_C_U, x);
 
 <? if eqn.useShift == 'HyperbolicGammaDriver' then
-?>	U->B_u = real3_zero;
+?>	U->B_U = real3_zero;
 <? end
 ?>
 
@@ -248,7 +281,7 @@ kernel void initState(
 	<?=code?>
 
 	U->alpha = alpha;
-	U->beta_u = real3_rescaleFromCoord_u(beta_u, x);
+	U->beta_U = real3_rescaleFromCoord_u(beta_u, x);
 
 	real det_gamma_ll = sym3_det(gamma_ll);
 	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma_ll);
@@ -264,11 +297,13 @@ kernel void initState(
 	U->W = sqrt(exp_neg4phi);
 
 	sym3 gammaBar_ll = sym3_real_mul(gamma_ll, exp_neg4phi);
-	U->epsilon_ll = sym3_rescaleFromCoord_ll(sym3_sub(gammaBar_ll, gammaHat_ll), x);
+	sym3 epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
+	U->epsilon_LL = sym3_rescaleFromCoord_ll(epsilon_ll, x);
 
 	U->K = sym3_dot(K_ll, gamma_uu);
 	sym3 A_ll = sym3_sub(K_ll, sym3_real_mul(gamma_ll, 1./3. * U->K));
-	U->ABar_ll = sym3_rescaleFromCoord_ll(sym3_real_mul(A_ll, exp_neg4phi), x);
+	sym3 ABar_ll = sym3_real_mul(A_ll, exp_neg4phi);
+	U->ABar_LL = sym3_rescaleFromCoord_ll(ABar_ll, x);
 	
 	U->rho = rho;
 	U->S_u = real3_zero;
@@ -295,10 +330,7 @@ kernel void initDerivs(
 	}
 #endif
 
-<?=makePartial('epsilon_ll', 'sym3')?>
-	
-	// TODO see other warning about partial_epsilon_lll and rescaling
-	//*(_3sym3*)partial_epsilon_lll = _3sym3_rescaleToCoord_lll(*(_3sym3*)partial_epsilon_lll, x);
+<?=makePartial'epsilon_LL'?>
 
 	_3sym3 connHat_lll = coord_conn_lll(x);
 	_3sym3 connHat_ull = coord_conn_ull(x);
@@ -324,7 +356,7 @@ for i,xi in ipairs(xNames) do
 	;
 <?	end
 end
-?>	
+?>
 	sym3 gammaBar_uu = calc_gammaBar_uu(U, x);
 
 	//connBar_ull[i].jk := connBar^i_jk = gammaBar^il connBar_ljk
@@ -358,11 +390,12 @@ end
 ?>
 #endif
 
+	real3 LambdaBar_u;
 #if 0
-	U->LambdaBar_u = _3sym3_sym3_dot23(Delta_ull, gammaBar_uu);
+	LambdaBar_u = _3sym3_sym3_dot23(Delta_ull, gammaBar_uu);
 #else
 <? for i,xi in ipairs(xNames) do
-?>	U->LambdaBar_u.<?=xi?> = 0.
+?>	LambdaBar_u.<?=xi?> = 0.
 <?	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
 ?>		+ Delta_ull.<?=xi?>.<?=sym(j,k)?> * gammaBar_uu.<?=sym(j,k)?>		
@@ -373,7 +406,7 @@ end
 ?>
 #endif
 
-	U->LambdaBar_u = real3_rescaleFromCoord_u(U->LambdaBar_u, x);
+	U->LambdaBar_U = real3_rescaleFromCoord_u(LambdaBar_u, x);
 }
 ]], table(self:getTemplateEnv(), {
 		code = self.initState:initState(self.solver),
@@ -390,39 +423,39 @@ end
 
 BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U alpha',
-	'U beta_u mag',
-	--'U epsilon_ll norm',
+	'U beta_U mag',
+	--'U epsilon_LL norm',
 	'U W',
-	'U ABar_ll tr weighted',
-	'U ABar_ll x x',
-	'U ABar_ll x y',
-	'U ABar_ll x z',
-	'U ABar_ll y y',
-	'U ABar_ll y z',
-	'U ABar_ll z z',
+	'U ABar_LL tr weighted',
+	'U ABar_LL x x',
+	'U ABar_LL x y',
+	'U ABar_LL x z',
+	'U ABar_LL y y',
+	'U ABar_LL y z',
+	'U ABar_LL z z',
 	'U K',
-	'U LambdaBar_u mag',
+	'U LambdaBar_U mag',
 	'U H',
-	'U M_u mag',
+	'U M_U mag',
 	--'U det gammaBar - det gammaHat',
 	--'U det gamma_ij based on phi',
 	--'U volume',
 	--'U f',
-	--'U gamma_ll tr weighted',
+	--'U gamma_LL tr weighted',
 
 -- [[ debugging derivatives
 	'deriv alpha',
-	'deriv beta_u mag',
+	'deriv beta_U mag',
 	'deriv W',
-	'deriv ABar_ll tr weighted',
-	'deriv ABar_ll x x',
-	'deriv ABar_ll x y',
-	'deriv ABar_ll x z',
-	'deriv ABar_ll y y',
-	'deriv ABar_ll y z',
-	'deriv ABar_ll z z',
+	'deriv ABar_LL tr weighted',
+	'deriv ABar_LL x x',
+	'deriv ABar_LL x y',
+	'deriv ABar_LL x z',
+	'deriv ABar_LL y y',
+	'deriv ABar_LL y z',
+	'deriv ABar_LL z z',
 	'deriv K',
-	'deriv LambdaBar_u mag',
+	'deriv LambdaBar_U mag',
 --]]
 	
 	-- debugging
@@ -444,7 +477,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	*value_sym3 = sym3_real_mul(
 		sym3_add(
-			U->ABar_ll,
+			sym3_rescaleToCoord_LL(U->ABar_LL, x),
 			sym3_real_mul(gammaBar_ll, U->K / 3.)
 		), exp_4phi);
 ]], type='sym3'},
@@ -471,8 +504,9 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 			type = 'sym3',
 			code = [[
 	sym3 gammaBar_uu = calc_gammaBar_uu(U, x);
-	real3x3 ABar_ul = sym3_sym3_mul(gammaBar_uu, U->ABar_ll);		//ABar^i_j = gammaBar^ik ABar_kj
-	sym3 ABarSq_ll = sym3_real3x3_to_sym3_mul(U->ABar_ll, ABar_ul);
+	sym3 ABar_ll = sym3_rescaleToCoord_LL(U->ABar_LL, x);
+	real3x3 ABar_ul = sym3_sym3_mul(gammaBar_uu, ABar_ll);		//ABar^i_j = gammaBar^ik ABar_kj
+	sym3 ABarSq_ll = sym3_real3x3_to_sym3_mul(ABar_ll, ABar_ul);
 	*value_sym3 = ABarSq_ll;
 ]],
 		},
@@ -500,9 +534,9 @@ using gamma = gammaHat / W^6
 = GammaHat^j_ij - 3 / W
 --]]
 		{name='expansion', code=template([[
-	<?=makePartial('W', 'real')?>
-	<?=makePartial('alpha', 'real')?>
-	<?=makePartial('beta_u', 'real3')?>
+	<?=makePartial'W'?>
+	<?=makePartial'alpha'?>
+	<?=makePartial'beta_U'?>
 	real tr_partial_beta = 0. <?
 for i,xi in ipairs(xNames) do
 ?> + partial_beta_ul[<?=i-1?>].<?=xi?><?
@@ -532,7 +566,7 @@ end
 ]], 			applyCommon{
 					eqn = self,
 					solver = self.solver,
-					makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
+					makePartial = function(...) return self:makePartial(...) end,
 				}
 
 			)
@@ -569,7 +603,7 @@ end
 		{
 			name = 'gravity',
 			code= template([[
-	<?=makePartial('alpha', 'real')?>
+	<?=makePartial'alpha'?>
 
 	real _1_alpha = 1. / U->alpha;
 
@@ -583,9 +617,9 @@ end
 
 <? if eqn.useShift ~= 'none' then ?>
 
-	<?=makePartial('beta_u', 'real3')?>
+	<?=makePartial'beta_u'?>
 
-	<?=makePartial('epsilon_ll', 'sym3')?>
+	<?=makePartial'epsilon_LL', 'partial_epsilon_lll'?>
 	
 	//W = exp(-2 phi)
 	real _1_W = 1. / U->W;
@@ -595,7 +629,7 @@ end
 	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, _1_W * _1_W);
 	
 	//gamma_ij,k = W^-2 gammaBar_ij,k - 2 W^-3 gammaBar_ij W_,k
-	<?=makePartial('W', 'real')?>
+	<?=makePartial'W'?>
 	_3sym3 partial_gamma_lll = {
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_sub(
@@ -649,7 +683,7 @@ end ?>;
 		_1_alpha * (
 			beta_dbeta_u.<?=xi?>
 			+ .5 * beta_beta_dgamma_u.<?=xi?>	
-			- U->B_u.<?=xi?>
+			- U->B_U.<?=xi?>
 			- beta_dt_gamma_u.<?=xi?>
 
 			+ _1_alpha * U->beta_u.<?=xi?> * (
@@ -670,7 +704,7 @@ end ?>;
 ]],				applyCommon{
 					eqn = self,
 					solver = self.solver,
-					makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
+					makePartial = function(...) return self:makePartial(...) end,
 				}
 			), 
 			type = 'real3',
@@ -681,7 +715,7 @@ end ?>;
 			name = 'Ricci',
 			code = template([[
 	_3sym3 connHat_ull = coord_conn_ull(x);
-<?=makePartial('epsilon_ll', 'sym3')?>
+<?=makePartial'epsilon_LL'?>
 	_3sym3 connBar_lll;
 	calc_connBar_lll(&connBar_lll, partial_epsilon_lll, &connHat_lll, x);
 	_3sym3 connBar_ull = sym3_3sym3_mul(gammaBar_uu, connBar_lll);
@@ -724,7 +758,7 @@ end ?>;
 ]],				applyCommon{
 					eqn = self,
 					solver = self.solver,
-					makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
+					makePartial = function(...) return self:makePartial(...) end,
 				}
 			),
 			type = 'sym3',

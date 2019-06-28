@@ -219,18 +219,16 @@ function CoordinateSystem:init(args)
 		print()
 	end
 
-	local anholonomic
+	local isItReallyAnholonomic
 	for i=1,#coords do
 		if coords[i].base then
-			anholonomic = true
+			isItReallyAnholonomic = true
 			break
 		end
 	end
-	self.anholonomic = anholonomic
-	if self.verbose then
-		print('is anholonomic? '..tostring(anholonomic))
-	end
-
+	assert(isItReallyAnholonomic == self.anholonomic)
+	local anholonomic = self.anholonomic
+	
 	-- for the sake of grid lengths, 
 	-- I will need the basis and metric of the holonomic version as well
 	local eHol
@@ -537,31 +535,6 @@ self.Gamma_ull = Gamma_ull
 		end
 	end
 
---[[
-	-- for anholonomic coordinates, we also need the holonomic connections
-	--  for calculating the sqrt(det(g)) = grid volume
-	-- TODO do we?  finite volume uses the holonomic metric determinant derivative, which is ident -> 1 -> zero
-	if self.anholonomic then
-		Tensor.metric(gHol)
-
-		local GammaHol_lll = Tensor'_abc'
-		GammaHol_lll['_abc'] = ((gHol'_ab,c' + gHol'_ac,b' - gHol'_bc,a') / 2)()
-		if self.verbose then
-			print'1st kind Christoffel of holonoic basis / Levi-Civita connection:'
-			print(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'gHol''_ab,c' + var'gHol''_ac,b' - var'gHol''_bc,a')):eq(GammaHol_lll'_abc'()))
-		end
-
-		local GammaHol_ull = Tensor'^a_bc'
-		GammaHol_ull['^a_bc'] = GammaHol_lll'^a_bc'()
-		if self.verbose then
-			print'holonomic / Levi-Civita connection:'
-			print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(GammaHol_ull'^a_bc'()))
-		end
-		
-		Tensor.metric(g)
-	end
---]]
-
 	self.lenExprs = symmath.Array:lambda({dim}, function(i)
 		local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
 		local lenSqExpr = (dir'^a' * dir'^b' * gHol'_ab')()
@@ -610,6 +583,10 @@ self.Gamma_ull = Gamma_ull
 			end
 		end
 
+		if self.verbose then
+			print(var'area'('_'..i):eq(area))
+		end
+
 		-- TODO add in extra code function parameters
 		return area
 	end)
@@ -635,6 +612,9 @@ self.Gamma_ull = Gamma_ull
 			local u = self.baseCoords[j]
 			local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
 			volume = volume:integrate(u, uL, uR)()
+		end
+		if self.verbose then
+			print(var'volume':eq(volume))
 		end
 		compileTensorField('cell_volume_code', volume, mappedIntegralArgs)
 	end
@@ -1016,7 +996,9 @@ real coordLen(real3 r, real3 pt) {
 		lines:insert(template([[
 <? local dim = solver.dim ?>
 
-#if 0	//rescaling, used for bssn finite-difference, but I am tempted to try it with other coordinate systems with singularities
+#if 1	
+//rescaling, used for bssn finite-difference, but I am tempted to try it with other coordinate systems with singularities
+//TODO for the initial conditions do this symbolically instead of numerically
 
 //apply this to lower indexes to convert from coordinate metric to better metric
 //apply this to upper indexes to convert from better metric to coordinate metric
@@ -1027,18 +1009,18 @@ real3 real3_rescaleFromCoord_l(real3 v, real3 x) {
 		.z = v.z / coord_dx2(x),
 	};
 }
-#define real3_rescaleToCoord_u real3_rescaleFromCoord_l
+#define real3_rescaleToCoord_U real3_rescaleFromCoord_l
 
 //convert coord upper to better
 //convert better lower to coord
-real3 real3_rescaleToCoord_l(real3 v, real3 x) {
+real3 real3_rescaleToCoord_L(real3 v, real3 x) {
 	return (real3){
 		.x = v.x * coord_dx0(x),
 		.y = v.y * coord_dx1(x),
 		.z = v.z * coord_dx2(x),
 	};
 }
-#define real3_rescaleFromCoord_u real3_rescaleToCoord_l
+#define real3_rescaleFromCoord_u real3_rescaleToCoord_L
 
 sym3 sym3_rescaleFromCoord_ll(sym3 a, real3 x) {
 	return (sym3){
@@ -1048,9 +1030,9 @@ sym3 sym3_rescaleFromCoord_ll(sym3 a, real3 x) {
 <? end
 ?>	};
 }
-#define sym3_rescaleToCoord_uu sym3_rescaleFromCoord_ll
+#define sym3_rescaleToCoord_UU sym3_rescaleFromCoord_ll
 
-sym3 sym3_rescaleToCoord_ll(sym3 a, real3 x) {
+sym3 sym3_rescaleToCoord_LL(sym3 a, real3 x) {
 	return (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
@@ -1058,61 +1040,83 @@ sym3 sym3_rescaleToCoord_ll(sym3 a, real3 x) {
 <? end
 ?>	};
 }
-#define sym3_rescaleFromCoord_uu sym3_rescaleToCoord_ll
+#define sym3_rescaleFromCoord_uu sym3_rescaleToCoord_LL
 
 _3sym3 _3sym3_rescaleFromCoord_lll(_3sym3 a, real3 x) {
 	return (_3sym3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = sym3_rescaleFromCoord_ll(a.<?=xi?>, x),
+?>		.<?=xi?> = (sym3){
+<?	for jk,xjk in ipairs(symNames) do
+	local j,k = from6to3x3(jk)
+?>			a.<?=xi?>.<?=xjk?> / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x)),
+<?	end
+?>		},
 <? end
 ?>	};
 }
-#define _3sym3_rescaleToCoord_uuu _3sym3_rescaleFromCoord_lll
+#define _3sym3_rescaleToCoord_UUU _3sym3_rescaleFromCoord_lll
 
-_3sym3 _3sym3_rescaleToCoord_lll(_3sym3 a, real3 x) {
+_3sym3 _3sym3_rescaleToCoord_LLL(_3sym3 a, real3 x) {
 	return (_3sym3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = sym3_rescaleToCoord_ll(a.<?=xi?>, x),
+?>		.<?=xi?> = (sym3){
+<?	for jk,xjk in ipairs(symNames) do
+	local j,k = from6to3x3(jk)
+?>			a.<?=xi?>.<?=xjk?> * (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x)),
+<?	end
+?>		},
 <? end
 ?>	};
 }
-#define _3sym3_rescaleFromCoord_uuu _3sym3_rescaleToCoord_lll
+#define _3sym3_rescaleFromCoord_uuu _3sym3_rescaleToCoord_LLL
 
 sym3sym3 sym3sym3_rescaleFromCoord_lll(sym3sym3 a, real3 x) {
 	return (sym3sym3){
 <? for ij,xij in ipairs(symNames) do
-?>		.<?=xij?> = sym3_rescaleFromCoord_ll(a.<?=xij?>, x),
+	local i,j = from6to3x3(ij)
+?>		.<?=xij?> = (sym3){
+<?	for kl,xkl in ipairs(symNames) do
+	local k,l = from6to3x3(kl)
+?>			.<?=xkl?> = a.<?=xij?>.<?=xkl?> / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x) * coord_dx<?=l-1?>(x)),
+<?	end
+?>		},
 <? end
 ?>	};
 }
-#define sym3sym3_rescaleToCoord_uuuu sym3sym3_rescaleFromCoord_llll
+#define sym3sym3_rescaleToCoord_UUUU sym3sym3_rescaleFromCoord_llll
 
-sym3sym3 sym3sym3_rescaleToCoord_llll(sym3sym3 a, real3 x) {
+sym3sym3 sym3sym3_rescaleToCoord_LLLL(sym3sym3 a, real3 x) {
 	return (sym3sym3){
 <? for ij,xij in ipairs(symNames) do
-?>		.<?=xij?> = sym3_rescaleToCoord_ll(a.<?=xij?>, x),
+	local i,j = from6to3x3(ij)
+?>		.<?=xij?> = (sym3){
+<?	for kl,xkl in ipairs(symNames) do
+	local k,l = from6to3x3(kl)
+?>			.<?=xkl?> = a.<?=xij?>.<?=xkl?> * (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x) * coord_dx<?=l-1?>(x)),
+<?	end
+?>		},
 <? end
 ?>	};
 }
-#define sym3sym3_rescaleFromCoord_uuuu sym3sym3_rescaleToCoord_llll
+#define sym3sym3_rescaleFromCoord_uuuu sym3sym3_rescaleToCoord_LLLL
 
 #else	//debugging -- turning it off
 
 #define real3_rescaleFromCoord_l(a,x) a
-#define real3_rescaleToCoord_u(a,x) a
-#define real3_rescaleToCoord_l(a,x) a
+#define real3_rescaleToCoord_U(a,x) a
+#define real3_rescaleToCoord_L(a,x) a
 #define real3_rescaleFromCoord_u(a,x) a
 #define sym3_rescaleFromCoord_ll(a,x) a
-#define sym3_rescaleToCoord_uu(a,x) a
-#define sym3_rescaleToCoord_ll(a,x) a
+#define sym3_rescaleToCoord_UU(a,x) a
+#define sym3_rescaleToCoord_LL(a,x) a
 #define sym3_rescaleFromCoord_uu(a,x) a
 #define _3sym3_rescaleFromCoord_lll(a,x) a
-#define _3sym3_rescaleToCoord_uuu(a,x) a
-#define _3sym3_rescaleToCoord_lll(a,x) a
+#define _3sym3_rescaleToCoord_UUU(a,x) a
+#define _3sym3_rescaleToCoord_LLL(a,x) a
 #define _3sym3_rescaleFromCoord_uuu(a,x) a
 #define sym3sym3_rescaleFromCoord_lll(a,x) a
-#define sym3sym3_rescaleToCoord_uuuu(a,x) a
-#define sym3sym3_rescaleToCoord_llll(a,x) a
+#define sym3sym3_rescaleToCoord_UUUU(a,x) a
+#define sym3sym3_rescaleToCoord_LLLL(a,x) a
 #define sym3sym3_rescaleFromCoord_uuuu (a,x) a
 
 #endif
