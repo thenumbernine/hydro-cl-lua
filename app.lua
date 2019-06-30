@@ -727,8 +727,7 @@ end
 			then
 				useLog = var.useLog
 				local component = solver.displayComponentFlatList[var.component]
-				local vectorField = solver:isVarTypeAVectorField(component.type)
-
+				vectorField = solver:isVarTypeAVectorField(component.type)
 				local solverxmin, solverxmax = solver.mins[1], solver.maxs[1]
 				solverxmin, solverxmax = 1.1 * solverxmin - .1 * solverxmax, 1.1 * solverxmax - .1 * solverxmin
 				if solver.dim > 1 then
@@ -745,9 +744,8 @@ end
 					solverymin, solverymax = solver.mins[2], solver.maxs[2]
 					solverymin, solverymax = 1.1 * solverymin - .1 * solverymax, 1.1 * solverymax - .1 * solverymin
 				else
-					-- 
 					if vectorField then
-						solverymin, solverymax = solver:calcDisplayVarRange(var, solver.displayComponentReal3MagIndex)
+						solverymin, solverymax = solver:calcDisplayVarRange(var, component.magn)
 					else
 						solverymin, solverymax = solver:calcDisplayVarRange(var)
 					end

@@ -114,7 +114,7 @@ void main() {
 					local component = solver.displayComponentFlatList[var.component]
 					local vectorField = solver:isVarTypeAVectorField(var.type)
 					if vectorField then
-						valueMin, valueMax = solver:calcDisplayVarRange(var, solver.displayComponentReal3MagIndex)
+						valueMin, valueMax = solver:calcDisplayVarRange(var, component.magn)
 					else
 						valueMin, valueMax = solver:calcDisplayVarRange(var)
 					end

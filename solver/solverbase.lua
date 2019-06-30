@@ -614,11 +614,18 @@ function SolverBase:getDisplayCode()
 				)..' tex'
 			end,
 			output = function(var)
-				-- TODO no accum function support yet, because that involves reading from the tex as well
 				return template([[
-	write_imagef(tex, <? 
-if solver.dim == 3 then ?>i<? else ?>i.xy<? end 
-?>, (float4)(value[0], value[1], value[2], 0.));
+<? if accumFunc then ?>
+	float4 texel = read_imagef(tex, <?= solver.dim == 3 and 'i' or 'i.xy'?>);
+	texel.x = <?=accumFunc?>(texel.x, value[0]);
+	if (vectorField) {
+		texel.y = <?=accumFunc?>(texel.y, value[1]);
+		texel.z = <?=accumFunc?>(texel.z, value[2]);
+	}
+	write_imagef(tex, <?= solver.dim == 3 and 'i' or 'i.xy'?>, texel);
+<? else ?>
+	write_imagef(tex, <?= solver.dim == 3 and 'i' or 'i.xy'?>, (float4)(value[0], value[1], value[2], 0.));
+<? end ?>
 ]], 			{
 					solver = self,
 					accumFunc = self.displayVarAccumFunc and 'max' or nil,
@@ -630,10 +637,6 @@ if solver.dim == 3 then ?>i<? else ?>i.xy<? end
 				return 'global real* dest' 
 			end,
 			output = function(var)
-				-- TODO how about this?
-				-- if we change what component to display then we have to switch what output to provide
-				-- we could get around this by always writing 3 values (even for scalars), but then how do we run a reduce on it? (custom operators for real3s)
-				-- we could also have a flag in CL for the vector type, initialized by var type==real3, and changed by the component picker
 				return template([[
 if (vectorField) {	
 	dest[0+3*dstindex] = <? if accumFunc then ?><?=accumFunc?>(value[0], dest[0+3*dstindex])?><? else ?>value[0]<? end ?>;
@@ -688,8 +691,8 @@ end
 --[=[
 -- ok here's another idea for saving lines of code
 -- add some predefined functions for getters for real, real3, sym3, cplx, cplx3
--- and - if your variable is just a member of a struct of one of these types, use that.
--- (this means adding in an extra param for display: the offset)
+-- and, if your variable is just a member of a struct of one of these types, use that.
+-- (this means adding in extra params for display: the offset and the struct size)
 	
 	for _,ctype in ipairs{'real', 'real3', 'sym3', 'cplx', 'cplx3'} do
 		for _, texVsBuf in ipairs{'Tex', 'Buffer'} do	
@@ -1136,8 +1139,8 @@ function SolverBase:createDisplayComponents()
 		{name = 'default'},
 	})
 	self:addDisplayComponents('real3', {
-		{name = 'default', type = 'real3'},
-		{name = 'mag', code = '*value_real3 = _real3(real3_len(*value_real3),0,0);', magn='mag'},
+		{name = 'default', type = 'real3', magn='mag'},
+		{name = 'mag', code = '*value_real3 = _real3(real3_len(*value_real3),0,0);'},
 		{name = 'x', code = '*value_real3 = _real3(value_real3->x,0,0);'},
 		{name = 'y', code = '*value_real3 = _real3(value_real3->y,0,0);'},
 		{name = 'z', code = '*value_real3 = _real3(value_real3->z,0,0);'},
@@ -1160,7 +1163,7 @@ function SolverBase:createDisplayComponents()
 		{name = 'z mag', code = '*value_sym3 = _sym3(real3_len(sym3_z(*value_sym3)), 0,0,0,0,0);'},
 	})
 	self:addDisplayComponents('cplx', {
-		{name = 'default', vectype='cplx', magn='abs'},
+		{name = 'default', type='cplx', magn='abs'},
 		{name = 're', code = '*value_cplx = cplx_from_real(value_cplx->re);'},
 		{name = 'im', code = '*value_cplx = cplx_from_real(value_cplx->im);'},
 		{name = 'abs', code = '*value_cplx = cplx_from_real(cplx_abs(*value_cplx));'},
@@ -1211,12 +1214,23 @@ function SolverBase:finalizeDisplayComponents()
 	-- build a 1-based enum of all components
 	self.displayComponentFlatList = table()
 	self.displayComponentNames = table()
-	for basetype,vars in pairs(self.displayComponents) do
-		for _,var in ipairs(vars) do
-			self.displayComponentFlatList:insert(var)
+	for basetype,components in pairs(self.displayComponents) do
+		for _,component in ipairs(components) do
+			self.displayComponentFlatList:insert(component)
 			-- TODO one name per gruop and only show that list to the dropdown
-			self.displayComponentNames:insert(basetype..' '..var.name)
-			var.globalIndex = #self.displayComponentFlatList
+			self.displayComponentNames:insert(basetype..' '..component.name)
+			component.globalIndex = #self.displayComponentFlatList
+		end
+	end
+	-- now find the magnitude components
+	for basetype,components in pairs(self.displayComponents) do
+		for _,component in ipairs(components) do
+			assert(self:isVarTypeAVectorField(component.type) == (not not component.magn), "expected all vector field variables to have an associated magnitude variable.  missed "..basetype..' '..component.name)
+			if component.magn then
+				local _, magvar = components:find(nil, function(component2) return component2.name == component.magn end)
+				assert(magvar, "couldn't find magn component "..component.magn)
+				component.magn = magvar.globalIndex
+			end	
 		end
 	end
 end

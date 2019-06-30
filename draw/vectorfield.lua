@@ -19,10 +19,10 @@ local function applyToSolver(Solver)
 				valueMin = var.heatMapValueMin
 				valueMax = var.heatMapValueMax
 			else
-				local component = solver.displayComponentFlatList[var.component]
-				local vectorField = solver:isVarTypeAVectorField(component.vartype)
+				local component = self.displayComponentFlatList[var.component]
+				local vectorField = self:isVarTypeAVectorField(component.type)
 				if vectorField then
-					valueMin, valueMax = self:calcDisplayVarRange(var, self.displayComponentReal3MagIndex)
+					valueMin, valueMax = self:calcDisplayVarRange(var, component.magn)
 				else
 					valueMin, valueMax = self:calcDisplayVarRange(var)
 				end
