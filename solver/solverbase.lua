@@ -597,6 +597,7 @@ function SolverBase:getSolverCode()
 end
 
 local function shouldDeferCode(code)
+	do return false end
 	return #string.split(string.trim(code), '\n') > 3
 end
 
@@ -629,18 +630,18 @@ if solver.dim == 3 then ?>i<? else ?>i.xy<? end
 				return 'global real* dest' 
 			end,
 			output = function(var)
-				return var.vectorField and [[
-	dest[0+3*dstindex] = value[0];
-	dest[1+3*dstindex] = value[1];
-	dest[2+3*dstindex] = value[2];
-]] or template([[
-	dest[dstindex] = <?
-if accumFunc then
-	?><?=accumFunc?>(value[0], dest[dstindex])<?
-else
-	?>value[0]<?
-end
-?>;
+				-- TODO how about this?
+				-- if we change what component to display then we have to switch what output to provide
+				-- we could get around this by always writing 3 values (even for scalars), but then how do we run a reduce on it? (custom operators for real3s)
+				-- we could also have a flag in CL for the vector type, initialized by var type==real3, and changed by the component picker
+				return template([[
+if (vectorField) {	
+	dest[0+3*dstindex] = <? if accumFunc then ?><?=accumFunc?>(value[0], dest[0+3*dstindex])?><? else ?>value[0]<? end ?>;
+	dest[1+3*dstindex] = <? if accumFunc then ?><?=accumFunc?>(value[1], dest[1+3*dstindex])?><? else ?>value[1]<? end ?>;
+	dest[2+3*dstindex] = <? if accumFunc then ?><?=accumFunc?>(value[2], dest[2+3*dstindex])?><? else ?>value[2]<? end ?>;
+} else {
+	dest[dstindex] = <? if accumFunc then ?><?=accumFunc?>(value[0], dest[dstindex])<? else ?>value[0]<? end ?>;
+}
 ]], 			{
 					accumFunc = self.displayVarAccumFunc and 'max' or nil,
 				})
@@ -649,6 +650,40 @@ end
 	}
 	
 	local lines = table()
+
+	local alreadyAddedComponentForGroup = {}
+	local function addPickComponetForGroup(var)
+		local name = 'pickComponent'
+		if var then
+			assert(var.group, "no group for var "..var.name)
+			if alreadyAddedComponentForGroup[var.group.name] then return end
+			alreadyAddedComponentForGroup[var.group.name] = true
+			name = name..'_'..var.group.name
+		end
+		lines:insert((template([[
+#define <?=name?>(component)
+	switch (component) {
+<? 
+for i,component in ipairs(solver.displayComponentFlatList) do
+	if not component.onlyFor 
+	or (var and var.group.name == component.onlyFor)
+	then
+?>	case <?=i?>:
+		{
+<?=component.code?>
+	vectorField = <?= solver:isVarTypeAVectorField(component.type) and '1' or '0' ?>;
+			break;
+		}
+<? 
+	end
+end
+?>	}
+]], 	{
+			name = name,
+			solver = self,
+		}):gsub('\n', '\\\n')..'\n'))
+	end
+	addPickComponetForGroup()
 
 --[=[
 -- ok here's another idea for saving lines of code
@@ -682,27 +717,16 @@ end
 
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
 		for _,var in ipairs(displayVarGroup.vars) do
---[[ thinking on how to reduce the display code
---	one solution: create predefined display var code for simple types
---	TODO don't forget to include _mag, and all the other derived values in getDisplayInfosForType()
-			if var.field then
-				-- TODO change var.type to var.bufferType
-				-- and var.vartype to var.type
-				buildSimpleGetters(var.type)
-			end
---]]			
 			lines:insert('//'..var.name..'\n')
 
-			if var.prefixFuncCode then
-				lines:insert(var.prefixFuncCode)
-			end
+			addPickComponetForGroup(var)
 
 			if shouldDeferCode(var.code) then
 				local clFuncName = self.app:uniqueName'calcDisplayVar'
 				lines:insert(template([[
 void <?=clFuncName?>(
 	constant <?=solver.solver_t?>* solver,
-	const global <?= var.type ?>* buf,
+	const global <?= var.bufferType ?>* buf,
 	int4 i,
 	int index, 
 	int4 dsti,
@@ -964,6 +988,12 @@ return ]]..units), "failed to compile unit expression "..units)(m, s, kg, C, K)
 	return code
 end
 
+
+-------------------------------------------------------------------------------
+--                                 display vars                              --
+-------------------------------------------------------------------------------
+
+
 local DisplayVarGroup = class()
 
 function DisplayVarGroup:init(args)
@@ -977,9 +1007,13 @@ local DisplayVar = class()
 -- this is the default DisplayVar
 SolverBase.DisplayVar = DisplayVar
 
-DisplayVar.type = 'real'	-- default
+DisplayVar.bufferType = 'real'
 
 --[[
+component is going to be one of several pathways to modify the data
+I'm doing this in hopes to reduce the number of display kernels
+The downside is that I now need to consider all permutations up front, rather than recursively create display kernels
+
 TODO buf (dest) shouldn't have ghost cells
 and dstIndex should be based on the size without ghost cells
 
@@ -990,7 +1024,8 @@ DisplayVar.displayCode = [[
 kernel void <?=name?>(
 	constant <?=solver.solver_t?>* solver,
 	<?=input?>,
-	const global <?= var.type ?>* buf<?
+	const global <?= var.bufferType ?>* buf,
+	int component<?
 if require 'solver.meshsolver'.is(solver) then ?>
 	,const global cell_t* cells			//[numCells]
 	,const global iface_t* ifaces		//[numInterfaces]<?
@@ -1012,7 +1047,9 @@ end ?><?= var.extraArgs and #var.extraArgs > 0
 	real3 x = cells[index].x;
 <? end 		-- mesh vs grid 
 ?>	real value[6] = {0,0,0,0,0,0};	<? -- size of largest struct.  TODO how about a union? ?>
-	<?=var.code?>
+	int vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
+<?=var.code?>
+	pickComponent(component);
 <?=output
 ?>}
 ]]
@@ -1021,13 +1058,21 @@ function DisplayVar:init(args)
 	self.code = assert(args.code)
 	self.name = assert(args.name)
 	self.solver = assert(args.solver)
-	self.type = args.type	-- or self.type
+	self.bufferType = args.bufferType	-- or self.bufferType
 	self.displayCode = args.displayCode 	-- or self.displayCode
 	self.codePrefix = args.codePrefix
 	
 	-- used in rescaling after calcDisplayVar, and in displaying.  toggled by a flag
 	self.units = args.units
 	self.showInUnits = true	-- set to false to display raw values, true to display in units.
+
+	self.group = args.group
+
+	self.type = assert(args.type)
+
+	self.component = assert((self.solver.displayComponentFlatList:find(nil, function(component)
+		return component.base == self.type
+	end)), "failed to find component for base type "..self.type)
 
 	-- display stuff
 	self.enabled = not not args.enabled
@@ -1036,9 +1081,6 @@ function DisplayVar:init(args)
 	self.heatMapFixedRange = false	-- args.name ~= 'error'
 	self.heatMapValueMin = 0
 	self.heatMapValueMax = 1
-
-	-- is it a vector or a scalar?
-	self.vectorField = args.vectorField
 
 	-- maybe this should be in args too?
 	-- or - instead of buffer - how about all the kernel's args?
@@ -1054,19 +1096,139 @@ function DisplayVar:init(args)
 	self.extraArgs = args.extraArgs
 end
 
+local intptr = ffi.new('int[1]', 0)
+local function int(x)
+	intptr[0] = x
+	return intptr
+end
 function DisplayVar:setArgs(kernel)
 	local buffer = assert(self.getBuffer(), "failed to find buffer for var "..tostring(self.name))
 	kernel:setArg(0, self.solver.solverBuf)
 	kernel:setArg(2, buffer)
+	kernel:setArg(3, int(self.component))
 end
 
 function DisplayVar:setToTexArgs()
 	self:setArgs(self.calcDisplayVarToTexKernelObj.obj)
 end
 
-function DisplayVar:setToBufferArgs(var)
+function DisplayVar:setToBufferArgs()
 	self:setArgs(self.calcDisplayVarToBufferKernelObj.obj)
 end
+
+
+
+--[[
+properties:
+	base = base type of the variable.
+		if var.type == component.base then this component applies to them
+		(the old table was nested: info[base] = {...}, maybe I should still do that?
+	name = componet name
+	code = component code.  nil means empty string.
+	type = result type of the component.  nil means real.  only other option is 'real3' or 'cplx' for vector-field display.
+	magn = optional, for type=='real3' or type=='cplx', this is the name of the associated variable that gives the vector magnitude.
+
+	onlyFor = the component is only applied to the specified display group.  hack fo bssnok solver.
+--]]
+function SolverBase:createDisplayComponents()
+	self.displayComponents = table()
+	self:addDisplayComponents('real', {
+		{name = 'default'},
+	})
+	self:addDisplayComponents('real3', {
+		{name = 'default', type = 'real3'},
+		{name = 'mag', code = '*value_real3 = _real3(real3_len(*value_real3),0,0);', magn='mag'},
+		{name = 'x', code = '*value_real3 = _real3(value_real3->x,0,0);'},
+		{name = 'y', code = '*value_real3 = _real3(value_real3->y,0,0);'},
+		{name = 'z', code = '*value_real3 = _real3(value_real3->z,0,0);'},
+	})
+	self:addDisplayComponents('sym3', {
+		{name = 'xx', code = '*value_sym3 = _sym3(value_sym3->xx,0,0,0,0,0);'},
+		{name = 'xy', code = '*value_sym3 = _sym3(value_sym3->xy,0,0,0,0,0);'},
+		{name = 'xz', code = '*value_sym3 = _sym3(value_sym3->xz,0,0,0,0,0);'},
+		{name = 'yy', code = '*value_sym3 = _sym3(value_sym3->yy,0,0,0,0,0);'},
+		{name = 'yz', code = '*value_sym3 = _sym3(value_sym3->yz,0,0,0,0,0);'},
+		{name = 'zz', code = '*value_sym3 = _sym3(value_sym3->zz,0,0,0,0,0);'},
+		{name = 'norm', code = '*value_sym3 = _sym3(sqrt(sym3_dot(*value_sym3, *value_sym3)), 0,0,0,0,0);'},
+		{name = 'tr', code = '*value_sym3 = _sym3(sym3_trace(*value_sym3), 0,0,0,0,0);'},
+		
+		{name = 'x', code = '*value_real3 = _real3(value_sym3->xx, value_sym3->xy, value_sym3->xz); value_real3[1] = real3_zero;', type = 'real3', magn='x mag'},
+		{name = 'y', code = '*value_real3 = _real3(value_sym3->xy, value_sym3->yy, value_sym3->yz); value_real3[1] = real3_zero;', type = 'real3', magn='y mag'},
+		{name = 'z', code = '*value_real3 = _real3(value_sym3->xz, value_sym3->yz, value_sym3->zz); value_real3[1] = real3_zero;', type = 'real3', magn='z mag'},
+		{name = 'x mag', code = '*value_sym3 = _sym3(real3_len(sym3_x(*value_sym3)), 0,0,0,0,0);'},
+		{name = 'y mag', code = '*value_sym3 = _sym3(real3_len(sym3_y(*value_sym3)), 0,0,0,0,0);'},
+		{name = 'z mag', code = '*value_sym3 = _sym3(real3_len(sym3_z(*value_sym3)), 0,0,0,0,0);'},
+	})
+	self:addDisplayComponents('cplx', {
+		{name = 'default', vectype='cplx', magn='abs'},
+		{name = 're', code = '*value_cplx = cplx_from_real(value_cplx->re);'},
+		{name = 'im', code = '*value_cplx = cplx_from_real(value_cplx->im);'},
+		{name = 'abs', code = '*value_cplx = cplx_from_real(cplx_abs(*value_cplx));'},
+		{name = 'arg', code = '*value_cplx = cplx_from_real(cplx_arg(*value_cplx));'},
+	})
+	self:addDisplayComponents('cplx3', {
+		{name = 'mag', code = '*value_cplx3 = _cplx3(cplx_from_real(cplx3_len(*value_cplx3)), cplx_zero, cplx_zero);'},
+		
+		{name = 'x', code='*value_cplx3 = _cplx3(value_cplx3->x, cplx_zero, cplx_zero);', type='cplx', magn='x abs'},
+		{name = 'x abs', code = '*value_cplx3 = _cplx3(cplx_from_real(cplx_abs(value_cplx3->x)), cplx_zero, cplx_zero);'},
+	
+		{name = 'y', code='*value_cplx3 = _cplx3(value_cplx3->y, cplx_zero, cplx_zero);', type='cplx', magn='y abs'},
+		{name = 'y abs', code = '*value_cplx3 = _cplx3(cplx_from_real(cplx_abs(value_cplx3->y)), cplx_zero, cplx_zero);'},
+		
+		{name = 'z', code='*value_cplx3 = _cplx3(value_cplx3->z, cplx_zero, cplx_zero);', type='cplx', magn='z abs'},
+		{name = 'z abs', code = '*value_cplx3 = _cplx3(cplx_from_real(cplx_abs(value_cplx3->z)), cplx_zero, cplx_zero);'},
+		
+		{name = 'x arg', code = '*value_cplx3 = _cplx3(cplx_from_real(cplx_arg(value_cplx3->x)), cplx_zero, cplx_zero);'},
+		{name = 'y arg', code = '*value_cplx3 = _cplx3(cplx_from_real(cplx_arg(value_cplx3->y)), cplx_zero, cplx_zero);'},
+		{name = 'z arg', code = '*value_cplx3 = _cplx3(cplx_from_real(cplx_arg(value_cplx3->z)), cplx_zero, cplx_zero);'},
+		{name = 'x re', code = '*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->x.re), cplx_zero, cplx_zero);'},
+		{name = 'x im', code = '*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->x.im), cplx_zero, cplx_zero);'},
+		{name = 'y re', code = '*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->y.re), cplx_zero, cplx_zero);'},
+		{name = 'y im', code = '*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->y.im), cplx_zero, cplx_zero);'},
+		{name = 'z re', code = '*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->z.re), cplx_zero, cplx_zero);'},
+		{name = 'z im', code = '*value_cplx3 = _cplx3(cplx_from_real(value_cplx3->z.im), cplx_zero, cplx_zero);'},
+		
+		{name = 're', code = '*value_real3 = cplx3_re(*value_cplx3); *(real3*)(value+3) = real3_zero;', type = 'real3', magn='re mag'},
+		{name = 're mag', code = '*value_cplx3 = _cplx3(cplx_from_real(real3_len(cplx3_re(*value_cplx3))), cplx_zero, cplx_zero);'},
+		{name = 'im', code = '*value_real3 = cplx3_im(*value_cplx3); *(real3*)(value+3) = real3_zero;', type = 'real3', magn='im mag'},
+		{name = 'im mag', code = '*value_cplx3 = _cplx3(cplx_from_real(real3_len(cplx3_im(*value_cplx3))), cplx_zero, cplx_zero);'},
+	})
+end
+function SolverBase:addDisplayComponents(basetype, components)
+	for _,component in ipairs(components) do
+		self:addDisplayComponent(basetype, component)
+	end
+end
+function SolverBase:addDisplayComponent(basetype, component)
+	if not self.displayComponents[basetype] then self.displayComponents[basetype] = table() end
+	-- add defaults
+	component.base = basetype
+	component.code = component.code or ''
+	component.type = component.type or 'real'
+	self.displayComponents[basetype]:insert(component)
+end
+function SolverBase:finalizeDisplayComponents()
+	-- build a 1-based enum of all components
+	self.displayComponentFlatList = table()
+	self.displayComponentNames = table()
+	for basetype,vars in pairs(self.displayComponents) do
+		for _,var in ipairs(vars) do
+			self.displayComponentFlatList:insert(var)
+			-- TODO one name per gruop and only show that list to the dropdown
+			self.displayComponentNames:insert(basetype..' '..var.name)
+			var.globalIndex = #self.displayComponentFlatList
+		end
+	end
+end
+
+function SolverBase:isVarTypeAVectorField(vartype)
+	return vartype == 'real3' or vartype == 'cplx'
+	-- sym3 and cplx3 are too complex to merely be vector fields.
+	--  maybe I'll add another display for them later.
+end
+
+
+
 
 
 function SolverBase:newDisplayVarGroup(args)
@@ -1079,8 +1241,8 @@ end
 -- still used by gr-hd-separate to add 'extraArgs'
 function SolverBase:getUBufDisplayVarsArgs()
 	return {
-		type = self.eqn.cons_t,
 		codePrefix = self.eqn:getDisplayVarCodePrefix(),
+		bufferType = self.eqn.cons_t,
 		bufferField = 'UBuf',
 	}
 end
@@ -1090,73 +1252,10 @@ function SolverBase:addUBufDisplayVars()
 	
 	local args = self:getUBufDisplayVarsArgs()
 	args.group = group
-	
-	-- TODO rename to 'getDisplayVarDescs()'
-	-- gets var descriptions, which is {name=code, [type=type]}
 	args.vars = self.eqn:getDisplayVars()
 	
 	self:addDisplayVarGroup(args, self.DisplayVar_U)
 end
-
-function SolverBase:getDisplayInfosForType()
-	return {
-		cplx = {
-			{name = ' re', code = '\t*value_cplx = cplx_from_real(value_cplx->re);'},
-			{name = ' im', code = '\t*value_cplx = cplx_from_real(value_cplx->im);'},
-			{name = ' abs', code = '\t*value_cplx = cplx_from_real(cplx_abs(*value_cplx));'},
-			{name = ' arg', code = '\t*value_cplx = cplx_from_real(cplx_arg(*value_cplx));'},
-		},
-		
-		real3 = {
-			{name = ' x', code = '\t*value_real3 = _real3(value_real3->x,0,0);'},
-			{name = ' y', code = '\t*value_real3 = _real3(value_real3->y,0,0);'},
-			{name = ' z', code = '\t*value_real3 = _real3(value_real3->z,0,0);'},
-			{name = ' mag', code = '\t*value_real3 = _real3(real3_len(*value_real3),0,0);', magn=true},
-		},
-
-
-		cplx3 = {
-			{name = ' mag', code = '\t*value_cplx3 = _cplx3(cplx_from_real(cplx3_len(*value_cplx3)), cplx_zero, cplx_zero);', magn=true},
-			
-			-- TODO these two are crashing
-			{name = ' re', code = '\t*value_real3 = cplx3_re(*value_cplx3); *(real3*)(value+3) = real3_zero;', vartype='real3'},
-			{name = ' im', code = '\t*value_real3 = cplx3_im(*value_cplx3); *(real3*)(value+3) = real3_zero;', vartype='real3'},
-			
-			-- re and im will include re len, im len, re xyz, im xyz
-			-- but will skip the x,y,z cplx abs and arg:
-			{name = ' x abs', code = '\t*value_cplx3 = _cplx3(cplx_from_real(cplx_abs(value_cplx3->x)), cplx_zero, cplx_zero);'},
-			{name = ' y abs', code = '\t*value_cplx3 = _cplx3(cplx_from_real(cplx_abs(value_cplx3->y)), cplx_zero, cplx_zero);'},
-			{name = ' z abs', code = '\t*value_cplx3 = _cplx3(cplx_from_real(cplx_abs(value_cplx3->z)), cplx_zero, cplx_zero);'},
-			{name = ' x arg', code = '\t*value_cplx3 = _cplx3(cplx_from_real(cplx_arg(value_cplx3->x)), cplx_zero, cplx_zero);'},
-			{name = ' y arg', code = '\t*value_cplx3 = _cplx3(cplx_from_real(cplx_arg(value_cplx3->y)), cplx_zero, cplx_zero);'},
-			{name = ' z arg', code = '\t*value_cplx3 = _cplx3(cplx_from_real(cplx_arg(value_cplx3->z)), cplx_zero, cplx_zero);'},
-		},
-		
-		-- hmm, value_real3 has to be bigger for this to work
-		-- but does that mean I have to store 6 components in value_real3?
-		-- I suppose it does if I want a sym3-specific visualization
-		sym3 = {
-			-- TODO somehow -- don't add yx zx zy when you're adding the subtypes
-			{name = ' x', code = '\t*value_real3 = sym3_x(*value_sym3); *(real3*)(value+3) = real3_zero;', vartype='real3'},
-			{name = ' y', code = '\t*value_real3 = sym3_y(*value_sym3); *(real3*)(value+3) = real3_zero;', vartype='real3'},
-			{name = ' z', code = '\t*value_real3 = sym3_z(*value_sym3); *(real3*)(value+3) = real3_zero;', vartype='real3'},
-	
-			--[[ these are already added through real3 x_i real x_j
-			{name = ' xx', code = '\t*value_sym3 = _sym3(value_sym3->xx, 0,0,0,0,0);'},
-			{name = ' xy', code = '\t*value_sym3 = _sym3(value_sym3->xy, 0,0,0,0,0);'},
-			{name = ' xz', code = '\t*value_sym3 = _sym3(value_sym3->xz, 0,0,0,0,0);'},
-			{name = ' yy', code = '\t*value_sym3 = _sym3(value_sym3->yy, 0,0,0,0,0);'},
-			{name = ' yz', code = '\t*value_sym3 = _sym3(value_sym3->yz, 0,0,0,0,0);'},
-			{name = ' zz', code = '\t*value_sym3 = _sym3(value_sym3->zz, 0,0,0,0,0);'},
-			--]]
-
-			{name = ' norm', code = '\t*value_sym3 = _sym3( sqrt(sym3_dot(*value_sym3, *value_sym3)), 0,0,0,0,0);'},
-			{name = ' tr', code = '\t*value_sym3 = _sym3( sym3_trace(*value_sym3), 0,0,0,0,0);'},
-		}
-	}
-end
-
-
 
 function SolverBase:addDisplayVarGroup(args, cl)
 	cl = cl or self.DisplayVar
@@ -1166,195 +1265,65 @@ function SolverBase:addDisplayVarGroup(args, cl)
 	end
 
 	local group = args.group
-	local varInfos = args.vars
 
 	local enableScalar = true
 	local enableVector = true
 enableVector = false
 
-	for i,varInfo in ipairs(varInfos) do
+	for i,var in ipairs(args.vars) do
 
-		local units = varInfo.units
-		varInfo = table(varInfo)
-		varInfo.units = nil
+		local units = var.units
+		var = table(var)
+		var.units = nil
 	
-		local name = assert(varInfo.name, "expected to find name in "..require'ext.tolua'(varInfo))
-		local code = assert(varInfo.code, "expected to find code")
-		local vartype = varInfo.type
+		local name = assert(var.name, "expected to find name in "..require'ext.tolua'(var))
+		local code = assert(var.code, "expected to find code")
 
-		-- this is a quick fix for the magn vars associated with the axis real3 vars of the sym3s
-		-- but it has lots of redundant symmetries for the sym3 real3 elements
-		local function addvar(args)
-			local vartype = args.vartype
-
-			-- add units suffix
-			-- don't add it to args.name in case subvars are created
-			local varname = args.name
-			if args.units then
-				varname = varname .. ' ('..args.units:gsub('%*', ' ')..')'
-			end
-
-			-- enable the first scalar field
-			-- also enable the first vector field on non-1D simulations
-			local enabled
-			
-			-- TODO how about saving somewhere what should be enabled by default?
-			-- TODO pick predefined somewhere?
-			if self.eqn.predefinedDisplayVars then
-				enabled = not not table.find(self.eqn.predefinedDisplayVars, varname)
-			else
-				if group.name == 'U'
-				or (group.name:sub(1,5) == 'error' and self.dim == 1)
-				then
-					if vartype ~= 'real3' then
-						enabled = enableScalar
-					
-						if self.dim ~= 1 then
-							enableScalar = nil
-						end
-					else
-						if self.dim ~= 1 then
-							enabled = enableVector
-							enableVector = nil
-						end
-					end
-				end
-			end
-
-
-			--[=[
-			--[[
-			if the var has units associated with it then create a new copy that includes the units conversion
-			only do this for real types, so the non-real types can generate per-component subtypes
-			
-			TODO this is creating too many display variables. 
-			how about a flag for units vs raw - and have it do like the 'log' checkbox ... which has to be built into each shader and also wrapped around the Lua code in the grid display
-			it would be ugly, but it would cut down on the # of display variables
-			--]]
-			if args.units and vartype == 'real' then
-				local units = args.units
-				local unitsArgs = table(args)
-				unitsArgs.units = nil
-				
-				-- TODO don't do the non- and unit-based display here.  instead do it wherever display vars are created.
-				local suffix = ' ('..units:gsub('%*', ' ')..')'
-				local unitcode = self:convertToSIUnitsCode(units)
-				
-				local assignvar = 'value_'..vartype..'[0]'
-				unitsArgs.code = unitsArgs.code .. '\n\t'
-					..assignvar..' = '..vartype..'_real_mul('..assignvar..', '..unitcode..');\n'
-
-				addvar(unitsArgs)
-			end
-			--]=]
-			
-			local ctorArgs = table(args)
-			ctorArgs.name = varname
-			ctorArgs.vectorField = vartype == 'real3'
-			ctorArgs.enabled = enabled
-			ctorArgs.units = args.units	-- units are only used for displaying, but all storage is unitless
-			local var = cl(ctorArgs)
-			group.vars:insert(var)
-
-			-- TODO put in DisplayVar ctor?
-			var.prefixFuncCode = args.prefixFuncCode
-			var.prefixFuncName = args.prefixFuncName
-
-			--[[
-			TODO instead of just duplicating the code,
-			insert a function for the calculation and have the subsequent vars reference that function
-			--]]
-			local infosForType = self:getDisplayInfosForType()
-
-			local infos = infosForType[vartype]
-			if infos then
-				if shouldDeferCode(var.code) then
-					-- var gets the prefix func appended to it
-					-- TODO do we need to save this?
-					local prefixFuncName = self.app:uniqueName'calcDisplayVarPrefixFunc'
-					var.prefixFuncCode = 
-						-- save previous prefix functions
-						(var.prefixFuncCode and var.prefixFuncCode..'\n' or '')
-						-- add our new one
-						..template([[
-void <?=prefixFuncName?>(
-	constant <?=solver.solver_t?>* solver,
-	const global <?= var.type ?>* buf,
-	int4 i,
-	int index, 
-	int4 dsti,
-	int dstindex,
-	real3 x,
-	real* value<?=
-	var.extraArgs and #var.extraArgs > 0
-		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
-		or ''
-?>
-) {
-	real* value_real = value;
-	sym3* value_sym3 = (sym3*)value;
-	cplx* value_cplx = (cplx*)value;
-	real3* value_real3 = (real3*)value;
-	cplx3* value_cplx3 = (cplx3*)value;
-	<?=var.codePrefix or ''?>
-	<?=args.code?>
-}
-]], 				{
-						solver = self,
-						var = var,
-						args = args,
-						prefixFuncName = prefixFuncName,
-					})
-
-
-					-- hmm, replace the var's code
-					-- should I even be using 'args' past the point of var creation?
-					local code = template([[
-	<?=prefixFuncName?>(solver, buf, i, index, dsti, dstindex, x, value<?=
-		var.extraArgNames 
-		and #var.extraArgNames > 0 
-		and ', '..var.extraArgNames:concat', '
-		or ''
-	?>);]], 		{
-						var = var,
-						args = args,
-						prefixFuncName = prefixFuncName,
-					})	
-					var.code = code
-					args.code = code
-				end
-
-				for _,info in ipairs(infos) do
-					local subVarArgs = table(args)
-					subVarArgs.name = args.name .. info.name
-					subVarArgs.code = args.code .. info.code
-					subVarArgs.vartype = info.vartype or 'real'
-					subVarArgs.magn = info.magn or false
-					subVarArgs.vectorField = info.vartype == 'real3'
-					subVarArgs.enabled = group.name == 'U' and self.dim == 1 and info.vartype ~= 'real3'
-					
-					local subVar = addvar(subVarArgs)
-				
-					-- tie together vectors and magnitudes,
-					-- since reduceMin and Max applied to vectors is gonna reduce their magnitude
-					-- so I need to always compile the magnitude kernels, even if they are not enabled
-					if info.magn then
-						var.magVar = subVar
-						subVar.vecVar = var
-					end
-				end
-			end
-		
-			return var
-		end
-	
-		addvar(table(args, {
+		args = table(args, {
 			solver = self,
 			name = group.name .. ' ' .. name,
 			code = code,
-			vartype = vartype or 'real',
-			units = units
-		}))
+			units = units,
+			group = group,
+			type = var.type or 'real',
+		})
+
+		-- add units suffix
+		-- don't add it to args.name in case subvars are created
+		if args.units then
+			args.name = args.name .. ' ('..args.units:gsub('%*', ' ')..')'
+		end
+
+		-- enable the first scalar field
+		-- also enable the first vector field on non-1D simulations
+		local enabled
+		
+		-- TODO how about saving somewhere what should be enabled by default?
+		-- TODO pick predefined somewhere?
+		if self.eqn.predefinedDisplayVars then
+			enabled = not not table.find(self.eqn.predefinedDisplayVars, args.name)
+		else
+			if group.name == 'U'
+			or (group.name:sub(1,5) == 'error' and self.dim == 1)
+			then
+				if not self:isVarTypeAVectorField(args.type) then
+					enabled = enableScalar
+				
+					if self.dim ~= 1 then
+						enableScalar = nil
+					end
+				else
+					if self.dim ~= 1 then
+						enabled = enableVector
+						enableVector = nil
+					end
+				end
+			end
+		end
+		
+		args.enabled = enabled
+		local varForGroup = cl(args)
+		group.vars:insert(varForGroup)
 	end
 
 	return args.group
@@ -1398,6 +1367,11 @@ end
 
 -- depends on self.eqn
 function SolverBase:createDisplayVars()
+	-- create component map for each display var
+	-- 'component' should be 'varproperty' or something else
+	self:createDisplayComponents()
+	self:finalizeDisplayComponents()
+
 	self.displayVarGroups = table()
 	self:addDisplayVars()		
 	self.displayVars = table()
@@ -1413,16 +1387,16 @@ end
 
 -- used by the display code to dynamically adjust ranges
 -- this returns raw values, not scaled by units
-function SolverBase:calcDisplayVarRange(var)
-	assert(not self.vectorField, "can't calculate variable range on a vector field")
+function SolverBase:calcDisplayVarRange(var, componentIndex)
+	componentIndex = componentIndex or var.component
 	if var.lastTime == self.t then
 		return var.lastMin, var.lastMax
 	end
 	var.lastTime = self.t
 	
-	var:setToBufferArgs()
+	var:setToBufferArgs(componentIndex)
 
-	local channels = var.vectorField and 3 or 1
+	local channels = 1
 	-- this size stuff is very GridSolver-based
 	local volume = self.numCells
 	local sizevec = var.getBuffer().sizevec
@@ -1430,7 +1404,7 @@ function SolverBase:calcDisplayVarRange(var)
 		volume = tonumber(sizevec:volume())
 	end
 	
-	self:calcDisplayVarToBuffer(var)
+	self:calcDisplayVarToBuffer(var, componentIndex)
 
 -- why (when sizevec is explicitly set) does cpu reduce work, but gpu reduce not work?
 --[[
@@ -1460,7 +1434,7 @@ else
 
 	-- this fails with 1D for channels == 3, for vectors (but works for 2D etc)
 	local min = self.reduceMin(nil, volume*channels)
-	self:calcDisplayVarToBuffer(var)
+	self:calcDisplayVarToBuffer(var, componentIndex)
 	local max = self.reduceMax(nil, volume*channels)
 
 --print('reduce min',min,'max',max,'volume',volume,'name',var.name,'channels',channels)
@@ -1473,7 +1447,8 @@ end
 end
 
 -- used by the output to print out avg, min, max
-function SolverBase:calcDisplayVarRangeAndAvg(var)
+function SolverBase:calcDisplayVarRangeAndAvg(var, componentIndex)
+	componentIndex = componentIndex or var.component
 	if var.lastTime == self.t then
 		return var.lastMin, var.lastMax, var.lastAvg
 	end
@@ -1491,7 +1466,7 @@ function SolverBase:calcDisplayVarRangeAndAvg(var)
 		size = tonumber(sizevec:volume())
 	end
 	
-	self:calcDisplayVarToBuffer(var)
+	self:calcDisplayVarToBuffer(var, componentIndex)
 	local avg = self.reduceSum(nil, size) / tonumber(size)
 	var.lastAvg = avg
 	
@@ -1499,6 +1474,9 @@ function SolverBase:calcDisplayVarRangeAndAvg(var)
 end
 
 
+-------------------------------------------------------------------------------
+--                              gui                                          --
+-------------------------------------------------------------------------------
 
 
 
@@ -1603,8 +1581,11 @@ end
 
 
 -- this is abstracted because accumBuf might want to be used ...
-function SolverBase:calcDisplayVarToBuffer(var)
-	local channels = var.vectorField and 3 or 1
+function SolverBase:calcDisplayVarToBuffer(var, componentIndex)
+	componentIndex = componentIndex or var.component
+	local component = self.displayComponentFlatList[componentIndex]
+	local vectorField = self:isVarTypeAVectorField(component.type)
+	local channels = vectorField and 3 or 1
 	local app = self.app
 
 	-- duplicated in calcDisplayVarRange
@@ -1617,8 +1598,9 @@ function SolverBase:calcDisplayVarToBuffer(var)
 	if self.displayVarAccumFunc	then
 		app.cmds:enqueueCopyBuffer{src=self.accumBuf, dst=self.reduceBuf, size=ffi.sizeof(app.real) * volume * channels}
 	end
-var:setToBufferArgs()
-var.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
+	var:setToBufferArgs()
+	var.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
+	var.calcDisplayVarToBufferKernelObj.obj:setArg(3, int(componentIndex))
 	var.calcDisplayVarToBufferKernelObj()
 	if self.displayVarAccumFunc then
 		app.cmds:enqueueCopyBuffer{src=self.reduceBuf, dst=self.accumBuf, size=ffi.sizeof(app.real) * volume * channels}

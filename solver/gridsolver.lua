@@ -28,7 +28,8 @@ local sym = common.sym
 
 
 -- whether to cache the opencl binaries
-local useCache = true
+local useCache = cmdline.useCache
+if useCache == nil then useCache = true end
 
 local GridSolver = class(SolverBase)
 
@@ -1379,7 +1380,11 @@ function GridSolver:getHeatMap2DShader(var)
 	return self.heatMap2DShader
 end
 
-function GridSolver:calcDisplayVarToTex(var)
+function GridSolver:calcDisplayVarToTex(var, componentIndex)
+	componentIndex = componentIndex or var.component
+	local component = self.displayComponentFlatList[componentIndex]
+	local vectorField = self:isVarTypeAVectorField(component.type)
+
 	local app = self.app
 	local displayVarGroup = var.displayVarGroup
 	if app.useGLSharing then
@@ -1399,8 +1404,8 @@ function GridSolver:calcDisplayVarToTex(var)
 		local ptr = self.calcDisplayVarToTexPtr
 		local tex = self.tex
 
-		local channels = var.vectorField and 3 or 1
-		local format = var.vectorField and gl.GL_RGB or gl.GL_RED
+		local channels = vectorField and 3 or 1
+		local format = vectorField and gl.GL_RGB or gl.GL_RED
 
 		var:setToBufferArgs()
 	
@@ -1438,7 +1443,12 @@ end
 function GridSolver:updateGUIParams()	
 	if ig.igCollapsingHeader'parameters:' then
 		GridSolver.super.updateGUIParams(self)
-		
+	
+		ig.igText('grid size: '
+			..tonumber(self.sizeWithoutBorder.x)..', '
+			..tonumber(self.sizeWithoutBorder.y)..', '
+			..tonumber(self.sizeWithoutBorder.z))
+
 		for i=1,self.dim do
 			for _,minmax in ipairs(minmaxs) do
 				local k = xNames[i]..minmax
@@ -1454,9 +1464,12 @@ function GridSolver:updateGUIParams()
 		for i=1,self.dim do
 			for _,minmax in ipairs(minmaxs) do
 				local var = xNames[i]..minmax
+				--[[
 				if tooltip.comboTable(var, self.boundaryMethods, var, self.boundaryOptionNames) then
 					self:refreshBoundaryProgram()
 				end
+				--]]
+				ig.igText(var..': '..self.boundaryMethods[var].name)
 			end
 		end
 	end
@@ -1493,6 +1506,8 @@ do
 
 		anyChanged = anyChanged or tooltip.checkboxTable('fixed range', var, 'heatMapFixedRange')
 		ig.igSameLine()
+
+		tooltip.comboTable('component', var, 'component', self.displayComponentNames)
 		
 		if ig.igCollapsingHeader(var.name) then
 			local unitScale = 1
@@ -1516,9 +1531,9 @@ do
 
 	-- do one for 'all'
 	local op = require 'ext.op'
-	local fields = {'enabled', 'useLog', 'showInUnits', 'heatMapFixedRange', 'heatMapValueMin', 'heatMapValueMax'}
-	local defaults = {true, true, true, true, math.huge, -math.huge}
-	local combines = {op.land, op.land, op.land, op.land, math.min, math.max}
+	local fields = {'enabled', 'useLog', 'showInUnits', 'heatMapFixedRange', 'heatMapValueMin', 'heatMapValueMax', 'component'}
+	local defaults = {true, true, true, true, math.huge, -math.huge, 0}
+	local combines = {op.land, op.land, op.land, op.land, math.min, math.max, math.min}
 	local all = {name='all'}
 	for i=1,#fields do
 		all[fields[i]] = defaults[i]

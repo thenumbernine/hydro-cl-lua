@@ -84,7 +84,7 @@ function GRHDSeparateSolver:init(args)
 	HydroSolver.DisplayVar_U = class(HydroSolver.DisplayVar_U)
 	function HydroSolver.DisplayVar_U:setArgs(kernel)
 		HydroSolver.DisplayVar_U.super.setArgs(self, kernel)
-		kernel:setArg(2, gr.UBuf)
+		kernel:setArg(4, gr.UBuf)
 	end
 	
 	function HydroSolver:getUBufDisplayVarsArgs()

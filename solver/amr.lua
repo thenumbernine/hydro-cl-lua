@@ -278,7 +278,7 @@ kernel void initNodeFromRoot(
 			self:addDisplayVarGroup{
 				name = 'U2',
 				bufferField = 'U2Buf',
-				type = self.eqn.cons_t,
+				bufferType = self.eqn.cons_t,
 				vars = {
 					{name='0', code='*value = buf[index].ptr[0];'},
 				}
@@ -287,7 +287,7 @@ kernel void initNodeFromRoot(
 			self:addDisplayVarGroup{
 				name = 'amrError',
 				bufferField = 'amrErrorBuf',
-				type = 'real',
+				bufferType = 'real',
 				vars = {
 					{name='0', code='*value = buf[index];'},
 				}

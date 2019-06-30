@@ -250,10 +250,14 @@ Euler.predefinedDisplayVars = {
 -- [[	
 	'U rho (kg/m^3)',
 	'U v (m/s)',
+	'U P (kg/(m s^2))',
+--]]
+--[[
+	-- now that I've switched to components, I can't display these
+	-- TODO ...unless I allow for multiple displays of the same displayVar...
 	'U v x (m/s)',
 	'U v y (m/s)',
 	'U v z (m/s)',
-	'U P (kg/(m s^2))',
 --]]
 --[[
 	'U rho',
@@ -262,9 +266,9 @@ Euler.predefinedDisplayVars = {
 	'U v z',
 	'U P',
 --]]
-	'U ePot (m^2/s^2)',
-	'U EPot (kg/(m s^2))',
-	'U gravity mag (m/s)',
+	--'U ePot (m^2/s^2)',
+	--'U EPot (kg/(m s^2))',
+	'U gravity (m/s)',
 }
 --]=]
 

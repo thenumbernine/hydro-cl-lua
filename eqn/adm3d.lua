@@ -262,7 +262,10 @@ void setFlatSpace(
 	U->H = 0;
 	U->M_u = real3_zero;
 }
-]], {eqn=self})
+]], {
+		eqn = self,
+		solver = self.solver,
+	})
 end
 
 ADM_BonaMasso_3D.initStateCode = [[

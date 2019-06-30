@@ -49,7 +49,7 @@ function FiniteVolumeSolver:addDisplayVars()
 		self:addDisplayVarGroup{
 			name = 'flux '..xj, 
 			bufferField = 'fluxBuf',
-			type = self.eqn.cons_t,
+			bufferType = self.eqn.cons_t,
 			codePrefix = template([[
 	int indexInt = <?=side?> + dim * index;
 	const global <?=eqn.cons_t?>* flux = buf + indexInt;
@@ -84,7 +84,7 @@ function FiniteVolumeSolver:addDisplayVars()
 		self:addDisplayVarGroup{
 			name = 'wave '..xj,
 			bufferField = self.getULRBufName,
-			type = self.getULRBufType,
+			bufferType = self.getULRBufType,
 			codePrefix = table{
 				getEigenCode{side=side},
 				template([[
@@ -113,7 +113,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			self:addDisplayVarGroup{
 				name = 'eigen '..xj,
 				bufferField = self.getULRBufName,
-				type = self.getULRBufType,
+				bufferType = self.getULRBufType,
 				codePrefix = getEigenCode{side=side},
 				vars = eigenDisplayVars,
 			}
@@ -126,7 +126,7 @@ function FiniteVolumeSolver:addDisplayVars()
 		self:addDisplayVarGroup{
 			name = 'ortho error '..xNames[side+1],
 			bufferField = self.getULRBufName,
-			type = self.getULRBufType,
+			bufferType = self.getULRBufType,
 			codePrefix = '',
 			useLog = true,
 			vars = {
@@ -168,7 +168,7 @@ function FiniteVolumeSolver:addDisplayVars()
 		self:addDisplayVarGroup{
 			name = 'flux error '..xNames[side+1],
 			bufferField = self.getULRBufName,
-			type = self.getULRBufType,
+			bufferType = self.getULRBufType,
 			codePrefix = '',
 			useLog = true,
 			vars = {

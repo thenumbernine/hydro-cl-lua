@@ -14,14 +14,18 @@ local function applyToSolver(Solver)
 	function Solver:displayVectorField(app, varName, xmin, ymin, xmax, ymax, useLog)
 		local var = self.displayVarForName[varName]
 		if var and var.enabled then
-			local magVar = assert(var.magVar, "tried to use a vector display on a var without an associated magVar")
-			
 			local valueMin, valueMax
 			if var.heatMapFixedRange then
 				valueMin = var.heatMapValueMin
 				valueMax = var.heatMapValueMax
 			else
-				valueMin, valueMax = self:calcDisplayVarRange(magVar)
+				local component = solver.displayComponentFlatList[var.component]
+				local vectorField = solver:isVarTypeAVectorField(component.vartype)
+				if vectorField then
+					valueMin, valueMax = self:calcDisplayVarRange(var, self.displayComponentReal3MagIndex)
+				else
+					valueMin, valueMax = self:calcDisplayVarRange(var)
+				end
 				var.heatMapValueMin = valueMin
 				var.heatMapValueMax = valueMax
 			end

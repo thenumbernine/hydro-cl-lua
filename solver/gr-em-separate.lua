@@ -72,7 +72,7 @@ function GREMSeparateSolver:init(args)
 	GRMaxwellSolver.DisplayVar_U = class(GRMaxwellSolver.DisplayVar_U)
 	function GRMaxwellSolver.DisplayVar_U:setArgs(kernel)
 		GRMaxwellSolver.DisplayVar_U.super.setArgs(self, kernel)
-		kernel:setArg(2, gr.UBuf)
+		kernel:setArg(4, gr.UBuf)
 	end
 	
 	function GRMaxwellSolver:getUBufDisplayVarsArgs()

@@ -7,8 +7,6 @@ local function applyToSolver(Solver)
 		if solver.dim == 2 then
 			local var = solver.displayVarForName[varName]
 			if var and var.enabled then
-				local magVar = assert(var.magVar, "tried to use a vector display on a var without an associated magVar")
-
 				--[[
 				for each solver, for each var, I'll need a vector field state to keep track of the line offset within the cell and length
 				--]]
@@ -113,7 +111,13 @@ void main() {
 					valueMin = var.heatMapValueMin
 					valueMax = var.heatMapValueMax
 				else
-					valueMin, valueMax = solver:calcDisplayVarRange(magVar)
+					local component = solver.displayComponentFlatList[var.component]
+					local vectorField = solver:isVarTypeAVectorField(var.type)
+					if vectorField then
+						valueMin, valueMax = solver:calcDisplayVarRange(var, solver.displayComponentReal3MagIndex)
+					else
+						valueMin, valueMax = solver:calcDisplayVarRange(var)
+					end
 					var.heatMapValueMin = valueMin
 					var.heatMapValueMax = valueMax
 				end

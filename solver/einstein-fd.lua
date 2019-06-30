@@ -1,15 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local template = require 'template'
 local GridSolver = require 'solver.gridsolver'
-
-local common = require 'common'()
-local xNames = common.xNames
-local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
-local sym = common.sym
-
 
 local EinsteinFiniteDifferenceSolver = class(GridSolver)
 
@@ -40,23 +31,20 @@ function EinsteinFiniteDifferenceSolver:calcDeriv(derivBufObj, dt)
 	self.calcDerivKernelObj()
 end
 
-function EinsteinFiniteDifferenceSolver:getDisplayInfosForType()
-	local t = EinsteinFiniteDifferenceSolver.super.getDisplayInfosForType(self)
-
-	-- hmm, only works with U ... so it only applies to U ...
-	table.insert(t.real3, {
-		name = ' norm weighted',
-		code = '	*value = real3_weightedLen(*value_real3, calc_gamma_ll(U, x));',
+-- only set these for certain types ... 
+function EinsteinFiniteDifferenceSolver:createDisplayComponents()
+	EinsteinFiniteDifferenceSolver.super.createDisplayComponents(self)
+	self:addDisplayComponent('real3', {
+		onlyFor = 'U',
+		name = 'norm weighted',
+		code = [[*value = real3_weightedLen(*value_real3, calc_gamma_ll(U, x));]],
 	})
-
-	-- hmm, how to do the weighting stuff with gammaBar_ll ... 
-	-- also, how to determine which metric to raise by ... gamma vs gammaBar
-	table.insert(t.sym3, {
-		name = ' tr weighted',
-		code = '	*value = sym3_dot(*value_sym3, calc_gamma_uu(U, x));',
+	self:addDisplayComponent('sym3', {
+		onlyFor = 'U',
+		norm = 'tr weighted',
+		code = [[
+		*value = sym3_dot(*value_sym3, calc_gamma_uu(U, x));]],
 	})
-
-	return t
 end
 
 return EinsteinFiniteDifferenceSolver
