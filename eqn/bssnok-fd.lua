@@ -145,7 +145,7 @@ sym3 calc_gammaBar_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 }
 
 //det(gammaBar_ij) = det(gammaHat_ij + epsilon_ij)
-//however det(gammaHat_ij) == det(gammaBar_ij) by the eqn just before (6) in 2018 Ruchlin
+//however det(gammaHat_ij) == det(gammaBar_ij) by the eqn just before (6) in 2017 Ruchlin
 real calc_det_gammaBar_ll(real3 x) {
 	return coord_det_g(x);
 }
@@ -318,7 +318,7 @@ substitute gammaBar_im,j connHat^m_kl = S_ijkl (symmetric in 3 & 4)
 ?>
 
 	/*
-	2018 Ruchlin eqn 12
+	2017 Ruchlin eqn 12
 	RBar_ij = 
 		-1/2 gammaBar^kl DHat_k DHat_l gammaBar_ij
 		+ 1/2 gammaBar_ki DHat_j LambdaBar^k

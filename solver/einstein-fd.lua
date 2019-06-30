@@ -37,13 +37,21 @@ function EinsteinFiniteDifferenceSolver:createDisplayComponents()
 	self:addDisplayComponent('real3', {
 		onlyFor = 'U',
 		name = 'norm weighted',
-		code = [[*value = real3_weightedLen(*value_real3, calc_gamma_ll(U, x));]],
+		code = [[
+	int index = INDEXV(i);
+	real3 x = cell_x(i);
+	const global <?=eqn.cons_t?>* U = buf + index;
+	*value = real3_weightedLen(*value_real3, calc_gamma_ll(U, x));
+]],
 	})
 	self:addDisplayComponent('sym3', {
 		onlyFor = 'U',
 		norm = 'tr weighted',
 		code = [[
-		*value = sym3_dot(*value_sym3, calc_gamma_uu(U, x));]],
+	int index = INDEXV(i);
+	real3 x = cell_x(i);
+	const global <?=eqn.cons_t?>* U = buf + index;
+	*value = sym3_dot(*value_sym3, calc_gamma_uu(U, x));]],
 	})
 end
 

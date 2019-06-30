@@ -1507,7 +1507,7 @@ do
 		anyChanged = anyChanged or tooltip.checkboxTable('fixed range', var, 'heatMapFixedRange')
 		ig.igSameLine()
 
-		tooltip.comboTable('component', var, 'component', self.displayComponentNames)
+		--tooltip.comboTable('component', var, 'component', self.displayComponentNames)
 		
 		if ig.igCollapsingHeader(var.name) then
 			local unitScale = 1
@@ -1531,9 +1531,33 @@ do
 
 	-- do one for 'all'
 	local op = require 'ext.op'
-	local fields = {'enabled', 'useLog', 'showInUnits', 'heatMapFixedRange', 'heatMapValueMin', 'heatMapValueMax', 'component'}
-	local defaults = {true, true, true, true, math.huge, -math.huge, 0}
-	local combines = {op.land, op.land, op.land, op.land, math.min, math.max, math.min}
+	local fields = {
+		'enabled',
+		'useLog',
+		'showInUnits',
+		'heatMapFixedRange',
+		'heatMapValueMin',
+		'heatMapValueMax',
+		--'component',
+	}
+	local defaults = {
+		true,
+		true,
+		true,
+		true,
+		math.huge,
+		-math.huge,
+		--0,
+	}
+	local combines = {
+		op.land,
+		op.land,
+		op.land,
+		op.land,
+		math.min,
+		math.max,
+		--math.min,
+	}
 	local all = {name='all'}
 	for i=1,#fields do
 		all[fields[i]] = defaults[i]

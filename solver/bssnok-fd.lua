@@ -13,15 +13,21 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 		onlyFor = 'U',
 		name = 'norm weighted',
 		code = [[
-		sym3 gammaBar_LL = sym3_rescaleFromCoord_ll(calc_gammaBar_ll(U, x), x);
-		*value = real3_weightedLen(*value_real3, gammaBar_LL);]],
+	int index = INDEXV(i);
+	real3 x = cell_x(i);
+	const global <?=eqn.cons_t?>* U = buf + index;
+	sym3 gammaBar_LL = sym3_rescaleFromCoord_ll(calc_gammaBar_ll(U, x), x);
+	*value = real3_weightedLen(*value_real3, gammaBar_LL);]],
 	})
 	self:addDisplayComponent('sym3', {
 		onlyFor = 'U',
-		norm = 'tr weighted',
+		name = 'tr weighted',
 		code = [[
-		sym3 gamma_UU = sym3_rescaleFromCoord_uu(calc_gamma_uu(U, x), x);
-		*value = sym3_dot(*value_sym3, gamma_UU);]],
+	int index = INDEXV(i);
+	real3 x = cell_x(i);
+	const global <?=eqn.cons_t?>* U = buf + index;
+	sym3 gamma_UU = sym3_rescaleFromCoord_uu(calc_gamma_uu(U, x), x);
+	*value = sym3_dot(*value_sym3, gamma_UU);]],
 	})
 end
 

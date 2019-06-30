@@ -273,7 +273,7 @@ end
 
 <? if useCalcDeriv_epsilon_LL then ?>
 
-	// should be zero, but 2018 Ruchlin et al inserts it into the d/dt epsilon_ij to constrain it to zero
+	// should be zero, but 2017 Ruchlin et al inserts it into the d/dt epsilon_ij to constrain it to zero
 	real tr_ABar = real3x3_trace(ABar_UL);
 
 	/*
@@ -302,8 +302,8 @@ end
 			- tr12_connBar_dot_beta
 		)
 <? 	for k,xk in ipairs(xNames) do
-?>		+ U->epsilon_LL.<?=sym(k,j)?> * partial_beta_UL.<?=xk?>.<?=xi?>
-		+ U->epsilon_LL.<?=sym(k,i)?> * partial_beta_UL.<?=xk?>.<?=xj?>
+?>		+ U->epsilon_LL.<?=sym(j,k)?> * partial_beta_UL.<?=xk?>.<?=xi?>
+		+ U->epsilon_LL.<?=sym(i,k)?> * partial_beta_UL.<?=xk?>.<?=xj?>
 		+ (
 			// connHat_jki + connHat_ikj = gammaHat_ij,k
 			connHat_lll.<?=xj?>.<?=sym(k,i)?>
@@ -498,8 +498,7 @@ end
 	*/
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-	local xi = xNames[i]
-	local xj = xNames[j]
+	local xi,xj = xNames[i],xNames[j]
 ?>	deriv->ABar_LL.<?=xij?> += 0.
 		- 2. / 3. * U->ABar_LL.<?=xij?> * tr_DBar_beta
 <?	for k,xk in ipairs(xNames) do
@@ -510,9 +509,9 @@ end
 <?	for k,xk in ipairs(xNames) do
 ?>		+ partial_ABar_lll[<?=k-1?>].<?=xij?> * beta_u.<?=xk?>
 			/ coord_dx<?=i-1?>(x) / coord_dx<?=j-1?>(x)
-		+ U->ABar_LL.<?=sym(k,j)?> * partial_beta_UL.<?=xk?>.<?=xi?>
+		+ U->ABar_LL.<?=sym(j,k)?> * partial_beta_UL.<?=xk?>.<?=xi?>
 		+ U->ABar_LL.<?=sym(i,k)?> * partial_beta_UL.<?=xk?>.<?=xj?>
-<? end
+<? 	end
 ?>	;
 <? end
 ?>
@@ -700,7 +699,7 @@ end
 	//B&S 4.82
 	//beta^i_,t = k (connBar^i_,t + eta connBar^i)
 	const real k = 3. / 4.;
-	const real eta = 0.;	//1.;	// 1 / (2 M), for total mass M
+	const real eta = 1.;	//1.;	// 1 / (2 M), for total mass M
 	deriv->beta_U = real3_add(deriv->beta_U,
 		real3_add(
 			real3_real_mul(dt_LambdaBar_U, k),
@@ -708,7 +707,7 @@ end
 <? elseif eqn.useShift == 'HyperbolicGammaDriver' then ?>
 	/*
 	hyperbolic Gamma driver 
-	2018 Ruchlin et al, eqn 14a, 14b
+	2017 Ruchlin et al, eqn 14a, 14b
 	beta^i_,t = B^i
 	B^i_,t = 3/4 (
 			LambdaBar^i_,t 
@@ -720,7 +719,7 @@ end
 	*/
 	deriv->beta_U = real3_add(deriv->beta_U, U->B_U);
 
-	const real eta = 0.;
+	const real eta = 1.;
 <? for i,xi in ipairs(xNames) do
 ?>	deriv->B_U.<?=xi?> += .75 * (
 			dt_LambdaBar_U.<?=xi?>
@@ -891,7 +890,7 @@ end
 end
 ?>	;
 
-	//Ruchlin et al 2018, eqn 46
+	//2017 Ruchlin et al, eqn 46
 	//H = 2/3 K^2 - ABar^ij ABar_ij + exp(-4 phi) (RBar - 8 DBar^i phi DBar_i phi - 8 gammaBar^ij DBar_i DBar_j phi)
 	U->H = 2. / 3. * U->K * U->K
 		- sym3_dot(U->ABar_LL, ABar_UU)
@@ -1000,20 +999,34 @@ kernel void calcDT(
 	real3 x = cell_x(i);
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
-	/*
-	speed of light in i'th direction 
-	c = alpha sqrt(gamma^ii)
-	*/
-	//sym3 gamma_uu = calc_gamma_uu(U, x);
+<? 
+-- seems all the hyperbolic formalisms listed in Alcubierre's book use alpha sqrt(gamma^ii) for the speed-of-light wavespeed
+-- however the 2017 Ruchlin paper says to use gamma_ij
+local useGammaInvForDT = false 	
+?>
+
+<? if useGammaInvForDT then ?>	
+	sym3 gamma_uu = calc_gamma_uu(U, x);
+<? else ?>	
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+<? end ?>
 
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
+<? if useGammaInvForDT then ?>
 		//this is asserting alpha and W >0, which they should be
-		//real absLambdaMax = U->alpha * sqrt(gamma_uu.<?=sym(side+1,side+1)?>);
+		real absLambdaMax = U->alpha * sqrt(gamma_uu.<?=sym(side+1,side+1)?>);
+<? else ?>		
 		//2017 Ruchlin, eqn. 53
 		real absLambdaMax = U->alpha * sqrt(gammaBar_ll.<?=sym(side+1,side+1)?>);
-		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
+<? end ?>
+
+<? if false then -- hmm, do we base our CFL on delta in coordinate, or delta in Cartesian? ?>
+		real dx = cell_dx<?=side?>(x); 
+<? else ?>
+		real dx = solver->grid_dx.s<?=side?>;
+<? end ?>	
+		dt = (real)min(dt, dx / absLambdaMax);
 	}<? end ?>
 	dtBuf[index] = dt;
 }

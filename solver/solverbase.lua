@@ -535,8 +535,8 @@ end
 	-- display stuff:
 
 	if self.app.useGLSharing then
-		for _,displayVarGroup in ipairs(self.displayVarGroups) do
-			for _,var in ipairs(displayVarGroup.vars) do
+		for _,group in ipairs(self.displayVarGroups) do
+			for _,var in ipairs(group.vars) do
 				--[[
 				if var.enabled 
 				or (var.vecVar and var.vecVar.enabled)
@@ -549,8 +549,8 @@ end
 		end
 	end
 
-	for _,displayVarGroup in ipairs(self.displayVarGroups) do
-		for _,var in ipairs(displayVarGroup.vars) do
+	for _,group in ipairs(self.displayVarGroups) do
+		for _,var in ipairs(group.vars) do
 			--[[
 			if var.enabled 
 			or (var.vecVar and var.vecVar.enabled)
@@ -604,7 +604,7 @@ end
 function SolverBase:getDisplayCode()
 	local texVsBufInfo = {
 		Tex = {
-			input = function(var)
+			outputArg = function(var)
 				-- nvidia needed this, but I don't want to write only -- I want to accumulate and do other operations
 				return 'write_only '..
 				-- if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
@@ -633,7 +633,7 @@ function SolverBase:getDisplayCode()
 			end,
 		},
 		Buffer = {
-			input = function(var) 
+			outputArg = function(var) 
 				return 'global real* dest' 
 			end,
 			output = function(var)
@@ -656,15 +656,24 @@ if (vectorField) {
 
 	local alreadyAddedComponentForGroup = {}
 	local function addPickComponetForGroup(var)
-		local name = 'pickComponent'
-		if var then
-			assert(var.group, "no group for var "..var.name)
-			if alreadyAddedComponentForGroup[var.group.name] then return end
-			alreadyAddedComponentForGroup[var.group.name] = true
-			name = name..'_'..var.group.name
-		end
+		local name = self:getPickComponentNameForGroup(var)
+		if alreadyAddedComponentForGroup[name] then return end
+		alreadyAddedComponentForGroup[name] = true
 		lines:insert((template([[
-#define <?=name?>(component)
+void <?=name?>(
+	constant <?=solver.solver_t?>* solver,
+	global const <?=var and var.bufferType or 'real'?>* buf,
+	int component,
+	int* vectorField,
+	real* value,
+	int4 i
+) {
+	real* value_real = value;
+	sym3* value_sym3 = (sym3*)value;
+	cplx* value_cplx = (cplx*)value;
+	real3* value_real3 = (real3*)value;
+	cplx3* value_cplx3 = (cplx3*)value;
+
 	switch (component) {
 <? 
 for i,component in ipairs(solver.displayComponentFlatList) do
@@ -681,10 +690,12 @@ for i,component in ipairs(solver.displayComponentFlatList) do
 	end
 end
 ?>	}
+}
 ]], 	{
 			name = name,
 			solver = self,
-		}):gsub('\n', '\\\n')..'\n'))
+			var = var,
+		})))
 	end
 	addPickComponetForGroup()
 
@@ -707,7 +718,7 @@ end
 				solver = self,
 				var = tempvar,
 				name = 'calcDisplayVarTo'..texVsBuf..'_Simple_'..ctype,
-				input = texVsBufInfo[texVsBuf].input(var),
+				outputArg = texVsBufInfo[texVsBuf].outputArg(var),
 				output = texVsBufInfo[texVsBuf].output(var),
 				extraArgs = {
 					'int structSize',
@@ -720,13 +731,19 @@ end
 
 	for _,displayVarGroup in ipairs(self.displayVarGroups) do
 		for _,var in ipairs(displayVarGroup.vars) do
-			lines:insert('//'..var.name..'\n')
+			if var.originalVar then
+				if self.app.useGLSharing then
+					var.toTexKernelName = assert(var.originalVar.toTexKernelName)
+				end
+				var.toBufferKernelName = assert(var.originalVar.toBufferKernelName)
+			else
+				lines:insert('//'..var.name..'\n')
 
-			addPickComponetForGroup(var)
+				addPickComponetForGroup(var)
 
-			if shouldDeferCode(var.code) then
-				local clFuncName = self.app:uniqueName'calcDisplayVar'
-				lines:insert(template([[
+				if shouldDeferCode(var.code) then
+					local clFuncName = self.app:uniqueName'calcDisplayVar'
+					lines:insert(template([[
 void <?=clFuncName?>(
 	constant <?=solver.solver_t?>* solver,
 	const global <?= var.bufferType ?>* buf,
@@ -749,43 +766,62 @@ void <?=clFuncName?>(
 <?=var.codePrefix or ''?>
 <?=var.code?>
 }
-]], 			{
-					solver = self,
-					var = var,
-					clFuncName = clFuncName,
-				}))
-			
-				var.code = template([[
+]], 				{
+						solver = self,
+						var = var,
+						clFuncName = clFuncName,
+					}))
+				
+					var.code = template([[
 	<?=clFuncName?>(solver, buf, i, index, dsti, dstindex, x, value<?=
 		var.extraArgNames 
 		and #var.extraArgNames > 0 
 		and ', '..var.extraArgNames:concat', '
 		or ''
 	?>);
-]], 			{
-					var = var,
-					clFuncName = clFuncName,
-				})
-			else
-				-- hmm, this will change its success the next time through this test
-				-- so this is destructive, only run it once per display var?
-				-- or better yet TODO somewhere earlier, maybe before the 'prefix func' stuff,
-				-- prepend 'var.codePrefix' onto 'var.code'
-				var.code = template([[
+]], 				{
+						var = var,
+						clFuncName = clFuncName,
+					})
+				else
+					-- hmm, this will change its success the next time through this test
+					-- so this is destructive, only run it once per display var?
+					-- or better yet TODO somewhere earlier, maybe before the 'prefix func' stuff,
+					-- prepend 'var.codePrefix' onto 'var.code'
+					var.code = template([[
 	real* value_real = value;
 	sym3* value_sym3 = (sym3*)value;
 	cplx* value_cplx = (cplx*)value;
 	real3* value_real3 = (real3*)value;
 	cplx3* value_cplx3 = (cplx3*)value;
+
 <?=var.codePrefix or ''?>
 <?=var.code?>
-]],				{
-					var = var,
-				})
-			end
+]],					{
+						var = var,
+					})
+				end
 
-			if self.app.useGLSharing then
-				var.toTexKernelName = self.app:uniqueName'calcDisplayVarToTex'
+				if self.app.useGLSharing then
+					var.toTexKernelName = self.app:uniqueName'calcDisplayVarToTex'
+					--[[
+					if var.enabled
+					or (var.vecVar and var.vecVar.enabled)
+					then
+					--]]do
+						lines:insert(
+							template(var.displayCode, {
+								solver = self,
+								var = var,
+								name = var.toTexKernelName,
+								outputArg = texVsBufInfo.Tex.outputArg(var),
+								output = texVsBufInfo.Tex.output(var),
+							})
+						)
+					end
+				end
+
+				var.toBufferKernelName = self.app:uniqueName'calcDisplayVarToBuffer'
 				--[[
 				if var.enabled
 				or (var.vecVar and var.vecVar.enabled)
@@ -795,29 +831,12 @@ void <?=clFuncName?>(
 						template(var.displayCode, {
 							solver = self,
 							var = var,
-							name = var.toTexKernelName,
-							input = texVsBufInfo.Tex.input(var),
-							output = texVsBufInfo.Tex.output(var),
+							name = var.toBufferKernelName,
+							outputArg = texVsBufInfo.Buffer.outputArg(var),
+							output = texVsBufInfo.Buffer.output(var),
 						})
 					)
 				end
-			end
-
-			var.toBufferKernelName = self.app:uniqueName'calcDisplayVarToBuffer'
-			--[[
-			if var.enabled
-			or (var.vecVar and var.vecVar.enabled)
-			then
-			--]]do
-				lines:insert(
-					template(var.displayCode, {
-						solver = self,
-						var = var,
-						name = var.toBufferKernelName,
-						input = texVsBufInfo.Buffer.input(var),
-						output = texVsBufInfo.Buffer.output(var),
-					})
-				)
 			end
 		end
 	end
@@ -1026,8 +1045,8 @@ the only reason I can think of is for good subtexel lookup when rendering
 DisplayVar.displayCode = [[
 kernel void <?=name?>(
 	constant <?=solver.solver_t?>* solver,
-	<?=input?>,
-	const global <?= var.bufferType ?>* buf,
+	<?=outputArg?>,
+	global const <?=var.bufferType?>* buf,
 	int component<?
 if require 'solver.meshsolver'.is(solver) then ?>
 	,const global cell_t* cells			//[numCells]
@@ -1052,7 +1071,7 @@ end ?><?= var.extraArgs and #var.extraArgs > 0
 ?>	real value[6] = {0,0,0,0,0,0};	<? -- size of largest struct.  TODO how about a union? ?>
 	int vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
 <?=var.code?>
-	pickComponent(component);
+	<?=solver:getPickComponentNameForGroup(var)?>(solver, buf, component, &vectorField, value, i);
 <?=output
 ?>}
 ]]
@@ -1206,7 +1225,11 @@ function SolverBase:addDisplayComponent(basetype, component)
 	if not self.displayComponents[basetype] then self.displayComponents[basetype] = table() end
 	-- add defaults
 	component.base = basetype
-	component.code = component.code or ''
+	-- TODO evaluate here or later?
+	component.code = template(component.code or '', {
+		solver = self,
+		eqn = self.eqn,
+	})
 	component.type = component.type or 'real'
 	self.displayComponents[basetype]:insert(component)
 end
@@ -1227,13 +1250,28 @@ function SolverBase:finalizeDisplayComponents()
 		for _,component in ipairs(components) do
 			assert(self:isVarTypeAVectorField(component.type) == (not not component.magn), "expected all vector field variables to have an associated magnitude variable.  missed "..basetype..' '..component.name)
 			if component.magn then
-				local _, magvar = components:find(nil, function(component2) return component2.name == component.magn end)
-				assert(magvar, "couldn't find magn component "..component.magn)
-				component.magn = magvar.globalIndex
+				local _, magn = components:find(nil, function(component2) return component2.name == component.magn end)
+				assert(magn, "couldn't find magn component "..component.magn)
+				component.magn = magn.globalIndex
 			end	
 		end
 	end
 end
+function SolverBase:getPickComponentNameForGroup(var)
+	local name = 'pickComponent'
+	if var 
+	and var.group 
+	and self.displayComponentFlatList:find(nil, function(component)
+		return component.onlyFor
+	end)
+	then 
+		name = name..'_'
+			-- TODO further sanitization?
+			..var.group.name:gsub(' ', '_')
+	end
+	return name
+end
+
 
 function SolverBase:isVarTypeAVectorField(vartype)
 	return vartype == 'real3' or vartype == 'cplx'
@@ -1379,6 +1417,50 @@ function SolverBase:addDisplayVars()
 --]]
 end
 
+function SolverBase:finalizeDisplayVars()
+	self.displayVars = table()
+	
+	for _,group in ipairs(self.displayVarGroups) do
+		local newGroupVars = table()
+		for _,var in ipairs(group.vars) do
+			--[[ don't insert the original vars
+			-- instead use the first duplicated var in the group as the original
+			-- this way they can use the default component as their component
+			-- (and I don't have to build a global default component and then make exceptions in all the component lookup code in the draw/*)
+			newGroupVars:insert(var)
+			self.displayVars:insert(var)
+			--]]
+			-- [[ otherwise...
+			local originalVarForGroup
+			--]]
+			-- while we're here, add duplicates for all components
+			for _,component in ipairs(self.displayComponents[var.type]) do
+				-- shallow copy the var, so it contains matching kernel references
+				-- and then change only the component index
+				-- TODO ... but the kernel names haven't been assigned yet ...
+				-- so I have to do this after they are assigned, which is after refreshSolverProgram
+				-- or I can flag the copied vars and have refreshSolverProgram not make duplicate names for them
+				local dupvar = setmetatable(table(var), getmetatable(var))
+				dupvar.component = component.globalIndex
+				if not originalVarForGroup then
+					originalVarForGroup = dupvar
+				else
+					dupvar.originalVar = originalVarForGroup
+				end
+				dupvar.name = dupvar.name..' '..component.name
+				self.displayVars:insert(dupvar)
+				newGroupVars:insert(dupvar)
+			end
+		end
+		group.vars = newGroupVars
+	end
+
+	-- make lookup by name
+	self.displayVarForName = self.displayVars:map(function(var)
+		return var, var.name
+	end)
+end
+
 -- depends on self.eqn
 function SolverBase:createDisplayVars()
 	-- create component map for each display var
@@ -1388,15 +1470,7 @@ function SolverBase:createDisplayVars()
 
 	self.displayVarGroups = table()
 	self:addDisplayVars()		
-	self.displayVars = table()
-	for _,displayVarGroup in ipairs(self.displayVarGroups) do
-		self.displayVars:append(displayVarGroup.vars)
-	end
-
-	-- make lookup by name
-	self.displayVarForName = self.displayVars:map(function(var)
-		return var, var.name
-	end)
+	self:finalizeDisplayVars()
 end
 
 -- used by the display code to dynamically adjust ranges
