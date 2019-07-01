@@ -500,7 +500,7 @@ end
 #endif
 
 	//Delta^i_jk = connBar^i_jk - connHat^i_jk
-#if 0	
+#if 0
 	_3sym3 Delta_ull = _3sym3_sub(connBar_ull, connHat_ull);
 #else	
 	_3sym3 Delta_ull;
@@ -547,19 +547,29 @@ end
 BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U alpha',
 	'U beta_U mag',
+	'U beta_U x',
+	'U beta_U y',
+	'U beta_U z',
+	'U B_U mag',
+	'U B_U x',
+	'U B_U y',
+	'U B_U z',
 	--'U epsilon_LL norm',
 	'U W',
 	'U ABar_LL tr weighted',
-	'U ABar_LL x x',
-	'U ABar_LL x y',
-	'U ABar_LL x z',
-	'U ABar_LL y y',
-	'U ABar_LL y z',
-	'U ABar_LL z z',
+--	'U ABar_LL xx',
+--	'U ABar_LL xy',
+--	'U ABar_LL xz',
+--	'U ABar_LL yy',
+--	'U ABar_LL yz',
+--	'U ABar_LL zz',
 	'U K',
 	'U LambdaBar_U mag',
+	'U LambdaBar_U x',
+	'U LambdaBar_U y',
+	'U LambdaBar_U z',
 	'U H',
-	'U M_U mag',
+	'U M_u mag',
 	--'U det gammaBar - det gammaHat',
 	--'U det gamma_ij based on phi',
 	--'U volume',
@@ -569,20 +579,27 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 -- [[ debugging derivatives
 	'deriv alpha',
 	'deriv beta_U mag',
+	'deriv beta_U x',
+	'deriv beta_U y',
+	'deriv beta_U z',
+	'deriv B_U mag',
+	'deriv B_U x',
+	'deriv B_U y',
+	'deriv B_U z',
 	'deriv W',
 	'deriv ABar_LL tr weighted',
-	'deriv ABar_LL x x',
-	'deriv ABar_LL x y',
-	'deriv ABar_LL x z',
-	'deriv ABar_LL y y',
-	'deriv ABar_LL y z',
-	'deriv ABar_LL z z',
+--	'deriv ABar_LL xx',
+--	'deriv ABar_LL xy',
+--	'deriv ABar_LL xz',
+--	'deriv ABar_LL yy',
+--	'deriv ABar_LL yz',
+--	'deriv ABar_LL zz',
 	'deriv K',
 	'deriv LambdaBar_U mag',
+	'deriv LambdaBar_U x',
+	'deriv LambdaBar_U y',
+	'deriv LambdaBar_U z',
 --]]
-	
-	-- debugging
-	'U ABarSq_ll tr weighted',	-- has problems with spherical vacuum spacetime
 }
 
 function BSSNOKFiniteDifferenceEquation:getDisplayVars()	

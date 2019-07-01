@@ -634,6 +634,15 @@ end
 	//DBar_tr_DBar_beta_u.i = DBar^i DBar_k beta^k = gammaBar^ij DBar_j DBar_k beta^k
 	real3 DBar_tr_DBar_beta_u = sym3_real3_mul(gammaBar_uu, DBar_tr_DBar_beta_l);
 
+	//tr_gammaBar_DHat2_beta_u.i = gammaBar^jk DHat_j DHat_k beta^i
+	real3 tr_gammaBar_DHat2_beta_u = {
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = sym3_real3x3_dot(gammaBar_uu, DHat2_beta_u.<?=xi?>),
+<? end
+?>	};
+	
+	sym3 ABar_uu = sym3_rescaleToCoord_UU(ABar_UU, x);
+	
 	/*
 	LambdaBar^i_,t = 
 		gammaBar^jk DHat_j DHat_k beta^i
@@ -648,41 +657,32 @@ end
 		+ LambdaBar^i_,k beta^k
 		- LambdaBar^k beta^i_,k
 	*/
-	//tr_gammaBar_DHat2_beta_u.i = gammaBar^jk DHat_j DHat_k beta^i
-	real3 tr_gammaBar_DHat2_beta_u = {
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = sym3_real3x3_dot(gammaBar_uu, DHat2_beta_u.<?=xi?>),
-<? end
-?>	};
-	
-	sym3 ABar_uu = sym3_rescaleToCoord_UU(ABar_UU, x);
-	
 	real3 dt_LambdaBar_U;
 <? for i,xi in ipairs(xNames) do
 ?>	dt_LambdaBar_U.<?=xi?> = (0.
 		+ tr_gammaBar_DHat2_beta_u.<?=xi?>
-		+ 2. / 3. * Delta_u.<?=xi?> * tr_DBar_beta
-		+ 1. / 3. * DBar_tr_DBar_beta_u.<?=xi?>
-		- 16. * M_PI * U->alpha * U->S_u.<?=xi?> / exp_neg4phi
+//		+ 2. / 3. * Delta_u.<?=xi?> * tr_DBar_beta
+//		+ 1. / 3. * DBar_tr_DBar_beta_u.<?=xi?>
 <?	for j,xj in ipairs(xNames) do
 		local xij = sym(i,j)
 		local jj = from3x3to6(j,j)
-?>		- 2. * ABar_uu.<?=xij?> * (
-			partial_alpha_l[<?=j-1?>]
-			- 6. * partial_phi_l.<?=xj?>
+?>		- 2. * ABar_uu.<?=xij?> * (0.
+//			+ partial_alpha_l[<?=j-1?>]
+//			- 6. * partial_phi_l.<?=xj?>
 		)
-		- 4. / 3. * U->alpha * gammaBar_uu.<?=xij?> * partial_K_l[<?=j-1?>] 
-		+ beta_u.<?=xj?> * partial_LambdaBar_ul[<?=j-1?>].<?=xi?>
 <?		for k,xk in ipairs(xNames) do		
 			local xik = sym(i,k)
 			local jk = from3x3to6(j,k)
 			local xjk = symNames[jk]
-?>		+ 2. * Delta_ull.<?=xi?>.<?=xjk?> * ABar_uu.<?=xjk?>
+?>//		+ 2. * Delta_ull.<?=xi?>.<?=xjk?> * ABar_uu.<?=xjk?>
 <?		end
-	end
-?>	) * coord_dx<?=i-1?>(x)
+?>//		- 4. / 3. * U->alpha * gammaBar_uu.<?=xij?> * partial_K_l[<?=j-1?>] 
+//		+ beta_u.<?=xj?> * partial_LambdaBar_ul[<?=j-1?>].<?=xi?>
+<?	end
+?>//		- 16. * M_PI * U->alpha * U->S_u.<?=xi?> / exp_neg4phi
+	) * coord_dx<?=i-1?>(x)
 <?	for j,xj in ipairs(xNames) do
-?>		- U->LambdaBar_U.<?=xj?> * partial_beta_UL.<?=xi?>.<?=xj?>
+?>//		- U->LambdaBar_U.<?=xj?> * partial_beta_UL.<?=xi?>.<?=xj?>
 <?	end
 ?>	;
 <? end
@@ -700,15 +700,15 @@ end
 	//beta^i_,t = k (connBar^i_,t + eta connBar^i)
 	const real k = 3. / 4.;
 	const real eta = 1.;	//1.;	// 1 / (2 M), for total mass M
-	deriv->beta_U = real3_add(deriv->beta_U,
-		real3_add(
-			real3_real_mul(dt_LambdaBar_U, k),
-			real3_real_mul(U->LambdaBar_U, eta)));
+<? for i,xi in ipairs(xNames) do
+?>	deriv->beta_U.<?=xi?> += k * dt_LambdaBar_U.<?=xi?> + eta * U->LambdaBar_U.<?=xi?>;
+<? end
+?>
 <? elseif eqn.useShift == 'HyperbolicGammaDriver' then ?>
 	/*
 	hyperbolic Gamma driver 
 	2017 Ruchlin et al, eqn 14a, 14b
-	beta^i_,t = B^i
+	beta^i_,t = B^i + beta^i_,j beta^j - beta^i_,j beta^j = B^i
 	B^i_,t = 3/4 (
 			LambdaBar^i_,t 
 			- LambdaBar^i_,j beta^j 
@@ -717,8 +717,10 @@ end
 		+ B^i_,j beta^j 
 		- B^j beta^i_,j
 	*/
-	deriv->beta_U = real3_add(deriv->beta_U, U->B_U);
-
+<? for i,xi in ipairs(xNames) do
+?>	deriv->beta_U.<?=xi?> += U->B_U.<?=xi?>;
+<? end
+?>
 	const real eta = 1.;
 <? for i,xi in ipairs(xNames) do
 ?>	deriv->B_U.<?=xi?> += .75 * (

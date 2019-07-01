@@ -1353,7 +1353,8 @@ enableVector = false
 		-- TODO how about saving somewhere what should be enabled by default?
 		-- TODO pick predefined somewhere?
 		if self.eqn.predefinedDisplayVars then
-			enabled = not not table.find(self.eqn.predefinedDisplayVars, args.name)
+			-- moved this to after the duplicate var creation
+			--enabled = not not table.find(self.eqn.predefinedDisplayVars, args.name)
 		else
 			if group.name == 'U'
 			or (group.name:sub(1,5) == 'error' and self.dim == 1)
@@ -1447,7 +1448,9 @@ function SolverBase:finalizeDisplayVars()
 				else
 					dupvar.originalVar = originalVarForGroup
 				end
-				dupvar.name = dupvar.name..' '..component.name
+				if component.name ~= 'default' then
+					dupvar.name = dupvar.name..' '..component.name
+				end
 				self.displayVars:insert(dupvar)
 				newGroupVars:insert(dupvar)
 			end
@@ -1459,6 +1462,18 @@ function SolverBase:finalizeDisplayVars()
 	self.displayVarForName = self.displayVars:map(function(var)
 		return var, var.name
 	end)
+
+	-- only now that we're here, enable predefined vars
+	if self.eqn.predefinedDisplayVars then
+		for _,name in ipairs(self.eqn.predefinedDisplayVars) do
+			local var = self.displayVarForName[name]
+			if not var then
+				print('predefined var '..name..' not found')
+			else
+				var.enabled = true
+			end
+		end
+	end
 end
 
 -- depends on self.eqn
