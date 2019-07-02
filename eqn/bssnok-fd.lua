@@ -233,88 +233,116 @@ end
 
 function BSSNOKFiniteDifferenceEquation:getCode_RBar_ll()
 	return template([[
+
+	//partial2_gammaBar_llll.kl.ij := gammaBar_ij,kl
+	sym3sym3 partial2_gammaBar_llll;
+<? 
+for ij,xij in ipairs(symNames) do
+	for kl,xkl in ipairs(symNames) do
+?>	partial2_gammaBar_llll.<?=xij?>.<?=xkl?> = partial2_epsilon_llll[<?=ij-1?>].<?=xkl?> + partial2_gammaHat_llll.<?=xij?>.<?=xkl?>;
+<?	end
+end 
+?>
+
+	//DHat_gammaBar_lll.k.ij = DHat_k gammaBar_ij 
+	// = gammaBar_ij,k - connHat^l_ki gammaBar_lj - connHat^l_kj gammaBar_il
+	_3sym3 DHat_gammaBar_lll;
+<?
+for k,xk in ipairs(xNames) do
+	for ij,xij in ipairs(symNames) do
+		local i,j = from6to3x3(ij)
+		local xi,xj = xNames[i], xNames[j]
+?>	DHat_gammaBar_lll.<?=xk?>.<?=xij?> = partial_gammaBar_lll.<?=xk?>.<?=xij?>
+<?		for l,xl in ipairs(xNames) do
+?>		- connHat_ull.<?=xl?>.<?=sym(k,i)?> * gammaBar_ll.<?=sym(l,j)?>
+		- connHat_ull.<?=xl?>.<?=sym(k,j)?> * gammaBar_ll.<?=sym(l,i)?>
+<?		end
+?>	;
+<?	end
+end
+?>
+
 	/*
-	trBar_DHat2_gammaBar_ll.ij =
-	gammaBar^kl DHat_k DHat_l gammaBar_ij
-expand DHat_l:
-	= gammaBar^kl DHat_k (gammaBar_ij,l - connHat^m_il gammaBar_mj - connHat^m_jl gammaBar_im)
-expand DHat_k:
-	= gammaBar^kl (
-		(gammaBar_ij,l - connHat^m_il gammaBar_mj - connHat^m_jl gammaBar_im)_,k
-		- connHat^n_ik (gammaBar_nj,l - connHat^m_nl gammaBar_mj - connHat^m_jl gammaBar_nm)
-		- connHat^n_jk (gammaBar_in,l - connHat^m_il gammaBar_mn - connHat^m_nl gammaBar_im)
-		- connHat^n_lk (gammaBar_ij,n - connHat^m_in gammaBar_mj - connHat^m_jn gammaBar_im)
-	)
-distribute.  no raises and lowers.
-	= gammaBar^kl (
-		gammaBar_ij,kl
-		- gammaBar_im connHat^m_jk,l
-		- gammaBar_jm connHat^m_ik,l
-		- 2 gammaBar_im,k connHat^m_jl
-		- 2 gammaBar_jm,k connHat^m_il 
-		- gammaBar_ij,m connHat^m_kl
-		+ connHat^n_ik (gammaBar_mj connHat^m_nl + gammaBar_nm connHat^m_jl)
-		+ connHat^n_jk (gammaBar_mn connHat^m_il + gammaBar_im connHat^m_nl)
-		+ connHat^n_lk (gammaBar_mj connHat^m_in + gammaBar_im connHat^m_jn)
-	)
-replace gammaBar_ij,kl with epsilon_ij,kl + gammaHat_ij,kl 
-substitute gammaBar_il connHat^l_jk = Q_ijk (symmetric in indexes 2 & 3)
-substitute gammaBar_im connHat^m_jk,l = P_ijkl (symmetric in indexes 2 & 3)
-substitute gammaBar_im,j connHat^m_kl = S_ijkl (symmetric in 3 & 4)	
-	= gammaBar^kl (
-		epsilon_ij,kl
-		+ gammaHat_ij,kl
-		- P_ijkl
-		- P_jikl
-		- 2 S_iljk
-		- 2 S_jlik
-		- gammaBar_ij,m connHat^m_kl
-		+ connHat^m_ik (Q_jlm + Q_mlj)
-		+ connHat^m_jk (Q_ilm + Q_mli)
-		+ connHat^m_lk (Q_imj + Q_jmi)
-	)
+	partial_DHat_gammaBar_llll[l].k.ij := partial_l DHat_k gammaBar_ij
+		= (gammaBar_ij,k - connHat^m_ki gammaBar_mj - connHat^m_kj gammaBar_mi)_,l
+		= gammaBar_ij,kl 
+			- connHat^m_ki,l gammaBar_mj 
+			- connHat^m_kj,l gammaBar_mi
+			- connHat^m_ki gammaBar_mj,l
+			- connHat^m_kj gammaBar_mi,l
 	*/
+	_3sym3 partial_DHat_gammaBar_llll[3];
+<? 
+for k,xk in ipairs(xNames) do
+	for l,xl in ipairs(xNames) do
+		for ij,xij in ipairs(symNames) do
+			local i,j = from6to3x3(ij)
+			local xi,xj = xNames[i], xNames[j]
+?>	partial_DHat_gammaBar_llll[<?=l-1?>].<?=xk?>.<?=xij?> = 
+		partial2_gammaBar_llll.<?=sym(k,l)?>.<?=xij?>
+<?			for m,xm in ipairs(xNames) do
+?>		- partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,i)?> * gammaBar_ll.<?=sym(m,j)?>
+		- partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,j)?> * gammaBar_ll.<?=sym(m,i)?>
+		- connHat_ull.<?=xm?>.<?=sym(k,i)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,j)?>
+		- connHat_ull.<?=xm?>.<?=sym(k,j)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,i)?>
+<?			end
+?>	;
+<?		end
+	end
+end
+?>
+
+	/*
+	NOTICE: derivative indexes are *last* here, not first like usual
+	DHat2_gammaBar_llll.ij.kl = DHat_l DHat_k gammaBar_ij
+		= partial_l DHat_k gammaBar_ij
+			- connHat^m_lk DHat_m gammaBar_ij
+			- connHat^m_li DHat_k gammaBar_mj
+			- connHat^m_lj DHat_k gammaBar_im
+	*/
+	sym3sym3 DHat2_gammaBar_llll;
+<?
+for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+	local xi,xj = xNames[i], xNames[j]
+	for kl,xkl in ipairs(symNames) do
+		local k,l = from6to3x3(kl)
+		local xk,xl = xNames[k],xNames[l]
+?>	DHat2_gammaBar_llll.<?=xij?>.<?=xkl?> = 
+		partial_DHat_gammaBar_llll[<?=l-1?>].<?=xk?>.<?=xij?>
+<?		for m,xm in ipairs(xNames) do
+?>		- connHat_ull.<?=xm?>.<?=sym(l,k)?> * DHat_gammaBar_lll.<?=xm?>.<?=sym(i,j)?>
+		- connHat_ull.<?=xm?>.<?=sym(l,i)?> * DHat_gammaBar_lll.<?=xk?>.<?=sym(m,j)?>
+		- connHat_ull.<?=xm?>.<?=sym(l,j)?> * DHat_gammaBar_lll.<?=xk?>.<?=sym(i,m)?>
+<?		end
+?>	;
+<?	end
+end
+?>
+
+
+	//trBar_DHat2_gammaBar_ll.ij := gammaBar^kl DHat_k DHat_l gammaBar_ij
 	sym3 trBar_DHat2_gammaBar_ll;
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
-?>	trBar_DHat2_gammaBar_ll.<?=xij?> = 0.<?
-	for k,xk in ipairs(xNames) do
-		for l,xl in ipairs(xNames) do 
-			local kl = from3x3to6(k,l)
-?> 			+ gammaBar_uu.<?=sym(k,l)?> * (0.
-				+ partial2_epsilon_llll[<?=kl-1?>].<?=xij?>
-				+ partial2_gammaHat_llll.<?=sym(k,l)?>.<?=xij?>
-<?			for m,xm in ipairs(xNames) do
-?>				- gammaBar_ll.<?=sym(i,m)?> * partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(j,k)?>
-				- gammaBar_ll.<?=sym(j,m)?> * partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(i,k)?>	
-				- 2. * partial_gammaBar_lll.<?=xl?>.<?=sym(i,m)?> * connHat_ull.<?=xm?>.<?=sym(j,k)?>
-				- 2. * partial_gammaBar_lll.<?=xl?>.<?=sym(j,m)?> * connHat_ull.<?=xm?>.<?=sym(i,k)?>	
-				- partial_gammaBar_lll.<?=xm?>.<?=xij?> * connHat_ull.<?=xm?>.<?=sym(k,l)?>
-				+ connHat_ull.<?=xm?>.<?=sym(i,k)?> * (0.
-<?				for n,xn in ipairs(xNames) do				
-?>					+ gammaBar_ll.<?=sym(j,n)?> * connHat_ull.<?=xn?>.<?=sym(l,m)?> 
-					+ gammaBar_ll.<?=sym(m,n)?> * connHat_ull.<?=xn?>.<?=sym(l,j)?>
-<?				end
-?>				)
-				+ connHat_ull.<?=xm?>.<?=sym(j,k)?> * (0.
-<?				for n,xn in ipairs(xNames) do				
-?>					+ gammaBar_ll.<?=sym(i,n)?> * connHat_ull.<?=xn?>.<?=sym(l,m)?> 
-					+ gammaBar_ll.<?=sym(m,n)?> * connHat_ull.<?=xn?>.<?=sym(l,i)?>
-<?				end
-?>				)
-				+ connHat_ull.<?=xm?>.<?=sym(l,k)?> * (0.
-<?				for n,xn in ipairs(xNames) do				
-?>					+ gammaBar_ll.<?=sym(i,n)?> * connHat_ull.<?=xn?>.<?=sym(m,j)?> 
-					+ gammaBar_ll.<?=sym(j,n)?> * connHat_ull.<?=xn?>.<?=sym(m,i)?>
-<?				end
-?>				)
-<?			end
-?>			)
-<?		end
-	end	
-?>	;
+?>	trBar_DHat2_gammaBar_ll.<?=xij?> = sym3_dot(gammaBar_uu, DHat2_gammaBar_llll.<?=xij?>);
 <? end
+?>
+
+	//DHat_LambdaBar_ul.i.j := DHat_j LambdaBar^i = LambdaBar^i_,j + connHat^i_jk LambdaBar^k
+	real3x3 DHat_LambdaBar_ul;
+<? 
+for i,xi in ipairs(xNames) do
+	for j,xj in ipairs(xNames) do
+?>	DHat_LambdaBar_ul.<?=xi?>.<?=xj?> = partial_LambdaBar_ul[<?=j-1?>].<?=xi?> 
+<?		for k,xk in ipairs(xNames) do
+?>		+ connHat_ull.<?=xi?>.<?=sym(j,k)?> * LambdaBar_u.<?=xk?>
+<?		end
+?>	;
+<?
+	end
+end
 ?>
 
 	/*
@@ -348,22 +376,12 @@ substitute gammaBar_im,j connHat^m_kl = S_ijkl (symmetric in 3 & 4)
 			- .5 * trBar_DHat2_gammaBar_ll.<?=xij?>		
 <?	for k,xk in ipairs(xNames) do
 ?>
-			+ .5 * Delta_u.<?=xk?> * (Delta_lll.<?=xi?>.<?=sym(j,k)?> + Delta_lll.<?=xj?>.<?=sym(i,k)?>)
+			+ .5 * Delta_u.<?=xk?> * (Delta_lll.<?=xi?>.<?=sym(k,j)?> + Delta_lll.<?=xj?>.<?=sym(k,i)?>)
+			+ .5 * gammaBar_ll.<?=sym(i,k)?> * DHat_LambdaBar_ul.<?=xk?>.<?=xj?> 
+			+ .5 * gammaBar_ll.<?=sym(j,k)?> * DHat_LambdaBar_ul.<?=xk?>.<?=xi?> 
 <?		for l,xl in ipairs(xNames) do
-?>
-
-			+ .5 * (
-				partial_LambdaBar_ul[<?=i-1?>].<?=xk?> 
-				+ connHat_ull.<?=xk?>.<?=sym(i,l)?> * LambdaBar_u.<?=xl?>
-			) * gammaBar_ll.<?=sym(k,j)?>
-			+ .5 * (
-				partial_LambdaBar_ul[<?=j-1?>].<?=xk?> 
-				+ connHat_ull.<?=xk?>.<?=sym(j,l)?> * LambdaBar_u.<?=xl?>
-			) * gammaBar_ll.<?=sym(k,i)?>
-
-<?			for m,xm in ipairs(xNames) do
-?>
-			+ gammaBar_uu.<?=sym(k,l)?> * (0.
+			for m,xm in ipairs(xNames) do
+?>			+ gammaBar_uu.<?=sym(k,l)?> * (0.
 				+ Delta_ull.<?=xm?>.<?=sym(k,i)?> * Delta_lll.<?=xj?>.<?=sym(m,l)?>
 				+ Delta_ull.<?=xm?>.<?=sym(k,j)?> * Delta_lll.<?=xi?>.<?=sym(m,l)?>
 				+ Delta_ull.<?=xm?>.<?=sym(i,k)?> * Delta_lll.<?=xm?>.<?=sym(j,l)?>
@@ -408,8 +426,10 @@ kernel void initState(
 -- (though fwiw I was only using Gauss-Jordan elimination then, now I'm using a simplification for 3x3's)
 -- so maybe yes maybe no
 -- until then, I'll hard-code the Minkowski option to just keep everthing zero
--- TODO as well, maybe this is an excuse to move the rescaling code into the initState
--- then just let Minkowski call setFlatSpace() ?
+-- better TODO instead, maybe this is an excuse to move the rescaling code into the initState
+-- then just let Minkowski call setFlatSpace() 
+-- the downside to this is that whatever code produced by the initState would be specific to BSSN
+-- and therefore be incompatible with the adm3d, etc solvers (unless they too adopted identical coordinate rescaling) ?
 if eqn.initState.name == 'Minkowski' then ?>
 	
 	setFlatSpace(solver, U, x);
@@ -914,15 +934,6 @@ end
 	
 	_3sym3 partial_connHat_ulll[3];
 	calc_partial_conn_ulll(partial_connHat_ulll, &connHat_ull, &gammaHat_uu, &partial_gammaHat_lll, &partial2_gammaHat_llll);
-	
-	sym3sym3 partial2_gammaBar_llll;
-<? 
-for ij,xij in ipairs(symNames) do
-	for kl,xkl in ipairs(symNames) do
-?>	partial2_gammaBar_llll.<?=xij?>.<?=xkl?> = partial2_epsilon_llll[<?=ij-1?>].<?=xkl?> + partial2_gammaHat_llll.<?=xij?>.<?=xkl?>;
-<?	end
-end 
-?>
 	
 	sym3 RBar_ll;
 	<?=eqn:getCode_RBar_ll()?>

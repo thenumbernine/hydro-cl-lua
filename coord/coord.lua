@@ -59,7 +59,7 @@ There are a few options on how to do this.
 	It is also made to work with a metric, and therefore works easiest when the metric is a dynamic variable (right?  where will the change-in-metric stuff have to go?)
 	Turns out this is similar to the conservative form for relativistic solvers mentioned in papers by Font and company.
 
-(and after reading the coordinate-invariant BSSN papers0
+(and after reading the coordinate-invariant BSSN papers)
 4) the Mathematician+Physicist way:
 	Represent all equations as tensors.  Use a holonomic basis.  Use a final change of coordinates that normalizes the basis vector lengths.
 	You get the best of both worlds: coordinates invariant to transform, and unit length basis vectors.
@@ -480,7 +480,6 @@ self.dg = dg
 
 	local Gamma_lll = Tensor'_abc'
 	Gamma_lll['_abc'] = ((dg'_cab' + dg'_bac' - dg'_abc' + c'_abc' + c'_acb' - c'_bca') / 2)()
-self.Gamma_lll = Gamma_lll	
 	if self.verbose then
 		print'1st kind Christoffel:'
 		print(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(Gamma_lll'_abc'()))
@@ -489,13 +488,20 @@ self.Gamma_lll = Gamma_lll
 
 	local Gamma_ull = Tensor'^a_bc'
 	Gamma_ull['^a_bc'] = Gamma_lll'^a_bc'()
-self.Gamma_ull = Gamma_ull	
 	if self.verbose then
 		print'connection:'
 		print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma_ull'^a_bc'()))
 	end
 	compileTensorField('conn_ull_codes', Gamma_ull)
-	
+
+	local Gamma_ulll = Tensor'^a_bcd'
+	Gamma_ulll['^a_bcd'] = Gamma_ull'^a_bc,d'()
+	if self.verbose then
+		print'connection:'
+		print(var'\\Gamma''^a_bc,d':eq(Gamma_ulll'^a_bcd'()))
+	end
+	compileTensorField('partial_conn_ulll_codes', Gamma_ulll)
+
 	-- u^i v^j b^k Conn_ijk(x)
 	local connExpr = (paramU'^a' * paramV'^b' * paramW'^c' * Gamma_lll'_abc')()
 	compileTensorField('connApply123Code', connExpr)
@@ -632,6 +638,14 @@ self.Gamma_ull = Gamma_ull
 	local det_g_expr = symmath.Matrix.determinant(g)
 	compileTensorField('det_g_code', det_g_expr)
 
+	local partial_det_g_expr = Tensor('_i', function(i)
+		return det_g_expr:diff(coords[i])()
+	end)
+	compileTensorField('partial_det_g_code', partial_det_g_expr)
+
+	local partial2_det_g_expr = partial_det_g_expr'_i,j'()
+	compileTensorField('partial2_det_g_code', partial2_det_g_expr)
+
 	local sqrt_det_gExpr = symmath.sqrt(det_g_expr)()
 	compileTensorField('sqrt_det_gCode', sqrt_det_gExpr)
 
@@ -676,16 +690,6 @@ self.Gamma_ull = Gamma_ull
 	if self.verbose then
 		print'g_ij,k in rescaled coordinates:'
 		print(dgJ_lll)
-	end
-	local connJ_lll = (self.Gamma_lll'_abc' * J'^a_u' * J'^b_v' * J'^c_w')()
-	if self.verbose then
-		print'Gamma_ijk in rescaled coordinates:'
-		print(connJ_lll)
-	end
-	local connJ_ull = (self.Gamma_ull'^a_bc' * JInv'_a^u' * J'^b_v' * J'^c_w')()
-	if self.verbose then
-		print'Gamma^i_jk in rescaled coordinates:'
-		print(connJ_ull)
 	end
 end
 
@@ -838,6 +842,37 @@ end
 	})
 end
 
+-- this is my exception to the rule, which accepts a pointer
+local function getCode_real3_to_3sym3x3(name, exprs)
+	return template([[
+void <?=name?>(_3sym3 a[3], real3 pt) {
+<?
+for i,xi in ipairs(xNames) do
+	for jk,xjk in ipairs(symNames) do
+		local j,k = from6to3x3(jk)
+		for l,xl in ipairs(xNames) do
+?>	a[<?=l-1?>].<?=xi?>.<?=xjk?> = <?
+
+if exprs[i] and exprs[i][j] and exprs[i][j][k] and exprs[i][j][k][l] then
+	?><?=convertParams(exprs[i][j][k][l])?><?
+else
+	?>0.<?
+end
+?>;
+<?		end
+	end
+end
+?>}
+]], {
+		xs = xs,
+		name = name,
+		exprs = exprs,
+		convertParams = convertParams,
+		symNames = symNames,
+		from6to3x3 = from6to3x3,
+	})
+end
+
 -- symmetric on 1st & 2nd and on 3rd & 4th
 local function getCode_real3_to_sym3sym3(name, exprs)
 	return template([[
@@ -931,6 +966,9 @@ function CoordinateSystem:getCode(solver)
 	local det_g_code = '(' .. self.det_g_code .. ')'
 	lines:insert(getCode_real3_to_real('coord_det_g', det_g_code))
 
+	lines:insert(getCode_real3_to_real3('coord_partial_det_g', self.partial_det_g_code))
+	lines:insert(getCode_real3_to_sym3('coord_partial2_det_g', self.partial2_det_g_code))
+
 	-- sqrt_det_g ... volume for holonomic basis
 	local sqrt_det_gCode = '(' .. self.sqrt_det_gCode .. ')'
 	lines:insert(getCode_real3_to_real('coord_sqrt_det_g', sqrt_det_gCode))
@@ -953,6 +991,11 @@ real coordLen(real3 r, real3 pt) {
 	lines:insert(getCode_real3_to_sym3sym3('coord_d2g_llll', self.d2g_llll_codes))
 	lines:insert(getCode_real3_to_3sym3('coord_conn_lll', self.conn_lll_codes))
 	lines:insert(getCode_real3_to_3sym3('coord_conn_ull', self.conn_ull_codes))
+	-- TODO why compute all of these for each eqn that doesn't use them?
+	-- how about, instead, compute these upon request ...
+	-- and while you're at it you can inline them everywhere as well (or is that too much?)
+	lines:insert(getCode_real3_to_3sym3x3('coord_partial_conn_ulll', self.partial_conn_ulll_codes))
+
 
 	--[[
 	for i=0,dim-1 do
