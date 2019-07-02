@@ -213,7 +213,7 @@ void setFlatSpace(
 
 	//LambdaBar^i = Delta^i + C^i = Delta^i_jk gammaBar^jk = (connBar^i_jk - connHat^i_jk) gammaBar^jk + C^i
 	//but when space is flat we have connBar^i_jk = connHat^i_jk and therefore Delta^i_jk = 0, Delta^i = 0, and LambdaBar^i = 0
-	U->LambdaBar_U = real3_rescaleFromCoord_u(mystery_C_U, x);
+	U->LambdaBar_U = mystery_C_U;
 
 <? if eqn.useShift == 'HyperbolicGammaDriver' then
 ?>	U->B_U = real3_zero;
@@ -401,6 +401,21 @@ kernel void initState(
 	sym3 K_ll = sym3_zero;
 	real rho = 0.;
 
+<? 
+-- BIG TODO (think about this one)
+-- Provide initial data in algebraic form, and convert to code here.
+-- This is what I was doing in HydroGPU, however it was proving slow to invert some matrices
+-- (though fwiw I was only using Gauss-Jordan elimination then, now I'm using a simplification for 3x3's)
+-- so maybe yes maybe no
+-- until then, I'll hard-code the Minkowski option to just keep everthing zero
+-- TODO as well, maybe this is an excuse to move the rescaling code into the initState
+-- then just let Minkowski call setFlatSpace() ?
+if eqn.initState.name == 'Minkowski' then ?>
+	
+	setFlatSpace(solver, U, x);
+
+<? else -- not Minkowski ?>
+
 	<?=code?>
 
 	U->alpha = alpha;
@@ -427,13 +442,15 @@ kernel void initState(
 	sym3 A_ll = sym3_sub(K_ll, sym3_real_mul(gamma_ll, 1./3. * U->K));
 	sym3 ABar_ll = sym3_real_mul(A_ll, exp_neg4phi);
 	U->ABar_LL = sym3_rescaleFromCoord_ll(ABar_ll, x);
-	
+
 	U->rho = rho;
 	U->S_u = real3_zero;
 	U->S_ll = sym3_zero;
 	
 	U->H = 0.;
 	U->M_u = real3_zero;
+	
+<? end -- Minkowski ?>
 }
 
 //after popularing gammaBar_ll, use its finite-difference derivative to initialize LambdaBar_u
