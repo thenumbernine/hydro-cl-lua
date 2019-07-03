@@ -36,46 +36,6 @@ Then there's the possibility that, by moving the calc_RBar_ll code into its own 
 Then there's the possibility that I'm using too many locals and the compiler has a bug with stack allocations beyond a certain size.
 */
 
-#define real3_add3(a,b,c)		(real3_add(real3_add(a,b),c))
-#define real3_add5(a,b,c,d,e) 	(real3_add(real3_add(real3_add(a,b),real3_add(c,d)),e))
-#define real3_add7(a,b,c,d,e,f,g) 	\
-	real3_add(\
-		real3_add(\
-			real3_add(a,b),\
-			real3_add(c,d)\
-		),\
-		real3_add(\
-			real3_add(e,f),\
-			g)\
-	)
-#define real3_add10(a,b,c,d,e,f,g,h,i,j) 	\
-	real3_add(\
-		real3_add(\
-			real3_add(\
-				real3_add(a,b),\
-				real3_add(c,d)\
-			),\
-			real3_add(\
-				real3_add(e,f),\
-				real3_add(g,h))\
-		),\
-		real3_add(i,j))\
-
-#define sym3_add3(a,b,c)		(sym3_add(sym3_add(a,b),c))
-#define sym3_add4(a,b,c,d)		(sym3_add(sym3_add(a,b),sym3_add(c,d)))
-#define sym3_add5(a,b,c,d,e) 	(sym3_add(sym3_add(sym3_add(a,b),sym3_add(c,d)),e))
-#define sym3_add7(a,b,c,d,e,f,g) 	\
-	sym3_add(\
-		sym3_add(\
-			sym3_add(a,b),\
-			sym3_add(c,d)\
-		),\
-		sym3_add(\
-			sym3_add(e,f),\
-			g)\
-	)
-
-
 typedef <?=eqn.cons_t?> cons_t;
 typedef <?=solver.solver_t?> solver_t;
 
@@ -102,50 +62,6 @@ so feel free to use gammaBar, gammaHat, etc
 sym3 tracefree(sym3 A_ll, sym3 g_ll, sym3 g_uu) {
 	real tr_A = sym3_dot(A_ll, g_uu);
 	return sym3_sub(A_ll, sym3_real_mul(g_ll, tr_A / 3.));
-}
-
-void calc_partial_conn_ulll(
-	_3sym3 partial_conn_ulll[3],
-	const _3sym3* conn_ull,
-	const sym3* gamma_uu,
-	const _3sym3* partial_gamma_lll,
-	const sym3sym3* partial2_gamma_llll
-) {
-	/*
-	partial_conn_ulll[l].i.jk = conn^i_jk,l
-	= (gamma^im conn_mjk),l
-	= gamma^im_,l conn_mjk + gamma^im conn_mjk,l
-	= -gamma^im gamma_mn,l conn^n_jk + 1/2 gamma^im (gamma_mj,kl + gamma_mk,jl - gamma_jk,ml)
-	= gamma^im (
-		1/2 (gamma_mj,kl + gamma_mk,jl - gamma_jk,ml)
-		- gamma_mn,l conn^n_jk
-	)
-	*/
-<?
-for i,xi in ipairs(xNames) do
-	for jk,xjk in ipairs(symNames) do
-		local j,k = from6to3x3(jk)
-		local xj,xk = xNames[j],xNames[k]
-		for l,xl in ipairs(xNames) do
-?>	partial_conn_ulll[<?=l-1?>].<?=xi?>.<?=xjk?> = 0.
-<?			for m,xm in ipairs(xNames) do
-?>		+ gamma_uu-><?=sym(i,m)?> * (
-			.5 * (
-				partial2_gamma_llll-><?=sym(k,l)?>.<?=sym(m,j)?>
-				+ partial2_gamma_llll-><?=sym(j,l)?>.<?=sym(m,k)?>
-				- partial2_gamma_llll-><?=sym(l,m)?>.<?=sym(j,k)?>
-			)
-<?				for n,xn in ipairs(xNames) do
-?>			- partial_gamma_lll-><?=xl?>.<?=sym(m,n)?> * conn_ull-><?=xn?>.<?=sym(j,k)?>
-<?				end
-?>		)<?
-			end
-?>;
-<?
-		end
-	end
-end
-?>
 }
 
 //TODO if we're calculating the constrains in the derivative
@@ -214,7 +130,7 @@ for ij,xij in ipairs(symNames) do
 end
 ?>
 
-	real det_gammaHat = coord_det_g(x);
+	real det_gammaHat = calc_det_gammaHat(x);
 	real3 partial_det_gammaHat_l = coord_partial_det_g(x);
 	sym3 partial2_det_gammaHat_ll = coord_partial2_det_g(x);
 
@@ -232,6 +148,7 @@ end
 	other throughout the evolution."
 	
 	... so why is there a distinction between det gammaBar_ij and det gammaHat_ij? 
+	TODO detg ...
 	*/
 	real detg = 1.;
 	real3 partial_detg_l = real3_zero;
@@ -280,27 +197,7 @@ end
 
 	_3sym3 connHat_lll = coord_conn_lll(x);
 
-	_3sym3 connBar_ull;
-	{
-		//connBar_lll.i.jk := connBar_ijk = 1/2 (gammaBar_ij,k + gammaBar_ik,j - gammaBar_jk,i)
-		_3sym3 connBar_lll;
-<? 
-for i,xi in ipairs(xNames) do
-	for jk,xjk in ipairs(symNames) do
-		local j,k = from6to3x3(jk)
-		local xj,xk = xNames[j],xNames[k]
-?>		connBar_lll.<?=xi?>.<?=xjk?> = .5 * (0.
-			+ partial_gammaBar_lll.<?=xk?>.<?=sym(i,j)?>
-			+ partial_gammaBar_lll.<?=xj?>.<?=sym(i,k)?>
-			- partial_gammaBar_lll.<?=xi?>.<?=sym(j,k)?>
-		);
-<?	end
-end
-?>
-
-		//connBar_ull[i].jk := connBar^i_jk = gammaBar^il connBar_ljk
-		connBar_ull = sym3_3sym3_mul(gammaBar_uu, connBar_lll);
-	}
+<?=eqn:getCode_connBar_ull()?>
 
 	//tr_partial_beta := beta^i_,i
 	real tr_partial_beta = 0. <?
@@ -581,10 +478,10 @@ end
 ?>		- 2. * U->alpha * U->ABar_LL.<?=sym(i,k)?> * ABar_UL.<?=xk?>.<?=xj?>
 <?	end
 ?>		+ U->alpha * U->K * U->ABar_LL.<?=xij?>
-		+ exp_neg4phi * (
+		+ exp_neg4phi * (0.
 			+ tracelessPart_ll.<?=xij?>
 			- TF_DBar2_alpha_ll.<?=xij?>
-			+ U->alpha * TF_RBar_ll.<?=xij?>
+			+ U->alpha * TF_RBar_ll.<?=xij?>//diverging near r=0
 		) / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x))
 <?	for k,xk in ipairs(xNames) do
 ?>		+ partial_ABar_lll[<?=k-1?>].<?=xij?> * beta_u.<?=xk?>
@@ -810,8 +707,8 @@ kernel void constrainU(
 	sym3 epsilon_ll = sym3_rescaleToCoord_LL(U->epsilon_LL, x);
 	sym3 gammaBar_ll = sym3_add(gammaHat_ll, epsilon_ll);
 <? 
-if eqn.guiVars.constrain_det_gammaBar_ll.value 
-or eqn.guiVars.constrain_tr_ABar_ll.value 
+if eqn.guiVars.constrain_det_gammaBar.value 
+or eqn.guiVars.constrain_tr_ABar.value 
 then 
 ?>
 	/*
@@ -822,8 +719,8 @@ then
 	= det(gammaBar_ij) * (det(gammaHat_ij) / det(gammaBar_ij))
 	= det(gammaHat_ij)
 	*/
-<?	if eqn.guiVars.constrain_det_gammaBar_ll.value then ?>
-	real det_gammaHat = coord_det_g(x);
+<?	if eqn.guiVars.constrain_det_gammaBar.value then ?>
+	real det_gammaHat = calc_det_gammaHat(x);
 	real det_gammaBar = sym3_det(gammaBar_ll);
 	real rescaleMetric = cbrt(det_gammaHat/det_gammaBar);
 <? 		for ij,xij in ipairs(symNames) do
@@ -831,26 +728,26 @@ then
 <? 		end ?>
 	epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
 	U->epsilon_LL = sym3_rescaleFromCoord_ll(epsilon_ll, x);
-<?	end	-- constrain_det_gammaBar_ll ?>
+<?	end	-- constrain_det_gammaBar ?>
 
-	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaHat);
+	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
 	
 	sym3 gammaBar_LL = sym3_rescaleFromCoord_ll(gammaBar_ll, x);
 	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
 	
 	//in Buchman's paper it says he doesn't do this
 	//and in the new arbitrary-coord formalism, there is a tr ABar_ij term
-<? if eqn.guiVars.constrain_tr_ABar_ll.value then ?>
+<? if eqn.guiVars.constrain_tr_ABar.value then ?>
 	U->ABar_LL = tracefree(U->ABar_LL, gammaBar_LL, gammaBar_UU);
-<? end	-- constrain_tr_ABar_ll ?>
+<? end	-- constrain_tr_ABar ?>
 
-<? else -- constrain_det_gammaBar_ll or constrain_tr_ABar_ll ?>
-	real det_gammaHat = coord_det_g(x);
+<? else -- constrain_det_gammaBar or constrain_tr_ABar ?>
+	real det_gammaHat = calc_det_gammaHat(x);
 	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaHat);
 	
 	sym3 gammaBar_LL = sym3_rescaleFromCoord_ll(gammaBar_ll, x);
 	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
-<? end -- constrain_det_gammaBar_ll or constrain_tr_ABar_ll ?>
+<? end -- constrain_det_gammaBar or constrain_tr_ABar ?>
 
 	//makes the spinning black hole simulations look ugly
 	U->alpha = max(U->alpha, solver->alphaMin);
@@ -897,28 +794,7 @@ for k,xk in ipairs(xNames) do
 <?	end
 end
 ?>
-
-	_3sym3 connBar_ull;
-	{
-		//connBar_lll.i.jk := connBar_ijk = 1/2 (gammaBar_ij,k + gammaBar_ik,j - gammaBar_jk,i)
-		_3sym3 connBar_lll;
-<? 
-for i,xi in ipairs(xNames) do
-	for jk,xjk in ipairs(symNames) do
-		local j,k = from6to3x3(jk)
-		local xj,xk = xNames[j],xNames[k]
-?>		connBar_lll.<?=xi?>.<?=xjk?> = .5 * (0.
-			+ partial_gammaBar_lll.<?=xk?>.<?=sym(i,j)?>
-			+ partial_gammaBar_lll.<?=xj?>.<?=sym(i,k)?>
-			- partial_gammaBar_lll.<?=xi?>.<?=sym(j,k)?>
-		);
-<?	end
-end
-?>
-
-		//connBar_ull[i].jk := connBar^i_jk = gammaBar^il connBar_ljk
-		connBar_ull = sym3_3sym3_mul(gammaBar_uu, connBar_lll);
-	}
+<?=eqn:getCode_connBar_ull()?>
 
 	//ABar_ul.i.j := ABar^i_j = gammaBar^kl ABar_kj
 	real3x3 ABar_UL = sym3_sym3_mul(gammaBar_UU, U->ABar_LL);
@@ -938,8 +814,8 @@ end
 	sym3 gammaHat_uu = coord_g_uu(x);
 	
 	_3sym3 partial_connHat_ulll[3];
-	calc_partial_conn_ulll(partial_connHat_ulll, &connHat_ull, &gammaHat_uu, &partial_gammaHat_lll, &partial2_gammaHat_llll);
-		
+	coord_partial_conn_ulll(partial_connHat_ulll, x);
+
 	sym3 RBar_ll;
 	{
 		<?=eqn:getCode_RBar_ll()?> 
@@ -982,7 +858,7 @@ end
 	DBar_j (e^(6 phi) ABar^ij)
 	= DBar_j (e^(6 phi)) ABar^ij + e^(6 phi) DBar_j ABar^ij
 	= 6 phi_,j e^(6 phi) ABar^ij + e^(6 phi) (ABar^ij_,j + connBar^i_kj ABar^kj + connBar^j_kj ABar^ik)
-	= exp(6 phi) (6 ABar^ij phi_,j + (gammaBar^ik ABar_kl gammaBar^lj)_,j + connBar^i_jk ABar^jk) ... plus (ln det gammaBar_ll)_,k which is zero, right?
+	= exp(6 phi) (6 ABar^ij phi_,j + (gammaBar^ik ABar_kl gammaBar^lj)_,j + connBar^i_jk ABar^jk) ... plus (ln det gammaBar)_,k which is zero, right?
 	= exp(6 phi) (
 			+ 6 ABar^ij phi_,j
 			+ gammaBar^ik_,j ABar_k^j
