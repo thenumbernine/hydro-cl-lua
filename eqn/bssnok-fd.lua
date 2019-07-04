@@ -671,10 +671,16 @@ so what to check?
 	RBar_ij terms ...
 	especially partial_DHat_gammaBar_llll ... 
 
+*) RBar_ij should be 0, I'm seeing diag(0, 1, cos(θ))
 especially its terms ...
-*) gammaBar^kl gammaBar_ij,kl should be diag(0,2,2), but I'm seeing 0
+*) gammaBar^kl gammaBar_ij,kl should be diag(0,2,2*cos(θ)^2), but I'm seeing 0
 *) gammaBar^kl gammaBar_im connHat^m_jk,l should be diag(0,-1,-1) but I'm seeing diag(0,-1,-1.5)
 *) gammaBar^kl gammaBar_im,l connHat^m_jk should be diag(0,2,2) ... correct, that works. 
+
+why is del gammaBar_ij wrong?
+gamma_ij = diag(1, r^2, r^2 sin(θ)^2), which is right.
+gammaHat_ij = diag(1, r^2, r^2 sin(θ)^2), which is right.
+gammaBar_ij = diag(1, r^2, r^2 sin(θ)^2), which is right.
 --]]
 	'U RBar_ll xx',
 	'U RBar_ll xy',

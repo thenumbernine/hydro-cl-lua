@@ -116,17 +116,17 @@ local args = {
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
 	mins = cmdline.mins or {1, 0, -math.pi},
-	maxs = cmdline.maxs or {3, math.pi, math.pi},
+	maxs = cmdline.maxs or {4, math.pi, math.pi},
 	gridSize = ({
 		{256, 1, 1}, -- 1D
 		{32, 32, 1}, -- 2D
 		{16, 16, 16}, -- 3D
 	})[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'freeflow',	-- how to handle?
 		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'mirror',
-		ymax=cmdline.boundary or 'mirror',
+		ymin=cmdline.boundary or 'freeflow',	-- ?
+		ymax=cmdline.boundary or 'freeflow',	-- ?
 		zmin=cmdline.boundary or 'periodic',
 		zmax=cmdline.boundary or 'periodic',
 	},

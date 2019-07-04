@@ -23,7 +23,9 @@ predefined vars:
 	verbose = output extra stuff
 
 	coordVerbose = output extra info from coord/coord.lua
-	
+
+	display_useCoordMap = set this gui option 
+
 	intVerbose = output extra info from int/*.lua
 	intBEEpsilon = backwards Euler stop on residual less than this epsilon
 	intBERestart = backwards Euler GMRES restart
@@ -806,7 +808,14 @@ end
 			ymax = 5
 		end
 
-		if not self.displayAllTogether then
+		local mouseOverThisGraph
+		local mouseInGraphX
+		local mouseInGraphY
+		if self.displayAllTogether then
+			mouseOverThisGraph = true
+			mouseInGraphX = mouse.pos[1]
+			mouseInGraphY = mouse.pos[2]
+		else
 			local vpxmin = graphCol / graphsWide * w
 			local vpymin = (1 - (graphRow + 1) / graphsHigh) * h
 			local vpw = w / graphsWide
@@ -816,12 +825,28 @@ end
 			local my = mouse.pos[2] * self.height
 			if mx >= vpxmin and mx < vpxmin + vpw
 			and my >= vpymin and my < vpymin + vph
-			and mouse.leftClick
-			--and mouse.leftDown and not mouse.lastLeftDown
 			then
-				mouseClickedOnVar = varName
+				mouseOverThisGraph = true
+				mouseInGraphX = (mx - vpxmin) / vpw
+				mouseInGraphY = (my - vpymin) / vph
+				if mouse.leftClick then
+					mouseClickedOnVar = varName
+				end
 			end
 		end
+		if self.showMouseCoords 
+		and mouseOverThisGraph 
+		then
+			local xmin, xmax, ymin, ymax
+			if self.view.getOrthoBounds then
+				xmin, xmax, ymin, ymax = self.view:getOrthoBounds(ar)
+			else
+				xmin, xmax, ymin, ymax = graph_xmin, graph_ymin, graph_xmax, graph_ymax
+			end
+			self.mouseCoord[1] = mouseInGraphX * (xmax - xmin) + xmin
+			self.mouseCoord[2] = mouseInGraphY * (ymax - ymin) + ymin
+		end
+
 
 		-- TODO maybe find the first solver for this var and use it to choose 1D,2D,3D
 		local dim = self.solvers[1].dim
@@ -838,6 +863,52 @@ end
 			--if self.enableVectorField then
 			self:displayVectorField(self.solvers, ar, varName, xmin, ymin, xmax, ymax)
 			--end
+		end
+
+		-- TODO make this custom per-display-method
+		-- (that would also let us do one less tex bind/unbind)
+		if mouseOverThisGraph 
+		and self.showMouseCoords
+		and dim == 2
+		then
+			self.mouseCoordValue = ''
+			for i,solver in ipairs(self.solvers) do 
+			local var = solver.displayVarForName[varName]
+				if var and var.enabled then
+					-- translate the mouse coords to texture coords
+					-- and read the texel at the mouse position
+					if self.display_useCoordMap then
+						print'FIXME'
+						-- run coords through inverse
+					end
+					local tcX = (self.mouseCoord[1] - solver.mins[1]) / (solver.maxs[1] - solver.mins[1])
+					local tcY = (self.mouseCoord[2] - solver.mins[2]) / (solver.maxs[2] - solver.mins[2])
+					-- TODO something equivalent for 3D ... somehow ...
+					if tcX >= 0 and tcX < 1
+					and tcY >= 0 and tcY < 1
+					then
+						local size = var.getBuffer().sizevec or solver.gridSize
+						local texX = math.floor(tcX * tonumber(size.x))
+						local texY = math.floor(tcY * tonumber(size.y))
+						if self.useGLSharing then
+							print'FIXME'
+							--gl.glGetTexSubImage ... why isn't this in any OpenGL header?
+						else
+							-- ... if we know we're always copying intermediately to reduceBuf then we can use that instead
+							-- in fact, we can even use the CPU intermediate buffer
+							local ptr = ffi.cast('float*', solver.calcDisplayVarToTexPtr)
+							local channels = vectorField and 3 or 1
+							local sep = ''
+							self.mouseCoordValue = self.mouseCoordValue .. tostring(texX)..','..tostring(texY)..': '
+							for j=0,channels-1 do
+								self.mouseCoordValue = self.mouseCoordValue .. sep .. ptr[j + channels * (texX + size.x * texY)]
+								sep = ', '
+							end
+							self.mouseCoordValue = self.mouseCoordValue .. '\n'
+						end
+					end
+				end
+			end
 		end
 	
 		if not self.displayAllTogether then
@@ -1106,6 +1177,8 @@ end
 		end
 	end
 	
+	tooltip.checkboxTable('show coords', self, 'showMouseCoords')
+	
 	for i,solver in ipairs(self.solvers) do
 		ig.igPushIDStr('solver '..i)
 		if ig.igCollapsingHeader(solver.name) then
@@ -1114,7 +1187,22 @@ end
 		end
 		ig.igPopID()
 	end
+
+	if self.showMouseCoords then
+		ig.igBeginTooltip()
+		ig.igText(self:getCoordText())
+		ig.igText(self.mouseCoordValue)
+		ig.igEndTooltip()
+	end
 end
+HydroCLApp.showMouseCoords = true
+HydroCLApp.mouseCoord = {0,0}
+HydroCLApp.mouseCoordValue = ''	-- TODO store one per inst of App
+
+function HydroCLApp:getCoordText()
+	return ('%f, %f'):format(self.mouseCoord[1], self.mouseCoord[2])
+end
+
 
 local leftShiftDown, rightShiftDown
 local leftGuiDown, rightGuiDown

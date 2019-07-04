@@ -37,7 +37,8 @@ var.solver = solver
 var.solver = origSolver
 	end
 
-	HydroCLApp.display_useCoordMap = true
+	HydroCLApp.display_useCoordMap = cmdline.display_useCoordMap 
+	if HydroCLApp.display_useCoordMap == nil then HydroCLApp.display_useCoordMap = true end
 	function HydroCLApp:display2D_Heatmap(solvers, varName, ar, graph_xmin, graph_ymin, graph_xmax, graph_ymax)
 		self.view:projection(ar)
 		self.view:modelview()
