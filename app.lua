@@ -1095,6 +1095,9 @@ end
 		
 			--ig.igCheckbox('vector field', self.enableVectorField)
 		
+			-- for 2D heatmap only:
+			tooltip.checkboxTable('display with coord map', self, 'display_useCoordMap')
+		
 			tooltip.numberTable('vector field scale', self, 'displayVectorField_scale')
 			--tooltip.sliderTable('vector field scale', self, 'displayVectorField_scale', 0, 100, nil, 10)
 			

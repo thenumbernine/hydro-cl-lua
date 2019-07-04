@@ -6,7 +6,6 @@ local coord = solver.coord
 
 varying vec2 viewCoord;
 
-<?=coord:getCoordMapGLSLCode()?>
 <?=coord:getCoordMapInvGLSLCode()?>
 
 <? if vertexShader then ?>
@@ -23,6 +22,8 @@ if fragmentShader then ?>
 #define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
 float logmap(float x) { return log(1. + abs(x)) * _1_LN_10; }
 
+uniform bool useCoordMap;
+
 uniform bool useLog;
 uniform float valueMin, valueMax;
 uniform bool showInUnits;
@@ -37,7 +38,11 @@ uniform vec2 solverMins, solverMaxs;
 void main() {
 	//start in 2D coords, bounded by the screen space
 	//TODO if we are viewing this in 3D then we will have to draw a quad bigger than the intersection of the camera hull with the XY plane
-	vec2 gridCoord = coordMapInv(vec3(viewCoord.xy, 0.)).xy;
+	//TODO make this a flag:
+	vec2 gridCoord = viewCoord.xy;
+	if (useCoordMap) {
+		gridCoord = coordMapInv(vec3(gridCoord, 0.)).xy;
+	}
 	
 	if (gridCoord.x < solverMins.x || gridCoord.x > solverMaxs.x ||
 		gridCoord.y < solverMins.y || gridCoord.y > solverMaxs.y

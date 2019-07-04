@@ -673,6 +673,7 @@ void <?=name?>(
 	cplx* value_cplx = (cplx*)value;
 	real3* value_real3 = (real3*)value;
 	cplx3* value_cplx3 = (cplx3*)value;
+	real3x3* value_real3x3 = (real3x3*)value;
 
 	switch (component) {
 <? 
@@ -701,11 +702,11 @@ end
 
 --[=[
 -- ok here's another idea for saving lines of code
--- add some predefined functions for getters for real, real3, sym3, cplx, cplx3
+-- add some predefined functions for getters for real, real3, sym3, cplx, cplx3, real3x3
 -- and, if your variable is just a member of a struct of one of these types, use that.
 -- (this means adding in extra params for display: the offset and the struct size)
 	
-	for _,ctype in ipairs{'real', 'real3', 'sym3', 'cplx', 'cplx3'} do
+	for _,ctype in ipairs{'real', 'real3', 'sym3', 'cplx', 'cplx3', 'real3x3'} do
 		for _, texVsBuf in ipairs{'Tex', 'Buffer'} do	
 			local tempvar = {
 				code = template([[
@@ -763,6 +764,8 @@ void <?=clFuncName?>(
 	cplx* value_cplx = (cplx*)value;
 	real3* value_real3 = (real3*)value;
 	cplx3* value_cplx3 = (cplx3*)value;
+	real3x3* value_real3x3 = (real3x3*)value;
+
 <?=var.codePrefix or ''?>
 <?=var.code?>
 }
@@ -794,6 +797,7 @@ void <?=clFuncName?>(
 	cplx* value_cplx = (cplx*)value;
 	real3* value_real3 = (real3*)value;
 	cplx3* value_cplx3 = (cplx3*)value;
+	real3x3* value_real3x3 = (real3x3*)value;
 
 <?=var.codePrefix or ''?>
 <?=var.code?>
@@ -1068,7 +1072,8 @@ end ?><?= var.extraArgs and #var.extraArgs > 0
 ?>	int dstindex = index;
 	real3 x = cells[index].x;
 <? end 		-- mesh vs grid 
-?>	real value[6] = {0,0,0,0,0,0};	<? -- size of largest struct.  TODO how about a union? ?>
+?>	
+	real value[9] = {0,0,0,0,0,0,0,0,0};	<? -- size of largest struct.  TODO how about a union? ?>
 	int vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
 <?=var.code?>
 	<?=solver:getPickComponentNameForGroup(var)?>(solver, buf, component, &vectorField, value, i);
@@ -1215,6 +1220,37 @@ function SolverBase:createDisplayComponents()
 		{name = 'im', code = '*value_real3 = cplx3_im(*value_cplx3); *(real3*)(value+3) = real3_zero;', type = 'real3', magn='im mag'},
 		{name = 'im mag', code = '*value_cplx3 = _cplx3(cplx_from_real(real3_len(cplx3_im(*value_cplx3))), cplx_zero, cplx_zero);'},
 	})
+	self:addDisplayComponents('real3x3', {
+		{name = 'xx', code = '*value_real3x3 = _real3x3(value_real3x3->x.x, 0,0,0,0,0,0,0,0);'},
+		{name = 'xy', code = '*value_real3x3 = _real3x3(value_real3x3->x.y, 0,0,0,0,0,0,0,0);'},
+		{name = 'xz', code = '*value_real3x3 = _real3x3(value_real3x3->x.z, 0,0,0,0,0,0,0,0);'},
+		
+		{name = 'yx', code = '*value_real3x3 = _real3x3(value_real3x3->y.x, 0,0,0,0,0,0,0,0);'},
+		{name = 'yy', code = '*value_real3x3 = _real3x3(value_real3x3->y.y, 0,0,0,0,0,0,0,0);'},
+		{name = 'yz', code = '*value_real3x3 = _real3x3(value_real3x3->y.z, 0,0,0,0,0,0,0,0);'},
+		
+		{name = 'zx', code = '*value_real3x3 = _real3x3(value_real3x3->z.x, 0,0,0,0,0,0,0,0);'},
+		{name = 'zy', code = '*value_real3x3 = _real3x3(value_real3x3->z.y, 0,0,0,0,0,0,0,0);'},
+		{name = 'zz', code = '*value_real3x3 = _real3x3(value_real3x3->z.z, 0,0,0,0,0,0,0,0);'},
+		
+		{name = 'norm', code = '*value_real3x3 = _real3x3(sqrt(real3x3_dot(*value_real3x3, *value_real3x3)), 0,0,0,0,0,0,0,0);'},
+		{name = 'tr', code = '*value_real3x3 = _real3x3(real3x3_trace(*value_real3x3), 0,0,0,0,0,0,0,0);'},
+		
+		{name = 'x', code = '*value_real3 = value_real3x3->x; value_real3[1] = real3_zero; value_real3[2] = real3_zero;', type = 'real3', magn='x mag'},
+		{name = 'y', code = '*value_real3 = value_real3x3->y; value_real3[1] = real3_zero; value_real3[2] = real3_zero;', type = 'real3', magn='y mag'},
+		{name = 'z', code = '*value_real3 = value_real3x3->z; value_real3[1] = real3_zero; value_real3[2] = real3_zero;', type = 'real3', magn='z mag'},
+		{name = 'x mag', code = '*value_real3 = _real3(real3_len(value_real3x3->x), 0,0); value_real3[1] = real3_zero; value_real3[2] = real3_zero;'},
+		{name = 'y mag', code = '*value_real3 = _real3(real3_len(value_real3x3->y), 0,0); value_real3[1] = real3_zero; value_real3[2] = real3_zero;'},
+		{name = 'z mag', code = '*value_real3 = _real3(real3_len(value_real3x3->z), 0,0); value_real3[1] = real3_zero; value_real3[2] = real3_zero;'},
+		
+		{name = 'T x', code = '*value_real3 = _real3(value_real3x3->x.x, value_real3x3->y.x, value_real3x3->z.x); value_real3[1] = real3_zero; value_real3[2] = real3_zero;', type = 'real3', magn='T x mag'},
+		{name = 'T y', code = '*value_real3 = _real3(value_real3x3->x.y, value_real3x3->y.y, value_real3x3->z.y); value_real3[1] = real3_zero; value_real3[2] = real3_zero;', type = 'real3', magn='T y mag'},
+		{name = 'T z', code = '*value_real3 = _real3(value_real3x3->x.z, value_real3x3->y.z, value_real3x3->z.z); value_real3[1] = real3_zero; value_real3[2] = real3_zero;', type = 'real3', magn='T z mag'},
+		{name = 'T x mag', code = '*value_real3 = _real3(real3_len(_real3(value_real3x3->x.x, value_real3x3->y.x, value_real3x3->z.x)), 0,0); value_real3[1] = real3_zero; value_real3[2] = real3_zero;'},
+		{name = 'T y mag', code = '*value_real3 = _real3(real3_len(_real3(value_real3x3->x.y, value_real3x3->y.y, value_real3x3->z.y)), 0,0); value_real3[1] = real3_zero; value_real3[2] = real3_zero;'},
+		{name = 'T z mag', code = '*value_real3 = _real3(real3_len(_real3(value_real3x3->x.z, value_real3x3->y.z, value_real3x3->z.z)), 0,0); value_real3[1] = real3_zero; value_real3[2] = real3_zero;'},
+	})
+
 end
 function SolverBase:addDisplayComponents(basetype, components)
 	for _,component in ipairs(components) do

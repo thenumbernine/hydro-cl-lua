@@ -481,7 +481,7 @@ end
 		+ exp_neg4phi * (0.
 			+ tracelessPart_ll.<?=xij?>
 			- TF_DBar2_alpha_ll.<?=xij?>
-			+ U->alpha * TF_RBar_ll.<?=xij?>//diverging near r=0
+			+ U->alpha * TF_RBar_ll.<?=xij?>
 		) / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x))
 <?	for k,xk in ipairs(xNames) do
 ?>		+ partial_ABar_lll[<?=k-1?>].<?=xij?> * beta_u.<?=xk?>

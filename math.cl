@@ -421,6 +421,16 @@ real3x3 real3_real3_outer(real3 a, real3 b) {
 ?>	};
 }
 
+real real3x3_dot(real3x3 a, real3x3 b) {
+	return 0.
+<? for i,xi in ipairs(xNames) do
+?>		<?
+	for j,xj in ipairs(xNames) do
+?> + a.<?=xi?>.<?=xj?> * b.<?=xi?>.<?=xj?><?
+	end ?>
+<? end ?>;
+}
+
 real sym3_real3x3_dot(sym3 a, real3x3 b) {
 	return 0.
 <? for i,xi in ipairs(xNames) do
