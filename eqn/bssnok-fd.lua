@@ -681,6 +681,10 @@ why is del gammaBar_ij wrong?
 gamma_ij = diag(1, r^2, r^2 sin(θ)^2), which is right.
 gammaHat_ij = diag(1, r^2, r^2 sin(θ)^2), which is right.
 gammaBar_ij = diag(1, r^2, r^2 sin(θ)^2), which is right.
+...but those partial second derivatives numerically evaluated are going to zero at some point.
+
+replacing it with symmath simplifications gives us ...
+*) gammaBar^kl gammaBar_ij,kl gives us diag(0, 2, 2*cos(θ)^2) ... which is CORRECT
 --]]
 	'U RBar_ll xx',
 	'U RBar_ll xy',
@@ -1429,6 +1433,141 @@ end
 ]], self:getTemplateEnv()),
 		},
 
+--[[
+gammaBar_ij = gammaHat_ij + epsilon_ij
+= gammaHat_ij + epsilon_IJ e_i^I e_j^J
+
+gammaBar_ij,kl = gammaHat_ij,kl + (epsilon_IJ e_i^I e_j^J)_,kl
+= gammaHat_ij,kl + (epsilon_IJ,k e_ij^IJ + epsilon_IJ e_ij^IJ_,k)_,l
+= gammaHat_ij,kl
+	+ epsilon_IJ,kl e_ij^IJ 
+	+ epsilon_IJ,l e_ij^IJ_,k
+	+ epsilon_IJ,k e_ij^IJ_,l
+	+ epsilon_IJ e_ij^IJ_,kl
+
+gammaBar^kl gammaBar_ij,kl
+
+gammaBar^kl = inv(gammaBar_kl)
+= inv(gammaHat_kl + epsilon_kl)
+--]]
+		
+		-- symbolically generate ... so far gammaBar^ij	
+		-- this fixes it.
+		{
+			name='del gammaBar sym',
+			type = 'sym3',
+			code = template([[
+<?
+do
+	local table = require 'ext.table'
+	local symmath = require 'symmath'
+	local var = symmath.var
+	local sin = symmath.sin
+	local cos = symmath.cos
+	local Tensor = symmath.Tensor
+	local Matrix = symmath.Matrix
+	
+	local compileVars = table()
+	local function compile(expr)
+		-- TODO What about repeated expressions that could be deferred, like sin(x)?
+		-- You could move them to another expression, but that means multiple code expressions.
+		-- And outputting multiple lines without a function header would require yet another kind of symmath code output...
+		return expr:expand():compile(compileVars, 'C', {hideHeader=true})
+	end
+	
+	local coords = Tensor.coords()[1].variables
+	for i,coord in ipairs(coords) do
+		compileVars:insert{['x.'..xNames[i] ] = coord}
+	end
+	local function compileVar(...)
+		local v = var(...)
+		compileVars:insert(v)
+		return v
+	end
+
+	local gammaHat = Tensor.metric().metric
+	local e = Tensor('_i^I', function(i,j)
+		return (i==j and symmath.sqrt(gammaHat[i][i])() or 0)
+	end)
+	local eu = Tensor('_I^i', function(i,j)
+		return i==j and (1/symmath.sqrt(gammaHat[i][i]))() or 0
+	end)
+
+	local epsilonVars = Tensor('_IJ', function(I,J)
+		return compileVar('U->epsilon_LL.'..sym(I,J), coords)
+	end)
+
+	local epsilon = (epsilonVars'_IJ' * e'_i^I' * e'_j^J')()
+	local gammaBar = (gammaHat'_ij' + epsilon'_ij')()
+	local det_gammaBar = Matrix.determinant(gammaBar)
+
+?>	real det_gammaBar = <?=compile(det_gammaBar)?>;
+<?	local detGammaBarVar = compileVar('det_gammaBar', coords)
+	
+	local gammaBarInv = Tensor('^ij', table.unpack((Matrix.inverse(gammaBar, nil, nil, nil, detGammaBarVar))))
+
+	local cos_xs = Tensor('_i', function(i) 
+		local v = compileVar('cos_'..i) 
+?>	real <?=v?> = cos(x.<?=xNames[i]?>);
+<?		return v
+	end)
+	local sin_xs = Tensor('_i', function(i) 
+		local v = compileVar('sin_'..i) 
+?>	real <?=v?> = sin(x.<?=xNames[i]?>);
+<?		return v
+	end)
+
+	local partial_epsilonVars = Tensor('_IJk', function(I,J,k)
+		return compileVar('partial_epsilon_LLl['..(k-1)..'].'..sym(I,J), coords)
+	end)
+
+	local partial2_epsilonVars = Tensor('_IJkl', function(I,J,k,l)
+		local kl = from3x3to6(k,l)
+		return compileVar('partial2_epsilon_LLll['..(kl-1)..'].'..sym(I,J), coords)
+	end)
+
+?><?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
+<?	
+	local partial2_gammaBar = gammaBar'_ij,kl'()
+
+	local del_gammaBar = (gammaBarInv'^kl' * partial2_gammaBar'_ijkl')()
+
+	-- replace diff() exprs with partial vars
+	-- replace trig with vars
+	local function prepareForCompile(expr)
+		for I=1,3 do
+			expr = expr:replace(sin(coords[I]), sin_xs[I])
+			expr = expr:replace(cos(coords[I]), cos_xs[I])
+			for J=1,3 do
+				for k=1,3 do
+					expr = expr:replace(
+						epsilonVars[I][J]:diff(coords[k]),
+						partial_epsilonVars[I][J][k])
+					for l=1,3 do
+						expr = expr:replace(
+							epsilonVars[I][J]:diff(coords[k], coords[l]),
+							partial2_epsilonVars[I][J][k][l])
+					end
+				end
+			end
+		end
+		return expr
+	end
+
+?>	sym3 del_gammaBar_ll;
+<?	for i=1,3 do
+		for j=i,3 do
+			local code = compile(prepareForCompile(del_gammaBar[i][j]))
+?>	del_gammaBar_ll.<?=sym(i,j)?> = <?=code?>;
+<?		end
+	end
+end
+?>
+	*value_sym3 = del_gammaBar_ll;
+]], self:getTemplateEnv()),
+		},
+	
 		{
 			name = 'tr34 (gamma*dGamma)',
 			type = 'real3x3',

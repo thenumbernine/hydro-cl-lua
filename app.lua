@@ -878,33 +878,35 @@ end
 					-- translate the mouse coords to texture coords
 					-- and read the texel at the mouse position
 					if self.display_useCoordMap then
-						print'FIXME'
+						--print'FIXME'
 						-- run coords through inverse
-					end
-					local tcX = (self.mouseCoord[1] - solver.mins[1]) / (solver.maxs[1] - solver.mins[1])
-					local tcY = (self.mouseCoord[2] - solver.mins[2]) / (solver.maxs[2] - solver.mins[2])
-					-- TODO something equivalent for 3D ... somehow ...
-					if tcX >= 0 and tcX < 1
-					and tcY >= 0 and tcY < 1
-					then
-						local size = var.getBuffer().sizevec or solver.gridSize
-						local texX = math.floor(tcX * tonumber(size.x))
-						local texY = math.floor(tcY * tonumber(size.y))
-						if self.useGLSharing then
-							print'FIXME'
-							--gl.glGetTexSubImage ... why isn't this in any OpenGL header?
-						else
-							-- ... if we know we're always copying intermediately to reduceBuf then we can use that instead
-							-- in fact, we can even use the CPU intermediate buffer
-							local ptr = ffi.cast('float*', solver.calcDisplayVarToTexPtr)
-							local channels = vectorField and 3 or 1
-							local sep = ''
-							self.mouseCoordValue = self.mouseCoordValue .. tostring(texX)..','..tostring(texY)..': '
-							for j=0,channels-1 do
-								self.mouseCoordValue = self.mouseCoordValue .. sep .. ptr[j + channels * (texX + size.x * texY)]
-								sep = ', '
+					else
+						local tcX = (self.mouseCoord[1] - solver.mins[1]) / (solver.maxs[1] - solver.mins[1])
+						local tcY = (self.mouseCoord[2] - solver.mins[2]) / (solver.maxs[2] - solver.mins[2])
+						-- TODO something equivalent for 3D ... somehow ...
+						if tcX >= 0 and tcX < 1
+						and tcY >= 0 and tcY < 1
+						then
+							-- TODO this is going to include ghost cells...
+							local size = var.getBuffer().sizevec or solver.gridSize
+							local texX = math.floor(tcX * tonumber(size.x))
+							local texY = math.floor(tcY * tonumber(size.y))
+							if self.useGLSharing then
+								print'FIXME'
+								--gl.glGetTexSubImage ... why isn't this in any OpenGL header?
+							else
+								-- ... if we know we're always copying intermediately to reduceBuf then we can use that instead
+								-- in fact, we can even use the CPU intermediate buffer
+								local ptr = ffi.cast('float*', solver.calcDisplayVarToTexPtr)
+								local channels = vectorField and 3 or 1
+								local sep = ''
+								self.mouseCoordValue = self.mouseCoordValue .. tostring(texX)..','..tostring(texY)..': '
+								for j=0,channels-1 do
+									self.mouseCoordValue = self.mouseCoordValue .. sep .. ptr[j + channels * (texX + size.x * texY)]
+									sep = ', '
+								end
+								self.mouseCoordValue = self.mouseCoordValue .. '\n'
 							end
-							self.mouseCoordValue = self.mouseCoordValue .. '\n'
 						end
 					end
 				end
@@ -1168,6 +1170,8 @@ end
 		
 			-- for 2D heatmap only:
 			tooltip.checkboxTable('display with coord map', self, 'display_useCoordMap')
+	
+			tooltip.checkboxTable('show coords', self, 'showMouseCoords')
 		
 			tooltip.numberTable('vector field scale', self, 'displayVectorField_scale')
 			--tooltip.sliderTable('vector field scale', self, 'displayVectorField_scale', 0, 100, nil, 10)
@@ -1176,8 +1180,6 @@ end
 			self.displayVectorField_step = math.max(self.displayVectorField_step, 1)
 		end
 	end
-	
-	tooltip.checkboxTable('show coords', self, 'showMouseCoords')
 	
 	for i,solver in ipairs(self.solvers) do
 		ig.igPushIDStr('solver '..i)
