@@ -156,8 +156,17 @@ function BSSNOKFiniteDifferenceEquation:getCASEnv()
 	Tensor = symmath.Tensor
 	Matrix = symmath.Matrix
 
+	-- this is a list of variables passed to compile()
 	compileVars = table()
-	compileRepls = table()	-- pairs of {from, to}
+	
+	--[[
+	this is a list of pairs of {from, to}
+	the 'to' is usually a variable
+	the 'from' is usually partial derivatives, but can be things such as expensive functions you want to minimize calling (sin, cos, etc)
+	it is used to replace expressions with variables before compiling
+	--]]
+	compileRepls = table()	
+	
 	function compile(expr)
 		-- TODO What about repeated expressions that could be deferred, like sin(x)?
 		-- You could move them to another expression, but that means multiple code expressions.
@@ -188,11 +197,15 @@ function BSSNOKFiniteDifferenceEquation:getCASEnv()
 	for i,coord in ipairs(coords) do
 		compileVars:insert{['x.'..xNames[i] ] = coord}
 	end
+
+	-- create a variable to be added to the 'compileVars' list
 	function compileVar(...)
 		local v = var(...)
 		compileVars:insert(v)
 		return v
 	end
+	
+	-- compile an expression (typically variable), insert it into compileRepls as being associated with a specific expression
 	function compileReplVar(repl, ...)
 		local v = compileVar(...)
 		compileRepls:insert{repl, v}
@@ -208,9 +221,10 @@ function BSSNOKFiniteDifferenceEquation:getCASEnv()
 	end)
 
 	-- generates assignment code from specified variables
-	function assign(v, with)
+	function assign(name, with)
+		if with == nil then with = casEnv[name] end
 		assert(symmath.Expression.is(with), "not an expression")
-		return '	real '..v..' = '..compile(with)..';'
+		return '\treal '..name..' = '..compile(with)..';'
 	end
 	
 	-- generate assignment code for a variable based on its associated expr in the compileRepls table
@@ -223,10 +237,12 @@ function BSSNOKFiniteDifferenceEquation:getCASEnv()
 		-- so this rule needs to be pushed/popped ...
 		-- seems order of operations is really sensitive here
 		local replpair = compileRepls:remove(index)
-		local result = assign(v, replpair[1])
+		local result = assign(v.name, replpair[1])
 		compileRepls:insert(index, replpair)
 		return result
 	end
+	
+	-- assign any vars in the compileRepls table to their respective compileRepls exprs
 	function assignAllFromRepl(vars)
 		local lines = table()
 		for i,v in ipairs(vars) do
@@ -235,27 +251,47 @@ function BSSNOKFiniteDifferenceEquation:getCASEnv()
 		return lines:concat'\n'
 	end
 
+	-- assign a sym3 to a tensor
 	function assignTensorSym3(name, expr)
+		if expr == nil then expr = casEnv[name] end
 		local lines = table()
 		lines:insert('\tsym3 '..name..';')
 		for ij,xij in ipairs(symNames) do
 			local i,j = from6to3x3(ij)
+			assert(expr and expr[i] and expr[i][j], "failed to find expr for var "..name)
 			lines:insert('\t'..name..'.'..xij..' = '..compile(expr[i][j])..';')
 		end
 		return lines:concat'\n'
 	end
 
+	-- assign a 3sym3 to a tensor
+	-- assumes the 2nd and 3rd indexes are symmetric
+	function assignTensor3sym3(name, expr)
+		if expr == nil then expr = casEnv[name] end
+		local lines = table()
+		lines:insert('\t_3sym3 '..name..';')
+		for i,xi in ipairs(xNames) do
+			for jk,xjk in ipairs(symNames) do
+				local j,k = from6to3x3(jk)
+				assert(expr and expr[i] and expr[i][j] and expr[i][j][k], "failed to find expr for var "..name)
+				lines:insert('\t'..name..'.'..xi..'.'..xjk..' = '..compile(expr[i][j][k])..';')
+			end
+		end
+		return lines:concat'\n'
+	end
 
 	-- from here on out is stuff specific to trBar_partial2_gammaBar_ll 
 	-- 	(make a sub env?)
 	
-	gammaHat = Tensor.metric().metric
+	gammaHat_ll = Tensor.metric().metric
 	
-	det_gammaHat = Matrix.determinant(gammaHat)
-	det_gammaHatVar = compileVar('det_gammaHat', coords)
+	det_gammaHat = Matrix.determinant(gammaHat_ll)
+	det_gammaHat_var = compileVar('det_gammaHat', coords)
+	
+	gammaHat_uu = Tensor('^ij', table.unpack((Matrix.inverse(gammaHat_ll, nil, nil, nil, det_gammaHat_var))))
 
 	e = Tensor('_i^I', function(i,j)
-		return (i==j and symmath.sqrt(gammaHat[i][i])() or 0)
+		return (i==j and symmath.sqrt(gammaHat_ll[i][i])() or 0)
 	end)
 	eu = Tensor('_I^i', function(i,j)
 		return i==j and (1/e[i][i])() or 0
@@ -264,17 +300,20 @@ function BSSNOKFiniteDifferenceEquation:getCASEnv()
 	epsilonVars = Tensor('_IJ', function(I,J)
 		return compileVar('U->epsilon_LL.'..sym(I,J), coords)
 	end)
-
 	epsilon = (epsilonVars'_IJ' * e'_i^I' * e'_j^J')()
-	gammaBar = (gammaHat'_ij' + epsilon'_ij')()
+	gammaBar_ll = (gammaHat_ll'_ij' + epsilon'_ij')()
 
-	det_gammaBar = Matrix.determinant(gammaBar)
-	det_gammaBar = (det_gammaBar / det_gammaHat * det_gammaHatVar)()
-	det_gammaBarVar = compileVar('det_gammaBar', coords)
+	det_gammaBar = Matrix.determinant(gammaBar_ll)
+	det_gammaBar = (det_gammaBar / det_gammaHat * det_gammaHat_var)()
+	det_gammaBar_var = compileVar('det_gammaBar', coords)
 
-	gammaBarInv = Tensor('^ij', table.unpack((Matrix.inverse(gammaBar, nil, nil, nil, det_gammaBarVar))))
+	gammaBar_uu_vars = Tensor('^ij', function(i,j)
+		return compileVar('gammaBar_uu.'..sym(i,j), coords)
+	end)
+	gammaBar_uu = Tensor('^ij', table.unpack((Matrix.inverse(gammaBar_ll, nil, nil, nil, det_gammaBar_var))))
+	
 	-- this isn't always completely effective.  sometimes it introduces sin(theta)'s in the denominator
-	--gammaBarInv = (gammaBarInv / det_gammaHat * det_gammaHatVar)()
+	--gammaBar_uu = (gammaBar_uu / det_gammaHat * det_gammaHat_var)()
 
 	partial_epsilonVars = Tensor('_IJk', function(I,J,k)
 		return compileReplVar(epsilonVars[I][J]:diff(coords[k]), 'partial_epsilon_LLl['..(k-1)..'].'..sym(I,J), coords)
@@ -285,9 +324,12 @@ function BSSNOKFiniteDifferenceEquation:getCASEnv()
 		return compileReplVar(epsilonVars[I][J]:diff(coords[k], coords[l]), 'partial2_epsilon_LLll['..(kl-1)..'].'..sym(I,J), coords)
 	end)
 
-	partial2_gammaBar = gammaBar'_ij,kl'()
-	trBar_partial2_gammaBar = (gammaBarInv'^kl' * partial2_gammaBar'_ijkl')()
+	partial_gammaBar_lll = gammaBar_ll'_ij,k'()
+	partial2_gammaBar_llll = partial_gammaBar_lll'_ijk,l'()
+	trBar_partial2_gammaBar_ll = (gammaBar_uu'^kl' * partial2_gammaBar_llll'_ijkl')()
 
+	connBar_lll = ((partial_gammaBar_lll'_ijk' + partial_gammaBar_lll'_ikj' - partial_gammaBar_lll'_jki') / 2)()
+	connBar_ull = (gammaBar_uu_vars'^im' * connBar_lll'_mjk')()
 
 	-- [[ do this every time you stop using the casEnv
 	setfenv(1, oldEnv)
@@ -320,10 +362,11 @@ real calc_det_gammaHat(real3 x) {
 //however det(gammaHat_ij) == det(gammaBar_ij) by the eqn just before (6) in 2017 Ruchlin
 real calc_det_gammaBar(real3 x) {
 	//TODO detg ...
-	real detg = 1.;
 	real det_gammaHat = calc_det_gammaHat(x);
-	real det_gammaBar = det_gammaHat * detg;
-	return det_gammaBar;
+	//real detg = 1.;
+	//real det_gammaBar = det_gammaHat * detg;
+	//return det_gammaBar;
+	return det_gammaHat;
 }
 
 #define calc_exp_neg4phi(U) ((U)->W * (U)->W)
@@ -376,43 +419,20 @@ void setFlatSpace(
 ]], self:getTemplateEnv())
 end
 
-function BSSNOKFiniteDifferenceEquation:getCode_connBar_ull()
-	return template([[
-	_3sym3 connBar_ull;
-	{
-		//connBar_lll.i.jk := connBar_ijk = 1/2 (gammaBar_ij,k + gammaBar_ik,j - gammaBar_jk,i)
-		_3sym3 connBar_lll;
-<? 
-for i,xi in ipairs(xNames) do
-	for jk,xjk in ipairs(symNames) do
-		local j,k = from6to3x3(jk)
-		local xj,xk = xNames[j],xNames[k]
-?>		connBar_lll.<?=xi?>.<?=xjk?> = .5 * (0.
-			+ partial_gammaBar_lll.<?=xk?>.<?=sym(i,j)?>
-			+ partial_gammaBar_lll.<?=xj?>.<?=sym(i,k)?>
-			- partial_gammaBar_lll.<?=xi?>.<?=sym(j,k)?>
-		);
-<?	end
-end
-?>		//connBar_ull[i].jk := connBar^i_jk = gammaBar^il connBar_ljk
-		connBar_ull = sym3_3sym3_mul(gammaBar_uu, connBar_lll);
-	}
-]], self:getTemplateEnv())
-end
-
 function BSSNOKFiniteDifferenceEquation:getCode_RBar_ll()
 	local casEnv = self:getCASEnv()
 --[=[ prereq code for getCode_RBar_ll
-	return template([[
+-- TODO some kind of request / prefix system so I don't have to gen the cos()'s and sin()'s that I don't need
+-- have it work into the coord/coord stuff so I don't gen extra stuff there either
+-- (or alternatively just move all the stuff added to coord/coord just for into getCASEnv)
 <?=assignAllFromRepl(cos_xs)?>
 <?=assignAllFromRepl(sin_xs)?>
-<?=assign(det_gammaHatVar, det_gammaHat)?>
-<?=assign(det_gammaBarVar, det_gammaBar)?>
+<?=assign'det_gammaHat'?>
+<?=assign'det_gammaBar'?>
 <?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
 <?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
-<?=assignTensorSym3('trBar_partial2_gammaBar_ll', trBar_partial2_gammaBar)?>
-]], casEnv)
-	..
+<?=assignTensor3sym3('partial_gammaBar_lll', partial_gammaBar_lll:permute'_kij')?>
+<?=assignTensorSym3'trBar_partial2_gammaBar_ll'?>
 --]=]
 	return template([[
 
@@ -579,7 +599,15 @@ end
 end
 
 function BSSNOKFiniteDifferenceEquation:getInitStateCode()
-	return template([[
+	return template([=[
+<?
+-- [[ do this every time you use the casEnv
+local casEnv = eqn:getCASEnv()
+local oldEnv = getfenv()
+getmetatable(casEnv).__index = oldEnv
+setfenv(1, casEnv)
+--]]
+?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
@@ -671,25 +699,17 @@ kernel void initDerivs(
 	}
 #endif
 
-<?=eqn:makePartial'epsilon_LL'?>
-
-	_3sym3 partial_gammaHat_lll = coord_dg_lll(x);
-	
-	//partial_gammaBar_lll.k.ij := gammaBar_ij,k = gammaHat_ij,k + epsilon_ij,k
-	_3sym3 partial_gammaBar_lll;
-<? 
-for k,xk in ipairs(xNames) do
-	for ij,xij in ipairs(symNames) do
-?>	partial_gammaBar_lll.<?=xk?>.<?=xij?> = partial_epsilon_lll[<?=k-1?>].<?=xij?> + partial_gammaHat_lll.<?=xk?>.<?=xij?>;
-<?	end
-end
-?>
+<?=assignAllFromRepl(cos_xs)?>
+<?=assignAllFromRepl(sin_xs)?>
+<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
 	
 	_3sym3 connHat_lll = coord_conn_lll(x);
 	_3sym3 connHat_ull = coord_conn_ull(x);
-	sym3 gammaBar_uu = calc_gammaBar_uu(U, x);
 
-<?=eqn:getCode_connBar_ull()?>
+<?=assign'det_gammaHat'?>
+<?=assign'det_gammaBar'?>
+<?=assignTensorSym3'gammaBar_uu'?>
+<?=assignTensor3sym3'connBar_ull'?>
 	
 	//Delta^i_jk = connBar^i_jk - connHat^i_jk
 #if 0
@@ -723,7 +743,12 @@ end
 
 	U->LambdaBar_U = real3_rescaleFromCoord_u(LambdaBar_u, x);
 }
-]], table(self:getTemplateEnv(), {
+<?
+-- [[ do this every time you stop using the casEnv
+setfenv(1, oldEnv)
+--]]
+?>
+]=], table(self:getTemplateEnv(), {
 		code = self.initState:initState(self.solver),
 	}))
 end
@@ -757,14 +782,14 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U W',
 	'U K',
 --	'U ABar_LL tr weighted',
---] =]	
+--]=]	
 	'U ABar_LL xx',
 	'U ABar_LL xy',
 	'U ABar_LL xz',
 	'U ABar_LL yy',
 	'U ABar_LL yz',
 	'U ABar_LL zz',
---[ =[	
+--[=[	
 --	'U LambdaBar_U mag',
 	'U LambdaBar_U x',
 	'U LambdaBar_U y',
@@ -798,14 +823,14 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'deriv epsilon_LL zz',
 	'deriv W',
 	'deriv K',
---] =]	
+--]=]	
 	'deriv ABar_LL xx',
 	'deriv ABar_LL xy',
 	'deriv ABar_LL xz',
 	'deriv ABar_LL yy',
 	'deriv ABar_LL yz',
 	'deriv ABar_LL zz',
---[ =[	
+--[=[	
 	'deriv LambdaBar_U x',
 	'deriv LambdaBar_U y',
 	'deriv LambdaBar_U z',
@@ -864,7 +889,7 @@ replacing it with symmath simplifications gives us ...
 	'U RBar_ll yz',
 	'U RBar_ll zz',
 --]]
--- [[
+--[[
 	'U del gammaBar_ll sym xx',
 	'U del gammaBar_ll sym xy',
 	'U del gammaBar_ll sym xz',
@@ -942,26 +967,9 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 		{	-- gammaBar^ij DBar_i DBar_j phi
 			name = 'tr_DBar2_phi',
 			code = template([[
-	
-	<?=eqn:makePartial'epsilon_LL'?>
 
-	_3sym3 partial_gammaHat_lll = coord_dg_lll(x);
-	
-	//partial_gammaBar_lll.k.ij := gammaBar_ij,k
-	// = gammaHat_ij,k + epsilon_ij,k
-	_3sym3 partial_gammaBar_lll;
-<? 
-for k,xk in ipairs(xNames) do
-	for ij,xij in ipairs(symNames) do
-?>	partial_gammaBar_lll.<?=xk?>.<?=xij?> = partial_epsilon_lll[<?=k-1?>].<?=xij?> + partial_gammaHat_lll.<?=xk?>.<?=xij?>;
-<?	end
-end
-?>
-	
-	
-	sym3 gammaBar_uu = calc_gammaBar_uu(U, x);
-
-<?=eqn:getCode_connBar_ull()?>
+<?=assignTensorSym3'gammaBar_uu'?>
+<?=assignTensor3sym3'connBar_ull'?>
 
 <?=eqn:makePartial'W'?>
 <?=eqn:makePartial2'W'?>
@@ -1053,25 +1061,8 @@ end
 <? end ?>
 	}
 
-
-
-<?=eqn:makePartial'epsilon_LL'?>
-	_3sym3 partial_gammaHat_lll = coord_dg_lll(x);
-	
-	//partial_gammaBar_lll.k.ij := gammaBar_ij,k
-	// = gammaHat_ij,k + epsilon_ij,k
-	_3sym3 partial_gammaBar_lll;
-<? 
-for k,xk in ipairs(xNames) do
-	for ij,xij in ipairs(symNames) do
-?>	partial_gammaBar_lll.<?=xk?>.<?=xij?> = partial_epsilon_lll[<?=k-1?>].<?=xij?> + partial_gammaHat_lll.<?=xk?>.<?=xij?>;
-<?	end
-end
-?>
-
-
-	sym3 gammaBar_uu = calc_gammaBar_uu(U, x);
-<?=eqn:getCode_connBar_ull()?>
+<?=assignTensorSym3'gammaBar_uu'?>
+<?=assignTensor3sym3'connBar_ull'?>
 	
 	//DBar2_phi_ll.ij := DBar_i DBar_j phi = phi_,ij - connBar^k_ij phi_,k
 	sym3 DBar2_phi_ll;
@@ -1092,25 +1083,9 @@ end
 			code = template([[
 <?=eqn:makePartial'alpha'?>
 <?=eqn:makePartial2'alpha'?>
-
-
-<?=eqn:makePartial'epsilon_LL'?>
-	_3sym3 partial_gammaHat_lll = coord_dg_lll(x);
 	
-	//partial_gammaBar_lll.k.ij := gammaBar_ij,k
-	// = gammaHat_ij,k + epsilon_ij,k
-	_3sym3 partial_gammaBar_lll;
-<? 
-for k,xk in ipairs(xNames) do
-	for ij,xij in ipairs(symNames) do
-?>	partial_gammaBar_lll.<?=xk?>.<?=xij?> = partial_epsilon_lll[<?=k-1?>].<?=xij?> + partial_gammaHat_lll.<?=xk?>.<?=xij?>;
-<?	end
-end
-?>
-
-
-	sym3 gammaBar_uu = calc_gammaBar_uu(U, x);
-<?=eqn:getCode_connBar_ull()?>
+<?=assignTensorSym3'gammaBar_uu'?>
+<?=assignTensor3sym3'connBar_ull'?>
 
 	//DBar_i DBar_j alpha = alpha,ij - connBar^k_ij alpha,k
 	sym3 DBar2_alpha_ll;
@@ -1136,26 +1111,10 @@ end
 <?=eqn:makePartial'alpha'?>
 <?=eqn:makePartial2'alpha'?>
 
-
-<?=eqn:makePartial'epsilon_LL'?>
-	_3sym3 partial_gammaHat_lll = coord_dg_lll(x);
-	
-	//partial_gammaBar_lll.k.ij := gammaBar_ij,k
-	// = gammaHat_ij,k + epsilon_ij,k
-	_3sym3 partial_gammaBar_lll;
-<? 
-for k,xk in ipairs(xNames) do
-	for ij,xij in ipairs(symNames) do
-?>	partial_gammaBar_lll.<?=xk?>.<?=xij?> = partial_epsilon_lll[<?=k-1?>].<?=xij?> + partial_gammaHat_lll.<?=xk?>.<?=xij?>;
-<?	end
-end
-?>
-
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	real det_gammaBar = calc_det_gammaBar(x);
-	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
-
-<?=eqn:getCode_connBar_ull()?>
+<?=assignTensorSym3'gammaBar_ll'?>
+<?=assign'det_gammaBar'?>
+<?=assignTensorSym3'gammaBar_uu'?>
+<?=assignTensor3sym3'connBar_ull'?>
 
 	//DBar_i DBar_j alpha = alpha,ij - connBar^k_ij alpha,k
 	sym3 DBar2_alpha_ll;
@@ -1254,10 +1213,10 @@ using gamma = gammaHat / W^6
 	vars:insert{
 		name = 'expansion', 
 		code = template([[
-	<?=eqn:makePartial'W'?>
-	<?=eqn:makePartial'alpha'?>
-	<?=eqn:makePartial'beta_U'?>
-	real tr_partial_beta = 0. <?
+<?=eqn:makePartial'W'?>
+<?=eqn:makePartial'alpha'?>
+<?=eqn:makePartial'beta_U'?>
+	real tr_partial_beta = 0.<?
 for i,xi in ipairs(xNames) do
 ?> + partial_beta_ul[<?=i-1?>].<?=xi?><?
 end ?>;
@@ -1321,7 +1280,7 @@ end
 	vars:insert{
 		name = 'gravity',
 		code= template([[
-	<?=eqn:makePartial'alpha'?>
+<?=eqn:makePartial'alpha'?>
 
 	real _1_alpha = 1. / U->alpha;
 
@@ -1335,9 +1294,9 @@ end
 
 <? if eqn.useShift ~= 'none' then ?>
 
-	<?=eqn:makePartial'beta_u'?>
+<?=eqn:makePartial'beta_u'?>
 
-	<?=eqn:makePartial'epsilon_LL', 'partial_epsilon_lll'?>
+<?=eqn:makePartial'epsilon_LL'?>
 	
 	//W = exp(-2 phi)
 	real _1_W = 1. / U->W;
@@ -1347,7 +1306,7 @@ end
 	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, _1_W * _1_W);
 	
 	//gamma_ij,k = W^-2 gammaBar_ij,k - 2 W^-3 gammaBar_ij W_,k
-	<?=eqn:makePartial'W'?>
+<?=eqn:makePartial'W'?>
 	_3sym3 partial_gamma_lll = {
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_sub(
@@ -1440,35 +1399,23 @@ end ?>;
 			name = 'RBar_ll',
 			type = 'sym3',
 			code = template([[
-<?=eqn:makePartial'epsilon_LL'?>
 <?=eqn:makePartial'LambdaBar_U'?>
-<?=eqn:makePartial2'epsilon_LL'?>
+<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
 
 <?=assignAllFromRepl(cos_xs)?>
 <?=assignAllFromRepl(sin_xs)?>
-<?=assign(det_gammaHatVar, det_gammaHat)?>
-<?=assign(det_gammaBarVar, det_gammaBar)?>
 
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
+<?=assign'det_gammaHat'?>
+<?=assign'det_gammaBar'?>
+
+<?=assignTensorSym3'gammaBar_ll'?>
+<?=assignTensorSym3'gammaBar_uu'?>
 
 	_3sym3 connHat_lll = coord_conn_lll(x);
 	_3sym3 connHat_ull = coord_conn_ull(x);
 
-	_3sym3 partial_gammaHat_lll = coord_dg_lll(x);
-	
-	//partial_gammaBar_lll.k.ij := gammaBar_ij,k
-	// = gammaHat_ij,k + epsilon_ij,k
-	_3sym3 partial_gammaBar_lll;
-<? 
-for k,xk in ipairs(xNames) do
-	for ij,xij in ipairs(symNames) do
-?>	partial_gammaBar_lll.<?=xk?>.<?=xij?> = partial_epsilon_lll[<?=k-1?>].<?=xij?> + partial_gammaHat_lll.<?=xk?>.<?=xij?>;
-<?	end
-end
-?>
-
-<?=eqn:getCode_connBar_ull()?>
+<?=assignTensor3sym3'connBar_ull'?>
 
 	real3 LambdaBar_u = real3_rescaleToCoord_U(U->LambdaBar_U, x);
 	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
@@ -1477,17 +1424,17 @@ end
 	_3sym3 Delta_ull = _3sym3_sub(connBar_ull, connHat_ull);
 	_3sym3 Delta_lll = sym3_3sym3_mul(gammaBar_ll, Delta_ull);
 
-	sym3 gammaHat_uu = coord_g_uu(x);
+<?=assignTensorSym3'gammaHat_uu'?>
 	
 	_3sym3 partial_connHat_ulll[3];
 	coord_partial_conn_ulll(partial_connHat_ulll, x);
 
-<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
-<?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
-<?=assignTensorSym3('trBar_partial2_gammaBar_ll', trBar_partial2_gammaBar)?>
+<?=assignTensorSym3'trBar_partial2_gammaBar_ll'?>
+
+<?=assignTensor3sym3('partial_gammaBar_lll', partial_gammaBar_lll:permute'_kij')?>
 
 	sym3 RBar_ll;
-	<?=eqn:getCode_RBar_ll()?>
+<?=eqn:getCode_RBar_ll()?>
 
 // RBar_ij in vacuum:
 //	[0,	0,	0]
@@ -1534,25 +1481,11 @@ end
 		) / U->W;
 <? end ?>
 	
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	real det_gammaBar = calc_det_gammaBar(x);
-	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
+<?=assignTensorSym3'gammaBar_ll'?>
+<?=assign'det_gammaBar'?>
+<?=assignTensorSym3'gammaBar_uu'?>
 
-<?=eqn:makePartial'epsilon_LL'?>
-	_3sym3 partial_gammaHat_lll = coord_dg_lll(x);
-	
-	//partial_gammaBar_lll.k.ij := gammaBar_ij,k
-	// = gammaHat_ij,k + epsilon_ij,k
-	_3sym3 partial_gammaBar_lll;
-<? 
-for k,xk in ipairs(xNames) do
-	for ij,xij in ipairs(symNames) do
-?>	partial_gammaBar_lll.<?=xk?>.<?=xij?> = partial_epsilon_lll[<?=k-1?>].<?=xij?> + partial_gammaHat_lll.<?=xk?>.<?=xij?>;
-<?	end
-end
-?>
-
-<?=eqn:getCode_connBar_ull()?>
+<?=assignTensor3sym3'connBar_ull'?>
 
 	sym3 DBar2_phi_ll = sym3_sub(
 		partial2_phi_ll,
@@ -1626,11 +1559,11 @@ gammaBar^kl = inv(gammaBar_kl)
 			code = template([[
 <?=assignAllFromRepl(cos_xs)?>
 <?=assignAllFromRepl(sin_xs)?>
-<?=assign(det_gammaHatVar, det_gammaHat)?>
-<?=assign(det_gammaBarVar, det_gammaBar)?>
+<?=assign'det_gammaHat'?>
+<?=assign'det_gammaBar'?>
 <?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
 <?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
-<?=assignTensorSym3('trBar_partial2_gammaBar_ll', trBar_partial2_gammaBar)?>
+<?=assignTensorSym3'trBar_partial2_gammaBar_ll'?>
 	*value_sym3 = trBar_partial2_gammaBar_ll;
 ]], casEnv),
 		}
@@ -1675,21 +1608,18 @@ end
 		name = 'tr14 (Gamma*dgamma)',
 		type = 'real3x3',
 		code = template([[
-<?=eqn:makePartial'epsilon_LL'?>
-	_3sym3 partial_gammaHat_lll = coord_dg_lll(x);
-	
-	//partial_gammaBar_lll.k.ij := gammaBar_ij,k = gammaHat_ij,k + epsilon_ij,k
-	_3sym3 partial_gammaBar_lll;
-<? 
-for k,xk in ipairs(xNames) do
-	for ij,xij in ipairs(symNames) do
-?>	partial_gammaBar_lll.<?=xk?>.<?=xij?> = partial_epsilon_lll[<?=k-1?>].<?=xij?> + partial_gammaHat_lll.<?=xk?>.<?=xij?>;
-<?	end
-end
+<?=assignAllFromRepl(cos_xs)?>
+<?=assignAllFromRepl(sin_xs)?>
+<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+
+<?=assignTensor3sym3('partial_gammaBar_lll', partial_gammaBar_lll:permute'_kij') 
+-- how does :permute() work? forward or backward? 
 ?>
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	real det_gammaBar = calc_det_gammaBar(x);
-	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
+
+<?=assignTensorSym3'gammaBar_ll'?>
+<?=assign'det_gammaHat'?>
+<?=assign'det_gammaBar'?>
+<?=assignTensorSym3'gammaBar_uu'?>
 
 	_3sym3 connHat_ull = coord_conn_ull(x);
 		
@@ -1710,7 +1640,7 @@ for i,xi in ipairs(xNames) do
 end
 ?>
 	*value_real3x3 = tr14_Gamma_dgamma_ll;
-]], self:getTemplateEnv()),
+]], self:getCASEnv()),
 	}
 
 	--[[ hmm? not working.
