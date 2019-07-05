@@ -14,7 +14,6 @@ local file = require 'ext.file'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
-local symmath = require 'symmath'
 local EinsteinEqn = require 'eqn.einstein'
 local makestruct = require 'eqn.makestruct'
 local applyCommon = require 'common'
@@ -124,12 +123,178 @@ function BSSNOKFiniteDifferenceEquation:makePartial2(field, fieldType, nameOverr
 end
 
 
+-- hmm, this might get pushed out of the way in favor of the next function...
 function BSSNOKFiniteDifferenceEquation:getTemplateEnv()
 	local derivOrder = 2 * self.solver.numGhost
 	return applyCommon{
 		eqn = self,
 		solver = self.solver,
 	}
+end
+
+-- NOTICE you have to use this in the scope of a push/pop of the previous fenv
+-- ... and you have to set this's mt's __index to the old fenv
+function BSSNOKFiniteDifferenceEquation:getCASEnv()
+	if self.casEnv then return self.casEnv end
+	local casEnv = setmetatable(table(self:getTemplateEnv()), {})
+	self.casEnv = casEnv
+
+	-- NOTICE if there is a local variable in the outer scope
+	-- then it will not get set in the nested new env
+	-- [[ do this every time you use the casEnv
+	local oldEnv = getfenv()
+	getmetatable(casEnv).__index = oldEnv
+	setfenv(1, casEnv)
+	--]]
+
+	-- this is the local env code for casEnv
+	symmath = require 'symmath'
+
+	var = symmath.var
+	sin = symmath.sin
+	cos = symmath.cos
+	Tensor = symmath.Tensor
+	Matrix = symmath.Matrix
+
+	compileVars = table()
+	compileRepls = table()	-- pairs of {from, to}
+	function compile(expr)
+		-- TODO What about repeated expressions that could be deferred, like sin(x)?
+		-- You could move them to another expression, but that means multiple code expressions.
+		-- And outputting multiple lines without a function header would require yet another kind of symmath code output...
+	
+		local function isInteger(x) return x == math.floor(x) end
+		
+		-- don't do expand()
+		--expr:expand()
+		-- instead just expand muls
+		expr = expr:map(function(x)
+			if symmath.op.pow.is(x)
+			and symmath.Constant.is(x[2])
+			and isInteger(x[2].value)
+			and x[2].value >= 1
+			and x[2].value < 100
+			then
+				return setmetatable(table.rep({x[1]}, x[2].value), symmath.op.mul)
+			end
+		end)
+		for _,repl in ipairs(compileRepls) do
+			expr = expr:replace(repl[1], repl[2])
+		end
+		return expr:compile(compileVars, 'C', {hideHeader=true})
+	end
+	
+	coords = Tensor.coords()[1].variables
+	for i,coord in ipairs(coords) do
+		compileVars:insert{['x.'..xNames[i] ] = coord}
+	end
+	function compileVar(...)
+		local v = var(...)
+		compileVars:insert(v)
+		return v
+	end
+	function compileReplVar(repl, ...)
+		local v = compileVar(...)
+		compileRepls:insert{repl, v}
+		return v
+	end
+
+	-- TODO only generate what we need
+	cos_xs = Tensor('_i', function(i) 
+		return compileReplVar(cos(coords[i]), 'cos_'..i) 
+	end)
+	sin_xs = Tensor('_i', function(i) 
+		return compileReplVar(sin(coords[i]), 'sin_'..i) 
+	end)
+
+	-- generates assignment code from specified variables
+	function assign(v, with)
+		assert(symmath.Expression.is(with), "not an expression")
+		return '	real '..v..' = '..compile(with)..';'
+	end
+	
+	-- generate assignment code for a variable based on its associated expr in the compileRepls table
+	function assignFromRepl(v)
+		local index = compileRepls:find(nil, function(p)
+			if p[2] == v then return p[1] end
+		end)
+		assert(index, "failed to find var "..v)
+		-- hmm, compile() can't handle the repl code, because it is programmed to replace it...
+		-- so this rule needs to be pushed/popped ...
+		-- seems order of operations is really sensitive here
+		local replpair = compileRepls:remove(index)
+		local result = assign(v, replpair[1])
+		compileRepls:insert(index, replpair)
+		return result
+	end
+	function assignAllFromRepl(vars)
+		local lines = table()
+		for i,v in ipairs(vars) do
+			lines:insert(assignFromRepl(v))
+		end
+		return lines:concat'\n'
+	end
+
+	function assignTensorSym3(name, expr)
+		local lines = table()
+		lines:insert('\tsym3 '..name..';')
+		for ij,xij in ipairs(symNames) do
+			local i,j = from6to3x3(ij)
+			lines:insert('\t'..name..'.'..xij..' = '..compile(expr[i][j])..';')
+		end
+		return lines:concat'\n'
+	end
+
+
+	-- from here on out is stuff specific to trBar_partial2_gammaBar_ll 
+	-- 	(make a sub env?)
+	
+	gammaHat = Tensor.metric().metric
+	
+	det_gammaHat = Matrix.determinant(gammaHat)
+	det_gammaHatVar = compileVar('det_gammaHat', coords)
+
+	e = Tensor('_i^I', function(i,j)
+		return (i==j and symmath.sqrt(gammaHat[i][i])() or 0)
+	end)
+	eu = Tensor('_I^i', function(i,j)
+		return i==j and (1/e[i][i])() or 0
+	end)
+
+	epsilonVars = Tensor('_IJ', function(I,J)
+		return compileVar('U->epsilon_LL.'..sym(I,J), coords)
+	end)
+
+	epsilon = (epsilonVars'_IJ' * e'_i^I' * e'_j^J')()
+	gammaBar = (gammaHat'_ij' + epsilon'_ij')()
+
+	det_gammaBar = Matrix.determinant(gammaBar)
+	det_gammaBar = (det_gammaBar / det_gammaHat * det_gammaHatVar)()
+	det_gammaBarVar = compileVar('det_gammaBar', coords)
+
+	gammaBarInv = Tensor('^ij', table.unpack((Matrix.inverse(gammaBar, nil, nil, nil, det_gammaBarVar))))
+	-- this isn't always completely effective.  sometimes it introduces sin(theta)'s in the denominator
+	--gammaBarInv = (gammaBarInv / det_gammaHat * det_gammaHatVar)()
+
+	partial_epsilonVars = Tensor('_IJk', function(I,J,k)
+		return compileReplVar(epsilonVars[I][J]:diff(coords[k]), 'partial_epsilon_LLl['..(k-1)..'].'..sym(I,J), coords)
+	end)
+
+	partial2_epsilonVars = Tensor('_IJkl', function(I,J,k,l)
+		local kl = from3x3to6(k,l)
+		return compileReplVar(epsilonVars[I][J]:diff(coords[k], coords[l]), 'partial2_epsilon_LLll['..(kl-1)..'].'..sym(I,J), coords)
+	end)
+
+	partial2_gammaBar = gammaBar'_ij,kl'()
+	trBar_partial2_gammaBar = (gammaBarInv'^kl' * partial2_gammaBar'_ijkl')()
+
+
+	-- [[ do this every time you stop using the casEnv
+	setfenv(1, oldEnv)
+	--]]
+	
+	
+	return casEnv
 end
 
 function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
@@ -236,17 +401,20 @@ end
 end
 
 function BSSNOKFiniteDifferenceEquation:getCode_RBar_ll()
+	local casEnv = self:getCASEnv()
+--[=[ prereq code for getCode_RBar_ll
 	return template([[
-
-	//partial2_gammaBar_llll.kl.ij := gammaBar_ij,kl
-	sym3sym3 partial2_gammaBar_llll;
-<? 
-for ij,xij in ipairs(symNames) do
-	for kl,xkl in ipairs(symNames) do
-?>	partial2_gammaBar_llll.<?=xkl?>.<?=xij?> = partial2_epsilon_llll[<?=kl-1?>].<?=xij?> + partial2_gammaHat_llll.<?=xkl?>.<?=xij?>;
-<?	end
-end 
-?>
+<?=assignAllFromRepl(cos_xs)?>
+<?=assignAllFromRepl(sin_xs)?>
+<?=assign(det_gammaHatVar, det_gammaHat)?>
+<?=assign(det_gammaBarVar, det_gammaBar)?>
+<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
+<?=assignTensorSym3('trBar_partial2_gammaBar_ll', trBar_partial2_gammaBar)?>
+]], casEnv)
+	..
+--]=]
+	return template([[
 
 	//DHat_gammaBar_lll.k.ij = DHat_k gammaBar_ij 
 	// = gammaBar_ij,k - connHat^l_ki gammaBar_lj - connHat^l_kj gammaBar_il
@@ -267,7 +435,7 @@ end
 ?>
 
 	/*
-	partial_DHat_gammaBar_llll[l].k.ij := partial_l DHat_k gammaBar_ij
+	partial_DHat_gammaBar_llll_minus_one_term[l].k.ij := partial_l DHat_k gammaBar_ij
 		= (gammaBar_ij,k - connHat^m_ki gammaBar_mj - connHat^m_kj gammaBar_mi)_,l
 		= gammaBar_ij,kl 
 			- connHat^m_ki,l gammaBar_mj 
@@ -275,15 +443,15 @@ end
 			- connHat^m_ki gammaBar_mj,l
 			- connHat^m_kj gammaBar_mi,l
 	*/
-	_3sym3 partial_DHat_gammaBar_llll[3];
+	_3sym3 partial_DHat_gammaBar_llll_minus_one_term[3];
 <? 
 for k,xk in ipairs(xNames) do
 	for l,xl in ipairs(xNames) do
 		for ij,xij in ipairs(symNames) do
 			local i,j = from6to3x3(ij)
 			local xi,xj = xNames[i], xNames[j]
-?>	partial_DHat_gammaBar_llll[<?=l-1?>].<?=xk?>.<?=xij?> = 0.
-		+ partial2_gammaBar_llll.<?=sym(k,l)?>.<?=xij?>
+?>	partial_DHat_gammaBar_llll_minus_one_term[<?=l-1?>].<?=xk?>.<?=xij?> = 0.
+//		+ partial2_gammaBar_llll.<?=sym(k,l)?>.<?=xij?>	// moved into the above gen'd code 
 <?			for m,xm in ipairs(xNames) do
 ?>
 		- partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,i)?> * gammaBar_ll.<?=sym(m,j)?>		//diverging: RBar_ij = diag(0, -.5, -.75)
@@ -298,21 +466,21 @@ end
 ?>
 
 	/*
-	DHat2_gammaBar_llll[l].k.ij = DHat_l DHat_k gammaBar_ij
+	DHat2_gammaBar_llll_minus_one_term[l].k.ij = DHat_l DHat_k gammaBar_ij
 		= partial_l DHat_k gammaBar_ij
 			- connHat^m_lk DHat_m gammaBar_ij
 			- connHat^m_li DHat_k gammaBar_mj
 			- connHat^m_lj DHat_k gammaBar_im
 	*/
-	_3sym3 DHat2_gammaBar_llll[3];
+	_3sym3 DHat2_gammaBar_llll_minus_one_term[3];
 <?
 for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i], xNames[j]
 	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do
-?>	DHat2_gammaBar_llll[<?=l-1?>].<?=xk?>.<?=xij?> = 0.
-		+ partial_DHat_gammaBar_llll[<?=l-1?>].<?=xk?>.<?=xij?>	//diverging, such that in spherical vacuum the trace of these is diag(0, 1, .5)
+?>	DHat2_gammaBar_llll_minus_one_term[<?=l-1?>].<?=xk?>.<?=xij?> = 0.
+		+ partial_DHat_gammaBar_llll_minus_one_term[<?=l-1?>].<?=xk?>.<?=xij?>	//diverging, such that in spherical vacuum the trace of these is diag(0, 1, .5)
 <?			for m,xm in ipairs(xNames) do
 ?>		- connHat_ull.<?=xm?>.<?=sym(l,k)?> * DHat_gammaBar_lll.<?=xm?>.<?=sym(i,j)?>
 		- connHat_ull.<?=xm?>.<?=sym(l,i)?> * DHat_gammaBar_lll.<?=xk?>.<?=sym(m,j)?>
@@ -330,9 +498,10 @@ end
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
 ?>	trBar_DHat2_gammaBar_ll.<?=xij?> = 0.
+		+ trBar_partial2_gammaBar_ll.<?=xij?>
 <?	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do
-?>		+ gammaBar_uu.<?=sym(k,l)?> * DHat2_gammaBar_llll[<?=l-1?>].<?=xk?>.<?=xij?>
+?>		+ gammaBar_uu.<?=sym(k,l)?> * DHat2_gammaBar_llll_minus_one_term[<?=l-1?>].<?=xk?>.<?=xij?>
 <?		end
 	end
 ?>	;
@@ -686,12 +855,23 @@ gammaBar_ij = diag(1, r^2, r^2 sin(θ)^2), which is right.
 replacing it with symmath simplifications gives us ...
 *) gammaBar^kl gammaBar_ij,kl gives us diag(0, 2, 2*cos(θ)^2) ... which is CORRECT
 --]]
+
+--[[
 	'U RBar_ll xx',
 	'U RBar_ll xy',
 	'U RBar_ll xz',
 	'U RBar_ll yy',
 	'U RBar_ll yz',
 	'U RBar_ll zz',
+--]]
+-- [[
+	'U del gammaBar_ll sym xx',
+	'U del gammaBar_ll sym xy',
+	'U del gammaBar_ll sym xz',
+	'U del gammaBar_ll sym yy',
+	'U del gammaBar_ll sym yz',
+	'U del gammaBar_ll sym zz',
+--]]
 }
 
 function BSSNOKFiniteDifferenceEquation:getDisplayVars()	
@@ -1049,7 +1229,6 @@ end
 	}
 
 	local derivOrder = 2 * self.solver.numGhost
-	vars:append{
 --[=[
 --[[ expansion:
 2003 Thornburg:  ... from Wald ...
@@ -1072,7 +1251,9 @@ using gamma = gammaHat / W^6
 = .5 gammaHat_,i / gammaHat - 3 / W
 = GammaHat^j_ij - 3 / W
 --]]
-		{name='expansion', code=template([[
+	vars:insert{
+		name = 'expansion', 
+		code = template([[
 	<?=eqn:makePartial'W'?>
 	<?=eqn:makePartial'alpha'?>
 	<?=eqn:makePartial'beta_U'?>
@@ -1102,13 +1283,12 @@ for i,xi in ipairs(xNames) do
 <?	end
 end
 ?>		- U->K;
-]], 			applyCommon{
-					eqn = self,
-					solver = self.solver,
-				}
-
-			)
-		},
+]], 		applyCommon{
+				eqn = self,
+				solver = self.solver,
+			}
+		)
+	}
 --]=]		
 --[=[
 		--[[ ADM geodesic equation spatial terms:
@@ -1138,9 +1318,9 @@ end
 		beta^k_,t = B^k
 		gamma_jk,t = -2 alpha K_jk + gamma_jk,l beta^l + gamma_lj beta^l_,k + gamma_lk beta^l_,j
 		--]]
-		{
-			name = 'gravity',
-			code= template([[
+	vars:insert{
+		name = 'gravity',
+		code= template([[
 	<?=eqn:makePartial'alpha'?>
 
 	real _1_alpha = 1. / U->alpha;
@@ -1239,16 +1419,24 @@ end ?>;
 <? end
 ?>
 <? end	-- eqn.useShift ?>
-]],				applyCommon{
-					eqn = self,
-					solver = self.solver,
-				}
-			), 
-			type = 'real3',
-		},
+]],			applyCommon{
+				eqn = self,
+				solver = self.solver,
+			}
+		), 
+		type = 'real3',
+	}
 --]=]
 -- [=[
-		{
+	do
+		-- [[ do this every time you use the casEnv
+		local casEnv = self:getCASEnv()
+		local oldEnv = getfenv()
+		getmetatable(casEnv).__index = oldEnv
+		setfenv(1, casEnv)
+		--]]	
+
+		vars:insert{
 			name = 'RBar_ll',
 			type = 'sym3',
 			code = template([[
@@ -1256,8 +1444,12 @@ end ?>;
 <?=eqn:makePartial'LambdaBar_U'?>
 <?=eqn:makePartial2'epsilon_LL'?>
 
+<?=assignAllFromRepl(cos_xs)?>
+<?=assignAllFromRepl(sin_xs)?>
+<?=assign(det_gammaHatVar, det_gammaHat)?>
+<?=assign(det_gammaBarVar, det_gammaBar)?>
+
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	real det_gammaBar = calc_det_gammaBar(x);
 	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
 
 	_3sym3 connHat_lll = coord_conn_lll(x);
@@ -1285,11 +1477,14 @@ end
 	_3sym3 Delta_ull = _3sym3_sub(connBar_ull, connHat_ull);
 	_3sym3 Delta_lll = sym3_3sym3_mul(gammaBar_ll, Delta_ull);
 
-	sym3sym3 partial2_gammaHat_llll = coord_d2g_llll(x);
 	sym3 gammaHat_uu = coord_g_uu(x);
 	
 	_3sym3 partial_connHat_ulll[3];
 	coord_partial_conn_ulll(partial_connHat_ulll, x);
+
+<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
+<?=assignTensorSym3('trBar_partial2_gammaBar_ll', trBar_partial2_gammaBar)?>
 
 	sym3 RBar_ll;
 	<?=eqn:getCode_RBar_ll()?>
@@ -1308,18 +1503,19 @@ end
 // very high, since gammaBar_uu diverges near r=0
 //	*value = sym3_dot(gammaBar_uu, RBar_ll);
 
-]], applyCommon{
-					eqn = self,
-					solver = self.solver,
-				}
-			),
-		},
+]], casEnv),
+		}
+	
+		-- [[ do this every time you stop using the casEnv
+		setfenv(1, oldEnv)
+		--]]
+	end
 --]=]		
 --[=[		
-		{
-			name = 'RPhi_ll',
-			type = 'sym3',
-			code = template([[
+	vars:insert{
+		name = 'RPhi_ll',
+		type = 'sym3',
+		code = template([[
 
 <?=eqn:makePartial'W'?>
 <?=eqn:makePartial2'W'?>
@@ -1388,50 +1584,12 @@ end
 ?>	};
 
 	*value_sym3 = RPhi_ll;
-]],				applyCommon{
-					eqn = self,
-					solver = self.solver,
-				}
-			),
-		},
---]=]	
-
-		{	-- gammaBar^kl gammaBar_ij,kl
-			name = 'del gammaBar',
-			type = 'sym3',
-			code = template([[
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	real det_gammaBar = calc_det_gammaBar(x);
-	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
-
-<?=eqn:makePartial2'epsilon_LL'?>
-	
-	sym3sym3 partial2_gammaHat_llll = coord_d2g_llll(x);
-	
-	//partial2_gammaBar_llll.kl.ij := gammaBar_ij,kl
-	sym3sym3 partial2_gammaBar_llll;
-<? 
-for ij,xij in ipairs(symNames) do
-	for kl,xkl in ipairs(symNames) do
-?>	partial2_gammaBar_llll.<?=xkl?>.<?=xij?> = partial2_epsilon_llll[<?=kl-1?>].<?=xij?> + partial2_gammaHat_llll.<?=xkl?>.<?=xij?>;
-<?	end
-end 
-?>
-
-	sym3 trBar_partial2_gammaBar_ll;
-<? for ij,xij in ipairs(symNames) do
-?>	trBar_partial2_gammaBar_ll.<?=xij?> = 0.
-<?	for k,xk in ipairs(xNames) do
-		for l,xl in ipairs(xNames) do
-?>		+ gammaBar_uu.<?=sym(k,l)?> * partial2_gammaBar_llll.<?=sym(k,l)?>.<?=xij?>
-<?		end
-	end
-?>	;
-<? end
-?>
-	*value_sym3 = trBar_partial2_gammaBar_ll;
-]], self:getTemplateEnv()),
-		},
+]],			applyCommon{
+				eqn = self,
+				solver = self.solver,
+			}
+		),
+	}
 
 --[[
 gammaBar_ij = gammaHat_ij + epsilon_ij
@@ -1450,148 +1608,48 @@ gammaBar^kl gammaBar_ij,kl
 gammaBar^kl = inv(gammaBar_kl)
 = inv(gammaHat_kl + epsilon_kl)
 --]]
-		
+--]=]	
+
+	do
+		-- [[ do this every time you use the casEnv
+		local casEnv = self:getCASEnv()
+		local oldEnv = getfenv()
+		getmetatable(casEnv).__index = oldEnv
+		setfenv(1, casEnv)
+		--]]	
+
 		-- symbolically generate ... so far gammaBar^ij	
 		-- this fixes it.
-		{
-			name='del gammaBar sym',
+		vars:insert{
+			name='del gammaBar_ll sym',
 			type = 'sym3',
 			code = template([[
-<?
-do
-	local table = require 'ext.table'
-	local symmath = require 'symmath'
-	local var = symmath.var
-	local sin = symmath.sin
-	local cos = symmath.cos
-	local Tensor = symmath.Tensor
-	local Matrix = symmath.Matrix
-
-	local compileVars = table()
-	local compileRepls = table()	-- pairs of {from, to}
-	local function compile(expr)
-		-- TODO What about repeated expressions that could be deferred, like sin(x)?
-		-- You could move them to another expression, but that means multiple code expressions.
-		-- And outputting multiple lines without a function header would require yet another kind of symmath code output...
-	
-		local function isInteger(x) return x == math.floor(x) end
-		
-		-- don't do expand()
-		--expr:expand()
-		-- instead just expand muls
-		expr = expr:map(function(x)
-			if symmath.op.pow.is(x)
-			and symmath.Constant.is(x[2])
-			and isInteger(x[2].value)
-			and x[2].value >= 1
-			and x[2].value < 100
-			then
-				return setmetatable(table.rep({x[1]}, x[2].value), symmath.op.mul)
-			end
-		end)
-		for _,repl in ipairs(compileRepls) do
-			expr = expr:replace(repl[1], repl[2])
-		end
-		return expr:compile(compileVars, 'C', {hideHeader=true})
-	end
-	
-	local coords = Tensor.coords()[1].variables
-	for i,coord in ipairs(coords) do
-		compileVars:insert{['x.'..xNames[i] ] = coord}
-	end
-	local function compileVar(...)
-		local v = var(...)
-		compileVars:insert(v)
-		return v
-	end
-
-
-	local cos_xs = Tensor('_i', function(i) 
-		local v = compileVar('cos_'..i) 
-		compileRepls:insert{cos(coords[i]), v}
-?>	real <?=v?> = cos(x.<?=xNames[i]?>);
-<?		return v
-	end)
-	local sin_xs = Tensor('_i', function(i) 
-		local v = compileVar('sin_'..i) 
-		compileRepls:insert{sin(coords[i]), v}
-?>	real <?=v?> = sin(x.<?=xNames[i]?>);
-<?		return v
-	end)
-
-
-	local gammaHat = Tensor.metric().metric
-	
-	local det_gammaHat = Matrix.determinant(gammaHat)
-?>	real det_gammaHat = <?=compile(det_gammaHat)?>;
-<?	local det_gammaHatVar = compileVar('det_gammaHat', coords)
-	
-	local e = Tensor('_i^I', function(i,j)
-		return (i==j and symmath.sqrt(gammaHat[i][i])() or 0)
-	end)
-	local eu = Tensor('_I^i', function(i,j)
-		return i==j and (1/symmath.sqrt(gammaHat[i][i]))() or 0
-	end)
-
-	local epsilonVars = Tensor('_IJ', function(I,J)
-		return compileVar('U->epsilon_LL.'..sym(I,J), coords)
-	end)
-
-	local epsilon = (epsilonVars'_IJ' * e'_i^I' * e'_j^J')()
-	local gammaBar = (gammaHat'_ij' + epsilon'_ij')()
-
-	local det_gammaBar = Matrix.determinant(gammaBar)
-	det_gammaBar = (det_gammaBar / det_gammaHat * det_gammaHatVar)()
-?>	real det_gammaBar = <?=compile(det_gammaBar)?>;
-<?	local det_gammaBarVar = compileVar('det_gammaBar', coords)
-	
-	local gammaBarInv = Tensor('^ij', table.unpack((Matrix.inverse(gammaBar, nil, nil, nil, det_gammaBarVar))))
-	-- this isn't always completely effective.  sometimes it introduces sin(theta)'s in the denominator
-	--gammaBarInv = (gammaBarInv / det_gammaHat * det_gammaHatVar)()
-
-	local partial_epsilonVars = Tensor('_IJk', function(I,J,k)
-		local v = compileVar('partial_epsilon_LLl['..(k-1)..'].'..sym(I,J), coords)
-		compileRepls:insert{epsilonVars[I][J]:diff(coords[k]), v}
-		return v
-	end)
-
-	local partial2_epsilonVars = Tensor('_IJkl', function(I,J,k,l)
-		local kl = from3x3to6(k,l)
-		local v = compileVar('partial2_epsilon_LLll['..(kl-1)..'].'..sym(I,J), coords)
-		compileRepls:insert{epsilonVars[I][J]:diff(coords[k], coords[l]), v}
-		return v
-	end)
-
-?><?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=assignAllFromRepl(cos_xs)?>
+<?=assignAllFromRepl(sin_xs)?>
+<?=assign(det_gammaHatVar, det_gammaHat)?>
+<?=assign(det_gammaBarVar, det_gammaBar)?>
+<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
 <?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
-<?	
-	local partial2_gammaBar = gammaBar'_ij,kl'()
-
-	local del_gammaBar = (gammaBarInv'^kl' * partial2_gammaBar'_ijkl')()
-
-?>	sym3 del_gammaBar_ll;
-<?	for i=1,3 do
-		for j=i,3 do
-?>	del_gammaBar_ll.<?=sym(i,j)?> = <?=compile(del_gammaBar[i][j])?>;
-<?		end
+<?=assignTensorSym3('trBar_partial2_gammaBar_ll', trBar_partial2_gammaBar)?>
+	*value_sym3 = trBar_partial2_gammaBar_ll;
+]], casEnv),
+		}
+		-- [[ do this every time you stop using the casEnv
+		setfenv(1, oldEnv)
+		--]]
 	end
-end
-?>
-	*value_sym3 = del_gammaBar_ll;
-]], self:getTemplateEnv()),
-		},
-	
-		{
-			name = 'tr34 (gamma*dGamma)',
-			type = 'real3x3',
-			code = template([[
+
+	vars:insert{
+		name = 'tr34 (gamma*dGamma)',
+		type = 'real3x3',
+		code = template([[
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	real det_gammaBar = calc_det_gammaBar(x);
 	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
-		
+	
 	_3sym3 partial_connHat_ulll[3];
 	coord_partial_conn_ulll(partial_connHat_ulll, x);
-
+	
 	real3x3 tr34_gamma_dGamma_ll;
 <? 
 for i,xi in ipairs(xNames) do
@@ -1611,13 +1669,12 @@ end
 	
 	*value_real3x3 = tr34_gamma_dGamma_ll;
 ]], self:getTemplateEnv()),
-		},
+	}
 
-		{
-			name = 'tr14 (Gamma*dgamma)',
-			type = 'real3x3',
-			code = template([[
-
+	vars:insert{
+		name = 'tr14 (Gamma*dgamma)',
+		type = 'real3x3',
+		code = template([[
 <?=eqn:makePartial'epsilon_LL'?>
 	_3sym3 partial_gammaHat_lll = coord_dg_lll(x);
 	
@@ -1654,17 +1711,16 @@ end
 ?>
 	*value_real3x3 = tr14_Gamma_dgamma_ll;
 ]], self:getTemplateEnv()),
-		},
-
-		--[[ hmm? not working.
-		{name='x', type='real3', code='*value_real3=x;'},
-		--]]
-		-- [[
-		{name='x', code='*value=x.x;'},
-		{name='y', code='*value=x.y;'},
-		{name='z', code='*value=x.z;'},
-		--]]
 	}
+
+	--[[ hmm? not working.
+	vars:insert{name='x', type='real3', code='*value_real3=x;'}
+	--]]
+	-- [[
+	vars:insert{name='x', code='*value=x.x;'}
+	vars:insert{name='y', code='*value=x.y;'}
+	vars:insert{name='z', code='*value=x.z;'}
+	--]]
 
 	return vars
 end

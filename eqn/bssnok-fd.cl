@@ -1,14 +1,13 @@
 <? 
-local common = require 'common'()
-local xNames = common.xNames
-local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
-local sym = common.sym
+-- [[ do this every time you use the casEnv
+local casEnv = eqn:getCASEnv()
+local oldEnv = getfenv()
+getmetatable(casEnv).__index = oldEnv
+setfenv(1, casEnv)
+--]]
 
 local makePartial = function(...) return eqn:makePartial(...) end
 local makePartial2 = function(...) return eqn:makePartial2(...) end
-
 
 -- integrates whatsoever.
 local useCalcDeriv = true
@@ -130,7 +129,10 @@ for ij,xij in ipairs(symNames) do
 end
 ?>
 
-	real det_gammaHat = calc_det_gammaHat(x);
+<?=assignAllFromRepl(cos_xs)?>
+<?=assignAllFromRepl(sin_xs)?>
+<?=assign(det_gammaHatVar, det_gammaHat)?>
+
 	real3 partial_det_gammaHat_l = coord_partial_det_g(x);
 	sym3 partial2_det_gammaHat_ll = coord_partial2_det_g(x);
 
@@ -153,7 +155,6 @@ end
 	real detg = 1.;
 	real3 partial_detg_l = real3_zero;
 	sym3 partial2_detg_ll = sym3_zero;
-	real det_gammaBar = det_gammaHat * detg;
 	real3 partial_det_gammaBar_l = real3_add(
 		real3_real_mul(partial_det_gammaHat_l, detg),
 		real3_real_mul(partial_detg_l, det_gammaHat));
@@ -168,6 +169,8 @@ end
 		+ det_gammaHat * partial2_detg_ll.<?=xij?>;
 <? end
 ?>
+
+<?=assign(det_gammaBarVar, det_gammaBar)?>
 
 	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
 
@@ -405,6 +408,10 @@ end
 
 	sym3 RBar_ll;
 	{
+<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
+<?=assignTensorSym3('trBar_partial2_gammaBar_ll', trBar_partial2_gammaBar)?>
+		
 		_3sym3 Delta_lll = sym3_3sym3_mul(gammaBar_ll, Delta_ull);
 		<?=eqn:getCode_RBar_ll()?> 
 	}
@@ -818,6 +825,15 @@ end
 
 	sym3 RBar_ll;
 	{
+<?=assignAllFromRepl(cos_xs)?>
+<?=assignAllFromRepl(sin_xs)?>
+<?=assign(det_gammaHatVar, det_gammaHat)?>
+<?=assign(det_gammaBarVar, det_gammaBar)?>
+
+<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
+<?=assignTensorSym3('trBar_partial2_gammaBar_ll', trBar_partial2_gammaBar)?>
+		
 		<?=eqn:getCode_RBar_ll()?> 
 	}	
 	//RBar := RBar_ij gammaBar^ij
@@ -980,3 +996,8 @@ local useGammaInvForDT = false
 	}<? end ?>
 	dtBuf[index] = dt;
 }
+<?
+-- [[ do this every time you stop using the casEnv
+setfenv(1, oldEnv)
+--]]
+?>

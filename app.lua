@@ -442,6 +442,17 @@ void main() {
 		self.orthoView = require 'view.ortho'()
 		self.frustumView = require 'view.frustum'()
 		self.view = (#self.solvers > 0 and self.solvers[1].dim == 3) and self.frustumView or self.orthoView
+	
+		if #self.solvers > 0 then
+			local solver = self.solvers[1]
+			local orthoSize = 1
+			for j=1,solver.dim do
+				self.orthoView.pos[j] = .5 * (solver.mins[j] + solver.maxs[j])
+				orthoSize = math.max(orthoSize, solver.maxs[j] - solver.mins[j])
+			end
+			self.orthoView.zoom[1] = 1/orthoSize
+			self.orthoView.zoom[2] = 1/orthoSize
+		end
 	end
 
 if printState then
