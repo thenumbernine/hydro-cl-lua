@@ -1466,13 +1466,33 @@ do
 	local cos = symmath.cos
 	local Tensor = symmath.Tensor
 	local Matrix = symmath.Matrix
-	
+
 	local compileVars = table()
+	local compileRepls = table()	-- pairs of {from, to}
 	local function compile(expr)
 		-- TODO What about repeated expressions that could be deferred, like sin(x)?
 		-- You could move them to another expression, but that means multiple code expressions.
 		-- And outputting multiple lines without a function header would require yet another kind of symmath code output...
-		return expr:expand():compile(compileVars, 'C', {hideHeader=true})
+	
+		local function isInteger(x) return x == math.floor(x) end
+		
+		-- don't do expand()
+		--expr:expand()
+		-- instead just expand muls
+		expr = expr:map(function(x)
+			if symmath.op.pow.is(x)
+			and symmath.Constant.is(x[2])
+			and isInteger(x[2].value)
+			and x[2].value >= 1
+			and x[2].value < 100
+			then
+				return setmetatable(table.rep({x[1]}, x[2].value), symmath.op.mul)
+			end
+		end)
+		for _,repl in ipairs(compileRepls) do
+			expr = expr:replace(repl[1], repl[2])
+		end
+		return expr:compile(compileVars, 'C', {hideHeader=true})
 	end
 	
 	local coords = Tensor.coords()[1].variables
@@ -1485,7 +1505,27 @@ do
 		return v
 	end
 
+
+	local cos_xs = Tensor('_i', function(i) 
+		local v = compileVar('cos_'..i) 
+		compileRepls:insert{cos(coords[i]), v}
+?>	real <?=v?> = cos(x.<?=xNames[i]?>);
+<?		return v
+	end)
+	local sin_xs = Tensor('_i', function(i) 
+		local v = compileVar('sin_'..i) 
+		compileRepls:insert{sin(coords[i]), v}
+?>	real <?=v?> = sin(x.<?=xNames[i]?>);
+<?		return v
+	end)
+
+
 	local gammaHat = Tensor.metric().metric
+	
+	local det_gammaHat = Matrix.determinant(gammaHat)
+?>	real det_gammaHat = <?=compile(det_gammaHat)?>;
+<?	local det_gammaHatVar = compileVar('det_gammaHat', coords)
+	
 	local e = Tensor('_i^I', function(i,j)
 		return (i==j and symmath.sqrt(gammaHat[i][i])() or 0)
 	end)
@@ -1499,31 +1539,27 @@ do
 
 	local epsilon = (epsilonVars'_IJ' * e'_i^I' * e'_j^J')()
 	local gammaBar = (gammaHat'_ij' + epsilon'_ij')()
+
 	local det_gammaBar = Matrix.determinant(gammaBar)
-
+	det_gammaBar = (det_gammaBar / det_gammaHat * det_gammaHatVar)()
 ?>	real det_gammaBar = <?=compile(det_gammaBar)?>;
-<?	local detGammaBarVar = compileVar('det_gammaBar', coords)
+<?	local det_gammaBarVar = compileVar('det_gammaBar', coords)
 	
-	local gammaBarInv = Tensor('^ij', table.unpack((Matrix.inverse(gammaBar, nil, nil, nil, detGammaBarVar))))
-
-	local cos_xs = Tensor('_i', function(i) 
-		local v = compileVar('cos_'..i) 
-?>	real <?=v?> = cos(x.<?=xNames[i]?>);
-<?		return v
-	end)
-	local sin_xs = Tensor('_i', function(i) 
-		local v = compileVar('sin_'..i) 
-?>	real <?=v?> = sin(x.<?=xNames[i]?>);
-<?		return v
-	end)
+	local gammaBarInv = Tensor('^ij', table.unpack((Matrix.inverse(gammaBar, nil, nil, nil, det_gammaBarVar))))
+	-- this isn't always completely effective.  sometimes it introduces sin(theta)'s in the denominator
+	--gammaBarInv = (gammaBarInv / det_gammaHat * det_gammaHatVar)()
 
 	local partial_epsilonVars = Tensor('_IJk', function(I,J,k)
-		return compileVar('partial_epsilon_LLl['..(k-1)..'].'..sym(I,J), coords)
+		local v = compileVar('partial_epsilon_LLl['..(k-1)..'].'..sym(I,J), coords)
+		compileRepls:insert{epsilonVars[I][J]:diff(coords[k]), v}
+		return v
 	end)
 
 	local partial2_epsilonVars = Tensor('_IJkl', function(I,J,k,l)
 		local kl = from3x3to6(k,l)
-		return compileVar('partial2_epsilon_LLll['..(kl-1)..'].'..sym(I,J), coords)
+		local v = compileVar('partial2_epsilon_LLll['..(kl-1)..'].'..sym(I,J), coords)
+		compileRepls:insert{epsilonVars[I][J]:diff(coords[k], coords[l]), v}
+		return v
 	end)
 
 ?><?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
@@ -1533,33 +1569,10 @@ do
 
 	local del_gammaBar = (gammaBarInv'^kl' * partial2_gammaBar'_ijkl')()
 
-	-- replace diff() exprs with partial vars
-	-- replace trig with vars
-	local function prepareForCompile(expr)
-		for I=1,3 do
-			expr = expr:replace(sin(coords[I]), sin_xs[I])
-			expr = expr:replace(cos(coords[I]), cos_xs[I])
-			for J=1,3 do
-				for k=1,3 do
-					expr = expr:replace(
-						epsilonVars[I][J]:diff(coords[k]),
-						partial_epsilonVars[I][J][k])
-					for l=1,3 do
-						expr = expr:replace(
-							epsilonVars[I][J]:diff(coords[k], coords[l]),
-							partial2_epsilonVars[I][J][k][l])
-					end
-				end
-			end
-		end
-		return expr
-	end
-
 ?>	sym3 del_gammaBar_ll;
 <?	for i=1,3 do
 		for j=i,3 do
-			local code = compile(prepareForCompile(del_gammaBar[i][j]))
-?>	del_gammaBar_ll.<?=sym(i,j)?> = <?=code?>;
+?>	del_gammaBar_ll.<?=sym(i,j)?> = <?=compile(del_gammaBar[i][j])?>;
 <?		end
 	end
 end
