@@ -97,19 +97,14 @@ kernel void calcDeriv(
 <? end ?>
 
 
-	//gammaHat_ll.ij := gammaHat_ij
-<?=assignTensorSym3'gammaHat_ll'?>
+<?=assign_sym3'gammaHat_ll'?>
 	
-	//gammaHat_uu.ij := gammaHat^ij
 <?=assign'det_gammaHat'?>
-<?=assignTensorSym3'gammaHat_uu'?>	
+<?=assign_sym3'gammaHat_uu'?>	
 	
-	//connHat_ull.i.jk := connHat^i_jk
-	_3sym3 connHat_ull = coord_conn_ull(x);
-
-	//partial_connHat_ulll[l].i.jk = connHat^i_jk,l
-	_3sym3 partial_connHat_ulll[3];
-	coord_partial_conn_ulll(partial_connHat_ulll, x);
+<?=assign_3sym3'connHat_ull'?>
+<?=assign_real3'partial_det_gammaHat_l'?>
+<?=assign_3sym3x3'partial_connHat_ulll'?>
 
 	//epsilon_ll.ij := epsilon_ij = e_i^I e_j^I epsilon_IJ
 	sym3 epsilon_ll = sym3_rescaleToCoord_LL(U->epsilon_LL, x);
@@ -117,8 +112,7 @@ kernel void calcDeriv(
 	//gammaBar_ll.ij := gammaBar_ij = gammaHat_ij + epsilon_ij
 	sym3 gammaBar_ll = sym3_add(gammaHat_ll, epsilon_ll);
 
-	real3 partial_det_gammaHat_l = coord_partial_det_g(x);
-	sym3 partial2_det_gammaHat_ll = coord_partial2_det_g(x);
+<?=assign_sym3'partial2_det_gammaHat_ll'?>
 
 	/*
 	Etienne's SENR Mathematica notebook has '*  detg'...
@@ -139,7 +133,7 @@ kernel void calcDeriv(
 <?=assign'det_gammaBar'?>
 	real3 partial_det_gammaBar_l = partial_det_gammaHat_l;
 	sym3 partial2_det_gammaBar_ll = partial2_det_gammaHat_ll;
-<?=assignTensorSym3'gammaBar_uu'?>
+<?=assign_sym3'gammaBar_uu'?>
 
 	real3 beta_u = real3_rescaleToCoord_U(U->beta_U, x);
 
@@ -150,8 +144,8 @@ kernel void calcDeriv(
 	//Q = f(alpha) K
 	real Q = calc_f(U->alpha) * U->K;
 
-	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
-	//alpha,t = -alpha^2 Q + alpha,i beta^i
+	//d/dt alpha alpha,t - alpha_,i beta^i = -alpha^2 Q
+	//alpha,t = -alpha^2 Q + alpha_,i e^i_I beta^I
 	deriv->alpha += -U->alpha * U->alpha * Q
 <? for i,xi in ipairs(xNames) do
 ?>		+ partial_alpha_l[<?=i-1?>] * beta_u.<?=xi?>
@@ -165,9 +159,7 @@ kernel void calcDeriv(
 	sym3 gammaBar_LL = sym3_rescaleFromCoord_ll(gammaBar_ll, x);
 	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
 
-	_3sym3 connHat_lll = coord_conn_lll(x);
-
-<?=assignTensor3sym3'connBar_ull'?>
+<?=assign_3sym3'connBar_ull'?>
 
 	//tr_partial_beta := beta^i_,i
 	real tr_partial_beta = 0. <?
@@ -214,7 +206,7 @@ end ?>
 
 <? if useCalcDeriv_epsilon_LL then ?>
 
-<?=assignTensor3sym3('partial_gammaBar_lll', partial_gammaBar_lll:permute'_kij')?>
+<?=assign_3sym3('partial_gammaBar_lll', partial_gammaBar_lll:permute'_kij')?>
 
 	/*
 	2017 Ruchlin et al, eqn 11a
@@ -360,7 +352,7 @@ end
 	//////////////////////////////// ABar_ij_,t //////////////////////////////// 
 <? if useCalcDeriv_ABar_LL or useCalcDeriv_LambdaBar_U then ?>
 
-	sym3sym3 partial2_gammaHat_llll = coord_d2g_llll(x);
+<?=assign_sym3sym3'partial2_gammaHat_llll'?> 
 	
 	//Delta_ull[i].jk := Delta^i_jk = connBar^i_jk + connHat^i_jk
 	_3sym3 Delta_ull = _3sym3_sub(connBar_ull, connHat_ull);
@@ -379,7 +371,7 @@ end
 	{
 <?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
 <?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
-<?=assignTensorSym3'trBar_partial2_gammaBar_ll'?>
+<?=assign_sym3'trBar_partial2_gammaBar_ll'?>
 		
 		_3sym3 Delta_lll = sym3_3sym3_mul(gammaBar_ll, Delta_ull);
 		<?=eqn:getCode_RBar_ll()?> 
@@ -681,9 +673,8 @@ kernel void constrainU(
 
 <?=assignAllFromRepl(cos_xs)?>
 <?=assignAllFromRepl(sin_xs)?>
-
-<?=assignTensorSym3'gammaHat_ll'?>
-<?=assignTensorSym3'gammaBar_ll'?>
+<?=assign_sym3'gammaHat_ll'?>
+<?=assign_sym3'gammaBar_ll'?>
 <?=assign'det_gammaHat'?>
 <?=assign'det_gammaBar'?>
 
@@ -721,7 +712,7 @@ then
 <? end	-- constrain_tr_ABar ?>
 
 <? else -- constrain_det_gammaBar or constrain_tr_ABar ?>
-<?=assignTensorSym3'gammaBar_uu'?>
+<?=assign_sym3'gammaBar_uu'?>
 	
 	sym3 gammaBar_LL = sym3_rescaleFromCoord_ll(gammaBar_ll, x);
 	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
@@ -757,11 +748,10 @@ then
 	
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	
-	_3sym3 connHat_lll = coord_conn_lll(x);
-	_3sym3 connHat_ull = coord_conn_ull(x);
+<?=assign_3sym3'connHat_ull'?>
 	
 <?=eqn:makePartial('epsilon_LL', nil, nil, false)?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
-<?=assignTensor3sym3'connBar_ull'?>
+<?=assign_3sym3'connBar_ull'?>
 
 	//ABar_ul.i.j := ABar^i_j = gammaBar^kl ABar_kj
 	real3x3 ABar_UL = sym3_sym3_mul(gammaBar_UU, U->ABar_LL);
@@ -777,19 +767,17 @@ then
 	
 	real3 LambdaBar_u = real3_rescaleToCoord_U(U->LambdaBar_U, x);
 
-	sym3sym3 partial2_gammaHat_llll = coord_d2g_llll(x);
-<?=assignTensorSym3'gammaHat_uu'?>	
-	
-	_3sym3 partial_connHat_ulll[3];
-	coord_partial_conn_ulll(partial_connHat_ulll, x);
+<?=assign_sym3sym3'partial2_gammaHat_llll'?>
+<?=assign_sym3'gammaHat_uu'?>	
+<?=assign_real3'partial_det_gammaHat_l'?>
+<?=assign_3sym3x3'partial_connHat_ulll'?>
 
 	sym3 RBar_ll;
 	{
 
 <?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
-<?=assignTensorSym3'trBar_partial2_gammaBar_ll'?>
-
-<?=assignTensor3sym3('partial_gammaBar_lll', partial_gammaBar_lll:permute'_kij')?>
+<?=assign_sym3'trBar_partial2_gammaBar_ll'?>
+<?=assign_3sym3('partial_gammaBar_lll', partial_gammaBar_lll:permute'_kij')?>
 		
 		<?=eqn:getCode_RBar_ll()?> 
 	}	

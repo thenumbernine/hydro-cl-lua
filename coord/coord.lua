@@ -1,7 +1,7 @@
 --[[
 
-TODO rename all these to 'Coord'
-because they are coordinate system properties, not geometry properties
+TODO get rid of all the bloat that I added for bssn
+because I'm moving it directly into BSSN
 
 
 
@@ -472,11 +472,6 @@ self.dg = dg
 		print'metric partial:'
 		print(var'g''_ab,c':eq(dg'_cab'()))
 	end
-	compileTensorField('dg_lll_codes', dg)
-
-	local d2g = Tensor'_abcd'
-	d2g['_cdab'] = dg'_cab,d'()
-	compileTensorField('d2g_llll_codes', d2g)
 
 	local Gamma_lll = Tensor'_abc'
 	Gamma_lll['_abc'] = ((dg'_cab' + dg'_bac' - dg'_abc' + c'_abc' + c'_acb' - c'_bca') / 2)()
@@ -493,14 +488,6 @@ self.dg = dg
 		print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma_ull'^a_bc'()))
 	end
 	compileTensorField('conn_ull_codes', Gamma_ull)
-
-	local Gamma_ulll = Tensor'^a_bcd'
-	Gamma_ulll['^a_bcd'] = Gamma_ull'^a_bc,d'()
-	if self.verbose then
-		print'connection:'
-		print(var'\\Gamma''^a_bc,d':eq(Gamma_ulll'^a_bcd'()))
-	end
-	compileTensorField('partial_conn_ulll_codes', Gamma_ulll)
 
 	-- u^i v^j b^k Conn_ijk(x)
 	local connExpr = (paramU'^a' * paramV'^b' * paramW'^c' * Gamma_lll'_abc')()
@@ -638,59 +625,8 @@ self.dg = dg
 	local det_g_expr = symmath.Matrix.determinant(g)
 	compileTensorField('det_g_code', det_g_expr)
 
-	local partial_det_g_expr = Tensor('_i', function(i)
-		return det_g_expr:diff(coords[i])()
-	end)
-	compileTensorField('partial_det_g_code', partial_det_g_expr)
-
-	local partial2_det_g_expr = partial_det_g_expr'_i,j'()
-	compileTensorField('partial2_det_g_code', partial2_det_g_expr)
-
 	local sqrt_det_gExpr = symmath.sqrt(det_g_expr)()
 	compileTensorField('sqrt_det_gCode', sqrt_det_gExpr)
-
-
-	-- Now, for num rel in spherical, I need to transform the metric to remove the singularities ...
-	-- TODO this is redundant, it is identical to anholonomic normalized 'eHolToE'
-
-	local J = Tensor('^a_b', function(a,b)
-		return a ~= b
-			and 0
-			or (self.anholonomic 
-					and 1 
-					or (1 / self.lenExprs[a])
-				)
-	end)
-	if self.verbose then
-		print'rescaling transform:'
-		print(J)
-	end
-	local Tensor = symmath.Tensor
-	local JInv = Tensor('_a^b', table.unpack((Matrix.inverse(J))))
-	if self.verbose then
-		print'rescaling inverse transform:'
-		print(JInv)
-	end
-	local gJ_ll = (self.g'_ab' * J'^a_u' * J'^b_v')()
-	if self.verbose then
-		print'g_ij, in rescaled coordinates:'
-		print(gJ_ll)
-	end
-	local gJ_uu = (self.gU'^ab' * JInv'_a^u' * JInv'_b^v')()
-	if self.verbose then
-		print'g^ij, in rescaled coordinates:'
-		print(gJ_uu)
-	end
-	compileTensorField('gJ_uu_code', gJ_uu)
-
-	local sqrt_gJ_uu_expr = Tensor('^ab', function(a,b) return symmath.sqrt(gJ_uu[a][b])() end)
-	compileTensorField('sqrt_gJ_uu_code', sqrt_gJ_uu_expr)
-
-	local dgJ_lll = (self.dg'_abc' * J'^a_u' * J'^b_v' * J'^c_w')()
-	if self.verbose then
-		print'g_ij,k in rescaled coordinates:'
-		print(dgJ_lll)
-	end
 end
 
 
@@ -966,9 +902,6 @@ function CoordinateSystem:getCode(solver)
 	local det_g_code = '(' .. self.det_g_code .. ')'
 	lines:insert(getCode_real3_to_real('coord_det_g', det_g_code))
 
-	lines:insert(getCode_real3_to_real3('coord_partial_det_g', self.partial_det_g_code))
-	lines:insert(getCode_real3_to_sym3('coord_partial2_det_g', self.partial2_det_g_code))
-
 	-- sqrt_det_g ... volume for holonomic basis
 	local sqrt_det_gCode = '(' .. self.sqrt_det_gCode .. ')'
 	lines:insert(getCode_real3_to_real('coord_sqrt_det_g', sqrt_det_gCode))
@@ -987,14 +920,8 @@ real coordLen(real3 r, real3 pt) {
 	lines:insert(getCode_real3_to_real3('coord_conn_trace12', self.tr12_conn_l_codes))
 	lines:insert(getCode_real3_to_real3('coord_conn_trace13', self.tr13_conn_l_codes))
 	lines:insert(getCode_real3_to_real3('coord_conn_trace23', self.tr23_conn_u_codes))
-	lines:insert(getCode_real3_to_3sym3('coord_dg_lll', self.dg_lll_codes))
-	lines:insert(getCode_real3_to_sym3sym3('coord_d2g_llll', self.d2g_llll_codes))
 	lines:insert(getCode_real3_to_3sym3('coord_conn_lll', self.conn_lll_codes))
 	lines:insert(getCode_real3_to_3sym3('coord_conn_ull', self.conn_ull_codes))
-	-- TODO why compute all of these for each eqn that doesn't use them?
-	-- how about, instead, compute these upon request ...
-	-- and while you're at it you can inline them everywhere as well (or is that too much?)
-	lines:insert(getCode_real3_to_3sym3x3('coord_partial_conn_ulll', self.partial_conn_ulll_codes))
 
 
 	--[[
@@ -1026,14 +953,7 @@ real coordLen(real3 r, real3 pt) {
 		lines:insert(getCode_real3_to_sym3('coord_g_uu', self.gUCode))
 		
 		addSym3Components('coord_sqrt_g_uu', self.sqrt_gUCode)
-	
 		
-		-- gJ = g times jacobian = g times rescaling
-		-- TODO better naming for this
-		
-		addSym3Components('coordRescaled_g_uu', self.gJ_uu_code)
-		
-		addSym3Components('coordRescaled_sqrt_g_uu', self.sqrt_gJ_uu_code)
 	
 		-- coord rescaling
 		lines:insert(template([[
