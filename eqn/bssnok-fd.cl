@@ -1,9 +1,9 @@
 <? 
--- [[ do this every time you use the casEnv
-local casEnv = eqn:getCASEnv()
+-- [[ do this every time you use the env
+local env = eqn:getEnv()
 local oldEnv = getfenv()
-getmetatable(casEnv).__index = oldEnv
-setfenv(1, casEnv)
+getmetatable(env).__index = oldEnv
+setfenv(1, env)
 --]]
 
 -- integrates whatsoever.
@@ -74,8 +74,8 @@ kernel void calcDeriv(
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
-<?=assignAllFromRepl(cos_xs)?>
-<?=assignAllFromRepl(sin_xs)?>
+<?=assignRepls(cos_xs)?>
+<?=assignRepls(sin_xs)?>
 
 //NOTICE I'm scaling these back into coordinate form before calculating the partial derivative, while the SENR code applies the chain rule and adds the partial of the non-coordatein form times the scale transform plus the partial of the scale transform times the non-coordinate form.
 //will that affect my accuracy?
@@ -94,22 +94,12 @@ kernel void calcDeriv(
 <?=eqn:makePartial'B_U'?>			//partial_B_Ul[j].I := B^I_,j
 <? end ?>
 
-
 <?=assign_sym3'gammaHat_ll'?>
-	
 <?=assign'det_gammaHat'?>
 <?=assign_sym3'gammaHat_uu'?>	
-	
 <?=assign_3sym3'connHat_ull'?>
 <?=assign_real3'partial_det_gammaHat_l'?>
 <?=assign_3sym3x3'partial_connHat_ulll'?>
-
-	//epsilon_ll.ij := epsilon_ij = e_i^I e_j^I epsilon_IJ
-	sym3 epsilon_ll = sym3_rescaleToCoord_LL(U->epsilon_LL, x);
-
-	//gammaBar_ll.ij := gammaBar_ij = gammaHat_ij + epsilon_ij
-	sym3 gammaBar_ll = sym3_add(gammaHat_ll, epsilon_ll);
-
 <?=assign_sym3'partial2_det_gammaHat_ll'?>
 
 	/*
@@ -190,58 +180,29 @@ kernel void calcDeriv(
 	//////////////////////////////// ABar_ij_,t //////////////////////////////// 
 <? if useCalcDeriv_ABar_LL or useCalcDeriv_LambdaBar_U then ?>
 
-	sym3 partial2_phi_ll;
-	{
-		
-		//This is only used by ABar_ij,t:
-		//partial2_phi_ll.ij := phi_,ij = 1/(2W) (-W_,ij + W_,i W_,j / W)
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-?>		partial2_phi_ll.<?=xij?> = .5 * (
-				-partial2_W_ll[<?=ij-1?>] 
-				+ partial_W_l[<?=i-1?>] * partial_W_l[<?=j-1?>] / U->W
-			) / U->W;
-<? end ?>
-	}
-
+<?=assign_sym3'partial2_phi_ll'?>
 <?=assign_sym3sym3'partial2_gammaHat_llll'?> 
-	
-	//Delta_ull[i].jk := Delta^i_jk = connBar^i_jk + connHat^i_jk
-	_3sym3 Delta_ull = _3sym3_sub(connBar_ull, connHat_ull);
-
+<?=assign_3sym3'Delta_ull'?>	
 	
 <? end -- useCalcDeriv_ABar_LL or useCalcDeriv_LambdaBar_U ?>
 <? if useCalcDeriv_ABar_LL then ?>
-	
-	//Delta_u.i := Delta^i = LambdaBar^i - C^i
-	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
-	real3 Delta_u = real3_rescaleToCoord_U(Delta_U, x);
 
-	real3 LambdaBar_u = real3_rescaleToCoord_U(U->LambdaBar_U, x);
-
+<?=assign_real3'Delta_u'?>
+<?=assign_real3'LambdaBar_u'?>
 <?=assign_real3x3'partial_LambdaBar_ul'?>
 
+<?=assign_sym3'gammaBar_ll'?>
 	sym3 RBar_ll;
 	{
 <?=eqn:makePartial'epsilon_LL'?>
 <?=eqn:makePartial2'epsilon_LL'?>
 <?=assign_sym3'trBar_partial2_gammaBar_ll'?>
 <?=assign_3sym3('partial_gammaBar_lll', partial_gammaBar_lll:permute'_kij')?>
-		
-		_3sym3 Delta_lll = sym3_3sym3_mul(gammaBar_ll, Delta_ull);
+<?=assign_3sym3'Delta_lll'?>
 		<?=eqn:getCode_RBar_ll()?> 
 	}
-	
-	//DBar2_phi_ll.ij := DBar_i DBar_j phi = phi_,ij - connBar^k_ij phi_,k
-	sym3 DBar2_phi_ll;
-<? for ij,xij in ipairs(symNames) do
-?>	DBar2_phi_ll.<?=xij?> = partial2_phi_ll.<?=xij?> 
-<?	for k,xk in ipairs(xNames) do	
-?>		- connBar_ull.<?=xk?>.<?=xij?> * partial_phi_l.<?=xk?>
-<?	end
-?>	;
-<? end
-?>
+
+<?=assign_sym3'DBar2_phi_ll'?>
 
 	/*
 	2017 Ruchlin et al eqn 11b
@@ -294,7 +255,6 @@ kernel void calcDeriv(
 <?	end
 end ?>
 
-	sym3 gammaBar_LL = sym3_rescaleFromCoord_ll(gammaBar_ll, x);
 	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
 
 	//ABar^i_j = gammaBar^ik ABar_kj
@@ -561,8 +521,8 @@ kernel void constrainU(
 	real3 x = cell_x(i);
 	global cons_t* U = UBuf + index;
 
-<?=assignAllFromRepl(cos_xs)?>
-<?=assignAllFromRepl(sin_xs)?>
+<?=assignRepls(cos_xs)?>
+<?=assignRepls(sin_xs)?>
 <?=assign_sym3'gammaHat_ll'?>
 <?=assign_sym3'gammaBar_ll'?>
 <?=assign'det_gammaBar_over_det_gammaHat'?>
@@ -604,7 +564,6 @@ then
 <? else -- constrain_det_gammaBar or constrain_tr_ABar ?>
 <?=assign_sym3'gammaBar_uu'?>
 	
-	sym3 gammaBar_LL = sym3_rescaleFromCoord_ll(gammaBar_ll, x);
 	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
 <? end -- constrain_det_gammaBar or constrain_tr_ABar ?>
 
@@ -620,19 +579,8 @@ then
 <?=eqn:makePartial'LambdaBar_U'?>	//partial_LambdaBar_Ul[j].I := LambdaBar^I_,j
 <?=eqn:makePartial2'W'?>				//partial2_W_ll[ij] := phi_,ij
 
-	real3 partial_phi_l;
-<? for i,xi in ipairs(xNames) do
-?>	partial_phi_l.<?=xi?> = -partial_W_l[<?=i-1?>] / (2. * U->W);
-<? end ?>
-
-	sym3 partial2_phi_ll;
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-?>	partial2_phi_ll.<?=xij?> = .5 * (
-			-partial2_W_ll[<?=ij-1?>] 
-			+ partial_W_l[<?=i-1?>] * partial_W_l[<?=j-1?>] / U->W
-		) / U->W;
-<? end ?>
+<?=assign_real3'partial_phi_l'?>
+<?=assign_sym3'partial2_phi_ll'?>
 	
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	
@@ -647,14 +595,10 @@ then
 	//ABar_uu.ij := ABar^ij = gammaBar^ik ABar_kl gammaBar^lj
 	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);	
 	
-	_3sym3 Delta_ull = _3sym3_sub(connBar_ull, connHat_ull);
-	_3sym3 Delta_lll = sym3_3sym3_mul(gammaBar_ll, Delta_ull);
-	
-	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
-	real3 Delta_u = real3_rescaleToCoord_U(Delta_U, x);
-	
-	real3 LambdaBar_u = real3_rescaleToCoord_U(U->LambdaBar_U, x);
-
+<?=assign_3sym3'Delta_ull'?>	
+<?=assign_3sym3'Delta_lll'?>
+<?=assign_real3'Delta_u'?>
+<?=assign_real3'LambdaBar_u'?>	
 <?=assign_sym3sym3'partial2_gammaHat_llll'?>
 <?=assign_sym3'gammaHat_uu'?>	
 <?=assign_real3'partial_det_gammaHat_l'?>
@@ -834,7 +778,7 @@ local useGammaInvForDT = false
 	dtBuf[index] = dt;
 }
 <?
--- [[ do this every time you stop using the casEnv
+-- [[ do this every time you stop using the env
 setfenv(1, oldEnv)
 --]]
 ?>

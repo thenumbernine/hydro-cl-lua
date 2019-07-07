@@ -241,7 +241,7 @@ function CoordinateSystem:init(args)
 		if self.verbose then
 			print'holonomic embedded:'
 			print(var'eHol''_u^I':eq(var'u''^I_,u'):eq(eHol'_u^I'()))
-			print(var'{e_{iHol}}^i':eq(eHolToE))
+			print(var'e_iHol^i':eq(eHolToE))
 		end
 	end
 
@@ -301,46 +301,11 @@ function CoordinateSystem:init(args)
 	
 	-- code generation
 
-	-- for output
-	local function substCoords(code)
-		code = code:gsub('{pt^(%d)}', function(i)
-			return self.baseCoords[i+0].name
-		end)
-		code = code:gsub('{u^(%d)}', function(i)
-			return 'u'..self.baseCoords[i+0].name
-		end)
-		code = code:gsub('{v^(%d)}', function(i)
-			return 'v'..self.baseCoords[i+0].name
-		end)
-		code = code:gsub('{w^(%d)}', function(i)
-			return 'w'..self.baseCoords[i+0].name
-		end)
-		return code
-	end
-
-	local paramU = Tensor('^a', function(a)
-		return var('{u^'..a..'}')
-	end)
+	local paramU = Tensor('^i', function(i) return var('u.'..xNames[i]) end)
+	local paramV = Tensor('^i', function(i) return var('v.'..xNames[i]) end)
+	local paramW = Tensor('^i', function(i) return var('w.'..xNames[i]) end)
 	
-	local paramV = Tensor('^a', function(a)
-		return var('{v^'..a..'}')
-	end)
-
-	local paramW = Tensor('^a', function(a)
-		return var('{w^'..a..'}')
-	end)
-	
-	local toC = require 'symmath.tostring.C'
-	local toC_coordArgs = table.mapi(baseCoords, function(coord, i)
-		return {['{pt^'..i..'}'] = coord}	-- 1-based
-	end):append(range(dim):mapi(function(a)
-		return {[paramU[a].name] = paramU[a]}
-	end)):append(range(dim):mapi(function(a)
-		return {[paramV[a].name] = paramV[a]}
-	end)):append(range(dim):mapi(function(a)
-		return {[paramW[a].name] = paramW[a]}
-	end))
-	local function compile(expr, extraArgs)
+	local function compile(expr)
 		local orig = expr	
 		-- replace pow(x,2) with x*x
 		expr = expr:map(function(x)
@@ -359,13 +324,12 @@ function CoordinateSystem:init(args)
 				end
 			end
 		end)
-	
-		local args = toC_coordArgs
-		if extraArgs then
-			args = table(args):append(extraArgs)
+
+		for i,coord in ipairs(baseCoords) do
+			expr = expr:replace(coord, var('pt.'..xNames[i]))
 		end
 
-		local code = toC:compile(expr, args):match'return (.*);'
+		local code = symmath.export.C(expr)
 
 		--[[
 		if self.verbose then
@@ -381,7 +345,7 @@ function CoordinateSystem:init(args)
 		local codetype = type(code)
 		if codetype == 'string' then
 			if code ~= '0.' then
-				print(name..' = '..substCoords(code))
+				print(name..' = '..code)
 			end
 		elseif codetype == 'table' then
 			for i=1,#code do
@@ -396,13 +360,13 @@ function CoordinateSystem:init(args)
 	end
 
 	--compile a tensor of expressions to a nested table of codes
-	local function compileTensor(expr, extraArgs)
+	local function compileTensor(expr)
 		if symmath.Array.is(expr) then
 			return table.mapi(expr, function(expri) 
-				return compileTensor(expri, extraArgs)
+				return compileTensor(expri)
 			end)
 		elseif symmath.Expression.is(expr) then
-			return compile(expr, extraArgs)
+			return compile(expr)
 		elseif type(expr) == 'number' then
 			return clnumber(expr)
 		else
@@ -411,8 +375,8 @@ function CoordinateSystem:init(args)
 				--..require 'ext.tolua'(expr))
 		end
 	end
-	local function compileTensorField(field, expr, extraArgs)
-		self[field] = compileTensor(expr, extraArgs)
+	local function compileTensorField(field, expr)
+		self[field] = compileTensor(expr)
 		printNonZeroField(field)
 	end
 
@@ -543,19 +507,9 @@ self.dg = dg
 
 	local integralArgs = table()
 	for i=1,dim do
-		integralArgs:insert(symmath.var('u'..i..'L'))
-		integralArgs:insert(symmath.var('u'..i..'R'))
+		integralArgs:insert(symmath.var('(pt.'..xNames[i]..' - solver->grid_dx.'..xNames[i]..')'))
+		integralArgs:insert(symmath.var('(pt.'..xNames[i]..' + solver->grid_dx.'..xNames[i]..')'))
 	end
-	
-	-- mapping 
-	-- u#L -> pt.s# - .5 * grid_dx#
-	-- u#R -> pt.s# + .5 * grid_dx#
-	local mappedIntegralArgs = integralArgs:map(function(var)
-		local i, LR = var.name:match'^u(%d)([LR])$'
-		assert(i and LR)
-		local addsub = assert(({L='-', R='+'})[LR])
-		return {['({pt^'..i..'} '..addsub..' .5 * solver->grid_dx.s'..(i-1)..')'] = var}
-	end)
 	
 	local coord_area_exprs = symmath.Array:lambda({dim}, function(i)
 		local area = const(1)
@@ -585,7 +539,7 @@ self.dg = dg
 	end)
 
 	-- area of the side in each direction
-	compileTensorField('cell_area_codes', coord_area_exprs, mappedIntegralArgs)
+	compileTensorField('cell_area_codes', coord_area_exprs)
 
 	do
 		local volume = const(1)
@@ -609,7 +563,7 @@ self.dg = dg
 		if self.verbose then
 			print(var'volume':eq(volume))
 		end
-		compileTensorField('cell_volume_code', volume, mappedIntegralArgs)
+		compileTensorField('cell_volume_code', volume)
 	end
 
 	self.g = g
@@ -632,30 +586,13 @@ end
 
 local xs = table{'x', 'y', 'z'}
 
--- for code generation
-local function convertParams(code)
-	code = code:gsub('{pt^(%d)}', function(i)
-		return 'pt.'..xs[i+0]
-	end)
-	code = code:gsub('{u^(%d)}', function(i)
-		return 'u.'..xs[i+0]
-	end)
-	code = code:gsub('{v^(%d)}', function(i)
-		return 'v.'..xs[i+0]
-	end)
-	code = code:gsub('{w^(%d)}', function(i)
-		return 'v.'..xs[i+0]
-	end)
-	return code
-end
-
 local function getCode_real3_to_real(name, code)
 	return template([[
 real <?=name?>(real3 pt) {
 	return <?=code?>;
 }]], {
 		name = name,
-		code = convertParams(code),
+		code = code,
 	})
 end
 
@@ -665,14 +602,13 @@ local function getCode_real3_to_real3(name, exprs)
 real3 <?=name?>(real3 pt) {
 	return _real3(
 <? for i=1,3 do
-?>		<?=exprs[i] and convertParams(exprs[i]) or '0.'
+?>		<?=exprs[i] or '0.'
 		?><?=i==3 and '' or ','?>
 <? end
 ?>	);
 }]], {
 		name = name,
 		exprs = exprs,
-		convertParams = convertParams,
 	})
 end
 
@@ -680,11 +616,10 @@ end
 local function getCode_real3_real3_to_real(name, expr)
 	return template([[
 real <?=name?>(real3 u, real3 pt) {
-	return <?=convertParams(expr)?>;
+	return <?=expr?>;
 }]], {
 		name = name,
 		expr = expr,
-		convertParams = convertParams,
 	})
 end
 
@@ -693,25 +628,23 @@ local function getCode_real3_real3_to_real3(name, exprs)
 real3 <?=name?>(real3 u, real3 pt) {
 	return _real3(
 <? for i=1,3 do
-?>		<?=exprs[i] and convertParams(exprs[i]) or '0.'
+?>		<?=exprs[i] or '0.'
 		?><?=i==3 and '' or ','?>
 <? end
 ?>	);
 }]], {
 		name = name,
 		exprs = exprs,
-		convertParams = convertParams,
 	})
 end
 
 local function getCode_real3_real3_real3_to_real(name, expr)
 	return template([[
 real <?=name?>(real3 u, real3 v, real3 w, real3 pt) {
-	return <?=convertParams(expr)?>;
+	return <?=expr?>;
 }]], {
 		name = name,
 		expr = expr,
-		convertParams = convertParams,
 	})
 end
 
@@ -720,14 +653,13 @@ local function getCode_real3_real3_real3_to_real3(name, exprs)
 real3 <?=name?>(real3 u, real3 v, real3 pt) {
 	return _real3(
 <? for i=1,3 do
-?>		<?=exprs[i] and convertParams(exprs[i]) or '0.'
+?>		<?=exprs[i] or '0.'
 		?><?=i==3 and '' or ','?>
 <? end
 ?>	);
 }]], {
 		name = name,
 		exprs = exprs,
-		convertParams = convertParams,
 	})
 end
 
@@ -739,7 +671,7 @@ sym3 <?=name?>(real3 pt) {
 <? for i=1,3 do
 	for j=i,3 do
 ?>		.<?=xs[i]..xs[j]?> = <?=exprs[i] and exprs[i][j] 
-			and convertParams(exprs[i][j]) or '0.'?>,
+			and exprs[i][j] or '0.'?>,
 <?	end
 end
 ?>	};
@@ -747,7 +679,6 @@ end
 		xs = xs,
 		name = name,
 		exprs = exprs,
-		convertParams = convertParams,
 	})
 end
 
@@ -762,7 +693,7 @@ for i=1,3 do
 <?	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
 ?>		.<?=xjk?> = <?=exprs[i] and exprs[i][j] and exprs[i][j][k]
-			and convertParams(exprs[i][j][k]) or '0.'?>,
+			and exprs[i][j][k] or '0.'?>,
 <?	end	
 ?>	},
 <?
@@ -772,7 +703,6 @@ end
 		xs = xs,
 		name = name,
 		exprs = exprs,
-		convertParams = convertParams,
 		symNames = symNames,
 		from6to3x3 = from6to3x3,
 	})
@@ -790,7 +720,7 @@ for i,xi in ipairs(xNames) do
 ?>	a[<?=l-1?>].<?=xi?>.<?=xjk?> = <?
 
 if exprs[i] and exprs[i][j] and exprs[i][j][k] and exprs[i][j][k][l] then
-	?><?=convertParams(exprs[i][j][k][l])?><?
+	?><?=exprs[i][j][k][l]?><?
 else
 	?>0.<?
 end
@@ -803,7 +733,6 @@ end
 		xs = xs,
 		name = name,
 		exprs = exprs,
-		convertParams = convertParams,
 		symNames = symNames,
 		from6to3x3 = from6to3x3,
 	})
@@ -817,8 +746,7 @@ sym3sym3 <?=name?>(real3 pt) {
 <? for kl,xkl in ipairs(symNames) do
 ?>		.<?=xkl?> = (sym3){
 <?	for ij,xij in ipairs(symNames) do
-?>			.<?=xij?> = <?=exprs[i] and exprs[i][j] and exprs[i][j][k] and exprs[i][j][k][l]
-				and convertParams(exprs[i][j][k][l]) or '0.'?>,
+?>			.<?=xij?> = <?=exprs[i] and exprs[i][j] and exprs[i][j][k] and exprs[i][j][k][l] or '0.'?>,
 <?	end
 ?>		},
 <? end
@@ -827,7 +755,6 @@ sym3sym3 <?=name?>(real3 pt) {
 		xs = xs,
 		name = name,
 		exprs = exprs,
-		convertParams = convertParams,
 		symNames = symNames,
 	})
 end
@@ -857,38 +784,22 @@ function CoordinateSystem:getCode(solver)
 	local dim = 3
 	local lines = table()
 
-	local function convertInputFromGrid(code, inputVarName)
-		for j=1,3 do
-			code = code:gsub(
-				'{pt^'..j..'}',
-				'cell_x'..(j-1)..'('..inputVarName..'.'..xs[j]..')')
-		end
-		return code
-	end
-
-	local function convertInputFromCoord(code, inputVarName)
-		for j=1,3 do
-			code = code:gsub('{pt^'..j..'}', inputVarName..'.'..xs[j])
-		end
-		return code
-	end
-	
 	-- dx0, dx1, ...
 	-- this is the change in cartesian wrt the change in grid
 	-- this is also the normalization factor for the anholonomic ( ... is it?)
 	lines:append(range(dim):mapi(function(i)
-		local code = convertInputFromCoord(self.dxCodes[i], 'pt')
+		local code = self.dxCodes[i]
 		return '#define coord_dx'..(i-1)..'(pt) ('..code..')'
 	end))
 
 	-- area0, area1, ...
 	-- area_i = integral of u_j, j!=i of product of dx_j, j!=i
 	lines:append(range(dim):mapi(function(i)
-		local code = convertInputFromCoord(self.cell_area_codes[i], 'pt')
+		local code = self.cell_area_codes[i]
 		return '#define cell_area'..(i-1)..'(pt) ('..code..')'
 	end))
 
-	lines:insert('#define cell_volume(pt) ('..convertInputFromCoord(self.cell_volume_code, 'pt')..')')
+	lines:insert('#define cell_volume(pt) ('..self.cell_volume_code..')')
 
 	lines:insert'\n'
 
@@ -937,7 +848,7 @@ real coordLen(real3 r, real3 pt) {
 		local function addSym3Components(name, codes)
 			for i=1,3 do
 				for j=i,3 do
-					local code = (codes[i] and codes[i][j] and convertParams(codes[i][j]) or clnumber(i==j and 1 or 0))
+					local code = (codes[i] and codes[i][j] or clnumber(i==j and 1 or 0))
 					lines:insert('#define '..name..(i-1)..(j-1)..'(pt) '..code)
 					if i ~= j then
 						lines:insert('#define '..name..(j-1)..(i-1)..'(pt) '..code)
@@ -1106,7 +1017,7 @@ function CoordinateSystem:getCoordMapCode()
 	lines:insert(getCode_real3_to_real3(
 		'coordMap',
 		range(3):mapi(function(i)
-			return self.uCode[i] or '{pt^'..i..'}'
+			return self.uCode[i] or 'pt.'..xNames[i]
 		end)))
 	
 	for i,eiCode in ipairs(self.eCode) do

@@ -445,13 +445,18 @@ void main() {
 	
 		if #self.solvers > 0 then
 			local solver = self.solvers[1]
-			local orthoSize = 1
-			for j=1,solver.dim do
-				self.orthoView.pos[j] = .5 * (solver.mins[j] + solver.maxs[j])
-				orthoSize = math.max(orthoSize, solver.maxs[j] - solver.mins[j])
+			if solver.dim == 2 and (
+				not self.display_useCoordMap 
+				or require 'coord.cartesian'.is(solver.coord)
+			) then
+				local orthoSize = 1
+				for j=1,solver.dim do
+					self.orthoView.pos[j] = .5 * (solver.mins[j] + solver.maxs[j])
+					orthoSize = math.max(orthoSize, solver.maxs[j] - solver.mins[j])
+				end
+				self.orthoView.zoom[1] = 1/orthoSize
+				self.orthoView.zoom[2] = 1/orthoSize
 			end
-			self.orthoView.zoom[1] = 1/orthoSize
-			self.orthoView.zoom[2] = 1/orthoSize
 		end
 	end
 
