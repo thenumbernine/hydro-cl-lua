@@ -1456,6 +1456,7 @@ function GridSolver:updateGUIParams()
 					-- if the domain changes
 					-- then the dx has to change
 					-- and all the stuff based on codePrefix has to change
+					-- TODO now this is stored in solverPtr, so just update that struct
 					self:refreshCodePrefix()
 				end
 			end

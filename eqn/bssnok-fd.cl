@@ -20,7 +20,7 @@ local useCalcDeriv_beta_U = true
 local useConstrainU = true
 
 -- does Kreiss-Oligar dissipation
-local useAddSource = false
+local useAddSource = true
 ?>
 
 /*
@@ -28,7 +28,7 @@ I through I would save on loc by replacing expanded summation with vector/matrix
 The operators are pass-by-value (because I have read for C/C++ at least that this is faster for float3's,
  and for GPU's it will probably be faster for anything that fits in a float4/float8 or whatever the architecture is designed for).
 However I've also read that Intel OpenCL used to have bugs with pass-by-value.
-Then there's the possibility that, by moving the calc_RBar_ll code into its own function, maybe it uses too many arguments?
+Then there's the possibility that, by moving the getCode_RBar_LL code into its own function, maybe it uses too many arguments?
 Then there's the possibility that I'm using too many locals and the compiler has a bug with stack allocations beyond a certain size.
 */
 
@@ -120,6 +120,9 @@ kernel void calcDeriv(
 <?=assign'det_gammaBar'?>
 	real3 partial_det_gammaBar_l = partial_det_gammaHat_l;
 	sym3 partial2_det_gammaBar_ll = partial2_det_gammaHat_ll;
+
+<?=assign_sym3'gammaBar_LL'?>
+<?=assign_sym3'gammaBar_UU'?>
 <?=assign_sym3'gammaBar_uu'?>
 
 
@@ -149,14 +152,11 @@ kernel void calcDeriv(
 	gammaBar_ij = exp(-4 phi) gamma_ij
 	gammaBar^ij = exp(4 phi) gamma^ij
 	gamma^ij = exp(-4 phi) gammaBar^ij
-	S := S_ij gamma^ij = exp(-4 phi) S_ij gammaBar^ij 
+	S := S_ij gamma^ij = exp(-4 phi) gammaBar^ij S_ij 
 	*/
 	real S = exp_neg4phi * sym3_dot(U->S_ll, gammaBar_uu);
 
 <? if true then ?>
-<?=assign_sym3'gammaBar_LL'?>
-<?=assign'det_gammaBarLL'?>
-<?=assign_sym3'gammaBar_UU'?>
 <?=assign_real3x3'ABar_UL'?>
 <?=assign_sym3'ABarSq_LL'?>
 <?=assign_sym3'ABar_UU'?>
@@ -174,8 +174,8 @@ kernel void calcDeriv(
 <? end ?>
 
 <?=assign_3sym3'connBar_lll'?>
-<?=assign_3sym3'connBar_ull'?>
-<?=assign_sym3'DBar2_alpha_ll'?> 
+<?=assign_3sym3'connBar_ULL'?>
+<?=assign_sym3'DBar2_alpha_LL'?> 
 <?=assign'trBar_DBar2_alpha'?>
 <?=assign_real3'partial_phi_l'?>
 <?=assign'dt_K'?>
@@ -198,27 +198,25 @@ kernel void calcDeriv(
 
 <?=assign_sym3'partial2_phi_ll'?>
 <?=assign_sym3sym3'partial2_gammaHat_llll'?> 
-<?=assign_3sym3'Delta_ull'?>	
+<?=assign_3sym3'Delta_ULL'?>
 	
 <? end -- useCalcDeriv_ABar_LL or useCalcDeriv_LambdaBar_U ?>
 <? if useCalcDeriv_ABar_LL then ?>
 
-<?=assign_real3'Delta_u'?>
+<?=assign_real3'Delta_U'?>
 <?=assign_real3'LambdaBar_u'?>
 <?=assign_real3x3'partial_LambdaBar_ul'?>
 
 <?=assign_sym3'gammaBar_ll'?>
-	sym3 RBar_ll;
+	sym3 RBar_LL;
 	{
 <?=eqn:makePartial'epsilon_LL'?>
 <?=eqn:makePartial2'epsilon_LL'?>
 <?=assign_sym3'trBar_partial2_gammaBar_ll'?>
 <?=assign_3sym3('partial_gammaBar_lll', partial_gammaBar_lll:permute'_kij')?>
-<?=assign_3sym3'Delta_lll'?>
-		<?=eqn:getCode_RBar_ll()?> 
+<?=assign_3sym3'Delta_LLL'?>
+		<?=eqn:getCode_RBar_LL()?> 
 	}
-
-<?=assign_sym3'DBar2_phi_ll'?>
 
 	/*
 	2017 Ruchlin et al eqn 11b
@@ -237,26 +235,16 @@ kernel void calcDeriv(
 	*) everything else
 
 	*/
-	sym3 TF_DBar2_alpha_ll = tracefree(DBar2_alpha_ll, gammaBar_ll, gammaBar_uu);
+	sym3 TF_DBar2_alpha_LL = tracefree(DBar2_alpha_LL, gammaBar_LL, gammaBar_UU);
 
-	sym3 TF_RBar_ll = tracefree(RBar_ll, gammaBar_ll, gammaBar_uu);
+	sym3 TF_RBar_LL = tracefree(RBar_LL, gammaBar_LL, gammaBar_UU);
 	
-	sym3 tracelessPart_ll;
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi,xj = xNames[i],xNames[j]
-?>	tracelessPart_ll.<?=xij?> = 0.
-			+ 2. * partial_phi_l.<?=xi?> * partial_alpha_l[<?=j-1?>]
-			+ 2. * partial_phi_l.<?=xj?> * partial_alpha_l[<?=i-1?>]
-			+ U->alpha * (0.
-				- 2. * DBar2_phi_ll.<?=xij?>
-				+ 4. * partial_phi_l.<?=xi?> * partial_phi_l.<?=xj?>
-				- 8. * M_PI * U->S_ll.<?=xij?>
-			)
-		;
-<? end
-?>
-	tracelessPart_ll = tracefree(tracelessPart_ll, gammaBar_ll, gammaBar_uu);
+<?=assign_sym3'DBar2_phi_LL'?>
+<?=assign_real3'partial_phi_L'?>
+<?=assign_real3'partial_alpha_L'?>
+<?=assign_real3'partial_K_L'?>
+<?=assign_sym3'tracelessPart_LL'?>
+	tracelessPart_LL = tracefree(tracelessPart_LL, gammaBar_LL, gammaBar_UU);
 
 <?=assign_3sym3('partial_ABar_lll', partial_ABar_lll:permute'_kij')?>
 <?=assign_real3x3'partial_beta_ul'?>
@@ -378,8 +366,7 @@ end
 
 	sym3 ABar_uu = sym3_rescaleToCoord_UU(ABar_UU, x);
 
-<?=assign_real3'Lbeta_LambdaBar_U'?>
-<?=assign_real3'd0_LambdaBar_U'?>
+<?=assign_real3'Lbeta_LambaBar_U'?>
 <?=assign_real3'dt_LambdaBar_U'?>
 
 <? for i,xi in ipairs(xNames) do
@@ -408,7 +395,6 @@ end
 <? end
 ?>
 
-<?=assign_real3'Lbeta_B_U'?>
 <?=assign_real3'dt_B_U'?>
 
 <? for i,xi in ipairs(xNames) do
@@ -432,16 +418,18 @@ kernel void constrainU(
 
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign_sym3'gammaHat_ll'?>
-<?=assign_sym3'gammaBar_ll'?>
-<?=assign'det_gammaBar_over_det_gammaHat'?>
-<?=assign'det_gammaBar'?>
+<?=assign_sym3'gammaBar_LL'?>
 
 <? 
 if eqn.guiVars.constrain_det_gammaBar.value 
 or eqn.guiVars.constrain_tr_ABar.value 
 then 
 ?>
+
+<?=assign_sym3'gammaBar_ll'?>
+<?=assign'det_gammaBar_over_det_gammaHat'?>
+<?=assign'det_gammaBar'?>
+	
 	/*
 	we need to force det(gammaBar_ij) = det(gammaHat_ij)
 	and we can do so with gammaBar_ij := gammaBar_ij * (det(gammaHat_ij) / det(gammaBar_ij))^(1/3)
@@ -455,13 +443,15 @@ then
 <? 		for ij,xij in ipairs(symNames) do
 ?>	gammaBar_ll.<?=xij?> *= rescaleMetric;
 <? 		end ?>
+
+<?=assign_sym3'gammaHat_ll'?>
 	sym3 epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
 	U->epsilon_LL = sym3_rescaleFromCoord_ll(epsilon_ll, x);
 <?	end	-- constrain_det_gammaBar ?>
 
 	//these are now based on the adjusted epsilon_LL:
 	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
-	sym3 gammaBar_LL = sym3_rescaleFromCoord_ll(gammaBar_ll, x);
+	gammaBar_LL = sym3_rescaleFromCoord_ll(gammaBar_ll, x);
 	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
 	
 	//in Buchman's paper it says he doesn't do this
@@ -471,9 +461,11 @@ then
 <? end	-- constrain_tr_ABar ?>
 
 <? else -- constrain_det_gammaBar or constrain_tr_ABar ?>
+
+<?=assign'det_gammaBar_over_det_gammaHat'?>
+<?=assign_sym3'gammaBar_UU'?>
 <?=assign_sym3'gammaBar_uu'?>
 	
-	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
 <? end -- constrain_det_gammaBar or constrain_tr_ABar ?>
 
 	//makes the spinning black hole simulations look ugly
@@ -483,10 +475,11 @@ then
 
 //TODO these need to be pre-scaled back to coordinates before computing the weighted finite difference
 <?=eqn:makePartial'ABar_LL'?>		//partial_ABar_LLl[k].IJ = ABar_IJ,k
-<?=eqn:makePartial'K'?>				//partial_K_l[i] := K,i
+<?=eqn:makePartial'alpha'?>			//partial_alpha_l[i] := alpha_,i
+<?=eqn:makePartial'K'?>				//partial_K_l[i] := K_,i
 <?=eqn:makePartial'W'?>				//partial_W_l[i] := phi_,i 
 <?=eqn:makePartial'LambdaBar_U'?>	//partial_LambdaBar_Ul[j].I := LambdaBar^I_,j
-<?=eqn:makePartial2'W'?>				//partial2_W_ll[ij] := phi_,ij
+<?=eqn:makePartial2'W'?>			//partial2_W_ll[ij] := phi_,ij
 
 <?=assign_real3'partial_phi_l'?>
 <?=assign_sym3'partial2_phi_ll'?>
@@ -497,17 +490,13 @@ then
 	
 <?=eqn:makePartial'epsilon_LL'?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
 <?=assign_3sym3'connBar_lll'?>
-<?=assign_3sym3'connBar_ull'?>
-
-	//ABar_UL.i.j := ABar^i_j = gammaBar^kl ABar_kj
-	real3x3 ABar_UL = sym3_sym3_mul(gammaBar_UU, U->ABar_LL);
+<?=assign_3sym3'connBar_ULL'?>
+<?=assign_real3x3'ABar_UL'?>
+<?=assign_sym3'ABar_UU'?>
 	
-	//ABar_uu.ij := ABar^ij = gammaBar^ik ABar_kl gammaBar^lj
-	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);	
-	
-<?=assign_3sym3'Delta_ull'?>	
-<?=assign_3sym3'Delta_lll'?>
-<?=assign_real3'Delta_u'?>
+<?=assign_3sym3'Delta_ULL'?>
+<?=assign_3sym3'Delta_LLL'?>
+<?=assign_real3'Delta_U'?>
 <?=assign_real3'LambdaBar_u'?>	
 <?=assign_sym3sym3'partial2_gammaHat_llll'?>
 <?=assign_sym3'gammaHat_uu'?>	
@@ -516,41 +505,29 @@ then
 
 <?=assign_real3x3'partial_LambdaBar_ul'?>
 
-	sym3 RBar_ll;
+	sym3 RBar_LL;
 	{
 <?=eqn:makePartial2'epsilon_LL'?>
 <?=assign_sym3'trBar_partial2_gammaBar_ll'?>
 <?=assign_3sym3('partial_gammaBar_lll', partial_gammaBar_lll:permute'_kij')?>
 		
-		<?=eqn:getCode_RBar_ll()?> 
+		<?=eqn:getCode_RBar_LL()?> 
 	}	
 	//RBar := RBar_ij gammaBar^ij
-	real RBar = sym3_dot(gammaBar_uu, RBar_ll);
+	real RBar = sym3_dot(gammaBar_UU, RBar_LL);
 
-	//the old way actually cached DBar2_phi_ll for calculating RPhi_ll, but that wasn't even being used, so I deleted it
-	//tr_DBar2_phi := gammaBar^ij DBar_i DBar_j phi = gammaBar^ij phi_,ij - connBar^k phi_,k
-	real tr_DBar2_phi = 0.
-<? for i,xi in ipairs(xNames) do
-	for j,xj in ipairs(xNames) do
-		local ij = from3x3to6(i,j)
-		local xij = symNames[ij]
-?>		+ gammaBar_uu.<?=sym(i,j)?> * (
-			partial2_phi_ll.<?=xij?>
-<?		for k,xk in ipairs(xNames) do
-?>			- connBar_ull.<?=xk?>.<?=xij?> * partial_phi_l.<?=xk?>
-<?		end
-?>		)
-<?	end
-end
-?>	;
+<?=assign_sym3'DBar2_phi_LL'?>
+<?=assign'tr_DBar2_phi'?>
 
+<?=assign_real3'partial_phi_L'?>
+<?=assign_real3'partial_alpha_L'?>
 	//2017 Ruchlin et al, eqn 46
 	//H = 2/3 K^2 - ABar^ij ABar_ij + exp(-4 phi) (RBar - 8 DBar^i phi DBar_i phi - 8 gammaBar^ij DBar_i DBar_j phi)
 	U->H = 2. / 3. * U->K * U->K
 		- sym3_dot(U->ABar_LL, ABar_UU)
 		+ exp_neg4phi * (
 			RBar
-			- 8. * real3_weightedLenSq(partial_phi_l, gammaBar_uu) 
+			- 8. * real3_weightedLenSq(partial_phi_L, gammaBar_UU) 
 			- 8. * tr_DBar2_phi
 		)
 		- 16. * M_PI * U->rho;
@@ -560,7 +537,7 @@ end
 	
 <?=assign_3sym3('partial_ABar_lll', partial_ABar_lll:permute'_kij')?>
 <?=assign_3sym3('partial_epsilon_lll', partial_epsilon_lll:permute'_kij')?>
-	
+
 	/*
 	DBar_j (e^(6 phi) ABar^ij)
 	= DBar_j (e^(6 phi)) ABar^ij + e^(6 phi) DBar_j ABar^ij
@@ -599,7 +576,7 @@ end
 ?>		+ 6. * ABar_uu.<?=sym(i,j)?> * partial_phi_l.<?=xj?>
 		- 2./3. * exp_6phi * gammaBar_uu.<?=sym(i,j)?> * partial_K_l[<?=j-1?>]
 <?		for k,xk in ipairs(xNames) do
-?>		- connBar_ull.<?=xi?>.<?=sym(j,k)?> * ABar_uu.<?=sym(j,k)?>
+?>		- connBar_ULL.<?=xi?>.<?=sym(j,k)?> * ABar_UU.<?=sym(j,k)?> * coord_dx<?=i-1?>(x)
 <?			for l,xl in ipairs(xNames) do
 ?>		- ABar_uu.<?=sym(k,j)?> * gammaBar_uu.<?=sym(l,i)?> * partial_epsilon_lll.<?=xj?>.<?=sym(k,l)?>
 		- ABar_uu.<?=sym(k,i)?> * gammaBar_uu.<?=sym(l,j)?> * partial_epsilon_lll.<?=xj?>.<?=sym(k,l)?>
@@ -625,13 +602,14 @@ kernel void addSource(
 <? if useAddSource then ?>
 	SETBOUNDS_NOGHOST();
 	
+	const global <?=eqn.cons_t?>* U = UBuf + index;
 	global cons_t* deriv = derivBuf + index;
 
 	//Kreiss-Oligar dissipation
 	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 	//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
 	for (int i = 0; i < numIntStates; ++i) {
-<?=eqn:makePartial2('ptr[i]', 'real', 'partial2_Ui_ll', false)?>
+<?=eqn:makePartial2('ptr[i]', 'real', 'partial2_Ui_ll')?>
 		real lap = 0<?
 for j,xj in ipairs(xNames) do
 	local jj = from3x3to6(j,j)
@@ -640,7 +618,7 @@ end
 ?>;
 		deriv->ptr[i] -= solver->diffuseSigma/16. * lap;
 	}
-<? end -- addSource ?>
+<? end -- useAddSource ?>
 }
 
 kernel void calcDT(
