@@ -115,8 +115,8 @@ local args = {
 	-- [[ Sphere: r, θ, φ 
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
-	mins = cmdline.mins or {.1, 0, -math.pi},
-	maxs = cmdline.maxs or {1, math.pi, math.pi},
+	mins = cmdline.mins or {1, 0, -math.pi},
+	maxs = cmdline.maxs or {10, math.pi, math.pi},
 	gridSize = ({
 		{256, 1, 1}, -- 1D
 		{32, 32, 1}, -- 2D
