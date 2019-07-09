@@ -10,14 +10,14 @@ local args = {
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	integrator = 'Runge-Kutta 4',
+	--integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	--integrator = 'backward Euler',	-- The epsilon on this is very sensitive.  Too small and it never converges.  Too large and it stops convergence too soon.
+	integrator = 'backward Euler',	-- The epsilon on this is very sensitive.  Too small and it never converges.  Too large and it stops convergence too soon.
 	--integratorArgs = {verbose=true},
 
 	--fixedDT = .0001,
@@ -115,7 +115,7 @@ local args = {
 	-- [[ Sphere: r, θ, φ 
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
-	mins = cmdline.mins or {.1, 0, -math.pi},
+	mins = cmdline.mins or {0, 0, -math.pi},
 	maxs = cmdline.maxs or {1, math.pi, math.pi},
 	gridSize = ({
 		{256, 1, 1}, -- 1D
@@ -608,7 +608,14 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 
 
 
--- bssnok is working in 1D-3D Cartesian for RK4 but diverging for non-Cartesian
+--[[
+bssnok is working in 1D-3D Cartesian for RK4 
+diverging for non-Cartesian
+for spherical: 
+	r=[1,10], Minkowski init cond, it is stable
+	r=[.1,1] Minkowski init cond it blows on FE and RK4 but not on BE 
+	r=[0,1] Minkowski init cond BE it is stable
+--]]
 self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is HyperbolicGammaDriver
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='none'}})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='GammaDriver'}})))

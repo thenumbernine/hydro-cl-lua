@@ -161,6 +161,8 @@ time('building symbolic math env...', function()
 		if symmath.Expression.is(arg) then
 		-- TODO proper way is to arg:replace() everything
 		-- but that is slow
+			s = s:gsub('TF_DBar2_alpha_LL%.(.)(.)', '(\\bar{D}_{%1} \\bar{D}_{%2} \\alpha)^{TF}')
+			s = s:gsub('tracelessPart_LL%.(.)(.)', '(traceless)_{\\hat{%1} \\hat{%2}}')
 			s = s:gsub('U%->alpha', '\\alpha')
 			s = s:gsub('partial_alpha_l%[(.)%]', function(i) return '\\alpha_{,'..xNames[i+1]..'}' end)
 			s = s:gsub('partial2_alpha_ll%[(.)%]', function(ij) return '\\alpha_{,'..sym(from6to3x3(ij+1))..'}' end)
@@ -197,10 +199,11 @@ time('building symbolic math env...', function()
 			s = s:gsub('tr_connBar_l%.(.)', '{\\bar{\\Gamma}^*}_{%1 *}')
 			s = s:gsub('ABar_ul%.(.)%.(.)', '{\\bar{A}^%1}_%2')
 			s = s:gsub('ABar_uu%.(..)', '\\bar{A}^{%1}')
-			s = s:gsub('ABar_UL%.(.)%.(.)', '{\\bar{A}^{\\hat{%1}}_{\\hat{%2}}')
+			s = s:gsub('ABar_UL%.(.)%.(.)', '{\\bar{A}^{\\hat{%1}}}_{\\hat{%2}}')
 			s = s:gsub('ABar_UU%.(.)(.)', '\\bar{A}^{\\hat{%1}\\hat{%2}}')
 			s = s:gsub('ABarSq_ul%.(.)%.(.)', '{(\\bar{A}^2)^%1}_%2')
 			s = s:gsub('ABarSq_ll%.(..)', '\\bar{A}_{%1}')
+			s = s:gsub('ABarSq_LL%.(.)(.)', '\\bar{A}_{\\hat{%1}\\hat{%2}}')
 			s = s:gsub('tr_ABarSq', '({(\\bar{A}^2)^*}_*)')
 			s = s:gsub('TF_DBar2_alpha_ll%.(.)(.)', '(\\bar{D}_%1 \\bar{D}_%2 \\alpha)^{TF}')
 			s = s:gsub('trBar_DBar2_alpha', '(\\bar{D}^* \\bar{D}_* \\alpha)')
@@ -211,6 +214,9 @@ time('building symbolic math env...', function()
 			s = s:gsub('partial2_phi_ll%.(..)', '\\phi_{,%1}')
 			s = s:gsub('TF_RBar_LL%.(.)(.)', '{(\\bar{R})^{TF}}_{\\hat{%1}\\hat{%2}}')
 			s = s:gsub('Delta_ull%.(.)%.(..)', '{\\Delta^%1}_{%2}')
+			s = s:gsub('Delta_ULL%.(.)%.(.)(.)', '{\\Delta^{\\hat{%1}}}_{\\hat{%2}\\hat{%3}}')
+			s = s:gsub('connBar_ULL%.(.)%.(.)(.)', '{\\bar{\\Gamma}^{\\hat{%1}}}_{\\hat{%2}\\hat{%3}}')
+			s = s:gsub('Delta_U%.(.)', '\\Delta^{\\hat{%1}}')
 			s = s:gsub('tr_gammaBar_DHat2_beta_u%.(.)', '(\\hat{D}^* \\hat{D}_* \\beta^{%1})')
 			s = s:gsub('solver%->shift_eta', '\\eta')
 
@@ -254,7 +260,22 @@ time('building symbolic math env...', function()
 	compileRepls = table()	
 	
 	coords = Tensor.coords()[1].variables
-	
+
+	local replCoords = table()
+	for i=1,#coords do
+		replCoords[i] = var('x.'..xNames[i])
+	end
+
+	function replaceCompileVars(expr)
+		for _,repl in ipairs(compileRepls) do
+			expr = expr:replace(repl[1], repl[2])
+		end
+		for i,coord in ipairs(coords) do
+			expr = expr:replace(coord, replCoords[i])
+		end
+		return expr
+	end
+
 	function compile(expr)
 		-- TODO What about repeated expressions that could be deferred, like sin(x)?
 		-- You could move them to another expression, but that means multiple code expressions.
@@ -275,12 +296,7 @@ time('building symbolic math env...', function()
 				return setmetatable(table.rep({x[1]}, x[2].value), symmath.op.mul)
 			end
 		end)
-		for _,repl in ipairs(compileRepls) do
-			expr = expr:replace(repl[1], repl[2])
-		end
-		for i,coord in ipairs(coords) do
-			expr = expr:replace(coord, var('x.'..xNames[i]))
-		end
+		expr = replaceCompileVars(expr)
 		return symmath.export.C(expr)
 	end
 	
@@ -437,6 +453,28 @@ time('building symbolic math env...', function()
 			return var(name..'.'..xNames[i]..'.'..sym(j,k), coords) 
 		end)
 	end
+
+
+	-- factorDivision doesn't seem to recurse... 
+	-- TODO fix this in symmath
+	local oldFactorDivision = symmath.factorDivision
+	function symmath.factorDivision(expr, ...)
+		if Tensor.is(expr) then
+			return Tensor(expr.variance, function(...)
+				local x = oldFactorDivision(expr[{...}]())
+				if symmath.op.add.is(x) then
+					for i=1,#x do
+						x[i] = x[i]()
+					end
+				end
+				return x
+			end)
+		else
+			return oldFactorDivision(expr)
+		end
+	end
+	symmath.Expression.factorDivision = symmath.factorDivision
+
 
 	-- from here on out is stuff specific to different functions 
 
@@ -598,15 +636,19 @@ printbr(partial2_det_gammaHat_ll)
 	partial2_beta_ull = partial_beta_ul'^i_j,k'()
 	partial_B_ul = B_u'^i_,j'()
 
-		-- derivatives rescaled back to non-coordinates:
-	
-	partial_alpha_L = (eu'^i_I' * partial_alpha_l_vars'_i')():factorDivision()
-	partial_K_L = (eu'^i_I' * partial_K_l_vars'_i')():factorDivision()
-
-	-- derived values
+		-- some other variables
 
 	S = var'S'
 	exp_neg4phi = W * W
+
+		-- derivatives rescaled back to non-coordinates:
+
+printbr'partial_alpha_L'
+	partial_alpha_L = (eu'^i_I' * partial_alpha_l_vars'_i')():factorDivision()
+printbr(partial_alpha_L)
+printbr'partial_K_L'
+	partial_K_L = (eu'^i_I' * partial_K_l_vars'_i')():factorDivision()
+printbr(partial_K_L)
 
 -- this is identity.  don't bother store it.
 printbr'gammaHat_LL'
@@ -700,11 +742,30 @@ printbr(connBar_LLL)
 --  DO NOT DIFFERENTIATE THIS AND EXPECT THE DERIVATIVE OF THE NON-RESCALED VERSION
 printbr'connBar_ULL'
 	connBar_ULL = (gammaBar_UU_vars'^IL' * connBar_LLL'_LJK')():factorDivision()
-	connBar_ULL = Tensor('^I_JK', function(I,J,K)
-		return connBar_ULL[I][J][K]():factorDivision()
-	end)
 	connBar_ULL_vars = makevars_3sym3('^I_JK', 'connBar_ULL')
 printbr(connBar_ULL)
+
+	local function removeBetas(expr)
+		expr = expr:replace(tr_DBar_beta_var, 0)
+		for i=1,3 do
+			expr = expr:replace(beta_U_vars[i], 0)
+			if DBar_tr_DBar_beta_u_vars then
+				expr = expr:replace(DBar_tr_DBar_beta_u_vars[i], 0)
+			end
+			if tr_gammaBar_DHat2_beta_u_vars then
+				expr = expr:replace(tr_gammaBar_DHat2_beta_u_vars[i], 0)
+			end
+			for j=1,3 do
+				expr = expr:replace(partial_beta_Ul_vars[i][j], 0)
+				for k=1,3 do
+					expr = expr:replace(partial2_beta_Ull_vars[i][j][k], 0)
+				end
+			end
+		end
+		expr = expr()
+		return expr
+	end
+
 
 	-------------------------------- alpha_,t -------------------------------- 
 
@@ -728,22 +789,15 @@ printbr'dt_alpha'
 	dt_alpha = (-alpha^2 * Q + partial_alpha_l'_i' * beta_u'^i')():factorDivision()
 printbr(dt_alpha)
 printbr'...with $\\beta^i = 0$...'
-	local function removeBetas(expr)
-		--expr = expr:replace(tr_DBar_beta_var, 0)
-		for i=1,3 do
-			expr = expr:replace(beta_U_vars[i], 0)
-			for j=1,3 do
-				expr = expr:replace(partial_beta_Ul_vars[i][j], 0)
-				for k=1,3 do
-					expr = expr:replace(partial2_beta_Ull_vars[i][j][k], 0)
-				end
-			end
-		end
-		expr = expr()
-		return expr
-	end
 printbr(removeBetas(dt_alpha)():factorDivision())
 
+--[[
+dt_alpha:
+	alpha
+	partial_alpha_l
+	beta_u -> beta_U
+--]]
+	
 	-------------------------------- W_,t -------------------------------- 
 
 printbr'tr_connBar_l'	
@@ -904,8 +958,9 @@ printbr(partial_phi_L)
 		+ exp(-4phi) * connections
 		+ K_,i beta^i
 	
-	in fact, gammaBar^ij alpha_,i phi_,j is problematic.
-	because gammaBar^ij has inverse scale factors.
+in fact, gammaBar^ij alpha_,i phi_,j is problematic.
+because gammaBar^ij has inverse scale factors.
+so, for alpha_,theta, alpha_,phi, W_,theta, W_,phi nonzero ... how do we avoid diverging?
 	--]]
 printbr('dt_K')
 	dt_K = (frac(1,3) * alpha * K^2
@@ -982,18 +1037,6 @@ printbr'dt_epsilon_LL'
 			- tr_DBar_beta
 		)() - 2 * alpha * ABar_LL_vars'_IJ'
 	)():factorDivision()
-	-- [[ factorDivision doesn't seem to recurse... 
-	dt_epsilon_LL = Tensor('_IJ', function(I,J)
-		-- why does it seem like this isn't working either?
-		local expr = dt_epsilon_LL[I][J]():factorDivision()
-		if symmath.op.add.is(expr) then
-			for i=1,#expr do
-				expr[i] = expr[i]()
-			end
-		end
-		return expr
-	end)
-	--]]
 printbr(dt_epsilon_LL)
 printbr'...with $\\beta^i = 0$...'
 printbr(removeBetas(dt_epsilon_LL)():factorDivision())
@@ -1101,17 +1144,6 @@ printbr'dt_ABar_LL'
 			+ alpha * TF_RBar_LL'_IJ'
 		)
 	)():factorDivision()
-	-- [[ factorDivision doesn't seem to recurse... 
-	dt_ABar_LL = Tensor('_IJ', function(I,J)
-		local expr = dt_ABar_LL[I][J]():factorDivision()
-		if symmath.op.add.is(expr) then
-			for i=1,#expr do
-				expr[i] = expr[i]()
-			end
-		end
-		return expr
-	end)
-	--]]
 printbr(dt_ABar_LL)
 printbr'...with $\\beta^i = 0$...'
 printbr(removeBetas(dt_ABar_LL)():factorDivision())
@@ -1130,7 +1162,6 @@ printbr(Lbeta_LambaBar_U)
 
 	tr_gammaBar_DHat2_beta_u_vars = makevars_real3('^i', 'tr_gammaBar_DHat2_beta_u') 
 	DBar_tr_DBar_beta_u_vars = makevars_real3('^i', 'DBar_tr_DBar_beta_u')
-	ABar_uu_vars = makevars_sym3('^ij', 'ABar_uu')
 
 	--[[
 	LambdaBar^i_,t = 
@@ -1148,6 +1179,7 @@ printbr(Lbeta_LambaBar_U)
 		seems there is no way to avoid 1/r's in this term. 
 	--]]
 printbr'dt_LambdaBar_U'
+	-- [=[ runs until t=0.046
 	dt_LambdaBar_U = (
 		Lbeta_LambaBar_U'^I' 
 		+ 2 * alpha * Delta_ULL_vars'^I_JK' * ABar_UU_vars'^JK'
@@ -1162,21 +1194,14 @@ printbr'dt_LambdaBar_U'
 			+ frac(1,3) * DBar_tr_DBar_beta_u_vars'^i'
 		)	
 		)():factorDivision()
-	-- [[ factorDivision doesn't seem to recurse... 
-	dt_LambdaBar_U = Tensor('^I', function(I)
-		local expr = dt_LambdaBar_U[I]():factorDivision()
-		if symmath.op.add.is(expr) then
-			for i=1,#expr do
-				expr[i] = expr[i]()
-			end
-		end
-		return expr
-	end)
-	--]]
+	--]=]
+	--[=[ runs until t=0.2something..
+	dt_LambdaBar_U = Tensor'^I'
+	--]=]
 	dt_LambdaBar_U_vars = makevars_real3('^I', 'dt_LambdaBar_U') 
 printbr(dt_LambdaBar_U)
 printbr'...with $\\beta^i = 0$...'
-printbr(removeBetas(dt_LambdaBar_U)():factorDivision())
+printbr(removeBetas(dt_LambdaBar_U)())
 	
 	-------------------------------- beta^i_,t and B^i_,t -------------------------------- 
 
@@ -1200,17 +1225,6 @@ printbr'dt_beta_U'
 			-- if shiftadvect==true from SENR
 			+ e'_i^I' * partial_beta_ul'^i_j' * beta_u'^j'
 		)():factorDivision()
-		-- [[ factorDivision doesn't seem to recurse... 
-		dt_beta_U = Tensor('^I', function(I)
-			local expr = dt_beta_U[I]():factorDivision()
-			if symmath.op.add.is(expr) then
-				for i=1,#expr do
-					expr[i] = expr[i]()
-				end
-			end
-			return expr
-		end)
-		--]]
 printbr(dt_beta_U)
 printbr'...with $\\beta^i = 0$...'
 printbr(removeBetas(dt_beta_U)():factorDivision())
@@ -1238,17 +1252,6 @@ printbr'dt_B_U'
 			-- if biadvect==true from SENR
 			+ e'_i^I' * partial_beta_ul'^i_j' * B_u'^j'
 		)():factorDivision()
-		-- [[ factorDivision doesn't seem to recurse... 
-		dt_B_U = Tensor('^I', function(I)
-			local expr = dt_B_U[I]():factorDivision()
-			if symmath.op.add.is(expr) then
-				for i=1,#expr do
-					expr[i] = expr[i]()
-				end
-			end
-			return expr
-		end)
-		--]]
 printbr(dt_B_U)
 printbr'...with $\\beta^i = 0$...'
 printbr(removeBetas(dt_B_U)():factorDivision())
@@ -1268,6 +1271,136 @@ end
 
 function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
 	return template([[
+
+<? local dim = solver.dim ?>
+
+#if 1	
+//rescaling, used for bssn finite-difference, but I am tempted to try it with other coordinate systems with singularities
+//TODO for the initial conditions do this symbolically instead of numerically
+
+//apply this to lower indexes to convert from coordinate metric to better metric
+//apply this to upper indexes to convert from better metric to coordinate metric
+real3 real3_rescaleFromCoord_l(real3 v, real3 x) {
+	return (real3){
+		.x = v.x / coord_dx0(x),
+		.y = v.y / coord_dx1(x),
+		.z = v.z / coord_dx2(x),
+	};
+}
+#define real3_rescaleToCoord_U real3_rescaleFromCoord_l
+
+//convert coord upper to better
+//convert better lower to coord
+real3 real3_rescaleToCoord_L(real3 v, real3 x) {
+	return (real3){
+		.x = v.x * coord_dx0(x),
+		.y = v.y * coord_dx1(x),
+		.z = v.z * coord_dx2(x),
+	};
+}
+#define real3_rescaleFromCoord_u real3_rescaleToCoord_L
+
+sym3 sym3_rescaleFromCoord_ll(sym3 a, real3 x) {
+	return (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+?>		.<?=xij?> = a.<?=xij?> / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x)),
+<? end
+?>	};
+}
+#define sym3_rescaleToCoord_UU sym3_rescaleFromCoord_ll
+
+sym3 sym3_rescaleToCoord_LL(sym3 a, real3 x) {
+	return (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+?>		.<?=xij?> = a.<?=xij?> * (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x)),
+<? end
+?>	};
+}
+#define sym3_rescaleFromCoord_uu sym3_rescaleToCoord_LL
+
+_3sym3 _3sym3_rescaleFromCoord_lll(_3sym3 a, real3 x) {
+	return (_3sym3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = (sym3){
+<?	for jk,xjk in ipairs(symNames) do
+	local j,k = from6to3x3(jk)
+?>			a.<?=xi?>.<?=xjk?> / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x)),
+<?	end
+?>		},
+<? end
+?>	};
+}
+#define _3sym3_rescaleToCoord_UUU _3sym3_rescaleFromCoord_lll
+
+_3sym3 _3sym3_rescaleToCoord_LLL(_3sym3 a, real3 x) {
+	return (_3sym3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = (sym3){
+<?	for jk,xjk in ipairs(symNames) do
+	local j,k = from6to3x3(jk)
+?>			a.<?=xi?>.<?=xjk?> * (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x)),
+<?	end
+?>		},
+<? end
+?>	};
+}
+#define _3sym3_rescaleFromCoord_uuu _3sym3_rescaleToCoord_LLL
+
+sym3sym3 sym3sym3_rescaleFromCoord_lll(sym3sym3 a, real3 x) {
+	return (sym3sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+?>		.<?=xij?> = (sym3){
+<?	for kl,xkl in ipairs(symNames) do
+	local k,l = from6to3x3(kl)
+?>			.<?=xkl?> = a.<?=xij?>.<?=xkl?> / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x) * coord_dx<?=l-1?>(x)),
+<?	end
+?>		},
+<? end
+?>	};
+}
+#define sym3sym3_rescaleToCoord_UUUU sym3sym3_rescaleFromCoord_llll
+
+sym3sym3 sym3sym3_rescaleToCoord_LLLL(sym3sym3 a, real3 x) {
+	return (sym3sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+?>		.<?=xij?> = (sym3){
+<?	for kl,xkl in ipairs(symNames) do
+	local k,l = from6to3x3(kl)
+?>			.<?=xkl?> = a.<?=xij?>.<?=xkl?> * (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x) * coord_dx<?=l-1?>(x)),
+<?	end
+?>		},
+<? end
+?>	};
+}
+#define sym3sym3_rescaleFromCoord_uuuu sym3sym3_rescaleToCoord_LLLL
+
+#else	//debugging -- turning it off
+
+#define real3_rescaleFromCoord_l(a,x) a
+#define real3_rescaleToCoord_U(a,x) a
+#define real3_rescaleToCoord_L(a,x) a
+#define real3_rescaleFromCoord_u(a,x) a
+#define sym3_rescaleFromCoord_ll(a,x) a
+#define sym3_rescaleToCoord_UU(a,x) a
+#define sym3_rescaleToCoord_LL(a,x) a
+#define sym3_rescaleFromCoord_uu(a,x) a
+#define _3sym3_rescaleFromCoord_lll(a,x) a
+#define _3sym3_rescaleToCoord_UUU(a,x) a
+#define _3sym3_rescaleToCoord_LLL(a,x) a
+#define _3sym3_rescaleFromCoord_uuu(a,x) a
+#define sym3sym3_rescaleFromCoord_lll(a,x) a
+#define sym3sym3_rescaleToCoord_UUUU(a,x) a
+#define sym3sym3_rescaleToCoord_LLLL(a,x) a
+#define sym3sym3_rescaleFromCoord_uuuu (a,x) a
+
+#endif
+
+
+
 
 //TODO 2017 Ruchlin eqn. 8, what is C^i?
 #define mystery_C_U	real3_zero
@@ -1364,20 +1497,6 @@ void setFlatSpace(
 end
 
 function BSSNOKFiniteDifferenceEquation:getCode_RBar_LL()
-	local env = self:getEnv()
---[=[ prereq code for getCode_RBar_LL
--- TODO some kind of request / prefix system so I don't have to gen the cos()'s and sin()'s that I don't need
--- have it work into the coord/coord stuff so I don't gen extra stuff there either
--- (or alternatively just move all the stuff added to coord/coord just for into getEnv)
-<?=assignRepls(cos_xs)?>
-<?=assignRepls(sin_xs)?>
-<?=assign'det_gammaHat'?>
-<?=assign'det_gammaBar'?>
-<?=eqn:makePartial'epsilon_LL'?>
-<?=eqn:makePartial2'epsilon_LL'?>
-<?=assign_3sym3('partial_gammaBar_lll', partial_gammaBar_lll:permute'_kij')?>
-<?=assign_sym3'trBar_partial2_gammaBar_ll'?>
---]=]
 	return template([[
 
 	//DHat_gammaBar_lll.k.ij = DHat_k gammaBar_ij 
@@ -1577,23 +1696,6 @@ kernel void initState(
 	sym3 K_ll = sym3_zero;
 	real rho = 0.;
 
-<? 
--- BIG TODO (think about this one)
--- Provide initial data in algebraic form, and convert to code here.
--- This is what I was doing in HydroGPU, however it was proving slow to invert some matrices
--- (though fwiw I was only using Gauss-Jordan elimination then, now I'm using a simplification for 3x3's)
--- so maybe yes maybe no
--- until then, I'll hard-code the Minkowski option to just keep everthing zero
--- better TODO instead, maybe this is an excuse to move the rescaling code into the initState
--- then just let Minkowski call setFlatSpace() 
--- the downside to this is that whatever code produced by the initState would be specific to BSSN
--- and therefore be incompatible with the adm3d, etc solvers (unless they too adopted identical coordinate rescaling) ?
-if eqn.initState.name == 'Minkowski' then ?>
-	
-	setFlatSpace(solver, U, x);
-
-<? else -- not Minkowski ?>
-
 	<?=code?>
 
 	U->alpha = alpha;
@@ -1627,8 +1729,6 @@ if eqn.initState.name == 'Minkowski' then ?>
 	
 	U->H = 0.;
 	U->M_u = real3_zero;
-	
-<? end -- Minkowski ?>
 }
 
 //after popularing gammaBar_ll, use its finite-difference derivative to initialize LambdaBar_u
@@ -1642,10 +1742,6 @@ kernel void initDerivs(
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
-<? if eqn.initState.name == 'Minkowski' then ?>
-	U->LambdaBar_U = _real3(0,0,0);
-<? else -- Minkowski ?>
-
 #if 0	
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
@@ -1653,6 +1749,7 @@ kernel void initDerivs(
 		return;
 	}
 #endif
+<? if false then ?>
 
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
@@ -1668,7 +1765,7 @@ kernel void initDerivs(
 <?=assign_3sym3'Delta_ULL'?>	
 
 	U->LambdaBar_U = _3sym3_sym3_dot23(Delta_ULL, gammaBar_UU);
-<? end -- Minkowski ?>
+<? end ?>
 }
 <?
 -- [[ do this every time you stop using the env
@@ -2138,7 +2235,7 @@ end ?>;
 		type = 'real3',
 	}
 --]=]
--- [=[
+--[=[
 	do
 		-- [[ do this every time you use the env
 		local env = self:getEnv()
@@ -2239,6 +2336,7 @@ gammaBar^kl = inv(gammaBar_kl)
 --]]
 --]=]	
 
+--[=[
 	do
 		-- [[ do this every time you use the env
 		local env = self:getEnv()
@@ -2271,7 +2369,9 @@ gammaBar^kl = inv(gammaBar_kl)
 		setfenv(1, oldEnv)
 		--]]
 	end
+--]=]
 
+--[=[
 	vars:insert{
 		name = 'tr34 (gamma*dGamma)',
 		type = 'real3x3',
@@ -2306,7 +2406,9 @@ end
 	*value_real3x3 = tr34_gamma_dGamma_ll;
 ]], self:getEnv()),
 	}
+--]=]
 
+--[=[
 	vars:insert{
 		name = 'tr14 (Gamma*dgamma)',
 		type = 'real3x3',
@@ -2347,6 +2449,7 @@ end
 	*value_real3x3 = tr14_Gamma_dgamma_ll;
 ]], self:getEnv()),
 	}
+--]=]
 
 	--[[ hmm? not working.
 	vars:insert{name='x', type='real3', code='*value_real3=x;'}

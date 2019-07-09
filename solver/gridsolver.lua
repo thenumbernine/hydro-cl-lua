@@ -1449,15 +1449,23 @@ function GridSolver:updateGUIParams()
 			..tonumber(self.sizeWithoutBorder.y)..', '
 			..tonumber(self.sizeWithoutBorder.z))
 
-		for i=1,self.dim do
-			for _,minmax in ipairs(minmaxs) do
+		-- let the user change even unused dimensions
+		-- because those influence what constant value the cell_x() gives us 
+		for i=1,3 do
+			for j,minmax in ipairs(minmaxs) do
 				local k = xNames[i]..minmax
 				if tooltip.numberTable(k, self[minmax..'s'], i, ig.ImGuiInputTextFlags_EnterReturnsTrue) then
-					-- if the domain changes
-					-- then the dx has to change
-					-- and all the stuff based on codePrefix has to change
-					-- TODO now this is stored in solverPtr, so just update that struct
-					self:refreshCodePrefix()
+					local eps = 1e-7
+					if self.maxs[i] - self.mins[i] < eps then
+						self.maxs[i] = self.mins[i] + eps
+					end
+					if j==1 then
+						self.solverPtr.mins.s[i-1] = self.mins[i]
+					elseif j==2 then
+						self.solverPtr.maxs.s[i-1] = self.maxs[i]
+					end
+					self:refreshSolverBufMinsMaxs()
+					self:refreshSolverBuf()
 				end
 			end
 		end

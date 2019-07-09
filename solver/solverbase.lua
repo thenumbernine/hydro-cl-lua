@@ -1443,8 +1443,10 @@ function SolverBase:addDisplayVars()
 			-- Euler's deriv buffer
 			if int.derivBufObj then return int.derivBufObj.obj end
 			-- RK4's first deriv buffer
-			if int.derivBufObjs[1] then return int.derivBufObjs[1].obj end
-			error"HERE"
+			if int.derivBufObjs and int.derivBufObjs[1] then return int.derivBufObjs[1].obj end
+			-- BE's deriv buffer
+			if int.krylov_dUdtObj then return int.krylov_dUdtObj.obj end
+			print"HERE"
 		end
 		args.group = group
 		args.vars = self.eqn:getDisplayVarsForStructVars(self.eqn.consVars)

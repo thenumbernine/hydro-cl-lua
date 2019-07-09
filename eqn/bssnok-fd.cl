@@ -6,16 +6,6 @@ getmetatable(env).__index = oldEnv
 setfenv(1, env)
 --]]
 
--- integrates whatsoever.
-local useCalcDeriv = true
-local useCalcDeriv_alpha = true
-local useCalcDeriv_W = true
-local useCalcDeriv_epsilon_LL = true
-local useCalcDeriv_K = true
-local useCalcDeriv_ABar_LL = true
-local useCalcDeriv_LambdaBar_U = true
-local useCalcDeriv_beta_U = true
-
 -- constrains det gammaBar_ij = det gammaHat_ij, ABar^i_i = 0, and calculates H and M^i ... if the associated flags are set
 local useConstrainU = true
 
@@ -68,7 +58,6 @@ kernel void calcDeriv(
 	global cons_t* derivBuf,
 	const global cons_t* UBuf
 ) {
-<? if useCalcDeriv then ?>
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);
 	global cons_t* deriv = derivBuf + index;
@@ -127,27 +116,22 @@ kernel void calcDeriv(
 
 
 	//////////////////////////////// alpha_,t //////////////////////////////// 
-<? if useCalcDeriv_alpha then ?>
 
 <?=assign'dt_alpha'?>
 	deriv->alpha += dt_alpha;
-
-<? end	-- useCalcDeriv_alpha ?>
+	
 	//////////////////////////////// W_,t //////////////////////////////// 
-<? if useCalcDeriv_W then ?>
 
 <?=assign_real3'tr_connBar_l'?>
 <?=assign'tr_DBar_beta'?>
 <?=assign'dt_W'?>
 	deriv->W += dt_W;
 
-<? end	-- useCalcDeriv_W ?>
 	//////////////////////////////// K_,t //////////////////////////////// 
 	
 	//exp(-4 phi)
 	real exp_neg4phi = calc_exp_neg4phi(U);
 
-<? if useCalcDeriv_K then ?>
 	/*
 	gammaBar_ij = exp(-4 phi) gamma_ij
 	gammaBar^ij = exp(4 phi) gamma^ij
@@ -181,9 +165,7 @@ kernel void calcDeriv(
 <?=assign'dt_K'?>
 	deriv->K += dt_K;
 
-<? end	-- useCalcDeriv_K ?>
 	//////////////////////////////// epsilon_ij,t //////////////////////////////// 
-<? if useCalcDeriv_epsilon_LL then ?>
 
 <?=assign_sym3'Lbeta_gammaBar_LL'?>
 <?=assign_sym3'dt_epsilon_LL'?>
@@ -192,17 +174,11 @@ kernel void calcDeriv(
 <? end
 ?>
 
-<? end	-- useCalcDeriv_epsilon_LL ?>
 	//////////////////////////////// ABar_ij,t //////////////////////////////// 
-<? if useCalcDeriv_ABar_LL or useCalcDeriv_LambdaBar_U then ?>
 
 <?=assign_sym3'partial2_phi_ll'?>
 <?=assign_sym3sym3'partial2_gammaHat_llll'?> 
 <?=assign_3sym3'Delta_ULL'?>
-	
-<? end -- useCalcDeriv_ABar_LL or useCalcDeriv_LambdaBar_U ?>
-<? if useCalcDeriv_ABar_LL then ?>
-
 <?=assign_real3'Delta_U'?>
 <?=assign_real3'LambdaBar_u'?>
 <?=assign_real3x3'partial_LambdaBar_ul'?>
@@ -256,9 +232,7 @@ kernel void calcDeriv(
 <? end
 ?>
 
-<? end	-- useCalcDeriv_ABar_LL ?>
 	//////////////////////////////// LambdaBar^i_,t //////////////////////////////// 
-<? if useCalcDeriv_LambdaBar_U then ?>
 
 <?=assign_3sym3'partial2_beta_ull'?>
 
@@ -364,8 +338,6 @@ end
 <? end
 ?>	
 
-	sym3 ABar_uu = sym3_rescaleToCoord_UU(ABar_UU, x);
-
 <?=assign_real3'Lbeta_LambaBar_U'?>
 <?=assign_real3'dt_LambdaBar_U'?>
 
@@ -374,9 +346,7 @@ end
 <? end
 ?>
 
-<? end	-- useCalcDeriv_LambdaBar_U ?>
 	//////////////////////////////// beta^i_,t and B^i_,t //////////////////////////////// 
-<? if useCalcDeriv_beta_U then ?>
 
 <? if eqn.useShift == 'GammaDriver' then ?>
 
@@ -403,8 +373,6 @@ end
 ?>
 
 <? end	-- eqn.useShift ?>
-<? end	-- useCalcDeriv_beta_U ?>
-<? end 	-- useCalcDeriv ?>
 }
 
 kernel void constrainU(
@@ -499,7 +467,7 @@ then
 <?=assign_real3'Delta_U'?>
 <?=assign_real3'LambdaBar_u'?>	
 <?=assign_sym3sym3'partial2_gammaHat_llll'?>
-<?=assign_sym3'gammaHat_uu'?>	
+<?=assign_sym3'gammaHat_uu'?>
 <?=assign_real3'partial_det_gammaHat_l'?>
 <?=assign_3sym3x3'partial_connHat_ulll'?>
 
