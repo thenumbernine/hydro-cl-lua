@@ -1778,7 +1778,7 @@ setfenv(1, oldEnv)
 	})
 end
 
-BSSNOKFiniteDifferenceEquation.solverCodeFile = 'eqn/bssnok-fd.cl'
+BSSNOKFiniteDifferenceEquation.solverCodeFile = 'eqn/bssnok-fd-sym.cl'
 
 function BSSNOKFiniteDifferenceEquation:getEigenTypeCode()
 	return template([[

@@ -102,6 +102,7 @@ local function makePartial2(order, solver, field, fieldType, nameOverride)
 end
 
 return {
+	derivCoeffs = derivCoeffs,
 	makePartial = makePartial,
 	makePartial2 = makePartial2,
 }

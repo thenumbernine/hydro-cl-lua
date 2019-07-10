@@ -1,10 +1,10 @@
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
@@ -17,7 +17,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	integrator = 'backward Euler',	-- The epsilon on this is very sensitive.  Too small and it never converges.  Too large and it stops convergence too soon.
+	--integrator = 'backward Euler',	-- The epsilon on this is very sensitive.  Too small and it never converges.  Too large and it stops convergence too soon.
 	--integratorArgs = {verbose=true},
 
 	--fixedDT = .0001,
@@ -115,8 +115,8 @@ local args = {
 	-- [[ Sphere: r, θ, φ 
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
-	mins = cmdline.mins or {0, 0, -math.pi},
-	maxs = cmdline.maxs or {1, math.pi, math.pi},
+	mins = cmdline.mins or {1, 0, -math.pi},
+	maxs = cmdline.maxs or {4, math.pi, math.pi},
 	gridSize = ({
 		{256, 1, 1}, -- 1D
 		{32, 32, 1}, -- 2D
@@ -611,14 +611,21 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --[[
 bssnok is working in 1D-3D Cartesian for RK4 
 diverging for non-Cartesian
+--]]
+self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))	-- default shift is HyperbolicGammaDriver
+--self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='none'}})))
+--self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='GammaDriver'}})))
+
+--[[
+BSSNOK but with my symbolic CAS generating the math
+Generation is really slow and not yet cached.
+In spherical on my laptop this is ~1min to do the differentiatin and simpliciations, then ~5min to compile (as opposed to the ~1min to compile the bssnok-fd-num version).
 for spherical: 
 	r=[1,10], Minkowski init cond, it is stable
 	r=[.1,1] Minkowski init cond it blows on FE and RK4 but not on BE 
 	r=[0,1] Minkowski init cond BE it is stable
 --]]
-self.solvers:insert(require 'solver.bssnok-fd'(args))	-- default shift is HyperbolicGammaDriver
---self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='none'}})))
---self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqnArgs={useShift='GammaDriver'}})))
+--self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
 
 -- Z4c finite difference, combining BSSNOK and Z4
 -- FIXME something is asymmetric.  watch Theta.  Run warp bubble.

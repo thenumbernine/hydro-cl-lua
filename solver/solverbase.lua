@@ -425,7 +425,7 @@ end
 -- this is the general function - which just assigns the eqn provided by the arg
 -- but it can be overridden for specific equations
 function SolverBase:createEqn()
-	self.eqn = require('eqn.'..assert(self.eqnName, "expected solver.eqnName"))(table(
+	self.eqn = require('eqn.'..assert(self.eqnName, "expected solver.eqnName or solver args.eqn"))(table(
 		self.eqnArgs or {},
 		{solver = self}
 	))

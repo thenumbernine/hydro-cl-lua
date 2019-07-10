@@ -447,6 +447,7 @@ self.dg = dg
 
 	local Gamma_ull = Tensor'^a_bc'
 	Gamma_ull['^a_bc'] = Gamma_lll'^a_bc'()
+self.Gamma_ull = Gamma_ull
 	if self.verbose then
 		print'connection:'
 		print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma_ull'^a_bc'()))
@@ -577,6 +578,7 @@ self.dg = dg
 	compileTensorField('sqrt_gUCode', sqrt_gU)
 
 	local det_g_expr = symmath.Matrix.determinant(g)
+self.det_g = det_g_expr
 	compileTensorField('det_g_code', det_g_expr)
 
 	local sqrt_det_gExpr = symmath.sqrt(det_g_expr)()
