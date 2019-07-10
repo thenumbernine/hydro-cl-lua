@@ -370,7 +370,8 @@ end
 	//////////////////////////////// ABar_ij_,t //////////////////////////////// 
 <? if useCalcDeriv_ABar_LL or useCalcDeriv_LambdaBar_U then ?>
 
-	sym3sym3 partial2_gammaHat_llll = calc_partial2_gammaHat_llll(x);
+	sym3sym3 partial2_gammaHat_llll;
+	calc_partial2_gammaHat_llll(&partial2_gammaHat_llll, x);
 	
 	_3sym3 connHat_LLL = _3sym3_rescaleFromCoord_lll(connHat_lll, x);
 	_3sym3 connHat_ULL = _3sym3_rescaleFromCoord_ull(connHat_ull, x);
@@ -799,7 +800,8 @@ end
 	
 	real3 LambdaBar_u = real3_rescaleToCoord_U(U->LambdaBar_U, x);
 
-	sym3sym3 partial2_gammaHat_llll = calc_partial2_gammaHat_llll(x);
+	sym3sym3 partial2_gammaHat_llll;
+	calc_partial2_gammaHat_llll(&partial2_gammaHat_llll, x);
 	sym3 gammaHat_uu = calc_gammaHat_uu(x);
 	
 	_3sym3 partial_connHat_ulll[3];

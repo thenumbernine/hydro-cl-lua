@@ -493,7 +493,8 @@ self.Gamma_ull = Gamma_ull
 		end
 	end
 
-	self.lenExprs = symmath.Array:lambda({dim}, function(i)
+	-- not really a tensor.
+	self.lenExprs = Tensor('_i', function(i)
 		local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
 		local lenSqExpr = (dir'^a' * dir'^b' * gHol'_ab')()
 		local lenExpr = symmath.sqrt(lenSqExpr)()

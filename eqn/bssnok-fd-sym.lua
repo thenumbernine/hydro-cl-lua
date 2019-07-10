@@ -489,7 +489,7 @@ printbr(gammaHat_ll)
 
 printbr'e'
 	e = Tensor('_i^I', function(i,j)
-		return (i==j and sqrt(gammaHat_ll[i][i])() or 0)
+		return (i==j and solver.coords.lenExprs[i] or 0)
 	end)
 printbr(e)
 printbr'eu'
