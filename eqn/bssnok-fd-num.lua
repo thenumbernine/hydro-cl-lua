@@ -761,7 +761,7 @@ end
 ?>
 
 	/*
-	partial_DHat_gammaBar_minus_one_LLll[l].k.ij := partial_l DHat_k gammaBar_ij - gammaBar_ij,kl
+	partial_DHat_gammaBar_minus_one_llll[l].k.ij := partial_l DHat_k gammaBar_ij - gammaBar_ij,kl
 		= (gammaBar_ij,k - connHat^m_ki gammaBar_mj - connHat^m_kj gammaBar_mi)_,l - gammaBar_ij,kl
 		= (leaving out gammaBar_ij,kl)
 			- connHat^m_ki,l gammaBar_mj 
@@ -769,24 +769,23 @@ end
 			- connHat^m_ki gammaBar_mj,l
 			- connHat^m_kj gammaBar_mi,l
 	*/
-	_3sym3 partial_DHat_gammaBar_minus_one_LLll[3];
+	_3sym3 partial_DHat_gammaBar_minus_one_llll[3];
 <? 
 for k,xk in ipairs(xNames) do
 	for l,xl in ipairs(xNames) do
 		for ij,xij in ipairs(symNames) do
 			local i,j = from6to3x3(ij)
 			local xi,xj = xNames[i], xNames[j]
-?>	partial_DHat_gammaBar_minus_one_LLll[<?=l-1?>].<?=xk?>.<?=xij?> = (0.
-//		+ partial2_gammaBar_LLll.<?=sym(k,l)?>.<?=xij?>
+?>	partial_DHat_gammaBar_minus_one_llll[<?=l-1?>].<?=xk?>.<?=xij?> = 0.
+//		+ partial2_gammaBar_llll.<?=sym(k,l)?>.<?=xij?>
 <?			for m,xm in ipairs(xNames) do
 ?>
-		- partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,i)?> * gammaBar_ll.<?=sym(m,j)?>
-		- partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,j)?> * gammaBar_ll.<?=sym(m,i)?>
-		- connHat_ull.<?=xm?>.<?=sym(k,i)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,j)?>
-		- connHat_ull.<?=xm?>.<?=sym(k,j)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,i)?>
+		- partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,i)?> * gammaBar_ll.<?=sym(m,j)?>		//diverging: RBar_ij = diag(0, -.5, -.75)
+		- partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,j)?> * gammaBar_ll.<?=sym(m,i)?>		//diverging: RBar_ij = diag(0, -.5, -.75)
+		- connHat_ull.<?=xm?>.<?=sym(k,i)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,j)?>		//diverging: RBar_ij = diag(0, 1, 1)
+		- connHat_ull.<?=xm?>.<?=sym(k,j)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,i)?>		//diverging: RBar_ij = diag(0, 1, 1)
 <?			end
-?>	
-	) / (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x));
+?>	;
 <?		end
 	end
 end
@@ -805,16 +804,14 @@ for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
 	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do
-?>	DHat2_gammaBar_minus_one_LLll[<?=l-1?>].<?=xk?>.<?=xij?> = 0.
-		+ partial_DHat_gammaBar_minus_one_LLll[<?=l-1?>].<?=xk?>.<?=xij?>
+?>	DHat2_gammaBar_minus_one_LLll[<?=l-1?>].<?=xk?>.<?=xij?> = (0.
+		+ partial_DHat_gammaBar_minus_one_llll[<?=l-1?>].<?=xk?>.<?=xij?>
 <?			for m,xm in ipairs(xNames) do
-?>	+ (
-		- connHat_ull.<?=xm?>.<?=sym(l,k)?> * DHat_gammaBar_lll.<?=xm?>.<?=sym(i,j)?>
+?>		- connHat_ull.<?=xm?>.<?=sym(l,k)?> * DHat_gammaBar_lll.<?=xm?>.<?=sym(i,j)?>
 		- connHat_ull.<?=xm?>.<?=sym(l,i)?> * DHat_gammaBar_lll.<?=xk?>.<?=sym(m,j)?>
 		- connHat_ull.<?=xm?>.<?=sym(l,j)?> * DHat_gammaBar_lll.<?=xk?>.<?=sym(i,m)?>
-	) / (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x))
 <?			end
-?>	;
+?>	) / (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x));
 <?		end
 	end
 end
@@ -828,7 +825,8 @@ end
 		+ trBar_partial2_gammaBar_LL.<?=xij?>
 <?	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do
-?>		+ gammaBar_uu.<?=sym(k,l)?> * DHat2_gammaBar_minus_one_LLll[<?=l-1?>].<?=xk?>.<?=xij?>
+?>		+ gammaBar_uu.<?=sym(k,l)?> 
+			* DHat2_gammaBar_minus_one_LLll[<?=l-1?>].<?=xk?>.<?=xij?>
 <?		end
 	end
 ?>	);
