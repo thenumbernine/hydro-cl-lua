@@ -612,7 +612,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 bssnok is working in 1D-3D Cartesian for RK4 
 diverging for non-Cartesian
 --]]
-self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))	-- default shift is HyperbolicGammaDriver
+--self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))	-- default shift is HyperbolicGammaDriver
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='none'}})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='GammaDriver'}})))
 
@@ -625,7 +625,7 @@ for spherical:
 	r=[.1,1] Minkowski init cond it blows on FE and RK4 but not on BE 
 	r=[0,1] Minkowski init cond BE it is stable
 --]]
---self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
+self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
 
 -- Z4c finite difference, combining BSSNOK and Z4
 -- FIXME something is asymmetric.  watch Theta.  Run warp bubble.

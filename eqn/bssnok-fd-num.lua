@@ -1035,12 +1035,12 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	--'U ABarSq tr weighted',
 
 -- [[
-	'U RBar_LL xx',
-	'U RBar_LL xy',
-	'U RBar_LL xz',
-	'U RBar_LL yy',
-	'U RBar_LL yz',
-	'U RBar_LL zz',
+	'U RBar_ll xx',
+	'U RBar_ll xy',
+	'U RBar_ll xz',
+	'U RBar_ll yy',
+	'U RBar_ll yz',
+	'U RBar_ll zz',
 --]]
 --[[
 	'U del gammaBar_ll sym xx',
@@ -1605,7 +1605,7 @@ end ?>;
 -- [=[
 	do
 		vars:insert{
-			name = 'RBar_LL',
+			name = 'RBar_ll',
 			type = 'sym3',
 			code = template([[
 <?=eqn:makePartial'LambdaBar_U'?>
@@ -1654,7 +1654,7 @@ end
 
 	sym3 RBar_LL;
 <?=eqn:getCode_RBar_LL()?>
-	*value_sym3 = RBar_LL;
+	*value_sym3 = sym3_rescaleToCoord_LL(RBar_LL, x);
 ]], self:getEnv()),
 		}
 	end

@@ -1455,6 +1455,22 @@ sym3 calc_gammaBar_uu(global const <?=eqn.cons_t?>* U, real3 x) {
 	return gammaBar_uu;
 }
 
+sym3 calc_gammaBar_LL(global const <?=eqn.cons_t?>* U, real3 x) {
+<?=assignRepls(cos_xs)?>
+<?=assignRepls(sin_xs)?>
+<?=assign_sym3'gammaBar_LL'?>
+	return gammaBar_LL;
+}
+
+sym3 calc_gammaBar_UU(global const <?=eqn.cons_t?>* U, real3 x) {
+<?=assignRepls(cos_xs)?>
+<?=assignRepls(sin_xs)?>
+<?=assign'det_gammaHat'?>
+<?=assign'det_gammaBar_over_det_gammaHat'?>
+<?=assign_sym3'gammaBar_UU'?>
+	return gammaBar_UU;
+}
+
 sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U, real3 x) {
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
