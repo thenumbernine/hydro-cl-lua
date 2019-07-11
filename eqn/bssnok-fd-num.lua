@@ -696,8 +696,8 @@ for k,xk in ipairs(xNames) do
 //		+ partial2_gammaBar_llll.<?=sym(k,l)?>.<?=xij?>
 <?			for m,xm in ipairs(xNames) do
 ?>
-		- partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,i)?> * gammaBar_ll.<?=sym(m,j)?>
-		- partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,j)?> * gammaBar_ll.<?=sym(m,i)?>
+		- gammaBar_ll.<?=sym(m,j)?> * partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,i)?>
+		- gammaBar_ll.<?=sym(m,i)?> * partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,j)?>
 		- connHat_ull.<?=xm?>.<?=sym(k,i)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,j)?>
 		- connHat_ull.<?=xm?>.<?=sym(k,j)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,i)?>
 <?			end

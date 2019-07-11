@@ -493,7 +493,7 @@ for i,xi in ipairs(xNames) do
 		partial2_beta_ULL.<?=xi?>.<?=xjk?>
 <?		for l,xl in ipairs(xNames) do
 ?>		+ partial_connHat_ulll[<?=k-1?>].<?=xi?>.<?=sym(l,j)?> * beta_u.<?=xl?> 
-			/ calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x) * calc_len_<?=xk?>(x)
+			* calc_len_<?=xi?>(x) / (calc_len_<?=xj?>(x) * calc_len_<?=xk?>(x))
 		+ connHat_ULL.<?=xi?>.<?=sym(l,j)?> * partial_beta_UL.<?=xl?>.<?=xk?>
 		+ connHat_ULL.<?=xi?>.<?=sym(l,k)?> * partial_beta_UL.<?=xl?>.<?=xj?>
 		- connHat_ULL.<?=xl?>.<?=sym(j,k)?> * partial_beta_UL.<?=xi?>.<?=xl?>
