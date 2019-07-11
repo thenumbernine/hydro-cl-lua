@@ -332,9 +332,6 @@ kernel void calcDeriv(
 	_3sym3 partial_connHat_ulll[3];
 	calc_partial_connHat_ulll(partial_connHat_ulll, x);
 
-	sym3sym3 partial2_gammaHat_llll;
-	calc_partial2_gammaHat_llll(&partial2_gammaHat_llll, x);
-	
 	_3sym3 connHat_lll = calc_connHat_lll(x);
 	_3sym3 connHat_LLL = _3sym3_rescaleFromCoord_lll(connHat_lll, x);
 	
@@ -780,9 +777,6 @@ then
 	
 	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
 
-	sym3sym3 partial2_gammaHat_llll;
-	calc_partial2_gammaHat_llll(&partial2_gammaHat_llll, x);
-	
 	_3sym3 partial_connHat_ulll[3];
 	calc_partial_connHat_ulll(partial_connHat_ulll, x);
 
