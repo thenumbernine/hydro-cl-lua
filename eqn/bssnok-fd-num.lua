@@ -101,168 +101,24 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 	}
 end
 
-local string = require 'ext.string'
-
-local function deduceRescale(name, fieldType)
-	local parts = string.split(name, '_')
-	-- if there's no _ in the variable name then it's probably a scalar
-	assert((#parts == 1) == (fieldType == 'real'), "variable "..name.." is of type "..fieldType..", but I think it should be a real")
-	if #parts == 1 then return false, parts end
-	return parts[#parts], parts
-end
-
---[[
-copied and modified from eqn/makepartial.lua
-I'm not sure if this will be my winning bssnok scheme
-until then I'll keep the changes local
-
-rescale = nil to not rescale, or the tensor suffix to use rescaling
-	real3: suffix can be u or l
-	sym3: suffix can be uu or ll
-	_3sym3: suffix can be uuu or lll
-	(see coord/coord.lua for more on rescaling)
-	Notice, rescale functions need the coordinate.  I'm assuming 'x' for now.
-	Right now I'm just rescaling before calculating the partial, but not after, so the partial index is in coordinate form.
---]]
-
-local derivCoeffs = makePartials.derivCoeffs
-local clnumber = require 'cl.obj.number'
-
-local function makePartial(order, solver, field, fieldType, nameOverride, rescale)
-	local suffix = 'l'
-	if not field:find'_' then suffix = '_' .. suffix end
-
-	local function add(x,y) return fieldType..'_add('..x..', '..y..')' end
-	local function sub(x,y) return fieldType..'_sub('..x..', '..y..')' end
-	local function real_mul(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
-	local zero = fieldType..'_zero'
-	local name = nameOverride or ('partial_'..field..suffix)
-
-	local parts
-	if rescale == true then 
-		rescale, parts = deduceRescale(field, fieldType) 
-		-- lower the last _... of the name
-		if rescale and not nameOverride then
-			local a, b = name:match'^(.*)_(.-)$'
-			if a and b then
-				b = b:lower()
-				name = a..'_'..b
-			end
-		end
-	end
-	
-	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)
-	local lines = table{'\t'..fieldType..' '..name..'[3];\n'}
-	for i,xi in ipairs(xNames) do
-		local namei = name..'['..(i-1)..']'
-		local expr = zero
-		if i <= solver.dim then
-			for j,coeff in ipairs(d1coeffs) do
-				local UR = 'U['..j..' * solver->stepsize.'..xi..'].'..field
-				local UL = 'U[-'..j..' * solver->stepsize.'..xi..'].'..field
-				if rescale then
-					UL = fieldType..'_rescaleToCoord_'..rescale..'('..UL..', x)'
-					UR = fieldType..'_rescaleToCoord_'..rescale..'('..UR..', x)'
-				end
-				expr = add(expr, real_mul(sub(UR, UL), clnumber(coeff)))
-			end
-			expr = real_mul(expr, '1. / solver->grid_dx.'..xi)
-		end
-		lines:insert('\t'..namei..' = '..expr..';')
-	end
-	return lines:concat'\n'
-end
-
-local function makePartial2(order, solver, field, fieldType, nameOverride, rescale)
-	local suffix = 'll'
-	if not field:find'_' then suffix = '_' .. suffix end
-	
-	local function add(x,y) return fieldType..'_add('..x..', '..y..')' end
-	local function sub(x,y) return fieldType..'_sub('..x..', '..y..')' end
-	local function real_mul(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
-	local zero = fieldType..'_zero'
-	local name = nameOverride or ('partial2_'..field..suffix)
-
-	local parts
-	if rescale == true then 
-		rescale, parts = deduceRescale(field, fieldType) 
-		-- lower the last _... of the name
-		if rescale and not nameOverride then
-			local a, b = name:match'^(.*)_(.-)$'
-			if a and b then
-				b = b:lower()
-				name = a..'_'..b
-			end	
-		end
-	end
-
-	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)
-	local d2coeffs = assert(derivCoeffs[2][order], "couldn't find 2nd derivative coefficients of order "..order)
-	local lines = table()
-	lines:insert('\t'..fieldType..' '..name..'[6];')
-	for ij,xij in ipairs(symNames) do
-		local i,j = from6to3x3(ij)
-		local xi, xj = xNames[i], xNames[j]
-		local nameij = name..'['..(ij-1)..']'
-		if i > solver.dim or j > solver.dim then
-			lines:insert('\t'..nameij..' = '..zero..';')
-		elseif i == j then
-			local expr = real_mul('U->'..field, d2coeffs[0])
-			for k,coeff in ipairs(d2coeffs) do
-				local UR = 'U['..k..' * solver->stepsize.s'..(i-1)..'].'..field
-				local UL = 'U[-'..k..' * solver->stepsize.s'..(i-1)..'].'..field
-				if rescale then
-					UL = fieldType..'_rescaleToCoord_'..rescale..'('..UL..', x)'
-					UR = fieldType..'_rescaleToCoord_'..rescale..'('..UR..', x)'
-				end
-				expr = add(expr, real_mul(add(UR, UL), clnumber(coeff)))
-			end
-			expr = real_mul(expr, '1. / (solver->grid_dx.'..xi..' * solver->grid_dx.'..xi..')')
-			lines:insert('\t'..nameij..' = '..expr..';')
-		else
-			local expr = zero
-			for k,coeff_k in ipairs(d1coeffs) do
-				for l,coeff_l in ipairs(d1coeffs) do
-					local URR = 'U['..k..' * solver->stepsize.'..xi..' + '..l..' * solver->stepsize.'..xj..'].'..field
-					local ULL = 'U[-'..k..' * solver->stepsize.'..xi..' - '..l..' * solver->stepsize.'..xj..'].'..field
-					local ULR = 'U[-'..k..' * solver->stepsize.'..xi..' + '..l..' * solver->stepsize.'..xi..'].'..field
-					local URL = 'U['..k..' * solver->stepsize.'..xi..' - '..l..' * solver->stepsize.'..xi..'].'..field
-					if rescale then
-						ULL = fieldType..'_rescaleToCoord_'..rescale..'('..ULL..', x)'
-						ULR = fieldType..'_rescaleToCoord_'..rescale..'('..ULR..', x)'
-						URL = fieldType..'_rescaleToCoord_'..rescale..'('..URL..', x)'
-						URR = fieldType..'_rescaleToCoord_'..rescale..'('..URR..', x)'
-					end
-					expr = add(expr, real_mul(sub(add(URR, ULL), add(ULR, URL)), clnumber(coeff_k * coeff_l)))
-				end
-			end
-			expr = real_mul(expr, '1. / (solver->grid_dx.'..xi..' * solver->grid_dx.'..xj..')')
-			lines:insert('\t'..nameij..' = '..expr..';')
-		end
-	end
-	return lines:concat'\n'
-end
-
-function BSSNOKFiniteDifferenceEquation:makePartial(field, fieldType, nameOverride, rescale)
+function BSSNOKFiniteDifferenceEquation:makePartial(field, fieldType, nameOverride)
 	local derivOrder = 2 * self.solver.numGhost
 	if fieldType == nil then
 		local _, var = self.consVars:find(nil, function(v) return v.name == field end)
 		assert(var)
 		fieldType = var.type
 	end
-	if rescale == nil then rescale = true end
-	return makePartial(derivOrder, self.solver, field, fieldType, nameOverride, rescale)
+	return makePartials.makePartial(derivOrder, self.solver, field, fieldType, nameOverride)
 end
 
-function BSSNOKFiniteDifferenceEquation:makePartial2(field, fieldType, nameOverride, rescale)
+function BSSNOKFiniteDifferenceEquation:makePartial2(field, fieldType, nameOverride)
 	local derivOrder = 2 * self.solver.numGhost
 	if fieldType == nil then
 		local _, var = self.consVars:find(nil, function(v) return v.name == field end)
 		assert(var)
 		fieldType = var.type
 	end
-	if rescale == nil then rescale = true end
-	return makePartial2(derivOrder, self.solver, field, fieldType, nameOverride, rescale)
+	return makePartials.makePartial2(derivOrder, self.solver, field, fieldType, nameOverride)
 end
 
 function BSSNOKFiniteDifferenceEquation:compile(expr)
@@ -1078,7 +934,7 @@ if eqn.initState.name == 'Minkowski' then
 	}
 #endif
  
- <?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+ <?=eqn:makePartial'epsilon_LL'?>
 	
 	//derivative first
 	//partial_gammaBar_lll.k.ij := gammaBar_ij,k
@@ -1319,12 +1175,12 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 			name = 'tr_DBar2_phi',
 			code = template([[
 	
-<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial'epsilon_LL'?>
 <?=eqn:getCode_partial_gammaBar_LLL()?>
 <?=eqn:getCode_connBar_ULL()?>
 
-<?=eqn:makePartial('W', nil, nil, false)?>
-<?=eqn:makePartial2('W', nil, nil, false)?>
+<?=eqn:makePartial'W'?>
+<?=eqn:makePartial2'W'?>
 	
 	real3 partial_phi_l;
 	sym3 partial2_phi_ll;
@@ -1372,8 +1228,8 @@ end
 		{
 			name = 'DBar2_phi_ll',
 			code = template([[
-<?=eqn:makePartial('W', nil, nil, false)?>
-<?=eqn:makePartial2('W', nil, nil, false)?>
+<?=eqn:makePartial'W'?>
+<?=eqn:makePartial2'W'?>
 	
 	real3 partial_phi_l;
 	sym3 partial2_phi_ll;
@@ -1395,7 +1251,7 @@ end
 <? end ?>
 	}
 
-<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial'epsilon_LL'?>
 <?=eqn:getCode_partial_gammaBar_LLL()?>
 <?=eqn:getCode_connBar_ULL()?>
 
@@ -1419,7 +1275,7 @@ end
 			name = 'partial_phi_l',
 			type = 'real3',
 			code = template([[
-<?=eqn:makePartial('W', nil, nil, false)?>
+<?=eqn:makePartial'W'?>
 	real3 partial_phi_l;
 <? for i,xi in ipairs(xNames) do
 ?>	partial_phi_l.<?=xi?> = -partial_W_l[<?=i-1?>] / (2. * U->W);
@@ -1433,7 +1289,7 @@ end
 			name = 'partial_alpha_l',
 			type = 'real3',
 			code = template([[
-<?=eqn:makePartial('alpha', nil, nil, false)?>
+<?=eqn:makePartial'alpha'?>
 	*value_real3 = *(real3*)partial_alpha_l;
 ]], env),
 		},
@@ -1441,9 +1297,9 @@ end
 		{
 			name = 'DBar2_alpha_ll',
 			code = template([[
-<?=eqn:makePartial('alpha', nil, nil, false)?>
-<?=eqn:makePartial2('alpha', nil, nil, false)?>
-<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial'alpha'?>
+<?=eqn:makePartial2'alpha'?>
+<?=eqn:makePartial'epsilon_LL'?>
 <?=eqn:getCode_partial_gammaBar_LLL()?>
 <?=eqn:getCode_connBar_ULL()?>
 
@@ -1467,9 +1323,9 @@ end
 			type = 'sym3',
 			code = template([[
 	
-<?=eqn:makePartial('alpha', nil, nil, false)?>
-<?=eqn:makePartial2('alpha', nil, nil, false)?>
-<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial'alpha'?>
+<?=eqn:makePartial2'alpha'?>
+<?=eqn:makePartial'epsilon_LL'?>
 <?=eqn:getCode_partial_gammaBar_LLL()?>
 
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
@@ -1496,8 +1352,8 @@ end
 <? end
 ?>
 
-<?=eqn:makePartial('W', nil, nil, false)?>
-<?=eqn:makePartial2('W', nil, nil, false)?>
+<?=eqn:makePartial'W'?>
+<?=eqn:makePartial2'W'?>
 	
 	real3 partial_phi_l;
 	sym3 partial2_phi_ll;
@@ -1589,9 +1445,9 @@ using gamma = gammaHat / W^6
 	vars:insert{
 		name = 'expansion', 
 		code = template([[
-<?=eqn:makePartial('W', nil, nil, false)?>
-<?=eqn:makePartial('alpha', nil, nil, false)?>
-<?=eqn:makePartial('beta_U', nil, nil, false)?>
+<?=eqn:makePartial'W'?>
+<?=eqn:makePartial'alpha'?>
+<?=eqn:makePartial'beta_U'?>
 for i,xi in ipairs(xNames) do
 ?> + partial_beta_ul[<?=i-1?>].<?=xi?><?
 end ?>;
@@ -1657,7 +1513,7 @@ end
 	vars:insert{
 		name = 'gravity',
 		code = template([[
-<?=eqn:makePartial('alpha', nil, nil, false)?>
+<?=eqn:makePartial'alpha'?>
 
 	real _1_alpha = 1. / U->alpha;
 
@@ -1671,8 +1527,8 @@ end
 
 <? if eqn.useShift ~= 'none' then ?>
 
-<?=eqn:makePartial('beta_U', nil, nil, false)?>
-<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial'beta_U'?>
+<?=eqn:makePartial'epsilon_LL'?>
 	
 	//W = exp(-2 phi)
 	real _1_W = 1. / U->W;
@@ -1682,7 +1538,7 @@ end
 	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, _1_W * _1_W);
 	
 	//gamma_ij,k = W^-2 gammaBar_ij,k - 2 W^-3 gammaBar_ij W_,k
-<?=eqn:makePartial('W', nil, nil, false)?>
+<?=eqn:makePartial'W'?>
 	_3sym3 partial_gamma_lll = {
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_sub(
@@ -1773,12 +1629,12 @@ end ?>;
 			name = 'RBar_LL',
 			type = 'sym3',
 			code = template([[
-<?=eqn:makePartial('LambdaBar_U', nil, nil, false)?>
+<?=eqn:makePartial'LambdaBar_U'?>
 
 	//partial_LambdaBar_UL.I.J := e_i^I (Lambda^M e^i_M)_,j e^j_J
 	real3x3 partial_LambdaBar_UL = real3x3_partial_rescaleFromCoord_Ul(U->LambdaBar_U, partial_LambdaBar_Ul, x);
 
-<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial'epsilon_LL'?>
 <?=eqn:getCode_partial_gammaBar_LLL()?>
 
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
@@ -1808,7 +1664,7 @@ end ?>;
 
 	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
 
-<?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial2'epsilon_LL'?>
 <?=eqn:getCode_trBar_partial2_gammaBar_LL()?>
 <?=eqn:getCode_RBar_LL()?>
 	*value_sym3 = sym3_rescaleToCoord_LL(RBar_LL, x);
@@ -1822,8 +1678,8 @@ end ?>;
 		type = 'sym3',
 		code = template([[
 
-<?=eqn:makePartial('W', nil, nil, false)?>
-<?=eqn:makePartial2('W', nil, nil, false)?>
+<?=eqn:makePartial'W'?>
+<?=eqn:makePartial2'W'?>
 
 	real3 partial_phi_l;
 <? for i,xi in ipairs(xNames) do
@@ -1846,7 +1702,7 @@ end ?>;
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 
-<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial'epsilon_LL'?>
 <?=eqn:getCode_partial_gammaBar_LLL()?>
 <?=eqn:getCode_connBar_ULL()?>
 
@@ -1910,8 +1766,8 @@ gammaBar^kl = inv(gammaBar_kl)
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
-<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
-<?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial'epsilon_LL'?>
+<?=eqn:makePartial2'epsilon_LL'?>
 <?=eqn:getCode_trBar_partial2_gammaBar_LL()?>
 	*value_sym3 = trBar_partial2_gammaBar_LL;
 ]], env),
@@ -1960,7 +1816,7 @@ end
 		name = 'tr14 (Gamma*dgamma)',
 		type = 'real3x3',
 		code = template([[
-<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial'epsilon_LL'?>
 <?=eqn:getCode_partial_gammaBar_LLL()?>
 
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
@@ -2021,7 +1877,7 @@ end
 	_3sym3 connHat_ULL = _3sym3_rescaleFromCoord_ull(connHat_ull, x);
 
 		//good:
-<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial'epsilon_LL'?>
 
 		//good
 <?=eqn:getCode_partial_gammaBar_LLL()?>

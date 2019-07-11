@@ -61,7 +61,7 @@ kernel void calcDeriv(
 
 	//////////////////////////////// alpha_,t //////////////////////////////// 
 
-<?=eqn:makePartial('alpha', nil, nil, false)?>			//partial_alpha_l[i] := alpha_,i
+<?=eqn:makePartial'alpha'?>			//partial_alpha_l[i] := alpha_,i
 	
 	real3 partial_alpha_L;
 <? for i,xi in ipairs(xNames) do
@@ -85,8 +85,8 @@ kernel void calcDeriv(
 
 	//////////////////////////////// W_,t //////////////////////////////// 
 
-<?=eqn:makePartial('beta_U', nil, nil, false)?>		//partial_beta_Ul[j].i := beta^I_,j
-<?=eqn:makePartial('W', nil, nil, false)?>				//partial_W_l[i] := W_,i 
+<?=eqn:makePartial'beta_U'?>		//partial_beta_Ul[j].i := beta^I_,j
+<?=eqn:makePartial'W'?>				//partial_W_l[i] := W_,i 
 	
 	real det_gammaHat = calc_det_gammaHat(x);
 	real3 partial_det_gammaHat_l = calc_partial_det_gammaHat_l(x);
@@ -152,9 +152,9 @@ kernel void calcDeriv(
 
 	//////////////////////////////// K_,t //////////////////////////////// 
 
-<?=eqn:makePartial('K', nil, nil, false)?>			//partial_K_l[i] := K,i
-<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
-<?=eqn:makePartial2('alpha', nil, nil, false)?>		//partial2_alpha_ll.ij := alpha_,ij
+<?=eqn:makePartial'K'?>			//partial_K_l[i] := K,i
+<?=eqn:makePartial'epsilon_LL'?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
+<?=eqn:makePartial2'alpha'?>		//partial2_alpha_ll.ij := alpha_,ij
 
 	real3 partial_K_L;
 <? for i,xi in ipairs(xNames) do
@@ -254,7 +254,7 @@ kernel void calcDeriv(
 
 	//////////////////////////////// epsilon_ij,t //////////////////////////////// 
 
-<?=eqn:makePartial2('W', nil, nil, false)?>			//partial2_W_ll.ij := W_,ij
+<?=eqn:makePartial2'W'?>			//partial2_W_ll.ij := W_,ij
 
 <? if useCalcDeriv_epsilon_LL then ?>
 
@@ -307,11 +307,11 @@ kernel void calcDeriv(
 	
 	//////////////////////////////// ABar_ij_,t //////////////////////////////// 
 
-<?=eqn:makePartial('ABar_LL', nil, nil, false)?>		//partial_ABar_lll[k].ij = ABar_ij,k
+<?=eqn:makePartial'ABar_LL'?>		//partial_ABar_lll[k].ij = ABar_ij,k
 <?=eqn:getCode_partial_ABar_LLL()?>
 
 	//partial_LambdaBar_UL.I.J := e_i^I (Lambda^M e^i_M)_,j e^j_J
-<?=eqn:makePartial('LambdaBar_U', nil, nil, false)?>		//partial_LambdaBar_ul[j].i := connBar^i_,j
+<?=eqn:makePartial'LambdaBar_U'?>		//partial_LambdaBar_ul[j].i := connBar^i_,j
 	real3x3 partial_LambdaBar_UL = real3x3_partial_rescaleFromCoord_Ul(U->LambdaBar_U, partial_LambdaBar_Ul, x);
 
 	sym3 partial2_phi_ll;
@@ -351,7 +351,7 @@ kernel void calcDeriv(
 	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
 
 	_3sym3 Delta_LLL = sym3_3sym3_mul(gammaBar_LL, Delta_ULL);
-<?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial2'epsilon_LL'?>
 <?=eqn:getCode_trBar_partial2_gammaBar_LL()?>
 	sym3 gammaHat_ll = calc_gammaHat_ll(x);							//gammaHat_ll.ij := gammaHat_ij
 	sym3 epsilon_ll = sym3_rescaleToCoord_LL(U->epsilon_LL, x);		//epsilon_ll.ij := epsilon_ij = e_i^I e_j^I epsilon_IJ
@@ -436,7 +436,7 @@ kernel void calcDeriv(
 	//////////////////////////////// LambdaBar^i_,t //////////////////////////////// 
 
 	//partial2_beta_ULL.I.JK = e^i_I (beta^M e^i_M)_,jk e^j_J e^k_K
-<?=eqn:makePartial2('beta_U', nil, nil, false)?>		
+<?=eqn:makePartial2'beta_U'?>		
 	_3sym3 partial_beta_ULL;
 <? for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
@@ -618,7 +618,7 @@ end
 
 	//partial_B_ul[i] := B^i_,t
 <? if eqn.useShift == 'HyperbolicGammaDriver' then ?>
-<?=eqn:makePartial('B_U', nil, nil, false)?>
+<?=eqn:makePartial'B_U'?>
 <? end ?>
 
 <? if useCalcDeriv_beta_U then ?>
@@ -736,10 +736,10 @@ then
 
 <? if eqn.guiVars.calc_H_and_M and eqn.guiVars.calc_H_and_M.value then ?>
 
-<?=eqn:makePartial('epsilon_LL', nil, nil, false)?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
-<?=eqn:makePartial('K', nil, nil, false)?>			//partial_K_l[i] := K,i
-<?=eqn:makePartial('W', nil, nil, false)?>				//partial_W_l[i] := phi_,i 
-<?=eqn:makePartial2('W', nil, nil, false)?>			//partial2_W_ll.ij := phi_,ij
+<?=eqn:makePartial'epsilon_LL'?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
+<?=eqn:makePartial'K'?>			//partial_K_l[i] := K,i
+<?=eqn:makePartial'W'?>				//partial_W_l[i] := phi_,i 
+<?=eqn:makePartial2'W'?>			//partial2_W_ll.ij := phi_,ij
 
 	real3 partial_phi_l;
 <? for i,xi in ipairs(xNames) do
@@ -786,12 +786,12 @@ then
 	_3sym3 partial_connHat_ulll[3];
 	calc_partial_connHat_ulll(partial_connHat_ulll, x);
 
-<?=eqn:makePartial('LambdaBar_U', nil, nil, false)?>	//partial_LambdaBar_ul[j].i := connBar^i_,j
+<?=eqn:makePartial'LambdaBar_U'?>	//partial_LambdaBar_ul[j].i := connBar^i_,j
 
 	//partial_LambdaBar_UL.I.J := e_i^I (Lambda^M e^i_M)_,j e^j_J
 	real3x3 partial_LambdaBar_UL = real3x3_partial_rescaleFromCoord_Ul(U->LambdaBar_U, partial_LambdaBar_Ul, x);
 
-<?=eqn:makePartial2('epsilon_LL', nil, nil, false)?>
+<?=eqn:makePartial2'epsilon_LL'?>
 <?=eqn:getCode_trBar_partial2_gammaBar_LL()?>
 <?=eqn:getCode_RBar_LL()?> 
 	
@@ -826,7 +826,7 @@ end
 
 #if 1
 
-<?=eqn:makePartial('ABar_LL', nil, nil, false)?>		//partial_ABar_lll[k].ij = ABar_ij,k
+<?=eqn:makePartial'ABar_LL'?>		//partial_ABar_lll[k].ij = ABar_ij,k
 <?=eqn:getCode_partial_ABar_LLL()?>
 
 	real3 partial_K_L;
