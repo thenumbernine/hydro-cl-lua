@@ -527,8 +527,8 @@ end
 
 /*
 derivative index is last
-e_i^I T^i_,j e^j_J
-= (T^I_,j - T^I f_I,j / f_I) f_j
+e_i^I (T^M e^i_M)_,j e^j_J
+= (T^I_,j - T^I f_I,j / f_I) f_j delta^j_J
 */
 real3x3 real3x3_partial_rescaleFromCoord_Ul(real3 T_U, const real3 partial_T_Ul[3], real3 x) {
 	real3x3 partial_T_UL;
@@ -815,16 +815,6 @@ end
 function BSSNOKFiniteDifferenceEquation:getCode_RBar_LL()
 	return template([[
 
-	//partial2_gammaBar_llll.kl.ij := gammaBar_ij,kl
-	sym3sym3 partial2_gammaBar_llll;
-<? 
-for ij,xij in ipairs(symNames) do
-	for kl,xkl in ipairs(symNames) do
-?>	partial2_gammaBar_llll.<?=xkl?>.<?=xij?> = partial2_epsilon_llll[<?=kl-1?>].<?=xij?> + partial2_gammaHat_llll.<?=xkl?>.<?=xij?>;
-<?	end
-end 
-?>
-
 	//partial_gammaBar_lll.k.ij := gammaBar_ij,k
 	// = gammaHat_ij,k + epsilon_ij,k
 	_3sym3 partial_gammaBar_lll;
@@ -874,10 +864,10 @@ for k,xk in ipairs(xNames) do
 //		+ partial2_gammaBar_llll.<?=sym(k,l)?>.<?=xij?>
 <?			for m,xm in ipairs(xNames) do
 ?>
-		- partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,i)?> * gammaBar_ll.<?=sym(m,j)?>		//diverging: RBar_ij = diag(0, -.5, -.75)
-		- partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,j)?> * gammaBar_ll.<?=sym(m,i)?>		//diverging: RBar_ij = diag(0, -.5, -.75)
-		- connHat_ull.<?=xm?>.<?=sym(k,i)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,j)?>		//diverging: RBar_ij = diag(0, 1, 1)
-		- connHat_ull.<?=xm?>.<?=sym(k,j)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,i)?>		//diverging: RBar_ij = diag(0, 1, 1)
+		- partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,i)?> * gammaBar_ll.<?=sym(m,j)?>
+		- partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,j)?> * gammaBar_ll.<?=sym(m,i)?>
+		- connHat_ull.<?=xm?>.<?=sym(k,i)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,j)?>
+		- connHat_ull.<?=xm?>.<?=sym(k,j)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,i)?>
 <?			end
 ?>	;
 <?		end
@@ -1220,7 +1210,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	--'U DBar_phi_sq',
 	--'U ABarSq tr weighted',
 
---[[ should be zero for Minkowski
+-- [[ should be zero for Minkowski
 	'U RBar_LL xx',
 	'U RBar_LL xy',
 	'U RBar_LL xz',
@@ -1785,13 +1775,11 @@ end ?>;
 			code = template([[
 <?=eqn:makePartial('LambdaBar_U', nil, nil, false)?>
 
-	//partial_LambdaBar_UL.I.J := e_i^I Lambda^i_,j e^j_J
+	//partial_LambdaBar_UL.I.J := e_i^I (Lambda^M e^i_M)_,j e^j_J
 	real3x3 partial_LambdaBar_UL = real3x3_partial_rescaleFromCoord_Ul(U->LambdaBar_U, partial_LambdaBar_Ul, x);
 
 <?=eqn:makePartial('epsilon_LL', nil, nil, false)?>
 <?=eqn:getCode_partial_gammaBar_LLL()?>
-
-<?=eqn:makePartial2'epsilon_LL'?>
 
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
@@ -1804,7 +1792,6 @@ end ?>;
 	_3sym3 connHat_lll = calc_connHat_lll(x);
 	_3sym3 connHat_ull = calc_connHat_ull(x);
 
-	real3 LambdaBar_u = real3_rescaleToCoord_U(U->LambdaBar_U, x);
 	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
 
 	sym3sym3 partial2_gammaHat_llll;
