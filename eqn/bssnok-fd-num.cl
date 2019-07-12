@@ -45,6 +45,23 @@ sym3 tracefree(sym3 A_ll, sym3 g_ll, sym3 g_uu) {
 	return sym3_sub(A_ll, sym3_real_mul(g_ll, tr_A / 3.));
 }
 
+static void calcDeriv_alpha(
+	constant solver_t* solver,
+	global cons_t* deriv,
+	const global cons_t* U,
+	real3* partial_alpha_L
+) {
+	//Alcubierre 4.2.52 - Bona-Masso family of slicing
+	//Q = f(alpha) K
+	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
+	//alpha,t = -alpha^2 f(alpha) K + alpha,i beta^i
+	deriv->alpha += -calc_f_times_alphaSq(U->alpha) * U->K
+<? for i,xi in ipairs(xNames) do
+?>		+ partial_alpha_L-><?=xi?> * U->beta_U.<?=xi?>
+<? end
+?>	;
+}
+
 //TODO if we're calculating the constrains in the derivative
 // then we do save calculations / memory on the equations
 // but we also, for >FE integrators (which require multiple steps) are duplicating calculations
@@ -61,26 +78,20 @@ kernel void calcDeriv(
 
 	//////////////////////////////// alpha_,t //////////////////////////////// 
 
-<?=eqn:makePartial'alpha'?>			//partial_alpha_l[i] := alpha_,i
-	
 	real3 partial_alpha_L;
+	{
+<?=eqn:makePartial'alpha'?>			//partial_alpha_l[i] := alpha_,i
 <? for i,xi in ipairs(xNames) do
-?>	partial_alpha_L.<?=xi?> = partial_alpha_l[<?=i-1?>] / calc_len_<?=xi?>(x);
+?>		partial_alpha_L.<?=xi?> = partial_alpha_l[<?=i-1?>] / calc_len_<?=xi?>(x);
 <? end
-?>
+?>	}
 
 <? if useCalcDeriv_alpha then ?>
-
-	//Alcubierre 4.2.52 - Bona-Masso family of slicing
-	//Q = f(alpha) K
-	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
-	//alpha,t = -alpha^2 f(alpha) K + alpha,i beta^i
-	deriv->alpha += -calc_f_times_alphaSq(U->alpha) * U->K
-<? for i,xi in ipairs(xNames) do
-?>		+ partial_alpha_L.<?=xi?> * U->beta_U.<?=xi?>
-<? end
-?>	;
-
+	calcDeriv_alpha(
+		solver,
+		deriv,
+		U,
+		&partial_alpha_L);
 <? end	-- useCalcDeriv_alpha ?>
 
 	//////////////////////////////// W_,t //////////////////////////////// 
@@ -891,18 +902,20 @@ kernel void addSource(
 	const global cons_t* U = UBuf + index;
 	global cons_t* deriv = derivBuf + index;
 
-	//Kreiss-Oligar dissipation
-	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
-	//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
-	for (int i = 0; i < numIntStates; ++i) {
+	if (solver->diffuseSigma != 0.) { 
+		//Kreiss-Oligar dissipation
+		//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
+		//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
+		for (int i = 0; i < numIntStates; ++i) {
 <?=eqn:makePartial2('ptr[i]', 'real', 'partial2_Ui_ll', false)?>
-		real lap = 0<?
+			real lap = 0<?
 for j,xj in ipairs(xNames) do
 	local jj = from3x3to6(j,j)
 ?> + partial2_Ui_ll[<?=jj-1?>]<?
-end
-?>;
-		deriv->ptr[i] -= solver->diffuseSigma/16. * lap;
+end ?>;
+//TODO should that be a + or a -?
+			deriv->ptr[i] += solver->diffuseSigma/16. * lap;
+		}
 	}
 <? end -- addSource ?>
 }

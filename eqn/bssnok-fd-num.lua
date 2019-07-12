@@ -46,27 +46,19 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	self.useShift = args.useShift or 'HyperbolicGammaDriver'
 
 	local intVars = table{
-		{name='alpha', type='real'},			-- 1
-		{name='beta_U', type='real3'},		 	-- 3: beta^i
-		{name='epsilon_LL', type='sym3'},		-- 6: gammaBar_ij - gammaHat_ij, only 5 dof since det gammaBar_ij = 1
-		{name='W', type='real'},				-- 1: W = exp(-2 phi) = (det gammaHat_ij / det gamma_ij)^(1/6)
-		{name='K', type='real'},				-- 1: K = K^i_i
-		{name='ABar_LL', type='sym3'},			-- 6: ABar_ij, only 5 dof since ABar^k_k = 0
-		{name='LambdaBar_U', type='real3'},		-- 3: LambdaBar^i = C^i + Delta^i = C^i + gammaBar^jk (connBar^i_jk - connHat^i_jk)
-												-- TODO what is C^i ?
-	}
-	if self.useShift == 'HyperbolicGammaDriver' then
-		intVars:insert{name='B_U', type='real3'}
-	end
+		{name='alpha', type='real'},			-- 0:	1: alpha
+		{name='W', type='real'},				-- 1:	1: W = exp(-2 phi) = (det gammaHat_ij / det gamma_ij)^(1/6)
+		{name='K', type='real'},				-- 2:	1: K = K^i_i
+		{name='beta_U', type='real3'},		 	-- 3:	3: beta^i
+		{name='B_U', type='real3'},				-- 6:	3: B^i
+		{name='LambdaBar_U', type='real3'},		-- 9:	3: LambdaBar^i = C^i + Delta^i = C^i + gammaBar^jk (connBar^i_jk - connHat^i_jk)
+		{name='epsilon_LL', type='sym3'},		-- 12:	6: gammaBar_ij - gammaHat_ij, only 5 dof since det gammaBar_ij = 1
+		{name='ABar_LL', type='sym3'},			-- 18:	6: ABar_ij, only 5 dof since ABar^k_k = 0
+	}											-- 24 = total size so far
 
 	self.consVars = table()
 	:append(intVars)
 	:append{
-		--hyperbolic variables:
-		--real3 a;				//3: a_i
-		--_3sym3 dBar;			//18: dBar_ijk, only 15 dof since dBar_ij^j = 0
-		--real3 Phi;			//3: Phi_i
-
 		--stress-energy variables:
 		{name='rho', type='real'},				--1: n_a n_b T^ab
 		{name='S_u', type='real3'},				--3: -gamma^ij n_a T_aj
@@ -92,7 +84,8 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 		--{name='constrain_tr_ABar', value=false, compileTime=true},
 		
 		{name='calc_H_and_M', value=true, compileTime=true},
-		{name='diffuseSigma', value=.01},
+		--{name='diffuseSigma', value=.01},
+		{name='diffuseSigma', value=0},
 		
 		--{name='alphaMin', value=1e-7},
 		{name='alphaMin', value=0},
@@ -966,7 +959,7 @@ kernel void initDerivs(
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
-<? if true then -- eqn.initState.name == 'Minkowski' then ?>
+<? if false then -- eqn.initState.name == 'Minkowski' then ?>
 	U->LambdaBar_U = real3_zero;
 <? else	-- initState == Minkowski ?>
 #if 0
@@ -1945,14 +1938,7 @@ end
 	}
 --]=]
 
-	--[[ hmm? not working.
 	vars:insert{name='x', type='real3', code='*value_real3=x;'}
-	--]]
-	-- [[
-	vars:insert{name='x', code='*value=x.x;'}
-	vars:insert{name='y', code='*value=x.y;'}
-	vars:insert{name='z', code='*value=x.z;'}
-	--]]
 
 	return vars
 end

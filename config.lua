@@ -1,4 +1,4 @@
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -65,7 +65,7 @@ local args = {
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics 520'] = {
 				{256,1,1},
-				{64,64,1},
+				{30,30,1},
 				{16,16,16},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
@@ -82,12 +82,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'periodic',
+		xmax=cmdline.boundary or 'periodic',
+		ymin=cmdline.boundary or 'periodic',
+		ymax=cmdline.boundary or 'periodic',
+		zmin=cmdline.boundary or 'periodic',
+		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
 	--[[ cylinder
@@ -117,6 +117,8 @@ local args = {
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
 	mins = cmdline.mins or {.0005, 0, -math.pi},
 	maxs = cmdline.maxs or {1, math.pi, math.pi},
+	--mins = cmdline.mins or {1, 0, -math.pi},
+	--maxs = cmdline.maxs or {10, math.pi, math.pi},
 	gridSize = ({
 		{256, 1, 1}, -- 1D
 		{32, 32, 1}, -- 2D

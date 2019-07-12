@@ -7,7 +7,8 @@ BSSNOKFiniteDifferenceSolver.name = 'BSSNOK_FiniteDifference'
 -- split into bssnok-fd-num and bssnok-fd-sym
 --BSSNOKFiniteDifferenceSolver.eqnName = 'bssnok-fd'
 
-BSSNOKFiniteDifferenceSolver.numGhost = 4
+-- right now certain constraints like mirror are designed to work with numGhost=2
+BSSNOKFiniteDifferenceSolver.numGhost = 2
 
 function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	-- skip EinsteinFiniteDifferenceSolver create components
