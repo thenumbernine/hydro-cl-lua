@@ -270,7 +270,7 @@ for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
 		for l,xl in ipairs(xNames) do
-?>#define calc_partial_connHat_ulll_<?=xi..xjk..xl?> = <?=eqn:compile(dGamma[i][j][k][l]):gsub('x%.', 'pt.')?>;
+?>#define calc_partial_connHat_ulll_<?=xi..xjk..xl?>(pt) (<?=eqn:compile(dGamma[i][j][k][l]):gsub('x%.', 'pt.')?>)
 <?		end
 	end
 end

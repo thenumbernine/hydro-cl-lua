@@ -966,9 +966,6 @@ end ?>;
 	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
 
 	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
-	
-	_3sym3 partial_connHat_ulll[3];
-	calc_partial_connHat_ulll(partial_connHat_ulll, x);
 
 	_3sym3 connHat_LLL, connHat_ULL;
 	calc_connHat_LLL_and_ULL(&connHat_LLL, &connHat_ULL, U, x);
@@ -996,8 +993,7 @@ end ?>;
 		&partial_LambdaBar_UL,
 		&Delta_U,
 		&Delta_ULL,
-		&Delta_LLL,
-		partial_connHat_ulll);
+		&Delta_LLL);
 
 	*value_sym3 = sym3_rescaleToCoord_LL(RBar_LL, x);
 ]], env),
@@ -1126,9 +1122,6 @@ gammaBar^kl = inv(gammaBar_kl)
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 	sym3 gammaBar_ll = sym3_rescaleToCoord_LL(gammaBar_LL, x);
 
-	_3sym3 partial_connHat_ulll[3];
-	calc_partial_connHat_ulll(partial_connHat_ulll, x);
-
 	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
 	
 	real3x3 tr34_gamma_dGamma_ll;
@@ -1139,7 +1132,7 @@ for i,xi in ipairs(xNames) do
 <?		for k,xk in ipairs(xNames) do
 			for l,xl in ipairs(xNames) do
 				for m,xm in ipairs(xNames) do
-?>		+ gammaBar_uu.<?=sym(k,l)?> * gammaBar_ll.<?=sym(i,m)?> * partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(j,k)?>
+?>		+ gammaBar_uu.<?=sym(k,l)?> * gammaBar_ll.<?=sym(i,m)?> * calc_partial_connHat_ulll_<?=xm..sym(j,k)..xl?>(x)
 <?				end
 			end
 		end
