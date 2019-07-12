@@ -7,8 +7,8 @@ local useCalcDeriv_W = true
 local useCalcDeriv_K = true
 local useCalcDeriv_epsilon_LL = true
 local useCalcDeriv_ABar_LL = true
-local useCalcDeriv_LambdaBar_U = false
-local useCalcDeriv_beta_U = false
+local useCalcDeriv_LambdaBar_U = true
+local useCalcDeriv_beta_U = true
 
 -- constrains det gammaBar_ij = det gammaHat_ij, ABar^i_i = 0, and calculates H and M^i ... if the associated flags are set
 local useConstrainU = true
@@ -105,6 +105,9 @@ kernel void calcDeriv(
 	other throughout the evolution."
 	
 	... so why is there a distinction between det gammaBar_ij and det gammaHat_ij? 
+	
+	because in 2013 Baumgarte et al, IIB last paragraph, they say they relax this constraint.
+	
 	TODO detg ...
 	*/
 	real detg = 1.;
@@ -332,12 +335,7 @@ kernel void calcDeriv(
 	_3sym3 partial_connHat_ulll[3];
 	calc_partial_connHat_ulll(partial_connHat_ulll, x);
 
-	_3sym3 connHat_lll = calc_connHat_lll(x);
-	_3sym3 connHat_LLL = _3sym3_rescaleFromCoord_lll(connHat_lll, x);
-	
-	//connHat_ull.i.jk := connHat^i_jk
-	_3sym3 connHat_ull = calc_connHat_ull(x);
-	_3sym3 connHat_ULL = _3sym3_rescaleFromCoord_ull(connHat_ull, x);
+<?=eqn:getCode_connHat_LLL_and_ULL()?>
 	
 	//Delta_ULL[I].JK := Delta^I_JK = connBar^I_JK + connHat^I_JK
 	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
@@ -434,11 +432,11 @@ kernel void calcDeriv(
 
 	//partial2_beta_ULL.I.JK = e^i_I (beta^M e^i_M)_,jk e^j_J e^k_K
 <?=eqn:makePartial2'beta_U'?>		
-	_3sym3 partial_beta_ULL;
+	_3sym3 partial2_beta_ULL;
 <? for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
 		local j,k,xj,xk = from6to3x3(jk)
-?>	partial_beta_ULL.<?=xi?>.<?=xjk?> = (
+?>	partial2_beta_ULL.<?=xi?>.<?=xjk?> = (
 		partial2_beta_Ull[<?=jk-1?>].<?=xi?> + (
 			- partial_beta_Ul[<?=j-1?>].<?=xi?> * calc_partial_len_<?=xi..xk?>(x)
 			- partial_beta_Ul[<?=k-1?>].<?=xi?> * calc_partial_len_<?=xi..xj?>(x)
@@ -466,8 +464,6 @@ end ?>
 
 <? if useCalcDeriv_LambdaBar_U then ?>
 	
-	real3 beta_u = real3_rescaleToCoord_U(U->beta_U, x);
-	
 	/*
 	DHat2_beta_ull.i.j.k = DHat_k DHat_j beta^i
 	= DHat_k (beta^i_,j + connHat^i_lj beta^l)
@@ -488,12 +484,12 @@ end ?>
 for i,xi in ipairs(xNames) do
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
-			local jk = from3x3to6(j,k)
+			local jk,xjk = from3x3to6(j,k)
 ?>	DHat2_beta_ULL.<?=xi?>.<?=xj?>.<?=xk?> = 
 		partial2_beta_ULL.<?=xi?>.<?=xjk?>
 <?		for l,xl in ipairs(xNames) do
-?>		+ partial_connHat_ulll[<?=k-1?>].<?=xi?>.<?=sym(l,j)?> * beta_u.<?=xl?> 
-			* calc_len_<?=xi?>(x) / (calc_len_<?=xj?>(x) * calc_len_<?=xk?>(x))
+?>		+ partial_connHat_ulll[<?=k-1?>].<?=xi?>.<?=sym(l,j)?> * U->beta_U.<?=xl?> 
+			* calc_len_<?=xi?>(x) / (calc_len_<?=xj?>(x) * calc_len_<?=xk?>(x) * calc_len_<?=xl?>(x))
 		+ connHat_ULL.<?=xi?>.<?=sym(l,j)?> * partial_beta_UL.<?=xl?>.<?=xk?>
 		+ connHat_ULL.<?=xi?>.<?=sym(l,k)?> * partial_beta_UL.<?=xl?>.<?=xj?>
 		- connHat_ULL.<?=xl?>.<?=sym(j,k)?> * partial_beta_UL.<?=xi?>.<?=xl?>
@@ -513,17 +509,20 @@ end
 	beta^i_,jk is a sym3 of 3's ... so I don't have that struct yet ... 
 	 What name could I use? sym3x3?  how about real3s3x3 where we have 's' for symmetric and 'x' for cartesian product.
 	 Then sym3 turns into real3s3 and _3sym3 turns into real3x3s3.
+	TODO simplify math plz
 	*/
-	real3 tr12_partial2_beta_l = {
+	real3 tr12_partial2_beta_L;
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
-	for j,xj in ipairs(xNames) do
-		local ij = from3x3to6(i,j)
-		local xij = symNames[ij]
-?> + partial2_beta_ull[<?=ij-1?>].<?=xj?><?
-	 end ?>,
+?>	tr12_partial2_beta_L.<?=xi?> = 0.
+<?	for j,xj in ipairs(xNames) do
+		local ij,xij = from3x3to6(i,j)
+?> 		+ partial2_beta_ULL.<?=xj?>.<?=xij?>
+<?	 end 
+?>	;
 <? end
-?>	};
+?>
+	
+	real3 beta_u = real3_rescaleToCoord_U(U->beta_U, x);
 
 	/*
 	DBar_tr_DBar_beta_l.i = DBar_i DBar_j beta^j
@@ -543,24 +542,24 @@ end
 			+ gammaBar_,j beta^j_,i
 		) / gammaBar
 	*/
-	real3 DBar_tr_DBar_beta_l;
+	real3 DBar_tr_DBar_beta_L;
 <? for i,xi in ipairs(xNames) do
-?>	DBar_tr_DBar_beta_l.<?=xi?> = 
-		tr12_partial2_beta_l.<?=xi?>
+?>	DBar_tr_DBar_beta_L.<?=xi?> = 0.
+		+ tr12_partial2_beta_L.<?=xi?>
+		+ (0.
 <? 	for j,xj in ipairs(xNames) do
-		local ij = from3x3to6(i,j)
-		local xij = symNames[ij]
-?>		+ .5 / det_gammaBar * (
-			partial2_det_gammaBar_ll.<?=xij?> * beta_u.<?=xj?>
-			- partial_det_gammaBar_l.<?=xi?> * partial_det_gammaBar_l.<?=xj?> * beta_u.<?=xj?> / det_gammaBar
-			+ partial_det_gammaBar_l.<?=xj?> * partial_beta_UL.<?=xj?>.<?=xi?> / calc_len_<?=xj?>(x) * calc_len_<?=xi?>(x)	
-		)
+		local ij,xij = from3x3to6(i,j)
+?>			+ .5 / det_gammaBar * (
+				partial2_det_gammaBar_ll.<?=xij?> * beta_u.<?=xj?>
+				- partial_det_gammaBar_l.<?=xi?> * partial_det_gammaBar_L.<?=xj?> * U->beta_U.<?=xj?> / det_gammaBar
+				+ partial_det_gammaBar_l.<?=xj?> * partial_beta_UL.<?=xj?>.<?=xi?> / calc_len_<?=xj?>(x) * calc_len_<?=xi?>(x)	
+			)
 <?	end
-?>	;
+?>		) / calc_len_<?=xi?>(x);
 <? end
 ?>
 	//DBar_tr_DBar_beta_u.i = DBar^i DBar_k beta^k = gammaBar^ij DBar_j DBar_k beta^k
-	real3 DBar_tr_DBar_beta_u = sym3_real3_mul(gammaBar_uu, DBar_tr_DBar_beta_l);
+	real3 DBar_tr_DBar_beta_U = sym3_real3_mul(gammaBar_UU, DBar_tr_DBar_beta_L);
 
 	//tr_gammaBar_DHat2_beta_u.i = gammaBar^jk DHat_j DHat_k beta^i
 	real3 tr_gammaBar_DHat2_beta_U;
@@ -586,7 +585,7 @@ end
 ?>	dt_LambdaBar_U.<?=xi?> = 0.
 		+ tr_gammaBar_DHat2_beta_U.<?=xi?>
 		+ 2. / 3. * Delta_U.<?=xi?> * tr_DBar_beta
-		+ 1. / 3. * DBar_tr_DBar_beta_u.<?=xi?> * calc_len_<?=xi?>(x)
+		+ 1. / 3. * DBar_tr_DBar_beta_U.<?=xi?>
 <?	for j,xj in ipairs(xNames) do
 ?>		- 2. * ABar_UU.<?=sym(i,j)?> * (0.
 			+ partial_alpha_L.<?=xj?>
@@ -757,9 +756,6 @@ then
 	
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	
-	_3sym3 connHat_lll = calc_connHat_lll(x);
-	_3sym3 connHat_ull = calc_connHat_ull(x);
-
 <?=eqn:getCode_partial_gammaBar_LLL()?>
 <?=eqn:getCode_connBar_ULL()?>
 
@@ -769,8 +765,7 @@ then
 	//ABar_uu.ij := ABar^ij = gammaBar^ik ABar_kl gammaBar^lj
 	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);	
 	
-	_3sym3 connHat_LLL = _3sym3_rescaleFromCoord_lll(connHat_lll, x);
-	_3sym3 connHat_ULL = _3sym3_rescaleFromCoord_ull(connHat_ull, x);
+<?=eqn:getCode_connHat_LLL_and_ULL()?>
 	
 	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
 	_3sym3 Delta_LLL = sym3_3sym3_mul(gammaBar_LL, Delta_ULL);

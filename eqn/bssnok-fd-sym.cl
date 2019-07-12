@@ -103,6 +103,9 @@ kernel void calcDeriv(
 	other throughout the evolution."
 	
 	... so why is there a distinction between det gammaBar_ij and det gammaHat_ij? 
+	
+	because in 2013 Baumgarte et al, IIB last paragraph, they say they relax this constraint.
+	
 	TODO detg ...
 	*/
 <?=assign'det_gammaBar_over_det_gammaHat'?>
