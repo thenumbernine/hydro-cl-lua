@@ -14,7 +14,7 @@ local useCalcDeriv_beta_U = true
 local useConstrainU = true
 
 -- does Kreiss-Oligar dissipation
-local useAddSource = false
+local useAddSource = true
 ?>
 
 typedef <?=eqn.cons_t?> cons_t;
@@ -647,22 +647,22 @@ end
 		- B^j beta^i_,j
 	*/
 <? for i,xi in ipairs(xNames) do
-?>	deriv->beta_U.<?=xi?> += U->B_U.<?=xi?>;
+?>	deriv->beta_U.<?=xi?> += U->B_U.<?=xi?>
+		//SENR's 'shiftadvect':
+<?	for j,xj in ipairs(xNames) do
+?>		+ partial_beta_UL.<?=xi?>.<?=xj?> * U->beta_U.<?=xj?>
+<?	end
+?>	;
 <? end
 ?>
 	const real eta = 1.;
 <? for i,xi in ipairs(xNames) do
-?>	deriv->B_U.<?=xi?> += .75 * (
-			dt_LambdaBar_U.<?=xi?>
-<? 	for j,xj in ipairs(xNames) do
-?>			- partial_LambdaBar_UL.<?=xi?>.<?=xj?> * U->beta_U.<?=xj?>
-			+ partial_beta_UL.<?=xi?>.<?=xj?> * U->LambdaBar_U.<?=xj?>
-<?	end
-?>		)
+?>	deriv->B_U.<?=xi?> += 
+		.75 * dt_LambdaBar_U.<?=xi?>
 		- eta * U->B_U.<?=xi?>
-<?	for j,xj in ipairs(xNames) do
-?>		+ partial_B_UL.<?=xi?>.<?=xj?> * U->beta_U.<?=xj?>
-		- partial_beta_UL.<?=xi?>.<?=xj?> * U->B_U.<?=xj?>
+<? 	for j,xj in ipairs(xNames) do
+?>		//SENR's 'biadvect':
+		+ partial_beta_UL.<?=xi?>.<?=xj?> * U->B_U.<?=xj?>
 <?	end
 ?>	;
 <? end ?>
@@ -888,6 +888,7 @@ kernel void addSource(
 <? if useAddSource then ?>
 	SETBOUNDS_NOGHOST();
 	
+	const global cons_t* U = UBuf + index;
 	global cons_t* deriv = derivBuf + index;
 
 	//Kreiss-Oligar dissipation

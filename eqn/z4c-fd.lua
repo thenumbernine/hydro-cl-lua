@@ -152,7 +152,7 @@ real calc_det_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 	return calc_det_gammaBar_ll(x) / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 }
 
-sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U) {
+sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U, real3 x) {
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	sym3 gamma_uu = sym3_real_mul(U->gammaBar_uu, exp_neg4phi);
 	return gamma_uu;
@@ -165,7 +165,10 @@ sym3 calc_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 	return gamma_ll;
 }
 
-]], {eqn=self})
+]], {
+		eqn = self,
+		solver = self.solver,
+	})
 end
 
 function Z4cFiniteDifferenceEquation:getInitStateCode()
@@ -306,7 +309,7 @@ function Z4cFiniteDifferenceEquation:getDisplayVars()
 	
 	local derivOrder = 2 * self.solver.numGhost
 	vars:append{
-		{name='S', code='*value = sym3_dot(U->S_ll, calc_gamma_uu(U));'},
+		{name='S', code='*value = sym3_dot(U->S_ll, calc_gamma_uu(U, x));'},
 		{name='volume', code='*value = U->alpha * calc_det_gamma_ll(U, x);'},
 	
 --[[ expansion:
@@ -461,7 +464,7 @@ end
 
 	real _1_alpha = 1. / U->alpha;
 
-	sym3 gamma_uu = calc_gamma_uu(U);
+	sym3 gamma_uu = calc_gamma_uu(U, x);
 	real3 partial_alpha_u = sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l);		//alpha_,j gamma^ij = alpha^,i
 	real partial_alpha_dot_beta = real3_dot(U->beta_u, *(real3*)partial_alpha_l);	//beta^j alpha_,j
 

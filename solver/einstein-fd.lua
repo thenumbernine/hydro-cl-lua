@@ -46,7 +46,7 @@ function EinsteinFiniteDifferenceSolver:createDisplayComponents()
 	})
 	self:addDisplayComponent('sym3', {
 		onlyFor = 'U',
-		norm = 'tr weighted',
+		name = 'tr weighted',
 		code = [[
 	int index = INDEXV(i);
 	real3 x = cell_x(i);

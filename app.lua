@@ -73,7 +73,7 @@ local Font = require 'gui.font'
 local Mouse = require 'gui.mouse'
 local vec4d = require 'ffi.vec.vec4d'
 local vec3d = require 'ffi.vec.vec3d'
-
+local CartesianCoord = require 'coord.cartesian'
 
 
 --[[
@@ -447,7 +447,7 @@ void main() {
 			local solver = self.solvers[1]
 			if solver.dim == 2 and (
 				not self.display_useCoordMap 
-				or require 'coord.cartesian'.is(solver.coord)
+				or CartesianCoord.is(solver.coord)
 			) then
 				local orthoSize = 1
 				for j=1,solver.dim do
@@ -893,7 +893,9 @@ end
 				if var and var.enabled then
 					-- translate the mouse coords to texture coords
 					-- and read the texel at the mouse position
-					if self.display_useCoordMap then
+					if self.display_useCoordMap 
+						and not CartesianCoord.is(solver.coord)
+					then
 						--print'FIXME'
 						-- run coords through inverse
 					else

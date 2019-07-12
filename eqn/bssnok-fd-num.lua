@@ -889,8 +889,8 @@ end
 end
 
 --[[
-should initState provide a metric in cartesian, or in the background metric?
-I'll say Cartesian for now, and then transform them using the rescaling
+Should initState provide a metric in cartesian, or in the background metric?
+I'll say Cartesian for now, and then transform them using the rescaling.
 --]]
 function BSSNOKFiniteDifferenceEquation:getInitStateCode()
 	return template([=[
@@ -918,9 +918,8 @@ kernel void initState(
 <? else -- not Minkowski ?>
 
 	<?=code?>
-
-	//rescale from cartesian to spherical
-	gamma_ll = sym3_rescaleToCoord_LL(gamma_ll, x);
+//rescale from cartesian to spherical
+gamma_ll = sym3_rescaleToCoord_LL(gamma_ll, x);
 
 	U->alpha = alpha;
 	U->beta_U = real3_rescaleFromCoord_u(beta_u, x);
@@ -967,7 +966,7 @@ kernel void initDerivs(
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
-<? if false then -- eqn.initState.name == 'Minkowski' then ?>
+<? if true then -- eqn.initState.name == 'Minkowski' then ?>
 	U->LambdaBar_U = real3_zero;
 <? else	-- initState == Minkowski ?>
 #if 0

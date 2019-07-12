@@ -1,4 +1,4 @@
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -45,7 +45,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -112,7 +112,7 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ Sphere: r, θ, φ 
+	--[[ Sphere: r, θ, φ 
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
 	mins = cmdline.mins or {.0005, 0, -math.pi},
@@ -624,12 +624,12 @@ self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'}
 BSSNOK but with my symbolic CAS generating the math
 Generation is really slow and not yet cached.
 In spherical on my laptop this is ~1min to do the differentiatin and simpliciations, then ~5min to compile (as opposed to the ~1min to compile the bssnok-fd-num version).
-for spherical: 
+for spherical, derivOrder=2: 
 	r=[1,10], Minkowski init cond, it is stable
 	r=[.1,1] Minkowski init cond it blows on FE and RK4 but not on BE 
 	r=[0,1] Minkowski init cond BE it is stable
 --]]
-self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
+--self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
 
 -- Z4c finite difference, combining BSSNOK and Z4
 -- FIXME something is asymmetric.  watch Theta.  Run warp bubble.

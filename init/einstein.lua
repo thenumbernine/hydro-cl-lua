@@ -256,7 +256,7 @@ return table{
 
 //enable this if you want the ADM 3D run in 1D to match the ADM 1D's
 //disable this if you want things to run in higher dimensions
-#if	0 // dim == 1
+#if	dim == 1
 	gamma_ll = _sym3(gamma_ll.xx, 0,0,1,0,1);
 	K_ll = _sym3(K_ll.xx, 0,0,0,0,0);
 #endif

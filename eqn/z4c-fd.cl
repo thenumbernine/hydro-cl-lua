@@ -18,8 +18,6 @@ local derivOrder = 2 * solver.numGhost
 local makePartials = require 'eqn.makepartial'
 local makePartial = function(...) return makePartials.makePartial(derivOrder, solver, ...) end
 local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end
-
-local calcConstraints = true 
 ?>
 
 /*
@@ -117,13 +115,13 @@ end
 kernel void calcDeriv(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
-	<?=calcConstraints and '' or 'const '?>global <?=eqn.cons_t?>* UBuf
+	const global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 
-	<?=calcConstraints and '' or 'const '?>global <?=eqn.cons_t?>* U = UBuf + index;
+	const global <?=eqn.cons_t?>* U = UBuf + index;
 
 <?=makePartial('alpha', 'real')?>		//partial_alpha_l[i] := alpha_,i
 <?=makePartial('chi', 'real')?>			//partial_chi_l[i] := chi_,i 
@@ -560,6 +558,8 @@ end
 	end
 end ?>
 
+//TODO move U->H calculation into another function, or into constrainU
+// for some reason, keeping it here, my intel GPU doesn't write U->H
 #if 0
 	real RBar = sym3_dot(U->gammaBar_uu, RBar_ll);
 	real exp_phi = exp(U->phi);
@@ -605,7 +605,7 @@ end ?>
 		)
 	);
 #endif
-#if 1
+#if 0
 	real R = sym3_dot(gamma_uu, R_ll);	//R = gamma^ij R_ij
 
 	//2011 Cao eqn 16
@@ -675,4 +675,28 @@ end
 		deriv->ptr[i] -= solver->diffuseSigma/16. * lap;
 	}
 <? end ?>
+}
+
+kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
+	global real* dtBuf,
+	const global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+	real3 x = cell_x(i);
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+
+	sym3 gamma_uu = calc_gamma_uu(U, x);
+
+	real dt = INFINITY;
+	<? for side=0,solver.dim-1 do ?>{
+		real absLambdaMax = U->alpha * sqrt(gamma_uu.<?=sym(side+1,side+1)?>);
+		real dx = solver->grid_dx.s<?=side?>;
+		dt = (real)min(dt, dx / absLambdaMax);
+	}<? end ?>
+	dtBuf[index] = dt;
 }

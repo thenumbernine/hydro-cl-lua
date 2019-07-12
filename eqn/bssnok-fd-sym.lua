@@ -489,7 +489,7 @@ printbr(gammaHat_ll)
 
 printbr'e'
 	e = Tensor('_i^I', function(i,j)
-		return (i==j and solver.coords.lenExprs[i] or 0)
+		return (i==j and solver.coord.lenExprs[i] or 0)
 	end)
 printbr(e)
 printbr'eu'
@@ -1232,15 +1232,8 @@ printbr(removeBetas(dt_beta_U)():factorDivision())
 		--[[
 		hyperbolic Gamma driver 
 		2017 Ruchlin et al, eqn 14a, 14b
-		beta^i_,t = B^i + beta^i_,j beta^j - beta^i_,j beta^j = B^i
-		B^i_,t = 3/4 (
-				LambdaBar^i_,t 
-				- LambdaBar^i_,j beta^j 
-				+ LambdaBar^j beta^i_,j
-			) - eta B^i 
-			
-			+ B^i_,j beta^j 
-			- B^j beta^i_,j
+		beta^i_,t = B^i + beta^i_,j beta^j
+		B^i_,t = 3/4 LambdaBar^i_,t - eta B^i 
 
 		Etienne's SENR doesn't do the full Lie derivative though.
 		just the B^i_,j beta^j term, and adds the full LambdaBar^i_,t to B^i_,t
@@ -1680,6 +1673,10 @@ end
 ]], self:getEnv())
 end
 
+--[[
+Should initState provide a metric in cartesian, or in the background metric?
+I'll say Cartesian for now, and then transform them using the rescaling.
+--]]
 function BSSNOKFiniteDifferenceEquation:getInitStateCode()
 	return template([=[
 <?
@@ -1713,6 +1710,8 @@ kernel void initState(
 	real rho = 0.;
 
 	<?=code?>
+//rescale from cartesian to spherical
+gamma_ll = sym3_rescaleToCoord_LL(gamma_ll, x);
 
 	U->alpha = alpha;
 	U->beta_U = real3_rescaleFromCoord_u(beta_u, x);
