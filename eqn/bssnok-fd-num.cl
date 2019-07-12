@@ -539,10 +539,13 @@ end
 static sym3 calc_trBar_partial2_gammaBar_LL(
 	const global <?=eqn.cons_t?>* U,
 	real3 x,
-	const sym3* gammaBar_uu,
+	const sym3* gammaBar_UU,
 	const sym3 partial_epsilon_LLl[3],
 	const sym3 partial2_epsilon_LLll[6]
 ) {
+	//gives accuracy errors if I try to inline this
+	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(*gammaBar_UU, x); 
+	
 	/*
 	e^i_I e^j_J gammaBar_ij,kl gammaBar^kl
 	= (
@@ -573,7 +576,7 @@ static sym3 calc_trBar_partial2_gammaBar_LL(
 				+ calc_partial_len_<?=xj..xk?>(x) / calc_len_<?=xj?>(x)
 			)
 			+ partial2_epsilon_LLll[<?=kl-1?>].<?=xij?>
-		) * gammaBar_uu-><?=xkl?>
+		) * gammaBar_uu.<?=xkl?>
 <?		end
 	end
 ?>	;
@@ -594,10 +597,11 @@ static sym3 calc_RBar_LL(
 	const real3* Delta_U,
 	const _3sym3* Delta_ULL,
 	const _3sym3* Delta_LLL,
-	const sym3* gammaBar_ll,
-	const sym3* gammaBar_uu,
 	const _3sym3 partial_connHat_ulll[3]
 ) {
+	sym3 gammaBar_ll = sym3_rescaleToCoord_LL(*gammaBar_LL, x); 
+	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(*gammaBar_UU, x); 
+	
 	//DHat_gammaBar_lll.k.ij = DHat_k gammaBar_ij 
 	// = gammaBar_ij,k - connHat^l_ki gammaBar_lj - connHat^l_kj gammaBar_il
 	_3sym3 DHat_gammaBar_LLL;
@@ -641,8 +645,8 @@ for k,xk in ipairs(xNames) do
 //		+ partial2_gammaBar_llll.<?=sym(k,l)?>.<?=xij?>
 <?			for m,xm in ipairs(xNames) do
 ?>
-		- gammaBar_ll-><?=sym(m,j)?> * partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,i)?>
-		- gammaBar_ll-><?=sym(m,i)?> * partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,j)?>
+		- gammaBar_ll.<?=sym(m,j)?> * partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,i)?>
+		- gammaBar_ll.<?=sym(m,i)?> * partial_connHat_ulll[<?=l-1?>].<?=xm?>.<?=sym(k,j)?>
 		- connHat_ull.<?=xm?>.<?=sym(k,i)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,j)?>
 		- connHat_ull.<?=xm?>.<?=sym(k,j)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,i)?>
 <?			end
@@ -668,10 +672,10 @@ for ij,xij in ipairs(symNames) do
 ?>	trBar_DHat2_gammaBar_without_partial2_gammaBar_ll.<?=xij?> = 0.
 <?	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do
-?>		+ gammaBar_uu-><?=sym(k,l)?> * (0.
+?>		+ gammaBar_uu.<?=sym(k,l)?> * (0.
 			+ partial_DHat_gammaBar_without_partial2_gammaBar_llll[<?=l-1?>].<?=xk?>.<?=xij?>
 		)
-		+ gammaBar_uu-><?=sym(k,l)?> * (0.
+		+ gammaBar_uu.<?=sym(k,l)?> * (0.
 <?			for m,xm in ipairs(xNames) do
 ?>			- connHat_ull.<?=xm?>.<?=sym(l,k)?> * DHat_gammaBar_lll.<?=xm?>.<?=sym(i,j)?>
 			- connHat_ull.<?=xm?>.<?=sym(l,i)?> * DHat_gammaBar_lll.<?=xk?>.<?=sym(m,j)?>
@@ -1202,10 +1206,9 @@ kernel void calcDeriv(
 	//ABar^ij := ABar^i_k gammaBar^kj
 	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);	//ABar^IJ = ABar^I_K gammaBar^KJ
 
-	//still used in calc_RBar_LL
-	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
-
 <? if useCalcDeriv_K then ?>
+	
+	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
 	
 	/*
 	gammaBar_ij = exp(-4 phi) gamma_ij
@@ -1277,11 +1280,9 @@ kernel void calcDeriv(
 	sym3 trBar_partial2_gammaBar_LL = calc_trBar_partial2_gammaBar_LL(
 		U, 
 		x, 
-		&gammaBar_uu, 
+		&gammaBar_UU, 
 		partial_epsilon_LLl, 
 		partial2_epsilon_LLll);
-			
-	sym3 gammaBar_ll = sym3_rescaleToCoord_LL(gammaBar_LL, x); 
 
 	sym3 RBar_LL = calc_RBar_LL(
 		U,
@@ -1295,8 +1296,6 @@ kernel void calcDeriv(
 		&Delta_U,
 		&Delta_ULL,
 		&Delta_LLL,
-		&gammaBar_ll,
-		&gammaBar_uu,
 		partial_connHat_ulll);
 
 	calcDeriv_ABar_LL(
@@ -1571,10 +1570,10 @@ kernel void constrainU(
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);
 	global cons_t* U = UBuf + index;
+	
+	sym3 gammaBar_LL = sym3_add(sym3_ident, U->epsilon_LL);
+	real det_gammaBarLL = sym3_det(gammaBar_LL);
 
-	sym3 gammaHat_ll = calc_gammaHat_ll(x);
-	sym3 epsilon_ll = sym3_rescaleToCoord_LL(U->epsilon_LL, x);
-	sym3 gammaBar_ll = sym3_add(gammaHat_ll, epsilon_ll);
 <? 
 if eqn.guiVars.constrain_det_gammaBar.value 
 or eqn.guiVars.constrain_tr_ABar.value 
@@ -1589,20 +1588,18 @@ then
 	= det(gammaHat_ij)
 	*/
 <?	if eqn.guiVars.constrain_det_gammaBar.value then ?>
-	real det_gammaHat = calc_det_gammaHat(x);
-	real det_gammaBar = sym3_det(gammaBar_ll);
-	real rescaleMetric = cbrt(det_gammaHat/det_gammaBar);
+	
+	const real det_gammaHatLL = 1.;
+	real rescaleMetric = cbrt(det_gammaHatLL/det_gammaBarLL);
 <? 		for ij,xij in ipairs(symNames) do
-?>	gammaBar_ll.<?=xij?> *= rescaleMetric;
+?>	gammaBar_LL.<?=xij?> *= rescaleMetric;
 <? 		end ?>
-	epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
-	U->epsilon_LL = sym3_rescaleFromCoord_ll(epsilon_ll, x);
+	U->epsilon_LL = sym3_sub(gammaBar_LL, sym3_ident);
+	det_gammaBarLL = det_gammaHatLL;
+
 <?	end	-- constrain_det_gammaBar ?>
 
-	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
-	
-	sym3 gammaBar_LL = sym3_rescaleFromCoord_ll(gammaBar_ll, x);
-	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
+	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 	
 	//in Buchman's paper it says he doesn't do this
 	//and in the new arbitrary-coord formalism, there is a tr ABar_ij term
@@ -1611,11 +1608,9 @@ then
 <? end	-- constrain_tr_ABar ?>
 
 <? else -- constrain_det_gammaBar or constrain_tr_ABar ?>
-	real det_gammaHat = calc_det_gammaHat(x);
-	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaHat);
 	
-	sym3 gammaBar_LL = sym3_rescaleFromCoord_ll(gammaBar_ll, x);
-	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
+	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
+	
 <? end -- constrain_det_gammaBar or constrain_tr_ABar ?>
 
 	//makes the spinning black hole simulations look ugly
@@ -1683,7 +1678,7 @@ then
 	sym3 trBar_partial2_gammaBar_LL = calc_trBar_partial2_gammaBar_LL(
 		U, 
 		x, 
-		&gammaBar_uu, 
+		&gammaBar_UU, 
 		partial_epsilon_LLl, 
 		partial2_epsilon_LLll);
 	
@@ -1699,8 +1694,6 @@ then
 		&Delta_U,
 		&Delta_ULL,
 		&Delta_LLL,
-		&gammaBar_ll,
-		&gammaBar_uu,
 		partial_connHat_ulll);
 
 	//RBar := RBar_ij gammaBar^ij

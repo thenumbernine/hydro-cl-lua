@@ -976,15 +976,12 @@ end ?>;
 	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
 	_3sym3 Delta_LLL = sym3_3sym3_mul(gammaBar_LL, Delta_ULL);
 
-	sym3 gammaBar_ll = sym3_rescaleToCoord_LL(gammaBar_LL, x);
-	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
-
 <?=eqn:makePartial2'epsilon_LL'?>
 
 	sym3 trBar_partial2_gammaBar_LL = calc_trBar_partial2_gammaBar_LL(
 		U, 
 		x, 
-		&gammaBar_uu, 
+		&gammaBar_UU, 
 		partial_epsilon_LLl, 
 		partial2_epsilon_LLll);
 
@@ -1000,8 +997,6 @@ end ?>;
 		&Delta_U,
 		&Delta_ULL,
 		&Delta_LLL,
-		&gammaBar_ll,
-		&gammaBar_uu,
 		partial_connHat_ulll);
 
 	*value_sym3 = sym3_rescaleToCoord_LL(RBar_LL, x);
@@ -1105,14 +1100,13 @@ gammaBar^kl = inv(gammaBar_kl)
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
-	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
 <?=eqn:makePartial'epsilon_LL'?>
 <?=eqn:makePartial2'epsilon_LL'?>
 	
 	sym3 trBar_partial2_gammaBar_LL = calc_trBar_partial2_gammaBar_LL(
 		U, 
 		x, 
-		&gammaBar_uu, 
+		&gammaBar_UU, 
 		partial_epsilon_LLl, 
 		partial2_epsilon_LLll);
 
@@ -1131,11 +1125,12 @@ gammaBar^kl = inv(gammaBar_kl)
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 	sym3 gammaBar_ll = sym3_rescaleToCoord_LL(gammaBar_LL, x);
-	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
 
 	_3sym3 partial_connHat_ulll[3];
 	calc_partial_connHat_ulll(partial_connHat_ulll, x);
 
+	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
+	
 	real3x3 tr34_gamma_dGamma_ll;
 <? 
 for i,xi in ipairs(xNames) do
@@ -1170,7 +1165,6 @@ end
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
-	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
 
 	_3sym3 connHat_LLL, connHat_ULL;
 	calc_connHat_LLL_and_ULL(&connHat_LLL, &connHat_ULL, U, x);
@@ -1181,6 +1175,8 @@ end
 	// = gammaHat_ij,k + epsilon_ij,k
 	_3sym3 partial_gammaBar_lll = _3sym3_rescaleToCoord_LLL(partial_gammaBar_LLL, x);
 
+	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
+	
 	real3x3 tr14_Gamma_dgamma_ll;
 <? 
 for i,xi in ipairs(xNames) do
