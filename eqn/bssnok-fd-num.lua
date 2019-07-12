@@ -909,7 +909,7 @@ kernel void initState(
 	sym3 K_ll = sym3_zero;
 	real rho = 0.;
 
-<? if eqn.initState.name == 'Minkowski' then ?>
+<? if false then 	-- eqn.initState.name == 'Minkowski' then ?>
 	
 	setFlatSpace(solver, U, x);
 
@@ -963,8 +963,7 @@ kernel void initDerivs(
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
 <? 
--- TODO get Minkowski working without this
-if eqn.initState.name == 'Minkowski' then
+if false then -- eqn.initState.name == 'Minkowski' then
 ?>
 	U->LambdaBar_U = real3_zero;
 
@@ -977,32 +976,13 @@ if eqn.initState.name == 'Minkowski' then
 		return;
 	}
 #endif
- 
- <?=eqn:makePartial'epsilon_LL'?>
-	
-	//derivative first
-	//partial_gammaBar_lll.k.ij := gammaBar_ij,k
-	//partial_gammaBar_LLL.k.IJ := e_i^I e_j^J gammaBar_ij,k
-	_3sym3 partial_gammaBar_LLL;
-<? 
-for ij,xij in ipairs(symNames) do
-	local i,j,xi,xj = from6to3x3(ij)
-	for k,xk in ipairs(xNames) do
-?>	partial_gammaBar_LLL.<?=xk?>.<?=xij?> = (0.
-		+ partial_epsilon_LLl[<?=k-1?>].<?=xij?>
-		+ (
-			calc_partial_len_<?=xi..xk?>(x) * calc_len_<?=xj?>(x)
-			+ calc_partial_len_<?=xj..xk?>(x) * calc_len_<?=xi?>(x)
-		) * (U->epsilon_LL.<?=xij?><?=i==j and ' + 1.' or ''?>)
-	) / calc_len_<?=xk?>(x);
-<?	end
-end
-?>
 
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 
+<?=eqn:makePartial'epsilon_LL'?>
+<?=eqn:getCode_partial_gammaBar_LLL()?>
 <?=eqn:getCode_connBar_ULL()?>
 <?=eqn:getCode_connHat_LLL_and_ULL()?>
 	
@@ -1014,7 +994,9 @@ end
 <? end -- initState == Minkowski ?>
 
 }
-]=], self:getEnv())
+]=], table(self:getEnv(), {
+		code = self.initState:initState(self.solver),
+	}))
 end
 
 BSSNOKFiniteDifferenceEquation.solverCodeFile = 'eqn/bssnok-fd-num.cl'

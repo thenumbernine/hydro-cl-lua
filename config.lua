@@ -4,13 +4,13 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	--integrator = 'Runge-Kutta 4',
+	integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -115,8 +115,8 @@ local args = {
 	-- [[ Sphere: r, θ, φ 
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
-	mins = cmdline.mins or {1, 0, -math.pi},
-	maxs = cmdline.maxs or {4, math.pi, math.pi},
+	mins = cmdline.mins or {.0005, 0, -math.pi},
+	maxs = cmdline.maxs or {1, math.pi, math.pi},
 	gridSize = ({
 		{256, 1, 1}, -- 1D
 		{32, 32, 1}, -- 2D
@@ -620,10 +620,10 @@ self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'}
 BSSNOK but with my symbolic CAS generating the math
 Generation is really slow and not yet cached.
 In spherical on my laptop this is ~1min to do the differentiatin and simpliciations, then ~5min to compile (as opposed to the ~1min to compile the bssnok-fd-num version).
-for spherical: 
-	r=[1,10], Minkowski init cond, it is stable
-	r=[.1,1] Minkowski init cond it blows on FE and RK4 but not on BE 
-	r=[0,1] Minkowski init cond BE it is stable
+for spherical, Minkowski init cond:
+	with numGhost=2 <=> derivOrder=4
+	for FE integration, with r=[1,4], runs for 2 seconds
+	for RK4 integration with range [.0005, 1] runs indefinitely (but can't get closer to zero)
 --]]
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
 

@@ -7,6 +7,8 @@ BSSNOKFiniteDifferenceSolver.name = 'BSSNOK_FiniteDifference'
 -- split into bssnok-fd-num and bssnok-fd-sym
 --BSSNOKFiniteDifferenceSolver.eqnName = 'bssnok-fd'
 
+BSSNOKFiniteDifferenceSolver.numGhost = 4
+
 function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	-- skip EinsteinFiniteDifferenceSolver create components
 	EinsteinFiniteDifferenceSolver.super.createDisplayComponents(self)
