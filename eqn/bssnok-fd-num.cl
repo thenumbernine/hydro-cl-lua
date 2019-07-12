@@ -684,6 +684,9 @@ for ij,xij in ipairs(symNames) do
 ?>		+ gammaBar_uu.<?=sym(k,l)?> * (0.
 			+ partial_DHat_gammaBar_without_partial2_gammaBar_llll[<?=l-1?>].<?=xk?>.<?=xij?>
 		)
+		
+		//Slightly less accurate to convert all these to non-coord.
+		//I think that is because connHat^I_JK has a few more 1/r's than connHat^i_jk
 		+ gammaBar_uu.<?=sym(k,l)?> * (0.
 <?			for m,xm in ipairs(xNames) do
 ?>			- connHat_ull.<?=xm?>.<?=sym(l,k)?> * DHat_gammaBar_lll.<?=xm?>.<?=sym(i,j)?>
@@ -697,19 +700,12 @@ for ij,xij in ipairs(symNames) do
 <?
 end
 ?>
+	sym3 trBar_DHat2_gammaBar_without_partial2_gammaBar_LL = sym3_rescaleFromCoord_ll(trBar_DHat2_gammaBar_without_partial2_gammaBar_ll, x);
 
 	//trBar_DHat2_gammaBar_ll.ij := gammaBar^kl DHat_k DHat_l gammaBar_ij
-	sym3 trBar_DHat2_gammaBar_LL;
-<? for ij,xij in ipairs(symNames) do
-	local i,j,xi,xj = from6to3x3(ij)
-?>	trBar_DHat2_gammaBar_LL.<?=xij?> = 0.
-		+ trBar_partial2_gammaBar_LL-><?=xij?>
-		+ trBar_DHat2_gammaBar_without_partial2_gammaBar_ll.<?=xij?>
-//hmm, moving this division into trBar_DHat2_gammaBar_without_partial2_gammaBar_ll
-//is causing it to diverge near r=1
-			 / (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x));
-<? end
-?>
+	sym3 trBar_DHat2_gammaBar_LL = sym3_add(
+		*trBar_partial2_gammaBar_LL,
+		trBar_DHat2_gammaBar_without_partial2_gammaBar_LL);
 
 	//derivative is the last index, unlike the partial_*'s
 	//DHat_LambdaBar_ul.i.j := DHat_j LambdaBar^i = LambdaBar^i_,j + connHat^i_jk LambdaBar^k
