@@ -681,10 +681,10 @@ for i,component in ipairs(solver.displayComponentFlatList) do
 	if not component.onlyFor 
 	or (var and var.group.name == component.onlyFor)
 	then
-?>	case <?=i?>:
+?>	case <?=i?>:	//<?=component.type or 'real'?> <?=component.name?>
 		{
 <?=component.code?>
-	vectorField = <?= solver:isVarTypeAVectorField(component.type) and '1' or '0' ?>;
+			*vectorField = <?= solver:isVarTypeAVectorField(component.type) and '1' or '0' ?>;
 			break;
 		}
 <? 
