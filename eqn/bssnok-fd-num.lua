@@ -88,8 +88,8 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 		{name='constrain_det_gammaBar', value=true, compileTime=true},
 		--{name='constrain_det_gammaBar', value=false, compileTime=true},
 
-		--{name='constrain_tr_ABar', value=true, compileTime=true},
-		{name='constrain_tr_ABar', value=false, compileTime=true},
+		{name='constrain_tr_ABar', value=true, compileTime=true},
+		--{name='constrain_tr_ABar', value=false, compileTime=true},
 		
 		{name='calc_H_and_M', value=true, compileTime=true},
 		{name='diffuseSigma', value=.01},
@@ -888,6 +888,10 @@ end
 ]], self:getEnv())
 end
 
+--[[
+should initState provide a metric in cartesian, or in the background metric?
+I'll say Cartesian for now, and then transform them using the rescaling
+--]]
 function BSSNOKFiniteDifferenceEquation:getInitStateCode()
 	return template([=[
 kernel void initState(
@@ -910,12 +914,13 @@ kernel void initState(
 	real rho = 0.;
 
 <? if false then 	-- eqn.initState.name == 'Minkowski' then ?>
-	
 	setFlatSpace(solver, U, x);
-
 <? else -- not Minkowski ?>
 
 	<?=code?>
+
+	//rescale from cartesian to spherical
+	gamma_ll = sym3_rescaleToCoord_LL(gamma_ll, x);
 
 	U->alpha = alpha;
 	U->beta_U = real3_rescaleFromCoord_u(beta_u, x);
@@ -962,14 +967,10 @@ kernel void initDerivs(
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
-<? 
-if false then -- eqn.initState.name == 'Minkowski' then
-?>
+<? if false then -- eqn.initState.name == 'Minkowski' then ?>
 	U->LambdaBar_U = real3_zero;
-
-<? else	-- initState == Minkowski 
-?>
-#if 0	
+<? else	-- initState == Minkowski ?>
+#if 0
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
 		setFlatSpace(solver, U, x);
@@ -987,9 +988,21 @@ if false then -- eqn.initState.name == 'Minkowski' then
 <?=eqn:getCode_connHat_LLL_and_ULL()?>
 	
 	//Delta^i_jk = connBar^i_jk - connHat^i_jk
-	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
+	//_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
+	//
+	//U->LambdaBar_U = real3_add(_3sym3_sym3_dot23(Delta_ULL, gammaBar_UU), mystery_C_U);
 
-	U->LambdaBar_U = _3sym3_sym3_dot23(Delta_ULL, gammaBar_UU);
+<? for i,xi in ipairs(xNames) do
+?>	U->LambdaBar_U.<?=xi?> = 0.
+<?	for jk,xjk in ipairs(symNames) do
+?>		+ gammaBar_UU.<?=xjk?> * (
+			connBar_ULL.<?=xi?>.<?=xjk?>
+			- connHat_ULL.<?=xi?>.<?=xjk?>
+		)
+<?	end
+?>		+ mystery_C_U.<?=xi?>;
+<? end
+?>
 
 <? end -- initState == Minkowski ?>
 
@@ -1053,7 +1066,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 --]=]	
 
 -- [[ debugging derivatives
--- [=[	
+--[=[	
 	'deriv alpha',
 	'deriv beta_U x',
 	'deriv beta_U y',
@@ -1091,7 +1104,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	--'U DBar_phi_sq',
 	--'U ABarSq tr weighted',
 
--- [[ should be zero for Minkowski
+--[[ should be zero for Minkowski
 	'U RBar_LL xx',
 	'U RBar_LL xy',
 	'U RBar_LL xz',
@@ -1099,25 +1112,38 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U RBar_LL yz',
 	'U RBar_LL zz',
 --]]
---[[ should be zero for Minkowski
-	'U Delta^x xx',
-	'U Delta^x xy',
-	'U Delta^x xz',
-	'U Delta^x yy',
-	'U Delta^x yz',
-	'U Delta^x zz',
-	'U Delta^y xx',
-	'U Delta^y xy',
-	'U Delta^y xz',
-	'U Delta^y yy',
-	'U Delta^y yz',
-	'U Delta^y zz',
-	'U Delta^z xx',
-	'U Delta^z xy',
-	'U Delta^z xz',
-	'U Delta^z yy',
-	'U Delta^z yz',
-	'U Delta^z zz',
+-- [[ should be zero for Minkowski
+	'U gammaBar_UU xx',
+	'U gammaBar_UU xy',
+	'U gammaBar_UU xz',
+	'U gammaBar_UU yy',
+	'U gammaBar_UU yz',
+	'U gammaBar_UU zz',
+--]]
+-- [[ should be zero for Minkowski
+	'U Delta_ULL x xx',
+	'U Delta_ULL x xy',
+	'U Delta_ULL x xz',
+	'U Delta_ULL x yy',
+	'U Delta_ULL x yz',
+	'U Delta_ULL x zz',
+	'U Delta_ULL y xx',
+	'U Delta_ULL y xy',
+	'U Delta_ULL y xz',
+	'U Delta_ULL y yy',
+	'U Delta_ULL y yz',
+	'U Delta_ULL y zz',
+	'U Delta_ULL z xx',
+	'U Delta_ULL z xy',
+	'U Delta_ULL z xz',
+	'U Delta_ULL z yy',
+	'U Delta_ULL z yz',
+	'U Delta_ULL z zz',
+--]]
+-- [[ should be zero for Minkowski
+	'U Delta_U x',
+	'U Delta_U y',
+	'U Delta_U z',
 --]]
 --[[ should be diag(0, 2, 2 cos(theta)^2)
 	'U trBar_partial2_gammaBar_LL xx',
@@ -1144,11 +1170,13 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	*value_sym3 = gamma_ll;
 ]], 
 		},
-		{name='gammaHat_ll', code=[[	*value_sym3 = calc_gammaHat_ll(x);]], type='sym3'},
-		{name='gammaBar_ll', code=[[	*value_sym3 = calc_gammaBar_ll(U, x);]], type='sym3'},
 		{name='gamma_uu', code=[[	*value_sym3 = calc_gamma_uu(U, x);]], type='sym3'},
+		{name='gammaHat_ll', code=[[	*value_sym3 = calc_gammaHat_ll(x);]], type='sym3'},
 		{name='gammaHat_uu', code=[[	*value_sym3 = calc_gammaHat_uu(x);]], type='sym3'},
+		{name='gammaBar_ll', code=[[	*value_sym3 = calc_gammaBar_ll(U, x);]], type='sym3'},
 		{name='gammaBar_uu', code=[[	*value_sym3 = calc_gammaBar_uu(U, x);]], type='sym3'},
+		{name='gammaBar_LL', code=[[	*value_sym3 = calc_gammaBar_LL(U, x);]], type='sym3'},
+		{name='gammaBar_UU', code=[[	*value_sym3 = calc_gammaBar_UU(U, x);]], type='sym3'},
 		{name='K_ll', code=[[
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
@@ -1869,10 +1897,10 @@ end
 	}
 --]=]
 
---[=[
+-- [=[
 	for i,xi in ipairs(xNames) do
 		vars:insert{
-			name = 'Delta^'..xi,
+			name = 'Delta_ULL '..xi,
 			type = 'sym3',
 			code = template([[
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
@@ -1882,7 +1910,6 @@ end
 <?=eqn:makePartial'epsilon_LL'?>
 <?=eqn:getCode_partial_gammaBar_LLL()?>
 <?=eqn:getCode_connBar_ULL()?>
-
 <?=eqn:getCode_connHat_LLL_and_ULL()?>
 
 	//Delta_ULL[I].JK := Delta^I_JK = connBar^I_JK + connHat^I_JK
@@ -1892,6 +1919,31 @@ end
 ]], table(env, {i=i, xi=xi})),
 		}
 	end
+--]=]
+
+-- [=[
+	vars:insert{
+		name = 'Delta_U',
+		type = 'real3',
+		code = template([[
+	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
+	real det_gammaBarLL = calc_det_gammaBarLL(x);
+	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
+
+<?=eqn:makePartial'epsilon_LL'?>
+<?=eqn:getCode_partial_gammaBar_LLL()?>
+<?=eqn:getCode_connBar_ULL()?>
+<?=eqn:getCode_connHat_LLL_and_ULL()?>
+
+	//Delta_ULL[I].JK := Delta^I_JK = connBar^I_JK + connHat^I_JK
+	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
+
+<? for i,xi in ipairs(xNames) do
+?>	value_real3-><?=xi?> = sym3_dot(gammaBar_UU, Delta_ULL.<?=xi?>);
+<? end
+?>
+]], env),
+	}
 --]=]
 
 	--[[ hmm? not working.
