@@ -1104,7 +1104,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U RBar_LL yz',
 	'U RBar_LL zz',
 --]]
--- [[ should be zero for Minkowski
+--[[ should be zero for Minkowski
 	'U gammaBar_UU xx',
 	'U gammaBar_UU xy',
 	'U gammaBar_UU xz',
@@ -1112,7 +1112,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U gammaBar_UU yz',
 	'U gammaBar_UU zz',
 --]]
--- [[ should be zero for Minkowski
+--[[ should be zero for Minkowski
 	'U Delta_ULL x xx',
 	'U Delta_ULL x xy',
 	'U Delta_ULL x xz',
@@ -1132,7 +1132,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U Delta_ULL z yz',
 	'U Delta_ULL z zz',
 --]]
--- [[ should be zero for Minkowski
+--[[ should be zero for Minkowski
 	'U Delta_U x',
 	'U Delta_U y',
 	'U Delta_U z',
@@ -1674,8 +1674,9 @@ end ?>;
 			name = 'RBar_LL',
 			type = 'sym3',
 			code = template([[
+	
+	//partial_LambdaBar_ul[j].i := LambdaBar^i_,j
 <?=eqn:makePartial'LambdaBar_U'?>
-
 	//partial_LambdaBar_UL.I.J := e_i^I (Lambda^M e^i_M)_,j e^j_J
 	real3x3 partial_LambdaBar_UL = real3x3_partial_rescaleFromCoord_Ul(U->LambdaBar_U, partial_LambdaBar_Ul, x);
 

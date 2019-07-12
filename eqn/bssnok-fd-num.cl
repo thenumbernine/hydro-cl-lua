@@ -49,7 +49,7 @@ static void calcDeriv_alpha(
 	constant solver_t* solver,
 	global cons_t* deriv,
 	const global cons_t* U,
-	real3* partial_alpha_L
+	const real3* partial_alpha_L
 ) {
 	//Alcubierre 4.2.52 - Bona-Masso family of slicing
 	//Q = f(alpha) K
@@ -60,6 +60,247 @@ static void calcDeriv_alpha(
 ?>		+ partial_alpha_L-><?=xi?> * U->beta_U.<?=xi?>
 <? end
 ?>	;
+}
+
+static void calcDeriv_W(
+	constant solver_t* solver,
+	global cons_t* deriv,
+	const global cons_t* U,
+	real3 x,
+	real tr_DBar_beta,
+	const real partial_W_l[3]
+) {
+	real3 partial_W_L;
+<? for i,xi in ipairs(xNames) do
+?>	partial_W_L.<?=xi?> = partial_W_l[<?=i-1?>] / calc_len_<?=xi?>(x);
+<? end
+?>
+	
+	//2017 Ruchlin et al eqn 11c
+	//W,t = 1/3 W (alpha K - beta^k connBar^j_kj - beta^k_,k) + beta^k W_,k
+	deriv->W += (1. / 3.) * U->W * (
+			U->alpha * U->K 
+			- tr_DBar_beta
+		)
+<? for i,xi in ipairs(xNames) do
+?>		+ U->beta_U.<?=xi?> * partial_W_L.<?=xi?>
+<? end
+?>	;
+}
+
+static void calcDeriv_K(
+	constant solver_t* solver,
+	global cons_t* deriv,
+	const global cons_t* U,
+	const sym3* gammaBar_UU,
+	const sym3* ABar_UU,
+	const sym3* DBar2_alpha_LL,
+	const real3* partial_alpha_L,
+	const real3* partial_phi_L,
+	const real3* partial_K_L,
+	real exp_neg4phi,
+	real S
+) {
+	//tr_ABarSq := ABar_ij ABar^ij = ABar_ij ABar_kl gammaBar^ik gammaBar^jl
+	real tr_ABarSq = sym3_dot(U->ABar_LL, *ABar_UU);
+	
+	//tr_DBar2_alpha := gammaBar^ij DBar_i DBar_j alpha
+	real tr_DBar2_alpha = sym3_dot(*gammaBar_UU, *DBar2_alpha_LL);
+	
+	/*
+	B&S 11.52
+	Alcubierre 2.8.12
+	K_,t = -gamma^ij D_i D_j alpha + alpha (ABar_ij ABar^ij + K^2 / 3) + 4 pi alpha (rho + S) + beta^i K_,i
+	2017 Ruchlin et al
+	K_,t = 
+		1/3 alpha K^2 
+		+ alpha ABar_ij ABar^ij 
+		- exp(-4 phi) (
+			DBar_i DBar^i alpha 
+			+ 2 gammaBar^ij alpha_,i phi_,j
+		) 
+		+ K_,i beta^i
+		+ 4 pi alpha (rho + S)
+	*/
+	deriv->K += 0.
+		+ U->alpha * U->K * U->K / 3.
+		+ U->alpha * tr_ABarSq
+		- exp_neg4phi * (0.
+			+ tr_DBar2_alpha
+			+ 2. * real3_weightedDot(
+				*partial_phi_L,
+				*partial_alpha_L,
+				*gammaBar_UU)
+		)
+		+ real3_dot(U->beta_U, *partial_K_L)
+		+ 4. * M_PI * U->alpha * (U->rho + S)
+	;
+
+}
+
+static void calcDeriv_epsilon_LL(
+	constant solver_t* solver,
+	global cons_t* deriv,
+	const global cons_t* U,
+	const sym3* gammaBar_LL,
+	const _3sym3* partial_gammaBar_LLL,
+	const real3x3* partial_beta_UL,
+	const real3x3* ABar_UL,
+	real tr_DBar_beta
+) {
+	real tr_ABar = real3x3_trace(*ABar_UL);
+
+	/*
+	2017 Ruchlin et al, eqn 11a
+	epsilon_ij,t = 2/3 gammaBar_ij (alpha ABar^k_k - DBar_k beta^k) + DHat_i beta_j + DHat_j beta_i - 2 alpha ABar_ij + epsilon_ij,k beta^k + epsilon_ik beta^k_,j + epsilon_kj beta^k_,i
+	...using DBar_(i beta_j) = DHat_(i beta_j) + epsilon_k(j beta^k_,i) + 1/2 epsilon_ij,k beta^k
+	= 	
+		+ 2/3 gammaBar_ij (
+			alpha ABar^k_k 
+			- beta^k_,k 
+			- connBar^k_lk beta^l
+		) 
+		- 2 alpha ABar_ij 
+		+ .5 DBar_i beta_j
+		+ .5 DBar_j beta_i
+	
+
+	Etienne's SENR Mathematica notebook:
+	= 
+		// Lie derivative terms
+		beta^k gammaBar_ij,k
+		+ gammaBar_ki beta^k_,j
+		+ gammaBar_kj beta^k_,i
+
+		- 2/3 gammaBar_ij DBar_k beta^k
+		+ 2/3 alpha ABar^k_k
+		- 2 alpha ABar_ij
+
+	Looks like the paper's notation DBar_i beta_j implies DBar_j (gammaBar_ik beta^k) = gammaBar_ki DBar_j beta^k
+	...which is not DBar_j ( gamma_ik beta^k ), which was my interpretation of the definition of beta_i := gamma_ij beta^k
+	*/
+<? for ij,xij in ipairs(symNames) do
+	local i,j,xi,xj = from6to3x3(ij)
+?>	deriv->epsilon_LL.<?=xij?> += 
+		2. / 3. * gammaBar_LL-><?=xij?> * (U->alpha * tr_ABar - tr_DBar_beta)
+		- 2 * U->alpha * U->ABar_LL.<?=xij?>
+<? 	for k,xk in ipairs(xNames) do
+?>		+ partial_gammaBar_LLL-><?=xk?>.<?=xij?> * U->beta_U.<?=xk?>
+		+ gammaBar_LL-><?=sym(k,i)?> * partial_beta_UL-><?=xk?>.<?=xj?>
+		+ gammaBar_LL-><?=sym(k,j)?> * partial_beta_UL-><?=xk?>.<?=xi?>
+<? 	end
+?>	;
+<? end
+?>
+}
+
+static void calcDeriv_ABar_LL(
+	constant solver_t* solver,
+	global cons_t* deriv,
+	const global cons_t* U,
+	real3 x,
+	const sym3* gammaBar_LL,
+	const sym3* gammaBar_UU,
+	const sym3* DBar2_alpha_LL,
+	const sym3* RBar_LL,
+	const real3* partial_alpha_L, 
+	const real3* partial_phi_L, 
+	const _3sym3* connBar_ULL,
+	const real3x3* ABar_UL,
+	const real3x3* partial_beta_UL,
+	const real partial_W_l[3],
+	real exp_neg4phi,
+	real tr_DBar_beta
+) {
+<?=eqn:makePartial'ABar_LL'?>		//partial_ABar_lll[k].ij = ABar_ij,k
+<?=eqn:getCode_partial_ABar_LLL()?>
+
+<?=eqn:makePartial2'W'?>			//partial2_W_ll.ij := W_,ij
+	sym3 partial2_phi_ll;
+	//This is only used by ABar_ij,t:
+	//partial2_phi_ll.ij := phi_,ij = 1/(2W) (-W_,ij + W_,i W_,j / W)
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+?>	partial2_phi_ll.<?=xij?> = .5 * (
+		-partial2_W_ll[<?=ij-1?>] 
+		+ partial_W_l[<?=i-1?>] * partial_W_l[<?=j-1?>] / U->W
+	) / U->W;
+<? end ?>
+	sym3 partial2_phi_LL = sym3_rescaleFromCoord_ll(partial2_phi_ll, x);
+
+	/*
+	2017 Ruchlin et al eqn 11b
+	traceless portion of ...
+		-2 alpha DBar_i DBar_j phi 
+		+ 4 alpha DBar_i phi DBar_j phi 
+		+ 2 DBar_i phi DBar_j alpha 
+		+ 2 DBar_i alpha DBar_j phi 
+		- DBar_i DBar_j alpha 
+		+ alpha RBar_ij 
+		- 8 pi alpha S_ij
+	
+	SENR does trace-free on a few terms individually:
+	*) -DBar_i DBar_j alpha
+	*) alpha RBar_ij
+	*) everything else
+	*/
+
+	sym3 TF_DBar2_alpha_LL = tracefree(*DBar2_alpha_LL, *gammaBar_LL, *gammaBar_UU);
+
+	sym3 TF_RBar_LL = tracefree(*RBar_LL, *gammaBar_LL, *gammaBar_UU);
+
+	//DBar2_phi_ll.ij := DBar_i DBar_j phi = phi_,ij - connBar^k_ij phi_,k
+	sym3 DBar2_phi_LL = sym3_sub(partial2_phi_LL, real3_3sym3_dot1(*partial_phi_L, *connBar_ULL));
+
+	sym3 tracelessPart_LL;
+<? for ij,xij in ipairs(symNames) do
+	local i,j,xi,xj = from6to3x3(ij)
+?>	tracelessPart_LL.<?=xij?> = (0.
+			+ 2. * partial_phi_L-><?=xi?> * partial_alpha_L-><?=xj?>
+			+ 2. * partial_phi_L-><?=xj?> * partial_alpha_L-><?=xi?>
+			+ U->alpha * (0.
+				- 2. * DBar2_phi_LL.<?=xij?>
+				+ 4. * partial_phi_L-><?=xi?> * partial_phi_L-><?=xj?>
+				- 8. * M_PI * U->S_ll.<?=xij?> / (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x))
+			)
+		);
+<? end
+?>
+
+	tracelessPart_LL = tracefree(tracelessPart_LL, *gammaBar_LL, *gammaBar_UU);
+
+	/*
+	2017 Ruchlin et al, eqn. 11b
+	ABar_ij,t = 
+		- 2/3 ABar_ij DBar_k beta^k
+		- 2 alpha ABar_ik ABar^k_j
+		+ alpha ABar_ij K
+		+ exp(-4 phi) (trace-free part above)_ij
+		+ ABar_ij,k beta^k
+		+ beta^k_,i ABar_jk
+		+ beta^k_,j ABar_ik
+	*/
+<? for ij,xij in ipairs(symNames) do
+	local i,j,xi,xj = from6to3x3(ij)
+?>	deriv->ABar_LL.<?=xij?> += 0.
+		+ U->ABar_LL.<?=xij?> * (U->alpha * U->K - 2. / 3. * tr_DBar_beta)
+<?	for k,xk in ipairs(xNames) do
+?>		- 2. * U->alpha * U->ABar_LL.<?=sym(i,k)?> * ABar_UL-><?=xk?>.<?=xj?>
+<?	end
+?>
+		+ exp_neg4phi * (0.
+			+ tracelessPart_LL.<?=xij?>
+			- TF_DBar2_alpha_LL.<?=xij?>
+			+ U->alpha * TF_RBar_LL.<?=xij?>
+		)	
+<?	for k,xk in ipairs(xNames) do
+?>		+ partial_ABar_LLL.<?=xk?>.<?=xij?> * U->beta_U.<?=xk?>
+		+ U->ABar_LL.<?=sym(j,k)?> * partial_beta_UL-><?=xk?>.<?=xi?>
+		+ U->ABar_LL.<?=sym(i,k)?> * partial_beta_UL-><?=xk?>.<?=xj?>
+<? 	end
+?>	;
+<? end
+?>
 }
 
 //TODO if we're calculating the constrains in the derivative
@@ -130,11 +371,6 @@ kernel void calcDeriv(
 		real3_real_mul(partial_detg_l, det_gammaHat));	
 	real3 partial_det_gammaBar_L = real3_rescaleFromCoord_l(partial_det_gammaBar_l, x); 
 
-	real3 partial_W_L;
-<? for i,xi in ipairs(xNames) do
-?>	partial_W_L.<?=xi?> = partial_W_l[<?=i-1?>] / calc_len_<?=xi?>(x);
-<? end
-?>
 
 	//partial_beta_UL.I.J := e_i^I (beta^M e^i_M)_,j e^j_J
 	real3x3 partial_beta_UL = real3x3_partial_rescaleFromCoord_Ul(U->beta_U, partial_beta_Ul, x);
@@ -150,36 +386,31 @@ kernel void calcDeriv(
 	real tr_DBar_beta = tr_partial_beta + real3_dot(U->beta_U, partial_det_gammaBar_L);
 
 <? if useCalcDeriv_W then ?>
-
-	//2017 Ruchlin et al eqn 11c
-	//W,t = 1/3 W (alpha K - beta^k connBar^j_kj - beta^k_,k) + beta^k W_,k
-	deriv->W += (1. / 3.) * U->W * (
-			U->alpha * U->K 
-			- tr_DBar_beta
-		)
-<? for i,xi in ipairs(xNames) do
-?>		+ U->beta_U.<?=xi?> * partial_W_L.<?=xi?>
-<? end
-?>	;
-
+	calcDeriv_W(
+		solver,
+		deriv,
+		U,
+		x,
+		tr_DBar_beta,
+		partial_W_l);
 <? end	-- useCalcDeriv_W ?>
 
 	//////////////////////////////// K_,t //////////////////////////////// 
 
-<?=eqn:makePartial'K'?>			//partial_K_l[i] := K,i
 <?=eqn:makePartial'epsilon_LL'?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
 <?=eqn:makePartial2'alpha'?>		//partial2_alpha_ll.ij := alpha_,ij
 
 	real3 partial_K_L;
+	{
+<?=eqn:makePartial'K'?>			//partial_K_l[i] := K,i
 <? for i,xi in ipairs(xNames) do
-?>	partial_K_L.<?=xi?> = partial_K_l[<?=i-1?>] / calc_len_<?=xi?>(x);
+?>		partial_K_L.<?=xi?> = partial_K_l[<?=i-1?>] / calc_len_<?=xi?>(x);
 <? end
-?>
+?>	}
 
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
-	real det_gammaBarLL = calc_det_gammaBarLL(x);
+	real det_gammaBarLL = calc_det_gammaBarLL(x);	//should be 1
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
-	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
 
 	//exp(-4 phi)
 	real exp_neg4phi = calc_exp_neg4phi(U);
@@ -193,39 +424,32 @@ kernel void calcDeriv(
 	}
 	real3 partial_phi_L = real3_rescaleFromCoord_l(partial_phi_l, x);
 
-<?=eqn:getCode_partial_gammaBar_LLL()?>
+<?=eqn:getCode_partial_gammaBar_LLL()?>	//requires partial_epsilon_LLl
+<?=eqn:getCode_connBar_ULL()?>	//requires partial_gammaBar_LLL
 
-<?=eqn:getCode_connBar_ULL()?>
-
-	sym3 partial2_alpha_LL;
+	sym3 DBar2_alpha_LL;
+	{
+		sym3 partial2_alpha_LL;
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
-?>	partial2_alpha_LL.<?=xij?> = partial2_alpha_ll[<?=ij-1?>] / (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x));
+?>		partial2_alpha_LL.<?=xij?> = partial2_alpha_ll[<?=ij-1?>] / (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x));
 <? end
 ?>
-	//DBar_i DBar_j alpha = alpha,ij - connBar^k_ij alpha,k
-	sym3 DBar2_alpha_LL;
-<? for ij,xij in ipairs(symNames) do
-?>	DBar2_alpha_LL.<?=xij?> = partial2_alpha_LL.<?=xij?>
-<?	for k,xk in ipairs(xNames) do
-?>		- connBar_ULL.<?=xk?>.<?=xij?> * partial_alpha_L.<?=xk?>
-<?	end
-?>	;
-<? end
-?>
-	
-	//ABar^i_j = gammaBar^ik ABar_kj
+		//DBar_i DBar_j alpha = alpha,ij - connBar^k_ij alpha,k
+		//used below for TF_DBar2_alpha_LL
+		DBar2_alpha_LL = sym3_sub(partial2_alpha_LL, real3_3sym3_dot1(partial_alpha_L, connBar_ULL));
+	}
+
+	//ABar^i_j := gammaBar^ik ABar_kj
 	real3x3 ABar_UL = sym3_sym3_mul(gammaBar_UU, U->ABar_LL);
-
-<? if useCalcDeriv_K then ?>
-
+	
+	//ABar^ij := ABar^i_k gammaBar^kj
 	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);	//ABar^IJ = ABar^I_K gammaBar^KJ
 
-	//tr_DBar2_alpha := gammaBar^ij DBar_i DBar_j alpha
-	real tr_DBar2_alpha = sym3_dot(gammaBar_UU, DBar2_alpha_LL);
-	
-	//tr_ABarSq := ABar_ij ABar^ij = ABar_ij ABar_kl gammaBar^ik gammaBar^jl
-	real tr_ABarSq = sym3_dot(U->ABar_LL, ABar_UU);
+	//still used in getCode_RBar_LL
+	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
+
+<? if useCalcDeriv_K then ?>
 	
 	/*
 	gammaBar_ij = exp(-4 phi) gamma_ij
@@ -234,113 +458,47 @@ kernel void calcDeriv(
 	S := S_ij gamma^ij = exp(-4 phi) S_ij gammaBar^ij 
 	*/
 	real S = exp_neg4phi * sym3_dot(U->S_ll, gammaBar_uu);
-	
-	/*
-	B&S 11.52
-	Alcubierre 2.8.12
-	K_,t = -gamma^ij D_i D_j alpha + alpha (ABar_ij ABar^ij + K^2 / 3) + 4 pi alpha (rho + S) + beta^i K_,i
-	2017 Ruchlin et al
-	K_,t = 
-		1/3 alpha K^2 
-		+ alpha ABar_ij ABar^ij 
-		- exp(-4 phi) (
-			DBar_i DBar^i alpha 
-			+ 2 gammaBar^ij alpha_,i phi_,j
-		) 
-		+ K_,i beta^i
-		+ 4 pi alpha (rho + S)
-	*/
-	deriv->K += 0.
-		+ U->alpha * U->K * U->K / 3.
-		+ U->alpha * tr_ABarSq
-		- exp_neg4phi * (0.
-			+ tr_DBar2_alpha
-			+ 2. * real3_weightedDot(
-				partial_phi_L,
-				partial_alpha_L,
-				gammaBar_UU)
-		)
-		+ real3_dot(U->beta_U, partial_K_L)
-		+ 4. * M_PI * U->alpha * (U->rho + S)
-	;
+
+	calcDeriv_K(
+		solver,
+		deriv,
+		U,
+		&gammaBar_UU,
+		&ABar_UU,
+		&DBar2_alpha_LL,
+		&partial_alpha_L,
+		&partial_phi_L,
+		&partial_K_L,
+		exp_neg4phi,
+		S
+	);
 
 <? end	-- useCalcDeriv_K ?>
 
 	//////////////////////////////// epsilon_ij,t //////////////////////////////// 
 
-<?=eqn:makePartial2'W'?>			//partial2_W_ll.ij := W_,ij
-
 <? if useCalcDeriv_epsilon_LL then ?>
-
-	real tr_ABar = real3x3_trace(ABar_UL);
-
-	/*
-	2017 Ruchlin et al, eqn 11a
-	epsilon_ij,t = 2/3 gammaBar_ij (alpha ABar^k_k - DBar_k beta^k) + DHat_i beta_j + DHat_j beta_i - 2 alpha ABar_ij + epsilon_ij,k beta^k + epsilon_ik beta^k_,j + epsilon_kj beta^k_,i
-	...using DBar_(i beta_j) = DHat_(i beta_j) + epsilon_k(j beta^k_,i) + 1/2 epsilon_ij,k beta^k
-	= 	
-		+ 2/3 gammaBar_ij (
-			alpha ABar^k_k 
-			- beta^k_,k 
-			- connBar^k_lk beta^l
-		) 
-		- 2 alpha ABar_ij 
-		+ .5 DBar_i beta_j
-		+ .5 DBar_j beta_i
-	
-
-	Etienne's SENR Mathematica notebook:
-	= 
-		// Lie derivative terms
-		beta^k gammaBar_ij,k
-		+ gammaBar_ki beta^k_,j
-		+ gammaBar_kj beta^k_,i
-
-		- 2/3 gammaBar_ij DBar_k beta^k
-		+ 2/3 alpha ABar^k_k
-		- 2 alpha ABar_ij
-
-	Looks like the paper's notation DBar_i beta_j implies DBar_j (gammaBar_ik beta^k) = gammaBar_ki DBar_j beta^k
-	...which is not DBar_j ( gamma_ik beta^k ), which was my interpretation of the definition of beta_i := gamma_ij beta^k
-	*/
-<? for ij,xij in ipairs(symNames) do
-	local i,j,xi,xj = from6to3x3(ij)
-?>	deriv->epsilon_LL.<?=xij?> += 
-		2. / 3. * gammaBar_LL.<?=xij?> * (U->alpha * tr_ABar - tr_DBar_beta)
-		- 2 * U->alpha * U->ABar_LL.<?=xij?>
-<? 	for k,xk in ipairs(xNames) do
-?>		+ partial_gammaBar_LLL.<?=xk?>.<?=xij?> * U->beta_U.<?=xk?>
-		+ gammaBar_LL.<?=sym(k,i)?> * partial_beta_UL.<?=xk?>.<?=xj?>
-		+ gammaBar_LL.<?=sym(k,j)?> * partial_beta_UL.<?=xk?>.<?=xi?>
-<? 	end
-?>	;
-<? end
-?>
-
+	calcDeriv_epsilon_LL(
+		solver,
+		deriv,
+		U,
+		&gammaBar_LL,
+		&partial_gammaBar_LLL,
+		&partial_beta_UL,
+		&ABar_UL,
+		tr_DBar_beta
+	);
 <? end	-- useCalcDeriv_epsilon_LL ?>
 	
 	//////////////////////////////// ABar_ij_,t //////////////////////////////// 
 
-<?=eqn:makePartial'ABar_LL'?>		//partial_ABar_lll[k].ij = ABar_ij,k
-<?=eqn:getCode_partial_ABar_LLL()?>
-
-	//partial_LambdaBar_UL.I.J := e_i^I (Lambda^M e^i_M)_,j e^j_J
-<?=eqn:makePartial'LambdaBar_U'?>		//partial_LambdaBar_ul[j].i := connBar^i_,j
-	real3x3 partial_LambdaBar_UL = real3x3_partial_rescaleFromCoord_Ul(U->LambdaBar_U, partial_LambdaBar_Ul, x);
-
-	sym3 partial2_phi_ll;
+	real3x3 partial_LambdaBar_UL;
 	{
-		//This is only used by ABar_ij,t:
-		//partial2_phi_ll.ij := phi_,ij = 1/(2W) (-W_,ij + W_,i W_,j / W)
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-?>		partial2_phi_ll.<?=xij?> = .5 * (
-				-partial2_W_ll[<?=ij-1?>] 
-				+ partial_W_l[<?=i-1?>] * partial_W_l[<?=j-1?>] / U->W
-			) / U->W;
-<? end ?>
+		//partial_LambdaBar_ul[j].i := LambdaBar^i_,j
+<?=eqn:makePartial'LambdaBar_U'?>
+		//partial_LambdaBar_UL.I.J := e_i^I (Lambda^M e^i_M)_,j e^j_J
+		partial_LambdaBar_UL = real3x3_partial_rescaleFromCoord_Ul(U->LambdaBar_U, partial_LambdaBar_Ul, x);
 	}
-	sym3 partial2_phi_LL = sym3_rescaleFromCoord_ll(partial2_phi_ll, x);
 
 	//partial_connHat_ulll[l].i.jk = connHat^i_jk,l
 	_3sym3 partial_connHat_ulll[3];
@@ -350,7 +508,7 @@ kernel void calcDeriv(
 	
 	//Delta_ULL[I].JK := Delta^I_JK = connBar^I_JK + connHat^I_JK
 	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
-	
+
 <? if useCalcDeriv_ABar_LL then ?>
 	
 	//Delta_U.I := e_i^I Delta^i = e_i^I (LambdaBar^i - C^i)
@@ -364,79 +522,24 @@ kernel void calcDeriv(
 	sym3 gammaBar_ll = sym3_add(gammaHat_ll, epsilon_ll);			//gammaBar_ll.ij := gammaBar_ij = gammaHat_ij + epsilon_ij
 <?=eqn:getCode_RBar_LL()?> 
 
-	//DBar2_phi_ll.ij := DBar_i DBar_j phi = phi_,ij - connBar^k_ij phi_,k
-	sym3 DBar2_phi_LL = sym3_sub(partial2_phi_LL, real3_3sym3_dot1(partial_phi_L, connBar_ULL));
-
-	/*
-	2017 Ruchlin et al eqn 11b
-	traceless portion of ...
-		-2 alpha DBar_i DBar_j phi 
-		+ 4 alpha DBar_i phi DBar_j phi 
-		+ 2 DBar_i phi DBar_j alpha 
-		+ 2 DBar_i alpha DBar_j phi 
-		- DBar_i DBar_j alpha 
-		+ alpha RBar_ij 
-		- 8 pi alpha S_ij
-	
-	SENR does trace-free on a few terms individually:
-	*) -DBar_i DBar_j alpha
-	*) alpha RBar_ij
-	*) everything else
-
-	*/
-	sym3 TF_DBar2_alpha_LL = tracefree(DBar2_alpha_LL, gammaBar_LL, gammaBar_UU);
-
-	sym3 TF_RBar_LL = tracefree(RBar_LL, gammaBar_LL, gammaBar_UU);
-
-	sym3 tracelessPart_LL;
-<? for ij,xij in ipairs(symNames) do
-	local i,j,xi,xj = from6to3x3(ij)
-?>	tracelessPart_LL.<?=xij?> = (0.
-			+ 2. * partial_phi_L.<?=xi?> * partial_alpha_L.<?=xj?>
-			+ 2. * partial_phi_L.<?=xj?> * partial_alpha_L.<?=xi?>
-			+ U->alpha * (0.
-				- 2. * DBar2_phi_LL.<?=xij?>
-				+ 4. * partial_phi_L.<?=xi?> * partial_phi_L.<?=xj?>
-				- 8. * M_PI * U->S_ll.<?=xij?> / (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x))
-			)
-		);
-<? end
-?>
-	tracelessPart_LL = tracefree(tracelessPart_LL, gammaBar_LL, gammaBar_UU);
-
-	/*
-	2017 Ruchlin et al, eqn. 11b
-	ABar_ij,t = 
-		- 2/3 ABar_ij DBar_k beta^k
-		- 2 alpha ABar_ik ABar^k_j
-		+ alpha ABar_ij K
-		+ exp(-4 phi) (trace-free part above)_ij
-		+ ABar_ij,k beta^k
-		+ beta^k_,i ABar_jk
-		+ beta^k_,j ABar_ik
-	*/
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi,xj = xNames[i],xNames[j]
-?>	deriv->ABar_LL.<?=xij?> += 0.
-		+ U->ABar_LL.<?=xij?> * (U->alpha * U->K - 2. / 3. * tr_DBar_beta)
-<?	for k,xk in ipairs(xNames) do
-?>		- 2. * U->alpha * U->ABar_LL.<?=sym(i,k)?> * ABar_UL.<?=xk?>.<?=xj?>
-<?	end
-?>
-		+ exp_neg4phi * (0.
-			+ tracelessPart_LL.<?=xij?>
-			- TF_DBar2_alpha_LL.<?=xij?>
-			+ U->alpha * TF_RBar_LL.<?=xij?>
-		)	
-<?	for k,xk in ipairs(xNames) do
-?>		+ partial_ABar_LLL.<?=xk?>.<?=xij?> * U->beta_U.<?=xk?>
-		+ U->ABar_LL.<?=sym(j,k)?> * partial_beta_UL.<?=xk?>.<?=xi?>
-		+ U->ABar_LL.<?=sym(i,k)?> * partial_beta_UL.<?=xk?>.<?=xj?>
-<? 	end
-?>	;
-<? end
-?>
+	calcDeriv_ABar_LL(
+		solver,
+		deriv,
+		U,
+		x,
+		&gammaBar_LL,
+		&gammaBar_UU,
+		&DBar2_alpha_LL,
+		&RBar_LL,
+		&partial_alpha_L, 
+		&partial_phi_L, 
+		&connBar_ULL,
+		&ABar_UL,
+		&partial_beta_UL,
+		partial_W_l,
+		exp_neg4phi,
+		tr_DBar_beta
+	);
 
 <? end	-- useCalcDeriv_ABar_LL ?>
 	//////////////////////////////// LambdaBar^i_,t //////////////////////////////// 
@@ -744,7 +847,7 @@ then
 <? if eqn.guiVars.calc_H_and_M and eqn.guiVars.calc_H_and_M.value then ?>
 
 <?=eqn:makePartial'epsilon_LL'?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
-<?=eqn:makePartial'K'?>			//partial_K_l[i] := K,i
+<?=eqn:makePartial'K'?>				//partial_K_l[i] := K,i
 <?=eqn:makePartial'W'?>				//partial_W_l[i] := phi_,i 
 <?=eqn:makePartial2'W'?>			//partial2_W_ll.ij := phi_,ij
 
@@ -786,10 +889,13 @@ then
 	_3sym3 partial_connHat_ulll[3];
 	calc_partial_connHat_ulll(partial_connHat_ulll, x);
 
-<?=eqn:makePartial'LambdaBar_U'?>	//partial_LambdaBar_ul[j].i := connBar^i_,j
-
-	//partial_LambdaBar_UL.I.J := e_i^I (Lambda^M e^i_M)_,j e^j_J
-	real3x3 partial_LambdaBar_UL = real3x3_partial_rescaleFromCoord_Ul(U->LambdaBar_U, partial_LambdaBar_Ul, x);
+	real3x3 partial_LambdaBar_UL;
+	{
+		//partial_LambdaBar_ul[j].i := connBar^i_,j
+<?=eqn:makePartial'LambdaBar_U'?>	
+		//partial_LambdaBar_UL.I.J := e_i^I (Lambda^M e^i_M)_,j e^j_J
+		partial_LambdaBar_UL = real3x3_partial_rescaleFromCoord_Ul(U->LambdaBar_U, partial_LambdaBar_Ul, x);
+	}
 
 <?=eqn:makePartial2'epsilon_LL'?>
 <?=eqn:getCode_trBar_partial2_gammaBar_LL()?>
