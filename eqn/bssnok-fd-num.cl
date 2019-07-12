@@ -1280,10 +1280,8 @@ kernel void calcDeriv(
 		&gammaBar_uu, 
 		partial_epsilon_LLl, 
 		partial2_epsilon_LLll);
-	
-	sym3 gammaHat_ll = calc_gammaHat_ll(x);							//gammaHat_ll.ij := gammaHat_ij
-	sym3 epsilon_ll = sym3_rescaleToCoord_LL(U->epsilon_LL, x);		//epsilon_ll.ij := epsilon_ij = e_i^I e_j^I epsilon_IJ
-	sym3 gammaBar_ll = sym3_add(gammaHat_ll, epsilon_ll);			//gammaBar_ll.ij := gammaBar_ij = gammaHat_ij + epsilon_ij
+			
+	sym3 gammaBar_ll = sym3_rescaleToCoord_LL(gammaBar_LL, x); 
 
 	sym3 RBar_LL = calc_RBar_LL(
 		U,
