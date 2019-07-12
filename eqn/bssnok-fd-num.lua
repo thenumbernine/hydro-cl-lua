@@ -1132,7 +1132,7 @@ for i,xi in ipairs(xNames) do
 <?		for k,xk in ipairs(xNames) do
 			for l,xl in ipairs(xNames) do
 				for m,xm in ipairs(xNames) do
-?>		+ gammaBar_uu.<?=sym(k,l)?> * gammaBar_ll.<?=sym(i,m)?> * calc_partial_connHat_ulll_<?=xm..sym(j,k)..xl?>(x)
+?>		+ gammaBar_uu.<?=sym(k,l)?> * gammaBar_LL.<?=sym(i,m)?> * calc_len_<?=xi?>(x) * calc_partial_connHat_Ulll_<?=xm..sym(j,k)..xl?>(x)
 <?				end
 			end
 		end

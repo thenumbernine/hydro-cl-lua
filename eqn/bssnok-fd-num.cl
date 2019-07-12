@@ -263,14 +263,18 @@ end ?>
 	return partial_T_UL;
 }
 
-//calc_partial_connHat_ulll_ijkl := connHat^i_jk,l
+//calc_partial_connHat_Ulll_ijkl := e_i^I connHat^i_jk,l
 <? 
-local dGamma = coord.Gamma_ull'^i_jk,l'()
+local partial_connHat_ulll = Tensor'^i_jkl'
+partial_connHat_ulll['^i_jkl'] = coord.Gamma_ull'^i_jk,l'()
+local partial_connHat_Ulll = Tensor('^I_jkl', function(i,j,k,l)
+	return (partial_connHat_ulll[i][j][k][l] * coord.lenExprs[i])()
+end)
 for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
 		for l,xl in ipairs(xNames) do
-?>#define calc_partial_connHat_ulll_<?=xi..xjk..xl?>(pt) (<?=eqn:compile(dGamma[i][j][k][l]):gsub('x%.', 'pt.')?>)
+?>#define calc_partial_connHat_Ulll_<?=xi..xjk..xl?>(pt) (<?=eqn:compile(partial_connHat_Ulll[i][j][k][l]):gsub('x%.', 'pt.')?>)
 <?		end
 	end
 end
@@ -650,8 +654,8 @@ for k,xk in ipairs(xNames) do
 //		+ partial2_gammaBar_llll.<?=sym(k,l)?>.<?=xij?>
 <?			for m,xm in ipairs(xNames) do
 ?>
-		- gammaBar_ll.<?=sym(m,j)?> * calc_partial_connHat_ulll_<?=xm..sym(k,i)..xl?>(x)
-		- gammaBar_ll.<?=sym(m,i)?> * calc_partial_connHat_ulll_<?=xm..sym(k,j)..xl?>(x)
+		- gammaBar_LL-><?=sym(m,j)?> * calc_len_<?=xj?>(x) * calc_partial_connHat_Ulll_<?=xm..sym(k,i)..xl?>(x)
+		- gammaBar_LL-><?=sym(m,i)?> * calc_len_<?=xi?>(x) * calc_partial_connHat_Ulll_<?=xm..sym(k,j)..xl?>(x)
 		- connHat_ull.<?=xm?>.<?=sym(k,i)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,j)?>
 		- connHat_ull.<?=xm?>.<?=sym(k,j)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,i)?>
 <?			end
@@ -1377,8 +1381,8 @@ for i,xi in ipairs(xNames) do
 ?>	DHat2_beta_ULL.<?=xi?>.<?=xj?>.<?=xk?> = 
 		partial2_beta_ULL.<?=xi?>.<?=xjk?>
 <?		for l,xl in ipairs(xNames) do
-?>		+ calc_partial_connHat_ulll_<?=xi..sym(l,j)..xk?>(x) * U->beta_U.<?=xl?> 
-			* calc_len_<?=xi?>(x) / (calc_len_<?=xj?>(x) * calc_len_<?=xk?>(x) * calc_len_<?=xl?>(x))
+?>		+ calc_partial_connHat_Ulll_<?=xi..sym(l,j)..xk?>(x) * U->beta_U.<?=xl?> 
+			/ (calc_len_<?=xj?>(x) * calc_len_<?=xk?>(x) * calc_len_<?=xl?>(x))
 		+ connHat_ULL.<?=xi?>.<?=sym(l,j)?> * partial_beta_UL.<?=xl?>.<?=xk?>
 		+ connHat_ULL.<?=xi?>.<?=sym(l,k)?> * partial_beta_UL.<?=xl?>.<?=xj?>
 		- connHat_ULL.<?=xl?>.<?=sym(j,k)?> * partial_beta_UL.<?=xi?>.<?=xl?>
