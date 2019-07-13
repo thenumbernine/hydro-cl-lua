@@ -1,5 +1,5 @@
 <? 
-local common = require 'common'()
+local common = require 'common'
 local sym = common.sym
 
 local solver = eqn.solver

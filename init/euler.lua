@@ -9,7 +9,7 @@ local materials = require 'materials'
 local ffi = require 'ffi'
 local InitCond = require 'init.init'
 
-local common = require 'common'()
+local common = require 'common'
 local xNames = common.xNames
 local minmaxs = common.minmaxs
 

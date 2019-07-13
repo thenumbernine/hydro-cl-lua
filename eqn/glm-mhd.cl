@@ -6,7 +6,7 @@ tweaked it while looking at
 */
 
 <?
-local common = require 'common'()	-- xNames, symNames
+local common = require 'common'	-- xNames, symNames
 local xNames = common.xNames
 local symNames = common.symNames
 local from3x3to6 = common.from3x3to6 

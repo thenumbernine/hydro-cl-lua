@@ -22,7 +22,7 @@ local range = require 'ext.range'
 local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local template = require 'template'
-local common = require 'common'()
+local common = require 'common'
 local xNames = common.xNames
 
 local GLM_Maxwell = class(Equation)

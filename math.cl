@@ -3,7 +3,7 @@
 //#include "math.h"
 
 <?
-local common = require 'common'()	-- xNames, symNames
+local common = require 'common'	-- xNames, symNames
 local xNames = common.xNames
 local symNames = common.symNames
 local sym = common.sym

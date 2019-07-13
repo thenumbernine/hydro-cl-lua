@@ -65,7 +65,7 @@ local args = {
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics 520'] = {
 				{256,1,1},
-				{30,30,1},
+				{64,64,1},
 				{16,16,16},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
@@ -118,7 +118,7 @@ local args = {
 	mins = cmdline.mins or {0, 0, -math.pi},
 	maxs = cmdline.maxs or {10, math.pi, math.pi},
 	gridSize = ({
-		{256, 1, 1}, -- 1D
+		{160, 1, 1}, -- 1D
 		{32, 32, 1}, -- 2D
 		{16, 16, 16}, -- 3D
 	})[dim],

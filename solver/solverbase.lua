@@ -16,7 +16,7 @@ local roundup = require 'util.roundup'
 local time, getTime = table.unpack(require 'util.time')
 
 
-local common = require 'common'()	-- xNames, symNames
+local common = require 'common'	-- xNames, symNames
 local xNames = common.xNames
 local symNames = common.symNames
 local from3x3to6 = common.from3x3to6

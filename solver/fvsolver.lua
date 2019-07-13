@@ -9,7 +9,7 @@ local file = require 'ext.file'
 local template = require 'template'
 local GridSolver = require 'solver.gridsolver'
 
-local common = require 'common'()
+local common = require 'common'
 local xNames = common.xNames
 local symNames = common.symNames
 local from3x3to6 = common.from3x3to6 

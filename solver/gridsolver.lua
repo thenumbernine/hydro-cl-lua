@@ -18,7 +18,7 @@ local time, getTime = table.unpack(require 'util.time')
 local SolverBase = require 'solver.solverbase'
 local makestruct = require'eqn.makestruct'
 
-local common = require 'common'()
+local common = require 'common'
 local minmaxs = common.minmaxs
 local xNames = common.xNames
 local symNames = common.symNames

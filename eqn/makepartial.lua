@@ -1,8 +1,8 @@
 local clnumber = require 'cl.obj.number'
 local table = require 'ext.table'
-require 'common'(_G)
+local common = require 'common'
 
--- derivCoeffs[derivative][accuracy] = {coeffs...}
+-- derivCoeffs[derivative][order] = {coeffs...}
 local derivCoeffs = {
 	-- centered 1st deriv coefficients 
 	{
@@ -18,6 +18,18 @@ local derivCoeffs = {
 		[6] = {[0] = -49/18, 3/2, -3/20, 1/90},
 		[8] = {[0] = -205/72, 8/5, -1/5, 8/315, -1/560},
 	},
+	-- centered 3rd deriv coefficients
+	{
+		[2] = {-1, 1/2},
+		[4] = {-13/8, 1, -1/8},
+		[6] = {-61/30, 169/120, -3/10, 7/240},
+	},
+	-- centered 4th deriv coefficients
+	{
+		[2] = {[0] = 6, -4, 1},
+		[4] = {[0] = 28/3, -13/2, 2, -1/6},
+		[6] = {[0] = 91/8, -122/15, 169/60, -2/5, 7/240},
+	}
 }
 
 --[[
@@ -28,7 +40,8 @@ fieldType = type of field
 nameOverride = what name to use for the partial vars
 	default: partial_field_l
 --]]
-local function makePartial(order, solver, field, fieldType, nameOverride)
+local function makePartial1(order, solver, field, fieldType, nameOverride)
+	local xNames = common.xNames
 	local suffix = 'l'
 	if not field:find'_' then suffix = '_' .. suffix end
 
@@ -40,9 +53,9 @@ local function makePartial(order, solver, field, fieldType, nameOverride)
 	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)
 	local lines = table()
 	if fieldType == 'real' then
-		lines:insert('\treal3 '..name..';\n')
+		lines:insert('\treal3 '..name..';')
 	else
-		lines:insert('\t'..fieldType..' '..name..'[3];\n')
+		lines:insert('\t'..fieldType..' '..name..'[3];')
 	end
 	for i,xi in ipairs(xNames) do
 		local namei
@@ -66,6 +79,9 @@ local function makePartial(order, solver, field, fieldType, nameOverride)
 end
 
 local function makePartial2(order, solver, field, fieldType, nameOverride)
+	local xNames = common.xNames
+	local symNames = common.symNames
+	local from6to3x3 = common.from6to3x3
 	local suffix = 'll'
 	if not field:find'_' then suffix = '_' .. suffix end
 	
@@ -122,6 +138,6 @@ end
 
 return {
 	derivCoeffs = derivCoeffs,
-	makePartial = makePartial,
+	makePartial1 = makePartial1,
 	makePartial2 = makePartial2,
 }

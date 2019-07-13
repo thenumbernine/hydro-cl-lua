@@ -5,7 +5,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'eqn.eqn'
 
-local common = require 'common'()
+local common = require 'common'
 local xNames = common.xNames
 
 local NLSEqn = class(Equation)

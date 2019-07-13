@@ -170,7 +170,7 @@ function Euler:getPrimConsCode()
 end
 
 Euler.initStateCode = [[
-<? local xNames = require 'common'().xNames ?>
+<? local xNames = require 'common'.xNames ?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf

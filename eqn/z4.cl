@@ -1,5 +1,5 @@
 <?
-local common = require 'common'()
+local common = require 'common'
 local xNames = common.xNames
 local symNames = common.symNames
 local from3x3to6 = common.from3x3to6 
@@ -8,7 +8,7 @@ local sym = common.sym
 
 local derivOrder = 2 * solver.numGhost
 local makePartials = require 'eqn.makepartial'
-local makePartial = function(...) return makePartials.makePartial(derivOrder, solver, ...) end
+local makePartial1 = function(...) return makePartials.makePartial1(derivOrder, solver, ...) end
 local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end
 ?>
 

@@ -1,6 +1,6 @@
 <?
 local solver = eqn.solver
-local common = require 'common'()
+local common = require 'common'
 local xNames = common.xNames
 local sym = common.sym
 ?>

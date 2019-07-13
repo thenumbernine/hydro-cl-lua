@@ -13,10 +13,10 @@ local template = require 'template'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'eqn.einstein'
 local makestruct = require 'eqn.makestruct'
-local applyCommon = require 'common'
+local common = require 'common'
 
 local makePartials = require 'eqn.makepartial'
-local makePartial = makePartials.makePartial
+local makePartial1 = makePartials.makePartial1
 local makePartial2 = makePartials.makePartial2
 
 local Z4cFiniteDifferenceEquation = class(EinsteinEqn)
@@ -92,12 +92,12 @@ end
 
 function Z4cFiniteDifferenceEquation:getTemplateEnv()
 	local derivOrder = 2 * self.solver.numGhost
-	return applyCommon{
+	return table(common, {
 		eqn = self,
 		solver = self.solver,
-		makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
+		makePartial1 = function(...) return makePartial1(derivOrder, self.solver, ...) end,
 		makePartial2 = function(...) return makePartial2(derivOrder, self.solver, ...) end,
-	}
+	})
 end
 
 function Z4cFiniteDifferenceEquation:getCommonFuncCode()
@@ -244,7 +244,7 @@ kernel void initDerivs(
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
-<?=makePartial('gammaBar_uu', 'sym3')?>
+<?=makePartial1('gammaBar_uu', 'sym3')?>
 
 	//connBar^i = connBar^i_jk gammaBar^jk
 	// TODO is this still true?
@@ -337,9 +337,9 @@ Gamma^j_ij = (ln sqrt(g))_,i = .5 (ln g)_,i = .5 g_,i / g
 = -3 chi_,i / chi
 --]]
 		{name='expansion', code=template([[
-	<?=makePartial('chi', 'real')?>
-	<?=makePartial('alpha', 'real')?>
-	<?=makePartial('beta_u', 'real3')?>
+	<?=makePartial1('chi', 'real')?>
+	<?=makePartial1('alpha', 'real')?>
+	<?=makePartial1('beta_u', 'real3')?>
 	real tr_partial_beta = 0. <?
 for i,xi in ipairs(xNames) do
 ?> + partial_beta_ul[<?=i-1?>].<?=xi?><?
@@ -369,12 +369,11 @@ for i,xi in ipairs(xNames) do
 <?	end
 end
 ?>		- K;
-]], 			applyCommon{
+]], 			table(common, {
 					eqn = self,
 					solver = self.solver,
-					makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
-				}
-
+					makePartial1 = function(...) return makePartial1(derivOrder, self.solver, ...) end,
+				})
 			)
 		},
 		
@@ -433,12 +432,12 @@ end
 		{
 			name = 'gravity',
 			code = template([[
-	<?=makePartial('alpha', 'real')?>
-	<?=makePartial('beta_u', 'real3')?>
+	<?=makePartial1('alpha', 'real')?>
+	<?=makePartial1('beta_u', 'real3')?>
 
 	//gammaBar_ij = gammaHat_ij + epsilon_ij
 	//gammaBar_ij,k = epsilon_ij,k for static meshes
-	<?=makePartial('epsilon_ll', 'sym3')?>
+	<?=makePartial1('epsilon_ll', 'sym3')?>
 
 	//chi = exp(-4 phi)
 	real _1_chi = 1. / U->chi;
@@ -448,7 +447,7 @@ end
 	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, _1_chi);
 	
 	//gamma_ij,k = 1/chi gammaBar_ij,k - chi,k / chi^2 gammaBar_ij
-	<?=makePartial('chi', 'real')?>
+	<?=makePartial1('chi', 'real')?>
 	_3sym3 partial_gamma_lll = {
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_sub(
@@ -525,11 +524,11 @@ end ?>;
 	; 
 <? end
 ?>
-]],				applyCommon{
+]],				table(common, {
 					eqn = self,
 					solver = self.solver,
-					makePartial = function(...) return makePartial(derivOrder, self.solver, ...) end,
-				}
+					makePartial1 = function(...) return makePartial1(derivOrder, self.solver, ...) end,
+				})
 			), 
 			type = 'real3',
 		},

@@ -6,7 +6,7 @@ local range = require 'ext.range'
 local template = require 'template'
 local FiniteVolumeSolver = require 'solver.fvsolver'
 
-local common = require 'common'()
+local common = require 'common'
 local xNames = common.xNames
 local symNames = common.symNames
 local from3x3to6 = common.from3x3to6 

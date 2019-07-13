@@ -52,7 +52,7 @@ end
 
 Wave.initStateCode = [[
 <?
-local common = require 'common'()
+local common = require 'common'
 local xNames = common.xNames
 ?>
 kernel void initState(

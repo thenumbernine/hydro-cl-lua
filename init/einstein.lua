@@ -6,7 +6,7 @@ local vec3 = require 'vec.vec3'
 local clnumber = require 'cl.obj.number'
 local InitCond = require 'init.init'
 
-local common = require 'common'()
+local common = require 'common'
 local xNames = common.xNames
 
 local function compileC(expr, name, vars)
