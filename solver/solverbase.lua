@@ -1183,6 +1183,7 @@ function SolverBase:createDisplayComponents()
 		{name = 'zz', code = '*value_sym3 = _sym3(value_sym3->zz,0,0,0,0,0);'},
 		{name = 'norm', code = '*value_sym3 = _sym3(sqrt(sym3_dot(*value_sym3, *value_sym3)), 0,0,0,0,0);'},
 		{name = 'tr', code = '*value_sym3 = _sym3(sym3_trace(*value_sym3), 0,0,0,0,0);'},
+		{name = 'det', code = '*value_sym3 = _sym3(sym3_det(*value_sym3), 0,0,0,0,0);'},
 		
 		{name = 'x', code = '*value_real3 = _real3(value_sym3->xx, value_sym3->xy, value_sym3->xz); value_real3[1] = real3_zero;', type = 'real3', magn='x mag'},
 		{name = 'y', code = '*value_real3 = _real3(value_sym3->xy, value_sym3->yy, value_sym3->yz); value_real3[1] = real3_zero;', type = 'real3', magn='y mag'},

@@ -17,6 +17,12 @@ local useConstrainU = true
 local useAddSource = true
 ?>
 
+#define real3_add3(a,b,c)	real3_add(real3_add(a,b),c)
+#define real3_add4(a,b,c,d)	real3_add(real3_add(a,b),real3_add(c,d))
+
+#define sym3_add3(a,b,c)	sym3_add(sym3_add(a,b),c)
+#define sym3_add4(a,b,c,d)	sym3_add(sym3_add(a,b),sym3_add(c,d))	
+
 <?
 -- this block is shared with other things like initCond
 -- it will be pasted above the !getCommonCode block below, despite that being in an exclusive condition to this
@@ -300,22 +306,8 @@ local det_gammaHat = coord.det_g
 local partial_det_gammaHat_l = Tensor('_i', function(i)
 	return det_gammaHat:diff(coord.coords[i])()
 end)
-local partial_det_gammaHat_L = Tensor('_i', function(i)
-	return (partial_det_gammaHat_l[i] / coord.lenExprs[i])()
-end)
-?>
-real3 calc_partial_det_gammaHat_L(real3 x) {
-	real3 partial_det_gammaHat_L;
-<? 
-for i,xi in ipairs(xNames) do
-?>	partial_det_gammaHat_L.<?=xi?> = <?=eqn:compile(partial_det_gammaHat_L[i])?>;
-<? end
-?>	return partial_det_gammaHat_L;
-}
-
-<?
 local partial_det_gammaHat_over_det_gammaHat_L = Tensor('_i', function(i)
-	return (partial_det_gammaHat_L[i] / det_gammaHat)()
+	return (partial_det_gammaHat_l[i] / (det_gammaHat * coord.lenExprs[i]))()
 end)
 ?>
 real3 calc_partial_det_gammaHat_over_det_gammaHat_L(real3 x) {
@@ -327,19 +319,21 @@ for i,xi in ipairs(xNames) do
 ?>	return partial_det_gammaHat_over_det_gammaHat_L;
 }
 
-sym3 calc_partial2_det_gammaHat_LL(real3 x) {
-	sym3 partial2_det_gammaHat_LL;
 <?
 local partial2_det_gammaHat_ll = partial_det_gammaHat_l'_i,j'():factorDivision()
-local partial2_det_gammaHat_LL = Tensor('_ij', function(i,j)
-	return (partial2_det_gammaHat_ll[i][j] / (coord.lenExprs[i] * coord.lenExprs[j]))()
+local partial2_det_gammaHat_over_det_gammaHat_LL = Tensor('_ij', function(i,j)
+	return (partial2_det_gammaHat_ll[i][j] / (det_gammaHat * coord.lenExprs[i] * coord.lenExprs[j]))()
 end)
+?>
+sym3 calc_partial2_det_gammaHat_over_det_gammaHat_LL(real3 x) {
+	sym3 partial2_det_gammaHat_over_det_gammaHat_LL;
+<?
 for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-?>	partial2_det_gammaHat_LL.<?=xij?> = <?=eqn:compile(partial2_det_gammaHat_LL[i][j])?>;
+?>	partial2_det_gammaHat_over_det_gammaHat_LL.<?=xij?> = <?=eqn:compile(partial2_det_gammaHat_over_det_gammaHat_LL[i][j])?>;
 <?
 end
-?>	return partial2_det_gammaHat_LL;
+?>	return partial2_det_gammaHat_over_det_gammaHat_LL;
 }
 
 
@@ -370,7 +364,7 @@ det(epsilon_IJ + gammaHat_IJ)
 = 1
 TODO detg ... unless we want to change the constraint
 */
-#define calc_det_gammaBarLL 1.
+#define calc_det_gammaBarLL(x) 1.
 
 sym3 calc_gammaBar_UU(global const <?=eqn.cons_t?>* U, real3 x) {
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
@@ -972,8 +966,6 @@ static void calcDeriv_K(
 		+ 4. * M_PI * U->alpha * (U->rho + S);
 }
 
-#define sym3_add4(a,b,c,d)	sym3_add(sym3_add(a,b),sym3_add(c,d))	
-
 static sym3 sym3_Lbeta_LL(
 	const sym3 T_LL,
 	const _3sym3* partial_T_LLL,
@@ -1218,9 +1210,6 @@ kernel void calcDeriv(
 	notice: 
 	det(gammaBar_ij)/det(gammaHat_ij) = det(gammaBar_IJ)
 	*/
-	real det_gammaHat = calc_det_gammaHat(x);
-	
-	real3 partial_det_gammaHat_L = calc_partial_det_gammaHat_L(x);
 	real3 partial_det_gammaHat_over_det_gammaHat_L = calc_partial_det_gammaHat_over_det_gammaHat_L(x);
 
 	/*
@@ -1244,22 +1233,17 @@ kernel void calcDeriv(
 	*/
 	real detg = 1.;
 	real3 partial_detg_L = real3_zero;
-	sym3 partial2_detg_LL = sym3_zero;
-	real det_gammaBar = det_gammaHat * detg;
-	
-	real3 partial_det_gammaBar_L = real3_add(
-		real3_real_mul(partial_det_gammaHat_L, detg),
-		real3_real_mul(partial_detg_L, det_gammaHat));	
 	
 	real3 partial_det_gammaBar_over_det_gammaHat_L = real3_add(
 		real3_real_mul(partial_det_gammaHat_over_det_gammaHat_L, detg),
 		partial_detg_L);
-
+	
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
 	real det_gammaBar_over_det_gammaHat = det_gammaBarLL;
+	real det_gammaHat_over_det_gammaBar = 1. / det_gammaBar_over_det_gammaHat;
 	real3 partial_det_gammaBar_over_det_gammaBar_L = real3_real_mul(
 			partial_det_gammaBar_over_det_gammaHat_L, 
-			1. / det_gammaBar_over_det_gammaHat);
+			det_gammaHat_over_det_gammaBar); 
 
 	//partial_beta_UL.I.J := e_i^I (beta^M e^i_M)_,j e^j_J
 	real3x3 partial_beta_UL = real3x3_partial_rescaleFromCoord_Ul(U->beta_U, partial_beta_Ul, x);
@@ -1298,7 +1282,6 @@ kernel void calcDeriv(
 ?>	}
 
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
-	real det_gammaBarLL = calc_det_gammaBarLL(x);	//should be 1
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 
 	//exp(-4 phi)
@@ -1454,19 +1437,18 @@ end ?>
 
 	//for 1D this is r^2 sin(th) * (either sin(th) or cos(th))
 	//in case it can be factored out somewhere
-	sym3 partial2_det_gammaHat_LL = calc_partial2_det_gammaHat_LL(x);
+	sym3 partial2_det_gammaHat_over_det_gammaHat_LL = calc_partial2_det_gammaHat_over_det_gammaHat_LL(x);
+	
+	sym3 partial2_detg_LL = sym3_zero;
 
-	sym3 partial2_det_gammaBar_LL;
-<? for ij,xij in ipairs(symNames) do
-	local i,j,xi,xj = from6to3x3(ij)
-?>	partial2_det_gammaBar_LL.<?=xij?> = 
-		partial2_det_gammaHat_LL.<?=xij?> * detg
-		+ partial_det_gammaHat_L.<?=xi?> * partial_detg_L.<?=xj?>
-		+ partial_det_gammaHat_L.<?=xj?> * partial_detg_L.<?=xi?>
-		+ det_gammaHat * partial2_detg_LL.<?=xij?>
-	;
-<? end
-?>
+	sym3 partial2_det_gammaBar_over_det_gammaHat_LL = sym3_add3(
+			sym3_real_mul(partial2_det_gammaHat_over_det_gammaHat_LL, detg),
+			sym3_from_real3x3(real3_real3_outer(partial_det_gammaHat_over_det_gammaHat_L, partial_detg_L)),
+			partial2_detg_LL);
+	
+	sym3 partial2_det_gammaBar_over_det_gammaBar_LL = sym3_real_mul(
+		partial2_det_gammaBar_over_det_gammaHat_LL,
+		det_gammaHat_over_det_gammaBar);
 	
 	/*
 	DHat2_beta_ull.i.j.k = DHat_k DHat_j beta^i
@@ -1517,11 +1499,11 @@ end
 	*/
 	real3 tr12_partial2_beta_L = _3sym3_tr12(partial2_beta_ULL);
 
-	real3 partial2_det_gammaBar_times_beta_L = sym3_real3_mul(partial2_det_gammaBar_LL, U->beta_U);
+	real3 partial2_det_gammaBar_over_det_gammaBar_times_beta_L = sym3_real3_mul(partial2_det_gammaBar_over_det_gammaBar_LL, U->beta_U);
 
-	real partial_det_gammaBar_dot_beta = real3_dot(partial_det_gammaBar_L, U->beta_U);
+	real partial_det_gammaBar_over_det_gammaBar_dot_beta = real3_dot(partial_det_gammaBar_over_det_gammaBar_L, U->beta_U);
 
-	real3 partial_det_gammaBar_times_partial_beta_L = real3_real3x3_mul(partial_det_gammaBar_L, partial_beta_UL);
+	real3 partial_det_gammaBar_over_det_gammaBar_times_partial_beta_L = real3_real3x3_mul(partial_det_gammaBar_over_det_gammaBar_L, partial_beta_UL);
 
 	/*
 	DBar_tr_DBar_beta_l.i = DBar_i DBar_j beta^j
@@ -1547,25 +1529,20 @@ end
 	Etienne's SENR uses this alternative formulation: 
 	= beta^j_,ji
 		+ 1/2 (
-			gammaBar_,ij beta^j
-			- gammaBar_,i gammaBar_,j beta^j / gammaBar
-			+ gammaBar_,j beta^j_,i
-		) / gammaBar
+			gammaBar_,ij beta^j / gammaBar
+			+ (gammaBar_,j / gammaBar) beta^j_,i 
+			- (gammaBar_,i / gammaBar) (gammaBar_,j / gammaBar) beta^j
+		)
 	*/
-	real3 DBar_tr_DBar_beta_L;
-<? for i,xi in ipairs(xNames) do
-?>	DBar_tr_DBar_beta_L.<?=xi?> = 0.
-		+ tr12_partial2_beta_L.<?=xi?>
-		+ .5 * (
-			partial2_det_gammaBar_times_beta_L.<?=xi?> / det_gammaBar
-			
-			+ partial_det_gammaBar_times_partial_beta_L.<?=xi?> / det_gammaBar
-			
-			//Less accurate if I defer this 
-			- partial_det_gammaBar_L.<?=xi?> * partial_det_gammaBar_dot_beta / (det_gammaBar * det_gammaBar)
-		);
-<? end
-?>
+	real3 DBar_tr_DBar_beta_L = real3_add(
+		tr12_partial2_beta_L,
+		real3_real_mul(
+			real3_add3(
+				partial2_det_gammaBar_over_det_gammaBar_times_beta_L,
+				partial_det_gammaBar_over_det_gammaBar_times_partial_beta_L,
+				real3_real_mul(partial_det_gammaBar_over_det_gammaBar_L, -partial_det_gammaBar_over_det_gammaBar_dot_beta)
+			), .5)
+	);
 	
 	//DBar_tr_DBar_beta_u.i = DBar^i DBar_k beta^k = gammaBar^ij DBar_j DBar_k beta^k
 	real3 DBar_tr_DBar_beta_U = sym3_real3_mul(gammaBar_UU, DBar_tr_DBar_beta_L);
@@ -1637,9 +1614,6 @@ end
 <? end ?>
 
 <? if useCalcDeriv_beta_U then ?>
-
-#define real3_add3(a,b,c)	real3_add(real3_add(a,b),c)
-#define real3_add4(a,b,c,d)	real3_add(real3_add(a,b),real3_add(c,d))
 
 <? if eqn.useShift == 'GammaDriver' then ?>
 	//Gamma-driver

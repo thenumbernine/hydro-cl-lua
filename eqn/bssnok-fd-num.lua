@@ -729,7 +729,6 @@ end
 --]=]	
 	}
 
-	local derivOrder = 2 * self.solver.numGhost
 --[=[
 --[[ expansion:
 2003 Thornburg:  ... from Wald ...
