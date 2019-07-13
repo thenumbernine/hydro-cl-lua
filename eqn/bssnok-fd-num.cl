@@ -313,6 +313,20 @@ for i,xi in ipairs(xNames) do
 ?>	return partial_det_gammaHat_L;
 }
 
+<?
+local partial_det_gammaHat_over_det_gammaHat_L = Tensor('_i', function(i)
+	return (partial_det_gammaHat_L[i] / det_gammaHat)()
+end)
+?>
+real3 calc_partial_det_gammaHat_over_det_gammaHat_L(real3 x) {
+	real3 partial_det_gammaHat_over_det_gammaHat_L;
+<? 
+for i,xi in ipairs(xNames) do
+?>	partial_det_gammaHat_over_det_gammaHat_L.<?=xi?> = <?=eqn:compile(partial_det_gammaHat_over_det_gammaHat_L[i])?>;
+<? end
+?>	return partial_det_gammaHat_over_det_gammaHat_L;
+}
+
 sym3 calc_partial2_det_gammaHat_LL(real3 x) {
 	sym3 partial2_det_gammaHat_LL;
 <?
@@ -356,7 +370,7 @@ det(epsilon_IJ + gammaHat_IJ)
 = 1
 TODO detg ... unless we want to change the constraint
 */
-#define calc_det_gammaBarLL(x) 1
+#define calc_det_gammaBarLL 1.
 
 sym3 calc_gammaBar_UU(global const <?=eqn.cons_t?>* U, real3 x) {
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
@@ -1207,6 +1221,7 @@ kernel void calcDeriv(
 	real det_gammaHat = calc_det_gammaHat(x);
 	
 	real3 partial_det_gammaHat_L = calc_partial_det_gammaHat_L(x);
+	real3 partial_det_gammaHat_over_det_gammaHat_L = calc_partial_det_gammaHat_over_det_gammaHat_L(x);
 
 	/*
 	Etienne's SENR Mathematica notebook has '*  detg'...
@@ -1231,9 +1246,20 @@ kernel void calcDeriv(
 	real3 partial_detg_L = real3_zero;
 	sym3 partial2_detg_LL = sym3_zero;
 	real det_gammaBar = det_gammaHat * detg;
+	
 	real3 partial_det_gammaBar_L = real3_add(
 		real3_real_mul(partial_det_gammaHat_L, detg),
 		real3_real_mul(partial_detg_L, det_gammaHat));	
+	
+	real3 partial_det_gammaBar_over_det_gammaHat_L = real3_add(
+		real3_real_mul(partial_det_gammaHat_over_det_gammaHat_L, detg),
+		partial_detg_L);
+
+	real det_gammaBarLL = calc_det_gammaBarLL(x);
+	real det_gammaBar_over_det_gammaHat = det_gammaBarLL;
+	real3 partial_det_gammaBar_over_det_gammaBar_L = real3_real_mul(
+			partial_det_gammaBar_over_det_gammaHat_L, 
+			1. / det_gammaBar_over_det_gammaHat);
 
 	//partial_beta_UL.I.J := e_i^I (beta^M e^i_M)_,j e^j_J
 	real3x3 partial_beta_UL = real3x3_partial_rescaleFromCoord_Ul(U->beta_U, partial_beta_Ul, x);
@@ -1246,7 +1272,7 @@ kernel void calcDeriv(
 	Etienne's SENR Mathematica notebook uses this instead:
 	tr_DBar_beta := beta^j_,j + beta^j gammaBar_,j / (2 gammaBar)
 	*/
-	real tr_DBar_beta = tr_partial_beta + real3_dot(U->beta_U, partial_det_gammaBar_L) / (2. * det_gammaBar);
+	real tr_DBar_beta = tr_partial_beta + real3_dot(U->beta_U, partial_det_gammaBar_over_det_gammaBar_L) * .5;
 
 <? if useCalcDeriv_W then ?>
 	calcDeriv_W(
