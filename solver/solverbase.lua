@@ -1587,6 +1587,7 @@ else
 --print('reduce min',min,'max',max,'volume',volume,'name',var.name,'channels',channels)
 	var.lastMin = min
 	var.lastMax = max
+	var.lastAvg = nil	-- invalidate
 
 	return min, max
 end
@@ -1596,28 +1597,29 @@ end
 -- used by the output to print out avg, min, max
 function SolverBase:calcDisplayVarRangeAndAvg(var, componentIndex)
 	componentIndex = componentIndex or var.component
-	if var.lastTime == self.t then
-		return var.lastMin, var.lastMax, var.lastAvg
-	end
-	--don't do this -- instead let calcDisplayVarRange update and do this:
-	-- var.lastTime = self.t
 
-	-- this will update lastTime if necessary
-	local min, max = self:calcDisplayVarRange(var)
-	-- displayVarGroup has already set up the appropriate args
-	
-	-- duplicated in calcDisplayVarRange
-	local size = self.numCells
-	local sizevec = var.getBuffer().sizevec
-	if sizevec then
-		size = tonumber(sizevec:volume())
+	if var.lastTime ~= self.t then
+		--don't set lastTime yet -- instead let calcDisplayVarRange update and do this:
+		-- var.lastTime = self.t
+
+		-- this will update lastTime if necessary
+		self:calcDisplayVarRange(var)
+		-- displayVarGroup has already set up the appropriate args
 	end
-	
-	self:calcDisplayVarToBuffer(var, componentIndex)
-	local avg = self.reduceSum(nil, size) / tonumber(size)
-	var.lastAvg = avg
-	
-	return min, max, avg
+
+	if not var.lastAvg then
+		-- duplicated in calcDisplayVarRange
+		local size = self.numCells
+		local sizevec = var.getBuffer().sizevec
+		if sizevec then
+			size = tonumber(sizevec:volume())
+		end
+		
+		self:calcDisplayVarToBuffer(var, componentIndex)
+		var.lastAvg = self.reduceSum(nil, size) / tonumber(size)
+	end
+
+	return var.lastMin, var.lastMax, var.lastAvg
 end
 
 
@@ -1652,8 +1654,8 @@ function SolverBase:calcDT()
 	return dt
 end
 
-
-
+-- how often to update the console
+local tick = cmdline.tick or 1
 function SolverBase:update()
 	--[[
 	Here's an update-based FPS counter.
@@ -1673,8 +1675,25 @@ function SolverBase:update()
 		self.fpsIndex = (self.fpsIndex % self.fpsNumSamples) + 1
 		self.fpsSamples[self.fpsIndex] = fps
 		self.fps = self.fpsSamples:sum() / #self.fpsSamples
-		if self.showFPS and math.floor(thisTime) ~= math.floor(self.lastFrameTime) then 
-			print('fps='..self.fps, 't='..self.t) 
+		if (self.showFPS or cmdline.trackvars)
+		and math.floor(thisTime / tick) ~= math.floor(self.lastFrameTime / tick) then 
+			local sep = ''
+			if self.showFPS then
+				io.write(sep, 'fps=', self.fps)
+				sep = '\t'
+			end
+			io.write(sep, 't=', self.t)
+			sep = '\t'
+			if cmdline.trackvars then
+				local varnames = string.split(cmdline.trackvars, ',')
+				for _,varname in ipairs(varnames) do
+					local var = assert(self.displayVarForName[varname], "couldn't find "..varname)
+					local ymin, ymax, yavg = self:calcDisplayVarRangeAndAvg(var)
+					io.write(sep, varname, '=[', ymin, '..', yavg, '..', ymax, ']')
+					sep = '\t'
+				end
+			end
+			print()
 		end
 	end
 	self.lastFrameTime = thisTime

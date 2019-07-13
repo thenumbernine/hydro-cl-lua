@@ -23,6 +23,20 @@ local useAddSource = true
 #define sym3_add3(a,b,c)	sym3_add(sym3_add(a,b),c)
 #define sym3_add4(a,b,c,d)	sym3_add(sym3_add(a,b),sym3_add(c,d))	
 
+
+#define sym3_add7(a,b,c,d,e,f,g) \
+	sym3_add( \
+		sym3_add( \
+			sym3_add(a,b), \
+			sym3_add(c,d) \
+		), \
+		sym3_add( \
+			sym3_add(e,f), \
+			g \
+		) \
+	)
+
+
 <?
 -- this block is shared with other things like initCond
 -- it will be pasted above the !getCommonCode block below, despite that being in an exclusive condition to this
@@ -474,12 +488,12 @@ end
 ?>
 }
 
-static void calc_partial_gammaBar_LLL(
-	_3sym3 *partial_gammaBar_LLL,
+static _3sym3 calc_partial_gammaBar_LLL(
 	const global <?=eqn.cons_t?>* U,
 	real3 x,
 	const sym3 partial_epsilon_LLl[3]
 ) {
+	_3sym3 partial_gammaBar_LLL;
 	//derivative first
 	//partial_gammaBar_lll.k.ij := gammaBar_ij,k
 	//partial_gammaBar_LLL.k.IJ := e_i^I e_j^J e_k^K gammaBar_ij,k
@@ -487,7 +501,7 @@ static void calc_partial_gammaBar_LLL(
 for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
 	for k,xk in ipairs(xNames) do
-?>	partial_gammaBar_LLL-><?=xk?>.<?=xij?> = (0.
+?>	partial_gammaBar_LLL.<?=xk?>.<?=xij?> = (0.
 		+ partial_epsilon_LLl[<?=k-1?>].<?=xij?>
 		+ (
 			calc_partial_len_over_len_<?=xi..xk..xi?>(x)
@@ -496,7 +510,7 @@ for ij,xij in ipairs(symNames) do
 	) / calc_len_<?=xk?>(x);
 <?	end
 end
-?>
+?>	return partial_gammaBar_LLL;
 }
 
 static void calc_connHat_LLL_and_ULL(
@@ -1003,16 +1017,38 @@ static void calcDeriv_epsilon_LL(
 	constant solver_t* solver,
 	global cons_t* deriv,
 	const global cons_t* U,
+	const global cons_t* Uup,
+	real3 x,
 	const sym3* gammaBar_LL,
-	const _3sym3* partial_gammaBar_LLL,
 	const real3x3* partial_beta_UL,
 	const real3x3* ABar_UL,
-	real tr_DBar_beta
+	real tr_DBar_beta,
+	//shouldn't use this...
+	const _3sym3* partial_gammaBar_LLL
 ) {
 	real tr_ABar = real3x3_trace(*ABar_UL);
 
-	sym3 Lbeta_gammaBar_LL = sym3_Lbeta_LL(*gammaBar_LL, partial_gammaBar_LLL, &U->beta_U, partial_beta_UL);
+#if 1	//using upwind
+<?=eqn:makePartialUpwind'epsilon_LL'?>
+	_3sym3 partial_gammaBar_LLL_upwind = calc_partial_gammaBar_LLL(
+		Uup,
+		x,	//xup?
+		partial_epsilon_LLl_upwind);
 
+	sym3 Lbeta_gammaBar_LL = sym3_Lbeta_LL(
+		*gammaBar_LL,
+		&partial_gammaBar_LLL_upwind,
+		&U->beta_U,
+		partial_beta_UL);
+#else	//not using upwind
+	
+	sym3 Lbeta_gammaBar_LL = sym3_Lbeta_LL(
+		*gammaBar_LL,
+		partial_gammaBar_LLL,
+		&U->beta_U,
+		partial_beta_UL);
+#endif
+	
 	/*
 	2017 Ruchlin et al, eqn 11a
 	epsilon_ij,t = 2/3 gammaBar_ij (alpha ABar^k_k - DBar_k beta^k) + DHat_i beta_j + DHat_j beta_i - 2 alpha ABar_ij + epsilon_ij,k beta^k + epsilon_ik beta^k_,j + epsilon_kj beta^k_,i
@@ -1049,22 +1085,11 @@ static void calcDeriv_epsilon_LL(
 		Lbeta_gammaBar_LL);
 }
 
-#define sym3_add7(a,b,c,d,e,f,g) \
-	sym3_add( \
-		sym3_add( \
-			sym3_add(a,b), \
-			sym3_add(c,d) \
-		), \
-		sym3_add( \
-			sym3_add(e,f), \
-			g \
-		) \
-	)
-
 static void calcDeriv_ABar_LL(
 	constant solver_t* solver,
 	global cons_t* deriv,
 	const global cons_t* U,
+	const global cons_t* Uup,
 	real3 x,
 	const sym3* gammaBar_LL,
 	const sym3* gammaBar_UU,
@@ -1109,9 +1134,13 @@ static void calcDeriv_ABar_LL(
 		Delta_ULL,
 		&Delta_LLL);
 
-<?=eqn:makePartial'ABar_LL'?>		//partial_ABar_lll[k].ij = ABar_ij,k
-	_3sym3 partial_ABar_LLL;
-	calc_partial_ABar_LLL(&partial_ABar_LLL, U, x, partial_ABar_LLl);
+<?=eqn:makePartialUpwind'ABar_LL'?>		//partial_ABar_lll[k].ij = ABar_ij,k
+	_3sym3 partial_ABar_LLL_upwind;
+	calc_partial_ABar_LLL(
+		&partial_ABar_LLL_upwind,
+		Uup,	//used for ABar_IJ ... avg between upwind edge cells?
+		x,		//xup?
+		partial_ABar_LLl_upwind);
 
 <?=eqn:makePartial2'W'?>			//partial2_W_ll.ij := W_,ij
 	//partial2_phi_ll.ij := phi_,ij = 1/(2W) (-W_,ij + W_,i W_,j / W)
@@ -1163,7 +1192,7 @@ static void calcDeriv_ABar_LL(
 
 	sym3 Lbeta_ABar_LL = sym3_Lbeta_LL(
 		U->ABar_LL,
-		&partial_ABar_LLL,
+		&partial_ABar_LLL_upwind,
 		&U->beta_U,
 		partial_beta_UL);
 
@@ -1309,8 +1338,7 @@ kernel void calcDeriv(
 	real3 partial_phi_l = real3_real_mul(partial_W_l, -.5 / U->W);
 	real3 partial_phi_L = real3_rescaleFromCoord_l(partial_phi_l, x);
 
-	_3sym3 partial_gammaBar_LLL;
-	calc_partial_gammaBar_LLL(&partial_gammaBar_LLL, U, x, partial_epsilon_LLl);
+	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(U, x, partial_epsilon_LLl);
 	
 	_3sym3 connBar_ULL;
 	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
@@ -1366,11 +1394,14 @@ kernel void calcDeriv(
 		solver,
 		deriv,
 		U,
+		Uup,
+		x,
 		&gammaBar_LL,
-		&partial_gammaBar_LLL,
 		&partial_beta_UL,
 		&ABar_UL,
-		tr_DBar_beta
+		tr_DBar_beta,
+		//shouldn't use this...
+		&partial_gammaBar_LLL
 	);
 <? end	-- useCalcDeriv_epsilon_LL ?>
 	
@@ -1399,6 +1430,7 @@ kernel void calcDeriv(
 		solver,
 		deriv,
 		U,
+		Uup,
 		x,
 		&gammaBar_LL,
 		&gammaBar_UU,
@@ -1755,8 +1787,7 @@ then
 	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
 <?=eqn:makePartial'epsilon_LL'?>	
 	
-	_3sym3 partial_gammaBar_LLL;
-	calc_partial_gammaBar_LLL(&partial_gammaBar_LLL, U, x, partial_epsilon_LLl);
+	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(U, x, partial_epsilon_LLl);
 	
 	_3sym3 connBar_ULL;
 	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);

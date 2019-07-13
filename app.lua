@@ -23,7 +23,11 @@ predefined vars:
 	verbose = output extra stuff
 
 	run = start the simulation running.  Setting 'exitTime' or 'sys=console' also starts the simulation running.
+
 	showfps = print the updates/second to console
+	trackvars = comma-separated list of variable names to print to the console every FPS print
+	tick = how often to update the console for fps or trackvars
+	
 	checknans = stop if a NaN or infinity is found
 
 	coordVerbose = output extra info from coord/coord.lua
