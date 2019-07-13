@@ -157,7 +157,7 @@ real real3_weightedLen(real3 a, sym3 m);
 real3x3 real3x3_add(real3x3 a, real3x3 b);
 real3x3 real3_real3_outer(real3 a, real3 b);
 real real3x3_dot(real3x3 a, real3x3 b);
-real sym3_real3x3_dot(sym3 a, real3x3 b);
+real real3x3_sym3_dot(real3x3 a, sym3 b);
 real3x3 sym3_sym3_mul(sym3 a, sym3 b);
 real3x3 real3x3_sym3_mul(real3x3 a, sym3 b);
 real3x3 sym3_real3x3_mul(sym3 a, real3x3 b);
@@ -185,7 +185,7 @@ real3 _3sym3_tr12(_3sym3 a);
 real3x3 real3_3sym3_dot2(real3 a, _3sym3 b);
 
 real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b);
-real3 sym3_real3x3x3_dot23(sym3 a, real3x3x3 b);
+real3 real3x3x3_sym3_dot23(real3x3x3 a, sym3 b);
 real3x3 _3sym3_real3x3x3_dot12_23(_3sym3 a, real3x3x3 b);
 sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b);
 

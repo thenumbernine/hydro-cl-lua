@@ -439,12 +439,12 @@ real real3x3_dot(real3x3 a, real3x3 b) {
 <? end ?>;
 }
 
-real sym3_real3x3_dot(sym3 a, real3x3 b) {
+real real3x3_sym3_dot(real3x3 a, sym3 b) {
 	return 0.
 <? for i,xi in ipairs(xNames) do
 ?>		<?
 	for j,xj in ipairs(xNames) do
-?> + a.<?=sym(i,j)?> * b.<?=xi?>.<?=xj?><?
+?> + a.<?=xi?>.<?=xj?> * b.<?=sym(i,j)?><?
 	end ?>
 <? end ?>;
 }
@@ -761,10 +761,10 @@ real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b) {
 ?>	};
 }
 
-real3 sym3_real3x3x3_dot23(sym3 a, real3x3x3 b) {
+real3 real3x3x3_sym3_dot23(real3x3x3 a, sym3 b) {
 	return (real3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = sym3_real3x3_dot(a, b.<?=xi?>),
+?>		.<?=xi?> = real3x3_sym3_dot(a.<?=xi?>, b),
 <? end
 ?>	};
 }

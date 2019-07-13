@@ -295,15 +295,18 @@ end
 
 ?>
 
-real3 calc_partial_det_gammaHat_L(real3 x) {
-	real3 partial_det_gammaHat_L;
-<? 
+<?
+local det_gammaHat = coord.det_g 
 local partial_det_gammaHat_l = Tensor('_i', function(i)
-	return coord.det_g:diff(coord.coords[i])()
+	return det_gammaHat:diff(coord.coords[i])()
 end)
 local partial_det_gammaHat_L = Tensor('_i', function(i)
 	return (partial_det_gammaHat_l[i] / coord.lenExprs[i])()
 end)
+?>
+real3 calc_partial_det_gammaHat_L(real3 x) {
+	real3 partial_det_gammaHat_L;
+<? 
 for i,xi in ipairs(xNames) do
 ?>	partial_det_gammaHat_L.<?=xi?> = <?=eqn:compile(partial_det_gammaHat_L[i])?>;
 <? end
@@ -1196,8 +1199,13 @@ kernel void calcDeriv(
 
 <?=eqn:makePartial'beta_U'?>		//partial_beta_Ul[j].i := beta^I_,j
 <?=eqn:makePartial'W'?>				//partial_W_l[i] := W_,i 
-	
+
+	/*
+	notice: 
+	det(gammaBar_ij)/det(gammaHat_ij) = det(gammaBar_IJ)
+	*/
 	real det_gammaHat = calc_det_gammaHat(x);
+	
 	real3 partial_det_gammaHat_L = calc_partial_det_gammaHat_L(x);
 
 	/*
@@ -1238,7 +1246,7 @@ kernel void calcDeriv(
 	Etienne's SENR Mathematica notebook uses this instead:
 	tr_DBar_beta := beta^j_,j + beta^j gammaBar_,j / (2 gammaBar)
 	*/
-	real tr_DBar_beta = tr_partial_beta + real3_dot(U->beta_U, partial_det_gammaBar_L);
+	real tr_DBar_beta = tr_partial_beta + real3_dot(U->beta_U, partial_det_gammaBar_L) / (2. * det_gammaBar);
 
 <? if useCalcDeriv_W then ?>
 	calcDeriv_W(
@@ -1483,6 +1491,12 @@ end
 	*/
 	real3 tr12_partial2_beta_L = _3sym3_tr12(partial2_beta_ULL);
 
+	real3 partial2_det_gammaBar_times_beta_L = sym3_real3_mul(partial2_det_gammaBar_LL, U->beta_U);
+
+	real partial_det_gammaBar_dot_beta = real3_dot(partial_det_gammaBar_L, U->beta_U);
+
+	real3 partial_det_gammaBar_times_partial_beta_L = real3_real3x3_mul(partial_det_gammaBar_L, partial_beta_UL);
+
 	/*
 	DBar_tr_DBar_beta_l.i = DBar_i DBar_j beta^j
 	= DBar_i (beta^j_,j + connBar^j_lj beta^l)
@@ -1492,7 +1506,18 @@ end
 	= beta^j_,ji 
 		+ connBar^j_lj,i beta^l
 		+ connBar^j_lj beta^l_,i
-	
+
+	...using determinant instead...
+
+	= beta^j_,ji 
+		+ 1/2 det_gammaBar_,l / det_gammaBar beta^l_,i
+		+ (1/2 det_gammaBar_,l / det_gammaBar),i beta^l
+	= beta^j_,ji + 1/2 (
+		+ det_gammaBar_,l beta^l_,i / det_gammaBar
+		+ det_gammaBar_,il beta^l / det_gammaBar
+		- det_gammaBar_,l det_gammaBar_,i beta^l / det_gammaBar^2
+	)
+
 	Etienne's SENR uses this alternative formulation: 
 	= beta^j_,ji
 		+ 1/2 (
@@ -1505,27 +1530,22 @@ end
 <? for i,xi in ipairs(xNames) do
 ?>	DBar_tr_DBar_beta_L.<?=xi?> = 0.
 		+ tr12_partial2_beta_L.<?=xi?>
-		+ (0.
-<? 	for j,xj in ipairs(xNames) do
-		local ij,xij = from3x3to6(i,j)
-?>			+ .5 / det_gammaBar * (
-				partial2_det_gammaBar_LL.<?=xij?> * U->beta_U.<?=xj?>
-				- partial_det_gammaBar_L.<?=xi?> * partial_det_gammaBar_L.<?=xj?> * U->beta_U.<?=xj?> / det_gammaBar
-				+ partial_det_gammaBar_L.<?=xj?> * partial_beta_UL.<?=xj?>.<?=xi?>
-			)
-<?	end
-?>		);
+		+ .5 * (
+			partial2_det_gammaBar_times_beta_L.<?=xi?> / det_gammaBar
+			
+			+ partial_det_gammaBar_times_partial_beta_L.<?=xi?> / det_gammaBar
+			
+			//Less accurate if I defer this 
+			- partial_det_gammaBar_L.<?=xi?> * partial_det_gammaBar_dot_beta / (det_gammaBar * det_gammaBar)
+		);
 <? end
 ?>
+	
 	//DBar_tr_DBar_beta_u.i = DBar^i DBar_k beta^k = gammaBar^ij DBar_j DBar_k beta^k
 	real3 DBar_tr_DBar_beta_U = sym3_real3_mul(gammaBar_UU, DBar_tr_DBar_beta_L);
 
 	//tr_gammaBar_DHat2_beta_u.i = gammaBar^jk DHat_j DHat_k beta^i
-	real3 tr_gammaBar_DHat2_beta_U;
-<? for i,xi in ipairs(xNames) do
-?>	tr_gammaBar_DHat2_beta_U.<?=xi?> = sym3_real3x3_dot(gammaBar_UU, DHat2_beta_ULL.<?=xi?>);
-<? end
-?>
+	real3 tr_gammaBar_DHat2_beta_U = real3x3x3_sym3_dot23(DHat2_beta_ULL, gammaBar_UU);
 
 	real3 ABar_times_partial_alpha_U = sym3_real3_mul(ABar_UU, partial_alpha_L);
 	real3 ABar_times_partial_phi_U = sym3_real3_mul(ABar_UU, partial_phi_L);
