@@ -1673,7 +1673,7 @@ function SolverBase:update()
 		self.fpsSamples[self.fpsIndex] = fps
 		self.fps = self.fpsSamples:sum() / #self.fpsSamples
 		if self.showFPS and math.floor(thisTime) ~= math.floor(self.lastFrameTime) then 
-			print('fps='..self.fps) 
+			print('fps='..self.fps, 't='..self.t) 
 		end
 	end
 	self.lastFrameTime = thisTime

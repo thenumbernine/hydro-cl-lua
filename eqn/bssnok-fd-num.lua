@@ -415,16 +415,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	local env = self:getEnv()
 
 	vars:append{
-		{
-			name = 'gamma_ll',
-			type = 'sym3',
-			code = [[
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	real exp_4phi = 1. / calc_exp_neg4phi(U);
-	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
-	*value_sym3 = gamma_ll;
-]], 
-		},
+		{name='gamma_ll', code = [[	*value_sym3 = calc_gamma_ll(U, x);]], type='sym3'},
 		{name='gamma_uu', code=[[	*value_sym3 = calc_gamma_uu(U, x);]], type='sym3'},
 		{name='gammaHat_ll', code=[[	*value_sym3 = calc_gammaHat_ll(x);]], type='sym3'},
 		{name='gammaHat_uu', code=[[	*value_sym3 = calc_gammaHat_uu(x);]], type='sym3'},
@@ -1088,7 +1079,7 @@ gammaBar^kl = inv(gammaBar_kl)
 --]]
 --]=]	
 
--- [=[
+--[=[
 	vars:insert{
 		name='trBar_partial2_gammaBar_LL',
 		type = 'sym3',
@@ -1111,7 +1102,7 @@ gammaBar^kl = inv(gammaBar_kl)
 	}
 --]=]
 
--- [=[
+--[=[
 	vars:insert{
 		name = 'tr34 (gamma*dGamma)',
 		type = 'real3x3',
@@ -1146,7 +1137,7 @@ end
 	}
 --]=]
 
--- [=[
+--[=[
 	vars:insert{
 		name = 'tr14 (Gamma*dgamma)',
 		type = 'real3x3',
@@ -1191,7 +1182,7 @@ end
 	}
 --]=]
 
--- [=[
+--[=[
 	for i,xi in ipairs(xNames) do
 		vars:insert{
 			name = 'Delta_ULL '..xi,
@@ -1220,7 +1211,7 @@ end
 	end
 --]=]
 
--- [=[
+--[=[
 	vars:insert{
 		name = 'Delta_U',
 		type = 'real3',
