@@ -103,8 +103,10 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 		--{name='constrain_tr_ABar', value=false, compileTime=true},
 		
 		{name='calc_H_and_M', value=true, compileTime=true},
-		--{name='diffuseSigma', value=.01},
-		{name='diffuseSigma', value=0},
+		
+		-- 2013 Baumgarte et al, section IIIB
+		--{name='diffuseCoeff', value=.001/16},
+		{name='diffuseCoeff', value=0},
 		
 		--{name='alphaMin', value=1e-7},
 		{name='alphaMin', value=0},

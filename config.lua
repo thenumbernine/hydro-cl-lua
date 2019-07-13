@@ -116,7 +116,7 @@ local args = {
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
 	mins = cmdline.mins or {0, 0, -math.pi},
-	maxs = cmdline.maxs or {10, math.pi, math.pi},
+	maxs = cmdline.maxs or {8, math.pi, math.pi},
 	gridSize = ({
 		{160, 1, 1}, -- 1D
 		{32, 32, 1}, -- 2D
@@ -615,7 +615,7 @@ for spherical, Minkowski init cond, dim=1, gridSize=256, no dissipation, numGhos
 for RK4 with range [0, 10] runs indefinitely
 	but |H| exceeds 1 at t=1.1718027780568 
 --]]
-self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))	-- default shift is HyperbolicGammaDriver
+--self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))	-- default shift is HyperbolicGammaDriver
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='none'}})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='GammaDriver'}})))
 
@@ -670,3 +670,33 @@ for spherical, derivOrder=2:
 -- the start of AMR
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.amr'(require 'solver.roe')(table(args, {eqn='euler'})))
+
+
+
+-- [[ 2013 Baumgarte et al, section IV A 1 example
+self.solvers:insert(require 'solver.bssnok-fd'{
+	app = self,
+	eqn = 'bssnok-fd-num', 
+	eqnArgs = {useShift = 'none'},
+	dim = 1,
+	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
+	cfl = .6,	--.4,
+	coord = 'sphere',
+	mins = {0, 0, -math.pi},
+	maxs = {8, math.pi, math.pi},
+	gridSize = {160, 0, 0},
+	boundary = {
+		xmin='sphereCenter',
+		xmax='fixed',
+		ymin='freeflow',
+		ymax='freeflow',
+		zmin='periodic',
+		zmax='periodic',
+	},
+	-- TODO look up Teukolsky Phys Rev 26 745 1982 
+	--initState = 'gaussian perturbation',
+	initState = 'Minkowski',
+})
+--]]
+
+

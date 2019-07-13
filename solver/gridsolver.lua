@@ -64,7 +64,7 @@ function GridSolver:initL1(args)
 	-- so maybe I should rename 'self.gridSize' to 'self.gridSizeWithBorder'
 	-- and 'self.gridSizeWithoutBorder' to 'self.gridSize'
 
-	local gridSize = assert(args.gridSize)
+	local gridSize = assert(args.gridSize, "solver expected gridSize")
 	if type(gridSize) == 'number' then 
 		self.gridSize = vec3sz(gridSize,1,1)
 	elseif type(gridSize) == 'cdata' 

@@ -1929,19 +1929,19 @@ kernel void addSource(
 	const global cons_t* U = UBuf + index;
 	global cons_t* deriv = derivBuf + index;
 
-	if (solver->diffuseSigma != 0.) { 
+	if (solver->diffuseCoeff != 0.) { 
 		//Kreiss-Oligar dissipation
 		//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 		//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
 		for (int i = 0; i < numIntStates; ++i) {
-<?=eqn:makePartial2('ptr[i]', 'real', 'partial2_Ui_ll', false)?>
-			real lap = 0<?
-for j,xj in ipairs(xNames) do
-	local jj,xjj = from3x3to6(j,j)
-?> + partial2_Ui_ll.<?=xjj?><?
-end ?>;
+<?=require'eqn.makepartial'.makePartialRank1(4, 4, solver, 'ptr[i]', 'real', 'partial4_Ui_ll', false)?>
+			real lap = 0.
+<? for j,xj in ipairs(xNames) do 
+?>				+ partial4_Ui_ll.<?=xj?>
+<? end 
+?>			;
 //TODO should that be a + or a -?
-			deriv->ptr[i] += solver->diffuseSigma/16. * lap;
+			deriv->ptr[i] += solver->diffuseCoeff * lap;
 		}
 	}
 <? end -- addSource ?>
@@ -1963,32 +1963,45 @@ kernel void calcDT(
 <? 
 -- seems all the hyperbolic formalisms listed in Alcubierre's book use alpha sqrt(gamma^ii) for the speed-of-light wavespeed
 -- however the 2017 Ruchlin paper says to use gamma_ij
-local useGammaInvForDT = false 	
+--local cflMethod = '2008 Alcubierre'
+--local cflMethod = '2013 Baumgarte et al, eqn 32'
+local cflMethod = '2017 Ruchlin et al, eqn 53'
 ?>
 
-<? if useGammaInvForDT then ?>	
-	sym3 gamma_uu = calc_gamma_uu(U, x);
-<? else ?>	
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-<? end ?>
-
+<? if cflMethod == '2008 Alcubierre' then
+?>	sym3 gamma_uu = calc_gamma_uu(U, x);
+<? elseif cflMethod == '2017 Ruchlin et al, eqn 53' then
+?>	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+<? end 
+?>
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
-<? if useGammaInvForDT then ?>
-		//this is asserting alpha and W >0, which they should be
+<? 
+if cflMethod == '2013 Baumgarte et al, eqn 32' then
+	if side == 0 then 
+?>		dt = (real)min(dt, solver->grid_dx.x);
+<?	elseif side == 1 then 
+?>		dt = (real)min(dt, .5 * solver->grid_dx.x * solver->grid_dx.y);
+<? 	elseif side == 2 then 
+?>		dt = (real)min(dt, .5 * solver->grid_dx.x * sin(.5 * solver->grid_dx.y) * solver->grid_dx.z);
+<? 	end 
+else
+	if cflMethod == '2017 Alcubierre' then 
+?>		//this is asserting alpha and W >0, which they should be
 		real absLambdaMax = U->alpha * sqrt(gamma_uu.<?=sym(side+1,side+1)?>);
-<? else ?>		
-		//2017 Ruchlin, eqn. 53
-		real absLambdaMax = U->alpha * sqrt(gammaBar_ll.<?=sym(side+1,side+1)?>);
-<? end ?>
+<? 	elseif cflMethod == '2017 Ruchlin et al, eqn 53' then 
+?>		real absLambdaMax = U->alpha * sqrt(gammaBar_ll.<?=sym(side+1,side+1)?>);
+<? 	end 
 
-<? if false then -- hmm, do we base our CFL on delta in coordinate, or delta in Cartesian? ?>
-		real dx = cell_dx<?=side?>(x); 
-<? else ?>
-		real dx = solver->grid_dx.s<?=side?>;
-<? end ?>	
-		dt = (real)min(dt, dx / absLambdaMax);
-	}<? end ?>
+	if false then -- hmm, do we base our CFL on delta in coordinate, or delta in Cartesian?
+?>		real dx = cell_dx<?=side?>(x); 
+<? 	else
+?>		real dx = solver->grid_dx.s<?=side?>;
+<? 	end 
+?>		dt = (real)min(dt, dx / absLambdaMax);
+<?
+end 
+?>	}<? end ?>
 	dtBuf[index] = dt;
 }
 

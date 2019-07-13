@@ -220,9 +220,7 @@ return table{
 		end,
 		initState = function(self, solver)
 			return [[
-	
-	real3 c = real3_sub(x, mids);
-	real s = real3_lenSq(c);
+	real s = real3_lenSq(xc);
 
 	const real H = solver->init_H;
 	const real sigma = solver->init_sigma;
@@ -230,7 +228,7 @@ return table{
 	const real sigma4 = sigma2 * sigma2;
 	real h = H * exp(-s / sigma2);
 
-	//h,i = (H exp(-(x-c)^2 / sigma^2)),i
+	//h,i = (H exp(-(x-xc)^2 / sigma^2)),i
 	// = -2 h / sigma^2 (x_i-c_i)
 	real3 dh = real3_real_mul(real3_sub(x, mids), -2. * h / sigma2);
 
@@ -241,7 +239,7 @@ return table{
 	// = -2 (-2 h / sigma^2 (x-c)_i (x-c)_j) / sigma^2 - 2 h delta_ij / sigma^2
 	// = 4 h (x-c)_i (x-c)_j / sigma^4 - 2 h delta_ij / sigma^2
 	sym3 d2h = sym3_sub(
-		sym3_real_mul(real3_outer(c), 4. * h / sigma4),
+		sym3_real_mul(real3_outer(xc), 4. * h / sigma4),
 		sym3_real_mul(sym3_ident, 2. * h / sigma2));
 
 #if 0

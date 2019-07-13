@@ -1,3 +1,9 @@
+--[[
+TODO better think through the API
+I do want 1st deriv functions that return vectors
+I do want 2nd deriv functions that return degree-2's
+but I would also like 4th deriv functions that return either vectors (one element per dim) 
+--]]
 local clnumber = require 'cl.obj.number'
 local table = require 'ext.table'
 local common = require 'common'
@@ -40,7 +46,7 @@ fieldType = type of field
 nameOverride = what name to use for the partial vars
 	default: partial_field_l
 --]]
-local function makePartial1(order, solver, field, fieldType, nameOverride)
+local function makePartialRank1(deriv, order, solver, field, fieldType, nameOverride)
 	local xNames = common.xNames
 	local suffix = 'l'
 	if not field:find'_' then suffix = '_' .. suffix end
@@ -50,7 +56,7 @@ local function makePartial1(order, solver, field, fieldType, nameOverride)
 	local function real_mul(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
 	local zero = fieldType..'_zero'
 	local name = nameOverride or ('partial_'..field..suffix)
-	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)
+	local d1coeffs = assert(derivCoeffs[deriv][order], "couldn't find d/dx^"..deriv.." coefficients of order "..order)
 	local lines = table()
 	if fieldType == 'real' then
 		lines:insert('\treal3 '..name..';')
@@ -78,7 +84,7 @@ local function makePartial1(order, solver, field, fieldType, nameOverride)
 	return lines:concat'\n'
 end
 
-local function makePartial2(order, solver, field, fieldType, nameOverride)
+local function makePartialRank2(deriv, order, solver, field, fieldType, nameOverride)
 	local xNames = common.xNames
 	local symNames = common.symNames
 	local from6to3x3 = common.from6to3x3
@@ -90,8 +96,8 @@ local function makePartial2(order, solver, field, fieldType, nameOverride)
 	local function real_mul(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
 	local zero = fieldType..'_zero'
 	local name = nameOverride or ('partial2_'..field..suffix)
-	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)
-	local d2coeffs = assert(derivCoeffs[2][order], "couldn't find 2nd derivative coefficients of order "..order)
+	local d1coeffs = assert(derivCoeffs[deriv/2][order], "couldn't find d/dx^"..(deriv/2).." coefficients of order "..order)
+	local d2coeffs = assert(derivCoeffs[deriv][order], "couldn't find d/dx^"..deriv.." coefficients of order "..order)
 	local lines = table()
 	if fieldType == 'real' then
 		lines:insert('\tsym3 '..name..';')
@@ -136,8 +142,17 @@ local function makePartial2(order, solver, field, fieldType, nameOverride)
 	return lines:concat'\n'
 end
 
+local function makePartial1(...) return makePartialRank1(1, ...) end
+local function makePartial2(...) return makePartialRank2(2, ...) end
+local function makePartial3(...) return makePartialRank1(3, ...) end
+local function makePartial4(...) return makePartialRank2(4, ...) end
+
 return {
 	derivCoeffs = derivCoeffs,
+	makePartialRank1 = makePartialRank1,
+	makePartialRank2 = makePartialRank2,
 	makePartial1 = makePartial1,
 	makePartial2 = makePartial2,
+	makePartial3 = makePartial3,
+	makePartial4 = makePartial4,
 }
