@@ -30,6 +30,23 @@ BSSNOKFiniteDifferenceEquation.hasFluxFromConsCode = true
 BSSNOKFiniteDifferenceEquation.useConstrainU = true
 BSSNOKFiniteDifferenceEquation.useSourceTerm = true
 
+-- what variables to mirror at sphere center
+-- 2013 Baumgarte et al, "Numerical Relativity in Spherical Polar Coordinates...", IIIB
+BSSNOKFiniteDifferenceEquation.boundarySphereCenterMirrorVars = {
+	{
+		'beta_U.x',
+		'beta_U.z',
+		'B_U.x',
+		'B_U.z',
+		'LambdaBar_U.x',
+		'LambdaBar_U.z',
+		'epsilon_LL.xy',
+		'epsilon_LL.yz',
+		'ABar_LL.xy',
+		'ABar_LL.yz',
+	},
+} 
+
 -- not used with finite-difference schemes anyways
 BSSNOKFiniteDifferenceEquation.weightFluxByGridVolume = false
 

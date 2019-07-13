@@ -912,7 +912,7 @@ function BoundaryLinear:getCode(args)
 	end		
 end
 
-BoundaryFixed = class(Boundary)
+local BoundaryFixed = class(Boundary)
 function BoundaryFixed:init(fixedCode)
 	-- fixed values to use
 	self.code = fixedCode
@@ -934,6 +934,54 @@ function BoundaryFixed:getCode(args)
 end
 
 --[[
+2013 Baumgarte et al, "Numerical Relativity in Spherical Polar Coordinates..."
+
+same as mirror, except we only negative certain components.
+in fact, mirror is very cartesian-specific...
+--]]
+local BoundarySphereCenter = class(Boundary)
+BoundarySphereCenter.name = 'sphereCenter'
+function BoundarySphereCenter:getCode(args)
+	local solver = args.solver
+	assert(solver.dim == 1, "don't have >1D for sphere center boundary yet")
+	assert(args.side == 1, "only xmin so far")
+	assert(args.minmax == 'min', "only xmin so far")
+	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	local lines = table()
+	if args.minmax == 'min' then
+		lines:insert(indent..args.assign(
+			args.array('buf', args.index'j'),
+			args.array('buf', args.index'2*numGhost-1-j'))..';')
+		if args.boundarySphereCenterMirrorVars 
+		and args.boundarySphereCenterMirrorVars[args.side] 
+		then
+			lines:append(table.map(args.boundarySphereCenterMirrorVars[args.side], function(var)
+				return indent..args.assign(
+					args.field(args.array('buf', args.index'j'), var),
+					args.field('-'..args.array('buf', args.index'j'), var)
+				)..';'
+			end))
+		end
+	elseif args.minmax == 'max' then
+		local rhs = gridSizeSide..'-numGhost+j'
+		lines:insert(indent..args.assign(
+			args.array('buf', args.index(rhs)),
+			args.array('buf', args.index(gridSizeSide..'-numGhost-1-j')))..';')
+		if args.boundarySphereCenterMirrorVars 
+		and args.boundarySphereCenterMirrorVars[args.side] 
+		then
+			lines:append(table.map(args.boundarySphereCenterMirrorVars[args.side], function(var)
+				return indent..args.assign(
+					args.field(args.array('buf', args.index(rhs)), var),
+					args.field('-'..args.array('buf', args.index(rhs)), var)
+				)..';'
+			end))
+		end
+	end
+	return lines:concat'\n'
+end
+
+--[[
 -- boundaryOptions is a table of classes
 --]]
 function GridSolver:createBoundaryOptions()
@@ -948,6 +996,7 @@ function GridSolver:createBoundaryOptions()
 		BoundaryFreeFlow,
 		BoundaryLinear,
 		BoundaryFixed,
+		BoundarySphereCenter,
 	}
 
 	if self.eqn.createBoundaryOptions then

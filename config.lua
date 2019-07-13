@@ -115,7 +115,7 @@ local args = {
 	-- [[ Sphere: r, θ, φ 
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
-	mins = cmdline.mins or {.0005, 0, -math.pi},
+	mins = cmdline.mins or {0, 0, -math.pi},
 	maxs = cmdline.maxs or {10, math.pi, math.pi},
 	gridSize = ({
 		{256, 1, 1}, -- 1D
@@ -123,10 +123,10 @@ local args = {
 		{16, 16, 16}, -- 3D
 	})[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',	-- how to handle?
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',	-- ?
-		ymax=cmdline.boundary or 'freeflow',	-- ?
+		xmin=cmdline.boundary or 'sphereCenter',
+		xmax=cmdline.boundary or 'fixed',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
 		zmin=cmdline.boundary or 'periodic',
 		zmax=cmdline.boundary or 'periodic',
 	},
@@ -611,11 +611,10 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --[[
 bssnok is working in 1D-3D Cartesian for RK4 
 diverging for non-Cartesian
-for spherical, Minkowski init cond:
+for spherical, Minkowski init cond, dim=1, gridSize=256:
 	with numGhost=2 <=> derivOrder=4
-	for FE integration, with r=[1,4], runs for 2 seconds
-	for RK4 integration with range [.0005, 1] runs indefinitely (but can't get closer to zero)
-	for RK4 with range [.0005, 10] gets first non-finite value at t=3.6159012509557	
+	for RK4 integration with range [.0005, 1] runs indefinitely (but can't get closer to zero, or larger in rmax)
+	for RK4 with range [0, 10] gets first non-finite value at t=3.9447999980202	
 --]]
 self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))	-- default shift is HyperbolicGammaDriver
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='none'}})))
