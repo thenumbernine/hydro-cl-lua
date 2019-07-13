@@ -614,7 +614,7 @@ diverging for non-Cartesian
 for spherical, Minkowski init cond, dim=1, gridSize=256, no dissipation
 	with numGhost=2 <=> derivOrder=4
 	for RK4 integration with range [.0005, 1] runs indefinitely (but can't get closer to zero, or larger in rmax)
-	for RK4 with range [0, 10] gets first non-finite value at t=4.4119565535 
+	for RK4 with range [0, 10] gets first non-finite value at t=6.0073084542011	
 --]]
 self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))	-- default shift is HyperbolicGammaDriver
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='none'}})))

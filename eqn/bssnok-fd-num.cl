@@ -922,16 +922,17 @@ static void calcDeriv_W(
 	constant solver_t* solver,
 	global cons_t* deriv,
 	const global cons_t* U,
+	const global cons_t* Uup,
 	real3 x,
-	real tr_DBar_beta,
-	const real3 *partial_W_l
+	real tr_DBar_beta
 ) {
-	real3 partial_W_L = real3_rescaleFromCoord_l(*partial_W_l, x);
+<?=eqn:makePartialUpwind'W'?>;
+	real3 partial_W_L_upwind = real3_rescaleFromCoord_l(partial_W_l_upwind, x);
 	
 	//2017 Ruchlin et al eqn 11c
 	//W,t = 1/3 W (alpha K - beta^k connBar^j_kj - beta^k_,k) + beta^k W_,k
 	deriv->W += (1. / 3.) * U->W * (U->alpha * U->K - tr_DBar_beta) 
-		+ real3_dot(partial_W_L, U->beta_U);
+		+ real3_dot(partial_W_L_upwind, U->beta_U);
 }
 
 static void calcDeriv_K(
@@ -1278,9 +1279,9 @@ kernel void calcDeriv(
 		solver,
 		deriv,
 		U,
+		Uup,
 		x,
-		tr_DBar_beta,
-		&partial_W_l);
+		tr_DBar_beta);
 <? end	-- useCalcDeriv_W ?>
 
 	//////////////////////////////// K_,t //////////////////////////////// 
