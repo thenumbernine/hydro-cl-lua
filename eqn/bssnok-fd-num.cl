@@ -1040,6 +1040,7 @@ static void calcDeriv_ABar_LL(
 	const sym3* gammaBar_LL,
 	const sym3* gammaBar_UU,
 	const sym3* DBar2_alpha_LL,
+	const sym3* RBar_LL,
 	const real3* partial_alpha_L, 
 	const real3* partial_phi_L, 
 	const _3sym3* connBar_ULL,
@@ -1047,40 +1048,8 @@ static void calcDeriv_ABar_LL(
 	const real3x3* partial_beta_UL,
 	const real partial_W_l[3],
 	real exp_neg4phi,
-	real tr_DBar_beta,
-	//for RBar_IJ:
-	const sym3 partial_epsilon_LLl[3]
-	const _3sym3* connHat_ULL,
-	const _3sym3* partial_gammaBar_LLL,
-	const real3x3* partial_LambdaBar_UL,
-	const real3* Delta_U,
-	const _3sym3* Delta_ULL
+	real tr_DBar_beta
 ) {
-
-	_3sym3 Delta_LLL = sym3_3sym3_mul(*gammaBar_LL, Delta_ULL);
-<?=eqn:makePartial2'epsilon_LL'?>
-
-	sym3 trBar_partial2_gammaBar_LL = calc_trBar_partial2_gammaBar_LL(
-		U, 
-		x, 
-		&gammaBar_UU, 
-		partial_epsilon_LLl, 
-		partial2_epsilon_LLll);
-
-	sym3 RBar_LL = calc_RBar_LL(
-		U,
-		x,
-		&gammaBar_LL,
-		&gammaBar_UU,
-		connHat_ULL,
-		partial_gammaBar_LLL,
-		&trBar_partial2_gammaBar_LL,
-		partial_LambdaBar_UL,
-		Delta_U,
-		Delta_ULL,
-		&Delta_LLL);
-
-
 <?=eqn:makePartial'ABar_LL'?>		//partial_ABar_lll[k].ij = ABar_ij,k
 	_3sym3 partial_ABar_LLL;
 	calc_partial_ABar_LLL(&partial_ABar_LLL, U, x, partial_ABar_LLl);
@@ -1103,7 +1072,7 @@ static void calcDeriv_ABar_LL(
 
 	sym3 TF_DBar2_alpha_LL = tracefree(*DBar2_alpha_LL, *gammaBar_LL, *gammaBar_UU);
 
-	sym3 TF_RBar_LL = tracefree(RBar_LL, *gammaBar_LL, *gammaBar_UU);
+	sym3 TF_RBar_LL = tracefree(*RBar_LL, *gammaBar_LL, *gammaBar_UU);
 
 	/*
 	2017 Ruchlin et al eqn 11b
@@ -1369,6 +1338,29 @@ kernel void calcDeriv(
 	//Delta_U.I := e_i^I Delta^i = e_i^I (LambdaBar^i - C^i)
 	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
 
+	_3sym3 Delta_LLL = sym3_3sym3_mul(gammaBar_LL, Delta_ULL);
+<?=eqn:makePartial2'epsilon_LL'?>
+
+	sym3 trBar_partial2_gammaBar_LL = calc_trBar_partial2_gammaBar_LL(
+		U, 
+		x, 
+		&gammaBar_UU, 
+		partial_epsilon_LLl, 
+		partial2_epsilon_LLll);
+
+	sym3 RBar_LL = calc_RBar_LL(
+		U,
+		x,
+		&gammaBar_LL,
+		&gammaBar_UU,
+		&connHat_ULL,
+		&partial_gammaBar_LLL,
+		&trBar_partial2_gammaBar_LL,
+		&partial_LambdaBar_UL,
+		&Delta_U,
+		&Delta_ULL,
+		&Delta_LLL);
+
 	calcDeriv_ABar_LL(
 		solver,
 		deriv,
@@ -1377,6 +1369,7 @@ kernel void calcDeriv(
 		&gammaBar_LL,
 		&gammaBar_UU,
 		&DBar2_alpha_LL,
+		&RBar_LL,
 		&partial_alpha_L, 
 		&partial_phi_L, 
 		&connBar_ULL,
@@ -1384,15 +1377,7 @@ kernel void calcDeriv(
 		&partial_beta_UL,
 		partial_W_l,
 		exp_neg4phi,
-		tr_DBar_beta,
-		//for RBar_IJ:
-		partial_epsilon_LLl,
-		&connHat_ULL,
-		&partial_gammaBar_LLL,
-		&partial_LambdaBar_UL,
-		&Delta_U,
-		&Delta_ULL
-
+		tr_DBar_beta
 	);
 
 <? end	-- useCalcDeriv_ABar_LL ?>
