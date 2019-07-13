@@ -939,15 +939,19 @@ static void calcDeriv_K(
 	constant solver_t* solver,
 	global cons_t* deriv,
 	const global cons_t* U,
+	const global cons_t* Uup,
+	real3 x,
 	const sym3* gammaBar_UU,
 	const sym3* ABar_UU,
 	const sym3* DBar2_alpha_LL,
 	const real3* partial_alpha_L,
 	const real3* partial_phi_L,
-	const real3* partial_K_L,
 	real exp_neg4phi,
 	real S
 ) {
+<?=eqn:makePartialUpwind'K'?>
+	real3 partial_K_L_upwind = real3_rescaleFromCoord_l(partial_K_l_upwind, x);
+	
 	//tr_ABarSq := ABar_ij ABar^ij = ABar_ij ABar_kl gammaBar^ik gammaBar^jl
 	real tr_ABarSq = sym3_dot(U->ABar_LL, *ABar_UU);
 	
@@ -978,7 +982,7 @@ static void calcDeriv_K(
 				*partial_alpha_L,
 				*gammaBar_UU)
 		)
-		+ real3_dot(*partial_K_L, U->beta_U)
+		+ real3_dot(partial_K_L_upwind, U->beta_U)
 		+ 4. * M_PI * U->alpha * (U->rho + S);
 }
 
@@ -1342,12 +1346,13 @@ kernel void calcDeriv(
 		solver,
 		deriv,
 		U,
+		Uup,
+		x,
 		&gammaBar_UU,
 		&ABar_UU,
 		&DBar2_alpha_LL,
 		&partial_alpha_L,
 		&partial_phi_L,
-		&partial_K_L,
 		exp_neg4phi,
 		S
 	);
