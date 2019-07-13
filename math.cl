@@ -402,6 +402,14 @@ real real3_weightedLen(real3 a, sym3 m) {
 
 ////////////////////////// real3x3 //////////////////////////
 
+real3x3 real3x3_add(real3x3 a, real3x3 b) {
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = real3_add(a.<?=xi?>, b.<?=xi?>),
+<? end
+?>	};
+}
+
 /*
 a^T * b
 = a^i b_j

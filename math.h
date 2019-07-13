@@ -154,6 +154,7 @@ real real3_weightedLen(real3 a, sym3 m);
 #define _real3x3(xx,xy,xz,yx,yy,yz,zx,zy,zz) (real3x3){.x={xx,xy,xz}, .y={yx,yy,yz}, .z={zx,zy,zz}}
 #define real3x3_zero (real3x3){.v={real3_zero, real3_zero, real3_zero}}
 
+real3x3 real3x3_add(real3x3 a, real3x3 b);
 real3x3 real3_real3_outer(real3 a, real3 b);
 real real3x3_dot(real3x3 a, real3x3 b);
 real sym3_real3x3_dot(sym3 a, real3x3 b);

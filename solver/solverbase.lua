@@ -40,7 +40,9 @@ SolverBase.eqnName = nil
 SolverBase.useCLLinkLibraries = false
 
 -- whether to check for NaNs
-SolverBase.checkNaNs = false
+SolverBase.checkNaNs = cmdline.checknans or false
+
+SolverBase.showFPS = cmdline.showfps or false
 
 -- enable for us to let the user accum/not.  requires an extra buffer allocation
 SolverBase.allowAccum = true
@@ -1667,7 +1669,9 @@ function SolverBase:update()
 		self.fpsIndex = (self.fpsIndex % self.fpsNumSamples) + 1
 		self.fpsSamples[self.fpsIndex] = fps
 		self.fps = self.fpsSamples:sum() / #self.fpsSamples
-if math.floor(thisTime) ~= math.floor(self.lastFrameTime) then print('fps='..self.fps) end
+		if self.showFPS and math.floor(thisTime) ~= math.floor(self.lastFrameTime) then 
+			print('fps='..self.fps) 
+		end
 	end
 	self.lastFrameTime = thisTime
 
@@ -1694,7 +1698,7 @@ function SolverBase:checkFinite(buf)
 	end
 	if not found then return true end
 --	self:printBuf(nil, ptr)
-	return false, 'found non-finite offsets and numbers: '..require'ext.tolua'(found)
+	return false, 'found non-finite offsets and numbers: '..require'ext.tolua'(found)..' at t='..self.t
 end
 
 function SolverBase:printBuf(buf, ptr)
