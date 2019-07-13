@@ -612,7 +612,8 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 bssnok is working in 1D-3D Cartesian for RK4 
 diverging for non-Cartesian
 for spherical, Minkowski init cond, dim=1, gridSize=256, no dissipation, numGhost=2 <=> derivOrder=4
-for RK4 with range [0, 10] runs indefinitely 
+for RK4 with range [0, 10] runs indefinitely
+	but |H| exceeds 1 at t=1.1718027780568 
 --]]
 self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))	-- default shift is HyperbolicGammaDriver
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='none'}})))
