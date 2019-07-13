@@ -34,12 +34,14 @@ BSSNOKFiniteDifferenceEquation.useSourceTerm = true
 -- 2013 Baumgarte et al, "Numerical Relativity in Spherical Polar Coordinates...", IIIB
 BSSNOKFiniteDifferenceEquation.boundarySphereCenterMirrorVars = {
 	{
+		-- vectors: (-1, 1, -1)
 		'beta_U.x',
 		'beta_U.z',
 		'B_U.x',
 		'B_U.z',
 		'LambdaBar_U.x',
 		'LambdaBar_U.z',
+		-- tensors: (-1, 1, -1)^2
 		'epsilon_LL.xy',
 		'epsilon_LL.yz',
 		'ABar_LL.xy',
@@ -111,24 +113,64 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 	}
 end
 
+function BSSNOKFiniteDifferenceEquation:fieldTypeForVar(varname)
+	local _, var = self.consVars:find(nil, function(v) return v.name == varname end)
+	return assert(var).type
+end
+
 function BSSNOKFiniteDifferenceEquation:makePartial(field, fieldType, nameOverride)
 	local derivOrder = 2 * self.solver.numGhost
-	if fieldType == nil then
-		local _, var = self.consVars:find(nil, function(v) return v.name == field end)
-		assert(var)
-		fieldType = var.type
-	end
+	fieldType = fieldType or self:fieldTypeForVar(field)
 	return makePartials.makePartial(derivOrder, self.solver, field, fieldType, nameOverride)
 end
 
 function BSSNOKFiniteDifferenceEquation:makePartial2(field, fieldType, nameOverride)
 	local derivOrder = 2 * self.solver.numGhost
-	if fieldType == nil then
-		local _, var = self.consVars:find(nil, function(v) return v.name == field end)
-		assert(var)
-		fieldType = var.type
-	end
+	fieldType = fieldType or self:fieldTypeForVar(field)
 	return makePartials.makePartial2(derivOrder, self.solver, field, fieldType, nameOverride)
+end
+
+-- TODO higher orders plz
+-- computes the partial between U[stepSize] and U[0]
+function BSSNOKFiniteDifferenceEquation:makePartialUpwind(field, fieldType, nameOverride)
+	local clnumber = require 'cl.obj.number'
+	fieldType = fieldType or self:fieldTypeForVar(field)
+
+	local suffix = 'l'
+	if not field:find'_' then suffix = '_' .. suffix end
+
+	local function add(x,y) return fieldType..'_add('..x..', '..y..')' end
+	local function sub(x,y) return fieldType..'_sub('..x..', '..y..')' end
+	local function real_mul(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
+	local zero = fieldType..'_zero'
+	local name = nameOverride or ('partial_'..field..suffix..'_upwind')
+	local d1coeffs = {1}	-- TODO more plz 
+	
+	local lines = table()
+	if fieldType == 'real' then
+		lines:insert('\treal3 '..name..';\n')
+	else
+		lines:insert('\t'..fieldType..' '..name..'[3];\n')
+	end
+	for i,xi in ipairs(xNames) do
+		local namei
+		if fieldType == 'real' then
+			namei = name..'.'..xi
+		else
+			namei = name..'['..(i-1)..']'
+		end
+		local expr = zero
+		if i <= self.solver.dim then
+			for j,coeff in ipairs(d1coeffs) do
+				local UR = 'Uup['..j..' * solver->stepsize.'..xi..'].'..field
+				local UL = 'Uup['..(j-1)..' * solver->stepsize.'..xi..'].'..field
+				expr = add(expr, real_mul(sub(UR, UL), clnumber(coeff)))
+			end
+			expr = real_mul(expr, '1. / solver->grid_dx.'..xi)
+		end
+		lines:insert('\t'..namei..' = '..expr..';')
+	end
+	return lines:concat'\n'
 end
 
 function BSSNOKFiniteDifferenceEquation:compile(expr)
@@ -501,22 +543,18 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 <?=eqn:makePartial'W'?>
 <?=eqn:makePartial2'W'?>
 	
-	real3 partial_phi_l;
+	//partial_phi_l.i := phi_,i = -W_,i / (2 W) 
+	real3 partial_phi_l = real3_real_mul(partial_W_l, -.5 / U->W);
+	
 	sym3 partial2_phi_ll;
 	{
-		
-		//partial_phi_l.i := phi_,i = -W_,i / (2 W) 
-<? for i,xi in ipairs(xNames) do
-?>		partial_phi_l.<?=xi?> = -partial_W_l[<?=i-1?>] / (2. * U->W);
-<? end ?>
-
 		//This is only used by ABar_ij,t:
 		//partial2_phi_ll.ij := phi_,ij = 1/(2W) (-W_,ij + W_,i W_,j / W)
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 ?>		partial2_phi_ll.<?=xij?> = .5 * (
-				-partial2_W_ll[<?=ij-1?>] 
-				+ partial_W_l[<?=i-1?>] * partial_W_l[<?=j-1?>] / U->W
+				-partial2_W_ll.[<?=xij?> 
+				+ partial_W_l.<?=xi?> * partial_W_l.<?=xj?> / U->W
 			) / U->W;
 <? end ?>
 	}
@@ -550,22 +588,18 @@ end
 <?=eqn:makePartial'W'?>
 <?=eqn:makePartial2'W'?>
 	
-	real3 partial_phi_l;
+	//partial_phi_l.i := phi_,i = -W_,i / (2 W) 
+	real3 partial_phi_l = real3_real_mul(partial_W_l, -.5 / U->W);
+	
 	sym3 partial2_phi_ll;
 	{
-		
-		//partial_phi_l.i := phi_,i = -W_,i / (2 W) 
-<? for i,xi in ipairs(xNames) do
-?>		partial_phi_l.<?=xi?> = -partial_W_l[<?=i-1?>] / (2. * U->W);
-<? end ?>
-
 		//This is only used by ABar_ij,t:
 		//partial2_phi_ll.ij := phi_,ij = 1/(2W) (-W_,ij + W_,i W_,j / W)
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 ?>		partial2_phi_ll.<?=xij?> = .5 * (
-				-partial2_W_ll[<?=ij-1?>] 
-				+ partial_W_l[<?=i-1?>] * partial_W_l[<?=j-1?>] / U->W
+				-partial2_W_ll.<?=xij?> 
+				+ partial_W_l.<?=xi?> * partial_W_l.<?=xj?> / U->W
 			) / U->W;
 <? end ?>
 	}
@@ -598,11 +632,7 @@ end
 			type = 'real3',
 			code = template([[
 <?=eqn:makePartial'W'?>
-	real3 partial_phi_l;
-<? for i,xi in ipairs(xNames) do
-?>	partial_phi_l.<?=xi?> = -partial_W_l[<?=i-1?>] / (2. * U->W);
-<? end ?>
-	
+	real3 partial_phi_l = real3_real_mul(partial_W_l, -.5 / U->W);
 	*value_real3 = partial_phi_l;
 ]], env),
 		},
@@ -612,7 +642,7 @@ end
 			type = 'real3',
 			code = template([[
 <?=eqn:makePartial'alpha'?>
-	*value_real3 = *(real3*)partial_alpha_l;
+	*value_real3 = partial_alpha_l;
 ]], env),
 		},
 
@@ -662,12 +692,8 @@ end
 	_3sym3 connBar_ULL;
 	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
 
-	sym3 partial2_alpha_LL;
-<? for ij,xij in ipairs(symNames) do
-	local i,j,xi,xj = from6to3x3(ij)
-?>	partial2_alpha_LL.<?=xij?> = partial2_alpha_ll[<?=ij-1?>] / (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x));
-<? end
-?>
+	sym3 partial2_alpha_LL = sym3_rescaleFromCoord_ll(partial2_alpha_ll, x);
+	
 	//DBar_i DBar_j alpha = alpha,ij - connBar^k_ij alpha,k
 	sym3 DBar2_alpha_LL;
 <? for ij,xij in ipairs(symNames) do
@@ -682,22 +708,17 @@ end
 <?=eqn:makePartial'W'?>
 <?=eqn:makePartial2'W'?>
 	
-	real3 partial_phi_l;
+	real3 partial_phi_l = real3_real_mul(partial_W_l, -.5 / U->W);
+	
 	sym3 partial2_phi_ll;
 	{
-		
-		//partial_phi_l.i := phi_,i = -W_,i / (2 W) 
-<? for i,xi in ipairs(xNames) do
-?>		partial_phi_l.<?=xi?> = -partial_W_l[<?=i-1?>] / (2. * U->W);
-<? end ?>
-
 		//This is only used by ABar_ij,t:
 		//partial2_phi_ll.ij := phi_,ij = 1/(2W) (-W_,ij + W_,i W_,j / W)
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 ?>		partial2_phi_ll.<?=xij?> = .5 * (
-				-partial2_W_ll[<?=ij-1?>] 
-				+ partial_W_l[<?=i-1?>] * partial_W_l[<?=j-1?>] / U->W
+				- partial2_W_ll.<?=xij?> 
+				+ partial_W_l.<?=xi?> * partial_W_l.<?=xj?> / U->W
 			) / U->W;
 <? end ?>
 	}
@@ -715,11 +736,7 @@ end
 <? end
 ?>
 
-	real3 partial_alpha_L;
-<? for i,xi in ipairs(xNames) do
-?>	partial_alpha_L.<?=xi?> = partial_alpha_l[<?=i-1?>] / calc_len_<?=xi?>(x);
-<? end
-?>
+	real3 partial_alpha_L = real3_rescaleFromCoord_l(partial_alpha_l, x);
 
 	real3 partial_phi_L = real3_rescaleFromCoord_l(partial_phi_l, x);
 	
@@ -797,9 +814,9 @@ end ?>;
 	*value = -tr_partial_beta / U->alpha
 <? 
 for i,xi in ipairs(xNames) do
-?>		+ U->beta_u.<?=xi?> * partial_alpha_l[<?=i-1?>] / (U->alpha * U->alpha) 
-		- U->beta_u.<?=xi?> * partial_alpha_l[<?=i-1?>] / (U->alpha * U->alpha) 
-		+ 3. * partial_W_l[<?=i-1?>] * U->beta_u.<?=xi?> / (U->W * U->alpha)
+?>		+ U->beta_u.<?=xi?> * partial_alpha_l.<?=xi?> / (U->alpha * U->alpha) 
+		- U->beta_u.<?=xi?> * partial_alpha_l.<?=xi?> / (U->alpha * U->alpha) 
+		+ 3. * partial_W_l.<?=xi?> * U->beta_u.<?=xi?> / (U->W * U->alpha)
 <?	for j,xj in ipairs(xNames) do
 ?>		+ K_ll.<?=sym(i,j)?> * U->beta_u.<?=xi?> * U->beta_u.<?=xj?> / (U->alpha * U->alpha)
 <?	end
@@ -844,7 +861,7 @@ end
 	real _1_alpha = 1. / U->alpha;
 
 	sym3 gamma_uu = calc_gamma_uu(U, x);
-	real3 partial_alpha_u = sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l);		//alpha_,j gamma^ij = alpha^,i
+	real3 partial_alpha_u = sym3_real3_mul(gamma_uu, partial_alpha_l);		//alpha_,j gamma^ij = alpha^,i
 	
 <? for i,xi in ipairs(xNames) do
 ?>	value_real3-><?=xi?> = -partial_alpha_u.<?=xi?>;
@@ -869,7 +886,7 @@ end
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_sub(
 			sym3_real_mul(partial_epsilon_lll[<?=i-1?>], _1_W * _1_W),
-			sym3_real_mul(gammaBar_ll, 2. * partial_W_l[<?=i-1?>] * _1_W * _1_W * _1_W)),
+			sym3_real_mul(gammaBar_ll, 2. * partial_W_l.<?=xi?> * _1_W * _1_W * _1_W)),
 <? end
 ?>	};
 
@@ -877,7 +894,7 @@ end
 	real dt_alpha = 0.;
 	sym3 dt_gamma_ll = sym3_zero;
 	
-	real partial_alpha_dot_beta = real3_dot(U->beta_u, *(real3*)partial_alpha_l);	//beta^j alpha_,j
+	real partial_alpha_dot_beta = real3_dot(U->beta_u, partial_alpha_l);	//beta^j alpha_,j
 
 	real3 beta_l = sym3_real3_mul(gamma_ll, U->beta_u);								//beta^j gamma_ij
 	real3 beta_dt_gamma_l = sym3_real3_mul(dt_gamma_ll, U->beta_u);					//beta^j gamma_ij,t
@@ -1016,17 +1033,14 @@ end ?>;
 <?=eqn:makePartial'W'?>
 <?=eqn:makePartial2'W'?>
 
-	real3 partial_phi_l;
-<? for i,xi in ipairs(xNames) do
-?>	partial_phi_l.<?=xi?> = -partial_W_l[<?=i-1?>] / (2. * U->W);
-<? end ?>
+	real3 partial_phi_l = real3_real_mul(partial_W_l, -.5 / U->W);
 
 	sym3 partial2_phi_ll;
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 ?>	partial2_phi_ll.<?=xij?> = .5 * (
-			-partial2_W_ll[<?=ij-1?>] 
-			+ partial_W_l[<?=i-1?>] * partial_W_l[<?=j-1?>] / U->W
+			-partial2_W_ll.<?=xij?> 
+			+ partial_W_l.<?=xi?> * partial_W_l.<?=xj?> / U->W
 		) / U->W;
 <? end ?>
 	

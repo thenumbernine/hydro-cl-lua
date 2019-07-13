@@ -4,14 +4,14 @@ require 'common'(_G)
 
 -- derivCoeffs[derivative][accuracy] = {coeffs...}
 local derivCoeffs = {
-	-- antisymmetric coefficients 
+	-- centered 1st deriv coefficients 
 	{
 		[2] = {.5},
 		[4] = {2/3, -1/12},
 		[6] = {3/4, -3/20, 1/60},
 		[8] = {4/5, -1/5, 4/105, -1/280},
 	},
-	-- symmetric
+	-- centered 2nd deriv coefficients
 	{
 		[2] = {[0] = -2, 1},
 		[4] = {[0] = -5/2, 4/3, -1/12},
@@ -38,9 +38,19 @@ local function makePartial(order, solver, field, fieldType, nameOverride)
 	local zero = fieldType..'_zero'
 	local name = nameOverride or ('partial_'..field..suffix)
 	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)
-	local lines = table{'\t'..fieldType..' '..name..'[3];\n'}
+	local lines = table()
+	if fieldType == 'real' then
+		lines:insert('\treal3 '..name..';\n')
+	else
+		lines:insert('\t'..fieldType..' '..name..'[3];\n')
+	end
 	for i,xi in ipairs(xNames) do
-		local namei = name..'['..(i-1)..']'
+		local namei
+		if fieldType == 'real' then
+			namei = name..'.'..xi
+		else
+			namei = name..'['..(i-1)..']'
+		end
 		local expr = zero
 		if i <= solver.dim then
 			for j,coeff in ipairs(d1coeffs) do
@@ -67,11 +77,20 @@ local function makePartial2(order, solver, field, fieldType, nameOverride)
 	local d1coeffs = assert(derivCoeffs[1][order], "couldn't find 1st derivative coefficients of order "..order)
 	local d2coeffs = assert(derivCoeffs[2][order], "couldn't find 2nd derivative coefficients of order "..order)
 	local lines = table()
-	lines:insert('\t'..fieldType..' '..name..'[6];')
+	if fieldType == 'real' then
+		lines:insert('\tsym3 '..name..';')
+	else
+		lines:insert('\t'..fieldType..' '..name..'[6];')
+	end
 	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
 		local xi, xj = xNames[i], xNames[j]
-		local nameij = name..'['..(ij-1)..']'
+		local nameij
+		if fieldType == 'real' then
+			nameij = name..'.'..xij
+		else
+			nameij = name..'['..(ij-1)..']'
+		end
 		if i > solver.dim or j > solver.dim then
 			lines:insert('\t'..nameij..' = '..zero..';')
 		elseif i == j then
