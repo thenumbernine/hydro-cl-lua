@@ -634,6 +634,37 @@ end
 
 	_3sym3 connHat_ull = _3sym3_rescaleToCoord_ULL(*connHat_ULL, x);
 
+	//gammaBar_times_partial_connHat_ulll[l].i.jk = gammaBar_im connHat^m_jk,l
+	_3sym3 gammaBar_times_partial_connHat_ulll[3];
+<? for i,xi in ipairs(xNames) do
+	for jk,xjk in ipairs(symNames) do
+		local j,k,xj,xk = from6to3x3(jk)
+		for l,xl in ipairs(xNames) do
+?>	gammaBar_times_partial_connHat_ulll[<?=l-1?>].<?=xi?>.<?=xjk?> = 0.
+<?			for m,xm in ipairs(xNames) do
+?>		+ gammaBar_LL-><?=sym(i,m)?> * calc_len_<?=xi?>(x) * calc_partial_connHat_Ulll_<?=xm..xjk..xl?>(x)
+<?			end
+?>	;
+<?		end
+	end
+end
+?>
+
+	//connHat_times_partial_gammaBar_llll[l].k.ij := connHat^m_ij gammaBar_mk,l
+	_3sym3 connHat_times_partial_gammaBar_llll[3];
+<? for ij,xij in ipairs(symNames) do
+	local i,j,xi,xj = from6to3x3(ij)
+	for k,xk in ipairs(xNames) do
+		for l,xl in ipairs(xNames) do
+?>	connHat_times_partial_gammaBar_llll[<?=l-1?>].<?=xk?>.<?=xij?> = 0.
+<?			for m,xm in ipairs(xNames) do
+?>		+ connHat_ull.<?=xm?>.<?=xij?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,k)?>
+<?			end
+?>	;
+<?		end
+	end
+end
+?>	
 	/*
 	partial_DHat_gammaBar_without_partial2_gammaBar_llll[l].k.ij := partial_l DHat_k gammaBar_ij
 		= (gammaBar_ij,k - connHat^m_ki gammaBar_mj - connHat^m_kj gammaBar_mi)_,l
@@ -650,16 +681,11 @@ for ij,xij in ipairs(symNames) do
 	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do
 ?>	partial_DHat_gammaBar_without_partial2_gammaBar_llll[<?=l-1?>].<?=xk?>.<?=xij?> = 0.
-<?			for m,xm in ipairs(xNames) do
-?>
-			// I tried moving this expression into its own object, but that was much less stable
-		- gammaBar_LL-><?=sym(m,j)?> * calc_len_<?=xj?>(x) * calc_partial_connHat_Ulll_<?=xm..sym(k,i)..xl?>(x)
-		- gammaBar_LL-><?=sym(m,i)?> * calc_len_<?=xi?>(x) * calc_partial_connHat_Ulll_<?=xm..sym(k,j)..xl?>(x)
-		
-		- connHat_ull.<?=xm?>.<?=sym(k,i)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,j)?>
-		- connHat_ull.<?=xm?>.<?=sym(k,j)?> * partial_gammaBar_lll.<?=xl?>.<?=sym(m,i)?>
-<?			end
-?>	;
+		- gammaBar_times_partial_connHat_ulll[<?=l-1?>].<?=xj?>.<?=sym(k,i)?>
+		- gammaBar_times_partial_connHat_ulll[<?=l-1?>].<?=xi?>.<?=sym(k,j)?>
+		- connHat_times_partial_gammaBar_llll[<?=l-1?>].<?=xj?>.<?=sym(i,k)?>
+		- connHat_times_partial_gammaBar_llll[<?=l-1?>].<?=xi?>.<?=sym(j,k)?>
+	;
 <?		end
 	end
 end
@@ -671,9 +697,26 @@ end
 	real3 trBar_connHat_u = _3sym3_sym3_dot23(connHat_ull, gammaBar_uu);
 
 	//DHat_m gammaBar_ij * connHat^m_kl
-	sym3 DHat_gammaBar_times_connHat_ll = real3_3sym3_dot1(
+	sym3 DHat_gammaBar_dot1_connHat_ll = real3_3sym3_dot1(
 		trBar_connHat_u,
 		DHat_gammaBar_lll);
+
+	//DHat_gammaBar_dot12_connHat_llll[i].j.kl
+	//DHat_i gammaBar_jm * connHat^m_kl
+	_3sym3 DHat_gammaBar_dot12_connHat_llll[3];
+<? for i,xi in ipairs(xNames) do
+	for j,xj in ipairs(xNames) do
+		for kl,xkl in ipairs(symNames) do
+			local k,l,xk,xl = from6to3x3(kl)
+?>	DHat_gammaBar_dot12_connHat_llll[<?=i-1?>].<?=xj?>.<?=xkl?> = 0.
+<?			for m,xm in ipairs(xNames) do
+?>		+ DHat_gammaBar_lll.<?=xi?>.<?=sym(j,m)?> * connHat_ull.<?=xm?>.<?=xkl?>
+<?			end
+?>	;
+<?		end
+	end
+end
+?>
 	
 	/*
 	trBar_DHat2_gammaBar_without_partial2_gammaBar_ll.ij = gammaBar^kl DHat_l DHat_k gammaBar_ij
@@ -682,33 +725,35 @@ end
 			- connHat^m_li DHat_k gammaBar_mj
 			- connHat^m_lj DHat_k gammaBar_im)
 	*/
-	sym3 trBar_DHat2_gammaBar_without_partial2_gammaBar_ll;
+	sym3 trBar_DHat2_gammaBar_without_partial2_gammaBar_LL;
 <?
 for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
-?>	trBar_DHat2_gammaBar_without_partial2_gammaBar_ll.<?=xij?> = 0.
-		- DHat_gammaBar_times_connHat_ll.<?=sym(i,j)?>
+?>	trBar_DHat2_gammaBar_without_partial2_gammaBar_LL.<?=xij?> = (0.
+		//Less accurate if I rescale this in advance.
+		//Less accurate if I rescale this and subtract it later, outside this variable
+		- DHat_gammaBar_dot1_connHat_ll.<?=sym(i,j)?>
 <?	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do
-?>		+ gammaBar_uu.<?=sym(k,l)?> * (0.
+?>		//Less accurate to store this in advance 
+		+ gammaBar_uu.<?=sym(k,l)?> * (0.
 			+ partial_DHat_gammaBar_without_partial2_gammaBar_llll[<?=l-1?>].<?=xk?>.<?=xij?>
+		//Less accurate if I combine these two separate gammaBar^ij * ... statements 
 		)
 		
-		//Slightly less accurate to convert all these to non-coord.
+		//Less accurate to convert all these to non-coord.
 		//I think that is because connHat^I_JK has a few more 1/r's than connHat^i_jk
+		//Also slightly less accurate to store this in advance.
 		+ gammaBar_uu.<?=sym(k,l)?> * (0.
-<?			for m,xm in ipairs(xNames) do
-?>			- connHat_ull.<?=xm?>.<?=sym(l,i)?> * DHat_gammaBar_lll.<?=xk?>.<?=sym(m,j)?>
-			- connHat_ull.<?=xm?>.<?=sym(l,j)?> * DHat_gammaBar_lll.<?=xk?>.<?=sym(i,m)?>
-<?			end
-?>		)
+			- DHat_gammaBar_dot12_connHat_llll[<?=k-1?>].<?=xi?>.<?=sym(j,l)?>
+			- DHat_gammaBar_dot12_connHat_llll[<?=k-1?>].<?=xj?>.<?=sym(i,l)?>
+		)
 <?		end
 	end
-?>	;
+?>	) / (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x));
 <?
 end
 ?>
-	sym3 trBar_DHat2_gammaBar_without_partial2_gammaBar_LL = sym3_rescaleFromCoord_ll(trBar_DHat2_gammaBar_without_partial2_gammaBar_ll, x);
 
 	//trBar_DHat2_gammaBar_ll.ij := gammaBar^kl DHat_k DHat_l gammaBar_ij
 	sym3 trBar_DHat2_gammaBar_LL = sym3_add(
@@ -754,12 +799,16 @@ end
 ?>	RBar_LL.<?=xij?> = 0.
 			- .5 * trBar_DHat2_gammaBar_LL.<?=xij?>	
 <?	for k,xk in ipairs(xNames) do
-?>			+ .5 * gammaBar_LL-><?=sym(i,k)?> * DHat_LambdaBar_UL.<?=xk?>.<?=xj?> 
+?>			//Less accurate when I defer this
+			+ .5 * gammaBar_LL-><?=sym(i,k)?> * DHat_LambdaBar_UL.<?=xk?>.<?=xj?> 
 			+ .5 * gammaBar_LL-><?=sym(j,k)?> * DHat_LambdaBar_UL.<?=xk?>.<?=xi?>
+			
+			//Less accurate when deferring these calculations
 			+ .5 * Delta_U-><?=xk?> * (
 				Delta_LLL-><?=xi?>.<?=sym(k,j)?> 
 				+ Delta_LLL-><?=xj?>.<?=sym(k,i)?>
 			)
+
 <?		for l,xl in ipairs(xNames) do
 			for m,xm in ipairs(xNames) do
 ?>			+ gammaBar_UU-><?=sym(k,l)?> * (0.

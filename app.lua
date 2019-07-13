@@ -22,7 +22,7 @@ predefined vars:
 	exitTime = start the app running, and exit it after the simulation reaches this time
 	verbose = output extra stuff
 
-	run = start the simulation running.  setting 'exitTime' also starts the simulation running.
+	run = start the simulation running.  Setting 'exitTime' or 'sys=console' also starts the simulation running.
 	showfps = print the updates/second to console
 	checknans = stop if a NaN or infinity is found
 
@@ -320,7 +320,12 @@ function HydroCLApp:initGL(...)
 	local deviceName = self.env.device:getName()
 
 	self.exitTime = cmdline.exitTime
-	if self.exitTime or cmdline.run then self.running = true end
+	if self.exitTime 
+	or cmdline.run 
+	or self.targetSystem == 'console'
+	then 
+		self.running = true 
+	end
 
 	self.createAnimation = cmdline.createAnimation
 

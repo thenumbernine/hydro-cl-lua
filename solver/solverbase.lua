@@ -535,8 +535,23 @@ end
 	end
 
 	-- display stuff:
+	if self.app.targetSystem ~= 'console' then
+	
+		if self.app.useGLSharing then
+			for _,group in ipairs(self.displayVarGroups) do
+				for _,var in ipairs(group.vars) do
+					--[[
+					if var.enabled 
+					or (var.vecVar and var.vecVar.enabled)
+					then
+					--]]do
+						var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel(var.toTexKernelName)
+						var.calcDisplayVarToTexKernelObj.obj:setArg(1, self.texCLMem)
+					end
+				end
+			end
+		end
 
-	if self.app.useGLSharing then
 		for _,group in ipairs(self.displayVarGroups) do
 			for _,var in ipairs(group.vars) do
 				--[[
@@ -544,22 +559,9 @@ end
 				or (var.vecVar and var.vecVar.enabled)
 				then
 				--]]do
-					var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel(var.toTexKernelName)
-					var.calcDisplayVarToTexKernelObj.obj:setArg(1, self.texCLMem)
+					var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel(var.toBufferKernelName)
+					var.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
 				end
-			end
-		end
-	end
-
-	for _,group in ipairs(self.displayVarGroups) do
-		for _,var in ipairs(group.vars) do
-			--[[
-			if var.enabled 
-			or (var.vecVar and var.vecVar.enabled)
-			then
-			--]]do
-				var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel(var.toBufferKernelName)
-				var.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
 			end
 		end
 	end
@@ -604,6 +606,7 @@ local function shouldDeferCode(code)
 end
 
 function SolverBase:getDisplayCode()
+	if self.app.targetSystem == 'console' then return '' end
 	local texVsBufInfo = {
 		Tex = {
 			outputArg = function(var)
