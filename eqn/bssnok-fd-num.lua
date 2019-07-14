@@ -19,7 +19,6 @@ local EinsteinEqn = require 'eqn.einstein'
 local makestruct = require 'eqn.makestruct'
 local common = require 'common'
 local time, getTime = table.unpack(require 'util.time')
-
 local makePartials = require 'eqn.makepartial'
 
 local BSSNOKFiniteDifferenceEquation = class(EinsteinEqn)
@@ -29,6 +28,9 @@ BSSNOKFiniteDifferenceEquation.hasCalcDTCode = true
 BSSNOKFiniteDifferenceEquation.hasFluxFromConsCode = true
 BSSNOKFiniteDifferenceEquation.useConstrainU = true
 BSSNOKFiniteDifferenceEquation.useSourceTerm = true
+
+-- not used with finite-difference schemes anyways
+BSSNOKFiniteDifferenceEquation.weightFluxByGridVolume = false
 
 -- what variables to mirror at sphere center
 -- 2013 Baumgarte et al, "Numerical Relativity in Spherical Polar Coordinates...", IIIB
@@ -49,9 +51,6 @@ BSSNOKFiniteDifferenceEquation.boundarySphereCenterMirrorVars = {
 	},
 } 
 
--- not used with finite-difference schemes anyways
-BSSNOKFiniteDifferenceEquation.weightFluxByGridVolume = false
-
 --[[
 args:
 	useShift = 'none'
@@ -69,7 +68,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 		{name='W', type='real'},				-- 1:	1: W = exp(-2 phi) = (det gammaHat_ij / det gamma_ij)^(1/6)
 		{name='K', type='real'},				-- 2:	1: K = K^i_i
 		{name='beta_U', type='real3'},		 	-- 3:	3: beta^i
-		{name='B_U', type='real3'},				-- 6:	3: B^i
+		{name='B_U', type='real3'},				-- 6:	3: B^i ... only used with HyperbolicGammaDriver
 		{name='LambdaBar_U', type='real3'},		-- 9:	3: LambdaBar^i = C^i + Delta^i = C^i + gammaBar^jk (connBar^i_jk - connHat^i_jk)
 		{name='epsilon_LL', type='sym3'},		-- 12:	6: gammaBar_ij - gammaHat_ij, only 5 dof since det gammaBar_ij = 1
 		{name='ABar_LL', type='sym3'},			-- 18:	6: ABar_ij, only 5 dof since ABar^k_k = 0
@@ -238,10 +237,6 @@ kernel void initState(
 	sym3 K_ll = sym3_zero;
 	real rho = 0.;
 
-<? if false then 	-- eqn.initState.name == 'Minkowski' then ?>
-	setFlatSpace(solver, U, x);
-<? else -- not Minkowski ?>
-
 	<?=code?>
 	
 	//rescale from cartesian to spherical
@@ -272,8 +267,6 @@ kernel void initState(
 	sym3 ABar_ll = sym3_real_mul(A_ll, exp_neg4phi);
 	U->ABar_LL = sym3_rescaleFromCoord_ll(ABar_ll, x);
 
-<? end -- Minkowski ?>
-
 	U->rho = rho;
 	U->S_u = real3_zero;
 	U->S_ll = sym3_zero;
@@ -292,17 +285,6 @@ kernel void initDerivs(
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
-<? if false then -- eqn.initState.name == 'Minkowski' then ?>
-	U->LambdaBar_U = real3_zero;
-<? else	-- initState == Minkowski ?>
-#if 0
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		setFlatSpace(solver, U, x);
-		return;
-	}
-#endif
-
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
@@ -320,8 +302,6 @@ kernel void initDerivs(
 	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
 	
 	U->LambdaBar_U = real3_add(_3sym3_sym3_dot23(Delta_ULL, gammaBar_UU), mystery_C_U);
-
-<? end -- initState == Minkowski ?>
 }
 ]=], table(self:getEnv(), {
 		code = self.initState:initState(self.solver),

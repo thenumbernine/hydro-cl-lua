@@ -332,9 +332,7 @@ for i,xi in ipairs(xNames) do
 	end
 end
 
-?>
 
-<?
 local det_gammaHat = coord.det_g 
 local partial_det_gammaHat_l = Tensor('_i', function(i)
 	return det_gammaHat:diff(coord.coords[i])()
@@ -397,7 +395,15 @@ det(epsilon_IJ + gammaHat_IJ)
 = 1
 TODO detg ... unless we want to change the constraint
 */
+#if 0	//use the value
+real calc_det_gammaBarLL(global const <?=eqn.cons_t?>* U, ral3 x) {
+	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
+	real det_gammaBarLL = sym3_det(gammaBar_LL);
+	return det_gammaBarLL;
+}
+#else	//use the constraint
 #define calc_det_gammaBarLL(x) 1.
+#endif
 
 sym3 calc_gammaBar_UU(global const <?=eqn.cons_t?>* U, real3 x) {
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
@@ -1934,13 +1940,12 @@ kernel void addSource(
 		//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 		//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
 		for (int i = 0; i < numIntStates; ++i) {
-<?=require'eqn.makepartial'.makePartialRank1(4, 4, solver, 'ptr[i]', 'real', 'partial4_Ui_ll', false)?>
-			real lap = 0.
-<? for j,xj in ipairs(xNames) do 
-?>				+ partial4_Ui_ll.<?=xj?>
-<? end 
-?>			;
-//TODO should that be a + or a -?
+<?=require'eqn.makepartial'.makePartialRank1(4, 4, solver, 'ptr[i]', 'real', 'partial4_Ui_ll')?>
+			real lap = 0.<? 
+for j,xj in ipairs(xNames) do 
+?> + partial4_Ui_ll.<?=xj?><? 
+end 
+?>;
 			deriv->ptr[i] += solver->diffuseCoeff * lap;
 		}
 	}

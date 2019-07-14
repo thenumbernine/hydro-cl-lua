@@ -1,11 +1,4 @@
 <? 
--- [[ do this every time you use the env
-local env = eqn:getEnv()
-local oldEnv = getfenv()
-getmetatable(env).__index = oldEnv
-setfenv(1, env)
---]]
-
 -- constrains det gammaBar_ij = det gammaHat_ij, ABar^i_i = 0, and calculates H and M^i ... if the associated flags are set
 local useConstrainU = true
 
@@ -66,19 +59,19 @@ kernel void calcDeriv(
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
 
-<?=eqn:makePartial'alpha'?>			//partial_alpha_l[i] := alpha_,i
-<?=eqn:makePartial'beta_U'?>			//partial_beta_Ul[j].I := beta^I_,j
-<?=eqn:makePartial'epsilon_LL'?>		//partial_epsilon_LLl[k].IJ := epsilon_IJ,k
-<?=eqn:makePartial'W'?>				//partial_W_l[i] := W_,i 
-<?=eqn:makePartial'K'?>				//partial_K_l[i] := K,i
-<?=eqn:makePartial'ABar_LL'?>		//partial_ABar_LLl[k].IJ = ABar_IJ,k
-<?=eqn:makePartial'LambdaBar_U'?>	//partial_LambdaBar_Ul[j].I := LambdaBar^I_,j
+<?=eqn:makePartial1'alpha'?>			//partial_alpha_l.i := alpha_,i
+<?=eqn:makePartial1'beta_U'?>			//partial_beta_Ul[j].I := beta^I_,j
+<?=eqn:makePartial1'epsilon_LL'?>		//partial_epsilon_LLl[k].IJ := epsilon_IJ,k
+<?=eqn:makePartial1'W'?>				//partial_W_l.i := W_,i 
+<?=eqn:makePartial1'K'?>				//partial_K_l.i := K,i
+<?=eqn:makePartial1'ABar_LL'?>		//partial_ABar_LLl[k].IJ = ABar_IJ,k
+<?=eqn:makePartial1'LambdaBar_U'?>	//partial_LambdaBar_Ul[j].I := LambdaBar^I_,j
 <?=eqn:makePartial2'alpha'?>			//partial2_alpha_ll.ij := alpha_,ij
 <?=eqn:makePartial2'beta_U'?>		//partial2_beta_Ull[jk].I = beta^I_,jk
 <?=eqn:makePartial2'W'?>				//partial2_W_ll.ij := W_,ij
 	//partial_B[i] := B^i_,t
 <? if eqn.useShift == 'HyperbolicGammaDriver' then ?>
-<?=eqn:makePartial'B_U'?>			//partial_B_Ul[j].I := B^I_,j
+<?=eqn:makePartial1'B_U'?>			//partial_B_Ul[j].I := B^I_,j
 <? end ?>
 
 <?=assign_sym3'gammaHat_ll'?>
@@ -189,7 +182,7 @@ kernel void calcDeriv(
 <?=assign_sym3'gammaBar_ll'?>
 	sym3 RBar_LL;
 	{
-<?=eqn:makePartial'epsilon_LL'?>
+<?=eqn:makePartial1'epsilon_LL'?>
 <?=eqn:makePartial2'epsilon_LL'?>
 <?=assign_sym3'trBar_partial2_gammaBar_ll'?>
 <?=assign_3sym3('partial_gammaBar_lll', partial_gammaBar_lll:permute'_kij')?>
@@ -337,7 +330,7 @@ end
 	//tr_gammaBar_DHat2_beta_u.i = gammaBar^jk DHat_j DHat_k beta^i
 	real3 tr_gammaBar_DHat2_beta_u;
 <? for i,xi in ipairs(xNames) do
-?>	tr_gammaBar_DHat2_beta_u.<?=xi?> = sym3_real3x3_dot(gammaBar_uu, DHat2_beta_u.<?=xi?>);
+?>	tr_gammaBar_DHat2_beta_u.<?=xi?> = real3x3_sym3_dot(DHat2_beta_u.<?=xi?>, gammaBar_uu);
 <? end
 ?>	
 
@@ -445,12 +438,12 @@ then
 <? if eqn.guiVars.calc_H_and_M and eqn.guiVars.calc_H_and_M.value then ?>
 
 //TODO these need to be pre-scaled back to coordinates before computing the weighted finite difference
-<?=eqn:makePartial'ABar_LL'?>		//partial_ABar_LLl[k].IJ = ABar_IJ,k
-<?=eqn:makePartial'alpha'?>			//partial_alpha_l[i] := alpha_,i
-<?=eqn:makePartial'K'?>				//partial_K_l[i] := K_,i
-<?=eqn:makePartial'W'?>				//partial_W_l[i] := phi_,i 
-<?=eqn:makePartial'LambdaBar_U'?>	//partial_LambdaBar_Ul[j].I := LambdaBar^I_,j
-<?=eqn:makePartial2'W'?>			//partial2_W_ll[ij] := phi_,ij
+<?=eqn:makePartial1'ABar_LL'?>			//partial_ABar_LLl[k].IJ = ABar_IJ,k
+<?=eqn:makePartial1'alpha'?>			//partial_alpha_l.i := alpha_,i
+<?=eqn:makePartial1'K'?>				//partial_K_l.i := K_,i
+<?=eqn:makePartial1'W'?>				//partial_W_l.i := phi_,i 
+<?=eqn:makePartial1'LambdaBar_U'?>		//partial_LambdaBar_Ul[j].I := LambdaBar^I_,j
+<?=eqn:makePartial2'W'?>				//partial2_W_ll.ij := phi_,ij
 
 <?=assign_real3'partial_phi_l'?>
 <?=assign_sym3'partial2_phi_ll'?>
@@ -459,7 +452,7 @@ then
 	
 <?=assign_3sym3'connHat_ull'?>
 	
-<?=eqn:makePartial'epsilon_LL'?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
+<?=eqn:makePartial1'epsilon_LL'?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
 <?=assign_3sym3'connBar_lll'?>
 <?=assign_3sym3'connBar_ULL'?>
 <?=assign_real3x3'ABar_UL'?>
@@ -545,7 +538,7 @@ then
 		- 8. * M_PI * U->S_u.<?=xi?>
 <?	for j,xj in ipairs(xNames) do
 ?>		+ 6. * ABar_uu.<?=sym(i,j)?> * partial_phi_l.<?=xj?>
-		- 2./3. * exp_6phi * gammaBar_uu.<?=sym(i,j)?> * partial_K_l[<?=j-1?>]
+		- 2./3. * exp_6phi * gammaBar_uu.<?=sym(i,j)?> * partial_K_l.<?=xj?>
 <?		for k,xk in ipairs(xNames) do
 ?>		- connBar_ULL.<?=xi?>.<?=sym(j,k)?> * ABar_UU.<?=sym(j,k)?> * coord_dx<?=i-1?>(x)
 <?			for l,xl in ipairs(xNames) do
@@ -576,18 +569,19 @@ kernel void addSource(
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	global cons_t* deriv = derivBuf + index;
 
-	//Kreiss-Oligar dissipation
-	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
-	//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
-	for (int i = 0; i < numIntStates; ++i) {
-<?=eqn:makePartial2('ptr[i]', 'real', 'partial2_Ui_ll')?>
+	if (solver->diffuseCoeff != 0.) { 
+		//Kreiss-Oligar dissipation
+		//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
+		//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
+		for (int i = 0; i < numIntStates; ++i) {
+<?=require'eqn.makepartial'.makePartialRank1(4, 4, solver, 'ptr[i]', 'real', 'partial4_Ui_ll')?>
 		real lap = 0<?
 for j,xj in ipairs(xNames) do
-	local jj = from3x3to6(j,j)
-?> + partial2_Ui_ll[<?=jj-1?>]<?
+?> + partial4_Ui_ll.<?=xj?><?
 end
 ?>;
-		deriv->ptr[i] -= solver->diffuseSigma/16. * lap;
+			deriv->ptr[i] += solver->diffuseCoeff * lap;
+		}
 	}
 <? end -- useAddSource ?>
 }
@@ -608,36 +602,44 @@ kernel void calcDT(
 <? 
 -- seems all the hyperbolic formalisms listed in Alcubierre's book use alpha sqrt(gamma^ii) for the speed-of-light wavespeed
 -- however the 2017 Ruchlin paper says to use gamma_ij
-local useGammaInvForDT = false 	
+--local cflMethod = '2008 Alcubierre'
+--local cflMethod = '2013 Baumgarte et al, eqn 32'
+local cflMethod = '2017 Ruchlin et al, eqn 53'
 ?>
 
-<? if useGammaInvForDT then ?>	
-	sym3 gamma_uu = calc_gamma_uu(U, x);
-<? else ?>	
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-<? end ?>
-
+<? if cflMethod == '2008 Alcubierre' then
+?>	sym3 gamma_uu = calc_gamma_uu(U, x);
+<? elseif cflMethod == '2017 Ruchlin et al, eqn 53' then
+?>	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+<? end 
+?>
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
-<? if useGammaInvForDT then ?>
-		//this is asserting alpha and W >0, which they should be
+<? 
+if cflMethod == '2013 Baumgarte et al, eqn 32' then
+	if side == 0 then 
+?>		dt = (real)min(dt, solver->grid_dx.x);
+<?	elseif side == 1 then 
+?>		dt = (real)min(dt, .5 * solver->grid_dx.x * solver->grid_dx.y);
+<? 	elseif side == 2 then 
+?>		dt = (real)min(dt, .5 * solver->grid_dx.x * sin(.5 * solver->grid_dx.y) * solver->grid_dx.z);
+<? 	end 
+else
+	if cflMethod == '2017 Alcubierre' then 
+?>		//this is asserting alpha and W >0, which they should be
 		real absLambdaMax = U->alpha * sqrt(gamma_uu.<?=sym(side+1,side+1)?>);
-<? else ?>		
-		//2017 Ruchlin, eqn. 53
-		real absLambdaMax = U->alpha * sqrt(gammaBar_ll.<?=sym(side+1,side+1)?>);
-<? end ?>
+<? 	elseif cflMethod == '2017 Ruchlin et al, eqn 53' then 
+?>		real absLambdaMax = U->alpha * sqrt(gammaBar_ll.<?=sym(side+1,side+1)?>);
+<? 	end 
 
-<? if false then -- hmm, do we base our CFL on delta in coordinate, or delta in Cartesian? ?>
-		real dx = cell_dx<?=side?>(x); 
-<? else ?>
-		real dx = solver->grid_dx.s<?=side?>;
-<? end ?>	
-		dt = (real)min(dt, dx / absLambdaMax);
-	}<? end ?>
+	if false then -- hmm, do we base our CFL on delta in coordinate, or delta in Cartesian?
+?>		real dx = cell_dx<?=side?>(x); 
+<? 	else
+?>		real dx = solver->grid_dx.s<?=side?>;
+<? 	end 
+?>		dt = (real)min(dt, dx / absLambdaMax);
+<?
+end 
+?>	}<? end ?>
 	dtBuf[index] = dt;
 }
-<?
--- [[ do this every time you stop using the env
-setfenv(1, oldEnv)
---]]
-?>

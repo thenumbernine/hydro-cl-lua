@@ -676,7 +676,8 @@ for spherical, derivOrder=2:
 -- [[ 2013 Baumgarte et al, section IV A 1 example
 self.solvers:insert(require 'solver.bssnok-fd'{
 	app = self,
-	eqn = 'bssnok-fd-num', 
+	--eqn = 'bssnok-fd-num', 
+	eqn = 'bssnok-fd-sym', 
 	eqnArgs = {useShift = 'none'},
 	dim = 1,
 	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
