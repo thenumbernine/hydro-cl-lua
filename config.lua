@@ -622,11 +622,8 @@ for RK4 with range [0, 10] runs indefinitely
 --[[
 BSSNOK but with my symbolic CAS generating the math
 Generation is really slow and not yet cached.
-In spherical on my laptop this is ~1min to do the differentiatin and simpliciations, then ~5min to compile (as opposed to the ~1min to compile the bssnok-fd-num version).
-for spherical, derivOrder=2: 
-	r=[1,10], Minkowski init cond, it is stable
-	r=[.1,1] Minkowski init cond it blows on FE and RK4 but not on BE 
-	r=[0,1] Minkowski init cond BE it is stable
+In spherical on my laptop this is ~1min to do the differentiatin and simpliciations, then ~5min to compile (as opposed to the ~20sec to compile the bssnok-fd-num version).
+But the tradeoff is that this one, Minkowski spherical, is completely smooth.  no oscillations, runs indefinitely.
 --]]
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
 

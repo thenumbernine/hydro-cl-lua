@@ -1738,7 +1738,8 @@ then
 	= det(gammaHat_ij)
 	*/
 <?	if eqn.guiVars.constrain_det_gammaBar.value then ?>
-	
+
+#if 1	//rescale based on non-coords
 	const real det_gammaHatLL = 1.;
 	real rescaleMetric = cbrt(det_gammaHatLL/det_gammaBarLL);
 <? 		for ij,xij in ipairs(symNames) do
@@ -1746,6 +1747,15 @@ then
 <? 		end ?>
 	U->epsilon_LL = sym3_sub(gammaBar_LL, sym3_ident);
 	det_gammaBarLL = det_gammaHatLL;
+#else	//rescale bases on coords
+	sym3 gammaBar_ll = sym3_rescaleToCoord_LL(gammaBar_LL, x);
+	real det_gammaBar_over_det_gammaHat = det_gammaBarLL;
+	real rescaleMetric = cbrt(1. / det_gammaBar_over_det_gammaHat);
+	gammaBar_ll = sym3_real_mul(gammaBar_ll, rescaleMetric); 
+	gammaBar_LL = sym3_rescaleFromCoord_ll(gammaBar_ll, x);
+	U->epsilon_LL = sym3_sub(gammaBar_LL, sym3_ident);
+	det_gammaBarLL = sym3_det(gammaBar_LL);
+#endif
 
 <?	end	-- constrain_det_gammaBar ?>
 

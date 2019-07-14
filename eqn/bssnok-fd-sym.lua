@@ -336,16 +336,6 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 			outfile:flush()
 		end
 
-		--[[
-		var = symmath.var
-		sin = symmath.sin
-		cos = symmath.cos
-		sqrt = symmath.sqrt
-		frac = symmath.frac
-		Tensor = symmath.Tensor
-		Matrix = symmath.Matrix
-		--]]
-
 		recordedAssignments = table()	-- key, value
 		getmetatable(env).__newindex = function(t,k,v)
 			-- this will only work for the first assignment, mind you
