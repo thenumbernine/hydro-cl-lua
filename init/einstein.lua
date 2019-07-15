@@ -199,8 +199,15 @@ return table{
 	-- from 1997 Alcubierre "The appearance of coorindate shocks in hyperbolic formalisms of General Relativity".
 	{
 		name = 'gaussian perturbation',
-		init = function(self, solver)
+		--[[
+		args:
+			center (in grid coordinates)
+			H
+			sigma
+		--]]
+		init = function(self, solver, args)
 			local size = solver.maxs[1] - solver.mins[1]
+			self.center = args and args.center or {0,0,0}
 			
 			-- 1997 Alcubierre uses amplitude of 5 on a grid size of 300 with dx=1
 			--local H = 5 / 300 * size
@@ -209,8 +216,8 @@ return table{
 			--local H = .05 * size
 			--local sigma = math.sqrt(.05) * size
 			-- messing with it on my own
-			local H = .01 * size
-			local sigma = .1 * size
+			local H = args and args.H or .01 * size
+			local sigma = args and args.sigma or .1 * size
 
 			-- TODO if only OpenCL allowed something like uniforms ...
 			solver.eqn:addGuiVars{
@@ -219,8 +226,12 @@ return table{
 			}
 		end,
 		initState = function(self, solver)
-			return [[
-	real s = real3_lenSq(xc);
+			return template([[
+	real3 center = coordMap(_real3(<?=clnumber(initState.center[1])
+								?>, <?=clnumber(initState.center[2])
+								?>, <?=clnumber(initState.center[3])?>));
+	real3 d = real3_sub(xc, center);
+	real s = real3_lenSq(d);
 
 	const real H = solver->init_H;
 	const real sigma = solver->init_sigma;
@@ -239,7 +250,7 @@ return table{
 	// = -2 (-2 h / sigma^2 (x-c)_i (x-c)_j) / sigma^2 - 2 h delta_ij / sigma^2
 	// = 4 h (x-c)_i (x-c)_j / sigma^4 - 2 h delta_ij / sigma^2
 	sym3 d2h = sym3_sub(
-		sym3_real_mul(real3_outer(xc), 4. * h / sigma4),
+		sym3_real_mul(real3_outer(d), 4. * h / sigma4),
 		sym3_real_mul(sym3_ident, 2. * h / sigma2));
 
 #if 0
@@ -258,7 +269,10 @@ return table{
 	gamma_ll = _sym3(gamma_ll.xx, 0,0,1,0,1);
 	K_ll = _sym3(K_ll.xx, 0,0,0,0,0);
 #endif
-]]
+]],			{
+				initState = self,
+				clnumber = require 'cl.obj.number',
+			})
 		end,
 	},
 	-- from 2012 Alic et. al. "Conformal and covariant formulations of the Z4 system with constraint-violation damping"

@@ -670,7 +670,7 @@ But the tradeoff is that this one, Minkowski spherical, is completely smooth.  n
 
 
 
--- [[ 2013 Baumgarte et al, section IV A 1 example
+-- [=[ 2013 Baumgarte et al, section IV A 1 example
 self.solvers:insert(require 'solver.bssnok-fd'{
 	app = self,
 	--eqn = 'bssnok-fd-num', 
@@ -679,6 +679,7 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	dim = 1,
 	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
 	cfl = .6,	--.4,
+	-- [[
 	coord = 'sphere',
 	mins = {0, 0, -math.pi},
 	maxs = {8, math.pi, math.pi},
@@ -691,10 +692,30 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 		zmin='periodic',
 		zmax='periodic',
 	},
+	--]]
+	--[[
+	coord = 'cartesian',
+	mins = {-4,-4,-4},
+	maxs = {4,4,4},
+	gridSize = {64,64,64},
+	boundary = {
+		xmin='freeflow',
+		xmax='freeflow',
+		ymin='freeflow',
+		ymax='freeflow',
+		zmin='freeflow',
+		zmax='freeflow',
+	},
+	--]]
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
 	--initState = 'gaussian perturbation',
+	initStateArgs = {
+		H = .1,
+		sigma = 1,
+		center = {4,math.pi/2,0},
+	},
 	initState = 'Minkowski',
 })
---]]
+--]=]
 
 

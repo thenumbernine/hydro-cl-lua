@@ -1354,52 +1354,9 @@ time('building symbolic math env', function()
 		outfile:close()
 
 
-
-		-- TODO move to symmath.export.Symmath
 		-- TODO add in the solver.coord.coords somewhere
 		-- TODO and 'symmath=require'symmath'' and setfenv so we can capture all assignments 
-		local tolua = require 'ext.tolua'
-		local tab = '\t'
-		local function export(x, indent)
-			indent = indent or ''
-			if symmath.Constant.is(x) then
-				-- TODO only for simple numbers just return the value
-				-- and only if it is a child of another expression.  don't assign Lua numbers to vars who are supposed to be symmath Constants
-				return indent..x.name..'('..tolua(x.value)..')'
-			elseif symmath.var.is(x) then
-				local s = indent..'var('..tolua(x.name)
-				if x.dependentVars and #x.dependentVars > 0 then
-					s = s .. ', {'..table.mapi(x.dependentVars, function(xi) 
-						return xi.name
-					end):concat', '..'}'
-				elseif x.value then	-- only add ,nil if we need to pad our expr
-					s = s .. ', nil'
-				end
-				if x.value then
-					s = s .. ', '..tolua(s.value)
-				end
-				s = s ..')'
-				return s
-			elseif symmath.op.Binary.is(x) then
-				return indent..'(\n'
-					..table.mapi(x, function(xi)
-						return export(xi, indent..tab)
-					end):concat(' '..x.name..'\n')..'\n'
-					..indent..')'
-			-- 'unary' ?
-			elseif symmath.op.unm.is(x) then
-				return indent..'-(\n'
-					..export(x[1], indent..tab)..'\n'
-					..indent..')'
-			end
 
-			local name = x.name
-			return indent..x.name..'(\n'
-				..table.mapi(x, function(xi) 
-					return export(xi, indent..tab) 
-				end):concat(',\n')..'\n'
-				..indent..')'
-		end
 		local function save()
 			local lines = table()
 			
@@ -1430,7 +1387,7 @@ setfenv(1, env)
 			for _,name in ipairs(recordedAssignments) do
 				local expr = env[name]
 				assert(expr, "couldn't find expression for "..name)
-				lines:insert(name..' = '..export(expr))
+				lines:insert(name..' = '..symmath.export.SymMath(expr))
 			end
 
 			lines:insert'compileRepls = table{'
@@ -1440,7 +1397,7 @@ setfenv(1, env)
 				-- buuuuttt what about when it is a sub-assignment?  
 				--  like var'cos_1' is equal to cos_xs[1]
 				-- I suppose as long as variable equality is by name, no need to worry for now
-				lines:insert('\t{'..export(repl)..', '..export(v)..'},')
+				lines:insert('\t{'..symmath.export.SymMath(repl)..', '..symmath.export.SymMath(v)..'},')
 			end
 			lines:insert'}'
 			lines:insert[[
