@@ -211,7 +211,6 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 	if envCacheData then
 		print("found cached equations...")
 		env = assert(load(envCacheData))()
-		--setmetatable(env, {__index = getfenv()})
 		self.env = env
 		env.eqn = self
 		env.solver = self.solver
@@ -443,7 +442,8 @@ assert(env.assignRepls)
 		local lines = table()
 		lines:insert('\treal3 '..name..';')
 		for i,xi in ipairs(xNames) do
-			assert(expr and expr[i], "failed to find expr for var "..name)
+			assert(expr, "failed to find var "..name)
+			assert(expr[i], "failed to find var "..name..'['..i..']')
 			lines:insert('\t'..name..'.'..xi..' = '..compile(expr[i])..';')
 		end
 		return lines:concat'\n'
@@ -455,7 +455,9 @@ assert(env.assignRepls)
 		lines:insert('\tsym3 '..name..';')
 		for ij,xij in ipairs(symNames) do
 			local i,j = from6to3x3(ij)
-			assert(expr and expr[i] and expr[i][j], "failed to find expr for var "..name)
+			assert(expr, "failed to find var "..name)
+			assert(expr[i], "failed to find var "..name..'['..i..']')
+			assert(expr[i][j], "failed to find var "..name..'['..i..']['..j..']')
 			lines:insert('\t'..name..'.'..xij..' = '..compile(expr[i][j])..';')
 		end
 		return lines:concat'\n'
@@ -467,7 +469,9 @@ assert(env.assignRepls)
 		lines:insert('\treal3x3 '..name..';')
 		for i,xi in ipairs(xNames) do
 			for j,xj in ipairs(xNames) do
-				assert(expr and expr[i] and expr[i][j], "failed to find expr for var "..name)
+				assert(expr, "failed to find var "..name)
+				assert(expr[i], "failed to find var "..name..'['..i..']')
+				assert(expr[i][j], "failed to find var "..name..'['..i..']['..j..']')
 				lines:insert('\t'..name..'.'..xi..'.'..xj..' = '..compile(expr[i][j])..';')
 			end
 		end
@@ -482,7 +486,10 @@ assert(env.assignRepls)
 		for i,xi in ipairs(xNames) do
 			for jk,xjk in ipairs(symNames) do
 				local j,k = from6to3x3(jk)
-				assert(expr and expr[i] and expr[i][j] and expr[i][j][k], "failed to find expr for var "..name)
+				assert(expr, "failed to find var "..name)
+				assert(expr[i], "failed to find var "..name..'['..i..']')
+				assert(expr[i][j], "failed to find var "..name..'['..i..']['..j..']')
+				assert(expr[i][j][k], "failed to find var "..name..'['..i..']['..j..']['..k..']')
 				lines:insert('\t'..name..'.'..xi..'.'..xjk..' = '..compile(expr[i][j][k])..';')
 			end
 		end
@@ -499,7 +506,11 @@ assert(env.assignRepls)
 			for jk,xjk in ipairs(symNames) do
 				local j,k = from6to3x3(jk)
 				for l,xl in ipairs(xNames) do
-					assert(expr and expr[i] and expr[i][j] and expr[i][j][k] and expr[i][j][k][l], "failed to find expr for var "..name)
+					assert(expr, "failed to find var "..name)
+					assert(expr[i], "failed to find var "..name..'['..i..']')
+					assert(expr[i][j], "failed to find var "..name..'['..i..']['..j..']')
+					assert(expr[i][j][k], "failed to find var "..name..'['..i..']['..j..']['..k..']')
+					assert(expr[i][j][k][l], "failed to find var "..name..'['..i..']['..j..']['..k..']['..l..']')
 					lines:insert('\t'..name..'['..(l-1)..'].'..xi..'.'..xjk..' = '..compile(expr[i][j][k][l])..';')
 				end
 			end
@@ -515,7 +526,11 @@ assert(env.assignRepls)
 			local i,j = from6to3x3(ij)
 			for kl,xkl in ipairs(symNames) do
 				local k,l = from6to3x3(kl)
-				assert(expr and expr[i] and expr[i][j] and expr[i][j][k] and expr[i][j][k][l], "failed to find expr for var "..name)
+				assert(expr, "failed to find var "..name)
+				assert(expr[i], "failed to find var "..name..'['..i..']')
+				assert(expr[i][j], "failed to find var "..name..'['..i..']['..j..']')
+				assert(expr[i][j][k], "failed to find var "..name..'['..i..']['..j..']['..k..']')
+				assert(expr[i][j][k][l], "failed to find var "..name..'['..i..']['..j..']['..k..']['..l..']')
 				lines:insert('\t'..name..'.'..xij..'.'..xkl..' = '..compile(expr[i][j][k][l])..';')
 			end
 		end
