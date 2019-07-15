@@ -228,19 +228,22 @@ kernel void initState(
 
 	sym3 gammaHat_ll = calc_gammaHat_ll(x);
 
+	//initState will assume it is providing a metric in Cartesian
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
-	
-	//initState will assume it is providing a metric in Cartesian
 	sym3 gamma_ll = sym3_ident;
-	
 	sym3 K_ll = sym3_zero;
+	
 	real rho = 0.;
 
 	<?=code?>
 	
 	//rescale from cartesian to spherical
+	//TODO what about rotations for change of coordinates?
+	// this is another reason why initial conditions should be symbolic
+//	beta_u = real3_rescaleToCoord_U(beta_u, x);
 	gamma_ll = sym3_rescaleToCoord_LL(gamma_ll, x);
+//	K_ll = sym3_rescaleToCoord_LL(K_ll, x);
 
 	U->alpha = alpha;
 	U->beta_U = real3_rescaleFromCoord_u(beta_u, x);

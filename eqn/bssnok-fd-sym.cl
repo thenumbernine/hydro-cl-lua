@@ -629,7 +629,7 @@ else
 ?>		//this is asserting alpha and W >0, which they should be
 		real absLambdaMax = U->alpha * sqrt(gamma_uu.<?=sym(side+1,side+1)?>);
 <? 	elseif cflMethod == '2017 Ruchlin et al, eqn 53' then 
-?>		real absLambdaMax = U->alpha * sqrt(gammaBar_ll.<?=sym(side+1,side+1)?>);
+?>		real absLambdaMax = sqrt(gammaBar_ll.<?=sym(side+1,side+1)?>);
 <? 	end 
 
 	if false then -- hmm, do we base our CFL on delta in coordinate, or delta in Cartesian?

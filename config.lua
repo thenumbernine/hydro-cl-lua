@@ -1,16 +1,16 @@
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	integrator = 'Runge-Kutta 4',
+	--integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -45,7 +45,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -112,7 +112,7 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ Sphere: r, θ, φ 
+	--[[ Sphere: r, θ, φ 
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
 	mins = cmdline.mins or {0, 0, -math.pi},
@@ -124,7 +124,7 @@ local args = {
 	})[dim],
 	boundary = {
 		xmin=cmdline.boundary or 'sphereCenter',
-		xmax=cmdline.boundary or 'fixed',
+		xmax=cmdline.boundary or 'freeflow',	--'fixed',
 		ymin=cmdline.boundary or 'freeflow',
 		ymax=cmdline.boundary or 'freeflow',
 		zmin=cmdline.boundary or 'periodic',
@@ -175,7 +175,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'rectangle',
 	--initState = 'Sedov',
 	--initState = 'Noh',
@@ -248,7 +248,7 @@ local args = {
 
 
 	-- Einstein
-	initState = 'Minkowski',
+	--initState = 'Minkowski',
 	--initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 
@@ -434,7 +434,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -670,15 +670,18 @@ But the tradeoff is that this one, Minkowski spherical, is completely smooth.  n
 
 
 
--- [=[ 2013 Baumgarte et al, section IV A 1 example
+--[=[ 2013 Baumgarte et al, section IV A 1 example
 self.solvers:insert(require 'solver.bssnok-fd'{
 	app = self,
-	--eqn = 'bssnok-fd-num', 
-	eqn = 'bssnok-fd-sym', 
+	
+	eqn = 'bssnok-fd-num', 
+	--eqn = 'bssnok-fd-sym', 
+	
 	eqnArgs = {useShift = 'none'},
 	dim = 1,
 	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
 	cfl = .6,	--.4,
+	
 	-- [[
 	coord = 'sphere',
 	mins = {0, 0, -math.pi},
@@ -686,7 +689,7 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	gridSize = {160, 0, 0},
 	boundary = {
 		xmin='sphereCenter',
-		xmax='fixed',
+		xmax='quadratic',
 		ymin='freeflow',
 		ymax='freeflow',
 		zmin='periodic',
@@ -707,15 +710,14 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 		zmax='freeflow',
 	},
 	--]]
+	
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
+	initState = 'Minkowski',
 	--initState = 'gaussian perturbation',
 	initStateArgs = {
-		H = .1,
-		sigma = 1,
-		center = {4,math.pi/2,0},
+		H = -1e-7,	--H = 1e-7,
+		sigma = 10,
 	},
-	initState = 'Minkowski',
 })
 --]=]
-
 

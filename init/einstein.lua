@@ -195,8 +195,9 @@ return table{
 			return ''
 		end,
 	},
-	
-	-- from 1997 Alcubierre "The appearance of coorindate shocks in hyperbolic formalisms of General Relativity".
+
+	-- 2010 Baumgarte, Shapiro "Numerical Relativity ...", section 9.1.2
+	-- 1997 Alcubierre "The appearance of coorindate shocks in hyperbolic formalisms of General Relativity".
 	{
 		name = 'gaussian perturbation',
 		--[[
@@ -226,6 +227,9 @@ return table{
 			}
 		end,
 		initState = function(self, solver)
+			-- this has to make use of the coordinate metric
+			-- solver.coord.g
+			
 			return template([[
 	real3 center = coordMap(_real3(<?=clnumber(initState.center[1])
 								?>, <?=clnumber(initState.center[2])
@@ -263,6 +267,8 @@ return table{
 	gamma_ll = sym3_sub(delta_ll, real3_outer(dh));
 	K_ll = sym3_real_mul(d2h, -1./sqrt(1. - real3_lenSq(dh)));
 
+//plane wave vs 3D perturbation
+//TODO make these two separate init conds
 //enable this if you want the ADM 3D run in 1D to match the ADM 1D's
 //disable this if you want things to run in higher dimensions
 #if	dim == 1

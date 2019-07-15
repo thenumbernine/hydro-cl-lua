@@ -873,45 +873,7 @@ function BoundaryMirror:getCode(args)
 	return lines:concat'\n'
 end
 
-local BoundaryFreeFlow = class(Boundary)
-BoundaryFreeFlow.name = 'freeflow'
-function BoundaryFreeFlow:getCode(args)
-	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-	if args.minmax == 'min' then
-		return indent..args.assign(
-			'buf['..args.index'j'..']',
-			'buf['..args.index'numGhost'..']'
-		)..';'
-	elseif args.minmax == 'max' then
-		local rhs = gridSizeSide..'-numGhost+j'
-		return indent..args.assign(
-			'buf['..args.index(rhs)..']',
-			'buf['..args.index(gridSizeSide..'-numGhost-1')..']'
-		)..';'
-	end
-end
-
--- constant-derivative / linear extrapolation
-local BoundaryLinear = class(Boundary)
-BoundaryLinear.name = 'linear'
-function BoundaryLinear:getCode(args)
-	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-	if args.minmax == 'min' then
-		return indent..'for (int k = 0; k < numStates; ++k) {\n'
-			..indent..'\t'..args.assign(
-				'buf['..args.index'j'..'].ptr[k]',
-				'(buf['..args.index'numGhost'..'].ptr[k] - buf['..args.index'numGhost+1'..'].ptr[k]) * (numGhost - j+1) + buf['..args.index'numGhost+1'..'].ptr[k]'
-			)..';\n'..indent..'}'
-	elseif args.minmax == 'max' then
-		local rhs = gridSizeSide..'-numGhost+j'
-		return indent..'for (int k = 0; k < numStates; ++k) {\n'
-			..indent..'\t'..args.assign(
-				'buf['..args.index(rhs)..'].ptr[k]',
-				'(buf['..args.index(gridSizeSide..'-numGhost-1')..'].ptr[k] - buf['..args.index(gridSizeSide..'-numGhost-2')..'].ptr[k]) * (j+1) + buf['..args.index(gridSizeSide..'-numGhost-2')..'].ptr[k]'
-			)..';\n'..indent..'}'
-	end		
-end
-
+-- Dirichlet boundary conditions: constant values
 local BoundaryFixed = class(Boundary)
 function BoundaryFixed:init(fixedCode)
 	-- fixed values to use
@@ -933,19 +895,97 @@ function BoundaryFixed:getCode(args)
 	end
 end
 
+local BoundaryFreeFlow = class(Boundary)
+BoundaryFreeFlow.name = 'freeflow'
+function BoundaryFreeFlow:getCode(args)
+	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	if args.minmax == 'min' then
+		return indent..args.assign(
+			'buf['..args.index'j'..']',
+			'buf['..args.index'numGhost'..']'
+		)..';'
+	elseif args.minmax == 'max' then
+		local rhs = gridSizeSide..'-numGhost+j'
+		return indent..args.assign(
+			'buf['..args.index(rhs)..']',
+			'buf['..args.index(gridSizeSide..'-numGhost-1')..']'
+		)..';'
+	end
+end
+
+-- linear extrapolation
+local BoundaryLinear = class(Boundary)
+BoundaryLinear.name = 'linear'
+function BoundaryLinear:getCode(args)
+	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	if args.minmax == 'min' then
+		return indent..'for (int k = 0; k < numStates; ++k) {\n'
+			..indent..'\t'..args.assign(
+				'buf['..args.index'j'..'].ptr[k]',
+				'(buf['..args.index'numGhost'..'].ptr[k] - buf['..args.index'numGhost+1'..'].ptr[k]) * (numGhost - j+1) + buf['..args.index'numGhost+1'..'].ptr[k]'
+			)..';\n'..indent..'}'
+	elseif args.minmax == 'max' then
+		local rhs = gridSizeSide..'-numGhost+j'
+		return indent..'for (int k = 0; k < numStates; ++k) {\n'
+			..indent..'\t'..args.assign(
+				'buf['..args.index(rhs)..'].ptr[k]',
+				'(buf['..args.index(gridSizeSide..'-numGhost-1')..'].ptr[k] - buf['..args.index(gridSizeSide..'-numGhost-2')..'].ptr[k]) * (j+1) + buf['..args.index(gridSizeSide..'-numGhost-2')..'].ptr[k]'
+			)..';\n'..indent..'}'
+	end
+end
+
+-- Sommerfeld quadratic extrapolation
+-- f[i] = 3*f[i+1] - 3*f[i+2] + f[i+3]
+BoundaryQuadratic = class(Boundary)
+BoundaryQuadratic.name = 'quadratic'
+function BoundaryQuadratic:getCode(args)
+	-- j is initialized from 0 to numGhost-1
+	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	if args.minmax == 'min' then
+		return indent..'for (int k = 0; k < numStates; ++k) {\n'
+			..indent..'\t'..args.assign(
+				'buf['..args.index'numGhost-j'..'].ptr[k]',
+				'3.*buf['..args.index'numGhost-j+1'..'].ptr[k] - 3.*buf['..args.index'numGhost-j+2'..'].ptr[k] + buf['..args.index'numGhost-j+3'..'].ptr[k]'
+			)..';\n'..indent..'}'
+	elseif args.minmax == 'max' then
+		local rhs = gridSizeSide..'-numGhost+j'
+		return indent..'for (int k = 0; k < numStates; ++k) {\n'
+			..indent..'\t'..args.assign(
+				'buf['..args.index(rhs)..'].ptr[k]',
+				'3.*buf['..args.index(gridSizeSide..'-numGhost+j-1')..'].ptr[k] - 3.*buf['..args.index(gridSizeSide..'-numGhost+j-2')..'].ptr[k] + buf['..args.index(gridSizeSide..'-numGhost+j-3')..'].ptr[k]'
+			)..';\n'..indent..'}'
+	end
+end
+
 --[[
 2013 Baumgarte et al, "Numerical Relativity in Spherical Polar Coordinates..."
 
 same as mirror, except we only negative certain components.
 in fact, mirror is very cartesian-specific...
+
+spherical r=0 ...
+for 1D, for cell[i] we use cell[i] and mirror the respective coordinates
+for 2D (r,theta): for cell[i][j], we use cell[i][size.y-j]
+for 3D (r,theta,phi) for cell[i][j][k] we use cell 
+
+ex:
+sphere center reflects r and phi
+cylindrical center reflects only r
+
+TODO automatically generate these by dividing e_j(x_i) with e_j(-x_i) and looking at the sign
+this will give you the correct sign change for the j'th variable on the x_i'th side
+
+TODO TODO with spherical polar boundary you also need to keep track of where in the grid the lookup changes to
 --]]
 local BoundarySphereCenter = class(Boundary)
 BoundarySphereCenter.name = 'sphereCenter'
 function BoundarySphereCenter:getCode(args)
 	local solver = args.solver
+	
 	assert(solver.dim == 1, "don't have >1D for sphere center boundary yet")
 	assert(args.side == 1, "only xmin so far")
 	assert(args.minmax == 'min', "only xmin so far")
+	
 	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
 	local lines = table()
 	if args.minmax == 'min' then
@@ -993,9 +1033,10 @@ function GridSolver:createBoundaryOptions()
 		BoundaryNone,
 		BoundaryPeriodic,
 		BoundaryMirror,
+		BoundaryFixed,
 		BoundaryFreeFlow,
 		BoundaryLinear,
-		BoundaryFixed,
+		BoundaryQuadratic,
 		BoundarySphereCenter,
 	}
 
