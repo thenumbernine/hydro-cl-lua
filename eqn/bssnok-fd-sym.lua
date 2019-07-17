@@ -255,26 +255,34 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 				s = s:gsub('TF_DBar2_alpha_LL%.(.)(.)', '(\\bar{D}_{%1} \\bar{D}_{%2} \\alpha)^{TF}')
 				s = s:gsub('tracelessPart_LL%.(.)(.)', '(traceless)_{\\hat{%1} \\hat{%2}}')
 				s = s:gsub('U%->alpha', '\\alpha')
+				s = s:gsub('partial_alpha_l_upwind%.(.)', '(\\alpha^{up})_{,%1}')
 				s = s:gsub('partial_alpha_l%.(.)', '\\alpha_{,%1}')
 				s = s:gsub('partial2_alpha_ll%.(..)', '\\alpha_{,%1}')
 				s = s:gsub('U%->beta_U%.(.)', '\\beta^{\\hat{%1}}')
+				s = s:gsub('partial_beta_Ul_upwind%[(.)%]%.(.)', function(j) return '{(\\beta^{up})^{\\hat{%2}}}_{,'..xNames[j+1]..'}' end)
 				s = s:gsub('partial_beta_Ul%[(.)%]%.(.)', function(j) return '{\\beta^{\\hat{%2}}}_{,'..xNames[j+1]..'}' end)
 				s = s:gsub('partial2_beta_Ul%[(.)%]%.(.)', function(jk) return '{\\beta^{\\hat{%2}}}_{,'..sym(from6to3x3(jk+1))..'}' end)
 				s = s:gsub('U%->epsilon_LL%.(.)(.)', '\\epsilon_{\\hat{%1}\\hat{%2}}')
+				s = s:gsub('partial_epsilon_LLl_upwind%[(.)%]%.(.)(.)', function(k) return '(\\epsilon^{up})_{\\hat{%2}\\hat{%3},'..xNames[i+1]..'}' end)
 				s = s:gsub('partial_epsilon_LLl%[(.)%]%.(.)(.)', function(k) return '\\epsilon_{\\hat{%2}\\hat{%3},'..xNames[i+1]..'}' end)
 				s = s:gsub('partial2_epsilon_LLll%[(.)%]%.(.)(.)', function(kl) return '\\epsilon_{\\hat{%2}\\hat{%3},'..sym(from6to3x3(kl+1))..'}' end)
 				s = s:gsub('U%->W', 'W')
+				s = s:gsub('partial_W_l_upwind%.(.)', '(W^{up})_{,%1}')
 				s = s:gsub('partial_W_l%.(.)', 'W_{,%1}')
 				s = s:gsub('partial2_W_ll%.(..)', 'W_{,%1}')
 				s = s:gsub('U%->K', 'K')
+				s = s:gsub('partial_K_l_upwind%.(.)', '(K^{up})_{,%1}')
 				s = s:gsub('partial_K_l%.(.)', 'K_{,%1}')
 				s = s:gsub('U%->ABar_LL%.(.)(.)', '\\bar{A}_{\\hat{%1}\\hat{%2}}')
+				s = s:gsub('partial_ABar_LLl_upwind%[(.)%]%.(.)(.)', function(k) return '(\\bar{A}^{up})_{\\hat{%2}\\hat{%3},'..xNames[k+1]..'}' end)
 				s = s:gsub('partial_ABar_LLl%[(.)%]%.(.)(.)', function(k) return '\\bar{A}_{\\hat{%2}\\hat{%3},'..xNames[k+1]..'}' end)
 				s = s:gsub('Lbeta_ABar_LL%.(.)(.)', '\\mathcal{L}_{\\beta} \\bar{A}_{\\hat{%1}\\hat{%2}}')
 				s = s:gsub('U%->LambdaBar_U%.(.)', '\\bar{\\Lambda}^{\\hat{%1}}')
+				s = s:gsub('partial_LambdaBar_Ul_upwind%[(.)%]%.(.)', function(j) return '{(\\bar{\\Lambda}^{up})^{\\hat{%2}}}_{,'..xNames[j+1]..'}' end)
 				s = s:gsub('partial_LambdaBar_Ul%[(.)%]%.(.)', function(j) return '{\\bar{\\Lambda}^{\\hat{%2}}}_{,'..xNames[j+1]..'}' end)
 				s = s:gsub('dt_LambdaBar_U%.(.)', '{\\bar{\\Lambda}^{%1}}_{,t}')
 				s = s:gsub('U%->B_U%.(.)', 'B^{\\hat{%1}}')
+				s = s:gsub('partial_B_Ul_upwind%[(.)%]%.(.)', function(j) return '{(B^{up})^{\\hat{%2}}}_{,'..xNames[j+1]..'}' end)
 				s = s:gsub('partial_B_Ul%[(.)%]%.(.)', function(j) return '{B^{\\hat{%2}}}_{,'..xNames[j+1]..'}' end)
 				s = s:gsub('U%->rho', '\\rho')
 				s = s:gsub('M_PI', '\\pi')
@@ -496,6 +504,24 @@ assert(env.assignRepls)
 		return lines:concat'\n'
 	end
 
+	function assign_real3x3x3(name, expr)
+		if expr == nil then expr = env[name] end
+		local lines = table()
+		lines:insert('\treal3x3x3 '..name..';')
+		for i,xi in ipairs(xNames) do
+			for j,xj in ipairs(xNames) do
+				for k,xk in ipairs(xNames) do
+					assert(expr, "failed to find var "..name)
+					assert(expr[i], "failed to find var "..name..'['..i..']')
+					assert(expr[i][j], "failed to find var "..name..'['..i..']['..j..']')
+					assert(expr[i][j][k], "failed to find var "..name..'['..i..']['..j..']['..k..']')
+					lines:insert('\t'..name..'.'..xi..'.'..xj..'.'..xk..' = '..compile(expr[i][j][k])..';')
+				end
+			end
+		end
+		return lines:concat'\n'
+	end
+
 	-- assumes 2nd and 3rd indexes are symmetric
 	-- places the 4th index first, as an array
 	function assign_3sym3x3(name, expr)
@@ -552,6 +578,12 @@ assert(env.assignRepls)
 	function makevars_sym3(variance, name)
 		return Tensor(variance, function(i,j)
 			return var(name..'.'..sym(i,j), coords)
+		end)
+	end
+
+	function makevars_real3x3x3(variance, name)
+		return Tensor(variance, function(i,j,k)
+			return var(name..'.'..xNames[i]..'.'..xNames[j]..'.'..xNames[k], coords)
 		end)
 	end
 	
@@ -918,11 +950,29 @@ time('building symbolic math env', function()
 		
 		-------------------------------- W_,t -------------------------------- 
 
+	-- [[
+	printbr'partial_det_gammaBar_over_det_gammaHat_l'
+		partial_det_gammaBar_over_det_gammaHat_l = Tensor('_i', function(i)
+			return det_gammaBar_over_det_gammaHat:diff(coords[i])():factorDivision()
+		end)
+	printbr(partial_det_gammaBar_over_det_gammaHat_l)
+		partial_det_gammaBar_over_det_gammaHat_l_vars = Tensor('_i', function(i) 
+			return compileReplVar(det_gammaBar_over_det_gammaHat_var:diff(coords[i]), 'partial_det_gammaBar_over_det_gammaHat_l.'..xNames[i], coords) 
+		end)
+	printbr'partial2_det_gammaBar_over_det_gammaHat_ll'
+		partial2_det_gammaBar_over_det_gammaHat_ll = partial_det_gammaBar_over_det_gammaHat_l'_i,j'():factorDivision()
+	printbr(partial2_det_gammaBar_over_det_gammaHat_ll)
+		partial2_det_gammaBar_over_det_gammaHat_ll_vars = Tensor('_ij', function(i,j) 
+			return compileReplVar(det_gammaBar_over_det_gammaHat_var:diff(coords[i], coords[j]), 'partial2_det_gammaBar_over_det_gammaHat_ll.'..sym(i,j), coords) 
+		end)
+	--]]
+
 	printbr'tr_connBar_l'	
 		-- using conn trace
 		--tr_connBar_l = connBar_ull'^j_kj'()
-		-- using det_gammaBar_,k / det_gammaBar
+		-- using 1/2 det_gammaBar_,k / det_gammaBar
 		-- when deferring det_gammaBar/det_gammaHat we get the terms [4/r, 2 cot(th), 0] out front, and all else has 1/(det gammaBar/det gammaHat)
+		--[=[ this was working, but is making long expressions esp for partial_tr_connBar_ll
 		tr_connBar_l = Tensor('_i', function(i) 
 			local expr = (sqrt(det_gammaBar):diff(coords[i]) / sqrt(det_gammaBar))()
 			-- [[ expand (det gammaBar/det gammaHat)_,i
@@ -936,8 +986,46 @@ time('building symbolic math env', function()
 			expr = expr:factorDivision() 
 			return expr
 		end)
+		--]=]
+		-- [=[
+		tr_connBar_l  = Tensor('_i', function(i)
+			return (sqrt(det_gammaBar):diff(coords[i]) / sqrt(det_gammaBar))():factorDivision()
+		end)
+		--]=]
 		tr_connBar_l_vars = makevars_real3('_i', 'tr_connBar_l')
 	printbr(tr_connBar_l)
+
+	-- connBar^k_ki,j = (1/2 det gammaBar_mn,i / det gammaBar_mn)_,j
+	-- so it is a partial2 of det gammaBar_mn, and is symmetric (even though it's partial1 of connBar^j_ij)
+	printbr'partial_tr_connBar_ll'
+		-- [=[
+		partial_tr_connBar_ll = tr_connBar_l'_i,j'():factorDivision()
+		--]=]
+		--[=[
+		partial_tr_connBar_ll = Tensor('_ij', function(i,j)
+			local expr = (frac(1,2) * sqrt(det_gammaBar):diff(coords[i]) / sqrt(det_gammaBar)):diff(coords[j])()
+			for k=1,3 do
+				for l=1,3 do
+					expr = expr:replace(
+						det_gammaBar_over_det_gammaHat_var:diff(coords[k], coords[l])(),
+						det_gammaBar_over_det_gammaHat:diff(coords[j], coords[l])()
+					)
+				end
+			end
+			for k=1,3 do
+				expr = expr:replace(
+					det_gammaBar_over_det_gammaHat_var:diff(coords[k]),
+					det_gammaBar_over_det_gammaHat:diff(coords[k])()
+				)
+			end	
+			expr = expr:factorDivision() 
+			return expr
+		end)
+		--]=]
+		-- TODO defer?
+		partial_tr_connBar_ll_vars = makevars_sym3('_ij', 'partial_tr_connBar_ll')
+	printbr(partial_tr_connBar_ll)
+
 	printbr'tr_DBar_beta' 
 		-- if you do defer gammaBar^ij then you get a 1/(r^6 sin(theta)^6) in the denom
 		-- if you don't defer gammaBar^ij but do defer det_gammaBar then you get a 1/(det_gammaBar r^3 sin(theta))^3
@@ -1299,9 +1387,87 @@ time('building symbolic math env', function()
 		)():factorDivision()
 	printbr(Lbeta_LambaBar_U)
 
+	--[[
+	DHat2_beta_ull.i.j.k = DHat_k DHat_j beta^i
+	= DHat_k (beta^i_,j + connHat^i_lj beta^l)
+	= (beta^i_,j + connHat^i_lj beta^l)_,k
+		+ connHat^i_mk (beta^m_,j + connHat^m_lj beta^l)
+		- connHat^m_jk (beta^i_,m + connHat^i_lm beta^l)
+	= beta^i_,jk 
+		+ connHat^i_lj,k beta^l
+		+ connHat^i_lj beta^l_,k
+		+ connHat^i_lk beta^l_,j
+		- connHat^l_jk beta^i_,l
+		+ connHat^i_mk connHat^m_lj beta^l
+		- connHat^m_jk connHat^i_lm beta^l
+	--]]
+	print'DHat_beta_ul'
+		DHat_beta_ul = (beta_u'^i_,j' + connHat_ull'^i_kj' * beta_u'^k')()
+	print(DHat_beta_ul)
+	print'DHat2_beta_ull'
+		DHat2_beta_ull = (DHat_beta_ul'^i_j,k' 
+			+ connHat_ull'^i_kl' * DHat_beta_ul'^l_j'
+			- connHat_ull'^l_kj' * DHat_beta_ul'^i_l'
+		)()
+		DHat2_beta_ull_vars = makevars_real3x3x3('^i_jk', 'DHat2_beta_ull') 
+	print(DHat2_beta_ull)
+	print'tr_gammaBar_DHat2_beta_u'
+		tr_gammaBar_DHat2_beta_u = (DHat2_beta_ull_vars'^i_jk' * gammaBar_uu'^jk')()
 		tr_gammaBar_DHat2_beta_u_vars = makevars_real3('^i', 'tr_gammaBar_DHat2_beta_u') 
-		DBar_tr_DBar_beta_u_vars = makevars_real3('^i', 'DBar_tr_DBar_beta_u')
+	print(tr_gammaBar_DHat2_beta_u)
+	
+	--[[
+	tr12_partial2_beta_l.i := beta^j_,ji
+	beta^i_,jk is a sym3 of 3's ... so I don't have that struct yet ... 
+	 What name could I use? sym3x3?  how about real3s3x3 where we have 's' for symmetric and 'x' for cartesian product.
+	 Then sym3 turns into real3s3 and _3sym3 turns into real3x3s3.
+	--]]
+	print'tr12_partial2_beta_l'
+		tr12_partial2_beta_l = partial2_beta_ull'^j_ij'()
+		tr12_partial2_beta_l_vars = makevars_real3('_i', 'tr12_partial2_beta_l')
+	print(tr12_partial2_beta_l)
 
+	--[[
+	DBar_tr_DBar_beta_l.i = DBar_i DBar_j beta^j
+	= DBar_i (beta^j_,j + tr_connBar_l beta^l)
+	= (beta^j_,j + tr_connBar_l beta^l)_,i
+		+ connBar^j_mi (beta^m_,j + connBar^m_lj beta^l)
+		- connBar^m_ji (beta^j_,m + connBar^j_lm beta^l)
+	= beta^j_,ji
+		+ tr_connBar_l,i beta^l
+		+ tr_connBar_l beta^l_,i
+
+	...using determinant instead...
+
+	= beta^j_,ji 
+		+ 1/2 det_gammaBar_,l / det_gammaBar beta^l_,i
+		+ (1/2 det_gammaBar_,l / det_gammaBar),i beta^l
+	= beta^j_,ji + 1/2 (
+		+ det_gammaBar_,l beta^l_,i / det_gammaBar
+		+ det_gammaBar_,il beta^l / det_gammaBar
+		- det_gammaBar_,l det_gammaBar_,i beta^l / det_gammaBar^2
+	)
+
+	Etienne's SENR uses this alternative formulation: 
+	= beta^j_,ji
+		+ 1/2 (
+			gammaBar_,ij beta^j
+			- gammaBar_,i gammaBar_,j beta^j / gammaBar
+			+ gammaBar_,j beta^j_,i
+		) / gammaBar
+	--]]
+	print'DBar_tr_DBar_beta_l'
+		DBar_tr_DBar_beta_l = (tr12_partial2_beta_l_vars'_i'
+			+ (tr_connBar_l_vars'_j' * partial_beta_ul'^j_i')()
+			+ (partial_tr_connBar_ll_vars'_ij' * beta_u'^j')()
+		)():factorDivision()
+		DBar_tr_DBar_beta_l_vars = makevars_real3('_i', 'DBar_tr_DBar_beta_l')
+	print(DBar_tr_DBar_beta_l)
+	print'DBar_tr_DBar_beta_u'
+		DBar_tr_DBar_beta_u = (gammaBar_uu'^ij' * DBar_tr_DBar_beta_l_vars'_j')():factorDivision()
+		DBar_tr_DBar_beta_u_vars = makevars_real3('^i', 'DBar_tr_DBar_beta_u')
+	print(DBar_tr_DBar_beta_u)
+		
 		--[[
 		LambdaBar^i_,t = 
 			gammaBar^jk DHat_j DHat_k beta^i
