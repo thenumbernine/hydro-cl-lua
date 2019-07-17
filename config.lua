@@ -683,11 +683,11 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	eqn = 'bssnok-fd-sym', 
 	
 	--eqnArgs = {useShift = 'none'},
-	dim = 1,
+	dim = 2,
 	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
 	cfl = .6,	--.4,
 	
-	-- [[
+	--[[
 	coord = 'sphere',
 	mins = {0, 0, -math.pi},
 	maxs = {8, math.pi, math.pi},
@@ -701,7 +701,7 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 		zmax='periodic',
 	},
 	--]]
-	--[[
+	-- [[
 	coord = 'cartesian',
 	mins = {-4,-4,-4},
 	maxs = {4,4,4},
@@ -717,8 +717,10 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	--]]
 	
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
-	initState = 'Minkowski',
+	--initState = 'Minkowski',
 	--initState = 'gaussian perturbation',
+	--initState = 'Alcubierre warp bubble',
+	initState = 'black hole isotropic',
 	--[[
 	initStateArgs = {
 		H = -1e-7,	--H = 1e-7,

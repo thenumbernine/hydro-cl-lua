@@ -223,7 +223,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 	
 		-- symmath will mess with the metatable of the env table it is passed
 		local symenv = {}
-		symmath.setup{env=env}
+		symmath.setup{env=symenv}
 		env = {}
 		setmetatable(env, {
 			__index = function(t,k)
@@ -263,8 +263,8 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 				s = s:gsub('partial_beta_Ul%[(.)%]%.(.)', function(j,xi) return '{\\beta^{\\hat{'..xi..'}}}_{,'..xNames[j+1]..'}' end)
 				s = s:gsub('partial2_beta_Ul%[(.)%]%.(.)', function(jk,xi) return '{\\beta^{\\hat{'..xi..'}}}_{,'..sym(from6to3x3(jk+1))..'}' end)
 				s = s:gsub('U%->epsilon_LL%.(.)(.)', '\\epsilon_{\\hat{%1}\\hat{%2}}')
-				s = s:gsub('partial_epsilon_LLl_upwind%[(.)%]%.(.)(.)', function(k,xi,xj) return '(\\epsilon^{up})_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[i+1]..'}' end)
-				s = s:gsub('partial_epsilon_LLl%[(.)%]%.(.)(.)', function(k,xi,xj) return '\\epsilon_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[i+1]..'}' end)
+				s = s:gsub('partial_epsilon_LLl_upwind%[(.)%]%.(.)(.)', function(k,xi,xj) return '(\\epsilon^{up})_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
+				s = s:gsub('partial_epsilon_LLl%[(.)%]%.(.)(.)', function(k,xi,xj) return '\\epsilon_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
 				s = s:gsub('partial2_epsilon_LLll%[(.)%]%.(.)(.)', function(kl,xi,xj) return '\\epsilon_{\\hat{'..xi..'}\\hat{'..xj..'},'..sym(from6to3x3(kl+1))..'}' end)
 				s = s:gsub('U%->W', 'W')
 				s = s:gsub('partial_W_l_upwind%.(.)', '(W^{up})_{,%1}')
@@ -337,7 +337,8 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 		end
 		
 		function printbr(...)
-			local s = table.concat({convert(...)}, '\t')
+			local converted = {convert(...)}
+			local s = table.concat(converted, '\t')
 			print(s..'<br>')
 			outfile:write(s..'<br>\n')
 			outfile:flush()
@@ -1201,7 +1202,6 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 	printbr(gammaBar_times_partial_beta_ll)
 
 	-- this is the rescaled version of the Lie derivative of gammaBar_ij
-	-- slow
 		partial_epsilon_LLl_upwind = Tensor('_ijk', function(i,j,k) return var('partial_epsilon_LLl_upwind['..(k-1)..'].'..sym(i,j), coords) end)
 	printbr'partial_epsilon_lll_upwind'
 		partial_epsilon_lll_upwind = (partial_epsilon_LLl_upwind'_IJk' * e'_i^I' * e'_j^J' + epsilon_LL_vars'_IJ' * (e'_i^I' * e'_j^J')'_ij^IJ_,k')():permute'_ijk'
