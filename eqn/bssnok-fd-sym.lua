@@ -888,21 +888,23 @@ time('building symbolic math env', function()
 		-- usually in init/einstein
 		local fGuiVar = solver.eqn.guiVars.f_eqn
 		local fLuaCode = fGuiVar.options[fGuiVar.value]
-		local f_times_alphaSq = assert(loadstring([[
+		local f = assert(loadstring([[
 	local alpha, symmath = ...
 	local log = symmath.log
-	return alpha^2 * ]]..fLuaCode))(alpha, symmath)
-		f_times_alphaSq = symmath.clone(f_times_alphaSq)
+	return ]]..fLuaCode))(alpha, symmath)
+		f = symmath.clone(f)
 		
 		--Alcubierre 4.2.52 - Bona-Masso family of slicing
-		Q = f_times_alphaSq * K
+		Q = f * K
+		
+		partial_alpha_l_upwind = Tensor('_i', function(i) return var('partial_alpha_l_upwind.'..xNames[i], coords) end)
 		
 		--d/dt alpha alpha,t - alpha_,i beta^i = -alpha^2 Q
 		-- already seeing a 1/r and 1/(r sin(θ)) in the denom...
 		-- but it is only next to beta^θ and beta^φ
 		--simplification is important for the 1/alpha's at least
 	printbr'dt_alpha'
-		dt_alpha = (-alpha^2 * Q + partial_alpha_l'_i' * beta_u'^i')():factorDivision()
+		dt_alpha = (-alpha^2 * Q + partial_alpha_l_upwind'_i' * beta_u'^i')():factorDivision()
 	printbr(dt_alpha)
 	printbr'...with $\\beta^i = 0$...'
 	printbr(removeBetas(dt_alpha)():factorDivision())
@@ -950,6 +952,7 @@ time('building symbolic math env', function()
 		tr_DBar_beta = (partial_beta_ul'^j_j' + tr_connBar_l_vars'_j' * beta_u'^j')():factorDivision()
 		tr_DBar_beta_var = var('tr_DBar_beta', coords)
 	printbr(tr_DBar_beta)
+		partial_W_l_upwind = Tensor('_i', function(i) return var('partial_W_l_upwind.'..xNames[i], coords) end)
 		--2017 Ruchlin et al eqn 11c
 		--W,t = 1/3 W (alpha K - beta^k connBar^j_kj - beta^k_,k) + beta^k W_,k
 		-- if you defer (det_gammaBar/det_gammaHat) then you get ....
@@ -960,7 +963,7 @@ time('building symbolic math env', function()
 		--  1/3 W (alpha K - beta^R_,r)
 		-- terms scaled by 1/(det gammaBar/det gammaHat):
 		--	some of -1/3 W beta^I connBar^J_IJ
-		dt_W = (frac(1,3) * W * (alpha * K - tr_DBar_beta_var) + beta_u'^k' * partial_W_l'_k')():factorDivision()
+		dt_W = (frac(1,3) * W * (alpha * K - tr_DBar_beta_var) + beta_u'^k' * partial_W_l_upwind'_k')():factorDivision()
 	printbr(dt_W)
 	printbr'...with $\\beta^i = 0$...'
 	printbr(removeBetas(dt_W)():factorDivision())
@@ -1050,6 +1053,7 @@ time('building symbolic math env', function()
 		partial_phi_L = (eu'^i_I' * partial_phi_l'_i')():factorDivision()
 	printbr(partial_phi_L)
 
+		partial_K_l_upwind = Tensor('_i', function(i) return var('partial_K_l_upwind.'..xNames[i], coords) end)
 		--[[
 		B&S 11.52
 		Alcubierre 2.8.12
@@ -1085,7 +1089,7 @@ time('building symbolic math env', function()
 				trBar_DBar2_alpha_var
 				+ 2 * partial_alpha_u'^i' * partial_phi_l'_i'
 			)
-			+ partial_K_l'_i' * beta_u'^i'
+			+ partial_K_l_upwind'_i' * beta_u'^i'
 			+ 4 * pi * alpha * (rho + S)
 		)():factorDivision()
 	printbr(dt_K)
@@ -1101,11 +1105,20 @@ time('building symbolic math env', function()
 
 	-- this is the rescaled version of the Lie derivative of gammaBar_ij
 	-- slow
+		partial_epsilon_LLl_upwind = Tensor('_ijk', function(i,j,k) return var('partial_epsilon_LLl_upwind['..(k-1)..'].'..sym(i,j), coords) end)
+	printbr'partial_epsilon_lll_upwind'
+		partial_epsilon_lll_upwind = Tensor'_ijk'
+		partial_epsilon_lll_upwind['_ijk'] = (partial_epsilon_LLl_upwind'_IJk' * e'_i^I' * e'_j^J' + epsilon_LL_vars'_IJ' * (e'_i^I' * e'_j^J')'_ij^IJ_,k')()
+	printbr(partial_epsilon_lll_upwind)
+	printbr'partial_gammaBar_lll_upwind'
+		partial_gammaBar_lll_upwind = (partial_epsilon_lll_upwind'_ijk' + partial_gammaHat_lll'_ijk')()
+	printbr(partial_gammaBar_lll_upwind)
+	
 	printbr'Lbeta_gammaBar_LL'
 		Lbeta_gammaBar_LL = (
 				eu'^i_I' * (
 					eu'^j_J' * (
-						(beta_u'^k' * partial_gammaBar_lll'_ijk')()
+						(beta_u'^k' * partial_gammaBar_lll_upwind'_ijk')()
 						+ gammaBar_times_partial_beta_ll'_ij'
 						+ gammaBar_times_partial_beta_ll'_ji'
 					)()
@@ -1197,10 +1210,15 @@ time('building symbolic math env', function()
 		tr_DBar2_phi = (DBar2_phi_LL_vars'_IJ' * gammaBar_UU_vars'^IJ')()
 	printbr(tr_DBar2_phi)
 
+	printbr'partial_ABar_lll_upwind'
+		partial_ABar_LLl_upwind = Tensor('_ijk', function(i,j,k) return var('partial_ABar_LLl_upwind['..(k-1)..'].'..sym(i,j), coords) end)
+		partial_ABar_lll_upwind = Tensor'_ijk'
+		partial_ABar_lll_upwind['_ijk'] = (partial_ABar_LLl_upwind'_IJk' * e'_i^I' * e'_j^J' + ABar_LL_vars'_IJ' * (e'_i^I' * e'_j^J')'_ij^IJ_,k')()
+	printbr(partial_ABar_lll_upwind)
 
 	printbr'Lbeta_ABar_LL'
 		Lbeta_ABar_LL = (eu'^i_I' * eu'^j_J' * (
-			partial_ABar_lll'_ijk' * beta_u'^k'
+			partial_ABar_lll_upwind'_ijk' * beta_u'^k'
 			+ ABar_ll'_kj' * partial_beta_ul'^k_i'
 			+ ABar_ll'_ik' * partial_beta_ul'^k_j'
 		))():factorDivision()
@@ -1266,10 +1284,16 @@ time('building symbolic math env', function()
 
 		-------------------------------- LambdaBar^i_,t -------------------------------- 
 
+	printbr'partial_LambdaBar_ul_upwind'
+		partial_LambdaBar_Ul_upwind = Tensor('^I_j', function(i,j) return var('partial_LambdaBar_Ul_upwind['..(j-1)..'].'..xNames[i], coords) end)
+		local partial_LambdaBar_ul_upwind = Tensor'^i_j'
+		partial_LambdaBar_ul_upwind['^i_j'] = (partial_LambdaBar_Ul_upwind'^I_j' * eu'^i_I' + LambdaBar_U_vars'^I' * eu'^i_I,j')()
+	printbr(partial_LambdaBar_ul_upwind)
+
 	printbr'Lbeta_LambaBar_U'
 		Lbeta_LambaBar_U = (
 			e'_i^I' * (
-				partial_LambdaBar_ul'^i_j' * beta_u'^j'
+				partial_LambdaBar_ul_upwind'^i_j' * beta_u'^j'
 				- LambdaBar_u'^j' * partial_beta_ul'^i_j'
 			)
 		)():factorDivision()
@@ -1319,7 +1343,7 @@ time('building symbolic math env', function()
 	printbr(removeBetas(dt_LambdaBar_U)())
 		
 		-------------------------------- beta^i_,t and B^i_,t -------------------------------- 
-
+	
 		eta_var = var'solver->shift_eta'
 
 		--if eqn.useShift == 'GammaDriver' then
@@ -1335,15 +1359,28 @@ time('building symbolic math env', function()
 	printbr(removeBetas(dt_beta_U_GammaDriver)():factorDivision())
 		
 		--elseif eqn.useShift == 'HyperbolicGammaDriver' then
+	
+	printbr'partial_beta_ul_upwind'
+		partial_beta_Ul_upwind = Tensor('^I_j', function(i,j) return var('partial_beta_Ul_upwind['..(j-1)..'].'..xNames[i], coords) end)
+		local partial_beta_ul_upwind = Tensor'^i_j'
+		partial_beta_ul_upwind['^i_j'] = (partial_beta_Ul_upwind'^I_j' * eu'^i_I' + beta_U_vars'^I' * eu'^i_I,j')()
+	printbr(partial_beta_ul_upwind)
+	
 	printbr'dt_beta_U_HyperbolicGammaDriver'
 			dt_beta_U_HyperbolicGammaDriver = (
 				B_U_vars'^I'
 				-- if shiftadvect==true from SENR
-				+ e'_i^I' * partial_beta_ul'^i_j' * beta_u'^j'
+				+ e'_i^I' * partial_beta_ul_upwind'^i_j' * beta_u'^j'
 			)():factorDivision()
 	printbr(dt_beta_U_HyperbolicGammaDriver)
 	printbr'...with $\\beta^i = 0$...'
 	printbr(removeBetas(dt_beta_U_HyperbolicGammaDriver)():factorDivision())
+	
+	printbr'partial_B_ul_upwind'
+		partial_B_Ul_upwind = Tensor('^I_j', function(i,j) return var('partial_B_Ul_upwind['..(j-1)..'].'..xNames[i], coords) end)
+		local partial_B_ul_upwind = Tensor'^i_j'
+		partial_B_ul_upwind['^i_j'] = (partial_B_Ul_upwind'^I_j' * eu'^i_I' + B_U_vars'^I' * eu'^i_I,j')()
+	printbr(partial_B_ul_upwind)
 
 			--[[
 			hyperbolic Gamma driver 
@@ -1359,7 +1396,7 @@ time('building symbolic math env', function()
 				frac(3,4) * dt_LambdaBar_U_vars'^I'
 				- eta_var * B_U_vars'^I'
 				-- if biadvect==true from SENR
-				+ e'_i^I' * partial_beta_ul'^i_j' * B_u'^j'
+				+ e'_i^I' * partial_B_ul_upwind'^i_j' * beta_u'^j'
 			)():factorDivision()
 	printbr(dt_B_U_HyperbolicGammaDriver)
 	printbr'...with $\\beta^i = 0$...'

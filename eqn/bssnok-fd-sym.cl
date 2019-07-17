@@ -43,6 +43,23 @@ sym3 tracefree(sym3 A_ll, sym3 g_ll, sym3 g_uu) {
 	return sym3_sub(A_ll, sym3_real_mul(g_ll, tr_A / 3.));
 }
 
+/*
+returns the pointer to the lowerleft cell to compute upwind differencing from 
+*/
+const global cons_t* getUpwind(
+	constant solver_t* solver,
+	const global cons_t* U
+) {
+	const global real3* beta_U = &U->beta_U;	//don't lose track of our original beta_U
+<? for i=1,solver.dim do
+	local xi = xNames[i]
+?>	if (beta_U-><?=xi?> < 0) {
+		U -= solver->stepsize.<?=xi?>;
+	}
+<? end
+?>	return U;
+}
+
 //TODO if we're calculating the constrains in the derivative
 // then we do save calculations / memory on the equations
 // but we also, for >FE integrators (which require multiple steps) are duplicating calculations
@@ -55,6 +72,7 @@ kernel void calcDeriv(
 	real3 x = cell_x(i);
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
+	const global cons_t* Uup = getUpwind(solver, U);
 
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
@@ -113,11 +131,13 @@ kernel void calcDeriv(
 
 	//////////////////////////////// alpha_,t //////////////////////////////// 
 
+<?=eqn:makePartialUpwind'alpha'?>;
 <?=assign'dt_alpha'?>
 	deriv->alpha += dt_alpha;
 	
 	//////////////////////////////// W_,t //////////////////////////////// 
 
+<?=eqn:makePartialUpwind'W'?>;
 <?=assign_real3'tr_connBar_l'?>
 <?=assign'tr_DBar_beta'?>
 <?=assign'dt_W'?>
@@ -153,6 +173,7 @@ kernel void calcDeriv(
 <?=assign'tr_ABarSq'?>
 <? end ?>
 
+<?=eqn:makePartialUpwind'K'?>;
 <?=assign_3sym3'connBar_lll'?>
 <?=assign_3sym3'connBar_ULL'?>
 <?=assign_sym3'DBar2_alpha_LL'?> 
@@ -163,6 +184,7 @@ kernel void calcDeriv(
 
 	//////////////////////////////// epsilon_ij,t //////////////////////////////// 
 
+<?=eqn:makePartialUpwind'epsilon_LL'?>;
 <?=assign_sym3'Lbeta_gammaBar_LL'?>
 <?=assign_sym3'dt_epsilon_LL'?>
 <? for ij,xij in ipairs(symNames) do
@@ -218,7 +240,8 @@ kernel void calcDeriv(
 <?=assign_sym3'tracelessPart_LL'?>
 	tracelessPart_LL = tracefree(tracelessPart_LL, gammaBar_LL, gammaBar_UU);
 
-<?=assign_3sym3('partial_ABar_lll', partial_ABar_lll:permute'_kij')?>
+<?=eqn:makePartialUpwind'ABar_LL'?>;
+<?=assign_3sym3('partial_ABar_lll_upwind', partial_ABar_lll_upwind:permute'_kij')?>
 <?=assign_real3x3'partial_beta_ul'?>
 <?=assign_sym3'Lbeta_ABar_LL'?>
 
@@ -334,6 +357,7 @@ end
 <? end
 ?>	
 
+<?=eqn:makePartialUpwind'LambdaBar_U'?>;
 <?=assign_real3'Lbeta_LambaBar_U'?>
 <?=assign_real3'dt_LambdaBar_U'?>
 
@@ -355,14 +379,15 @@ end
 
 <? elseif eqn.useShift == 'HyperbolicGammaDriver' then ?>
 
+<?=eqn:makePartialUpwind'beta_U'?>;
 <?=assign_real3'dt_beta_U_HyperbolicGammaDriver'?>
 <? for i,xi in ipairs(xNames) do
 ?>	deriv->beta_U.<?=xi?> += dt_beta_U_HyperbolicGammaDriver.<?=xi?>;
 <? end
 ?>
 
+<?=eqn:makePartialUpwind'B_U'?>;
 <?=assign_real3'dt_B_U_HyperbolicGammaDriver'?>
-
 <? for i,xi in ipairs(xNames) do
 ?>	deriv->B_U.<?=xi?> += dt_B_U_HyperbolicGammaDriver.<?=xi?>;
 <? end
