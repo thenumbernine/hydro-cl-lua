@@ -347,24 +347,24 @@ end
 <? if eqn.useShift == 'GammaDriver' then ?>
 
 	const real k = 3. / 4.;
-<?=assign_real3'dt_beta_U'?>
+<?=assign_real3'dt_beta_U_GammaDriver'?>
 <? for i,xi in ipairs(xNames) do
-?>	deriv->beta_U.<?=xi?> += dt_beta_U.<?=xi?>;
+?>	deriv->beta_U.<?=xi?> += dt_beta_U_GammaDriver.<?=xi?>;
 <? end
 ?>
 
 <? elseif eqn.useShift == 'HyperbolicGammaDriver' then ?>
 
-<?=assign_real3'dt_beta_U'?>
+<?=assign_real3'dt_beta_U_HyperbolicGammaDriver'?>
 <? for i,xi in ipairs(xNames) do
-?>	deriv->beta_U.<?=xi?> += dt_beta_U.<?=xi?>;
+?>	deriv->beta_U.<?=xi?> += dt_beta_U_HyperbolicGammaDriver.<?=xi?>;
 <? end
 ?>
 
-<?=assign_real3'dt_B_U'?>
+<?=assign_real3'dt_B_U_HyperbolicGammaDriver'?>
 
 <? for i,xi in ipairs(xNames) do
-?>	deriv->B_U.<?=xi?> += dt_B_U.<?=xi?>;
+?>	deriv->B_U.<?=xi?> += dt_B_U_HyperbolicGammaDriver.<?=xi?>;
 <? end
 ?>
 

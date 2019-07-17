@@ -534,8 +534,8 @@ end
 		op:refreshSolverProgram()
 	end
 
-	-- display stuff:
-	if self.app.targetSystem ~= 'console' then
+	-- display stuff.  build these just in case trackvars is used.
+	do	--if self.app.targetSystem ~= 'console' then
 	
 		if self.app.useGLSharing then
 			for _,group in ipairs(self.displayVarGroups) do
@@ -606,7 +606,7 @@ local function shouldDeferCode(code)
 end
 
 function SolverBase:getDisplayCode()
-	if self.app.targetSystem == 'console' then return '' end
+	--if self.app.targetSystem == 'console' then return '' end
 	local texVsBufInfo = {
 		Tex = {
 			outputArg = function(var)
@@ -1685,7 +1685,7 @@ function SolverBase:update()
 			io.write(sep, 't=', self.t)
 			sep = '\t'
 			if cmdline.trackvars then
-				local varnames = string.split(cmdline.trackvars, ',')
+				local varnames = string.split(cmdline.trackvars, ','):map(string.trim)
 				for _,varname in ipairs(varnames) do
 					local var = assert(self.displayVarForName[varname], "couldn't find "..varname)
 					local ymin, ymax, yavg = self:calcDisplayVarRangeAndAvg(var)
@@ -1698,7 +1698,47 @@ function SolverBase:update()
 	end
 	self.lastFrameTime = thisTime
 
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj, self.numCells)) end
+	if self.checkNaNs then 
+		assert(self:checkFinite(self.UBufObj, self.numCells)) 
+	end
+
+	-- [[ stop condition: '|U H| > 1'
+	-- math should be in namespace ... but setfenv seems to run really really slow
+	-- what about min vs max vs avg?  dereference them as table fields
+	-- use || as shorthand for max(abs(${x}.min), abs(${x}.max))
+	if cmdline.stopcond then
+		-- cache in global namespace
+		if not stopcondfunc then
+			local code = cmdline.stopcond
+			local prefix = table()
+			prefix:insert[[
+local self = ...
+]]
+			local varindex = 1
+			code = code:gsub('|([^|]*)|', function(name)
+				local varmin = 'varmin'..varindex
+				local varmax = 'varmax'..varindex
+				local varabsmax = 'varabsmax'..varindex
+				prefix:insert(template([[
+local <?=varmin?>, <?=varmax?> = self:calcDisplayVarRange(self.displayVarForName['<?=name?>'])
+local <?=varabsmax?> = math.max(math.abs(<?=varmin?>, <?=varmax?>))
+]],				{
+					varmin = varmin,
+					varmax = varmax,
+					varabsmax = varabsmax,
+					name = name,
+				}))
+				varindex = varindex + 1
+				return varabsmax
+			end)
+			code = prefix:concat'\n'..'\nreturn '..code
+			stopcondfunc = assert(load(code))
+		end
+		if stopcondfunc(self) then
+			error(cmdline.stopcond..' met at t='..self.t)
+		end
+	end
+	--]]
 end
 
 -- check for nans

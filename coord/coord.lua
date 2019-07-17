@@ -443,6 +443,7 @@ self.dg = dg
 		print'1st kind Christoffel:'
 		print(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(Gamma_lll'_abc'()))
 	end
+self.Gamma_lll = Gamma_lll
 	compileTensorField('conn_lll_codes', Gamma_lll)
 
 	local Gamma_ull = Tensor'^a_bc'

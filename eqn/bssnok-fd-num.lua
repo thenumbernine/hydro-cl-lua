@@ -401,7 +401,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 
 	--'U tr_DBar2_phi',
 	--'U DBar_phi_sq',
-	--'U ABarSq tr weighted',
+	'U ABarSq_LL tr weighted gammaBar^IJ',
 
 --[[ should be zero for Minkowski
 	'U RBar_LL xx',
@@ -445,12 +445,12 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U Delta_U z',
 --]]
 --[[ should be diag(0, 2, 2 cos(theta)^2)
-	'U trBar_partial2_gammaBar_LL xx',
-	'U trBar_partial2_gammaBar_LL xy',
-	'U trBar_partial2_gammaBar_LL xz',
-	'U trBar_partial2_gammaBar_LL yy',
-	'U trBar_partial2_gammaBar_LL yz',
-	'U trBar_partial2_gammaBar_LL zz',
+	'U trBar_partial2_gammaBar_ll xx',
+	'U trBar_partial2_gammaBar_ll xy',
+	'U trBar_partial2_gammaBar_ll xz',
+	'U trBar_partial2_gammaBar_ll yy',
+	'U trBar_partial2_gammaBar_ll yz',
+	'U trBar_partial2_gammaBar_ll zz',
 --]]
 }
 
@@ -502,9 +502,8 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 		{name='f', code='*value = calc_f(U->alpha);'},
 		{name='df/dalpha', code='*value = calc_dalpha_f(U->alpha);'},
 	
---[=[	
 		{
-			name = 'ABarSq',
+			name = 'ABarSq_LL',
 			type = 'sym3',
 			code = [[
 	sym3 gammaBar_UU = calc_gammaBar_UU(U, x);
@@ -514,6 +513,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 ]],
 		},
 		
+--[=[	
 		{	-- gammaBar^ij DBar_i DBar_j phi
 			name = 'tr_DBar2_phi',
 			code = template([[
@@ -609,7 +609,8 @@ end
 	*value = sym3_dot(gammaBar_UU, DBar2_phi_LL);
 ]], env),
  		},
- 
+--]=]
+
 		{
 			name = 'partial_phi_l',
 			type = 'real3',
@@ -629,6 +630,7 @@ end
 ]], env),
 		},
 
+--[=[
 		{
 			name = 'DBar2_alpha_ll',
 			code = template([[
@@ -725,8 +727,7 @@ end
 	
 	sym3 tracelessPart_LL;
 <? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi,xj = xNames[i],xNames[j]
+	local i,j,xi,xj = from6to3x3(ij)
 ?>	tracelessPart_LL.<?=xij?> = (0.
 		+ 2. * partial_phi_L.<?=xi?> * partial_alpha_L.<?=xj?>
 			+ 2. * partial_phi_L.<?=xj?> * partial_alpha_L.<?=xi?>
@@ -977,7 +978,7 @@ end ?>;
 
 <?=eqn:makePartial2'epsilon_LL'?>
 
-	sym3 trBar_partial2_gammaBar_LL = calc_trBar_partial2_gammaBar_LL(
+	sym3 trBar_partial2_gammaBar_ll = calc_trBar_partial2_gammaBar_ll(
 		U, 
 		x, 
 		&gammaBar_UU, 
@@ -991,7 +992,7 @@ end ?>;
 		&gammaBar_UU,
 		&connHat_ULL,
 		&partial_gammaBar_LLL,
-		&trBar_partial2_gammaBar_LL,
+		&trBar_partial2_gammaBar_ll,
 		&partial_LambdaBar_UL,
 		&Delta_U,
 		&Delta_ULL,
@@ -1088,7 +1089,7 @@ gammaBar^kl = inv(gammaBar_kl)
 
 --[=[
 	vars:insert{
-		name='trBar_partial2_gammaBar_LL',
+		name='trBar_partial2_gammaBar_ll',
 		type = 'sym3',
 		code = template([[
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
@@ -1097,14 +1098,14 @@ gammaBar^kl = inv(gammaBar_kl)
 <?=eqn:makePartial1'epsilon_LL'?>
 <?=eqn:makePartial2'epsilon_LL'?>
 	
-	sym3 trBar_partial2_gammaBar_LL = calc_trBar_partial2_gammaBar_LL(
+	sym3 trBar_partial2_gammaBar_ll = calc_trBar_partial2_gammaBar_ll(
 		U, 
 		x, 
 		&gammaBar_UU, 
 		partial_epsilon_LLl, 
 		partial2_epsilon_LLll);
 
-	*value_sym3 = trBar_partial2_gammaBar_LL;
+	*value_sym3 = trBar_partial2_gammaBar_ll;
 ]], env),
 	}
 --]=]

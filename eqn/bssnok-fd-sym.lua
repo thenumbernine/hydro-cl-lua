@@ -229,9 +229,9 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 			__index = function(t,k)
 				-- I can't directly reference symmath here because symmath.tostring will override tostring
 				-- so instead I'll do so through the symenv I pass to symmath.setup()
-				local v = symenv[k] if v then return v end
-				local v = common[k] if v then return v end
-				local v = oldEnv[k] if v then return v end
+				local v = symenv[k] if v ~= nil then return v end
+				local v = common[k] if v ~= nil then return v end
+				local v = oldEnv[k] if v ~= nil then return v end
 			end,
 		})
 		self.env = env
@@ -888,14 +888,14 @@ time('building symbolic math env', function()
 		-- usually in init/einstein
 		local fGuiVar = solver.eqn.guiVars.f_eqn
 		local fLuaCode = fGuiVar.options[fGuiVar.value]
-		local f = assert(loadstring([[
+		local f_times_alphaSq = assert(loadstring([[
 	local alpha, symmath = ...
 	local log = symmath.log
-	return ]]..fLuaCode))(alpha, symmath)
-		f = symmath.clone(f)
+	return alpha^2 * ]]..fLuaCode))(alpha, symmath)
+		f_times_alphaSq = symmath.clone(f_times_alphaSq)
 		
 		--Alcubierre 4.2.52 - Bona-Masso family of slicing
-		Q = f * K
+		Q = f_times_alphaSq * K
 		
 		--d/dt alpha alpha,t - alpha_,i beta^i = -alpha^2 Q
 		-- already seeing a 1/r and 1/(r sin(θ)) in the denom...
@@ -1322,27 +1322,28 @@ time('building symbolic math env', function()
 
 		eta_var = var'solver->shift_eta'
 
-		if eqn.useShift == 'GammaDriver' then
+		--if eqn.useShift == 'GammaDriver' then
+			
 			k_var = var'k'
 			--Gamma-driver
 			--B&S 4.82
 			--beta^i_,t = k (connBar^i_,t + eta connBar^i)
-	printbr'dt_beta_U'
-			dt_beta_U = (k_var * dt_LambdaBar_U_vars'^I' + eta_var * LambdaBar_U_vars'^I')()
-	printbr(dt_beta_U)
+	printbr'dt_beta_U_GammaDriver'
+			dt_beta_U_GammaDriver = (k_var * dt_LambdaBar_U_vars'^I' + eta_var * LambdaBar_U_vars'^I')()
+	printbr(dt_beta_U_GammaDriver)
 	printbr'...with $\\beta^i = 0$...'
-	printbr(removeBetas(dt_beta_U)():factorDivision())
+	printbr(removeBetas(dt_beta_U_GammaDriver)():factorDivision())
 		
-		elseif eqn.useShift == 'HyperbolicGammaDriver' then
-	printbr'dt_beta_U'
-			dt_beta_U = (
+		--elseif eqn.useShift == 'HyperbolicGammaDriver' then
+	printbr'dt_beta_U_HyperbolicGammaDriver'
+			dt_beta_U_HyperbolicGammaDriver = (
 				B_U_vars'^I'
 				-- if shiftadvect==true from SENR
 				+ e'_i^I' * partial_beta_ul'^i_j' * beta_u'^j'
 			)():factorDivision()
-	printbr(dt_beta_U)
+	printbr(dt_beta_U_HyperbolicGammaDriver)
 	printbr'...with $\\beta^i = 0$...'
-	printbr(removeBetas(dt_beta_U)():factorDivision())
+	printbr(removeBetas(dt_beta_U_HyperbolicGammaDriver)():factorDivision())
 
 			--[[
 			hyperbolic Gamma driver 
@@ -1353,18 +1354,18 @@ time('building symbolic math env', function()
 			Etienne's SENR doesn't do the full Lie derivative though.
 			just the B^i_,j beta^j term, and adds the full LambdaBar^i_,t to B^i_,t
 			--]]
-	printbr'dt_B_U'
-			dt_B_U = (
+	printbr'dt_B_U_HyperbolicGammaDriver'
+			dt_B_U_HyperbolicGammaDriver = (
 				frac(3,4) * dt_LambdaBar_U_vars'^I'
 				- eta_var * B_U_vars'^I'
 				-- if biadvect==true from SENR
 				+ e'_i^I' * partial_beta_ul'^i_j' * B_u'^j'
 			)():factorDivision()
-	printbr(dt_B_U)
+	printbr(dt_B_U_HyperbolicGammaDriver)
 	printbr'...with $\\beta^i = 0$...'
-	printbr(removeBetas(dt_B_U)():factorDivision())
+	printbr(removeBetas(dt_B_U_HyperbolicGammaDriver)():factorDivision())
 
-		end	-- eqn.useShift
+		--end	-- eqn.useShift
 
 		outfile:close()
 
@@ -1390,9 +1391,9 @@ symmath.setup{env=symenv}
 local env = {}
 setmetatable(env, {
 	__index = function(t,k)
-		local v = symenv[k] if v then return v end
-		local v = common[k] if v then return v end
-		local v = oldEnv[k] if v then return v end
+		local v = symenv[k] if v ~= nil then return v end
+		local v = common[k] if v ~= nil then return v end
+		local v = oldEnv[k] if v ~= nil then return v end
 	end,
 })
 setfenv(1, env)
@@ -1416,9 +1417,7 @@ setfenv(1, env)
 			end
 			lines:insert'}'
 			lines:insert[[
-
 -- begin prefix code
-setfenv(1, oldEnv)
 return env
 -- end prefix code
 ]]
@@ -1428,8 +1427,6 @@ return env
 		save()
 end)	-- time()
 	end
-
-	setfenv(1, oldEnv)
 
 	return self.env
 end
@@ -2156,25 +2153,27 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 		{name='f', code='*value = calc_f(U->alpha);'},
 		{name='df/dalpha', code='*value = calc_dalpha_f(U->alpha);'},
 	
---[=[	
 		{
-			name = 'ABarSq',
+			name = 'ABarSq_LL',
 			type = 'sym3',
-			code = [[
+			code = template([[
+<?=assignRepls(cos_xs)?>
+<?=assignRepls(sin_xs)?>
 <?=assign'det_gammaBar_over_det_gammaHat'?>
-<?=assign'det_gammaBar'?>
-<?=assign_sym3'gammaBar_uu'?>
-	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
+<?=assign_sym3'gammaBar_UU'?>
 	real3x3 ABar_UL = sym3_sym3_mul(gammaBar_UU, U->ABar_LL);
 	sym3 ABarSq_LL = sym3_real3x3_to_sym3_mul(U->ABar_LL, ABar_UL);
 	*value_sym3 = ABarSq_LL;
-]],
+]], self:getEnv()),
 		},
 		
+--[=[	
 		{	-- gammaBar^ij DBar_i DBar_j phi
 			name = 'tr_DBar2_phi',
 			code = template([[
-
+<?=assignRepls(cos_xs)?>
+<?=assignRepls(sin_xs)?>
+<?=assign'det_gammaBar_over_det_gammaHat'?>
 <?=assign_sym3'gammaBar_UU'?>
 <?=assign_3sym3'connBar_ULL'?>
 

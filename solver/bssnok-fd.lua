@@ -16,7 +16,7 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	
 	self:addDisplayComponent('real3', {
 		onlyFor = 'U',
-		name = 'norm weighted',
+		name = 'norm weighted gammaBar_IJ',
 		code = [[
 	int index = INDEXV(i);
 	real3 x = cell_x(i);
@@ -24,9 +24,29 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
 	*value = real3_weightedLen(*value_real3, gammaBar_LL);]],
 	})
+	self:addDisplayComponent('real3', {
+		onlyFor = 'U',
+		name = 'norm weighted gammaBar_ij',
+		code = [[
+	int index = INDEXV(i);
+	real3 x = cell_x(i);
+	const global <?=eqn.cons_t?>* U = buf + index;
+	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+	*value = real3_weightedLen(*value_real3, gammaBar_ll);]],
+	})
+	self:addDisplayComponent('real3', {
+		onlyFor = 'U',
+		name = 'norm weighted gamma^ij',
+		code = [[
+	int index = INDEXV(i);
+	real3 x = cell_x(i);
+	const global <?=eqn.cons_t?>* U = buf + index;
+	sym3 gamma_uu = calc_gamma_uu(U, x);
+	*value = real3_weightedLen(*value_real3, gamma_uu);]],
+	})
 	self:addDisplayComponent('sym3', {
 		onlyFor = 'U',
-		name = 'tr weighted',
+		name = 'tr weighted gamma^IJ',
 		code = [[
 	int index = INDEXV(i);
 	real3 x = cell_x(i);
@@ -36,7 +56,7 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	})
 	self:addDisplayComponent('sym3', {
 		onlyFor = 'U',
-		name = 'trBar weighted',
+		name = 'tr weighted gammaBar^IJ',
 		code = [[
 	int index = INDEXV(i);
 	real3 x = cell_x(i);

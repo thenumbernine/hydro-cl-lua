@@ -1,4 +1,4 @@
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -434,7 +434,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -612,8 +612,11 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 bssnok is working in 1D-3D Cartesian for RK4 
 diverging for non-Cartesian
 for spherical, Minkowski init cond, dim=1, gridSize=256, no dissipation, numGhost=2 <=> derivOrder=4
-for RK4 with range [0, 10] runs indefinitely
-	but |H| exceeds 1 at t=1.1718027780568 
+for RK4 with range [0, 8] 
+	for no shift this runs indefinitely
+		but |H| exceeds 1 at t=1.3199415595106 with |H|=[-4.6046546590565..-0.080830269795659..0.79753642167368] 
+	for hyperblic gamma driver shift
+		runs until t=5.0222104606214 
 --]]
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))	-- default shift is HyperbolicGammaDriver
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='none'}})))
@@ -623,7 +626,9 @@ for RK4 with range [0, 10] runs indefinitely
 BSSNOK but with my symbolic CAS generating the math
 Generation is really slow and not yet cached.
 In spherical on my laptop this is ~1min to do the differentiatin and simpliciations, then ~5min to compile (as opposed to the ~20sec to compile the bssnok-fd-num version).
-But the tradeoff is that this one, Minkowski spherical, is completely smooth.  no oscillations, runs indefinitely.
+This one, Minkowski spherical, with no shift is completely smooth.  no oscillations, runs indefinitely.
+	always keeping a |H| ~ 1e-10 for vacuum spacetimes
+With hyperbolic gamma driver shift it has trouble.
 --]]
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
 
@@ -670,14 +675,14 @@ But the tradeoff is that this one, Minkowski spherical, is completely smooth.  n
 
 
 
---[=[ 2013 Baumgarte et al, section IV A 1 example
+-- [=[ 2013 Baumgarte et al, section IV A 1 example
 self.solvers:insert(require 'solver.bssnok-fd'{
 	app = self,
 	
-	eqn = 'bssnok-fd-num', 
-	--eqn = 'bssnok-fd-sym', 
+	--eqn = 'bssnok-fd-num', 
+	eqn = 'bssnok-fd-sym', 
 	
-	eqnArgs = {useShift = 'none'},
+	--eqnArgs = {useShift = 'none'},
 	dim = 1,
 	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
 	cfl = .6,	--.4,
@@ -686,7 +691,7 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	coord = 'sphere',
 	mins = {0, 0, -math.pi},
 	maxs = {8, math.pi, math.pi},
-	gridSize = {160, 0, 0},
+	gridSize = {160, 1, 1},
 	boundary = {
 		xmin='sphereCenter',
 		xmax='quadratic',
@@ -714,10 +719,12 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
 	initState = 'Minkowski',
 	--initState = 'gaussian perturbation',
+	--[[
 	initStateArgs = {
 		H = -1e-7,	--H = 1e-7,
 		sigma = 10,
 	},
+	--]]
 })
 --]=]
 

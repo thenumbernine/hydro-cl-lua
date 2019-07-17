@@ -821,6 +821,18 @@ end
 -- boundary code indentation
 local indent = '\t\t'
 
+--[[
+TODO how to handle individual fields
+for example, this can't compile with op/selfgrav.lua, because that will try to assign .ePot onto the struct, which is already being dereferenced here 
+
+same with mirror, only certain fields are inverted
+
+so how do we specify when the boundary is being applied to the whole structure or only to a single field in it?
+
+add a new field: 'fields' that says what fields to apply the boundary to
+--]]
+
+
 local BoundaryPeriodic = class(Boundary)
 BoundaryPeriodic.name = 'periodic'
 function BoundaryPeriodic:getCode(args)
@@ -965,26 +977,18 @@ in fact, mirror is very cartesian-specific...
 
 spherical r=0 ...
 for 1D, for cell[i] we use cell[i] and mirror the respective coordinates
-for 2D (r,theta): for cell[i][j], we use cell[i][size.y-j]
-for 3D (r,theta,phi) for cell[i][j][k] we use cell 
-
-ex:
-sphere center reflects r and phi
-cylindrical center reflects only r
-
-TODO automatically generate these by dividing e_j(x_i) with e_j(-x_i) and looking at the sign
-this will give you the correct sign change for the j'th variable on the x_i'th side
-
-TODO TODO with spherical polar boundary you also need to keep track of where in the grid the lookup changes to
+TODO:
+for 2D (r,theta), for theta in [0,pi] for cell[i][j], we use cell[i][size.y-j]
+for 3D (r,theta,phi), for theta in [0,pi], phi in [0,2pi] for cell[i][j][k] we use cell cell[i][size.y-j][(k+size.z/2)%size.z]
 --]]
 local BoundarySphereCenter = class(Boundary)
 BoundarySphereCenter.name = 'sphereCenter'
 function BoundarySphereCenter:getCode(args)
 	local solver = args.solver
 	
-	assert(solver.dim == 1, "don't have >1D for sphere center boundary yet")
-	assert(args.side == 1, "only xmin so far")
-	assert(args.minmax == 'min', "only xmin so far")
+	--assert(solver.dim == 1, "don't have >1D for sphere center boundary yet")
+	--assert(args.side == 1, "only xmin so far")
+	--assert(args.minmax == 'min', "only xmin so far")
 	
 	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
 	local lines = table()

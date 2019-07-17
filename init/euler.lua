@@ -476,7 +476,7 @@ Test	ρ L		u L		    p L		 ρ R		u R		    p R
 
 			local vy = 0
 			local vz = 0
-			local EInt = P * (gamma - 1)
+			local EInt = P / (gamma - 1)
 			local EKin = .5 * rho * (vx*vx + vy*vy + vz*vz)
 			local ETotal = EKin + EInt
 			return rho, rho * vx, rho * vy, rho * vz, ETotal

@@ -229,13 +229,13 @@ do
 	local alpha = symmath.var'alpha'
 	local fGuiVar = solver.eqn.guiVars.f_eqn
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
-	local f = assert(loadstring([=[
+	local f_times_alphaSq = assert(loadstring([=[
 local alpha, symmath = ...
 local log = symmath.log
 return alpha^2 * ]=]..fLuaCode))(alpha, symmath)
-	f = symmath.clone(f)()
+	f_times_alphaSq = symmath.clone(f_times_alphaSq)()
 ?>real calc_f_times_alphaSq(real alpha) {
-	return <?=symmath.export.C(f)?>;
+	return <?=symmath.export.C(f_times_alphaSq)?>;
 }
 <?
 end
@@ -618,7 +618,7 @@ end
 	*connBar_ULL = sym3_3sym3_mul(*gammaBar_UU, connBar_LLL);
 }
 
-static sym3 calc_trBar_partial2_gammaBar_LL(
+static sym3 calc_trBar_partial2_gammaBar_ll(
 	const global <?=eqn.cons_t?>* U,
 	real3 x,
 	const sym3* gammaBar_UU,
@@ -629,42 +629,42 @@ static sym3 calc_trBar_partial2_gammaBar_LL(
 	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(*gammaBar_UU, x); 
 	
 	/*
-	e^i_I e^j_J gammaBar_ij,kl gammaBar^kl
+	gammaBar_ij,kl gammaBar^kl
 	= (
 		(delta_IJ + epsilon_IJ) (
-			f_I,kl f^I
-			+ 2 f_I,k f_J,l f^I f^J
-			+ f_J,kl f^J
+			f_I,kl f_j
+			+ 2 f_I,k f_J,l 
+			+ f_J,kl f_i 
 		)
-		+ 2 epsilon_IJ,l (f_I,k f^I + f_J,k f^J)
-		+ epsilon_IJ,kl
-	) f^K f^L gammaBar^KL
+		+ 2 epsilon_IJ,l (f_I,k f_j + f_J,k f_i)
+		+ epsilon_IJ,kl f_i f_j
+	) gammaBar^kl delta_i^I delta_j^J
 	*/
-	sym3 trBar_partial2_gammaBar_LL;
+	sym3 trBar_partial2_gammaBar_ll;
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
-?>	trBar_partial2_gammaBar_LL.<?=xij?> = 0.
+?>	trBar_partial2_gammaBar_ll.<?=xij?> = 0.
 <?	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do
 			local kl,xkl = from3x3to6(k,l)
 ?>		+ (
 			+ (U->epsilon_LL.<?=xij?><?=i==j and ' + 1.' or ''?>) * (0.
-				+ calc_partial2_len_<?=xi..xk..xl?>(x) / calc_len_<?=xi?>(x)
-				+ calc_partial2_len_<?=xj..xk..xl?>(x) / calc_len_<?=xj?>(x)
-				+ 2. * calc_partial_len_over_len_<?=xi..xk..xi?>(x) * calc_partial_len_over_len_<?=xj..xl..xj?>(x) 
+				+ calc_partial2_len_<?=xi..xk..xl?>(x) * calc_len_<?=xj?>(x)
+				+ calc_partial2_len_<?=xj..xk..xl?>(x) * calc_len_<?=xi?>(x)
+				+ 2. * calc_partial_len_<?=xi..xk?>(x) * calc_partial_len_<?=xj..xl?>(x) 
 			)
 			+ 2. * partial_epsilon_LLl[<?=l-1?>].<?=xij?> * (0.
-				+ calc_partial_len_over_len_<?=xi..xk..xi?>(x)
-				+ calc_partial_len_over_len_<?=xj..xk..xj?>(x)
+				+ calc_partial_len_<?=xi..xk?>(x) * calc_len_<?=xj?>(x)
+				+ calc_partial_len_<?=xj..xk?>(x) * calc_len_<?=xi?>(x)
 			)
-			+ partial2_epsilon_LLll[<?=kl-1?>].<?=xij?>
+			+ partial2_epsilon_LLll[<?=kl-1?>].<?=xij?> * calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x)
 		) * gammaBar_uu.<?=xkl?>
 <?		end
 	end
 ?>	;
 <? end
 ?>
-	return trBar_partial2_gammaBar_LL;
+	return trBar_partial2_gammaBar_ll;
 }
 
 static sym3 calc_RBar_LL(
@@ -674,7 +674,7 @@ static sym3 calc_RBar_LL(
 	const sym3* gammaBar_UU,
 	const _3sym3* connHat_ULL,
 	const _3sym3* partial_gammaBar_LLL,
-	const sym3* trBar_partial2_gammaBar_LL,
+	const sym3* trBar_partial2_gammaBar_ll,
 	const real3x3* partial_LambdaBar_UL,
 	const real3* Delta_U,
 	const _3sym3* Delta_ULL,
@@ -795,11 +795,11 @@ end
 			- connHat^m_li DHat_k gammaBar_mj
 			- connHat^m_lj DHat_k gammaBar_im)
 	*/
-	sym3 trBar_DHat2_gammaBar_without_partial2_gammaBar_LL;
+	sym3 trBar_DHat2_gammaBar_without_partial2_gammaBar_ll;
 <?
 for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
-?>	trBar_DHat2_gammaBar_without_partial2_gammaBar_LL.<?=xij?> = (0.
+?>	trBar_DHat2_gammaBar_without_partial2_gammaBar_ll.<?=xij?> = (0.
 		//Less accurate if I rescale this in advance.
 		//Less accurate if I rescale this and subtract it later, outside this variable
 		- DHat_gammaBar_dot1_connHat_ll.<?=sym(i,j)?>
@@ -818,15 +818,15 @@ for ij,xij in ipairs(symNames) do
 		) * (gammaBar_UU-><?=sym(k,l)?> / (calc_len_<?=xk?>(x) * calc_len_<?=xl?>(x)))
 <?		end
 	end
-?>	) / (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x));
+?>	);
 <?
 end
 ?>
 
 	//trBar_DHat2_gammaBar_ll.ij := gammaBar^kl DHat_k DHat_l gammaBar_ij
-	sym3 trBar_DHat2_gammaBar_LL = sym3_add(
-		*trBar_partial2_gammaBar_LL,
-		trBar_DHat2_gammaBar_without_partial2_gammaBar_LL);
+	sym3 trBar_DHat2_gammaBar_ll = sym3_add(
+		*trBar_partial2_gammaBar_ll,
+		trBar_DHat2_gammaBar_without_partial2_gammaBar_ll);
 
 	//derivative is the last index, unlike the partial_*'s
 	//DHat_LambdaBar_ul.i.j := DHat_j LambdaBar^i = LambdaBar^i_,j + connHat^i_jk LambdaBar^k
@@ -865,7 +865,8 @@ end
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
 ?>	RBar_LL.<?=xij?> = 0.
-			- .5 * trBar_DHat2_gammaBar_LL.<?=xij?>	
+			- .5 * trBar_DHat2_gammaBar_ll.<?=xij?>
+				/ (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x))
 <?	for k,xk in ipairs(xNames) do
 ?>			//Less accurate when I defer this
 			+ .5 * gammaBar_LL-><?=sym(i,k)?> * DHat_LambdaBar_UL.<?=xk?>.<?=xj?> 
@@ -1127,7 +1128,7 @@ static void calcDeriv_ABar_LL(
 ) {
 <?=eqn:makePartial2'epsilon_LL'?>
 
-	sym3 trBar_partial2_gammaBar_LL = calc_trBar_partial2_gammaBar_LL(
+	sym3 trBar_partial2_gammaBar_ll = calc_trBar_partial2_gammaBar_ll(
 		U, 
 		x, 
 		gammaBar_UU, 
@@ -1151,7 +1152,7 @@ static void calcDeriv_ABar_LL(
 		gammaBar_UU,
 		connHat_ULL,
 		partial_gammaBar_LLL,
-		&trBar_partial2_gammaBar_LL,
+		&trBar_partial2_gammaBar_ll,
 		&partial_LambdaBar_UL,
 		Delta_U,
 		Delta_ULL,
@@ -1829,13 +1830,13 @@ then
 
 <?=eqn:makePartial2'epsilon_LL'?>
 
-	sym3 trBar_partial2_gammaBar_LL = calc_trBar_partial2_gammaBar_LL(
+	sym3 trBar_partial2_gammaBar_ll = calc_trBar_partial2_gammaBar_ll(
 		U, 
 		x, 
 		&gammaBar_UU, 
 		partial_epsilon_LLl, 
 		partial2_epsilon_LLll);
-	
+
 	sym3 RBar_LL = calc_RBar_LL(
 		U,
 		x,
@@ -1843,7 +1844,7 @@ then
 		&gammaBar_UU,
 		&connHat_ULL,
 		&partial_gammaBar_LLL,
-		&trBar_partial2_gammaBar_LL,
+		&trBar_partial2_gammaBar_ll,
 		&partial_LambdaBar_UL,
 		&Delta_U,
 		&Delta_ULL,
