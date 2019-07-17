@@ -253,9 +253,6 @@ kernel void calcDeriv(
 
 	//////////////////////////////// LambdaBar^i_,t //////////////////////////////// 
 
-	real3 beta_u = real3_rescaleToCoord_U(U->beta_U, x);
-<?=assign_real3x3x3'DHat2_beta_ull'?>
-
 <?=assign_3sym3'partial2_beta_ull'?>
 <?=assign_real3'tr12_partial2_beta_l'?>
 
@@ -263,7 +260,7 @@ kernel void calcDeriv(
 <?=assign_sym3'partial_tr_connBar_ll'?>
 <?=assign_real3'DBar_tr_DBar_beta_l'?>
 <?=assign_real3'DBar_tr_DBar_beta_u'?>
-<?=assign_real3'tr_gammaBar_DHat2_beta_u'?>
+<?=assign_real3'trBar_DHat2_beta_u'?>
 
 <?=eqn:makePartialUpwind'LambdaBar_U'?>;
 <?=assign_real3'Lbeta_LambaBar_U'?>

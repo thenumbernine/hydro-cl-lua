@@ -1626,8 +1626,8 @@ end
 		gammaBar^jk DHat_j DHat_k beta^i
 		+ 2/3 Delta^i DBar_j beta^j
 		+ 1/3 DBar^i DBar_j beta^j
-		- 2 ABar^ij (alpha_,j - 6 phi_,j)
-		+ 2 alpha ABar^jk Delta^i_jk		-- NOTICE the paper doesn't have the extra alpha, but the Etienne SENR Mathematica notebook does have it.  Maybe I'm reading an earlier version of the paper?
+		- 2 ABar^ij (alpha_,j - 6 alpha phi_,j)
+		+ 2 alpha ABar^jk Delta^i_jk
 		- 4/3 alpha gammaBar^ij K_,j
 		- 16 pi exp(4 phi) alpha S^i
 		+ LambdaBar^i_,k beta^k
@@ -1638,7 +1638,7 @@ end
 		real3_real_mul(Delta_U, 2. / 3. * tr_DBar_beta),
 		real3_real_mul(DBar_tr_DBar_beta_U, 1. / 3.), 
 		real3_real_mul(ABar_times_partial_alpha_U, -2.),
-		real3_real_mul(ABar_times_partial_phi_U, 12.),
+		real3_real_mul(ABar_times_partial_phi_U, 12. * U->alpha),
 		real3_real_mul(Delta_times_ABar_U, 2. * U->alpha),
 		real3_real_mul(gammaBar_times_partial_K_U, -4. / 3. * U->alpha), 
 		Lbeta_LambdaBar_U,

@@ -682,7 +682,7 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	--eqn = 'bssnok-fd-num', 
 	eqn = 'bssnok-fd-sym', 
 	
-	eqnArgs = {useShift = 'none'},
+	--eqnArgs = {useShift = 'none'},
 	dim = 1,
 	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
 	cfl = .6,	--.4,
