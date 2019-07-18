@@ -23,7 +23,6 @@ if fragmentShader then ?>
 float logmap(float x) { return log(1. + abs(x)) * _1_LN_10; }
 
 uniform bool useCoordMap;
-
 uniform bool useLog;
 uniform float valueMin, valueMax;
 uniform bool showInUnits;

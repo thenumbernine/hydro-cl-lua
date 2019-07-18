@@ -110,9 +110,9 @@ local function addMaxwellOscillatingBoundary(args)
 	BoundaryOscillating.name = 'oscillating'
 	function BoundaryOscillating:getCode(args)
 		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-		local U = args.array('buf', args.index(
+		local U = 'buf['..args.index(
 			side:sub(-3) == 'min' and 'j+1' or (gridSizeSide..'-numGhost-1-j')
-		))
+		)..']'
 		-- TODO put the old code here
 		return 
 			--oldxmin(args) .. 

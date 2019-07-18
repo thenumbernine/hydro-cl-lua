@@ -12,14 +12,21 @@ varying vec3 pos;		//positive after coordinate mapping, before view transform
 <? if vertexShader then ?>
 <?=solver.coord:getCoordMapGLSLCode()?>
 
+uniform bool useCoordMap;
+
 uniform vec3 mins, maxs;
 void main() {
 	texCoord = gl_Vertex.xyz;
 	
 	vec4 x = gl_Vertex;
-	x.xyz *= maxs - mins;
-	x.xyz += mins;
-	x = vec4(coordMap(x.xyz), x.w);
+	if (useCoordMap) {
+		x.xyz *= maxs - mins;
+		x.xyz += mins;
+		x = vec4(coordMap(x.xyz), x.w);
+	} else {
+		x.xyz *= 2.;
+		x.xyz -= 1.;
+	}
 <? if useClipPlanes then ?>
 	pos = x.xyz;
 <? end ?>

@@ -864,7 +864,8 @@ end
 			end
 		end
 		if self.showMouseCoords 
-		and mouseOverThisGraph 
+		and mouseOverThisGraph
+		and self.solvers[1].dim == 2
 		then
 			local xmin, xmax, ymin, ymax
 			if self.view.getOrthoBounds then

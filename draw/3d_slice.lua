@@ -20,6 +20,9 @@ HydroCLApp.display3D_Slice_useLighting = false
 HydroCLApp.display3D_Slice_alpha = .15
 HydroCLApp.display3D_Slice_alphaGamma = 1
 HydroCLApp.display3D_Slice_numSlices = 255
+
+HydroCLApp.display_useCoordMap = cmdline.display_useCoordMap 
+if HydroCLApp.display_useCoordMap == nil then HydroCLApp.display_useCoordMap = true end
 function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	for _,solver in ipairs(solvers) do 
 		local var = solver.displayVarForName[varName]
@@ -60,6 +63,7 @@ end
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, self.display3D_Slice_alphaGamma)
 			gl.glUniform3f(solver.volumeSliceShader.uniforms.mins.loc, solver.mins:unpack())
 			gl.glUniform3f(solver.volumeSliceShader.uniforms.maxs.loc, solver.maxs:unpack())
+			gl.glUniform1i(solver.volumeSliceShader.uniforms.useCoordMap.loc, self.display_useCoordMap)
 			gl.glUniform1i(solver.volumeSliceShader.uniforms.useLog.loc, var.useLog)
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMin.loc, valueMin)
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMax.loc, valueMax)

@@ -377,20 +377,15 @@ return table{
 	gamma_ll = sym3_add(
 		sym3_ident,
 		sym3_real_mul(real3_outer(xc_u), 1. / (r / R - 1)));
-<? 	-- right now I have very poor spherical support 
-elseif require 'coord.1d_radial'.is(solver.coord) 
-	or require 'coord.sphere1d'.is(solver.coord) 
-		-- TODO i wrote coord/sphere.lua to be toric in <3D ... 
-		-- TODO TODO coord.sphere is [theta, phi, r].  why did I do that?  for implicit sphere-surface when using 2D.
-		--  I'm starting to think I should just make unique coord's for each dimension #
-	or require 'coord.sphere'.is(solver.coord) 
-then 
-?> 
+<? elseif require 'coord.sphere'.is(solver.coord) then ?> 
 	const real sinth = 1.;	//for now.  TODO right now sphere1d uses declination, so.... this is cos(theta) instead?
 	gamma_ll = sym3_zero;
 	gamma_ll.xx = 1. / one_minus_R_over_r;
-	gamma_ll.yy = r * r;
-	gamma_ll.zz = r * r * sinth * sinth;
+	
+	//bssnok-fd init cond expects the metric in non-coord normalized basis
+	//...and all the finite-volume solvers (adm3d, etc) only work with cartesian grids
+	gamma_ll.yy = 1.;	//r * r;
+	gamma_ll.zz = 1.;	//r * r * sinth * sinth;
 <? end ?>
 ]], 	{
 			solver = solver,

@@ -106,7 +106,6 @@ var.solver = origSolver
 				self.gradientTex:bind(1)
 
 				gl.glUniform1i(heatMap2DShader.uniforms.useCoordMap.loc, self.display_useCoordMap)
-				
 				gl.glUniform1i(heatMap2DShader.uniforms.useLog.loc, var.useLog)
 				gl.glUniform1f(heatMap2DShader.uniforms.valueMin.loc, valueMin)
 				gl.glUniform1f(heatMap2DShader.uniforms.valueMax.loc, valueMax)

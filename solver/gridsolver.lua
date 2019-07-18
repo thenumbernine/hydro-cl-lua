@@ -366,7 +366,7 @@ function GridSolver:initDraw()
 
 		-- volume slices
 
-		local volumeSliceCode = file['draw/slices3d.shader']
+		local volumeSliceCode = file['draw/3d_slice.shader']
 		self.volumeSliceShader = GLProgram{
 			vertexCode = template(volumeSliceCode, {
 				solver = self,
@@ -839,14 +839,14 @@ function BoundaryPeriodic:getCode(args)
 	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
 	if args.minmax == 'min' then
 		return indent..args.assign(
-			args.array('buf', args.index'j'), 
-			args.array('buf', args.index(gridSizeSide..'-2*numGhost+j'))
+			'buf['..args.index'j'..']', 
+			'buf['..args.index(gridSizeSide..'-2*numGhost+j')..']'
 		)..';'
 	elseif args.minmax == 'max' then
 		local rhs = gridSizeSide..'-numGhost+j'
 		return indent..args.assign(
-			args.array('buf', args.index(rhs)),
-			args.array('buf', args.index'numGhost+j')
+			'buf['..args.index(rhs)..']',
+			'buf['..args.index'numGhost+j'..']'
 		)..';'
 	end
 end
@@ -858,26 +858,26 @@ function BoundaryMirror:getCode(args)
 	local lines = table()
 	if args.minmax == 'min' then
 		lines:insert(indent..args.assign(
-			args.array('buf', args.index'j'),
-			args.array('buf', args.index'2*numGhost-1-j'))..';')
+			'buf['..args.index'j'..']',
+			'buf['..args.index'2*numGhost-1-j'..']')..';')
 		if args.mirrorVars and args.mirrorVars[args.side] then
 			lines:append(table.map(args.mirrorVars[args.side], function(var)
 				return indent..args.assign(
-					args.field(args.array('buf', args.index'j'), var),
-					args.field('-'..args.array('buf', args.index'j'), var)
+					args.field('buf['..args.index'j'..']', var),
+					args.field('-buf['..args.index'j'..']', var)
 				)..';'
 			end))
 		end
 	elseif args.minmax == 'max' then
 		local rhs = gridSizeSide..'-numGhost+j'
 		lines:insert(indent..args.assign(
-			args.array('buf', args.index(rhs)),
-			args.array('buf', args.index(gridSizeSide..'-numGhost-1-j')))..';')
+			'buf['..args.index(rhs)..']',
+			'buf['..args.index(gridSizeSide..'-numGhost-1-j')..']')..';')
 		if args.mirrorVars and args.mirrorVars[args.side] then
 			lines:append(table.map(args.mirrorVars[args.side], function(var)
 				return indent..args.assign(
-					args.field(args.array('buf', args.index(rhs)), var),
-					args.field('-'..args.array('buf', args.index(rhs)), var)
+					args.field('buf['..args.index(rhs)..']', var),
+					args.field('-buf['..args.index(rhs)..']', var)
 				)..';'
 			end))
 		end
@@ -978,47 +978,41 @@ in fact, mirror is very cartesian-specific...
 spherical r=0 ...
 for 1D, for cell[i] we use cell[i] and mirror the respective coordinates
 TODO:
-for 2D (r,theta), for theta in [0,pi] for cell[i][j], we use cell[i][size.y-j]
-for 3D (r,theta,phi), for theta in [0,pi], phi in [0,2pi] for cell[i][j][k] we use cell cell[i][size.y-j][(k+size.z/2)%size.z]
+for 2D (r,theta), for theta in (0,pi) for cell[i][j], we use cell[i][size.y-j]
+for 3D (r,theta,phi), for theta in [0,pi), phi in [0,2pi) for cell[i][j][k] we use cell cell[i][size.y-j][(k+size.z/2)%size.z]
+	This requires knowledge of the domain of the grid, and the boundary condition of the phi variable.
+	For now I'm just going to assume that the phi domain is [0,2pi)+c and has periodic boundary condition.
 --]]
 local BoundarySphereCenter = class(Boundary)
 BoundarySphereCenter.name = 'sphereCenter'
 function BoundarySphereCenter:getCode(args)
 	local solver = args.solver
 	
-	--assert(solver.dim == 1, "don't have >1D for sphere center boundary yet")
-	--assert(args.side == 1, "only xmin so far")
-	--assert(args.minmax == 'min', "only xmin so far")
-	
+	assert(args.side == 1 and args.minmax == 'min', "you should only use this boundary condition for rmin with spherical coordinates")
+	--assert(require 'coord.sphere'.is(solver.coord))
+	--assert(solver.maxs.y - solver.mins.y == 2*math.pi)
+	--assert(solver.boundaryMethods.ymin == 'periodic' and solver.boundaryMethods.ymax == 'periodic')
+
 	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
 	local lines = table()
 	if args.minmax == 'min' then
-		lines:insert(indent..args.assign(
-			args.array('buf', args.index'j'),
-			args.array('buf', args.index'2*numGhost-1-j'))..';')
-		if args.boundarySphereCenterMirrorVars 
-		and args.boundarySphereCenterMirrorVars[args.side] 
-		then
-			lines:append(table.map(args.boundarySphereCenterMirrorVars[args.side], function(var)
-				return indent..args.assign(
-					args.field(args.array('buf', args.index'j'), var),
-					args.field('-'..args.array('buf', args.index'j'), var)
-				)..';'
-			end))
+		local src, dst
+		if solver.dim == 1 then
+			src = 'INDEX(2*numGhost-1-j, 0, 0)'
+			dst = 'INDEX(j, 0, 0)'
+		elseif solver.dim == 2 then	-- r, theta
+			src = 'INDEX(2*numGhost-1-j, solver->gridSize.y - i - 1, 0)'
+			dst = 'INDEX(j, i, 0)'
+		elseif solver.dim == 3 then
+			src = 'INDEX(2*numGhost-1-j, solver->gridSize.y - i.x - 1, (i.y + solver->gridSize.z / 2) % solver->gridSize.z)'
+			dst = 'INDEX(j, i.x, i.y)'
 		end
-	elseif args.minmax == 'max' then
-		local rhs = gridSizeSide..'-numGhost+j'
-		lines:insert(indent..args.assign(
-			args.array('buf', args.index(rhs)),
-			args.array('buf', args.index(gridSizeSide..'-numGhost-1-j')))..';')
+		lines:insert(indent..'buf['..dst..'] = buf['..src..'];')
 		if args.boundarySphereCenterMirrorVars 
 		and args.boundarySphereCenterMirrorVars[args.side] 
 		then
 			lines:append(table.map(args.boundarySphereCenterMirrorVars[args.side], function(var)
-				return indent..args.assign(
-					args.field(args.array('buf', args.index(rhs)), var),
-					args.field('-'..args.array('buf', args.index(rhs)), var)
-				)..';'
+				return indent..'buf['..dst..'].'..var..' = -buf['..dst..'];'
 			end))
 		end
 	end
@@ -1109,12 +1103,10 @@ args:
 
 	assign = function(a,b) a = b 
 	field = function(a,b) a.b
-	array = function(a,b) a[b]
 --]]
 function GridSolver:createBoundaryProgramAndKernel(args)
 	local assign = args.assign or function(a, b) return a .. ' = ' .. b end
 	local field = args.field or function(a, b) return a .. '.' .. b end
-	local array = args.array or function(a, b) return a .. '[' .. b .. ']' end
 
 	local lines = table()
 	lines:insert(self.codePrefix)
@@ -1194,7 +1186,6 @@ end
 				index = index,
 				indexv = indexv,
 				assign = assign,
-				array = array,
 				field = field,
 				side = side,
 				mirrorVars = args.mirrorVars,
