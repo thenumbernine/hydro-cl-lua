@@ -9,6 +9,8 @@ local Equation = require 'eqn.eqn'
 
 local common = require 'common'
 local xNames = common.xNames
+local symNames = common.symNames
+local from6to3x3 = common.from6to3x3
 
 local EinsteinEquation = class(Equation)
 
@@ -31,6 +33,7 @@ function EinsteinEquation:createInitState()
 end
 
 -- add an option for fixed Minkowsky boundary spacetime
+-- TODO now there is already a BoundaryFixed in solver/gridsolver, but no easy way to parameterize how to set what fixed values it is
 function EinsteinEquation:createBoundaryOptions()
 	local Boundary = self.solver.Boudary
 	local BoundaryFixed = class(Boundary)
@@ -53,6 +56,36 @@ function EinsteinEquation:createBoundaryOptions()
 	end
 	
 	self.solver:addBoundaryOption(BoundaryFixed)
+end
+
+-- used by bssnok-fd-num and bssnok-fd-sym
+-- useful with spherical grids
+-- (which no other eqn has attempted to implement yet)
+-- signs = array of 1 or -1 based on the index parity wrt reflection about the boundary condition
+-- see table III in 2017 Ruchlin
+function EinsteinEquation:getParityVars(...)
+	local sign = {...}
+	local vars = table()
+	for _,var in ipairs(self.consVars) do
+		if var.type == 'real' then
+		elseif var.type == 'real3' then
+			for i,xi in ipairs(xNames) do
+				if sign[i] == -1 then
+					vars:insert(var.name..'.'..xi)
+				end
+			end
+		elseif var.type == 'sym3' then
+			for ij,xij in ipairs(symNames) do
+				local i,j = from6to3x3(ij)
+				if sign[i] * sign[j] == -1 then
+					vars:insert(var.name..'.'..xij)
+				end
+			end
+		else
+			error"you are here"
+		end
+	end
+	return vars
 end
 
 -- and now for fillRandom ...

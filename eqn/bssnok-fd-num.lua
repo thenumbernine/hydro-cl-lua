@@ -32,25 +32,6 @@ BSSNOKFiniteDifferenceEquation.useSourceTerm = true
 -- not used with finite-difference schemes anyways
 BSSNOKFiniteDifferenceEquation.weightFluxByGridVolume = false
 
--- what variables to mirror at sphere center
--- 2013 Baumgarte et al, "Numerical Relativity in Spherical Polar Coordinates...", IIIB
-BSSNOKFiniteDifferenceEquation.boundarySphereCenterMirrorVars = {
-	{
-		-- vectors: (-1, 1, -1)
-		'beta_U.x',
-		'beta_U.z',
-		'B_U.x',
-		'B_U.z',
-		'LambdaBar_U.x',
-		'LambdaBar_U.z',
-		-- tensors: (-1, 1, -1)^2
-		'epsilon_LL.xy',
-		'epsilon_LL.yz',
-		'ABar_LL.xy',
-		'ABar_LL.yz',
-	},
-} 
-
 --[[
 args:
 	useShift = 'none'
@@ -87,7 +68,19 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 		{name='M_u', type='real3'},				--3
 	}
 	self.numIntStates = makestruct.countScalars(intVars)
-	
+
+	self.boundarySphereCenterMirrorVars = {
+		self:getParityVars(-1, 1, -1),
+	}
+
+	self.boundarySpherePolarMirrorVars = {
+		self:getParityVars(1, -1, -1),
+	}
+
+	self.boundaryCylinderCenterMirrorVars = {
+		self:getParityVars(-1, -1, 1),
+	}
+
 	-- call construction / build structures	
 	BSSNOKFiniteDifferenceEquation.super.init(self, args)
 end

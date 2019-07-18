@@ -788,16 +788,36 @@ GridSolver.DisplayVar_U = DisplayVar
 local Boundary = class()
 GridSolver.Boundary = Boundary
 
+function Boundary:reflectVars(args, dst, varnames)
+	local lines = table()
+	if varnames and varnames[args.side] then
+		for _,varname in ipairs(varnames[args.side]) do
+			if not args.fields or table.find(args.fields, varname) then
+				lines:insert('buf['..dst..'].'..varname..' = -buf['..dst..'].'..varname..';')
+			end
+		end
+	end
+	return lines:concat'\n'
+end
+
+function Boundary:assignDstSrc(dst, src, args)
+	local lines = table()
+	if args.fields then
+		for _,field in ipairs(args.fields) do
+			lines:insert('buf['..dst..'].'..field..' = buf['..src..'].'..field..';')
+		end
+	else
+		lines:insert('buf['..dst..'] = buf['..src..'];')
+	end
+	return lines:concat'\n'
+end
+
 --[[
 args of the BoundaryMethod:getCode are:
 	index
-	assign = function(dst,src) 
-		assignment operator
-		default is dst = src
-		poisson uses dist.field = src.field
+	fields = table of what fields to perform assignment to 
 	field
 	array
-	rhs
 	gridSizeSide = solver.gridSize[side]
 	side = 1,2,3
 	minmax = 'min' or 'max'
@@ -832,56 +852,37 @@ so how do we specify when the boundary is being applied to the whole structure o
 add a new field: 'fields' that says what fields to apply the boundary to
 --]]
 
-
+-- aka torus
 local BoundaryPeriodic = class(Boundary)
 BoundaryPeriodic.name = 'periodic'
 function BoundaryPeriodic:getCode(args)
 	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	local dst, src
 	if args.minmax == 'min' then
-		return indent..args.assign(
-			'buf['..args.index'j'..']', 
-			'buf['..args.index(gridSizeSide..'-2*numGhost+j')..']'
-		)..';'
+		dst = args.index'j'
+		src = args.index(gridSizeSide..'-2*numGhost+j')
 	elseif args.minmax == 'max' then
-		local rhs = gridSizeSide..'-numGhost+j'
-		return indent..args.assign(
-			'buf['..args.index(rhs)..']',
-			'buf['..args.index'numGhost+j'..']'
-		)..';'
+		dst = args.index(gridSizeSide..'-numGhost+j')
+		src = args.index'numGhost+j'
 	end
+	return self:assignDstSrc(dst, src, args)
 end
 
 local BoundaryMirror = class(Boundary)
 BoundaryMirror.name = 'mirror'
 function BoundaryMirror:getCode(args)
-	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-	local lines = table()
+	local dst, src
 	if args.minmax == 'min' then
-		lines:insert(indent..args.assign(
-			'buf['..args.index'j'..']',
-			'buf['..args.index'2*numGhost-1-j'..']')..';')
-		if args.mirrorVars and args.mirrorVars[args.side] then
-			lines:append(table.map(args.mirrorVars[args.side], function(var)
-				return indent..args.assign(
-					args.field('buf['..args.index'j'..']', var),
-					args.field('-buf['..args.index'j'..']', var)
-				)..';'
-			end))
-		end
+		dst = args.index'j'
+		src = args.index'2*numGhost-1-j'
 	elseif args.minmax == 'max' then
-		local rhs = gridSizeSide..'-numGhost+j'
-		lines:insert(indent..args.assign(
-			'buf['..args.index(rhs)..']',
-			'buf['..args.index(gridSizeSide..'-numGhost-1-j')..']')..';')
-		if args.mirrorVars and args.mirrorVars[args.side] then
-			lines:append(table.map(args.mirrorVars[args.side], function(var)
-				return indent..args.assign(
-					args.field('buf['..args.index(rhs)..']', var),
-					args.field('-buf['..args.index(rhs)..']', var)
-				)..';'
-			end))
-		end
+		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+		dst = args.index(gridSizeSide..'-numGhost+j')
+		src = args.index(gridSizeSide..'-numGhost-1-j')
 	end
+	local lines = table()
+	lines:insert(self:assignDstSrc(dst, src, args))
+	lines:insert(self:reflectVars(args, dst, args.mirrorVars))
 	return lines:concat'\n'
 end
 
@@ -898,52 +899,68 @@ function BoundaryFixed:getCode(args)
 		eqn = args.solver.eqn,
 		args = args,
 	})
-	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	local dst
 	if args.minmax == 'min' then
-		return indent..'buf['..args.index'j'..'] = '..fixedCode..';'
+		dst = args.index'j'
 	elseif args.minmax == 'max' then
-		local rhs = gridSizeSide..'-numGhost+j'
-		return indent..'buf['..args.index(rhs)..'] = '..fixedCode..';'
+		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+		dst = args.index(gridSizeSide..'-numGhost+j')
 	end
+	local lines = table()
+	if args.fields then
+		for _,field in ipairs(args.fields) do
+			lines:insert('buf['..dst..'].'..field..' = '..fixedCode..';')
+		end
+	else
+		lines:insert('buf['..dst..'] = '..fixedCode..';')
+	end
+	return lines:concat'\n'
 end
 
 local BoundaryFreeFlow = class(Boundary)
 BoundaryFreeFlow.name = 'freeflow'
 function BoundaryFreeFlow:getCode(args)
-	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	local dst, src
 	if args.minmax == 'min' then
-		return indent..args.assign(
-			'buf['..args.index'j'..']',
-			'buf['..args.index'numGhost'..']'
-		)..';'
+		dst = args.index'j'
+		src = args.index'numGhost'
 	elseif args.minmax == 'max' then
-		local rhs = gridSizeSide..'-numGhost+j'
-		return indent..args.assign(
-			'buf['..args.index(rhs)..']',
-			'buf['..args.index(gridSizeSide..'-numGhost-1')..']'
-		)..';'
+		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+		dst = args.index(gridSizeSide..'-numGhost+j')
+		src = args.index(gridSizeSide..'-numGhost-1')
 	end
+	return self:assignDstSrc(dst, src, args)
 end
 
 -- linear extrapolation
 local BoundaryLinear = class(Boundary)
 BoundaryLinear.name = 'linear'
 function BoundaryLinear:getCode(args)
-	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	local dst, i1, i2
 	if args.minmax == 'min' then
-		return indent..'for (int k = 0; k < numStates; ++k) {\n'
-			..indent..'\t'..args.assign(
-				'buf['..args.index'j'..'].ptr[k]',
-				'(buf['..args.index'numGhost'..'].ptr[k] - buf['..args.index'numGhost+1'..'].ptr[k]) * (numGhost - j+1) + buf['..args.index'numGhost+1'..'].ptr[k]'
-			)..';\n'..indent..'}'
+		dst = args.index'numGhost-j-1'
+		i1 = args.index'numGhost-j'
+		i2 = args.index'numGhost-j+1'
 	elseif args.minmax == 'max' then
-		local rhs = gridSizeSide..'-numGhost+j'
-		return indent..'for (int k = 0; k < numStates; ++k) {\n'
-			..indent..'\t'..args.assign(
-				'buf['..args.index(rhs)..'].ptr[k]',
-				'(buf['..args.index(gridSizeSide..'-numGhost-1')..'].ptr[k] - buf['..args.index(gridSizeSide..'-numGhost-2')..'].ptr[k]) * (j+1) + buf['..args.index(gridSizeSide..'-numGhost-2')..'].ptr[k]'
-			)..';\n'..indent..'}'
+		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+		dst = args.index(gridSizeSide..'-numGhost+j')
+		i1 = args.index(gridSizeSide..'-numGhost+j-1')
+		i2 = args.index(gridSizeSide..'-numGhost+j-2')
 	end
+	local lines = table()
+	local function addField(field)
+		lines:insert('buf['..dst..'].'..field..' = 2. * buf['..i1..'].'..field..' - buf['..i2..'].'..field..';')
+	end
+	if args.fields then
+		for _,field in ipairs(args.fields) do
+			addField(field)
+		end
+	else
+		lines:insert('for (int k = 0; k < numStates; ++k) {')
+		addField'ptr[k]'
+		lines:insert('}')
+	end
+	return lines:concat'\n'
 end
 
 -- Sommerfeld quadratic extrapolation
@@ -953,20 +970,32 @@ BoundaryQuadratic.name = 'quadratic'
 function BoundaryQuadratic:getCode(args)
 	-- j is initialized from 0 to numGhost-1
 	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	local dst, i1, i2, i3
 	if args.minmax == 'min' then
-		return indent..'for (int k = 0; k < numStates; ++k) {\n'
-			..indent..'\t'..args.assign(
-				'buf['..args.index'numGhost-j'..'].ptr[k]',
-				'3.*buf['..args.index'numGhost-j+1'..'].ptr[k] - 3.*buf['..args.index'numGhost-j+2'..'].ptr[k] + buf['..args.index'numGhost-j+3'..'].ptr[k]'
-			)..';\n'..indent..'}'
+		dst = args.index'numGhost-j-1'
+		i1 = args.index'numGhost-j'
+		i2 = args.index'numGhost-j+1'
+		i3 = args.index'numGhost-j+2'
 	elseif args.minmax == 'max' then
-		local rhs = gridSizeSide..'-numGhost+j'
-		return indent..'for (int k = 0; k < numStates; ++k) {\n'
-			..indent..'\t'..args.assign(
-				'buf['..args.index(rhs)..'].ptr[k]',
-				'3.*buf['..args.index(gridSizeSide..'-numGhost+j-1')..'].ptr[k] - 3.*buf['..args.index(gridSizeSide..'-numGhost+j-2')..'].ptr[k] + buf['..args.index(gridSizeSide..'-numGhost+j-3')..'].ptr[k]'
-			)..';\n'..indent..'}'
+		dst = args.index(gridSizeSide..'-numGhost+j')
+		i1 = args.index(gridSizeSide..'-numGhost+j-1')
+		i2 = args.index(gridSizeSide..'-numGhost+j-2')
+		i3 = args.index(gridSizeSide..'-numGhost+j-3')
 	end
+	local lines = table()
+	local function addField(field)
+		lines:insert('buf['..dst..'].'..field..' = 3.*buf['..i1..'].'..field..' - 3.*buf['..i2..'].'..field..' + buf['..i3..'].'..field..';')
+	end
+	if args.fields then
+		for _,field in ipairs(args.fields) do
+			addField(field)
+		end
+	else
+		lines:insert('for (int k = 0; k < numStates; ++k) {')
+		addField'ptr[k]'
+		lines:insert('}')
+	end
+	return lines:concat'\n'
 end
 
 --[[
@@ -993,29 +1022,64 @@ function BoundarySphereCenter:getCode(args)
 	--assert(solver.maxs.y - solver.mins.y == 2*math.pi)
 	--assert(solver.boundaryMethods.ymin == 'periodic' and solver.boundaryMethods.ymax == 'periodic')
 
-	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	local src, dst
+	if solver.dim == 1 then
+		dst = 'INDEX(numGhost-j-1, 0, 0)'
+		src = 'INDEX(numGhost+j, 0, 0)'
+	elseif solver.dim == 2 then	-- r, theta
+		dst = 'INDEX(numGhost-j-1, i, 0)'
+		src = 'INDEX(numGhost+j, solver->gridSize.y - i - 1, 0)'
+	elseif solver.dim == 3 then
+		dst = 'INDEX(numGhost-j-1, i.x, i.y)'
+		src = 'INDEX(numGhost+j, solver->gridSize.y - i.x - 1, (i.y + solver->gridSize.z / 2) % solver->gridSize.z)'
+	end
 	local lines = table()
+	lines:insert(self:assignDstSrc(dst, src, args))
+	lines:insert(self:reflectVars(args, dst, solver.eqn.boundarySphereCenterMirrorVars))
+	return lines:concat'\n'
+end
+
+--[[
+Like above, this is going to assume certain things about the coordinate domain.
+I'll assume theta is [0,pi) and phi is [-pi,pi]
+1D: nothing special
+2D: (r, theta): 
+3D: (r, theta, phi): 
+--]]
+local BoundarySpherePolar = class(Boundary)
+BoundarySpherePolar.name = 'spherePolar'
+function BoundarySpherePolar:getCode(args)
+	local solver = args.solver
+
+	assert(args.side == 2, "you should only use this boundary condition for θmin/θmax with spherical coordinates")
+
+	local src, dst
 	if args.minmax == 'min' then
-		local src, dst
 		if solver.dim == 1 then
-			src = 'INDEX(2*numGhost-1-j, 0, 0)'
-			dst = 'INDEX(j, 0, 0)'
-		elseif solver.dim == 2 then	-- r, theta
-			src = 'INDEX(2*numGhost-1-j, solver->gridSize.y - i - 1, 0)'
-			dst = 'INDEX(j, i, 0)'
+			dst = args.index'INDEX(0, numGhost-j-1, 0)'
+			src = args.index'INDEX(0, numGhost+j, 0)'
+		elseif solver.dim == 2 then
+			dst = args.index'INDEX(i, numGhost-j-1, 0)'
+			src = args.index'INDEX(i, numGhost+j, 0)'
 		elseif solver.dim == 3 then
-			src = 'INDEX(2*numGhost-1-j, solver->gridSize.y - i.x - 1, (i.y + solver->gridSize.z / 2) % solver->gridSize.z)'
-			dst = 'INDEX(j, i.x, i.y)'
+			dst = args.index'INDEX(i.x, numGhost-j-1, i.y)'
+			src = args.index'INDEX(i.x, numGhost+j, i.y)'
 		end
-		lines:insert(indent..'buf['..dst..'] = buf['..src..'];')
-		if args.boundarySphereCenterMirrorVars 
-		and args.boundarySphereCenterMirrorVars[args.side] 
-		then
-			lines:append(table.map(args.boundarySphereCenterMirrorVars[args.side], function(var)
-				return indent..'buf['..dst..'].'..var..' = -buf['..dst..'];'
-			end))
+	elseif args.minmax == 'max' then
+		if solver.dim == 1 then
+			dst = args.index'INDEX(0, solver->gridSize.y-numGhost+j, 0)'
+			src = args.index'INDEX(0, solver->gridSize.y-numGhost-j-1, 0)'
+		elseif solver.dim == 2 then
+			dst = args.index'INDEX(i, solver->gridSize.y-numGhost+j, 0)'
+			src = args.index'INDEX(i, solver->gridSize.y-numGhost-j-1, 0)'
+		elseif solver.dim == 3 then
+			dst = args.index'INDEX(i.x, solver->gridSize.y-numGhost+j, i.y)'
+			src = args.index'INDEX(i.x, solver->gridSize.y-numGhost-j-1, (i.y + solver->gridSize.z / 2) % solver->gridSize.z)'
 		end
 	end
+	local lines = table()
+	lines:insert(self:assignDstSrc(dst, src, args))
+	lines:insert(self:reflectVars(args, dst, solver.eqn.boundarySpherePolarMirrorVars))
 	return lines:concat'\n'
 end
 
@@ -1036,6 +1100,7 @@ function GridSolver:createBoundaryOptions()
 		BoundaryLinear,
 		BoundaryQuadratic,
 		BoundarySphereCenter,
+		BoundarySpherePolar,
 	}
 
 	if self.eqn.createBoundaryOptions then
@@ -1105,7 +1170,6 @@ args:
 	field = function(a,b) a.b
 --]]
 function GridSolver:createBoundaryProgramAndKernel(args)
-	local assign = args.assign or function(a, b) return a .. ' = ' .. b end
 	local field = args.field or function(a, b) return a .. '.' .. b end
 
 	local lines = table()
@@ -1185,7 +1249,6 @@ end
 				solver = self,
 				index = index,
 				indexv = indexv,
-				assign = assign,
 				field = field,
 				side = side,
 				mirrorVars = args.mirrorVars,

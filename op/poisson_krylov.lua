@@ -279,9 +279,7 @@ function PoissonKrylov:refreshBoundaryProgram()
 		solver:createBoundaryProgramAndKernel{
 			type = self:getPotBufType(),
 			methods = solver.boundaryMethods,
-			assign = function(a,b)
-				return a..'.'..self.potentialField..' = '..b..'.'..self.potentialField
-			end,
+			fields = {self.potentialField},
 		}
 	for _,obj in ipairs(self.potentialBoundaryKernelObjs) do
 		obj.obj:setArg(1, self:getPotBuf())

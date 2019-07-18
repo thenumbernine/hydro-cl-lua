@@ -1756,7 +1756,36 @@ function SolverBase:checkFinite(buf)
 		local x = tonumber(ptr[i])
 		if not math.isfinite(x) then
 			found = found or table()
-			found:insert{i, x}
+			local ins = {i, x}
+			-- for certain bufs show the field
+			-- TODO associate each type with the array of fields creating the struct, then reverse lookup on arbitrary types to find the field
+			if buf == self.UBufObj then
+				local vars = self.eqn.consVars
+				local numScalars = makestruct.countScalars(vars)
+				local offset = (i % numScalars)
+				local cellIndex = (i - offset) / numScalars
+				local cellpos = vec3()
+				cellpos[1] = tonumber(cellIndex % self.gridSize.x)
+				cellIndex = (cellIndex - cellpos[1]) / self.gridSize.x
+				cellpos[2] = tonumber(cellIndex % self.gridSize.y)
+				cellIndex = (cellIndex - cellpos[2]) / self.gridSize.y
+				cellpos[3] = tonumber(cellIndex)
+				assert(cellpos[3] < self.gridSize.z)
+				table.insert(ins, tostring(cellpos))
+				
+				offset = offset * ffi.sizeof'real'
+				local field
+				for _,var in ipairs(vars) do
+					offset = offset - ffi.sizeof(var.type)
+					if offset < 0 then
+						field = var.name
+						break
+					end
+				end
+				-- assert(field, "shouldn't have got to this point")
+				table.insert(ins, field)
+			end
+			found:insert(ins)
 		end
 	end
 	if not found then return true end

@@ -1,4 +1,4 @@
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -196,7 +196,7 @@ local args = {
 	--initState = 'configuration 6',
 
 	-- self-gravitation tests:
-	--initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.  TODO this doesn't produce 9.8 m/s^2 just yet
+	initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
 	--initState = 'self-gravitation test 2',		--FIXME
@@ -683,7 +683,7 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	eqn = 'bssnok-fd-sym', 
 	
 	--eqnArgs = {useShift = 'none'},
-	dim = 3,
+	dim = 1,
 	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
 	cfl = .6,	--.4,
 	
@@ -695,8 +695,8 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	boundary = {
 		xmin='sphereCenter',
 		xmax='quadratic',
-		ymin='freeflow',
-		ymax='freeflow',
+		ymin='spherePolar',
+		ymax='spherePolar',
 		zmin='periodic',
 		zmax='periodic',
 	},
@@ -730,4 +730,3 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	--]]
 })
 --]=]
-
