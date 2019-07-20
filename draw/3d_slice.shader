@@ -14,14 +14,14 @@ varying vec3 pos;		//positive after coordinate mapping, before view transform
 
 uniform bool useCoordMap;
 
-uniform vec3 mins, maxs;
+uniform vec3 solverMins, solverMaxs;
 void main() {
 	texCoord = gl_Vertex.xyz;
 	
 	vec4 x = gl_Vertex;
 	if (useCoordMap) {
-		x.xyz *= maxs - mins;
-		x.xyz += mins;
+		x.xyz *= solverMaxs - solverMins;
+		x.xyz += solverMins;
 		x = vec4(coordMap(x.xyz), x.w);
 	} else {
 		x.xyz *= 2.;

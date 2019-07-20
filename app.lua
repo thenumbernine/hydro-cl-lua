@@ -458,10 +458,10 @@ void main() {
 	
 		if #self.solvers > 0 then
 			local solver = self.solvers[1]
-			if solver.dim == 2 and (
-				not self.display_useCoordMap 
-				or CartesianCoord.is(solver.coord)
-			) then
+			if solver.dim == 2 
+			and self.display_useCoordMap 
+			and CartesianCoord.is(solver.coord)
+			then
 				local orthoSize = 1
 				for j=1,solver.dim do
 					self.orthoView.pos[j] = .5 * (solver.mins[j] + solver.maxs[j])

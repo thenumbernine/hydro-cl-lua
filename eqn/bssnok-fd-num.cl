@@ -252,10 +252,8 @@ coord_dx#(x) is the same as f_#
 <?
 local coord = solver.coord
 
-local partial_len_ll = Tensor'_ij'
-partial_len_ll['_ij'] = coord.lenExprs'_i,j'()				-- derivative is last
-local partial2_len_lll = Tensor'_ijk'
-partial2_len_lll['_ijk'] = partial_len_ll'_ij,k'():factorDivision()	-- derivative is last
+local partial_len_ll = coord.lenExprs'_i,j'():permute'_ij'
+local partial2_len_lll = partial_len_ll'_ij,k'():factorDivision():permute'_ijk'
 
 -- this is used often enough
 local partial_len_over_len_lll = Tensor('_ijk', function(i,j,k)
@@ -317,9 +315,7 @@ end ?>
 
 //calc_partial_connHat_Ulll_ijkl := e_i^I connHat^i_jk,l
 <? 
-local partial_connHat_ulll = Tensor'^i_jkl'
-partial_connHat_ulll['^i_jkl'] = coord.Gamma_ull'^i_jk,l'()
-
+local partial_connHat_ulll = coord.Gamma_ull'^i_jk,l'():permute'^i_jkl'
 local partial_connHat_Ulll = Tensor('^I_jkl', function(i,j,k,l)
 	return (partial_connHat_ulll[i][j][k][l] * coord.lenExprs[i])()
 end)
@@ -1979,9 +1975,9 @@ kernel void calcDT(
 <? 
 -- seems all the hyperbolic formalisms listed in Alcubierre's book use alpha sqrt(gamma^ii) for the speed-of-light wavespeed
 -- however the 2017 Ruchlin paper says to use gamma_ij
---local cflMethod = '2008 Alcubierre'
+local cflMethod = '2008 Alcubierre'
 --local cflMethod = '2013 Baumgarte et al, eqn 32'
-local cflMethod = '2017 Ruchlin et al, eqn 53'
+--local cflMethod = '2017 Ruchlin et al, eqn 53'
 ?>
 
 <? if cflMethod == '2008 Alcubierre' then
@@ -1994,6 +1990,7 @@ local cflMethod = '2017 Ruchlin et al, eqn 53'
 	<? for side=0,solver.dim-1 do ?>{
 <? 
 if cflMethod == '2013 Baumgarte et al, eqn 32' then
+	-- TODO if the grid is static then this only needs to be done once
 	if side == 0 then 
 ?>		dt = (real)min(dt, solver->grid_dx.x);
 <?	elseif side == 1 then 
@@ -2002,7 +1999,7 @@ if cflMethod == '2013 Baumgarte et al, eqn 32' then
 ?>		dt = (real)min(dt, .5 * solver->grid_dx.x * sin(.5 * solver->grid_dx.y) * solver->grid_dx.z);
 <? 	end 
 else
-	if cflMethod == '2017 Alcubierre' then 
+	if cflMethod == '2008 Alcubierre' then 
 ?>		//this is asserting alpha and W >0, which they should be
 		real absLambdaMax = U->alpha * sqrt(gamma_uu.<?=sym(side+1,side+1)?>);
 <? 	elseif cflMethod == '2017 Ruchlin et al, eqn 53' then 

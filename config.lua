@@ -611,12 +611,15 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --[[
 bssnok is working in 1D-3D Cartesian for RK4 
 diverging for non-Cartesian
-for spherical, Minkowski init cond, dim=1, gridSize=256, no dissipation, numGhost=2 <=> derivOrder=4
-for RK4 with range [0, 8] 
-	for no shift this runs indefinitely
-		but |H| exceeds 1 at t=1.3199415595106 with |H|=[-4.6046546590565..-0.080830269795659..0.79753642167368] 
-	for hyperblic gamma driver shift
-		runs until t=5.0222104606214 
+for spherical, Minkowski init cond, dim=1, gridSize=256, no dissipation, numGhost=2 <=> derivOrder=4, cfl=.4
+for RK4 integrator, 1D, range [0, 8] 
+	runs indefinitely
+for 2D, [40,40] grid, hyperbolic gamma driver shift,
+	using the 2017 Ruchlin cfl condition 
+		ran until |H|>1 at 0.18491652961003 	
+	using the 2008 Alcubierre Hyperbolic Formalism chapter's equations for speed-of-light (alpha sqrt(gamma^ii)):
+	using cfl=.2
+		runs until |H|>1 at t=3.0379149106647
 --]]
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))	-- default shift is HyperbolicGammaDriver
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='none'}})))
@@ -676,22 +679,27 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 -- [=[ 2013 Baumgarte et al, section IV A 1 example
+local dim = 3
 self.solvers:insert(require 'solver.bssnok-fd'{
 	app = self,
 	
-	--eqn = 'bssnok-fd-num', 
-	eqn = 'bssnok-fd-sym', 
+	eqn = 'bssnok-fd-num', 
+	--eqn = 'bssnok-fd-sym', 
 	
 	--eqnArgs = {useShift = 'none'},
-	dim = 1,
+	dim = dim,
 	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
-	cfl = .6,	--.4,
+	cfl = .4/dim,
 	
 	-- [[
 	coord = 'sphere',
 	mins = {0, 0, -math.pi},
 	maxs = {8, math.pi, math.pi},
-	gridSize = {160, 1, 1},
+	gridSize = ({
+		{160, 1, 1},
+		{40, 40, 1},
+		{16, 16, 16},
+	})[dim],
 	boundary = {
 		xmin='sphereCenter',
 		xmax='quadratic',

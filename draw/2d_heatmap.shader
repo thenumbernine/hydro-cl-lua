@@ -41,8 +41,10 @@ void main() {
 	vec2 gridCoord = viewCoord.xy;
 	if (useCoordMap) {
 		gridCoord = coordMapInv(vec3(gridCoord, 0.)).xy;
+	} else {
+		gridCoord = .5 * (gridCoord + 1.) * (solverMaxs.xy - solverMins.xy) + solverMins.xy; 
 	}
-	
+
 	if (gridCoord.x < solverMins.x || gridCoord.x > solverMaxs.x ||
 		gridCoord.y < solverMins.y || gridCoord.y > solverMaxs.y
 	) {

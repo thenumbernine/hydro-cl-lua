@@ -946,7 +946,7 @@ end ?>;
 			type = 'sym3',
 			code = template([[
 	
-	//partial_LambdaBar_ul[j].i := LambdaBar^i_,j
+	//partial_LambdaBar_Ul[j].i := LambdaBar^i_,j
 <?=eqn:makePartial1'LambdaBar_U'?>
 	//partial_LambdaBar_UL.I.J := e_i^I (Lambda^M e^i_M)_,j e^j_J
 	real3x3 partial_LambdaBar_UL = real3x3_partial_rescaleFromCoord_Ul(U->LambdaBar_U, partial_LambdaBar_Ul, x);
@@ -978,6 +978,8 @@ end ?>;
 		partial_epsilon_LLl, 
 		partial2_epsilon_LLll);
 
+	sym3 gammaBar_ll = sym3_rescaleToCoord_LL(gammaBar_LL, x);	
+	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);	
 	sym3 RBar_LL = calc_RBar_LL(
 		U,
 		x,

@@ -862,8 +862,8 @@ function BoundaryPeriodic:getCode(args)
 		dst = args.index'j'
 		src = args.index(gridSizeSide..'-2*numGhost+j')
 	elseif args.minmax == 'max' then
-		dst = args.index(gridSizeSide..'-numGhost+j')
-		src = args.index'numGhost+j'
+		dst = args.index(gridSizeSide..'-1-j')
+		src = args.index'2*numGhost-1-j'
 	end
 	return self:assignDstSrc(dst, src, args)
 end
@@ -1024,14 +1024,22 @@ function BoundarySphereCenter:getCode(args)
 
 	local src, dst
 	if solver.dim == 1 then
-		dst = 'INDEX(numGhost-j-1, 0, 0)'
-		src = 'INDEX(numGhost+j, 0, 0)'
+		dst = 'INDEX(j, 0, 0)'
+		src = 'INDEX(2*numGhost-1-j, 0, 0)'
 	elseif solver.dim == 2 then	-- r, theta
-		dst = 'INDEX(numGhost-j-1, i, 0)'
-		src = 'INDEX(numGhost+j, solver->gridSize.y - i - 1, 0)'
+		dst = 'INDEX(j, i, 0)'
+		src = 'INDEX(2*numGhost-1-j, solver->gridSize.y-i-1, 0)'
 	elseif solver.dim == 3 then
-		dst = 'INDEX(numGhost-j-1, i.x, i.y)'
-		src = 'INDEX(numGhost+j, solver->gridSize.y - i.x - 1, (i.y + solver->gridSize.z / 2) % solver->gridSize.z)'
+		dst = 'INDEX(j, i.x, i.y)'
+		src = [[
+	INDEX(
+		2*numGhost-1-j,
+		solver->gridSize.y-i.x-1, 
+		(i.y-numGhost + (solver->gridSize.z-2*numGhost)/2
+			+ (solver->gridSize.z - 2*numGhost)) 
+			% (solver->gridSize.z - 2*numGhost) + numGhost
+	)
+]]
 	end
 	local lines = table()
 	lines:insert(self:assignDstSrc(dst, src, args))
@@ -1056,25 +1064,41 @@ function BoundarySpherePolar:getCode(args)
 	local src, dst
 	if args.minmax == 'min' then
 		if solver.dim == 1 then
-			dst = args.index'INDEX(0, numGhost-j-1, 0)'
-			src = args.index'INDEX(0, numGhost+j, 0)'
+			dst = args.index'j'
+			src = args.index'2*numGhost-1-j'
 		elseif solver.dim == 2 then
-			dst = args.index'INDEX(i, numGhost-j-1, 0)'
-			src = args.index'INDEX(i, numGhost+j, 0)'
+			dst = args.index'j'
+			src = args.index'2*numGhost-1-j'
 		elseif solver.dim == 3 then
-			dst = args.index'INDEX(i.x, numGhost-j-1, i.y)'
-			src = args.index'INDEX(i.x, numGhost+j, i.y)'
+			dst = 'INDEX(i.x, j, i.y)'
+			src = [[
+	INDEX(
+		i.x,
+		2*numGhost-1-j,
+		(i.y - numGhost + (solver->gridSize.z - 2 * numGhost) / 2 
+			+ (solver->gridSize.z - 2 * numGhost))
+			% (solver->gridSize.z - 2 * numGhost) + numGhost
+	)
+]]
 		end
 	elseif args.minmax == 'max' then
 		if solver.dim == 1 then
-			dst = args.index'INDEX(0, solver->gridSize.y-numGhost+j, 0)'
-			src = args.index'INDEX(0, solver->gridSize.y-numGhost-j-1, 0)'
+			dst = args.index'solver->gridSize.y-1-j'
+			src = args.index'solver->gridSize.y-2*numGhost+j'
 		elseif solver.dim == 2 then
-			dst = args.index'INDEX(i, solver->gridSize.y-numGhost+j, 0)'
-			src = args.index'INDEX(i, solver->gridSize.y-numGhost-j-1, 0)'
+			dst = args.index'solver->gridSize.y-1-j'
+			src = args.index'solver->gridSize.y-2*numGhost+j'
 		elseif solver.dim == 3 then
-			dst = args.index'INDEX(i.x, solver->gridSize.y-numGhost+j, i.y)'
-			src = args.index'INDEX(i.x, solver->gridSize.y-numGhost-j-1, (i.y + solver->gridSize.z / 2) % solver->gridSize.z)'
+			dst = 'INDEX(i.x, solver->gridSize.y-1-j, i.y)'
+			src = [[
+	INDEX(
+		i.x,
+		solver->gridSize.y - 2*numGhost + j,
+		(i.y - numGhost + (solver->gridSize.z - 2 * numGhost) / 2
+			+ (solver->gridSize.z - 2 * numGhost))
+			% (solver->gridSize.z - 2 * numGhost) + numGhost
+	)
+]]	
 		end
 	end
 	local lines = table()

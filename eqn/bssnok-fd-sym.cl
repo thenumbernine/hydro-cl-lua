@@ -71,19 +71,19 @@ end
 ?>
 
 	/*
-	DHat2_gammaBar_llll_minus_one_term[l].k.ij = DHat_l DHat_k gammaBar_ij
+	DHat2_gammaBar_without_partial2_gammaBar_llll[l].k.ij = DHat_l DHat_k gammaBar_ij
 		= partial_l DHat_k gammaBar_ij
 			- connHat^m_lk DHat_m gammaBar_ij
 			- connHat^m_li DHat_k gammaBar_mj
 			- connHat^m_lj DHat_k gammaBar_im
 	*/
-	_3sym3 DHat2_gammaBar_llll_minus_one_term[3];
+	_3sym3 DHat2_gammaBar_without_partial2_gammaBar_llll[3];
 <?
 for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
 	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do
-?>	DHat2_gammaBar_llll_minus_one_term[<?=l-1?>].<?=xk?>.<?=xij?> = 0.
+?>	DHat2_gammaBar_without_partial2_gammaBar_llll[<?=l-1?>].<?=xk?>.<?=xij?> = 0.
 		+ partial_DHat_gammaBar_without_partial2_gammaBar_llll[<?=l-1?>].<?=xk?>.<?=xij?>	//diverging, such that in spherical vacuum the trace of these is diag(0, 1, .5)
 <?			for m,xm in ipairs(xNames) do
 ?>		- connHat_ull-><?=xm?>.<?=sym(l,k)?> * DHat_gammaBar_lll.<?=xm?>.<?=sym(i,j)?>
@@ -104,7 +104,7 @@ end
 		+ trBar_partial2_gammaBar_ll-><?=xij?>
 <?	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do
-?>		+ gammaBar_uu-><?=sym(k,l)?> * DHat2_gammaBar_llll_minus_one_term[<?=l-1?>].<?=xk?>.<?=xij?>
+?>		+ gammaBar_uu-><?=sym(k,l)?> * DHat2_gammaBar_without_partial2_gammaBar_llll[<?=l-1?>].<?=xk?>.<?=xij?>
 <?		end
 	end
 ?>	;
@@ -159,7 +159,7 @@ end
 ?>			+ .5 * gammaBar_ll-><?=sym(i,k)?> * DHat_LambdaBar_ul.<?=xk?>.<?=xj?> 
 			+ .5 * gammaBar_ll-><?=sym(j,k)?> * DHat_LambdaBar_ul.<?=xk?>.<?=xi?>
 <?	end
-?>	) / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x))
+?>		) / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x))
 <?	for k,xk in ipairs(xNames) do
 ?>			+ .5 * Delta_U-><?=xk?> * (
 				Delta_LLL-><?=xi?>.<?=sym(k,j)?> 
@@ -942,7 +942,7 @@ then
 		)
 		- 16. * M_PI * U->rho;
 
-#if 1
+#if 0
 	sym3 ABar_uu = sym3_rescaleToCoord_UU(ABar_UU, x);
 	
 <?=assign_3sym3('partial_ABar_lll', partial_ABar_lll:permute'_kij')?>
