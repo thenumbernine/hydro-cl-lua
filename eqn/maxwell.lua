@@ -45,8 +45,6 @@ local xNames = common.xNames
 local Maxwell = class(Equation)
 Maxwell.name = 'Maxwell'
 
-Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
-
 Maxwell.hasEigenCode = true
 Maxwell.hasFluxFromConsCode = true
 Maxwell.roeUseFluxFromCons = true

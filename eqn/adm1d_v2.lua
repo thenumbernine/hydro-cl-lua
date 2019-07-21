@@ -96,7 +96,7 @@ ADM_BonaMasso_1D_1997Alcubierre.consVars = {
 	{name='d_xxx', type='real'}, 
 	{name='K_xx', type='real'},
 }
-ADM_BonaMasso_1D_1997Alcubierre.mirrorVars = {{'gamma_xx', 'a_x', 'd_xxx', 'K_xx'}}
+ADM_BonaMasso_1D_1997Alcubierre.boundaryCartesianMirrorVars = {{'gamma_xx', 'a_x', 'd_xxx', 'K_xx'}}
 
 ADM_BonaMasso_1D_1997Alcubierre.hasEigenCode = true
 ADM_BonaMasso_1D_1997Alcubierre.hasFluxFromConsCode = true

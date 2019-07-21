@@ -38,6 +38,36 @@ Equation.roeUseFluxFromCons = nil
 Equation.useSourceTerm = nil
 
 
+-- used by bssnok-fd-num and bssnok-fd-sym
+-- useful with spherical grids
+-- (which no other eqn has attempted to implement yet)
+-- signs = array of 1 or -1 based on the index parity wrt reflection about the boundary condition
+-- see table III in 2017 Ruchlin
+function Equation:getParityVars(...)
+	local sign = {...}
+	local vars = table()
+	for _,var in ipairs(self.consVars) do
+		if var.type == 'real' then
+		elseif var.type == 'real3' then
+			for i,xi in ipairs(xNames) do
+				if sign[i] == -1 then
+					vars:insert(var.name..'.'..xi)
+				end
+			end
+		elseif var.type == 'sym3' then
+			for ij,xij in ipairs(symNames) do
+				local i,j = from6to3x3(ij)
+				if sign[i] * sign[j] == -1 then
+					vars:insert(var.name..'.'..xij)
+				end
+			end
+		else
+			error"you are here"
+		end
+	end
+	return vars
+end
+
 function Equation:init(args)
 	self.solver = assert(args.solver)
 
@@ -75,6 +105,34 @@ function Equation:init(args)
 	if not self.numIntStates then self.numIntStates = self.numStates end
 	
 	self.initStateNames = table.map(self.initStates, function(info) return info.name end)
+
+	
+	-- what variables to mirror at sphere center
+	-- 2013 Baumgarte et al, "Numerical Relativity in Spherical Polar Coordinates...", IIIB
+	-- 2017 Ruchlin et al, section E.1
+	self.boundarySphereCenterMirrorVars = {
+		self:getParityVars(-1, 1, -1),
+		{},
+		{},
+	} 
+	
+	self.boundarySpherePolarMirrorVars = {
+		{},
+		self:getParityVars(1, -1, -1),
+		{},
+	}
+
+	self.boundaryCylinderCenterMirrorVars = {
+		self:getParityVars(-1, -1, 1),
+		{},
+		{},
+	}
+
+	self.boundaryCartesianMirrorVars = {
+		self:getParityVars(-1, 1, 1),
+		self:getParityVars(1, -1, 1),
+		self:getParityVars(1, 1, -1),
+	}
 end
 
 function Equation:addGuiVars(args)

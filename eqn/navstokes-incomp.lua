@@ -8,7 +8,7 @@ NavierStokesDivFree.name = 'Navier-Stokes div-free'
 NavierStokesDivFree.hasCalcDTCode = true
 NavierStokesDivFree.numStates = 4
 
-NavierStokesDivFree.mirrorVars = {{'v.x'}, {'v.y'}, {'v.z'}}
+NavierStokesDivFree.boundaryCartesianMirrorVars = {{'v.x'}, {'v.y'}, {'v.z'}}
 
 NavierStokesDivFree.initStates = require 'init.euler'
 

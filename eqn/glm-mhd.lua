@@ -26,8 +26,6 @@ GLM_MHD.consVars = table{
 	{name='psi', type='real'},
 }
 
-GLM_MHD.mirrorVars = {{'m.x', 'B.x'}, {'m.y', 'B.y'}, {'m.z', 'B.z'}}
-
 GLM_MHD.hasEigenCode = true
 GLM_MHD.hasFluxFromConsCode = true
 GLM_MHD.roeUseFluxFromCons = true

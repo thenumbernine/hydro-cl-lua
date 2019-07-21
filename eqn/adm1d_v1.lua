@@ -24,7 +24,7 @@ ADM_BonaMasso_1D_2008Alcubierre.consVars = {
 }
 ADM_BonaMasso_1D_2008Alcubierre.numWaves = 3	-- alpha and gamma_xx are source-term only
 
-ADM_BonaMasso_1D_2008Alcubierre.mirrorVars = {{'gamma_xx', 'a_x', 'D_g', 'KTilde'}}
+ADM_BonaMasso_1D_2008Alcubierre.boundaryCartesianMirrorVars = {{'gamma_xx', 'a_x', 'D_g', 'KTilde'}}
 
 ADM_BonaMasso_1D_2008Alcubierre.hasEigenCode = true
 --ADM_BonaMasso_1D_2008Alcubierre.hasFluxFromConsCode = true

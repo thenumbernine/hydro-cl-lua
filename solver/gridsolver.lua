@@ -819,9 +819,13 @@ args of the BoundaryMethod:getCode are:
 	gridSizeSide = solver.gridSize[side]
 	side = 1,2,3
 	minmax = 'min' or 'max'
-	mirrorVars = which vars to reflect.
-		for solver.UBuf this is taken from eqn
-		for poisson this is nothing
+	boundaryCartesianMirrorVars
+	boundarySphereCenterMirrorVars
+	boundarySpherePolarMirrorVars
+	boundaryCylinderCenterMirrorVars
+		= which vars to reflect.
+			for solver.UBuf this is taken from eqn
+			for poisson this is nothing
 
 This is such a mess.  It's practically an AST.
 --]]
@@ -880,7 +884,7 @@ function BoundaryMirror:getCode(args)
 	end
 	local lines = table()
 	lines:insert(self:assignDstSrc(dst, src, args))
-	lines:insert(self:reflectVars(args, dst, args.mirrorVars))
+	lines:insert(self:reflectVars(args, dst, args.boundaryCartesianMirrorVars))
 	return lines:concat'\n'
 end
 
@@ -1041,7 +1045,7 @@ function BoundarySphereCenter:getCode(args)
 	end
 	local lines = table()
 	lines:insert(self:assignDstSrc(dst, src, args))
-	lines:insert(self:reflectVars(args, dst, solver.eqn.boundarySphereCenterMirrorVars))
+	lines:insert(self:reflectVars(args, dst, args.boundarySphereCenterMirrorVars))
 	return lines:concat'\n'
 end
 
@@ -1102,7 +1106,7 @@ function BoundarySpherePolar:getCode(args)
 	end
 	local lines = table()
 	lines:insert(self:assignDstSrc(dst, src, args))
-	lines:insert(self:reflectVars(args, dst, solver.eqn.boundarySpherePolarMirrorVars))
+	lines:insert(self:reflectVars(args, dst, args.boundarySpherePolarMirrorVars))
 	return lines:concat'\n'
 end
 
@@ -1143,7 +1147,7 @@ INDEX(
 	end
 	local lines = table()
 	lines:insert(self:assignDstSrc(dst, src, args))
-	lines:insert(self:reflectVars(args, dst, solver.eqn.boundaryCylinderCenterMirrorVars))
+	lines:insert(self:reflectVars(args, dst, args.boundaryCylinderCenterMirrorVars))
 	return lines:concat'\n'
 end
 
@@ -1228,9 +1232,6 @@ args:
 		[x|y|z..min|max] = a Boundary subclass who has function getCode(args)
 			that returns the code to apply to that particular pointer 
 	}
-	mirrorVars = {x vars, y vars, z vars} = table of tables of strings of what fields should be negative'd on mirror condition
-		this tends to be vectors' components that point into the boundary.
-
 	assign = function(a,b) a = b 
 	field = function(a,b) a.b
 --]]
@@ -1316,7 +1317,6 @@ end
 				indexv = indexv,
 				field = field,
 				side = side,
-				mirrorVars = args.mirrorVars,
 				minmax = minmax,
 			})
 		end 
@@ -1365,7 +1365,10 @@ function GridSolver:getBoundaryProgramArgs()
 		type = self.eqn.cons_t,
 		-- remap from enum/combobox int values to functions from the solver.boundaryOptions table
 		methods = self.boundaryMethods,
-		mirrorVars = self.eqn.mirrorVars,
+		boundaryCartesianMirrorVars = self.eqn.boundaryCartesianMirrorVars,
+		boundarySphereCenterMirrorVars = self.eqn.boundarySphereCenterMirrorVars,
+		boundarySpherePolarMirrorVars = self.eqn.boundarySpherePolarMirrorVars,
+		boundaryCylinderCenterMirrorVars = self.eqn.boundaryCylinderCenterMirrorVars,
 	}
 end
 
@@ -1383,18 +1386,19 @@ function GridSolver:refreshBoundaryProgram()
 	if self.useCTU and self.usePLM then
 		local args = self:getBoundaryProgramArgs()
 		args.type = self.eqn.consLR_t..'_dim'
-		if args.mirrorVars then
+		-- TODO do this for sphere/cylinderical mirror vars as well
+		if args.boundaryCartesianMirrorVars then
 			local newvars = {}
 			for i=1,3 do
 				newvars[i] = table()
-				for _,var in ipairs(args.mirrorVars[i]) do
+				for _,var in ipairs(args.boundaryCartesianMirrorVars[i]) do
 					for j=0,self.dim-1 do
 						newvars[i]:insert('side['..j..'].L.'..var)
 						newvars[i]:insert('side['..j..'].R.'..var)
 					end
 				end
 			end
-			args.mirrorVars = newvars
+			args.boundaryCartesianMirrorVars = newvars
 		end
 		self.lrBoundaryProgramObj, self.lrBoundaryKernelObjs = self:createBoundaryProgramAndKernel(args)
 		for _,obj in ipairs(self.lrBoundaryKernelObjs) do

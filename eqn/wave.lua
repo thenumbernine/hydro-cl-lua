@@ -17,8 +17,6 @@ Wave.useSourceTerm = true
 -- TODO count this from consVars?
 Wave.numStates = 4
 
-Wave.mirrorVars = {{'phi_i.x'}, {'phi_i.y'}, {'phi_i.z'}}
-
 Wave.hasEigenCode = true
 Wave.hasFluxFromConsCode = true
 Wave.roeUseFluxFromCons = true

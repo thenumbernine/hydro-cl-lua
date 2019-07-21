@@ -16,7 +16,6 @@ Euler.numStates = 6
 Euler.numWaves = 5
 Euler.numIntStates = 5	-- don't bother integrate ePot
 
-Euler.mirrorVars = {{'m.x'}, {'m.y'}, {'m.z'}} 
 Euler.hasCalcDTCode = true
 Euler.hasEigenCode = true
 Euler.hasFluxFromConsCode = true

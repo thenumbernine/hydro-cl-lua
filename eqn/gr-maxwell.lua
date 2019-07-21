@@ -37,8 +37,6 @@ GRMaxwell.consVars = {
 	{name='mu', type=GRMaxwell.susc_t},
 }
 
-GRMaxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
-
 GRMaxwell.hasEigenCode = true
 GRMaxwell.hasFluxFromConsCode = true
 GRMaxwell.useSourceTerm = true

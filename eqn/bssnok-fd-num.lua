@@ -69,18 +69,6 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	}
 	self.numIntStates = makestruct.countScalars(intVars)
 
-	self.boundarySphereCenterMirrorVars = {
-		self:getParityVars(-1, 1, -1),
-	}
-
-	self.boundarySpherePolarMirrorVars = {
-		self:getParityVars(1, -1, -1),
-	}
-
-	self.boundaryCylinderCenterMirrorVars = {
-		self:getParityVars(-1, -1, 1),
-	}
-
 	-- call construction / build structures	
 	BSSNOKFiniteDifferenceEquation.super.init(self, args)
 end

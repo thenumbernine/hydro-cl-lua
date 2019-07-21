@@ -20,12 +20,11 @@ SRHD.numStates = 11
 SRHD.numWaves = 5
 SRHD.numIntStates = 5
 
-SRHD.mirrorVars = {
+SRHD.boundaryCartesianMirrorVars = {
 	{'cons.S.x', 'prim.v.x'},
 	{'cons.S.y', 'prim.v.y'},
 	{'cons.S.z', 'prim.v.z'},
 }
-
 
 SRHD.hasEigenCode = true 
 SRHD.hasCalcDTCode = true

@@ -89,12 +89,6 @@ TwoFluidEMHD.primVars = table{
 	{name='ePot', type='real', units='m^2/s^2'},
 }
 
-TwoFluidEMHD.mirrorVars = {
-	{'ion_m.x', 'elec_m.x', 'D.x', 'B.x'}, 
-	{'ion_m.y', 'elec_m.y', 'D.y', 'B.y'}, 
-	{'ion_m.z', 'elec_m.z', 'D.z', 'B.z'},
-}
-
 -- not sure it's working right ...
 --TwoFluidEMHD.hasCalcDTCode = true
 

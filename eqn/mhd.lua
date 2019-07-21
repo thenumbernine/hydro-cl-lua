@@ -32,8 +32,6 @@ MHD.consVars = table{
 	{name='ePot', type='real', units='m^2/s^2'},
 }
 
-MHD.mirrorVars = {{'m.x', 'B.x'}, {'m.y', 'B.y'}, {'m.z', 'B.z'}}
-
 MHD.hasEigenCode = true
 MHD.hasFluxFromConsCode = true
 MHD.roeUseFluxFromCons = true

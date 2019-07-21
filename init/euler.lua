@@ -141,6 +141,7 @@ local function addMaxwellOscillatingBoundary(args)
 	end
 	
 	-- this args is only for the UBuf boundary program -- not calle for the Poisson boundary program
+	local oldGetBondaryProgramArgs = solver.getBoundaryProgramArgs
 	function solver:getBoundaryProgramArgs()
 		-- i'm completely overriding this
 		-- so I can completely override boundaryMethods for the solver boundary kernel
@@ -154,17 +155,15 @@ local function addMaxwellOscillatingBoundary(args)
 		-- except with extraAgs
 		-- and using boundaryMethods instead of self.boundaryMethods
 		-- (which I leave alone so Poisson can deal with it)
-		return {
-			type = self.eqn.cons_t,
-			
-			-- TODO just give the solver a parameter 't' ?
-			-- give it a parameter 'dt' while you're at it
-			-- that would save on a few kernel parameters
-			
-			extraArgs = {'real t'},
-			methods = boundaryMethods,
-			mirrorVars = self.eqn.mirrorVars,
-		}
+		return table(
+			oldGetBondaryProgramArgs(self),
+			{
+				-- TODO just give the solver a parameter 't' ?
+				-- give it a parameter 'dt' while you're at it
+				-- that would save on a few kernel parameters
+				extraArgs = {'real t'},
+			}
+		)
 	end
 	
 	-- this runs before refreshBoundaryProgram, so lets hijack refreshBoundaryProgram and add in our time-based boundary conditions

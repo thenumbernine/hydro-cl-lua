@@ -28,7 +28,7 @@ local xNames = common.xNames
 local GLM_Maxwell = class(Equation)
 GLM_Maxwell.name = 'GLM_Maxwell'
 
-GLM_Maxwell.mirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
+GLM_Maxwell.boundaryCartesianMirrorVars = {{'D.x', 'B.x'}, {'D.y', 'B.y'}, {'D.z', 'B.z'}}
 
 GLM_Maxwell.hasEigenCode = true
 GLM_Maxwell.hasFluxFromConsCode = true

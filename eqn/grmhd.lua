@@ -20,8 +20,6 @@ GRMHD.name = 'GRMHD'
 GRMHD.numStates = 9
 GRMHD.numWaves = 8
 
-GRMHD.mirrorVars = {{'S.x', 'B.x'}, {'S.y', 'B.y'}, {'S.z', 'B.z'}}
-
 GRMHD.hasEigenCode = true 
 GRMHD.hasCalcDTCode = true
 --GRMHD.hasFluxFromConsCode = true

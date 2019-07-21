@@ -86,12 +86,6 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.primVars = table{
 	{name='psi_g', type='real'},
 }
 
-TwoFluidEMHDDeDonderGaugeLinearizedGR.mirrorVars = {
-	{'ion_m.x', 'elec_m.x', 'D.x', 'B.x', 'D_g.x', 'B_g.x'}, 
-	{'ion_m.y', 'elec_m.y', 'D.y', 'B.y', 'D_g.y', 'B_g.y'}, 
-	{'ion_m.z', 'elec_m.z', 'D.z', 'B.z', 'D_g.z', 'B_g.z'},
-}
-
 TwoFluidEMHDDeDonderGaugeLinearizedGR.hasEigenCode = true
 TwoFluidEMHDDeDonderGaugeLinearizedGR.hasFluxFromConsCode = true
 TwoFluidEMHDDeDonderGaugeLinearizedGR.roeUseFluxFromCons = true
