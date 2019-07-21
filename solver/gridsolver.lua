@@ -35,12 +35,6 @@ local GridSolver = class(SolverBase)
 
 GridSolver.numGhost = 2
 
-GridSolver.solverVars  = table(GridSolver.super.solverVars):append{
-	{name='gridSize', type='int4'},
-	{name='stepsize', type='int4'},
-	{name='grid_dx', type='real3'},
-}
-
 --[[
 args:
 	gridSize
@@ -53,7 +47,11 @@ function GridSolver:initL1(args)
 	-- same as equations
 	-- but let equations/init conds add to the solver vars (as gui vars)
 	-- then we can edit them without recompiling the kernels
-	self.solverVars = table(self.solverVars)
+	self.solverVars:append{
+		{name='gridSize', type='int4'},
+		{name='stepsize', type='int4'},
+		{name='grid_dx', type='real3'},
+	}
 
 	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
 	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
@@ -1018,7 +1016,7 @@ function BoundarySphereCenter:getCode(args)
 	local solver = args.solver
 	
 	assert(args.side == 1 and args.minmax == 'min', "you should only use this boundary condition for rmin with spherical coordinates")
-	--assert(require 'coord.sphere'.is(solver.coord))
+	assert(require 'coord.sphere'.is(solver.coord), "you should only use this boundary condition for rmin with spherical coordinates")
 	--assert(solver.maxs.y - solver.mins.y == 2*math.pi)
 	--assert(solver.boundaryMethods.ymin == 'periodic' and solver.boundaryMethods.ymax == 'periodic')
 
@@ -1060,6 +1058,7 @@ function BoundarySpherePolar:getCode(args)
 	local solver = args.solver
 
 	assert(args.side == 2, "you should only use this boundary condition for θmin/θmax with spherical coordinates")
+	assert(require 'coord.sphere'.is(solver.coord), "you should only use this boundary condition for θmin/θmax with spherical coordinates")
 
 	local src, dst
 	if args.minmax == 'min' then
@@ -1107,6 +1106,47 @@ function BoundarySpherePolar:getCode(args)
 	return lines:concat'\n'
 end
 
+local BoundaryCylinderCenter = class(Boundary)
+BoundaryCylinderCenter.name = 'cylinderCenter'
+function BoundaryCylinderCenter:getCode(args)
+	local solver = args.solver
+	
+	assert(args.side == 1 and args.minmax == 'min', "you should only use this boundary condition for rmin with cylinderical coordinates")
+	assert(require 'coord.cylinder'.is(solver.coord), "you should only use this boundary condition for rmin with cylinderical coordinates")
+	--assert(solver.maxs.y - solver.mins.y == 2*math.pi)
+	--assert(solver.boundaryMethods.ymin == 'periodic' and solver.boundaryMethods.ymax == 'periodic')
+
+	local src, dst
+	if solver.dim == 1 then
+		dst = 'INDEX(j, 0, 0)'
+		src = 'INDEX(2*numGhost-1-j, 0, 0)'
+	elseif solver.dim == 2 then	-- r, theta
+		dst = 'INDEX(j, i, 0)'
+		src = [[
+INDEX(
+	2*numGhost-1-j, 
+	(i-numGhost + (solver->gridSize.y-2*numGhost)/2
+		+ (solver->gridSize.y - 2*numGhost))
+		% (solver->gridSize.y - 2*numGhost) + numGhost,
+	0)
+]]
+	elseif solver.dim == 3 then
+		dst = 'INDEX(j, i.x, i.y)'
+		src = [[
+INDEX(
+	2*numGhost-1-j, 
+	(i-numGhost + (solver->gridSize.y-2*numGhost)/2
+		+ (solver->gridSize.y - 2*numGhost))
+		% (solver->gridSize.y - 2*numGhost) + numGhost,
+	i.y)
+]]
+	end
+	local lines = table()
+	lines:insert(self:assignDstSrc(dst, src, args))
+	lines:insert(self:reflectVars(args, dst, solver.eqn.boundaryCylinderCenterMirrorVars))
+	return lines:concat'\n'
+end
+
 --[[
 -- boundaryOptions is a table of classes
 --]]
@@ -1125,6 +1165,7 @@ function GridSolver:createBoundaryOptions()
 		BoundaryQuadratic,
 		BoundarySphereCenter,
 		BoundarySpherePolar,
+		BoundaryCylinderCenter,
 	}
 
 	if self.eqn.createBoundaryOptions then

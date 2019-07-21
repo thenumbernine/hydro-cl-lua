@@ -679,7 +679,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 -- [=[ 2013 Baumgarte et al, section IV A 1 example
-local dim = 3
+local dim = 1
 self.solvers:insert(require 'solver.bssnok-fd'{
 	app = self,
 	
@@ -694,9 +694,9 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	-- [[
 	coord = 'sphere',
 	mins = {0, 0, -math.pi},
-	maxs = {8, math.pi, math.pi},
+	maxs = {5, math.pi, math.pi},
 	gridSize = ({
-		{160, 1, 1},
+		{250, 1, 1},
 		{40, 40, 1},
 		{16, 16, 16},
 	})[dim],
@@ -713,7 +713,12 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	coord = 'cartesian',
 	mins = {-4,-4,-4},
 	maxs = {4,4,4},
-	gridSize = {64,64,64},
+	gridSize = ({
+		{250, 1, 1},
+		{40, 40, 1},
+		{16, 16, 16},
+	})[dim],
+
 	boundary = {
 		xmin='freeflow',
 		xmax='freeflow',
@@ -725,10 +730,11 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	--]]
 	
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
-	initState = 'Minkowski',	-- TODO 2D
+	--initState = 'Minkowski',	-- TODO 2D
 	--initState = 'gaussian perturbation',	-- TODO get this working in spherical, and get the exact solution from 1982 Teukolsky
+	--initState = 'pure gauge wave',	-- TODO get this working in spherical, and get the exact solution from 1982 Teukolsky
 	--initState = 'Alcubierre warp bubble',
-	--initState = 'black hole - Schwarzschild',
+	initState = 'black hole - Schwarzschild',
 	--initState = 'black hole isotropic',
 	--[[
 	initStateArgs = {

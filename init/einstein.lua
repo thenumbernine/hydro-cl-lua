@@ -284,12 +284,10 @@ return table{
 	-- from 2012 Alic et. al. "Conformal and covariant formulations of the Z4 system with constraint-violation damping"
 	{
 		name = 'plane gauge wave',
-		init = function(self, solver)
-			solver.eqn:addGuiVars{
-				{name = 'init_A', value = .1},
-				{name = 'init_L', value = 1},
-			}
-		end,
+		guiVars = {
+			{name = 'init_A', value = .1},
+			{name = 'init_L', value = 1},
+		},
 		initState = function(self, solver)
 			return [[
 	real h = 1. - solver->init_A * sin((2. * M_PI / solver->init_L) * x.x);
@@ -299,6 +297,28 @@ return table{
 ]]
 		end,
 	},
+	-- from 2011 Alcubierre, Mendez "Formulations of the 3+1 evolution equations in curvilinear coordinates"
+	-- Appendix A, eqns 7.1 - 7.5
+	{
+		name = 'pure gauge wave',
+		guiVars = {
+			{name = 'alpha0', value = .01},
+			{name = 'r0', value = 5},
+			{name = 'sigma', value = 1},
+		},
+		initState = function(self, solver)
+		return [[
+	real r = real3_len(xc);
+	real rSq = r * r;
+	real rplus = (r + solver->r0) / solver->sigma;
+	real rminus = (r - solver->r0) / solver->sigma;
+	real gminus = exp(-rminus * rminus);
+	real gplus = exp(-rplus * rplus);
+	alpha = 1. + solver->alpha0 * rSq / (1. + rSq) * (gplus + gminus);
+]]
+		end,
+	},
+
 	{
 		name = 'Alcubierre warp bubble',
 		--[[
@@ -308,11 +328,10 @@ return table{
 			speed = warp bubble speed
 		--]]
 		init = function(self, solver, args)
-			args = args or {}
 			solver.eqn:addGuiVars{
-				{name = 'init_R', value = args.R or .5},
-				{name = 'init_sigma', value = args.sigma or 8},
-				{name = 'init_speed', value = args.speed or .1},
+				{name = 'init_R', value = args and args.R or .5},
+				{name = 'init_sigma', value = args and args.sigma or 8},
+				{name = 'init_speed', value = args and args.speed or .1},
 			}
 		end,
 		initState = function(self, solver)
@@ -351,7 +370,6 @@ return table{
 	
 	
 	
-	-- take the schwarzschild and apply a cartesian coordinate transform
 	{	
 		name = 'black hole - Schwarzschild',
 		init = function(self, solver, args)
@@ -368,17 +386,19 @@ return table{
 			return template([[
 	const real R = solver->init_R;
 	
+<? if require 'coord.cartesian'.is(solver.coord) then -- pseudocartesian ?> 
 	real r = real3_len(xc);
 	real one_minus_R_over_r = 1. - R / r;
 	alpha = sqrt(one_minus_R_over_r);
-
 	real3 xc_u = real3_real_mul(xc, 1. / r);
-<? if require 'coord.cartesian'.is(solver.coord) then -- pseudocartesian ?> 
+
 	gamma_ll = sym3_add(
 		sym3_ident,
 		sym3_real_mul(real3_outer(xc_u), 1. / (r / R - 1)));
 <? elseif require 'coord.sphere'.is(solver.coord) then ?> 
-	const real sinth = 1.;	//for now.  TODO right now sphere1d uses declination, so.... this is cos(theta) instead?
+	real r = x.x;
+	real one_minus_R_over_r = 1. - R / r;
+	
 	gamma_ll = sym3_zero;
 	gamma_ll.xx = 1. / one_minus_R_over_r;
 	
@@ -601,12 +621,10 @@ return table{
 	-- TODO add support for multiple bodies
 	{
 		name = 'stellar model',
-		init = function(self, solver)
-			solver.eqn:addGuiVars{
-				{name = 'init_bodyMass', value = .001},
-				{name = 'init_bodyRadius', value = .1},
-			}
-		end,
+		guiVars = {
+			{name = 'init_bodyMass', value = .001},
+			{name = 'init_bodyRadius', value = .1},
+		},
 		initState = function(self, solver)
 			local bodies = table{
 				{
@@ -768,8 +786,6 @@ return table{
 			}
 		end,
 	},
-
-
 
 
 --[[

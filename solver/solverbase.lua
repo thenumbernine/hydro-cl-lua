@@ -48,13 +48,6 @@ SolverBase.showFPS = cmdline.showfps or false
 SolverBase.allowAccum = true
 SolverBase.displayVarAccumFunc = false
 
-SolverBase.solverVars = table{
-	-- [[ right now the mesh initial conditions use these, but otherwise they can be GridSolver-specific
-	{name='mins', type='real3'},
-	{name='maxs', type='real3'},
-	--]]
-}
-
 --[[
 args:
 	app
@@ -82,6 +75,13 @@ function SolverBase:initL1(args)
 
 	-- operators for this solver
 	self.ops = table()
+
+	self.solverVars = table{
+	-- [[ right now the mesh initial conditions use these, but otherwise they can be GridSolver-specific
+		{name='mins', type='real3'},
+		{name='maxs', type='real3'},
+	--]]
+	}
 end
 
 function SolverBase:getSolverTypeCode()
@@ -261,8 +261,21 @@ kernel void multAdd(
 -- but the remaining variables I need initialized at least
 -- and in RK, the U's are initialized to zero ...
 -- how to get around this?
+-- Another thought, if I'm scaling *everything* in the struct, then just use reals and scale up the kernel size by numReals
 for i=0,eqn.numStates-1 do
 ?>	a[index].ptr[<?=i?>] = b[index].ptr[<?=i?>] + c[index].ptr[<?=i?>] * d;
+<? 
+end
+?>}
+
+kernel void square(
+	constant <?=solver.solver_t?>* solver,	// TODO just 'n'?
+	global <?=eqn.cons_t?>* a
+) {
+	SETBOUNDS_NOGHOST();
+<?
+for i=0,eqn.numStates-1 do
+?>	a[index].ptr[<?=i?>] *= a[index].ptr[<?=i?>];
 <? 
 end
 ?>}
@@ -297,6 +310,9 @@ end
 	-- TODO exclude states which are not supposed to be integrated
 	self.multAddKernelObj = self.commonProgramObj:kernel{name='multAdd', domain=self.domainWithoutBorder}
 	self.multAddKernelObj.obj:setArg(0, self.solverBuf)
+	
+	self.squareKernelObj = self.commonProgramObj:kernel{name='square', domain=self.domainWithoutBorder}
+	self.squareKernelObj.obj:setArg(0, self.solverBuf)
 
 	-- TODO vectors won't reduce anymore unless the reduceMin is constructed with 3* the # of count
 	-- but this breaks reduce for scalars (it includes those extra zeros)
@@ -1614,9 +1630,10 @@ function SolverBase:calcDisplayVarRangeAndAvg(var, componentIndex)
 		if sizevec then
 			size = tonumber(sizevec:volume())
 		end
-		
+
 		self:calcDisplayVarToBuffer(var, componentIndex)
-		var.lastAvg = self.reduceSum(nil, size) / tonumber(size)
+		self.multAddKernelObj(self.solverBuf, self.reduceBuf)
+		var.lastAvg = math.sqrt(self.reduceSum(nil, size) / tonumber(size))
 	end
 
 	return var.lastMin, var.lastMax, var.lastAvg
