@@ -14,7 +14,7 @@ local tooltip = require 'tooltip'
 local makestruct = require'eqn.makestruct'
 local roundup = require 'util.roundup'
 local time, getTime = table.unpack(require 'util.time')
-
+local SolverStruct = require 'struct.struct'
 
 local common = require 'common'	-- xNames, symNames
 local xNames = common.xNames
@@ -76,25 +76,16 @@ function SolverBase:initL1(args)
 	-- operators for this solver
 	self.ops = table()
 
-	self.solverVars = table{
+	self.solverStruct = SolverStruct{
+		solver = self,
+		name = 'solver_t',
+	}
+	self.solverStruct.vars:append{
 	-- [[ right now the mesh initial conditions use these, but otherwise they can be GridSolver-specific
 		{name='mins', type='real3'},
 		{name='maxs', type='real3'},
 	--]]
 	}
-end
-
-function SolverBase:getSolverTypeCode()
-	-- this is moved from #define to constant, so AMR leaf nodes can change it.
-	-- coordinate space = u,v,w
-	-- cartesian space = x,y,z
-	-- min and max in coordinate space
-	local code = makestruct.makeStruct(self.solver_t, self.solverVars, nil, true)
-	if self.lastSolverTypeCode then
-		assert(code == self.lastSolverTypeCode)
-	end
-	self.lastSolverTypeCode = code
-	return code
 end
 
 function SolverBase:preInit(args)
@@ -146,7 +137,7 @@ function SolverBase:preInit(args)
 	-- add eqn vars to solver_t
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
-			var:addToSolver(self)
+			self.solverStruct.vars:insert{name=var.name, type=var.ctype}
 		end
 	end
 
@@ -160,8 +151,8 @@ function SolverBase:preInit(args)
 	--  which is called in postInit
 	-- the createInitState also creates kernels and runs them on the solver buffers
 	-- so I probably need a separate call to eqn.initState, earlier, which constructs the object and the guiVars, but runs no kernels
-	self.solver_t = self.app:uniqueName'solver_t'
-	makestruct.safeFFICDef(self:getSolverTypeCode())
+	self.solverStruct:makeType()
+	self.solver_t = self.solverStruct.typename
 	self.solverPtr = ffi.new(self.solver_t)
 end
 
@@ -200,7 +191,7 @@ function SolverBase:postInit()
 
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
-			var:setToSolver(self)
+			self.solverPtr[var.name] = var.value
 		end
 	end
 
@@ -912,8 +903,8 @@ function SolverBase:createCodePrefixHeader()
 		'//SolverBase.eqn:getTypeCode()',
 		self.eqn:getTypeCode(),
 		
-		'//SolverBase:getSolverTypeCode()',
-		self:getSolverTypeCode(),
+		'//SolverBase.solverStruct:getTypeCode()',
+		self.solverStruct:getTypeCode(),
 		
 		'//SolverBase.eqn:getExtraTypeCode()',
 		self.eqn:getExtraTypeCode(),
@@ -1398,12 +1389,6 @@ enableVector = false
 			type = var.type or 'real',
 		})
 
-		-- add units suffix
-		-- don't add it to args.name in case subvars are created
-		if args.units then
-			args.name = args.name .. ' ('..args.units:gsub('%*', ' ')..')'
-		end
-
 		-- enable the first scalar field
 		-- also enable the first vector field on non-1D simulations
 		local enabled
@@ -1632,7 +1617,7 @@ function SolverBase:calcDisplayVarRangeAndAvg(var, componentIndex)
 		end
 
 		self:calcDisplayVarToBuffer(var, componentIndex)
-		self.multAddKernelObj(self.solverBuf, self.reduceBuf)
+		self.squareKernelObj(self.solverBuf, self.reduceBuf)
 		var.lastAvg = math.sqrt(self.reduceSum(nil, size) / tonumber(size))
 	end
 
@@ -1716,7 +1701,7 @@ function SolverBase:update()
 	self.lastFrameTime = thisTime
 
 	if self.checkNaNs then 
-		assert(self:checkFinite(self.UBufObj, self.numCells)) 
+		assert(self:checkFinite(self.UBufObj)) 
 	end
 
 	-- [[ stop condition: '|U H| > 1'
@@ -1810,28 +1795,41 @@ function SolverBase:checkFinite(buf)
 	return false, 'found non-finite offsets and numbers: '..require'ext.tolua'(found)..' at t='..self.t
 end
 
-function SolverBase:printBuf(buf, ptr)
+function SolverBase:printBuf(buf, ptr, rowsize)
 	ptr = ptr or buf:toCPU()
 	local ptr0size = tonumber(ffi.sizeof(buf.type))
 	local realSize = tonumber(ffi.sizeof'real')
 	local ptrsPerReal = ptr0size / realSize
 	assert(ptrsPerReal == math.floor(ptrsPerReal))
 	ptr = ffi.cast('real*', ptr)
-	local size = buf.size * ptrsPerReal
-	local realsPerCell = math.floor(size / self.numCells)
+	local size = buf.count * ptrsPerReal
 	local max = #tostring(size-1)
-	for i=0,self.numCells-1 do
-		io.write((' '):rep(max-#tostring(i)), i,':')
-		for j=0,realsPerCell-1 do
-			print('\t'
-				..(j==0 and '[' or '')
-				..('%.50f'):format(ptr[j + realsPerCell * i])
-				..(j==self.eqn.numStates-1 and ']' or ',')
-			)
-		end 
+	if buf.type == self.eqn.cons_t then
+		local realsPerCell = math.floor(size / self.numCells)
+		for i=0,self.numCells-1 do
+			io.write((' '):rep(max-#tostring(i)), i,':')
+			for j=0,realsPerCell-1 do
+				print('\t'
+					..(j==0 and '[' or '')
+					..('%.50f'):format(ptr[j + realsPerCell * i])
+					..(j==self.eqn.numStates-1 and ']' or ',')
+				)
+			end 
+		end
+	else
+		rowsize = rowsize or 1
+		for i=0,size-1 do
+			if i % rowsize == 0 then
+				io.write((' '):rep(max-#tostring(i)), i,':')
+			end
+			io.write(' ', ('%.50f'):format(ptr[i]))
+			if i % rowsize == rowsize-1 then 
+				print() 
+			end
+		end
+		if size % rowsize ~= 0 then print() end
 	end
 end
-
 
 
 -- this is abstracted because accumBuf might want to be used ...

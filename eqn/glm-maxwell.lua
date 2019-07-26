@@ -258,18 +258,18 @@ local function curl(eqn,k,result,field,env)
 end
 
 GLM_Maxwell.predefinedDisplayVars = {
-	'U D x (C/m^2)',
-	'U D y (C/m^2)',
-	'U D z (C/m^2)',
-	'U D mag (C/m^2)',
-	'U div D (C/m^3)',
-	'U phi (C/m^2)',
-	'U B x (kg/(C s))',
-	'U B y (kg/(C s))',
-	'U B z (kg/(C s))',
-	'U B mag (kg/(C s))',
-	'U div B (kg/(C m s))',
-	'U psi (kg/(C s))',
+	'U D x',
+	'U D y',
+	'U D z',
+	'U D mag',
+	'U div D',
+	'U phi',
+	'U B x',
+	'U B y',
+	'U B z',
+	'U B mag',
+	'U div B',
+	'U psi',
 }
 
 function GLM_Maxwell:getDisplayVars()

@@ -1,10 +1,13 @@
-varying vec4 color;
-varying vec3 normal;
+#version 460
 
 <?=solver and solver.coord:getCoordMapGLSLCode() or ''?>
 <?=solver and solver.coord:getCoordMapInvGLSLCode() or ''?>
 
 <? if vertexShader then ?>
+in vec3 inVertex;
+out vec3 normal;
+
+uniform mat4 ModelViewProjectionMatrix;
 
 uniform sampler2D tex;
 uniform int axis;
@@ -50,27 +53,28 @@ vec3 func(vec3 src) {
 }
 
 void main() {
-	vec3 vertex = func(gl_Vertex.xyz);
+	vec3 vertex = func(inVertex);
 
-	vec3 xp = func(gl_Vertex.xyz + vec3(1./size.x, 0., 0.));
-	vec3 xm = func(gl_Vertex.xyz - vec3(1./size.x, 0., 0.));
-	vec3 yp = func(gl_Vertex.xyz + vec3(0., 1./size.y, 0.));
-	vec3 ym = func(gl_Vertex.xyz - vec3(0., 1./size.y, 0.));
+	vec3 xp = func(inVertex + vec3(1./size.x, 0., 0.));
+	vec3 xm = func(inVertex - vec3(1./size.x, 0., 0.));
+	vec3 yp = func(inVertex + vec3(0., 1./size.y, 0.));
+	vec3 ym = func(inVertex - vec3(0., 1./size.y, 0.));
 
 	normal = normalize(cross(xp - xm, yp - ym));
-
-	color = gl_Color.rgba;
 
 <? if solver then ?>
 	vertex = coordMap(vertex);
 <? end ?>	
-	gl_Position = gl_ModelViewProjectionMatrix * vec4(vertex, 1.);
+	gl_Position = ModelViewProjectionMatrix * vec4(vertex, 1.);
 }
 
 <?
 end
 if fragmentShader then ?>
 
+in vec3 normal;
+
+uniform vec3 color;
 uniform float ambient;
 
 void main() {
@@ -78,8 +82,9 @@ void main() {
 	float lum = dot(normal, light);
 	//lum = max(lum, -lum);	//...for two-sided
 	lum = max(lum, ambient);
-	gl_FragColor = color;
+	gl_FragColor.rgb = color;
 	gl_FragColor.rgb *= lum;
+	gl_FragColor.a = 1.;
 }
 
 <? end ?>

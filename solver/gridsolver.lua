@@ -47,7 +47,7 @@ function GridSolver:initL1(args)
 	-- same as equations
 	-- but let equations/init conds add to the solver vars (as gui vars)
 	-- then we can edit them without recompiling the kernels
-	self.solverVars:append{
+	self.solverStruct.vars:append{
 		{name='gridSize', type='int4'},
 		{name='stepsize', type='int4'},
 		{name='grid_dx', type='real3'},
@@ -261,7 +261,7 @@ function GridSolver:refreshEqnInitState()
 	-- while we're here, write all gui vars to the solver_t
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
-			var:setToSolver(self)
+			self.solverPtr[var.name] = var.value
 		end
 	end
 	
@@ -448,7 +448,7 @@ function GridSolver:createSolverBuf()
 	-- while we're here, write all gui vars to the solver_t
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
-			var:setToSolver(self)
+			self.solverPtr[var.name] = var.value
 		end
 	end
 
@@ -1020,7 +1020,8 @@ function BoundarySphereCenter:getCode(args)
 	local solver = args.solver
 	
 	assert(args.side == 1 and args.minmax == 'min', "you should only use this boundary condition for rmin with spherical coordinates")
-	assert(require 'coord.sphere'.is(solver.coord), "you should only use this boundary condition for rmin with spherical coordinates")
+	assert(require 'coord.sphere'.is(solver.coord)
+		or require 'coord.sphere-log-radial'.is(solver.coord), "you should only use this boundary condition for rmin with spherical coordinates")
 	--assert(solver.maxs.y - solver.mins.y == 2*math.pi)
 	--assert(solver.boundaryMethods.ymin == 'periodic' and solver.boundaryMethods.ymax == 'periodic')
 
@@ -1139,7 +1140,7 @@ INDEX(
 		src = [[
 INDEX(
 	2*numGhost-1-j, 
-	(i-numGhost + (solver->gridSize.y-2*numGhost)/2
+	(i.x-numGhost + (solver->gridSize.y-2*numGhost)/2
 		+ (solver->gridSize.y - 2*numGhost))
 		% (solver->gridSize.y - 2*numGhost) + numGhost,
 	i.y)
@@ -1734,8 +1735,10 @@ do
 		ig.igSameLine()
 
 		--tooltip.comboTable('component', var, 'component', self.displayComponentNames)
-		
-		if ig.igCollapsingHeader(var.name) then
+	
+		local name = var.name
+		if var.units then name = name..' '..var.units end
+		if ig.igCollapsingHeader(name) then
 			local unitScale = 1
 			if var.units and var.showInUnits then -- convert our ranges from raw to units
 				unitScale = self:convertToSIUnitsCode(var.units).func()
@@ -1764,7 +1767,6 @@ do
 		'heatMapFixedRange',
 		'heatMapValueMin',
 		'heatMapValueMax',
-		--'component',
 	}
 	local defaults = {
 		true,
@@ -1773,7 +1775,6 @@ do
 		true,
 		math.huge,
 		-math.huge,
-		--0,
 	}
 	local combines = {
 		op.land,
@@ -1782,7 +1783,6 @@ do
 		op.land,
 		math.min,
 		math.max,
-		--math.min,
 	}
 	local all = {name='all'}
 	for i=1,#fields do

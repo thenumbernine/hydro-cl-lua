@@ -46,44 +46,44 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.numIntStates = 26
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.consVars = table{
 	--integration variables		
-	{name='ion_rho', type='real'},
-	{name='ion_m', type='real3'},		-- m^i
-	{name='ion_ETotal', type='real'},
+	{name='ion_rho', type='real', units='kg/m^3'},
+	{name='ion_m', type='real3', units='kg/(m^2*s)'},		-- m^i
+	{name='ion_ETotal', type='real', units='kg/(m*s^2)'},
 	
-	{name='elec_rho', type='real'},
-	{name='elec_m', type='real3'},		-- m^i
-	{name='elec_ETotal', type='real'},
+	{name='elec_rho', type='real', units='kg/m^3'},
+	{name='elec_m', type='real3', units='kg/(m^2*s)'},		-- m^i
+	{name='elec_ETotal', type='real', units='kg/(m*s^2)'},
 
-	{name='D', type='real3'},			-- E_i
-	{name='B', type='real3'},			-- B_i
-	{name='phi', type='real'},			-- D potential
-	{name='psi', type='real'},			-- B potential
+	{name='D', type='real3', units='C/m^2'},				-- D_i
+	{name='B', type='real3', units='kg/(C*s)'},				-- B_i
+	{name='phi', type='real', units='C/m^2',},				-- div D potential
+	{name='psi', type='real', units='kg/(C*s)'},			-- div B potential
 
-	{name='D_g', type='real3'},			-- (E_g)_i
-	{name='B_g', type='real3'},			-- (B_g)_i
-	{name='phi_g', type='real'},		-- E_g potential
-	{name='psi_g', type='real'},		-- B_g potential
+	{name='D_g', type='real3', units='kg/m^2'},			-- (D_g)_i
+	{name='B_g', type='real3', units='1/s'},			-- (B_g)_i
+	{name='phi_g', type='real', units='kg/m^2'},		-- div D_g potential
+	{name='psi_g', type='real', units='1/s'},		-- div B_g potential
 }
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.primVars = table{
 	--integration variables		
-	{name='ion_rho', type='real'},
-	{name='ion_v', type='real3'},
-	{name='ion_P', type='real'},
+	{name='ion_rho', type='real', units='kg/m^3'},
+	{name='ion_v', type='real3', units='m/s'},
+	{name='ion_P', type='real', units='kg/(m*s^2)'},
 	
-	{name='elec_rho', type='real'},
-	{name='elec_v', type='real3'},
-	{name='elec_P', type='real'},
+	{name='elec_rho', type='real', units='kg/m^3'},
+	{name='elec_v', type='real3', units='m/s'},
+	{name='elec_P', type='real', units='kg/(m*s^2)'},
 
-	{name='D', type='real3'},
-	{name='B', type='real3'},
-	{name='phi', type='real'},
-	{name='psi', type='real'},
+	{name='D', type='real3', units='C/m^2'},
+	{name='B', type='real3', units='kg/(C*s)'},
+	{name='phi', type='real', units='C/m^2'},
+	{name='psi', type='real', units='kg/(C*s)'},
 	
-	{name='D_g', type='real3'},
-	{name='B_g', type='real3'},
-	{name='phi_g', type='real'},
-	{name='psi_g', type='real'},
+	{name='D_g', type='real3', units='kg/m^2'},
+	{name='B_g', type='real3', units='1/s'},
+	{name='phi_g', type='real', units='kg/m^2'},
+	{name='psi_g', type='real', units='1/s'},
 }
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.hasEigenCode = true

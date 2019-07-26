@@ -115,17 +115,28 @@ local sym = common.sym
 
 local CoordinateSystem = class()
 
+local print = print
+
 --[[
 args:
 	anholonomic = use anholonomic coordinate system (normalized basis vectors)
 		this causes the Coord object to use commutation coefficients, and therefore will have asymmetric connections
 --]]
 function CoordinateSystem:init(args)
+	self.replvars = self.replvars or table()
+
 	local symmath = require 'symmath'
 	local const = symmath.Constant
-
+		
 	self.verbose = cmdline.coordVerbose or cmdline.verbose
 	self.anholonomic = args.anholonomic
+
+	if self.verbose then
+		symmath.tostring = symmath.export.MathJax
+		symmath.tostring.useCommaDerivative = true
+		print(symmath.tostring.header)
+		print = symmath.tostring.print
+	end
 
 	local dim = 3
 	local var = symmath.var
@@ -304,41 +315,6 @@ function CoordinateSystem:init(args)
 	local paramU = Tensor('^i', function(i) return var('u.'..xNames[i]) end)
 	local paramV = Tensor('^i', function(i) return var('v.'..xNames[i]) end)
 	local paramW = Tensor('^i', function(i) return var('w.'..xNames[i]) end)
-	
-	local function compile(expr)
-		local orig = expr	
-		-- replace pow(x,2) with x*x
-		expr = expr:map(function(x)
-			if symmath.op.pow.is(x) 
-			and const.is(x[2])
-			then
-				local value = assert(x[2].value)
-				if value > 0 and value == math.floor(value) then
-					if value == 1 then
-						return x[1]
-					else
-						return symmath.op.mul(range(value):mapi(function() 
-							return symmath.clone(x[1])
-						end):unpack())
-					end
-				end
-			end
-		end)
-
-		for i,coord in ipairs(baseCoords) do
-			expr = expr:replace(coord, var('pt.'..xNames[i]))
-		end
-
-		local code = symmath.export.C(expr)
-
-		--[[
-		if self.verbose then
-			print('compiling...'..orig..'...to...'..code)
-		end
-		--]]
-
-		return code
-	end
 
 	local function printNonZero(name, code)
 		if not self.verbose then return end
@@ -366,7 +342,7 @@ function CoordinateSystem:init(args)
 				return compileTensor(expri)
 			end)
 		elseif symmath.Expression.is(expr) then
-			return compile(expr)
+			return self:compile(expr)
 		elseif type(expr) == 'number' then
 			return clnumber(expr)
 		else
@@ -585,6 +561,42 @@ self.det_g = det_g_expr
 
 	local sqrt_det_gExpr = symmath.sqrt(det_g_expr)()
 	compileTensorField('sqrt_det_gCode', sqrt_det_gExpr)
+end
+
+function CoordinateSystem:compile(expr)
+	local symmath = require 'symmath'
+	local const = symmath.Constant
+	
+	local orig = expr	
+	-- replace pow(x,2) with x*x
+	expr = expr:map(function(x)
+		if symmath.op.pow.is(x) 
+		and const.is(x[2])
+		then
+			local value = assert(x[2].value)
+			if value > 0 and value == math.floor(value) then
+				if value == 1 then
+					return x[1]
+				else
+					return symmath.op.mul(range(value):mapi(function() 
+						return symmath.clone(x[1])
+					end):unpack())
+				end
+			end
+		end
+	end)
+
+	for _,repl in ipairs(self.replvars) do
+		expr = expr:replace(repl[1], repl[2])
+	end
+
+	for i,coord in ipairs(self.baseCoords) do
+		expr = expr:replace(coord, symmath.var('pt.'..xNames[i]))
+	end
+
+	local code = symmath.export.C(expr)
+
+	return code
 end
 
 

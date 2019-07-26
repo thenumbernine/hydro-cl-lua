@@ -168,12 +168,14 @@ end
 	
 			local gradientValueMin = valueMin
 			local gradientValueMax = valueMax
+			local showName = varName
 			if var.showInUnits and var.units then
 				local unitScale = solver:convertToSIUnitsCode(var.units).func()
 				gradientValueMin = gradientValueMin * unitScale
 				gradientValueMax = gradientValueMax * unitScale
+				showName = showName..' ('..var.units..')'
 			end
-			self:drawGradientLegend(ar, varName, gradientValueMin, gradientValueMax)
+			self:drawGradientLegend(ar, showName, gradientValueMin, gradientValueMax)
 		end
 	end
 end

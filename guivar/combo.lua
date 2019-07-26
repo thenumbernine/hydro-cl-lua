@@ -6,6 +6,8 @@ local GuiVar = require 'guivar.guivar'
 
 local GuiCombo = class(GuiVar)
 
+GuiCombo.ctype = 'int'
+
 function GuiCombo:init(args)
 	GuiCombo.super.init(self, args)
 	self.value = args.value or 1
@@ -23,15 +25,6 @@ end
 -- compile-time
 function GuiCombo:getCode()
 	return '#define '..self.name..' '..self.options[self.value]
-end
-
--- run-time
-function GuiCombo:addToSolver(solver)
-	solver.solverVars:insert{name=self.name, type='int'}
-end
-
-function GuiCombo:setToSolver(solver)
-	solver.solverPtr[self.name] = self.value
 end
 
 return GuiCombo

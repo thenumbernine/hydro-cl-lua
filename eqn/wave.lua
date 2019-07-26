@@ -90,12 +90,12 @@ end
 Wave.solverCodeFile = 'eqn/wave.cl'
 
 Wave.predefinedDisplayVars = {
-	'U phi_t (kg/(m s^3))',
-	'U phi_i (kg/(m^2 s^2))',
-	'U phi_i x (kg/(m^2 s^2))',
-	'U phi_i y (kg/(m^2 s^2))',
-	'U phi_i z (kg/(m^2 s^2))',
-	'U phi_i mag (kg/(m^2 s^2))',
+	'U phi_t',
+	'U phi_i',
+	'U phi_i x',
+	'U phi_i y',
+	'U phi_i z',
+	'U phi_i mag',
 }
 
 Wave.eigenVars = {

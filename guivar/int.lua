@@ -6,6 +6,8 @@ local GuiVar = require 'guivar.guivar'
 
 local GuiInt = class(GuiVar)
 
+GuiInt.ctype = 'int' 
+
 function GuiInt:init(args)
 	GuiInt.super.init(self, args)
 	self.value = args.value or 0
@@ -20,15 +22,6 @@ end
 -- compile-time
 function GuiInt:getCode()
 	return '#define '..self.name..' '..self.value
-end
-
--- run-time
-function GuiInt:addToSolver(solver)
-	solver.solverVars:insert{name=self.name, type='int'}
-end
-
-function GuiInt:setToSolver(solver)
-	solver.solverPtr[self.name] = self.value
 end
 
 return GuiInt

@@ -247,22 +247,22 @@ end
 -- [=[
 Euler.predefinedDisplayVars = {
 -- [[	
-	'U rho (kg/m^3)',
-	'U v (m/s)',
-	'U P (kg/(m s^2))',
+	'U rho',
+	'U v',
+	'U P',
 --]]
 --[[
 	-- now that I've switched to components, I can't display these
 	-- TODO ...unless I allow for multiple displays of the same displayVar...
 	-- TODO TODO after building kernels, duplicate all display vars for each component type
 	-- then things will look just like they did before, except with less kernels
-	'U v x (m/s)',
-	'U v y (m/s)',
-	'U v z (m/s)',
+	'U v x',
+	'U v y',
+	'U v z',
 --]]
-	'U ePot (m^2/s^2)',
-	'U EPot (kg/(m s^2))',
-	'U gravity (m/s)',
+	'U ePot',
+	'U EPot',
+	'U gravity',
 }
 --]=]
 

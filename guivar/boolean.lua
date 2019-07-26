@@ -5,6 +5,8 @@ local GuiVar = require 'guivar.guivar'
 
 local GuiBoolean = class(GuiVar)
 
+GuiBoolean.ctype = 'int'
+
 function GuiBoolean:init(args)
 	GuiBoolean.super.init(self, args)
 	self.value = not not args.value
@@ -19,15 +21,6 @@ end
 -- compile-time
 function GuiBoolean:getCode()
 	return '#define '..self.name..' '..(self.value and 1 or 0)
-end
-
--- run-time
-function GuiBoolean:addToSolver(solver)
-	solver.solverVars:insert{name=self.name, type='int'}
-end
-
-function GuiBoolean:setToSolver(solver)
-	solver.solverPtr[self.name] = self.value and 1 or 0
 end
 
 return GuiBoolean

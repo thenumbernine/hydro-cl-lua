@@ -157,26 +157,7 @@ function BSSNOKFiniteDifferenceEquation:makePartialUpwind(field, fieldType, name
 end
 
 function BSSNOKFiniteDifferenceEquation:compile(expr)
-	local symmath = require 'symmath'
-	local coords = self.solver.coord.coords
-	local var = symmath.var
-	
-	local function isInteger(x) return x == math.floor(x) end
-	expr = expr:map(function(x)
-		if symmath.op.pow.is(x)
-		and symmath.Constant.is(x[2])
-		and isInteger(x[2].value)
-		and x[2].value > 1
-		and x[2].value < 100
-		then
-			return setmetatable(table.rep({x[1]}, x[2].value), symmath.op.mul)
-		end
-	end)
-	
-	return symmath.export.C(expr
-		:replace(coords[1], var'x.x')
-		:replace(coords[2], var'x.y')
-		:replace(coords[3], var'x.z'))
+	return self.solver.coord:compile(expr)
 end
 
 function BSSNOKFiniteDifferenceEquation:getEnv()
@@ -212,6 +193,7 @@ kernel void initState(
 	//initState will assume it is providing a metric in Cartesian
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
+	real3 B_u = real3_zero;
 	sym3 gamma_ll = sym3_ident;
 	sym3 K_ll = sym3_zero;
 	
@@ -250,6 +232,8 @@ kernel void initState(
 	sym3 A_ll = sym3_sub(K_ll, sym3_real_mul(gamma_ll, 1./3. * U->K));
 	sym3 ABar_ll = sym3_real_mul(A_ll, exp_neg4phi);
 	U->ABar_LL = sym3_rescaleFromCoord_ll(ABar_ll, x);
+	
+	U->B_U = real3_rescaleFromCoord_u(B_u, x);
 
 	U->rho = rho;
 	U->S_u = real3_zero;

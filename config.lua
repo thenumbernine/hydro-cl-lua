@@ -43,7 +43,7 @@ local args = {
 	--slopeLimiter = 'minmod',
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
-	--useCTU = true,
+	useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -82,18 +82,18 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'periodic',
+		xmax=cmdline.boundary or 'periodic',
+		ymin=cmdline.boundary or 'periodic',
+		ymax=cmdline.boundary or 'periodic',
+		zmin=cmdline.boundary or 'periodic',
+		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
 	--[[ cylinder
 	coord = 'cylinder',
 	coordArgs = {anholonomic=true},			-- disable to use non-physical, holonomic coordinates
-	mins = cmdline.mins or {.2, 0, -.25},
+	mins = cmdline.mins or {0, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
@@ -102,7 +102,7 @@ local args = {
 	})[dim],
 	boundary = {
 		-- r
-		xmin=cmdline.boundary or 'mirror',		-- hmm, how to treat the r=0 boundary ...
+		xmin=cmdline.boundary or 'cylinderCenter',		-- hmm, how to treat the r=0 boundary ...
 		xmax=cmdline.boundary or 'freeflow',
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
@@ -125,8 +125,8 @@ local args = {
 	boundary = {
 		xmin=cmdline.boundary or 'sphereCenter',
 		xmax=cmdline.boundary or 'freeflow',	--'fixed',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'spherePolar',
+		ymax=cmdline.boundary or 'spherePolar',
 		zmin=cmdline.boundary or 'periodic',
 		zmax=cmdline.boundary or 'periodic',
 	},
@@ -172,10 +172,10 @@ local args = {
 	--initState = 'linear',
 	--initState = 'gaussian',
 	--initState = 'advect wave',
-	--initState = 'sphere',
+	initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'rectangle',
 	--initState = 'Sedov',
 	--initState = 'Noh',
@@ -196,7 +196,7 @@ local args = {
 	--initState = 'configuration 6',
 
 	-- self-gravitation tests:
-	initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
+	--initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
 	--initState = 'self-gravitation test 2',		--FIXME
@@ -689,15 +689,18 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	--eqnArgs = {useShift = 'none'},
 	dim = dim,
 	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
+	--integrator = 'backward Euler',
+	--integratorArgs = {verbose=true},
 	cfl = .4/dim,
 	
 	-- [[
-	coord = 'sphere',
+	--coord = 'sphere',
+	coord = 'sphere-log-radial',
 	mins = {0, 0, -math.pi},
-	maxs = {5, math.pi, math.pi},
+	maxs = {16, math.pi, math.pi},
 	gridSize = ({
-		{250, 1, 1},
-		{40, 40, 1},
+		{1024, 1, 1},
+		{64, 16, 1},
 		{16, 16, 16},
 	})[dim],
 	boundary = {
@@ -730,13 +733,26 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	--]]
 	
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
-	--initState = 'Minkowski',	-- TODO 2D
-	--initState = 'gaussian perturbation',	-- TODO get this working in spherical, and get the exact solution from 1982 Teukolsky
+	initState = 'Minkowski',	-- TODO 2D
+	--initState = 'gaussian perturbation',	-- TODO restore this to the 2008 Alcubeirre and 1998 Alcubierre gauge wave examples
 	--initState = 'pure gauge wave',	-- TODO get this working in spherical, and get the exact solution from 1982 Teukolsky
-	--initState = 'Alcubierre warp bubble',
-	initState = 'black hole - Schwarzschild',
-	--initState = 'black hole isotropic',
+	
 	--[[
+	--initState = 'black hole - boosted Schwarzschild',
+	initState = 'black hole - Schwarzschild',
+	--initState = 'black hole - Brill Lindquist',
+	initStateArgs = {
+		center = {0,0,0},
+		R = 1,
+	},
+	--]]
+	
+	--initState = 'black hole - isotropic',
+	
+	--initState = 'Alcubierre warp bubble',
+	
+	--[[
+	initState = 'Alcubierre warp bubble',
 	initStateArgs = {
 		H = -1e-7,	--H = 1e-7,
 		sigma = 10,

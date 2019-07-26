@@ -1,8 +1,12 @@
 local gl = require 'ffi.OpenGL'
+local ffi = require 'ffi'
+local class = require 'ext.class'
+local glreport = require 'gl.report'
+local Draw1D = class()
 
-return function(HydroCLApp)
+local matrix_ffi = require 'matrix.ffi'
 
-function HydroCLApp:showDisplayVar1D(solver, var)
+function Draw1D:showDisplayVar1D(app, solver, var)
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
 		valueMin = var.heatMapValueMin
@@ -16,32 +20,56 @@ function HydroCLApp:showDisplayVar1D(solver, var)
 	solver:calcDisplayVarToTex(var)	
 	-- display
 
-	self.graphShader:use()
+	app.graphShader:use()
 	solver:getTex(var):bind()
 
-	gl.glUniform1f(self.graphShader.uniforms.scale.loc, 1)
-	gl.glUniform1f(self.graphShader.uniforms.offset.loc, 0)
-	gl.glUniform1f(self.graphShader.uniforms.ambient.loc, 1)
-	gl.glUniform1i(self.graphShader.uniforms.useLog.loc, var.useLog)
-	gl.glUniform2f(self.graphShader.uniforms.xmin.loc, solver.mins[1], 0)
-	gl.glUniform2f(self.graphShader.uniforms.xmax.loc, solver.maxs[1], 0)
-	gl.glUniform1i(self.graphShader.uniforms.axis.loc, solver.dim)
-	gl.glUniform2f(self.graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
+	gl.glUniform1f(app.graphShader.uniforms.scale.loc, 1)
+	gl.glUniform1f(app.graphShader.uniforms.offset.loc, 0)
+	gl.glUniform1f(app.graphShader.uniforms.ambient.loc, 1)
+	gl.glUniform1i(app.graphShader.uniforms.useLog.loc, var.useLog)
+	gl.glUniform2f(app.graphShader.uniforms.xmin.loc, solver.mins[1], 0)
+	gl.glUniform2f(app.graphShader.uniforms.xmax.loc, solver.maxs[1], 0)
+	gl.glUniform1i(app.graphShader.uniforms.axis.loc, solver.dim)
+	gl.glUniform2f(app.graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
+	gl.glUniform3f(app.graphShader.uniforms.color.loc, table.unpack((#app.solvers > 1 and solver or var).color))
 
-	gl.glColor3d(table.unpack((#self.solvers > 1 and solver or var).color))
-	gl.glBegin(gl.GL_LINE_STRIP)
 	local step = 1
-	for i=2,tonumber(solver.gridSize.x)-2,step do
-		local x = (i+.5)/tonumber(solver.gridSize.x)
-		gl.glVertex2d(x, 0)
+	local numVertexes = math.floor((tonumber(solver.gridSize.x)-2 - 2 + 1) / step)	-- (endindex - startindex + 1) / step
+	if numVertexes ~= self.numVertexes then
+		self.numVertexes = numVertexes 
+		self.vertexes = ffi.new('float[?]', 3*numVertexes)
 	end
-	gl.glEnd()
+	
+	self.ModelViewMatrix = self.ModelViewMatrix or matrix_ffi(nil, 'float', {4,4})--ffi.new'float[16]'
+	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.ModelViewMatrix.ptr)
+	
+	self.ProjectionMatrix = self.ProjectionMatrix or matrix_ffi(nil, 'float', {4,4})--ffi.new'float[16]'
+	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.ProjectionMatrix.ptr)
+
+	self.ModelViewProjectionMatrix = self.ModelViewProjectionMatrix or require 'matrix.ffi'(nil, 'float', {4,4})--ffi.new'float[16]'
+	matrix_ffi.mul(self.ModelViewProjectionMatrix, self.ProjectionMatrix, self.ModelViewMatrix)
+
+	gl.glUniformMatrix4fv(app.graphShader.uniforms.ModelViewProjectionMatrix.loc, 1, gl.GL_FALSE, self.ModelViewProjectionMatrix.ptr)
+	
+	for i=0,self.numVertexes-1 do
+		local x = (i*step+2.5)/tonumber(solver.gridSize.x)
+		self.vertexes[0+3*i] = x
+		self.vertexes[1+3*i] = 0
+		self.vertexes[2+3*i] = 0
+	end
+	
+	gl.glEnableVertexAttribArray(app.graphShader.attrs.inVertex.loc)
+	gl.glVertexAttribPointer(app.graphShader.attrs.inVertex.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes)
+	
+	gl.glDrawArrays(gl.GL_LINE_STRIP, 0, self.numVertexes) 
+	
+	gl.glDisableVertexAttribArray(app.graphShader.attrs.inVertex.loc)
 	
 	solver:getTex(var):unbind()
-	self.graphShader:useNone()
+	app.graphShader:useNone()
 end
 
-function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog, valueMin, valueMax)
+function Draw1D:display1D(app, solvers, varName, ar, xmin, ymin, xmax, ymax, useLog, valueMin, valueMax)
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
 	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
@@ -82,7 +110,7 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 	for _,solver in ipairs(solvers) do
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
-			self:showDisplayVar1D(solver, var)
+			self:showDisplayVar1D(app, solver, var)
 		end
 
 		local unitScale = 1
@@ -94,7 +122,7 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 			thisValueMax = thisValueMax * unitScale
 		end
 	
-		if self.font then
+		if app.font then
 			local fontSizeX = (xmax - xmin) * .05
 			local fontSizeY = (ymax - ymin) * .05
 			local ystep = ystep * 2
@@ -105,7 +133,7 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 				end
 				value = value * unitScale
 				local absvalue = math.abs(value)
-				self.font:draw{
+				app.font:draw{
 					pos={xmin * .9 + xmax * .1, y + fontSizeY * .5},
 					text=(
 						(absvalue > 1e+5 or absvalue < 1e-5)
@@ -115,7 +143,7 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 					multiLine=false,
 				}
 			end
-			self.font:draw{
+			app.font:draw{
 				pos={xmin, ymax},
 				text=('%s [%.3e, %.3e]'):format(varName, thisValueMin, thisValueMax),
 				color = {1,1,1,1},
@@ -126,4 +154,9 @@ function HydroCLApp:display1D(solvers, varName, ar, xmin, ymin, xmax, ymax, useL
 	end
 end
 
+return function(HydroCLApp)
+	function HydroCLApp:display1D(...)
+		if not self.draw1D then self.draw1D = Draw1D() end
+		return self.draw1D:display1D(self, ...)
+	end
 end

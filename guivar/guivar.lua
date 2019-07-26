@@ -19,7 +19,7 @@ function GuiVar:refresh(value, solver)
 	if self.compileTime then
 		solver:refreshCodePrefix()
 	else
-		self:setToSolver(solver)
+		solver.solverPtr[self.name] = self.value
 		solver:refreshSolverBuf()
 	end
 end

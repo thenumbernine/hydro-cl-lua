@@ -6,6 +6,8 @@ local clnumber = require 'cl.obj.number'
 
 local GuiNumber = class(GuiVar)
 
+GuiNumber.ctype = 'real' 
+
 function GuiNumber:init(args)
 	GuiNumber.super.init(self, args)
 	self.value = args.value or 0
@@ -20,15 +22,6 @@ end
 -- compile-time
 function GuiNumber:getCode()
 	return '#define '..self.name..' '..clnumber(self.value)
-end
-
--- run-time
-function GuiNumber:addToSolver(solver)
-	solver.solverVars:insert{name=self.name, type='real'}
-end
-
-function GuiNumber:setToSolver(solver)
-	solver.solverPtr[self.name] = self.value
 end
 
 return GuiNumber

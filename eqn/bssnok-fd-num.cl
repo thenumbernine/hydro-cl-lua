@@ -274,14 +274,14 @@ end
 for i,xi in ipairs(xNames) do
 	for j,xj in ipairs(xNames) do
 -- TODO? make this based on (pt) param (just like coord_dx), and get eqn:compile to cooperate
-?>#define calc_partial_len_<?=xi..xj?>(pt)	(<?=eqn:compile(partial_len_ll[i][j]):gsub('x%.', 'pt.')?>)
+?>#define calc_partial_len_<?=xi..xj?>(pt)	(<?=eqn:compile(partial_len_ll[i][j])?>)
 <? 	end
 end
 
 for i,xi in ipairs(xNames) do
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
-?>#define calc_partial_len_over_len_<?=xi..xj..xk?>(pt)	(<?=eqn:compile(partial_len_over_len_lll[i][j][k]):gsub('x%.', 'pt.')?>)
+?>#define calc_partial_len_over_len_<?=xi..xj..xk?>(pt)	(<?=eqn:compile(partial_len_over_len_lll[i][j][k])?>)
 <? 		end
 	end
 end
@@ -289,7 +289,7 @@ end
 for i,xi in ipairs(xNames) do
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
-?>#define calc_partial2_len_<?=xi..xj..xk?>(pt)	(<?=eqn:compile(partial2_len_lll[i][j][k]):gsub('x%.', 'pt.')?>)
+?>#define calc_partial2_len_<?=xi..xj..xk?>(pt)	(<?=eqn:compile(partial2_len_lll[i][j][k])?>)
 <? 		end
 	end
 end
@@ -323,7 +323,7 @@ for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
 		for l,xl in ipairs(xNames) do
-?>#define calc_partial_connHat_Ulll_<?=xi..xjk..xl?>(pt) (<?=eqn:compile(partial_connHat_Ulll[i][j][k][l]):gsub('x%.', 'pt.')?>)
+?>#define calc_partial_connHat_Ulll_<?=xi..xjk..xl?>(pt) (<?=eqn:compile(partial_connHat_Ulll[i][j][k][l])?>)
 <?		end
 	end
 end
@@ -337,7 +337,7 @@ local partial_det_gammaHat_over_det_gammaHat_L = Tensor('_i', function(i)
 	return (partial_det_gammaHat_l[i] / (det_gammaHat * coord.lenExprs[i]))()
 end)
 ?>
-real3 calc_partial_det_gammaHat_over_det_gammaHat_L(real3 x) {
+real3 calc_partial_det_gammaHat_over_det_gammaHat_L(real3 pt) {
 	real3 partial_det_gammaHat_over_det_gammaHat_L;
 <? 
 for i,xi in ipairs(xNames) do
@@ -352,7 +352,7 @@ local partial2_det_gammaHat_over_det_gammaHat_LL = Tensor('_ij', function(i,j)
 	return (partial2_det_gammaHat_ll[i][j] / (det_gammaHat * coord.lenExprs[i] * coord.lenExprs[j]))()
 end)
 ?>
-sym3 calc_partial2_det_gammaHat_over_det_gammaHat_LL(real3 x) {
+sym3 calc_partial2_det_gammaHat_over_det_gammaHat_LL(real3 pt) {
 	sym3 partial2_det_gammaHat_over_det_gammaHat_LL;
 <?
 for ij,xij in ipairs(symNames) do
@@ -1217,13 +1217,14 @@ static void calcDeriv_ABar_LL(
 	/*
 	2017 Ruchlin et al, eqn. 11b
 	ABar_ij,t = 
+		+ beta^k_,i ABar_jk
+		+ beta^k_,j ABar_ik
+		+ ABar_ij,k beta^k
+		
 		- 2/3 ABar_ij DBar_k beta^k
 		- 2 alpha ABar_ik ABar^k_j
 		+ alpha ABar_ij K
 		+ exp(-4 phi) (trace-free part above)_ij
-		+ ABar_ij,k beta^k
-		+ beta^k_,i ABar_jk
-		+ beta^k_,j ABar_ik
 	*/
 	deriv->ABar_LL = sym3_add7(
 		deriv->ABar_LL,
@@ -1654,7 +1655,7 @@ end
 <? if eqn.useShift == 'GammaDriver' then ?>
 	//Gamma-driver
 	//B&S 4.82
-	//beta^i_,t = k (connBar^i_,t + eta connBar^i)
+	//beta^i_,t = k LambdaBar^i_,t + eta LambdaBar^i
 	const real k = 3. / 4.;
 	const real eta = 1.;	//1.;	// 1 / (2 M), for total mass M
 	deriv->beta_U = real3_add3(

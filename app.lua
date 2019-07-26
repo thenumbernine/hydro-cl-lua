@@ -44,6 +44,9 @@ predefined vars:
 	selfGravPoissonMaxIter
 	selfGravVerbose
 	selfGravLinearSolver = 'conjgrad', 'conjres', 'bicgstab', 'gmres'
+
+	TODO 
+	config = specify alternative config file.  default is config.lua (TODO configs/default.lua)
 --]]
 cmdline = cmdline or {}	--global
 
@@ -913,8 +916,10 @@ end
 						--print'FIXME'
 						-- run coords through inverse
 					else
-						local tcX = (self.mouseCoord[1] - solver.mins[1]) / (solver.maxs[1] - solver.mins[1])
-						local tcY = (self.mouseCoord[2] - solver.mins[2]) / (solver.maxs[2] - solver.mins[2])
+						--local tcX = (self.mouseCoord[1] - solver.mins[1]) / (solver.maxs[1] - solver.mins[1])
+						--local tcY = (self.mouseCoord[2] - solver.mins[2]) / (solver.maxs[2] - solver.mins[2])
+						local tcX = (self.mouseCoord[1] + 1) * .5
+						local tcY = (self.mouseCoord[2] + 1) * .5
 						-- TODO something equivalent for 3D ... somehow ...
 						if tcX >= 0 and tcX < 1
 						and tcY >= 0 and tcY < 1

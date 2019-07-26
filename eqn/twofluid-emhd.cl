@@ -19,46 +19,6 @@ typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
 
-<? if solver.hasCalcDTCode then ?>
-//2014 Abgrall, Kumar eqn 2.25
-// dt < sqrt(EInt_a/rho_a) sqrt(2) |lHat_r^a| / |E + v_a cross B|
-//lHat_r^a = lHat_r for a=i, -lHat_r/m for a=e
-kernel void calcDT(
-	constant solver_t* solver,
-	global real* dtBuf,
-	const global cons_t* UBuf
-) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-	
-	real3 x = cell_x(i);
-	const global cons_t* U = UBuf + index;
-	
-	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
-	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
-
-	prim_t W = primFromCons(solver, *U, x);
-	real lHat_ion = normalizedIonLarmorRadius;
-	real lHat_elec = lHat_ion / solver->ionElectronMassRatio;
-<? for _,fluid in ipairs(fluids) do ?>
-	real EInt_<?=fluid?> = calc_<?=fluid?>_EInt(solver, W);
-	real LorentzForceSq_<?=fluid?> = coordLenSq(
-		real3_add(
-			real3_real_mul(W.D, 1. / eps),
-			real3_cross(W.<?=fluid?>_v, W.B)
-		), x);
-	real sqrt_EInt_lHat_over_rho_<?=fluid?> = sqrt(2. * EInt_<?=fluid?> * lHat_<?=fluid?> / (W.<?=fluid?>_rho * LorentzForceSq_<?=fluid?>));
-<? end ?>
-
-	dtBuf[index] = min(
-		sqrt_EInt_lHat_over_rho_ion,
-		sqrt_EInt_lHat_over_rho_elec);
-}
-<? end ?>
-
 <? for side=0,solver.dim-1 do ?>
 cons_t fluxFromCons_<?=side?>(
 	constant solver_t* solver,
@@ -687,3 +647,44 @@ kernel void constrainU(
 	
 	*U = consFromPrim(solver, W, x);
 }
+
+
+//2014 Abgrall, Kumar eqn 2.25
+// dt < sqrt(EInt_a/rho_a) sqrt(2) |lHat_r^a| / |E + v_a cross B|
+//lHat_r^a = lHat_r for a=i, -lHat_r/m for a=e
+#if 0
+kernel void calcDT(
+	constant solver_t* solver,
+	global real* dtBuf,
+	const global cons_t* UBuf
+) {
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+	
+	real3 x = cell_x(i);
+	const global cons_t* U = UBuf + index;
+	
+	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
+	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
+
+	prim_t W = primFromCons(solver, *U, x);
+	real lHat_ion = normalizedIonLarmorRadius;
+	real lHat_elec = lHat_ion / solver->ionElectronMassRatio;
+<? for _,fluid in ipairs(fluids) do ?>
+	real EInt_<?=fluid?> = calc_<?=fluid?>_EInt(solver, W);
+	real LorentzForceSq_<?=fluid?> = coordLenSq(
+		real3_add(
+			real3_real_mul(W.D, 1. / eps),
+			real3_cross(W.<?=fluid?>_v, W.B)
+		), x);
+	real sqrt_EInt_lHat_over_rho_<?=fluid?> = sqrt(2. * EInt_<?=fluid?> * lHat_<?=fluid?> / (W.<?=fluid?>_rho * LorentzForceSq_<?=fluid?>));
+<? end ?>
+
+	dtBuf[index] = min(
+		sqrt_EInt_lHat_over_rho_ion,
+		sqrt_EInt_lHat_over_rho_elec);
+}
+#endif

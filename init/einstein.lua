@@ -267,7 +267,7 @@ return table{
 	gamma_ll = sym3_sub(delta_ll, real3_outer(dh));
 	K_ll = sym3_real_mul(d2h, -1./sqrt(1. - real3_lenSq(dh)));
 
-//plane wave vs 3D perturbation
+//plane wave vs bubble perturbation
 //TODO make these two separate init conds
 //enable this if you want the ADM 3D run in 1D to match the ADM 1D's
 //disable this if you want things to run in higher dimensions
@@ -374,39 +374,35 @@ return table{
 		name = 'black hole - Schwarzschild',
 		init = function(self, solver, args)
 			args = args or {}
-			local bodies = args.bodies or {}
-			local body1 = bodies[1] or {}
-			local R = body1.R or .002	-- Schwarzschild radius
+			-- TODO bodies
 			solver.eqn:addGuiVars{
-				{name = 'init_R', value = R},
+				{name = 'init_R', value = args and args.R or 1},
+				{name = 'init_x', value = args and args.x or 0},
+				{name = 'init_y', value = args and args.y or 0},
+				{name = 'init_z', value = args and args.z or 0},
 			}
 		end,
 		initState = function(self, solver)
-			solver:setBoundaryMethods'linear'
 			return template([[
 	const real R = solver->init_R;
-	
-<? if require 'coord.cartesian'.is(solver.coord) then -- pseudocartesian ?> 
-	real r = real3_len(xc);
+	real3 center = _real3(
+		solver->init_x,
+		solver->init_y,
+		solver->init_z);
+	real3 xrel = real3_sub(xc, center);
+
+	real r = real3_len(xrel);
+
+	//real one_minus_R_over_r = (fabs(r) < 1e-3 || fabs(r - R) < 1e-3) ? 1. : 1. - R / r;
 	real one_minus_R_over_r = 1. - R / r;
 	alpha = sqrt(one_minus_R_over_r);
-	real3 xc_u = real3_real_mul(xc, 1. / r);
 
-	gamma_ll = sym3_add(
-		sym3_ident,
-		sym3_real_mul(real3_outer(xc_u), 1. / (r / R - 1)));
-<? elseif require 'coord.sphere'.is(solver.coord) then ?> 
-	real r = x.x;
-	real one_minus_R_over_r = 1. - R / r;
-	
-	gamma_ll = sym3_zero;
-	gamma_ll.xx = 1. / one_minus_R_over_r;
-	
 	//bssnok-fd init cond expects the metric in non-coord normalized basis
 	//...and all the finite-volume solvers (adm3d, etc) only work with cartesian grids
-	gamma_ll.yy = 1.;	//r * r;
-	gamma_ll.zz = 1.;	//r * r * sinth * sinth;
-<? end ?>
+	gamma_ll = sym3_zero;
+	gamma_ll.xx = 1. / one_minus_R_over_r;
+	gamma_ll.yy = 1. / one_minus_R_over_r;
+	gamma_ll.zz = 1. / one_minus_R_over_r;
 ]], 	{
 			solver = solver,
 		})
@@ -581,10 +577,119 @@ return table{
 		end,
 	},
 	
+	-- SENR's BoostedSchwarzschild initial data
+	{
+		name = 'black hole - boosted Schwarzschild',
+		init = function(self, solver)
+		end,
+		initState = function(self, solver)
+			return [[
+	{
+		const real vz = .1;
+		const real M = 1.;
+		const real xB = 0.;
+		const real yB = 0.;
+		const real zB = 0.;
+		real vzsq = vz * vz;
+		real vz_toThe4 = vzsq * vzsq;
+		real LF = 1. / sqrt(1. - vzsq);
+		real LFsq = LF*LF;
+		real LF_toThe3 = LFsq * LF;
+		real rB = sqrt(xB*xB + yB*yB + LFsq*zB*zB);
+		real psiB = 1. + M / (2 * rB);
+		real psiBsq = psiB * psiB;
+		real psiB_toThe4 = psiBsq * psiBsq;
+		real M_plus_2_rB = M + 2*rB;
+		real M_plus_2_rB_sq = M_plus_2_rB * M_plus_2_rB;
+		real M_plus_2_rB_toThe3 = M_plus_2_rB_sq * M_plus_2_rB;
+		real M_plus_2_rB_toThe5 = M_plus_2_rB_toThe3 * M_plus_2_rB_sq;
+		real M_plus_2_rB_toThe6 = M_plus_2_rB_toThe3 * M_plus_2_rB_toThe3;
+		real M_plus_2_rB_toThe7 = M_plus_2_rB_toThe5 * M_plus_2_rB_sq;
+		real M_plus_2_rB_toThe9 = M_plus_2_rB_toThe6 * M_plus_2_rB_toThe3;
+		real M_plus_2_rB_toThe12 = M_plus_2_rB_toThe6 * M_plus_2_rB_toThe6;
+		real M_minus_2_rB = M - 2*rB;
+		real M_minus_2_rB_sq = M_minus_2_rB * M_minus_2_rB;
+		real M_minus_2_rB_toThe4 = M_minus_2_rB_sq * M_minus_2_rB_sq;
+		real M_minus_4_rB = M - 4.*rB;
+		real rBsq = rB * rB;
+		real rB_toThe4 = rBsq * rBsq;
+		real rB_toThe8 = rB_toThe4 * rB_toThe4;
+		real BBsq = M_plus_2_rB_toThe6 - 16. * M_minus_2_rB_sq * rB_toThe4 * vzsq;
+		real BB = sqrt(BBsq);
+		real BB_toThe3 = BB * BBsq;
+		real CC = M_plus_2_rB_toThe6 - 8. * M_minus_2_rB_sq * rB_toThe4 * vzsq;
+		beta_u.z = -1./(BB*BB) * (
+			M * vz 
+			* (M*M + 6*M*rB + 16*rBsq) 
+			* (M*M*M + 6*M*M*rB + 8*M*rB*rB + 16*rB*rBsq)
+		);
+		B_u.z = -(
+			64*M*M_minus_4_rB*M_minus_2_rB*rBsq*M_plus_2_rB_toThe5 * vzsq*zB
+		) / (
+			M_plus_2_rB_toThe12 - 32*M_minus_2_rB_sq * rB_toThe4 * M_plus_2_rB_toThe6 * vzsq + 256*M_minus_2_rB_toThe4 * rB_toThe8 * vz_toThe4
+		);
+		real gtzz = LFsq * BB*BB / M_plus_2_rB_toThe6;
+		real Atxx = (64*LF*M*M_minus_4_rB*rBsq*vz*CC*zB) / (3*M_plus_2_rB_toThe3*BB_toThe3);
+		real Atxz = -(32*LF*M*M_minus_4_rB*rBsq*vz*xB) / (M_plus_2_rB_toThe3*BB);
+		real Atyz = -(32*LF*M*M_minus_4_rB*rBsq*vz*yB) / (M_plus_2_rB_toThe3*BB);
+		real Atzz = -(128*LF_toThe3*M*M_minus_4_rB*rBsq*vz*CC*zB) / (3*M_plus_2_rB_toThe9*BB);
+
+		real r0 = x.x;
+		real theta0 = x.y;
+		real phi0 = x.z;
+		real r0sq = r0 * r0;
+		
+		real cos_theta0 = cos(theta0);
+		real cos_theta0_sq = cos_theta0 * cos_theta0;
+		real sin_theta0 = sin(theta0);
+		real sin_theta0_sq = sin_theta0 * sin_theta0;
+
+		sym3 gPhys00DD;
+		gPhys00DD.xx = psiB_toThe4 * .5 * (1. + gtzz + (-1. + gtzz) * cos(2. * theta0));
+		gPhys00DD.xy = psiB_toThe4 * (1. - gtzz) * r0 * cos_theta0 * sin(theta0);
+		gPhys00DD.xz = 0.;
+		gPhys00DD.yy = psiB_toThe4 * .5 * r0sq * (1. + gtzz - (-1. + gtzz) * cos(2. * theta0));
+		gPhys00DD.yz = 0.;
+		gPhys00DD.zz = psiB_toThe4 * r0sq * sin(theta0) * sin(theta0);
+		gamma_ll = gPhys00DD;
+
+		sym3 APhys00DD;
+		APhys00DD.xx = psiB_toThe4 * (
+			.5*(Atxx + Atzz + (-Atxx + Atzz)*cos(2*theta0) + 2*(Atxz*cos(phi0) + Atyz*sin(phi0))*sin(2*theta0))
+		);
+		APhys00DD.xy = psiB_toThe4 * (
+			r0*cos(2*theta0)*(Atxz*cos(phi0) + Atyz*sin(phi0)) + (Atxx - Atzz)*r0*cos_theta0*sin(theta0)
+		);
+		APhys00DD.xz = psiB_toThe4 * (
+			r0*cos_theta0*(Atyz*cos(phi0) - Atxz*sin(phi0))*sin(theta0) 
+		);
+		APhys00DD.yy = psiB_toThe4 * (
+			r0sq*(Atxx*cos_theta0_sq + Atzz*sin_theta0_sq - (Atxz*cos(phi0) + Atyz*sin(phi0))*sin(2*theta0))	
+		);
+		APhys00DD.yz = psiB_toThe4 * (
+			r0sq*(-Atyz*cos(phi0) + Atxz*sin(phi0))*sin_theta0_sq
+		);
+		APhys00DD.zz = psiB_toThe4 * (
+			Atxx*r0sq*sin_theta0_sq	
+		);
+
+		real K = (32*LF * M * vz * (M_plus_2_rB_toThe7 - 32*M_minus_2_rB_sq * (M - rB) * rB_toThe4 * vzsq)*rBsq * zB)
+			/ (M_plus_2_rB_toThe3*BB_toThe3);
+	
+		real det_gamma = sym3_det(gamma_ll);
+		real det_gammaBar = calc_det_gammaBar(x); 
+		real exp_neg4phi = cbrt(det_gammaBar / det_gamma);
+
+		sym3 A_ll = sym3_real_mul(APhys00DD, 1. / exp_neg4phi);
+		K_ll = sym3_add(A_ll, sym3_real_mul(gamma_ll, K));
+	}
+]]
+		end,
+	},
 
 	{	-- initial data from SENR/NumPy jupyter notebooks:
 		-- https://hub.mybinder.org/user/zachetienne-nrpytutorial-a0u5aw7y/notebooks/Tutorial-ADM_Initial_Data-Brill-Lindquist.ipynb
-		name = 'black hole - SENR/NumPy',
+		name = 'black hole - Brill Lindquist',
 		init = function(self, solver)
 			args = args or {}
 			local v = solver.eqn.guiVars
@@ -592,7 +697,7 @@ return table{
 				{
 					R = .0001,
 					P_u = {0,0,0},
-					S_u = {0,0,.01},
+					S_u = {0,0,0},
 					pos = {0,0,0},
 				},
 			}
@@ -614,6 +719,36 @@ return table{
 ]], 		{
 				bodies = self.bodies,
 			})
+		end,
+	},
+
+	{	-- another based on SENR
+		-- TODO make a way to provide BSSN variables rather than ADM variables
+		-- this way I don't have to worry about scaling and unscaling of the coordinate basis vectors
+		initState = function(self, solver)
+			return [[
+	real bScale = 1.;
+	real bScale2 = bScale * bScale;
+	real r0 = real3_len(xc);
+	real theta0 = atan2(xc.y, xc.x);
+	real r02 = r0 * r0;
+	real cos_theta0 = cos(theta0);
+	real M1 = 1.;
+	real M2 = 1.;
+	real psi0 = 1 + .5 * (
+		M1 / sqrt(bScale2 + r02 - 2*bScale*r0*cos_theta0)
+		+ M2 / sqrt(bScale2 + r02 + 2*bScale*r0*cos_theta0)
+	);
+	U->alpha = 1.;	//psi0?
+	//psi^2 = exp(-2 phi) = W
+	U->W = psi0 * psi0;
+	U->K = 0.;
+	U->beta_U = real3_zero;
+	U->B_U = real3_zero;
+	U->LambdaBar_U = real3_zero;
+	U->epsilon_LL = sym3_zero; 
+	U->ABar_LL = sym3_zero;
+]]
 		end,
 	},
 	

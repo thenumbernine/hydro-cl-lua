@@ -229,11 +229,11 @@ MHD.solverCodeFile = 'eqn/mhd.cl'
 MHD.displayVarCodeUsesPrims = true
 
 MHD.predefinedDisplayVars = {
-	'U rho (kg/m^3)',
-	'U m mag (kg/(m^2 s))',
-	'U ETotal (kg/(m s^2))',
-	'U B mag (kg/(C s))',
-	'U div B (kg/(C m s))',
+	'U rho',
+	'U m mag',
+	'U ETotal',
+	'U B mag',
+	'U div B',
 }
 
 function MHD:getDisplayVars()

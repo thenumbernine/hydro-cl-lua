@@ -1640,7 +1640,8 @@ kernel void initState(
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
-	
+	real3 B_u = real3_zero;
+
 	//initState will assume it is providing a metric in Cartesian
 	sym3 gamma_ll = sym3_ident;
 	
@@ -1654,6 +1655,7 @@ kernel void initState(
 
 	U->alpha = alpha;
 	U->beta_U = real3_rescaleFromCoord_u(beta_u, x);
+	U->B_U = real3_rescaleFromCoord_u(B_u, x);
 
 	real det_gamma = sym3_det(gamma_ll);
 	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma);

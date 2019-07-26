@@ -10,6 +10,7 @@ local class = require 'ext.class'
 local math = require 'ext.math'
 local tooltip = require 'tooltip'
 local Integrator = require 'int.int'
+local template = require 'template'
 local CLBuffer = require 'cl.obj.buffer'
 
 
@@ -43,8 +44,7 @@ function BackwardEuler:init(solver, args)
 
 -- formerly createBuffers
 
-	local bufferSize = solver.numCells * ffi.sizeof(solver.eqn.cons_t)
-	local realSize = ffi.sizeof(solver.app.env.real)
+	local bufferSize = solver.volumeWithoutBorder * solver.eqn.numIntStates
 	for _,name in ipairs{
 		'krylov_b',
 		'krylov_x',
@@ -53,10 +53,79 @@ function BackwardEuler:init(solver, args)
 		self[name..'Obj'] = CLBuffer{
 			env = solver.app.env,
 			name = name,
-			type = 'real',
-			count = bufferSize / realSize,
+			type = solver.app.env.real,
+			count = bufferSize,
 		}
 	end
+	-- full buffer, with ghost cells and non-integratable state variables
+	self.derivBufObj = CLBuffer{
+		env = solver.app.env,
+		name = 'derivBuf',
+		type = solver.app.env.real,
+		count = solver.numCells * solver.eqn.numStates,
+	}
+
+	local copyBufferWithOrWithoutGhostProgram = solver.Program{
+		env = solver.app.env,
+		code = template(
+solver.codePrefix..[[
+<? local range = require 'ext.range' ?>
+kernel void copyBufferWithoutGhostToBufferWithGhost(
+	constant <?=solver.solver_t?>* solver,
+	global real* dst,
+	global const real* src
+) {
+	SETBOUNDS_NOGHOST();
+	for (int j = 0; j < numIntStates; ++j) {
+		dst[j + numStates * index] = src[j 
+			+ numIntStates * (
+				(i.x - numGhost) 
+<? if solver.dim > 1 then ?>				
+				+ (solver->gridSize.x - 2 * numGhost) * (
+					(i.y - numGhost) 
+<? if solver.dim > 2 then ?>					
+					+ (solver->gridSize.x - 2 * numGhost) * (i.z - numGhost)
+<? end ?>				
+				)
+<? end ?>			
+			)];
+	}
+}
+
+kernel void copyBufferWithGhostToBufferWithoutGhost(
+	constant <?=solver.solver_t?>* solver,
+	global real* dst,
+	global const real* src
+) {
+	SETBOUNDS_NOGHOST();
+	for (int j = 0; j < numIntStates; ++j) {
+		dst[j 
+			+ numIntStates * (
+				(i.x - numGhost) 
+<? if solver.dim > 1 then ?>				
+				+ (solver->gridSize.x - 2 * numGhost) * (
+					(i.y - numGhost) 
+<? if solver.dim > 2 then ?>					
+					+ (solver->gridSize.x - 2 * numGhost) * (i.z - numGhost)
+<? end ?>				
+				)
+<? end ?>			
+			)] = src[j + numStates * index];
+	}
+}
+]],		{
+			solver = solver,
+		})
+	}
+	copyBufferWithOrWithoutGhostProgram:compile()
+	self.copyWithoutToWithGhostKernel = copyBufferWithOrWithoutGhostProgram:kernel{
+		name='copyBufferWithoutGhostToBufferWithGhost',
+		domain=solver.domainWithoutBorder,
+	}
+	self.copyWithToWithoutGhostKernel = copyBufferWithOrWithoutGhostProgram:kernel{
+		name='copyBufferWithGhostToBufferWithoutGhost',
+		domain=solver.domainWithoutBorder,
+	}
 
 -- formerly refreshGridSize
 	
@@ -66,72 +135,28 @@ function BackwardEuler:init(solver, args)
 	-- function that returns deriv when provided a state vector
 	-- dUdtBuf and UBuf are cl.obj.buffer
 	local function calc_dU_dt(dUdtBuf, UBuf)
-		-- setting solver.UBuf won't make a difference because the kernels are already bound to the original solver.UBuf
-		-- copying over solver.UBuf will overwrite the contents of 'x'
-		-- so I need to (a1) make a new buffer for 'x'
-		-- (a2) here, copy UBuf into solver.UBuf before running the kernel
-		-- or (b) have Solver:calcDeriv accept a param for the 'UBuf' 
-		-- ... but that'll be hard since UBuf is exchanged with getULRBuf with usePLM
---print'\nUBuf:' solver:printBuf(UBuf) print(debug.traceback(),'\n\n')
-		solver.UBufObj:copyFrom(UBuf)
-		dUdtBuf:fill()
+--print'\nUBuf:' solver:printBuf(UBuf, nil, solver.eqn.numIntStates)
 
-		-- TODO should 'dt' be passed along as well?
-		-- typically only dU/dt is calculated which, for first order, doesn't depend on dt
-		-- however for some 2nd order flux limiters, 'dt' is needed 
-		-- ... is that the 'dt' of the overall step, 
-		-- or of the individual step within the integrator overall step?
-		self.integrateCallback(dUdtBuf)
-		--solver:calcDeriv(dUdtBuf, self.linearSolverDT)
+		self.copyWithoutToWithGhostKernel(solver.solverBuf, solver.UBufObj, UBuf)
+		solver:boundary()	
+		self.derivBufObj:fill()	-- fill with zero
+		self.integrateCallback(self.derivBufObj)
+		self.copyWithToWithoutGhostKernel(solver.solverBuf, dUdtBuf, self.derivBufObj)
 
---print'\ndUdtBuf:' solver:printBuf(dUdtBuf) print(debug.traceback(),'\n\n')
---solver:checkFinite(dUdtBuf)
+--print'\ndUdtBuf:' solver:printBuf(dUdtBuf, nil, solver.eqn.numIntStates)
+		if solver.checkNaNs then assert(solver:checkFinite(dUdtBuf)) end
 	end
 
-	local mulWithoutBorder = solver.domain:kernel{
-		name = 'RoeImplicitLinearized_mulWithoutBorder',
-		header = solver.codePrefix,
-		argsOut = {
-			{name='y', type=solver.eqn.cons_t, obj=true},
-		},
-		argsIn = {
-			{name='solver', type=solver.solver_t, obj=true},
-			{name='a', type=solver.eqn.cons_t, obj=true},
-			{name='b', type=solver.eqn.cons_t, obj=true},
-		},
-		body = [[	
-	if (OOB(numGhost, numGhost)) {
-		for (int j = 0; j < numStates; ++j) {
-			y[index].ptr[j] = 0;
-		}
-		return;
-	}
-	for (int j = 0; j < numStates; ++j) {
-		y[index].ptr[j] = a[index].ptr[j] * b[index].ptr[j];
-	}
-]],
-	}
-	
-	local numreals = solver.numCells * solver.eqn.numStates
 	local volumeWithoutBorder = solver.volumeWithoutBorder
-	local numRealsWithoutBorder = volumeWithoutBorder * solver.eqn.numStates
+	local numreals = volumeWithoutBorder * solver.eqn.numIntStates
 	
-	local sum = solver.app.env:reduce{
-		count = numreals,
-		op = function(x,y) return x..' + '..y end,
-	}
-	local dotWithoutBorder = function(a,b)
-		mulWithoutBorder(sum.buffer, solver.solverBuf, a, b)
-		return sum()
-	end
-
-	local restart = cmdline.intBERestart or (args and args.restart) or 10
+	local restart = cmdline.intBERestart or (args and args.restart) or 20
 
 	local linearSolverArgs = {
 		env = solver.app.env,
 		x = self.krylov_xObj,
 		count = numreals,
-		epsilon = cmdline.intBEEpsilon or (args and args.epsilon) or 1e-24,
+		epsilon = cmdline.intBEEpsilon or (args and args.epsilon) or 1e-10,
 		--maxiter = 1000,
 		restart = restart,
 		maxiter = cmdline.intBEMaxIter or restart * numreals,
@@ -142,14 +167,12 @@ function BackwardEuler:init(solver, args)
 			if self.verbose then
 				print('t', solver.t, 'iter', iter, 'residual', residual)
 			end
+--if iter < numreals then return false end
 			if not math.isfinite(residual) then
 				print("got non-finite residual: "..residual)	-- error?
 				return true	-- fail
 			end
-			if residual < self.linearSolver.args.epsilon then return true end
-		end,
-		dot = function(a,b)
-			return dotWithoutBorder(a,b) / numRealsWithoutBorder
+--			if residual < self.linearSolver.args.epsilon then return true end
 		end,
 	}
 
@@ -160,24 +183,11 @@ function BackwardEuler:init(solver, args)
 		calc_dU_dt(dUdt, self.krylov_bObj)
 		
 		--UNext = U - dt * calc_dU_dt(lastU)
---print'\nU:' solver:printBuf(U) print(debug.traceback(),'\n\n')
+--print'\nU:' solver:printBuf(U, nil, solver.numIntStates) 
 --print('self.linearSolverDT', self.linearSolverDT)		
 		
 		self.linearSolver.args.mulAdd(UNext, U, dUdt.obj, -self.linearSolverDT)
---print'\nUNext:' solver:printBuf(UNext) print(debug.traceback(),'\n\n')
-	
-		--[[ do I need to apply the boundary?
-		-- doesn't seem to make a difference
-		-- TODO don't even include the boundary cells in the GMRES
-		-- in fact, should I even be storing ghost cells in memory, or just using conditions to provide their values?
-		for _,obj in ipairs(solver.boundaryKernelObjs) do
-			obj.obj:setArg(1, UNext)
-		end
-		solver:boundary()
-		for _,obj in ipairs(solver.boundaryKernelObjs) do
-			obj.obj:setArg(1, solver.UBuf)
-		end
-		--]]
+--print'\nUNext:' solver:printBuf(UNext, nil, solver.numIntStates)
 	end
 	--]=]
 	--[=[ crank-nicolson - converges faster
@@ -195,6 +205,11 @@ function BackwardEuler:init(solver, args)
 
 	-- set up gmres solver here
 	self.linearSolver = ThisKrylov(linearSolverArgs)
+
+	local oldDot = self.linearSolver.args.dot
+	self.linearSolver.args.dot = function(a,b)
+		return oldDot(a,b) / math.sqrt(numreals)
+	end
 end
 
 -- step contains integrating flux and source terms
@@ -207,11 +222,11 @@ function BackwardEuler:integrate(dt, callback)
 	self.linearSolverDT = dt
 	-- UBuf needs to be overwritten to pass on to the calcFluxDeriv
 	-- (TODO make calcFluxDeriv accept a parameter)
-	self.krylov_bObj:copyFrom(solver.UBufObj)
---print'\nself.krylov_bObj:' self:printBuf(self.krylov_bObj) print(debug.traceback(),'\n\n')
-	self.krylov_xObj:copyFrom(solver.UBufObj)
+	self.copyWithToWithoutGhostKernel(solver.solverBuf, self.krylov_bObj, solver.UBufObj)
+--print'\nself.krylov_bObj:' solver:printBuf(self.krylov_bObj, nil, solver.eqn.numIntStates)
+	self.copyWithToWithoutGhostKernel(solver.solverBuf, self.krylov_xObj, solver.UBufObj)
 	self.linearSolver()
-	solver.UBufObj:copyFrom(self.krylov_xObj)
+	self.copyWithoutToWithGhostKernel(solver.solverBuf, solver.UBufObj, self.krylov_xObj)
 end
 
 function BackwardEuler:updateGUI()

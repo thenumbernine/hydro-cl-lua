@@ -171,24 +171,20 @@ local function TwoFluidEMHDBehavior(parent)
 			{name='min_P', value=1e-4},
 		})
 
-		self.solver_t = self.app:uniqueName'solver_t'
-		makestruct.safeFFICDef(self:getSolverTypeCode())
+		-- TODO get GridSolver's solverStruct
+		-- solverVars is no longer a global variable
+		-- so we have to get this from the solver
+		-- but do we even need a solver_t for the base class?
+		--[[
+		self.solverStruct:makeType()
+		self.solver_t = self.solverStruct.typename
 		self.solverPtr = ffi.new(self.solver_t)
+		--]]
 
 		-- call this after we've assigned 'self' all its fields
 		self:replaceSourceKernels()
 
 		self.t = 0		
-	end
-
-	-- same as in GridSolver
-	function templateClass:getSolverTypeCode()
-		self.solverVars = table(require 'solver.gridsolver'.solverVars)
-		return table{
-			'// TwoFluidEMHDSeparateBehavior:getSolverTypeCode() end',
-			makestruct.makeStruct(self.solver_t, self.solverVars, nil, true),
-			'// TwoFluidEMHDSeparateBehavior:getSolverTypeCode() end',
-		}:concat'\n'
 	end
 
 	function templateClass:getConsLRTypeCode() return '' end

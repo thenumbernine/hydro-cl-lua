@@ -41,6 +41,7 @@ TwoFluidEMHD.name = 'TwoFluidEMHD'
 
 -- set this to false to integrate the EM D,B,phi,psi variables together with the ion and electron Euler fluid equations
 -- set this to true to integrate them separately using an implicit method
+-- TODO FINISHME -- add the integration part
 TwoFluidEMHD.implicitEMIntegration = false
 
 if not TwoFluidEMHD.implicitEMIntegration then
@@ -473,15 +474,15 @@ end
 TwoFluidEMHD.displayVarCodeUsesPrims = true
 
 TwoFluidEMHD.predefinedDisplayVars = {
-	'U ion_rho (kg/m^3)',
-	'U elec_rho (kg/m^3)',
-	'U ion P (kg/(m s^2))',
-	'U elec P (kg/(m s^2))',
-	'U D mag (C/m^2)',
-	'U B mag (kg/(C s))',
+	'U ion_rho',
+	'U elec_rho',
+	'U ion P',
+	'U elec P',
+	'U D mag',
+	'U B mag',
 	
-	'U ePot (m^2/s^2)',
-	'U gravity mag (m/s^2)',
+	'U ePot',
+	'U gravity mag',
 }
 
 function TwoFluidEMHD:getDisplayVars()
