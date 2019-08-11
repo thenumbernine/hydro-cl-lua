@@ -61,7 +61,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	if self.useScalarField then
 		intVars:append{
 			{name='Phi', type='cplx'},
-			{name='Psi_L', type='cplx3'},		-- Psi_i = Phi_,i
+			{name='Psi_l', type='cplx3'},		-- Psi_i = Phi_,i
 			{name='Pi', type='cplx'},			-- Pi = n^a Phi_,a
 		}
 	end
@@ -228,7 +228,7 @@ kernel void initState(
 
 <? if eqn.useScalarField then ?>	
 	cplx Phi = cplx_zero;
-	cplx3 Psi_L = cplx3_zero;
+	cplx3 Psi_l = cplx3_zero;
 	cplx Pi = cplx_zero;
 <? end ?>
 
@@ -276,7 +276,7 @@ kernel void initState(
 
 <? if eqn.useScalarField then ?>
 	U->Phi = Phi;
-	U->Psi_L = Psi_L;	//init with a numeric derivative?
+	U->Psi_l = Psi_l;	//init with a numeric derivative?
 	U->Pi = Pi;
 <? end ?>
 
@@ -460,9 +460,9 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 --]]
 -- [=[ scalar wave variables	
 	'U Phi re',
-	'U Psi_L x re',
-	'U Psi_L y re',
-	'U Psi_L z re',
+	'U Psi_l x re',
+	'U Psi_l y re',
+	'U Psi_l z re',
 	'U Pi re',
 --]=]
 }

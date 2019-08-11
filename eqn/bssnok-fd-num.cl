@@ -20,7 +20,7 @@ local useCalcDeriv_Phi = true
 local useCalcDeriv_Psi = true
 local useCalcDeriv_Pi = true
 -- scalar field source terms?
-local coupleTandPhi = false
+local coupleTandPhi = true
 
 -- constrains det gammaBar_ij = det gammaHat_ij, ABar^i_i = 0, and calculates H and M^i ... if the associated flags are set
 local useConstrainU = true
@@ -311,8 +311,9 @@ for i,xi in ipairs(xNames) do
 end
 ?>
 
+
 /*
-derivative index is last
+derivative index of the result is last
 e_i^I (T^M e^i_M)_,j e^j_J
 = e_i^I (T^M_,j e^i_M + T^M e^i_M_,j) e^j_J
 = (T^I_,j + T^I f_i f^i_,j) f^j delta^j_J
@@ -320,7 +321,7 @@ e_i^I (T^M e^i_M)_,j e^j_J
 */
 real3x3 real3x3_partial_rescaleFromCoord_Ul(
 	real3 T_U, 
-	real3x3 partial_T_Ul,
+	real3x3 partial_T_Ul,	// derivative in first index
 	real3 x
 ) {
 	real3x3 partial_T_UL;
@@ -335,6 +336,61 @@ end ?>
 	return partial_T_UL;
 }
 
+/*
+derivative index of result is last 
+T^i_,j = (T^I e^i_I)_,j
+= T^I_,j e^i_I + T^I e^i_I,j
+= (T^I_,j - T^I f_i,j / f_i) / f_i delta^i_I
+*/
+real3x3 real3x3_partial_rescaleToCoord_Ul(
+	real3 T_U,
+	real3x3 partial_T_Ul,	//derivative is first index
+	real3 x
+) {
+	real3x3 partial_T_ul;
+<? 
+for i,xi in ipairs(xNames) do
+	for j,xj in ipairs(xNames) do
+?>	partial_T_ul.<?=xi?>.<?=xj?> = (
+		partial_T_Ul.<?=xj?>.<?=xi?>
+		- T_U.<?=xi?> * calc_partial_len_<?=xi..xj?>(x) / calc_len_<?=xi?>(x)
+	) / calc_len_<?=xi?>(x);
+<? 	end
+end
+?>	return partial_T_ul;
+}
+
+/*
+This is breaking my old conventions too
+derivative index of result is last 
+T_I,j e^j_J = (T_i e^i_I)_,j e^j_J
+= (T_i,j e^i_I + T_i e^i_I,j) e^j_J
+= (T_i,j f^i + T_i f^i_,j) f^j delta^i_I delta^j_J
+= (T_i,j - T_i f_i,j / f_i) / (f_i f_j) delta^i_I delta^j_J
+*/
+cplx3x3 cplx3x3_partial_rescaleFromCoord_Ll(
+	cplx3 T_l,
+	cplx3x3 partial_T_ll,	//derivative is first index
+	real3 x
+) {
+	cplx3x3 partial_T_LL;
+<? 
+for i,xi in ipairs(xNames) do
+	for j,xj in ipairs(xNames) do
+?>	partial_T_ll.<?=xi?>.<?=xj?> = cplx_real_mul(
+		cplx_sub(
+			partial_T_ll.<?=xj?>.<?=xi?>,
+			cplx_real_mul(
+				T_l.<?=xi?>,
+				calc_partial_len_<?=xi..xj?>(x) / calc_len_<?=xi?>(x)
+			)
+		),
+		1. / (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x))
+	);
+<? 	end
+end
+?>	return partial_T_LL;
+}
 /*
 derivative index is last
 e^i_I (T_M e_i^M)_,j e^j_J
@@ -352,20 +408,6 @@ real3x3 real3x3_partial_rescaleFromCoord_Ll(real3 T_L, const real3 partial_T_Ll[
 	) / calc_len_<?=xj?>(x);
 <?	end
 end ?>
-	return partial_T_LL;
-}
-
-cplx3x3 cplx3x3_partial_rescaleFromCoord_Ll(
-	cplx3 T_L, 
-	cplx3x3 partial_T_Ll, 
-	real3 x
-) {
-	// as long as partial coefficients and non-coordinates are real, we can simply rescale reals and imags separately
-	real3x3 partial_T_re_Ll = cplx3x3_re(partial_T_Ll);
-	real3x3 partial_T_im_Ll = cplx3x3_im(partial_T_Ll);
-	real3x3 partial_T_re_LL = real3x3_partial_rescaleFromCoord_Ll(cplx3_re(T_L), partial_T_re_Ll.s, x);
-	real3x3 partial_T_im_LL = real3x3_partial_rescaleFromCoord_Ll(cplx3_im(T_L), partial_T_im_Ll.s, x);
-	cplx3x3 partial_T_LL = cplx3x3_from_real3x3_real3x3(partial_T_re_LL, partial_T_im_LL);
 	return partial_T_LL;
 }
 
@@ -1311,24 +1353,23 @@ static void calcDeriv_Psi(
 	const global cons_t* U,
 	const global cons_t* Uup,
 	real3 x,
-	const real3* partial_alpha_L,
-	const real3x3* partial_beta_UL
+	const real3* partial_alpha_l,
+	const real3x3* partial_beta_ul
 ) {
-<?=eqn:makePartialUpwind'Psi_L'?>
-	cplx3x3 partial_Psi_LL_upwind = cplx3x3_partial_rescaleFromCoord_Ll(U->Psi_L, partial_Psi_Ll_upwind, x);
-
+<?=eqn:makePartialUpwind'Psi_l'?>
 <?=eqn:makePartial1'Pi'?>
-	cplx3 partial_Pi_L = cplx3_rescaleFromCoord_l(partial_Pi_l, x);
+
+	real3 beta_u = real3_rescaleToCoord_U(U->beta_U, x);
 
 	/*
 	Psi_i,t = alpha_,i Pi + alpha Pi_,i + beta^j Psi_i,j + beta^j_,i Phi_,j
 	*/
-	deriv->Psi_L = cplx3_add5(
-		deriv->Psi_L,
-		real3_cplx_mul(*partial_alpha_L, U->Pi),
-		cplx3_real_mul(partial_Pi_L, U->alpha),
-		cplx3x3_real3_mul(partial_Psi_LL_upwind, U->beta_U),
-		cplx3_real3x3_mul(U->Psi_L, *partial_beta_UL));
+	deriv->Psi_l = cplx3_add5(
+		deriv->Psi_l,
+		real3_cplx_mul(*partial_alpha_l, U->Pi),
+		cplx3_real_mul(partial_Pi_l, U->alpha),
+		cplx3x3_real3_mul(partial_Psi_ll_upwind, beta_u),
+		cplx3_real3x3_mul(U->Psi_l, *partial_beta_ul));
 }
 
 static void calcDeriv_Pi(
@@ -1346,8 +1387,13 @@ static void calcDeriv_Pi(
 	const real3* Delta_U,
 	const real3* partial_phi_l
 ) {
-<?=eqn:makePartial1'Psi_L'?>
-	cplx3x3 partial_Psi_LL = cplx3x3_partial_rescaleFromCoord_Ll(U->Psi_L, partial_Psi_Ll, x);
+
+	cplx3 Psi_L = cplx3_from_real3_real3(
+		real3_rescaleFromCoord_l(cplx3_re(U->Psi_l), x),
+		real3_rescaleFromCoord_l(cplx3_im(U->Psi_l), x));
+
+<?=eqn:makePartial1'Psi_l'?>
+	cplx3x3 partial_Psi_LL = cplx3x3_partial_rescaleFromCoord_Ll(U->Psi_l, partial_Psi_ll, x);
 	
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	sym3 gamma_uu = sym3_real_mul(*gammaBar_uu, exp_neg4phi);
@@ -1413,16 +1459,16 @@ static void calcDeriv_Pi(
 		cplx_real_mul(
 			cplx_add4(
 				real_cplx_mul(real3_dot(U->beta_U, *partial_alpha_L), U->Pi),
-				cplx_neg(real3_cplx3_dot(*dt_beta_U, U->Psi_L)),
-				cplx3_real3_dot(U->Psi_L, real3x3_real3_mul(*partial_beta_UL, U->beta_U)),
+				cplx_neg(real3_cplx3_dot(*dt_beta_U, Psi_L)),
+				cplx3_real3_dot(Psi_L, real3x3_real3_mul(*partial_beta_UL, U->beta_U)),
 				real_cplx_mul(-dt_alpha / U->alpha, U->Pi)
 			),
 			1. / U->alpha
 		),
 		cplx_real_mul(
 			cplx_add5(
-				cplx_neg(real3_cplx3_dot(_4conn_i_U, U->Psi_L)),
-				cplx_real_mul(cplx3_real3_dot(U->Psi_L, U->beta_U), -_4conn_t),
+				cplx_neg(real3_cplx3_dot(_4conn_i_U, Psi_L)),
+				cplx_real_mul(cplx3_real3_dot(Psi_L, U->beta_U), -_4conn_t),
 				cplx3x3_sym3_dot(partial_Psi_LL, gamma_UU),
 			
 				// dV/d|Phi|^2
@@ -1455,11 +1501,8 @@ kernel void calcDeriv(
 
 	//////////////////////////////// alpha_,t //////////////////////////////// 
 
-	real3 partial_alpha_L;
-	{
 <?=eqn:makePartial1'alpha'?>			//partial_alpha_l[i] := alpha_,i
-		partial_alpha_L = real3_rescaleFromCoord_l(partial_alpha_l, x);
-	}
+	real3 partial_alpha_L = real3_rescaleFromCoord_l(partial_alpha_l, x);
 
 <? if useCalcDeriv_alpha then ?>
 
@@ -1482,7 +1525,7 @@ kernel void calcDeriv(
 	//////////////////////////////// W_,t //////////////////////////////// 
 
 <?=eqn:makePartial1'beta_U'?>		//partial_beta_Ul.j..i := beta^I_,j
-<?=eqn:makePartial1'W'?>				//partial_W_l.i := W_,i 
+<?=eqn:makePartial1'W'?>			//partial_W_l.i := W_,i 
 
 	/*
 	notice: 
@@ -1915,16 +1958,26 @@ end
 <? end	-- useCalcDeriv_beta_U ?>
 
 <? if eqn.useScalarField then ?>
+	
+	//////////////////////////////// Phi_,t //////////////////////////////// 
 
 <? if useCalcDeriv_Phi then ?>
 	calcDeriv_Phi(solver, deriv, U, Uup, x);
 <? end	-- useCalcDeriv_Phi ?>
+	
+	//////////////////////////////// Psi_i,t //////////////////////////////// 
+
+	real3x3 partial_beta_ul = real3x3_partial_rescaleToCoord_Ul(U->beta_U, partial_beta_Ul, x);
+
 <? if useCalcDeriv_Psi then ?>
 	calcDeriv_Psi(solver, deriv, U, Uup, x,
-		&partial_alpha_L,
-		&partial_beta_UL
+		&partial_alpha_l,
+		&partial_beta_ul
 	);
 <? end	-- useCalcDeriv_Psi ?>
+	
+	//////////////////////////////// Pi_,t //////////////////////////////// 
+
 <? if useCalcDeriv_Pi then ?>
 	calcDeriv_Pi(solver, deriv, U, Uup, x,
 		dt_alpha,
@@ -2007,6 +2060,11 @@ then
 	//makes the spinning black hole simulations look ugly
 	U->alpha = max(U->alpha, solver->alphaMin);
 
+	real exp_neg4phi = calc_exp_neg4phi(U);
+	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
+	sym3 gamma_uu = sym3_real_mul(gammaBar_uu, exp_neg4phi);
+	sym3 gammaBar_ll = sym3_rescaleToCoord_LL(gammaBar_LL, x);
+	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, 1. / exp_neg4phi);
 	
 <? if eqn.useScalarField and coupleTandPhi then ?>
 	/*
@@ -2015,6 +2073,58 @@ then
 	T_ab = 1/2 (D_a Phi)* (D_b Phi) + 1/2 (D_a Phi) (D_b Phi)* - 1/2 g_ab g^cd (D_c Phi)* (D_d Phi) - 1/2 mu^2 g_ab |Phi Phi*| - 1/4 lambda g_ab |Phi Phi*|^2
 	*/
 	
+	real Phi_lenSq = cplx_lenSq(U->Phi);
+	real Psi_lenSq = cplx3_weightedLenSq(U->Psi_l, gamma_uu);
+	real Pi_lenSq = cplx_lenSq(U->Pi);
+
+	// V = mu^2 |Phi|^2 + 1/2 lambda |Phi|^4
+	real V = (solver->scalar_mu * solver->scalar_mu + .5 * solver->scalar_lambda * Phi_lenSq) * Phi_lenSq;
+
+	/*
+	rho = n^a n^b T_ab = 1/2 (Pi Pi* + (Psi^c)* Psi_c + V) = 1/2 (re(Pi Pi*) + re(Psi^c Psi_c*) + V) = 1/2 (|Pi|^2 + |Psi|^2 + V)
+	*/
+	U->rho = .5 * (Pi_lenSq + Psi_lenSq + V);
+	
+	/*
+	S^u = -1/2 gamma^ua ((Psi_a)* Pi + Psi_a Pi*)
+	
+	a + a* = re(a + a*) = 2 re(a)
+	re(a*) = re(a)
+	re((a b)*) = re(a b)
+	so (a* b + a b*) = a b + (a b)* = re(a b + (a b)*) = re(a* b) + re(a b*) = 2 re(a* b) = 2(re(a) re(b) + im(a) im(b))
+
+	a b* = (ar + i ai) (br - i bi) = (ar br + ai bi) + i (ai br - ar bi)
+	a* b = (ar - i ai) (br + i bi) = (ar br + ai bi) - i (ai br - ar bi)
+	
+	a a* = (ar + i ai) (ar - i ai) = ar^2 + ai^2 = re(a a*) = re(a* a) = a* a
+
+	S^u = -1/2 gamma^ua (re(Psi_a) re(Pi) + im(Psi_a) im(Pi))
+	*/
+	U->S_u = real3_neg(sym3_real3_mul(
+		gamma_uu,
+		real3_add(
+			real3_real_mul(cplx3_re(U->Psi_l), U->Pi.re),
+			real3_real_mul(cplx3_im(U->Psi_l), U->Pi.im)
+		)
+	));
+
+	/*
+	S_uv = 1/2 (Psi_u* Psi_v + Psi_u Psi_v*) - 1/2 gamma_uv (gamma^cd Psi_c* Psi_d - Pi* Pi + V)
+	= re(Psi_u* Psi_v) + 1/2 gamma_uv (-gamma^cd re(Psi_c* Psi_d) + |Pi|^2 - V)
+	*/
+<? 
+for ij,xij in ipairs(symNames) do
+	local i,j,xi,xj = from6to3x3(ij)
+?>	U->S_ll.<?=xij?> = 
+		cplx_dot(U->Psi_l.<?=xi?>, U->Psi_l.<?=xj?>)
+		+ .5 * gamma_ll.<?=xij?> * (
+			-Psi_lenSq
+			+ Pi_lenSq
+			- V
+		);
+<?	end
+?>
+
 <? end -- useScalarField and coupleTandPhi ?>
 
 	// update H and M values
@@ -2036,8 +2146,6 @@ then
 			/ U->W
 	) / U->W;
 <? end ?>
-
-	real exp_neg4phi = calc_exp_neg4phi(U);
 
 	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
 <?=eqn:makePartial1'epsilon_LL'?>	

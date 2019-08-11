@@ -369,7 +369,7 @@ return table{
 		<?=compile(Psi[1])?>,
 		<?=compile(Psi[2])?>,
 		<?=compile(Psi[3])?>);
-	Psi_L = cplx3_from_real3(real3_rescaleFromCoord_l(re_Psi_l, x));
+	Psi_l = cplx3_from_real3(re_Psi_l);
 	Phi = cplx_from_real(<?=compile(Phi)?>);
 ]], 	{
 			Phi = Phi,

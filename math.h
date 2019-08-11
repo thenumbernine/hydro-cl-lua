@@ -179,6 +179,7 @@ cplx cplx_neg(cplx a);
 real cplx_lenSq(cplx a);
 real cplx_abs(cplx a);
 real cplx_arg(cplx a);
+real cplx_dot(cplx a, cplx b);
 cplx cplx_add(cplx a, cplx b);
 cplx cplx_sub(cplx a, cplx b);
 cplx cplx_mul(cplx a, cplx b);
@@ -206,6 +207,8 @@ real cplx3_len(cplx3 v);
 cplx3 real3_cplx_mul(real3 a, cplx b);
 cplx cplx3_real3_dot(cplx3 a, real3 b);
 #define real3_cplx3_dot(a,b) cplx3_real3_dot(b,a)
+real cplx3_re_weightedDot(cplx3 a, cplx3 b, sym3 m);
+real cplx3_weightedLenSq(cplx3 a, sym3 m);
 
 cplx3x3 cplx3x3_from_real3x3_real3x3(real3x3 re, real3x3 im);
 cplx3 cplx3x3_real3_mul(cplx3x3 a, real3 b);

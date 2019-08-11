@@ -49,14 +49,6 @@ function makevec3(vec,scalar)
 	local mul3 = scalar..'_mul3'
 ?>
 
-<?=scalar?> <?=vec?>_<?=vec?>_dot(<?=vec?> a, <?=vec?> b) {
-	return <?=add3?>(
-		<?=mul?>(a.x, <?=conj?>(b.x)), 
-		<?=mul?>(a.y, <?=conj?>(b.y)),
-		<?=mul?>(a.z, <?=conj?>(b.z))
-	);
-}
-
 <?=vec?> <?=vec?>_<?=scalar?>_mul(<?=vec?> a, <?=scalar?> s) {
 	return _<?=vec?>(
 		<?=mul?>(a.x, s),
@@ -115,6 +107,30 @@ function makevec3(vec,scalar)
 <?
 end
 makevec3('real3', 'real')
+?>
+
+<?
+local function resultType(atype, btype)
+	if atype == 'real' and btype == 'real' then return 'real' end
+	if atype == 'cplx' and btype == 'real' then return 'cplx' end
+	if atype == 'real' and btype == 'cplx' then return 'cplx' end
+	if atype == 'cplx' and btype == 'cplx' then return 'cplx' end
+	error("no resultType for operations of "..atype.." and "..btype)
+end
+
+local function make_dot(atype, btype)
+	local ctype = resultType(atype, btype)
+?>
+<?=ctype?> <?=atype?>3_<?=btype?>3_dot(<?=atype?>3 a, <?=btype?>3 b) {
+	return <?=ctype?>_add3(
+		<?=atype?>_<?=btype?>_mul(a.x, <?=btype?>_conj(b.x)), 
+		<?=atype?>_<?=btype?>_mul(a.y, <?=btype?>_conj(b.y)),
+		<?=atype?>_<?=btype?>_mul(a.z, <?=btype?>_conj(b.z))
+	);
+}
+<?
+end
+make_dot('real', 'real')
 ?>
 
 ////////////////////////// real3 //////////////////////////
@@ -483,27 +499,44 @@ real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b) {
 ?>	};
 }
 
+<?
+local function make_3x3_3_mul(atype, btype)
+	local ctype = resultType(atype, btype)
+?>
 //c_i = a_ij * b^j
-real3 real3x3_real3_mul(real3x3 a, real3 b) {
-	return (real3){
+<?=ctype?>3 <?=atype?>3x3_<?=btype?>3_mul(<?=atype?>3x3 a, <?=btype?>3 b) {
+	return (<?=ctype?>3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = real3_real3_dot(a.<?=xi?>, b),
+?>		.<?=xi?> = <?=atype?>3_<?=btype?>3_dot(a.<?=xi?>, b),
+<? end
+?>	};
+}
+<?
+end
+make_3x3_3_mul('real', 'real')	-- real3x3_real3_mul
+?>
+
+<?
+local function make_3_3x3_mul(atype, btype)
+	local ctype = resultType(atype, btype)
+?>
+//c_j = a^i * b_ij = b_ji * a^i
+//so this is the same behavior as transpose(A) * b
+<?=ctype?>3 <?=atype?>3_<?=btype?>3x3_mul(<?=atype?>3 a, <?=btype?>3x3 b) {
+	return (<?=ctype?>3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = <?=ctype?>_add3(
+			<?=atype?>_<?=btype?>_mul(a.x, b.x.<?=xi?>),
+			<?=atype?>_<?=btype?>_mul(a.y, b.y.<?=xi?>),
+			<?=atype?>_<?=btype?>_mul(a.z, b.z.<?=xi?>)),
 <? end
 ?>	};
 }
 
-//c_j = a^i * b_ij = b_ji * a^i
-//so this is the same behavior as transpose(A) * b
-real3 real3_real3x3_mul(real3 a, real3x3 b) {
-	return (real3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
-	for j,xj in ipairs(xNames) do
-?> + a.<?=xj?> * b.<?=xj?>.<?=xi?><?
-	end ?>,
-<? end
-?>	};
-}
+<?
+end
+make_3_3x3_mul('real', 'real')	-- real3_real3x3_mul
+?>
 
 real real3x3_trace(real3x3 m) {
 	return m.x.x + m.y.y + m.z.z;
@@ -741,6 +774,11 @@ real cplx_lenSq(cplx a) { return a.re * a.re + a.im * a.im; }
 real cplx_abs(cplx a) { return sqrt(cplx_lenSq(a)); }
 real cplx_arg(cplx a) { return atan2(a.im, a.re); }
 
+//what do I call this function? complex dot? real component of complex dot?  real component of complex mul of a number with another's conjugate?
+real cplx_dot(cplx a, cplx b) {
+	return a.re * b.re + a.im * b.im;
+}
+
 cplx cplx_add(cplx a, cplx b) {
 	return _cplx(
 		a.re + b.re,
@@ -822,7 +860,7 @@ real3 cplx3_im(cplx3 v) {
 }
 
 real cplx3_lenSq(cplx3 v) {
-	return real3_lenSq(cplx3_re(v)) + real3_lenSq(cplx3_im(v));
+	return cplx_lenSq(v.x) + cplx_lenSq(v.y) + cplx_lenSq(v.z);
 }
 
 real cplx3_len(cplx3 v) {
@@ -836,11 +874,25 @@ cplx3 real3_cplx_mul(real3 a, cplx b) {
 		real_cplx_mul(a.z, b));
 }
 
-cplx cplx3_real3_dot(cplx3 a, real3 b) {
-	return cplx_add3(
-		cplx_real_mul(a.x, b.x),
-		cplx_real_mul(a.y, b.y),
-		cplx_real_mul(a.z, b.z));
+<?
+make_dot('cplx', 'real')	-- cplx3_real3_dot
+?>
+
+/*
+assumes the weights are real and only returns the real component ...
+what to properly name this
+a^i b^j* g_ij
+= (re(a^i) re(b^j) + im(a^i) im(a^j)) g_ij
+= re(a^i) re(b^j) g_ij + im(a^i) im(a^j) g_ij
+*/
+real cplx3_re_weightedDot(cplx3 a, cplx3 b, sym3 m) {
+	return real3_weightedDot(cplx3_re(a), cplx3_re(b), m)
+		+ real3_weightedDot(cplx3_im(a), cplx3_im(b), m);
+}
+
+real cplx3_weightedLenSq(cplx3 a, sym3 m) {
+	return real3_weightedLenSq(cplx3_re(a), m)
+		+ real3_weightedLenSq(cplx3_im(a), m);
 }
 
 ////////////////////////// cplx3x3 //////////////////////////
@@ -869,26 +921,10 @@ real3x3 cplx3x3_im(cplx3x3 v) {
 ?>	};
 }
 
-cplx3 cplx3x3_real3_mul(cplx3x3 a, real3 b) {
-	return (cplx3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = cplx3_real3_dot(a.<?=xi?>, b),
-<? end
-?>	};
-}
-
-//c_j = a^i * b_ij = b_ji * a^i
-//so this is the same behavior as transpose(A) * b
-cplx3 cplx3_real3x3_mul(cplx3 a, real3x3 b) {
-	return (cplx3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = cplx_add3(
-			cplx_real_mul(a.x, b.x.<?=xi?>),
-			cplx_real_mul(a.y, b.y.<?=xi?>),
-			cplx_real_mul(a.z, b.z.<?=xi?>)),
-<? end
-?>	};
-}
+<?
+make_3x3_3_mul('cplx', 'real')	-- cplx3x3_real3_mul
+make_3_3x3_mul('cplx', 'real')	-- cplx3_real3x3_mul
+?>
 
 cplx cplx3x3_sym3_dot(cplx3x3 a, sym3 b) {
 	cplx sum = cplx_zero;
