@@ -28,8 +28,10 @@ function Sphere:init(args)
 	--local r = symmath.sinh(rho / (rmax * w)) * (rmax / math.sinh(1 / w))
 	local r = symmath.var('r', {rho})
 self.r_var = r
+	
+	self.rDef = symmath.sinh(rho / (rmax * w)) * (rmax / math.sinh(1 / w))
 
-	local r_for_rho = symmath.sinh(rho / (rmax * w)) * (rmax / math.sinh(1 / w))
+	local r_for_rho = self.rDef
 	self.replvars = table{
 		{r:diff(rho, rho, rho), r_for_rho:diff(rho, rho, rho)()},
 		{r:diff(rho, rho), r_for_rho:diff(rho, rho)()},

@@ -36,6 +36,8 @@ function Sphere:init(args)
 	end
 	
 	Sphere.super.init(self, args)
+
+	self.rDef = r
 end
 
 local template = require 'template'

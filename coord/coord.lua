@@ -489,7 +489,8 @@ self.Gamma_ull = Gamma_ull
 		integralArgs:insert(symmath.var('(pt.'..xNames[i]..' - solver->grid_dx.'..xNames[i]..')'))
 		integralArgs:insert(symmath.var('(pt.'..xNames[i]..' + solver->grid_dx.'..xNames[i]..')'))
 	end
-	
+
+	--[[ no one is using this yet
 	local coord_area_exprs = symmath.Array:lambda({dim}, function(i)
 		local area = const(1)
 		for j=1,dim do
@@ -544,6 +545,7 @@ self.Gamma_ull = Gamma_ull
 		end
 		compileTensorField('cell_volume_code', volume)
 	end
+	--]]
 
 	self.g = g
 	compileTensorField('gCode', self.g)
@@ -808,6 +810,7 @@ function CoordinateSystem:getCode(solver)
 		return '#define coord_dx'..(i-1)..'(pt) ('..code..')'
 	end))
 
+	--[[
 	-- area0, area1, ...
 	-- area_i = integral of u_j, j!=i of product of dx_j, j!=i
 	lines:append(range(dim):mapi(function(i)
@@ -816,6 +819,7 @@ function CoordinateSystem:getCode(solver)
 	end))
 
 	lines:insert('#define cell_volume(pt) ('..self.cell_volume_code..')')
+	--]]
 
 	lines:insert'\n'
 

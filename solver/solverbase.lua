@@ -1617,8 +1617,14 @@ function SolverBase:calcDisplayVarRangeAndAvg(var, componentIndex)
 		end
 
 		self:calcDisplayVarToBuffer(var, componentIndex)
+		
+		-- [[ avg
+		var.lastAvg = self.reduceSum(nil, size) / tonumber(size)
+		--]]
+		--[[ rms
 		self.squareKernelObj(self.solverBuf, self.reduceBuf)
 		var.lastAvg = math.sqrt(self.reduceSum(nil, size) / tonumber(size))
+		--]]
 	end
 
 	return var.lastMin, var.lastMax, var.lastAvg

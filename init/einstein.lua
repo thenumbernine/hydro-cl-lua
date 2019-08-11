@@ -297,6 +297,7 @@ return table{
 ]]
 		end,
 	},
+	
 	-- from 2011 Alcubierre, Mendez "Formulations of the 3+1 evolution equations in curvilinear coordinates"
 	-- Appendix A, eqns 7.1 - 7.5
 	{
@@ -318,6 +319,68 @@ return table{
 ]]
 		end,
 	},
+
+	{
+		name = 'scalar field',
+		guiVars = {
+			{name = 'alpha0', value = .01},
+			{name = 'r0', value = 0},
+			{name = 'sigma', value = 1},
+		},
+		initState = function(self, solver)
+			assert(solver.eqn.useScalarField, "you need to enable 'useScalarField' in the eqn ctor args")
+			
+			local symmath = require 'symmath'
+			local var = symmath.var
+			local Tensor = symmath.Tensor
+
+			local r = solver.coord.rDef
+			local r0 = var'solver->r0'
+			local sigma = var'solver->sigma'
+			local alpha0 = var'solver->alpha0'
+			local rplus = (r + r0) / sigma
+			local rminus = (r - r0) / sigma
+			local gminus = symmath.exp(-rminus * rminus)
+			local gplus = symmath.exp(-rplus * rplus)
+			local Phi = alpha0 * r^2 / (1 + r^2) * (gplus + gminus)
+			
+			local baseCoords = solver.coord.baseCoords
+			local Psi = Tensor('_i', function(i)
+				return Phi:diff(baseCoords[i])()
+			end)
+			
+			-- Pi is 1/alpha (Phi_,t - beta^i Psi_i)
+			local Phi_t = 0
+			local alpha = var'alpha'	-- ADM var
+			local beta = Tensor('^i', function(i) 
+				return var('beta_u.s'..(i-1))
+			end)
+			local Pi = 1/alpha * (Phi_t - beta'^i' * Psi'_i')()
+
+			local compile = function(...)
+				local code = solver.eqn:compile(...)
+				code = code:gsub('pt%.', 'x.')
+				return code
+			end
+
+		return template([[
+	Phi = <?=compile(Phi)?>;
+	real3 Psi_l = _real3(
+		<?=compile(Psi[1])?>,
+		<?=compile(Psi[2])?>,
+		<?=compile(Psi[3])?>);
+	Psi_L = real3_rescaleFromCoord_l(Psi_l, x);
+	Phi = <?=compile(Phi)?>;
+]], 	{
+			Phi = Phi,
+			Psi = Psi,
+			Pi = Pi,
+			symmath = symmath,
+			compile = compile,
+		})
+		end,
+	},
+
 
 	{
 		name = 'Alcubierre warp bubble',

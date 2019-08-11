@@ -32,6 +32,8 @@ BSSNOKFiniteDifferenceEquation.useSourceTerm = true
 -- not used with finite-difference schemes anyways
 BSSNOKFiniteDifferenceEquation.weightFluxByGridVolume = false
 
+BSSNOKFiniteDifferenceEquation.useScalarField = false
+
 --[[
 args:
 	useShift = 'none'
@@ -43,6 +45,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	-- needs to be defined up front
 	-- otherwise rebuild intVars based on it ...
 	self.useShift = args.useShift or 'HyperbolicGammaDriver'
+	self.useScalarField = args.useScalarField 
 
 	local intVars = table{
 		{name='alpha', type='real'},			-- 0:	1: alpha
@@ -54,6 +57,14 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 		{name='epsilon_LL', type='sym3'},		-- 12:	6: gammaBar_ij - gammaHat_ij, only 5 dof since det gammaBar_ij = 1
 		{name='ABar_LL', type='sym3'},			-- 18:	6: ABar_ij, only 5 dof since ABar^k_k = 0
 	}											-- 24 = total size so far
+
+	if self.useScalarField then
+		intVars:append{
+			{name='Phi', type='real'},
+			{name='Psi_L', type='real3'},		-- Psi_i = Phi_,i
+			{name='Pi', type='real'},			-- Pi = n^a Phi_,a
+		}
+	end
 
 	self.consVars = table()
 	:append(intVars)
@@ -93,6 +104,13 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 
 		{name='shift_eta', value=1},	--1, or 1 / (2 M), for total mass M
 	}
+
+	if self.useScalarField then
+		self:addGuiVars{
+			{name='scalar_lambda', value=0},
+			{name='scalar_mu', value=1},
+		}
+	end
 end
 
 function BSSNOKFiniteDifferenceEquation:fieldTypeForVar(varname)
@@ -196,8 +214,13 @@ kernel void initState(
 	real3 B_u = real3_zero;
 	sym3 gamma_ll = sym3_ident;
 	sym3 K_ll = sym3_zero;
-	
 	real rho = 0.;
+
+<? if eqn.useScalarField then ?>	
+	real Phi = 0.;
+	real3 Psi_L = real3_zero;
+	real Pi = 0.;
+<? end ?>
 
 	<?=code?>
 	
@@ -240,6 +263,13 @@ kernel void initState(
 	U->S_ll = sym3_zero;
 	U->H = 0.;
 	U->M_u = real3_zero;
+
+<? if eqn.useScalarField then ?>
+	U->Phi = Phi;
+	U->Psi_L = Psi_L;	//init with a numeric derivative?
+	U->Pi = Pi;
+<? end ?>
+
 }
 
 //after popularing gammaBar_ll, use its finite-difference derivative to initialize LambdaBar_u
@@ -366,7 +396,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 
 	--'U tr_DBar2_phi',
 	--'U DBar_phi_sq',
-	'U ABarSq_LL tr weighted gammaBar^IJ',
+--	'U ABarSq_LL tr weighted gammaBar^IJ',
 
 --[[ should be zero for Minkowski
 	'U RBar_LL xx',
@@ -375,6 +405,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U RBar_LL yy',
 	'U RBar_LL yz',
 	'U RBar_LL zz',
+	'U RBar_LL tr weighted gammaBar^IJ',
 --]]
 --[[ should be zero for Minkowski
 	'U gammaBar_UU xx',
@@ -417,6 +448,13 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U trBar_partial2_gammaBar_ll yz',
 	'U trBar_partial2_gammaBar_ll zz',
 --]]
+-- [=[ scalar wave variables	
+	'U Phi',
+	'U Psi_L x',
+	'U Psi_L y',
+	'U Psi_L z',
+	'U Pi',
+--]=]
 }
 
 function BSSNOKFiniteDifferenceEquation:getDisplayVars()	

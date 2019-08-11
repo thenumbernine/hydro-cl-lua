@@ -15,6 +15,12 @@ local useCalcDeriv_epsilon_LL = true
 local useCalcDeriv_ABar_LL = true
 local useCalcDeriv_LambdaBar_U = true
 local useCalcDeriv_beta_U = true
+-- useScalarField components:
+local useCalcDeriv_Phi = true
+local useCalcDeriv_Psi = true
+local useCalcDeriv_Pi = true
+-- scalar field source terms?
+local coupleTandPhi = false
 
 -- constrains det gammaBar_ij = det gammaHat_ij, ABar^i_i = 0, and calculates H and M^i ... if the associated flags are set
 local useConstrainU = true
@@ -25,6 +31,7 @@ local useAddSource = true
 
 #define real3_add3(a,b,c)	real3_add(real3_add(a,b),c)
 #define real3_add4(a,b,c,d)	real3_add(real3_add(a,b),real3_add(c,d))
+#define real3_add5(a,b,c,d,e)	real3_add(real3_add(real3_add(a,b),real3_add(c,d)),e)
 
 #define real3_add9(a,b,c,d,e,f,g,h,i) \
 	real3_add( \
@@ -298,7 +305,9 @@ end
 /*
 derivative index is last
 e_i^I (T^M e^i_M)_,j e^j_J
-= (T^I_,j - T^I f_I,j / f_I) f_j delta^j_J
+= e_i^I (T^M_,j e^i_M + T^M e^i_M_,j) e^j_J
+= (T^I_,j + T^I f_i f^i_,j) f^j delta^j_J
+= (T^I_,j - T^I f_I,j / f_I) / f_j delta^j_J
 */
 real3x3 real3x3_partial_rescaleFromCoord_Ul(real3 T_U, const real3 partial_T_Ul[3], real3 x) {
 	real3x3 partial_T_UL;
@@ -306,11 +315,31 @@ real3x3 real3x3_partial_rescaleFromCoord_Ul(real3 T_U, const real3 partial_T_Ul[
 	for j,xj in ipairs(xNames) do
 ?>	partial_T_UL.<?=xi?>.<?=xj?> = (0.
 		+ partial_T_Ul[<?=j-1?>].<?=xi?>
-		- T_U.<?=xi?> * calc_partial_len_<?=xi..xj?>(x)  / calc_len_<?=xi?>(x) 
+		- T_U.<?=xi?> * calc_partial_len_<?=xi..xj?>(x) / calc_len_<?=xi?>(x) 
 	) / calc_len_<?=xj?>(x);
 <?	end
 end ?>
 	return partial_T_UL;
+}
+
+/*
+derivative index is last
+e^i_I (T_M e_i^M)_,j e^j_J
+= e^i_I (T_M,j e_i^M + T_M e_i^M_,j) e^j_J
+= (T_I,j + T_I f^i f_i,j) e^j_J
+= (T_I,j + T_I f_i,j / f_i) / f_j delta^j_J
+*/
+real3x3 real3x3_partial_rescaleFromCoord_Ll(real3 T_L, const real3 partial_T_Ll[3], real3 x) {
+	real3x3 partial_T_LL;
+<? for i,xi in ipairs(xNames) do
+	for j,xj in ipairs(xNames) do
+?>	partial_T_LL.<?=xi?>.<?=xj?> = (0.
+		+ partial_T_Ll[<?=j-1?>].<?=xi?>
+		+ T_L.<?=xi?> * calc_partial_len_<?=xi..xj?>(x) / calc_len_<?=xi?>(x) 
+	) / calc_len_<?=xj?>(x);
+<?	end
+end ?>
+	return partial_T_LL;
 }
 
 //calc_partial_connHat_Ulll_ijkl := e_i^I connHat^i_jk,l
@@ -861,16 +890,15 @@ end
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
 ?>	RBar_LL.<?=xij?> = 0.
-			- .5 * trBar_DHat2_gammaBar_ll.<?=xij?>
-				/ (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x))
+			- .5 * trBar_DHat2_gammaBar_ll.<?=xij?> / (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x))
 <?	for k,xk in ipairs(xNames) do
 ?>			//Less accurate when I defer this
 			+ .5 * gammaBar_LL-><?=sym(i,k)?> * DHat_LambdaBar_UL.<?=xk?>.<?=xj?> 
 			+ .5 * gammaBar_LL-><?=sym(j,k)?> * DHat_LambdaBar_UL.<?=xk?>.<?=xi?>
 			
 			//Less accurate when deferring these calculations
-			+ .5 * Delta_U-><?=xk?> * (
-				Delta_LLL-><?=xi?>.<?=sym(k,j)?> 
+			+ .5 * Delta_U-><?=xk?> * (0.
+				+ Delta_LLL-><?=xi?>.<?=sym(k,j)?> 
 				+ Delta_LLL-><?=xj?>.<?=sym(k,i)?>
 			)
 
@@ -945,15 +973,6 @@ static void calcDeriv_alpha(
 	const global cons_t* Uup,
 	real3 x
 ) {
-<?=eqn:makePartialUpwind'alpha'?>;
-	real3 partial_alpha_L_upwind = real3_rescaleFromCoord_l(partial_alpha_l_upwind, x);
-
-	//Alcubierre 4.2.52 - Bona-Masso family of slicing
-	//Q = f(alpha) K
-	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
-	//alpha,t = -alpha^2 f(alpha) K + alpha,i beta^i
-	deriv->alpha += -calc_f_times_alphaSq(U->alpha) * U->K
-		+ real3_dot(partial_alpha_L_upwind, U->beta_U);
 }
 
 static void calcDeriv_W(
@@ -1237,6 +1256,150 @@ static void calcDeriv_ABar_LL(
 	);
 }
 
+<? if eqn.useScalarField then ?>
+
+static void calcDeriv_Phi(
+	constant solver_t* solver,
+	global cons_t* deriv,
+	const global cons_t* U,
+	const global cons_t* Uup,
+	real3 x
+) {
+<?=eqn:makePartialUpwind'Phi'?>
+	real3 partial_Phi_L_upwind = real3_rescaleFromCoord_l(partial_Phi_l_upwind, x);
+	
+	/*
+	Phi_,t = alpha Pi + beta^i Phi_,i
+	*/
+	deriv->Phi += U->alpha * U->Pi + real3_dot(partial_Phi_L_upwind, U->beta_U);
+}
+
+static void calcDeriv_Psi(
+	constant solver_t* solver,
+	global cons_t* deriv,
+	const global cons_t* U,
+	const global cons_t* Uup,
+	real3 x,
+	const real3* partial_alpha_L,
+	const real3x3* partial_beta_UL
+) {
+<?=eqn:makePartialUpwind'Psi_L'?>
+	real3x3 partial_Psi_LL_upwind = real3x3_partial_rescaleFromCoord_Ll(U->Psi_L, partial_Psi_Ll_upwind, x);
+
+<?=eqn:makePartial1'Pi'?>
+	real3 partial_Pi_L = real3_rescaleFromCoord_l(partial_Pi_l, x);
+
+	/*
+	Psi_i,t = alpha_,i Pi + alpha Pi_,i + beta^j Psi_i,j + beta^j_,i Phi_,j
+	*/
+	deriv->Psi_L = real3_add5(
+		deriv->Psi_L,
+		real3_real_mul(*partial_alpha_L, U->Pi),
+		real3_real_mul(partial_Pi_L, U->alpha),
+		real3x3_real3_mul(partial_Psi_LL_upwind, U->beta_U),
+		real3_real3x3_mul(U->Psi_L, *partial_beta_UL));
+}
+
+static void calcDeriv_Pi(
+	constant solver_t* solver,
+	global cons_t* deriv,
+	const global cons_t* U,
+	const global cons_t* Uup,
+	real3 x,
+	real dt_alpha,
+	const real3* dt_beta_U,
+	const real3* partial_alpha_L,
+	const real3x3* partial_beta_UL,
+	const sym3* gammaBar_uu,
+	const _3sym3* connHat_ULL,
+	const real3* Delta_U,
+	const real3* partial_phi_l
+) {
+<?=eqn:makePartial1'Psi_L'?>
+	real3x3 partial_Psi_LL = real3x3_partial_rescaleFromCoord_Ll(U->Psi_L, partial_Psi_Ll, x);
+	
+	real exp_neg4phi = calc_exp_neg4phi(U);
+	sym3 gamma_uu = sym3_real_mul(*gammaBar_uu, exp_neg4phi);
+	sym3 gamma_UU = sym3_rescaleFromCoord_uu(gamma_uu, x);
+
+	/*
+	4conn^t = -1/alpha^3 (alpha_,t - beta^m alpha_,m + alpha^2 K)
+	*/
+	real _4conn_t = (
+		(dt_alpha - real3_dot(U->beta_U, *partial_alpha_L)) / (U->alpha * U->alpha)
+		+ U->K) / U->alpha;
+	
+	_3sym3 connHat_ull = _3sym3_rescaleToCoord_ULL(*connHat_ULL, x);
+
+	/*
+	Delta^i_jk = connBar^i_jk - connHat^i_jk
+	Delta^i = Delta^i_jk gammaBar^jk = connBar^i - connHat^i_jk gammaBar^jk
+	connBar^i = Delta^i + connHat^i_jk gammaBar^jk
+	*/
+	real3 connHat_u = _3sym3_sym3_dot23(connHat_ull, *gammaBar_uu);
+	real3 connHat_U = real3_rescaleFromCoord_u(connHat_u, x); 
+	real3 connBar_U = real3_add(*Delta_U, connHat_U);
+
+	/*
+	2008 Alcubierre eqn 2.8.15
+	conn^i = exp(-4 phi) (connBar^i - 2 gammaBar^ij phi_,j)
+	= exp(-4 phi) connBar^i - 2 gamma^ij phi_,j
+	*/
+	real3 conn_u = real3_sub(
+		real3_real_mul(connBar_U, exp_neg4phi),
+		real3_real_mul(sym3_real3_mul(gamma_uu, *partial_phi_l), 2.));
+	real3 conn_U = real3_rescaleFromCoord_u(conn_u, x); 
+	
+	real3 partial_alpha_U = sym3_real3_mul(gamma_UU, *partial_alpha_L);
+
+	/*
+	4conn^i = 3conn^i 
+		+ 1/alpha^3 beta^i (alpha_,t - beta^m alpha_,m + alpha^2 K) 
+		- 1/alpha^2 (beta^i_,t - beta^m beta^i_,m + alpha alpha_,j gamma^ij)
+	*/
+	real3 _4conn_i_U = real3_add5(
+		conn_U,
+		real3_real_mul(U->beta_U, ((dt_alpha - real3_dot(U->beta_U, *partial_alpha_L)) / (U->alpha * U->alpha) + U->K) / U->alpha),
+		real3_real_mul(*dt_beta_U, -1. / (U->alpha * U->alpha)),
+		real3_real_mul(real3x3_real3_mul(*partial_beta_UL, U->beta_U), 1. / (U->alpha * U->alpha)),
+		real3_real_mul(partial_alpha_U, -1. / U->alpha)
+	);
+
+	/*
+	Pi_,t = 
+		- alpha_,t Pi / alpha^2
+		+ alpha_,i beta^i Pi / alpha
+		- conn^t Pi alpha^2
+		- beta^i_,t Psi_i / alpha
+		+ Psi_j beta^j_,i beta^i / alpha
+		- alpha conn^i Psi_i
+		- alpha conn^t beta^i Psi_i
+		+ alpha gamma^ij Psi_i,j
+		- alpha (mu^2 + lambda Phi^2) Phi
+	*/
+	deriv->Pi += 
+		+ (
+			+ real3_dot(U->beta_U, *partial_alpha_L) * U->Pi
+			- real3_dot(*dt_beta_U, U->Psi_L)
+			+ real3_dot(U->Psi_L, real3x3_real3_mul(*partial_beta_UL, U->beta_U))
+			- dt_alpha * U->Pi / U->alpha
+		) / U->alpha
+
+		+ (
+			- real3_dot(_4conn_i_U, U->Psi_L)
+			- real3_dot(U->Psi_L, U->beta_U) * _4conn_t
+			+ real3x3_sym3_dot(partial_Psi_LL, gamma_UU)
+		
+			// dV/d|Phi|^2
+			- (solver->scalar_mu * solver->scalar_mu + solver->scalar_lambda * U->Phi * U->Phi) * U->Phi
+			
+			- U->alpha * _4conn_t * U->Pi
+		) * U->alpha;
+}
+
+<? end 	-- eqn.useScalarField ?>
+
+
 //TODO if we're calculating the constrains in the derivative
 // then we do save calculations / memory on the equations
 // but we also, for >FE integrators (which require multiple steps) are duplicating calculations
@@ -1261,12 +1424,21 @@ kernel void calcDeriv(
 	}
 
 <? if useCalcDeriv_alpha then ?>
-	calcDeriv_alpha(
-		solver,
-		deriv,
-		U,
-		Uup,
-		x);
+
+	real dt_alpha;
+	{
+<?=eqn:makePartialUpwind'alpha'?>;
+		real3 partial_alpha_L_upwind = real3_rescaleFromCoord_l(partial_alpha_l_upwind, x);
+
+		//Alcubierre 4.2.52 - Bona-Masso family of slicing
+		//Q = f(alpha) K
+		//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
+		//alpha,t = -alpha^2 f(alpha) K + alpha,i beta^i
+		dt_alpha = -calc_f_times_alphaSq(U->alpha) * U->K
+			+ real3_dot(partial_alpha_L_upwind, U->beta_U);
+	}
+	
+	deriv->alpha += dt_alpha;
 <? end	-- useCalcDeriv_alpha ?>
 
 	//////////////////////////////// W_,t //////////////////////////////// 
@@ -1650,18 +1822,16 @@ end
 	//////////////////////////////// beta^i_,t and B^i_,t //////////////////////////////// 
 
 
-<? if useCalcDeriv_beta_U then ?>
-
 <? if eqn.useShift == 'GammaDriver' then ?>
 	//Gamma-driver
 	//B&S 4.82
 	//beta^i_,t = k LambdaBar^i_,t + eta LambdaBar^i
 	const real k = 3. / 4.;
 	const real eta = 1.;	//1.;	// 1 / (2 M), for total mass M
-	deriv->beta_U = real3_add3(
-		deriv->beta_U,
+	real3 dt_beta_U = real3_add(
 		real3_real_mul(dt_LambdaBar_U, k),
 		real3_real_mul(U->LambdaBar_U, eta));
+	
 <? elseif eqn.useShift == 'HyperbolicGammaDriver' then ?>
 	
 <?=eqn:makePartialUpwind'beta_U'?>
@@ -1682,12 +1852,7 @@ end
 		+ B^i_,j beta^j 
 		- B^j beta^i_,j
 	*/
-	deriv->beta_U = real3_add3(
-		deriv->beta_U,
-		U->B_U,
-		partial_beta_times_beta_upwind
-	);
-
+	real3 dt_beta_U = real3_add(U->B_U, partial_beta_times_beta_upwind);
 
 	//partial_B_ul[i] := B^i_,t
 <?=eqn:makePartialUpwind'B_U'?>
@@ -1706,7 +1871,37 @@ end
 	);
 
 <? end	-- eqn.useShift ?>
+
+<? if useCalcDeriv_beta_U then ?>
+	deriv->beta_U = real3_add(deriv->beta_U, dt_beta_U);
 <? end	-- useCalcDeriv_beta_U ?>
+
+<? if eqn.useScalarField then ?>
+
+<? if useCalcDeriv_Phi then ?>
+	calcDeriv_Phi(solver, deriv, U, Uup, x);
+<? end	-- useCalcDeriv_Phi ?>
+<? if useCalcDeriv_Psi then ?>
+	calcDeriv_Psi(solver, deriv, U, Uup, x,
+		&partial_alpha_L,
+		&partial_beta_UL
+	);
+<? end	-- useCalcDeriv_Psi ?>
+<? if useCalcDeriv_Pi then ?>
+	calcDeriv_Pi(solver, deriv, U, Uup, x,
+		dt_alpha,
+		&dt_beta_U,
+		&partial_alpha_L,
+		&partial_beta_UL,
+		&gammaBar_uu,
+		&connHat_ULL,
+		&Delta_U,
+		&partial_phi_l
+	);
+<? end	-- useCalcDeriv_Pi ?>
+
+<? end	--eqn.useScalarField ?>
+
 <? end 	-- useCalcDeriv ?>
 }
 
@@ -1774,6 +1969,13 @@ then
 	//makes the spinning black hole simulations look ugly
 	U->alpha = max(U->alpha, solver->alphaMin);
 
+	
+	//update T_ab values
+<? if eqn.useScalarField and coupleTandPhi then ?>
+
+<? end -- useScalarField and coupleTandPhi ?>
+
+	// update H and M values
 <? if eqn.guiVars.calc_H_and_M and eqn.guiVars.calc_H_and_M.value then ?>
 
 <?=eqn:makePartial1'W'?>				//partial_W_l[i] := phi_,i 

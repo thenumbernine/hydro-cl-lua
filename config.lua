@@ -1,3 +1,8 @@
+--[[
+TODO one config per experiment (initial condition + config)
+and no more setting config values (boundary, etc) in the init cond file
+--]]
+
 local dim = cmdline.dim or 2
 local args = {
 	app = self, 
@@ -686,16 +691,19 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	eqn = 'bssnok-fd-num', 
 	--eqn = 'bssnok-fd-sym', 
 	
-	--eqnArgs = {useShift = 'none'},
+	eqnArgs = {
+		--useShift = 'none',
+		useScalarField = true,	-- needed for the scalar field init cond below
+	},
 	dim = dim,
 	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
 	--integrator = 'backward Euler',
 	--integratorArgs = {verbose=true},
 	cfl = .4/dim,
 	
-	-- [[
-	--coord = 'sphere',
-	coord = 'sphere-log-radial',
+	--[[
+	coord = 'sphere',
+	--coord = 'sphere-log-radial',
 	mins = {0, 0, -math.pi},
 	maxs = {16, math.pi, math.pi},
 	gridSize = ({
@@ -712,7 +720,7 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 		zmax='periodic',
 	},
 	--]]
-	--[[
+	-- [[
 	coord = 'cartesian',
 	mins = {-4,-4,-4},
 	maxs = {4,4,4},
@@ -733,9 +741,14 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	--]]
 	
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
-	initState = 'Minkowski',	-- TODO 2D
+	--initState = 'Minkowski',	-- TODO sphere-log-radial 
+	
+	-- works in spherical
+	-- TODO get the exact solution from 1982 Teukolsky
+	--initState = 'pure gauge wave',
+	initState = 'scalar field',
+	
 	--initState = 'gaussian perturbation',	-- TODO restore this to the 2008 Alcubeirre and 1998 Alcubierre gauge wave examples
-	--initState = 'pure gauge wave',	-- TODO get this working in spherical, and get the exact solution from 1982 Teukolsky
 	
 	--[[
 	--initState = 'black hole - boosted Schwarzschild',

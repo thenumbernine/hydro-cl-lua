@@ -44,7 +44,10 @@ function Cylinder:init(args)
 	self.chart = function() return Tensor('^I', r * cos(theta), r * sin(theta), z) end
 	
 	Cylinder.super.init(self, args)
+	
+	self.rDef = (r^2 + z^2)^.5
 end
+
 
 function Cylinder:getCoordMapInvGLSLCode()
 	local template = require 'template'	
