@@ -60,9 +60,9 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 
 	if self.useScalarField then
 		intVars:append{
-			{name='Phi', type='real'},
-			{name='Psi_L', type='real3'},		-- Psi_i = Phi_,i
-			{name='Pi', type='real'},			-- Pi = n^a Phi_,a
+			{name='Phi', type='cplx'},
+			{name='Psi_L', type='cplx3'},		-- Psi_i = Phi_,i
+			{name='Pi', type='cplx'},			-- Pi = n^a Phi_,a
 		}
 	end
 
@@ -150,12 +150,22 @@ function BSSNOKFiniteDifferenceEquation:makePartialUpwind(field, fieldType, name
 	local lines = table()
 	if fieldType == 'real' then
 		lines:insert('\treal3 '..name..';')
+	elseif fieldType == 'cplx' then
+		lines:insert('\tcplx3 '..name..';')
+	elseif fieldType == 'real3' then
+		lines:insert('\treal3x3 '..name..';')
+	elseif fieldType == 'cplx3' then
+		lines:insert('\tcplx3x3 '..name..';')
 	else
 		lines:insert('\t'..fieldType..' '..name..'[3];')
 	end
 	for i,xi in ipairs(xNames) do
 		local namei
-		if fieldType == 'real' then
+		if fieldType == 'real' 
+		or fieldType == 'cplx'
+		or fieldType == 'real3'
+		or fieldType == 'cplx3'
+		then
 			namei = name..'.'..xi
 		else
 			namei = name..'['..(i-1)..']'
@@ -217,9 +227,9 @@ kernel void initState(
 	real rho = 0.;
 
 <? if eqn.useScalarField then ?>	
-	real Phi = 0.;
-	real3 Psi_L = real3_zero;
-	real Pi = 0.;
+	cplx Phi = cplx_zero;
+	cplx3 Psi_L = cplx3_zero;
+	cplx Pi = cplx_zero;
 <? end ?>
 
 	<?=code?>
@@ -449,11 +459,11 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U trBar_partial2_gammaBar_ll zz',
 --]]
 -- [=[ scalar wave variables	
-	'U Phi',
-	'U Psi_L x',
-	'U Psi_L y',
-	'U Psi_L z',
-	'U Pi',
+	'U Phi re',
+	'U Psi_L x re',
+	'U Psi_L y re',
+	'U Psi_L z re',
+	'U Pi re',
 --]=]
 }
 

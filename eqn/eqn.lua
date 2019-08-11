@@ -48,12 +48,22 @@ function Equation:getParityVars(...)
 	local vars = table()
 	for _,var in ipairs(self.consVars) do
 		if var.type == 'real' then
+		elseif var.type == 'cplx' then
 		elseif var.type == 'real3' then
 			for i,xi in ipairs(xNames) do
 				if sign[i] == -1 then
 					vars:insert(var.name..'.'..xi)
 				end
 			end
+		elseif var.type == 'cplx3' then
+			for i,xi in ipairs(xNames) do
+				if sign[i] == -1 then
+					-- should reals be inserted in and - used?
+					-- or should scalars be inserted and <scalar>_neg be used?
+					vars:insert(var.name..'.'..xi..'.re')
+					vars:insert(var.name..'.'..xi..'.im')
+				end
+			end	
 		elseif var.type == 'sym3' then
 			for ij,xij in ipairs(symNames) do
 				local i,j = from6to3x3(ij)

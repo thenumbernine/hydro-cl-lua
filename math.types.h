@@ -1,30 +1,16 @@
 typedef <?=app.realparam?> realparam;
 
 <? 
-local function makecplx(name, real) 
+local function makevec3(name, scalar)
 ?>
 typedef union {
-	<?=real?> s[2];
-	struct { <?=real?> s0, s1; };
-	struct { <?=real?> re, im; };
-} <?=name?>;
-<? 
-end 
-makecplx('cplx', 'real')
-?> 
-
-<? 
-local function makevec3(name, real) 
-?>
-typedef union {
-	<?=real?> s[3];
-	struct { <?=real?> s0, s1, s2; };
-	struct { <?=real?> x, y, z; };
+	<?=scalar?> s[3];
+	struct { <?=scalar?> s0, s1, s2; };
+	struct { <?=scalar?> x, y, z; };
 } <?=name?>;
 <? 
 end 
 makevec3('real3', 'real')
-makevec3('cplx3', 'cplx')
 ?> 
 
 typedef union {
@@ -48,16 +34,25 @@ typedef union {
 } _3sym3;
 
 //row vectors, so a.i.j = a_ij
+<?
+local function make3x3(scalar)
+	local vec3 = scalar..'3'
+	local name = scalar..'3x3'
+?>
 typedef union {
-	real s[9];
-	real3 v[3];
+	<?=scalar?> s[9];
+	<?=vec3?> v[3];
 	struct {
-		real3 v0,v1,v2;
+		<?=vec3?> v0,v1,v2;
 	};
 	struct {
-		real3 x,y,z;
+		<?=vec3?> x,y,z;
 	};
-} real3x3;
+} <?=name?>;
+<?
+end
+make3x3'real'	-- real3x3
+?>
 
 typedef union {
 	real s[27];
@@ -80,3 +75,22 @@ typedef union {
 		sym3 xx, xy, xz, yy, yz, zz;
 	};
 } sym3sym3;
+
+
+// cplx
+
+<? 
+local function makecplx(name, real) 
+?>
+typedef union {
+	<?=real?> s[2];
+	struct { <?=real?> s0, s1; };
+	struct { <?=real?> re, im; };
+} <?=name?>;
+<? 
+end 
+makecplx('cplx', 'real')
+makevec3('cplx3', 'cplx')
+make3x3'cplx'
+?>
+

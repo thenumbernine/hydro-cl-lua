@@ -364,13 +364,13 @@ return table{
 			end
 
 		return template([[
-	Phi = <?=compile(Phi)?>;
-	real3 Psi_l = _real3(
+	Phi = cplx_from_real(<?=compile(Phi)?>);
+	real3 re_Psi_l = _real3(
 		<?=compile(Psi[1])?>,
 		<?=compile(Psi[2])?>,
 		<?=compile(Psi[3])?>);
-	Psi_L = real3_rescaleFromCoord_l(Psi_l, x);
-	Phi = <?=compile(Phi)?>;
+	Psi_L = cplx3_from_real3(real3_rescaleFromCoord_l(re_Psi_l, x));
+	Phi = cplx_from_real(<?=compile(Phi)?>);
 ]], 	{
 			Phi = Phi,
 			Psi = Psi,

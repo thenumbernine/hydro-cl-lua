@@ -1,3 +1,15 @@
+### About:
+
+HydroJS is a GPU-driven collection of computational fluid schemes, integrators, and equations all housed under one framework.
+It uses LuaJIT as the scripting due to the performance and memory advantages that Lua and LuaJIT have over other comparable languages (Python, JavaScript, etc).
+It uses OpenCL for the GPU code.
+
+HydroJS has been maintained and developed by me, Christopher Moore.
+From its creation 2016 Sep 30 until 2019 May 15 it was produced in my free time.
+From 2019 May 15 onward its work is being funded by the Chinese University of Hong Kong.
+
+### Project History:
+
 HydroJS was the first
 then Hydro, a C++/multithread version of HydroJS
 then HydroGPU, a OpenCL version of Hydro
@@ -6,7 +18,7 @@ then the Lua got out of hand until the C++ was doing nothing but managing string
 now this project, lua-hydro-cl, pushes the middleman (C++) out completely
 
 
-Features:
+### Features:
 - script-generated OpenCL GPGPU code regenerated on the fly as soon as you change GUI options
 - automatic tensor index representation of equations / symbolic differentiation (via symmath project)
 - 1D, 2D, 3D simulations and visualizations
@@ -30,7 +42,7 @@ Features:
 - nonlinear Schrodinger equation from Colliander, Simpso, Sulem "Numerical Simulations of the Energy-Supercritical nonlinear Schrodinger equation" 2010 
 - Modular system.  Integrators go in the 'int' folder.  Schemes go in the 'solver' folder.  Equations go in the 'eqn' folder.  The idea is that you can mix and match as you choose, provided the functionality matches up.
 
-Example Videos:
+### Example Videos:
 
 [![Rotating Black Hole / Ergosphere Formation](http://img.youtube.com/vi/i2rCutSayXE/0.jpg)](https://www.youtube.com/watch?v=i2rCutSayXE)
 
@@ -41,7 +53,7 @@ Example Videos:
 [![3D Alcubierre warp bubble](http://img.youtube.com/vi/tfMLMxdRid8/0.jpg)](https://www.youtube.com/watch?v=tfMLMxdRid8)
 
 
-TODO:
+### TODO:
 - ADM3D with shift as a hyperbolic conservation law system
 - ADM3D (and BSSNOK, and any other GR solver) for minimal-distortion elliptical shift solved as a Poisson equation -- which doesn't require extra time-iterating variables. 
 - GR horizon tracking / moving puncture

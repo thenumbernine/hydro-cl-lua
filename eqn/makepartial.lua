@@ -60,12 +60,22 @@ local function makePartialRank1(deriv, order, solver, field, fieldType, nameOver
 	local lines = table()
 	if fieldType == 'real' then
 		lines:insert('\treal3 '..name..';')
+	elseif fieldType == 'cplx' then
+		lines:insert('\tcplx3 '..name..';')
+	elseif fieldType == 'real3' then
+		lines:insert('\treal3x3 '..name..';')
+	elseif fieldType == 'cplx3' then
+		lines:insert('\tcplx3x3 '..name..';')
 	else
 		lines:insert('\t'..fieldType..' '..name..'[3];')
 	end
 	for i,xi in ipairs(xNames) do
 		local namei
-		if fieldType == 'real' then
+		if fieldType == 'real' 
+		or fieldType == 'cplx'
+		or fieldType == 'real3'
+		or fieldType == 'cplx3'
+		then
 			namei = name..'.'..xi
 		else
 			namei = name..'['..(i-1)..']'

@@ -49,27 +49,6 @@ my current convention is this:
 
 #define real_sqrt			sqrt
 
-#define _cplx(a,b) 			(cplx){.s={a,b}}
-#define cplx_from_real(x)	_cplx(x,0)
-#define cplx_from_cplx(x)	(x)
-#define cplx_zero 			cplx_from_real(0)
-
-
-cplx cplx_conj(cplx a);
-cplx cplx_neg(cplx a);
-real cplx_lenSq(cplx a);
-real cplx_abs(cplx a);
-real cplx_arg(cplx a);
-cplx cplx_add(cplx a, cplx b);
-cplx cplx_sub(cplx a, cplx b);
-cplx cplx_mul(cplx a, cplx b);
-cplx cplx_real_mul(cplx a, real b);
-cplx cplx_inv(cplx a);
-cplx cplx_div(cplx a, cplx b);
-cplx cplx_exp(cplx a);
-cplx cplx_log(cplx a);
-cplx cplx_pow(cplx a, cplx b);
-cplx cplx_sqrt(cplx a);
 real4 quatUnitConj(real4 q);
 real4 quatMul(real4 q, real4 r);
 
@@ -78,12 +57,16 @@ function makevec3(vec, scalar)
 	local add = scalar..'_add'
 	local mul = scalar..'_mul'
 ?>
+
+<? -- TODO move this to makescalar ?>
 #define <?=scalar?>_add3(a,b,c)		(<?=add?>(<?=add?>(a,b),c))
 #define <?=scalar?>_mul3(a,b,c)		(<?=mul?>(<?=mul?>(a,b),c))
+
 #define _<?=vec?>(a,b,c) 			(<?=vec?>){.s={a,b,c}}
 #define <?=vec?>_zero				_<?=vec?>(<?=scalar?>_zero,<?=scalar?>_zero,<?=scalar?>_zero)
 
-<?=scalar?> <?=vec?>_dot(<?=vec?> a, <?=vec?> b);
+<?=scalar?> <?=vec?>_<?=vec?>_dot(<?=vec?> a, <?=vec?> b);
+#define <?=vec?>_<?=vec?>_dot	<?=vec?>_dot
 <?=vec?> <?=vec?>_<?=scalar?>_mul(<?=vec?> a, <?=scalar?> s);
 <?=vec?> <?=scalar?>_<?=vec?>_mul(<?=scalar?> a, <?=vec?> b);
 <? if scalar ~= 'real' then ?>
@@ -95,10 +78,11 @@ function makevec3(vec, scalar)
 <?=vec?> <?=vec?>_cross(<?=vec?> a, <?=vec?> b);
 <?=vec?> <?=vec?>_neg(<?=vec?> a);
 
+#define <?=vec?>_add3(a,b,c)	<?=vec?>_add(<?=vec?>_add(a,b),c)
+
 <?
 end
 makevec3('real3', 'real')
-makevec3('cplx3', 'cplx')
 ?>
 
 #define real3_from_real3(x)	x
@@ -118,15 +102,6 @@ real3 real3_rotTo1(real3 v);
 real3 real3_rotTo2(real3 v);
 real3 real3_rotateFrom(real3 v, real3 n);
 real3 real3_rotateTo(real3 v, real3 n);
-
-#define real3_from_cplx3		cplx3_re
-
-cplx3 cplx3_from_real3(real3 re);
-cplx3 cplx3_from_real3_real3(real3 re, real3 im);
-real3 cplx3_re(cplx3 v);
-real3 cplx3_im(cplx3 v);
-real cplx3_lenSq(cplx3 v);
-real cplx3_len(cplx3 v);
 
 #define _sym3(a,b,c,d,e,f) (sym3){.s={a,b,c,d,e,f}}
 #define sym3_zero	_sym3(0,0,0,0,0,0)
@@ -190,6 +165,54 @@ real3x3 _3sym3_real3x3x3_dot12_23(_3sym3 a, real3x3x3 b);
 sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b);
 
 sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b);
+
+
+
+#define _cplx(a,b) 			(cplx){.s={a,b}}
+#define cplx_from_real(x)	_cplx(x,0)
+#define cplx_from_cplx(x)	(x)
+#define cplx_zero 			cplx_from_real(0)
+
+
+cplx cplx_conj(cplx a);
+cplx cplx_neg(cplx a);
+real cplx_lenSq(cplx a);
+real cplx_abs(cplx a);
+real cplx_arg(cplx a);
+cplx cplx_add(cplx a, cplx b);
+cplx cplx_sub(cplx a, cplx b);
+cplx cplx_mul(cplx a, cplx b);
+cplx cplx_real_mul(cplx a, real b);
+#define real_cplx_mul(a,b)	cplx_real_mul(b,a)
+cplx cplx_inv(cplx a);
+cplx cplx_div(cplx a, cplx b);
+cplx cplx_exp(cplx a);
+cplx cplx_log(cplx a);
+cplx cplx_pow(cplx a, cplx b);
+cplx cplx_sqrt(cplx a);
+
+<?
+makevec3('cplx3', 'cplx')
+?>
+
+#define real3_from_cplx3		cplx3_re
+
+cplx3 cplx3_from_real3(real3 re);
+cplx3 cplx3_from_real3_real3(real3 re, real3 im);
+real3 cplx3_re(cplx3 v);
+real3 cplx3_im(cplx3 v);
+real cplx3_lenSq(cplx3 v);
+real cplx3_len(cplx3 v);
+cplx3 real3_cplx_mul(real3 a, cplx b);
+cplx cplx3_real3_dot(cplx3 a, real3 b);
+#define real3_cplx3_dot(a,b) cplx3_real3_dot(b,a)
+
+cplx3x3 cplx3x3_from_real3x3_real3x3(real3x3 re, real3x3 im);
+cplx3 cplx3x3_real3_mul(cplx3x3 a, real3 b);
+cplx3 cplx3_real3x3_mul(cplx3 a, real3x3 b);
+real3x3 cplx3x3_re(cplx3x3 v);
+real3x3 cplx3x3_im(cplx3x3 v);
+
 
 real3 normalForSide0();
 real3 normalForSide1();

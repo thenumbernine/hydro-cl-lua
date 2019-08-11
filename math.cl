@@ -10,56 +10,6 @@ local sym = common.sym
 local from6to3x3 = common.from6to3x3
 ?>
 
-////////////////////////// cplx //////////////////////////
-
-cplx cplx_conj(cplx a) { return _cplx(a.re, -a.im); }
-cplx cplx_neg(cplx a) { return _cplx(-a.re, -a.im); }
-real cplx_lenSq(cplx a) { return a.re * a.re + a.im * a.im; }
-real cplx_abs(cplx a) { return sqrt(cplx_lenSq(a)); }
-real cplx_arg(cplx a) { return atan2(a.im, a.re); }
-
-cplx cplx_add(cplx a, cplx b) {
-	return _cplx(
-		a.re + b.re,
-		a.im + b.im
-	);
-}
-
-cplx cplx_sub(cplx a, cplx b) {
-	return _cplx(
-		a.re - b.re,
-		a.im - b.im
-	);
-}
-
-cplx cplx_mul(cplx a, cplx b) {
-	return _cplx(
-		a.re * b.re - a.im * b.im,
-		a.re * b.im + a.im * b.re);
-}
-
-cplx cplx_real_mul(cplx a, real b) { return _cplx(a.re * b, a.im * b); }
-cplx cplx_inv(cplx a) { return cplx_real_mul(cplx_conj(a), 1. / cplx_lenSq(a)); }
-cplx cplx_div(cplx a, cplx b) { return cplx_mul(a, cplx_inv(b)); }
-
-cplx cplx_exp(cplx a) {
-	real expre = exp(a.re);
-	return _cplx(
-		expre * cos(a.im),
-		expre * sin(a.im)
-	);
-}
-
-cplx cplx_log(cplx a) {
-	return _cplx(
-		log(cplx_abs(a)),
-		cplx_arg(a)
-	);
-}
-
-cplx cplx_pow(cplx a, cplx b) { return cplx_exp(cplx_mul(b, cplx_log(a))); }
-cplx cplx_sqrt(cplx a) { return cplx_pow(a, cplx_from_real(.5)); }
-
 ////////////////////////// quat //////////////////////////
 
 //assumes q is unit
@@ -85,7 +35,7 @@ real4 quatMul(real4 q, real4 r) {
 		 b + .5 * (-e - f + g + h)); //w
 }
 
-////////////////////////// real3, cplx3 //////////////////////////
+////////////////////////// real3 //////////////////////////
 
 <?
 function makevec3(vec,scalar)
@@ -99,7 +49,7 @@ function makevec3(vec,scalar)
 	local mul3 = scalar..'_mul3'
 ?>
 
-<?=scalar?> <?=vec?>_dot(<?=vec?> a, <?=vec?> b) {
+<?=scalar?> <?=vec?>_<?=vec?>_dot(<?=vec?> a, <?=vec?> b) {
 	return <?=add3?>(
 		<?=mul?>(a.x, <?=conj?>(b.x)), 
 		<?=mul?>(a.y, <?=conj?>(b.y)),
@@ -165,7 +115,6 @@ function makevec3(vec,scalar)
 <?
 end
 makevec3('real3', 'real')
-makevec3('cplx3', 'cplx')
 ?>
 
 ////////////////////////// real3 //////////////////////////
@@ -257,35 +206,6 @@ real3 real3_rotateTo(real3 v, real3 n) {
 	real4 vres = quatMul(quatMul(q, _v), qInv);
 	return _real3(vres.x, vres.y, vres.z);
 #endif
-}
-
-////////////////////////// cplx3 //////////////////////////
-
-cplx3 cplx3_from_real3(real3 re) {
-	return (cplx3){
-		.x = cplx_from_real(re.x),
-		.y = cplx_from_real(re.y),
-		.z = cplx_from_real(re.z),
-	};
-}
-
-cplx3 cplx3_from_real3_real3(real3 re, real3 im) {
-	return (cplx3){
-		.x = {.re = re.x, .im = im.x},
-		.y = {.re = re.y, .im = im.y},
-		.z = {.re = re.z, .im = im.z},
-	};
-}
-
-real3 cplx3_re(cplx3 v) { return _real3(v.x.re, v.y.re, v.z.re); }
-real3 cplx3_im(cplx3 v) { return _real3(v.x.im, v.y.im, v.z.im); }
-
-real cplx3_lenSq(cplx3 v) {
-	return real3_lenSq(cplx3_re(v)) + real3_lenSq(cplx3_im(v));
-}
-
-real cplx3_len(cplx3 v) {
-	return sqrt(cplx3_lenSq(v));
 }
 
 ////////////////////////// sym3 //////////////////////////
@@ -567,10 +487,7 @@ real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b) {
 real3 real3x3_real3_mul(real3x3 a, real3 b) {
 	return (real3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
-	for j,xj in ipairs(xNames) do
-?> + a.<?=xi?>.<?=xj?> * b.<?=xj?><?
-	end ?>,
+?>		.<?=xi?> = real3_real3_dot(a.<?=xi?>, b),
 <? end
 ?>	};
 }
@@ -814,6 +731,173 @@ sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b) {
 ?>		.<?=xij?> = sym3_add(a.<?=xij?>, b.<?=xij?>),
 <? end
 ?>	};
+}
+
+////////////////////////// cplx //////////////////////////
+
+cplx cplx_conj(cplx a) { return _cplx(a.re, -a.im); }
+cplx cplx_neg(cplx a) { return _cplx(-a.re, -a.im); }
+real cplx_lenSq(cplx a) { return a.re * a.re + a.im * a.im; }
+real cplx_abs(cplx a) { return sqrt(cplx_lenSq(a)); }
+real cplx_arg(cplx a) { return atan2(a.im, a.re); }
+
+cplx cplx_add(cplx a, cplx b) {
+	return _cplx(
+		a.re + b.re,
+		a.im + b.im
+	);
+}
+
+cplx cplx_sub(cplx a, cplx b) {
+	return _cplx(
+		a.re - b.re,
+		a.im - b.im
+	);
+}
+
+cplx cplx_mul(cplx a, cplx b) {
+	return _cplx(
+		a.re * b.re - a.im * b.im,
+		a.re * b.im + a.im * b.re);
+}
+
+cplx cplx_real_mul(cplx a, real b) { 
+	return _cplx(a.re * b, a.im * b); 
+}
+
+cplx cplx_inv(cplx a) { 
+	return cplx_real_mul(cplx_conj(a), 1. / cplx_lenSq(a)); 
+}
+
+cplx cplx_div(cplx a, cplx b) { 
+	return cplx_mul(a, cplx_inv(b)); 
+}
+
+cplx cplx_exp(cplx a) {
+	real expre = exp(a.re);
+	return _cplx(
+		expre * cos(a.im),
+		expre * sin(a.im)
+	);
+}
+
+cplx cplx_log(cplx a) {
+	return _cplx(
+		log(cplx_abs(a)),
+		cplx_arg(a)
+	);
+}
+
+cplx cplx_pow(cplx a, cplx b) { return cplx_exp(cplx_mul(b, cplx_log(a))); }
+cplx cplx_sqrt(cplx a) { return cplx_pow(a, cplx_from_real(.5)); }
+
+////////////////////////// cplx3 //////////////////////////
+
+<?
+makevec3('cplx3', 'cplx')
+?>
+
+cplx3 cplx3_from_real3(real3 re) {
+	return (cplx3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = cplx_from_real(re.<?=xi?>),
+<? end
+?>	};
+}
+
+cplx3 cplx3_from_real3_real3(real3 re, real3 im) {
+	return (cplx3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = _cplx(re.<?=xi?>, im.<?=xi?>),
+<? end
+?>	};
+}
+
+real3 cplx3_re(cplx3 v) { 
+	return _real3(v.x.re, v.y.re, v.z.re); 
+}
+
+real3 cplx3_im(cplx3 v) { 
+	return _real3(v.x.im, v.y.im, v.z.im); 
+}
+
+real cplx3_lenSq(cplx3 v) {
+	return real3_lenSq(cplx3_re(v)) + real3_lenSq(cplx3_im(v));
+}
+
+real cplx3_len(cplx3 v) {
+	return sqrt(cplx3_lenSq(v));
+}
+
+cplx3 real3_cplx_mul(real3 a, cplx b) {
+	return _cplx3(
+		real_cplx_mul(a.x, b),
+		real_cplx_mul(a.y, b),
+		real_cplx_mul(a.z, b));
+}
+
+cplx cplx3_real3_dot(cplx3 a, real3 b) {
+	return cplx_add3(
+		cplx_real_mul(a.x, b.x),
+		cplx_real_mul(a.y, b.y),
+		cplx_real_mul(a.z, b.z));
+}
+
+////////////////////////// cplx3x3 //////////////////////////
+
+cplx3x3 cplx3x3_from_real3x3_real3x3(real3x3 re, real3x3 im) {
+	return (cplx3x3) {
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = cplx3_from_real3_real3(re.<?=xi?>, im.<?=xi?>),
+<? end
+?>	};
+}
+
+real3x3 cplx3x3_re(cplx3x3 v) { 
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = cplx3_re(v.<?=xi?>),
+<? end
+?>	};
+}
+
+real3x3 cplx3x3_im(cplx3x3 v) { 
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = cplx3_im(v.<?=xi?>),
+<? end
+?>	};
+}
+
+cplx3 cplx3x3_real3_mul(cplx3x3 a, real3 b) {
+	return (cplx3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = cplx3_real3_dot(a.<?=xi?>, b),
+<? end
+?>	};
+}
+
+//c_j = a^i * b_ij = b_ji * a^i
+//so this is the same behavior as transpose(A) * b
+cplx3 cplx3_real3x3_mul(cplx3 a, real3x3 b) {
+	return (cplx3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = cplx_add3(
+			cplx_real_mul(a.x, b.x.<?=xi?>),
+			cplx_real_mul(a.y, b.y.<?=xi?>),
+			cplx_real_mul(a.z, b.z.<?=xi?>)),
+<? end
+?>	};
+}
+
+cplx cplx3x3_sym3_dot(cplx3x3 a, sym3 b) {
+	cplx sum = cplx_zero;
+<? for i,xi in ipairs(xNames) do
+	for j,xj in ipairs(xNames) do
+?> 	sum = cplx_add(sum, cplx_real_mul(a.<?=xi?>.<?=xj?>, b.<?=sym(i,j)?>));
+<?	end
+end 
+?>	return sum;
 }
 
 ////////////////////////// extra //////////////////////////
