@@ -688,12 +688,12 @@ local dim = 1
 self.solvers:insert(require 'solver.bssnok-fd'{
 	app = self,
 	
-	eqn = 'bssnok-fd-num', 
-	--eqn = 'bssnok-fd-sym', 
+	--eqn = 'bssnok-fd-num', 
+	eqn = 'bssnok-fd-sym', 
 	
 	eqnArgs = {
 		--useShift = 'none',
-		useScalarField = true,	-- needed for the scalar field init cond below
+		--useScalarField = true,	-- needed for the scalar field init cond below
 	},
 	dim = dim,
 	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
@@ -701,7 +701,7 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	--integratorArgs = {verbose=true},
 	cfl = .4/dim,
 	
-	--[[
+	-- [[
 	coord = 'sphere',
 	--coord = 'sphere-log-radial',
 	mins = {0, 0, -math.pi},
@@ -720,7 +720,7 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 		zmax='periodic',
 	},
 	--]]
-	-- [[
+	--[[
 	coord = 'cartesian',
 	mins = {-4,-4,-4},
 	maxs = {4,4,4},
@@ -741,12 +741,12 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	--]]
 	
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
-	--initState = 'Minkowski',	-- TODO sphere-log-radial 
+	initState = 'Minkowski',	-- TODO sphere-log-radial 
 	
 	-- works in spherical
 	-- TODO get the exact solution from 1982 Teukolsky
 	--initState = 'pure gauge wave',
-	initState = 'scalar field',
+	--initState = 'scalar field',
 	
 	--initState = 'gaussian perturbation',	-- TODO restore this to the 2008 Alcubeirre and 1998 Alcubierre gauge wave examples
 	

@@ -15,13 +15,13 @@ local file = require 'ext.file'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
-local EinsteinEqn = require 'eqn.einstein'
+local BSSNOKFiniteDifferenceEquationBase = require 'eqn.bssnok-fd'
 local makestruct = require 'eqn.makestruct'
 local common = require 'common'
 local time, getTime = table.unpack(require 'util.time')
 local makePartials = require 'eqn.makepartial'
 
-local BSSNOKFiniteDifferenceEquation = class(EinsteinEqn)
+local BSSNOKFiniteDifferenceEquation = class(BSSNOKFiniteDifferenceEquationBase)
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
 BSSNOKFiniteDifferenceEquation.hasEigenCode = true
 BSSNOKFiniteDifferenceEquation.hasCalcDTCode = true
@@ -112,50 +112,6 @@ function BSSNOKFiniteDifferenceEquation:makePartial2(field, fieldType, nameOverr
 	return makePartials.makePartial2(derivOrder, self.solver, field, fieldType, nameOverride)
 end
 
--- TODO higher orders plz
--- computes the partial between U[stepSize] and U[0]
-function BSSNOKFiniteDifferenceEquation:makePartialUpwind(field, fieldType, nameOverride)
-	local xNames = common.xNames
-	local clnumber = require 'cl.obj.number'
-	fieldType = fieldType or self:fieldTypeForVar(field)
-
-	local suffix = 'l'
-	if not field:find'_' then suffix = '_' .. suffix end
-
-	local function add(x,y) return fieldType..'_add('..x..', '..y..')' end
-	local function sub(x,y) return fieldType..'_sub('..x..', '..y..')' end
-	local function real_mul(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
-	local zero = fieldType..'_zero'
-	local name = nameOverride or ('partial_'..field..suffix..'_upwind')
-	local d1coeffs = {1}	-- TODO more plz 
-	
-	local lines = table()
-	if fieldType == 'real' then
-		lines:insert('\treal3 '..name..';')
-	else
-		lines:insert('\t'..fieldType..' '..name..'[3];')
-	end
-	for i,xi in ipairs(xNames) do
-		local namei
-		if fieldType == 'real' then
-			namei = name..'.'..xi
-		else
-			namei = name..'['..(i-1)..']'
-		end
-		local expr = zero
-		if i <= self.solver.dim then
-			for j,coeff in ipairs(d1coeffs) do
-				local UR = 'Uup['..j..' * solver->stepsize.'..xi..'].'..field
-				local UL = 'Uup['..(j-1)..' * solver->stepsize.'..xi..'].'..field
-				expr = add(expr, real_mul(sub(UR, UL), clnumber(coeff)))
-			end
-			expr = real_mul(expr, '1. / solver->grid_dx.'..xi)
-		end
-		lines:insert('\t'..namei..' = '..expr..';')
-	end
-	return lines:concat'\n'
-end
-
 -- NOTICE you have to use this in the scope of a push/pop of the previous fenv
 -- ... and you have to set this's mt's __index to the old fenv
 function BSSNOKFiniteDifferenceEquation:getEnv()
@@ -170,6 +126,13 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 	... which records all your assignments as you make them?
 	2) recursive export, which tracks what variables are needed and exports them (though this gets tricky when doing lots of replace()'s)
 	3) just manually do it
+	
+	TODO TODO
+	I can't just categorize the cache based on the coordinate system.
+	There are a few parameters of solver and eqn referenced by the env, like useShift, which will also determine the uniqueness of the env.
+	In the end I'll have to make some kind of unique name generation
+	option 1) concat all dependent parameters, like I do in the accuracy test files
+	option 2) generate a MD5 hash.  this is what the computer science folks like to do, because it looks technical and is obfuscating.  That's exactly why I don't want to do it.
 	--]]
 	
 	local symdir = 'eqn/bssnok-fd-sym/'..self.solver.coord.name
@@ -188,6 +151,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 	local envCacheFilename = symdir..'/env.lua'
 -- [=[
 	local envCacheData = file[envCacheFilename]
+	if cmdline.bssnUseCache == false then envCacheData = false end
 	local gotCache
 	if envCacheData then
 		print("found cached equations...")
@@ -233,6 +197,8 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 			if symmath.Expression.is(arg) then
 			-- TODO proper way is to arg:replace() everything
 			-- but that is slow
+				s = s:gsub('trBar_partial2_gammaBar_ll%.(..)', '(\\bar{\\gamma}^{**} \\partial_* \\partial_* \\bar{\\gamma}_{%1})')
+				s = s:gsub('trBar_DHat2_gammaBar_ll%.(..)', '(\\bar{\\gamma}^{**} DHat_* DHat_* \\bar{\\gamma}_{%1})')
 				s = s:gsub('TF_DBar2_alpha_LL%.(.)(.)', '(\\bar{D}_{%1} \\bar{D}_{%2} \\alpha)^{TF}')
 				s = s:gsub('tracelessPart_LL%.(.)(.)', '(traceless)_{\\hat{%1} \\hat{%2}}')
 				s = s:gsub('U%->alpha', '\\alpha')
@@ -240,8 +206,8 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 				s = s:gsub('partial_alpha_l%.(.)', '\\alpha_{,%1}')
 				s = s:gsub('partial2_alpha_ll%.(..)', '\\alpha_{,%1}')
 				s = s:gsub('U%->beta_U%.(.)', '\\beta^{\\hat{%1}}')
-				s = s:gsub('partial_beta_Ul_upwind%[(.)%]%.(.)', function(j,xi) return '{(\\beta^{up})^{\\hat{'..xi..'}}}_{,'..xNames[j+1]..'}' end)
-				s = s:gsub('partial_beta_Ul%[(.)%]%.(.)', function(j,xi) return '{\\beta^{\\hat{'..xi..'}}}_{,'..xNames[j+1]..'}' end)
+				s = s:gsub('partial_beta_Ul_upwind%.(.)%.(.)', '{(\\beta^{up})^{\\hat{%2}}}_{,%1}')
+				s = s:gsub('partial_beta_Ul%.(.)%.(.)', '{\\beta^{\\hat{%2}}}_{,%1}')
 				s = s:gsub('partial2_beta_Ul%[(.)%]%.(.)', function(jk,xi) return '{\\beta^{\\hat{'..xi..'}}}_{,'..sym(from6to3x3(jk+1))..'}' end)
 				s = s:gsub('U%->epsilon_LL%.(.)(.)', '\\epsilon_{\\hat{%1}\\hat{%2}}')
 				s = s:gsub('partial_epsilon_LLl_upwind%[(.)%]%.(.)(.)', function(k,xi,xj) return '(\\epsilon^{up})_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
@@ -259,12 +225,12 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 				s = s:gsub('partial_ABar_LLl%[(.)%]%.(.)(.)', function(k,xi,xj) return '\\bar{A}_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
 				s = s:gsub('Lbeta_ABar_LL%.(.)(.)', '\\mathcal{L}_{\\beta} \\bar{A}_{\\hat{%1}\\hat{%2}}')
 				s = s:gsub('U%->LambdaBar_U%.(.)', '\\bar{\\Lambda}^{\\hat{%1}}')
-				s = s:gsub('partial_LambdaBar_Ul_upwind%[(.)%]%.(.)', function(j,xi) return '{(\\bar{\\Lambda}^{up})^{\\hat{'..xi..'}}}_{,'..xNames[j+1]..'}' end)
-				s = s:gsub('partial_LambdaBar_Ul%[(.)%]%.(.)', function(j,xi) return '{\\bar{\\Lambda}^{\\hat{'..xi..'}}}_{,'..xNames[j+1]..'}' end)
+				s = s:gsub('partial_LambdaBar_Ul_upwind%.(.)%.(.)', '{(\\bar{\\Lambda}^{up})^{\\hat{%2}}}_{,%1}')
+				s = s:gsub('partial_LambdaBar_Ul%.(.)%.(.)', '{\\bar{\\Lambda}^{\\hat{%2}}}_{,%1}')
 				s = s:gsub('dt_LambdaBar_U%.(.)', '{\\bar{\\Lambda}^{%1}}_{,t}')
 				s = s:gsub('U%->B_U%.(.)', 'B^{\\hat{%1}}')
-				s = s:gsub('partial_B_Ul_upwind%[(.)%]%.(.)', function(j,xi) return '{(B^{up})^{\\hat{'..xi..'}}}_{,'..xNames[j+1]..'}' end)
-				s = s:gsub('partial_B_Ul%[(.)%]%.(.)', function(j,xi) return '{B^{\\hat{'..xi..'}}}_{,'..xNames[j+1]..'}' end)
+				s = s:gsub('partial_B_Ul_upwind%.(.)%.(.)', '{(B^{up})^{\\hat{%2}}}_{,%1}')
+				s = s:gsub('partial_B_Ul%.(.)%.(.)', '{B^{\\hat{%2}}}_{,%1}')
 				s = s:gsub('U%->rho', '\\rho')
 				s = s:gsub('M_PI', '\\pi')
 				s = s:gsub('partial2_det_gammaHat_ll%.(..)', '\\hat{\\gamma}_{,%1}')
@@ -590,13 +556,25 @@ assert(env.assignRepls)
 				return x
 			end)
 		else
-			return oldFactorDivision(expr)
+			local x = oldFactorDivision(expr)
+			if symmath.op.add.is(x) then
+				for i=1,#x do
+					x[i] = x[i]()
+				end
+			end
+			return x
 		end
 	end
 	symmath.Expression.factorDivision = symmath.factorDivision
 	symmath.Array.factorDivision = symmath.factorDivision
 	symmath.Matrix.factorDivision = symmath.factorDivision
 	symmath.Tensor.factorDivision = symmath.factorDivision
+	symmath.op.add.factorDivision = symmath.factorDivision
+	symmath.op.sub.factorDivision = symmath.factorDivision
+	symmath.op.mul.factorDivision = symmath.factorDivision
+	symmath.op.div.factorDivision = symmath.factorDivision
+	symmath.op.pow.factorDivision = symmath.factorDivision
+	symmath.op.unm.factorDivision = symmath.factorDivision
 
 	-- done setting up the env, now we can return the cached copy
 	if not gotCache then 
@@ -694,13 +672,13 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 		-- state variables
 
 		alpha = var('U->alpha', coords)
-		beta_U_vars = makevars_real3('^I', 'U->beta_U')
-		epsilon_LL_vars = makevars_sym3('_IJ', 'U->epsilon_LL')
+		beta_U = makevars_real3('^I', 'U->beta_U')
+		epsilon_LL = makevars_sym3('_IJ', 'U->epsilon_LL')
 		W = var('U->W', coords)
 		K = var('U->K', coords)
-		ABar_LL_vars = makevars_sym3('_IJ', 'U->ABar_LL')
-		LambdaBar_U_vars = makevars_real3('^I', 'U->LambdaBar_U')
-		B_U_vars = makevars_real3('^I', 'U->B_U')
+		ABar_LL = makevars_sym3('_IJ', 'U->ABar_LL')
+		LambdaBar_U = makevars_real3('^I', 'U->LambdaBar_U')
+		B_U = makevars_real3('^I', 'U->B_U')
 		
 		rho = var'U->rho'
 		
@@ -715,11 +693,11 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 			return compileReplVar(alpha:diff(coords[i], coords[j]), 'partial2_alpha_ll.'..sym(i,j), coords) 
 		end)
 		partial_epsilon_LLl_vars = Tensor('_IJk', function(I,J,k)
-			return compileReplVar(epsilon_LL_vars[I][J]:diff(coords[k]), 'partial_epsilon_LLl['..(k-1)..'].'..sym(I,J), coords)
+			return compileReplVar(epsilon_LL[I][J]:diff(coords[k]), 'partial_epsilon_LLl['..(k-1)..'].'..sym(I,J), coords)
 		end)
 		partial2_epsilon_LLll_vars = Tensor('_IJkl', function(I,J,k,l)
 			local kl = from3x3to6(k,l)
-			return compileReplVar(epsilon_LL_vars[I][J]:diff(coords[k], coords[l]), 'partial2_epsilon_LLll['..(kl-1)..'].'..sym(I,J), coords)
+			return compileReplVar(epsilon_LL[I][J]:diff(coords[k], coords[l]), 'partial2_epsilon_LLll['..(kl-1)..'].'..sym(I,J), coords)
 		end)
 		partial_K_l_vars = Tensor('_i', function(i) 
 			return compileReplVar(K:diff(coords[i]), 'partial_K_l.'..xNames[i], coords) 
@@ -731,29 +709,29 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 			return compileReplVar(W:diff(coords[i], coords[j]), 'partial2_W_ll.'..sym(i,j), coords) 
 		end)
 		partial_LambdaBar_Ul_vars = Tensor('^I_j', function(I,j)
-			return compileReplVar(LambdaBar_U_vars[I]:diff(coords[j]), 'partial_LambdaBar_Ul['..(j-1)..'].'..xNames[I], coords)
+			return compileReplVar(LambdaBar_U[I]:diff(coords[j]), 'partial_LambdaBar_Ul.'..xNames[j]..'.'..xNames[I], coords)
 		end)
 		partial_ABar_LLl_vars = Tensor('_IJk', function(I,J,k)
-			return compileReplVar(ABar_LL_vars[I][J]:diff(coords[k]), 'partial_ABar_LLl['..(k-1)..'].'..sym(I,J), coords)
+			return compileReplVar(ABar_LL[I][J]:diff(coords[k]), 'partial_ABar_LLl['..(k-1)..'].'..sym(I,J), coords)
 		end)
 		partial_beta_Ul_vars = Tensor('^I_j', function(I,j)
-			return compileReplVar(beta_U_vars[I]:diff(coords[j]), 'partial_beta_Ul['..(j-1)..'].'..xNames[I], coords)
+			return compileReplVar(beta_U[I]:diff(coords[j]), 'partial_beta_Ul.'..xNames[j]..'.'..xNames[I], coords)
 		end)
 		partial2_beta_Ull_vars = Tensor('^I_jk', function(I,j,k)
 			local jk = from3x3to6(j,k)
-			return compileReplVar(beta_U_vars[I]:diff(coords[j], coords[k]), 'partial2_beta_Ull['..(jk-1)..'].'..xNames[I], coords)
+			return compileReplVar(beta_U[I]:diff(coords[j], coords[k]), 'partial2_beta_Ull['..(jk-1)..'].'..xNames[I], coords)
 		end)
 		partial_B_Ul_Vars = Tensor('^I_j', function(I,j)
-			return compileReplVar(B_U_vars[I]:diff(coords[j]), 'partial_B_Ul['..(j-1)..'].'..xNames[I], coords)
+			return compileReplVar(B_U[I]:diff(coords[j]), 'partial_B_Ul.'..xNames[j]..'.'..xNames[I], coords)
 		end)
 
 		-- state variables in coordinate form
 
-		epsilon_ll = (epsilon_LL_vars'_IJ' * e'_i^I' * e'_j^J')()
-		LambdaBar_u = (LambdaBar_U_vars'^I' * eu'^i_I')()
-		ABar_ll = (ABar_LL_vars'_IJ' * e'_i^I' * e'_j^J')()
-		beta_u = (beta_U_vars'^I' * eu'^i_I')()
-		B_u = (B_U_vars'^I' * eu'^i_I')()
+		epsilon_ll = (epsilon_LL'_IJ' * e'_i^I' * e'_j^J')()
+		LambdaBar_u = (LambdaBar_U'^I' * eu'^i_I')()
+		ABar_ll = (ABar_LL'_IJ' * e'_i^I' * e'_j^J')()
+		beta_u = (beta_U'^I' * eu'^i_I')()
+		B_u = (B_U'^I' * eu'^i_I')()
 
 		-- derivatives in coordinate form
 			-- without rescaling
@@ -794,7 +772,7 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 	printbr(gammaHat_LL)
 
 	printbr'gammaBar_LL'
-		gammaBar_LL = (gammaHat_LL'_IJ' + epsilon_LL_vars'_IJ')()
+		gammaBar_LL = (gammaHat_LL'_IJ' + epsilon_LL'_IJ')()
 		gammaBar_LL_vars = makevars_sym3('_IJ', 'gammaBar_LL')
 	printbr(gammaBar_LL)
 
@@ -886,7 +864,7 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 		local function removeBetas(expr)
 			expr = expr:replace(tr_DBar_beta_var, 0)
 			for i=1,3 do
-				expr = expr:replace(beta_U_vars[i], 0)
+				expr = expr:replace(beta_U[i], 0)
 				if DBar_tr_DBar_beta_u_vars then
 					expr = expr:replace(DBar_tr_DBar_beta_u_vars[i], 0)
 				end
@@ -1027,7 +1005,7 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 		-- if you defer (det_gammaBar/det_gammaHat) and use sqrt(gbar)_,i/sqrt(gbar)=conn^j_ij for tr_connBar_l then ...
 		--  you get a 1/r in front of epsilon_IJ,theta
 		--   and a 1/(r sin(theta)) in front of epsilon_IJ,phi
-		tr_DBar_beta = (partial_beta_ul'^j_j' + tr_connBar_l_vars'_j' * beta_u'^j')():factorDivision()
+		tr_DBar_beta = (partial_beta_ul'^j_j' + tr_connBar_l--[[_vars]]'_j' * beta_u'^j')():factorDivision()
 		tr_DBar_beta_var = var('tr_DBar_beta', coords)
 	printbr(tr_DBar_beta)
 		partial_W_l_upwind = Tensor('_i', function(i) return var('partial_W_l_upwind.'..xNames[i], coords) end)
@@ -1041,7 +1019,7 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 		--  1/3 W (alpha K - beta^R_,r)
 		-- terms scaled by 1/(det gammaBar/det gammaHat):
 		--	some of -1/3 W beta^I connBar^J_IJ
-		dt_W = (frac(1,3) * W * (alpha * K - tr_DBar_beta_var) + beta_u'^k' * partial_W_l_upwind'_k')():factorDivision()
+		dt_W = (frac(1,3) * W * (alpha * K - tr_DBar_beta--[[_var]]) + beta_u'^k' * partial_W_l_upwind'_k')():factorDivision()
 	printbr(dt_W)
 	printbr'...with $\\beta^i = 0$...'
 	printbr(removeBetas(dt_W)():factorDivision())
@@ -1052,21 +1030,21 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 		-- or set some indexes to gammaBar and others to gamma? and yet others to non-coord gammaBar?
 
 	printbr'ABar_UL'
-		ABar_UL = (gammaBar_UU_vars'^IK' * ABar_LL_vars'_KJ')():factorDivision()
+		ABar_UL = (gammaBar_UU--[[_vars]]'^IK' * ABar_LL'_KJ')():factorDivision()
 		ABar_UL_vars = makevars_real3x3('^I_J', 'ABar_UL')
 	printbr(ABar_UL)
 		tr_ABar = ABar_UL_vars'^I_I'():factorDivision()
 	printbr'ABar_UU'
-		ABar_UU = (ABar_UL_vars'^I_K' * gammaBar_UU_vars'^KJ')()
+		ABar_UU = (ABar_UL--[[_vars]]'^I_K' * gammaBar_UU--[[_vars]]'^KJ')()
 		ABar_UU_vars = makevars_sym3('^IJ', 'ABar_UU')
 	printbr(ABar_UU)
 	printbr'ABarSq_LL'
-		ABarSq_LL = (ABar_LL_vars'_IK' * ABar_UL_vars'^K_J')()
+		ABarSq_LL = (ABar_LL--[[_vars]]'_IK' * ABar_UL--[[_vars]]'^K_J')()
 		ABarSq_LL_vars = makevars_sym3('_IJ', 'ABarSq_LL')
 	printbr(ABarSq_LL)
 	-- [[
 	printbr('tr_ABarSq')
-		tr_ABarSq = (gammaBar_UU_vars'^IJ' * ABarSq_LL_vars'_IJ')():factorDivision()
+		tr_ABarSq = (gammaBar_UU--[[_vars]]'^IJ' * ABarSq_LL--[[_vars]]'_IJ')():factorDivision()
 	printbr(tr_ABarSq)
 	--]]
 	--[[
@@ -1093,25 +1071,25 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 	printbr'DBar2_alpha_ll'
 		DBar2_alpha_ll = (
 			partial2_alpha_ll'_ij' 
-			- eu'^i_I' * eu'^j_J' * connBar_ULL_vars'^K_IJ' * eu'^k_K' * partial_alpha_l'_k'
+			- eu'^i_I' * eu'^j_J' * connBar_ULL--[[_vars]]'^K_IJ' * eu'^k_K' * partial_alpha_l'_k'
 		)():factorDivision()
 	printbr(DBar2_alpha_ll)
 
 	printbr'DBar2_alpha_LL'
 		DBar2_alpha_LL = (
 			eu'^i_I' * eu'^j_J' * partial2_alpha_ll'_ij' 
-			- connBar_ULL_vars'^K_IJ' * eu'^k_K' * partial_alpha_l'_k'
+			- connBar_ULL--[[_vars]]'^K_IJ' * eu'^k_K' * partial_alpha_l'_k'
 		)():factorDivision()
 		DBar2_alpha_LL_vars = makevars_sym3('_ij', 'DBar2_alpha_LL')
 	printbr(DBar2_alpha_LL)
 
 	printbr('trBar_DBar2_alpha')
-		trBar_DBar2_alpha = (gammaBar_UU_vars'^IJ' * DBar2_alpha_LL_vars'_IJ')():factorDivision()
+		trBar_DBar2_alpha = (gammaBar_UU--[[_vars]]'^IJ' * DBar2_alpha_LL--[[_vars]]'_IJ')():factorDivision()
 		trBar_DBar2_alpha_var = var('trBar_DBar2_alpha', coords)
 	printbr(trBar_DBar2_alpha)
 
 	printbr('partial_alpha_u')
-		partial_alpha_u = (gammaBar_uu_vars'^ij' * partial_alpha_l'_j')():factorDivision()
+		partial_alpha_u = (gammaBar_uu--[[_vars]]'^ij' * partial_alpha_l'_j')():factorDivision()
 	printbr(partial_alpha_u)
 
 		-- W = exp(-2 phi)
@@ -1162,9 +1140,9 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 		--]]
 	printbr('dt_K')
 		dt_K = (frac(1,3) * alpha * K^2
-			+ alpha * tr_ABarSq_var
+			+ alpha * tr_ABarSq--[[_var]]
 			- exp_neg4phi * (
-				trBar_DBar2_alpha_var
+				trBar_DBar2_alpha--[[_var]]
 				+ 2 * partial_alpha_u'^i' * partial_phi_l'_i'
 			)
 			+ partial_K_l_upwind'_i' * beta_u'^i'
@@ -1184,7 +1162,7 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 	-- this is the rescaled version of the Lie derivative of gammaBar_ij
 		partial_epsilon_LLl_upwind = Tensor('_ijk', function(i,j,k) return var('partial_epsilon_LLl_upwind['..(k-1)..'].'..sym(i,j), coords) end)
 	printbr'partial_epsilon_lll_upwind'
-		partial_epsilon_lll_upwind = (partial_epsilon_LLl_upwind'_IJk' * e'_i^I' * e'_j^J' + epsilon_LL_vars'_IJ' * (e'_i^I' * e'_j^J')'_ij^IJ_,k')():permute'_ijk'
+		partial_epsilon_lll_upwind = (partial_epsilon_LLl_upwind'_IJk' * e'_i^I' * e'_j^J' + epsilon_LL'_IJ' * (e'_i^I' * e'_j^J')'_ij^IJ_,k')():permute'_ijk'
 	printbr(partial_epsilon_lll_upwind)
 	printbr'partial_gammaBar_lll_upwind'
 		partial_gammaBar_lll_upwind = (partial_epsilon_lll_upwind'_ijk' + partial_gammaHat_lll'_ijk')()
@@ -1240,19 +1218,14 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 			+ frac(2,3) * gammaBar_LL'_IJ' * (
 				alpha * tr_ABar
 				- tr_DBar_beta
-			)() - 2 * alpha * ABar_LL_vars'_IJ'
+			)() - 2 * alpha * ABar_LL'_IJ'
 		)():factorDivision()
 	printbr(dt_epsilon_LL)
 	printbr'...with $\\beta^i = 0$...'
 	printbr(removeBetas(dt_epsilon_LL)():factorDivision())
 	--]=]	
-
-		-------------------------------- ABar_ij_,t -------------------------------- 
-
-	printbr'partial2_phi_ll'
-		partial2_phi_ll = partial_phi_l'_i,j'():factorDivision()
-		partial2_phi_ll_vars = makevars_sym3('_ij', 'partial2_phi_ll') 
-	printbr(partial2_phi_ll)
+		
+		-------------------------------- RBar_ij -------------------------------- 
 
 	printbr'Delta_ULL'
 		Delta_ULL = (connBar_ULL_vars'^I_JK' - connHat_ULL'^I_JK')():factorDivision()
@@ -1269,8 +1242,95 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 		Delta_LLL_vars = makevars_3sym3('_IJK', 'Delta_LLL')
 	printbr(Delta_ULL)
 
+	printbr'DHat_gammaBar_lll'
+		DHat_gammaBar_lll = (
+			partial_gammaBar_lll'_ijk'
+			- connHat_ull'^l_ki' * gammaBar_ll'_lj'
+			- connHat_ull'^l_kj' * gammaBar_ll'_li'
+		)():permute'_ijk'
+	printbr(DHat_gammaBar_lll)
+
+	trBar_partial2_gammaBar_ll_vars = makevars_sym3('_ij', 'trBar_partial2_gammaBar_ll') 
+
+		--[[
+		DHat2_gammaBar_llll.ijkl := DHat_l DHat_k gammaBar_ij 
+		= partial_l DHat_k gammaBar_ij
+			- connHat^m_lk DHat_m gammaBar_ij
+			- connHat^m_li DHat_k gammaBar_mj
+			- connHat^m_lj DHat_k gammaBar_mi
+		
+		partial_DHat_gammaBar_llll.ijkl := gammaBar_ij,kl 
+			- connHat^m_ki,l gammaBar_mj 
+			- connHat^m_kj,l gammaBar_mi
+			- connHat^m_ki gammaBar_mj,l
+			- connHat^m_kj gammaBar_mi,l
+	
+		--]]
+	printbr'trBar_DHat2_gammaBar_ll'
+		trBar_DHat2_gammaBar_ll = (
+				--partial_DHat_gammaBar_llll'_ijkl'
+				-- substituted:
+				--partial2_gammaBar_llll'_ijkl'
+					-- substituted again:
+			trBar_partial2_gammaBar_ll_vars'_ij'
+			+ gammaBar_uu'^kl' * (
+				- partial_connHat_ulll'^m_kil' * gammaBar_ll'_mj'
+				- partial_connHat_ulll'^m_kjl' * gammaBar_ll'_mi'
+				- connHat_ull'^m_ki' * partial_gammaBar_lll'_mjl'
+				- connHat_ull'^m_kj' * partial_gammaBar_lll'_mil'
+
+				
+				- connHat_ull'^m_lk' * DHat_gammaBar_lll'_ijm'
+				- connHat_ull'^m_li' * DHat_gammaBar_lll'_mjk'
+				- connHat_ull'^m_lj' * DHat_gammaBar_lll'_mik'
+				)
+			)():permute'_ij'
+	printbr(trBar_DHat2_gammaBar_ll)
+
+	printbr'DHat_LambdaBar_ul'
+		DHat_LambdaBar_ul = (partial_LambdaBar_ul'^i_j' + connHat_ull'^i_kj' * LambdaBar_u'^k')():factorDivision():permute'^i_j'
+	printbr(DHat_LambdaBar_ul)
+
+	printbr'RBar_LL'
+		--[[
+		2017 Ruchlin eqn 12
+		RBar_ij = 
+			-1/2 gammaBar^kl DHat_k DHat_l gammaBar_ij
+			+ 1/2 gammaBar_ki DHat_j LambdaBar^k
+			+ 1/2 gammaBar_kj DHat_i LambdaBar^k
+			+ 1/2 Delta^k Delta_ikj
+			+ 1/2 Delta^k Delta_jki
+			+ Delta^m_ki Delta_jm^k
+			+ Delta^m_kj Delta_im^k
+			+ Delta^m_ik Delta_mj^k
+		--]]	
+		RBar_LL = (
+			((frac(1,2) * (
+				- trBar_DHat2_gammaBar_ll'_ij'
+				+ gammaBar_ll'_ik' * DHat_LambdaBar_ul'^k_j'
+				+ gammaBar_ll'_jk' * DHat_LambdaBar_ul'^k_i'
+			)() * eu'^i_I')() * eu'^j_J')()
+			+ (frac(1,2) * Delta_U'^K' * (
+				Delta_LLL'_IKJ'
+				+ Delta_LLL'_JKI'
+			))()
+			+ (gammaBar_UU'^KL' * (
+				Delta_ULL'^M_KI' * Delta_LLL'_JML'
+				+ Delta_ULL'^M_KJ' * Delta_LLL'_IML'
+				+ Delta_ULL'^M_IK' * Delta_LLL'_MJL'
+			))()
+		)():factorDivision()
+	printbr(RBar_LL)
+
+		-------------------------------- ABar_ij_,t -------------------------------- 
+
+	printbr'partial2_phi_ll'
+		partial2_phi_ll = partial_phi_l'_i,j'():factorDivision()
+		partial2_phi_ll_vars = makevars_sym3('_ij', 'partial2_phi_ll') 
+	printbr(partial2_phi_ll)
+
 	printbr'LambdaBar_u'
-		LambdaBar_u = (LambdaBar_U_vars'^I' * eu'^i_I')()
+		LambdaBar_u = (LambdaBar_U'^I' * eu'^i_I')()
 	printbr(LambdaBar_u)
 
 	printbr'DBar2_phi_LL'
@@ -1288,7 +1348,7 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 
 	printbr'partial_ABar_lll_upwind'
 		partial_ABar_LLl_upwind = Tensor('_ijk', function(i,j,k) return var('partial_ABar_LLl_upwind['..(k-1)..'].'..sym(i,j), coords) end)
-		partial_ABar_lll_upwind = (partial_ABar_LLl_upwind'_IJk' * e'_i^I' * e'_j^J' + ABar_LL_vars'_IJ' * (e'_i^I' * e'_j^J')'_ij^IJ_,k')():permute'_ijk'
+		partial_ABar_lll_upwind = (partial_ABar_LLl_upwind'_IJk' * e'_i^I' * e'_j^J' + ABar_LL'_IJ' * (e'_i^I' * e'_j^J')'_ij^IJ_,k')():permute'_ijk'
 	printbr(partial_ABar_lll_upwind)
 
 	printbr'Lbeta_ABar_LL'
@@ -1302,6 +1362,8 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 
 		S_ll_vars = makevars_sym3('_ij', 'U->S_ll')
 
+		partial_phi_sq = (gammaBar_UU'^KL' * partial_phi_L'_K' * partial_phi_L'_L')():factorDivision()
+
 	-- not used by ABar_IJ,t, but used elsewhere
 		--2008 Alcubierre eqn 2.8.18
 		--2010 Baumgarte, Shapiro eqn 3.10
@@ -1311,7 +1373,7 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 			+ 4 * partial_phi_L'_I' * partial_phi_L'_J'
 			+ gammaBar_LL'_IJ' * (
 				-2 * tr_DBar2_phi
-				- 4 * gammaBar_UU'^IJ' * partial_phi_L'_I' * partial_phi_L'_J'
+				- 4 * partial_phi_sq
 			)
 		)():factorDivision()
 	printbr(RPhi_LL)
@@ -1345,7 +1407,7 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 	printbr'dt_ABar_LL'
 		dt_ABar_LL = (
 			Lbeta_ABar_LL_vars'_IJ'
-			+ ABar_LL_vars'_IJ' * (alpha * K - frac(2,3) * tr_DBar_beta_var)()
+			+ ABar_LL'_IJ' * (alpha * K - frac(2,3) * tr_DBar_beta_var)()
 			- 2 * alpha * ABarSq_LL_vars'_IJ'
 			+ exp_neg4phi * (
 				tracelessPart_LL_vars'_IJ'
@@ -1360,8 +1422,8 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 		-------------------------------- LambdaBar^i_,t -------------------------------- 
 
 	printbr'partial_LambdaBar_ul_upwind'
-		partial_LambdaBar_Ul_upwind = Tensor('^I_j', function(i,j) return var('partial_LambdaBar_Ul_upwind['..(j-1)..'].'..xNames[i], coords) end)
-		local partial_LambdaBar_ul_upwind = (partial_LambdaBar_Ul_upwind'^I_j' * eu'^i_I' + LambdaBar_U_vars'^I' * eu'^i_I,j')():permute'^i_j'
+		partial_LambdaBar_Ul_upwind = Tensor('^I_j', function(i,j) return var('partial_LambdaBar_Ul_upwind.'..xNames[j]..'.'..xNames[i], coords) end)
+		local partial_LambdaBar_ul_upwind = (partial_LambdaBar_Ul_upwind'^I_j' * eu'^i_I' + LambdaBar_U'^I' * eu'^i_I,j')():permute'^i_j'
 	printbr(partial_LambdaBar_ul_upwind)
 
 	printbr'Lbeta_LambaBar_U'
@@ -1500,7 +1562,7 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 			--B&S 4.82
 			--beta^i_,t = k (connBar^i_,t + eta connBar^i)
 	printbr'dt_beta_U_GammaDriver'
-			dt_beta_U_GammaDriver = (k_var * dt_LambdaBar_U_vars'^I' + eta_var * LambdaBar_U_vars'^I')()
+			dt_beta_U_GammaDriver = (k_var * dt_LambdaBar_U_vars'^I' + eta_var * LambdaBar_U'^I')()
 	printbr(dt_beta_U_GammaDriver)
 	printbr'...with $\\beta^i = 0$...'
 	printbr(removeBetas(dt_beta_U_GammaDriver)():factorDivision())
@@ -1508,13 +1570,13 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 		--elseif eqn.useShift == 'HyperbolicGammaDriver' then
 	
 	printbr'partial_beta_ul_upwind'
-		partial_beta_Ul_upwind = Tensor('^I_j', function(i,j) return var('partial_beta_Ul_upwind['..(j-1)..'].'..xNames[i], coords) end)
-		local partial_beta_ul_upwind = (partial_beta_Ul_upwind'^I_j' * eu'^i_I' + beta_U_vars'^I' * eu'^i_I,j')():permute'^i_j'
+		partial_beta_Ul_upwind = Tensor('^I_j', function(i,j) return var('partial_beta_Ul_upwind.'..xNames[j]..'.'..xNames[i], coords) end)
+		local partial_beta_ul_upwind = (partial_beta_Ul_upwind'^I_j' * eu'^i_I' + beta_U'^I' * eu'^i_I,j')():permute'^i_j'
 	printbr(partial_beta_ul_upwind)
 	
 	printbr'dt_beta_U_HyperbolicGammaDriver'
 			dt_beta_U_HyperbolicGammaDriver = (
-				B_U_vars'^I'
+				B_U'^I'
 				-- if shiftadvect==true from SENR
 				+ e'_i^I' * partial_beta_ul_upwind'^i_j' * beta_u'^j'
 			)():factorDivision()
@@ -1523,8 +1585,8 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 	printbr(removeBetas(dt_beta_U_HyperbolicGammaDriver)():factorDivision())
 	
 	printbr'partial_B_ul_upwind'
-		partial_B_Ul_upwind = Tensor('^I_j', function(i,j) return var('partial_B_Ul_upwind['..(j-1)..'].'..xNames[i], coords) end)
-		local partial_B_ul_upwind = (partial_B_Ul_upwind'^I_j' * eu'^i_I' + B_U_vars'^I' * eu'^i_I,j')():permute'^i_j'
+		partial_B_Ul_upwind = Tensor('^I_j', function(i,j) return var('partial_B_Ul_upwind.'..xNames[j]..'.'..xNames[i], coords) end)
+		local partial_B_ul_upwind = (partial_B_Ul_upwind'^I_j' * eu'^i_I' + B_U'^I' * eu'^i_I,j')():permute'^i_j'
 	printbr(partial_B_ul_upwind)
 
 			--[[
@@ -1539,7 +1601,7 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 	printbr'dt_B_U_HyperbolicGammaDriver'
 			dt_B_U_HyperbolicGammaDriver = (
 				frac(3,4) * dt_LambdaBar_U_vars'^I'
-				- eta_var * B_U_vars'^I'
+				- eta_var * B_U'^I'
 				-- if biadvect==true from SENR
 				+ e'_i^I' * partial_B_ul_upwind'^i_j' * beta_u'^j'
 			)():factorDivision()
@@ -1548,6 +1610,26 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 	printbr(removeBetas(dt_B_U_HyperbolicGammaDriver)():factorDivision())
 
 		--end	-- eqn.useShift
+		
+		-------------------------------- H -------------------------------- 
+
+		H = var('U->H', coords)
+		RBar = var'RBar'
+	
+		-- 2017 Ruchlin et al, eqn 46
+		-- H = 2/3 K^2 - ABar^ij ABar_ij + exp(-4 phi) (RBar - 8 DBar^i phi DBar_i phi - 8 gammaBar^ij DBar_i DBar_j phi)
+	printbr('H_def')
+		H_def = (
+			frac(2,3) * K^2 
+			- tr_ABarSq_var
+			+ exp_neg4phi * (
+				RBar
+				- 8 * partial_phi_sq
+				- 8 * tr_DBar2_phi
+			)
+			- 16 * pi * rho
+		)():factorDivision()
+	printbr(H_def)
 
 		outfile:close()
 
@@ -2207,21 +2289,7 @@ end ?>;
 <?=assign_3sym3('partial_gammaBar_lll', partial_gammaBar_lll:permute'_kij')?>
 
 <?=assign_sym3'gammaBar_uu'?>
-	sym3 RBar_LL = calc_RBar_LL(
-		U,
-		x,
-		&gammaBar_ll,
-		&gammaBar_uu,
-		&gammaBar_UU,
-		&connHat_ull,
-		&partial_gammaBar_lll,
-		&trBar_partial2_gammaBar_ll,
-		&partial_LambdaBar_ul,
-		&Delta_U,
-		&Delta_ULL,
-		&Delta_LLL,
-		partial_connHat_ulll,
-		&LambdaBar_u);
+<?=assign_sym3'RBar_LL'?>
 	*value_sym3 = RBar_LL;
 ]], env),
 	}

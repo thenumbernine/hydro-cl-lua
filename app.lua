@@ -45,6 +45,8 @@ predefined vars:
 	selfGravVerbose
 	selfGravLinearSolver = 'conjgrad', 'conjres', 'bicgstab', 'gmres'
 
+	bssnUseCache = set to false to ignore the cache
+
 	TODO 
 	config = specify alternative config file.  default is config.lua (TODO configs/default.lua)
 --]]

@@ -9,8 +9,6 @@ local Equation = require 'eqn.eqn'
 
 local common = require 'common'
 local xNames = common.xNames
-local symNames = common.symNames
-local from6to3x3 = common.from6to3x3
 
 local EinsteinEquation = class(Equation)
 
@@ -57,6 +55,7 @@ function EinsteinEquation:createBoundaryOptions()
 	
 	self.solver:addBoundaryOption(BoundaryFixed)
 end
+
 
 -- and now for fillRandom ...
 local ffi = require 'ffi'
