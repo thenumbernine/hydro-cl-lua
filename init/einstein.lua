@@ -194,6 +194,9 @@ return table{
 		initState = function(self, solver)
 			return ''
 		end,
+		
+		-- flag for determining whether to initialize variables (esp the derivative variables) from analytical expressions, or whether to use finite difference via initDerivs
+		initAnalytical = true,
 	},
 
 	-- 2010 Baumgarte, Shapiro "Numerical Relativity ...", section 9.1.2

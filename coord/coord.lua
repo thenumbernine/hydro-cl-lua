@@ -568,25 +568,6 @@ end
 function CoordinateSystem:compile(expr)
 	local symmath = require 'symmath'
 	local const = symmath.Constant
-	
-	local orig = expr	
-	-- replace pow(x,2) with x*x
-	expr = expr:map(function(x)
-		if symmath.op.pow.is(x) 
-		and const.is(x[2])
-		then
-			local value = assert(x[2].value)
-			if value > 0 and value == math.floor(value) then
-				if value == 1 then
-					return x[1]
-				else
-					return symmath.op.mul(range(value):mapi(function() 
-						return symmath.clone(x[1])
-					end):unpack())
-				end
-			end
-		end
-	end)
 
 	for _,repl in ipairs(self.replvars) do
 		expr = expr:replace(repl[1], repl[2])
