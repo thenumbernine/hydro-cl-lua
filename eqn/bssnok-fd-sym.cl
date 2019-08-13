@@ -186,7 +186,6 @@ real calc_det_gammaHat(real3 x) {
 sym3 calc_gammaHat_uu(real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign'det_gammaHat'?>
 <?=assign_sym3'gammaHat_uu'?>
 	return gammaHat_uu;
 }
@@ -224,7 +223,6 @@ TODO detg ... unless we want to change the constraint
 real calc_det_gammaBarLL(global const <?=eqn.cons_t?>* U, real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign'det_gammaHat'?>
 <?=assign'det_gammaBar_over_det_gammaHat'?>
 	return det_gammaBar_over_det_gammaHat;
 }
@@ -235,7 +233,6 @@ real calc_det_gammaBarLL(global const <?=eqn.cons_t?>* U, real3 x) {
 sym3 calc_gammaBar_UU(global const <?=eqn.cons_t?>* U, real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign'det_gammaHat'?>
 <?=assign'det_gammaBar_over_det_gammaHat'?>
 <?=assign_sym3'gammaBar_UU'?>
 	return gammaBar_UU;
@@ -408,7 +405,6 @@ kernel void calcDeriv(
 <? end ?>
 
 <?=assign_sym3'gammaHat_ll'?>
-<?=assign'det_gammaHat'?>
 
 	/*
 	Etienne's SENR Mathematica notebook has '*  detg'...
@@ -430,7 +426,6 @@ kernel void calcDeriv(
 	TODO detg ...
 	*/
 <?=assign'det_gammaBar_over_det_gammaHat'?>
-<?=assign'det_gammaBar'?>
 
 
 	//////////////////////////////// alpha_,t //////////////////////////////// 
@@ -577,14 +572,11 @@ then
 	U->epsilon_LL = sym3_rescaleFromCoord_ll(epsilon_ll, x);
 <?	end	-- constrain_det_gammaBar ?>
 
-	//these are now based on the adjusted epsilon_LL:
-	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
-	sym3 gammaBar_LL = sym3_rescaleFromCoord_ll(gammaBar_ll, x);
-	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
-	
 	//in Buchman's paper it says he doesn't do this
 	//and in the new arbitrary-coord formalism, there is a tr ABar_ij term
 <? if eqn.guiVars.constrain_tr_ABar.value then ?>
+<?=assign_sym3'gammaBar_LL'?>
+<?=assign_sym3'gammaBar_UU'?>
 	U->ABar_LL = tracefree(U->ABar_LL, gammaBar_LL, gammaBar_UU);
 <? end	-- constrain_tr_ABar ?>
 

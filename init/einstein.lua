@@ -50,14 +50,19 @@ local EinsteinInitCond = class(InitCond)
 
 function EinsteinInitCond:refreshInitStateProgram(solver)
 	EinsteinInitCond.super.refreshInitStateProgram(self, solver)
-	solver.initDerivsKernelObj = solver.initStateProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf)
+	-- analytical expressions don't need to run finite differences to initialize derivative variables
+	if not self.initAnalytical then
+		solver.initDerivsKernelObj = solver.initStateProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf)
+	end
 end
 
 function EinsteinInitCond:resetState(solver)
 	EinsteinInitCond.super.resetState(self, solver)
-	solver:boundary()
-	solver.initDerivsKernelObj()
-	solver:boundary()
+	if not self.initAnalytical then
+		solver:boundary()
+		solver.initDerivsKernelObj()
+		solver:boundary()
+	end
 end
 
 function EinsteinInitCond:getCodePrefix(solver)
@@ -191,12 +196,14 @@ end
 return table{
 	{
 		name = 'Minkowski',
-		initState = function(self, solver)
-			return ''
-		end,
-		
 		-- flag for determining whether to initialize variables (esp the derivative variables) from analytical expressions, or whether to use finite difference via initDerivs
 		initAnalytical = true,
+		init = function(self, solver)
+			local symmath = require 'symmath'
+			self.alpha0 = 1
+			self.beta0_u = symmath.Tensor('^i', 0,0,0)
+			self.gamma0_ll = symmath.Tensor.metric().metric
+		end,
 	},
 
 	-- 2010 Baumgarte, Shapiro "Numerical Relativity ...", section 9.1.2
@@ -305,21 +312,41 @@ return table{
 	-- Appendix A, eqns 7.1 - 7.5
 	{
 		name = 'pure gauge wave',
+		initAnalytical = true,
 		guiVars = {
 			{name = 'alpha0', value = .01},
 			{name = 'r0', value = 5},
 			{name = 'sigma', value = 1},
 		},
-		initState = function(self, solver)
-		return [[
-	real r = real3_len(xc);
-	real rSq = r * r;
-	real rplus = (r + solver->r0) / solver->sigma;
-	real rminus = (r - solver->r0) / solver->sigma;
-	real gminus = exp(-rminus * rminus);
-	real gplus = exp(-rplus * rplus);
-	alpha = 1. + solver->alpha0 * rSq / (1. + rSq) * (gplus + gminus);
-]]
+		init = function(self, solver, args)
+			local coord = solver.coord
+			assert(coord)
+
+			local symmath = require 'symmath'
+			local Tensor = symmath.Tensor
+			local var = symmath.var
+			local exp = symmath.exp
+			
+			-- TODO make a separate OpenCL initState_t structure
+			-- this is the alpha0 of the init state params -- wave amplitude -- not the init cond alpha0 used for the initial alpha value
+			local param_alpha0 = var'solver->alpha0'
+			local param_r0 = var'solver->r0'
+			local param_sigma = var'solver->sigma'
+	
+			-- variables used by initAnalytical
+			local r = coord.rDef 
+			local rplus = (r + param_r0) / param_sigma
+			local rminus = (r - param_r0) / param_sigma
+			local gminus = exp(-rminus^2)
+			local gplus = exp(-rplus^2)
+			self.alpha0 = 1 + param_alpha0 * r^2 / (1 + r^2) * (gplus + gminus)
+			
+			self.beta0_u = Tensor('^i', 0,0,0)
+			
+			-- assign metric to background metric
+			self.gamma0_ll = Tensor.metric().metric
+			
+			self.K0_ll = Tensor('_ij', {0,0,0}, {0,0,0}, {0,0,0})
 		end,
 	},
 

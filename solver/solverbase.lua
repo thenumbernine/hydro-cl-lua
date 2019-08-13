@@ -115,7 +115,7 @@ function SolverBase:preInit(args)
 
 	self.integratorArgs = args.integratorArgs
 	self.integratorIndex = integratorNames:find(args.integrator) or 1
-	
+
 	if require 'coord.coord'.is(args.coord) then
 		self.coord = args.coord	-- ptr copy expected by AMR
 	else
@@ -415,7 +415,7 @@ end
 -- call this when the solver initializes or changes the codePrefix (or changes initState)
 -- it will build the code prefix and refresh everything related to it
 -- TODO if you change cons_t then call resetState etc (below the refreshEqnInitState() call a few lines above) in addition to this -- or else your values will get messed up
-function SolverBase:refreshEqnInitState()	
+function SolverBase:refreshEqnInitState()
 	-- Right now within eqn:createInitState I'm adding any subclass-specific gui vars
 	-- so only after it finishes and all gui vars are created, ask the eqn.initState object if it wants to modify anything.
 	-- Don't do this during Solver:refreshInitStateProgram()->InitCond:initState() or the changes won't get into the header.

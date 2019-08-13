@@ -198,34 +198,34 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 			-- TODO proper way is to arg:replace() everything
 			-- but that is slow
 				s = s:gsub('U%->alpha', '\\alpha')
-				s = s:gsub('partial_alpha_l_upwind%.(.)', '(\\alpha^{up})_{,%1}')
-				s = s:gsub('partial_alpha_l%.(.)', '\\alpha_{,%1}')
-				s = s:gsub('partial2_alpha_ll%.(..)', '\\alpha_{,%1}')
 				s = s:gsub('U%->beta_U%.(.)', '\\beta^{\\hat{%1}}')
-				s = s:gsub('partial_beta_Ul_upwind%.(.)%.(.)', '{(\\beta^{up})^{\\hat{%2}}}_{,%1}')
-				s = s:gsub('partial_beta_Ul%.(.)%.(.)', '{\\beta^{\\hat{%2}}}_{,%1}')
-				s = s:gsub('partial2_beta_Ul%[(.)%]%.(.)', function(jk,xi) return '{\\beta^{\\hat{'..xi..'}}}_{,'..sym(from6to3x3(jk+1))..'}' end)
 				s = s:gsub('U%->epsilon_LL%.(.)(.)', '\\epsilon_{\\hat{%1}\\hat{%2}}')
-				s = s:gsub('partial_epsilon_LLl_upwind%[(.)%]%.(.)(.)', function(k,xi,xj) return '(\\epsilon^{up})_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
-				s = s:gsub('partial_epsilon_LLl%[(.)%]%.(.)(.)', function(k,xi,xj) return '\\epsilon_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
-				s = s:gsub('partial2_epsilon_LLll%[(.)%]%.(.)(.)', function(kl,xi,xj) return '\\epsilon_{\\hat{'..xi..'}\\hat{'..xj..'},'..sym(from6to3x3(kl+1))..'}' end)
 				s = s:gsub('U%->W', 'W')
-				s = s:gsub('partial_W_l_upwind%.(.)', '(W^{up})_{,%1}')
-				s = s:gsub('partial_W_l%.(.)', 'W_{,%1}')
-				s = s:gsub('partial2_W_ll%.(..)', 'W_{,%1}')
 				s = s:gsub('U%->K', 'K')
-				s = s:gsub('partial_K_l_upwind%.(.)', '(K^{up})_{,%1}')
-				s = s:gsub('partial_K_l%.(.)', 'K_{,%1}')
 				s = s:gsub('U%->ABar_LL%.(.)(.)', '\\bar{A}_{\\hat{%1}\\hat{%2}}')
-				s = s:gsub('partial_ABar_LLl_upwind%[(.)%]%.(.)(.)', function(k,xi,xj) return '(\\bar{A}^{up})_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
-				s = s:gsub('partial_ABar_LLl%[(.)%]%.(.)(.)', function(k,xi,xj) return '\\bar{A}_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
 				s = s:gsub('U%->LambdaBar_U%.(.)', '\\bar{\\Lambda}^{\\hat{%1}}')
-				s = s:gsub('partial_LambdaBar_Ul_upwind%.(.)%.(.)', '{(\\bar{\\Lambda}^{up})^{\\hat{%2}}}_{,%1}')
-				s = s:gsub('partial_LambdaBar_Ul%.(.)%.(.)', '{\\bar{\\Lambda}^{\\hat{%2}}}_{,%1}')
 				s = s:gsub('U%->B_U%.(.)', 'B^{\\hat{%1}}')
-				s = s:gsub('partial_B_Ul_upwind%.(.)%.(.)', '{(B^{up})^{\\hat{%2}}}_{,%1}')
-				s = s:gsub('partial_B_Ul%.(.)%.(.)', '{B^{\\hat{%2}}}_{,%1}')
 				s = s:gsub('U%->rho', '\\rho')
+				s = s:gsub('partial_alpha_l%.(.)', '\\alpha_{,%1}')
+				s = s:gsub('partial_beta_Ul%.(.)%.(.)', '{\\beta^{\\hat{%2}}}_{,%1}')
+				s = s:gsub('partial_epsilon_LLl%[(.)%]%.(.)(.)', function(k,xi,xj) return '\\epsilon_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
+				s = s:gsub('partial_W_l%.(.)', 'W_{,%1}')
+				s = s:gsub('partial_K_l%.(.)', 'K_{,%1}')
+				s = s:gsub('partial_ABar_LLl%[(.)%]%.(.)(.)', function(k,xi,xj) return '\\bar{A}_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
+				s = s:gsub('partial_LambdaBar_Ul%.(.)%.(.)', '{\\bar{\\Lambda}^{\\hat{%2}}}_{,%1}')
+				s = s:gsub('partial_B_Ul%.(.)%.(.)', '{B^{\\hat{%2}}}_{,%1}')
+				s = s:gsub('partial_alpha_l_upwind%.(.)', '(\\alpha^{up})_{,%1}')
+				s = s:gsub('partial_beta_Ul_upwind%.(.)%.(.)', '{(\\beta^{up})^{\\hat{%2}}}_{,%1}')
+				s = s:gsub('partial_epsilon_LLl_upwind%[(.)%]%.(.)(.)', function(k,xi,xj) return '(\\epsilon^{up})_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
+				s = s:gsub('partial_W_l_upwind%.(.)', '(W^{up})_{,%1}')
+				s = s:gsub('partial_K_l_upwind%.(.)', '(K^{up})_{,%1}')
+				s = s:gsub('partial_ABar_LLl_upwind%[(.)%]%.(.)(.)', function(k,xi,xj) return '(\\bar{A}^{up})_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
+				s = s:gsub('partial_LambdaBar_Ul_upwind%.(.)%.(.)', '{(\\bar{\\Lambda}^{up})^{\\hat{%2}}}_{,%1}')
+				s = s:gsub('partial_B_Ul_upwind%.(.)%.(.)', '{(B^{up})^{\\hat{%2}}}_{,%1}')
+				s = s:gsub('partial2_alpha_ll%.(..)', '\\alpha_{,%1}')
+				s = s:gsub('partial2_beta_Ul%[(.)%]%.(.)', function(jk,xi) return '{\\beta^{\\hat{'..xi..'}}}_{,'..sym(from6to3x3(jk+1))..'}' end)
+				s = s:gsub('partial2_epsilon_LLll%[(.)%]%.(.)(.)', function(kl,xi,xj) return '\\epsilon_{\\hat{'..xi..'}\\hat{'..xj..'},'..sym(from6to3x3(kl+1))..'}' end)
+				s = s:gsub('partial2_W_ll%.(..)', 'W_{,%1}')
 				s = s:gsub('M_PI', '\\pi')
 				s = s:gsub('det_gammaBar_over_det_gammaHat', '(\\frac{det(\\bar{\\gamma}_{ij})}{det(\\hat{\\gamma}_{ij})})')
 				s = s:gsub('det_gammaHat', 'det(\\hat{\\gamma}_{ij})')
@@ -234,9 +234,6 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 				s = s:gsub('ABar_uu%.(..)', '\\bar{A}^{%1}')
 				s = s:gsub('ABarSq_ul%.(.)%.(.)', '{(\\bar{A}^2)^%1}_%2')
 				s = s:gsub('ABarSq_ll%.(..)', '\\bar{A}_{%1}')
-				s = s:gsub('tr_ABarSq', '({(\\bar{A}^2)^*}_*)')
-				s = s:gsub('TF_DBar2_alpha_ll%.(.)(.)', '(\\bar{D}_%1 \\bar{D}_%2 \\alpha)^{TF}')
-				s = s:gsub('DBar2_alpha_ll%.(.)(.)', '\\bar{D}_%1 \\bar{D}_%2 \\alpha')
 				s = s:gsub('solver%->shift_eta', '\\eta')
 
 				idnum = idnum + 1
@@ -320,7 +317,10 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 
 	-- generates assignment code from specified variables
 	function assign(name, with)
-		if with == nil then with = env[name] end
+		if with == nil then 
+			with = env[name] 
+			if with == nil then error("couldn't find "..name) end
+		end
 		assert(symmath.Expression.is(with), "not an expression")
 		return '\treal '..name..' = '..compile(with)..';'
 	end
@@ -557,10 +557,6 @@ time('building symbolic math env', function()
 		gammaHat_ll = Tensor.metric().metric
 	printbr(gammaHat_ll)
 
--- hmm, I have no way to clear the metric in symmath.Tensor
-Tensor.findBasisForSymbol{}.metric = nil
-Tensor.findBasisForSymbol{}.metricInverse = nil
-
 	printbr'e'
 		e = Tensor('_i^I', function(i,j)
 			return (i==j and solver.coord.lenExprs[i] or 0)
@@ -574,14 +570,9 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 
 	printbr'det_gammaHat'
 		det_gammaHat = Matrix.determinant(gammaHat_ll)
-		det_gammaHat_var = var('det_gammaHat', coords)
 	printbr(det_gammaHat)
 	printbr'gammaHat_uu'
-		gammaHat_uu = Tensor('^ij', table.unpack((Matrix.inverse(gammaHat_ll, nil, nil, nil, 
-			-- defer det_gammaHat
-			--det_gammaHat_var))))
-			-- don't bother.  gammaHat^ij is just an inverse scale matrix
-			det_gammaHat))))
+		gammaHat_uu = Tensor('^ij', table.unpack((Matrix.inverse(gammaHat_ll, nil, nil, nil, det_gammaHat))))
 	printbr(gammaHat_uu)
 	printbr'partial_gammaHat_lll'
 		partial_gammaHat_lll = gammaHat_ll'_ij,k'():permute'_ijk'
@@ -598,14 +589,8 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 		connHat_ull = (gammaHat_uu'^im' * connHat_lll'_mjk')()
 	printbr(connHat_ull)
 
-	-- for spherical this has 9x 1/r's and 3x 1/sin(theta)'s
-	-- soo ... it's not any better to use this.
 	printbr'connHat_ULL'
 		connHat_ULL = (connHat_ull'^i_jk' * e'_i^I' * eu'^j_J' * eu'^k_K')():factorDivision()
-		connHat_ULL = Tensor('^I_JK', function(I,J,K)
-			return connHat_ULL[I][J][K]():factorDivision()
-		end)
-		connHat_ULL_vars = makevars_3sym3('^I_JK', 'connHat_ULL')
 	printbr(connHat_ULL)
 
 	printbr'partial_connHat_ulll'
@@ -619,7 +604,6 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 	printbr'partial2_det_gammaHat_ll'
 		partial2_det_gammaHat_ll = partial_det_gammaHat_l'_i,j'()
 	printbr(partial2_det_gammaHat_ll)
-
 
 		-- state variables
 
@@ -736,7 +720,6 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 
 	printbr'det_gammaBar'
 		det_gammaBar = Matrix.determinant(gammaBar_ll)
-		det_gammaBar_var = var('det_gammaBar', coords)
 	printbr(det_gammaBar)
 
 		-- factor out the coord metric det: r^4 sin(theta)^2 of spherical
@@ -758,24 +741,8 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 	printbr(det_gammaBar)
 	--]]
 
-	-- TODO try to never use this in the code.  
-	-- it can tend to zero, and and gammaBar^ij can be singular
 	printbr'gammaBar_uu'
-	--[[ gammaBar^ij := invert(gammaBar_ij)
-		gammaBar_uu = Tensor('^ij', table.unpack((Matrix.inverse(gammaBar_ll, nil, nil, nil, 
-			-- defer det_gammaBar
-			--det_gammaBar_var))))
-			-- defer det_gammaBar_over_det_gammaHat (but leave det_gammaHat for further simplification)
-			det_gammaBar_over_det_gammaHat_var * det_gammaHat))))
-			-- don't
-			--det_gammaBar))))
-		-- this isn't always completely effective.  sometimes it introduces sin(theta)'s in the denominator
-		--gammaBar_uu = (gammaBar_uu / det_gammaHat * det_gammaHat_var)()
-	--]]
-	-- [[ defer gammaBar^IJ
-	-- use gammaBar^ij = e^i_I e^j_J gammaBar^IJ
 		gammaBar_uu = (eu'^i_I' * eu'^j_J' * gammaBar_UU'^IJ')():factorDivision()
-	--]]
 	printbr(gammaBar_uu)
 	printbr'gamma_uu'
 		gamma_uu = (exp_neg4phi * gammaBar_uu'^ij')():factorDivision()
@@ -795,8 +762,6 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 		connBar_lll = ((partial_gammaBar_lll'_ijk' + partial_gammaBar_lll'_ikj' - partial_gammaBar_lll'_jki') / 2)()
 	printbr(connBar_lll)
 
-	-- TODO this has 1/r's in it.
-	-- this can be singular.  don't use it.
 	printbr'connBar_LLL'
 		connBar_LLL = (((connBar_lll'_ijk' * eu'^i_I')() * eu'^j_J')() * eu'^k_K')():factorDivision()
 		connBar_LLL = Tensor('_IJK', function(I,J,K)
@@ -805,11 +770,6 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 		connBar_LLL_vars = makevars_3sym3('_IJK', 'connBar_LLL')
 	printbr(connBar_LLL)
 
-	-- TODO this can have 1/r's too ...
-	-- NOTICE this is rescaled connBar^i_jk, NOT the connection associated with rescaled metric gammaBar_IJ
-	-- I want to store these variables instead of connBar^i_jk, because connBar^i_jk has 1/r's
-	-- I'm putting '_' out there as a warning:
-	--  DO NOT DIFFERENTIATE THIS AND EXPECT THE DERIVATIVE OF THE NON-RESCALED VERSION
 	printbr'connBar_ULL'
 		connBar_ULL = (gammaBar_UU'^IL' * connBar_LLL'_LJK')():factorDivision()
 	printbr(connBar_ULL)
@@ -994,9 +954,7 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 	printbr('tr_ABarSq')
 		tr_ABarSq = (gammaBar_UU'^IJ' * ABarSq_LL'_IJ')():factorDivision()
 	printbr(tr_ABarSq)
-		tr_ABarSq_var = var('tr_ABarSq', coords) 
 
-		-- TODO Don't store this as a local var.  Use it symbolically even? 
 	printbr'DBar2_alpha_ll'
 		DBar2_alpha_ll = (
 			partial2_alpha_ll'_ij' 
@@ -1155,10 +1113,6 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 	printbr'Delta_ULL'
 		Delta_ULL = (connBar_ULL'^I_JK' - connHat_ULL'^I_JK')():factorDivision()
 	printbr(Delta_ULL)
-
-	printbr'LambdaBar_U0'
-		LambdaBar_U0 = (Delta_ULL'^I_JK' * gammaBar_UU'^JK')():factorDivision()
-	printbr(LambdaBar_U0)
 
 	printbr'Delta_U'
 		Delta_U = (Delta_ULL'^I_JK' * gammaBar_UU'^JK')():factorDivision()
@@ -1549,7 +1503,7 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 
 		--end	-- eqn.useShift
 		
-		-------------------------------- H -------------------------------- 
+		-------------------------------- H & M^i -------------------------------- 
 	
 		-- 2017 Ruchlin et al, eqn 46
 		-- H = 2/3 K^2 - ABar^ij ABar_ij + exp(-4 phi) (RBar - 8 DBar^i phi DBar_i phi - 8 gammaBar^ij DBar_i DBar_j phi)
@@ -1568,6 +1522,8 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 	
 	printbr'M_u_def'
 		--[[
+		
+		TODO use this one
 		2013 Baumgarte et al, eqn 14
 		M^i = exp(-4 phi) (
 			1/sqrt(det gammaBar) DHat_j (sqrt(det gammaBar) ABar^ij)
@@ -1614,6 +1570,14 @@ Tensor.findBasisForSymbol{}.metricInverse = nil
 				- 8 * pi * S_u
 			))():factorDivision()
 	printbr(M_u_def)
+
+		-------------------------------- init cond stuff -------------------------------- 
+		-- the rest if init cond stuff goes in the init state object
+		-- this just holds whatever derived values
+
+	printbr'LambdaBar0_U'
+		LambdaBar0_U = (Delta_ULL'^I_JK' * gammaBar_UU'^JK')():factorDivision()
+	printbr(LambdaBar0_U)
 
 
 		outfile:close()
@@ -1689,6 +1653,94 @@ Should initState provide a metric in cartesian, or in the background metric?
 I'll say Cartesian for now, and then transform them using the rescaling.
 --]]
 function BSSNOKFiniteDifferenceEquation:getInitStateCode()
+	-- do this first to initialize the expression fields
+	local env = self:getEnv()
+	
+	local initState = self.initState
+	-- look for symmath expressions instead of code
+	-- also skip the initDerivs finite difference 
+	if initState.initAnalytical then
+		
+		local symmath = require 'symmath'
+		local Tensor = symmath.Tensor
+		local Matrix = symmath.Matrix
+		local frac = symmath.frac
+		local sqrt = symmath.sqrt
+
+		local eu = env.eu
+		local gamma0_ll = initState.gamma0_ll
+		local K0_ll = initState.K0_ll
+
+		local gammaHat_ll = Tensor.metric().metric
+		local det_gammaHat = Matrix.determinant(gammaHat_ll)
+		local det_gammaBar = det_gammaHat 	-- TODO make this constraint a function
+		local det_gamma0 = Matrix.determinant(gamma0_ll)
+		local exp_neg4phi = ((det_gammaBar / det_gamma0)^frac(1,3))()
+		local W0 = sqrt(exp_neg4phi)()
+		local gammaBar0_ll = (exp_neg4phi * gamma0_ll'_ij')()
+		local epsilon0_ll = (gammaBar0_ll'_ij' - gammaHat_ll'_ij')()
+		local epsilon0_LL = (epsilon0_ll'_ij' * eu'^i_I' * eu'^j_J')()
+		local gamma0_uu = Tensor('^ij', table.unpack((Matrix.inverse(gamma0_ll, nil, nil, nil, det_gamma0))))
+		local K0 = (gamma0_uu'^ij' * K0_ll'_ij')()
+		local A0_ll = (K0_ll'_ij' - frac(1,3) * gamma0_ll'_ij' * (gamma0_uu'^kl' * K0_ll'_kl'))()
+		local ABar0_ll = (exp_neg4phi * A0_ll'_ij')()
+		local ABar0_LL = (ABar0_ll'_ij' * eu'^i_I' * eu'^j_J')()
+
+		env.alpha0 = initState.alpha0
+		env.beta0_U = (initState.beta0_u'^i' * eu'^i_I')():factorDivision()
+		-- TODO what to initialize B^i to?
+		env.B0_U = Tensor('^I', 0,0,0)
+		env.W0 = W0
+		env.epsilon0_LL = epsilon0_LL
+		env.K0 = K0
+		env.ABar0_LL = ABar0_LL
+		
+		return template([[
+kernel void initState(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+	real3 x = cell_x(i);
+	real3 xc = coordMap(x);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+<?=assignRepls(cos_xs)?>
+<?=assignRepls(sin_xs)?>
+
+<?=assign'alpha0'?>
+	U->alpha = alpha0;
+<?=assign_real3'beta0_U'?>	
+	U->beta_U = beta0_U;
+<?=assign_real3'B0_U'?>	
+	U->B_U = B0_U;
+<?=assign'W0'?>
+	U->W = W0;
+<?=assign_sym3'epsilon0_LL'?>
+	U->epsilon_LL = epsilon0_LL;
+<?=assign'K0'?>
+	U->K = K0;
+<?=assign_sym3'ABar0_LL'?>
+	U->ABar_LL = ABar0_LL;
+
+//TODO initialization of these ...
+//how about an initial call to constrainU?	
+	U->rho = 0.;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+	
+	U->H = 0.;
+	U->M_u = real3_zero;
+}
+]], 	setmetatable({
+			initState = initState,
+		}, {
+			__index = env,
+		}))
+	end
+	
 	return template([=[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
@@ -1769,17 +1821,15 @@ kernel void initDerivs(
 <?=assignRepls(sin_xs)?>
 <?=eqn:makePartial1'epsilon_LL'?>
 
-<?=assign'det_gammaHat'?>
-<?=assign_3sym3'connHat_ULL'?>
 <?=assign'det_gammaBar_over_det_gammaHat'?>
 
-<?=assign_real3'LambdaBar_U0'?>
-	U->LambdaBar_U = LambdaBar_U0;
+<?=assign_real3'LambdaBar0_U'?>
+	U->LambdaBar_U = LambdaBar0_U;
 }
 ]=], setmetatable({
-		code = self.initState:initState(self.solver),
+		code = initState:initState(self.solver),
 	}, {
-		__index = self:getEnv(),
+		__index = env,
 	}))
 end
 
@@ -1996,10 +2046,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 			code = template([[
 <?=eqn:makePartial1'alpha'?>
 <?=eqn:makePartial2'alpha'?>
-	
-<?=assign_sym3'gammaBar_uu'?>
 <?=assign_sym3'DBar2_alpha_ll'?> 
-
 	*value = sym3_dot(gammaBar_uu, DBar2_alpha_ll);
 ]], env),
 		},
@@ -2009,14 +2056,10 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 			name = 'TF_tracelessPart_LL',
 			type = 'sym3',
 			code = template([[
-	
 <?=eqn:makePartial1'alpha'?>
 <?=eqn:makePartial2'alpha'?>
-
 <?=assign'det_gammaBar_over_det_gammaHat'?>
 <?=assign'det_gammaBar'?>
-<?=assign_sym3'DBar2_alpha_ll'?> 
-
 <?=eqn:makePartial1'W'?>
 <?=eqn:makePartial2'W'?>
 <?=assign_sym3'TF_tracelessPart_LL'?>	
@@ -2225,11 +2268,6 @@ end ?>;
 <?=assignRepls(sin_xs)?>
 
 <?=assign'det_gammaBar_over_det_gammaHat'?>
-
-<?=assign'det_gammaHat'?>
-<?=assign_3sym3'connHat_ULL'?>
-
-<?=assign_real3'LambdaBar_u'?>
 
 <?=assign_sym3'RBar_LL'?>
 	*value_sym3 = RBar_LL;
