@@ -65,7 +65,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 
 		--constraints:
 		{name='H', type='real'},				--1
-		{name='M_u', type='real3'},				--3
+		{name='M_U', type='real3'},				--3
 	}
 	self.numIntStates = makestruct.countScalars(intVars)
 
@@ -206,6 +206,8 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 				s = s:gsub('U%->LambdaBar_U%.(.)', '\\bar{\\Lambda}^{\\hat{%1}}')
 				s = s:gsub('U%->B_U%.(.)', 'B^{\\hat{%1}}')
 				s = s:gsub('U%->rho', '\\rho')
+				s = s:gsub('U%->S_u%.(.)', 'S^{%1}')
+				s = s:gsub('U%->S_ll%.(..)', 'S_{%1}')
 				s = s:gsub('partial_alpha_l%.(.)', '\\alpha_{,%1}')
 				s = s:gsub('partial_beta_Ul%.(.)%.(.)', '{\\beta^{\\hat{%2}}}_{,%1}')
 				s = s:gsub('partial_epsilon_LLl%[(.)%]%.(.)(.)', function(k,xi,xj) return '\\epsilon_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
@@ -695,7 +697,9 @@ time('building symbolic math env', function()
 
 			-- some other variables
 
+	printbr'exp_neg4phi'
 		exp_neg4phi = W * W
+	printbr(exp_neg4phi)
 
 			-- derivatives rescaled back to non-coordinates:
 
@@ -731,7 +735,7 @@ time('building symbolic math env', function()
 	printbr(det_gammaBar_over_det_gammaHat)
 
 	printbr'gammaBar_UU'
-		gammaBar_UU = Tensor('^ij', table.unpack((Matrix.inverse(gammaBar_LL, nil, nil, nil,
+		gammaBar_UU = Tensor('^IJ', table.unpack((Matrix.inverse(gammaBar_LL, nil, nil, nil,
 			-- det(gammaBar_IJ) == det(gammaBar_ij)/det(gammaHat_ij)
 			det_gammaBar_over_det_gammaHat_var)))) 
 	printbr(gammaBar_UU)
@@ -842,11 +846,17 @@ time('building symbolic math env', function()
 		end)
 	--]]
 
+	-- [[ connBar^k_jk = sqrt(det gammaBar_mn),j
 	printbr'tr_connBar_l'	
 		tr_connBar_l  = Tensor('_i', function(i)
 			return (sqrt(det_gammaBar):diff(coords[i]) / sqrt(det_gammaBar))():factorDivision()
 		end)
 	printbr(tr_connBar_l)
+	--]]
+	--[[ connBar^k_jk as a trace 
+	tr_connBar_L = connBar_ULL'^K_JK'()
+	tr_connBar_l = (e'_i^I' * tr_connBar_L'_I')()
+	--]]
 
 	-- connBar^k_ki,j = (1/2 det gammaBar_mn,i / det gammaBar_mn)_,j
 	-- so it is a partial2 of det gammaBar_mn, and is symmetric (even though it's partial1 of connBar^j_ij)
@@ -916,9 +926,9 @@ time('building symbolic math env', function()
 		)():factorDivision()
 	printbr(DBar2_alpha_LL)
 
-	printbr('trBar_DBar2_alpha')
-		trBar_DBar2_alpha = (gammaBar_UU'^IJ' * DBar2_alpha_LL'_IJ')():factorDivision()
-	printbr(trBar_DBar2_alpha)
+	printbr('tr_DBar2_alpha')
+		tr_DBar2_alpha = (gammaBar_UU'^IJ' * DBar2_alpha_LL'_IJ')():factorDivision()
+	printbr(tr_DBar2_alpha)
 
 	printbr('partial_alpha_u')
 		partial_alpha_u = (gammaBar_uu'^ij' * partial_alpha_l'_j')():factorDivision()
@@ -973,7 +983,7 @@ time('building symbolic math env', function()
 		dt_K = (frac(1,3) * alpha * K^2
 			+ alpha * tr_ABarSq
 			- exp_neg4phi * (
-				trBar_DBar2_alpha
+				tr_DBar2_alpha
 				+ 2 * partial_alpha_u'^i' * partial_phi_l'_i'
 			)
 			+ partial_K_l_upwind'_i' * beta_u'^i'
@@ -1467,7 +1477,7 @@ time('building symbolic math env', function()
 		)():factorDivision()
 	printbr(H_def)
 	
-	printbr'M_u_def'
+	printbr'M_U_def'
 		--[[
 		
 		TODO use this one
@@ -1503,20 +1513,21 @@ time('building symbolic math env', function()
 			)
 		) - 8 pi S^i
 
-		--]]	
-		connBar_ull = (connBar_ULL'^I_JK' * eu'^i_I' * e'_j^J' * e'_k^K')()
-		ABar_uu = (ABar_UU'^IJ' * eu'^i_I' * eu'^j_J')()
+		--]]
+		partial_gammaBar_LLL = (partial_gammaBar_lll'_ijk' * eu'^i_I' * eu'^j_J' * eu'^k_K')():permute'_IJK'
+		partial_ABar_LLL = (partial_ABar_lll'_ijk' * eu'^i_I' * eu'^j_J' * eu'^k_K')():permute'_IJK'
 		exp_neg6phi = W * W * W
-		M_u_def = (exp_neg6phi * (
-				6 * ABar_uu'^ij' * partial_phi_l'_j'
-				+ connBar_ull'^i_jk' * ABar_uu'^jk'
-				- ABar_uu'^jk' * gammaBar_uu'^li' * partial_gammaBar_lll'_klj'
-				- ABar_uu'^ik' * gammaBar_uu'^lj' * partial_gammaBar_lll'_klj'
-				+ gammaBar_uu'^ik' * gammaBar_uu'^lj' * partial_ABar_lll'_klj'
-				- frac(2,3) * partial_K_l'_j' * gammaBar_uu'^ij'
-				- 8 * pi * S_u
+		M_U_def = (
+			- frac(2,3) * gammaBar_UU'^IJ' * partial_K_L'_J'
+			+ exp_neg6phi * (
+				- 8 * pi * S_u'^i' * e'_i^I'
+				+ 6 * ABar_UU'^IJ' * partial_phi_L'_J'
+				- connBar_ULL'^I_JK' * ABar_UU'^JK'
+				- ABar_UU'^KJ' * gammaBar_UU'^LI' * partial_gammaBar_LLL'_KLJ'
+				- ABar_UU'^KI' * gammaBar_UU'^LJ' * partial_gammaBar_LLL'_KLJ'
+				+ gammaBar_UU'^IK' * gammaBar_UU'^LJ' * partial_ABar_LLL'_KLJ'
 			))():factorDivision()
-	printbr(M_u_def)
+	printbr(M_U_def)
 
 		-------------------------------- init cond stuff -------------------------------- 
 		-- the rest if init cond stuff goes in the init state object
@@ -1683,7 +1694,7 @@ kernel void initState(
 	U->S_ll = sym3_zero;
 	
 	U->H = 0.;
-	U->M_u = real3_zero;
+	U->M_U = real3_zero;
 }
 ]], 	setmetatable({
 			initState = initState,
@@ -1754,7 +1765,7 @@ kernel void initState(
 	U->S_ll = sym3_zero;
 	
 	U->H = 0.;
-	U->M_u = real3_zero;
+	U->M_U = real3_zero;
 }
 
 //after popularing gammaBar_ll, use its finite-difference derivative to initialize LambdaBar_u
@@ -1829,10 +1840,10 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U LambdaBar_U y',
 	'U LambdaBar_U z',
 	'U H',
---	'U M_u mag',
-	'U M_u x',
-	'U M_u y',
-	'U M_u z',
+--	'U M_U mag',
+	'U M_U x',
+	'U M_U y',
+	'U M_U z',
 	--'U det gammaBar - det gammaHat',
 	--'U det gamma_ij based on phi',
 	--'U volume',
@@ -1840,7 +1851,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	--'U gamma_LL tr weighted',
 --]=]	
 
--- [[ debugging derivatives
+--[[ debugging derivatives
 -- [=[	
 	'deriv alpha',
 	'deriv beta_U x',
@@ -1869,9 +1880,9 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'deriv LambdaBar_U y',
 	'deriv LambdaBar_U z',
 	'deriv H',
-	'deriv M_u x',
-	'deriv M_u y',
-	'deriv M_u z',
+	'deriv M_U x',
+	'deriv M_U y',
+	'deriv M_U z',
 --]=]	
 --]]
 
@@ -1895,6 +1906,10 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U del gammaBar_ll sym yz',
 	'U del gammaBar_ll sym zz',
 --]]
+-- [=[
+	'U tr_ABarSq',
+	'U tr_DBar2_alpha',
+--]=]
 }
 
 function BSSNOKFiniteDifferenceEquation:getDisplayVars()	
@@ -2277,6 +2292,30 @@ gammaBar^kl = inv(gammaBar_kl)
 ]], env),
 		}
 	end
+--]=]
+
+-- [=[
+	vars:insert{
+		name='tr_ABarSq',
+		code = template([[
+<?=assignRepls(cos_xs)?>
+<?=assignRepls(sin_xs)?>
+<?=assign'tr_ABarSq'?>
+	*value = tr_ABarSq;
+]], env),
+	}
+--]=]
+
+-- [=[
+	vars:insert{
+		name='tr_DBar2_alpha',
+		code = template([[
+<?=assignRepls(cos_xs)?>
+<?=assignRepls(sin_xs)?>
+<?=assign'tr_DBar2_alpha'?>
+	*value = tr_DBar2_alpha;
+]], env),
+	}
 --]=]
 
 	vars:insert{name='x', type='real3', code='*value_real3=x;'}

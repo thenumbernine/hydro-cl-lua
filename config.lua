@@ -707,7 +707,7 @@ local args = {
 	mins = {0, 0, -math.pi},
 	maxs = {16, math.pi, math.pi},
 	gridSize = ({
-		{1024, 1, 1},
+		{128, 1, 1},
 		{64, 16, 1},
 		{16, 16, 16},
 	})[dim],
@@ -772,6 +772,6 @@ local args = {
 	},
 	--]]
 }
-self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
---self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
+--self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
+self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
 --]=]

@@ -46,7 +46,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	-- otherwise rebuild intVars based on it ...
 	self.useShift = args.useShift or 'HyperbolicGammaDriver'
 	self.useScalarField = args.useScalarField 
-
+	
 	local intVars = table{
 		{name='alpha', type='real'},			-- 0:	1: alpha
 		{name='W', type='real'},				-- 1:	1: W = exp(-2 phi) = (det gammaHat_ij / det gamma_ij)^(1/6)
@@ -57,7 +57,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 		{name='epsilon_LL', type='sym3'},		-- 12:	6: gammaBar_ij - gammaHat_ij, only 5 dof since det gammaBar_ij = 1
 		{name='ABar_LL', type='sym3'},			-- 18:	6: ABar_ij, only 5 dof since ABar^k_k = 0
 	}											-- 24 = total size so far
-
+	
 	if self.useScalarField then
 		intVars:append{
 			{name='Phi', type='cplx'},
@@ -65,7 +65,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 			{name='Pi', type='cplx'},			-- Pi = n^a Phi_,a
 		}
 	end
-
+	
 	self.consVars = table()
 	:append(intVars)
 	:append{
@@ -76,7 +76,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 
 		--constraints:
 		{name='H', type='real'},				--1
-		{name='M_u', type='real3'},				--3
+		{name='M_U', type='real3'},				--3
 	}
 	self.numIntStates = makestruct.countScalars(intVars)
 
@@ -219,7 +219,7 @@ kernel void initState(
 	U->S_ll = sym3_zero;
 	
 	U->H = 0.;
-	U->M_u = real3_zero;
+	U->M_U = real3_zero;
 }
 ]], 	setmetatable({
 			compile = compile,
@@ -297,7 +297,7 @@ kernel void initState(
 	U->S_u = real3_zero;
 	U->S_ll = sym3_zero;
 	U->H = 0.;
-	U->M_u = real3_zero;
+	U->M_U = real3_zero;
 
 <? if eqn.useScalarField then ?>
 	U->Phi = Phi;
@@ -383,10 +383,10 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U LambdaBar_U y',
 	'U LambdaBar_U z',
 	'U H',
---	'U M_u mag',
-	'U M_u x',
-	'U M_u y',
-	'U M_u z',
+--	'U M_U mag',
+	'U M_U x',
+	'U M_U y',
+	'U M_U z',
 	--'U det gammaBar - det gammaHat',
 	--'U det gamma_ij based on phi',
 	--'U volume',
@@ -423,9 +423,9 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'deriv LambdaBar_U y',
 	'deriv LambdaBar_U z',
 	'deriv H',
-	'deriv M_u x',
-	'deriv M_u y',
-	'deriv M_u z',
+	'deriv M_U x',
+	'deriv M_U y',
+	'deriv M_U z',
 --]=]	
 --]]
 
@@ -489,6 +489,10 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U Psi_l y re',
 	'U Psi_l z re',
 	'U Pi re',
+--]=]
+-- [=[
+	'U tr_ABarSq',
+	'U tr_DBar2_alpha',
 --]=]
 }
 
@@ -1282,6 +1286,39 @@ end
 ?>	value_real3-><?=xi?> = sym3_dot(gammaBar_UU, Delta_ULL.<?=xi?>);
 <? end
 ?>
+]], env),
+	}
+--]=]
+
+-- [=[
+	vars:insert{
+		name='tr_ABarSq',
+		code = template([[
+	sym3 gammaBar_UU = calc_gammaBar_UU(U, x);
+	real3x3 ABar_UL = sym3_sym3_mul(gammaBar_UU, U->ABar_LL);
+	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);
+	real tr_ABarSq = sym3_dot(U->ABar_LL, ABar_UU);
+	*value = tr_ABarSq;
+]], env),
+	}
+--]=]
+
+-- [=[
+	vars:insert{
+		name='tr_DBar2_alpha',
+		code = template([[
+<?=eqn:makePartial1'alpha'?>
+	real3 partial_alpha_L = real3_rescaleFromCoord_l(partial_alpha_l, x);
+<?=eqn:makePartial2'alpha'?>		//partial2_alpha_ll.ij := alpha_,ij
+	sym3 partial2_alpha_LL = sym3_rescaleFromCoord_ll(partial2_alpha_ll, x);
+	sym3 gammaBar_UU = calc_gammaBar_UU(U, x);
+<?=eqn:makePartial1'epsilon_LL'?>
+	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
+	_3sym3 connBar_ULL;
+	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
+	sym3 DBar2_alpha_LL = sym3_sub(partial2_alpha_LL, real3_3sym3_dot1(partial_alpha_L, connBar_ULL));
+	real tr_DBar2_alpha = sym3_dot(gammaBar_UU, DBar2_alpha_LL);
+	*value = tr_DBar2_alpha;
 ]], env),
 	}
 --]=]

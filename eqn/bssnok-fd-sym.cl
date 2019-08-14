@@ -311,7 +311,7 @@ void setFlatSpace(
 	U->S_u = real3_zero;
 	U->S_ll = sym3_zero;
 	U->H = 0;
-	U->M_u = real3_zero;
+	U->M_U = real3_zero;
 }
 
 
@@ -430,40 +430,40 @@ kernel void calcDeriv(
 
 	//////////////////////////////// alpha_,t //////////////////////////////// 
 
-<?=eqn:makePartialUpwind'alpha'?>;
+<?=eqn:makePartialUpwind'alpha'?>
 <?=assign'dt_alpha'?>
 	deriv->alpha += dt_alpha;
 	
 	//////////////////////////////// W_,t //////////////////////////////// 
 
-<?=eqn:makePartialUpwind'W'?>;
+<?=eqn:makePartialUpwind'W'?>
 <?=assign_real3'partial_det_gammaBar_over_det_gammaHat_l'?>
 <?=assign'dt_W'?>
 	deriv->W += dt_W;
 
 	//////////////////////////////// K_,t //////////////////////////////// 
 	
-<?=eqn:makePartialUpwind'K'?>;
+<?=eqn:makePartialUpwind'K'?>
 <?=assign'dt_K'?>
 	deriv->K += dt_K;
 
 	//////////////////////////////// epsilon_ij,t //////////////////////////////// 
 
-<?=eqn:makePartialUpwind'epsilon_LL'?>;
+<?=eqn:makePartialUpwind'epsilon_LL'?>
 <?=assign_sym3'dt_epsilon_LL'?>
 	deriv->epsilon_LL = sym3_add(deriv->epsilon_LL, dt_epsilon_LL);
 
 	//////////////////////////////// ABar_ij,t //////////////////////////////// 
 
 <?=eqn:makePartial2'epsilon_LL'?>
-<?=eqn:makePartialUpwind'ABar_LL'?>;
+<?=eqn:makePartialUpwind'ABar_LL'?>
 
 <?=assign_sym3'dt_ABar_LL'?>
 	deriv->ABar_LL = sym3_add(deriv->ABar_LL, dt_ABar_LL);
 
 	//////////////////////////////// LambdaBar^i_,t //////////////////////////////// 
 
-<?=eqn:makePartialUpwind'LambdaBar_U'?>;
+<?=eqn:makePartialUpwind'LambdaBar_U'?>
 <?=assign_real3'dt_LambdaBar_U'?>
 	deriv->LambdaBar_U = real3_add(deriv->LambdaBar_U, dt_LambdaBar_U);
 
@@ -477,11 +477,11 @@ kernel void calcDeriv(
 
 <? elseif eqn.useShift == 'HyperbolicGammaDriver' then ?>
 
-<?=eqn:makePartialUpwind'beta_U'?>;
+<?=eqn:makePartialUpwind'beta_U'?>
 <?=assign_real3'dt_beta_U_HyperbolicGammaDriver'?>
 	deriv->beta_U = real3_add(deriv->beta_U, dt_beta_U_HyperbolicGammaDriver);
 
-<?=eqn:makePartialUpwind'B_U'?>;
+<?=eqn:makePartialUpwind'B_U'?>
 <?=assign_real3'dt_B_U_HyperbolicGammaDriver'?>
 	deriv->B_U = real3_add(deriv->B_U, dt_B_U_HyperbolicGammaDriver);
 
@@ -562,8 +562,8 @@ then
 <?=assign'H_def'?>
 	U->H = H_def;
 
-<?=assign_real3'M_u_def'?>
-	U->M_u = M_u_def;
+<?=assign_real3'M_U_def'?>
+	U->M_U = M_U_def;
 
 <? end	-- calc_H_and_M ?>
 <? end	-- useConstrainU ?>

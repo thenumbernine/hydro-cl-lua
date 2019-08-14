@@ -579,7 +579,7 @@ void setFlatSpace(
 	U->S_u = real3_zero;
 	U->S_ll = sym3_zero;
 	U->H = 0;
-	U->M_u = real3_zero;
+	U->M_U = real3_zero;
 }
 
 static _3sym3 calc_partial_ABar_LLL(
@@ -1035,15 +1035,6 @@ const global cons_t* getUpwind(
 ?>	return U;
 }
 
-static void calcDeriv_alpha(
-	constant solver_t* solver,
-	global cons_t* deriv,
-	const global cons_t* U,
-	const global cons_t* Uup,
-	real3 x
-) {
-}
-
 static void calcDeriv_W(
 	constant solver_t* solver,
 	global cons_t* deriv,
@@ -1052,7 +1043,7 @@ static void calcDeriv_W(
 	real3 x,
 	real tr_DBar_beta
 ) {
-<?=eqn:makePartialUpwind'W'?>;
+<?=eqn:makePartialUpwind'W'?>
 	real3 partial_W_L_upwind = real3_rescaleFromCoord_l(partial_W_l_upwind, x);
 	
 	//2017 Ruchlin et al eqn 11c
@@ -1093,7 +1084,7 @@ static void calcDeriv_K(
 		1/3 alpha K^2 
 		+ alpha ABar_ij ABar^ij 
 		- exp(-4 phi) (
-			DBar_i DBar^i alpha 
+			gammaBar^ij DBar_i DBar_j alpha 
 			+ 2 gammaBar^ij alpha_,i phi_,j
 		) 
 		+ K_,i beta^i
@@ -1508,7 +1499,7 @@ kernel void calcDeriv(
 
 	real dt_alpha;
 	{
-<?=eqn:makePartialUpwind'alpha'?>;
+<?=eqn:makePartialUpwind'alpha'?>
 		real3 partial_alpha_L_upwind = real3_rescaleFromCoord_l(partial_alpha_l_upwind, x);
 
 		//Alcubierre 4.2.52 - Bona-Masso family of slicing
@@ -1900,8 +1891,8 @@ end
 	deriv->LambdaBar_U = real3_add(deriv->LambdaBar_U, dt_LambdaBar_U);
 
 <? end	-- useCalcDeriv_LambdaBar_U ?>
-	//////////////////////////////// beta^i_,t and B^i_,t //////////////////////////////// 
 
+	//////////////////////////////// beta^i_,t and B^i_,t //////////////////////////////// 
 
 <? if eqn.useShift == 'GammaDriver' then ?>
 	//Gamma-driver
@@ -2260,7 +2251,7 @@ for ij,xij in ipairs(symNames) do
 	*/
 	real exp_6phi = 1. / (U->W * U->W * U->W);
 <? for i,xi in ipairs(xNames) do
-?>	U->M_u.<?=xi?> = exp_6phi * (
+?>	U->M_U.<?=xi?> = exp_6phi * (
 		- 8. * M_PI * U->S_u.<?=xi?> * calc_len_<?=xi?>(x)
 <?	for j,xj in ipairs(xNames) do
 ?>		+ 6. * ABar_UU.<?=sym(i,j)?> * partial_phi_L.<?=xj?>
