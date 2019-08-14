@@ -1602,8 +1602,8 @@ I'll say Cartesian for now, and then transform them using the rescaling.
 function BSSNOKFiniteDifferenceEquation:getInitStateCode()
 	-- do this first to initialize the expression fields
 	local env = self:getEnv()
-	
 	local initState = self.initState
+	
 	-- look for symmath expressions instead of code
 	-- also skip the initDerivs finite difference 
 	if initState.initAnalytical then
@@ -1840,7 +1840,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	--'U gamma_LL tr weighted',
 --]=]	
 
---[[ debugging derivatives
+-- [[ debugging derivatives
 -- [=[	
 	'deriv alpha',
 	'deriv beta_U x',

@@ -70,7 +70,7 @@ local args = {
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics 520'] = {
 				{256,1,1},
-				{64,64,1},
+				{128,128,1},
 				{16,16,16},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
@@ -87,12 +87,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'periodic',
-		xmax=cmdline.boundary or 'periodic',
-		ymin=cmdline.boundary or 'periodic',
-		ymax=cmdline.boundary or 'periodic',
-		zmin=cmdline.boundary or 'periodic',
-		zmax=cmdline.boundary or 'periodic',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
@@ -177,7 +177,7 @@ local args = {
 	--initState = 'linear',
 	--initState = 'gaussian',
 	--initState = 'advect wave',
-	initState = 'sphere',
+	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
 	--initState = 'Sod',
@@ -190,7 +190,7 @@ local args = {
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
 	--initState = 'square cavity',
-	--initState = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
+	initState = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initState = 'Richmyer-Meshkov',
 
 	--initState = 'configuration 1',
@@ -685,7 +685,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 -- [=[ 2013 Baumgarte et al, section IV A 1 example
 local dim = 1
-self.solvers:insert(require 'solver.bssnok-fd'{
+local args = {
 	app = self,
 	
 	--eqn = 'bssnok-fd-num', 
@@ -745,12 +745,12 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	
 	-- works in spherical
 	-- TODO get the exact solution from 1982 Teukolsky
-	--initState = 'pure gauge wave',
+	initState = 'pure gauge wave',
 	--initState = 'scalar field',
 	
 	--initState = 'gaussian perturbation',	-- TODO restore this to the 2008 Alcubeirre and 1998 Alcubierre gauge wave examples
 	
-	-- [[
+	--[[
 	--initState = 'black hole - boosted Schwarzschild',
 	initState = 'black hole - Schwarzschild - spherical',
 	--initState = 'black hole - Brill Lindquist',
@@ -771,5 +771,7 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 		sigma = 10,
 	},
 	--]]
-})
+}
+self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
+--self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
 --]=]

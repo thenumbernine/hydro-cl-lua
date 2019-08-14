@@ -150,6 +150,85 @@ Should initState provide a metric in cartesian, or in the background metric?
 I'll say Cartesian for now, and then transform them using the rescaling.
 --]]
 function BSSNOKFiniteDifferenceEquation:getInitStateCode()
+	-- do this first to initialize the expression fields
+	local env = self:getEnv()
+	local initState = self.initState
+	
+	-- look for symmath expressions instead of code
+	-- also skip the initDerivs finite difference 
+	if initState.initAnalytical then
+		return template([[
+kernel void initState(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+	real3 x = cell_x(i);
+	real3 xc = coordMap(x);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+
+	//compile compat. the compile code uses 'pt' as the grid point.
+	real3 pt = x;
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+	U->alpha = <?=eqn:compile(initState.alpha0)?>;
+
+	sym3 gamma_ll = (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j,xi,xj = from6to3x3(ij)
+?>		.<?=xij?> = <?=eqn:compile(initState.gamma0_ll[i][j])?>,
+<? end
+?>	};
+
+	sym3 K_ll = (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j,xi,xj = from6to3x3(ij)
+?>		.<?=xij?> = <?=eqn:compile(initState.K0_ll[i][j])?>,
+<? end
+?>	};
+
+	sym3 gammaHat_ll = calc_gammaHat_ll(x);
+	real det_gammaHat = sym3_det(gammaHat_ll);
+	real det_gammaBar = det_gammaHat;
+	real det_gamma = sym3_det(gamma_ll);
+	real exp_neg4phi = cbrt(det_gammaBar / det_gamma);
+	U->W = sqrt(exp_neg4phi);
+	sym3 gammaBar_ll = sym3_real_mul(gamma_ll, exp_neg4phi);
+	sym3 epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
+	U->epsilon_LL = sym3_rescaleFromCoord_ll(epsilon_ll, x);
+	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma);
+	U->K = sym3_dot(gamma_uu, K_ll);
+	sym3 A_ll = sym3_sub(K_ll, sym3_real_mul(gamma_ll, -U->K/3.));
+	sym3 ABar_ll = sym3_real_mul(A_ll, exp_neg4phi);
+	U->ABar_LL = sym3_rescaleFromCoord_ll(ABar_ll, x);
+
+	real3 beta_u = (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = <?=eqn:compile(initState.beta0_u[i])?>,
+<? end
+?>	};
+	U->beta_U = real3_rescaleFromCoord_u(beta_u, x);
+	U->B_U = real3_zero;
+
+
+//TODO initialization of these ...
+//how about an initial call to constrainU?	
+	U->rho = 0.;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+	
+	U->H = 0.;
+	U->M_u = real3_zero;
+}
+]], 	setmetatable({
+			compile = compile,
+			initState = initState,
+		}, {
+			__index = env,
+		}))
+	end
+
 	return template([=[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
@@ -257,8 +336,8 @@ kernel void initDerivs(
 	
 	U->LambdaBar_U = real3_add(_3sym3_sym3_dot23(Delta_ULL, gammaBar_UU), mystery_C_U);
 }
-]=], table(self:getEnv(), {
-		code = self.initState:initState(self.solver),
+]=], table(env, {
+		code = initState:initState(self.solver),
 	}))
 end
 
