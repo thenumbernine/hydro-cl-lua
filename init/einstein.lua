@@ -669,7 +669,41 @@ return table{
 			})
 		end,
 	},
-	
+
+	{
+		-- How to provide a single initial condition for any coordinate system?
+		-- I could always do coordinate transforms based on e_i^I, however this wouldn't take into account change-of-coordinates that are required for things like spherical <-> isotropic pseudo-cartesian
+		-- In the mean time I'll make a new init cond for each geometry type.
+		-- Spherical and sphere-log-polar should still be interoperable.
+		name = 'black hole - Schwarzschild - spherical',
+		initAnalytical = true,
+		guiVars = {
+			{name = 'init_rs', value = .1},
+		},
+		init = function(self, solver, args)
+			local symmath = require 'symmath'
+			setfenv(1, setmetatable({}, {
+				__index = function(t,k)
+					local v = symmath[k] if v ~= nil then return v end
+					local v = _G[k] if v ~= nil then return v end
+				end,
+			}))
+			
+			local r = solver.coord.rDef
+			local theta = solver.coord.baseCoords[2]	-- only true for sphere and sphere-log-polar
+			local rs = var'solver->init_rs'
+			
+			self.alpha0 = sqrt(1 - rs/r)
+			self.gamma0_ll = Tensor('_ij', 
+				{1/(1 - rs/r), 0, 0},
+				{0, r^2, 0},
+				{0, 0, r^2 * sin(theta)^2}
+			)
+			self.beta0_u = Tensor'^i'	-- zeroes
+			self.K0_ll = Tensor'_ij'	-- zeroes
+		end,
+	},
+
 	-- SENR's BoostedSchwarzschild initial data
 	{
 		name = 'black hole - boosted Schwarzschild',

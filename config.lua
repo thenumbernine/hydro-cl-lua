@@ -745,14 +745,14 @@ self.solvers:insert(require 'solver.bssnok-fd'{
 	
 	-- works in spherical
 	-- TODO get the exact solution from 1982 Teukolsky
-	initState = 'pure gauge wave',
+	--initState = 'pure gauge wave',
 	--initState = 'scalar field',
 	
 	--initState = 'gaussian perturbation',	-- TODO restore this to the 2008 Alcubeirre and 1998 Alcubierre gauge wave examples
 	
-	--[[
+	-- [[
 	--initState = 'black hole - boosted Schwarzschild',
-	initState = 'black hole - Schwarzschild',
+	initState = 'black hole - Schwarzschild - spherical',
 	--initState = 'black hole - Brill Lindquist',
 	initStateArgs = {
 		center = {0,0,0},

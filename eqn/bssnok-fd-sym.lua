@@ -321,6 +321,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 			with = env[name] 
 			if with == nil then error("couldn't find "..name) end
 		end
+		if type(with) == 'number' then with = symmath.Constant(with) end
 		assert(symmath.Expression.is(with), "not an expression")
 		return '\treal '..name..' = '..compile(with)..';'
 	end
@@ -764,10 +765,6 @@ time('building symbolic math env', function()
 
 	printbr'connBar_LLL'
 		connBar_LLL = (((connBar_lll'_ijk' * eu'^i_I')() * eu'^j_J')() * eu'^k_K')():factorDivision()
-		connBar_LLL = Tensor('_IJK', function(I,J,K)
-			return connBar_LLL[I][J][K]():factorDivision()
-		end)
-		connBar_LLL_vars = makevars_3sym3('_IJK', 'connBar_LLL')
 	printbr(connBar_LLL)
 
 	printbr'connBar_ULL'
@@ -778,12 +775,6 @@ time('building symbolic math env', function()
 			expr = expr:replace(tr_DBar_beta_var, 0)
 			for i=1,3 do
 				expr = expr:replace(beta_U[i], 0)
-				if DBar_tr_DBar_beta_u_vars then
-					expr = expr:replace(DBar_tr_DBar_beta_u_vars[i], 0)
-				end
-				if trBar_DHat2_beta_u_vars then
-					expr = expr:replace(trBar_DHat2_beta_u_vars[i], 0)
-				end
 				for j=1,3 do
 					expr = expr:replace(partial_beta_Ul_vars[i][j], 0)
 					for k=1,3 do
@@ -852,59 +843,15 @@ time('building symbolic math env', function()
 	--]]
 
 	printbr'tr_connBar_l'	
-		-- using conn trace
-		--tr_connBar_l = connBar_ull'^j_kj'()
-		-- using 1/2 det_gammaBar_,k / det_gammaBar
-		-- when deferring det_gammaBar/det_gammaHat we get the terms [4/r, 2 cot(th), 0] out front, and all else has 1/(det gammaBar/det gammaHat)
-		--[=[ this was working, but is making long expressions esp for partial_tr_connBar_ll
-		tr_connBar_l = Tensor('_i', function(i) 
-			local expr = (sqrt(det_gammaBar):diff(coords[i]) / sqrt(det_gammaBar))()
-			-- [[ expand (det gammaBar/det gammaHat)_,i
-			for j=1,3 do
-				expr = expr:replace(
-					det_gammaBar_over_det_gammaHat_var:diff(coords[j]),
-					det_gammaBar_over_det_gammaHat:diff(coords[j])()
-				)
-			end
-			--]]
-			expr = expr:factorDivision() 
-			return expr
-		end)
-		--]=]
-		-- [=[
 		tr_connBar_l  = Tensor('_i', function(i)
 			return (sqrt(det_gammaBar):diff(coords[i]) / sqrt(det_gammaBar))():factorDivision()
 		end)
-		--]=]
 	printbr(tr_connBar_l)
 
 	-- connBar^k_ki,j = (1/2 det gammaBar_mn,i / det gammaBar_mn)_,j
 	-- so it is a partial2 of det gammaBar_mn, and is symmetric (even though it's partial1 of connBar^j_ij)
 	printbr'partial_tr_connBar_ll'
-		-- [=[
 		partial_tr_connBar_ll = tr_connBar_l'_i,j'():factorDivision()
-		--]=]
-		--[=[
-		partial_tr_connBar_ll = Tensor('_ij', function(i,j)
-			local expr = (frac(1,2) * sqrt(det_gammaBar):diff(coords[i]) / sqrt(det_gammaBar)):diff(coords[j])()
-			for k=1,3 do
-				for l=1,3 do
-					expr = expr:replace(
-						det_gammaBar_over_det_gammaHat_var:diff(coords[k], coords[l])(),
-						det_gammaBar_over_det_gammaHat:diff(coords[j], coords[l])()
-					)
-				end
-			end
-			for k=1,3 do
-				expr = expr:replace(
-					det_gammaBar_over_det_gammaHat_var:diff(coords[k]),
-					det_gammaBar_over_det_gammaHat:diff(coords[k])()
-				)
-			end	
-			expr = expr:factorDivision() 
-			return expr
-		end)
-		--]=]
 	printbr(partial_tr_connBar_ll)
 
 	printbr'tr_DBar_beta' 
@@ -918,7 +865,7 @@ time('building symbolic math env', function()
 		-- if you defer (det_gammaBar/det_gammaHat) and use sqrt(gbar)_,i/sqrt(gbar)=conn^j_ij for tr_connBar_l then ...
 		--  you get a 1/r in front of epsilon_IJ,theta
 		--   and a 1/(r sin(theta)) in front of epsilon_IJ,phi
-		tr_DBar_beta = (partial_beta_ul'^j_j' + tr_connBar_l--[[_vars]]'_j' * beta_u'^j')():factorDivision()
+		tr_DBar_beta = (partial_beta_ul'^j_j' + tr_connBar_l'_j' * beta_u'^j')():factorDivision()
 	printbr(tr_DBar_beta)
 		partial_W_l_upwind = Tensor('_i', function(i) return var('partial_W_l_upwind.'..xNames[i], coords) end)
 		--2017 Ruchlin et al eqn 11c
@@ -977,10 +924,10 @@ time('building symbolic math env', function()
 		partial_alpha_u = (gammaBar_uu'^ij' * partial_alpha_l'_j')():factorDivision()
 	printbr(partial_alpha_u)
 
-		-- W = exp(-2 phi)
-		-- phi = -log(W)/2
-		--W_for_phi = W:eq(exp(-2*phi_var))
-		--phi = W_for_phi:solve(phi_var)
+		-- W_def = exp(-2 phi_var)
+		-- phi_def = -log(W_def)/2
+		--W_for_phi = W_def:eq(exp(-2*phi))
+		--phi_for_W = W_for_phi:solve(phi)
 	printbr'phi'
 		phi = (-symmath.log(W)/2):factorDivision()
 	printbr(phi)
@@ -1319,7 +1266,7 @@ time('building symbolic math env', function()
 
 	printbr'partial_LambdaBar_ul_upwind'
 		partial_LambdaBar_Ul_upwind = Tensor('^I_j', function(i,j) return var('partial_LambdaBar_Ul_upwind.'..xNames[j]..'.'..xNames[i], coords) end)
-		local partial_LambdaBar_ul_upwind = (partial_LambdaBar_Ul_upwind'^I_j' * eu'^i_I' + LambdaBar_U'^I' * eu'^i_I,j')():permute'^i_j'
+		partial_LambdaBar_ul_upwind = (partial_LambdaBar_Ul_upwind'^I_j' * eu'^i_I' + LambdaBar_U'^I' * eu'^i_I,j')():permute'^i_j'
 	printbr(partial_LambdaBar_ul_upwind)
 
 	printbr'Lbeta_LambaBar_U'
@@ -1463,7 +1410,7 @@ time('building symbolic math env', function()
 	
 	printbr'partial_beta_ul_upwind'
 		partial_beta_Ul_upwind = Tensor('^I_j', function(i,j) return var('partial_beta_Ul_upwind.'..xNames[j]..'.'..xNames[i], coords) end)
-		local partial_beta_ul_upwind = (partial_beta_Ul_upwind'^I_j' * eu'^i_I' + beta_U'^I' * eu'^i_I,j')():permute'^i_j'
+		partial_beta_ul_upwind = (partial_beta_Ul_upwind'^I_j' * eu'^i_I' + beta_U'^I' * eu'^i_I,j')():permute'^i_j'
 	printbr(partial_beta_ul_upwind)
 	
 	printbr'dt_beta_U_HyperbolicGammaDriver'
@@ -1478,7 +1425,7 @@ time('building symbolic math env', function()
 	
 	printbr'partial_B_ul_upwind'
 		partial_B_Ul_upwind = Tensor('^I_j', function(i,j) return var('partial_B_Ul_upwind.'..xNames[j]..'.'..xNames[i], coords) end)
-		local partial_B_ul_upwind = (partial_B_Ul_upwind'^I_j' * eu'^i_I' + B_U'^I' * eu'^i_I,j')():permute'^i_j'
+		partial_B_ul_upwind = (partial_B_Ul_upwind'^I_j' * eu'^i_I' + B_U'^I' * eu'^i_I,j')():permute'^i_j'
 	printbr(partial_B_ul_upwind)
 
 			--[[
@@ -1694,7 +1641,11 @@ function BSSNOKFiniteDifferenceEquation:getInitStateCode()
 		env.epsilon0_LL = epsilon0_LL
 		env.K0 = K0
 		env.ABar0_LL = ABar0_LL
-		
+-- TODO print these into the math.html file
+for k in ('alpha0 W0 K0 beta0_U B0_U epsilon_LL ABar0_LL'):gmatch'%S+' do
+	print(k, env[k])
+end
+
 		return template([[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,

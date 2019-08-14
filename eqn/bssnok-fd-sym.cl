@@ -443,12 +443,6 @@ kernel void calcDeriv(
 
 	//////////////////////////////// K_,t //////////////////////////////// 
 	
-	/*
-	gammaBar_ij = exp(-4 phi) gamma_ij
-	gammaBar^ij = exp(4 phi) gamma^ij
-	gamma^ij = exp(-4 phi) gammaBar^ij
-	S := S_ij gamma^ij = exp(-4 phi) gammaBar^ij S_ij 
-	*/
 <?=eqn:makePartialUpwind'K'?>;
 <?=assign'dt_K'?>
 	deriv->K += dt_K;
@@ -457,49 +451,21 @@ kernel void calcDeriv(
 
 <?=eqn:makePartialUpwind'epsilon_LL'?>;
 <?=assign_sym3'dt_epsilon_LL'?>
-<? for ij,xij in ipairs(symNames) do
-?>	deriv->epsilon_LL.<?=xij?> += dt_epsilon_LL.<?=xij?>;
-<? end
-?>
+	deriv->epsilon_LL = sym3_add(deriv->epsilon_LL, dt_epsilon_LL);
 
 	//////////////////////////////// ABar_ij,t //////////////////////////////// 
 
 <?=eqn:makePartial2'epsilon_LL'?>
-
-	/*
-	2017 Ruchlin et al eqn 11b
-	traceless portion of ...
-		-2 alpha DBar_i DBar_j phi 
-		+ 4 alpha DBar_i phi DBar_j phi 
-		+ 2 DBar_i phi DBar_j alpha 
-		+ 2 DBar_i alpha DBar_j phi 
-		- DBar_i DBar_j alpha 
-		+ alpha RBar_ij 
-		- 8 pi alpha S_ij
-	
-	SENR does trace-free on a few terms individually:
-	*) -DBar_i DBar_j alpha
-	*) alpha RBar_ij
-	*) everything else
-
-	*/
-	
 <?=eqn:makePartialUpwind'ABar_LL'?>;
 
 <?=assign_sym3'dt_ABar_LL'?>
-<? for ij,xij in ipairs(symNames) do
-?>	deriv->ABar_LL.<?=xij?> += dt_ABar_LL.<?=xij?>;
-<? end
-?>
+	deriv->ABar_LL = sym3_add(deriv->ABar_LL, dt_ABar_LL);
 
 	//////////////////////////////// LambdaBar^i_,t //////////////////////////////// 
 
 <?=eqn:makePartialUpwind'LambdaBar_U'?>;
 <?=assign_real3'dt_LambdaBar_U'?>
-<? for i,xi in ipairs(xNames) do
-?>	deriv->LambdaBar_U.<?=xi?> += dt_LambdaBar_U.<?=xi?>;
-<? end
-?>
+	deriv->LambdaBar_U = real3_add(deriv->LambdaBar_U, dt_LambdaBar_U);
 
 	//////////////////////////////// beta^i_,t and B^i_,t //////////////////////////////// 
 
@@ -507,26 +473,17 @@ kernel void calcDeriv(
 
 	const real k = 3. / 4.;
 <?=assign_real3'dt_beta_U_GammaDriver'?>
-<? for i,xi in ipairs(xNames) do
-?>	deriv->beta_U.<?=xi?> += dt_beta_U_GammaDriver.<?=xi?>;
-<? end
-?>
+	deriv->beta_U = real3_add(deriv->beta_U, dt_beta_U_GammaDriver);
 
 <? elseif eqn.useShift == 'HyperbolicGammaDriver' then ?>
 
 <?=eqn:makePartialUpwind'beta_U'?>;
 <?=assign_real3'dt_beta_U_HyperbolicGammaDriver'?>
-<? for i,xi in ipairs(xNames) do
-?>	deriv->beta_U.<?=xi?> += dt_beta_U_HyperbolicGammaDriver.<?=xi?>;
-<? end
-?>
+	deriv->beta_U = real3_add(deriv->beta_U, dt_beta_U_HyperbolicGammaDriver);
 
 <?=eqn:makePartialUpwind'B_U'?>;
 <?=assign_real3'dt_B_U_HyperbolicGammaDriver'?>
-<? for i,xi in ipairs(xNames) do
-?>	deriv->B_U.<?=xi?> += dt_B_U_HyperbolicGammaDriver.<?=xi?>;
-<? end
-?>
+	deriv->B_U = real3_add(deriv->B_U, dt_B_U_HyperbolicGammaDriver);
 
 <? end	-- eqn.useShift ?>
 }
@@ -550,7 +507,6 @@ then
 ?>
 
 <?=assign'det_gammaBar_over_det_gammaHat'?>
-<?=assign'det_gammaBar'?>
 	
 	/*
 	we need to force det(gammaBar_ij) = det(gammaHat_ij)
