@@ -68,7 +68,7 @@ end ?>
 	
 	real3 x = cell_x(i);
 
-	global <?=op:getPotBufType()?>* U = UBuf + index;
+	const global <?=op:getPotBufType()?>* U = UBuf + index;
 
 <? for j=0,solver.dim-1 do
 ?>	real dx<?=j?> = cell_dx<?=j?>(x);

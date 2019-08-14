@@ -547,7 +547,7 @@ real3x3 real3x3_from_real(real x) {
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = (real3){<?
 	for j,xj in ipairs(xNames) do
-		if i~=j then ?>0.<? else ?>x<? end ?>, <?
+		if i~=j then ?>0.<? else ?>x<? end ?><?= j < 3 and ', ' or ''?><?
 	end ?>},
 <? end
 ?>	};

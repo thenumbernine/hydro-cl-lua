@@ -68,8 +68,6 @@ end
 local bit = require 'bit'
 local ffi = require 'ffi'
 local cl = require 'ffi.OpenCL'
-local gl = require 'gl'
-local sdl = require 'ffi.sdl'
 local io = require 'ext.io'
 local class = require 'ext.class'
 local math = require 'ext.math'
@@ -79,11 +77,6 @@ local range = require 'ext.range'
 local template = require 'template'
 local CLEnv = require 'cl.obj.env'
 local clnumber = require 'cl.obj.number'
-local GLProgram = require 'gl.program'
-local GLGradientTex = require 'gl.gradienttex'
-local GLTex2D = require 'gl.tex2d'
-local Font = require 'gui.font'
-local Mouse = require 'gui.mouse'
 local vec4d = require 'ffi.vec.vec4d'
 local vec3d = require 'ffi.vec.vec3d'
 local CartesianCoord = require 'coord.cartesian'
@@ -99,6 +92,25 @@ local targetSystem = cmdline.sys or 'imguiapp'
 -- if we are disabling the gui then replace the imgui and tooltip requires, so we don't try to unnecessarily load it
 if __disableGUI__ then targetSystem = 'glapp' end
 if __useConsole__ then targetSystem = 'console' end
+
+-- TODO make this work with the fallback mechanism as well
+-- -- that will probalby mean lots of pcalls around requires
+local gl
+local sdl
+local GLProgram
+local GLGradientTex
+local GLTex2D
+local Font
+local Mouse
+if targetSystem ~= 'console' then
+	gl = require 'gl'
+	sdl = require 'ffi.sdl'
+	GLProgram = require 'gl.program'
+	GLGradientTex = require 'gl.gradienttex'
+	GLTex2D = require 'gl.tex2d'
+	Font = require 'gui.font'
+	Mouse = require 'gui.mouse'
+end
 
 local ig, tooltip
 local baseSystems = {
@@ -117,6 +129,11 @@ local baseSystems = {
 		return require 'glapp' 
 	end},
 	{console = function()
+		
+		package.loaded.ig = {disabled=true}
+		package.loaded.gl = {disabled=true}
+		package.loaded['gl.report'] = {disabled=true}
+		
 		local cl = class()
 		function cl:requestExit() self.done = true end
 		function cl:run()
@@ -227,9 +244,11 @@ local clipInfos = range(4):mapi(function(i)
 end)
 end
 
--- needs to go before display2DMethods
-require 'draw.2d_heatmap'(HydroCLApp)
-require 'draw.2d_graph'(HydroCLApp)
+if targetSystem ~= 'console' then
+	-- needs to go before display2DMethods
+	require 'draw.2d_heatmap'(HydroCLApp)
+	require 'draw.2d_graph'(HydroCLApp)
+end
 
 -- needs to go before initGL
 local display2DMethods = table{
@@ -237,9 +256,11 @@ local display2DMethods = table{
 	{Graph = HydroCLApp.display2D_Graph},
 }
 
-require 'draw.3d_slice'(HydroCLApp)
-require 'draw.3d_ray'(HydroCLApp)
-require 'draw.3d_iso'(HydroCLApp)
+if targetSystem ~= 'console' then
+	require 'draw.3d_slice'(HydroCLApp)
+	require 'draw.3d_ray'(HydroCLApp)
+	require 'draw.3d_iso'(HydroCLApp)
+end
 
 local display3DMethods = table{
 	{Slices = HydroCLApp.display3D_Slice},
@@ -363,41 +384,42 @@ function HydroCLApp:initGL(...)
 	if #self.solvers == 0 then
 		print("You didn't add any solvers in the HydroCLApp:setup() function.  Did you forget something?")
 	end
-
-	-- This only looks good when overlaying vector fields on top of other graphs.
-	-- When it comes to separate variables, they usually look better apart.
-	self.displayAllTogether = false	--self.solvers[1] and self.solvers[1].dim > 1 or false
-
-	self.displayBilinearTextures = true
-
-	self.gradientTex = GLGradientTex(1024, {
-	-- [[ white, rainbow, black
---		{0,0,0,.5},	-- black ... ? maybe I shouldn't be using black...
-		{0,0,1,.8},	-- blue
-		{0,1,1,.8},	-- cyan
-		{0,1,0,.8},	-- green
-		{1,1,0,.8},	-- yellow
-		{1,.5,0,.8},	-- orange
-		{1,0,0,.8},	-- red
-		{1,1,1,.8},	-- white
-	--]]
-	--[[ stripes 
-		range(32):mapi(function(i)
-			return ({
-				{0,0,0,0},
-				{1,1,1,1},
-			})[i%2+1]
-		end):unpack()
-	--]]
-	}, false)
-	-- don't wrap the colors, but do use GL_REPEAT
-	self.gradientTex:setWrap{s = gl.GL_REPEAT}
-
-
+	
+	
 	-- this will be per-solver
 	-- but is also tightly linked to the structured grid solvers
 	-- used for 1D
 	if self.targetSystem ~= 'console' then
+		-- This only looks good when overlaying vector fields on top of other graphs.
+		-- When it comes to separate variables, they usually look better apart.
+		self.displayAllTogether = false	--self.solvers[1] and self.solvers[1].dim > 1 or false
+
+		self.displayBilinearTextures = true
+
+		self.gradientTex = GLGradientTex(1024, {
+		-- [[ white, rainbow, black
+	--		{0,0,0,.5},	-- black ... ? maybe I shouldn't be using black...
+			{0,0,1,.8},	-- blue
+			{0,1,1,.8},	-- cyan
+			{0,1,0,.8},	-- green
+			{1,1,0,.8},	-- yellow
+			{1,.5,0,.8},	-- orange
+			{1,0,0,.8},	-- red
+			{1,1,1,.8},	-- white
+		--]]
+		--[[ stripes 
+			range(32):mapi(function(i)
+				return ({
+					{0,0,0,0},
+					{1,1,1,1},
+				})[i%2+1]
+			end):unpack()
+		--]]
+		}, false)
+		-- don't wrap the colors, but do use GL_REPEAT
+		self.gradientTex:setWrap{s = gl.GL_REPEAT}
+
+
 		local graphShaderCode = file['draw/graph.shader']
 		self.graphShader = GLProgram{
 			vertexCode = template(graphShaderCode, {vertexShader=true}),
@@ -625,8 +647,8 @@ function HydroCLApp:screenshot()
 	self:screenshotToFile(fn)
 end
 
-local Image = require 'image'
 function HydroCLApp:screenshotToFile(fn)
+	local Image = require 'image'
 	local w, h = self:size()
 	if self.ssimg then
 		if w ~= self.ssimg.width or h ~= self.ssimg.height then
@@ -655,20 +677,22 @@ function HydroCLApp:screenshotToFile(fn)
 	self.ssflipped:save(fn)
 end
 
+local mouse = Mouse and Mouse() or nil
+
 local function canHandleMouse()
-	return rawget(ig, 'disabled') or not ig.igGetIO()[0].WantCaptureMouse
+	if not mouse then return false end
+	if rawget(ig, 'disabled') then return false end
+	return not ig.igGetIO()[0].WantCaptureMouse
 end
 
 local function canHandleKeyboard()
-	return rawget(ig, 'disabled') or not ig.igGetIO()[0].WantCaptureKeyboard
+	if rawget(ig, 'disabled') then return false end
+	return not ig.igGetIO()[0].WantCaptureKeyboard
 end
-
-
 
 HydroCLApp.running = false
 --HydroCLApp.running = true
 
-local mouse = Mouse()
 local pushVarNamesEnabled
 
 -- any smaller than this and the font starts to screw up (maybe because it is using floating point?)
@@ -1032,7 +1056,9 @@ end
 
 end
 
-require 'draw.1d'(HydroCLApp)
+if targetSystem ~= 'console' then
+	require 'draw.1d'(HydroCLApp)
+end
 
 function HydroCLApp:drawGradientLegend(ar, varName, valueMin, valueMax)
 	self.orthoView:projection(ar)
@@ -1093,8 +1119,10 @@ function HydroCLApp:display3D(...)
 	select(2, next(display3DMethods[self.display3DMethod]))(self, ...)
 end
 
---require 'draw.vectorfield'.applyToApp(HydroCLApp)
-require 'draw.vectorfield2'.applyToApp(HydroCLApp)
+if targetSystem ~= 'console' then
+	--require 'draw.vectorfield'.applyToApp(HydroCLApp)
+	require 'draw.vectorfield2'.applyToApp(HydroCLApp)
+end
 
 function HydroCLApp:updateGUI()
 	if ig.igCollapsingHeader'simulation' then
