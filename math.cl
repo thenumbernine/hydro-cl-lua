@@ -545,10 +545,10 @@ real real3x3_trace(real3x3 m) {
 real3x3 real3x3_from_real(real x) {
 	return (real3x3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (real3){<?
+?>		.<?=xi?> = _real3(<?
 	for j,xj in ipairs(xNames) do
 		if i~=j then ?>0.<? else ?>x<? end ?><?= j < 3 and ', ' or ''?><?
-	end ?>},
+	end ?>),
 <? end
 ?>	};
 }
