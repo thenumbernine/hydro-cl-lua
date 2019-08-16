@@ -439,7 +439,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -683,13 +683,13 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 
---[=[ 2013 Baumgarte et al, section IV A 1 example
+-- [=[ 2013 Baumgarte et al, section IV A 1 example
 local dim = 1
 local args = {
 	app = self,
 	
 	--eqn = 'bssnok-fd-num', 
-	eqn = 'bssnok-fd-sym', 
+	--eqn = 'bssnok-fd-sym', 
 	
 	eqnArgs = {
 		--useShift = 'none',
@@ -752,7 +752,7 @@ local args = {
 	
 	-- [[
 	--initState = 'black hole - boosted Schwarzschild',
-	initState = 'black hole - Schwarzschild - spherical',
+	initState = 'black hole - Schwarzschild isotropic - spherical',
 	--initState = 'black hole - Brill Lindquist',
 	initStateArgs = {
 		center = {0,0,0},

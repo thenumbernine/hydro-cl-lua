@@ -157,6 +157,11 @@ function BSSNOKFiniteDifferenceEquation:getInitStateCode()
 	-- look for symmath expressions instead of code
 	-- also skip the initDerivs finite difference 
 	if initState.initAnalytical then
+		local symmath = require 'symmath'
+		
+		local partial_gamma0_lll = initState.gamma0_ll'_ij,k'():permute'_ijk'
+		local det_gamma = symmath.Matrix.determinant(initState.gamma0_ll)
+
 		return template([[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
@@ -192,11 +197,13 @@ kernel void initState(
 	real det_gammaHat = sym3_det(gammaHat_ll);
 	real det_gammaBar = det_gammaHat;
 	real det_gamma = sym3_det(gamma_ll);
-	real exp_neg4phi = cbrt(det_gammaBar / det_gamma);
+	real det_gammaBar_over_det_gamma = det_gammaBar / det_gamma;
+	real exp_neg4phi = cbrt(det_gammaBar_over_det_gamma);
 	U->W = sqrt(exp_neg4phi);
 	sym3 gammaBar_ll = sym3_real_mul(gamma_ll, exp_neg4phi);
 	sym3 epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
 	U->epsilon_LL = sym3_rescaleFromCoord_ll(epsilon_ll, x);
+	
 	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma);
 	U->K = sym3_dot(gamma_uu, K_ll);
 	sym3 A_ll = sym3_sub(K_ll, sym3_real_mul(gamma_ll, -U->K/3.));
@@ -211,6 +218,83 @@ kernel void initState(
 	U->beta_U = real3_rescaleFromCoord_u(beta_u, x);
 	U->B_U = real3_zero;
 
+	_3sym3 connHat_LLL, connHat_ULL;
+	calc_connHat_LLL_and_ULL(&connHat_LLL, &connHat_ULL, U, x);
+
+	// gammaBar_ij = exp(-4 phi) gamma_ij
+	// gammaBar^ij = exp(4 phi) gamma^ij
+	real exp_4phi = 1. / exp_neg4phi;
+	sym3 gammaBar_uu = sym3_real_mul(gamma_uu, exp_4phi);
+	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
+
+	//partial_gamma_lll.k.ij := gamma_ij,k
+	_3sym3 partial_gamma_lll;
+<? for ij,xij in ipairs(symNames) do
+	local i,j,xi,xj = from6to3x3(ij)
+	for k,xk in ipairs(xNames) do
+?>	partial_gamma_lll.<?=xk?>.<?=xij?> = <?=eqn:compile(partial_gamma0_lll[i][j][k])?>;
+<?	end
+end ?>
+
+	// (det gamma)_,i = det gamma * gamma^jk gamma_jk,i
+	real3 partial_det_gamma_l;
+<? for i,xi in ipairs(xNames) do
+?>	partial_det_gamma_l.<?=xi?> = det_gamma * (0.
+<?	for j,xj in ipairs(xNames) do
+		for k,xk in ipairs(xNames) do
+?>		+ gamma_uu.<?=sym(j,k)?> * partial_gamma_lll.<?=xi?>.<?=sym(j,k)?>
+<?		end
+	end
+?>	);
+<? end
+?>
+
+	real3 partial_det_gammaHat_l;
+<? 
+local symmath = require 'symmath'
+local det_gammaHat = solver.coord.det_g 
+local partial_det_gammaHat_l = symmath.Tensor('_i', function(i)
+	return det_gammaHat:diff(solver.coord.coords[i])()
+end)
+for i,xi in ipairs(xNames) do
+?>	partial_det_gammaHat_l.<?=xi?> = <?=eqn:compile(partial_det_gammaHat_l[i])?>;
+<? end
+?>
+	//W_,i = exp(2 phi)_,i
+	// = ((det gammaBar / det gamma)^(1/6))_,i
+	// = 1/6 (det gammaBar / det gamma)^(-5/6) (det gammaBar / det gamma)_,i
+	// = 1/6 (det gammaBar / det gamma)^(1/6) / (det gammaBar / det gamma) [(det gammaBar)_,i det gamma - det gammaBar (det gamma)_,i] / (det gamma)^2
+	// = 1/6 W / (det gammaBar / det gamma) [(det gammaBar)_,i - (det gamma)_,i (det gammaBar / det gamma)] / (det gamma)
+	real3 partial_W_l;
+<? for i,xi in ipairs(xNames) do
+?>	partial_W_l.<?=xi?> = 1./6. * U->W / det_gammaBar_over_det_gamma * (
+		partial_det_gammaHat_l.<?=xi?> - partial_det_gamma_l.<?=xi?> / det_gammaBar_over_det_gamma
+	) / det_gamma;
+<? end
+?>
+
+	//partial_gammaBar_lll.k.ij := gammaBar_ij,k
+	//= ( W^-2 gamma_ij )_,k
+	//= ( W^-2 gamma_ij )_,k
+	//= -2 W^_3 W_,k gamma_ij + W^-2 gamma_ij,k
+	_3sym3 partial_gammaBar_lll;
+<? for ij,xij in ipairs(symNames) do
+	for k,xk in ipairs(xNames) do
+?>	partial_gammaBar_lll.<?=xk?>.<?=xij?> = (-2. * partial_W_l.<?=xk?> / U->W * gamma_ll.<?=xij?> + partial_gamma_lll.<?=xk?>.<?=xij?>) / (U->W * U->W);
+<?	end
+end ?>
+	_3sym3 partial_gammaBar_LLL = _3sym3_rescaleFromCoord_lll(partial_gammaBar_lll, x);
+
+	_3sym3 connBar_ULL;
+	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
+
+	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
+
+	real3 Delta_U = _3sym3_tr12(Delta_ULL);
+	real3 LambdaBar_U = Delta_U;	// plus mystery C
+
+	U->LambdaBar_U = LambdaBar_U;
+
 
 //TODO initialization of these ...
 //how about an initial call to constrainU?	
@@ -224,6 +308,7 @@ kernel void initState(
 ]], 	setmetatable({
 			compile = compile,
 			initState = initState,
+			partial_gamma0_lll = partial_gamma0_lll,
 		}, {
 			__index = env,
 		}))

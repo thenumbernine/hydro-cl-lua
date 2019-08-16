@@ -704,6 +704,37 @@ return table{
 		end,
 	},
 
+	{
+		name = 'black hole - Schwarzschild isotropic - spherical',
+		initAnalytical = true,
+		guiVars = {
+			{name = 'init_rs', value = .1},
+		},
+		init = function(self, solver, args)
+			local symmath = require 'symmath'
+			setfenv(1, setmetatable({}, {
+				__index = function(t,k)
+					local v = symmath[k] if v ~= nil then return v end
+					local v = _G[k] if v ~= nil then return v end
+				end,
+			}))
+			
+			local r = solver.coord.rDef
+			local theta = solver.coord.baseCoords[2]	-- only true for sphere and sphere-log-polar
+			local rs = var'solver->init_rs'
+			
+			self.alpha0 = sqrt( (1 - rs/(4*r)) / (1 + rs/(4*r)) )
+			self.gamma0_ll = (Tensor('_ij', 
+				{1, 0, 0},
+				{0, r^2, 0},
+				{0, 0, r^2 * sin(theta)^2}
+			) * (1 + rs/(4*r))^4)()
+			self.beta0_u = Tensor'^i'	-- zeroes
+			self.K0_ll = Tensor'_ij'	-- zeroes
+		end,
+	},
+
+
 	-- SENR's BoostedSchwarzschild initial data
 	{
 		name = 'black hole - boosted Schwarzschild',

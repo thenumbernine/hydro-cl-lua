@@ -145,13 +145,13 @@ function PoissonKrylov:initSolver()
 				squareKernelObj(x, solver.solverBuf, x)
 				local xNorm = math.sqrt(solver.reduceSum() / numRealsWithoutBorder)
 				
-				solver.app.env.cmds:enqueueCopyBuffer{
+				solver.app.cmds:enqueueCopyBuffer{
 					src=assert(x.obj),
 					dst=assert(solver.reduceBuf),
 					size = ffi.sizeof(solver.app.real) * numreals,
 				}
 				local xmin = solver.reduceMin()
-				solver.app.env.cmds:enqueueCopyBuffer{
+				solver.app.cmds:enqueueCopyBuffer{
 					src=assert(x.obj),
 					dst=assert(solver.reduceBuf),
 					size = ffi.sizeof(solver.app.real) * numreals,

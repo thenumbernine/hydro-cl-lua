@@ -363,9 +363,9 @@ function HydroCLApp:initGL(...)
 	self.createAnimation = cmdline.createAnimation
 
 	self.useGLSharing = self.env.useGLSharing
-	self.device = self.env.devices[1]	-- TODO 
+	self.device = self.env.devices[1]	-- TODO multi device
 	self.ctx = self.env.ctx
-	self.cmds = self.env.cmds[1] -- TODO
+	self.cmds = self.env.cmds[1] -- TODO multi device
 	self.real = self.env.real
 	
 	--half cannot be a kernel param, so this is a proxy type

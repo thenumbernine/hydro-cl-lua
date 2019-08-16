@@ -169,8 +169,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 		-- symmath will mess with the metatable of the env table it is passed
 		local symenv = {}
 		symmath.setup{env=symenv}
-		env = {}
-		setmetatable(env, {
+		env = setmetatable({}, {
 			__index = function(t,k)
 				-- I can't directly reference symmath here because symmath.tostring will override tostring
 				-- so instead I'll do so through the symenv I pass to symmath.setup()
@@ -1593,8 +1592,7 @@ local common = require 'common'
 local oldEnv = getfenv()
 local symenv = {}
 symmath.setup{env=symenv}
-local env = {}
-setmetatable(env, {
+local env = setmetatable({}, {
 	__index = function(t,k)
 		local v = symenv[k] if v ~= nil then return v end
 		local v = common[k] if v ~= nil then return v end
@@ -1720,6 +1718,8 @@ kernel void initState(
 	U->K = K0;
 <?=assign_sym3'ABar0_LL'?>
 	U->ABar_LL = ABar0_LL;
+<?=assign_real3'LambdaBar0_U'?>
+	U->LambdaBar_U = LambdaBar0_U;
 
 //TODO initialization of these ...
 //how about an initial call to constrainU?	

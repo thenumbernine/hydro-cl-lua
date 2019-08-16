@@ -53,7 +53,7 @@ function BackwardEuler:init(solver, args)
 		self[name..'Obj'] = CLBuffer{
 			env = solver.app.env,
 			name = name,
-			type = solver.app.env.real,
+			type = solver.app.real,
 			count = bufferSize,
 		}
 	end
@@ -61,7 +61,7 @@ function BackwardEuler:init(solver, args)
 	self.derivBufObj = CLBuffer{
 		env = solver.app.env,
 		name = 'derivBuf',
-		type = solver.app.env.real,
+		type = solver.app.real,
 		count = solver.numCells * solver.eqn.numStates,
 	}
 
