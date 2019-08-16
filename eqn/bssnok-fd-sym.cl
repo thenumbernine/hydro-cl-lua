@@ -458,6 +458,8 @@ kernel void calcDeriv(
 <?=eqn:makePartial2'epsilon_LL'?>
 <?=eqn:makePartialUpwind'ABar_LL'?>
 
+<?=assign_sym3'Delta_LLL'?>
+
 <?=assign_sym3'dt_ABar_LL'?>
 	deriv->ABar_LL = sym3_add(deriv->ABar_LL, dt_ABar_LL);
 
@@ -554,10 +556,10 @@ then
 <?=eqn:makePartial1'W'?>				//partial_W_l.i := phi_,i 
 <?=eqn:makePartial1'LambdaBar_U'?>		//partial_LambdaBar_Ul.j.I := LambdaBar^I_,j
 <?=eqn:makePartial2'W'?>				//partial2_W_ll.ij := phi_,ij
-	
 <?=eqn:makePartial1'epsilon_LL'?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
-	
 <?=eqn:makePartial2'epsilon_LL'?>
+
+<?=assign_3sym3'connBar_LLL'?>
 
 <?=assign'H_def'?>
 	U->H = H_def;

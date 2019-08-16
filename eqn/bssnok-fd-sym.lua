@@ -237,6 +237,8 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 				s = s:gsub('ABarSq_ul%.(.)%.(.)', '{(\\bar{A}^2)^%1}_%2')
 				s = s:gsub('ABarSq_ll%.(..)', '\\bar{A}_{%1}')
 				s = s:gsub('solver%->shift_eta', '\\eta')
+				s = s:gsub('gammaBar_UU%.(.)(.)', '\\bar{\\gamma}^{\\hat{%1}\\hat{%2}}')
+				s = s:gsub('connBar_LLL%.(.)%.(.)(.)', '{\\bar{\\Gamma}^{\\hat{%1}}}_{\\hat{%2}\\hat{%3}}')
 
 				idnum = idnum + 1
 				local idname = 'span'..idnum
@@ -738,6 +740,9 @@ time('building symbolic math env', function()
 		gammaBar_UU = Tensor('^IJ', table.unpack((Matrix.inverse(gammaBar_LL, nil, nil, nil,
 			-- det(gammaBar_IJ) == det(gammaBar_ij)/det(gammaHat_ij)
 			det_gammaBar_over_det_gammaHat_var)))) 
+		-- I'm trying to remove all vars, but this one is pretty essential to lowering the symbolic expression sizes
+		-- I picked gammaBar^IJ because it is O(1/det gammaBar_IJ), which is near 1
+		gammaBar_UU_vars = makevars_sym3('^IJ', 'gammaBar_UU')
 	printbr(gammaBar_UU)
 
 	-- [[ defer det_gammaHat in det_gammaBar's definition
@@ -747,7 +752,7 @@ time('building symbolic math env', function()
 	--]]
 
 	printbr'gammaBar_uu'
-		gammaBar_uu = (eu'^i_I' * eu'^j_J' * gammaBar_UU'^IJ')():factorDivision()
+		gammaBar_uu = (eu'^i_I' * eu'^j_J' * gammaBar_UU_vars'^IJ')():factorDivision()
 	printbr(gammaBar_uu)
 	printbr'gamma_uu'
 		gamma_uu = (exp_neg4phi * gammaBar_uu'^ij')():factorDivision()
@@ -769,10 +774,11 @@ time('building symbolic math env', function()
 
 	printbr'connBar_LLL'
 		connBar_LLL = (((connBar_lll'_ijk' * eu'^i_I')() * eu'^j_J')() * eu'^k_K')():factorDivision()
+		connBar_LLL_vars = makevars_3sym3('_IJK', 'connBar_LLL')
 	printbr(connBar_LLL)
 
 	printbr'connBar_ULL'
-		connBar_ULL = (gammaBar_UU'^IL' * connBar_LLL'_LJK')():factorDivision()
+		connBar_ULL = (gammaBar_UU_vars'^IL' * connBar_LLL_vars'_LJK')():factorDivision()
 	printbr(connBar_ULL)
 
 		local function removeBetas(expr)
@@ -899,17 +905,17 @@ time('building symbolic math env', function()
 		-- or set some indexes to gammaBar and others to gamma? and yet others to non-coord gammaBar?
 
 	printbr'ABar_UL'
-		ABar_UL = (gammaBar_UU'^IK' * ABar_LL'_KJ')():factorDivision()
+		ABar_UL = (gammaBar_UU_vars'^IK' * ABar_LL'_KJ')():factorDivision()
 	printbr(ABar_UL)
 		tr_ABar = ABar_UL'^I_I'():factorDivision()
 	printbr'ABar_UU'
-		ABar_UU = (ABar_UL'^I_K' * gammaBar_UU'^KJ')()
+		ABar_UU = (ABar_UL'^I_K' * gammaBar_UU_vars'^KJ')()
 	printbr(ABar_UU)
 	printbr'ABarSq_LL'
 		ABarSq_LL = (ABar_LL'_IK' * ABar_UL'^K_J')()
 	printbr(ABarSq_LL)
 	printbr('tr_ABarSq')
-		tr_ABarSq = (gammaBar_UU'^IJ' * ABarSq_LL'_IJ')():factorDivision()
+		tr_ABarSq = (gammaBar_UU_vars'^IJ' * ABarSq_LL'_IJ')():factorDivision()
 	printbr(tr_ABarSq)
 
 	printbr'DBar2_alpha_ll'
@@ -927,7 +933,7 @@ time('building symbolic math env', function()
 	printbr(DBar2_alpha_LL)
 
 	printbr('tr_DBar2_alpha')
-		tr_DBar2_alpha = (gammaBar_UU'^IJ' * DBar2_alpha_LL'_IJ')():factorDivision()
+		tr_DBar2_alpha = (gammaBar_UU_vars'^IJ' * DBar2_alpha_LL'_IJ')():factorDivision()
 	printbr(tr_DBar2_alpha)
 
 	printbr('partial_alpha_u')
@@ -1072,7 +1078,8 @@ time('building symbolic math env', function()
 	printbr(Delta_ULL)
 
 	printbr'Delta_U'
-		Delta_U = (Delta_ULL'^I_JK' * gammaBar_UU'^JK')():factorDivision()
+		--Delta_U = (Delta_ULL'^I_JK' * gammaBar_UU_vars'^JK')():factorDivision()
+		Delta_U = LambdaBar_U	-- plus mystery C?
 	printbr(Delta_U)
 
 	printbr'Delta_LLL'
@@ -1117,12 +1124,41 @@ time('building symbolic math env', function()
 				- connHat_ull'^m_li' * DHat_gammaBar_lll'_mjk'
 				- connHat_ull'^m_lj' * DHat_gammaBar_lll'_mik'
 				)
-			)():permute'_ij'
+			)():factorDivision():permute'_ij'
 	printbr(trBar_DHat2_gammaBar_ll)
 
 	printbr'DHat_LambdaBar_ul'
 		DHat_LambdaBar_ul = (partial_LambdaBar_ul'^i_j' + connHat_ull'^i_kj' * LambdaBar_u'^k')():factorDivision():permute'^i_j'
 	printbr(DHat_LambdaBar_ul)
+
+	printbr'DHat_LambdaBar_LL'
+		DHat_LambdaBar_LL = (gammaBar_ll'_ik' * DHat_LambdaBar_ul'^k_j' * eu'^i_I' * eu'^j_J')():factorDivision():permute'_IJ'
+	printbr(DHat_LambdaBar_LL)
+
+		-- this is (gammaBar^kl DHat_k DHat_l gammaBar_ij) e^i_I e^j_J
+		-- it is not gammaBar^kl DHat_k DHat_l (gammaBar_ij e^i_I e^j_J)
+	printbr'trBar_DHat2_gammaBar_LL'
+		trBar_DHat2_gammaBar_LL = (trBar_DHat2_gammaBar_ll'_ij' * eu'^i_I' * eu'^j_J')():factorDivision():permute'_IJ'
+	printbr(trBar_DHat2_gammaBar_LL)
+
+		-- Delta^K Delta_IJK
+	printbr'DeltaSq1_LL'
+		DeltaSq1_LL = (Delta_U'^K' * Delta_LLL'_IJK')():factorDivision():permute'_IJ'
+	printbr(DeltaSq1_LL)
+
+	printbr'Delta_UUL'
+		Delta_UUL = (gammaBar_UU_vars'^JL' * Delta_ULL'^I_LK')():factorDivision():permute'^IJ_K'
+	printbr(Delta_UUL)
+
+		-- Delta^ML_I * Delta_JML
+	printbr'DeltaSq2_LL'
+		DeltaSq2_LL = (Delta_UUL'^ML_I' * Delta_LLL'_JML')():factorDivision():permute'_IJ'
+	printbr(DeltaSq2_LL)
+
+		-- Delta^ML_I Delta_MJL
+	printbr'DeltaSq3_LL'
+		DeltaSq3_LL = (Delta_UUL'^ML_I' * Delta_LLL'_MJL')():factorDivision():permute'_IJ'
+	printbr(DeltaSq3_LL)
 
 	printbr'RBar_LL'
 		--[[
@@ -1138,20 +1174,18 @@ time('building symbolic math env', function()
 			+ Delta^m_ik Delta_mj^k
 		--]]	
 		RBar_LL = (
-			((frac(1,2) * (
-				- trBar_DHat2_gammaBar_ll'_ij'
-				+ gammaBar_ll'_ik' * DHat_LambdaBar_ul'^k_j'
-				+ gammaBar_ll'_jk' * DHat_LambdaBar_ul'^k_i'
-			)() * eu'^i_I')() * eu'^j_J')()
-			+ (frac(1,2) * Delta_U'^K' * (
-				Delta_LLL'_IKJ'
-				+ Delta_LLL'_JKI'
-			))()
-			+ (gammaBar_UU'^KL' * (
-				Delta_ULL'^M_KI' * Delta_LLL'_JML'
-				+ Delta_ULL'^M_KJ' * Delta_LLL'_IML'
-				+ Delta_ULL'^M_IK' * Delta_LLL'_MJL'
-			))()
+			frac(1,2) * (
+				- trBar_DHat2_gammaBar_LL'_IJ'
+				+ DHat_LambdaBar_LL'_IJ'
+				+ DHat_LambdaBar_LL'_JI'
+			)
+			+ frac(1,2) * (
+				DeltaSq1_LL'_IJ'
+				+ DeltaSq1_LL'_JI'
+			)
+			+ DeltaSq2_LL'_IJ'
+			+ DeltaSq2_LL'_JI'
+			+ DeltaSq3_LL'_IJ'
 		)():factorDivision()
 	printbr(RBar_LL)
 
@@ -1174,7 +1208,7 @@ time('building symbolic math env', function()
 
 	-- not used in ABar_ij,t, but used elsewhere
 	printbr'tr_DBar2_phi'
-		tr_DBar2_phi = (DBar2_phi_LL'_IJ' * gammaBar_UU'^IJ')()
+		tr_DBar2_phi = (DBar2_phi_LL'_IJ' * gammaBar_UU_vars'^IJ')()
 	printbr(tr_DBar2_phi)
 
 	printbr'partial_ABar_lll_upwind'
@@ -1190,7 +1224,7 @@ time('building symbolic math env', function()
 		))():factorDivision()
 	printbr(Lbeta_ABar_LL)
 
-		partial_phi_sq = (gammaBar_UU'^KL' * partial_phi_L'_K' * partial_phi_L'_L')():factorDivision()
+		partial_phi_sq = (gammaBar_UU_vars'^KL' * partial_phi_L'_K' * partial_phi_L'_L')():factorDivision()
 
 	-- not used by ABar_IJ,t, but used elsewhere
 		--2008 Alcubierre eqn 2.8.18
@@ -1232,15 +1266,15 @@ time('building symbolic math env', function()
 		)()
 	printbr(tracelessPart_LL)
 	printbr'TF_tracelessPart_LL'
-		TF_tracelessPart_LL = (tracelessPart_LL'_IJ' - frac(1,3) * gammaBar_LL'_IJ' * (gammaBar_UU'^KL' * tracelessPart_LL'_KL'))():factorDivision()
+		TF_tracelessPart_LL = (tracelessPart_LL'_IJ' - frac(1,3) * gammaBar_LL'_IJ' * (gammaBar_UU_vars'^KL' * tracelessPart_LL'_KL'))():factorDivision()
 	printbr(TF_tracelessPart_LL)
 	
 	printbr'TF_DBar2_alpha_LL'
-		TF_DBar2_alpha_LL = (DBar2_alpha_LL'_IJ' - frac(1,3) * gammaBar_LL'_IJ' * (gammaBar_UU'^KL' * DBar2_alpha_LL'_KL'))():factorDivision()
+		TF_DBar2_alpha_LL = (DBar2_alpha_LL'_IJ' - frac(1,3) * gammaBar_LL'_IJ' * (gammaBar_UU_vars'^KL' * DBar2_alpha_LL'_KL'))():factorDivision()
 	printbr(TF_DBar2_alpha_LL)
 
 	printbr'tr_RBar'
-		tr_RBar = (gammaBar_UU'^KL' * RBar_LL'_KL')():factorDivision()
+		tr_RBar = (gammaBar_UU_vars'^KL' * RBar_LL'_KL')():factorDivision()
 	printbr(tr_RBar)
 	printbr'TF_RBar_LL'
 		TF_RBar_LL = (RBar_LL'_IJ' - frac(1,3) * gammaBar_LL'_IJ' * tr_RBar)():factorDivision()
@@ -1390,7 +1424,7 @@ time('building symbolic math env', function()
 				partial_alpha_L'_J'
 				- 6 * alpha * partial_phi_L'_J'
 			)
-			- frac(4,3) * alpha * gammaBar_UU'^IJ' * partial_K_L'_J'	
+			- frac(4,3) * alpha * gammaBar_UU_vars'^IJ' * partial_K_L'_J'	
 			+ e'_i^I' * (
 				trBar_DHat2_beta_u'^i'
 				+ frac(1,3) * DBar_tr_DBar_beta_u'^i'
@@ -1518,14 +1552,14 @@ time('building symbolic math env', function()
 		partial_ABar_LLL = (partial_ABar_lll'_ijk' * eu'^i_I' * eu'^j_J' * eu'^k_K')():permute'_IJK'
 		exp_neg6phi = W * W * W
 		M_U_def = (
-			- frac(2,3) * gammaBar_UU'^IJ' * partial_K_L'_J'
+			- frac(2,3) * gammaBar_UU_vars'^IJ' * partial_K_L'_J'
 			+ exp_neg6phi * (
 				- 8 * pi * S_u'^i' * e'_i^I'
 				+ 6 * ABar_UU'^IJ' * partial_phi_L'_J'
 				- connBar_ULL'^I_JK' * ABar_UU'^JK'
-				- ABar_UU'^KJ' * gammaBar_UU'^LI' * partial_gammaBar_LLL'_KLJ'
-				- ABar_UU'^KI' * gammaBar_UU'^LJ' * partial_gammaBar_LLL'_KLJ'
-				+ gammaBar_UU'^IK' * gammaBar_UU'^LJ' * partial_ABar_LLL'_KLJ'
+				- ABar_UU'^KJ' * gammaBar_UU_vars'^LI' * partial_gammaBar_LLL'_KLJ'
+				- ABar_UU'^KI' * gammaBar_UU_vars'^LJ' * partial_gammaBar_LLL'_KLJ'
+				+ gammaBar_UU_vars'^IK' * gammaBar_UU_vars'^LJ' * partial_ABar_LLL'_KLJ'
 			))():factorDivision()
 	printbr(M_U_def)
 
@@ -1534,7 +1568,7 @@ time('building symbolic math env', function()
 		-- this just holds whatever derived values
 
 	printbr'LambdaBar0_U'
-		LambdaBar0_U = (Delta_ULL'^I_JK' * gammaBar_UU'^JK')():factorDivision()
+		LambdaBar0_U = (Delta_ULL'^I_JK' * gammaBar_UU_vars'^JK')():factorDivision()
 	printbr(LambdaBar0_U)
 
 
@@ -1785,6 +1819,7 @@ kernel void initDerivs(
 
 <?=assign'det_gammaBar_over_det_gammaHat'?>
 
+<?=assign_3sym3'Delta_ULL'?>
 <?=assign_real3'LambdaBar0_U'?>
 	U->LambdaBar_U = LambdaBar0_U;
 }
@@ -2235,6 +2270,7 @@ end ?>;
 
 <?=assign'det_gammaBar_over_det_gammaHat'?>
 
+<?=assign_sym3'connBar_LLL'?>
 <?=assign_sym3'RBar_LL'?>
 	*value_sym3 = RBar_LL;
 ]], env),

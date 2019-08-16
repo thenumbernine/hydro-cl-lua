@@ -207,7 +207,7 @@ HydroCLApp.limiterNames = HydroCLApp.limiters:mapi(function(limiter) return limi
 
 --[[
 setup for the solver
-args has: platformName, deviceName
+args has: platAndDevicesNames
 override this for specific experiments
 this can't override float vs double precision yet
 
@@ -324,13 +324,14 @@ function HydroCLApp:initGL(...)
 	-- TODO if no identifier was specified by the cmdline then favor cl_khr_gl_sharing, cl_khr_fp64, cl_khr_3d_image_writes
 	local function getterForIdent(ident, identType)
 		return function(objs)
+			if ident == nil then return objs end	-- use all
+			-- use a sepcific device
+			-- TODO how to specify using multiple devices?
 			for i,obj in ipairs(objs) do
-				if type(ident) == 'nil' then
-					return obj
-				elseif type(ident) == 'number' then
-					if ident == i then return obj end
+				if type(ident) == 'number' then
+					if ident == i then return {obj} end
 				elseif type(ident) == 'string' then
-					if ident == obj:getName() then return obj end
+					if ident == obj:getName() then return {obj} end
 				end
 			end
 			error("couldn't find "..identType)
@@ -344,10 +345,12 @@ function HydroCLApp:initGL(...)
 		useGLSharing = useGLSharing,
 		verbose = self.verbose,
 		getPlatform = getterForIdent(cmdline.platform, 'platform'),
-		getDevice = getterForIdent(cmdline.device, 'device'),
+		getDevices = getterForIdent(cmdline.device, 'device'),
 	}
-	local platformName = self.env.platform:getName()
-	local deviceName = self.env.device:getName()
+	local platAndDevicesNames = table{
+		self.env.platform,
+		table.unpack(self.env.devices)
+	}:mapi(function(x) return x:getName() end):concat'/'
 
 	self.exitTime = cmdline.exitTime
 	if self.exitTime 
@@ -360,9 +363,9 @@ function HydroCLApp:initGL(...)
 	self.createAnimation = cmdline.createAnimation
 
 	self.useGLSharing = self.env.useGLSharing
-	self.device = self.env.device
+	self.device = self.env.devices[1]	-- TODO 
 	self.ctx = self.env.ctx
-	self.cmds = self.env.cmds
+	self.cmds = self.env.cmds[1] -- TODO
 	self.real = self.env.real
 	
 	--half cannot be a kernel param, so this is a proxy type
@@ -380,7 +383,7 @@ function HydroCLApp:initGL(...)
 
 	self.solvers = table()
 
-	self:setup{platformName=platformName, deviceName=deviceName}
+	self:setup{platAndDevicesNames=platAndDevicesNames}
 	if #self.solvers == 0 then
 		print("You didn't add any solvers in the HydroCLApp:setup() function.  Did you forget something?")
 	end

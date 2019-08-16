@@ -78,7 +78,7 @@ local args = {
 				{64,64,1},
 				{16,16,16},
 			},
-		})[platformName..'/'..deviceName] 
+		})[platAndDevicesNames]
 		-- default size options
 		or {
 			{256,1,1},
@@ -439,7 +439,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -683,7 +683,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 
--- [=[ 2013 Baumgarte et al, section IV A 1 example
+--[=[ 2013 Baumgarte et al, section IV A 1 example
 local dim = 1
 local args = {
 	app = self,
@@ -745,12 +745,12 @@ local args = {
 	
 	-- works in spherical
 	-- TODO get the exact solution from 1982 Teukolsky
-	initState = 'pure gauge wave',
+	--initState = 'pure gauge wave',
 	--initState = 'scalar field',
 	
 	--initState = 'gaussian perturbation',	-- TODO restore this to the 2008 Alcubeirre and 1998 Alcubierre gauge wave examples
 	
-	--[[
+	-- [[
 	--initState = 'black hole - boosted Schwarzschild',
 	initState = 'black hole - Schwarzschild - spherical',
 	--initState = 'black hole - Brill Lindquist',
@@ -772,6 +772,6 @@ local args = {
 	},
 	--]]
 }
---self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
-self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
+self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
+--self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
 --]=]

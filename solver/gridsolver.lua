@@ -149,7 +149,8 @@ function GridSolver:preInit(args)
 		local results = Program.super.compile(self, args)
 		if self.obj then	-- did compile
 			print((self.name and self.name..' ' or '')..'log:')
-			print(string.trim(self.obj:getLog(self.env.device)))
+			-- TODO log per device ...			
+			print(string.trim(self.obj:getLog(solver.app.device)))
 		end
 		return results
 	end
