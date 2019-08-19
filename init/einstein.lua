@@ -199,10 +199,11 @@ return table{
 		-- flag for determining whether to initialize variables (esp the derivative variables) from analytical expressions, or whether to use finite difference via initDerivs
 		initAnalytical = true,
 		init = function(self, solver)
-			local symmath = require 'symmath'
+			local Tensor = require 'symmath'.Tensor
 			self.alpha0 = 1
-			self.beta0_u = symmath.Tensor('^i', 0,0,0)
-			self.gamma0_ll = symmath.Tensor.metric().metric
+			self.beta0_u = Tensor'^i'
+			self.gamma0_ll = Tensor.metric().metric
+			self.K0_ll = Tensor'_ij'
 		end,
 	},
 

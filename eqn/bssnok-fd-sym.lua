@@ -32,6 +32,12 @@ BSSNOKFiniteDifferenceEquation.useSourceTerm = true
 -- not used with finite-difference schemes anyways
 BSSNOKFiniteDifferenceEquation.weightFluxByGridVolume = false
 
+-- seems all the hyperbolic formalisms listed in Alcubierre's book use alpha sqrt(gamma^ii) for the speed-of-light wavespeed
+-- however the 2017 Ruchlin paper says to use gamma_ij
+BSSNOKFiniteDifferenceEquation.cflMethod = '2008 Alcubierre'
+--BSSNOKFiniteDifferenceEquation.cflMethod = '2013 Baumgarte et al, eqn 32'
+--BSSNOKFiniteDifferenceEquation.cflMethod = '2017 Ruchlin et al, eqn 53'
+
 --[[
 args:
 	useShift = 'none'
@@ -43,6 +49,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	-- needs to be defined up front
 	-- otherwise rebuild intVars based on it ...
 	self.useShift = args.useShift or 'HyperbolicGammaDriver'
+	self.cflMethod = args.cflMethod
 
 	local intVars = table{
 		{name='alpha', type='real'},			-- 0:	1: alpha

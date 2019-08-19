@@ -612,24 +612,16 @@ kernel void calcDT(
 	real3 x = cell_x(i);
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
-<? 
--- seems all the hyperbolic formalisms listed in Alcubierre's book use alpha sqrt(gamma^ii) for the speed-of-light wavespeed
--- however the 2017 Ruchlin paper says to use gamma_ij
-local cflMethod = '2008 Alcubierre'
---local cflMethod = '2013 Baumgarte et al, eqn 32'
---local cflMethod = '2017 Ruchlin et al, eqn 53'
-?>
-
-<? if cflMethod == '2008 Alcubierre' then
+<? if eqn.cflMethod == '2008 Alcubierre' then
 ?>	sym3 gamma_uu = calc_gamma_uu(U, x);
-<? elseif cflMethod == '2017 Ruchlin et al, eqn 53' then
+<? elseif eqn.cflMethod == '2017 Ruchlin et al, eqn 53' then
 ?>	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 <? end 
 ?>
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
 <? 
-if cflMethod == '2013 Baumgarte et al, eqn 32' then
+if eqn.cflMethod == '2013 Baumgarte et al, eqn 32' then
 	if side == 0 then 
 ?>		dt = (real)min(dt, solver->grid_dx.x);
 <?	elseif side == 1 then 
@@ -638,10 +630,10 @@ if cflMethod == '2013 Baumgarte et al, eqn 32' then
 ?>		dt = (real)min(dt, .5 * solver->grid_dx.x * sin(.5 * solver->grid_dx.y) * solver->grid_dx.z);
 <? 	end 
 else
-	if cflMethod == '2008 Alcubierre' then 
+	if eqn.cflMethod == '2008 Alcubierre' then 
 ?>		//this is asserting alpha and W >0, which they should be
 		real absLambdaMax = U->alpha * sqrt(gamma_uu.<?=sym(side+1,side+1)?>);
-<? 	elseif cflMethod == '2017 Ruchlin et al, eqn 53' then 
+<? 	elseif eqn.cflMethod == '2017 Ruchlin et al, eqn 53' then 
 ?>		real absLambdaMax = sqrt(gammaBar_ll.<?=sym(side+1,side+1)?>);
 <? 	end 
 

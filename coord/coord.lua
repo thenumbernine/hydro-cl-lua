@@ -566,6 +566,8 @@ self.det_g = det_g_expr
 end
 
 function CoordinateSystem:compile(expr)
+	if type(expr) == 'number' then return clnumber(expr) end
+	
 	local symmath = require 'symmath'
 	local const = symmath.Constant
 
