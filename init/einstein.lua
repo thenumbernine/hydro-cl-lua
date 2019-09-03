@@ -48,6 +48,18 @@ end
 
 local EinsteinInitCond = class(InitCond)
 
+function EinsteinInitCond:init(args, ...)
+	-- initialize analytical metric components to flat spacetime
+	-- you still have to set 'initAnalytical=true'
+	local Tensor = require 'symmath'.Tensor
+	self.alpha0 = 1
+	self.beta0_u = Tensor'^i'
+	self.gamma0_ll = Tensor.metric().metric
+	self.K0_ll = Tensor'_ij'
+	
+	--EinsteinInitCond.super.init(self, args, ...)
+end
+
 function EinsteinInitCond:refreshInitStateProgram(solver)
 	EinsteinInitCond.super.refreshInitStateProgram(self, solver)
 	-- analytical expressions don't need to run finite differences to initialize derivative variables
@@ -198,13 +210,6 @@ return table{
 		name = 'Minkowski',
 		-- flag for determining whether to initialize variables (esp the derivative variables) from analytical expressions, or whether to use finite difference via initDerivs
 		initAnalytical = true,
-		init = function(self, solver)
-			local Tensor = require 'symmath'.Tensor
-			self.alpha0 = 1
-			self.beta0_u = Tensor'^i'
-			self.gamma0_ll = Tensor.metric().metric
-			self.K0_ll = Tensor'_ij'
-		end,
 	},
 
 	-- 2010 Baumgarte, Shapiro "Numerical Relativity ...", section 9.1.2
@@ -218,6 +223,8 @@ return table{
 			sigma
 		--]]
 		init = function(self, solver, args)
+			EinsteinInitCond.init(self, solver, args)
+			
 			local size = solver.maxs[1] - solver.mins[1]
 			self.center = args and args.center or {0,0,0}
 			
@@ -320,6 +327,8 @@ return table{
 			{name = 'sigma', value = 1},
 		},
 		init = function(self, solver, args)
+			EinsteinInitCond.init(self, solver, args)
+			
 			local coord = solver.coord
 			assert(coord)
 
@@ -340,14 +349,9 @@ return table{
 			local rminus = (r - param_r0) / param_sigma
 			local gminus = exp(-rminus^2)
 			local gplus = exp(-rplus^2)
+			
+			-- radial (/ first dimension) perturbation of alpha
 			self.alpha0 = 1 + param_alpha0 * r^2 / (1 + r^2) * (gplus + gminus)
-			
-			self.beta0_u = Tensor('^i', 0,0,0)
-			
-			-- assign metric to background metric
-			self.gamma0_ll = Tensor.metric().metric
-			
-			self.K0_ll = Tensor('_ij', {0,0,0}, {0,0,0}, {0,0,0})
 		end,
 	},
 
@@ -422,6 +426,8 @@ return table{
 			speed = warp bubble speed
 		--]]
 		init = function(self, solver, args)
+			EinsteinInitCond.init(self, solver, args)
+			
 			solver.eqn:addGuiVars{
 				{name = 'init_R', value = args and args.R or .5},
 				{name = 'init_sigma', value = args and args.sigma or 8},
@@ -467,6 +473,8 @@ return table{
 	{	
 		name = 'black hole - Schwarzschild',
 		init = function(self, solver, args)
+			EinsteinInitCond.init(self, solver, args)
+			
 			args = args or {}
 			-- TODO bodies
 			solver.eqn:addGuiVars{
@@ -523,6 +531,8 @@ return table{
 				pos = separation
 		--]]
 		init = function(self, solver, args)
+			EinsteinInitCond.init(self, solver, args)
+			
 			args = args or {}
 			
 			local v = solver.eqn.guiVars
@@ -682,6 +692,8 @@ return table{
 			{name = 'init_rs', value = .1},
 		},
 		init = function(self, solver, args)
+			EinsteinInitCond.init(self, solver, args)
+			
 			local symmath = require 'symmath'
 			setfenv(1, setmetatable({}, {
 				__index = function(t,k)
@@ -700,8 +712,6 @@ return table{
 				{0, r^2, 0},
 				{0, 0, r^2 * sin(theta)^2}
 			)
-			self.beta0_u = Tensor'^i'	-- zeroes
-			self.K0_ll = Tensor'_ij'	-- zeroes
 		end,
 	},
 
@@ -712,6 +722,8 @@ return table{
 			{name = 'init_rs', value = .1},
 		},
 		init = function(self, solver, args)
+			EinsteinInitCond.init(self, solver, args)
+			
 			local symmath = require 'symmath'
 			setfenv(1, setmetatable({}, {
 				__index = function(t,k)
@@ -730,8 +742,6 @@ return table{
 				{0, r^2, 0},
 				{0, 0, r^2 * sin(theta)^2}
 			) * (1 + rs/(4*r))^4)()
-			self.beta0_u = Tensor'^i'	-- zeroes
-			self.K0_ll = Tensor'_ij'	-- zeroes
 		end,
 	},
 
@@ -740,6 +750,7 @@ return table{
 	{
 		name = 'black hole - boosted Schwarzschild',
 		init = function(self, solver)
+			EinsteinInitCond.init(self, solver, args)
 		end,
 		initState = function(self, solver)
 			return [[
@@ -850,6 +861,8 @@ return table{
 		-- https://hub.mybinder.org/user/zachetienne-nrpytutorial-a0u5aw7y/notebooks/Tutorial-ADM_Initial_Data-Brill-Lindquist.ipynb
 		name = 'black hole - Brill Lindquist',
 		init = function(self, solver)
+			EinsteinInitCond.init(self, solver, args)
+			
 			args = args or {}
 			local v = solver.eqn.guiVars
 			self.bodies = args.bodies or {
@@ -1019,6 +1032,8 @@ return table{
 	{
 		name = '1D black hole - wormhole form',
 		init = function(self, solver)
+			EinsteinInitCond.init(self, solver, args)
+			
 			solver.eqn:addGuiVar{name='m', value=1}
 		end,
 		getCodePrefix = function(self, solver)
@@ -1117,6 +1132,8 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 		-- eqn 4.1: pick epsilon from -1e-10 / rho^2 to 1e=10 / rho^2
 		-- the SENR/NumPy uses an epsilon of .02
 		init = function(self, solver)
+			EinsteinInitCond.init(self, solver, args)
+			
 			solver.eqn:addGuiVar{name='epsilon', value=1e-10}
 		end,
 		resetState = function(self, solver)
@@ -1127,6 +1144,8 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 	{
 		name = 'testbed - gauge wave',
 		init = function(self, solver)
+			EinsteinInitCond.init(self, solver, args)
+
 --			solver.mins = vec3(-.5, -.5, -.5)
 --			solver.maxs = vec3(-.5, -.5, -.5)
 			solver:setBoundaryMethods'periodic'
@@ -1150,12 +1169,16 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 	{
 		name = 'testbed - gauge wave - diagonal',
 		init = function(self, solver)
+			EinsteinInitCond.init(self, solver, args)
+			
 			error"finishme"
 		end,
 	},
 	{
 		name = 'testbed - linear wave',
 		init = function(self, solver)
+			EinsteinInitCond.init(self, solver, args)
+
 -- TODO changing the range upon init causes something to freeze up ...
 --			solver.mins = vec3(-.5, -.5, -.5)
 --			solver.maxs = vec3(-.5, -.5, -.5)
@@ -1181,13 +1204,17 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 	{
 		name = 'testbed - linear wave - diagonal',
 		init = function(self, solver)
+			EinsteinInitCond.init(self, solver, args)
+			
 			error"finishme"
 		end,
 	},
 	{
 		name = 'testbed - Gowdy',
 		init = function(self, solver)
-		
+			EinsteinInitCond.init(self, solver, args)
+			
+			error'finishme'
 		end,
 		getCodePrefix = function(self, solver, getCodes)
 			local frac = symmath.frac

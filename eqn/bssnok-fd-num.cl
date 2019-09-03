@@ -35,13 +35,11 @@ local useAddSource = true
 #define real3_add4(a,b,c,d)		real3_add(real3_add(a,b),real3_add(c,d))
 #define real3_add5(a,b,c,d,e)	real3_add(real3_add(a,b),real3_add3(c,d,e))
 #define real3_add6(a,b,c,d,e,f)	real3_add(real3_add3(a,b,c),real3_add3(d,e,f))
-#define real3_add9(a,b,c,d,e,f,g,h,i) real3_add(real3_add4(a,b,c,d),real3_add5(e,f,g,h,i))
 
 #define cplx3_add5(a,b,c,d,e)	cplx3_add(cplx3_add(a,b),cplx3_add3(c,d,e))
 	
 #define sym3_add3(a,b,c)	sym3_add(sym3_add(a,b),c)
 #define sym3_add4(a,b,c,d)	sym3_add(sym3_add(a,b),sym3_add(c,d))	
-#define sym3_add7(a,b,c,d,e,f,g) sym3_add(sym3_add3(a,b,c),sym3_add4(d,e,f,g))
 
 <?
 -- this block is shared with other things like initCond
@@ -1662,6 +1660,13 @@ static real3 calc_PIRK_L2_B_U(
 	return real3_real_mul(*dt_LambdaBar_U, .75);
 }
 
+static real3 calc_PIRK_L3_B_U(
+	global const cons_t* U
+) {
+	const real eta = 1.;
+	return real3_real_mul(U->B_U, -eta);
+}
+
 <? if eqn.useScalarField then ?>
 
 static void calcDeriv_Phi(
@@ -2122,6 +2127,7 @@ kernel void calcDeriv(
 	real3 dt_beta_U = real3_add(U->B_U, partial_beta_times_beta_upwind);
 
 	real3 L2_B_U = calc_PIRK_L2_B_U(&dt_LambdaBar_U);
+	real3 L3_B_U = calc_PIRK_L3_B_U(U);
 
 	//partial_B_ul[i] := B^i_,t
 <?=eqn:makePartialUpwind'B_U'?>
@@ -2136,8 +2142,8 @@ kernel void calcDeriv(
 		deriv->B_U,
 		
 		L2_B_U,
-		
-		real3_real_mul(U->B_U, -eta),
+	
+		L3_B_U,
 		partial_B_times_beta_upwind
 	);
 
@@ -2567,6 +2573,35 @@ kernel void copyWAlphaBeta(
 	dstBuf[index].beta_U = srcB[index].beta_U;
 }
 
+kernel void clearLambdaBar(
+	constant solver_t* solver,
+	global cons_t* dstBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+
+	dstBuf[index].LambdaBar_U = real3_zero;
+}
+
+kernel void clearABarK(
+	constant solver_t* solver,
+	global cons_t* dstBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+
+	dstBuf[index].ABar_LL = sym3_zero;
+	dstBuf[index].K = 0.;
+}
+
+kernel void clearB(
+	constant solver_t* solver,
+	global cons_t* dstBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+
+	dstBuf[index].B_U = real3_zero;
+}
+
+// epsilon_IJ, W, alpha, beta^I
 kernel void calcDeriv_PIRK_L1(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
@@ -2659,7 +2694,7 @@ kernel void calcDeriv_PIRK_L1(
 	
 	deriv->alpha += dt_alpha;
 
-	//////////////////////////////// beta^i_,t and B^i_,t //////////////////////////////// 
+	//////////////////////////////// beta^i_,t //////////////////////////////// 
 
 <? if eqn.useShift == 'GammaDriver' then ?>
 	//Gamma-driver
@@ -2670,7 +2705,7 @@ kernel void calcDeriv_PIRK_L1(
 	real3 dt_beta_U = real3_add(
 		real3_real_mul(dt_LambdaBar_U, k),
 		real3_real_mul(U->LambdaBar_U, eta));
-	
+			
 <? elseif eqn.useShift == 'HyperbolicGammaDriver' then ?>
 	
 <?=eqn:makePartialUpwind'beta_U'?>
@@ -3031,6 +3066,9 @@ kernel void calcDeriv_PIRK_L2_part3(
 	
 	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
 
+	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
+
+
 	real3 partial_det_gammaHat_over_det_gammaHat_L = calc_partial_det_gammaHat_over_det_gammaHat_L(x);
 
 	real detg = 1.;
@@ -3057,15 +3095,15 @@ kernel void calcDeriv_PIRK_L2_part3(
 	*/
 	real tr_DBar_beta = tr_partial_beta + real3_dot(U->beta_U, partial_det_gammaBar_over_det_gammaBar_L) * .5;
 
+
 	real exp_neg4phi = calc_exp_neg4phi(U);
+
 
 	//ABar_ul.i.j := ABar^i_j = gammaBar^kl ABar_kj
 	real3x3 ABar_UL = sym3_sym3_mul(gammaBar_UU, U->ABar_LL);
 	
 	//ABar^ij := ABar^i_k gammaBar^kj
 	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);	//ABar^IJ = ABar^I_K gammaBar^KJ
-
-	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
 
 
 	real3 dt_LambdaBar_U = calc_dt_LambdaBar_U(
@@ -3103,6 +3141,13 @@ kernel void calcDeriv_PIRK_L3_part3(
 	global cons_t* derivBuf,
 	const global cons_t* UBuf
 ) {
+	SETBOUNDS(numGhost,numGhost);
+	real3 x = cell_x(i);
+	global cons_t* deriv = derivBuf + index;
+	const global cons_t* U = UBuf + index;
+
+	real3 L3_B_U = calc_PIRK_L3_B_U(U);
+	deriv->B_U = real3_add(deriv->B_U, L3_B_U);
 }
 
 <?

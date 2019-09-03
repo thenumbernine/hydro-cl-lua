@@ -58,12 +58,26 @@ function BSSNOKFiniteDifferencePIRKSolver:refreshSolverProgram()
 	self.calcDeriv_PIRK_L2_part3KernelObj = self.solverProgramObj:kernel'calcDeriv_PIRK_L2_part3'
 	self.calcDeriv_PIRK_L3_part3KernelObj = self.solverProgramObj:kernel'calcDeriv_PIRK_L3_part3'
 	self.copyWAlphaBetaKernelObj = self.solverProgramObj:kernel'copyWAlphaBeta'
+	self.clearLambdaBarKernelObj = self.solverProgramObj:kernel'clearLambdaBar'
+	self.clearABarKKernelObj = self.solverProgramObj:kernel'clearABarK'
+	self.clearBKernelObj = self.solverProgramObj:kernel'clearB'
 end
 
 local realptr = ffi.new'realparam[1]'
 local function real(x)
 	realptr[0] = x
 	return realptr
+end
+
+-- the name 'applyBoundaryToBuffer' was already taken
+function BSSNOKFiniteDifferencePIRKSolver:applyBoundaryTo(buf)
+	for _,obj in ipairs(self.boundaryKernelObjs) do
+		obj.obj:setArg(1, buf)
+	end
+	self:boundary()
+	for _,obj in ipairs(self.boundaryKernelObjs) do
+		obj.obj:setArg(1, self.UBuf)
+	end
 end
 
 -- perform the 4 steps for PIRK integration
@@ -80,21 +94,21 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	self.app.cmds:enqueueFillBuffer{buffer=self.derivL3_1, size=bufferSize}
 	self.app.cmds:enqueueFillBuffer{buffer=self.derivL3_n, size=bufferSize}
 
-	-- derivL1_n = PIRK_L1 (which is epsilon_IJ, W, alpha, beta^I) based on UBuf 
+	-- derivL1_n = PIRK_L1 (epsilon_IJ, W, alpha, beta^I) based on UBuf 
 	self.calcDeriv_PIRK_L1KernelObj(self.solverBuf, self.derivL1_n, self.UBuf)
 
 	-- U1 = UBuf + dt * derivL1_n fields epsilon_IJ, W, alpha, beta^I
 	self.multAddKernelObj(self.solverBuf, self.U1, self.UBuf, self.derivL1_n, real(dt))
-
-	-- TODO then apply boundary to U1 fields epsilon_IJ, W, alpha, beta^I
-	--self:boundary()
+	
+	-- apply boundary to U1 fields epsilon_IJ, W, alpha, beta^I
+	self:applyBoundaryTo(self.U1)
 
 	-- UTemp = UBuf except W, alpha, beta^I come from U1 
 	self.copyWAlphaBetaKernelObj(self.solverBuf, self.UTemp, self.UBuf, self.U1)
-	
-	-- derivL2_n = PIRK L2 part2 (which is LambdaBar^I) based on UBuf 
-	-- derivL2_1 = PIRK L2 part2 (which is LambdaBar^I) based on UTemp
-	-- derivL3_n = PIRK L3 part2 (which is LambdaBar^I) based on UBuf
+
+	-- derivL2_n = PIRK L2 part2 (LambdaBar^I) based on UBuf 
+	-- derivL2_1 = PIRK L2 part2 (LambdaBar^I) based on UTemp
+	-- derivL3_n = PIRK L3 part2 (LambdaBar^I) based on UBuf
 	self.calcDeriv_PIRK_L2_part2KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
 	self.calcDeriv_PIRK_L2_part2KernelObj(self.solverBuf, self.derivL2_1, self.UTemp)
 	self.calcDeriv_PIRK_L3_part2KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
@@ -105,11 +119,12 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	self.multAddKernelObj(self.solverBuf, self.U1, self.U1, self.derivL2_1, real(.5 * dt))
 	self.multAddKernelObj(self.solverBuf, self.U1, self.U1, self.derivL3_n, real(dt))
 	
-	-- TODO apply boundary to U1 updated fields (LambdaBar^I)
+	-- apply boundary to U1 updated fields (LambdaBar^I)
+	self:applyBoundaryTo(self.U1)
 
-	-- derivL2_n = PIRK L2 part1 (which is ABar_IJ, K) based on UBuf
-	-- derivL2_1 = PIRK L2 part1 (which is ABar_IJ, K) based on U1
-	-- derivL3_n = PIRK L3 part1 (which is ABar_IJ, K) based on UBuf
+	-- derivL2_n = PIRK L2 part1 (ABar_IJ, K) based on UBuf
+	-- derivL2_1 = PIRK L2 part1 (ABar_IJ, K) based on U1
+	-- derivL3_n = PIRK L3 part1 (ABar_IJ, K) based on UBuf
 	self.calcDeriv_PIRK_L2_part1KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
 	self.calcDeriv_PIRK_L2_part1KernelObj(self.solverBuf, self.derivL2_1, self.U1)
 	self.calcDeriv_PIRK_L3_part1KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
@@ -120,11 +135,16 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	self.multAddKernelObj(self.solverBuf, self.U1, self.U1, self.derivL2_1, real(.5 * dt))
 	self.multAddKernelObj(self.solverBuf, self.U1, self.U1, self.derivL3_n, real(dt))
 	
-	-- TODO apply boundary to U1 updated fields (ABar_IJ, K)
+	-- apply boundary to U1 updated fields (ABar_IJ, K)
+	self:applyBoundaryTo(self.U1)
 
-	-- derivL2_n = PIRK L2 part2 (which is LambdaBar^I) based on UBuf 
-	-- derivL2_1 = PIRK L2 part2 (which is LambdaBar^I) based on U1
-	-- derivL3_n = PIRK L3 part2 (which is LambdaBar^I) based on UBuf
+	-- clear LambdaBar^I beforehand, so deriv values don't accumulate)
+	self.clearLambdaBarKernelObj(self.solverBuf, self.derivL2_n)
+	self.clearLambdaBarKernelObj(self.solverBuf, self.derivL2_1)
+	self.clearLambdaBarKernelObj(self.solverBuf, self.derivL3_n)
+	-- derivL2_n = PIRK L2 part2 (LambdaBar^I) based on UBuf 
+	-- derivL2_1 = PIRK L2 part2 (LambdaBar^I) based on U1
+	-- derivL3_n = PIRK L3 part2 (LambdaBar^I) based on UBuf
 	self.calcDeriv_PIRK_L2_part2KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
 	self.calcDeriv_PIRK_L2_part2KernelObj(self.solverBuf, self.derivL2_1, self.U1)
 	self.calcDeriv_PIRK_L3_part2KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
@@ -135,11 +155,12 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	self.multAddKernelObj(self.solverBuf, self.U1, self.U1, self.derivL2_1, real(.5 * dt))
 	self.multAddKernelObj(self.solverBuf, self.U1, self.U1, self.derivL3_n, real(dt))
 	
-	-- TODO apply boundary to U1 updated fields (LambdaBar^I)
+	-- apply boundary to U1 updated fields (LambdaBar^I)
+	self:applyBoundaryTo(self.U1)
 
-	-- derivL2_n = PIRK L2 part3 (which is B^I) based on UBuf 
-	-- derivL2_1 = PIRK L2 part3 (which is B^I) based on U1
-	-- derivL3_n = PIRK L3 part3 (which is B^I) based on UBuf
+	-- derivL2_n = PIRK L2 part3 (B^I) based on UBuf 
+	-- derivL2_1 = PIRK L2 part3 (B^I) based on U1
+	-- derivL3_n = PIRK L3 part3 (B^I) based on UBuf
 	self.calcDeriv_PIRK_L2_part3KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
 	self.calcDeriv_PIRK_L2_part3KernelObj(self.solverBuf, self.derivL2_1, self.U1)
 	self.calcDeriv_PIRK_L3_part3KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
@@ -150,9 +171,10 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	self.multAddKernelObj(self.solverBuf, self.U1, self.U1, self.derivL2_1, real(.5 * dt))
 	self.multAddKernelObj(self.solverBuf, self.U1, self.U1, self.derivL3_n, real(dt))
 	
-	-- TODO apply boundary to U1 updated fields (B^I)
+	-- apply boundary to U1 updated fields (B^I)
+	self:applyBoundaryTo(self.U1)
 
-	-- derivL1_1 = PIRK L1 (which is epsilon_IJ, W, alpha, beta^I) of U1
+	-- derivL1_1 = PIRK L1 (epsilon_IJ, W, alpha, beta^I) of U1
 	self.calcDeriv_PIRK_L1KernelObj(self.solverBuf, self.derivL1_1, self.U1)
 	
 	-- UNext = .5 * (UBuf + U1 + dt * derivL1_1)
@@ -161,15 +183,19 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	self.multAddKernelObj(self.solverBuf, self.UNext, self.UNext, self.U1, real(.5))
 	self.multAddKernelObj(self.solverBuf, self.UNext, self.UNext, self.derivL1_1, real(.5 * dt))
 	
-	-- TODO apply boundary to UNext updated fields (epsilon_IJ, W, alpha, beta^I)
+	-- apply boundary to UNext updated fields (epsilon_IJ, W, alpha, beta^I)
+	self:applyBoundaryTo(self.UNext)
 
 	-- UTemp = U1 except with UNext from W, alpha, beta^I
 	self.copyWAlphaBetaKernelObj(self.UTemp, self.U1, self.UNext)
 
-	-- derivL2_n = PIRK L2 part2 (which is LambdaBar^I) based on UBuf
-	-- derivL2_next = PIRK L2 part2 (which is LambdaBar^I) based on UTemp
-	-- derivL3_n = PIRK L3 part2 (which is LambdaBar^I) based on UBuf
-	-- derivL3_1 = PIRK L3 part2 (which is LambdaBar^I) based on UTemp
+	-- clear previous deriv->LambdaBar^I values
+	self.clearLambdaBarKernelObj(self.solverBuf, self.derivL2_n)
+	self.clearLambdaBarKernelObj(self.solverBuf, self.derivL3_n)
+	-- derivL2_n = PIRK L2 part2 (LambdaBar^I) based on UBuf
+	-- derivL2_next = PIRK L2 part2 (LambdaBar^I) based on UTemp
+	-- derivL3_n = PIRK L3 part2 (LambdaBar^I) based on UBuf
+	-- derivL3_1 = PIRK L3 part2 (LambdaBar^I) based on UTemp
 	self.calcDeriv_PIRK_L2_part2KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
 	self.calcDeriv_PIRK_L2_part2KernelObj(self.solverBuf, self.derivL2_next, self.UTemp)
 	self.calcDeriv_PIRK_L3_part2KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
@@ -182,12 +208,15 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	self.multAddKernelObj(self.solverBuf, self.UNext, self.UNext, self.derivL3_n, real(.5 * dt))
 	self.multAddKernelObj(self.solverBuf, self.UNext, self.UNext, self.derivL3_1, real(.5 * dt))
 	
-	-- TODO apply boundary to UNext
+	-- apply boundary to UNext
+	self:applyBoundaryTo(self.UNext)
 	
-	-- derivL2_n = PIRK L2 part1 of UBuf (A_IJ, K) of UBuf
-	-- derivL2_next = PIRK L2 part1 of UBuf (A_IJ, K) of UNext
-	-- derivL3_n = PIRK L3 part1 of UBuf (A_IJ, K) of UBuf
-	-- derivL3_1 = PIRK L3 part1 of UBuf (A_IJ, K) of U1
+	self.clearABarKKernelObj(self.solverBuf, self.derivL2_n)
+	self.clearABarKKernelObj(self.solverBuf, self.derivL3_n)
+	-- derivL2_n = PIRK L2 part1 of UBuf (ABar_IJ, K) of UBuf
+	-- derivL2_next = PIRK L2 part1 of UBuf (ABar_IJ, K) of UNext
+	-- derivL3_n = PIRK L3 part1 of UBuf (ABar_IJ, K) of UBuf
+	-- derivL3_1 = PIRK L3 part1 of UBuf (ABar_IJ, K) of U1
 	self.calcDeriv_PIRK_L2_part1KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
 	self.calcDeriv_PIRK_L2_part1KernelObj(self.solverBuf, self.derivL2_next, self.UNext)
 	self.calcDeriv_PIRK_L3_part1KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
@@ -200,12 +229,17 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	self.multAddKernelObj(self.solverBuf, self.UNext, self.UNext, self.derivL3_n, real(.5 * dt))
 	self.multAddKernelObj(self.solverBuf, self.UNext, self.UNext, self.derivL3_1, real(.5 * dt))
 	
-	-- TODO apply boundary to UNext
+	-- apply boundary to UNext
+	self:applyBoundaryTo(self.UNext)
 	
-	-- derivL2_n = PIRK L2 part2 (which is LambdaBar^I) based on UBuf
-	-- derivL2_next = PIRK L2 part2 (which is LambdaBar^I) based on UNext
-	-- derivL3_n = PIRK L3 part2 (which is LambdaBar^I) based on UBuf
-	-- derivL3_1 = PIRK L3 part2 (which is LambdaBar^I) based on UTemp
+	self.clearLambdaBarKernelObj(self.solverBuf, self.derivL2_n)
+	self.clearLambdaBarKernelObj(self.solverBuf, self.derivL2_next)
+	self.clearLambdaBarKernelObj(self.solverBuf, self.derivL3_n)
+	self.clearLambdaBarKernelObj(self.solverBuf, self.derivL3_1)
+	-- derivL2_n = PIRK L2 part2 (LambdaBar^I) based on UBuf
+	-- derivL2_next = PIRK L2 part2 (LambdaBar^I) based on UNext
+	-- derivL3_n = PIRK L3 part2 (LambdaBar^I) based on UBuf
+	-- derivL3_1 = PIRK L3 part2 (LambdaBar^I) based on UTemp
 	self.calcDeriv_PIRK_L2_part2KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
 	self.calcDeriv_PIRK_L2_part2KernelObj(self.solverBuf, self.derivL2_next, self.UNext)
 	self.calcDeriv_PIRK_L3_part2KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
@@ -218,12 +252,15 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	self.multAddKernelObj(self.solverBuf, self.UNext, self.UNext, self.derivL3_n, real(.5 * dt))
 	self.multAddKernelObj(self.solverBuf, self.UNext, self.UNext, self.derivL3_1, real(.5 * dt))
 	
-	-- TODO apply boundary to UNext
+	-- apply boundary to UNext
+	self:applyBoundaryTo(self.UNext)
 	
-	-- derivL2_n = PIRK L2 part3 (which is B^I) based on UBuf
-	-- derivL2_next = PIRK L2 part3 (which is B^I) based on UNext
-	-- derivL3_n = PIRK L3 part3 (which is B^I) based on UBuf
-	-- derivL3_1 = PIRK L3 part3 (which is B^I) based on U1
+	self.clearBKernelObj(self.solverBuf, self.derivL2_n)
+	self.clearBKernelObj(self.solverBuf, self.derivL3_n)
+	-- derivL2_n = PIRK L2 part3 (B^I) based on UBuf
+	-- derivL2_next = PIRK L2 part3 (B^I) based on UNext
+	-- derivL3_n = PIRK L3 part3 (B^I) based on UBuf
+	-- derivL3_1 = PIRK L3 part3 (B^I) based on U1
 	self.calcDeriv_PIRK_L2_part3KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
 	self.calcDeriv_PIRK_L2_part3KernelObj(self.solverBuf, self.derivL2_next, self.UNext)
 	self.calcDeriv_PIRK_L3_part3KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
@@ -236,7 +273,8 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	self.multAddKernelObj(self.solverBuf, self.UNext, self.UNext, self.derivL3_n, real(.5 * dt))
 	self.multAddKernelObj(self.solverBuf, self.UNext, self.UNext, self.derivL3_1, real(.5 * dt))
 	
-	-- TODO apply boundary to UNext
+	-- apply boundary to UNext
+	self:applyBoundaryTo(self.UNext)
 	
 	-- constrain metric det of UNext
 	-- remove trace of UNext

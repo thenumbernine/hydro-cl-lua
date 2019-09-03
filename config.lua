@@ -694,12 +694,16 @@ local args = {
 	eqnArgs = {
 		--useShift = 'none',
 		--useScalarField = true,	-- needed for the scalar field init cond below
+	
+		--cflMethod = '2008 Alcubierre',
+		--cflMethod = '2013 Baumgarte et al, eqn 32',
+		--cflMethod = '2017 Ruchlin et al, eqn 53',
 	},
 	dim = dim,
 	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
 	--integrator = 'backward Euler',
 	--integratorArgs = {verbose=true},
-	cfl = .4/dim,
+	cfl = .1/dim,
 	
 	-- [[
 	coord = 'sphere',
@@ -756,7 +760,7 @@ local args = {
 	--initState = 'black hole - Brill Lindquist',
 	initStateArgs = {
 		center = {0,0,0},
-		R = 1,
+		R = .0000001,
 	},
 	--]]
 	
