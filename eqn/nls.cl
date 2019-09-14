@@ -1,7 +1,5 @@
 typedef <?=eqn.cons_t?> U_t;
 
-#define cplx_add3(a,b,c)		cplx_add(cplx_add(a,b),c)
-#define cplx_add4(a,b,c,d)		cplx_add(cplx_add(a,b),cplx_add(c,d))
 #define cplx_add5(a,b,c,d,e) 	cplx_add(cplx_add(cplx_add(a,b),cplx_add(c,d)),e)
 
 kernel void calcDeriv(

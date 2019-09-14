@@ -966,7 +966,7 @@ function BoundaryLinear:getCode(args)
 	return lines:concat'\n'
 end
 
--- Sommerfeld quadratic extrapolation
+-- quadratic extrapolation
 -- f[i] = 3*f[i+1] - 3*f[i+2] + f[i+3]
 BoundaryQuadratic = class(Boundary)
 BoundaryQuadratic.name = 'quadratic'
@@ -994,9 +994,9 @@ function BoundaryQuadratic:getCode(args)
 			addField(field)
 		end
 	else
-		lines:insert('for (int k = 0; k < numStates; ++k) {')
+		lines:insert'for (int k = 0; k < numStates; ++k) {'
 		addField'ptr[k]'
-		lines:insert('}')
+		lines:insert'}'
 	end
 	return lines:concat'\n'
 end
@@ -1692,7 +1692,7 @@ function GridSolver:updateGUIParams()
 		for i=1,self.dim do
 			for _,minmax in ipairs(minmaxs) do
 				local var = xNames[i]..minmax
-				--[[
+				--[[ TODO is this crashing too?  maybe comboTable has a problem
 				if tooltip.comboTable(var, self.boundaryMethods, var, self.boundaryOptionNames) then
 					self:refreshBoundaryProgram()
 				end
@@ -1705,11 +1705,12 @@ end
 
 function GridSolver:updateGUIEqnSpecific()
 	if ig.igCollapsingHeader'equation:' then
+--[[	TODO why is this crashing
 		if tooltip.comboTable('init state', self, 'initStateIndex', self.eqn.initStateNames) then
 			-- TODO hmm ... the whole point of making a separate initStateProgram was to be able to refresh it without rebuilding all of the solver ...
 			self:refreshEqnInitState()
 		end	
-		
+--]]		
 		for _,var in ipairs(self.eqn.guiVars) do
 			var:updateGUI(self)
 		end

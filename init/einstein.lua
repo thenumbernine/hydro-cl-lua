@@ -333,7 +333,6 @@ return table{
 			assert(coord)
 
 			local symmath = require 'symmath'
-			local Tensor = symmath.Tensor
 			local var = symmath.var
 			local exp = symmath.exp
 			
@@ -359,7 +358,7 @@ return table{
 		name = 'scalar field',
 		guiVars = {
 			{name = 'alpha0', value = .01},
-			{name = 'r0', value = 0},
+			{name = 'r0', value = 5},
 			{name = 'sigma', value = 1},
 		},
 		initState = function(self, solver)

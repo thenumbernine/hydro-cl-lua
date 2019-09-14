@@ -62,6 +62,8 @@ function makevec3(vec, scalar)
 #define <?=scalar?>_add3(a,b,c)		(<?=add?>(<?=add?>(a,b),c))
 #define <?=scalar?>_mul3(a,b,c)		(<?=mul?>(<?=mul?>(a,b),c))
 
+#define <?=scalar?>_add4(a,b,c,d)		(<?=add?>(<?=add?>(a,b),<?=add?>(c,d)))
+
 #define _<?=vec?>(a,b,c) 			(<?=vec?>){.s={a,b,c}}
 #define <?=vec?>_zero				_<?=vec?>(<?=scalar?>_zero,<?=scalar?>_zero,<?=scalar?>_zero)
 
@@ -79,6 +81,7 @@ function makevec3(vec, scalar)
 <?=vec?> <?=vec?>_neg(<?=vec?> a);
 
 #define <?=vec?>_add3(a,b,c)	<?=vec?>_add(<?=vec?>_add(a,b),c)
+#define <?=vec?>_add4(a,b,c,d)	<?=vec?>_add(<?=vec?>_add(a,b),<?=vec?>_add(c,d))
 
 <?
 end

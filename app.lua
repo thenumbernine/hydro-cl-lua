@@ -47,7 +47,6 @@ predefined vars:
 
 	bssnUseCache = set to false to ignore the cache
 
-	TODO 
 	config = specify alternative config file.  default is config.lua (TODO configs/default.lua)
 --]]
 cmdline = cmdline or {}	--global
@@ -219,9 +218,10 @@ function HydroCLApp:setup(args)
 	args.cmdline = cmdline
 	args.table = table
 	local keys = table.keys(args)
+	local cfgfile = cmdline.config or 'config.lua'
 	assert(load([[
 local ]]..keys:concat', '..[[ = ...
-]] .. file['config.lua']))(
+]] .. file[cfgfile]))(
 	keys:mapi(function(key) return args[key] end):unpack()
 )
 end

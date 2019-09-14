@@ -180,7 +180,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'rectangle',
 	--initState = 'Sedov',
 	--initState = 'Noh',
@@ -190,7 +190,7 @@ local args = {
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
 	--initState = 'square cavity',
-	initState = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
+	--initState = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initState = 'Richmyer-Meshkov',
 
 	--initState = 'configuration 1',
@@ -688,14 +688,14 @@ local dim = 1
 local args = {
 	app = self,
 	
-	--eqn = 'bssnok-fd-num', 
+	eqn = 'bssnok-fd-num', 
 	--eqn = 'bssnok-fd-sym', 
 	
 	eqnArgs = {
 		--useShift = 'none',
 		--useScalarField = true,	-- needed for the scalar field init cond below
 	
-		--cflMethod = '2008 Alcubierre',
+		cflMethod = '2008 Alcubierre',
 		--cflMethod = '2013 Baumgarte et al, eqn 32',
 		--cflMethod = '2017 Ruchlin et al, eqn 53',
 	},
@@ -706,18 +706,24 @@ local args = {
 	cfl = .1/dim,
 	
 	-- [[
-	coord = 'sphere',
-	--coord = 'sphere-log-radial',
+	--coord = 'sphere',
+	coord = 'sphere-log-radial',
 	mins = {0, 0, -math.pi},
 	maxs = {16, math.pi, math.pi},
 	gridSize = ({
 		{128, 1, 1},
 		{64, 16, 1},
-		{16, 16, 16},
+		{8, 8, 8},
 	})[dim],
 	boundary = {
 		xmin='sphereCenter',
-		xmax='quadratic',
+		
+		-- runs a gauge wave until t=...
+		--xmax='fixed',		-- 5.3875
+		--xmax='freeflow',	-- diverges near rmin after t=60 or so
+		--xmax='linear',	-- 13.1875
+		xmax='quadratic',	-- 10.6125
+		
 		ymin='spherePolar',
 		ymax='spherePolar',
 		zmin='periodic',
@@ -760,7 +766,7 @@ local args = {
 	--initState = 'black hole - Brill Lindquist',
 	initStateArgs = {
 		center = {0,0,0},
-		R = .0000001,
+		R = .1,
 	},
 	--]]
 	
@@ -776,7 +782,7 @@ local args = {
 	},
 	--]]
 }
-self.solvers:insert(require 'solver.bssnok-pirk'(table(args, {eqn = 'bssnok-fd-num'})))
---self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
+--self.solvers:insert(require 'solver.bssnok-pirk'(table(args, {eqn = 'bssnok-fd-num'})))
+self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
 --]=]

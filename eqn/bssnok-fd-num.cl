@@ -29,10 +29,8 @@ local useConstrainU = true
 local useAddSource = true
 ?>
 
-#define cplx_add4(a,b,c,d)		cplx_add(cplx_add(a,b),cplx_add(c,d))
 #define cplx_add5(a,b,c,d,e)	cplx_add(cplx_add(a,b),cplx_add3(c,d,e))
 
-#define real3_add4(a,b,c,d)		real3_add(real3_add(a,b),real3_add(c,d))
 #define real3_add5(a,b,c,d,e)	real3_add(real3_add(a,b),real3_add3(c,d,e))
 #define real3_add6(a,b,c,d,e,f)	real3_add(real3_add3(a,b,c),real3_add3(d,e,f))
 
@@ -1010,6 +1008,10 @@ const global cons_t* getUpwind(
 ?>	return U;
 }
 
+
+//////////////////////////////// W_,t //////////////////////////////// 
+
+
 static void calcDeriv_W(
 	constant solver_t* solver,
 	global cons_t* deriv,
@@ -1020,12 +1022,19 @@ static void calcDeriv_W(
 ) {
 <?=eqn:makePartialUpwind'W'?>
 	real3 partial_W_L_upwind = real3_rescaleFromCoord_l(partial_W_l_upwind, x);
-	
+
+	real Lbeta_W = real3_dot(partial_W_L_upwind, U->beta_U);
+
+	real L2_W = (1. / 3.) * U->W * (U->alpha * U->K - tr_DBar_beta);
+
 	//2017 Ruchlin et al eqn 11c
 	//W,t = 1/3 W (alpha K - beta^k connBar^j_kj - beta^k_,k) + beta^k W_,k
-	deriv->W += (1. / 3.) * U->W * (U->alpha * U->K - tr_DBar_beta) 
-		+ real3_dot(partial_W_L_upwind, U->beta_U);
+	deriv->W += L2_W + Lbeta_W;
 }
+
+
+//////////////////////////////// K_,t //////////////////////////////// 
+
 
 static real calc_PIRK_L2_K(
 	global const cons_t* U,
@@ -1042,7 +1051,7 @@ static real calc_PIRK_L2_K(
 	//tr_DBar2_alpha := gammaBar^ij DBar_i DBar_j alpha
 	real tr_DBar2_alpha = sym3_dot(*gammaBar_UU, *DBar2_alpha_LL);
 	
-	return - exp_neg4phi * (
+	return -exp_neg4phi * (
 			tr_DBar2_alpha
 			+ 2. * real3_weightedDot(*partial_phi_L, *partial_alpha_L, *gammaBar_UU)
 		)
@@ -1107,6 +1116,10 @@ static void calcDeriv_K(
 		+ 4. * M_PI * U->alpha * (U->rho + S);
 }
 
+
+//////////////////////////////// epsilon_IJ,t //////////////////////////////// 
+
+
 static sym3 sym3_Lbeta_LL(
 	const sym3 T_LL,
 	const _3sym3* partial_T_LLL,
@@ -1150,36 +1163,34 @@ static void calcDeriv_epsilon_LL(
 	epsilon_ij,t = 2/3 gammaBar_ij (alpha ABar^k_k - DBar_k beta^k) + DHat_i beta_j + DHat_j beta_i - 2 alpha ABar_ij + epsilon_ij,k beta^k + epsilon_ik beta^k_,j + epsilon_kj beta^k_,i
 	...using DBar_(i beta_j) = DHat_(i beta_j) + epsilon_k(j beta^k_,i) + 1/2 epsilon_ij,k beta^k
 	= 	
+		beta^k gammaBar_ij,k
+		+ gammaBar_kj beta^k_,i
+		+ gammaBar_ki beta^k_,j
+		
 		+ 2/3 gammaBar_ij (
 			alpha ABar^k_k 
 			- beta^k_,k 
 			- connBar^k_lk beta^l
 		) 
 		- 2 alpha ABar_ij 
-		+ .5 DBar_i beta_j
-		+ .5 DBar_j beta_i
-	
-
-	Etienne's SENR Mathematica notebook:
-	= 
-		// Lie derivative terms
-		beta^k gammaBar_ij,k
-		+ gammaBar_ki beta^k_,j
-		+ gammaBar_kj beta^k_,i
-
-		- 2/3 gammaBar_ij DBar_k beta^k
-		+ 2/3 alpha ABar^k_k
-		- 2 alpha ABar_ij
-
-	Looks like the paper's notation DBar_i beta_j implies DBar_j (gammaBar_ik beta^k) = gammaBar_ki DBar_j beta^k
-	...which is not DBar_j ( gamma_ik beta^k ), which was my interpretation of the definition of beta_i := gamma_ij beta^k
 	*/
 	deriv->epsilon_LL = sym3_add4(
 		deriv->epsilon_LL,
+		
+		//Lie derivative
+		Lbeta_gammaBar_LL,
+	
+		//part 2
 		sym3_real_mul(*gammaBar_LL, 2. / 3. * (U->alpha * tr_ABar - tr_DBar_beta)),
-		sym3_real_mul(U->ABar_LL, -2. * U->alpha), 
-		Lbeta_gammaBar_LL);
+	
+		//part 3
+		sym3_real_mul(U->ABar_LL, -2. * U->alpha)
+	);
 }
+
+
+//////////////////////////////// A_IJ,t //////////////////////////////// 
+
 
 static sym3 calc_PIRK_L2_ABar_LL(
 	constant solver_t* solver,
@@ -1381,6 +1392,10 @@ static void calcDeriv_ABar_LL(
 		Lbeta_ABar_LL
 	);
 }
+
+	
+//////////////////////////////// LambdaBar_,t //////////////////////////////// 
+
 
 static real3 calc_PIRK_L2_LambdaBar_U(
 	constant solver_t* solver,
@@ -1654,6 +1669,10 @@ static void calcDeriv_LambdaBar_U(
 	deriv->LambdaBar_U = real3_add(deriv->LambdaBar_U, *dt_LambdaBar_U);
 }
 
+
+//////////////////////////////// B^I_,t //////////////////////////////// 
+
+
 static real3 calc_PIRK_L2_B_U(
 	const real3* dt_LambdaBar_U
 ) {
@@ -1666,6 +1685,10 @@ static real3 calc_PIRK_L3_B_U(
 	const real eta = 1.;
 	return real3_real_mul(U->B_U, -eta);
 }
+
+
+//////////////////////////////// Phi_,t, Psi_I,t //////////////////////////////// 
+
 
 <? if eqn.useScalarField then ?>
 
@@ -2573,36 +2596,20 @@ kernel void copyWAlphaBeta(
 	dstBuf[index].beta_U = srcB[index].beta_U;
 }
 
-kernel void clearLambdaBar(
+kernel void copyLambdaBar(
 	constant solver_t* solver,
-	global cons_t* dstBuf
+	global cons_t* dstBuf,
+	const global cons_t* srcA,
+	const global cons_t* srcB
 ) {
 	SETBOUNDS(numGhost,numGhost);
 
-	dstBuf[index].LambdaBar_U = real3_zero;
-}
-
-kernel void clearABarK(
-	constant solver_t* solver,
-	global cons_t* dstBuf
-) {
-	SETBOUNDS(numGhost,numGhost);
-
-	dstBuf[index].ABar_LL = sym3_zero;
-	dstBuf[index].K = 0.;
-}
-
-kernel void clearB(
-	constant solver_t* solver,
-	global cons_t* dstBuf
-) {
-	SETBOUNDS(numGhost,numGhost);
-
-	dstBuf[index].B_U = real3_zero;
+	dstBuf[index] = srcA[index];
+	dstBuf[index].LambdaBar_U = srcB[index].LambdaBar_U;
 }
 
 // epsilon_IJ, W, alpha, beta^I
-kernel void calcDeriv_PIRK_L1(
+kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
 	const global cons_t* UBuf
@@ -2613,7 +2620,7 @@ kernel void calcDeriv_PIRK_L1(
 	const global cons_t* U = UBuf + index;
 	const global cons_t* Uup = getUpwind(solver, U);
 	
-<?=eqn:makePartial1'beta_U'?>		//partial_beta_Ul.j..i := beta^I_,j
+<?=eqn:makePartial1'beta_U'?>		//partial_beta_Ul.j.i := beta^I_,j
 
 	real3 partial_det_gammaHat_over_det_gammaHat_L = calc_partial_det_gammaHat_over_det_gammaHat_L(x);
 
@@ -2655,6 +2662,7 @@ kernel void calcDeriv_PIRK_L1(
 	//ABar^i_j := gammaBar^ik ABar_kj
 	real3x3 ABar_UL = sym3_sym3_mul(gammaBar_UU, U->ABar_LL);
 	
+	deriv->epsilon_LL = sym3_zero;
 	calcDeriv_epsilon_LL(
 		solver,
 		deriv,
@@ -2669,6 +2677,7 @@ kernel void calcDeriv_PIRK_L1(
 
 	//////////////////////////////// W_,t //////////////////////////////// 
 
+	deriv->W = 0.;
 	calcDeriv_W(
 		solver,
 		deriv,
@@ -2692,8 +2701,8 @@ kernel void calcDeriv_PIRK_L1(
 	real dt_alpha = -calc_f_times_alphaSq(U->alpha) * U->K
 		+ real3_dot(partial_alpha_L_upwind, U->beta_U);
 	
-	deriv->alpha += dt_alpha;
-
+	deriv->alpha = dt_alpha;
+	
 	//////////////////////////////// beta^i_,t //////////////////////////////// 
 
 <? if eqn.useShift == 'GammaDriver' then ?>
@@ -2702,7 +2711,7 @@ kernel void calcDeriv_PIRK_L1(
 	//beta^i_,t = k LambdaBar^i_,t + eta LambdaBar^i
 	const real k = 3. / 4.;
 	const real eta = 1.;	//1.;	// 1 / (2 M), for total mass M
-	real3 dt_beta_U = real3_add(
+	deriv->beta_U = real3_add(
 		real3_real_mul(dt_LambdaBar_U, k),
 		real3_real_mul(U->LambdaBar_U, eta));
 			
@@ -2717,7 +2726,8 @@ kernel void calcDeriv_PIRK_L1(
 	/*
 	hyperbolic Gamma driver 
 	2017 Ruchlin et al, eqn 14a, 14b
-	beta^i_,t = B^i + beta^i_,j beta^j - beta^i_,j beta^j = B^i
+	beta^i_,t = B^i 
+		+ beta^i_,j beta^j		(SENR's SHIFTADVECT term)
 	B^i_,t = 3/4 (
 			LambdaBar^i_,t 
 			- LambdaBar^i_,j beta^j 
@@ -2726,14 +2736,12 @@ kernel void calcDeriv_PIRK_L1(
 		+ B^i_,j beta^j 
 		- B^j beta^i_,j
 	*/
-	real3 dt_beta_U = real3_add(U->B_U, partial_beta_times_beta_upwind);
+	deriv->beta_U = real3_add(U->B_U, partial_beta_times_beta_upwind);
 <? end	-- eqn.useShift ?>
-
-	deriv->beta_U = real3_add(deriv->beta_U, dt_beta_U);
 }
 
 // ABar_IJ, K
-kernel void calcDeriv_PIRK_L2_part1(
+kernel void calcDeriv_PIRK_L2_ABarK(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
 	const global cons_t* UBuf
@@ -2785,10 +2793,10 @@ kernel void calcDeriv_PIRK_L2_part1(
 	real3x3 ABar_UL = sym3_sym3_mul(gammaBar_UU, U->ABar_LL);
 	
 	//ABar^ij := ABar^i_k gammaBar^kj
-	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);	//ABar^IJ = ABar^I_K gammaBar^KJ
+	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);
 	
 
-	sym3 L2_ABar_LL = calc_PIRK_L2_ABar_LL(
+	deriv->ABar_LL = calc_PIRK_L2_ABar_LL(
 		solver,
 		U,
 		x,
@@ -2807,9 +2815,7 @@ kernel void calcDeriv_PIRK_L2_part1(
 		&partial_gammaBar_LLL
 	);
 
-	deriv->ABar_LL = sym3_add(deriv->ABar_LL, L2_ABar_LL);
-
-	real L2_K = calc_PIRK_L2_K(
+	deriv->K = calc_PIRK_L2_K(
 		U,
 		&gammaBar_UU,
 		&ABar_UU,
@@ -2818,12 +2824,10 @@ kernel void calcDeriv_PIRK_L2_part1(
 		&partial_phi_L,
 		exp_neg4phi
 	);
-
-	deriv->K += L2_K;
 }
 
 // ABar_IJ, K
-kernel void calcDeriv_PIRK_L3_part1(
+kernel void calcDeriv_PIRK_L3_ABarK(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
 	const global cons_t* UBuf
@@ -2872,20 +2876,17 @@ kernel void calcDeriv_PIRK_L3_part1(
 	real tr_DBar_beta = tr_partial_beta + real3_dot(U->beta_U, partial_det_gammaBar_over_det_gammaBar_L) * .5;
 
 	//2013 Baumgarte et al eqn B2
-	sym3 L3_ABar_LL = calc_PIRK_L3_ABar_LL(
+	deriv->ABar_LL = calc_PIRK_L3_ABar_LL(
 		U,
 		&ABar_UL,
 		tr_DBar_beta
 	);
 
-	deriv->ABar_LL = sym3_add(deriv->ABar_LL, L3_ABar_LL);
-
-	real L3_K = calc_PIRK_L3_K(U);
-	deriv->K += L3_K;
+	deriv->K = calc_PIRK_L3_K(U);
 }
 
 // LambdaBar^I
-kernel void calcDeriv_PIRK_L2_part2(
+kernel void calcDeriv_PIRK_L2_LambdaBar(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
 	const global cons_t* UBuf
@@ -2948,7 +2949,7 @@ kernel void calcDeriv_PIRK_L2_part2(
 	//ABar^ij := ABar^i_k gammaBar^kj
 	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);	//ABar^IJ = ABar^I_K gammaBar^KJ
 
-	real3 L2_LambdaBar_U = calc_PIRK_L2_LambdaBar_U(
+	deriv->LambdaBar_U = calc_PIRK_L2_LambdaBar_U(
 		solver,
 		U,
 		x,
@@ -2967,12 +2968,10 @@ kernel void calcDeriv_PIRK_L2_part2(
 		&partial_det_gammaHat_over_det_gammaHat_L,
 		&partial_det_gammaBar_over_det_gammaBar_L
 	);
-	
-	deriv->LambdaBar_U = real3_add(deriv->LambdaBar_U, L2_LambdaBar_U);
 }
 
 // LambdaBar^I
-kernel void calcDeriv_PIRK_L3_part2(
+kernel void calcDeriv_PIRK_L3_LambdaBar(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
 	const global cons_t* UBuf
@@ -3015,16 +3014,14 @@ kernel void calcDeriv_PIRK_L3_part2(
 	*/
 	real tr_DBar_beta = tr_partial_beta + real3_dot(U->beta_U, partial_det_gammaBar_over_det_gammaBar_L) * .5;
 
-	real3 L3_LambdaBar_U = calc_PIRK_L3_LambdaBar_U(
+	deriv->LambdaBar_U = calc_PIRK_L3_LambdaBar_U(
 		tr_DBar_beta,
 		&Delta_U
 	);
-
-	deriv->LambdaBar_U = real3_add(deriv->LambdaBar_U, L3_LambdaBar_U);
 }
 
 // B^I
-kernel void calcDeriv_PIRK_L2_part3(
+kernel void calcDeriv_PIRK_L2_B(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
 	const global cons_t* UBuf
@@ -3130,13 +3127,11 @@ kernel void calcDeriv_PIRK_L2_part3(
 		&partial_det_gammaBar_over_det_gammaBar_L
 	);
 
-	real3 L2_B_U = calc_PIRK_L2_B_U(&dt_LambdaBar_U);
-
-	deriv->B_U = real3_add(deriv->B_U, L2_B_U);
+	deriv->B_U = calc_PIRK_L2_B_U(&dt_LambdaBar_U);
 }
 
 // B^I
-kernel void calcDeriv_PIRK_L3_part3(
+kernel void calcDeriv_PIRK_L3_B(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
 	const global cons_t* UBuf
@@ -3146,8 +3141,195 @@ kernel void calcDeriv_PIRK_L3_part3(
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
-	real3 L3_B_U = calc_PIRK_L3_B_U(U);
-	deriv->B_U = real3_add(deriv->B_U, L3_B_U);
+	deriv->B_U = calc_PIRK_L3_B_U(U);
+}
+	
+//dst = src + deriv * dt
+#define PIRK_EQ1(type, x)	dst->x = type##_add(src->x, type##_real_mul(deriv->x, dt))
+
+//epsilon_IJ, W, alpha, beta^I
+kernel void PIRK_Eq1_EpsilonWAlphaBeta(
+	constant solver_t* solver,
+	global cons_t* dstBuf,
+	const global cons_t* srcBuf,
+	const global cons_t* derivBuf,
+	real dt
+) {
+	SETBOUNDS(numGhost,numGhost);
+	
+	global cons_t* dst = dstBuf + index;
+	const global cons_t* src = srcBuf + index;
+	const global cons_t* deriv = derivBuf + index;
+
+	PIRK_EQ1(real, alpha);
+	PIRK_EQ1(real, W);
+	PIRK_EQ1(real3, beta_U);
+	PIRK_EQ1(sym3, epsilon_LL);
+}
+	
+//dst = src + (derivL3_n + (derivL2_n + derivL2_1) * .5) * dt
+#define PIRK_EQ2(type, x) dst->x = type##_add(src->x, type##_real_mul(type##_add(derivL3_n->x, type##_real_mul(type##_add(derivL2_n->x, derivL2_1->x), .5)), dt))
+
+//LambdaBar^I
+kernel void PIRK_Eq2_LambdaBar(
+	constant solver_t* solver,
+	global cons_t* dstBuf,
+	const global cons_t* srcBuf,
+	const global cons_t* derivL2_nBuf,
+	const global cons_t* derivL2_1Buf,
+	const global cons_t* derivL3_nBuf,
+	real dt
+) {
+	SETBOUNDS(numGhost,numGhost);
+	
+	global cons_t* dst = dstBuf + index;
+	const global cons_t* src = srcBuf + index;
+	const global cons_t* derivL2_n = derivL2_nBuf + index;
+	const global cons_t* derivL2_1 = derivL2_1Buf + index;
+	const global cons_t* derivL3_n = derivL3_nBuf + index;
+
+	PIRK_EQ2(real3, LambdaBar_U);
+}
+
+//ABar_IJ, K
+kernel void PIRK_Eq2_ABarK(
+	constant solver_t* solver,
+	global cons_t* dstBuf,
+	const global cons_t* srcBuf,
+	const global cons_t* derivL2_nBuf,
+	const global cons_t* derivL2_1Buf,
+	const global cons_t* derivL3_nBuf,
+	real dt
+) {
+	SETBOUNDS(numGhost,numGhost);
+	
+	global cons_t* dst = dstBuf + index;
+	const global cons_t* src = srcBuf + index;
+	const global cons_t* derivL2_n = derivL2_nBuf + index;
+	const global cons_t* derivL2_1 = derivL2_1Buf + index;
+	const global cons_t* derivL3_n = derivL3_nBuf + index;
+
+	PIRK_EQ2(real, K);
+	PIRK_EQ2(sym3, ABar_LL);	
+}
+
+//B^I
+kernel void PIRK_Eq2_B(
+	constant solver_t* solver,
+	global cons_t* dstBuf,
+	const global cons_t* srcBuf,
+	const global cons_t* derivL2_nBuf,
+	const global cons_t* derivL2_1Buf,
+	const global cons_t* derivL3_nBuf,
+	real dt
+) {
+	SETBOUNDS(numGhost,numGhost);
+	
+	global cons_t* dst = dstBuf + index;
+	const global cons_t* src = srcBuf + index;
+	const global cons_t* derivL2_n = derivL2_nBuf + index;
+	const global cons_t* derivL2_1 = derivL2_1Buf + index;
+	const global cons_t* derivL3_n = derivL3_nBuf + index;
+
+	PIRK_EQ2(real3, B_U);
+}
+
+//dst = .5 * (U + U1 + derivL1_1 * dt)
+#define PIRK_EQ3(type, x)	dst->x = type##_real_mul(type##_add3(U->x, U1->x, type##_real_mul(derivL1_1->x, dt)), .5);
+
+//epsilon_IJ, W, alpha, beta^I
+kernel void PIRK_Eq3_EpsilonWAlphaBeta(
+	constant solver_t* solver,
+	global cons_t* dstBuf,
+	const global cons_t* UBuf,
+	const global cons_t* U1Buf,
+	const global cons_t* derivL1_1Buf,
+	real dt
+) {
+	SETBOUNDS(numGhost,numGhost);
+	
+	global cons_t* dst = dstBuf + index;
+	global cons_t* U = UBuf + index;
+	global cons_t* U1 = U1Buf + index;
+	global cons_t* derivL1_1 = derivL1_1Buf + index;
+
+	PIRK_EQ3(real, alpha);
+	PIRK_EQ3(real, W);
+	PIRK_EQ3(real3, beta_U);
+	PIRK_EQ3(sym3, epsilon_LL);
+}
+
+//dst = src + (derivL2_n + derivL2_next + derivL3_n + derivL3_1) * .5 * dt
+#define PIRK_EQ4(type, x)	dst->x = type##_add(dst->x, type##_real_mul(type##_add4(derivL2_n->x, derivL2_next->x, derivL3_n->x, derivL3_1->x), .5 * dt))
+
+//LambdaBar^I
+kernel void PIRK_Eq4_LambdaBar(
+	constant solver_t* solver,
+	global cons_t* dstBuf,
+	const global cons_t* srcBuf,
+	const global cons_t* derivL2_nBuf,
+	const global cons_t* derivL2_nextBuf,
+	const global cons_t* derivL3_nBuf,
+	const global cons_t* derivL3_1Buf,
+	real dt
+) {
+	SETBOUNDS(numGhost,numGhost);
+	
+	global cons_t* dst = dstBuf + index;
+	const global cons_t* src = srcBuf + index;
+	const global cons_t* derivL2_n = derivL2_nBuf + index;
+	const global cons_t* derivL2_next = derivL2_nextBuf + index;
+	const global cons_t* derivL3_n = derivL3_nBuf + index;
+	const global cons_t* derivL3_1 = derivL3_1Buf + index;
+
+	PIRK_EQ4(real3, LambdaBar_U);
+}
+
+//ABar_IJ, K
+kernel void PIRK_Eq4_ABarK(
+	constant solver_t* solver,
+	global cons_t* dstBuf,
+	const global cons_t* srcBuf,
+	const global cons_t* derivL2_nBuf,
+	const global cons_t* derivL2_nextBuf,
+	const global cons_t* derivL3_nBuf,
+	const global cons_t* derivL3_1Buf,
+	real dt
+) {
+	SETBOUNDS(numGhost,numGhost);
+	
+	global cons_t* dst = dstBuf + index;
+	const global cons_t* src = srcBuf + index;
+	const global cons_t* derivL2_n = derivL2_nBuf + index;
+	const global cons_t* derivL2_next = derivL2_nextBuf + index;
+	const global cons_t* derivL3_n = derivL3_nBuf + index;
+	const global cons_t* derivL3_1 = derivL3_1Buf + index;
+
+	PIRK_EQ4(sym3, ABar_LL);
+	PIRK_EQ4(real, K);
+}
+
+//B^I
+kernel void PIRK_Eq4_B(
+	constant solver_t* solver,
+	global cons_t* dstBuf,
+	const global cons_t* srcBuf,
+	const global cons_t* derivL2_nBuf,
+	const global cons_t* derivL2_nextBuf,
+	const global cons_t* derivL3_nBuf,
+	const global cons_t* derivL3_1Buf,
+	real dt
+) {
+	SETBOUNDS(numGhost,numGhost);
+	
+	global cons_t* dst = dstBuf + index;
+	const global cons_t* src = srcBuf + index;
+	const global cons_t* derivL2_n = derivL2_nBuf + index;
+	const global cons_t* derivL2_next = derivL2_nextBuf + index;
+	const global cons_t* derivL3_n = derivL3_nBuf + index;
+	const global cons_t* derivL3_1 = derivL3_1Buf + index;
+
+	PIRK_EQ4(real3, B_U);
 }
 
 <?
