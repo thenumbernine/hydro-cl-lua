@@ -28,9 +28,9 @@ cons_t fluxFromCons_<?=side?>(
 	real3 x
 ) {
 	cons_t F;
-	F.phi_t = -solver->wavespeed * solver->wavespeed * real3_dot(coord_g_uu<?=side?>(x), U.phi_i),
+	F.phi_t = -solver->wavespeed * real3_dot(coord_g_uu<?=side?>(x), U.phi_i),
 	F.phi_i = _real3(0,0,0);
-	F.phi_i.s<?=side?> = -U.phi_t;
+	F.phi_i.s<?=side?> = -solver->wavespeed * U.phi_t;
 	return F;
 }
 <? end ?>
@@ -70,16 +70,14 @@ waves_t eigen_leftTransform_<?=side?>(
 	real3 x
 ) { 
 	waves_t Y;
-	real c = solver->wavespeed;
-	real cSq = c * c;
 	
 	real sqrt_gUii = coord_sqrt_g_uu<?=side..side?>(x);
 	real gUii = sqrt_gUii * sqrt_gUii;
 	real phiUi = real3_dot(X.phi_i, coord_g_uu<?=side?>(x));
-	Y.ptr[0] = .5 * (phiUi / gUii + X.phi_t / (c * sqrt_gUii));
-	Y.ptr[1] = X.phi_i.s<?=side1?> / (cSq * gUii);
-	Y.ptr[2] = X.phi_i.s<?=side2?> / (cSq * gUii);
-	Y.ptr[3] = .5 * (phiUi / gUii - X.phi_t / (c * sqrt_gUii));
+	Y.ptr[0] = .5 * (phiUi / gUii + X.phi_t / sqrt_gUii);
+	Y.ptr[1] = X.phi_i.s<?=side1?> / gUii;
+	Y.ptr[2] = X.phi_i.s<?=side2?> / gUii;
+	Y.ptr[3] = .5 * (phiUi / gUii - X.phi_t / sqrt_gUii);
 	return Y;
 }
 
@@ -90,18 +88,16 @@ cons_t eigen_rightTransform_<?=side?>(
 	real3 x
 ) {
 	cons_t Y;
-	real c = solver->wavespeed;
-	real cSq = c * c;
 	
 	real sqrt_gUii = coord_sqrt_g_uu<?=side..side?>(x);
 	real gUii = sqrt_gUii * sqrt_gUii;
-	Y.phi_t = c * sqrt_gUii * (X.ptr[0] - X.ptr[3]);
-	Y.phi_i.s<?=side?> = X.ptr[0] + X.ptr[3] - cSq * (
+	Y.phi_t = sqrt_gUii * (X.ptr[0] - X.ptr[3]);
+	Y.phi_i.s<?=side?> = X.ptr[0] + X.ptr[3] - (
 		coord_g_uu<?=side <= side1 and side..side1 or side1..side?>(x) * X.ptr[1] 
 		+ coord_g_uu<?=side <= side2 and side..side2 or side2..side?>(x) * X.ptr[2]
 	);
-	Y.phi_i.s<?=side1?> = cSq * gUii * X.ptr[1];
-	Y.phi_i.s<?=side2?> = cSq * gUii * X.ptr[2];
+	Y.phi_i.s<?=side1?> = gUii * X.ptr[1];
+	Y.phi_i.s<?=side2?> = gUii * X.ptr[2];
 	return Y;
 }
 
@@ -144,7 +140,7 @@ kernel void addSource(
 <? if not solver.coord.anholonomic then ?>
 <? if not eqn.weightFluxByGridVolume then ?>
 	real c = solver->wavespeed;
-	deriv->phi_t -= c * c * real3_dot(coord_conn_trace23(x), U->phi_i);
+	deriv->phi_t -= c * real3_dot(coord_conn_trace23(x), U->phi_i);
 <? else ?>
 	real3 conn12 = coord_conn_trace12(x);
 	deriv->phi_i.x -= conn12.x * U->phi_t;

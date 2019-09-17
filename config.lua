@@ -75,7 +75,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{64,1,1},
-				{64,64,1},
+				{128,128,1},
 				{16,16,16},
 			},
 		})[platAndDevicesNames]
@@ -180,9 +180,9 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'rectangle',
-	--initState = 'Sedov',
+	initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
 	--initState = 'Kelvin-Helmholtz',
@@ -433,7 +433,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
+self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
 
 
 -- compressible Euler equations
@@ -683,7 +683,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 
--- [=[ 2013 Baumgarte et al, section IV A 1 example
+--[=[ 2013 Baumgarte et al, section IV A 1 example
 local dim = 1
 local args = {
 	app = self,
@@ -706,8 +706,8 @@ local args = {
 	cfl = .1/dim,
 	
 	-- [[
-	--coord = 'sphere',
-	coord = 'sphere-log-radial',
+	coord = 'sphere',
+	--coord = 'sphere-log-radial',
 	mins = {0, 0, -math.pi},
 	maxs = {16, math.pi, math.pi},
 	gridSize = ({
