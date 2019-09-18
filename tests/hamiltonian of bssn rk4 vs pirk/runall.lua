@@ -1,7 +1,7 @@
-for dim=2,2 do
+for dim=1,3 do
 	for _,solvername in ipairs{
 		'bssnok-fd',
-		--'bssnok-pirk',
+		'bssnok-pirk',
 	} do
 		for _,initState in ipairs{
 			'Minkowski',
