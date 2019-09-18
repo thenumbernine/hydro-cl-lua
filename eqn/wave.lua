@@ -5,12 +5,15 @@ local range = require 'ext.range'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
 
+local common = require 'common'
+local xNames = common.xNames
+
 local Wave = class(Equation)
 Wave.name = 'wave'
 
 -- depending on which you use, the source terms change
-Wave.weightFluxByGridVolume = true
---Wave.weightFluxByGridVolume = false
+--Wave.weightFluxByGridVolume = true
+Wave.weightFluxByGridVolume = false
 
 Wave.useSourceTerm = true
 
@@ -89,6 +92,34 @@ end
 
 Wave.solverCodeFile = 'eqn/wave.cl'
 
+function Wave:getCommonFuncCode()
+	return template([[
+/*
+background metric ADM decomposition
+this assumes the ADM spatial metric gamma_ij is equal to the grid metric
+
+for the wave equation d'Lambertian phi = 0
+i.e. g^tt phi_,tt + 2 g^ti phi_;ti + g^ij phi_;ij = 0
+ADM is defined such that 
+ 	g^tt = -alpha^-2
+	g^ti = alpha^-2 beta^i 
+	g^ij = gamma^ij - alpha^-2 beta^i beta^j
+TODO make this configurable somehow
+or make it modular enough to merge with BSSNOK
+*/
+
+real metric_alpha(real3 x) {
+	return 1.;
+}
+
+real3 metric_beta_u(real3 x) {
+	return _real3(0,0,0);
+}
+
+]], {
+	})
+end
+
 Wave.predefinedDisplayVars = {
 	'U phi_t',
 	'U phi_i',
@@ -104,7 +135,9 @@ Wave.eigenVars = {
 
 function Wave:eigenWaveCodePrefix(side, eig, x)
 	return template([[
-	real c_sqrt_gU = solver->wavespeed / unit_m_per_s * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real wavespeed = solver->wavespeed / unit_m_per_s;
+	real alpha_sqrt_gU = metric_alpha(<?=x?>) * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real3 beta_u = metric_beta_u(<?=x?>);
 ]], {
 		side = side,
 		x = x,
@@ -116,12 +149,13 @@ function Wave:consWaveCodePrefix(side, U, x, W)
 end
 
 function Wave:consWaveCode(side, U, x, waveIndex)
+	local xside = xNames[side+1]
 	if waveIndex == 0 then
-		return '-c_sqrt_gU' 
+		return 'wavespeed * (-beta_u.'..xside..' - alpha_sqrt_gU)' 
 	elseif waveIndex == 1 or waveIndex == 2 then
-		return '0'
+		return 'wavespeed * -beta_u.'..xside
 	elseif waveIndex == 3 then
-		return 'c_sqrt_gU' 
+		return 'wavespeed * (-beta_u.'..xside..' + alpha_sqrt_gU)' 
 	end
 	error'got a bad waveIndex'
 end
