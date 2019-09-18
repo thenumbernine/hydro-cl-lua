@@ -152,10 +152,14 @@ kernel void addSource(
 
 <? if not solver.coord.anholonomic then ?>
 <? if not eqn.weightFluxByGridVolume then ?>
-	deriv->phi_t -= c * real3_dot(coord_conn_trace23(x), U->phi_i);
 
-#if 0	//TODO implement this
+	real alpha = metric_alpha(x);
+	real dalpha_t = metric_dalpha_t(x);
+	real K = metric_K(x);
+	real3x3 dbeta_ul = metric_dbeta_ul(x);
+	real3 dalpha_l = metric_dalpha_l(x);
 	
+	/*	
 	\Pi (
 		\frac{1}{\alpha} \alpha_{,t} (1 - \frac{1}{\alpha})
 		+ K \alpha 
@@ -167,12 +171,29 @@ kernel void addSource(
 	)
 
 	- \alpha \frac{dV}{d|\Phi|^2} \Phi
-	\\
-	
-	\alpha_{,i} \Pi 
-	+ {\beta^k}_{,i} \Psi_k
+	*/
+	deriv->phi_t += c * (
+		U->phi_t * (
+			dalpha_t * (1. - 1. / alpha) / alpha
+			+ alpha * K
+		)
+		+ real3_dot(coord_raise(dalpha_l, x), U->phi_i)
+		- alpha * (
+			real3_dot(coord_conn_trace23(x), U->phi_i)
+			+ eqn_source(x)
+		)
+	);
 
-#endif
+	//\alpha_{,i} \Pi + {\beta^k}_{,i} \Psi_k
+	deriv->phi_i = real3_add(deriv->phi_i, 
+		real3_real_mul(
+			real3_add(
+				real3_real_mul(dalpha_l, U->phi_t),
+				real3x3_real3_mul(dbeta_ul, U->phi_i)
+			),
+			c
+		)
+	);
 
 <? else ?>
 	real3 conn12 = coord_conn_trace12(x);

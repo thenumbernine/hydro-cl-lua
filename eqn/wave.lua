@@ -108,13 +108,16 @@ TODO make this configurable somehow
 or make it modular enough to merge with BSSNOK
 */
 
-real metric_alpha(real3 x) {
-	return 1.;
-}
+real metric_alpha(real3 x) { return 1.; }
+real metric_dalpha_t(real3 x) { return 0.; }
+real3 metric_dalpha_l(real3 x) { return real3_zero; }
 
-real3 metric_beta_u(real3 x) {
-	return _real3(0,0,0);
-}
+real3 metric_beta_u(real3 x) { return real3_zero; }
+real3x3 metric_dbeta_ul(real3 x) { return _real3x3(0,0,0,0,0,0,0,0,0); }
+
+real metric_K(real3 x) { return 0.; }
+
+real eqn_source(real3 x) { return 0.; }
 
 ]], {
 	})
