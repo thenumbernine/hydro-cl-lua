@@ -39,12 +39,13 @@ function BSSNOKFiniteDifferencePIRKSolver:createBuffers()
 	self:clalloc('derivL3_n', self.eqn.cons_t, self.numCells)
 end
 
+local FakeIntegrator = class()
+function FakeIntegrator:integrate(dt) end
+
 function BSSNOKFiniteDifferencePIRKSolver:refreshIntegrator()
 	-- no integrator, because it's built into the solver
 	-- TODO move the buffers kernels etc into this object
-	self.integrator = {
-		integrate = function(dt) end,
-	}
+	self.integrator = FakeIntegrator()
 end
 
 function BSSNOKFiniteDifferencePIRKSolver:refreshBoundaryProgram()
@@ -115,8 +116,6 @@ end
 -- perform the 4 steps for PIRK integration
 function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	local bufferSize = self.numCells * ffi.sizeof(self.eqn.cons_t)
-	
-	BSSNOKFiniteDifferencePIRKSolver.super.step(self, dt)
 
 	-- zero all derivatives
 	self.app.cmds:enqueueFillBuffer{buffer=self.derivL1_1, size=bufferSize}
@@ -294,9 +293,9 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 
 	self.app.cmds:enqueueCopyBuffer{dst=self.UBuf, src=self.UNext, size=bufferSize}
 	
--- this goes on in super, at the start of the function
---	self.constrainUKernelObj(self.solverBuf, self.UBuf)
---	self:boundary()
+	assert(FakeIntegrator.is(self.integrator))
+	-- has constrainU and boundary
+	BSSNOKFiniteDifferencePIRKSolver.super.step(self, dt)
 end
 
 return BSSNOKFiniteDifferencePIRKSolver
