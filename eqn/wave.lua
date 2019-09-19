@@ -1,4 +1,5 @@
 -- check out my 'wave equation hyperbolic form' worksheet
+local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
@@ -17,9 +18,6 @@ Wave.weightFluxByGridVolume = false
 
 Wave.useSourceTerm = true
 
--- TODO count this from consVars?
-Wave.numStates = 4
-
 Wave.hasEigenCode = true
 Wave.hasFluxFromConsCode = true
 Wave.roeUseFluxFromCons = true
@@ -31,17 +29,38 @@ Wave.usePressure = true
 -- gaussian, etc use density
 --Wave.usePressure = false
 
+function Wave:init(args)
+	self.scalar = 'real'
+	--self.scalar = 'cplx'
+	
+	self.vec3 = self.scalar..'3'
+	self.numRealsInScalar = ffi.sizeof(self.scalar) / ffi.sizeof'real'
+	
+	self.numStates = 4 * self.numRealsInScalar
 
-if Wave.usePressure then
-	Wave.consVars = table{
-		{name='phi_t', type='real', units='kg/(m*s^3)'},
-		{name='phi_i', type='real3', units='kg/(m^2*s^2)'},
+	if self.usePressure then
+		self.consVars = table{
+			{name='Pi', type=self.scalar, units='kg/(m*s^3)'},
+			{name='Psi_l', type=self.vec3, units='kg/(m^2*s^2)'},
+		}
+	else
+		self.consVars = table{
+			{name='Pi', type=self.scalar, units='kg/(m^3*s)'},
+			{name='Psi_l', type=self.vec3, units='kg/(m^4)'},
+		}
+	end
+
+	local suffix = self.scalar == 'real' and '' or ' re'
+	self.predefinedDisplayVars = {
+		'U Pi'..suffix,
+		'U Psi_l'..suffix,
+		'U Psi_l x'..suffix,
+		'U Psi_l y'..suffix,
+		'U Psi_l z'..suffix,
+		'U Psi_l mag',
 	}
-else
-	Wave.consVars = table{
-		{name='phi_t', type='real', units='kg/(m^3*s)'},
-		{name='phi_i', type='real3', units='kg/(m^4)'},
-	}
+
+	Wave.super.init(self, args)
 end
 
 function Wave:createInitState()
@@ -55,6 +74,9 @@ Wave.initStateCode = [[
 <?
 local common = require 'common'
 local xNames = common.xNames
+
+local scalar = eqn.scalar
+local vec3 = eqn.vec3
 ?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
@@ -81,11 +103,11 @@ end
 
 	UBuf[index] = (<?=eqn.cons_t?>){
 <? if eqn.usePressure then
-?>		.phi_t = P,
+?>		.Pi = <?=scalar?>_from_real(P),
 <? else		
-?>		.phi_t = rho,
+?>		.Pi = <?=scalar?>_from_real(rho),
 <? end		
-?>		.phi_i = cartesianToCoord(v, x),
+?>		.Psi_l = <?=vec3?>_from_real3(cartesianToCoord(v, x)),
 	};
 }
 ]]
@@ -94,6 +116,10 @@ Wave.solverCodeFile = 'eqn/wave.cl'
 
 function Wave:getCommonFuncCode()
 	return template([[
+<?
+local scalar = eqn.scalar
+local vec3 = eqn.vec3
+?>
 /*
 background metric ADM decomposition
 this assumes the ADM spatial metric gamma_ij is equal to the grid metric
@@ -109,28 +135,19 @@ or make it modular enough to merge with BSSNOK
 */
 
 real metric_alpha(real3 x) { return 1.; }
-real metric_dalpha_t(real3 x) { return 0.; }
-real3 metric_dalpha_l(real3 x) { return real3_zero; }
-
 real3 metric_beta_u(real3 x) { return real3_zero; }
-real3x3 metric_dbeta_ul(real3 x) { return _real3x3(0,0,0,0,0,0,0,0,0); }
-
 real metric_K(real3 x) { return 0.; }
 
-real eqn_source(real3 x) { return 0.; }
+real metric_dt_alpha(real3 x) { return 0.; }
+real3 metric_partial_alpha_l(real3 x) { return real3_zero; }
+real3x3 metric_partial_beta_ul(real3 x) { return _real3x3(0,0,0,0,0,0,0,0,0); }
+
+<?=scalar?> eqn_source(real3 x) { return <?=scalar?>_zero; }
 
 ]], {
+		eqn = self,
 	})
 end
-
-Wave.predefinedDisplayVars = {
-	'U phi_t',
-	'U phi_i',
-	'U phi_i x',
-	'U phi_i y',
-	'U phi_i z',
-	'U phi_i mag',
-}
 
 Wave.eigenVars = {
 	{name='unused', type='real'},
@@ -152,6 +169,7 @@ function Wave:consWaveCodePrefix(side, U, x, W)
 end
 
 function Wave:consWaveCode(side, U, x, waveIndex)
+	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
 	local xside = xNames[side+1]
 	if waveIndex == 0 then
 		return 'wavespeed * (-beta_u.'..xside..' - alpha_sqrt_gU)' 

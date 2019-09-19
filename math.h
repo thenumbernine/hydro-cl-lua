@@ -42,8 +42,11 @@ my current convention is this:
 #define real_add(a,b)		((a) + (b))
 #define real_sub(a,b)		((a) - (b))
 #define real_mul(a,b)		((a) * (b))
-#define real_real_mul(a,b)	((a) * (b))
 #define real_div(a,b)		((a) / (b))
+#define real_real_add(a,b)	((a) + (b))
+#define real_real_sub(a,b)	((a) - (b))
+#define real_real_mul(a,b)	((a) * (b))
+#define real_real_div(a,b)	((a) / (b))
 #define real_lenSq(x)		((x) * (x))
 #define real_abs			fabs
 

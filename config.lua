@@ -431,8 +431,8 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
-self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
+self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
 
 
@@ -693,7 +693,7 @@ local args = {
 	
 	eqnArgs = {
 		--useShift = 'none',
-		--useScalarField = true,	-- needed for the scalar field init cond below
+		useScalarField = true,	-- needed for the scalar field init cond below
 	
 		cflMethod = '2008 Alcubierre',
 		--cflMethod = '2013 Baumgarte et al, eqn 32',
@@ -751,12 +751,12 @@ local args = {
 	--]]
 	
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
-	initState = 'Minkowski',	-- TODO sphere-log-radial 
+	--initState = 'Minkowski',	-- TODO sphere-log-radial 
 	
 	-- works in spherical
 	-- TODO get the exact solution from 1982 Teukolsky
 	--initState = 'pure gauge wave',
-	--initState = 'scalar field',
+	initState = 'scalar field',
 	
 	--initState = 'gaussian perturbation',	-- TODO restore this to the 2008 Alcubeirre and 1998 Alcubierre gauge wave examples
 	
