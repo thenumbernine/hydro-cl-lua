@@ -905,8 +905,12 @@ end
 			else
 				xmin, xmax, ymin, ymax = graph_xmin, graph_ymin, graph_xmax, graph_ymax
 			end
-			self.mouseCoord[1] = mouseInGraphX * (xmax - xmin) + xmin
-			self.mouseCoord[2] = mouseInGraphY * (ymax - ymin) + ymin
+			
+			-- frustum doesn't have these ...
+			if xmax and ymax and xmin and ymin then
+				self.mouseCoord[1] = mouseInGraphX * (xmax - xmin) + xmin
+				self.mouseCoord[2] = mouseInGraphY * (ymax - ymin) + ymin
+			end
 		end
 
 

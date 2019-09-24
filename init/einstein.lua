@@ -343,7 +343,7 @@ return table{
 			local param_sigma = var'solver->sigma'
 	
 			-- variables used by initAnalytical
-			local r = coord.rDef 
+			local r = coord.vars.r 
 			local rplus = (r + param_r0) / param_sigma
 			local rminus = (r - param_r0) / param_sigma
 			local gminus = exp(-rminus^2)
@@ -368,7 +368,7 @@ return table{
 			local var = symmath.var
 			local Tensor = symmath.Tensor
 
-			local r = solver.coord.rDef
+			local r = solver.coord.vars.r
 			local r0 = var'solver->r0'
 			local sigma = var'solver->sigma'
 			local alpha0 = var'solver->alpha0'
@@ -701,7 +701,7 @@ return table{
 				end,
 			}))
 			
-			local r = solver.coord.rDef
+			local r = solver.coord.vars.r
 			local theta = solver.coord.baseCoords[2]	-- only true for sphere and sphere-log-polar
 			local rs = var'solver->init_rs'
 			
@@ -731,7 +731,7 @@ return table{
 				end,
 			}))
 			
-			local r = solver.coord.rDef
+			local r = solver.coord.vars.r
 			local theta = solver.coord.baseCoords[2]	-- only true for sphere and sphere-log-polar
 			local rs = var'solver->init_rs'
 			

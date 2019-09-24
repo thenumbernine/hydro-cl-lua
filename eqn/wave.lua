@@ -60,7 +60,15 @@ function Wave:init(args)
 		'U Psi_l mag',
 	}
 
+	self.init_alpha = args.alpha
+	self.init_beta = args.beta
+	self.init_K = args.K
+	
 	Wave.super.init(self, args)
+end
+
+function Wave:compile(expr)
+	return self.solver.coord:compile(expr)
 end
 
 function Wave:createInitState()
@@ -115,10 +123,60 @@ end
 Wave.solverCodeFile = 'eqn/wave.cl'
 
 function Wave:getCommonFuncCode()
+	
+	local symmath = require 'symmath'
+	local Tensor = symmath.Tensor
+	local Constant = symmath.Constant
+	local var = symmath.var
+	local vars = symmath.vars
+	local fromlua = require 'ext.fromlua'
+	local coords = Tensor.coords()[1].variables
+	local t = var't'
+	self.metric = {
+		coords = coords,
+		t = t,
+		
+		alpha = Constant(1),
+		beta_u = {
+			Constant(0),
+			Constant(0),
+			Constant(0),
+		},
+		K = Constant(0),
+	}
+
+	local x = self.solver.coord.vars.x
+	local y = self.solver.coord.vars.y
+	local z = self.solver.coord.vars.z
+	local r = self.solver.coord.vars.r
+	local function readarg(s)
+		return symmath.clone(assert(load('local x,y,z,t,r = ... return '..s))(x,y,z,t,r))()
+	end
+
+	if self.init_alpha then
+		self.metric.alpha = readarg(self.init_alpha)
+	end
+	if self.init_beta then
+		for i=1,3 do
+			if self.init_beta[i] then
+				self.metric.beta_u[i] = readarg(self.init_beta[i])
+			end
+		end
+	end
+	if self.init_K then
+		self.metric.K = readarg(self.init_K)
+	end
+
+
+
+	
+	
 	return template([[
 <?
 local scalar = eqn.scalar
 local vec3 = eqn.vec3
+local common = require 'common'
+local xNames = common.xNames
 ?>
 /*
 background metric ADM decomposition
@@ -134,15 +192,46 @@ TODO make this configurable somehow
 or make it modular enough to merge with BSSNOK
 */
 
-real metric_alpha(real3 x) { return 1.; }
-real3 metric_beta_u(real3 x) { return real3_zero; }
-real metric_K(real3 x) { return 0.; }
+real metric_alpha(real3 pt) { 
+	return <?=eqn:compile(eqn.metric.alpha)?>; 
+}
 
-real metric_dt_alpha(real3 x) { return 0.; }
-real3 metric_partial_alpha_l(real3 x) { return real3_zero; }
-real3x3 metric_partial_beta_ul(real3 x) { return _real3x3(0,0,0,0,0,0,0,0,0); }
+real3 metric_beta_u(real3 pt) { 
+	return (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = <?=eqn:compile(eqn.metric.beta_u[i])?>,
+<? end
+?>	};
+}
 
-<?=scalar?> eqn_source(real3 x) { return <?=scalar?>_zero; }
+real metric_K(real3 pt) { 
+	return <?=eqn:compile(eqn.metric.K)?>;
+}
+
+real metric_dt_alpha(real3 pt) { 
+	return <?=eqn:compile(eqn.metric.alpha:diff(eqn.metric.t)())?>;
+}
+real3 metric_partial_alpha_l(real3 pt) { 
+	return (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = <?=eqn:compile(eqn.metric.alpha:diff(eqn.metric.coords[i])())?>,
+<? end
+?>	};
+}
+
+real3x3 metric_partial_beta_ul(real3 pt) { 
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = (real3){
+<?	for j,xj in ipairs(xNames) do
+?>			.<?=xj?> = <?=eqn:compile(eqn.metric.beta_u[i]:diff(eqn.metric.coords[j])())?>,
+<?	end
+?>		},
+<?	end
+?>	};
+}
+
+<?=scalar?> eqn_source(real3 pt) { return <?=scalar?>_zero; }
 
 ]], {
 		eqn = self,
