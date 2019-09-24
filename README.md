@@ -154,10 +154,4 @@ Now this project, lua-hydro-cl, pushes the middleman (C++) out completely.
 
 Intel OpenCL Ubuntu bugs I'm seeing:
 - non-static functions in large programs are crashing.  I've declared all non-kernel functions as 'static inline' and that stops the compiler from crashing.
-- assigning structs by value crashes.  this means no returning structs, no operator= on structs at all.
-	here's the line that's crashing:
-		W.D_g = real3_zero;
-	...and real3_zero is a macro for (real3){.s={0., 0., 0.}}
-	maybe it's only assigning to static global constants?
-	sure enough, changing the line to a function that accepts the pointer and sets the structure to zero compiles fine.
-	strangely previous lines look identical to this, assigning to zero.  but they compile fine.
+- assigning unions of arrays and structs by their arrays is occasionally crashing.  example, (real3){.s={a, b, c}} fails but (real3){.x=a, .y=b, .z=c} seems to fix things.

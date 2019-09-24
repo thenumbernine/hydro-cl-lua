@@ -72,7 +72,7 @@ cons_t fluxFromCons_<?=side?>(
 	//make sure the rest is zero ...
 	F.prim = (prim_t){
 		.rho = 0,
-		.v = {.s={0,0,0}},
+		.v = real3_zero,
 		.eInt = 0,
 	};
 	F.ePot = 0;

@@ -84,7 +84,7 @@ kernel void calcDT(
 	F.tau = U.cons.tau * vUi_shift + p * vUi;
 	F.prim = (<?=eqn.prim_t?>){
 		.rho = 0,
-		.v = {.s={0,0,0}},
+		.v = real3_zero,
 		.eInt = 0,
 	};
 

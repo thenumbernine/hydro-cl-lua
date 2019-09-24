@@ -1,4 +1,8 @@
-#version 460
+//my intel ubuntu opengl driver's error:
+// error: GLSL 4.60 is not supported. Supported versions are: 1.10, 1.20, 1.30, 1.00 ES, 3.00 ES, 3.10 ES, and 3.20 ES
+//#version 460
+//...sooo...
+#version 130
 
 <?=solver and solver.coord:getCoordMapGLSLCode() or ''?>
 <?=solver and solver.coord:getCoordMapInvGLSLCode() or ''?>
