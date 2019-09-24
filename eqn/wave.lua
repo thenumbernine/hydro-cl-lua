@@ -1,21 +1,22 @@
 -- check out my 'wave equation hyperbolic form' worksheet
+local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
 
+local common = require 'common'
+local xNames = common.xNames
+
 local Wave = class(Equation)
 Wave.name = 'wave'
 
 -- depending on which you use, the source terms change
-Wave.weightFluxByGridVolume = true
---Wave.weightFluxByGridVolume = false
+--Wave.weightFluxByGridVolume = true
+Wave.weightFluxByGridVolume = false
 
 Wave.useSourceTerm = true
-
--- TODO count this from consVars?
-Wave.numStates = 4
 
 Wave.hasEigenCode = true
 Wave.hasFluxFromConsCode = true
@@ -28,17 +29,46 @@ Wave.usePressure = true
 -- gaussian, etc use density
 --Wave.usePressure = false
 
+function Wave:init(args)
+	self.scalar = 'real'
+	--self.scalar = 'cplx'
+	
+	self.vec3 = self.scalar..'3'
+	self.numRealsInScalar = ffi.sizeof(self.scalar) / ffi.sizeof'real'
+	
+	self.numStates = 4 * self.numRealsInScalar
 
-if Wave.usePressure then
-	Wave.consVars = table{
-		{name='phi_t', type='real', units='kg/(m*s^3)'},
-		{name='phi_i', type='real3', units='kg/(m^2*s^2)'},
+	if self.usePressure then
+		self.consVars = table{
+			{name='Pi', type=self.scalar, units='kg/(m*s^3)'},
+			{name='Psi_l', type=self.vec3, units='kg/(m^2*s^2)'},
+		}
+	else
+		self.consVars = table{
+			{name='Pi', type=self.scalar, units='kg/(m^3*s)'},
+			{name='Psi_l', type=self.vec3, units='kg/(m^4)'},
+		}
+	end
+
+	local suffix = self.scalar == 'real' and '' or ' re'
+	self.predefinedDisplayVars = {
+		'U Pi'..suffix,
+		'U Psi_l'..suffix,
+		'U Psi_l x'..suffix,
+		'U Psi_l y'..suffix,
+		'U Psi_l z'..suffix,
+		'U Psi_l mag',
 	}
-else
-	Wave.consVars = table{
-		{name='phi_t', type='real', units='kg/(m^3*s)'},
-		{name='phi_i', type='real3', units='kg/(m^4)'},
-	}
+
+	self.init_alpha = args.alpha
+	self.init_beta = args.beta
+	self.init_K = args.K
+	
+	Wave.super.init(self, args)
+end
+
+function Wave:compile(expr)
+	return self.solver.coord:compile(expr)
 end
 
 function Wave:createInitState()
@@ -52,6 +82,9 @@ Wave.initStateCode = [[
 <?
 local common = require 'common'
 local xNames = common.xNames
+
+local scalar = eqn.scalar
+local vec3 = eqn.vec3
 ?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
@@ -78,25 +111,132 @@ end
 
 	UBuf[index] = (<?=eqn.cons_t?>){
 <? if eqn.usePressure then
-?>		.phi_t = P,
+?>		.Pi = <?=scalar?>_from_real(P),
 <? else		
-?>		.phi_t = rho,
+?>		.Pi = <?=scalar?>_from_real(rho),
 <? end		
-?>		.phi_i = cartesianToCoord(v, x),
+?>		.Psi_l = <?=vec3?>_from_real3(cartesianToCoord(v, x)),
 	};
 }
 ]]
 
 Wave.solverCodeFile = 'eqn/wave.cl'
 
-Wave.predefinedDisplayVars = {
-	'U phi_t',
-	'U phi_i',
-	'U phi_i x',
-	'U phi_i y',
-	'U phi_i z',
-	'U phi_i mag',
+function Wave:getCommonFuncCode()
+	
+	local symmath = require 'symmath'
+	local Tensor = symmath.Tensor
+	local Constant = symmath.Constant
+	local var = symmath.var
+	local vars = symmath.vars
+	local fromlua = require 'ext.fromlua'
+	local coords = Tensor.coords()[1].variables
+	local t = var't'
+	self.metric = {
+		coords = coords,
+		t = t,
+		
+		alpha = Constant(1),
+		beta_u = {
+			Constant(0),
+			Constant(0),
+			Constant(0),
+		},
+		K = Constant(0),
+	}
+
+	local x = self.solver.coord.vars.x
+	local y = self.solver.coord.vars.y
+	local z = self.solver.coord.vars.z
+	local r = self.solver.coord.vars.r
+	local function readarg(s)
+		return symmath.clone(assert(load('local x,y,z,t,r = ... return '..s))(x,y,z,t,r))()
+	end
+
+	if self.init_alpha then
+		self.metric.alpha = readarg(self.init_alpha)
+	end
+	if self.init_beta then
+		for i=1,3 do
+			if self.init_beta[i] then
+				self.metric.beta_u[i] = readarg(self.init_beta[i])
+			end
+		end
+	end
+	if self.init_K then
+		self.metric.K = readarg(self.init_K)
+	end
+
+
+
+	
+	
+	return template([[
+<?
+local scalar = eqn.scalar
+local vec3 = eqn.vec3
+local common = require 'common'
+local xNames = common.xNames
+?>
+/*
+background metric ADM decomposition
+this assumes the ADM spatial metric gamma_ij is equal to the grid metric
+
+for the wave equation d'Lambertian phi = 0
+i.e. g^tt phi_,tt + 2 g^ti phi_;ti + g^ij phi_;ij = 0
+ADM is defined such that 
+ 	g^tt = -alpha^-2
+	g^ti = alpha^-2 beta^i 
+	g^ij = gamma^ij - alpha^-2 beta^i beta^j
+TODO make this configurable somehow
+or make it modular enough to merge with BSSNOK
+*/
+
+real metric_alpha(real3 pt) { 
+	return <?=eqn:compile(eqn.metric.alpha)?>; 
 }
+
+real3 metric_beta_u(real3 pt) { 
+	return (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = <?=eqn:compile(eqn.metric.beta_u[i])?>,
+<? end
+?>	};
+}
+
+real metric_K(real3 pt) { 
+	return <?=eqn:compile(eqn.metric.K)?>;
+}
+
+real metric_dt_alpha(real3 pt) { 
+	return <?=eqn:compile(eqn.metric.alpha:diff(eqn.metric.t)())?>;
+}
+real3 metric_partial_alpha_l(real3 pt) { 
+	return (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = <?=eqn:compile(eqn.metric.alpha:diff(eqn.metric.coords[i])())?>,
+<? end
+?>	};
+}
+
+real3x3 metric_partial_beta_ul(real3 pt) { 
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = (real3){
+<?	for j,xj in ipairs(xNames) do
+?>			.<?=xj?> = <?=eqn:compile(eqn.metric.beta_u[i]:diff(eqn.metric.coords[j])())?>,
+<?	end
+?>		},
+<?	end
+?>	};
+}
+
+<?=scalar?> eqn_source(real3 pt) { return <?=scalar?>_zero; }
+
+]], {
+		eqn = self,
+	})
+end
 
 Wave.eigenVars = {
 	{name='unused', type='real'},
@@ -104,7 +244,9 @@ Wave.eigenVars = {
 
 function Wave:eigenWaveCodePrefix(side, eig, x)
 	return template([[
-	real c_sqrt_gU = solver->wavespeed / unit_m_per_s * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real wavespeed = solver->wavespeed / unit_m_per_s;
+	real alpha_sqrt_gU = metric_alpha(<?=x?>) * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real3 beta_u = metric_beta_u(<?=x?>);
 ]], {
 		side = side,
 		x = x,
@@ -116,12 +258,14 @@ function Wave:consWaveCodePrefix(side, U, x, W)
 end
 
 function Wave:consWaveCode(side, U, x, waveIndex)
+	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
+	local xside = xNames[side+1]
 	if waveIndex == 0 then
-		return '-c_sqrt_gU' 
+		return 'wavespeed * (-beta_u.'..xside..' - alpha_sqrt_gU)' 
 	elseif waveIndex == 1 or waveIndex == 2 then
-		return '0'
+		return 'wavespeed * -beta_u.'..xside
 	elseif waveIndex == 3 then
-		return 'c_sqrt_gU' 
+		return 'wavespeed * (-beta_u.'..xside..' + alpha_sqrt_gU)' 
 	end
 	error'got a bad waveIndex'
 end

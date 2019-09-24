@@ -83,10 +83,8 @@ local cfg = {
 
 local duration = 100
 
-local filename = rundir..'/out-dim='..dim..',solver='..solvername..',init='..initState..'.txt'
+local filename = rundir..'/dim='..dim..',solver='..solvername..',init='..initState..'.txt'
 local f = io.open(filename, 'w')
-
-local startTime, endTime
 
 local App = class(require 'app')
 function App:setup(clArgs)
@@ -109,14 +107,9 @@ function App:setup(clArgs)
 		
 		return oldupdate(self, ...)
 	end
-	
-	startTime = os.clock()
 end
 
 function App:requestExit()
-	endTime = os.clock()	-- track time taken
-print('took '..(endTime-startTime)..'s')
-
 	App.super.requestExit(self)
 os.exit()	-- exit early in Windows to avoid a driver crash
 end	

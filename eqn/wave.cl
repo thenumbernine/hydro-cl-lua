@@ -1,8 +1,11 @@
 <? 
 local common = require 'common'
 local sym = common.sym
+local xNames = common.xNames
 
 local solver = eqn.solver
+local scalar = eqn.scalar
+local vec3 = eqn.vec3
 ?>
 
 typedef <?=eqn.prim_t?> prim_t;
@@ -21,31 +24,40 @@ static inline real3 coord_g_uu<?=side?>(real3 x) {
 }
 <? end ?>
 
-<? for side=0,solver.dim-1 do ?>
+<? for side=0,solver.dim-1 do 
+	local xside = xNames[side+1]
+?>
 cons_t fluxFromCons_<?=side?>(
 	constant solver_t* solver,
 	cons_t U,
 	real3 x
 ) {
 	cons_t F;
-	F.phi_t = -solver->wavespeed * real3_dot(coord_g_uu<?=side?>(x), U.phi_i),
-	F.phi_i = _real3(0,0,0);
-	F.phi_i.s<?=side?> = -solver->wavespeed * U.phi_t;
+	real alpha = metric_alpha(x);
+	real3 beta_u = metric_beta_u(x);
+	F.Pi = <?=scalar?>_real_mul(real_<?=scalar?>_add(beta_u.<?=xside?>, <?=vec3?>_real3_dot(U.Psi_l, coord_g_uu<?=side?>(x))), -solver->wavespeed),
+	F.Psi_l.x = <?=scalar?>_from_real(-solver->wavespeed * beta_u.<?=xside?>);
+	F.Psi_l.y = <?=scalar?>_from_real(-solver->wavespeed * beta_u.<?=xside?>);
+	F.Psi_l.z = <?=scalar?>_from_real(-solver->wavespeed * beta_u.<?=xside?>);
+	F.Psi_l.s<?=side?> = <?=scalar?>_sub(F.Psi_l.s<?=side?>, <?=scalar?>_real_mul(U.Pi, solver->wavespeed * alpha));
 	return F;
 }
 <? end ?>
 
-<? for side=0,solver.dim-1 do ?>
+<? for side=0,solver.dim-1 do 
+	local xside = xNames[side+1]
+?>
 range_t calcCellMinMaxEigenvalues_<?=side?>(
 	constant solver_t* solver,
 	const global cons_t* U,
 	real3 x
 ) {
-	real c_sqrt_gUii = solver->wavespeed * coord_sqrt_g_uu<?=side..side?>(x);
+	real alpha_sqrt_gUii = metric_alpha(x) * coord_sqrt_g_uu<?=side..side?>(x);
+	real3 beta_u = metric_beta_u(x);
 	return (range_t){
-		.min = -c_sqrt_gUii,
-		.max = c_sqrt_gUii,
-	}; 
+		.min = solver->wavespeed * (-beta_u.<?=xside?> - alpha_sqrt_gUii),
+		.max = solver->wavespeed * (-beta_u.<?=xside?> + alpha_sqrt_gUii),
+	};
 }
 <? end ?>
 
@@ -69,35 +81,54 @@ waves_t eigen_leftTransform_<?=side?>(
 	cons_t X,
 	real3 x
 ) { 
-	waves_t Y;
+	waves_t Y_;
+	<?=scalar?>* Y = (<?=scalar?>*)Y_.ptr;
 	
 	real sqrt_gUii = coord_sqrt_g_uu<?=side..side?>(x);
 	real gUii = sqrt_gUii * sqrt_gUii;
-	real phiUi = real3_dot(X.phi_i, coord_g_uu<?=side?>(x));
-	Y.ptr[0] = .5 * (phiUi / gUii + X.phi_t / sqrt_gUii);
-	Y.ptr[1] = X.phi_i.s<?=side1?> / gUii;
-	Y.ptr[2] = X.phi_i.s<?=side2?> / gUii;
-	Y.ptr[3] = .5 * (phiUi / gUii - X.phi_t / sqrt_gUii);
-	return Y;
+	<?=scalar?> Psi_u = <?=vec3?>_real3_dot(X.Psi_l, coord_g_uu<?=side?>(x));
+	Y[0] = <?=scalar?>_add(
+		<?=scalar?>_real_mul(Psi_u, .5 / gUii), 
+		<?=scalar?>_real_mul(X.Pi, .5 / sqrt_gUii)
+	);
+	Y[1] = <?=scalar?>_real_mul(X.Psi_l.s<?=side1?>, 1. / gUii);
+	Y[2] = <?=scalar?>_real_mul(X.Psi_l.s<?=side2?>, 1. / gUii);
+	Y[3] = <?=scalar?>_sub(
+		<?=scalar?>_real_mul(Psi_u, .5 / gUii),
+		<?=scalar?>_real_mul(X.Pi, .5 / sqrt_gUii)
+	);
+	return Y_;
 }
 
 cons_t eigen_rightTransform_<?=side?>(
 	constant solver_t* solver,
 	eigen_t eig,
-	waves_t X,
+	waves_t X_,
 	real3 x
 ) {
+	<?=scalar?>* X = (<?=scalar?>*)X_.ptr;
 	cons_t Y;
 	
 	real sqrt_gUii = coord_sqrt_g_uu<?=side..side?>(x);
 	real gUii = sqrt_gUii * sqrt_gUii;
-	Y.phi_t = sqrt_gUii * (X.ptr[0] - X.ptr[3]);
-	Y.phi_i.s<?=side?> = X.ptr[0] + X.ptr[3] - (
-		coord_g_uu<?=side <= side1 and side..side1 or side1..side?>(x) * X.ptr[1] 
-		+ coord_g_uu<?=side <= side2 and side..side2 or side2..side?>(x) * X.ptr[2]
+	
+	Y.Pi = <?=scalar?>_real_mul(
+		<?=scalar?>_sub(X[0], X[3]),
+		sqrt_gUii
 	);
-	Y.phi_i.s<?=side1?> = gUii * X.ptr[1];
-	Y.phi_i.s<?=side2?> = gUii * X.ptr[2];
+	
+	Y.Psi_l.s<?=side?> = <?=scalar?>_sub(
+		<?=scalar?>_add(X[0], X[3]),
+		<?=scalar?>_add(
+			<?=scalar?>_real_mul(X[1], coord_g_uu<?=side <= side1 and side..side1 or side1..side?>(x)), 
+			<?=scalar?>_real_mul(X[2], coord_g_uu<?=side <= side2 and side..side2 or side2..side?>(x))
+		)
+	);
+	
+	Y.Psi_l.s<?=side1?> = <?=scalar?>_real_mul(X[1], gUii);
+	
+	Y.Psi_l.s<?=side2?> = <?=scalar?>_real_mul(X[2], gUii);
+	
 	return Y;
 }
 
@@ -136,16 +167,68 @@ kernel void addSource(
 	
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
+	real c = solver->wavespeed / unit_m_per_s;
 
 <? if not solver.coord.anholonomic then ?>
 <? if not eqn.weightFluxByGridVolume then ?>
-	real c = solver->wavespeed;
-	deriv->phi_t -= c * real3_dot(coord_conn_trace23(x), U->phi_i);
+
+	real alpha = metric_alpha(x);
+	real dt_alpha = metric_dt_alpha(x);
+	real K = metric_K(x);
+	real3x3 partial_beta_ul = metric_partial_beta_ul(x);
+	real3 partial_alpha_l = metric_partial_alpha_l(x);
+	
+	/*	
+	\Pi (
+		\frac{1}{\alpha} \alpha_{,t} (1 - \frac{1}{\alpha})
+		+ K \alpha 
+	)
+	
+	+ \Psi_i (
+		\alpha_{,j} \gamma^{ij}
+		- \alpha \cdot {}^{(3)} \Gamma^i 
+	)
+
+	- \alpha \frac{dV}{d|\Phi|^2} \Phi
+	*/
+	deriv->Pi = <?=scalar?>_add(
+		deriv->Pi,
+		<?=scalar?>_real_mul(
+			<?=scalar?>_add3(
+				<?=scalar?>_real_mul(
+					U->Pi,
+					dt_alpha * (1. - 1. / alpha) / alpha + alpha * K
+				),
+				<?=vec3?>_real3_dot(U->Psi_l, coord_raise(partial_alpha_l, x)),
+				<?=scalar?>_real_mul(
+					<?=scalar?>_add(
+						<?=vec3?>_real3_dot(U->Psi_l, coord_conn_trace23(x)),
+						eqn_source(x)
+					),
+					- alpha
+				)
+			),
+			c
+		)
+	);
+
+	//\alpha_{,i} \Pi + {\beta^k}_{,i} \Psi_k
+	deriv->Psi_l = <?=vec3?>_add(
+		deriv->Psi_l, 
+		<?=vec3?>_real_mul(
+			<?=vec3?>_add(
+				real3_<?=scalar?>_mul(partial_alpha_l, U->Pi),
+				real3x3_<?=vec3?>_mul(partial_beta_ul, U->Psi_l)
+			),
+			c
+		)
+	);
+
 <? else ?>
 	real3 conn12 = coord_conn_trace12(x);
-	deriv->phi_i.x -= conn12.x * U->phi_t;
-	deriv->phi_i.y -= conn12.y * U->phi_t;
-	deriv->phi_i.z -= conn12.z * U->phi_t;
+	deriv->Psi_l.x = <?=scalar?>_sub(deriv->Psi_l.x, <?=scalar?>_real_mul(U->Pi, c * conn12.x));
+	deriv->Psi_l.y = <?=scalar?>_sub(deriv->Psi_l.y, <?=scalar?>_real_mul(U->Pi, c * conn12.y));
+	deriv->Psi_l.z = <?=scalar?>_sub(deriv->Psi_l.z, <?=scalar?>_real_mul(U->Pi, c * conn12.z));
 <? end ?>
 <? end -- anholonomic ?>
 }

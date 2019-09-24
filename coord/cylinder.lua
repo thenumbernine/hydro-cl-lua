@@ -44,8 +44,13 @@ function Cylinder:init(args)
 	self.chart = function() return Tensor('^I', r * cos(theta), r * sin(theta), z) end
 	
 	Cylinder.super.init(self, args)
-	
-	self.rDef = (r^2 + z^2)^.5
+
+	self.vars = {
+		r = (r^2 + z^2)^.5,
+		x = r * cos(theta),
+		y = r * sin(theta),
+		z = z,
+	}
 end
 
 

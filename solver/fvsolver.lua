@@ -99,6 +99,7 @@ function FiniteVolumeSolver:addDisplayVars()
 	*value = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', i)?>;
 ]], 			{
 					eqn = self.eqn,
+					side = side,
 					i = i,
 				})}
 			end),

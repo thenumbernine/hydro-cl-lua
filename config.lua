@@ -50,10 +50,10 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
-	mins = cmdline.mins or {-1, -1, -1},
-	maxs = cmdline.maxs or {1, 1, 1},
+	mins = cmdline.mins or {-10, -10, -10},
+	maxs = cmdline.maxs or {10, 10, 10},
 
 	-- 256^2 = 2^16 = 2 * 32^3
 	gridSize = (
@@ -95,11 +95,11 @@ local args = {
 		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
-	--[[ cylinder
+	-- [[ cylinder
 	coord = 'cylinder',
 	coordArgs = {anholonomic=true},			-- disable to use non-physical, holonomic coordinates
-	mins = cmdline.mins or {0, 0, -.25},
-	maxs = cmdline.maxs or {1, 2*math.pi, .25},
+	mins = cmdline.mins or {1, 0, -.25},
+	maxs = cmdline.maxs or {10, 2*math.pi, .25},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
 		{64, 256, 1}, -- 2D
@@ -107,7 +107,9 @@ local args = {
 	})[dim],
 	boundary = {
 		-- r
-		xmin=cmdline.boundary or 'cylinderCenter',		-- hmm, how to treat the r=0 boundary ...
+		--xmin=cmdline.boundary or 'cylinderCenter',		-- hmm, how to treat the r=0 boundary ...
+		xmin=cmdline.boundary or 'freeflow',
+		
 		xmax=cmdline.boundary or 'freeflow',
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
@@ -182,7 +184,7 @@ local args = {
 	
 	--initState = 'Sod',
 	--initState = 'rectangle',
-	initState = 'Sedov',
+	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
 	--initState = 'Kelvin-Helmholtz',
@@ -192,6 +194,7 @@ local args = {
 	--initState = 'square cavity',
 	--initState = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initState = 'Richmyer-Meshkov',
+	initState = 'radial gaussian',
 
 	--initState = 'configuration 1',
 	--initState = 'configuration 2',
@@ -433,7 +436,10 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
-self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
+
+-- wave equation with background spacetime metric
+self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', eqnArgs={beta={'-y / (r * r)','x / (r * r)','0'}}, wenoMethod='1996 Jiang Shu', order=5})))
 
 
 -- compressible Euler equations
@@ -693,7 +699,7 @@ local args = {
 	
 	eqnArgs = {
 		--useShift = 'none',
-		--useScalarField = true,	-- needed for the scalar field init cond below
+		useScalarField = true,	-- needed for the scalar field init cond below
 	
 		cflMethod = '2008 Alcubierre',
 		--cflMethod = '2013 Baumgarte et al, eqn 32',
@@ -751,12 +757,12 @@ local args = {
 	--]]
 	
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
-	initState = 'Minkowski',	-- TODO sphere-log-radial 
+	--initState = 'Minkowski',	-- TODO sphere-log-radial 
 	
 	-- works in spherical
 	-- TODO get the exact solution from 1982 Teukolsky
 	--initState = 'pure gauge wave',
-	--initState = 'scalar field',
+	initState = 'scalar field',
 	
 	--initState = 'gaussian perturbation',	-- TODO restore this to the 2008 Alcubeirre and 1998 Alcubierre gauge wave examples
 	

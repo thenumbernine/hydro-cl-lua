@@ -16,6 +16,7 @@ for _,fn in ipairs(txts) do
 		style = 'data lines',
 		xlabel = 't',
 		ylabel = 'H',
+		title = fn,
 		{datafile=fn, using='1:2', title='min'},
 		{datafile=fn, using='1:3', title='avg'},
 		{datafile=fn, using='1:4', title='max'},
@@ -25,6 +26,7 @@ for _,fn in ipairs(txts) do
 		style = 'data lines',
 		xlabel = 't',
 		ylabel = 'H',
+		title = fn,
 		log = 'y',
 		{datafile=fn, using='1:4', title='max'},
 	}

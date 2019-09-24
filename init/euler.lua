@@ -975,6 +975,24 @@ end) then
 ]]
 		end,
 	},
+	
+	{
+		name = 'radial gaussian',
+		initState = function(self, solver)
+			return [[
+	const real gaussianCenter = 6;
+	const real sigma = 1;
+
+	real3 xc = coordMap(x);
+	real r = real3_len(xc);
+	real delta = (r - gaussianCenter) / sigma;
+	real deltaSq = delta * delta; 
+	rho = .1 + exp(-deltaSq);
+	P = rho;
+]]
+		end,
+	},
+	
 	{
 		name = 'rarefaction wave',
 		initState = function(self, solver)

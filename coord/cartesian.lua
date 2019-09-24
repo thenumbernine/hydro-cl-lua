@@ -12,8 +12,13 @@ function Cartesian:init(args)
 	self.baseCoords = self.embedded
 	self.chart = function() return symmath.Tensor('^I', x,y,z) end
 	Cartesian.super.init(self, args)
-	
-	self.rDef = (x^2 + y^2 + z^2)^.5
+
+	self.vars = {
+		x = x,
+		y = y,
+		z = z,
+		r = (x^2 + y^2 + z^2)^.5,
+	}
 end
 
 return Cartesian

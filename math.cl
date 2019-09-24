@@ -799,6 +799,14 @@ cplx cplx_mul(cplx a, cplx b) {
 		a.re * b.im + a.im * b.re);
 }
 
+cplx cplx_real_add(cplx a, real b) { 
+	return _cplx(a.re + b, a.im); 
+}
+
+cplx real_cplx_add(real a, cplx b) { 
+	return _cplx(b.re + a, b.im); 
+}
+
 cplx cplx_real_mul(cplx a, real b) { 
 	return _cplx(a.re * b, a.im * b); 
 }
@@ -923,6 +931,7 @@ real3x3 cplx3x3_im(cplx3x3 v) {
 
 <?
 make_3x3_3_mul('cplx', 'real')	-- cplx3x3_real3_mul
+make_3x3_3_mul('real', 'cplx')	-- real3x3_cplx3_mul
 make_3_3x3_mul('cplx', 'real')	-- cplx3_real3x3_mul
 ?>
 

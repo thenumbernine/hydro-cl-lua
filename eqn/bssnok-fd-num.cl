@@ -2528,7 +2528,68 @@ end
 			deriv->ptr[i] += solver->diffuseCoeff * lap;
 		}
 	}
-<? end -- addSource ?>
+
+<? if useScalarField then ?>
+
+<?=eqn:makePartialUpwind'alpha'?>
+	real3 partial_alpha_L_upwind = real3_rescaleFromCoord_l(partial_alpha_l_upwind, x);
+
+	//Alcubierre 4.2.52 - Bona-Masso family of slicing
+	//Q = f(alpha) K
+	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
+	//alpha,t = -alpha^2 f(alpha) K + alpha,i beta^i
+	real dt_alpha = -calc_f_times_alphaSq(U->alpha) * U->K
+		+ real3_dot(partial_alpha_L_upwind, U->beta_U);
+	
+
+<?=eqn:makePartial1'alpha'?>			//partial_alpha_l[i] := alpha_,i
+	
+	real3 partial_alpha_u = sym3_real3_mul(
+		gamma_uu,
+		*(real3*)partial_alpha_l
+	);
+
+	real Phi_lenSq = cplx_lenSq(U->Phi);
+	real dV_dPhiSq = solver->scalar_mu * solver->scalar_mu + solver->lambda * Phi_lenSq;
+	real phi_source = U->Phi * dV_dPhiSq;
+
+	/*	
+	\Pi (
+		\frac{1}{\alpha} \alpha_{,t} (1 - \frac{1}{\alpha})
+		+ K \alpha 
+	)
+	
+	+ \Psi_i (
+		\alpha_{,j} \gamma^{ij}
+		- \alpha \cdot {}^{(3)} \Gamma^i 
+	)
+
+	- \alpha \frac{dV}{d|\Phi|^2} \Phi
+	*/
+	deriv->Pi += (
+		U->Pi * (
+			dt_alpha * (1. - 1. / U->alpha) / U->alpha
+			+ U->alpha * U->K
+		)
+		+ real3_dot(partial_alpha_u, U->Psi_l)
+		- U->alpha * (
+			real3_dot(conn_u, U->Psi_l)
+			+ phi_source
+		)
+	);
+
+<?=eqn:makePartialUpwind'beta_U'?>
+	real3x3 partial_beta_ul = real3x3_partial_rescaleToCoord_Ul(U->beta_U, partial_beta_Ul, x);
+	
+	//\alpha_{,i} \Pi + {\beta^k}_{,i} \Psi_k
+	deriv->Psi_l = real3_add(deriv->Psi_l,
+		real3_real_mul(*(real3*)partial_alpha_l, U->Pi),
+		real3x3_real3_mul(partial_beta_ul, U->Psi_l)
+	);
+
+
+<? end -- useScalarField ?>
+<? end -- useAddSource ?>
 }
 
 kernel void calcDT(
