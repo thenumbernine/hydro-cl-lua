@@ -73,6 +73,7 @@ function BSSNOKFiniteDifferenceEquationBase:makePartialUpwind(field, fieldType, 
 			end
 			expr = real_mul(expr, '1. / solver->grid_dx.'..xi)
 		end
+		expr = real_mul(expr, '(real)updir.'..xi)
 		lines:insert('\t'..namei..' = '..expr..';')
 	end
 	return lines:concat'\n'

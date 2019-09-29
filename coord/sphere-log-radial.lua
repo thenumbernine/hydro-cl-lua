@@ -37,7 +37,7 @@ self.r_var = r
 		z = rDef * cos(theta),
 	}
 
-	local r_for_rho = self.rDef
+	local r_for_rho = rDef
 	self.replvars = table{
 		{r:diff(rho, rho, rho), r_for_rho:diff(rho, rho, rho)()},
 		{r:diff(rho, rho), r_for_rho:diff(rho, rho)()},

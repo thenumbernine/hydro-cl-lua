@@ -712,8 +712,8 @@ local args = {
 	cfl = .1,
 	
 	-- [[
-	coord = 'sphere',
-	--coord = 'sphere-log-radial',
+	--coord = 'sphere',
+	coord = 'sphere-log-radial',
 	mins = {0, 0, -math.pi},
 	maxs = {16, math.pi, math.pi},
 	gridSize = ({
@@ -759,12 +759,12 @@ local args = {
 	--initState = 'Minkowski',	-- TODO sphere-log-radial 
 	
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
-	initState = 'pure gauge wave',
+	--initState = 'pure gauge wave',
 	--initState = 'scalar field',
 	
 	--initState = 'gaussian perturbation',	-- TODO restore this to the 2008 Alcubeirre and 1998 Alcubierre gauge wave examples
 	
-	--[[
+	-- [[
 	--initState = 'black hole - boosted Schwarzschild',
 	initState = 'black hole - Schwarzschild isotropic - spherical',
 	--initState = 'black hole - Brill Lindquist',
@@ -786,7 +786,7 @@ local args = {
 	},
 	--]]
 }
-self.solvers:insert(require 'solver.bssnok-pirk'(table(args, {eqn = 'bssnok-fd-num'})))
---self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
+--self.solvers:insert(require 'solver.bssnok-pirk'(table(args, {eqn = 'bssnok-fd-num'})))
+self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
 --]=]
