@@ -439,7 +439,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
 
 -- wave equation with background spacetime metric
-self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', eqnArgs={beta={'-y / (r * r)','x / (r * r)','0'}}, wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', eqnArgs={beta={'-y / (r * r)','x / (r * r)','0'}}, wenoMethod='1996 Jiang Shu', order=5})))
 
 
 -- compressible Euler equations
@@ -689,7 +689,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 
---[=[ 2013 Baumgarte et al, section IV A 1 example
+-- [=[ 2013 Baumgarte et al, section IV A 1 example
 local dim = 1
 local args = {
 	app = self,
@@ -699,7 +699,7 @@ local args = {
 	
 	eqnArgs = {
 		--useShift = 'none',
-		useScalarField = true,	-- needed for the scalar field init cond below
+		--useScalarField = true,	-- needed for the scalar field init cond below
 	
 		cflMethod = '2008 Alcubierre',
 		--cflMethod = '2013 Baumgarte et al, eqn 32',
@@ -709,7 +709,7 @@ local args = {
 	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
 	--integrator = 'backward Euler',
 	--integratorArgs = {verbose=true},
-	cfl = .1/dim,
+	cfl = .1,
 	
 	-- [[
 	coord = 'sphere',
@@ -756,13 +756,11 @@ local args = {
 	},
 	--]]
 	
-	-- TODO look up Teukolsky Phys Rev 26 745 1982 
 	--initState = 'Minkowski',	-- TODO sphere-log-radial 
 	
-	-- works in spherical
-	-- TODO get the exact solution from 1982 Teukolsky
-	--initState = 'pure gauge wave',
-	initState = 'scalar field',
+	-- TODO look up Teukolsky Phys Rev 26 745 1982 
+	initState = 'pure gauge wave',
+	--initState = 'scalar field',
 	
 	--initState = 'gaussian perturbation',	-- TODO restore this to the 2008 Alcubeirre and 1998 Alcubierre gauge wave examples
 	
@@ -788,7 +786,7 @@ local args = {
 	},
 	--]]
 }
---self.solvers:insert(require 'solver.bssnok-pirk'(table(args, {eqn = 'bssnok-fd-num'})))
-self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
+self.solvers:insert(require 'solver.bssnok-pirk'(table(args, {eqn = 'bssnok-fd-num'})))
+--self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
 --]=]

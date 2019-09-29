@@ -356,20 +356,18 @@ sym3 tracefree(sym3 A_ll, sym3 g_ll, sym3 g_uu) {
 }
 
 /*
-returns the pointer to the lowerleft cell to compute upwind differencing from 
+Returns the step coefficients, [+-1, +-1, +-1]
+based on vector 'v'
+to compute upwind differencing from.
+Same thing as (int4)sgn(v)
 */
-const global cons_t* getUpwind(
-	constant solver_t* solver,
-	const global cons_t* U
-) {
-	const global real3* beta_U = &U->beta_U;	//don't lose track of our original beta_U
-<? for i=1,solver.dim do
-	local xi = xNames[i]
-?>	if (beta_U-><?=xi?> < 0) {
-		U -= solver->stepsize.<?=xi?>;
-	}
-<? end
-?>	return U;
+const int4 getUpwind(real3 v) {
+	return (int4)(
+		v.x >= 0 ? 1 : -1,
+		v.y >= 0 ? 1 : -1,
+		v.z >= 0 ? 1 : -1,
+		0
+	);
 }
 
 //TODO if we're calculating the constrains in the derivative
@@ -384,7 +382,7 @@ kernel void calcDeriv(
 	real3 x = cell_x(i);
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
-	const global cons_t* Uup = getUpwind(solver, U);
+	int4 updir = getUpwind(U->beta_U);
 
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>

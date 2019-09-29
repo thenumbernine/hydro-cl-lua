@@ -8,6 +8,7 @@ local clnumber = require 'cl.obj.number'
 local table = require 'ext.table'
 local common = require 'common'
 
+-- source: https://en.wikipedia.org/wiki/Finite_difference_coefficient 
 -- derivCoeffs[derivative][order] = {coeffs...}
 local derivCoeffs = {
 	-- centered 1st deriv coefficients 
