@@ -116,28 +116,39 @@ function Equation:init(args)
 	
 	self.initStateNames = table.map(self.initStates, function(info) return info.name end)
 
-	
+
+	-- r min, for spherical coordinates
 	-- what variables to mirror at sphere center
 	-- 2013 Baumgarte et al, "Numerical Relativity in Spherical Polar Coordinates...", IIIB
 	-- 2017 Ruchlin et al, section E.1
-	self.boundarySphereCenterMirrorVars = {
-		self:getParityVars(-1, 1, -1),
+	self.boundarySphereRMinMirrorVars = {
+		self:getParityVars(-1, 1, 1),
 		{},
 		{},
 	} 
-	
-	self.boundarySpherePolarMirrorVars = {
+
+	-- theta min/max, for spherical coordinates
+	self.boundarySphereThetaMirrorVars = {
 		{},
-		self:getParityVars(1, -1, -1),
+		self:getParityVars(1, -1, 1),
 		{},
 	}
 
+	-- phi min/max, for spherical coordinates
+	self.boundarySpherePhiMirrorVars = {
+		self:getParityVars(-1, -1, 1),
+		{},
+		{},
+	}
+
+	-- phi min/max, for cylindrical or for spherical coordinates
 	self.boundaryCylinderCenterMirrorVars = {
 		self:getParityVars(-1, -1, 1),
 		{},
 		{},
 	}
 
+	-- x,y,z min/max for cartesian coordinates
 	self.boundaryCartesianMirrorVars = {
 		self:getParityVars(-1, 1, 1),
 		self:getParityVars(1, -1, 1),

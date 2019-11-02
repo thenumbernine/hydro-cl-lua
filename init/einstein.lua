@@ -73,8 +73,8 @@ function EinsteinInitCond:resetState(solver)
 	if not self.initAnalytical then
 		solver:boundary()
 		solver.initDerivsKernelObj()
-		solver:boundary()
 	end
+	solver:boundary()
 end
 
 function EinsteinInitCond:getCodePrefix(solver)
@@ -1240,6 +1240,7 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 			}
 		end,
 	},
+
 }:map(function(cl)
 	return class(EinsteinInitCond, cl)
 end)

@@ -33,6 +33,7 @@ predefined vars:
 	coordVerbose = output extra info from coord/coord.lua
 
 	display_useCoordMap = set this gui option 
+	displayDim = override dimension of display (useful for displaying 3D simulations as 1D graphs)
 
 	intVerbose = output extra info from int/*.lua
 	intBEEpsilon = backwards Euler stop on residual less than this epsilon
@@ -46,6 +47,8 @@ predefined vars:
 	selfGravLinearSolver = 'conjgrad', 'conjres', 'bicgstab', 'gmres'
 
 	bssnUseCache = set to false to ignore the cache
+
+	printBufs
 
 	config = specify alternative config file.  default is config.lua (TODO configs/default.lua)
 --]]
@@ -80,7 +83,6 @@ local vec4d = require 'ffi.vec.vec4d'
 local vec3d = require 'ffi.vec.vec3d'
 local CartesianCoord = require 'coord.cartesian'
 
-
 --[[
 TODO 'targetPlatform'?
 options: console, glapp, imguiapp
@@ -111,6 +113,14 @@ if targetSystem ~= 'console' then
 	Mouse = require 'gui.mouse'
 end
 
+-- TODO here if we have glapp and imguiapp present
+-- but we're in console mode
+-- then we need to figure this out somehow
+-- but we won't figure it out until SDL_Init is run, inside GLApp:run()
+-- ... is there any way to detect if SDL_Init can init without performing the init?
+-- or is there any way to move the :run() into this protected area, so we can bail out depending on the subsystem (without actually loading all the hydro-cl init stuff)
+-- until then ... you have to explicitly state sys=console
+-- TODO move App:init code into a separate function, then in the loader here try calling :init (and :initGL) and only if all succeeds *THEN* run our :appInit()
 local ig, tooltip
 local baseSystems = {
 	{imguiapp = function() 
@@ -150,9 +160,11 @@ local HydroCLApp
 for i,sys in ipairs(baseSystems) do
 	local name, loader = next(sys)
 	if targetSystem == name then
+		--print('trying to load system '..name..'...')
 		xpcall(function()
 			HydroCLApp = class(loader())
 		end, function(err)
+			io.stderr:write('...load failed with error:')
 			io.stderr:write(err..'\n'..debug.traceback())
 		end)
 		if HydroCLApp then break end
@@ -421,18 +433,6 @@ function HydroCLApp:initGL(...)
 		}, false)
 		-- don't wrap the colors, but do use GL_REPEAT
 		self.gradientTex:setWrap{s = gl.GL_REPEAT}
-
-
-		local graphShaderCode = file['draw/graph.shader']
-		self.graphShader = GLProgram{
-			vertexCode = template(graphShaderCode, {vertexShader=true}),
-			fragmentCode = template(graphShaderCode, {fragmentShader=true}),
-			uniforms = {
-				tex = 0,
-				scale = 1,
-				ambient = 1,
-			},
-		}
 
 		-- init all resources for all draw methods, so the user can switch between methods quickly
 		for _,solver in ipairs(self.solvers) do
@@ -722,7 +722,15 @@ function HydroCLApp:update(...)
 				return
 			end		
 			
+if cmdline.printBufs then
+	print(('t = %f'):format(oldestSolver.t))
+end
 			oldestSolver:update() 
+
+if cmdline.printBufs then
+	print'UBuf post-update:'
+	oldestSolver:printBuf(oldestSolver.UBufObj, nil, nil, 24, 31)
+end
 
 if printState then
 	for _,solver in ipairs(self.solvers) do
@@ -793,7 +801,7 @@ end
 				vectorField = solver:isVarTypeAVectorField(component.type)
 				local solverxmin, solverxmax = solver.mins[1], solver.maxs[1]
 				solverxmin, solverxmax = 1.1 * solverxmin - .1 * solverxmax, 1.1 * solverxmax - .1 * solverxmin
-				if solver.dim > 1 then
+				if (cmdline.displayDim or solver.dim) > 1 then
 					local center = .5 * (solverxmin + solverxmax)
 					solverxmin = (solverxmin - center) * ar + center
 					solverxmax = (solverxmax - center) * ar + center
@@ -803,7 +811,7 @@ end
 				local solverymin, solverymax
 
 
-				if solver.dim > 1 then
+				if (cmdline.displayDim or solver.dim) > 1 then
 					solverymin, solverymax = solver.mins[2], solver.maxs[2]
 					solverymin, solverymax = 1.1 * solverymin - .1 * solverymax, 1.1 * solverymax - .1 * solverymin
 				else
@@ -897,7 +905,7 @@ end
 		end
 		if self.showMouseCoords 
 		and mouseOverThisGraph
-		and self.solvers[1].dim == 2
+		and (cmdline.displayDim or self.solvers[1].dim) == 2
 		then
 			local xmin, xmax, ymin, ymax
 			if self.view.getOrthoBounds then
@@ -915,7 +923,7 @@ end
 
 
 		-- TODO maybe find the first solver for this var and use it to choose 1D,2D,3D
-		local dim = self.solvers[1].dim
+		local dim = cmdline.displayDim or self.solvers[1].dim
 		
 		if not vectorField then
 			if dim == 1 then

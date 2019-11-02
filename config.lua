@@ -9,13 +9,13 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	integrator = 'Runge-Kutta 4',
+	--integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -48,7 +48,7 @@ local args = {
 	--slopeLimiter = 'minmod',
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
-	useCTU = true,
+	--useCTU = true,
 	
 	--[[ Cartesian
 	coord = 'cartesian',
@@ -130,10 +130,10 @@ local args = {
 		{16, 16, 16}, -- 3D
 	})[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'sphereCenter',
+		xmin=cmdline.boundary or 'sphereRMin',
 		xmax=cmdline.boundary or 'freeflow',	--'fixed',
-		ymin=cmdline.boundary or 'spherePolar',
-		ymax=cmdline.boundary or 'spherePolar',
+		ymin=cmdline.boundary or 'sphereTheta',
+		ymax=cmdline.boundary or 'sphereTheta',
 		zmin=cmdline.boundary or 'periodic',
 		zmax=cmdline.boundary or 'periodic',
 	},
@@ -184,7 +184,7 @@ local args = {
 	
 	--initState = 'Sod',
 	--initState = 'rectangle',
-	--initState = 'Sedov',
+	initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
 	--initState = 'Kelvin-Helmholtz',
@@ -194,7 +194,7 @@ local args = {
 	--initState = 'square cavity',
 	--initState = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initState = 'Richmyer-Meshkov',
-	initState = 'radial gaussian',
+	--initState = 'radial gaussian',
 
 	--initState = 'configuration 1',
 	--initState = 'configuration 2',
@@ -701,28 +701,28 @@ local args = {
 		--useShift = 'none',
 		--useScalarField = true,	-- needed for the scalar field init cond below
 	
-		cflMethod = '2008 Alcubierre',
+		--cflMethod = '2008 Alcubierre',
 		--cflMethod = '2013 Baumgarte et al, eqn 32',
-		--cflMethod = '2017 Ruchlin et al, eqn 53',
+		cflMethod = '2017 Ruchlin et al, eqn 53',
 	},
 	dim = dim,
 	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
 	--integrator = 'backward Euler',
 	--integratorArgs = {verbose=true},
-	cfl = .1,
+	cfl = .5,
 	
 	-- [[
-	--coord = 'sphere',
-	coord = 'sphere-log-radial',
-	mins = {0, 0, -math.pi},
-	maxs = {16, math.pi, math.pi},
+	coord = 'sphere',
+	--coord = 'sphere-log-radial',
+	mins = {0, 0, 0},
+	maxs = {1, math.pi, 2*math.pi},
 	gridSize = ({
 		{128, 1, 1},
 		{64, 16, 1},
-		{8, 8, 8},
+		{128, 2, 2},
 	})[dim],
 	boundary = {
-		xmin='sphereCenter',
+		xmin='sphereRMin',
 		
 		-- runs a gauge wave until t=...
 		--xmax='fixed',		-- 5.3875
@@ -730,10 +730,10 @@ local args = {
 		--xmax='linear',	-- 13.1875
 		xmax='quadratic',	-- 10.6125
 		
-		ymin='spherePolar',
-		ymax='spherePolar',
-		zmin='periodic',
-		zmax='periodic',
+		ymin='sphereTheta',
+		ymax='sphereTheta',
+		zmin='spherePhi',
+		zmax='spherePhi',
 	},
 	--]]
 	--[[
@@ -756,7 +756,7 @@ local args = {
 	},
 	--]]
 	
-	--initState = 'Minkowski',	-- TODO sphere-log-radial 
+	initState = 'Minkowski',	-- TODO sphere-log-radial 
 	
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
 	--initState = 'pure gauge wave',
@@ -764,7 +764,7 @@ local args = {
 	
 	--initState = 'gaussian perturbation',	-- TODO restore this to the 2008 Alcubeirre and 1998 Alcubierre gauge wave examples
 	
-	-- [[
+	--[[
 	--initState = 'black hole - boosted Schwarzschild',
 	initState = 'black hole - Schwarzschild isotropic - spherical',
 	--initState = 'black hole - Brill Lindquist',
@@ -777,7 +777,10 @@ local args = {
 	--initState = 'black hole - isotropic',
 	
 	--initState = 'Alcubierre warp bubble',
-	
+
+	-- only for bssnok-fd-senr
+	--initState = 'SENR compatability',
+
 	--[[
 	initState = 'Alcubierre warp bubble',
 	initStateArgs = {
@@ -786,7 +789,8 @@ local args = {
 	},
 	--]]
 }
---self.solvers:insert(require 'solver.bssnok-pirk'(table(args, {eqn = 'bssnok-fd-num'})))
+--self.solvers:insert(require 'solver.bssnok-fd-pirk'(table(args, {eqn = 'bssnok-fd-num'})))
 self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
+--self.solvers:insert(require 'solver.bssnok-fd-senr'(args))
 --]=]

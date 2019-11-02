@@ -13,8 +13,8 @@ local Wave = class(Equation)
 Wave.name = 'wave'
 
 -- depending on which you use, the source terms change
---Wave.weightFluxByGridVolume = true
-Wave.weightFluxByGridVolume = false
+Wave.weightFluxByGridVolume = true
+--Wave.weightFluxByGridVolume = false
 
 Wave.useSourceTerm = true
 

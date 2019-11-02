@@ -563,8 +563,6 @@ function GridSolver:createCodePrefix()
 	local lines = table()
 	
 	GridSolver.super.createCodePrefix(self)
-	
-	lines:insert(self.codePrefix)
 
 	lines:append{
 		'#define numGhost '..self.numGhost,
@@ -635,6 +633,9 @@ function GridSolver:createCodePrefix()
 ]], {solver = self}),
 	}
 
+	-- above we have macros that are used in solver & eqn codePrefix
+	lines:insert(self.codePrefix)
+	-- below here we have solver_t usage
 	
 	-- volume of a cell = volume element times grid dx's 
 	lines:insert(template([[
@@ -674,7 +675,7 @@ function GridSolver:resetState()
 	GridSolver.super.resetState(self)
 
 	self:boundary()
-	
+
 	if self.eqn.useConstrainU then
 		self.constrainUKernelObj(self.solverBuf, self.UBuf)
 		self:boundary()
@@ -821,8 +822,8 @@ args of the BoundaryMethod:getCode are:
 	side = 1,2,3
 	minmax = 'min' or 'max'
 	boundaryCartesianMirrorVars
-	boundarySphereCenterMirrorVars
-	boundarySpherePolarMirrorVars
+	boundarySphereRMinMirrorVars
+	boundarySphereThetaMirrorVars
 	boundaryCylinderCenterMirrorVars
 		= which vars to reflect.
 			for solver.UBuf this is taken from eqn
@@ -1015,9 +1016,9 @@ for 3D (r,theta,phi), for theta in [0,pi), phi in [0,2pi) for cell[i][j][k] we u
 	This requires knowledge of the domain of the grid, and the boundary condition of the phi variable.
 	For now I'm just going to assume that the phi domain is [0,2pi)+c and has periodic boundary condition.
 --]]
-local BoundarySphereCenter = class(Boundary)
-BoundarySphereCenter.name = 'sphereCenter'
-function BoundarySphereCenter:getCode(args)
+local BoundarySphereRMin = class(Boundary)
+BoundarySphereRMin.name = 'sphereRMin'
+function BoundarySphereRMin:getCode(args)
 	local solver = args.solver
 	
 	assert(args.side == 1 and args.minmax == 'min', "you should only use this boundary condition for rmin with spherical coordinates")
@@ -1047,7 +1048,7 @@ function BoundarySphereCenter:getCode(args)
 	end
 	local lines = table()
 	lines:insert(self:assignDstSrc(dst, src, args))
-	lines:insert(self:reflectVars(args, dst, args.boundarySphereCenterMirrorVars))
+	lines:insert(self:reflectVars(args, dst, args.boundarySphereRMinMirrorVars))
 	return lines:concat'\n'
 end
 
@@ -1058,13 +1059,14 @@ I'll assume theta is [0,pi) and phi is [-pi,pi]
 2D: (r, theta): 
 3D: (r, theta, phi): 
 --]]
-local BoundarySpherePolar = class(Boundary)
-BoundarySpherePolar.name = 'spherePolar'
-function BoundarySpherePolar:getCode(args)
+local BoundarySphereTheta = class(Boundary)
+BoundarySphereTheta.name = 'sphereTheta'
+function BoundarySphereTheta:getCode(args)
 	local solver = args.solver
 
 	assert(args.side == 2, "you should only use this boundary condition for θmin/θmax with spherical coordinates")
-	assert(require 'coord.sphere'.is(solver.coord), "you should only use this boundary condition for θmin/θmax with spherical coordinates")
+	assert(require 'coord.sphere'.is(solver.coord)
+		or require 'coord.sphere-log-radial'.is(solver.coord), "you should only use this boundary condition for θmin/θmax with spherical coordinates")
 
 	local src, dst
 	if args.minmax == 'min' then
@@ -1108,9 +1110,34 @@ function BoundarySpherePolar:getCode(args)
 	end
 	local lines = table()
 	lines:insert(self:assignDstSrc(dst, src, args))
-	lines:insert(self:reflectVars(args, dst, args.boundarySpherePolarMirrorVars))
+	lines:insert(self:reflectVars(args, dst, args.boundarySphereThetaMirrorVars))
 	return lines:concat'\n'
 end
+
+local BoundarySpherePhi = class(Boundary)
+BoundarySpherePhi.name = 'spherePhi'
+function BoundarySpherePhi:getCode(args)
+	local solver = args.solver
+	
+	assert(args.side == 3, "you should only use this boundary condition for φmin/φmax with spherical coordinates")
+	assert(require 'coord.sphere'.is(solver.coord)
+		or require 'coord.sphere-log-radial'.is(solver.coord), "you should only use this boundary condition for φmin/φmax with spherical coordinates")
+	
+	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	local dst, src
+	if args.minmax == 'min' then
+		dst = args.index'j'
+		src = args.index(gridSizeSide..'-2*numGhost+j')
+	elseif args.minmax == 'max' then
+		dst = args.index(gridSizeSide..'-1-j')
+		src = args.index'2*numGhost-1-j'
+	end
+	local lines = table()
+	lines:insert(self:assignDstSrc(dst, src, args))
+	lines:insert(self:reflectVars(args, dst, args.boundarySpherePhiMirrorVars))
+	return lines:concat'\n'
+end
+
 
 local BoundaryCylinderCenter = class(Boundary)
 BoundaryCylinderCenter.name = 'cylinderCenter'
@@ -1169,8 +1196,9 @@ function GridSolver:createBoundaryOptions()
 		BoundaryFreeFlow,
 		BoundaryLinear,
 		BoundaryQuadratic,
-		BoundarySphereCenter,
-		BoundarySpherePolar,
+		BoundarySphereRMin,
+		BoundarySphereTheta,
+		BoundarySpherePhi,
 		BoundaryCylinderCenter,
 	}
 
@@ -1368,8 +1396,8 @@ function GridSolver:getBoundaryProgramArgs()
 		-- remap from enum/combobox int values to functions from the solver.boundaryOptions table
 		methods = self.boundaryMethods,
 		boundaryCartesianMirrorVars = self.eqn.boundaryCartesianMirrorVars,
-		boundarySphereCenterMirrorVars = self.eqn.boundarySphereCenterMirrorVars,
-		boundarySpherePolarMirrorVars = self.eqn.boundarySpherePolarMirrorVars,
+		boundarySphereRMinMirrorVars = self.eqn.boundarySphereRMinMirrorVars,
+		boundarySphereThetaMirrorVars = self.eqn.boundarySphereThetaMirrorVars,
 		boundaryCylinderCenterMirrorVars = self.eqn.boundaryCylinderCenterMirrorVars,
 	}
 end
@@ -1537,24 +1565,11 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	
 	self.integrator:integrate(dt, function(derivBufObj)		
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-		if self.eqn.useConstrainU then
-			self:boundary()
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-			self.constrainUKernelObj(self.solverBuf, self.UBuf)
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-		end
-
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-		
-		self:boundary()	
-if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		self:calcDeriv(derivBufObj, dt)
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-	
+
 		if self.eqn.useSourceTerm then
-			self:boundary()
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 			self.addSourceKernelObj(self.solverBuf, derivBufObj.obj, self.UBuf)
@@ -1569,15 +1584,10 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 				op:addSource(derivBufObj)
 			end
 		end
-
 	end)
 
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-
-	if self.eqn.useConstrainU then
-		self:boundary()
-		self.constrainUKernelObj(self.solverBuf, self.UBuf)
-	end
+	-- I moved the constrainU() and boundary() functions from here to be within the integrator, 
+	-- so that each sub-step that the RK integrator performs can apply these and be physically correct states.
 
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	
@@ -1589,7 +1599,6 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	end
 
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-
 end
 
 function GridSolver:getTex(var) 

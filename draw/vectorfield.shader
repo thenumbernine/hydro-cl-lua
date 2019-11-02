@@ -1,11 +1,15 @@
 <?
 local clnumber = require 'cl.obj.number'
+local coord = solver.coord
 local app = solver.app
 ?>
 varying vec4 color;
 
+<? -- coordMapInv isn't used by volumetric.shader, but in coord/sphere-log-radial.lua it does have important predefined functions (sinh, etc) which are needed by coordMap ?>
+<?=coord:getCoordMapInvGLSLCode()?>
+
 <? if vertexShader then ?>
-<?=solver.coord:getCoordMapGLSLCode()?>
+<?=coord:getCoordMapGLSLCode()?>
 
 uniform vec3 mins, maxs;
 uniform float scale;

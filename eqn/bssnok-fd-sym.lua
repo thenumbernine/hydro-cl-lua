@@ -1642,7 +1642,7 @@ end)	-- time()
 end
 
 function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
-	return template(file['eqn/bssnok-fd-sym.cl'], setmetatable({getCommonCode=true}, {__index=self:getEnv()}))
+	return template(file[self.solverCodeFile], setmetatable({getCommonCode=true}, {__index=self:getEnv()}))
 end
 
 --[[

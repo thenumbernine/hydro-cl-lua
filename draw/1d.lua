@@ -20,18 +20,29 @@ function Draw1D:showDisplayVar1D(app, solver, var)
 	solver:calcDisplayVarToTex(var)	
 	-- display
 
-	app.graphShader:use()
+	local graphShader = solver.graphShader
+
+	graphShader:use()
 	solver:getTex(var):bind()
 
-	gl.glUniform1f(app.graphShader.uniforms.scale.loc, 1)
-	gl.glUniform1f(app.graphShader.uniforms.offset.loc, 0)
-	gl.glUniform1f(app.graphShader.uniforms.ambient.loc, 1)
-	gl.glUniform1i(app.graphShader.uniforms.useLog.loc, var.useLog)
-	gl.glUniform2f(app.graphShader.uniforms.xmin.loc, solver.mins[1], 0)
-	gl.glUniform2f(app.graphShader.uniforms.xmax.loc, solver.maxs[1], 0)
-	gl.glUniform1i(app.graphShader.uniforms.axis.loc, solver.dim)
-	gl.glUniform2f(app.graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
-	gl.glUniform3f(app.graphShader.uniforms.color.loc, table.unpack((#app.solvers > 1 and solver or var).color))
+	gl.glUniform1f(graphShader.uniforms.scale.loc, 1)
+	gl.glUniform1f(graphShader.uniforms.offset.loc, 0)
+	gl.glUniform1f(graphShader.uniforms.ambient.loc, 1)
+	gl.glUniform1i(graphShader.uniforms.useLog.loc, var.useLog)
+	gl.glUniform2f(graphShader.uniforms.xmin.loc, solver.mins[1], 0)
+	gl.glUniform2f(graphShader.uniforms.xmax.loc, solver.maxs[1], 0)
+
+	local displayDim = cmdline.displayDim or solver.dim
+	if displayDim == 3 then
+		error'Why are you using a graph shader to display 3D data?  Use a 3D display instead.'
+	else
+		-- 1D displays -- use vertex.y
+		-- 2D displays -- use vertex.z
+		gl.glUniform1i(graphShader.uniforms.axis.loc, displayDim)
+	end
+
+	gl.glUniform2f(graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
+	gl.glUniform3f(graphShader.uniforms.color.loc, table.unpack((#app.solvers > 1 and solver or var).color))
 
 	local step = 1
 	local numVertexes = math.floor((tonumber(solver.gridSize.x)-2 - 2 + 1) / step)	-- (endindex - startindex + 1) / step
@@ -49,7 +60,7 @@ function Draw1D:showDisplayVar1D(app, solver, var)
 	self.ModelViewProjectionMatrix = self.ModelViewProjectionMatrix or require 'matrix.ffi'(nil, 'float', {4,4})--ffi.new'float[16]'
 	matrix_ffi.mul(self.ModelViewProjectionMatrix, self.ProjectionMatrix, self.ModelViewMatrix)
 
-	gl.glUniformMatrix4fv(app.graphShader.uniforms.ModelViewProjectionMatrix.loc, 1, gl.GL_FALSE, self.ModelViewProjectionMatrix.ptr)
+	gl.glUniformMatrix4fv(graphShader.uniforms.ModelViewProjectionMatrix.loc, 1, gl.GL_FALSE, self.ModelViewProjectionMatrix.ptr)
 	
 	for i=0,self.numVertexes-1 do
 		local x = (i*step+2.5)/tonumber(solver.gridSize.x)
@@ -58,15 +69,15 @@ function Draw1D:showDisplayVar1D(app, solver, var)
 		self.vertexes[2+3*i] = 0
 	end
 	
-	gl.glEnableVertexAttribArray(app.graphShader.attrs.inVertex.loc)
-	gl.glVertexAttribPointer(app.graphShader.attrs.inVertex.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes)
+	gl.glEnableVertexAttribArray(graphShader.attrs.inVertex.loc)
+	gl.glVertexAttribPointer(graphShader.attrs.inVertex.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes)
 	
 	gl.glDrawArrays(gl.GL_LINE_STRIP, 0, self.numVertexes) 
 	
-	gl.glDisableVertexAttribArray(app.graphShader.attrs.inVertex.loc)
+	gl.glDisableVertexAttribArray(graphShader.attrs.inVertex.loc)
 	
 	solver:getTex(var):unbind()
-	app.graphShader:useNone()
+	graphShader:useNone()
 end
 
 function Draw1D:display1D(app, solvers, varName, ar, xmin, ymin, xmax, ymax, useLog, valueMin, valueMax)

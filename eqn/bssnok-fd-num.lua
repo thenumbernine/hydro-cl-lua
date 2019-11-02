@@ -126,13 +126,13 @@ function BSSNOKFiniteDifferenceEquation:fieldTypeForVar(varname)
 end
 
 function BSSNOKFiniteDifferenceEquation:makePartial1(field, fieldType, nameOverride)
-	local derivOrder = 2 * self.solver.numGhost
+	local derivOrder = 2 * (self.solver.numGhost - 1)
 	fieldType = fieldType or self:fieldTypeForVar(field)
 	return makePartials.makePartial1(derivOrder, self.solver, field, fieldType, nameOverride)
 end
 
 function BSSNOKFiniteDifferenceEquation:makePartial2(field, fieldType, nameOverride)
-	local derivOrder = 2 * self.solver.numGhost
+	local derivOrder = 2 * (self.solver.numGhost - 1)
 	fieldType = fieldType or self:fieldTypeForVar(field)
 	return makePartials.makePartial2(derivOrder, self.solver, field, fieldType, nameOverride)
 end
@@ -148,8 +148,10 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 	})
 end
 
+BSSNOKFiniteDifferenceEquation.solverCodeFile = 'eqn/bssnok-fd-num.cl'
+
 function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
-	return template(file['eqn/bssnok-fd-num.cl'], table(self:getEnv(), {getCommonCode=true}))
+	return template(file[self.solverCodeFile], table(self:getEnv(), {getCommonCode=true}))
 end
 
 --[[
@@ -327,6 +329,7 @@ kernel void initState(
 	global <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
+
 	real3 x = cell_x(i);
 	real3 xc = coordMap(x);
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
@@ -350,7 +353,7 @@ kernel void initState(
 <? end ?>
 
 	<?=code?>
-	
+
 	//rescale from cartesian to spherical
 	//TODO what about rotations for change of coordinates?
 	// this is another reason why initial conditions should be symbolic
@@ -432,8 +435,6 @@ kernel void initDerivs(
 		code = initState:initState(self.solver),
 	}))
 end
-
-BSSNOKFiniteDifferenceEquation.solverCodeFile = 'eqn/bssnok-fd-num.cl'
 
 function BSSNOKFiniteDifferenceEquation:getEigenTypeCode()
 	return template([[
@@ -1079,7 +1080,7 @@ end ?>;
 		type = 'real3',
 	}
 --]=]
--- [=[
+-- [=[	-- TODO think about storing this instead of recalculating it here?
 	do
 		-- should be zero when gammaBar_ij = gammaHat_ij
 		vars:insert{

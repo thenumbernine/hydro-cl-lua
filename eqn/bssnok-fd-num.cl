@@ -6,6 +6,8 @@ local from3x3to6 = common.from3x3to6
 local from6to3x3 = common.from6to3x3 
 local sym = common.sym
 
+local coord = solver.coord
+
 -- integrates whatsoever.
 local useCalcDeriv = true
 local useCalcDeriv_alpha = true
@@ -25,9 +27,16 @@ local coupleTandPhi = true
 -- constrains det gammaBar_ij = det gammaHat_ij, ABar^i_i = 0, and calculates H and M^i ... if the associated flags are set
 local useConstrainU = true
 
--- does Kreiss-Oligar dissipation
+-- Does Kreiss-Oligar dissipation
+-- Also does the scalar field source terms (TODO put them in calcDeriv, since for f.d. calcDeriv() and addSource() are really the same.)
 local useAddSource = true
+
+-- this block is shared with other things like initCond
+-- it will be pasted above the !getCommonCode block below, despite that being in an exclusive condition to this
+-- I'm moving it here from the .lua inline multiline string so I can get .cl syntax highlighting
+if getCommonCode then	
 ?>
+
 
 #define cplx_add5(a,b,c,d,e)	cplx_add(cplx_add(a,b),cplx_add3(c,d,e))
 
@@ -39,12 +48,7 @@ local useAddSource = true
 #define sym3_add3(a,b,c)	sym3_add(sym3_add(a,b),c)
 #define sym3_add4(a,b,c,d)	sym3_add(sym3_add(a,b),sym3_add(c,d))	
 
-<?
--- this block is shared with other things like initCond
--- it will be pasted above the !getCommonCode block below, despite that being in an exclusive condition to this
--- I'm moving it here from the .lua inline multiline string so I can get .cl syntax highlighting
-if getCommonCode then	
-?>
+
 
 #if 1	
 //rescaling, used for bssn finite-difference, but I am tempted to try it with other coordinate systems with singularities
@@ -239,7 +243,6 @@ I'm trying to keep the differentiations to an absolute minimum in the bssnok-fd-
 coord_dx#(x) is the same as f_# 
 */
 <?
-local coord = solver.coord
 
 local partial_len_ll = coord.lenExprs'_i,j'():permute'_ij'
 local partial2_len_lll = partial_len_ll'_ij,k'():factorDivision():permute'_ijk'
@@ -958,6 +961,7 @@ end
 <? end
 ?>	return RBar_LL;
 }
+
 
 <?
 else	-- getCommonCode -- this block is for the scheme 
@@ -1850,6 +1854,8 @@ static void calcDeriv_Pi(
 //TODO if we're calculating the constrains in the derivative
 // then we do save calculations / memory on the equations
 // but we also, for >FE integrators (which require multiple steps) are duplicating calculations
+//TODO, what's the difference between 'calcDeriv' and 'addSource' in a finite-difference solver?
+// or in any other solver for that matter?
 kernel void calcDeriv(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
@@ -2207,9 +2213,7 @@ kernel void calcDeriv(
 		&partial_phi_l
 	);
 <? end	-- useCalcDeriv_Pi ?>
-
 <? end	--eqn.useScalarField ?>
-
 <? end 	-- useCalcDeriv ?>
 }
 
@@ -2248,6 +2252,7 @@ then
 <? 		end ?>
 	U->epsilon_LL = sym3_sub(gammaBar_LL, sym3_ident);
 	det_gammaBarLL = det_gammaHatLL;
+
 #else	//rescale bases on coords
 	sym3 gammaBar_ll = sym3_rescaleToCoord_LL(gammaBar_LL, x);
 	real det_gammaBar_over_det_gammaHat = det_gammaBarLL;
@@ -2625,17 +2630,13 @@ else
 	if eqn.cflMethod == '2008 Alcubierre' then 
 ?>		//this is asserting alpha and W >0, which they should be
 		real absLambdaMax = U->alpha * sqrt(gamma_uu.<?=sym(side+1,side+1)?>);
+		real dx = solver->grid_dx.s<?=side?>;
+		dt = (real)min(dt, dx / absLambdaMax);
 <? 	elseif eqn.cflMethod == '2017 Ruchlin et al, eqn 53' then 
 ?>		real absLambdaMax = sqrt(gammaBar_ll.<?=sym(side+1,side+1)?>);
-<? 	end 
-
-	if false then -- hmm, do we base our CFL on delta in coordinate, or delta in Cartesian?
-?>		real dx = cell_dx<?=side?>(x); 
-<? 	else
-?>		real dx = solver->grid_dx.s<?=side?>;
-<? 	end 
-?>		dt = (real)min(dt, dx / absLambdaMax);
-<?
+		real dx = solver->grid_dx.s<?=side?>;
+		dt = (real)min(dt, dx / absLambdaMax);
+<? 	end
 end 
 ?>	}<? end ?>
 	dtBuf[index] = dt;

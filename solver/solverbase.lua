@@ -95,11 +95,11 @@ function SolverBase:preInit(args)
 	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
 	-- product of all local sizes must be <= max workgroup size
 	self.maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
---print('maxWorkGroupSize', self.maxWorkGroupSize)
+	if self.app.verbose then print('maxWorkGroupSize', self.maxWorkGroupSize) end
 	
 	local sizeProps = self:getSizePropsForWorkGroupSize(self.maxWorkGroupSize)
 	for k,v in pairs(sizeProps) do
---print(k,v)
+		if self.app.verbose then print(k,v) end
 		self[k] = v
 	end
 	
@@ -1659,6 +1659,7 @@ function SolverBase:calcDT()
 		end
 		self.fixedDT = dt
 	end
+--print(('frame dt = %e'):format(dt))
 	return dt
 end
 
@@ -1694,11 +1695,13 @@ function SolverBase:update()
 			sep = '\t'
 			if cmdline.trackvars then
 				local varnames = string.split(cmdline.trackvars, ','):map(string.trim)
+				if varnames:find'dt' then
+					io.write(sep, 'dt=', self.dt)
+				end
 				for _,varname in ipairs(varnames) do
 					local var = assert(self.displayVarForName[varname], "couldn't find "..varname)
 					local ymin, ymax, yavg = self:calcDisplayVarRangeAndAvg(var)
 					io.write(sep, varname, '=[', ymin, '..', yavg, '..', ymax, ']')
-					sep = '\t'
 				end
 			end
 			print()
@@ -1801,7 +1804,7 @@ function SolverBase:checkFinite(buf)
 	return false, 'found non-finite offsets and numbers: '..require'ext.tolua'(found)..' at t='..self.t
 end
 
-function SolverBase:printBuf(buf, ptr, rowsize)
+function SolverBase:printBuf(buf, ptr, colsize, colmax)
 	ptr = ptr or buf:toCPU()
 	local ptr0size = tonumber(ffi.sizeof(buf.type))
 	local realSize = tonumber(ffi.sizeof'real')
@@ -1809,31 +1812,34 @@ function SolverBase:printBuf(buf, ptr, rowsize)
 	assert(ptrsPerReal == math.floor(ptrsPerReal))
 	ptr = ffi.cast('real*', ptr)
 	local size = buf.count * ptrsPerReal
-	local max = #tostring(size-1)
 	if buf.type == self.eqn.cons_t then
+		local max = #tostring(self.numCells-1)
 		local realsPerCell = math.floor(size / self.numCells)
+		colmax = colmax or realsPerCell
 		for i=0,self.numCells-1 do
 			io.write((' '):rep(max-#tostring(i)), i,':')
-			for j=0,realsPerCell-1 do
-				print('\t'
-					..(j==0 and '[' or '')
-					..('%.50f'):format(ptr[j + realsPerCell * i])
-					..(j==self.eqn.numStates-1 and ']' or ',')
+			for j=0,colmax-1 do
+				io.write('\t',
+					--..(j==0 and '[' or '')..
+					('%f'):format(ptr[j + realsPerCell * i])
+					--..(j==self.eqn.numStates-1 and ']' or ',')
 				)
 			end 
+			print()
 		end
 	else
-		rowsize = rowsize or 1
+		local max = #tostring(size-1)
+		colsize = colsize or 1
 		for i=0,size-1 do
-			if i % rowsize == 0 then
+			if i % colsize == 0 then
 				io.write((' '):rep(max-#tostring(i)), i,':')
 			end
-			io.write(' ', ('%.50f'):format(ptr[i]))
-			if i % rowsize == rowsize-1 then 
+			io.write(' ', ('%f'):format(ptr[i]))
+			if i % colsize == colsize-1 then 
 				print() 
 			end
 		end
-		if size % rowsize ~= 0 then print() end
+		if size % colsize ~= 0 then print() end
 	end
 end
 

@@ -4,6 +4,7 @@ local symmath = require 'symmath'
 local CoordinateSystem = require 'coord.coord'
 
 local sin, cos = symmath.sin, symmath.cos
+local sinh = symmath.sinh
 local Tensor = symmath.Tensor
 
 local Sphere = class(CoordinateSystem)
@@ -23,13 +24,16 @@ function Sphere:init(args)
 
 	-- 2018 Ruchlin, Etienne
 	local solver = args.solver
-	local w = 0.173435
+	local amplitude = 1000
+	local sinh_w = .15
+self.amplitude = amplitude
+self.sinh_w = sinh_w
 	local rmax = solver.maxs[1]
-	--local r = symmath.sinh(rho / (rmax * w)) * (rmax / math.sinh(1 / w))
 	local r = symmath.var('r', {rho})
-self.r_var = r
 
-	local rDef = symmath.sinh(rho / (rmax * w)) * (rmax / math.sinh(1 / w))
+	local rDef = amplitude * sinh(rho / sinh_w) / math.sinh(1 / sinh_w)
+self.rDef = rDef
+
 	self.vars = {
 		r = rDef,
 		x = rDef * sin(theta) * cos(phi),
@@ -88,7 +92,7 @@ vec3 coordMapInv(vec3 pt) {
 	float phi = atan(pt.y, pt.x);
 <? end 
 ?>	
-	float rho = <?=coord:compile(coord.rho_for_r:replace(coord.r_var, symmath.var'asdf')):gsub('asdf', 'r')?>; 
+	float rho = <?=coord:compile(coord.rho_for_r)?>;
 	return vec3(rho, theta, phi);
 }
 ]], {

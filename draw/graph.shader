@@ -4,8 +4,8 @@
 //...sooo...
 #version 130
 
-<?=solver and solver.coord:getCoordMapGLSLCode() or ''?>
-<?=solver and solver.coord:getCoordMapInvGLSLCode() or ''?>
+<?=solver.coord:getCoordMapGLSLCode() or ''?>
+<?=solver.coord:getCoordMapInvGLSLCode() or ''?>
 
 <? if vertexShader then ?>
 in vec3 inVertex;
@@ -13,8 +13,12 @@ out vec3 normal;
 
 uniform mat4 ModelViewProjectionMatrix;
 
-uniform sampler2D tex;
-uniform int axis;
+<? if solver.dim == 3 then
+?>uniform sampler3D tex;
+<? else
+?>uniform sampler2D tex;
+<? end
+?>uniform int axis;
 uniform vec2 xmin;
 uniform vec2 xmax;
 uniform float scale;
@@ -24,32 +28,25 @@ uniform vec2 size;
 
 <?
 local clnumber = require 'cl.obj.number'
-local sx, sy, s2x, s2y, g
-if solver then
-	sx = solver and solver.sizeWithoutBorder.x or 1
-	sy = solver and solver.sizeWithoutBorder.y or 1
-	s2x = solver and solver.gridSize.x or 1
-	s2y = solver and solver.gridSize.y or 1
-	g = solver.numGhost
-else
-	sx = 1
-	sy = 1
-	s2x = 1
-	s2y = 1
-	g = 0
-end
-sx = clnumber(sx)
-sy = clnumber(sy)
-s2x = clnumber(s2x)
-s2y = clnumber(s2y)
-g = clnumber(g)
+local sx = clnumber(solver.sizeWithoutBorder.x or 1)
+local sy = clnumber(solver.sizeWithoutBorder.y or 1)
+local s2x = clnumber(solver.gridSize.x or 1)
+local s2y = clnumber(solver.gridSize.y or 1)
+local g = clnumber(solver.numGhost)
 ?>
 
 vec3 func(vec3 src) {
 	vec3 vertex = src.xyz;
 	vertex.x = (vertex.x * <?=s2x?> - <?=g?>) / <?=sx?> * (xmax.x - xmin.x) + xmin.x;
 	vertex.y = (vertex.y * <?=s2y?> - <?=g?>) / <?=sy?> * (xmax.y - xmin.y) + xmin.y;
-	vertex[axis] = (texture2D(tex, src.xy).r - offset) * scale;
+
+<? if solver.dim == 3 then
+?>	vertex[axis] = texture3D(tex, vec3(src.xy, .5)).r;
+<? else
+?>	vertex[axis] = texture2D(tex, src.xy).r;
+<? end
+?>	vertex[axis] -= offset;
+	vertex[axis] *= scale;
 	if (useLog) {
 		vertex[axis] = log(max(0., vertex[axis])) * <?=('%.50f'):format(1/math.log(10))?>;
 	}
@@ -66,9 +63,7 @@ void main() {
 
 	normal = normalize(cross(xp - xm, yp - ym));
 
-<? if solver then ?>
 	vertex = coordMap(vertex);
-<? end ?>	
 	gl_Position = ModelViewProjectionMatrix * vec4(vertex, 1.);
 }
 

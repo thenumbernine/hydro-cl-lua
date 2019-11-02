@@ -41,7 +41,9 @@ function RungeKutta:init(solver)
 				type = solver.eqn.cons_t,
 				count = solver.numCells,
 			}
+			
 			self.derivBufObjs[i]:fill(real(0))
+
 if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[i])) end
 		end
 	end
@@ -75,10 +77,19 @@ if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
 --print('derivBufObjs[1].obj = dU/dt(UBuf)')
 if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
 if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
+	
 		self.derivBufObjs[1]:fill(real(0))
+
 if solver.checkNaNs then solver.app.cmds:finish() assert(solver:checkFinite(self.derivBufObjs[1])) end
 		callback(self.derivBufObjs[1])
 if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
+	
+if cmdline.printBufs then
+	print('UBuf RK4 deriv 1:')
+	solver:printBuf(self.derivBufObjs[1], nil, nil, 24)
+end
+
+	-- else error"Why do you have a RK butcher table without using the first iteration derivative?"
 	end
 
 	for i=2,self.order+1 do
@@ -105,6 +116,22 @@ if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
 			end
 		end
 --print()
+
+-- [[ I moved this from solver/gridsolver to integrator
+-- this way I can do it after every substep in the RK integrator
+if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
+		solver:boundary()
+if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
+		if solver.useConstrainU then
+			solver.constrainUKernelObj()
+if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
+		end
+--]]
+
+if cmdline.printBufs then
+	print('UBuf after RK4 step'..(i-1)..':')
+	solver:printBuf(solver.UBufObj, nil, nil, 25)
+end
 		if i <= self.order then
 			--only do this if alpha_mi != 0 for any m
 			--otherwise there's no need to store this buffer
@@ -125,15 +152,23 @@ if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
 			end
 			if needed then
 --print('derivBufObjs['..i..'].obj = dU/dt(UBuf)')				
+				
 				self.derivBufObjs[i]:fill(real(0))
+
 if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
 if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[i])) end
 				callback(self.derivBufObjs[i])
 if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[i])) end
+
+if cmdline.printBufs then
+	print('UBuf RK4 deriv '..i..':')
+	solver:printBuf(self.derivBufObjs[i], nil, nil, 24)
+end
 			end
 		end
-		--else just leave the state in there
+		--else just leave the state in there	
 	end
+
 end
 
 return RungeKutta
