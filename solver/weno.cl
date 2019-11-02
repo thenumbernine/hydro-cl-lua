@@ -553,9 +553,9 @@ for side=0,solver.dim-1 do ?>{
 			afm[<?=j?>].ptr[<?=k?>] = afr<?=j?>.ptr[<?=k?>];
 <?			end
 ?>		} else {
-			double absLambdaL = fabs(lambdaL[<?=k?>]);
-			double absLambdaR = fabs(lambdaR[<?=k?>]);
-			double a, absa;
+			real absLambdaL = fabs(lambdaL[<?=k?>]);
+			real absLambdaR = fabs(lambdaR[<?=k?>]);
+			real a, absa;
 			if (absLambdaL > absLambdaR) {
 				a = lambdaL[<?=k?>];
 				absa = absLambdaL;
