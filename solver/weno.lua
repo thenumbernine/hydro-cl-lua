@@ -4,6 +4,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
+local real = require 'real'
 local FiniteVolumeSolver = require 'solver.fvsolver'
 
 local common = require 'common'
@@ -75,12 +76,6 @@ function WENO:refreshSolverProgram()
 
 	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
 	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
-end
-
-local realptr = ffi.new'realparam[1]'
-local function real(x)
-	realptr[0] = x
-	return realptr
 end
 
 -- NOTICE this adds the contents of derivBufObj and does not clear it

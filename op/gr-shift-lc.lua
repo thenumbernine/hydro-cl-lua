@@ -6,6 +6,7 @@ I'm sure there's something wrong with this
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local template = require 'template'
+local real = require 'real'
 
 local LagrangianCoordinateShift = class()
 
@@ -100,12 +101,6 @@ function LagrangianCoordinateShift:refreshSolverProgram()
 		'lagrangianCoordinateAdvect',
 		solver.integrator.derivBuf,	-- used as a temp
 		solver.UBuf)
-end
-
-local realptr = ffi.new'realparam[1]'
-local function real(x)
-	realptr[0] = x
-	return realptr
 end
 
 function LagrangianCoordinateShift:step(dt)

@@ -15,6 +15,7 @@ local class = require 'ext.class'
 local roundup = require 'util.roundup'
 local Integrator = require 'int.int'
 local CLBuffer = require 'cl.obj.buffer'
+local real = require 'real'
 
 local ForwardEuler = class(Integrator)
 
@@ -30,15 +31,13 @@ function ForwardEuler:init(solver)
 	}
 end
 
-local realptr = ffi.new'realparam[1]'
-local function real(x)
-	realptr[0] = x
-	return realptr
-end
 function ForwardEuler:integrate(dt, callback)
 	local solver = self.solver
-	solver.app.cmds:enqueueFillBuffer{buffer=self.derivBufObj.obj, size=solver.numCells * ffi.sizeof(solver.eqn.cons_t)}
+	
+	self:clearBuffer(self.derivBufObj)
+	
 	callback(self.derivBufObj)
+	
 	solver.multAddKernelObj(solver.solverBuf, solver.UBuf, solver.UBuf, self.derivBufObj.obj, real(dt))
 
 -- [[ I moved this from solver/gridsolver to integrator

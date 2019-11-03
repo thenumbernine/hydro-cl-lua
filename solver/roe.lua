@@ -6,6 +6,7 @@ local math = require 'ext.math'
 local file = require 'ext.file'
 local template = require 'template'
 local FiniteVolumeSolver = require 'solver.fvsolver'
+local real = require 'real'
 
 local common = require 'common'
 local xNames = common.xNames
@@ -44,12 +45,6 @@ function Roe:refreshSolverProgram()
 
 	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
 	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
-end
-
-local realptr = ffi.new'realparam[1]'
-local function real(x)
-	realptr[0] = x
-	return realptr
 end
 
 -- NOTICE this adds the contents of derivBufObj and does not clear it

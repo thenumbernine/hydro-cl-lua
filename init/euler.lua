@@ -8,6 +8,7 @@ local template = require 'template'
 local materials = require 'materials'
 local ffi = require 'ffi'
 local InitCond = require 'init.init'
+local real = require 'real'
 
 local common = require 'common'
 local xNames = common.xNames
@@ -82,12 +83,6 @@ function SelfGravProblem:__call(initState, solver)
 		sources = args.sources,
 		clnumber = clnumber,
 	})
-end
-
-local realptr = ffi.new'realparam[1]'
-local function real(x)
-	realptr[0] = x
-	return realptr
 end
 
 --[[

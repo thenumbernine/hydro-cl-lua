@@ -1,4 +1,5 @@
 local class = require 'ext.class'
+local real = require 'real'
 local GridSolver = require 'solver.gridsolver'
 
 local NavierStokesIncompressible = class(GridSolver)
@@ -44,12 +45,6 @@ function NavierStokesIncompressible:project()
 	end
 	
 	self.projectKernelObj()
-end
-
-local realptr = ffi.new'realparam[1]'
-local function real(x)
-	realptr[0] = x
-	return realptr
 end
 
 function NavierStokesIncompressible:step(dt)

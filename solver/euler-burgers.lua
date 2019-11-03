@@ -4,6 +4,7 @@ local table = require 'ext.table'
 local file = require 'ext.file'
 local range = require 'ext.range'
 local template = require 'template'
+local real = require 'real'
 local FiniteVolumeSolver = require 'solver.fvsolver'
 
 local common = require 'common'
@@ -84,12 +85,6 @@ function EulerBurgers:addDisplayVars()
 			end),
 		}
 	end
-end
-
-local realptr = ffi.new'realparam[1]'
-local function real(x)
-	realptr[0] = x
-	return realptr
 end
 
 function EulerBurgers:step(dt)

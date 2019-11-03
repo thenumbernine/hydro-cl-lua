@@ -1,9 +1,9 @@
-local ffi = require 'ffi'
 local class = require 'ext.class'
 local file = require 'ext.file'
 local table = require 'ext.table'
 local template = require 'template'
 local FVSolver = require 'solver.fvsolver'
+local real = require 'real'
 
 local HLL = class(FVSolver)
 HLL.name = 'HLL'
@@ -32,11 +32,6 @@ function HLL:refreshSolverProgram()
 	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
 end
 
-local realptr = ffi.new'realparam[1]'
-local function real(x)
-	realptr[0] = x
-	return realptr
-end
 function HLL:calcDeriv(derivBufObj, dt)
 	local dtArg = real(dt)
 	

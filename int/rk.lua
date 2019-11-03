@@ -2,14 +2,10 @@ local ffi = require 'ffi'
 local class = require 'ext.class'
 local Integrator = require 'int.int'
 local CLBuffer = require 'cl.obj.buffer'
+local real = require 'real'
 
 local RungeKutta = class(Integrator)
 
-local realptr = ffi.new'realparam[1]'
-local function real(x)
-	realptr[0] = x
-	return realptr
-end
 function RungeKutta:init(solver)
 	self.solver = solver
 	self.order = #self.alphas
@@ -42,7 +38,7 @@ function RungeKutta:init(solver)
 				count = solver.numCells,
 			}
 			
-			self.derivBufObjs[i]:fill(real(0))
+			self:clearBuffer(self.derivBufObjs[i])
 
 if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[i])) end
 		end
@@ -78,7 +74,7 @@ if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
 if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
 if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
 	
-		self.derivBufObjs[1]:fill(real(0))
+		self:clearBuffer(self.derivBufObjs[1])
 
 if solver.checkNaNs then solver.app.cmds:finish() assert(solver:checkFinite(self.derivBufObjs[1])) end
 		callback(self.derivBufObjs[1])
@@ -95,7 +91,7 @@ end
 	for i=2,self.order+1 do
 		--u^(i) = sum k=0 to i-1 of (alpha_ik u^(k) + dt beta_ik L(u^(k)) )
 --io.write('UBuf = 0')	
-		solver.UBufObj:fill(real(0))
+		self:clearBuffer(solver.UBufObj)
 		for k=1,i-1 do
 --io.write(' + UBufs['..k..'] * (a['..(i-1)..']['..k..'] = '..self.alphas[i-1][k]..')')
 			if self.alphas[i-1][k] ~= 0 then
@@ -153,7 +149,7 @@ end
 			if needed then
 --print('derivBufObjs['..i..'].obj = dU/dt(UBuf)')				
 				
-				self.derivBufObjs[i]:fill(real(0))
+				self:clearBuffer(self.derivBufObjs[i])
 
 if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
 if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[i])) end

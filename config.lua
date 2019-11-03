@@ -50,7 +50,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	mins = cmdline.mins or {-10, -10, -10},
 	maxs = cmdline.maxs or {10, 10, 10},
@@ -95,7 +95,7 @@ local args = {
 		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	coord = 'cylinder',
 	coordArgs = {anholonomic=true},			-- disable to use non-physical, holonomic coordinates
 	mins = cmdline.mins or {1, 0, -.25},
@@ -182,9 +182,9 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'rectangle',
-	initState = 'Sedov',
+	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
 	--initState = 'Kelvin-Helmholtz',
@@ -690,7 +690,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 -- [=[ 2013 Baumgarte et al, section IV A 1 example
-local dim = 1
+local dim = 3
 local args = {
 	app = self,
 	
@@ -712,8 +712,8 @@ local args = {
 	cfl = .5,
 	
 	-- [[
-	coord = 'sphere',
-	--coord = 'sphere-log-radial',
+	--coord = 'sphere',
+	coord = 'sphere-log-radial',
 	mins = {0, 0, 0},
 	maxs = {1, math.pi, 2*math.pi},
 	gridSize = ({
@@ -756,7 +756,7 @@ local args = {
 	},
 	--]]
 	
-	initState = 'Minkowski',	-- TODO sphere-log-radial 
+	--initState = 'Minkowski',	-- TODO sphere-log-radial 
 	
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
 	--initState = 'pure gauge wave',
@@ -779,7 +779,7 @@ local args = {
 	--initState = 'Alcubierre warp bubble',
 
 	-- only for bssnok-fd-senr
-	--initState = 'SENR compatability',
+	initState = 'SENR sphere-log-radial UIUC',
 
 	--[[
 	initState = 'Alcubierre warp bubble',
@@ -790,7 +790,7 @@ local args = {
 	--]]
 }
 --self.solvers:insert(require 'solver.bssnok-fd-pirk'(table(args, {eqn = 'bssnok-fd-num'})))
-self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
+--self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
---self.solvers:insert(require 'solver.bssnok-fd-senr'(args))
+self.solvers:insert(require 'solver.bssnok-fd-senr'(args))
 --]=]

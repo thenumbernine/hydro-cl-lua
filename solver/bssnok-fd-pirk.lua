@@ -1,6 +1,7 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
+local real = require 'real'
 local CLBuffer = require 'cl.obj.buffer'
 
 local BSSNOKFiniteDifferenceSolver = require 'solver.bssnok-fd'
@@ -92,12 +93,6 @@ function BSSNOKFiniteDifferencePIRKSolver:refreshSolverProgram()
 
 	self.copyWAlphaBetaKernelObj = self.solverProgramObj:kernel'copyWAlphaBeta'
 	self.copyLambdaBarKernelObj = self.solverProgramObj:kernel'copyLambdaBar'
-end
-
-local realptr = ffi.new'realparam[1]'
-local function real(x)
-	realptr[0] = x
-	return realptr
 end
 
 -- the name 'applyBoundaryToBuffer' was already taken

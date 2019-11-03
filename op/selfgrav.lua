@@ -4,6 +4,7 @@ local table = require 'ext.table'
 local class = require 'ext.class'
 local tooltip = require 'tooltip'
 local template = require 'template'
+local real = require 'real'
 
 -- TODO make this a ctor parameter
 local Poisson = require(
@@ -127,12 +128,6 @@ function SelfGrav:refreshSolverProgram()
 	--TODO just use the display var kernels?
 	self.copyPotentialToReduceKernelObj = solver.solverProgramObj:kernel('copyPotentialToReduce'..self.name, solver.solverBuf, solver.reduceBuf, solver.UBuf)
 	self.offsetPotentialKernelObj = solver.solverProgramObj:kernel('offsetPotential'..self.name, solver.solverBuf, solver.UBuf)
-end
-
-local realptr = ffi.new'realparam[1]'
-local function real(x)
-	realptr[0] = x
-	return realptr
 end
 
 

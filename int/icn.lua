@@ -2,16 +2,11 @@ local ffi = require 'ffi'
 local class = require 'ext.class'
 local Integrator = require 'int.int'
 local CLBuffer = require 'cl.obj.buffer'
+local real = require 'real'
 
 local IterativeCrankNicolson = class(Integrator)
 	
 IterativeCrankNicolson.name = 'iterative Crank-Nicolson'
-
-local realptr = ffi.new'realparam[1]'
-local function real(x)
-	realptr[0] = x
-	return realptr
-end	
 
 IterativeCrankNicolson.iterations = 3
 

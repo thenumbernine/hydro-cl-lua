@@ -1,6 +1,7 @@
 local class = require 'ext.class'
 local template = require 'template'
 local ffi = require 'ffi'
+local real = require 'real'
 
 local GLM_MHD_UpdatePsi = class()
 
@@ -42,12 +43,6 @@ end
 function GLM_MHD_UpdatePsi:refreshSolverProgram()
 	local solver = self.solver
 	self.updatePsiKernelObj = solver.solverProgramObj:kernel('updatePsi', solver.solverBuf, solver.UBuf)
-end
-
-local realptr = ffi.new'realparam[1]'
-local function real(x)
-	realptr[0] = x
-	return realptr
 end
 
 function GLM_MHD_UpdatePsi:step(dt)
