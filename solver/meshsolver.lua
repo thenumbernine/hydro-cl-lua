@@ -404,8 +404,8 @@ end
 function MeshSolver:refreshCalcDTKernel()
 	MeshSolver.super.refreshCalcDTKernel(self)
 	-- TODO combine these, and offset one into the other?
-	self.calcDTKernelObj.obj:setArg(2, cellsBuf)
-	self.calcDTKernelObj.obj:setArg(3, ifacesBuf)
+	self.calcDTKernelObj.obj:setArg(2, self.cellsBuf)
+	self.calcDTKernelObj.obj:setArg(3, self.ifacesBuf)
 end
 
 function MeshSolver:update()
@@ -413,5 +413,19 @@ end
 
 function MeshSolver:boundary()
 end
+
+
+-- hmm, if something else require's solverbase and uses SolverBase.DisplayVar before this does 
+-- then won't it get the wrong class? (compared to if this require's first before it does?)
+local DisplayVar = MeshSolver.DisplayVar
+local MeshSolverDisplayVar = class(DisplayVar)
+MeshSolver.DisplayVar = MeshSolverDisplayVar
+
+function MeshSolverDisplayVar:setArgs(kernel)
+	MeshSolverDisplayVar.super.setArgs(self, kernel)
+	kernel:setArg(4, self.solver.cellsBuf)
+	kernel:setArg(5, self.solver.ifacesBuf)
+end
+
 
 return MeshSolver 
