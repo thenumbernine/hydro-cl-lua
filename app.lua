@@ -121,6 +121,7 @@ end
 -- or is there any way to move the :run() into this protected area, so we can bail out depending on the subsystem (without actually loading all the hydro-cl init stuff)
 -- until then ... you have to explicitly state sys=console
 -- TODO move App:init code into a separate function, then in the loader here try calling :init (and :initGL) and only if all succeeds *THEN* run our :appInit()
+-- TODO unless we are still returning a class, in which case this should all be moved into the class's :init() code ... and then we change is-a with has-a, until init() is done, then we swap it back with is-a
 local ig, tooltip
 local baseSystems = {
 	{imguiapp = function() 
@@ -1120,6 +1121,14 @@ function HydroCLApp:drawGradientLegend(ar, varName, valueMin, valueMax)
 	end
 end
 
+--[[ 
+Alright, with the advent of the mesh solvers, now the display code gets a bit more confusing.
+The previous display code was all specific to grid solvers.  But now I need a separate branch here for the mesh solver display.
+So it would be best to just move the display code into the solver.
+But then what about overlapping display across multiple solvers?  
+Especially the 1D display that needs to get info from all solvers in order to correctly calculate the graph bounds.
+Until then, I'll just change the 2D heatmap display to only work with grid solvers, and make an alternative one to work with non-grid solvers.
+--]]
 function HydroCLApp:display2D(...)
 	for _,method in ipairs(display2DMethods) do
 		local name, func = next(method)

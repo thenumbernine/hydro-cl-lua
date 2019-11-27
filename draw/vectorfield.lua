@@ -12,6 +12,8 @@ local arrow = {
 
 local function applyToSolver(Solver)
 	function Solver:displayVectorField(app, varName, xmin, ymin, xmax, ymax, useLog)
+		if require 'solver.meshsolver'.is(self) then return end
+		
 		local var = self.displayVarForName[varName]
 		if var and var.enabled then
 			local valueMin, valueMax
@@ -30,7 +32,7 @@ local function applyToSolver(Solver)
 				var.heatMapValueMax = valueMax
 			end
 			
-			self:calcDisplayVarToTex(var)	
+			self:calcDisplayVarToTex(var)
 			
 			self.vectorFieldShader:use()
 			gl.glUniform1i(self.vectorFieldShader.uniforms.useLog.loc, var.useLog)

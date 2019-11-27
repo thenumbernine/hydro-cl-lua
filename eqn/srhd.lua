@@ -16,18 +16,14 @@ local template = require 'template'
 
 local SRHD = class(Equation)
 SRHD.name = 'SRHD'
+
 SRHD.numStates = 11
+
 SRHD.numWaves = 5
 SRHD.numIntStates = 5
 
-SRHD.boundaryCartesianMirrorVars = {
-	{'cons.S.x', 'prim.v.x'},
-	{'cons.S.y', 'prim.v.y'},
-	{'cons.S.z', 'prim.v.z'},
-}
-
-SRHD.hasEigenCode = true 
 SRHD.hasCalcDTCode = true
+SRHD.hasEigenCode = true 
 SRHD.useConstrainU = true
 
 -- SRHD fluxFromCons will need prims passed to it as well
@@ -41,26 +37,48 @@ function SRHD:init(args)
 	SRHD.super.init(self, args)
 
 	self.cons_only_t = args.solver.app:uniqueName'cons_only_t'
+	self.prim_only_t = args.solver.app:uniqueName'prim_only_t'
 
 	local SRHDSelfGrav = require 'op.srhd-selfgrav'
 	self.solver.ops:insert(SRHDSelfGrav{solver=self.solver})
 end
 
 --[[
-because of the unique shape of prim_t and cons_only_t, I can't use the consVars for struct generation ...
+because of the unique shape of prim_only_t and cons_only_t, I can't use the consVars for struct generation ...
 
 2003 Marti & Muller show the state variables as D, S^i, tau ... for SRHD
 ...but the GRHD folks use D, S_i, tau ...
 maybe Marti & Muller were lazy with notation since the metric is eta = diag(-1,1,1,1) and raising/lowering spatial doesn't matter ... ?
+
+I used to keep the prim_only_t and cons_only_t as separate structs within separate,
+but that doesn't mesh well with the code that automatically determines signs of reflections at boundaries,
+so I'll try just merging this all into cons_t.
 --]]
+SRHD.consVars = table{
+	-- cons_only_t
+	{name='D', type='real', units='kg/m^3'},		-- D = rho W, W = unitless Lorentz factor
+	{name='S', type='real3', units='kg/s^3'},		-- S_j = rho h W^2 v_j ... [rho] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
+	{name='tau', type='real', units='kg/(m*s^2)'},	-- tau = rho h W^2 - P ... [rho] [h] [W^2] = kg/m^3 * m^2/s^2 = kg/(m*s^2)
+	
+	-- prim_only_t
+	{name='rho', type='real', units='kg/m^3'},
+	{name='v', type='real3', units='m/s'},
+	{name='eInt', type='real', units='m^2/s^2'},
+	
+	-- extra
+	{name='ePot', type='real', units='m^2/s^2'},
+}
+
 function SRHD:getTypeCode()
-	return template([[
+	return table{
+		SRHD.super.getTypeCode(self),
+		template([[
 typedef union {
 	real ptr[5];
 	struct {
-		real D;		//0 D = rho W
-		real3 S;	//1	S_j = rho h W^2 v_j
-		real tau;	//4 tau = rho h W^2 - P
+		real D;
+		real3 S;
+		real tau;
 	};
 } <?=eqn.cons_only_t?>;
 
@@ -71,19 +89,11 @@ typedef union {
 		real3 v;
 		real eInt;
 	};
-} <?=eqn.prim_t?>;
-
-typedef union {
-	real ptr[11];
-	struct {
-		<?=eqn.cons_only_t?> cons;
-		<?=eqn.prim_t?> prim;
-		real ePot;
-	};
-} <?=eqn.cons_t?>;
-]], {
-	eqn = self,
-})
+} <?=eqn.prim_only_t?>;
+]], 	{
+			eqn = self,
+		}),
+	}:concat'\n'
 end
 
 function SRHD:createInitState()
@@ -150,7 +160,7 @@ real calc_h(real rho, real P, real eInt) {
 	return 1. + eInt + P / rho;
 }
 
-<?=eqn.cons_only_t?> consOnlyFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> prim, real3 x) {
+<?=eqn.cons_t?> consFromPrimOnly(constant <?=solver.solver_t?>* solver, <?=eqn.prim_only_t?> prim, real3 x) {
 	real vSq = coordLenSq(prim.v, x);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
@@ -168,10 +178,40 @@ real calc_h(real rho, real P, real eInt) {
 	//energy = T^00 = rho h u^0 u^0 + P g^00
 	real tau = prim.rho * h * WSq - D - P;
 	
+	return (<?=eqn.cons_t?>){
+		.D = D,
+		.S = S,
+		.tau = tau,
+		.rho = prim.rho,
+		.v = prim.v,
+		.eInt = prim.eInt,
+		.ePot = 0,
+	};
+}
+
+
+<?=eqn.cons_only_t?> consOnlyFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
+	real vSq = coordLenSq(U.v, x);
+	real WSq = 1. / (1. - vSq);
+	real W = sqrt(WSq);
+	real P = calc_P(solver, U.rho, U.eInt);
+	real h = calc_h(U.rho, P, U.eInt);
+
+	//2008 Font, eqn 40-42:
+	
+	//rest-mass density = J^0 = rho u^0
+	real D = U.rho * W;	
+	
+	//momentum = T^0i = rho h u^0 u^i + P g^0i
+	real3 S = real3_real_mul(U.v, U.rho * h * WSq);
+	
+	//energy = T^00 = rho h u^0 u^0 + P g^00
+	real tau = U.rho * h * WSq - D - P;
+	
 	return (<?=eqn.cons_only_t?>){.D=D, .S=S, .tau=tau};
 }
 
-//PLM uses prim_t and cons_t, esp using the 'numIntStates' reals that they start with
+//PLM uses prim_only_t and cons_t, esp using the 'numIntStates' reals that they start with
 //...and PLM uses consFromPrim and primFromCons
 
 ]], {
@@ -208,11 +248,8 @@ kernel void initState(
 	
 	real eInt = calc_eInt_from_P(solver, rho, P);
 
-	<?=eqn.prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
-	UBuf[index] = (<?=eqn.cons_t?>){
-		.prim = prim,
-		.cons = consOnlyFromPrim(solver, prim, x),
-	};
+	<?=eqn.prim_only_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
+	UBuf[index] = consFromPrimOnly(solver, prim, x);
 }
 ]]
 
@@ -228,26 +265,25 @@ local function vorticity(eqn,k,result)
 	return {
 		name = 'vorticity '..xs[k+1],
 		code = template([[
-	
 	if (OOB(1,1)) {
 		<?=result?> = 0.;
 	} else {
-		global const <?=eqn.prim_t?>* prim_im = &buf[index - solver->stepsize.s<?=i?>].prim;
-		global const <?=eqn.prim_t?>* prim_ip = &buf[index + solver->stepsize.s<?=i?>].prim;
-		global const <?=eqn.prim_t?>* prim_jm = &buf[index - solver->stepsize.s<?=j?>].prim;
-		global const <?=eqn.prim_t?>* prim_jp = &buf[index + solver->stepsize.s<?=j?>].prim;
+		global const <?=eqn.cons_t?>* Uim = &buf[index - solver->stepsize.s<?=i?>];
+		global const <?=eqn.cons_t?>* Uip = &buf[index + solver->stepsize.s<?=i?>];
+		global const <?=eqn.cons_t?>* Ujm = &buf[index - solver->stepsize.s<?=j?>];
+		global const <?=eqn.cons_t?>* Ujp = &buf[index + solver->stepsize.s<?=j?>];
 
 		//TODO incorporate metric
 		//TODO 3-vorticity vs 4-vorticity?
 
-		real vim_j = prim_im->v.s<?=j?>;
-		real vip_j = prim_ip->v.s<?=j?>;
+		real vim_j = Uim->v.s<?=j?>;
+		real vip_j = Uip->v.s<?=j?>;
 		
-		real vjm_i = prim_jm->v.s<?=i?>;
-		real vjp_i = prim_jp->v.s<?=i?>;
+		real vjm_i = Ujm->v.s<?=i?>;
+		real vjp_i = Ujp->v.s<?=i?>;
 		
 		<?=result?> = (vjp_i - vjm_i) / (2. * solver->grid_dx.s<?=i?>)
-				- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
+					- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
 	}
 ]], 	{
 			i = i,
@@ -260,17 +296,11 @@ end
 
 function SRHD:getDisplayVars()
 	local vars = table{
-		{name='D', code='*value = U->cons.D;'},
-		{name='S', code='*value_real3 = U->cons.S;', type='real3'},
-		{name='tau', code='*value = U->cons.tau;'},
-		{name='W based on D', code='*value = U->cons.D / U->prim.rho;'},
-		{name='W based on v', code='*value = 1. / sqrt(1. - coordLenSq(U->prim.v, x));'},
+		{name='W based on D', code='*value = U->D / U->rho;'},
+		{name='W based on v', code='*value = 1. / sqrt(1. - coordLenSq(U->v, x));'},
 		
-		{name='rho', code='*value = U->prim.rho;'},
-		{name='v', code='*value_real3 = U->prim.v;', type='real3'},
-		{name='eInt', code='*value = U->prim.eInt;'},
-		{name='P', code='*value = calc_P(solver, U->prim.rho, U->prim.eInt);'},
-		{name='h', code='*value = calc_h(U->prim.rho, calc_P(solver, U->prim.rho, U->prim.eInt), U->prim.eInt);'},
+		{name='P', code='*value = calc_P(solver, U->rho, U->eInt);'},
+		{name='h', code='*value = calc_h(U->rho, calc_P(solver, U->rho, U->eInt), U->eInt);'},
 		
 		{name='ePot', code='*value = U->ePot;'},
 		
@@ -278,16 +308,16 @@ function SRHD:getDisplayVars()
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
 	{
-		<?=eqn.cons_only_t?> U2 = consOnlyFromPrim(solver, U->prim, x);
+		<?=eqn.cons_only_t?> U2 = consOnlyFromPrim(solver, *U, x);
 		*value = 0;
 		for (int j = 0; j < numIntStates; ++j) {
-			*value += fabs(U->cons.ptr[j] - U2.ptr[j]);
+			*value += fabs(U->ptr[j] - U2.ptr[j]);
 		}
 	}
 	]], {eqn=self})},
 		{name='W error', code=[[
-	real W1 = U->cons.D / U->prim.rho;
-	real W2 = 1. / sqrt(1. - coordLenSq(U->prim.v, x));
+	real W1 = U->D / U->rho;
+	real W2 = 1. / sqrt(1. - coordLenSq(U->v, x));
 	*value = fabs(W1 - W2);
 ]]		},
 	}
@@ -347,16 +377,15 @@ function SRHD:consWaveCodePrefix(side, U, x,
 )
 	return template([[	
 <? if not prim then ?>
-	<?=eqn.prim_t?> prim = <?=U?>.prim;
-	real rho = prim.rho;
-	real eInt = prim.eInt;
-	real vSq = coordLenSq(prim.v, <?=x?>);
+	real rho = <?=U?>.rho;
+	real eInt = <?=U?>.eInt;
+	real vSq = coordLenSq(<?=U?>.v, <?=x?>);
 	real P = calc_P(solver, rho, eInt);
 	real h = calc_h(rho, P, eInt);
 	real csSq = solver->heatCapacityRatio * P / (rho * h);
 	real cs = sqrt(csSq);
 <? 
-	prim = 'prim'
+	prim = U
 end ?>
 	
 	//for the particular direction
@@ -378,7 +407,7 @@ end ?>
 		x = x,
 		-- extra params either provided or calculated
 		-- TODO I almost need two prefixes ... one for all sides, and one per-side
-		prim = prim,
+		prim = '('..prim..')',
 		rho = rho or 'rho',
 		eInt = eInt or 'eInt',
 		vSq = vSq or 'vSq',

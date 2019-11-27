@@ -28,13 +28,9 @@ end
 
 -- params for op/poisson.cl 
 function SRHDSelfGrav:getPoissonDivCode()
-	-- because op/poisson.cl assumes it's UBuf, 
-	-- we gotta keep the name 'UBuf'
-	-- even though it's the primBuf ...
 	return template([[
-<? local eqn = op.solver.eqn ?>
-	global <?=eqn.prim_t?>* prim = &UBuf[index].prim;
-	source = 4. * M_PI * (solver->gravitationalConstant / unit_m3_per_kg_s2) * prim->rho;
+	source = 4. * M_PI * U->rho 
+		* solver->gravitationalConstant / unit_m3_per_kg_s2;
 ]], {
 		op = self,
 	})
@@ -54,8 +50,7 @@ kernel void calcGravityDeriv<?=op.name?>(
 	SETBOUNDS(numGhost,numGhost);
 	
 	global <?=eqn.cons_t?>* deriv = derivBuffer + index;
-	const global <?=eqn.cons_only_t?>* U = &UBuf[index].cons;
-	const global <?=eqn.prim_t?>* prim = &UBuf[index].prim;
+	const global <?=eqn.cons_t?>* U = UBuf + index;
 
 	real3 du_dt = real3_zero;
 	//for (int side = 0; side < dim; ++side) {
@@ -73,8 +68,8 @@ kernel void calcGravityDeriv<?=op.name?>(
 	real Phi = UBuf[index].<?=op.potentialField?>;
 
 	//u = W v
-	real W = U->D / prim->rho;
-	real3 u = real3_real_mul(prim->v, W);
+	real W = U->D / U->rho;
+	real3 u = real3_real_mul(U->v, W);
 
 	/*
 	u,t = W,t v + W v,t
@@ -132,30 +127,30 @@ kernel void calcGravityDeriv<?=op.name?>(
 
 	//W_,t = W^3 (v^i_,t v_i + v^i v^j gamma_ij,t / 2)
 	//W_,t = W^3 (v^i_,t v^i) / (1 - 2 Phi)
-	real dW_dt = W * W * W * real3_dot(prim->v, dv_dt) / (1. - 2. * Phi);
-	real h = 1. + solver->heatCapacityRatio * prim->eInt;
+	real dW_dt = W * W * W * real3_dot(U->v, dv_dt) / (1. - 2. * Phi);
+	real h = 1. + solver->heatCapacityRatio * U->eInt;
 
 	//why am I integrating negative again?
 	//why does "Hydrodynamics II" say to integrate negative for the Euler equations?	
 
 	//D = W rho
 	//D,t = W,t rho
-	deriv->cons.D -= dW_dt * prim->rho;
+	deriv->D -= dW_dt * U->rho;
 
 	//S = rho h W^2 v = rho h W u
 	//assuming rho and h are constant ... 
 	//S,t = rho h (W,t u + W u,t)
-	deriv->cons.S = real3_sub(deriv->cons.S,
+	deriv->S = real3_sub(deriv->S,
 		real3_add(
-			real3_real_mul(u, prim->rho * h * dW_dt),
-			real3_real_mul(du_dt, prim->rho * h * W)
+			real3_real_mul(u, U->rho * h * dW_dt),
+			real3_real_mul(du_dt, U->rho * h * W)
 		)
 	);
 	
 	//tau = rho h W^2 - p - rho W
 	//tau,t = rho h (2 W W,t) - rho W,t
 	//tau,t = rho W,t (2 h W - 1)
-	deriv->cons.tau -= prim->rho * dW_dt * (2. * h * W - 1.);
+	deriv->tau -= U->rho * dW_dt * (2. * h * W - 1.);
 }
 
 ]],

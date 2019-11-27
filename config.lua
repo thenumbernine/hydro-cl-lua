@@ -52,8 +52,8 @@ local args = {
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
-	mins = cmdline.mins or {-10, -10, -10},
-	maxs = cmdline.maxs or {10, 10, 10},
+	mins = cmdline.mins or {-1, -1, -1},
+	maxs = cmdline.maxs or {1, 1, 1},
 
 	-- 256^2 = 2^16 = 2 * 32^3
 	gridSize = (
@@ -70,12 +70,12 @@ local args = {
 			},
 			['Intel(R) OpenCL/Intel(R) HD Graphics 520'] = {
 				{256,1,1},
-				{128,128,1},
+				{256,256,1},
 				{16,16,16},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{64,1,1},
-				{128,128,1},
+				{256,256,1},
 				{16,16,16},
 			},
 		})[platAndDevicesNames]
@@ -87,12 +87,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'periodic',
-		xmax=cmdline.boundary or 'periodic',
-		ymin=cmdline.boundary or 'periodic',
-		ymax=cmdline.boundary or 'periodic',
-		zmin=cmdline.boundary or 'periodic',
-		zmax=cmdline.boundary or 'periodic',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
@@ -182,7 +182,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'rectangle',
 	--initState = 'Sedov',
 	--initState = 'Noh',
@@ -214,7 +214,7 @@ local args = {
 	
 	-- those designed for SRHD / GRHD:
 	--initState = 'relativistic shock reflection',			-- FIXME.  these initial conditions are constant =P
-	--initState = 'relativistic blast wave test problem 1',
+	initState = 'relativistic blast wave test problem 1',
 	--initState = 'relativistic blast wave test problem 2',
 	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
 
@@ -496,6 +496,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- special relativistic compressible hydrodynamics
 
 
+-- TODO FIXME
 -- rel blast wave 1 & 2 works in 1D at 256 with superbee flux lim
 -- rel blast wave interaction works with superbee flux lim in 1D works at 256, fails at 1024 with float (works with double)
 -- 	256x256 double fails with F.E., RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths,
@@ -504,7 +505,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
---self.solvers:insert(require 'solver.srhd-roe'(args))
+self.solvers:insert(require 'solver.srhd-roe'(args))
 	-- TODO can't use these until I get eigen_forInterface working in eqn/srhd.cl
 --self.solvers:insert(require 'solver.srhd-hll'(args))
 --self.solvers:insert(require 'solver.srhd-weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
@@ -689,7 +690,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 
--- [=[ 2013 Baumgarte et al, section IV A 1 example
+--[=[ 2013 Baumgarte et al, section IV A 1 example & 2017 Ruchlin, Etienne
 local dim = 3
 local args = {
 	app = self,
@@ -719,7 +720,7 @@ local args = {
 	gridSize = ({
 		{128, 1, 1},
 		{64, 16, 1},
-		{128, 2, 2},
+		{2, 2, 2},	--{128, 2, 2},
 	})[dim],
 	boundary = {
 		xmin='sphereRMin',

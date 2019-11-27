@@ -932,7 +932,7 @@ end) then
 		}
 	}
 	v = real3_real_mul(m, 1. / rho);
-	P = (heatCapacityRatio - 1.) * rho * eInt;
+	P = (solver->heatCapacityRatio - 1.) * rho * eInt;
 ]]
 		end,
 	},
@@ -1056,7 +1056,7 @@ end) then
 			return [[
 	rho = 1;
 	v.x = 1. - 1e-5;
-	P = (heatCapacityRatio - 1.) * rho * (1e-7 / sqrt(1. - v.x * v.x));
+	P = (solver->heatCapacityRatio - 1.) * rho * (1e-7 / sqrt(1. - v.x * v.x));
 ]]
 		end,
 	},
@@ -1069,7 +1069,7 @@ end) then
 			solver.cfl = .5	-- needs a slower cfl
 			return [[
 	rho = lhs ? 10 : 1;
-	P = (heatCapacityRatio - 1.) * rho * (lhs ? 2 : 1e-6);
+	P = (solver->heatCapacityRatio - 1.) * rho * (lhs ? 2 : 1e-6);
 ]]
 		end,
 	},

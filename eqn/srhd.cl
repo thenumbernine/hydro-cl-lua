@@ -6,6 +6,8 @@ Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 20
 
 typedef <?=eqn.prim_t?> prim_t;
 typedef <?=eqn.cons_t?> cons_t;
+typedef <?=eqn.prim_only_t?> prim_only_t;
+typedef <?=eqn.cons_only_t?> cons_only_t;
 typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
@@ -23,10 +25,10 @@ kernel void calcDT(
 	}
 	real3 x = cell_x(i);
 
-	prim_t prim = UBuf[index].prim;
-	real rho = prim.rho;
-	real eInt = prim.eInt;
-	real vSq = coordLenSq(prim.v, x);
+	cons_t U = UBuf[index];
+	real rho = U.rho;
+	real eInt = U.eInt;
+	real vSq = coordLenSq(U.v, x);
 	real P = calc_P(solver, rho, eInt);
 	real h = calc_h(rho, P, eInt);
 	real csSq = solver->heatCapacityRatio * P / (rho * h);
@@ -36,7 +38,7 @@ kernel void calcDT(
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		//for the particular direction
-		real vi = prim.v.s<?=side?>;
+		real vi = U.v.s<?=side?>;
 		real viSq = vi * vi;
 		
 		// Marti 1998 eqn 19
@@ -60,23 +62,20 @@ cons_t fluxFromCons_<?=side?>(
 	cons_t U,
 	real3 x
 ) {
-	real vi = U.prim.v.s<?=side?>;
-	real P = calc_P(solver, U.prim.rho, U.prim.eInt);
+	real vi = U.v.s<?=side?>;
+	real P = calc_P(solver, U.rho, U.eInt);
 
-	cons_t F;
-	F.cons.D = U.cons.D * vi;
-	F.cons.S = real3_real_mul(U.cons.S, vi);
-	F.cons.S.s<?=side?> += P;
-	F.cons.tau = U.cons.tau * vi + P * vi;
-	
-	//make sure the rest is zero ...
-	F.prim = (prim_t){
+	cons_t F = {
 		.rho = 0,
 		.v = real3_zero,
 		.eInt = 0,
+		.ePot = 0,
 	};
-	F.ePot = 0;
-
+	F.D = U.D * vi;
+	F.S = real3_real_mul(U.S, vi);
+	F.S.s<?=side?> += P;
+	F.tau = U.tau * vi + P * vi;
+	
 	return F;
 }
 <? end ?>
@@ -112,14 +111,11 @@ eigen_t eigen_forInterface(
 	real3 xInt,
 	real3 n
 ) {
-	prim_t primL = UL.prim;
-	prim_t primR = UR.prim;
-
 <? if true then -- arithmetic averaging ?>
-	prim_t avg = (prim_t){
-		.rho = .5 * (primL.rho + primR.rho),
-		.v = real3_real_mul(real3_add(primL.v, primR.v), .5),
-		.eInt = .5 * (primL.eInt + primR.eInt),
+	prim_only_t avg = {
+		.rho = .5 * (UL.rho + UR.rho),
+		.v = real3_real_mul(real3_add(UL.v, UR.v), .5),
+		.eInt = .5 * (UL.eInt + UR.eInt),
 	};
 <? -- else -- Roe-averaging, Font 2008 eqn 38 ?>
 <? end ?>
@@ -384,7 +380,7 @@ kernel void constrainU(
 ) {
 	SETBOUNDS(0,0);
 
-	global <?=eqn.cons_only_t?>* U = &UBuf[index].cons;
+	global cons_t* U = UBuf + index;
 
 	U->D = max(U->D, (real)solver->DMin);
 	U->tau = max(U->tau, (real)solver->tauMin);
@@ -400,13 +396,12 @@ kernel void updatePrims(
 	SETBOUNDS(numGhost,numGhost-1);
 	real3 x = cell_x(i);
 
-	const global <?=eqn.cons_only_t?>* U = &UBuf[index].cons;
+	global cons_t* U = UBuf + index;
 	real D = U->D;
 	real3 S = U->S;
 	real tau = U->tau;
 
-	global prim_t* prim = &UBuf[index].prim;
-	real3 v = prim->v;
+	real3 v = U->v;
 
 	real SLen = coordLen(S, x);
 	real PMin = max(SLen - tau - D + SLen * solver->solvePrimVelEpsilon, solver->solvePrimPMinEpsilon);
@@ -436,9 +431,9 @@ kernel void updatePrims(
 			rho = min(rho, (real)solver->rhoMax);
 			eInt = P / (rho * (solver->heatCapacityRatio - 1.));
 			eInt = min(eInt, (real)solver->eIntMax);
-			prim->rho = rho;
-			prim->v = v;
-			prim->eInt = eInt;
+			U->rho = rho;
+			U->v = v;
+			U->eInt = eInt;
 //printf("cell %d finished with prims = %f %f %f\n", index, rho, v.x, eInt);
 			return;
 		}
