@@ -374,7 +374,7 @@ cons_t eigen_rightTransform_<?=side?>(
 	cons_t UY;
 	real* Y = UY.ptr;
 	real* X = UX.ptr;
-	
+
 	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
 	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
 	real sqrt_eps = sqrt(eps);	// TODO sqrt units
@@ -574,7 +574,7 @@ kernel void addSource(
 	SETBOUNDS_NOGHOST();
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
-	
+
 	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
 	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
 
@@ -600,7 +600,7 @@ kernel void addSource(
 	kg/(m s^3) = kg/(m s^3)
 	*/
 	deriv->ion_ETotal += solver->ionChargeMassRatio / unit_C_per_kg * real3_dot(U->D, U->ion_m) / eps;
-	
+
 	deriv->elec_m.x -= elecChargeMassRatio / unit_C_per_kg * (U->elec_rho * U->D.x / eps + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y);
 	deriv->elec_m.y -= elecChargeMassRatio / unit_C_per_kg * (U->elec_rho * U->D.y / eps + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z);
 	deriv->elec_m.z -= elecChargeMassRatio / unit_C_per_kg * (U->elec_rho * U->D.z / eps + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x);

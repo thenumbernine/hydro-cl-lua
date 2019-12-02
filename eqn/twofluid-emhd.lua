@@ -24,6 +24,7 @@ local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local template = require 'template'
 
+
 local TwoFluidEMHD = class(Equation)
 
 local fluids = table{'ion', 'elec'}
@@ -176,7 +177,7 @@ function TwoFluidEMHD:createInitState()
 		-- hmm ...
 		--{name='sqrt_mu', value=math.sqrt(vacuumPermittivity), units='(kg m)^.5/C'},
 		--{name='sqrt_eps', value=math.sqrt(vacuumPermeability), units='(C*s)/(kg*m^3)^.5'},
-		{name='sqrt_mu', value=1, units='(kg m)^.5/C'},
+		{name='sqrt_mu', value=1, units='(kg*m)^.5/C'},
 		{name='sqrt_eps', value=1, units='(C*s)/(kg*m^3)^.5'},
 	
 		-- lambda_d = ion Debye length
@@ -242,6 +243,12 @@ real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim
 	return sqrt(solver->heatCapacityRatio * W-><?=fluid?>_P / W-><?=fluid?>_rho);
 }
 <? end ?>
+
+real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
+	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
+	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
+	*value = .5 * (coordLenSq(U->D, x) / eps + coordLenSq(U->B, x) / mu);
+}
 ]], {
 		solver = self.solver,
 		eqn = self,
@@ -561,26 +568,29 @@ function TwoFluidEMHD:getDisplayVars()
 			units = 'C/(m*s)',
 		},
 		{
-			name = 'S',
+			name = 'SField',
 			code = template([[	*value_real3 = real3_cross(calc_EField(solver, *U), calc_HField(solver, *U));]], env), 
 			type = 'real3',
 			units = 'kg/s^3',
-		},		
+		},
 		{
 			name = 'gravity',
 			code = template([[
 	if (!OOB(1,1)) *value_real3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U, x);
-]], {eqn=self}), type='real3', units='m/s^2'},
-		{name = 'EPot', code = '*value = calc_rho_from_U(*U) * U->ePot;', units='kg/(m*s^2)'},
-		{name='EM energy', code=[[
-	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
-	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
-	
-	*value = .5 * (
-		coordLenSq(U->D, x) / eps
-		+ coordLenSq(U->B, x) / mu
-	);
-]], units='kg/(m*s^2)'},
+]], {eqn=self}), 
+			type='real3', 
+			units='m/s^2',
+		},
+		{
+			name = 'EPot',
+			code = '*value = calc_rho_from_U(*U) * U->ePot;', 
+			units='kg/(m*s^2)',
+		},
+		{
+			name = 'EM energy',
+			code = '*value = calc_EM_energy(solver, U, x);',
+			units = 'kg/(m*s^2)'
+		},
 	}:append(table{'D', 'B'}:map(function(field, i)
 		local field = assert( ({D='D', B='B'})[field] )
 		return {
@@ -674,7 +684,13 @@ function TwoFluidEMHD:consWaveCodePrefix(side, U, x)
 <? if eqn.implicitEMIntegration then 	--ignoring EM wavespeed	?>	
 	real consWaveCode_lambdaMax = -INFINITY;
 <? else 								--using EM wavespeed ?>
-	real consWaveCode_lambdaMax = max(max(solver->divPsiWavespeed / unit_m_per_s, solver->divPhiWavespeed / unit_m_per_s), solver->speedOfLight / unit_m_per_s);
+	real consWaveCode_lambdaMax = max(
+			max(
+				solver->divPsiWavespeed,
+				solver->divPhiWavespeed
+			), 
+		solver->speedOfLight
+	) / unit_m_per_s;
 <? end ?>
 
 	real consWaveCode_lambdaMin = -consWaveCode_lambdaMax;

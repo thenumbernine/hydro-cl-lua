@@ -1,12 +1,12 @@
 ### About:
 
-HydroJS is a GPU-driven collection of computational fluid schemes, integrators, and equations all housed under one framework.
+lua-hydro-cl is a GPU-driven collection of computational fluid schemes, integrators, and equations all housed under one framework.
 
 It uses LuaJIT as the scripting due to the performance and memory advantages that Lua and LuaJIT have over other comparable languages (Python, JavaScript, etc).
 
 It uses OpenCL for the GPU code.
 
-HydroJS has been maintained and developed by me, Christopher Moore.
+lua-hydro-cl has been maintained and developed by me, Christopher Moore.
 
 From its creation 2016 Sep 30 until 2019 May 15 it was produced in my free time.
 
@@ -20,11 +20,28 @@ Then Hydro, a C++/multithread version of HydroJS.
 
 Then HydroGPU, a OpenCL version of Hydro.
 
-Then with Lua script config. 
+Then I added Lua script config. 
 
 Then the Lua got out of hand until the C++ was doing nothing but managing strings.
 
 Now this project, lua-hydro-cl, pushes the middleman (C++) out completely.
+
+
+### Dependencies
+
+- lua-ext
+- lua-template
+- lua-opencl
+- lua-vec
+- lua-matrix
+- lua-symmath
+- lua-ffi-bindings (OpenGL, SDL, cimgui, libpng, ffi vector types)
+- lua-image (if you want to take pictures/videos)
+- lua-gl (if you want to use the graphic visualization)
+- lua-glapp (if you want to use the graphic visualization)
+- lua-gui (if you want to use the graphic visualization)
+- lua-gnuplot (used by some tests)
+- lua-imguiapp (if you want to use the GUI)
 
 
 ### Features:
