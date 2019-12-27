@@ -968,3 +968,6 @@ float crand() {
 	return (float)(seed) * 4.6566129e-10;
 }
 
+real sech(real x) {
+	return 2. / (exp(x) + exp(-x));
+}

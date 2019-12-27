@@ -24,7 +24,7 @@ return table{
 	-- section 2.4
 	-- electron pressure diverges in just a single point, then slowly moves to the south boundary, and creates a singularity
 	{
-		name = 'GEM Challenge',
+		name = 'GEM challenge',
 		mins = {-4*math.pi, -2*math.pi, -1},
 		maxs = {4*math.pi, 2*math.pi, 1},
 		initState = function(self, solver)
@@ -48,15 +48,15 @@ return table{
 	const real n_0 = 1.;
 	const real phi_0 = B_0 / 10.;
 	B.x = B_0 * tanh(x.y / lambda);
-	phi = phi_0 * cos(2. * M_PI * x.x / L_x) * cos(2. * M_PI * x.y / L_y);
+	real phi = phi_0 * cos(2. * M_PI * x.x / L_x) * cos(2. * M_PI * x.y / L_y);
 	real dphi_dx = -2. * M_PI * phi_0 / L_x * sin(2. * M_PI / L_x * x.x) * cos(2. * M_PI / L_y * x.y);
 	real dphi_dy = -2. * M_PI * phi_0 / L_y * cos(2. * M_PI / L_x * x.x) * sin(2. * M_PI / L_y * x.y);
 	//delta B = -e_z cross nabla phi = [dphi/dy, -dphi/dx, 0]
 	B.x += dphi_dy;
 	B.y -= dphi_dx;
 	real n = n_0 * (.2 + sech(x.y/lambda) * sech(x.y/lambda));
-	ion_n = n_0;
-	elec_n = n_0;
+	real ion_n = n_0;
+	real elec_n = n_0;
 	//n = rho * dV ?
 	ion_rho = 1. / ion_n;
 	elec_rho = 1. / elec_n;

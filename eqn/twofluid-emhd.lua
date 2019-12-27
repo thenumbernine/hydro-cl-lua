@@ -247,7 +247,7 @@ real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim
 real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
 	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
 	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
-	*value = .5 * (coordLenSq(U->D, x) / eps + coordLenSq(U->B, x) / mu);
+	return .5 * (coordLenSq(U->D, x) / eps + coordLenSq(U->B, x) / mu);
 }
 ]], {
 		solver = self.solver,
