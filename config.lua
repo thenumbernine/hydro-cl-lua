@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -75,7 +75,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{256,1,1},
-				{256,256,1},
+				{32,32,1},
 				{16,16,16},
 			},
 		})[platAndDevicesNames]
@@ -87,12 +87,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'periodic',
+		xmax=cmdline.boundary or 'periodic',
+		ymin=cmdline.boundary or 'periodic',
+		ymax=cmdline.boundary or 'periodic',
+		zmin=cmdline.boundary or 'periodic',
+		zmax=cmdline.boundary or 'periodic',
 	},
 	--]]
 	--[[ cylinder
@@ -219,8 +219,8 @@ local args = {
 	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	initState = 'Brio-Wu',
-	--initState = 'Orszag-Tang',
+	--initState = 'Brio-Wu',
+	initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'GEM challenge', eqnArgs = {useEulerInitState=false},
 	--initState = 'spinning magnetic fluid',
@@ -546,7 +546,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-mhd', wenoMethod='1996 Jiang Shu', order=5})))
-self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-mhd', wenoMethod='2010 Shen Zha', order=5})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-mhd', wenoMethod='2010 Shen Zha', order=5})))
 
 
 -- Maxwell
@@ -585,7 +585,7 @@ self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-mhd', wenoMethod
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 

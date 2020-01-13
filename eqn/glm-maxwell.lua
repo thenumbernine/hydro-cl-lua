@@ -88,9 +88,22 @@ end
 function GLM_Maxwell:createInitState()
 	GLM_Maxwell.super.createInitState(self)
 
-	--local speedOfLight = require 'constants'.speedOfLight_in_m_per_s
+	--[[
+	-- how to set speedOfLight == 1?
+	-- speedOfLight / (unit_m / unit_s) = 1
+	-- unit_s = unit_m / speedOfLight 
+	local speedOfLight = require 'constants'.speedOfLight_in_m_per_s
+	self.guiVars.second.value = self.guiVars.meter.value / speedOfLight
+	...but this messes with the other variables that use seconds: B, psi, sigma, eps, mu
+	so this asks the question ... when should values be converted to/from units?
+	right now I'm converting only solver-> guivars
+	...but I'm not converting solver-> guivars within init states ... hmm ...
+	should I do that too?
+	--]]
+	-- [[
 	local speedOfLight = 1
-	
+	--]]
+
 	self:addGuiVars{
 		{name='divPhiWavespeed', value=speedOfLight, units='m/s'},
 		{name='divPsiWavespeed', value=speedOfLight, units='m/s'},

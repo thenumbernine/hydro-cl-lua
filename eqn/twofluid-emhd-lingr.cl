@@ -7,11 +7,17 @@ local fluids = eqn.fluids
 #define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
 
 // r_e = q_e / m_e
+// r_e = q_e / (m_i / (m_i / m_e))
+// using m = m_i / m_e
 // r_e = m q_e / m_i
-// if q_e = 1 then r_e = m / m_i
+// using q_i = q_e
+// r_e = m q_i / m_i
+// using r_i = q_i / m_i
+// r_e = m r_i
 // https://en.wikipedia.org/wiki/Mass-to-charge_ratio
 // q_e / m_e = -1.758820024e+11 C/kg
-#define elecChargeMassRatio			(solver->ionElectronMassRatio / (solver->ionMass / unit_kg))
+// notice this hasn't been converted to units yet, so divide by unit_C_per_kg
+#define elecChargeMassRatio			(solver->ionElectronMassRatio * solver->ionChargeMassRatio)
 
 typedef <?=eqn.prim_t?> prim_t;
 typedef <?=eqn.cons_t?> cons_t;

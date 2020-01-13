@@ -7,11 +7,17 @@ local fluids = eqn.fluids
 #define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
 
 // r_e = q_e / m_e
+// r_e = q_e / (m_i / (m_i / m_e))
+// using m = m_i / m_e
 // r_e = m q_e / m_i
-// if q_e = 1 then r_e = m / m_i
+// using q_i = q_e
+// r_e = m q_i / m_i
+// using r_i = q_i / m_i
+// r_e = m r_i
 // https://en.wikipedia.org/wiki/Mass-to-charge_ratio
 // q_e / m_e = -1.758820024e+11 C/kg
-#define elecChargeMassRatio			(solver->ionElectronMassRatio / (solver->ionMass / unit_kg))
+// notice this hasn't been converted to units yet, so divide by unit_C_per_kg
+#define elecChargeMassRatio			(solver->ionElectronMassRatio * solver->ionChargeMassRatio)
 
 typedef <?=eqn.prim_t?> prim_t;
 typedef <?=eqn.cons_t?> cons_t;
@@ -611,11 +617,11 @@ kernel void addSource(
 	C/(m^2 s) = kg/(m^2*s) * C/kg
 	C/(m^2 s) = C/(m^2*s)
 	*/
-	deriv->D.x -= U->ion_m.x * solver->ionChargeMassRatio / unit_C_per_kg + U->elec_m.x * elecChargeMassRatio / unit_C_per_kg;
-	deriv->D.y -= U->ion_m.y * solver->ionChargeMassRatio / unit_C_per_kg + U->elec_m.y * elecChargeMassRatio / unit_C_per_kg;
-	deriv->D.z -= U->ion_m.z * solver->ionChargeMassRatio / unit_C_per_kg + U->elec_m.z * elecChargeMassRatio / unit_C_per_kg;
+	deriv->D.x -= (U->ion_m.x * solver->ionChargeMassRatio + U->elec_m.x * elecChargeMassRatio) / unit_C_per_kg;
+	deriv->D.y -= (U->ion_m.y * solver->ionChargeMassRatio + U->elec_m.y * elecChargeMassRatio) / unit_C_per_kg;
+	deriv->D.z -= (U->ion_m.z * solver->ionChargeMassRatio + U->elec_m.z * elecChargeMassRatio) / unit_C_per_kg;
 	
-	deriv->phi += eps * (U->ion_rho * solver->ionChargeMassRatio / unit_C_per_kg + U->elec_rho * elecChargeMassRatio / unit_C_per_kg) * solver->divPhiWavespeed / unit_m_per_s;
+	deriv->phi += eps * (U->ion_rho * solver->ionChargeMassRatio + U->elec_rho * elecChargeMassRatio) / unit_C_per_kg * solver->divPhiWavespeed / unit_m_per_s;
 
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 	real3 x = cell_x(i);

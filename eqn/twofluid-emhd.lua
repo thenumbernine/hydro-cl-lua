@@ -161,6 +161,10 @@ function TwoFluidEMHD:createInitState()
 		{name='heatCapacityRatio', value=5/3},
 
 		-- m_i = ion mass
+		-- rho is in kg/m^3
+		-- so number of ions per m^3 = ion_rho / ionMass
+		-- and number of electrons per m^3 = elec_rho / elecMass = elec_rho / (ionMass / ionElectronMassRatio)
+		-- but where do we use number density?
 		{name='ionMass', value=1, units='kg'},
 	
 		-- c = speed of light
