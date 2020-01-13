@@ -31,6 +31,8 @@ kernel void updatePsi(
 		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(solver, *U, x);
 		Ch = max(Ch, eig.Ch);
 	}<? end ?>
+<? else ?>
+	real Ch = solver->Ch;
 <? end ?>
 	
 	U->psi *= exp(-dt * Ch * Ch / (Cp * Cp) * U->psi);

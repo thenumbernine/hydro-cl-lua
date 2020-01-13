@@ -44,6 +44,8 @@ local sym = common.sym
 		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(solver, U, x);
 		Ch = max(Ch, eig.Ch);
 	}<? end ?>
+<? else ?>
+	real Ch = solver->Ch;
 <? end ?>
 
 	<?=eqn.cons_t?> F;
@@ -145,6 +147,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 <? if not eqn.useFixedCh then ?>
 	real Ch = max(max(fabs(v.x) + Cf, fabs(v.y) + Cf), fabs(v.z) + Cf);
+<? else ?>
+	real Ch = solver->Ch;
 <? end ?>
 
 	real lambdaFastMin = v.x - Cf;
@@ -252,6 +256,8 @@ Roe_t calcRoeValues(
 
 <? if not eqn.useFixedCh then ?>
 	eig.Ch = max(max(fabs(v.x) + eig.Cf, fabs(v.y) + eig.Cf), fabs(v.z) + eig.Cf);
+<? else ?>
+	eig.Ch = solver->Ch;
 <? end ?>
 
 #warning consider g_ij	

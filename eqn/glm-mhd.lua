@@ -39,7 +39,8 @@ MHD.roeUseFluxFromCons = true
 MHD.useSourceTerm = true
 MHD.useConstrainU = true
 
-MHD.useFixedCh = false	-- true = use a gui var, false = calculate by max(|v_i|+Cf)
+-- TODO this is broken
+MHD.useFixedCh = true -- true = use a gui var, false = calculate by max(|v_i|+Cf)
 
 -- hmm, we want init.euler and init.mhd here ...
 MHD.initStates = require 'init.euler'
@@ -59,7 +60,7 @@ end
 B^2 = kg^2/(C^2 s^2)
 B^2 / mu = kg^2/(C^2 s^2) * C^2/(kg*m) = kg/(m s^2)
 --]]
-MHD.guiVars = {
+MHD.guiVars = table{
 	{name='heatCapacityRatio', value=2},	-- 5/3 for most problems, but 2 for Brio-Wu, so I will just set it here for now (in case something else is reading it before it is set there)
 	
 	-- works good as mu0 = 1
@@ -340,9 +341,7 @@ MHD.eigenVars = table(MHD.roeVars):append{
 	{name='Cs', type='real'},
 	{name='CAx', type='real'},
 	{name='Cf', type='real'},
-}:append(MHD.useFixedCh and {} or {
 	{name='Ch', type='real'},
-}):append{
 	{name='BStarPerpLen', type='real'},
 	{name='betaY', type='real'},
 	{name='betaZ', type='real'},
@@ -381,8 +380,8 @@ function MHD:eigenWaveCode(side, eig, x, waveIndex)
 		eig..'.v.x + '..eig..'.Cf',
 		
 		--#warning there's a few PLM routines that expect eigenvalues to be ordered ... so replace them with a eigen_calcMinMaxWaves
-		self.useFixedCh and '-Ch' or '-'..eig..'.Ch',
-		self.useFixedCh and 'Ch' or eig..'.Ch',
+		'-'..eig..'.Ch',
+		eig..'.Ch',
 	})[waveIndex+1] or error("got a bad waveIndex")
 end
 
