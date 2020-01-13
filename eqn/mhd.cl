@@ -25,8 +25,8 @@ ideal-mhd, divergence-free, conservative-based eigensystem
 	F.m.s<?=side?> += PTotal;
 	F.B = real3_sub(real3_real_mul(U.B, vj), real3_real_mul(W.v, Bj));
 	F.ETotal = HTotal * vj - BDotV * Bj / (solver->mu0 / unit_kg_m_per_C2);
-	F.psi = 0.;
-	F.ePot = 0.;
+	F.psi = 0;
+	F.ePot = 0;
 	return F;
 }
 <? end ?>
@@ -90,6 +90,7 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 
 	real _1_rho = 1. / rho;
 	real vSq = coordLenSq(v, x);
+#warning consider g_ij	
 	real BPerpSq = B.y*B.y + B.z*B.z;
 	real BStarPerpSq = (gamma_1 - gamma_2) * BPerpSq;
 	real CAxSq = B.x*B.x*_1_rho;
@@ -164,7 +165,7 @@ Roe_t calcRoeValues(
 	
 	W.X = .5 * (dby * dby + dbz * dbz) * invDenom * invDenom;
 	W.Y = .5 * (UL.rho + UR.rho) / W.rho;
-
+	
 	return W;
 };
 
@@ -190,6 +191,7 @@ Roe_t calcRoeValues(
 
 	real _1_rho = 1. / rho;
 	real vSq = coordLenSq(v, x);
+#warning consider g_ij	
 	real BPerpSq = B.y*B.y + B.z*B.z;
 	real BStarPerpSq = (gamma_1 - gamma_2 * Y) * BPerpSq;
 	real CAxSq = B.x*B.x*_1_rho;
@@ -217,6 +219,7 @@ Roe_t calcRoeValues(
 	eig.Cs = sqrt(CsSq);
 
 	
+#warning consider g_ij	
 	real BPerpLen = sqrt(BPerpSq);
 	eig.BStarPerpLen = sqrt(BStarPerpSq);
 	
@@ -593,4 +596,20 @@ kernel void addSource(
 	deriv->m = real3_add(deriv->m, real3_real_mul(coord_raise(coord_conn_trace13(x), x), PTotal));		//+Conn^j_kj g^ki PTotal
 	deriv->m = real3_add(deriv->m, real3_real_mul(coord_conn_apply23(U->B, U->B, x), 1. / solver->mu0));	//+ 1/mu0 Conn^i_jk B^j B^k
 <? end ?>
+}
+
+kernel void constrainU(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cell_x(i);
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+
+	W.rho = max(W.rho, 1e-7);
+	W.P = max(W.P, 1e-7);
+
+	*U = consFromPrim(solver, W, x);
 }

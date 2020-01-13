@@ -340,7 +340,7 @@ function MHD:eigenWaveCode(side, eig, x, waveIndex)
 		eig..'.v.x + '..eig..'.Cs',
 		eig..'.v.x + '..eig..'.CAx',
 		eig..'.v.x + '..eig..'.Cf',
-	})[waveIndex+1]
+	})[waveIndex+1] or error("got a bad waveIndex")
 end
 
 function MHD:consWaveCodePrefix(side, U, x)

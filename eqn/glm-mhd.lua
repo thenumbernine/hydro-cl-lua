@@ -6,81 +6,98 @@ local template = require 'template'
 local makestruct = require 'eqn.makestruct'
 local Equation = require 'eqn.eqn'
 
-local GLM_MHD = class(Equation)
+local MHD = class(Equation)
 
-GLM_MHD.name = 'GLM-MHD'
+MHD.name = 'GLM-MHD'
 
-GLM_MHD.primVars = table{
-	{name='rho', type='real'},
-	{name='v', type='real3'},
-	{name='P', type='real'},
-	{name='B', type='real3'},
-	{name='psi', type='real'},
+MHD.numWaves = 9
+MHD.numIntStates = 9
+MHD.numStates = 10
+
+MHD.primVars = table{
+	{name='rho', type='real', units='kg/m^3'},
+	{name='v', type='real3', units='m/s'},
+	{name='P', type='real', units='kg/(m*s^2)'},
+	{name='B', type='real3', units='kg/(C*s)'},
+	{name='psi', type='real', units='kg/(C*s)'},
+	{name='ePot', type='real', units='m^2/s^2'},
 }
 
-GLM_MHD.consVars = table{
-	{name='rho', type='real'},
-	{name='m', type='real3'},
-	{name='ETotal', type='real'},
-	{name='B', type='real3'},
-	{name='psi', type='real'},
+MHD.consVars = table{
+	{name='rho', type='real', units='kg/m^3'},
+	{name='m', type='real3', units='kg/(m^2*s)'},
+	{name='ETotal', type='real', units='kg/(m*s^2)'},
+	{name='B', type='real3', units='kg/(C*s)'},
+	{name='psi', type='real', units='kg/(C*s)'},
+	{name='ePot', type='real', units='m^2/s^2'},
 }
 
-GLM_MHD.hasEigenCode = true
-GLM_MHD.hasFluxFromConsCode = true
-GLM_MHD.roeUseFluxFromCons = true
-GLM_MHD.useSourceTerm = true
-GLM_MHD.useConstrianU = true
+MHD.hasEigenCode = true
+MHD.hasFluxFromConsCode = true
+MHD.roeUseFluxFromCons = true
+MHD.useSourceTerm = true
+MHD.useConstrianU = true
 
-GLM_MHD.useFixedCh = false	-- true = use a gui var, false = calculate by max(|v_i|+Cf)
+MHD.useFixedCh = false	-- true = use a gui var, false = calculate by max(|v_i|+Cf)
 
 -- hmm, we want init.euler and init.mhd here ...
-GLM_MHD.initStates = require 'init.euler'
+MHD.initStates = require 'init.euler'
 
-function GLM_MHD:init(args)
-	GLM_MHD.super.init(self, args)
+function MHD:init(args)
+	MHD.super.init(self, args)
 
 	local UpdatePsi = require 'op.glm-mhd-update-psi'
 	self.solver.ops:insert(UpdatePsi{solver=self.solver})
+	
+	local SelfGrav = require 'op.selfgrav'
+	self.gravOp = SelfGrav{solver=self.solver}
+	self.solver.ops:insert(self.gravOp)
 end
 
-GLM_MHD.guiVars = table{
+--[[
+B^2 = kg^2/(C^2 s^2)
+B^2 / mu = kg^2/(C^2 s^2) * C^2/(kg*m) = kg/(m s^2)
+--]]
+MHD.guiVars = {
 	{name='heatCapacityRatio', value=2},	-- 5/3 for most problems, but 2 for Brio-Wu, so I will just set it here for now (in case something else is reading it before it is set there)
-	{name='mu0', value=1},	-- this should be 4 pi for natural units, but I haven't verified that all mu0's are where they should be ...
+	{name='mu0', value=1, units='(kg*m)/C^2'},
 	{name='Cp', value=1, compileTime=true},
 }
 
-if GLM_MHD.useFixedCh then
-	GLM_MHD.guiVars:insert{name='Ch', value=.1}
+if MHD.useFixedCh then
+	MHD.guiVars:insert{name='Ch', value=.1}
 end
 
-function GLM_MHD:getCommonFuncCode()
+function MHD:getCommonFuncCode()
 	return template([[
-static inline real calc_eKin(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.v); }
-static inline real calc_EKin(<?=eqn.prim_t?> W) { return W.rho * calc_eKin(W); }
-static inline real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.P / (solver->heatCapacityRatio - 1.); }
-static inline real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EInt(solver, W) / W.rho; }
-static inline real calc_EMag(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.B); }
-static inline real calc_eMag(<?=eqn.prim_t?> W) { return calc_EMag(W) / W.rho; }
-static inline real calc_PMag(<?=eqn.prim_t?> W) { return .5 * real3_lenSq(W.B); }
-static inline real calc_EHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EKin(W) + calc_EInt(solver, W); }
-static inline real calc_eHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EHydro(solver, W) / W.rho; }
-static inline real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EKin(W) + calc_EInt(solver, W) + calc_EMag(W); }
-static inline real calc_eTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_ETotal(solver, W) / W.rho; }
-static inline real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
-static inline real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
-static inline real calc_HTotal(<?=eqn.prim_t?> W, real ETotal) { return W.P + calc_PMag(W) + ETotal; }
-static inline real calc_hTotal(<?=eqn.prim_t?> W, real ETotal) { return calc_HTotal(W, ETotal) / W.rho; }
-static inline real calc_Cs(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return sqrt(solver->heatCapacityRatio * W.P / W.rho); }
+real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
+real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
+real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.P / (solver->heatCapacityRatio - 1.); }
+real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EInt(solver, W) / W.rho; }
+real calc_EM_energy(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.B, x) / (solver->mu0 / unit_kg_m_per_C2); }
+real calc_PMag(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.B, x) / (solver->mu0 / unit_kg_m_per_C2); }
+real calc_EHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EKin(W, x) + calc_EInt(solver, W); }
+real calc_eHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EHydro(solver, W, x) / W.rho; }
+real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EKin(W, x) + calc_EInt(solver, W) + calc_EM_energy(solver, W, x); }
+real calc_eTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_ETotal(solver, W, x) / W.rho; }
+real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
+real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
+real calc_HTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real ETotal, real3 x) { return W.P + calc_PMag(solver, W, x) + ETotal; }
+real calc_hTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real ETotal, real3 x) { return calc_HTotal(solver, W, ETotal, x) / W.rho; }
+
+//notice, this is speed of sound, to match the name convention of eqn/euler
+//but Cs in eigen_t is the slow speed
+//most the MHD papers use 'a' for the speed of sound
+real calc_Cs(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return sqrt(solver->heatCapacityRatio * W.P / W.rho); }
 ]], {
 		solver = self.solver,
 		eqn = self,
 	})
 end
 
-function GLM_MHD:getPrimConsCode()
+function MHD:getPrimConsCode()
 	return template([[
-static inline <?=eqn.prim_t?> primFromCons(
+<?=eqn.prim_t?> primFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x
@@ -89,19 +106,20 @@ static inline <?=eqn.prim_t?> primFromCons(
 	W.rho = U.rho;
 	W.v = real3_real_mul(U.m, 1./U.rho);
 	W.B = U.B;
-	real vSq = real3_lenSq(W.v);
-	real BSq = real3_lenSq(W.B);
+	real vSq = coordLenSq(W.v, x);
+	real BSq = coordLenSq(W.B, x);
 	real EKin = .5 * U.rho * vSq;
-	real EMag = .5 * BSq;
+	real EMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);
 	real EInt = U.ETotal - EKin - EMag;
 	W.P = EInt * (solver->heatCapacityRatio - 1.);
 	W.P = max(W.P, (real)1e-7);
 	W.rho = max(W.rho, (real)1e-7);
 	W.psi = U.psi;
+	W.ePot = U.ePot;
 	return W;
 }
 
-static inline <?=eqn.cons_t?> consFromPrim(
+<?=eqn.cons_t?> consFromPrim(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> W,
 	real3 x
@@ -110,13 +128,14 @@ static inline <?=eqn.cons_t?> consFromPrim(
 	U.rho = W.rho;
 	U.m = real3_real_mul(W.v, W.rho);
 	U.B = W.B;
-	real vSq = real3_lenSq(W.v);
-	real BSq = real3_lenSq(W.B);
+	real vSq = coordLenSq(W.v, x);
+	real BSq = coordLenSq(W.B, x);
 	real EKin = .5 * W.rho * vSq;
-	real EMag = .5 * BSq;
+	real EMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);
 	real EInt = W.P / (solver->heatCapacityRatio - 1.);
 	U.ETotal = EInt + EKin + EMag;
 	U.psi = W.psi;
+	U.ePot = W.ePot;
 	return U;
 }
 
@@ -134,9 +153,10 @@ static inline <?=eqn.cons_t?> consFromPrim(
 		.B = WA.B,
 		.ETotal = W.rho * .5 * real3_dot(WA.v, WA.v)
 			+ WA.rho * real3_dot(W.v, WA.v)
-			+ real3_dot(W.B, WA.B) / solver->mu0
+			+ real3_dot(W.B, WA.B) / (solver->mu0 / unit_kg_m_per_C2)
 			+ W.P / (solver->heatCapacityRatio - 1.),
 		.psi = W.psi,
+		.ePot = W.ePot,
 	};
 }
 
@@ -155,18 +175,20 @@ static inline <?=eqn.cons_t?> consFromPrim(
 		.P = (solver->heatCapacityRatio - 1.) *  (
 			.5 * U.rho * real3_dot(WA.v, WA.v)
 			- real3_dot(U.m, WA.v)
-			- real3_dot(U.B, WA.B) / solver->mu0
+			- real3_dot(U.B, WA.B) / (solver->mu0 / unit_kg_m_per_C2)
 			+ U.ETotal),
 		.psi = U.psi,
+		.ePot = U.ePot,
 	};
 }
 ]], {
-	solver = self.solver,
-	eqn = self,
-})
+		solver = self.solver,
+		eqn = self,
+	})
 end
 
-GLM_MHD.initStateCode = [[
+MHD.initStateCode = [[
+<? local xNames = require 'common'.xNames ?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
@@ -174,22 +196,31 @@ kernel void initState(
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	bool lhs = x.x < mids.x
-#if dim > 1
-		&& x.y < mids.y
-#endif
-#if dim > 2
-		&& x.z < mids.z
-#endif
-	;
+	bool lhs = true
+<?
+for i=1,solver.dim do
+	local xi = xNames[i]
+?>	&& x.<?=xi?> < mids.<?=xi?>
+<?
+end
+?>;
+
 	real rho = 0;
 	real3 v = real3_zero;
 	real P = 0;
 	real3 B = real3_zero;
+	real ePot = 0;
 
 	<?=code?>
 	
-	<?=eqn.prim_t?> W = {.rho=rho, .v=v, .P=P, .B=B, .psi=0};
+	<?=eqn.prim_t?> W = {
+		.rho = rho,
+		.v = cartesianToCoord(v, x),
+		.P = P,
+		.B = cartesianToCoord(B, x),
+		.psi = 0,
+		.ePot = ePot,
+	};
 	UBuf[index] = consFromPrim(solver, W, x);
 }
 
@@ -213,13 +244,22 @@ end
 }
 ]]
 
-GLM_MHD.solverCodeFile = 'eqn/glm-mhd.cl'
+MHD.solverCodeFile = 'eqn/glm-mhd.cl'
 
-GLM_MHD.displayVarCodeUsesPrims = true
+MHD.displayVarCodeUsesPrims = true
 
-function GLM_MHD:getDisplayVars()
-	return GLM_MHD.super.getDisplayVars(self):append{
-		{name='v', code='*value_real3 = W.v;', type='real3'},
+MHD.predefinedDisplayVars = {
+	'U rho',
+	'U m mag',
+	'U ETotal',
+	'U B mag',
+	'U div B',
+	'U psi',
+}
+
+function MHD:getDisplayVars()
+	return MHD.super.getDisplayVars(self):append{
+		{name='v', code='*value_real3 = W.v;', type='real3', units='m/s'},
 		{name='div B', code=template([[
 	*value = .5 * (0.
 <? 
@@ -230,24 +270,23 @@ for j=0,solver.dim-1 do
 <? 
 end 
 ?>	);
-]], {solver=self.solver, field='B'})},
-		{name='P', code='*value = W.P;'},
-		--{name='PMag', code='*value = calc_PMag(W);'},
-		--{name='PTotal', code='*value = W.P + calc_PMag(W);'},
+]], {solver=self.solver, field='B'}), units='kg/(C*m*s)'},
+		{name='P', code='*value = W.P;', units='kg/(m*s^2)'},
+		--{name='PMag', code='*value = calc_PMag(solver, W, x);'},
+		--{name='PTotal', code='*value = W.P + calc_PMag(solver, W, x);'},
 		--{name='eInt', code='*value = calc_eInt(solver, W);'},
 		{name='EInt', code='*value = calc_EInt(solver, W);'},
-		--{name='eKin', code='*value = calc_eKin(W);'},
-		{name='EKin', code='*value = calc_EKin(W);'},
-		--{name='eHydro', code='*value = calc_eHydro(solver, W);'},
-		{name='EHydro', code='*value = calc_EHydro(solver, W);'},
-		--{name='eMag', code='*value = calc_eMag(W);'},
-		{name='EMag', code='*value = calc_EMag(W);'},
+		--{name='eKin', code='*value = calc_eKin(W, x);'},
+		{name='EKin', code='*value = calc_EKin(W, x);'},
+		--{name='eHydro', code='*value = calc_eHydro(solver, W, x);'},
+		{name='EHydro', code='*value = calc_EHydro(solver, W, x);'},
+		{name='EM energy', code='*value = calc_EM_energy(solver, W, x);'},
 		--{name='eTotal', code='*value = U->ETotal / W.rho;'},
 		{name='S', code='*value = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
 		{name='H', code='*value = calc_H(solver, W.P);'},
 		--{name='h', code='*value = calc_H(solver, W.P) / W.rho;'},
-		--{name='HTotal', code='*value = calc_HTotal(W, U->ETotal);'},
-		--{name='hTotal', code='*value = calc_hTotal(W, U->ETotal);'},
+		--{name='HTotal', code='*value = calc_HTotal(solver, W, U->ETotal, x);'},
+		--{name='hTotal', code='*value = calc_hTotal(solver, W, U->ETotal, x);'},
 		--{name='Cs', code='*value = calc_Cs(solver, W); },
 		{name='primitive reconstruction error', code=template([[
 		//prim have just been reconstructed from cons
@@ -266,7 +305,7 @@ end
 
 -- these are calculated based on cell-centered (or extrapolated) conserved vars
 -- they are used to calculate the eigensystem at a cell center or edge 
-GLM_MHD.roeVars = table{
+MHD.roeVars = table{
 	{name='rho', type='real'},
 	{name='v', type='real3'},
 	{name='hTotal', type='real'},
@@ -277,7 +316,7 @@ GLM_MHD.roeVars = table{
 
 
 -- here's the variables that an eigensystem uses to compute a left, right, or flux transform 
-GLM_MHD.eigenVars = table(GLM_MHD.roeVars):append{
+MHD.eigenVars = table(MHD.roeVars):append{
 
 	{name='hHydro', type='real'},
 	{name='aTildeSq', type='real'},
@@ -285,7 +324,7 @@ GLM_MHD.eigenVars = table(GLM_MHD.roeVars):append{
 	{name='Cs', type='real'},
 	{name='CAx', type='real'},
 	{name='Cf', type='real'},
-}:append(GLM_MHD.useFixedCh and {} or {
+}:append(MHD.useFixedCh and {} or {
 	{name='Ch', type='real'},
 }):append{
 	{name='BStarPerpLen', type='real'},
@@ -307,14 +346,14 @@ GLM_MHD.eigenVars = table(GLM_MHD.roeVars):append{
 }
 
 
-function GLM_MHD:getEigenTypeCode()
+function MHD:getEigenTypeCode()
 	return table{
 		makestruct.makeStruct('Roe_t', self.roeVars),
-		GLM_MHD.super.getEigenTypeCode(self),
+		MHD.super.getEigenTypeCode(self),
 	}:concat'\n'
 end
 
-function GLM_MHD:eigenWaveCode(side, eig, x, waveIndex)
+function MHD:eigenWaveCode(side, eig, x, waveIndex)
 	eig = '('..eig..')'
 	return ({
 		eig..'.v.x - '..eig..'.Cf',
@@ -328,14 +367,10 @@ function GLM_MHD:eigenWaveCode(side, eig, x, waveIndex)
 		--#warning there's a few PLM routines that expect eigenvalues to be ordered ... so replace them with a eigen_calcMinMaxWaves
 		self.useFixedCh and '-Ch' or '-'..eig..'.Ch',
 		self.useFixedCh and 'Ch' or eig..'.Ch',
-	})[waveIndex+1]
+	})[waveIndex+1] or error("got a bad waveIndex")
 end
 
--- this is all temporary fix until I properly code the inlining
-
-GLM_MHD.hasCalcDTCode = true
-
-function GLM_MHD:consWaveCodePrefix(side, U, x)
+function MHD:consWaveCodePrefix(side, U, x)
 	return template([[
 	range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(solver, &<?=U?>, <?=x?>); 
 ]], {
@@ -345,12 +380,12 @@ function GLM_MHD:consWaveCodePrefix(side, U, x)
 	})
 end
 
-function GLM_MHD:consMinWaveCode(side, U, x)
+function MHD:consMinWaveCode(side, U, x)
 	return 'lambda.min'
 end
 
-function GLM_MHD:consMaxWaveCode(side, U, x)
+function MHD:consMaxWaveCode(side, U, x)
 	return 'lambda.max'
 end
 
-return GLM_MHD
+return MHD
