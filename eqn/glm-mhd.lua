@@ -4,6 +4,7 @@ local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
 local makestruct = require 'eqn.makestruct'
+local constants = require 'constants'
 local Equation = require 'eqn.eqn'
 
 local MHD = class(Equation)
@@ -36,7 +37,7 @@ MHD.hasEigenCode = true
 MHD.hasFluxFromConsCode = true
 MHD.roeUseFluxFromCons = true
 MHD.useSourceTerm = true
-MHD.useConstrianU = true
+MHD.useConstrainU = true
 
 MHD.useFixedCh = false	-- true = use a gui var, false = calculate by max(|v_i|+Cf)
 
@@ -60,7 +61,13 @@ B^2 / mu = kg^2/(C^2 s^2) * C^2/(kg*m) = kg/(m s^2)
 --]]
 MHD.guiVars = {
 	{name='heatCapacityRatio', value=2},	-- 5/3 for most problems, but 2 for Brio-Wu, so I will just set it here for now (in case something else is reading it before it is set there)
-	{name='mu0', value=1, units='(kg*m)/C^2'},
+	
+	-- works good as mu0 = 1
+	-- solver->mu0 / unit_kg_m_per_C2 == 1
+	-- solver->mu0 / (unit_kg * unit_m / (unit_C * unit_C)) == 1
+	-- unit_C = sqrt((unit_kg * unit_m) / solver->mu0);
+	{name='mu0', value=constants.vacuumPermeability_in_kg_m_per_C2, units='(kg*m)/C^2'},
+	
 	{name='Cp', value=1, compileTime=true},
 }
 
@@ -243,6 +250,15 @@ end
 ?>	);
 }
 ]]
+
+function MHD:getInitStateCode()
+
+	-- where do I put this to make it the default value for MHD solvers,
+	-- but not override a value set by the init state?
+	self.guiVars.coulomb.value = math.sqrt(self.guiVars.kilogram.value * self.guiVars.meter.value / self.guiVars.mu0.value)
+
+	return MHD.super.getInitStateCode(self)
+end
 
 MHD.solverCodeFile = 'eqn/glm-mhd.cl'
 

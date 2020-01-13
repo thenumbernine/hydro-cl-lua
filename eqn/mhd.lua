@@ -39,6 +39,7 @@ MHD.roeUseFluxFromCons = true
 
 -- for connections
 MHD.useSourceTerm = true
+MHD.useConstrainU = true
 
 -- hmm, we want init.euler and init.mhd here ...
 MHD.initStates = require 'init.euler'

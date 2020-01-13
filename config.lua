@@ -531,7 +531,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 
 -- this runs, but of course it's missing a few waves ...
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
@@ -542,7 +542,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='mhd'})))
 -- TODO FIXME
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-mhd'})))
 
