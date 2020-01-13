@@ -137,18 +137,23 @@ end
 
 function TwoFluidEMHD:createInitState()
 	TwoFluidEMHD.super.createInitState(self)
-	
-	local speedOfLight = 1	--require 'constants'.speedOfLight_in_m_per_s -- m/s
-	local CoulombConstant = 1	--require 'constants'.CoulombConstant_in_kg_m3_per_C2_s2  -- (kg m^3)/(C^2 s)
 
-	--[[
-	local vacuumPermittivity = 1 / (4 * math.pi * CoulombConstant)	-- (C^2 s^2)/(kg m^3)
-	local vacuumPermittivityTimesSpeedOfLightSquared = speedOfLight * speedOfLight * vacuumPermittivity	-- C^2/(kg m)
-	local vacuumPermeability = 1 / vacuumPermittivityTimesSpeedOfLightSquared	-- (kg m)/C^2
+	--[[ using the 'units' parameters
+	local constants = require 'constants'
+	local speedOfLight = constants.speedOfLight_in_m_per_s
+	local vacuumPermeability = constants.vacuumPermeability_in_kg_m_per_C2
+	local vacuumPermittivity = constants.vacuumPermittivity_in_C2_s2_per_kg_m3
+	local ionMass = constants.protonMass_in_kg
+	local ionElectronMassRatio = ionMass / constants.electronMass_in_kg
+	local ionChargeMassRatio = constants.protonCharge_in_C / ionMass
 	--]]
-	-- [[
+	-- [[ using paper values
+	local speedOfLight = 1
 	local vacuumPermittivity = 1
 	local vacuumPermeability = 1
+	local ionMass = 1
+	local ionElectronMassRatio = 100
+	local ionChargeMassRatio = 1
 	--]]
 	
 	self:addGuiVars(table{
@@ -165,31 +170,20 @@ function TwoFluidEMHD:createInitState()
 		-- so number of ions per m^3 = ion_rho / ionMass
 		-- and number of electrons per m^3 = elec_rho / elecMass = elec_rho / (ionMass / ionElectronMassRatio)
 		-- but where do we use number density?
-		{name='ionMass', value=1, units='kg'},
+		{name='ionMass', value=ionMass, units='kg'},
 	
 		-- c = speed of light
 		{name='speedOfLight', value=speedOfLight, units='m/s'},
 		
-		-- m = m_i / m_e
-		-- https://en.wikipedia.org/wiki/Proton-to-electron_mass_ratio
-		-- m_i / m_e = 1836.15267389
-		{name='ionElectronMassRatio', value=100},
+		-- m = m_i / m_e ~= 1836.15267389
+		{name='ionElectronMassRatio', value=ionElectronMassRatio},
 		
 		-- r_i = q_i / m_i
-		{name='ionChargeMassRatio', value=1, units='C/kg'},
+		{name='ionChargeMassRatio', value=ionChargeMassRatio, units='C/kg'},
 
-		-- hmm ...
-		--{name='sqrt_mu', value=math.sqrt(vacuumPermittivity), units='(kg m)^.5/C'},
-		--{name='sqrt_eps', value=math.sqrt(vacuumPermeability), units='(C*s)/(kg*m^3)^.5'},
-		{name='sqrt_mu', value=1, units='(kg*m)^.5/C'},
-		{name='sqrt_eps', value=1, units='(C*s)/(kg*m^3)^.5'},
+		{name='sqrt_mu', value=math.sqrt(vacuumPermittivity), units='(kg m)^.5/C'},
+		{name='sqrt_eps', value=math.sqrt(vacuumPermeability), units='(C*s)/(kg*m^3)^.5'},
 	
-		-- lambda_d = ion Debye length
-		-- lambda_d = sqrt(epsilon (v_i^T)^2 m_i / n_0 q_i^2)
-		-- the 2014 Abgrall, Kumar model uses vacuum permittivity, whereas Wiki says material permittivity works
-		{name='ionDebyeLength', value=1},
-		-- normalized ion Debye length: 
-		-- lambdaHat_d = lambda_d / l_r
 	}:append(fluids:map(function(fluid)
 		return table{
 			{name='min_'..fluid..'_rho', value=1e-4},
