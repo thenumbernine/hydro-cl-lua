@@ -150,8 +150,8 @@ Roe_t calcRoeValues(
 
 
 	//used for eigenvectors and eigenvalues
-<? 	for _,kv in ipairs(eqn.roeVars) do
-		local name = next(kv) 
+<? 	for _,var in ipairs(eqn.roeVars) do
+		local name = var.name
 ?>	eig.<?=name?> = roe.<?=name?>;
 <?	end
 ?>
@@ -353,8 +353,9 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
 
-<? for _,kv in ipairs(eqn.eigenVars) do
-	local name, ctype = next(kv)
+<? for _,var in ipairs(eqn.eigenVars) do
+	local name = var.name
+	local ctype = var.type
 ?> 	<?=ctype?> <?=name?> = eig.<?=name?>;
 <? end ?>
 
@@ -463,8 +464,9 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
 
-<? for _,kv in ipairs(eqn.eigenVars) do
-	local name, ctype = next(kv)
+<? for _,var in ipairs(eqn.eigenVars) do
+	local name = var.name
+	local ctype = var.type
 ?> 	<?=ctype?> <?=name?> = eig.<?=name?>;
 <? end ?>
 
@@ -571,8 +573,9 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	const real gamma_2 = gamma - 2.;
 	const real gamma_3 = gamma - 3.;
 
-<? for _,kv in ipairs(eqn.eigenVars) do
-	local name, ctype = next(kv)
+<? for _,var in ipairs(eqn.eigenVars) do
+	local name = var.name
+	local ctype = var.type
 ?> 	<?=ctype?> <?=name?> = eig.<?=name?>;
 <? end ?>
 
