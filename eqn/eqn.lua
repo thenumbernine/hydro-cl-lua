@@ -270,10 +270,10 @@ Equation.displayVarCodeUsesPrims = false
 function Equation:getDisplayVarCodePrefix()
 	return template([[
 	const global <?=eqn.cons_t?>* U = buf + index;
-<? if eqn.displayVarCodeUsesPrims then ?>
-	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
-<? end ?>
-]], {
+<? if eqn.displayVarCodeUsesPrims then 
+?>	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+<? end 
+?>]], {
 		eqn = self,
 	})
 end

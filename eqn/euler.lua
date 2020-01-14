@@ -42,7 +42,6 @@ function Euler:init(args)
 		self.gravOp = SelfGrav{solver = self.solver}
 		self.solver.ops:insert(self.gravOp)
 	end
-
 end
 
 -- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter

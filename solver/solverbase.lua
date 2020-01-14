@@ -24,6 +24,14 @@ local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
 
+local function addTab(s)
+	s = tostring(s)
+	if s:sub(1,1) ~= '\t' then s = '\t' .. s end
+	if s:sub(-1) ~= '\n' then s = s .. '\n' end
+	return s
+end
+
+
 local integrators = require 'int.all'
 local integratorNames = integrators:map(function(integrator) return integrator.name end)
 
@@ -616,67 +624,85 @@ function SolverBase:getDisplayCode()
 	--if self.app.targetSystem == 'console' then return '' end
 	local texVsBufInfo = {
 		Tex = {
-			outputArg = function(var)
+			outputArg = 
 				-- nvidia needed this, but I don't want to write only -- I want to accumulate and do other operations
-				return 'write_only '..
+				'write_only '
 				-- if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
-				(self.dim == 3
+				..(self.dim == 3
 					and 'image3d_t'
 					or 'image2d_t'
-				)..' tex'
-			end,
-			output = function(var)
-				return template([[
-<? if accumFunc then 
-?>	float4 texel = read_imagef(tex, <?= solver.dim == 3 and 'i' or 'i.xy'?>);
-	texel.x = <?=accumFunc?>(texel.x, value.ptr[0]);
-	if (vectorField) {
-		texel.y = <?=accumFunc?>(texel.y, value.ptr[1]);
-		texel.z = <?=accumFunc?>(texel.z, value.ptr[2]);
-	}
-	write_imagef(tex, <?= solver.dim == 3 and 'i' or 'i.xy'?>, texel);
-<? else 
-?>
-	write_imagef(tex, <?= solver.dim == 3 and 'i' or 'i.xy'?>, (float4)(value.ptr[0], value.ptr[1], value.ptr[2], 0.));
-<? end 
-?>]], 			{
-					solver = self,
-					accumFunc = self.displayVarAccumFunc and 'max' or nil,
-				})
-			end,
+				)..' tex',
+			output = 'END_DISPLAYFUNC_TEX()',
 		},
 		Buffer = {
-			outputArg = function(var) 
-				return 'global real* dest' 
-			end,
-			output = function(var)
-				local accumFunc = self.displayVarAccumFunc and 'max' or nil
-				if accumFunc then
-					return template([[
-	if (vectorField) {	
-		dest[0+3*dstindex] = <?=accumFunc?>(value.ptr[0], dest[0+3*dstindex]);
-		dest[1+3*dstindex] = <?=accumFunc?>(value.ptr[1], dest[1+3*dstindex]);
-		dest[2+3*dstindex] = <?=accumFunc?>(value.ptr[2], dest[2+3*dstindex]);
-	} else {
-		dest[dstindex] = <?=accumFunc?>(value.ptr[0], dest[dstindex]);
-	}
-]], 				{
-						accumFunc = accumFunc,
-					})
-				else
-					return template([[
-	if (vectorField) {	
-		((global real3*)dest)[dstindex] = value.vreal3;
-	} else {
-		dest[dstindex] = value.vreal;
-	}
-]])			
-				end
-			end,
+			outputArg = 'global real* dest',
+			output = 'END_DISPLAYFUNC_BUFFER()',
 		},
 	}
 	
 	local lines = table()
+
+	lines:insert(template([[
+#define INIT_DISPLAYFUNC()\
+	SETBOUNDS(0,0);\
+<? if not require 'solver.meshsolver'.is(solver) then 
+?>	int4 dsti = i;\
+	int dstindex = index;\
+	real3 x = cell_x(i);\
+<? for j=0,solver.dim-1 do 
+?>	i.s<?=j?> = clamp(i.s<?=j?>, numGhost, solver->gridSize.s<?=j?> - numGhost - 1);\
+<? end
+?>	index = INDEXV(i);\
+<? else	-- mesh 
+?>	int dstindex = index;\
+	real3 x = cells[index].x;\
+<? end 		-- mesh vs grid 
+?>	displayValue_t value = {.ptr={0,0,0,0,0,0,0,0,0}};
+]], {
+		solver = self,
+	}))
+
+	local accumFunc = self.displayVarAccumFunc and 'max' or nil
+	if accumFunc then
+		lines:insert(template([[
+#define END_DISPLAYFUNC_TEX()\
+	float4 texel = read_imagef(tex, <?= solver.dim == 3 and 'i' or 'i.xy'?>);\
+	texel.x = <?=accumFunc?>(texel.x, value.ptr[0]);\
+	if (vectorField) {\
+		texel.y = <?=accumFunc?>(texel.y, value.ptr[1]);\
+		texel.z = <?=accumFunc?>(texel.z, value.ptr[2]);\
+	}\
+	write_imagef(tex, <?= solver.dim == 3 and 'i' or 'i.xy'?>, texel);
+
+#define END_DISPLAYFUNC_BUFFER()\
+	if (vectorField) {\
+		dest[0+3*dstindex] = <?=accumFunc?>(value.ptr[0], dest[0+3*dstindex]);\
+		dest[1+3*dstindex] = <?=accumFunc?>(value.ptr[1], dest[1+3*dstindex]);\
+		dest[2+3*dstindex] = <?=accumFunc?>(value.ptr[2], dest[2+3*dstindex]);\
+	} else {\
+		dest[dstindex] = <?=accumFunc?>(value.ptr[0], dest[dstindex]);\
+	}
+
+]],		{
+			solver = self,
+		}))
+	else
+		lines:insert(template([[
+#define END_DISPLAYFUNC_TEX()\
+	write_imagef(tex, <?= solver.dim == 3 and 'i' or 'i.xy'?>, (float4)(value.ptr[0], value.ptr[1], value.ptr[2], 0.));
+
+#define END_DISPLAYFUNC_BUFFER()\
+	if (vectorField) {\
+		((global real3*)dest)[dstindex] = value.vreal3;\
+	} else {\
+		dest[dstindex] = value.vreal;\
+	}
+
+]], 	{
+			solver = self,
+		}))
+	end
+
 
 	local alreadyAddedComponentForGroup = {}
 	local function addPickComponetForGroup(var)
@@ -700,7 +726,7 @@ for i,component in ipairs(solver.displayComponentFlatList) do
 	then
 ?>	case <?=i?>:	//<?=component.type or 'real'?> <?=component.name?>
 		{
-<?=component.code?>
+			<?=component.code?>
 			*vectorField = <?= solver:isVarTypeAVectorField(component.type) and '1' or '0' ?>;
 			break;
 		}
@@ -736,12 +762,13 @@ end
 				solver = self,
 				var = tempvar,
 				name = 'calcDisplayVarTo'..texVsBuf..'_Simple_'..ctype,
-				outputArg = texVsBufInfo[texVsBuf].outputArg(var),
-				output = texVsBufInfo[texVsBuf].output(var),
+				outputArg = texVsBufInfo[texVsBuf].outputArg,
+				output = texVsBufInfo[texVsBuf].output,
 				extraArgs = {
 					'int structSize',
 					'int structOffset',
 				},
+				addTab = addTab,
 			}))
 		end
 	end
@@ -776,13 +803,14 @@ void <?=clFuncName?>(
 		or ''
 ?>
 ) {
-<?=var.codePrefix or ''?>
-<?=var.code?>
-}
+<?=addTab(var.codePrefix or '')
+?><?=addTab(var.code)
+?>}
 ]], 				{
 						solver = self,
 						var = var,
 						clFuncName = clFuncName,
+						addTab = addTab,
 					}))
 				
 					var.code = template([[
@@ -802,10 +830,11 @@ void <?=clFuncName?>(
 					-- or better yet TODO somewhere earlier, maybe before the 'prefix func' stuff,
 					-- prepend 'var.codePrefix' onto 'var.code'
 					var.code = template([[
-<?=var.codePrefix or ''?>
-<?=var.code?>
-]],					{
+<?=addTab(var.codePrefix or '')
+?><?=addTab(var.code)
+?>]],					{
 						var = var,
+						addTab = addTab,
 					})
 				end
 
@@ -821,8 +850,9 @@ void <?=clFuncName?>(
 								solver = self,
 								var = var,
 								name = var.toTexKernelName,
-								outputArg = texVsBufInfo.Tex.outputArg(var),
-								output = texVsBufInfo.Tex.output(var),
+								outputArg = texVsBufInfo.Tex.outputArg,
+								output = texVsBufInfo.Tex.output,
+								addTab = addTab,
 							})
 						)
 					end
@@ -839,8 +869,9 @@ void <?=clFuncName?>(
 							solver = self,
 							var = var,
 							name = var.toBufferKernelName,
-							outputArg = texVsBufInfo.Buffer.outputArg(var),
-							output = texVsBufInfo.Buffer.output(var),
+							outputArg = texVsBufInfo.Buffer.outputArg,
+							output = texVsBufInfo.Buffer.output,
+							addTab = addTab,
 						})
 					)
 				end
@@ -1062,26 +1093,13 @@ end ?><?= var.extraArgs and #var.extraArgs > 0
 		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
 		or '' ?>
 ) {
-	SETBOUNDS(0,0);
-<? if not require 'solver.meshsolver'.is(solver) then 
-?>	int4 dsti = i;
-	int dstindex = index;
-	real3 x = cell_x(i);
-<? for j=0,solver.dim-1 do 
-?>	i.s<?=j?> = clamp(i.s<?=j?>, numGhost, solver->gridSize.s<?=j?> - numGhost - 1);
-<? end
-?>	index = INDEXV(i);
-<? else	-- mesh 
-?>	int dstindex = index;
-	real3 x = cells[index].x;
-<? end 		-- mesh vs grid 
-?>	
-	displayValue_t value = {.ptr={0,0,0,0,0,0,0,0,0}};
-<?=var.code?>
-	int vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
+	INIT_DISPLAYFUNC()
+<?=addTab(var.code)
+?>	int vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
 	<?=solver:getPickComponentNameForGroup(var)?>(solver, buf, component, &vectorField, &value, i);
-<?=output
-?>}
+	<?=output	-- either END_DISPLAYFUNC_TEX() or _BUFFER()
+?>
+}
 ]]
 
 function DisplayVar:init(args)
