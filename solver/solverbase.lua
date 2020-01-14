@@ -622,23 +622,6 @@ end
 
 function SolverBase:getDisplayCode()
 	--if self.app.targetSystem == 'console' then return '' end
-	local texVsBufInfo = {
-		Tex = {
-			outputArg = 
-				-- nvidia needed this, but I don't want to write only -- I want to accumulate and do other operations
-				'write_only '
-				-- if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
-				..(self.dim == 3
-					and 'image3d_t'
-					or 'image2d_t'
-				)..' tex',
-			output = 'END_DISPLAYFUNC_TEX()',
-		},
-		Buffer = {
-			outputArg = 'global real* dest',
-			output = 'END_DISPLAYFUNC_BUFFER()',
-		},
-	}
 	
 	local lines = table()
 
@@ -658,6 +641,14 @@ function SolverBase:getDisplayCode()
 	real3 x = cells[index].x;\
 <? end 		-- mesh vs grid 
 ?>	displayValue_t value = {.ptr={0,0,0,0,0,0,0,0,0}};
+
+<?-- nvidia needed 'write_only', but I don't want to write only -- I want to accumulate and do other operations 
+-- TODO if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
+?>
+#define DISPLAYFUNC_OUTPUTARGS_TEX() write_only <?=
+	solver.dim == 3 and 'image3d_t' or 'image2d_t'?> tex
+
+#define DISPLAYFUNC_OUTPUTARGS_BUFFER() global real* dest
 ]], {
 		solver = self,
 	}))
@@ -762,8 +753,7 @@ end
 				solver = self,
 				var = tempvar,
 				name = 'calcDisplayVarTo'..texVsBuf..'_Simple_'..ctype,
-				outputArg = texVsBufInfo[texVsBuf].outputArg,
-				output = texVsBufInfo[texVsBuf].output,
+				texVsBuf = texVsBuf,
 				extraArgs = {
 					'int structSize',
 					'int structOffset',
@@ -782,7 +772,7 @@ end
 				end
 				var.toBufferKernelName = assert(var.originalVar.toBufferKernelName)
 			else
-				lines:insert('//'..var.name..'\n')
+				lines:insert('//'..var.name)
 
 				addPickComponetForGroup(var)
 
@@ -850,8 +840,7 @@ void <?=clFuncName?>(
 								solver = self,
 								var = var,
 								name = var.toTexKernelName,
-								outputArg = texVsBufInfo.Tex.outputArg,
-								output = texVsBufInfo.Tex.output,
+								texVsBuf = 'Tex',
 								addTab = addTab,
 							})
 						)
@@ -869,8 +858,7 @@ void <?=clFuncName?>(
 							solver = self,
 							var = var,
 							name = var.toBufferKernelName,
-							outputArg = texVsBufInfo.Buffer.outputArg,
-							output = texVsBufInfo.Buffer.output,
+							texVsBuf = 'Buffer',
 							addTab = addTab,
 						})
 					)
@@ -1083,7 +1071,7 @@ the only reason I can think of is for good subtexel lookup when rendering
 DisplayVar.displayCode = [[
 kernel void <?=name?>(
 	constant <?=solver.solver_t?>* solver,
-	<?=outputArg?>,
+	DISPLAYFUNC_OUTPUTARGS_<?=texVsBuf:upper()?>(),
 	global const <?=var.bufferType?>* buf,
 	int component<?
 if require 'solver.meshsolver'.is(solver) then ?>
@@ -1097,8 +1085,7 @@ end ?><?= var.extraArgs and #var.extraArgs > 0
 <?=addTab(var.code)
 ?>	int vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
 	<?=solver:getPickComponentNameForGroup(var)?>(solver, buf, component, &vectorField, &value, i);
-	<?=output	-- either END_DISPLAYFUNC_TEX() or _BUFFER()
-?>
+	END_DISPLAYFUNC_<?=texVsBuf:upper()?>()
 }
 ]]
 
