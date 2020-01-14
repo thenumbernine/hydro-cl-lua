@@ -291,25 +291,25 @@ end
 function NavierStokesWilcox:getDisplayVars()
 	local vars = NavierStokesWilcox.super.getDisplayVars(self)
 	vars:append{
-		{name='vTilde', code='*value_real3 = W.vTilde;', type='real3'},
-		{name='PStar', code='*value = W.PStar;'},
-		{name='eIntTilde', code='*value = calc_eIntTilde(W);'},
-		{name='eKinTilde', code='*value = calc_eKinTilde(W, x);'},
-		{name='eTotalTilde', code='*value = U->rhoBar_eTotalTilde / W.rhoBar;'},
-		{name='EIntTilde', code='*value = calc_EIntTilde(W);'},
-		{name='EKinTilde', code='*value = calc_EKinTilde(W, x);'},
-		{name='EPot', code='*value = U->rhoBar * U->ePot;'},
-		{name='S', code='*value = W.PStar / pow(W.rhoBar, R_over_C_v + 1. );'},
-		--{name='H', code='*value = calc_H(W.PStar);'},
-		--{name='h', code='*value = calc_h(W.rhoBar, W.PStar);'},
-		--{name='HTotal', code='*value = calc_HTotal(W.PStar, U->rhoBar_eTotalTilde);'},
-		--{name='hTotal', code='*value = calc_hTotal(W.rhoBar, W.PStar, U->rhoBar_eTotalTilde);'},
-		{name='Speed of Sound', code='*value = calc_Cs(W);'},
-		--{name='Mach number', code='*value = coordLen(W.vTilde, x) / calc_Cs(W);'},
+		{name='vTilde', code='value.vreal3 = W.vTilde;', type='real3'},
+		{name='PStar', code='value.vreal = W.PStar;'},
+		{name='eIntTilde', code='value.vreal = calc_eIntTilde(W);'},
+		{name='eKinTilde', code='value.vreal = calc_eKinTilde(W, x);'},
+		{name='eTotalTilde', code='value.vreal = U->rhoBar_eTotalTilde / W.rhoBar;'},
+		{name='EIntTilde', code='value.vreal = calc_EIntTilde(W);'},
+		{name='EKinTilde', code='value.vreal = calc_EKinTilde(W, x);'},
+		{name='EPot', code='value.vreal = U->rhoBar * U->ePot;'},
+		{name='S', code='value.vreal = W.PStar / pow(W.rhoBar, R_over_C_v + 1. );'},
+		--{name='H', code='value.vreal = calc_H(W.PStar);'},
+		--{name='h', code='value.vreal = calc_h(W.rhoBar, W.PStar);'},
+		--{name='HTotal', code='value.vreal = calc_HTotal(W.PStar, U->rhoBar_eTotalTilde);'},
+		--{name='hTotal', code='value.vreal = calc_hTotal(W.rhoBar, W.PStar, U->rhoBar_eTotalTilde);'},
+		{name='Speed of Sound', code='value.vreal = calc_Cs(W);'},
+		--{name='Mach number', code='value.vreal = coordLen(W.vTilde, x) / calc_Cs(W);'},
 	}:append{self.gravOp and
 		{name='gravity', code=template([[
 	if (OOB(1,1)) {
-		*value = 0.;
+		value.vreal = 0.;
 	} else {
 		<? 
 for side=0,solver.dim-1 do ?>{
@@ -324,7 +324,7 @@ for side=solver.dim,2 do ?>
 	}
 ]], {eqn=self, solver=self.solver}), type='real3'} or nil
 	}:append{
-		{name='temp', code='*value = calc_eIntTilde(W) / solver->C_v;'},
+		{name='temp', code='value.vreal = calc_eIntTilde(W) / solver->C_v;'},
 	}
 
 	-- vorticity = [,x ,y ,z] [vTilde.x, vTilde.y, vTilde.z][
@@ -332,7 +332,7 @@ for side=solver.dim,2 do ?>
 	
 	if not require 'solver.meshsolver'.is(self.solver) then
 		if self.solver.dim == 2 then
-			vars:insert(vorticity(self,2,'*value'))
+			vars:insert(vorticity(self,2,'value.vreal'))
 		elseif self.solver.dim == 3 then
 			local vTilde = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
 			vars:insert{name='vorticityVec', code=template([[

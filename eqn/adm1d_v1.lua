@@ -100,33 +100,33 @@ ADM_BonaMasso_1D_2008Alcubierre.solverCodeFile = 'eqn/adm1d_v1.cl'
 function ADM_BonaMasso_1D_2008Alcubierre:getDisplayVars()
 	return ADM_BonaMasso_1D_2008Alcubierre.super.getDisplayVars(self):append{
 		-- adm1d_v2 cons vars:
-		{name='d_xxx', code='*value = .5 * U->D_g * U->gamma_xx;'},
-		{name='K_xx', code='*value = U->KTilde * sqrt(U->gamma_xx);'},
+		{name='d_xxx', code='value.vreal = .5 * U->D_g * U->gamma_xx;'},
+		{name='K_xx', code='value.vreal = U->KTilde * sqrt(U->gamma_xx);'},
 		-- aux:
-		{name='dx_alpha', code='*value = U->alpha * U->a_x;'},
-		{name='dx_gamma_xx', code='*value = U->gamma_xx * U->D_g;'},
-		{name='volume', code='*value = U->alpha * sqrt(U->gamma_xx);'},
-		{name='f', code='*value = calc_f(U->alpha);'},
-		{name='df/dalpha', code='*value = calc_dalpha_f(U->alpha);'},
-		{name='K', code='*value = U->KTilde / sqrt(U->gamma_xx);'},
-		{name='expansion', code='*value = -U->KTilde / sqrt(U->gamma_xx);'},
-		{name='gravity mag', code='*value = -U->alpha * U->alpha * U->a_x / U->gamma_xx;'},
+		{name='dx_alpha', code='value.vreal = U->alpha * U->a_x;'},
+		{name='dx_gamma_xx', code='value.vreal = U->gamma_xx * U->D_g;'},
+		{name='volume', code='value.vreal = U->alpha * sqrt(U->gamma_xx);'},
+		{name='f', code='value.vreal = calc_f(U->alpha);'},
+		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
+		{name='K', code='value.vreal = U->KTilde / sqrt(U->gamma_xx);'},
+		{name='expansion', code='value.vreal = -U->KTilde / sqrt(U->gamma_xx);'},
+		{name='gravity mag', code='value.vreal = -U->alpha * U->alpha * U->a_x / U->gamma_xx;'},
 	
 		{name='alpha vs a_x', code=[[
 	if (OOB(1,1)) {
-		*value = 0.;
+		value.vreal = 0.;
 	} else {
 		real dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * solver->grid_dx.x);
-		*value = fabs(dx_alpha - U->alpha * U->a_x);
+		value.vreal = fabs(dx_alpha - U->alpha * U->a_x);
 	}
 ]]},
 
 		{name='gamma_xx vs D_g', code=[[
 	if (OOB(1,1)) {
-		*value = 0.;
+		value.vreal = 0.;
 	} else {
 		real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * solver->grid_dx.x);
-		*value = fabs(dx_gamma_xx - U->gamma_xx * U->D_g);
+		value.vreal = fabs(dx_gamma_xx - U->gamma_xx * U->D_g);
 	}
 ]]},
 	}

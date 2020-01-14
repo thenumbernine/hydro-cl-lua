@@ -219,15 +219,15 @@ GRMHD.displayVarCodeUsesPrims = true
 
 function GRMHD:getDisplayVars()
 	return GRMHD.super.getDisplayVars(self):append{
-		{name='W', code='*value = U->D / prim.rho;'},
+		{name='W', code='value.vreal = U->D / prim.rho;'},
 		{name='primitive reconstruction error', code=template([[
 			//prim have just been reconstructed from cons
 			//so reconstruct cons from prims again and calculate the difference
 			{
 				<?=eqn.cons_t?> U2 = consFromPrim(prim, x);
-				*value = 0;
+				value.vreal = 0;
 				for (int j = 0; j < numIntStates; ++j) {
-					*value += fabs(U->ptr[j] - U2.ptr[j]);
+					value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
 				}
 			}
 	]], {eqn=self})},

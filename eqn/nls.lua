@@ -84,7 +84,7 @@ NLSEqn.solverCodeFile = 'eqn/nls.cl'
 
 function NLSEqn:getDisplayVars()
 	return NLSEqn.super.getDisplayVars(self):append{
-		{name='norm', code='*value = sqrt(U->re*U->re + U->im*U->im);'},
+		{name='norm', code='value.vreal = sqrt(U->re*U->re + U->im*U->im);'},
 	}
 end
 

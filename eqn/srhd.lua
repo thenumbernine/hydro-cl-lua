@@ -296,34 +296,34 @@ end
 
 function SRHD:getDisplayVars()
 	local vars = table{
-		{name='W based on D', code='*value = U->D / U->rho;'},
-		{name='W based on v', code='*value = 1. / sqrt(1. - coordLenSq(U->v, x));'},
+		{name='W based on D', code='value.vreal = U->D / U->rho;'},
+		{name='W based on v', code='value.vreal = 1. / sqrt(1. - coordLenSq(U->v, x));'},
 		
-		{name='P', code='*value = calc_P(solver, U->rho, U->eInt);'},
-		{name='h', code='*value = calc_h(U->rho, calc_P(solver, U->rho, U->eInt), U->eInt);'},
+		{name='P', code='value.vreal = calc_P(solver, U->rho, U->eInt);'},
+		{name='h', code='value.vreal = calc_h(U->rho, calc_P(solver, U->rho, U->eInt), U->eInt);'},
 		
-		{name='ePot', code='*value = U->ePot;'},
+		{name='ePot', code='value.vreal = U->ePot;'},
 		
 		{name='primitive reconstruction error', code=template([[
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
 	{
 		<?=eqn.cons_only_t?> U2 = consOnlyFromPrim(solver, *U, x);
-		*value = 0;
+		value.vreal = 0;
 		for (int j = 0; j < numIntStates; ++j) {
-			*value += fabs(U->ptr[j] - U2.ptr[j]);
+			value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
 		}
 	}
 	]], {eqn=self})},
 		{name='W error', code=[[
 	real W1 = U->D / U->rho;
 	real W2 = 1. / sqrt(1. - coordLenSq(U->v, x));
-	*value = fabs(W1 - W2);
+	value.vreal = fabs(W1 - W2);
 ]]		},
 	}
 	
 	if self.solver.dim == 2 then
-		vars:insert(vorticity(self,2,'*value'))
+		vars:insert(vorticity(self,2,'value.vreal'))
 	elseif self.solver.dim == 3 then
 		local v = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
 		vars:insert{

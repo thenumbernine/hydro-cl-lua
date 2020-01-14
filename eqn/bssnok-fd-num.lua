@@ -594,18 +594,18 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	local env = self:getEnv()
 
 	vars:append{
-		{name='gamma_ll', code = [[	*value_sym3 = calc_gamma_ll(U, x);]], type='sym3'},
-		{name='gamma_uu', code=[[	*value_sym3 = calc_gamma_uu(U, x);]], type='sym3'},
-		{name='gammaHat_ll', code=[[	*value_sym3 = calc_gammaHat_ll(x);]], type='sym3'},
-		{name='gammaHat_uu', code=[[	*value_sym3 = calc_gammaHat_uu(x);]], type='sym3'},
-		{name='gammaBar_ll', code=[[	*value_sym3 = calc_gammaBar_ll(U, x);]], type='sym3'},
-		{name='gammaBar_uu', code=[[	*value_sym3 = calc_gammaBar_uu(U, x);]], type='sym3'},
-		{name='gammaBar_LL', code=[[	*value_sym3 = calc_gammaBar_LL(U, x);]], type='sym3'},
-		{name='gammaBar_UU', code=[[	*value_sym3 = calc_gammaBar_UU(U, x);]], type='sym3'},
+		{name='gamma_ll', code = [[	value.vsym3 = calc_gamma_ll(U, x);]], type='sym3'},
+		{name='gamma_uu', code=[[	value.vsym3 = calc_gamma_uu(U, x);]], type='sym3'},
+		{name='gammaHat_ll', code=[[	value.vsym3 = calc_gammaHat_ll(x);]], type='sym3'},
+		{name='gammaHat_uu', code=[[	value.vsym3 = calc_gammaHat_uu(x);]], type='sym3'},
+		{name='gammaBar_ll', code=[[	value.vsym3 = calc_gammaBar_ll(U, x);]], type='sym3'},
+		{name='gammaBar_uu', code=[[	value.vsym3 = calc_gammaBar_uu(U, x);]], type='sym3'},
+		{name='gammaBar_LL', code=[[	value.vsym3 = calc_gammaBar_LL(U, x);]], type='sym3'},
+		{name='gammaBar_UU', code=[[	value.vsym3 = calc_gammaBar_UU(U, x);]], type='sym3'},
 		{name='K_ll', code=[[
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	*value_sym3 = sym3_real_mul(
+	value.vsym3 = sym3_real_mul(
 		sym3_add(
 			sym3_rescaleToCoord_LL(U->ABar_LL, x),
 			sym3_real_mul(gammaBar_ll, U->K / 3.)
@@ -613,16 +613,16 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 ]], type='sym3'},
 
 		{name='det gammaBar - det gammaHat', code=[[
-	*value = sym3_det(calc_gammaBar_ll(U, x)) - calc_det_gammaBar(x);
+	value.vreal = sym3_det(calc_gammaBar_ll(U, x)) - calc_det_gammaBar(x);
 ]]},
 		{name='det gamma based on phi', code=[[
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	real exp_12phi = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 	real det_gamma = exp_12phi * calc_det_gammaHat(x);
-	*value = det_gamma;
+	value.vreal = det_gamma;
 ]]},
 		
-		{name='S', code='*value = sym3_dot(U->S_ll, calc_gamma_uu(U, x));'},
+		{name='S', code='value.vreal = sym3_dot(U->S_ll, calc_gamma_uu(U, x));'},
 		
 		{
 			name='volume', 
@@ -631,11 +631,11 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	real exp_12phi = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 	real det_gamma = exp_12phi * calc_det_gammaHat(x);
-	*value = U->alpha * det_gamma;
+	value.vreal = U->alpha * det_gamma;
 ]],
 		},
-		{name='f', code='*value = calc_f(U->alpha);'},
-		{name='df/dalpha', code='*value = calc_dalpha_f(U->alpha);'},
+		{name='f', code='value.vreal = calc_f(U->alpha);'},
+		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
 	
 		{
 			name = 'ABarSq_LL',
@@ -644,7 +644,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	sym3 gammaBar_UU = calc_gammaBar_UU(U, x);
 	real3x3 ABar_UL = sym3_sym3_mul(gammaBar_UU, U->ABar_LL);
 	sym3 ABarSq_LL = sym3_real3x3_to_sym3_mul(U->ABar_LL, ABar_UL);
-	*value_sym3 = ABarSq_LL;
+	value.vsym3 = ABarSq_LL;
 ]],
 		},
 		
@@ -696,7 +696,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 end
 ?>	;
 
-	*value = tr_DBar2_phi;
+	value.vreal = tr_DBar2_phi;
 ]], env)
 		},
 
@@ -741,7 +741,7 @@ end
 end
 ?>	
 
-	*value = sym3_dot(gammaBar_UU, DBar2_phi_LL);
+	value.vreal = sym3_dot(gammaBar_UU, DBar2_phi_LL);
 ]], env),
  		},
 --]=]
@@ -752,7 +752,7 @@ end
 			code = template([[
 <?=eqn:makePartial1'W'?>
 	real3 partial_phi_l = real3_real_mul(partial_W_l, -.5 / U->W);
-	*value_real3 = partial_phi_l;
+	value.vreal3 = partial_phi_l;
 ]], env),
 		},
 
@@ -761,7 +761,7 @@ end
 			type = 'real3',
 			code = template([[
 <?=eqn:makePartial1'alpha'?>
-	*value_real3 = partial_alpha_l;
+	value.vreal3 = partial_alpha_l;
 ]], env),
 		},
 
@@ -789,7 +789,7 @@ end
 <? end
 ?>
 
-	*value = sym3_dot(gammaBar_UU, DBar2_alpha_LL);
+	value.vreal = sym3_dot(gammaBar_UU, DBar2_alpha_LL);
 ]], env),
 		},
 	
@@ -876,7 +876,7 @@ end
 ?>
 	tracelessPart_LL = tracefree(tracelessPart_LL, gammaBar_LL, gammaBar_UU);
 
-	*value_sym3 = tracelessPart_LL; 
+	value.vsym3 = tracelessPart_LL; 
 ]], env),
 		},
 --]=]	
@@ -930,7 +930,7 @@ for i,xi in ipairs(xNames) do
 ?> + partial_beta_ul[<?=i-1?>].<?=xi?><?
 end ?>;
 
-	*value = -tr_partial_beta / U->alpha
+	value.vreal = -tr_partial_beta / U->alpha
 <? 
 for i,xi in ipairs(xNames) do
 ?>		+ U->beta_u.<?=xi?> * partial_alpha_l.<?=xi?> / (U->alpha * U->alpha) 
@@ -1135,7 +1135,7 @@ end ?>;
 		&Delta_ULL,
 		&Delta_LLL);
 
-	*value_sym3 = sym3_rescaleToCoord_LL(RBar_LL, x);
+	value.vsym3 = sym3_rescaleToCoord_LL(RBar_LL, x);
 ]], env),
 		}
 	end
@@ -1201,7 +1201,7 @@ end ?>;
 <? end
 ?>	};
 
-	*value_sym3 = RPhi_ll;
+	value.vsym3 = RPhi_ll;
 ]], env),
 	}
 
@@ -1242,7 +1242,7 @@ gammaBar^kl = inv(gammaBar_kl)
 		partial_epsilon_LLl, 
 		partial2_epsilon_LLll);
 
-	*value_sym3 = trBar_partial2_gammaBar_ll;
+	value.vsym3 = trBar_partial2_gammaBar_ll;
 ]], env),
 	}
 --]=]
@@ -1277,7 +1277,7 @@ for i,xi in ipairs(xNames) do
 end
 ?>
 	
-	*value_real3x3 = tr34_gamma_dGamma_ll;
+	value.vreal3x3 = tr34_gamma_dGamma_ll;
 ]], env),
 	}
 --]=]
@@ -1321,7 +1321,7 @@ for i,xi in ipairs(xNames) do
 <?	end
 end
 ?>
-	*value_real3x3 = tr14_Gamma_dgamma_ll;
+	value.vreal3x3 = tr14_Gamma_dgamma_ll;
 ]], env),
 	}
 --]=]
@@ -1348,7 +1348,7 @@ end
 	//Delta_ULL[I].JK := Delta^I_JK = connBar^I_JK + connHat^I_JK
 	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
 
-	*value_sym3 = Delta_ULL.<?=xi?>;
+	value.vsym3 = Delta_ULL.<?=xi?>;
 ]], table(env, {i=i, xi=xi})),
 		}
 	end
@@ -1391,7 +1391,7 @@ end
 	real3x3 ABar_UL = sym3_sym3_mul(gammaBar_UU, U->ABar_LL);
 	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);
 	real tr_ABarSq = sym3_dot(U->ABar_LL, ABar_UU);
-	*value = tr_ABarSq;
+	value.vreal = tr_ABarSq;
 ]], env),
 	}
 --]=]
@@ -1411,12 +1411,12 @@ end
 	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
 	sym3 DBar2_alpha_LL = sym3_sub(partial2_alpha_LL, real3_3sym3_dot1(partial_alpha_L, connBar_ULL));
 	real tr_DBar2_alpha = sym3_dot(gammaBar_UU, DBar2_alpha_LL);
-	*value = tr_DBar2_alpha;
+	value.vreal = tr_DBar2_alpha;
 ]], env),
 	}
 --]=]
 
-	vars:insert{name='x', type='real3', code='*value_real3=x;'}
+	vars:insert{name='x', type='real3', code='value.vreal3=x;'}
 
 	return vars
 end

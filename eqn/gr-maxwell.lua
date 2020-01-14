@@ -135,14 +135,14 @@ end
 function GRMaxwell:getDisplayVars()
 	local solver = self.solver
 	return GRMaxwell.super.getDisplayVars(self):append{ 
-		{name='E_u', code='*value_real3 = real3_real_mul(U->D, 1. / U->eps);', type='real3'},
+		{name='E_u', code='value.vreal3 = real3_real_mul(U->D, 1. / U->eps);', type='real3'},
 	
 		-- eps_ijk E^j B^k
-		{name='S_l', code='*value_real3 = real3_real_mul(real3_cross(U->D, U->B), 1. / U->eps);', type='real3'},
+		{name='S_l', code='value.vreal3 = real3_real_mul(real3_cross(U->D, U->B), 1. / U->eps);', type='real3'},
 		
 		{name='energy', code=template([[
 	<?=solver:getADMVarCode()?>
-	*value = .5 * (real3_weightedLenSq(U->D, gamma) + real3_lenSq(U->B, gamma) / (U->mu * U->mu));
+	value.vreal = .5 * (real3_weightedLenSq(U->D, gamma) + real3_lenSq(U->B, gamma) / (U->mu * U->mu));
 ]], {solver=solver})},
 
 	}
@@ -150,7 +150,7 @@ function GRMaxwell:getDisplayVars()
 	:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({D='D', B='B'})[var] )
 		return {name='div '..var, code=template([[
-	*value = .5 * (0.
+	value.vreal = .5 * (0.
 <?
 for j=0,solver.dim-1 do
 ?>		+ (U[solver->stepsize.s<?=j?>].<?=field?>.s<?=j?> 

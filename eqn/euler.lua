@@ -271,25 +271,25 @@ function Euler:getDisplayVars()
 	vars:append{
 		-- TODO should the default display generated of variables be in solver units or SI units?
 		-- should SI unit displays be auto generated as well?
-		{name='v', code='*value_real3 = W.v;', type='real3', units='m/s'},
-		{name='P', code='*value = W.P;', units='kg/(m*s^2)'},
-		{name='eInt', code='*value = calc_eInt(solver, W);', units='m^2/s^2'},
-		{name='eKin', code='*value = calc_eKin(W, x);', units='m^2/s^2'},
-		{name='eTotal', code='*value = U->ETotal / W.rho;', units='m^2/s^2'},
-		{name='EInt', code='*value = calc_EInt(solver, W);', units='kg/(m*s^2)'},
-		{name='EKin', code='*value = calc_EKin(W, x);', units='kg/(m*s^2)'},
-		{name='EPot', code='*value = U->rho * U->ePot;', units='kg/(m*s^2)'},
-		{name='S', code='*value = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
-		{name='H', code='*value = calc_H(solver, W.P);', units='kg/(m*s^2)'},
-		{name='h', code='*value = calc_h(solver, W.rho, W.P);', units='m^2/s^2'},
-		{name='HTotal', code='*value = calc_HTotal(W.P, U->ETotal);', units='kg/(m*s^2)'},
-		{name='hTotal', code='*value = calc_hTotal(W.rho, W.P, U->ETotal);', units='m^2/s^2'},
-		{name='speed of sound', code='*value = calc_Cs(solver, &W);', units='m/s'},
-		{name='Mach number', code='*value = coordLen(W.v, x) / calc_Cs(solver, &W);'},
+		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
+		{name='P', code='value.vreal = W.P;', units='kg/(m*s^2)'},
+		{name='eInt', code='value.vreal = calc_eInt(solver, W);', units='m^2/s^2'},
+		{name='eKin', code='value.vreal = calc_eKin(W, x);', units='m^2/s^2'},
+		{name='eTotal', code='value.vreal = U->ETotal / W.rho;', units='m^2/s^2'},
+		{name='EInt', code='value.vreal = calc_EInt(solver, W);', units='kg/(m*s^2)'},
+		{name='EKin', code='value.vreal = calc_EKin(W, x);', units='kg/(m*s^2)'},
+		{name='EPot', code='value.vreal = U->rho * U->ePot;', units='kg/(m*s^2)'},
+		{name='S', code='value.vreal = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
+		{name='H', code='value.vreal = calc_H(solver, W.P);', units='kg/(m*s^2)'},
+		{name='h', code='value.vreal = calc_h(solver, W.rho, W.P);', units='m^2/s^2'},
+		{name='HTotal', code='value.vreal = calc_HTotal(W.P, U->ETotal);', units='kg/(m*s^2)'},
+		{name='hTotal', code='value.vreal = calc_hTotal(W.rho, W.P, U->ETotal);', units='m^2/s^2'},
+		{name='speed of sound', code='value.vreal = calc_Cs(solver, &W);', units='m/s'},
+		{name='Mach number', code='value.vreal = coordLen(W.v, x) / calc_Cs(solver, &W);'},
 	}:append(self.gravOp and
 		{{name='gravity', code=template([[
 	if (!OOB(1,1)) {
-		*value_real3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U);
+		value.vreal3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U);
 	}
 ]], {eqn=self}), type='real3', units='m/s'}} or nil
 	):append{
@@ -297,7 +297,7 @@ function Euler:getDisplayVars()
 <? local clnumber = require 'cl.obj.number' ?>
 <? local materials = require 'materials' ?>
 #define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
-	*value = calc_eInt(solver, W) / C_v;
+	value.vreal = calc_eInt(solver, W) / C_v;
 ]]), units='K'}
 	}
 
@@ -306,7 +306,7 @@ function Euler:getDisplayVars()
 	
 	if not require 'solver.meshsolver'.is(self.solver) then
 		if self.solver.dim == 2 then
-			vars:insert(vorticity(self,2,'*value'))
+			vars:insert(vorticity(self,2,'value.vreal'))
 		elseif self.solver.dim == 3 then
 			local v = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
 			vars:insert{name='vorticityVec', code=template([[

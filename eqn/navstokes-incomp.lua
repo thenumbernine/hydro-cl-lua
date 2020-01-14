@@ -94,31 +94,31 @@ function NavierStokesDivFree:getDisplayVars()
 		})}
 	end
 	local vars = table{
-		{rho = '*value = U->rho;'},
-		{v = '*value_real3 = U->v;', type='real3'},
+		{rho = 'value.vreal = U->rho;'},
+		{v = 'value.vreal3 = U->v;', type='real3'},
 		{m = 'value = real3_real_mul(U->v, U->rho);', type='real3'},
-		--{P = '*value = W.P;'},
-		--{eInt = '*value = calc_eInt(W);'},
-		--{eKin = '*value = calc_eKin(W);'},
-		--{ePot = '*value = U->ePot;'},
-		--{eTotal = '*value = U->ETotal / W.rho;'},
-		--{EInt = '*value = calc_EInt(W);'},
-		{EKin = '*value = .5 * U->rho * coordLen(U->v, x);'},
-		--{EPot = '*value = U->rho * U->ePot;'},
-		--{ETotal = '*value = U->ETotal;'},
-		--{S = '*value = W.P / pow(W.rho, (real)heatCapacityRatio);'},
-		--{H = '*value = calc_H(W.P);'},
-		--{h = '*value = calc_h(W.rho, W.P);'},
-		--{HTotal = '*value = calc_HTotal(W.P, U->ETotal);'},
-		--{hTotal = '*value = calc_hTotal(W.rho, W.P, U->ETotal);'},
-		--{['Speed of Sound'] = '*value = calc_Cs(&W);'},
-		--{['Mach number'] = '*value = coordLen(W.v, x) / calc_Cs(&W);'},
+		--{P = 'value.vreal = W.P;'},
+		--{eInt = 'value.vreal = calc_eInt(W);'},
+		--{eKin = 'value.vreal = calc_eKin(W);'},
+		--{ePot = 'value.vreal = U->ePot;'},
+		--{eTotal = 'value.vreal = U->ETotal / W.rho;'},
+		--{EInt = 'value.vreal = calc_EInt(W);'},
+		{EKin = 'value.vreal = .5 * U->rho * coordLen(U->v, x);'},
+		--{EPot = 'value.vreal = U->rho * U->ePot;'},
+		--{ETotal = 'value.vreal = U->ETotal;'},
+		--{S = 'value.vreal = W.P / pow(W.rho, (real)heatCapacityRatio);'},
+		--{H = 'value.vreal = calc_H(W.P);'},
+		--{h = 'value.vreal = calc_h(W.rho, W.P);'},
+		--{HTotal = 'value.vreal = calc_HTotal(W.P, U->ETotal);'},
+		--{hTotal = 'value.vreal = calc_hTotal(W.rho, W.P, U->ETotal);'},
+		--{['Speed of Sound'] = 'value.vreal = calc_Cs(&W);'},
+		--{['Mach number'] = 'value.vreal = coordLen(W.v, x) / calc_Cs(&W);'},
 	}
 	
 	if self.solver.dim == 2 then
 	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
 	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
-		vars:insert(vorticity(2,'*value'))
+		vars:insert(vorticity(2,'value.vreal'))
 	elseif self.solver.dim == 3 then
 		local v = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
 		vars:insert{vorticityVec = template([[

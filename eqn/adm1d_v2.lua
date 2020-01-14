@@ -173,33 +173,33 @@ ADM_BonaMasso_1D_1997Alcubierre.solverCodeFile = 'eqn/adm1d_v2.cl'
 function ADM_BonaMasso_1D_1997Alcubierre:getDisplayVars()
 	return ADM_BonaMasso_1D_1997Alcubierre.super.getDisplayVars(self):append{
 		-- adm1d_v1 cons vars:
-		{name='D_g', code='*value = 2. * U->d_xxx / U->gamma_xx;'},
-		{name='KTilde', code='*value = U->K_xx / sqrt(U->gamma_xx);'},
+		{name='D_g', code='value.vreal = 2. * U->d_xxx / U->gamma_xx;'},
+		{name='KTilde', code='value.vreal = U->K_xx / sqrt(U->gamma_xx);'},
 		-- aux:
-		{name='dx_alpha', code='*value = U->alpha * U->a_x;'},
-		{name='dx_gamma_xx', code='*value = 2. * U->d_xxx;'},
-		{name='volume', code='*value = U->alpha * sqrt(U->gamma_xx);'},
-		{name='f', code='*value = calc_f(U->alpha);'},
-		{name='df/dalpha', code='*value = calc_dalpha_f(U->alpha);'},
-		{name='K', code='*value = U->K_xx / U->gamma_xx;'},
-		{name='expansion', code='*value = -U->K_xx / U->gamma_xx;'},
-		{name='gravity mag', code='*value = -U->alpha * U->alpha * U->a_x / U->gamma_xx;'},
+		{name='dx_alpha', code='value.vreal = U->alpha * U->a_x;'},
+		{name='dx_gamma_xx', code='value.vreal = 2. * U->d_xxx;'},
+		{name='volume', code='value.vreal = U->alpha * sqrt(U->gamma_xx);'},
+		{name='f', code='value.vreal = calc_f(U->alpha);'},
+		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
+		{name='K', code='value.vreal = U->K_xx / U->gamma_xx;'},
+		{name='expansion', code='value.vreal = -U->K_xx / U->gamma_xx;'},
+		{name='gravity mag', code='value.vreal = -U->alpha * U->alpha * U->a_x / U->gamma_xx;'},
 	
 		{name='alpha vs a_x', code=[[
 	if (OOB(1,1)) {
-		*value = 0.;
+		value.vreal = 0.;
 	} else {
 		real dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * solver->grid_dx.x);
-		*value = fabs(dx_alpha - U->alpha * U->a_x);
+		value.vreal = fabs(dx_alpha - U->alpha * U->a_x);
 	}
 ]]},
 
 		{name='gamma_xx vs d_xxx', code=[[
 	if (OOB(1,1)) {
-		*value = 0.;
+		value.vreal = 0.;
 	} else {
 		real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * solver->grid_dx.x);
-		*value = fabs(dx_gamma_xx - 2. * U->d_xxx);
+		value.vreal = fabs(dx_gamma_xx - 2. * U->d_xxx);
 	}
 ]]},
 	}

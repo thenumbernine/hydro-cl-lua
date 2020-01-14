@@ -374,19 +374,19 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	local vars = ADM_BonaMasso_3D.super.getDisplayVars(self)
 
 	vars:append{
-		{name='det_gamma', code='*value = sym3_det(U->gamma_ll);'},
-		{name='volume', code='*value = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
-		{name='f', code='*value = calc_f(U->alpha);'},
-		{name='df/dalpha', code='*value = calc_dalpha_f(U->alpha);'},
+		{name='det_gamma', code='value.vreal = sym3_det(U->gamma_ll);'},
+		{name='volume', code='value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
+		{name='f', code='value.vreal = calc_f(U->alpha);'},
+		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
 		{name='K_ll', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	*value = sym3_dot(gamma_uu, U->K_ll);
+	value.vreal = sym3_dot(gamma_uu, U->K_ll);
 ]]		},
 		{name='expansion', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	*value = -sym3_dot(gamma_uu, U->K_ll);
+	value.vreal = -sym3_dot(gamma_uu, U->K_ll);
 ]]		},
 	}:append{
 --[=[
@@ -411,12 +411,12 @@ momentum constraints
 	vars:insert{name='gravity', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	*value_real3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
+	value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
 ]], type='real3'}
 
 	vars:insert{name='alpha vs a_i', code=template([[
 	if (OOB(1,1)) {
-		*value_real3 = real3_zero;
+		value.vreal3 = real3_zero;
 	} else {
 		<? for i=1,solver.dim do
 			local xi = xNames[i]
@@ -439,7 +439,7 @@ momentum constraints
 	for i,xi in ipairs(xNames) do
 		vars:insert{name='gamma_ij vs d_'..xi..'ij', code=template([[
 	if (OOB(1,1)) {
-		*value_sym3 = sym3_zero;
+		value.vsym3 = sym3_zero;
 	} else {
 		<? if i <= solver.dim then ?>
 		sym3 di_gamma_jk = sym3_real_mul(
@@ -452,8 +452,8 @@ momentum constraints
 		<? else ?>
 		sym3 di_gamma_jk = sym3_zero;
 		<? end ?>
-		*value_sym3 = sym3_sub(di_gamma_jk, sym3_real_mul(U->d_lll.<?=xi?>, 2.));
-		*value_sym3 = (sym3){<?
+		value.vsym3 = sym3_sub(di_gamma_jk, sym3_real_mul(U->d_lll.<?=xi?>, 2.));
+		value.vsym3 = (sym3){<?
 	for jk,xjk in ipairs(symNames) do 
 ?>			.<?=xjk?> = fabs(value_sym3-><?=xjk?>),
 <?	end

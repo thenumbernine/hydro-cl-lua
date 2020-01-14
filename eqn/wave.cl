@@ -15,7 +15,7 @@ typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
 
 <? for side=0,2 do ?>
-static inline real3 coord_g_uu<?=side?>(real3 x) {
+real3 coord_g_uu<?=side?>(real3 x) {
 	return _real3(<?
 	for j=0,2 do
 		?>coord_g_uu<?=side <= j and side..j or j..side?>(x)<?

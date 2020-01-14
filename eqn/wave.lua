@@ -24,15 +24,25 @@ Wave.roeUseFluxFromCons = true
 
 Wave.initStates = require 'init.euler'	 -- use rho as our initial condition
 
--- Sedov initial conditions uses pressure
-Wave.usePressure = true
--- gaussian, etc use density
---Wave.usePressure = false
 
+--[[
+args:
+	scalar = 'real' or 'cplx'
+
+	usePressure = whether to use pressure or density from the initial conditions for the wave equation
+					Sedov initial conditions uses pressure
+					gaussian, etc use density
+--]]
 function Wave:init(args)
-	self.scalar = 'real'
-	--self.scalar = 'cplx'
+	if args and args.usePressure ~= nil then
+		self.usePressure = not not args.usePressure
+	else
+		self.usePressure = false
+	end
 	
+	self.scalar = (args and args.scalar) or 'real'
+
+
 	self.vec3 = self.scalar..'3'
 	self.numRealsInScalar = ffi.sizeof(self.scalar) / ffi.sizeof'real'
 	

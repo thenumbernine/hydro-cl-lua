@@ -58,7 +58,7 @@ function FiniteVolumeSolver:addDisplayVars()
 				side = side,
 			}),
 			vars = range(0,self.eqn.numIntStates-1):map(function(i)
-				return {name=tostring(i), code='*value = flux->ptr['..i..'];'}
+				return {name=tostring(i), code='value.vreal = flux->ptr['..i..'];'}
 			end),
 		}
 	end
@@ -96,7 +96,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			}:concat'\n',
 			vars = range(0, self.eqn.numWaves-1):map(function(i)
 				return {name=tostring(i), code=template([[
-	*value = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', i)?>;
+	value.vreal = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', i)?>;
 ]], 			{
 					eqn = self.eqn,
 					side = side,
@@ -134,7 +134,7 @@ function FiniteVolumeSolver:addDisplayVars()
 				{name='0', code=table{
 					getEigenCode{side=side},
 					template([[
-	*value = 0;
+	value.vreal = 0;
 	//the flux transform is F v = R Lambda L v, I = R L
 	//but if numWaves < numIntStates then certain v will map to the nullspace 
 	//so to test orthogonality for only numWaves dimensions, I will verify that Qinv Q v = v 
@@ -150,7 +150,7 @@ function FiniteVolumeSolver:addDisplayVars()
 		<?=eqn.cons_t?> newbasis = eigen_rightTransform_<?=side?>(solver, eig, chars, xInt);
 	
 		for (int j = 0; j < numStates; ++j) {
-			*value += fabs(newbasis.ptr[j] - basis.ptr[j]);
+			value.vreal += fabs(newbasis.ptr[j] - basis.ptr[j]);
 		}
 	}
 ]], 					{
@@ -178,7 +178,7 @@ function FiniteVolumeSolver:addDisplayVars()
 					template([[
 	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
 	
-	*value = 0;
+	value.vreal = 0;
 	for (int k = 0; k < numIntStates; ++k) {
 		//This only needs to be numIntStates in size, but just in case the left/right transforms are reaching past that memory boundary ...
 		//Then again, how do I know what the non-integrated states should be?  Defaulting to zero is a bad idea.
@@ -208,7 +208,7 @@ for (int j = 0; j < numStates; ++j) {
 		<?=eqn.cons_t?> transformed = eigen_fluxTransform_<?=side?>(solver, eig, basis, xInt);
 		
 		for (int j = 0; j < numIntStates; ++j) {
-			*value += fabs(newtransformed.ptr[j] - transformed.ptr[j]);
+			value.vreal += fabs(newtransformed.ptr[j] - transformed.ptr[j]);
 		}
 	}
 ]], 					{

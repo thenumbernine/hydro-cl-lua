@@ -94,3 +94,16 @@ makevec3('cplx3', 'cplx')
 make3x3'cplx'
 ?>
 
+
+// used by the display code
+
+typedef union {
+	real	ptr[9];
+	real	vreal;
+	sym3	vsym3;
+	cplx	vcplx;
+	real3	vreal3;
+	cplx3	vcplx3;
+	real3x3	vreal3x3;
+} displayValue_t;
+

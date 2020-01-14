@@ -161,18 +161,18 @@ Z4_2008Yano.predefinedDisplayVars = {
 function Z4_2008Yano:getDisplayVars()
 	local vars = Z4_2008Yano.super.getDisplayVars(self)
 	vars:append{
-		{name='det_gamma', code='*value = sym3_det(U->gamma_ll);'},
-		{name='volume', code='*value = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
-		{name='f', code='*value = calc_f(U->alpha);'},
+		{name='det_gamma', code='value.vreal = sym3_det(U->gamma_ll);'},
+		{name='volume', code='value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
+		{name='f', code='value.vreal = calc_f(U->alpha);'},
 		{name='K_ll', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	*value = sym3_dot(gamma_uu, U->K_ll);
+	value.vreal = sym3_dot(gamma_uu, U->K_ll);
 ]]		},
 		{name='expansion', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	*value = -sym3_dot(gamma_uu, U->K_ll);
+	value.vreal = -sym3_dot(gamma_uu, U->K_ll);
 ]]		},
 --[=[
 	-- 1998 Bona et al
@@ -193,7 +193,7 @@ momentum constraints
 		{name='gravity', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	*value_real3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
+	value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
 ]], type='real3'},
 	}
 	

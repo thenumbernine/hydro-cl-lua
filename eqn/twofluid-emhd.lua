@@ -502,7 +502,7 @@ function TwoFluidEMHD:getDisplayVars()
 			local j = (i+1)%3
 			return {name=fluid..' vorticity '..xs[k+1], code=template([[
 	if (OOB(1,1)) {
-		*value = 0.;
+		value.vreal = 0.;
 	} else {
 		global const <?=eqn.cons_t?>* Uim = U - solver->stepsize.s<?=i?>;
 		global const <?=eqn.cons_t?>* Uip = U + solver->stepsize.s<?=i?>;
@@ -516,7 +516,7 @@ function TwoFluidEMHD:getDisplayVars()
 		real vjm_i = Ujm-><?=fluid?>_m.s<?=i?> / Ujm-><?=fluid?>_rho;
 		real vjp_i = Ujp-><?=fluid?>_m.s<?=i?> / Ujp-><?=fluid?>_rho;
 		
-		*value = (vjp_i - vjm_i) / (2. * solver->grid_dx.s<?=i?>)
+		value.vreal = (vjp_i - vjm_i) / (2. * solver->grid_dx.s<?=i?>)
 				- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
 	}
 ]], 		{
@@ -528,20 +528,20 @@ function TwoFluidEMHD:getDisplayVars()
 		end
 		
 		vars:append{
-			{name=fluid..' v', code='*value_real3 = W.'..fluid..'_v;', type='real3', units='m/s'},
-			{name=fluid..' P', code='*value = W.'..fluid..'_P;', units='kg/(m*s^2)'},
-			{name=fluid..' eInt', code='*value = calc_'..fluid..'_eInt(solver, W);', units='m^2/s^2'},
-			{name=fluid..' eKin', code='*value = calc_'..fluid..'_eKin(W, x);', units='m^2/s^2'},
-			{name=fluid..' EInt', code='*value = calc_'..fluid..'_EInt(solver, W);'},
-			{name=fluid..' EKin', code='*value = calc_'..fluid..'_EKin(W, x);'},
-			{name=fluid..' ETotal', code='*value = U->'..fluid..'_ETotal;'},
-			{name=fluid..' S', code='*value = W.'..fluid..'_P / pow(W.'..fluid..'_rho, (real)solver->heatCapacityRatio);'},
-			{name=fluid..' H', code='*value = calc_H(solver, W.'..fluid..'_P);'},
-			{name=fluid..' h', code='*value = calc_h(solver, W.'..fluid..'_rho, W.'..fluid..'_P);'},
-			{name=fluid..' HTotal', code='*value = calc_HTotal(W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
-			{name=fluid..' hTotal', code='*value = calc_hTotal(solver, W.'..fluid..'_rho, W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
-			{name=fluid..' speed of sound', code='*value = calc_'..fluid..'_Cs(solver, &W);', units='m/s'},
-			{name=fluid..' Mach number', code='*value = coordLen(W.'..fluid..'_v, x) / calc_'..fluid..'_Cs(solver, &W);'},
+			{name=fluid..' v', code='value.vreal3 = W.'..fluid..'_v;', type='real3', units='m/s'},
+			{name=fluid..' P', code='value.vreal = W.'..fluid..'_P;', units='kg/(m*s^2)'},
+			{name=fluid..' eInt', code='value.vreal = calc_'..fluid..'_eInt(solver, W);', units='m^2/s^2'},
+			{name=fluid..' eKin', code='value.vreal = calc_'..fluid..'_eKin(W, x);', units='m^2/s^2'},
+			{name=fluid..' EInt', code='value.vreal = calc_'..fluid..'_EInt(solver, W);'},
+			{name=fluid..' EKin', code='value.vreal = calc_'..fluid..'_EKin(W, x);'},
+			{name=fluid..' ETotal', code='value.vreal = U->'..fluid..'_ETotal;'},
+			{name=fluid..' S', code='value.vreal = W.'..fluid..'_P / pow(W.'..fluid..'_rho, (real)solver->heatCapacityRatio);'},
+			{name=fluid..' H', code='value.vreal = calc_H(solver, W.'..fluid..'_P);'},
+			{name=fluid..' h', code='value.vreal = calc_h(solver, W.'..fluid..'_rho, W.'..fluid..'_P);'},
+			{name=fluid..' HTotal', code='value.vreal = calc_HTotal(W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
+			{name=fluid..' hTotal', code='value.vreal = calc_hTotal(solver, W.'..fluid..'_rho, W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
+			{name=fluid..' speed of sound', code='value.vreal = calc_'..fluid..'_Cs(solver, &W);', units='m/s'},
+			{name=fluid..' Mach number', code='value.vreal = coordLen(W.'..fluid..'_v, x) / calc_'..fluid..'_Cs(solver, &W);'},
 		}:append( ({
 		-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
 		-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
@@ -555,38 +555,38 @@ function TwoFluidEMHD:getDisplayVars()
 	vars:append{
 		{
 			name = 'EField',
-			code = template([[	*value_real3 = calc_EField(solver, *U);]], env),
+			code = template([[	value.vreal3 = calc_EField(solver, *U);]], env),
 			type = 'real3',
 			units = '(kg*m)/(C*s)',
 		},
 		{
 			name = 'HField',
-			code = template([[	*value_real3 = calc_HField(solver, *U);]], env),
+			code = template([[	value.vreal3 = calc_HField(solver, *U);]], env),
 			type = 'real3',
 			units = 'C/(m*s)',
 		},
 		{
 			name = 'SField',
-			code = template([[	*value_real3 = real3_cross(calc_EField(solver, *U), calc_HField(solver, *U));]], env), 
+			code = template([[	value.vreal3 = real3_cross(calc_EField(solver, *U), calc_HField(solver, *U));]], env), 
 			type = 'real3',
 			units = 'kg/s^3',
 		},
 		{
 			name = 'gravity',
 			code = template([[
-	if (!OOB(1,1)) *value_real3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U, x);
+	if (!OOB(1,1)) value.vreal3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U, x);
 ]], {eqn=self}), 
 			type='real3', 
 			units='m/s^2',
 		},
 		{
 			name = 'EPot',
-			code = '*value = calc_rho_from_U(*U) * U->ePot;', 
+			code = 'value.vreal = calc_rho_from_U(*U) * U->ePot;', 
 			units='kg/(m*s^2)',
 		},
 		{
 			name = 'EM energy',
-			code = '*value = calc_EM_energy(solver, U, x);',
+			code = 'value.vreal = calc_EM_energy(solver, U, x);',
 			units = 'kg/(m*s^2)'
 		},
 	}:append(table{'D', 'B'}:map(function(field, i)
@@ -594,7 +594,7 @@ function TwoFluidEMHD:getDisplayVars()
 		return {
 			name = 'div '..field,
 			code = template([[
-	*value = .5 * (0.
+	value.vreal = .5 * (0.
 <?
 for j=0,solver.dim-1 do
 ?>		+ (U[solver->stepsize.s<?=j?>].<?=field?>.s<?=j?> 

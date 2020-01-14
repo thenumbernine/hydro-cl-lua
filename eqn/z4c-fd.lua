@@ -300,17 +300,17 @@ function Z4cFiniteDifferenceEquation:getDisplayVars()
 	local vars = Z4cFiniteDifferenceEquation.super.getDisplayVars(self)
 
 	vars:insert{name='det gammaBar - det gammaHat', code=[[
-	*value = sym3_det(calc_gammaBar_ll(U, x)) - calc_det_gammaBar_ll(x);
+	value.vreal = sym3_det(calc_gammaBar_ll(U, x)) - calc_det_gammaBar_ll(x);
 ]]}	-- for logarithmic displays
 	vars:insert{name='det gamma_ij based on phi', code=[[
 	real exp_neg4phi = calc_exp_neg4phi(U);
-	*value = calc_det_gammaBar_ll(x) / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
+	value.vreal = calc_det_gammaBar_ll(x) / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 ]]}
 	
 	local derivOrder = 2 * self.solver.numGhost
 	vars:append{
-		{name='S', code='*value = sym3_dot(U->S_ll, calc_gamma_uu(U, x));'},
-		{name='volume', code='*value = U->alpha * calc_det_gamma_ll(U, x);'},
+		{name='S', code='value.vreal = sym3_dot(U->S_ll, calc_gamma_uu(U, x));'},
+		{name='volume', code='value.vreal = U->alpha * calc_det_gamma_ll(U, x);'},
 	
 --[[ expansion:
 2003 Thornburg:  ... from Wald ...
@@ -358,7 +358,7 @@ end ?>;
 		sym3_real_mul(U->ABar_ll, exp_4phi),
 		sym3_real_mul(gamma_ll, K/3.));
 
-	*value = -tr_partial_beta / U->alpha
+	value.vreal = -tr_partial_beta / U->alpha
 <? 
 for i,xi in ipairs(xNames) do
 ?>		+ U->beta_u.<?=xi?> * partial_alpha_l[<?=i-1?>] / (U->alpha * U->alpha) 
@@ -377,13 +377,13 @@ end
 			)
 		},
 		
-		{name='f', code='*value = calc_f(U->alpha);'},
-		{name='df/dalpha', code='*value = calc_dalpha_f(U->alpha);'},
+		{name='f', code='value.vreal = calc_f(U->alpha);'},
+		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
 		{name='gamma_ll', code=[[
 	{
 		real exp_4phi = 1. / calc_exp_neg4phi(U);
 		sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-		*value_sym3 = sym3_real_mul(gammaBar_ll, exp_4phi);
+		value.vsym3 = sym3_real_mul(gammaBar_ll, exp_4phi);
 	}
 ]], type='sym3'},
 	
@@ -394,7 +394,7 @@ end
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 	real K = U->KHat + 2. * U->Theta;
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	*value_sym3 = sym3_real_mul(
+	value.vsym3 = sym3_real_mul(
 		sym3_add(
 			U->ABar_ll,
 			sym3_real_mul(gammaBar_ll, K / 3.)

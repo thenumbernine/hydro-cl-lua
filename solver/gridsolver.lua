@@ -122,26 +122,29 @@ function GridSolver:preInit(args)
 		self.name = args.name
 		args.env = solver.app.env
 		args.domain = solver.domain
-		-- [[ caching binaries, which doesn't write unless the program successfully compiles
-		if args.name then
-			local path = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
-			if useCache then args.cacheFile = path end
-		end
-		Program.super.init(self, args)
-		--]]
-		--[[ Write generated code the first time.  Subsequent times use the pre-existing code.  Useful for debugging things in the generated OpenCL.
-		local path = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
-		local clfn = path..'.cl'
-		if io.fileexists(clfn) then
-			local cachedCode = file[clfn]
-			assert(cachedCode:sub(1,#args.env.code) == args.env.code, "seems you have changed the cl env code")
-			args.code = cachedCode:sub(#args.env.code+1)
+		
+		-- caching binaries, which doesn't write unless the program successfully compiles
+		if not cmdline.usecachedcode then 
+			if args.name then
+				local path = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
+				if useCache then args.cacheFile = path end
+			end
 			Program.super.init(self, args)
+		
+		-- Write generated code the first time.  Subsequent times use the pre-existing code.  Useful for debugging things in the generated OpenCL.
 		else
-			Program.super.init(self, args)	-- do this so getCode() works
-			file[clfn] = self:getCode()
+			local path = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
+			local clfn = path..'.cl'
+			if io.fileexists(clfn) then
+				local cachedCode = file[clfn]
+				assert(cachedCode:sub(1,#args.env.code) == args.env.code, "seems you have changed the cl env code")
+				args.code = cachedCode:sub(#args.env.code+1)
+				Program.super.init(self, args)
+			else
+				Program.super.init(self, args)	-- do this so getCode() works
+				file[clfn] = self:getCode()
+			end
 		end
-		--]]
 	end
 	function Program:compile(args)
 		args = args or {}

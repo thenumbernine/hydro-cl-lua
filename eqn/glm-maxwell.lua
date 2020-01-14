@@ -290,14 +290,14 @@ function GLM_Maxwell:getDisplayVars()
 	
 	local vars = GLM_Maxwell.super.getDisplayVars(self)
 	vars:append{ 
-		{name = 'E', code = template([[	*value_<?=vec3?> = calc_E(*U);]], env), type=env.vec3, units='(kg*m)/(C*s)'},
-		{name = 'H', code = template([[	*value_<?=vec3?> = calc_H(*U);]], env), type=env.vec3, units='C/(m*s)'},
-		{name = 'S', code = template([[	*value_<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));]], env), type=env.vec3, units='kg/s^3'},
+		{name = 'E', code = template([[	value.v<?=vec3?> = calc_E(*U);]], env), type=env.vec3, units='(kg*m)/(C*s)'},
+		{name = 'H', code = template([[	value.v<?=vec3?> = calc_H(*U);]], env), type=env.vec3, units='C/(m*s)'},
+		{name = 'S', code = template([[	value.v<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));]], env), type=env.vec3, units='kg/s^3'},
 		{
 			name = 'energy', code = template([[
 	<?=susc_t?> _1_eps = <?=susc_t?>_mul(U->sqrt_1_eps, U->sqrt_1_eps);
 	<?=susc_t?> _1_mu = <?=susc_t?>_mul(U->sqrt_1_mu, U->sqrt_1_mu);
-	*value = <?=real_mul?>(<?=add?>(
+	value.vreal = <?=real_mul?>(<?=add?>(
 		<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(U->D, x), _1_eps),
 		<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(calc_H(*U), x), _1_mu)
 	), .5);
@@ -318,7 +318,7 @@ function GLM_Maxwell:getDisplayVars()
 			U[-solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>
 		), .5 / solver->grid_dx.s<?=j?>));
 <? end ?>
-	*value_<?=scalar?> = v;
+	value.v<?=scalar?> = v;
 ]], table(env, {field=field})),
 			type = scalar, 
 			units = ({

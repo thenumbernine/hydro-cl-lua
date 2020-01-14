@@ -159,7 +159,7 @@ kernel void copyBufferWithGhostToBufferWithoutGhost(
 		epsilon = cmdline.intBEEpsilon or (args and args.epsilon) or 1e-10,
 		--maxiter = 1000,
 		restart = restart,
-		maxiter = cmdline.intBEMaxIter or restart * numreals,
+		maxiter = cmdline.intBEMaxIter or (args and args.maxiter) or restart * numreals,
 		-- logging:
 		errorCallback = function(residual, iter, x, rLenSq)
 			self.lastResidual = residual

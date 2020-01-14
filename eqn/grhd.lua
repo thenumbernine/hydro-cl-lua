@@ -209,28 +209,28 @@ GRHD.solverCodeFile = 'eqn/grhd.cl'
 
 function GRHD:getDisplayVars()
 	return {
-		{name='D', code='*value = U->cons.D;'},
-		{name='S', code='*value_real3 = U->cons.S;', type='real3'},
+		{name='D', code='value.vreal = U->cons.D;'},
+		{name='S', code='value.vreal3 = U->cons.S;', type='real3'},
 		{name='S weighted', code=template([[
 	<?=solver:getADMVarCode()?>
-	*value = real3_weightedLen(U->cons.S, gamma);
+	value.vreal = real3_weightedLen(U->cons.S, gamma);
 ]], {solver=self.solver})},
-		{name='tau', code='*value = U->cons.tau;'},
-		{name='W based on D', code='*value = U->cons.D / U->prim.rho;'},
+		{name='tau', code='value.vreal = U->cons.tau;'},
+		{name='W based on D', code='value.vreal = U->cons.D / U->prim.rho;'},
 		{name='W based on v', code=template([[
 	<?=solver:getADMVarCode()?>
 	real det_gamma = sym3_det(gamma);
 	sym3 gammaU = sym3_inv(gamma, det_gamma);
-	*value = 1. / sqrt(1. - real3_weightedLenSq(U->prim.v, gammaU));
+	value.vreal = 1. / sqrt(1. - real3_weightedLenSq(U->prim.v, gammaU));
 ]], {solver=self.solver})},
 		{name='primitive reconstruction error', code=template([[
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
 	<?=solver:getADMVarCode()?>
 	<?=eqn.cons_only_t?> U2 = consOnlyFromPrim(solver, U->prim, alpha, beta, gamma);
-	*value = 0;
+	value.vreal = 0;
 	for (int j = 0; j < numIntStates; ++j) {
-		*value += fabs(U->cons.ptr[j] - U2.ptr[j]);
+		value.vreal += fabs(U->cons.ptr[j] - U2.ptr[j]);
 	}
 ]], {eqn=self, solver=self.solver})},
 		{name='W error', code=template([[
@@ -239,21 +239,21 @@ function GRHD:getDisplayVars()
 	real det_gamma = sym3_det(gamma);
 	sym3 gammaU = sym3_inv(gamma, det_gamma);
 	real W2 = 1. / sqrt(1. - real3_weightedLenSq(U->prim.v, gammaU));
-	*value = fabs(W1 - W2);
+	value.vreal = fabs(W1 - W2);
 ]], {solver=self.solver})},
 
-		{name='rho', code='*value = U->prim.rho;'},
+		{name='rho', code='value.vreal = U->prim.rho;'},
 		
 		-- TODO abstract the generators of real3 variables and add weighted norms automatically
-		{name='v', code='*value_real3 = U->prim.v;', type='real3'},
+		{name='v', code='value.vreal3 = U->prim.v;', type='real3'},
 		{name='v weighted', code=template([[
 	<?=solver:getADMVarCode()?>
-	*value = real3_weightedLen(U->prim.v, gamma);
+	value.vreal = real3_weightedLen(U->prim.v, gamma);
 ]], {solver=self.solver})},
 
-		{name='eInt', code='*value = U->prim.eInt;'},
-		{name='P', code='*value = calc_P(solver, U->prim.rho, U->prim.eInt);'},
-		{name='h', code='*value = calc_h(U->prim.rho, calc_P(solver, U->prim.rho, U->prim.eInt), U->prim.eInt);'},
+		{name='eInt', code='value.vreal = U->prim.eInt;'},
+		{name='P', code='value.vreal = calc_P(solver, U->prim.rho, U->prim.eInt);'},
+		{name='h', code='value.vreal = calc_h(U->prim.rho, calc_P(solver, U->prim.rho, U->prim.eInt), U->prim.eInt);'},
 	}
 end
 
