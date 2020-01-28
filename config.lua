@@ -79,7 +79,9 @@ local args = {
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
-				{64,2,2},
+				-- other than weno, this works fine with finite volume codes
+				--{64,1,1},
+				{16,16,16},
 			},
 		})[platAndDevicesNames]
 		-- default size options
@@ -89,7 +91,7 @@ local args = {
 			{32,32,32},
 		}
 	)[dim],
-	boundary = {
+	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		xmin=cmdline.boundary or 'mirror',
 		xmax=cmdline.boundary or 'mirror',
 		ymin=cmdline.boundary or 'mirror',
@@ -108,7 +110,7 @@ local args = {
 		{64, 256, 1}, -- 2D
 		{32, 32, 32}, -- 3D
 	})[dim],
-	boundary = {
+	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		-- r
 		--xmin=cmdline.boundary or 'cylinderCenter',		-- hmm, how to treat the r=0 boundary ...
 		xmin=cmdline.boundary or 'freeflow',
@@ -132,7 +134,7 @@ local args = {
 		{32, 32, 1}, -- 2D
 		{16, 16, 16}, -- 3D
 	})[dim],
-	boundary = {
+	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		xmin=cmdline.boundary or 'sphereRMin',
 		xmax=cmdline.boundary or 'freeflow',	--'fixed',
 		ymin=cmdline.boundary or 'sphereTheta',
@@ -153,7 +155,7 @@ local args = {
 		cmdline.gridSize or 16,
 		cmdline.gridSize or 16,
 	},
-	boundary = {
+	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		xmin=cmdline.boundary or 'periodic',
 		xmax=cmdline.boundary or 'periodic',
 		ymin=cmdline.boundary or 'periodic',

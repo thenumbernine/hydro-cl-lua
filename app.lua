@@ -1152,6 +1152,10 @@ if targetSystem ~= 'console' then
 	require 'draw.vectorfield2'.applyToApp(HydroCLApp)
 end
 
+
+HydroCLApp.display_useCoordMap = cmdline.display_useCoordMap 
+if HydroCLApp.display_useCoordMap == nil then HydroCLApp.display_useCoordMap = true end
+
 function HydroCLApp:updateGUI()
 	if ig.igCollapsingHeader'simulation' then
 		if ig.igButton(self.running and 'Stop' or 'Start') then
@@ -1218,12 +1222,13 @@ function HydroCLApp:updateGUI()
 					tooltip.checkboxTable(name, self.display2DMethodsEnabled, name)
 				end
 				
-				if self.display2DMethodsEnabled.Graph then
-					tooltip.intTable('graph step', self, 'display2D_Graph_step')
+				if self.display2DMethodsEnabled.Graph 
+				and self.draw2DGraph
+				then
+					tooltip.intTable('graph step', self.draw2DGraph, 'step')
 				end
 				
 				ig.igPopID()
-			
 			
 			elseif dim == 3 then
 				ig.igPushIDStr'3D'
@@ -1246,16 +1251,19 @@ if useClipPlanes then
 						ig.igPopID()
 					end				
 end					
-					tooltip.sliderTable('alpha', self, 'display3D_Slice_alpha', 0, 1)
-					tooltip.sliderTable('gamma', self, 'display3D_Slice_alphaGamma', 0, 1)
-					tooltip.checkboxTable('isobars', self, 'display3D_Slice_useIsos')
-					if self.display3D_Slice_useIsos then
-						tooltip.intTable('num isobars', self, 'display3D_Slice_numIsobars')
-					end
-					tooltip.checkboxTable('lighting', self, 'display3D_Slice_useLighting')
-					tooltip.checkboxTable('pointcloud', self, 'display3D_Slice_usePoints')
-					if not self.display3D_Slice_usePoints then
-						tooltip.intTable('num slices', self, 'display3D_Slice_numSlices')
+					local draw3DSlice = self.draw3DSlice
+					if draw3DSlice then
+						tooltip.sliderTable('alpha', draw3DSlice, 'alpha', 0, 1)
+						tooltip.sliderTable('gamma', draw3DSlice, 'alphaGamma', 0, 1)
+						tooltip.checkboxTable('isobars', draw3DSlice, 'useIsos')
+						if draw3DSlice.useIsos then
+							tooltip.intTable('num isobars', draw3DSlice, 'numIsobars')
+						end
+						tooltip.checkboxTable('lighting', draw3DSlice, 'useLighting')
+						tooltip.checkboxTable('pointcloud', draw3DSlice, 'usePoints')
+						if not self.draw3DSlice.usePoints then
+							tooltip.intTable('num slices', draw3DSlice, 'numSlices')
+						end
 					end
 				end
 				ig.igPopID()

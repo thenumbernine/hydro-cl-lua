@@ -1,8 +1,10 @@
 local gl = require 'ffi.OpenGL'
 local table = require 'ext.table'
+local class = require 'ext.class'
 local CartesianCoordinateSystem = require 'coord.cartesian'
 
-return function(HydroCLApp)
+
+local Draw3DSlice = class()
 
 -- 2D
 local vertexesInQuad = {{0,0},{1,0},{1,1},{0,1}}
@@ -13,23 +15,22 @@ TODO for curved space: provide a coordMapInv function (might have to be manual t
  and then call this as we march through volumes 
  and treat out-of-bound values as fully transparent
 --]]
-HydroCLApp.display3D_Slice_usePoints = false
-HydroCLApp.display3D_Slice_useIsos = true
-HydroCLApp.display3D_Slice_numIsobars = 20
-HydroCLApp.display3D_Slice_useLighting = false
-HydroCLApp.display3D_Slice_alpha = .15
-HydroCLApp.display3D_Slice_alphaGamma = 1
-HydroCLApp.display3D_Slice_numSlices = 255
+Draw3DSlice.usePoints = false
+Draw3DSlice.useIsos = true
+Draw3DSlice.numIsobars = 20
+Draw3DSlice.useLighting = false
+Draw3DSlice.alpha = .15
+Draw3DSlice.alphaGamma = 1
+Draw3DSlice.numSlices = 255
 
-HydroCLApp.display_useCoordMap = cmdline.display_useCoordMap 
-if HydroCLApp.display_useCoordMap == nil then HydroCLApp.display_useCoordMap = true end
-function HydroCLApp:display3D_Slice(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
+
+function Draw3DSlice:display(app, solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	for _,solver in ipairs(solvers) do 
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
 			
-			self.view:projection(ar)
-			self.view:modelview()
+			app.view:projection(ar)
+			app.view:modelview()
 
 if useClipPlanes then
 	for i,clipInfo in ipairs(clipInfos) do
@@ -52,24 +53,24 @@ end
 
 			solver.volumeSliceShader:use()
 			solver:getTex(var):bind(0)
-			if self.displayBilinearTextures then
+			if app.displayBilinearTextures then
 				gl.glTexParameteri(gl.GL_TEXTURE_3D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
 			else
 				gl.glTexParameteri(gl.GL_TEXTURE_3D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
 			end		
 			
-			self.gradientTex:bind(1)
-			gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha.loc, self.display3D_Slice_alpha)
-			gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, self.display3D_Slice_alphaGamma)
+			app.gradientTex:bind(1)
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha.loc, self.alpha)
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, self.alphaGamma)
 			gl.glUniform3f(solver.volumeSliceShader.uniforms.solverMins.loc, solver.mins:unpack())
 			gl.glUniform3f(solver.volumeSliceShader.uniforms.solverMaxs.loc, solver.maxs:unpack())
-			gl.glUniform1i(solver.volumeSliceShader.uniforms.useCoordMap.loc, self.display_useCoordMap)
+			gl.glUniform1i(solver.volumeSliceShader.uniforms.useCoordMap.loc, app.display_useCoordMap)
 			gl.glUniform1i(solver.volumeSliceShader.uniforms.useLog.loc, var.useLog)
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMin.loc, valueMin)
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMax.loc, valueMax)
-			gl.glUniform1i(solver.volumeSliceShader.uniforms.useIsos.loc, self.display3D_Slice_useIsos)
-			gl.glUniform1f(solver.volumeSliceShader.uniforms.numIsobars.loc, self.display3D_Slice_numIsobars)
-			gl.glUniform1i(solver.volumeSliceShader.uniforms.useLighting.loc, self.display3D_Slice_useLighting)
+			gl.glUniform1i(solver.volumeSliceShader.uniforms.useIsos.loc, self.useIsos)
+			gl.glUniform1f(solver.volumeSliceShader.uniforms.numIsobars.loc, self.numIsobars)
+			gl.glUniform1i(solver.volumeSliceShader.uniforms.useLighting.loc, self.useLighting)
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.numGhost.loc, solver.numGhost)
 			gl.glUniform3f(solver.volumeSliceShader.uniforms.texSize.loc, solver.gridSize:unpack())
 
@@ -79,7 +80,7 @@ if useClipPlanes then
 			end
 end
 
-			if self.display3D_Slice_usePoints then
+			if self.usePoints then
 				gl.glEnable(gl.GL_DEPTH_TEST)
 				gl.glPointSize(2)
 				gl.glBegin(gl.GL_POINTS)
@@ -102,8 +103,8 @@ end
 				gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 				gl.glEnable(gl.GL_BLEND)
 
-				local n = self.display3D_Slice_numSlices
-				local fwd = -self.frustumView.angle:conjugate():zAxis()
+				local n = self.numSlices
+				local fwd = -app.frustumView.angle:conjugate():zAxis()
 				local fwddir = select(2, table(fwd):map(math.abs):sup())
 
 				local jmin, jmax, jdir
@@ -162,7 +163,7 @@ end
 				gl.glDisable(gl.GL_BLEND)
 			end
 
-			self.gradientTex:unbind(1)
+			app.gradientTex:unbind(1)
 			solver:getTex(var):unbind(0)
 			solver.volumeSliceShader:useNone()
 	
@@ -175,9 +176,15 @@ end
 				gradientValueMax = gradientValueMax * unitScale
 				showName = showName..' ('..var.units..')'
 			end
-			self:drawGradientLegend(ar, showName, gradientValueMin, gradientValueMax)
+			app:drawGradientLegend(ar, showName, gradientValueMin, gradientValueMax)
 		end
 	end
 end
 
+
+return function(HydroCLApp)
+	function HydroCLApp:display3D_Slice(...)
+		if not self.draw3DSlice then self.draw3DSlice = Draw3DSlice() end
+		return self.draw3DSlice:display(self, ...)
+	end
 end

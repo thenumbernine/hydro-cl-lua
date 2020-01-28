@@ -1,12 +1,12 @@
 local gl = require 'ffi.OpenGL'
 local ffi = require 'ffi'
 local class = require 'ext.class'
-local glreport = require 'gl.report'
-local Draw1D = class()
-
 local matrix_ffi = require 'matrix.ffi'
 
-function Draw1D:showDisplayVar1D(app, solver, var)
+
+local Draw1D = class()
+
+function Draw1D:showDisplayVar(app, solver, var)
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
 		valueMin = var.heatMapValueMin
@@ -18,7 +18,6 @@ function Draw1D:showDisplayVar1D(app, solver, var)
 	end
 	
 	solver:calcDisplayVarToTex(var)	
-	-- display
 
 	local graphShader = solver.graphShader
 
@@ -65,8 +64,8 @@ function Draw1D:showDisplayVar1D(app, solver, var)
 	for i=0,self.numVertexes-1 do
 		local x = (i * step + .5 + solver.numGhost) / tonumber(solver.gridSize.x)
 		self.vertexes[0+3*i] = x
-		self.vertexes[1+3*i] = .5
-		self.vertexes[2+3*i] = .5
+		self.vertexes[1+3*i] = 0
+		self.vertexes[2+3*i] = 0
 	end
 	
 	gl.glEnableVertexAttribArray(graphShader.attrs.inVertex.loc)
@@ -80,7 +79,7 @@ function Draw1D:showDisplayVar1D(app, solver, var)
 	graphShader:useNone()
 end
 
-function Draw1D:display1D(app, solvers, varName, ar, xmin, ymin, xmax, ymax, useLog, valueMin, valueMax)
+function Draw1D:display(app, solvers, varName, ar, xmin, ymin, xmax, ymax, useLog, valueMin, valueMax)
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
 	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
@@ -121,7 +120,7 @@ function Draw1D:display1D(app, solvers, varName, ar, xmin, ymin, xmax, ymax, use
 	for _,solver in ipairs(solvers) do
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
-			self:showDisplayVar1D(app, solver, var)
+			self:showDisplayVar(app, solver, var)
 		end
 		
 		local unitScale = 1
@@ -168,6 +167,6 @@ end
 return function(HydroCLApp)
 	function HydroCLApp:display1D(...)
 		if not self.draw1D then self.draw1D = Draw1D() end
-		return self.draw1D:display1D(self, ...)
+		return self.draw1D:display(self, ...)
 	end
 end
