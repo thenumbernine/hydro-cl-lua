@@ -1,7 +1,8 @@
 local gl = require 'ffi.OpenGL'
+local class = require 'ext.class'
+local ffi = require 'ffi'
 local table = require 'ext.table'
 
-return function(HydroCLApp)
 
 -- 3D
 local vertexesInCube = {
@@ -62,7 +63,7 @@ local edgeForTwoCorners = table.map({
 	return k,v
 end)
 
-function reverse(t)
+local function reverse(t)
 	local nt = {}
 	for i=#t,1,-1 do
 		table.insert(nt, t[i])
@@ -113,7 +114,7 @@ for corner=0,6 do
 	end
 end
 --]]
-edgesForInside = table(single)
+local edgesForInside = table(single)
 
 local doubles = {
 	[2^0 + 2^1] = {2, 3, 5, 5, 4, 2},
@@ -208,9 +209,117 @@ for i=0,255 do
 end
 --]]
 
-function HydroCLApp:display3D_Isosurface(solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
-	self.view:projection(ar)
-	self.view:modelview()
+
+local Draw3DIso = class()
+
+function Draw3DIso:showDisplayVar(app, solver, var)
+	local valueMin, valueMax
+	if var.heatMapFixedRange then
+		valueMin = var.heatMapValueMin
+		valueMax = var.heatMapValueMax
+	else
+		valueMin, valueMax = solver:calcDisplayVarRange(var)
+		var.heatMapValueMin = valueMin
+		var.heatMapValueMax = valueMax
+	end
+	
+	solver:calcDisplayVarToTex(var)	
+	
+	assert(not app.useGLSharing, "I still need to code in the GL sharing version")
+	local dest = ffi.cast('float*', solver.calcDisplayVarToTexPtr)
+	local cornerValues = {}
+	local cornerBars = {}
+	local edgeVtxs = {}
+
+	local numBars = 1
+
+	for k=solver.numGhost,tonumber(solver.gridSize.z)-solver.numGhost-1 do
+		for j=solver.numGhost,tonumber(solver.gridSize.y)-solver.numGhost-1 do
+			for i=solver.numGhost,tonumber(solver.gridSize.x)-solver.numGhost-1 do
+				local ofs = i + solver.gridSize.x * (j + solver.gridSize.y * k)
+			
+				local cellMinBar = math.huge
+				local cellMaxBar = -math.huge
+
+				for corner=0,7 do
+					local cornerOfs = ofs
+					for n=0,2 do
+						if bit.band(bit.rshift(corner, n), 1) == 1 then
+							cornerOfs = cornerOfs + solver.stepSize:ptr()[n]
+						end
+					end
+					
+					local cornerValue = dest[cornerOfs]
+					cornerValues[corner] = cornerValue
+					
+					local cornerBar = math.floor( (cornerValue - valueMin) / (valueMax - valueMin) * numBars - .5 )
+					cornerBars[corner] = cornerBar
+					cellMinBar = math.min(cellMinBar, cornerBar)
+					cellMaxBar = math.max(cellMaxBar, cornerBar)
+				end
+
+				if not (cellMaxBar < 0 or cellMinBar > numBars) then 
+					for bar = math.max(cellMinBar, 0), math.min(cellMaxBar, numBars-1) do
+						local isoValue = (bar + .5) / numBars * (valueMax - valueMin) + valueMin
+				
+						local inside = 0
+						for corner=0,7 do
+							if cornerValues[corner] > isoValue then
+								inside = bit.bor(inside, bit.lshift(1, corner))
+							end
+						end
+
+						-- now for each 0/1 pair along each edge, calculate the fractions based on the fractions of values across corners
+						for corner=0,6 do
+							for n=0,2 do
+								local sign = bit.band(bit.rshift(corner, n), 1) == 0 and 1 or -1
+								local nextCorner = bit.bxor(corner, bit.lshift(1, n))
+								if nextCorner > corner then
+									--v.x, v.y, v.z = i, j, k
+									local v = vec3d(i,j,k)
+									for m=0,2 do
+										if bit.band(corner, bit.lshift(1,m)) ~= 0 then
+											v:ptr()[m] = v:ptr()[m] + 1
+										end
+									end
+									
+									local frac = (isoValue - cornerValues[corner]) / (cornerValues[nextCorner] - cornerValues[corner])
+									v:ptr()[n] = v:ptr()[n] + sign * frac
+								
+									local twoCornerIndex = bit.bor(bit.lshift(1, corner), bit.lshift(1, nextCorner))
+									local edge = edgeForTwoCorners[twoCornerIndex]
+									edgeVtxs[edge] = v 
+								end
+							end
+						end
+						
+						local edges = edgesForInside[inside]
+						if edges then
+							for _,edge in ipairs(edges) do
+								local x,y,z = edgeVtxs[edge]:unpack()
+								
+								x = (x - solver.numGhost) / tonumber(solver.gridSize.x - 2 * solver.numGhost) * (solver.maxs[1] - solver.mins[1]) + solver.mins[1]
+								y = (y - solver.numGhost) / tonumber(solver.gridSize.y - 2 * solver.numGhost) * (solver.maxs[2] - solver.mins[2]) + solver.mins[2]
+								z = (z - solver.numGhost) / tonumber(solver.gridSize.z - 2 * solver.numGhost) * (solver.maxs[3] - solver.mins[3]) + solver.mins[3]
+							
+								gl.glColor3f( table.unpack(({
+									{1,0,0},
+									{0,1,0},
+									[0] = {0,0,1},
+								})[_%3]) )
+								gl.glVertex3d(x,y,z)
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+function Draw3DIso:display(app, solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
+	app.view:projection(ar)
+	app.view:modelview()
 
 	-- draw wireframe
 	for _,solver in ipairs(solvers) do
@@ -238,122 +347,26 @@ function HydroCLApp:display3D_Isosurface(solvers, varName, ar, xmin, ymin, xmax,
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
 	gl.glEnable(gl.GL_BLEND)
 	
-	self.isobarShader:use()
+	app.isobarShader:use()
 	gl.glBegin(gl.GL_TRIANGLES)
 
 	for _,solver in ipairs(solvers) do 
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
-			local valueMin, valueMax
-			if var.heatMapFixedRange then
-				valueMin = var.heatMapValueMin
-				valueMax = var.heatMapValueMax
-			else
-				valueMin, valueMax = solver:calcDisplayVarRange(var)
-				var.heatMapValueMin = valueMin
-				var.heatMapValueMax = valueMax
-			end
-			
-			solver:calcDisplayVarToTex(var)	
-			
-			assert(not self.useGLSharing, "I still need to code in the GL sharing version")
-			local dest = ffi.cast('float*', solver.calcDisplayVarToTexPtr)
-			local cornerValues = {}
-			local cornerBars = {}
-			local edgeVtxs = {}
-
-			local numBars = 1
-
-			for k=solver.numGhost,tonumber(solver.gridSize.z)-solver.numGhost-1 do
-				for j=solver.numGhost,tonumber(solver.gridSize.y)-solver.numGhost-1 do
-					for i=solver.numGhost,tonumber(solver.gridSize.x)-solver.numGhost-1 do
-						local ofs = i + solver.gridSize.x * (j + solver.gridSize.y * k)
-					
-						local cellMinBar = math.huge
-						local cellMaxBar = -math.huge
-
-						for corner=0,7 do
-							local cornerOfs = ofs
-							for n=0,2 do
-								if bit.band(bit.rshift(corner, n), 1) == 1 then
-									cornerOfs = cornerOfs + solver.stepSize:ptr()[n]
-								end
-							end
-							
-							local cornerValue = dest[cornerOfs]
-							cornerValues[corner] = cornerValue
-							
-							local cornerBar = math.floor( (cornerValue - valueMin) / (valueMax - valueMin) * numBars - .5 )
-							cornerBars[corner] = cornerBar
-							cellMinBar = math.min(cellMinBar, cornerBar)
-							cellMaxBar = math.max(cellMaxBar, cornerBar)
-						end
-
-						if not (cellMaxBar < 0 or cellMinBar > numBars) then 
-							for bar = math.max(cellMinBar, 0), math.min(cellMaxBar, numBars-1) do
-								local isoValue = (bar + .5) / numBars * (valueMax - valueMin) + valueMin
-						
-								local inside = 0
-								for corner=0,7 do
-									if cornerValues[corner] > isoValue then
-										inside = bit.bor(inside, bit.lshift(1, corner))
-									end
-								end
-
-								-- now for each 0/1 pair along each edge, calculate the fractions based on the fractions of values across corners
-								for corner=0,6 do
-									for n=0,2 do
-										local sign = bit.band(bit.rshift(corner, n), 1) == 0 and 1 or -1
-										local nextCorner = bit.bxor(corner, bit.lshift(1, n))
-										if nextCorner > corner then
-											--v.x, v.y, v.z = i, j, k
-											local v = vec3d(i,j,k)
-											for m=0,2 do
-												if bit.band(corner, bit.lshift(1,m)) ~= 0 then
-													v:ptr()[m] = v:ptr()[m] + 1
-												end
-											end
-											
-											local frac = (isoValue - cornerValues[corner]) / (cornerValues[nextCorner] - cornerValues[corner])
-											v:ptr()[n] = v:ptr()[n] + sign * frac
-										
-											local twoCornerIndex = bit.bor(bit.lshift(1, corner), bit.lshift(1, nextCorner))
-											local edge = edgeForTwoCorners[twoCornerIndex]
-											edgeVtxs[edge] = v 
-										end
-									end
-								end
-								
-								local edges = edgesForInside[inside]
-								if edges then
-									for _,edge in ipairs(edges) do
-										local x,y,z = edgeVtxs[edge]:unpack()
-										
-										x = (x - solver.numGhost) / tonumber(solver.gridSize.x - 2 * solver.numGhost) * (solver.maxs[1] - solver.mins[1]) + solver.mins[1]
-										y = (y - solver.numGhost) / tonumber(solver.gridSize.y - 2 * solver.numGhost) * (solver.maxs[2] - solver.mins[2]) + solver.mins[2]
-										z = (z - solver.numGhost) / tonumber(solver.gridSize.z - 2 * solver.numGhost) * (solver.maxs[3] - solver.mins[3]) + solver.mins[3]
-									
-										gl.glColor3f( table.unpack(({
-											{1,0,0},
-											{0,1,0},
-											[0] = {0,0,1},
-										})[_%3]) )
-										gl.glVertex3d(x,y,z)
-									end
-								end
-							end
-						end
-					end
-				end
-			end	
+			self:showDisplayVar(app, solver, var)
 		end
 	end
 	
 	gl.glEnd()
-	self.isobarShader:useNone()
+	app.isobarShader:useNone()
 	gl.glDisable(gl.GL_DEPTH_TEST)
 	gl.glDisable(gl.GL_CULL_FACE)
 	gl.glDisable(gl.GL_BLEND)
 end
 
+return function(HydroCLApp)
+	function HydroCLApp:display3D_Isosurface(...)
+		if not self.draw3DIso then self.draw3DIso = Draw3DIso() end
+		return self.draw3DIso:display(self, ...)
+	end
 end
