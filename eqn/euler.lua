@@ -3,6 +3,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
+local xNames = require 'common'.xNames
 
 
 local Euler = class(Equation)
@@ -210,11 +211,10 @@ Euler.displayVarCodeUsesPrims = true
 
 -- k is 0,1,2
 local function vorticity(eqn,k,result)
-	local xs = {'x','y','z'}
 	local i = (k+1)%3
 	local j = (i+1)%3
 	return {
-		name = 'vorticity '..xs[k+1],
+		name = 'vorticity '..xNames[k+1],
 		code = template([[
 	if (OOB(1,1)) {
 		<?=result?> = 0.;
@@ -307,7 +307,9 @@ function Euler:getDisplayVars()
 		if self.solver.dim == 2 then
 			vars:insert(vorticity(self,2,'value.vreal'))
 		elseif self.solver.dim == 3 then
-			local v = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
+			local v = xNames:mapi(function(x,i)
+				return vorticity(self,i-1,'value.vreal3.'..x) 
+			end)
 			vars:insert{name='vorticityVec', code=template([[
 	<? for i=0,2 do ?>{
 		<?=v[i+1].code?>

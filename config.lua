@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -28,7 +28,7 @@ local args = {
 	--fixedDT = .0001,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',
 	
@@ -75,8 +75,11 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{256,1,1},
-				{512,512,1},
-				{16,16,16},
+				{256,256,1},
+				
+				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
+				-- so TODO something about boundary conditions on WENO or something ... maybe an error
+				{64,2,2},
 			},
 		})[platAndDevicesNames]
 		-- default size options
@@ -87,12 +90,12 @@ local args = {
 		}
 	)[dim],
 	boundary = {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'mirror',
+		xmax=cmdline.boundary or 'mirror',
+		ymin=cmdline.boundary or 'mirror',
+		ymax=cmdline.boundary or 'mirror',
+		zmin=cmdline.boundary or 'mirror',
+		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
 	--[[ cylinder
@@ -177,12 +180,14 @@ local args = {
 	--initState = 'constant',
 	--initState = 'constant with velocity',
 	--initState = 'linear',
-	initState = 'gaussian',
+	--initState = 'gaussian',
 	--initState = 'advect wave',
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
+	initStateArgs = {dim=cmdline.displayDim},
+	
 	--initState = 'rectangle',
 	--initState = 'Sedov',
 	--initState = 'Noh',
@@ -724,7 +729,7 @@ local args = {
 	gridSize = ({
 		{128, 1, 1},
 		{64, 16, 1},
-		{2, 2, 2},	--{128, 2, 2},
+		{32, 2, 2},	--{128, 2, 2},
 	})[dim],
 	boundary = {
 		xmin='sphereRMin',

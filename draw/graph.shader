@@ -28,17 +28,17 @@ uniform vec2 size;
 
 <?
 local clnumber = require 'cl.obj.number'
-local sx = clnumber(solver.sizeWithoutBorder.x or 1)
-local sy = clnumber(solver.sizeWithoutBorder.y or 1)
-local s2x = clnumber(solver.gridSize.x or 1)
-local s2y = clnumber(solver.gridSize.y or 1)
-local g = clnumber(solver.numGhost)
+local sizeWithoutBorderX = clnumber(solver.sizeWithoutBorder.x or 1)
+local sizeWithoutBorderY = clnumber(solver.sizeWithoutBorder.y or 1)
+local sizeX = clnumber(solver.gridSize.x or 1)
+local sizeY = clnumber(solver.gridSize.y or 1)
+local numGhost = clnumber(solver.numGhost)
 ?>
 
 vec3 func(vec3 src) {
 	vec3 vertex = src.xyz;
-	vertex.x = (vertex.x * <?=s2x?> - <?=g?>) / <?=sx?> * (xmax.x - xmin.x) + xmin.x;
-	vertex.y = (vertex.y * <?=s2y?> - <?=g?>) / <?=sy?> * (xmax.y - xmin.y) + xmin.y;
+	vertex.x = (vertex.x * <?=sizeX?> - <?=numGhost?>) / <?=sizeWithoutBorderX?> * (xmax.x - xmin.x) + xmin.x;
+	vertex.y = (vertex.y * <?=sizeY?> - <?=numGhost?>) / <?=sizeWithoutBorderY?> * (xmax.y - xmin.y) + xmin.y;
 
 <? if solver.dim == 3 then
 ?>	vertex[axis] = texture3D(tex, vec3(src.xy, .5)).r;

@@ -227,8 +227,8 @@ local initStates = table{
 			{name = 'init_u0', value = 1},
 			{name = 'init_v0', value = 1},
 			{name = 'init_P0', value = 1e-6},
-			{name = 'init_x0', value = .5},
-			{name = 'init_y0', value = .5},
+			{name = 'init_x0', value = -.5},
+			{name = 'init_y0', value = -.5},
 			{name = 'init_z0', value = 0},
 		},
 		initState = function(self, solver)
@@ -343,13 +343,27 @@ Test	ρ L		u L		    p L		 ρ R		u R		    p R
 6		1.4		0.0		    1.0		 1.0		0.0		    1.0		
 7		1.4		0.1		    1.0		 1.0		0.1		    1.0		
 --]]
+		-- TODO do this in InitCond ctor for everyone?
+		init = function(self, solver, args)
+			self.initStateArgs = args
+		end,
 		initState = function(self, solver)
+			local args = self.initStateArgs
 			return template([[
-	rho = lhs ? solver->init_rhoL : solver->init_rhoR;
-	P = lhs ? solver->init_PL : solver->init_PR;
+	
+	bool lhsSod = true<?
+for i=1,args and args.dim or solver.dim do
+	local xi = xNames[i]
+?> && x.<?=xi?> < mids.<?=xi?><?
+end
+?>;
+	
+	rho = lhsSod ? solver->init_rhoL : solver->init_rhoR;
+	P = lhsSod ? solver->init_PL : solver->init_PR;
 ]], {
 		solver = solver,
 		xNames = xNames,
+		args = args,
 	})
 		end,
 		

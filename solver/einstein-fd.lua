@@ -41,7 +41,7 @@ function EinsteinFiniteDifferenceSolver:createDisplayComponents()
 	int index = INDEXV(i);
 	real3 x = cell_x(i);
 	const global <?=eqn.cons_t?>* U = buf + index;
-	value.vreal = real3_weightedLen(*value_real3, calc_gamma_ll(U, x));
+	value->vreal = real3_weightedLen(*value_real3, calc_gamma_ll(U, x));
 ]],
 	})
 	self:addDisplayComponent('sym3', {
@@ -51,7 +51,7 @@ function EinsteinFiniteDifferenceSolver:createDisplayComponents()
 	int index = INDEXV(i);
 	real3 x = cell_x(i);
 	const global <?=eqn.cons_t?>* U = buf + index;
-	value.vreal = sym3_dot(*value_sym3, calc_gamma_uu(U, x));]],
+	value->vreal = sym3_dot(*value_sym3, calc_gamma_uu(U, x));]],
 	})
 end
 

@@ -22,7 +22,7 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	real3 x = cell_x(i);
 	const global <?=eqn.cons_t?>* U = buf + index;
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
-	value.vreal = real3_weightedLen(*value_real3, gammaBar_LL);]],
+	value->vreal = real3_weightedLen(value->vreal3, gammaBar_LL);]],
 	})
 	self:addDisplayComponent('real3', {
 		onlyFor = 'U',
@@ -32,7 +32,7 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	real3 x = cell_x(i);
 	const global <?=eqn.cons_t?>* U = buf + index;
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	value.vreal = real3_weightedLen(*value_real3, gammaBar_ll);]],
+	value->vreal = real3_weightedLen(value->vreal3, gammaBar_ll);]],
 	})
 	self:addDisplayComponent('real3', {
 		onlyFor = 'U',
@@ -42,7 +42,7 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	real3 x = cell_x(i);
 	const global <?=eqn.cons_t?>* U = buf + index;
 	sym3 gamma_uu = calc_gamma_uu(U, x);
-	value.vreal = real3_weightedLen(*value_real3, gamma_uu);]],
+	value->vreal = real3_weightedLen(value->vreal3, gamma_uu);]],
 	})
 	self:addDisplayComponent('sym3', {
 		onlyFor = 'U',
@@ -52,7 +52,7 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	real3 x = cell_x(i);
 	const global <?=eqn.cons_t?>* U = buf + index;
 	sym3 gamma_UU = sym3_rescaleFromCoord_uu(calc_gamma_uu(U, x), x);
-	value.vreal = sym3_dot(*value_sym3, gamma_UU);]],
+	value->vreal = sym3_dot(value->vsym3, gamma_UU);]],
 	})
 	self:addDisplayComponent('sym3', {
 		onlyFor = 'U',
@@ -62,7 +62,7 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	real3 x = cell_x(i);
 	const global <?=eqn.cons_t?>* U = buf + index;
 	sym3 gammaBar_UU = calc_gammaBar_UU(U, x);
-	value.vreal = sym3_dot(*value_sym3, gammaBar_UU);]],
+	value->vreal = sym3_dot(value->vsym3, gammaBar_UU);]],
 	})
 end
 

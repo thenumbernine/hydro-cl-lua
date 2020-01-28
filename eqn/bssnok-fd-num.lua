@@ -126,6 +126,7 @@ function BSSNOKFiniteDifferenceEquation:fieldTypeForVar(varname)
 end
 
 function BSSNOKFiniteDifferenceEquation:makePartial1(field, fieldType, nameOverride)
+	-- order = 4 = 2 * 2 = 2 * (3 - 1), so numGhost == 3
 	local derivOrder = 2 * (self.solver.numGhost - 1)
 	fieldType = fieldType or self:fieldTypeForVar(field)
 	return makePartials.makePartial1(derivOrder, self.solver, field, fieldType, nameOverride)

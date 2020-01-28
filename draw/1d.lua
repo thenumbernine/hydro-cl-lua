@@ -45,7 +45,7 @@ function Draw1D:showDisplayVar1D(app, solver, var)
 	gl.glUniform3f(graphShader.uniforms.color.loc, table.unpack((#app.solvers > 1 and solver or var).color))
 
 	local step = 1
-	local numVertexes = math.floor((tonumber(solver.gridSize.x)-2 - 2 + 1) / step)	-- (endindex - startindex + 1) / step
+	local numVertexes = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)	-- (endindex - startindex + 1) / step
 	if numVertexes ~= self.numVertexes then
 		self.numVertexes = numVertexes 
 		self.vertexes = ffi.new('float[?]', 3*numVertexes)
@@ -63,10 +63,10 @@ function Draw1D:showDisplayVar1D(app, solver, var)
 	gl.glUniformMatrix4fv(graphShader.uniforms.ModelViewProjectionMatrix.loc, 1, gl.GL_FALSE, self.ModelViewProjectionMatrix.ptr)
 	
 	for i=0,self.numVertexes-1 do
-		local x = (i*step+2.5)/tonumber(solver.gridSize.x)
+		local x = (i * step + .5 + solver.numGhost) / tonumber(solver.gridSize.x)
 		self.vertexes[0+3*i] = x
-		self.vertexes[1+3*i] = 0
-		self.vertexes[2+3*i] = 0
+		self.vertexes[1+3*i] = .5
+		self.vertexes[2+3*i] = .5
 	end
 	
 	gl.glEnableVertexAttribArray(graphShader.attrs.inVertex.loc)
@@ -86,7 +86,7 @@ function Draw1D:display1D(app, solvers, varName, ar, xmin, ymin, xmax, ymax, use
 	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
 	gl.glMatrixMode(gl.GL_MODELVIEW)
 	gl.glLoadIdentity()
-
+	
 	gl.glColor3d(.1, .1, .1)
 	local xrange = xmax - xmin
 	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
@@ -108,7 +108,7 @@ function Draw1D:display1D(app, solvers, varName, ar, xmin, ymin, xmax, ymax, use
 		gl.glVertex2d(xmax,y*ystep)
 	end
 	gl.glEnd()
-
+	
 	gl.glColor3d(.5, .5, .5)
 	gl.glBegin(gl.GL_LINES)
 	gl.glVertex2d(xmin, 0)
@@ -116,14 +116,14 @@ function Draw1D:display1D(app, solvers, varName, ar, xmin, ymin, xmax, ymax, use
 	gl.glVertex2d(0, ymin)
 	gl.glVertex2d(0, ymax)
 	gl.glEnd()
-
+	
 	-- display here
 	for _,solver in ipairs(solvers) do
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
 			self:showDisplayVar1D(app, solver, var)
 		end
-
+		
 		local unitScale = 1
 		local thisValueMin = valueMin
 		local thisValueMax = valueMax
@@ -132,7 +132,7 @@ function Draw1D:display1D(app, solvers, varName, ar, xmin, ymin, xmax, ymax, use
 			thisValueMin = thisValueMin * unitScale
 			thisValueMax = thisValueMax * unitScale
 		end
-	
+		
 		if app.font then
 			local fontSizeX = (xmax - xmin) * .05
 			local fontSizeY = (ymax - ymin) * .05

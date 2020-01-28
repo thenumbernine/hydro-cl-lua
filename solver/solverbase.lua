@@ -1751,12 +1751,13 @@ end
 -- check for nans
 -- expects buf to be of type cons_t, made up of numStates real variables
 function SolverBase:checkFinite(buf)
-	local ptr = buf:toCPU()
+	local ptrorig = buf:toCPU()
 	local ptr0size = tonumber(ffi.sizeof(buf.type))
 	local realSize = tonumber(ffi.sizeof'real')
 	local ptrsPerReal = ptr0size / realSize
 	assert(ptrsPerReal == math.floor(ptrsPerReal))
-	ptr = ffi.cast('real*', ptr)
+	-- don't free the original ptr too soon
+	local ptr = ffi.cast('real*', ptrorig)
 	local size = buf.count * ptrsPerReal
 	local found
 	for i=0,size-1 do
@@ -1800,18 +1801,21 @@ function SolverBase:checkFinite(buf)
 	return false, 'found non-finite offsets and numbers: '..require'ext.tolua'(found)..' at t='..self.t
 end
 
-function SolverBase:printBuf(buf, ptr, colsize, colmax)
-	ptr = ptr or buf:toCPU()
+function SolverBase:printBuf(buf, ptrorig, colsize, colmax)
+	ptrorig = ptrorig or buf:toCPU()
 	local ptr0size = tonumber(ffi.sizeof(buf.type))
 	local realSize = tonumber(ffi.sizeof'real')
 	local ptrsPerReal = ptr0size / realSize
 	assert(ptrsPerReal == math.floor(ptrsPerReal))
-	ptr = ffi.cast('real*', ptr)
+	-- I've seen this problem before, in gcmem ... if you assign a ptr to a cast of itself, luajit can segfault
+	-- fix?  save the old pointer, and luajit doesn't try to free it too early
+	local ptr = ffi.cast('real*', ptrorig)
 	local size = buf.count * ptrsPerReal
 	if buf.type == self.eqn.cons_t then
 		local max = #tostring(self.numCells-1)
 		local realsPerCell = math.floor(size / self.numCells)
 		colmax = colmax or realsPerCell
+		assert(colmax <= realsPerCell)
 		for i=0,self.numCells-1 do
 			io.write((' '):rep(max-#tostring(i)), i,':')
 			for j=0,colmax-1 do
