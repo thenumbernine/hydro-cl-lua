@@ -29,19 +29,19 @@ Now this project, lua-hydro-cl, pushes the middleman (C++) out completely.
 
 ### Dependencies
 
-- lua-ext
-- lua-template
-- lua-opencl
-- lua-vec
-- lua-matrix
-- lua-symmath
-- lua-ffi-bindings (OpenGL, SDL, cimgui, libpng, ffi vector types)
-- lua-image (if you want to take pictures/videos)
-- lua-gl (if you want to use the graphic visualization)
-- lua-glapp (if you want to use the graphic visualization)
-- lua-gui (if you want to use the graphic visualization)
-- lua-gnuplot (used by some tests)
-- lua-imguiapp (if you want to use the GUI)
+- https://github.com/thenumbernine/lua-ext
+- https://github.com/thenumbernine/lua-template
+- https://github.com/thenumbernine/vec-lua
+- https://github.com/thenumbernine/lua-matrix
+- https://github.com/thenumbernine/symmath-lua
+- https://github.com/thenumbernine/lua-opencl
+- https://github.com/thenumbernine/lua-ffi-bindings (OpenGL, SDL, cimgui, libpng, ffi vector types)
+- https://github.com/thenumbernine/lua-image (if you want to take pictures/videos)
+- https://github.com/thenumbernine/lua-gl (if you want to use the graphic visualization)
+- https://github.com/thenumbernine/lua-glapp (if you want to use the graphic visualization)
+- https://github.com/thenumbernine/lua-gui (if you want to use the graphic visualization)
+- https://github.com/thenumbernine/lua-gnuplot (used by some tests)
+- https://github.com/thenumbernine/lua-imguiapp (if you want to use the GUI)
 
 
 ### Features:
