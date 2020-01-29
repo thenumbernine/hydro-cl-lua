@@ -311,8 +311,10 @@ local initStates = table{
 		name = 'Sod',
 -- [[ test-case vars
 		guiVars = {
+			-- L = high pressure / density
 			{name = 'init_rhoL', value = 1},
 			{name = 'init_PL', value = 1},
+			-- R = low pressure / density
 			{name = 'init_rhoR', value = .125},
 			{name = 'init_PR', value = .1},
 		},

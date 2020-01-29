@@ -56,6 +56,9 @@ function GridSolver:initL1(args)
 	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
 	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
 	
+	self.initCondMins = vec3(table.unpack(args.initCondMins or self.mins))
+	self.initCondMaxs = vec3(table.unpack(args.initCondMaxs or self.maxs))
+	
 	-- TODO OK this is a little ambiguous ...
 	-- gridSize is the desired grid size
 	-- self.gridSize is gonna be that, plus numGhost on either side ...
@@ -470,6 +473,12 @@ function GridSolver:refreshSolverBufMinsMaxs()
 	self.solverPtr.grid_dx.x = (self.solverPtr.maxs.x - self.solverPtr.mins.x) / tonumber(self.sizeWithoutBorder.x)
 	self.solverPtr.grid_dx.y = (self.solverPtr.maxs.y - self.solverPtr.mins.y) / tonumber(self.sizeWithoutBorder.y)
 	self.solverPtr.grid_dx.z = (self.solverPtr.maxs.z - self.solverPtr.mins.z) / tonumber(self.sizeWithoutBorder.z)
+	self.solverPtr.initCondMins.x = self.initCondMins[1]
+	self.solverPtr.initCondMins.y = self.initCondMins[2]
+	self.solverPtr.initCondMins.z = self.initCondMins[3]
+	self.solverPtr.initCondMaxs.x = self.initCondMaxs[1]
+	self.solverPtr.initCondMaxs.y = self.initCondMaxs[2]
+	self.solverPtr.initCondMaxs.z = self.initCondMaxs[3]
 	if self.app.verbose then
 		print('mins = '..self.solverPtr.mins.x..', '..self.solverPtr.mins.y..', '..self.solverPtr.mins.z)
 		print('maxs = '..self.solverPtr.maxs.x..', '..self.solverPtr.maxs.y..', '..self.solverPtr.maxs.z)

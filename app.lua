@@ -756,12 +756,29 @@ end
 	if self.targetSystem == 'console' then return end
 
 	gl.glClear(bit.bor(gl.GL_COLOR_BUFFER_BIT, gl.GL_DEPTH_BUFFER_BIT))
-	
+
+
+-- TODO FIXME temp hack for composite solvers
+local flattenedSolvers = table(self.solvers)
+do
+	local i = 1
+	while i <= #flattenedSolvers do
+		local solver = flattenedSolvers[i]
+		if solver.solvers then
+			flattenedSolvers:append(solver.solvers)
+			flattenedSolvers:remove(i)
+			i = i - 1
+		end
+		i = i + 1
+	end
+end
+local displaySolvers = flattenedSolvers
+
 	local w, h = self:size()
 
 	local varNamesEnabled = table()
 	local varNamesEnabledByName = {}
-	for _,solver in ipairs(self.solvers) do
+	for _,solver in ipairs(displaySolvers) do
 		for i,var in ipairs(solver.displayVars) do
 			if var.enabled then
 				if not varNamesEnabledByName[var.name] then
@@ -793,7 +810,7 @@ end
 	local vectorField
 	for _,varName in ipairs(varNamesEnabled) do
 		local xmin, xmax, ymin, ymax
-		for _,solver in ipairs(self.solvers) do
+		for _,solver in ipairs(displaySolvers) do
 			local var = solver.displayVarForName[varName]
 			
 			if var and var.enabled
@@ -908,7 +925,7 @@ end
 		end
 		if self.showMouseCoords 
 		and mouseOverThisGraph
-		and (cmdline.displayDim or self.solvers[1].dim) == 2
+		and (cmdline.displayDim or displaySolvers[1].dim) == 2
 		then
 			local xmin, xmax, ymin, ymax
 			if self.view.getOrthoBounds then
@@ -926,19 +943,19 @@ end
 
 
 		-- TODO maybe find the first solver for this var and use it to choose 1D,2D,3D
-		local dim = cmdline.displayDim or self.solvers[1].dim
+		local dim = cmdline.displayDim or displaySolvers[1].dim
 		
 		if not vectorField then
 			if dim == 1 then
-				self:display1D(self.solvers, varName, ar, xmin, ymin, xmax, ymax, useLog, varymin, varymax)
+				self:display1D(displaySolvers, varName, ar, xmin, ymin, xmax, ymax, useLog, varymin, varymax)
 			elseif dim == 2 then
-				self:display2D(self.solvers, varName, ar, xmin, ymin, xmax, ymax)
+				self:display2D(displaySolvers, varName, ar, xmin, ymin, xmax, ymax)
 			elseif dim == 3 then
-				self:display3D(self.solvers, varName, ar, xmin, ymin, xmax, ymax)
+				self:display3D(displaySolvers, varName, ar, xmin, ymin, xmax, ymax)
 			end
 		else
 			--if self.enableVectorField then
-			self:displayVectorField(self.solvers, ar, varName, xmin, ymin, xmax, ymax)
+			self:displayVectorField(displaySolvers, ar, varName, xmin, ymin, xmax, ymax)
 			--end
 		end
 
@@ -949,7 +966,7 @@ end
 		and dim == 2
 		then
 			self.mouseCoordValue = ''
-			for i,solver in ipairs(self.solvers) do 
+			for i,solver in ipairs(displaySolvers) do 
 			local var = solver.displayVarForName[varName]
 				if var and var.enabled then
 					-- translate the mouse coords to texture coords
@@ -1011,7 +1028,7 @@ end
 	gl.glLoadIdentity()
 
 	if self.font then
-		local solverNames = self.solvers:mapi(function(solver)
+		local solverNames = displaySolvers:mapi(function(solver)
 			return {
 				text = ('(%.3f) %s'):format(solver.t, solver.name),
 				color = solver.color,
@@ -1056,14 +1073,14 @@ end
 		if not pushVarNamesEnabled then
 			pushVarNamesEnabled = table(varNamesEnabled)
 			-- and disable all except the one we clicked
-			for _,solver in ipairs(self.solvers) do
+			for _,solver in ipairs(displaySolvers) do
 				for i,var in ipairs(solver.displayVars) do
 					var.enabled = var.name == mouseClickedOnVar
 				end
 			end
 		else
 			-- restore those that were pushed
-			for _,solver in ipairs(self.solvers) do
+			for _,solver in ipairs(displaySolvers) do
 				for i,var in ipairs(solver.displayVars) do
 					var.enabled = pushVarNamesEnabled:find(var.name)
 				end

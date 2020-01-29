@@ -79,8 +79,8 @@ function SolverBase:initL1(args)
 	self.app = assert(args.app)
 	self.dim = assert(args.dim)
 	
-	self.device = self.app.env.devices[1]
-	self.cmds = self.app.env.cmds[1]
+	self.device = args.device or self.app.env.devices[1]
+	self.cmds = args.cmds or self.app.env.cmds[1]
 	
 	self.color = vec3(math.random(), math.random(), math.random()):normalize()
 
@@ -95,6 +95,10 @@ function SolverBase:initL1(args)
 	-- [[ right now the mesh initial conditions use these, but otherwise they can be GridSolver-specific
 		{name='mins', type='real3'},
 		{name='maxs', type='real3'},
+	--]]
+	-- [[ the mins/maxs, or the super-solver's mins/maxs.  only needed because of the composite solvers. 
+		{name='initCondMins', type='real3'},
+		{name='initCondMaxs', type='real3'},
 	--]]
 	}
 end
