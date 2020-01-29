@@ -153,7 +153,7 @@ function GridSolver:preInit(args)
 		if self.obj then	-- did compile
 			print((self.name and self.name..' ' or '')..'log:')
 			-- TODO log per device ...			
-			print(string.trim(self.obj:getLog(solver.app.device)))
+			print(string.trim(self.obj:getLog(solver.device)))
 		end
 		return results
 	end
@@ -668,11 +668,11 @@ end
 end
 
 function GridSolver:resetState()
-	self.app.cmds:finish()
+	self.cmds:finish()
 		
 	-- start off by filling all buffers with zero, just in case initState forgets something ...
 	for _,bufferInfo in ipairs(self.buffers) do
-		self.app.cmds:enqueueFillBuffer{buffer=self[bufferInfo.name], size=bufferInfo.count * ffi.sizeof(bufferInfo.type)}
+		self.cmds:enqueueFillBuffer{buffer=self[bufferInfo.name], size=bufferInfo.count * ffi.sizeof(bufferInfo.type)}
 	end
 
 	GridSolver.super.resetState(self)
@@ -1446,7 +1446,7 @@ function GridSolver:applyBoundaryToBuffer(kernelObjs)
 		-- 1D:
 		if self.dim == 1 then
 			-- if you do change this size from anything but 1, make sure to add conditions to the boundary kernel code
-			self.app.cmds:enqueueNDRangeKernel{
+			self.cmds:enqueueNDRangeKernel{
 				kernel = obj.obj,
 				globalSize = 1,
 				localSize = 1,
@@ -1459,7 +1459,7 @@ function GridSolver:applyBoundaryToBuffer(kernelObjs)
 					or tonumber(self.gridSize.x)
 					,
 				localSize)
-			self.app.cmds:enqueueNDRangeKernel{
+			self.cmds:enqueueNDRangeKernel{
 				kernel = obj.obj,
 				globalSize = maxSize,
 				localSize = localSize,
@@ -1472,7 +1472,7 @@ function GridSolver:applyBoundaryToBuffer(kernelObjs)
 			local maxSizeY = roundup(
 				math.max(tonumber(self.gridSize.y), tonumber(self.gridSize.z)),
 				self.localSize2d[2])
-			self.app.cmds:enqueueNDRangeKernel{
+			self.cmds:enqueueNDRangeKernel{
 				kernel = obj.obj,
 				globalSize = {maxSizeX, maxSizeY},
 				localSize = {
@@ -1621,13 +1621,13 @@ function GridSolver:calcDisplayVarToTex(var, componentIndex)
 	if app.useGLSharing then
 		-- copy to GL using cl_*_gl_sharing
 		gl.glFinish()
-		app.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
+		self.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
 	
 		var:setToTexArgs()
 		var.calcDisplayVarToTexKernelObj()
 		
-		app.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
-		app.cmds:finish()
+		self.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
+		self.cmds:finish()
 	else
 		-- download to CPU then upload with glTexSubImage2D
 		-- calcDisplayVarToTexPtr is sized without ghost cells 
@@ -1646,7 +1646,7 @@ function GridSolver:calcDisplayVarToTex(var, componentIndex)
 		assert(sizevec.x <= tex.width and sizevec.y <= tex.height)
 		local volume = tonumber(sizevec:volume())
 		
-		app.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * volume * channels, ptr=ptr}
+		self.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * volume * channels, ptr=ptr}
 		local destPtr = ptr
 		-- TODO check for extension GL_ARB_half_float_pixel
 		local gltype = app.real == 'half' and gl.GL_HALF_FLOAT_ARB or gl.GL_FLOAT
@@ -1910,7 +1910,7 @@ function GridSolver:saveBuffer(buffer, basefn)
 		local image = Image(width * depth, height, channels, assert(self.app.real))
 		local function getIndex(ch,i,j,k) return i + width * (k + depth * (j + height * ch)) end
 --]]
-		self.app.cmds:enqueueReadBuffer{buffer=buffer, block=true, size=ffi.sizeof(self.app.real) * numReals, ptr=image.buffer}
+		self.cmds:enqueueReadBuffer{buffer=buffer, block=true, size=ffi.sizeof(self.app.real) * numReals, ptr=image.buffer}
 		local src = image.buffer
 		
 		-- now convert from interleaved to planar

@@ -113,13 +113,13 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	local bufferSize = self.numCells * ffi.sizeof(self.eqn.cons_t)
 
 	-- zero all derivatives
-	self.app.cmds:enqueueFillBuffer{buffer=self.derivL1_1, size=bufferSize}
-	self.app.cmds:enqueueFillBuffer{buffer=self.derivL1_n, size=bufferSize}
-	self.app.cmds:enqueueFillBuffer{buffer=self.derivL2_1, size=bufferSize}
-	self.app.cmds:enqueueFillBuffer{buffer=self.derivL2_n, size=bufferSize}
-	self.app.cmds:enqueueFillBuffer{buffer=self.derivL2_next, size=bufferSize}
-	self.app.cmds:enqueueFillBuffer{buffer=self.derivL3_1, size=bufferSize}
-	self.app.cmds:enqueueFillBuffer{buffer=self.derivL3_n, size=bufferSize}
+	self.cmds:enqueueFillBuffer{buffer=self.derivL1_1, size=bufferSize}
+	self.cmds:enqueueFillBuffer{buffer=self.derivL1_n, size=bufferSize}
+	self.cmds:enqueueFillBuffer{buffer=self.derivL2_1, size=bufferSize}
+	self.cmds:enqueueFillBuffer{buffer=self.derivL2_n, size=bufferSize}
+	self.cmds:enqueueFillBuffer{buffer=self.derivL2_next, size=bufferSize}
+	self.cmds:enqueueFillBuffer{buffer=self.derivL3_1, size=bufferSize}
+	self.cmds:enqueueFillBuffer{buffer=self.derivL3_n, size=bufferSize}
 
 -- step 1: evolve epsilon_IJ, alpha, W, beta^I
 
@@ -286,7 +286,7 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	-- remove trace of UNext
 	-- copy to UBuf
 
-	self.app.cmds:enqueueCopyBuffer{dst=self.UBuf, src=self.UNext, size=bufferSize}
+	self.cmds:enqueueCopyBuffer{dst=self.UBuf, src=self.UNext, size=bufferSize}
 	
 	assert(FakeIntegrator.is(self.integrator))
 	-- has constrainU and boundary

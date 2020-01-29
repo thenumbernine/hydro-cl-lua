@@ -303,7 +303,7 @@ kernel void initNodeFromRoot(
 		if self.amr.ctx.method == 'dt vs 2dt' then
 			t = self.t
 			-- back up the last buffer
-			self.app.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.lastUBuf, size=self.numCells * self.eqn.numStates * ffi.sizeof(self.app.real)}
+			self.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.lastUBuf, size=self.numCells * self.eqn.numStates * ffi.sizeof(self.app.real)}
 		end
 		
 		-- update children ... twice as many times, at half the timestep
@@ -317,8 +317,8 @@ kernel void initNodeFromRoot(
 		-- now copy it to the backup buffer
 		if self.amr.ctx.method == 'dt vs 2dt' then
 			-- TODO have step() provide a target, and just update directly into U2Buf?
-			self.app.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.U2Buf, size=self.numCells * self.eqn.numStates * ffi.sizeof(self.app.real)}
-			self.app.cmds:enqueueCopyBuffer{src=self.lastUBuf, dst=self.UBuf, size=self.numCells * self.eqn.numStates * ffi.sizeof(self.app.real)}
+			self.cmds:enqueueCopyBuffer{src=self.UBuf, dst=self.U2Buf, size=self.numCells * self.eqn.numStates * ffi.sizeof(self.app.real)}
+			self.cmds:enqueueCopyBuffer{src=self.lastUBuf, dst=self.UBuf, size=self.numCells * self.eqn.numStates * ffi.sizeof(self.app.real)}
 
 			self:step(.5 * dt)
 			self.t = t + .5 * dt
@@ -338,7 +338,7 @@ kernel void initNodeFromRoot(
 --print('amrRootSizeInFromGlobalSize', amrRootSizeInFromGlobalSize) 
 --print('self.localSize', self.localSize)			
 			self.calcAMRErrorKernelObj.obj:setArgs(self.solverBuf, self.amrErrorBuf, self.UBuf)
-			self.app.cmds:enqueueNDRangeKernel{
+			self.cmds:enqueueNDRangeKernel{
 				kernel = self.calcAMRErrorKernelObj.obj, 
 				dim = self.dim, 
 				globalSize = amrRootSizeInFromGlobalSize:ptr(), 
@@ -347,7 +347,7 @@ kernel void initNodeFromRoot(
 
 			local volume = tonumber(self.amr.ctx.parentSizeInFromSize:volume())
 			local ptr = assert(self.amrErrorPtr)
-			self.app.cmds:enqueueReadBuffer{buffer=self.amrErrorBuf, block=true, size=ffi.sizeof(self.app.real) * volume, ptr=ptr}
+			self.cmds:enqueueReadBuffer{buffer=self.amrErrorBuf, block=true, size=ffi.sizeof(self.app.real) * volume, ptr=ptr}
 		
 			-- [[
 print('depth '..self.amr.depth..' amrErrors:')

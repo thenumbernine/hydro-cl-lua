@@ -49,7 +49,7 @@ function IterativeCrankNicolson:integrate(dt, callback)
 if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
 	
 	-- TODO get rid of the cl.hpp impl in cl/*.lua and just replace it with cl/obj/*.lua
-	solver.app.cmds:enqueueCopyBuffer{src=solver.UBuf, dst=self.srcUBufObj.obj, size=bufferSize}
+	solver.cmds:enqueueCopyBuffer{src=solver.UBuf, dst=self.srcUBufObj.obj, size=bufferSize}
 	
 	for i=1,self.iterations-1 do
 		-- du/dt(u^i-1_k)

@@ -348,8 +348,8 @@ end
 function MeshSolver:finalizeCLAllocs()
 	MeshSolver.super.finalizeCLAllocs(self)
 
-	self.app.cmds:enqueueWriteBuffer{buffer=self.cellsBuf, block=true, size=ffi.sizeof'cell_t' * self.numCells, ptr=self.mesh.cells}
-	self.app.cmds:enqueueWriteBuffer{buffer=self.ifacesBuf, block=true, size=ffi.sizeof'iface_t' * self.numInterfaces, ptr=self.mesh.ifaces}
+	self.cmds:enqueueWriteBuffer{buffer=self.cellsBuf, block=true, size=ffi.sizeof'cell_t' * self.numCells, ptr=self.mesh.cells}
+	self.cmds:enqueueWriteBuffer{buffer=self.ifacesBuf, block=true, size=ffi.sizeof'iface_t' * self.numInterfaces, ptr=self.mesh.ifaces}
 end
 
 function MeshSolver:refreshInitStateProgram()

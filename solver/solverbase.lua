@@ -79,6 +79,9 @@ function SolverBase:initL1(args)
 	self.app = assert(args.app)
 	self.dim = assert(args.dim)
 	
+	self.device = self.app.env.devices[1]
+	self.cmds = self.app.env.cmds[1]
+	
 	self.color = vec3(math.random(), math.random(), math.random()):normalize()
 
 	-- operators for this solver
@@ -102,7 +105,7 @@ function SolverBase:preInit(args)
 -- ... except in the GridSolver class
 	-- https://stackoverflow.com/questions/15912668/ideal-global-local-work-group-sizes-opencl
 	-- product of all local sizes must be <= max workgroup size
-	self.maxWorkGroupSize = tonumber(self.app.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
+	self.maxWorkGroupSize = tonumber(self.device:getInfo'CL_DEVICE_MAX_WORK_GROUP_SIZE')
 	if self.app.verbose then print('maxWorkGroupSize', self.maxWorkGroupSize) end
 	
 	local sizeProps = self:getSizePropsForWorkGroupSize(self.maxWorkGroupSize)
@@ -961,7 +964,7 @@ end
 SolverBase.t = 0
 function SolverBase:resetState()
 	self.t = 0
-	self.app.cmds:finish()
+	self.cmds:finish()
 
 	self:applyInitCond()
 	self:boundary()
@@ -972,7 +975,7 @@ end
 function SolverBase:applyInitCond()
 	self.eqn.initState:resetState(self)
 	if self.allowAccum then
-		self.app.cmds:enqueueFillBuffer{buffer=self.accumBuf, size=ffi.sizeof(self.app.real) * self.numCells * 3}
+		self.cmds:enqueueFillBuffer{buffer=self.accumBuf, size=ffi.sizeof(self.app.real) * self.numCells * 3}
 	end
 end
 
@@ -1556,7 +1559,7 @@ if var.name == 'amrError 0' then
 local volume = tonumber(self.amrRootSizeInFromSize:volume())
 print('self.amrRootSizeInFromSize',self.amrRootSizeInFromSize)
 local ptr = ffi.new('real[?]', volume*channels)
-self.app.cmds:enqueueReadBuffer{buffer=self.amrErrorBuf, block=true, size=ffi.sizeof(self.app.real) * volume * channels, ptr=ptr}
+self.cmds:enqueueReadBuffer{buffer=self.amrErrorBuf, block=true, size=ffi.sizeof(self.app.real) * volume * channels, ptr=ptr}
 print'buffer:'
 local min = math.huge
 local max = -math.huge
@@ -1850,7 +1853,6 @@ function SolverBase:calcDisplayVarToBuffer(var, componentIndex)
 	local component = self.displayComponentFlatList[componentIndex]
 	local vectorField = self:isVarTypeAVectorField(component.type)
 	local channels = vectorField and 3 or 1
-	local app = self.app
 
 	-- duplicated in calcDisplayVarRange
 	local volume = self.numCells
@@ -1860,14 +1862,14 @@ function SolverBase:calcDisplayVarToBuffer(var, componentIndex)
 	end
 	
 	if self.displayVarAccumFunc	then
-		app.cmds:enqueueCopyBuffer{src=self.accumBuf, dst=self.reduceBuf, size=ffi.sizeof(app.real) * volume * channels}
+		self.cmds:enqueueCopyBuffer{src=self.accumBuf, dst=self.reduceBuf, size=ffi.sizeof(app.real) * volume * channels}
 	end
 	var:setToBufferArgs()
 	var.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
 	var.calcDisplayVarToBufferKernelObj.obj:setArg(3, int(componentIndex))
 	var.calcDisplayVarToBufferKernelObj()
 	if self.displayVarAccumFunc then
-		app.cmds:enqueueCopyBuffer{src=self.reduceBuf, dst=self.accumBuf, size=ffi.sizeof(app.real) * volume * channels}
+		self.cmds:enqueueCopyBuffer{src=self.reduceBuf, dst=self.accumBuf, size=ffi.sizeof(app.real) * volume * channels}
 	end
 end
 
@@ -1890,7 +1892,7 @@ function SolverBase:updateGUIParams()
 	if self.allowAccum then
 		if tooltip.checkboxTable('accum', self, 'displayVarAccumFunc') then
 			self:refreshSolverProgram()	-- I guess getDisplayCode is now in getSolverCode
-			self.app.cmds:enqueueFillBuffer{buffer=self.accumBuf, size=ffi.sizeof(self.app.real) * self.numCells * 3}
+			self.cmds:enqueueFillBuffer{buffer=self.accumBuf, size=ffi.sizeof(self.app.real) * self.numCells * 3}
 		end
 	end
 

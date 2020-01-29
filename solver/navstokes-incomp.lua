@@ -48,14 +48,14 @@ function NavierStokesIncompressible:project()
 end
 
 function NavierStokesIncompressible:step(dt)
-	local bufferSize = solver.numCells * ffi.sizeof(self.eqn.cons_t)
+	local bufferSize = self.numCells * ffi.sizeof(self.eqn.cons_t)
 
 	self.diffuseKernelObj.obj:setArg(2, real(dt))
 	
 	-- diffuse
 	for i=1,self.numJacobiSteps do
 		self.diffuseKernelObj()
-		solver.app.cmds:enqueueCopyBuffer{src=solver.UNextBuf, dst=self.UBuf, size=bufferSize}
+		self.cmds:enqueueCopyBuffer{src=self.UNextBuf, dst=self.UBuf, size=bufferSize}
 	end
 	
 	self:project()

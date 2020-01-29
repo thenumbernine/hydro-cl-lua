@@ -61,7 +61,7 @@ if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
 	end
 	if needed then
 --print('UBufs[1] = UBuf')
-		solver.app.cmds:enqueueCopyBuffer{src=solver.UBuf, dst=self.UBufs[1], size=bufferSize}
+		solver.cmds:enqueueCopyBuffer{src=solver.UBuf, dst=self.UBufs[1], size=bufferSize}
 	end
 
 	--L(u^(0))
@@ -76,7 +76,7 @@ if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
 	
 		self:clearBuffer(self.derivBufObjs[1])
 
-if solver.checkNaNs then solver.app.cmds:finish() assert(solver:checkFinite(self.derivBufObjs[1])) end
+if solver.checkNaNs then solver.cmds:finish() assert(solver:checkFinite(self.derivBufObjs[1])) end
 		callback(self.derivBufObjs[1])
 if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
 	
@@ -137,7 +137,7 @@ end
 			end
 			if needed then
 --print('UBufs['..i..'] = UBuf')
-				solver.app.cmds:enqueueCopyBuffer{src=solver.UBuf, dst=self.UBufs[i], size=bufferSize}
+				solver.cmds:enqueueCopyBuffer{src=solver.UBuf, dst=self.UBufs[i], size=bufferSize}
 			end
 		
 			--likewise here, only if beta_mi != 0 for any m
