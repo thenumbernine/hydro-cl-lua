@@ -9,6 +9,7 @@ matching equation object might be useful, since that means only one set of displ
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
+local coroutine = require 'ext.coroutine'
 local vec3sz = require 'vec-ffi.vec3sz'
 local vec3d = require 'vec-ffi.vec3d'
 local cl = require 'ffi.OpenCL'
@@ -140,7 +141,7 @@ function Chopped:init(args)
 	local maxs = vec3d(table.unpack(self.maxs))
 
 	self.blocks = table()	-- [i][j][k]
-	self.flattenedBlocks = table() -- [index]
+	self.flatBlocks = table() -- [index]
 	for i1=0,tonumber(self.multiSlices.x-1) do
 		local bi = table()
 		self.blocks:insert(bi)
@@ -159,20 +160,20 @@ function Chopped:init(args)
 					maxs = fR * (maxs - mins) + mins,
 				}
 				bj:insert(block)
-				self.flattenedBlocks:insert(block)
+				self.flatBlocks:insert(block)
 			end
 		end
 	end
 --]]
 	if self.app.verbose then
 		print'blocks:'
-		for _,block in ipairs(self.flattenedBlocks) do
+		for _,block in ipairs(self.flatBlocks) do
 			print(require 'ext.tolua'(block))
 		end
 		print()
 	end
 	-- now make subsolvers for each of these solvers
-	self.solvers = self.flattenedBlocks:mapi(function(block,i)
+	self.solvers = self.flatBlocks:mapi(function(block,i)
 		local subsolver = subsolverClass(table(args, {
 			mins = {block.mins:unpack()},
 			maxs = {block.maxs:unpack()},
@@ -183,7 +184,6 @@ function Chopped:init(args)
 			initCondMins = self.mins,
 			initCondMaxs = self.maxs,
 		}))
---		subsolver.choppedupBoundaryInfo = block.boundary
 		block.solver = subsolver
 		return subsolver 
 	end)
@@ -317,17 +317,49 @@ function Chopped:init(args)
 		end
 	end
 
---[[	
-	for _,solver in ipairs(self.solvers) do
-		for _,minmax in ipairs{'min', 'max'} do
-			for j=1,3 do
-				if solver.choppedupBoundaryInfo[minmax][j] then
-					solver.choppedupBoundaryInfo[minmax][j] = solver.choppedupBoundaryInfo[minmax][j].solver
-				end
-			end
+	--[[ how to sync all functions
+	
+	GridSolver.update:
+		SolverBase.update
+		solver:calcDT
+		solver:step
+		solver:boundary
+	
+	so I could either pick the update internals apart and recreate them in here
+		but then I'd have to take care to recreate every single thing in here
+	or I could just put update in a coroutine
+		and then correctly :resume inside here
+	--]]
+	for i,solver in ipairs(self.solvers) do
+		local oldCalcDT = solver.calcDT
+		function solver:calcDT(...)
+			local oldDT = oldCalcDT(self, ...)
+--print('solver '..i..' calcDT dt was '..oldDT)			
+			
+			local newDT = coroutine.yield(oldDT)
+--print('solver '..i..' calcDT dt is now '..newDT)
+			return newDT 
+		end
+		local oldUpdate = solver.update
+		function solver:update(...)
+			oldUpdate(self, ...)
+			local result = coroutine.yield'update done'	-- assert resume gets this to make sure our yields are lined up
+--print('solver '..i..' update returning')
 		end
 	end
---]]
+	for	_,block in ipairs(self.flatBlocks) do
+		local solver = block.solver
+		block.updateThread = coroutine.create(function()
+			while true do
+				solver:update()
+			end
+		end)
+		--[[
+		two options:
+			1): do an initial continue() here
+			2): add an extra yield to solver:update()
+		--]]
+	end
 end
 
 --[[
@@ -363,13 +395,32 @@ function Chopped:resetState()
 	for _,solver in ipairs(self.solvers) do
 		solver:resetState()
 	end
+	self.t = 0
 end
 
 function Chopped:update()
+--[[ without threads, but dt is out of sync	
 	for _,solver in ipairs(self.solvers) do
 		solver:update()
 	end
 	self.t = self.solvers:mapi(function(solver) return solver.t end):inf()
+--]]
+-- [[ with threads
+	local dt = math.huge
+	for i,block in ipairs(self.flatBlocks) do
+		local _, solverdt = coroutine.assertresume(block.updateThread)
+		--print('main solver gets solver '..i..' dt = '..tostring(solverdt))
+		dt = math.min(dt, solverdt)
+	end
+	for _,block in ipairs(self.flatBlocks) do
+		local _, result = coroutine.assertresume(block.updateThread, dt)
+		assert(result  == 'update done', "expected 'update done', got "..require 'ext.tolua'(result))
+	end
+	self.t = self.t + dt
+	for _,solver in ipairs(self.solvers) do
+		solver.t = self.t
+	end
+--]]
 
 --[[
 print'before sync'
@@ -399,5 +450,8 @@ print'after sync'
 
 end
 
+function Chopped:updateGUI(...)
+	return self.solvers[1]:updateGUI(...)
+end
 
 return Chopped
