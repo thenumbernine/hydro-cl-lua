@@ -431,9 +431,8 @@ local args = {
 	--initState = 'Ring',
 	--initState = 'Oscillatory',
 
-	-- AMR / multi
-	-- TODO a way to specify # of GPUs
-	multiSlices = 2,
+	-- multi-devices
+	multiSlices = {3, 1, 1},
 }
 
 

@@ -19,11 +19,24 @@ function Chopped:init(args)
 	self.app = assert(args.app)
 
 	local subsolverClass = assert(args.subsolverClass)
-	self.multiSlices = assert(args.multiSlices)
-
+	
 	-- TODO handle like solver/gridsolver.lua
 	self.dim = assert(args.dim)
+	
+	local gridSize = vec3sz(table.unpack(args.gridSize))
 
+	self.multiSlices = vec3sz(table.unpack(args.multiSlices))
+	for j=self.dim+1,3 do
+		self.multiSlices:ptr()[j-1] = 1
+	end
+	
+	self.mins = args.mins or {-1, -1, -1}
+	self.maxs = args.maxs or {1, 1, 1}
+
+--[[ chop things up recursively ... 
+-- but this makes copying borders a bit more painful, 
+-- and if you assign 1 solver to 1 device then, if you only make as many chops as devices then some devices might get more work than otheres
+--	... unless you chopped up solvers into too fine of pieces, then the differences between devices would be neglegible
 	local function getmaxaxis(v)
 		local maxindex = 1
 		for j=2,self.dim do
@@ -33,9 +46,6 @@ function Chopped:init(args)
 		end
 		return maxindex
 	end
-
-	self.mins = args.mins or {-1, -1, -1}
-	self.maxs = args.maxs or {1, 1, 1}
 	
 	-- TODO handle different gridSize types matching solver/gridsolver.lua
 	local root = {
@@ -120,16 +130,44 @@ function Chopped:init(args)
 		blocks:insert(blockL)
 		blocks:insert(blockR)
 	end
-	
+--]]
+-- [[ just explicitly state the number of chops along each axis
+	local mins = vec3d(table.unpack(self.mins))
+	local maxs = vec3d(table.unpack(self.maxs))
+
+	self.blocks = table()	-- [i][j][k]
+	self.flattenedBlocks = table() -- [index]
+	for i1=0,tonumber(self.multiSlices.x-1) do
+		local bi = table()
+		self.blocks:insert(bi)
+		for i2=0,tonumber(self.multiSlices.y-1) do
+			local bj = table()
+			bi:insert(bj)
+			for i3=0,tonumber(self.multiSlices.z-1) do
+				local i = vec3sz(i1, i2, i3)
+				local fL = vec3d(i:unpack()) / vec3d(self.multiSlices:unpack())
+				local fR = vec3d((i + 1):unpack()) / vec3d(self.multiSlices:unpack())
+				local start = vec3sz((fL * vec3d(gridSize:unpack())):unpack())
+				local finish = vec3sz((fR * vec3d(gridSize:unpack())):unpack())
+				local block = {
+					size = finish - start,
+					mins = fL * (maxs - mins) + mins,
+					maxs = fR * (maxs - mins) + mins,
+				}
+				bj:insert(block)
+				self.flattenedBlocks:insert(block)
+			end
+		end
+	end
+--]]
 	print'blocks:'
-	for _,block in ipairs(blocks) do
-		print(block.size, block.mins, block.maxs)
+	for _,block in ipairs(self.flattenedBlocks) do
+		--print(block.size, block.mins, block.maxs)
+		print(require 'ext.tolua'(block))
 	end
 	print()
-
 	-- now make subsolvers for each of these solvers
-	self.blocks = blocks
-	self.solvers = blocks:mapi(function(block,i)
+	self.solvers = self.flattenedBlocks:mapi(function(block,i)
 		local subsolver = subsolverClass(table(args, {
 			mins = {block.mins:unpack()},
 			maxs = {block.maxs:unpack()},
@@ -140,10 +178,12 @@ function Chopped:init(args)
 			initCondMins = self.mins,
 			initCondMaxs = self.maxs,
 		}))
-		subsolver.choppedupBoundaryInfo = block.boundary
+--		subsolver.choppedupBoundaryInfo = block.boundary
 		block.solver = subsolver
 		return subsolver 
 	end)
+
+--[[	
 	for _,solver in ipairs(self.solvers) do
 		for _,minmax in ipairs{'min', 'max'} do
 			for j=1,3 do
@@ -153,6 +193,7 @@ function Chopped:init(args)
 			end
 		end
 	end
+--]]
 end
 
 --[[
@@ -194,6 +235,23 @@ function Chopped:update()
 		solver:update()
 	end
 	self.t = self.solvers:mapi(function(solver) return solver.t end):inf()
+
+	-- synchronize boundaries between devices
+	-- should this happen inter-step for RK4, etc integrators?  or only at the end of update() ?
+	for i=1,tonumber(self.multiSlices.x-1) do
+		for j=1,math.max(1,tonumber(self.multiSlices.y-1)) do
+			for k=1,math.max(1,tonumber(self.multiSlices.z-1)) do
+				local vL = vec3sz(i,j,k)
+				for side=1,self.dim do
+					if vL:ptr()[side-1] < self.multiSlices:ptr()[side-1] then
+						local vR = vec3sz(vL:unpack())
+						vR:ptr()[side-1] = vR:ptr()[side-1] + 1
+						--print('synchronizing '..vL..' and '..vR)
+					end
+				end
+			end
+		end
+	end
 end
 
 
