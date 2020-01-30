@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -432,7 +432,7 @@ local args = {
 	--initState = 'Oscillatory',
 
 	-- multi-devices
-	multiSlices = {3, 1, 1},
+	multiSlices = {2, 1, 1},
 }
 
 

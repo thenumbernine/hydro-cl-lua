@@ -11,6 +11,10 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local vec3sz = require 'vec-ffi.vec3sz'
 local vec3d = require 'vec-ffi.vec3d'
+local cl = require 'ffi.OpenCL'
+local classert = require 'cl.assert'
+local ffi = require 'ffi'
+
 
 local Chopped = class()
 
@@ -160,12 +164,13 @@ function Chopped:init(args)
 		end
 	end
 --]]
-	print'blocks:'
-	for _,block in ipairs(self.flattenedBlocks) do
-		--print(block.size, block.mins, block.maxs)
-		print(require 'ext.tolua'(block))
+	if self.app.verbose then
+		print'blocks:'
+		for _,block in ipairs(self.flattenedBlocks) do
+			print(require 'ext.tolua'(block))
+		end
+		print()
 	end
-	print()
 	-- now make subsolvers for each of these solvers
 	self.solvers = self.flattenedBlocks:mapi(function(block,i)
 		local subsolver = subsolverClass(table(args, {
@@ -182,6 +187,135 @@ function Chopped:init(args)
 		block.solver = subsolver
 		return subsolver 
 	end)
+
+	-- synchronize boundaries between devices
+	-- TODO do this after all the solvers' buffers have been created
+	-- ... but before the boundary programs have been created
+	-- TODO TODO  right now the boundary code runs the left and right sides in the same kernel
+	--   I would like to override the left and right separately -- and put the copy-between-devices code there
+	--   but this might mean splitting the kernels
+	--  alternatively, I could just change the kernel code to read from a neighboring device.
+	--   this would mean adding extra buffer arguments to each boundary kernel 
+	--
+	-- for now I'll just override the ':boundary()' of each solver to after-the-fact copy stuff across
+	-- TODO TODO TODO solver:boundary() is called every frame both at int/fe.lua:46 and at solver/gridsolver.lua:1569 ... I only need one of those
+	local parent = self
+	local sizeof_cons_t = ffi.sizeof(self.solvers[1].eqn.cons_t)	-- assumes all solver have the same size eqn_t
+	for i=1,tonumber(self.multiSlices.x) do
+		for j=1,math.max(1,tonumber(self.multiSlices.y)) do
+			for k=1,math.max(1,tonumber(self.multiSlices.z)) do
+				local v = vec3sz(i,j,k)
+				local block = self.blocks[i][j][k]
+				local solver = block.solver
+				local numGhost = solver.numGhost -- == solverL.numGhost == solverR.numGhost
+				
+				local solverLs = table()
+				local solverRs = table()
+				-- src_origin is within either 'solverL' or 'solverR'
+				local src_originLs = table()
+				local src_originRs = table()
+				-- dst_origin is always within 'solver'
+				local dst_originLs = table()
+				local dst_originRs = table()
+				-- region is equal per-block, regardless of solver, solverL, solverR
+				local regions = table()
+				for side=0,self.dim-1 do
+					local updateL = v:ptr()[side] > 1
+					local updateR = v:ptr()[side] < self.multiSlices:ptr()[side]
+					
+					local vL = vec3sz(v:unpack())
+					vL:ptr()[side] = vL:ptr()[side] - 1
+						
+					local vR = vec3sz(v:unpack())
+					vR:ptr()[side] = vR:ptr()[side] + 1
+					
+					local solverL = updateL and self.blocks[tonumber(vL.x)][tonumber(vL.y)][tonumber(vL.z)].solver or nil
+					local solverR = updateR and self.blocks[tonumber(vR.x)][tonumber(vR.y)][tonumber(vR.z)].solver or nil
+					
+		
+					local src_originL, dst_originL  
+					if updateL then
+						src_originL = vec3sz()
+						src_originL:ptr()[side] = solverL.gridSize:ptr()[side] - 2 * numGhost
+						dst_originL = vec3sz()
+					end
+
+					local src_originR, dst_originR
+					if updateR then
+						src_originR = vec3sz()
+						src_originR:ptr()[side] = numGhost
+						dst_originR = vec3sz()
+						dst_originR:ptr()[side] = solver.gridSize:ptr()[side] - numGhost
+					end
+					
+					-- TODO just make one per side and reuse it for all blocks
+					local region = vec3sz(solver.gridSize:unpack())
+					region:ptr()[side] = numGhost
+					
+					-- scale x-axis by structure size
+					if updateL then
+						src_originL.x = src_originL.x * sizeof_cons_t
+						dst_originL.x = dst_originL.x * sizeof_cons_t
+					end
+					if updateR then
+						src_originR.x = src_originR.x * sizeof_cons_t
+						dst_originR.x = dst_originR.x * sizeof_cons_t
+					end
+					region.x = region.x * sizeof_cons_t
+
+
+					solverLs[side+1] = solverL
+					solverRs[side+1] = solverR
+					src_originLs[side+1] = src_originL
+					src_originRs[side+1] = src_originR
+					dst_originLs[side+1] = dst_originL
+					dst_originRs[side+1] = dst_originR
+					regions[side+1] = region
+				end
+
+				function block:syncBorders()
+					for side=0,solver.dim-1 do
+						local solverL = solverLs[side+1]
+						local solverR = solverRs[side+1]
+						if solverL then
+							classert(cl.clEnqueueCopyBufferRect(
+								solver.cmds.id,					-- cl_command_queue command_queue,
+								solverL.UBuf.id,				-- cl_mem src_buffer,
+								solver.UBuf.id,					-- cl_mem dst_buffer,
+								src_originLs[side+1]:ptr(),		-- const size_t src_origin[3],
+								dst_originLs[side+1]:ptr(),		-- const size_t dst_origin[3],
+								regions[side+1]:ptr(),			-- const size_t region[3],
+								sizeof_cons_t * solverL.gridSize.x,	-- size_t src_row_pitch,
+								sizeof_cons_t * solverL.gridSize.x * solverL.gridSize.y,	-- size_t src_slice_pitch,
+								sizeof_cons_t * solver.gridSize.x,	-- size_t dst_row_pitch,
+								sizeof_cons_t * solver.gridSize.x * solver.gridSize.y,	-- size_t dst_slice_pitch,
+								0,								-- cl_uint num_events_in_wait_list,
+								nil,							-- const cl_event *event_wait_list,
+								nil								-- cl_event *event
+							))
+						end
+						if solverR then
+							classert(cl.clEnqueueCopyBufferRect(
+								solver.cmds.id,					-- cl_command_queue command_queue,
+								solverR.UBuf.id,				-- cl_mem src_buffer,
+								solver.UBuf.id,					-- cl_mem dst_buffer,
+								src_originRs[side+1]:ptr(),		-- const size_t src_origin[3],
+								dst_originRs[side+1]:ptr(),		-- const size_t dst_origin[3],
+								regions[side+1]:ptr(),			-- const size_t region[3],
+								sizeof_cons_t * solverR.gridSize.x,	-- size_t src_row_pitch,
+								sizeof_cons_t * solverR.gridSize.x * solverR.gridSize.y,	-- size_t src_slice_pitch,
+								sizeof_cons_t * solver.gridSize.x,	-- size_t dst_row_pitch,
+								sizeof_cons_t * solver.gridSize.x * solver.gridSize.y,	-- size_t dst_slice_pitch,
+								0,								-- cl_uint num_events_in_wait_list,
+								nil,							-- const cl_event *event_wait_list,
+								nil								-- cl_event *event
+							))
+						end
+					end
+				end
+			end
+		end
+	end
 
 --[[	
 	for _,solver in ipairs(self.solvers) do
@@ -217,6 +351,7 @@ function Chopped:initDraw()
 	self.name = 'Chopped '..self.solvers[1].name
 	for _,solver in ipairs(self.solvers) do
 		solver:initDraw()
+		solver.color = vec3(self.color:unpack())
 	end
 
 	-- I guess this is safe for now
@@ -236,22 +371,32 @@ function Chopped:update()
 	end
 	self.t = self.solvers:mapi(function(solver) return solver.t end):inf()
 
+--[[
+print'before sync'
+	for _,solver in ipairs(self.solvers) do
+		solver:printBuf(solver.UBufObj)
+	end
+--]]
+	
 	-- synchronize boundaries between devices
 	-- should this happen inter-step for RK4, etc integrators?  or only at the end of update() ?
-	for i=1,tonumber(self.multiSlices.x-1) do
-		for j=1,math.max(1,tonumber(self.multiSlices.y-1)) do
-			for k=1,math.max(1,tonumber(self.multiSlices.z-1)) do
-				local vL = vec3sz(i,j,k)
-				for side=1,self.dim do
-					if vL:ptr()[side-1] < self.multiSlices:ptr()[side-1] then
-						local vR = vec3sz(vL:unpack())
-						vR:ptr()[side-1] = vR:ptr()[side-1] + 1
-						--print('synchronizing '..vL..' and '..vR)
-					end
-				end
+	for i=1,tonumber(self.multiSlices.x) do
+		for j=1,math.max(1,tonumber(self.multiSlices.y)) do
+			for k=1,math.max(1,tonumber(self.multiSlices.z)) do
+				--print('synchronizing '..vL..' and '..vR)
+				local block = self.blocks[i][j][k]
+				block:syncBorders()
 			end
 		end
 	end
+
+--[[
+print'after sync'
+	for _,solver in ipairs(self.solvers) do
+		solver:printBuf(solver.UBufObj)
+	end
+--]]
+
 end
 
 
