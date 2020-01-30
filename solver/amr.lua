@@ -8,7 +8,7 @@ local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
-local vec3sz = require 'ffi.vec.vec3sz'
+local vec3sz = require 'vec-ffi.vec3sz'
 local roundup = require 'util.roundup'
 
 local int4ptr = ffi.new'int[4]'

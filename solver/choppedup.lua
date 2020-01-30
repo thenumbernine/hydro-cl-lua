@@ -9,8 +9,8 @@ matching equation object might be useful, since that means only one set of displ
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
-local vec3sz = require 'ffi.vec.vec3sz'
-local vec3d = require 'ffi.vec.vec3d'
+local vec3sz = require 'vec-ffi.vec3sz'
+local vec3d = require 'vec-ffi.vec3d'
 
 local Chopped = class()
 
@@ -42,6 +42,7 @@ function Chopped:init(args)
 		size = vec3sz(table.unpack(args.gridSize)),
 		mins = vec3d(table.unpack(self.mins)),
 		maxs = vec3d(table.unpack(self.maxs)),
+		boundary = {min={}, max={}},
 	}
 	root.maxaxis = getmaxaxis(root.size)
 	root.maxsize = root.size:ptr()[root.maxaxis]
@@ -65,33 +66,58 @@ function Chopped:init(args)
 			break	-- done
 		end
 		
-		
 		local blockL = {
 			size = vec3sz(newsize:unpack()),
 			mins = vec3d(longestBlock.mins:unpack()),
 			maxs = vec3d(longestBlock.maxs:unpack()),
+			boundary = {
+				min = table(longestBlock.boundary.min),
+				max = table(longestBlock.boundary.max),
+			},
 		}
 		blockL.maxs:ptr()[axis] = mid 
 		
 		blockL.maxaxis = getmaxaxis(blockL.size)
 		blockL.maxsize = blockL.size:ptr()[blockL.maxaxis]
-		blocks:insert(blockL)
 
-		-- blockL and blockR inherit boundary from longestBlock
-		-- ... and simulatenously take everything that points to longestBlock and change it to either point to blockL or blockR
-		-- then point:
-		-- blockL boundary.max[maxaxis] = blockR
-		-- blockR boundary.min[maxaxis] = blockL
 
 		local blockR = {
 			size = vec3sz(newsize:unpack()),
 			mins = vec3d(longestBlock.mins:unpack()),
 			maxs = vec3d(longestBlock.maxs:unpack()),
+			boundary = {
+				min = table(longestBlock.boundary.min),
+				max = table(longestBlock.boundary.max),
+			},
 		}
 		blockR.mins:ptr()[axis] = mid
 		
 		blockR.maxaxis = getmaxaxis(blockR.size)
 		blockR.maxsize = blockR.size:ptr()[blockR.maxaxis]
+	
+	
+		
+		-- blockL and blockR inherit boundary from longestBlock
+		-- ... and simulatenously take everything that points to longestBlock and change it to either point to blockL or blockR
+		-- then point:
+		-- blockL boundary.max[maxaxis] = blockR
+		-- blockR boundary.min[maxaxis] = blockL
+		blockL.boundary.max[axis+1] = blockR
+		blockR.boundary.min[axis+1] = blockL
+		
+		
+		for _,other in ipairs(blocks) do
+			for _,minmax in ipairs{'min', 'max'} do
+				for j=1,3 do
+					if other.boundary[minmax][j] == longestBlock then
+						-- redirect it to the new children
+						-- make sure to match up the sections of the solvers
+					end
+				end
+			end
+		end
+
+		blocks:insert(blockL)
 		blocks:insert(blockR)
 	end
 	
@@ -104,7 +130,7 @@ function Chopped:init(args)
 	-- now make subsolvers for each of these solvers
 	self.blocks = blocks
 	self.solvers = blocks:mapi(function(block,i)
-		return subsolverClass(table(args, {
+		local subsolver = subsolverClass(table(args, {
 			mins = {block.mins:unpack()},
 			maxs = {block.maxs:unpack()},
 			gridSize = {block.size:unpack()},
@@ -113,13 +139,22 @@ function Chopped:init(args)
 			-- this overrides bounds in the initial condition ... it's only really used with the 'lhs' flag of Sod etc
 			initCondMins = self.mins,
 			initCondMaxs = self.maxs,
-			
 		}))
+		subsolver.choppedupBoundaryInfo = block.boundary
+		block.solver = subsolver
+		return subsolver 
 	end)
-
-	-- now we have to override solver.boundary to write to opposite solvers ...
+	for _,solver in ipairs(self.solvers) do
+		for _,minmax in ipairs{'min', 'max'} do
+			for j=1,3 do
+				if solver.choppedupBoundaryInfo[minmax][j] then
+					solver.choppedupBoundaryInfo[minmax][j] = solver.choppedupBoundaryInfo[minmax][j].solver
+				end
+			end
+		end
+	end
 end
-	
+
 --[[
 things app needs to run a solver:
 	displayVars = table

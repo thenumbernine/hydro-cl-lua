@@ -83,8 +83,8 @@ local range = require 'ext.range'
 local template = require 'template'
 local CLEnv = require 'cl.obj.env'
 local clnumber = require 'cl.obj.number'
-local vec4d = require 'ffi.vec.vec4d'
-local vec3d = require 'ffi.vec.vec3d'
+local vec4d = require 'vec-ffi.vec4d'
+local vec3d = require 'vec-ffi.vec3d'
 local CartesianCoord = require 'coord.cartesian'
 
 --[[

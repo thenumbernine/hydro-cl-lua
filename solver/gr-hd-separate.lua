@@ -6,7 +6,7 @@ and a HD solver (Roe)
 local class = require 'ext.class'
 local table = require 'ext.table'
 local ig = require 'ffi.imgui'
-local vec3sz = require 'ffi.vec.vec3sz'
+local vec3sz = require 'vec-ffi.vec3sz'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
 
