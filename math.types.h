@@ -1,4 +1,7 @@
 typedef <?=app.realparam?> realparam;
+typedef <?=app.realparam?>2 realparam2;
+typedef <?=app.realparam?>4 realparam4;
+typedef <?=app.realparam?>8 realparam8;
 
 <? 
 local function makevec3(name, scalar)
@@ -12,6 +15,13 @@ typedef union {
 end 
 makevec3('real3', 'real')
 ?> 
+
+<? if app.real == app.realparam then ?>
+typedef real3 realparam3;
+<? else 
+makevec3('realparam3', 'realparam')
+end ?>
+
 
 typedef union {
 	real s[6];

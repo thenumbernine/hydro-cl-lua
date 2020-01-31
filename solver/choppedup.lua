@@ -342,6 +342,7 @@ function Chopped:init(args)
 		end
 		local oldUpdate = solver.update
 		function solver:update(...)
+			coroutine.yield'start update'	-- let our calling coroutine keep the solver stopped at the beginning of the update routine
 			oldUpdate(self, ...)
 			local result = coroutine.yield'update done'	-- assert resume gets this to make sure our yields are lined up
 --print('solver '..i..' update returning')
@@ -406,8 +407,11 @@ function Chopped:update()
 	self.t = self.solvers:mapi(function(solver) return solver.t end):inf()
 --]]
 -- [[ with threads
+	-- each solver update thread should be paused at the beginning of update here
 	local dt = math.huge
 	for i,block in ipairs(self.flatBlocks) do
+		local _, result = coroutine.assertresume(block.updateThread, dt)
+		assert(result  == 'start update', "expected 'start update', got "..require 'ext.tolua'(result))
 		local _, solverdt = coroutine.assertresume(block.updateThread)
 		--print('main solver gets solver '..i..' dt = '..tostring(solverdt))
 		dt = math.min(dt, solverdt)

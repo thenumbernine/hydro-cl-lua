@@ -50,7 +50,7 @@ function GridSolver:initL1(args)
 	self.solverStruct.vars:append{
 		{name='gridSize', type='int4'},
 		{name='stepsize', type='int4'},
-		{name='grid_dx', type='real3'},
+		{name='grid_dx', type='realparam3'},
 	}
 
 	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))

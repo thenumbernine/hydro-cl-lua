@@ -93,12 +93,12 @@ function SolverBase:initL1(args)
 	}
 	self.solverStruct.vars:append{
 	-- [[ right now the mesh initial conditions use these, but otherwise they can be GridSolver-specific
-		{name='mins', type='real3'},
-		{name='maxs', type='real3'},
+		{name='mins', type='realparam3'},
+		{name='maxs', type='realparam3'},
 	--]]
 	-- [[ the mins/maxs, or the super-solver's mins/maxs.  only needed because of the composite solvers. 
-		{name='initCondMins', type='real3'},
-		{name='initCondMaxs', type='real3'},
+		{name='initCondMins', type='realparam3'},
+		{name='initCondMaxs', type='realparam3'},
 	--]]
 	}
 end
@@ -152,7 +152,14 @@ function SolverBase:preInit(args)
 	-- add eqn vars to solver_t
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
-			self.solverStruct.vars:insert{name=var.name, type=var.ctype}
+			-- solverStruct is a singleton so I won't feel bad about messing with its structure
+			-- but this does produce an inconsistency between solverStruct and other ffi/cl structs
+			-- so only for now I'll change solverStruct reals to realparams
+			-- but what I should really do is get rid of realparam and just implement float16 into luajit
+			local varctype = var.ctype
+			if varctype == 'real' then varctype = 'realparam' end
+
+			self.solverStruct.vars:insert{name=var.name, type=varctype}
 		end
 	end
 
@@ -893,7 +900,7 @@ function SolverBase:createCodePrefixHeader()
 	
 	-- real3
 	lines:insert(template(file['math.types.h'], {app=self.app}))
-	lines:insert(template(file['math.h']))
+	lines:insert(template(file['math.h'], {app=self.app}))
 
 	if self.dim == 3 then
 		lines:insert'#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable'
@@ -940,7 +947,7 @@ function SolverBase:createCodePrefixSource()
 if not SolverBase.useCLLinkLibraries then 
 	lines:append{
 		'//math.ch',
-		template(file['math.cl']),
+		template(file['math.cl'], {app=self.app}),
 	}
 end	
 	lines:append{
@@ -1822,7 +1829,16 @@ function SolverBase:printBuf(buf, ptrorig, colsize, colmax)
 		local max = #tostring(self.numCells-1)
 		local realsPerCell = math.floor(size / self.numCells)
 		colmax = colmax or realsPerCell
-		assert(colmax <= realsPerCell)
+		if colmax > realsPerCell then
+			error("got too many realsPerCell\n"..require 'ext.tolua'{
+				colmax = colmax,
+				realsPerCell = realsPerCell,
+				ptr0size = ptr0size,
+				realSize = realSize,
+				ptrsPerReal = ptrsPerReal,
+				size = size,
+			})
+		end
 		for i=0,self.numCells-1 do
 			io.write((' '):rep(max-#tostring(i)), i,':')
 			for j=0,colmax-1 do

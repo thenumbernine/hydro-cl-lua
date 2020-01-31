@@ -947,6 +947,18 @@ end
 
 ////////////////////////// extra //////////////////////////
 
+
+<? if app.realparam ~= app.real then ?>
+real3 real3_from_realparam3(realparam3 v) {
+	return _real3(
+		real_from_realparam(v.x),
+		real_from_realparam(v.y),
+		real_from_realparam(v.z)
+	);
+}
+<? end ?>
+
+
 real3 normalForSide0() { return _real3(1,0,0); }
 real3 normalForSide1() { return _real3(0,1,0); }
 real3 normalForSide2() { return _real3(0,0,1); }

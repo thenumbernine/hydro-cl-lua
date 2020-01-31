@@ -75,7 +75,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{256,1,1},
-				{256,256,1},
+				{16,16,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
@@ -432,7 +432,7 @@ local args = {
 	--initState = 'Oscillatory',
 
 	-- multi-devices
-	multiSlices = {3, 1, 1},
+	multiSlices = {2, 2, 1},
 }
 
 
@@ -455,7 +455,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -705,7 +705,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 -- the start of multi GPU
 -- how about 'composite grid' instead of 'chopped up'?
-self.solvers:insert(require 'solver.choppedup'(table(args, {eqn='euler', subsolverClass=require 'solver.roe'})))
+--self.solvers:insert(require 'solver.choppedup'(table(args, {eqn='euler', subsolverClass=require 'solver.roe'})))
 
 
 --[=[ 2013 Baumgarte et al, section IV A 1 example & 2017 Ruchlin, Etienne

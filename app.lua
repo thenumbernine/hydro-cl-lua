@@ -732,7 +732,7 @@ end
 
 if cmdline.printBufs then
 	print'UBuf post-update:'
-	oldestSolver:printBuf(oldestSolver.UBufObj, nil, nil, 24, 31)
+	oldestSolver:printBuf(oldestSolver.UBufObj)	--, nil, nil, 24, 31)
 end
 
 if printState then
