@@ -176,7 +176,7 @@ kernel void initState(
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	real3 mids = real3_real_mul(real3_add(real3_from_realparam3(solver->initCondMins), real3_from_realparam3(solver->initCondMaxs)), .5);
+	real3 mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);
 	bool lhs = true<?
 for i=1,solver.dim do
 	local xi = xNames[i]

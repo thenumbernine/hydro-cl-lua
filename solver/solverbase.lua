@@ -23,6 +23,9 @@ local from3x3to6 = common.from3x3to6
 local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
+local half = require 'half'
+local toreal, fromreal = half.toreal, half.fromreal
+
 
 local function addTab(s)
 	s = tostring(s)
@@ -93,12 +96,12 @@ function SolverBase:initL1(args)
 	}
 	self.solverStruct.vars:append{
 	-- [[ right now the mesh initial conditions use these, but otherwise they can be GridSolver-specific
-		{name='mins', type='realparam3'},
-		{name='maxs', type='realparam3'},
+		{name='mins', type='real3'},
+		{name='maxs', type='real3'},
 	--]]
 	-- [[ the mins/maxs, or the super-solver's mins/maxs.  only needed because of the composite solvers. 
-		{name='initCondMins', type='realparam3'},
-		{name='initCondMaxs', type='realparam3'},
+		{name='initCondMins', type='real3'},
+		{name='initCondMaxs', type='real3'},
 	--]]
 	}
 end
@@ -152,14 +155,7 @@ function SolverBase:preInit(args)
 	-- add eqn vars to solver_t
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
-			-- solverStruct is a singleton so I won't feel bad about messing with its structure
-			-- but this does produce an inconsistency between solverStruct and other ffi/cl structs
-			-- so only for now I'll change solverStruct reals to realparams
-			-- but what I should really do is get rid of realparam and just implement float16 into luajit
-			local varctype = var.ctype
-			if varctype == 'real' then varctype = 'realparam' end
-
-			self.solverStruct.vars:insert{name=var.name, type=varctype}
+			self.solverStruct.vars:insert{name=var.name, type=var.ctype}
 		end
 	end
 
@@ -213,7 +209,7 @@ function SolverBase:postInit()
 
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
-			self.solverPtr[var.name] = var.value
+			self.solverPtr[var.name] = toreal(var.value)
 		end
 	end
 
@@ -999,6 +995,7 @@ function SolverBase:resetOps()
 end
 
 function SolverBase:convertToSIUnitsCode(units)
+
 	self.unitCodeCache = self.unitCodeCache or {}
 	if self.unitCodeCache[units] then 
 		return self.unitCodeCache[units]
@@ -1038,11 +1035,11 @@ return ]]..units), "failed to compile unit expression "..units)(m, s, kg, C, K)
 		lua = luaCode,
 		func = function()
 			return luaFunc(
-				self.solverPtr.meter,
-				self.solverPtr.second,
-				self.solverPtr.kilogram,
-				self.solverPtr.coulomb,
-				self.solverPtr.kelvin)
+				fromreal(self.solverPtr.meter),
+				fromreal(self.solverPtr.second),
+				fromreal(self.solverPtr.kilogram),
+				fromreal(self.solverPtr.coulomb),
+				fromreal(self.solverPtr.kelvin))
 		end,
 	}
 	
@@ -1547,7 +1544,7 @@ end
 -- this returns raw values, not scaled by units
 function SolverBase:calcDisplayVarRange(var, componentIndex)
 	componentIndex = componentIndex or var.component
-	if var.lastTime == self.t then
+	if var.lastTime == self.t then		
 		return var.lastMin, var.lastMax
 	end
 	var.lastTime = self.t
@@ -1595,6 +1592,8 @@ else
 	self:calcDisplayVarToBuffer(var, componentIndex)
 	local max = self.reduceMax(nil, volume*channels)
 
+	min = fromreal(min)
+	max = fromreal(max)
 --print('reduce min',min,'max',max,'volume',volume,'name',var.name,'channels',channels)
 	var.lastMin = min
 	var.lastMax = max
@@ -1663,7 +1662,11 @@ function SolverBase:calcDT()
 		self.calcDTKernelObj.obj:setArg(0, self.solverBuf)
 		self.calcDTKernelObj.obj:setArg(2, self.UBuf)
 		self.calcDTKernelObj()
-		dt = self.cfl * self.reduceMin()
+local mindt = self.reduceMin()
+--print(mindt.i, fromreal(mindt))
+mindt = fromreal(mindt)
+--print(mindt)	
+		dt = self.cfl * mindt
 		if not math.isfinite(dt) then
 			print("got a bad dt at time "..self.t) -- TODO dump all buffers
 		end

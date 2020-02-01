@@ -18,6 +18,10 @@ local time, getTime = table.unpack(require 'util.time')
 local SolverBase = require 'solver.solverbase'
 local makestruct = require'eqn.makestruct'
 
+local half = require 'half'
+local toreal, fromreal = half.toreal, half.fromreal
+
+
 local common = require 'common'
 local minmaxs = common.minmaxs
 local xNames = common.xNames
@@ -50,7 +54,7 @@ function GridSolver:initL1(args)
 	self.solverStruct.vars:append{
 		{name='gridSize', type='int4'},
 		{name='stepsize', type='int4'},
-		{name='grid_dx', type='realparam3'},
+		{name='grid_dx', type='real3'},
 	}
 
 	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
@@ -252,13 +256,13 @@ function GridSolver:refreshEqnInitState()
 	if initState.mins then 
 		self.mins = vec3(table.unpack(initState.mins)) 
 		for j=1,3 do
-			self.solverPtr.mins.s[j-1] = self.mins[j]
+			self.solverPtr.mins.s[j-1] = toreal(self.mins[j])
 		end
 	end
 	if initState.maxs then 
 		self.maxs = vec3(table.unpack(initState.maxs)) 
 		for j=1,3 do
-			self.solverPtr.maxs.s[j-1] = self.maxs[j]
+			self.solverPtr.maxs.s[j-1] = toreal(self.maxs[j])
 		end
 	end
 
@@ -268,10 +272,11 @@ function GridSolver:refreshEqnInitState()
 	-- while we're here, write all gui vars to the solver_t
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
-			self.solverPtr[var.name] = var.value
+			assert(var.ctype == 'real')
+			self.solverPtr[var.name] = toreal(var.value)
 		end
 	end
-	
+
 	self:refreshSolverBuf()
 
 --[[
@@ -438,7 +443,7 @@ end
 
 function GridSolver:createSolverBuf()
 	GridSolver.super.createSolverBuf(self)
-	
+
 	-- do this before any call to createBuffers or createCodePrefix
 	self.solverPtr.gridSize.x = self.gridSize.x
 	self.solverPtr.gridSize.y = self.gridSize.y
@@ -455,7 +460,8 @@ function GridSolver:createSolverBuf()
 	-- while we're here, write all gui vars to the solver_t
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
-			self.solverPtr[var.name] = var.value
+			assert(var.ctype == 'real')
+			self.solverPtr[var.name] = toreal(var.value)
 		end
 	end
 
@@ -464,25 +470,25 @@ end
 
 function GridSolver:refreshSolverBufMinsMaxs()
 	-- always set this to the full range, even outside the used dimension, in case some dimensional value is supposed to be a non-zero constant, esp for cell volume calculations
-	self.solverPtr.mins.x = self.mins[1]
-	self.solverPtr.mins.y = self.mins[2]
-	self.solverPtr.mins.z = self.mins[3]
-	self.solverPtr.maxs.x = self.maxs[1]
-	self.solverPtr.maxs.y = self.maxs[2]
-	self.solverPtr.maxs.z = self.maxs[3]
-	self.solverPtr.grid_dx.x = (self.solverPtr.maxs.x - self.solverPtr.mins.x) / tonumber(self.sizeWithoutBorder.x)
-	self.solverPtr.grid_dx.y = (self.solverPtr.maxs.y - self.solverPtr.mins.y) / tonumber(self.sizeWithoutBorder.y)
-	self.solverPtr.grid_dx.z = (self.solverPtr.maxs.z - self.solverPtr.mins.z) / tonumber(self.sizeWithoutBorder.z)
-	self.solverPtr.initCondMins.x = self.initCondMins[1]
-	self.solverPtr.initCondMins.y = self.initCondMins[2]
-	self.solverPtr.initCondMins.z = self.initCondMins[3]
-	self.solverPtr.initCondMaxs.x = self.initCondMaxs[1]
-	self.solverPtr.initCondMaxs.y = self.initCondMaxs[2]
-	self.solverPtr.initCondMaxs.z = self.initCondMaxs[3]
+	self.solverPtr.mins.x = toreal(self.mins[1])
+	self.solverPtr.mins.y = toreal(self.mins[2])
+	self.solverPtr.mins.z = toreal(self.mins[3])
+	self.solverPtr.maxs.x = toreal(self.maxs[1])
+	self.solverPtr.maxs.y = toreal(self.maxs[2])
+	self.solverPtr.maxs.z = toreal(self.maxs[3])
+	self.solverPtr.grid_dx.x = toreal( (self.maxs[1] - self.mins[1]) / tonumber(self.sizeWithoutBorder.x) )
+	self.solverPtr.grid_dx.y = toreal( (self.maxs[2] - self.mins[2]) / tonumber(self.sizeWithoutBorder.y) )
+	self.solverPtr.grid_dx.z = toreal( (self.maxs[3] - self.mins[3]) / tonumber(self.sizeWithoutBorder.z) )
+	self.solverPtr.initCondMins.x = toreal( self.initCondMins[1] )
+	self.solverPtr.initCondMins.y = toreal( self.initCondMins[2] )
+	self.solverPtr.initCondMins.z = toreal( self.initCondMins[3] )
+	self.solverPtr.initCondMaxs.x = toreal( self.initCondMaxs[1] )
+	self.solverPtr.initCondMaxs.y = toreal( self.initCondMaxs[2] )
+	self.solverPtr.initCondMaxs.z = toreal( self.initCondMaxs[3] )
 	if self.app.verbose then
-		print('mins = '..self.solverPtr.mins.x..', '..self.solverPtr.mins.y..', '..self.solverPtr.mins.z)
-		print('maxs = '..self.solverPtr.maxs.x..', '..self.solverPtr.maxs.y..', '..self.solverPtr.maxs.z)
-		print('grid_dx = '..self.solverPtr.grid_dx.x..', '..self.solverPtr.grid_dx.y..', '..self.solverPtr.grid_dx.z)
+		print('mins = '..fromreal(self.solverPtr.mins.x)..', '..fromreal(self.solverPtr.mins.y)..', '..fromreal(self.solverPtr.mins.z))
+		print('maxs = '..fromreal(self.solverPtr.maxs.x)..', '..fromreal(self.solverPtr.maxs.y)..', '..fromreal(self.solverPtr.maxs.z))
+		print('grid_dx = '..fromreal(self.solverPtr.grid_dx.x)..', '..fromreal(self.solverPtr.grid_dx.y)..', '..fromreal(self.solverPtr.grid_dx.z))
 	end
 end
 
@@ -521,7 +527,8 @@ function GridSolver:createBuffers()
 	-- on non-GL-sharing cards.
 	self:clalloc('reduceBuf', self.app.real, self.numCells * 3)
 	self:clalloc('reduceSwapBuf', self.app.real, math.ceil(self.numCells / self.localSize1d))
-	self.reduceResultPtr = ffi.new('real[1]', 0)
+	self.reduceResultPtr = ffi.new'real[1]'
+	self.reduceResultPtr[0] = toreal(0)
 
 
 	if self.allowAccum then
@@ -558,7 +565,7 @@ function GridSolver:createBuffers()
 		if app.useGLSharing then
 			self.texCLMem = CLImageGL{context=app.ctx, tex=self.tex, write=true}
 		else
-			self.calcDisplayVarToTexPtr = ffi.new(app.realparam..'[?]', self.numCells * 3)
+			self.calcDisplayVarToTexPtr = ffi.new(app.real..'[?]', self.numCells * 3)
 			
 			--[[ PBOs?
 			self.calcDisplayVarToTexPBO = ffi.new('gl_int[1]', 0)
@@ -833,10 +840,7 @@ args of the BoundaryMethod:getCode are:
 	gridSizeSide = solver.gridSize[side]
 	side = 1,2,3
 	minmax = 'min' or 'max'
-	boundaryCartesianMirrorVars
-	boundarySphereRMinMirrorVars
-	boundarySphereThetaMirrorVars
-	boundaryCylinderCenterMirrorVars
+	reflectVars
 		= which vars to reflect.
 			for solver.UBuf this is taken from eqn
 			for poisson this is nothing
@@ -898,7 +902,7 @@ function BoundaryMirror:getCode(args)
 	end
 	local lines = table()
 	lines:insert(self:assignDstSrc(dst, src, args))
-	lines:insert(self:reflectVars(args, dst, args.boundaryCartesianMirrorVars))
+	lines:insert(self:reflectVars(args, dst, args.reflectVars.mirror))
 	return lines:concat'\n'
 end
 
@@ -1060,7 +1064,7 @@ function BoundarySphereRMin:getCode(args)
 	end
 	local lines = table()
 	lines:insert(self:assignDstSrc(dst, src, args))
-	lines:insert(self:reflectVars(args, dst, args.boundarySphereRMinMirrorVars))
+	lines:insert(self:reflectVars(args, dst, args.reflectVars.sphereRMin))
 	return lines:concat'\n'
 end
 
@@ -1122,7 +1126,7 @@ function BoundarySphereTheta:getCode(args)
 	end
 	local lines = table()
 	lines:insert(self:assignDstSrc(dst, src, args))
-	lines:insert(self:reflectVars(args, dst, args.boundarySphereThetaMirrorVars))
+	lines:insert(self:reflectVars(args, dst, args.reflectVars.sphereTheta))
 	return lines:concat'\n'
 end
 
@@ -1188,7 +1192,7 @@ INDEX(
 	end
 	local lines = table()
 	lines:insert(self:assignDstSrc(dst, src, args))
-	lines:insert(self:reflectVars(args, dst, args.boundaryCylinderCenterMirrorVars))
+	lines:insert(self:reflectVars(args, dst, args.reflectVars.cylinderCenter))
 	return lines:concat'\n'
 end
 
@@ -1353,14 +1357,16 @@ end
 	for (int j = 0; j < numGhost; ++j) {]]
 
 		for _,minmax in ipairs(minmaxs) do
-			lines:insert(args.methods[xNames[side]..minmax]:getCode{
+			lines:insert(args.methods[xNames[side]..minmax]:getCode({
 				solver = self,
 				index = index,
 				indexv = indexv,
 				field = field,
 				side = side,
 				minmax = minmax,
-			})
+				reflectVars = args.reflectVars -- UBuf takes reflectVars from eqn
+					or {},						-- op/relaxation doesn't use reflectVars (should it?)
+			}))
 		end 
 
 lines:insert[[
@@ -1407,10 +1413,17 @@ function GridSolver:getBoundaryProgramArgs()
 		type = self.eqn.cons_t,
 		-- remap from enum/combobox int values to functions from the solver.boundaryOptions table
 		methods = self.boundaryMethods,
-		boundaryCartesianMirrorVars = self.eqn.boundaryCartesianMirrorVars,
-		boundarySphereRMinMirrorVars = self.eqn.boundarySphereRMinMirrorVars,
-		boundarySphereThetaMirrorVars = self.eqn.boundarySphereThetaMirrorVars,
-		boundaryCylinderCenterMirrorVars = self.eqn.boundaryCylinderCenterMirrorVars,
+
+		-- Generated by eqn depending on eqn's vars and the coord sys.
+		-- These should be here so that the LR boundary code gen can modify them (duplicate them for L and R).
+		-- But it needs to be passed on to BoundaryMethod:getCode(), which means forwarding it again inside of :createBoundaryProgramAndKernel.
+		-- Note to self, this is one-to-one with Boundary names, *not* with coordinate systems.
+		reflectVars = {
+			mirror = self.eqn.boundaryCartesianMirrorVars,
+			sphereRMin = self.eqn.boundarySphereRMinMirrorVars,
+			sphereTheta = self.eqn.boundarySphereThetaMirrorVars,
+			cylinderCenter = self.eqn.boundaryCylinderCenterMirrorVars,
+		},
 	}
 end
 
@@ -1428,19 +1441,23 @@ function GridSolver:refreshBoundaryProgram()
 	if self.useCTU and self.usePLM then
 		local args = self:getBoundaryProgramArgs()
 		args.type = self.eqn.consLR_t..'_dim'
-		-- TODO do this for sphere/cylinderical mirror vars as well
-		if args.boundaryCartesianMirrorVars then
-			local newvars = {}
-			for i=1,3 do
-				newvars[i] = table()
-				for _,var in ipairs(args.boundaryCartesianMirrorVars[i]) do
-					for j=0,self.dim-1 do
-						newvars[i]:insert('side['..j..'].L.'..var)
-						newvars[i]:insert('side['..j..'].R.'..var)
+	
+		-- TODO use the real list of boundary names here
+		for _,boundaryOptionName in ipairs(self.boundaryOptionNames) do
+			-- TODO do this for sphere/cylinderical mirror vars as well
+			if args.reflectVars[boundaryOptionName] then
+				local newvars = {}
+				for i=1,3 do
+					newvars[i] = table()
+					for _,var in ipairs(args.reflectVars[boundaryOptionName][i]) do
+						for j=0,self.dim-1 do
+							newvars[i]:insert('side['..j..'].L.'..var)
+							newvars[i]:insert('side['..j..'].R.'..var)
+						end
 					end
 				end
+				args.reflectVars[boundaryOptionName] = newvars
 			end
-			args.boundaryCartesianMirrorVars = newvars
 		end
 		self.lrBoundaryProgramObj, self.lrBoundaryKernelObjs = self:createBoundaryProgramAndKernel(args)
 		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
@@ -1526,7 +1543,7 @@ function GridSolver:calcExactError(numStates)
 	local err = 0
 	for i=ghost+1,tonumber(self.gridSize.x)-2*ghost do
 		--local x = self.xs[i+ghost]
-		local x = self.solverPtr.mins.x + self.solverPtr.grid_dx.x * (i - ghost - .5)
+		local x = fromreal(self.solverPtr.mins.x) + fromreal(self.solverPtr.grid_dx.x) * (i - ghost - .5)
 		err = err + compareL1(ptr[i-1].ptr, numStates, exact(self, x, self.t))
 	end
 	err = err / (numStates * (tonumber(self.gridSize.x) - 2 * ghost))
@@ -1700,9 +1717,9 @@ function GridSolver:updateGUIParams()
 						self.maxs[i] = self.mins[i] + eps
 					end
 					if j==1 then
-						self.solverPtr.mins.s[i-1] = self.mins[i]
+						self.solverPtr.mins.s[i-1] = toreal(self.mins[i])
 					elseif j==2 then
-						self.solverPtr.maxs.s[i-1] = self.maxs[i]
+						self.solverPtr.maxs.s[i-1] = toreal(self.maxs[i])
 					end
 					self:refreshSolverBufMinsMaxs()
 					self:refreshSolverBuf()

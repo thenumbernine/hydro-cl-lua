@@ -16,13 +16,6 @@ end
 makevec3('real3', 'real')
 ?> 
 
-<? if app.real == app.realparam then ?>
-typedef real3 realparam3;
-<? else 
-makevec3('realparam3', 'realparam')
-end ?>
-
-
 typedef union {
 	real s[6];
 	struct {

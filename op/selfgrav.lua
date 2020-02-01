@@ -4,7 +4,13 @@ local table = require 'ext.table'
 local class = require 'ext.class'
 local tooltip = require 'tooltip'
 local template = require 'template'
-local real = require 'real'
+
+local real = require 'real'	-- really 'realparam'
+
+
+local half = require 'half'
+local toreal, fromreal = half.toreal, half.fromreal
+
 
 -- TODO make this a ctor parameter
 local Poisson = require(
@@ -172,7 +178,7 @@ function SelfGrav:offsetPotential()
 	self.copyPotentialToReduceKernelObj()
 	local ePotMax = solver.reduceMax()
 	
-	self.offsetPotentialKernelObj.obj:setArg(2, real(ePotMax))
+	self.offsetPotentialKernelObj.obj:setArg(2, real(fromreal(ePotMax)))
 	self.offsetPotentialKernelObj()
 
 	local new_ePotMin, new_ePotMax

@@ -237,17 +237,6 @@ real3x3 cplx3x3_re(cplx3x3 v);
 real3x3 cplx3x3_im(cplx3x3 v);
 
 
-// realparam
-
-<? if app.realparam == app.real then ?>
-#define real3_from_realparam3(x) x
-#define real_from_realparam(x) x
-<? else ?>
-real3 real3_from_realparam3(realparam3 v);
-#define real_from_realparam(x) ((real)x)
-<? end ?>
-
-
 real3 normalForSide0();
 real3 normalForSide1();
 real3 normalForSide2();
