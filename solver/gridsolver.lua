@@ -82,8 +82,8 @@ function GridSolver:initL1(args)
 		error("can't understand args.gridSize type "..type(args.gridSize).." value "..tostring(args.gridSize))
 	end
 
-	for i=0,self.dim-1 do self.gridSize:ptr()[i] = self.gridSize:ptr()[i] + 2 * self.numGhost end
-	for i=self.dim,2 do self.gridSize:ptr()[i] = 1 end
+	for i=0,self.dim-1 do self.gridSize.s[i] = self.gridSize.s[i] + 2 * self.numGhost end
+	for i=self.dim,2 do self.gridSize.s[i] = 1 end
 end
 
 --[[
@@ -207,7 +207,7 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	-- don't include the ghost cells as a part of the grid coordinate space
 	local sizeWithoutBorder = vec3sz(self.gridSize:unpack())
 	for i=0,self.dim-1 do
-		sizeWithoutBorder:ptr()[i] = sizeWithoutBorder:ptr()[i] - 2 * self.numGhost
+		sizeWithoutBorder.s[i] = sizeWithoutBorder.s[i] - 2 * self.numGhost
 	end
 	local volumeWithoutBorder = tonumber(sizeWithoutBorder:volume())
 	
@@ -216,7 +216,7 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	local stepSize = vec3sz()
 	stepSize.x = 1
 	for i=1,self.dim-1 do
-		stepSize:ptr()[i] = stepSize:ptr()[i-1] * self.gridSize:ptr()[i-1]
+		stepSize.s[i] = stepSize.s[i-1] * self.gridSize.s[i-1]
 	end
 
 	local offset = vec3sz(0,0,0)
@@ -300,7 +300,6 @@ for i=1,tonumber(self.gridSize.x) do
 end
 self.UBufObj:fromCPU(ptr)
 --]]
-
 end
 
 -- call this when a gui var changes
@@ -470,21 +469,13 @@ end
 
 function GridSolver:refreshSolverBufMinsMaxs()
 	-- always set this to the full range, even outside the used dimension, in case some dimensional value is supposed to be a non-zero constant, esp for cell volume calculations
-	self.solverPtr.mins.x = toreal(self.mins[1])
-	self.solverPtr.mins.y = toreal(self.mins[2])
-	self.solverPtr.mins.z = toreal(self.mins[3])
-	self.solverPtr.maxs.x = toreal(self.maxs[1])
-	self.solverPtr.maxs.y = toreal(self.maxs[2])
-	self.solverPtr.maxs.z = toreal(self.maxs[3])
-	self.solverPtr.grid_dx.x = toreal( (self.maxs[1] - self.mins[1]) / tonumber(self.sizeWithoutBorder.x) )
-	self.solverPtr.grid_dx.y = toreal( (self.maxs[2] - self.mins[2]) / tonumber(self.sizeWithoutBorder.y) )
-	self.solverPtr.grid_dx.z = toreal( (self.maxs[3] - self.mins[3]) / tonumber(self.sizeWithoutBorder.z) )
-	self.solverPtr.initCondMins.x = toreal( self.initCondMins[1] )
-	self.solverPtr.initCondMins.y = toreal( self.initCondMins[2] )
-	self.solverPtr.initCondMins.z = toreal( self.initCondMins[3] )
-	self.solverPtr.initCondMaxs.x = toreal( self.initCondMaxs[1] )
-	self.solverPtr.initCondMaxs.y = toreal( self.initCondMaxs[2] )
-	self.solverPtr.initCondMaxs.z = toreal( self.initCondMaxs[3] )
+	for j=1,3 do
+		self.solverPtr.mins.s[j-1] = toreal(self.mins[j])
+		self.solverPtr.maxs.s[j-1] = toreal(self.maxs[j])
+		self.solverPtr.grid_dx.s[j-1] = toreal( (self.maxs[j] - self.mins[j]) / tonumber(self.sizeWithoutBorder.s[j-1]) )
+		self.solverPtr.initCondMins.s[j-1] = toreal( self.initCondMins[j] )
+		self.solverPtr.initCondMaxs.s[j-1] = toreal( self.initCondMaxs[j] )
+	end
 	if self.app.verbose then
 		print('mins = '..fromreal(self.solverPtr.mins.x)..', '..fromreal(self.solverPtr.mins.y)..', '..fromreal(self.solverPtr.mins.z))
 		print('maxs = '..fromreal(self.solverPtr.maxs.x)..', '..fromreal(self.solverPtr.maxs.y)..', '..fromreal(self.solverPtr.maxs.z))

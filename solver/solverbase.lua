@@ -209,6 +209,7 @@ function SolverBase:postInit()
 
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
+			assert(var.ctype == 'real')
 			self.solverPtr[var.name] = toreal(var.value)
 		end
 	end
@@ -1821,17 +1822,24 @@ end
 function SolverBase:printBuf(buf, ptrorig, colsize, colmax)
 	ptrorig = ptrorig or buf:toCPU()
 	local ptr0size = tonumber(ffi.sizeof(buf.type))
+--print('ptr0size', ptr0size)	
 	local realSize = tonumber(ffi.sizeof'real')
+--print('realSize', realSize)	
 	local ptrsPerReal = ptr0size / realSize
+--print('ptrsPerReal', ptrsPerReal)	
 	assert(ptrsPerReal == math.floor(ptrsPerReal))
 	-- I've seen this problem before, in gcmem ... if you assign a ptr to a cast of itself, luajit can segfault
 	-- fix?  save the old pointer, and luajit doesn't try to free it too early
 	local ptr = ffi.cast('real*', ptrorig)
 	local size = buf.count * ptrsPerReal
+--print('size', size)	
 	if buf.type == self.eqn.cons_t then
-		local max = #tostring(self.numCells-1)
+		local maxdigitlen = #tostring(self.numCells-1)
+--print('maxdigitlen', maxdigitlen)		
 		local realsPerCell = math.floor(size / self.numCells)
+--print('realsPerCell', realsPerCell)		
 		colmax = colmax or realsPerCell
+--print('colmax', colmax)		
 		if colmax > realsPerCell then
 			error("got too many realsPerCell\n"..require 'ext.tolua'{
 				colmax = colmax,
@@ -1843,22 +1851,25 @@ function SolverBase:printBuf(buf, ptrorig, colsize, colmax)
 			})
 		end
 		for i=0,self.numCells-1 do
-			io.write((' '):rep(max-#tostring(i)), i,':')
+			io.write((' '):rep(maxdigitlen-#tostring(i)), i,':')
 			for j=0,colmax-1 do
 				io.write('\t',
 					--..(j==0 and '[' or '')..
-					('%f'):format(ptr[j + realsPerCell * i])
+					('%f'):format(fromreal(ptr[j + realsPerCell * i]))
 					--..(j==self.eqn.numStates-1 and ']' or ',')
 				)
+				if self.app.real == 'half' then
+					io.write(('/0x%x'):format(ptr[j + realsPerCell * i].i))
+				end
 			end 
 			print()
 		end
 	else
-		local max = #tostring(size-1)
+		local maxdigitlen = #tostring(size-1)
 		colsize = colsize or 1
 		for i=0,size-1 do
 			if i % colsize == 0 then
-				io.write((' '):rep(max-#tostring(i)), i,':')
+				io.write((' '):rep(maxdigitlen-#tostring(i)), i,':')
 			end
 			io.write(' ', ('%f'):format(ptr[i]))
 			if i % colsize == colsize-1 then 

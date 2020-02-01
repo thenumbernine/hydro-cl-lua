@@ -32,7 +32,7 @@ function Chopped:init(args)
 
 	self.multiSlices = vec3sz(table.unpack(args.multiSlices))
 	for j=self.dim+1,3 do
-		self.multiSlices:ptr()[j-1] = 1
+		self.multiSlices.s[j-1] = 1
 	end
 	
 	self.mins = args.mins or {-1, -1, -1}
@@ -45,7 +45,7 @@ function Chopped:init(args)
 	local function getmaxaxis(v)
 		local maxindex = 1
 		for j=2,self.dim do
-			if v:ptr()[j] > v:ptr()[maxindex] then
+			if v.s[j] > v.s[maxindex] then
 				maxindex = j
 			end
 		end
@@ -60,7 +60,7 @@ function Chopped:init(args)
 		boundary = {min={}, max={}},
 	}
 	root.maxaxis = getmaxaxis(root.size)
-	root.maxsize = root.size:ptr()[root.maxaxis]
+	root.maxsize = root.size.s[root.maxaxis]
 	
 	local blocks = table{root}
 	for i=2,self.multiSlices do
@@ -72,11 +72,11 @@ function Chopped:init(args)
 		local axis = longestBlock.maxaxis
 		local newsize = vec3sz(longestBlock.size:unpack())
 		local mid = .5 * (
-			longestBlock.mins:ptr()[axis]
-			+ longestBlock.maxs:ptr()[axis]
+			longestBlock.mins.s[axis]
+			+ longestBlock.maxs.s[axis]
 		)
-		newsize:ptr()[axis] = bit.rshift(newsize:ptr()[axis], 1)
-		if newsize:ptr()[axis] == 0 then
+		newsize.s[axis] = bit.rshift(newsize.s[axis], 1)
+		if newsize.s[axis] == 0 then
 			blocks:insert(longestBlock)
 			break	-- done
 		end
@@ -90,10 +90,10 @@ function Chopped:init(args)
 				max = table(longestBlock.boundary.max),
 			},
 		}
-		blockL.maxs:ptr()[axis] = mid 
+		blockL.maxs.s[axis] = mid 
 		
 		blockL.maxaxis = getmaxaxis(blockL.size)
-		blockL.maxsize = blockL.size:ptr()[blockL.maxaxis]
+		blockL.maxsize = blockL.size.s[blockL.maxaxis]
 
 
 		local blockR = {
@@ -105,10 +105,10 @@ function Chopped:init(args)
 				max = table(longestBlock.boundary.max),
 			},
 		}
-		blockR.mins:ptr()[axis] = mid
+		blockR.mins.s[axis] = mid
 		
 		blockR.maxaxis = getmaxaxis(blockR.size)
-		blockR.maxsize = blockR.size:ptr()[blockR.maxaxis]
+		blockR.maxsize = blockR.size.s[blockR.maxaxis]
 	
 	
 		
@@ -220,14 +220,14 @@ function Chopped:init(args)
 				-- region is equal per-block, regardless of solver, solverL, solverR
 				local regions = table()
 				for side=0,self.dim-1 do
-					local updateL = v:ptr()[side] > 1
-					local updateR = v:ptr()[side] < self.multiSlices:ptr()[side]
+					local updateL = v.s[side] > 1
+					local updateR = v.s[side] < self.multiSlices.s[side]
 					
 					local vL = vec3sz(v:unpack())
-					vL:ptr()[side] = vL:ptr()[side] - 1
+					vL.s[side] = vL.s[side] - 1
 						
 					local vR = vec3sz(v:unpack())
-					vR:ptr()[side] = vR:ptr()[side] + 1
+					vR.s[side] = vR.s[side] + 1
 					
 					local solverL = updateL and self.blocks[tonumber(vL.x)][tonumber(vL.y)][tonumber(vL.z)].solver or nil
 					local solverR = updateR and self.blocks[tonumber(vR.x)][tonumber(vR.y)][tonumber(vR.z)].solver or nil
@@ -236,21 +236,21 @@ function Chopped:init(args)
 					local src_originL, dst_originL  
 					if updateL then
 						src_originL = vec3sz()
-						src_originL:ptr()[side] = solverL.gridSize:ptr()[side] - 2 * numGhost
+						src_originL.s[side] = solverL.gridSize.s[side] - 2 * numGhost
 						dst_originL = vec3sz()
 					end
 
 					local src_originR, dst_originR
 					if updateR then
 						src_originR = vec3sz()
-						src_originR:ptr()[side] = numGhost
+						src_originR.s[side] = numGhost
 						dst_originR = vec3sz()
-						dst_originR:ptr()[side] = solver.gridSize:ptr()[side] - numGhost
+						dst_originR.s[side] = solver.gridSize.s[side] - numGhost
 					end
 					
 					-- TODO just make one per side and reuse it for all blocks
 					local region = vec3sz(solver.gridSize:unpack())
-					region:ptr()[side] = numGhost
+					region.s[side] = numGhost
 					
 					-- scale x-axis by structure size
 					if updateL then
@@ -282,9 +282,9 @@ function Chopped:init(args)
 								solver.cmds.id,					-- cl_command_queue command_queue,
 								solverL.UBuf.id,				-- cl_mem src_buffer,
 								solver.UBuf.id,					-- cl_mem dst_buffer,
-								src_originLs[side+1]:ptr(),		-- const size_t src_origin[3],
-								dst_originLs[side+1]:ptr(),		-- const size_t dst_origin[3],
-								regions[side+1]:ptr(),			-- const size_t region[3],
+								src_originLs[side+1].s,		-- const size_t src_origin[3],
+								dst_originLs[side+1].s,		-- const size_t dst_origin[3],
+								regions[side+1].s,			-- const size_t region[3],
 								sizeof_cons_t * solverL.gridSize.x,	-- size_t src_row_pitch,
 								sizeof_cons_t * solverL.gridSize.x * solverL.gridSize.y,	-- size_t src_slice_pitch,
 								sizeof_cons_t * solver.gridSize.x,	-- size_t dst_row_pitch,
@@ -299,9 +299,9 @@ function Chopped:init(args)
 								solver.cmds.id,					-- cl_command_queue command_queue,
 								solverR.UBuf.id,				-- cl_mem src_buffer,
 								solver.UBuf.id,					-- cl_mem dst_buffer,
-								src_originRs[side+1]:ptr(),		-- const size_t src_origin[3],
-								dst_originRs[side+1]:ptr(),		-- const size_t dst_origin[3],
-								regions[side+1]:ptr(),			-- const size_t region[3],
+								src_originRs[side+1].s,		-- const size_t src_origin[3],
+								dst_originRs[side+1].s,		-- const size_t dst_origin[3],
+								regions[side+1].s,			-- const size_t region[3],
 								sizeof_cons_t * solverR.gridSize.x,	-- size_t src_row_pitch,
 								sizeof_cons_t * solverR.gridSize.x * solverR.gridSize.y,	-- size_t src_slice_pitch,
 								sizeof_cons_t * solver.gridSize.x,	-- size_t dst_row_pitch,

@@ -245,7 +245,7 @@ function Draw3DIso:showDisplayVar(app, solver, var)
 					local cornerOfs = ofs
 					for n=0,2 do
 						if bit.band(bit.rshift(corner, n), 1) == 1 then
-							cornerOfs = cornerOfs + solver.stepSize:ptr()[n]
+							cornerOfs = cornerOfs + solver.stepSize.s[n]
 						end
 					end
 					
@@ -279,12 +279,12 @@ function Draw3DIso:showDisplayVar(app, solver, var)
 									local v = vec3d(i,j,k)
 									for m=0,2 do
 										if bit.band(corner, bit.lshift(1,m)) ~= 0 then
-											v:ptr()[m] = v:ptr()[m] + 1
+											v.s[m] = v.s[m] + 1
 										end
 									end
 									
 									local frac = (isoValue - cornerValues[corner]) / (cornerValues[nextCorner] - cornerValues[corner])
-									v:ptr()[n] = v:ptr()[n] + sign * frac
+									v.s[n] = v.s[n] + sign * frac
 								
 									local twoCornerIndex = bit.bor(bit.lshift(1, corner), bit.lshift(1, nextCorner))
 									local edge = edgeForTwoCorners[twoCornerIndex]

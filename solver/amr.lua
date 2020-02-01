@@ -48,9 +48,9 @@ local function preInitAMR(self, args)
 		-- size of the root level, in terms of nodes ('from' size)
 		self.amr.ctx.parentSizeInFromSize = vec3sz(1,1,1)
 		for i=0,self.dim-1 do
-			self.amr.ctx.parentSizeInFromSize:ptr()[i] = 
-				roundup(self.sizeWithoutBorder:ptr()[i], self.amr.ctx.nodeFromSize:ptr()[i]) 
-					/ self.amr.ctx.nodeFromSize:ptr()[i]
+			self.amr.ctx.parentSizeInFromSize.s[i] = 
+				roundup(self.sizeWithoutBorder.s[i], self.amr.ctx.nodeFromSize.s[i]) 
+					/ self.amr.ctx.nodeFromSize.s[i]
 		end
 
 -- number of cells in the node. 
@@ -65,10 +65,10 @@ print('parentSizeInFromSize', self.amr.ctx.parentSizeInFromSize)
 
 		-- make sure that the child boundary is at least as big as one cell in the parent
 		for i=0,2 do
-			assert(self.numGhost >= self.amr.ctx.parentSizeInFromSize:ptr()[i],
+			assert(self.numGhost >= self.amr.ctx.parentSizeInFromSize.s[i],
 				require 'ext.tolua'{
 					['self.numGhost'] =self.numGhost,
-					['self.amr.ctx.parentSizeInFromSize:ptr()[i]'] = self.amr.ctx.parentSizeInFromSize:ptr()[i],
+					['self.amr.ctx.parentSizeInFromSize.s[i]'] = self.amr.ctx.parentSizeInFromSize.s[i],
 				})
 		end
 
@@ -341,8 +341,8 @@ kernel void initNodeFromRoot(
 			self.cmds:enqueueNDRangeKernel{
 				kernel = self.calcAMRErrorKernelObj.obj, 
 				dim = self.dim, 
-				globalSize = amrRootSizeInFromGlobalSize:ptr(), 
-				localSize = self.localSize:ptr(),
+				globalSize = amrRootSizeInFromGlobalSize.s, 
+				localSize = self.localSize.s,
 			}
 
 			local volume = tonumber(self.amr.ctx.parentSizeInFromSize:volume())
@@ -410,7 +410,7 @@ print("creating depth "..tonumber(self.amr.depth).." child "..tonumber(i))
 							
 								-- setup kernel args
 								self.initNodeFromRootKernelObj.obj:setArgs(subsolver.UBuf, self.UBuf, int4(nx,ny,0,0))
-								-- so long as node size = root size, we can use the solver.globalSize, and not --self.amr.ctx.nodeSizeWithoutBorder:ptr(),
+								-- so long as node size = root size, we can use the solver.globalSize, and not --self.amr.ctx.nodeSizeWithoutBorder.s,
 								self.initNodeFromRootKernelObj()
 								--]==]
 							end

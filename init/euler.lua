@@ -1843,8 +1843,8 @@ bool testTriangle(real3 xc) {
 			local src = {math.floor(tonumber(solver.gridSize.x)*.75)}
 			local dst = {math.floor(tonumber(solver.gridSize.x)*.25)}
 			for j=2,solver.dim do
-				src[j] = math.floor(tonumber(solver.gridSize:ptr()[j-1])*.5)
-				dst[j] = math.floor(tonumber(solver.gridSize:ptr()[j-1])*.5)
+				src[j] = math.floor(tonumber(solver.gridSize.s[j-1])*.5)
+				dst[j] = math.floor(tonumber(solver.gridSize.s[j-1])*.5)
 			end
 			for j=solver.dim+1,3 do
 				src[j] = 0

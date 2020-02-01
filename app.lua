@@ -250,7 +250,7 @@ local rotateClip = ffi.new('int[1]', 0)
 local function makeDefaultPlane(i)
 	assert(i >= 1 and i <= 4)
 	local plane = vec4d(0,0,0,0)
-	plane:ptr()[math.min(i,3)-1] = -1
+	plane.s[math.min(i,3)-1] = -1
 	return plane
 end
 local clipInfos = range(4):mapi(function(i)
@@ -965,6 +965,9 @@ local displaySolvers = flattenedSolvers
 		and self.showMouseCoords
 		and dim == 2
 		then
+			local half = require 'half'
+			local toreal, fromreal = half.toreal, half.fromreal
+			
 			self.mouseCoordValue = ''
 			for i,solver in ipairs(displaySolvers) do 
 			local var = solver.displayVarForName[varName]
@@ -995,12 +998,13 @@ local displaySolvers = flattenedSolvers
 							else
 								-- ... if we know we're always copying intermediately to reduceBuf then we can use that instead
 								-- in fact, we can even use the CPU intermediate buffer
-								local ptr = ffi.cast('float*', solver.calcDisplayVarToTexPtr)
+									-- right now I'm copying halfs from cl to gl as-is, so calcDisplayVarToTexPtr will have half data for half and float data otherwise
+								local ptr = ffi.cast(self.real == 'half' and 'real*' or 'float*', solver.calcDisplayVarToTexPtr)
 								local channels = vectorField and 3 or 1
 								local sep = ''
 								self.mouseCoordValue = self.mouseCoordValue .. tostring(texX)..','..tostring(texY)..': '
 								for j=0,channels-1 do
-									self.mouseCoordValue = self.mouseCoordValue .. sep .. ptr[j + channels * (texX + size.x * texY)]
+									self.mouseCoordValue = self.mouseCoordValue .. sep .. fromreal(ptr[j + channels * (texX + size.x * texY)])
 									sep = ', '
 								end
 								self.mouseCoordValue = self.mouseCoordValue .. '\n'

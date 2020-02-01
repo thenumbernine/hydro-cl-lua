@@ -34,7 +34,7 @@ function Draw3DSlice:display(app, solvers, varName, ar, xmin, ymin, xmax, ymax, 
 
 if useClipPlanes then
 	for i,clipInfo in ipairs(clipInfos) do
-		gl.glClipPlane(gl.GL_CLIP_PLANE0+i-1, clipInfo.plane:ptr())
+		gl.glClipPlane(gl.GL_CLIP_PLANE0+i-1, clipInfo.plane.s)
 	end
 end
 			
