@@ -1150,7 +1150,7 @@ function BoundarySpherePhi:getCode(args)
 	end
 	local lines = table()
 	lines:insert(self:assignDstSrc(dst, src, args))
-	lines:insert(self:reflectVars(args, dst, args.boundarySpherePhiMirrorVars))
+	lines:insert(self:reflectVars(args, dst, args.reflectVars.spherePhi))
 	return lines:concat'\n'
 end
 
@@ -1418,12 +1418,7 @@ function GridSolver:getBoundaryProgramArgs()
 		-- These should be here so that the LR boundary code gen can modify them (duplicate them for L and R).
 		-- But it needs to be passed on to BoundaryMethod:getCode(), which means forwarding it again inside of :createBoundaryProgramAndKernel.
 		-- Note to self, this is one-to-one with Boundary names, *not* with coordinate systems.
-		reflectVars = {
-			mirror = self.eqn.boundaryCartesianMirrorVars,
-			sphereRMin = self.eqn.boundarySphereRMinMirrorVars,
-			sphereTheta = self.eqn.boundarySphereThetaMirrorVars,
-			cylinderCenter = self.eqn.boundaryCylinderCenterMirrorVars,
-		},
+		reflectVars = self.eqn.reflectVars,
 	}
 end
 

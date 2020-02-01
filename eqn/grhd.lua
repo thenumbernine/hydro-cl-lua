@@ -16,10 +16,12 @@ GRHD.numStates = 10
 GRHD.numWaves = 5
 GRHD.numIntStates = 5
 
-GRHD.boundaryCartesianMirrorVars = {
-	{'cons.S.x', 'prim.v.x'},
-	{'cons.S.y', 'prim.v.y'},
-	{'cons.S.z', 'prim.v.z'},
+GRHD.reflectVars = {
+	mirror = {
+		{'cons.S.x', 'prim.v.x'},
+		{'cons.S.y', 'prim.v.y'},
+		{'cons.S.z', 'prim.v.z'},
+	},
 }
 
 GRHD.hasEigenCode = true 
