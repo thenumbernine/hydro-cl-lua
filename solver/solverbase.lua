@@ -209,8 +209,11 @@ function SolverBase:postInit()
 
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
-			assert(var.ctype == 'real')
-			self.solverPtr[var.name] = toreal(var.value)
+			if var.ctype == 'real' then
+				self.solverPtr[var.name] = toreal(var.value)
+			else
+				self.solverPtr[var.name] = var.value
+			end
 		end
 	end
 
