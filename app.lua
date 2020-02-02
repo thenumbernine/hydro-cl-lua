@@ -2,6 +2,8 @@
 predefined vars:
 	clcpu = (in run.lua, preceding this) use experimental cl-cpu CL-to-C OpenCL wrapper
 	dim =
+	cfl =
+	fixedDT =
 	gridSize =
 	fluxLimiter =
 	boundary =

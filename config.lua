@@ -26,6 +26,7 @@ local args = {
 	--integratorArgs = {verbose=true},
 
 	--fixedDT = .0001,
+	fixedDT = cmdline.fixedDT,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
 	
 	fluxLimiter = cmdline.fluxLimiter or 'superbee',
@@ -75,7 +76,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{256,1,1},
-				{16,16,1},
+				{128,128,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error

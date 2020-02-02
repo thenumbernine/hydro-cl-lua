@@ -5,7 +5,7 @@ local makestruct = require'eqn.makestruct'
 local ffi = require 'ffi'
 
 --[[
-TODO combine this with the solver_t stuff in SolverBase
+TODO combine this makestruct
 
 We have a few different variable sets used for structs, gui, display, etc
 Here's the kinds of things different ones hold:

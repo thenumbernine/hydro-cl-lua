@@ -144,7 +144,9 @@ function SelfGrav:resetState()
 	-- this does an initial relax()
 	SelfGrav.super.resetState(self)
 
-	self:offsetPotential()
+	if solver[self.enableField] then
+		self:offsetPotential()
+	end
 end
 
 function SelfGrav:updateGUI()

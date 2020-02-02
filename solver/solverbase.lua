@@ -1962,40 +1962,89 @@ require 'draw.vectorfield'.applyToSolver(SolverBase)
 
 -- [[ debugging -- determine sizeof
 function SolverBase:checkStructSizes()
-	local cmd = self.cmds
-	local _1x1_domain = self.app.env:domain{size={1}, dim=1}
-	local resultPtr = ffi.new('size_t[1]', 0)
-	local resultBuf = _1x1_domain:buffer{name='result', type='size_t', data=resultPtr}
-
-	print(self.codePrefix)
-
-	for _,typename in ipairs{
+	local typeinfos = table{
 		'real',
 		'real2',
 		'real3',
 		'real4',
-		self.solver_t,
 		self.eqn.cons_t,
 		self.eqn.prim_t,
-		self.eqn.consLR_t,
 		self.eqn.eigen_t,
 		self.eqn.waves_t,
-	} do
-		require 'cl.obj.kernel'{
-			env = self.app.env,
-			domain = _1x1_domain,
-			argsOut = {resultBuf},
-			header = self.codePrefix,
-			body = template([[
-	result[0] = sizeof(<?=typename?>);
-]], 		{
-				typename = typename,
-			}),
-		}()
-		resultBuf:toCPU(resultPtr)
-		local clsize = tonumber(resultPtr[0])
-		local ffisize = tonumber(ffi.sizeof(typename))
-		print('sizeof('..typename..'): OpenCL='..clsize..', ffi='..ffisize..(clsize == ffisize and '' or ' -- !!!DANGER!!!'))
+		self.eqn.consLR_t,
+		self.solverStruct,
+	}
+
+	local varcount = 0
+	for _,typeinfo in ipairs(typeinfos) do
+		varcount = varcount + 1
+		if SolverStruct.is(typeinfo) then
+			varcount = varcount + #typeinfo.vars
+		end
+	end
+
+	local cmd = self.cmds
+	local _1x1_domain = self.app.env:domain{size={1}, dim=1}
+	local resultPtr = ffi.new('size_t[?]', varcount)
+	local resultBuf = self.app.env:buffer{name='result', type='size_t', count=varcount, data=resultPtr}
+
+	--print(self.codePrefix)
+	require 'cl.obj.kernel'{
+		env = self.app.env,
+		domain = _1x1_domain,
+		argsOut = {resultBuf},
+		header = self.codePrefix,
+		body = template([[
+#define offsetof __builtin_offsetof
+
+<? 
+local index = 0
+for i,typeinfo in ipairs(typeinfos) do 
+	local typename
+	if type(typeinfo) == 'string' then
+?>
+	result[<?=index?>] = sizeof(<?=typeinfo?>);
+<? 
+		index = index + 1
+	else
+?>
+	result[<?=index?>] = sizeof(<?=typeinfo.typename?>);
+<? 
+		index = index + 1
+		for _,var in ipairs(typeinfo.vars) do
+?>
+	result[<?=index?>] = offsetof(<?=typeinfo.typename?>, <?=var.name?>);
+<? 		
+			index = index + 1
+		end
+	end
+end 
+?>
+]], 	{
+			typeinfos = typeinfos,
+		}),
+	}()
+	resultBuf:toCPU(resultPtr)
+	local index = 0
+	for i,typeinfo in ipairs(typeinfos) do
+		if type(typeinfo) == 'string' then
+			local clsize = tostring(resultPtr[index]):match'%d+'
+			index = index + 1
+			local ffisize = tostring(ffi.sizeof(typeinfo))
+			print('sizeof('..typeinfo..'): OpenCL='..clsize..', ffi='..ffisize..(clsize == ffisize and '' or ' -- !!!DANGER!!!'))
+		else
+			local clsize = tostring(resultPtr[index]):match'%d+'
+			index = index + 1
+			local ffisize = tostring(ffi.sizeof(typeinfo.typename))
+			print('sizeof('..typeinfo.typename..'): OpenCL='..clsize..', ffi='..ffisize..(clsize == ffisize and '' or ' -- !!!DANGER!!!'))
+			
+			for _,var in ipairs(typeinfo.vars) do
+				local cloffset = tostring(resultPtr[index]):match'%d+'
+				index = index + 1
+				local ffioffset = tostring(ffi.offsetof(typeinfo.typename, var.name))
+				print('offsetof('..typeinfo.typename..', '..var.name..'): OpenCL='..cloffset..', ffi='..ffioffset..(cloffset == ffioffset and '' or ' -- !!!DANGER!!!'))
+			end
+		end
 	end
 	os.exit()
 end
