@@ -1597,12 +1597,10 @@ else
 --]] do
 
 	-- this fails with 1D for channels == 3, for vectors (but works for 2D etc)
-	local min = self.reduceMin(nil, volume*channels)
+	local min = fromreal(self.reduceMin(nil, volume*channels))
+	
 	self:calcDisplayVarToBuffer(var, componentIndex)
-	local max = self.reduceMax(nil, volume*channels)
-
-	min = fromreal(min)
-	max = fromreal(max)
+	local max = fromreal(self.reduceMax(nil, volume*channels))
 --print('reduce min',min,'max',max,'volume',volume,'name',var.name,'channels',channels)
 	var.lastMin = min
 	var.lastMax = max
@@ -1637,10 +1635,11 @@ function SolverBase:calcDisplayVarRangeAndAvg(var, componentIndex)
 		self:calcDisplayVarToBuffer(var, componentIndex)
 		
 		-- [[ avg
-		var.lastAvg = self.reduceSum(nil, size) / tonumber(size)
+		local lastAvg = self.reduceSum(nil, size) / tonumber(size)
+		var.lastAvg = fromreal(lastAvg)
 		--]]
 		--[[ rms
-		self.squareKernelObj(self.solverBuf, self.reduceBuf)
+		self.squareKernelObj(self.solverBuf, fromreal(self.reduceBuf))
 		var.lastAvg = math.sqrt(self.reduceSum(nil, size) / tonumber(size))
 		--]]
 	end
@@ -1671,11 +1670,7 @@ function SolverBase:calcDT()
 		self.calcDTKernelObj.obj:setArg(0, self.solverBuf)
 		self.calcDTKernelObj.obj:setArg(2, self.UBuf)
 		self.calcDTKernelObj()
-local mindt = self.reduceMin()
---print(mindt.i, fromreal(mindt))
-mindt = fromreal(mindt)
---print(mindt)	
-		dt = self.cfl * mindt
+		dt = self.cfl * fromreal(self.reduceMin())
 		if not math.isfinite(dt) then
 			print("got a bad dt at time "..self.t) -- TODO dump all buffers
 		end

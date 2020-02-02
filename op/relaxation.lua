@@ -7,6 +7,10 @@ local ffi = require 'ffi'
 local tooltip = require 'tooltip'
 local CLBuffer = require 'cl.obj.buffer'
 
+local half = require 'half'
+local toreal, fromreal = half.toreal, half.fromreal
+
+
 local Relaxation = class()
 
 Relaxation.name = 'Relaxation'
@@ -137,9 +141,9 @@ function Relaxation:relax()
 				self.setReduceToPotentialSquaredKernelObj()
 				local xNorm = math.sqrt(solver.reduceSum() / tonumber(solver.volumeWithoutBorder))
 				self.copyPotentialToReduceKernelObj()
-				local xmin = solver.reduceMin()
+				local xmin = fromreal(solver.reduceMin())
 				self.copyPotentialToReduceKernelObj()
-				local xmax = solver.reduceMax()
+				local xmax = fromreal(solver.reduceMax())
 				io.stderr:write(table{i-1, residual, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
 			end
 			

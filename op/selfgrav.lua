@@ -4,9 +4,7 @@ local table = require 'ext.table'
 local class = require 'ext.class'
 local tooltip = require 'tooltip'
 local template = require 'template'
-
 local real = require 'real'	-- really 'realparam'
-
 
 local half = require 'half'
 local toreal, fromreal = half.toreal, half.fromreal
@@ -173,20 +171,20 @@ function SelfGrav:offsetPotential()
 	local ePotMin
 	if self.verbose then
 		self.copyPotentialToReduceKernelObj()
-		ePotMin = solver.reduceMin()
+		ePotMin = fromreal(solver.reduceMin())
 	end
 	self.copyPotentialToReduceKernelObj()
-	local ePotMax = solver.reduceMax()
+	local ePotMax = fromreal(solver.reduceMax())
 	
-	self.offsetPotentialKernelObj.obj:setArg(2, real(fromreal(ePotMax)))
+	self.offsetPotentialKernelObj.obj:setArg(2, real(ePotMax))
 	self.offsetPotentialKernelObj()
 
 	local new_ePotMin, new_ePotMax
 	if self.verbose then
 		self.copyPotentialToReduceKernelObj()
-		new_ePotMin = solver.reduceMin()
+		new_ePotMin = fromreal(solver.reduceMin())
 		self.copyPotentialToReduceKernelObj()
-		new_ePotMax = solver.reduceMax()
+		new_ePotMax = fromreal(solver.reduceMax())
 	
 		print('offsetting potential energy from '..ePotMin..','..ePotMax..' to '..new_ePotMin..','..new_ePotMax)
 	end

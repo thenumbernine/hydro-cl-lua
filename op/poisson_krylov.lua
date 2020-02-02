@@ -6,8 +6,11 @@ local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
 local tooltip = require 'tooltip'
 local template = require 'template'
-
 local CLBuffer = require 'cl.obj.buffer'
+
+local half = require 'half'
+local toreal, fromreal = half.toreal, half.fromreal
+
 
 local PoissonKrylov = class()
 
@@ -150,13 +153,13 @@ function PoissonKrylov:initSolver()
 					dst=assert(solver.reduceBuf),
 					size = ffi.sizeof(solver.app.real) * numreals,
 				}
-				local xmin = solver.reduceMin()
+				local xmin = fromreal(solver.reduceMin())
 				solver.cmds:enqueueCopyBuffer{
 					src=assert(x.obj),
 					dst=assert(solver.reduceBuf),
 					size = ffi.sizeof(solver.app.real) * numreals,
 				}
-				local xmax = solver.reduceMax()
+				local xmax = fromreal(solver.reduceMax())
 				io.stderr:write(table{iter, residual, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
 			end
 			if math.abs(residual) < self.stopEpsilon then
