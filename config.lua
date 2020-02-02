@@ -433,7 +433,7 @@ local args = {
 	--initState = 'Oscillatory',
 
 	-- multi-devices
-	multiSlices = {2, 2, 1},
+	multiSlices = {2, 1, 1},
 }
 
 

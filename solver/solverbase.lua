@@ -1677,7 +1677,6 @@ function SolverBase:calcDT()
 		end
 		self.fixedDT = dt
 	end
---print(('frame dt = %e'):format(dt))
 	return dt
 end
 
@@ -1704,6 +1703,7 @@ function SolverBase:update()
 		self.fps = self.fpsSamples:sum() / #self.fpsSamples
 		if (self.showFPS or cmdline.trackvars)
 		and math.floor(thisTime / tick) ~= math.floor(self.lastFrameTime / tick) then 
+			--io.write(tostring(self), ' ')
 			local sep = ''
 			if self.showFPS then
 				io.write(sep, 'fps=', self.fps)
@@ -1717,9 +1717,11 @@ function SolverBase:update()
 					io.write(sep, 'dt=', self.dt)
 				end
 				for _,varname in ipairs(varnames) do
-					local var = assert(self.displayVarForName[varname], "couldn't find "..varname)
-					local ymin, ymax, yavg = self:calcDisplayVarRangeAndAvg(var)
-					io.write(sep, varname, '=[', ymin, '..', yavg, '..', ymax, ']')
+					if varname ~= 'dt' then
+						local var = assert(self.displayVarForName[varname], "couldn't find "..varname)
+						local ymin, ymax, yavg = self:calcDisplayVarRangeAndAvg(var)
+						io.write(sep, varname, '=[', ymin, '..', yavg, '..', ymax, ']')
+					end
 				end
 			end
 			print()

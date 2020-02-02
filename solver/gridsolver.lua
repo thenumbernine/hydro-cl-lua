@@ -516,6 +516,7 @@ function GridSolver:createBuffers()
 	self:clalloc('UBuf', self.eqn.cons_t, self.numCells)
 
 	if self.usePLM then
+		-- TODO self.eqn.consLR_t..'_dim' and remove * self.dim ?
 		self:clalloc('ULRBuf', self.eqn.consLR_t, self.numCells * self.dim)
 	end
 
@@ -698,7 +699,7 @@ function GridSolver:resetState()
 		self:boundary()
 	end
 
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 end
 
 function GridSolver:getSolverCode()
@@ -726,7 +727,7 @@ function GridSolver:boundaryLR()
 	if self.usePLM then
 		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
 			obj()
-if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		end
 	else
 		self:boundary()
@@ -1506,9 +1507,9 @@ function GridSolver:applyBoundaryToBuffer(kernelObjs)
 end
 
 function GridSolver:boundary()
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	self:applyBoundaryToBuffer(self.boundaryKernelObjs)
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 end
 
 
@@ -1549,18 +1550,18 @@ print'\nGridSolver:update() begin, self.UBufObj:'
 self:printBuf(self.UBufObj)
 --]]
 
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 	GridSolver.super.update(self)
 
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	
 	local dt = self:calcDT()
 
 	-- first do a step
 	self:step(dt)
 
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 	-- why was this moved out of :step() ?
 	self.t = self.t + dt
@@ -1574,32 +1575,32 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		print('t='..self.t..' L1-error='..err)
 	end
 
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 	self:boundary()
 
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 end
 
 function GridSolver:step(dt)
 
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	
 	self.integrator:integrate(dt, function(derivBufObj)		
-if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		self:calcDeriv(derivBufObj, dt)
-if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 		if self.eqn.useSourceTerm then
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 			self.addSourceKernelObj(self.solverBuf, derivBufObj.obj, self.UBuf)
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		end
 
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 		for _,op in ipairs(self.ops) do
 			if op.addSource then
@@ -1611,7 +1612,7 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	-- I moved the constrainU() and boundary() functions from here to be within the integrator, 
 	-- so that each sub-step that the RK integrator performs can apply these and be physically correct states.
 
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	
 	for _,op in ipairs(self.ops) do
 		if op.step then
@@ -1620,7 +1621,7 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		end
 	end
 
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 end
 
 function GridSolver:getTex(var) 

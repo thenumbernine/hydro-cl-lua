@@ -15,7 +15,7 @@ local vec3d = require 'vec-ffi.vec3d'
 local cl = require 'ffi.OpenCL'
 local classert = require 'cl.assert'
 local ffi = require 'ffi'
-
+local tolua = require 'ext.tolua'
 
 local Chopped = class()
 
@@ -168,7 +168,7 @@ function Chopped:init(args)
 	if self.app.verbose then
 		print'blocks:'
 		for _,block in ipairs(self.flatBlocks) do
-			print(require 'ext.tolua'(block))
+			print(tolua(block))
 		end
 		print()
 	end
@@ -331,36 +331,54 @@ function Chopped:init(args)
 		and then correctly :resume inside here
 	--]]
 	for i,solver in ipairs(self.solvers) do
+
+		local oldUpdate = solver.update
+		function solver:update(...)
+			oldUpdate(self, ...)
+			
+			local result = coroutine.yield'S4) update done'	-- assert resume gets this to make sure our yields are lined up
+--print(result)		
+		end
+	
 		local oldCalcDT = solver.calcDT
 		function solver:calcDT(...)
 			local oldDT = oldCalcDT(self, ...)
---print('solver '..i..' calcDT dt was '..oldDT)			
 			
-			local newDT = coroutine.yield(oldDT)
---print('solver '..i..' calcDT dt is now '..newDT)
-			return newDT 
-		end
-		local oldUpdate = solver.update
-		function solver:update(...)
-			coroutine.yield'start update'	-- let our calling coroutine keep the solver stopped at the beginning of the update routine
-			oldUpdate(self, ...)
-			local result = coroutine.yield'update done'	-- assert resume gets this to make sure our yields are lined up
---print('solver '..i..' update returning')
+			local result = coroutine.yield('S1) passing old dt', oldDT)
+--print(result)		
+			assert(result == 'M2) main got sub-solver dt', "expected 'M2) main got sub-solver dt', got "..tolua(result))
+			
+			local newDT = coroutine.yield'S2) getting new dt'
+assert(newDT, "didn't get a dt back")
+			
+			coroutine.yield'S3) waiting for dt'
+			
+			return newDT
 		end
 	end
+	
 	for	_,block in ipairs(self.flatBlocks) do
 		local solver = block.solver
-		block.updateThread = coroutine.create(function()
+		block.updateThread = coroutine.create(function(arg)
+			assert(arg == 'M0) main init coroutine')
+		
+			local result = coroutine.yield'S0) start update'	-- let our calling coroutine keep the solver stopped at the beginning of the update routine
+--print(result)		
+			assert(result == 'M1) starting update', "expected 'M1) starting update', got "..tolua(result))
+
 			while true do
 				solver:update()
 			end
 		end)
-		--[[
-		two options:
-			1): do an initial continue() here
-			2): add an extra yield to solver:update()
-		--]]
+		
+		local err, result = coroutine.assertresume(block.updateThread, 'M0) main init coroutine')
+--print(result)		
+		assert(err)
+		assert(result == 'S0) start update', "expected 'S0) start update', found "..tolua(result))
+	
 	end
+	
+	self.t = 0
 end
 
 --[[
@@ -407,23 +425,54 @@ function Chopped:update()
 	self.t = self.solvers:mapi(function(solver) return solver.t end):inf()
 --]]
 -- [[ with threads
-	-- each solver update thread should be paused at the beginning of update here
+
+	--[[
+	for i,block in ipairs(self.flatBlocks) do
+		-- run from start or 'S4) update done' until 'S0) start update'
+		local err, result = coroutine.assertresume(block.updateThread, 'M1) starting update')
+		assert(err)
+--print(result)		
+		assert(result == 'S0) start update', "expected 'S0) start update', got "..tolua(result))
+	end	
+	--]]
+
 	local dt = math.huge
 	for i,block in ipairs(self.flatBlocks) do
-		local _, result = coroutine.assertresume(block.updateThread, dt)
-		assert(result  == 'start update', "expected 'start update', got "..require 'ext.tolua'(result))
-		local _, solverdt = coroutine.assertresume(block.updateThread)
-		--print('main solver gets solver '..i..' dt = '..tostring(solverdt))
+		-- run from 'S0) start update' until calc dt, return the old dt
+		local err, result, solverdt = coroutine.assertresume(block.updateThread, 'M1) starting update')
+		assert(err)
+--print(result)		
+		assert(result == 'S1) passing old dt', "expected 'S1) passing old dt', found "..tolua(result))
+		assert(type(solverdt) == 'number', "expected to get back number as sub-solver dt, found "..tolua(result))
+--print('main solver gets solver '..i..' dt = '..tostring(solverdt))
 		dt = math.min(dt, solverdt)
+
+		local err, result = coroutine.assertresume(block.updateThread, 'M2) main got sub-solver dt')
+--print(result)		
+		assert(err)
+		--assert(result == 
 	end
+--print('chopped solver dt', dt)	
+
 	for _,block in ipairs(self.flatBlocks) do
-		local _, result = coroutine.assertresume(block.updateThread, dt)
-		assert(result  == 'update done', "expected 'update done', got "..require 'ext.tolua'(result))
+		local err, result = coroutine.assertresume(block.updateThread, dt, 'M3) main passing super-solver dt')
+--print(result)		
+		assert(err)
+		assert(result == 'S3) waiting for dt', "expected 'S3) waiting for dt', found "..tolua(result))
 	end
+
+	for _,block in ipairs(self.flatBlocks) do
+		-- run from calc dt until 'S4) update done'
+		local err, result = coroutine.assertresume(block.updateThread, 'M1) starting update')
+		assert(err)
+--print(result)		
+		assert(result  == 'S4) update done', "expected 'S4) update done', got "..tolua(result))
+	end
+
 	self.t = self.t + dt
-	for _,solver in ipairs(self.solvers) do
-		solver.t = self.t
-	end
+	--self.t = self.solvers[1].t	
+--print('chopped solver t', self.t)
+
 --]]
 
 --[[
