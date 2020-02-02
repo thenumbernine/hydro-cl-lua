@@ -456,7 +456,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -706,7 +706,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 -- the start of multi GPU
 -- how about 'composite grid' instead of 'chopped up'?
---self.solvers:insert(require 'solver.choppedup'(table(args, {eqn='euler', subsolverClass=require 'solver.roe'})))
+self.solvers:insert(require 'solver.choppedup'(table(args, {eqn='euler', subsolverClass=require 'solver.roe'})))
 
 
 --[=[ 2013 Baumgarte et al, section IV A 1 example & 2017 Ruchlin, Etienne

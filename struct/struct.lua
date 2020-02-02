@@ -35,10 +35,8 @@ local Struct = class()
 function Struct:init(args)
 	self.solver = assert(args.solver)
 	self.name = assert(args.name)
-	self.vars = table()
-	if args.vars then
-		self:addVars(args.vars)
-	end
+	self.vars = table(args.vars)
+	self.dontUnion = args.dontUnion
 end
 
 function Struct:makeType()
@@ -50,7 +48,7 @@ function Struct:makeType()
 end
 
 function Struct:getTypeCode()
-	local code = makestruct.makeStruct(self.typename, self.vars, nil, true)
+	local code = makestruct.makeStruct(self.typename, self.vars, nil, self.dontUnion)
 	if self.typecode then
 		assert(code == self.typecode)
 	else

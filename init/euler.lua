@@ -869,7 +869,7 @@ end
 		.v = _real3(2.9, 0., 0.),
 		.B = _real3(.5, 0., 0.),
 		.P = 5. / 7.,
-<? if eqn.primVars:find(nil, function(var)
+<? if eqn.primStruct.vars:find(nil, function(var)
 	return next(var) == 'psi'
 end) then
 ?>		.psi = 0.,
@@ -889,7 +889,7 @@ end) then
 		.v = _real3(2.717, -.4049, 0.),
 		.B = _real3(.6838, -.1019, 0.),
 		.P = 1.2229,
-<? if eqn.primVars:find(nil, function(var)
+<? if eqn.primStruct.vars:find(nil, function(var)
 	return next(var) == 'psi'
 end) then
 ?>		.psi = 0.,

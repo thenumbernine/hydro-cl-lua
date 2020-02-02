@@ -46,7 +46,7 @@ Equation.useSourceTerm = nil
 function Equation:getParityVars(...)
 	local sign = {...}
 	local vars = table()
-	for _,var in ipairs(self.consVars) do
+	for _,var in ipairs(self.consStruct.vars) do
 		if var.type == 'real' then
 		elseif var.type == 'cplx' then
 		elseif var.type == 'real3' then
@@ -78,21 +78,62 @@ function Equation:getParityVars(...)
 	return vars
 end
 
+local Struct = require 'struct.struct'
+
+--[[
+args:
+	solver = required
+
+	make sure self.consStruct and self.primStruct is defined beforehand
+--]]
 function Equation:init(args)
 	self.solver = assert(args.solver)
-
 	local app = args.solver.app
-	self.prim_t = app:uniqueName'prim_t'
-	self.cons_t = app:uniqueName'cons_t'
+
+	
+	-- build consStruct and primStruct from self.consVars and .primVars (then erase them -- don't use them anymore)
+	-- TODO think of a better way for the eqn to pass this info along, maybe a callback instead of a field?
+	if not self.consStruct then
+		assert(self.consVars)
+		self.consStruct = Struct{
+			solver = self.solver,
+			name = 'cons_t',
+			vars = self.consVars,
+		}
+	end
+	self.consStruct:makeType()	-- create consStruct.typename
+	self.cons_t = self.consStruct.typename
+	-- don't use consVars anymore ... use consStruct.vars instead
+	self.consVars = nil
+	-- if you have multiple eqns then the class needs to keep the field
+	--getmetatable(self).consVars = nil
+
+
+	if not self.primStruct then
+		assert(self.primVars)
+		self.primStruct = Struct{
+			solver = self.solver,
+			name = 'prim_t',
+			vars = self.primVars,
+		}
+	end
+	self.primStruct:makeType()
+	self.prim_t = self.primStruct.typename
+	-- don't use primVars anymore ... use primStruct.vars instead
+	self.primVars = nil
+	-- if you have multiple eqns then the class needs to keep the field
+	--getmetatable(self).primVars = nil
+
+
 	self.consLR_t = app:uniqueName'consLR_t'
 	self.eigen_t = app:uniqueName'eigen_t'
 	self.waves_t = app:uniqueName'waves_t'
 	
 	local numReals
-	if self.consVars then
-		numReals = makestruct.countScalars(self.consVars)
-		if self.primVars then
-			local numPrimReals = makestruct.countScalars(self.primVars)
+	if self.consStruct.vars then
+		numReals = makestruct.countScalars(self.consStruct.vars)
+		if self.primStruct then
+			local numPrimReals = makestruct.countScalars(self.primStruct.vars)
 			assert(numPrimReals <= numReals, "hmm, this is awkward")
 		end
 	end
@@ -100,7 +141,7 @@ function Equation:init(args)
 	if not self.numStates then 
 		self.numStates = numReals
 		if not self.numStates then
-			error("you either need to define numStates or consVars")
+			error("you either need to define numStates or consVars or consStruct")
 		end
 	else
 		if numReals then
@@ -243,12 +284,12 @@ typedef union {
 end
 
 function Equation:getTypeCode()
-	assert(self.consVars)
+	assert(self.consStruct)
 	local lines = table{
-		makestruct.makeStruct(self.cons_t, self.consVars),
+		self.consStruct.typecode
 	}
-	if self.primVars then
-		lines:insert(makestruct.makeStruct(self.prim_t, self.primVars))
+	if self.primStruct then
+		lines:insert(self.primStruct.typecode)
 	else
 		lines:insert('typedef '..self.cons_t..' '..self.prim_t..';')
 	end
@@ -317,7 +358,7 @@ function Equation:getDisplayVarsForStructVars(structVarInfos, ptrName)
 end
 
 function Equation:getDisplayVars()
-	return self:getDisplayVarsForStructVars(self.consVars)
+	return self:getDisplayVarsForStructVars(self.consStruct.vars)
 end
 
 -- does anyone even use this anymore?  nobody should...
@@ -445,7 +486,7 @@ Default code for the following:
 The default assumes prim_t == cons_t and this transformation is identity
 --]]
 function Equation:getPrimConsCode()
-	assert(not self.primVars, "if you're using the default prim<->cons code then you shouldn't have any primVars")
+	assert(not self.primStruct, "if you're using the default prim<->cons code then you shouldn't have any primStruct")
 
 	return template([[
 

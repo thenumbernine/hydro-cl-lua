@@ -14,7 +14,7 @@ local tooltip = require 'tooltip'
 local makestruct = require'eqn.makestruct'
 local roundup = require 'util.roundup'
 local time, getTime = table.unpack(require 'util.time')
-local SolverStruct = require 'struct.struct'
+local Struct = require 'struct.struct'
 
 local common = require 'common'	-- xNames, symNames
 local xNames = common.xNames
@@ -90,9 +90,10 @@ function SolverBase:initL1(args)
 	-- operators for this solver
 	self.ops = table()
 
-	self.solverStruct = SolverStruct{
+	self.solverStruct = Struct{
 		solver = self,
 		name = 'solver_t',
+		dontUnion = true,
 	}
 	self.solverStruct.vars:append{
 	-- [[ right now the mesh initial conditions use these, but otherwise they can be GridSolver-specific
@@ -933,7 +934,7 @@ function SolverBase:createCodePrefixHeader()
 		self.eqn:getTypeCode(),
 		
 		'//SolverBase.solverStruct:getTypeCode()',
-		self.solverStruct:getTypeCode(),
+		self.solverStruct:getTypeCode(),	-- true == don't make a union
 		
 		'//SolverBase.eqn:getExtraTypeCode()',
 		self.eqn:getExtraTypeCode(),
@@ -1472,7 +1473,7 @@ function SolverBase:addDisplayVars()
 			print"HERE"
 		end
 		args.group = group
-		args.vars = self.eqn:getDisplayVarsForStructVars(self.eqn.consVars)
+		args.vars = self.eqn:getDisplayVarsForStructVars(self.eqn.consStruct.vars)
 		-- why in addUBufDisplayVars() do I make a new group and assign args.group to it?
 		self:addDisplayVarGroup(args, self.DisplayVar_U)
 	end
@@ -1789,7 +1790,7 @@ function SolverBase:checkFinite(buf)
 			-- for certain bufs show the field
 			-- TODO associate each type with the array of fields creating the struct, then reverse lookup on arbitrary types to find the field
 			if buf == self.UBufObj then
-				local vars = self.eqn.consVars
+				local vars = self.eqn.consStruct.vars
 				local numScalars = makestruct.countScalars(vars)
 				local offset = (i % numScalars)
 				local cellIndex = (i - offset) / numScalars
@@ -1967,8 +1968,8 @@ function SolverBase:checkStructSizes()
 		'real2',
 		'real3',
 		'real4',
-		self.eqn.cons_t,
-		self.eqn.prim_t,
+		self.eqn.consStruct or self.eqn.cons_t,
+		self.eqn.primStruct or self.eqn.prim_t,
 		self.eqn.eigen_t,
 		self.eqn.waves_t,
 		self.eqn.consLR_t,
@@ -1978,7 +1979,7 @@ function SolverBase:checkStructSizes()
 	local varcount = 0
 	for _,typeinfo in ipairs(typeinfos) do
 		varcount = varcount + 1
-		if SolverStruct.is(typeinfo) then
+		if Struct.is(typeinfo) then
 			varcount = varcount + #typeinfo.vars
 		end
 	end
@@ -2002,18 +2003,15 @@ local index = 0
 for i,typeinfo in ipairs(typeinfos) do 
 	local typename
 	if type(typeinfo) == 'string' then
-?>
-	result[<?=index?>] = sizeof(<?=typeinfo?>);
+?>	result[<?=index?>] = sizeof(<?=typeinfo?>);
 <? 
 		index = index + 1
 	else
-?>
-	result[<?=index?>] = sizeof(<?=typeinfo.typename?>);
+?>	result[<?=index?>] = sizeof(<?=typeinfo.typename?>);
 <? 
 		index = index + 1
 		for _,var in ipairs(typeinfo.vars) do
-?>
-	result[<?=index?>] = offsetof(<?=typeinfo.typename?>, <?=var.name?>);
+?>	result[<?=index?>] = offsetof(<?=typeinfo.typename?>, <?=var.name?>);
 <? 		
 			index = index + 1
 		end

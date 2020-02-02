@@ -32,6 +32,23 @@ Euler.useConstrainU = true
 
 Euler.initStates = require 'init.euler'
 
+
+-- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
+Euler.primVars = {
+	{name='rho', type='real', units='kg/m^3'},
+	{name='v', type='real3', units='m/s'},
+	{name='P', type='real', units='kg/(m*s^2)'},
+	{name='ePot', type='real', units='m^2/s^2'},
+}
+
+Euler.consVars = {
+	{name='rho', type='real', units='kg/m^3'},
+	{name='m', type='real3', units='kg/(m^2*s)'},
+	{name='ETotal', type='real', units='kg/(m*s^2)'},
+	{name='ePot', type='real', units='m^2/s^2'},
+}
+
+
 function Euler:init(args)
 	Euler.super.init(self, args)
 
@@ -44,21 +61,6 @@ function Euler:init(args)
 		self.solver.ops:insert(self.gravOp)
 	end
 end
-
--- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
-Euler.primVars = table{
-	{name='rho', type='real', units='kg/m^3'},
-	{name='v', type='real3', units='m/s'},
-	{name='P', type='real', units='kg/(m*s^2)'},
-	{name='ePot', type='real', units='m^2/s^2'},
-}
-
-Euler.consVars = table{
-	{name='rho', type='real', units='kg/m^3'},
-	{name='m', type='real3', units='kg/(m^2*s)'},
-	{name='ETotal', type='real', units='kg/(m*s^2)'},
-	{name='ePot', type='real', units='m^2/s^2'},
-}
 
 function Euler:createInitState()
 	Euler.super.createInitState(self)
