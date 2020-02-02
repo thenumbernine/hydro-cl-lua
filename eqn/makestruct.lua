@@ -24,15 +24,28 @@ local function makeStruct(name, vars, scalar, dontUnion)
 	local numScalars = countScalars(vars, scalar)
 
 	local lines = table()
+	local tab
 	if dontUnion then
 		lines:insert'typedef struct {'
+		tab = '\t'
 	else
 		lines:insert'typedef union {'
 		lines:insert('	'..scalar..' ptr['..numScalars..'];')
 		lines:insert('	struct {')
+		tab = '\t\t'
 	end	
 	for _,var in ipairs(vars) do
-		lines:insert('		'..var.type..' '..var.name..';')
+		
+		lines:insert(
+			tab
+			..var.type
+			
+			-- fixing 'half' and 'double' alignment in solver_t
+			-- dontUnion is only used by solver_t
+			-- and solver_t is the only one with this C/CL alignment problem
+			..(dontUnion and ' __attribute__ ((packed))' or '')
+			
+			..' '..var.name..';')
 	end
 	if not dontUnion then
 		lines:insert('	};')

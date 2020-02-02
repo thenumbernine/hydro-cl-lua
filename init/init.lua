@@ -67,11 +67,13 @@ end
 
 -- called when the solver resets
 function InitCond:resetState(solver)
+	
 	solver.initStateKernelObj()
-if cmdline.printBufs then
-	print('after solver.initStateKernelObj')
-	solver:printBuf(solver.UBufObj)
-end
+
+	if cmdline.printBufs then
+		print('after solver.initStateKernelObj')
+		solver:printBuf(solver.UBufObj)
+	end
 	
 	if require 'eqn.glm-mhd'.is(solver.eqn) then
 		solver:boundary()

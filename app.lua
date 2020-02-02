@@ -55,6 +55,8 @@ predefined vars:
 	printBufs
 
 	config = specify alternative config file.  default is config.lua (TODO configs/default.lua)
+
+	checkStructSizes = verify that ffi and OpenCL are using matching struct sizes
 --]]
 cmdline = cmdline or {}	--global
 

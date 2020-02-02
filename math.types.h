@@ -10,7 +10,9 @@ typedef union {
 	<?=scalar?> s[3];
 	struct { <?=scalar?> s0, s1, s2; };
 	struct { <?=scalar?> x, y, z; };
-} <?=name?>;
+} <?=app.real=='half' and '__attribute__ ((packed))' or ''
+-- __attribute__ ((packed)) seems to need to be here with real=half
+?> <?=name?>;
 <? 
 end 
 makevec3('real3', 'real')

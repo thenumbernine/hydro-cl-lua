@@ -451,6 +451,11 @@ function SolverBase:refreshEqnInitState()
 	end
 	
 	self:refreshCodePrefix()
+
+	-- do this after the codePrefix has been created
+	if cmdline.checkStructSizes then
+		self:checkStructSizes()
+	end
 end
 
 -- this is the general function - which just assigns the eqn provided by the arg
@@ -1959,5 +1964,46 @@ function SolverBase:updateGUIParams()
 end
 
 require 'draw.vectorfield'.applyToSolver(SolverBase)
+
+-- [[ debugging -- determine sizeof
+function SolverBase:checkStructSizes()
+	local cmd = self.cmds
+	local _1x1_domain = self.app.env:domain{size={1}, dim=1}
+	local resultPtr = ffi.new('size_t[1]', 0)
+	local resultBuf = _1x1_domain:buffer{name='result', type='size_t', data=resultPtr}
+
+	print(self.codePrefix)
+
+	for _,typename in ipairs{
+		'real',
+		'real2',
+		'real3',
+		'real4',
+		self.solver_t,
+		self.eqn.cons_t,
+		self.eqn.prim_t,
+		self.eqn.consLR_t,
+		self.eqn.eigen_t,
+		self.eqn.waves_t,
+	} do
+		require 'cl.obj.kernel'{
+			env = self.app.env,
+			domain = _1x1_domain,
+			argsOut = {resultBuf},
+			header = self.codePrefix,
+			body = template([[
+	result[0] = sizeof(<?=typename?>);
+]], 		{
+				typename = typename,
+			}),
+		}()
+		resultBuf:toCPU(resultPtr)
+		local clsize = tonumber(resultPtr[0])
+		local ffisize = tonumber(ffi.sizeof(typename))
+		print('sizeof('..typename..'): OpenCL='..clsize..', ffi='..ffisize..(clsize == ffisize and '' or ' -- !!!DANGER!!!'))
+	end
+	os.exit()
+end
+--]]
 
 return SolverBase

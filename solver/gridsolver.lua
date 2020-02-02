@@ -51,10 +51,11 @@ function GridSolver:initL1(args)
 	-- same as equations
 	-- but let equations/init conds add to the solver vars (as gui vars)
 	-- then we can edit them without recompiling the kernels
+	
 	self.solverStruct.vars:append{
+		{name='grid_dx', type='real3'},
 		{name='gridSize', type='int4'},
 		{name='stepsize', type='int4'},
-		{name='grid_dx', type='real3'},
 	}
 
 	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
