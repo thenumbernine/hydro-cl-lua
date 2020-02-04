@@ -31,7 +31,6 @@ Now this project, lua-hydro-cl, pushes the middleman (C++) out completely.
 
 - https://github.com/thenumbernine/lua-ext
 - https://github.com/thenumbernine/lua-template
-- https://github.com/thenumbernine/vec-lua
 - https://github.com/thenumbernine/vec-ffi-lua
 - https://github.com/thenumbernine/lua-matrix
 - https://github.com/thenumbernine/symmath-lua
