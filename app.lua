@@ -501,11 +501,11 @@ void main() {
 			then
 				local orthoSize = 1
 				for j=1,solver.dim do
-					self.orthoView.pos[j] = .5 * (solver.mins.s[j-1] + solver.maxs.s[j-1])
+					self.orthoView.pos.s[j-1] = .5 * (solver.mins.s[j-1] + solver.maxs.s[j-1])
 					orthoSize = math.max(orthoSize, solver.maxs.s[j-1] - solver.mins.s[j-1])
 				end
-				self.orthoView.zoom[1] = 1/orthoSize
-				self.orthoView.zoom[2] = 1/orthoSize
+				self.orthoView.zoom.x = 1/orthoSize
+				self.orthoView.zoom.y = 1/orthoSize
 			end
 		end
 	end

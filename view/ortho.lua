@@ -1,19 +1,19 @@
 local class = require 'ext.class'
 local gl = require 'gl'
-local vec2 = require 'vec.vec2'
+local vec2d = require 'vec-ffi.vec2d'
 
 local OrthoView = class()
 
 function OrthoView:init()
-	self.zoom = vec2(.5,.5)
-	self.pos = vec2()
+	self.zoom = vec2d(.5,.5)
+	self.pos = vec2d()
 end
 
 function OrthoView:getOrthoBounds(ar)
-	return self.pos[1] - ar * .5 / self.zoom[1], 
-		self.pos[1] + ar * .5 / self.zoom[1],
-		self.pos[2] - .5 / self.zoom[2],
-		self.pos[2] + .5 / self.zoom[2],
+	return self.pos.x - ar * .5 / self.zoom.x, 
+		self.pos.x + ar * .5 / self.zoom.x,
+		self.pos.y - .5 / self.zoom.y,
+		self.pos.y + .5 / self.zoom.y,
 		-1, 1
 end
 
@@ -30,14 +30,14 @@ end
 
 function OrthoView:mousePan(dx, dy, screenWidth, screenHeight)
 	local ar = screenWidth / screenHeight
-	self.pos = self.pos + vec2(
-		-dx * ar / screenWidth / self.zoom[1],
-		dy / screenHeight / self.zoom[2])
+	self.pos = self.pos + vec2d(
+		-dx * ar / screenWidth / self.zoom.x,
+		dy / screenHeight / self.zoom.y)
 end
 
 function OrthoView:mouseZoom(dx, dy)
-	self.zoom[1] = self.zoom[1] * math.exp(-dx * -.03)
-	self.zoom[2] = self.zoom[2] * math.exp(dy * -.03)
+	self.zoom.x = self.zoom.x * math.exp(-dx * -.03)
+	self.zoom.y = self.zoom.y * math.exp(dy * -.03)
 end
 
 return OrthoView 
