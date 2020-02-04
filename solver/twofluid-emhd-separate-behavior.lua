@@ -10,6 +10,7 @@ local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local ig = require 'ffi.imgui'
+local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
@@ -83,14 +84,14 @@ local function TwoFluidEMHDBehavior(parent)
 			end
 		end
 
-		self.color = vec3(math.random(), math.random(), math.random()):normalize()
+		self.color = vec3d(math.random(), math.random(), math.random()):normalize()
 		
 		self.numGhost = self.ion.numGhost
 		self.dim = self.ion.dim
 		self.gridSize = vec3sz(self.ion.gridSize)
 		self.sizeWithoutBorder = vec3sz(self.ion.sizeWithoutBorder)
-		self.mins = vec3(self.ion.mins:unpack())
-		self.maxs = vec3(self.ion.maxs:unpack())
+		self.mins = vec3d(self.ion.mins:unpack())
+		self.maxs = vec3d(self.ion.maxs:unpack())
 			
 		-- only used by createCodePrefix
 		self.coord = self.ion.coord

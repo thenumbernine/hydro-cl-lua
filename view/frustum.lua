@@ -1,13 +1,13 @@
 local class = require 'ext.class'
 local gl = require 'gl'
-local vec3 = require 'vec.vec3'
+local vec3d = require 'vec-ffi.vec3d'
 local quat = require 'vec.quat'
 
 local FrustumView = class()
 
 function FrustumView:init()
 	self.dist = 3
-	self.pos = vec3()
+	self.pos = vec3d()
 	self.angle = quat()
 end
 
@@ -31,7 +31,7 @@ function FrustumView:modelview()
 	gl.glTranslatef(0,0,-self.dist)
 	local angleAxis = self.angle:toAngleAxis()
 	gl.glRotatef(angleAxis[4], angleAxis[1], angleAxis[2], angleAxis[3])
-	gl.glTranslatef(-self.pos[1], -self.pos[2], -self.pos[3])
+	gl.glTranslatef(-self.pos.x, -self.pos.y, -self.pos.z)
 end
 
 function FrustumView:mousePan(dx, dy, screenWidth, screenHeight)

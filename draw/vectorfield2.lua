@@ -160,9 +160,9 @@ void main() {
 				local scale = self.displayVectorField_scale 
 					* self.displayVectorField_step 
 					* math.min(
-						(solver.maxs[1] - solver.mins[1]) / tonumber(solver.gridSize.x),
-						(solver.maxs[2] - solver.mins[2]) / tonumber(solver.gridSize.y),
-						(solver.maxs[3] - solver.mins[3]) / tonumber(solver.gridSize.z))
+						(solver.maxs.x - solver.mins.x) / tonumber(solver.gridSize.x),
+						(solver.maxs.y - solver.mins.y) / tonumber(solver.gridSize.y),
+						(solver.maxs.z - solver.mins.z) / tonumber(solver.gridSize.z))
 				gl.glUniform1f(solver.vectorFieldShader.uniforms.scale.loc, scale) 
 
 				local step = self.displayVectorField_step

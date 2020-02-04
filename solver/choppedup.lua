@@ -398,11 +398,11 @@ these are needed for displaying things
 function Chopped:initDraw()
 	self.displayVars = table()
 	self.t = 0
-	self.color = vec3(math.random(), math.random(), math.random()):normalize()
+	self.color = vec3d(math.random(), math.random(), math.random()):normalize()
 	self.name = 'Chopped '..self.solvers[1].name
 	for _,solver in ipairs(self.solvers) do
 		solver:initDraw()
-		solver.color = vec3(self.color:unpack())
+		solver.color = vec3d(self.color:unpack())
 	end
 
 	-- I guess this is safe for now

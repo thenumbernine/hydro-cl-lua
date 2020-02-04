@@ -378,12 +378,12 @@ print("creating depth "..tonumber(self.amr.depth).." child "..tonumber(i))
 								local uy = ny*dy
 							
 								local newmins = {
-									(self.maxs[1] - self.mins[1]) * nx * dx + self.mins[1],
-									(self.maxs[2] - self.mins[2]) * ny * dy + self.mins[2],
+									(self.maxs.x - self.mins.x) * nx * dx + self.mins.x,
+									(self.maxs.y - self.mins.y) * ny * dy + self.mins.y,
 									0}
 								local newmaxs = {
-									(self.maxs[1] - self.mins[1]) * (nx+1) * dx + self.mins[1],
-									(self.maxs[2] - self.mins[2]) * (ny+1) * dy + self.mins[2],
+									(self.maxs.x - self.mins.x) * (nx+1) * dx + self.mins.x,
+									(self.maxs.y - self.mins.y) * (ny+1) * dy + self.mins.y,
 									0}	
 					
 -- when running the following, upon the next update, I start to get nans in the amr error buffer

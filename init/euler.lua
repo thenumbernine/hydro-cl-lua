@@ -1235,12 +1235,12 @@ end ?>
 			local xmid = (solver.mins + solver.maxs) * .5
 			
 			-- triple the length along the interface dimension
-			--local k = solver.dim
-			--solver.mins[k] = xmid[k] + (solver.mins[k] - xmid[k]) * 3
-			--solver.maxs[k] = xmid[k] + (solver.maxs[k] - xmid[k]) * 3
+			--local k = solver.dim-1
+			--solver.mins.s[k] = xmid.s[k] + (solver.mins.s[k] - xmid.s[k]) * 3
+			--solver.maxs.s[k] = xmid.s[k] + (solver.maxs.s[k] - xmid.s[k]) * 3
 
 			-- triple resolution along interface dimension
-			--size[k] = size[k] * 3
+			--size.s[k] = size.s[k] * 3
 			-- (can it handle npo2 sizes?)
 
 			local boundaryMethods = {}

@@ -28,8 +28,8 @@ function Draw1D:showDisplayVar(app, solver, var)
 	gl.glUniform1f(graphShader.uniforms.offset.loc, 0)
 	gl.glUniform1f(graphShader.uniforms.ambient.loc, 1)
 	gl.glUniform1i(graphShader.uniforms.useLog.loc, var.useLog)
-	gl.glUniform2f(graphShader.uniforms.xmin.loc, solver.mins[1], 0)
-	gl.glUniform2f(graphShader.uniforms.xmax.loc, solver.maxs[1], 0)
+	gl.glUniform2f(graphShader.uniforms.xmin.loc, solver.mins.x, 0)
+	gl.glUniform2f(graphShader.uniforms.xmax.loc, solver.maxs.x, 0)
 
 	local displayDim = cmdline.displayDim or solver.dim
 	if displayDim == 3 then
@@ -41,7 +41,7 @@ function Draw1D:showDisplayVar(app, solver, var)
 	end
 
 	gl.glUniform2f(graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
-	gl.glUniform3f(graphShader.uniforms.color.loc, table.unpack((#app.solvers > 1 and solver or var).color))
+	gl.glUniform3f(graphShader.uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
 
 	local step = 1
 	local numVertexes = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)	-- (endindex - startindex + 1) / step

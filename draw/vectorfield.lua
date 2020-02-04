@@ -58,9 +58,9 @@ local function applyToSolver(Solver)
 			local scale = app.displayVectorField_scale 
 				* app.displayVectorField_step 
 				* math.min(
-					(self.maxs[1] - self.mins[1]) / tonumber(self.gridSize.x),
-					(self.maxs[2] - self.mins[2]) / tonumber(self.gridSize.y),
-					(self.maxs[3] - self.mins[3]) / tonumber(self.gridSize.z))
+					(self.maxs.x - self.mins.x) / tonumber(self.gridSize.x),
+					(self.maxs.y - self.mins.y) / tonumber(self.gridSize.y),
+					(self.maxs.z - self.mins.z) / tonumber(self.gridSize.z))
 			gl.glUniform1f(self.vectorFieldShader.uniforms.scale.loc, scale) 
 
 			local step = app.displayVectorField_step

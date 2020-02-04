@@ -298,9 +298,9 @@ function Draw3DIso:showDisplayVar(app, solver, var)
 							for _,edge in ipairs(edges) do
 								local x,y,z = edgeVtxs[edge]:unpack()
 								
-								x = (x - solver.numGhost) / tonumber(solver.gridSize.x - 2 * solver.numGhost) * (solver.maxs[1] - solver.mins[1]) + solver.mins[1]
-								y = (y - solver.numGhost) / tonumber(solver.gridSize.y - 2 * solver.numGhost) * (solver.maxs[2] - solver.mins[2]) + solver.mins[2]
-								z = (z - solver.numGhost) / tonumber(solver.gridSize.z - 2 * solver.numGhost) * (solver.maxs[3] - solver.mins[3]) + solver.mins[3]
+								x = (x - solver.numGhost) / tonumber(solver.gridSize.x - 2 * solver.numGhost) * (solver.maxs.x - solver.mins.x) + solver.mins.x
+								y = (y - solver.numGhost) / tonumber(solver.gridSize.y - 2 * solver.numGhost) * (solver.maxs.y - solver.mins.y) + solver.mins.y
+								z = (z - solver.numGhost) / tonumber(solver.gridSize.z - 2 * solver.numGhost) * (solver.maxs.z - solver.mins.z) + solver.mins.z
 							
 								gl.glColor3f( table.unpack(({
 									{1,0,0},
@@ -332,9 +332,9 @@ function Draw3DIso:display(app, solvers, varName, ar, xmin, ymin, xmax, ymax, us
 			local y = vertexesInCube[quadsInCube[i] * 3 + 1 + 1]
 			local z = vertexesInCube[quadsInCube[i] * 3 + 2 + 1]
 			gl.glTexCoord3f(x, y, z)
-			x = x * (solver.maxs[1] - solver.mins[1]) + solver.mins[1]
-			y = y * (solver.maxs[2] - solver.mins[2]) + solver.mins[2]
-			z = z * (solver.maxs[3] - solver.mins[3]) + solver.mins[3]
+			x = x * (solver.maxs.x - solver.mins.x) + solver.mins.x
+			y = y * (solver.maxs.y - solver.mins.y) + solver.mins.y
+			z = z * (solver.maxs.z - solver.mins.z) + solver.mins.z
 			gl.glVertex3f(x, y, z)
 		end
 		gl.glEnd()

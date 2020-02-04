@@ -6,6 +6,7 @@ and a HD solver (Roe)
 local class = require 'ext.class'
 local table = require 'ext.table'
 local ig = require 'ffi.imgui'
+local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
@@ -134,7 +135,7 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 		return var, var.name
 	end)
 
-	self.color = vec3(math.random(), math.random(), math.random()):normalize()
+	self.color = vec3d(math.random(), math.random(), math.random()):normalize()
 
 	self.numGhost = self.hydro.numGhost
 	self.dim = self.hydro.dim

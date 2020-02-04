@@ -10,7 +10,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local string = require 'ext.string'
 local file = require 'ext.file'
-local vec3 = require 'vec.vec3'
+local vec3d = require 'vec-ffi.vec3d'
 local SolverBase = require 'solver.solverbase'
 
 
@@ -55,7 +55,7 @@ end
 
 local Vertex = class()
 function Vertex:init(x,y,z)
-	self.x = vec3(
+	self.x = vec3d(
 		tonumber(x) or 0,
 		tonumber(y) or 0,
 		tonumber(z) or 0)
@@ -70,7 +70,7 @@ local function addVtx(vtxs, x)
 	end
 	local v = Vertex()
 	for i=1,3 do
-		v.x[i] = tonumber(x[i]) or 0
+		v.x.s[i-1] = tonumber(x.s[i-1]) or 0
 	end
 	vtxs:insert(v)
 	return v
@@ -199,7 +199,7 @@ function MeshSolver:initL1(args)
 		e.x = (a.x + b.x) * .5
 		e.delta = a.x - b.x
 		e.length = e.delta:length()
-		e.normal = vec3(-e.delta[2], e.delta[1], e.delta[3])
+		e.normal = vec3d(-e.delta.y, e.delta.x, e.delta.z)
 		e.normal = e.normal / e.normal:length()
 		
 		local a,b = e.cells:unpack()
@@ -233,16 +233,16 @@ function MeshSolver:initL1(args)
 	end
 
 
-	self.mins = vec3(-1, -1, -1)
-	self.maxs = vec3(1, 1, 1)
+	self.mins = vec3d(-1, -1, -1)
+	self.maxs = vec3d(1, 1, 1)
 	for i=1,self.dim do
-		self.mins[i] = math.huge
-		self.maxs[i] = -math.huge
+		self.mins.s[i-1] = math.huge
+		self.maxs.s[i-1] = -math.huge
 	end
 	for _,v in ipairs(vtxs) do
 		for i=1,self.dim do
-			self.mins[i] = math.min(self.mins[i], v.x[i])
-			self.maxs[i] = math.max(self.maxs[i], v.x[i])
+			self.mins.s[i-1] = math.min(self.mins.s[i-1], v.x.s[i-1])
+			self.maxs.s[i-1] = math.max(self.maxs.s[i-1], v.x.s[i-1])
 		end
 	end
 
@@ -252,7 +252,7 @@ function MeshSolver:initL1(args)
 	for i,v in ipairs(vtxs) do
 		local cpu_vtx = cpu_vtxs[i-1]
 		for j=1,3 do
-			cpu_vtx.s[j-1] = vtxs[i].x[j]
+			cpu_vtx.s[j-1] = vtxs[i].x.s[j-1]
 		end
 	end
 
@@ -261,9 +261,9 @@ function MeshSolver:initL1(args)
 	for i,edge in ipairs(edges) do
 		local cpu_iface = cpu_ifaces[i-1]
 		for j=1,3 do
-			cpu_iface.x.s[j-1] = edge.x[j]
-			cpu_iface.delta.s[j-1] = edge.delta[j]
-			cpu_iface.normal.s[j-1] = edge.normal[j]
+			cpu_iface.x.s[j-1] = edge.x.s[j-1]
+			cpu_iface.delta.s[j-1] = edge.delta.s[j-1]
+			cpu_iface.normal.s[j-1] = edge.normal.s[j-1]
 		end
 		cpu_iface.area = edge.length
 		cpu_iface.dist = edge.cellDist
@@ -272,7 +272,7 @@ function MeshSolver:initL1(args)
 			error("expected interfaces to have <=2 cells but found "..#edge.cells)
 		end
 		for j,cell in ipairs(edge.cells) do
-			cpu_iface.cellIndex[j-1] = not cell and -1 or cell.index-1
+			cpu_iface.cellIndex.s[j-1] = not cell and -1 or cell.index-1
 		end
 	end
 
@@ -280,7 +280,7 @@ function MeshSolver:initL1(args)
 	for i,cell in ipairs(cells) do
 		local cpu_cell = cpu_cells[i-1]
 		for j=1,3 do
-			cpu_cell.x.s[j-1] = cell.x[j]
+			cpu_cell.x.s[j-1] = cell.x.s[j-1]
 		end
 		cpu_cell.volume = cell.volume
 		cpu_cell.numSides = #cell.edges

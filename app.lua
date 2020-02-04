@@ -303,8 +303,8 @@ local function printState(solver)
 	
 	for i=0,solver.numCells-1 do
 		-- matching the cl defs:
-		local dx = (solver.maxs[1] - solver.mins[1]) / (tonumber(solver.gridSize.x) - (2*solver.numGhost))
-		local x = (i + .5 - solver.numGhost) * dx + solver.mins[1]
+		local dx = tonumber((solver.maxs.x - solver.mins.x) / (solver.gridSize.x - (2*solver.numGhost)))
+		local x = (i + .5 - solver.numGhost) * dx + solver.mins.x
 		printStateFile:write(solver.t,'\t',x)
 		for _,j in ipairs(cols) do	-- only use rho, mx, ETotal
 		--for j=0,solver.eqn.numStates-1 do
@@ -501,8 +501,8 @@ void main() {
 			then
 				local orthoSize = 1
 				for j=1,solver.dim do
-					self.orthoView.pos[j] = .5 * (solver.mins[j] + solver.maxs[j])
-					orthoSize = math.max(orthoSize, solver.maxs[j] - solver.mins[j])
+					self.orthoView.pos[j] = .5 * (solver.mins.s[j-1] + solver.maxs.s[j-1])
+					orthoSize = math.max(orthoSize, solver.maxs.s[j-1] - solver.mins.s[j-1])
 				end
 				self.orthoView.zoom[1] = 1/orthoSize
 				self.orthoView.zoom[2] = 1/orthoSize
@@ -553,8 +553,8 @@ local Display = class()
 function Display:init(args)
 	self.ortho = true
 
-	self.mins = vec3(-1,-1,-1)
-	self.maxs = vec3(1,1,1)
+	self.mins = vec3d(-1,-1,-1)
+	self.maxs = vec3d(1,1,1)
 	
 	--[[
 	var name, does it contribute to the graph space autoscale range? 
@@ -823,7 +823,7 @@ local displaySolvers = flattenedSolvers
 				useLog = var.useLog
 				local component = solver.displayComponentFlatList[var.component]
 				vectorField = solver:isVarTypeAVectorField(component.type)
-				local solverxmin, solverxmax = solver.mins[1], solver.maxs[1]
+				local solverxmin, solverxmax = tonumber(solver.mins.x), tonumber(solver.maxs.x)
 				solverxmin, solverxmax = 1.1 * solverxmin - .1 * solverxmax, 1.1 * solverxmax - .1 * solverxmin
 				if (cmdline.displayDim or solver.dim) > 1 then
 					local center = .5 * (solverxmin + solverxmax)
@@ -836,7 +836,7 @@ local displaySolvers = flattenedSolvers
 
 
 				if (cmdline.displayDim or solver.dim) > 1 then
-					solverymin, solverymax = solver.mins[2], solver.maxs[2]
+					solverymin, solverymax = tonumber(solver.mins.y), tonumber(solver.maxs.y)
 					solverymin, solverymax = 1.1 * solverymin - .1 * solverymax, 1.1 * solverymax - .1 * solverymin
 				else
 					if vectorField then
@@ -984,8 +984,8 @@ local displaySolvers = flattenedSolvers
 						--print'FIXME'
 						-- run coords through inverse
 					else
-						--local tcX = (self.mouseCoord[1] - solver.mins[1]) / (solver.maxs[1] - solver.mins[1])
-						--local tcY = (self.mouseCoord[2] - solver.mins[2]) / (solver.maxs[2] - solver.mins[2])
+						--local tcX = (self.mouseCoord[1] - solver.mins.x) / (solver.maxs.x - solver.mins.x)
+						--local tcY = (self.mouseCoord[2] - solver.mins.y) / (solver.maxs.y - solver.mins.y)
 						local tcX = (self.mouseCoord[1] + 1) * .5
 						local tcY = (self.mouseCoord[2] + 1) * .5
 						-- TODO something equivalent for 3D ... somehow ...
@@ -1056,7 +1056,7 @@ local displaySolvers = flattenedSolvers
 			self.font:draw{
 				pos = {w/h-maxlen,fontSizeY*(i+1)},
 				text = solverName.text,
-				color = {solverName.color[1], solverName.color[2], solverName.color[3],1},
+				color = {solverName.color.x, solverName.color.y, solverName.color.z, 1},
 				fontSize = {fontSizeX, -fontSizeY},
 				multiLine = false,
 			}

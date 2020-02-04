@@ -7,6 +7,7 @@ I should make a parent class/template
 local class = require 'ext.class'
 local table = require 'ext.table'
 local ig = require 'ffi.imgui'
+local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
@@ -120,7 +121,7 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 		end
 	end
 
-	self.color = vec3(math.random(), math.random(), math.random()):normalize()
+	self.color = vec3d(math.random(), math.random(), math.random()):normalize()
 
 	self.numGhost = self.em.numGhost
 	self.dim = self.em.dim
@@ -128,8 +129,8 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 	self.localSize = vec3sz(self.em.localSize:unpack())
 	self.globalSize = vec3sz(self.em.globalSize:unpack())
 	self.sizeWithoutBorder = vec3sz(self.em.sizeWithoutBorder)
-	self.mins = vec3(self.em.mins:unpack())
-	self.maxs = vec3(self.em.maxs:unpack())
+	self.mins = vec3d(self.em.mins:unpack())
+	self.maxs = vec3d(self.em.maxs:unpack())
 
 	self.coord = self.em.coord
 	self.eqn = {

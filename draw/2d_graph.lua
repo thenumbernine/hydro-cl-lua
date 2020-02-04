@@ -37,8 +37,8 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	gl.glUniform1f(graphShader.uniforms.offset.loc, offset)
 	gl.glUniform1f(graphShader.uniforms.ambient.loc, self.ambient)
 	gl.glUniform1i(graphShader.uniforms.useLog.loc, var.useLog)
-	gl.glUniform2f(graphShader.uniforms.xmin.loc, solver.mins[1], solver.mins[2])
-	gl.glUniform2f(graphShader.uniforms.xmax.loc, solver.maxs[1], solver.maxs[2])
+	gl.glUniform2f(graphShader.uniforms.xmin.loc, solver.mins.x, solver.mins.y)
+	gl.glUniform2f(graphShader.uniforms.xmax.loc, solver.maxs.x, solver.maxs.y)
 
 	local displayDim = cmdline.displayDim or solver.dim
 	if displayDim == 3 then
@@ -50,7 +50,7 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	gl.glUniform2f(graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
 	
 	-- TODO where to specify using the heatmap gradient vs using the variable/solver color
-	gl.glUniform3f(graphShader.uniforms.color.loc, table.unpack((#app.solvers > 1 and solver or var).color))
+	gl.glUniform3f(graphShader.uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
 
 	local step = math.max(1, self.step)
 	local numX = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)

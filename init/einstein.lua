@@ -2,7 +2,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local template = require 'template'
-local vec3 = require 'vec.vec3'
+local vec3d = require 'vec-ffi.vec3d'
 local clnumber = require 'cl.obj.number'
 local InitCond = require 'init.init'
 
@@ -225,7 +225,7 @@ return table{
 		init = function(self, solver, args)
 			EinsteinInitCond.init(self, solver, args)
 			
-			local size = solver.maxs[1] - solver.mins[1]
+			local size = solver.maxs.x - solver.mins.x
 			self.center = args and args.center or {0,0,0}
 			
 			-- 1997 Alcubierre uses amplitude of 5 on a grid size of 300 with dx=1
@@ -1040,8 +1040,8 @@ return table{
 		
 			-- TODO refreshCodePrefix ... except this is called by that ...
 			-- hmm, account for initState's defining the bounds
-			solver.mins = require 'vec.vec3'(0,0,0) 
-			solver.maxs = require 'vec.vec3'(8,8,8) 
+			solver.mins = vec3d(0,0,0) 
+			solver.maxs = vec3d(8,8,8) 
 			
 			-- coords: t, eta, Omega
 			-- g_tt = -(tanh eta)^2 = -alpha^2 <=> alpha = tanh eta
@@ -1118,8 +1118,8 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 	{
 		name = 'Gowdy waves',
 		getCodePrefix = function(self, solver)
-			--solver.mins = require 'vec.vec3'(0,0,0)
-			--solver.maxs = require 'vec.vec3'(10,10,10)
+			--solver.mins = vec3d(0,0,0)
+			--solver.maxs = vec3d(10,10,10)
 		end,
 	},
 
@@ -1145,8 +1145,8 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 		init = function(self, solver)
 			EinsteinInitCond.init(self, solver, args)
 
---			solver.mins = vec3(-.5, -.5, -.5)
---			solver.maxs = vec3(-.5, -.5, -.5)
+--			solver.mins = vec3d(-.5, -.5, -.5)
+--			solver.maxs = vec3d(-.5, -.5, -.5)
 			solver:setBoundaryMethods'periodic'
 			solver.eqn:addGuiVars{
 				{name='init_A', value=.1},	-- .1, .01
@@ -1179,8 +1179,8 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 			EinsteinInitCond.init(self, solver, args)
 
 -- TODO changing the range upon init causes something to freeze up ...
---			solver.mins = vec3(-.5, -.5, -.5)
---			solver.maxs = vec3(-.5, -.5, -.5)
+--			solver.mins = vec3d(-.5, -.5, -.5)
+--			solver.maxs = vec3d(-.5, -.5, -.5)
 			solver:setBoundaryMethods'periodic'
 			solver.eqn:addGuiVars{
 				{name='init_A', value=1e-8},

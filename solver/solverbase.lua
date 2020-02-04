@@ -9,7 +9,7 @@ local file = require 'ext.file'
 local math = require 'ext.math'
 local CLBuffer = require 'cl.obj.buffer'
 local template = require 'template'
-local vec3 = require 'vec.vec3'
+local vec3d = require 'vec-ffi.vec3d'
 local tooltip = require 'tooltip'
 local makestruct = require'eqn.makestruct'
 local roundup = require 'util.roundup'
@@ -85,7 +85,7 @@ function SolverBase:initL1(args)
 	self.device = args.device or self.app.env.devices[1]
 	self.cmds = args.cmds or self.app.env.cmds[1]
 	
-	self.color = vec3(math.random(), math.random(), math.random()):normalize()
+	self.color = vec3d(math.random(), math.random(), math.random()):normalize()
 
 	-- operators for this solver
 	self.ops = table()
@@ -1133,7 +1133,7 @@ function DisplayVar:init(args)
 	-- display stuff
 	self.enabled = not not args.enabled
 	self.useLog = args.useLog or false
-	self.color = vec3(math.random(), math.random(), math.random()):normalize()
+	self.color = vec3d(math.random(), math.random(), math.random()):normalize()
 	self.heatMapFixedRange = false	-- args.name ~= 'error'
 	self.heatMapValueMin = 0
 	self.heatMapValueMax = 1
@@ -1796,13 +1796,13 @@ function SolverBase:checkFinite(buf)
 				local numScalars = makestruct.countScalars(vars)
 				local offset = (i % numScalars)
 				local cellIndex = (i - offset) / numScalars
-				local cellpos = vec3()
-				cellpos[1] = tonumber(cellIndex % self.gridSize.x)
-				cellIndex = (cellIndex - cellpos[1]) / self.gridSize.x
-				cellpos[2] = tonumber(cellIndex % self.gridSize.y)
-				cellIndex = (cellIndex - cellpos[2]) / self.gridSize.y
-				cellpos[3] = tonumber(cellIndex)
-				assert(cellpos[3] < self.gridSize.z)
+				local cellpos = vec3sz()
+				cellpos.x = tonumber(cellIndex % self.gridSize.x)
+				cellIndex = (cellIndex - cellpos.x) / self.gridSize.x
+				cellpos.y = tonumber(cellIndex % self.gridSize.y)
+				cellIndex = (cellIndex - cellpos.y) / self.gridSize.y
+				cellpos.z = tonumber(cellIndex)
+				assert(cellpos.z < self.gridSize.z)
 				table.insert(ins, tostring(cellpos))
 				
 				offset = offset * ffi.sizeof'real'

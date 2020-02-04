@@ -8,9 +8,9 @@ local range = require 'ext.range'
 local file = require 'ext.file'
 local math = require 'ext.math'
 local string = require 'ext.string'
-local vec3 = require 'vec.vec3'
 local glreport = require 'gl.report'
 local template = require 'template'
+local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
 local tooltip = require 'tooltip'
 local roundup = require 'util.roundup'
@@ -35,6 +35,12 @@ local sym = common.sym
 local useCache = cmdline.useCache
 if useCache == nil then useCache = true end
 
+local function unpack(x)
+	if x.unpack then return x:unpack() end
+	return table.unpack(x)
+end
+
+
 local GridSolver = class(SolverBase)
 
 GridSolver.numGhost = 2
@@ -58,11 +64,11 @@ function GridSolver:initL1(args)
 		{name='stepsize', type='int4'},
 	}
 
-	self.mins = vec3(table.unpack(args.mins or {-1, -1, -1}))
-	self.maxs = vec3(table.unpack(args.maxs or {1, 1, 1}))
-	
-	self.initCondMins = vec3(table.unpack(args.initCondMins or self.mins))
-	self.initCondMaxs = vec3(table.unpack(args.initCondMaxs or self.maxs))
+	self.mins = vec3d(unpack(args.mins or {-1, -1, -1}))
+	self.maxs = vec3d(unpack(args.maxs or {1, 1, 1}))
+
+	self.initCondMins = vec3d(unpack(args.initCondMins or self.mins))
+	self.initCondMaxs = vec3d(unpack(args.initCondMaxs or self.maxs))
 	
 	-- TODO OK this is a little ambiguous ...
 	-- gridSize is the desired grid size
@@ -73,14 +79,8 @@ function GridSolver:initL1(args)
 	local gridSize = assert(args.gridSize, "solver expected gridSize")
 	if type(gridSize) == 'number' then 
 		self.gridSize = vec3sz(gridSize,1,1)
-	elseif type(gridSize) == 'cdata' 
-	and ffi.typeof(gridSize) == vec3sz 
-	then
-		self.gridSize = vec3sz(gridSize)
-	elseif type(gridSize) == 'table' then
-		self.gridSize = vec3sz(table.unpack(gridSize))
 	else
-		error("can't understand args.gridSize type "..type(args.gridSize).." value "..tostring(args.gridSize))
+		self.gridSize = vec3sz(unpack(gridSize))
 	end
 
 	for i=0,self.dim-1 do self.gridSize.s[i] = self.gridSize.s[i] + 2 * self.numGhost end
@@ -255,15 +255,15 @@ function GridSolver:refreshEqnInitState()
 	-- TODO do a proper refresh so mins/maxs can be properly refreshed
 	local initState = self.eqn.initState
 	if initState.mins then 
-		self.mins = vec3(table.unpack(initState.mins)) 
+		self.mins = vec3d(unpack(initState.mins)) 
 		for j=1,3 do
-			self.solverPtr.mins.s[j-1] = toreal(self.mins[j])
+			self.solverPtr.mins.s[j-1] = toreal(self.mins.s[j-1])
 		end
 	end
 	if initState.maxs then 
-		self.maxs = vec3(table.unpack(initState.maxs)) 
+		self.maxs = vec3d(unpack(initState.maxs)) 
 		for j=1,3 do
-			self.solverPtr.maxs.s[j-1] = toreal(self.maxs[j])
+			self.solverPtr.maxs.s[j-1] = toreal(self.maxs.s[j-1])
 		end
 	end
 
@@ -477,11 +477,11 @@ end
 function GridSolver:refreshSolverBufMinsMaxs()
 	-- always set this to the full range, even outside the used dimension, in case some dimensional value is supposed to be a non-zero constant, esp for cell volume calculations
 	for j=1,3 do
-		self.solverPtr.mins.s[j-1] = toreal(self.mins[j])
-		self.solverPtr.maxs.s[j-1] = toreal(self.maxs[j])
-		self.solverPtr.grid_dx.s[j-1] = toreal( (self.maxs[j] - self.mins[j]) / tonumber(self.sizeWithoutBorder.s[j-1]) )
-		self.solverPtr.initCondMins.s[j-1] = toreal( self.initCondMins[j] )
-		self.solverPtr.initCondMaxs.s[j-1] = toreal( self.initCondMaxs[j] )
+		self.solverPtr.mins.s[j-1] = toreal(self.mins.s[j-1])
+		self.solverPtr.maxs.s[j-1] = toreal(self.maxs.s[j-1])
+		self.solverPtr.grid_dx.s[j-1] = toreal( (self.maxs.s[j-1] - self.mins.s[j-1]) / tonumber(self.sizeWithoutBorder.s[j-1]) )
+		self.solverPtr.initCondMins.s[j-1] = toreal( self.initCondMins.s[j-1] )
+		self.solverPtr.initCondMaxs.s[j-1] = toreal( self.initCondMaxs.s[j-1] )
 	end
 	if self.app.verbose then
 		print('mins = '..fromreal(self.solverPtr.mins.x)..', '..fromreal(self.solverPtr.mins.y)..', '..fromreal(self.solverPtr.mins.z))
@@ -1707,13 +1707,13 @@ function GridSolver:updateGUIParams()
 				local k = xNames[i]..minmax
 				if tooltip.numberTable(k, self[minmax..'s'], i, ig.ImGuiInputTextFlags_EnterReturnsTrue) then
 					local eps = 1e-7
-					if self.maxs[i] - self.mins[i] < eps then
-						self.maxs[i] = self.mins[i] + eps
+					if self.maxs.s[i-1] - self.mins.s[i-1] < eps then
+						self.maxs.s[i-1] = self.mins.s[i-1] + eps
 					end
 					if j==1 then
-						self.solverPtr.mins.s[i-1] = toreal(self.mins[i])
+						self.solverPtr.mins.s[i-1] = toreal(self.mins.s[i-1])
 					elseif j==2 then
-						self.solverPtr.maxs.s[i-1] = toreal(self.maxs[i])
+						self.solverPtr.maxs.s[i-1] = toreal(self.maxs.s[i-1])
 					end
 					self:refreshSolverBufMinsMaxs()
 					self:refreshSolverBuf()
