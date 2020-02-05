@@ -116,9 +116,9 @@ if targetSystem ~= 'console' then
 	sdl = require 'ffi.sdl'
 	GLProgram = require 'gl.program'
 	GLGradientTex = require 'gl.gradienttex'
+	Mouse = require 'glapp.mouse'
 	GLTex2D = require 'gl.tex2d'
 	Font = require 'gui.font'
-	Mouse = require 'gui.mouse'
 end
 
 -- TODO here if we have glapp and imguiapp present
@@ -906,16 +906,16 @@ local displaySolvers = flattenedSolvers
 		local mouseInGraphY
 		if self.displayAllTogether then
 			mouseOverThisGraph = true
-			mouseInGraphX = mouse.pos[1]
-			mouseInGraphY = mouse.pos[2]
+			mouseInGraphX = mouse.pos.x
+			mouseInGraphY = mouse.pos.y
 		else
 			local vpxmin = graphCol / graphsWide * w
 			local vpymin = (1 - (graphRow + 1) / graphsHigh) * h
 			local vpw = w / graphsWide
 			local vph = h / graphsHigh
 			gl.glViewport(vpxmin, vpymin, vpw, vph)
-			local mx = mouse.pos[1] * self.width
-			local my = mouse.pos[2] * self.height
+			local mx = mouse.pos.x * self.width
+			local my = mouse.pos.y * self.height
 			if mx >= vpxmin and mx < vpxmin + vpw
 			and my >= vpymin and my < vpymin + vph
 			then
