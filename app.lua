@@ -54,11 +54,15 @@ predefined vars:
 
 	usecachedcode = set to true to use the code in cache-cl instead of regenerating it
 
-	printBufs
+	printBufs = print buffer contents for debugging
 
 	config = specify alternative config file.  default is config.lua (TODO configs/default.lua)
 
 	checkStructSizes = verify that ffi and OpenCL are using matching struct sizes
+
+	frustum = set frustum view initially
+	ortho = set ortho view initially
+	stackGraphs = stack graphs initially
 --]]
 cmdline = cmdline or {}	--global
 
@@ -414,7 +418,7 @@ function HydroCLApp:initGL(...)
 	if self.targetSystem ~= 'console' then
 		-- This only looks good when overlaying vector fields on top of other graphs.
 		-- When it comes to separate variables, they usually look better apart.
-		self.displayAllTogether = false	--self.solvers[1] and self.solvers[1].dim > 1 or false
+		self.displayAllTogether = cmdline.stackGraphs or false --self.solvers[1] and self.solvers[1].dim > 1 or false
 
 		self.displayBilinearTextures = true
 
@@ -492,7 +496,12 @@ void main() {
 		self.orthoView = require 'view.ortho'()
 		self.frustumView = require 'view.frustum'()
 		self.view = (#self.solvers > 0 and self.solvers[1].dim == 3) and self.frustumView or self.orthoView
-	
+		if cmdline.frustum then
+			self.view = self.frustumView
+		elseif cmdline.ortho then
+			self.view = self.orthoView
+		end
+
 		if #self.solvers > 0 then
 			local solver = self.solvers[1]
 			if solver.dim == 2 
