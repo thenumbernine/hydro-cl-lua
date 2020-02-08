@@ -82,7 +82,7 @@ if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
 	
 if cmdline.printBufs then
 	print('UBuf RK4 deriv 1:')
-	solver:printBuf(self.derivBufObjs[1], nil, nil, 24)
+	solver:printBuf(self.derivBufObjs[1])
 end
 
 	-- else error"Why do you have a RK butcher table without using the first iteration derivative?"
@@ -126,7 +126,7 @@ if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
 
 if cmdline.printBufs then
 	print('UBuf after RK4 step'..(i-1)..':')
-	solver:printBuf(solver.UBufObj, nil, nil, 25)
+	solver:printBuf(solver.UBufObj)
 end
 		if i <= self.order then
 			--only do this if alpha_mi != 0 for any m
@@ -158,7 +158,7 @@ if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[i])) end
 
 if cmdline.printBufs then
 	print('UBuf RK4 deriv '..i..':')
-	solver:printBuf(self.derivBufObjs[i], nil, nil, 24)
+	solver:printBuf(self.derivBufObjs[i])
 end
 			end
 		end

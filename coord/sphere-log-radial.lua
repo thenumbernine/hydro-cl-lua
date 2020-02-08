@@ -28,7 +28,7 @@ function Sphere:init(args)
 	local sinh_w = .15
 self.amplitude = amplitude
 self.sinh_w = sinh_w
-	local rmax = solver.maxs[1]
+	local rmax = solver.maxs.x
 	local r = symmath.var('r', {rho})
 
 	local rDef = amplitude * sinh(rho / sinh_w) / math.sinh(1 / sinh_w)

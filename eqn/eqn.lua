@@ -109,20 +109,25 @@ function Equation:init(args)
 	--getmetatable(self).consVars = nil
 
 
-	if not self.primStruct then
-		assert(self.primVars)
+	if not self.primStruct and self.primVars then
 		self.primStruct = Struct{
 			solver = self.solver,
 			name = 'prim_t',
 			vars = self.primVars,
 		}
 	end
-	self.primStruct:makeType()
-	self.prim_t = self.primStruct.typename
-	-- don't use primVars anymore ... use primStruct.vars instead
-	self.primVars = nil
-	-- if you have multiple eqns then the class needs to keep the field
-	--getmetatable(self).primVars = nil
+	if self.primStruct then
+		self.primStruct:makeType()
+		self.prim_t = self.primStruct.typename
+		-- don't use primVars anymore ... use primStruct.vars instead
+		self.primVars = nil
+		-- if you have multiple eqns then the class needs to keep the field
+		--getmetatable(self).primVars = nil
+	else
+		--self.prim_t = self.cons_t
+		-- or you could typedef this ...
+		self.prim_t = app:uniqueName'prim_t'
+	end
 
 
 	self.consLR_t = app:uniqueName'consLR_t'

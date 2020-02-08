@@ -6,6 +6,14 @@ maybe also with AMR
 this should have a matching equation ... or at least equation arugments and initial condition ...
 
 matching equation object might be useful, since that means only one set of display args as well
+
+TODO TODO TODO
+	the init state code matches between each sub-solver
+	the solver code matches between each sub solver
+	the boundary code matches close enough
+	so all we really need to do here is create separate grids, but reuse the same eqn, same eqn's initState, and even the same solver-code (not the same kernels and CPU/GPU buffers though)
+	that will save on a lot of initialization time and memory
+	so TODO separate the code from the buffers, then chopped and AMR can both reuse code 
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'

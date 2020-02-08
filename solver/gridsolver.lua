@@ -354,7 +354,7 @@ function GridSolver:initDraw()
 		},
 	}
 
-	if self.dim == 3 then
+	do	--if self.dim == 3 then
 		-- raytracing (stalling)
 		
 		self.display3D_Ray_maxiter = math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y), tonumber(self.gridSize.z))

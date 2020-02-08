@@ -105,10 +105,10 @@ end
 
 				local n = self.numSlices
 				local fwd = -app.frustumView.angle:conjugate():zAxis()
-				local fwddir = select(2, table(fwd):map(math.abs):sup())
+				local fwddir = select(2, table{fwd:unpack()}:map(math.abs):sup())
 
 				local jmin, jmax, jdir
-				if fwd[fwddir] < 0 then
+				if fwd.s[fwddir-1] < 0 then
 					jmin, jmax, jdir = 0, n, 1
 				else
 					jmin, jmax, jdir = n, 0, -1

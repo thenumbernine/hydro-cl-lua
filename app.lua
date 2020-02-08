@@ -525,6 +525,9 @@ if printState then
 	end
 end
 
+	self.displayDim = cmdline.displayDim or self.solvers:mapi(function(solver)
+		return solver.dim
+	end):sup()
 end
 
 --[[
@@ -745,7 +748,7 @@ end
 
 if cmdline.printBufs then
 	print'UBuf post-update:'
-	oldestSolver:printBuf(oldestSolver.UBufObj)	--, nil, nil, 24, 31)
+	oldestSolver:printBuf(oldestSolver.UBufObj)
 end
 
 if printState then
@@ -834,7 +837,7 @@ local displaySolvers = flattenedSolvers
 				vectorField = solver:isVarTypeAVectorField(component.type)
 				local solverxmin, solverxmax = tonumber(solver.mins.x), tonumber(solver.maxs.x)
 				solverxmin, solverxmax = 1.1 * solverxmin - .1 * solverxmax, 1.1 * solverxmax - .1 * solverxmin
-				if (cmdline.displayDim or solver.dim) > 1 then
+				if self.displayDim > 1 then	-- solver.dim
 					local center = .5 * (solverxmin + solverxmax)
 					solverxmin = (solverxmin - center) * ar + center
 					solverxmax = (solverxmax - center) * ar + center
@@ -844,7 +847,7 @@ local displaySolvers = flattenedSolvers
 				local solverymin, solverymax
 
 
-				if (cmdline.displayDim or solver.dim) > 1 then
+				if self.displayDim > 1 then	-- solver.dim
 					solverymin, solverymax = tonumber(solver.mins.y), tonumber(solver.maxs.y)
 					solverymin, solverymax = 1.1 * solverymin - .1 * solverymax, 1.1 * solverymax - .1 * solverymin
 				else
@@ -938,7 +941,7 @@ local displaySolvers = flattenedSolvers
 		end
 		if self.showMouseCoords 
 		and mouseOverThisGraph
-		and (cmdline.displayDim or displaySolvers[1].dim) == 2
+		and self.displayDim == 2	-- displaySolvers[1].dim == 2
 		then
 			local xmin, xmax, ymin, ymax
 			if self.view.getOrthoBounds then
@@ -956,7 +959,7 @@ local displaySolvers = flattenedSolvers
 
 
 		-- TODO maybe find the first solver for this var and use it to choose 1D,2D,3D
-		local dim = cmdline.displayDim or displaySolvers[1].dim
+		local dim = self.displayDim	-- displaySolvers[1].dim
 		
 		if not vectorField then
 			if dim == 1 then
@@ -1228,8 +1231,17 @@ function HydroCLApp:updateGUI()
 		end
 
 		tooltip.checkboxTable('stack graphs', self, 'displayAllTogether')
-
+		ig.igSameLine()
+		
 		tooltip.checkboxTable('bilinear textures', self, 'displayBilinearTextures')
+		ig.igSameLine()	
+
+		-- for 2D heatmap only atm
+		tooltip.checkboxTable('display with coord map', self, 'display_useCoordMap')
+		ig.igSameLine()	
+		
+		tooltip.checkboxTable('show coords', self, 'showMouseCoords')
+		
 
 		if ig.igRadioButtonBool('ortho', self.view == self.orthoView) then
 			self.view = self.orthoView
@@ -1238,7 +1250,14 @@ function HydroCLApp:updateGUI()
 		if ig.igRadioButtonBool('frustum', self.view == self.frustumView) then
 			self.view = self.frustumView
 		end
-	
+
+		for j=1,3 do
+			if ig.igRadioButtonBool(j..'D', self.displayDim == j) then
+				self.displayDim = j
+			end
+			if j < 3 then ig.igSameLine() end
+		end
+
 		-- TODO flag for separate/combined displays (esp for ortho view)
 
 		-- TODO flag to toggle slice vs volume display
@@ -1303,11 +1322,6 @@ end
 		
 			--ig.igCheckbox('vector field', self.enableVectorField)
 		
-			-- for 2D heatmap only:
-			tooltip.checkboxTable('display with coord map', self, 'display_useCoordMap')
-	
-			tooltip.checkboxTable('show coords', self, 'showMouseCoords')
-		
 			tooltip.numberTable('vector field scale', self, 'displayVectorField_scale')
 			--tooltip.sliderTable('vector field scale', self, 'displayVectorField_scale', 0, 100, nil, 10)
 			
@@ -1325,7 +1339,7 @@ end
 		ig.igPopID()
 	end
 
-	if self.showMouseCoords then
+	if self.showMouseCoords and self.displayDim == 2 then
 		ig.igBeginTooltip()
 		ig.igText(self:getCoordText())
 		ig.igText(self.mouseCoordValue)

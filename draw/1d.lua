@@ -31,7 +31,7 @@ function Draw1D:showDisplayVar(app, solver, var)
 	gl.glUniform2f(graphShader.uniforms.xmin.loc, solver.mins.x, 0)
 	gl.glUniform2f(graphShader.uniforms.xmax.loc, solver.maxs.x, 0)
 
-	local displayDim = cmdline.displayDim or solver.dim
+	local displayDim = app.displayDim -- solver.dim
 	if displayDim == 3 then
 		error'Why are you using a graph shader to display 3D data?  Use a 3D display instead.'
 	else

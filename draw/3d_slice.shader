@@ -48,8 +48,12 @@ float logmap(float x) {
 
 uniform bool useLog;
 uniform float valueMin, valueMax;
-uniform sampler3D tex;
-uniform sampler1D gradientTex;
+<? if solver.dim == 3 then
+?>uniform sampler3D tex;
+<? else
+?>uniform sampler2D tex;
+<? end
+?>uniform sampler1D gradientTex;
 
 uniform float numGhost;
 uniform vec3 texSize;
@@ -85,8 +89,12 @@ float getTex(vec3 tc) {
 
 	//getting rid of the ghost cells
 	tc = tc * ((texSize - 2. * numGhost) / texSize) + (numGhost / texSize);
-	return texture3D(tex, tc).r;
-}
+<? if solver.dim == 3 then
+?>	return texture3D(tex, tc).r;
+<? else
+?>	return texture2D(tex, tc.xy).r;
+<? end
+?>}
 
 void main() {
 <? if useClipPlanes then ?>
