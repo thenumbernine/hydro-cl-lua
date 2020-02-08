@@ -527,7 +527,7 @@ end
 
 	self.displayDim = cmdline.displayDim or self.solvers:mapi(function(solver)
 		return solver.dim
-	end):sup()
+	end):sup() or 1
 end
 
 --[[
@@ -958,15 +958,12 @@ local displaySolvers = flattenedSolvers
 		end
 
 
-		-- TODO maybe find the first solver for this var and use it to choose 1D,2D,3D
-		local dim = self.displayDim	-- displaySolvers[1].dim
-		
 		if not vectorField then
-			if dim == 1 then
+			if self.displayDim == 1 then
 				self:display1D(displaySolvers, varName, ar, xmin, ymin, xmax, ymax, useLog, varymin, varymax)
-			elseif dim == 2 then
+			elseif self.displayDim == 2 then
 				self:display2D(displaySolvers, varName, ar, xmin, ymin, xmax, ymax)
-			elseif dim == 3 then
+			elseif self.displayDim == 3 then
 				self:display3D(displaySolvers, varName, ar, xmin, ymin, xmax, ymax)
 			end
 		else
@@ -979,7 +976,7 @@ local displaySolvers = flattenedSolvers
 		-- (that would also let us do one less tex bind/unbind)
 		if mouseOverThisGraph 
 		and self.showMouseCoords
-		and dim == 2
+		and self.displayDim == 2
 		then
 			local half = require 'half'
 			local toreal, fromreal = half.toreal, half.fromreal
@@ -1177,8 +1174,8 @@ function HydroCLApp:display2D(...)
 	end
 end
 
+HydroCLApp.display3DMethod = 1
 function HydroCLApp:display3D(...)
-	self.display3DMethod = self.display3DMethod or 1 
 	select(2, next(display3DMethods[self.display3DMethod]))(self, ...)
 end
 
@@ -1263,8 +1260,8 @@ function HydroCLApp:updateGUI()
 		-- TODO flag to toggle slice vs volume display
 		-- or maybe checkboxes for each kind?
 		
-		if self.solvers[1] then
-			local dim = self.solvers[1].dim
+		do
+			local dim = self.displayDim
 			if dim == 2 then
 				ig.igPushIDStr'2D'
 				for i,method in ipairs(display2DMethods) do
