@@ -41,7 +41,7 @@ vec3 func(vec3 src) {
 	vertex.y = (vertex.y * <?=sizeY?> - <?=numGhost?>) / <?=sizeWithoutBorderY?> * (xmax.y - xmin.y) + xmin.y;
 
 <? if solver.dim == 3 then
-?>	vertex[axis] = texture3D(tex, vec3(src.xy, .5)).r;
+?>	vertex[axis] = texture3D(tex, src).r;
 <? else
 ?>	vertex[axis] = texture2D(tex, src.xy).r;
 <? end

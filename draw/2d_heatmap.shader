@@ -4,15 +4,18 @@ local app = solver.app
 local coord = solver.coord
 ?>
 
-varying vec2 viewCoord;
+//xy holds the view xy
+//z holds the fixed z slice of the 3D texture
+varying vec3 viewCoord;
 
 <?=coord:getCoordMapInvGLSLCode()?>
 
 <? if vertexShader then ?>
 
 void main() {
-	viewCoord = gl_Vertex.xy;
-	gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+	viewCoord = gl_Vertex.xyz;
+	// disregard 'z' for rendering
+	gl_Position = gl_ModelViewProjectionMatrix * vec4(gl_Vertex.xy, 0., 1.);
 }
 
 <? end
@@ -67,15 +70,17 @@ if (abs(gridCoord.x - solverMins.x) < epsilon ||
 }
 #endif
 
-	vec2 texCoord = vec2(
+	vec3 texCoord;
+	texCoord.xy = vec2(
 		((gridCoord.x - solverMins.x) / (solverMaxs.x - solverMins.x) * <?=clnumber(solver.sizeWithoutBorder.x)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.x)?>,
 		((gridCoord.y - solverMins.y) / (solverMaxs.y - solverMins.y) * <?=clnumber(solver.sizeWithoutBorder.y)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.y)?>
 	) * texCoordMax;
+	texCoord.z = viewCoord.z;
 
 <? if solver.dim == 3 then
-?>	float value = texture3D(tex, vec3(texCoord, .5)).r;
+?>	float value = texture3D(tex, texCoord).r;
 <? else
-?>	float value = texture2D(tex, texCoord).r;
+?>	float value = texture2D(tex, texCoord.xy).r;
 <? end
 ?>	if (useLog) {
 		//the abs() will get me in trouble when dealing with range calculations ...

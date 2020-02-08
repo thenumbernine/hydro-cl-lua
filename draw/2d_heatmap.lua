@@ -27,10 +27,10 @@ var.solver = solver
 	end
 
 	gl.glBegin(gl.GL_QUADS)
-	gl.glVertex2d(xmin, ymin)
-	gl.glVertex2d(xmax, ymin)
-	gl.glVertex2d(xmax, ymax)
-	gl.glVertex2d(xmin, ymax)
+	gl.glVertex3d(xmin, ymin, app.displayFixedZ)
+	gl.glVertex3d(xmax, ymin, app.displayFixedZ)
+	gl.glVertex3d(xmax, ymax, app.displayFixedZ)
+	gl.glVertex3d(xmin, ymax, app.displayFixedZ)
 	gl.glEnd()
 	
 	tex:unbind(0)

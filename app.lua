@@ -1187,6 +1187,9 @@ end
 
 HydroCLApp.display_useCoordMap = cmdline.display_useCoordMap 
 if HydroCLApp.display_useCoordMap == nil then HydroCLApp.display_useCoordMap = true end
+		
+HydroCLApp.displayFixedY = .5
+HydroCLApp.displayFixedZ = .5
 
 function HydroCLApp:updateGUI()
 	if ig.igCollapsingHeader'simulation' then
@@ -1254,6 +1257,10 @@ function HydroCLApp:updateGUI()
 			end
 			if j < 3 then ig.igSameLine() end
 		end
+
+		tooltip.sliderTable('fixed y', self, 'displayFixedY', 0, 1)
+		tooltip.sliderTable('fixed z', self, 'displayFixedZ', 0, 1)
+
 
 		-- TODO flag for separate/combined displays (esp for ortho view)
 
