@@ -29,8 +29,12 @@ uniform bool showInUnits;
 uniform float unitScale;
 
 uniform vec2 texCoordMax;
-uniform sampler2D tex;
-uniform sampler1D gradientTex;
+<? if solver.dim == 3 then
+?>uniform sampler3D tex;
+<? else
+?>uniform sampler2D tex;
+<? end
+?>uniform sampler1D gradientTex;
 
 uniform vec2 solverMins, solverMaxs;
 
@@ -68,8 +72,12 @@ if (abs(gridCoord.x - solverMins.x) < epsilon ||
 		((gridCoord.y - solverMins.y) / (solverMaxs.y - solverMins.y) * <?=clnumber(solver.sizeWithoutBorder.y)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.y)?>
 	) * texCoordMax;
 
-	float value = texture2D(tex, texCoord).r;
-	if (useLog) {
+<? if solver.dim == 3 then
+?>	float value = texture3D(tex, vec3(texCoord, .5)).r;
+<? else
+?>	float value = texture2D(tex, texCoord).r;
+<? end
+?>	if (useLog) {
 		//the abs() will get me in trouble when dealing with range calculations ...
 		float logValueMin = logmap(valueMin);
 		float logValueMax = logmap(valueMax);
