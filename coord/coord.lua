@@ -128,7 +128,7 @@ function CoordinateSystem:init(args)
 	local symmath = require 'symmath'
 	local const = symmath.Constant
 		
-	self.verbose = cmdline.coordVerbose or cmdline.verbose
+	self.verbose = cmdline.coordVerbose
 	self.anholonomic = args.anholonomic
 
 	if self.verbose then

@@ -11,8 +11,8 @@ function FrustumView:init()
 	self.angle = quatd(0,0,0,1)
 end
 
-FrustumView.zFar = 10
-FrustumView.zNear = .001
+FrustumView.zFar = 1000
+FrustumView.zNear = .1
 function FrustumView:projection(ar)
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()

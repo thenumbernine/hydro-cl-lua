@@ -121,7 +121,7 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 end
 
 function BSSNOKFiniteDifferenceEquation:fieldTypeForVar(varname)
-	local _, var = self.consVars:find(nil, function(v) return v.name == varname end)
+	local _, var = self.consStruct.vars:find(nil, function(v) return v.name == varname end)
 	return assert(var).type
 end
 

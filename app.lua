@@ -742,7 +742,7 @@ function HydroCLApp:update(...)
 			end		
 			
 if cmdline.printBufs then
-	print(('t = %f'):format(oldestSolver.t))
+--	print(('t = %f'):format(oldestSolver.t))
 end
 			oldestSolver:update() 
 

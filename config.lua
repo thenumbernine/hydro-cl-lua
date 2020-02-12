@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 3
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -76,7 +76,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{256,1,1},
-				{256,256,1},
+				{128,128,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
@@ -456,7 +456,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -709,7 +709,7 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'solver.choppedup'(table(args, {eqn='euler', subsolverClass=require 'solver.roe'})))
 
 
---[=[ 2013 Baumgarte et al, section IV A 1 example & 2017 Ruchlin, Etienne
+-- [=[ 2013 Baumgarte et al, section IV A 1 example & 2017 Ruchlin, Etienne
 local dim = 3
 local args = {
 	app = self,
@@ -739,7 +739,7 @@ local args = {
 	gridSize = ({
 		{128, 1, 1},
 		{64, 16, 1},
-		{32, 2, 2},	--{128, 2, 2},
+		{32, 2, 2},		-- brill-lindquist head-on merger: -- {400, 64, 2},	--{128, 2, 2},
 	})[dim],
 	boundary = {
 		xmin='sphereRMin',
@@ -800,6 +800,8 @@ local args = {
 
 	-- only for bssnok-fd-senr
 	initState = 'SENR sphere-log-radial UIUC',
+	--initState = 'SENR sphere-log-radial BrillLindquist',
+	--initState = 'SENR sphere-log-radial BoostedSchwarzschild',
 
 	--[[
 	initState = 'Alcubierre warp bubble',

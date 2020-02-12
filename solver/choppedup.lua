@@ -46,105 +46,6 @@ function Chopped:init(args)
 	self.mins = args.mins or {-1, -1, -1}
 	self.maxs = args.maxs or {1, 1, 1}
 
---[[ chop things up recursively ... 
--- but this makes copying borders a bit more painful, 
--- and if you assign 1 solver to 1 device then, if you only make as many chops as devices then some devices might get more work than otheres
---	... unless you chopped up solvers into too fine of pieces, then the differences between devices would be neglegible
-	local function getmaxaxis(v)
-		local maxindex = 1
-		for j=2,self.dim do
-			if v.s[j] > v.s[maxindex] then
-				maxindex = j
-			end
-		end
-		return maxindex
-	end
-	
-	-- TODO handle different gridSize types matching solver/gridsolver.lua
-	local root = {
-		size = vec3sz(table.unpack(args.gridSize)),
-		mins = vec3d(table.unpack(self.mins)),
-		maxs = vec3d(table.unpack(self.maxs)),
-		boundary = {min={}, max={}},
-	}
-	root.maxaxis = getmaxaxis(root.size)
-	root.maxsize = root.size.s[root.maxaxis]
-	
-	local blocks = table{root}
-	for i=2,self.multiSlices do
-		local longestBlock = blocks:remove(
-			(select(2, blocks:sup(function(a,b) 
-				return a.maxsize > b.maxsize 
-			end)))
-		)
-		local axis = longestBlock.maxaxis
-		local newsize = vec3sz(longestBlock.size:unpack())
-		local mid = .5 * (
-			longestBlock.mins.s[axis]
-			+ longestBlock.maxs.s[axis]
-		)
-		newsize.s[axis] = bit.rshift(newsize.s[axis], 1)
-		if newsize.s[axis] == 0 then
-			blocks:insert(longestBlock)
-			break	-- done
-		end
-		
-		local blockL = {
-			size = vec3sz(newsize:unpack()),
-			mins = vec3d(longestBlock.mins:unpack()),
-			maxs = vec3d(longestBlock.maxs:unpack()),
-			boundary = {
-				min = table(longestBlock.boundary.min),
-				max = table(longestBlock.boundary.max),
-			},
-		}
-		blockL.maxs.s[axis] = mid 
-		
-		blockL.maxaxis = getmaxaxis(blockL.size)
-		blockL.maxsize = blockL.size.s[blockL.maxaxis]
-
-
-		local blockR = {
-			size = vec3sz(newsize:unpack()),
-			mins = vec3d(longestBlock.mins:unpack()),
-			maxs = vec3d(longestBlock.maxs:unpack()),
-			boundary = {
-				min = table(longestBlock.boundary.min),
-				max = table(longestBlock.boundary.max),
-			},
-		}
-		blockR.mins.s[axis] = mid
-		
-		blockR.maxaxis = getmaxaxis(blockR.size)
-		blockR.maxsize = blockR.size.s[blockR.maxaxis]
-	
-	
-		
-		-- blockL and blockR inherit boundary from longestBlock
-		-- ... and simulatenously take everything that points to longestBlock and change it to either point to blockL or blockR
-		-- then point:
-		-- blockL boundary.max[maxaxis] = blockR
-		-- blockR boundary.min[maxaxis] = blockL
-		blockL.boundary.max[axis+1] = blockR
-		blockR.boundary.min[axis+1] = blockL
-		
-		
-		for _,other in ipairs(blocks) do
-			for _,minmax in ipairs{'min', 'max'} do
-				for j=1,3 do
-					if other.boundary[minmax][j] == longestBlock then
-						-- redirect it to the new children
-						-- make sure to match up the sections of the solvers
-					end
-				end
-			end
-		end
-
-		blocks:insert(blockL)
-		blocks:insert(blockR)
-	end
---]]
--- [[ just explicitly state the number of chops along each axis
 	local mins = vec3d(table.unpack(self.mins))
 	local maxs = vec3d(table.unpack(self.maxs))
 
@@ -172,7 +73,7 @@ function Chopped:init(args)
 			end
 		end
 	end
---]]
+
 	if self.app.verbose then
 		print'blocks:'
 		for _,block in ipairs(self.flatBlocks) do
@@ -426,23 +327,6 @@ function Chopped:resetState()
 end
 
 function Chopped:update()
---[[ without threads, but dt is out of sync	
-	for _,solver in ipairs(self.solvers) do
-		solver:update()
-	end
-	self.t = self.solvers:mapi(function(solver) return solver.t end):inf()
---]]
--- [[ with threads
-
-	--[[
-	for i,block in ipairs(self.flatBlocks) do
-		-- run from start or 'S4) update done' until 'S0) start update'
-		local err, result = coroutine.assertresume(block.updateThread, 'M1) starting update')
-		assert(err)
---print(result)		
-		assert(result == 'S0) start update', "expected 'S0) start update', got "..tolua(result))
-	end	
-	--]]
 
 	local dt = math.huge
 	for i,block in ipairs(self.flatBlocks) do
@@ -480,8 +364,6 @@ function Chopped:update()
 	self.t = self.t + dt
 	--self.t = self.solvers[1].t	
 --print('chopped solver t', self.t)
-
---]]
 
 --[[
 print'before sync'

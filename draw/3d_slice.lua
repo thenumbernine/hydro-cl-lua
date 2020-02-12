@@ -105,19 +105,35 @@ end
 
 				local n = self.numSlices
 				local fwd = -app.frustumView.angle:conjugate():zAxis()
-				local fwddir = select(2, table{fwd:unpack()}:map(math.abs):sup())
-
+				
+				local fwddir
 				local jmin, jmax, jdir
-				if fwd.s[fwddir-1] < 0 then
+
+
+				-- hack for picking order of axis for non-Cartesian
+				if app.display_useCoordMap
+				and (require 'coord.sphere'.is(solver.coord) 
+					or require 'coord.sphere-log-radial'.is(solver.coord))
+				then
+					fwddir = 1
 					jmin, jmax, jdir = 0, n, 1
+					gl.glUniform3f(solver.volumeSliceShader.uniforms.normal.loc, (-fwd):unpack())
 				else
-					jmin, jmax, jdir = n, 0, -1
+				
+					fwddir = select(2, table{fwd:unpack()}:map(math.abs):sup())
+
+					if fwd.s[fwddir-1] < 0 then
+						jmin, jmax, jdir = 0, n, 1
+					else
+						jmin, jmax, jdir = n, 0, -1
+					end
+					
+					gl.glUniform3f(solver.volumeSliceShader.uniforms.normal.loc, 
+						fwddir == 1 and jdir or 0, 
+						fwddir == 2 and jdir or 0, 
+						fwddir == 3 and jdir or 0)
 				end
-				gl.glUniform3f(solver.volumeSliceShader.uniforms.normal.loc, 
-					fwddir == 1 and jdir or 0, 
-					fwddir == 2 and jdir or 0, 
-					fwddir == 3 and jdir or 0)
-						
+
 				if CartesianCoordinateSystem.is(solver.coord) then
 					-- [[	single quad
 					gl.glBegin(gl.GL_QUADS)

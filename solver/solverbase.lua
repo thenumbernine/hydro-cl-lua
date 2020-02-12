@@ -468,6 +468,7 @@ function SolverBase:createEqn()
 	))
 	
 	ffi.cdef(self.eqn:getTypeCode())
+	ffi.cdef(self.eqn:getEigenTypeCode())
 	ffi.cdef(self.eqn:getExtraTypeCode())
 end
 
@@ -1681,7 +1682,6 @@ function SolverBase:calcDT()
 end
 
 -- how often to update the console
-local tick = cmdline.tick or 1
 function SolverBase:update()
 	--[[
 	Here's an update-based FPS counter.
@@ -1696,6 +1696,7 @@ function SolverBase:update()
 		self.fpsSamples = table()
 	end
 	if self.lastFrameTime then
+		local tick = cmdline.tick or 1
 		local deltaTime = thisTime - self.lastFrameTime
 		local fps = 1 / deltaTime
 		self.fpsIndex = (self.fpsIndex % self.fpsNumSamples) + 1
