@@ -188,8 +188,8 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
-	initStateArgs = {dim=cmdline.displayDim},
+	--initState = 'Sod',
+	--initStateArgs = {dim=cmdline.displayDim},
 	
 	--initState = 'rectangle',
 	--initState = 'Sedov',
@@ -212,7 +212,7 @@ local args = {
 	--initState = 'configuration 6',
 
 	-- self-gravitation tests:
-	--initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
+	initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
 	--initState = 'self-gravitation test 2',		--FIXME

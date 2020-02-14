@@ -81,6 +81,7 @@ if solver.checkNaNs then solver.cmds:finish() assert(solver:checkFinite(self.der
 if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
 	
 if cmdline.printBufs then
+	print()
 	print('UBuf RK4 deriv 1:')
 	solver:printBuf(self.derivBufObjs[1])
 end
@@ -118,13 +119,14 @@ if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
 if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 		solver:boundary()
 if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
-		if solver.useConstrainU then
+		if solver.eqn.useConstrainU then
 			solver.constrainUKernelObj()
 if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
 		end
 --]]
 
 if cmdline.printBufs then
+	print()
 	print('UBuf after RK4 step'..(i-1)..':')
 	solver:printBuf(solver.UBufObj)
 end
@@ -157,6 +159,7 @@ if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[i])) end
 if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[i])) end
 
 if cmdline.printBufs then
+	print()
 	print('UBuf RK4 deriv '..i..':')
 	solver:printBuf(self.derivBufObjs[i])
 end

@@ -134,7 +134,8 @@ RungeKutta4TVD.betas = {
 	{1./10., 1./6., 0, 1./6.},
 }
 
--- this one is from http://lsec.cc.ac.cn/lcfd/DEWENO/paper/WENO_1996.pdf
+-- this one is from 1995 Jiang, Shu "Efficient Implementation of Weighted ENO Schemes"
+--  found at http://lsec.cc.ac.cn/lcfd/DEWENO/paper/WENO_1996.pdf
 
 local RungeKutta4NonTVD = class(RungeKutta)
 RungeKutta4NonTVD.name = 'Runge-Kutta 4, non-TVD'

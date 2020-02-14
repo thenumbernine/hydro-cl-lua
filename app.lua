@@ -740,13 +740,13 @@ function HydroCLApp:update(...)
 				self:requestExit()
 				return
 			end		
-			
 if cmdline.printBufs then
---	print(('t = %f'):format(oldestSolver.t))
-end
+	print(('t = %f'):format(oldestSolver.t))
+end			
 			oldestSolver:update() 
 
 if cmdline.printBufs then
+	print()
 	print'UBuf post-update:'
 	oldestSolver:printBuf(oldestSolver.UBufObj)
 end

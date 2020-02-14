@@ -49,9 +49,13 @@ self.rDef = rDef
 		{r, r_for_rho},
 	}
 
-print(r:eq(r_for_rho))
+	if cmdline.coordVerbose then
+		print(r:eq(r_for_rho))
+	end
 	self.rho_for_r = r:eq(r_for_rho):solve(rho):rhs()
-print(rho:eq(self.rho_for_r))
+	if cmdline.coordVerbose then
+		print(rho:eq(self.rho_for_r))
+	end
 	self.eHolToE = symmath.Matrix{
 		{1/r:diff(rho), 0, 0},
 		{0, 1/r, 0},
