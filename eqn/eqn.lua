@@ -167,10 +167,10 @@ function Equation:init(args)
 
 	-- r min, for spherical coordinates
 	-- what variables to mirror at sphere center
-	-- 2013 Baumgarte et al, "Numerical Relativity in Spherical Polar Coordinates...", IIIB
+	-- 2015 Baumgarte et al, "Numerical Relativity in Spherical Polar Coordinates...", IIIB
 	-- 2017 Ruchlin et al, section E.1
 	self.reflectVars.sphereRMin = self.reflectVars.sphereRMin or {
-		self:getParityVars(-1, 1, 1),
+		self:getParityVars(-1, 1, -1),
 		{},
 		{},
 	} 
@@ -178,7 +178,7 @@ function Equation:init(args)
 	-- theta min/max, for spherical coordinates
 	self.reflectVars.sphereTheta = self.reflectVars.sphereTheta or {
 		{},
-		self:getParityVars(1, -1, 1),
+		self:getParityVars(1, -1, -1),
 		{},
 	}
 
