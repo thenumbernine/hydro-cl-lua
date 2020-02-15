@@ -113,7 +113,7 @@ local args = {
 	})[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		-- r
-		--xmin=cmdline.boundary or 'cylinderCenter',		-- hmm, how to treat the r=0 boundary ...
+		--xmin=cmdline.boundary or 'cylinderRMin',		-- hmm, how to treat the r=0 boundary ...
 		xmin=cmdline.boundary or 'freeflow',
 		
 		xmax=cmdline.boundary or 'freeflow',
@@ -752,8 +752,8 @@ local args = {
 		
 		ymin='sphereTheta',
 		ymax='sphereTheta',
-		zmin='spherePhi',
-		zmax='spherePhi',
+		zmin='periodic',	-- spherePhi is the same as periodic
+		zmax='periodic',
 	},
 	--]]
 	--[[

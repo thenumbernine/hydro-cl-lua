@@ -879,10 +879,10 @@ function BoundaryPeriodic:getCode(args)
 	local dst, src
 	if args.minmax == 'min' then
 		dst = args.index'j'
-		src = args.index(gridSizeSide..'-2*numGhost+j')
+		src = args.index([[numGhost + (j-numGhost + 2 * (]]..gridSizeSide..' - 2 * numGhost)) % ('..gridSizeSide..[[ - 2 * numGhost)]])
 	elseif args.minmax == 'max' then
 		dst = args.index(gridSizeSide..'-1-j')
-		src = args.index'2*numGhost-1-j'
+		src = args.index('numGhost + (numGhost-1-j) % ('..gridSizeSide..' - 2 * numGhost)')
 	end
 	return self:assignDstSrc(dst, src, args)
 end
@@ -1092,11 +1092,11 @@ function BoundarySphereTheta:getCode(args)
 			dst = args.index'j'
 			src = args.index'2*numGhost-1-j'
 		elseif solver.dim == 3 then
-			dst = 'INDEX(i.x, j, i.y)'
+			dst = 'INDEX(i.x, numGhost-1-j, i.y)'
 			src = [[
 	INDEX(
 		i.x,
-		2*numGhost-1-j,
+		numGhost+j,
 		(i.y - numGhost + (solver->gridSize.z - 2 * numGhost) / 2 
 			+ (solver->gridSize.z - 2 * numGhost))
 			% (solver->gridSize.z - 2 * numGhost) + numGhost
@@ -1111,11 +1111,11 @@ function BoundarySphereTheta:getCode(args)
 			dst = args.index'solver->gridSize.y-1-j'
 			src = args.index'solver->gridSize.y-2*numGhost+j'
 		elseif solver.dim == 3 then
-			dst = 'INDEX(i.x, solver->gridSize.y-1-j, i.y)'
+			dst = 'INDEX(i.x, solver->gridSize.y-numGhost+j, i.y)'
 			src = [[
 	INDEX(
 		i.x,
-		solver->gridSize.y - 2*numGhost + j,
+		solver->gridSize.y - numGhost - 1 - j,
 		(i.y - numGhost + (solver->gridSize.z - 2 * numGhost) / 2
 			+ (solver->gridSize.z - 2 * numGhost))
 			% (solver->gridSize.z - 2 * numGhost) + numGhost
@@ -1129,34 +1129,10 @@ function BoundarySphereTheta:getCode(args)
 	return lines:concat'\n'
 end
 
-local BoundarySpherePhi = class(Boundary)
-BoundarySpherePhi.name = 'spherePhi'
-function BoundarySpherePhi:getCode(args)
-	local solver = args.solver
-	
-	assert(args.side == 3, "you should only use this boundary condition for φmin/φmax with spherical coordinates")
-	assert(require 'coord.sphere'.is(solver.coord)
-		or require 'coord.sphere-log-radial'.is(solver.coord), "you should only use this boundary condition for φmin/φmax with spherical coordinates")
-	
-	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-	local dst, src
-	if args.minmax == 'min' then
-		dst = args.index'j'
-		src = args.index(gridSizeSide..'-2*numGhost+j')
-	elseif args.minmax == 'max' then
-		dst = args.index(gridSizeSide..'-1-j')
-		src = args.index'2*numGhost-1-j'
-	end
-	local lines = table()
-	lines:insert(self:assignDstSrc(dst, src, args))
-	lines:insert(self:reflectVars(args, dst, args.reflectVars.spherePhi))
-	return lines:concat'\n'
-end
 
-
-local BoundaryCylinderCenter = class(Boundary)
-BoundaryCylinderCenter.name = 'cylinderCenter'
-function BoundaryCylinderCenter:getCode(args)
+local BoundaryCylinderRMin = class(Boundary)
+BoundaryCylinderRMin.name = 'cylinderRMin'
+function BoundaryCylinderRMin:getCode(args)
 	local solver = args.solver
 	
 	assert(args.side == 1 and args.minmax == 'min', "you should only use this boundary condition for rmin with cylinderical coordinates")
@@ -1191,7 +1167,7 @@ INDEX(
 	end
 	local lines = table()
 	lines:insert(self:assignDstSrc(dst, src, args))
-	lines:insert(self:reflectVars(args, dst, args.reflectVars.cylinderCenter))
+	lines:insert(self:reflectVars(args, dst, args.reflectVars.cylinderRMin))
 	return lines:concat'\n'
 end
 
@@ -1213,8 +1189,7 @@ function GridSolver:createBoundaryOptions()
 		BoundaryQuadratic,
 		BoundarySphereRMin,
 		BoundarySphereTheta,
-		BoundarySpherePhi,
-		BoundaryCylinderCenter,
+		BoundaryCylinderRMin,
 	}
 
 	if self.eqn.createBoundaryOptions then
@@ -1476,8 +1451,7 @@ function GridSolver:applyBoundaryToBuffer(kernelObjs)
 			local maxSize = roundup(
 					side == 1 
 					and tonumber(self.gridSize.y)
-					or tonumber(self.gridSize.x)
-					,
+					or tonumber(self.gridSize.x),
 				localSize)
 			self.cmds:enqueueNDRangeKernel{
 				kernel = obj.obj,
