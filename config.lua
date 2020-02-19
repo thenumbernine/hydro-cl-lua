@@ -188,7 +188,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'rarefaction wave',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initStateArgs = {dim=cmdline.displayDim},
 	
 	--initState = 'rectangle',
@@ -212,7 +212,7 @@ local args = {
 	--initState = 'configuration 6',
 
 	-- self-gravitation tests:
-	initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
+	--initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
 	--initState = 'self-gravitation test 2',		--FIXME
@@ -726,7 +726,7 @@ local args = {
 		cflMethod = '2017 Ruchlin et al, eqn 53',
 	},
 	dim = dim,
-	integrator = 'Runge-Kutta 4',	-- the paper says PIRK
+	integrator = 'Runge-Kutta 4',
 	--integrator = 'backward Euler',
 	--integratorArgs = {verbose=true},
 	cfl = .5,
@@ -798,11 +798,6 @@ local args = {
 	
 	--initState = 'Alcubierre warp bubble',
 
-	-- only for bssnok-fd-senr
-	initState = 'SENR sphere-log-radial UIUC',
-	--initState = 'SENR sphere-log-radial BrillLindquist',
-	--initState = 'SENR sphere-log-radial BoostedSchwarzschild',
-
 	--[[
 	initState = 'Alcubierre warp bubble',
 	initStateArgs = {
@@ -810,9 +805,22 @@ local args = {
 		sigma = 10,
 	},
 	--]]
+	
+	-- only for bssnok-fd-senr
+	--initState = 'SENR sphere-log-radial Minkowski',
+	initState = 'SENR sphere-log-radial UIUC',
+	--initState = 'SENR sphere-log-radial BrillLindquist',
+	--initState = 'SENR sphere-log-radial BoostedSchwarzschild',
+	--initState = 'SENR sphere-log-radial StaticTrumpet',
 }
 --self.solvers:insert(require 'solver.bssnok-fd-pirk'(table(args, {eqn = 'bssnok-fd-num'})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
 --self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
-self.solvers:insert(require 'solver.bssnok-fd-senr'(args))
+--self.solvers:insert(require 'solver.bssnok-fd-senr'(args))
+if cmdline.bssnok_fd_num then
+	self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
+end
+if cmdline.bssnok_fd_senr then
+	self.solvers:insert(require 'solver.bssnok-fd-senr'(args))
+end
 --]=]

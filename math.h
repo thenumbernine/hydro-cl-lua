@@ -68,9 +68,9 @@ function makevec3(vec, scalar)
 #define <?=scalar?>_add4(a,b,c,d)		(<?=add?>(<?=add?>(a,b),<?=add?>(c,d)))
 
 //is buggy with doubles on intel opencl ubuntu compiler
-//#define _<?=vec?>(a,b,c) 			(<?=vec?>){.s={a,b,c}}
+//#define _<?=vec?>(a,b,c) 			((<?=vec?>){.s={a,b,c}})
 //so we do this instead and are safe:
-#define _<?=vec?>(a,b,c) 			(<?=vec?>){.x=a, .y=b, .z=c}
+#define _<?=vec?>(a,b,c) 			((<?=vec?>){.x=a, .y=b, .z=c})
 
 #define <?=vec?>_zero				_<?=vec?>(<?=scalar?>_zero,<?=scalar?>_zero,<?=scalar?>_zero)
 
@@ -114,9 +114,9 @@ real3 real3_rotateFrom(real3 v, real3 n);
 real3 real3_rotateTo(real3 v, real3 n);
 
 //buggy on intel opencl ubuntu
-//#define _sym3(a,b,c,d,e,f) (sym3){.s={a,b,c,d,e,f}}
+//#define _sym3(a,b,c,d,e,f) ((sym3){.s={a,b,c,d,e,f}})
 //fix
-#define _sym3(a,b,c,d,e,f) (sym3){.xx=a, .xy=b, .xz=c, .yy=d, .yz=e, .zz=f}
+#define _sym3(a,b,c,d,e,f) ((sym3){.xx=a, .xy=b, .xz=c, .yy=d, .yz=e, .zz=f})
 
 #define sym3_zero	_sym3(0,0,0,0,0,0)
 #define sym3_ident	_sym3(1,0,0,1,0,1)
@@ -140,8 +140,8 @@ real real3_weightedDot(real3 a, real3 b, sym3 m);
 real real3_weightedLenSq(real3 a, sym3 m);
 real real3_weightedLen(real3 a, sym3 m);
 
-#define _real3x3(xx,xy,xz,yx,yy,yz,zx,zy,zz) (real3x3){.x=_real3(xx,xy,xz), .y=_real3(yx,yy,yz), .z=_real3(zx,zy,zz)}
-#define real3x3_zero (real3x3){.v={real3_zero, real3_zero, real3_zero}}
+#define _real3x3(xx,xy,xz,yx,yy,yz,zx,zy,zz) ((real3x3){.x=_real3(xx,xy,xz), .y=_real3(yx,yy,yz), .z=_real3(zx,zy,zz)})
+#define real3x3_zero ((real3x3){.v={real3_zero, real3_zero, real3_zero}})
 
 real3x3 real3x3_add(real3x3 a, real3x3 b);
 real3x3 real3_real3_outer(real3 a, real3 b);
@@ -162,9 +162,9 @@ real real3x3_det(real3x3 m);
 real3x3 real3x3_inv(real3x3 m);
 
 //buggy
-//#define _3sym3_zero (_3sym3){.s={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}}
+//#define _3sym3_zero ((_3sym3){.s={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}})
 //fixed
-#define _3sym3_zero (_3sym3){.x=sym3_zero, .y=sym3_zero, .z=sym3_zero}
+#define _3sym3_zero ((_3sym3){.x=sym3_zero, .y=sym3_zero, .z=sym3_zero})
 
 _3sym3 _3sym3_add(_3sym3 a, _3sym3 b);
 _3sym3 _3sym3_sub(_3sym3 a, _3sym3 b);
@@ -185,9 +185,9 @@ sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b);
 
 
 //buggy
-//#define _cplx(a,b) 			(cplx){.s={a,b}}
+//#define _cplx(a,b) 			((cplx){.s={a,b}})
 //fixed
-#define _cplx(a,b) 			(cplx){.re=a, .im=b}
+#define _cplx(a,b) 			((cplx){.re=a, .im=b})
 
 #define cplx_from_real(x)	_cplx(x,0)
 #define cplx_from_cplx(x)	(x)

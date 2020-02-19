@@ -32,13 +32,14 @@ self.sinh_w = sinh_w
 	local r = symmath.var('r', {rho})
 
 	local rDef = amplitude * sinh(rho / sinh_w) / math.sinh(1 / sinh_w)
-self.rDef = rDef
 
 	self.vars = {
-		r = rDef,
 		x = rDef * sin(theta) * cos(phi),
 		y = rDef * sin(theta) * sin(phi),
 		z = rDef * cos(theta),
+		r = rDef,
+		theta = theta,
+		phi = phi,
 	}
 
 	local r_for_rho = rDef

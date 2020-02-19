@@ -100,6 +100,17 @@ here's another rehashing of my options
 
 --]]
 
+
+--[[
+NEW IDEA
+
+store the coordinte chart as a buffer.
+dynamically generate the structure.
+create as many fields as necessary.
+let the lua object designate which 3 coordinates are x1 x2 x3 (chart parameters) and which are u1 u2 u3 (chart mapping in embedded space)
+...and any other aux vars as well (i.e. radial coord, x,y,z, etc)
+]]
+
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
@@ -880,12 +891,18 @@ end
 function CoordinateSystem:getCoordMapCode()
 	local lines = table()
 		
+	-- get back the Cartesian coordinate for some provided chart coordinates
 	lines:insert(getCode_real3_to_real3(
 		'coordMap',
 		range(3):mapi(function(i)
 			return self.uCode[i] or 'pt.'..xNames[i]
 		end)))
-	
+
+	-- get back the radial distance for some provided chart coordinates
+	lines:insert(getCode_real3_to_real(
+		'coordMapR',
+		self:compile(self.vars.r)))
+
 	for i,eiCode in ipairs(self.eCode) do
 		lines:insert(getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
 	end

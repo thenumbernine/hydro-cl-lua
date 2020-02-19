@@ -22,6 +22,13 @@ local time, getTime = table.unpack(require 'util.time')
 local makePartials = require 'eqn.makepartial'
 
 local BSSNOKFiniteDifferenceEquation = class(BSSNOKFiniteDifferenceEquationBase)
+
+BSSNOKFiniteDifferenceEquation.initStates = table():append(
+	require 'init.senr'
+):append(
+	require 'init.einstein'
+)
+
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
 BSSNOKFiniteDifferenceEquation.hasEigenCode = true
 BSSNOKFiniteDifferenceEquation.hasCalcDTCode = true
@@ -104,7 +111,7 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 		
 		-- 2013 Baumgarte et al, section IIIB
 		--{name='diffuseCoeff', value=.001/16},
-		{name='diffuseCoeff', value=0},
+		{name='diffuseCoeff', value=.99},	-- matching SENR
 		
 		--{name='alphaMin', value=1e-7},
 		{name='alphaMin', value=0},
@@ -295,13 +302,12 @@ for i,xi in ipairs(xNames) do
 end ?>
 	_3sym3 partial_gammaBar_LLL = _3sym3_rescaleFromCoord_lll(partial_gammaBar_lll, x);
 
-	_3sym3 connBar_ULL;
-	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
+	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
 
 	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
 
-	real3 Delta_U = _3sym3_tr12(Delta_ULL);
-	real3 LambdaBar_U = Delta_U;	// plus mystery C
+	real3 Delta_U = _3sym3_sym3_dot23(Delta_ULL, gammaBar_UU);
+	real3 LambdaBar_U = real3_add(Delta_U, mystery_C_U);
 
 	U->LambdaBar_U = LambdaBar_U;
 
@@ -321,6 +327,69 @@ end ?>
 			partial_gamma0_lll = partial_gamma0_lll,
 		}, {
 			__index = env,
+		}))
+	end
+
+	-- if we're using a SENR init cond then init the components directly
+	-- TODO port these from sympy into symmath 
+	if require 'init.senr'[1].super.is(initState) then
+		return template([=[
+kernel void initState(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(0,0);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	real3 x = cell_x(i);
+
+	if (OOB(numGhost,numGhost)) {
+		U->alpha = INFINITY;
+		U->W = INFINITY;
+		U->K = INFINITY;
+		U->beta_U = _real3(INFINITY, INFINITY, INFINITY);
+		U->B_U = _real3(INFINITY, INFINITY, INFINITY);
+		U->LambdaBar_U = _real3(INFINITY, INFINITY, INFINITY);
+		U->epsilon_LL = _sym3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		U->ABar_LL = _sym3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		U->H = INFINITY;
+		U->M_U = _real3(INFINITY, INFINITY, INFINITY);
+		U->rho = INFINITY;
+		U->S_u = _real3(INFINITY, INFINITY, INFINITY);
+		U->S_ll = _sym3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		return;
+	}
+
+
+	real3 xc = coordMap(x);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+
+	//Minkowski:
+	setFlatSpace(solver, U, x);
+
+	real rho = 0.;
+
+<? if eqn.useScalarField then ?>	
+	cplx Phi = cplx_zero;
+	cplx3 Psi_l = cplx3_zero;
+	cplx Pi = cplx_zero;
+<? end ?>
+
+	<?=code?>
+
+	U->rho = rho;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+	U->H = 0.;
+	U->M_U = real3_zero;
+
+<? if eqn.useScalarField then ?>
+	U->Phi = Phi;
+	U->Psi_l = Psi_l;	//init with a numeric derivative?
+	U->Pi = Pi;
+<? end ?>
+}
+]=], 	table(env, {
+			code = initState:initState(self.solver),
 		}))
 	end
 
@@ -421,8 +490,7 @@ kernel void initDerivs(
 <?=eqn:makePartial1'epsilon_LL'?>
 	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
 
-	_3sym3 connBar_ULL;
-	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
+	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
 
 	_3sym3 connHat_LLL, connHat_ULL;
 	calc_connHat_LLL_and_ULL(&connHat_LLL, &connHat_ULL, U, x);
@@ -657,8 +725,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 <?=eqn:makePartial1'epsilon_LL'?>
 	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
 	
-	_3sym3 connBar_ULL;
-	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
+	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
 
 <?=eqn:makePartial1'W'?>
 <?=eqn:makePartial2'W'?>
@@ -727,8 +794,7 @@ end
 <?=eqn:makePartial1'epsilon_LL'?>
 	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
 	
-	_3sym3 connBar_ULL;
-	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
+	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
 
 	//DBar2_phi := DBar_i DBar_j phi = phi_,ij - connBar^k_ij phi_,k
 	sym3 DBar2_phi_LL;
@@ -776,8 +842,7 @@ end
 	
 	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
 	
-	_3sym3 connBar_ULL;
-	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
+	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
 
 	//DBar_i DBar_j alpha = alpha,ij - connBar^k_ij alpha,k
 	sym3 DBar2_alpha_LL;
@@ -810,8 +875,7 @@ end
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 	sym3 gammaBar_ll = sym3_rescaleToCoord_LL(gammaBar_LL, x);
 
-	_3sym3 connBar_ULL;
-	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
+	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
 
 	sym3 partial2_alpha_LL = sym3_rescaleFromCoord_ll(partial2_alpha_ll, x);
 	
@@ -1101,8 +1165,7 @@ end ?>;
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 
-	_3sym3 connBar_ULL;
-	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
+	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
 
 	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
 
@@ -1117,7 +1180,7 @@ end ?>;
 	sym3 trBar_partial2_gammaBar_ll = calc_trBar_partial2_gammaBar_ll(
 		U, 
 		x, 
-		&gammaBar_UU, 
+		gammaBar_UU, 
 		partial_epsilon_LLl, 
 		partial2_epsilon_LLll);
 
@@ -1126,15 +1189,15 @@ end ?>;
 	sym3 RBar_LL = calc_RBar_LL(
 		U,
 		x,
-		&gammaBar_LL,
-		&gammaBar_UU,
-		&connHat_ULL,
-		&partial_gammaBar_LLL,
-		&trBar_partial2_gammaBar_ll,
-		&partial_LambdaBar_UL,
-		&Delta_U,
-		&Delta_ULL,
-		&Delta_LLL);
+		gammaBar_LL,
+		gammaBar_UU,
+		connHat_ULL,
+		partial_gammaBar_LLL,
+		trBar_partial2_gammaBar_ll,
+		partial_LambdaBar_UL,
+		Delta_U,
+		Delta_ULL,
+		Delta_LLL);
 
 	value.vsym3 = sym3_rescaleToCoord_LL(RBar_LL, x);
 ]], env),
@@ -1171,8 +1234,7 @@ end ?>;
 <?=eqn:makePartial1'epsilon_LL'?>
 	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
 	
-	_3sym3 connBar_ULL;
-	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
+	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
 
 	sym3 DBar2_phi_LL = sym3_sub(
 		partial2_phi_LL,
@@ -1239,7 +1301,7 @@ gammaBar^kl = inv(gammaBar_kl)
 	sym3 trBar_partial2_gammaBar_ll = calc_trBar_partial2_gammaBar_ll(
 		U, 
 		x, 
-		&gammaBar_UU, 
+		gammaBar_UU, 
 		partial_epsilon_LLl, 
 		partial2_epsilon_LLll);
 
@@ -1340,8 +1402,7 @@ end
 <?=eqn:makePartial1'epsilon_LL'?>
 	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
 	
-	_3sym3 connBar_ULL;
-	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
+	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
 
 	_3sym3 connHat_LLL, connHat_ULL;
 	calc_connHat_LLL_and_ULL(&connHat_LLL, &connHat_ULL, U, x);
@@ -1367,8 +1428,7 @@ end
 <?=eqn:makePartial1'epsilon_LL'?>
 	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
 	
-	_3sym3 connBar_ULL;
-	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
+	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
 	
 	_3sym3 connHat_LLL, connHat_ULL;
 	calc_connHat_LLL_and_ULL(&connHat_LLL, &connHat_ULL, U, x);
@@ -1408,8 +1468,7 @@ end
 	sym3 gammaBar_UU = calc_gammaBar_UU(U, x);
 <?=eqn:makePartial1'epsilon_LL'?>
 	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
-	_3sym3 connBar_ULL;
-	calc_connBar_ULL(&connBar_ULL, &partial_gammaBar_LLL, &gammaBar_UU);
+	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
 	sym3 DBar2_alpha_LL = sym3_sub(partial2_alpha_LL, real3_3sym3_dot1(partial_alpha_L, connBar_ULL));
 	real tr_DBar2_alpha = sym3_dot(gammaBar_UU, DBar2_alpha_LL);
 	value.vreal = tr_DBar2_alpha;

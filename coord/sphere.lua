@@ -21,6 +21,7 @@ function Sphere:init(args)
 
 	self.baseCoords = table{r, theta, phi}
 
+	-- TODO same as lenExprs
 	self.eHolToE = symmath.Matrix{
 		{1, 0, 0},
 		{0, 1/r, 0},

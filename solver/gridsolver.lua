@@ -604,8 +604,14 @@ function GridSolver:createCodePrefix()
 		- cell_volume(x) gives the volume between indexes at the coordinate x
 		- the Cartesian length of a vector in coordinate space is given by coordLen and coordLenSq
 	* the embedded Cartesian space ... idk what letters I should use for this.  
-		Some literature uses x^I vs coordinate space x^a, but that's still an 'x', no good for programming.
+		Some literature uses r^i or u^i vs coordinate space x^a.
 		Maybe I'll use 'xc' vs 'x', like I've already started to do in the initial conditions.
+	
+	functionality (and abstraction):
+		- Allow the option for precomputing certain variables of the coordinate system: the chart mapping.
+		 (Though for some operations, like the Euler equations wavespeeds, it is faster to compute them than to retrieve them from memory, so I suspect similar for the coordinate chart.)
+		- Add a macro for useful values to compute, like the x,y,z,r,theta,phi variables.
+		 (This is already started in the coords.vars table.)
 	--]]
 	
 	}:append(range(self.dim):map(function(i)

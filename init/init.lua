@@ -71,7 +71,7 @@ function InitCond:resetState(solver)
 	solver.initStateKernelObj()
 
 	if cmdline.printBufs then
-		print('after solver.initStateKernelObj')
+		print('init UBuf:')
 		solver:printBuf(solver.UBufObj)
 	end
 	
@@ -80,6 +80,11 @@ function InitCond:resetState(solver)
 		solver.initDerivsKernelObj()
 	end
 	solver:boundary()
+
+	if cmdline.printBufs then
+		print('post-boundary init UBuf:')
+		solver:printBuf(solver.UBufObj)
+	end
 end
 
 return InitCond

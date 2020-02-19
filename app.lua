@@ -22,6 +22,7 @@ predefined vars:
 	vsync = set to enable vsync and slow down the simulation
 	createAnimation = set to start off creating an animation / framedump
 	exitTime = start the app running, and exit it after the simulation reaches this time
+	maxiter = max # of iterations to run the application for
 	verbose = output extra stuff
 
 	run = start the simulation running.  Setting 'exitTime' or 'sys=console' also starts the simulation running.
@@ -769,6 +770,11 @@ end
 		end
 	end
 
+
+	self.iteration = (self.iteration or 0) + 1
+	if cmdline.maxiter and self.iteration > cmdline.maxiter then os.exit() end
+
+
 	if self.targetSystem == 'console' then return end
 
 	gl.glClear(bit.bor(gl.GL_COLOR_BUFFER_BIT, gl.GL_DEPTH_BUFFER_BIT))
@@ -1105,7 +1111,6 @@ local displaySolvers = flattenedSolvers
 			pushVarNamesEnabled = nil
 		end
 	end
-
 end
 
 if targetSystem ~= 'console' then
