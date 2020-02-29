@@ -93,30 +93,30 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin=cmdline.boundary or 'mirror',
-		xmax=cmdline.boundary or 'mirror',
-		ymin=cmdline.boundary or 'mirror',
-		ymax=cmdline.boundary or 'mirror',
-		zmin=cmdline.boundary or 'mirror',
-		zmax=cmdline.boundary or 'mirror',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
 	coord = 'cylinder',
 	coordArgs = {anholonomic=true},			-- disable to use non-physical, holonomic coordinates
-	mins = cmdline.mins or {1, 0, -.25},
-	maxs = cmdline.maxs or {10, 2*math.pi, .25},
+	mins = cmdline.mins or {0, 0, -1},
+	maxs = cmdline.maxs or {1, 2*math.pi, 1},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
-		{64, 256, 1}, -- 2D
+		{4, 8, 1}, -- 2D
 		{32, 32, 32}, -- 3D
 	})[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		-- r
-		--xmin=cmdline.boundary or 'cylinderRMin',		-- hmm, how to treat the r=0 boundary ...
-		xmin=cmdline.boundary or 'freeflow',
-		
+		xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
+		--xmin=cmdline.boundary or 'mirror',
 		xmax=cmdline.boundary or 'freeflow',
+		
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
@@ -694,7 +694,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 -- the start of unstructured meshes
---self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', meshfile='n0012_113-33'})))
+self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh'}})))
 -- temp here -- to make sure ordinary solvers still run
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
 
@@ -736,10 +736,13 @@ local args = {
 	coord = 'sphere-log-radial',
 	mins = {0, 0, 0},
 	maxs = {1, math.pi, 2*math.pi},
-	gridSize = ({
+	gridSize = cmdline.gridSize or ({
 		{128, 1, 1},
 		{64, 16, 1},
+		
 		{32, 2, 2},		-- brill-lindquist head-on merger: -- {400, 64, 2},	--{128, 2, 2},
+		--{128,32,2},
+		--{400, 64, 2},
 	})[dim],
 	boundary = {
 		xmin='sphereRMin',

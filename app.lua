@@ -64,6 +64,8 @@ predefined vars:
 	frustum = set frustum view initially
 	ortho = set ortho view initially
 	stackGraphs = stack graphs initially
+
+	vectorFieldStep = spacing between cells of vector field display
 --]]
 cmdline = cmdline or {}	--global
 
@@ -772,7 +774,7 @@ end
 
 
 	self.iteration = (self.iteration or 0) + 1
-	if cmdline.maxiter and self.iteration > cmdline.maxiter then os.exit() end
+	if cmdline.maxiter and self.iteration > cmdline.maxiter then self:requestExit() end
 
 
 	if self.targetSystem == 'console' then return end

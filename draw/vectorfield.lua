@@ -102,7 +102,7 @@ end
 
 local function applyToApp(HydroCLApp)
 	HydroCLApp.displayVectorField_scale = 1
-	HydroCLApp.displayVectorField_step = 4
+	HydroCLApp.displayVectorField_step = cmdline.vectorFieldStep or 4
 	function HydroCLApp:displayVectorField(solvers, ar, ...)
 		self.view:projection(ar)
 		self.view:modelview()
