@@ -1098,7 +1098,7 @@ kernel void <?=name?>(
 	int component<?
 if require 'solver.meshsolver'.is(solver) then ?>
 	,const global cell_t* cells			//[numCells]
-	,const global iface_t* ifaces		//[numInterfaces]<?
+	,const global face_t* faces			//[numFaces]<?
 end ?><?= var.extraArgs and #var.extraArgs > 0
 		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
 		or '' ?>

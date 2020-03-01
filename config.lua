@@ -694,9 +694,9 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 -- the start of unstructured meshes
-self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh'}})))
+--self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh'}})))
 -- temp here -- to make sure ordinary solvers still run
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
 
 
 -- the start of AMR

@@ -18,12 +18,145 @@ local vec3d = require 'vec-ffi.vec3d'
 local SolverBase = require 'solver.solverbase'
 
 
+-- [=[
+--[[
+stl vector class
+have I made this before?
+--]]
+local vector = class()
+function vector:init(ctype, arg)
+	self.type = ctype
+	self.size = 0
+	self.capacity = 0
+	self:setcapacity(32)
+	if arg ~= nil then
+		if type(arg) == 'number' then
+			self:resize(arg)
+		elseif type(arg) == 'table' then
+			self:resize(#arg)
+			for i,v in ipairs(arg) do
+				self.v[i-1] = v
+			end
+		end
+	end
+
+	-- I don't want to set __index to vector or else things will go bad within class init ... so set it here:
+	local mt = table(vector)
+	function mt:__index(k)
+		local mv = mt[k] 
+		if mv ~= nil then return mv end
+		if k < 0 or k > self.size then
+			error("got out of bounds index: "..tostring(k))
+		end
+		return self.v[k]
+	end
+	function mt:__newindex(k, v)
+		assert(k >= 0 and k < #self)
+		rawget(self, 'v')[k] = v
+	end
+	function mt.__ipairs()
+		return coroutine.wrap(function()
+			for i=0,tonumber(self.size)-1 do
+				coroutine.yield(i, self.v[i])
+			end
+		end)
+	end
+	setmetatable(self, mt)
+end
+function vector:setcapacity(newcap)
+	if newcap <= self.capacity then return end
+	local newv = ffi.new(self.type..'[?]', newcap)
+	for i=0,self.size-1 do	-- TODO ffi.copy
+		newv[i] = self.v[i]
+	end
+	self.v = newv
+	self.capacity = newcap
+end
+
+function vector:resize(newsize)
+	self:setcapacity( (math.floor(tonumber(newsize) / 32) + 1) * 32 )
+	self.size = newsize
+end
+
+function vector:push_back(obj)
+	self:resize(self.size + 1)
+	self.v[self.size - 1] = obj
+end
+
+-- returns a ptr to the last element
+function vector:back()
+	assert(self.size > 0)
+	return self.v + self.size - 1
+end
+-- returns a ptr to the first element
+function vector:begin()
+	return self.v
+end
+-- returns a ptr past the last element
+function vector:iend()
+	return self.v + self.size
+end
+
+--[[
+insert(where, ptr first, ptr last)
+insert(where, ref value)
+--]]
+function vector:insert(...)
+	local n = select('#', ...)
+	if n == 3 then
+		local where, first, last = ...
+		local i = first
+		while i ~= last do
+			self:insert(where, i[0])
+			i = i + 1
+		end
+	elseif n == 2 then
+		local where, value = ...
+		local offset = where - self.v
+		assert(0 <= offset and offset <= self.size)
+		self:resize(self.size + 1)
+		for i=self.size-1,offset+1,-1 do
+			self.v[i] = self.v[i-1]
+		end
+		self.v[offset] = value
+	end
+end
+function vector:__len()
+	return rawget(self, 'size')
+end
+function vector:__tostring()
+	local s = '['
+	local sep = ''
+	for i=0,self.size-1 do
+		s = s .. sep .. self.v[i]
+		sep = ', '
+	end
+	return s .. ']'
+end
+
+--[[
+local v = vector'int'
+v:push_back(10)
+print(v)
+print(#v)
+print(v[0])
+v:push_back(20)
+v:push_back(30)
+local ip = ffi.new('int[3]', 1,2,3)
+v:insert(v.v + 1, ip, ip + 3)
+print(#v)
+print(v)
+os.exit()
+--]]
+--]=]
+
+
 local MeshSolver = class(SolverBase)
 
 
 -- TODO real3 vs vec3f/vec3d ...
 MeshSolver.meshTypeCode = [[
-typedef struct iface_s {
+typedef struct face_s {
 	real3 pos;		//center.  realN.
 	real3 normal;	//normal pointing from first to second
 	real area;		//edge length / surface area
@@ -32,7 +165,7 @@ typedef struct iface_s {
 	
 	int vtxOffset;
 	int vtxCount;
-} iface_t;
+} face_t;
 
 typedef struct cell_s {
 	real3 pos;		//center.  technically could be a 'realN'
@@ -47,27 +180,27 @@ typedef struct cell_s {
 -- TODO what if real3 isn't defined yet?
 ffi.cdef(MeshSolver.meshTypeCode)
 
-local iface_mt = {}
+local face_mt = {}
 local cell_mt = {}
 
-local iface_metatype = ffi.metatype('iface_t', iface_mt)
+local face_metatype = ffi.metatype('face_t', face_mt)
 local cell_metatype = ffi.metatype('cell_t', cell_mt)
 
-local function iface_t()
-	local iface = iface_metatype()
-	iface.pos.x = 0
-	iface.pos.y = 0
-	iface.pos.z = 0
-	iface.normal.x = 0
-	iface.normal.y = 0
-	iface.normal.z = 0
-	iface.area = 0
-	iface.cellDist = 0
-	iface.cells[0] = -1
-	iface.cells[1] = -1
-	iface.vtxOffset = 0
-	iface.vtxCount = 0
-	return iface
+local function face_t()
+	local face = face_metatype()
+	face.pos.x = 0
+	face.pos.y = 0
+	face.pos.z = 0
+	face.normal.x = 0
+	face.normal.y = 0
+	face.normal.z = 0
+	face.area = 0
+	face.cellDist = 0
+	face.cells[0] = -1
+	face.cells[1] = -1
+	face.vtxOffset = 0
+	face.vtxCount = 0
+	return face
 end
 
 local function cell_t()
@@ -82,83 +215,17 @@ local function cell_t()
 	return cell
 end
 
---[=[
---[[
-stl vector class
-have I made this before?
---]]
-local vector = class()
-function vector:init(args)
-	self.type = args.type
-	self.size = 0
-	self.capacity = 0
-	self:setcapacity(32)
-	if args.size > 0 then
-		self:resize(args.size)
-	end
-end
-function self:setcapacity(newcap)
-	if newcap <= self.capacity then return end
-	local newv = ffi.new(self.type..'[?]', newcap)
-	for i=0,self.size-1 do	-- TODO ffi.copy
-		newv[i] = self.v[i]
-	end
-	self.v = newv
-	self.capacity = newcap
-end
-function self:resize(newsize)
-	self:setcapacity( math.ceil(newsize / 32) * 32 )
-	self.size = newsize
-end
-function vector:push_back(obj)
-	self:resize(self.size + 1)
-	self.v[self.size - 1] = obj
-end
-function vector:back()
-	assert(self.size > 0)
-	return self.v + self.size - 1
-end
-function vector:insertAll(...)
-	if select('#', ...) == 3 then
-		local where, first, last = ...
-		local i = first
-		while i ~= last do
-			
-			i = i + 1
-		end
-	end
-end
-function vector:__len()
-	return rawget(self, 'size')
-end
-function vector:__index(k)
-	assert(k >= 0 and k < #self)
-	return rawget(self, 'v')[k]
-end
-function vector:__newindex(k, v)
-	assert(k >= 0 and k < #self)
-	rawget(self, 'v')[k] = v
-end
---]=]
 
-
--- fields we need:
--- real3[] vtxs
--- iface_t[] faces
--- cell_t[] cells
--- int[] cellFaceIndexes
--- int[] cellVtxIndexes
--- int[] faceVtxIndexes
 local Mesh = class()
 
 function Mesh:init(solver)
 	self.solver = solver
-	self.vtxs = table()	--vector{type='real3'}
-	self.faces = table()	--vector{type='iface_t'}
-	self.cells = table()	--vector{type='cell_t'}
-	self.cellFaceIndexes = table()	--vector{type='int'}
-	self.cellVtxIndexes = table()	--vector{type='int'}
-	self.faceVtxIndexes = table()	--vector{type='int'}
+	self.vtxs = vector'real3'
+	self.faces = vector'face_t'
+	self.cells = vector'cell_t'
+	self.cellFaceIndexes = vector'int'
+	self.cellVtxIndexes = vector'int'
+	self.faceVtxIndexes = vector'int'
 	self.real3 = function(x,y,z)
 		return ffi.new('real3', {x=x, y=y, z=z})
 	end
@@ -310,13 +377,13 @@ end
 -- returns a 0-based index
 function Mesh:addFaceForVtxs(vs, n)
 	for fi=0,#self.faces-1 do
-		local f = assert(self.faces[1+fi], "failed to get face at 0-based "..fi)
+		local f = assert(self.faces[fi], "failed to get face at 0-based "..fi)
 		if self.solver.dim == 2 then
 			local va = vs[1]
 			local vb = vs[2]
 			if f.vtxCount == 2 then
-				if (self.faceVtxIndexes[1+f.vtxOffset+0] == va and self.faceVtxIndexes[1+f.vtxOffset+1] == vb) or
-					(self.faceVtxIndexes[1+f.vtxOffset+0] == vb and self.faceVtxIndexes[1+f.vtxOffset+1] == va)
+				if (self.faceVtxIndexes[f.vtxOffset+0] == va and self.faceVtxIndexes[f.vtxOffset+1] == vb) or
+					(self.faceVtxIndexes[f.vtxOffset+0] == vb and self.faceVtxIndexes[f.vtxOffset+1] == va)
 				then
 					return fi
 				end
@@ -326,7 +393,7 @@ function Mesh:addFaceForVtxs(vs, n)
 				--check in one direction
 				local matches = true
 				for i=0,n-1 do
-					if self.faceVtxIndexes[1+f.vtxOffset+i] ~= vs[1+(j+i)%n] then
+					if self.faceVtxIndexes[f.vtxOffset+i] ~= vs[1+(j+i)%n] then
 						matches = false;
 						break
 					end
@@ -336,7 +403,7 @@ function Mesh:addFaceForVtxs(vs, n)
 				--check in the other direction
 				matches = true
 				for i=0,n-1 do
-					if self.faceVtxIndexes[1+f.vtxOffset+i] ~= vs[1+(j+n-i)%n] then
+					if self.faceVtxIndexes[f.vtxOffset+i] ~= vs[1+(j+n-i)%n] then
 						matches = false
 						break
 					end
@@ -348,19 +415,19 @@ function Mesh:addFaceForVtxs(vs, n)
 
 	local fi = #self.faces
 	
-	self.faces:insert(iface_t())
-	local f = self.faces:last()
+	self.faces:push_back(face_t())
+	local f = self.faces:back()
 	
 	f.vtxOffset = #self.faceVtxIndexes
 	for i=1,n do
-		self.faceVtxIndexes:insert(vs[i])
+		self.faceVtxIndexes:push_back(vs[i])
 	end
 	f.vtxCount = #self.faceVtxIndexes - f.vtxOffset
 
 	--TODO calc these for n=3
 	if self.solver.dim == 2 then
-		local a = self.vtxs[1+vs[1]]
-		local b = self.vtxs[1+vs[2]]
+		local a = self.vtxs[vs[1]]
+		local b = self.vtxs[vs[2]]
 		for i=0,2 do
 			f.pos.s[i] = (a.s[i] + b.s[i]) * .5
 		end
@@ -372,9 +439,9 @@ function Mesh:addFaceForVtxs(vs, n)
 		f.area = deltaLen
 		f.normal = self.real3(delta.y / deltaLen, -delta.x / deltaLen)
 	elseif self.solver.dim == 3 then
-		local polyVtxs = table()	--vector{type='real3', size=n}
+		local polyVtxs = table()	--vector('real3', n)
 		for i=1,n do
-			polyVtxs[i] = self.vtxs[1+vs[i]]
+			polyVtxs[i] = self.vtxs[vs[i]]
 		end
 		for i=0,n-1 do
 			local i2 = (i+1)%n
@@ -396,7 +463,7 @@ end
 function Mesh:addFace(vs, n, ci)
 	local fi = self:addFaceForVtxs(vs, n)
 --	if fi ~= -1 then return fi end
-	local f = self.faces[fi+1]
+	local f = self.faces[fi]
 	if f.cells[0] == -1 then
 		f.cells[0] = ci
 	elseif f.cells[1] == -1 then
@@ -411,14 +478,14 @@ end
 -- vis values are 0-based indexes
 function Mesh:addCell(vis)
 	local ci = #self.cells
-	self.cells:insert(cell_t())
-	local c = self.cells:last()
+	self.cells:push_back(cell_t())
+	local c = self.cells:back()
 	
 	local n = #vis
 
 	--c.vtxs = vis
 	c.vtxOffset = #self.cellVtxIndexes
-	self.cellVtxIndexes:append(vis)
+	self.cellVtxIndexes:insert(self.cellVtxIndexes:iend(), vis:begin(), vis:iend())
 	c.vtxCount = #self.cellVtxIndexes - c.vtxOffset
 
 	local lastFaceSize = #self.faces
@@ -426,14 +493,14 @@ function Mesh:addCell(vis)
 	if self.solver.dim == 2 then
 		--face is a 1-form
 		for i=1,n do
-			local vtxs = {vis[i], vis[i%n+1]}
+			local vtxs = {vis[i-1], vis[i%n]}
 			local fi = self:addFace(vtxs, #vtxs, ci)
 			do -- if (fi != -1) then
-				self.cellFaceIndexes:insert(fi)
+				self.cellFaceIndexes:push_back(fi)
 			end
 		end
-		local polyVtxs = table.mapi(vis, function(vi)
-			return self.vtxs[1+vi]
+		local polyVtxs = range(0,#vis-1):mapi(function(i)
+			return self.vtxs[vis[i]]
 		end)
 		
 		c.volume = self:polygonVolume(polyVtxs)
@@ -469,18 +536,18 @@ function Mesh:addCell(vis)
 		for _,side in ipairs(identityCubeSides) do
 			
 			local thisFaceVtxIndexes = table.mapi(side, function(side_i)
-				return vis[1+side_i]
+				return vis[side_i]
 			end)
 			
 			local fi = self:addFace(self.thisFaceVtxIndexes, #self.thisFaceVtxIndexes, ci)
 			do -- if fi ~= -1 then
-				local f = self.faces[fi+1]
+				local f = self.faces[fi]
 				
 				--if face area is zero then don't add it to cell's faces
 				-- and don't use it later for determining cell's volume
 				if f.area <= 1e-7 then
 				else
-					self.cellFaceIndexes:insert(fi)
+					self.cellFaceIndexes:push_back(fi)
 
 					cubeVtxs:insert(
 						table.mapi(thisFaceVtxIndexes, function(i)
@@ -508,9 +575,9 @@ function Mesh:calcAux()
 	for _,f in ipairs(self.faces) do
 		local a = f.cells[0]
 		local b = f.cells[1]
-		local cella = self.cells[1+a]
-		local cellb = self.cells[1+b]
 		if a ~= -1 and b ~= -1 then
+			local cella = self.cells[a]
+			local cellb = self.cells[b]
 			local dx = cella.pos.x - cellb.pos.x
 			local dy = cella.pos.y - cellb.pos.y
 			local dz = cella.pos.z - cellb.pos.z
@@ -523,18 +590,19 @@ function Mesh:calcAux()
 				f.normal.y = -f.normal.y
 				f.normal.z = -f.normal.z
 				
-				cella = self.cells[1+a]
-				cellb = self.cells[1+b]
+				cella = self.cells[a]
+				cellb = self.cells[b]
 				dx = -dx
 				dy = -dy
 				dz = -dz
 				nDotDelta = -nDotDelta 
 			end
 			--distance between cell centers
-			--f.cellDist = (self.cells[1+b].pos - self.cells[1+a].pos).length();
+			--f.cellDist = (self.cells[b].pos - self.cells[a].pos).length();
 			--distance projected to edge normal
 			f.cellDist = math.abs(nDotDelta)
 		elseif a ~= -1 then
+			local cella = self.cells[a]
 			local dx = cella.pos.x - f.pos.x
 			local dy = cella.pos.y - f.pos.y
 			local dz = cella.pos.z - f.pos.z
@@ -543,6 +611,29 @@ function Mesh:calcAux()
 			error"looks like you created a face that isn't touching any cells..."
 		end
 	end
+
+	-- now convert all our buffers to C types
+	-- hmm, this is where a std::vector would be helpful ... store the size and ptr in one structure
+	-- also, how will I pass all this to the GPU?
+	-- do we want so many different parameters?
+	-- maybe make some weird data structure where we have to skip past arrays?  
+	-- maybe have a initial structure that tells us where to skip to for each of these?
+	-- how about shared memory (CL 2.0)?  will that be compat with NVIDIA?
+	local function tableToC(t, ty)
+		local ptr = ffi.new(ty..'[?]', #t)
+		for i=1,#t do
+			ptr[i-1] = t[i]
+		end
+		return ptr, #t
+	end
+	
+	--self.numVtxs, self.vtxs = tableToC(self.vtxs, 'real3')
+	self.numVtxs = #self.vtxs
+	self.numFaces = #self.faces
+	self.numCells = #self.cells
+	self.numCellFaceIndexes = #self.cellFaceIndexes
+	self.numCellVtxIndexes = #self.cellVtxIndexes
+	self.numFaceVtxIndexes = #self.faceVtxIndexes
 end
 
 
@@ -596,8 +687,8 @@ function Tri2DMeshFactory:createMesh(solver)
 	
 	local vtxsize = n:volume()
 	if self.capmin.x then vtxsize = vtxsize + 1 end
-	
-	--mesh.vtxs = ffi.new('real3[?]', vtxsize)
+
+	mesh.vtxs:resize(vtxsize)
 	local i = vec2i(0,0)
 	for iy=0,n.y-1 do
 		i.y = iy
@@ -605,7 +696,7 @@ function Tri2DMeshFactory:createMesh(solver)
 			i.x = ix
 			local x = vec2d(vec2d(i) / vec2d(self.size) * (self.maxs - self.mins) + self.mins)
 			local u = self:coordChart(x)
-			mesh.vtxs[tonumber(1+i:dot(step))] = self.real3(u:unpack())
+			mesh.vtxs[tonumber(i:dot(step))] = self.real3(u:unpack())
 		end
 	end
 	
@@ -613,9 +704,9 @@ function Tri2DMeshFactory:createMesh(solver)
 	if self.capmin.x then
 		local sum = mesh.real3()
 		for j=0,n.y-1 do
-			sum = sum + mesh.vtxs[tonumber(1+ 0 + n.x * j)]
+			sum = sum + mesh.vtxs[tonumber(0 + n.x * j)]
 		end
-		mesh.vtxs[tonumber(1+capindex)].pos = sum / tonumber(n.y)
+		mesh.vtxs[tonumber(capindex)].pos = sum / tonumber(n.y)
 	end
 	
 	local imax = vec2i()
@@ -629,16 +720,16 @@ function Tri2DMeshFactory:createMesh(solver)
 		ni.y = (i.y + 1) % n.y
 		for ix=0,imax.x-1 do
 			ni.x = (i.x + 1) % n.x
-			mesh:addCell{
+			mesh:addCell(vector('int',{
 				tonumber(i.x + n.x * i.y),
 				tonumber(ni.x + n.x * i.y),
 				tonumber(ni.x + n.x * ni.y),
-			}
-			mesh:addCell{
+			}))
+			mesh:addCell(vector('int',{
 				tonumber(ni.x + n.x * ni.y),
 				tonumber(i.x + n.x * ni.y),
 				tonumber(i.x + n.x * i.y),
-			}
+			}))
 		end
 	end
 	
@@ -656,7 +747,7 @@ function Quad2DMeshFactory:createMesh(solver)
 	local step = vec2i(1, n.x)
 	local vtxsize = n:volume()
 	if self.capmin.x ~= 0 then vtxsize = vtxsize + 1 end
-	--mesh.vtxs = ffi.new('real3[?]', vtxsize)
+	mesh.vtxs:resize(vtxsize)
 
 	local coordRangeMax = vec2i(self.size:unpack())
 	if self.wrap.x ~= 0 or self.capmin.x ~= 0 then coordRangeMax.x = coordRangeMax.x + 1 end
@@ -673,7 +764,7 @@ function Quad2DMeshFactory:createMesh(solver)
 			i.x = ix
 			local x = vec2d((i + iofs):unpack()) / vec2d(coordRangeMax:unpack()) * (self.maxs - self.mins) + self.mins
 			local u = self:coordChart(x)
-			mesh.vtxs[tonumber(1+i:dot(step))] = mesh.real3(u:unpack())
+			mesh.vtxs[tonumber(i:dot(step))] = mesh.real3(u:unpack())
 		end
 	end
 	
@@ -681,9 +772,9 @@ function Quad2DMeshFactory:createMesh(solver)
 	if self.capmin.x ~= 0 then
 		local sum = mesh.real3()
 		for j=0,n.y-1 do
-			sum = sum + mesh.vtxs[tonumber(1+ 0 + n.x * j)]
+			sum = sum + mesh.vtxs[tonumber(0 + n.x * j)]
 		end
-		mesh.vtxs[tonumber(1+capindex)] = sum / tonumber(n.y)
+		mesh.vtxs[tonumber(capindex)] = sum / tonumber(n.y)
 	end
 
 	local imax = vec2i()
@@ -698,23 +789,23 @@ function Quad2DMeshFactory:createMesh(solver)
 		for ix=0,tonumber(imax.x-1) do
 			i.x = ix
 			ni.x = (i.x + 1) % n.x
-			mesh:addCell{
+			mesh:addCell(vector('int',{
 				tonumber(i.x + n.x * i.y),
 				tonumber(ni.x + n.x * i.y),
 				tonumber(ni.x + n.x * ni.y),
 				tonumber(i.x + n.x * ni.y),
-			}
+			}))
 		end
 	end
 
 	if self.capmin.x ~= 0 then
 		for j=0,imax.y-1 do
 			local jn = (j + 1) % n.y
-			mesh.addCell{
+			mesh.addCell(vector('int',{
 				tonumber(0 + n.x * j), 
 				tonumber(0 + n.x * jn), 
 				tonumber(capindex),
-			}
+			}))
 		end
 	end
 
@@ -763,26 +854,9 @@ function MeshSolver:initL1(args)
 		end
 	end
 
-	-- convert vertices
-	-- only store position
-	local cpu_vtxs = ffi.new('real3[?]', #self.mesh.vtxs)
-	for i,v in ipairs(self.mesh.vtxs) do
-		cpu_vtxs[i-1] = v
-	end
-
-	local cpu_ifaces = ffi.new('iface_t[?]', #self.mesh.faces)
-	for i,iface in ipairs(self.mesh.faces) do
-		cpu_ifaces[i-1] = iface
-	end
-
-	local cpu_cells = ffi.new('cell_t[?]', #self.mesh.cells)
-	for i,cell in ipairs(self.mesh.cells) do
-		cpu_cells[i-1] = cell
-	end
-
 	-- TODO put these in solver_t
 	self.numCells = #self.mesh.cells
-	self.numInterfaces = #self.mesh.faces
+	self.numFaces = #self.mesh.faces
 	self.numVtxs = #self.mesh.vtxs
 	
 	--[[
@@ -797,7 +871,7 @@ function MeshSolver:initL1(args)
 	--]]
 	
 	-- no longer is dim * numCells the number of interfaces -- it is now dependent on the mesh
-	-- maybe I should rename this to numInterfaces?
+	-- maybe I should rename this to numFaces?
 	
 	local solver = self
 	local Program = class(require 'cl.obj.program')
@@ -815,14 +889,14 @@ function MeshSolver:createBuffers()
 
 	self:clalloc('vtxBuf', 'real3', self.numVtxs)
 	self:clalloc('cellsBuf', 'cell_t', self.numCells)
-	self:clalloc('ifacesBuf', 'iface_t', self.numInterfaces)
+	self:clalloc('facesBuf', 'face_t', self.numFaces)
 end
 
 function MeshSolver:finalizeCLAllocs()
 	MeshSolver.super.finalizeCLAllocs(self)
 
-	self.cmds:enqueueWriteBuffer{buffer=self.cellsBuf, block=true, size=ffi.sizeof'cell_t' * self.numCells, ptr=self.mesh.cells}
-	self.cmds:enqueueWriteBuffer{buffer=self.ifacesBuf, block=true, size=ffi.sizeof'iface_t' * self.numInterfaces, ptr=self.mesh.faces}
+	self.cmds:enqueueWriteBuffer{buffer=self.cellsBuf, block=true, size=ffi.sizeof'cell_t' * self.numCells, ptr=self.mesh.cells.v}
+	self.cmds:enqueueWriteBuffer{buffer=self.facesBuf, block=true, size=ffi.sizeof'face_t' * self.numFaces, ptr=self.mesh.faces.v}
 end
 
 function MeshSolver:refreshInitStateProgram()
@@ -877,8 +951,9 @@ end
 function MeshSolver:refreshCalcDTKernel()
 	MeshSolver.super.refreshCalcDTKernel(self)
 	-- TODO combine these, and offset one into the other?
+	-- because I'm going to need more than just these...
 	self.calcDTKernelObj.obj:setArg(2, self.cellsBuf)
-	self.calcDTKernelObj.obj:setArg(3, self.ifacesBuf)
+	self.calcDTKernelObj.obj:setArg(3, self.facesBuf)
 end
 
 function MeshSolver:update()
@@ -897,7 +972,7 @@ MeshSolver.DisplayVar = MeshSolverDisplayVar
 function MeshSolverDisplayVar:setArgs(kernel)
 	MeshSolverDisplayVar.super.setArgs(self, kernel)
 	kernel:setArg(4, self.solver.cellsBuf)
-	kernel:setArg(5, self.solver.ifacesBuf)
+	kernel:setArg(5, self.solver.facesBuf)
 end
 
 

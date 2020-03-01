@@ -423,7 +423,7 @@ kernel void calcDT(
 	global real* dtBuf,					//[numCells]
 	const global <?=eqn.cons_t?>* UBuf,	//[numCells]
 	const global cell_t* cells,			//[numCells]
-	const global iface_t* ifaces		//[numInterfaces]
+	const global face_t* faces			//[numFaces]
 ) {
 	int cellIndex = get_global_id(0);
 	if (cellIndex >= get_global_size(0)) return;
@@ -433,7 +433,7 @@ kernel void calcDT(
 
 	real dt = INFINITY;
 	for (int i = 0; i < cell->numSides; ++i) {
-		const global iface_t* iface = ifaces + cell->ifaces[i];
+		const global face_t* face = faces + cell->faces[i];
 		//all sides? or only the most prominent side?
 		//which should we pick eigenvalues from?
 		<? for side=0,solver.dim-1 do ?>{
