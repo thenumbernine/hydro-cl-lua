@@ -13,6 +13,7 @@ kernel void calcDerivFromFlux(
 	real3 x = cell_x(i);
 
 <? if solver.coord.anholonomic then ?>
+	//real volume = cell_volume(x);
 <? else -- anholonomic ?>
 <? if eqn.weightFluxByGridVolume then ?>
 	real volume = coord_sqrt_det_g(x);
@@ -30,6 +31,9 @@ kernel void calcDerivFromFlux(
 		
 		int indexIntR = indexIntL + dim * solver->stepsize.s<?=side?>; 
 		const global <?=eqn.cons_t?>* fluxR = fluxBuf + indexIntR;
+		
+		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 
 		//This is the covariant finite volume code that that represents the gradient of the metric determinant 
 		//All other covariant terms should be accounted for in the equation source update
@@ -37,11 +41,10 @@ kernel void calcDerivFromFlux(
 		//U^i_,t + F^ij_,j + Gamma^j_kj F^ik + Gamma^i1_kj F^i1^k + ... + Gamma^in_kj F^in^k = 0
 		//					(metric det gradient) 
 <? if solver.coord.anholonomic then ?>
+		//real areaL = cell_area<?=side?>(xIntL);
+		//real areaR = cell_area<?=side?>(xIntR);
 <? else -- anholonomic ?>
-<? if eqn.weightFluxByGridVolume then ?>	
-		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
-
+<? if eqn.weightFluxByGridVolume then ?>
 		real areaL = coord_sqrt_det_g(xIntL) / solver->grid_dx.s<?=side?>;
 		real areaR = coord_sqrt_det_g(xIntR) / solver->grid_dx.s<?=side?>;
 <? else ?>
@@ -51,52 +54,38 @@ kernel void calcDerivFromFlux(
 <? end	-- anholonomic ?>
 
 <? if solver.coord.anholonomic then ?>
-<? 	if require 'coord.cylinder'.is(solver.coord) then ?>
-<?		if true then -- 2018 Shadab et al ?>
-<? 			if side == 0 then ?>
+<?	if false and require 'coord.cylinder'.is(solver.coord) then ?>
 		real rR = x.x + .5 * solver->grid_dx.x;
 		real rL = x.x - .5 * solver->grid_dx.x;
-		real volume = .5 * (rR * rR - rL * rL);
-		for (int j = 0; j < numIntStates; ++j) {
-			deriv->ptr[j] -= (fluxR->ptr[j] * rR - fluxL->ptr[j] * rL) / volume;
-		}
-<? 			elseif side == 1 then ?>
-		for (int j = 0; j < numIntStates; ++j) {
-			deriv->ptr[j] -= (fluxR->ptr[j] - fluxL->ptr[j]) / (x.x * solver->grid_dx.y);
-		}
-<? 			elseif side == 2 then ?>
-		for (int j = 0; j < numIntStates; ++j) {
-			deriv->ptr[j] -= (fluxR->ptr[j] - fluxL->ptr[j]) / (solver->grid_dx.z);
-		}
-<? 			end ?>
-<?		else	-- my attempt ?>
-		real rR = x.x + .5 * solver->grid_dx.x;
-		real rL = x.x - .5 * solver->grid_dx.x;
+		// integral of volume form across cell
 		real volume = .5 * (rR * rR - rL * rL) * solver->grid_dx.y * solver->grid_dx.z;
-<? 			if side == 0 then ?>
+		//real volume = x.x * solver->grid_dx.x * solver->grid_dx.y * solver->grid_dx.z;
+		// integral of volume form across surface
+
+<? 		if side == 0 then ?>
 		real areaR = rR * solver->grid_dx.y * solver->grid_dx.z;
 		real areaL = rL * solver->grid_dx.y * solver->grid_dx.z;
-<? 			elseif side == 1 then ?>
+<? 		elseif side == 1 then ?>
 		real area = solver->grid_dx.x * solver->grid_dx.z;
 		real areaR = area;
 		real areaL = area;
-<? 			elseif side == 2 then ?>
+<? 		elseif side == 2 then ?>
 		real area = .5 * (rR * rR - rL * rL) * solver->grid_dx.y;
 		real areaR = area;
 		real areaL = area;
-<? 			end ?>
-		for (int j = 0; j < numIntStates; ++j) {
-			deriv->ptr[j] -= (areaR * fluxR->ptr[j] - areaL * fluxL->ptr[j]) / volume;
-		}
 <?		end ?>
-<? 	else ?>
+
+<?	else -- automatic ?>
+		real volume = cell_volume(x);
+		real areaR = cell_area0(xIntR);
+		real areaL = cell_area0(xIntL);
+<?	end ?>		
 		for (int j = 0; j < numIntStates; ++j) {
 			deriv->ptr[j] -= (
-				fluxR->ptr[j] * areaR
-				- fluxL->ptr[j] * areaL
+				areaR * fluxR->ptr[j] 
+				- areaL * fluxL->ptr[j]
 			) / volume;
 		}
-<? 	end ?>
 <? elseif not eqn.postComputeFluxCode then -- would the compiler know to optimize this?
 ?>
 		for (int j = 0; j < numIntStates; ++j) {

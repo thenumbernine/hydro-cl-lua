@@ -336,7 +336,7 @@ function GLM_Maxwell:getDisplayVars()
 
 	for _,field in ipairs{'D', 'B'} do
 		local v = range(0,2):map(function(i)
-			return curl(self,i,'value_'..env.vec3..'->s'..i,field, env)
+			return curl(self,i,'value.v'..env.vec3..'.s'..i,field, env)
 		end)
 		vars:insert{
 			name = 'curl '..field,

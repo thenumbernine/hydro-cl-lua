@@ -449,8 +449,8 @@ if eqn.useEulerInitState then
 	// is that from the mass ratio of ion/electron?
 	W.ion_P = P / solver->ionElectronMassRatio;
 
-	W.ion_v = v;
-	W.elec_v = v;
+	W.ion_v = cartesianToCoord(v, x);
+	W.elec_v = cartesianToCoord(v, x);
 
 <?	
 else	-- expect the initState to explicitly provide the ion_ and elec_ Euler fluid variables
@@ -462,19 +462,12 @@ else	-- expect the initState to explicitly provide the ion_ and elec_ Euler flui
 	end
 end
 ?>
-	W.D = D;
-	W.B = B;
+	W.D = cartesianToCoord(D, x);
+	W.B = cartesianToCoord(B, x);
 	W.psi = 0;
 	W.phi = 0;
-	// intel OpenCL compiler bug when I initialize D_g and B_g with a struct assign
-	//W.D_g = <?=vec3?>_zero;
-	W.D_g.x = 0.;
-	W.D_g.y = 0.;
-	W.D_g.z = 0.;
-	//W.B_g = <?=vec3?>_zero;
-	W.B_g.x = 0.;
-	W.B_g.y = 0.;
-	W.B_g.z = 0.;
+	W.D_g = <?=vec3?>_zero;
+	W.B_g = <?=vec3?>_zero;
 	W.psi_g = 0;
 	W.phi_g = 0;
 	UBuf[index] = consFromPrim(solver, W, x);

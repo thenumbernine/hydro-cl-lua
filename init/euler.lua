@@ -986,7 +986,22 @@ end) then
 ]]
 		end,
 	},
-	
+
+	{
+		name = 'spiral',
+		initState = function(self, solver)
+			return [[
+	real3 xc = coordMap(x);
+	P = 1.;
+	rho = 1.;
+	v.x = -xc.y;
+	v.y = xc.x;
+	D.x = -xc.y;
+	D.y = xc.x;
+]]
+		end,
+	},
+
 	{
 		name = 'radial gaussian',
 		initState = function(self, solver)

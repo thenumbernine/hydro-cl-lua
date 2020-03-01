@@ -422,8 +422,8 @@ if eqn.useEulerInitState then
 		// is that from the mass ratio of ion/electron?
 		.ion_P = P / solver->ionElectronMassRatio, 
 
-		.ion_v = v,
-		.elec_v = v,
+		.ion_v = cartesianToCoord(v, x),
+		.elec_v = cartesianToCoord(v, x),
 	
 <?	
 else	-- expect the initState to explicitly provide the ion_ and elec_ Euler fluid variables
@@ -435,8 +435,8 @@ else	-- expect the initState to explicitly provide the ion_ and elec_ Euler flui
 	end
 end
 ?>
-		.D = D, 
-		.B = B,
+		.D = cartesianToCoord(D, x), 
+		.B = cartesianToCoord(B, x),
 		.psi = 0,
 		.phi = 0,
 	

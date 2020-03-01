@@ -9,13 +9,13 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	--integrator = 'Runge-Kutta 4',
+	integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -51,7 +51,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -101,25 +101,26 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	--[[ cylinder
+	-- [[ cylinder
 	coord = 'cylinder',
 	coordArgs = {anholonomic=true},			-- disable to use non-physical, holonomic coordinates
-	mins = cmdline.mins or {0, 0, -1},
+	mins = cmdline.mins or {.5, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
-		{4, 8, 1}, -- 2D
+		{32, 128, 1}, -- 2D
 		{32, 32, 32}, -- 3D
 	})[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		-- r
-		xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
-		--xmin=cmdline.boundary or 'mirror',
-		xmax=cmdline.boundary or 'freeflow',
+		--xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
+		xmin=cmdline.boundary or 'mirror',
+		xmax=cmdline.boundary or 'mirror',
 		
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
+		
 		-- z
 		zmin=cmdline.boundary or 'freeflow',
 		zmax=cmdline.boundary or 'freeflow',
@@ -186,9 +187,10 @@ local args = {
 	--initState = 'gaussian',
 	--initState = 'advect wave',
 	--initState = 'sphere',
+	initState = 'spiral',
 	--initState = 'rarefaction wave',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initStateArgs = {dim=cmdline.displayDim},
 	
 	--initState = 'rectangle',
@@ -592,7 +594,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- ...which means, with the Maxwell equations waves propagating at the speed of light, that it goes very slow
 -- TODO: I suppose I could make this work with my integrator by (1) removing the maxwell terms from the integration variable list and (2) providing a separate operator that updates them implicitly
 -- TODO still needs PLM support
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='1996 Jiang Shu', order=9})))	-- exploded...
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='2010 Shen Zha', order=5})))
 
@@ -696,7 +698,7 @@ With hyperbolic gamma driver shift it has trouble.
 -- the start of unstructured meshes
 --self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh'}})))
 -- temp here -- to make sure ordinary solvers still run
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
 
 
 -- the start of AMR

@@ -439,3 +439,34 @@ kernel void updatePrims(
 		}
 	}
 }
+
+kernel void addSource(
+	constant solver_t* solver,
+	global cons_t* derivBuf,
+	const global cons_t* UBuf
+) {
+	SETBOUNDS_NOGHOST();
+	real3 x = cell_x(i);
+	
+	global cons_t* deriv = derivBuf + index;
+	const global cons_t* U = UBuf + index;
+
+<? if not require 'coord.cartesian'.is(solver.coord) then ?>
+	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
+	//TODO calculate this according to SRHD flux.  I'm winging it right now.
+	real P = calc_P(solver, U->rho, U->eInt);
+	real3 Ftau = real3_sub(U->S, real3_real_mul(U->v, U->D));
+
+	//- Conn^i_jk S^j v^k 
+	deriv->S = real3_sub(deriv->S, coord_conn_apply23(U->S, U->v, x));	
+	
+	//- Conn^i_jk g^jk P
+	deriv->S = real3_sub(deriv->S, real3_real_mul(coord_conn_trace23(x), P));
+	
+	//+ (gamma-1) rho v^k v^l Gamma_kjl g^ij
+	deriv->S = real3_add(deriv->S, real3_real_mul(coord_conn_apply13(U->v, U->S, x), (solver->heatCapacityRatio - 1.) ));	
+	
+	//- (gamma-1) rho v^j v^k v^l Gamma_jkl
+//	deriv->ETotal -= (solver->heatCapacityRatio - 1.) * coord_conn_apply123(U->v, U->v, U->S, x);	
+<? end ?>
+}

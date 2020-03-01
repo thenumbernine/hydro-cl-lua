@@ -447,7 +447,8 @@ kernel void addSource(
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
-<? if solver.coord.anholonomic 
+<? if false 
+and solver.coord.anholonomic 
 and require 'coord.cylinder'.is(solver.coord) 
 then ?>
 <? 	if true then -- 2009 Trangenstein, p.474, 1999 Toro, p.29, eqn.1.104, 1.105 ?>
@@ -471,7 +472,7 @@ then ?>
 <?	end ?>
 <? end ?>
 
-<? if not solver.coord.anholonomic then ?>
+<? do -- if not solver.coord.anholonomic then ?>
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
 	prim_t W = primFromCons(solver, *U, x);
