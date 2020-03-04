@@ -175,13 +175,38 @@ end
 local initStates = table{
 	{
 		name = 'constant',
+		guiVars = {
+			{name='rho0', value=1},
+			{name='vx0', value=0},
+			{name='vy0', value=0},
+			{name='vz0', value=0},
+			{name='P0', value=1},
+		},	
 		overrideGuiVars = {
 			heatCapacityRatio = 7/5,
 		},
+		init = function(self, solver, args)
+			self.initStateArgs = args
+		end,
 		initState = function(self, solver)
+			local args = self.initStateArgs
+			if args then
+				local found
+				if args.rho then solver.eqn.guiVars.rho0.value = args.rho found = true end
+				if args.P then solver.eqn.guiVars.P0.value = args.P found = true end
+				if args.v then 
+					if args.v[1] then solver.eqn.guiVars.vx0.value = args.v[1] found = true end
+					if args.v[2] then solver.eqn.guiVars.vy0.value = args.v[2] found = true end
+					if args.v[3] then solver.eqn.guiVars.vz0.value = args.v[3] found = true end
+				end
+			end	
+		
 			return [[
-	rho = 1;
-	P = 1;
+	rho = solver->rho0;
+	v.x = solver->vx0;
+	v.y = solver->vy0;
+	v.z = solver->vz0;
+	P = solver->P0;
 ]]
 		end,
 	},
@@ -196,24 +221,6 @@ local initStates = table{
 	rho = 1. + xc.x;
 	P = 1. + xc.x;
 ]]
-		end,
-	},
-	{
-		name = 'constant with velocity',
-		initState = function(self, solver) 
-			return [[
-	rho=1;
-	v.x=1;
-	v.y=1;
-	v.z=1;
-	P=1;
-]]
-		end,
-	},
-	{
-		name = 'linear',
-		initState = function(self, solver)
-			return '	rho=2+x.x; P=1;'
 		end,
 	},
 	

@@ -54,37 +54,47 @@ kernel void calcDerivFromFlux(
 <? end	-- anholonomic ?>
 
 <? if solver.coord.anholonomic then ?>
-<?	if false and require 'coord.cylinder'.is(solver.coord) then ?>
+
+<?	if require 'coord.cylinder'.is(solver.coord) then ?>
 		real rR = x.x + .5 * solver->grid_dx.x;
 		real rL = x.x - .5 * solver->grid_dx.x;
 		// integral of volume form across cell
-		real volume = .5 * (rR * rR - rL * rL) * solver->grid_dx.y * solver->grid_dx.z;
-		//real volume = x.x * solver->grid_dx.x * solver->grid_dx.y * solver->grid_dx.z;
-		// integral of volume form across surface
+		real volInt = .5 * (rR * rR - rL * rL) * solver->grid_dx.y * solver->grid_dx.z;
+		//real volInt = x.x * solver->grid_dx.x * solver->grid_dx.y * solver->grid_dx.z;
 
+		// integral of volume form across surface
 <? 		if side == 0 then ?>
+		// right volume form 'r' times integral across other coords phi, z (which don't integrate the volume form)
 		real areaR = rR * solver->grid_dx.y * solver->grid_dx.z;
+		// left volume form 'r' times integral across other coords phi, z (which don't integrate the volume form)
 		real areaL = rL * solver->grid_dx.y * solver->grid_dx.z;
 <? 		elseif side == 1 then ?>
-		real area = solver->grid_dx.x * solver->grid_dx.z;
+		// integral of volume form 'r' across coords r, z
+		real area = .5 * (rR * rR - rL * rL) * solver->grid_dx.z;
 		real areaR = area;
 		real areaL = area;
 <? 		elseif side == 2 then ?>
+		// integral of volume form 'r' across coords r, phi
 		real area = .5 * (rR * rR - rL * rL) * solver->grid_dx.y;
 		real areaR = area;
 		real areaL = area;
 <?		end ?>
 
 <?	else -- automatic ?>
-		real volume = cell_volume(x);
+		
+		//divide by integral of volume form
+		real volInt = cell_volume(x);
+		//scale flux by volume form times area
 		real areaR = cell_area0(xIntR);
 		real areaL = cell_area0(xIntL);
-<?	end ?>		
+
+<?	end ?>
+		
 		for (int j = 0; j < numIntStates; ++j) {
 			deriv->ptr[j] -= (
 				areaR * fluxR->ptr[j] 
 				- areaL * fluxL->ptr[j]
-			) / volume;
+			) / volInt;
 		}
 <? elseif not eqn.postComputeFluxCode then -- would the compiler know to optimize this?
 ?>

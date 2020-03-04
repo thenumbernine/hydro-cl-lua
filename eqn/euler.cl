@@ -474,6 +474,13 @@ then ?>
 
 <? do -- if not solver.coord.anholonomic then ?>
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
+/*
+This is working for init conds with zero velocity.
+Introducing constant velocity of v=[x=1,y=1]=[r=sqrt(2),theta=pi/4] in the init cond causes some numerical errors.
+However the problem isn't the terms below -- because disabling this for zero-vel init conds causes things to become unsteady.
+That means that the volume gradient in calcDerivFV is causing nonzero velocities to emerge, and this is cancelling them.
+Maybe for an initial constant vel as large as sqrt(2) this fails, but it works only for small perturbations?
+*/
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
 	prim_t W = primFromCons(solver, *U, x);
 	
@@ -487,7 +494,7 @@ then ?>
 	deriv->m = real3_add(deriv->m, real3_real_mul(coord_conn_apply13(W.v, U->m, x), (solver->heatCapacityRatio - 1.) ));	
 	
 	//- (gamma-1) rho v^j v^k v^l Gamma_jkl
-	deriv->ETotal -= (solver->heatCapacityRatio - 1.) * coord_conn_apply123(W.v, W.v, U->m, x);	
+//	deriv->ETotal -= (solver->heatCapacityRatio - 1.) * coord_conn_apply123(W.v, W.v, U->m, x);	
 
 	//+ c_jk^k * Flux^Ij
 <? 	if false and solver.coord.anholonomic then ?>

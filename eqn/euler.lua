@@ -252,6 +252,7 @@ Euler.predefinedDisplayVars = {
 	'U v',
 	'U P',
 --]]
+	'U v mag',
 --[[
 	-- now that I've switched to components, I can't display these
 	-- TODO ...unless I allow for multiple displays of the same displayVar...
@@ -261,9 +262,11 @@ Euler.predefinedDisplayVars = {
 	'U v y',
 	'U v z',
 --]]
+--[[	
 	'U ePot',
 	'U EPot',
 	'U gravity',
+--]]
 }
 --]=]
 
