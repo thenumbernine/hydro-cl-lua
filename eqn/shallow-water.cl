@@ -13,12 +13,12 @@ cons_t fluxFromCons_<?=side?>(
 	real3 x
 ) {
 	prim_t W = primFromCons(solver, U, x);
-	real vj = W.v.s<?=side?>;
+	real vj = W.v.s<?=side?>;	//v^j
 	
 	cons_t F;
 	
 	F.h = U.m.s<?=side?>;
-	F.m = real3_real_mul(U.m, vj);
+	F.m = real3_real_mul(U.m, vj);	//h v^i v^j
 
 <? for i=0,2 do
 ?>	F.m.s<?=i?> += coord_g_uu<?=i?><?=side?>(x) * .5 * solver->gravity * U.h * U.h;
@@ -37,7 +37,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real3 x
 ) {
 	prim_t W = primFromCons(solver, *U, x);
-	real C = calc_C(solver, W);
+	real C = calc_C(solver, *U);
+	//for n_i = partial_i, n^i = g^ij n_j, |n| = sqrt(n^i n_i) ... when n_i is aligned to the coordinate basis then |n| = sqrt(g^ii)
 	real C_sqrt_gU = C * coord_sqrt_g_uu<?=side..side?>(x);
 	return (range_t){
 		.min = W.v.s<?=side?> - C_sqrt_gU, 
@@ -114,7 +115,6 @@ for side=0,solver.dim-1 do
 	
 	prefix = [[
 	sym3 gU = coord_g_uu(x);
-	real gUjj = gU.s]]..side..side..[[;
 	real sqrt_gUjj = coord_sqrt_g_uu]]..side..side..[[(x);
 	
 	real h = eig.h;
@@ -138,60 +138,29 @@ waves_t eigen_leftTransform_<?=side?>(
 	real3 x
 ) { 
 	<?=prefix?>
+
+	real3 n1 = _real3(n1x, n1y, n1z);
+	real3 n1U = coord_raise(n1, x);
 	
-	real denom = 2. * eig.h;
+	real3 n2 = _real3(n2x, n2y, n2z);
+	real3 n2U = coord_raise(n2, x);
+
+	//TODO double-check that this is the correct 3D generalization...
+	real vU_dot_n1U = real3_dot(v, n1U);
+	real vU_dot_n2U = real3_dot(v, n2U);
+
+	real nlen = sqrt_gUjj;	//sqrt(n^i n_i)
+	real nsq = gU.s<?=side..side?>;
+	real C_n = C * nlen;
+	real denom = 2. * eig.h * nsq;
 	real invDenom = 1. / denom;
 
-	//TODO the orthogonal normals should be raised by the metric 
-<? if side == 0 then ?>
-	real sqrt_gUxx = sqrt_gUjj;
 	return (waves_t){.ptr={
-		(X.ptr[0] * (-C - v.x)
-			+ X.ptr[1]
-		) * invDenom,
-		(X.ptr[0] * (-2. * v.x)
-			+ X.ptr[2] / sqrt_gUxx
-		) * invDenom,
-		(X.ptr[0] * (-2. * v.x)
-			+ X.ptr[3] / sqrt_gUxx
-		) * invDenom,
-		(X.ptr[0] * (C - v.x)
-			+ X.ptr[1]
-		) * invDenom,
+		(X.ptr[0] * (-C_n - v_n) + X.ptr[<?=side+1?>]) * invDenom,
+		(X.ptr[0] * -vU_dot_n1U + X.ptr[1] * n1U.x + X.ptr[2] * n1U.y + X.ptr[3] * n1U.z) * 2. * invDenom,
+		(X.ptr[0] * -vU_dot_n2U + X.ptr[1] * n2U.x + X.ptr[2] * n2U.y + X.ptr[3] * n2U.z) * 2. * invDenom,
+		(X.ptr[0] * (C_n - v_n) + X.ptr[<?=side+1?>]) * invDenom,
 	}};
-<? elseif side == 1 then ?>
-	real sqrt_gUyy = sqrt_gUjj;
-	return (waves_t){.ptr={
-		(X.ptr[0] * (-C - v.y)
-			+ X.ptr[2]
-		) * invDenom,
-		(X.ptr[0] * (-2. * v.y)
-			+ X.ptr[3] / sqrt_gUyy
-		) * invDenom,
-		(X.ptr[0] * (-2. * v.y)
-			+ X.ptr[1] / sqrt_gUyy
-		) * invDenom,
-		(X.ptr[0] * (C - v.y)
-			+ X.ptr[2]
-		) * invDenom,
-	}};
-<? elseif side == 2 then ?>
-	real sqrt_gUzz = sqrt_gUjj;
-	return (waves_t){.ptr={
-		(X.ptr[0] * (-C - v.z)
-			+ X.ptr[3]
-		) * invDenom,
-		(X.ptr[0] * (-2. * v.z)
-			+ X.ptr[1] / sqrt_gUzz
-		) * invDenom,
-		(X.ptr[0] * (-2. * v.z)
-			+ X.ptr[2] / sqrt_gUzz
-		) * invDenom,
-		(X.ptr[0] * (C - v.z)
-			+ X.ptr[3]
-		) * invDenom,
-	}};
-<? end ?>
 }
 
 cons_t eigen_rightTransform_<?=side?>(
@@ -201,47 +170,28 @@ cons_t eigen_rightTransform_<?=side?>(
 	real3 x
 ) {
 	<?=prefix?>
+
+	real3 n = _real3(nx, ny, nz);
+	real3 nU = gUj;//coord_raise(n, x);
+	real nlen = sqrt_gUjj;	//sqrt(n^i n_i)
+	
 	real invC = 1. / C;
-<? if side == 0 then ?>	
-	real sqrt_gUxx = sqrt_gUjj;
+
 	return (cons_t){.ptr={
-		h * invC * (X.ptr[3] - X.ptr[0]),
+		nlen * h * invC * (X.ptr[3] - X.ptr[0]),
 		
-		(X.ptr[0] + X.ptr[3]) * h * (gU.xx / sqrt_gUxx - invC * v.x),
+		(X.ptr[0] + X.ptr[3]) * h * nU.x 
+		+ (X.ptr[3] - X.ptr[0]) * (nlen * h * invC * v.x)
+		+ h * (X.ptr[1] * n1x + X.ptr[2] * n2x),
 		
-		(X.ptr[0] + X.ptr[3]) * h * (gU.xy / sqrt_gUxx - invC * v.y)
-			+ X.ptr[1] * h,	
-		
-		(X.ptr[0] + X.ptr[3]) * h * (gU.xz / sqrt_gUxx - invC * v.z)
-			+ X.ptr[2] * h,
+		(X.ptr[0] + X.ptr[3]) * h * nU.y
+		+ (X.ptr[3] - X.ptr[0]) * (nlen * h * invC * v.y)
+		+ h * (X.ptr[1] * n1y + X.ptr[2] * n2y),
+
+		(X.ptr[0] + X.ptr[3]) * h * nU.z
+		+ (X.ptr[3] - X.ptr[0]) * (nlen * h * invC * v.z)
+		+ h * (X.ptr[1] * n1z + X.ptr[2] * n2z),
 	}};
-<? elseif side == 1 then ?>	
-	real sqrt_gUyy = sqrt_gUjj;
-	return (cons_t){.ptr={
-		h * invC * (X.ptr[3] - X.ptr[0]),
-		
-		(X.ptr[0] + X.ptr[3]) * h * (gU.xy / sqrt_gUyy - invC * v.x)
-			+ X.ptr[2] * h,	
-		
-		(X.ptr[0] + X.ptr[3]) * h * (gU.yy / sqrt_gUyy - invC * v.y),
-		
-		(X.ptr[0] + X.ptr[3]) * h * (gU.yz / sqrt_gUyy - invC * v.z)
-			+ X.ptr[1] * h,
-	}};
-<? elseif side == 2 then ?>	
-	real sqrt_gUzz = sqrt_gUjj;
-	return (cons_t){.ptr={
-		h * invC * (X.ptr[3] - X.ptr[0]),
-		
-		(X.ptr[0] + X.ptr[3]) * h * (gU.xz / sqrt_gUzz - invC * v.x)
-			+ X.ptr[1] * h,	
-		
-		(X.ptr[0] + X.ptr[3]) * h * (gU.yz / sqrt_gUzz - invC * v.y)
-			+ X.ptr[2] * h,
-		
-		(X.ptr[0] + X.ptr[3]) * h * (gU.zz / sqrt_gUzz - invC * v.z),
-	}};
-<? end ?>
 }
 
 cons_t eigen_fluxTransform_<?=side?>(
@@ -251,22 +201,26 @@ cons_t eigen_fluxTransform_<?=side?>(
 	real3 x
 ) {
 	<?=prefix?>
+	real3 nU = gUj;
 	return (cons_t){.ptr={
 		X.ptr[1] * nx 
-			+ X.ptr[2] * ny 
-			+ X.ptr[3] * nz,
-		X.ptr[0] * (C * C * gUj.x - v.x * v_n)
-			+ X.ptr[1] * (v.x * nx + v_n)
-			+ X.ptr[2] * (v.x * ny)
-			+ X.ptr[3] * (v.x * nz),
-		X.ptr[0] * (C * C * gUj.y - v.y * v_n)
-			+ X.ptr[1] * (v.y * nx)
-			+ X.ptr[2] * (v.y * ny + v_n)
-			+ X.ptr[3] * (v.y * nz),
-		X.ptr[0] * (C * C * gUj.z - v.z * v_n)
-			+ X.ptr[1] * (v.z * nx)
-			+ X.ptr[2] * (v.z * ny)
-			+ X.ptr[3] * (v.z * nz + v_n),
+		+ X.ptr[2] * ny 
+		+ X.ptr[3] * nz,
+		
+		X.ptr[0] * (C * C * nU.x - v.x * v_n)
+		+ X.ptr[1] * (v.x * nx + v_n)
+		+ X.ptr[2] * (v.x * ny)
+		+ X.ptr[3] * (v.x * nz),
+		
+		X.ptr[0] * (C * C * nU.y - v.y * v_n)
+		+ X.ptr[1] * (v.y * nx)
+		+ X.ptr[2] * (v.y * ny + v_n)
+		+ X.ptr[3] * (v.y * nz),
+		
+		X.ptr[0] * (C * C * nU.z - v.z * v_n)
+		+ X.ptr[1] * (v.z * nx)
+		+ X.ptr[2] * (v.z * ny)
+		+ X.ptr[3] * (v.z * nz + v_n),
 	}};
 }
 <? end ?>

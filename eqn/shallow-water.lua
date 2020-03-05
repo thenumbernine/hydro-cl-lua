@@ -37,8 +37,8 @@ end
 
 function ShallowWater:getCommonFuncCode()
 	return template([[
-real calc_C(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) {
-	return sqrt(solver->gravity * W.h);
+real calc_C(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
+	return sqrt(solver->gravity * U.h);
 }
 ]], {
 		solver = self.solver,
@@ -188,7 +188,7 @@ function ShallowWater:getDisplayVars()
 	local vars = ShallowWater.super.getDisplayVars(self)
 	vars:append{
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
-		{name='wavespeed', code='value.vreal = calc_C(solver, W);', units='m/s'},
+		{name='wavespeed', code='value.vreal = calc_C(solver, *U);', units='m/s'},
 	}
 
 	-- vorticity = [x ,y ,z] [v.x, v.y, v.z][
@@ -230,12 +230,12 @@ function ShallowWater:eigenWaveCodePrefix(side, eig, x)
 	})
 end
 
-function ShallowWater:consWaveCodePrefix(side, U, x)
+function ShallowWater:consWaveCodePrefix(side, U, x, W)
 	return template([[
+	real C_sqrt_gU = calc_C(solver, <?=U?>) * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
 <? if not W then ?>
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 <? end ?>
-	real C_sqrt_gU = calc_C(solver, <?=W or 'W'?>) * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
 	real v_n = <?=W or 'W'?>.v.s[<?=side?>];
 ]], {
 		eqn = self,
