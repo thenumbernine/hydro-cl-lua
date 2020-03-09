@@ -169,66 +169,43 @@ kernel void addSource(
 	const global cons_t* U = UBuf + index;
 	real c = solver->wavespeed / unit_m_per_s;
 
-<? if not solver.coord.anholonomic then ?>
-<? if not eqn.weightFluxByGridVolume then ?>
+<? if not solver.coord.anholonomic and not eqn.weightFluxByGridVolume then ?>
 
 	real alpha = metric_alpha(x);
-	real dt_alpha = metric_dt_alpha(x);
 	real K = metric_K(x);
 	real3x3 partial_beta_ul = metric_partial_beta_ul(x);
 	real3 partial_alpha_l = metric_partial_alpha_l(x);
-	
-	/*	
-	\Pi (
-		\frac{1}{\alpha} \alpha_{,t} (1 - \frac{1}{\alpha})
-		+ K \alpha 
-	)
-	
-	+ \Psi_i (
-		\alpha_{,j} \gamma^{ij}
-		- \alpha \cdot {}^{(3)} \Gamma^i 
-	)
+	real3 conn23 = coord_conn_trace23(x);
 
-	- \alpha \frac{dV}{d|\Phi|^2} \Phi
-	*/
-	deriv->Pi = <?=scalar?>_add(
-		deriv->Pi,
-		<?=scalar?>_real_mul(
-			<?=scalar?>_add3(
-				<?=scalar?>_real_mul(
-					U->Pi,
-					dt_alpha * (1. - 1. / alpha) / alpha + alpha * K
-				),
-				<?=vec3?>_real3_dot(U->Psi_l, coord_raise(partial_alpha_l, x)),
-				<?=scalar?>_real_mul(
-					<?=scalar?>_add(
-						<?=vec3?>_real3_dot(U->Psi_l, coord_conn_trace23(x)),
-						eqn_source(x)
-					),
-					- alpha
-				)
-			),
-			c
-		)
+	real3 Psi_u = coord_raise(U->Psi_l, x);
+
+	deriv->Pi += 
+		real3_dot(partial_alpha_l, Psi_u)
+		+ alpha * K * U->Pi
+		- alpha * real3_dot(U->Psi_l, conn23)
+		//- alpha * f 						//... for □ Φ = f
+	;
+
+	deriv->Psi_l = real3_add3(
+		deriv->Psi_l,
+		real3_real3x3_mul(
+			deriv->Psi_l,
+			partial_beta_ul
+		),
+		real3_real_mul(partial_alpha_l, U->Pi)
 	);
 
-	//\alpha_{,i} \Pi + {\beta^k}_{,i} \Psi_k
-	deriv->Psi_l = <?=vec3?>_add(
-		deriv->Psi_l, 
-		<?=vec3?>_real_mul(
-			<?=vec3?>_add(
-				real3_<?=scalar?>_mul(partial_alpha_l, U->Pi),
-				real3x3_<?=vec3?>_mul(partial_beta_ul, U->Psi_l)
-			),
-			c
-		)
-	);
 
-<? else ?>
+<? elseif not solver.coord.anholonomic and eqn.weightFluxByGridVolume then ?>
+	
 	real3 conn12 = coord_conn_trace12(x);
 	deriv->Psi_l.x = <?=scalar?>_sub(deriv->Psi_l.x, <?=scalar?>_real_mul(U->Pi, c * conn12.x));
 	deriv->Psi_l.y = <?=scalar?>_sub(deriv->Psi_l.y, <?=scalar?>_real_mul(U->Pi, c * conn12.y));
 	deriv->Psi_l.z = <?=scalar?>_sub(deriv->Psi_l.z, <?=scalar?>_real_mul(U->Pi, c * conn12.z));
+
+<? elseif solver.coord.anholonomic and not eqn.weightFluxByGridVolume then ?>
+
+#error I haven't calculated this.  Feel free to comment it out and run it anyways. 
+
 <? end ?>
-<? end -- anholonomic ?>
 }

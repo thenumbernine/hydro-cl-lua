@@ -229,6 +229,7 @@ real3 metric_partial_alpha_l(real3 pt) {
 ?>	};
 }
 
+//partial_beta_ul[i][j] = beta^i_,j
 real3x3 metric_partial_beta_ul(real3 pt) { 
 	return (real3x3){
 <? for i,xi in ipairs(xNames) do
@@ -255,7 +256,8 @@ Wave.eigenVars = {
 function Wave:eigenWaveCodePrefix(side, eig, x)
 	return template([[
 	real wavespeed = solver->wavespeed / unit_m_per_s;
-	real alpha_sqrt_gU = metric_alpha(<?=x?>) * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real nLen = coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real alpha_nLen = metric_alpha(<?=x?>) * nLen;
 	real3 beta_u = metric_beta_u(<?=x?>);
 ]], {
 		side = side,
@@ -271,11 +273,11 @@ function Wave:consWaveCode(side, U, x, waveIndex)
 	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
 	local xside = xNames[side+1]
 	if waveIndex == 0 then
-		return 'wavespeed * (-beta_u.'..xside..' - alpha_sqrt_gU)' 
+		return 'wavespeed * (-beta_u.'..xside..' - alpha_nLen)' 
 	elseif waveIndex == 1 or waveIndex == 2 then
 		return 'wavespeed * -beta_u.'..xside
 	elseif waveIndex == 3 then
-		return 'wavespeed * (-beta_u.'..xside..' + alpha_sqrt_gU)' 
+		return 'wavespeed * (-beta_u.'..xside..' + alpha_nLen)' 
 	end
 	error'got a bad waveIndex'
 end
