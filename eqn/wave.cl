@@ -162,6 +162,11 @@ kernel void addSource(
 	global cons_t* derivBuf,
 	const global cons_t* UBuf
 ) {
+<? 
+if solver.coord.vectorComponent ~= 'cartesian' 
+and not require 'coord.cartesian'.is(solver.coord)
+then ?>
+	
 	SETBOUNDS_NOGHOST();
 	real3 x = cell_x(i);
 	
@@ -169,7 +174,11 @@ kernel void addSource(
 	const global cons_t* U = UBuf + index;
 	real c = solver->wavespeed / unit_m_per_s;
 
-<? if not solver.coord.anholonomic and not eqn.weightFluxByGridVolume then ?>
+<? 
+	if not solver.coord.vectorComponent == 'anholonomic' 
+	and not eqn.weightFluxByGridVolume 
+	then 
+?>
 
 	real alpha = metric_alpha(x);
 	real K = metric_K(x);
@@ -196,16 +205,28 @@ kernel void addSource(
 	);
 
 
-<? elseif not solver.coord.anholonomic and eqn.weightFluxByGridVolume then ?>
+<? 
+	elseif not solver.coord.vectorComponent == 'anholonomic' 
+	and eqn.weightFluxByGridVolume 
+	then
+?>
 	
 	real3 conn12 = coord_conn_trace12(x);
 	deriv->Psi_l.x = <?=scalar?>_sub(deriv->Psi_l.x, <?=scalar?>_real_mul(U->Pi, c * conn12.x));
 	deriv->Psi_l.y = <?=scalar?>_sub(deriv->Psi_l.y, <?=scalar?>_real_mul(U->Pi, c * conn12.y));
 	deriv->Psi_l.z = <?=scalar?>_sub(deriv->Psi_l.z, <?=scalar?>_real_mul(U->Pi, c * conn12.z));
 
-<? elseif solver.coord.anholonomic and not eqn.weightFluxByGridVolume then ?>
+<? 
+	elseif solver.coord.vectorComponent == 'anholonomic' 
+	and not eqn.weightFluxByGridVolume 
+	then 
+?>
 
 #error I haven't calculated this.  Feel free to comment it out and run it anyways. 
 
-<? end ?>
+<? 	end ?>
+
+<? 
+end	-- solver.coord.vectorComponent ~= 'cartesian' 
+?>
 }

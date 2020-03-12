@@ -51,8 +51,9 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
+	--coordArgs = {vectorComponent='cartesian'},
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
 
@@ -101,9 +102,11 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	coord = 'cylinder',
-	--coordArgs = {anholonomic=true},			-- disable to use non-physical, coordinate-based vector/form components
+	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
+	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
+	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
 	mins = cmdline.mins or {0, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},
 	gridSize = ({
@@ -182,8 +185,8 @@ local args = {
 	
 	-- Euler / SRHD / MHD initial states:
 	
-	initState = 'constant',
-	initStateArgs = {v={1e-1,1e-1}},
+	--initState = 'constant',
+	--initStateArgs = {v={1e-1,1e-1}},
 	
 	--initState = 'linear',
 	--initState = 'gaussian',
@@ -199,7 +202,7 @@ local args = {
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
-	--initState = 'Kelvin-Helmholtz',
+	initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',	--FIXME
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
@@ -447,7 +450,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- wave equation
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
@@ -461,12 +464,13 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 
 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='shallow-water'})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='shallow-water'})))
 
 
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 

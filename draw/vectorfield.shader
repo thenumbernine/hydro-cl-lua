@@ -20,6 +20,8 @@ uniform sampler2D tex;
 uniform sampler3D tex;
 <? end ?>
 
+uniform int displayDim;
+
 
 //1/log(10)
 #define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
@@ -34,44 +36,40 @@ void main() {
 	//manifold coords
 	vec3 pt = gl_MultiTexCoord1.xyz * (maxs - mins) + mins;
 
-<? if solver.dim < 3 then ?> 
-	
+<? if solver.dim < 3 then ?>
 	vec3 dir = texture2D(tex, gl_MultiTexCoord0.xy).rgb;
+<? else ?>
+	vec3 dir = texture3D(tex, gl_MultiTexCoord0.xyz).rgb;
+<? end ?>
+		
 	dir = cartesianFromCoord(dir, pt);	
 	float value = length(dir);
 	dir /= value;
 
-	vec3 tv = vec3(-dir.y, dir.x, 0.);
-
-<? else ?>
-	
-	vec3 dir = texture3D(tex, gl_MultiTexCoord0.xyz).rgb;
-	dir = cartesianFromCoord(dir, pt);
-	float value = length(dir);
-	dir /= value;
-	
-	vec3 vx = vec3(0., -dir.z, dir.y);
-	vec3 vy = vec3(dir.z, 0., -dir.x);
-	vec3 vz = vec3(-dir.y, dir.x, 0.);
-	float lxsq = dot(vx,vx);
-	float lysq = dot(vy,vy);
-	float lzsq = dot(vz,vz);
 	vec3 tv;
-	if (lxsq > lysq) {		//x > y
-		if (lxsq > lzsq) {	//x > z, x > y
-			tv = vx;
-		} else {			//z > x > y
-			tv = vz;
-		}
-	} else {				//y >= x
-		if (lysq > lzsq) {	//y >= x, y > z
-			tv = vy;
-		} else {			// z > y >= x
-			tv = vz;
+	if (displayDim < 3) {
+		tv = vec3(-dir.y, dir.x, 0.);
+	} else {	//displayDim == 3
+		vec3 vx = vec3(0., -dir.z, dir.y);
+		vec3 vy = vec3(dir.z, 0., -dir.x);
+		vec3 vz = vec3(-dir.y, dir.x, 0.);
+		float lxsq = dot(vx,vx);
+		float lysq = dot(vy,vy);
+		float lzsq = dot(vz,vz);
+		if (lxsq > lysq) {		//x > y
+			if (lxsq > lzsq) {	//x > z, x > y
+				tv = vx;
+			} else {			//z > x > y
+				tv = vz;
+			}
+		} else {				//y >= x
+			if (lysq > lzsq) {	//y >= x, y > z
+				tv = vy;
+			} else {			// z > y >= x
+				tv = vz;
+			}
 		}
 	}
-
-<? end ?>
 
 	//TODO don't just normalize dir, but scale down by the view size ... ? or the dx?
 	//TODO put this code somewhere that heatmap2d, vectorfield, and whatever else can get to it

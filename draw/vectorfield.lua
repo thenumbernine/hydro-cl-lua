@@ -35,6 +35,7 @@ local function applyToSolver(Solver)
 			self:calcDisplayVarToTex(var)
 			
 			self.vectorFieldShader:use()
+			gl.glUniform1i(self.vectorFieldShader.uniforms.displayDim.loc, app.displayDim)
 			gl.glUniform1i(self.vectorFieldShader.uniforms.useLog.loc, var.useLog)
 			-- [[ this gives the l1 bounds of the vector field
 			gl.glUniform1f(self.vectorFieldShader.uniforms.valueMin.loc, valueMin)
@@ -75,8 +76,8 @@ local function applyToSolver(Solver)
 					for j=0,tonumber(self.sizeWithoutBorder.y-1),step do
 						for i=0,tonumber(self.sizeWithoutBorder.x-1),step do
 							local tx = (i + .5 + self.numGhost) / tonumber(self.gridSize.x)
-							local ty = (j + .5 + (self.dim > 1 and self.numGhost or 0)) / tonumber(self.gridSize.y)
-							local tz = (k + .5 + (self.dim > 2 and self.numGhost or 0)) / tonumber(self.gridSize.z)
+							local ty = (j + .5 + (self.dim > 1 and self.numGhost or app.displayFixedY * tonumber(self.gridSize.z))) / tonumber(self.gridSize.y)
+							local tz = (k + .5 + (self.dim > 2 and self.numGhost or app.displayFixedZ * tonumber(self.gridSize.z))) / tonumber(self.gridSize.z)
 							gl.glMultiTexCoord3f(gl.GL_TEXTURE0, tx, ty, tz)	
 							local x = (i + .5) / tonumber(self.sizeWithoutBorder.x)
 							local y = (j + .5) / tonumber(self.sizeWithoutBorder.y)

@@ -4,7 +4,7 @@ local GLPingPong = require 'gl.pingpong'
 
 local function applyToSolver(Solver)
 	function Solver:displayVectorField(app, varName, xmin, xmax, ymin, ymax, useLog)
-		if solver.dim == 2 then
+		do --if app.displayDim == 2 then
 			local var = solver.displayVarForName[varName]
 			if var and var.enabled then
 				--[[
@@ -138,6 +138,7 @@ void main() {
 
 				solver.vectorFieldShader:use()
 				gl.glUniform1i(solver.vectorFieldShader.uniforms.useLog.loc, var.useLog)
+				gl.glUniform1i(solver.vectorFieldShader.uniforms.displayDim.loc, app.displayDim)
 				-- [[ this gives the l1 bounds of the vector field
 				gl.glUniform1f(solver.vectorFieldShader.uniforms.valueMin.loc, valueMin)
 				gl.glUniform1f(solver.vectorFieldShader.uniforms.valueMax.loc, valueMax)
@@ -177,8 +178,8 @@ void main() {
 						for j=0,tonumber(solver.sizeWithoutBorder.y-1),step do
 							for i=0,tonumber(solver.sizeWithoutBorder.x-1),step do
 								local tx = (i + .5 + solver.numGhost) / tonumber(solver.gridSize.x)
-								local ty = (j + .5 + (solver.dim > 1 and solver.numGhost or 0)) / tonumber(solver.gridSize.y)
-								local tz = (k + .5 + (solver.dim > 2 and solver.numGhost or 0)) / tonumber(solver.gridSize.z)
+								local ty = (j + .5 + (solver.dim > 1 and solver.numGhost or app.displayFixedY * tonumber(self.gridSize.z))) / tonumber(solver.gridSize.y)
+								local tz = (k + .5 + (solver.dim > 2 and solver.numGhost or app.displayFixedZ * tonumber(self.gridSize.z))) / tonumber(solver.gridSize.z)
 								gl.glMultiTexCoord3f(gl.GL_TEXTURE0, tx, ty, tz)	
 								local x = (i + .5) / tonumber(solver.sizeWithoutBorder.x)
 								local y = (j + .5) / tonumber(solver.sizeWithoutBorder.y)

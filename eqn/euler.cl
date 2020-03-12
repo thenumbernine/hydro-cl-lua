@@ -448,7 +448,7 @@ kernel void addSource(
 	const global cons_t* U = UBuf + index;
 
 <? if false 
-and solver.coord.anholonomic 
+and solver.coord.vectorComponent == 'anholonomic' 
 and require 'coord.cylinder'.is(solver.coord) 
 then ?>
 <? 	if true then -- 2009 Trangenstein, p.474, 1999 Toro, p.29, eqn.1.104, 1.105 ?>
@@ -472,7 +472,7 @@ then ?>
 <?	end ?>
 <? end ?>
 
-<? do -- if not solver.coord.anholonomic then ?>
+<? do -- if not solver.coord.vectorComponent == 'anholonomic' then ?>
 <? if not require 'coord.cartesian'.is(solver.coord) then ?>
 /*
 This is working for init conds with zero velocity.
@@ -497,7 +497,7 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 //	deriv->ETotal -= (solver->heatCapacityRatio - 1.) * coord_conn_apply123(W.v, W.v, U->m, x);	
 
 	//+ c_jk^k * Flux^Ij
-<? 	if false and solver.coord.anholonomic then ?>
+<? 	if false and solver.coord.vectorComponent == 'anholonomic' then ?>
 	real3 commTrace = coord_tr23_c(x);
 	<? for i=0,solver.dim-1 do ?>{
 		cons_t flux = calcFluxFromCons(*U, x);
@@ -507,7 +507,7 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 	}<? end ?>
 <? 	end ?>
 <? end ?>
-<? end -- anholonomic ?>
+<? end -- vectorComponent == 'anholonomic' ?>
 }
 
 kernel void constrainU(

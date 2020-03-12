@@ -109,6 +109,7 @@ dynamically generate the structure.
 create as many fields as necessary.
 let the lua object designate which 3 coordinates are x1 x2 x3 (chart parameters) and which are u1 u2 u3 (chart mapping in embedded space)
 ...and any other aux vars as well (i.e. radial coord, x,y,z, etc)
+	(this would be more interchangeable with the unstructured-mesh solver)
 ]]
 
 local class = require 'ext.class'
@@ -132,6 +133,12 @@ local print = print
 args:
 	anholonomic = use anholonomic coordinate system (normalized basis vectors)
 		this causes the Coord object to use commutation coefficients, and therefore will have asymmetric connections
+
+	TODO replace that with
+	vectorComponent
+		holonomic = default, e_i = partial_i, no guarantees of orthogonality or normalization
+		anholonomic = same as above but normalized
+		cartesian = cartesian even in the presence of curvilinear coordinates 
 --]]
 function CoordinateSystem:init(args)
 	self.replvars = self.replvars or table()
@@ -140,7 +147,9 @@ function CoordinateSystem:init(args)
 	local const = symmath.Constant
 		
 	self.verbose = cmdline.coordVerbose
-	self.anholonomic = args.anholonomic
+
+	self.vectorComponent = args.vectorComponent or 'holonomic'
+assert(args.anholonomic == nil, "FIXME")
 
 	if self.verbose then
 		symmath.tostring = symmath.export.MathJax
@@ -161,7 +170,7 @@ function CoordinateSystem:init(args)
 	end
 
 	local baseCoords = self.baseCoords
-	if not self.anholonomic then
+	if self.vectorComponent ~= 'anholonomic' then
 		self.coords = table(baseCoords)
 	else
 		
@@ -241,15 +250,20 @@ function CoordinateSystem:init(args)
 		print()
 	end
 
-	local isItReallyAnholonomic
+	local isItReallyAnholonomic = false
 	for i=1,#coords do
 		if coords[i].base then
 			isItReallyAnholonomic = true
 			break
 		end
 	end
-	assert(isItReallyAnholonomic == self.anholonomic)
-	local anholonomic = self.anholonomic
+	if isItReallyAnholonomic ~= (self.vectorComponent == 'anholonomic') then
+		error(require 'ext.tolua'{
+			isItReallyAnholonomic =  isItReallyAnholonomic, 
+			vectorComponent = self.vectorComponent,
+		})
+	end
+	local anholonomic = self.vectorComponent == 'anholonomic'
 	
 	-- for the sake of grid lengths, 
 	-- I will need the basis and metric of the holonomic version as well
@@ -910,16 +924,22 @@ function CoordinateSystem:getCoordMapCode()
 	end
 
 	lines:insert(template([[
-//converts a vector from cartesian coordinates to grid coordinates
-//by projecting the vector into the grid basis vectors 
-//at x, which is in grid coordinates
+
+<? if coord.vectorComponent == 'cartesian' then ?>
+#define cartesianToCoord(u, pt) 	u
+#define cartesianFromCoord(u, pt) 	u
+<? else	-- coord.vectorComponent ?>
+
+//converts a vector from cartesian coordinates to grid curvilinear coordinates
+//by projecting the vector into the grid basis vectors
+//at x, which is in grid curvilinear coordinates
 real3 cartesianToCoord(real3 u, real3 pt) {
 	real3 uCoord = real3_zero;
 	<? for i=0,solver.dim-1 do 
 	local xi = xNames[i+1]
 	?>{
 		real3 e = coordBasis<?=i?>(pt);
-<? if coord.anholonomic then	-- anholonomic normalized
+<? if coord.vectorComponent == 'anholonomic' then	-- anholonomic normalized
 ?>		real uei = real3_dot(e, u);
 <? else		-- holonomic
 ?>		real uei = real3_dot(e, u) / real3_lenSq(e);
@@ -933,7 +953,7 @@ real3 cartesianToCoord(real3 u, real3 pt) {
 	return uCoord;
 }
 
-//converts a vector from cartesian to grid
+//converts a vector from cartesian to grid curvilinear coordinates
 //by projecting it onto the basis ... ?
 real3 cartesianFromCoord(real3 u, real3 pt) {
 	real3 uGrid = real3_zero;
@@ -945,6 +965,8 @@ real3 cartesianFromCoord(real3 u, real3 pt) {
 	}<? end ?>
 	return uGrid;
 }
+
+<? end -- coord.vectorComponent ?>
 ]], {
 		solver = self.solver,
 		coord = self,

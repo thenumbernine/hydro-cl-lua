@@ -409,7 +409,7 @@ kernel void calcDT(
 		real lambdaMax = W.v.s<?=side?> + Cs;
 		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
 		absLambdaMax = max((real)1e-9, absLambdaMax);
-<? if solver.coord.anholonomic then ?>
+<? if false then -- solver.coord.vectorComponent == 'anholonomic' then ?>
 		real dx = cell_dx<?=side?>(x); 
 <? else ?>
 		real dx = solver->grid_dx.s<?=side?>;

@@ -12,18 +12,34 @@ kernel void calcDerivFromFlux(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	real3 x = cell_x(i);
 
-<? if solver.coord.anholonomic then ?>
+<? if solver.coord.vectorComponent == 'anholonomic' then ?>
 	//real volume = cell_volume(x);
-<? else -- anholonomic ?>
-<? if eqn.weightFluxByGridVolume then ?>
+<? elseif solver.coord.vectorComponent == 'cartesian' then ?>
+
+	//TODO FIXME, this isn't correct
+	//real volume = cell_volume(x);
+<? 	if eqn.weightFluxByGridVolume then ?>
 	real volume = coord_sqrt_det_g(x);
-<? else ?>
+<? 	else ?>
 	const real volume = 1.<? 
 	for i=0,solver.dim-1 do 
 		?> * solver->grid_dx.s<?=i?><? 
 	end ?>;
-<? end ?>
-<? end -- anholonomic ?>
+<? 	end ?>
+
+
+<? else -- vectorComponent ~= 'anholonomic' ?>
+
+<? 	if eqn.weightFluxByGridVolume then ?>
+	real volume = coord_sqrt_det_g(x);
+<? 	else ?>
+	const real volume = 1.<? 
+	for i=0,solver.dim-1 do 
+		?> * solver->grid_dx.s<?=i?><? 
+	end ?>;
+<? 	end ?>
+
+<? end -- vectorComponent == 'anholonomic' ?>
 
 	<? for side=0,solver.dim-1 do ?>{
 		int indexIntL = <?=side?> + dim * index;
@@ -40,10 +56,13 @@ kernel void calcDerivFromFlux(
 		//U^i_;t + F^ij_;j  = 0
 		//U^i_,t + F^ij_,j + Gamma^j_kj F^ik + Gamma^i1_kj F^i1^k + ... + Gamma^in_kj F^in^k = 0
 		//					(metric det gradient) 
-<? if solver.coord.anholonomic then ?>
+<? if solver.coord.vectorComponent == 'anholonomic' then ?>
 		//real areaL = cell_area<?=side?>(xIntL);
 		//real areaR = cell_area<?=side?>(xIntR);
-<? else -- anholonomic ?>
+<? elseif solver.coord.vectorComponent == 'cartesian' then ?>
+		real areaL = solver->grid_dx.s<?=side?>;//cell_area<?=side?>(xIntL);
+		real areaR = solver->grid_dx.s<?=side?>;//cell_area<?=side?>(xIntR);
+<? else -- vectorComponent ~= 'anholonomic' ?>
 <? if eqn.weightFluxByGridVolume then ?>
 		real areaL = coord_sqrt_det_g(xIntL) / solver->grid_dx.s<?=side?>;
 		real areaR = coord_sqrt_det_g(xIntR) / solver->grid_dx.s<?=side?>;
@@ -51,9 +70,9 @@ kernel void calcDerivFromFlux(
 		real areaL = volume / solver->grid_dx.s<?=side?>;
 		real areaR = volume / solver->grid_dx.s<?=side?>;
 <? end ?>
-<? end	-- anholonomic ?>
+<? end	-- vectorComponent == 'anholonomic' ?>
 
-<? if solver.coord.anholonomic then ?>
+<? if solver.coord.vectorComponent == 'anholonomic' then ?>
 
 <?	if require 'coord.cylinder'.is(solver.coord) then ?>
 		real rR = x.x + .5 * solver->grid_dx.x;
