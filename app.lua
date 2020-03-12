@@ -1187,8 +1187,8 @@ function HydroCLApp:display3D(...)
 end
 
 if targetSystem ~= 'console' then
-	--require 'draw.vectorfield'.applyToApp(HydroCLApp)
-	require 'draw.vectorfield2'.applyToApp(HydroCLApp)
+	--require 'draw.vectorfield'(HydroCLApp)
+	require 'draw.vectorfield2'(HydroCLApp)
 end
 
 
@@ -1197,6 +1197,10 @@ if HydroCLApp.display_useCoordMap == nil then HydroCLApp.display_useCoordMap = t
 		
 HydroCLApp.displayFixedY = .5
 HydroCLApp.displayFixedZ = .5
+
+-- used by vectorfield and vectorfield2
+HydroCLApp.displayVectorField_scale = 1
+HydroCLApp.displayVectorField_step = cmdline.vectorFieldStep or 4
 
 function HydroCLApp:updateGUI()
 	if ig.igCollapsingHeader'simulation' then

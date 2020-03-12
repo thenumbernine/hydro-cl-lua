@@ -1962,8 +1962,6 @@ function SolverBase:updateGUIParams()
 	end
 end
 
-require 'draw.vectorfield'.applyToSolver(SolverBase)
-
 -- [[ debugging -- determine sizeof
 function SolverBase:checkStructSizes()
 	local typeinfos = table{
