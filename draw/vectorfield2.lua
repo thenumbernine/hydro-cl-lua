@@ -1,3 +1,4 @@
+local ffi = require 'ffi'
 local class = require 'ext.class'
 local gl = require 'ffi.OpenGL'
 local glreport = require 'gl.report'
@@ -9,10 +10,10 @@ local clnumber = require 'cl.obj.number'
 local arrow = {
 	{-.5, 0.},
 	{.5, 0.},
-	{.2, .3},
-	{.5, 0.},
-	{.2, -.3},
-	{.5, 0.},
+--	{.2, .3},
+--	{.5, 0.},
+--	{.2, -.3},
+--	{.5, 0.},
 }
 
 local DrawVectorField = class()
@@ -33,14 +34,26 @@ function DrawVectorField:displayVectorField(app, solver, varName, xmin, xmax, ym
 		if not state.pingpong
 		or (state.pingpong.width ~= w or state.pingpong.height ~= h)
 		then
+			local data
+			--[[ no need to initialize it
+			data = ffi.new('float[?]', w * h * 4)
+			for j=0,h-1 do
+				for i=0,w-1 do
+					data[0+4*(i+w*j)] = math.random() - .5
+					data[1+4*(i+w*j)] = math.random() - .5
+					data[3+4*(i+w*j)] = 1
+				end
+			end
+			--]]
 			state.pingpong = GLPingPong{
 				width = w,
 				height = h,
-				internalFormat = gl.GL_RGBA,
+				internalFormat = gl.GL_RGBA32F,
 				format = gl.GL_RGBA,
+				type = gl.GL_FLOAT,
 				minFilter = gl.GL_NEAREST,
 				magFilter = gl.GL_NEAREST,
-				type = gl.GL_FLOAT,
+				data = data,
 			}
 		end
 
@@ -49,8 +62,8 @@ function DrawVectorField:displayVectorField(app, solver, varName, xmin, xmax, ym
 		determine offsets and lengths of lines
 		channels: ofsx, ofsy, 0, magn
 		--]]
-		if not solver.updateVectorFieldShader then
-			solver.updateVectorFieldShader = GLProgram{
+		if not solver.updateVectorField2Shader then
+			solver.updateVectorField2Shader = GLProgram{
 				vertexCode = [[
 varying vec2 pos;
 
@@ -88,7 +101,6 @@ void main() {
 	vec4 state_yL = texture2D(stateTex, tc - vec2(0., <?=dy?>));
 
 	float value = sqrt(lenSq_c);
-	gl_FragColor.a = value;
 
 	float xRy = state_xR.y - field_xR.y * state_xR.x / field_xR.x;
 	float xLy = state_xL.y + field_xL.y * (1. - state_xL.x) / field_xL.x;
@@ -102,7 +114,6 @@ void main() {
 	if (lenSq_xR > lenSq_xL && lenSq_xR > lenSq_yL && lenSq_xR > lenSq_yR && xRy >= 0. && xRy <= 1. && lenSq_xR > lenSq_c) {
 		//reposition the cell center so it points at the intersection
 		x = vec2(0., xRy);
-		
 	} else if (lenSq_xL > lenSq_xR && lenSq_xL > lenSq_yL && lenSq_xL > lenSq_yR && xLy >= 0. && xLy <= 1. && lenSq_xL > lenSq_c) {
 		x = vec2(1., xLy);
 	} else if (lenSq_yR > lenSq_yL && lenSq_yR > lenSq_xL && lenSq_yR > lenSq_xR && yRx >= 0. && yRx <= 1. && lenSq_yR > lenSq_c) {
@@ -110,11 +121,14 @@ void main() {
 	} else if (lenSq_yL > lenSq_yR && lenSq_yL > lenSq_xL && lenSq_yL > lenSq_xR && yLx >= 0. && yLx <= 1. && lenSq_yL > lenSq_c) {
 		x = vec2(yLx, 1.);
 	}
-	
+
+	gl_FragColor = vec4(x.xy, 0., value);
+gl_FragColor = vec4(0., 0., 0., <?=math.sqrt(2) * clnumber(math.sqrt(dx*dx + dy*dy))?>);
 }
 ]], {
-	dx = clnumber(1 / solver.gridSize.x),
-	dy = clnumber(1 / solver.gridSize.y),
+	clnumber = clnumber,
+	dx = 1 / tonumber(solver.gridSize.x),
+	dy = 1 / tonumber(solver.gridSize.y),
 }),
 				uniforms = {
 					fieldTex = 0,
@@ -145,9 +159,13 @@ void main() {
 		-- solver:getTex(var) now has the vector field
 		-- now we have to render-to-tex with input as solver:getTex(var), and the last iteration's state tex
 		-- ... using a fbo that updates the state tex
-		
+	
+-- [[
+		state.pingpong:swap()
 		state.pingpong:draw{
-			shader = solver.updateVectorFieldShader,
+			viewport = {0, 0, state.pingpong.width, state.pingpong.height},
+			resetProjection = true,
+			shader = solver.updateVectorField2Shader,
 			texs = {
 				solver:getTex(var),
 				state.pingpong:prev(),
@@ -156,32 +174,33 @@ void main() {
 				gl.glBegin(gl.GL_TRIANGLE_STRIP)
 				for _,v in ipairs{{0,0},{1,0},{0,1},{1,1}} do
 					gl.glTexCoord2d(v[1], v[2])
-					gl.glVertex2d(v[1], v[2])
+					gl.glVertex2d(2*v[1]-1, 2*v[2]-1)
 				end
 				gl.glEnd()
-			end,	
+			end,
 		}
+--]]
 
-
-		solver.vectorFieldShader:use()
-		gl.glUniform1i(solver.vectorFieldShader.uniforms.useLog.loc, var.useLog)
-		gl.glUniform1i(solver.vectorFieldShader.uniforms.displayDim.loc, app.displayDim)
+		solver.vectorField2Shader:use()
+		gl.glUniform1i(solver.vectorField2Shader.uniforms.useLog.loc, var.useLog)
+		gl.glUniform1i(solver.vectorField2Shader.uniforms.displayDim.loc, app.displayDim)
 		-- [[ this gives the l1 bounds of the vector field
-		gl.glUniform1f(solver.vectorFieldShader.uniforms.valueMin.loc, valueMin)
-		gl.glUniform1f(solver.vectorFieldShader.uniforms.valueMax.loc, valueMax)
+		gl.glUniform1f(solver.vectorField2Shader.uniforms.valueMin.loc, valueMin)
+		gl.glUniform1f(solver.vectorField2Shader.uniforms.valueMax.loc, valueMax)
 		--]]
 		--[[ it'd be nice instead to get the norm bounds ... 
 		-- but looking at the reduce calculations, the easiest way to do that is
 		-- to associate each vector display shader with a norm display shader
 		-- and then just reduce that
-		gl.glUniform1f(solver.vectorFieldShader.uniforms.valueMin.loc, 0)
-		gl.glUniform1f(solver.vectorFieldShader.uniforms.valueMax.loc, math.max(math.abs(valueMin), math.abs(valueMax)))
+		gl.glUniform1f(solver.vectorField2Shader.uniforms.valueMin.loc, 0)
+		gl.glUniform1f(solver.vectorField2Shader.uniforms.valueMax.loc, math.max(math.abs(valueMin), math.abs(valueMax)))
 		--]]
 		solver:getTex(var):bind(0)
 		app.gradientTex:bind(1)
+		state.pingpong:cur():bind(2)
 		
-		gl.glUniform3f(solver.vectorFieldShader.uniforms.mins.loc, solver.mins:unpack())
-		gl.glUniform3f(solver.vectorFieldShader.uniforms.maxs.loc, solver.maxs:unpack())
+		gl.glUniform3f(solver.vectorField2Shader.uniforms.mins.loc, solver.mins:unpack())
+		gl.glUniform3f(solver.vectorField2Shader.uniforms.maxs.loc, solver.maxs:unpack())
 		-- how to determine scale?
 		--local scale = app.displayVectorField_scale * (valueMax - valueMin)
 		--local scale = app.displayVectorField_scale / (valueMax - valueMin)
@@ -191,7 +210,6 @@ void main() {
 				(solver.maxs.x - solver.mins.x) / tonumber(solver.gridSize.x),
 				(solver.maxs.y - solver.mins.y) / tonumber(solver.gridSize.y),
 				(solver.maxs.z - solver.mins.z) / tonumber(solver.gridSize.z))
-		gl.glUniform1f(solver.vectorFieldShader.uniforms.scale.loc, scale) 
 
 		local step = app.displayVectorField_step
 
@@ -204,10 +222,14 @@ void main() {
 			for k=0,tonumber(solver.sizeWithoutBorder.z-1),step do
 				for j=0,tonumber(solver.sizeWithoutBorder.y-1),step do
 					for i=0,tonumber(solver.sizeWithoutBorder.x-1),step do
+						
+						-- location of field to use for our direction
 						local tx = (i + .5 + solver.numGhost) / tonumber(solver.gridSize.x)
 						local ty = (j + .5 + (solver.dim > 1 and solver.numGhost or app.displayFixedY * tonumber(solver.gridSize.z))) / tonumber(solver.gridSize.y)
 						local tz = (k + .5 + (solver.dim > 2 and solver.numGhost or app.displayFixedZ * tonumber(solver.gridSize.z))) / tonumber(solver.gridSize.z)
 						gl.glMultiTexCoord3f(gl.GL_TEXTURE0, tx, ty, tz)	
+						
+						-- position to center our line	
 						local x = (i + .5) / tonumber(solver.sizeWithoutBorder.x)
 						local y = (j + .5) / tonumber(solver.sizeWithoutBorder.y)
 						local z = (k + .5) / tonumber(solver.sizeWithoutBorder.z)
@@ -223,9 +245,10 @@ void main() {
 		end)
 		--]]
 
+		state.pingpong:cur():unbind(2)
 		app.gradientTex:unbind(1)
 		solver:getTex(var):unbind(0)
-		solver.vectorFieldShader:useNone()
+		solver.vectorField2Shader:useNone()
 	end
 end
 

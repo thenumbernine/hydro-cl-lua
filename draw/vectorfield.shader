@@ -12,7 +12,10 @@ varying vec4 color;
 <?=coord:getCoordMapGLSLCode()?>
 
 uniform vec3 mins, maxs;
+
+<? if not vectorField2 then ?>
 uniform float scale;
+<? end ?>
 
 <? if solver.dim < 3 then ?>
 uniform sampler2D tex;
@@ -31,17 +34,37 @@ uniform bool useLog;
 uniform float valueMin, valueMax;
 uniform sampler1D gradientTex;
 
+<? if vectorField2 then ?>
+uniform sampler2D offsetTex;
+<? end ?>
+
 void main() {
 	
 	//manifold coords
-	vec3 pt = gl_MultiTexCoord1.xyz * (maxs - mins) + mins;
+	vec3 pt = gl_MultiTexCoord1.xyz;
+	
+<? 
+local clnumber = require 'cl.obj.number'
+if vectorField2 then 
+	local dx = 1 / tonumber(solver.gridSize.x)
+	local dy = 1 / tonumber(solver.gridSize.y) 
+?>
+	vec4 offsetField = texture2D(offsetTex, gl_MultiTexCoord1.xy);
+	vec2 delta = vec2(<?=clnumber(dx)?>, <?=clnumber(dy)?>);
+	pt.xy += (offsetField.xy - vec2(.5, .5)) * delta;
+<? 
+end -- vectorField2
+?>
+
+	pt *= (maxs - mins);
+	pt += mins;
 
 <? if solver.dim < 3 then ?>
 	vec3 dir = texture2D(tex, gl_MultiTexCoord0.xy).rgb;
 <? else ?>
 	vec3 dir = texture3D(tex, gl_MultiTexCoord0.xyz).rgb;
 <? end ?>
-		
+
 	dir = cartesianFromCoord(dir, pt);	
 	float value = length(dir);
 	dir /= value;
@@ -82,7 +105,11 @@ void main() {
 		value = (value - valueMin) / (valueMax - valueMin);
 	}
 //TODO make this a flag, whether to normalize vectors or not? 
+<? if vectorField2 then ?>
+	float valuescale = offsetField.w;
+<? else ?>
 	float valuescale = scale;// * clamp(value, 0., 1.);
+<? end ?>
 	value = (value * <?=clnumber(app.gradientTex.width-1)?> + .5) / <?=clnumber(app.gradientTex.width)?>;
 	color = texture1D(gradientTex, value);
 

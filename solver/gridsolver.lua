@@ -418,6 +418,28 @@ function GridSolver:initDraw()
 			gradientTex = 1,
 		},
 	}
+
+	self.vectorField2Shader = GLProgram{
+		vertexCode = template(vectorFieldCode, {
+			solver = self,
+			vertexShader = true,
+			vectorField2 = true,
+		}),
+		fragmentCode = template(vectorFieldCode, {
+			solver = self,
+			fragmentShader = true,
+			vectorField2 = true,
+		}),
+		uniforms = {
+			scale = 1,
+			valueMin = 0,
+			valueMax = 0,
+			tex = 0,
+			gradientTex = 1,
+			offsetTex = 2,
+		},
+	}
+
 end
 
 

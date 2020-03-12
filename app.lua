@@ -38,6 +38,7 @@ predefined vars:
 	coordVerbose = output extra info from coord/coord.lua
 
 	display_useCoordMap = set this gui option 
+	showMouseCoords = whether to show mouse coords.  default is true.
 	displayDim = override dimension of display (useful for displaying 3D simulations as 1D graphs)
 
 	intVerbose = output extra info from int/*.lua
@@ -1361,7 +1362,10 @@ end
 		ig.igEndTooltip()
 	end
 end
-HydroCLApp.showMouseCoords = true
+
+HydroCLApp.showMouseCoords = cmdline.showMouseCoords
+if HydroCLApp.showMouseCoords == nil then HydroCLApp.showMouseCoords = true end
+
 HydroCLApp.mouseCoord = {0,0}
 HydroCLApp.mouseCoordValue = ''	-- TODO store one per inst of App
 
