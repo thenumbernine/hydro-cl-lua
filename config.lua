@@ -49,7 +49,7 @@ local args = {
 	--slopeLimiter = 'minmod',
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
-	--useCTU = true,
+	useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -202,7 +202,7 @@ local args = {
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
-	initState = 'Kelvin-Helmholtz',
+	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',	--FIXME
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
@@ -256,7 +256,7 @@ local args = {
 	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around pyramid',
 	--initState = 'Maxwell scattering around square',
-	--initState = 'Maxwell scattering around Koch snowflake',
+	initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	--initState = 'Maxwell transverse waves',
 	
@@ -470,7 +470,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -586,7 +586,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 -- GLM Maxwell
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=7})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=13})))

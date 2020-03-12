@@ -5,7 +5,6 @@ local glreport = require 'gl.report'
 local GLPingPong = require 'gl.pingpong'
 local GLProgram = require 'gl.program'
 local template = require 'template'
-local clnumber = require 'cl.obj.number'
 
 local arrow = {
 	{-.5, 0.},
@@ -73,6 +72,11 @@ void main() {
 }
 ]],
 				fragmentCode = template([[
+<?
+local clnumber = require 'cl.obj.number'
+local dx = 1 / tonumber(solver.gridSize.x)
+local dy = 1 / tonumber(solver.gridSize.y)
+?>
 varying vec2 pos;
 
 uniform sampler2D fieldTex;
@@ -100,7 +104,8 @@ void main() {
 	vec4 state_yR = texture2D(stateTex, tc + vec2(0., <?=dy?>));
 	vec4 state_yL = texture2D(stateTex, tc - vec2(0., <?=dy?>));
 
-	float value = sqrt(lenSq_c);
+//	float value = sqrt(lenSq_c);
+	float value = sqrt(field_c.x*field_c.x*<?=clnumber(dx)?> + field_c.y*field_c.y*<?=clnumber(dy)?>);
 
 	float xRy = state_xR.y - field_xR.y * state_xR.x / field_xR.x;
 	float xLy = state_xL.y + field_xL.y * (1. - state_xL.x) / field_xL.x;
@@ -122,13 +127,11 @@ void main() {
 		x = vec2(yLx, 1.);
 	}
 
-	gl_FragColor = vec4(x.xy, 0., value);
+	//gl_FragColor = vec4(x.xy, 0., value);
 gl_FragColor = vec4(0., 0., 0., <?=math.sqrt(2) * clnumber(math.sqrt(dx*dx + dy*dy))?>);
 }
 ]], {
-	clnumber = clnumber,
-	dx = 1 / tonumber(solver.gridSize.x),
-	dy = 1 / tonumber(solver.gridSize.y),
+	solver = solver,
 }),
 				uniforms = {
 					fieldTex = 0,

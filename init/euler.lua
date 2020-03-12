@@ -141,10 +141,10 @@ local function addMaxwellOscillatingBoundary(args)
 		-- i'm completely overriding this
 		-- so I can completely override boundaryMethods for the solver boundary kernel
 		-- yet not for the poisson boundary kernel
-		local boundaryMethods = table(self.boundaryMethods)
+--		local boundaryMethods = table(self.boundaryMethods)
 		-- TODO get the oscillations on 2D 256x256 in the upper left corner to stop
 		--local oldxmin = select(2, next(solver.boundaryOptions[boundaryMethods.xmin]))
-		boundaryMethods[side] = BoundaryOscillating()
+		self.boundaryMethods[side] = BoundaryOscillating()
 		
 		-- same as super 
 		-- except with extraAgs
