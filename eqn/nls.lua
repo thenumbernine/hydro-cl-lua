@@ -9,18 +9,18 @@ local common = require 'common'
 local xNames = common.xNames
 
 local NLSEqn = class(Equation)
-NLSEqn.name = 'NLSEqn'
+NLSEqn.name = 'nls'
 
 NLSEqn.hasCalcDTCode = true
 
 -- this tells eqn to not provide its own eigen code
 NLSEqn.hasEigenCode = true
 NLSEqn.hasFluxFromConsCode = true
+NLSEqn.useSourceTerm = true
 
 -- TODO just use cplx_t?
 NLSEqn.consVars = {
-	{name='re', type='real'},
-	{name='im', type='real'},
+	{name='q', type='cplx'},
 }
 
 function NLSEqn:createBoundaryOptions()
@@ -60,6 +60,13 @@ function NLSEqn:createBoundaryOptions()
 	self.solver:addBoundaryOption(BoundaryFixed)
 end
 
+NLSEqn.predefinedDisplayVars = {
+	'U q re',
+	'U q im',
+	'U q abs',
+	'U q arg',
+}
+
 NLSEqn.initStates = require 'init.nls'
 
 NLSEqn.initStateCode = [[
@@ -70,25 +77,19 @@ kernel void initState(
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
 
-	real r = x.x;
+	real r = fabs(x.x);
 	real re = 0;
 	real im = 0;
 	
 	<?=code?>
 
-	UBuf[index] = (<?=eqn.cons_t?>){.re=re, .im=im};
+	UBuf[index].q = _cplx(re, im);
 }
 ]]
 
 NLSEqn.solverCodeFile = 'eqn/nls.cl'
 
-function NLSEqn:getDisplayVars()
-	return NLSEqn.super.getDisplayVars(self):append{
-		{name='norm', code='value.vreal = sqrt(U->re*U->re + U->im*U->im);'},
-	}
-end
-
--- SolverBase adds eqn:getEigenTypeCode(), even though it's predominantly a finite volume / Godunov (Roe) solver property
+-- SolverBase adds eqn:getEigenTypeCode(), and eqn/eqn.lua provides a default, so this overrides it 
 function NLSEqn:getEigenTypeCode() end
 
 return NLSEqn 

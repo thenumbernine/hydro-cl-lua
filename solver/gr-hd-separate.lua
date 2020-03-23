@@ -324,10 +324,6 @@ function GRHDSeparateSolver:initDraw()
 	self:callAll'initDraw'
 end
 
-function GRHDSeparateSolver:displayVectorField()
-	self:callAll'displayVectorField'
-end
-
 function GRHDSeparateSolver:calcDT()
 	return math.min(self:callAll'calcDT')
 end

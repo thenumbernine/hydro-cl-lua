@@ -3,19 +3,19 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	--integrator = 'Runge-Kutta 4',
+	integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -49,7 +49,7 @@ local args = {
 	--slopeLimiter = 'minmod',
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
-	useCTU = true,
+	--useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -111,7 +111,7 @@ local args = {
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
-		{32, 128, 1}, -- 2D
+		{16, 64, 1}, -- 2D
 		{32, 32, 32}, -- 3D
 	})[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
@@ -256,7 +256,7 @@ local args = {
 	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around pyramid',
 	--initState = 'Maxwell scattering around square',
-	initState = 'Maxwell scattering around Koch snowflake',
+	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	--initState = 'Maxwell transverse waves',
 	
@@ -435,9 +435,10 @@ local args = {
 
 
 	-- NLS
-	--initState = 'Gaussian',
+	initState = 'Gaussian',
 	--initState = 'Ring',
 	--initState = 'Oscillatory',
+
 
 	-- multi-devices
 	multiSlices = {3, 1, 1},
@@ -445,6 +446,20 @@ local args = {
 
 
 if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(table(args, cmdline))) return end
+
+
+--[[ Acoustic black hole 
+args.eqnArgs = args.eqnArgs or {}
+-- for 2012 Visser A.B. metric, 
+args.eqnArgs.alpha = '1' 
+-- v = 10 (-y,x) / r^2
+--args.eqnArgs.beta = {'-10.*y/r^2', '10.*x/r^2'}
+args.eqnArgs.beta = {'-1', '0', '0'}
+-- K = -v^i_,i / alpha = 0
+-- and it assume gamma_ij == the grid metric gamma_ij
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
+--]]
+
 
 
 -- wave equation
@@ -455,9 +470,13 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
+--self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='wave'})))
 
 -- wave equation with background spacetime metric
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', eqnArgs={beta={'-y / (r * r)','x / (r * r)','0'}}, wenoMethod='1996 Jiang Shu', order=5})))
+
+-- finite difference
+--self.solvers:insert{require 'solver.wave-fd'(args)}
 
 
 -- shallow water equations
@@ -586,7 +605,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- GLM Maxwell
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=7})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=13})))
@@ -704,7 +723,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 -- nonlinear Schrodinger equation
---self.solvers:insert(require 'solver.nls'(args))
+self.solvers:insert(require 'solver.nls'(args))
 
 
 -- the start of unstructured meshes
@@ -723,7 +742,7 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'solver.choppedup'(table(args, {eqn='euler', subsolverClass=require 'solver.roe'})))
 
 
--- [=[ 2013 Baumgarte et al, section IV A 1 example & 2017 Ruchlin, Etienne
+--[=[ 2013 Baumgarte et al, section IV A 1 example & 2017 Ruchlin, Etienne
 local dim = 3
 local args = {
 	app = self,

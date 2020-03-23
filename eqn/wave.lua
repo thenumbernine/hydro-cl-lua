@@ -12,10 +12,6 @@ local xNames = common.xNames
 local Wave = class(Equation)
 Wave.name = 'wave'
 
--- depending on which you use, the source terms change
-Wave.weightFluxByGridVolume = true
---Wave.weightFluxByGridVolume = false
-
 Wave.useSourceTerm = true
 
 Wave.hasEigenCode = true
@@ -73,7 +69,8 @@ function Wave:init(args)
 	self.init_alpha = args.alpha
 	self.init_beta = args.beta
 	self.init_K = args.K
-	
+	self.init_f = args.f
+
 	Wave.super.init(self, args)
 end
 
@@ -153,6 +150,7 @@ function Wave:getCommonFuncCode()
 			Constant(0),
 		},
 		K = Constant(0),
+		f = Constant(0),
 	}
 
 	local x = self.solver.coord.vars.x
@@ -175,6 +173,10 @@ function Wave:getCommonFuncCode()
 	end
 	if self.init_K then
 		self.metric.K = readarg(self.init_K)
+	end
+	-- this isn't really a metric variable
+	if self.init_f then
+		self.metric.f = readarg(self.init_f)
 	end
 
 
@@ -218,9 +220,10 @@ real metric_K(real3 pt) {
 	return <?=eqn:compile(eqn.metric.K)?>;
 }
 
-real metric_dt_alpha(real3 pt) { 
-	return <?=eqn:compile(eqn.metric.alpha:diff(eqn.metric.t)())?>;
+real metric_f(real3 pt) { 
+	return <?=eqn:compile(eqn.metric.f)?>;
 }
+
 real3 metric_partial_alpha_l(real3 pt) { 
 	return (real3){
 <? for i,xi in ipairs(xNames) do

@@ -400,13 +400,14 @@ function GridSolver:initDraw()
 		}
 	end
 
-	local vectorFieldCode = file['draw/vectorfield.shader']
-	self.vectorFieldShader = GLProgram{
-		vertexCode = template(vectorFieldCode, {
+	-- TODO move to draw/vector_arrow.lua ?
+	local vectorArrowCode = file['draw/vector_arrow.shader']
+	self.vectorArrowShader = GLProgram{
+		vertexCode = template(vectorArrowCode, {
 			solver = self,
 			vertexShader = true,
 		}),
-		fragmentCode = template(vectorFieldCode, {
+		fragmentCode = template(vectorArrowCode, {
 			solver = self,
 			fragmentShader = true,
 		}),
@@ -418,28 +419,6 @@ function GridSolver:initDraw()
 			gradientTex = 1,
 		},
 	}
-
-	self.vectorField2Shader = GLProgram{
-		vertexCode = template(vectorFieldCode, {
-			solver = self,
-			vertexShader = true,
-			vectorField2 = true,
-		}),
-		fragmentCode = template(vectorFieldCode, {
-			solver = self,
-			fragmentShader = true,
-			vectorField2 = true,
-		}),
-		uniforms = {
-			scale = 1,
-			valueMin = 0,
-			valueMax = 0,
-			tex = 0,
-			gradientTex = 1,
-			offsetTex = 2,
-		},
-	}
-
 end
 
 
@@ -1591,8 +1570,10 @@ function GridSolver:step(dt)
 	self.integrator:integrate(dt, function(derivBufObj)
 
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-		
-		self:calcDeriv(derivBufObj, dt)
+	
+		if self.calcDeriv then
+			self:calcDeriv(derivBufObj, dt)
+		end
 
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end

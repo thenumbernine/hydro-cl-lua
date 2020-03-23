@@ -1,24 +1,24 @@
-typedef <?=eqn.cons_t?> U_t;
+typedef <?=eqn.cons_t?> cons_t;
 
 #define cplx_add5(a,b,c,d,e) 	cplx_add(cplx_add(cplx_add(a,b),cplx_add(c,d)),e)
 
-kernel void calcDeriv(
+kernel void addSource(
 	constant <?=solver.solver_t?>* solver,
-	global cplx* derivBuf,
-	const global cplx* UBuf
+	global cons_t* derivBuf,
+	const global cons_t* UBuf
 ) {
 	SETBOUNDS(2,2);
 	real3 x = cell_x(i);
 	
 	//only 1D for now ...
-	real r = x.x;
+	real r = fabs(x.x);
 	const real dr = solver->grid_dx.x;
 	
-	cplx q_2L = UBuf[index-2];
-	cplx q_1L = UBuf[index-1];
-	cplx q = UBuf[index];
-	cplx q_1R = UBuf[index+1];
-	cplx q_2R = UBuf[index+2];
+	cplx q_2L = UBuf[index-2].q;
+	cplx q_1L = UBuf[index-1].q;
+	cplx q = UBuf[index].q;
+	cplx q_1R = UBuf[index+1].q;
+	cplx q_2R = UBuf[index+2].q;
 	cplx d2q_dx2 = cplx_real_mul(
 		cplx_add5(
 			cplx_neg(q_2L),
@@ -36,7 +36,7 @@ kernel void calcDeriv(
 		 1. / (12. * dr));
 	real q2 = cplx_lenSq(q);
 	real q4 = q2 * q2;
-	derivBuf[index] = cplx_mul( 
+	derivBuf[index].q = cplx_mul( 
 		_cplx(0., 1.),
 		cplx_add3(
 			d2q_dx2,

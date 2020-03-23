@@ -11,7 +11,7 @@ varying vec4 color;
 <? if vertexShader then ?>
 <?=coord:getCoordMapGLSLCode()?>
 
-uniform vec3 mins, maxs;
+uniform vec3 solverMins, solverMaxs;
 
 <? if not vectorField2 then ?>
 uniform float scale;
@@ -56,8 +56,8 @@ if vectorField2 then
 end -- vectorField2
 ?>
 
-	pt *= (maxs - mins);
-	pt += mins;
+	pt *= (solverMaxs - solverMins);
+	pt += solverMins;
 
 <? if solver.dim < 3 then ?>
 	vec3 dir = texture2D(tex, gl_MultiTexCoord0.xy).rgb;

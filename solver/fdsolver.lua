@@ -1,24 +1,4 @@
---[[
-cell-centered finite-difference solver
-
-this has no subclasses, so I'm thinking I will turn it into a characteristic-variable finite-difference solver
-
-
-here's another idea for a finite-difference solver ...
-a characteristic variable finite difference solver
-this means multiply each grid cell U with left eigenvectors 
-use the cell cons_t to create an eigen_t, use that to create a wave_t
-then do finite-difference of the wave_t at each grid point
-
-now to reconstruct the wave_t ... 
-... we are now faced with the problem of using char var info to reconstruct the info required for a right-eigen-transform
-
-..and then there's the issue of which direction do we perform the deconstruction?
-I'm sure the answer is 'all', but that might vary depending on the underlying equation
-For a 1D solver this makes no difference.
-
-
---]]
+-- cell-centered finite-difference solver
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'

@@ -468,7 +468,9 @@ function SolverBase:createEqn()
 	))
 	
 	ffi.cdef(self.eqn:getTypeCode())
-	ffi.cdef(self.eqn:getEigenTypeCode())
+	if self.eqn.getEigenTypeCode then
+		ffi.cdef(self.eqn:getEigenTypeCode() or '')
+	end
 	ffi.cdef(self.eqn:getExtraTypeCode())
 end
 

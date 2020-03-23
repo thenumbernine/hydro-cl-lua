@@ -273,11 +273,21 @@ local clipInfos = range(4):mapi(function(i)
 end)
 end
 
+-- needs to go before display2DMethods, display3DMethods, etc
 if targetSystem ~= 'console' then
-	-- needs to go before display2DMethods
-	require 'draw.2d_heatmap'(HydroCLApp)
-	require 'draw.2d_graph'(HydroCLApp)
+	require 'draw.1d'(HydroCLApp)			-- App:display1D
+	
+	require 'draw.2d_heatmap'(HydroCLApp)	-- App:display2D_Heatmap
+	require 'draw.2d_graph'(HydroCLApp)		-- App:display2D_Graph
+	
+	require 'draw.3d_slice'(HydroCLApp)		-- App:display3D_Slice
+	require 'draw.3d_ray'(HydroCLApp)		-- App:display3D_Ray
+	require 'draw.3d_iso'(HydroCLApp)		-- App:display3D_ISO
+	
+	require 'draw.vector_arrow'(HydroCLApp)	-- App:displayVector_Arrows
+	require 'draw.vector_lic'(HydroCLApp)	-- App:displayVector_LIC
 end
+
 
 -- needs to go before initGL
 local display2DMethods = table{
@@ -285,20 +295,46 @@ local display2DMethods = table{
 	{Graph = HydroCLApp.display2D_Graph},
 }
 
-if targetSystem ~= 'console' then
-	require 'draw.3d_slice'(HydroCLApp)
-	require 'draw.3d_ray'(HydroCLApp)
-	require 'draw.3d_iso'(HydroCLApp)
+function HydroCLApp:display2D(...)
+	for _,method in ipairs(display2DMethods) do
+		local name, func = next(method)
+		if self.display2DMethodsEnabled[name] then
+			func(self, ...)
+		end
+	end
 end
+
 
 local display3DMethods = table{
 	{Slices = HydroCLApp.display3D_Slice},
 	{Raytrace = HydroCLApp.display3D_Ray},
 	{Isosurfaces = HydroCLApp.display3D_Isosurface},
 }
-local display3DMethodNames =  display3DMethods:mapi(function(kv)
-	return (next(kv))
-end)
+
+function HydroCLApp:display3D(...)
+	for _,method in ipairs(display3DMethods) do
+		local name, func = next(method)
+		if self.display3DMethodsEnabled[name] then
+			func(self, ...)
+		end
+	end
+end
+
+
+local displayVectorMethods = table{
+	{Arrows = HydroCLApp.displayVector_Arrows},
+	{LIC = HydroCLApp.displayVector_LIC},
+}
+
+function HydroCLApp:displayVector(...)
+	for _,method in ipairs(displayVectorMethods) do
+		local name, func = next(method)
+		if self.displayVectorMethodsEnabled[name] then
+			func(self, ...)
+		end
+	end
+end
+
 
 
 --[[ Cheap output of the state each frame so I can compare it to other solvers.
@@ -493,6 +529,14 @@ void main() {
 
 		-- todo reorganize me
 		self.display2DMethodsEnabled = display2DMethods:mapi(function(method, index)
+			local name, func = next(method)
+			return index == 1, name
+		end)
+		self.display3DMethodsEnabled = display3DMethods:mapi(function(method, index)
+			local name, func = next(method)
+			return index == 1, name
+		end)
+		self.displayVectorMethodsEnabled = displayVectorMethods:mapi(function(method, index)
 			local name, func = next(method)
 			return index == 1, name
 		end)
@@ -783,21 +827,22 @@ end
 	gl.glClear(bit.bor(gl.GL_COLOR_BUFFER_BIT, gl.GL_DEPTH_BUFFER_BIT))
 
 
--- TODO FIXME temp hack for composite solvers
-local flattenedSolvers = table(self.solvers)
-do
-	local i = 1
-	while i <= #flattenedSolvers do
-		local solver = flattenedSolvers[i]
-		if solver.solvers then
-			flattenedSolvers:append(solver.solvers)
-			flattenedSolvers:remove(i)
-			i = i - 1
+	-- [[ TODO FIXME temp hack for composite solvers
+	local flattenedSolvers = table(self.solvers)
+	do
+		local i = 1
+		while i <= #flattenedSolvers do
+			local solver = flattenedSolvers[i]
+			if solver.solvers then
+				flattenedSolvers:append(solver.solvers)
+				flattenedSolvers:remove(i)
+				i = i - 1
+			end
+			i = i + 1
 		end
-		i = i + 1
 	end
-end
-local displaySolvers = flattenedSolvers
+	local displaySolvers = flattenedSolvers
+	--]]
 
 	local w, h = self:size()
 
@@ -976,9 +1021,7 @@ local displaySolvers = flattenedSolvers
 				self:display3D(displaySolvers, varName, ar, xmin, ymin, xmax, ymax)
 			end
 		else
-			--if self.enableVectorField then
-			self:displayVectorField(displaySolvers, ar, varName, xmin, ymin, xmax, ymax)
-			--end
+			self:displayVector(displaySolvers, ar, varName, xmin, ymin, xmax, ymax)
 		end
 
 		-- TODO make this custom per-display-method
@@ -1116,10 +1159,6 @@ local displaySolvers = flattenedSolvers
 	end
 end
 
-if targetSystem ~= 'console' then
-	require 'draw.1d'(HydroCLApp)
-end
-
 function HydroCLApp:drawGradientLegend(ar, varName, valueMin, valueMax)
 	self.orthoView:projection(ar)
 	self.orthoView:modelview()
@@ -1165,43 +1204,11 @@ function HydroCLApp:drawGradientLegend(ar, varName, valueMin, valueMax)
 	end
 end
 
---[[ 
-Alright, with the advent of the mesh solvers, now the display code gets a bit more confusing.
-The previous display code was all specific to grid solvers.  But now I need a separate branch here for the mesh solver display.
-So it would be best to just move the display code into the solver.
-But then what about overlapping display across multiple solvers?  
-Especially the 1D display that needs to get info from all solvers in order to correctly calculate the graph bounds.
-Until then, I'll just change the 2D heatmap display to only work with grid solvers, and make an alternative one to work with non-grid solvers.
---]]
-function HydroCLApp:display2D(...)
-	for _,method in ipairs(display2DMethods) do
-		local name, func = next(method)
-		if self.display2DMethodsEnabled[name] then
-			func(self, ...)
-		end
-	end
-end
-
-HydroCLApp.display3DMethod = 1
-function HydroCLApp:display3D(...)
-	select(2, next(display3DMethods[self.display3DMethod]))(self, ...)
-end
-
-if targetSystem ~= 'console' then
-	--require 'draw.vectorfield'(HydroCLApp)
-	require 'draw.vectorfield2'(HydroCLApp)
-end
-
-
 HydroCLApp.display_useCoordMap = cmdline.display_useCoordMap 
 if HydroCLApp.display_useCoordMap == nil then HydroCLApp.display_useCoordMap = true end
 		
 HydroCLApp.displayFixedY = .5
 HydroCLApp.displayFixedZ = .5
-
--- used by vectorfield and vectorfield2
-HydroCLApp.displayVectorField_scale = 1
-HydroCLApp.displayVectorField_step = cmdline.vectorFieldStep or 4
 
 function HydroCLApp:updateGUI()
 	if ig.igCollapsingHeader'simulation' then
@@ -1283,6 +1290,7 @@ function HydroCLApp:updateGUI()
 			local dim = self.displayDim
 			if dim == 2 then
 				ig.igPushIDStr'2D'
+				
 				for i,method in ipairs(display2DMethods) do
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
@@ -1299,25 +1307,29 @@ function HydroCLApp:updateGUI()
 			
 			elseif dim == 3 then
 				ig.igPushIDStr'3D'
-				tooltip.comboTable('Display Method', self, 'display3DMethod', display3DMethodNames)
 				
-				-- if we're doing 3D slice display 
-				if HydroCLApp.display3D_Slice == select(2, next(display3DMethods[self.display3DMethod])) then
-
-if useClipPlanes then
-					ig.igRadioButton("rotate camera", rotateClip, 0)
-					for i,clipInfo in ipairs(clipInfos) do
-						ig.igPushIDStr('clip '..i)
-						tooltip.checkbox('clip', clipInfo, 'enabled')
-						ig.igSameLine()
-						ig.igRadioButton('rotate', rotateClip, i)
-						ig.igSameLine()
-						if ig.igButton('reset') then
-							clipInfo.plane = makeDefaultPlane(i)
-						end
-						ig.igPopID()
-					end				
-end					
+				for i,method in ipairs(display3DMethods) do
+					if i > 1 then ig.igSameLine() end
+					local name, func = next(method)
+					tooltip.checkboxTable(name, self.display3DMethodsEnabled, name)
+				end			
+			
+				if self.display3DMethodsEnabled.Slices then
+					do --if useClipPlanes then
+						ig.igRadioButton("rotate camera", rotateClip, 0)
+						for i,clipInfo in ipairs(clipInfos) do
+							ig.igPushIDStr('clip '..i)
+							tooltip.checkbox('clip', clipInfo, 'enabled')
+							ig.igSameLine()
+							ig.igRadioButton('rotate', rotateClip, i)
+							ig.igSameLine()
+							if ig.igButton('reset') then
+								clipInfo.plane = makeDefaultPlane(i)
+							end
+							ig.igPopID()
+						end				
+					end					
+					
 					local draw3DSlice = self.draw3DSlice
 					if draw3DSlice then
 						tooltip.sliderTable('alpha', draw3DSlice, 'alpha', 0, 1)
@@ -1333,16 +1345,30 @@ end
 						end
 					end
 				end
+				
 				ig.igPopID()
 			end
-		
-			--ig.igCheckbox('vector field', self.enableVectorField)
-		
-			tooltip.numberTable('vector field scale', self, 'displayVectorField_scale')
-			--tooltip.sliderTable('vector field scale', self, 'displayVectorField_scale', 0, 100, nil, 10)
 			
-			tooltip.intTable('vector field step', self, 'displayVectorField_step')
-			self.displayVectorField_step = math.max(self.displayVectorField_step, 1)
+			do
+				ig.igPushIDStr'Vector'
+
+				for i,method in ipairs(displayVectorMethods) do
+					if i > 1 then ig.igSameLine() end
+					local name, func = next(method)
+					tooltip.checkboxTable(name, self.displayVectorMethodsEnabled, name)
+				end			
+	
+				--ig.igCheckbox('vector field', self.enableVectorField)
+				if self.drawVectorField then
+					tooltip.numberTable('vector field scale', self.drawVectorField, 'scale')
+					--tooltip.sliderTable('vector field scale', self.drawVectorField, 'scale', 0, 100, nil, 10)
+					
+					tooltip.intTable('vector field step', self.drawVectorField, 'step')
+					self.drawVectorField.step = math.max(self.drawVectorField.step, 1)
+				end
+				
+				ig.igPopID()
+			end
 		end
 	end
 	
