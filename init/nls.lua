@@ -77,7 +77,7 @@ return table{
 	real rmin = solver->mins.x;
 	real drmin = r - rmin;
 	real dr0_over_sigma = (r - solver->init_r0) / solver->init_sigma;
-	q = cplx_from_real(drmin * drmin * exp(-dr0_over_sigma * dr0_over_sigma));
+	q = cplx_from_real(drmin * drmin * exp(-.5 * dr0_over_sigma * dr0_over_sigma));
 ]]
 		end,
 	},
