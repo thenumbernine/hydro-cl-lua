@@ -62,10 +62,11 @@ function makevec3(vec, scalar)
 ?>
 
 <? -- TODO move this to makescalar ?>
-#define <?=scalar?>_add3(a,b,c)		(<?=add?>(<?=add?>(a,b),c))
-#define <?=scalar?>_mul3(a,b,c)		(<?=mul?>(<?=mul?>(a,b),c))
+#define <?=scalar?>_add3(a,b,c)		(<?=add?>(a, <?=add?>(b,c)))
+#define <?=scalar?>_add4(a,b,c,d)	(<?=add?>(a, <?=scalar?>_add3(b,c,d)))
+#define <?=scalar?>_add5(a,b,c,d,e) (<?=add?>(a, <?=scalar?>_add4(b,c,d,e)))
 
-#define <?=scalar?>_add4(a,b,c,d)		(<?=add?>(<?=add?>(a,b),<?=add?>(c,d)))
+#define <?=scalar?>_mul3(a,b,c)		(<?=mul?>(<?=mul?>(a,b),c))
 
 //is buggy with doubles on intel opencl ubuntu compiler
 //#define _<?=vec?>(a,b,c) 			((<?=vec?>){.s={a,b,c}})
@@ -191,6 +192,8 @@ sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b);
 
 #define cplx_from_real(x)	_cplx(x,0)
 #define cplx_from_cplx(x)	(x)
+#define cplx_1				_cplx(1,0)
+#define cplx_i	 			_cplx(0,1)
 #define cplx_zero 			cplx_from_real(0)
 
 

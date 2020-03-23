@@ -76,7 +76,7 @@ local args = {
 				{16,16,16},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
-				{256,1,1},
+				{600,1,1},
 				{128,128,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
@@ -94,7 +94,7 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'fixed',
 		xmax=cmdline.boundary or 'freeflow',
 		ymin=cmdline.boundary or 'freeflow',
 		ymax=cmdline.boundary or 'freeflow',
@@ -435,10 +435,10 @@ local args = {
 
 
 	-- NLS
-	initState = 'Gaussian',
+	--initState = 'Gaussian',
 	--initState = 'Ring',
 	--initState = 'Oscillatory',
-
+	initState = 'Wave-FD Gaussian',
 
 	-- multi-devices
 	multiSlices = {3, 1, 1},
@@ -476,7 +476,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', eqnArgs={beta={'-y / (r * r)','x / (r * r)','0'}}, wenoMethod='1996 Jiang Shu', order=5})))
 
 -- finite difference
---self.solvers:insert{require 'solver.wave-fd'(args)}
+self.solvers:insert(require 'solver.wave-fd'(args))
 
 
 -- shallow water equations
@@ -723,7 +723,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 -- nonlinear Schrodinger equation
-self.solvers:insert(require 'solver.nls'(args))
+--self.solvers:insert(require 'solver.nls'(args))
 
 
 -- the start of unstructured meshes

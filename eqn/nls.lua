@@ -51,6 +51,8 @@ function NLSEqn:createBoundaryOptions()
 	local BoundaryFixed = class(Boundary)	
 	BoundaryFixed.name = 'fixed'
 	function BoundaryFixed:getCode(args)
+		local index = args.index
+		local assign = args.assign
 		if args.minmax == 'min' then
 			assign('buf['..index'j'..']', '0')
 		elseif args.minmax == 'max' then
@@ -60,6 +62,7 @@ function NLSEqn:createBoundaryOptions()
 	self.solver:addBoundaryOption(BoundaryFixed)
 end
 
+-- the default display-all is broken since i switched to the pick-component option
 NLSEqn.predefinedDisplayVars = {
 	'U q re',
 	'U q im',
@@ -78,12 +81,9 @@ kernel void initState(
 	real3 x = cell_x(i);
 
 	real r = fabs(x.x);
-	real re = 0;
-	real im = 0;
-	
+	cplx q = cplx_zero;
 	<?=code?>
-
-	UBuf[index].q = _cplx(re, im);
+	UBuf[index].q = q;
 }
 ]]
 

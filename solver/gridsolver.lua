@@ -913,12 +913,14 @@ function BoundaryMirror:getCode(args)
 end
 
 -- Dirichlet boundary conditions: constant values
+-- TODO fixedCode needs to be provided ... but can't be provided easily from outside if it needs templated code from inside the class ...
+-- for now lets just not include this in the options, and let child classes subclass it if they want
 local BoundaryFixed = class(Boundary)
+BoundaryFixed.name = 'fixed'
 function BoundaryFixed:init(fixedCode)
 	-- fixed values to use
-	self.code = fixedCode
+	self.code = fixedCode or self.fixedCode
 end
-BoundaryFixed.name = 'fixed'
 function BoundaryFixed:getCode(args)
 	local fixedCode = template(self.code, {
 		solver = args.solver,
@@ -942,6 +944,7 @@ function BoundaryFixed:getCode(args)
 	end
 	return lines:concat'\n'
 end
+GridSolver.BoundaryFixed = BoundaryFixed 
 
 local BoundaryFreeFlow = class(Boundary)
 BoundaryFreeFlow.name = 'freeflow'
@@ -1190,7 +1193,7 @@ function GridSolver:createBoundaryOptions()
 		BoundaryNone,
 		BoundaryPeriodic,
 		BoundaryMirror,
-		BoundaryFixed,
+		--BoundaryFixed,
 		BoundaryFreeFlow,
 		BoundaryLinear,
 		BoundaryQuadratic,
