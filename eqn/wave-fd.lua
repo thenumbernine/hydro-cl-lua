@@ -28,7 +28,13 @@ function WaveFDEqn:createBoundaryOptions()
 	self.solver:addBoundaryOption(BoundaryFixed)
 end
 
-
+function WaveFDEqn:createInitState()
+	WaveFDEqn.super.createInitState(self)
+	self:addGuiVars{
+		{name='m', value=2},	-- mode of fourier transform of wave eqn
+		{name='C', value=.5},
+	}
+end
 
 -- the default display-all is broken since i switched to the pick-component option
 WaveFDEqn.predefinedDisplayVars = {
@@ -66,5 +72,13 @@ WaveFDEqn.solverCodeFile = 'eqn/wave-fd.cl'
 
 -- SolverBase adds eqn:getEigenTypeCode(), and eqn/eqn.lua provides a default, so this overrides it 
 function WaveFDEqn:getEigenTypeCode() end
+
+function WaveFDEqn:getDisplayVars()
+	local vars = WaveFDEqn.super.getDisplayVars(self)
+	vars:append{
+		{name='J0', code='value.vreal = BESSJ0(x.x) * cos(t);', units='kg/(m^3)'},
+	}
+	return vars
+end
 
 return WaveFDEqn

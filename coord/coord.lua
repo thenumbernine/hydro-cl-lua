@@ -602,6 +602,16 @@ function CoordinateSystem:compile(expr)
 		expr = expr:replace(repl[1], repl[2])
 	end
 
+	-- replace pow(x, .5) with sqrt(x)
+	expr = expr:map(function(x)
+		if symmath.op.pow.is(x)
+		and const.is(x[2])
+		and x[2].value == .5
+		then
+			return symmath.sqrt(x[1])
+		end
+	end)
+
 	for i,coord in ipairs(self.baseCoords) do
 		expr = expr:replace(coord, symmath.var('pt.'..xNames[i]))
 	end

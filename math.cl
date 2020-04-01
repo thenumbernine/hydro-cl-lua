@@ -972,3 +972,45 @@ float crand() {
 real sech(real x) {
 	return 2. / (exp(x) + exp(-x));
 }
+
+
+
+// Reference: From Numath Library By Tuan Dang Trong in Fortran 77.
+// C++ Release 1.0 By J-P Moreau, Paris.
+// (www.jpmoreau.fr)
+real BESSJ0(real X) {
+	/***********************************************************************
+	This subroutine calculates the First Kind Bessel Function of
+	order 0, for any real number X. The polynomial approximation by
+	series of Chebyshev polynomials is used for 0<X<8 and 0<8/X<1.
+	REFERENCES:
+	M.ABRAMOWITZ,I.A.STEGUN, HANDBOOK OF MATHEMATICAL FUNCTIONS, 1965.
+	C.W.CLENSHAW, NATIONAL PHYSICAL LABORATORY MATHEMATICAL TABLES,
+	VOL.5, 1962.
+	************************************************************************/
+	if (X==0.0) return 1.0;
+	real AX = fabs(X);
+	if (AX < 8.0) {
+		const real
+			R1= 57568490574.0, R2=-13362590354.0, R3=651619640.7,
+			R4=-11214424.18, R5= 77392.33017, R6=-184.9052456,
+			S1= 57568490411.0, S2=1029532985.0, S3=9494680.718,
+			S4= 59272.64853, S5=267.8532712, S6=1.0;
+		real Y = X*X;
+		real FR = R1+Y*(R2+Y*(R3+Y*(R4+Y*(R5+Y*R6))));
+		real FS = S1+Y*(S2+Y*(S3+Y*(S4+Y*(S5+Y*S6))));
+		return FR/FS;
+	} else {
+		const real
+			P1=1.0, P2=-0.1098628627E-2, P3=0.2734510407E-4,
+			P4=-0.2073370639E-5, P5= 0.2093887211E-6,
+			Q1=-0.1562499995E-1, Q2= 0.1430488765E-3, Q3=-0.6911147651E-5,
+			Q4= 0.7621095161E-6, Q5=-0.9349451520E-7;	
+		real Z = 8./AX;
+		real Y = Z*Z;
+		real XX = AX-0.785398164;
+		real FP = P1+Y*(P2+Y*(P3+Y*(P4+Y*P5)));
+		real FQ = Q1+Y*(Q2+Y*(Q3+Y*(Q4+Y*Q5)));
+		return sqrt(0.636619772/AX)*(FP*cos(XX)-Z*FQ*sin(XX));
+	}
+}

@@ -16,6 +16,120 @@ typedef <?=solver.solver_t?> solver_t;
 //typedef <?=scalar?> scalar;
 //typedef <?=vec3?> vec3;
 
+
+<? if getCommonCode then ?>
+
+
+/*
+background metric ADM decomposition
+this assumes the ADM spatial metric gamma_ij is equal to the grid metric
+
+for the wave equation d'Lambertian phi = 0
+i.e. g^tt phi_,tt + 2 g^ti phi_;ti + g^ij phi_;ij = 0
+ADM is defined such that 
+ 	g^tt = -alpha^-2
+	g^ti = alpha^-2 beta^i 
+	g^ij = gamma^ij - alpha^-2 beta^i beta^j
+TODO make this configurable somehow
+or make it modular enough to merge with BSSNOK
+*/
+
+real metric_alpha(real3 pt) { 
+	return <?=eqn:compile(eqn.metric.alpha)?>; 
+}
+
+real3 metric_beta_u(real3 pt) { 
+	return (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = <?=eqn:compile(eqn.metric.beta_u[i])?>,
+<? end
+?>	};
+}
+
+real metric_K(real3 pt) { 
+	return <?=eqn:compile(eqn.metric.K)?>;
+}
+
+real metric_f(real3 pt) { 
+	return <?=eqn:compile(eqn.metric.f)?>;
+}
+
+real3 metric_partial_alpha_l(real3 pt) { 
+	return (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = <?=eqn:compile(eqn.metric.alpha:diff(eqn.metric.coords[i])())?>,
+<? end
+?>	};
+}
+
+//partial_beta_ul[i][j] = beta^i_,j
+real3x3 metric_partial_beta_ul(real3 pt) { 
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = (real3){
+<?	for j,xj in ipairs(xNames) do
+?>			.<?=xj?> = <?=eqn:compile(eqn.metric.beta_u[i]:diff(eqn.metric.coords[j])())?>,
+<?	end
+?>		},
+<?	end
+?>	};
+}
+
+<?=scalar?> eqn_source(real3 pt) { 
+	return <?=scalar?>_zero; 
+}
+
+
+<? if require 'coord.cartesian'.is(solver.coord) 
+	or (
+		require 'coord.cylinder'.is(solver.coord)
+		and solver.coord.vectorComponent == 'cartesian'
+) then ?>
+
+<?	for side=0,solver.dim-1 do ?>
+#define coord_parallelPropagate<?=side?>(v,dx,x) (v)	// propagate an upper index / propagate the components of a vector.  to propagate a one-form, just do the inverse, or swap x -> x+dx and dx -> -dx
+<?	end ?>
+
+<? 
+elseif require 'coord.cylinder'.is(solver.coord)
+	and solver.coord.vectorComponent == 'anholonomic'
+then ?>
+//parallel-propagate a vector from point 'x' along coordinate 'k' (suffix of func name) by amount 'dx'
+//TODO eventually move this to coord
+#define coord_parallelPropagate0(v,dx,x) (v)
+
+// propagate a vector's components
+// anholonomic, meaning no rescaling
+real3 coord_parallelPropagate1(real3 v, real dx, real3 x) {
+	real cosDPhi = cos(dx);
+	real sinDPhi = sin(dx);
+	real vx = v.x;
+	real vy = v.y;
+	v.x = vx * cosDPhi + vy * sinDPhi;
+	v.y = -vx * sinDPhi + vy * cosDPhi;
+	return v;
+}
+
+
+<? end -- solver.coord ?>
+
+
+<? for side=0,solver.dim-1 do ?>
+cons_t cons_parallelPropagate<?=side?>(cons_t U, real dx, real3 x) {
+	// TODO Psi_l IS A ONE-FORM.
+	// that means its basis is the inverse of the vector basis.
+	// does that mean applying an inverse transform to this?
+	// in an anholonomic orthonormal basis the one form components = the vector components, so we can reuse this.
+	U.Psi_l = coord_parallelPropagate<?=side?>(U.Psi_l, dx, x);
+	return U;
+}
+<? end ?>
+
+
+<? else -- getCommonCode ?> 
+
+
+
 <? for side=0,2 do ?>
 real3 coord_g_uu<?=side?>(real3 x) {
 	return _real3(<?
@@ -278,3 +392,7 @@ kernel void addSource(
 	);
 #endif
 }
+
+
+
+<? end -- getCommonCode ?> 

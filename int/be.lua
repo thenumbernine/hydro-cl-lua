@@ -138,7 +138,15 @@ kernel void copyBufferWithGhostToBufferWithoutGhost(
 --print'\nUBuf:' solver:printBuf(UBuf, nil, solver.eqn.numIntStates)
 
 		self.copyWithoutToWithGhostKernel(solver.solverBuf, solver.UBufObj, UBuf)
+		
 		solver:boundary()	
+if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
+		if solver.eqn.useConstrainU then
+if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
+			solver.constrainUKernelObj(solver.solverBuf, solver.UBuf)
+if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
+		end
+		
 		self.derivBufObj:fill()	-- fill with zero
 		self.integrateCallback(self.derivBufObj)
 		self.copyWithToWithoutGhostKernel(solver.solverBuf, dUdtBuf, self.derivBufObj)
@@ -210,23 +218,6 @@ kernel void copyBufferWithGhostToBufferWithoutGhost(
 	self.linearSolver.args.dot = function(a,b)
 		return oldDot(a,b) / math.sqrt(numreals)
 	end
-
-print([[ TODO insert this code here 
-
--- 
--- Now we need to boundary() and constrainU().
--- This must be done after every step.
--- But if it is done here then it becomes the responsibility of all integrators
--- ... and it needs to be done in int/fe and int/be as well
-if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
-		if solver.eqn.useConstrainU then
-			solver:boundary()
-if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
-			solver.constrainUKernelObj(solver.solverBuf, solver.UBuf)
-if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
-		end
-]])
-
 end
 
 -- step contains integrating flux and source terms
@@ -244,6 +235,15 @@ function BackwardEuler:integrate(dt, callback)
 	self.copyWithToWithoutGhostKernel(solver.solverBuf, self.krylov_xObj, solver.UBufObj)
 	self.linearSolver()
 	self.copyWithoutToWithGhostKernel(solver.solverBuf, solver.UBufObj, self.krylov_xObj)
+
+	solver:boundary()	
+if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
+	if solver.eqn.useConstrainU then
+if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
+		solver.constrainUKernelObj(solver.solverBuf, solver.UBuf)
+if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
+	end
+
 end
 
 function BackwardEuler:updateGUI()

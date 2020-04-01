@@ -8,8 +8,10 @@ kernel void calcDerivFromFlux(
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* fluxBuf
 ) {
+	typedef <?=eqn.cons_t?> cons_t;
+	
 	SETBOUNDS_NOGHOST();
-	global <?=eqn.cons_t?>* deriv = derivBuf + index;
+	global cons_t* deriv = derivBuf + index;
 	real3 x = cell_x(i);
 
 <? if solver.coord.vectorComponent == 'anholonomic' then ?>
@@ -43,10 +45,10 @@ kernel void calcDerivFromFlux(
 
 	<? for side=0,solver.dim-1 do ?>{
 		int indexIntL = <?=side?> + dim * index;
-		const global <?=eqn.cons_t?>* fluxL = fluxBuf + indexIntL;
+		const global cons_t* fluxL = fluxBuf + indexIntL;
 		
 		int indexIntR = indexIntL + dim * solver->stepsize.s<?=side?>; 
-		const global <?=eqn.cons_t?>* fluxR = fluxBuf + indexIntR;
+		const global cons_t* fluxR = fluxBuf + indexIntR;
 		
 		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
@@ -64,11 +66,26 @@ kernel void calcDerivFromFlux(
 		real areaR = solver->grid_dx.s<?=side?>;//cell_area<?=side?>(xIntR);
 <? else -- vectorComponent ~= 'anholonomic' ?>
 <? if eqn.weightFluxByGridVolume then ?>
-		real areaL = coord_sqrt_det_g(xIntL) / solver->grid_dx.s<?=side?>;
-		real areaR = coord_sqrt_det_g(xIntR) / solver->grid_dx.s<?=side?>;
+		real areaL;
+		if (coord_sqrt_det_g(xIntL) == 0) {
+			areaL = 0;
+		} else {
+			areaL = coord_sqrt_det_g(xIntL) / solver->grid_dx.s<?=side?>;
+		}
+		real areaR;
+		if (coord_sqrt_det_g(xIntR) == 0) {
+			areaR = 0;
+		} else {
+			areaR = coord_sqrt_det_g(xIntR) / solver->grid_dx.s<?=side?>;
+		}
 <? else ?>
-		real areaL = volume / solver->grid_dx.s<?=side?>;
-		real areaR = volume / solver->grid_dx.s<?=side?>;
+		real areaL, areaR;
+		if (volume == 0) {
+			areaL = areaR = 0;
+		} else {
+			areaL = volume / solver->grid_dx.s<?=side?>;
+			areaR = volume / solver->grid_dx.s<?=side?>;
+		}
 <? end ?>
 <? end	-- vectorComponent == 'anholonomic' ?>
 
@@ -124,7 +141,7 @@ kernel void calcDerivFromFlux(
 			) / volume;
 		}
 <? else ?>
-		<?=eqn.cons_t?> flux;
+		cons_t flux;
 		for (int j = 0; j < numIntStates; ++j) {
 			flux.ptr[j] = (
 				fluxR->ptr[j] * areaR

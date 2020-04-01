@@ -257,7 +257,20 @@ local initStates = table{
 		})
 		end,
 	},
-	
+
+	{
+		-- boundary waves seem to mess with this, otherwise it looks like a wave equation solution
+		name = 'Bessel',
+		initState = function(self, solver)
+			return [[
+	real r = coordMapR(x);
+	rho = BESSJ0(r);
+]]
+		end,
+	},
+
+
+
 	{
 		name = 'advect wave',
 		mins = {0,0,0},

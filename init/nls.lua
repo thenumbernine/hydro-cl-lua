@@ -53,11 +53,13 @@ return table{
 		end,
 	},
 
-	-- piggybacking for my wave-finite-difference here:
+	----------------------------------------------------------
+	---- piggybacking for my wave-finite-difference here: ----
+	----------------------------------------------------------
+	
 	{
 		name = 'Wave-FD Gaussian',
 		mins = {.3, .3, .3}, 
-		
 		maxs = {20.3, 20.3, 20.3},	
 		-- paper says grid uses rmax=200
 		-- paper also says r = rmin + j h  "for h the resolution of the grid"
@@ -65,10 +67,6 @@ return table{
 		-- so is rmax fixed and h determined by (rmin-rmax)/n, 
 		--  or is h fixed and is rmax = rmin + n h ?
 		guiVars = {
-			-- TODO put these in eqn/wave-fd.lua
-			{name='m', value=2},
-			{name='C', value=.5},
-		
 			{name='init_r0', value=2},
 			{name='init_sigma', value=.25},
 		},
@@ -81,6 +79,20 @@ return table{
 ]]
 		end,
 	},
+
+	{
+		name = 'Wave-FD Bessel',
+		mins = {.3, .3, .3}, 
+		maxs = {20.3, 20.3, 20.3},	
+		initState = function(self, solver)
+			return [[
+	q = cplx_from_real(BESSJ0(x.x));
+]]
+		end,
+	},
+
+
+
 }:map(function(cl)
 	return class(InitCond, cl)
 end)

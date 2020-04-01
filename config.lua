@@ -3,19 +3,19 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	integrator = 'Runge-Kutta 4',
+	--integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -29,9 +29,9 @@ local args = {
 	fixedDT = cmdline.fixedDT,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
 	
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	--fluxLimiter = 'donor cell',
+	fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
@@ -51,7 +51,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
 	--coordArgs = {vectorComponent='cartesian'},
 	mins = cmdline.mins or {-1, -1, -1},
@@ -94,7 +94,7 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin=cmdline.boundary or 'fixed',
+		xmin=cmdline.boundary or 'freeflow',
 		xmax=cmdline.boundary or 'freeflow',
 		ymin=cmdline.boundary or 'freeflow',
 		ymax=cmdline.boundary or 'freeflow',
@@ -102,22 +102,22 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	--[[ cylinder
+	-- [[ cylinder
 	coord = 'cylinder',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
-	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
-	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
-	mins = cmdline.mins or {0, 0, -1},
+	coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
+	--coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
+	mins = cmdline.mins or {.01, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
-		{16, 64, 1}, -- 2D
+		{4, 8, 1},	 -- 2D
 		{32, 32, 32}, -- 3D
 	})[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		-- r
-		xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
-		--xmin=cmdline.boundary or 'freeflow',
+		--xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
+		xmin=cmdline.boundary or 'freeflow',
 		xmax=cmdline.boundary or 'freeflow',
 		
 		-- theta
@@ -185,8 +185,8 @@ local args = {
 	
 	-- Euler / SRHD / MHD initial states:
 	
-	--initState = 'constant',
-	--initStateArgs = {v={1e-1,1e-1}},
+	initState = 'constant',
+	initStateArgs = {v={1e-1,1e-1}},
 	
 	--initState = 'linear',
 	--initState = 'gaussian',
@@ -194,6 +194,7 @@ local args = {
 	--initState = 'sphere',
 	--initState = 'spiral',
 	--initState = 'rarefaction wave',
+	--initState = 'Bessel',
 	
 	--initState = 'Sod',
 	--initStateArgs = {dim=cmdline.displayDim},
@@ -438,7 +439,8 @@ local args = {
 	--initState = 'Gaussian',
 	--initState = 'Ring',
 	--initState = 'Oscillatory',
-	initState = 'Wave-FD Gaussian',
+	--initState = 'Wave-FD Gaussian',
+	--initState = 'Wave-FD Bessel',
 
 	-- multi-devices
 	multiSlices = {3, 1, 1},
@@ -447,6 +449,19 @@ local args = {
 
 if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(table(args, cmdline))) return end
 
+
+-- wave equation
+
+
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
+--self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='wave'})))
+
+-- wave equation with background spacetime metric
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', eqnArgs={beta={'-y / (r * r)','x / (r * r)','0'}}, wenoMethod='1996 Jiang Shu', order=5})))
 
 --[[ Acoustic black hole 
 args.eqnArgs = args.eqnArgs or {}
@@ -461,22 +476,6 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --]]
 
 
-
--- wave equation
-
-
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
---self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='wave'})))
-
--- wave equation with background spacetime metric
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', eqnArgs={beta={'-y / (r * r)','x / (r * r)','0'}}, wenoMethod='1996 Jiang Shu', order=5})))
-
--- finite difference
-self.solvers:insert(require 'solver.wave-fd'(args))
 
 
 -- shallow water equations
@@ -724,6 +723,17 @@ With hyperbolic gamma driver shift it has trouble.
 
 -- nonlinear Schrodinger equation
 --self.solvers:insert(require 'solver.nls'(args))
+
+--[[ wave with background metric of acoustic black hole, fourier transform mode, finite difference
+-- TODO rename to something more telling, like 'wave-ab-mode-fd'
+self.solvers:insert(require 'solver.wave-fd'(args))
+-- I think b.e. is broke
+self.solvers:insert(require 'solver.wave-fd'(table(args, {integrator='backward Euler'})))
+-- referencing this integrator doesn't seem to work
+--self.solvers:insert(require 'solver.wave-fd'(table(args, {integrator='Iterative Crank-Nicolson'})))
+-- TODO how about a weno-finite-difference solver?
+--]]
+
 
 
 -- the start of unstructured meshes

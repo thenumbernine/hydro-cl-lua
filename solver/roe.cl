@@ -7,67 +7,85 @@ kernel void calcFlux(
 	const global <?=solver.getULRArg?>,
 	realparam dt
 ) {
+	typedef <?=eqn.cons_t?> cons_t;
+	typedef <?=eqn.eigen_t?> eigen_t;
+	typedef <?=eqn.waves_t?> waves_t;
+	
 	SETBOUNDS(numGhost,numGhost-1);
 	real3 xR = cell_x(i);
 	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;	
 		int indexL = index - solver->stepsize.s<?=side?>;
+	
+		real dx = solver->grid_dx.s<?=side?>;
 		
+		real3 xL = xR;
+		xL.s<?=side?> -= dx;
+
 		real3 xInt = xR;
-		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		xInt.s<?=side?> -= .5 * dx;
 		
 		//this is used for the flux limiter
 		//should it be using the coordinate dx or the grid dx?
 		//real dt_dx = dt / cell_dx<?=side?>(xInt);
-		real dt_dx = dt / solver->grid_dx.s<?=side?>;
+		real dt_dx = dt / dx;
 
 		real3 xIntL = xInt;
-		xIntL.s<?=side?> -= solver->grid_dx.s<?=side?>;
+		xIntL.s<?=side?> -= dx;
 		
 		real3 xIntR = xInt;
-		xIntR.s<?=side?> += solver->grid_dx.s<?=side?>;
+		xIntR.s<?=side?> += dx;
 	
 <?=solver:getULRCode():gsub('\t', '\t\t')?>
-	
+
+		// here is where parallel propagator comes into play
+		cons_t pUL = cons_parallelPropagate<?=side?>(*UL, .5 * dx, xL);
+		cons_t pUR = cons_parallelPropagate<?=side?>(*UR, -.5 * dx, xR);
+
 		int indexInt = side + dim * index;
-		<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, normalForSide<?=side?>());
-		
+		eigen_t eig = eigen_forInterface(solver, pUL, pUR, xInt, normalForSide<?=side?>());
 <?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt'):gsub('\t', '\t\t')?>
 
-		<?=eqn.waves_t?> fluxEig;
+		waves_t fluxEig;
 <? if not eqn.roeUseFluxFromCons then 
-?>		<?=eqn.cons_t?> UAvg;
+?>		cons_t UAvg;
 		for (int j = 0; j < numIntStates; ++j) {
-			UAvg.ptr[j] = .5 * (UL->ptr[j] + UR->ptr[j]);
+			UAvg.ptr[j] = .5 * (pUL.ptr[j] + pUR.ptr[j]);
 		}
 		fluxEig = eigen_leftTransform_<?=side?>(solver, eig, UAvg, xInt);
 <? end 
 ?>
-		<?=eqn.cons_t?> deltaU;	
+		cons_t deltaU;	
 <? if solver.fluxLimiter > 1 then 
 ?>		int indexR2 = indexR + solver->stepsize.s<?=side?>;
 		int indexL2 = indexL - solver->stepsize.s<?=side?>;
 		<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}?>
 		<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}?>	
+		
+		// here is where parallel propagator comes into play
+		cons_t pUL_L = cons_parallelPropagate<?=side?>(*UL_L, 1.5 * dx, xIntL);		//xIntL2?
+		cons_t pUL_R = cons_parallelPropagate<?=side?>(*UL_R, .5 * dx, xIntL);
+		cons_t pUR_L = cons_parallelPropagate<?=side?>(*UR_L, -.5 * dx, xIntR);
+		cons_t pUR_R = cons_parallelPropagate<?=side?>(*UR_R, -1.5 * dx, xIntR);	// xIntR2?
 			
-		<?=eqn.cons_t?> deltaUL, deltaUR;
+		cons_t deltaUL, deltaUR;
 <? end 
 ?>		
 		for (int j = 0; j < numStates; ++j) {
-			deltaU.ptr[j] = UR->ptr[j] - UL->ptr[j];
+			deltaU.ptr[j] = pUR.ptr[j] - pUL.ptr[j];
 <? if solver.fluxLimiter > 1 then 
-?>			deltaUL.ptr[j] = UR_L->ptr[j] - UL_L->ptr[j];
-			deltaUR.ptr[j] = UR_R->ptr[j] - UL_R->ptr[j];
+?>			deltaUL.ptr[j] = pUR_L.ptr[j] - pUL_L.ptr[j];
+			deltaUR.ptr[j] = pUR_R.ptr[j] - pUL_R.ptr[j];
 <? end 
 ?>		}
 		
-		<?=eqn.waves_t?> deltaUEig = eigen_leftTransform_<?=side?>(solver, eig, deltaU, xInt);
+		waves_t deltaUEig = eigen_leftTransform_<?=side?>(solver, eig, deltaU, xInt);
 <? if solver.fluxLimiter > 1 then 
-?>		<?=eqn.eigen_t?> eigL = eigen_forInterface(solver, *UL_L, *UR_L, xInt, normalForSide<?=side?>());
-		<?=eqn.eigen_t?> eigR = eigen_forInterface(solver, *UL_R, *UR_R, xInt, normalForSide<?=side?>());
-		<?=eqn.waves_t?> deltaUEigL = eigen_leftTransform_<?=side?>(solver, eigL, deltaUL, xIntL);
-		<?=eqn.waves_t?> deltaUEigR = eigen_leftTransform_<?=side?>(solver, eigR, deltaUR, xIntR);
+?>		eigen_t eigL = eigen_forInterface(solver, pUL_L, pUR_L, xInt, normalForSide<?=side?>());
+		eigen_t eigR = eigen_forInterface(solver, pUL_R, pUR_R, xInt, normalForSide<?=side?>());
+		waves_t deltaUEigL = eigen_leftTransform_<?=side?>(solver, eigL, deltaUL, xIntL);
+		waves_t deltaUEigR = eigen_leftTransform_<?=side?>(solver, eigR, deltaUR, xIntR);
 <? end 
 ?>
 		<? for j=0,eqn.numWaves-1 do ?>{
@@ -102,18 +120,18 @@ kernel void calcFlux(
 ?>			);
 		}<? end ?>
 		
-		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
+		global cons_t* flux = fluxBuf + indexInt;
 		*flux = eigen_rightTransform_<?=side?>(solver, eig, fluxEig, xInt);
 
 <? if eqn.roeUseFluxFromCons then 
-?>		
-		real3 xL = xR;
-		xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
+?>		cons_t FL = fluxFromCons_<?=side?>(solver, *UL, xL);
+		cons_t FR = fluxFromCons_<?=side?>(solver, *UR, xR);
 		
-		<?=eqn.cons_t?> FL = fluxFromCons_<?=side?>(solver, *UL, xL);
-		<?=eqn.cons_t?> FR = fluxFromCons_<?=side?>(solver, *UR, xR);
+		cons_t pFL = cons_parallelPropagate<?=side?>(FL, .5 * dx, xL);
+		cons_t pFR = cons_parallelPropagate<?=side?>(FR, -.5 * dx, xR);
+		
 		for (int j = 0; j < numIntStates; ++j) {
-			flux->ptr[j] += .5 * (FL.ptr[j] + FR.ptr[j]);
+			flux->ptr[j] += .5 * (pFL.ptr[j] + pFR.ptr[j]);
 		}
 <? end 
 ?>	}<? end ?>

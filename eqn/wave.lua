@@ -3,6 +3,7 @@ local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
+local file = require 'ext.file'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
 
@@ -17,6 +18,7 @@ Wave.useSourceTerm = true
 Wave.hasEigenCode = true
 Wave.hasFluxFromConsCode = true
 Wave.roeUseFluxFromCons = true
+Wave.weightFluxByGridVolume = false
 
 Wave.initStates = require 'init.euler'	 -- use rho as our initial condition
 
@@ -179,76 +181,9 @@ function Wave:getCommonFuncCode()
 		self.metric.f = readarg(self.init_f)
 	end
 
-
-
-	
-	
-	return template([[
-<?
-local scalar = eqn.scalar
-local vec3 = eqn.vec3
-local common = require 'common'
-local xNames = common.xNames
-?>
-/*
-background metric ADM decomposition
-this assumes the ADM spatial metric gamma_ij is equal to the grid metric
-
-for the wave equation d'Lambertian phi = 0
-i.e. g^tt phi_,tt + 2 g^ti phi_;ti + g^ij phi_;ij = 0
-ADM is defined such that 
- 	g^tt = -alpha^-2
-	g^ti = alpha^-2 beta^i 
-	g^ij = gamma^ij - alpha^-2 beta^i beta^j
-TODO make this configurable somehow
-or make it modular enough to merge with BSSNOK
-*/
-
-real metric_alpha(real3 pt) { 
-	return <?=eqn:compile(eqn.metric.alpha)?>; 
-}
-
-real3 metric_beta_u(real3 pt) { 
-	return (real3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = <?=eqn:compile(eqn.metric.beta_u[i])?>,
-<? end
-?>	};
-}
-
-real metric_K(real3 pt) { 
-	return <?=eqn:compile(eqn.metric.K)?>;
-}
-
-real metric_f(real3 pt) { 
-	return <?=eqn:compile(eqn.metric.f)?>;
-}
-
-real3 metric_partial_alpha_l(real3 pt) { 
-	return (real3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = <?=eqn:compile(eqn.metric.alpha:diff(eqn.metric.coords[i])())?>,
-<? end
-?>	};
-}
-
-//partial_beta_ul[i][j] = beta^i_,j
-real3x3 metric_partial_beta_ul(real3 pt) { 
-	return (real3x3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (real3){
-<?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = <?=eqn:compile(eqn.metric.beta_u[i]:diff(eqn.metric.coords[j])())?>,
-<?	end
-?>		},
-<?	end
-?>	};
-}
-
-<?=scalar?> eqn_source(real3 pt) { return <?=scalar?>_zero; }
-
-]], {
+	return template(file['eqn/wave.cl'], {
 		eqn = self,
+		getCommonCode = true,
 	})
 end
 

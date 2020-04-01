@@ -45,6 +45,59 @@ function Struct:makeType()
 		self.typename = self.solver.app:uniqueName(self.name)
 	end
 	makestruct.safeFFICDef(self:getTypeCode())
+
+
+	-- make the metatype here
+	local struct = self
+	local metatable = {
+		toLua = function(self)
+			local result = {}
+			for _,field in ipairs(struct.vars) do
+				local name = field.name
+				local ctype = field.type
+				local value = self[name]
+				if ctype.toLua then
+					value = value:toLua()
+				end
+				result[name] = value
+			end
+			return result
+		end,
+		__tostring = function(ptr)
+			local t = table()
+			for _,field in ipairs(struct.vars) do
+				local name = field.name
+				local ctype = field.type
+				
+				local s = tostring(ptr[name])
+				
+				t:insert(name..'='..s)
+			end
+			return '{'..t:concat', '..'}'
+		end,
+		__concat = function(a,b) 
+			return tostring(a) .. tostring(b) 
+		end,
+		__eq = function(a,b)
+			for _,field in ipairs(struct.vars) do
+				local name = field.name
+				local ctype = field.type
+				if a[name] ~= b[name] then return false end
+			end
+			return true
+		end,
+	}
+	metatable.__index = metatable
+	local metatype = ffi.metatype(self.typename, metatable)
+	
+	local sizeOfFields = table.map(struct.vars, function(field)
+		local name = field.name
+		local ctype = field.type
+		return ffi.sizeof(ctype)
+	end):sum()
+	assert(ffi.sizeof(self.typename) == sizeOfFields, "struct "..self.typename.." isn't packed!")
+	
+	self.metatype = metatype
 end
 
 function Struct:getTypeCode()
