@@ -19,12 +19,12 @@ ShallowWater.initStates = require 'init.euler'
 -- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
 ShallowWater.primVars = {
 	{name='h', type='real', units='m'},
-	{name='v', type='real3', units='m/s'},
+	{name='v', type='real3', units='m/s'},	-- contravariant
 }
 
 ShallowWater.consVars = {
 	{name='h', type='real', units='m'},
-	{name='m', type='real3', units='m/s'},
+	{name='m', type='real3', units='m/s'},	-- contravariant
 }
 
 function ShallowWater:createInitState()
@@ -40,6 +40,16 @@ function ShallowWater:getCommonFuncCode()
 real calc_C(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	return sqrt(solver->gravity * U.h);
 }
+
+// TODO this can be automatically done based on flagging the state variables, whether their indexes are upper or lower
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
+	U.m = coord_parallelPropagateU<?=side?>(U.m, x, dx);
+	return U;
+}
+<? end ?>
+
+
 ]], {
 		solver = self.solver,
 		eqn = self,
@@ -221,7 +231,8 @@ ShallowWater.eigenVars = table{
 
 function ShallowWater:eigenWaveCodePrefix(side, eig, x)
 	return template([[
-	real C_sqrt_gU = <?=eig?>.C * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real nLen = coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real C_nLen = <?=eig?>.C * nLen;
 	real v_n = <?=eig?>.v.s[<?=side?>];
 ]], {
 		eig = '('..eig..')',
@@ -230,9 +241,24 @@ function ShallowWater:eigenWaveCodePrefix(side, eig, x)
 	})
 end
 
+-- assume 'n' is covariant
+function ShallowWater:eigenWaveCodePrefixForNormal(n, eig, x)
+	return template([[
+	real nLenSq = real3_weightedLenSq(<?=n?>, coord_g_uu(<?=x?>));
+	real nLen = sqrt(nLenSq);
+	real C_nLen = <?=eig?>.C * nLen;
+	real v_n = real3_dot(<?=eig?>.v, <?=n?>);
+]], {
+		eig = '('..eig..')',
+		x = x,
+		n = n,
+	})
+end
+
 function ShallowWater:consWaveCodePrefix(side, U, x, W)
 	return template([[
-	real C_sqrt_gU = calc_C(solver, <?=U?>) * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real nLen = coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real C_nLen = calc_C(solver, <?=U?>) * nLen;
 <? if not W then ?>
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 <? end ?>
@@ -248,11 +274,11 @@ end
 
 function ShallowWater:consWaveCode(side, U, x, waveIndex)
 	if waveIndex == 0 then
-		return '(v_n - C_sqrt_gU)'
+		return '(v_n - C_nLen)'
 	elseif waveIndex >= 1 and waveIndex <= 2 then
 		return 'v_n'
 	elseif waveIndex == 3 then
-		return '(v_n + C_sqrt_gU)'
+		return '(v_n + C_nLen)'
 	end
 	error'got a bad waveIndex'
 end

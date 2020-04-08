@@ -1,6 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
+local template = require 'template'
 local CoordinateSystem = require 'coord.coord'
 
 local sin, cos = symmath.sin, symmath.cos
@@ -46,7 +47,6 @@ function Sphere:init(args)
 	}
 end
 
-local template = require 'template'
 function Sphere:getCoordMapInvGLSLCode()
 	return template([[
 vec3 coordMapInv(vec3 x) {
@@ -67,6 +67,104 @@ vec3 coordMapInv(vec3 x) {
 }
 ]], {
 		solver = self.solver,
+	})
+end
+
+function Sphere:getParallelPropagatorCode()
+	return template([[
+
+<? if coord.vectorComponent == 'holonomic' then ?>
+
+real3 coord_parallelPropagateU0(real3 v, real3 x, real dx) {
+	real rL = x.x;
+	real rR = x.x + dx;
+	v.y *= rL / rR;
+	v.z *= rL / rR;
+	return v;
+}
+
+real3 coord_parallelPropagateL0(real3 v, real3 x, real dx) {
+	real rL = x.x;
+	real rR = x.x + dx;
+	v.y *= rR / rL;
+	v.z *= rR / rL;
+	return v;
+}
+
+real3 coord_parallelPropagateU1(real3 v, real3 x, real dx) {
+	real r = x.x;
+	real thetaL = x.y;
+	real thetaR = x.y + dx;
+	real sinThetaL = sin(thetaL);
+	real sinThetaR = sin(thetaR);
+	v.y *= r;
+	v.z *= sinThetaL;
+	v = real3_rotateZ(v, -dx);
+	v.y /= r;
+	v.z /= sinThetaR;
+	return v;
+}
+
+real3 coord_parallelPropagateL1(real3 v, real3 x, real dx) {
+	real r = x.x;
+	real thetaL = x.y;
+	real thetaR = x.y + dx;
+	real sinThetaL = sin(thetaL);
+	real sinThetaR = sin(thetaR);
+	v.y /= r;
+	v.z /= sinThetaL;
+	v = real3_rotateZ(v, -dx);
+	v.y *= r;
+	v.z *= sinThetaR;
+	return v;
+}
+
+real3 coord_parallelPropagateU2(real3 v, real3 x, real dx) {
+	real r = x.x;
+	real theta = x.y;
+	real sinTheta = sin(theta);
+	real rSinTheta = r * sinTheta;
+	v.y *= r;
+	v.z *= rSinTheta;
+	v = real3_rotateZ(v, theta);
+	v = real3_rotateX(v, -dx);
+	v = real3_rotateZ(v, -theta);
+	v.y /= r;
+	v.z /= rSinTheta;
+	return v;
+}
+
+real3 coord_parallelPropagateL2(real3 v, real3 x, real dx) {
+	real r = x.x;
+	real theta = x.y;
+	real sinTheta = sin(theta);
+	real rSinTheta = r * sinTheta;
+	v.y /= r;
+	v.z /= rSinTheta;
+	v = real3_rotateZ(v, theta);
+	v = real3_rotateX(v, -dx);
+	v = real3_rotateZ(v, -theta);
+	v.y *= r;
+	v.z *= rSinTheta;
+	return v;
+}
+
+<? else ?>
+
+#define coord_parallelPropagateU0(v,x,dx) (v)
+
+real3 coord_parallelPropagateU1(real3 v, real3 x, real dx) {
+	return real3_rotateZ(v, -dx);
+}
+
+real3 coord_parallelPropagateU2(real3 v, real3 x, real dx) {
+	return real3_rotateX(-dx);
+}
+
+<? end ?>
+
+]], {
+		coord = self,
 	})
 end
 

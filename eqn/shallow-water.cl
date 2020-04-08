@@ -39,10 +39,11 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	prim_t W = primFromCons(solver, *U, x);
 	real C = calc_C(solver, *U);
 	//for n_i = partial_i, n^i = g^ij n_j, |n| = sqrt(n^i n_i) ... when n_i is aligned to the coordinate basis then |n| = sqrt(g^ii)
-	real C_sqrt_gU = C * coord_sqrt_g_uu<?=side..side?>(x);
+	real nLen = coord_sqrt_g_uu<?=side..side?>(x);
+	real C_nLen = C * nLen; 
 	return (range_t){
-		.min = W.v.s<?=side?> - C_sqrt_gU, 
-		.max = W.v.s<?=side?> + C_sqrt_gU,
+		.min = W.v.s<?=side?> - C_nLen, 
+		.max = W.v.s<?=side?> + C_nLen,
 	};
 }
 <? end ?>
@@ -84,70 +85,46 @@ eigen_t eigen_forInterface(
 }
 
 <?
-for side=0,solver.dim-1 do 
-	local prefix
+local prefix = [[
+	real3 n = normalForSide<?=side?>();
+	real3 n2, n3;
+	getPerpendicularBasis(n, &n2, &n3);
 	
-	if side == 0 then
-					
-		prefix = [[
-	const real nx = 1, ny = 0, nz = 0;
-	const real n1x = 0, n1y = 1, n1z = 0;
-	const real n2x = 0, n2y = 0, n2z = 1;
-	real v_n = v.x, v_n1 = v.y, v_n2 = v.z;
-]] 
-	elseif side == 1 then
-		
-		prefix = [[
-	const real nx = 0, ny = 1, nz = 0;
-	const real n1x = 0, n1y = 0, n1z = 1;
-	const real n2x = 1, n2y = 0, n2z = 0;
-	real v_n = v.y, v_n1 = v.z, v_n2 = v.x;
-]] 
-	elseif side == 2 then
-		
-		prefix = [[
-	const real nx = 0, ny = 0, nz = 1;
-	const real n1x = 1, n1y = 0, n1z = 0;
-	const real n2x = 0, n2y = 1, n2z = 0;
-	real v_n = v.z, v_n1 = v.x, v_n2 = v.y;
-]]
-	end
-	
-	prefix = [[
-	sym3 gU = coord_g_uu(x);
-	real sqrt_gUjj = coord_sqrt_g_uu]]..side..side..[[(x);
-	
+	const real nx = n.x, ny = n.y, nz = n.z;
+	const real n2x = n2.x, n2y = n2.y, n2z = n2.z;
+	const real n3x = n3.x, n3y = n3.y, n3z = n3.z;
+	real v_n = real3_dot(v, n);
+	real v_n2 = real3_dot(v, n2);
+	real v_n3 = real3_dot(v, n3);
+
+	real3 nU = coord_raise(n, x);
+	real nLenSq = real3_dot(n, nU);
+	real nLen = sqrt(nLenSq);
+
 	real h = eig.h;
 	real3 v = eig.v;
 	real C = eig.C;
-	//g^ij for fixed j=side
-]] .. prefix
-
-	local gUdef = '\treal3 gUj = _real3(\n'
-	for i=0,2 do
-		gUdef = gUdef .. '\t\tcoord_g_uu'..side..i..'(x)'..(i<2 and ',' or '')..'\n'
-	end
-	gUdef = gUdef .. '\t);\n'
-	prefix = gUdef .. prefix
+]]
 ?>
 
-waves_t eigen_leftTransform_<?=side?>(
+waves_t eigen_leftTransformForNormal(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t X,
-	real3 x
+	real3 x,
+	real3 n	//covariant
 ) { 
 	<?=prefix?>
 
-	real3 n1 = _real3(n1x, n1y, n1z);
-	real3 n1U = coord_raise(n1, x);
-	
 	real3 n2 = _real3(n2x, n2y, n2z);
 	real3 n2U = coord_raise(n2, x);
+	
+	real3 n3 = _real3(n3x, n3y, n3z);
+	real3 n3U = coord_raise(n3, x);
 
 	//TODO double-check that this is the correct 3D generalization...
-	real vU_dot_n1U = real3_dot(v, n1U);
 	real vU_dot_n2U = real3_dot(v, n2U);
+	real vU_dot_n3U = real3_dot(v, n3U);
 
 	real nlen = sqrt_gUjj;	//sqrt(n^i n_i)
 	real nsq = gU.s<?=side..side?>;
@@ -157,8 +134,8 @@ waves_t eigen_leftTransform_<?=side?>(
 
 	return (waves_t){.ptr={
 		(X.ptr[0] * (-C_n - v_n) + X.ptr[<?=side+1?>]) * invDenom,
-		(X.ptr[0] * -vU_dot_n1U + X.ptr[1] * n1U.x + X.ptr[2] * n1U.y + X.ptr[3] * n1U.z) * 2. * invDenom,
 		(X.ptr[0] * -vU_dot_n2U + X.ptr[1] * n2U.x + X.ptr[2] * n2U.y + X.ptr[3] * n2U.z) * 2. * invDenom,
+		(X.ptr[0] * -vU_dot_n3U + X.ptr[1] * n3U.x + X.ptr[2] * n3U.y + X.ptr[3] * n3U.z) * 2. * invDenom,
 		(X.ptr[0] * (C_n - v_n) + X.ptr[<?=side+1?>]) * invDenom,
 	}};
 }
@@ -182,15 +159,15 @@ cons_t eigen_rightTransform_<?=side?>(
 		
 		(X.ptr[0] + X.ptr[3]) * h * nU.x 
 		+ (X.ptr[3] - X.ptr[0]) * (nlen * h * invC * v.x)
-		+ h * (X.ptr[1] * n1x + X.ptr[2] * n2x),
+		+ h * (X.ptr[1] * n2x + X.ptr[2] * n3x),
 		
 		(X.ptr[0] + X.ptr[3]) * h * nU.y
 		+ (X.ptr[3] - X.ptr[0]) * (nlen * h * invC * v.y)
-		+ h * (X.ptr[1] * n1y + X.ptr[2] * n2y),
+		+ h * (X.ptr[1] * n2y + X.ptr[2] * n3y),
 
 		(X.ptr[0] + X.ptr[3]) * h * nU.z
 		+ (X.ptr[3] - X.ptr[0]) * (nlen * h * invC * v.z)
-		+ h * (X.ptr[1] * n1z + X.ptr[2] * n2z),
+		+ h * (X.ptr[1] * n2z + X.ptr[2] * n3z),
 	}};
 }
 

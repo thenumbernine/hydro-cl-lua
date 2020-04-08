@@ -170,10 +170,9 @@ assert(args.anholonomic == nil, "FIXME")
 	end
 
 	local baseCoords = self.baseCoords
-	if self.vectorComponent ~= 'anholonomic' then
+	if self.vectorComponent == 'holonomic' then
 		self.coords = table(baseCoords)
-	else
-		
+	elseif self.vectorComponent == 'anholonomic' then
 		-- TODO this is why symmath needs CAS function objects
 		-- and instead of overriding :applyDiff, just make operators a CAS function object
 		local nonCoords = table()
@@ -206,6 +205,15 @@ assert(args.anholonomic == nil, "FIXME")
 			end
 		end
 		self.coords = nonCoords
+	elseif self.vectorComponent == 'cartesian' then
+		--start with baseCoords
+		-- look at chart derivs
+		-- set 'e' to the inverse
+		-- TODO or don't
+		-- if you are going to use a cartesian normal of the cell as your boundary then the embedded should be the basis
+		-- in fact, what is 'e' used for?
+		-- e is copied to eHol (only for 'holonomic'), which is used for gHol, which is used for the volume element of the grid (which cartesian will use)
+		self.coords = self.embedded
 	end
 	local coords = self.coords
 
@@ -242,33 +250,27 @@ assert(args.anholonomic == nil, "FIXME")
 		print()
 	end
 
-	local e = Tensor'_u^I'
-	e['_u^I'] = u'^I_,u'()
+	-- comma derivatives are non-coordinates
+	local e
+	if self.vectorComponent == 'cartesian' then
+		-- one option: use the inverse of the coordinate derivatives of the chart
+		-- another option: use cartesian
+		e = Tensor('_u^I', function(a,I) return a==I and 1 or 0 end)
+	else
+		e = Tensor'_u^I'
+		e['_u^I'] = u'^I_,u'()
+	end
 	if self.verbose then
 		print'embedded:'
 		print(var'e''_u^I':eq(var'u''^I_,u'):eq(e'_u^I'()))
 		print()
 	end
 
-	local isItReallyAnholonomic = false
-	for i=1,#coords do
-		if coords[i].base then
-			isItReallyAnholonomic = true
-			break
-		end
-	end
-	if isItReallyAnholonomic ~= (self.vectorComponent == 'anholonomic') then
-		error(require 'ext.tolua'{
-			isItReallyAnholonomic =  isItReallyAnholonomic, 
-			vectorComponent = self.vectorComponent,
-		})
-	end
-	local anholonomic = self.vectorComponent == 'anholonomic'
-	
+
 	-- for the sake of grid lengths, 
 	-- I will need the basis and metric of the holonomic version as well
 	local eHol
-	if not anholonomic then
+	if self.vectorComponent == 'holonomic' then
 		eHol = e
 	else
 		eHol = Tensor('_u^I', function(a,I)
@@ -283,7 +285,7 @@ assert(args.anholonomic == nil, "FIXME")
 
 	-- commutation coefficients
 	local c = Tensor'_ab^c'
-	if anholonomic then
+	if self.vectorComponent == 'anholonomic' then
 		if self.verbose then
 			print'connection coefficients:'
 			print(var'c''_uv^w' * var'e''_w','$=[ e_u, e_v ]$')
@@ -391,15 +393,24 @@ assert(args.anholonomic == nil, "FIXME")
 		return e[i][j] or const(0)
 	end)
 	compileTensorField('eCode', eExt)
-	
+
+
+	if self.vectorComponent == 'cartesian' then
+		local eHolLen = range(#eHol):mapi(function(i)
+			return symmath.sqrt(
+				range(#eHol):mapi(function(j)
+					return eHol[i][j]^2
+				end):sum()
+			)()
+		end)
+
+		local eHolUnitExt = symmath.Array:lambda({dim, dim}, function(i,j)
+			return (eHol[i][j] / eHolLen[i])()
+		end)
+		compileTensorField('eHolUnitCode', eHolUnitExt)
+	end
+
 --[=[ not being used
-	local eHolLen = range(#eHol):mapi(function(i)
-		return symmath.sqrt(
-			range(#eHol):mapi(function(j)
-				return eHol[i][j]^2
-			end):sum()
-		)()
-	end)
 	compileTensorField('eHolLenCode', eHolLen)
 
 	local eExtLen = eExt:mapi(function(ei,i)
@@ -485,7 +496,7 @@ self.Gamma_ull = Gamma_ull
 	compileTensorField('tr13_conn_l_codes', connExpr)
 
 	local gHol
-	if not anholonomic then
+	if self.vectorComponent ~= 'holonomic' then
 		gHol = g
 	else
 		gHol = (eHol'_u^I' * eHol'_v^J' * eta'_IJ')()
@@ -546,7 +557,10 @@ self.Gamma_ull = Gamma_ull
 	end)
 
 	-- area of the side in each direction
-	compileTensorField('cell_area_codes', coord_area_exprs)
+	-- TODO only by request -- for finite-volume solvers 
+	if require 'solver.fvsolver'.is(assert(args.solver)) then
+		compileTensorField('cell_area_codes', coord_area_exprs)
+	end
 
 	do
 		local volume = const(1)
@@ -570,7 +584,9 @@ self.Gamma_ull = Gamma_ull
 		if self.verbose then
 			print(var'volume':eq(volume))
 		end
-		compileTensorField('cell_volume_code', volume)
+		if require 'solver.fvsolver'.is(assert(args.solver)) then
+			compileTensorField('cell_volume_code', volume)
+		end
 	end
 --]]
 
@@ -801,7 +817,7 @@ end
 ok standardizing these macros ...
 we have a few manifolds to deal with ...
 1) grid coordiantes, I = 0..size-1
-2) manifold coordinates, X = grid coordinates rescaled to fit between solver->mins and solver->maxs  
+2) manifold coordinates, X = grid coordinates rescaled to fit between solver->mins and solver->maxs
 3) result coordinates, Y = cartesian output of the mapping of the coordinate system
 
 coord_dx[_for_coord]<?=side?>(pt) gives the length of the dx of the coordinate in 'side' direction, for 'pt' in coordinates
@@ -833,12 +849,14 @@ function CoordinateSystem:getCode(solver)
 -- [[
 	-- area0, area1, ...
 	-- area_i = integral of u_j, j!=i of product of dx_j, j!=i
-	lines:append(range(dim):mapi(function(i)
-		local code = self.cell_area_codes[i]
-		return '#define cell_area'..(i-1)..'(pt) ('..code..')'
-	end))
+	if require 'solver.fvsolver'.is(solver) then
+		lines:append(range(dim):mapi(function(i)
+			local code = self.cell_area_codes[i]
+			return '#define cell_area'..(i-1)..'(pt) ('..code..')'
+		end))
 
-	lines:insert('#define cell_volume(pt) ('..self.cell_volume_code..')')
+		lines:insert('#define cell_volume(pt) ('..self.cell_volume_code..')')
+	end
 --]]
 
 	lines:insert'\n'
@@ -849,7 +867,7 @@ function CoordinateSystem:getCode(solver)
 	
 	lines:insert'\n'
 
-	-- metric determinant ...  det_g = volume^2 for holonomic basis
+	-- metric determinant ... det_g = volume^2 for holonomic basis
 	local det_g_code = '(' .. self.det_g_code .. ')'
 	lines:insert(getCode_real3_to_real('coord_det_g', det_g_code))
 
@@ -908,6 +926,53 @@ real coordLen(real3 r, real3 pt) {
 
 	lines:insert(self:getCoordMapCode())
 
+	if require 'solver.fvsolver'.is(self.solver) then
+		-- parallel-propagate a vector from point 'x' along coordinate 'k' (suffix of func name) by amount 'dx'
+		-- TODO derive this from the metric
+		-- upper parallel propagator = exp(-int_x^(x+dx) of conn_side dx)
+		-- lower parallel propagator = exp(int_x^(x+dx) of conn_side^T dx) = upper^-T
+		--
+		-- if we're using a cartesian basis then no need to transport anything
+		-- ... (? except maybe the flux differential across the cell, done in curvilinear coordinates ?)
+		if self.vectorComponent == 'cartesian' 
+		or require 'coord.cartesian'.is(self)
+		then
+			-- general case for a fixed global orthonormal basi:
+			lines:insert(template([[
+
+// Propagate an upper index / propagate the components of a vector.
+<? for side=0,solver.dim-1 do
+?>#define coord_parallelPropagateU<?=side?>(v, x, dx) (v)
+<? end ?>
+
+// To propagate a one-form, apply the inverse-transpose.
+// In the case of anholonomic orthonormal basis, the transpose equals the inverse so propagateL == propagateR.
+//  This fits with the fact that the metric of an orthonormal basis is identity, so the upper and lower components are equal.
+<? for side=0,solver.dim-1 do 
+?>#define coord_parallelPropagateL<?=side?>(v, x, dx) (v)
+<? end ?>
+
+]], 		{
+				solver = self.solver,
+			}))
+		
+		-- anholonomic orthonormal = metric is identity, so inverse = transpose, so upper propagate = lower propagate ... so we only need to define the upper 
+		elseif self.vectorComponent == 'anholonomic' then	-- TODO rename this to 'orthonormal' (since anholonomic doesn't imply orthonormal ... and this assumption is only true for orthonormal basis)
+			lines:insert(self:getParallelPropagatorCode())
+			lines:insert(template([[
+<? for side=0,solver.dim-1 do 
+?>#define coord_parallelPropagateL<?=side?>(v, x, dx) coord_parallelPropagateU<?=side?>(v, x, dx)
+<? end ?>
+]], 		{
+				solver = self.solver,
+			}))
+		elseif self.vectorComponent == 'holonomic' then	-- TODO rename this to 'coordinate'
+			lines:insert(self:getParallelPropagatorCode())
+		else
+			error'here'
+		end
+	end
+
 --print(require 'template.showcode'(lines:concat'\n'))
 
 	self.code = lines:concat'\n'
@@ -933,17 +998,71 @@ function CoordinateSystem:getCoordMapCode()
 		lines:insert(getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
 	end
 
+	if require 'solver.fvsolver'.is(self.solver)
+	and self.vectorComponent == 'cartesian' 
+	then
+		for i,eHolUnitiCode in ipairs(self.eHolUnitCode) do
+			lines:insert(getCode_real3_to_real3('holunit_coordBasis'..(i-1), eHolUnitiCode))
+		end
+	end
+
 	lines:insert(template([[
 
 <? if coord.vectorComponent == 'cartesian' then ?>
-#define cartesianToCoord(u, pt) 	u
-#define cartesianFromCoord(u, pt) 	u
-<? else	-- coord.vectorComponent ?>
+
 
 //converts a vector from cartesian coordinates to grid curvilinear coordinates
 //by projecting the vector into the grid basis vectors
 //at x, which is in grid curvilinear coordinates
-real3 cartesianToCoord(real3 u, real3 pt) {
+real3 coord_cartesianToCoord(real3 u, real3 pt) {
+	real3 uCoord = real3_zero;
+	<? for i=0,solver.dim-1 do 
+	local xi = xNames[i+1]
+	?>{
+		real3 e = holunit_coordBasis<?=i?>(pt);
+<? if coord.vectorComponent == 'anholonomic' then	-- anholonomic normalized
+?>		real uei = real3_dot(e, u);
+<? else		-- holonomic
+?>		real uei = real3_dot(e, u) / real3_lenSq(e);
+<? end		
+?>		uCoord.<?=xi?> = uei;
+		//subtract off this basis component from u
+		u = real3_sub(u, real3_real_mul(e, uei));
+	}<? end ?>
+	//add whatever's left of u
+	uCoord = real3_add(uCoord, u);
+	return uCoord;
+}
+
+//converts a vector from cartesian to grid curvilinear coordinates
+//by projecting it onto the basis ... ?
+real3 coord_cartesianFromCoord(real3 u, real3 pt) {
+	real3 uGrid = real3_zero;
+	<? for i=0,solver.dim-1 do 
+	local xi = xNames[i+1]
+	?>{
+		real3 e = holunit_coordBasis<?=i?>(pt);
+		uGrid = real3_add(uGrid, real3_real_mul(e, u.<?=xi?>));
+	}<? end ?>
+	return uGrid;
+}
+
+
+//TODO change names
+//'coord' is ambiguous
+// this is relative to teh vector component basis
+#define cartesianFromCoord(u, pt) 	u
+#define cartesianToCoord(u, pt) 	u
+
+
+<? else	-- coord.vectorComponent ?>
+
+
+
+//converts a vector from cartesian coordinates to grid curvilinear coordinates
+//by projecting the vector into the grid basis vectors
+//at x, which is in grid curvilinear coordinates
+real3 coord_cartesianToCoord(real3 u, real3 pt) {
 	real3 uCoord = real3_zero;
 	<? for i=0,solver.dim-1 do 
 	local xi = xNames[i+1]
@@ -965,7 +1084,7 @@ real3 cartesianToCoord(real3 u, real3 pt) {
 
 //converts a vector from cartesian to grid curvilinear coordinates
 //by projecting it onto the basis ... ?
-real3 cartesianFromCoord(real3 u, real3 pt) {
+real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 	real3 uGrid = real3_zero;
 	<? for i=0,solver.dim-1 do 
 	local xi = xNames[i+1]
@@ -975,6 +1094,10 @@ real3 cartesianFromCoord(real3 u, real3 pt) {
 	}<? end ?>
 	return uGrid;
 }
+
+
+#define cartesianFromCoord(u, pt) 	coord_cartesianFromCoord(u, pt)
+#define cartesianToCoord(u, pt) 	coord_cartesianToCoord(u, pt)
 
 <? end -- coord.vectorComponent ?>
 ]], {

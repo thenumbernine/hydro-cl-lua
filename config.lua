@@ -29,9 +29,9 @@ local args = {
 	fixedDT = cmdline.fixedDT,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	fluxLimiter = 'donor cell',
+	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
@@ -51,7 +51,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	--coordArgs = {vectorComponent='cartesian'},
 	mins = cmdline.mins or {-1, -1, -1},
@@ -102,12 +102,12 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	coord = 'cylinder',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
-	coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
-	--coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
-	mins = cmdline.mins or {.01, 0, -1},
+	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
+	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
+	mins = cmdline.mins or {.1, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
@@ -117,16 +117,16 @@ local args = {
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		-- r
 		--xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or {name='mirror', args={restitution=0}},
+		xmax=cmdline.boundary or {name='mirror', args={restitution=0}},
 		
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
 		
 		-- z
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or {name='freeflow', args={restitution=0}},
+		zmax=cmdline.boundary or {name='freeflow', args={restitution=0}},
 	},
 	--]]
 	--[[ Sphere: r, θ, φ 
@@ -185,8 +185,8 @@ local args = {
 	
 	-- Euler / SRHD / MHD initial states:
 	
-	initState = 'constant',
-	initStateArgs = {v={1e-1,1e-1}},
+	--initState = 'constant',
+	--initStateArgs = {v={1e-1,1e-1}},
 	
 	--initState = 'linear',
 	--initState = 'gaussian',
@@ -196,7 +196,7 @@ local args = {
 	--initState = 'rarefaction wave',
 	--initState = 'Bessel',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initStateArgs = {dim=cmdline.displayDim},
 	
 	--initState = 'rectangle',
@@ -453,7 +453,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- wave equation
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
@@ -752,7 +752,7 @@ self.solvers:insert(require 'solver.wave-fd'(table(args, {integrator='backward E
 --self.solvers:insert(require 'solver.choppedup'(table(args, {eqn='euler', subsolverClass=require 'solver.roe'})))
 
 
---[=[ 2013 Baumgarte et al, section IV A 1 example & 2017 Ruchlin, Etienne
+-- [=[ 2013 Baumgarte et al, section IV A 1 example & 2017 Ruchlin, Etienne
 local dim = 3
 local args = {
 	app = self,

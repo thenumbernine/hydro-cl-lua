@@ -104,6 +104,10 @@ function makevec3(vec,scalar)
 		<?=sub?>(<?=mul?>(a.x, b.y), <?=mul?>(a.y, b.x)));
 }
 
+<?=vec?> <?=vec?>_unit(<?=vec?> a) {
+	return <?=vec?>_real_mul(a, 1. / <?=vec?>_len(a));
+}
+
 <?
 end
 makevec3('real3', 'real')
@@ -223,6 +227,38 @@ real3 real3_rotateTo(real3 v, real3 n) {
 	return _real3(vres.x, vres.y, vres.z);
 #endif
 }
+
+real3 real3_rotateX(real3 v, real theta) {
+	real cosTheta = cos(theta);
+	real sinTheta = sin(theta);
+	real vy = v.y;
+	real vz = v.z;
+	v.y = vy * cosTheta - vz * sinTheta;
+	v.z = vy * sinTheta + vz * cosTheta;
+	return v;
+}
+
+real3 real3_rotateY(real3 v, real theta) {
+	real cosTheta = cos(theta);
+	real sinTheta = sin(theta);
+	real vx = v.x;
+	real vz = v.z;
+	v.x = vx * cosTheta + vz * sinTheta;
+	v.z = -vx * sinTheta + vz * cosTheta;
+	return v;
+}
+
+real3 real3_rotateZ(real3 v, real theta) {
+	real cosTheta = cos(theta);
+	real sinTheta = sin(theta);
+	real vx = v.x;
+	real vy = v.y;
+	v.x = vx * cosTheta - vy * sinTheta;
+	v.y = vx * sinTheta + vy * cosTheta;
+	return v;
+}
+
+
 
 ////////////////////////// sym3 //////////////////////////
 
@@ -1013,4 +1049,31 @@ real BESSJ0(real X) {
 		real FQ = Q1+Y*(Q2+Y*(Q3+Y*(Q4+Y*Q5)));
 		return sqrt(0.636619772/AX)*(FP*cos(XX)-Z*FQ*sin(XX));
 	}
+}
+
+
+//TODO include metric weight
+//TODO I'm using this for n^u and n_u
+void getPerpendicularBasis(real3 n, real3* n2, real3* n3) {
+	real3 n_x_x = real3_cross(n, _real3(1,0,0));
+	real3 n_x_y = real3_cross(n, _real3(0,1,0));
+	real3 n_x_z = real3_cross(n, _real3(0,0,1));
+	real n_x_xSq = real3_lenSq(n_x_x);
+	real n_x_ySq = real3_lenSq(n_x_y);
+	real n_x_zSq = real3_lenSq(n_x_z);
+	if (n_x_xSq > n_x_ySq) {
+		if (n_x_xSq > n_x_zSq) {
+			*n2 = n_x_x;	//use x
+		} else {
+			*n2 = n_x_z;	//use z
+		}
+	} else {
+		if (n_x_ySq > n_x_zSq) {
+			*n2 = n_x_y;	//use y
+		} else {
+			*n2 = n_x_z;	//use z
+		}
+	}
+	*n2 = real3_unit(*n2);
+	*n3 = real3_cross(n, *n2);
 }

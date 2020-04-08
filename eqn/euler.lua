@@ -327,6 +327,7 @@ function Euler:getDisplayVars()
 end
 
 Euler.eigenVars = table{
+	{name='n', type='real3', units='m'},
 	-- Roe-averaged vars
 	{name='rho', type='real', units='kg/m^3'},
 	{name='v', type='real3', units='m/s'},
@@ -338,7 +339,7 @@ Euler.eigenVars = table{
 
 function Euler:eigenWaveCodePrefix(side, eig, x)
 	return template([[
-	real Cs_sqrt_gU = <?=eig?>.Cs * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real Cs_nLen = <?=eig?>.Cs * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
 	real v_n = <?=eig?>.v.s[<?=side?>];
 ]], {
 		eig = '('..eig..')',
@@ -353,7 +354,7 @@ function Euler:consWaveCodePrefix(side, U, x, W)
 <? if not W then ?>
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 <? end ?>
-	real Cs_sqrt_gU = calc_Cs(solver, &<?=W or 'W'?>) * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real Cs_nLen = calc_Cs(solver, &<?=W or 'W'?>) * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
 	real v_n = <?=W or 'W'?>.v.s[<?=side?>];
 ]], {
 		eqn = self,
@@ -366,11 +367,11 @@ end
 
 function Euler:consWaveCode(side, U, x, waveIndex)
 	if waveIndex == 0 then
-		return '(v_n - Cs_sqrt_gU)'
+		return '(v_n - Cs_nLen)'
 	elseif waveIndex >= 1 and waveIndex <= 3 then
 		return 'v_n'
 	elseif waveIndex == 4 then
-		return '(v_n + Cs_sqrt_gU)'
+		return '(v_n + Cs_nLen)'
 	end
 	error'got a bad waveIndex'
 end

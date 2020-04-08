@@ -92,6 +92,7 @@ eigen_t eigen_forInterface(
 	real Cs = sqrt(CsSq);
 
 	return (eigen_t){
+		.n = n,
 		.rho = rho, 
 		.v = v,
 		.hTotal = hTotal,

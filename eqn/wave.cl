@@ -8,6 +8,7 @@ local scalar = eqn.scalar
 local vec3 = eqn.vec3
 ?>
 
+//TODO I have the templated types so I can mix solver code.  In such a case, these typedefs shouldn't go in the getCommonCode.
 typedef <?=eqn.prim_t?> prim_t;
 typedef <?=eqn.cons_t?> cons_t;
 typedef <?=eqn.eigen_t?> eigen_t;
@@ -75,52 +76,11 @@ real3x3 metric_partial_beta_ul(real3 pt) {
 ?>	};
 }
 
-<?=scalar?> eqn_source(real3 pt) { 
-	return <?=scalar?>_zero; 
-}
 
-
-<? if require 'coord.cartesian'.is(solver.coord) 
-	or (
-		require 'coord.cylinder'.is(solver.coord)
-		and solver.coord.vectorComponent == 'cartesian'
-) then ?>
-
-<?	for side=0,solver.dim-1 do ?>
-#define coord_parallelPropagate<?=side?>(v,dx,x) (v)	// propagate an upper index / propagate the components of a vector.  to propagate a one-form, just do the inverse, or swap x -> x+dx and dx -> -dx
-<?	end ?>
-
-<? 
-elseif require 'coord.cylinder'.is(solver.coord)
-	and solver.coord.vectorComponent == 'anholonomic'
-then ?>
-//parallel-propagate a vector from point 'x' along coordinate 'k' (suffix of func name) by amount 'dx'
-//TODO eventually move this to coord
-#define coord_parallelPropagate0(v,dx,x) (v)
-
-// propagate a vector's components
-// anholonomic, meaning no rescaling
-real3 coord_parallelPropagate1(real3 v, real dx, real3 x) {
-	real cosDPhi = cos(dx);
-	real sinDPhi = sin(dx);
-	real vx = v.x;
-	real vy = v.y;
-	v.x = vx * cosDPhi + vy * sinDPhi;
-	v.y = -vx * sinDPhi + vy * cosDPhi;
-	return v;
-}
-
-
-<? end -- solver.coord ?>
-
-
+// TODO this can be automatically done based on flagging the state variables, whether their indexes are upper or lower
 <? for side=0,solver.dim-1 do ?>
-cons_t cons_parallelPropagate<?=side?>(cons_t U, real dx, real3 x) {
-	// TODO Psi_l IS A ONE-FORM.
-	// that means its basis is the inverse of the vector basis.
-	// does that mean applying an inverse transform to this?
-	// in an anholonomic orthonormal basis the one form components = the vector components, so we can reuse this.
-	U.Psi_l = coord_parallelPropagate<?=side?>(U.Psi_l, dx, x);
+cons_t cons_parallelPropagate<?=side?>(cons_t U, real3 x, real dx) {
+	U.Psi_l = coord_parallelPropagateL<?=side?>(U.Psi_l, x, dx);
 	return U;
 }
 <? end ?>
@@ -130,59 +90,85 @@ cons_t cons_parallelPropagate<?=side?>(cons_t U, real dx, real3 x) {
 
 
 
-<? for side=0,2 do ?>
-real3 coord_g_uu<?=side?>(real3 x) {
-	return _real3(<?
-	for j=0,2 do
-		?>coord_g_uu<?=side <= j and side..j or j..side?>(x)<?
-		if j < 2 then ?>, <? end
-	end ?>);
-}
-<? end ?>
-
-<? for side=0,solver.dim-1 do 
-	local xside = xNames[side+1]
-?>
-cons_t fluxFromCons_<?=side?>(
+//n is covariant
+cons_t fluxFromConsForNormal(
 	constant solver_t* solver,
 	cons_t U,
-	real3 x
+	real3 x,
+	real3 n
 ) {
+	real3 nU = coord_raise(n, x);
+	
 	cons_t F;
 	real alpha = metric_alpha(x);
-	real3 beta_u = metric_beta_u(x);
+	real beta_n = real3_dot(metric_beta_u(x), n);
+	
+	//F^Pi = -c (Pi beta_n + alpha Psi_i n^i)
 	F.Pi = <?=scalar?>_real_mul(
+		//Pi beta_n + alpha Psi_i n^i
 		real_<?=scalar?>_add(
-			<?=scalar?>_real_mul(U.Pi, beta_u.<?=xside?>), 
-			<?=scalar?>_real_mul(<?=vec3?>_real3_dot(U.Psi_l, coord_g_uu<?=side?>(x)), alpha)
+		
+			//Pi beta_n:
+			<?=scalar?>_real_mul(U.Pi, beta_n), 
+			
+			//alpha Psi_i n^i:
+			<?=scalar?>_real_mul(
+				//Psi_i n^i:
+				<?=vec3?>_real3_dot(
+					U.Psi_l, 
+					nU
+				), 
+				alpha
+			)
 		), 
 		-solver->wavespeed
 	);
-	F.Psi_l.x = <?=scalar?>_from_real(-solver->wavespeed * beta_u.<?=xside?>);
-	F.Psi_l.y = <?=scalar?>_from_real(-solver->wavespeed * beta_u.<?=xside?>);
-	F.Psi_l.z = <?=scalar?>_from_real(-solver->wavespeed * beta_u.<?=xside?>);
-	F.Psi_l.s<?=side?> = <?=scalar?>_sub(F.Psi_l.s<?=side?>, <?=scalar?>_real_mul(U.Pi, solver->wavespeed * alpha));
+	
+	//F^{Psi_j} = -c (alpha Pi n_j + Psi_j beta_n)
+	F.Psi_l = <?=vec3?>_real_mul(
+		<?=vec3?>_add(
+			//Psi_j beta_n:
+			<?=vec3?>_real_mul(
+				U.Psi_l,
+				beta_n
+			),
+			
+			//alpha Pi n_j:
+			<?=vec3?>_<?=scalar?>_mul(
+				//n:
+				<?=vec3?>_from_real3(n),
+				
+				//alpha Pi:
+				<?=scalar?>_real_mul(
+					U.Pi, 
+					alpha
+				)
+			)
+		),
+		//-c
+		-solver->wavespeed
+	);
+	
 	return F;
 }
-<? end ?>
 
-<? for side=0,solver.dim-1 do 
-	local xside = xNames[side+1]
-?>
-range_t calcCellMinMaxEigenvalues_<?=side?>(
+
+range_t calcCellMinMaxEigenvaluesForNormal(
 	constant solver_t* solver,
 	const global cons_t* U,
-	real3 x
+	real3 x,
+	real3 n
 ) {
-	real nLen = coord_sqrt_g_uu<?=side..side?>(x);
+	real3 nU = coord_raise(n, x);
+	real nLen = sqrt(real3_dot(n, nU));
 	real alpha_nLen = metric_alpha(x) * nLen;
-	real3 beta_u = metric_beta_u(x);
+	real beta_n = real3_dot(metric_beta_u(x), n);
 	return (range_t){
-		.min = solver->wavespeed * (-beta_u.<?=xside?> - alpha_nLen),
-		.max = solver->wavespeed * (-beta_u.<?=xside?> + alpha_nLen),
+		.min = solver->wavespeed * (-beta_n - alpha_nLen),
+		.max = solver->wavespeed * (-beta_n + alpha_nLen),
 	};
 }
-<? end ?>
+
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
@@ -194,163 +180,87 @@ eigen_t eigen_forInterface(
 	return (eigen_t){};
 }
 
-<? for side=0,solver.dim-1 do 
-	local side1 = (side+1) % 3	-- solver.dim
-	local side2 = (side+2) % 3	-- solver.dim
-?>
-waves_t eigen_leftTransform_<?=side?>(
+eigen_t eigen_forCellForNormal(
 	constant solver_t* solver,
-	eigen_t eig,
-	cons_t X,
-	real3 x
-) { 
-	waves_t Y;
-
-	sym3 g_uu = coord_g_uu(x);
-
-	real nLen = coord_sqrt_g_uu<?=side..side?>(x);
-	real nLenSq = nLen * nLen;
-	real invDenom = 1. / nLenSq;
-
-	<? if side == 0 then ?>
-		//n = [1,0,0], n2 = [0,1,0], n3 = [0,0,1]
-		//nU = [g^xx, g^xy, g^xz], n2U = [g^yx, g^yy, g^yz], n3U = [g^zx, g^zy, g^zz]
-		Y.ptr[0] = .5 * invDenom * (
-			X.ptr[0]
-			+ X.ptr[1] * g_uu.xx
-			+ X.ptr[2] * g_uu.xy
-			+ X.ptr[3] * g_uu.xz
-		);
-		Y.ptr[1] = invDenom * (
-			X.ptr[1] * g_uu.xy
-			+ X.ptr[2] * g_uu.yy
-			+ X.ptr[3] * g_uu.yz
-		);
-		Y.ptr[2] = invDenom * (
-			X.ptr[1] * g_uu.xz
-			+ X.ptr[2] * g_uu.yz
-			+ X.ptr[3] * g_uu.zz
-		);
-		Y.ptr[3] = .5 * invDenom * (
-			-X.ptr[0]
-			+ X.ptr[1] * g_uu.xx
-			+ X.ptr[2] * g_uu.xy
-			+ X.ptr[3] * g_uu.xz
-		);
-	<? elseif side == 1 then ?>
-		//n = [0,1,0], n2 = [0,0,1], n3 = [1,0,0]
-		//nU = [g^yx, g^yy, g^yz], n2U = [g^zx, g^zy, g^zz], n3U = [g^xx, g^xy, g^xz]
-		Y.ptr[0] = .5 * invDenom * (
-			X.ptr[0]
-			+ X.ptr[1] * g_uu.xy
-			+ X.ptr[2] * g_uu.yy
-			+ X.ptr[3] * g_uu.yz
-		);
-		Y.ptr[1] = invDenom * (
-			X.ptr[1] * g_uu.xz
-			+ X.ptr[2] * g_uu.yz
-			+ X.ptr[3] * g_uu.zz
-		);
-		Y.ptr[2] = invDenom * (
-			X.ptr[1] * g_uu.xx
-			+ X.ptr[2] * g_uu.xy
-			+ X.ptr[3] * g_uu.xz
-		);
-		Y.ptr[3] = .5 * invDenom * (
-			-X.ptr[0]
-			+ X.ptr[1] * g_uu.xy
-			+ X.ptr[2] * g_uu.yy
-			+ X.ptr[3] * g_uu.yz
-		);
-	<? elseif side == 2 then ?>
-		//n = [0,0,1], n2 = [1,0,0], n3 = [0,1,0]
-		//nU = [g^zx, g^zy, g^zz], n2U = [g^xx, g^xy, g^xz], n3U = [g^yx, g^yy, g^yz]
-		Y.ptr[0] = .5 * invDenom * (
-			X.ptr[0]
-			+ X.ptr[1] * g_uu.xz
-			+ X.ptr[2] * g_uu.yz
-			+ X.ptr[3] * g_uu.zz
-		);
-		Y.ptr[1] = invDenom * (
-			X.ptr[1] * g_uu.xx
-			+ X.ptr[2] * g_uu.xy
-			+ X.ptr[3] * g_uu.xz
-		);
-		Y.ptr[2] = invDenom * (
-			X.ptr[1] * g_uu.xy
-			+ X.ptr[2] * g_uu.yy
-			+ X.ptr[3] * g_uu.yz
-		);
-		Y.ptr[3] = .5 * invDenom * (
-			-X.ptr[0]
-			+ X.ptr[1] * g_uu.xz
-			+ X.ptr[2] * g_uu.yz
-			+ X.ptr[3] * g_uu.yz
-		);
-	<? end ?>
-
-	return Y;
-}
-
-cons_t eigen_rightTransform_<?=side?>(
-	constant solver_t* solver,
-	eigen_t eig,
-	waves_t X_,
-	real3 x
-) {
-	<?=scalar?>* X = (<?=scalar?>*)X_.ptr;
-	cons_t Y;
-	
-	real nLen = coord_sqrt_g_uu<?=side..side?>(x);
-	real nLenSq = nLen * nLen;
-
-	<? if side == 0 then ?>
-		//n = [1,0,0], n2 = [0,1,0], n3 = [0,0,1]
-		Y.ptr[0] = X[0] - X[3];
-		Y.ptr[1] = X[0] + X[3];
-		Y.ptr[2] = X[1];
-		Y.ptr[3] = X[2];
-	<? elseif side == 1 then ?>
-		//n = [0,1,0], n2 = [0,0,1], n3 = [1,0,0]
-		Y.ptr[0] = X[0] - X[3];
-		Y.ptr[1] = X[2];
-		Y.ptr[2] = X[0] + X[3];
-		Y.ptr[3] = X[1];
-	<? elseif side == 2 then ?>
-		//n = [0,0,1], n2 = [1,0,0], n3 = [0,1,0]
-		Y.ptr[0] = X[0] - X[3];
-		Y.ptr[1] = X[1];
-		Y.ptr[2] = X[2];
-		Y.ptr[3] = X[0] + X[3];
-	<? end ?>
-	
-	return Y;
-}
-
-// What's the difference between eigen_fluxTransform and fluxFromCons?
-// The difference is that the flux matrix of this is based on 'eig', which is derived from U's ... especially UL & UR in the case of the Roe solver
-// whereas that of fluxFromCons is based purely on 'U'.
-// Since eqn/wave has no eigen_t info derived from U, the two functions are identical.
-cons_t eigen_fluxTransform_<?=side?>(
-	constant solver_t* solver,
-	eigen_t eig,
-	cons_t X,
-	real3 x
-) {
-	return fluxFromCons_<?=side?>(solver, X, x);
-}
-
-<? end ?>
-
-<? for side=0,solver.dim-1 do ?>
-eigen_t eigen_forCell_<?=side?>(
-	constant solver_t* solver,
-	cons_t U,
+	cons_t UL,
+	cons_t UR,
 	real3 x
 ) {
 	return (eigen_t){};
 }
-<? end ?>
+
+
+
+
+waves_t eigen_leftTransformForNormal(
+	constant solver_t* solver,
+	eigen_t eig,
+	cons_t X,
+	real3 x,
+	real3 n		// in covariant components
+) { 
+	waves_t Y;
+
+	real3 nU = coord_raise(n, x);
+	real nLenSq = real3_dot(n, nU);
+	real nLen = sqrt(nLenSq);
+	real invDenom = 1. / nLenSq;
+
+	real3 n2U, n3U;
+	getPerpendicularBasis(nU, &n2U, &n3U);
+
+	Y.ptr[0] = .5 * invDenom * (
+		X.ptr[0] * nLen
+		+ X.ptr[1] * nU.x
+		+ X.ptr[2] * nU.y
+		+ X.ptr[3] * nU.z
+	);
+	Y.ptr[1] = invDenom * (
+		X.ptr[1] * n2U.x
+		+ X.ptr[2] * n2U.y
+		+ X.ptr[3] * n2U.z
+	);
+	Y.ptr[2] = invDenom * (
+		X.ptr[1] * n3U.x
+		+ X.ptr[2] * n3U.y
+		+ X.ptr[3] * n3U.z
+	);
+	Y.ptr[3] = .5 * invDenom * (
+		-X.ptr[0] * nLen
+		+ X.ptr[1] * nU.x
+		+ X.ptr[2] * nU.y
+		+ X.ptr[3] * nU.z
+	);
+
+	return Y;
+}
+
+cons_t eigen_rightTransformForNormal(
+	constant solver_t* solver,
+	eigen_t eig,
+	waves_t X_,
+	real3 x,
+	real3 n
+) {
+	<?=scalar?>* X = (<?=scalar?>*)X_.ptr;
+	cons_t Y;
+	
+	real3 nU = coord_raise(n, x);
+	real nLenSq = real3_dot(n, nU);
+	real nLen = sqrt(nLenSq);
+	real invDenom = 1. / nLenSq;
+
+	real3 n2, n3;
+	getPerpendicularBasis(n, &n2, &n3);
+
+	Y.ptr[0] = (X[0] - X[3]) * nLen;
+	Y.ptr[1] = X[0] * n.x + X[1] * n2.x + X[2] * n3.x + X[3] * n.x;
+	Y.ptr[2] = X[0] * n.y + X[1] * n2.y + X[2] * n3.y + X[3] * n.y;
+	Y.ptr[3] = X[0] * n.z + X[1] * n2.z + X[2] * n3.z + X[3] * n.z;
+	
+	return Y;
+}
+
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -393,6 +303,21 @@ kernel void addSource(
 #endif
 }
 
+
+<? for side=0,solver.dim-1 do ?>
+#define fluxFromCons_<?=side?>(solver, U, x) 				fluxFromConsForNormal(solver, U, x, normalForSide<?=side?>())
+#define calcCellMinMaxEigenvalues_<?=side?>(solver, U, x) 	calcCellMinMaxEigenvaluesForNormal(solver, U, x, normalForSide<?=side?>())
+#define eigen_leftTransform_<?=side?>(solver, eig, X, x) 	eigen_leftTransformForNormal(solver, eig, X, x, normalForSide<?=side?>())
+#define eigen_rightTransform_<?=side?>(solver, eig, X, x) 	eigen_rightTransformForNormal(solver, eig, X, x, normalForSide<?=side?>())
+
+// What's the difference between eigen_fluxTransform and fluxFromCons?
+// The difference is that the flux matrix of this is based on 'eig', which is derived from U's ... especially UL & UR in the case of the Roe solver
+// whereas that of fluxFromCons is based purely on 'U'.
+// Since eqn/wave has no eigen_t info derived from U, the two functions are identical.
+#define eigen_fluxTransform_<?=side?>(solver, eig, X, x) 	fluxFromCons_<?=side?>(solver, X, x)
+
+#define eigen_forCell_<?=side?>(solver, U, x) 				eigen_forCellForNormal(solver, U, x, normalForSide<?=side?>())
+<? end ?>
 
 
 <? end -- getCommonCode ?> 

@@ -65,7 +65,7 @@ function Wave:init(args)
 		'U Psi_l x'..suffix,
 		'U Psi_l y'..suffix,
 		'U Psi_l z'..suffix,
-		'U Psi_l mag',
+		'U Psi_l mag metric',
 	}
 
 	self.init_alpha = args.alpha
@@ -199,6 +199,20 @@ function Wave:eigenWaveCodePrefix(side, eig, x)
 	real3 beta_u = metric_beta_u(<?=x?>);
 ]], {
 		side = side,
+		x = x,
+	})
+end
+
+-- assume 'n' is covariant
+function Wave:eigenWaveCodePrefixForNormal(n, eig, x)
+	return template([[
+	real wavespeed = solver->wavespeed / unit_m_per_s;
+	real nLenSq = real3_weightedLenSq(<?=n?>, coord_g_uu(<?=x?>));
+	real nLen = sqrt(nLenSq);
+	real alpha_nLen = metric_alpha(<?=x?>) * nLen;
+	real3 beta_u = metric_beta_u(<?=x?>);
+]], {
+		n = n,
 		x = x,
 	})
 end

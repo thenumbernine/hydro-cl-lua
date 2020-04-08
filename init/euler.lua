@@ -1012,12 +1012,13 @@ end) then
 		initState = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);
+	real r = real3_len(xc);
 	P = 1.;
 	rho = 1.;
-	v.x = -xc.y;
-	v.y = xc.x;
-	D.x = -xc.y;
-	D.y = xc.x;
+	v.x = -xc.y / r;
+	v.y = xc.x / r;
+	D.x = -xc.y / r;
+	D.y = xc.x / r;
 ]]
 		end,
 	},

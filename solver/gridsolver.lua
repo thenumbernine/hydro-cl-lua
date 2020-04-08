@@ -9,6 +9,7 @@ local file = require 'ext.file'
 local math = require 'ext.math'
 local string = require 'ext.string'
 local glreport = require 'gl.report'
+local clnumber = require 'cl.obj.number'
 local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
@@ -813,12 +814,13 @@ GridSolver.DisplayVar_U = DisplayVar
 local Boundary = class()
 GridSolver.Boundary = Boundary
 
-function Boundary:reflectVars(args, dst, varnames)
+function Boundary:reflectVars(args, dst, varnames, restitution)
+	restitution = restitution or 1
 	local lines = table()
 	if varnames and varnames[args.side] then
 		for _,varname in ipairs(varnames[args.side]) do
 			if not args.fields or table.find(args.fields, varname) then
-				lines:insert('buf['..dst..'].'..varname..' = -buf['..dst..'].'..varname..';')
+				lines:insert('buf['..dst..'].'..varname..' = '..clnumber(-restitution)..' * buf['..dst..'].'..varname..';')
 			end
 		end
 	end
@@ -894,8 +896,13 @@ function BoundaryPeriodic:getCode(args)
 	return self:assignDstSrc(dst, src, args)
 end
 
+-- TODO incorporate surface normal and restitution
 local BoundaryMirror = class(Boundary)
 BoundaryMirror.name = 'mirror'
+BoundaryMirror.restitution = 1
+function BoundaryMirror:init(args)
+	self.restitution = args.restitution
+end
 function BoundaryMirror:getCode(args)
 	local dst, src
 	if args.minmax == 'min' then
@@ -907,8 +914,64 @@ function BoundaryMirror:getCode(args)
 		src = args.index(gridSizeSide..'-numGhost-1-j')
 	end
 	local lines = table()
-	lines:insert(self:assignDstSrc(dst, src, args))
-	lines:insert(self:reflectVars(args, dst, args.reflectVars.mirror))
+	lines:insert('\t\t'..self:assignDstSrc(dst, src, args))
+	
+	-- reflectVars.mirror is going to hold, for each dimension, which components need to be mirrored
+	-- v.s[side] = -v.s[side]
+	-- generalized:
+	local solver = args.solver
+	local eqn = solver.eqn
+	if solver.coord.vectorComponent == 'cartesian' then
+		-- v = v - n (v dot n)
+		-- v^i = v^i - n^i (v^j n_j) (1 + restitution)
+		-- ... where n_i = partial_i u, for u the chart
+		-- TODO let the ctor specify the vars, not this
+		--  so I can use this for things like the poisson solver
+		lines:insert(template([[
+		{
+			int4 iv = (int4)(<?=iv?>,0);
+			real3 x = cell_x(iv);
+			real3 n = coord_cartesianFromCoord(normalForSide<?=side?>(), x);
+]], 	{
+			args = args,
+			iv = args.minmax == 'min' 
+				and args.indexv'j'
+				or args.indexv('solver->gridSize.'..xNames[args.side]..'-numGhost+j'),
+			side = args.side,
+		}))
+		for _,var in ipairs(eqn.consStruct.vars) do
+			if var.type == 'real3' 
+			or var.type == 'cplx3'
+			then
+				lines:insert(template([[
+			buf[<?=dst?>].<?=field?> = <?=vec3?>_sub(
+				buf[<?=dst?>].<?=field?>,
+				<?=vec3?>_<?=scalar?>_mul(
+					<?=vec3?>_from_real3(n),
+					<?=scalar?>_real_mul(
+						<?=vec3?>_real3_dot(
+							buf[<?=dst?>].<?=field?>,
+							n
+						), 
+						<?=restitution + 1?>
+					)
+				)
+			);
+]], 			{
+					restitution = clnumber(self.restitution),
+					vec3 = var.type,
+					scalar = var.type == 'cplx3' and 'cplx' or 'real',
+					field = var.name,
+					dst = dst,
+				}))
+			end
+		end
+		lines:insert[[
+		}
+]]
+	else
+		lines:insert(self:reflectVars(args, dst, args.reflectVars.mirror, self.restitution))
+	end
 	return lines:concat'\n'
 end
 

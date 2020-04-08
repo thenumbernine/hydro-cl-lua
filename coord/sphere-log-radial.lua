@@ -7,8 +7,8 @@ local sin, cos = symmath.sin, symmath.cos
 local sinh = symmath.sinh
 local Tensor = symmath.Tensor
 
-local Sphere = class(CoordinateSystem)
-Sphere.name = 'sphere-log-radial'
+local SphereLogRadial = class(CoordinateSystem)
+SphereLogRadial.name = 'sphere-log-radial'
 
 --[[
 args
@@ -16,13 +16,13 @@ args
 	
 	TODO add some other arg for rearranging the coordinate order so we can do 2D simulations of θ and φ alone
 --]]
-function Sphere:init(args)
+function SphereLogRadial:init(args)
 	self.embedded = table{symmath.vars('x', 'y', 'z')}
 	local rho, theta, phi = symmath.vars('ρ', 'θ', 'φ')
 
 	self.baseCoords = table{rho, theta, phi}
 
-	-- 2018 Ruchlin, Etienne
+	-- 2017 Ruchlin, Etienne after eqn 42
 	local solver = args.solver
 	local amplitude = 1000
 	local sinh_w = .15
@@ -71,11 +71,11 @@ self.sinh_w = sinh_w
 		) 
 	end
 	
-	Sphere.super.init(self, args)
+	SphereLogRadial.super.init(self, args)
 end
 
 local template = require 'template'
-function Sphere:getCoordMapInvGLSLCode()
+function SphereLogRadial:getCoordMapInvGLSLCode()
 	return template([[
 
 float sinh(float x) { return .5 * (exp(x) - exp(-x)); }
@@ -107,4 +107,104 @@ vec3 coordMapInv(vec3 pt) {
 	})
 end
 
-return Sphere
+function SphereLogRadial:getParallelPropagatorCode()
+	return template([[
+<? local clnumber = require 'cl.obj.number' ?>
+
+<? if coord.vectorComponent == 'holonomic' then ?>
+
+real3 coord_parallelPropagateU0(real3 v, real3 x, real dx) {
+	const real w = <?=clnumber(coord.sinh_w)?>;
+	real rhoL = x.x;
+	real rhoR = x.x + dx;
+	real coshLR = cosh(rhoL/w) / cosh(rhoR/w);
+	real sinhLR = sinh(rhoL/w) / sinh(rhoR/w);
+	v.x *= coshLR;
+	v.y *= sinhLR;
+	v.z *= sinhLR;
+	return v;
+}
+
+real3 coord_parallelPropagateL0(real3 v, real3 x, real dx) {
+	const real w = <?=clnumber(coord.sinh_w)?>;
+	real rhoL = x.x;
+	real rhoR = x.x + dx;
+	real coshRL = cosh(rhoR/w) / cosh(rhoL/w);
+	real sinhRL = sinh(rhoR/w) / sinh(rhoL/w);
+	v.x *= coshRL;
+	v.y *= sinhRL;
+	v.z *= sinhRL;
+	return v;
+}
+
+real3 coord_parallelPropagateU1(real3 v, real3 x, real dx) {
+	const real w = <?=clnumber(coord.sinh_w)?>;
+	real rho = v.x;
+	real thetaL = x.y;
+	real thetaR = x.y + dx;
+	real s = w * sinh(rho/w) / cosh(rho/w);
+	v.y *= s;
+	v = real3_rotateZ(v, -dx);
+	v.y /= s;
+	v.z *= fabs(sin(thetaL) / sin(thetaR));
+	return v;
+}
+
+real3 coord_parallelPropagateL1(real3 v, real3 x, real dx) {
+	const real w = <?=clnumber(coord.sinh_w)?>;
+	real rho = v.x;
+	real thetaL = x.y;
+	real thetaR = x.y + dx;
+	real s = w * sinh(rho/w) / cosh(rho/w);
+	v.y /= s;
+	v = real3_rotateZ(v, -dx);
+	v.y *= s;
+	v.z *= fabs(sin(thetaR) / sin(thetaL));
+	return v;
+}
+
+// TODO here ... fix these
+real3 coord_parallelPropagateU2(real3 v, real3 x, real dx) {
+	const real w = <?=clnumber(coord.sinh_w)?>;
+	real rho = x.x;
+	real s = w * sinh(rho/w) / cosh(rho/w);
+	real theta = x.y;
+	real sinTheta = sin(theta);
+	real sSinTheta = s * sinTheta;
+	v.y *= s;
+	v.z *= sSinTheta;
+	v = real3_rotateZ(v, theta);
+	v = real3_rotateX(v, -dx);
+	v = real3_rotateZ(v, -theta);
+	v.y /= s;
+	v.z /= sSinTheta;
+	return v;
+}
+
+real3 coord_parallelPropagateL2(real3 v, real3 x, real dx) {
+	const real w = <?=clnumber(coord.sinh_w)?>;
+	real rho = x.x;
+	real s = w * sinh(rho/w) / cosh(rho/w);
+	real theta = x.y;
+	real sinTheta = sin(theta);
+	real sSinTheta = s * sinTheta;
+	v.y /= s;
+	v.z /= sSinTheta;
+	v = real3_rotateZ(v, theta);
+	v = real3_rotateX(v, -dx);
+	v = real3_rotateZ(v, -theta);
+	v.y *= s;
+	v.z *= sSinTheta;
+	return v;
+}
+
+<? else 
+	error "still need to do anholonomic"
+end ?>
+
+]], {
+		coord = self,
+	})
+end
+
+return SphereLogRadial

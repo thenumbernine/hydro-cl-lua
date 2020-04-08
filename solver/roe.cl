@@ -40,12 +40,22 @@ kernel void calcFlux(
 <?=solver:getULRCode():gsub('\t', '\t\t')?>
 
 		// here is where parallel propagator comes into play
-		cons_t pUL = cons_parallelPropagate<?=side?>(*UL, .5 * dx, xL);
-		cons_t pUR = cons_parallelPropagate<?=side?>(*UR, -.5 * dx, xR);
+		cons_t pUL = cons_parallelPropagate<?=side?>(*UL, xL, .5 * dx);
+		cons_t pUR = cons_parallelPropagate<?=side?>(*UR, xR, -.5 * dx);
 
 		int indexInt = side + dim * index;
-		eigen_t eig = eigen_forInterface(solver, pUL, pUR, xInt, normalForSide<?=side?>());
-<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt'):gsub('\t', '\t\t')?>
+
+		real3 n = normalForSide<?=side?>();
+<? if solver.coord.vectorComponent == 'cartesian' then 
+-- for cartesian, use the normal in cartesian coordinates 
+-- however that 'x' is still being used for who knows what ... and could be used for grid-metric-based norms
+-- but you can't use 'cartesianFromCoord' because we're using the cartesian basis already 
+?>
+		n = coord_cartesianFromCoord(n, xInt);
+<? end -- for coordinate or coordinate-orthonormal, use the coordinate-aligned normal ?>
+		eigen_t eig = eigen_forInterface(solver, pUL, pUR, xInt, n);
+
+<?=eqn:eigenWaveCodePrefixForNormal('n', 'eig', 'xInt'):gsub('\t', '\t\t')?>
 
 		waves_t fluxEig;
 <? if not eqn.roeUseFluxFromCons then 
@@ -53,7 +63,7 @@ kernel void calcFlux(
 		for (int j = 0; j < numIntStates; ++j) {
 			UAvg.ptr[j] = .5 * (pUL.ptr[j] + pUR.ptr[j]);
 		}
-		fluxEig = eigen_leftTransform_<?=side?>(solver, eig, UAvg, xInt);
+		fluxEig = eigen_leftTransformForNormal(solver, eig, UAvg, xInt, n);
 <? end 
 ?>
 		cons_t deltaU;	
@@ -64,10 +74,10 @@ kernel void calcFlux(
 		<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}?>	
 		
 		// here is where parallel propagator comes into play
-		cons_t pUL_L = cons_parallelPropagate<?=side?>(*UL_L, 1.5 * dx, xIntL);		//xIntL2?
-		cons_t pUL_R = cons_parallelPropagate<?=side?>(*UL_R, .5 * dx, xIntL);
-		cons_t pUR_L = cons_parallelPropagate<?=side?>(*UR_L, -.5 * dx, xIntR);
-		cons_t pUR_R = cons_parallelPropagate<?=side?>(*UR_R, -1.5 * dx, xIntR);	// xIntR2?
+		cons_t pUL_L = cons_parallelPropagate<?=side?>(*UL_L, xIntL, 1.5 * dx);		//xIntL2?
+		cons_t pUL_R = cons_parallelPropagate<?=side?>(*UL_R, xIntL, .5 * dx);
+		cons_t pUR_L = cons_parallelPropagate<?=side?>(*UR_L, xIntR, -.5 * dx);
+		cons_t pUR_R = cons_parallelPropagate<?=side?>(*UR_R, xIntR, -1.5 * dx);	// xIntR2?
 			
 		cons_t deltaUL, deltaUR;
 <? end 
@@ -80,14 +90,15 @@ kernel void calcFlux(
 <? end 
 ?>		}
 		
-		waves_t deltaUEig = eigen_leftTransform_<?=side?>(solver, eig, deltaU, xInt);
-<? if solver.fluxLimiter > 1 then 
-?>		eigen_t eigL = eigen_forInterface(solver, pUL_L, pUR_L, xInt, normalForSide<?=side?>());
-		eigen_t eigR = eigen_forInterface(solver, pUL_R, pUR_R, xInt, normalForSide<?=side?>());
-		waves_t deltaUEigL = eigen_leftTransform_<?=side?>(solver, eigL, deltaUL, xIntL);
-		waves_t deltaUEigR = eigen_leftTransform_<?=side?>(solver, eigR, deltaUR, xIntR);
-<? end 
-?>
+		waves_t deltaUEig = eigen_leftTransformForNormal(solver, eig, deltaU, xInt, n);
+<? 	if solver.fluxLimiter > 1 then ?>		
+		eigen_t eigL = eigen_forInterface(solver, pUL_L, pUR_L, xInt, n);
+		eigen_t eigR = eigen_forInterface(solver, pUL_R, pUR_R, xInt, n);
+		waves_t deltaUEigL = eigen_leftTransformForNormal(solver, eigL, deltaUL, xIntL, n);
+		waves_t deltaUEigR = eigen_leftTransformForNormal(solver, eigR, deltaUR, xIntR, n);
+<? 	end ?>
+
+
 		<? for j=0,eqn.numWaves-1 do ?>{
 			const int j = <?=j?>;
 			real lambda = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', j)?>;
@@ -121,14 +132,14 @@ kernel void calcFlux(
 		}<? end ?>
 		
 		global cons_t* flux = fluxBuf + indexInt;
-		*flux = eigen_rightTransform_<?=side?>(solver, eig, fluxEig, xInt);
+		*flux = eigen_rightTransformForNormal(solver, eig, fluxEig, xInt, n);
 
-<? if eqn.roeUseFluxFromCons then 
-?>		cons_t FL = fluxFromCons_<?=side?>(solver, *UL, xL);
-		cons_t FR = fluxFromCons_<?=side?>(solver, *UR, xR);
+<? if eqn.roeUseFluxFromCons then ?>
+		cons_t FL = fluxFromConsForNormal(solver, *UL, xL, n);
+		cons_t FR = fluxFromConsForNormal(solver, *UR, xR, n);
 		
-		cons_t pFL = cons_parallelPropagate<?=side?>(FL, .5 * dx, xL);
-		cons_t pFR = cons_parallelPropagate<?=side?>(FR, -.5 * dx, xR);
+		cons_t pFL = cons_parallelPropagate<?=side?>(FL, xL, .5 * dx);
+		cons_t pFR = cons_parallelPropagate<?=side?>(FR, xR, -.5 * dx);
 		
 		for (int j = 0; j < numIntStates; ++j) {
 			flux->ptr[j] += .5 * (pFL.ptr[j] + pFR.ptr[j]);
