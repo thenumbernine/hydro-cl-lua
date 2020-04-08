@@ -189,8 +189,6 @@ cons_t eigen_fluxTransformForNormal(
 
 
 // used by PLM
-
-
 eigen_t eigen_forCellForNormal(
 	constant solver_t* solver,
 	cons_t U,

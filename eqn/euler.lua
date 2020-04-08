@@ -36,14 +36,14 @@ Euler.initStates = require 'init.euler'
 -- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
 Euler.primVars = {
 	{name='rho', type='real', units='kg/m^3'},
-	{name='v', type='real3', units='m/s'},
+	{name='v', type='real3', units='m/s'},			-- contravariant
 	{name='P', type='real', units='kg/(m*s^2)'},
 	{name='ePot', type='real', units='m^2/s^2'},
 }
 
 Euler.consVars = {
 	{name='rho', type='real', units='kg/m^3'},
-	{name='m', type='real3', units='kg/(m^2*s)'},
+	{name='m', type='real3', units='kg/(m^2*s)'},	-- contravariant
 	{name='ETotal', type='real', units='kg/(m*s^2)'},
 	{name='ePot', type='real', units='m^2/s^2'},
 }
@@ -96,6 +96,13 @@ real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	real EInt = U.ETotal - EKin;
 	return (solver->heatCapacityRatio - 1.) * EInt;
 }
+
+<? for side=0,solver.dim-1 do ?>
+<?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
+	U.m = coord_parallelPropagateU<?=side?>(U.m, x, dx);
+	return U;
+}
+<? end ?>
 
 ]], {
 		solver = self.solver,
@@ -339,11 +346,27 @@ Euler.eigenVars = table{
 
 function Euler:eigenWaveCodePrefix(side, eig, x)
 	return template([[
-	real Cs_nLen = <?=eig?>.Cs * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real nLen = coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real Cs_nLen = <?=eig?>.Cs * nLen;
 	real v_n = <?=eig?>.v.s[<?=side?>];
 ]], {
 		eig = '('..eig..')',
 		side = side,
+		x = x,
+	})
+end
+
+function Euler:eigenWaveCodePrefixForNormal(n, eig, x, W)
+	return template([[
+	real nLenSq = real3_weightedLenSq(<?=n?>, coord_g_uu(<?=x?>));
+	real nLen = sqrt(nLenSq);
+	real Cs_nLen = <?=eig?>.Cs * nLen;
+	real v_n = real3_dot(<?=eig?>.v, n);
+]],	{
+		eqn = self,
+		eig = '('..eig..')',
+		W = W and '('..W..')' or nil,
+		n = n,
 		x = x,
 	})
 end
@@ -354,7 +377,8 @@ function Euler:consWaveCodePrefix(side, U, x, W)
 <? if not W then ?>
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 <? end ?>
-	real Cs_nLen = calc_Cs(solver, &<?=W or 'W'?>) * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real nLen = coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real Cs_nLen = calc_Cs(solver, &<?=W or 'W'?>) * nLen;
 	real v_n = <?=W or 'W'?>.v.s[<?=side?>];
 ]], {
 		eqn = self,

@@ -90,19 +90,18 @@ cons_t cons_parallelPropagate<?=side?>(cons_t U, real3 x, real dx) {
 
 
 
-//n is covariant
 cons_t fluxFromConsForNormal(
 	constant solver_t* solver,
 	cons_t U,
 	real3 x,
-	real3 n
+	real3 n	//covariant
 ) {
-	real3 nU = coord_raise(n, x);
-	
-	cons_t F;
 	real alpha = metric_alpha(x);
 	real beta_n = real3_dot(metric_beta_u(x), n);
 	
+	real3 nU = coord_raise(n, x);
+	
+	cons_t F;
 	//F^Pi = -c (Pi beta_n + alpha Psi_i n^i)
 	F.Pi = <?=scalar?>_real_mul(
 		//Pi beta_n + alpha Psi_i n^i
@@ -153,6 +152,7 @@ cons_t fluxFromConsForNormal(
 }
 
 
+// used by PLM
 range_t calcCellMinMaxEigenvaluesForNormal(
 	constant solver_t* solver,
 	const global cons_t* U,

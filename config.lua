@@ -481,7 +481,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- shallow water equations
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='shallow-water'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='shallow-water'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='shallow-water'})))
 
 
@@ -533,7 +533,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='shallow-water'})))
 -- f.e. and b.e. are working, but none of the r.k. integrators
 -- PLM isn't implemented yet
 -- neither is source term / poisson stuff
---self.solvers:insert(require 'solver.euler-burgers'(args))
+self.solvers:insert(require 'solver.euler-burgers'(args))
 
 
 -- special relativistic compressible hydrodynamics
