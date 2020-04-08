@@ -481,7 +481,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- shallow water equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='shallow-water'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='shallow-water'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='shallow-water'})))
 
 
