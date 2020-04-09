@@ -66,12 +66,24 @@ function FiniteVolumeSolver:addDisplayVars()
 	-- code for getting the interface eigensystem variables
 	local function getEigenCode(args)
 		return template([[
+
+	void calcNormalBasisForGrid(
+		real3x3* nL,
+		real3x3* nU,
+		real *nLen,
+		real3 x
+	);
+
 	int indexR = index;
 	int indexL = index - solver->stepsize.s<?=side?>;
 	real3 xInt = x;
 	xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 	<?=solver:getULRCode{bufName='buf'}?>
-	<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, normalForSide<?=side?>());
+	real3x3 nL = normalBasisForSide<?=side?>;
+	real3x3 nU;
+	real nLen;
+	calcNormalBasisForGrid(&nL, &nU, &nLen, xInt);
+	<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, nL, nU, nLen);
 ]], 	{
 			solver = self,
 			eqn = self.eqn,
@@ -88,7 +100,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			codePrefix = table{
 				getEigenCode{side=side},
 				template([[
-	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
+	<?=eqn:eigenWaveCodePrefixForSide(side, 'eig', 'xInt')?>
 ]], 			{
 					eqn = self.eqn,
 					side = side,
@@ -123,6 +135,7 @@ function FiniteVolumeSolver:addDisplayVars()
 
 	-- ortho
 	-- TODO why is the x error getting 'nans' after a few iterations?
+	-- TODO WARNING - this only does ForSide, which doesn't match non-cartesian grids w/cartesian components
 	for side=0,self.dim-1 do
 		self:addDisplayVarGroup{
 			name = 'ortho error '..xNames[side+1],
@@ -146,8 +159,8 @@ function FiniteVolumeSolver:addDisplayVars()
 			basis.ptr[j] = k == j ? 1 : 0;
 		}
 		
-		<?=eqn.waves_t?> chars = eigen_leftTransform_<?=side?>(solver, eig, basis, xInt);
-		<?=eqn.cons_t?> newbasis = eigen_rightTransform_<?=side?>(solver, eig, chars, xInt);
+		<?=eqn.waves_t?> chars = eigen_leftTransformForSide<?=side?>(solver, eig, basis, xInt);
+		<?=eqn.cons_t?> newbasis = eigen_rightTransformForSide<?=side?>(solver, eig, chars, xInt);
 	
 		for (int j = 0; j < numStates; ++j) {
 			value.vreal += fabs(newbasis.ptr[j] - basis.ptr[j]);
@@ -165,6 +178,7 @@ function FiniteVolumeSolver:addDisplayVars()
 
 	-- flux
 	-- TODO same as above, why is the x error getting 'nans' after a few iterations?
+	-- TODO WARNING - this only does ForSide, which doesn't match non-cartesian grids w/cartesian components
 	for side=0,self.dim-1 do
 		self:addDisplayVarGroup{
 			name = 'flux error '..xNames[side+1],
@@ -176,7 +190,7 @@ function FiniteVolumeSolver:addDisplayVars()
 				{name='0', code=table{
 					getEigenCode{side=side},
 					template([[
-	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
+	<?=eqn:eigenWaveCodePrefixForSide(side, 'eig', 'xInt')?>
 	
 	value.vreal = 0;
 	for (int k = 0; k < numIntStates; ++k) {
@@ -187,7 +201,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			basis.ptr[j] = k == j ? 1 : 0;
 		}
 
-		<?=eqn.waves_t?> chars = eigen_leftTransform_<?=side?>(solver, eig, basis, xInt);
+		<?=eqn.waves_t?> chars = eigen_leftTransformForSide<?=side?>(solver, eig, basis, xInt);
 
 		<?=eqn.waves_t?> charScaled;
 		<? for j=0,eqn.numWaves-1 do ?>{
@@ -196,7 +210,7 @@ function FiniteVolumeSolver:addDisplayVars()
 		}<? end ?>
 	
 		//once again, only needs to be numIntStates
-		<?=eqn.cons_t?> newtransformed = eigen_rightTransform_<?=side?>(solver, eig, charScaled, xInt);
+		<?=eqn.cons_t?> newtransformed = eigen_rightTransformForSide<?=side?>(solver, eig, charScaled, xInt);
 
 //this shouldn't need to be reset here
 // but it will if leftTransform does anything destructive
@@ -205,7 +219,7 @@ for (int j = 0; j < numStates; ++j) {
 }
 
 		//once again, only needs to be numIntStates
-		<?=eqn.cons_t?> transformed = eigen_fluxTransform_<?=side?>(solver, eig, basis, xInt);
+		<?=eqn.cons_t?> transformed = eigen_fluxTransformForSide<?=side?>(solver, eig, basis, xInt);
 		
 		for (int j = 0; j < numIntStates; ++j) {
 			value.vreal += fabs(newtransformed.ptr[j] - transformed.ptr[j]);

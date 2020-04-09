@@ -984,9 +984,13 @@ end
 ////////////////////////// extra //////////////////////////
 
 
-real3 normalForSide0() { return _real3(1,0,0); }
-real3 normalForSide1() { return _real3(0,1,0); }
-real3 normalForSide2() { return _real3(0,0,1); }
+#define normalForSide0 _real3(1,0,0)
+#define normalForSide1 _real3(0,1,0)
+#define normalForSide2 _real3(0,0,1)
+
+#define normalBasisForSide0 _real3x3(1,0,0, 0,1,0, 0,0,1)
+#define normalBasisForSide1 _real3x3(0,1,0, 0,0,1, 1,0,0)
+#define normalBasisForSide2 _real3x3(0,0,1, 1,0,0, 0,1,0)
 
 // https://community.amd.com/thread/169701
 // meh, not so great
@@ -1076,4 +1080,10 @@ void getPerpendicularBasis(real3 n, real3* n2, real3* n3) {
 	}
 	*n2 = real3_unit(*n2);
 	*n3 = real3_cross(n, *n2);
+}
+
+//based on n->x, calculate n->y and n->z
+//same as above, but for the row vectors of a 3x3 matrix
+void getPerpendicularBasis3x3(real3x3* n) {
+	getPerpendicularBasis(n->x, &n->y, &n->z);
 }

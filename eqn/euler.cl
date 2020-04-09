@@ -18,19 +18,19 @@ cons_t fluxFromConsForNormal(
 	constant solver_t* solver,
 	cons_t U,
 	real3 x,
-	real3 n	//covariant
+	real3x3 nL,	//covariant, row-vector basis
+	real3x3 nU,
+	real nLen
 ) {
-	real3 nU = coord_raise(n, x);
-	
 	prim_t W = primFromCons(solver, U, x);
-	real v_n = real3_dot(W.v, n);
+	real v_n = real3_dot(W.v, nL.x);
 	real HTotal = U.ETotal + W.P;
 	
 	return (cons_t){
 		.rho = U.rho * v_n,
 		.m = real3_add(
 			real3_real_mul(U.m, v_n),
-			real3_real_mul(nU, W.P)
+			real3_real_mul(nU.x, W.P)
 		),
 		.ETotal = HTotal * v_n,
 		.ePot = 0,
@@ -43,12 +43,12 @@ range_t calcCellMinMaxEigenvaluesForNormal(
 	constant solver_t* solver,
 	const global cons_t* U,
 	real3 x,
-	real3 n
+	real3x3 nL,
+	real3x3 nU,
+	real nLen
 ) {
-	real3 nU = coord_raise(n, x);
-	real nLen = sqrt(real3_dot(n, nU));
 	prim_t W = primFromCons(solver, *U, x);
-	real v_n = real3_dot(W.v, n);
+	real v_n = real3_dot(W.v, nL.x);
 	real Cs = calc_Cs(solver, &W);
 	real Cs_nLen = Cs * nLen;
 	return (range_t){
@@ -64,11 +64,13 @@ eigen_t eigen_forInterface(
 	cons_t UL,
 	cons_t UR,
 	real3 x,
-	real3 n
+	real3x3 nL,
+	real3x3 nU,
+	real nLen
 ) {
 	prim_t WL = primFromCons(solver, UL, x);
 	real sqrtRhoL = sqrt(WL.rho);
-	real3 vL = WL.v;
+	real3 vLeft = WL.v;
 	real hTotalL = calc_hTotal(WL.rho, WL.P, UL.ETotal);
 	
 	prim_t WR = primFromCons(solver, UR, x);
@@ -81,50 +83,69 @@ eigen_t eigen_forInterface(
 	//Roe-averaged
 	real rho = sqrtRhoL * sqrtRhoR;
 	real3 v = real3_add(
-			real3_real_mul(vL, sqrtRhoL * invDenom),
+			real3_real_mul(vLeft, sqrtRhoL * invDenom),
 			real3_real_mul(vR, sqrtRhoR * invDenom));
 	real hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR);
 
 	//derived:
-	real vSq = coordLenSq(v, x);
+	real3 vLower = coord_lower(v, x);
+	real vSq = real3_dot(v, vLower);
 	real eKin = .5 * vSq;
 	real CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);
 	real Cs = sqrt(CsSq);
 
+	//n is row one-forms, v is column vector
+	real3 v_n = real3x3_real3_mul(nL, v);
+
 	return (eigen_t){
-		.n = n,
 		.rho = rho, 
 		.v = v,
 		.hTotal = hTotal,
 		.vSq = vSq,
 		.Cs = Cs,
+		.vL = vLower,
+		.v_n = v_n,
 	};
 }
 
+// used by PLM
+eigen_t eigen_forCellForNormal(
+	constant solver_t* solver,
+	cons_t U,
+	real3 x,
+	real3x3 nL,
+	real3x3 nU,
+	real nLen
+) {
+	prim_t W = primFromCons(solver, U, x);
+	real3 vL = coord_lower(W.v, x);
+	real vSq = real3_dot(W.v, vL);
+	real v_n = real3_dot(W.v, nL.x);
+	real eKin = .5 * vSq;
+	real hTotal = calc_hTotal(W.rho, W.P, U.ETotal);
+	real CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);
+	real Cs = sqrt(CsSq);
+	return (eigen_t){
+		.rho = W.rho,
+		.v = W.v,
+		.hTotal = hTotal,
+		.vSq = vSq,
+		.Cs = Cs,
+		.vL = vL,
+		.v_n = v_n,
+	};
+}
+
+
+
 <?
 local prefix = [[
-	real3 n2, n3;
-	getPerpendicularBasis(n, &n2, &n3);
-	
-	real3 nU = coord_raise(n, x);
-	real3 n2U = coord_raise(n2, x);
-	real3 n3U = coord_raise(n3, x);
-
-	real nLenSq = real3_dot(n, nU);
-	real nLen = sqrt(nLenSq);
-
 	real3 v = eig.v;
 	real hTotal = eig.hTotal;
 	real Cs = eig.Cs;
-	
-	real Cs_over_nLen = Cs / nLen; 
-	
-	real3 vL = coord_lower(v, x);
-	real vSq = real3_dot(v, vL);
-	
-	real v_n = real3_dot(v, n);
-	real v_n2 = real3_dot(v, n2);
-	real v_n3 = real3_dot(v, n3);
+	real vSq = eig.vSq;
+	real3 v_n = eig.v_n;
+	real3 vL = eig.vL;
 ]]
 ?>
 
@@ -133,7 +154,9 @@ waves_t eigen_leftTransformForNormal(
 	eigen_t eig,
 	cons_t X_,
 	real3 x,
-	real3 n
+	real3x3 nL,
+	real3x3 nU,
+	real nLen
 ) { 
 	real* X = X_.ptr;
 	<?=prefix?>
@@ -144,10 +167,10 @@ waves_t eigen_leftTransformForNormal(
 	const real gamma_1 = solver->heatCapacityRatio - 1.;
 	return (waves_t){.ptr={
 		(
-			X[0] * (.5 * gamma_1 * vSq + Cs * v_n / nLen)
-			+ X[1] * (-gamma_1 * vL.x - Cs * n.x / nLen)
-			+ X[2] * (-gamma_1 * vL.y - Cs * n.y / nLen)
-			+ X[3] * (-gamma_1 * vL.z - Cs * n.y / nLen)
+			X[0] * (.5 * gamma_1 * vSq + Cs * v_n.x / nLen)
+			+ X[1] * (-gamma_1 * vL.x - Cs * nL.x.x / nLen)
+			+ X[2] * (-gamma_1 * vL.y - Cs * nL.x.y / nLen)
+			+ X[3] * (-gamma_1 * vL.z - Cs * nL.x.y / nLen)
 			+ X[4] * gamma_1
 		) * invDenom,
 		
@@ -159,21 +182,21 @@ waves_t eigen_leftTransformForNormal(
 			+ X[4] * -2. * gamma_1
 		) * invDenom,
 		
-		X[0] * -v_n2
-		+ X[1] * n2.x
-		+ X[2] * n2.y
-		+ X[3] * n2.z,
+		X[0] * -v_n.y
+		+ X[1] * nL.y.x
+		+ X[2] * nL.y.y
+		+ X[3] * nL.y.z,
 		
-		X[0] * -v_n3
-		+ X[1] * n3.x
-		+ X[2] * n3.y
-		+ X[3] * n3.z,
+		X[0] * -v_n.z
+		+ X[1] * nL.z.x
+		+ X[2] * nL.z.y
+		+ X[3] * nL.z.z,
 		
 		(
-			X[0] * (.5 * gamma_1 * vSq - Cs * v_n / nLen)
-			+ X[1] * (-gamma_1 * vL.x + Cs * n.x / nLen)
-			+ X[2] * (-gamma_1 * vL.y + Cs * n.y / nLen)
-			+ X[3] * (-gamma_1 * vL.z + Cs * n.z / nLen)
+			X[0] * (.5 * gamma_1 * vSq - Cs * v_n.x / nLen)
+			+ X[1] * (-gamma_1 * vL.x + Cs * nL.x.x / nLen)
+			+ X[2] * (-gamma_1 * vL.y + Cs * nL.x.y / nLen)
+			+ X[3] * (-gamma_1 * vL.z + Cs * nL.x.z / nLen)
 			+ X[4] * gamma_1
 		) * invDenom,
 	}};
@@ -184,39 +207,40 @@ cons_t eigen_rightTransformForNormal(
 	eigen_t eig,
 	waves_t X_,
 	real3 x,
-	real3 n
+	real3x3 nL,
+	real3x3 nU,
+	real nLen
 ) {
 	real* X = X_.ptr;
-	
 	<?=prefix?>
 	return (cons_t){.ptr={
 		X[0] 
 		+ X[1] 
 		+ X[4],
 		
-		X[0] * (v.x - Cs * nU.x / nLen)
+		X[0] * (v.x - Cs * nU.x.x / nLen)
 		+ X[1] * v.x
-		+ X[2] * n2U.y
-		+ X[3] * n3U.z
-		+ X[4] * (v.x + Cs * nU.x / nLen),
+		+ X[2] * nU.y.y
+		+ X[3] * nU.z.z
+		+ X[4] * (v.x + Cs * nU.x.x / nLen),
 		
-		X[0] * (v.y - Cs * nU.y / nLen)
+		X[0] * (v.y - Cs * nU.x.y / nLen)
 		+ X[1] * v.y
-		+ X[2] * n2U.y
-		+ X[3] * n3U.y
-		+ X[4] * (v.y + Cs * nU.y / nLen),
+		+ X[2] * nU.y.y
+		+ X[3] * nU.z.y
+		+ X[4] * (v.y + Cs * nU.x.y / nLen),
 		
-		X[0] * (v.z - Cs * nU.z / nLen)
+		X[0] * (v.z - Cs * nU.x.z / nLen)
 		+ X[1] * v.z
-		+ X[2] * n2U.z
-		+ X[3] * n3U.z
-		+ X[4] * (v.z + Cs * nU.z / nLen),
+		+ X[2] * nU.y.z
+		+ X[3] * nU.z.z
+		+ X[4] * (v.z + Cs * nU.x.z / nLen),
 		
-		X[0] * (hTotal - Cs * v_n / nLen)
+		X[0] * (hTotal - Cs * v_n.x / nLen)
 		+ X[1] * .5 * vSq
-		+ X[2] * v_n2
-		+ X[3] * v_n3
-		+ X[4] * (hTotal + Cs * v_n / nLen),
+		+ X[2] * v_n.y
+		+ X[3] * v_n.z
+		+ X[4] * (hTotal + Cs * v_n.x / nLen),
 		
 		0,
 	}};
@@ -227,7 +251,9 @@ cons_t eigen_fluxTransformForNormal(
 	eigen_t eig,
 	cons_t X_,
 	real3 x,
-	real3 n
+	real3x3 nL,
+	real3x3 nU,
+	real nLen
 ) {
 	real* X = X_.ptr;
 	<?=prefix?>
@@ -235,61 +261,36 @@ cons_t eigen_fluxTransformForNormal(
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
 	return (cons_t){.ptr={
-		X[1] * n.x
-		+ X[2] * n.y
-		+ X[3] * n.z,
+		X[1] * nL.x.x
+		+ X[2] * nL.x.y
+		+ X[3] * nL.x.z,
 		
-		X[0] * (-v_n * v.x + gamma_1 * .5 * vSq * nU.x)
-		+ X[1] * (v.x * n.x - gamma_2 * nU.x * vL.x + v_n)
-		+ X[2] * (v.x * n.y - gamma_2 * nU.x * vL.y)
-		+ X[3] * (v.x * n.z - gamma_2 * nU.x * vL.z)
-		+ X[4] * gamma_1 * nU.x,
+		X[0] * (-v_n.x * v.x + gamma_1 * .5 * vSq * nU.x.x)
+		+ X[1] * (v.x * nL.x.x - gamma_2 * nU.x.x * vL.x + v_n.x)
+		+ X[2] * (v.x * nL.x.y - gamma_2 * nU.x.x * vL.y)
+		+ X[3] * (v.x * nL.x.z - gamma_2 * nU.x.x * vL.z)
+		+ X[4] * gamma_1 * nU.x.x,
 		
-		X[0] * (-v_n * v.y + gamma_1 * .5 * vSq * nU.y)
-		+ X[1] * (v.y * n.x - gamma_2 * nU.y * vL.x)
-		+ X[2] * (v.y * n.y - gamma_2 * nU.y * vL.y + v_n)
-		+ X[3] * (v.y * n.z - gamma_2 * nU.y * vL.z)
-		+ X[4] * gamma_1 * nU.y,
+		X[0] * (-v_n.x * v.y + gamma_1 * .5 * vSq * nU.x.y)
+		+ X[1] * (v.y * nL.x.x - gamma_2 * nU.x.y * vL.x)
+		+ X[2] * (v.y * nL.x.y - gamma_2 * nU.x.y * vL.y + v_n.x)
+		+ X[3] * (v.y * nL.x.z - gamma_2 * nU.x.y * vL.z)
+		+ X[4] * gamma_1 * nU.x.y,
 		
-		X[0] * (-v_n * v.z + gamma_1 * .5 * vSq * nU.z)
-		+ X[1] * (v.z * n.x - gamma_2 * nU.z * vL.x)
-		+ X[2] * (v.z * n.y - gamma_2 * nU.z * vL.y)
-		+ X[3] * (v.z * n.z - gamma_2 * nU.z * vL.z + v_n)
-		+ X[4] * gamma_1 * nU.z,
+		X[0] * (-v_n.x * v.z + gamma_1 * .5 * vSq * nU.x.z)
+		+ X[1] * (v.z * nL.x.x - gamma_2 * nU.x.z * vL.x)
+		+ X[2] * (v.z * nL.x.y - gamma_2 * nU.x.z * vL.y)
+		+ X[3] * (v.z * nL.x.z - gamma_2 * nU.x.z * vL.z + v_n.x)
+		+ X[4] * gamma_1 * nU.x.z,
 		
-		X[0] * v_n * (.5 * gamma_1 * vSq - hTotal)
-		+ X[1] * (n.x * hTotal - gamma_1 * v_n * vL.x)
-		+ X[2] * (n.y * hTotal - gamma_1 * v_n * vL.y)
-		+ X[3] * (n.z * hTotal - gamma_1 * v_n * vL.z)
-		+ X[4] * gamma * v_n,
+		X[0] * v_n.x * (.5 * gamma_1 * vSq - hTotal)
+		+ X[1] * (nL.x.x * hTotal - gamma_1 * v_n.x * vL.x)
+		+ X[2] * (nL.x.y * hTotal - gamma_1 * v_n.x * vL.y)
+		+ X[3] * (nL.x.z * hTotal - gamma_1 * v_n.x * vL.z)
+		+ X[4] * gamma * v_n.x,
 		
 		0,
 	}};
-}
-
-
-// used by PLM
-
-
-eigen_t eigen_forCellForNormal(
-	constant solver_t* solver,
-	cons_t U,
-	real3 x,
-	real3 n
-) {
-	prim_t W = primFromCons(solver, U, x);
-	real vSq = coordLenSq(W.v, x);
-	real eKin = .5 * vSq;
-	real hTotal = calc_hTotal(W.rho, W.P, U.ETotal);
-	real CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);
-	real Cs = sqrt(CsSq);
-	return (eigen_t){
-		.rho = W.rho,
-		.v = W.v,
-		.hTotal = hTotal,
-		.vSq = vSq,
-		.Cs = Cs,
-	};
 }
 
 
@@ -320,7 +321,7 @@ then ?>
 	}<? end ?>
 <?	end ?>
 <?	if false then -- 1999 Toro p.28 eqn.1.102, 1.103 ?>
-	cons_t F = fluxFromCons_0(solver, *U, x);
+	cons_t F = fluxFromConsForSide0(solver, *U, x);
 	deriv->rho -= F.rho / x.x;
 	deriv->m.x -= F.m.x / x.x;
 	deriv->m.y -= F.m.y / x.x;
@@ -384,10 +385,10 @@ kernel void constrainU(
 
 
 <? for side=0,solver.dim-1 do ?>
-#define fluxFromCons_<?=side?>(solver, U, x) 				fluxFromConsForNormal(solver, U, x, normalForSide<?=side?>())
-#define calcCellMinMaxEigenvalues_<?=side?>(solver, U, x) 	calcCellMinMaxEigenvaluesForNormal(solver, U, x, normalForSide<?=side?>())
-#define eigen_leftTransform_<?=side?>(solver, eig, X, x) 	eigen_leftTransformForNormal(solver, eig, X, x, normalForSide<?=side?>())
-#define eigen_rightTransform_<?=side?>(solver, eig, X, x) 	eigen_rightTransformForNormal(solver, eig, X, x, normalForSide<?=side?>())
-#define eigen_fluxTransform_<?=side?>(solver, eig, X, x) 	eigen_fluxTransformForNormal(solver, eig, X, x, normalForSide<?=side?>())
-#define eigen_forCell_<?=side?>(solver, U, x) 				eigen_forCellForNormal(solver, U, x, normalForSide<?=side?>())
+#define fluxFromConsForSide<?=side?>(solver, U, x) 				fluxFromConsForNormal(solver, U, x, normalBasisForSide<?=side?>, normalBasisForSide<?=side?>, 1)
+#define calcCellMinMaxEigenvalues_<?=side?>(solver, U, x) 		calcCellMinMaxEigenvaluesForNormal(solver, U, x, normalBasisForSide<?=side?>, normalBasisForSide<?=side?>, 1)
+#define eigen_leftTransformForSide<?=side?>(solver, eig, X, x) 	eigen_leftTransformForNormal(solver, eig, X, x, normalBasisForSide<?=side?>, normalBasisForSide<?=side?>, 1)
+#define eigen_rightTransformForSide<?=side?>(solver, eig, X, x) eigen_rightTransformForNormal(solver, eig, X, x, normalBasisForSide<?=side?>, normalBasisForSide<?=side?>, 1)
+#define eigen_fluxTransformForSide<?=side?>(solver, eig, X, x) 	eigen_fluxTransformForNormal(solver, eig, X, x, normalBasisForSide<?=side?>, normalBasisForSide<?=side?>, 1)
+#define eigen_forCell_<?=side?>(solver, U, x) 					eigen_forCellForNormal(solver, U, x, normalBasisForSide<?=side?>, normalBasisForSide<?=side?>, 1)
 <? end ?>

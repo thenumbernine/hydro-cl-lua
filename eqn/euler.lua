@@ -334,21 +334,23 @@ function Euler:getDisplayVars()
 end
 
 Euler.eigenVars = table{
-	{name='n', type='real3', units='m'},
+--	{name='n', type='real3', units='m'},
 	-- Roe-averaged vars
 	{name='rho', type='real', units='kg/m^3'},
 	{name='v', type='real3', units='m/s'},
 	{name='hTotal', type='real', units='m^2/s^2'},
 	-- derived vars
-	{name='vSq', type='real', units='m^2/s^2'},
 	{name='Cs', type='real', units='m/s'},
+	{name='vSq', type='real', units='m^2/s^2'},
+	{name='vL', type='real3', units='m/s'},
+	{name='v_n', type='real3', units='m/s'},
 }
 
-function Euler:eigenWaveCodePrefix(side, eig, x)
+function Euler:eigenWaveCodePrefixForSide(side, eig, x)
 	return template([[
-	real nLen = coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+//	real nLen = coord_sqrt_g_uu<?=side..side?>(<?=x?>);
 	real Cs_nLen = <?=eig?>.Cs * nLen;
-	real v_n = <?=eig?>.v.s[<?=side?>];
+	real v_n = <?=eig?>.v_n.x;
 ]], {
 		eig = '('..eig..')',
 		side = side,
@@ -356,30 +358,30 @@ function Euler:eigenWaveCodePrefix(side, eig, x)
 	})
 end
 
-function Euler:eigenWaveCodePrefixForNormal(n, eig, x, W)
+function Euler:eigenWaveCodePrefixForNormal(nL, nU, nLen, eig, x, W)
 	return template([[
-	real nLenSq = real3_weightedLenSq(<?=n?>, coord_g_uu(<?=x?>));
-	real nLen = sqrt(nLenSq);
-	real Cs_nLen = <?=eig?>.Cs * nLen;
-	real v_n = real3_dot(<?=eig?>.v, n);
+	real Cs_nLen = <?=eig?>.Cs * <?=nLen?>;
+	real v_n = <?=eig?>.v_n.x;
 ]],	{
 		eqn = self,
 		eig = '('..eig..')',
 		W = W and '('..W..')' or nil,
-		n = n,
 		x = x,
+		nL = nL,
+		nU = nU,
+		nLen = nLen,
 	})
 end
 
 -- W is an extra param specific to Euler's calcDT in this case
-function Euler:consWaveCodePrefix(side, U, x, W)
+function Euler:consWaveCodePrefixForSide(side, U, x, W)
 	return template([[
 <? if not W then ?>
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 <? end ?>
-	real nLen = coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+//	real nLen = coord_sqrt_g_uu<?=side..side?>(<?=x?>);
 	real Cs_nLen = calc_Cs(solver, &<?=W or 'W'?>) * nLen;
-	real v_n = <?=W or 'W'?>.v.s[<?=side?>];
+	real v_n = <?=eig?>.v_n.x;
 ]], {
 		eqn = self,
 		U = '('..U..')',
@@ -467,7 +469,7 @@ kernel void calcDT(
 		<? for side=0,solver.dim-1 do ?>{
 			//use cell-centered eigenvalues
 			real3 x = cell->x;
-			<?=eqn:consWaveCodePrefix(side, '*U', 'x')?>
+			<?=eqn:consWaveCodePrefixForSide(side, '*U', 'x')?>
 			real lambdaMin = <?=eqn:consMinWaveCode(side, '*U', 'x')?>;
 			real lambdaMax = <?=eqn:consMaxWaveCode(side, '*U', 'x')?>;
 			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));

@@ -414,15 +414,15 @@ function Equation:getEigenDisplayVars()
 	end
 end
 
-function Equation:eigenWaveCodePrefix(side, eig, x)
+function Equation:eigenWaveCodePrefixForSide(side, eig, x)
 	return ''
 end
 function Equation:eigenWaveCode(side, eig, x, waveIndex)
 	return '\n#error :eigenWaveCode() not implemented'
 end
 
-function Equation:consWaveCodePrefix(side, U, x)
-	return '\n#error :consWaveCodePrefix() not implemented'
+function Equation:consWaveCodePrefixForSide(side, U, x)
+	return '\n#error :consWaveCodePrefixForSide() not implemented'
 end
 function Equation:consWaveCode(side, U, x)
 	return '\n#error :consWaveCode() not implemented'

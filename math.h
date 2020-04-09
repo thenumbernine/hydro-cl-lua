@@ -141,7 +141,9 @@ real real3_weightedDot(real3 a, real3 b, sym3 m);
 real real3_weightedLenSq(real3 a, sym3 m);
 real real3_weightedLen(real3 a, sym3 m);
 
+//specified in row-order, like you would a C array
 #define _real3x3(xx,xy,xz,yx,yy,yz,zx,zy,zz) ((real3x3){.x=_real3(xx,xy,xz), .y=_real3(yx,yy,yz), .z=_real3(zx,zy,zz)})
+
 #define real3x3_zero ((real3x3){.v={real3_zero, real3_zero, real3_zero}})
 
 real3x3 real3x3_add(real3x3 a, real3x3 b);

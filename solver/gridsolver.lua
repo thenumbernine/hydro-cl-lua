@@ -901,7 +901,9 @@ local BoundaryMirror = class(Boundary)
 BoundaryMirror.name = 'mirror'
 BoundaryMirror.restitution = 1
 function BoundaryMirror:init(args)
-	self.restitution = args.restitution
+	if args then
+		self.restitution = args.restitution
+	end
 end
 function BoundaryMirror:getCode(args)
 	local dst, src
@@ -931,7 +933,7 @@ function BoundaryMirror:getCode(args)
 		{
 			int4 iv = (int4)(<?=iv?>,0);
 			real3 x = cell_x(iv);
-			real3 n = coord_cartesianFromCoord(normalForSide<?=side?>(), x);
+			real3 n = coord_cartesianFromCoord(normalForSide<?=side?>, x);
 ]], 	{
 			args = args,
 			iv = args.minmax == 'min' 
