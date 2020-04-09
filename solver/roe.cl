@@ -107,6 +107,7 @@ kernel void calcFlux(
 		}
 		
 <? 	if nonAxisAlignedNormals then ?>
+#error here
 		fluxEig = eigen_leftTransformForNormal(solver, eig, UAvg, xInt, nL, nU, nLen);
 <?	else ?>
 		fluxEig = eigen_leftTransformForSide<?=side?>(solver, eig, UAvg, xInt);
