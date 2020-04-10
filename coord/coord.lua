@@ -176,7 +176,7 @@ assert(args.anholonomic == nil, "FIXME")
 		-- TODO this is why symmath needs CAS function objects
 		-- and instead of overriding :applyDiff, just make operators a CAS function object
 		local nonCoords = table()
-		local nonCoordLinExpr = (eHolToE * baseCoords)()
+		local nonCoordLinExpr = (eHolToE * Matrix(baseCoords):T())()
 		for i=1,3 do
 			local baseCoord = baseCoords[i]
 			-- the non-coordinate = the coordinate, so use the original variable 
@@ -1263,64 +1263,64 @@ typedef struct {
 		self.normalInfoCode = template([[
 <? for side=0,solver.dim-1 do ?>
 normalInfo_t normalInfo_forSide<?=side?>(real3 x) { 
-	normalInfo_t n;
-	n.n.x = coord_cartesianFromCoord(normalForSide<?=side?>, xInt);
-	n.n.y = coord_cartesianFromCoord(normalForSide<?=(side+1)%3?>, xInt);
-	n.n.z = coord_cartesianFromCoord(normalForSide<?=(side+2)%3?>, xInt);
-	n.len = 1;
-	n.side = <?=side?>;
-	return n;
+	normalInfo_t normal;
+	normal.n.x = coord_cartesianFromCoord(normalForSide<?=side?>, x);
+	normal.n.y = coord_cartesianFromCoord(normalForSide<?=(side+1)%3?>, x);
+	normal.n.z = coord_cartesianFromCoord(normalForSide<?=(side+2)%3?>, x);
+	normal.len = 1;
+	normal.side = <?=side?>;
+	return normal;
 }
 <? end ?>
 
 //|n1|
-#define normalInfo_len(n)	(n.len)
+#define normalInfo_len(normal)	(normal.len)
 
 //n1_i
-#define normalInfo_l1x(n)	(n.n.x.x)
-#define normalInfo_l1y(n)	(n.n.x.y)
-#define normalInfo_l1z(n)	(n.n.x.z)
+#define normalInfo_l1x(normal)	(normal.n.x.x)
+#define normalInfo_l1y(normal)	(normal.n.x.y)
+#define normalInfo_l1z(normal)	(normal.n.x.z)
 
 //n2_i
-#define normalInfo_l2x(n)	(n.n.y.x)
-#define normalInfo_l2y(n)	(n.n.y.y)
-#define normalInfo_l2z(n)	(n.n.y.z)
+#define normalInfo_l2x(normal)	(normal.n.y.x)
+#define normalInfo_l2y(normal)	(normal.n.y.y)
+#define normalInfo_l2z(normal)	(normal.n.y.z)
 
 //n3_i
-#define normalInfo_l3x(n)	(n.n.z.x)
-#define normalInfo_l3y(n)	(n.n.z.y)
-#define normalInfo_l3z(n)	(n.n.z.z)
+#define normalInfo_l3x(normal)	(normal.n.z.x)
+#define normalInfo_l3y(normal)	(normal.n.z.y)
+#define normalInfo_l3z(normal)	(normal.n.z.z)
 
 //n1^i
-#define normalInfo_u1x(n)	(n.n.x.x)
-#define normalInfo_u1y(n)	(n.n.x.y)
-#define normalInfo_u1z(n)	(n.n.x.z)
+#define normalInfo_u1x(normal)	(normal.n.x.x)
+#define normalInfo_u1y(normal)	(normal.n.x.y)
+#define normalInfo_u1z(normal)	(normal.n.x.z)
 
 //n2^i
-#define normalInfo_u2x(n)	(n.n.y.x)
-#define normalInfo_u2y(n)	(n.n.y.y)
-#define normalInfo_u2z(n)	(n.n.y.z)
+#define normalInfo_u2x(normal)	(normal.n.y.x)
+#define normalInfo_u2y(normal)	(normal.n.y.y)
+#define normalInfo_u2z(normal)	(normal.n.y.z)
 
 //n3^i
-#define normalInfo_u3x(n)	(n.n.z.x)
-#define normalInfo_u3y(n)	(n.n.z.y)
-#define normalInfo_u3z(n)	(n.n.z.z)
+#define normalInfo_u3x(normal)	(normal.n.z.x)
+#define normalInfo_u3y(normal)	(normal.n.z.y)
+#define normalInfo_u3z(normal)	(normal.n.z.z)
 
 //n1_i / |n1|
-#define normalInfo_l1x_over_len(n) (n.n.x.x / n.len)
-#define normalInfo_l1y_over_len(n) (n.n.x.y / n.len)
-#define normalInfo_l1z_over_len(n) (n.n.x.z / n.len)
+#define normalInfo_l1x_over_len(normal) (normal.n.x.x / normal.len)
+#define normalInfo_l1y_over_len(normal) (normal.n.x.y / normal.len)
+#define normalInfo_l1z_over_len(normal) (normal.n.x.z / normal.len)
 
 //n1^i / |n1|
-#define normalInfo_u1x_over_len(n) (n.n.x.x / n.len)
-#define normalInfo_u1y_over_len(n) (n.n.x.y / n.len)
-#define normalInfo_u1z_over_len(n) (n.n.x.z / n.len)
+#define normalInfo_u1x_over_len(normal) (normal.n.x.x / normal.len)
+#define normalInfo_u1y_over_len(normal) (normal.n.x.y / normal.len)
+#define normalInfo_u1z_over_len(normal) (normal.n.x.z / normal.len)
 
 //v^i (nj)_i for side j 
-#define normalInfo_vecDotNs(n, v) (real3x3_real3_mul(n.n, v))
+#define normalInfo_vecDotNs(normal, v) (real3x3_real3_mul(normal.n, v))
 
 //v^i (n1)_i
-#define normalInfo_vecDotN1(n, v) (real3_dot(n.n.x, v))
+#define normalInfo_vecDotN1(normal, v) (real3_dot(normal.n.x, v))
 
 
 ]],		{
@@ -1409,9 +1409,9 @@ normalInfo_t normalInfo_forSide<?=side?>(real3 x) {
 
 //v^i (nj)_i for side j
 #define normalInfo_vecDotNs(n, v) \
-	(_real3(
-		v.s[n.side],
-		v.s[(n.side+1)%3],
+	(_real3( \
+		v.s[n.side], \
+		v.s[(n.side+1)%3], \
 		v.s[(n.side+2)%3]))
 
 //v^i (n1)_i

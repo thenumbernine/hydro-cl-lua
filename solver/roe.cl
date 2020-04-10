@@ -45,7 +45,7 @@ kernel void calcFlux(
 
 		int indexInt = side + dim * index;
 	
-		normalInfo_t n = normalInfo_forSide<?=side?>(x);
+		normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
 		eigen_t eig = eigen_forInterface(solver, pUL, pUR, xInt, n);
 
 <?=eqn:eigenWaveCodePrefixForNormal('n', 'eig', 'xInt'):gsub('\t', '\t\t')?>
