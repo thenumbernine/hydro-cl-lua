@@ -1,46 +1,5 @@
 // Roe solver:
 
-<? 
--- for cartesian, use the normal in cartesian coordinates 
--- however that 'x' is still being used for who knows what 
---  ... and could be used for grid-metric-based norms
--- but you can't use 'cartesianFromCoord' because we're using the cartesian basis already 
--- for coordinate or coordinate-orthonormal, use the coordinate-aligned normal
-local gridIsCartesian = require 'coord.cartesian'.is(solver.coord)
-local nonAxisAlignedNormals = solver.coord.vectorComponent == 'cartesian' and not gridIsCartesian
-?>
-
-
-//call this, initializing nL to the normalBasisForSide<?=side?>
-// this calculates the rest based on the x coordinate
-// TODO put this somewhere above where display functions can use it
-void calcNormalBasisForGrid(
-	real3x3* nL,
-	real3x3* nU,
-	real *nLen,
-	real3 x
-) {
-	// if we are non-cartesian grid with cartesian components then the normal of the non-cartesian grid needs to be in cartesian components as well ...
-<? if nonAxisAlignedNormals then ?>
-	nL.x = coord_cartesianFromCoord(nL.x, xInt);
-	nL.y = coord_cartesianFromCoord(nL.y, xInt);
-	nL.z = coord_cartesianFromCoord(nL.z, xInt);
-<? end ?>
-<? if gridIsCartesian then -- or if the metric is identity ... cylinder surface ?>
-	*nU = *nL;
-	*nLen = 1;
-<? else ?>
-	//if we have a non-cartesian grid + cartesian component normal ... or if we have a non cartesian component normal ... then raising is different than the lowered version
-	*nU = (real3x3){
-		.x = coord_raise(nL->x, xInt),
-		.y = coord_raise(nL->y, xInt),
-		.z = coord_raise(nL->z, xInt),
-	};
-	*nLen = sqrt(real3_dot(nL->x, nU->x));
-<? end ?>
-}
-
-
 //TODO entropy fix ... for the Euler equations at least
 kernel void calcFlux(
 	constant <?=solver.solver_t?>* solver,
@@ -85,19 +44,11 @@ kernel void calcFlux(
 		cons_t pUR = cons_parallelPropagate<?=side?>(*UR, xR, -.5 * dx);
 
 		int indexInt = side + dim * index;
-		
-		real3x3 nL = normalBasisForSide<?=side?>;
-		real3x3 nU;
-		real nLen;
-		calcNormalBasisForGrid(&nL, &nU, &nLen, xInt);
+	
+		normalInfo_t n = normalInfo_forSide<?=side?>(x);
+		eigen_t eig = eigen_forInterface(solver, pUL, pUR, xInt, n);
 
-		eigen_t eig = eigen_forInterface(solver, pUL, pUR, xInt, nL, nU, nLen);
-
-<? if nonAxisAlignedNormals then ?>
-<?=eqn:eigenWaveCodePrefixForNormal('nL', 'nU', 'nLen', 'eig', 'xInt'):gsub('\t', '\t\t')?>
-<? else ?>
-<?=eqn:eigenWaveCodePrefixForSide(side, 'eig', 'xInt'):gsub('\t', '\t\t')?>
-<? end ?>
+<?=eqn:eigenWaveCodePrefixForNormal('n', 'eig', 'xInt'):gsub('\t', '\t\t')?>
 
 		waves_t fluxEig;
 <? if not eqn.roeUseFluxFromCons then 
@@ -106,13 +57,8 @@ kernel void calcFlux(
 			UAvg.ptr[j] = .5 * (pUL.ptr[j] + pUR.ptr[j]);
 		}
 		
-<? 	if nonAxisAlignedNormals then ?>
-		fluxEig = eigen_leftTransformForNormal(solver, eig, UAvg, xInt, nL, nU, nLen);
-<?	else ?>
-		fluxEig = eigen_leftTransformForSide<?=side?>(solver, eig, UAvg, xInt);
-<?	end
-end 
-?>
+		fluxEig = eigen_leftTransformForNormal(solver, eig, UAvg, xInt, n);
+<? end ?>
 		cons_t deltaU;	
 <? if solver.fluxLimiter > 1 then 
 ?>		int indexR2 = indexR + solver->stepsize.s<?=side?>;
@@ -137,23 +83,13 @@ end
 <? end 
 ?>		}
 
-<? if nonAxisAlignedNormals then ?>
-		waves_t deltaUEig = eigen_leftTransformForNormal(solver, eig, deltaU, xInt, nL, nU, nLen);
-<? 	if solver.fluxLimiter > 1 then ?>		
-		eigen_t eigL = eigen_forInterface(solver, pUL_L, pUR_L, xInt, nL, nU, nLen);
-		eigen_t eigR = eigen_forInterface(solver, pUL_R, pUR_R, xInt, nL, nU, nLen);
-		waves_t deltaUEigL = eigen_leftTransformForNormal(solver, eigL, deltaUL, xIntL, nL, nU, nLen);
-		waves_t deltaUEigR = eigen_leftTransformForNormal(solver, eigR, deltaUR, xIntR, nL, nU, nLen);
+		waves_t deltaUEig = eigen_leftTransformForNormal(solver, eig, deltaU, xInt, n);
+<? 	if solver.fluxLimiter > 1 then ?>
+		eigen_t eigL = eigen_forInterface(solver, pUL_L, pUR_L, xInt, n);
+		eigen_t eigR = eigen_forInterface(solver, pUL_R, pUR_R, xInt, n);
+		waves_t deltaUEigL = eigen_leftTransformForNormal(solver, eigL, deltaUL, xIntL, n);
+		waves_t deltaUEigR = eigen_leftTransformForNormal(solver, eigR, deltaUR, xIntR, n);
 <? 	end ?>
-<? else ?>
-		waves_t deltaUEig = eigen_leftTransformForSide<?=side?>(solver, eig, deltaU, xInt);
-<? 	if solver.fluxLimiter > 1 then ?>		
-		eigen_t eigL = eigen_forInterface(solver, pUL_L, pUR_L, xInt, nL, nU, nLen);
-		eigen_t eigR = eigen_forInterface(solver, pUL_R, pUR_R, xInt, nL, nU, nLen);
-		waves_t deltaUEigL = eigen_leftTransformForSide<?=side?>(solver, eigL, deltaUL, xIntL);
-		waves_t deltaUEigR = eigen_leftTransformForSide<?=side?>(solver, eigR, deltaUR, xIntR);
-<? 	end ?>
-<? end ?>
 
 		<? for j=0,eqn.numWaves-1 do ?>{
 			const int j = <?=j?>;
@@ -189,20 +125,11 @@ end
 		
 		global cons_t* flux = fluxBuf + indexInt;
 
-<? if nonAxisAlignedNormals then ?>
-		*flux = eigen_rightTransformForNormal(solver, eig, fluxEig, xInt, nL, nU, nLen);
-<? else ?>
-		*flux = eigen_rightTransformForSide<?=side?>(solver, eig, fluxEig, xInt);
-<? end ?>
+		*flux = eigen_rightTransformForNormal(solver, eig, fluxEig, xInt, n);
 
 <? if eqn.roeUseFluxFromCons then ?>
-<? 	if nonAxisAlignedNormals then ?>
-		cons_t FL = fluxFromConsForNormal(solver, *UL, xL, nL, nU, nLen);
-		cons_t FR = fluxFromConsForNormal(solver, *UR, xR, nL, nU, nLen);
-<?	else ?>
-		cons_t FL = fluxFromConsForSide<?=side?>(solver, *UL, xL);
-		cons_t FR = fluxFromConsForSide<?=side?>(solver, *UR, xR);
-<?	end ?>
+		cons_t FL = fluxFromConsForNormal(solver, *UL, xL, n);
+		cons_t FR = fluxFromConsForNormal(solver, *UR, xR, n);
 
 		cons_t pFL = cons_parallelPropagate<?=side?>(FL, xL, .5 * dx);
 		cons_t pFR = cons_parallelPropagate<?=side?>(FR, xR, -.5 * dx);

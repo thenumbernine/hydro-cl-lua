@@ -67,23 +67,13 @@ function FiniteVolumeSolver:addDisplayVars()
 	local function getEigenCode(args)
 		return template([[
 
-	void calcNormalBasisForGrid(
-		real3x3* nL,
-		real3x3* nU,
-		real *nLen,
-		real3 x
-	);
-
 	int indexR = index;
 	int indexL = index - solver->stepsize.s<?=side?>;
 	real3 xInt = x;
 	xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 	<?=solver:getULRCode{bufName='buf'}?>
-	real3x3 nL = normalBasisForSide<?=side?>;
-	real3x3 nU;
-	real nLen;
-	calcNormalBasisForGrid(&nL, &nU, &nLen, xInt);
-	<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, nL, nU, nLen);
+	normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
+	<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, n);
 ]], 	{
 			solver = self,
 			eqn = self.eqn,
@@ -100,7 +90,8 @@ function FiniteVolumeSolver:addDisplayVars()
 			codePrefix = table{
 				getEigenCode{side=side},
 				template([[
-	<?=eqn:eigenWaveCodePrefixForSide(side, 'eig', 'xInt')?>
+	normalInfo_t n<?=side?> = normalInfo_forSide<?=side?>(xInt);
+	<?=eqn:eigenWaveCodePrefixForNormal('n', 'eig', 'xInt')?>
 ]], 			{
 					eqn = self.eqn,
 					side = side,
@@ -108,7 +99,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			}:concat'\n',
 			vars = range(0, self.eqn.numWaves-1):map(function(i)
 				return {name=tostring(i), code=template([[
-	value.vreal = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', i)?>;
+	value.vreal = <?=eqn:eigenWaveCodeForNormal('n'..side, 'eig', 'xInt', i)?>;
 ]], 			{
 					eqn = self.eqn,
 					side = side,
@@ -190,7 +181,8 @@ function FiniteVolumeSolver:addDisplayVars()
 				{name='0', code=table{
 					getEigenCode{side=side},
 					template([[
-	<?=eqn:eigenWaveCodePrefixForSide(side, 'eig', 'xInt')?>
+	normalInfo_t n<?=side?> = normalInfo_forSide<?=side?>(x);
+	<?=eqn:eigenWaveCodePrefixForNormal('n'..side, 'eig', 'xInt')?>
 	
 	value.vreal = 0;
 	for (int k = 0; k < numIntStates; ++k) {
@@ -205,7 +197,7 @@ function FiniteVolumeSolver:addDisplayVars()
 
 		<?=eqn.waves_t?> charScaled;
 		<? for j=0,eqn.numWaves-1 do ?>{
-			real lambda_j = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', j)?>;
+			real lambda_j = <?=eqn:eigenWaveCodeForNormal('n'..side, 'eig', 'xInt', j)?>;
 			charScaled.ptr[<?=j?>] = chars.ptr[<?=j?>] * lambda_j;
 		}<? end ?>
 	

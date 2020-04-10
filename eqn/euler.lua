@@ -334,7 +334,6 @@ function Euler:getDisplayVars()
 end
 
 Euler.eigenVars = table{
---	{name='n', type='real3', units='m'},
 	-- Roe-averaged vars
 	{name='rho', type='real', units='kg/m^3'},
 	{name='v', type='real3', units='m/s'},
@@ -343,33 +342,33 @@ Euler.eigenVars = table{
 	{name='Cs', type='real', units='m/s'},
 	{name='vSq', type='real', units='m^2/s^2'},
 	{name='vL', type='real3', units='m/s'},
-	{name='v_n', type='real3', units='m/s'},
 }
 
 function Euler:eigenWaveCodePrefixForSide(side, eig, x)
+	assert(n)
 	return template([[
-//	real nLen = coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real nLen = normalInfo_len(<?=n?>);
 	real Cs_nLen = <?=eig?>.Cs * nLen;
-	real v_n = <?=eig?>.v_n.x;
+	real v_n = normalInfo_vecDotN1(<?=n?>, <?=eig?>.v);
 ]], {
 		eig = '('..eig..')',
 		side = side,
 		x = x,
+		n = n,
 	})
 end
 
-function Euler:eigenWaveCodePrefixForNormal(nL, nU, nLen, eig, x, W)
+function Euler:eigenWaveCodePrefixForNormal(n, eig, x, W)
 	return template([[
-	real Cs_nLen = <?=eig?>.Cs * <?=nLen?>;
-	real v_n = <?=eig?>.v_n.x;
+	real nLen = normalInfo_len(<?=n?>);
+	real Cs_nLen = <?=eig?>.Cs * nLen;
+	real v_n = normalInfo_vecDotN1(<?=n?>, <?=eig?>.v);
 ]],	{
 		eqn = self,
 		eig = '('..eig..')',
 		W = W and '('..W..')' or nil,
 		x = x,
-		nL = nL,
-		nU = nU,
-		nLen = nLen,
+		n = n,
 	})
 end
 
@@ -379,9 +378,9 @@ function Euler:consWaveCodePrefixForSide(side, U, x, W)
 <? if not W then ?>
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 <? end ?>
-//	real nLen = coord_sqrt_g_uu<?=side..side?>(<?=x?>);
+	real nLen = normalInfo_len(<?=n?>);
 	real Cs_nLen = calc_Cs(solver, &<?=W or 'W'?>) * nLen;
-	real v_n = <?=eig?>.v_n.x;
+	real v_n = normalInfo_vecDotN1(<?=n?>, <?=eig?>.v);
 ]], {
 		eqn = self,
 		U = '('..U..')',
@@ -404,6 +403,7 @@ end
 
 -- as long as U or eig isn't used, we can use this for both implementations
 Euler.eigenWaveCode = Euler.consWaveCode
+Euler.eigenWaveCodeForNormal = Euler.consWaveCode
 
 -- this one calcs cell prims once and uses it for all sides
 -- it is put here instead of in eqn/euler.cl so euler-burgers can override it

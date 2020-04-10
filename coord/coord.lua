@@ -975,6 +975,10 @@ real coordLen(real3 r, real3 pt) {
 
 --print(require 'template.showcode'(lines:concat'\n'))
 
+	self:getNormalCodeGenerator()
+	lines:insert(self.normalTypeCode)
+	lines:insert(self.normalInfoCode)
+
 	self.code = lines:concat'\n'
 	return self.code
 end
@@ -1131,5 +1135,298 @@ function CoordinateSystem:getCoordMapInvGLSLCode()
 vec3 coordMapInv(vec3 x) { return x; }
 ]]
 end
+
+
+--[[
+TODO put this somewhere above where display functions can use it
+TODO have this return a structure based on the solver and coordinate system. 
+This can store all the values that would otherwise be recalculated again and again - like normal lower, upper, and magnitudes. 
+In cartesian coords, and anholonomic vector components, (anything with a unit metric and coordinate-aligned normals) this can just return nothing
+In non-cartesian coord, holonomic vector components this needs to hold the upper normals (the lower normal is identity) and the normal length (equal to sqrt(g^jj) for side j)
+In non-cartesian coord, cartesian components, this can hold the lower normals (they are non coordinate aligned) but the upper normals match since the metric is identity ... and the normal length is 1
+
+Coordinate System			Vector Components:		nL								nU							nLen
+Cartesian					Cartesian				identity						identity					1
+Cartesian					Holonomic				identity						identity					1			<- The chart is U(x,y,z) = (x,y,z), so the holonomic and anholonomic version is the same as the Cartesian-component version.
+Cartesian					Orthonormal				identity						identity					1			_/
+curvilinear					Cartesian				normalized chart gradient		normalized chart gradient	1
+curvilinear					Holonomic				identity (coordinate gradient)	inverse metric				sqrt(g^jj)
+curvilinear					Orthonormal				identity						identity					1
+
+Random note, the curvilinear holonomic covariant normals are defined as the gradient along the coordinates: n_i = partial_i ..  for Cartesian partial_i = e_i this works out to the identity matrix.
+But the curvilinear anholonomic orthonormal metric normals have to be defined as n_i = e_i = e_i^coord{i} e_coord{i}, which is a linear transformation of the gradient along the coordinates.
+
+so for cartesian coord, or curvilinear orthonormal, we need to store nothing.
+for curvilinear cartesian we need to store the chart gradient (lower normals).
+for curvilinear holonomic we need to store the inverse metric and the normal length.
+
+How to organize this?
+1) put it in coord
+2) have a C struct for holding all our required info.
+3) have code gen for (1) calculating the struct and (2) accessing the struct.
+--]]
+function CoordinateSystem:getNormalCodeGenerator()
+	if require 'coord.cartesian'.is(self)
+	or self.vectorComponent == 'anholonomic'
+	then
+		--[[
+		n_i = n^i = delta_ij for side j
+		|n| = 1
+		--]]
+		self.normalTypeCode = template([[
+typedef struct {
+	int side;		//0, 1, 2
+} normalInfo_t;		//nL = nU = normalBasisForSide (permutation of I), nLen = 1
+		]])
+
+		self.normalInfoCode = template([[
+<? for side=0,solver.dim-1 do ?>
+#define normalInfo_forSide<?=side?>(x) \
+	((normalInfo_t){ \
+		.side = <?=side?>, \
+	}) 
+<? end ?>
+
+//|n|
+#define normalInfo_len(n)	1.
+
+//n1_i
+#define normalInfo_l1x(n)	(n.side == 0 ? 1. : 0.)
+#define normalInfo_l1y(n)	(n.side == 1 ? 1. : 0.)
+#define normalInfo_l1z(n)	(n.side == 2 ? 1. : 0.)
+
+//n2_i
+#define normalInfo_l2x(n)	(n.side == 2 ? 1. : 0.)
+#define normalInfo_l2y(n)	(n.side == 0 ? 1. : 0.)
+#define normalInfo_l2z(n)	(n.side == 1 ? 1. : 0.)
+
+//n3_i
+#define normalInfo_l3x(n)	(n.side == 1 ? 1. : 0.)
+#define normalInfo_l3y(n)	(n.side == 2 ? 1. : 0.)
+#define normalInfo_l3z(n)	(n.side == 0 ? 1. : 0.)
+
+//n1^i
+#define normalInfo_u1x(n)	(n.side == 0 ? 1. : 0.)
+#define normalInfo_u1y(n)	(n.side == 1 ? 1. : 0.)
+#define normalInfo_u1z(n)	(n.side == 2 ? 1. : 0.)
+
+//n2^i
+#define normalInfo_u2x(n)	(n.side == 2 ? 1. : 0.)
+#define normalInfo_u2y(n)	(n.side == 0 ? 1. : 0.)
+#define normalInfo_u2z(n)	(n.side == 1 ? 1. : 0.)
+
+//n3^i
+#define normalInfo_u3x(n)	(n.side == 1 ? 1. : 0.)
+#define normalInfo_u3y(n)	(n.side == 2 ? 1. : 0.)
+#define normalInfo_u3z(n)	(n.side == 0 ? 1. : 0.)
+
+//n_i / |n|
+#define normalInfo_l1x_over_len(n) (n.side == 0 ? 1. : 0.)
+#define normalInfo_l1y_over_len(n) (n.side == 1 ? 1. : 0.)
+#define normalInfo_l1z_over_len(n) (n.side == 2 ? 1. : 0.)
+
+//n^i / |n|
+#define normalInfo_u1x_over_len(n) (n.side == 0 ? 1. : 0.)
+#define normalInfo_u1y_over_len(n) (n.side == 1 ? 1. : 0.)
+#define normalInfo_u1z_over_len(n) (n.side == 2 ? 1. : 0.)
+
+// v^i (nj)_i for side j 
+#define normalInfo_vecDotNs(n, v) \
+	(_real3( \
+		v.s[n.side], \
+		v.s[(n.side+1)%3], \
+		v.s[(n.side+2)%3]))
+
+//v^i (n1)_i
+#define normalInfo_vecDotN1(n, v)	(v.s[n.side])
+
+
+]],		{
+			eqn = self,
+			solver = self.solver,
+		})
+
+	elseif self.vectorComponent == 'cartesian' then
+
+		--[[
+		n_i = n^i = unit(u^i_,j) for side j
+		|n| = sqrt(n^i n_i) = 1 (since g_ij = g^ij = delta_ij)
+		--]]
+		self.normalTypeCode = template([[
+typedef struct {
+	int side;
+	real3x3 n;		// nL = nU, both are orthonormal so nLen = 1
+	real len;
+} normalInfo_t;
+		]])
+
+		self.normalInfoCode = template([[
+<? for side=0,solver.dim-1 do ?>
+normalInfo_t normalInfo_forSide<?=side?>(real3 x) { 
+	normalInfo_t n;
+	n.n.x = coord_cartesianFromCoord(normalForSide<?=side?>, xInt);
+	n.n.y = coord_cartesianFromCoord(normalForSide<?=(side+1)%3?>, xInt);
+	n.n.z = coord_cartesianFromCoord(normalForSide<?=(side+2)%3?>, xInt);
+	n.len = 1;
+	n.side = <?=side?>;
+	return n;
+}
+<? end ?>
+
+//|n1|
+#define normalInfo_len(n)	(n.len)
+
+//n1_i
+#define normalInfo_l1x(n)	(n.n.x.x)
+#define normalInfo_l1y(n)	(n.n.x.y)
+#define normalInfo_l1z(n)	(n.n.x.z)
+
+//n2_i
+#define normalInfo_l2x(n)	(n.n.y.x)
+#define normalInfo_l2y(n)	(n.n.y.y)
+#define normalInfo_l2z(n)	(n.n.y.z)
+
+//n3_i
+#define normalInfo_l3x(n)	(n.n.z.x)
+#define normalInfo_l3y(n)	(n.n.z.y)
+#define normalInfo_l3z(n)	(n.n.z.z)
+
+//n1^i
+#define normalInfo_u1x(n)	(n.n.x.x)
+#define normalInfo_u1y(n)	(n.n.x.y)
+#define normalInfo_u1z(n)	(n.n.x.z)
+
+//n2^i
+#define normalInfo_u2x(n)	(n.n.y.x)
+#define normalInfo_u2y(n)	(n.n.y.y)
+#define normalInfo_u2z(n)	(n.n.y.z)
+
+//n3^i
+#define normalInfo_u3x(n)	(n.n.z.x)
+#define normalInfo_u3y(n)	(n.n.z.y)
+#define normalInfo_u3z(n)	(n.n.z.z)
+
+//n1_i / |n1|
+#define normalInfo_l1x_over_len(n) (n.n.x.x / n.len)
+#define normalInfo_l1y_over_len(n) (n.n.x.y / n.len)
+#define normalInfo_l1z_over_len(n) (n.n.x.z / n.len)
+
+//n1^i / |n1|
+#define normalInfo_u1x_over_len(n) (n.n.x.x / n.len)
+#define normalInfo_u1y_over_len(n) (n.n.x.y / n.len)
+#define normalInfo_u1z_over_len(n) (n.n.x.z / n.len)
+
+//v^i (nj)_i for side j 
+#define normalInfo_vecDotNs(n, v) (real3x3_real3_mul(n.n, v))
+
+//v^i (n1)_i
+#define normalInfo_vecDotN1(n, v) (real3_dot(n.n.x, v))
+
+
+]],		{
+			eqn = self,
+			solver = self.solver,
+		})	
+	
+	elseif self.vectorComponent == 'holonomic' then
+
+		--[[
+		n_i = delta_ij for side j
+		n^i = g^ik delta_kj
+		|n| = sqrt(n^i n_i) = sqrt(g^jj)
+		--]]
+		self.normalTypeCode = template([[
+typedef struct {
+	int side;
+	real3x3 U;
+	real len;
+} normalInfo_t;
+		]])
+
+		self.normalInfoCode = template([[
+<? for side=0,solver.dim-1 do ?>
+normalInfo_t normalInfo_forSide<?=side?>(real3 x) { 
+	return (normalInfo_t){
+		.side = <?=side?>,
+		.U = _real3x3(
+			coord_g_uu<?=side?>0(x),
+			coord_g_uu<?=side?>1(x),
+			coord_g_uu<?=side?>2(x),
+			coord_g_uu<?=(side+1)%3?>0(x),
+			coord_g_uu<?=(side+1)%3?>1(x),
+			coord_g_uu<?=(side+1)%3?>2(x),
+			coord_g_uu<?=(side+2)%3?>0(x),
+			coord_g_uu<?=(side+2)%3?>1(x),
+			coord_g_uu<?=(side+2)%3?>2(x)
+		),
+		.len = coord_sqrt_g_uu<?=side..side?>(x),
+	}; 
+}
+<? end ?>
+
+//|n1|
+#define normalInfo_len(n)	(n.len)
+
+//n1_i
+#define normalInfo_l1x(n)	(n.side == 0 ? 1. : 0.)
+#define normalInfo_l1y(n)	(n.side == 1 ? 1. : 0.)
+#define normalInfo_l1z(n)	(n.side == 2 ? 1. : 0.)
+
+//n2_i
+#define normalInfo_l2x(n)	(n.side == 2 ? 1. : 0.)
+#define normalInfo_l2y(n)	(n.side == 0 ? 1. : 0.)
+#define normalInfo_l2z(n)	(n.side == 1 ? 1. : 0.)
+
+//n3_i
+#define normalInfo_l3x(n)	(n.side == 1 ? 1. : 0.)
+#define normalInfo_l3y(n)	(n.side == 2 ? 1. : 0.)
+#define normalInfo_l3z(n)	(n.side == 0 ? 1. : 0.)
+
+//n1^i
+#define normalInfo_u1x(n)	(n.U.x.x)
+#define normalInfo_u1y(n)	(n.U.x.y)
+#define normalInfo_u1z(n)	(n.U.x.z)
+
+//n2^i
+#define normalInfo_u2x(n)	(n.U.y.x)
+#define normalInfo_u2y(n)	(n.U.y.y)
+#define normalInfo_u2z(n)	(n.U.y.z)
+
+//n3^i
+#define normalInfo_u3x(n)	(n.U.z.x)
+#define normalInfo_u3y(n)	(n.U.z.y)
+#define normalInfo_u3z(n)	(n.U.z.z)
+
+//(n1)_i / |n1|
+#define normalInfo_l1x_over_len(n) (n.side == 0 ? (1./n.len) : 0.)
+#define normalInfo_l1y_over_len(n) (n.side == 1 ? (1./n.len) : 0.)
+#define normalInfo_l1z_over_len(n) (n.side == 2 ? (1./n.len) : 0.)
+
+//(n1)^i / |n1|
+#define normalInfo_u1x_over_len(n) (n.U.x.x/n.len)
+#define normalInfo_u1y_over_len(n) (n.U.x.y/n.len)
+#define normalInfo_u1z_over_len(n) (n.U.x.z/n.len)
+
+//v^i (nj)_i for side j
+#define normalInfo_vecDotNs(n, v) \
+	(_real3(
+		v.s[n.side],
+		v.s[(n.side+1)%3],
+		v.s[(n.side+2)%3]))
+
+//v^i (n1)_i
+#define normalInfo_vecDotN1(n, v) 	(v.s[n.side])
+
+
+]],		{
+			eqn = self,
+			solver = self.solver,
+		})
+
+	else
+		error'here'
+	end
+end
+
 
 return CoordinateSystem
