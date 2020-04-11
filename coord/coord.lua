@@ -1230,6 +1230,7 @@ typedef struct {
 #define normalInfo_u1y_over_len(n) (n.side == 1 ? 1. : 0.)
 #define normalInfo_u1z_over_len(n) (n.side == 2 ? 1. : 0.)
 
+// this is the same as converting 'v' in global cartesian to 'v' in the basis of nj
 // v^i (nj)_i for side j 
 #define normalInfo_vecDotNs(n, v) \
 	(_real3( \
@@ -1239,6 +1240,14 @@ typedef struct {
 
 //v^i (n1)_i
 #define normalInfo_vecDotN1(n, v)	(v.s[n.side])
+
+// ...and this is the same as converting v in the basis of nj to v in global cartesian
+// v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
+#define normalInfo_vecFromNs(n, v) \
+	(_real3( \
+		v.s[(3-n.side)%3], \
+		v.s[(3-n.side+1)%3], \
+		v.s[(3-n.side+2)%3]))
 
 
 ]],		{
@@ -1322,6 +1331,15 @@ typedef struct {
 
 //v^i (n1)_i
 #define normalInfo_vecDotN1(normal, v) (real3_dot(normal.n.x, v))
+
+
+// ...and this is the same as converting v in the basis of nj to v in global cartesian
+// v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
+#define normalInfo_vecFromNs(normal, v) \
+	real3_add3( \
+		real3_real_mul(normal.n.x, v.x), \
+		real3_real_mul(normal.n.y, v.y), \
+		real3_real_mul(normal.n.z, v.z))
 
 
 ]],		{
@@ -1416,6 +1434,14 @@ typedef struct {
 
 //v^i (n1)_i
 #define normalInfo_vecDotN1(n, v) 	(v.s[n.side])
+
+// ...and this is the same as converting v in the basis of nj to v in global cartesian
+// v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
+#define normalInfo_vecFromNs(n, v) \
+	(_real3( \
+		v.s[(3-n.side)%3], \
+		v.s[(3-n.side+1)%3], \
+		v.s[(3-n.side+2)%3]))
 
 
 ]],		{
