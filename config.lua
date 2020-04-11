@@ -77,7 +77,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{600,1,1},
-				{128,128,1},
+				{32,32,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
@@ -196,7 +196,7 @@ local args = {
 	--initState = 'rarefaction wave',
 	--initState = 'Bessel',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initStateArgs = {dim=cmdline.displayDim},
 	
 	--initState = 'rectangle',
@@ -254,7 +254,7 @@ local args = {
 	-- Maxwell:
 	--initState = 'Maxwell default',
 	--initState = 'Maxwell empty waves',
-	initState = 'Maxwell scattering around cylinder',
+	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around pyramid',
 	--initState = 'Maxwell scattering around square',
 	--initState = 'Maxwell scattering around Koch snowflake',
@@ -604,7 +604,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- GLM Maxwell
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=7})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=13})))
@@ -624,7 +624,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
 -- ...which means, with the Maxwell equations waves propagating at the speed of light, that it goes very slow
 -- TODO: I suppose I could make this work with my integrator by (1) removing the maxwell terms from the integration variable list and (2) providing a separate operator that updates them implicitly
 -- TODO still needs PLM support
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='1996 Jiang Shu', order=9})))	-- exploded...
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='2010 Shen Zha', order=5})))
 
