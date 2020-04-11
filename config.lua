@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -94,12 +94,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin=cmdline.boundary or 'mirror',
-		xmax=cmdline.boundary or 'mirror',
-		ymin=cmdline.boundary or 'mirror',
-		ymax=cmdline.boundary or 'mirror',
-		zmin=cmdline.boundary or 'mirror',
-		zmax=cmdline.boundary or 'mirror',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
@@ -196,7 +196,7 @@ local args = {
 	--initState = 'rarefaction wave',
 	--initState = 'Bessel',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initStateArgs = {dim=cmdline.displayDim},
 	
 	--initState = 'rectangle',
@@ -235,7 +235,7 @@ local args = {
 	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	--initState = 'Brio-Wu',
+	initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'GEM challenge', eqnArgs = {useEulerInitState=false},
@@ -548,7 +548,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-self.solvers:insert(require 'solver.srhd-roe'(args))
+--self.solvers:insert(require 'solver.srhd-roe'(args))
 	-- TODO can't use these until I get eigen_forInterface working in eqn/srhd.cl
 --self.solvers:insert(require 'solver.srhd-hll'(args))
 --self.solvers:insert(require 'solver.srhd-weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
@@ -574,7 +574,7 @@ self.solvers:insert(require 'solver.srhd-roe'(args))
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 
 -- this runs, but of course it's missing a few waves ...
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))

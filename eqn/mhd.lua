@@ -95,6 +95,25 @@ real calc_hTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real 
 //but Cs in eigen_t is the slow speed
 //most the MHD papers use 'a' for the speed of sound
 real calc_Cs(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return sqrt(solver->heatCapacityRatio * W.P / W.rho); }
+
+
+<? 
+local coord = solver.coord
+for side=0,solver.dim-1 do
+	if coord.vectorComponent == 'cartesian'
+	or require 'coord.cartesian'.is(coord)
+	then
+?>
+#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
+<?	else ?>
+<?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
+	U.m = coord_parallelPropagateU<?=side?>(U.m, x, dx);
+	U.B = coord_parallelPropagateU<?=side?>(U.B, x, dx);
+	return U;
+}
+<?	end
+end ?>
+
 ]], {
 		solver = self.solver,
 		eqn = self,
@@ -346,7 +365,7 @@ function MHD:getEigenTypeCode()
 	}:concat'\n'
 end
 
-function MHD:eigenWaveCode(side, eig, x, waveIndex)
+function MHD:eigenWaveCode(n, eig, x, waveIndex)
 	eig = '('..eig..')'
 	return ({
 		eig..'.v.x - '..eig..'.Cf',
@@ -359,11 +378,11 @@ function MHD:eigenWaveCode(side, eig, x, waveIndex)
 	})[waveIndex+1] or error("got a bad waveIndex")
 end
 
-function MHD:consWaveCodePrefix(side, U, x)
+function MHD:consWaveCodePrefix(n, U, x)
 	return template([[
-	range_t lambda = calcCellMinMaxEigenvalues_<?=side?>(solver, &<?=U?>, <?=x?>); 
+	range_t lambda = calcCellMinMaxEigenvalues(solver, &<?=U?>, <?=x?>, <?=n?>); 
 ]], {
-		side = side,
+		n = n,
 		U = '('..U..')',
 		x = x,
 	})
