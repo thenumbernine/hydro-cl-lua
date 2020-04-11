@@ -1187,8 +1187,9 @@ typedef struct {
 	}) 
 <? end ?>
 
-//|n|
+//|n1|
 #define normalInfo_len(n)	1.
+#define normalInfo_lenSq(n)	1.
 
 //n1_i
 #define normalInfo_l1x(n)	(n.side == 0 ? 1. : 0.)
@@ -1284,7 +1285,8 @@ typedef struct {
 <? end ?>
 
 //|n1|
-#define normalInfo_len(normal)	(normal.len)
+#define normalInfo_len(normal)		(normal.len)
+#define normalInfo_lenSq(normal)	(normal.len * normal.len)
 
 //n1_i
 #define normalInfo_l1x(normal)	(normal.n.x.x)
@@ -1384,6 +1386,7 @@ typedef struct {
 
 //|n1|
 #define normalInfo_len(n)	(n.len)
+#define normalInfo_lenSq(n)	(n.len * n.len)
 
 //n1_i
 #define normalInfo_l1x(n)	(n.side == 0 ? 1. : 0.)
@@ -1452,6 +1455,23 @@ typedef struct {
 	else
 		error'here'
 	end
+
+	self.normalInfoCode = self.normalInfoCode .. [[
+
+#define normalInfo_l1(n) \
+	(_real3( \
+		normalInfo_l1x(n), \
+		normalInfo_l1y(n), \
+		normalInfo_l1z(n)))
+
+#define normalInfo_u1(n) \
+	(_real3( \
+		normalInfo_u1x(n), \
+		normalInfo_u1y(n), \
+		normalInfo_u1z(n)))
+
+]]
+
 end
 
 

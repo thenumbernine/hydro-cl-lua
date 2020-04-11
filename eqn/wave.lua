@@ -191,45 +191,29 @@ Wave.eigenVars = {
 	{name='unused', type='real'},
 }
 
-function Wave:eigenWaveCodePrefix(side, eig, x)
+function Wave:eigenWaveCodePrefix(n, eig, x)
 	return template([[
 	real wavespeed = solver->wavespeed / unit_m_per_s;
-	real nLen = coord_sqrt_g_uu<?=side..side?>(<?=x?>);
-	real alpha_nLen = metric_alpha(<?=x?>) * nLen;
-	real3 beta_u = metric_beta_u(<?=x?>);
-]], {
-		side = side,
-		x = x,
-	})
-end
-
--- assume 'n' is covariant
-function Wave:eigenWaveCodePrefixForNormal(n, eig, x)
-	return template([[
-	real wavespeed = solver->wavespeed / unit_m_per_s;
-	real nLenSq = real3_weightedLenSq(<?=n?>, coord_g_uu(<?=x?>));
-	real nLen = sqrt(nLenSq);
-	real alpha_nLen = metric_alpha(<?=x?>) * nLen;
-	real3 beta_u = metric_beta_u(<?=x?>);
+	real alpha_nLen = metric_alpha(<?=x?>) * normalInfo_len(n);
+	real beta_n = normalInfo_vecDotN1(<?=n?>, metric_beta_u(<?=x?>));
 ]], {
 		n = n,
 		x = x,
 	})
 end
 
-function Wave:consWaveCodePrefix(side, U, x, W)
-	return self:eigenWaveCodePrefix(side, nil, x)
+function Wave:consWaveCodePrefix(n, U, x)
+	return self:eigenWaveCodePrefix(n, nil, x)
 end
 
-function Wave:consWaveCode(side, U, x, waveIndex)
+function Wave:consWaveCode(n, U, x, waveIndex)
 	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
-	local xside = xNames[side+1]
 	if waveIndex == 0 then
-		return 'wavespeed * (-beta_u.'..xside..' - alpha_nLen)' 
+		return 'wavespeed * (-beta_n - alpha_nLen)' 
 	elseif waveIndex == 1 or waveIndex == 2 then
-		return 'wavespeed * -beta_u.'..xside
+		return 'wavespeed * -beta_n'
 	elseif waveIndex == 3 then
-		return 'wavespeed * (-beta_u.'..xside..' + alpha_nLen)' 
+		return 'wavespeed * (-beta_n + alpha_nLen)' 
 	end
 	error'got a bad waveIndex'
 end

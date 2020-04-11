@@ -19,13 +19,14 @@ kernel void calcDT(
 
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
+		normalInfo_t n = normalInfo_forSide<?=side?>(x);
 		//use cell-centered eigenvalues
-		<?=eqn:consWaveCodePrefix(side, '*U', 'x')?>
-		real lambdaMin = <?=eqn:consMinWaveCode(side, '*U', 'x')?>;
-		real lambdaMax = <?=eqn:consMaxWaveCode(side, '*U', 'x')?>;
+		<?=eqn:consWaveCodePrefix('n', '*U', 'x')?>
+		real lambdaMin = <?=eqn:consMinWaveCode('n', '*U', 'x')?>;
+		real lambdaMax = <?=eqn:consMaxWaveCode('n', '*U', 'x')?>;
 		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
 		absLambdaMax = max((real)1e-9, absLambdaMax);
-<? if false then -- solver.coord.vectorComponent == 'anholonomic' then ?>
+<? if false then -- solver.coord.vectorComponent == 'cartesian' then ?>
 		real dx = cell_dx<?=side?>(x); 
 <? else ?>
 		real dx = solver->grid_dx.s<?=side?>;
@@ -53,19 +54,18 @@ kernel void calcDT(
 	real dt = INFINITY;
 	for (int i = 0; i < cell->numSides; ++i) {
 		const global face_t* face = faces + cell->faces[i];
+		normalInfo_t n = normalInfo_forFace(face);
 		//all sides? or only the most prominent side?
 		//which should we pick eigenvalues from?
-		<? for side=0,solver.dim-1 do ?>{
-			//use cell-centered eigenvalues
-			real3 x = cell->x;
-			<?=eqn:consWaveCodePrefix(side, '*U', 'x')?>
-			real lambdaMin = <?=eqn:consMinWaveCode(side, '*U', 'x')?>;
-			real lambdaMax = <?=eqn:consMaxWaveCode(side, '*U', 'x')?>;
-			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-			absLambdaMax = max((real)1e-9, absLambdaMax);
-			real dx = cell->maxDist;
-			dt = (real)min(dt, dx / absLambdaMax);
-		}<? end ?>
+		//use cell-centered eigenvalues
+		real3 x = cell->x;
+		<?=eqn:consWaveCodePrefix('n', '*U', 'x')?>
+		real lambdaMin = <?=eqn:consMinWaveCode('n', '*U', 'x')?>;
+		real lambdaMax = <?=eqn:consMaxWaveCode('n', '*U', 'x')?>;
+		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+		absLambdaMax = max((real)1e-9, absLambdaMax);
+		real dx = cell->maxDist;
+		dt = (real)min(dt, dx / absLambdaMax);
 	}
 	dtBuf[cellIndex] = dt;
 }

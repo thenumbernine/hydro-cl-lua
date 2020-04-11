@@ -453,7 +453,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- wave equation
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
@@ -498,7 +498,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 
 -- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler
 -- TODO weno doesn't seem to work with self-gravitation
-self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=5})))
 
@@ -523,7 +523,7 @@ self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='
 -- blows up.  maybe I need an implicit RK scheme...
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=13, integrator='backward Euler'})))
 
--- still haven't added source terms to this
+-- TODO FIXME still haven't added source terms to this
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='navstokes-wilcox'})))
 
 

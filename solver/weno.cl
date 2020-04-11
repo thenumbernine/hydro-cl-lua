@@ -8,6 +8,8 @@ sources:
 https://github.com/jzrake/Mara for weno5 examples
 https://github.com/wme7/WENO7-Z/blob/master/WENO7ZresAdv1d.m for weno7 examples
 https://github.com/python-hydro/hydro_examples/blob/master/compressible/weno_coefficients.py likewise
+
+TODO incorporate parallel propagators
 */
 
 static inline real sqr(real x) { return x * x; }

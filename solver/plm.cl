@@ -1,3 +1,5 @@
+// TODO incorporate parallel propagators
+
 <? if not solver.usePLM then return end ?>
 
 real min3(real x, real y, real z) {
