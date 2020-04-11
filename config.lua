@@ -574,7 +574,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 
 -- this runs, but of course it's missing a few waves ...
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
@@ -585,7 +585,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
 
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='mhd'})))
 -- eqn.useFixedCh == false is failing
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-mhd', wenoMethod='1996 Jiang Shu', order=5})))
