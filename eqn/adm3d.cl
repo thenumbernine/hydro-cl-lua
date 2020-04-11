@@ -67,11 +67,14 @@ kernel void calcDT(
 }
 
 //used by PLM
-<? for side=0,solver.dim-1 do ?>
-eigen_t eigen_forCell_<?=side?>(
+eigen_t eigen_forCell(
 	constant solver_t* solver,
 	cons_t U,
-	real3 x 
+	real3 x,
+	
+	//This is interesting, because normalInfo_t varies based on our vector components.
+	//However in my GR solvers the components are irrespective of the grid -- instead they are based on the metric of the state variables.
+	normalInfo_t n
 ) {
 	eigen_t eig;
 	eig.alpha = U.alpha;
@@ -86,22 +89,22 @@ eigen_t eigen_forCell_<?=side?>(
 
 	return eig;
 }
-<? end ?>
 
-<? for side=0,solver.dim-1 do ?>
-range_t calcCellMinMaxEigenvalues_<?=side?>(
+range_t calcCellMinMaxEigenvalues(
 	const global cons_t* U,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) {
 	real det_gamma = sym3_det(U->gamma_ll);
-	
-	<? if side==0 then ?>
-	real gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
-	<? elseif side==1 then ?>
-	real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
-	<? elseif side==2 then ?>
-	real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
-	<? end ?>
+
+	real gammaUjj;
+	if (n.side == 0) {
+		gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
+	} else if (n.side == 1) {
+		gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
+	} else if (n.side == 2) {
+		gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
+	}
 	
 	real lambdaLight = U->alpha * sqrt(gammaUjj);
 	
@@ -113,8 +116,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real lambdaMin = -lambdaMin;
 
 	<? if eqn.useShift ~= 'none' then ?>
-	lambdaMin -= U->beta_u.s<?=side?>;
-	lambdaMax -= U->beta_u.s<?=side?>;
+	lambdaMin -= U->beta_u.s[n.side];
+	lambdaMax -= U->beta_u.s[n.side];
 	<? end ?>
 
 	return (range_t){
@@ -122,7 +125,6 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		.max = lambdaMax,
 	};
 }
-<? end ?>
 
 //used for interface eigen basis
 eigen_t eigen_forInterface(
@@ -130,7 +132,7 @@ eigen_t eigen_forInterface(
 	cons_t UL,
 	cons_t UR,
 	real3 x,
-	real3 n
+	normalInfo_t n
 ) {
 	real alpha = .5 * (UL.alpha + UR.alpha);
 	sym3 avg_gamma = (sym3){
@@ -158,283 +160,290 @@ eigen_t eigen_forInterface(
 	return eig;
 }
 
-<? for side=0,solver.dim-1 do ?>
-waves_t eigen_leftTransform_<?=side?>(
+waves_t eigen_leftTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t inputU,
-	real3 x 
+	real3 x,
+	normalInfo_t n
 ) {
 	waves_t results;
 <? if not eqn.noZeroRowsInFlux then ?>
 
-	<? if side == 0 then ?>
+	if (n.side == 0) {
 
-	//a_y, a_z
-	results.ptr[6] = inputU.a_l.y;
-	results.ptr[7] = inputU.a_l.z;
+		//a_y, a_z
+		results.ptr[6] = inputU.a_l.y;
+		results.ptr[7] = inputU.a_l.z;
 
-	//d_yij
-	results.ptr[8] = inputU.d_lll.y.xx;
-	results.ptr[9] = inputU.d_lll.y.xy;
-	results.ptr[10] = inputU.d_lll.y.xz;
-	results.ptr[11] = inputU.d_lll.y.yy;
-	results.ptr[12] = inputU.d_lll.y.yz;
-	results.ptr[13] = inputU.d_lll.y.zz;
+		//d_yij
+		results.ptr[8] = inputU.d_lll.y.xx;
+		results.ptr[9] = inputU.d_lll.y.xy;
+		results.ptr[10] = inputU.d_lll.y.xz;
+		results.ptr[11] = inputU.d_lll.y.yy;
+		results.ptr[12] = inputU.d_lll.y.yz;
+		results.ptr[13] = inputU.d_lll.y.zz;
 
-	//d_zij
-	results.ptr[14] = inputU.d_lll.z.xx;
-	results.ptr[15] = inputU.d_lll.z.xy;
-	results.ptr[16] = inputU.d_lll.z.xz;
-	results.ptr[17] = inputU.d_lll.z.yy;
-	results.ptr[18] = inputU.d_lll.z.yz;
-	results.ptr[19] = inputU.d_lll.z.zz;
+		//d_zij
+		results.ptr[14] = inputU.d_lll.z.xx;
+		results.ptr[15] = inputU.d_lll.z.xy;
+		results.ptr[16] = inputU.d_lll.z.xz;
+		results.ptr[17] = inputU.d_lll.z.yy;
+		results.ptr[18] = inputU.d_lll.z.yz;
+		results.ptr[19] = inputU.d_lll.z.zz;
 
-	//V_j
-	results.ptr[20] = inputU.V_l.x;
-	results.ptr[21] = inputU.V_l.y;
-	results.ptr[22] = inputU.V_l.z;
+		//V_j
+		results.ptr[20] = inputU.V_l.x;
+		results.ptr[21] = inputU.V_l.y;
+		results.ptr[22] = inputU.V_l.z;
+		
+		sym3 K_sqrt_gammaUxx = sym3_real_mul(inputU.K_ll, eig.sqrt_gammaUjj.x);
+
+		//a^x - f d^xj_j
+
+		real f = eig.sqrt_f * eig.sqrt_f;
+		real d_x_input = sym3_dot(eig.gamma_uu, inputU.d_lll.x);
+		results.ptr[23] = inputU.a_l.x - f * d_x_input;
+
+		//gauge:
+		//sqrt(f gamma^xx) K +- (a^x + 2 V^x)
+
+		real ev0a = eig.sqrt_f * sym3_dot(eig.gamma_uu, K_sqrt_gammaUxx);
+		real ev0b = eig.gamma_uu.xx * (inputU.a_l.x + 2. * inputU.V_l.x) 
+					+ eig.gamma_uu.xy * (inputU.a_l.y + 2. * inputU.V_l.y)
+					+ eig.gamma_uu.xz * (inputU.a_l.z + 2. * inputU.V_l.z);
+		results.ptr[0] = ev0a - ev0b;
+		results.ptr[29] = ev0a + ev0b;
+
+		//light:
+		//sqrt(gamma^xx) K_xy +- (d^x_xy + .5 (a_y - d_yj^j) + V_y)
+
+		real d_y_input = sym3_dot(eig.gamma_uu, inputU.d_lll.y);
+		real dUx_xy_input = eig.gamma_uu.xx * inputU.d_lll.x.xy + eig.gamma_uu.xy * inputU.d_lll.y.xy + eig.gamma_uu.xz * inputU.d_lll.z.xy;
+		real ev1b = .5 * (inputU.a_l.y - d_y_input) + inputU.V_l.y + dUx_xy_input;
+		results.ptr[1] = K_sqrt_gammaUxx.xy - ev1b;
+		results.ptr[24] = K_sqrt_gammaUxx.xy + ev1b;
+
+		//light:
+		//sqrt(gamma^xx) K_xz +- (d^x_xz + .5 (a_z - d_zj^j) + V_z)
+
+		real d_z_input = sym3_dot(eig.gamma_uu, inputU.d_lll.z);
+		real dUx_xz_input = eig.gamma_uu.xx * inputU.d_lll.x.xz + eig.gamma_uu.xy * inputU.d_lll.y.xz + eig.gamma_uu.xz * inputU.d_lll.z.xz;
+		real ev2b = .5 * (inputU.a_l.z - d_z_input) + inputU.V_l.z + dUx_xz_input;
+		results.ptr[2] = K_sqrt_gammaUxx.xz - ev2b;
+		results.ptr[25] = K_sqrt_gammaUxx.xz + ev2b;
+
+		//light:
+		//sqrt(gamma^xx) K_yy +- d^x_yy
+
+		real dUx_yy_input = eig.gamma_uu.xx * inputU.d_lll.x.yy + eig.gamma_uu.xy * inputU.d_lll.y.yy + eig.gamma_uu.xz * inputU.d_lll.z.yy;
+		results.ptr[3] = K_sqrt_gammaUxx.yy - dUx_yy_input;
+		results.ptr[26] = K_sqrt_gammaUxx.yy + dUx_yy_input;
+
+		//light:
+		//sqrt(gamma^xx) K_yz +- d^x_yz
+
+		real dUx_yz_input = eig.gamma_uu.xx * inputU.d_lll.x.yz + eig.gamma_uu.xy * inputU.d_lll.y.yz + eig.gamma_uu.xz * inputU.d_lll.z.yz;
+		results.ptr[4] = K_sqrt_gammaUxx.yz - dUx_yz_input; 
+		results.ptr[27] = K_sqrt_gammaUxx.yz + dUx_yz_input;
+
+		//light:
+		//sqrt(gamma^xx) K_zz +- d^x_zz
+
+		real dUx_zz_input = eig.gamma_uu.xx * inputU.d_lll.x.zz + eig.gamma_uu.xy * inputU.d_lll.y.zz + eig.gamma_uu.xz * inputU.d_lll.z.zz;
+		results.ptr[5] = K_sqrt_gammaUxx.zz - dUx_zz_input;
+		results.ptr[28] = K_sqrt_gammaUxx.zz + dUx_zz_input;
+
+	} else if (n.side == 1) {
+
+		//a_x, a_z
+		results.ptr[6] = inputU.a_l.x;
+		results.ptr[7] = inputU.a_l.z;
+
+		//d_xij
+		results.ptr[8] = inputU.d_lll.x.xx;
+		results.ptr[9] = inputU.d_lll.x.xy;
+		results.ptr[10] = inputU.d_lll.x.xz;
+		results.ptr[11] = inputU.d_lll.x.yy;
+		results.ptr[12] = inputU.d_lll.x.yz;
+		results.ptr[13] = inputU.d_lll.x.zz;
+		
+		//d_zij
+		results.ptr[14] = inputU.d_lll.z.xx;
+		results.ptr[15] = inputU.d_lll.z.xy;
+		results.ptr[16] = inputU.d_lll.z.xz;
+		results.ptr[17] = inputU.d_lll.z.yy;
+		results.ptr[18] = inputU.d_lll.z.yz;
+		results.ptr[19] = inputU.d_lll.z.zz;
+		
+		//V_j
+		results.ptr[20] = inputU.V_l.x;
+		results.ptr[21] = inputU.V_l.y;
+		results.ptr[22] = inputU.V_l.z;
+		
+		sym3 K_sqrt_gammaUyy = sym3_real_mul(inputU.K_ll, eig.sqrt_gammaUjj.y);
+
+		//a^y - f d^yj_j
+
+		real f = eig.sqrt_f * eig.sqrt_f;
+		real d_y_input = sym3_dot(eig.gamma_uu, inputU.d_lll.y);
+		results.ptr[23] = inputU.a_l.y - f * d_y_input;
+		
+		//gauge:
+		//sqrt(f gamma^yy) K +- (a^y + 2 V^y)
+
+		real ev0a = eig.sqrt_f * sym3_dot(eig.gamma_uu, K_sqrt_gammaUyy);
+		real ev0b = eig.gamma_uu.xy * (inputU.a_l.x + 2. * inputU.V_l.x)
+					+ eig.gamma_uu.yy * (inputU.a_l.y + 2. * inputU.V_l.y)
+					+ eig.gamma_uu.yz * (inputU.a_l.z + 2. * inputU.V_l.z);
+		results.ptr[0] = ev0a - ev0b;
+		results.ptr[29] = ev0a + ev0b;
+
+		//light:
+		//sqrt(gamma^yy) K_xx +- d^y_xx
+
+		real dUy_xx_input = eig.gamma_uu.xy * inputU.d_lll.x.xx + eig.gamma_uu.yy * inputU.d_lll.y.xx + eig.gamma_uu.yz * inputU.d_lll.z.xx;
+		results.ptr[1] = K_sqrt_gammaUyy.xx - dUy_xx_input;
+		results.ptr[24] = K_sqrt_gammaUyy.xx + dUy_xx_input;
+
+		//light:
+		//sqrt(gamma^yy) K_xy +- (d^y_xy + .5 (a_x - d_xj^j) + V_x)
+
+		real d_x_input = sym3_dot(eig.gamma_uu, inputU.d_lll.x);
+		real dUy_xy_input = eig.gamma_uu.xy * inputU.d_lll.x.xy + eig.gamma_uu.yy * inputU.d_lll.y.xy + eig.gamma_uu.yz * inputU.d_lll.z.xy;
+		real ev2b = dUy_xy_input + .5 * (inputU.a_l.x - d_x_input) + inputU.V_l.x;
+		results.ptr[2] = K_sqrt_gammaUyy.xy - ev2b;
+		results.ptr[25] = K_sqrt_gammaUyy.xy + ev2b;
+
+		//light:
+		//sqrt(gamma^yy) K_xz +- d^y_xz
+
+		real dUy_xz_input = eig.gamma_uu.xy * inputU.d_lll.x.xz + eig.gamma_uu.yy * inputU.d_lll.y.xz + eig.gamma_uu.yz * inputU.d_lll.z.xz;
+		results.ptr[3] = K_sqrt_gammaUyy.xz - dUy_xz_input;
+		results.ptr[26] = K_sqrt_gammaUyy.xz + dUy_xz_input;
+
+		//light:
+		//sqrt(gamma^yy) K_yz +- (d^y_yz + .5 (a_z - d_zj^j) + V_z)
+
+		real dUy_yz_input = eig.gamma_uu.xy * inputU.d_lll.x.yz + eig.gamma_uu.yy * inputU.d_lll.y.yz + eig.gamma_uu.yz * inputU.d_lll.z.yz;
+		real d_z_input = sym3_dot(eig.gamma_uu, inputU.d_lll.z);
+		real ev4b = dUy_yz_input + .5 * (inputU.a_l.z - d_z_input) + inputU.V_l.z;
+		results.ptr[4] = K_sqrt_gammaUyy.yz - ev4b;
+		results.ptr[27] = K_sqrt_gammaUyy.yz + ev4b;
+
+		//light:
+		//sqrt(gamma^yy) K_zz +- d^y_zz
+
+		real dUy_zz_input = eig.gamma_uu.xy * inputU.d_lll.x.zz + eig.gamma_uu.yy * inputU.d_lll.y.zz + eig.gamma_uu.yz * inputU.d_lll.z.zz;
+		results.ptr[5] = K_sqrt_gammaUyy.zz - dUy_zz_input;
+		results.ptr[28] = K_sqrt_gammaUyy.zz - dUy_zz_input;
 	
-	sym3 K_sqrt_gammaUxx = sym3_real_mul(inputU.K_ll, eig.sqrt_gammaUjj.x);
+	} else if (n.side == 2) {
 
-	//a^x - f d^xj_j
+		//a_x, a_y
+		results.ptr[6] = inputU.a_l.x;
+		results.ptr[7] = inputU.a_l.y;
+		
+		//d_xij
+		results.ptr[8] =  inputU.d_lll.x.xx;
+		results.ptr[9] =  inputU.d_lll.x.xy;
+		results.ptr[10] = inputU.d_lll.x.xz;
+		results.ptr[11] = inputU.d_lll.x.yy;
+		results.ptr[12] = inputU.d_lll.x.yz;
+		results.ptr[13] = inputU.d_lll.x.zz;
+		
+		//d_yij
+		results.ptr[14] = inputU.d_lll.y.xx;
+		results.ptr[15] = inputU.d_lll.y.xy;
+		results.ptr[16] = inputU.d_lll.y.xz;
+		results.ptr[17] = inputU.d_lll.y.yy;
+		results.ptr[18] = inputU.d_lll.y.yz;
+		results.ptr[19] = inputU.d_lll.y.zz;
+		
+		//V_j
+		results.ptr[20] = inputU.V_l.x;
+		results.ptr[21] = inputU.V_l.y;
+		results.ptr[22] = inputU.V_l.z;
 
-	real f = eig.sqrt_f * eig.sqrt_f;
-	real d_x_input = sym3_dot(eig.gamma_uu, inputU.d_lll.x);
-	results.ptr[23] = inputU.a_l.x - f * d_x_input;
+		sym3 K_sqrt_gammaUzz = sym3_real_mul(inputU.K_ll, eig.sqrt_gammaUjj.z);
 
-	//gauge:
-	//sqrt(f gamma^xx) K +- (a^x + 2 V^x)
+		//a^z - f d^zj_j
 
-	real ev0a = eig.sqrt_f * sym3_dot(eig.gamma_uu, K_sqrt_gammaUxx);
-	real ev0b = eig.gamma_uu.xx * (inputU.a_l.x + 2. * inputU.V_l.x) 
-				+ eig.gamma_uu.xy * (inputU.a_l.y + 2. * inputU.V_l.y)
-				+ eig.gamma_uu.xz * (inputU.a_l.z + 2. * inputU.V_l.z);
-	results.ptr[0] = ev0a - ev0b;
-	results.ptr[29] = ev0a + ev0b;
+		real f = eig.sqrt_f * eig.sqrt_f;
+		real d_z_input = sym3_dot(eig.gamma_uu, inputU.d_lll.z);
+		results.ptr[23] = inputU.a_l.z - f * d_z_input;
 
-	//light:
-	//sqrt(gamma^xx) K_xy +- (d^x_xy + .5 (a_y - d_yj^j) + V_y)
+		//gauge:
+		//sqrt(f gamma^zz) K +- (a^z + 2 V^z)
 
-	real d_y_input = sym3_dot(eig.gamma_uu, inputU.d_lll.y);
-	real dUx_xy_input = eig.gamma_uu.xx * inputU.d_lll.x.xy + eig.gamma_uu.xy * inputU.d_lll.y.xy + eig.gamma_uu.xz * inputU.d_lll.z.xy;
-	real ev1b = .5 * (inputU.a_l.y - d_y_input) + inputU.V_l.y + dUx_xy_input;
-	results.ptr[1] = K_sqrt_gammaUxx.xy - ev1b;
-	results.ptr[24] = K_sqrt_gammaUxx.xy + ev1b;
+		real ev0a = eig.sqrt_f * sym3_dot(eig.gamma_uu, K_sqrt_gammaUzz);
+		real ev0b = eig.gamma_uu.xz * (inputU.a_l.x + 2. * inputU.V_l.x)
+					+ eig.gamma_uu.yz * (inputU.a_l.y + 2. * inputU.V_l.y)
+					+ eig.gamma_uu.zz * (inputU.a_l.z + 2. * inputU.V_l.z);
+		results.ptr[0] = ev0a - ev0b;
+		results.ptr[29] = ev0a + ev0b;
 
-	//light:
-	//sqrt(gamma^xx) K_xz +- (d^x_xz + .5 (a_z - d_zj^j) + V_z)
+		//light:
+		//sqrt(gamma^zz) K_xx +- d^z_xx
+		
+		real dUz_xx_input = eig.gamma_uu.xz * inputU.d_lll.x.xx + eig.gamma_uu.yz * inputU.d_lll.y.xx + eig.gamma_uu.zz * inputU.d_lll.z.xx;
+		results.ptr[1] = K_sqrt_gammaUzz.xx - dUz_xx_input;
+		results.ptr[24] = K_sqrt_gammaUzz.xx + dUz_xx_input;
 
-	real d_z_input = sym3_dot(eig.gamma_uu, inputU.d_lll.z);
-	real dUx_xz_input = eig.gamma_uu.xx * inputU.d_lll.x.xz + eig.gamma_uu.xy * inputU.d_lll.y.xz + eig.gamma_uu.xz * inputU.d_lll.z.xz;
-	real ev2b = .5 * (inputU.a_l.z - d_z_input) + inputU.V_l.z + dUx_xz_input;
-	results.ptr[2] = K_sqrt_gammaUxx.xz - ev2b;
-	results.ptr[25] = K_sqrt_gammaUxx.xz + ev2b;
+		//light:
+		//sqrt(gamma^zz) K_xy +- d^z_xy
 
-	//light:
-	//sqrt(gamma^xx) K_yy +- d^x_yy
+		real dUz_xy_input = eig.gamma_uu.xz * inputU.d_lll.x.xy + eig.gamma_uu.yz * inputU.d_lll.y.xy + eig.gamma_uu.zz * inputU.d_lll.z.xy;
+		results.ptr[2] = K_sqrt_gammaUzz.xy - dUz_xy_input;
+		results.ptr[25] = K_sqrt_gammaUzz.xy + dUz_xy_input;
 
-	real dUx_yy_input = eig.gamma_uu.xx * inputU.d_lll.x.yy + eig.gamma_uu.xy * inputU.d_lll.y.yy + eig.gamma_uu.xz * inputU.d_lll.z.yy;
-	results.ptr[3] = K_sqrt_gammaUxx.yy - dUx_yy_input;
-	results.ptr[26] = K_sqrt_gammaUxx.yy + dUx_yy_input;
+		//light:
+		//sqrt(gamma^zz) K_xz +- (d^z_xz + .5 (a_x - d_xj^j) + V_x)
+		
+		real d_x_input = sym3_dot(eig.gamma_uu, inputU.d_lll.x);
+		real dUz_xz_input = eig.gamma_uu.xz * inputU.d_lll.x.xz + eig.gamma_uu.yz * inputU.d_lll.y.xz + eig.gamma_uu.zz * inputU.d_lll.z.xz;
+		real ev3b = .5 * (inputU.a_l.x - d_x_input) + inputU.V_l.x + dUz_xz_input;
+		results.ptr[3] = K_sqrt_gammaUzz.xz - ev3b;
+		results.ptr[26] = K_sqrt_gammaUzz.xz + ev3b;
 
-	//light:
-	//sqrt(gamma^xx) K_yz +- d^x_yz
+		//light:
+		//sqrt(gamma^zz) K_yy +- d^z_yy
 
-	real dUx_yz_input = eig.gamma_uu.xx * inputU.d_lll.x.yz + eig.gamma_uu.xy * inputU.d_lll.y.yz + eig.gamma_uu.xz * inputU.d_lll.z.yz;
-	results.ptr[4] = K_sqrt_gammaUxx.yz - dUx_yz_input; 
-	results.ptr[27] = K_sqrt_gammaUxx.yz + dUx_yz_input;
+		real dUz_yy_input = eig.gamma_uu.xz * inputU.d_lll.x.yy + eig.gamma_uu.yz * inputU.d_lll.y.yy + eig.gamma_uu.zz * inputU.d_lll.z.yy;
+		results.ptr[4] = K_sqrt_gammaUzz.yy - dUz_yy_input;
+		results.ptr[27] = K_sqrt_gammaUzz.yy + dUz_yy_input;
+		
+		//light:
+		//sqrt(gamma^zz) K_yz
 
-	//light:
-	//sqrt(gamma^xx) K_zz +- d^x_zz
+		real d_y_input = sym3_dot(eig.gamma_uu, inputU.d_lll.y);
+		real dUz_yz_input = eig.gamma_uu.xz * inputU.d_lll.x.yz + eig.gamma_uu.yz * inputU.d_lll.y.yz + eig.gamma_uu.zz * inputU.d_lll.z.yz;
+		real ev5b = .5 * (inputU.a_l.y - d_y_input) + inputU.V_l.y + dUz_yz_input;
+		results.ptr[5] = K_sqrt_gammaUzz.yz - ev5b;
+		results.ptr[28] = K_sqrt_gammaUzz.yz + ev5b;
 
-	real dUx_zz_input = eig.gamma_uu.xx * inputU.d_lll.x.zz + eig.gamma_uu.xy * inputU.d_lll.y.zz + eig.gamma_uu.xz * inputU.d_lll.z.zz;
-	results.ptr[5] = K_sqrt_gammaUxx.zz - dUx_zz_input;
-	results.ptr[28] = K_sqrt_gammaUxx.zz + dUx_zz_input;
-
-	<? elseif side == 1 then ?>
-
-	//a_x, a_z
-	results.ptr[6] = inputU.a_l.x;
-	results.ptr[7] = inputU.a_l.z;
-
-	//d_xij
-	results.ptr[8] = inputU.d_lll.x.xx;
-	results.ptr[9] = inputU.d_lll.x.xy;
-	results.ptr[10] = inputU.d_lll.x.xz;
-	results.ptr[11] = inputU.d_lll.x.yy;
-	results.ptr[12] = inputU.d_lll.x.yz;
-	results.ptr[13] = inputU.d_lll.x.zz;
-	
-	//d_zij
-	results.ptr[14] = inputU.d_lll.z.xx;
-	results.ptr[15] = inputU.d_lll.z.xy;
-	results.ptr[16] = inputU.d_lll.z.xz;
-	results.ptr[17] = inputU.d_lll.z.yy;
-	results.ptr[18] = inputU.d_lll.z.yz;
-	results.ptr[19] = inputU.d_lll.z.zz;
-	
-	//V_j
-	results.ptr[20] = inputU.V_l.x;
-	results.ptr[21] = inputU.V_l.y;
-	results.ptr[22] = inputU.V_l.z;
-	
-	sym3 K_sqrt_gammaUyy = sym3_real_mul(inputU.K_ll, eig.sqrt_gammaUjj.y);
-
-	//a^y - f d^yj_j
-
-	real f = eig.sqrt_f * eig.sqrt_f;
-	real d_y_input = sym3_dot(eig.gamma_uu, inputU.d_lll.y);
-	results.ptr[23] = inputU.a_l.y - f * d_y_input;
-	
-	//gauge:
-	//sqrt(f gamma^yy) K +- (a^y + 2 V^y)
-
-	real ev0a = eig.sqrt_f * sym3_dot(eig.gamma_uu, K_sqrt_gammaUyy);
-	real ev0b = eig.gamma_uu.xy * (inputU.a_l.x + 2. * inputU.V_l.x)
-				+ eig.gamma_uu.yy * (inputU.a_l.y + 2. * inputU.V_l.y)
-				+ eig.gamma_uu.yz * (inputU.a_l.z + 2. * inputU.V_l.z);
-	results.ptr[0] = ev0a - ev0b;
-	results.ptr[29] = ev0a + ev0b;
-
-	//light:
-	//sqrt(gamma^yy) K_xx +- d^y_xx
-
-	real dUy_xx_input = eig.gamma_uu.xy * inputU.d_lll.x.xx + eig.gamma_uu.yy * inputU.d_lll.y.xx + eig.gamma_uu.yz * inputU.d_lll.z.xx;
-	results.ptr[1] = K_sqrt_gammaUyy.xx - dUy_xx_input;
-	results.ptr[24] = K_sqrt_gammaUyy.xx + dUy_xx_input;
-
-	//light:
-	//sqrt(gamma^yy) K_xy +- (d^y_xy + .5 (a_x - d_xj^j) + V_x)
-
-	real d_x_input = sym3_dot(eig.gamma_uu, inputU.d_lll.x);
-	real dUy_xy_input = eig.gamma_uu.xy * inputU.d_lll.x.xy + eig.gamma_uu.yy * inputU.d_lll.y.xy + eig.gamma_uu.yz * inputU.d_lll.z.xy;
-	real ev2b = dUy_xy_input + .5 * (inputU.a_l.x - d_x_input) + inputU.V_l.x;
-	results.ptr[2] = K_sqrt_gammaUyy.xy - ev2b;
-	results.ptr[25] = K_sqrt_gammaUyy.xy + ev2b;
-
-	//light:
-	//sqrt(gamma^yy) K_xz +- d^y_xz
-
-	real dUy_xz_input = eig.gamma_uu.xy * inputU.d_lll.x.xz + eig.gamma_uu.yy * inputU.d_lll.y.xz + eig.gamma_uu.yz * inputU.d_lll.z.xz;
-	results.ptr[3] = K_sqrt_gammaUyy.xz - dUy_xz_input;
-	results.ptr[26] = K_sqrt_gammaUyy.xz + dUy_xz_input;
-
-	//light:
-	//sqrt(gamma^yy) K_yz +- (d^y_yz + .5 (a_z - d_zj^j) + V_z)
-
-	real dUy_yz_input = eig.gamma_uu.xy * inputU.d_lll.x.yz + eig.gamma_uu.yy * inputU.d_lll.y.yz + eig.gamma_uu.yz * inputU.d_lll.z.yz;
-	real d_z_input = sym3_dot(eig.gamma_uu, inputU.d_lll.z);
-	real ev4b = dUy_yz_input + .5 * (inputU.a_l.z - d_z_input) + inputU.V_l.z;
-	results.ptr[4] = K_sqrt_gammaUyy.yz - ev4b;
-	results.ptr[27] = K_sqrt_gammaUyy.yz + ev4b;
-
-	//light:
-	//sqrt(gamma^yy) K_zz +- d^y_zz
-
-	real dUy_zz_input = eig.gamma_uu.xy * inputU.d_lll.x.zz + eig.gamma_uu.yy * inputU.d_lll.y.zz + eig.gamma_uu.yz * inputU.d_lll.z.zz;
-	results.ptr[5] = K_sqrt_gammaUyy.zz - dUy_zz_input;
-	results.ptr[28] = K_sqrt_gammaUyy.zz - dUy_zz_input;
-	
-	<? elseif side == 2 then ?>
-
-	//a_x, a_y
-	results.ptr[6] = inputU.a_l.x;
-	results.ptr[7] = inputU.a_l.y;
-	
-	//d_xij
-	results.ptr[8] =  inputU.d_lll.x.xx;
-	results.ptr[9] =  inputU.d_lll.x.xy;
-	results.ptr[10] = inputU.d_lll.x.xz;
-	results.ptr[11] = inputU.d_lll.x.yy;
-	results.ptr[12] = inputU.d_lll.x.yz;
-	results.ptr[13] = inputU.d_lll.x.zz;
-	
-	//d_yij
-	results.ptr[14] = inputU.d_lll.y.xx;
-	results.ptr[15] = inputU.d_lll.y.xy;
-	results.ptr[16] = inputU.d_lll.y.xz;
-	results.ptr[17] = inputU.d_lll.y.yy;
-	results.ptr[18] = inputU.d_lll.y.yz;
-	results.ptr[19] = inputU.d_lll.y.zz;
-	
-	//V_j
-	results.ptr[20] = inputU.V_l.x;
-	results.ptr[21] = inputU.V_l.y;
-	results.ptr[22] = inputU.V_l.z;
-
-	sym3 K_sqrt_gammaUzz = sym3_real_mul(inputU.K_ll, eig.sqrt_gammaUjj.z);
-
-	//a^z - f d^zj_j
-
-	real f = eig.sqrt_f * eig.sqrt_f;
-	real d_z_input = sym3_dot(eig.gamma_uu, inputU.d_lll.z);
-	results.ptr[23] = inputU.a_l.z - f * d_z_input;
-
-	//gauge:
-	//sqrt(f gamma^zz) K +- (a^z + 2 V^z)
-
-	real ev0a = eig.sqrt_f * sym3_dot(eig.gamma_uu, K_sqrt_gammaUzz);
-	real ev0b = eig.gamma_uu.xz * (inputU.a_l.x + 2. * inputU.V_l.x)
-				+ eig.gamma_uu.yz * (inputU.a_l.y + 2. * inputU.V_l.y)
-				+ eig.gamma_uu.zz * (inputU.a_l.z + 2. * inputU.V_l.z);
-	results.ptr[0] = ev0a - ev0b;
-	results.ptr[29] = ev0a + ev0b;
-
-	//light:
-	//sqrt(gamma^zz) K_xx +- d^z_xx
-	
-	real dUz_xx_input = eig.gamma_uu.xz * inputU.d_lll.x.xx + eig.gamma_uu.yz * inputU.d_lll.y.xx + eig.gamma_uu.zz * inputU.d_lll.z.xx;
-	results.ptr[1] = K_sqrt_gammaUzz.xx - dUz_xx_input;
-	results.ptr[24] = K_sqrt_gammaUzz.xx + dUz_xx_input;
-
-	//light:
-	//sqrt(gamma^zz) K_xy +- d^z_xy
-
-	real dUz_xy_input = eig.gamma_uu.xz * inputU.d_lll.x.xy + eig.gamma_uu.yz * inputU.d_lll.y.xy + eig.gamma_uu.zz * inputU.d_lll.z.xy;
-	results.ptr[2] = K_sqrt_gammaUzz.xy - dUz_xy_input;
-	results.ptr[25] = K_sqrt_gammaUzz.xy + dUz_xy_input;
-
-	//light:
-	//sqrt(gamma^zz) K_xz +- (d^z_xz + .5 (a_x - d_xj^j) + V_x)
-	
-	real d_x_input = sym3_dot(eig.gamma_uu, inputU.d_lll.x);
-	real dUz_xz_input = eig.gamma_uu.xz * inputU.d_lll.x.xz + eig.gamma_uu.yz * inputU.d_lll.y.xz + eig.gamma_uu.zz * inputU.d_lll.z.xz;
-	real ev3b = .5 * (inputU.a_l.x - d_x_input) + inputU.V_l.x + dUz_xz_input;
-	results.ptr[3] = K_sqrt_gammaUzz.xz - ev3b;
-	results.ptr[26] = K_sqrt_gammaUzz.xz + ev3b;
-
-	//light:
-	//sqrt(gamma^zz) K_yy +- d^z_yy
-
-	real dUz_yy_input = eig.gamma_uu.xz * inputU.d_lll.x.yy + eig.gamma_uu.yz * inputU.d_lll.y.yy + eig.gamma_uu.zz * inputU.d_lll.z.yy;
-	results.ptr[4] = K_sqrt_gammaUzz.yy - dUz_yy_input;
-	results.ptr[27] = K_sqrt_gammaUzz.yy + dUz_yy_input;
-	
-	//light:
-	//sqrt(gamma^zz) K_yz
-
-	real d_y_input = sym3_dot(eig.gamma_uu, inputU.d_lll.y);
-	real dUz_yz_input = eig.gamma_uu.xz * inputU.d_lll.x.yz + eig.gamma_uu.yz * inputU.d_lll.y.yz + eig.gamma_uu.zz * inputU.d_lll.z.yz;
-	real ev5b = .5 * (inputU.a_l.y - d_y_input) + inputU.V_l.y + dUz_yz_input;
-	results.ptr[5] = K_sqrt_gammaUzz.yz - ev5b;
-	results.ptr[28] = K_sqrt_gammaUzz.yz + ev5b;
-
-	<? end -- side ?>
+	}
 
 <? else -- eqn.noZeroRowsInFlux ?>
 
 	real _1_sqrt_f = 1. / eig.sqrt_f;
 	real _1_f = _1_sqrt_f * _1_sqrt_f; 
-	real sqrt_gammaUjj = eig.sqrt_gammaUjj.s<?=side?>;
-	real _1_gammaUjj = 1. / eig.gamma_uu.s<?=side?><?=side?>;
 
-	real a_j = inputU.a_l.s<?=side?>;
-
+	real sqrt_gammaUjj, _1_gammaUjj, a_j;
+	sym3 d_lll, K_ll, gamma_uu;
 	//now swap x and side on the sym3's
-	sym3 d_lll = sym3_swap<?=side?>(inputU.d_lll.v<?=side?>);
-	sym3 K_ll = sym3_swap<?=side?>(inputU.K_ll);
-	sym3 gamma_uu = sym3_swap<?=side?>(eig.gamma_uu);
+	<? for side=0,solver.dim-1 do ?>
+	if (n.side == <?=side?>) {
+		sqrt_gammaUjj = eig.sqrt_gammaUjj.s<?=side?>;
+		_1_gammaUjj = 1. / eig.gamma_uu.s<?=side?><?=side?>;
+
+		a_j = inputU.a_l.s<?=side?>;
+		
+		d_lll = sym3_swap<?=side?>(inputU.d_lll.v<?=side?>);
+		K_ll = sym3_swap<?=side?>(inputU.K_ll);
+		gamma_uu = sym3_swap<?=side?>(eig.gamma_uu);
+	}
+	<? end ?>
 
 	real K_dot_eig_gamma = sym3_dot(K_ll, gamma_uu);
 	real dj_dot_eig_gamma = sym3_dot(d_lll, gamma_uu);
@@ -457,11 +466,12 @@ waves_t eigen_leftTransform_<?=side?>(
 	return results;
 }
 
-cons_t eigen_rightTransform_<?=side?>(
+cons_t eigen_rightTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	waves_t input,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) {
 	cons_t resultU;
 	for (int j = 0; j < numStates; ++j) {
@@ -470,558 +480,563 @@ cons_t eigen_rightTransform_<?=side?>(
 
 <? if not eqn.noZeroRowsInFlux then ?>
 	
-	<? if side == 0 then ?>
+	if (n.side == 0) {
 
-	//write zeros to the alpha and gammaLL terms
-	resultU.alpha = 0;
-	resultU.gamma_ll = sym3_zero;
+		//write zeros to the alpha and gammaLL terms
+		resultU.alpha = 0;
+		resultU.gamma_ll = sym3_zero;
 
-	resultU.a_l.y = input.ptr[6];
-	resultU.a_l.z = input.ptr[7];
-	
-	resultU.d_lll.y.xx = input.ptr[8];
-	resultU.d_lll.y.xy = input.ptr[9];
-	resultU.d_lll.y.xz = input.ptr[10];
-	resultU.d_lll.y.yy = input.ptr[11];
-	resultU.d_lll.y.yz = input.ptr[12];
-	resultU.d_lll.y.zz = input.ptr[13];
-	
-	resultU.d_lll.z.xx = input.ptr[14];
-	resultU.d_lll.z.xy = input.ptr[15];
-	resultU.d_lll.z.xz = input.ptr[16];
-	resultU.d_lll.z.yy = input.ptr[17];
-	resultU.d_lll.z.yz = input.ptr[18];
-	resultU.d_lll.z.zz = input.ptr[19];
-	
-	resultU.V_l.x = input.ptr[20];
-	resultU.V_l.y = input.ptr[21];
-	resultU.V_l.z = input.ptr[22];
+		resultU.a_l.y = input.ptr[6];
+		resultU.a_l.z = input.ptr[7];
+		
+		resultU.d_lll.y.xx = input.ptr[8];
+		resultU.d_lll.y.xy = input.ptr[9];
+		resultU.d_lll.y.xz = input.ptr[10];
+		resultU.d_lll.y.yy = input.ptr[11];
+		resultU.d_lll.y.yz = input.ptr[12];
+		resultU.d_lll.y.zz = input.ptr[13];
+		
+		resultU.d_lll.z.xx = input.ptr[14];
+		resultU.d_lll.z.xy = input.ptr[15];
+		resultU.d_lll.z.xz = input.ptr[16];
+		resultU.d_lll.z.yy = input.ptr[17];
+		resultU.d_lll.z.yz = input.ptr[18];
+		resultU.d_lll.z.zz = input.ptr[19];
+		
+		resultU.V_l.x = input.ptr[20];
+		resultU.V_l.y = input.ptr[21];
+		resultU.V_l.z = input.ptr[22];
 
-	real sqrt_gammaUxx = eig.sqrt_gammaUjj.x;
-	real _1_sqrt_gammaUxx = 1. / sqrt_gammaUxx;
-	real _1_gammaUxx = _1_sqrt_gammaUxx * _1_sqrt_gammaUxx;
-	real invDenom = .5 * _1_gammaUxx;
+		real sqrt_gammaUxx = eig.sqrt_gammaUjj.x;
+		real _1_sqrt_gammaUxx = 1. / sqrt_gammaUxx;
+		real _1_gammaUxx = _1_sqrt_gammaUxx * _1_sqrt_gammaUxx;
+		real invDenom = .5 * _1_gammaUxx;
 
-	real VUx_input = eig.gamma_uu.xx * input.ptr[20]		//V_x
-					+ eig.gamma_uu.xy * input.ptr[21]	//V_y
-					+ eig.gamma_uu.xz * input.ptr[22];	//V_z
+		real VUx_input = eig.gamma_uu.xx * input.ptr[20]		//V_x
+						+ eig.gamma_uu.xy * input.ptr[21]	//V_y
+						+ eig.gamma_uu.xz * input.ptr[22];	//V_z
 
-	real gauge_diff = input.ptr[0] - input.ptr[29];
-	real gauge_sum = input.ptr[0] + input.ptr[29];
+		real gauge_diff = input.ptr[0] - input.ptr[29];
+		real gauge_sum = input.ptr[0] + input.ptr[29];
 
-	resultU.a_l.x = -(
-			gauge_diff
-			+ 2. * (
-				eig.gamma_uu.xy * input.ptr[6]	//a_y
-				+ eig.gamma_uu.xz * input.ptr[7]	//a_z
-			)	
-			+ 4. * VUx_input
-		) * invDenom;
-	
-	real K_input_minus = 
-		2. * (
-			eig.gamma_uu.xy * input.ptr[1]
-			+ eig.gamma_uu.xz * input.ptr[2]
-			+ eig.gamma_uu.yz * input.ptr[4]
-		) + eig.gamma_uu.yy * input.ptr[3]
-		+ eig.gamma_uu.zz * input.ptr[5];
-
-	real K_input_plus = 
-		2. * (
-			eig.gamma_uu.xy * input.ptr[24]
-			+ eig.gamma_uu.xz * input.ptr[25]
-			+ eig.gamma_uu.yz * input.ptr[27]
-		) + eig.gamma_uu.yy * input.ptr[26]
-		+ eig.gamma_uu.zz * input.ptr[28];
-
-	real _1_sqrt_f = 1. / eig.sqrt_f;
-	real _1_f = _1_sqrt_f * _1_sqrt_f;
-
-	resultU.d_lll.x.xx = -(
-			- K_input_minus
-			+ K_input_plus
-
-			+ 2. * eig.gamma_uu.xy * (
-				eig.gamma_uu.xx * input.ptr[8]	//d_yxx
-				- input.ptr[6]		//a_y
-				- 2. * input.ptr[21]	//V_y
-			)
-			+ 2. * eig.gamma_uu.xz * (
-				eig.gamma_uu.xx * input.ptr[14]	//d_zxx
-				- input.ptr[7]		//a_z
-				- 2. * input.ptr[22]	//V_z
-			)
-			//(a^x + 2 V^x) / f - 2 gamma^xx d^xj_j
-			+ (
-				+ gauge_diff	//-ev0b = -a^x - 2 V^x
+		resultU.a_l.x = -(
+				gauge_diff
 				+ 2. * (
-					+ eig.gamma_uu.xx * input.ptr[23]	//a_x - f d^xj_j
-					+ eig.gamma_uu.xy * input.ptr[6]	//a_y
+					eig.gamma_uu.xy * input.ptr[6]	//a_y
 					+ eig.gamma_uu.xz * input.ptr[7]	//a_z
-					+ 2. * VUx_input
+				)	
+				+ 4. * VUx_input
+			) * invDenom;
+		
+		real K_input_minus = 
+			2. * (
+				eig.gamma_uu.xy * input.ptr[1]
+				+ eig.gamma_uu.xz * input.ptr[2]
+				+ eig.gamma_uu.yz * input.ptr[4]
+			) + eig.gamma_uu.yy * input.ptr[3]
+			+ eig.gamma_uu.zz * input.ptr[5];
+
+		real K_input_plus = 
+			2. * (
+				eig.gamma_uu.xy * input.ptr[24]
+				+ eig.gamma_uu.xz * input.ptr[25]
+				+ eig.gamma_uu.yz * input.ptr[27]
+			) + eig.gamma_uu.yy * input.ptr[26]
+			+ eig.gamma_uu.zz * input.ptr[28];
+
+		real _1_sqrt_f = 1. / eig.sqrt_f;
+		real _1_f = _1_sqrt_f * _1_sqrt_f;
+
+		resultU.d_lll.x.xx = -(
+				- K_input_minus
+				+ K_input_plus
+
+				+ 2. * eig.gamma_uu.xy * (
+					eig.gamma_uu.xx * input.ptr[8]	//d_yxx
+					- input.ptr[6]		//a_y
+					- 2. * input.ptr[21]	//V_y
 				)
-			) * _1_f
-		) * invDenom * _1_gammaUxx;
+				+ 2. * eig.gamma_uu.xz * (
+					eig.gamma_uu.xx * input.ptr[14]	//d_zxx
+					- input.ptr[7]		//a_z
+					- 2. * input.ptr[22]	//V_z
+				)
+				//(a^x + 2 V^x) / f - 2 gamma^xx d^xj_j
+				+ (
+					+ gauge_diff	//-ev0b = -a^x - 2 V^x
+					+ 2. * (
+						+ eig.gamma_uu.xx * input.ptr[23]	//a_x - f d^xj_j
+						+ eig.gamma_uu.xy * input.ptr[6]	//a_y
+						+ eig.gamma_uu.xz * input.ptr[7]	//a_z
+						+ 2. * VUx_input
+					)
+				) * _1_f
+			) * invDenom * _1_gammaUxx;
 
-	//d_yj^j
-	real d_y_input = 
-		eig.gamma_uu.xx * input.ptr[8]
-		+ eig.gamma_uu.yy * input.ptr[11]
-		+ eig.gamma_uu.zz * input.ptr[13]
-		+ 2. * (
-			eig.gamma_uu.xy * input.ptr[9]
-			+ eig.gamma_uu.xz * input.ptr[10]
-			+ eig.gamma_uu.yz * input.ptr[12]
-		);
-	
-	resultU.d_lll.x.xy = -(
-			input.ptr[1]
-			+ input.ptr[6]
-			- d_y_input
-			+ 2. * eig.gamma_uu.xy * input.ptr[9]
-			+ 2. * eig.gamma_uu.xz * input.ptr[15]
-			+ 2. * input.ptr[21]
-			- input.ptr[24]
-		) * invDenom;
-	
-	//d_zj^j
-	real d_z_input = 
-		eig.gamma_uu.xx * input.ptr[14]
-		+ eig.gamma_uu.yy * input.ptr[17]
-		+ eig.gamma_uu.zz * input.ptr[19]
-		+ 2. * (
-			eig.gamma_uu.xy * input.ptr[15]
-			+ eig.gamma_uu.xz * input.ptr[16]
-			+ eig.gamma_uu.yz * input.ptr[18]
-		);
-
-	resultU.d_lll.x.xz = -(
-			input.ptr[2]
-			+ input.ptr[7]
-			- d_z_input
-			+ 2. * eig.gamma_uu.xy * input.ptr[10]
-			+ 2. * eig.gamma_uu.xz * input.ptr[16]
-			+ 2. * input.ptr[22]
-			- input.ptr[25]
-		) * invDenom;
-	resultU.d_lll.x.yy = -(
-			input.ptr[3]
-			+ 2. * eig.gamma_uu.xy * input.ptr[11]
-			+ 2. * eig.gamma_uu.xz * input.ptr[17]
-			- input.ptr[26]
-		) * invDenom;
-	resultU.d_lll.x.yz = -(
-			input.ptr[4]
-			+ 2. * eig.gamma_uu.xy * input.ptr[12]
-			+ 2. * eig.gamma_uu.xz * input.ptr[18]
-			- input.ptr[27]
-		) * invDenom;
-	resultU.d_lll.x.zz = -(
-			input.ptr[5]
-			+ 2. * eig.gamma_uu.xy * input.ptr[13]
-			+ 2. * eig.gamma_uu.xz * input.ptr[19]
-			- input.ptr[28]
-		) * invDenom;
-
-	resultU.K_ll.xx = (
-			- K_input_minus
-			- K_input_plus	
-			+ gauge_sum * _1_sqrt_f
-		) * invDenom * _1_sqrt_gammaUxx;
-
-	real tmp = .5 * _1_sqrt_gammaUxx;
-	resultU.K_ll.xy = (input.ptr[1] + input.ptr[24]) * tmp;
-	resultU.K_ll.xz = (input.ptr[2] + input.ptr[25]) * tmp;
-	resultU.K_ll.yy = (input.ptr[3] + input.ptr[26]) * tmp;
-	resultU.K_ll.yz = (input.ptr[4] + input.ptr[27]) * tmp;
-	resultU.K_ll.zz = (input.ptr[5] + input.ptr[28]) * tmp;
-
-	<? elseif side == 1 then ?>
-	
-	//write zeros to the alpha and gammaLL terms
-	resultU.alpha = 0;
-	resultU.gamma_ll = sym3_zero;
-	
-	resultU.a_l.x = input.ptr[6];
-	resultU.a_l.z = input.ptr[7];
-	
-	resultU.d_lll.x.xx = input.ptr[8];
-	resultU.d_lll.x.xy = input.ptr[9];
-	resultU.d_lll.x.xz = input.ptr[10];
-	resultU.d_lll.x.yy = input.ptr[11];
-	resultU.d_lll.x.yz = input.ptr[12];
-	resultU.d_lll.x.zz = input.ptr[13];
-	
-	resultU.d_lll.z.xx = input.ptr[14];
-	resultU.d_lll.z.xy = input.ptr[15];
-	resultU.d_lll.z.xz = input.ptr[16];
-	resultU.d_lll.z.yy = input.ptr[17];
-	resultU.d_lll.z.yz = input.ptr[18];
-	resultU.d_lll.z.zz = input.ptr[19];
-	
-	resultU.V_l.x = input.ptr[20];
-	resultU.V_l.y = input.ptr[21];
-	resultU.V_l.z = input.ptr[22];
-
-	real sqrt_gammaUyy = eig.sqrt_gammaUjj.y;
-	real _1_sqrt_gammaUyy = 1. / sqrt_gammaUyy;
-	real inv_gammaUyy = _1_sqrt_gammaUyy * _1_sqrt_gammaUyy;
-	real invDenom = .5 * inv_gammaUyy;
-
-	real VUy_input = eig.gamma_uu.xy * input.ptr[20]
-					+ eig.gamma_uu.yy * input.ptr[21]
-					+ eig.gamma_uu.yz * input.ptr[22];
-	
-	real gauge_diff = input.ptr[0] - input.ptr[29];
-	real gauge_sum = input.ptr[0] + input.ptr[29];
-
-	resultU.a_l.y = -(
-			gauge_diff
+		//d_yj^j
+		real d_y_input = 
+			eig.gamma_uu.xx * input.ptr[8]
+			+ eig.gamma_uu.yy * input.ptr[11]
+			+ eig.gamma_uu.zz * input.ptr[13]
 			+ 2. * (
-				eig.gamma_uu.xy * input.ptr[6]
-				+ eig.gamma_uu.yz * input.ptr[7]
-			)
-			+ 4. * VUy_input
-		) * invDenom;
-
-	resultU.d_lll.y.xx = -(
-			+ input.ptr[1]
-			- input.ptr[24]
-			+ 2. * eig.gamma_uu.xy * input.ptr[8]
-			+ 2. * eig.gamma_uu.yz * input.ptr[14]
-		) * invDenom;
-
-	//d_xj^j
-	real d_x_input = 
-		eig.gamma_uu.xx * input.ptr[8]
-		+ eig.gamma_uu.yy * input.ptr[11] 
-		+ eig.gamma_uu.zz * input.ptr[13]
-		+ 2. * (
-			eig.gamma_uu.xy * input.ptr[9]
-			+ eig.gamma_uu.xz * input.ptr[10]
-			+ eig.gamma_uu.yz * input.ptr[12]
-		);
-	
-	resultU.d_lll.y.xy = -(
-			+ input.ptr[2]
-			+ input.ptr[6]
-			- d_x_input			
-			+ 2. * eig.gamma_uu.xy * input.ptr[9]
-			+ 2. * eig.gamma_uu.yz * input.ptr[15]
-			+ 2. * input.ptr[20]
-			- input.ptr[25]
-		) * invDenom;
-	
-	resultU.d_lll.y.xz = -(
-			+ input.ptr[3]
-			+ 2. * eig.gamma_uu.xy * input.ptr[10]
-			+ 2. * eig.gamma_uu.yz * input.ptr[16]
-			- input.ptr[26]
-		) * invDenom;
-	
-	real K_input_minus = 
-		2. * (
-			eig.gamma_uu.xy * input.ptr[2]
-			+ eig.gamma_uu.xz * input.ptr[3]
-			+ eig.gamma_uu.yz * input.ptr[4]
-		) + eig.gamma_uu.xx * input.ptr[1]
-		+ eig.gamma_uu.zz * input.ptr[5];
-
-	real K_input_plus = 
-		2. * (
-			eig.gamma_uu.xy * input.ptr[25]
-			+ eig.gamma_uu.xz * input.ptr[26]
-			+ eig.gamma_uu.yz * input.ptr[27]
-		) + eig.gamma_uu.xx * input.ptr[24]
-		+ eig.gamma_uu.zz * input.ptr[28];
-
-	real _1_sqrt_f = 1. / eig.sqrt_f;
-	real _1_f = _1_sqrt_f  * _1_sqrt_f;
-
-	resultU.d_lll.y.yy = -(
-			- K_input_minus	
-			+ K_input_plus	
-			
-			+ 2. * eig.gamma_uu.xy * (
-				input.ptr[11] * eig.gamma_uu.yy
-				- input.ptr[6]
-				- 2. * input.ptr[20]
-			)	
-			+ 2. * eig.gamma_uu.yz * (
-				input.ptr[17] * eig.gamma_uu.yy
-				- input.ptr[7]
-				- 2. * input.ptr[22]
-			)
-			+ (
-				+ gauge_diff
-				+ 2. * (
-					+ eig.gamma_uu.yy * input.ptr[23]
-					+ eig.gamma_uu.xy * input.ptr[6]
-					+ eig.gamma_uu.yz * input.ptr[7]
-					+ 2. * VUy_input
-				)
-			) * _1_f
-		) * invDenom * inv_gammaUyy;
-
-	//gamma_zj^j
-	real d_z_input = eig.gamma_uu.xx * input.ptr[14]
-		+ eig.gamma_uu.yy * input.ptr[17]
-		+ eig.gamma_uu.zz * input.ptr[19]
-		+ 2. * (
-			eig.gamma_uu.xy * input.ptr[15]
-			+ eig.gamma_uu.xz * input.ptr[16]
-			+ eig.gamma_uu.yz * input.ptr[18]);
-
-	resultU.d_lll.y.yz = -(
-			+ input.ptr[4]
-			+ input.ptr[7]
-			- d_z_input	
-			+ 2. * eig.gamma_uu.xy * input.ptr[12]
-			+ 2. * eig.gamma_uu.yz * input.ptr[18]
-			+ 2. * input.ptr[22]
-			- input.ptr[27]
-		) * invDenom;
-	
-	resultU.d_lll.y.zz = -(
-			+ input.ptr[5]
-			- input.ptr[28]
-			+ 2. * eig.gamma_uu.xy * input.ptr[13]
-			+ 2. * eig.gamma_uu.yz * input.ptr[19]
-		) * invDenom;
-
-	resultU.K_ll.yy = (
-			- K_input_minus
-			- K_input_plus
-			+ gauge_sum * _1_sqrt_f
-		) * invDenom * _1_sqrt_gammaUyy;
-
-	real tmp = .5 * _1_sqrt_gammaUyy;
-	resultU.K_ll.xx = (input.ptr[1] + input.ptr[24]) * tmp;
-	resultU.K_ll.xy = (input.ptr[2] + input.ptr[25]) * tmp;		//once this gets enabled, compiling crashes
-	resultU.K_ll.xz = (input.ptr[3] + input.ptr[26]) * tmp;
-	resultU.K_ll.yz = (input.ptr[4] + input.ptr[27]) * tmp;
-	resultU.K_ll.zz = (input.ptr[5] + input.ptr[28]) * tmp;
-	
-	<? elseif side == 2 then ?>
-
-	//write zeros to the alpha and gammaLL terms
-	resultU.alpha = 0;
-	resultU.gamma_ll = sym3_zero;
-	
-	resultU.a_l.x = input.ptr[6];
-	resultU.a_l.y = input.ptr[7];
-	
-	resultU.d_lll.x.xx = input.ptr[8];
-	resultU.d_lll.x.xy = input.ptr[9];
-	resultU.d_lll.x.xz = input.ptr[10];
-	resultU.d_lll.x.yy = input.ptr[11];
-	resultU.d_lll.x.yz = input.ptr[12];
-	resultU.d_lll.x.zz = input.ptr[13];
-	
-	resultU.d_lll.y.xx = input.ptr[14];
-	resultU.d_lll.y.xy = input.ptr[15];
-	resultU.d_lll.y.xz = input.ptr[16];
-	resultU.d_lll.y.yy = input.ptr[17];
-	resultU.d_lll.y.yz = input.ptr[18];
-	resultU.d_lll.y.zz = input.ptr[19];
-
-	resultU.V_l.x = input.ptr[20];
-	resultU.V_l.y = input.ptr[21];
-	resultU.V_l.z = input.ptr[22];
-
-	real sqrt_gammaUzz = eig.sqrt_gammaUjj.z;
-	real _1_sqrt_gammaUzz = 1. / sqrt_gammaUzz;
-	real inv_gammaUzz = _1_sqrt_gammaUzz * _1_sqrt_gammaUzz;
-	real invDenom = .5 * inv_gammaUzz;
-
-	real VUz_input = eig.gamma_uu.xz * input.ptr[20]
-					+ eig.gamma_uu.yz * input.ptr[21]
-					+ eig.gamma_uu.zz * input.ptr[22];
-
-	real gauge_diff = input.ptr[0] - input.ptr[29];
-	real gauge_sum = input.ptr[0] + input.ptr[29];
-	
-	resultU.a_l.z = -(
-			gauge_diff
+				eig.gamma_uu.xy * input.ptr[9]
+				+ eig.gamma_uu.xz * input.ptr[10]
+				+ eig.gamma_uu.yz * input.ptr[12]
+			);
+		
+		resultU.d_lll.x.xy = -(
+				input.ptr[1]
+				+ input.ptr[6]
+				- d_y_input
+				+ 2. * eig.gamma_uu.xy * input.ptr[9]
+				+ 2. * eig.gamma_uu.xz * input.ptr[15]
+				+ 2. * input.ptr[21]
+				- input.ptr[24]
+			) * invDenom;
+		
+		//d_zj^j
+		real d_z_input = 
+			eig.gamma_uu.xx * input.ptr[14]
+			+ eig.gamma_uu.yy * input.ptr[17]
+			+ eig.gamma_uu.zz * input.ptr[19]
 			+ 2. * (
-				eig.gamma_uu.xz * input.ptr[6]
-				+ eig.gamma_uu.yz * input.ptr[7]
-			)
-			+ 4. * VUz_input
-		) * invDenom;
+				eig.gamma_uu.xy * input.ptr[15]
+				+ eig.gamma_uu.xz * input.ptr[16]
+				+ eig.gamma_uu.yz * input.ptr[18]
+			);
+
+		resultU.d_lll.x.xz = -(
+				input.ptr[2]
+				+ input.ptr[7]
+				- d_z_input
+				+ 2. * eig.gamma_uu.xy * input.ptr[10]
+				+ 2. * eig.gamma_uu.xz * input.ptr[16]
+				+ 2. * input.ptr[22]
+				- input.ptr[25]
+			) * invDenom;
+		resultU.d_lll.x.yy = -(
+				input.ptr[3]
+				+ 2. * eig.gamma_uu.xy * input.ptr[11]
+				+ 2. * eig.gamma_uu.xz * input.ptr[17]
+				- input.ptr[26]
+			) * invDenom;
+		resultU.d_lll.x.yz = -(
+				input.ptr[4]
+				+ 2. * eig.gamma_uu.xy * input.ptr[12]
+				+ 2. * eig.gamma_uu.xz * input.ptr[18]
+				- input.ptr[27]
+			) * invDenom;
+		resultU.d_lll.x.zz = -(
+				input.ptr[5]
+				+ 2. * eig.gamma_uu.xy * input.ptr[13]
+				+ 2. * eig.gamma_uu.xz * input.ptr[19]
+				- input.ptr[28]
+			) * invDenom;
+
+		resultU.K_ll.xx = (
+				- K_input_minus
+				- K_input_plus	
+				+ gauge_sum * _1_sqrt_f
+			) * invDenom * _1_sqrt_gammaUxx;
+
+		real tmp = .5 * _1_sqrt_gammaUxx;
+		resultU.K_ll.xy = (input.ptr[1] + input.ptr[24]) * tmp;
+		resultU.K_ll.xz = (input.ptr[2] + input.ptr[25]) * tmp;
+		resultU.K_ll.yy = (input.ptr[3] + input.ptr[26]) * tmp;
+		resultU.K_ll.yz = (input.ptr[4] + input.ptr[27]) * tmp;
+		resultU.K_ll.zz = (input.ptr[5] + input.ptr[28]) * tmp;
+
+	} else if (n.side == 1) {
 	
-	resultU.d_lll.z.xx = -(
-			+ input.ptr[1]
-			- input.ptr[24]
-			+ 2. * eig.gamma_uu.xz * input.ptr[8]
-			+ 2. * eig.gamma_uu.yz * input.ptr[14]
-		) * invDenom;
-	
-	resultU.d_lll.z.xy = -(
-			+ input.ptr[2]
-			- input.ptr[25]
-			+ 2. * eig.gamma_uu.xz * input.ptr[9]
-			+ 2. * eig.gamma_uu.yz * input.ptr[15]
-		) * invDenom;
+		//write zeros to the alpha and gammaLL terms
+		resultU.alpha = 0;
+		resultU.gamma_ll = sym3_zero;
+		
+		resultU.a_l.x = input.ptr[6];
+		resultU.a_l.z = input.ptr[7];
+		
+		resultU.d_lll.x.xx = input.ptr[8];
+		resultU.d_lll.x.xy = input.ptr[9];
+		resultU.d_lll.x.xz = input.ptr[10];
+		resultU.d_lll.x.yy = input.ptr[11];
+		resultU.d_lll.x.yz = input.ptr[12];
+		resultU.d_lll.x.zz = input.ptr[13];
+		
+		resultU.d_lll.z.xx = input.ptr[14];
+		resultU.d_lll.z.xy = input.ptr[15];
+		resultU.d_lll.z.xz = input.ptr[16];
+		resultU.d_lll.z.yy = input.ptr[17];
+		resultU.d_lll.z.yz = input.ptr[18];
+		resultU.d_lll.z.zz = input.ptr[19];
+		
+		resultU.V_l.x = input.ptr[20];
+		resultU.V_l.y = input.ptr[21];
+		resultU.V_l.z = input.ptr[22];
 
-	//d_xj^j
-	real d_x_input = 
-		eig.gamma_uu.xx * input.ptr[8]
-		+ eig.gamma_uu.yy * input.ptr[11]
-		+ eig.gamma_uu.zz * input.ptr[13]
-		+ 2. * (
-			eig.gamma_uu.xy * input.ptr[9]
-			+ eig.gamma_uu.xz * input.ptr[10]
-			+ eig.gamma_uu.yz * input.ptr[12]);
+		real sqrt_gammaUyy = eig.sqrt_gammaUjj.y;
+		real _1_sqrt_gammaUyy = 1. / sqrt_gammaUyy;
+		real inv_gammaUyy = _1_sqrt_gammaUyy * _1_sqrt_gammaUyy;
+		real invDenom = .5 * inv_gammaUyy;
 
-	resultU.d_lll.z.xz = -(
-			+ input.ptr[3]
-			+ input.ptr[6]
-			- d_x_input
-			+ 2. * eig.gamma_uu.xz * input.ptr[10]
-			+ 2. * eig.gamma_uu.yz * input.ptr[16]
-			+ 2. * input.ptr[20]
-			- input.ptr[26]
-		) * invDenom;
-	
-	resultU.d_lll.z.yy = -(
-			+ input.ptr[4]
-			- input.ptr[27]
-			+ 2. * eig.gamma_uu.xz * input.ptr[11]
-			+ 2. * eig.gamma_uu.yz * input.ptr[17]
-		) * invDenom;
+		real VUy_input = eig.gamma_uu.xy * input.ptr[20]
+						+ eig.gamma_uu.yy * input.ptr[21]
+						+ eig.gamma_uu.yz * input.ptr[22];
+		
+		real gauge_diff = input.ptr[0] - input.ptr[29];
+		real gauge_sum = input.ptr[0] + input.ptr[29];
 
-	//d_yj^j
-	real d_y_input = 
-		eig.gamma_uu.xx * input.ptr[14]
-		+ eig.gamma_uu.yy * input.ptr[17]
-		+ eig.gamma_uu.zz * input.ptr[19]
-		+ 2. * (
-			eig.gamma_uu.xy * input.ptr[15]
-			+ eig.gamma_uu.xz * input.ptr[16]
-			+ eig.gamma_uu.yz * input.ptr[18]);
-
-	resultU.d_lll.z.yz = -(
-			+ input.ptr[5]
-			+ input.ptr[7]
-			- d_y_input	
-			+ 2. * eig.gamma_uu.xz * input.ptr[12]
-			+ 2. * eig.gamma_uu.yz * input.ptr[18]
-			+ 2. * input.ptr[21]
-			- input.ptr[28]
-		) * invDenom;
-
-	real K_input_minus = 
-		2. * (
-			eig.gamma_uu.xy * input.ptr[2]
-			+ eig.gamma_uu.xz * input.ptr[3]
-			+ eig.gamma_uu.yz * input.ptr[5]
-		) + eig.gamma_uu.xx * input.ptr[1]
-		+ eig.gamma_uu.yy * input.ptr[4];
-
-	real K_input_plus = 
-		2. * (eig.gamma_uu.xy * input.ptr[25]
-			+ eig.gamma_uu.xz * input.ptr[26]
-			+ eig.gamma_uu.yz * input.ptr[28]
-		) + eig.gamma_uu.xx * input.ptr[24]
-		+ eig.gamma_uu.yy * input.ptr[27];
-
-	real _1_sqrt_f = 1. / eig.sqrt_f;
-	real _1_f = _1_sqrt_f * _1_sqrt_f;
-
-	resultU.d_lll.z.zz = -(
-			- K_input_minus
-			+ K_input_plus
-			
-			+ 2. * eig.gamma_uu.xz * (
-				input.ptr[13] * eig.gamma_uu.zz
-				- input.ptr[6]
-				- 2. * input.ptr[20]
-			)
-			+ 2. * eig.gamma_uu.yz * (
-				eig.gamma_uu.zz * input.ptr[19]
-				- input.ptr[7]
-				- 2. * input.ptr[21]
-			)	
-			+ (	
-				+ gauge_diff
+		resultU.a_l.y = -(
+				gauge_diff
 				+ 2. * (
-					eig.gamma_uu.zz * input.ptr[23]
-					+ eig.gamma_uu.xz * input.ptr[6]
+					eig.gamma_uu.xy * input.ptr[6]
 					+ eig.gamma_uu.yz * input.ptr[7]
-					+ 2. * VUz_input
 				)
-			) * _1_f
-		) * invDenom * inv_gammaUzz;
+				+ 4. * VUy_input
+			) * invDenom;
 
-	resultU.K_ll.zz = (
-			+ gauge_sum * _1_sqrt_f
-			- K_input_minus
-			- K_input_plus
-		) * invDenom * _1_sqrt_gammaUzz;
+		resultU.d_lll.y.xx = -(
+				+ input.ptr[1]
+				- input.ptr[24]
+				+ 2. * eig.gamma_uu.xy * input.ptr[8]
+				+ 2. * eig.gamma_uu.yz * input.ptr[14]
+			) * invDenom;
+
+		//d_xj^j
+		real d_x_input = 
+			eig.gamma_uu.xx * input.ptr[8]
+			+ eig.gamma_uu.yy * input.ptr[11] 
+			+ eig.gamma_uu.zz * input.ptr[13]
+			+ 2. * (
+				eig.gamma_uu.xy * input.ptr[9]
+				+ eig.gamma_uu.xz * input.ptr[10]
+				+ eig.gamma_uu.yz * input.ptr[12]
+			);
+		
+		resultU.d_lll.y.xy = -(
+				+ input.ptr[2]
+				+ input.ptr[6]
+				- d_x_input			
+				+ 2. * eig.gamma_uu.xy * input.ptr[9]
+				+ 2. * eig.gamma_uu.yz * input.ptr[15]
+				+ 2. * input.ptr[20]
+				- input.ptr[25]
+			) * invDenom;
+		
+		resultU.d_lll.y.xz = -(
+				+ input.ptr[3]
+				+ 2. * eig.gamma_uu.xy * input.ptr[10]
+				+ 2. * eig.gamma_uu.yz * input.ptr[16]
+				- input.ptr[26]
+			) * invDenom;
+		
+		real K_input_minus = 
+			2. * (
+				eig.gamma_uu.xy * input.ptr[2]
+				+ eig.gamma_uu.xz * input.ptr[3]
+				+ eig.gamma_uu.yz * input.ptr[4]
+			) + eig.gamma_uu.xx * input.ptr[1]
+			+ eig.gamma_uu.zz * input.ptr[5];
+
+		real K_input_plus = 
+			2. * (
+				eig.gamma_uu.xy * input.ptr[25]
+				+ eig.gamma_uu.xz * input.ptr[26]
+				+ eig.gamma_uu.yz * input.ptr[27]
+			) + eig.gamma_uu.xx * input.ptr[24]
+			+ eig.gamma_uu.zz * input.ptr[28];
+
+		real _1_sqrt_f = 1. / eig.sqrt_f;
+		real _1_f = _1_sqrt_f  * _1_sqrt_f;
+
+		resultU.d_lll.y.yy = -(
+				- K_input_minus	
+				+ K_input_plus	
+				
+				+ 2. * eig.gamma_uu.xy * (
+					input.ptr[11] * eig.gamma_uu.yy
+					- input.ptr[6]
+					- 2. * input.ptr[20]
+				)	
+				+ 2. * eig.gamma_uu.yz * (
+					input.ptr[17] * eig.gamma_uu.yy
+					- input.ptr[7]
+					- 2. * input.ptr[22]
+				)
+				+ (
+					+ gauge_diff
+					+ 2. * (
+						+ eig.gamma_uu.yy * input.ptr[23]
+						+ eig.gamma_uu.xy * input.ptr[6]
+						+ eig.gamma_uu.yz * input.ptr[7]
+						+ 2. * VUy_input
+					)
+				) * _1_f
+			) * invDenom * inv_gammaUyy;
+
+		//gamma_zj^j
+		real d_z_input = eig.gamma_uu.xx * input.ptr[14]
+			+ eig.gamma_uu.yy * input.ptr[17]
+			+ eig.gamma_uu.zz * input.ptr[19]
+			+ 2. * (
+				eig.gamma_uu.xy * input.ptr[15]
+				+ eig.gamma_uu.xz * input.ptr[16]
+				+ eig.gamma_uu.yz * input.ptr[18]);
+
+		resultU.d_lll.y.yz = -(
+				+ input.ptr[4]
+				+ input.ptr[7]
+				- d_z_input	
+				+ 2. * eig.gamma_uu.xy * input.ptr[12]
+				+ 2. * eig.gamma_uu.yz * input.ptr[18]
+				+ 2. * input.ptr[22]
+				- input.ptr[27]
+			) * invDenom;
+		
+		resultU.d_lll.y.zz = -(
+				+ input.ptr[5]
+				- input.ptr[28]
+				+ 2. * eig.gamma_uu.xy * input.ptr[13]
+				+ 2. * eig.gamma_uu.yz * input.ptr[19]
+			) * invDenom;
+
+		resultU.K_ll.yy = (
+				- K_input_minus
+				- K_input_plus
+				+ gauge_sum * _1_sqrt_f
+			) * invDenom * _1_sqrt_gammaUyy;
+
+		real tmp = .5 * _1_sqrt_gammaUyy;
+		resultU.K_ll.xx = (input.ptr[1] + input.ptr[24]) * tmp;
+		resultU.K_ll.xy = (input.ptr[2] + input.ptr[25]) * tmp;		//once this gets enabled, compiling crashes
+		resultU.K_ll.xz = (input.ptr[3] + input.ptr[26]) * tmp;
+		resultU.K_ll.yz = (input.ptr[4] + input.ptr[27]) * tmp;
+		resultU.K_ll.zz = (input.ptr[5] + input.ptr[28]) * tmp;
 	
-	real tmp = .5 * _1_sqrt_gammaUzz;
-	resultU.K_ll.xx = (input.ptr[1] + input.ptr[24]) * tmp;
-	resultU.K_ll.xy = (input.ptr[2] + input.ptr[25]) * tmp;
-	resultU.K_ll.xz = (input.ptr[3] + input.ptr[26]) * tmp;
-	resultU.K_ll.yy = (input.ptr[4] + input.ptr[27]) * tmp;
-	resultU.K_ll.yz = (input.ptr[5] + input.ptr[28]) * tmp;
-	
-	<? end ?>
+	} else if (n.side == 2) {
+
+		//write zeros to the alpha and gammaLL terms
+		resultU.alpha = 0;
+		resultU.gamma_ll = sym3_zero;
+		
+		resultU.a_l.x = input.ptr[6];
+		resultU.a_l.y = input.ptr[7];
+		
+		resultU.d_lll.x.xx = input.ptr[8];
+		resultU.d_lll.x.xy = input.ptr[9];
+		resultU.d_lll.x.xz = input.ptr[10];
+		resultU.d_lll.x.yy = input.ptr[11];
+		resultU.d_lll.x.yz = input.ptr[12];
+		resultU.d_lll.x.zz = input.ptr[13];
+		
+		resultU.d_lll.y.xx = input.ptr[14];
+		resultU.d_lll.y.xy = input.ptr[15];
+		resultU.d_lll.y.xz = input.ptr[16];
+		resultU.d_lll.y.yy = input.ptr[17];
+		resultU.d_lll.y.yz = input.ptr[18];
+		resultU.d_lll.y.zz = input.ptr[19];
+
+		resultU.V_l.x = input.ptr[20];
+		resultU.V_l.y = input.ptr[21];
+		resultU.V_l.z = input.ptr[22];
+
+		real sqrt_gammaUzz = eig.sqrt_gammaUjj.z;
+		real _1_sqrt_gammaUzz = 1. / sqrt_gammaUzz;
+		real inv_gammaUzz = _1_sqrt_gammaUzz * _1_sqrt_gammaUzz;
+		real invDenom = .5 * inv_gammaUzz;
+
+		real VUz_input = eig.gamma_uu.xz * input.ptr[20]
+						+ eig.gamma_uu.yz * input.ptr[21]
+						+ eig.gamma_uu.zz * input.ptr[22];
+
+		real gauge_diff = input.ptr[0] - input.ptr[29];
+		real gauge_sum = input.ptr[0] + input.ptr[29];
+		
+		resultU.a_l.z = -(
+				gauge_diff
+				+ 2. * (
+					eig.gamma_uu.xz * input.ptr[6]
+					+ eig.gamma_uu.yz * input.ptr[7]
+				)
+				+ 4. * VUz_input
+			) * invDenom;
+		
+		resultU.d_lll.z.xx = -(
+				+ input.ptr[1]
+				- input.ptr[24]
+				+ 2. * eig.gamma_uu.xz * input.ptr[8]
+				+ 2. * eig.gamma_uu.yz * input.ptr[14]
+			) * invDenom;
+		
+		resultU.d_lll.z.xy = -(
+				+ input.ptr[2]
+				- input.ptr[25]
+				+ 2. * eig.gamma_uu.xz * input.ptr[9]
+				+ 2. * eig.gamma_uu.yz * input.ptr[15]
+			) * invDenom;
+
+		//d_xj^j
+		real d_x_input = 
+			eig.gamma_uu.xx * input.ptr[8]
+			+ eig.gamma_uu.yy * input.ptr[11]
+			+ eig.gamma_uu.zz * input.ptr[13]
+			+ 2. * (
+				eig.gamma_uu.xy * input.ptr[9]
+				+ eig.gamma_uu.xz * input.ptr[10]
+				+ eig.gamma_uu.yz * input.ptr[12]);
+
+		resultU.d_lll.z.xz = -(
+				+ input.ptr[3]
+				+ input.ptr[6]
+				- d_x_input
+				+ 2. * eig.gamma_uu.xz * input.ptr[10]
+				+ 2. * eig.gamma_uu.yz * input.ptr[16]
+				+ 2. * input.ptr[20]
+				- input.ptr[26]
+			) * invDenom;
+		
+		resultU.d_lll.z.yy = -(
+				+ input.ptr[4]
+				- input.ptr[27]
+				+ 2. * eig.gamma_uu.xz * input.ptr[11]
+				+ 2. * eig.gamma_uu.yz * input.ptr[17]
+			) * invDenom;
+
+		//d_yj^j
+		real d_y_input = 
+			eig.gamma_uu.xx * input.ptr[14]
+			+ eig.gamma_uu.yy * input.ptr[17]
+			+ eig.gamma_uu.zz * input.ptr[19]
+			+ 2. * (
+				eig.gamma_uu.xy * input.ptr[15]
+				+ eig.gamma_uu.xz * input.ptr[16]
+				+ eig.gamma_uu.yz * input.ptr[18]);
+
+		resultU.d_lll.z.yz = -(
+				+ input.ptr[5]
+				+ input.ptr[7]
+				- d_y_input	
+				+ 2. * eig.gamma_uu.xz * input.ptr[12]
+				+ 2. * eig.gamma_uu.yz * input.ptr[18]
+				+ 2. * input.ptr[21]
+				- input.ptr[28]
+			) * invDenom;
+
+		real K_input_minus = 
+			2. * (
+				eig.gamma_uu.xy * input.ptr[2]
+				+ eig.gamma_uu.xz * input.ptr[3]
+				+ eig.gamma_uu.yz * input.ptr[5]
+			) + eig.gamma_uu.xx * input.ptr[1]
+			+ eig.gamma_uu.yy * input.ptr[4];
+
+		real K_input_plus = 
+			2. * (eig.gamma_uu.xy * input.ptr[25]
+				+ eig.gamma_uu.xz * input.ptr[26]
+				+ eig.gamma_uu.yz * input.ptr[28]
+			) + eig.gamma_uu.xx * input.ptr[24]
+			+ eig.gamma_uu.yy * input.ptr[27];
+
+		real _1_sqrt_f = 1. / eig.sqrt_f;
+		real _1_f = _1_sqrt_f * _1_sqrt_f;
+
+		resultU.d_lll.z.zz = -(
+				- K_input_minus
+				+ K_input_plus
+				
+				+ 2. * eig.gamma_uu.xz * (
+					input.ptr[13] * eig.gamma_uu.zz
+					- input.ptr[6]
+					- 2. * input.ptr[20]
+				)
+				+ 2. * eig.gamma_uu.yz * (
+					eig.gamma_uu.zz * input.ptr[19]
+					- input.ptr[7]
+					- 2. * input.ptr[21]
+				)	
+				+ (	
+					+ gauge_diff
+					+ 2. * (
+						eig.gamma_uu.zz * input.ptr[23]
+						+ eig.gamma_uu.xz * input.ptr[6]
+						+ eig.gamma_uu.yz * input.ptr[7]
+						+ 2. * VUz_input
+					)
+				) * _1_f
+			) * invDenom * inv_gammaUzz;
+
+		resultU.K_ll.zz = (
+				+ gauge_sum * _1_sqrt_f
+				- K_input_minus
+				- K_input_plus
+			) * invDenom * _1_sqrt_gammaUzz;
+		
+		real tmp = .5 * _1_sqrt_gammaUzz;
+		resultU.K_ll.xx = (input.ptr[1] + input.ptr[24]) * tmp;
+		resultU.K_ll.xy = (input.ptr[2] + input.ptr[25]) * tmp;
+		resultU.K_ll.xz = (input.ptr[3] + input.ptr[26]) * tmp;
+		resultU.K_ll.yy = (input.ptr[4] + input.ptr[27]) * tmp;
+		resultU.K_ll.yz = (input.ptr[5] + input.ptr[28]) * tmp;
+		
+	}
 
 <? else -- eqn.noZeroRowsInFlux ?>
+	
+	<? for side=0,solver.dim-1 do ?>
+	if (n.side == <?=side?>) {
+		//TODO swap size inside eigen_t structure
+		//instead of doing it here
+		sym3 gamma_uu = sym3_swap<?=side?>(eig.gamma_uu);
 
-	//TODO swap size inside eigen_t structure
-	//instead of doing it here
-	sym3 gamma_uu = sym3_swap<?=side?>(eig.gamma_uu);
+		real input1_dot_gammaU = input.ptr[1] * 2. * gamma_uu.xy
+			+ input.ptr[2] * 2. * gamma_uu.xz
+			+ input.ptr[3] * gamma_uu.yy
+			+ input.ptr[4] * 2. * gamma_uu.yz
+			+ input.ptr[5] * gamma_uu.zz;
+		real input7_dot_gammaU = input.ptr[7] * 2. * gamma_uu.xy
+			+ input.ptr[8] * 2. * gamma_uu.xz
+			+ input.ptr[9] * gamma_uu.yy
+			+ input.ptr[10] * 2. * gamma_uu.yz
+			+ input.ptr[11] * gamma_uu.zz;
 
-	real input1_dot_gammaU = input.ptr[1] * 2. * gamma_uu.xy
-		+ input.ptr[2] * 2. * gamma_uu.xz
-		+ input.ptr[3] * gamma_uu.yy
-		+ input.ptr[4] * 2. * gamma_uu.yz
-		+ input.ptr[5] * gamma_uu.zz;
-	real input7_dot_gammaU = input.ptr[7] * 2. * gamma_uu.xy
-		+ input.ptr[8] * 2. * gamma_uu.xz
-		+ input.ptr[9] * gamma_uu.yy
-		+ input.ptr[10] * 2. * gamma_uu.yz
-		+ input.ptr[11] * gamma_uu.zz;
+		real _1_sqrt_f = 1. / eig.sqrt_f;
+		real sqrt_gammaUjj = eig.sqrt_gammaUjj.s<?=side?>;
+		real _1_sqrt_gammaUjj = 1. / sqrt_gammaUjj;
+		real _1_gammaUjj = _1_sqrt_gammaUjj * _1_sqrt_gammaUjj; 
 
-	real _1_sqrt_f = 1. / eig.sqrt_f;
-	real sqrt_gammaUjj = eig.sqrt_gammaUjj.s<?=side?>;
-	real _1_sqrt_gammaUjj = 1. / sqrt_gammaUjj;
-	real _1_gammaUjj = _1_sqrt_gammaUjj * _1_sqrt_gammaUjj; 
+		resultU.a_l.s<?=side?> = eig.sqrt_f * sqrt_gammaUjj * (input.ptr[12] - input.ptr[0]);
 
-	resultU.a_l.s<?=side?> = eig.sqrt_f * sqrt_gammaUjj * (input.ptr[12] - input.ptr[0]);
+		sym3 d_lll, K_ll;
+		d_lll.xx = (
+			(input.ptr[12] - input.ptr[0]) * _1_sqrt_f
+			+ (input1_dot_gammaU - input7_dot_gammaU) * _1_gammaUjj
+		) * _1_sqrt_gammaUjj + input.ptr[6];
 
-	sym3 d_lll, K_ll;
-	d_lll.xx = (
-		(input.ptr[12] - input.ptr[0]) * _1_sqrt_f
-		+ (input1_dot_gammaU - input7_dot_gammaU) * _1_gammaUjj
-	) * _1_sqrt_gammaUjj + input.ptr[6];
+		<? for i=1,5 do ?>
+		d_lll.s[<?=i?>] = (input.ptr[<?=i+6?>] - input.ptr[<?=i?>]) * _1_sqrt_gammaUjj;
+		<? end ?>
 
-	<? for i=1,5 do ?>
-	d_lll.s[<?=i?>] = (input.ptr[<?=i+6?>] - input.ptr[<?=i?>]) * _1_sqrt_gammaUjj;
+		K_ll.xx = input.ptr[0] + input.ptr[12] - (input1_dot_gammaU + input7_dot_gammaU) * _1_gammaUjj;
+
+		<? for i=1,5 do ?>
+		K_ll.s[<?=i?>] = input.ptr[<?=i?>] + input.ptr[<?=i+6?>];
+		<? end ?>
+
+		//now swap x and side on the sym3's
+		resultU.d_lll.v<?=side?> = sym3_swap<?=side?>(d_lll);
+		resultU.K_ll = sym3_swap<?=side?>(K_ll);
+	}
 	<? end ?>
-
-	K_ll.xx = input.ptr[0] + input.ptr[12] - (input1_dot_gammaU + input7_dot_gammaU) * _1_gammaUjj;
-
-	<? for i=1,5 do ?>
-	K_ll.s[<?=i?>] = input.ptr[<?=i?>] + input.ptr[<?=i+6?>];
-	<? end ?>
-
-	//now swap x and side on the sym3's
-	resultU.d_lll.v<?=side?> = sym3_swap<?=side?>(d_lll);
-	resultU.K_ll = sym3_swap<?=side?>(K_ll);
 
 <? end 	-- eqn.noZeroRowsInFlux ?>
 	return resultU;
 }
 
-cons_t eigen_fluxTransform_<?=side?>(
+cons_t eigen_fluxTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t inputU,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) {
 <? if not eqn.noZeroRowsInFlux then ?>
 
@@ -1030,15 +1045,15 @@ cons_t eigen_fluxTransform_<?=side?>(
 	// TODO use that static function for the calc waves as well
 	
 
-	waves_t waves = eigen_leftTransform_<?=side?>(solver, eig, inputU, x);
+	waves_t waves = eigen_leftTransform(solver, eig, inputU, x);
 
-	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
+	<?=eqn:eigenWaveCodePrefix(n, 'eig', 'x')?>
 
 <? for j=0,eqn.numWaves-1 do 
-?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>;
+?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(n, 'eig', 'x', j)?>;
 <? end 
 ?>
-	return eigen_rightTransform_<?=side?>(solver, eig, waves, x);
+	return eigen_rightTransform(solver, eig, waves, x);
 
 <? else -- noZeroRowsInFlux ?>
 
@@ -1048,25 +1063,30 @@ cons_t eigen_fluxTransform_<?=side?>(
 	}
 
 	real f = eig.sqrt_f * eig.sqrt_f;
-	
-	//now swap x and side on the sym3's
-	sym3 input_d = sym3_swap<?=side?>(inputU.d_lll.v<?=side?>);
-	sym3 input_K = sym3_swap<?=side?>(inputU.K_ll);
-	sym3 gamma_uu = sym3_swap<?=side?>(eig.gamma_uu);
 
-	resultU.a_l.s<?=side?> = sym3_dot(input_K, gamma_uu) * eig.alpha * f;
-	sym3 result_d = sym3_real_mul(input_K, eig.alpha);
-	sym3 result_K = sym3_real_mul(input_d, eig.alpha * gamma_uu.xx);
-	result_K.xx += (inputU.a_l.s<?=side?> - sym3_dot(input_d, gamma_uu)) * eig.alpha;
+	<? for side=0,solver.dim-1 do ?>
+	if (n.side == <?=side?>) {
 
-	//now swap x and side on the sym3's
-	resultU.d_lll.v<?=side?> = sym3_swap<?=side?>(result_d);
-	resultU.K_ll = sym3_swap<?=side?>(result_K);
+		//now swap x and side on the sym3's
+		sym3 input_d = sym3_swap<?=side?>(inputU.d_lll.v<?=side?>);
+		sym3 input_K = sym3_swap<?=side?>(inputU.K_ll);
+		sym3 gamma_uu = sym3_swap<?=side?>(eig.gamma_uu);
+
+		resultU.a_l.s<?=side?> = sym3_dot(input_K, gamma_uu) * eig.alpha * f;
+		sym3 result_d = sym3_real_mul(input_K, eig.alpha);
+		sym3 result_K = sym3_real_mul(input_d, eig.alpha * gamma_uu.xx);
+		result_K.xx += (inputU.a_l.s<?=side?> - sym3_dot(input_d, gamma_uu)) * eig.alpha;
+
+		//now swap x and side on the sym3's
+		resultU.d_lll.v<?=side?> = sym3_swap<?=side?>(result_d);
+		resultU.K_ll = sym3_swap<?=side?>(result_K);
+
+	}
+	<? end ?>
 
 	return resultU;
 <? end -- noZeroRowsInFlux ?>
 }
-<? end ?>
 
 //TODO if we're calculating the constrains in the derivative
 // then we do save calculations / memory on the equations

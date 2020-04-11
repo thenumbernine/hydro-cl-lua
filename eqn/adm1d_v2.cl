@@ -39,7 +39,7 @@ eigen_t eigen_forInterface(
 	cons_t UL,
 	cons_t UR,
 	real3 x,
-	real3 n
+	normalInfo_t n
 ) {
 	real alpha = .5 * (UL.alpha + UR.alpha);
 	real gamma_xx = .5 * (UL.gamma_xx + UR.gamma_xx);

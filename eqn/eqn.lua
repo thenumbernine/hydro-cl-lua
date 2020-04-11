@@ -71,8 +71,17 @@ function Equation:getParityVars(...)
 					vars:insert(var.name..'.'..xij)
 				end
 			end
+		elseif var.type == '_3sym3' then
+			for k,xk in ipairs(xNames) do
+				for ij,xij in ipairs(symNames) do
+					local i,j = from6to3x3(ij)
+					if sign[i] * sign[j] * sign[k] == -1 then
+						vars:insert(var.name..'.'..xk..'.'..xij)
+					end
+				end		
+			end
 		else
-			error"you are here"
+			error("don't know how to handle type "..var.type)
 		end
 	end
 	return vars

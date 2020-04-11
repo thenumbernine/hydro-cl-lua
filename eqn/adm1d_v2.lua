@@ -138,7 +138,10 @@ void setFlatSpace(
 <? end ?>
 
 
-]], {eqn=self})
+]], {
+		eqn = self,
+		solver = self.solver,
+	})
 end
 
 ADM_BonaMasso_1D_1997Alcubierre.initStateCode = [[

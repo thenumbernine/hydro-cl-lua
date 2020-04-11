@@ -262,6 +262,13 @@ void setFlatSpace(
 	U->H = 0;
 	U->M_u = real3_zero;
 }
+
+
+<? for side=0,solver.dim-1 do ?>
+#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
+<? end ?>
+
+
 ]], {
 		eqn = self,
 		solver = self.solver,
@@ -422,12 +429,12 @@ momentum constraints
 			local xi = xNames[i]
 		?>{
 			real di_alpha = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (2. * solver->grid_dx.s<?=i-1?>);
-			value_real3-><?=xi?> = fabs(di_alpha - U->alpha * U->a_l.<?=xi?>);
+			value.vreal3.<?=xi?> = fabs(di_alpha - U->alpha * U->a_l.<?=xi?>);
 		}<? end ?>
 		<? for i=solver.dim+1,3 do
 			local xi = xNames[i]
 		?>{
-			value_real3-><?=xi?> = 0;
+			value.vreal3.<?=xi?> = 0;
 		}<? end ?>
 	}
 ]], {
@@ -455,7 +462,7 @@ momentum constraints
 		value.vsym3 = sym3_sub(di_gamma_jk, sym3_real_mul(U->d_lll.<?=xi?>, 2.));
 		value.vsym3 = (sym3){<?
 	for jk,xjk in ipairs(symNames) do 
-?>			.<?=xjk?> = fabs(value_sym3-><?=xjk?>),
+?>			.<?=xjk?> = fabs(value.vsym3.<?=xjk?>),
 <?	end
 ?>		};
 	}
@@ -479,37 +486,38 @@ momentum constraints
 ?> + U->d_lll.<?=xj?>.<?=sym(k,i)?> * gamma_uu.<?=sym(j,k)?><?
 		end
 	end ?>;
-		value_real3-><?=xi?> = U->V_l.<?=xi?> - (d1 - d2);
+		value.vreal3.<?=xi?> = U->V_l.<?=xi?> - (d1 - d2);
 	}<? end ?>
 ]], {sym=sym, xNames=xNames}), type='real3'}
 
 	return vars
 end
 
-function ADM_BonaMasso_3D:eigenWaveCodePrefix(side, eig, x, waveIndex)
+function ADM_BonaMasso_3D:eigenWaveCodePrefix(n, eig, x, waveIndex)
 	return template([[
-	<? if side==0 then ?>
-	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x;
-	<? elseif side==1 then ?>
-	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.y;
-	<? elseif side==2 then ?>
-	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.z;
-	<? end ?>
+	real eig_lambdaLight;
+	if (n.side == 0) {
+		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x;
+	} else if (n.side == 1) {
+		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.y;
+	} else if (n.side == 2) {
+		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.z;
+	}
 	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>.sqrt_f;
 ]], {
 		eig = '('..eig..')',
-		side = side,
+		n = n,
 	})
 end
 
-function ADM_BonaMasso_3D:eigenWaveCode(side, eig, x, waveIndex)
+function ADM_BonaMasso_3D:eigenWaveCode(n, eig, x, waveIndex)
 	-- TODO find out if -- if we use the lagrangian coordinate shift operation -- do we still need to offset the eigenvalues by -beta^i?
 	local shiftingLambdas = self.useShift ~= 'none'
 		--and self.useShift ~= 'LagrangianCoordinates'
 
 	local betaUi
 	if self.useShift ~= 'none' then
-		betaUi = '('..eig..').beta_u.'..xNames[side+1]
+		betaUi = '('..eig..').beta_u.s[n.side]'
 	else
 		betaUi = '0'
 	end
@@ -545,22 +553,23 @@ function ADM_BonaMasso_3D:eigenWaveCode(side, eig, x, waveIndex)
 	error'got a bad waveIndex'
 end
 
-function ADM_BonaMasso_3D:consWaveCodePrefix(side, U, x, waveIndex)
+function ADM_BonaMasso_3D:consWaveCodePrefix(n, U, x, waveIndex)
 	return template([[
 	real det_gamma = sym3_det(<?=U?>.gamma_ll);
 	sym3 gamma_uu = sym3_inv(<?=U?>.gamma_ll, det_gamma);
-	<? if side==0 then ?>
-	real eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.xx);
-	<? elseif side==1 then ?>                          
-	real eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.yy);
-	<? elseif side==2 then ?>                          
-	real eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.zz);
-	<? end ?>
+	real eig_lambdaLight;
+	if (n.side == 0) {
+		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.xx);
+	} else if (n.side == 1) {
+		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.yy);
+	} else if (n.side == 2) {
+		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.zz);
+	}
 	real f = calc_f(<?=U?>.alpha);
 	real eig_lambdaGauge = eig_lambdaLight * sqrt(f);
 ]], {
 		U = '('..U..')',
-		side = side,
+		n = n,
 	})
 end
 ADM_BonaMasso_3D.consWaveCode = ADM_BonaMasso_3D.eigenWaveCode
