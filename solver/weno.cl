@@ -422,8 +422,9 @@ kernel void calcCellFlux(
 	<? for side=0,solver.dim-1 do ?>{
 		real3 xInt = cell_x(i);
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
 		global <?=eqn.cons_t?>* F = fluxCellBuf + <?=side?> + dim * index;
-		*F = fluxFromCons_<?=side?>(solver, *U, xInt);
+		*F = fluxFromCons(solver, *U, xInt, n);
 	}<? end ?>
 }
 
@@ -449,7 +450,9 @@ for side=0,solver.dim-1 do ?>{
 
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-		
+
+		normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
+
 		int fluxIndexInt = side + dim * index;
 		global <?=eqn.cons_t?>* flux = fluxBuf + fluxIndexInt;
 
@@ -458,17 +461,17 @@ for side=0,solver.dim-1 do ?>{
 	if solver.fluxMethod == 'Lax-Friedrichs' then
 
 ?>
-		<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, normalForSide<?=side?>());
+		<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, n);
 		real maxAbsLambda = 0.;
 		for (int j = 0; j < <?=2*stencilSize?>; ++j) {
 			const global <?=eqn.cons_t?>* Uj = U + (j - <?=stencilSize?>) * solver->stepsize.s<?=side?>;
 			
-			<?=eqn:consWaveCodePrefix(side, '*Uj', 'xInt'):gsub('\n', '\n\t\t')?>
+			<?=eqn:consWaveCodePrefix('n', '*Uj', 'xInt'):gsub('\n', '\n\t\t')?>
 			
-			real lambdaMin = <?=eqn:consMinWaveCode(side, '*Uj', 'xInt')?>;
+			real lambdaMin = <?=eqn:consMinWaveCode('n', '*Uj', 'xInt')?>;
 			maxAbsLambda = max(maxAbsLambda, fabs(lambdaMin));
 			
-			real lambdaMax = <?=eqn:consMaxWaveCode(side, '*Uj', 'xInt')?>;
+			real lambdaMax = <?=eqn:consMaxWaveCode('n', '*Uj', 'xInt')?>;
 			maxAbsLambda = max(maxAbsLambda, fabs(lambdaMax));
 		}
 
@@ -476,7 +479,7 @@ for side=0,solver.dim-1 do ?>{
 		for j=0,2*stencilSize-1 do
 ?>		const global <?=eqn.cons_t?>* U<?=j?> = U + <?=j - stencilSize?> * solver->stepsize.s<?=side?>;
 		//<?=eqn.cons_t?> F<?=j?> = fluxCellBuf[<?=side?> + dim * (index + <?=j - stencilSize?> * solver->stepsize.s<?=side?>)];
-		<?=eqn.cons_t?> F<?=j?> = fluxFromCons_<?=side?>(solver, *U<?=j?>, xInt);
+		<?=eqn.cons_t?> F<?=j?> = fluxFromCons(solver, *U<?=j?>, xInt, n);
 <?
 			if j < 2*stencilSize-1 then
 ?>		<?=eqn.cons_t?> fp<?=j?>;
@@ -496,8 +499,8 @@ for side=0,solver.dim-1 do ?>{
 		
 		<?=eqn.waves_t?> afp[<?=2*stencilSize-1?>], afm[<?=2*stencilSize-1?>];
 <? 		for j=0,2*stencilSize-2 do
-?>		afp[<?=j?>] = eigen_leftTransform_<?=side?>(solver, eig, fp<?=j?>, xInt);
-		afm[<?=j?>] = eigen_leftTransform_<?=side?>(solver, eig, fm<?=j?>, xInt);
+?>		afp[<?=j?>] = eigen_leftTransform(solver, eig, fp<?=j?>, xInt, n);
+		afm[<?=j?>] = eigen_leftTransform(solver, eig, fm<?=j?>, xInt, n);
 <? 		end 
 ?>
 		<?=eqn.waves_t?> waf;
@@ -507,22 +510,22 @@ for side=0,solver.dim-1 do ?>{
 			waf.ptr[j] = wafp.ptr[j] + wafm.ptr[j];
 		}
 		
-		*flux = eigen_rightTransform_<?=side?>(solver, eig, waf, xInt);
+		*flux = eigen_rightTransform(solver, eig, waf, xInt, n);
 <?
 	
 	elseif solver.fluxMethod == 'Marquina' then
 
-?>		<?=eqn.eigen_t?> eigL = eigen_forCell_<?=side?>(solver, *UL, xInt);
-		<?=eqn.eigen_t?> eigR = eigen_forCell_<?=side?>(solver, *UR, xInt);
+?>		<?=eqn.eigen_t?> eigL = eigen_forCell(solver, *UL, xInt, n);
+		<?=eqn.eigen_t?> eigR = eigen_forCell(solver, *UR, xInt, n);
 
 		real lambdaL[<?=eqn.numWaves?>];
 		real lambdaR[<?=eqn.numWaves?>];
 <? 		for _,lr in ipairs{'L', 'R'} do
 ?>		{
-		<?=eqn:eigenWaveCodePrefix(side, 'eig'..lr, 'xInt'):gsub('\n', '\n\t\t')?>
+		<?=eqn:eigenWaveCodePrefix('n', 'eig'..lr, 'xInt'):gsub('\n', '\n\t\t')?>
 <? 		
 			for k=0,eqn.numWaves-1 do 
-?>			lambda<?=lr?>[<?=k?>] = <?=eqn:eigenWaveCode(side, 'U'..lr, 'xInt', k)?>;
+?>			lambda<?=lr?>[<?=k?>] = <?=eqn:eigenWaveCode('n', 'U'..lr, 'xInt', k)?>;
 <?			end
 ?>		}
 <?		end
@@ -530,11 +533,11 @@ for side=0,solver.dim-1 do ?>{
 
 <? 		for j=0,2*stencilSize-1 do
 ?>		const global <?=eqn.cons_t?>* U<?=j?> = U + (<?=j - stencilSize?>) * solver->stepsize.s<?=side?>;
-		<?=eqn.cons_t?> F<?=j?> = fluxFromCons_<?=side?>(solver, *U<?=j?>, xInt);
-		<?=eqn.waves_t?> al<?=j?> = eigen_leftTransform_<?=side?>(solver, eigL, *U<?=j?>, xInt);
-		<?=eqn.waves_t?> ar<?=j?> = eigen_leftTransform_<?=side?>(solver, eigR, *U<?=j?>, xInt);
-		<?=eqn.waves_t?> afl<?=j?> = eigen_leftTransform_<?=side?>(solver, eigL, F<?=j?>, xInt);
-		<?=eqn.waves_t?> afr<?=j?> = eigen_leftTransform_<?=side?>(solver, eigR, F<?=j?>, xInt);
+		<?=eqn.cons_t?> F<?=j?> = fluxFromCons(solver, *U<?=j?>, xInt, n);
+		<?=eqn.waves_t?> al<?=j?> = eigen_leftTransform(solver, eigL, *U<?=j?>, xInt, n);
+		<?=eqn.waves_t?> ar<?=j?> = eigen_leftTransform(solver, eigR, *U<?=j?>, xInt, n);
+		<?=eqn.waves_t?> afl<?=j?> = eigen_leftTransform(solver, eigL, F<?=j?>, xInt, n);
+		<?=eqn.waves_t?> afr<?=j?> = eigen_leftTransform(solver, eigR, F<?=j?>, xInt, n);
 
 <?		end
 ?>
@@ -574,8 +577,8 @@ for side=0,solver.dim-1 do ?>{
 		<?=eqn.waves_t?> wafp = weno_r_<?=side?>(afp);
 		<?=eqn.waves_t?> wafm = weno_l_<?=side?>(afm);
 		
-		<?=eqn.cons_t?> fluxP = eigen_rightTransform_<?=side?>(solver, eigL, wafp, xInt);
-		<?=eqn.cons_t?> fluxM = eigen_rightTransform_<?=side?>(solver, eigR, wafm, xInt);
+		<?=eqn.cons_t?> fluxP = eigen_rightTransform(solver, eigL, wafp, xInt, n);
+		<?=eqn.cons_t?> fluxM = eigen_rightTransform(solver, eigR, wafm, xInt, n);
 		
 		for (int j = 0; j < numStates; ++j) {
 			flux->ptr[j] = fluxP.ptr[j] + fluxM.ptr[j];
@@ -595,15 +598,15 @@ for side=0,solver.dim-1 do ?>{
 		{
 			const global <?=eqn.cons_t?>* UL<?=j?> = U + <?=j - stencilSize?> * solver->stepsize.s<?=side?>;
 			const global <?=eqn.cons_t?>* UR<?=j?> = U + <?=j+1 - stencilSize?> * solver->stepsize.s<?=side?>;
-			<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, normalForSide<?=side?>());
+			<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, n);
 
-			<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt')?>
+			<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt', n)?>
 
 			<?=eqn.cons_t?> UAvg;
 			for (int k = 0; k < numIntStates; ++k) {
 				UAvg.ptr[k] = .5 * (UL->ptr[k] + UR->ptr[k]);
 			}
-			afp[<?=j?>] = eigen_leftTransform_<?=side?>(solver, eig, UAvg, xInt);
+			afp[<?=j?>] = eigen_leftTransform(solver, eig, UAvg, xInt, n);
 			afm[<?=j?>] = afp[<?=j?>];
 
 			<?=eqn.cons_t?> deltaU;
@@ -611,7 +614,7 @@ for side=0,solver.dim-1 do ?>{
 				deltaU.ptr[k] = UR->ptr[k] - UL->ptr[k];
 			}
 			
-			<?=eqn.waves_t?> deltaUEig = eigen_leftTransform_<?=side?>(solver, eig, deltaU, xInt);
+			<?=eqn.waves_t?> deltaUEig = eigen_leftTransform(solver, eig, deltaU, xInt, n);
 
 			<? for k=0,eqn.numWaves-1 do ?>{
 				const int k = <?=k?>;
@@ -635,9 +638,9 @@ for side=0,solver.dim-1 do ?>{
 		for (int j = 0; j < numWaves; ++j) {
 			waf.ptr[j] = wafp.ptr[j] + wafm.ptr[j];
 		}
-		
-		<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, normalForSide<?=side?>());
-		*flux = eigen_rightTransform_<?=side?>(solver, eig, waf, xInt);
+	
+		<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, n);
+		*flux = eigen_rightTransform(solver, eig, waf, xInt, n);
 <?
 	
 	else

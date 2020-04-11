@@ -9,13 +9,13 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	--integrator = 'Runge-Kutta 4',
+	integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -498,7 +498,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 
 -- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler
 -- TODO weno doesn't seem to work with self-gravitation
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5})))
+self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=5})))
 
