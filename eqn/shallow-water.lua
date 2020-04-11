@@ -229,25 +229,10 @@ ShallowWater.eigenVars = table{
 	{name='C', type='real', units='m/s'},
 }
 
-function ShallowWater:eigenWaveCodePrefix(side, eig, x)
+function ShallowWater:eigenWaveCodePrefix(n, eig, x)
 	return template([[
-	real nLen = coord_sqrt_g_uu<?=side..side?>(<?=x?>);
-	real C_nLen = <?=eig?>.C * nLen;
-	real v_n = <?=eig?>.v.s[<?=side?>];
-]], {
-		eig = '('..eig..')',
-		side = side,
-		x = x,
-	})
-end
-
--- assume 'n' is covariant
-function ShallowWater:eigenWaveCodePrefixForNormal(n, eig, x)
-	return template([[
-	real nLenSq = real3_weightedLenSq(<?=n?>, coord_g_uu(<?=x?>));
-	real nLen = sqrt(nLenSq);
-	real C_nLen = <?=eig?>.C * nLen;
-	real v_n = real3_dot(<?=eig?>.v, <?=n?>);
+	real C_nLen = <?=eig?>.C * normalInfo_len(<?=n?>);
+	real v_n = normalInfo_vecDotN1(<?=n?>, <?=eig?>.v);
 ]], {
 		eig = '('..eig..')',
 		x = x,
@@ -255,24 +240,25 @@ function ShallowWater:eigenWaveCodePrefixForNormal(n, eig, x)
 	})
 end
 
-function ShallowWater:consWaveCodePrefix(side, U, x, W)
+function ShallowWater:consWaveCodePrefix(n, U, x, W)
 	return template([[
-	real nLen = coord_sqrt_g_uu<?=side..side?>(<?=x?>);
-	real C_nLen = calc_C(solver, <?=U?>) * nLen;
-<? if not W then ?>
+	real C_nLen = calc_C(solver, <?=U?>) * normalInfo_len(<?=n?>);
+<? if not W then 
+	W = 'W'
+?>
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 <? end ?>
-	real v_n = <?=W or 'W'?>.v.s[<?=side?>];
+	real v_n = normalInfo_vecDotN1(n, <?=W?>.v);
 ]], {
 		eqn = self,
 		U = '('..U..')',
 		W = W and '('..W..')' or nil,
-		side = side,
+		n = n,
 		x = x,
 	})
 end
 
-function ShallowWater:consWaveCode(side, U, x, waveIndex)
+function ShallowWater:consWaveCode(n, U, x, waveIndex)
 	if waveIndex == 0 then
 		return '(v_n - C_nLen)'
 	elseif waveIndex >= 1 and waveIndex <= 2 then

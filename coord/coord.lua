@@ -1456,19 +1456,21 @@ typedef struct {
 		error'here'
 	end
 
-	self.normalInfoCode = self.normalInfoCode .. [[
+	self.normalInfoCode = self.normalInfoCode .. template[[
 
-#define normalInfo_l1(n) \
+<? for side=1,3 do ?>
+#define normalInfo_l<?=side?>(n) \
 	(_real3( \
-		normalInfo_l1x(n), \
-		normalInfo_l1y(n), \
-		normalInfo_l1z(n)))
+		normalInfo_l<?=side?>x(n), \
+		normalInfo_l<?=side?>y(n), \
+		normalInfo_l<?=side?>z(n)))
 
-#define normalInfo_u1(n) \
+#define normalInfo_u<?=side?>(n) \
 	(_real3( \
-		normalInfo_u1x(n), \
-		normalInfo_u1y(n), \
-		normalInfo_u1z(n)))
+		normalInfo_u<?=side?>x(n), \
+		normalInfo_u<?=side?>y(n), \
+		normalInfo_u<?=side?>z(n)))
+<? end ?>
 
 ]]
 
