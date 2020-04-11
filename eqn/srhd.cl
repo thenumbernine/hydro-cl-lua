@@ -37,8 +37,9 @@ kernel void calcDT(
 	real dt = INFINITY;
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
+		normalInfo_t n = normalInfo_forSide<?=side?>(x);
 		//for the particular direction
-		real vi = U.v.s<?=side?>;
+		real vi = normalInfo_vecDotN1(n, U.v);
 		real viSq = vi * vi;
 		
 		// Marti 1998 eqn 19
@@ -56,11 +57,11 @@ kernel void calcDT(
 }
 
 <? if false then ?>
-<? for side=0,solver.dim-1 do ?>
-cons_t fluxFromCons_<?=side?>(
+cons_t fluxFromCons(
 	constant solver_t* solver,
 	cons_t U,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) {
 	real vi = U.v.s<?=side?>;
 	real P = calc_P(solver, U.rho, U.eInt);
@@ -79,7 +80,6 @@ cons_t fluxFromCons_<?=side?>(
 	return F;
 }
 <? end ?>
-<? end ?>
 
 /*
 used by PLM
@@ -94,22 +94,21 @@ NOTICE this is only going to use U->prim
 ... and numIntStates only covers the cons_t vars ...
 which means this function won't work with the PLM code
 */
-<? for side=0,solver.dim-1 do ?>
-eigen_t eigen_forCell_<?=side?>(
+eigen_t eigen_forCell(
 	constant solver_t* solver,
 	cons_t U,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) {
 	return (eigen_t){};
 }
-<? end ?>
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
 	cons_t UL,
 	cons_t UR,
 	real3 xInt,
-	real3 n
+	normalInfo_t n
 ) {
 <? if true then -- arithmetic averaging ?>
 	prim_only_t avg = {
@@ -121,27 +120,7 @@ eigen_t eigen_forInterface(
 <? end ?>
 
 	// rotate avg.v into n
-	// is numerically stable
-	//avg.v = real3_swap<?=side?>(avg.v);
-	// is not, but flexible for arbitrary normals
-	//avg.v = real3_rotateFrom(avg.v, n);
-	// here's my improvision for the time being
-	real n2x = n.x * n.x;
-	real n2y = n.y * n.y;
-	real n2z = n.z * n.z;
-	if (n2x > n2y) {
-		if (n2x > n2z) {
-			avg.v = real3_swap0(avg.v);
-		} else {
-			avg.v = real3_swap2(avg.v);
-		}
-	} else {
-		if (n2y > n2z) {
-			avg.v = real3_swap1(avg.v);
-		} else {
-			avg.v = real3_swap2(avg.v);
-		}
-	}
+	avg.v = normalInfo_vecDotNs(n, avg.v);
 
 	real rho = avg.rho;
 	real3 v = avg.v;
@@ -206,23 +185,18 @@ local eigVarCode = require 'ext.table'.map(eqn.eigenVars, function(var)
 end):concat()
 ?>
 
-<? for side=0,solver.dim-1 do ?>
-waves_t eigen_leftTransform_<?=side?>(
+waves_t eigen_leftTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t X_,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) { 
 	waves_t Y;
 
 	//rotate incoming v's in X
-	<? if side==0 then ?>
 	cons_t X = X_;
-	<? elseif side == 1 then ?>
-	cons_t X = {.ptr={X_.ptr[0], X_.ptr[2], X_.ptr[1], X_.ptr[3], X_.ptr[4]}};
-	<? elseif side == 2 then ?>
-	cons_t X = {.ptr={X_.ptr[0], X_.ptr[3], X_.ptr[2], X_.ptr[1], X_.ptr[4]}};
-	<? end ?>
+	X.S = normalInfo_vecDotNs(n, X.S);
 
 	<?=eigVarCode?>
 
@@ -284,11 +258,12 @@ waves_t eigen_leftTransform_<?=side?>(
 	return Y;
 }
 
-cons_t eigen_rightTransform_<?=side?>(
+cons_t eigen_rightTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	waves_t X,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) {
 	<?=eigVarCode?>
 	
@@ -325,11 +300,7 @@ cons_t eigen_rightTransform_<?=side?>(
 		+ X.ptr[4] * (hW * ATildePlus - 1.);
 	
 	//rotate outgoing y's x's into side
-	<? if side ~= 0 then ?>
-	real tmp = Y.ptr[1];
-	Y.ptr[1] = Y.ptr[1+<?=side?>];
-	Y.ptr[1+<?=side?>] = tmp;
-	<? end ?>
+	Y.S = normalInfo_vecFromNs(n, Y.S);
 
 	for (int i = numWaves; i < numStates; ++i) {
 		Y.ptr[i] = 0;
@@ -338,41 +309,32 @@ cons_t eigen_rightTransform_<?=side?>(
 	return Y;
 }
 
-cons_t eigen_fluxTransform_<?=side?>(
+cons_t eigen_fluxTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t X_,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) {
 #if 0
 	//rotate incoming v's in x
-	<? if side==0 then ?>
-	cons_t X = X_;
-	<? elseif side == 1 then ?>
-	cons_t X = {.ptr={X_.ptr[0], X_.ptr[2], X_.ptr[1], X_.ptr[3], X_.ptr[4]}};
-	<? elseif side == 2 then ?>
-	cons_t X = {.ptr={X_.ptr[0], X_.ptr[3], X_.ptr[2], X_.ptr[1], X_.ptr[4]}};
-	<? end ?>
+	X.S = normalInfo_vecDotNs(n, X.S);
 
 	//TODO do the matrix multiply here
 
 	//rotate outgoing y's x's into side
-	<? if side ~= 0 then ?>
-	real tmp = Y.ptr[1];
-	Y.ptr[1] = Y.ptr[1+<?=side?>];
-	Y.ptr[1+<?=side?>] = tmp;
-	<? end ?>
+	X.S = normalInfo_vecFromNs(n, X.S);
 #else
 	//default
-	waves_t waves = eigen_leftTransform_<?=side?>(solver, eig, X_, x);
-	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
+	waves_t waves = eigen_leftTransform(solver, eig, X_, x, n);
+	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'x')?>
 <? for j=0,eqn.numWaves-1 do 
-?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>;
+?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode('n', 'eig', 'x', j)?>;
 <? end 
-?>	return eigen_rightTransform_<?=side?>(solver, eig, waves, x);
+?>	return eigen_rightTransform(solver, eig, waves, x, n);
 #endif
 }
-<? end ?>
+
 
 kernel void constrainU(
 	constant solver_t* solver,

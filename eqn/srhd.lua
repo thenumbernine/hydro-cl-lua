@@ -216,6 +216,26 @@ real calc_h(real rho, real P, real eInt) {
 //PLM uses prim_only_t and cons_t, esp using the 'numIntStates' reals that they start with
 //...and PLM uses consFromPrim and primFromCons
 
+
+<? 
+local coord = solver.coord
+for side=0,solver.dim-1 do
+	if coord.vectorComponent == 'cartesian'
+	or require 'coord.cartesian'.is(coord)
+	then
+?>
+#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
+<?	else ?>
+<?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
+	U.S = coord_parallelPropagateU<?=side?>(U.S, x, dx);
+	U.v = coord_parallelPropagateU<?=side?>(U.v, x, dx);
+	return U;
+}
+<?	end
+end ?>
+
+
+
 ]], {
 		eqn = self,
 		solver = self.solver,
@@ -359,7 +379,7 @@ SRHD.eigenVars = {
 	{name='lambdaMax', type='real'},
 }
 
-function SRHD:eigenWaveCode(side, eig, x, waveIndex)
+function SRHD:eigenWaveCode(n, eig, x, waveIndex)
 	if waveIndex == 0 then
 		return '('..eig..').lambdaMin'
 	elseif waveIndex >= 1 and waveIndex <= 3 then
@@ -374,7 +394,7 @@ end
 
 -- used by HLL
 -- extra params provided by calcDT, or calculated here if not provided (just like in Euler)
-function SRHD:consWaveCodePrefix(side, U, x,
+function SRHD:consWaveCodePrefix(n, U, x,
 	prim, rho, eInt, vSq, P, h, csSq, cs
 )
 	return template([[	
@@ -391,7 +411,7 @@ function SRHD:consWaveCodePrefix(side, U, x,
 end ?>
 	
 	//for the particular direction
-	real vi = <?=prim?>.v.s<?=side?>;
+	real vi = normalInfo_vecDotN1(n, <?=prim?>.v);
 	real viSq = vi * vi;
 	
 	// Marti 1998 eqn 19
@@ -404,7 +424,7 @@ end ?>
 	real v_n = prim.v.x;
 ]], {
 		eqn = self,
-		side = side,
+		n = n,
 		U = '('..U..')',
 		x = x,
 		-- extra params either provided or calculated
@@ -420,7 +440,7 @@ end ?>
 	})
 end
 
-function SRHD:consWaveCode(side, U, x, waveIndex)
+function SRHD:consWaveCode(n, U, x, waveIndex)
 	if waveIndex == 0 then
 		return '_srhd_lambdaMin'
 	elseif waveIndex >= 1 and waveIndex <= 3 then
@@ -431,7 +451,6 @@ function SRHD:consWaveCode(side, U, x, waveIndex)
 		error'got a bad waveIndex'
 	end
 end
-
 
 
 return SRHD

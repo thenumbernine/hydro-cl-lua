@@ -253,6 +253,8 @@ cons_t eigen_rightTransform(
 }
 
 //since eig is empty
+// by default in eqn/eqn.lua, fluxFromCons is defined by eigen_fluxTransform
+// but this is the opposite
 #define eigen_fluxTransform(solver, eig, X, x, n) fluxFromCons(solver, X, x, n)
 
 

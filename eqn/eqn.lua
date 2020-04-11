@@ -459,15 +459,14 @@ Equation.hasFluxFromConsCode = nil
 function Equation:getFluxFromConsCode()
 	if self.hasFluxFromConsCode then return end
 	return template([[
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+<?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) {
-	return eigen_fluxTransform_<?=side?>(solver, eigen_forCell_<?=side?>(solver, U, x), U, x);
+	return eigen_fluxTransform(solver, eigen_forCell(solver, U, x, n), U, x, n);
 }
-<? end ?>
 ]], {
 		solver = self.solver, 
 		eqn = self,
