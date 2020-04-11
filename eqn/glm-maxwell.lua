@@ -152,6 +152,24 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 	return <?=vec3?>_<?=susc_t?>_mul(U.B, <?=susc_t?>_mul(U.sqrt_1_mu, U.sqrt_1_mu));
 }
 
+
+<? 
+local coord = solver.coord
+for side=0,solver.dim-1 do
+	if coord.vectorComponent == 'cartesian'
+	or require 'coord.cartesian'.is(coord)
+	then
+?>
+#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
+<?	else ?>
+<?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
+	U.D = coord_parallelPropagateL<?=side?>(U.D, x, dx);
+	U.B = coord_parallelPropagateL<?=side?>(U.B, x, dx);
+	return U;
+}
+<?	end
+end ?>
+
 ]], self:getTemplateEnv())
 end
 
@@ -356,7 +374,7 @@ function GLM_Maxwell:getDisplayVars()
 	return vars
 end
 
-function GLM_Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
+function GLM_Maxwell:eigenWaveCodePrefix(n, eig, x, waveIndex)
 --[=[
 	return template([[
 	<?=scalar?> v_p_abs = <?=mul?>(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu);
@@ -383,7 +401,7 @@ end
 
 -- to use this, I really need cplx multiplications everywhere it is used
 -- which is in the roe solver and hll solver
-function GLM_Maxwell:eigenWaveCode(side, eig, x, waveIndex)
+function GLM_Maxwell:eigenWaveCode(n, eig, x, waveIndex)
 	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
 	return ({
 		'-solver->divPhiWavespeed / unit_m_per_s',
@@ -397,15 +415,15 @@ function GLM_Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
 end
 
-function GLM_Maxwell:eigenMaxWaveCode(side, eig, x)
+function GLM_Maxwell:eigenMaxWaveCode(n, eig, x)
 	return 'max(max(solver->divPsiWavespeed / unit_m_per_s, solver->divPhiWavespeed / unit_m_per_s), v_p_abs)'
 end
-function GLM_Maxwell:eigenMinWaveCode(side, eig, x)
-	return '-'..self:eigenMaxWaveCode(side, eig, x)
+function GLM_Maxwell:eigenMinWaveCode(n, eig, x)
+	return '-'..self:eigenMaxWaveCode(n, eig, x)
 end
 
 
-function GLM_Maxwell:consWaveCodePrefix(side, U, x, waveIndex) 
+function GLM_Maxwell:consWaveCodePrefix(n, U, x, waveIndex) 
 	local env = self:getTemplateEnv()
 	local code = template(
 		[[<?=mul?>(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_mu)]],
@@ -421,11 +439,11 @@ function GLM_Maxwell:consWaveCodePrefix(side, U, x, waveIndex)
 end
 GLM_Maxwell.consWaveCode = GLM_Maxwell.eigenWaveCode
 
-function GLM_Maxwell:consMaxWaveCode(side, U, x)
+function GLM_Maxwell:consMaxWaveCode(n, U, x)
 	return 'max(max(solver->divPsiWavespeed, solver->divPhiWavespeed), v_p_abs)'
 end
-function GLM_Maxwell:consMinWaveCode(side, U, x)
-	return '-'..self:consMaxWaveCode(side, U, x)
+function GLM_Maxwell:consMinWaveCode(n, U, x)
+	return '-'..self:consMaxWaveCode(n, U, x)
 end
 
 
