@@ -1,6 +1,7 @@
 <?
 local clnumber = require 'cl.obj.number'
 local fluids = eqn.fluids
+local xNames = require 'common'.xNames
 ?>
 
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
@@ -25,24 +26,24 @@ typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
 
-<? for side=0,solver.dim-1 do ?>
-cons_t fluxFromCons_<?=side?>(
+cons_t fluxFromCons(
 	constant solver_t* solver,
 	cons_t U,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) {
 	prim_t W = primFromCons(solver, U, x);
 	cons_t F;
 
 <? 
 for _,fluid in ipairs(fluids) do
-?>	real <?=fluid?>_vj = W.<?=fluid?>_v.s<?=side?>;
+?>	real <?=fluid?>_vj = normalInfo_vecDotN1(n, W.<?=fluid?>_v);
 	real <?=fluid?>_HTotal = U.<?=fluid?>_ETotal + W.<?=fluid?>_P;
 	
-	F.<?=fluid?>_rho = U.<?=fluid?>_m.s<?=side?>;
+	F.<?=fluid?>_rho = normalInfo_vecDotN1(n, U.<?=fluid?>_m);
 	F.<?=fluid?>_m = real3_real_mul(U.<?=fluid?>_m, <?=fluid?>_vj);
-<? 	for i=0,2 do
-?>	F.<?=fluid?>_m.s<?=i?> += coord_g_uu<?=i?><?=side?>(x) * W.<?=fluid?>_P;
+<? 	for i,xi in ipairs(xNames) do
+?>	F.<?=fluid?>_m.<?=xi?> += normalInfo_u1<?=xi?>(n) * W.<?=fluid?>_P;
 <? 	end
 ?>	F.<?=fluid?>_ETotal = <?=fluid?>_HTotal * <?=fluid?>_vj;
 <? 
@@ -61,30 +62,29 @@ end
 	<? for _,suffix in ipairs{'', '_g'} do ?>{
 		real3 E = real3_real_mul(U.D<?=suffix?>, 1. / eps<?=suffix?>);
 		real3 H = real3_real_mul(U.B<?=suffix?>, 1. / mu<?=suffix?>);
-		<? if side == 0 then ?>
-		F.D<?=suffix?> = _real3(U.phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.z, -H.y);
-		F.B<?=suffix?> = _real3(U.psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.z, E.y);
-		<? elseif side == 1 then ?>
-		F.D<?=suffix?> = _real3(-H.z, U.phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.x);
-		F.B<?=suffix?> = _real3(E.z, U.psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.x);
-		<? elseif side == 2 then ?>
-		F.D<?=suffix?> = _real3(H.y, -H.x, U.phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s);
-		F.B<?=suffix?> = _real3(-E.y, E.x, U.psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s);
-		<? end ?>
-		F.phi<?=suffix?> = U.D<?=suffix?>.s<?=side?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s;
-		F.psi<?=suffix?> = U.B<?=suffix?>.s<?=side?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s;
+		if (n.side == 0) {
+			F.D<?=suffix?> = _real3(U.phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.z, -H.y);
+			F.B<?=suffix?> = _real3(U.psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.z, E.y);
+		} else if (n.side == 1) {
+			F.D<?=suffix?> = _real3(-H.z, U.phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.x);
+			F.B<?=suffix?> = _real3(E.z, U.psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.x);
+		} else if (n.side == 2) {
+			F.D<?=suffix?> = _real3(H.y, -H.x, U.phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s);
+			F.B<?=suffix?> = _real3(-E.y, E.x, U.psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s);
+		}
+		F.phi<?=suffix?> = normalInfo_vecDotN1(n, U.D<?=suffix?>) * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s;
+		F.psi<?=suffix?> = normalInfo_vecDotN1(n, U.B<?=suffix?>) * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s;
 	}<? end ?>
 
 	return F;
 }
-<? end ?>
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
 	cons_t UL,
 	cons_t UR,
 	real3 x,
-	real3 n
+	normalInfo_t n
 ) {
 	prim_t WL = primFromCons(solver, UL, x);
 	prim_t WR = primFromCons(solver, UR, x);
@@ -126,11 +126,11 @@ eigen_t eigen_forInterface(
 	return eig;
 }
 
-<? for side=0,solver.dim-1 do ?>
-eigen_t eigen_forCell_<?=side?>(
+eigen_t eigen_forCell(
 	constant solver_t* solver,
 	cons_t U,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) {
 	prim_t W = primFromCons(solver, U, x);
 <? for _,fluid in ipairs(fluids) do ?>
@@ -150,70 +150,53 @@ eigen_t eigen_forCell_<?=side?>(
 <? end ?>	
 	};
 }
-<? end ?>
 
-<? for side=0,solver.dim-1 do 
-	local prefix
-	if side == 0 then
-		prefix = [[
-	const real nx = 1, ny = 0, nz = 0;
-	const real n1x = 0, n1y = 1, n1z = 0;
-	const real n2x = 0, n2y = 0, n2z = 1;
-	real ion_v_n = ion_v.x, ion_v_n1 = ion_v.y, ion_v_n2 = ion_v.z;
-	real elec_v_n = elec_v.x, elec_v_n1 = elec_v.y, elec_v_n2 = elec_v.z;
-]] 
-	elseif side == 1 then
-		prefix = [[
-	const real nx = 0, ny = 1, nz = 0;
-	const real n1x = 0, n1y = 0, n1z = 1;
-	const real n2x = 1, n2y = 0, n2z = 0;
-	real ion_v_n = ion_v.y, ion_v_n1 = ion_v.z, ion_v_n2 = ion_v.x;
-	real elec_v_n = elec_v.y, elec_v_n1 = elec_v.z, elec_v_n2 = elec_v.x;
-]] 
-	elseif side == 2 then
-		prefix = [[
-	const real nx = 0, ny = 0, nz = 1;
-	const real n1x = 1, n1y = 0, n1z = 0;
-	const real n2x = 0, n2y = 1, n2z = 0;
-	real ion_v_n = ion_v.z, ion_v_n1 = ion_v.x, ion_v_n2 = ion_v.y;
-	real elec_v_n = elec_v.z, elec_v_n1 = elec_v.x, elec_v_n2 = elec_v.y;
-]]
-	end
-	prefix = [[
-	sym3 gU = coord_g_uu(x);
-	real gUjj = gU.s]]..side..side..[[;
-	real sqrt_gUjj = coord_sqrt_g_uu]]..side..side..[[(x);
-	
+<?
+local prefix = [[
+	real nLen = normalInfo_len(n);
+	real nLenSq = nLen * nLen;
+
 	//g^ij for fixed j=side
 	real3 ion_v = eig.ion_v;
 	real3 ion_vL = coord_lower(ion_v, x);
 	real ion_hTotal = eig.ion_hTotal;
 	real ion_vSq = real3_dot(ion_v, ion_vL);
 	real ion_Cs = eig.ion_Cs;
-	real ion_Cs_over_sqrt_gUjj = ion_Cs / sqrt_gUjj; 
+	real ion_Cs_over_nLen = ion_Cs / nLen; 
 	
 	real3 elec_v = eig.elec_v;
 	real3 elec_vL = coord_lower(elec_v, x);
 	real elec_hTotal = eig.elec_hTotal;
 	real elec_vSq = real3_dot(elec_v, elec_vL);
 	real elec_Cs = eig.elec_Cs;
-	real elec_Cs_over_sqrt_gUjj = elec_Cs / sqrt_gUjj; 
+	real elec_Cs_over_nLen = elec_Cs / nLen; 
 
-]] .. prefix
+	real nx = normalInfo_l1x(n);
+	real ny = normalInfo_l1y(n);
+	real nz = normalInfo_l1z(n);
+	real n1x = normalInfo_l2x(n);
+	real n1y = normalInfo_l2y(n);
+	real n1z = normalInfo_l2z(n);
+	real n2x = normalInfo_l3x(n);
+	real n2y = normalInfo_l3y(n);
+	real n2z = normalInfo_l3z(n);
 
-	local gUdef = '\treal3 gUj = _real3(\n'
-	for i=0,2 do
-		gUdef = gUdef .. '\t\tcoord_g_uu'..side..i..'(x)'..(i<2 and ',' or '')..'\n'
-	end
-	gUdef = gUdef .. '\t);\n'
-	prefix = gUdef .. prefix
+	real3 nU = normalInfo_u1(n);
+
+	real3 ion_v_ns = normalInfo_vecDotNs(n, ion_v);
+	real ion_v_n = ion_v_ns.x, ion_v_n1 = ion_v_ns.y, ion_v_n2 = ion_v_ns.z;
+	real3 elec_v_ns = normalInfo_vecDotNs(n, elec_v);
+	real elec_v_n = elec_v_ns.x, elec_v_n1 = elec_v_ns.y, elec_v_n2 = elec_v_ns.z;
+ 
+]]
 ?>
 
-waves_t eigen_leftTransform_<?=side?>(
+waves_t eigen_leftTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t UX,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) { 
 	waves_t UY;
 	real* Y = UY.ptr;
@@ -240,167 +223,158 @@ waves_t eigen_leftTransform_<?=side?>(
 	real sqrt_eps_g = sqrt(eps_g);	// TODO sqrt units
 	real sqrt_mu_g = sqrt(mu_g);
 
-<? 
-				if side == 0 then 
-?>
-	real sqrt_gUxx = sqrt_gUjj;
+	if (n.side == 0) {
 <?
 					for i,fluid in ipairs(fluids) do
 ?>
-	Y[<?=5*i-5?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq + <?=fluid?>_Cs * <?=fluid?>_v.x / sqrt_gUxx)
-		+ X[<?=5*i-4?>] * (-heatRatioMinusOne * <?=fluid?>_vL.x - <?=fluid?>_Cs / sqrt_gUxx)
-		+ X[<?=5*i-3?>] * -heatRatioMinusOne * <?=fluid?>_vL.y
-		+ X[<?=5*i-2?>] * -heatRatioMinusOne * <?=fluid?>_vL.z
-		+ X[<?=5*i-1?>] * heatRatioMinusOne
-	) * <?=fluid?>_invDenom;
-	Y[<?=5*i-4?>] = (X[<?=5*i-5?>] * (<?=fluid?>_denom - heatRatioMinusOne * <?=fluid?>_vSq)
-		+ X[<?=5*i-4?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.x
-		+ X[<?=5*i-3?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.y
-		+ X[<?=5*i-2?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.z
-		+ X[<?=5*i-1?>] * -2. * heatRatioMinusOne
-	) * <?=fluid?>_invDenom;
-	Y[<?=5*i-3?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x * gU.xy / gU.xx - <?=fluid?>_v.y)
-		+ X[<?=5*i-4?>] * -gU.xy / gU.xx
-		+ X[<?=5*i-3?>];
-	Y[<?=5*i-2?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x * gU.xz / gU.xx - <?=fluid?>_v.z)
-		+ X[<?=5*i-4?>] * -gU.xz / gU.xx
-		+ X[<?=5*i-2?>];
-	Y[<?=5*i-1?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq - <?=fluid?>_Cs * <?=fluid?>_v.x / sqrt_gUxx)
-		+ X[<?=5*i-4?>] * (-heatRatioMinusOne * <?=fluid?>_vL.x + <?=fluid?>_Cs / sqrt_gUxx)
-		+ X[<?=5*i-3?>] * -heatRatioMinusOne * <?=fluid?>_vL.y
-		+ X[<?=5*i-2?>] * -heatRatioMinusOne * <?=fluid?>_vL.z
-		+ X[<?=5*i-1?>] * heatRatioMinusOne
-	) * <?=fluid?>_invDenom;
+		Y[<?=5*i-5?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq + <?=fluid?>_Cs * <?=fluid?>_v.x / nLen)
+			+ X[<?=5*i-4?>] * (-heatRatioMinusOne * <?=fluid?>_vL.x - <?=fluid?>_Cs / nLen)
+			+ X[<?=5*i-3?>] * -heatRatioMinusOne * <?=fluid?>_vL.y
+			+ X[<?=5*i-2?>] * -heatRatioMinusOne * <?=fluid?>_vL.z
+			+ X[<?=5*i-1?>] * heatRatioMinusOne
+		) * <?=fluid?>_invDenom;
+		Y[<?=5*i-4?>] = (X[<?=5*i-5?>] * (<?=fluid?>_denom - heatRatioMinusOne * <?=fluid?>_vSq)
+			+ X[<?=5*i-4?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.x
+			+ X[<?=5*i-3?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.y
+			+ X[<?=5*i-2?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.z
+			+ X[<?=5*i-1?>] * -2. * heatRatioMinusOne
+		) * <?=fluid?>_invDenom;
+		Y[<?=5*i-3?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x * nU.y / nLenSq - <?=fluid?>_v.y)
+			+ X[<?=5*i-4?>] * -nU.y / nLenSq
+			+ X[<?=5*i-3?>];
+		Y[<?=5*i-2?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x * nU.z / nLenSq - <?=fluid?>_v.z)
+			+ X[<?=5*i-4?>] * -nU.z / nLenSq
+			+ X[<?=5*i-2?>];
+		Y[<?=5*i-1?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq - <?=fluid?>_Cs * <?=fluid?>_v.x / nLen)
+			+ X[<?=5*i-4?>] * (-heatRatioMinusOne * <?=fluid?>_vL.x + <?=fluid?>_Cs / nLen)
+			+ X[<?=5*i-3?>] * -heatRatioMinusOne * <?=fluid?>_vL.y
+			+ X[<?=5*i-2?>] * -heatRatioMinusOne * <?=fluid?>_vL.z
+			+ X[<?=5*i-1?>] * heatRatioMinusOne
+		) * <?=fluid?>_invDenom;
 <? 
 					end
 ?>	
-	X += 2;
-	Y += 2;
-	//EM & gravity
-	<? for i,suffix in ipairs{'', '_g'} do ?>{
-		X += 8;
-		Y += 8;
-		Y[0] = ((-(sqrt_eps<?=suffix?> * (X[0] - X[6]))) / sqrt_2);
-		Y[1] = ((-(sqrt_eps<?=suffix?> * (X[3] - X[7]))) / sqrt_2);
-		Y[2] = (((X[2] * sqrt_mu<?=suffix?>) + (X[4] * sqrt_eps<?=suffix?>)) / (sqrt_mu<?=suffix?> * sqrt_2 * sqrt_eps<?=suffix?>));
-		Y[3] = (((X[1] * sqrt_mu<?=suffix?>) - (X[5] * sqrt_eps<?=suffix?>)) / (-(sqrt_mu<?=suffix?> * sqrt_2 * sqrt_eps<?=suffix?>)));
-		Y[4] = ((-((X[2] * sqrt_mu<?=suffix?>) - (X[4] * sqrt_eps<?=suffix?>))) / (sqrt_mu<?=suffix?> * sqrt_eps<?=suffix?> * sqrt_2));
-		Y[5] = (((X[1] * sqrt_mu<?=suffix?>) + (X[5] * sqrt_eps<?=suffix?>)) / (sqrt_mu<?=suffix?> * sqrt_eps<?=suffix?> * sqrt_2));
-		Y[6] = ((sqrt_eps<?=suffix?> * (X[0] + X[6])) / sqrt_2);
-		Y[7] = ((sqrt_eps<?=suffix?> * (X[3] + X[7])) / sqrt_2);
-	}<? end ?>
+		X += 2;
+		Y += 2;
+		//EM & gravity
+		<? for i,suffix in ipairs{'', '_g'} do ?>{
+			X += 8;
+			Y += 8;
+			Y[0] = ((-(sqrt_eps<?=suffix?> * (X[0] - X[6]))) / sqrt_2);
+			Y[1] = ((-(sqrt_eps<?=suffix?> * (X[3] - X[7]))) / sqrt_2);
+			Y[2] = (((X[2] * sqrt_mu<?=suffix?>) + (X[4] * sqrt_eps<?=suffix?>)) / (sqrt_mu<?=suffix?> * sqrt_2 * sqrt_eps<?=suffix?>));
+			Y[3] = (((X[1] * sqrt_mu<?=suffix?>) - (X[5] * sqrt_eps<?=suffix?>)) / (-(sqrt_mu<?=suffix?> * sqrt_2 * sqrt_eps<?=suffix?>)));
+			Y[4] = ((-((X[2] * sqrt_mu<?=suffix?>) - (X[4] * sqrt_eps<?=suffix?>))) / (sqrt_mu<?=suffix?> * sqrt_eps<?=suffix?> * sqrt_2));
+			Y[5] = (((X[1] * sqrt_mu<?=suffix?>) + (X[5] * sqrt_eps<?=suffix?>)) / (sqrt_mu<?=suffix?> * sqrt_eps<?=suffix?> * sqrt_2));
+			Y[6] = ((sqrt_eps<?=suffix?> * (X[0] + X[6])) / sqrt_2);
+			Y[7] = ((sqrt_eps<?=suffix?> * (X[3] + X[7])) / sqrt_2);
+		}<? end ?>
 
-<?
-				elseif side == 1 then 
-?>
-	real sqrt_gUyy = sqrt_gUjj;
+	} else if (n.side == 1) {
 <?	
 					for i,fluid in ipairs(fluids) do
 ?>
-	Y[<?=5*i-5?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq + <?=fluid?>_Cs * <?=fluid?>_v.y / sqrt_gUyy)
-		+ X[<?=5*i-4?>] * -heatRatioMinusOne * <?=fluid?>_vL.x
-		+ X[<?=5*i-3?>] * (-heatRatioMinusOne * <?=fluid?>_vL.y - <?=fluid?>_Cs / sqrt_gUyy)
-		+ X[<?=5*i-2?>] * -heatRatioMinusOne * <?=fluid?>_vL.z
-		+ X[<?=5*i-1?>] * heatRatioMinusOne
-	) * <?=fluid?>_invDenom;
-	Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.y * gU.xy / gU.yy - <?=fluid?>_v.x)
-		+ X[<?=5*i-4?>]
-		+ X[<?=5*i-3?>] * -gU.xy / gU.yy;
-	Y[<?=5*i-3?>] = (X[<?=5*i-5?>] * (<?=fluid?>_denom - heatRatioMinusOne * <?=fluid?>_vSq)
-		+ X[<?=5*i-4?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.x
-		+ X[<?=5*i-3?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.y
-		+ X[<?=5*i-2?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.z
-		+ X[<?=5*i-1?>] * -2. * heatRatioMinusOne
-	) * <?=fluid?>_invDenom;
-	Y[<?=5*i-2?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.y * gU.yz / gU.yy - <?=fluid?>_v.z)
-		+ X[<?=5*i-3?>] * -gU.yz / gU.yy
-		+ X[<?=5*i-2?>];
-	Y[<?=5*i-1?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq - <?=fluid?>_Cs * <?=fluid?>_v.y / sqrt_gUyy)
-		+ X[<?=5*i-4?>] * -heatRatioMinusOne * <?=fluid?>_vL.x
-		+ X[<?=5*i-3?>] * (-heatRatioMinusOne * <?=fluid?>_vL.y + <?=fluid?>_Cs / sqrt_gUyy)
-		+ X[<?=5*i-2?>] * -heatRatioMinusOne * <?=fluid?>_vL.z
-		+ X[<?=5*i-1?>] * heatRatioMinusOne
-	) * <?=fluid?>_invDenom;
+		Y[<?=5*i-5?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq + <?=fluid?>_Cs * <?=fluid?>_v.y / nLen)
+			+ X[<?=5*i-4?>] * -heatRatioMinusOne * <?=fluid?>_vL.x
+			+ X[<?=5*i-3?>] * (-heatRatioMinusOne * <?=fluid?>_vL.y - <?=fluid?>_Cs / nLen)
+			+ X[<?=5*i-2?>] * -heatRatioMinusOne * <?=fluid?>_vL.z
+			+ X[<?=5*i-1?>] * heatRatioMinusOne
+		) * <?=fluid?>_invDenom;
+		Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.y * nU.x / nLenSq - <?=fluid?>_v.x)
+			+ X[<?=5*i-4?>]
+			+ X[<?=5*i-3?>] * -nU.x / nLenSq;
+		Y[<?=5*i-3?>] = (X[<?=5*i-5?>] * (<?=fluid?>_denom - heatRatioMinusOne * <?=fluid?>_vSq)
+			+ X[<?=5*i-4?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.x
+			+ X[<?=5*i-3?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.y
+			+ X[<?=5*i-2?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.z
+			+ X[<?=5*i-1?>] * -2. * heatRatioMinusOne
+		) * <?=fluid?>_invDenom;
+		Y[<?=5*i-2?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.y * nU.z / nLenSq - <?=fluid?>_v.z)
+			+ X[<?=5*i-3?>] * -nU.z / nLenSq
+			+ X[<?=5*i-2?>];
+		Y[<?=5*i-1?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq - <?=fluid?>_Cs * <?=fluid?>_v.y / nLen)
+			+ X[<?=5*i-4?>] * -heatRatioMinusOne * <?=fluid?>_vL.x
+			+ X[<?=5*i-3?>] * (-heatRatioMinusOne * <?=fluid?>_vL.y + <?=fluid?>_Cs / nLen)
+			+ X[<?=5*i-2?>] * -heatRatioMinusOne * <?=fluid?>_vL.z
+			+ X[<?=5*i-1?>] * heatRatioMinusOne
+		) * <?=fluid?>_invDenom;
 <?
 					end 
 ?>
-	X += 2;
-	Y += 2;
-	//EM & gravity
-	<? for i,suffix in ipairs{'', '_g'} do ?>{
-		X += 8;
-		Y += 8;
-		Y[0] = ((-(sqrt_eps<?=suffix?> * (X[1] - X[6]))) / sqrt_2);
-		Y[1] = ((-(sqrt_eps<?=suffix?> * (X[4] - X[7]))) / sqrt_2);
-		Y[2] = (((X[2] * sqrt_mu<?=suffix?>) - (X[3] * sqrt_eps<?=suffix?>)) / (-(sqrt_mu<?=suffix?> * sqrt_2 * sqrt_eps<?=suffix?>)));
-		Y[3] = (((X[0] * sqrt_mu<?=suffix?>) + (X[5] * sqrt_eps<?=suffix?>)) / (sqrt_mu<?=suffix?> * sqrt_2 * sqrt_eps<?=suffix?>));
-		Y[4] = (((X[2] * sqrt_mu<?=suffix?>) + (X[3] * sqrt_eps<?=suffix?>)) / (sqrt_mu<?=suffix?> * sqrt_eps<?=suffix?> * sqrt_2));
-		Y[5] = ((-((X[0] * sqrt_mu<?=suffix?>) - (X[5] * sqrt_eps<?=suffix?>))) / (sqrt_mu<?=suffix?> * sqrt_eps<?=suffix?> * sqrt_2));
-		Y[6] = ((sqrt_eps<?=suffix?> * (X[1] + X[6])) / sqrt_2);
-		Y[7] = ((sqrt_eps<?=suffix?> * (X[4] + X[7])) / sqrt_2);
-	}<? end ?>
+		X += 2;
+		Y += 2;
+		//EM & gravity
+		<? for i,suffix in ipairs{'', '_g'} do ?>{
+			X += 8;
+			Y += 8;
+			Y[0] = ((-(sqrt_eps<?=suffix?> * (X[1] - X[6]))) / sqrt_2);
+			Y[1] = ((-(sqrt_eps<?=suffix?> * (X[4] - X[7]))) / sqrt_2);
+			Y[2] = (((X[2] * sqrt_mu<?=suffix?>) - (X[3] * sqrt_eps<?=suffix?>)) / (-(sqrt_mu<?=suffix?> * sqrt_2 * sqrt_eps<?=suffix?>)));
+			Y[3] = (((X[0] * sqrt_mu<?=suffix?>) + (X[5] * sqrt_eps<?=suffix?>)) / (sqrt_mu<?=suffix?> * sqrt_2 * sqrt_eps<?=suffix?>));
+			Y[4] = (((X[2] * sqrt_mu<?=suffix?>) + (X[3] * sqrt_eps<?=suffix?>)) / (sqrt_mu<?=suffix?> * sqrt_eps<?=suffix?> * sqrt_2));
+			Y[5] = ((-((X[0] * sqrt_mu<?=suffix?>) - (X[5] * sqrt_eps<?=suffix?>))) / (sqrt_mu<?=suffix?> * sqrt_eps<?=suffix?> * sqrt_2));
+			Y[6] = ((sqrt_eps<?=suffix?> * (X[1] + X[6])) / sqrt_2);
+			Y[7] = ((sqrt_eps<?=suffix?> * (X[4] + X[7])) / sqrt_2);
+		}<? end ?>
 
-<? 
-				elseif side == 2 then
-?>
-	real sqrt_gUzz = sqrt_gUjj;
+	} else if (n.side == 2) {
 <?
 					for i,fluid in ipairs(fluids) do
 ?>
-	Y[<?=5*i-5?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq + <?=fluid?>_Cs * <?=fluid?>_v.z / sqrt_gUzz)
-		+ X[<?=5*i-4?>] * -heatRatioMinusOne * <?=fluid?>_vL.x
-		+ X[<?=5*i-3?>] * -heatRatioMinusOne * <?=fluid?>_vL.y
-		+ X[<?=5*i-2?>] * (-heatRatioMinusOne * <?=fluid?>_vL.z - <?=fluid?>_Cs / sqrt_gUzz)
-		+ X[<?=5*i-1?>] * heatRatioMinusOne
-	) * <?=fluid?>_invDenom;
-	Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.z * gU.xz / gU.zz - <?=fluid?>_v.x)
-		+ X[<?=5*i-4?>]
-		+ X[<?=5*i-2?>] * -gU.xz / gU.zz;
-	Y[<?=5*i-3?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.z * gU.yz / gU.zz - <?=fluid?>_v.y)
-		+ X[<?=5*i-3?>]
-		+ X[<?=5*i-2?>] * -gU.yz / gU.zz;
-	Y[<?=5*i-2?>] = (X[<?=5*i-5?>] * (<?=fluid?>_denom - heatRatioMinusOne * <?=fluid?>_vSq)
-		+ X[<?=5*i-4?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.x
-		+ X[<?=5*i-3?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.y
-		+ X[<?=5*i-2?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.z
-		+ X[<?=5*i-1?>] * -2. * heatRatioMinusOne
-	) * <?=fluid?>_invDenom;
-	Y[<?=5*i-1?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq - <?=fluid?>_Cs * <?=fluid?>_v.z / sqrt_gUzz)
-		+ X[<?=5*i-4?>] * -heatRatioMinusOne * <?=fluid?>_vL.x
-		+ X[<?=5*i-3?>] * -heatRatioMinusOne * <?=fluid?>_vL.y
-		+ X[<?=5*i-2?>] * (-heatRatioMinusOne * <?=fluid?>_vL.z + <?=fluid?>_Cs / sqrt_gUzz)
-		+ X[<?=5*i-1?>] * heatRatioMinusOne
-	) * <?=fluid?>_invDenom;
+		Y[<?=5*i-5?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq + <?=fluid?>_Cs * <?=fluid?>_v.z / nLen)
+			+ X[<?=5*i-4?>] * -heatRatioMinusOne * <?=fluid?>_vL.x
+			+ X[<?=5*i-3?>] * -heatRatioMinusOne * <?=fluid?>_vL.y
+			+ X[<?=5*i-2?>] * (-heatRatioMinusOne * <?=fluid?>_vL.z - <?=fluid?>_Cs / nLen)
+			+ X[<?=5*i-1?>] * heatRatioMinusOne
+		) * <?=fluid?>_invDenom;
+		Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.z * nU.x / nLenSq - <?=fluid?>_v.x)
+			+ X[<?=5*i-4?>]
+			+ X[<?=5*i-2?>] * -nU.x / nLenSq;
+		Y[<?=5*i-3?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.z * nU.y / nLenSq - <?=fluid?>_v.y)
+			+ X[<?=5*i-3?>]
+			+ X[<?=5*i-2?>] * -nU.y / nLenSq;
+		Y[<?=5*i-2?>] = (X[<?=5*i-5?>] * (<?=fluid?>_denom - heatRatioMinusOne * <?=fluid?>_vSq)
+			+ X[<?=5*i-4?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.x
+			+ X[<?=5*i-3?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.y
+			+ X[<?=5*i-2?>] * 2. * heatRatioMinusOne * <?=fluid?>_vL.z
+			+ X[<?=5*i-1?>] * -2. * heatRatioMinusOne
+		) * <?=fluid?>_invDenom;
+		Y[<?=5*i-1?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq - <?=fluid?>_Cs * <?=fluid?>_v.z / nLen)
+			+ X[<?=5*i-4?>] * -heatRatioMinusOne * <?=fluid?>_vL.x
+			+ X[<?=5*i-3?>] * -heatRatioMinusOne * <?=fluid?>_vL.y
+			+ X[<?=5*i-2?>] * (-heatRatioMinusOne * <?=fluid?>_vL.z + <?=fluid?>_Cs / nLen)
+			+ X[<?=5*i-1?>] * heatRatioMinusOne
+		) * <?=fluid?>_invDenom;
 <? 
 					end
 ?>
-	X += 2;
-	Y += 2;
-	//EM & gravity
-	<? for i,suffix in ipairs{'', '_g'} do ?>{
-		X += 8;
-		Y += 8;
-		Y[0] = ((-(sqrt_eps<?=suffix?> * (X[2] - X[6]))) / sqrt_2);
-		Y[1] = ((-(sqrt_eps<?=suffix?> * (X[5] - X[7]))) / sqrt_2);
-		Y[2] = (((X[1] * sqrt_mu<?=suffix?>) + (X[3] * sqrt_eps<?=suffix?>)) / (sqrt_mu<?=suffix?> * sqrt_2 * sqrt_eps<?=suffix?>));
-		Y[3] = (((X[0] * sqrt_mu<?=suffix?>) - (X[4] * sqrt_eps<?=suffix?>)) / (-(sqrt_mu<?=suffix?> * sqrt_2 * sqrt_eps<?=suffix?>)));
-		Y[4] = (((X[1] * sqrt_mu<?=suffix?>) - (X[3] * sqrt_eps<?=suffix?>)) / (-(sqrt_mu<?=suffix?> * sqrt_2 * sqrt_eps<?=suffix?>)));
-		Y[5] = (((X[0] * sqrt_mu<?=suffix?>) + (X[4] * sqrt_eps<?=suffix?>)) / (sqrt_mu<?=suffix?> * sqrt_eps<?=suffix?> * sqrt_2));
-		Y[6] = ((sqrt_eps<?=suffix?> * (X[2] + X[6])) / sqrt_2);
-		Y[7] = ((sqrt_eps<?=suffix?> * (X[5] + X[7])) / sqrt_2);
-	}<? end ?>
+		X += 2;
+		Y += 2;
+		//EM & gravity
+		<? for i,suffix in ipairs{'', '_g'} do ?>{
+			X += 8;
+			Y += 8;
+			Y[0] = ((-(sqrt_eps<?=suffix?> * (X[2] - X[6]))) / sqrt_2);
+			Y[1] = ((-(sqrt_eps<?=suffix?> * (X[5] - X[7]))) / sqrt_2);
+			Y[2] = (((X[1] * sqrt_mu<?=suffix?>) + (X[3] * sqrt_eps<?=suffix?>)) / (sqrt_mu<?=suffix?> * sqrt_2 * sqrt_eps<?=suffix?>));
+			Y[3] = (((X[0] * sqrt_mu<?=suffix?>) - (X[4] * sqrt_eps<?=suffix?>)) / (-(sqrt_mu<?=suffix?> * sqrt_2 * sqrt_eps<?=suffix?>)));
+			Y[4] = (((X[1] * sqrt_mu<?=suffix?>) - (X[3] * sqrt_eps<?=suffix?>)) / (-(sqrt_mu<?=suffix?> * sqrt_2 * sqrt_eps<?=suffix?>)));
+			Y[5] = (((X[0] * sqrt_mu<?=suffix?>) + (X[4] * sqrt_eps<?=suffix?>)) / (sqrt_mu<?=suffix?> * sqrt_eps<?=suffix?> * sqrt_2));
+			Y[6] = ((sqrt_eps<?=suffix?> * (X[2] + X[6])) / sqrt_2);
+			Y[7] = ((sqrt_eps<?=suffix?> * (X[5] + X[7])) / sqrt_2);
+		}<? end ?>
 
-<?
-				end 
-?>
+	}
+
 	return UY;
 }
 
-cons_t eigen_rightTransform_<?=side?>(
+cons_t eigen_rightTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	waves_t UX,	//numWaves = 26
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) {
 	cons_t UY;
 	real* Y = UY.ptr;
@@ -418,147 +392,139 @@ cons_t eigen_rightTransform_<?=side?>(
 	real sqrt_mu_g = sqrt(mu_g);
 
 	<?=prefix?>
-<? 
-				if side == 0 then
-?>
-	real sqrt_gUxx = sqrt_gUjj;
+	
+	
+	if (n.side == 0) {
 <?
 					for i,fluid in ipairs(fluids) do
 ?>
-	Y[<?=5*i-5?>] = X[<?=5*i-5?>] + X[<?=5*i-4?>] + X[<?=5*i-1?>];
-	Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x - <?=fluid?>_Cs * sqrt_gUxx)
-		+ X[<?=5*i-4?>] * <?=fluid?>_v.x
-		+ X[<?=5*i-1?>] * (<?=fluid?>_v.x + <?=fluid?>_Cs * sqrt_gUxx);
-	Y[<?=5*i-3?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.y - <?=fluid?>_Cs * gU.xy / sqrt_gUxx)
-		+ X[<?=5*i-4?>] * <?=fluid?>_v.y
-		+ X[<?=5*i-3?>]
-		+ X[<?=5*i-1?>] * (<?=fluid?>_v.y + <?=fluid?>_Cs * gU.xy / sqrt_gUxx);
-	Y[<?=5*i-2?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.z - <?=fluid?>_Cs * gU.xz / sqrt_gUxx)
-		+ X[<?=5*i-4?>] * <?=fluid?>_v.z
-		+ X[<?=5*i-2?>]
-		+ X[<?=5*i-1?>] * (<?=fluid?>_v.z + <?=fluid?>_Cs * gU.xz / sqrt_gUxx);
-	Y[<?=5*i-1?>] = X[<?=5*i-5?>] * (<?=fluid?>_hTotal - <?=fluid?>_Cs * <?=fluid?>_v.x / sqrt_gUxx)
-		+ X[<?=5*i-4?>] * <?=fluid?>_vSq / 2.
-		+ X[<?=5*i-3?>] * <?=fluid?>_vL.y
-		+ X[<?=5*i-2?>] * <?=fluid?>_vL.z
-		+ X[<?=5*i-1?>] * (<?=fluid?>_hTotal + <?=fluid?>_Cs * <?=fluid?>_v.x / sqrt_gUxx);
+		Y[<?=5*i-5?>] = X[<?=5*i-5?>] + X[<?=5*i-4?>] + X[<?=5*i-1?>];
+		Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x - <?=fluid?>_Cs * nLen)
+			+ X[<?=5*i-4?>] * <?=fluid?>_v.x
+			+ X[<?=5*i-1?>] * (<?=fluid?>_v.x + <?=fluid?>_Cs * nLen);
+		Y[<?=5*i-3?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.y - <?=fluid?>_Cs * nU.y / nLen)
+			+ X[<?=5*i-4?>] * <?=fluid?>_v.y
+			+ X[<?=5*i-3?>]
+			+ X[<?=5*i-1?>] * (<?=fluid?>_v.y + <?=fluid?>_Cs * nU.y / nLen);
+		Y[<?=5*i-2?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.z - <?=fluid?>_Cs * nU.z / nLen)
+			+ X[<?=5*i-4?>] * <?=fluid?>_v.z
+			+ X[<?=5*i-2?>]
+			+ X[<?=5*i-1?>] * (<?=fluid?>_v.z + <?=fluid?>_Cs * nU.z / nLen);
+		Y[<?=5*i-1?>] = X[<?=5*i-5?>] * (<?=fluid?>_hTotal - <?=fluid?>_Cs * <?=fluid?>_v.x / nLen)
+			+ X[<?=5*i-4?>] * <?=fluid?>_vSq / 2.
+			+ X[<?=5*i-3?>] * <?=fluid?>_vL.y
+			+ X[<?=5*i-2?>] * <?=fluid?>_vL.z
+			+ X[<?=5*i-1?>] * (<?=fluid?>_hTotal + <?=fluid?>_Cs * <?=fluid?>_v.x / nLen);
 <?
 					end
 ?>
-	X += 2;
-	Y += 2;
-	//EM & gravity
-	<? for i,suffix in ipairs{'', '_g'} do ?>{
-		X += 8;
-		Y += 8;
-		Y[0] = ((-(X[0] - X[6])) / (sqrt_2 * sqrt_eps<?=suffix?>));
-		Y[1] = ((-(sqrt_eps<?=suffix?> * (X[3] - X[5]))) / sqrt_2);
-		Y[2] = ((sqrt_eps<?=suffix?> * (X[2] - X[4])) / sqrt_2);
-		Y[3] = ((-(X[1] - X[7])) / (sqrt_2 * sqrt_eps<?=suffix?>));
-		Y[4] = ((sqrt_mu<?=suffix?> * (X[2] + X[4])) / sqrt_2);
-		Y[5] = ((sqrt_mu<?=suffix?> * (X[3] + X[5])) / sqrt_2);
-		Y[6] = ((X[0] + X[6]) / (sqrt_2 * sqrt_eps<?=suffix?>));
-		Y[7] = ((X[1] + X[7]) / (sqrt_2 * sqrt_eps<?=suffix?>));
-	}<? end ?>
+		X += 2;
+		Y += 2;
+		//EM & gravity
+		<? for i,suffix in ipairs{'', '_g'} do ?>{
+			X += 8;
+			Y += 8;
+			Y[0] = ((-(X[0] - X[6])) / (sqrt_2 * sqrt_eps<?=suffix?>));
+			Y[1] = ((-(sqrt_eps<?=suffix?> * (X[3] - X[5]))) / sqrt_2);
+			Y[2] = ((sqrt_eps<?=suffix?> * (X[2] - X[4])) / sqrt_2);
+			Y[3] = ((-(X[1] - X[7])) / (sqrt_2 * sqrt_eps<?=suffix?>));
+			Y[4] = ((sqrt_mu<?=suffix?> * (X[2] + X[4])) / sqrt_2);
+			Y[5] = ((sqrt_mu<?=suffix?> * (X[3] + X[5])) / sqrt_2);
+			Y[6] = ((X[0] + X[6]) / (sqrt_2 * sqrt_eps<?=suffix?>));
+			Y[7] = ((X[1] + X[7]) / (sqrt_2 * sqrt_eps<?=suffix?>));
+		}<? end ?>
 
-<? 
-				elseif side == 1 then
-?>
-	real sqrt_gUyy = sqrt_gUjj;
+	} else if (n.side == 1) {
 <?
 					for i,fluid in ipairs(fluids) do
 ?>	
-	Y[<?=5*i-5?>] = X[<?=5*i-5?>] + X[<?=5*i-3?>] + X[<?=5*i-1?>];
-	Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x - <?=fluid?>_Cs * gU.xy / sqrt_gUyy)
-		+ X[<?=5*i-4?>]
-		+ X[<?=5*i-3?>] * <?=fluid?>_v.x
-		+ X[<?=5*i-1?>] * (<?=fluid?>_v.x + <?=fluid?>_Cs * gU.xy / sqrt_gUyy);
-	Y[<?=5*i-3?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.y - <?=fluid?>_Cs * sqrt_gUyy)
-		+ X[<?=5*i-3?>] * <?=fluid?>_v.y
-		+ X[<?=5*i-1?>] * (<?=fluid?>_v.y + <?=fluid?>_Cs * sqrt_gUyy);
-	Y[<?=5*i-2?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.z - <?=fluid?>_Cs * gU.yz / sqrt_gUyy)
-		+ X[<?=5*i-3?>] * <?=fluid?>_v.z
-		+ X[<?=5*i-2?>]
-		+ X[<?=5*i-1?>] * (<?=fluid?>_v.z + <?=fluid?>_Cs * gU.yz / sqrt_gUyy);
-	Y[<?=5*i-1?>] = X[<?=5*i-5?>] * (<?=fluid?>_hTotal - <?=fluid?>_Cs * <?=fluid?>_v.y / sqrt_gUyy)
-		+ X[<?=5*i-4?>] * <?=fluid?>_vL.x
-		+ X[<?=5*i-3?>] * <?=fluid?>_vSq / 2.
-		+ X[<?=5*i-2?>] * <?=fluid?>_vL.z
-		+ X[<?=5*i-1?>] * (<?=fluid?>_hTotal + <?=fluid?>_Cs * <?=fluid?>_v.y / sqrt_gUyy);
+		Y[<?=5*i-5?>] = X[<?=5*i-5?>] + X[<?=5*i-3?>] + X[<?=5*i-1?>];
+		Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x - <?=fluid?>_Cs * nU.x / nLen)
+			+ X[<?=5*i-4?>]
+			+ X[<?=5*i-3?>] * <?=fluid?>_v.x
+			+ X[<?=5*i-1?>] * (<?=fluid?>_v.x + <?=fluid?>_Cs * nU.x / nLen);
+		Y[<?=5*i-3?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.y - <?=fluid?>_Cs * nLen)
+			+ X[<?=5*i-3?>] * <?=fluid?>_v.y
+			+ X[<?=5*i-1?>] * (<?=fluid?>_v.y + <?=fluid?>_Cs * nLen);
+		Y[<?=5*i-2?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.z - <?=fluid?>_Cs * nU.z / nLen)
+			+ X[<?=5*i-3?>] * <?=fluid?>_v.z
+			+ X[<?=5*i-2?>]
+			+ X[<?=5*i-1?>] * (<?=fluid?>_v.z + <?=fluid?>_Cs * nU.z / nLen);
+		Y[<?=5*i-1?>] = X[<?=5*i-5?>] * (<?=fluid?>_hTotal - <?=fluid?>_Cs * <?=fluid?>_v.y / nLen)
+			+ X[<?=5*i-4?>] * <?=fluid?>_vL.x
+			+ X[<?=5*i-3?>] * <?=fluid?>_vSq / 2.
+			+ X[<?=5*i-2?>] * <?=fluid?>_vL.z
+			+ X[<?=5*i-1?>] * (<?=fluid?>_hTotal + <?=fluid?>_Cs * <?=fluid?>_v.y / nLen);
 <?
 					end
 ?>
-	X += 2;
-	Y += 2;
-	//EM & gravity
-	<? for i,suffix in ipairs{'', '_g'} do ?>{
-		X += 8;
-		Y += 8;
-		Y[0] = ((sqrt_eps<?=suffix?> * (X[3] - X[5])) / sqrt_2);
-		Y[1] = ((-(X[0] - X[6])) / (sqrt_2 * sqrt_eps<?=suffix?>));
-		Y[2] = ((-(sqrt_eps<?=suffix?> * (X[2] - X[4]))) / sqrt_2);
-		Y[3] = ((sqrt_mu<?=suffix?> * (X[2] + X[4])) / sqrt_2);
-		Y[4] = ((-(X[1] - X[7])) / (sqrt_2 * sqrt_eps<?=suffix?>));
-		Y[5] = ((sqrt_mu<?=suffix?> * (X[3] + X[5])) / sqrt_2);
-		Y[6] = ((X[0] + X[6]) / (sqrt_2 * sqrt_eps<?=suffix?>));
-		Y[7] = ((X[1] + X[7]) / (sqrt_2 * sqrt_eps<?=suffix?>));
-	}<? end ?>
+		X += 2;
+		Y += 2;
+		//EM & gravity
+		<? for i,suffix in ipairs{'', '_g'} do ?>{
+			X += 8;
+			Y += 8;
+			Y[0] = ((sqrt_eps<?=suffix?> * (X[3] - X[5])) / sqrt_2);
+			Y[1] = ((-(X[0] - X[6])) / (sqrt_2 * sqrt_eps<?=suffix?>));
+			Y[2] = ((-(sqrt_eps<?=suffix?> * (X[2] - X[4]))) / sqrt_2);
+			Y[3] = ((sqrt_mu<?=suffix?> * (X[2] + X[4])) / sqrt_2);
+			Y[4] = ((-(X[1] - X[7])) / (sqrt_2 * sqrt_eps<?=suffix?>));
+			Y[5] = ((sqrt_mu<?=suffix?> * (X[3] + X[5])) / sqrt_2);
+			Y[6] = ((X[0] + X[6]) / (sqrt_2 * sqrt_eps<?=suffix?>));
+			Y[7] = ((X[1] + X[7]) / (sqrt_2 * sqrt_eps<?=suffix?>));
+		}<? end ?>
 
-<?
-				elseif side == 2 then
-?>
-	real sqrt_gUzz = sqrt_gUjj;
+	} else if (n.side == 2) {
 <?
 					for i,fluid in ipairs(fluids) do
 ?>
-	Y[<?=5*i-5?>] = X[<?=5*i-5?>] + X[<?=5*i-2?>] + X[<?=5*i-1?>];
-	Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x - <?=fluid?>_Cs * gU.xz / sqrt_gUzz)
-		+ X[<?=5*i-4?>]
-		+ X[<?=5*i-2?>] * <?=fluid?>_v.x
-		+ X[<?=5*i-1?>] * (<?=fluid?>_v.x + <?=fluid?>_Cs * gU.xz / sqrt_gUzz);
-	Y[<?=5*i-3?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.y - <?=fluid?>_Cs * gU.yz / sqrt_gUzz)
-		+ X[<?=5*i-3?>]
-		+ X[<?=5*i-2?>] * <?=fluid?>_v.y
-		+ X[<?=5*i-1?>] * (<?=fluid?>_v.y + <?=fluid?>_Cs * gU.yz / sqrt_gUzz);
-	Y[<?=5*i-2?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.z - <?=fluid?>_Cs * sqrt_gUzz)
-		+ X[<?=5*i-2?>] * <?=fluid?>_v.z
-		+ X[<?=5*i-1?>] * (<?=fluid?>_v.z + <?=fluid?>_Cs * sqrt_gUzz);
-	Y[<?=5*i-1?>] = X[<?=5*i-5?>] * (<?=fluid?>_hTotal - <?=fluid?>_Cs * <?=fluid?>_v.z / sqrt_gUzz)
-		+ X[<?=5*i-4?>] * <?=fluid?>_vL.x
-		+ X[<?=5*i-3?>] * <?=fluid?>_vL.y
-		+ X[<?=5*i-2?>] * <?=fluid?>_vSq / 2.
-		+ X[<?=5*i-1?>] * (<?=fluid?>_hTotal + <?=fluid?>_Cs * <?=fluid?>_v.z / sqrt_gUzz);
+		Y[<?=5*i-5?>] = X[<?=5*i-5?>] + X[<?=5*i-2?>] + X[<?=5*i-1?>];
+		Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x - <?=fluid?>_Cs * nU.x / nLen)
+			+ X[<?=5*i-4?>]
+			+ X[<?=5*i-2?>] * <?=fluid?>_v.x
+			+ X[<?=5*i-1?>] * (<?=fluid?>_v.x + <?=fluid?>_Cs * nU.x / nLen);
+		Y[<?=5*i-3?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.y - <?=fluid?>_Cs * nU.y / nLen)
+			+ X[<?=5*i-3?>]
+			+ X[<?=5*i-2?>] * <?=fluid?>_v.y
+			+ X[<?=5*i-1?>] * (<?=fluid?>_v.y + <?=fluid?>_Cs * nU.y / nLen);
+		Y[<?=5*i-2?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.z - <?=fluid?>_Cs * nLen)
+			+ X[<?=5*i-2?>] * <?=fluid?>_v.z
+			+ X[<?=5*i-1?>] * (<?=fluid?>_v.z + <?=fluid?>_Cs * nLen);
+		Y[<?=5*i-1?>] = X[<?=5*i-5?>] * (<?=fluid?>_hTotal - <?=fluid?>_Cs * <?=fluid?>_v.z / nLen)
+			+ X[<?=5*i-4?>] * <?=fluid?>_vL.x
+			+ X[<?=5*i-3?>] * <?=fluid?>_vL.y
+			+ X[<?=5*i-2?>] * <?=fluid?>_vSq / 2.
+			+ X[<?=5*i-1?>] * (<?=fluid?>_hTotal + <?=fluid?>_Cs * <?=fluid?>_v.z / nLen);
 <?
 					end
 ?>
-	X += 2;
-	Y += 2;
-	//EM & gravity
-	<? for i,suffix in ipairs{'', '_g'} do ?>{
-		X += 8;
-		Y += 8;
-		Y[0] = ((-(sqrt_eps<?=suffix?> * (X[3] - X[5]))) / sqrt_2);
-		Y[1] = ((sqrt_eps<?=suffix?> * (X[2] - X[4])) / sqrt_2);
-		Y[2] = ((-(X[0] - X[6])) / (sqrt_2 * sqrt_eps<?=suffix?>));
-		Y[3] = ((sqrt_mu<?=suffix?> * (X[2] + X[4])) / sqrt_2);
-		Y[4] = ((sqrt_mu<?=suffix?> * (X[3] + X[5])) / sqrt_2);
-		Y[5] = ((-(X[1] - X[7])) / (sqrt_2 * sqrt_eps<?=suffix?>));
-		Y[6] = ((X[0] + X[6]) / (sqrt_2 * sqrt_eps<?=suffix?>));
-		Y[7] = ((X[1] + X[7]) / (sqrt_2 * sqrt_eps<?=suffix?>));
-	}<? end ?>
+		X += 2;
+		Y += 2;
+		//EM & gravity
+		<? for i,suffix in ipairs{'', '_g'} do ?>{
+			X += 8;
+			Y += 8;
+			Y[0] = ((-(sqrt_eps<?=suffix?> * (X[3] - X[5]))) / sqrt_2);
+			Y[1] = ((sqrt_eps<?=suffix?> * (X[2] - X[4])) / sqrt_2);
+			Y[2] = ((-(X[0] - X[6])) / (sqrt_2 * sqrt_eps<?=suffix?>));
+			Y[3] = ((sqrt_mu<?=suffix?> * (X[2] + X[4])) / sqrt_2);
+			Y[4] = ((sqrt_mu<?=suffix?> * (X[3] + X[5])) / sqrt_2);
+			Y[5] = ((-(X[1] - X[7])) / (sqrt_2 * sqrt_eps<?=suffix?>));
+			Y[6] = ((X[0] + X[6]) / (sqrt_2 * sqrt_eps<?=suffix?>));
+			Y[7] = ((X[1] + X[7]) / (sqrt_2 * sqrt_eps<?=suffix?>));
+		}<? end ?>
 
-<?
-				end
-?>
+	}
 
 	return UY;
 }
 
-cons_t eigen_fluxTransform_<?=side?>(
+cons_t eigen_fluxTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t UX,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) {
 	<?=prefix?>
 	cons_t UY;
@@ -569,20 +535,20 @@ cons_t eigen_fluxTransform_<?=side?>(
 	UY.<?=fluid?>_rho = X[<?=5*i-4?>] * nx 
 		+ X[<?=5*i-3?>] * ny 
 		+ X[<?=5*i-2?>] * nz;
-	UY.<?=fluid?>_m.x = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.x + (solver->heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.x)
-		+ X[<?=5*i-4?>] * (<?=fluid?>_v.x * nx - (solver->heatCapacityRatio - 1.) * gUj.x * <?=fluid?>_vL.x + <?=fluid?>_v_n)
-		+ X[<?=5*i-3?>] * (<?=fluid?>_v.x * ny - (solver->heatCapacityRatio - 1.) * gUj.x * <?=fluid?>_vL.y)
-		+ X[<?=5*i-2?>] * (<?=fluid?>_v.x * nz - (solver->heatCapacityRatio - 1.) * gUj.x * <?=fluid?>_vL.z)
+	UY.<?=fluid?>_m.x = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.x + (solver->heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * nU.x)
+		+ X[<?=5*i-4?>] * (<?=fluid?>_v.x * nx - (solver->heatCapacityRatio - 1.) * nU.x * <?=fluid?>_vL.x + <?=fluid?>_v_n)
+		+ X[<?=5*i-3?>] * (<?=fluid?>_v.x * ny - (solver->heatCapacityRatio - 1.) * nU.x * <?=fluid?>_vL.y)
+		+ X[<?=5*i-2?>] * (<?=fluid?>_v.x * nz - (solver->heatCapacityRatio - 1.) * nU.x * <?=fluid?>_vL.z)
 		+ X[<?=5*i-1?>] * (solver->heatCapacityRatio - 1.) * nx;
-	UY.<?=fluid?>_m.y = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.y + (solver->heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.y)
-		+ X[<?=5*i-4?>] * (<?=fluid?>_v.y * nx - (solver->heatCapacityRatio - 1.) * gUj.y * <?=fluid?>_vL.x)
-		+ X[<?=5*i-3?>] * (<?=fluid?>_v.y * ny - (solver->heatCapacityRatio - 1.) * gUj.y * <?=fluid?>_vL.y + <?=fluid?>_v_n)
-		+ X[<?=5*i-2?>] * (<?=fluid?>_v.y * nz - (solver->heatCapacityRatio - 1.) * gUj.y * <?=fluid?>_vL.z)
+	UY.<?=fluid?>_m.y = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.y + (solver->heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * nU.y)
+		+ X[<?=5*i-4?>] * (<?=fluid?>_v.y * nx - (solver->heatCapacityRatio - 1.) * nU.y * <?=fluid?>_vL.x)
+		+ X[<?=5*i-3?>] * (<?=fluid?>_v.y * ny - (solver->heatCapacityRatio - 1.) * nU.y * <?=fluid?>_vL.y + <?=fluid?>_v_n)
+		+ X[<?=5*i-2?>] * (<?=fluid?>_v.y * nz - (solver->heatCapacityRatio - 1.) * nU.y * <?=fluid?>_vL.z)
 		+ X[<?=5*i-1?>] * (solver->heatCapacityRatio - 1.) * ny;
-	UY.<?=fluid?>_m.z = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.z + (solver->heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * gUj.z)
-		+ X[<?=5*i-4?>] * (<?=fluid?>_v.z * nx - (solver->heatCapacityRatio - 1.) * gUj.z * <?=fluid?>_vL.x)
-		+ X[<?=5*i-3?>] * (<?=fluid?>_v.z * ny - (solver->heatCapacityRatio - 1.) * gUj.z * <?=fluid?>_vL.y)
-		+ X[<?=5*i-2?>] * (<?=fluid?>_v.z * nz - (solver->heatCapacityRatio - 1.) * gUj.z * <?=fluid?>_vL.z + <?=fluid?>_v_n)
+	UY.<?=fluid?>_m.z = X[<?=5*i-5?>] * (-<?=fluid?>_v_n * <?=fluid?>_v.z + (solver->heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq * nU.z)
+		+ X[<?=5*i-4?>] * (<?=fluid?>_v.z * nx - (solver->heatCapacityRatio - 1.) * nU.z * <?=fluid?>_vL.x)
+		+ X[<?=5*i-3?>] * (<?=fluid?>_v.z * ny - (solver->heatCapacityRatio - 1.) * nU.z * <?=fluid?>_vL.y)
+		+ X[<?=5*i-2?>] * (<?=fluid?>_v.z * nz - (solver->heatCapacityRatio - 1.) * nU.z * <?=fluid?>_vL.z + <?=fluid?>_v_n)
 		+ X[<?=5*i-1?>] * (solver->heatCapacityRatio - 1.) * nz;
 	UY.<?=fluid?>_ETotal = X[<?=5*i-5?>] * <?=fluid?>_v_n * ((solver->heatCapacityRatio - 1.) * .5 * <?=fluid?>_vSq - <?=fluid?>_hTotal)
 		+ X[<?=5*i-4?>] * (-(solver->heatCapacityRatio - 1.) * <?=fluid?>_v_n * <?=fluid?>_vL.x + nx * <?=fluid?>_hTotal)
@@ -597,18 +563,18 @@ cons_t eigen_fluxTransform_<?=side?>(
 
 	real3 E = real3_real_mul(UX.D, 1. / eps);
 	real3 H = real3_real_mul(UX.B, 1. / mu);
-	<? if side == 0 then ?>
-	UY.D = _real3(solver->divPhiWavespeed / unit_m_per_s * UX.phi, H.z, -H.y);
-	UY.B = _real3(solver->divPsiWavespeed / unit_m_per_s * UX.psi, -E.z, E.y);
-	<? elseif side == 1 then ?>
-	UY.D = _real3(-H.z, solver->divPhiWavespeed / unit_m_per_s * UX.phi, H.x);
-	UY.B = _real3(E.z, solver->divPsiWavespeed / unit_m_per_s * UX.psi, -E.x);
-	<? elseif side == 2 then ?>
-	UY.D = _real3(H.y, -H.x, solver->divPhiWavespeed / unit_m_per_s * UX.phi);
-	UY.B = _real3(-E.y, E.x, solver->divPsiWavespeed / unit_m_per_s * UX.psi);
-	<? end ?>
-	UY.phi = solver->divPhiWavespeed / unit_m_per_s * UX.D.s<?=side?>;
-	UY.psi = solver->divPsiWavespeed / unit_m_per_s * UX.B.s<?=side?>;
+	if (n.side == 0) {
+		UY.D = _real3(solver->divPhiWavespeed / unit_m_per_s * UX.phi, H.z, -H.y);
+		UY.B = _real3(solver->divPsiWavespeed / unit_m_per_s * UX.psi, -E.z, E.y);
+	} else if (n.side == 1) {
+		UY.D = _real3(-H.z, solver->divPhiWavespeed / unit_m_per_s * UX.phi, H.x);
+		UY.B = _real3(E.z, solver->divPsiWavespeed / unit_m_per_s * UX.psi, -E.x);
+	} else if (n.side == 2) {
+		UY.D = _real3(H.y, -H.x, solver->divPhiWavespeed / unit_m_per_s * UX.phi);
+		UY.B = _real3(-E.y, E.x, solver->divPsiWavespeed / unit_m_per_s * UX.psi);
+	}
+	UY.phi = solver->divPhiWavespeed / unit_m_per_s * normalInfo_vecDotN1(n, UX.D);
+	UY.psi = solver->divPsiWavespeed / unit_m_per_s * normalInfo_vecDotN1(n, UX.B);
 
 	real G = solver->sqrt_G * solver->sqrt_G / unit_m3_per_kg_s2;
 	real speedOfLightSq = solver->speedOfLight * solver->speedOfLight / unit_m2_per_s2;
@@ -617,22 +583,21 @@ cons_t eigen_fluxTransform_<?=side?>(
 	
 	real3 E_g = real3_real_mul(UX.D_g, 1. / eps_g);
 	real3 H_g = real3_real_mul(UX.B_g, 1. / mu_g);
-	<? if side == 0 then ?>
-	UY.D_g = _real3(solver->divPhiWavespeed_g / unit_m_per_s * UX.phi_g, H_g.z, -H_g.y);
-	UY.B_g = _real3(solver->divPsiWavespeed_g / unit_m_per_s * UX.psi_g, -E_g.z, E_g.y);
-	<? elseif side == 1 then ?>
-	UY.D_g = _real3(-H_g.z, solver->divPhiWavespeed_g / unit_m_per_s * UX.phi_g, H_g.x);
-	UY.B_g = _real3(E_g.z, solver->divPsiWavespeed_g / unit_m_per_s * UX.psi_g, -E_g.x);
-	<? elseif side == 2 then ?>
-	UY.D_g = _real3(H_g.y, -H_g.x, solver->divPhiWavespeed_g / unit_m_per_s * UX.phi_g);
-	UY.B_g = _real3(-E_g.y, E_g.x, solver->divPsiWavespeed_g / unit_m_per_s * UX.psi_g);
-	<? end ?>
-	UY.phi_g = solver->divPhiWavespeed_g / unit_m_per_s * E_g.s<?=side?>;
-	UY.psi_g = solver->divPsiWavespeed_g / unit_m_per_s * H_g.s<?=side?>;
+	if (n.side == 0) {
+		UY.D_g = _real3(solver->divPhiWavespeed_g / unit_m_per_s * UX.phi_g, H_g.z, -H_g.y);
+		UY.B_g = _real3(solver->divPsiWavespeed_g / unit_m_per_s * UX.psi_g, -E_g.z, E_g.y);
+	} else if (n.side == 1) {
+		UY.D_g = _real3(-H_g.z, solver->divPhiWavespeed_g / unit_m_per_s * UX.phi_g, H_g.x);
+		UY.B_g = _real3(E_g.z, solver->divPsiWavespeed_g / unit_m_per_s * UX.psi_g, -E_g.x);
+	} else if (n.side == 2) {
+		UY.D_g = _real3(H_g.y, -H_g.x, solver->divPhiWavespeed_g / unit_m_per_s * UX.phi_g);
+		UY.B_g = _real3(-E_g.y, E_g.x, solver->divPsiWavespeed_g / unit_m_per_s * UX.psi_g);
+	}
+	UY.phi_g = solver->divPhiWavespeed_g / unit_m_per_s * normalInfo_vecDotN1(n, E_g);
+	UY.psi_g = solver->divPsiWavespeed_g / unit_m_per_s * normalInfo_vecDotN1(n, H_g);
 
 	return UY;
 }
-<? end ?>
 
 kernel void addSource(
 	constant solver_t* solver,

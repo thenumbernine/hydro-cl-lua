@@ -260,6 +260,30 @@ real3 calcElecGravForce(constant <?=solver.solver_t?>* solver, const global <?=e
 		U->elec_rho * U->D_g.z / eps_g + 4. * (U->elec_m.x * U->B_g.y - U->elec_m.y * U->B_g.x));
 }
 
+
+<? 
+local coord = solver.coord
+for side=0,solver.dim-1 do
+	if coord.vectorComponent == 'cartesian'
+	or require 'coord.cartesian'.is(coord)
+	then
+?>
+#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
+<?	else ?>
+<?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
+	<? for _,fluid in ipairs(eqn.fluids) do ?>
+		U.<?=fluid?>_m = coord_parallelPropagateU<?=side?>(U.<?=fluid?>_m, x, dx);
+	<? end ?>
+	U.D = coord_parallelPropagateL<?=side?>(U.D, x, dx);
+	U.B = coord_parallelPropagateL<?=side?>(U.B, x, dx);
+	U.D_g = coord_parallelPropagateL<?=side?>(U.D_g, x, dx);
+	U.B_g = coord_parallelPropagateL<?=side?>(U.B_g, x, dx);
+	return U;
+}
+<?	end
+end ?>
+
+
 ]], {
 		solver = self.solver,
 		eqn = self,
@@ -660,30 +684,30 @@ end
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.eigenVars = eigenVars
 
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCodePrefix(side, eig, x)
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCodePrefix(n, eig, x)
 	return template([[
 <? for i,fluid in ipairs(fluids) do ?>
-	real <?=fluid?>_Cs_sqrt_gU = <?=eig?>.<?=fluid?>_Cs * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
-	real <?=fluid?>_v_n = <?=eig?>.<?=fluid?>_v.s[<?=side?>];
+	real <?=fluid?>_Cs_nLen = <?=eig?>.<?=fluid?>_Cs * normalInfo_len(n);
+	real <?=fluid?>_v_n = normalInfo_vecDotN1(n, <?=eig?>.<?=fluid?>_v);
 <? end ?>
 ]], {
 		x = x,
 		eig = '('..eig..')',
 		fluids = fluids,
-		side = side,
+		n = n,
 	})
 end
 
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCode(side, eig, x, waveIndex)
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCode(n, eig, x, waveIndex)
 	for i,fluid in ipairs(fluids) do
 		if waveIndex == 0 + 5 * (i-1) then
-			return template('<?=fluid?>_v_n - <?=fluid?>_Cs_sqrt_gU', {fluid=fluid})
+			return template('<?=fluid?>_v_n - <?=fluid?>_Cs_nLen', {fluid=fluid})
 		elseif waveIndex >= 1 + 5 * (i-1)
 		and waveIndex <= 3 + 5 * (i-1)
 		then
 			return template('<?=fluid?>_v_n', {fluid=fluid})
 		elseif waveIndex == 4 + 5 * (i-1) then
-			return template('<?=fluid?>_v_n + <?=fluid?>_Cs_sqrt_gU', {fluid=fluid})
+			return template('<?=fluid?>_v_n + <?=fluid?>_Cs_nLen', {fluid=fluid})
 		end
 	end
 	if waveIndex >= 5*#fluids and waveIndex < 5*#fluids+8 then
@@ -717,7 +741,7 @@ end
 --TODO timestep restriction
 -- 2014 Abgrall, Kumar eqn 2.25
 -- dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodePrefix(side, U, x)
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodePrefix(n, U, x)
 	return template([[
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 
@@ -737,25 +761,25 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodePrefix(side, U, x)
 
 <? for _,fluid in ipairs(eqn.fluids) do
 ?>	real <?=fluid?>_Cs = calc_<?=fluid?>_Cs(solver, &W);
-	real <?=fluid?>_Cs_sqrt_gU = <?=fluid?>_Cs * coord_sqrt_g_uu<?=side..side?>(x);
-	consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, W.<?=fluid?>_v.s<?=side?> - <?=fluid?>_Cs_sqrt_gU);
-	consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, W.<?=fluid?>_v.s<?=side?> + <?=fluid?>_Cs_sqrt_gU);
+	real <?=fluid?>_Cs_nLen = <?=fluid?>_Cs * normalInfo_len(n);
+	consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, normalInfo_vecDotN1(n, W.<?=fluid?>_v) - <?=fluid?>_Cs_nLen);
+	consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, normalInfo_vecDotN1(n, W.<?=fluid?>_v) + <?=fluid?>_Cs_nLen);
 <? end
 ?>
 
 ]], {
 		eqn = self,
-		side = side,
+		n = n,
 		U = '('..U..')',
 		x = x,
 	})
 end
 
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:consMinWaveCode(side, U, x)
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:consMinWaveCode(n, U, x)
 	return 'consWaveCode_lambdaMin'
 end
 
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:consMaxWaveCode(side, U, x)
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:consMaxWaveCode(n, U, x)
 	return 'consWaveCode_lambdaMax'
 end
 
