@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -196,7 +196,7 @@ local args = {
 	--initState = 'rarefaction wave',
 	--initState = 'Bessel',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initStateArgs = {dim=cmdline.displayDim},
 	
 	--initState = 'rectangle',
@@ -273,7 +273,7 @@ local args = {
 
 	-- Einstein
 	--initState = 'Minkowski',
-	--initState = 'gaussian perturbation',
+	initState = 'gaussian perturbation',
 	--initState = 'plane gauge wave',
 
 
@@ -630,7 +630,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 
@@ -638,7 +638,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'}
 -- general relativity
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))

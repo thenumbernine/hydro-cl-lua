@@ -57,7 +57,16 @@ void setFlatSpace(
 		.KTilde = 0,
 	};
 }
-]], {eqn=self})
+
+<? for side=0,solver.dim-1 do ?>
+#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
+<? end ?>
+
+
+]], {
+		eqn = self,
+		solver = self.solver,
+	})
 end
 
 ADM_BonaMasso_1D_2008Alcubierre.initStateCode = [[
@@ -142,7 +151,7 @@ ADM_BonaMasso_1D_2008Alcubierre.eigenVars = table{
 	{name='gamma_xx', type='real'},
 }
 
-function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCodePrefix(side, eig, x, waveIndex)
+function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCodePrefix(n, eig, x, waveIndex)
 	return template([[
 	real eig_lambda = <?=eig?>.alpha * sqrt(<?=eig?>.f / <?=eig?>.gamma_xx);
 ]], {
@@ -150,7 +159,7 @@ function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCodePrefix(side, eig, x, waveI
 	})
 end
 
-function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCode(side, eig, x, waveIndex)
+function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCode(n, eig, x, waveIndex)
 	if waveIndex == 0 then
 		return '-eig_lambda'
 	elseif waveIndex == 1 then
@@ -162,7 +171,7 @@ function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCode(side, eig, x, waveIndex)
 	end
 end
 
-function ADM_BonaMasso_1D_2008Alcubierre:consWaveCodePrefix(side, U, x, waveIndex)
+function ADM_BonaMasso_1D_2008Alcubierre:consWaveCodePrefix(n, U, x, waveIndex)
 	return template([[
 	real f = calc_f(<?=U?>.alpha);
 	real eig_lambda = <?=U?>.alpha * sqrt(f / <?=U?>.gamma_xx);

@@ -1,11 +1,16 @@
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x
+typedef <?=solver.solver_t?> solver_t;
+typedef <?=eqn.cons_t?> cons_t;
+typedef <?=eqn.eigen_t?> eigen_t;
+typedef <?=eqn.waves_t?> waves_t;
+
+cons_t fluxFromCons(
+	constant solver_t* solver,
+	cons_t U,
+	real3 x,
+	normalInfo_t n
 ) {
 	real f = calc_f(U.alpha);
-	return (<?=eqn.cons_t?>){
+	return (cons_t){
 		.alpha = 0,
 		.gamma_xx = 0,
 		.a_x = U.alpha * U.K_xx * f / U.gamma_xx,
@@ -13,62 +18,61 @@
 		.K_xx = U.alpha * U.a_x,
 	};
 }
-<? end ?>
 
 //used by PLM
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x
+eigen_t eigen_forCell(
+	constant solver_t* solver,
+	cons_t U,
+	real3 x,
+	normalInfo_t n
 ) {
 	real f = calc_f(U.alpha);
-	return (<?=eqn.eigen_t?>){
+	return (eigen_t){
 		.alpha = U.alpha,
 		.sqrt_f_over_gamma_xx = sqrt(f / U.gamma_xx),
 	};
 }
-<? end ?>
 
 //used for interface eigen basis
-<?=eqn.eigen_t?> eigen_forInterface(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> UL,
-	<?=eqn.cons_t?> UR,
+eigen_t eigen_forInterface(
+	constant solver_t* solver,
+	cons_t UL,
+	cons_t UR,
 	real3 x,
 	real3 n
 ) {
 	real alpha = .5 * (UL.alpha + UR.alpha);
 	real gamma_xx = .5 * (UL.gamma_xx + UR.gamma_xx);
 	real f = calc_f(alpha);
-	return (<?=eqn.eigen_t?>){
+	return (eigen_t){
 		.alpha = alpha, 
 		.sqrt_f_over_gamma_xx = sqrt(f / gamma_xx),
 	};
 }
 
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> x,
-	real3 pt
+waves_t eigen_leftTransform(
+	constant solver_t* solver,
+	eigen_t eig,
+	cons_t x,
+	real3 pt,
+	normalInfo_t n
 ) {
 	real gamma_xx_over_f = 1. / (eig.sqrt_f_over_gamma_xx * eig.sqrt_f_over_gamma_xx);
-	return (<?=eqn.waves_t?>){.ptr={
+	return (waves_t){.ptr={
 		.5 * (x.ptr[2] / eig.sqrt_f_over_gamma_xx - x.ptr[4]),
 		x.ptr[3] - x.ptr[2] * gamma_xx_over_f,
 		.5 * (x.ptr[2] / eig.sqrt_f_over_gamma_xx + x.ptr[4]),
 	}};
 }
 
-<?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.waves_t?> x,
-	real3 pt
+cons_t eigen_rightTransform(
+	constant solver_t* solver,
+	eigen_t eig,
+	waves_t x,
+	real3 pt,
+	normalInfo_t n
 ) {
-	return (<?=eqn.cons_t?>){.ptr={
+	return (cons_t){.ptr={
 		0,
 		0,
 		(x.ptr[0] + x.ptr[2]) * eig.sqrt_f_over_gamma_xx,
@@ -77,14 +81,15 @@
 	}};
 }
 
-<?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> x,
-	real3 pt 
+cons_t eigen_fluxTransform(
+	constant solver_t* solver,
+	eigen_t eig,
+	cons_t x,
+	real3 pt,
+	normalInfo_t n
 ) {
 	real f_over_gamma_xx = eig.sqrt_f_over_gamma_xx * eig.sqrt_f_over_gamma_xx;
-	return (<?=eqn.cons_t?>){.ptr={
+	return (cons_t){.ptr={
 		0,
 		0,
 		x.ptr[4] * eig.alpha * f_over_gamma_xx,
@@ -92,16 +97,15 @@
 		x.ptr[2] * eig.alpha,
 	}};
 }
-<? end ?>
 
 kernel void addSource(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* derivBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	constant solver_t* solver,
+	global cons_t* derivBuf,
+	const global cons_t* UBuf
 ) {
 	SETBOUNDS_NOGHOST();
-	global <?=eqn.cons_t?>* deriv = derivBuf + index;
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	global cons_t* deriv = derivBuf + index;
+	const global cons_t* U = UBuf + index;
 	
 	real alpha = U->alpha;
 	real gamma_xx = U->gamma_xx;
