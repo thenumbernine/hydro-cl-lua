@@ -14,41 +14,40 @@ typedef <?=solver.solver_t?> solver_t;
 #define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
-<? for side=0,solver.dim-1 do ?>
-cons_t fluxFromCons_<?=side?>(
+cons_t fluxFromCons(
 	constant solver_t* solver,
 	cons_t U,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) {
 	<?=vec3?> E = calc_E(U);
 	<?=vec3?> H = calc_H(U);
-	return (cons_t){
-<? if side == 0 then 
-?>		.D = _<?=vec3?>(<?=zero?>, H.z, <?=neg?>(H.y)),
-		.B = _<?=vec3?>(<?=zero?>, <?=neg?>(E.z), E.y),
-<? elseif side == 1 then 
-?>		.D = _<?=vec3?>(<?=neg?>(H.z), <?=zero?>, H.x),
-		.B = _<?=vec3?>(E.z, <?=zero?>, <?=neg?>(E.x)),
-<? elseif side == 2 then 
-?>		.D = _<?=vec3?>(H.y, <?=neg?>(H.x), <?=zero?>),
-		.B = _<?=vec3?>(<?=neg?>(E.y), E.x, <?=zero?>),
-<? end 
-?>		.phi = <?=zero?>,
-		.psi = <?=zero?>,
-		.sigma = <?=zero?>,
-		.rhoCharge = <?=zero?>,
-		.sqrt_1_eps = <?=susc_t?>_zero,
-		.sqrt_1_mu = <?=susc_t?>_zero,
-	};
+	cons_t F;
+	if (n.side == 0) {
+		F.D = _<?=vec3?>(<?=zero?>, H.z, <?=neg?>(H.y));
+		F.B = _<?=vec3?>(<?=zero?>, <?=neg?>(E.z), E.y);
+	} else if (n.side == 1) {
+		F.D = _<?=vec3?>(<?=neg?>(H.z), <?=zero?>, H.x);
+		F.B = _<?=vec3?>(E.z, <?=zero?>, <?=neg?>(E.x));
+	} else if (n.side == 2) {
+		F.D = _<?=vec3?>(H.y, <?=neg?>(H.x), <?=zero?>);
+		F.B = _<?=vec3?>(<?=neg?>(E.y), E.x, <?=zero?>);
+	}
+	F.phi = <?=zero?>;
+	F.psi = <?=zero?>;
+	F.sigma = <?=zero?>;
+	F.rhoCharge = <?=zero?>;
+	F.sqrt_1_eps = <?=susc_t?>_zero;
+	F.sqrt_1_mu = <?=susc_t?>_zero;
+	return F;
 }
-<? end ?>
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
 	cons_t UL,
 	cons_t UR,
 	real3 x,
-	real3 n
+	normalInfo_t n
 ) {
 	//this will fail with tensor susceptibility
 	//but it doesn't belong here -- this is only the scalar case
@@ -59,15 +58,28 @@ eigen_t eigen_forInterface(
 	};
 }
 
+//used by PLM
+eigen_t eigen_forCell(
+	constant solver_t* solver,
+	cons_t U,
+	real3 x,
+	normalInfo_t n
+) {
+	return (eigen_t){
+		.sqrt_1_eps = U.sqrt_1_eps,
+		.sqrt_1_mu = U.sqrt_1_mu,
+	};
+}
+
 /*
 TODO update this for Einstein-Maxwell (take the metric into consideration
 */
-<? for side=0,solver.dim-1 do ?>
-waves_t eigen_leftTransform_<?=side?>(
+waves_t eigen_leftTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t X,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) {
 	waves_t Y;
 	<?=scalar?> *Xp = (<?=scalar?>*)X.ptr;
@@ -79,43 +91,44 @@ waves_t eigen_leftTransform_<?=side?>(
 	<?=susc_t?> sqrt_mu = <?=susc_t?>_inv(sqrt_1_mu);			//(kg m)^.5/C
 	<?=susc_t?> v_p = <?=susc_t?>_mul(sqrt_1_eps, sqrt_1_mu);	//m/s
 
-	<? if side == 0 then ?>
+	if (n.side == 0) {
 
-	Yp[0] = (((Xp[2] * sqrt_mu) + (Xp[4] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
-	Yp[1] = (((Xp[1] * sqrt_mu) - (Xp[5] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
-	Yp[2] = (sqrt_2 * Xp[0]);
-	Yp[3] = (sqrt_2 * Xp[3]);
-	Yp[4] = ((-((Xp[2] * sqrt_mu) - (Xp[4] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));
-	Yp[5] = (((Xp[1] * sqrt_mu) + (Xp[5] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
+		Yp[0] = (((Xp[2] * sqrt_mu) + (Xp[4] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
+		Yp[1] = (((Xp[1] * sqrt_mu) - (Xp[5] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
+		Yp[2] = (sqrt_2 * Xp[0]);
+		Yp[3] = (sqrt_2 * Xp[3]);
+		Yp[4] = ((-((Xp[2] * sqrt_mu) - (Xp[4] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));
+		Yp[5] = (((Xp[1] * sqrt_mu) + (Xp[5] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
 
-	<? elseif side == 1 then ?>
+	} else if (n.side == 1) {
 
-	Yp[0] = (((Xp[2] * sqrt_mu) - (Xp[3] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
-	Yp[1] = (((Xp[0] * sqrt_mu) + (Xp[5] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
-	Yp[2] = (sqrt_2 * Xp[1]);
-	Yp[3] = (sqrt_2 * Xp[4]);
-	Yp[4] = (((Xp[2] * sqrt_mu) + (Xp[3] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
-	Yp[5] = ((-((Xp[0] * sqrt_mu) - (Xp[5] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));
+		Yp[0] = (((Xp[2] * sqrt_mu) - (Xp[3] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
+		Yp[1] = (((Xp[0] * sqrt_mu) + (Xp[5] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
+		Yp[2] = (sqrt_2 * Xp[1]);
+		Yp[3] = (sqrt_2 * Xp[4]);
+		Yp[4] = (((Xp[2] * sqrt_mu) + (Xp[3] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
+		Yp[5] = ((-((Xp[0] * sqrt_mu) - (Xp[5] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));
 
-	<? elseif side == 2 then ?>
+	} else if (n.side == 2) {
 
-	Yp[0] = (((Xp[1] * sqrt_mu) + (Xp[3] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
-	Yp[1] = (((Xp[0] * sqrt_mu) - (Xp[4] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
-	Yp[2] = (sqrt_2 * Xp[2]);
-	Yp[3] = (sqrt_2 * Xp[5]);
-	Yp[4] = ((-((Xp[1] * sqrt_mu) - (Xp[3] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));
-	Yp[5] = (((Xp[0] * sqrt_mu) + (Xp[4] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
-
-	<? end ?>
+		Yp[0] = (((Xp[1] * sqrt_mu) + (Xp[3] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));
+		Yp[1] = (((Xp[0] * sqrt_mu) - (Xp[4] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));
+		Yp[2] = (sqrt_2 * Xp[2]);
+		Yp[3] = (sqrt_2 * Xp[5]);
+		Yp[4] = ((-((Xp[1] * sqrt_mu) - (Xp[3] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));
+		Yp[5] = (((Xp[0] * sqrt_mu) + (Xp[4] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));
+	
+	}
 
 	return Y;
 }
 
-cons_t eigen_rightTransform_<?=side?>(
+cons_t eigen_rightTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	waves_t X,
-	real3 x
+	real3 x,
+	normalInfo_t n
 ) {
 	cons_t Y;
 	<?=scalar?> *Yp = (<?=scalar?>*)Y.ptr;
@@ -127,34 +140,34 @@ cons_t eigen_rightTransform_<?=side?>(
 	<?=susc_t?> sqrt_mu = <?=susc_t?>_inv(sqrt_1_mu);			//(kg m)^.5/C
 	<?=susc_t?> v_p = <?=susc_t?>_mul(sqrt_1_eps, sqrt_1_mu);	//m/s
 
-	<? if side == 0 then ?>
+	if (n.side == 0) {
 
-	Yp[0] = (Xp[2] / sqrt_2);
-	Yp[1] = ((-(sqrt_eps * (Xp[1] - Xp[5]))) / sqrt_2);
-	Yp[2] = ((sqrt_eps * (Xp[0] - Xp[4])) / sqrt_2);
-	Yp[3] = (Xp[3] / sqrt_2);
-	Yp[4] = ((sqrt_mu * (Xp[0] + Xp[4])) / sqrt_2);
-	Yp[5] = ((sqrt_mu * (Xp[1] + Xp[5])) / sqrt_2);
+		Yp[0] = (Xp[2] / sqrt_2);
+		Yp[1] = ((-(sqrt_eps * (Xp[1] - Xp[5]))) / sqrt_2);
+		Yp[2] = ((sqrt_eps * (Xp[0] - Xp[4])) / sqrt_2);
+		Yp[3] = (Xp[3] / sqrt_2);
+		Yp[4] = ((sqrt_mu * (Xp[0] + Xp[4])) / sqrt_2);
+		Yp[5] = ((sqrt_mu * (Xp[1] + Xp[5])) / sqrt_2);
 
-	<? elseif side == 1 then ?>
+	} else if (n.side == 1) {
 
-	Yp[0] = ((sqrt_eps * (Xp[1] - Xp[5])) / sqrt_2);
-	Yp[1] = (Xp[2] / sqrt_2);
-	Yp[2] = ((-(sqrt_eps * (Xp[0] - Xp[4]))) / sqrt_2);
-	Yp[3] = ((sqrt_mu * (Xp[0] + Xp[4])) / sqrt_2);
-	Yp[4] = (Xp[3] / sqrt_2);
-	Yp[5] = ((sqrt_mu * (Xp[1] + Xp[5])) / sqrt_2);
+		Yp[0] = ((sqrt_eps * (Xp[1] - Xp[5])) / sqrt_2);
+		Yp[1] = (Xp[2] / sqrt_2);
+		Yp[2] = ((-(sqrt_eps * (Xp[0] - Xp[4]))) / sqrt_2);
+		Yp[3] = ((sqrt_mu * (Xp[0] + Xp[4])) / sqrt_2);
+		Yp[4] = (Xp[3] / sqrt_2);
+		Yp[5] = ((sqrt_mu * (Xp[1] + Xp[5])) / sqrt_2);
 
-	<? elseif side == 2 then ?>
+	} else if (n.side == 2) {
 
-	Yp[0] = ((-(sqrt_eps * (Xp[1] - Xp[5]))) / sqrt_2);
-	Yp[1] = ((sqrt_eps * (Xp[0] - Xp[4])) / sqrt_2);
-	Yp[2] = (Xp[2] / sqrt_2);
-	Yp[3] = ((sqrt_mu * (Xp[0] + Xp[4])) / sqrt_2);
-	Yp[4] = ((sqrt_mu * (Xp[1] + Xp[5])) / sqrt_2);
-	Yp[5] = (Xp[3] / sqrt_2);
+		Yp[0] = ((-(sqrt_eps * (Xp[1] - Xp[5]))) / sqrt_2);
+		Yp[1] = ((sqrt_eps * (Xp[0] - Xp[4])) / sqrt_2);
+		Yp[2] = (Xp[2] / sqrt_2);
+		Yp[3] = ((sqrt_mu * (Xp[0] + Xp[4])) / sqrt_2);
+		Yp[4] = ((sqrt_mu * (Xp[1] + Xp[5])) / sqrt_2);
+		Yp[5] = (Xp[3] / sqrt_2);
 
-	<? end ?>
+	}
 
 	for (int i = <?=eqn.numWaves?>; i < <?=eqn.numStates?>; ++i) {
 		Y.ptr[i] = 0;
@@ -163,16 +176,7 @@ cons_t eigen_rightTransform_<?=side?>(
 	return Y;
 }
 
-cons_t eigen_fluxTransform_<?=side?>(
-	constant solver_t* solver,
-	eigen_t eig,
-	cons_t X,
-	real3 x
-) {
-	return fluxFromCons_<?=side?>(solver, X, x);
-}
-
-<? end ?>
+#define eigen_fluxTransform(solver, eig, X, x, n)	fluxFromCons(solver, X, x, n)
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -221,7 +225,7 @@ kernel void addSource(
 	real _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>{
-		cons_t flux = fluxFromCons_<?=j?>(solver, *U, x);
+		cons_t flux = fluxFromCons(solver, *U, x, normalInfo_forSide<?=j?>(x));
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 		deriv->D.<?=xj?> = <?=sub?>(deriv->D.<?=xj?>, <?=vec3?>_dot(flux.D, grad_1_mu));
@@ -230,18 +234,4 @@ kernel void addSource(
 }
 
 
-//used by PLM
 
-
-<? for side=0,solver.dim-1 do ?>
-eigen_t eigen_forCell_<?=side?>(
-	constant solver_t* solver,
-	cons_t U,
-	real3 x
-) {
-	return (eigen_t){
-		.sqrt_1_eps = U.sqrt_1_eps,
-		.sqrt_1_mu = U.sqrt_1_mu,
-	};
-}
-<? end ?>

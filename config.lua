@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -235,7 +235,7 @@ local args = {
 	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	initState = 'Brio-Wu',
+	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'GEM challenge', eqnArgs = {useEulerInitState=false},
@@ -256,7 +256,7 @@ local args = {
 	--initState = 'Maxwell empty waves',
 	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around pyramid',
-	--initState = 'Maxwell scattering around square',
+	initState = 'Maxwell scattering around square',
 	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	--initState = 'Maxwell transverse waves',
@@ -585,7 +585,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='mhd'})))
 -- eqn.useFixedCh == false is failing
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-mhd', wenoMethod='1996 Jiang Shu', order=5})))
@@ -595,7 +595,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
 -- Maxwell
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='maxwell', wenoMethod='1996 Jiang Shu', order=5})))

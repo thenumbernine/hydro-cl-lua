@@ -75,8 +75,8 @@ function Maxwell:init(args)
 	self.numWaves = 6 * self.numRealsInScalar
 
 	self.consVars = {
-		{name='D', type=self.vec3, units='C/m^2'},
-		{name='B', type=self.vec3, units='kg/(C*s)'},
+		{name='D', type=self.vec3, units='C/m^2'},		-- D_i
+		{name='B', type=self.vec3, units='kg/(C*s)'},	-- B_i
 		{name='phi', type=self.scalar, units='C/m^2'},
 		{name='psi', type=self.scalar, units='kg/(C*s)'},
 		{name='rhoCharge', type=self.scalar, units='C/m^3'},
@@ -158,6 +158,26 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 <?=vec3?> calc_H(<?=eqn.cons_t?> U) { 
 	return <?=vec3?>_<?=susc_t?>_mul(U.B, <?=susc_t?>_mul(U.sqrt_1_mu, U.sqrt_1_mu));
 }
+
+
+<? 
+local coord = solver.coord
+for side=0,solver.dim-1 do
+	if coord.vectorComponent == 'cartesian'
+	or require 'coord.cartesian'.is(coord)
+	then
+?>
+#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
+<?	else ?>
+<?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
+	U.D = coord_parallelPropagateL<?=side?>(U.D, x, dx);
+	U.B = coord_parallelPropagateL<?=side?>(U.B, x, dx);
+	return U;
+}
+<?	end
+end ?>
+
+
 ]], self:getTemplateEnv())
 end
 
@@ -342,7 +362,7 @@ function Maxwell:getDisplayVars()
 
 	for _,field in ipairs{'D', 'B'} do
 		local v = range(0,2):map(function(i)
-			return curl(self,i,'value_'..env.vec3..'->s'..i,field, env)
+			return curl(self,i,'value.v'..env.vec3..'.s'..i,field, env)
 		end)
 		vars:insert{
 			name='curl '..field, 
@@ -362,7 +382,7 @@ function Maxwell:getDisplayVars()
 	return vars
 end
 
-function Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
+function Maxwell:eigenWaveCodePrefix(n, eig, x, waveIndex)
 --[=[
 	return template([[
 	<?=scalar?> v_p_abs = <?=mul?>(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu);
@@ -387,7 +407,7 @@ function Maxwell:eigenWaveCodePrefix(side, eig, x, waveIndex)
 --]=]
 end
 
-function Maxwell:eigenWaveCode(side, eig, x, waveIndex)
+function Maxwell:eigenWaveCode(n, eig, x, waveIndex)
 	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
 	return ({
 		'-v_p_abs',
@@ -399,14 +419,14 @@ function Maxwell:eigenWaveCode(side, eig, x, waveIndex)
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
 end
 
-function Maxwell:eigenMaxWaveCode(side, eig, x)
+function Maxwell:eigenMaxWaveCode(n, eig, x)
 	return 'v_p_abs'
 end
-function Maxwell:eigenMinWaveCode(side, eig, x)
-	return '-'..self:eigenMaxWaveCode(side, eig, x)
+function Maxwell:eigenMinWaveCode(n, eig, x)
+	return '-'..self:eigenMaxWaveCode(n, eig, x)
 end
 
-function Maxwell:consWaveCodePrefix(side, U, x, waveIndex)
+function Maxwell:consWaveCodePrefix(n, U, x, waveIndex)
 	local env = self:getTemplateEnv()
 	local code = template(
 		[[<?=mul?>(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_mu)]],
@@ -422,11 +442,11 @@ function Maxwell:consWaveCodePrefix(side, U, x, waveIndex)
 end
 Maxwell.consWaveCode = Maxwell.eigenWaveCode
 
-function Maxwell:consMaxWaveCode(side, U, x)
+function Maxwell:consMaxWaveCode(n, U, x)
 	return 'v_p_abs'
 end
-function Maxwell:consMinWaveCode(side, U, x)
-	return '-'..self:consMaxWaveCode(side, U, x)
+function Maxwell:consMinWaveCode(n, U, x)
+	return '-'..self:consMaxWaveCode(n, U, x)
 end
 
 return Maxwell

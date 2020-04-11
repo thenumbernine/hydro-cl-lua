@@ -108,10 +108,12 @@ local function addMaxwellOscillatingBoundary(args)
 		local U = 'buf['..args.index(
 			side:sub(-3) == 'min' and 'j+1' or (gridSizeSide..'-numGhost-1-j')
 		)..']'
+		
 		-- TODO put the old code here
-		return 
-			--oldxmin(args) .. 
-			template([[
+		if not args.fields then
+			return 
+				--oldxmin(args) .. 
+				template([[
 <?
 	local epsSrc = 
 		(require 'eqn.twofluid-emhd-lingr'.is(eqn) 
@@ -126,13 +128,16 @@ local function addMaxwellOscillatingBoundary(args)
 	<?=U?>.D.<?=dir?> = <?=real_mul?>(
 		<?=mul?>(<?=epsSrc?>.sqrt_1_eps, <?=epsSrc?>.sqrt_1_eps),
 		<?=amplitude?> * sin(2. * M_PI * <?=frequency?> * t)); 
-]], 	table(solver.eqn:getTemplateEnv(), {
-			U = U,
-			eqn = self.eqn,
-			frequency = clnumber(frequency),
-			amplitude = clnumber(amplitude),
-			dir = dir,
-		}))
+]], 		table(solver.eqn:getTemplateEnv(), {
+				U = U,
+				eqn = self.eqn,
+				frequency = clnumber(frequency),
+				amplitude = clnumber(amplitude),
+				dir = dir,
+			}))
+		else
+			return ''
+		end
 	end
 	
 	-- this args is only for the UBuf boundary program -- not calle for the Poisson boundary program
@@ -146,19 +151,20 @@ local function addMaxwellOscillatingBoundary(args)
 		--local oldxmin = select(2, next(solver.boundaryOptions[boundaryMethods.xmin]))
 		self.boundaryMethods[side] = BoundaryOscillating()
 		
+		local args = oldGetBondaryProgramArgs(self)
+		
 		-- same as super 
 		-- except with extraAgs
 		-- and using boundaryMethods instead of self.boundaryMethods
 		-- (which I leave alone so Poisson can deal with it)
-		return table(
-			oldGetBondaryProgramArgs(self),
-			{
-				-- TODO just give the solver a parameter 't' ?
-				-- give it a parameter 'dt' while you're at it
-				-- that would save on a few kernel parameters
-				extraArgs = {'real t'},
-			}
-		)
+		
+		-- TODO just give the solver a parameter 't' ?
+		-- give it a parameter 'dt' while you're at it
+		-- that would save on a few kernel parameters
+		args = table(args)
+		args.extraArgs = {'real t'}
+
+		return args
 	end
 	
 	-- this runs before refreshBoundaryProgram, so lets hijack refreshBoundaryProgram and add in our time-based boundary conditions

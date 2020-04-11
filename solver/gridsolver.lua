@@ -923,7 +923,9 @@ function BoundaryMirror:getCode(args)
 	-- generalized:
 	local solver = args.solver
 	local eqn = solver.eqn
-	if solver.coord.vectorComponent == 'cartesian' then
+	if solver.coord.vectorComponent == 'cartesian' 
+	and not require 'coord.cartesian'.is(solver.coord)
+	then
 		-- v = v - n (v dot n)
 		-- v^i = v^i - n^i (v^j n_j) (1 + restitution)
 		-- ... where n_i = partial_i u, for u the chart
@@ -1361,15 +1363,16 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 		local function index(j)
 			return 'INDEX('..indexv(j)..')'
 		end
-	
+
+
 		lines:insert(template([[
 kernel void boundary_<?=xNames[side]?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=args.type?>* buf<?= 
 args.extraArgs and #args.extraArgs > 0 
-	and ','..table.concat(args.extraArgs, ',\n\t')
+	and ',\n\t'..table.concat(args.extraArgs, ',\n\t')
 	or '' ?>
-) {<? 
+) {<?
 -- 1D: use a small 1D kernel and just run once 
 -- 2D: use a 1D kernel the size of the max dim 
 if solver.dim == 2 then ?>
@@ -1407,6 +1410,10 @@ end
 
 		for _,minmax in ipairs(minmaxs) do
 			lines:insert(args.methods[xNames[side]..minmax]:getCode({
+				
+				-- this is only used for the oscillating boundary to distinguish between the cons_t boundary and the potential boundary
+				fields = args.fields,
+				
 				solver = self,
 				index = index,
 				indexv = indexv,
@@ -1594,11 +1601,6 @@ function GridSolver:calcExactError(numStates)
 end
 
 function GridSolver:update()
---[[
-print'\nGridSolver:update() begin, self.UBufObj:'
-self:printBuf(self.UBufObj)
---]]
-
 	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 	GridSolver.super.update(self)
