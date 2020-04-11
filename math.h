@@ -156,6 +156,7 @@ real3x3 sym3_real3x3_mul(sym3 a, real3x3 b);
 sym3 real3x3_sym3_to_sym3_mul(real3x3 a, sym3 b);
 sym3 sym3_real3x3_to_sym3_mul(sym3 a, real3x3 b);
 sym3 sym3_from_real3x3(real3x3 a);
+real3x3 real3x3_from_sym3(sym3 a);
 real3x3 real3x3_addT(real3x3 a, real3x3 b);
 real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b);
 real3 real3x3_real3_mul(real3x3 a, real3 b);

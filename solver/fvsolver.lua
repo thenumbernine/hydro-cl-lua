@@ -91,7 +91,7 @@ function FiniteVolumeSolver:addDisplayVars()
 				getEigenCode{side=side},
 				template([[
 	normalInfo_t n<?=side?> = normalInfo_forSide<?=side?>(xInt);
-	<?=eqn:eigenWaveCodePrefixForNormal('n', 'eig', 'xInt')?>
+	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'xInt')?>
 ]], 			{
 					eqn = self.eqn,
 					side = side,
@@ -99,7 +99,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			}:concat'\n',
 			vars = range(0, self.eqn.numWaves-1):map(function(i)
 				return {name=tostring(i), code=template([[
-	value.vreal = <?=eqn:eigenWaveCodeForNormal('n'..side, 'eig', 'xInt', i)?>;
+	value.vreal = <?=eqn:eigenWaveCode('n'..side, 'eig', 'xInt', i)?>;
 ]], 			{
 					eqn = self.eqn,
 					side = side,
@@ -150,8 +150,9 @@ function FiniteVolumeSolver:addDisplayVars()
 			basis.ptr[j] = k == j ? 1 : 0;
 		}
 		
-		<?=eqn.waves_t?> chars = eigen_leftTransformForSide<?=side?>(solver, eig, basis, xInt);
-		<?=eqn.cons_t?> newbasis = eigen_rightTransformForSide<?=side?>(solver, eig, chars, xInt);
+		normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
+		<?=eqn.waves_t?> chars = eigen_leftTransform(solver, eig, basis, xInt, n);
+		<?=eqn.cons_t?> newbasis = eigen_rightTransform(solver, eig, chars, xInt, n);
 	
 		for (int j = 0; j < numStates; ++j) {
 			value.vreal += fabs(newbasis.ptr[j] - basis.ptr[j]);
@@ -182,7 +183,7 @@ function FiniteVolumeSolver:addDisplayVars()
 					getEigenCode{side=side},
 					template([[
 	normalInfo_t n<?=side?> = normalInfo_forSide<?=side?>(x);
-	<?=eqn:eigenWaveCodePrefixForNormal('n'..side, 'eig', 'xInt')?>
+	<?=eqn:eigenWaveCodePrefix('n'..side, 'eig', 'xInt')?>
 	
 	value.vreal = 0;
 	for (int k = 0; k < numIntStates; ++k) {
@@ -193,16 +194,17 @@ function FiniteVolumeSolver:addDisplayVars()
 			basis.ptr[j] = k == j ? 1 : 0;
 		}
 
-		<?=eqn.waves_t?> chars = eigen_leftTransformForSide<?=side?>(solver, eig, basis, xInt);
+		normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
+		<?=eqn.waves_t?> chars = eigen_leftTransform(solver, eig, basis, xInt, n);
 
 		<?=eqn.waves_t?> charScaled;
 		<? for j=0,eqn.numWaves-1 do ?>{
-			real lambda_j = <?=eqn:eigenWaveCodeForNormal('n'..side, 'eig', 'xInt', j)?>;
+			real lambda_j = <?=eqn:eigenWaveCode('n'..side, 'eig', 'xInt', j)?>;
 			charScaled.ptr[<?=j?>] = chars.ptr[<?=j?>] * lambda_j;
 		}<? end ?>
 	
 		//once again, only needs to be numIntStates
-		<?=eqn.cons_t?> newtransformed = eigen_rightTransformForSide<?=side?>(solver, eig, charScaled, xInt);
+		<?=eqn.cons_t?> newtransformed = eigen_rightTransform(solver, eig, charScaled, xInt, n);
 
 //this shouldn't need to be reset here
 // but it will if leftTransform does anything destructive
@@ -211,7 +213,7 @@ for (int j = 0; j < numStates; ++j) {
 }
 
 		//once again, only needs to be numIntStates
-		<?=eqn.cons_t?> transformed = eigen_fluxTransformForSide<?=side?>(solver, eig, basis, xInt);
+		<?=eqn.cons_t?> transformed = eigen_fluxTransform(solver, eig, basis, xInt, n);
 		
 		for (int j = 0; j < numIntStates; ++j) {
 			value.vreal += fabs(newtransformed.ptr[j] - transformed.ptr[j]);

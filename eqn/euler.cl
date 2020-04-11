@@ -14,7 +14,7 @@ typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
 
-cons_t fluxFromConsForNormal(
+cons_t fluxFromCons(
 	constant solver_t* solver,
 	cons_t U,
 	real3 x,
@@ -41,7 +41,7 @@ cons_t fluxFromConsForNormal(
 
 
 // used by PLM
-range_t calcCellMinMaxEigenvaluesForNormal(
+range_t calcCellMinMaxEigenvalues(
 	constant solver_t* solver,
 	const global cons_t* U,
 	real3 x,
@@ -106,18 +106,16 @@ eigen_t eigen_forInterface(
 }
 
 // used by PLM
-eigen_t eigen_forCellForNormal(
+eigen_t eigen_forCell(
 	constant solver_t* solver,
 	cons_t U,
 	real3 x,
-	real3x3 nL,
-	real3x3 nU,
-	real nLen
+	normalInfo_t n
 ) {
 	prim_t W = primFromCons(solver, U, x);
 	real3 vL = coord_lower(W.v, x);
 	real vSq = real3_dot(W.v, vL);
-	real v_n = real3_dot(W.v, nL.x);
+	real v_n = normalInfo_vecDotN1(n, W.v);
 	real eKin = .5 * vSq;
 	real hTotal = calc_hTotal(W.rho, W.P, U.ETotal);
 	real CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);
@@ -125,10 +123,10 @@ eigen_t eigen_forCellForNormal(
 	return (eigen_t){
 		.rho = W.rho,
 		.v = W.v,
-		.hTotal = hTotal,
 		.vSq = vSq,
-		.Cs = Cs,
 		.vL = vL,
+		.hTotal = hTotal,
+		.Cs = Cs,
 	};
 }
 
@@ -146,7 +144,7 @@ local prefix = [[
 ]]
 ?>
 
-waves_t eigen_leftTransformForNormal(
+waves_t eigen_leftTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t X_,
@@ -197,7 +195,7 @@ waves_t eigen_leftTransformForNormal(
 	}};
 }
 
-cons_t eigen_rightTransformForNormal(
+cons_t eigen_rightTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	waves_t X_,
@@ -239,7 +237,7 @@ cons_t eigen_rightTransformForNormal(
 	}};
 }
 
-cons_t eigen_fluxTransformForNormal(
+cons_t eigen_fluxTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t X_,
@@ -373,13 +371,3 @@ kernel void constrainU(
 
 	*U = consFromPrim(solver, W, x);
 }
-
-
-<? for side=0,solver.dim-1 do ?>
-#define fluxFromConsForSide<?=side?>(solver, U, x) 				fluxFromConsForNormal(solver, U, x, normalInfo_forSide<?=side?>(x))
-#define calcCellMinMaxEigenvalues_<?=side?>(solver, U, x) 		calcCellMinMaxEigenvaluesForNormal(solver, U, x, normalInfo_forSide<?=side?>(x))
-#define eigen_leftTransformForSide<?=side?>(solver, eig, X, x) 	eigen_leftTransformForNormal(solver, eig, X, x, normalInfo_forSide<?=side?>(x))
-#define eigen_rightTransformForSide<?=side?>(solver, eig, X, x) eigen_rightTransformForNormal(solver, eig, X, x, normalInfo_forSide<?=side?>(x))
-#define eigen_fluxTransformForSide<?=side?>(solver, eig, X, x) 	eigen_fluxTransformForNormal(solver, eig, X, x, normalInfo_forSide<?=side?>(x))
-#define eigen_forCell_<?=side?>(solver, U, x) 					eigen_forCellForNormal(solver, U, x, normalInfo_forSide<?=side?>(x))
-<? end ?>

@@ -414,33 +414,33 @@ function Equation:getEigenDisplayVars()
 	end
 end
 
-function Equation:eigenWaveCodePrefixForSide(side, eig, x)
+function Equation:eigenWaveCodePrefix(n, eig, x)
 	return ''
 end
-function Equation:eigenWaveCode(side, eig, x, waveIndex)
+function Equation:eigenWaveCode(n, eig, x, waveIndex)
 	return '\n#error :eigenWaveCode() not implemented'
 end
 
-function Equation:consWaveCodePrefixForSide(side, U, x)
-	return '\n#error :consWaveCodePrefixForSide() not implemented'
+function Equation:consWaveCodePrefix(n, U, x)
+	return '\n#error :consWaveCodePrefix() not implemented'
 end
-function Equation:consWaveCode(side, U, x)
+function Equation:consWaveCode(n, U, x)
 	return '\n#error :consWaveCode() not implemented'
 end
 
 -- default implementation -- the first is the min and the last is the max
 -- however some don't do this, like GLM
-function Equation:eigenMinWaveCode(side, eig, x)
-	return self:eigenWaveCode(side, eig, x, 0)
+function Equation:eigenMinWaveCode(n, eig, x)
+	return self:eigenWaveCode(n, eig, x, 0)
 end
-function Equation:eigenMaxWaveCode(side, eig, x)
-	return self:eigenWaveCode(side, eig, x, self.numWaves-1)
+function Equation:eigenMaxWaveCode(n, eig, x)
+	return self:eigenWaveCode(n, eig, x, self.numWaves-1)
 end
-function Equation:consMinWaveCode(side, U, x)
-	return self:consWaveCode(side, U, x, 0)
+function Equation:consMinWaveCode(n, U, x)
+	return self:consWaveCode(n, U, x, 0)
 end
-function Equation:consMaxWaveCode(side, U, x)
-	return self:consWaveCode(side, U, x, self.numWaves-1)
+function Equation:consMaxWaveCode(n, U, x)
+	return self:consWaveCode(n, U, x, self.numWaves-1)
 end
 
 -- Whether the eqn has its own calcDT.  Otherwise eqn/cl/calcDT.cl is used. 

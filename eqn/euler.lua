@@ -97,15 +97,23 @@ real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	return (solver->heatCapacityRatio - 1.) * EInt;
 }
 
-<? for side=0,solver.dim-1 do ?>
+<? for side=0,solver.dim-1 do
+	if coord.vectorComponent == 'cartesian'
+	or require 'coord.cartesian'.is(coord)
+	then
+?>
+#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
+<?	else ?>
 <?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
 	U.m = coord_parallelPropagateU<?=side?>(U.m, x, dx);
 	return U;
 }
-<? end ?>
+<?	end
+end ?>
 
 ]], {
 		solver = self.solver,
+		coord = self.solver.coord,
 		eqn = self,
 	})
 end
@@ -344,24 +352,9 @@ Euler.eigenVars = table{
 	{name='vL', type='real3', units='m/s'},
 }
 
-function Euler:eigenWaveCodePrefixForSide(side, eig, x)
-	assert(n)
+function Euler:eigenWaveCodePrefix(n, eig, x, W)
 	return template([[
-	real nLen = normalInfo_len(<?=n?>);
-	real Cs_nLen = <?=eig?>.Cs * nLen;
-	real v_n = normalInfo_vecDotN1(<?=n?>, <?=eig?>.v);
-]], {
-		eig = '('..eig..')',
-		side = side,
-		x = x,
-		n = n,
-	})
-end
-
-function Euler:eigenWaveCodePrefixForNormal(n, eig, x, W)
-	return template([[
-	real nLen = normalInfo_len(<?=n?>);
-	real Cs_nLen = <?=eig?>.Cs * nLen;
+	real Cs_nLen = <?=eig?>.Cs * normalInfo_len(<?=n?>);
 	real v_n = normalInfo_vecDotN1(<?=n?>, <?=eig?>.v);
 ]],	{
 		eqn = self,
@@ -373,24 +366,23 @@ function Euler:eigenWaveCodePrefixForNormal(n, eig, x, W)
 end
 
 -- W is an extra param specific to Euler's calcDT in this case
-function Euler:consWaveCodePrefixForSide(side, U, x, W)
+function Euler:consWaveCodePrefix(n, U, x, W)
 	return template([[
 <? if not W then ?>
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 <? end ?>
-	real nLen = normalInfo_len(<?=n?>);
-	real Cs_nLen = calc_Cs(solver, &<?=W or 'W'?>) * nLen;
+	real Cs_nLen = calc_Cs(solver, &<?=W or 'W'?>) * normalInfo_len(<?=n?>);
 	real v_n = normalInfo_vecDotN1(<?=n?>, <?=eig?>.v);
 ]], {
 		eqn = self,
 		U = '('..U..')',
 		W = W and '('..W..')' or nil,
-		side = side,
+		n = n,
 		x = x,
 	})
 end
 
-function Euler:consWaveCode(side, U, x, waveIndex)
+function Euler:consWaveCode(n, U, x, waveIndex)
 	if waveIndex == 0 then
 		return '(v_n - Cs_nLen)'
 	elseif waveIndex >= 1 and waveIndex <= 3 then
@@ -403,7 +395,6 @@ end
 
 -- as long as U or eig isn't used, we can use this for both implementations
 Euler.eigenWaveCode = Euler.consWaveCode
-Euler.eigenWaveCodeForNormal = Euler.consWaveCode
 
 -- this one calcs cell prims once and uses it for all sides
 -- it is put here instead of in eqn/euler.cl so euler-burgers can override it
@@ -432,15 +423,14 @@ kernel void calcDT(
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
 		//use cell-centered eigenvalues
-		real lambdaMin = W.v.s<?=side?> - Cs;
-		real lambdaMax = W.v.s<?=side?> + Cs;
+		real v_n = normalInfo_vecDotN1(normalInfo_forSide<?=side?>(x), W.v);
+		real lambdaMin = v_n - Cs;
+		real lambdaMax = v_n + Cs;
 		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
 		absLambdaMax = max((real)1e-9, absLambdaMax);
-<? if false then -- solver.coord.vectorComponent == 'anholonomic' then ?>
-		real dx = cell_dx<?=side?>(x); 
-<? else ?>
+		//TODO this should be based on coord + vectorComponent 
+		//non-cartesian coord + cartesian component uses |u(x+dx)-u(x)|
 		real dx = solver->grid_dx.s<?=side?>;
-<? end ?>	
 		dt = (real)min(dt, dx / absLambdaMax);
 	}<? end ?>
 	dtBuf[index] = dt;
@@ -466,17 +456,16 @@ kernel void calcDT(
 		const global face_t* face = faces + cell->faces[i];
 		//all sides? or only the most prominent side?
 		//which should we pick eigenvalues from?
-		<? for side=0,solver.dim-1 do ?>{
-			//use cell-centered eigenvalues
-			real3 x = cell->x;
-			<?=eqn:consWaveCodePrefixForSide(side, '*U', 'x')?>
-			real lambdaMin = <?=eqn:consMinWaveCode(side, '*U', 'x')?>;
-			real lambdaMax = <?=eqn:consMaxWaveCode(side, '*U', 'x')?>;
-			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-			absLambdaMax = max((real)1e-9, absLambdaMax);
-			real dx = cell->maxDist;
-			dt = (real)min(dt, dx / absLambdaMax);
-		}<? end ?>
+		//use cell-centered eigenvalues
+		real3 x = cell->x;
+		normalInfo_t n = normalInfo_forCell(cell);
+		<?=eqn:consWaveCodePrefix('n', '*U', 'x')?>
+		real lambdaMin = <?=eqn:consMinWaveCode('n', '*U', 'x')?>;
+		real lambdaMax = <?=eqn:consMaxWaveCode('n', '*U', 'x')?>;
+		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+		absLambdaMax = max((real)1e-9, absLambdaMax);
+		real dx = cell->maxDist;
+		dt = (real)min(dt, dx / absLambdaMax);
 	}
 	dtBuf[cellIndex] = dt;
 }

@@ -51,7 +51,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	--coordArgs = {vectorComponent='cartesian'},
 	mins = cmdline.mins or {-1, -1, -1},
@@ -102,16 +102,16 @@ local args = {
 		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	coord = 'cylinder',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
-	coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
+	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
 	--coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
 	mins = cmdline.mins or {.1, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},
 	gridSize = ({
 		{128, 1, 1}, -- 1D
-		{4, 8, 1},	 -- 2D
+		{64, 128, 1},	 -- 2D
 		{32, 32, 32}, -- 3D
 	})[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {

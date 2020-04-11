@@ -1254,23 +1254,24 @@ typedef struct {
 		--]]
 		self.normalTypeCode = template([[
 typedef struct {
-	int side;
 	real3x3 n;		// nL = nU, both are orthonormal so nLen = 1
 	real len;
 } normalInfo_t;
 		]])
 
+		-- this would call coord_cartesianFromCoord
+		-- which itself aligns with the holunit_coordBasis
 		self.normalInfoCode = template([[
 <? for side=0,solver.dim-1 do ?>
-normalInfo_t normalInfo_forSide<?=side?>(real3 x) { 
-	normalInfo_t normal;
-	normal.n.x = coord_cartesianFromCoord(normalForSide<?=side?>, x);
-	normal.n.y = coord_cartesianFromCoord(normalForSide<?=(side+1)%3?>, x);
-	normal.n.z = coord_cartesianFromCoord(normalForSide<?=(side+2)%3?>, x);
-	normal.len = 1;
-	normal.side = <?=side?>;
-	return normal;
-}
+#define normalInfo_forSide<?=side?>(x) \ 
+	((normalInfo_t){ \
+		.n = (real3x3){.v={ \
+			.x = holunit_coordBasis<?=side?>(x), \
+			.y = holunit_coordBasis<?=(side+1)%3?>(x), \
+			.z = holunit_coordBasis<?=(side+2)%3?>(x), \
+		}}, \
+		.len = 1., \
+	})
 <? end ?>
 
 //|n1|
@@ -1345,23 +1346,22 @@ typedef struct {
 
 		self.normalInfoCode = template([[
 <? for side=0,solver.dim-1 do ?>
-normalInfo_t normalInfo_forSide<?=side?>(real3 x) { 
-	return (normalInfo_t){
-		.side = <?=side?>,
-		.U = _real3x3(
-			coord_g_uu<?=side?>0(x),
-			coord_g_uu<?=side?>1(x),
-			coord_g_uu<?=side?>2(x),
-			coord_g_uu<?=(side+1)%3?>0(x),
-			coord_g_uu<?=(side+1)%3?>1(x),
-			coord_g_uu<?=(side+1)%3?>2(x),
-			coord_g_uu<?=(side+2)%3?>0(x),
-			coord_g_uu<?=(side+2)%3?>1(x),
-			coord_g_uu<?=(side+2)%3?>2(x)
-		),
-		.len = coord_sqrt_g_uu<?=side..side?>(x),
-	}; 
-}
+#define normalInfo_forSide<?=side?>(x) \ 
+	((normalInfo_t){ \
+		.side = <?=side?>, \
+		.U = _real3x3( \
+			coord_g_uu<?=side?>0(x), \
+			coord_g_uu<?=side?>1(x), \
+			coord_g_uu<?=side?>2(x), \
+			coord_g_uu<?=(side+1)%3?>0(x), \
+			coord_g_uu<?=(side+1)%3?>1(x), \
+			coord_g_uu<?=(side+1)%3?>2(x), \
+			coord_g_uu<?=(side+2)%3?>0(x), \
+			coord_g_uu<?=(side+2)%3?>1(x), \
+			coord_g_uu<?=(side+2)%3?>2(x) \
+		), \
+		.len = coord_sqrt_g_uu<?=side..side?>(x), \
+	}) 
 <? end ?>
 
 //|n1|

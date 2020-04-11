@@ -8,6 +8,7 @@ local xNames = common.xNames
 local symNames = common.symNames
 local sym = common.sym
 local from6to3x3 = common.from6to3x3
+local from3x3to6 = common.from3x3to6
 ?>
 
 ////////////////////////// quat //////////////////////////
@@ -506,6 +507,18 @@ sym3 sym3_from_real3x3(real3x3 a) {
 ?>	};
 }
 
+real3x3 real3x3_from_sym3(sym3 a) {
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = {
+<?	for j,xj in ipairs(xNames) do
+		local ij,xij = from3x3to6(i,j)
+?>			.<?=xj?> = a.<?=xij?>,
+<?	end
+?>		},
+<? end
+?>	};
+}
 
 //c_ij = a_ij + b_ji
 real3x3 real3x3_addT(real3x3 a, real3x3 b) {
