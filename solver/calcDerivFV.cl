@@ -19,11 +19,12 @@ kernel void calcDerivFromFlux(
 <? elseif solver.coord.vectorComponent == 'cartesian' then ?>
 
 	//TODO FIXME, this isn't correct
-	//real volume = cell_volume(x);
+	real volume = cell_volume(x);
+	//TODO rethink this flag
 <? 	if eqn.weightFluxByGridVolume then ?>
-	real volume = coord_sqrt_det_g(x);
+//	real volume = coord_sqrt_det_g(x);
 <? 	else ?>
-	const real volume = 1.<? 
+//	const real volume = 1.<? 
 	for i=0,solver.dim-1 do 
 		?> * solver->grid_dx.s<?=i?><? 
 	end ?>;
@@ -62,8 +63,8 @@ kernel void calcDerivFromFlux(
 		//real areaL = cell_area<?=side?>(xIntL);
 		//real areaR = cell_area<?=side?>(xIntR);
 <? elseif solver.coord.vectorComponent == 'cartesian' then ?>
-		real areaL = solver->grid_dx.s<?=side?>;//cell_area<?=side?>(xIntL);
-		real areaR = solver->grid_dx.s<?=side?>;//cell_area<?=side?>(xIntR);
+		real areaL = cell_area<?=side?>(xIntL);
+		real areaR = cell_area<?=side?>(xIntR);
 <? else -- vectorComponent ~= 'anholonomic' ?>
 <? if eqn.weightFluxByGridVolume then ?>
 		real areaL;
@@ -91,40 +92,11 @@ kernel void calcDerivFromFlux(
 
 <? if solver.coord.vectorComponent == 'anholonomic' then ?>
 
-<?	if require 'coord.cylinder'.is(solver.coord) then ?>
-		real rR = x.x + .5 * solver->grid_dx.x;
-		real rL = x.x - .5 * solver->grid_dx.x;
-		// integral of volume form across cell
-		real volInt = .5 * (rR * rR - rL * rL) * solver->grid_dx.y * solver->grid_dx.z;
-		//real volInt = x.x * solver->grid_dx.x * solver->grid_dx.y * solver->grid_dx.z;
-
-		// integral of volume form across surface
-<? 		if side == 0 then ?>
-		// right volume form 'r' times integral across other coords phi, z (which don't integrate the volume form)
-		real areaR = rR * solver->grid_dx.y * solver->grid_dx.z;
-		// left volume form 'r' times integral across other coords phi, z (which don't integrate the volume form)
-		real areaL = rL * solver->grid_dx.y * solver->grid_dx.z;
-<? 		elseif side == 1 then ?>
-		// integral of volume form 'r' across coords r, z
-		real area = .5 * (rR * rR - rL * rL) * solver->grid_dx.z;
-		real areaR = area;
-		real areaL = area;
-<? 		elseif side == 2 then ?>
-		// integral of volume form 'r' across coords r, phi
-		real area = .5 * (rR * rR - rL * rL) * solver->grid_dx.y;
-		real areaR = area;
-		real areaL = area;
-<?		end ?>
-
-<?	else -- automatic ?>
-		
 		//divide by integral of volume form
 		real volInt = cell_volume(x);
 		//scale flux by volume form times area
 		real areaR = cell_area0(xIntR);
 		real areaL = cell_area0(xIntL);
-
-<?	end ?>
 		
 		for (int j = 0; j < numIntStates; ++j) {
 			deriv->ptr[j] -= (

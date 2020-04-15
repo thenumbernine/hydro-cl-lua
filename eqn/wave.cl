@@ -77,24 +77,6 @@ real3x3 metric_partial_beta_ul(real3 pt) {
 }
 
 
-// TODO this can be automatically done based on flagging the state variables, whether their indexes are upper or lower
-<? 
-local coord = solver.coord
-for side=0,solver.dim-1 do 
-	if coord.vectorComponent == 'cartesian'
-	or require 'coord.cartesian'.is(coord)
-	then
-?>
-#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
-<?	else ?>
-cons_t cons_parallelPropagate<?=side?>(cons_t U, real3 x, real dx) {
-	U.Psi_l = coord_parallelPropagateL<?=side?>(U.Psi_l, x, dx);
-	return U;
-}
-<?	end
-end ?>
-
-
 <? else -- getCommonCode ?> 
 
 

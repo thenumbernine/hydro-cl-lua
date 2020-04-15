@@ -18,8 +18,16 @@ kernel void calcFlux(
 		const int side = <?=side?>;	
 		int indexL = index - solver->stepsize.s<?=side?>;
 	
-		real dx = solver->grid_dx.s<?=side?>;
-		
+<? 
+if solver.coord.vectorComponent == 'cartesian' 
+and not require 'coord.cartesian'.is(solver.coord)
+then 
+?>		real dx = cell_dx<?=side?>(x); 
+<? else 
+?>		real dx = solver->grid_dx.s<?=side?>;
+<? end 
+?>	
+
 		real3 xL = xR;
 		xL.s<?=side?> -= dx;
 

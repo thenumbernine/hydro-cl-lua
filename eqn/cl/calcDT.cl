@@ -26,11 +26,17 @@ kernel void calcDT(
 		real lambdaMax = <?=eqn:consMaxWaveCode('n', '*U', 'x')?>;
 		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
 		absLambdaMax = max((real)1e-9, absLambdaMax);
-<? if false then -- solver.coord.vectorComponent == 'cartesian' then ?>
-		real dx = cell_dx<?=side?>(x); 
-<? else ?>
-		real dx = solver->grid_dx.s<?=side?>;
-<? end ?>
+
+<? 
+if solver.coord.vectorComponent == 'cartesian' 
+and not require 'coord.cartesian'.is(solver.coord)
+then 
+?>		real dx = cell_dx<?=side?>(x); 
+<? else 
+?>		real dx = solver->grid_dx.s<?=side?>;
+<? end 
+?>
+		
 		dt = (real)min(dt, dx / absLambdaMax);
 	}<? end ?>
 	dtBuf[index] = dt;

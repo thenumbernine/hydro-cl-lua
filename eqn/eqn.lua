@@ -277,6 +277,9 @@ function Equation:getCodePrefix()
 		-- it goes last so it has access to everything above it
 		-- but it must be in codeprefix so initstate has access to it
 		self:getPrimConsCode() or '',
+
+		-- parallel propagate autogen code 
+		self:getParallelPropagateCode() or '',
 	}:concat'\n'
 end
 
@@ -556,6 +559,40 @@ returns output vector
 ]], {
 		eqn = self,
 		solver = self.solver,
+	})
+end
+
+
+function Equation:getParallelPropagateCode()
+	return template([[
+<? for side=0,solver.dim-1 do
+	if coord.vectorComponent == 'cartesian'
+	or require 'coord.cartesian'.is(coord) 
+	then
+?>#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
+<?	else
+?>cons_t cons_parallelPropagate<?=side?>(cons_t U, real3 x, real dx) {
+<?		for _,var in ipairs(eqn.consStruct.vars) do
+			local variance = var.name:match'_([^_]*)$'
+			if variance then
+				if variance == 'u' then
+?>	U.<?=var.name?> = coord_parallelPropagateU<?=side?>(U.<?=var.name?>, x, dx);
+<?			
+				elseif variance == 'l' then
+?>	U.<?=var.name?> = coord_parallelPropagateL<?=side?>(U.<?=var.name?>, x, dx);
+<?			
+				else
+					error("don't know how to handle variance for "..variance)
+				end
+			end
+		end
+?>}
+<?	end
+end
+?>]], {
+		eqn = self,
+		solver = self.solver,
+		coord = self.solver.coord,
 	})
 end
 

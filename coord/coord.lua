@@ -1273,15 +1273,15 @@ typedef struct {
 		-- which itself aligns with the holunit_coordBasis
 		self.normalInfoCode = template([[
 <? for side=0,solver.dim-1 do ?>
-#define normalInfo_forSide<?=side?>(x) \ 
-	((normalInfo_t){ \
-		.n = (real3x3){.v={ \
-			.x = holunit_coordBasis<?=side?>(x), \
-			.y = holunit_coordBasis<?=(side+1)%3?>(x), \
-			.z = holunit_coordBasis<?=(side+2)%3?>(x), \
-		}}, \
-		.len = 1., \
-	})
+//#define normalInfo_forSide<?=side?>(pt)
+normalInfo_t normalInfo_forSide<?=side?>(real3 pt) {
+	normalInfo_t n;
+	n.n.x = holunit_coordBasis<?=side?>(pt);
+	n.n.y = holunit_coordBasis<?=(side+1)%3?>(pt);
+	n.n.z = holunit_coordBasis<?=(side+2)%3?>(pt);
+	n.len = 1.;
+	return n;
+}
 <? end ?>
 
 //|n1|
