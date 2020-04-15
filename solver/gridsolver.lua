@@ -167,6 +167,20 @@ function GridSolver:preInit(args)
 		return results
 	end
 	self.Program = Program
+
+	
+	local GLProgram = class(require 'gl.program')
+	function GLProgram:init(...)
+		local args = ...
+		
+		-- Write generated code
+		local fn = 'cache-cl/'..solver.app:uniqueName(args.name or 'shader')
+		file[fn..'.vert'] = args.vertexCode
+		file[fn..'.frag'] = args.fragmentCode
+
+		GLProgram.super.init(self, ...)
+	end
+	self.GLProgram = GLProgram 
 end
 
 
@@ -318,10 +332,9 @@ end
 
 
 function GridSolver:initDraw()
-	local GLProgram = require 'gl.program'
-
 	local graphShaderCode = file['draw/graph.shader']
-	self.graphShader = GLProgram{
+	self.graphShader = self.GLProgram{
+		name = 'graph',
 		vertexCode = template(graphShaderCode, {
 			solver = self,
 			vertexShader = true,
@@ -338,7 +351,8 @@ function GridSolver:initDraw()
 	}
 
 	local heatMapCode = file['draw/2d_heatmap.shader']
-	self.heatMap2DShader = GLProgram{
+	self.heatMap2DShader = self.GLProgram{
+		name = '2d_heatmap',
 		vertexCode = template(heatMapCode, {
 			solver = self,
 			vertexShader = true,
@@ -360,7 +374,8 @@ function GridSolver:initDraw()
 		
 		self.display3D_Ray_maxiter = math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y), tonumber(self.gridSize.z))
 		local volumetricCode = file['draw/volumetric.shader']
-		self.volumeRayShader = GLProgram{
+		self.volumeRayShader = self.GLProgram{
+			name = 'volumetric',
 			vertexCode = template(volumetricCode, {
 				app = self.app,
 				solver = self,
@@ -381,7 +396,8 @@ function GridSolver:initDraw()
 		-- volume slices
 
 		local volumeSliceCode = file['draw/3d_slice.shader']
-		self.volumeSliceShader = GLProgram{
+		self.volumeSliceShader = self.GLProgram{
+			name = '3d_slice',
 			vertexCode = template(volumeSliceCode, {
 				solver = self,
 				vertexShader = true
@@ -403,7 +419,8 @@ function GridSolver:initDraw()
 
 	-- TODO move to draw/vector_arrow.lua ?
 	local vectorArrowCode = file['draw/vector_arrow.shader']
-	self.vectorArrowShader = GLProgram{
+	self.vectorArrowShader = self.GLProgram{
+		name = 'vector_arrow',
 		vertexCode = template(vectorArrowCode, {
 			solver = self,
 			vertexShader = true,
