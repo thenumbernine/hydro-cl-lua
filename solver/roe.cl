@@ -17,16 +17,8 @@ kernel void calcFlux(
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;	
 		int indexL = index - solver->stepsize.s<?=side?>;
-	
-<? 
-if solver.coord.vectorComponent == 'cartesian' 
-and not require 'coord.cartesian'.is(solver.coord)
-then 
-?>		real dx = cell_dx<?=side?>(x); 
-<? else 
-?>		real dx = solver->grid_dx.s<?=side?>;
-<? end 
-?>	
+
+		real dx = solver->grid_dx.s<?=side?>;
 
 		real3 xL = xR;
 		xL.s<?=side?> -= dx;
@@ -37,16 +29,23 @@ then
 		//this is used for the flux limiter
 		//should it be using the coordinate dx or the grid dx?
 		//real dt_dx = dt / cell_dx<?=side?>(xInt);
-		real dt_dx = dt / dx;
-
+<? 
+if solver.coord.vectorComponent == 'cartesian' 
+and not require 'coord.cartesian'.is(solver.coord)
+then 
+?>		real dt_dx = dt / cell_dx<?=side?>(xInt);
+<? else 
+?>		real dt_dx = dt / dx;
+<? end 
+?>	
 		real3 xIntL = xInt;
 		xIntL.s<?=side?> -= dx;
 		
 		real3 xIntR = xInt;
 		xIntR.s<?=side?> += dx;
 	
-<?=solver:getULRCode():gsub('\t', '\t\t')?>
-
+		<?=solver:getULRCode():gsub('\n', '\n\t\t')?>
+		
 		// here is where parallel propagator comes into play
 		cons_t pUL = cons_parallelPropagate<?=side?>(*UL, xL, .5 * dx);
 		cons_t pUR = cons_parallelPropagate<?=side?>(*UR, xR, -.5 * dx);
@@ -56,7 +55,7 @@ then
 		normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
 		eigen_t eig = eigen_forInterface(solver, pUL, pUR, xInt, n);
 
-<?=eqn:eigenWaveCodePrefix('n', 'eig', 'xInt'):gsub('\t', '\t\t')?>
+		<?=eqn:eigenWaveCodePrefix('n', 'eig', 'xInt'):gsub('\n', '\n\t\t')?>
 
 		waves_t fluxEig;
 <? if not eqn.roeUseFluxFromCons then 
@@ -66,14 +65,15 @@ then
 		}
 		
 		fluxEig = eigen_leftTransform(solver, eig, UAvg, xInt, n);
-<? end ?>
+<? end
+?>
 		cons_t deltaU;	
 <? if solver.fluxLimiter > 1 then 
 ?>		int indexR2 = indexR + solver->stepsize.s<?=side?>;
 		int indexL2 = indexL - solver->stepsize.s<?=side?>;
-		<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}?>
-		<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}?>	
-		
+		<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}:gsub('\n', '\n\t\t')?>
+		<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}:gsub('\n', '\n\t\t')?>
+
 		// here is where parallel propagator comes into play
 		cons_t pUL_L = cons_parallelPropagate<?=side?>(*UL_L, xIntL, 1.5 * dx);		//xIntL2?
 		cons_t pUL_R = cons_parallelPropagate<?=side?>(*UL_R, xIntL, .5 * dx);

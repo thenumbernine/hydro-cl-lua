@@ -13,6 +13,9 @@ local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
+local common = require 'common'
+
+local xNames = common.xNames
 
 local SRHD = class(Equation)
 SRHD.name = 'SRHD'
@@ -55,16 +58,18 @@ maybe Marti & Muller were lazy with notation since the metric is eta = diag(-1,1
 I used to keep the prim_only_t and cons_only_t as separate structs within separate,
 but that doesn't mesh well with the code that automatically determines signs of reflections at boundaries,
 so I'll try just merging this all into cons_t.
+
+TODO redo the srhd equations for a background grid metric, and take note of covariance/contravariance
 --]]
 SRHD.consVars = table{
 	-- cons_only_t
 	{name='D', type='real', units='kg/m^3'},		-- D = rho W, W = unitless Lorentz factor
-	{name='S', type='real3', units='kg/s^3'},		-- S_j = rho h W^2 v_j ... [rho] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
+	{name='S', type='real3', units='kg/s^3', variance='l'},		-- S_j = rho h W^2 v_j ... [rho] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
 	{name='tau', type='real', units='kg/(m*s^2)'},	-- tau = rho h W^2 - P ... [rho] [h] [W^2] = kg/m^3 * m^2/s^2 = kg/(m*s^2)
 	
 	-- prim_only_t
 	{name='rho', type='real', units='kg/m^3'},
-	{name='v', type='real3', units='m/s'},
+	{name='v', type='real3', units='m/s', variance='l'},
 	{name='eInt', type='real', units='m^2/s^2'},
 	
 	-- extra
@@ -216,26 +221,6 @@ real calc_h(real rho, real P, real eInt) {
 //PLM uses prim_only_t and cons_t, esp using the 'numIntStates' reals that they start with
 //...and PLM uses consFromPrim and primFromCons
 
-
-<? 
-local coord = solver.coord
-for side=0,solver.dim-1 do
-	if coord.vectorComponent == 'cartesian'
-	or require 'coord.cartesian'.is(coord)
-	then
-?>
-#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
-<?	else ?>
-<?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
-	U.S = coord_parallelPropagateU<?=side?>(U.S, x, dx);
-	U.v = coord_parallelPropagateU<?=side?>(U.v, x, dx);
-	return U;
-}
-<?	end
-end ?>
-
-
-
 ]], {
 		eqn = self,
 		solver = self.solver,
@@ -281,11 +266,10 @@ SRHD.solverCodeFile = 'eqn/srhd.cl'
 -- TODO use the automatic arbitrary finite difference generator in bssnok
 -- k is 0,1,2
 local function vorticity(eqn,k,result)
-	local xs = {'x','y','z'}
 	local i = (k+1)%3
 	local j = (i+1)%3
 	return {
-		name = 'vorticity '..xs[k+1],
+		name = 'vorticity '..xNames[k+1],
 		code = template([[
 	if (OOB(1,1)) {
 		<?=result?> = 0.;
@@ -344,19 +328,21 @@ function SRHD:getDisplayVars()
 ]]		},
 	}
 	
-	if self.solver.dim == 2 then
-		vars:insert(vorticity(self,2,'value.vreal'))
-	elseif self.solver.dim == 3 then
-		local v = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
-		vars:insert{
-			name = 'vorticityVec',
-			code = template([[
-	<? for i=0,2 do ?>{
-		<?=select(2,next(v[i+1]))?>
-		++value;
+	if not require 'solver.meshsolver'.is(self.solver) then
+		if self.solver.dim == 2 then
+			vars:insert(vorticity(self,2,'value.vreal'))
+		elseif self.solver.dim == 3 then
+			local v = xNames:map(function(xi,i) 
+				return vorticity(self,i-1,'value.vreal3.'..xi) 
+			end)
+			vars:insert{
+				name = 'vorticityVec',
+				code = template([[
+	<? for i,vi in ipairs(v) do ?>{
+		<?=vi.code?>
 	}<? end ?>
-	value -= 3;
 ]], {v=v}), type='real3'}
+		end
 	end
 
 	return vars

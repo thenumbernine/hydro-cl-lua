@@ -36,7 +36,7 @@ then
 ?>		real dx = solver->grid_dx.s<?=side?>;
 <? end 
 ?>
-		
+
 		dt = (real)min(dt, dx / absLambdaMax);
 	}<? end ?>
 	dtBuf[index] = dt;

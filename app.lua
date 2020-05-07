@@ -448,7 +448,7 @@ function HydroCLApp:initGL(...)
 
 	self:setup{platAndDevicesNames=platAndDevicesNames}
 	if #self.solvers == 0 then
-		print("You didn't add any solvers in the HydroCLApp:setup() function.  Did you forget something?")
+		print("You didn't add any solvers in config.lua or in the HydroCLApp:setup() function.  Did you forget something?")
 	end
 	
 	

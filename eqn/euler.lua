@@ -36,14 +36,14 @@ Euler.initStates = require 'init.euler'
 -- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
 Euler.primVars = {
 	{name='rho', type='real', units='kg/m^3'},
-	{name='v', type='real3', units='m/s'},			-- contravariant
+	{name='v', type='real3', units='m/s', variance='u'},			-- contravariant
 	{name='P', type='real', units='kg/(m*s^2)'},
 	{name='ePot', type='real', units='m^2/s^2'},
 }
 
 Euler.consVars = {
 	{name='rho', type='real', units='kg/m^3'},
-	{name='m', type='real3', units='kg/(m^2*s)'},	-- contravariant
+	{name='m', type='real3', units='kg/(m^2*s)', variance='u'},	-- contravariant
 	{name='ETotal', type='real', units='kg/(m*s^2)'},
 	{name='ePot', type='real', units='m^2/s^2'},
 }
@@ -97,23 +97,8 @@ real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	return (solver->heatCapacityRatio - 1.) * EInt;
 }
 
-<? for side=0,solver.dim-1 do
-	if coord.vectorComponent == 'cartesian'
-	or require 'coord.cartesian'.is(coord)
-	then
-?>
-#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
-<?	else ?>
-<?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
-	U.m = coord_parallelPropagateU<?=side?>(U.m, x, dx);
-	return U;
-}
-<?	end
-end ?>
-
 ]], {
 		solver = self.solver,
-		coord = self.solver.coord,
 		eqn = self,
 	})
 end
@@ -327,12 +312,12 @@ function Euler:getDisplayVars()
 		if self.solver.dim == 2 then
 			vars:insert(vorticity(self,2,'value.vreal'))
 		elseif self.solver.dim == 3 then
-			local v = xNames:mapi(function(x,i)
-				return vorticity(self,i-1,'value.vreal3.'..x) 
+			local v = xNames:mapi(function(xi,i)
+				return vorticity(self,i-1,'value.vreal3.'..xi)
 			end)
 			vars:insert{name='vorticityVec', code=template([[
-	<? for i=0,2 do ?>{
-		<?=v[i+1].code?>
+	<? for i,vi in ipairs(v) do ?>{
+		<?=vi.code?>
 	}<? end ?>
 ]], {v=v}), type='real3', units='m/s^2'}
 		end

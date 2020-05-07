@@ -777,8 +777,8 @@ function GridSolver:refreshGetULR()
 			args = args or {}
 			local suffix = args.suffix or ''
 			return template([[
-	const global <?=eqn.cons_t?>* UL<?=suffix?> = &<?=solver.getULRBufName?>[side + dim * <?=indexL?>].R;
-	const global <?=eqn.cons_t?>* UR<?=suffix?> = &<?=solver.getULRBufName?>[side + dim * <?=indexR?>].L;
+const global <?=eqn.cons_t?>* UL<?=suffix?> = &<?=solver.getULRBufName?>[side + dim * <?=indexL?>].R;
+const global <?=eqn.cons_t?>* UR<?=suffix?> = &<?=solver.getULRBufName?>[side + dim * <?=indexR?>].L;
 ]],			{
 				solver = self,
 				eqn = self.eqn,
@@ -792,8 +792,8 @@ function GridSolver:refreshGetULR()
 			args = args or {}
 			local suffix = args.suffix or ''
 			return template([[
-	const global <?=eqn.cons_t?>* UL<?=suffix?> = <?=bufName?> + <?=indexL?>;
-	const global <?=eqn.cons_t?>* UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
+const global <?=eqn.cons_t?>* UL<?=suffix?> = <?=bufName?> + <?=indexL?>;
+const global <?=eqn.cons_t?>* UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
 ]],			{
 				solver = self,
 				eqn = self.eqn,
@@ -936,7 +936,7 @@ function BoundaryMirror:getCode(args)
 	lines:insert('\t\t'..self:assignDstSrc(dst, src, args))
 	
 	-- reflectVars.mirror is going to hold, for each dimension, which components need to be mirrored
-	-- v.s[side] = -v.s[side]
+	-- v.s[side-1] = -v.s[side-1]
 	-- generalized:
 	local solver = args.solver
 	local eqn = solver.eqn
@@ -952,7 +952,11 @@ function BoundaryMirror:getCode(args)
 		{
 			int4 iv = (int4)(<?=iv?>,0);
 			real3 x = cell_x(iv);
-			real3 n = coord_cartesianFromCoord(normalForSide<?=side?>, x);
+<? if args.minmax == 'min' then ?>
+			real3 n = coord_cartesianFromCoord(normalForSide<?=side-1?>, x);
+<? else -- max ?>
+			real3 n = coord_cartesianFromCoord(real3_neg(normalForSide<?=side-1?>), x);
+<? end ?>
 ]], 	{
 			args = args,
 			iv = args.minmax == 'min' 

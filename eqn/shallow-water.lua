@@ -19,12 +19,12 @@ ShallowWater.initStates = require 'init.euler'
 -- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
 ShallowWater.primVars = {
 	{name='h', type='real', units='m'},
-	{name='v', type='real3', units='m/s'},	-- contravariant
+	{name='v', type='real3', units='m/s', variance='u'},	-- contravariant
 }
 
 ShallowWater.consVars = {
 	{name='h', type='real', units='m'},
-	{name='m', type='real3', units='m/s'},	-- contravariant
+	{name='m', type='real3', units='m/s', variance='u'},	-- contravariant
 }
 
 function ShallowWater:createInitState()
@@ -40,16 +40,6 @@ function ShallowWater:getCommonFuncCode()
 real calc_C(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	return sqrt(solver->gravity * U.h);
 }
-
-// TODO this can be automatically done based on flagging the state variables, whether their indexes are upper or lower
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
-	U.m = coord_parallelPropagateU<?=side?>(U.m, x, dx);
-	return U;
-}
-<? end ?>
-
-
 ]], {
 		solver = self.solver,
 		eqn = self,

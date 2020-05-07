@@ -98,6 +98,13 @@ here's another rehashing of my options
 	This would certainly be easiest when adopting the equations to unstructured meshes.
 	This does throw out any benefits of when velocity streamlines coincide with coordinate derivatives. 
 
+
+Also I need a better naming system for all the expressions, and what they pertain to
+we have 
+- components based on the coordinate metric (metric is non-identity)
+- components based on the non-coordinate orthonormal metric (commutation is non-zero)
+- translations between coord, orthonormal, and a cartesian global basis
+Also, instead of doing these calcuations over and over again, especially for things like parallel propagators, or more-complicated expressions, just run a script once to perform all calculations, update the chart properties, and store them in one place.
 --]]
 
 
@@ -184,7 +191,7 @@ assert(args.anholonomic == nil, "FIXME")
 			-- the non-coordinate ~= the coordinate, so make a new non-coord var and modify its 'applyDiff' function
 				nonCoords[i] = baseCoord
 			else
-				local nonCoord = symmath.var(baseCoord.name..'Hat')
+				local nonCoord = symmath.var('\\hat{'..baseCoord.name..'}')
 				nonCoord.base = baseCoord
 				function nonCoord:applyDiff(x)
 					local xPartial = symmath.Matrix:lambda({dim, 1}, function(j,_)
@@ -278,8 +285,8 @@ assert(args.anholonomic == nil, "FIXME")
 		end)
 		if self.verbose then
 			print'holonomic embedded:'
-			print(var'eHol''_u^I':eq(var'u''^I_,u'):eq(eHol'_u^I'()))
-			print(var'e_iHol^i':eq(eHolToE))
+			print(var'e''_u^I':eq(var'u''^I_,u'):eq(eHol'_u^I'()))
+			print(var'eHol''_i^j':eq(eHolToE))
 		end
 	end
 
@@ -292,8 +299,8 @@ assert(args.anholonomic == nil, "FIXME")
 		end
 		for i,ui in ipairs(coords) do
 			for j,uj in ipairs(coords) do
-				local psi = var('\\psi', baseCoords)
-				local diff = ui:applyDiff(uj:applyDiff(psi)) - uj:applyDiff(ui:applyDiff(psi))
+				local zeta = var('\\zeta', baseCoords)
+				local diff = ui:applyDiff(uj:applyDiff(zeta)) - uj:applyDiff(ui:applyDiff(zeta))
 				local diffEval = diff()
 				if diffEval ~= const(0) then
 					if self.verbose then
@@ -303,12 +310,12 @@ assert(args.anholonomic == nil, "FIXME")
 					if self.verbose then
 						print('factor division',diff)
 					end
-					local dpsi = table.mapi(baseCoords, function(uk) return psi:diff(uk) end)
+					local dpsi = table.mapi(baseCoords, function(uk) return zeta:diff(uk) end)
 					if self.verbose then
 						print('dpsi', dpsi:unpack())
 					end
 					local A,b = symmath.factorLinearSystem({diff}, dpsi)
-					-- now extract psi:diff(uk)
+					-- now extract zeta:diff(uk)
 					-- and divide by e_k to get the correct coefficient
 					-- TODO this assumes that e_a is only a function of partial_a
 					-- if e_a is a linear combination of e_a^b partial_b then you can work it out to find
@@ -316,7 +323,7 @@ assert(args.anholonomic == nil, "FIXME")
 					-- TODO put this somewhere else so everyone can use it
 					assert(b[1][1] == const(0))
 					for k,uk in ipairs(coords) do
-						local coeff = (A[1][k] * dpsi[k] / uk:applyDiff(psi))()
+						local coeff = (A[1][k] * dpsi[k] / uk:applyDiff(zeta))()
 						-- assert dphi is nowhere in coeff ...
 						c[i][j][k] = coeff 
 					end
@@ -496,7 +503,7 @@ self.Gamma_ull = Gamma_ull
 	compileTensorField('tr13_conn_l_codes', connExpr)
 
 	local gHol
-	if self.vectorComponent ~= 'holonomic' then
+	if self.vectorComponent == 'holonomic' then
 		gHol = g
 	else
 		gHol = (eHol'_u^I' * eHol'_v^J' * eta'_IJ')()
@@ -579,10 +586,14 @@ self.Gamma_ull = Gamma_ull
 		for j=1,dim do
 			local u = self.baseCoords[j]
 			local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
+--print('volume was', volume)
+--print('integrating', u, 'from', uL, 'to', uR)
 			volume = volume:integrate(u, uL, uR)()
+--print('volume is now', volume)
 		end
 		if self.verbose then
 			print(var'volume':eq(volume))
+			print(var'gHolDet':eq(gHolDet))
 		end
 		if require 'solver.fvsolver'.is(assert(args.solver)) then
 			compileTensorField('cell_volume_code', volume)
@@ -1184,7 +1195,7 @@ typedef struct {
 #define normalInfo_forSide<?=side?>(x) \
 	((normalInfo_t){ \
 		.side = <?=side?>, \
-	}) 
+	})
 <? end ?>
 
 //|n1|
@@ -1250,7 +1261,6 @@ typedef struct {
 		v.s[(3-n.side+1)%3], \
 		v.s[(3-n.side+2)%3]))
 
-
 ]],		{
 			eqn = self,
 			solver = self.solver,
@@ -1273,15 +1283,15 @@ typedef struct {
 		-- which itself aligns with the holunit_coordBasis
 		self.normalInfoCode = template([[
 <? for side=0,solver.dim-1 do ?>
-//#define normalInfo_forSide<?=side?>(pt)
-normalInfo_t normalInfo_forSide<?=side?>(real3 pt) {
-	normalInfo_t n;
-	n.n.x = holunit_coordBasis<?=side?>(pt);
-	n.n.y = holunit_coordBasis<?=(side+1)%3?>(pt);
-	n.n.z = holunit_coordBasis<?=(side+2)%3?>(pt);
-	n.len = 1.;
-	return n;
-}
+#define normalInfo_forSide<?=side?>(pt) \
+	((normalInfo_t){ \
+		.n = (real3x3){ \
+			.x = holunit_coordBasis<?=side?>(pt), \
+			.y = holunit_coordBasis<?=(side+1)%3?>(pt), \
+			.z = holunit_coordBasis<?=(side+2)%3?>(pt), \
+		}, \
+		.len = 1., \
+	})
 <? end ?>
 
 //|n1|
@@ -1366,7 +1376,7 @@ typedef struct {
 
 		self.normalInfoCode = template([[
 <? for side=0,solver.dim-1 do ?>
-#define normalInfo_forSide<?=side?>(x) \ 
+#define normalInfo_forSide<?=side?>(x) \
 	((normalInfo_t){ \
 		.side = <?=side?>, \
 		.U = _real3x3( \
@@ -1381,7 +1391,7 @@ typedef struct {
 			coord_g_uu<?=(side+2)%3?>2(x) \
 		), \
 		.len = coord_sqrt_g_uu<?=side..side?>(x), \
-	}) 
+	})
 <? end ?>
 
 //|n1|

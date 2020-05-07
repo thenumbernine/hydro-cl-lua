@@ -14,35 +14,34 @@ kernel void calcDerivFromFlux(
 	global cons_t* deriv = derivBuf + index;
 	real3 x = cell_x(i);
 
-<? if solver.coord.vectorComponent == 'anholonomic' then ?>
-	//real volume = cell_volume(x);
-<? elseif solver.coord.vectorComponent == 'cartesian' then ?>
+/*<?--[[
+volume vs area ...
+in Cartesian grids the volume is dx * dy * dz  = int dx dy dz
+	volume = int |J| |dy/dx| dx0 dx1 dx2
+	area_j = int |S| |dy/dx| dx-not-j
 
-	//TODO FIXME, this isn't correct
+in curvilinear holonomic (coordinate)
+	- basis is given by the int (coordinate volume form) dx dy dz
+	- 
+in curvilinear anholonomic basis 
+	- basis is given by the int (coordinate volume form) dx dy dz
+	- some flux rescaling for non-scalars is needed
+in curvilinear coords, cartesian basis: 
+	- basis is given by the int (coordinate volume form) dx dy dz
+	- 
+
+--]]?>*/
+<? if solver.coord.vectorComponent == 'cartesian' 
+	or solver.coord.vectorComponent == 'anholonomic'
+then ?>
 	real volume = cell_volume(x);
-	//TODO rethink this flag
-<? 	if eqn.weightFluxByGridVolume then ?>
-//	real volume = coord_sqrt_det_g(x);
-<? 	else ?>
-//	const real volume = 1.<? 
-	for i=0,solver.dim-1 do 
-		?> * solver->grid_dx.s<?=i?><? 
-	end ?>;
-<? 	end ?>
-
-
-<? else -- vectorComponent ~= 'anholonomic' ?>
-
-<? 	if eqn.weightFluxByGridVolume then ?>
-	real volume = coord_sqrt_det_g(x);
-<? 	else ?>
-	const real volume = 1.<? 
-	for i=0,solver.dim-1 do 
-		?> * solver->grid_dx.s<?=i?><? 
-	end ?>;
-<? 	end ?>
-
-<? end -- vectorComponent == 'anholonomic' ?>
+<? else ?>
+	real volume = 1.<?
+	for i=1,solver.dim do
+		?> * solver->grid_dx.s<?=i-1?><?
+	end
+?>;
+<? end ?>
 
 	<? for side=0,solver.dim-1 do ?>{
 		int indexIntL = <?=side?> + dim * index;
@@ -59,76 +58,27 @@ kernel void calcDerivFromFlux(
 		//U^i_;t + F^ij_;j  = 0
 		//U^i_,t + F^ij_,j + Gamma^j_kj F^ik + Gamma^i1_kj F^i1^k + ... + Gamma^in_kj F^in^k = 0
 		//					(metric det gradient) 
-<? if solver.coord.vectorComponent == 'anholonomic' then ?>
-		//real areaL = cell_area<?=side?>(xIntL);
-		//real areaR = cell_area<?=side?>(xIntR);
-<? elseif solver.coord.vectorComponent == 'cartesian' then ?>
+<? if solver.coord.vectorComponent == 'cartesian' 
+	or solver.coord.vectorComponent == 'anholonomic'
+then ?>
 		real areaL = cell_area<?=side?>(xIntL);
 		real areaR = cell_area<?=side?>(xIntR);
-<? else -- vectorComponent ~= 'anholonomic' ?>
-<? if eqn.weightFluxByGridVolume then ?>
-		real areaL;
-		if (coord_sqrt_det_g(xIntL) == 0) {
-			areaL = 0;
-		} else {
-			areaL = coord_sqrt_det_g(xIntL) / solver->grid_dx.s<?=side?>;
-		}
-		real areaR;
-		if (coord_sqrt_det_g(xIntR) == 0) {
-			areaR = 0;
-		} else {
-			areaR = coord_sqrt_det_g(xIntR) / solver->grid_dx.s<?=side?>;
-		}
 <? else ?>
 		real areaL, areaR;
-		if (volume == 0) {
-			areaL = areaR = 0;
-		} else {
-			areaL = volume / solver->grid_dx.s<?=side?>;
-			areaR = volume / solver->grid_dx.s<?=side?>;
-		}
+		areaL = areaR = 1.<?
+	for i=1,solver.dim do
+		if i ~= side then
+			?> * solver->grid_dx.s<?=i-1?><?	
+		end
+	end
+?>;
 <? end ?>
-<? end	-- vectorComponent == 'anholonomic' ?>
 
-<? if solver.coord.vectorComponent == 'anholonomic' then ?>
-
-		//divide by integral of volume form
-		real volInt = cell_volume(x);
-		//scale flux by volume form times area
-		real areaR = cell_area0(xIntR);
-		real areaL = cell_area0(xIntL);
-		
-		for (int j = 0; j < numIntStates; ++j) {
-			deriv->ptr[j] -= (
-				areaR * fluxR->ptr[j] 
-				- areaL * fluxL->ptr[j]
-			) / volInt;
-		}
-<? elseif not eqn.postComputeFluxCode then -- would the compiler know to optimize this?
-?>
 		for (int j = 0; j < numIntStates; ++j) {
 			deriv->ptr[j] -= (
 				fluxR->ptr[j] * areaR
 				- fluxL->ptr[j] * areaL
 			) / volume;
 		}
-<? else ?>
-		cons_t flux;
-		for (int j = 0; j < numIntStates; ++j) {
-			flux.ptr[j] = (
-				fluxR->ptr[j] * areaR
-				- fluxL->ptr[j] * areaL
-			) / volume;
-		}
-
-		{
-<?=eqn.postComputeFluxCode or ''?>
-		}
-
-		for (int j = 0; j < numIntStates; ++j) {
-			deriv->ptr[j] -= flux.ptr[j];
-		}
-<? end ?>
-
 	}<? end ?>
 }

@@ -183,8 +183,8 @@ function SolverBase:refreshGetULR()
 		args = args or {}
 		local suffix = args.suffix or ''
 		return template([[
-	const global <?=eqn.cons_t?>* UL<?=suffix?> = <?=bufName?> + <?=indexL?>;
-	const global <?=eqn.cons_t?>* UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
+const global <?=eqn.cons_t?>* UL<?=suffix?> = <?=bufName?> + <?=indexL?>;
+const global <?=eqn.cons_t?>* UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
 ]],		{
 			solver = self,
 			eqn = self.eqn,

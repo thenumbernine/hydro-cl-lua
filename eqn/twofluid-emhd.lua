@@ -56,17 +56,17 @@ end
 TwoFluidEMHD.consVars = table{
 	--integration variables		
 	{name='ion_rho', type='real', units='kg/m^3'},
-	{name='ion_m', type='real3', units='kg/(m^2*s)'},	-- m^i
+	{name='ion_m', type='real3', units='kg/(m^2*s)', variance='u'},		-- m^i
 	{name='ion_ETotal', type='real', units='kg/(m*s^2)'},
 	
 	{name='elec_rho', type='real', units='kg/m^3'},
-	{name='elec_m', type='real3', units='kg/(m^2*s)'},		-- m^i
+	{name='elec_m', type='real3', units='kg/(m^2*s)', variance='u'},	-- m^i
 	{name='elec_ETotal', type='real', units='kg/(m*s^2)'},
 
-	{name='D', type='real3', units='C/m^2'},			-- D_i
-	{name='B', type='real3', units='kg/(C*s)'},			-- B_i
-	{name='phi', type='real', units='C/m^2'},			-- div D potential
-	{name='psi', type='real', units='kg/(C*s)'},		-- div B potential
+	{name='D', type='real3', units='C/m^2', variance='l'},				-- D_i
+	{name='B', type='real3', units='kg/(C*s)', variance='l'},			-- B_i
+	{name='phi', type='real', units='C/m^2'},							-- div D potential
+	{name='psi', type='real', units='kg/(C*s)'},						-- div B potential
 
 	--extra	
 	{name='ePot', type='real', units='m^2/s^2'},
@@ -75,17 +75,17 @@ TwoFluidEMHD.consVars = table{
 TwoFluidEMHD.primVars = table{
 	--integration variables		
 	{name='ion_rho', type='real', units='kg/m^3'},
-	{name='ion_v', type='real3', units='m/s'},
+	{name='ion_v', type='real3', units='m/s', variance='u'},
 	{name='ion_P', type='real', units='kg/(m*s^2)'},
 	
 	{name='elec_rho', type='real', units='kg/m^3'},
-	{name='elec_v', type='real3', units='m/s'},
+	{name='elec_v', type='real3', units='m/s', variance='u'},
 	{name='elec_P', type='real', units='kg/(m*s^2)'},
 
-	{name='D', type='real3', units='C/m^2'},			-- D_i
-	{name='B', type='real3', units='kg/(C*s)'},			-- B_i
-	{name='phi', type='real', units='C/m^2'},			-- div D potential
-	{name='psi', type='real', units='kg/(C*s)'},		-- div B potential
+	{name='D', type='real3', units='C/m^2', variance='l'},				-- D_i
+	{name='B', type='real3', units='kg/(C*s)', variance='l'},			-- B_i
+	{name='phi', type='real', units='C/m^2'},							-- div D potential
+	{name='psi', type='real', units='kg/(C*s)'},						-- div B potential
 	
 	--extra	
 	{name='ePot', type='real', units='m^2/s^2'},
@@ -247,28 +247,6 @@ real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <?=eqn.c
 	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
 	return .5 * (coordLenSq(U->D, x) / eps + coordLenSq(U->B, x) / mu);
 }
-
-
-<? 
-local coord = solver.coord
-for side=0,solver.dim-1 do
-	if coord.vectorComponent == 'cartesian'
-	or require 'coord.cartesian'.is(coord)
-	then
-?>
-#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
-<?	else ?>
-<?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
-	<? for _,fluid in ipairs(eqn.fluids) do ?>
-		U.<?=fluid?>_m = coord_parallelPropagateU<?=side?>(U.<?=fluid?>_m, x, dx);
-	<? end ?>
-	U.D = coord_parallelPropagateL<?=side?>(U.D, x, dx);
-	U.B = coord_parallelPropagateL<?=side?>(U.B, x, dx);
-	return U;
-}
-<?	end
-end ?>
-
 
 ]], {
 		solver = self.solver,

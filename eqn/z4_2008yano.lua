@@ -71,7 +71,10 @@ void setFlatSpace(
 	U->Theta = 0;
 	U->Z_l = real3_zero;
 }
-]], {eqn=self})
+]], {
+		eqn = self,
+		solver = self.solver,
+	})
 end
 
 Z4_2008Yano.initStateCode = [[
@@ -93,7 +96,7 @@ kernel void initState(
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
-	setFlatSpace(U, x);
+	setFlatSpace(solver, U, x);
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;

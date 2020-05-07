@@ -263,12 +263,6 @@ void setFlatSpace(
 	U->M_u = real3_zero;
 }
 
-
-<? for side=0,solver.dim-1 do ?>
-#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
-<? end ?>
-
-
 ]], {
 		eqn = self,
 		solver = self.solver,

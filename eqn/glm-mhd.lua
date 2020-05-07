@@ -17,18 +17,18 @@ MHD.numStates = 10
 
 MHD.primVars = table{
 	{name='rho', type='real', units='kg/m^3'},
-	{name='v', type='real3', units='m/s'},
+	{name='v', type='real3', units='m/s', variance='u'},
 	{name='P', type='real', units='kg/(m*s^2)'},
-	{name='B', type='real3', units='kg/(C*s)'},
+	{name='B', type='real3', units='kg/(C*s)', variance='l'},
 	{name='psi', type='real', units='kg/(C*s)'},
 	{name='ePot', type='real', units='m^2/s^2'},
 }
 
 MHD.consVars = table{
 	{name='rho', type='real', units='kg/m^3'},
-	{name='m', type='real3', units='kg/(m^2*s)'},
+	{name='m', type='real3', units='kg/(m^2*s)', variance='u'},
 	{name='ETotal', type='real', units='kg/(m*s^2)'},
-	{name='B', type='real3', units='kg/(C*s)'},
+	{name='B', type='real3', units='kg/(C*s)', variance='l'},
 	{name='psi', type='real', units='kg/(C*s)'},
 	{name='ePot', type='real', units='m^2/s^2'},
 }
@@ -97,24 +97,6 @@ real calc_hTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real 
 //but Cs in eigen_t is the slow speed
 //most the MHD papers use 'a' for the speed of sound
 real calc_Cs(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return sqrt(solver->heatCapacityRatio * W.P / W.rho); }
-
-
-<? 
-local coord = solver.coord
-for side=0,solver.dim-1 do
-	if coord.vectorComponent == 'cartesian'
-	or require 'coord.cartesian'.is(coord)
-	then
-?>
-#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
-<?	else ?>
-<?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
-	U.m = coord_parallelPropagateU<?=side?>(U.m, x, dx);
-	U.B = coord_parallelPropagateU<?=side?>(U.B, x, dx);
-	return U;
-}
-<?	end
-end ?>
 
 ]], {
 		solver = self.solver,

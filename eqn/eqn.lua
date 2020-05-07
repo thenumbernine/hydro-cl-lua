@@ -18,6 +18,7 @@ local Equation = class()
 
 -- this is passed on to solver/calcDerivFV.cl
 -- it has the effect of adding the connection terms Conn^k_jk u^I_,j (for the I'th conserved quantity u^I)
+-- TODO get rid of this altogether
 Equation.weightFluxByGridVolume = true
 
 -- Whether the eqn has its own eigen_*** code.
@@ -562,6 +563,14 @@ returns output vector
 	})
 end
 
+local degreeForType = {
+	real = 0,
+	real3 = 1,
+	sym3 = 2,
+	real3x3 = 2,
+	_3sym3 = 3,
+	real3x3x3 = 3,
+}
 
 function Equation:getParallelPropagateCode()
 	return template([[
@@ -571,28 +580,34 @@ function Equation:getParallelPropagateCode()
 	then
 ?>#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
 <?	else
-?>cons_t cons_parallelPropagate<?=side?>(cons_t U, real3 x, real dx) {
+?><?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
 <?		for _,var in ipairs(eqn.consStruct.vars) do
-			local variance = var.name:match'_([^_]*)$'
-			if variance then
-				if variance == 'u' then
+			local variance = var.variance or var.name:match'_([^_]*)$' or ''
+			local degree = degreeForType[var.type]
+			if #variance ~= degree  then
+				error("variable variance "..('%q'):format(variance).." does not match variable type "..var.type.." degree "..degree)
+			end
+--print(var.name, var.type, variance, degree)			
+			if variance == '' then
+			elseif variance == 'u' then
 ?>	U.<?=var.name?> = coord_parallelPropagateU<?=side?>(U.<?=var.name?>, x, dx);
 <?			
-				elseif variance == 'l' then
+			elseif variance == 'l' then
 ?>	U.<?=var.name?> = coord_parallelPropagateL<?=side?>(U.<?=var.name?>, x, dx);
 <?			
-				else
-					error("don't know how to handle variance for "..variance)
-				end
+			else
+				error("don't know how to handle variance for "..('%q'):format(variance))
 			end
 		end
-?>}
+?>	return U;
+}
 <?	end
 end
 ?>]], {
 		eqn = self,
 		solver = self.solver,
 		coord = self.solver.coord,
+		degreeForType = degreeForType,
 	})
 end
 

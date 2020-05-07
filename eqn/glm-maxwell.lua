@@ -63,8 +63,8 @@ function GLM_Maxwell:init(args)
 	self.numWaves = 8 * self.numRealsInScalar
 
 	self.consVars = {
-		{name='D', type=self.vec3, units='C/m^2'},
-		{name='B', type=self.vec3, units='kg/(C*s)'},
+		{name='D', type=self.vec3, units='C/m^2', variance='l'},
+		{name='B', type=self.vec3, units='kg/(C*s)', variance='l'},
 		{name='phi', type=self.scalar, units='C/m^2'},		-- div D potential
 		{name='psi', type=self.scalar, units='kg/(C*s)'},	-- div B potential
 		{name='rhoCharge', type=self.scalar, units='C/m^3'},
@@ -151,24 +151,6 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 <?=vec3?> calc_H(<?=eqn.cons_t?> U) { 
 	return <?=vec3?>_<?=susc_t?>_mul(U.B, <?=susc_t?>_mul(U.sqrt_1_mu, U.sqrt_1_mu));
 }
-
-
-<? 
-local coord = solver.coord
-for side=0,solver.dim-1 do
-	if coord.vectorComponent == 'cartesian'
-	or require 'coord.cartesian'.is(coord)
-	then
-?>
-#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
-<?	else ?>
-<?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
-	U.D = coord_parallelPropagateL<?=side?>(U.D, x, dx);
-	U.B = coord_parallelPropagateL<?=side?>(U.B, x, dx);
-	return U;
-}
-<?	end
-end ?>
 
 ]], self:getTemplateEnv())
 end

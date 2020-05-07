@@ -71,7 +71,7 @@ function FiniteVolumeSolver:addDisplayVars()
 	int indexL = index - solver->stepsize.s<?=side?>;
 	real3 xInt = x;
 	xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-	<?=solver:getULRCode{bufName='buf'}?>
+	<?=solver:getULRCode{bufName='buf'}:gsub('\n', '\n\t')?>
 	normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
 	<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, n);
 ]], 	{
@@ -91,7 +91,7 @@ function FiniteVolumeSolver:addDisplayVars()
 				getEigenCode{side=side},
 				template([[
 	normalInfo_t n<?=side?> = normalInfo_forSide<?=side?>(xInt);
-	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'xInt')?>
+	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'xInt'):gsub('\n', '\n\t')?>
 ]], 			{
 					eqn = self.eqn,
 					side = side,
@@ -183,7 +183,7 @@ function FiniteVolumeSolver:addDisplayVars()
 					getEigenCode{side=side},
 					template([[
 	normalInfo_t n<?=side?> = normalInfo_forSide<?=side?>(x);
-	<?=eqn:eigenWaveCodePrefix('n'..side, 'eig', 'xInt')?>
+	<?=eqn:eigenWaveCodePrefix('n'..side, 'eig', 'xInt'):gsub('\n', '\n\t')?>
 	
 	value.vreal = 0;
 	for (int k = 0; k < numIntStates; ++k) {
@@ -206,11 +206,13 @@ function FiniteVolumeSolver:addDisplayVars()
 		//once again, only needs to be numIntStates
 		<?=eqn.cons_t?> newtransformed = eigen_rightTransform(solver, eig, charScaled, xInt, n);
 
-//this shouldn't need to be reset here
-// but it will if leftTransform does anything destructive
-for (int j = 0; j < numStates; ++j) {
-	basis.ptr[j] = k == j ? 1 : 0;
-}
+#if 1
+		//this shouldn't need to be reset here
+		// but it will if leftTransform does anything destructive
+		for (int j = 0; j < numStates; ++j) {
+			basis.ptr[j] = k == j ? 1 : 0;
+		}
+#endif
 
 		//once again, only needs to be numIntStates
 		<?=eqn.cons_t?> transformed = eigen_fluxTransform(solver, eig, basis, xInt, n);

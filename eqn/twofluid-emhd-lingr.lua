@@ -47,41 +47,41 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.numIntStates = 26
 TwoFluidEMHDDeDonderGaugeLinearizedGR.consVars = table{
 	--integration variables		
 	{name='ion_rho', type='real', units='kg/m^3'},
-	{name='ion_m', type='real3', units='kg/(m^2*s)'},		-- m^i
+	{name='ion_m', type='real3', units='kg/(m^2*s)', variance='u'},		-- m^i
 	{name='ion_ETotal', type='real', units='kg/(m*s^2)'},
 	
 	{name='elec_rho', type='real', units='kg/m^3'},
-	{name='elec_m', type='real3', units='kg/(m^2*s)'},		-- m^i
+	{name='elec_m', type='real3', units='kg/(m^2*s)', variance='u'},	-- m^i
 	{name='elec_ETotal', type='real', units='kg/(m*s^2)'},
 
-	{name='D', type='real3', units='C/m^2'},				-- D_i
-	{name='B', type='real3', units='kg/(C*s)'},				-- B_i
-	{name='phi', type='real', units='C/m^2',},				-- div D potential
-	{name='psi', type='real', units='kg/(C*s)'},			-- div B potential
+	{name='D', type='real3', units='C/m^2', variance='l'},				-- D_i
+	{name='B', type='real3', units='kg/(C*s)', variance='l'},			-- B_i
+	{name='phi', type='real', units='C/m^2',},							-- div D potential
+	{name='psi', type='real', units='kg/(C*s)'},						-- div B potential
 
-	{name='D_g', type='real3', units='kg/m^2'},			-- (D_g)_i
-	{name='B_g', type='real3', units='1/s'},			-- (B_g)_i
-	{name='phi_g', type='real', units='kg/m^2'},		-- div D_g potential
-	{name='psi_g', type='real', units='1/s'},		-- div B_g potential
+	{name='D_g', type='real3', units='kg/m^2', variance='l'},			-- (D_g)_i
+	{name='B_g', type='real3', units='1/s', variance='l'},				-- (B_g)_i
+	{name='phi_g', type='real', units='kg/m^2'},						-- div D_g potential
+	{name='psi_g', type='real', units='1/s'},							-- div B_g potential
 }
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.primVars = table{
 	--integration variables		
 	{name='ion_rho', type='real', units='kg/m^3'},
-	{name='ion_v', type='real3', units='m/s'},
+	{name='ion_v', type='real3', units='m/s', variance='u'},
 	{name='ion_P', type='real', units='kg/(m*s^2)'},
 	
 	{name='elec_rho', type='real', units='kg/m^3'},
-	{name='elec_v', type='real3', units='m/s'},
+	{name='elec_v', type='real3', units='m/s', variance='u'},
 	{name='elec_P', type='real', units='kg/(m*s^2)'},
 
-	{name='D', type='real3', units='C/m^2'},
-	{name='B', type='real3', units='kg/(C*s)'},
+	{name='D', type='real3', units='C/m^2', variance='l'},
+	{name='B', type='real3', units='kg/(C*s)', variance='l'},
 	{name='phi', type='real', units='C/m^2'},
 	{name='psi', type='real', units='kg/(C*s)'},
 	
-	{name='D_g', type='real3', units='kg/m^2'},
-	{name='B_g', type='real3', units='1/s'},
+	{name='D_g', type='real3', units='kg/m^2', variance='l'},
+	{name='B_g', type='real3', units='1/s', variance='l'},
 	{name='phi_g', type='real', units='kg/m^2'},
 	{name='psi_g', type='real', units='1/s'},
 }
@@ -259,30 +259,6 @@ real3 calcElecGravForce(constant <?=solver.solver_t?>* solver, const global <?=e
 		U->elec_rho * U->D_g.y / eps_g + 4. * (U->elec_m.z * U->B_g.x - U->elec_m.x * U->B_g.z),
 		U->elec_rho * U->D_g.z / eps_g + 4. * (U->elec_m.x * U->B_g.y - U->elec_m.y * U->B_g.x));
 }
-
-
-<? 
-local coord = solver.coord
-for side=0,solver.dim-1 do
-	if coord.vectorComponent == 'cartesian'
-	or require 'coord.cartesian'.is(coord)
-	then
-?>
-#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
-<?	else ?>
-<?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
-	<? for _,fluid in ipairs(eqn.fluids) do ?>
-		U.<?=fluid?>_m = coord_parallelPropagateU<?=side?>(U.<?=fluid?>_m, x, dx);
-	<? end ?>
-	U.D = coord_parallelPropagateL<?=side?>(U.D, x, dx);
-	U.B = coord_parallelPropagateL<?=side?>(U.B, x, dx);
-	U.D_g = coord_parallelPropagateL<?=side?>(U.D_g, x, dx);
-	U.B_g = coord_parallelPropagateL<?=side?>(U.B_g, x, dx);
-	return U;
-}
-<?	end
-end ?>
-
 
 ]], {
 		solver = self.solver,

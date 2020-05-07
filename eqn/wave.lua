@@ -18,7 +18,6 @@ Wave.useSourceTerm = true
 Wave.hasEigenCode = true
 Wave.hasFluxFromConsCode = true
 Wave.roeUseFluxFromCons = true
-Wave.weightFluxByGridVolume = false
 
 Wave.initStates = require 'init.euler'	 -- use rho as our initial condition
 
@@ -193,9 +192,9 @@ Wave.eigenVars = {
 
 function Wave:eigenWaveCodePrefix(n, eig, x)
 	return template([[
-	real wavespeed = solver->wavespeed / unit_m_per_s;
-	real alpha_nLen = metric_alpha(<?=x?>) * normalInfo_len(n);
-	real beta_n = normalInfo_vecDotN1(<?=n?>, metric_beta_u(<?=x?>));
+real wavespeed = solver->wavespeed / unit_m_per_s;
+real alpha_nLen = metric_alpha(<?=x?>) * normalInfo_len(n);
+real beta_n = normalInfo_vecDotN1(<?=n?>, metric_beta_u(<?=x?>));
 ]], {
 		n = n,
 		x = x,

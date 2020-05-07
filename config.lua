@@ -51,9 +51,11 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
-	--coordArgs = {vectorComponent='cartesian'},
+	coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
+	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
+	--coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
 
@@ -102,11 +104,11 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	coord = 'cylinder',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
-	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
+	coordArgs = {vectorComponent='cartesian'},		-- use cartesian vector components 
 	mins = cmdline.mins or {.1, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},
 	gridSize = ({
@@ -116,6 +118,7 @@ local args = {
 	})[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		-- r
+		-- notice, this boundary is designed with cylindrical components in mind, so it will fail with vectorComponent==cartesian 
 		--xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
 		xmin=cmdline.boundary or {name='mirror', args={restitution=0}},
 		xmax=cmdline.boundary or {name='mirror', args={restitution=0}},
@@ -125,8 +128,8 @@ local args = {
 		ymax=cmdline.boundary or 'periodic',
 		
 		-- z
-		zmin=cmdline.boundary or {name='freeflow', args={restitution=0}},
-		zmax=cmdline.boundary or {name='freeflow', args={restitution=0}},
+		zmin=cmdline.boundary or {name='mirror', args={restitution=0}},
+		zmax=cmdline.boundary or {name='mirror', args={restitution=0}},
 	},
 	--]]
 	--[[ Sphere: r, θ, φ 
@@ -192,11 +195,11 @@ local args = {
 	--initState = 'gaussian',
 	--initState = 'advect wave',
 	--initState = 'sphere',
-	--initState = 'spiral',
+	initState = 'spiral',
 	--initState = 'rarefaction wave',
 	--initState = 'Bessel',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initStateArgs = {dim=cmdline.displayDim},
 	
 	--initState = 'rectangle',
@@ -523,7 +526,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- blows up.  maybe I need an implicit RK scheme...
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=13, integrator='backward Euler'})))
 
--- TODO FIXME still haven't added source terms to this
+-- TODO FIXME 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='navstokes-wilcox'})))
 
 
@@ -647,6 +650,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))	-- TODO finish me
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='LagrangianCoordinates'}})))	-- TODO finish me
+-- TODO bring these up to date with the new normalInfo_t system:
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4_2008yano'})))
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'})))
 
