@@ -49,7 +49,7 @@ local args = {
 	--slopeLimiter = 'minmod',
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
-	--useCTU = true,
+	useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -80,7 +80,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{600,1,1},
-				{256,256,1},
+				{64,64,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
@@ -97,12 +97,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin=cmdline.boundary or 'mirror',
-		xmax=cmdline.boundary or 'mirror',
-		ymin=cmdline.boundary or 'mirror',
-		ymax=cmdline.boundary or 'mirror',
-		zmin=cmdline.boundary or 'mirror',
-		zmax=cmdline.boundary or 'mirror',
+		xmin=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'freeflow',
+		ymin=cmdline.boundary or 'freeflow',
+		ymax=cmdline.boundary or 'freeflow',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
@@ -212,7 +212,7 @@ local args = {
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
 	--initState = 'square cavity',
-	initState = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
+	--initState = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initState = 'Richmyer-Meshkov',
 	--initState = 'radial gaussian',
 
@@ -228,7 +228,7 @@ local args = {
 	--initState = 'self-gravitation test 1',
 	--initState = 'self-gravitation test 1 spinning',
 	--initState = 'self-gravitation test 2',		--FIXME
-	--initState = 'self-gravitation test 2 orbiting',
+	initState = 'self-gravitation test 2 orbiting',
 	--initState = 'self-gravitation test 4',
 	--initState = 'self-gravitation soup',	--FIXME
 	

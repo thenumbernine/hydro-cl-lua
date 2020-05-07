@@ -79,7 +79,7 @@ void main() {
 		for (int iter = 0; iter < integralMaxIter; ++iter) {
 			float f = float(iter + 1) / float(integralMaxIter+1);
 			float weight = smoothstep(1., 0., f);
-			vec3 dPos_ds = normalize(getTex(pos).rgb);
+			vec3 dPos_ds = normalize(getTex(pos).xyz);
 			pos += dPos_ds * <?=ds * dir?>;
 			licMag += texture2D(noiseTex, pos.xy).r * weight;
 			totalWeight += weight;
@@ -89,11 +89,10 @@ void main() {
 	licMag /= totalWeight;
 
 	//add some contrast
-	//licMag = smoothstep(0., 1., licMag);
-
+	licMag = smoothstep(0., 1., licMag);
 
 	//color by magnitude
-	float fieldMagn = length(getTex(texCoord));
+	float fieldMagn = length(getTex(texCoord).xyz);
 	if (useLog) {
 		//the abs() will get me in trouble when dealing with range calculations ...
 		float logValueMin = logmap(valueMin);

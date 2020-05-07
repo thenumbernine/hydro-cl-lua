@@ -56,6 +56,7 @@ function DrawVectorLIC:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 		local component = solver.displayComponentFlatList[var.component]
 		local vectorField = solver:isVarTypeAVectorField(component.type)
 		if vectorField then
+			-- calc range of magnitude of vector variable
 			valueMin, valueMax = solver:calcDisplayVarRange(var, component.magn)
 		else
 			valueMin, valueMax = solver:calcDisplayVarRange(var)
