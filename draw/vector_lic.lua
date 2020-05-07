@@ -1,187 +1,60 @@
+local gl = require 'ffi.OpenGL'
 local ffi = require 'ffi'
 local class = require 'ext.class'
-local gl = require 'ffi.OpenGL'
-local glreport = require 'gl.report'
-local GLPingPong = require 'gl.pingpong'
-local GLProgram = require 'gl.program'
-local template = require 'template'
+local GLTex2D = require 'gl.tex2d'
 
-local Draw2DLIC = class()
 
-function Draw2DLIC:showDisplayVar(app, solver, var, xmin, xmax, ymin, ymax, useLog)
+local DrawVectorLIC = class()
 
-	--[[
-	for each solver, for each var, I'll need a vector field state to keep track of the line offset within the cell and length
-	--]]
-	solver.display2D_LIC_State = solver.display2D_LIC_State or {}
-	solver.display2D_LIC_State[var.name] = solver.display2D_LIC_State[var.name] or {}
-	local state = solver.display2D_LIC_State[var.name]
-
-	local w = tonumber(solver.gridSize.x)
-	local h = tonumber(solver.gridSize.x)
-	if not state.pingpong
-	or (state.pingpong.width ~= w or state.pingpong.height ~= h)
-	then
-		local data
-		data = ffi.new('unsigned char[?]', w * h * 4)
-		for j=0,h-1 do
-			for i=0,w-1 do
-				for k=0,3 do
-					data[k+4*(i+w*j)] = math.random(0,255)
-				end
-			end
-		end
-		state.pingpong = GLPingPong{
-			width = w,
-			height = h,
-			internalFormat = gl.GL_RGBA,
-			format = gl.GL_RGBA,
-			type = gl.GL_UNSIGNED_BYTE,
-			minFilter = gl.GL_NEAREST,
-			magFilter = gl.GL_NEAREST,
-			data = data,
-		}
-	end
-
-	--[[
-	now do a FBO render of the vector field state
-	determine offsets and lengths of lines
-	channels: ofsx, ofsy, 0, magn
-	--]]
-	if not state.updateVectorField2Shader then
-		state.updateVectorField2Shader = GLProgram{
-			vertexCode = [[
-varying vec2 pos;
-
-void main() {
-	gl_Position = gl_Vertex;
-	pos = gl_Vertex.xy;
-}
-]],
-			fragmentCode = template([[
-<?
-local clnumber = require 'cl.obj.number'
-local dx = 1 / tonumber(solver.gridSize.x)
-local dy = 1 / tonumber(solver.gridSize.y)
-?>
-varying vec2 pos;
-uniform sampler2D varTex;
-uniform sampler2D stateTex;
-uniform float alpha;
-
-void main() {
-	vec2 dx = vec2(<?=clnumber(dx)?>, <?=clnumber(dy)?>);
-	vec2 ofs = pos - texture2D(varTex, pos).xy * dx;
-
-	gl_FragColor = mix(
-		texture2D(stateTex, pos),
-		texture2D(stateTex, ofs),
-		alpha);
-}
-]], {
-	solver = solver,
-}),
-			uniforms = {
-				varTex = 0,
-				stateTex = 1,
-			},
-		}
-	end
-
-	if not state.vectorLICShader then
-		local env = {
-			clnumber = require 'cl.obj.number',
-			app = app,
-			solver = solver,
-			coord = solver.coord,
-		}
-		state.vectorLICShader = GLProgram{
-			vertexCode = template([[
-varying vec3 viewCoord;
-
-<?=coord:getCoordMapInvGLSLCode()?>
-
-void main() {
-	viewCoord = gl_Vertex.xyz;
-	// disregard 'z' for rendering
-	gl_Position = gl_ModelViewProjectionMatrix * vec4(gl_Vertex.xy, 0., 1.);
-}
-]], env),
-			fragmentCode = template([[
-varying vec3 viewCoord;
-
-<?=coord:getCoordMapInvGLSLCode()?>
-
-//1/log(10)
-#define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
-float logmap(float x) { return log(1. + abs(x)) * _1_LN_10; }
-
-uniform bool useCoordMap;
-uniform bool useLog;
-uniform float valueMin, valueMax;
-
-uniform vec2 texCoordMax;
-uniform <?=solver.dim == 3 and 'sampler3D' or 'sampler2D'?> tex;
-uniform sampler1D gradientTex;
-
-uniform vec2 solverMins, solverMaxs;
-
-uniform sampler2D stateTex;
-
-void main() {
-
-	vec2 gridCoord = viewCoord.xy;
-	if (useCoordMap) {
-		gridCoord = coordMapInv(vec3(gridCoord, 0.)).xy;
-	} else {
-		gridCoord = .5 * (gridCoord + 1.) * (solverMaxs.xy - solverMins.xy) + solverMins.xy; 
-	}
-
-	if (gridCoord.x < solverMins.x || gridCoord.x > solverMaxs.x ||
-		gridCoord.y < solverMins.y || gridCoord.y > solverMaxs.y
-	) {
-		discard;
-	}
-
-	vec3 texCoord;
-	texCoord.xy = vec2(
-		((gridCoord.x - solverMins.x) / (solverMaxs.x - solverMins.x) * <?=clnumber(solver.sizeWithoutBorder.x)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.x)?>,
-		((gridCoord.y - solverMins.y) / (solverMaxs.y - solverMins.y) * <?=clnumber(solver.sizeWithoutBorder.y)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.y)?>
-	) * texCoordMax;
-	texCoord.z = viewCoord.z;
-
-<? if solver.dim == 3 then
-?>	float value = texture3D(tex, texCoord).r;
-<? else
-?>	float value = texture2D(tex, texCoord.xy).r;
-<? end
-?>	if (useLog) {
-		//the abs() will get me in trouble when dealing with range calculations ...
-		float logValueMin = logmap(valueMin);
-		float logValueMax = logmap(valueMax);
-		value = (logmap(value) - logValueMin) / (logValueMax - logValueMin);
-	} else {
-		value = (value - valueMin) / (valueMax - valueMin);
-	}
-	value = (value * <?=clnumber(app.gradientTex.width-1)?> + .5) / <?=clnumber(app.gradientTex.width)?>;
-	gl_FragColor = texture1D(gradientTex, value) * texture2D(stateTex, texCoord.xy);
-}
-]],	env),
-			uniforms = {
-				tex = 0,
-				gradientTex = 1,
-				stateTex = 2,
-			},
-		}
-	end
+function DrawVectorLIC:drawSolverWithVar(app, solver, var, vectorLICShader, xmin, xmax, ymin, ymax)
+-- hmm ... this is needed for sub-solvers
+local origSolver = var.solver
+var.solver = solver
 	
+	solver:calcDisplayVarToTex(var)
+	
+	gl.glUniform2f(vectorLICShader.uniforms.solverMins.loc, solver.mins.x, solver.mins.y)
+	gl.glUniform2f(vectorLICShader.uniforms.solverMaxs.loc, solver.maxs.x, solver.maxs.y)
+
+	local tex = solver:getTex(var)
+	local size = var.getBuffer().sizevec or solver.gridSize
+	gl.glUniform2f(vectorLICShader.uniforms.texCoordMax.loc, 
+		tonumber(size.x) / tex.width,
+		tonumber(size.y) / tex.height)
+	tex:bind(0)
+	self.noiseTex:bind(2)
+	if app.displayBilinearTextures then
+		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+	else
+		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
+	end
+
+	gl.glBegin(gl.GL_QUADS)
+	gl.glVertex3d(xmin, ymin, app.displayFixedZ)
+	gl.glVertex3d(xmax, ymin, app.displayFixedZ)
+	gl.glVertex3d(xmax, ymax, app.displayFixedZ)
+	gl.glVertex3d(xmin, ymax, app.displayFixedZ)
+	gl.glEnd()
+	
+	tex:unbind(0)
+	self.noiseTex:unbind(2)
+
+var.solver = origSolver
+end
+
+DrawVectorLIC.integralMaxIter = 10
+
+function DrawVectorLIC:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax)
+	-- TODO allow a fixed, manual colormap range
+	-- NOTICE with AMR this will only get from the root node
+	--  which should at least have blitters of the children
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
 		valueMin = var.heatMapValueMin
 		valueMax = var.heatMapValueMax
 	else
 		local component = solver.displayComponentFlatList[var.component]
-		local vectorField = solver:isVarTypeAVectorField(var.type)
+		local vectorField = solver:isVarTypeAVectorField(component.type)
 		if vectorField then
 			valueMin, valueMax = solver:calcDisplayVarRange(var, component.magn)
 		else
@@ -190,88 +63,130 @@ void main() {
 		var.heatMapValueMin = valueMin
 		var.heatMapValueMax = valueMax
 	end
-	
-	solver:calcDisplayVarToTex(var)	
 
-	-- solver:getTex(var) now has the vector field
-	-- now we have to render-to-tex with input as solver:getTex(var), and the last iteration's state tex
-	-- ... using a fbo that updates the state tex
+	if not self.noiseTex then
+		local noiseVol = app.drawVectorLICNoiseSize * app.drawVectorLICNoiseSize * 4
+		local noiseData = ffi.new('float[?]', noiseVol)
+		for i=0,noiseVol-1 do
+			noiseData[i] = math.random()
+		end
+		self.noiseTex = GLTex2D{
+			internalFormat = gl.GL_RGBA32F,
+			width = app.drawVectorLICNoiseSize,
+			height = app.drawVectorLICNoiseSize,
+			format = gl.GL_RGBA,
+			type = gl.GL_FLOAT,
+			data = noiseData,
+			minFilter = gl.GL_NEAREST,
+			magFilter = gl.GL_LINEAR,
+		}
+	end
+
+	local vectorLICShader = solver.vectorLICShader
+	vectorLICShader:use()
+	app.gradientTex:bind(1)
+
+	gl.glUniform1i(vectorLICShader.uniforms.useCoordMap.loc, app.display_useCoordMap)
+	gl.glUniform1i(vectorLICShader.uniforms.useLog.loc, var.useLog)
+	gl.glUniform1f(vectorLICShader.uniforms.valueMin.loc, valueMin)
+	gl.glUniform1f(vectorLICShader.uniforms.valueMax.loc, valueMax)
+	gl.glUniform1i(vectorLICShader.uniforms.integralMaxIter.loc, self.integralMaxIter)
+	
+	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+	gl.glEnable(gl.GL_BLEND)
+	
+	self:drawSolverWithVar(app, solver, var, vectorLICShader, xmin, xmax, ymin, ymax)
 
 -- [[
-	state.pingpong:swap()
-	state.pingpong:draw{
-		viewport = {0, 0, state.pingpong.width, state.pingpong.height},
-		resetProjection = true,
-		shader = state.updateVectorField2Shader,
-		texs = {
-			solver:getTex(var),
-			state.pingpong:prev(),
-		},
-		callback = function()
-			gl.glBegin(gl.GL_TRIANGLE_STRIP)
-			for _,v in ipairs{{0,0},{1,0},{0,1},{1,1}} do
-				gl.glTexCoord2d(v[1], v[2])
-				gl.glVertex2d(2*v[1]-1, 2*v[2]-1)
-			end
-			gl.glEnd()
-		end,
-	}
---]]
-
-	state.vectorLICShader:use()
-	gl.glUniform1i(state.vectorLICShader.uniforms.useLog.loc, var.useLog)
-	-- [[ this gives the l1 bounds of the vector field
-	gl.glUniform1f(state.vectorLICShader.uniforms.valueMin.loc, valueMin)
-	gl.glUniform1f(state.vectorLICShader.uniforms.valueMax.loc, valueMax)
-	--]]
-	--[[ it'd be nice instead to get the norm bounds ... 
-	-- but looking at the reduce calculations, the easiest way to do that is
-	-- to associate each vector display shader with a norm display shader
-	-- and then just reduce that
-	gl.glUniform1f(state.vectorLICShader.uniforms.valueMin.loc, 0)
-	gl.glUniform1f(state.vectorLICShader.uniforms.valueMax.loc, math.max(math.abs(valueMin), math.abs(valueMax)))
-	--]]
-	solver:getTex(var):bind(0)
-	app.gradientTex:bind(1)
-	state.pingpong:cur():bind(2)
-	
-	gl.glUniform3f(state.vectorLICShader.uniforms.solverMins.loc, solver.mins:unpack())
-	gl.glUniform3f(state.vectorLICShader.uniforms.solverMaxs.loc, solver.maxs:unpack())
-
-	gl.glBegin(gl.GL_QUADS)
-	gl.glVertex3d(xmin, ymin, app.displayFixedZ)
-	gl.glVertex3d(xmax, ymin, app.displayFixedZ)
-	gl.glVertex3d(xmax, ymax, app.displayFixedZ)
-	gl.glVertex3d(xmin, ymax, app.displayFixedZ)
-	gl.glEnd()
-
-	state.pingpong:cur():unbind(2)
-	app.gradientTex:unbind(1)
-	solver:getTex(var):unbind(0)
-	state.vectorLICShader:useNone()
-end
-
-function Draw2DLIC:display(app, solvers, ar, varName, ...)
-	app.view:projection(ar)
-	app.view:modelview()
-
-	gl.glDisable(gl.GL_BLEND)
-	gl.glEnable(gl.GL_DEPTH_TEST)
-	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
-
-	for _,solver in ipairs(solvers) do
-		local var = solver.displayVarForName[varName]
-		if var and var.enabled then	
-			self:showDisplayVar(app, solver, var, ...)
+	if solver.amr then
+		for k,subsolver in pairs(solver.amr.child) do
+			self:drawSolverWithVar(app, subsolver, var, vectorLICShader, xmin, xmax, ymin, ymax)
 		end
 	end
+--]]
+
+	gl.glDisable(gl.GL_BLEND)
+
+	app.gradientTex:unbind(1)
+	gl.glActiveTexture(gl.GL_TEXTURE0)
+	vectorLICShader:useNone()
+
+--	gl.glDisable(gl.GL_DEPTH_TEST)
+
+	-- TODO only draw the first
+	local gradientValueMin = valueMin
+	local gradientValueMax = valueMax
+	local showName = varName
+	if var.showInUnits and var.units then
+		local unitScale = solver:convertToSIUnitsCode(var.units).func()
+		gradientValueMin = gradientValueMin * unitScale
+		gradientValueMax = gradientValueMax * unitScale
+		showName = showName..' ('..var.units..')'
+	end
+	app:drawGradientLegend(ar, showName, gradientValueMin, gradientValueMax)
+
+--	gl.glEnable(gl.GL_DEPTH_TEST)
+end
+
+function DrawVectorLIC:display(app, solvers, varName, ar, graph_xmin, graph_ymin, graph_xmax, graph_ymax)
+	app.view:projection(ar)
+	app.view:modelview()
+	if app.view.getOrthoBounds then
+		xmin, xmax, ymin, ymax = app.view:getOrthoBounds(ar)
+	else
+		xmin, xmax, ymin, ymax = graph_xmin, graph_ymin, graph_xmax, graph_ymax
+	end
+
+--	gl.glEnable(gl.GL_DEPTH_TEST)
 	
-	gl.glDisable(gl.GL_DEPTH_TEST)
+	local gridz = 0	--.1
+
+	gl.glColor3f(.1, .1, .1)
+	local xrange = xmax - xmin
+	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
+	local xticmin = math.floor(xmin/xstep)
+	local xticmax = math.ceil(xmax/xstep)
+	gl.glBegin(gl.GL_LINES)
+	for x=xticmin,xticmax do
+		gl.glVertex3f(x*xstep,ymin, gridz)
+		gl.glVertex3f(x*xstep,ymax, gridz)
+	end
+	gl.glEnd()
+	local yrange = ymax - ymin
+	local ystep = 10^math.floor(math.log(yrange, 10) - .5)
+	local yticmin = math.floor(ymin/ystep)
+	local yticmax = math.ceil(ymax/ystep)
+	gl.glBegin(gl.GL_LINES)
+	for y=yticmin,yticmax do
+		gl.glVertex3f(xmin,y*ystep, gridz)
+		gl.glVertex3f(xmax,y*ystep, gridz)
+	end
+	gl.glEnd()
+	
+	gl.glColor3f(.5, .5, .5)
+	gl.glBegin(gl.GL_LINES)
+	gl.glVertex3f(xmin, 0, gridz)
+	gl.glVertex3f(xmax, 0, gridz)
+	gl.glVertex3f(0, ymin, gridz)
+	gl.glVertex3f(0, ymax, gridz)
+	gl.glEnd()
+			
+	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
+	-- I've got to rethink the visualization
+	for _,solver in ipairs(solvers) do 
+		if not require 'solver.meshsolver'.is(solver) then
+			local var = solver.displayVarForName[varName]
+			if var and var.enabled then
+				self:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax)
+			end
+		end
+	end
+--	gl.glDisable(gl.GL_DEPTH_TEST)
 end
 
 return function(HydroCLApp)
 	function HydroCLApp:displayVector_LIC(...)
-		if not self.drawVectorLIC then self.drawVectorLIC = Draw2DLIC() end
+		if not self.drawVectorLIC then self.drawVectorLIC = DrawVectorLIC() end
 		return self.drawVectorLIC:display(self, ...)
 	end
 end

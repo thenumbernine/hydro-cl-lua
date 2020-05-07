@@ -437,6 +437,28 @@ function GridSolver:initDraw()
 			gradientTex = 1,
 		},
 	}
+
+	local vectorLICCode = file['draw/vector_lic.shader']
+	self.vectorLICShader = self.GLProgram{
+		name = 'vector_lic',
+		vertexCode = template(vectorLICCode, {
+			solver = self,
+			vertexShader = true,
+		}),
+		fragmentCode = template(vectorLICCode, {
+			fragmentShader = true,
+			solver = self,
+		}),
+		uniforms = {
+			valueMin = 0,
+			valueMax = 0,
+			tex = 0,
+			gradientTex = 1,
+			noiseTex = 2,
+		},
+	}
+
+
 end
 
 

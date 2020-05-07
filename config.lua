@@ -53,8 +53,9 @@ local args = {
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
-	coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
-	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
+		-- TODO FIXME Cartesian+holonomic is broken.  probably everything+holonomic
+	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
+	coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
 	--coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
@@ -79,7 +80,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{600,1,1},
-				{32,32,1},
+				{256,256,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
@@ -96,12 +97,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'freeflow',
-		ymin=cmdline.boundary or 'freeflow',
-		ymax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'freeflow',
-		zmax=cmdline.boundary or 'freeflow',
+		xmin=cmdline.boundary or 'mirror',
+		xmax=cmdline.boundary or 'mirror',
+		ymin=cmdline.boundary or 'mirror',
+		ymax=cmdline.boundary or 'mirror',
+		zmin=cmdline.boundary or 'mirror',
+		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
 	--[[ cylinder
@@ -195,7 +196,7 @@ local args = {
 	--initState = 'gaussian',
 	--initState = 'advect wave',
 	--initState = 'sphere',
-	initState = 'spiral',
+	--initState = 'spiral',
 	--initState = 'rarefaction wave',
 	--initState = 'Bessel',
 	
@@ -207,11 +208,11 @@ local args = {
 	--initState = 'Noh',
 	--initState = 'implosion',
 	--initState = 'Kelvin-Helmholtz',
-	--initState = 'Rayleigh-Taylor',	--FIXME
+	--initState = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
 	--initState = 'square cavity',
-	--initState = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
+	initState = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initState = 'Richmyer-Meshkov',
 	--initState = 'radial gaussian',
 
@@ -456,7 +457,7 @@ if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(ta
 -- wave equation
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
@@ -491,7 +492,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 

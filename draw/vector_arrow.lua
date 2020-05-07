@@ -102,7 +102,7 @@ function DrawVectorField:showDisplayVar(app, solver, var, xmin, ymin, xmax, ymax
 	solver.vectorArrowShader:useNone()
 end
 
-function DrawVectorField:display(app, solvers, ar, varName, ...)
+function DrawVectorField:display(app, solvers, varName, ar, ...)
 	app.view:projection(ar)
 	app.view:modelview()
 

@@ -321,6 +321,11 @@ function HydroCLApp:display3D(...)
 end
 
 
+-- shader needs it, but shaders are created per-solver (before the app initializes the 'draw' objects)
+--HydroCLApp.drawVectorLICNoiseSize = 256
+HydroCLApp.drawVectorLICNoiseSize = 1024
+
+
 local displayVectorMethods = table{
 	{Arrows = HydroCLApp.displayVector_Arrows},
 	{LIC = HydroCLApp.displayVector_LIC},
@@ -538,7 +543,8 @@ void main() {
 		end)
 		self.displayVectorMethodsEnabled = displayVectorMethods:mapi(function(method, index)
 			local name, func = next(method)
-			return index == 1, name
+			--return index == 1, name
+			return index == 2, name
 		end)
 
 		self.orthoView = require 'view.ortho'()
@@ -1021,7 +1027,7 @@ end
 				self:display3D(displaySolvers, varName, ar, xmin, ymin, xmax, ymax)
 			end
 		else
-			self:displayVector(displaySolvers, ar, varName, xmin, ymin, xmax, ymax)
+			self:displayVector(displaySolvers, varName, ar, xmin, ymin, xmax, ymax)
 		end
 
 		-- TODO make this custom per-display-method
