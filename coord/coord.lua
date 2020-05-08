@@ -1230,11 +1230,11 @@ typedef struct {
 	})
 <? end ?>
 
-//|n1|
+//|n|
 #define normalInfo_len(n)	1.
 #define normalInfo_lenSq(n)	1.
 
-//(nj)_i, (nj)^i, (nj)_i/|n|, (nj)^i/|n|
+//(nj)_i, (nj)^i, (nj)_i/|nj|, (nj)^i/|nj|
 <? 
 for j=1,3 do
 	for i,xi in ipairs(xNames) do
@@ -1305,45 +1305,19 @@ typedef struct {
 #define normalInfo_len(normal)		(normal.len)
 #define normalInfo_lenSq(normal)	(normal.len * normal.len)
 
-//n1_i
-#define normalInfo_l1x(normal)	(normal.n.x.x)
-#define normalInfo_l1y(normal)	(normal.n.x.y)
-#define normalInfo_l1z(normal)	(normal.n.x.z)
-
-//n2_i
-#define normalInfo_l2x(normal)	(normal.n.y.x)
-#define normalInfo_l2y(normal)	(normal.n.y.y)
-#define normalInfo_l2z(normal)	(normal.n.y.z)
-
-//n3_i
-#define normalInfo_l3x(normal)	(normal.n.z.x)
-#define normalInfo_l3y(normal)	(normal.n.z.y)
-#define normalInfo_l3z(normal)	(normal.n.z.z)
-
-//n1^i
-#define normalInfo_u1x(normal)	(normal.n.x.x)
-#define normalInfo_u1y(normal)	(normal.n.x.y)
-#define normalInfo_u1z(normal)	(normal.n.x.z)
-
-//n2^i
-#define normalInfo_u2x(normal)	(normal.n.y.x)
-#define normalInfo_u2y(normal)	(normal.n.y.y)
-#define normalInfo_u2z(normal)	(normal.n.y.z)
-
-//n3^i
-#define normalInfo_u3x(normal)	(normal.n.z.x)
-#define normalInfo_u3y(normal)	(normal.n.z.y)
-#define normalInfo_u3z(normal)	(normal.n.z.z)
-
-//n1_i / |n1|
-#define normalInfo_l1x_over_len(normal) (normal.n.x.x / normal.len)
-#define normalInfo_l1y_over_len(normal) (normal.n.x.y / normal.len)
-#define normalInfo_l1z_over_len(normal) (normal.n.x.z / normal.len)
-
-//n1^i / |n1|
-#define normalInfo_u1x_over_len(normal) (normal.n.x.x / normal.len)
-#define normalInfo_u1y_over_len(normal) (normal.n.x.y / normal.len)
-#define normalInfo_u1z_over_len(normal) (normal.n.x.z / normal.len)
+//(nj)_i, (nj)^i, (nj)_i / |nj|, (nj)^i / |nj|
+<? 
+for j,xj in ipairs(xNames) do
+	for i,xi in ipairs(xNames) do
+?>
+#define normalInfo_l<?=j?><?=xi?>(normal)			(normal.n.<?=xj?>.<?=xi?>)
+#define normalInfo_u<?=j?><?=xi?>(normal)			normalInfo_l<?=j?><?=xi?>(normal)
+#define normalInfo_l<?=j?><?=xi?>_over_len(normal)	(normalInfo_l<?=j?><?=xi?>(normal) / normal.len)
+#define normalInfo_u<?=j?><?=xi?>_over_len(normal)	normalInfo_l<?=j?><?=xi?>_over_len(normal)
+<?
+	end
+end
+?>
 
 //v^i (nj)_i for side j 
 #define normalInfo_vecDotNs(normal, v) (real3x3_real3_mul(normal.n, v))
@@ -1364,6 +1338,7 @@ typedef struct {
 ]],		{
 			eqn = self,
 			solver = self.solver,
+			xNames = xNames,
 		})	
 	
 	elseif self.vectorComponent == 'holonomic' then

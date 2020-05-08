@@ -51,7 +51,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
 	coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -104,7 +104,7 @@ local args = {
 		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
-	--[[ cylinder
+	-- [[ cylinder
 	coord = 'cylinder',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -120,8 +120,8 @@ local args = {
 		-- r
 		-- notice, this boundary is designed with cylindrical components in mind, so it will fail with vectorComponent==cartesian 
 		--xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
-		xmin=cmdline.boundary or {name='mirror', args={restitution=0}},
-		xmax=cmdline.boundary or {name='mirror', args={restitution=0}},
+		xmin=cmdline.boundary or 'mirror',	--{name='mirror', args={restitution=0}},
+		xmax=cmdline.boundary or 'mirror',	--{name='mirror', args={restitution=0}},
 		
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
