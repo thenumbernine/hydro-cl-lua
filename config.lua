@@ -106,9 +106,9 @@ local args = {
 	--]]
 	-- [[ cylinder
 	coord = 'cylinder',
-	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
+	coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
-	coordArgs = {vectorComponent='cartesian'},		-- use cartesian vector components 
+	--coordArgs = {vectorComponent='cartesian'},		-- use cartesian vector components 
 	mins = cmdline.mins or {.1, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},
 	gridSize = ({

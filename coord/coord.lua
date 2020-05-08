@@ -1209,20 +1209,20 @@ typedef struct {
 ]])	
 	else	-- not meshsolver
 
-	if require 'coord.cartesian'.is(self)
-	or self.vectorComponent == 'anholonomic'
-	then
-		--[[
-		n_i = n^i = delta_ij for side j
-		|n| = 1
-		--]]
-		self.normalTypeCode = template([[
+		if require 'coord.cartesian'.is(self)
+		or self.vectorComponent == 'anholonomic'
+		then
+			--[[
+			n_i = n^i = delta_ij for side j
+			|n| = 1
+			--]]
+			self.normalTypeCode = template([[
 typedef struct {
 	int side;		//0, 1, 2
 } normalInfo_t;		//nL = nU = normalBasisForSide (permutation of I), nLen = 1
-		]])
+]])
 
-		self.normalInfoCode = template([[
+			self.normalInfoCode = template([[
 <? for side=0,solver.dim-1 do ?>
 #define normalInfo_forSide<?=side?>(x) \
 	((normalInfo_t){ \
@@ -1267,28 +1267,28 @@ end
 		v.s[(3-n.side+1)%3], \
 		v.s[(3-n.side+2)%3]))
 
-]],		{
-			eqn = self,
-			solver = self.solver,
-			xNames = xNames,
-		})
+]],			{
+				eqn = self,
+				solver = self.solver,
+				xNames = xNames,
+			})
 
-	elseif self.vectorComponent == 'cartesian' then
+		elseif self.vectorComponent == 'cartesian' then
 
-		--[[
-		n_i = n^i = unit(u^i_,j) for side j
-		|n| = sqrt(n^i n_i) = 1 (since g_ij = g^ij = delta_ij)
-		--]]
-		self.normalTypeCode = template([[
+			--[[
+			n_i = n^i = unit(u^i_,j) for side j
+			|n| = sqrt(n^i n_i) = 1 (since g_ij = g^ij = delta_ij)
+			--]]
+			self.normalTypeCode = template([[
 typedef struct {
 	real3x3 n;		// nL = nU, both are orthonormal so nLen = 1
 	real len;
 } normalInfo_t;
-		]])
+]])
 
-		-- this would call coord_cartesianFromCoord
-		-- which itself aligns with the holunit_coordBasis
-		self.normalInfoCode = template([[
+			-- this would call coord_cartesianFromCoord
+			-- which itself aligns with the holunit_coordBasis
+			self.normalInfoCode = template([[
 <? for side=0,solver.dim-1 do ?>
 #define normalInfo_forSide<?=side?>(pt) \
 	((normalInfo_t){ \
@@ -1335,20 +1335,20 @@ end
 		real3_real_mul(normal.n.z, v.z))
 
 
-]],		{
-			eqn = self,
-			solver = self.solver,
-			xNames = xNames,
-		})	
-	
-	elseif self.vectorComponent == 'holonomic' then
+]],			{
+				eqn = self,
+				solver = self.solver,
+				xNames = xNames,
+			})	
+		
+		elseif self.vectorComponent == 'holonomic' then
 
-		--[[
-		n_i = delta_ij for side j
-		n^i = g^ik delta_kj
-		|n| = sqrt(n^i n_i) = sqrt(g^jj)
-		--]]
-		self.normalTypeCode = template([[
+			--[[
+			n_i = delta_ij for side j
+			n^i = g^ik delta_kj
+			|n| = sqrt(n^i n_i) = sqrt(g^jj)
+			--]]
+			self.normalTypeCode = template([[
 typedef struct {
 	int side;
 	real3x3 U;
@@ -1356,22 +1356,20 @@ typedef struct {
 } normalInfo_t;
 		]])
 
-		self.normalInfoCode = template([[
+			self.normalInfoCode = template([[
 <? for side=0,solver.dim-1 do ?>
 #define normalInfo_forSide<?=side?>(x) \
 	((normalInfo_t){ \
 		.side = <?=side?>, \
 		.U = _real3x3( \
-			coord_g_uu<?=side?>0(x), \
-			coord_g_uu<?=side?>1(x), \
-			coord_g_uu<?=side?>2(x), \
-			coord_g_uu<?=(side+1)%3?>0(x), \
-			coord_g_uu<?=(side+1)%3?>1(x), \
-			coord_g_uu<?=(side+1)%3?>2(x), \
-			coord_g_uu<?=(side+2)%3?>0(x), \
-			coord_g_uu<?=(side+2)%3?>1(x), \
-			coord_g_uu<?=(side+2)%3?>2(x) \
-		), \
+<? 
+for j=0,2 do
+	for i=0,2 do 
+?>			coord_g_uu<?=(side+j)%3?><?=i?>(x)<?=i+3*j < 8 and ',' or ''?> \
+<? 
+	end
+end 
+?>		), \
 		.len = coord_sqrt_g_uu<?=side..side?>(x), \
 	})
 <? end ?>
@@ -1380,45 +1378,29 @@ typedef struct {
 #define normalInfo_len(n)	(n.len)
 #define normalInfo_lenSq(n)	(n.len * n.len)
 
-//n1_i
-#define normalInfo_l1x(n)	(n.side == 0 ? 1. : 0.)
-#define normalInfo_l1y(n)	(n.side == 1 ? 1. : 0.)
-#define normalInfo_l1z(n)	(n.side == 2 ? 1. : 0.)
+//(nj)_i, (nj_i / |nj|
+<?
+for j=1,3 do
+	for i,xi in ipairs(xNames) do
+?>
+#define normalInfo_l<?=j?><?=xi?>(n)			(n.side == <?=(i-j)%3?> ? 1. : 0.)
+#define normalInfo_l<?=j?><?=xi?>_over_len(n)	(n.side == <?=(i-j)%3?> ? (1./n.len) : 0.)
+<?
+	end
+end
+?>
 
-//n2_i
-#define normalInfo_l2x(n)	(n.side == 2 ? 1. : 0.)
-#define normalInfo_l2y(n)	(n.side == 0 ? 1. : 0.)
-#define normalInfo_l2z(n)	(n.side == 1 ? 1. : 0.)
-
-//n3_i
-#define normalInfo_l3x(n)	(n.side == 1 ? 1. : 0.)
-#define normalInfo_l3y(n)	(n.side == 2 ? 1. : 0.)
-#define normalInfo_l3z(n)	(n.side == 0 ? 1. : 0.)
-
-//n1^i
-#define normalInfo_u1x(n)	(n.U.x.x)
-#define normalInfo_u1y(n)	(n.U.x.y)
-#define normalInfo_u1z(n)	(n.U.x.z)
-
-//n2^i
-#define normalInfo_u2x(n)	(n.U.y.x)
-#define normalInfo_u2y(n)	(n.U.y.y)
-#define normalInfo_u2z(n)	(n.U.y.z)
-
-//n3^i
-#define normalInfo_u3x(n)	(n.U.z.x)
-#define normalInfo_u3y(n)	(n.U.z.y)
-#define normalInfo_u3z(n)	(n.U.z.z)
-
-//(n1)_i / |n1|
-#define normalInfo_l1x_over_len(n) (n.side == 0 ? (1./n.len) : 0.)
-#define normalInfo_l1y_over_len(n) (n.side == 1 ? (1./n.len) : 0.)
-#define normalInfo_l1z_over_len(n) (n.side == 2 ? (1./n.len) : 0.)
-
-//(n1)^i / |n1|
-#define normalInfo_u1x_over_len(n) (n.U.x.x/n.len)
-#define normalInfo_u1y_over_len(n) (n.U.x.y/n.len)
-#define normalInfo_u1z_over_len(n) (n.U.x.z/n.len)
+//(nj)^i, (nj)^i / |nj|
+<?
+for j,xj in ipairs(xNames) do
+	for i,xi in ipairs(xNames) do
+?>
+#define normalInfo_u<?=j?><?=xi?>(n)			(n.U.<?=xj?>.<?=xi?>)
+#define normalInfo_u<?=j?><?=xi?>_over_len(n)	(normalInfo_u<?=j?><?=xi?>(n) / n.len)
+<?
+	end
+end
+?>
 
 //v^i (nj)_i for side j
 #define normalInfo_vecDotNs(n, v) \
@@ -1439,14 +1421,15 @@ typedef struct {
 		v.s[(3-n.side+2)%3]))
 
 
-]],		{
-			eqn = self,
-			solver = self.solver,
-		})
+]],			{
+				eqn = self,
+				solver = self.solver,
+				xNames = xNames
+			})
 
-	else
-		error'here'
-	end
+		else
+			error'here'
+		end
 
 
 	end	-- meshsolver
