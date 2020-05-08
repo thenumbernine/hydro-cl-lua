@@ -53,7 +53,6 @@ local args = {
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
-		-- TODO FIXME Cartesian+holonomic is broken.  probably everything+holonomic
 	coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
 	--coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 

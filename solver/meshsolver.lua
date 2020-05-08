@@ -734,7 +734,7 @@ function Tri2DMeshFactory:createMesh(solver)
 	end
 	
 	mesh:calcAux()
-	return mesh;
+	return mesh
 end
 
 
@@ -855,9 +855,12 @@ function MeshSolver:initL1(args)
 	end
 
 	-- TODO put these in solver_t
-	self.numCells = #self.mesh.cells
-	self.numFaces = #self.mesh.faces
-	self.numVtxs = #self.mesh.vtxs
+	self.numCells = self.mesh.numCells
+	self.numFaces = self.mesh.numFaces
+	self.numVtxs = self.mesh.numVtxs
+	self.numCellFaceIndexes = self.mesh.numCellFaceIndexes
+	self.numCellVtxIndexes = self.mesh.numCellVtxIndexes
+	self.numFaceVtxIndexes = self.mesh.numFaceVtxIndexes
 	
 	--[[
 	next issue ... how to render this?
@@ -890,13 +893,16 @@ function MeshSolver:createBuffers()
 	self:clalloc('vtxBuf', 'real3', self.numVtxs)
 	self:clalloc('cellsBuf', 'cell_t', self.numCells)
 	self:clalloc('facesBuf', 'face_t', self.numFaces)
+	self:clalloc('cellFaceIndexesBuf', 'int', self.numCellFaceIndexes)
 end
 
 function MeshSolver:finalizeCLAllocs()
 	MeshSolver.super.finalizeCLAllocs(self)
 
+	self.cmds:enqueueWriteBuffer{buffer=self.vtxBuf, block=true, size=ffi.sizeof'real3' * self.numVtxs, ptr=self.mesh.vtxs.v}
 	self.cmds:enqueueWriteBuffer{buffer=self.cellsBuf, block=true, size=ffi.sizeof'cell_t' * self.numCells, ptr=self.mesh.cells.v}
 	self.cmds:enqueueWriteBuffer{buffer=self.facesBuf, block=true, size=ffi.sizeof'face_t' * self.numFaces, ptr=self.mesh.faces.v}
+	self.cmds:enqueueWriteBuffer{buffer=self.cellFaceIndexesBuf, block=true, size=ffi.sizeof'int' * self.numCellFaceIndexes, ptr=self.mesh.cellFaceIndexes.v}
 end
 
 function MeshSolver:refreshInitStateProgram()
@@ -954,6 +960,7 @@ function MeshSolver:refreshCalcDTKernel()
 	-- because I'm going to need more than just these...
 	self.calcDTKernelObj.obj:setArg(2, self.cellsBuf)
 	self.calcDTKernelObj.obj:setArg(3, self.facesBuf)
+	self.calcDTKernelObj.obj:setArg(4, self.cellFaceIndexesBuf)
 end
 
 function MeshSolver:update()

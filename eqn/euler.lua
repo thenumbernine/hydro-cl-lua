@@ -430,28 +430,29 @@ kernel void calcDT(
 	global real* dtBuf,					//[numCells]
 	const global <?=eqn.cons_t?>* UBuf,	//[numCells]
 	const global cell_t* cells,			//[numCells]
-	const global face_t* faces			//[numFaces]
+	const global face_t* faces,			//[numFaces]
+	const global int* cellFaceIndexes	//[numCellFaceIndexes]
 ) {
 	int cellIndex = get_global_id(0);
 	if (cellIndex >= get_global_size(0)) return;
 	
 	const global <?=eqn.cons_t?>* U = UBuf + cellIndex;
 	const global cell_t* cell = cells + cellIndex;
+	real3 x = cell->pos;
 
 	real dt = INFINITY;
-	for (int i = 0; i < cell->numSides; ++i) {
-		const global face_t* face = faces + cell->faces[i];
+	for (int i = 0; i < cell->faceCount; ++i) {
+		const global face_t* face = faces + cellFaceIndexes[i + cell->faceOffset];
 		//all sides? or only the most prominent side?
 		//which should we pick eigenvalues from?
 		//use cell-centered eigenvalues
-		real3 x = cell->x;
-		normalInfo_t n = normalInfo_forCell(cell);
+		normalInfo_t n = normalInfo_forFace(face);
 		<?=eqn:consWaveCodePrefix('n', '*U', 'x')?>
 		real lambdaMin = <?=eqn:consMinWaveCode('n', '*U', 'x')?>;
 		real lambdaMax = <?=eqn:consMaxWaveCode('n', '*U', 'x')?>;
 		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
 		absLambdaMax = max((real)1e-9, absLambdaMax);
-		real dx = cell->maxDist;
+		real dx = face->area;
 		dt = (real)min(dt, dx / absLambdaMax);
 	}
 	dtBuf[cellIndex] = dt;

@@ -1396,7 +1396,7 @@ function HydroCLApp:updateGUI()
 end
 
 HydroCLApp.showMouseCoords = cmdline.showMouseCoords
-if HydroCLApp.showMouseCoords == nil then HydroCLApp.showMouseCoords = true end
+--if HydroCLApp.showMouseCoords == nil then HydroCLApp.showMouseCoords = true end
 
 HydroCLApp.mouseCoord = {0,0}
 HydroCLApp.mouseCoordValue = ''	-- TODO store one per inst of App

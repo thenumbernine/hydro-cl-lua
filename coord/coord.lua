@@ -143,9 +143,9 @@ args:
 
 	TODO replace that with
 	vectorComponent
-		holonomic = default, e_i = partial_i, no guarantees of orthogonality or normalization
-		anholonomic = same as above but normalized
-		cartesian = cartesian even in the presence of curvilinear coordinates 
+		holonomic = default, e_i = ∂_i = ∂/∂x^i, no guarantees of orthogonality or normalization
+		anholonomic = same as above but orthonormalized
+		cartesian = cartesian components even in the presence of curvilinear coordinates 
 --]]
 function CoordinateSystem:init(args)
 	self.replvars = self.replvars or table()
@@ -156,7 +156,7 @@ function CoordinateSystem:init(args)
 	self.verbose = cmdline.coordVerbose
 
 	self.vectorComponent = args.vectorComponent or 'holonomic'
-assert(args.anholonomic == nil, "FIXME")
+assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you should use coord.vectorComponent=='anholonomic'")
 
 	if self.verbose then
 		symmath.tostring = symmath.export.MathJax
@@ -1177,6 +1177,38 @@ How to organize this?
 3) have code gen for (1) calculating the struct and (2) accessing the struct.
 --]]
 function CoordinateSystem:getNormalCodeGenerator()
+	if require 'solver.meshsolver'.is(self.solver) then
+--[[
+mesh vertexes are provided in Cartesian coordinates
+so their normals are as well
+ so face->normal will be in Cartesian components
+
+however their use with the cell vector components requires them to be converted to whatever coord.vectorComponents specifies
+maybe I will just do that up front?  save a frame basis & dual (that is orthonormal to the basis)
+though for now I'll just support Cartesian
+--]]
+		self.normalTypeCode = template([[
+typedef struct {
+	real3 n;
+} normalInfo_t;
+
+#define normalInfo_forFace(face) \
+	((normalInfo_t){ \
+		.n = face->normal, \
+		.n2 = face->normal2, \
+		.n3 = face->normal3, \
+	})
+
+#define normalInfo_len(n)	1.
+#define normalInfo_lenSq(n)	1.
+
+#define normalInfo_l1x(normal)	normal.n.x
+#define normalInfo_l1y(normal)	normal.n.y
+#define normalInfo_l1z(normal)	normal.n.z
+
+]])	
+	else	-- not meshsolver
+
 	if require 'coord.cartesian'.is(self)
 	or self.vectorComponent == 'anholonomic'
 	then
@@ -1202,45 +1234,19 @@ typedef struct {
 #define normalInfo_len(n)	1.
 #define normalInfo_lenSq(n)	1.
 
-//n1_i
-#define normalInfo_l1x(n)	(n.side == 0 ? 1. : 0.)
-#define normalInfo_l1y(n)	(n.side == 1 ? 1. : 0.)
-#define normalInfo_l1z(n)	(n.side == 2 ? 1. : 0.)
-
-//n2_i
-#define normalInfo_l2x(n)	(n.side == 2 ? 1. : 0.)
-#define normalInfo_l2y(n)	(n.side == 0 ? 1. : 0.)
-#define normalInfo_l2z(n)	(n.side == 1 ? 1. : 0.)
-
-//n3_i
-#define normalInfo_l3x(n)	(n.side == 1 ? 1. : 0.)
-#define normalInfo_l3y(n)	(n.side == 2 ? 1. : 0.)
-#define normalInfo_l3z(n)	(n.side == 0 ? 1. : 0.)
-
-//n1^i
-#define normalInfo_u1x(n)	(n.side == 0 ? 1. : 0.)
-#define normalInfo_u1y(n)	(n.side == 1 ? 1. : 0.)
-#define normalInfo_u1z(n)	(n.side == 2 ? 1. : 0.)
-
-//n2^i
-#define normalInfo_u2x(n)	(n.side == 2 ? 1. : 0.)
-#define normalInfo_u2y(n)	(n.side == 0 ? 1. : 0.)
-#define normalInfo_u2z(n)	(n.side == 1 ? 1. : 0.)
-
-//n3^i
-#define normalInfo_u3x(n)	(n.side == 1 ? 1. : 0.)
-#define normalInfo_u3y(n)	(n.side == 2 ? 1. : 0.)
-#define normalInfo_u3z(n)	(n.side == 0 ? 1. : 0.)
-
-//n_i / |n|
-#define normalInfo_l1x_over_len(n) (n.side == 0 ? 1. : 0.)
-#define normalInfo_l1y_over_len(n) (n.side == 1 ? 1. : 0.)
-#define normalInfo_l1z_over_len(n) (n.side == 2 ? 1. : 0.)
-
-//n^i / |n|
-#define normalInfo_u1x_over_len(n) (n.side == 0 ? 1. : 0.)
-#define normalInfo_u1y_over_len(n) (n.side == 1 ? 1. : 0.)
-#define normalInfo_u1z_over_len(n) (n.side == 2 ? 1. : 0.)
+//(nj)_i, (nj)^i, (nj)_i/|n|, (nj)^i/|n|
+<? 
+for j=1,3 do
+	for i,xi in ipairs(xNames) do
+?>
+#define normalInfo_l<?=j?><?=xi?>(n)			(n.side == <?=(i-j)%3?> ? 1. : 0.)
+#define normalInfo_u<?=j?><?=xi?>(n)			normalInfo_l<?=j?><?=xi?>(n)
+#define normalInfo_l<?=j?><?=xi?>_over_len(n)	normalInfo_l<?=j?><?=xi?>(n)
+#define normalInfo_u<?=j?><?=xi?>_over_len(n)	normalInfo_u<?=j?><?=xi?>(n)
+<? 
+	end 
+end
+?>
 
 // this is the same as converting 'v' in global cartesian to 'v' in the basis of nj
 // v^i (nj)_i for side j 
@@ -1264,6 +1270,7 @@ typedef struct {
 ]],		{
 			eqn = self,
 			solver = self.solver,
+			xNames = xNames,
 		})
 
 	elseif self.vectorComponent == 'cartesian' then
@@ -1465,6 +1472,9 @@ typedef struct {
 	else
 		error'here'
 	end
+
+
+	end	-- meshsolver
 
 	self.normalInfoCode = self.normalInfoCode .. template[[
 
