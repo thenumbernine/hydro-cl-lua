@@ -5,6 +5,27 @@ typedef <?=app.realparam?>8 realparam8;
 
 <? 
 local function makevec3(name, scalar)
+	if scalar == 'real' 
+	and (	
+		app.real == 'float'
+		or app.real == 'double'
+	) then
+		-- use vec-ffi when we can 
+		assert(name == 'real3')
+		
+		local vecType
+		if app.real == 'float' then
+			vecType = require 'vec-ffi.vec3f'
+		elseif app.real == 'double' then
+			vecType = require 'vec-ffi.vec3d'
+		end
+-- use the vec-ffi type code
+-- granted if we ffi.cdef this, it will have already been ffi.cdef'd from the require 'vec-ffi.vec3x'
+?><?=vecType.typeCode?>
+typedef <?=vecType.type?> <?=name?>;
+<?
+	else 
+		-- normal
 ?>
 typedef union {
 	<?=scalar?> s[3];
@@ -14,6 +35,7 @@ typedef union {
 -- __attribute__ ((packed)) seems to need to be here with real=half
 ?> <?=name?>;
 <? 
+	end
 end 
 makevec3('real3', 'real')
 ?> 

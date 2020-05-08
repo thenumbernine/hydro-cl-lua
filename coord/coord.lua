@@ -1185,28 +1185,56 @@ so their normals are as well
 
 however their use with the cell vector components requires them to be converted to whatever coord.vectorComponents specifies
 maybe I will just do that up front?  save a frame basis & dual (that is orthonormal to the basis)
-though for now I'll just support Cartesian
+though for now I'll just support Cartesian / identity metric
 --]]
 		self.normalTypeCode = template([[
 typedef struct {
-	real3 n;
+	real3x3 n;
 } normalInfo_t;
+]])
 
+		self.normalInfoCode = template([[
 #define normalInfo_forFace(face) \
 	((normalInfo_t){ \
-		.n = face->normal, \
-		.n2 = face->normal2, \
-		.n3 = face->normal3, \
+		.n = (real3x3){ \
+			.x = face->normal, \
+			.y = face->normal2, \
+			.z = face->normal3, \
+		}, \
 	})
 
 #define normalInfo_len(n)	1.
 #define normalInfo_lenSq(n)	1.
 
-#define normalInfo_l1x(normal)	normal.n.x
-#define normalInfo_l1y(normal)	normal.n.y
-#define normalInfo_l1z(normal)	normal.n.z
+<? 
+for j,xj in ipairs(xNames) do
+	for i,xi in ipairs(xNames) do
+?>
+#define normalInfo_l<?=j?><?=xi?>(normal)		(normal.n.<?=xi?>.<?=xj?>)
+#define normalInfo_u<?=j?><?=xi?>(n)			normalInfo_l<?=j?><?=xi?>(n)
+#define normalInfo_l<?=j?><?=xi?>_over_len(n)	normalInfo_l<?=j?><?=xi?>(n)
+#define normalInfo_u<?=j?><?=xi?>_over_len(n)	normalInfo_u<?=j?><?=xi?>(n)
+<?
+	end
+end
+?>
 
-]])	
+//v^i (nj)_i
+#define normalInfo_vecDotNs(normal, v) (real3x3_real3_mul(normal.n, v))
+
+//v^i (n1)_i
+#define normalInfo_vecDotN1(normal, v) (real3_dot(normal.n.x, v))
+
+// w_j <=> (n_j)^i w_i = v_j
+#define normalInfo_vecFromNs(normal, v) \
+	real3_add3( \
+		real3_real_mul(normal.n.x, v.x), \
+		real3_real_mul(normal.n.y, v.y), \
+		real3_real_mul(normal.n.z, v.z))
+
+]],		{
+			xNames = xNames,
+		})	
 	else	-- not meshsolver
 
 		if require 'coord.cartesian'.is(self)

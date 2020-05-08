@@ -661,7 +661,7 @@ function SolverBase:getDisplayCode()
 ?>	index = INDEXV(i);\
 <? else	-- mesh 
 ?>	int dstindex = index;\
-	real3 x = cells[index].x;\
+	real3 x = cells[index].pos;\
 <? end 		-- mesh vs grid 
 ?>	displayValue_t value = {.ptr={0,0,0,0,0,0,0,0,0}};
 

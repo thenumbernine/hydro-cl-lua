@@ -1372,6 +1372,9 @@ function HydroCLApp:updateGUI()
 					tooltip.intTable('vector field step', self.drawVectorField, 'step')
 					self.drawVectorField.step = math.max(self.drawVectorField.step, 1)
 				end
+				if self.drawVectorLIC then
+					tooltip.intTable('LIC steps', self.drawVectorLIC, 'integralMaxIter')
+				end
 				
 				ig.igPopID()
 			end
@@ -1397,6 +1400,7 @@ end
 
 HydroCLApp.showMouseCoords = cmdline.showMouseCoords
 --if HydroCLApp.showMouseCoords == nil then HydroCLApp.showMouseCoords = true end
+HydroCLApp.showMouseCoords = not not HydroCLApp.showMouseCoords
 
 HydroCLApp.mouseCoord = {0,0}
 HydroCLApp.mouseCoordValue = ''	-- TODO store one per inst of App

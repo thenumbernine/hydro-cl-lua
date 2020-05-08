@@ -159,6 +159,8 @@ MeshSolver.meshTypeCode = [[
 typedef struct face_s {
 	real3 pos;		//center.  realN.
 	real3 normal;	//normal pointing from first to second
+	real3 normal2;	//orthonormal basis around normal
+	real3 normal3;
 	real area;		//edge length / surface area
 	real cellDist;	//dist between cell centers along 'normal'
 	int cells[2];	//indexes of cells
@@ -194,6 +196,12 @@ local function face_t()
 	face.normal.x = 0
 	face.normal.y = 0
 	face.normal.z = 0
+	face.normal2.x = 0
+	face.normal2.y = 0
+	face.normal2.z = 0
+	face.normal3.x = 0
+	face.normal3.y = 0
+	face.normal3.z = 0
 	face.area = 0
 	face.cellDist = 0
 	face.cells[0] = -1
@@ -610,6 +618,26 @@ function Mesh:calcAux()
 		else
 			error"looks like you created a face that isn't touching any cells..."
 		end
+
+		-- here form an orthonormal basis
+		local xcn = self.real3(0, f.normal.z, -f.normal.y)
+		local ycn = self.real3(-f.normal.z, 0, f.normal.x)
+		local zcn = self.real3(f.normal.y, -f.normal.x, 0)
+		local xlenSq = xcn:lenSq()
+		local ylenSq = ycn:lenSq()
+		local zlenSq = zcn:lenSq()
+		if xlenSq > ylenSq then
+			if xlenSq > zlenSq then	-- x
+				f.normal3:set(xcn:normalize())
+			else					-- z 
+				f.normal3:set(zcn:normalize())
+			end
+		elseif ylenSq > zlenSq then	-- y
+			f.normal3:set(ycn:normalize())
+		else						-- z
+			f.normal3:set(zcn:normalize())
+		end
+		f.normal2:set(f.normal3:cross(f.normal):normalize())
 	end
 
 	-- now convert all our buffers to C types

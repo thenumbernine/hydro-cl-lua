@@ -6,6 +6,8 @@ local GLTex2D = require 'gl.tex2d'
 
 local DrawVectorLIC = class()
 
+DrawVectorLIC.integralMaxIter = 10
+
 function DrawVectorLIC:drawSolverWithVar(app, solver, var, vectorLICShader, xmin, xmax, ymin, ymax)
 -- hmm ... this is needed for sub-solvers
 local origSolver = var.solver
@@ -41,8 +43,6 @@ var.solver = solver
 
 var.solver = origSolver
 end
-
-DrawVectorLIC.integralMaxIter = 10
 
 function DrawVectorLIC:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax)
 	-- TODO allow a fixed, manual colormap range
@@ -80,6 +80,10 @@ function DrawVectorLIC:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 			data = noiseData,
 			minFilter = gl.GL_NEAREST,
 			magFilter = gl.GL_LINEAR,
+			wrap = {
+				s = gl.GL_REPEAT,
+				t = gl.GL_REPEAT,
+			},
 		}
 	end
 

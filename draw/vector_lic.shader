@@ -89,7 +89,7 @@ void main() {
 	licMag /= totalWeight;
 
 	//add some contrast
-	licMag = smoothstep(0., 1., licMag);
+	licMag = smoothstep(.2, .8, licMag);
 
 	//color by magnitude
 	float fieldMagn = length(getTex(texCoord).xyz);
