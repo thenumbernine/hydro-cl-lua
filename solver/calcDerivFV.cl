@@ -37,8 +37,8 @@ then ?>
 	real volume = cell_volume(x);
 <? else ?>
 	real volume = 1.<?
-	for i=1,solver.dim do
-		?> * solver->grid_dx.s<?=i-1?><?
+	for i=0,solver.dim-1 do
+		?> * solver->grid_dx.s<?=i?><?
 	end
 ?>;
 <? end ?>
@@ -66,9 +66,9 @@ then ?>
 <? else ?>
 		real areaL, areaR;
 		areaL = areaR = 1.<?
-	for i=1,solver.dim do
+	for i=0,solver.dim-1 do
 		if i ~= side then
-			?> * solver->grid_dx.s<?=i-1?><?	
+			?> * solver->grid_dx.s<?=i?><?
 		end
 	end
 ?>;
