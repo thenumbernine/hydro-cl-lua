@@ -925,7 +925,6 @@ function MeshSolver:createBuffers()
 
 	-- similar to gridsolver's display buffer stuff when glSharing isn't found
 	self.calcDisplayVarToTexPtr = ffi.new(self.app.real..'[?]', self.numCells * 3)
-
 end
 
 function MeshSolver:finalizeCLAllocs()
@@ -937,10 +936,12 @@ function MeshSolver:finalizeCLAllocs()
 	self.cmds:enqueueWriteBuffer{buffer=self.cellFaceIndexesBuf, block=true, size=ffi.sizeof'int' * self.numCellFaceIndexes, ptr=self.mesh.cellFaceIndexes.v}
 end
 
+--[[
 function MeshSolver:refreshInitStateProgram()
 	-- override this until I know what to do...
 	--self.eqn.initState:refreshInitStateProgram(self)
 end
+--]]
 
 function MeshSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	-- numCells is the number of cells
@@ -957,10 +958,9 @@ function MeshSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	}
 end
 
-
-function MeshSolver:applyInitCond()
-	assert(self.UBuf)
-	-- TODO read it in from a file?  and upload it?  or something?
+function MeshSolver:resetState()
+	MeshSolver.super.resetState(self)
+self:printBuf(self.UBufObj)
 end
 
 function MeshSolver:createCodePrefix()
@@ -1051,7 +1051,7 @@ function MeshSolver:display(varName, ar)
 	gl.glPointSize(1)
 
 	-- if show faces ...
-	for _,f in ipairs(mesh.faces) do
+	for fi,f in ipairs(mesh.faces) do
 		gl.glBegin(gl.GL_LINE_LOOP)
 		for vi=0,f.vtxCount-1 do
 			local v = mesh.vtxs[mesh.faceVtxIndexes[vi + f.vtxOffset]]

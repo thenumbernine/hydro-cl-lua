@@ -175,9 +175,20 @@ Euler.initStateCode = [[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
+<? if require 'solver.meshsolver'.is(solver) then ?>
+	,global cell_t* cells
+<? end ?>
 ) {
+<? if require 'solver.meshsolver'.is(solver) then ?>
+	int index = get_global_id(0);
+	if (index >= get_global_size(0)) return;
+	const global cell_t* cell = cells + index;
+	real3 x = cell->pos;
+<? else	-- not meshsolver ?>
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
+<? end ?>
+
 	real3 mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);
 	bool lhs = true<?
 for i=1,solver.dim do

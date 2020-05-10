@@ -432,6 +432,12 @@ function SolverBase:createBuffers()
 	self:clalloc('reduceSwapBuf', self.app.real, math.ceil(self.numCells / self.localSize1d))
 	self.reduceResultPtr = ffi.new('real[1]', 0)
 
+	-- as big as reduceBuf, because it is a replacement for reduceBuf
+	-- ... though I don't accum on vector fields yet, so it doesn't need the x3 really
+	if self.allowAccum then
+		self:clalloc('accumBuf', self.app.real, self.numCells * 3)
+	end
+
 	-- TODO CLImageGL ?
 end
 
@@ -1845,24 +1851,26 @@ end
 function SolverBase:printBuf(buf, ptrorig, colsize, colmax)
 	ptrorig = ptrorig or buf:toCPU()
 	local ptr0size = tonumber(ffi.sizeof(buf.type))
---print('ptr0size', ptr0size)	
+--print('ptr0size', ptr0size)
 	local realSize = tonumber(ffi.sizeof'real')
---print('realSize', realSize)	
+--print('realSize', realSize)
 	local ptrsPerReal = ptr0size / realSize
---print('ptrsPerReal', ptrsPerReal)	
+--print('ptrsPerReal', ptrsPerReal)
 	assert(ptrsPerReal == math.floor(ptrsPerReal))
 	-- I've seen this problem before, in gcmem ... if you assign a ptr to a cast of itself, luajit can segfault
 	-- fix?  save the old pointer, and luajit doesn't try to free it too early
 	local ptr = ffi.cast('real*', ptrorig)
 	local size = buf.count * ptrsPerReal
---print('size', size)	
-	if buf.type == self.eqn.cons_t then
+--print('size', size)
+	if buf.type == self.eqn.cons_t
+	and not require 'solver.meshsolver'.is(self)	-- TODO why won't meshsolvers work?
+	then
 		local maxdigitlen = #tostring(self.numCells-1)
---print('maxdigitlen', maxdigitlen)		
+--print('maxdigitlen', maxdigitlen)
 		local realsPerCell = math.floor(size / self.numCells)
---print('realsPerCell', realsPerCell)		
+--print('realsPerCell', realsPerCell)
 		colmax = colmax or realsPerCell
---print('colmax', colmax)		
+--print('colmax', colmax)
 		if colmax > realsPerCell then
 			error("got too many realsPerCell\n"..require 'ext.tolua'{
 				colmax = colmax,

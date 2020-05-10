@@ -50,6 +50,9 @@ else	-- not useCLLinkLibraries
 	end)
 end
 	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.solverBuf, solver.UBuf)
+	if require 'solver.meshsolver'.is(solver) then
+		solver.initStateKernelObj.obj:setArg(2, solver.cellsBuf)
+	end
 
 	-- here's an ugly hack ...
 	-- I need a custom init state kernel for the GLM_MHD only

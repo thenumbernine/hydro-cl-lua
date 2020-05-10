@@ -1,4 +1,4 @@
-<? if require 'solver.gridsolver'.is(solver) then ?>
+<? if not require 'solver.meshsolver'.is(solver) then ?>
 /*
 run across each cell
 */
@@ -42,7 +42,7 @@ then
 	dtBuf[index] = dt;
 }
 
-<? else -- mesh solver ?>
+<? else -- meshsolver ?>
 
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,

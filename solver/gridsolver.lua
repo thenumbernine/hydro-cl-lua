@@ -571,11 +571,12 @@ function GridSolver:createBuffers()
 	self.reduceResultPtr[0] = toreal(0)
 
 
+	-- as big as reduceBuf, because it is a replacement for reduceBuf
+	-- ... though I don't accum on vector fields yet, so it doesn't need the x3 really
 	if self.allowAccum then
-		-- as big as reduceBuf, because it is a replacement for reduceBuf
-		-- ... though I don't accum on vector fields yet, so it doesn't need the x3 really
 		self:clalloc('accumBuf', self.app.real, self.numCells * 3)
 	end
+
 
 	if self.app.targetSystem ~= 'console' then
 		-- CL/GL interop
