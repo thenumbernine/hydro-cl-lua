@@ -386,17 +386,21 @@ function Equation:createDivDisplayVar(args)
 	return {
 		name = 'div '..field, 
 		code = template([[
-	<?=scalar?> v = <?=scalar?>_zero;
-	<? for j=0,solver.dim-1 do ?>{
-		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
-		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
-		v = <?=scalar?>_add(v, <?=scalar?>_real_mul(
-			<?=scalar?>_sub(
-				<?=getField('Ujp', j)?>,
-				<?=getField('Ujm', j)?>
-			), .5 / solver->grid_dx.s<?=j?>));
-	}<? end ?>
-	value.v<?=scalar?> = v;
+	if (OOB(1,1)) {
+		value.v<?=scalar?> = 0./0.;
+	} else {
+		<?=scalar?> v = <?=scalar?>_zero;
+		<? for j=0,solver.dim-1 do ?>{
+			global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
+			global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
+			v = <?=scalar?>_add(v, <?=scalar?>_real_mul(
+				<?=scalar?>_sub(
+					<?=getField('Ujp', j)?>,
+					<?=getField('Ujm', j)?>
+				), .5 / solver->grid_dx.s<?=j?>));
+		}<? end ?>
+		value.v<?=scalar?> = v;
+	}
 ]], 	{
 			eqn = self,
 			solver = self.solver,
@@ -428,7 +432,7 @@ function Equation:createCurlDisplayVar(args)
 			name = 'curl '..field..' '..xNames[k+1],
 			code = template([[
 	if (OOB(1,1)) {
-		<?=result?> = 0.;
+		<?=result?> = 0./0.;
 	} else {
 		global const <?=eqn.cons_t?>* Uim = U - solver->stepsize.s<?=i?>;
 		global const <?=eqn.cons_t?>* Uip = U + solver->stepsize.s<?=i?>;

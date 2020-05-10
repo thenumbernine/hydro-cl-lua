@@ -16,6 +16,7 @@ return function(args)
 	NoDiv.vectorField = 'B'
 	NoDiv.potentialField = 'psi'
 	NoDiv.chargeField = nil	-- nil means zero
+	NoDiv.chargeCode = nil
 
 	function NoDiv:init(args)
 		self.scalar = args.scalar
@@ -23,6 +24,7 @@ return function(args)
 		self.vectorField = args.vectorField
 		self.potentialField = args.potentialField
 		self.chargeField = args.chargeField
+		self.chargeCode = args.chargeCode
 	end
 
 	--[[
@@ -31,6 +33,9 @@ return function(args)
 	--]]
 	function NoDiv:getPoissonDivCode()
 		return template([[
+	if (OOB(1,1)) {
+		source = 0.;
+	} else {
 <?
 local solver = op.solver
 
@@ -41,24 +46,27 @@ local sub = scalar..'_sub'
 local real_mul = scalar..'_real_mul'
 
 for j=0,solver.dim-1 do
-?>	source = <?=add?>(
-		source,
-		<?=real_mul?>(
-			<?=sub?>(
-				U[solver->stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>,
-				U[-solver->stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>
-			),
-			.5 / solver->grid_dx.s<?=j?>
-		)
-	);
+?>		source = <?=add?>(
+			source,
+			<?=real_mul?>(
+				<?=sub?>(
+					U[solver->stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>,
+					U[-solver->stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>
+				),
+				.5 / solver->grid_dx.s<?=j?>
+			)
+		);
 <? 
 end 
 ?>	
 	
 <? if op.chargeField then 
 ?>	source = <?=add?>(source, U-><?=op.chargeField?>);
-<? end 
+<? elseif op.chargeCode then
+?><?=op.chargeCode?><? 
+end 
 ?>
+	}
 ]], 
 		{
 			op = self,

@@ -256,26 +256,26 @@ MHD.predefinedDisplayVars = {
 }
 
 function MHD:getDisplayVars()
-	return MHD.super.getDisplayVars(self):append{
+	local vars = MHD.super.getDisplayVars(self)
+	vars:append{
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
-		self:createDivDisplayVar{field='B', units='kg/(C*m*s)'},
 		{name='P', code='value.vreal = W.P;', units='kg/(m*s^2)'},
-		--{name='PMag', code='value.vreal = calc_PMag(solver, W, x);'},
-		--{name='PTotal', code='value.vreal = W.P + calc_PMag(solver, W, x);'},
-		--{name='eInt', code='value.vreal = calc_eInt(solver, W);'},
+		{name='PMag', code='value.vreal = calc_PMag(solver, W, x);'},
+		{name='PTotal', code='value.vreal = W.P + calc_PMag(solver, W, x);'},
+		{name='eInt', code='value.vreal = calc_eInt(solver, W);'},
 		{name='EInt', code='value.vreal = calc_EInt(solver, W);'},
-		--{name='eKin', code='value.vreal = calc_eKin(W, x);'},
+		{name='eKin', code='value.vreal = calc_eKin(W, x);'},
 		{name='EKin', code='value.vreal = calc_EKin(W, x);'},
-		--{name='eHydro', code='value.vreal = calc_eHydro(solver, W, x);'},
+		{name='eHydro', code='value.vreal = calc_eHydro(solver, W, x);'},
 		{name='EHydro', code='value.vreal = calc_EHydro(solver, W, x);'},
 		{name='EM energy', code='value.vreal = calc_EM_energy(solver, W, x);'},
-		--{name='eTotal', code='value.vreal = U->ETotal / W.rho;'},
+		{name='eTotal', code='value.vreal = U->ETotal / W.rho;'},
 		{name='S', code='value.vreal = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
 		{name='H', code='value.vreal = calc_H(solver, W.P);'},
-		--{name='h', code='value.vreal = calc_H(solver, W.P) / W.rho;'},
-		--{name='HTotal', code='value.vreal = calc_HTotal(solver, W, U->ETotal, x);'},
-		--{name='hTotal', code='value.vreal = calc_hTotal(solver, W, U->ETotal, x);'},
-		--{name='Cs', code='value.vreal = calc_Cs(solver, W); },
+		{name='h', code='value.vreal = calc_H(solver, W.P) / W.rho;'},
+		{name='HTotal', code='value.vreal = calc_HTotal(solver, W, U->ETotal, x);'},
+		{name='hTotal', code='value.vreal = calc_hTotal(solver, W, U->ETotal, x);'},
+		{name='Cs', code='value.vreal = calc_Cs(solver, W);'},
 		{name='primitive reconstruction error', code=template([[
 		//prim have just been reconstructed from cons
 		//so reconstruct cons from prims again and calculate the difference
@@ -288,6 +288,13 @@ function MHD:getDisplayVars()
 	eqn = self,
 })},
 	}
+		
+	vars:insert(self:createDivDisplayVar{field='B', units='kg/(C*m*s)'})
+	vars:insert(self:createDivDisplayVar{field='m', units='kg/(m^3*s)'})
+	vars:insert(self:createCurlDisplayVar{field='B', units='kg/(C*m*s)'})
+	vars:insert(self:createCurlDisplayVar{field='m', units='kg/(m^3*s)'})
+
+	return vars
 end
 
 

@@ -52,8 +52,8 @@ function Euler:init(args)
 	}
 
 	if args.incompressible then
-		self.consVars:insert{name='vPot', type='real', units='m^2/s'}
-		self.primVars:insert{name='vPot', type='real', units='m^2/s'}
+		self.consVars:insert{name='mPot', type='real', units='m^2/s'}
+		self.primVars:insert{name='mPot', type='real', units='m^2/s'}
 	end
 
 	Euler.super.init(self, args)
@@ -65,16 +65,30 @@ function Euler:init(args)
 		self.gravOp = SelfGrav{solver = self.solver}
 		self.solver.ops:insert(self.gravOp)
 
-		-- div v = 0
-		-- div (m/rho) = 0
-		-- 1/rho div m - 1/rho^2 m dot grad rho = 0
-		-- div m = (m dot grad rho)/rho 
 		if args.incompressible then
-			local NoDiv = require 'op.nodiv'()
+			local NoDiv = require 'op.nodiv'{
+				poissonSolver = require 'op.poisson_jacobi',	-- krylov is having errors.  TODO bug in its boundary code?
+			}
 			self.solver.ops:insert(NoDiv{
 				solver = self.solver,
 				vectorField = 'm',
-				potentialField = 'vPot',
+				potentialField = 'mPot',
+			
+				-- div v = 0
+				-- div (m/rho) = 0
+				-- 1/rho div m - 1/rho^2 m dot grad rho = 0
+				-- div m = (m dot grad rho)/rho 
+				chargeCode = template([[
+	<? for j=0,solver.dim-1 do ?>{
+		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
+		real drho_dx = (Ujp->rho - Ujm->rho) * (.5 / solver->grid_dx.s<?=j?>);
+		source -= drho_dx * U->m.s<?=j?> / U->rho;
+	}<? end ?>
+]],				{
+					eqn = self,
+					solver = self.solver,
+				}),
 			})
 		end
 	end

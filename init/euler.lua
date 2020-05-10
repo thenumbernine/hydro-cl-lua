@@ -683,31 +683,25 @@ end
 
 	-- http://www.astro.virginia.edu/VITA/ATHENA/ot.html
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/orszag-tang/pagesource.html
+	-- https://www.csun.edu/~jb715473/examples/mhd2d.htm
 	{
 		name = 'Orszag-Tang',
 		overrideGuiVars = {
 			heatCapacityRatio = 5/3,
 		},
 		initState = function(self, solver)
-			
-			-- TODO hmm looks like it's not setting on init correctly...
-			local boundaryMethods = {}
-			for i,x in ipairs(xNames) do
-				for _,minmax in ipairs(minmaxs) do
-					boundaryMethods[x..minmax] = 'periodic'
-				end
-			end
-			solver:setBoundaryMethods(boundaryMethods)
-			
+			solver:setBoundaryMethods'periodic'
 			return [[
 	const real B0 = 1./sqrt(4. * M_PI);
-	rho = 25./(36.*M_PI);
-	v.x = -sin(2.*M_PI*(x.y+.5));
-	v.y = sin(2.*M_PI*(x.x+.5));
+	//rho = 25./(36.*M_PI);											//Athena i.c.
+	rho = solver->heatCapacityRatio * solver->heatCapacityRatio;	//CSUN i.c.
+	v.x = -sin(2. * M_PI * (x.y * .5 + .5));
+	v.y = sin(2. * M_PI * (x.x * .5 + .5));
 	v.z = 0;
-	P = 5./(12.*M_PI);	// is this hydro pressure or total pressure?
-	B.x = -B0 * sin(2. * M_PI * (x.y+.5));
-	B.y = B0 * sin(4. * M_PI * (x.x+.5));
+	//P = 5./(12.*M_PI);			//Athena i.c. - is this hydro pressure or total pressure?
+	P = solver->heatCapacityRatio;	//CSUN i.c. - fluid pressure
+	B.x = -B0 * sin(2. * M_PI * (x.y * .5 + .5));
+	B.y = B0 * sin(2. * M_PI * (x.x + .5));
 	B.z = 0;
 ]]
 		end,

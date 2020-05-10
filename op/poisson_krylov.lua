@@ -237,8 +237,10 @@ kernel void copyPotentialFieldToVecAndInitB<?=op.name?>(
 	global const <?=eqn.cons_t?>* UBuf
 ) {
 	SETBOUNDS(0, 0);
+	
 	global const <?=eqn.cons_t?>* U = UBuf + index;
 	x[index] = U-><?=op.potentialField?>;
+	
 	real source = 0.;
 <?=op:getPoissonDivCode() or ''?>
 	b[index] = source;
