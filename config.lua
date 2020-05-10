@@ -79,7 +79,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{600,1,1},
-				{32,32,1},
+				{256,256,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
@@ -96,12 +96,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin=cmdline.boundary or 'periodic',
-		xmax=cmdline.boundary or 'periodic',
-		ymin=cmdline.boundary or 'periodic',
-		ymax=cmdline.boundary or 'periodic',
-		zmin=cmdline.boundary or 'periodic',
-		zmax=cmdline.boundary or 'periodic',
+		xmin=cmdline.boundary or 'mirror',
+		xmax=cmdline.boundary or 'mirror',
+		ymin=cmdline.boundary or 'mirror',
+		ymax=cmdline.boundary or 'mirror',
+		zmin=cmdline.boundary or 'mirror',
+		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
 	--[[ cylinder
@@ -199,7 +199,7 @@ local args = {
 	--initState = 'rarefaction wave',
 	--initState = 'Bessel',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initStateArgs = {dim=cmdline.displayDim},
 	
 	--initState = 'rectangle',
@@ -239,7 +239,7 @@ local args = {
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
 	--initState = 'Brio-Wu',
-	initState = 'Orszag-Tang',
+	--initState = 'Orszag-Tang',
 	--initState = 'MHD rotor',
 	--initState = 'GEM challenge', eqnArgs = {useEulerInitState=false},
 	--initState = 'spinning magnetic fluid',
@@ -491,7 +491,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -633,7 +633,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 

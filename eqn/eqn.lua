@@ -375,30 +375,106 @@ end
 -- I would make this a component, but then the component code would need to access the entire previous buffer befure making its computation
 -- that could be done in GLSL using the dx operators ... maybe I'll look into that later ...
 function Equation:createDivDisplayVar(args)
+	if require 'solver.meshsolver'.is(self.solver) then return end
+	
 	local field = assert(args.field)
+	local getField = args.getField
 	local scalar = args.scalar or 'real'
 	local units = args.units
-	--, scalar, units)
+	
 	return {
 		name = 'div '..field, 
 		code = template([[
 	<?=scalar?> v = <?=scalar?>_zero;
-<? for j=0,solver.dim-1 do ?>
-	v = <?=scalar?>_add(v, <?=scalar?>_real_mul(
-		<?=scalar?>_sub(
-			U[solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>,
-			U[-solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		), .5 / solver->grid_dx.s<?=j?>));
-<? end ?>
+	<? for j=0,solver.dim-1 do ?>{
+		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
+		v = <?=scalar?>_add(v, <?=scalar?>_real_mul(
+			<?=scalar?>_sub(
+				<?=getField('Ujp', j)?>,
+				<?=getField('Ujm', j)?>
+			), .5 / solver->grid_dx.s<?=j?>));
+	}<? end ?>
 	value.v<?=scalar?> = v;
 ]], 	{
+			eqn = self,
 			solver = self.solver,
-			field = field,
+			getField = getField or function(U, j)
+				return U..'->'..field..'.s'..j	
+			end,
 			scalar = scalar,
 		}),
 		type = scalar, 
 		units = units,
 	}
+end
+
+function Equation:createCurlDisplayVar(args)
+	if require 'solver.meshsolver'.is(self.solver) then return end
+
+	local field = assert(args.field)
+	local getField = args.getField
+	local units = args.units
+
+	-- k is 0-based
+	local function vorticity(k, result)
+		local i = (k+1)%3	-- 0-based
+		local j = (i+1)%3	-- 0-based
+		return {
+			name = 'curl '..field..' '..xNames[k+1],
+			code = template([[
+	if (OOB(1,1)) {
+		<?=result?> = 0.;
+	} else {
+		global const <?=eqn.cons_t?>* Uim = U - solver->stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Uip = U + solver->stepsize.s<?=i?>;
+		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
+
+		//TODO incorporate metric
+
+		real vim_j = <?=getField('Uim', j)?>;
+		real vip_j = <?=getField('Uip', j)?>;
+		
+		real vjm_i = <?=getField('Ujm', i)?>;
+		real vjp_i = <?=getField('Ujp', i)?>;
+		
+		<?=result?> = (vjp_i - vjm_i) / (2. * solver->grid_dx.s<?=i?>)
+					- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
+	}
+]], 	{
+			eqn = self,
+			i = i,
+			j = j,
+			result = result,
+			getField = getField or function(U, j)
+				return U..'->'..field..'.s'..j
+			end,
+		})}
+	end
+
+	-- TODO just use LIC and the mag will be ... the abs of this
+	if self.solver.dim == 2 then
+		local var = vorticity(2,'value.vreal')
+		var.name = 'curl '..field
+		return var
+	elseif self.solver.dim == 3 then
+		local v = xNames:mapi(function(xi,i)
+			return vorticity(i-1,'value.vreal3.'..xi)
+		end)
+		return {
+			name = 'curl '..field,
+			code = template([[
+	<? for i,vi in ipairs(v) do ?>{
+		<?=vi.code?>
+	}<? end ?>
+]], 			{
+					v = v,
+				}), 
+			type = 'real3',
+			units = units,
+		}
+	end
 end
 
 -- does anyone even use this anymore?  nobody should...

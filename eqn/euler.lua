@@ -229,40 +229,6 @@ Euler.solverCodeFile = 'eqn/euler.cl'
 
 Euler.displayVarCodeUsesPrims = true
 
--- k is 0,1,2
-local function vorticity(eqn,k,result)
-	local i = (k+1)%3
-	local j = (i+1)%3
-	return {
-		name = 'vorticity '..xNames[k+1],
-		code = template([[
-	if (OOB(1,1)) {
-		<?=result?> = 0.;
-	} else {
-		global const <?=eqn.cons_t?>* Uim = U - solver->stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Uip = U + solver->stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
-		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
-
-		//TODO incorporate metric
-
-		real vim_j = Uim->m.s<?=j?> / Uim->rho;
-		real vip_j = Uip->m.s<?=j?> / Uip->rho;
-		
-		real vjm_i = Ujm->m.s<?=i?> / Ujm->rho;
-		real vjp_i = Ujp->m.s<?=i?> / Ujp->rho;
-		
-		<?=result?> = (vjp_i - vjm_i) / (2. * solver->grid_dx.s<?=i?>)
-					- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
-	}
-]], {
-		i = i,
-		j = j,
-		eqn = eqn,
-		result = result,
-	})}
-end
-
 -- [=[
 Euler.predefinedDisplayVars = {
 -- [[	
@@ -270,7 +236,6 @@ Euler.predefinedDisplayVars = {
 	'U v',
 	'U P',
 --]]
-	'U v mag',
 --[[
 	-- now that I've switched to components, I can't display these
 	-- TODO ...unless I allow for multiple displays of the same displayVar...
@@ -285,6 +250,8 @@ Euler.predefinedDisplayVars = {
 	'U EPot',
 	'U gravity',
 --]]
+	'U div v',
+	'U curl v',
 }
 --]=]
 
@@ -323,23 +290,25 @@ function Euler:getDisplayVars()
 ]]), units='K'}
 	}
 
+
+	vars:insert(self:createDivDisplayVar{
+		field = 'v', 
+		getField = function(U, j)
+			return U..'->m.s'..j..' / '..U..'->rho'
+		end,
+		units = 'kg/(m^3*s)',
+	})
+
 	-- vorticity = [x ,y ,z] [v.x, v.y, v.z][
 	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
-	
-	if not require 'solver.meshsolver'.is(self.solver) then
-		if self.solver.dim == 2 then
-			vars:insert(vorticity(self,2,'value.vreal'))
-		elseif self.solver.dim == 3 then
-			local v = xNames:mapi(function(xi,i)
-				return vorticity(self,i-1,'value.vreal3.'..xi)
-			end)
-			vars:insert{name='vorticityVec', code=template([[
-	<? for i,vi in ipairs(v) do ?>{
-		<?=vi.code?>
-	}<? end ?>
-]], {v=v}), type='real3', units='m/s^2'}
-		end
-	end
+
+	vars:insert(self:createCurlDisplayVar{
+		field = 'v',
+		getField = function(U, j)
+			return U..'->m.s'..j..' / '..U..'->rho'
+		end,
+		units = 'm/s^2',
+	})
 
 	return vars
 end
