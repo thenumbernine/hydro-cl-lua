@@ -861,7 +861,7 @@ function MeshSolver:initL1(args)
 
 	local meshType = assert(args.mesh.type, "expected mesh type")
 	local meshFactoryClass = assert(meshFactoryClassForType[meshType], "failed to find mesh factory for type "..meshType)
-	local meshFactory = meshFactoryClass()
+	local meshFactory = meshFactoryClass(args.mesh)
 	self.mesh = meshFactory:createMesh(self)
 
 
@@ -922,6 +922,10 @@ function MeshSolver:createBuffers()
 	self:clalloc('cellsBuf', 'cell_t', self.numCells)
 	self:clalloc('facesBuf', 'face_t', self.numFaces)
 	self:clalloc('cellFaceIndexesBuf', 'int', self.numCellFaceIndexes)
+
+	-- similar to gridsolver's display buffer stuff when glSharing isn't found
+	self.calcDisplayVarToTexPtr = ffi.new(self.app.real..'[?]', self.numCells * 3)
+
 end
 
 function MeshSolver:finalizeCLAllocs()
@@ -1010,5 +1014,92 @@ function MeshSolverDisplayVar:setArgs(kernel)
 	kernel:setArg(5, self.solver.facesBuf)
 end
 
+
+MeshSolver.drawCellScale = .9
+
+local gl = require 'gl'
+function MeshSolver:display(varName, ar)
+	local var = self.displayVarForName[varName]
+	
+	local valueMin, valueMax
+	if var.heatMapFixedRange then
+		valueMin = var.heatMapValueMin
+		valueMax = var.heatMapValueMax
+	else
+		valueMin, valueMax = self:calcDisplayVarRange(var)
+		var.heatMapValueMin = valueMin
+		var.heatMapValueMax = valueMax
+	end
+	
+	self:calcDisplayVarToBuffer(var)
+
+	local app = self.app
+	local view = app.view
+	view:projection(ar)
+	view:modelview()
+
+	-- draw the mesh 
+	local mesh = self.mesh
+
+	-- if show vertices...
+	gl.glPointSize(3)
+	gl.glColor3f(1,1,1)
+	gl.glBegin(gl.GL_POINTS)
+	for _,v in ipairs(mesh.vtxs) do
+		gl.glVertex3d(v:unpack())
+	end
+	gl.glPointSize(1)
+
+	-- if show faces ...
+	for _,f in ipairs(mesh.faces) do
+		gl.glBegin(gl.GL_LINE_LOOP)
+		for vi=0,f.vtxCount-1 do
+			local v = mesh.vtxs[mesh.faceVtxIndexes[vi + f.vtxOffset]]
+			gl.glVertex3d(v:unpack())
+		end
+		gl.glEnd()
+	end
+
+	-- if show cells ...
+	-- TODO in my mesh solver, here I pick the color according to the display value
+	-- but in my grid solvers I just overlay the whole thing with a giant texture
+	-- so how to combine the two? use gradient tex.  
+	-- in gridshader I have a kernel for updating tex/buffer to display values based on the cell state values
+	-- i can do the same, and just update the 'displayValue' inside each cell for this.
+	-- in fact, before drawing this, calcDisplayVarToBuffer will fill reduceBuf with the values (associated 1-1 with each cell?)
+	local gradientTex = app.gradientTex
+	gradientTex:enable()
+	gradientTex:bind()
+	if self.dim == 2 then
+		for ci,c in ipairs(mesh.cells) do
+			local displayValue = self.calcDisplayVarToTexPtr[ci]
+			gl.glTexCoord1f(displayValue)
+
+			gl.glBegin(gl.GL_POLYGON)
+			for vi=0,c.vtxCount-1 do
+				local v = mesh.vtxs[mesh.cellVtxIndexes[vi + c.vtxOffset]]
+				gl.glVertex3d(((v - c.pos) * self.drawCellScale + c.pos):unpack())
+			end
+			gl.glEnd()
+		end
+	elseif self.dim == 3 then
+		for ci,c in ipairs(mesh.cells) do
+			local displayValue = self.calcDisplayVarToTexPtr[ci]
+			gl.glTexCoord1f(displayValue)
+			
+			for i=0,c.faceCount-1 do
+				local f = mesh.faces[mesh.cellFaceIndexes[i + c.faceOffset]]
+				gl.glBegin(gl.GL_POLYGON)
+				for vi=0,f.vtxCount-1 do
+					local v = mesh.vtxs[mesh.cellFaceIndexes[vi + f.vtxOffset]]
+					gl.glVertex3d(((v - c.pos) * self.drawCellScale + c.pos):unpack())
+				end
+				gl.glEnd()
+			end
+		end
+	end
+	gradientTex:unbind()
+	gradientTex:disable()
+end
 
 return MeshSolver 

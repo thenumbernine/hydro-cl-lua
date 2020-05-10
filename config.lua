@@ -741,7 +741,7 @@ self.solvers:insert(require 'solver.wave-fd'(table(args, {integrator='backward E
 
 
 -- the start of unstructured meshes
-self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh'}})))
+self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh', size={8,8}}})))
 -- temp here -- to make sure ordinary solvers still run
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
 

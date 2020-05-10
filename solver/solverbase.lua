@@ -663,7 +663,7 @@ function SolverBase:getDisplayCode()
 ?>	int dstindex = index;\
 	real3 x = cells[index].pos;\
 <? end 		-- mesh vs grid 
-?>	displayValue_t value = {.ptr={0,0,0,0,0,0,0,0,0}};
+?>	displayValue_t value = {.ptr={0}};
 
 <?-- nvidia needed 'write_only', but I don't want to write only -- I want to accumulate and do other operations 
 -- TODO if I do accumulate, then I will need to ensure the buffer is initialized to zero ...

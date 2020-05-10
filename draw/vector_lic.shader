@@ -76,13 +76,16 @@ void main() {
 	float totalWeight = 1.;
 	<? for dir=-1,1,2 do ?>{
 		vec3 pos = texCoord;
+		vec3 last_dPos_ds;
 		for (int iter = 0; iter < integralMaxIter; ++iter) {
+			vec3 dPos_ds = normalize(getTex(pos).xyz);
+			if (iter > 0 && dot(dPos_ds, last_dPos_ds) < 0.) break;
+			pos += dPos_ds * <?=ds * dir?>;
 			float f = float(iter + 1) / float(integralMaxIter+1);
 			float weight = smoothstep(1., 0., f);
-			vec3 dPos_ds = normalize(getTex(pos).xyz);
-			pos += dPos_ds * <?=ds * dir?>;
 			licMag += texture2D(noiseTex, pos.xy).r * weight;
 			totalWeight += weight;
+			last_dPos_ds = dPos_ds;
 		}
 	}<? end ?>
 

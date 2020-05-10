@@ -1018,6 +1018,7 @@ end
 		end
 
 
+	
 		if not vectorField then
 			if self.displayDim == 1 then
 				self:display1D(displaySolvers, varName, ar, xmin, ymin, xmax, ymax, useLog, varymin, varymax)
@@ -1029,6 +1030,16 @@ end
 		else
 			self:displayVector(displaySolvers, varName, ar, xmin, ymin, xmax, ymax)
 		end
+
+	
+		-- in all these above :display...() methods, they exclude meshsolvers
+		-- just for mesh ...
+		for _,solver in ipairs(self.solvers) do
+			if require 'solver.meshsolver'.is(solver) then
+				solver:display(varName, ar) 
+			end
+		end
+	
 
 		-- TODO make this custom per-display-method
 		-- (that would also let us do one less tex bind/unbind)
@@ -1318,7 +1329,7 @@ function HydroCLApp:updateGUI()
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
 					tooltip.checkboxTable(name, self.display3DMethodsEnabled, name)
-				end			
+				end
 			
 				if self.display3DMethodsEnabled.Slices then
 					do --if useClipPlanes then
