@@ -71,34 +71,6 @@ kernel void initState(
 NavierStokesDivFree.solverCodeFile = 'eqn/euler.cl'
 
 function NavierStokesDivFree:getDisplayVars()
-	-- k is 0,1,2
-	local function vorticity(k,result)
-		local xs = {'x','y','z'}
-		local i = (k+1)%3
-		local j = (i+1)%3
-		return {['vorticity '..xs[k+1]] = template([[
-	if (OOB(1,1)) {
-		<?=result?> = 0.;
-	} else {
-		global const <?=eqn.cons_t?>* Uim = buf + index - solver->stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Uip = buf + index + solver->stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Ujm = buf + index - solver->stepsize.s<?=j?>;
-		global const <?=eqn.cons_t?>* Ujp = buf + index + solver->stepsize.s<?=j?>;
-		
-		real3 vim = Uim->v;
-		real3 vip = Uip->v;
-		real3 vjm = Ujm->v;
-		real3 vjp = Ujp->v;
-		
-		<?=result?> = (vjp.s<?=i?> - vjm.s<?=i?>) / (2. * solver->grid_dx.s<?=i?>)
-				- (vip.s<?=j?> - vim.s<?=j?>) / (2. * solver->grid_dx.s<?=j?>);
-	}
-]], 	{
-			i = i,
-			j = j,
-			eqn = self,
-		})}
-	end
 	local vars = table{
 		{rho = 'value.vreal = U->rho;'},
 		{v = 'value.vreal3 = U->v;', type='real3'},
@@ -121,21 +93,16 @@ function NavierStokesDivFree:getDisplayVars()
 		--{['Mach number'] = 'value.vreal = coordLen(W.v, x) / calc_Cs(&W);'},
 	}
 	
-	if self.solver.dim == 2 then
-	-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
-	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
-		vars:insert(vorticity(2,'value.vreal'))
-	elseif self.solver.dim == 3 then
-		local v = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
-		vars:insert{vorticityVec = template([[
-	<? for i=0,2 do ?>{
-		<?=select(2,next(v[i+1]))?>
-		++value;
-	}<? end ?>
-	value -= 3;
-]], {v=v}), type='real3'}
-	end	
-			
+	vars:insert(self:createDivDisplayVar{
+		field = 'v', 
+		units = 'kg/(m^3*s)',
+	})
+
+	vars:insert(self:createCurlDisplayVar{
+		field = 'v',
+		units = 'm/s^2',
+	})
+
 	return vars
 end
 

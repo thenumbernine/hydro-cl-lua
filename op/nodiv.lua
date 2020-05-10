@@ -20,8 +20,9 @@ return function(args)
 	function NoDiv:init(args)
 		self.scalar = args.scalar
 		NoDiv.super.init(self, args)
-		self.chargeField = args.chargeField
 		self.vectorField = args.vectorField
+		self.potentialField = args.potentialField
+		self.chargeField = args.chargeField
 	end
 
 	--[[

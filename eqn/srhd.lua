@@ -262,44 +262,6 @@ kernel void initState(
 
 SRHD.solverCodeFile = 'eqn/srhd.cl'
 
--- TODO put in common parent of Euler, SRHD, GRHD
--- TODO use the automatic arbitrary finite difference generator in bssnok
--- k is 0,1,2
-local function vorticity(eqn,k,result)
-	local i = (k+1)%3
-	local j = (i+1)%3
-	return {
-		name = 'vorticity '..xNames[k+1],
-		code = template([[
-	if (OOB(1,1)) {
-		<?=result?> = 0.;
-	} else {
-		global const <?=eqn.cons_t?>* Uim = &buf[index - solver->stepsize.s<?=i?>];
-		global const <?=eqn.cons_t?>* Uip = &buf[index + solver->stepsize.s<?=i?>];
-		global const <?=eqn.cons_t?>* Ujm = &buf[index - solver->stepsize.s<?=j?>];
-		global const <?=eqn.cons_t?>* Ujp = &buf[index + solver->stepsize.s<?=j?>];
-
-		//TODO incorporate metric
-		//TODO 3-vorticity vs 4-vorticity?
-
-		real vim_j = Uim->v.s<?=j?>;
-		real vip_j = Uip->v.s<?=j?>;
-		
-		real vjm_i = Ujm->v.s<?=i?>;
-		real vjp_i = Ujp->v.s<?=i?>;
-		
-		<?=result?> = (vjp_i - vjm_i) / (2. * solver->grid_dx.s<?=i?>)
-					- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
-	}
-]], 	{
-			i = i,
-			j = j,
-			eqn = eqn,
-			result = result,
-		})
-	}
-end
-
 function SRHD:getDisplayVars()
 	local vars = table{
 		{name='W based on D', code='value.vreal = U->D / U->rho;'},
@@ -327,23 +289,9 @@ function SRHD:getDisplayVars()
 	value.vreal = fabs(W1 - W2);
 ]]		},
 	}
-	
-	if not require 'solver.meshsolver'.is(self.solver) then
-		if self.solver.dim == 2 then
-			vars:insert(vorticity(self,2,'value.vreal'))
-		elseif self.solver.dim == 3 then
-			local v = xNames:map(function(xi,i) 
-				return vorticity(self,i-1,'value.vreal3.'..xi) 
-			end)
-			vars:insert{
-				name = 'vorticityVec',
-				code = template([[
-	<? for i,vi in ipairs(v) do ?>{
-		<?=vi.code?>
-	}<? end ?>
-]], {v=v}), type='real3'}
-		end
-	end
+
+	vars:insert(self:createDivDisplayVar{field='v', units='kg/(m^3*s)'})
+	vars:insert(self:createCurlDisplayVar{field='v', units='m/s^2'})
 
 	return vars
 end

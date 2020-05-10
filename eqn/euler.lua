@@ -12,7 +12,7 @@ Euler.name = 'Euler'
 -- ePot is the 6th param
 -- which means it's now in the derivBuf, but it is always zero
 -- so TODO a new variable for deriv size vs cons_t size?
-Euler.numStates = 6	
+--Euler.numStates = 6	
 
 Euler.numWaves = 5
 Euler.numIntStates = 5	-- don't bother integrate ePot
@@ -33,23 +33,29 @@ Euler.useConstrainU = true
 Euler.initStates = require 'init.euler'
 
 
--- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
-Euler.primVars = {
-	{name='rho', type='real', units='kg/m^3'},
-	{name='v', type='real3', units='m/s', variance='u'},			-- contravariant
-	{name='P', type='real', units='kg/(m*s^2)'},
-	{name='ePot', type='real', units='m^2/s^2'},
-}
-
-Euler.consVars = {
-	{name='rho', type='real', units='kg/m^3'},
-	{name='m', type='real3', units='kg/(m^2*s)', variance='u'},	-- contravariant
-	{name='ETotal', type='real', units='kg/(m*s^2)'},
-	{name='ePot', type='real', units='m^2/s^2'},
-}
-
-
 function Euler:init(args)
+	
+	-- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
+	
+	self.primVars = table{
+		{name='rho', type='real', units='kg/m^3'},
+		{name='v', type='real3', units='m/s', variance='u'},			-- contravariant
+		{name='P', type='real', units='kg/(m*s^2)'},
+		{name='ePot', type='real', units='m^2/s^2'},
+	}
+
+	self.consVars = table{
+		{name='rho', type='real', units='kg/m^3'},
+		{name='m', type='real3', units='kg/(m^2*s)', variance='u'},	-- contravariant
+		{name='ETotal', type='real', units='kg/(m*s^2)'},
+		{name='ePot', type='real', units='m^2/s^2'},
+	}
+
+	if args.incompressible then
+		self.consVars:insert{name='vPot', type='real', units='m^2/s'}
+		self.primVars:insert{name='vPot', type='real', units='m^2/s'}
+	end
+
 	Euler.super.init(self, args)
 
 	if require 'solver.meshsolver'.is(self.solver) then
@@ -59,11 +65,16 @@ function Euler:init(args)
 		self.gravOp = SelfGrav{solver = self.solver}
 		self.solver.ops:insert(self.gravOp)
 
+		-- div v = 0
+		-- div (m/rho) = 0
+		-- 1/rho div m - 1/rho^2 m dot grad rho = 0
+		-- div m = (m dot grad rho)/rho 
 		if args.incompressible then
 			local NoDiv = require 'op.nodiv'()
 			self.solver.ops:insert(NoDiv{
 				solver = self.solver,
 				vectorField = 'm',
+				potentialField = 'vPot',
 			})
 		end
 	end
@@ -290,7 +301,6 @@ function Euler:getDisplayVars()
 ]]), units='K'}
 	}
 
-
 	vars:insert(self:createDivDisplayVar{
 		field = 'v', 
 		getField = function(U, j)
@@ -298,9 +308,6 @@ function Euler:getDisplayVars()
 		end,
 		units = 'kg/(m^3*s)',
 	})
-
-	-- vorticity = [x ,y ,z] [v.x, v.y, v.z][
-	-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
 
 	vars:insert(self:createCurlDisplayVar{
 		field = 'v',

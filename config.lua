@@ -96,12 +96,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin=cmdline.boundary or 'mirror',
-		xmax=cmdline.boundary or 'mirror',
-		ymin=cmdline.boundary or 'mirror',
-		ymax=cmdline.boundary or 'mirror',
-		zmin=cmdline.boundary or 'mirror',
-		zmax=cmdline.boundary or 'mirror',
+		xmin = cmdline.boundary or 'mirror',
+		xmax = cmdline.boundary or 'mirror',
+		ymin = cmdline.boundary or 'mirror',
+		ymax = cmdline.boundary or 'mirror',
+		zmin = cmdline.boundary or 'mirror',
+		zmax = cmdline.boundary or 'mirror',
 	},
 	--]]
 	--[[ cylinder
@@ -525,6 +525,9 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 -- blows up.  maybe I need an implicit RK scheme...
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=13, integrator='backward Euler'})))
+
+-- testing, not working yet, because div source is off (assumes constant density)
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', eqnArgs={incompressible=true}})))
 
 -- TODO FIXME 
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='navstokes-wilcox'})))

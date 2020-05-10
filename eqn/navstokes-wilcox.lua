@@ -253,41 +253,6 @@ NavierStokesWilcox.solverCodeFile = 'eqn/navstokes-wilcox.cl'
 
 NavierStokesWilcox.displayVarCodeUsesPrims = true
 
--- k is 0,1,2
-local function vorticity(eqn,k,result)
-	local xs = {'x','y','z'}
-	local i = (k+1)%3
-	local j = (i+1)%3
-	return {
-		name = 'vorticity '..xs[k+1], 
-		code = template([[
-	if (OOB(1,1)) {
-		<?=result?> = 0.;
-	} else {
-		global const <?=eqn.cons_t?>* Uim = U - solver->stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Uip = U + solver->stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
-		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
-		
-		//TODO incorporate metric
-		
-		real vim_j = Uim->rhoBar_vTilde.s<?=j?> / Uim->rhoBar;
-		real vip_j = Uip->rhoBar_vTilde.s<?=j?> / Uip->rhoBar;
-		
-		real vjm_i = Ujm->rhoBar_vTilde.s<?=i?> / Ujm->rhoBar;
-		real vjp_i = Ujp->rhoBar_vTilde.s<?=i?> / Ujp->rhoBar;
-		
-		<?=result?> = (vjp_i - vjm_i) / (2. * solver->grid_dx.s<?=i?>)
-				- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
-	}
-]], {
-		i = i,
-		j = j,
-		eqn = eqn,
-		result = result,
-	})}
-end
-
 function NavierStokesWilcox:getDisplayVars()
 	local vars = NavierStokesWilcox.super.getDisplayVars(self)
 	vars:append{
@@ -327,21 +292,22 @@ for side=solver.dim,2 do ?>
 		{name='temp', code='value.vreal = calc_eIntTilde(W) / solver->C_v;'},
 	}
 
-	-- vorticity = [,x ,y ,z] [vTilde.x, vTilde.y, vTilde.z][
-	-- = [vTilde.z,y - vTilde.y,z; vTilde.x,z - vTilde.z,x; vTilde.y,x - vTilde.x,y]
-	
-	if not require 'solver.meshsolver'.is(self.solver) then
-		if self.solver.dim == 2 then
-			vars:insert(vorticity(self,2,'value.vreal'))
-		elseif self.solver.dim == 3 then
-			local vTilde = range(0,2):map(function(i) return vorticity(self,i,'value['..i..']') end)
-			vars:insert{name='vorticityVec', code=template([[
-	<? for i=0,2 do ?>{
-		<?=select(2,next(vTilde[i+1]))?>
-	}<? end ?>
-]], {vTilde=vTilde}), type='real3'}
-		end
-	end
+	vars:insert(self:createDivDisplayVar{
+		field = 'vTilde', 
+		getField = function(U, j)
+			return U..'->rhoBar_vTilde.s'..j..' / '..U..'->rhoBar'
+		end,
+		units = 'kg/(m^3*s)',
+	})
+
+	vars:insert(self:createCurlDisplayVar{
+		field = 'vTilde',
+		getField = function(U, j)
+			return U..'->rhoBar_vTilde.s'..j..' / '..U..'->rhoBar'
+		end,
+		units = 'm/s^2',
+	})
+
 
 	return vars
 end

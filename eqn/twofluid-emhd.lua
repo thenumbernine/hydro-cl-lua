@@ -498,38 +498,6 @@ function TwoFluidEMHD:getDisplayVars()
 
 	for _,fluid in ipairs(fluids) do
 	
-		-- k is 0,1,2
-		local function vorticity(k)
-			local xs = {'x','y','z'}
-			local i = (k+1)%3
-			local j = (i+1)%3
-			return {name=fluid..' vorticity '..xs[k+1], code=template([[
-	if (OOB(1,1)) {
-		value.vreal = 0.;
-	} else {
-		global const <?=eqn.cons_t?>* Uim = U - solver->stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Uip = U + solver->stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
-		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
-
-		//TODO incorporate metric
-
-		real vim_j = Uim-><?=fluid?>_m.s<?=j?> / Uim-><?=fluid?>_rho;
-		real vip_j = Uip-><?=fluid?>_m.s<?=j?> / Uip-><?=fluid?>_rho;
-		real vjm_i = Ujm-><?=fluid?>_m.s<?=i?> / Ujm-><?=fluid?>_rho;
-		real vjp_i = Ujp-><?=fluid?>_m.s<?=i?> / Ujp-><?=fluid?>_rho;
-		
-		value.vreal = (vjp_i - vjm_i) / (2. * solver->grid_dx.s<?=i?>)
-				- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
-	}
-]], 		{
-				i = i,
-				j = j,
-				eqn = self,
-				fluid = fluid,
-			})}
-		end
-		
 		vars:append{
 			{name=fluid..' v', code='value.vreal3 = W.'..fluid..'_v;', type='real3', units='m/s'},
 			{name=fluid..' P', code='value.vreal = W.'..fluid..'_P;', units='kg/(m*s^2)'},
@@ -545,14 +513,23 @@ function TwoFluidEMHD:getDisplayVars()
 			{name=fluid..' hTotal', code='value.vreal = calc_hTotal(solver, W.'..fluid..'_rho, W.'..fluid..'_P, U->'..fluid..'_ETotal);'},
 			{name=fluid..' speed of sound', code='value.vreal = calc_'..fluid..'_Cs(solver, &W);', units='m/s'},
 			{name=fluid..' Mach number', code='value.vreal = coordLen(W.'..fluid..'_v, x) / calc_'..fluid..'_Cs(solver, &W);'},
-		}:append( ({
-		-- vorticity = [,x ,y ,z] [v.x, v.y, v.z][
-		-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
-				[1] = {},
-				[2] = {vorticity(2)},
-				[3] = range(0,2):map(vorticity),
+		}
+	
+		vars:insert(self:createDivDisplayVar{
+			field = fluid..' v', 
+			getField = function(U, j)
+				return U..'->'..fluid..'_m.s'..j..' / '..U..'->'..fluid..'_rho'
+			end,
+			units = 'kg/(m^3*s)',
+		})
 
-		})[self.solver.dim] )
+		vars:insert(self:createCurlDisplayVar{
+			field = fluid..' v', 
+			getField = function(U, j)
+				return U..'->'..fluid..'_m.s'..j..' / '..U..'->'..fluid..'_rho'
+			end,
+			units = 'm/s^2',
+		})
 	end
 
 	vars:append{

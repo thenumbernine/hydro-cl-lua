@@ -374,6 +374,7 @@ end
 
 -- I would make this a component, but then the component code would need to access the entire previous buffer befure making its computation
 -- that could be done in GLSL using the dx operators ... maybe I'll look into that later ...
+-- TODO use the automatic arbitrary finite difference generator in bssnok
 function Equation:createDivDisplayVar(args)
 	if require 'solver.meshsolver'.is(self.solver) then return end
 	
@@ -409,6 +410,9 @@ function Equation:createDivDisplayVar(args)
 	}
 end
 
+-- curl = [,x ,y ,z] [v.x, v.y, v.z]
+-- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
+-- TODO use the automatic arbitrary finite difference generator in bssnok
 function Equation:createCurlDisplayVar(args)
 	if require 'solver.meshsolver'.is(self.solver) then return end
 
@@ -417,7 +421,7 @@ function Equation:createCurlDisplayVar(args)
 	local units = args.units
 
 	-- k is 0-based
-	local function vorticity(k, result)
+	local function curl(k, result)
 		local i = (k+1)%3	-- 0-based
 		local j = (i+1)%3	-- 0-based
 		return {
@@ -455,12 +459,12 @@ function Equation:createCurlDisplayVar(args)
 
 	-- TODO just use LIC and the mag will be ... the abs of this
 	if self.solver.dim == 2 then
-		local var = vorticity(2,'value.vreal')
+		local var = curl(2,'value.vreal')
 		var.name = 'curl '..field
 		return var
 	elseif self.solver.dim == 3 then
 		local v = xNames:mapi(function(xi,i)
-			return vorticity(i-1,'value.vreal3.'..xi)
+			return curl(i-1,'value.vreal3.'..xi)
 		end)
 		return {
 			name = 'curl '..field,
