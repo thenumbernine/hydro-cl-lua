@@ -268,9 +268,9 @@ MHD.displayVarCodeUsesPrims = true
 
 MHD.predefinedDisplayVars = {
 	'U rho',
-	'U m mag',
+	'U m',
 	'U ETotal',
-	'U B mag',
+	'U B',
 	'U div B',
 	'U psi',
 }
@@ -278,17 +278,7 @@ MHD.predefinedDisplayVars = {
 function MHD:getDisplayVars()
 	return MHD.super.getDisplayVars(self):append{
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
-		{name='div B', code=template([[
-	value.vreal = .5 * (0.
-<? 
-for j=0,solver.dim-1 do 
-?>		+ (U[solver->stepsize.s<?=j?>].<?=field?>.s<?=j?> 
-			- U[-solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		) / solver->grid_dx.s<?=j?>
-<? 
-end 
-?>	);
-]], {solver=self.solver, field='B'}), units='kg/(C*m*s)'},
+		self:createDivDisplayVar{field='B', units='kg/(C*m*s)'},
 		{name='P', code='value.vreal = W.P;', units='kg/(m*s^2)'},
 		--{name='PMag', code='value.vreal = calc_PMag(solver, W, x);'},
 		--{name='PTotal', code='value.vreal = W.P + calc_PMag(solver, W, x);'},

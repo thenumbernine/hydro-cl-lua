@@ -284,16 +284,10 @@ local function curl(eqn,k,result,field,env)
 end
 
 Maxwell.predefinedDisplayVars = {
-	'U D x',
-	'U D y',
-	'U D z',
-	'U D mag',
+	'U D',
 	'U div D',
 	'U phi',
-	'U B x',
-	'U B y',
-	'U B z',
-	'U B mag',
+	'U B',
 	'U div B',
 	'U psi',
 }
@@ -320,20 +314,9 @@ function Maxwell:getDisplayVars()
 		},
 	}:append(table{'D', 'B'}:map(function(field,i)
 		local field = assert( ({D='D', B='B'})[field] )
-		return {
-			name='div '..field, 
-			code=template([[
-	<?=scalar?> v = <?=zero?>;
-<? for j=0,solver.dim-1 do ?>
-	v = <?=add?>(v, <?=real_mul?>(
-		<?=sub?>(
-			U[solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>,
-			U[-solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		), .5 / solver->grid_dx.s<?=j?>));
-<? end ?>
-	value.v<?=scalar?> = v;
-]], table(env, {field=field})),
-			type = scalar, 
+		return self:createDivDisplayVar{
+			field = field, 
+			scalar = env.scalar,
 			units = ({
 				D = 'C/m^3',
 				B = 'kg/(C*m*s)',

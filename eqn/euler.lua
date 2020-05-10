@@ -52,13 +52,20 @@ Euler.consVars = {
 function Euler:init(args)
 	Euler.super.init(self, args)
 
-	local SelfGrav = require 'op.selfgrav'
-
 	if require 'solver.meshsolver'.is(self.solver) then
-		print("not using selfgrav with mesh solvers yet")
+		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
 	else
+		local SelfGrav = require 'op.selfgrav'
 		self.gravOp = SelfGrav{solver = self.solver}
 		self.solver.ops:insert(self.gravOp)
+
+		if args.incompressible then
+			local NoDiv = require 'op.nodiv'()
+			self.solver.ops:insert(NoDiv{
+				solver = self.solver,
+				vectorField = 'm',
+			})
+		end
 	end
 end
 

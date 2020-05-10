@@ -482,13 +482,15 @@ TwoFluidEMHD.displayVarCodeUsesPrims = true
 TwoFluidEMHD.predefinedDisplayVars = {
 	'U ion_rho',
 	'U elec_rho',
+	'U ion v',
+	'U elec v',
 	'U ion P',
 	'U elec P',
-	'U D mag',
-	'U B mag',
+	'U D',
+	'U B',
 	
 	'U ePot',
-	'U gravity mag',
+	'U gravity',
 }
 
 function TwoFluidEMHD:getDisplayVars()
@@ -592,24 +594,10 @@ function TwoFluidEMHD:getDisplayVars()
 		},
 	}:append(table{'D', 'B'}:map(function(field, i)
 		local field = assert( ({D='D', B='B'})[field] )
-		return {
-			name = 'div '..field,
-			code = template([[
-	value.vreal = .5 * (0.
-<?
-for j=0,solver.dim-1 do
-?>		+ (U[solver->stepsize.s<?=j?>].<?=field?>.s<?=j?> 
-			- U[-solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		) / solver->grid_dx.s<?=j?>
-<?
-end 
-?>	);
-]], {solver=self.solver, field=field}),
-			units = ({
-				D = 'C/m^3',
-				B = 'kg/(C*m*s)',
-			})[field],	
-		}
+		return self:createDivDisplayVar{field=field, units=({
+			D = 'C/m^3',
+			B = 'kg/(C*m*s)',
+		})[field]}
 	end))
 
 	return vars

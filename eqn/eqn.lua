@@ -372,6 +372,35 @@ function Equation:getDisplayVars()
 	return self:getDisplayVarsForStructVars(self.consStruct.vars)
 end
 
+-- I would make this a component, but then the component code would need to access the entire previous buffer befure making its computation
+-- that could be done in GLSL using the dx operators ... maybe I'll look into that later ...
+function Equation:createDivDisplayVar(args)
+	local field = assert(args.field)
+	local scalar = args.scalar or 'real'
+	local units = args.units
+	--, scalar, units)
+	return {
+		name = 'div '..field, 
+		code = template([[
+	<?=scalar?> v = <?=scalar?>_zero;
+<? for j=0,solver.dim-1 do ?>
+	v = <?=scalar?>_add(v, <?=scalar?>_real_mul(
+		<?=scalar?>_sub(
+			U[solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>,
+			U[-solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>
+		), .5 / solver->grid_dx.s<?=j?>));
+<? end ?>
+	value.v<?=scalar?> = v;
+]], 	{
+			solver = self.solver,
+			field = field,
+			scalar = scalar,
+		}),
+		type = scalar, 
+		units = units,
+	}
+end
+
 -- does anyone even use this anymore?  nobody should...
 function Equation:getEigenTypeCode()
 	if self.eigenVars then

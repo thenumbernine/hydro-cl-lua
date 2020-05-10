@@ -509,12 +509,12 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.displayVarCodeUsesPrims = true
 TwoFluidEMHDDeDonderGaugeLinearizedGR.predefinedDisplayVars = {
 	'U ion_rho',
 	'U elec_rho',
-	'U D mag',
-	'U B mag',
+	'U D',
+	'U B',
 	'U psi',
 	'U phi',
-	'U D_g mag',
-	'U B_g mag',
+	'U D_g',
+	'U B_g',
 	'U psi_g',
 	'U phi_g',
 	'U EM energy',
@@ -606,24 +606,15 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
 			code = 'value.vreal = calc_EM_energy(solver, U, x);',
 			units = 'kg/(m*s^2)'
 		},
-	}:append(table{'D','B'}:map(function(var,i)
-		local field = assert( ({D='D', B='B'})[var] )
-		return {name='div '..var, code=template([[
-	value.vreal = .5 * (0.
-<?
-for j=0,solver.dim-1 do
-?>		+ (U[solver->stepsize.s<?=j?>].<?=field?>.s<?=j?> 
-			- U[-solver->stepsize.s<?=j?>].<?=field?>.s<?=j?>
-		) / solver->grid_dx.s<?=j?>
-<?
-end 
-?>	);
-]], {solver=self.solver, field=field}),
+	}:append(table{'D','B'}:map(function(field,i)
+		local field = assert( ({D='D', B='B'})[field] )
+		return self:createDivDisplayVar{
+			field = field,
 			units = ({
 				D = 'C/m^3',
 				B = 'kg/(C*m*s)',
-			})[field],	
-		}
+			})[field],
+		}	
 	end))
 
 	vars:append{
