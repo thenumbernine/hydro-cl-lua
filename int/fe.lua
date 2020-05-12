@@ -38,7 +38,7 @@ function ForwardEuler:integrate(dt, callback)
 	
 	callback(self.derivBufObj)
 	
-	solver.multAddKernelObj(solver.solverBuf, solver.UBuf, solver.UBuf, self.derivBufObj.obj, real(dt))
+	solver.multAddIntoKernelObj(solver.solverBuf, solver.UBuf, self.derivBufObj.obj, real(dt))
 
 -- [[ I moved this from solver/gridsolver to integrator
 -- this way I can do it after every substep in the RK integrator

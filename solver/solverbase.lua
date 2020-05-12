@@ -262,6 +262,25 @@ function SolverBase:refreshCommonProgram()
 		self.codePrefix,
 	}:append{
 		template([[
+kernel void multAddInto(
+	constant <?=solver.solver_t?>* solver,	// TODO just 'n'?
+	global <?=eqn.cons_t?>* a,
+	const global <?=eqn.cons_t?>* b,
+	realparam c
+) {
+	SETBOUNDS_NOGHOST();
+<? 
+-- hmm, I only need numIntStates integrated
+-- but the remaining variables I need initialized at least
+-- and in RK, the U's are initialized to zero ...
+-- how to get around this?
+-- Another thought, if I'm scaling *everything* in the struct, then just use reals and scale up the kernel size by numReals
+for i=0,eqn.numStates-1 do
+?>	a[index].ptr[<?=i?>] += b[index].ptr[<?=i?>] * c;
+<? 
+end
+?>}
+
 kernel void multAdd(
 	constant <?=solver.solver_t?>* solver,	// TODO just 'n'?
 	global <?=eqn.cons_t?>* a,
@@ -324,6 +343,9 @@ end
 	-- TODO exclude states which are not supposed to be integrated
 	self.multAddKernelObj = self.commonProgramObj:kernel{name='multAdd', domain=self.domainWithoutBorder}
 	self.multAddKernelObj.obj:setArg(0, self.solverBuf)
+	
+	self.multAddIntoKernelObj = self.commonProgramObj:kernel{name='multAddInto', domain=self.domainWithoutBorder}
+	self.multAddIntoKernelObj.obj:setArg(0, self.solverBuf)
 	
 	self.squareKernelObj = self.commonProgramObj:kernel{name='square', domain=self.domainWithoutBorder}
 	self.squareKernelObj.obj:setArg(0, self.solverBuf)
