@@ -491,7 +491,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -745,19 +745,22 @@ self.solvers:insert(require 'solver.wave-fd'(table(args, {integrator='backward E
 
 
 -- the start of unstructured meshes
---self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh', size={8,8}}})))
+self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh', size={8,8}}})))
 -- temp here -- to make sure ordinary solvers still run
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
+
+
+
+-- multi GPU
+-- how about 'composite grid' instead of 'chopped up'?
+--self.solvers:insert(require 'solver.choppedup'(table(args, {eqn='euler', subsolverClass=require 'solver.roe'})))
+
 
 
 -- the start of AMR
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.amr'(require 'solver.roe')(table(args, {eqn='euler'})))
 
-
--- the start of multi GPU
--- how about 'composite grid' instead of 'chopped up'?
---self.solvers:insert(require 'solver.choppedup'(table(args, {eqn='euler', subsolverClass=require 'solver.roe'})))
 
 
 -- [=[ 2013 Baumgarte et al, section IV A 1 example & 2017 Ruchlin, Etienne

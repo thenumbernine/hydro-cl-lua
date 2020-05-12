@@ -56,7 +56,7 @@ function vector:init(ctype, arg)
 	end
 	function mt.__ipairs()
 		return coroutine.wrap(function()
-			for i=0,tonumber(self.size)-1 do
+			for i=0,self.size-1 do
 				coroutine.yield(i, self.v[i])
 			end
 		end)
@@ -74,6 +74,7 @@ function vector:setcapacity(newcap)
 end
 
 function vector:resize(newsize)
+	newsize = assert(tonumber(newsize))
 	self:setcapacity( (math.floor(tonumber(newsize) / 32) + 1) * 32 )
 	self.size = newsize
 end
@@ -92,6 +93,8 @@ end
 function vector:begin()
 	return self.v
 end
+-- because the __index removes access from the object itself ...
+vector.data = vector.begin
 -- returns a ptr past the last element
 function vector:iend()
 	return self.v + self.size
@@ -153,31 +156,42 @@ os.exit()
 
 local MeshSolver = class(SolverBase)
 
+local struct = require 'struct.struct'
+local face_t = struct{
+	name = 'face_t',
+	dontUnion = true,
+	vars = {
+		{type='real3', name='pos'},		--center.  realN.
+		{type='real3', name='normal'},	--normal pointing from first to second
+		{type='real3', name='normal2'},	--orthonormal basis around normal
+		{type='real3', name='normal3'},
+		{type='real', name='area'},		--edge length / surface area
+		{type='real', name='cellDist'},	--dist between cell centers along 'normal'
+		{type='vec2i_t', name='cells'},	--indexes of cells
+		{type='int', name='vtxOffset'},
+		{type='int', name='vtxCount'},
+	},
+}
+
+local cell_t = struct{
+	name = 'cell_t',
+	dontUnion = true,
+	vars = {
+		{type='real3', name='pos'},		--center.  technically could be a 'realN'
+		{type='real', name='volume'},	--volume of the cell
+		{type='int', name='faceOffset'},
+		{type='int', name='faceCount'},
+		{type='int', name='vtxOffset'},
+		{type='int', name='vtxCount'},
+	},
+}
 
 -- TODO real3 vs vec3f/vec3d ...
-MeshSolver.meshTypeCode = [[
-typedef struct face_s {
-	real3 pos;		//center.  realN.
-	real3 normal;	//normal pointing from first to second
-	real3 normal2;	//orthonormal basis around normal
-	real3 normal3;
-	real area;		//edge length / surface area
-	real cellDist;	//dist between cell centers along 'normal'
-	int cells[2];	//indexes of cells
-	
-	int vtxOffset;
-	int vtxCount;
-} face_t;
-
-typedef struct cell_s {
-	real3 pos;		//center.  technically could be a 'realN'
-	real volume;	//volume of the cell
-	int faceOffset;
-	int faceCount;
-	int vtxOffset;
-	int vtxCount;
-} cell_t;
-]]
+MeshSolver.meshTypeCode = table{
+	vec2i.typeCode,
+	face_t:getTypeCode(),
+	cell_t:getTypeCode()
+}:concat'\n'
 
 -- TODO what if real3 isn't defined yet?
 ffi.cdef(MeshSolver.meshTypeCode)
@@ -185,11 +199,8 @@ ffi.cdef(MeshSolver.meshTypeCode)
 local face_mt = {}
 local cell_mt = {}
 
-local face_metatype = ffi.metatype('face_t', face_mt)
-local cell_metatype = ffi.metatype('cell_t', cell_mt)
-
-local function face_t()
-	local face = face_metatype()
+local function new_face_t()
+	local face = face_t.metatype()
 	face.pos.x = 0
 	face.pos.y = 0
 	face.pos.z = 0
@@ -204,15 +215,15 @@ local function face_t()
 	face.normal3.z = 0
 	face.area = 0
 	face.cellDist = 0
-	face.cells[0] = -1
-	face.cells[1] = -1
+	face.cells.s[0] = -1
+	face.cells.s[1] = -1
 	face.vtxOffset = 0
 	face.vtxCount = 0
 	return face
 end
 
-local function cell_t()
-	local cell = cell_metatype()
+local function new_cell_t()
+	local cell = cell_t.metatype()
 	cell.pos.x = 0
 	cell.pos.y = 0
 	cell.pos.z = 0
@@ -423,7 +434,7 @@ function Mesh:addFaceForVtxs(vs, n)
 
 	local fi = #self.faces
 	
-	self.faces:push_back(face_t())
+	self.faces:push_back(new_face_t())
 	local f = self.faces:back()
 	
 	f.vtxOffset = #self.faceVtxIndexes
@@ -472,10 +483,10 @@ function Mesh:addFace(vs, n, ci)
 	local fi = self:addFaceForVtxs(vs, n)
 --	if fi ~= -1 then return fi end
 	local f = self.faces[fi]
-	if f.cells[0] == -1 then
-		f.cells[0] = ci
-	elseif f.cells[1] == -1 then
-		f.cells[1] = ci
+	if f.cells.s[0] == -1 then
+		f.cells.s[0] = ci
+	elseif f.cells.s[1] == -1 then
+		f.cells.s[1] = ci
 	else
 		error"tried to add too many cells to an edge"
 	end
@@ -486,7 +497,7 @@ end
 -- vis values are 0-based indexes
 function Mesh:addCell(vis)
 	local ci = #self.cells
-	self.cells:push_back(cell_t())
+	self.cells:push_back(new_cell_t())
 	local c = self.cells:back()
 	
 	local n = #vis
@@ -581,8 +592,8 @@ end
 
 function Mesh:calcAux()
 	for _,f in ipairs(self.faces) do
-		local a = f.cells[0]
-		local b = f.cells[1]
+		local a = f.cells.s[0]
+		local b = f.cells.s[1]
 		if a ~= -1 and b ~= -1 then
 			local cella = self.cells[a]
 			local cellb = self.cells[b]
@@ -592,8 +603,8 @@ function Mesh:calcAux()
 			local nDotDelta = f.normal.x * dx + f.normal.y * dy + f.normal.z * dz
 			if nDotDelta < 0 then
 				a,b = b,a
-				f.cells[0] = a
-				f.cells[1] = b
+				f.cells.s[0] = a
+				f.cells.s[1] = b
 				f.normal.x = -f.normal.x
 				f.normal.y = -f.normal.y
 				f.normal.z = -f.normal.z
@@ -930,18 +941,21 @@ end
 function MeshSolver:finalizeCLAllocs()
 	MeshSolver.super.finalizeCLAllocs(self)
 
-	self.cmds:enqueueWriteBuffer{buffer=self.vtxBuf, block=true, size=ffi.sizeof'real3' * self.numVtxs, ptr=self.mesh.vtxs.v}
-	self.cmds:enqueueWriteBuffer{buffer=self.cellsBuf, block=true, size=ffi.sizeof'cell_t' * self.numCells, ptr=self.mesh.cells.v}
-	self.cmds:enqueueWriteBuffer{buffer=self.facesBuf, block=true, size=ffi.sizeof'face_t' * self.numFaces, ptr=self.mesh.faces.v}
-	self.cmds:enqueueWriteBuffer{buffer=self.cellFaceIndexesBuf, block=true, size=ffi.sizeof'int' * self.numCellFaceIndexes, ptr=self.mesh.cellFaceIndexes.v}
+	self.vtxBufObj:fromCPU(self.mesh.vtxs.v)
+	self.cellsBufObj:fromCPU(self.mesh.cells.v)
+	self.facesBufObj:fromCPU(self.mesh.faces.v)
+	self.cellFaceIndexesBufObj:fromCPU(self.mesh.cellFaceIndexes.v)
+	self.cmds:finish()
 end
 
---[[
-function MeshSolver:refreshInitStateProgram()
-	-- override this until I know what to do...
-	--self.eqn.initState:refreshInitStateProgram(self)
+function MeshSolver:checkStructSizes_getTypes()
+	local typeinfos = MeshSolver.super.checkStructSizes_getTypes(self)
+	typeinfos:append{
+		face_t,
+		cell_t,
+	}
+	return typeinfos
 end
---]]
 
 function MeshSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	-- numCells is the number of cells
@@ -960,7 +974,7 @@ end
 
 function MeshSolver:resetState()
 	MeshSolver.super.resetState(self)
-self:printBuf(self.UBufObj)
+--self:printBuf(self.UBufObj)
 end
 
 function MeshSolver:createCodePrefix()
@@ -995,12 +1009,27 @@ function MeshSolver:refreshCalcDTKernel()
 	self.calcDTKernelObj.obj:setArg(4, self.cellFaceIndexesBuf)
 end
 
-function MeshSolver:update()
+function MeshSolver:calcDT()
+	if not self.useFixedDT then
+		self.calcDTKernelObj.obj:setArg(3, self.cellsBuf)
+		self.calcDTKernelObj.obj:setArg(4, self.facesBuf)
+		self.calcDTKernelObj.obj:setArg(5, self.cellFaceIndexesBuf)
+	end
+	return MeshSolver.super.calcDT(self)
 end
+
+
+function MeshSolver:step(dt)
+	-- ok ... what flux to use ...
+	-- right now all the fluxes are subclasses of gridsolver ...
+	-- but we want them to optionally be subclasses of meshsolver (or otherwise)
+	-- so ... behaviors?
+print('TODO MeshSolver:step')
+end
+
 
 function MeshSolver:boundary()
 end
-
 
 -- hmm, if something else require's solverbase and uses SolverBase.DisplayVar before this does 
 -- then won't it get the wrong class? (compared to if this require's first before it does?)
@@ -1019,8 +1048,11 @@ MeshSolver.drawCellScale = .9
 
 local gl = require 'gl'
 function MeshSolver:display(varName, ar)
-	local var = self.displayVarForName[varName]
+	local app = self.app
 	
+	local var = self.displayVarForName[varName]
+
+-- [[ this is from the draw/*.lua
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
 		valueMin = var.heatMapValueMin
@@ -1030,10 +1062,21 @@ function MeshSolver:display(varName, ar)
 		var.heatMapValueMin = valueMin
 		var.heatMapValueMax = valueMax
 	end
+--]]	
 	
+-- [[ matches GridSolver.calcDisplayVarToTex
+	local ptr = self.calcDisplayVarToTexPtr
+	
+	var:setToBufferArgs()
 	self:calcDisplayVarToBuffer(var)
+	
+	local channels = vectorField and 3 or 1
+	self.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
+--]]
 
-	local app = self.app
+
+
+
 	local view = app.view
 	view:projection(ar)
 	view:modelview()
@@ -1072,7 +1115,7 @@ function MeshSolver:display(varName, ar)
 	gradientTex:bind()
 	if self.dim == 2 then
 		for ci,c in ipairs(mesh.cells) do
-			local displayValue = self.calcDisplayVarToTexPtr[ci]
+			local displayValue = ptr[ci]
 			gl.glTexCoord1f(displayValue)
 
 			gl.glBegin(gl.GL_POLYGON)
@@ -1084,7 +1127,7 @@ function MeshSolver:display(varName, ar)
 		end
 	elseif self.dim == 3 then
 		for ci,c in ipairs(mesh.cells) do
-			local displayValue = self.calcDisplayVarToTexPtr[ci]
+			local displayValue = ptr[ci]
 			gl.glTexCoord1f(displayValue)
 			
 			for i=0,c.faceCount-1 do

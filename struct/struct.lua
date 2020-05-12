@@ -33,19 +33,20 @@ then CLBuffer update fromCPU:
 local Struct = class()
 
 function Struct:init(args)
-	self.solver = assert(args.solver)
+	self.solver = args.solver
 	self.name = assert(args.name)
 	self.vars = table(args.vars)
 	self.dontUnion = args.dontUnion
 end
 
 function Struct:makeType()
-	assert(not self.typename)
-	if not self.typename then
+	assert(not self.typename, "don't call makeType() twice")
+	if self.solver then
 		self.typename = self.solver.app:uniqueName(self.name)
+	else
+		self.typename = self.name
 	end
 	makestruct.safeFFICDef(self:getTypeCode())
-
 
 	-- make the metatype here
 	local struct = self
@@ -73,7 +74,7 @@ function Struct:makeType()
 				
 				t:insert(name..'='..s)
 			end
-			return '{'..t:concat', '..'}'
+			return struct.typename..'{'..t:concat', '..'}'
 		end,
 		__concat = function(a,b) 
 			return tostring(a) .. tostring(b) 
@@ -101,6 +102,9 @@ function Struct:makeType()
 end
 
 function Struct:getTypeCode()
+	if not self.typename then
+		self:makeType()
+	end
 	local code = makestruct.makeStruct(self.typename, self.vars, nil, self.dontUnion)
 	if self.typecode then
 		assert(code == self.typecode)

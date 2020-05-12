@@ -260,67 +260,6 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	}
 end
 
--- call this when the solver initializes or changes the codePrefix (or changes initState)
--- it will build the code prefix and refresh everything related to it
--- TODO if you change cons_t then call resetState etc (below the refreshEqnInitState() call a few lines above) in addition to this -- or else your values will get messed up
-function GridSolver:refreshEqnInitState()
-	GridSolver.super.refreshEqnInitState(self)
-
-	-- bounds don't get set until initState() is called, but code prefix needs them ...
-	-- TODO do a proper refresh so mins/maxs can be properly refreshed
-	local initState = self.eqn.initState
-	if initState.mins then 
-		self.mins = vec3d(unpack(initState.mins)) 
-		for j=1,3 do
-			self.solverPtr.mins.s[j-1] = toreal(self.mins.s[j-1])
-		end
-	end
-	if initState.maxs then 
-		self.maxs = vec3d(unpack(initState.maxs)) 
-		for j=1,3 do
-			self.solverPtr.maxs.s[j-1] = toreal(self.maxs.s[j-1])
-		end
-	end
-
-	-- there's a lot of overlap between this and the solverBuf creation... 
-	self:refreshSolverBufMinsMaxs()
-	
-	-- while we're here, write all gui vars to the solver_t
-	for _,var in ipairs(self.eqn.guiVars) do
-		if not var.compileTime then
-			if var.ctype == 'real' then
-				self.solverPtr[var.name] = toreal(var.value)
-			else
-				self.solverPtr[var.name] = var.value
-			end
-		end
-	end
-
-	self:refreshSolverBuf()
-
---[[
-local ptr = ffi.cast(self.eqn.cons_t..'*', self.UBufObj:toCPU())
-local t = self.t
-for i=1,tonumber(self.gridSize.x) do
-	local x = self.solverPtr.mins.x + self.solverPtr.grid_dx.x * (i - self.numGhost - .5)
-	local rho = 1 + .32 * math.sin(2 * math.pi * (x - t))
-	local vx = 1
-	local P = 1
-	local mx = rho * vx
-	local EKin = .5 * rho * vx * vx
-	local EInt = P / (self.solverPtr.heatCapacityRatio - 1)
-	local ETotal = EKin + EInt
-	ptr[i-1].rho = rho
-	ptr[i-1].m.x = mx
-	ptr[i-1].m.y = 0
-	ptr[i-1].m.z = 0
-	ptr[i-1].ETotal = ETotal
-	ptr[i-1].ePot = 0
-end
-self.UBufObj:fromCPU(ptr)
---]]
-end
-
 -- call this when a gui var changes
 -- it rebuilds the code prefix, but doesn't reset the initState
 function GridSolver:refreshCodePrefix()
@@ -516,18 +455,17 @@ function GridSolver:createSolverBuf()
 end
 
 function GridSolver:refreshSolverBufMinsMaxs()
+	GridSolver.super.refreshSolverBufMinsMaxs(self)
 	-- always set this to the full range, even outside the used dimension, in case some dimensional value is supposed to be a non-zero constant, esp for cell volume calculations
 	for j=1,3 do
-		self.solverPtr.mins.s[j-1] = toreal(self.mins.s[j-1])
-		self.solverPtr.maxs.s[j-1] = toreal(self.maxs.s[j-1])
 		self.solverPtr.grid_dx.s[j-1] = toreal( (self.maxs.s[j-1] - self.mins.s[j-1]) / tonumber(self.sizeWithoutBorder.s[j-1]) )
 		self.solverPtr.initCondMins.s[j-1] = toreal( self.initCondMins.s[j-1] )
 		self.solverPtr.initCondMaxs.s[j-1] = toreal( self.initCondMaxs.s[j-1] )
 	end
 	if self.app.verbose then
-		print('mins = '..fromreal(self.solverPtr.mins.x)..', '..fromreal(self.solverPtr.mins.y)..', '..fromreal(self.solverPtr.mins.z))
-		print('maxs = '..fromreal(self.solverPtr.maxs.x)..', '..fromreal(self.solverPtr.maxs.y)..', '..fromreal(self.solverPtr.maxs.z))
 		print('grid_dx = '..fromreal(self.solverPtr.grid_dx.x)..', '..fromreal(self.solverPtr.grid_dx.y)..', '..fromreal(self.solverPtr.grid_dx.z))
+		print('initCondMins = '..fromreal(self.solverPtr.initCondMins.x)..', '..fromreal(self.solverPtr.initCondMins.y)..', '..fromreal(self.solverPtr.initCondMins.z))
+		print('initCondMaxs = '..fromreal(self.solverPtr.initCondMaxs.x)..', '..fromreal(self.solverPtr.initCondMaxs.y)..', '..fromreal(self.solverPtr.initCondMaxs.z))
 	end
 end
 
@@ -739,15 +677,6 @@ function GridSolver:resetState()
 	end
 
 	GridSolver.super.resetState(self)
-
-	self:boundary()
-
-	if self.eqn.useConstrainU then
-		self.constrainUKernelObj(self.solverBuf, self.UBuf)
-		self:boundary()
-	end
-
-	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 end
 
 function GridSolver:getSolverCode()
@@ -1644,38 +1573,6 @@ function GridSolver:calcExactError(numStates)
 	return err, ptr
 end
 
-function GridSolver:update()
-	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-
-	GridSolver.super.update(self)
-
-	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-	
-	local dt = self:calcDT()
-
-	-- first do a step
-	self:step(dt)
-
-	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-
-	-- why was this moved out of :step() ?
-	self.t = self.t + dt
-	self.dt = dt
-
-	if cmdline.testAccuracy then
-		local err = self:calcExactError()
-		if #self.app.solvers > 1 then
-			io.write(self.name,'\t')
-		end
-		print('t='..self.t..' L1-error='..err)
-	end
-
-	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-
-	self:boundary()
-
-	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-end
 
 function GridSolver:step(dt)
 
@@ -2066,6 +1963,14 @@ function GridSolver:save(prefix)
 		local name = bufferInfo.name
 		self:saveBuffer(self[name], (prefix and prefix..'_' or '')..name)
 	end
+end
+
+function GridSolver:checkStructSizes_getTypes()
+	local typeinfos = GridSolver.super.checkStructSizes_getTypes(self)
+	typeinfos:append{
+		self.eqn.consLR_t,
+	}
+	return typeinfos
 end
 
 return GridSolver

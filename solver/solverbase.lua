@@ -485,6 +485,71 @@ function SolverBase:refreshEqnInitState()
 	if cmdline.checkStructSizes then
 		self:checkStructSizes()
 	end
+
+	-- bounds don't get set until initState() is called, but code prefix needs them ...
+	-- TODO do a proper refresh so mins/maxs can be properly refreshed
+	local initState = self.eqn.initState
+	if initState.mins then 
+		self.mins = vec3d(unpack(initState.mins)) 
+		for j=1,3 do
+			self.solverPtr.mins.s[j-1] = toreal(self.mins.s[j-1])
+		end
+	end
+	if initState.maxs then 
+		self.maxs = vec3d(unpack(initState.maxs)) 
+		for j=1,3 do
+			self.solverPtr.maxs.s[j-1] = toreal(self.maxs.s[j-1])
+		end
+	end
+
+	-- there's a lot of overlap between this and the solverBuf creation... 
+	self:refreshSolverBufMinsMaxs()
+
+	-- while we're here, write all gui vars to the solver_t
+	for _,var in ipairs(self.eqn.guiVars) do
+		if not var.compileTime then
+			if var.ctype == 'real' then
+				self.solverPtr[var.name] = toreal(var.value)
+			else
+				self.solverPtr[var.name] = var.value
+			end
+		end
+	end
+
+	self:refreshSolverBuf()
+
+--[[
+local ptr = ffi.cast(self.eqn.cons_t..'*', self.UBufObj:toCPU())
+local t = self.t
+for i=1,tonumber(self.gridSize.x) do
+	local x = self.solverPtr.mins.x + self.solverPtr.grid_dx.x * (i - self.numGhost - .5)
+	local rho = 1 + .32 * math.sin(2 * math.pi * (x - t))
+	local vx = 1
+	local P = 1
+	local mx = rho * vx
+	local EKin = .5 * rho * vx * vx
+	local EInt = P / (self.solverPtr.heatCapacityRatio - 1)
+	local ETotal = EKin + EInt
+	ptr[i-1].rho = rho
+	ptr[i-1].m.x = mx
+	ptr[i-1].m.y = 0
+	ptr[i-1].m.z = 0
+	ptr[i-1].ETotal = ETotal
+	ptr[i-1].ePot = 0
+end
+self.UBufObj:fromCPU(ptr)
+--]]
+end
+
+function SolverBase:refreshSolverBufMinsMaxs()
+	for j=1,3 do
+		self.solverPtr.mins.s[j-1] = toreal(self.mins.s[j-1])
+		self.solverPtr.maxs.s[j-1] = toreal(self.maxs.s[j-1])
+	end
+	if self.app.verbose then
+		print('mins = '..fromreal(self.solverPtr.mins.x)..', '..fromreal(self.solverPtr.mins.y)..', '..fromreal(self.solverPtr.mins.z))
+		print('maxs = '..fromreal(self.solverPtr.maxs.x)..', '..fromreal(self.solverPtr.maxs.y)..', '..fromreal(self.solverPtr.maxs.z))
+	end
 end
 
 -- this is the general function - which just assigns the eqn provided by the arg
@@ -1016,7 +1081,15 @@ function SolverBase:resetState()
 
 	self:applyInitCond()
 	self:boundary()
+	
 	self:resetOps()
+
+	if self.eqn.useConstrainU then
+		self.constrainUKernelObj(self.solverBuf, self.UBuf)
+		self:boundary()
+	end
+
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 end
 
 -- override this by the mesh solver ... since I don't know what it will be doing
@@ -1031,6 +1104,7 @@ function SolverBase:resetOps()
 	for _,op in ipairs(self.ops) do
 		if op.resetState then
 			op:resetState()
+			self:boundary()
 		end
 	end
 end
@@ -1815,6 +1889,39 @@ local <?=varabsmax?> = math.max(math.abs(<?=varmin?>, <?=varmax?>))
 		end
 	end
 	--]]
+
+
+
+	-- the rest of this used to be in gridsolver
+	--  so if anything gets errors from this (like composite solvers, etc)
+	-- then ... mve the stuff above this line into its own function, and only call that, and don't call SolverBase.update
+
+
+
+	local dt = self:calcDT()
+
+	-- first do a step
+	self:step(dt)
+
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+
+	-- why was this moved out of :step() ?
+	self.t = self.t + dt
+	self.dt = dt
+
+	if cmdline.testAccuracy then
+		local err = self:calcExactError()
+		if #self.app.solvers > 1 then
+			io.write(self.name,'\t')
+		end
+		print('t='..self.t..' L1-error='..err)
+	end
+
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+
+	self:boundary()
+
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 end
 
 -- check for nans
@@ -1884,9 +1991,7 @@ function SolverBase:printBuf(buf, ptrorig, colsize, colmax)
 	local ptr = ffi.cast('real*', ptrorig)
 	local size = buf.count * ptrsPerReal
 --print('size', size)
-	if buf.type == self.eqn.cons_t
-	and not require 'solver.meshsolver'.is(self)	-- TODO why won't meshsolvers work?
-	then
+	if buf.type == self.eqn.cons_t then
 		local maxdigitlen = #tostring(self.numCells-1)
 --print('maxdigitlen', maxdigitlen)
 		local realsPerCell = math.floor(size / self.numCells)
@@ -2010,8 +2115,8 @@ function SolverBase:updateGUIParams()
 end
 
 -- [[ debugging -- determine sizeof
-function SolverBase:checkStructSizes()
-	local typeinfos = table{
+function SolverBase:checkStructSizes_getTypes()
+	return 	table{
 		'real',
 		'real2',
 		'real3',
@@ -2020,9 +2125,11 @@ function SolverBase:checkStructSizes()
 		self.eqn.primStruct or self.eqn.prim_t,
 		self.eqn.eigen_t,
 		self.eqn.waves_t,
-		self.eqn.consLR_t,
 		self.solverStruct,
 	}
+end
+function SolverBase:checkStructSizes()
+	local typeinfos = self:checkStructSizes_getTypes()
 
 	local varcount = 0
 	for _,typeinfo in ipairs(typeinfos) do

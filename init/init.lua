@@ -49,6 +49,7 @@ else	-- not useCLLinkLibraries
 		solver.initStateProgramObj:compile()
 	end)
 end
+
 	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.solverBuf, solver.UBuf)
 	if require 'solver.meshsolver'.is(solver) then
 		solver.initStateKernelObj.obj:setArg(2, solver.cellsBuf)
@@ -70,7 +71,6 @@ end
 
 -- called when the solver resets
 function InitCond:resetState(solver)
-	
 	solver.initStateKernelObj()
 
 	if cmdline.printBufs then
