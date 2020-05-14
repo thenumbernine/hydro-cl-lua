@@ -653,7 +653,7 @@ local xs = table{'x', 'y', 'z'}
 
 local function getCode_real3_to_real(name, code)
 	return template([[
-real <?=name?>(real3 pt) {
+static inline real <?=name?>(real3 pt) {
 	return <?=code?>;
 }]], {
 		name = name,
@@ -664,7 +664,7 @@ end
 -- f(x) where x is a point in the coordinate chart
 local function getCode_real3_to_real3(name, exprs)
 	return template([[
-real3 <?=name?>(real3 pt) {
+static inline real3 <?=name?>(real3 pt) {
 	return _real3(
 <? for i=1,3 do
 ?>		<?=exprs[i] or '0.'
@@ -680,7 +680,7 @@ end
 -- f(v,x) where x is a point on the coordinate chart and v is most likely a tensor
 local function getCode_real3_real3_to_real(name, expr)
 	return template([[
-real <?=name?>(real3 u, real3 pt) {
+static inline real <?=name?>(real3 u, real3 pt) {
 	return <?=expr?>;
 }]], {
 		name = name,
@@ -690,7 +690,7 @@ end
 
 local function getCode_real3_real3_to_real3(name, exprs)
 	return template([[
-real3 <?=name?>(real3 u, real3 pt) {
+static inline real3 <?=name?>(real3 u, real3 pt) {
 	return _real3(
 <? for i=1,3 do
 ?>		<?=exprs[i] or '0.'
@@ -705,7 +705,7 @@ end
 
 local function getCode_real3_real3_real3_to_real(name, expr)
 	return template([[
-real <?=name?>(real3 u, real3 v, real3 w, real3 pt) {
+static inline real <?=name?>(real3 u, real3 v, real3 w, real3 pt) {
 	return <?=expr?>;
 }]], {
 		name = name,
@@ -715,7 +715,7 @@ end
 
 local function getCode_real3_real3_real3_to_real3(name, exprs)
 	return template([[
-real3 <?=name?>(real3 u, real3 v, real3 pt) {
+static inline real3 <?=name?>(real3 u, real3 v, real3 pt) {
 	return _real3(
 <? for i=1,3 do
 ?>		<?=exprs[i] or '0.'
@@ -889,7 +889,7 @@ function CoordinateSystem:getCode(solver)
 	-- coord len code: l(v) = v^i v^j g_ij
 	lines:insert(getCode_real3_real3_to_real('coordLenSq', self.uLenSqCode))
 	lines:insert[[
-real coordLen(real3 r, real3 pt) {
+static inline real coordLen(real3 r, real3 pt) {
 	return sqrt(coordLenSq(r, pt));
 }]]
 	lines:insert(getCode_real3_to_real3('coord_tr23_c', self.tr23_cCode))
@@ -1136,7 +1136,7 @@ function CoordinateSystem:getCoordMapGLSLCode()
 		'#define real3_real_mul(a,b) ((a)*(b))',
 		'#define real3_dot dot',
 		'real real3_lenSq(real3 a) { return dot(a,a); }',
-		self:getCoordMapCode(),
+		(self:getCoordMapCode():gsub('static inline ', '')),
 	}:concat'\n'
 end
 

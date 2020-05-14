@@ -270,12 +270,7 @@ kernel void multAddInto(
 ) {
 	SETBOUNDS_NOGHOST();
 <? 
--- hmm, I only need numIntStates integrated
--- but the remaining variables I need initialized at least
--- and in RK, the U's are initialized to zero ...
--- how to get around this?
--- Another thought, if I'm scaling *everything* in the struct, then just use reals and scale up the kernel size by numReals
-for i=0,eqn.numStates-1 do
+for i=0,eqn.numIntStates-1 do
 ?>	a[index].ptr[<?=i?>] += b[index].ptr[<?=i?>] * c;
 <? 
 end
@@ -295,7 +290,7 @@ kernel void multAdd(
 -- and in RK, the U's are initialized to zero ...
 -- how to get around this?
 -- Another thought, if I'm scaling *everything* in the struct, then just use reals and scale up the kernel size by numReals
-for i=0,eqn.numStates-1 do
+for i=0,eqn.numIntStates-1 do
 ?>	a[index].ptr[<?=i?>] = b[index].ptr[<?=i?>] + c[index].ptr[<?=i?>] * d;
 <? 
 end
@@ -306,8 +301,8 @@ kernel void square(
 	global <?=eqn.cons_t?>* a
 ) {
 	SETBOUNDS_NOGHOST();
-<?
-for i=0,eqn.numStates-1 do
+<?	-- numStates or numIntStates?
+for i=0,eqn.numIntStates-1 do
 ?>	a[index].ptr[<?=i?>] *= a[index].ptr[<?=i?>];
 <? 
 end

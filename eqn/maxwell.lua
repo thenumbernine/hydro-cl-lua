@@ -241,48 +241,6 @@ function Maxwell:getTemplateEnv()
 	return env
 end
 
--- k is 0,1,2
-local function curl(eqn,k,result,field,env)
-	local i = (k+1)%3
-	local j = (i+1)%3
-	return {['curl '..field..' '..xNames[k+1]] = template([[
-	if (OOB(1,1)) {
-		<?=result?> = <?=zero?>;
-	} else {
-
-<? if i+1 <= solver.dim then ?>
-		global const <?=eqn.cons_t?>* Uim = U - solver->stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Uip = U + solver->stepsize.s<?=i?>;
-		<?=scalar?> vim_j = Uim-><?=field?>.s<?=j?>;
-		<?=scalar?> vip_j = Uip-><?=field?>.s<?=j?>;
-<? else ?>
-		<?=scalar?> vim_j = <?=zero?>;
-		<?=scalar?> vip_j = <?=zero?>;
-<? end?>
-
-<? if j+1 <= solver.dim then ?>
-		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
-		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
-		<?=scalar?> vjm_i = Ujm-><?=field?>.s<?=i?>;
-		<?=scalar?> vjp_i = Ujp-><?=field?>.s<?=i?>;
-<? else ?>
-		<?=scalar?> vjm_i = <?=zero?>;
-		<?=scalar?> vjp_i = <?=zero?>;
-<? end ?>
-
-		<?=result?> = <?=sub?>(
-			<?=real_mul?>(<?=sub?>(vjp_i, vjm_i), 1. / (2. * solver->grid_dx.s<?=i?>)),
-			<?=real_mul?>(<?=sub?>(vip_j, vim_j), 1. / (2. * solver->grid_dx.s<?=j?>))
-		);
-	}
-]], table(env, {
-		i = i,
-		j = j,
-		result = result,
-		field = field,
-	}))}
-end
-
 Maxwell.predefinedDisplayVars = {
 	'U D',
 	'U div D',
@@ -312,36 +270,12 @@ function Maxwell:getDisplayVars()
 			type = scalar,
 			units = 'kg/(m*s^2)',
 		},
-	}:append(table{'D', 'B'}:map(function(field,i)
-		local field = assert( ({D='D', B='B'})[field] )
-		return self:createDivDisplayVar{
-			field = field, 
-			scalar = env.scalar,
-			units = ({
-				D = 'C/m^3',
-				B = 'kg/(C*m*s)',
-			})[field],
-		}
-	end))
+	}
 
-	for _,field in ipairs{'D', 'B'} do
-		local v = range(0,2):map(function(i)
-			return curl(self,i,'value.v'..env.vec3..'.s'..i,field, env)
-		end)
-		vars:insert{
-			name='curl '..field, 
-			code=template([[
-	<? for i=0,2 do ?>{
-		<?=select(2,next(v[i+1]))?>
-	}<? end ?>
-]], {v=v}),
-			type = env.vec3,
-			units = ({
-				D = 'C/m^3',
-				B = 'kg/(C*m*s)',
-			})[field],
-		}
-	end
+	vars:insert(self:createDivDisplayVar{field='D', scalar=env.scalar, units='C/m^3'})
+	vars:insert(self:createDivDisplayVar{field='B', scalar=env.scalar, units='kg/(C*m*s)'})
+	vars:insert(self:createCurlDisplayVar{field='D', scalar=env.scalar, units='C/m^3'})
+	vars:insert(self:createCurlDisplayVar{field='B', scalar=env.scalar, units='kg/(C*m*s)'})
 
 	return vars
 end
