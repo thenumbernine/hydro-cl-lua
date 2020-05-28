@@ -1079,12 +1079,15 @@ function SolverBase:resetState()
 	
 	self:resetOps()
 
+	self:constrainU()
+end
+
+function SolverBase:constrainU()
 	if self.eqn.useConstrainU then
 		self.constrainUKernelObj(self.solverBuf, self.UBuf)
+		if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		self:boundary()
 	end
-
-	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 end
 
 -- override this by the mesh solver ... since I don't know what it will be doing

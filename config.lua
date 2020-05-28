@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -29,9 +29,9 @@ local args = {
 	fixedDT = cmdline.fixedDT,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	fluxLimiter = 'donor cell',
+	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
@@ -49,7 +49,7 @@ local args = {
 	--slopeLimiter = 'minmod',
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
-	useCTU = true,
+	--useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -78,8 +78,8 @@ local args = {
 				{16,16,16},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
-				{600,1,1},
-				{256,256,1},
+				{400,1,1},
+				{64,64,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
@@ -233,7 +233,7 @@ local args = {
 	
 	-- those designed for SRHD / GRHD:
 	--initState = 'relativistic shock reflection',			-- FIXME.  these initial conditions are constant =P
-	--initState = 'relativistic blast wave test problem 1',
+	initState = 'relativistic blast wave test problem 1',
 	--initState = 'relativistic blast wave test problem 2',
 	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
 
@@ -260,7 +260,7 @@ local args = {
 	--initState = 'Maxwell scattering around cylinder',
 	--initState = 'Maxwell scattering around pyramid',
 	--initState = 'Maxwell scattering around square',
-	initState = 'Maxwell scattering around Koch snowflake',
+	--initState = 'Maxwell scattering around Koch snowflake',
 	--initState = 'Maxwell wire',
 	--initState = 'Maxwell transverse waves',
 	
@@ -528,6 +528,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 
 -- incompressible...
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', eqnArgs={incompressible=true}})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', eqnArgs={incompressible=true}, wenoMethod='2010 Shen Zha', order=5})))
 
 
 -- TODO FIXME 
@@ -555,10 +556,10 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
---self.solvers:insert(require 'solver.srhd-roe'(args))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='srhd'})))
 	-- TODO can't use these until I get eigen_forInterface working in eqn/srhd.cl
---self.solvers:insert(require 'solver.srhd-hll'(args))
---self.solvers:insert(require 'solver.srhd-weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='srhd'})))
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
 
 
 -- general relativistic compressible hydrodynamics
@@ -602,7 +603,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- Maxwell
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='maxwell', wenoMethod='1996 Jiang Shu', order=5})))

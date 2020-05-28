@@ -441,21 +441,6 @@ kernel void addSource(
 	<?=solver:getADMVarCode()?>
 }
 
-kernel void constrainU(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
-) {
-	SETBOUNDS(0,0);
-
-	global <?=eqn.cons_only_t?>* U = &UBuf[index].cons;
-	
-	U->D = max(U->D, (real)solver->DMin);
-	U->tau = max(U->tau, (real)solver->tauMin);
-
-	U->D = min(U->D, (real)solver->DMax);
-	U->tau = min(U->tau, (real)solver->tauMax);
-}
-
 /*
 This is from 2008 Alcubierre eqn 7.3.11
 Also in 2013 Rezzolla, Zanotti eqn 7.17-7.22
@@ -471,7 +456,7 @@ u^0 = W / alpha
 u^i = W (v^i - beta^i / alpha)
 W = sqrt(1 - v^i v^j gamma_ij)
 */
-kernel void updatePrims(
+kernel void constrainU(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
@@ -484,6 +469,14 @@ kernel void updatePrims(
 	sym3 gammaU = sym3_inv(gamma, det_gamma);
 
 	const global <?=eqn.cons_only_t?>* U = &UBuf[index].cons;
+	
+	U->D = max(U->D, (real)solver->DMin);
+	U->tau = max(U->tau, (real)solver->tauMin);
+
+	U->D = min(U->D, (real)solver->DMax);
+	U->tau = min(U->tau, (real)solver->tauMax);
+
+
 	real D = U->D;
 	real3 S = U->S;
 	real tau = U->tau;

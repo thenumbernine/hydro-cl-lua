@@ -4,7 +4,7 @@ based on Marti 1998, Marti & Muller 2008, and maybe some of Font 2008 (but that'
 honestly I developed a Marti & Muller SRHD solver
 then I bumped it up to GRHD by incorporating (fixed) alphas betas and gammas
 and then I thought "why not keep the old SRHD solver around"
-so viola, here it is, unnecessarily available.
+so viola, here it is.
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
@@ -63,9 +63,9 @@ TODO redo the srhd equations for a background grid metric, and take note of cova
 --]]
 SRHD.consVars = table{
 	-- cons_only_t
-	{name='D', type='real', units='kg/m^3'},		-- D = rho W, W = unitless Lorentz factor
-	{name='S', type='real3', units='kg/s^3', variance='l'},		-- S_j = rho h W^2 v_j ... [rho] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
-	{name='tau', type='real', units='kg/(m*s^2)'},	-- tau = rho h W^2 - P ... [rho] [h] [W^2] = kg/m^3 * m^2/s^2 = kg/(m*s^2)
+	{name='D', type='real', units='kg/m^3'},				-- D = rho W, W = unitless Lorentz factor
+	{name='S', type='real3', units='kg/s^3', variance='l'},	-- S_j = rho h W^2 v_j ... [rho] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
+	{name='tau', type='real', units='kg/(m*s^2)'},			-- tau = rho h W^2 - P ... [rho] [h] [W^2] = kg/m^3 * m^2/s^2 = kg/(m*s^2)
 	
 	-- prim_only_t
 	{name='rho', type='real', units='kg/m^3'},
@@ -263,7 +263,8 @@ kernel void initState(
 SRHD.solverCodeFile = 'eqn/srhd.cl'
 
 function SRHD:getDisplayVars()
-	local vars = table{
+	local vars = SRHD.super.getDisplayVars(self)
+	vars:append{
 		{name='W based on D', code='value.vreal = U->D / U->rho;'},
 		{name='W based on v', code='value.vreal = 1. / sqrt(1. - coordLenSq(U->v, x));'},
 		
@@ -290,8 +291,8 @@ function SRHD:getDisplayVars()
 ]]		},
 	}
 
-	vars:insert(self:createDivDisplayVar{field='v', units='kg/(m^3*s)'})
-	vars:insert(self:createCurlDisplayVar{field='v', units='m/s^2'})
+	vars:insert(self:createDivDisplayVar{field='v', units='kg/(m^3*s)'} or nil)
+	vars:insert(self:createCurlDisplayVar{field='v', units='m/s^2'} or nil)
 
 	return vars
 end

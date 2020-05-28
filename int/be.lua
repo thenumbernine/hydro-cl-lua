@@ -141,11 +141,7 @@ kernel void copyBufferWithGhostToBufferWithoutGhost(
 		
 		solver:boundary()	
 if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
-		if solver.eqn.useConstrainU then
-if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
-			solver.constrainUKernelObj(solver.solverBuf, solver.UBuf)
-if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
-		end
+		solver:constrainU()
 		
 		self.derivBufObj:fill()	-- fill with zero
 		self.integrateCallback(self.derivBufObj)
@@ -238,12 +234,7 @@ function BackwardEuler:integrate(dt, callback)
 
 	solver:boundary()	
 if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
-	if solver.eqn.useConstrainU then
-if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
-		solver.constrainUKernelObj(solver.solverBuf, solver.UBuf)
-if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
-	end
-
+	solver:constrainU()
 end
 
 function BackwardEuler:updateGUI()

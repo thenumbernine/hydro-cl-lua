@@ -232,6 +232,3 @@ kernel void addSource(
 		deriv->B.<?=xj?> = <?=sub?>(deriv->B.<?=xj?>, <?=vec3?>_dot(flux.B, grad_1_eps));
 	}<? end ?>
 }
-
-
-

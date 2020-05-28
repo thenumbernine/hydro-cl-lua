@@ -119,10 +119,7 @@ if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
 if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 		solver:boundary()
 if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
-		if solver.eqn.useConstrainU then
-			solver.constrainUKernelObj()
-if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
-		end
+		solver:constrainU()
 --]]
 
 if cmdline.printBufs then

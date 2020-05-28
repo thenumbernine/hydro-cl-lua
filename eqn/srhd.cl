@@ -340,7 +340,8 @@ kernel void constrainU(
 	constant solver_t* solver,
 	global cons_t* UBuf
 ) {
-	SETBOUNDS(0,0);
+	SETBOUNDS(numGhost,numGhost-1);
+	real3 x = cell_x(i);
 
 	global cons_t* U = UBuf + index;
 
@@ -349,16 +350,7 @@ kernel void constrainU(
 
 	U->D = min(U->D, (real)solver->DMax);
 	U->tau = min(U->tau, (real)solver->tauMax);
-}
-
-kernel void updatePrims(
-	constant solver_t* solver,
-	global cons_t* UBuf
-) {
-	SETBOUNDS(numGhost,numGhost-1);
-	real3 x = cell_x(i);
-
-	global cons_t* U = UBuf + index;
+	
 	real D = U->D;
 	real3 S = U->S;
 	real tau = U->tau;
@@ -401,6 +393,7 @@ kernel void updatePrims(
 		}
 	}
 }
+
 
 kernel void addSource(
 	constant solver_t* solver,

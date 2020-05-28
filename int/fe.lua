@@ -45,10 +45,7 @@ function ForwardEuler:integrate(dt, callback)
 if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 	solver:boundary()
 if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
-	if solver.eqn.useConstrainU then
-		solver.constrainUKernelObj(solver.solverBuf, solver.UBuf)
-if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
-	end
+	solver:constrainU()
 --]]
 end
 

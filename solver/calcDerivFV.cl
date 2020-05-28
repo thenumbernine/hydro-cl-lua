@@ -74,11 +74,28 @@ then ?>
 ?>;
 <? end ?>
 
+<? -- TODO get rid of this, it's only used by the maxwell and glm-maxwell eqns
+if eqn.postComputeFluxCode then ?>
+		cons_t flux = {.ptr={0}};
+		for (int j = 0; j < numIntStates; ++j) {
+			flux.ptr[j] = (
+				fluxR->ptr[j] * areaR
+				- fluxL->ptr[j] * areaL
+			) / volume;
+		}
+<?=eqn.postComputeFluxCode?>
+		for (int j = 0; j < numIntStates; ++j) {
+			deriv->ptr[j] -= flux.ptr[j];
+		}
+
+<? else -- not postComputeFluxCode ?>
 		for (int j = 0; j < numIntStates; ++j) {
 			deriv->ptr[j] -= (
 				fluxR->ptr[j] * areaR
 				- fluxL->ptr[j] * areaL
 			) / volume;
 		}
+<? end -- postComputeFluxCode ?>	
+
 	}<? end ?>
 }
