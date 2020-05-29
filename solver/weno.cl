@@ -582,7 +582,7 @@ for side=0,solver.dim-1 do ?>{
 		<?=eqn.cons_t?> fluxP = eigen_rightTransform(solver, eigL, wafp, xInt, n);
 		<?=eqn.cons_t?> fluxM = eigen_rightTransform(solver, eigR, wafm, xInt, n);
 		
-		for (int j = 0; j < numStates; ++j) {
+		for (int j = 0; j < numIntStates; ++j) {
 			flux->ptr[j] = fluxP.ptr[j] + fluxM.ptr[j];
 		}
 <?

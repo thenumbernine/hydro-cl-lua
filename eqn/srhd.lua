@@ -239,8 +239,6 @@ real calc_h(real rho, real P, real eInt) {
 	})
 end
 
-function SRHD:getPrimConsCode() end
-
 SRHD.initStateCode = [[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,

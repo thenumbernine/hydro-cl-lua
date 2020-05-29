@@ -87,28 +87,6 @@ cons_t fluxFromCons(
 }
 
 
-/*
-used by PLM
-TODO SRHD PLM needs to do this:
-1) calcLR for the prim_t (that means put calcLR in its own file, and a new primLR buf)
-2) have a new kernel for calc consLR from primLR, since calcDeltaUEig and calcFlux both need this
-or does the eigenbasis need to be derived from the variables being transformed?
-shoud I PLM the U's then converge the prims ... and therefore track the prims on edges as well?
-
-NOTICE this is only going to use U->prim
-... but that won't help the PLM, since it operates based on numIntStates
-... and numIntStates only covers the cons_t vars ...
-which means this function won't work with the PLM code
-*/
-eigen_t eigen_forCell(
-	constant solver_t* solver,
-	cons_t U,
-	real3 x,
-	normalInfo_t n
-) {
-	return (eigen_t){};
-}
-
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
 	cons_t UL,
@@ -184,6 +162,18 @@ eigen_t eigen_forInterface(
 ?>	
 	return eig;
 }
+
+//used by PLM
+eigen_t eigen_forCell(
+	constant solver_t* solver,
+	cons_t U,
+	real3 x,
+	normalInfo_t n
+) {
+	return eigen_forInterface(solver, U, U, x, n);
+}
+
+
 
 <? -- create code to initialize local vars of all the eig vars
 local eigVarCode = require 'ext.table'.map(eqn.eigenVars, function(var)

@@ -360,19 +360,15 @@ end
 
 -- W is an extra param specific to Euler's calcDT in this case
 -- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
-function Euler:consWaveCodePrefix(n, U, x, W)
+function Euler:consWaveCodePrefix(n, U, x)
 	return template([[
-<? if not W then 
-	W = 'W'
-?>
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 <? end ?>
-	real Cs_nLen = calc_Cs(solver, &<?=W?>) * normalInfo_len(<?=n?>);
-	real v_n = normalInfo_vecDotN1(<?=n?>, <?=W?>.v);
+	real Cs_nLen = calc_Cs(solver, &W) * normalInfo_len(<?=n?>);
+	real v_n = normalInfo_vecDotN1(<?=n?>, W.v);
 ]], {
 		eqn = self,
 		U = '('..U..')',
-		W = W and '('..W..')' or nil,
 		n = n,
 		x = x,
 	})
