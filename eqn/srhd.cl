@@ -56,30 +56,36 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-<? if false then ?>
+
 cons_t fluxFromCons(
 	constant solver_t* solver,
 	cons_t U,
 	real3 x,
 	normalInfo_t n
 ) {
-	real vi = U.v.s<?=side?>;
+	real v_n = normalInfo_vecDotN1(n, U.v);
 	real P = calc_P(solver, U.rho, U.eInt);
 
 	cons_t F = {
+		.D = U.D * v_n,
+		.S = real3_add(
+			real3_real_mul(U.S, v_n),
+			_real3(
+				normalInfo_u1x(n) * P,
+				normalInfo_u1y(n) * P,
+				normalInfo_u1z(n) * P
+			)
+		),
+		.tau = U.tau * v_n + P * v_n,
 		.rho = 0,
 		.v = real3_zero,
 		.eInt = 0,
 		.ePot = 0,
 	};
-	F.D = U.D * vi;
-	F.S = real3_real_mul(U.S, vi);
-	F.S.s<?=side?> += P;
-	F.tau = U.tau * vi + P * vi;
 	
 	return F;
 }
-<? end ?>
+
 
 /*
 used by PLM

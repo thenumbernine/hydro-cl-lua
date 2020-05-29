@@ -31,10 +31,9 @@ SRHD.hasEigenCode = true
 SRHD.useSource = true		-- for connections
 SRHD.useConstrainU = true
 
--- SRHD fluxFromCons will need prims passed to it as well
--- which means overriding the code that calls this? or the calc flux code?
+-- TODO if we enable this we get NANs when waves hit the border.  Bug in the srhd boundary prim calculations?
 --SRHD.roeUseFluxFromCons = true
---SRHD.hasFluxFromConsCode = true
+SRHD.hasFluxFromConsCode = true
 
 SRHD.initStates = require 'init.euler'
 
@@ -196,8 +195,13 @@ real calc_h(real rho, real P, real eInt) {
 	};
 }
 
-
-<?=eqn.cons_only_t?> consOnlyFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
+//build the cons_only_t from the cons_t's prim_only_t fields
+//used for checking the error between cons_only_t and its prim-reconstructed-from-cons_only_t
+<?=eqn.cons_only_t?> consOnlyFromPrim(
+	constant <?=solver.solver_t?>* solver, 
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
 	real vSq = coordLenSq(U.v, x);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
@@ -216,6 +220,14 @@ real calc_h(real rho, real P, real eInt) {
 	real tau = U.rho * h * WSq - D - P;
 	
 	return (<?=eqn.cons_only_t?>){.D=D, .S=S, .tau=tau};
+}
+
+<?=eqn.prim_only_t?> primOnlyFromCons(
+	constant <?=solver.solver_t?>* solver, 
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	return (<?=eqn.prim_only_t?>){.rho=U.rho, .v=U.v, .eInt=U.eInt};
 }
 
 //PLM uses prim_only_t and cons_t, esp using the 'numIntStates' reals that they start with
@@ -329,49 +341,41 @@ end
 
 -- used by HLL
 -- extra params provided by calcDT, or calculated here if not provided (just like in Euler)
-function SRHD:consWaveCodePrefix(n, U, x,
-	prim, rho, eInt, vSq, P, h, csSq, cs
-)
+-- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
+function SRHD:consWaveCodePrefix(n, U, x)
+	U = '('..U..')'
 	return template([[	
-<? if not prim then ?>
-	real rho = <?=U?>.rho;
 	real eInt = <?=U?>.eInt;
+	
 	real vSq = coordLenSq(<?=U?>.v, <?=x?>);
-	real P = calc_P(solver, rho, eInt);
-	real h = calc_h(rho, P, eInt);
-	real csSq = solver->heatCapacityRatio * P / (rho * h);
+	real P = calc_P(solver, <?=U?>.rho, eInt);
+	real h = calc_h(<?=U?>.rho, P, eInt);
+	real csSq = solver->heatCapacityRatio * P / (<?=U?>.rho * h);
 	real cs = sqrt(csSq);
-<? 
-	prim = U
-end ?>
 	
 	//for the particular direction
-	real vi = normalInfo_vecDotN1(n, <?=prim?>.v);
+	real vi = normalInfo_vecDotN1(n, <?=U?>.v);
 	real viSq = vi * vi;
 	
 	// Marti 1998 eqn 19
 	// also Marti & Muller 2008 eqn 68
 	// also Font 2008 eqn 106
-	real discr = sqrt((1. - <?=vSq?>) * (1. - <?=vSq?> * <?=csSq?> - viSq * (1. - <?=csSq?>)));
-	real _srhd_lambdaMin = (vi * (1. - <?=csSq?>) - <?=cs?> * discr) / (1. - <?=vSq?> * <?=csSq?>);
-	real _srhd_lambdaMax = (vi * (1. - <?=csSq?>) + <?=cs?> * discr) / (1. - <?=vSq?> * <?=csSq?>);
+	real discr = sqrt((1. - vSq) * (1. - vSq * csSq - viSq * (1. - csSq)));
+	real _srhd_lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq);
+	real _srhd_lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq);
 	// v.x because v has been rotated so x points along the normal
-	real v_n = prim.v.x;
+	real v_n = <?=U?>.v.x;
 ]], {
 		eqn = self,
 		n = n,
-		U = '('..U..')',
+		U = U,
 		x = x,
 		-- extra params either provided or calculated
 		-- TODO I almost need two prefixes ... one for all sides, and one per-side
-		prim = '('..prim..')',
-		rho = rho or 'rho',
-		eInt = eInt or 'eInt',
-		vSq = vSq or 'vSq',
-		P = P or 'P',
-		h = h or 'h',
-		csSq = csSq or 'csSq',
-		cs = cs or 'cs',
+		rho = U..'.rho',
+		v = U..'.v',
+		P = U..'.P',
+		eInt = U..'.eInt',
 	})
 end
 
@@ -386,6 +390,5 @@ function SRHD:consWaveCode(n, U, x, waveIndex)
 		error'got a bad waveIndex'
 	end
 end
-
 
 return SRHD

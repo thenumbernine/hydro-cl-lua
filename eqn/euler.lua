@@ -359,6 +359,7 @@ function Euler:eigenWaveCodePrefix(n, eig, x, W)
 end
 
 -- W is an extra param specific to Euler's calcDT in this case
+-- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
 function Euler:consWaveCodePrefix(n, U, x, W)
 	return template([[
 <? if not W then 
