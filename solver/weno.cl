@@ -602,7 +602,7 @@ for side=0,solver.dim-1 do ?>{
 			const global <?=eqn.cons_t?>* UR<?=j?> = U + <?=j+1 - stencilSize?> * solver->stepsize.s<?=side?>;
 			<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, n);
 
-			<?=eqn:eigenWaveCodePrefix(side, 'eig', 'xInt', n)?>
+			<?=eqn:eigenWaveCodePrefix('n', 'eig', 'xInt')?>
 
 			<?=eqn.cons_t?> UAvg;
 			for (int k = 0; k < numIntStates; ++k) {
@@ -620,7 +620,7 @@ for side=0,solver.dim-1 do ?>{
 
 			<? for k=0,eqn.numWaves-1 do ?>{
 				const int k = <?=k?>;
-				real lambda = <?=eqn:eigenWaveCode(side, 'eig', 'xInt', k)?>;
+				real lambda = <?=eqn:eigenWaveCode('n', 'eig', 'xInt', k)?>;
 				real lambdaPlus = max(lambda, 0.);
 				real lambdaMinus = min(lambda, 0.);
 

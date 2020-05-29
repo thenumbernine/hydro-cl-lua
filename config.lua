@@ -9,13 +9,13 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	--integrator = 'Runge-Kutta 4',
+	integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -526,6 +526,13 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- blows up.  maybe I need an implicit RK scheme...
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=13, integrator='backward Euler'})))
 
+-- [[ testing different flux methods
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Lax-Friedrichs'})))
+-- FIXME:
+--self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Marquina'})))
+self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Roe'})))
+--]]
+
 -- incompressible...
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', eqnArgs={incompressible=true}, wenoMethod='2010 Shen Zha', order=5})))
@@ -556,7 +563,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='srhd'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='srhd'})))
 	-- TODO can't use these until I get eigen_forInterface working in eqn/srhd.cl
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='srhd'})))
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
