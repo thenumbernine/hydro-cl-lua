@@ -345,14 +345,13 @@ Euler.eigenVars = table{
 	{name='vL', type='real3', units='m/s'},
 }
 
-function Euler:eigenWaveCodePrefix(n, eig, x, W)
+function Euler:eigenWaveCodePrefix(n, eig, x)
 	return template([[
 	real Cs_nLen = <?=eig?>.Cs * normalInfo_len(<?=n?>);
 	real v_n = normalInfo_vecDotN1(<?=n?>, <?=eig?>.v);
 ]],	{
 		eqn = self,
 		eig = '('..eig..')',
-		W = W and '('..W..')' or nil,
 		x = x,
 		n = n,
 	})
@@ -363,7 +362,6 @@ end
 function Euler:consWaveCodePrefix(n, U, x)
 	return template([[
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
-<? end ?>
 	real Cs_nLen = calc_Cs(solver, &W) * normalInfo_len(<?=n?>);
 	real v_n = normalInfo_vecDotN1(<?=n?>, W.v);
 ]], {

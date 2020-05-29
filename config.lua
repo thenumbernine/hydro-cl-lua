@@ -9,12 +9,12 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
-	--integrator = 'Runge-Kutta 3',
+	integrator = 'Runge-Kutta 3',
 	--integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
@@ -79,7 +79,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{400,1,1},
-				{128,128,1},
+				{32,32,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
@@ -491,7 +491,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
@@ -568,7 +568,7 @@ self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='
 --self.solvers:insert(require 'solver.weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
 
 -- srhd incompressible
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='srhd', eqnArgs={incompressible=true}})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='srhd', eqnArgs={incompressible=true}})))
 
 
 -- general relativistic compressible hydrodynamics
