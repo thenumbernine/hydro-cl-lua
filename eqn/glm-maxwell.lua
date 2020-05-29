@@ -265,10 +265,10 @@ function GLM_Maxwell:getDisplayVars()
 		},
 	}
 	
-	vars:insert(self:createDivDisplayVar{field='D', scalar=env.scalar, units='C/m^3'})
-	vars:insert(self:createDivDisplayVar{field='B', scalar=env.scalar, units='kg/(C*m*s)'})
-	vars:insert(self:createCurlDisplayVar{field='D', scalar=env.scalar, units='C/m^3'})
-	vars:insert(self:createCurlDisplayVar{field='B', scalar=env.scalar, units='kg/(C*m*s)'})
+	vars:insert(self:createDivDisplayVar{field='D', scalar=env.scalar, units='C/m^3'} or nil)
+	vars:insert(self:createCurlDisplayVar{field='D', scalar=env.scalar, units='C/m^3'} or nil)
+	vars:insert(self:createDivDisplayVar{field='B', scalar=env.scalar, units='kg/(C*m*s)'} or nil)
+	vars:insert(self:createCurlDisplayVar{field='B', scalar=env.scalar, units='kg/(C*m*s)'} or nil)
 
 	return vars
 end

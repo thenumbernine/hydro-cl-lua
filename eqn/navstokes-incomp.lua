@@ -72,36 +72,29 @@ NavierStokesDivFree.solverCodeFile = 'eqn/euler.cl'
 
 function NavierStokesDivFree:getDisplayVars()
 	local vars = table{
-		{rho = 'value.vreal = U->rho;'},
-		{v = 'value.vreal3 = U->v;', type='real3'},
-		{m = 'value = real3_real_mul(U->v, U->rho);', type='real3'},
-		--{P = 'value.vreal = W.P;'},
-		--{eInt = 'value.vreal = calc_eInt(W);'},
-		--{eKin = 'value.vreal = calc_eKin(W);'},
-		--{ePot = 'value.vreal = U->ePot;'},
-		--{eTotal = 'value.vreal = U->ETotal / W.rho;'},
-		--{EInt = 'value.vreal = calc_EInt(W);'},
-		{EKin = 'value.vreal = .5 * U->rho * coordLen(U->v, x);'},
-		--{EPot = 'value.vreal = U->rho * U->ePot;'},
-		--{ETotal = 'value.vreal = U->ETotal;'},
-		--{S = 'value.vreal = W.P / pow(W.rho, (real)heatCapacityRatio);'},
-		--{H = 'value.vreal = calc_H(W.P);'},
-		--{h = 'value.vreal = calc_h(W.rho, W.P);'},
-		--{HTotal = 'value.vreal = calc_HTotal(W.P, U->ETotal);'},
-		--{hTotal = 'value.vreal = calc_hTotal(W.rho, W.P, U->ETotal);'},
-		--{['Speed of Sound'] = 'value.vreal = calc_Cs(&W);'},
-		--{['Mach number'] = 'value.vreal = coordLen(W.v, x) / calc_Cs(&W);'},
+		{name='rho', code='value.vreal = U->rho;'},
+		{name='v', code='value.vreal3 = U->v;', type='real3'},
+		{name='m', code='value = real3_real_mul(U->v, U->rho);', type='real3'},
+		--{name='P', code='value.vreal = W.P;'},
+		--{name='eInt', code='value.vreal = calc_eInt(W);'},
+		--{name='eKin', code='value.vreal = calc_eKin(W);'},
+		--{name='ePot', code='value.vreal = U->ePot;'},
+		--{name='eTotal', code='value.vreal = U->ETotal / W.rho;'},
+		--{name='EInt', code='value.vreal = calc_EInt(W);'},
+		{name='EKin', code='value.vreal = .5 * U->rho * coordLen(U->v, x);'},
+		--{name='EPot', code='value.vreal = U->rho * U->ePot;'},
+		--{name='ETotal', code='value.vreal = U->ETotal;'},
+		--{name='S', code='value.vreal = W.P / pow(W.rho, (real)heatCapacityRatio);'},
+		--{name='H', code='value.vreal = calc_H(W.P);'},
+		--{name='h', code='value.vreal = calc_h(W.rho, W.P);'},
+		--{name='HTotal', code='value.vreal = calc_HTotal(W.P, U->ETotal);'},
+		--{name='hTotal', code='value.vreal = calc_hTotal(W.rho, W.P, U->ETotal);'},
+		--{name='Speed of Sound' code='value.vreal = calc_Cs(&W);'},
+		--{name='Mach number' code='value.vreal = coordLen(W.v, x) / calc_Cs(&W);'},
 	}
 	
-	vars:insert(self:createDivDisplayVar{
-		field = 'v', 
-		units = 'kg/(m^3*s)',
-	})
-
-	vars:insert(self:createCurlDisplayVar{
-		field = 'v',
-		units = 'm/s^2',
-	})
+	vars:insert(self:createDivDisplayVar{field='v', units='1/s'} or nil)
+	vars:insert(self:createCurlDisplayVar{field='v', units='1/s'} or nil)
 
 	return vars
 end

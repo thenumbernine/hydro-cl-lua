@@ -24,7 +24,7 @@ ShallowWater.primVars = {
 
 ShallowWater.consVars = {
 	{name='h', type='real', units='m'},
-	{name='m', type='real3', units='m/s', variance='u'},	-- contravariant
+	{name='m', type='real3', units='m^2/s', variance='u'},	-- contravariant
 }
 
 function ShallowWater:createInitState()
@@ -152,6 +152,7 @@ ShallowWater.predefinedDisplayVars = {
 
 function ShallowWater:getDisplayVars()
 	local vars = ShallowWater.super.getDisplayVars(self)
+	
 	vars:append{
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
 		{name='wavespeed', code='value.vreal = calc_C(solver, *U);', units='m/s'},
@@ -162,16 +163,16 @@ function ShallowWater:getDisplayVars()
 		getField = function(U, j)
 			return U..'->m.s'..j..' / '..U..'->h'
 		end,
-		units = 'kg/(m^3*s)',
-	})
+		units = '1/s',
+	} or nil)
 
 	vars:insert(self:createCurlDisplayVar{
 		field = 'v',
 		getField = function(U, j)
 			return U..'->m.s'..j..' / '..U..'->h'
 		end,
-		units = 'm/s^2',
-	})
+		units = '1/s',
+	} or nil)
 
 	return vars
 end

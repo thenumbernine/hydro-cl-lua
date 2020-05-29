@@ -320,7 +320,7 @@ function Euler:getDisplayVars()
 		getField = function(U, j)
 			return U..'->m.s'..j..' / '..U..'->rho'
 		end,
-		units = 'kg/(m^3*s)',
+		units = '1/s',
 	} or nil)
 
 	vars:insert(self:createCurlDisplayVar{
@@ -328,7 +328,7 @@ function Euler:getDisplayVars()
 		getField = function(U, j)
 			return U..'->m.s'..j..' / '..U..'->rho'
 		end,
-		units = 'm/s^2',
+		units = '1/s',
 	} or nil)
 
 	return vars

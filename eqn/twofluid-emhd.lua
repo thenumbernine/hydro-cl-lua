@@ -520,16 +520,16 @@ function TwoFluidEMHD:getDisplayVars()
 			getField = function(U, j)
 				return U..'->'..fluid..'_m.s'..j..' / '..U..'->'..fluid..'_rho'
 			end,
-			units = 'kg/(m^3*s)',
-		})
+			units = '1/s',
+		} or nil)
 
 		vars:insert(self:createCurlDisplayVar{
 			field = fluid..' v', 
 			getField = function(U, j)
 				return U..'->'..fluid..'_m.s'..j..' / '..U..'->'..fluid..'_rho'
 			end,
-			units = 'm/s^2',
-		})
+			units = '1/s',
+		} or nil)
 	end
 
 	vars:append{

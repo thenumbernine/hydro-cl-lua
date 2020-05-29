@@ -288,11 +288,25 @@ function MHD:getDisplayVars()
 	eqn = self,
 })},
 	}
-		
+	
+	vars:insert(self:createDivDisplayVar{
+		field = 'v', 
+		getField = function(U, j)
+			return U..'->m.s'..j..' / '..U..'->rho'
+		end,
+		units = '1/s',
+	} or nil)
+
+	vars:insert(self:createCurlDisplayVar{
+		field = 'v',
+		getField = function(U, j)
+			return U..'->m.s'..j..' / '..U..'->rho'
+		end,
+		units = '1/s',
+	} or nil)
+
 	vars:insert(self:createDivDisplayVar{field='B', units='kg/(C*m*s)'})
-	vars:insert(self:createDivDisplayVar{field='m', units='kg/(m^3*s)'})
 	vars:insert(self:createCurlDisplayVar{field='B', units='kg/(C*m*s)'})
-	vars:insert(self:createCurlDisplayVar{field='m', units='kg/(m^3*s)'})
 
 	return vars
 end

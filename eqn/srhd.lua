@@ -291,8 +291,8 @@ function SRHD:getDisplayVars()
 ]]		},
 	}
 
-	vars:insert(self:createDivDisplayVar{field='v', units='kg/(m^3*s)'} or nil)
-	vars:insert(self:createCurlDisplayVar{field='v', units='m/s^2'} or nil)
+	vars:insert(self:createDivDisplayVar{field='v', units='1/s'} or nil)
+	vars:insert(self:createCurlDisplayVar{field='v', units='1/s'} or nil)
 
 	return vars
 end

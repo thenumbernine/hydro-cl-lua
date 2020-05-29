@@ -41,6 +41,7 @@ function GRHD:init(args)
 	self.cons_only_t = args.solver.app:uniqueName'cons_only_t'
 end
 
+-- TODO upgrade this to srhd: put these all in consVars and just make separate cons_only_ and prim_only_t
 function GRHD:getTypeCode()
 	return template([[
 typedef union {
@@ -257,6 +258,9 @@ function GRHD:getDisplayVars()
 		{name='P', code='value.vreal = calc_P(solver, U->prim.rho, U->prim.eInt);'},
 		{name='h', code='value.vreal = calc_h(U->prim.rho, calc_P(solver, U->prim.rho, U->prim.eInt), U->prim.eInt);'},
 	}
+	
+	vars:insert(self:createDivDisplayVar{field='v', units='1/s'} or nil)
+	vars:insert(self:createCurlDisplayVar{field='v', units='1/s'} or nil)
 end
 
 GRHD.eigenVars = {
