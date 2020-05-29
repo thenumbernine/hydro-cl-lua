@@ -52,8 +52,8 @@ function Euler:init(args)
 	}
 
 	if args.incompressible then
-		self.consVars:insert{name='mPot', type='real', units='m^2/s'}
-		self.primVars:insert{name='mPot', type='real', units='m^2/s'}
+		self.consVars:insert{name='mPot', type='real', units='kg/(m*s)'}
+		self.primVars:insert{name='mPot', type='real', units='kg/(m*s)'}
 	end
 
 	Euler.super.init(self, args)
@@ -75,9 +75,9 @@ function Euler:init(args)
 				potentialField = 'mPot',
 			
 				-- div v = 0
-				-- div (m/rho) = 0
-				-- 1/rho div m - 1/rho^2 m dot grad rho = 0
-				-- div m = (m dot grad rho)/rho 
+				-- div (m/ρ) = 0
+				-- 1/ρ div m - 1/ρ^2 m dot grad ρ = 0
+				-- div m = (m dot grad ρ)/ρ 
 				chargeCode = template([[
 	<? for j=0,solver.dim-1 do ?>{
 		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
@@ -483,23 +483,23 @@ R_spec = 287.058 J / (kg K) for dry air
 R_spec = R / M = k_B / m
 M = molar mass
 k_B = Boltzmann constant = 1.3806485279e-23 J / K
-m = mass within volume V	<-> rho = m / V
-R_spec = k_B rho V
+m = mass within volume V	<-> ρ = m / V
+R_spec = k_B ρ V
 
 caloric perfect:
-P = (gamma - 1) rho e_int
+P = (gamma - 1) ρ e_int
 gamma = C_p / C_v = adiabatic index / ratio of specific heats
 e_int = C_v T = internal energy per unit mass / specific internal energy
 C_v = specific heat at constant volume
 C_p = specific heat at constant pressure
-P = rho R_spec T
+P = ρ R_spec T
 e_int = C_v T
-P = rho (C_p - C_v) e_int / C_v = rho (C_p / C_v - 1) e_int
+P = ρ (C_p - C_v) e_int / C_v = ρ (C_p / C_v - 1) e_int
 
 0 C = 273.15 K
 
 using some real-world numbers ...
-P = (gamma - 1) rho e_int
+P = (gamma - 1) ρ e_int
 101325 kg / (m s^2) = (C_p - C_v) / C_v (1.2754 kg / m^3) C_v T 
 101325 kg / (m s^2) = (1006 - 717.1) J / (kg K) (1.2754 kg / m^3) T 
 T = 274.99364522457 K

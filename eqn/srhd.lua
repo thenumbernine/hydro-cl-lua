@@ -20,7 +20,8 @@ local xNames = common.xNames
 local SRHD = class(Equation)
 SRHD.name = 'SRHD'
 
-SRHD.numStates = 11
+-- 11 without SPos, 12 with SPot
+--SRHD.numStates = 11
 
 SRHD.numWaves = 5
 SRHD.numIntStates = 5
@@ -38,42 +39,87 @@ SRHD.hasFluxFromConsCode = true
 SRHD.initStates = require 'init.euler'
 
 function SRHD:init(args)
-	SRHD.super.init(self, args)
+	
+	--[[
+	because of the unique shape of prim_only_t and cons_only_t, I can't use the consVars for struct generation ...
+
+	2003 Marti & Muller show the state variables as D, S^i, tau ... for SRHD
+	...but the GRHD folks use D, S_i, tau ...
+	maybe Marti & Muller were lazy with notation since the metric is eta = diag(-1,1,1,1) and raising/lowering spatial doesn't matter ... ?
+
+	I used to keep the prim_only_t and cons_only_t as separate structs within separate,
+	but that doesn't mesh well with the code that automatically determines signs of reflections at boundaries,
+	so I'll try just merging this all into cons_t.
+
+	TODO redo the srhd equations for a background grid metric, and take note of covariance/contravariance
+	--]]
+	self.consVars = table{
+		-- cons_only_t
+		{name='D', type='real', units='kg/m^3'},				-- D = ρ W, W = unitless Lorentz factor
+		{name='S', type='real3', units='kg/s^3', variance='l'},	-- S_j = ρ h W^2 v_j ... [ρ] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
+		{name='tau', type='real', units='kg/(m*s^2)'},			-- tau = ρ h W^2 - P ... [ρ] [h] [W^2] = kg/m^3 * m^2/s^2 = kg/(m*s^2)
+		
+		-- prim_only_t
+		{name='rho', type='real', units='kg/m^3'},
+		{name='v', type='real3', units='m/s', variance='l'},
+		{name='eInt', type='real', units='m^2/s^2'},
+		
+		-- extra
+		{name='ePot', type='real', units='m^2/s^2'},
+	}
+
+	if args.incompressible then
+		self.consVars:insert{name='SPot', type='real', units='kg*m/s^2'}
+	end
+
 
 	self.cons_only_t = args.solver.app:uniqueName'cons_only_t'
 	self.prim_only_t = args.solver.app:uniqueName'prim_only_t'
 
-	local SRHDSelfGrav = require 'op.srhd-selfgrav'
-	self.solver.ops:insert(SRHDSelfGrav{solver=self.solver})
+	SRHD.super.init(self, args)
+
+	if require 'solver.meshsolver'.is(self.solver) then
+		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
+	else
+		local SRHDSelfGrav = require 'op.srhd-selfgrav'
+		self.gravOp = SRHDSelfGrav{solver=self.solver}
+		self.solver.ops:insert(self.gravOp)
+		
+		if args.incompressible then
+			local NoDiv = require 'op.nodiv'{
+				poissonSolver = require 'op.poisson_jacobi',	-- krylov is having errors.  TODO bug in its boundary code?
+			}
+			self.solver.ops:insert(NoDiv{
+				solver = self.solver,
+				vectorField = 'S',
+				potentialField = 'SPot',
+			
+				-- S_i = ρ h W^2 v_i = D^2 h / ρ
+				-- S_i,j = (D^2 h v_i / ρ)_,j
+				-- = (D^2 h / ρ)_,j v_i + (D^2 h / ρ) v_i,j
+				-- = (D^2 h / ρ)_,j v_i + (D^2 h / ρ) v_i,j = 0
+				-- δ^ij v_i,j = -δ^ij (D^2 h / ρ)_,j v_i / (D^2 h / ρ)
+				-- TODO make this work for non-ident metric & add connections for covariant derivatives
+				chargeCode = template([[
+	<? for j=0,solver.dim-1 do ?>{
+		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
+		real d_rho_h_WSq_over_dx = (
+			Ujp->D * Ujp->D / Ujp->rho * calc_h(Ujp->rho, calc_P(solver, Ujp->rho, Ujp->eInt), Ujp->eInt)
+			- Ujm->D * Ujm->D / Ujm->rho * calc_h(Ujm->rho, calc_P(solver, Ujm->rho, Ujm->eInt), Ujm->eInt)
+		) * (.5 / solver->grid_dx.s<?=j?>);
+		source -= d_rho_h_WSq_over_dx * U->S.s<?=j?> / (
+			U->D * U->D / U->rho * calc_h(U->rho, calc_P(solver, U->rho, U->eInt), U->eInt)
+		);
+	}<? end ?>
+]],				{
+					eqn = self,
+					solver = self.solver,
+				}),
+			})
+		end
+	end
 end
-
---[[
-because of the unique shape of prim_only_t and cons_only_t, I can't use the consVars for struct generation ...
-
-2003 Marti & Muller show the state variables as D, S^i, tau ... for SRHD
-...but the GRHD folks use D, S_i, tau ...
-maybe Marti & Muller were lazy with notation since the metric is eta = diag(-1,1,1,1) and raising/lowering spatial doesn't matter ... ?
-
-I used to keep the prim_only_t and cons_only_t as separate structs within separate,
-but that doesn't mesh well with the code that automatically determines signs of reflections at boundaries,
-so I'll try just merging this all into cons_t.
-
-TODO redo the srhd equations for a background grid metric, and take note of covariance/contravariance
---]]
-SRHD.consVars = table{
-	-- cons_only_t
-	{name='D', type='real', units='kg/m^3'},				-- D = rho W, W = unitless Lorentz factor
-	{name='S', type='real3', units='kg/s^3', variance='l'},	-- S_j = rho h W^2 v_j ... [rho] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
-	{name='tau', type='real', units='kg/(m*s^2)'},			-- tau = rho h W^2 - P ... [rho] [h] [W^2] = kg/m^3 * m^2/s^2 = kg/(m*s^2)
-	
-	-- prim_only_t
-	{name='rho', type='real', units='kg/m^3'},
-	{name='v', type='real3', units='m/s', variance='l'},
-	{name='eInt', type='real', units='m^2/s^2'},
-	
-	-- extra
-	{name='ePot', type='real', units='m^2/s^2'},
-}
 
 function SRHD:getTypeCode()
 	return table{
