@@ -14,35 +14,218 @@ local common = require 'common'
 local xNames = common.xNames
 local minmaxs = common.minmaxs
 
-local function quadrantProblem(args)
-	args.initState = function(self, solver)
+local function RiemannProblem(initCond)
+	local WL, WR = initCond[1], initCond[2]
+
+	local function getSolverFieldName(i,varname)
+		local suffix = ({'L','R'})[i]
+		return 'init_'..varname:gsub('%.','')..suffix
+	end
+
+	initCond.guiVars = initCond.guiVars or {}
+	for i,WLR in ipairs(initCond) do
+		for name, value in pairs(WLR) do
+			table.insert(initCond.guiVars, {
+				name = getSolverFieldName(i,name),
+				value = value,
+			})
+		end
+	end
+	
+	initCond.init = function(self, solver, args)
+		if args then
+			self.overrideDim = args.dim
+		end
+	end
+	
+	initCond.initState = function(self, solver)
+		local function build(i)
+			return table.map(initCond[i], function(_,name,t)
+				return '\t\t'..name..' = solver->'..getSolverFieldName(i,name)..';', #t+1
+			end):concat'\n'
+		end
+		return template([[
+	
+	bool lhsSod = true<?
+for i=1,overrideDim or solver.dim do
+	local xi = xNames[i]
+?> && x.<?=xi?> < mids.<?=xi?><?
+end
+?>;
+
+	if (lhsSod) {
+<?=build(1)?>
+	} else {
+<?=build(2)?>
+	}
+]], 		{
+				solver = solver,
+				build = build,
+				xNames = xNames,
+				overrideDim = self.overrideDim,
+			})
+	end
+
+
+	-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
+	-- TODO it might be more efficient to hand this function the array, and have it return an array
+	-- or at least have it calculate certain values up front before iterating across all x's
+	initCond.exactSolution = function(solver, x, t)
+		local solverPtr = solver.solverPtr
+		-- TODO initial condition object to share these values with initialization
+		local rhoL = solverPtr.init_rhoL
+		local rhoR = solverPtr.init_rhoR
+		local PL = solverPtr.init_PL
+		local PR = solverPtr.init_PR
+		local vL = 0
+		local vR = 0
+		local gamma = solverPtr.heatCapacityRatio
+		
+		local muSq = (gamma - 1)/(gamma + 1)
+		local K = PL / rhoL^gamma
+
+		local CsL = math.sqrt(gamma * PL / rhoL)
+		local CsR = math.sqrt(gamma * PR / rhoR)
+
+		local solveP3 = function()
+			-- hmm, for some reason, using the symmath-compiled code is resulting in memory corruption
+			-- it's not like symmath compile performs any ffi allocations ... maybe something is getting freed prematurely?
+			-- or maybe I'm passing in a cdata that is a number, and luajit is not agreeing with some implicit conversion to a Lua number somewhere?  I don't know...
+			-- so to fix this, I'll just print out the code and inline it myself
+			--[=[ using symmath-compiled functions
+			local symmath = require 'symmath'
+			local P3, PL, PR, CsL, CsR, gamma = symmath.vars('P3', 'PL', 'PR', 'CsL', 'CsR', 'gamma')
+			local f = -2*CsL*(1 - (P3/PL)^((-1 + gamma)/(2*gamma)))/(CsR*(-1 + gamma)) + (-1 + P3/PR)*((1 - muSq)/(gamma*(muSq + P3/PR)))^.5
+			local df_dP3 = f:diff(P3)()	
+			local vars = {P3, PL, PR, CsL, CsR, gamma}
+			local f_func, f_code = f:compile(vars)
+			local df_dP3_func, df_dP3_code = df_dP3:compile(vars)
+			--print(f_code)
+			--print(df_dP3_code)
+			--os.exit()
+			--]=]
+			local P3 = .5 * (PL + PR)
+			local epsilon = 1e-16	-- this is the limit for the sod.f before it oscillates
+			while true do
+				--[=[ using symmath-compiled functions
+				local dP3 = -f_func(P3) / df_dP3_func(P3)
+				--]=]
+				-- [=[ using inlining
+				local f = ((((-2 * CsL) * (1 - ((P3 / PL) ^ ((-1 + gamma) / (2 * gamma))))) / (CsR * (-1 + gamma))) + ((-1 + (P3 / PR)) * ((0.75 / (gamma * (0.25 + (P3 / PR)))) ^ 0.5))) 
+				local df_dP3 = ((-((((((1.5 * math.sqrt(0.75) * CsR * PR * (gamma ^ 1.5)) - ((0.75 ^ 1.5) * CsR * PR * math.sqrt(gamma))) - ((0.75 ^ 1.5) * CsR * (gamma ^ 2.5) * PR)) - (0.5 * P3 * math.sqrt(0.75) * CsR * math.sqrt(gamma))) - (0.5 * P3 * math.sqrt(0.75) * CsR * (gamma ^ 2.5))) + (((P3 * math.sqrt(0.75) * CsR * (gamma ^ 1.5)) - (0.25 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ (((-1) - gamma) / (2 * gamma))) * (PR ^ 1.5) * math.sqrt((P3 + (0.25 * PR))))) - ((PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ ((-(1 - gamma)) / (2 * gamma))) * math.sqrt(PR) * math.sqrt((P3 + (0.25 * PR))))) + (0.5 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ (((-1) - gamma) / (2 * gamma))) * (PR ^ 1.5) * gamma * math.sqrt((P3 + (0.25 * PR)))) + (((2 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ ((-(1 - gamma)) / (2 * gamma))) * math.sqrt(PR) * gamma * math.sqrt((P3 + (0.25 * PR)))) - (0.25 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ (((-1) - gamma) / (2 * gamma))) * (gamma ^ 2) * (PR ^ 1.5) * math.sqrt((P3 + (0.25 * PR))))) - ((PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ ((-(1 - gamma)) / (2 * gamma))) * (gamma ^ 2) * math.sqrt(PR) * math.sqrt((P3 + (0.25 * PR))))))) / (math.sqrt(PR) * CsR * ((P3 + (0.25 * PR)) ^ 1.5) * gamma * ((1 - (2 * gamma)) + (gamma ^ 2)))) 
+				local dP3 = -f / df_dP3
+				--]=]
+				if math.abs(dP3) <= epsilon then break end
+				if not math.isfinite(dP3) then error('delta is not finite! '..tostring(dP3)) end
+				P3 = P3 + dP3 
+			end
+			return P3
+		end
+
+		local P3 = solveP3()
+		local P4 = P3
+
+		local rho3 = rhoL * (P3 / PL) ^ (1 / gamma)
+
+		local v3 = vR + 2 * CsL / (gamma - 1) * (1 - (P3 / PL)^((gamma - 1)/(2*gamma)))
+		local v4 = v3
+
+		local rho4 = rhoR * (P4 + muSq * PR) / (PR + muSq * P4)
+
+		local vshock = v4 * rho4 / (rho4 - rhoR)
+		local vtail = CsL - v4 / (1 - muSq)
+
+	
+		-- between regions 1 and 2
+		local s1 = -CsL	
+
+		-- between regions 2 and 3
+		-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
+		local s2 = -vtail
+
+		local s3 = v3	-- between regions 3 and 4
+
+		-- between regions 4 and 5 ...
+		local s4 = vshock
+
+		--print('wavespeeds:',s1,s2,s3,s4)
+
+		local rho, vx, P
+		local xi = x / t
+		if xi < s1 then
+			rho = rhoL
+			vx = vL
+			P = PL
+		elseif xi < s2 then
+			vx = (1 - muSq) * (x/t + CsL)
+			
+			-- Dullemon:
+			--rho = (rhoL^gamma / (gamma * PL) * (v2(x) - x/t)^2)^(1/(gamma-1))
+			-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
+			rho = rhoL * (-muSq * (x / (CsL * t)) + (1 - muSq))^(2/(gamma-1))
+
+			-- Dullemon:
+			--P = K * rho2^gamma
+			-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
+			P = PL * (-muSq * (x / (CsL * t)) + (1 - muSq)) ^ (2*gamma/(gamma-1))
+		elseif xi < s3 then
+			rho = rho3
+			vx = v3
+			P = P3
+		elseif xi < s4 then
+			rho = rho4
+			vx = v4
+			P = P4
+		else
+			rho = rhoR
+			vx = vR
+			P = PR
+		end
+
+		local vy = 0
+		local vz = 0
+		local EInt = P / (gamma - 1)
+		local EKin = .5 * rho * (vx*vx + vy*vy + vz*vz)
+		local ETotal = EKin + EInt
+		return rho, rho * vx, rho * vy, rho * vz, ETotal
+	end
+
+	return initCond
+end
+
+local function quadrantProblem(initCond)
+	initCond.initState = function(self, solver)
+		-- [[ specific to 2002 Kurganov, Tadmor, "Solution of Two-Dimensional Riemann Problems for Gas Dynamics without Riemann Problem Solvers"
 		solver.cfl = .475
 		solver:setBoundaryMethods'freeflow'
+		--]]
 		local function build(i)
-			local q = args[i]
+			local q = initCond[i]
 			return table.map(q, function(v,k,t)
 				return k..'='..v..';', #t+1
 			end):concat' '
 		end
-		return [[
+		return template([[
 	bool xp = x.x > mids.x;
 	bool yp = x.y > mids.y;
 	if (yp) {
 		if (xp) {
-			]]..build(1)..[[
+			<?=build(1)?>
 		} else {
-			]]..build(2)..[[
+			<?=build(2)?>
 		}
 	} else {
 		if (!xp) {
-			]]..build(3)..[[
+			<?=build(3)?>
 		} else {
-			]]..build(4)..[[
+			<?=build(4)?>
 		}
 	}
-]]
+]],			{
+				build = build,
+			})
 	end
-	return args
+	return initCond
 end
 
 -- right now 'center' is provided in cartesian coordinates (i.e. post-applying coordMap)
@@ -65,7 +248,7 @@ function SelfGravProblem:__call(initState, solver)
 	return template([[
 	rho = .1;
 	P = 1;
-	//v[i] = .1 * noise * crand();
+	v[i] = .1 * noise * U->m.s[i];	//U is initialized to random()
 	<? for i,source in ipairs(sources) do ?>{
 		real3 xc = coordMap(x);
 		real3 delta = real3_sub(xc, _real3(
@@ -333,32 +516,34 @@ local initStates = table{
 		end,
 	},
 
-	{
+	-- test case vars
+	RiemannProblem{
 		name = 'Sod',
--- [[ test-case vars
-		guiVars = {
-			-- L = high pressure / density
-			{name = 'init_rhoL', value = 1},
-			{name = 'init_PL', value = 1},
-			-- R = low pressure / density
-			{name = 'init_rhoR', value = .125},
-			{name = 'init_PR', value = .1},
-		},
+		-- L = high pressure / density
+		{rho = 1, P = 1},
+		-- R = low pressure / density
+		{rho = .125, P = .1},
 		overrideGuiVars = {
 			heatCapacityRatio = 5/3,
 		},
---]]		
---[[ real-world vars ... which are a few orders higher, and therefore screw up the backward-euler solver
+	},
+
+-- [[ real-world vars ... which are a few orders higher, and therefore screw up the backward-euler solver
 -- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
-		guiVars = {
-			{name = 'init_rhoL', value = 8 * materials.Air.seaLevelDensity},	-- kg / m^3
-			{name = 'init_PL', value = 10 * materials.Air.seaLevelPressure},	-- Pa = N / m^2 = kg / (m s^2)
-			{name = 'init_rhoR', value = materials.Air.seaLevelDensity},
-			{name = 'init_PR', value = materials.Air.seaLevelPressure},
+	RiemannProblem{
+		name = 'Sod with physical units',
+		{
+			rho = 8 * materials.Air.seaLevelDensity,	-- kg / m^3
+			P = 10 * materials.Air.seaLevelPressure,	-- Pa = N / m^2 = kg / (m s^2)
+		},
+		{
+			rho = materials.Air.seaLevelDensity,
+			P = materials.Air.seaLevelPressure,
 		},
 		overrideGuiVars = {
-			heatCapacityRatio = materials.Air.heatCapacityRatio,
+			heatCapacityRatio = assert(materials.Air.heatCapacityRatio),
 		},
+	},
 --]]
 --[[
 some various initial conditions from 2012 Toro "The HLLC Riemann Solver" http://marian.fsik.cvut.cz/~bodnar/PragueSum_2012/Toro_2-HLLC-RiemannSolver.pdf 
@@ -371,153 +556,7 @@ Test	ρ L		u L		    p L		 ρ R		u R		    p R
 6		1.4		0.0		    1.0		 1.0		0.0		    1.0		
 7		1.4		0.1		    1.0		 1.0		0.1		    1.0		
 --]]
-		-- TODO do this in InitCond ctor for everyone?
-		init = function(self, solver, args)
-			self.initStateArgs = args
-		end,
-		initState = function(self, solver)
-			local args = self.initStateArgs
-			return template([[
-	
-	bool lhsSod = true<?
-for i=1,args and args.dim or solver.dim do
-	local xi = xNames[i]
-?> && x.<?=xi?> < mids.<?=xi?><?
-end
-?>;
-	
-	rho = lhsSod ? solver->init_rhoL : solver->init_rhoR;
-	P = lhsSod ? solver->init_PL : solver->init_PR;
-]], {
-		solver = solver,
-		xNames = xNames,
-		args = args,
-	})
-		end,
-		
-		-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
-		-- TODO it might be more efficient to hand this function the array, and have it return an array
-		-- or at least have it calculate certain values up front before iterating across all x's
-		exactSolution = function(solver, x, t)
-			local solverPtr = solver.solverPtr
-			-- TODO initial condition object to share these values with initialization
-			local rhoL = solverPtr.init_rhoL
-			local rhoR = solverPtr.init_rhoR
-			local PL = solverPtr.init_PL
-			local PR = solverPtr.init_PR
-			local vL = 0
-			local vR = 0
-			local gamma = solverPtr.heatCapacityRatio
-			
-			local muSq = (gamma - 1)/(gamma + 1)
-			local K = PL / rhoL^gamma
 
-			local CsL = math.sqrt(gamma * PL / rhoL)
-			local CsR = math.sqrt(gamma * PR / rhoR)
-
-			local solveP3 = function()
-				-- hmm, for some reason, using the symmath-compiled code is resulting in memory corruption
-				-- it's not like symmath compile performs any ffi allocations ... maybe something is getting freed prematurely?
-				-- or maybe I'm passing in a cdata that is a number, and luajit is not agreeing with some implicit conversion to a Lua number somewhere?  I don't know...
-				-- so to fix this, I'll just print out the code and inline it myself
-				--[=[ using symmath-compiled functions
-				local symmath = require 'symmath'
-				local P3, PL, PR, CsL, CsR, gamma = symmath.vars('P3', 'PL', 'PR', 'CsL', 'CsR', 'gamma')
-				local f = -2*CsL*(1 - (P3/PL)^((-1 + gamma)/(2*gamma)))/(CsR*(-1 + gamma)) + (-1 + P3/PR)*((1 - muSq)/(gamma*(muSq + P3/PR)))^.5
-				local df_dP3 = f:diff(P3)()	
-				local vars = {P3, PL, PR, CsL, CsR, gamma}
-				local f_func, f_code = f:compile(vars)
-				local df_dP3_func, df_dP3_code = df_dP3:compile(vars)
-				--print(f_code)
-				--print(df_dP3_code)
-				--os.exit()
-				--]=]
-				local P3 = .5 * (PL + PR)
-				local epsilon = 1e-16	-- this is the limit for the sod.f before it oscillates
-				while true do
-					--[=[ using symmath-compiled functions
-					local dP3 = -f_func(P3) / df_dP3_func(P3)
-					--]=]
-					-- [=[ using inlining
-					local f = ((((-2 * CsL) * (1 - ((P3 / PL) ^ ((-1 + gamma) / (2 * gamma))))) / (CsR * (-1 + gamma))) + ((-1 + (P3 / PR)) * ((0.75 / (gamma * (0.25 + (P3 / PR)))) ^ 0.5))) 
-					local df_dP3 = ((-((((((1.5 * math.sqrt(0.75) * CsR * PR * (gamma ^ 1.5)) - ((0.75 ^ 1.5) * CsR * PR * math.sqrt(gamma))) - ((0.75 ^ 1.5) * CsR * (gamma ^ 2.5) * PR)) - (0.5 * P3 * math.sqrt(0.75) * CsR * math.sqrt(gamma))) - (0.5 * P3 * math.sqrt(0.75) * CsR * (gamma ^ 2.5))) + (((P3 * math.sqrt(0.75) * CsR * (gamma ^ 1.5)) - (0.25 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ (((-1) - gamma) / (2 * gamma))) * (PR ^ 1.5) * math.sqrt((P3 + (0.25 * PR))))) - ((PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ ((-(1 - gamma)) / (2 * gamma))) * math.sqrt(PR) * math.sqrt((P3 + (0.25 * PR))))) + (0.5 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ (((-1) - gamma) / (2 * gamma))) * (PR ^ 1.5) * gamma * math.sqrt((P3 + (0.25 * PR)))) + (((2 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ ((-(1 - gamma)) / (2 * gamma))) * math.sqrt(PR) * gamma * math.sqrt((P3 + (0.25 * PR)))) - (0.25 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ (((-1) - gamma) / (2 * gamma))) * (gamma ^ 2) * (PR ^ 1.5) * math.sqrt((P3 + (0.25 * PR))))) - ((PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ ((-(1 - gamma)) / (2 * gamma))) * (gamma ^ 2) * math.sqrt(PR) * math.sqrt((P3 + (0.25 * PR))))))) / (math.sqrt(PR) * CsR * ((P3 + (0.25 * PR)) ^ 1.5) * gamma * ((1 - (2 * gamma)) + (gamma ^ 2)))) 
-					local dP3 = -f / df_dP3
-					--]=]
-					if math.abs(dP3) <= epsilon then break end
-					if not math.isfinite(dP3) then error('delta is not finite! '..tostring(dP3)) end
-					P3 = P3 + dP3 
-				end
-				return P3
-			end
-
-			local P3 = solveP3()
-			local P4 = P3
-
-			local rho3 = rhoL * (P3 / PL) ^ (1 / gamma)
-
-			local v3 = vR + 2 * CsL / (gamma - 1) * (1 - (P3 / PL)^((gamma - 1)/(2*gamma)))
-			local v4 = v3
-
-			local rho4 = rhoR * (P4 + muSq * PR) / (PR + muSq * P4)
-
-			local vshock = v4 * rho4 / (rho4 - rhoR)
-			local vtail = CsL - v4 / (1 - muSq)
-
-		
-			-- between regions 1 and 2
-			local s1 = -CsL	
-
-			-- between regions 2 and 3
-			-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
-			local s2 = -vtail
-
-			local s3 = v3	-- between regions 3 and 4
-
-			-- between regions 4 and 5 ...
-			local s4 = vshock
-
-			--print('wavespeeds:',s1,s2,s3,s4)
-
-			local rho, vx, P
-			local xi = x / t
-			if xi < s1 then
-				rho = rhoL
-				vx = vL
-				P = PL
-			elseif xi < s2 then
-				vx = (1 - muSq) * (x/t + CsL)
-				
-				-- Dullemon:
-				--rho = (rhoL^gamma / (gamma * PL) * (v2(x) - x/t)^2)^(1/(gamma-1))
-				-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
-				rho = rhoL * (-muSq * (x / (CsL * t)) + (1 - muSq))^(2/(gamma-1))
-
-				-- Dullemon:
-				--P = K * rho2^gamma
-				-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
-				P = PL * (-muSq * (x / (CsL * t)) + (1 - muSq)) ^ (2*gamma/(gamma-1))
-			elseif xi < s3 then
-				rho = rho3
-				vx = v3
-				P = P3
-			elseif xi < s4 then
-				rho = rho4
-				vx = v4
-				P = P4
-			else
-				rho = rhoR
-				vx = vR
-				P = PR
-			end
-
-			local vy = 0
-			local vz = 0
-			local EInt = P / (gamma - 1)
-			local EKin = .5 * rho * (vx*vx + vy*vy + vz*vz)
-			local ETotal = EKin + EInt
-			return rho, rho * vx, rho * vy, rho * vz, ETotal
-		end,
-	},
 
 	{	-- just like Brio-Wu, but centered instead of to one side
 		name = 'rectangle',
@@ -621,64 +660,28 @@ end
 	
 	-- http://www.astro.uni-bonn.de/~jmackey/jmac/node7.html
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/brio-wu/Brio-Wu.html
-	{
+	RiemannProblem{
 		name = 'Brio-Wu',
-		guiVars = {
-			{name = 'init_rhoL', value = 1},
-			{name = 'init_rhoR', value = .125},
-			{name = 'init_PL', value = 1},
-			{name = 'init_PR', value = .1},
-			{name = 'init_BxL', value = .75},
-			{name = 'init_BxR', value = .75},
-			{name = 'init_ByL', value = 1},
-			{name = 'init_ByR', value = -1},
-			{name = 'init_BzL', value = 0},
-			{name = 'init_BzR', value = 0},
-		},
+		-- left
+		{rho=1, P=1, ['B.x']=.75, ['B.y']=1, ['B.z']=0},
+		-- right
+		{rho=.125, P=.1, ['B.x']=.75, ['B.y']=-1, ['B.z']=0},
 		overrideGuiVars = {
 			heatCapacityRatio = 2,
 		},
-		initState = function(self, solver)
-			return [[
-	rho = lhs ? solver->init_rhoL : solver->init_rhoR;
-	P = lhs ? solver->init_PL : solver->init_PR;
-	B.x = lhs ? solver->init_BxL : solver->init_BxR;
-	B.y = lhs ? solver->init_ByL : solver->init_ByR;
-	B.z = lhs ? solver->init_BzL : solver->init_BzR;
-]]
-		end,
 	},
 
 	-- 2014 Abgrall, Kumar "Robust Finite Volume Scheme for Two-Fluid Plasma Equations"
 	-- TODO instead of providing this as an ideal MHD initial state
 	--  instead provide it as a two-fluid initial state
 	-- with distinct ion and electron values
-	{
+	RiemannProblem{
 		name = 'two-fluid emhd modified Brio-Wu',
-		guiVars = {
-			{name = 'init_rhoL', value = 1},
-			{name = 'init_rhoR', value = .125},
-			{name = 'init_PL', value = 5e-5},
-			{name = 'init_PR', value = 5e-6},
-			{name = 'init_BxL', value = .75},
-			{name = 'init_BxR', value = .75},
-			{name = 'init_ByL', value = 1},
-			{name = 'init_ByR', value = -1},
-			{name = 'init_BzL', value = 0},
-			{name = 'init_BzR', value = 0},
-		},
+		{rho=1, P=5e-5, ['B.x']=.75, ['B.y']=1, ['B.z']=0},
+		{rho=.125, P=5e-6, ['B.x']=.75, ['B.y']=-1, ['B.z']=0},
 		overrideGuiVars = {
 			heatCapacityRatio = 2,
 		},
-		initState = function(self, solver)
-			return [[
-	rho = lhs ? solver->init_rhoL : solver->init_rhoR;
-	P = lhs ? solver->init_PL : solver->init_PR;
-	B.x = lhs ? solver->init_BxL : solver->init_BxR;
-	B.y = lhs ? solver->init_ByL : solver->init_ByR;
-	B.z = lhs ? solver->init_BzL : solver->init_BzR;
-]]
-		end,
 	},
 
 	-- http://www.astro.virginia.edu/VITA/ATHENA/ot.html
@@ -1052,7 +1055,7 @@ end) then
 		end,
 	},
 	
-	-- 2D tests described in Alexander Kurganov, Eitan Tadmor, Solution of Two-Dimensional Riemann Problems for Gas Dynamics without Riemann Problem Solvers
+	-- 2D tests described in 2002 Kurganov, Tadmor, "Solution of Two-Dimensional Riemann Problems for Gas Dynamics without Riemann Problem Solvers"
 	--  which says it is compared with  C. W. Schulz-Rinne, J. P. Collins, and H. M. Glaz, Numerical solution of the Riemann problem for two-dimensional gas dynamics
 	-- and I can't find that paper right now
 	quadrantProblem{
@@ -1176,6 +1179,8 @@ end) then
 ]]
 		end,
 	},
+	
+	-- derived from Athena Kelvin-Helmholtz I think
 	{
 		name = 'Kelvin-Helmholtz',
 		init = function(self, solver)
@@ -1245,12 +1250,13 @@ end ?>
 	v.<?=moveAxis?> += inside * solver->velInside + (1. - inside) * solver->velOutside;
 	v = cartesianFromCoord(v, x);
 	P = solver->backgroundPressure;
-	rho += solver->noiseAmplitude * crand();
-	v.x += solver->noiseAmplitude * crand();
-	v.y += solver->noiseAmplitude * crand();
-	v.z += solver->noiseAmplitude * crand();
 	
-	P += solver->noiseAmplitude * crand();
+	//U is initialized with random(), so use its values for unique random #s
+	rho += solver->noiseAmplitude * (U->rho - .5);
+	v.x += solver->noiseAmplitude * (U->m.x - .5);
+	v.y += solver->noiseAmplitude * (U->m.y - .5);
+	v.z += solver->noiseAmplitude * (U->m.z - .5);
+	P += solver->noiseAmplitude * (U->ETotal - .5);
 ]],				{
 					solver = solver,
 					moveAxis = solver.eqn.guiVars.moveAxis.options[solver.eqn.guiVars.moveAxis.value],
@@ -1260,7 +1266,7 @@ end ?>
 			)
 		end,
 	},
-	
+
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/rt/rt.html
 	-- TODO fixme 
 	{
@@ -1363,7 +1369,7 @@ end ?>;
 	},
 
 	{
-		name='shock bubble interaction',
+		name = 'shock bubble interaction',
 		initState = function(self, solver)
 			solver:setBoundaryMethods'freeflow'
 			return [[
@@ -1419,6 +1425,169 @@ end ?>;
 				})
 		end,
 	},
+
+	
+	-- Derived from the Mara's initital condition code in Mara/test/tests.lua
+	-- https://jzrake.github.io/ctf/test-page.html
+	
+	{
+		name = 'Mara IsentropicPulse',
+		guiVars = {
+			{name = 'init_entropy_ref', value = 0.1},
+			{name = 'init_mode', value = 2},
+			{name = 'init_rho_ref', value = 1},
+		},
+		overrideGuiVars = {
+			heatCapacityRatio = 1.4,
+		},
+		initState = function(self, solver)
+	         return [[
+	real3 c = real3_real_mul(x, .5);
+	real L = 1.0;
+	real n = solver->init_mode;
+	real K = solver->init_entropy_ref;
+	real Gamma = solver->heatCapacityRatio;
+	real rho_ref = solver->init_rho_ref;
+	real pre_ref = K * pow(rho_ref, Gamma);
+	real cs_ref = sqrt(Gamma * pre_ref / rho_ref);
+	real f = sin(n*M_PI*c.x/L);
+	f *= f;
+	rho = rho_ref * (1.0 + f);
+	P = K * pow(rho, Gamma);
+	real cs = sqrt(Gamma * P/rho);
+	v.x = 2 / (Gamma - 1) * (cs - cs_ref);
+]]
+		end,
+	},
+
+	{
+		name = 'Mara Explosion',
+		guiVars = {
+			{name = 'init_Bx', value = 4},
+		},
+		initState = function(self, solver)
+			return [[
+	real r = coordMapR(x);
+	real r2 = r * r;
+	bool inside = r2 < 0.01;
+	rho = inside ? 1.000 : 0.125;
+	P = inside ? 1.0 : 0.1;
+	B.x = solver->init_Bx;
+]]
+		end,
+	},
+
+	{
+		name = 'Mara KelvinHelmholtz',
+		initState = function(self, solver)
+			solver:setBoundaryMethods'periodic'
+			return template[[
+	real3 c = real3_real_mul(x, .5);
+	rho = fabs(c.y) > 0.25 ? 1.0 : 2.0;
+	P = 2.5;
+	//U is initialized with [0,1] random values	
+	v.x = 0.02*(U->m.x - 0.5) + fabs(c.y) > 0.25 ? -.5 : .5;
+	v.y = 0.02*(U->m.y - 0.5);
+	v.z = 0.;
+]]
+		end,
+	},
+
+	{
+		name = 'Mara SmoothKelvinHelmholtz',
+		guiVars = {
+			{name = 'init_P0', value = 2.5},
+			{name = 'init_rho1', value = 1.0},
+			{name = 'init_rho2', value = 2.0},
+			{name = 'init_L', value = .025},
+			{name = 'init_U1', value = 0.5},
+			{name = 'init_U2', value = -0.5},
+			{name = 'init_w0', value = 0.01},
+		},
+		initState = function(self, solver)
+			return [[
+	real3 c = real3_add(real3_real_mul(x, .5), _real3(.5, .5, .5));
+	const real rho1 = solver->init_rho1;
+	const real rho2 = solver->init_rho2;
+	const real L = solver->init_L;
+	const real U1 = solver->init_U1;
+	const real U2 = solver->init_U2;
+	const real w0 = solver->init_w0;
+	if (c.y < 0.25) {
+		rho = rho1 - 0.5*(rho1-rho2)*exp( (c.y - 0.25)/L);
+		v.x = U1 - 0.5*( U1 - U2 )*exp( (c.y - 0.25)/L);
+	} else if (c.y < 0.5) {
+		rho = rho2 + 0.5*(rho1-rho2)*exp(-(c.y - 0.25)/L);
+		v.x = U2 + 0.5*( U1 - U2 )*exp(-(c.y - 0.25)/L);
+	} else if (c.y < 0.75) {
+		rho = rho2 + 0.5*(rho1-rho2)*exp( (c.y - 0.75)/L);
+		v.x = U2 + 0.5*( U1 - U2 )*exp( (c.y - 0.75)/L);
+	} else {
+		rho = rho1 - 0.5*(rho1-rho2)*exp(-(c.y - 0.75)/L);
+		v.x = U1 - 0.5*( U1 - U2 )*exp(-(c.y - 0.75)/L);
+	}
+	v.y = w0*sin(4.*M_PI*c.x);
+	P = solver->init_P0;
+]]		
+		end,
+	},
+
+	-- TODO
+	-- Mara SmoothKelvinHelmholtz
+	-- Mara DensityWave
+	-- Mara CollidingShocks
+	-- Mara TangentialVelocity
+	-- then was the Srhd cases .. I think those are Marti & Muller tests
+	-- then ...
+	RiemannProblem{
+		name = 'Mara Shocktube1',
+		{rho=1, P=1},
+		{rho=.125, P=.1}},
+	RiemannProblem{
+		name = 'Mara Shocktube2',
+		{rho=1, P=.4, ['v.x'] = -2},
+		{rho=1, P=.4, ['v.x'] = 2}},
+	RiemannProblem{
+		name = 'Mara Shocktube3',
+		{rho=1, P=1e+3},
+		{rho=1, P=1e-2}},
+	RiemannProblem{
+		name = 'Mara Shocktube4',
+		{rho=1, P=1e-2},
+		{rho=1, P=1e+2}},
+	RiemannProblem{
+		name = 'Mara Shocktube5',
+		{rho=5.99924, P=460.894, ['v.x']=19.59750},
+		{rho=5.99924, P=46.095, ['v.x']=-6.19633}},
+	RiemannProblem{
+		name = 'Mara ContactWave',
+		{rho=1.0, P=1.0, ['v.x']=0.0, ['v.y']=0.7, ['v.z']=0.2},
+		{rho=0.1, P=1.0, ['v.x']=0.0, ['v.y']=0.7, ['v.z']=0.2}},
+	RiemannProblem{
+		name = 'Mara RMHDShocktube1',
+		{rho=1.000, P=1.000, ['v.x']=0.000, ['v.y']=0.0, ['v.z']=0.0, ['B.x']=0.5, ['B.y']=1.0, ['B.z']=0.0},
+		{rho=0.125, P=0.100, ['v.x']=0.000, ['v.y']=0.0, ['v.z']=0.0, ['B.x']=0.5, ['B.y']=-1.0, ['B.z']= 0.0 }}, 
+	RiemannProblem{
+		name = 'Mara RMHDShocktube2',
+		{rho=1.080, P=0.950, ['v.x']=0.400, ['v.y']=0.3, ['v.z']=0.2, ['B.x']=2.0, ['B.y']=0.3, ['B.z']=0.3},
+		{rho=1.000, P=1.000, ['v.x']=-0.450, ['v.y']=-0.2, ['v.z']=0.2, ['B.x']=2.5, ['B.y']=-0.7, ['B.z']= 0.5 }}, 
+	RiemannProblem{
+		name = 'Mara RMHDShocktube3',
+		{rho=1.000, P=0.100, ['v.x']=0.999, ['v.y']=0.0, ['v.z']=0.0, ['B.x']=10.0, ['B.y']=0.7, ['B.z']=0.7},
+		{rho=1.000, P=0.100, ['v.x']=-0.999, ['v.y']=0.0, ['v.z']=0.0, ['B.x']=10.0, ['B.y']=-0.7, ['B.z']=-0.7 }}, 
+	RiemannProblem{
+		name = 'Mara RMHDShocktube4',
+		{rho=1.000, P=5.000, ['v.x']=0.000, ['v.y']=0.3, ['v.z']=0.4, ['B.x']=1.0, ['B.y']=6.0, ['B.z']=2.0},
+		{rho=0.900, P=5.300, ['v.x']=0.000, ['v.y']=0.0, ['v.z']=0.0, ['B.x']=1.0, ['B.y']=5.0, ['B.z']= 2.0 }}, 
+	RiemannProblem{
+		name = 'Mara RMHDContactWave',
+		{rho=10.0, P=1.0, ['v.x']=0.0, ['v.y']=0.7, ['v.z']=0.2, ['B.x']=5.0, ['B.y']=1.0, ['B.z']=0.5},
+		{rho=1.0, P=1.0, ['v.x']=0.0, ['v.y']=0.7, ['v.z']=0.2, ['B.x']=5.0, ['B.y']=1.0, ['B.z']= 0.5 }}, 
+	RiemannProblem{
+		name = 'Mara RMHDRotationalWave',
+		{rho=1, P=1, ['v.x']=0.400000, ['v.y']=-0.300000, ['v.z']=0.500000, ['B.x']=2.4, ['B.y']=1.00, ['B.z']=-1.600000},
+		{rho=1, P=1, ['v.x']=0.377347, ['v.y']=-0.482389, ['v.z']=0.424190, ['B.x']=2.4, ['B.y']=-0.10, ['B.z']=-2.178213 }}, 
+
 
 	-- gravity potential test - equilibrium - Rayleigh-Taylor ... or is it Jeans? (still has an shock wave ... need to fix initial conditions?)
 

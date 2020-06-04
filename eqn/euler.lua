@@ -220,6 +220,7 @@ kernel void initState(
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
 <? end ?>
+	global <?=eqn.cons_t?>* U = UBuf + index;
 
 	real3 mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);
 	bool lhs = true<?
@@ -246,7 +247,7 @@ end
 		.ePot = ePot,
 	};
 
-	UBuf[index] = consFromPrim(solver, W, x);
+	*U = consFromPrim(solver, W, x);
 }
 ]]
 

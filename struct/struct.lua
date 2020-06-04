@@ -89,8 +89,15 @@ function Struct:makeType()
 		end,
 	}
 	metatable.__index = metatable
-	local metatype = ffi.metatype(self.typename, metatable)
 	
+	local metatype 
+	local status, err = xpcall(function()
+		metatype = ffi.metatype(self.typename, metatable)
+	end, function(err)
+		return err..' typename='..self.typename..'\n'..debug.traceback()
+	end)
+	if not status then error(err) end
+
 	local sizeOfFields = table.map(struct.vars, function(field)
 		local name = field.name
 		local ctype = field.type

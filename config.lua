@@ -9,12 +9,12 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
-	integrator = 'Runge-Kutta 3',
+	--integrator = 'Runge-Kutta 3',
 	--integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
@@ -29,15 +29,15 @@ local args = {
 	fixedDT = cmdline.fixedDT,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
 	
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	--fluxLimiter = 'donor cell',
+	fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
 	--usePLM = 'plm-cons',
 	--usePLM = 'plm-cons-alone',
-	--usePLM = 'plm-prim-alone',
+	usePLM = 'plm-prim-alone',
 	--usePLM = 'plm-eig',
 	--usePLM = 'plm-eig-prim',
 	--usePLM = 'plm-eig-prim-ref',
@@ -49,7 +49,7 @@ local args = {
 	--slopeLimiter = 'minmod',
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
-	useCTU = true,
+	--useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -78,8 +78,8 @@ local args = {
 				{16,16,16},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
-				{400,1,1},
-				{32,32,1},
+				{128,1,1},
+				{128,128,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
@@ -200,6 +200,7 @@ local args = {
 	--initState = 'Bessel',
 	
 	--initState = 'Sod',
+	--initState = 'Sod with physical units',
 	--initStateArgs = {dim=cmdline.displayDim},
 	
 	--initState = 'rectangle',
@@ -215,28 +216,14 @@ local args = {
 	--initState = 'Richmyer-Meshkov',
 	--initState = 'radial gaussian',
 
+	-- 2002 Kurganov, Tadmor, "Solution of Two-Dimensional Riemann Problems for Gas Dynamics without Riemann Problem Solvers"
 	--initState = 'configuration 1',
 	--initState = 'configuration 2',
 	--initState = 'configuration 3',
 	--initState = 'configuration 4',
 	--initState = 'configuration 5',
 	--initState = 'configuration 6',
-
-	-- self-gravitation tests:
-	--initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
-	--initState = 'self-gravitation test 1',
-	--initState = 'self-gravitation test 1 spinning',
-	--initState = 'self-gravitation test 2',		--FIXME
-	--initState = 'self-gravitation test 2 orbiting',
-	--initState = 'self-gravitation test 4',
-	--initState = 'self-gravitation soup',	--FIXME
 	
-	-- those designed for SRHD / GRHD:
-	--initState = 'relativistic shock reflection',			-- FIXME.  these initial conditions are constant =P
-	--initState = 'relativistic blast wave test problem 1',
-	--initState = 'relativistic blast wave test problem 2',
-	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
-
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
 	--initState = 'Brio-Wu',
 	--initState = 'Orszag-Tang',
@@ -253,6 +240,43 @@ local args = {
 	--initState = '2002 Dedner Shock Reflection',
 	--initState = '2002 Dedner 2D Riemann problem',
 	--initState = '2002 Dedner Kelvin-Helmholtz',
+	
+	-- Mara initital conditions
+	--initState = 'Mara IsentropicPulse',
+	--initState = 'Mara Explosion',
+	--initState = 'Mara KelvinHelmholtz',
+	--initState = 'Mara SmoothKelvinHelmholtz',
+	--initState = 'Mara Shocktube1',
+	--initState = 'Mara Shocktube2',
+	--initState = 'Mara Shocktube3',
+	--initState = 'Mara Shocktube4',
+	--initState = 'Mara Shocktube5',
+	--initState = 'Mara ContactWave',
+	--initState = 'Mara RMHDShocktube1',
+	--initState = 'Mara RMHDShocktube2',
+	--initState = 'Mara RMHDShocktube3',
+	--initState = 'Mara RMHDShocktube4',
+	--initState = 'Mara RMHDContactWave',
+	--initState = 'Mara RMHDRotationalWave',
+
+
+	-- self-gravitation tests:
+	--initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
+	--initState = 'self-gravitation test 1',
+	--initState = 'self-gravitation test 1 spinning',
+	--initState = 'self-gravitation test 2',		--FIXME
+	--initState = 'self-gravitation test 2 orbiting',
+	--initState = 'self-gravitation test 4',
+	--initState = 'self-gravitation soup',	--FIXME
+
+
+	-- those designed for SRHD / GRHD from Marti & Muller 1998:
+	--initState = 'relativistic shock reflection',			-- FIXME.  these initial conditions are constant =P
+	--initState = 'relativistic blast wave test problem 1',
+	--initState = 'relativistic blast wave test problem 2',
+	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
+
+
 
 	-- Maxwell:
 	--initState = 'Maxwell default',
@@ -491,12 +515,12 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
 --self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=0})))
---self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=1})))
+self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=1})))
 --self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=2})))
 
 -- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler

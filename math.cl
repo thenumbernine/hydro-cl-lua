@@ -1005,23 +1005,6 @@ end
 #define normalBasisForSide1 _real3x3(0,1,0, 0,0,1, 1,0,0)
 #define normalBasisForSide2 _real3x3(0,0,1, 1,0,0, 0,1,0)
 
-// https://community.amd.com/thread/169701
-// meh, not so great
-float crand() {
-	unsigned int seed = get_global_id(0)
-		+ 13 * get_global_id(1)
-		+ 87 * get_global_id(2);
-	seed = ((seed) * 16807 ) % 2147483647;
-	seed = ((seed) * 16807 ) % 2147483647;
-	seed = ((seed) * 16807 ) % 2147483647;
-	seed = ((seed) * 16807 ) % 2147483647;
-	seed = ((seed) * 16807 ) % 2147483647;
-	seed = ((seed) * 16807 ) % 2147483647;
-	seed = ((seed) * 16807 ) % 2147483647;
-	seed = ((seed) * 16807 ) % 2147483647;
-	return (float)(seed) * 4.6566129e-10;
-}
-
 real sech(real x) {
 	return 2. / (exp(x) + exp(-x));
 }

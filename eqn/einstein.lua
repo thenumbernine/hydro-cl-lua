@@ -58,6 +58,8 @@ end
 
 
 -- and now for fillRandom ...
+-- TODO just use the random functionality that I'm adding to init/init since so many people are using it
+-- I'm always initialize all values to random, and let separate init conds overwrite it when necessary
 local ffi = require 'ffi'
 local function crand() return 2 * math.random() - 1 end
 function EinsteinEquation:fillRandom(epsilon)

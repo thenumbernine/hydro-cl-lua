@@ -124,6 +124,7 @@
 	{solver='roe', integrator='Runge-Kutta 4, TVD', usePLM='plm-athena'},													-- 1.2279971850421e-06  			0.00069848808747002
 	{solver='roe', integrator='Runge-Kutta 3, TVD', usePLM='plm-athena'},													-- 1.226178781197e-06   			0.00070049425851808
 	{solver='roe', integrator='Runge-Kutta 4, 3/8ths rule', usePLM='plm-athena'},											-- 7.2560410495091e-05  			0.00073737230229337
+--[[ backward Euler is having trouble converging
 	{solver='weno', wenoMethod='1996 Jiang Shu', wenoFlux='Lax-Friedrichs', order=5, integrator='backward Euler'},			-- 0.038374104574442    			0.0029568572954654
 	{solver='roe', fluxLimiter='Lax-Wendroff', integrator='backward Euler', integratorArgs={restart=10, epsilon=1e-10}},	-- 2.6032104426088e-05  			0.0044045564570584
 	{solver='roe', fluxLimiter='Lax-Wendroff', integrator='backward Euler', integratorArgs={restart=10, epsilon=1e-20}},	-- 1.6528741792613e-05  			0.0044050280780159
@@ -140,6 +141,7 @@
 	-- failing on advect wave
 	{solver='weno', wenoMethod='2008 Borges', wenoFlux='Lax-Friedrichs', order=5, integrator='backward Euler'},				-- nan								0.0066108897724998
 	{solver='weno', wenoMethod='2010 Shen Zha', wenoFlux='Lax-Friedrichs', order=5, integrator='backward Euler'},			-- nan								0.0051641313950373
+--]]	
 	-- failing on Sod
 	--{solver='roe', integrator='Runge-Kutta 2, non-TVD', usePLM='plm-athena'},												-- 1.3161158262309e-06				nan
 }

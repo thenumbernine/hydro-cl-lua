@@ -216,7 +216,7 @@ for sgn b >= 0:
 	<?=eqn.prim_t?> nWL = W;
 	<?=eqn.prim_t?> nWR = W;
 	for (int j = 0; j < numIntStates; ++j) {
-		real dWL = W.ptr[j] - WL.ptr[j];
+		real dWL = W.ptr[j] - WL.ptr[j];	//TODO SOR or whatever ... scalar here x2?
 		real dWC = .5 * (WR.ptr[j] - WL.ptr[j]);
 		real dWR = WR.ptr[j] - W.ptr[j];
 		real adwl = fabs(dWL);

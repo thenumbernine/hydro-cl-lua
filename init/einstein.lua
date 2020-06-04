@@ -1139,6 +1139,8 @@ TODO I now have a Bessel function routine in math.cl
 		end,
 		resetState = function(self, solver)
 			local epsilon = solver.eqn.guiVars.epsilon.value
+-- TODO just use the random functionality that I'm adding to init/init since so many people are using it
+-- I'm always initialize all values to random, and let separate init conds overwrite it when necessary
 			solver.eqn:fillRandom(epsilon)
 		end,
 	},

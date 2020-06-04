@@ -1,9 +1,12 @@
 #!/usr/bin/env luajit
 --[[
 this will run some order of accuracy tests on different configurations 
+
+
 --]]
 
 local ffi = require 'ffi'
+require 'ffi.c.stdlib'	-- free
 
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
@@ -25,6 +28,10 @@ local rundirp = unistd.getcwd(nil, 0)
 local rundir = ffi.string(rundirp)
 ffi.C.free(rundirp)
 
+-- in case it's needed
+local resultsDir = 'results'
+os.execute('mkdir "'..rundir..'/'..resultsDir..'"')
+
 -- from here on the require's expect us to be in the hydro-cl directory
 -- I should change this, and prefix all hydro-cl's require()s with 'hydro-cl', so it is require()able from other projects
 unistd.chdir'../..'
@@ -45,8 +52,8 @@ for _,w in ipairs(arg or {}) do
 end
 
 -- which problem to use
---local problemName = cmdline.init or 'advect wave'
-local problemName = cmdline.init or 'Sod'
+local problemName = cmdline.init or 'advect wave'
+--local problemName = cmdline.init or 'Sod'
 
 -- don't use cached results <-> regenerate results for selected tests
 local nocache = cmdline.nocache
@@ -116,6 +123,11 @@ local sizes = plotCompare
 
 if cmdline.time then sizes = table{sizes:last()} end
 
+-- keep C typenames unique
+-- but this messes with the cache names as well
+-- it would be good if we could dynamically resize the solvers and reuse them ... since size isn't baked into opencl anymore
+local allnames = {}
+
 for _,cfg in ipairs(problem.configurations) do
 	cfg = table(cfg)
 
@@ -138,7 +150,7 @@ print(destName)
 		.ys[index] 
 	--]]
 	local testdata
-	local srcfn = rundir..'/cache/'..destFilename..'.lua'
+	local srcfn = rundir..'/'..resultsDir..'/'..destFilename..'.lua'
 	local srcfiledata = file[srcfn]
 	if srcfiledata then
 		testdata = fromlua(srcfiledata)
@@ -193,7 +205,24 @@ print()
 					return xs, ys, exact, assert(err)
 				end
 
+				-- some hack trickery: reset the cache names for the opencl prefixes
+				-- TODO a better fix would be to just get the live resizing working again
+				for i=1,math.huge do
+					local found
+					local function try(name) 
+						if allnames[name] then 
+							found = true 
+							allnames[name] = nil 
+						end
+					end
+					try('initState_'..i)
+					try('common_'..i)
+					try('solver_'..i)
+					try('boundary_'..i)
+					if not found then break end
+				end
 				local App = class(require 'app')
+				App.allnames = allnames
 				function App:setup(clArgs)
 					cfg.app = self
 					local solver = require('solver.'..cfg.solver)(cfg)
@@ -287,7 +316,7 @@ if cmdline.time then return end
 -- [[ plot errors per grid dx
 gnuplot(
 	table({
-		output = rundir..'/results.png',
+		output = rundir..'/'..resultsDir..'/results '..problemName..'.png',
 		terminal = 'png size 2400,1400',
 		style = 'data linespoints',
 		log = 'xy',

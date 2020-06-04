@@ -246,4 +246,3 @@ real3x3 cplx3x3_im(cplx3x3 v);
 real3 normalForSide0();
 real3 normalForSide1();
 real3 normalForSide2();
-float crand();

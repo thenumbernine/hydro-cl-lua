@@ -50,6 +50,18 @@ else	-- not useCLLinkLibraries
 	end)
 end
 
+	-- how to give initCond access to rand()?
+	-- fill UBuf with random numbers before calling it
+	time('randomizing UBuf...', function()
+		local ptr = solver.UBufObj:toCPU()
+		for i=0,solver.numCells-1 do
+			for j=0,solver.eqn.numStates-1 do
+				ptr[i].ptr[j] = math.random()
+			end
+		end
+		solver.UBufObj:fromCPU(ptr)
+	end)
+
 	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.solverBuf, solver.UBuf)
 	if require 'solver.meshsolver'.is(solver) then
 		solver.initStateKernelObj.obj:setArg(2, solver.cellsBuf)
