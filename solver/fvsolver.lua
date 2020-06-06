@@ -8,6 +8,7 @@ local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
 local GridSolver = require 'solver.gridsolver'
+local real = require 'real'
 
 local common = require 'common'
 local xNames = common.xNames
@@ -34,12 +35,78 @@ end
 function FiniteVolumeSolver:refreshSolverProgram()
 	FiniteVolumeSolver.super.refreshSolverProgram(self)
 
-	-- 'calcFlux' is usually provided, but the args vary, so I'll leave it to the subclass
+	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
 	
 	self.calcDerivFromFluxKernelObj = self.solverProgramObj:kernel{name='calcDerivFromFlux', domain=self.domainWithoutBorder}
 	self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
 end
+
+
+
+-- NOTICE this adds the contents of derivBufObj and does not clear it
+function FiniteVolumeSolver:calcDeriv(derivBufObj, dt)
+if self.checkNaNs then assert(math.isfinite(dt)) end
+	local dtArg = real(dt)
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+	
+	if self.usePLM then
+		self.calcLRKernelObj(self.solverBuf, self:getULRBuf(), self.UBuf, dtArg)
+	end
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+
+	self.calcFluxKernelObj(self.solverBuf, self.fluxBuf, self:getULRBuf(), dtArg)
+
+if self.checkNaNs then assert(self:checkFinite(self.fluxBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+
+-- [=[ this is from the 2017 Zingale book
+	if self.useCTU then
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+		-- if we're using CTU then ...
+		-- 1) calc fluxes based on a slope-limiter method (PLM, etc)
+		-- 2) at each interface, integrate each dimension's LR states by all other dimensions' fluxes with a timestep of -dt/2
+		--	( don't use the deriv buf because it already has the sum of all dimensions' flux differences)
+		self.updateCTUKernelObj(self.solverBuf, self:getULRBuf(), self.fluxBuf, dtArg)
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+
+		-- now we need to calcBounds on the ULR
+		-- TODO this will break for mirror conditions
+		-- because I haven't got the boundary code flexible enough to operate on specific fields within the L & R fields of the ULRBuf
+		self:boundaryLR()
+
+		-- 3) use the final LR states to calculate the flux ...
+
+		-- the rest of this matches above
+		-- maybe use 'repeat'?
+		
+--if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+--		self.calcEigenBasisKernelObj()
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+		self.calcFluxKernelObj()
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(self.fluxBufObj)) end
+	end
+--]=]
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(self.fluxBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+	
+	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBufObj.obj)
+	self.calcDerivFromFluxKernelObj()
+
+if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+
+end
+
+
 
 function FiniteVolumeSolver:addDisplayVars()
 	FiniteVolumeSolver.super.addDisplayVars(self)

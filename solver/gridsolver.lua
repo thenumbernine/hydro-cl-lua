@@ -1573,54 +1573,6 @@ function GridSolver:calcExactError(numStates)
 	return err, ptr
 end
 
-
-function GridSolver:step(dt)
-
-	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-	
-	self.integrator:integrate(dt, function(derivBufObj)
-
-if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-	
-		if self.calcDeriv then
-			self:calcDeriv(derivBufObj, dt)
-		end
-
-if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-
-		if self.eqn.useSourceTerm then
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-			self.addSourceKernelObj(self.solverBuf, derivBufObj.obj, self.UBuf)
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-		end
-
-if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-
-		for _,op in ipairs(self.ops) do
-			if op.addSource then
-				op:addSource(derivBufObj)
-			end
-		end
-	end)
-
-	-- I moved the constrainU() and boundary() functions from here to be within the integrator, 
-	-- so that each sub-step that the RK integrator performs can apply these and be physically correct states.
-
-	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-	
-	for _,op in ipairs(self.ops) do
-		if op.step then
-			self:boundary()
-			op:step(dt)
-		end
-	end
-
-	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
-end
-
 function GridSolver:getTex(var) 
 	return self.tex
 end

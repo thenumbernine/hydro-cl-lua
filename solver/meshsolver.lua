@@ -16,6 +16,7 @@ local vec2i = require 'vec-ffi.vec2i'
 local vec2d = require 'vec-ffi.vec2d'
 local vec3d = require 'vec-ffi.vec3d'
 local SolverBase = require 'solver.solverbase'
+local real = require 'real'
 
 
 -- [=[
@@ -1018,15 +1019,18 @@ function MeshSolver:calcDT()
 	return MeshSolver.super.calcDT(self)
 end
 
+-- same as solver/roe with PLM and CTU turned off
+function MeshSolver:calcDeriv(derivBufObj, dt)
+	local dtArg = real(dt)
 
-function MeshSolver:step(dt)
-	-- ok ... what flux to use ...
-	-- right now all the fluxes are subclasses of gridsolver ...
-	-- but we want them to optionally be subclasses of meshsolver (or otherwise)
-	-- so ... behaviors?
-print('TODO MeshSolver:step')
+	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
+	self.calcFluxKernelObj.obj:setArg(2, self:getULRBuf())
+	self.calcFluxKernelObj.obj:setArg(3, dtArg)
+	self.calcFluxKernelObj()
+
+	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBufObj.obj)
+	self.calcDerivFromFluxKernelObj()
 end
-
 
 function MeshSolver:boundary()
 end
@@ -1091,6 +1095,7 @@ function MeshSolver:display(varName, ar)
 	for _,v in ipairs(mesh.vtxs) do
 		gl.glVertex3d(v:unpack())
 	end
+	gl.glEnd()
 	gl.glPointSize(1)
 
 	-- if show faces ...

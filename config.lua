@@ -29,15 +29,15 @@ local args = {
 	fixedDT = cmdline.fixedDT,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	fluxLimiter = 'donor cell',
+	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
 	--usePLM = 'plm-cons',
 	--usePLM = 'plm-cons-alone',
-	usePLM = 'plm-prim-alone',
+	--usePLM = 'plm-prim-alone',
 	--usePLM = 'plm-eig',
 	--usePLM = 'plm-eig-prim',
 	--usePLM = 'plm-eig-prim-ref',
@@ -79,7 +79,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{128,1,1},
-				{128,128,1},
+				{64,64,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
@@ -199,7 +199,7 @@ local args = {
 	--initState = 'rarefaction wave',
 	--initState = 'Bessel',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sod with physical units',
 	--initStateArgs = {dim=cmdline.displayDim},
 	
@@ -207,7 +207,7 @@ local args = {
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
-	initState = 'Kelvin-Helmholtz',
+	--initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',
@@ -503,8 +503,6 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 --]]
 
 
-
-
 -- shallow water equations
 
 
@@ -515,12 +513,12 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
 --self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=0})))
-self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=1})))
+--self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=1})))
 --self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=2})))
 
 -- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler
@@ -780,7 +778,7 @@ self.solvers:insert(require 'solver.wave-fd'(table(args, {integrator='backward E
 
 -- the start of unstructured meshes
 -- TODO FINISHME ... I just ran into the situation where meshsolver needs a modular flux, but in all previous gridsolvers, the flux scheme is baked into the mesh, so time to separate this out.
---self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh', size={8,8}}})))
+--self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh', size={4,4}}})))
 -- temp here -- to make sure ordinary solvers still run
 --self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
 

@@ -1203,7 +1203,8 @@ end) then
 				{name='noiseAmplitude', value=1e-4},
 				{name='backgroundPressure', value=2.5},
 				{name='frequency', value=2.},
-				{name='thickness', value=1e-7},--.035},
+				--{name='thickness', value=1e-7}
+				{name='thickness', value=.025},
 				{name='velInside', value=-.5},
 				{name='velOutside', value=.5},
 			}
@@ -1252,11 +1253,11 @@ end ?>
 	P = solver->backgroundPressure;
 	
 	//U is initialized with random(), so use its values for unique random #s
-	rho += solver->noiseAmplitude * (U->rho - .5);
-	v.x += solver->noiseAmplitude * (U->m.x - .5);
-	v.y += solver->noiseAmplitude * (U->m.y - .5);
-	v.z += solver->noiseAmplitude * (U->m.z - .5);
-	P += solver->noiseAmplitude * (U->ETotal - .5);
+	rho += solver->noiseAmplitude * 2. * (U->rho - .5);
+	v.x += solver->noiseAmplitude * 2. * (U->m.x - .5);
+	v.y += solver->noiseAmplitude * 2. * (U->m.y - .5);
+	v.z += solver->noiseAmplitude * 2. * (U->m.z - .5);
+	P += solver->noiseAmplitude * 2. * (U->ETotal - .5);
 ]],				{
 					solver = solver,
 					moveAxis = solver.eqn.guiVars.moveAxis.options[solver.eqn.guiVars.moveAxis.value],
@@ -1528,7 +1529,7 @@ end ?>;
 	}
 	v.y = w0*sin(4.*M_PI*c.x);
 	P = solver->init_P0;
-]]		
+]]
 		end,
 	},
 

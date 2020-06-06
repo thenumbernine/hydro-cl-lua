@@ -1,7 +1,8 @@
 kernel void calcFlux(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* fluxBuf,
-	const global <?=solver.getULRArg?>
+	const global <?=solver.getULRArg?>,
+	realparam dt	//not used by HLL, just making this match Roe / other FV solvers
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	
