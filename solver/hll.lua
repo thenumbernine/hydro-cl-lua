@@ -4,13 +4,20 @@ local table = require 'ext.table'
 local template = require 'template'
 local FiniteVolumeSolver = require 'solver.fvsolver'
 
+
 local HLL = class(FiniteVolumeSolver)
 HLL.name = 'HLL'
 
 HLL.solverCodeFile = 'solver/hll.cl'
 
+
 --HLL.calcWaveMethod = 'Davis direct'
 HLL.calcWaveMethod = 'Davis direct bounded'
+
+function HLL:init(args)
+	self.calcWaveMethod = args.calcWaveMethod
+	HLL.super.init(self, args)
+end
 
 function HLL:getSolverCode()
 	return table{

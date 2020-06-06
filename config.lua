@@ -514,7 +514,10 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 
 
 self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler'})))
+
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler', calcWaveMethod='Davis direct bounded'})))	-- this is the default calcWaveMethod
+--self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler', calcWaveMethod='Davis direct'})))
+
 --self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
 
 --self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=0})))

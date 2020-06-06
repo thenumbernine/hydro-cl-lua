@@ -1019,7 +1019,9 @@ function MeshSolver:calcDT()
 	return MeshSolver.super.calcDT(self)
 end
 
--- same as solver/roe with PLM and CTU turned off
+-- same as solver/fvsolver without PLM or CTU
+-- TODO should MeshSolver only be a finite volume, or should we support finite difference as well?
+-- or should we only support finite difference via flux calculations (like I do in fdsolver)?
 function MeshSolver:calcDeriv(derivBufObj, dt)
 	local dtArg = real(dt)
 
