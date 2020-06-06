@@ -15,6 +15,7 @@ local vec2sz = require 'vec-ffi.create_vec2'{ctype='size_t'}
 local vec2i = require 'vec-ffi.vec2i'
 local vec2d = require 'vec-ffi.vec2d'
 local vec3d = require 'vec-ffi.vec3d'
+local template = require 'template'
 local SolverBase = require 'solver.solverbase'
 local real = require 'real'
 
@@ -937,6 +938,9 @@ function MeshSolver:createBuffers()
 
 	-- similar to gridsolver's display buffer stuff when glSharing isn't found
 	self.calcDisplayVarToTexPtr = ffi.new(self.app.real..'[?]', self.numCells * 3)
+	
+	-- specific to FiniteVolumeSolver
+	self:clalloc('fluxBuf', self.eqn.cons_t, self.numFaces)
 end
 
 function MeshSolver:finalizeCLAllocs()
@@ -962,12 +966,20 @@ function MeshSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	-- numCells is the number of cells
 	-- maybe I should rename it to numCells
 	local localSize1d = math.min(maxWorkGroupSize, self.numCells)
-	
+
+	-- cell domain is the default
 	self.domain = self.app.env:domain{
-		size = {localSize1d},
-		dim = self.dim,
+		size = {self.numCells},
+		dim = 1,
 	}
-	
+
+	-- face domain for flux computations
+	-- ... and dt ?
+	self.faceDomain = self.app.env:domain{
+		size = {self.numFaces},
+		dim = 1,
+	}
+
 	return {
 		localSize1d = localSize1d, 
 	}
@@ -977,6 +989,47 @@ function MeshSolver:resetState()
 	MeshSolver.super.resetState(self)
 --self:printBuf(self.UBufObj)
 end
+
+function MeshSolver:refreshSolverProgram()
+	MeshSolver.super.refreshSolverProgram(self)
+
+	self.calcFluxKernelObj = self.solverProgramObj:kernel{name='calcFlux', domain=self.faceDomain}
+	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
+	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
+	self.calcFluxKernelObj.obj:setArg(2, self.UBuf)
+	self.calcFluxKernelObj.obj:setArg(4, self.cellsBuf)
+	self.calcFluxKernelObj.obj:setArg(5, self.facesBuf)
+	self.calcFluxKernelObj.obj:setArg(6, self.cellFaceIndexesBuf)
+
+	self.calcDerivFromFluxKernelObj = self.solverProgramObj:kernel'calcDerivFromFlux'
+	self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(3, self.cellsBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(4, self.facesBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(5, self.cellFaceIndexesBuf)
+end
+
+function MeshSolver:getSolverCode()
+	return table{
+		MeshSolver.super.getSolverCode(self),
+	
+		-- TODO flux scheme HERE
+		-- this is the 'calcFluxKernel' code part of all the fvsolver subclasses
+		-- so maybe make that its own module that plugs into both fvsolver and this
+		template(file['solver/roe.cl'], {
+			solver = self,
+			eqn = self.eqn,
+		}),
+
+		-- finite volume integration
+		template(file['solver/calcDerivFV.cl'], {
+			solver = self,
+			eqn = self.eqn,
+		}),
+	}:concat'\n'
+end
+
+
 
 function MeshSolver:createCodePrefix()
 	MeshSolver.super.createCodePrefix(self)
@@ -1005,9 +1058,9 @@ function MeshSolver:refreshCalcDTKernel()
 	MeshSolver.super.refreshCalcDTKernel(self)
 	-- TODO combine these, and offset one into the other?
 	-- because I'm going to need more than just these...
-	self.calcDTKernelObj.obj:setArg(2, self.cellsBuf)
-	self.calcDTKernelObj.obj:setArg(3, self.facesBuf)
-	self.calcDTKernelObj.obj:setArg(4, self.cellFaceIndexesBuf)
+	self.calcDTKernelObj.obj:setArg(3, self.cellsBuf)
+	self.calcDTKernelObj.obj:setArg(4, self.facesBuf)
+	self.calcDTKernelObj.obj:setArg(5, self.cellFaceIndexesBuf)
 end
 
 function MeshSolver:calcDT()
@@ -1025,8 +1078,6 @@ end
 function MeshSolver:calcDeriv(derivBufObj, dt)
 	local dtArg = real(dt)
 
-	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
-	self.calcFluxKernelObj.obj:setArg(2, self:getULRBuf())
 	self.calcFluxKernelObj.obj:setArg(3, dtArg)
 	self.calcFluxKernelObj()
 

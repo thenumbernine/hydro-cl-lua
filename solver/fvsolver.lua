@@ -25,13 +25,6 @@ function FiniteVolumeSolver:createBuffers()
 	self:clalloc('fluxBuf', self.eqn.cons_t, self.numCells * self.dim)
 end
 
-function FiniteVolumeSolver:getSolverCode()
-	return table{
-		FiniteVolumeSolver.super.getSolverCode(self),
-		template(file['solver/calcDerivFV.cl'], {solver=self}),
-	}:concat'\n'
-end
-
 function FiniteVolumeSolver:refreshSolverProgram()
 	FiniteVolumeSolver.super.refreshSolverProgram(self)
 
@@ -40,6 +33,13 @@ function FiniteVolumeSolver:refreshSolverProgram()
 	self.calcDerivFromFluxKernelObj = self.solverProgramObj:kernel{name='calcDerivFromFlux', domain=self.domainWithoutBorder}
 	self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
+end
+
+function FiniteVolumeSolver:getSolverCode()
+	return table{
+		FiniteVolumeSolver.super.getSolverCode(self),
+		template(file['solver/calcDerivFV.cl'], {solver=self}),
+	}:concat'\n'
 end
 
 

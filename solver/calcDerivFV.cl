@@ -1,3 +1,6 @@
+<? if not require 'solver.meshsolver'.is(solver) then ?>
+
+
 // used by all the finite volume solvers
 <?
 local eqn = solver.eqn
@@ -99,3 +102,47 @@ if eqn.postComputeFluxCode then ?>
 
 	}<? end ?>
 }
+
+
+<? else -- meshsolver ?>
+
+
+kernel void calcDerivFromFlux(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* derivBuf,
+	const global <?=eqn.cons_t?>* fluxBuf,
+//mesh-specific parameters:	
+	const global cell_t* cells,			//[numCells]
+	const global face_t* faces,			//[numFaces]
+	const global int* cellFaceIndexes	//[numCellFaceIndexes]
+) {
+	int cellIndex = get_global_id(0);
+	if (cellIndex >= get_global_size(0)) return;
+	
+	const global cell_t* cell = cells + cellIndex;
+	
+	global <?=eqn.cons_t?>* deriv = derivBuf + cellIndex;
+	
+	for (int i = 0; i < cell->faceCount; ++i) {
+		int ei = cellFaceIndexes[i + cell->faceOffset];
+		const global face_t* e = faces + ei;
+		
+		const global <?=eqn.cons_t?>* flux = fluxBuf + ei;
+		real areaOverVolume = e->area / cell->volume;
+		
+		if (cell == cells + e->cells.s0) {
+//std::cout << " ... - " << *e << std::endl;
+			for (int j = 0; j < numIntStates; ++j) {
+				deriv->ptr[j] -= flux->ptr[j] * areaOverVolume;
+			}
+		} else {
+//std::cout << " ... + " << *e << std::endl;
+			for (int j = 0; j < numIntStates; ++j) {
+				deriv->ptr[j] += flux->ptr[j] * areaOverVolume;
+			}
+		}
+	}
+}
+
+
+<? end -- mesh vs grid solver ?>

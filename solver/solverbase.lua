@@ -814,7 +814,8 @@ function SolverBase:getDisplayCode()
 		lines:insert((template([[
 void <?=name?>(
 	constant <?=solver.solver_t?>* solver,
-	global const <?=var and var.bufferType or 'real'?>* buf,
+	//TODO var.bufferType might not match displayCode's var.bufferType
+	global const real* buf,
 	int component,
 	int* vectorField,
 	displayValue_t* value,
@@ -843,7 +844,9 @@ end
 			var = var,
 		})))
 	end
-	addPickComponetForGroup()
+	addPickComponetForGroup{
+		bufferType = self.eqn.cons_t,
+	}
 
 --[=[
 -- ok here's another idea for saving lines of code
@@ -1208,7 +1211,7 @@ end ?><?= var.extraArgs and #var.extraArgs > 0
 	INIT_DISPLAYFUNC()
 <?=addTab(var.code)
 ?>	int vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
-	<?=solver:getPickComponentNameForGroup(var)?>(solver, buf, component, &vectorField, &value, i);
+	<?=solver:getPickComponentNameForGroup(var)?>(solver, (const global real*)buf, component, &vectorField, &value, i);
 	END_DISPLAYFUNC_<?=texVsBuf:upper()?>()
 }
 ]]

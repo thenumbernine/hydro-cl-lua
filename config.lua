@@ -29,9 +29,9 @@ local args = {
 	fixedDT = cmdline.fixedDT,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
 	
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	--fluxLimiter = 'donor cell',
+	fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
@@ -513,7 +513,7 @@ self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
 
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler', calcWaveMethod='Davis direct bounded'})))	-- this is the default calcWaveMethod
 --self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler', calcWaveMethod='Davis direct'})))
@@ -779,11 +779,8 @@ self.solvers:insert(require 'solver.wave-fd'(table(args, {integrator='backward E
 
 
 
--- the start of unstructured meshes
--- TODO FINISHME ... I just ran into the situation where meshsolver needs a modular flux, but in all previous gridsolvers, the flux scheme is baked into the mesh, so time to separate this out.
---self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh', size={4,4}}})))
--- temp here -- to make sure ordinary solvers still run
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', initState='Sod'})))
+-- unstructured meshes
+self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh', size={20,20}}})))
 
 
 
