@@ -655,16 +655,16 @@ function Mesh:calcAux()
 		local zlenSq = zcn:lenSq()
 		if xlenSq > ylenSq then
 			if xlenSq > zlenSq then	-- x
-				f.normal3:set(xcn:normalize())
+				f.normal2:set(xcn:normalize())
 			else					-- z 
-				f.normal3:set(zcn:normalize())
+				f.normal2:set(zcn:normalize())
 			end
 		elseif ylenSq > zlenSq then	-- y
-			f.normal3:set(ycn:normalize())
+			f.normal2:set(ycn:normalize())
 		else						-- z
-			f.normal3:set(zcn:normalize())
+			f.normal2:set(zcn:normalize())
 		end
-		f.normal2:set(f.normal3:cross(f.normal):normalize())
+		f.normal3:set(f.normal2:cross(f.normal):normalize())
 	end
 
 	-- now convert all our buffers to C types
