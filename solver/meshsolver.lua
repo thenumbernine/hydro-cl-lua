@@ -16,7 +16,9 @@ local vec2i = require 'vec-ffi.vec2i'
 local vec2d = require 'vec-ffi.vec2d'
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
+local matrix_ffi = require 'matrix.ffi'
 local gl = require 'gl'
+local glreport = require 'gl.report'
 local GLProgram = require 'gl.program'
 local GLArrayBuffer = require 'gl.arraybuffer'
 local GLVertexArray = require 'gl.vertexarray'
@@ -26,6 +28,7 @@ local SolverBase = require 'solver.solverbase'
 local time, getTime = table.unpack(require 'util.time')
 local real = require 'real'
 
+matrix_ffi.real = 'float'	-- default matrix_ffi type
 
 -- [=[
 --[[
@@ -136,7 +139,8 @@ function vector:insert(...)
 	end
 end
 function vector:__len()
-	return rawget(self, 'size')
+	--return rawget(self, 'size')
+	return self.size
 end
 function vector:__tostring()
 	local s = '['
@@ -942,22 +946,26 @@ end)
 	
 	self.drawShader = GLProgram{
 		vertexCode = [[
+#version 460
 uniform float drawCellScale;
+uniform mat4 modelViewProjectionMatrix;
 attribute vec3 vtx;
 attribute vec3 vtxcenter;
 attribute float value;
 varying float valuev;
 void main() {
 	vec3 v = (vtx - vtxcenter) * drawCellScale + vtxcenter;
-	gl_Position = gl_ModelViewProjectionMatrix * vec4(v, 1.);
+	gl_Position = modelViewProjectionMatrix * vec4(v, 1.);
 	valuev = value;
 }
 ]],
 		fragmentCode = [[
-varying float valuev;
+#version 460
 uniform sampler1D gradTex;
+varying float valuev;
+out vec4 fragColor;
 void main() {
-	gl_FragColor = texture1D(gradTex, valuev);
+	fragColor = texture1D(gradTex, valuev);
 }
 ]],
 		uniforms = {
@@ -965,6 +973,10 @@ void main() {
 			drawCellScale = 1,
 		},
 	}
+	
+	self.modelViewMatrix = matrix_ffi.zeros(4,4)
+	self.projectionMatrix = matrix_ffi.zeros(4,4)
+	self.modelViewProjectionMatrix = matrix_ffi.zeros(4,4)
 
 	-- make a GPU version of the mesh
 	-- TODO triangulate ... then include a mapping from triangle to source cell,
@@ -1017,10 +1029,22 @@ void main() {
 	self.glvalue = glvalue
 	self.numGlVtxs = #glvtxs
 
+
 	self.glVtxBuffer = GLArrayBuffer{
 		data = glvtxs.v,
 		size = #glvtxs * ffi.sizeof(glvtxs.type), 
 	}
+	self.glVtxCenterBuffer = GLArrayBuffer{
+		data = glvtxcenters.v,
+		size = #glvtxcenters * ffi.sizeof(glvtxcenters.type), 
+	}
+	self.glValueBuffer = GLArrayBuffer{
+		data = glvalue.v,
+		size = #glvalue * ffi.sizeof(glvalue.type),
+	}
+
+
+-- [[ uses VertexArray
 	self.drawShaderVtxVertexArray = GLVertexArray{
 		buffer = self.glVtxBuffer,
 		size = 3,
@@ -1030,10 +1054,6 @@ void main() {
 	self.drawShader:setAttr('vtx', self.drawShaderVtxVertexArray)
 	self.drawShaderVtxVertexArray:unbind()
 
-	self.glVtxCenterBuffer = GLArrayBuffer{
-		data = glvtxcenters.v,
-		size = #glvtxcenters * ffi.sizeof(glvtxcenters.type), 
-	}
 	self.drawShaderVtxCenterVertexArray = GLVertexArray{
 		buffer = self.glVtxCenterBuffer,
 		size = 3,
@@ -1043,10 +1063,6 @@ void main() {
 	self.drawShader:setAttr('vtxcenter', self.drawShaderVtxCenterVertexArray)
 	self.drawShaderVtxCenterVertexArray:unbind()
 
-	self.glValueBuffer = GLArrayBuffer{
-		data = glvalue.v,
-		size = #glvalue * ffi.sizeof(glvalue.type),
-	}
 	self.drawShaderValueVertexArray = GLVertexArray{
 		buffer = self.glValueBuffer,
 		size = 1,
@@ -1055,8 +1071,21 @@ void main() {
 	self.drawShaderValueVertexArray:bind()
 	self.drawShader:setAttr('value', self.drawShaderValueVertexArray)
 	self.drawShaderValueVertexArray:unbind()
+--]]
 
-	
+-- [[ doesn't use VertexArrays, but uses EnableVertexAttribArray instead
+	self.glValueBuffer:bind()
+	self.drawShaderValueVertexArray:setAttr(self.drawShader.attrs.value.loc)
+	self.glValueBuffer:unbind()
+	self.glVtxCenterBuffer:bind()
+	self.drawShaderVtxCenterVertexArray:setAttr(self.drawShader.attrs.vtxcenter.loc)
+	self.glVtxCenterBuffer:unbind()
+	self.glVtxBuffer:bind()
+	self.drawShaderVtxVertexArray:setAttr(self.drawShader.attrs.vtx.loc)
+	self.glVtxBuffer:unbind()
+--]]
+
+
 	-- no longer is dim * numCells the number of interfaces -- it is now dependent on the mesh
 	-- maybe I should rename this to numFaces?
 	
@@ -1296,6 +1325,11 @@ function MeshSolver:display(varName, ar)
 	view:projection(ar)
 	view:modelview()
 
+	
+	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.modelViewMatrix.ptr)
+	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projectionMatrix.ptr)
+	self.modelViewProjectionMatrix:mul(self.projectionMatrix, self.modelViewMatrix)
+
 	-- draw the mesh 
 	local mesh = self.mesh
 
@@ -1341,6 +1375,7 @@ function MeshSolver:display(varName, ar)
 		local gradientTex = app.gradientTex
 		self.drawShader:use()
 		gl.glUniform1f(self.drawShader.uniforms.drawCellScale.loc, self.drawCellScale)
+		gl.glUniformMatrix4fv(self.drawShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, self.modelViewProjectionMatrix.ptr)
 		gradientTex:bind()
 --[[ doesn't work yet
 		self.drawShaderVtxVertexArray:bind()
@@ -1351,19 +1386,10 @@ function MeshSolver:display(varName, ar)
 		self.drawShaderVtxCenterVertexArray:unbind()
 		self.drawShaderValueVertexArray:unbind()
 --]]
--- [[ 160 fps @ 64x64 quad grid
-		self.glValueBuffer:bind()
-		gl.glVertexAttribPointer(self.drawShader.attrs.value.loc, 1, gl.GL_FLOAT, gl.GL_FALSE, 0, nil)
+-- [[ 180 fps @ 64x64 quad grid
 		gl.glEnableVertexAttribArray(self.drawShader.attrs.value.loc)
-		self.glValueBuffer:unbind()
-		self.glVtxCenterBuffer:bind()
-		gl.glVertexAttribPointer(self.drawShader.attrs.vtxcenter.loc, 3, gl.GL_FLOAT, gl.GL_FALSE, 0, nil)
 		gl.glEnableVertexAttribArray(self.drawShader.attrs.vtxcenter.loc)
-		self.glVtxCenterBuffer:unbind()
-		self.glVtxBuffer:bind()
-		gl.glVertexAttribPointer(self.drawShader.attrs.vtx.loc, 3, gl.GL_FLOAT, gl.GL_FALSE, 0, nil)
 		gl.glEnableVertexAttribArray(self.drawShader.attrs.vtx.loc)
-		self.glVtxBuffer:unbind()
 		gl.glDrawArrays(gl.GL_TRIANGLES, 0, self.numGlVtxs * 3)
 		gl.glDisableVertexAttribArray(self.drawShader.attrs.value.loc)
 		gl.glDisableVertexAttribArray(self.drawShader.attrs.vtxcenter.loc)
@@ -1381,6 +1407,8 @@ function MeshSolver:display(varName, ar)
 		gradientTex:unbind()
 		self.drawShader:useNone()
 	end
+
+	glreport'here'
 end
 
 function MeshSolver:updateGUI()
