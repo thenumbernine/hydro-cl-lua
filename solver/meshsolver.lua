@@ -44,6 +44,7 @@ function vector:init(ctype, arg)
 	end
 
 	-- I don't want to set __index to vector or else things will go bad within class init ... so set it here:
+	--[[
 	local mt = table(vector)
 	function mt:__index(k)
 		local mv = mt[k] 
@@ -57,14 +58,15 @@ function vector:init(ctype, arg)
 		assert(k >= 0 and k < #self)
 		rawget(self, 'v')[k] = v
 	end
-	function mt.__ipairs()
-		return coroutine.wrap(function()
-			for i=0,self.size-1 do
-				coroutine.yield(i, self.v[i])
-			end
-		end)
-	end
 	setmetatable(self, mt)
+	--]]
+end
+function vector:__ipairs()
+	return coroutine.wrap(function()
+		for i=0,self.size-1 do
+			coroutine.yield(i, self.v[i])
+		end
+	end)
 end
 function vector:setcapacity(newcap)
 	if newcap <= self.capacity then return end
@@ -403,13 +405,13 @@ end
 -- returns a 0-based index
 function Mesh:addFaceForVtxs(vs, n)
 	for fi=0,#self.faces-1 do
-		local f = assert(self.faces[fi], "failed to get face at 0-based "..fi)
+		local f = assert(self.faces.v[fi], "failed to get face at 0-based "..fi)
 		if self.solver.dim == 2 then
 			local va = vs[1]
 			local vb = vs[2]
 			if f.vtxCount == 2 then
-				if (self.faceVtxIndexes[f.vtxOffset+0] == va and self.faceVtxIndexes[f.vtxOffset+1] == vb) or
-					(self.faceVtxIndexes[f.vtxOffset+0] == vb and self.faceVtxIndexes[f.vtxOffset+1] == va)
+				if (self.faceVtxIndexes.v[f.vtxOffset+0] == va and self.faceVtxIndexes.v[f.vtxOffset+1] == vb) or
+					(self.faceVtxIndexes.v[f.vtxOffset+0] == vb and self.faceVtxIndexes.v[f.vtxOffset+1] == va)
 				then
 					return fi
 				end
@@ -419,7 +421,7 @@ function Mesh:addFaceForVtxs(vs, n)
 				--check in one direction
 				local matches = true
 				for i=0,n-1 do
-					if self.faceVtxIndexes[f.vtxOffset+i] ~= vs[1+(j+i)%n] then
+					if self.faceVtxIndexes.v[f.vtxOffset+i] ~= vs[1+(j+i)%n] then
 						matches = false;
 						break
 					end
@@ -429,7 +431,7 @@ function Mesh:addFaceForVtxs(vs, n)
 				--check in the other direction
 				matches = true
 				for i=0,n-1 do
-					if self.faceVtxIndexes[f.vtxOffset+i] ~= vs[1+(j+n-i)%n] then
+					if self.faceVtxIndexes.v[f.vtxOffset+i] ~= vs[1+(j+n-i)%n] then
 						matches = false
 						break
 					end
@@ -452,8 +454,8 @@ function Mesh:addFaceForVtxs(vs, n)
 
 	--TODO calc these for n=3
 	if self.solver.dim == 2 then
-		local a = self.vtxs[vs[1]]
-		local b = self.vtxs[vs[2]]
+		local a = self.vtxs.v[vs[1]]
+		local b = self.vtxs.v[vs[2]]
 		for i=0,2 do
 			f.pos.s[i] = (a.s[i] + b.s[i]) * .5
 		end
@@ -467,7 +469,7 @@ function Mesh:addFaceForVtxs(vs, n)
 	elseif self.solver.dim == 3 then
 		local polyVtxs = table()	--vector('real3', n)
 		for i=1,n do
-			polyVtxs[i] = self.vtxs[vs[i]]
+			polyVtxs[i] = self.vtxs.v[vs[i]]
 		end
 		for i=0,n-1 do
 			local i2 = (i+1)%n
@@ -489,7 +491,7 @@ end
 function Mesh:addFace(vs, n, ci)
 	local fi = self:addFaceForVtxs(vs, n)
 --	if fi ~= -1 then return fi end
-	local f = self.faces[fi]
+	local f = self.faces.v[fi]
 	if f.cells.s[0] == -1 then
 		f.cells.s[0] = ci
 	elseif f.cells.s[1] == -1 then
@@ -519,14 +521,14 @@ function Mesh:addCell(vis)
 	if self.solver.dim == 2 then
 		--face is a 1-form
 		for i=1,n do
-			local vtxs = {vis[i-1], vis[i%n]}
+			local vtxs = {vis.v[i-1], vis.v[i%n]}
 			local fi = self:addFace(vtxs, #vtxs, ci)
 			do -- if (fi != -1) then
 				self.cellFaceIndexes:push_back(fi)
 			end
 		end
 		local polyVtxs = range(0,#vis-1):mapi(function(i)
-			return self.vtxs[vis[i]]
+			return self.vtxs.v[vis.v[i]]
 		end)
 		
 		c.volume = self:polygonVolume(polyVtxs)
@@ -562,12 +564,12 @@ function Mesh:addCell(vis)
 		for _,side in ipairs(identityCubeSides) do
 			
 			local thisFaceVtxIndexes = table.mapi(side, function(side_i)
-				return vis[side_i]
+				return vis.v[side_i]
 			end)
 			
 			local fi = self:addFace(self.thisFaceVtxIndexes, #self.thisFaceVtxIndexes, ci)
 			do -- if fi ~= -1 then
-				local f = self.faces[fi]
+				local f = self.faces.v[fi]
 				
 				--if face area is zero then don't add it to cell's faces
 				-- and don't use it later for determining cell's volume
@@ -577,7 +579,7 @@ function Mesh:addCell(vis)
 
 					cubeVtxs:insert(
 						table.mapi(thisFaceVtxIndexes, function(i)
-							return vtxs[i]
+							return vtxs.v[i]
 						end)
 					)
 				end
@@ -602,8 +604,8 @@ function Mesh:calcAux()
 		local a = f.cells.s[0]
 		local b = f.cells.s[1]
 		if a ~= -1 and b ~= -1 then
-			local cella = self.cells[a]
-			local cellb = self.cells[b]
+			local cella = self.cells.v[a]
+			local cellb = self.cells.v[b]
 			local dx = cella.pos.x - cellb.pos.x
 			local dy = cella.pos.y - cellb.pos.y
 			local dz = cella.pos.z - cellb.pos.z
@@ -616,19 +618,19 @@ function Mesh:calcAux()
 				f.normal.y = -f.normal.y
 				f.normal.z = -f.normal.z
 				
-				cella = self.cells[a]
-				cellb = self.cells[b]
+				cella = self.cells.v[a]
+				cellb = self.cells.v[b]
 				dx = -dx
 				dy = -dy
 				dz = -dz
 				nDotDelta = -nDotDelta 
 			end
 			--distance between cell centers
-			--f.cellDist = (self.cells[b].pos - self.cells[a].pos).length();
+			--f.cellDist = (self.cells.v[b].pos - self.cells.v[a].pos).length();
 			--distance projected to edge normal
 			f.cellDist = math.abs(nDotDelta)
 		elseif a ~= -1 then
-			local cella = self.cells[a]
+			local cella = self.cells.v[a]
 			local dx = cella.pos.x - f.pos.x
 			local dy = cella.pos.y - f.pos.y
 			local dz = cella.pos.z - f.pos.z
@@ -728,53 +730,51 @@ Tri2DMeshFactory.name = 'Tri2DMesh'
 function Tri2DMeshFactory:createMesh(solver)
 	local mesh = Mesh(solver)
 
-	local n = self.size + 1
-	local step = vec2i(1, n.x)
+	local nx = tonumber(self.size.x) + 1
+	local ny = tonumber(self.size.y) + 1
 	
-	local vtxsize = n:volume()
+	local stepx = 1
+	local stepy = nx
+	
+	local vtxsize = nx * ny
 	if self.capmin.x then vtxsize = vtxsize + 1 end
 
 	mesh.vtxs:resize(vtxsize)
-	local i = vec2i(0,0)
-	for iy=0,n.y-1 do
-		i.y = iy
-		for ix=0,n.x-1 do
-			i.x = ix
-			local x = vec2d(vec2d(i) / vec2d(self.size) * (self.maxs - self.mins) + self.mins)
+	for iy=0,ny-1 do
+		for ix=0,nx-1 do
+			local x = vec2d(
+				tonumber(ix / self.size.x * (self.maxs.x - self.mins.x) + self.mins.x),
+				tonumber(iy / self.size.y * (self.maxs.y - self.mins.y) + self.mins.y))
 			local u = self:coordChart(x)
-			mesh.vtxs[tonumber(i:dot(step))] = self.real3(u:unpack())
+			mesh.vtxs.v[ix * stepx + iy * stepy] = self.real3(u:unpack())
 		end
 	end
 	
-	local capindex = n:volume()
+	local capindex = nx * ny
 	if self.capmin.x then
 		local sum = mesh.real3()
-		for j=0,n.y-1 do
-			sum = sum + mesh.vtxs[tonumber(0 + n.x * j)]
+		for j=0,ny-1 do
+			sum = sum + mesh.vtxs.v[0 + nx * j]
 		end
-		mesh.vtxs[tonumber(capindex)].pos = sum / tonumber(n.y)
+		mesh.vtxs.v[capindex].pos = sum / ny
 	end
 	
-	local imax = vec2i()
-	for j=0,1 do
-		imax.s[j] = self.wrap.s[j] ~= 0 and n.s[j] or n.s[j] - 1
-	end
+	local imaxx = self.wrap.x ~= 0 and nx or nx - 1
+	local imaxy = self.wrap.y ~= 0 and ny or ny - 1
 	
-	local ni = vec2i()
-	for iy=0,imax.y-1 do
-		i.y = iy
-		ni.y = (i.y + 1) % n.y
-		for ix=0,imax.x-1 do
-			ni.x = (i.x + 1) % n.x
+	for iy=0,imaxy-1 do
+		local niy = (iy + 1) % ny
+		for ix=0,imaxx-1 do
+			local nix = (ix + 1) % nx
 			mesh:addCell(vector('int',{
-				tonumber(i.x + n.x * i.y),
-				tonumber(ni.x + n.x * i.y),
-				tonumber(ni.x + n.x * ni.y),
+				ix + nx * iy,
+				nix + nx * iy,
+				nix + nx * niy,
 			}))
 			mesh:addCell(vector('int',{
-				tonumber(ni.x + n.x * ni.y),
-				tonumber(i.x + n.x * ni.y),
-				tonumber(i.x + n.x * i.y),
+				nix + nx * niy,
+				ix + nx * niy,
+				ix + nx * iy,
 			}))
 		end
 	end
@@ -810,7 +810,7 @@ function Quad2DMeshFactory:createMesh(solver)
 			i.x = ix
 			local x = vec2d((i + iofs):unpack()) / vec2d(coordRangeMax:unpack()) * (self.maxs - self.mins) + self.mins
 			local u = self:coordChart(x)
-			mesh.vtxs[tonumber(i:dot(step))] = mesh.real3(u:unpack())
+			mesh.vtxs.v[tonumber(i:dot(step))] = mesh.real3(u:unpack())
 		end
 	end
 	
@@ -818,9 +818,9 @@ function Quad2DMeshFactory:createMesh(solver)
 	if self.capmin.x ~= 0 then
 		local sum = mesh.real3()
 		for j=0,n.y-1 do
-			sum = sum + mesh.vtxs[tonumber(0 + n.x * j)]
+			sum = sum + mesh.vtxs.v[tonumber(0 + n.x * j)]
 		end
-		mesh.vtxs[tonumber(capindex)] = sum / tonumber(n.y)
+		mesh.vtxs.v[tonumber(capindex)] = sum / tonumber(n.y)
 	end
 
 	local imax = vec2i()
@@ -1121,6 +1121,10 @@ end
 
 MeshSolver.drawCellScale = .9
 
+-- FPS of a 64x64 quad mesh:
+-- sys=console: ~900
+-- sys=imgui: ~2
+-- so this function runs 500x slower
 local gl = require 'gl'
 function MeshSolver:display(varName, ar)
 	local app = self.app
@@ -1152,7 +1156,6 @@ function MeshSolver:display(varName, ar)
 	app:drawGradientLegend(ar, showName, gradientValueMin, gradientValueMax)
 --]]
 
-
 -- [[ matches GridSolver.calcDisplayVarToTex
 	local component = self.displayComponentFlatList[var.component]
 	local vectorField = self:isVarTypeAVectorField(component.type)
@@ -1165,9 +1168,6 @@ function MeshSolver:display(varName, ar)
 	local channels = vectorField and 3 or 1
 	self.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
 --]]
-
-
-
 
 	local view = app.view
 	view:projection(ar)
@@ -1191,7 +1191,7 @@ function MeshSolver:display(varName, ar)
 		for fi,f in ipairs(mesh.faces) do
 			gl.glBegin(gl.GL_LINE_LOOP)
 			for vi=0,f.vtxCount-1 do
-				local v = mesh.vtxs[mesh.faceVtxIndexes[vi + f.vtxOffset]]
+				local v = mesh.vtxs.v[mesh.faceVtxIndexes.v[vi + f.vtxOffset]]
 				gl.glVertex3d(v:unpack())
 			end
 			gl.glEnd()
@@ -1216,8 +1216,11 @@ function MeshSolver:display(varName, ar)
 
 				gl.glBegin(gl.GL_POLYGON)
 				for vi=0,c.vtxCount-1 do
-					local v = mesh.vtxs[mesh.cellVtxIndexes[vi + c.vtxOffset]]
-					gl.glVertex3d(((v - c.pos) * self.drawCellScale + c.pos):unpack())
+					local v = mesh.vtxs.v[mesh.cellVtxIndexes.v[vi + c.vtxOffset]]
+					-- runs 20x slower
+					-- TODO use GPU instead
+					--gl.glVertex3d(((v - c.pos) * self.drawCellScale + c.pos):unpack())
+					gl.glVertex3d(v:unpack())
 				end
 				gl.glEnd()
 			end
@@ -1227,11 +1230,12 @@ function MeshSolver:display(varName, ar)
 				gl.glTexCoord1f(displayValue)
 				
 				for i=0,c.faceCount-1 do
-					local f = mesh.faces[mesh.cellFaceIndexes[i + c.faceOffset]]
+					local f = mesh.faces.v[mesh.cellFaceIndexes.v[i + c.faceOffset]]
 					gl.glBegin(gl.GL_POLYGON)
 					for vi=0,f.vtxCount-1 do
-						local v = mesh.vtxs[mesh.cellFaceIndexes[vi + f.vtxOffset]]
-						gl.glVertex3d(((v - c.pos) * self.drawCellScale + c.pos):unpack())
+						local v = mesh.vtxs.v[mesh.cellFaceIndexes.v[vi + f.vtxOffset]]
+						--gl.glVertex3d(((v - c.pos) * self.drawCellScale + c.pos):unpack())
+						gl.glVertex3d(v:unpack())
 					end
 					gl.glEnd()
 				end
