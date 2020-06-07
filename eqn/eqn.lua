@@ -88,7 +88,7 @@ function Equation:getParityVars(...)
 	return vars
 end
 
-local Struct = require 'struct.struct'
+local Struct = require 'hydro.struct.struct'
 
 --[[
 args:

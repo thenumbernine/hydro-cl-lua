@@ -28,6 +28,7 @@ local tooltip = require 'hydro.tooltip'
 local SolverBase = require 'solver.solverbase'
 local time, getTime = table.unpack(require 'hydro.util.time')
 local real = require 'hydro.real'
+local struct = require 'hydro.struct.struct'
 
 matrix_ffi.real = 'float'	-- default matrix_ffi type
 
@@ -172,7 +173,6 @@ os.exit()
 
 local MeshSolver = class(SolverBase)
 
-local struct = require 'struct.struct'
 local face_t = struct{
 	name = 'face_t',
 	dontUnion = true,
@@ -1278,7 +1278,6 @@ end
 -- sys=console: ~900
 -- sys=imgui: ~2
 -- so this function runs 500x slower
-local gl = require 'gl'
 function MeshSolver:display(varName, ar)
 	local app = self.app
 

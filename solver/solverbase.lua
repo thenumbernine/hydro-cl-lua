@@ -14,7 +14,7 @@ local tooltip = require 'hydro.tooltip'
 local makestruct = require 'eqn.makestruct'
 local roundup = require 'hydro.util.roundup'
 local time, getTime = table.unpack(require 'hydro.util.time')
-local Struct = require 'struct.struct'
+local Struct = require 'hydro.struct.struct'
 
 local common = require 'hydro.common'	-- xNames, symNames
 local xNames = common.xNames
