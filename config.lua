@@ -29,9 +29,9 @@ local args = {
 	fixedDT = cmdline.fixedDT,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
 	
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	--fluxLimiter = 'donor cell',
+	fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
@@ -79,7 +79,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{128,1,1},
-				{50,50,1},
+				{128,128,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
@@ -780,12 +780,17 @@ self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='back
 
 
 -- unstructured meshes
--- CFDMesh runs 256x256 at 10-11 fps
--- hydro-cl GridSolver runs 256x256 at 37 fps
--- CFDMesh runs 50x50 at 100 fps
--- hydro-cl GridSolver runs 50x50 at 800 fps
--- hydro-cl MeshSolver runs 50x50 at 160 fps
-self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh', size={cmdline.meshsize or 50, cmdline.meshsize or 50}}})))
+-- CFDMesh runs 50x50 at 100 fps (TODO without display)
+-- CFDMesh runs 256x256 at 10.5 fps (TODO without display)
+-- TODO Hydro 50x50 with fluxLimiter
+-- TODO Hydro 50x50 without fluxLimiter
+-- hydro-cl GridSolver with fluxLimiter runs 50x50 at 800 fps
+-- hydro-cl GridSolver without fluxLimiter runs 50x50 at 2200 fps
+-- hydro-cl GridSolver with fluxLimiter runs 256x256 at 60 fps
+-- hydro-cl GridSolver without fluxLimiter runs 256x256 at 155 fps
+-- hydro-cl MeshSolver runs 50x50 at 2500 fps
+-- hydro-cl MeshSolver runs 256x256 ... too slow to build (takes a few minutes) 
+self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 
 
 

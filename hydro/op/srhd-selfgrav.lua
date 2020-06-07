@@ -4,9 +4,9 @@ local template = require 'template'
 -- TODO make this a ctor parameter 
 local Poisson = require(
 	cmdline.srhdSelfGravPoissonSolver 
-	and 'op.poisson_'..cmdline.srhdSelfGravPoissonSolver
-	or 'op.poisson_krylov'		-- Krylov
-	--or 'op.poisson_jacobi'		-- Jacobi
+	and 'hydro.op.poisson_'..cmdline.srhdSelfGravPoissonSolver
+	or 'hydro.op.poisson_krylov'		-- Krylov
+	--or 'hydro.op.poisson_jacobi'		-- Jacobi
 )
 
 

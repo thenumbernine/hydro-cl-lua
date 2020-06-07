@@ -944,7 +944,10 @@ end)
 	texsize will have to be > #elems ... using size is fine as long as we need a gridsize
 	--]]
 
-	
+
+	if self.app.targetSystem ~= 'console' then
+
+
 	self.drawShader = GLProgram{
 		vertexCode = [[
 #version 460
@@ -1086,6 +1089,7 @@ void main() {
 	self.glVtxBuffer:unbind()
 --]]
 
+	end	--if self.app.targetSystem ~= 'console' then
 
 	-- no longer is dim * numCells the number of interfaces -- it is now dependent on the mesh
 	-- maybe I should rename this to numFaces?
@@ -1279,6 +1283,8 @@ end
 -- sys=imgui: ~2
 -- so this function runs 500x slower
 function MeshSolver:display(varName, ar)
+	if self.app.targetSystem == 'console' then return end	
+
 	local app = self.app
 
 	local var = self.displayVarForName[varName]
