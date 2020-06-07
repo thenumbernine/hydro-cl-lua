@@ -1096,6 +1096,11 @@ void main() {
 	
 	local solver = self
 	local Program = class(require 'cl.obj.program')
+	if ffi.os == 'Windows' then
+		os.execute'mkdir cache-cl 2> nul'
+	else
+		os.execute'mkdir cache-cl 2> /dev/null'
+	end
 	function Program:init(args)
 		args.env = solver.app.env
 		args.domain = solver.domain

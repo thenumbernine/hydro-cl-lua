@@ -1116,7 +1116,7 @@ Q = pi J0(2 pi) J1(2 pi) - 2 pi t J0(2 pi t) J1(2 pi t) cos(2 pi z)^2
 at time tau=0 <=> t=t0, and picking 2 pi t0 to be a root of J0 ...
 Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
 
-TODO I now have a Bessel function routine in math.cl
+TODO I now have a Bessel function routine in hydro/math.cl
 --]]
 	{
 		name = 'Gowdy waves',

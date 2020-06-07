@@ -1,6 +1,6 @@
 // This file needs to be templated, so it must be processed and manually inserted
-// I could write out the templated math.h file into the cache-cl folder, and then add that to the CL compiler include folder, and include it from there ...
-//#include "math.h"
+// I could write out the templated hydro/math.h file into the cache-cl folder, and then add that to the CL compiler include folder, and include it from there ...
+//#include "hydro/math.h"
 
 <?
 local common = require 'hydro.common'	-- xNames, symNames

@@ -586,9 +586,9 @@ if not SolverBase.useCLLinkLibraries then return end
 		self.mathUnlinkedObj = self.Program{
 			name = 'math',
 			code = template(table{
-				file['math.types.h'],
-				file['math.h'],
-				file['math.cl'],
+				file['hydro/math.types.h'],
+				file['hydro/math.h'],
+				file['hydro/math.cl'],
 			}:concat'\n', {app=self.app}),
 		}
 		self.mathUnlinkedObj:compile{
@@ -999,8 +999,8 @@ function SolverBase:createCodePrefixHeader()
 	local lines = table()
 	
 	-- real3
-	lines:insert(template(file['math.types.h'], {app=self.app}))
-	lines:insert(template(file['math.h'], {app=self.app}))
+	lines:insert(template(file['hydro/math.types.h'], {app=self.app}))
+	lines:insert(template(file['hydro/math.h'], {app=self.app}))
 
 	if self.dim == 3 then
 		lines:insert'#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable'
@@ -1046,8 +1046,8 @@ function SolverBase:createCodePrefixSource()
 	lines = table()
 if not SolverBase.useCLLinkLibraries then 
 	lines:append{
-		'//math.ch',
-		template(file['math.cl'], {app=self.app}),
+		'//math.cl',
+		template(file['hydro/math.cl'], {app=self.app}),
 	}
 end	
 	lines:append{
