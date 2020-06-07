@@ -47,7 +47,7 @@ GRMaxwell.initStates = require 'hydro.init.euler'
 function GRMaxwell:init(args)
 	GRMaxwell.super.init(self, args)
 
-	local NoDiv = require 'op.nodiv'()
+	local NoDiv = require 'hydro.op.nodiv'()
 	self.solver.ops:insert(NoDiv{solver=self.solver})
 end
 

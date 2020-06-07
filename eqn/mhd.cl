@@ -592,7 +592,7 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
-<? if not require 'coord.cartesian'.is(solver.coord) then ?>
+<? if not require 'hydro.coord.cartesian'.is(solver.coord) then ?>
 	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
 	real BSq = coordLenSq(U->B, x);
 	real PMag = .5 * BSq / solver->mu0;

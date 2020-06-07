@@ -1189,7 +1189,7 @@ end) then
 			local sliceAxis = 2
 			
 			-- move around the cylinder
-			if require 'coord.cylinder'.is(solver.coord) then
+			if require 'hydro.coord.cylinder'.is(solver.coord) then
 				moveAxis = 2
 				sliceAxis = 1
 			end
@@ -1215,7 +1215,7 @@ end) then
 			for i,x in ipairs(xNames) do
 				for _,minmax in ipairs(minmaxs) do
 					boundaryMethods[x..minmax] = 'periodic'
-					if require 'coord.cylinder'.is(solver.coord) 
+					if require 'hydro.coord.cylinder'.is(solver.coord) 
 					and i == 1
 					then
 						boundaryMethods[x..minmax] = 'mirror'

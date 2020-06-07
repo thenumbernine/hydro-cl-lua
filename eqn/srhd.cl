@@ -402,7 +402,7 @@ kernel void addSource(
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
-<? if not require 'coord.cartesian'.is(solver.coord) then ?>
+<? if not require 'hydro.coord.cartesian'.is(solver.coord) then ?>
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
 	//TODO calculate this according to SRHD flux.  I'm winging it right now.
 	real P = calc_P(solver, U->rho, U->eInt);

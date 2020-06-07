@@ -127,10 +127,10 @@ function TwoFluidEMHD:init(args)
 	TwoFluidEMHD.super.init(self, args)
 
 
---	local NoDiv = require 'op.nodiv'()
+--	local NoDiv = require 'hydro.op.nodiv'()
 --	self.solver.ops:insert(NoDiv{solver=self.solver})	-- nodiv on maxwell ... or just use potentials 
 
-	local TwoFluidSelfGrav = require 'op.twofluid-selfgrav'
+	local TwoFluidSelfGrav = require 'hydro.op.twofluid-selfgrav'
 	self.gravOp = TwoFluidSelfGrav{solver=self.solver}
 	self.solver.ops:insert(self.gravOp)
 end

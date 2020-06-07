@@ -48,10 +48,10 @@ MHD.initStates = require 'hydro.init.euler'
 function MHD:init(args)
 	MHD.super.init(self, args)
 
-	local UpdatePsi = require 'op.glm-mhd-update-psi'
+	local UpdatePsi = require 'hydro.op.glm-mhd-update-psi'
 	self.solver.ops:insert(UpdatePsi{solver=self.solver})
 	
-	local SelfGrav = require 'op.selfgrav'
+	local SelfGrav = require 'hydro.op.selfgrav'
 	self.gravOp = SelfGrav{solver=self.solver}
 	self.solver.ops:insert(self.gravOp)
 end

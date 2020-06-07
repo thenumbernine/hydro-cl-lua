@@ -135,10 +135,10 @@ function SolverBase:preInit(args)
 	self.integratorArgs = args.integratorArgs
 	self.integratorIndex = integratorNames:find(args.integrator) or 1
 
-	if require 'coord.coord'.is(args.coord) then
+	if require 'hydro.coord.coord'.is(args.coord) then
 		self.coord = args.coord	-- ptr copy expected by AMR
 	else
-		self.coord = require('coord.'..args.coord)(table({solver=self}, args.coordArgs))
+		self.coord = require('hydro.coord.'..args.coord)(table({solver=self}, args.coordArgs))
 	end
 
 	self.checkNaNs = self.checkNaNs

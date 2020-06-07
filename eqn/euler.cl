@@ -296,7 +296,7 @@ kernel void addSource(
 
 <? if false 
 and solver.coord.vectorComponent == 'anholonomic' 
-and require 'coord.cylinder'.is(solver.coord) 
+and require 'hydro.coord.cylinder'.is(solver.coord) 
 then ?>
 <? 	if true then -- 2009 Trangenstein, p.474, 1999 Toro, p.29, eqn.1.104, 1.105 ?>
 	<? for side=0,1 do ?>{
@@ -320,7 +320,7 @@ then ?>
 <? end ?>
 
 <? do -- if not solver.coord.vectorComponent == 'anholonomic' then ?>
-<? if not require 'coord.cartesian'.is(solver.coord) then ?>
+<? if not require 'hydro.coord.cartesian'.is(solver.coord) then ?>
 /*
 This is working for init conds with zero velocity.
 Introducing constant velocity of v=[x=1,y=1]=[r=sqrt(2),theta=pi/4] in the init cond causes some numerical errors.

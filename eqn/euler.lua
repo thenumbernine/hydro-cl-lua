@@ -61,13 +61,13 @@ function Euler:init(args)
 	if require 'solver.meshsolver'.is(self.solver) then
 		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
 	else
-		local SelfGrav = require 'op.selfgrav'
+		local SelfGrav = require 'hydro.op.selfgrav'
 		self.gravOp = SelfGrav{solver = self.solver}
 		self.solver.ops:insert(self.gravOp)
 
 		if args.incompressible then
-			local NoDiv = require 'op.nodiv'{
-				poissonSolver = require 'op.poisson_jacobi',	-- krylov is having errors.  TODO bug in its boundary code?
+			local NoDiv = require 'hydro.op.nodiv'{
+				poissonSolver = require 'hydro.op.poisson_jacobi',	-- krylov is having errors.  TODO bug in its boundary code?
 			}
 			self.solver.ops:insert(NoDiv{
 				solver = self.solver,

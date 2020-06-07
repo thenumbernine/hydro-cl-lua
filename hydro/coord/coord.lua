@@ -946,7 +946,7 @@ static inline real coordLen(real3 r, real3 pt) {
 		-- if we're using a cartesian basis then no need to transport anything
 		-- ... (? except maybe the flux differential across the cell, done in curvilinear coordinates ?)
 		if self.vectorComponent == 'cartesian' 
-		or require 'coord.cartesian'.is(self)
+		or require 'hydro.coord.cartesian'.is(self)
 		then
 			-- general case for a fixed global orthonormal basi:
 			lines:insert(template([[
@@ -1237,7 +1237,7 @@ end
 		})	
 	else	-- not meshsolver
 
-		if require 'coord.cartesian'.is(self)
+		if require 'hydro.coord.cartesian'.is(self)
 		or self.vectorComponent == 'anholonomic'
 		then
 			--[[

@@ -103,8 +103,8 @@ function Maxwell:init(args)
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 ]], {eqn=self})
 
-	local NoDiv = require 'op.nodiv'{
-		poissonSolver = require 'op.poisson_jacobi',
+	local NoDiv = require 'hydro.op.nodiv'{
+		poissonSolver = require 'hydro.op.poisson_jacobi',
 	}
 
 	self.solver.ops:insert(NoDiv{

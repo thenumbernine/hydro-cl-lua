@@ -698,7 +698,7 @@ kernel void addSource(
 	deriv->phi_g += T_00_over_c2 * solver->divPhiWavespeed_g / unit_m_per_s;
 
 
-<? if not require 'coord.cartesian'.is(solver.coord) then ?>
+<? if not require 'hydro.coord.cartesian'.is(solver.coord) then ?>
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
 	prim_t W = primFromCons(solver, *U, x);
 	real3 conn1_u = coord_conn_trace23(x);

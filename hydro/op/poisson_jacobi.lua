@@ -1,7 +1,7 @@
 local table = require 'ext.table'
 local class = require 'ext.class'
 local template = require 'template'
-local Relaxation = require 'op.relaxation'
+local Relaxation = require 'hydro.op.relaxation'
 
 local PoissonJacobi = class(Relaxation)
 

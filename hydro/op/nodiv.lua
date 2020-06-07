@@ -1,9 +1,9 @@
 return function(args)
 	local parentClass
 	if cmdline.noDivPoissonSolver then
-		parentClass = require('op.poisson_'..cmdline.noDivPoissonSolver)
+		parentClass = require('hydro.op.poisson_'..cmdline.noDivPoissonSolver)
 	else
-		parentClass = args and args.poissonSolver or require 'op.poisson_krylov'
+		parentClass = args and args.poissonSolver or require 'hydro.op.poisson_krylov'
 	end
 
 	local class = require 'ext.class'

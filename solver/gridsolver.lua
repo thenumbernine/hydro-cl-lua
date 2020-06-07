@@ -271,7 +271,7 @@ end
 
 
 function GridSolver:initDraw()
-	local graphShaderCode = file['draw/graph.shader']
+	local graphShaderCode = file['hydro/draw/graph.shader']
 	self.graphShader = self.GLProgram{
 		name = 'graph',
 		vertexCode = template(graphShaderCode, {
@@ -289,7 +289,7 @@ function GridSolver:initDraw()
 		},
 	}
 
-	local heatMapCode = file['draw/2d_heatmap.shader']
+	local heatMapCode = file['hydro/draw/2d_heatmap.shader']
 	self.heatMap2DShader = self.GLProgram{
 		name = '2d_heatmap',
 		vertexCode = template(heatMapCode, {
@@ -312,7 +312,7 @@ function GridSolver:initDraw()
 		-- raytracing (stalling)
 		
 		self.display3D_Ray_maxiter = math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y), tonumber(self.gridSize.z))
-		local volumetricCode = file['draw/volumetric.shader']
+		local volumetricCode = file['hydro/draw/volumetric.shader']
 		self.volumeRayShader = self.GLProgram{
 			name = 'volumetric',
 			vertexCode = template(volumetricCode, {
@@ -334,7 +334,7 @@ function GridSolver:initDraw()
 
 		-- volume slices
 
-		local volumeSliceCode = file['draw/3d_slice.shader']
+		local volumeSliceCode = file['hydro/draw/3d_slice.shader']
 		self.volumeSliceShader = self.GLProgram{
 			name = '3d_slice',
 			vertexCode = template(volumeSliceCode, {
@@ -357,7 +357,7 @@ function GridSolver:initDraw()
 	end
 
 	-- TODO move to draw/vector_arrow.lua ?
-	local vectorArrowCode = file['draw/vector_arrow.shader']
+	local vectorArrowCode = file['hydro/draw/vector_arrow.shader']
 	self.vectorArrowShader = self.GLProgram{
 		name = 'vector_arrow',
 		vertexCode = template(vectorArrowCode, {
@@ -377,7 +377,7 @@ function GridSolver:initDraw()
 		},
 	}
 
-	local vectorLICCode = file['draw/vector_lic.shader']
+	local vectorLICCode = file['hydro/draw/vector_lic.shader']
 	self.vectorLICShader = self.GLProgram{
 		name = 'vector_lic',
 		vertexCode = template(vectorLICCode, {
@@ -893,7 +893,7 @@ function BoundaryMirror:getCode(args)
 	local solver = args.solver
 	local eqn = solver.eqn
 	if solver.coord.vectorComponent == 'cartesian' 
-	and not require 'coord.cartesian'.is(solver.coord)
+	and not require 'hydro.coord.cartesian'.is(solver.coord)
 	then
 		-- v = v - n (v dot n)
 		-- v^i = v^i - n^i (v^j n_j) (1 + restitution)
@@ -1087,8 +1087,8 @@ function BoundarySphereRMin:getCode(args)
 	local solver = args.solver
 	
 	assert(args.side == 1 and args.minmax == 'min', "you should only use this boundary condition for rmin with spherical coordinates")
-	assert(require 'coord.sphere'.is(solver.coord)
-		or require 'coord.sphere-log-radial'.is(solver.coord), "you should only use this boundary condition for rmin with spherical coordinates")
+	assert(require 'hydro.coord.sphere'.is(solver.coord)
+		or require 'hydro.coord.sphere-log-radial'.is(solver.coord), "you should only use this boundary condition for rmin with spherical coordinates")
 	--assert(solver.maxs.y - solver.mins.y == 2*math.pi)
 	--assert(solver.boundaryMethods.ymin == 'periodic' and solver.boundaryMethods.ymax == 'periodic')
 
@@ -1130,8 +1130,8 @@ function BoundarySphereTheta:getCode(args)
 	local solver = args.solver
 
 	assert(args.side == 2, "you should only use this boundary condition for θmin/θmax with spherical coordinates")
-	assert(require 'coord.sphere'.is(solver.coord)
-		or require 'coord.sphere-log-radial'.is(solver.coord), "you should only use this boundary condition for θmin/θmax with spherical coordinates")
+	assert(require 'hydro.coord.sphere'.is(solver.coord)
+		or require 'hydro.coord.sphere-log-radial'.is(solver.coord), "you should only use this boundary condition for θmin/θmax with spherical coordinates")
 
 	local src, dst
 	if args.minmax == 'min' then
@@ -1186,7 +1186,7 @@ function BoundaryCylinderRMin:getCode(args)
 	local solver = args.solver
 	
 	assert(args.side == 1 and args.minmax == 'min', "you should only use this boundary condition for rmin with cylinderical coordinates")
-	assert(require 'coord.cylinder'.is(solver.coord), "you should only use this boundary condition for rmin with cylinderical coordinates")
+	assert(require 'hydro.coord.cylinder'.is(solver.coord), "you should only use this boundary condition for rmin with cylinderical coordinates")
 	--assert(solver.maxs.y - solver.mins.y == 2*math.pi)
 	--assert(solver.boundaryMethods.ymin == 'periodic' and solver.boundaryMethods.ymax == 'periodic')
 

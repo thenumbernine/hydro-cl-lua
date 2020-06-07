@@ -183,10 +183,10 @@ function ADM_BonaMasso_3D:init(args)
 
 
 	if self.useShift == 'MinimalDistortionElliptic' then
-		local MinimalDistortionEllipticShift = require 'op.gr-shift-mde'
+		local MinimalDistortionEllipticShift = require 'hydro.op.gr-shift-mde'
 		self.solver.ops:insert(MinimalDistortionEllipticShift{solver=self.solver})
 	elseif self.useShift == 'LagrangianCoordinates' then
-		local LagrangianCoordinateShift = require 'op.gr-shift-lc'
+		local LagrangianCoordinateShift = require 'hydro.op.gr-shift-lc'
 		self.solver.ops:insert(LagrangianCoordinateShift{solver=self.solver})
 	end
 end

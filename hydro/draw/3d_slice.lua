@@ -1,7 +1,7 @@
 local gl = require 'ffi.OpenGL'
 local table = require 'ext.table'
 local class = require 'ext.class'
-local CartesianCoordinateSystem = require 'coord.cartesian'
+local CartesianCoordinateSystem = require 'hydro.coord.cartesian'
 
 
 local Draw3DSlice = class()
@@ -112,8 +112,8 @@ end
 
 				-- hack for picking order of axis for non-Cartesian
 				if app.display_useCoordMap
-				and (require 'coord.sphere'.is(solver.coord) 
-					or require 'coord.sphere-log-radial'.is(solver.coord))
+				and (require 'hydro.coord.sphere'.is(solver.coord) 
+					or require 'hydro.coord.sphere-log-radial'.is(solver.coord))
 				then
 					fwddir = 1
 					jmin, jmax, jdir = 0, n, 1

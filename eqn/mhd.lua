@@ -49,14 +49,14 @@ function MHD:init(args)
 	MHD.super.init(self, args)
 
 	if self.solver.dim > 1 then
-		local NoDiv = require 'op.nodiv'()
+		local NoDiv = require 'hydro.op.nodiv'()
 		self.solver.ops:insert(NoDiv{
 			solver = self.solver,
 			potentialField = 'psi',
 		})
 	end
 
-	local SelfGrav = require 'op.selfgrav'
+	local SelfGrav = require 'hydro.op.selfgrav'
 	self.gravOp = SelfGrav{solver=self.solver}
 	self.solver.ops:insert(self.gravOp)
 end

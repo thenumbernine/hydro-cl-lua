@@ -132,7 +132,7 @@ kernel void calcFlux(
 		//real dt_dx = dt / cell_dx<?=side?>(xInt);
 <? 
 if solver.coord.vectorComponent == 'cartesian' 
-and not require 'coord.cartesian'.is(solver.coord)
+and not require 'hydro.coord.cartesian'.is(solver.coord)
 then 
 ?>		real dt_dx = dt / cell_dx<?=side?>(xInt);
 <? else 

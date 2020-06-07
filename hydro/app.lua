@@ -97,7 +97,7 @@ local CLEnv = require 'cl.obj.env'
 local clnumber = require 'cl.obj.number'
 local vec4d = require 'vec-ffi.vec4d'
 local vec3d = require 'vec-ffi.vec3d'
-local CartesianCoord = require 'coord.cartesian'
+local CartesianCoord = require 'hydro.coord.cartesian'
 
 --[[
 TODO 'targetPlatform'?
@@ -275,17 +275,17 @@ end
 
 -- needs to go before display2DMethods, display3DMethods, etc
 if targetSystem ~= 'console' then
-	require 'draw.1d'(HydroCLApp)			-- App:display1D
+	require 'hydro.draw.1d'(HydroCLApp)			-- App:display1D
 	
-	require 'draw.2d_heatmap'(HydroCLApp)	-- App:display2D_Heatmap
-	require 'draw.2d_graph'(HydroCLApp)		-- App:display2D_Graph
+	require 'hydro.draw.2d_heatmap'(HydroCLApp)	-- App:display2D_Heatmap
+	require 'hydro.draw.2d_graph'(HydroCLApp)		-- App:display2D_Graph
 	
-	require 'draw.3d_slice'(HydroCLApp)		-- App:display3D_Slice
-	require 'draw.3d_ray'(HydroCLApp)		-- App:display3D_Ray
-	require 'draw.3d_iso'(HydroCLApp)		-- App:display3D_ISO
+	require 'hydro.draw.3d_slice'(HydroCLApp)		-- App:display3D_Slice
+	require 'hydro.draw.3d_ray'(HydroCLApp)		-- App:display3D_Ray
+	require 'hydro.draw.3d_iso'(HydroCLApp)		-- App:display3D_ISO
 	
-	require 'draw.vector_arrow'(HydroCLApp)	-- App:displayVector_Arrows
-	require 'draw.vector_lic'(HydroCLApp)	-- App:displayVector_LIC
+	require 'hydro.draw.vector_arrow'(HydroCLApp)	-- App:displayVector_Arrows
+	require 'hydro.draw.vector_lic'(HydroCLApp)	-- App:displayVector_LIC
 end
 
 
@@ -547,8 +547,8 @@ void main() {
 			return index == 2, name
 		end)
 
-		self.orthoView = require 'view.ortho'()
-		self.frustumView = require 'view.frustum'()
+		self.orthoView = require 'hydro.view.ortho'()
+		self.frustumView = require 'hydro.view.frustum'()
 		self.view = (#self.solvers > 0 and self.solvers[1].dim == 3) and self.frustumView or self.orthoView
 		if cmdline.frustum then
 			self.view = self.frustumView

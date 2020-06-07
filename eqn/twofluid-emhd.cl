@@ -589,7 +589,7 @@ kernel void addSource(
 	
 	deriv->phi += eps * (U->ion_rho * solver->ionChargeMassRatio + U->elec_rho * elecChargeMassRatio) / unit_C_per_kg * solver->divPhiWavespeed / unit_m_per_s;
 
-<? if not require 'coord.cartesian'.is(solver.coord) then ?>
+<? if not require 'hydro.coord.cartesian'.is(solver.coord) then ?>
 	real3 x = cell_x(i);
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
 	prim_t W = primFromCons(solver, *U, x);

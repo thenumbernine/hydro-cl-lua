@@ -29,7 +29,7 @@ kernel void calcDT(
 
 <? 
 if solver.coord.vectorComponent == 'cartesian' 
-and not require 'coord.cartesian'.is(solver.coord)
+and not require 'hydro.coord.cartesian'.is(solver.coord)
 then 
 ?>		real dx = cell_dx<?=side?>(x); 
 <? else 

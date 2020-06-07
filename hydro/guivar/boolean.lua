@@ -1,7 +1,7 @@
 local ig = require 'ffi.imgui'
-local tooltip = require 'hydro.tooltip'
 local class = require 'ext.class'
-local GuiVar = require 'guivar.guivar'
+local tooltip = require 'hydro.tooltip'
+local GuiVar = require 'hydro.guivar.guivar'
 
 local GuiBoolean = class(GuiVar)
 

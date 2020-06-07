@@ -218,7 +218,7 @@ function Equation:addGuiVar(args)
 	if not vartype then
 		vartype = type(args.value)
 	end
-	local cl = require('guivar.'..vartype)
+	local cl = require('hydro.guivar.'..vartype)
 
 	-- no non-strings allowed as names, especially not numbers,
 	-- because I'm going to map names into guiVars' keys, and I don't want to overwrite any integer-indexed guiVars
@@ -689,7 +689,7 @@ function Equation:getParallelPropagateCode()
 	return template([[
 <? for side=0,solver.dim-1 do
 	if coord.vectorComponent == 'cartesian'
-	or require 'coord.cartesian'.is(coord) 
+	or require 'hydro.coord.cartesian'.is(coord) 
 	then
 ?>#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
 <?	else

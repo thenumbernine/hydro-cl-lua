@@ -1,6 +1,6 @@
 local class = require 'ext.class'
 local template = require 'template'
-local SelfGrav = require 'op.selfgrav'
+local SelfGrav = require 'hydro.op.selfgrav'
 local TwoFluidSelfGrav = class(SelfGrav)
 
 TwoFluidSelfGrav.name = 'TwoFluidSelfGrav'
