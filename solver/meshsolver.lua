@@ -21,6 +21,7 @@ local GLProgram = require 'gl.program'
 local GLArrayBuffer = require 'gl.arraybuffer'
 local GLVertexArray = require 'gl.vertexarray'
 local template = require 'template'
+local tooltip = require 'tooltip'
 local SolverBase = require 'solver.solverbase'
 local time, getTime = table.unpack(require 'util.time')
 local real = require 'real'
@@ -169,6 +170,7 @@ local MeshSolver = class(SolverBase)
 MeshSolver.showVertices = false
 MeshSolver.showFaces = false
 MeshSolver.showCells = true
+MeshSolver.drawCellScale = .9
 
 local struct = require 'struct.struct'
 local face_t = struct{
@@ -940,23 +942,27 @@ end)
 	
 	self.drawShader = GLProgram{
 		vertexCode = [[
+uniform float drawCellScale;
 attribute vec3 vtx;
+attribute vec3 vtxcenter;
 attribute float value;
-varying float tc;
+varying float valuev;
 void main() {
-	gl_Position = gl_ModelViewProjectionMatrix * vec4(vtx, 1.);
-	tc = value;
+	vec3 v = (vtx - vtxcenter) * drawCellScale + vtxcenter;
+	gl_Position = gl_ModelViewProjectionMatrix * vec4(v, 1.);
+	valuev = value;
 }
 ]],
 		fragmentCode = [[
-varying float tc;
+varying float valuev;
 uniform sampler1D gradTex;
 void main() {
-	gl_FragColor = texture1D(gradTex, tc);
+	gl_FragColor = texture1D(gradTex, valuev);
 }
 ]],
 		uniforms = {
 			gradTex = 0,
+			drawCellScale = 1,
 		},
 	}
 
@@ -966,15 +972,54 @@ void main() {
 	-- then store per vertex the lookup to the texture.
 	-- Also, if you are going to scale cells, then you must store a unique vertex per cell here.
 	-- this means no dynamic mesh (without more coding).
-	local glvtxs = ffi.new('vec3f_t[?]', self.numVtxs)
-	for i=0,self.numVtxs-1 do
+	local glvtxs = vector'vec3f_t'			-- vertex position
+	local glvtxcenters = vector'vec3f_t'	-- center of cell for this vertex
+	local glcellindex = vector'float'		-- 0-based index of cell for this vertex
+	local glvalue = vector'float'			-- value to draw the cell
+	local function addTri(va,vb,vc, ci,c)
+		glvtxs:push_back(vec3f(va:unpack()))
+		glvtxs:push_back(vec3f(vb:unpack()))
+		glvtxs:push_back(vec3f(vc:unpack()))
 		for j=0,2 do
-			glvtxs[i].s[j] = self.mesh.vtxs.v[i].s[j]
+			glvtxcenters:push_back(vec3f(c.pos:unpack()))
+			glcellindex:push_back(ci)
+			glvalue:push_back(0)
 		end
 	end
+	local mesh = self.mesh
+	if self.dim == 2 then
+		for ci,c in ipairs(mesh.cells) do
+			local va = mesh.vtxs.v[mesh.cellVtxIndexes.v[0 + c.vtxOffset]]
+			local vb = mesh.vtxs.v[mesh.cellVtxIndexes.v[1 + c.vtxOffset]]
+			for vi=2,c.vtxCount-1 do
+				local vc = mesh.vtxs.v[mesh.cellVtxIndexes.v[vi + c.vtxOffset]]
+				addTri(va,vb,vc, ci, c)
+				vb = vc
+			end
+		end
+	elseif self.dim == 3 then
+		for ci,c in ipairs(mesh.cells) do
+			for i=0,c.faceCount-1 do
+				local f = mesh.faces.v[mesh.cellFaceIndexes.v[i + c.faceOffset]]
+				local va = mesh.vtxs.v[mesh.cellFaceIndexes.v[0 + f.vtxOffset]]
+				local vb = mesh.vtxs.v[mesh.cellFaceIndexes.v[1 + f.vtxOffset]]
+				for vi=2,f.vtxCount-1 do
+					local vc = mesh.vtxs.v[mesh.cellFaceIndexes.v[vi + f.vtxOffset]]
+					addTri(va,vb,vc, ci, c)
+					vb = vc
+				end
+			end
+		end
+	end
+	self.glvtxs = glvtxs
+	self.glvtxcenters = glvtxcenters
+	self.glcellindex = glcellindex
+	self.glvalue = glvalue
+	self.numGlVtxs = #glvtxs
+
 	self.glVtxBuffer = GLArrayBuffer{
-		data = glvtxs,
-		size = ffi.sizeof(glvtxs), 
+		data = glvtxs.v,
+		size = #glvtxs * ffi.sizeof(glvtxs.type), 
 	}
 	self.drawShaderVtxVertexArray = GLVertexArray{
 		buffer = self.glVtxBuffer,
@@ -985,11 +1030,22 @@ void main() {
 	self.drawShader:setAttr('vtx', self.drawShaderVtxVertexArray)
 	self.drawShaderVtxVertexArray:unbind()
 
+	self.glVtxCenterBuffer = GLArrayBuffer{
+		data = glvtxcenters.v,
+		size = #glvtxcenters * ffi.sizeof(glvtxcenters.type), 
+	}
+	self.drawShaderVtxCenterVertexArray = GLVertexArray{
+		buffer = self.glVtxCenterBuffer,
+		size = 3,
+		type = gl.GL_FLOAT,
+	}
+	self.drawShaderVtxCenterVertexArray:bind()
+	self.drawShader:setAttr('vtxcenter', self.drawShaderVtxCenterVertexArray)
+	self.drawShaderVtxCenterVertexArray:unbind()
 
-	local glvalues = ffi.new('float[?]', self.numVtxs)
 	self.glValueBuffer = GLArrayBuffer{
-		data = glvalue,
-		size = ffi.sizeof(glvalues),
+		data = glvalue.v,
+		size = #glvalue * ffi.sizeof(glvalue.type),
 	}
 	self.drawShaderValueVertexArray = GLVertexArray{
 		buffer = self.glValueBuffer,
@@ -1188,8 +1244,6 @@ function MeshSolverDisplayVar:setArgs(kernel)
 end
 
 
-MeshSolver.drawCellScale = .9
-
 -- FPS of a 64x64 quad mesh:
 -- sys=console: ~900
 -- sys=imgui: ~2
@@ -1275,48 +1329,68 @@ function MeshSolver:display(varName, ar)
 	-- i can do the same, and just update the 'displayValue' inside each cell for this.
 	-- in fact, before drawing this, calcDisplayVarToBuffer will fill reduceBuf with the values (associated 1-1 with each cell?)
 	if self.showCells then
+		
+		-- copy display values from ptr (reduceBuf) to each gl-vertex's value vertex attr
+		for i=0,self.numGlVtxs-1 do
+			local ci = self.glcellindex.v[i]
+			local displayValue = ptr[channels * ci]
+			self.glvalue.v[i] = displayValue
+		end
+		self.glValueBuffer:updateData()
+
 		local gradientTex = app.gradientTex
 		self.drawShader:use()
+		gl.glUniform1f(self.drawShader.uniforms.drawCellScale.loc, self.drawCellScale)
 		gradientTex:bind()
+--[[ doesn't work yet
 		self.drawShaderVtxVertexArray:bind()
+		self.drawShaderVtxCenterVertexArray:bind()
 		self.drawShaderValueVertexArray:bind()
-		if self.dim == 2 then
-			for ci,c in ipairs(mesh.cells) do
-				local displayValue = ptr[channels * ci]
-				gl.glVertexAttrib1f(self.drawShader.attrs.value.loc, displayValue)
-
-				gl.glBegin(gl.GL_POLYGON)
-				for vi=0,c.vtxCount-1 do
-					local v = mesh.vtxs.v[mesh.cellVtxIndexes.v[vi + c.vtxOffset]]
-					-- runs 20x slower
-					-- TODO use GPU instead
-					--gl.glVertex3d(((v - c.pos) * self.drawCellScale + c.pos):unpack())
-					gl.glVertex3d(v:unpack())
-				end
-				gl.glEnd()
-			end
-		elseif self.dim == 3 then
-			for ci,c in ipairs(mesh.cells) do
-				local displayValue = ptr[channels * ci]
-				gl.glVertexAttrib1f(self.drawShader.attrs.value.loc, displayValue)
-				
-				for i=0,c.faceCount-1 do
-					local f = mesh.faces.v[mesh.cellFaceIndexes.v[i + c.faceOffset]]
-					gl.glBegin(gl.GL_POLYGON)
-					for vi=0,f.vtxCount-1 do
-						local v = mesh.vtxs.v[mesh.cellFaceIndexes.v[vi + f.vtxOffset]]
-						--gl.glVertex3d(((v - c.pos) * self.drawCellScale + c.pos):unpack())
-						gl.glVertex3d(v:unpack())
-					end
-					gl.glEnd()
-				end
-			end
-		end
+		gl.glDrawArrays(gl.GL_TRIANGLES, 0, self.numGlVtxs * 3)
 		self.drawShaderVtxVertexArray:unbind()
+		self.drawShaderVtxCenterVertexArray:unbind()
 		self.drawShaderValueVertexArray:unbind()
+--]]
+-- [[ 160 fps @ 64x64 quad grid
+		self.glValueBuffer:bind()
+		gl.glVertexAttribPointer(self.drawShader.attrs.value.loc, 1, gl.GL_FLOAT, gl.GL_FALSE, 0, nil)
+		gl.glEnableVertexAttribArray(self.drawShader.attrs.value.loc)
+		self.glValueBuffer:unbind()
+		self.glVtxCenterBuffer:bind()
+		gl.glVertexAttribPointer(self.drawShader.attrs.vtxcenter.loc, 3, gl.GL_FLOAT, gl.GL_FALSE, 0, nil)
+		gl.glEnableVertexAttribArray(self.drawShader.attrs.vtxcenter.loc)
+		self.glVtxCenterBuffer:unbind()
+		self.glVtxBuffer:bind()
+		gl.glVertexAttribPointer(self.drawShader.attrs.vtx.loc, 3, gl.GL_FLOAT, gl.GL_FALSE, 0, nil)
+		gl.glEnableVertexAttribArray(self.drawShader.attrs.vtx.loc)
+		self.glVtxBuffer:unbind()
+		gl.glDrawArrays(gl.GL_TRIANGLES, 0, self.numGlVtxs * 3)
+		gl.glDisableVertexAttribArray(self.drawShader.attrs.value.loc)
+		gl.glDisableVertexAttribArray(self.drawShader.attrs.vtxcenter.loc)
+		gl.glDisableVertexAttribArray(self.drawShader.attrs.vtx.loc)
+--]]
+--[[ 115 fps @ 64x64 quad grid
+		gl.glBegin(gl.GL_TRIANGLES)
+		for i=0,self.numGlVtxs-1 do
+			gl.glVertexAttrib1f(self.drawShader.attrs.value.loc, self.glvalue.v[i])
+			gl.glVertexAttrib3f(self.drawShader.attrs.vtxcenter.loc, self.glvtxcenters.v[i]:unpack())
+			gl.glVertexAttrib3f(self.drawShader.attrs.vtx.loc, self.glvtxs.v[i]:unpack())
+		end
+		gl.glEnd()
+--]]
 		gradientTex:unbind()
 		self.drawShader:useNone()
 	end
+end
+
+function MeshSolver:updateGUI()
+	tooltip.checkboxTable('show vertexes', self, 'showVertexes')
+	ig.igSameLine()
+	tooltip.checkboxTable('show faces', self, 'showFaces')
+	ig.igSameLine()
+	tooltip.checkboxTable('show cells', self, 'showCells')
+	
+	tooltip.numberTable('cell scale', self, 'drawCellScale')
 end
 
 return MeshSolver 
