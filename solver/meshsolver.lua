@@ -26,7 +26,7 @@ local GLVertexArray = require 'gl.vertexarray'
 local template = require 'template'
 local tooltip = require 'hydro.tooltip'
 local SolverBase = require 'solver.solverbase'
-local time, getTime = table.unpack(require 'util.time')
+local time, getTime = table.unpack(require 'hydro.util.time')
 local real = require 'hydro.real'
 
 matrix_ffi.real = 'float'	-- default matrix_ffi type

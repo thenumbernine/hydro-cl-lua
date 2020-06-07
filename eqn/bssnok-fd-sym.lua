@@ -18,7 +18,7 @@ local template = require 'template'
 local BSSNOKFiniteDifferenceEquationBase = require 'eqn.bssnok-fd'
 local makestruct = require 'eqn.makestruct'
 local common = require 'hydro.common'
-local time, getTime = table.unpack(require 'util.time')
+local time, getTime = table.unpack(require 'hydro.util.time')
 local makePartials = require 'eqn.makepartial'
 
 local BSSNOKFiniteDifferenceEquation = class(BSSNOKFiniteDifferenceEquationBase)

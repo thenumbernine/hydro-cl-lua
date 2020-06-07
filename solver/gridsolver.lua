@@ -14,8 +14,8 @@ local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
 local tooltip = require 'hydro.tooltip'
-local roundup = require 'util.roundup'
-local time, getTime = table.unpack(require 'util.time')
+local roundup = require 'hydro.util.roundup'
+local time, getTime = table.unpack(require 'hydro.util.time')
 local SolverBase = require 'solver.solverbase'
 local makestruct = require 'eqn.makestruct'
 

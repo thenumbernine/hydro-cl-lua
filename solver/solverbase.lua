@@ -12,8 +12,8 @@ local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
 local tooltip = require 'hydro.tooltip'
 local makestruct = require 'eqn.makestruct'
-local roundup = require 'util.roundup'
-local time, getTime = table.unpack(require 'util.time')
+local roundup = require 'hydro.util.roundup'
+local time, getTime = table.unpack(require 'hydro.util.time')
 local Struct = require 'struct.struct'
 
 local common = require 'hydro.common'	-- xNames, symNames

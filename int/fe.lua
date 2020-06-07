@@ -12,7 +12,7 @@ this could save us 1 less buffer, 1 less kernel call, and 1 less copy
 --]]
 local ffi = require 'ffi'
 local class = require 'ext.class'
-local roundup = require 'util.roundup'
+local roundup = require 'hydro.util.roundup'
 local Integrator = require 'int.int'
 local CLBuffer = require 'cl.obj.buffer'
 local real = require 'hydro.real'
