@@ -17,6 +17,7 @@ local vec2d = require 'vec-ffi.vec2d'
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
 local matrix_ffi = require 'matrix.ffi'
+local ig = require 'ffi.imgui'
 local gl = require 'gl'
 local glreport = require 'gl.report'
 local GLProgram = require 'gl.program'
@@ -170,11 +171,6 @@ os.exit()
 
 
 local MeshSolver = class(SolverBase)
-
-MeshSolver.showVertices = false
-MeshSolver.showFaces = false
-MeshSolver.showCells = true
-MeshSolver.drawCellScale = .9
 
 local struct = require 'struct.struct'
 local face_t = struct{
@@ -886,6 +882,11 @@ NOTICE initState is tied closely to grid mins/maxs...
 so how should meshfiles use init states?
 --]]
 function MeshSolver:initL1(args)
+	self.showVertexes = false
+	self.showFaces = false
+	self.showCells = true
+	self.drawCellScale = 1
+
 	MeshSolver.super.initL1(self, args)
 
 
@@ -1295,19 +1296,6 @@ function MeshSolver:display(varName, ar)
 	end
 --]]	
 
--- [[ also in draw/*.lua
-	local gradientValueMin = valueMin
-	local gradientValueMax = valueMax
-	local showName = varName
-	if var.showInUnits and var.units then
-		local unitScale = self:convertToSIUnitsCode(var.units).func()
-		gradientValueMin = gradientValueMin * unitScale
-		gradientValueMax = gradientValueMax * unitScale
-		showName = showName..' ('..var.units..')'
-	end
-	app:drawGradientLegend(ar, showName, gradientValueMin, gradientValueMax)
---]]
-
 -- [[ matches GridSolver.calcDisplayVarToTex
 	local component = self.displayComponentFlatList[var.component]
 	local vectorField = self:isVarTypeAVectorField(component.type)
@@ -1332,28 +1320,6 @@ function MeshSolver:display(varName, ar)
 
 	-- draw the mesh 
 	local mesh = self.mesh
-
-	if self.showVertices then
-		gl.glPointSize(3)
-		gl.glColor3f(1,1,1)
-		gl.glBegin(gl.GL_POINTS)
-		for _,v in ipairs(mesh.vtxs) do
-			gl.glVertex3d(v:unpack())
-		end
-		gl.glEnd()
-		gl.glPointSize(1)
-	end
-
-	if self.showFaces then
-		for fi,f in ipairs(mesh.faces) do
-			gl.glBegin(gl.GL_LINE_LOOP)
-			for vi=0,f.vtxCount-1 do
-				local v = mesh.vtxs.v[mesh.faceVtxIndexes.v[vi + f.vtxOffset]]
-				gl.glVertex3d(v:unpack())
-			end
-			gl.glEnd()
-		end
-	end
 
 	-- if show cells ...
 	-- TODO in my mesh solver, here I pick the color according to the display value
@@ -1408,10 +1374,47 @@ function MeshSolver:display(varName, ar)
 		self.drawShader:useNone()
 	end
 
+	if self.showVertexes then
+		gl.glPointSize(3)
+		gl.glColor3f(1,1,1)
+		gl.glBegin(gl.GL_POINTS)
+		for _,v in ipairs(mesh.vtxs) do
+			gl.glVertex3d(v:unpack())
+		end
+		gl.glEnd()
+		gl.glPointSize(1)
+	end
+
+	if self.showFaces then
+		for fi,f in ipairs(mesh.faces) do
+			gl.glBegin(gl.GL_LINE_LOOP)
+			for vi=0,f.vtxCount-1 do
+				local v = mesh.vtxs.v[mesh.faceVtxIndexes.v[vi + f.vtxOffset]]
+				gl.glVertex3d(v:unpack())
+			end
+			gl.glEnd()
+		end
+	end
+
+-- [[ also in draw/*.lua
+	local gradientValueMin = valueMin
+	local gradientValueMax = valueMax
+	local showName = varName
+	if var.showInUnits and var.units then
+		local unitScale = self:convertToSIUnitsCode(var.units).func()
+		gradientValueMin = gradientValueMin * unitScale
+		gradientValueMax = gradientValueMax * unitScale
+		showName = showName..' ('..var.units..')'
+	end
+	app:drawGradientLegend(ar, showName, gradientValueMin, gradientValueMax)
+--]]
+
 	glreport'here'
 end
 
-function MeshSolver:updateGUI()
+function MeshSolver:updateGUIParams()
+	MeshSolver.super.updateGUIParams(self)
+
 	tooltip.checkboxTable('show vertexes', self, 'showVertexes')
 	ig.igSameLine()
 	tooltip.checkboxTable('show faces', self, 'showFaces')

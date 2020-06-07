@@ -1641,45 +1641,43 @@ function GridSolver:calcDisplayVarToTex(var, componentIndex)
 end
 
 function GridSolver:updateGUIParams()	
-	if ig.igCollapsingHeader'parameters:' then
-		GridSolver.super.updateGUIParams(self)
-	
-		ig.igText('grid size: '
-			..tonumber(self.sizeWithoutBorder.x)..', '
-			..tonumber(self.sizeWithoutBorder.y)..', '
-			..tonumber(self.sizeWithoutBorder.z))
+	GridSolver.super.updateGUIParams(self)
 
-		-- let the user change even unused dimensions
-		-- because those influence what constant value the cell_x() gives us 
-		for i=1,3 do
-			for j,minmax in ipairs(minmaxs) do
-				local k = xNames[i]..minmax
-				if tooltip.numberTable(k, self[minmax..'s'], xNames[i], ig.ImGuiInputTextFlags_EnterReturnsTrue) then
-					local eps = 1e-7
-					if self.maxs.s[i-1] - self.mins.s[i-1] < eps then
-						self.maxs.s[i-1] = self.mins.s[i-1] + eps
-					end
-					if j==1 then
-						self.solverPtr.mins.s[i-1] = toreal(self.mins.s[i-1])
-					elseif j==2 then
-						self.solverPtr.maxs.s[i-1] = toreal(self.maxs.s[i-1])
-					end
-					self:refreshSolverBufMinsMaxs()
-					self:refreshSolverBuf()
+	ig.igText('grid size: '
+		..tonumber(self.sizeWithoutBorder.x)..', '
+		..tonumber(self.sizeWithoutBorder.y)..', '
+		..tonumber(self.sizeWithoutBorder.z))
+
+	-- let the user change even unused dimensions
+	-- because those influence what constant value the cell_x() gives us 
+	for i=1,3 do
+		for j,minmax in ipairs(minmaxs) do
+			local k = xNames[i]..minmax
+			if tooltip.numberTable(k, self[minmax..'s'], xNames[i], ig.ImGuiInputTextFlags_EnterReturnsTrue) then
+				local eps = 1e-7
+				if self.maxs.s[i-1] - self.mins.s[i-1] < eps then
+					self.maxs.s[i-1] = self.mins.s[i-1] + eps
 				end
+				if j==1 then
+					self.solverPtr.mins.s[i-1] = toreal(self.mins.s[i-1])
+				elseif j==2 then
+					self.solverPtr.maxs.s[i-1] = toreal(self.maxs.s[i-1])
+				end
+				self:refreshSolverBufMinsMaxs()
+				self:refreshSolverBuf()
 			end
 		end
-		
-		for i=1,self.dim do
-			for _,minmax in ipairs(minmaxs) do
-				local var = xNames[i]..minmax
-				--[[ TODO is this crashing too?  maybe comboTable has a problem
-				if tooltip.comboTable(var, self.boundaryMethods, var, self.boundaryOptionNames) then
-					self:refreshBoundaryProgram()
-				end
-				--]]
-				ig.igText(var..': '..self.boundaryMethods[var].name)
+	end
+	
+	for i=1,self.dim do
+		for _,minmax in ipairs(minmaxs) do
+			local var = xNames[i]..minmax
+			--[[ TODO is this crashing too?  maybe comboTable has a problem
+			if tooltip.comboTable(var, self.boundaryMethods, var, self.boundaryOptionNames) then
+				self:refreshBoundaryProgram()
 			end
+			--]]
+			ig.igText(var..': '..self.boundaryMethods[var].name)
 		end
 	end
 end

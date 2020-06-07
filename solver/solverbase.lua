@@ -2165,16 +2165,14 @@ function SolverBase:updateGUIParams()
 end
 
 function SolverBase:updateGUIEqnSpecific()
-	if ig.igCollapsingHeader'equation:' then
---[[	TODO why is this crashing
-		if tooltip.comboTable('init state', self, 'initStateIndex', self.eqn.initStateNames) then
-			-- TODO hmm ... the whole point of making a separate initStateProgram was to be able to refresh it without rebuilding all of the solver ...
-			self:refreshEqnInitState()
-		end	
+--[[ TODO why is this crashing
+	if tooltip.comboTable('init state', self, 'initStateIndex', self.eqn.initStateNames) then
+		-- TODO hmm ... the whole point of making a separate initStateProgram was to be able to refresh it without rebuilding all of the solver ...
+		self:refreshEqnInitState()
+	end	
 --]]		
-		for _,var in ipairs(self.eqn.guiVars) do
-			var:updateGUI(self)
-		end
+	for _,var in ipairs(self.eqn.guiVars) do
+		var:updateGUI(self)
 	end
 end
 
@@ -2264,71 +2262,76 @@ do
 		if self.guiDisplayFilterStr == nil then self.guiDisplayFilterStr = '' end
 		if self.guiDisplayFilterEnabledVars == nil then self.guiDisplayFilterEnabledVars = false end
 		local refresh 
-		if ig.igCollapsingHeader'display:' then
-			tooltip.textTable('filter', self, 'guiDisplayFilterStr')
-			ig.igSameLine()
-			tooltip.checkboxTable('filter enabled', self, 'guiDisplayFilterEnabledVars')
 			
-			for i,displayVarGroup in ipairs(self.displayVarGroups) do
-				ig.igPushIDStr('display '..i)
-				if ig.igCollapsingHeader(displayVarGroup.name) then
-					for i=1,#fields do
-						all[fields[i]] = defaults[i]
-					end
-					for _,var in ipairs(displayVarGroup.vars) do
-						local title = displayVarGroup.name..' '..var.name
-						if (#self.guiDisplayFilterStr == 0 or search(title, self.guiDisplayFilterStr))
-						and (not self.guiDisplayFilterEnabledVars or var.enabled)
-						then
-							for i,field in ipairs(fields) do
-								all[field] = combines[i](all[field], var[field])
-							end
+		tooltip.textTable('filter', self, 'guiDisplayFilterStr')
+		ig.igSameLine()
+		tooltip.checkboxTable('filter enabled', self, 'guiDisplayFilterEnabledVars')
+		
+		for i,displayVarGroup in ipairs(self.displayVarGroups) do
+			ig.igPushIDStr('display '..i)
+			if ig.igCollapsingHeader(displayVarGroup.name) then
+				for i=1,#fields do
+					all[fields[i]] = defaults[i]
+				end
+				for _,var in ipairs(displayVarGroup.vars) do
+					local title = displayVarGroup.name..' '..var.name
+					if (#self.guiDisplayFilterStr == 0 or search(title, self.guiDisplayFilterStr))
+					and (not self.guiDisplayFilterEnabledVars or var.enabled)
+					then
+						for i,field in ipairs(fields) do
+							all[field] = combines[i](all[field], var[field])
 						end
 					end
+				end
+				for _,field in ipairs(fields) do
+					original[field] = all[field]
+				end
+				local enableChanged, anyChanged = handle(self, all, 'all')
+				--refresh = refresh or enableChanged
+				if anyChanged then
 					for _,field in ipairs(fields) do
-						original[field] = all[field]
-					end
-					local enableChanged, anyChanged = handle(self, all, 'all')
-					--refresh = refresh or enableChanged
-					if anyChanged then
-						for _,field in ipairs(fields) do
-							if all[field] ~= original[field] then
-								for _,var in ipairs(displayVarGroup.vars) do
-									local title = displayVarGroup.name..' '..var.name
-									if (#self.guiDisplayFilterStr == 0 or search(title, self.guiDisplayFilterStr))
-									and (not self.guiDisplayFilterEnabledVars or var.enabled)
-									then
-										var[field] = all[field]
-									end
+						if all[field] ~= original[field] then
+							for _,var in ipairs(displayVarGroup.vars) do
+								local title = displayVarGroup.name..' '..var.name
+								if (#self.guiDisplayFilterStr == 0 or search(title, self.guiDisplayFilterStr))
+								and (not self.guiDisplayFilterEnabledVars or var.enabled)
+								then
+									var[field] = all[field]
 								end
 							end
 						end
 					end
+				end
 
-					for _,var in ipairs(displayVarGroup.vars) do
-						local title = displayVarGroup.name..' '..var.name
-						if (#self.guiDisplayFilterStr == 0 or search(title, self.guiDisplayFilterStr))
-						and (not self.guiDisplayFilterEnabledVars or var.enabled)
-						then
-							local enableChanged = handle(self, var, title)
-							--refresh = refresh or enableChanged
-						end
+				for _,var in ipairs(displayVarGroup.vars) do
+					local title = displayVarGroup.name..' '..var.name
+					if (#self.guiDisplayFilterStr == 0 or search(title, self.guiDisplayFilterStr))
+					and (not self.guiDisplayFilterEnabledVars or var.enabled)
+					then
+						local enableChanged = handle(self, var, title)
+						--refresh = refresh or enableChanged
 					end
 				end
-				ig.igPopID()
 			end
+			ig.igPopID()
 		end
-		if refresh then
-			-- solver and display are now tied together
-			self:refreshSolverProgram()
-		end
+	end
+	if refresh then
+		-- solver and display are now tied together
+		self:refreshSolverProgram()
 	end
 end
 
 function SolverBase:updateGUI()
-	self:updateGUIParams()
-	self:updateGUIEqnSpecific()
-	self:updateGUIDisplay()
+	if ig.igCollapsingHeader'parameters:' then
+		self:updateGUIParams()
+	end
+	if ig.igCollapsingHeader'equation:' then
+		self:updateGUIEqnSpecific()
+	end
+	if ig.igCollapsingHeader'display:' then
+		self:updateGUIDisplay()
+	end
 
 	-- heat map var
 
