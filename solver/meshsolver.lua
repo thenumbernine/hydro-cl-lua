@@ -17,6 +17,7 @@ local vec2d = require 'vec-ffi.vec2d'
 local vec3d = require 'vec-ffi.vec3d'
 local template = require 'template'
 local SolverBase = require 'solver.solverbase'
+local time, getTime = table.unpack(require 'util.time')
 local real = require 'real'
 
 
@@ -157,6 +158,10 @@ os.exit()
 
 
 local MeshSolver = class(SolverBase)
+
+MeshSolver.showVertices = false
+MeshSolver.showFaces = false
+MeshSolver.showCells = true
 
 local struct = require 'struct.struct'
 local face_t = struct{
@@ -852,6 +857,7 @@ function Quad2DMeshFactory:createMesh(solver)
 
 	mesh:calcAux()
 	return mesh
+
 end
 
 
@@ -875,8 +881,20 @@ function MeshSolver:initL1(args)
 	local meshType = assert(args.mesh.type, "expected mesh type")
 	local meshFactoryClass = assert(meshFactoryClassForType[meshType], "failed to find mesh factory for type "..meshType)
 	local meshFactory = meshFactoryClass(args.mesh)
-	self.mesh = meshFactory:createMesh(self)
 
+--[[ script for testing mesh build times:
+require 'ext.range'(1,6,.25):mapi(function(x)
+	return true, math.floor(2^x)
+end):keys():sort():mapi(function(i)
+	local cmd = './run.lua sys=console meshsize='..i
+	print('>'..cmd)
+	print(os.execute(cmd))
+end)
+--]]
+	time('creating mesh', function()
+		self.mesh = meshFactory:createMesh(self)
+	end)
+--os.exit()
 
 	-- ok now convert from lua tables to arrays
 	-- or do this in mesh:calcAux() ?
@@ -1106,7 +1124,7 @@ MeshSolver.drawCellScale = .9
 local gl = require 'gl'
 function MeshSolver:display(varName, ar)
 	local app = self.app
-	
+
 	local var = self.displayVarForName[varName]
 
 -- [[ this is from the draw/*.lua
@@ -1120,8 +1138,25 @@ function MeshSolver:display(varName, ar)
 		var.heatMapValueMax = valueMax
 	end
 --]]	
-	
+
+-- [[ also in draw/*.lua
+	local gradientValueMin = valueMin
+	local gradientValueMax = valueMax
+	local showName = varName
+	if var.showInUnits and var.units then
+		local unitScale = self:convertToSIUnitsCode(var.units).func()
+		gradientValueMin = gradientValueMin * unitScale
+		gradientValueMax = gradientValueMax * unitScale
+		showName = showName..' ('..var.units..')'
+	end
+	app:drawGradientLegend(ar, showName, gradientValueMin, gradientValueMax)
+--]]
+
+
 -- [[ matches GridSolver.calcDisplayVarToTex
+	local component = self.displayComponentFlatList[var.component]
+	local vectorField = self:isVarTypeAVectorField(component.type)
+	
 	local ptr = self.calcDisplayVarToTexPtr
 	
 	var:setToBufferArgs()
@@ -1141,24 +1176,26 @@ function MeshSolver:display(varName, ar)
 	-- draw the mesh 
 	local mesh = self.mesh
 
-	-- if show vertices...
-	gl.glPointSize(3)
-	gl.glColor3f(1,1,1)
-	gl.glBegin(gl.GL_POINTS)
-	for _,v in ipairs(mesh.vtxs) do
-		gl.glVertex3d(v:unpack())
-	end
-	gl.glEnd()
-	gl.glPointSize(1)
-
-	-- if show faces ...
-	for fi,f in ipairs(mesh.faces) do
-		gl.glBegin(gl.GL_LINE_LOOP)
-		for vi=0,f.vtxCount-1 do
-			local v = mesh.vtxs[mesh.faceVtxIndexes[vi + f.vtxOffset]]
+	if self.showVertices then
+		gl.glPointSize(3)
+		gl.glColor3f(1,1,1)
+		gl.glBegin(gl.GL_POINTS)
+		for _,v in ipairs(mesh.vtxs) do
 			gl.glVertex3d(v:unpack())
 		end
 		gl.glEnd()
+		gl.glPointSize(1)
+	end
+
+	if self.showFaces then
+		for fi,f in ipairs(mesh.faces) do
+			gl.glBegin(gl.GL_LINE_LOOP)
+			for vi=0,f.vtxCount-1 do
+				local v = mesh.vtxs[mesh.faceVtxIndexes[vi + f.vtxOffset]]
+				gl.glVertex3d(v:unpack())
+			end
+			gl.glEnd()
+		end
 	end
 
 	-- if show cells ...
@@ -1168,39 +1205,41 @@ function MeshSolver:display(varName, ar)
 	-- in gridshader I have a kernel for updating tex/buffer to display values based on the cell state values
 	-- i can do the same, and just update the 'displayValue' inside each cell for this.
 	-- in fact, before drawing this, calcDisplayVarToBuffer will fill reduceBuf with the values (associated 1-1 with each cell?)
-	local gradientTex = app.gradientTex
-	gradientTex:enable()
-	gradientTex:bind()
-	if self.dim == 2 then
-		for ci,c in ipairs(mesh.cells) do
-			local displayValue = ptr[ci]
-			gl.glTexCoord1f(displayValue)
+	if self.showCells then
+		local gradientTex = app.gradientTex
+		gradientTex:enable()
+		gradientTex:bind()
+		if self.dim == 2 then
+			for ci,c in ipairs(mesh.cells) do
+				local displayValue = ptr[channels * ci]
+				gl.glTexCoord1f(displayValue)
 
-			gl.glBegin(gl.GL_POLYGON)
-			for vi=0,c.vtxCount-1 do
-				local v = mesh.vtxs[mesh.cellVtxIndexes[vi + c.vtxOffset]]
-				gl.glVertex3d(((v - c.pos) * self.drawCellScale + c.pos):unpack())
-			end
-			gl.glEnd()
-		end
-	elseif self.dim == 3 then
-		for ci,c in ipairs(mesh.cells) do
-			local displayValue = ptr[ci]
-			gl.glTexCoord1f(displayValue)
-			
-			for i=0,c.faceCount-1 do
-				local f = mesh.faces[mesh.cellFaceIndexes[i + c.faceOffset]]
 				gl.glBegin(gl.GL_POLYGON)
-				for vi=0,f.vtxCount-1 do
-					local v = mesh.vtxs[mesh.cellFaceIndexes[vi + f.vtxOffset]]
+				for vi=0,c.vtxCount-1 do
+					local v = mesh.vtxs[mesh.cellVtxIndexes[vi + c.vtxOffset]]
 					gl.glVertex3d(((v - c.pos) * self.drawCellScale + c.pos):unpack())
 				end
 				gl.glEnd()
 			end
+		elseif self.dim == 3 then
+			for ci,c in ipairs(mesh.cells) do
+				local displayValue = ptr[channels * ci]
+				gl.glTexCoord1f(displayValue)
+				
+				for i=0,c.faceCount-1 do
+					local f = mesh.faces[mesh.cellFaceIndexes[i + c.faceOffset]]
+					gl.glBegin(gl.GL_POLYGON)
+					for vi=0,f.vtxCount-1 do
+						local v = mesh.vtxs[mesh.cellFaceIndexes[vi + f.vtxOffset]]
+						gl.glVertex3d(((v - c.pos) * self.drawCellScale + c.pos):unpack())
+					end
+					gl.glEnd()
+				end
+			end
 		end
+		gradientTex:unbind()
+		gradientTex:disable()
 	end
-	gradientTex:unbind()
-	gradientTex:disable()
 end
 
 return MeshSolver 

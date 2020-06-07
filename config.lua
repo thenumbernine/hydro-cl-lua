@@ -780,7 +780,11 @@ self.solvers:insert(require 'solver.wave-fd'(table(args, {integrator='backward E
 
 
 -- unstructured meshes
-self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh', size={20,20}}})))
+-- CFDMesh runs a 256x256 grid at 10-11 fps
+-- hydro-cl runs a 256x256 GridSolver at 37 fps
+-- CFDMesh runs a 50x50 grid at about 100 fps
+-- hydro-cl runs a 50x50 MeshSolver at ... slow
+self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 
 
 

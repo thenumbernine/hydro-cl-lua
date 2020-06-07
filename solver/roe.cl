@@ -244,13 +244,7 @@ kernel void calcFlux(
 	//TODO option to rotate to align fluxes?
 	// then you'd have to build a new normalInfo_t based on the aligned (x-axis) normal.
 
-	fluxBuf[faceIndex] = calcFluxForInterface(
-		solver,
-		UL,
-		UR,
-		x,
-		n
-	);
+	fluxBuf[faceIndex] = calcFluxForInterface(solver, UL, UR, x, n);
 }
 
 <? end -- mesh vs grid solver ?>
