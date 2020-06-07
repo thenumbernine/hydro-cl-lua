@@ -7,12 +7,8 @@ https://turbmodels.larc.nasa.gov/naca0012_grids.html
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
-local string = require 'ext.string'
 local file = require 'ext.file'
---local vec2sz = require 'vec-ffi.vec2sz'
-local vec2sz = require 'vec-ffi.create_vec2'{ctype='size_t'}
-local vec2i = require 'vec-ffi.vec2i'
-local vec2d = require 'vec-ffi.vec2d'
+local template = require 'template'
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
 local matrix_ffi = require 'matrix.ffi'
@@ -22,7 +18,6 @@ local glreport = require 'gl.report'
 local GLProgram = require 'gl.program'
 local GLArrayBuffer = require 'gl.arraybuffer'
 local GLVertexArray = require 'gl.vertexarray'
-local template = require 'template'
 local tooltip = require 'hydro.tooltip'
 local SolverBase = require 'hydro.solver.solverbase'
 local time, getTime = table.unpack(require 'hydro.util.time')
@@ -37,183 +32,13 @@ local Mesh = require 'hydro.mesh.mesh'
 
 local MeshSolver = class(SolverBase)
 
-local MeshFactory = class()
 
-
-local P2DFMTMeshFactory = class(MeshFactory)
-
-function P2DFMTMeshFactory:createMesh(args)
-	-- TODO
-	local meshfilename = assert(args.meshfile)
-	local ls = string.split(assert(string.trim(file['grids/'..meshfilename..'.p2dfmt'])), '\n')
-	local first = ls:remove(1)
-	local m, n = string.split(string.trim(ls:remove(1)), '%s+'):map(function(l) return tonumber(l) end):unpack()
-	local x = string.split(string.trim(ls:concat()), '%s+'):map(function(l) return tonumber(l) end)
-	assert(#x == 2*m*n)
-	print(m, n, m*n)
-	-- [[
-	local us = x:sub(1,m*n)
-	local vs = x:sub(m*n+1)
-	assert(#us == #vs)
-	local vtxs = table()
-	for i=1,#us do
-		local u,v = us[i], vs[i]
-		addVtx(vtxs, {u,v})
-	end
-
-	assert(#vtxs == m*n, "expected "..#vtxs.." to equal "..(m*n))
-end
-
-
-local Chart2DMeshFactory = class(MeshFactory)
-function Chart2DMeshFactory:init(args)
-	args = args or {}
-	self.size = vec2sz(args.size or {20,20})
-	self.mins = vec2d(args.mins or {-1, -1})
-	self.maxs = vec2d(args.maxs or {1, 1})
-	self.wrap = vec2i(args.wrap or {0, 0})
-	self.capmin = vec2i(args.capmin or {0, 0})
-end
-function Chart2DMeshFactory:coordChart(x) return x end
-
-
-local Tri2DMeshFactory = class(Chart2DMeshFactory)
-Tri2DMeshFactory.name = 'Tri2DMesh'
-function Tri2DMeshFactory:createMesh(solver)
-	local mesh = Mesh(solver)
-
-	local nx = tonumber(self.size.x) + 1
-	local ny = tonumber(self.size.y) + 1
-	
-	local stepx = 1
-	local stepy = nx
-	
-	local vtxsize = nx * ny
-	if self.capmin.x then vtxsize = vtxsize + 1 end
-
-	mesh.vtxs:resize(vtxsize)
-	for iy=0,ny-1 do
-		for ix=0,nx-1 do
-			local x = vec2d(
-				tonumber(ix / self.size.x * (self.maxs.x - self.mins.x) + self.mins.x),
-				tonumber(iy / self.size.y * (self.maxs.y - self.mins.y) + self.mins.y))
-			local u = self:coordChart(x)
-			mesh.vtxs.v[ix * stepx + iy * stepy] = self.real3(u:unpack())
-		end
-	end
-	
-	local capindex = nx * ny
-	if self.capmin.x then
-		local sum = mesh.real3()
-		for j=0,ny-1 do
-			sum = sum + mesh.vtxs.v[0 + nx * j]
-		end
-		mesh.vtxs.v[capindex].pos = sum / ny
-	end
-	
-	local imaxx = self.wrap.x ~= 0 and nx or nx - 1
-	local imaxy = self.wrap.y ~= 0 and ny or ny - 1
-	
-	for iy=0,imaxy-1 do
-		local niy = (iy + 1) % ny
-		for ix=0,imaxx-1 do
-			local nix = (ix + 1) % nx
-			mesh:addCell(vector('int',{
-				ix + nx * iy,
-				nix + nx * iy,
-				nix + nx * niy,
-			}))
-			mesh:addCell(vector('int',{
-				nix + nx * niy,
-				ix + nx * niy,
-				ix + nx * iy,
-			}))
-		end
-	end
-	
-	mesh:calcAux()
-	return mesh
-end
-
-
-local Quad2DMeshFactory = class(Chart2DMeshFactory)
-Quad2DMeshFactory.name = 'Quad2DMesh'
-function Quad2DMeshFactory:createMesh(solver)
-	local mesh = Mesh(solver)
-
-	local n = self.size + 1
-	local step = vec2i(1, n.x)
-	local vtxsize = n:volume()
-	if self.capmin.x ~= 0 then vtxsize = vtxsize + 1 end
-	mesh.vtxs:resize(vtxsize)
-
-	local coordRangeMax = vec2i(self.size:unpack())
-	if self.wrap.x ~= 0 or self.capmin.x ~= 0 then coordRangeMax.x = coordRangeMax.x + 1 end
-	if self.wrap.y ~= 0 or self.capmin.y ~= 0 then coordRangeMax.y = coordRangeMax.y + 1 end
-
-	local iofs = vec2i()
-	if self.capmin.x ~= 0 then iofs.x = 1 end
-	if self.capmin.y ~= 0 then iofs.y = 1 end
-
-	local i = vec2i()
-	for iy=0,tonumber(n.y)-1 do
-		i.y = iy
-		for ix=0,tonumber(n.x)-1 do
-			i.x = ix
-			local x = vec2d((i + iofs):unpack()) / vec2d(coordRangeMax:unpack()) * (self.maxs - self.mins) + self.mins
-			local u = self:coordChart(x)
-			mesh.vtxs.v[tonumber(i:dot(step))] = mesh.real3(u:unpack())
-		end
-	end
-	
-	local capindex = n:volume()
-	if self.capmin.x ~= 0 then
-		local sum = mesh.real3()
-		for j=0,n.y-1 do
-			sum = sum + mesh.vtxs.v[tonumber(0 + n.x * j)]
-		end
-		mesh.vtxs.v[tonumber(capindex)] = sum / tonumber(n.y)
-	end
-
-	local imax = vec2i()
-	for j=0,1 do
-		imax.s[j] = self.wrap.s[j] ~= 0 and n.s[j] or n.s[j]-1
-	end
-
-	local ni = vec2i()
-	for iy=0,tonumber(imax.y-1) do
-		i.y = iy
-		ni.y = (i.y + 1) % n.y
-		for ix=0,tonumber(imax.x-1) do
-			i.x = ix
-			ni.x = (i.x + 1) % n.x
-			mesh:addCell(vector('int',{
-				tonumber(i.x + n.x * i.y),
-				tonumber(ni.x + n.x * i.y),
-				tonumber(ni.x + n.x * ni.y),
-				tonumber(i.x + n.x * ni.y),
-			}))
-		end
-	end
-
-	if self.capmin.x ~= 0 then
-		for j=0,imax.y-1 do
-			local jn = (j + 1) % n.y
-			mesh.addCell(vector('int',{
-				tonumber(0 + n.x * j), 
-				tonumber(0 + n.x * jn), 
-				tonumber(capindex),
-			}))
-		end
-	end
-
-	mesh:calcAux()
-	return mesh
-
-end
-
+local P2DFMTMeshFactory = require 'hydro.mesh.p2dfmt'
+local Tri2DMeshFactory = require 'hydro.mesh.tri2d'
+local Quad2DMeshFactory = require 'hydro.mesh.quad2d'
 
 local meshFactoryClassForType = {
+	P2DFMTMesh = P2DFMTMeshFactory,
 	Tri2DMesh = Tri2DMeshFactory,
 	Quad2DMesh = Quad2DMeshFactory,
 }
