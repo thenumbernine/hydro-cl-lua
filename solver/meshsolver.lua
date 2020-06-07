@@ -14,7 +14,12 @@ local file = require 'ext.file'
 local vec2sz = require 'vec-ffi.create_vec2'{ctype='size_t'}
 local vec2i = require 'vec-ffi.vec2i'
 local vec2d = require 'vec-ffi.vec2d'
+local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
+local gl = require 'gl'
+local GLProgram = require 'gl.program'
+local GLArrayBuffer = require 'gl.arraybuffer'
+local GLVertexArray = require 'gl.vertexarray'
 local template = require 'template'
 local SolverBase = require 'solver.solverbase'
 local time, getTime = table.unpack(require 'util.time')
@@ -931,6 +936,70 @@ end)
 	how about texture, and how about rendering?
 	texsize will have to be > #elems ... using size is fine as long as we need a gridsize
 	--]]
+
+	
+	self.drawShader = GLProgram{
+		vertexCode = [[
+attribute vec3 vtx;
+attribute float value;
+varying float tc;
+void main() {
+	gl_Position = gl_ModelViewProjectionMatrix * vec4(vtx, 1.);
+	tc = value;
+}
+]],
+		fragmentCode = [[
+varying float tc;
+uniform sampler1D gradTex;
+void main() {
+	gl_FragColor = texture1D(gradTex, tc);
+}
+]],
+		uniforms = {
+			gradTex = 0,
+		},
+	}
+
+	-- make a GPU version of the mesh
+	-- TODO triangulate ... then include a mapping from triangle to source cell,
+	-- and then just copy from display buf to a texture,
+	-- then store per vertex the lookup to the texture.
+	-- Also, if you are going to scale cells, then you must store a unique vertex per cell here.
+	-- this means no dynamic mesh (without more coding).
+	local glvtxs = ffi.new('vec3f_t[?]', self.numVtxs)
+	for i=0,self.numVtxs-1 do
+		for j=0,2 do
+			glvtxs[i].s[j] = self.mesh.vtxs.v[i].s[j]
+		end
+	end
+	self.glVtxBuffer = GLArrayBuffer{
+		data = glvtxs,
+		size = ffi.sizeof(glvtxs), 
+	}
+	self.drawShaderVtxVertexArray = GLVertexArray{
+		buffer = self.glVtxBuffer,
+		size = 3,
+		type = gl.GL_FLOAT,
+	}
+	self.drawShaderVtxVertexArray:bind()
+	self.drawShader:setAttr('vtx', self.drawShaderVtxVertexArray)
+	self.drawShaderVtxVertexArray:unbind()
+
+
+	local glvalues = ffi.new('float[?]', self.numVtxs)
+	self.glValueBuffer = GLArrayBuffer{
+		data = glvalue,
+		size = ffi.sizeof(glvalues),
+	}
+	self.drawShaderValueVertexArray = GLVertexArray{
+		buffer = self.glValueBuffer,
+		size = 1,
+		type = gl.GL_FLOAT,
+	}
+	self.drawShaderValueVertexArray:bind()
+	self.drawShader:setAttr('value', self.drawShaderValueVertexArray)
+	self.drawShaderValueVertexArray:unbind()
+
 	
 	-- no longer is dim * numCells the number of interfaces -- it is now dependent on the mesh
 	-- maybe I should rename this to numFaces?
@@ -1164,7 +1233,7 @@ function MeshSolver:display(varName, ar)
 	
 	var:setToBufferArgs()
 	self:calcDisplayVarToBuffer(var)
-	
+
 	local channels = vectorField and 3 or 1
 	self.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
 --]]
@@ -1207,12 +1276,14 @@ function MeshSolver:display(varName, ar)
 	-- in fact, before drawing this, calcDisplayVarToBuffer will fill reduceBuf with the values (associated 1-1 with each cell?)
 	if self.showCells then
 		local gradientTex = app.gradientTex
-		gradientTex:enable()
+		self.drawShader:use()
 		gradientTex:bind()
+		self.drawShaderVtxVertexArray:bind()
+		self.drawShaderValueVertexArray:bind()
 		if self.dim == 2 then
 			for ci,c in ipairs(mesh.cells) do
 				local displayValue = ptr[channels * ci]
-				gl.glTexCoord1f(displayValue)
+				gl.glVertexAttrib1f(self.drawShader.attrs.value.loc, displayValue)
 
 				gl.glBegin(gl.GL_POLYGON)
 				for vi=0,c.vtxCount-1 do
@@ -1227,7 +1298,7 @@ function MeshSolver:display(varName, ar)
 		elseif self.dim == 3 then
 			for ci,c in ipairs(mesh.cells) do
 				local displayValue = ptr[channels * ci]
-				gl.glTexCoord1f(displayValue)
+				gl.glVertexAttrib1f(self.drawShader.attrs.value.loc, displayValue)
 				
 				for i=0,c.faceCount-1 do
 					local f = mesh.faces.v[mesh.cellFaceIndexes.v[i + c.faceOffset]]
@@ -1241,8 +1312,10 @@ function MeshSolver:display(varName, ar)
 				end
 			end
 		end
+		self.drawShaderVtxVertexArray:unbind()
+		self.drawShaderValueVertexArray:unbind()
 		gradientTex:unbind()
-		gradientTex:disable()
+		self.drawShader:useNone()
 	end
 end
 
