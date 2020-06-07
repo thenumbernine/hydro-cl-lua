@@ -72,7 +72,7 @@ end
 	-- and it shares init conditions with a lot of other solvers
 	-- so ...
 	-- (don't the Einstein solvers also use initDerivs?)
-	if require 'eqn.glm-mhd'.is(solver.eqn) then
+	if require 'hydro.eqn.glm-mhd'.is(solver.eqn) then
 		solver.initDerivsKernelObj = solver.initStateProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf)
 	end
 end
@@ -90,7 +90,7 @@ function InitCond:resetState(solver)
 		solver:printBuf(solver.UBufObj)
 	end
 	
-	if require 'eqn.glm-mhd'.is(solver.eqn) then
+	if require 'hydro.eqn.glm-mhd'.is(solver.eqn) then
 		solver:boundary()
 		solver.initDerivsKernelObj()
 	end

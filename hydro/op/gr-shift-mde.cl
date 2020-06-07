@@ -106,7 +106,7 @@ gamma^ij_,k = -gamma^im gamma_mn,k gamma^nj = -2 d_k^ij
 */
 
 <?
-local makePartials = require 'eqn.makepartial'
+local makePartials = require 'hydro.eqn.makepartial'
 local derivOrder = 2 * solver.numGhost
 local makePartial1 = function(...) return makePartials.makePartial1(derivOrder, solver, ...) end
 local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end

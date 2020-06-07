@@ -14,7 +14,7 @@ local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
-local makestruct = require 'eqn.makestruct'
+local makestruct = require 'hydro.eqn.makestruct'
 
 --[[
 parent is a solver... just Roe for now
@@ -114,8 +114,8 @@ local function TwoFluidEMHDBehavior(parent)
 			getExtraTypeCode = function() return '' end,
 		}
 
-		setmetatable(self.eqn, require 'eqn.eqn')
-		-- taken from eqn/twofluid-emhd.lua
+		setmetatable(self.eqn, require 'hydro.eqn.eqn')
+		-- taken from hydro/eqn/twofluid-emhd.lua
 		self.eqn:addGuiVars(self.eqn, table{
 			--never given, only stated as "speeds for the Maxwell equation"
 			-- of course, they're associated with the potentials, so... they could be arbitrary

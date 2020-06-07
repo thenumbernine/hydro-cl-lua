@@ -300,9 +300,9 @@ local function addMaxwellOscillatingBoundary(args)
 				template([[
 <?
 	local epsSrc = 
-		(require 'eqn.twofluid-emhd-lingr'.is(eqn) 
-			or require 'eqn.glm-maxwell'.is(eqn)
-			or require 'eqn.maxwell'.is(eqn)
+		(require 'hydro.eqn.twofluid-emhd-lingr'.is(eqn) 
+			or require 'hydro.eqn.glm-maxwell'.is(eqn)
+			or require 'hydro.eqn.maxwell'.is(eqn)
 		)
 		and U or 'solver'
 ?>

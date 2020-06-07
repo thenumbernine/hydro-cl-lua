@@ -17,7 +17,7 @@ local tooltip = require 'hydro.tooltip'
 local roundup = require 'hydro.util.roundup'
 local time, getTime = table.unpack(require 'hydro.util.time')
 local SolverBase = require 'solver.solverbase'
-local makestruct = require 'eqn.makestruct'
+local makestruct = require 'hydro.eqn.makestruct'
 
 local half = require 'hydro.half'
 local toreal, fromreal = half.toreal, half.fromreal

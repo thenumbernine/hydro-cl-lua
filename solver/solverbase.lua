@@ -11,7 +11,7 @@ local CLBuffer = require 'cl.obj.buffer'
 local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
 local tooltip = require 'hydro.tooltip'
-local makestruct = require 'eqn.makestruct'
+local makestruct = require 'hydro.eqn.makestruct'
 local roundup = require 'hydro.util.roundup'
 local time, getTime = table.unpack(require 'hydro.util.time')
 local Struct = require 'hydro.struct.struct'
@@ -43,7 +43,7 @@ local SolverBase = class()
 
 SolverBase.name = 'Solver'
 
--- override to specify which eqn/*.lua to use as the equation
+-- override to specify which hydro/eqn/*.lua to use as the equation
 SolverBase.eqnName = nil
 
 -- whether to use separate linked binaries.  would it save on compile time?
@@ -63,7 +63,7 @@ SolverBase.displayVarAccumFunc = false
 args:
 	app
 	dim
-	eqn = name of eqn/<name>.lua to use
+	eqn = name of hydro/eqn/<name>.lua to use
 	eqnArgs (optional) = args of eqn ctor
 	coord = coordinate system name to use, associated with coord/<name>.lua
 	initState = init state name
@@ -550,7 +550,7 @@ end
 -- this is the general function - which just assigns the eqn provided by the arg
 -- but it can be overridden for specific equations
 function SolverBase:createEqn()
-	self.eqn = require('eqn.'..assert(self.eqnName, "expected solver.eqnName or solver args.eqn"))(table(
+	self.eqn = require('hydro.eqn.'..assert(self.eqnName, "expected solver.eqnName or solver args.eqn"))(table(
 		self.eqnArgs or {},
 		{solver = self}
 	))

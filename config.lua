@@ -599,7 +599,7 @@ self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='
 -- general relativistic compressible hydrodynamics
 
 
--- TODO remove calcEigenBasis from eqn/grhd.cl
+-- TODO remove calcEigenBasis from hydro/eqn/grhd.cl
 -- this is the solver with plug-ins for ADM metric, 
 -- yet doesn't come coupled with any other solver, so it will act just like a srhd solver
 --self.solvers:insert(require 'solver.grhd-roe'(args))

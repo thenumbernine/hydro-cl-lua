@@ -9,7 +9,7 @@ local template = require 'template'
 return function(parent)
 	local templateClass = class(parent)
 	
-	-- eqn/grhd.cl needs this implemented for deducing alpha, beta, gamma
+	-- hydro/eqn/grhd.cl needs this implemented for deducing alpha, beta, gamma
 	function templateClass:getADMArgs()
 		return ''	
 	end
