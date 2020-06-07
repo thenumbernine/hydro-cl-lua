@@ -26,7 +26,7 @@ function SRHDSelfGrav:init(args)
 	self.solver[self.enableField] = not not self.solver[self.enableField]
 end
 
--- params for op/poisson.cl 
+-- params for hydro/op/poisson.cl 
 function SRHDSelfGrav:getPoissonDivCode()
 	return template([[
 	source = 4. * M_PI * U->rho 

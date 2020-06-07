@@ -16,7 +16,7 @@ local vec3sz = require 'vec-ffi.vec3sz'
 local tooltip = require 'hydro.tooltip'
 local roundup = require 'hydro.util.roundup'
 local time, getTime = table.unpack(require 'hydro.util.time')
-local SolverBase = require 'solver.solverbase'
+local SolverBase = require 'hydro.solver.solverbase'
 local makestruct = require 'hydro.eqn.makestruct'
 
 local half = require 'hydro.half'
@@ -689,8 +689,8 @@ function GridSolver:getSolverCode()
 			
 		slopeLimiterCode,
 		
-		self.usePLM and template(file['solver/plm.cl'], {solver=self, eqn=self.eqn}) or '',
-		self.useCTU and template(file['solver/ctu.cl'], {solver=self, eqn=self.eqn}) or '',
+		self.usePLM and template(file['hydro/solver/plm.cl'], {solver=self, eqn=self.eqn}) or '',
+		self.useCTU and template(file['hydro/solver/ctu.cl'], {solver=self, eqn=self.eqn}) or '',
 	}:concat'\n'
 end
 

@@ -78,7 +78,7 @@ function SRHD:init(args)
 
 	SRHD.super.init(self, args)
 
-	if require 'solver.meshsolver'.is(self.solver) then
+	if require 'hydro.solver.meshsolver'.is(self.solver) then
 		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
 	else
 		local SRHDSelfGrav = require 'hydro.op.srhd-selfgrav'

@@ -31,7 +31,7 @@ function EinsteinEquation:createInitState()
 end
 
 -- add an option for fixed Minkowsky boundary spacetime
--- TODO now there is already a BoundaryFixed in solver/gridsolver, but no easy way to parameterize how to set what fixed values it is
+-- TODO now there is already a BoundaryFixed in hydro/solver/gridsolver, but no easy way to parameterize how to set what fixed values it is
 function EinsteinEquation:createBoundaryOptions()
 	local Boundary = self.solver.Boudary
 	local BoundaryFixed = class(Boundary)

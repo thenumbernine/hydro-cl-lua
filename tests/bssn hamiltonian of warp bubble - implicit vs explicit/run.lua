@@ -32,8 +32,8 @@ for _,info in ipairs{
 	local App = class(require 'hydro.app')
 	
 	function App:setup()
-		--local solver = require 'solver.z4c-fd'{
-		local solver = require 'solver.bssnok-fd'{
+		--local solver = require 'hydro.solver.z4c-fd'{
+		local solver = require 'hydro.solver.bssnok-fd'{
 			app = self, 
 			dim = 2,
 			coord = 'cartesian',

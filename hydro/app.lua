@@ -1035,7 +1035,7 @@ end
 		-- in all these above :display...() methods, they exclude meshsolvers
 		-- just for mesh ...
 		for _,solver in ipairs(self.solvers) do
-			if require 'solver.meshsolver'.is(solver) then
+			if require 'hydro.solver.meshsolver'.is(solver) then
 				solver:display(varName, ar) 
 			end
 		end

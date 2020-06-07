@@ -1,6 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local GridSolver = require 'solver.gridsolver'
+local GridSolver = require 'hydro.solver.gridsolver'
 
 local EinsteinFiniteDifferenceSolver = class(GridSolver)
 

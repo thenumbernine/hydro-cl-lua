@@ -565,7 +565,7 @@ self.Gamma_ull = Gamma_ull
 
 	-- area of the side in each direction
 	-- TODO only by request -- for finite-volume solvers 
-	if require 'solver.fvsolver'.is(assert(args.solver)) then
+	if require 'hydro.solver.fvsolver'.is(assert(args.solver)) then
 		compileTensorField('cell_area_codes', coord_area_exprs)
 	end
 
@@ -595,7 +595,7 @@ self.Gamma_ull = Gamma_ull
 			print(var'volume':eq(volume))
 			print(var'gHolDet':eq(gHolDet))
 		end
-		if require 'solver.fvsolver'.is(assert(args.solver)) then
+		if require 'hydro.solver.fvsolver'.is(assert(args.solver)) then
 			compileTensorField('cell_volume_code', volume)
 		end
 	end
@@ -860,7 +860,7 @@ function CoordinateSystem:getCode(solver)
 -- [[
 	-- area0, area1, ...
 	-- area_i = integral of u_j, j!=i of product of dx_j, j!=i
-	if require 'solver.fvsolver'.is(solver) then
+	if require 'hydro.solver.fvsolver'.is(solver) then
 		lines:append(range(dim):mapi(function(i)
 			local code = self.cell_area_codes[i]
 			return '#define cell_area'..(i-1)..'(pt) ('..code..')'
@@ -937,7 +937,7 @@ static inline real coordLen(real3 r, real3 pt) {
 
 	lines:insert(self:getCoordMapCode())
 
-	if require 'solver.fvsolver'.is(self.solver) then
+	if require 'hydro.solver.fvsolver'.is(self.solver) then
 		-- parallel-propagate a vector from point 'x' along coordinate 'k' (suffix of func name) by amount 'dx'
 		-- TODO derive this from the metric
 		-- upper parallel propagator = exp(-int_x^(x+dx) of conn_side dx)
@@ -1013,7 +1013,7 @@ function CoordinateSystem:getCoordMapCode()
 		lines:insert(getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
 	end
 
-	if require 'solver.fvsolver'.is(self.solver)
+	if require 'hydro.solver.fvsolver'.is(self.solver)
 	and self.vectorComponent == 'cartesian' 
 	then
 		for i,eHolUnitiCode in ipairs(self.eHolUnitCode) do
@@ -1177,7 +1177,7 @@ How to organize this?
 3) have code gen for (1) calculating the struct and (2) accessing the struct.
 --]]
 function CoordinateSystem:getNormalCodeGenerator()
-	if require 'solver.meshsolver'.is(self.solver) then
+	if require 'hydro.solver.meshsolver'.is(self.solver) then
 --[[
 mesh vertexes are provided in Cartesian coordinates
 so their normals are as well

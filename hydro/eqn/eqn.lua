@@ -16,7 +16,7 @@ local sym = common.sym
 
 local Equation = class()
 
--- this is passed on to solver/calcDerivFV.cl
+-- this is passed on to hydro/solver/calcDerivFV.cl
 -- it has the effect of adding the connection terms Conn^k_jk u^I_,j (for the I'th conserved quantity u^I)
 -- TODO get rid of this altogether
 Equation.weightFluxByGridVolume = true
@@ -376,7 +376,7 @@ end
 -- that could be done in GLSL using the dx operators ... maybe I'll look into that later ...
 -- TODO use the automatic arbitrary finite difference generator in bssnok
 function Equation:createDivDisplayVar(args)
-	if require 'solver.meshsolver'.is(self.solver) then return end
+	if require 'hydro.solver.meshsolver'.is(self.solver) then return end
 	
 	local field = assert(args.field)
 	local getField = args.getField
@@ -418,7 +418,7 @@ end
 -- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
 -- TODO use the automatic arbitrary finite difference generator in bssnok
 function Equation:createCurlDisplayVar(args)
-	if require 'solver.meshsolver'.is(self.solver) then return end
+	if require 'hydro.solver.meshsolver'.is(self.solver) then return end
 
 	local field = assert(args.field)
 	local getField = args.getField

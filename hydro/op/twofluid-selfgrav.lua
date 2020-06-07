@@ -63,7 +63,7 @@ kernel void calcGravityDeriv<?=op.name?>(
 ?>
 }
 
-// this matches op/selfgrav.lua
+// this matches hydro/op/selfgrav.lua
 kernel void copyPotentialToReduce<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global real* reduceBuf,
@@ -73,7 +73,7 @@ kernel void copyPotentialToReduce<?=op.name?>(
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
 }
 
-// this matches op/selfgrav.lua
+// this matches hydro/op/selfgrav.lua
 kernel void offsetPotential<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,

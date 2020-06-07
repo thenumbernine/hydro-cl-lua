@@ -3,8 +3,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local real = require 'hydro.real'
 local CLBuffer = require 'cl.obj.buffer'
-
-local BSSNOKFiniteDifferenceSolver = require 'solver.bssnok-fd'
+local BSSNOKFiniteDifferenceSolver = require 'hydro.solver.bssnok-fd'
 
 local BSSNOKFiniteDifferencePIRKSolver = class(BSSNOKFiniteDifferenceSolver)
 BSSNOKFiniteDifferencePIRKSolver.name = 'BSSNOK_FiniteDifference_PIRK'

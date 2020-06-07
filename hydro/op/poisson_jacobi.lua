@@ -7,7 +7,7 @@ local PoissonJacobi = class(Relaxation)
 
 PoissonJacobi.name = 'PoissonJacobi'
 
-PoissonJacobi.solverCodeFile = 'op/poisson.cl'
+PoissonJacobi.solverCodeFile = 'hydro/op/poisson.cl'
 
 local poissonJacobiCode = [[
 <?

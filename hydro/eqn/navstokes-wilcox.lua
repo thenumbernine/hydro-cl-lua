@@ -31,7 +31,7 @@ function NavierStokesWilcox:init(args)
 --[[ might have to change the selfgrav terms ...
 	local SelfGrav = require 'hydro.op.selfgrav'
 
-if require 'solver.meshsolver'.is(self.solver) then
+if require 'hydro.solver.meshsolver'.is(self.solver) then
 	print("not using selfgrav with mesh solvers yet")
 else
 		self.gravOp = SelfGrav{solver = self.solver}

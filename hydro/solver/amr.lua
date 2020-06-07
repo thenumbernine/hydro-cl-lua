@@ -1,7 +1,7 @@
 --[[
 behavior that makes any GridSolver AMR-friendly
 
-now to change solver/gridsolver so I can somehow modify the mins/maxs without reloading any kernels
+now to change hydro/solver/gridsolver so I can somehow modify the mins/maxs without reloading any kernels
 ...
 --]]
 local ffi = require 'ffi'

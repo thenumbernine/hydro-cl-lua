@@ -3,7 +3,7 @@ from 2010 Colliander et al "Numerical Simulations ..."
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
-local GridSolver = require 'solver.gridsolver'
+local GridSolver = require 'hydro.solver.gridsolver'
 
 local NLSSolver = class(GridSolver)
 NLSSolver.name = 'NonLinearSchrodinger'

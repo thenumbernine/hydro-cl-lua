@@ -179,7 +179,7 @@ function DrawVectorLIC:display(app, solvers, varName, ar, graph_xmin, graph_ymin
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
 	for _,solver in ipairs(solvers) do 
-		if not require 'solver.meshsolver'.is(solver) then
+		if not require 'hydro.solver.meshsolver'.is(solver) then
 			local var = solver.displayVarForName[varName]
 			if var and var.enabled then
 				self:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax)

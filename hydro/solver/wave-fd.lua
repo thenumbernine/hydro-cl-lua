@@ -2,7 +2,7 @@
 based on 2014 Oliveira et al - Ergoregion instability- The hydrodynamic vortex
 --]]
 local class = require 'ext.class'
-local GridSolver = require 'solver.gridsolver'
+local GridSolver = require 'hydro.solver.gridsolver'
 
 local WaveFDSolver = class(GridSolver)
 WaveFDSolver.name = 'Wave-FD'

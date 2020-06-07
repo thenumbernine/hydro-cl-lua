@@ -58,7 +58,7 @@ function Euler:init(args)
 
 	Euler.super.init(self, args)
 
-	if require 'solver.meshsolver'.is(self.solver) then
+	if require 'hydro.solver.meshsolver'.is(self.solver) then
 		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
 	else
 		local SelfGrav = require 'hydro.op.selfgrav'
@@ -207,11 +207,11 @@ Euler.initStateCode = [[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
-<? if require 'solver.meshsolver'.is(solver) then ?>
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
 	,global cell_t* cells
 <? end ?>
 ) {
-<? if require 'solver.meshsolver'.is(solver) then ?>
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
 	int index = get_global_id(0);
 	if (index >= get_global_size(0)) return;
 	const global cell_t* cell = cells + index;
@@ -393,7 +393,7 @@ Euler.eigenWaveCode = Euler.consWaveCode
 function Euler:getCalcDTCode()
 	return template([[
 <? local solver = eqn.solver ?>
-<? if require 'solver.gridsolver'.is(solver) then ?>
+<? if require 'hydro.solver.gridsolver'.is(solver) then ?>
 
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,

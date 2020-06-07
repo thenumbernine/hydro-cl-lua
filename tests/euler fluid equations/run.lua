@@ -24,7 +24,7 @@ cmdline = {sys='console'}
 local App = class(require 'hydro.app')
 
 function App:setup()
-	local solver = require 'solver.roe'{
+	local solver = require 'hydro.solver.roe'{
 		app = self, 
 		eqn = 'euler',
 		dim = 2,

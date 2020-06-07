@@ -225,7 +225,7 @@ print()
 				App.allnames = allnames
 				function App:setup(clArgs)
 					cfg.app = self
-					local solver = require('solver.'..cfg.solver)(cfg)
+					local solver = require('hydro.solver.'..cfg.solver)(cfg)
 					self.solvers:insert(solver)
 					self.exitTime = duration
 					self.running = true

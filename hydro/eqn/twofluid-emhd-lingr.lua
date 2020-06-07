@@ -1,7 +1,7 @@
 --[[
 2014 Abgrall, Kumar "Robust Finite Volume Schemes for Two-Fluid Plasma Equations"
 
-the solver/twofluid-emhd-behavior.lua instanciates three separate solvers:
+the hydro/solver/twofluid-emhd-behavior.lua instanciates three separate solvers:
 	ion, electron, maxwell
 However OpenCL is having trouble with this.
 Maybe I have an oob memory write somewhere?

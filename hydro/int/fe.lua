@@ -40,7 +40,7 @@ function ForwardEuler:integrate(dt, callback)
 	
 	solver.multAddIntoKernelObj(solver.solverBuf, solver.UBuf, self.derivBufObj.obj, real(dt))
 
--- [[ I moved this from solver/gridsolver to integrator
+-- [[ I moved this from hydro/solver/gridsolver to integrator
 -- this way I can do it after every substep in the RK integrator
 if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 	solver:boundary()

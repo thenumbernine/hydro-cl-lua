@@ -63,7 +63,7 @@ end
 	end)
 
 	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.solverBuf, solver.UBuf)
-	if require 'solver.meshsolver'.is(solver) then
+	if require 'hydro.solver.meshsolver'.is(solver) then
 		solver.initStateKernelObj.obj:setArg(2, solver.cellsBuf)
 	end
 

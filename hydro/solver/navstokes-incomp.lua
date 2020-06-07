@@ -1,6 +1,6 @@
 local class = require 'ext.class'
 local real = require 'hydro.real'
-local GridSolver = require 'solver.gridsolver'
+local GridSolver = require 'hydro.solver.gridsolver'
 
 local NavierStokesIncompressible = class(GridSolver)
 NavierStokesIncompressible.name = 'NavierStokesIncompressible' 
@@ -17,7 +17,7 @@ end
 function NavierStokesIncompressible:getSolverCode()
 	return table{
 		NavierStokesIncompressible.super.getSolverCode(self),
-		template(file['solver/navstokes-incomp.cl'], {solver=self, eqn=self.eqn}),
+		template(file['hydro/solver/navstokes-incomp.cl'], {solver=self, eqn=self.eqn}),
 	}:concat'\n'
 end
 

@@ -29,9 +29,9 @@ local args = {
 	fixedDT = cmdline.fixedDT,
 	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	fluxLimiter = 'donor cell',
+	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
@@ -79,7 +79,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{128,1,1},
-				{64,64,1},
+				{50,50,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
@@ -474,21 +474,21 @@ local args = {
 }
 
 
-if cmdline.solver then self.solvers:insert(require('solver.'..cmdline.solver)(table(args, cmdline))) return end
+if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solver)(table(args, cmdline))) return end
 
 
 -- wave equation
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='wave'})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
---self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='wave'})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='wave'})))
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='wave'})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
+--self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='wave'})))
 
 -- wave equation with background spacetime metric
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='wave', eqnArgs={beta={'-y / (r * r)','x / (r * r)','0'}}, wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', eqnArgs={beta={'-y / (r * r)','x / (r * r)','0'}}, wenoMethod='1996 Jiang Shu', order=5})))
 
 --[[ Acoustic black hole 
 args.eqnArgs = args.eqnArgs or {}
@@ -499,72 +499,72 @@ args.eqnArgs.alpha = '1'
 args.eqnArgs.beta = {'-1', '0', '0'}
 -- K = -v^i_,i / alpha = 0
 -- and it assume gamma_ij == the grid metric gamma_ij
-self.solvers:insert(require 'solver.roe'(table(args, {eqn='wave'})))
+self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='wave'})))
 --]]
 
 
 -- shallow water equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='shallow-water'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='shallow-water'})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='shallow-water'})))
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='shallow-water'})))
 
 
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='euler'})))
 
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler', calcWaveMethod='Davis direct bounded'})))	-- this is the default calcWaveMethod
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='euler', calcWaveMethod='Davis direct'})))
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='euler', calcWaveMethod='Davis direct bounded'})))	-- this is the default calcWaveMethod
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='euler', calcWaveMethod='Davis direct'})))
 
---self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='euler'})))
 
---self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=0})))
---self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=1})))
---self.solvers:insert(require 'solver.euler-hllc'(table(args, {hllcMethod=2})))
+--self.solvers:insert(require 'hydro.solver.euler-hllc'(table(args, {hllcMethod=0})))
+--self.solvers:insert(require 'hydro.solver.euler-hllc'(table(args, {hllcMethod=1})))
+--self.solvers:insert(require 'hydro.solver.euler-hllc'(table(args, {hllcMethod=2})))
 
 -- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler
 -- TODO weno doesn't seem to work with self-gravitation
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=5})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=5})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=5})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=5})))
 
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=7})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=7})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=7})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=7})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=7})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=7})))
 
 -- order=9 and above 2D Sod test, things tend to explode ... maybe I should take away the betaCoeffs denominator (since they get normalized anyways?)
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=9})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=9})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=9})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=9})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=9})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=9})))
 
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=11})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=11})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=11})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=11})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=11})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=11})))
 
 -- hmm, 2D Sod 64x64 RK4 fails at just past 1 second ... 
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=13})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=13})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=13})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=13})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=13})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=13})))
 
 -- blows up.  maybe I need an implicit RK scheme...
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=13, integrator='backward Euler'})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=13, integrator='backward Euler'})))
 
 --[[ testing different flux methods
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Lax-Friedrichs'})))
-self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Roe'})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Lax-Friedrichs'})))
+self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Roe'})))
 -- FIXME: Marquina is broken:
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Marquina'})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Marquina'})))
 --]]
 
 -- incompressible...
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler', eqnArgs={incompressible=true}})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', eqnArgs={incompressible=true}, wenoMethod='2010 Shen Zha', order=5})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='euler', eqnArgs={incompressible=true}})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', eqnArgs={incompressible=true}, wenoMethod='2010 Shen Zha', order=5})))
 
 
 -- TODO FIXME 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='navstokes-wilcox'})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='navstokes-wilcox'})))
 
 
 -- compressible Euler equations - Burgers solver
@@ -573,7 +573,7 @@ self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='
 -- f.e. and b.e. are working, but none of the r.k. integrators
 -- PLM isn't implemented yet
 -- neither is source term / poisson stuff
---self.solvers:insert(require 'solver.euler-burgers'(args))
+--self.solvers:insert(require 'hydro.solver.euler-burgers'(args))
 
 
 -- special relativistic compressible hydrodynamics
@@ -588,12 +588,12 @@ self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='
 -- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='srhd'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='srhd'})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='srhd'})))
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='srhd'})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
 
 -- srhd incompressible
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='srhd', eqnArgs={incompressible=true}})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='srhd', eqnArgs={incompressible=true}})))
 
 
 -- general relativistic compressible hydrodynamics
@@ -602,7 +602,7 @@ self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='
 -- TODO remove calcEigenBasis from hydro/eqn/grhd.cl
 -- this is the solver with plug-ins for ADM metric, 
 -- yet doesn't come coupled with any other solver, so it will act just like a srhd solver
---self.solvers:insert(require 'solver.grhd-roe'(args))
+--self.solvers:insert(require 'hydro.solver.grhd-roe'(args))
 
 
 -- ideal magnetohydrodynamics
@@ -616,97 +616,97 @@ self.solvers:insert(require 'solver.weno'(table(args, {eqn='euler', wenoMethod='
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='mhd'})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='mhd'})))
 
 -- this runs, but of course it's missing a few waves ...
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='mhd'})))
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='mhd'})))
 
 -- explodes with Orszag-Tang
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='mhd', wenoMethod='1996 Jiang Shu', order=5})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='mhd', wenoMethod='2010 Shen Zha', order=5})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='mhd', wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='mhd', wenoMethod='2010 Shen Zha', order=5})))
 
---self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='mhd'})))
+--self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='mhd'})))
 -- eqn.useFixedCh == false is failing
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-mhd'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-mhd'})))
---self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-mhd'})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-mhd', wenoMethod='1996 Jiang Shu', order=5})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-mhd', wenoMethod='2010 Shen Zha', order=5})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='glm-mhd'})))
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='glm-mhd'})))
+--self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='glm-mhd'})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='glm-mhd', wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='glm-mhd', wenoMethod='2010 Shen Zha', order=5})))
 
 
 -- Maxwell
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='maxwell'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='maxwell'})))
---self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='maxwell'})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='maxwell', wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='maxwell'})))
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='maxwell'})))
+--self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='maxwell'})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='maxwell', wenoMethod='1996 Jiang Shu', order=5})))
 
 
 -- GLM Maxwell
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='glm-maxwell'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell'})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=7})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=13})))
---self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='glm-maxwell'})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='glm-maxwell'})))
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='glm-maxwell'})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=7})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=13})))
+--self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='glm-maxwell'})))
 -- doesn't seem to be accurate with any cfls larger than the explicit integrators...
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='glm-maxwell', integrator='backward Euler', integratorArgs={epsilon=1e-19, verbose=true}, fixedDT=.125})))
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='glm-maxwell', integrator='backward Euler', integratorArgs={epsilon=1e-19, verbose=true}, fixedDT=.125})))
 
 
 -- Maxwell+HD two-fluid electron/ion solver
 -- TODO FIXME
 -- TODO, with the separate solver, use hll, so the ion, electron, and maxwell all use hll separately
 -- TODO I made it even more difficult to implement with the addition of these real_ and cplx_ macros...
---self.solvers:insert(require 'solver.twofluid-emhd-separate-roe'(args))
+--self.solvers:insert(require 'hydro.solver.twofluid-emhd-separate-roe'(args))
 
 -- ...so to try and get around that, here the two are combined into one solver:
 -- it is stable, however since all variables are tied together, it integrates them together, which means everything is explicit-integration updated
 -- ...which means, with the Maxwell equations waves propagating at the speed of light, that it goes very slow
 -- TODO: I suppose I could make this work with my integrator by (1) removing the maxwell terms from the integration variable list and (2) providing a separate operator that updates them implicitly
 -- TODO still needs PLM support
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd'})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='1996 Jiang Shu', order=9})))	-- exploded...
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='2010 Shen Zha', order=5})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='twofluid-emhd'})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='1996 Jiang Shu', order=9})))	-- exploded...
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='2010 Shen Zha', order=5})))
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='twofluid-emhd-lingr'})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 
 
 -- general relativity
 
 
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v1'})))
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm1d_v2'})))
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d'})))
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionEllipticEvolve'}})))	-- TODO finish me
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))	-- TODO finish me
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='LagrangianCoordinates'}})))	-- TODO finish me
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='adm1d_v1'})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='adm1d_v2'})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='adm3d'})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='MinimalDistortionEllipticEvolve'}})))	-- TODO finish me
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))	-- TODO finish me
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='adm3d', eqnArgs={useShift='LagrangianCoordinates'}})))	-- TODO finish me
 -- TODO bring these up to date with the new normalInfo_t system:
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4_2008yano'})))
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='z4'})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='z4_2008yano'})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='z4'})))
 
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v1'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm1d_v2'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d'})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))
---self.solvers:insert(require 'solver.hll'(table(args, {eqn='z4'})))
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='adm1d_v1'})))
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='adm1d_v2'})))
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='adm3d'})))
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))
+--self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='z4'})))
 
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='adm3d', wenoMethod='1996 Jiang Shu', order=5})))
---self.solvers:insert(require 'solver.weno'(table(args, {eqn='adm3d', wenoMethod='2010 Shen Zha', order=7})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='adm3d', wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='adm3d', wenoMethod='2010 Shen Zha', order=7})))
 
---self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='adm1d_v1', integrator='backward Euler'})))
---self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='adm1d_v2', integrator='backward Euler'})))
---self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='adm3d', integrator='backward Euler'})))
---self.solvers:insert(require 'solver.fdsolver'(table(args, {eqn='z4_2008yano', integrator='backward Euler'})))
+--self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='adm1d_v1', integrator='backward Euler'})))
+--self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='adm1d_v2', integrator='backward Euler'})))
+--self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='adm3d', integrator='backward Euler'})))
+--self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='z4_2008yano', integrator='backward Euler'})))
 
 
 
@@ -723,9 +723,9 @@ for 2D, [40,40] grid, hyperbolic gamma driver shift,
 	using cfl=.2
 		runs until |H|>1 at t=3.0379149106647
 --]]
---self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))	-- default shift is HyperbolicGammaDriver
---self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='none'}})))
---self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='GammaDriver'}})))
+--self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))	-- default shift is HyperbolicGammaDriver
+--self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='none'}})))
+--self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='GammaDriver'}})))
 
 --[[
 BSSNOK but with my symbolic CAS generating the math
@@ -735,18 +735,18 @@ This one, Minkowski spherical, with no shift is completely smooth.  no oscillati
 	always keeping a |H| ~ 1e-10 for vacuum spacetimes
 With hyperbolic gamma driver shift it has trouble.
 --]]
---self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
+--self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
 
 -- Z4c finite difference, combining BSSNOK and Z4
 -- FIXME something is asymmetric.  watch Theta.  Run warp bubble.
---self.solvers:insert(require 'solver.z4c-fd'(args))
+--self.solvers:insert(require 'hydro.solver.z4c-fd'(args))
 
 
 
 -- GRHD+GR
 -- here's the GRHD solver with the BSSNOK plugged into it
 -- TODO inital condition root finding to make sure the EFE is satisifed
---self.solvers:insert(require 'solver.gr-hd-separate'(args))
+--self.solvers:insert(require 'hydro.solver.gr-hd-separate'(args))
 
 
 -- GR+Maxwell.  params go to the Maxwell solver.
@@ -757,46 +757,47 @@ With hyperbolic gamma driver shift it has trouble.
 -- TODO this should be the einstein-maxwell eqns solver with flat space plugged into the metric
 -- TODO rename to einstein-maxwell-roe
 -- TODO it's unfinished
---self.solvers:insert(require 'solver.gr-maxwell-roe'(args))
+--self.solvers:insert(require 'hydro.solver.gr-maxwell-roe'(args))
 
 -- TODO and this should be the einstein-maxwell with an einstein solver plugged in
 -- TODO rename to einstein-maxwell-separate
---self.solvers:insert(require 'solver.gr-em-separate'(args))
+--self.solvers:insert(require 'hydro.solver.gr-em-separate'(args))
 
 
 -- nonlinear Schrodinger equation
---self.solvers:insert(require 'solver.nls'(args))
+--self.solvers:insert(require 'hydro.solver.nls'(args))
 
 --[[ wave with background metric of acoustic black hole, fourier transform mode, finite difference
 -- TODO rename to something more telling, like 'wave-ab-mode-fd'
-self.solvers:insert(require 'solver.wave-fd'(args))
+self.solvers:insert(require 'hydro.solver.wave-fd'(args))
 -- I think b.e. is broke
-self.solvers:insert(require 'solver.wave-fd'(table(args, {integrator='backward Euler'})))
+self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='backward Euler'})))
 -- referencing this integrator doesn't seem to work
---self.solvers:insert(require 'solver.wave-fd'(table(args, {integrator='Iterative Crank-Nicolson'})))
+--self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='Iterative Crank-Nicolson'})))
 -- TODO how about a weno-finite-difference solver?
 --]]
 
 
 
 -- unstructured meshes
--- CFDMesh runs a 256x256 grid at 10-11 fps
--- hydro-cl runs a 256x256 GridSolver at 37 fps
--- CFDMesh runs a 50x50 grid at about 100 fps
--- hydro-cl runs a 50x50 MeshSolver at ... slow
-self.solvers:insert(require 'solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
+-- CFDMesh runs 256x256 at 10-11 fps
+-- hydro-cl GridSolver runs 256x256 at 37 fps
+-- CFDMesh runs 50x50 at 100 fps
+-- hydro-cl GridSolver runs 50x50 at 800 fps
+-- hydro-cl MeshSolver runs 50x50 at 160 fps
+self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='Quad2DMesh', size={cmdline.meshsize or 50, cmdline.meshsize or 50}}})))
 
 
 
 -- multi GPU
 -- how about 'composite grid' instead of 'chopped up'?
---self.solvers:insert(require 'solver.choppedup'(table(args, {eqn='euler', subsolverClass=require 'solver.roe'})))
+--self.solvers:insert(require 'hydro.solver.choppedup'(table(args, {eqn='euler', subsolverClass=require 'hydro.solver.roe'})))
 
 
 
 -- the start of AMR
---self.solvers:insert(require 'solver.roe'(table(args, {eqn='euler'})))
---self.solvers:insert(require 'solver.amr'(require 'solver.roe')(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.amr'(require 'hydro.solver.roe')(table(args, {eqn='euler'})))
 
 
 
@@ -907,14 +908,14 @@ local args = {
 	--initState = 'SENR sphere-log-radial BoostedSchwarzschild',
 	--initState = 'SENR sphere-log-radial StaticTrumpet',
 }
---self.solvers:insert(require 'solver.bssnok-fd-pirk'(table(args, {eqn = 'bssnok-fd-num'})))
---self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
---self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
---self.solvers:insert(require 'solver.bssnok-fd-senr'(args))
+--self.solvers:insert(require 'hydro.solver.bssnok-fd-pirk'(table(args, {eqn = 'bssnok-fd-num'})))
+--self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
+--self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
+--self.solvers:insert(require 'hydro.solver.bssnok-fd-senr'(args))
 if cmdline.bssnok_fd_num then
-	self.solvers:insert(require 'solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
+	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
 end
 if cmdline.bssnok_fd_senr then
-	self.solvers:insert(require 'solver.bssnok-fd-senr'(args))
+	self.solvers:insert(require 'hydro.solver.bssnok-fd-senr'(args))
 end
 --]=]

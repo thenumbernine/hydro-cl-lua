@@ -196,7 +196,7 @@ local function TwoFluidEMHDBehavior(parent)
 		local eps0 = 1 / (4 * math.pi)
 
 		-- build self.codePrefix
-		require 'solver.gridsolver'.createCodePrefix(self)
+		require 'hydro.solver.gridsolver'.createCodePrefix(self)
 
 		local lines = table{
 			'// TwoFluidEMHDSeparateBehavior:replaceSourceKernels() end',

@@ -43,7 +43,7 @@ function PoissonKrylov:init(args)
 	self.verbose = args.verbose
 	self.linearSolverType = args.linearSolver
 
-	-- matches op/relaxation.lua
+	-- matches hydro/op/relaxation.lua
 	self.name = solver.app:uniqueName(self.name)
 end
 
@@ -175,7 +175,7 @@ function PoissonKrylov:initSolver()
 	
 	linearSolverArgs.A = function(UNext, U)
 		-- A(x) = div x
-		-- but don't use the routine in op/poisson.cl, that's for Jacobi
+		-- but don't use the routine in hydro/op/poisson.cl, that's for Jacobi
 		self.poissonKrylovLinearFuncKernelObj(solver.solverBuf, UNext, U)
 	end	
 	self.linearSolver = ThisKrylov(linearSolverArgs)
@@ -258,7 +258,7 @@ kernel void copyVecToPotentialField<?=op.name?>(
 
 function PoissonKrylov:getCode()
 	return template(
-		file['op/poisson.cl']..'\n'
+		file['hydro/op/poisson.cl']..'\n'
 		..poissonKrylovCode,
 		{
 			op = self,
@@ -276,7 +276,7 @@ function PoissonKrylov:refreshSolverProgram()
 	self.poissonKrylovLinearFuncKernelObj = solver.solverProgramObj:kernel('poissonKrylovLinearFunc'..self.name)
 end
 
--- matches op/relaxation.lua
+-- matches hydro/op/relaxation.lua
 function PoissonKrylov:refreshBoundaryProgram()
 	local solver = self.solver
 	-- only applies the boundary conditions to PoissonKrylov:potentialField
@@ -291,7 +291,7 @@ function PoissonKrylov:refreshBoundaryProgram()
 	end
 end
 
--- matches op/relaxation.lua
+-- matches hydro/op/relaxation.lua
 function PoissonKrylov:resetState()
 	local solver = self.solver
 	if self.enableField and not solver[self.enableField] then return end
@@ -316,12 +316,12 @@ function PoissonKrylov:relax()
 	self.copyVecToPotentialFieldKernelObj()
 end
 
--- matches to op/relaxation.lua
+-- matches to hydro/op/relaxation.lua
 function PoissonKrylov:potentialBoundary()
 	self.solver:applyBoundaryToBuffer(self.potentialBoundaryKernelObjs)
 end
 
--- similar to op/relaxation.lua
+-- similar to hydro/op/relaxation.lua
 function PoissonKrylov:updateGUI()
 	ig.igPushIDStr(self.name..' solver')
 	-- TODO name from 'field' / 'enableField', though those aren't properties of PoissonKrylov

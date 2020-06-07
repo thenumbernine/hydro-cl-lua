@@ -28,7 +28,7 @@ local lenSq = scalar..'_lenSq'
 ?>
 
 /*
-used by op/poisson_krylov.lua and op/relaxation.lua
+used by hydro/op/poisson_krylov.lua and hydro/op/relaxation.lua
 initialize the relaxation solver field 
 this is only called upon solver reset
 each iteration uses the previous iteration's results as the starting point
@@ -50,7 +50,7 @@ kernel void initPotential<?=op.name?>(
 ?>
 }
 
-//used by op/relaxation.lua
+//used by hydro/op/relaxation.lua
 kernel void copyWriteToPotentialNoGhost<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,
@@ -60,7 +60,7 @@ kernel void copyWriteToPotentialNoGhost<?=op.name?>(
 	UBuf[index].<?=op.potentialField?> = writeBuf[index];
 }
 
-//used by op/relaxation.lua
+//used by hydro/op/relaxation.lua
 kernel void setReduceToPotentialSquared<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global real* reduceBuf,

@@ -1,4 +1,4 @@
-<? if not require 'solver.meshsolver'.is(solver) then ?>
+<? if not require 'hydro.solver.meshsolver'.is(solver) then ?>
 /*
 run across each cell
 */

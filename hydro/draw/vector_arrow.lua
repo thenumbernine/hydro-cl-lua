@@ -111,7 +111,7 @@ function DrawVectorField:display(app, solvers, varName, ar, ...)
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
 	
 	for _,solver in ipairs(solvers) do
-		if not require 'solver.meshsolver'.is(solver) then 
+		if not require 'hydro.solver.meshsolver'.is(solver) then 
 			local var = solver.displayVarForName[varName]
 			if var and var.enabled then
 				self:showDisplayVar(app, solver, var, ...)

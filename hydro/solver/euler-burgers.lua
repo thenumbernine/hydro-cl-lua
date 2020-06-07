@@ -5,7 +5,7 @@ local file = require 'ext.file'
 local range = require 'ext.range'
 local template = require 'template'
 local real = require 'hydro.real'
-local FiniteVolumeSolver = require 'solver.fvsolver'
+local FiniteVolumeSolver = require 'hydro.solver.fvsolver'
 
 local common = require 'hydro.common'
 local xNames = common.xNames
@@ -40,7 +40,7 @@ end
 function EulerBurgers:getSolverCode()
 	return table{
 		EulerBurgers.super.getSolverCode(self),
-		template(file['solver/euler-burgers.cl'], {solver=self, eqn=self.eqn}),
+		template(file['hydro/solver/euler-burgers.cl'], {solver=self, eqn=self.eqn}),
 	}:concat'\n'
 end
 

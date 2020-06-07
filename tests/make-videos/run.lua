@@ -272,7 +272,7 @@ for _,cfg in ipairs(configurations) do
 		local App = class(require 'hydro.app')
 		function App:setup(clArgs)
 			args.app = self
-			self.solvers:insert(require('solver.'..cfg.solver)(args))
+			self.solvers:insert(require('hydro.solver.'..cfg.solver)(args))
 			sdl.SDL_SetWindowSize(self.window, 1280, 720)
 			
 			-- why am I getting weird graphics glitches upon startup?

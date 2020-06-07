@@ -7,7 +7,7 @@ local MinimalDistortionEllipticShift = class(Relaxation)
 
 MinimalDistortionEllipticShift.name = 'MDEShift'
 
-MinimalDistortionEllipticShift.solverCodeFile = 'op/gr-solver-mde.cl'
+MinimalDistortionEllipticShift.solverCodeFile = 'hydro/op/gr-solver-mde.cl'
 
 MinimalDistortionEllipticShift.potentialField = 'betaLap_u'
 function MinimalDistortionEllipticShift:getPotBufType() return 'real3' end

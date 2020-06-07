@@ -89,7 +89,7 @@ local f = io.open(filename, 'w')
 local App = class(require 'hydro.app')
 function App:setup(clArgs)
 	cfg.app = self
-	local solver = require('solver.'..solvername)(cfg)
+	local solver = require('hydro.solver.'..solvername)(cfg)
 	solver.checkNaNs = true
 	self.solvers:insert(solver)
 	self.exitTime = duration

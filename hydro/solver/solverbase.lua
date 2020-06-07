@@ -1,4 +1,4 @@
--- TODO make this solver/solver.lua, and make the old solver.lua something like structured-grid-solver
+-- TODO make this hydro/solver/solver.lua, and make the old solver.lua something like structured-grid-solver
 
 local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
@@ -649,7 +649,7 @@ end
 		self.calcLRKernelObj = self.solverProgramObj:kernel'calcLR'
 	end
 	if self.useCTU then
-		-- currently implemented in solver/roe.cl
+		-- currently implemented in hydro/solver/roe.cl
 		-- not available for any other flux method
 		assert(self.fluxBuf)
 		self.updateCTUKernelObj = self.solverProgramObj:kernel'updateCTU'
@@ -739,7 +739,7 @@ function SolverBase:getDisplayCode()
 	lines:insert(template([[
 #define INIT_DISPLAYFUNC()\
 	SETBOUNDS(0,0);\
-<? if not require 'solver.meshsolver'.is(solver) then 
+<? if not require 'hydro.solver.meshsolver'.is(solver) then 
 ?>	int4 dsti = i;\
 	int dstindex = index;\
 	real3 x = cell_x(i);\
@@ -1201,7 +1201,7 @@ kernel void <?=name?>(
 	DISPLAYFUNC_OUTPUTARGS_<?=texVsBuf:upper()?>(),
 	global const <?=var.bufferType?>* buf,
 	int component<?
-if require 'solver.meshsolver'.is(solver) then ?>
+if require 'hydro.solver.meshsolver'.is(solver) then ?>
 	,const global cell_t* cells			//[numCells]
 	,const global face_t* faces			//[numFaces]<?
 end ?><?= var.extraArgs and #var.extraArgs > 0

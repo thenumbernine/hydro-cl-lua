@@ -25,7 +25,7 @@ local GLArrayBuffer = require 'gl.arraybuffer'
 local GLVertexArray = require 'gl.vertexarray'
 local template = require 'template'
 local tooltip = require 'hydro.tooltip'
-local SolverBase = require 'solver.solverbase'
+local SolverBase = require 'hydro.solver.solverbase'
 local time, getTime = table.unpack(require 'hydro.util.time')
 local real = require 'hydro.real'
 local struct = require 'hydro.struct.struct'
@@ -1189,13 +1189,13 @@ function MeshSolver:getSolverCode()
 		-- TODO flux scheme HERE
 		-- this is the 'calcFluxKernel' code part of all the fvsolver subclasses
 		-- so maybe make that its own module that plugs into both fvsolver and this
-		template(file['solver/roe.cl'], {
+		template(file['hydro/solver/roe.cl'], {
 			solver = self,
 			eqn = self.eqn,
 		}),
 
 		-- finite volume integration
-		template(file['solver/calcDerivFV.cl'], {
+		template(file['hydro/solver/calcDerivFV.cl'], {
 			solver = self,
 			eqn = self.eqn,
 		}),
@@ -1245,7 +1245,7 @@ function MeshSolver:calcDT()
 	return MeshSolver.super.calcDT(self)
 end
 
--- same as solver/fvsolver without PLM or CTU
+-- same as hydro/solver/fvsolver without PLM or CTU
 -- TODO should MeshSolver only be a finite volume, or should we support finite difference as well?
 -- or should we only support finite difference via flux calculations (like I do in fdsolver)?
 function MeshSolver:calcDeriv(derivBufObj, dt)

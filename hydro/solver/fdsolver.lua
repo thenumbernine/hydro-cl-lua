@@ -4,7 +4,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local template = require 'template'
-local GridSolver = require 'solver.gridsolver'
+local GridSolver = require 'hydro.solver.gridsolver'
 
 local FiniteDifferenceSolver = class(GridSolver)
 FiniteDifferenceSolver.name = 'FiniteDifference'
@@ -23,7 +23,7 @@ end
 function FiniteDifferenceSolver:getSolverCode()
 	return table{
 		FiniteDifferenceSolver.super.getSolverCode(self),
-		template(file['solver/calcDerivFD.cl'], {solver=self, eqn=self.eqn}),
+		template(file['hydro/solver/calcDerivFD.cl'], {solver=self, eqn=self.eqn}),
 	}:concat'\n'
 end
 

@@ -5,7 +5,7 @@ local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
 local real = require 'hydro.real'
-local FiniteVolumeSolver = require 'solver.fvsolver'
+local FiniteVolumeSolver = require 'hydro.solver.fvsolver'
 
 local common = require 'hydro.common'
 local xNames = common.xNames
@@ -59,8 +59,8 @@ function WENO:getSolverCode()
 	return table{
 		WENO.super.getSolverCode(self),
 	
-		-- before this went above solver/plm.cl, now it's going after it ...
-		template(file['solver/weno.cl'], {
+		-- before this went above hydro/solver/plm.cl, now it's going after it ...
+		template(file['hydro/solver/weno.cl'], {
 			solver = self,
 			eqn = self.eqn,
 			clnumber = require 'cl.obj.number',

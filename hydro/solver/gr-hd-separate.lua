@@ -26,7 +26,7 @@ function GRHDSeparateSolver:init(args)
 	local einsteinargs = solverargs.einstein or {}
 	self.app = assert(args.app)
 
-	local GRSolver = class(require 'solver.z4c-fd')
+	local GRSolver = class(require 'hydro.solver.z4c-fd')
 	function GRSolver:init(args)
 		GRSolver.super.init(self, table(args, {
 			initState = einsteinargs.initState or 'Minkowski',
@@ -37,7 +37,7 @@ function GRHDSeparateSolver:init(args)
 	local gr = GRSolver(args)
 	self.gr = gr
 
-	local HydroSolver = class(require 'solver.grhd-roe')
+	local HydroSolver = class(require 'hydro.solver.grhd-roe')
 	function HydroSolver:createCodePrefix()
 		HydroSolver.super.createCodePrefix(self)
 		self.codePrefix = table{
@@ -168,7 +168,7 @@ function GRHDSeparateSolver:getConsLRTypeCode() return '' end
 function GRHDSeparateSolver:createCalcStressEnergyKernel()
 	-- build self.codePrefix
 	-- TODO FIXME not working
-	require 'solver.gridsolver'.createCodePrefix(self)
+	require 'hydro.solver.gridsolver'.createCodePrefix(self)
 	
 	local lines = table{
 		self.codePrefix,
@@ -262,7 +262,7 @@ function GRHDSeparateSolver:replaceSourceKernels()
 --[=[ instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver
 	
 	-- build self.codePrefix
-	require 'solver.gridsolver'.createCodePrefix(self)
+	require 'hydro.solver.gridsolver'.createCodePrefix(self)
 	
 	local lines = table{
 		self.codePrefix,

@@ -2,13 +2,13 @@ local class = require 'ext.class'
 local file = require 'ext.file'
 local table = require 'ext.table'
 local template = require 'template'
-local FiniteVolumeSolver = require 'solver.fvsolver'
+local FiniteVolumeSolver = require 'hydro.solver.fvsolver'
 
 
 local HLL = class(FiniteVolumeSolver)
 HLL.name = 'HLL'
 
-HLL.solverCodeFile = 'solver/hll.cl'
+HLL.solverCodeFile = 'hydro/solver/hll.cl'
 
 
 --HLL.calcWaveMethod = 'Davis direct'
@@ -23,7 +23,7 @@ function HLL:getSolverCode()
 	return table{
 		HLL.super.getSolverCode(self),
 	
-		-- before this went above solver/plm.cl, now it's going after it ...
+		-- before this went above hydro/solver/plm.cl, now it's going after it ...
 		template(file[self.solverCodeFile], {
 			solver = self,
 			eqn = self.eqn,

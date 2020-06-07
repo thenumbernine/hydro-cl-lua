@@ -7,8 +7,8 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
-local GridSolver = require 'solver.gridsolver'
 local real = require 'hydro.real'
+local GridSolver = require 'hydro.solver.gridsolver'
 
 local common = require 'hydro.common'
 local xNames = common.xNames
@@ -38,7 +38,7 @@ end
 function FiniteVolumeSolver:getSolverCode()
 	return table{
 		FiniteVolumeSolver.super.getSolverCode(self),
-		template(file['solver/calcDerivFV.cl'], {solver=self}),
+		template(file['hydro/solver/calcDerivFV.cl'], {solver=self}),
 	}:concat'\n'
 end
 

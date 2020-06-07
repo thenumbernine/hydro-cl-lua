@@ -13,12 +13,12 @@ local toreal, fromreal = half.toreal, half.fromreal
 -- TODO make this a ctor parameter
 local Poisson = require(
 	cmdline.selfGravPoissonSolver 
-	and 'op.poisson_'..cmdline.selfGravPoissonSolver
+	and 'hydro.op.poisson_'..cmdline.selfGravPoissonSolver
 	-- Jacobi seems to be converging fastest atm. 
 	-- however Jacobi seems to be most unstable for 3D.
 	-- TODO multigrid or FFT?
-	--or 'op.poisson_krylov'		-- Krylov. was working for a moment, but I broke it and now it is diverging.
-	or 'op.poisson_jacobi'		-- Jacobi
+	--or 'hydro.op.poisson_krylov'		-- Krylov. was working for a moment, but I broke it and now it is diverging.
+	or 'hydro.op.poisson_jacobi'		-- Jacobi
 )
 
 -- TODO Schurr filter instead of 2n+1 point filter.
@@ -46,7 +46,7 @@ SelfGrav.guiVars = {
 	{name='gravitationalConstant', value=1, units='m^3/(kg*s^2)'},
 }
 
--- params for op/poisson.cl 
+-- params for hydro/op/poisson.cl 
 -- units of m^3/(kg*s^2) * kg/m^3 = 1/s^2
 function SelfGrav:getPoissonDivCode()
 	return template([[

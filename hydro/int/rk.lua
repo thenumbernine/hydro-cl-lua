@@ -114,7 +114,7 @@ if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
 		end
 --print()
 
--- [[ I moved this from solver/gridsolver to integrator
+-- [[ I moved this from hydro/solver/gridsolver to integrator
 -- this way I can do it after every substep in the RK integrator
 if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 		solver:boundary()

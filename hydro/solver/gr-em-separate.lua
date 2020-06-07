@@ -19,7 +19,7 @@ GREMSeparateSolver.name = 'GR+EM'
 function GREMSeparateSolver:init(args)
 	self.app = assert(args.app)
 
-	local GRSolver = class(require 'solver.bssnok-fd')
+	local GRSolver = class(require 'hydro.solver.bssnok-fd')
 	function GRSolver:init(args)
 		GRSolver.super.init(self, table(args, {
 			--initState = 'black hole - isotropic',
@@ -31,7 +31,7 @@ function GREMSeparateSolver:init(args)
 	local gr = GRSolver(args)
 	self.gr = gr
 
-	local GRMaxwellSolver = class(require 'solver.gr-maxwell-roe')
+	local GRMaxwellSolver = class(require 'hydro.solver.gr-maxwell-roe')
 	function GRMaxwellSolver:createCodePrefix()
 		GRMaxwellSolver.super.createCodePrefix(self)
 		self.codePrefix = table{
@@ -154,7 +154,7 @@ function GREMSeparateSolver:replaceSourceKernels()
 	-- TODO
 
 	-- build self.codePrefix
-	require 'solver.gridsolver'.createCodePrefix(self)
+	require 'hydro.solver.gridsolver'.createCodePrefix(self)
 	
 	local lines = table{
 		self.codePrefix,

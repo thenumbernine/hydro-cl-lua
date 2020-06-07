@@ -37,7 +37,7 @@ function App:setup()
 	-- [=[ two-solver testing ...
 	-- running two solvers at once causes errors
 	local app = self
-	local cl = require 'solver.roe' 
+	local cl = require 'hydro.solver.roe' 
 	args.eqn = 'euler'
 	--args.eqn = 'maxwell'
 	--args.eqn = 'mhd'
