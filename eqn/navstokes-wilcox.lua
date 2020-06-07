@@ -23,7 +23,7 @@ NavierStokesWilcox.hasFluxFromConsCode = true
 NavierStokesWilcox.roeUseFluxFromCons = true
 NavierStokesWilcox.useSourceTerm = true
 
-NavierStokesWilcox.initStates = require 'init.euler'
+NavierStokesWilcox.initStates = require 'hydro.init.euler'
 
 function NavierStokesWilcox:init(args)
 	NavierStokesWilcox.super.init(self, args)

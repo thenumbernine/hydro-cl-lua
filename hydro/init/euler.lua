@@ -7,7 +7,7 @@ local math = require 'ext.math'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
 local materials = require 'hydro.materials'
-local InitCond = require 'init.init'
+local InitCond = require 'hydro.init.init'
 local real = require 'hydro.real'
 local constants = require 'hydro.constants'
 

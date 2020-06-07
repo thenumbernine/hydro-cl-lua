@@ -44,7 +44,7 @@ GLM_Maxwell.roeUseFluxFromCons = true
 -- don't incorporate the Conn^k_ij E_k terms into the flux
 GLM_Maxwell.weightFluxByGridVolume = false
 
-GLM_Maxwell.initStates = require 'init.euler'
+GLM_Maxwell.initStates = require 'hydro.init.euler'
 
 function GLM_Maxwell:init(args)
 	self.scalar = 'real'

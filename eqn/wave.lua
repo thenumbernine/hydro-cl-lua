@@ -19,7 +19,7 @@ Wave.hasEigenCode = true
 Wave.hasFluxFromConsCode = true
 Wave.roeUseFluxFromCons = true
 
-Wave.initStates = require 'init.euler'	 -- use rho as our initial condition
+Wave.initStates = require 'hydro.init.euler'	 -- use rho as our initial condition
 
 
 --[[

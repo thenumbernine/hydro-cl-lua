@@ -8,10 +8,10 @@ local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
 local class = require 'ext.class'
 local math = require 'ext.math'
-local tooltip = require 'hydro.tooltip'
-local Integrator = require 'int.int'
 local template = require 'template'
 local CLBuffer = require 'cl.obj.buffer'
+local tooltip = require 'hydro.tooltip'
+local Integrator = require 'hydro.int.int'
 
 
 --local CLKrylov = require 'solver.cl.conjgrad'

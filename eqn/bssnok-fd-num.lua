@@ -24,9 +24,9 @@ local makePartials = require 'eqn.makepartial'
 local BSSNOKFiniteDifferenceEquation = class(BSSNOKFiniteDifferenceEquationBase)
 
 BSSNOKFiniteDifferenceEquation.initStates = table():append(
-	require 'init.senr'
+	require 'hydro.init.senr'
 ):append(
-	require 'init.einstein'
+	require 'hydro.init.einstein'
 )
 
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
@@ -332,7 +332,7 @@ end ?>
 
 	-- if we're using a SENR init cond then init the components directly
 	-- TODO port these from sympy into symmath 
-	if require 'init.senr'[1].super.is(initState) then
+	if require 'hydro.init.senr'[1].super.is(initState) then
 		return template([=[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,

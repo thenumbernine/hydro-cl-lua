@@ -1,6 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local InitCond = require 'init.init'
+local InitCond = require 'hydro.init.init'
 
 return table{
 	{

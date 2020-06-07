@@ -43,7 +43,7 @@ MHD.useSourceTerm = true
 MHD.useConstrainU = true
 
 -- hmm, we want init.euler and init.mhd here ...
-MHD.initStates = require 'init.euler'
+MHD.initStates = require 'hydro.init.euler'
 
 function MHD:init(args)
 	MHD.super.init(self, args)

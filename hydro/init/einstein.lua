@@ -4,7 +4,7 @@ local symmath = require 'symmath'
 local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
 local clnumber = require 'cl.obj.number'
-local InitCond = require 'init.init'
+local InitCond = require 'hydro.init.init'
 local constants = require 'hydro.constants'
 
 local common = require 'hydro.common'

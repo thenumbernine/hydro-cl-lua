@@ -118,9 +118,9 @@ function TwoFluidEMHD:init(args)
 	self.useEulerInitState = args.useEulerInitState
 
 	if self.useEulerInitState then
-		self.initStates = require 'init.euler'
+		self.initStates = require 'hydro.init.euler'
 	else
-		self.initStates = require 'init.twofluid-emhd'
+		self.initStates = require 'hydro.init.twofluid-emhd'
 	end
 
 

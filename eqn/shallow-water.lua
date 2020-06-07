@@ -13,7 +13,7 @@ ShallowWater.hasEigenCode = true
 ShallowWater.hasFluxFromConsCode = true
 ShallowWater.roeUseFluxFromCons = true
 
-ShallowWater.initStates = require 'init.euler'
+ShallowWater.initStates = require 'hydro.init.euler'
 
 
 -- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter

@@ -35,7 +35,7 @@ local function addTab(s)
 end
 
 
-local integrators = require 'int.all'
+local integrators = require 'hydro.int.all'
 local integratorNames = integrators:map(function(integrator) return integrator.name end)
 
 

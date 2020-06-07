@@ -12,7 +12,7 @@ local xNames = common.xNames
 
 local EinsteinEquation = class(Equation)
 
-EinsteinEquation.initStates = require 'init.einstein'
+EinsteinEquation.initStates = require 'hydro.init.einstein'
 
 function EinsteinEquation:createInitState()
 	EinsteinEquation.super.createInitState(self)

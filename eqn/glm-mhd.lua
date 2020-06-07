@@ -43,7 +43,7 @@ MHD.useConstrainU = true
 MHD.useFixedCh = true -- true = use a gui var, false = calculate by max(|v_i|+Cf)
 
 -- hmm, we want init.euler and init.mhd here ...
-MHD.initStates = require 'init.euler'
+MHD.initStates = require 'hydro.init.euler'
 
 function MHD:init(args)
 	MHD.super.init(self, args)

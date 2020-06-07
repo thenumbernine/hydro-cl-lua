@@ -36,7 +36,7 @@ SRHD.useConstrainU = true
 --SRHD.roeUseFluxFromCons = true
 SRHD.hasFluxFromConsCode = true
 
-SRHD.initStates = require 'init.euler'
+SRHD.initStates = require 'hydro.init.euler'
 
 function SRHD:init(args)
 	

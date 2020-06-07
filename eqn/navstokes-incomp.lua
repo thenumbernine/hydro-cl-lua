@@ -16,7 +16,7 @@ NavierStokesDivFree.reflectVars = {
 	},
 }
 
-NavierStokesDivFree.initStates = require 'init.euler'
+NavierStokesDivFree.initStates = require 'hydro.init.euler'
 
 function NavierStokesDivFree:getTypeCode()
 	return template([[

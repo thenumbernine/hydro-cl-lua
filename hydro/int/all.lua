@@ -1,8 +1,8 @@
 local class = require 'ext.class'
-local ForwardEuler = require 'int.fe'
-local IterativeCrankNicolson = require 'int.icn'
-local BackwardEuler = require 'int.be'
-local RungeKutta = require 'int.rk'
+local ForwardEuler = require 'hydro.int.fe'
+local IterativeCrankNicolson = require 'hydro.int.icn'
+local BackwardEuler = require 'hydro.int.be'
+local RungeKutta = require 'hydro.int.rk'
 
 --the following are from https://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods#Classic_fourth-order_method
 
