@@ -1,7 +1,7 @@
 <?
 local clnumber = require 'cl.obj.number'
 local fluids = eqn.fluids
-local xNames = require 'common'.xNames
+local xNames = require 'hydro.common'.xNames
 ?>
 
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>

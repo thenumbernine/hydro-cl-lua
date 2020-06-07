@@ -7,7 +7,7 @@ local table = require 'ext.table'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
 
-local common = require 'common'
+local common = require 'hydro.common'
 local xNames = common.xNames
 
 local EinsteinEquation = class(Equation)

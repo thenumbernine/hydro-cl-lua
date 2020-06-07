@@ -17,7 +17,7 @@ local table = require 'ext.table'
 local template = require 'template'
 local BSSNOKFiniteDifferenceEquationBase = require 'eqn.bssnok-fd'
 local makestruct = require 'eqn.makestruct'
-local common = require 'common'
+local common = require 'hydro.common'
 local time, getTime = table.unpack(require 'util.time')
 local makePartials = require 'eqn.makepartial'
 
@@ -1582,7 +1582,7 @@ time('building symbolic math env', function()
 
 
 		-- TODO add in the solver.coord.coords somewhere
-		-- TODO and 'symmath=require'symmath'' and setfenv so we can capture all assignments 
+		-- TODO and 'symmath=require 'symmath'' and setfenv so we can capture all assignments 
 
 		local function save()
 			local lines = table()
@@ -1595,7 +1595,7 @@ time('building symbolic math env', function()
 -- begin prefix code
 local table = require 'ext.table'
 local symmath = require 'symmath'
-local common = require 'common'
+local common = require 'hydro.common'
 local oldEnv = getfenv()
 local symenv = {}
 symmath.setup{env=symenv}

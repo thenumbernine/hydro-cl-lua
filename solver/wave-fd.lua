@@ -28,7 +28,7 @@ end
 
 -- [[ here's all the work it takes to add 't' to a display var
 -- how hard would it be to just put it in solver_t and update it immediately?
-local real = require 'real'
+local real = require 'hydro.real'
 
 WaveFDSolver.DisplayVar_U = class(WaveFDSolver.DisplayVar_U)
 

@@ -21,7 +21,7 @@ local f = io.open(dir..'/var-ranges.txt', 'w')
 
 cmdline = {sys='console'}
 
-local App = class(require 'app')
+local App = class(require 'hydro.app')
 
 function App:setup()
 	local solver = require 'solver.roe'{

@@ -7,7 +7,7 @@ local file = require 'ext.file'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
 
-local common = require 'common'
+local common = require 'hydro.common'
 local xNames = common.xNames
 
 local Wave = class(Equation)
@@ -88,7 +88,7 @@ end
 
 Wave.initStateCode = [[
 <?
-local common = require 'common'
+local common = require 'hydro.common'
 local xNames = common.xNames
 
 local scalar = eqn.scalar

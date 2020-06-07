@@ -1,7 +1,7 @@
 local class = require 'ext.class'
 local template = require 'template'
 local ffi = require 'ffi'
-local real = require 'real'
+local real = require 'hydro.real'
 
 local GLM_MHD_UpdatePsi = class()
 

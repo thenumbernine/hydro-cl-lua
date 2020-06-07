@@ -24,10 +24,10 @@ local GLProgram = require 'gl.program'
 local GLArrayBuffer = require 'gl.arraybuffer'
 local GLVertexArray = require 'gl.vertexarray'
 local template = require 'template'
-local tooltip = require 'tooltip'
+local tooltip = require 'hydro.tooltip'
 local SolverBase = require 'solver.solverbase'
 local time, getTime = table.unpack(require 'util.time')
-local real = require 'real'
+local real = require 'hydro.real'
 
 matrix_ffi.real = 'float'	-- default matrix_ffi type
 

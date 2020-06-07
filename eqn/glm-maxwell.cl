@@ -1,6 +1,6 @@
 <?
 local solver = eqn.solver
-local common = require 'common'
+local common = require 'hydro.common'
 local xNames = common.xNames
 local sym = common.sym
 ?>

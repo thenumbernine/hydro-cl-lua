@@ -19,7 +19,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local io = require 'ext.io'
 
-cmdline = {sys='console'}	-- set this before require 'app'
+cmdline = {sys='console'}	-- set this before require 'hydro.app'
 
 for k,v in pairs(require 'tests.util') do _G[k] = v end
 
@@ -269,7 +269,7 @@ for _,cfg in ipairs(configurations) do
 		local movieEndTime = cfg.movieEndTime or 1
 		local movieFrameDT = cfg.movieFrameDT or 0 
 
-		local App = class(require 'app')
+		local App = class(require 'hydro.app')
 		function App:setup(clArgs)
 			args.app = self
 			self.solvers:insert(require('solver.'..cfg.solver)(args))

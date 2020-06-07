@@ -8,7 +8,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local template = require 'template'
-local materials = require 'materials'
+local materials = require 'hydro.materials'
 local Equation = require 'eqn.eqn'
 
 local NavierStokesWilcox = class(Equation)
@@ -207,7 +207,7 @@ end
 
 NavierStokesWilcox.initStateCode = [[
 <?
-local common = require 'common'
+local common = require 'hydro.common'
 local xNames = common.xNames
 ?>
 kernel void initState(

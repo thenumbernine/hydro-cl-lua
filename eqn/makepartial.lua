@@ -6,7 +6,7 @@ but I would also like 4th deriv functions that return either vectors (one elemen
 --]]
 local clnumber = require 'cl.obj.number'
 local table = require 'ext.table'
-local common = require 'common'
+local common = require 'hydro.common'
 
 -- source: https://en.wikipedia.org/wiki/Finite_difference_coefficient 
 -- derivCoeffs[derivative][order] = {coeffs...}

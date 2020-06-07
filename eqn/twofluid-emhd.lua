@@ -139,7 +139,7 @@ function TwoFluidEMHD:createInitState()
 	TwoFluidEMHD.super.createInitState(self)
 
 	--[[ using the 'units' parameters
-	local constants = require 'constants'
+	local constants = require 'hydro.constants'
 	local speedOfLight = constants.speedOfLight_in_m_per_s
 	local vacuumPermeability = constants.vacuumPermeability_in_kg_m_per_C2
 	local vacuumPermittivity = constants.vacuumPermittivity_in_C2_s2_per_kg_m3

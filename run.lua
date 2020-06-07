@@ -17,4 +17,4 @@ debug.sethook(function(hooktype)
 end, 'cr')
 --]]
 
-require 'app'():run()
+require 'hydro.app'():run()

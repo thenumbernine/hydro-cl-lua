@@ -2,11 +2,11 @@ local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
 local table = require 'ext.table'
 local class = require 'ext.class'
-local tooltip = require 'tooltip'
 local template = require 'template'
-local real = require 'real'	-- really 'realparam'
+local tooltip = require 'hydro.tooltip'
+local real = require 'hydro.real'	-- really 'realparam'
 
-local half = require 'half'
+local half = require 'hydro.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 

@@ -10,20 +10,20 @@ local math = require 'ext.math'
 local CLBuffer = require 'cl.obj.buffer'
 local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
-local tooltip = require 'tooltip'
-local makestruct = require'eqn.makestruct'
+local tooltip = require 'hydro.tooltip'
+local makestruct = require 'eqn.makestruct'
 local roundup = require 'util.roundup'
 local time, getTime = table.unpack(require 'util.time')
 local Struct = require 'struct.struct'
 
-local common = require 'common'	-- xNames, symNames
+local common = require 'hydro.common'	-- xNames, symNames
 local xNames = common.xNames
 local symNames = common.symNames
 local from3x3to6 = common.from3x3to6
 local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
-local half = require 'half'
+local half = require 'hydro.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 
@@ -1514,7 +1514,7 @@ enableVector = false
 		var = table(var)
 		var.units = nil
 	
-		local name = assert(var.name, "expected to find name in "..require'ext.tolua'(var))
+		local name = assert(var.name, "expected to find name in "..require 'ext.tolua'(var))
 		local code = assert(var.code, "expected to find code")
 
 		args = table(args, {
@@ -2024,7 +2024,7 @@ function SolverBase:checkFinite(buf)
 	end
 	if not found then return true end
 --	self:printBuf(nil, ptr)
-	return false, 'found non-finite offsets and numbers: '..require'ext.tolua'(found)..' at t='..self.t
+	return false, 'found non-finite offsets and numbers: '..require 'ext.tolua'(found)..' at t='..self.t
 end
 
 function SolverBase:printBuf(buf, ptrorig, colsize, colmax)

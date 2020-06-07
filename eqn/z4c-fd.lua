@@ -13,7 +13,7 @@ local template = require 'template'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'eqn.einstein'
 local makestruct = require 'eqn.makestruct'
-local common = require 'common'
+local common = require 'hydro.common'
 
 local makePartials = require 'eqn.makepartial'
 local makePartial1 = makePartials.makePartial1

@@ -142,7 +142,7 @@ local ig, tooltip
 local baseSystems = {
 	{imguiapp = function() 
 		ig = require 'ffi.imgui'
-		tooltip  = require 'tooltip'
+		tooltip  = require 'hydro.tooltip'
 		return require 'imguiapp' 
 	end},
 	{glapp = function() 
@@ -150,7 +150,7 @@ local baseSystems = {
 		package.loaded['ffi.imgui'] = {disabled=true}
 		package.loaded.tooltip = {disabled=true}
 		ig = require 'ffi.imgui'
-		tooltip  = require 'tooltip'
+		tooltip  = require 'hydro.tooltip'
 		
 		return require 'glapp' 
 	end},
@@ -203,7 +203,7 @@ if not ig then
 	package.loaded['ffi.imgui'] = {disabled=true}
 	package.loaded.tooltip = {disabled=true}
 	ig = require 'ffi.imgui'
-	tooltip  = require 'tooltip'
+	tooltip  = require 'hydro.tooltip'
 end
 
 HydroCLApp.title = 'Hydrodynamics in OpenCL'
@@ -1047,7 +1047,7 @@ end
 		and self.showMouseCoords
 		and self.displayDim == 2
 		then
-			local half = require 'half'
+			local half = require 'hydro.half'
 			local toreal, fromreal = half.toreal, half.fromreal
 			
 			self.mouseCoordValue = ''

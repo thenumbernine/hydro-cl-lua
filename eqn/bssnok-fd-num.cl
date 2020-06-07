@@ -1,5 +1,5 @@
 <? 
-local common = require 'common'
+local common = require 'hydro.common'
 local xNames = common.xNames
 local symNames = common.symNames
 local from3x3to6 = common.from3x3to6 
@@ -2529,7 +2529,7 @@ kernel void addSource(
 		//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 		//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
 		for (int i = 0; i < numIntStates; ++i) {
-<?=require'eqn.makepartial'.makePartialRank1(4, 4, solver, 'ptr[i]', 'real', 'partial4_Ui_ll')?>
+<?=require 'eqn.makepartial'.makePartialRank1(4, 4, solver, 'ptr[i]', 'real', 'partial4_Ui_ll')?>
 			real lap = 0.<? 
 for j,xj in ipairs(xNames) do 
 ?> + partial4_Ui_ll.<?=xj?><? 

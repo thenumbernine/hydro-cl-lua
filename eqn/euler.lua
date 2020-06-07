@@ -3,7 +3,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
-local xNames = require 'common'.xNames
+local xNames = require 'hydro.common'.xNames
 
 
 local Euler = class(Equation)
@@ -203,7 +203,7 @@ function Euler:getPrimConsCode()
 end
 
 Euler.initStateCode = [[
-<? local xNames = require 'common'.xNames ?>
+<? local xNames = require 'hydro.common'.xNames ?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
@@ -310,7 +310,7 @@ function Euler:getDisplayVars()
 	):append{
 		{name='temp', code=template([[
 <? local clnumber = require 'cl.obj.number' ?>
-<? local materials = require 'materials' ?>
+<? local materials = require 'hydro.materials' ?>
 #define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
 	value.vreal = calc_eInt(solver, W) / C_v;
 ]]), units='K'}

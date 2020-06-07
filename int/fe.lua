@@ -15,7 +15,7 @@ local class = require 'ext.class'
 local roundup = require 'util.roundup'
 local Integrator = require 'int.int'
 local CLBuffer = require 'cl.obj.buffer'
-local real = require 'real'
+local real = require 'hydro.real'
 
 local ForwardEuler = class(Integrator)
 

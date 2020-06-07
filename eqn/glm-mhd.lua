@@ -4,7 +4,7 @@ local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
 local makestruct = require 'eqn.makestruct'
-local constants = require 'constants'
+local constants = require 'hydro.constants'
 local Equation = require 'eqn.eqn'
 
 local MHD = class(Equation)
@@ -197,7 +197,7 @@ function MHD:getPrimConsCode()
 end
 
 MHD.initStateCode = [[
-<? local xNames = require 'common'.xNames ?>
+<? local xNames = require 'hydro.common'.xNames ?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf

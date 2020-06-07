@@ -26,7 +26,7 @@ function InitCond:refreshInitStateProgram(solver)
 
 if solver.useCLLinkLibraries then 
 	--local code = initStateCode
-	local code = initStateCode..'\n'..template(require'ext.io'.readfile'math.cl')
+	local code = initStateCode..'\n'..template(require 'ext.io'.readfile'math.cl')
 	time('compiling init state program', function()
 		solver.initStateUnlinkedObj = solver.Program{name='initState', code=code}
 		solver.initStateUnlinkedObj:compile{dontLink=true}

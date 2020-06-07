@@ -2,7 +2,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local EinsteinEqn = require 'eqn.einstein'
 local makePartials = require 'eqn.makepartial'
-local common = require 'common'
+local common = require 'hydro.common'
 
 local BSSNOKFiniteDifferenceEquationBase = class(EinsteinEqn)
 

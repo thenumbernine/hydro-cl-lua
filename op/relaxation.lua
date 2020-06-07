@@ -4,10 +4,10 @@ local table = require 'ext.table'
 local template = require 'template'
 local ig = require 'ffi.imgui'
 local ffi = require 'ffi'
-local tooltip = require 'tooltip'
+local tooltip = require 'hydro.tooltip'
 local CLBuffer = require 'cl.obj.buffer'
 
-local half = require 'half'
+local half = require 'hydro.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 

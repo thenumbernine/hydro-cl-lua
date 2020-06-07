@@ -13,7 +13,7 @@ local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
-local common = require 'common'
+local common = require 'hydro.common'
 
 local xNames = common.xNames
 

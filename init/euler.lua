@@ -1,16 +1,17 @@
 -- slowly making this the home of all initial conditions...
+local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local math = require 'ext.math'
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
-local materials = require 'materials'
-local ffi = require 'ffi'
+local materials = require 'hydro.materials'
 local InitCond = require 'init.init'
-local real = require 'real'
+local real = require 'hydro.real'
+local constants = require 'hydro.constants'
 
-local common = require 'common'
+local common = require 'hydro.common'
 local xNames = common.xNames
 local minmaxs = common.minmaxs
 
@@ -1600,15 +1601,15 @@ end ?>;
 			mins = {-2*coordRadius, -2*coordRadius, -2*coordRadius}, 
 			maxs = {2*coordRadius, 2*coordRadius, 2*coordRadius}, 
 			overrideGuiVars = {
-				meter = require 'constants'.EarthRadius_in_m / coordRadius,	-- radius .5, grid = 2 M_Earth, so the sphere is M_Earth size
+				meter = constants.EarthRadius_in_m / coordRadius,	-- radius .5, grid = 2 M_Earth, so the sphere is M_Earth size
 				
 				-- 4/3 pi r^3 rho = m <=> rho = 3 m / (4 pi r^3)
-				kilogram = require 'constants'.EarthMass_in_kg * 3 / (4 * math.pi * coordRadius^3),
+				kilogram = constants.EarthMass_in_kg * 3 / (4 * math.pi * coordRadius^3),
 		
 				-- in units of m^3/(kg s^2)
-				gravitationalConstant = require 'constants'.gravitationalConstant_in_m3_per_kg_s2,
+				gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
 				
-				coulombConstant = require 'constants'.CoulombConstant_in_kg_m3_per_C2_s2,
+				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
 			},
 			initState = function(self, solver)
 				local f = SelfGravProblem{
@@ -1754,8 +1755,8 @@ end ?>;
 	{
 		name = 'Maxwell default',
 		overrideGuiVars = {
-			--meter = require 'constants'.speedOfLight_in_m_per_s,
-			--speedOfLight = require 'constants'.speedOfLight_in_m_per_s,
+			--meter = constants.speedOfLight_in_m_per_s,
+			--speedOfLight = constants.speedOfLight_in_m_per_s,
 		},
 		initState = function(self, solver)
 			return template([[
@@ -1984,11 +1985,11 @@ bool testTriangle(real3 xc) {
 				period = 10,
 			}
 			
-			local c = require 'constants'.speedOfLight_in_m_per_s
+			local c = constants.speedOfLight_in_m_per_s
 			local s_in_m = 1 / c
-			local G = require 'constants'.gravitationalConstant_in_m3_per_kg_s2
+			local G = constants.gravitationalConstant_in_m3_per_kg_s2
 			local kg_in_m = G / c^2
-			local ke = require 'constants'.CoulombConstant_in_kg_m3_per_C2_s2
+			local ke = constants.CoulombConstant_in_kg_m3_per_C2_s2
 			local C_in_m = math.sqrt(ke * G) / c^2	-- m
 			local Ohm_in_m = kg_in_m / (s_in_m * C_in_m^2)	-- m^0
 			local resistivities = table{	-- at 20' Celsius, in Ohm m
@@ -2111,11 +2112,11 @@ kernel void addExtraSource(
 		initState = function(self, solver)
 			addMaxwellOscillatingBoundary{solver=solver}
 			
-			local c = require 'constants'.speedOfLight_in_m_per_s
+			local c = constants.speedOfLight_in_m_per_s
 			local s_in_m = 1 / c
-			local G = require 'constants'.gravitationalConstant_in_m3_per_kg_s2
+			local G = constants.gravitationalConstant_in_m3_per_kg_s2
 			local kg_in_m = G / c^2
-			local ke = require 'constants'.CoulombConstant_in_kg_m3_per_C2_s2
+			local ke = constants.CoulombConstant_in_kg_m3_per_C2_s2
 			local C_in_m = math.sqrt(ke * G) / c^2	-- m
 			local Ohm_in_m = kg_in_m / (s_in_m * C_in_m^2)	-- m^0
 			local resistivities = table{	-- at 20' Celsius, in Ohm m

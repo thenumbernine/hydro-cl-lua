@@ -10,7 +10,7 @@ unistd.chdir'../..'
 
 -- honestly what's App used for anyways, beyond the gui?
 -- the cl.env ... can I build a solver without app, but just with a cl.env?
-local App = class(require 'app')
+local App = class(require 'hydro.app')
 
 function App:setup()
 	local args = {

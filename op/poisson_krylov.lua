@@ -4,11 +4,11 @@ local class = require 'ext.class'
 local math = require 'ext.math'
 local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
-local tooltip = require 'tooltip'
+local tooltip = require 'hydro.tooltip'
 local template = require 'template'
 local CLBuffer = require 'cl.obj.buffer'
 
-local half = require 'half'
+local half = require 'hydro.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 

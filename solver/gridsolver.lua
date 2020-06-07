@@ -13,17 +13,17 @@ local clnumber = require 'cl.obj.number'
 local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
-local tooltip = require 'tooltip'
+local tooltip = require 'hydro.tooltip'
 local roundup = require 'util.roundup'
 local time, getTime = table.unpack(require 'util.time')
 local SolverBase = require 'solver.solverbase'
-local makestruct = require'eqn.makestruct'
+local makestruct = require 'eqn.makestruct'
 
-local half = require 'half'
+local half = require 'hydro.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 
-local common = require 'common'
+local common = require 'hydro.common'
 local minmaxs = common.minmaxs
 local xNames = common.xNames
 local symNames = common.symNames
@@ -626,7 +626,7 @@ function GridSolver:createCodePrefix()
 // same as above, except for kernels that don't use the boundary
 // index operates on buffers of 'gridSize' (with border)
 // but the kernel must be invoked across sizeWithoutBorder
-<? local range = require'ext.range'
+<? local range = require 'ext.range'
 ?>#define SETBOUNDS_NOGHOST() \
 	int4 i = globalInt4(); \
 	if (OOB(0,2*numGhost)) return; \

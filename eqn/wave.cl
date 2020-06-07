@@ -1,5 +1,5 @@
 <? 
-local common = require 'common'
+local common = require 'hydro.common'
 local sym = common.sym
 local xNames = common.xNames
 

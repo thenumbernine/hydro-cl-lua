@@ -5,8 +5,9 @@ local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
 local clnumber = require 'cl.obj.number'
 local InitCond = require 'init.init'
+local constants = require 'hydro.constants'
 
-local common = require 'common'
+local common = require 'hydro.common'
 local xNames = common.xNames
 
 local function compileC(expr, name, vars)
@@ -996,12 +997,12 @@ return table{
 			earth mass = 5.9736e+24 kg = 5.9736e+24 * 6.6738480e-11 / 299792458^2 m
 			earth mass = Em * G / c^2 in meters
 			--]]
-			local G = require 'constants'.gravitationalConstant_in_m_per_s  -- kg m^3/s^2
-			local c = require 'constants'.speedOfLight_in_m_per_s -- m/s
+			local G = constants.gravitationalConstant_in_m_per_s  -- kg m^3/s^2
+			local c = constants.speedOfLight_in_m_per_s -- m/s
 			-- massInRadii is the order of 1e-9.  much more subtle than the default 1e-3 demo
-			local earth = {radiusInM = require 'constants'.EarthRadius_in_m, massInKg = require 'constants'.EarthMass_in_kg}
+			local earth = {radiusInM = constants.EarthRadius_in_m, massInKg = constants.EarthMass_in_kg}
 			-- massInRadii is on the order of 1e-6
-			local sun = {radiusInM = require 'constants'.SolarRadius_in_m, massInKg = require 'constants'.SolarMass_in_kg}
+			local sun = {radiusInM = constants.SolarRadius_in_m, massInKg = constants.SolarMass_in_kg}
 
 			local planet = sun
 			planet.massInM = planet.massInKg * G / c^2

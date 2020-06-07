@@ -125,7 +125,7 @@ local range = require 'ext.range'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
 
-local common = require 'common'
+local common = require 'hydro.common'
 local xNames = common.xNames
 local symNames = common.symNames
 local from6to3x3 = common.from6to3x3 

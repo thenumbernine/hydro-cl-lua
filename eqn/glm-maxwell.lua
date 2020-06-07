@@ -22,7 +22,7 @@ local range = require 'ext.range'
 local file = require 'ext.file'
 local Equation = require 'eqn.eqn'
 local template = require 'template'
-local common = require 'common'
+local common = require 'hydro.common'
 local xNames = common.xNames
 
 local GLM_Maxwell = class(Equation)
@@ -98,7 +98,7 @@ function GLM_Maxwell:createInitState()
 	-- how to set speedOfLight == 1?
 	-- speedOfLight / (unit_m / unit_s) = 1
 	-- unit_s = unit_m / speedOfLight 
-	local speedOfLight = require 'constants'.speedOfLight_in_m_per_s
+	local speedOfLight = require 'hydro.constants'.speedOfLight_in_m_per_s
 	self.guiVars.second.value = self.guiVars.meter.value / speedOfLight
 	...but this messes with the other variables that use seconds: B, psi, sigma, eps, mu
 	so this asks the question ... when should values be converted to/from units?

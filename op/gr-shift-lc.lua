@@ -6,7 +6,7 @@ I'm sure there's something wrong with this
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local template = require 'template'
-local real = require 'real'
+local real = require 'hydro.real'
 
 local LagrangianCoordinateShift = class()
 

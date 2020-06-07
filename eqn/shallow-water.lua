@@ -3,7 +3,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local template = require 'template'
 local Equation = require 'eqn.eqn'
-local xNames = require 'common'.xNames
+local xNames = require 'hydro.common'.xNames
 
 
 local ShallowWater = class(Equation)
@@ -99,7 +99,7 @@ function ShallowWater:getPrimConsCode()
 end
 
 ShallowWater.initStateCode = [[
-<? local xNames = require 'common'.xNames ?>
+<? local xNames = require 'hydro.common'.xNames ?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf

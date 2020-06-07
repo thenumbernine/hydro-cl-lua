@@ -4,10 +4,10 @@ local table = require 'ext.table'
 local file = require 'ext.file'
 local range = require 'ext.range'
 local template = require 'template'
-local real = require 'real'
+local real = require 'hydro.real'
 local FiniteVolumeSolver = require 'solver.fvsolver'
 
-local common = require 'common'
+local common = require 'hydro.common'
 local xNames = common.xNames
 local symNames = common.symNames
 local from3x3to6 = common.from3x3to6 

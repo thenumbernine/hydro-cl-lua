@@ -10,7 +10,7 @@ local EinsteinEqn = require 'eqn.einstein'
 local symmath = require 'symmath'
 local makeStruct = require 'eqn.makestruct'
 
-local common = require 'common'
+local common = require 'hydro.common'
 local xNames = common.xNames
 local symNames = common.symNames
 local from3x3to6 = common.from3x3to6 
@@ -79,7 +79,7 @@ end
 
 Z4_2008Yano.initStateCode = [[
 <? 
-local common = require 'common'
+local common = require 'hydro.common'
 local xNames = common.xNames 
 local symNames = common.symNames 
 local from3x3to6 = common.from3x3to6 

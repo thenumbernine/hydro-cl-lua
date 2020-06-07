@@ -14,7 +14,7 @@ local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
-local makestruct = require'eqn.makestruct'
+local makestruct = require 'eqn.makestruct'
 
 --[[
 parent is a solver... just Roe for now

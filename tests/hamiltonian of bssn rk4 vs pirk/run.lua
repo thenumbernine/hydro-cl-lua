@@ -86,7 +86,7 @@ local duration = 100
 local filename = rundir..'/dim='..dim..',solver='..solvername..',init='..initState..'.txt'
 local f = io.open(filename, 'w')
 
-local App = class(require 'app')
+local App = class(require 'hydro.app')
 function App:setup(clArgs)
 	cfg.app = self
 	local solver = require('solver.'..solvername)(cfg)

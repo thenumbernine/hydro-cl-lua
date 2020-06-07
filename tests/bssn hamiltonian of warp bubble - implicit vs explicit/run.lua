@@ -29,7 +29,7 @@ for _,info in ipairs{
 	local suffix, integrator= table.unpack(info)
 	local f = io.open(dir..'/var-ranges-'..suffix..'.txt', 'w')
 
-	local App = class(require 'app')
+	local App = class(require 'hydro.app')
 	
 	function App:setup()
 		--local solver = require 'solver.z4c-fd'{

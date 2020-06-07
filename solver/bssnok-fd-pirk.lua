@@ -1,7 +1,7 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
-local real = require 'real'
+local real = require 'hydro.real'
 local CLBuffer = require 'cl.obj.buffer'
 
 local BSSNOKFiniteDifferenceSolver = require 'solver.bssnok-fd'

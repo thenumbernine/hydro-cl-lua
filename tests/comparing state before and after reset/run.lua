@@ -11,7 +11,7 @@ unistd.chdir'../..'
 -- TODO make App accept this as a ctor argument
 cmdline = {sys='console'}
 
-local App = class(require 'app')
+local App = class(require 'hydro.app')
 
 function App:setup()
 	local solver = require 'solver.roe'{

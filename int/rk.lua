@@ -2,7 +2,7 @@ local ffi = require 'ffi'
 local class = require 'ext.class'
 local Integrator = require 'int.int'
 local CLBuffer = require 'cl.obj.buffer'
-local real = require 'real'
+local real = require 'hydro.real'
 
 local RungeKutta = class(Integrator)
 

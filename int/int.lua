@@ -1,5 +1,5 @@
 local class = require 'ext.class'
-local real = require 'real'
+local real = require 'hydro.real'
 
 local Integrator = class()
 

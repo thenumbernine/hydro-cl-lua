@@ -38,7 +38,7 @@ unistd.chdir'../..'
 
 for k,v in pairs(require 'tests.util') do _G[k] = v end
 
-__useConsole__ = true	-- set this before require 'app'
+__useConsole__ = true	-- set this before require 'hydro.app'
 
 
 local cmdline = {}
@@ -221,7 +221,7 @@ print()
 					try('boundary_'..i)
 					if not found then break end
 				end
-				local App = class(require 'app')
+				local App = class(require 'hydro.app')
 				App.allnames = allnames
 				function App:setup(clArgs)
 					cfg.app = self

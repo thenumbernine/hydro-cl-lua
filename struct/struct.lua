@@ -1,7 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local CLBuffer = require 'cl.obj.buffer'
-local makestruct = require'eqn.makestruct'
+local makestruct = require 'eqn.makestruct'
 local ffi = require 'ffi'
 
 --[[
