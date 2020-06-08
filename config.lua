@@ -790,8 +790,14 @@ self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='back
 -- hydro-cl GridSolver without fluxLimiter runs 256x256 at 155 fps
 -- hydro-cl MeshSolver runs 50x50 at 2500 fps
 -- hydro-cl MeshSolver runs 256x256 ... too slow to build (takes a few minutes) 
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
-self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='tri2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
+self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2d', triangulate=true, size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2dcbrt', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2dcubed', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='cube3d', size={cmdline.meshsize or 10, cmdline.meshsize or 10, cmdline.meshsize or 10}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='cylinder3d', size={cmdline.meshsize or 10, cmdline.meshsize or 10, cmdline.meshsize or 10}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='sphere3d', size={cmdline.meshsize or 10, cmdline.meshsize or 10, cmdline.meshsize or 10}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='torus3d', size={cmdline.meshsize or 10, cmdline.meshsize or 10, cmdline.meshsize or 10}}})))
 
 
 

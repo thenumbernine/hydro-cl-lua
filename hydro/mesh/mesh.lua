@@ -138,7 +138,7 @@ function Mesh:polygon3DCOM(vs, area, normal)
 	for i=3,n do
 		local b = vs[i-1]
 		local c = vs[i]
-		com = com + (a + b + c) * normal:dot(cross(c - a, c - b))
+		com = com + (a + b + c) * normal:dot((c - a):cross(c - b))
 	end
 	return com * (1 / (6 * area))
 end
@@ -209,7 +209,7 @@ end
 function Mesh:polyhedronVolume(faces)
 	local volume = 0
 	for _,face in ipairs(faces) do
-		for i=3,#faces do
+		for i=3,#face do
 			--tri from 0, i-1, 1
 			local a = face[1]
 			local b = face[i-1]
@@ -310,7 +310,7 @@ function Mesh:addFaceForVtxs(vs, n)
 		for i=0,2 do
 			f.pos.s[i] = (a.s[i] + b.s[i]) * .5
 		end
-		local delta = ffi.new'real3'
+		local delta = self.real3()
 		for i=0,2 do
 			delta.s[i] = a.s[i] - b.s[i]
 		end
@@ -390,8 +390,8 @@ function Mesh:addCell(vis)
 		--face is a 2-form
 		assert(#vis == 8)	--only adding cubes at the moment
 --[[
-6----7
-/|   /|
+  6----7
+ /|   /|
 4----5 |
 | |  | |  z
 | 2--|-3  ^ y
@@ -418,7 +418,7 @@ function Mesh:addCell(vis)
 				return vis.v[side_i]
 			end)
 			
-			local fi = self:addFace(self.thisFaceVtxIndexes, #self.thisFaceVtxIndexes, ci)
+			local fi = self:addFace(thisFaceVtxIndexes, #thisFaceVtxIndexes, ci)
 			do -- if fi ~= -1 then
 				local f = self.faces.v[fi]
 				
@@ -430,7 +430,7 @@ function Mesh:addCell(vis)
 
 					cubeVtxs:insert(
 						table.mapi(thisFaceVtxIndexes, function(i)
-							return vtxs.v[i]
+							return self.vtxs.v[i]
 						end)
 					)
 				end

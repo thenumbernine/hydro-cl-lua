@@ -1,15 +1,46 @@
 local class = require 'ext.class'
+local vec2sz = require 'vec-ffi.create_vec2'{ctype='size_t'}
+local vec2i = require 'vec-ffi.vec2i'
 local vec2d = require 'vec-ffi.vec2d'
 local vector = require 'hydro.util.vector'
 local Mesh = require 'hydro.mesh.mesh'
-local Chart2DMeshFactory = require 'hydro.mesh.chart2d'
+local MeshSolver = require 'hydro.mesh.factory'
 
-local Quad2DMeshFactory = class(Chart2DMeshFactory)
+local Quad2DMeshFactory = class(MeshFactory)
 
 Quad2DMeshFactory.name = 'Quad2DMesh'
+Quad2DMeshFactory.dim = 2
+
+function Quad2DMeshFactory:init(args)
+	args = args or {}
+	self.size = vec2sz(args.size or {20,20})
+	self.mins = vec2d(args.mins or {-1, -1})
+	self.maxs = vec2d(args.maxs or {1, 1})
+	self.wrap = vec2i(args.wrap or {0, 0})
+	self.capmin = vec2i(args.capmin or {0, 0})
+	self.triangulate = args.triangulate
+end
+
+function Quad2DMeshFactory:coordChart(x) return x end
+
+function Quad2DMeshFactory:addPoly(mesh, ...)
+	if not self.triangulate then
+		mesh:addCell(vector('int',{...}))
+	else
+		local va = select(1, ...)
+		local vb = select(2, ...)
+		for i=3,select('#', ...) do
+			local vc = select(i, ...)
+			mesh:addCell(vector('int', {va,vb,vc}))
+			vb = vc
+		end
+	end
+end
 
 function Quad2DMeshFactory:createMesh(solver)
+assert(solver.dim == 2)	-- or maybe manually set it to 2?
 	local mesh = Mesh(solver)
+	self.mesh = mesh
 
 	local nx = tonumber(self.size.x) + 1
 	local ny = tonumber(self.size.y) + 1
@@ -32,9 +63,10 @@ function Quad2DMeshFactory:createMesh(solver)
 
 	for iy=0,ny-1 do
 		for ix=0,nx-1 do
-			local x = vec2d(
+			local x = mesh.real3(
 				(ix + iofsx) / coordRangeMaxX * (self.maxs.x - self.mins.x) + self.mins.x,
-				(iy + iofsy) / coordRangeMaxY * (self.maxs.y - self.mins.y) + self.mins.y)
+				(iy + iofsy) / coordRangeMaxY * (self.maxs.y - self.mins.y) + self.mins.y,
+				0)
 			local u = self:coordChart(x)
 			mesh.vtxs.v[ix * stepx + iy * stepy] = mesh.real3(u:unpack())
 		end
@@ -56,23 +88,21 @@ function Quad2DMeshFactory:createMesh(solver)
 		local niy = (iy + 1) % ny
 		for ix=0,imaxx-1 do
 			local nix = (ix + 1) % nx
-			mesh:addCell(vector('int',{
+			self:addPoly(mesh, 
 				ix + nx * iy,
 				nix + nx * iy,
 				nix + nx * niy,
-				ix + nx * niy,
-			}))
+				ix + nx * niy)
 		end
 	end
 
 	if self.capmin.x ~= 0 then
 		for j=0,imaxy-1 do
 			local jn = (j + 1) % ny
-			mesh.addCell(vector('int',{
+			self:addPoly(mesh, 
 				0 + nx * j,
 				0 + nx * jn,
-				capindex,
-			}))
+				capindex)
 		end
 	end
 

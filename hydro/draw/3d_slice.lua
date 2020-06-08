@@ -26,6 +26,9 @@ Draw3DSlice.numSlices = 255
 
 function Draw3DSlice:display(app, solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
 	for _,solver in ipairs(solvers) do 
+if not require 'hydro.solver.meshsolver'.is(solver) then
+-- TODO put this in a function 'showDisplayVar'
+
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
 			
@@ -194,6 +197,8 @@ end
 			end
 			app:drawGradientLegend(ar, showName, gradientValueMin, gradientValueMax)
 		end
+end
+
 	end
 end
 

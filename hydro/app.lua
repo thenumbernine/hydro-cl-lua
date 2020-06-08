@@ -1332,13 +1332,13 @@ function HydroCLApp:updateGUI()
 				end
 			
 				if self.display3DMethodsEnabled.Slices then
-					do --if useClipPlanes then
-						ig.igRadioButton("rotate camera", rotateClip, 0)
+					if useClipPlanes then
+						ig.igRadioButtonIntPtr("rotate camera", rotateClip, 0)
 						for i,clipInfo in ipairs(clipInfos) do
 							ig.igPushIDStr('clip '..i)
 							tooltip.checkbox('clip', clipInfo, 'enabled')
 							ig.igSameLine()
-							ig.igRadioButton('rotate', rotateClip, i)
+							ig.igRadioButtonIntPtr('rotate', rotateClip, i)
 							ig.igSameLine()
 							if ig.igButton('reset') then
 								clipInfo.plane = makeDefaultPlane(i)
