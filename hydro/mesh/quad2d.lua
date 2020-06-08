@@ -1,5 +1,4 @@
 local class = require 'ext.class'
-local vec2i = require 'vec-ffi.vec2i'
 local vec2d = require 'vec-ffi.vec2d'
 local vector = require 'hydro.util.vector'
 local Mesh = require 'hydro.mesh.mesh'
@@ -12,75 +11,73 @@ Quad2DMeshFactory.name = 'Quad2DMesh'
 function Quad2DMeshFactory:createMesh(solver)
 	local mesh = Mesh(solver)
 
-	local n = self.size + 1
-	local step = vec2i(1, n.x)
-	local vtxsize = n:volume()
+	local nx = tonumber(self.size.x) + 1
+	local ny = tonumber(self.size.y) + 1
+	
+	local stepx = 1
+	local stepy = nx
+	
+	local vtxsize = nx * ny
 	if self.capmin.x ~= 0 then vtxsize = vtxsize + 1 end
+	
 	mesh.vtxs:resize(vtxsize)
 
-	local coordRangeMax = vec2i(self.size:unpack())
-	if self.wrap.x ~= 0 or self.capmin.x ~= 0 then coordRangeMax.x = coordRangeMax.x + 1 end
-	if self.wrap.y ~= 0 or self.capmin.y ~= 0 then coordRangeMax.y = coordRangeMax.y + 1 end
+	local coordRangeMaxX = tonumber(self.size.x)
+	local coordRangeMaxY = tonumber(self.size.y)
+	if self.wrap.x ~= 0 or self.capmin.x ~= 0 then coordRangeMaxX = coordRangeMaxX + 1 end
+	if self.wrap.y ~= 0 or self.capmin.y ~= 0 then coordRangeMaxY = coordRangeMaxY + 1 end
 
-	local iofs = vec2i()
-	if self.capmin.x ~= 0 then iofs.x = 1 end
-	if self.capmin.y ~= 0 then iofs.y = 1 end
+	local iofsx = self.capmin.x ~= 0 and 1 or 0
+	local iofsy = self.capmin.y ~= 0 and 1 or 0
 
-	local i = vec2i()
-	for iy=0,tonumber(n.y)-1 do
-		i.y = iy
-		for ix=0,tonumber(n.x)-1 do
-			i.x = ix
-			local x = vec2d((i + iofs):unpack()) / vec2d(coordRangeMax:unpack()) * (self.maxs - self.mins) + self.mins
+	for iy=0,ny-1 do
+		for ix=0,nx-1 do
+			local x = vec2d(
+				(ix + iofsx) / coordRangeMaxX * (self.maxs.x - self.mins.x) + self.mins.x,
+				(iy + iofsy) / coordRangeMaxY * (self.maxs.y - self.mins.y) + self.mins.y)
 			local u = self:coordChart(x)
-			mesh.vtxs.v[tonumber(i:dot(step))] = mesh.real3(u:unpack())
+			mesh.vtxs.v[ix * stepx + iy * stepy] = mesh.real3(u:unpack())
 		end
 	end
 	
-	local capindex = n:volume()
+	local capindex = nx * ny
 	if self.capmin.x ~= 0 then
 		local sum = mesh.real3()
-		for j=0,n.y-1 do
-			sum = sum + mesh.vtxs.v[tonumber(0 + n.x * j)]
+		for j=0,ny-1 do
+			sum = sum + mesh.vtxs.v[0 + nx * j]
 		end
-		mesh.vtxs.v[tonumber(capindex)] = sum / tonumber(n.y)
+		mesh.vtxs.v[capindex] = sum / ny
 	end
 
-	local imax = vec2i()
-	for j=0,1 do
-		imax.s[j] = self.wrap.s[j] ~= 0 and n.s[j] or n.s[j]-1
-	end
+	local imaxx = self.wrap.x ~= 0 and nx or nx - 1
+	local imaxy = self.wrap.y ~= 0 and ny or ny - 1
 
-	local ni = vec2i()
-	for iy=0,tonumber(imax.y-1) do
-		i.y = iy
-		ni.y = (i.y + 1) % n.y
-		for ix=0,tonumber(imax.x-1) do
-			i.x = ix
-			ni.x = (i.x + 1) % n.x
+	for iy=0,imaxy-1 do
+		local niy = (iy + 1) % ny
+		for ix=0,imaxx-1 do
+			local nix = (ix + 1) % nx
 			mesh:addCell(vector('int',{
-				tonumber(i.x + n.x * i.y),
-				tonumber(ni.x + n.x * i.y),
-				tonumber(ni.x + n.x * ni.y),
-				tonumber(i.x + n.x * ni.y),
+				ix + nx * iy,
+				nix + nx * iy,
+				nix + nx * niy,
+				ix + nx * niy,
 			}))
 		end
 	end
 
 	if self.capmin.x ~= 0 then
-		for j=0,imax.y-1 do
-			local jn = (j + 1) % n.y
+		for j=0,imaxy-1 do
+			local jn = (j + 1) % ny
 			mesh.addCell(vector('int',{
-				tonumber(0 + n.x * j), 
-				tonumber(0 + n.x * jn), 
-				tonumber(capindex),
+				0 + nx * j,
+				0 + nx * jn,
+				capindex,
 			}))
 		end
 	end
 
 	mesh:calcAux()
 	return mesh
-
 end
 
 return Quad2DMeshFactory

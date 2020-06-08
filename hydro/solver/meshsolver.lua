@@ -27,22 +27,14 @@ local vector = require 'hydro.util.vector'
 matrix_ffi.real = 'float'	-- default matrix_ffi type
 
 
-local Mesh = require 'hydro.mesh.mesh'
+local meshFactoryClassForType = {
+	p2dfmt = require 'hydro.mesh.p2dfmt',
+	tri2d = require 'hydro.mesh.tri2d',
+	quad2d = require 'hydro.mesh.quad2d',
+}
 
 
 local MeshSolver = class(SolverBase)
-
-
-local P2DFMTMeshFactory = require 'hydro.mesh.p2dfmt'
-local Tri2DMeshFactory = require 'hydro.mesh.tri2d'
-local Quad2DMeshFactory = require 'hydro.mesh.quad2d'
-
-local meshFactoryClassForType = {
-	P2DFMTMesh = P2DFMTMeshFactory,
-	Tri2DMesh = Tri2DMeshFactory,
-	Quad2DMesh = Quad2DMeshFactory,
-}
-
 
 --[[
 args:

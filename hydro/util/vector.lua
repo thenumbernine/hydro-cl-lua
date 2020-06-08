@@ -93,9 +93,10 @@ function vector:insert(...)
 	local n = select('#', ...)
 	if n == 3 then
 		local where, first, last = ...
+		local offset = where - self.v
 		local i = first
 		while i ~= last do
-			self:insert(where, i[0])
+			self:insert(self.v + offset, i[0])
 			i = i + 1
 		end
 	elseif n == 2 then
