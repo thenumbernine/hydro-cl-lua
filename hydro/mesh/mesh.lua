@@ -8,7 +8,6 @@ local range = require 'ext.range'
 local vec2i = require 'vec-ffi.vec2i'
 local vector = require 'hydro.util.vector'
 -- one of these is bound to be real3, right?
-local vec2d = require 'vec-ffi.vec2d'
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
 local struct = require 'hydro.struct.struct'
@@ -173,9 +172,13 @@ function Mesh:polygonCOM(vs, volume)
 		if n == 0 then
 			error"you can't get a COM without any vertexes"
 		end
-		return table.sum(vs) / n
+		local sum = vs[1]
+		for i=2,n do
+			sum = sum + vs[i]
+		end
+		return sum / n
 	end
-	local com = vec2d()
+	local com = vec3d()
 	for i=1,n do
 		local a = vs[i]
 		local b = vs[i%n+1]
@@ -299,6 +302,7 @@ function Mesh:addFaceForVtxs(vs, n)
 	
 	f.vtxOffset = #self.faceVtxIndexes
 	for i=1,n do
+assert(0 <= vs[i] and vs[i] < #self.vtxs)
 		self.faceVtxIndexes:push_back(vs[i])
 	end
 	f.vtxCount = #self.faceVtxIndexes - f.vtxOffset
@@ -307,16 +311,16 @@ function Mesh:addFaceForVtxs(vs, n)
 	if self.solver.dim == 2 then
 		local a = self.vtxs.v[vs[1]]
 		local b = self.vtxs.v[vs[2]]
-		for i=0,2 do
-			f.pos.s[i] = (a.s[i] + b.s[i]) * .5
-		end
-		local delta = self.real3()
-		for i=0,2 do
-			delta.s[i] = a.s[i] - b.s[i]
-		end
+		f.pos.x = (a.x + b.x) * .5
+		f.pos.y = (a.y + b.y) * .5
+		f.pos.z = (a.z + b.z) * .5
+		local delta = self.real3(0,0,0)
+		delta.x = a.x - b.x
+		delta.y = a.y - b.y
+		delta.z = a.z - b.z
 		local deltaLen = math.sqrt(delta.x*delta.x + delta.y*delta.y)
 		f.area = deltaLen
-		f.normal = self.real3(delta.y / deltaLen, -delta.x / deltaLen)
+		f.normal = self.real3(delta.y / deltaLen, -delta.x / deltaLen, 0)
 	elseif self.solver.dim == 3 then
 		local polyVtxs = table()	--vector('real3', n)
 		for i=1,n do
@@ -444,7 +448,7 @@ function Mesh:addCell(vis)
 			c.pos = self:polyhedronCOM(cubeVtxs, c.volume)
 		end
 	else
-		error"you are here";
+		error("I don't know what dim mesh you are using.  perhaps the MeshFactory you used forgot to define its .dim?")
 	end
 	
 	c.faceCount = #self.cellFaceIndexes - c.faceOffset
@@ -529,7 +533,7 @@ function Mesh:calcAux()
 	--self.numVtxs, self.vtxs = tableToC(self.vtxs, 'real3')
 	self.numVtxs = #self.vtxs
 	self.numFaces = #self.faces
-	self.numCells = #self.cells
+	self.numCells = assert(#self.cells)
 	self.numCellFaceIndexes = #self.cellFaceIndexes
 	self.numCellVtxIndexes = #self.cellVtxIndexes
 	self.numFaceVtxIndexes = #self.faceVtxIndexes

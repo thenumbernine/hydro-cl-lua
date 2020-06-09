@@ -82,13 +82,13 @@ end)
 	end
 
 	-- TODO put these in solver_t
-	self.numCells = self.mesh.numCells
-	self.numFaces = self.mesh.numFaces
-	self.numVtxs = self.mesh.numVtxs
+	self.numCells = assert(self.mesh.numCells, "did your MeshFactory remember to call :calcAux()?")
+	self.numFaces = assert(self.mesh.numFaces, "did your MeshFactory remember to call :calcAux()?")
+	self.numVtxs = assert(self.mesh.numVtxs, "did your MeshFactory remember to call :calcAux()?")
 	self.numCellFaceIndexes = self.mesh.numCellFaceIndexes
 	self.numCellVtxIndexes = self.mesh.numCellVtxIndexes
 	self.numFaceVtxIndexes = self.mesh.numFaceVtxIndexes
-	
+
 	--[[
 	next issue ... how to render this?
 	how to store it?
@@ -490,6 +490,28 @@ function MeshSolver:display(varName, ar)
 	-- draw the mesh 
 	local mesh = self.mesh
 
+	if self.showVertexes then
+		gl.glPointSize(3)
+		gl.glColor3f(1,1,1)
+		gl.glBegin(gl.GL_POINTS)
+		for _,v in ipairs(mesh.vtxs) do
+			gl.glVertex3d(v:unpack())
+		end
+		gl.glEnd()
+		gl.glPointSize(1)
+	end
+
+	if self.showFaces then
+		for fi,f in ipairs(mesh.faces) do
+			gl.glBegin(gl.GL_LINE_LOOP)
+			for vi=0,f.vtxCount-1 do
+				local v = mesh.vtxs.v[mesh.faceVtxIndexes.v[vi + f.vtxOffset]]
+				gl.glVertex3d(v:unpack())
+			end
+			gl.glEnd()
+		end
+	end
+	
 	-- if show cells ...
 	-- TODO in my mesh solver, here I pick the color according to the display value
 	-- but in my grid solvers I just overlay the whole thing with a giant texture
@@ -543,28 +565,6 @@ function MeshSolver:display(varName, ar)
 		self.drawShader:useNone()
 	end
 
-	if self.showVertexes then
-		gl.glPointSize(3)
-		gl.glColor3f(1,1,1)
-		gl.glBegin(gl.GL_POINTS)
-		for _,v in ipairs(mesh.vtxs) do
-			gl.glVertex3d(v:unpack())
-		end
-		gl.glEnd()
-		gl.glPointSize(1)
-	end
-
-	if self.showFaces then
-		for fi,f in ipairs(mesh.faces) do
-			gl.glBegin(gl.GL_LINE_LOOP)
-			for vi=0,f.vtxCount-1 do
-				local v = mesh.vtxs.v[mesh.faceVtxIndexes.v[vi + f.vtxOffset]]
-				gl.glVertex3d(v:unpack())
-			end
-			gl.glEnd()
-		end
-	end
-	
 	gl.glDisable(gl.GL_DEPTH_TEST)
 	gl.glDisable(gl.GL_CULL_FACE)
 

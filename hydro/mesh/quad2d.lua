@@ -1,7 +1,7 @@
 local class = require 'ext.class'
-local vec2sz = require 'vec-ffi.create_vec2'{ctype='size_t'}
-local vec2i = require 'vec-ffi.vec2i'
-local vec2d = require 'vec-ffi.vec2d'
+local vec3sz = require 'vec-ffi.vec3sz'
+local vec3i = require 'vec-ffi.vec3i'
+local vec3d = require 'vec-ffi.vec3d'
 local vector = require 'hydro.util.vector'
 local Mesh = require 'hydro.mesh.mesh'
 local MeshSolver = require 'hydro.mesh.factory'
@@ -13,11 +13,11 @@ Quad2DMeshFactory.dim = 2
 
 function Quad2DMeshFactory:init(args)
 	args = args or {}
-	self.size = vec2sz(args.size or {20,20})
-	self.mins = vec2d(args.mins or {-1, -1})
-	self.maxs = vec2d(args.maxs or {1, 1})
-	self.wrap = vec2i(args.wrap or {0, 0})
-	self.capmin = vec2i(args.capmin or {0, 0})
+	self.size = vec3sz(args.size or {20, 20, 1})
+	self.mins = vec3d(args.mins or {-1, -1, -1})
+	self.maxs = vec3d(args.maxs or {1, 1, 1})
+	self.wrap = vec3i(args.wrap or {0, 0, 0})
+	self.capmin = vec3i(args.capmin or {0, 0, 0})
 	self.triangulate = args.triangulate
 end
 

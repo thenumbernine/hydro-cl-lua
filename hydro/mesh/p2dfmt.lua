@@ -1,30 +1,53 @@
 local class = require 'ext.class'
+local table = require 'ext.table'
 local string = require 'ext.string'
 local file = require 'ext.file'
+local vector = require 'hydro.util.vector'
+local Mesh = require 'hydro.mesh.mesh'
 local MeshFactory = require 'hydro.mesh.factory'
 
 local P2DFMTMeshFactory = class(MeshFactory)
 
-function P2DFMTMeshFactory:createMesh(args)
-	-- TODO
-	local meshfilename = assert(args.meshfile)
-	local ls = string.split(assert(string.trim(file['grids/'..meshfilename..'.p2dfmt'])), '\n')
+P2DFMTMeshFactory.name = 'P2DFMTMesh'
+P2DFMTMeshFactory.dim = 2
+
+function P2DFMTMeshFactory:init(args)
+	self.meshfile = assert(args.meshfile)
+end
+
+function P2DFMTMeshFactory:createMesh(solver)
+	local mesh = Mesh(solver)
+	
+	local fn = 'grids/'..self.meshfile
+	local ls = string.split(assert(string.trim(file[fn], "failed to open "..fn)), '\n')
 	local first = ls:remove(1)
 	local m, n = string.split(string.trim(ls:remove(1)), '%s+'):map(function(l) return tonumber(l) end):unpack()
 	local x = string.split(string.trim(ls:concat()), '%s+'):map(function(l) return tonumber(l) end)
 	assert(#x == 2*m*n)
-	print(m, n, m*n)
 	-- [[
 	local us = x:sub(1,m*n)
 	local vs = x:sub(m*n+1)
-	assert(#us == #vs)
-	local vtxs = table()
-	for i=1,#us do
-		local u,v = us[i], vs[i]
-		addVtx(vtxs, {u,v})
+	local numVtxs = #us
+	assert(numVtxs == #vs)
+
+	mesh.vtxs:resize(numVtxs)
+	for i=1,numVtxs do
+		mesh.vtxs.v[i-1] = mesh.real3(us[i],vs[i],0)
+	end
+	
+	for j=0,n-2 do
+		for i=0,m-2 do
+			mesh:addCell(vector('int',{
+				i + m * j,
+				i+1 + m * j,
+				i+1 + m * (j+1),
+				i + m * (j+1),
+			}))
+		end
 	end
 
-	assert(#vtxs == m*n, "expected "..#vtxs.." to equal "..(m*n))
+	mesh:calcAux()
+	return mesh
 end
 
 return P2DFMTMeshFactory 

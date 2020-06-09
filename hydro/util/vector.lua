@@ -7,6 +7,7 @@ stl vector class
 have I made this before?
 --]]
 local vector = class()
+
 function vector:init(ctype, arg)
 	self.type = ctype
 	self.size = 0
@@ -41,6 +42,7 @@ function vector:init(ctype, arg)
 	setmetatable(self, mt)
 	--]]
 end
+
 function vector:__ipairs()
 	return coroutine.wrap(function()
 		for i=0,self.size-1 do
@@ -48,6 +50,7 @@ function vector:__ipairs()
 		end
 	end)
 end
+
 function vector:setcapacity(newcap)
 	if newcap <= self.capacity then return end
 	local newv = ffi.new(self.type..'[?]', newcap)
@@ -74,12 +77,15 @@ function vector:back()
 	assert(self.size > 0)
 	return self.v + self.size - 1
 end
+
 -- returns a ptr to the first element
 function vector:begin()
 	return self.v
 end
+
 -- because the __index removes access from the object itself ...
 vector.data = vector.begin
+
 -- returns a ptr past the last element
 function vector:iend()
 	return self.v + self.size
@@ -110,10 +116,12 @@ function vector:insert(...)
 		self.v[offset] = value
 	end
 end
+
 function vector:__len()
 	--return rawget(self, 'size')
 	return self.size
 end
+
 function vector:__tostring()
 	local s = '['
 	local sep = ''
