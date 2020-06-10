@@ -21,13 +21,30 @@ void main() {
 <? end
 if fragmentShader then ?>
 
-//1/log(10)
+//begin code shared with lots of display shaders
 #define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
 float logmap(float x) { return log(1. + abs(x)) * _1_LN_10; }
 
-uniform bool useCoordMap;
 uniform bool useLog;
 uniform float valueMin, valueMax;
+
+vec4 getGradientColor(float value) {
+	if (useLog) {
+		//the abs() will get me in trouble when dealing with range calculations ...
+		float logValueMin = logmap(valueMin);
+		float logValueMax = logmap(valueMax);
+		value = (logmap(value) - logValueMin) / (logValueMax - logValueMin);
+	} else {
+		value = (value - valueMin) / (valueMax - valueMin);
+	}
+	
+	value = (value * <?=clnumber(app.gradientTex.width-1)?> + .5) / <?=clnumber(app.gradientTex.width)?>;
+	
+	return texture1D(gradientTex, value);
+}
+//end code shard with lots of display shaders
+
+uniform bool useCoordMap;
 
 uniform vec2 texCoordMax;
 <? if solver.dim == 3 then
@@ -80,16 +97,8 @@ if (abs(gridCoord.x - solverMins.x) < epsilon ||
 <? else
 ?>	float value = texture2D(tex, texCoord.xy).r;
 <? end
-?>	if (useLog) {
-		//the abs() will get me in trouble when dealing with range calculations ...
-		float logValueMin = logmap(valueMin);
-		float logValueMax = logmap(valueMax);
-		value = (logmap(value) - logValueMin) / (logValueMax - logValueMin);
-	} else {
-		value = (value - valueMin) / (valueMax - valueMin);
-	}
-	value = (value * <?=clnumber(app.gradientTex.width-1)?> + .5) / <?=clnumber(app.gradientTex.width)?>;
-	gl_FragColor = texture1D(gradientTex, value);
+?>	
+	gl_FragColor = getGradientColor(value);
 }
 
 <? end ?>
