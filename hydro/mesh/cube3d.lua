@@ -8,7 +8,7 @@ local MeshFactory = require 'hydro.mesh.factory'
 
 local Cube3DMeshFactory = class(MeshFactory)
 
-Cube3DMeshFactory.name = 'Cube3DMesh'
+Cube3DMeshFactory.name = 'cube3d'
 Cube3DMeshFactory.dim = 3
 
 function Cube3DMeshFactory:init(args)

@@ -100,11 +100,10 @@ function vector:insert(...)
 	if n == 3 then
 		local where, first, last = ...
 		local offset = where - self.v
-		local i = first
-		while i ~= last do
-			self:insert(self.v + offset, i[0])
-			i = i + 1
-		end
+		local n = last - first
+		self:resize(self.size + n)
+		ffi.copy(self.v + offset + n, self.v + offset, ffi.sizeof(self.type) * n)
+		ffi.copy(self.v + offset, first, ffi.sizeof(self.type) * n)
 	elseif n == 2 then
 		local where, value = ...
 		local offset = where - self.v

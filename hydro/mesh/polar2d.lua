@@ -1,23 +1,25 @@
 local class = require 'ext.class'
-local math = require 'ext.math'
-local vec3i = require 'vec-ffi.vec3i'
+local table = require 'ext.table'
 local vec3d = require 'vec-ffi.vec3d'
+local vec3i = require 'vec-ffi.vec3i'
 local Quad2DMeshFactory = require 'hydro.mesh.quad2d'
 
 local Polar2DMeshFactory = class(Quad2DMeshFactory)
 
+Polar2DMeshFactory.name = 'polar2d'
+
 function Polar2DMeshFactory:init(args)
+	args = table(args)
+	args.mins = vec3d(args.mins or {.1, 0, -1})
+	args.maxs = vec3d(args.maxs or {1, 1, 1})
+	args.wrap = vec3i(args.wrap or {0, 1, 0})
+	args.capmin = vec3i(args.capmin or {0, 0, 0})
 	Polar2DMeshFactory.super.init(self, args)
-	args.mins = vec3d(.1, 0, -1)
-	args.maxs = vec3d(1, 1, 1)
-	args.wrap = vec3i(0, 1, 0)
-	args.capmin = vec3i(0, 0, 0)
 end
 
--- hmm, same as cylinder3d ...
-function Polar2DMeshFactory:coordChart(r,theta,z)
-	theta = theta * 2 * math.pi
-	return r * math.cos(theta), r * math.sin(theta), z
+function Polar2DMeshFactory:coordChart(r,phi,z)
+	phi = phi * 2 * math.pi
+	return r * math.cos(phi), r * math.sin(phi), z
 end
 
 return Polar2DMeshFactory 

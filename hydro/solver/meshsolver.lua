@@ -63,6 +63,9 @@ end)
 	time('creating mesh', function()
 		self.mesh = meshFactory:createMesh(self)
 	end)
+for k,v in pairs(self.mesh.times) do
+	print(k,v)
+end
 --os.exit()
 
 	-- ok now convert from lua tables to arrays

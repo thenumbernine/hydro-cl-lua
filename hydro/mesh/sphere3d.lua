@@ -6,7 +6,7 @@ local vec3i = require 'vec-ffi.vec3i'
 
 local Sphere3DMeshFactory = class(Cube3DMeshFactory)
 
-Sphere3DMeshFactory.name = 'Sphere3DMesh'
+Sphere3DMeshFactory.name = 'sphere3d'
 
 function Sphere3DMeshFactory:init(args) 
 	args = table(args)

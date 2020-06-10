@@ -1013,16 +1013,22 @@ end) then
 
 	{
 		name = 'spiral',
+		guiVars = {
+			{name = 'init_rho', value = 1},
+			{name = 'init_P', value = 1},
+			{name = 'init_v', value = 1},
+			{name = 'init_D', value = 1},
+		},
 		initState = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);
 	real r = real3_len(xc);
-	P = 1.;
-	rho = 1.;
-	v.x = -xc.y / r;
-	v.y = xc.x / r;
-	D.x = -xc.y / r;
-	D.y = xc.x / r;
+	P = solver->init_P;
+	rho = solver->init_rho;
+	v.x = -xc.y * solver->init_v / r;
+	v.y = xc.x * solver->init_v / r;
+	D.x = -xc.y * solver->init_D / r;
+	D.y = xc.x * solver->init_D / r;
 ]]
 		end,
 	},

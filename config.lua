@@ -195,11 +195,11 @@ local args = {
 	--initState = 'gaussian',
 	--initState = 'advect wave',
 	--initState = 'sphere',
-	--initState = 'spiral',
+	initState = 'spiral',
 	--initState = 'rarefaction wave',
 	--initState = 'Bessel',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sod with physical units',
 	--initStateArgs = {dim=cmdline.displayDim},
 	
@@ -790,12 +790,13 @@ self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='back
 -- hydro-cl GridSolver without fluxLimiter runs 256x256 at 155 fps
 -- hydro-cl MeshSolver runs 50x50 at 2500 fps
 -- hydro-cl MeshSolver runs 256x256 at 70 fps (building the mesh took 4.5 minutes =P)
-self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2d', triangulate=true, size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='p2dfmt', meshfile='n0012_113-33.p2dfmt'}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2dcbrt', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2dcubed', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='cylinder2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
+self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='cube3d', size={cmdline.meshsize or 16, cmdline.meshsize or 16, cmdline.meshsize or 16}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='cylinder3d', size={cmdline.meshsize or 16, cmdline.meshsize or 16, cmdline.meshsize or 16}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='sphere3d', size={cmdline.meshsize or 16, cmdline.meshsize or 16, cmdline.meshsize or 16}}})))

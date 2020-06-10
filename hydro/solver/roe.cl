@@ -232,9 +232,16 @@ kernel void calcFlux(
 	int faceIndex = get_global_id(0);
 	if (faceIndex >= get_global_size(0)) return;
 	
-	const global face_t* face = faces + faceIndex;
-	if (face->area <= 1e-7) return;
+	global <?=eqn.cons_t?>* flux = fluxBuf + faceIndex;
 	
+	const global face_t* face = faces + faceIndex;
+	if (face->area <= 1e-7) {
+		for (int j = 0; j < numStates; ++j) {
+			flux->ptr[j] = 0;
+		}
+		return;
+	}
+
 	real3 x = face->pos;
 	normalInfo_t n = normalInfo_forFace(face);
 	
@@ -244,7 +251,7 @@ kernel void calcFlux(
 	//TODO option to rotate to align fluxes?
 	// then you'd have to build a new normalInfo_t based on the aligned (x-axis) normal.
 
-	fluxBuf[faceIndex] = calcFluxForInterface(solver, UL, UR, x, n);
+	*flux = calcFluxForInterface(solver, UL, UR, x, n);
 }
 
 <? end -- mesh vs grid solver ?>

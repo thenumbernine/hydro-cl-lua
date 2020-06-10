@@ -11,6 +11,7 @@ local vector = require 'hydro.util.vector'
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
 local struct = require 'hydro.struct.struct'
+local time, getTime = table.unpack(require 'hydro.util.time')
 
 
 local face_t = struct{
@@ -71,8 +72,8 @@ local function new_face_t()
 	face.normal3.z = 0
 	face.area = 0
 	face.cellDist = 0
-	face.cells.s[0] = -1
-	face.cells.s[1] = -1
+	face.cells.x = -1
+	face.cells.y = -1
 	face.vtxOffset = 0
 	face.vtxCount = 0
 	return face
@@ -110,92 +111,10 @@ function Mesh:init(solver)
 end
 
 
---	3D - polygon
-
-
-function Mesh:polygon3DVolume(vs, normal)
-	local n = #vs
-	local volume = 0
-	for i=1,n do
-		local a = vs[i]
-		local b = vs[i%n+1]
-		volume = volume + self:parallelepipedVolume(a, b, normal)
-	end
-	return .5 * volume
-end
-
-function Mesh:polygon3DCOM(vs, area, normal)
-	local n = #vs
-	if area == 0 then
-		if n == 0 then
-			error"you can't get a COM without any vertexes"
-		end
-		return table.sum(vs) / n
-	end
-	local com = vec3d()
-	local a = vs[1]
-	for i=3,n do
-		local b = vs[i-1]
-		local c = vs[i]
-		com = com + (a + b + c) * normal:dot((c - a):cross(c - b))
-	end
-	return com * (1 / (6 * area))
-end
-
-
---	2D - parallelogram
-
-
-function Mesh:parallelogramVolume(a, b)
-	--epsilon_ij a^i b^j
-	return a.x * b.y - a.y * b.x
-end
-
-
---	2D - polygon
-
-
-function Mesh:polygonVolume(vs)
-	local n = #vs
-	local volume = 0
-	for i=1,n do
-		local a = vs[i]
-		local b = vs[i%n+1]
-		volume = volume + self:parallelogramVolume(a, b)
-	end
-	return .5 * volume
-end
-
-function Mesh:polygonCOM(vs, volume)
-	local n = #vs
-	if volume == 0 then
-		if n == 0 then
-			error"you can't get a COM without any vertexes"
-		end
-		local sum = vs[1]
-		for i=2,n do
-			sum = sum + vs[i]
-		end
-		return sum / n
-	end
-	local com = vec3d()
-	for i=1,n do
-		local a = vs[i]
-		local b = vs[i%n+1]
-		local vol = self:parallelogramVolume(a, b)
-		for j=0,1 do
-			com.s[j] = com.s[j] + (a.s[j] + b.s[j]) * vol
-		end
-	end
-	return com * (1 / (6 * volume))
-end
-
-
-
 --	3D - parallelepiped
 
 
-function Mesh:parallelepipedVolume(a, b, c)
+local function parallelepipedVolume(a, b, c)
 	--epsilon_ijk a^i b^j c^k
 	return a.x * b.y * c.z
 		+ a.y * b.z * c.x
@@ -206,10 +125,118 @@ function Mesh:parallelepipedVolume(a, b, c)
 end
 
 
+--	3D - polygon
+
+
+local function polygon3DVolume(normal, ...)
+	local n = select('#', ...)
+	local volume = 0
+	for i=1,n do
+		local a = select(i, ...)
+		local b = select(i%n+1, ...)
+		volume = volume + parallelepipedVolume(a, b, normal)
+	end
+	return .5 * volume
+end
+
+local function polygon3DCOM(com, normal, area, ...)
+	com.x, com.y, com.z = 0, 0, 0
+	local n = select('#', ...)
+	if area == 0 then
+		if n == 0 then
+			error"you can't get a COM without any vertexes"
+		end
+		for i=1,n do
+			local v = select(i, ...)
+			com.x = com.x + v.x
+			com.y = com.y + v.y
+			com.z = com.z + v.z
+		end
+		local norm = 1 / n
+		com.x = com.x * norm
+		com.y = com.y * norm
+		com.z = com.z * norm
+	else
+		local a = select(1, ...)
+		for i=3,n do
+			local b = select(i-1, ...)
+			local c = select(i, ...)
+			local ac = c - a
+			local bc = c - b
+			local vol = normal:dot(ac:cross(bc))
+			--local vol = parallelepipedVolume(normal, ac, bc)
+			com.x = com.x + (a.x + b.x + c.x) * vol
+			com.y = com.y + (a.y + b.y + c.y) * vol
+			com.z = com.z + (a.z + b.z + c.z) * vol
+		end
+		local norm = 1 / (6 * area)
+		com.x = com.x * norm
+		com.y = com.y * norm
+		com.z = com.z * norm
+	end
+end
+
+
+--	2D - parallelogram
+
+
+local function parallelogramVolume(a, b)
+	--epsilon_ij a^i b^j
+	return a.x * b.y - a.y * b.x
+end
+
+
+--	2D - polygon
+
+
+local function polygonVolume(...)
+	local n = select('#', ...)
+	local volume = 0
+	for i=1,n do
+		local a = select(i, ...)
+		local b = select(i%n+1, ...)
+		volume = volume + parallelogramVolume(a, b)
+	end
+	return .5 * volume
+end
+
+local function polygonCOM(com, volume, ...)
+	local n = select('#', ...)
+	if volume == 0 then
+		if n == 0 then
+			error"you can't get a COM without any vertexes"
+		end
+		for i=1,n do
+			local v = select(i, ...)
+			com.x = com.x + v.x
+			com.y = com.y + v.y
+			com.z = com.z + v.z
+		end
+		local norm = 1 / n
+		com.x = com.x * norm
+		com.y = com.y * norm
+		com.z = com.z * norm
+	else
+		for i=1,n do
+			local a = select(i, ...)
+			local b = select(i%n+1, ...)
+			local vol = parallelogramVolume(a, b)
+			com.x = com.x + (a.x + b.x) * vol
+			com.y = com.y + (a.y + b.y) * vol
+			com.z = com.z + (a.z + b.z) * vol
+		end
+		local norm = 1 / (6 * volume)
+		com.x = com.x * norm
+		com.y = com.y * norm
+		com.z = com.z * norm
+	end
+end
+
+
 --	3D - polyhedron
 
 
-function Mesh:polyhedronVolume(faces)
+local function polyhedronVolume(faces)
 	local volume = 0
 	for _,face in ipairs(faces) do
 		for i=3,#face do
@@ -217,19 +244,19 @@ function Mesh:polyhedronVolume(faces)
 			local a = face[1]
 			local b = face[i-1]
 			local c = face[i]
-			volume = volume + self:parallelepipedVolume(a, b, c)
+			volume = volume + parallelepipedVolume(a, b, c)
 		end
 	end
 	--volume of n-sided pyramid in nD is volume of parallelogram divided by 1/n!
 	return volume / 6
 end
 
-function Mesh:polyhedronCOM(faces, volume)
+local function polyhedronCOM(volume, faces)
 	if volume == 0 then
 		if #faces == 0 then
 			error"you can't get a COM without any vertexes"
 		end
-		local sum = self.real3()
+		local sum = vec3d()
 		local total = 0
 		for _,face in ipairs(faces) do
 			for _,vtx in ipairs(face) do
@@ -239,7 +266,7 @@ function Mesh:polyhedronCOM(faces, volume)
 		end
 		return sum * (1 / total)
 	end
-	local com = self.real3()
+	local com = vec3d()
 	for _,face in ipairs(faces) do
 		for i=3,#face do
 			--tri from 0, i-1, 1
@@ -253,16 +280,18 @@ function Mesh:polyhedronCOM(faces, volume)
 end
 
 
-
 -- vs is a Lua table
 -- vs values are 0-based indexes
 -- returns a 0-based index
-function Mesh:addFaceForVtxs(vs, n)
-	for fi=0,#self.faces-1 do
-		local f = assert(self.faces.v[fi], "failed to get face at 0-based "..fi)
-		if self.solver.dim == 2 then
-			local va = vs[1]
-			local vb = vs[2]
+function Mesh:addFaceForVtxs(...)
+	local n = select('#', ...)
+		
+	if self.solver.dim == 2 then
+		for fi=0,#self.faces-1 do
+			local f = self.faces.v[fi]
+			
+			local va = select(1, ...)
+			local vb = select(2, ...)
 			if f.vtxCount == 2 then
 				if (self.faceVtxIndexes.v[f.vtxOffset+0] == va and self.faceVtxIndexes.v[f.vtxOffset+1] == vb) or
 					(self.faceVtxIndexes.v[f.vtxOffset+0] == vb and self.faceVtxIndexes.v[f.vtxOffset+1] == va)
@@ -270,12 +299,17 @@ function Mesh:addFaceForVtxs(vs, n)
 					return fi
 				end
 			end
-		elseif self.solver.dim == 3 then
+		
+		end
+	elseif self.solver.dim == 3 then
+		for fi=0,#self.faces-1 do
+			local f = self.faces.v[fi]
+			
 			for j=0,n-1 do
 				--check in one direction
 				local matches = true
 				for i=0,n-1 do
-					if self.faceVtxIndexes.v[f.vtxOffset+i] ~= vs[1+(j+i)%n] then
+					if self.faceVtxIndexes.v[f.vtxOffset+i] ~= select(1+(j+i)%n, ...) then
 						matches = false;
 						break
 					end
@@ -285,13 +319,14 @@ function Mesh:addFaceForVtxs(vs, n)
 				--check in the other direction
 				matches = true
 				for i=0,n-1 do
-					if self.faceVtxIndexes.v[f.vtxOffset+i] ~= vs[1+(j+n-i)%n] then
+					if self.faceVtxIndexes.v[f.vtxOffset+i] ~= select(1+(j+n-i)%n, ...) then
 						matches = false
 						break
 					end
 				end
 				if matches then return fi end
 			end
+		
 		end
 	end
 
@@ -302,29 +337,25 @@ function Mesh:addFaceForVtxs(vs, n)
 	
 	f.vtxOffset = #self.faceVtxIndexes
 	for i=1,n do
-assert(0 <= vs[i] and vs[i] < #self.vtxs)
-		self.faceVtxIndexes:push_back(vs[i])
+		local vi = select(i, ...)
+		assert(0 <= vi and vi < #self.vtxs)
+		self.faceVtxIndexes:push_back(vi)
 	end
 	f.vtxCount = #self.faceVtxIndexes - f.vtxOffset
 
 	--TODO calc these for n=3
 	if self.solver.dim == 2 then
-		local a = self.vtxs.v[vs[1]]
-		local b = self.vtxs.v[vs[2]]
-		f.pos.x = (a.x + b.x) * .5
-		f.pos.y = (a.y + b.y) * .5
-		f.pos.z = (a.z + b.z) * .5
-		local delta = self.real3(0,0,0)
-		delta.x = a.x - b.x
-		delta.y = a.y - b.y
-		delta.z = a.z - b.z
+		local a = self.vtxs.v[select(1, ...)]
+		local b = self.vtxs.v[select(2, ...)]
+		f.pos = (a + b) * .5
+		local delta = a - b
 		local deltaLen = math.sqrt(delta.x*delta.x + delta.y*delta.y)
 		f.area = deltaLen
 		f.normal = self.real3(delta.y / deltaLen, -delta.x / deltaLen, 0)
 	elseif self.solver.dim == 3 then
 		local polyVtxs = table()	--vector('real3', n)
 		for i=1,n do
-			polyVtxs[i] = self.vtxs.v[vs[i]]
+			polyVtxs[i] = self.vtxs.v[select(i, ...)]
 		end
 		for i=0,n-1 do
 			local i2 = (i+1)%n
@@ -332,8 +363,9 @@ assert(0 <= vs[i] and vs[i] < #self.vtxs)
 			f.normal = f.normal + (polyVtxs[1+i2] - polyVtxs[1+i]):cross(polyVtxs[1+i3] - polyVtxs[1+i2])
 		end
 		f.normal = f.normal:normalize()
-		f.area = self:polygon3DVolume(polyVtxs, f.normal)
-		f.pos = self:polygon3DCOM(polyVtxs, f.area, f.normal)
+		f.area = polygon3DVolume(f.normal, table.unpack(polyVtxs))
+		f.pos.x, f.pos.y, f.pos.z = 0, 0, 0
+		polygon3DCOM(f.pos, f.normal, f.area, table.unpack(polyVtxs))
 	else
 		error'here'
 	end
@@ -343,56 +375,67 @@ end
 
 -- vs is a Lua table
 -- vs values are 0-based indexes
-function Mesh:addFace(vs, n, ci)
-	local fi = self:addFaceForVtxs(vs, n)
+function Mesh:addFace(ci, ...)
+	local fi = self:addFaceForVtxs(...)
 --	if fi ~= -1 then return fi end
 	local f = self.faces.v[fi]
-	if f.cells.s[0] == -1 then
-		f.cells.s[0] = ci
-	elseif f.cells.s[1] == -1 then
-		f.cells.s[1] = ci
+	if f.cells.x == -1 then
+		f.cells.x = ci
+	elseif f.cells.y == -1 then
+		f.cells.y = ci
 	else
 		error"tried to add too many cells to an edge"
 	end
 	return fi
 end
 
--- vis is a Lua table of vertex indexes
--- vis values are 0-based indexes
+Mesh.times = {}
+
+-- vis is a vector'int' of 0-based vertex indexes
+-- here's the slowest of createMesh (95% of the time taken) 
 function Mesh:addCell(vis)
+local startTime = getTime()	
 	local ci = #self.cells
 	self.cells:push_back(new_cell_t())
 	local c = self.cells:back()
-	
+Mesh.times['creating cell'] = (Mesh.times['creating cell'] or 0) + getTime() - startTime
+
 	local n = #vis
 
+local startTime = getTime()	
 	--c.vtxs = vis
 	c.vtxOffset = #self.cellVtxIndexes
 	self.cellVtxIndexes:insert(self.cellVtxIndexes:iend(), vis:begin(), vis:iend())
 	c.vtxCount = #self.cellVtxIndexes - c.vtxOffset
+Mesh.times['adding vtx indexes'] = (Mesh.times['adding vtx indexes'] or 0) + getTime() - startTime
 
 	local lastFaceSize = #self.faces
 	c.faceOffset = #self.cellFaceIndexes
 	if self.solver.dim == 2 then
+-- [[ this block takes up 95% of the time of this whole function
+local startTime = getTime()	
 		--face is a 1-form
 		for i=1,n do
-			local vtxs = {vis.v[i-1], vis.v[i%n]}
-			local fi = self:addFace(vtxs, #vtxs, ci)
+			local fi = self:addFace(ci, vis.v[i-1], vis.v[i%n])
 			do -- if (fi != -1) then
 				self.cellFaceIndexes:push_back(fi)
 			end
 		end
-		local polyVtxs = range(0,#vis-1):mapi(function(i)
+		local polyVtxs = range(0,n-1):mapi(function(i)
 			return self.vtxs.v[vis.v[i]]
 		end)
-		
-		c.volume = self:polygonVolume(polyVtxs)
-		local com = self:polygonCOM(polyVtxs, c.volume)
-		c.pos = self.real3(com:unpack())
+Mesh.times['adding vtxs'] = (Mesh.times['adding vtxs'] or 0) + getTime() - startTime
+--]]
+
+local startTime = getTime()	
+		c.volume = polygonVolume(table.unpack(polyVtxs))
+		c.pos.x, c.pos.y, c.pos.z = 0, 0, 0
+		polygonCOM(c.pos, c.volume, table.unpack(polyVtxs))
+Mesh.times['calcing cell aux'] = (Mesh.times['calcing cell aux'] or 0) + getTime() - startTime
 	
 	elseif self.solver.dim == 3 then
 		--face is a 2-form
-		assert(#vis == 8)	--only adding cubes at the moment
+		assert(n == 8)	--only adding cubes at the moment
 --[[
   6----7
  /|   /|
@@ -422,7 +465,8 @@ function Mesh:addCell(vis)
 				return vis.v[side_i]
 			end)
 			
-			local fi = self:addFace(thisFaceVtxIndexes, #thisFaceVtxIndexes, ci)
+			local fi = self:addFace(ci, table.unpack(thisFaceVtxIndexes))
+			
 			do -- if fi ~= -1 then
 				local f = self.faces.v[fi]
 				
@@ -444,8 +488,8 @@ function Mesh:addCell(vis)
 		if #self.cellFaceIndexes - lastFaceSize < 4 then	--not enough sides to even form a tetrahedron
 			c.volume = 0
 		else
-			c.volume = self:polyhedronVolume(cubeVtxs)
-			c.pos = self:polyhedronCOM(cubeVtxs, c.volume)
+			c.volume = polyhedronVolume(cubeVtxs)
+			c.pos = polyhedronCOM(c.volume, cubeVtxs)
 		end
 	else
 		error("I don't know what dim mesh you are using.  perhaps the MeshFactory you used forgot to define its .dim?")
@@ -456,8 +500,8 @@ end
 
 function Mesh:calcAux()
 	for _,f in ipairs(self.faces) do
-		local a = f.cells.s[0]
-		local b = f.cells.s[1]
+		local a = f.cells.x
+		local b = f.cells.y
 		if a ~= -1 and b ~= -1 then
 			local cella = self.cells.v[a]
 			local cellb = self.cells.v[b]
@@ -466,9 +510,9 @@ function Mesh:calcAux()
 			local dz = cella.pos.z - cellb.pos.z
 			local nDotDelta = f.normal.x * dx + f.normal.y * dy + f.normal.z * dz
 			if nDotDelta < 0 then
-				a,b = b,a
-				f.cells.s[0] = a
-				f.cells.s[1] = b
+				a, b = b, a
+				f.cells.x = a
+				f.cells.y = b
 				f.normal.x = -f.normal.x
 				f.normal.y = -f.normal.y
 				f.normal.z = -f.normal.z

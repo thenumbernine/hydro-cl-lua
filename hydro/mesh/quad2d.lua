@@ -8,7 +8,7 @@ local MeshSolver = require 'hydro.mesh.factory'
 
 local Quad2DMeshFactory = class(MeshFactory)
 
-Quad2DMeshFactory.name = 'Quad2DMesh'
+Quad2DMeshFactory.name = 'quad2d'
 Quad2DMeshFactory.dim = 2
 
 function Quad2DMeshFactory:init(args)

@@ -62,17 +62,19 @@ kernel void calcDT(
 	real dt = INFINITY;
 	for (int i = 0; i < cell->faceCount; ++i) {
 		const global face_t* face = faces + cellFaceIndexes[i + cell->faceOffset];
-		normalInfo_t n = normalInfo_forFace(face);
-		//all sides? or only the most prominent side?
-		//which should we pick eigenvalues from?
-		//use cell-centered eigenvalues
-		<?=eqn:consWaveCodePrefix('n', '*U', 'x')?>
-		real lambdaMin = <?=eqn:consMinWaveCode('n', '*U', 'x')?>;
-		real lambdaMax = <?=eqn:consMaxWaveCode('n', '*U', 'x')?>;
-		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-		absLambdaMax = max((real)1e-9, absLambdaMax);
 		real dx = face->area;
-		dt = (real)min(dt, dx / absLambdaMax);
+		if (dx > 1e-7 && f->cells.x != -1 && f->cells.y != -1) {
+			normalInfo_t n = normalInfo_forFace(face);
+			//all sides? or only the most prominent side?
+			//which should we pick eigenvalues from?
+			//use cell-centered eigenvalues
+			<?=eqn:consWaveCodePrefix('n', '*U', 'x')?>
+			real lambdaMin = <?=eqn:consMinWaveCode('n', '*U', 'x')?>;
+			real lambdaMax = <?=eqn:consMaxWaveCode('n', '*U', 'x')?>;
+			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+			absLambdaMax = max((real)1e-9, absLambdaMax);
+			dt = (real)min(dt, dx / absLambdaMax);
+		}
 	}
 	dtBuf[cellIndex] = dt;
 }

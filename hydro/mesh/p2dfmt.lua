@@ -8,7 +8,7 @@ local MeshFactory = require 'hydro.mesh.factory'
 
 local P2DFMTMeshFactory = class(MeshFactory)
 
-P2DFMTMeshFactory.name = 'P2DFMTMesh'
+P2DFMTMeshFactory.name = 'p2dfmt'
 P2DFMTMeshFactory.dim = 2
 
 function P2DFMTMeshFactory:init(args)
