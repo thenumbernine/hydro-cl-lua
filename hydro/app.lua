@@ -543,8 +543,10 @@ void main() {
 		end)
 		self.displayVectorMethodsEnabled = displayVectorMethods:mapi(function(method, index)
 			local name, func = next(method)
-			--return index == 1, name
-			return index == 2, name
+			local enabled = index == 2	-- LIC
+			-- cmdline arrows overrides the default from LIC to arrows
+			if cmdline.arrows and index == 1 then enabled = index == 1 end
+			return enabled, name
 		end)
 
 		self.orthoView = require 'hydro.view.ortho'()
@@ -1033,9 +1035,10 @@ end
 
 	
 		-- in all these above :display...() methods, they exclude meshsolvers
-		-- just for mesh ...
+		-- so this is just for mesh ...
 		for _,solver in ipairs(self.solvers) do
-			if require 'hydro.solver.meshsolver'.is(solver) then
+			--if require 'hydro.solver.meshsolver'.is(solver) then
+			if solver.display then	
 				solver:display(varName, ar) 
 			end
 		end
@@ -1376,12 +1379,12 @@ function HydroCLApp:updateGUI()
 				end			
 	
 				--ig.igCheckbox('vector field', self.enableVectorField)
-				if self.drawVectorField then
-					tooltip.numberTable('vector field scale', self.drawVectorField, 'scale')
-					--tooltip.sliderTable('vector field scale', self.drawVectorField, 'scale', 0, 100, nil, 10)
+				if self.drawVectorArrows then
+					tooltip.numberTable('vector field scale', self.drawVectorArrows, 'scale')
+					--tooltip.sliderTable('vector field scale', self.drawVectorArrows, 'scale', 0, 100, nil, 10)
 					
-					tooltip.intTable('vector field step', self.drawVectorField, 'step')
-					self.drawVectorField.step = math.max(self.drawVectorField.step, 1)
+					tooltip.intTable('vector field step', self.drawVectorArrows, 'step')
+					self.drawVectorArrows.step = math.max(self.drawVectorArrows.step, 1)
 				end
 				if self.drawVectorLIC then
 					tooltip.intTable('LIC steps', self.drawVectorLIC, 'integralMaxIter')

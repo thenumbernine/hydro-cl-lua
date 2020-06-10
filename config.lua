@@ -513,7 +513,7 @@ self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='wave'})))
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.roe'(table(args, {eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='euler', calcWaveMethod='Davis direct bounded'})))	-- this is the default calcWaveMethod
 --self.solvers:insert(require 'hydro.solver.hll'(table(args, {eqn='euler', calcWaveMethod='Davis direct'})))
@@ -796,7 +796,7 @@ self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='back
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2dcbrt', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2dcubed', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='cylinder2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
+self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='cube3d', size={cmdline.meshsize or 16, cmdline.meshsize or 16, cmdline.meshsize or 16}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='cylinder3d', size={cmdline.meshsize or 16, cmdline.meshsize or 16, cmdline.meshsize or 16}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='sphere3d', size={cmdline.meshsize or 16, cmdline.meshsize or 16, cmdline.meshsize or 16}}})))

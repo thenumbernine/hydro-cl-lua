@@ -450,9 +450,10 @@ function MeshSolver:display(varName, ar)
 --]]	
 
 -- [[ matches GridSolver.calcDisplayVarToTex
+-- TODO give mesh solvers their own textures to hold display values
 	local component = self.displayComponentFlatList[var.component]
 	local vectorField = self:isVarTypeAVectorField(component.type)
-	
+
 	local ptr = self.calcDisplayVarToTexPtr
 	
 	var:setToBufferArgs()
@@ -461,6 +462,9 @@ function MeshSolver:display(varName, ar)
 	local channels = vectorField and 3 or 1
 	self.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
 --]]
+
+-- TODO use app:displayVector, but that needs meshsolver displayTex first
+--if vectorField then return end
 
 	local view = app.view
 	view:projection(ar)

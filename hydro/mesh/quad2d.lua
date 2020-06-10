@@ -22,7 +22,7 @@ function Quad2DMeshFactory:init(args)
 end
 
 function Quad2DMeshFactory:coordChart(x,y,z)
-	return x, y, x 
+	return x, y, z
 end
 
 function Quad2DMeshFactory:addPoly(mesh, ...)

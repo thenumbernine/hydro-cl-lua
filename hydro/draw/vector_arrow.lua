@@ -19,6 +19,10 @@ DrawVectorField.scale = 1
 DrawVectorField.step = cmdline.vectorFieldStep or 4
 
 function DrawVectorField:showDisplayVar(app, solver, var, xmin, xmax, ymin, ymax, useLog)
+
+-- TODO give meshsolvers display value textures first
+if require 'hydro.solver.meshsolver'.is(solver) then return end
+	
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
 		valueMin = var.heatMapValueMin
@@ -34,7 +38,7 @@ function DrawVectorField:showDisplayVar(app, solver, var, xmin, xmax, ymin, ymax
 		var.heatMapValueMin = valueMin
 		var.heatMapValueMax = valueMax
 	end
-	
+		
 	solver:calcDisplayVarToTex(var)
 	
 	solver.vectorArrowShader:use()
@@ -69,11 +73,22 @@ function DrawVectorField:showDisplayVar(app, solver, var, xmin, xmax, ymin, ymax
 
 	local step = self.step
 
-	--[[ goes just slightly faster.  24 vs 23 fps.
-	app.vectorField_displayList = app.vectorField_displayList or {}
-	local glCallOrDraw = require 'gl.call'
-	glCallOrDraw(app.vectorField_displayList, function()
-	--]]	
+	-- glCallOrDraw goes just slightly faster.  24 vs 23 fps.
+	if require 'hydro.solver.meshsolver'.is(solver) then
+		gl.glBegin(gl.GL_LINES)
+		-- TODO Lua coroutine cell iterator, abstracted between grids and meshes?
+		-- how fast/slow are coroutines compared to number for-loops anyways?
+		for ci=0,solver.numCells-1 do
+			local c = solver.mesh.cells.v[i]
+			local tx = (ci + .5) / tonumber(solver.numCells)
+			gl.glMultiTexCoord3f(gl.GL_TEXTURE0, tx, .5, .5)
+			gl.glMultiTexCoord3f(gl.GL_TEXTURE1, c.pos:unpack())
+			for _,q in ipairs(arrow) do
+				gl.glVertex2f(q[1], q[2])
+			end
+		end
+		gl.glEnd()
+	else
 		gl.glBegin(gl.GL_LINES)
 		for k=0,tonumber(solver.sizeWithoutBorder.z-1),step do
 			for j=0,tonumber(solver.sizeWithoutBorder.y-1),step do
@@ -93,9 +108,7 @@ function DrawVectorField:showDisplayVar(app, solver, var, xmin, xmax, ymin, ymax
 			end
 		end
 		gl.glEnd()
-	--[[
-	end)
-	--]]
+	end
 
 	app.gradientTex:unbind(1)
 	solver:getTex(var):unbind(0)
@@ -111,11 +124,9 @@ function DrawVectorField:display(app, solvers, varName, ar, ...)
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
 	
 	for _,solver in ipairs(solvers) do
-		if not require 'hydro.solver.meshsolver'.is(solver) then 
-			local var = solver.displayVarForName[varName]
-			if var and var.enabled then
-				self:showDisplayVar(app, solver, var, ...)
-			end
+		local var = solver.displayVarForName[varName]
+		if var and var.enabled then
+			self:showDisplayVar(app, solver, var, ...)
 		end
 	end
 
@@ -124,7 +135,7 @@ end
 
 return function(HydroCLApp)
 	function HydroCLApp:displayVector_Arrows(...)
-		if not self.drawVectorField then self.drawVectorField = DrawVectorField() end
-		return self.drawVectorField:display(self, ...)
+		if not self.drawVectorArrows then self.drawVectorArrows = DrawVectorField() end
+		return self.drawVectorArrows:display(self, ...)
 	end
 end
