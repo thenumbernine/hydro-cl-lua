@@ -92,164 +92,6 @@ end
 	self.numCellVtxIndexes = self.mesh.numCellVtxIndexes
 	self.numFaceVtxIndexes = self.mesh.numFaceVtxIndexes
 
-	--[[
-	next issue ... how to render this?
-	how to store it?
-	where do textures come into play?
-	
-	UBuf will be size of # of elements
-	
-	how about texture, and how about rendering?
-	texsize will have to be > #elems ... using size is fine as long as we need a gridsize
-	--]]
-
-
-	if self.app.targetSystem ~= 'console' then
-
-		self.drawShader = GLProgram{
-			vertexCode = [[
-#version 460
-uniform float drawCellScale;
-uniform mat4 modelViewProjectionMatrix;
-attribute vec3 vtx;
-attribute vec3 vtxcenter;
-attribute float value;
-varying float valuev;
-void main() {
-	vec3 v = (vtx - vtxcenter) * drawCellScale + vtxcenter;
-	gl_Position = modelViewProjectionMatrix * vec4(v, 1.);
-	valuev = value;
-}
-]],
-			fragmentCode = [[
-#version 460
-uniform sampler1D gradTex;
-varying float valuev;
-out vec4 fragColor;
-void main() {
-	fragColor = texture1D(gradTex, valuev);
-}
-]],
-			uniforms = {
-				gradTex = 0,
-				drawCellScale = 1,
-			},
-		}
-		
-		self.modelViewMatrix = matrix_ffi.zeros(4,4)
-		self.projectionMatrix = matrix_ffi.zeros(4,4)
-		self.modelViewProjectionMatrix = matrix_ffi.zeros(4,4)
-
-		-- make a GPU version of the mesh
-		-- TODO triangulate ... then include a mapping from triangle to source cell,
-		-- and then just copy from display buf to a texture,
-		-- then store per vertex the lookup to the texture.
-		-- Also, if you are going to scale cells, then you must store a unique vertex per cell here.
-		-- this means no dynamic mesh (without more coding).
-		local glvtxs = vector'vec3f_t'			-- vertex position
-		local glvtxcenters = vector'vec3f_t'	-- center of cell for this vertex
-		local glcellindex = vector'float'		-- 0-based index of cell for this vertex
-		local glvalue = vector'float'			-- value to draw the cell
-		local function addTri(va,vb,vc, ci,c)
-			glvtxs:push_back(vec3f(va:unpack()))
-			glvtxs:push_back(vec3f(vb:unpack()))
-			glvtxs:push_back(vec3f(vc:unpack()))
-			for j=0,2 do
-				glvtxcenters:push_back(vec3f(c.pos:unpack()))
-				glcellindex:push_back(ci)
-				glvalue:push_back(0)
-			end
-		end
-		local mesh = self.mesh
-		if self.dim == 2 then
-			for ci,c in ipairs(mesh.cells) do
-				local va = mesh.vtxs.v[mesh.cellVtxIndexes.v[0 + c.vtxOffset]]
-				local vb = mesh.vtxs.v[mesh.cellVtxIndexes.v[1 + c.vtxOffset]]
-				for vi=2,c.vtxCount-1 do
-					local vc = mesh.vtxs.v[mesh.cellVtxIndexes.v[vi + c.vtxOffset]]
-					addTri(vc,vb,va, ci, c)
-					vb = vc
-				end
-			end
-		elseif self.dim == 3 then
-			for ci,c in ipairs(mesh.cells) do
-				for fi=0,c.faceCount-1 do
-					local f = mesh.faces.v[mesh.cellFaceIndexes.v[fi + c.faceOffset]]
-					local va = mesh.vtxs.v[mesh.faceVtxIndexes.v[0 + f.vtxOffset]]
-					local vb = mesh.vtxs.v[mesh.faceVtxIndexes.v[1 + f.vtxOffset]]
-					for vi=2,f.vtxCount-1 do
-						local vc = mesh.vtxs.v[mesh.faceVtxIndexes.v[vi + f.vtxOffset]]
-						addTri(va,vb,vc, ci, c)
-						vb = vc
-					end
-				end
-			end
-		end
-
-		self.glvtxs = glvtxs
-		self.glvtxcenters = glvtxcenters
-		self.glcellindex = glcellindex
-		self.glvalue = glvalue
-		self.numGlVtxs = #glvtxs
-
-
-		self.glVtxBuffer = GLArrayBuffer{
-			data = glvtxs.v,
-			size = #glvtxs * ffi.sizeof(glvtxs.type), 
-		}
-		self.glVtxCenterBuffer = GLArrayBuffer{
-			data = glvtxcenters.v,
-			size = #glvtxcenters * ffi.sizeof(glvtxcenters.type), 
-		}
-		self.glValueBuffer = GLArrayBuffer{
-			data = glvalue.v,
-			size = #glvalue * ffi.sizeof(glvalue.type),
-		}
-
-
-	-- [[ uses VertexArray
-		self.drawShaderVtxVertexArray = GLVertexArray{
-			buffer = self.glVtxBuffer,
-			size = 3,
-			type = gl.GL_FLOAT,
-		}
-		self.drawShaderVtxVertexArray:bind()
-		self.drawShader:setAttr('vtx', self.drawShaderVtxVertexArray)
-		self.drawShaderVtxVertexArray:unbind()
-
-		self.drawShaderVtxCenterVertexArray = GLVertexArray{
-			buffer = self.glVtxCenterBuffer,
-			size = 3,
-			type = gl.GL_FLOAT,
-		}
-		self.drawShaderVtxCenterVertexArray:bind()
-		self.drawShader:setAttr('vtxcenter', self.drawShaderVtxCenterVertexArray)
-		self.drawShaderVtxCenterVertexArray:unbind()
-
-		self.drawShaderValueVertexArray = GLVertexArray{
-			buffer = self.glValueBuffer,
-			size = 1,
-			type = gl.GL_FLOAT,
-		}
-		self.drawShaderValueVertexArray:bind()
-		self.drawShader:setAttr('value', self.drawShaderValueVertexArray)
-		self.drawShaderValueVertexArray:unbind()
-	--]]
-
-	-- [[ doesn't use VertexArrays, but uses EnableVertexAttribArray instead
-		self.glValueBuffer:bind()
-		self.drawShaderValueVertexArray:setAttr(self.drawShader.attrs.value.loc)
-		self.glValueBuffer:unbind()
-		self.glVtxCenterBuffer:bind()
-		self.drawShaderVtxCenterVertexArray:setAttr(self.drawShader.attrs.vtxcenter.loc)
-		self.glVtxCenterBuffer:unbind()
-		self.glVtxBuffer:bind()
-		self.drawShaderVtxVertexArray:setAttr(self.drawShader.attrs.vtx.loc)
-		self.glVtxBuffer:unbind()
-	--]]
-
-	end	--if self.app.targetSystem ~= 'console' then
-
 	-- no longer is dim * numCells the number of interfaces -- it is now dependent on the mesh
 	-- maybe I should rename this to numFaces?
 	
@@ -267,6 +109,190 @@ void main() {
 		Program.super.init(self, args)
 	end
 	self.Program = Program
+end
+
+function MeshSolver:initDraw()
+	--[[
+	next issue ... how to render this?
+	how to store it?
+	where do textures come into play?
+	
+	UBuf will be size of # of elements
+	
+	how about texture, and how about rendering?
+	texsize will have to be > #elems ... using size is fine as long as we need a gridsize
+	--]]
+
+	if self.app.targetSystem == 'console' then return end
+
+	self.drawShader = GLProgram{
+		vertexCode = [[
+#version 460
+uniform float drawCellScale;
+uniform mat4 modelViewProjectionMatrix;
+attribute vec3 vtx;
+attribute vec3 vtxcenter;
+attribute float value;
+varying float valuev;
+void main() {
+	vec3 v = (vtx - vtxcenter) * drawCellScale + vtxcenter;
+	gl_Position = modelViewProjectionMatrix * vec4(v, 1.);
+	valuev = value;
+}
+]],
+		fragmentCode = template([[
+#version 460
+
+<?
+local clnumber = require 'cl.obj.number'
+?>
+
+//1/log(10)
+#define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
+float logmap(float x) { return log(1. + abs(x)) * _1_LN_10; }
+
+uniform bool useLog;
+uniform float valueMin;
+uniform float valueMax;
+
+uniform sampler1D gradientTex;
+
+varying float valuev;
+
+out vec4 fragColor;
+
+void main() {
+	float value = valuev;	
+	if (useLog) {
+		float logValueMin = logmap(valueMin);
+		float logValueMax = logmap(valueMax);
+		value = (logmap(value) - logValueMin) / (logValueMax - logValueMin);
+	} else {
+		value = (value - valueMin) / (valueMax - valueMin);
+	}
+	value = (value * <?=clnumber(app.gradientTex.width-1)?> + .5) / <?=clnumber(app.gradientTex.width)?>;
+	fragColor = texture1D(gradientTex, value);
+}
+]],			{
+				app = self.app,
+			}),
+		uniforms = {
+			gradientTex = 0,
+			drawCellScale = 1,
+		},
+	}
+	
+	self.modelViewMatrix = matrix_ffi.zeros(4,4)
+	self.projectionMatrix = matrix_ffi.zeros(4,4)
+	self.modelViewProjectionMatrix = matrix_ffi.zeros(4,4)
+
+	-- make a GPU version of the mesh
+	-- TODO triangulate ... then include a mapping from triangle to source cell,
+	-- and then just copy from display buf to a texture,
+	-- then store per vertex the lookup to the texture.
+	-- Also, if you are going to scale cells, then you must store a unique vertex per cell here.
+	-- this means no dynamic mesh (without more coding).
+	local glvtxs = vector'vec3f_t'			-- vertex position
+	local glvtxcenters = vector'vec3f_t'	-- center of cell for this vertex
+	local glcellindex = vector'float'		-- 0-based index of cell for this vertex
+	local glvalue = vector'float'			-- value to draw the cell
+	local function addTri(va,vb,vc, ci,c)
+		glvtxs:push_back(vec3f(va:unpack()))
+		glvtxs:push_back(vec3f(vb:unpack()))
+		glvtxs:push_back(vec3f(vc:unpack()))
+		for j=0,2 do
+			glvtxcenters:push_back(vec3f(c.pos:unpack()))
+			glcellindex:push_back(ci)
+			glvalue:push_back(0)
+		end
+	end
+	local mesh = self.mesh
+	if self.dim == 2 then
+		for ci,c in ipairs(mesh.cells) do
+			local va = mesh.vtxs.v[mesh.cellVtxIndexes.v[0 + c.vtxOffset]]
+			local vb = mesh.vtxs.v[mesh.cellVtxIndexes.v[1 + c.vtxOffset]]
+			for vi=2,c.vtxCount-1 do
+				local vc = mesh.vtxs.v[mesh.cellVtxIndexes.v[vi + c.vtxOffset]]
+				addTri(vc,vb,va, ci, c)
+				vb = vc
+			end
+		end
+	elseif self.dim == 3 then
+		for ci,c in ipairs(mesh.cells) do
+			for fi=0,c.faceCount-1 do
+				local f = mesh.faces.v[mesh.cellFaceIndexes.v[fi + c.faceOffset]]
+				local va = mesh.vtxs.v[mesh.faceVtxIndexes.v[0 + f.vtxOffset]]
+				local vb = mesh.vtxs.v[mesh.faceVtxIndexes.v[1 + f.vtxOffset]]
+				for vi=2,f.vtxCount-1 do
+					local vc = mesh.vtxs.v[mesh.faceVtxIndexes.v[vi + f.vtxOffset]]
+					addTri(va,vb,vc, ci, c)
+					vb = vc
+				end
+			end
+		end
+	end
+
+	self.glvtxs = glvtxs
+	self.glvtxcenters = glvtxcenters
+	self.glcellindex = glcellindex
+	self.glvalue = glvalue
+	self.numGlVtxs = #glvtxs
+
+
+	self.glVtxBuffer = GLArrayBuffer{
+		data = glvtxs.v,
+		size = #glvtxs * ffi.sizeof(glvtxs.type), 
+	}
+	self.glVtxCenterBuffer = GLArrayBuffer{
+		data = glvtxcenters.v,
+		size = #glvtxcenters * ffi.sizeof(glvtxcenters.type), 
+	}
+	self.glValueBuffer = GLArrayBuffer{
+		data = glvalue.v,
+		size = #glvalue * ffi.sizeof(glvalue.type),
+	}
+
+
+-- [[ uses VertexArray
+	self.drawShaderVtxVertexArray = GLVertexArray{
+		buffer = self.glVtxBuffer,
+		size = 3,
+		type = gl.GL_FLOAT,
+	}
+	self.drawShaderVtxVertexArray:bind()
+	self.drawShader:setAttr('vtx', self.drawShaderVtxVertexArray)
+	self.drawShaderVtxVertexArray:unbind()
+
+	self.drawShaderVtxCenterVertexArray = GLVertexArray{
+		buffer = self.glVtxCenterBuffer,
+		size = 3,
+		type = gl.GL_FLOAT,
+	}
+	self.drawShaderVtxCenterVertexArray:bind()
+	self.drawShader:setAttr('vtxcenter', self.drawShaderVtxCenterVertexArray)
+	self.drawShaderVtxCenterVertexArray:unbind()
+
+	self.drawShaderValueVertexArray = GLVertexArray{
+		buffer = self.glValueBuffer,
+		size = 1,
+		type = gl.GL_FLOAT,
+	}
+	self.drawShaderValueVertexArray:bind()
+	self.drawShader:setAttr('value', self.drawShaderValueVertexArray)
+	self.drawShaderValueVertexArray:unbind()
+--]]
+
+-- [[ doesn't use VertexArrays, but uses EnableVertexAttribArray instead
+	self.glValueBuffer:bind()
+	self.drawShaderValueVertexArray:setAttr(self.drawShader.attrs.value.loc)
+	self.glValueBuffer:unbind()
+	self.glVtxCenterBuffer:bind()
+	self.drawShaderVtxCenterVertexArray:setAttr(self.drawShader.attrs.vtxcenter.loc)
+	self.glVtxCenterBuffer:unbind()
+	self.glVtxBuffer:bind()
+	self.drawShaderVtxVertexArray:setAttr(self.drawShader.attrs.vtx.loc)
+	self.glVtxBuffer:unbind()
+--]]
 end
 
 function MeshSolver:createBuffers()
@@ -532,6 +558,9 @@ function MeshSolver:display(varName, ar)
 
 		local gradientTex = app.gradientTex
 		self.drawShader:use()
+		gl.glUniform1i(self.drawShader.uniforms.useLog.loc, 0)
+		gl.glUniform1f(self.drawShader.uniforms.valueMin.loc, valueMin)
+		gl.glUniform1f(self.drawShader.uniforms.valueMax.loc, valueMax)
 		gl.glUniform1f(self.drawShader.uniforms.drawCellScale.loc, self.drawCellScale)
 		gl.glUniformMatrix4fv(self.drawShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, self.modelViewProjectionMatrix.ptr)
 		gradientTex:bind()
