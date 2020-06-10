@@ -103,7 +103,6 @@ end)
 
 	if self.app.targetSystem ~= 'console' then
 
-
 		self.drawShader = GLProgram{
 			vertexCode = [[
 #version 460
@@ -442,8 +441,7 @@ end
 
 -- FPS of a 64x64 quad mesh:
 -- sys=console: ~900
--- sys=imgui: ~2
--- so this function runs 500x slower
+-- sys=imgui: ~170
 function MeshSolver:display(varName, ar)
 	if self.app.targetSystem == 'console' then return end	
 
@@ -481,7 +479,7 @@ function MeshSolver:display(varName, ar)
 	view:modelview()
 
 	gl.glEnable(gl.GL_DEPTH_TEST)
-	gl.glEnable(gl.GL_CULL_FACE)
+--	gl.glEnable(gl.GL_CULL_FACE)
 	
 	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.modelViewMatrix.ptr)
 	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projectionMatrix.ptr)
@@ -566,7 +564,7 @@ function MeshSolver:display(varName, ar)
 	end
 
 	gl.glDisable(gl.GL_DEPTH_TEST)
-	gl.glDisable(gl.GL_CULL_FACE)
+--	gl.glDisable(gl.GL_CULL_FACE)
 
 -- [[ also in draw/*.lua
 	local gradientValueMin = valueMin

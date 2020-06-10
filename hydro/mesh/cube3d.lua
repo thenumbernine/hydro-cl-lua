@@ -20,7 +20,9 @@ function Cube3DMeshFactory:init(args)
 	self.capmin = vec3i(args.capmin or {0,0,0})
 end
 
-function Cube3DMeshFactory:coordChart(x) return x end
+function Cube3DMeshFactory:coordChart(x,y,z) 
+	return x,y,z
+end
 
 function Cube3DMeshFactory:createMesh(solver)
 	assert(solver.dim == 3)
@@ -51,12 +53,10 @@ function Cube3DMeshFactory:createMesh(solver)
 	for iz=0,nz-1 do
 		for iy=0,ny-1 do
 			for ix=0,nx-1 do
-				local x = mesh.real3(
-					(ix + iofsx) / coordRangeMaxX * (self.maxs.x - self.mins.x) + self.mins.x,
-					(iy + iofsy) / coordRangeMaxY * (self.maxs.y - self.mins.y) + self.mins.y,
-					(iz + iofsz) / coordRangeMaxZ * (self.maxs.z - self.mins.z) + self.mins.z)
-				local u = self:coordChart(x)
-				mesh.vtxs.v[ix * stepx + iy * stepy + iz * stepz] = mesh.real3(u:unpack())
+				local x = (ix + iofsx) / coordRangeMaxX * (self.maxs.x - self.mins.x) + self.mins.x
+				local y = (iy + iofsy) / coordRangeMaxY * (self.maxs.y - self.mins.y) + self.mins.y
+				local z = (iz + iofsz) / coordRangeMaxZ * (self.maxs.z - self.mins.z) + self.mins.z
+				mesh.vtxs.v[ix * stepx + iy * stepy + iz * stepz] = mesh.real3(self:coordChart(x,y,z))
 			end
 		end
 	end

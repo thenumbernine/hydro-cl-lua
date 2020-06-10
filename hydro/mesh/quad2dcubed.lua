@@ -8,12 +8,11 @@ local function cubed(x)
 	return x * x * x
 end
 
-function Quad2DCubedMeshFactory:coordChart(x)
-	return self.mesh.real3(
+function Quad2DCubedMeshFactory:coordChart(x,y,z)
+	return 
 		cubed(x.x),
 		cubed(x.y),
 		cubed(x.z)
-	)
 end
 
 return Quad2DCubedMeshFactory 

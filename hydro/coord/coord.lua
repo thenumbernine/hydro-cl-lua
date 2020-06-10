@@ -1210,7 +1210,7 @@ typedef struct {
 for j,xj in ipairs(xNames) do
 	for i,xi in ipairs(xNames) do
 ?>
-#define normalInfo_l<?=j?><?=xi?>(normal)		(normal.n.<?=xi?>.<?=xj?>)
+#define normalInfo_l<?=j?><?=xi?>(normal)		(normal.n.<?=xj?>.<?=xi?>)
 #define normalInfo_u<?=j?><?=xi?>(n)			normalInfo_l<?=j?><?=xi?>(n)
 #define normalInfo_l<?=j?><?=xi?>_over_len(n)	normalInfo_l<?=j?><?=xi?>(n)
 #define normalInfo_u<?=j?><?=xi?>_over_len(n)	normalInfo_u<?=j?><?=xi?>(n)

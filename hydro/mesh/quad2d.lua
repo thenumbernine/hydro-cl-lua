@@ -21,7 +21,9 @@ function Quad2DMeshFactory:init(args)
 	self.triangulate = args.triangulate
 end
 
-function Quad2DMeshFactory:coordChart(x) return x end
+function Quad2DMeshFactory:coordChart(x,y,z)
+	return x, y, x 
+end
 
 function Quad2DMeshFactory:addPoly(mesh, ...)
 	if not self.triangulate then
@@ -63,12 +65,10 @@ assert(solver.dim == 2)	-- or maybe manually set it to 2?
 
 	for iy=0,ny-1 do
 		for ix=0,nx-1 do
-			local x = mesh.real3(
-				(ix + iofsx) / coordRangeMaxX * (self.maxs.x - self.mins.x) + self.mins.x,
-				(iy + iofsy) / coordRangeMaxY * (self.maxs.y - self.mins.y) + self.mins.y,
-				0)
-			local u = self:coordChart(x)
-			mesh.vtxs.v[ix * stepx + iy * stepy] = mesh.real3(u:unpack())
+			local x = (ix + iofsx) / coordRangeMaxX * (self.maxs.x - self.mins.x) + self.mins.x
+			local y = (iy + iofsy) / coordRangeMaxY * (self.maxs.y - self.mins.y) + self.mins.y
+			local z = 0
+			mesh.vtxs.v[ix * stepx + iy * stepy] = mesh.real3(self:coordChart(x,y,z))
 		end
 	end
 	

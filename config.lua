@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -85,7 +85,7 @@ local args = {
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
 				-- other than weno, this works fine with finite volume codes
 				--{64,1,1},
-				{16,16,16},
+				{10,10,10},
 			},
 		})[platAndDevicesNames]
 		-- default size options
@@ -188,8 +188,8 @@ local args = {
 	
 	-- Euler / SRHD / MHD initial states:
 	
-	initState = 'constant',
-	initStateArgs = {v={1e-1,1e-1}},
+	--initState = 'constant',
+	--initStateArgs = {v={1e-1,1e-1}},
 	
 	--initState = 'linear',
 	--initState = 'gaussian',
@@ -199,7 +199,7 @@ local args = {
 	--initState = 'rarefaction wave',
 	--initState = 'Bessel',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sod with physical units',
 	--initStateArgs = {dim=cmdline.displayDim},
 	
@@ -789,16 +789,17 @@ self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='back
 -- hydro-cl GridSolver with fluxLimiter runs 256x256 at 60 fps
 -- hydro-cl GridSolver without fluxLimiter runs 256x256 at 155 fps
 -- hydro-cl MeshSolver runs 50x50 at 2500 fps
--- hydro-cl MeshSolver runs 256x256 ... too slow to build (takes a few minutes) 
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
+-- hydro-cl MeshSolver runs 256x256 at 70 fps (building the mesh took 4.5 minutes =P)
+self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2d', triangulate=true, size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
-self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='p2dfmt', meshfile='n0012_113-33.p2dfmt'}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='p2dfmt', meshfile='n0012_113-33.p2dfmt'}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2dcbrt', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2dcubed', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='cube3d', size={cmdline.meshsize or 10, cmdline.meshsize or 10, cmdline.meshsize or 10}}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='cylinder3d', size={cmdline.meshsize or 10, cmdline.meshsize or 10, cmdline.meshsize or 10}}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='sphere3d', size={cmdline.meshsize or 10, cmdline.meshsize or 10, cmdline.meshsize or 10}}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='torus3d', size={cmdline.meshsize or 10, cmdline.meshsize or 10, cmdline.meshsize or 10}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='cube3d', size={cmdline.meshsize or 16, cmdline.meshsize or 16, cmdline.meshsize or 16}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='cylinder3d', size={cmdline.meshsize or 16, cmdline.meshsize or 16, cmdline.meshsize or 16}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='sphere3d', size={cmdline.meshsize or 16, cmdline.meshsize or 16, cmdline.meshsize or 16}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='torus3d', size={cmdline.meshsize or 16, cmdline.meshsize or 16, cmdline.meshsize or 16}}})))
 
 
 

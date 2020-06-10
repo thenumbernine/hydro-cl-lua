@@ -17,14 +17,12 @@ function Cylinder3DMeshFactory:init(args)
 	Cylinder3DMeshFactory.super.init(self, args)
 end
 
-function Cylinder3DMeshFactory:coordChart(x) 
-	local r = x.x
-	local theta = x.y * 2 * math.pi
-	local z = x.z
-	return self.mesh.real3(
+function Cylinder3DMeshFactory:coordChart(r, theta, z)
+	theta = theta * 2 * math.pi
+	return 
 		r * math.cos(theta),
 		r * math.sin(theta),
-		z)
+		z
 end
 
 return Cylinder3DMeshFactory 

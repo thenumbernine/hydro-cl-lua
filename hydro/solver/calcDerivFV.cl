@@ -130,7 +130,7 @@ kernel void calcDerivFromFlux(
 		const global <?=eqn.cons_t?>* flux = fluxBuf + ei;
 		real areaOverVolume = e->area / cell->volume;
 		
-		if (cell == cells + e->cells.s0) {
+		if (cellIndex == e->cells.s0) {
 //std::cout << " ... - " << *e << std::endl;
 			for (int j = 0; j < numIntStates; ++j) {
 				deriv->ptr[j] -= flux->ptr[j] * areaOverVolume;

@@ -17,15 +17,14 @@ function Sphere3DMeshFactory:init(args)
 	Sphere3DMeshFactory.super.init(self, args)
 end
 
-function Sphere3DMeshFactory:coordChart(x) 
-	local r = x.x
-	local theta = x.y * math.pi 
-	local phi = x.z * 2 * math.pi
-	local sinth = sin(theta)
-	return mesh.real3(
+function Sphere3DMeshFactory:coordChart(r, theta, phi)
+	theta = theta * math.pi 
+	phi = phi * 2 * math.pi
+	local sinth = math.sin(theta)
+	return 
 		r * math.cos(phi) * sinth,
 		r * math.sin(phi) * sinth,
-		r * math.cos(theta))
+		r * math.cos(theta)
 end
 
 return Sphere3DMeshFactory

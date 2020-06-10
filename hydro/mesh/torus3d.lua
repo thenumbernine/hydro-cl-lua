@@ -19,14 +19,13 @@ function Torus3DMeshFactory:init(args)
 	Torus3DMeshFactory.super.init(self, args)
 end
 
-function Torus3DMeshFactory:coordChart(x) 
-	local r = x.x
-	local theta = x.y * 2 * math.pi
-	local phi = x.z * 2 * math.pi
-	return mesh.real3(
+function Torus3DMeshFactory:coordChart(r, theta, phi)
+	theta = theta * 2 * math.pi
+	phi = phi * 2 * math.pi
+	return 
 		(r * math.cos(theta) + self.R) * math.cos(phi), 
 		(r * math.cos(theta) + self.R) * math.sin(phi), 
-		-r * math.sin(theta))
+		-r * math.sin(theta)
 end
 
 return Torus3DMeshFactory 
