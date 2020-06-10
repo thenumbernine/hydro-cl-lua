@@ -20,34 +20,12 @@ void main() {
 if fragmentShader then ?>
 #version 460
 
-<?
-local clnumber = require 'cl.obj.number'
-?>
-
-//1/log(10)
-#define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
-float logmap(float x) { return log(1. + abs(x)) * _1_LN_10; }
-
-uniform bool useLog;
-uniform float valueMin;
-uniform float valueMax;
-
-uniform sampler1D gradientTex;
+<?=solver:getGradientGLSLCode()?>
 
 varying float valuev;
-
 out vec4 fragColor;
 
 void main() {
-	float value = valuev;	
-	if (useLog) {
-		float logValueMin = logmap(valueMin);
-		float logValueMax = logmap(valueMax);
-		value = (logmap(value) - logValueMin) / (logValueMax - logValueMin);
-	} else {
-		value = (value - valueMin) / (valueMax - valueMin);
-	}
-	value = (value * <?=clnumber(app.gradientTex.width-1)?> + .5) / <?=clnumber(app.gradientTex.width)?>;
-	fragColor = texture1D(gradientTex, value);
+	fragColor = getGradientColor(valuev);
 }
 <? end ?>

@@ -129,11 +129,11 @@ function MeshSolver:initDraw()
 	self.drawShader = GLProgram{
 		vertexCode = template(drawShaderCode, {
 			vertexShader = true,
-			app = self.app,
+			solver = self,
 		}),
 		fragmentCode = template(drawShaderCode, {
 			fragmentShader = true,
-			app = self.app,
+			solver = self,
 		}),
 		uniforms = {
 			gradientTex = 0,
@@ -431,11 +431,11 @@ end
 -- sys=console: ~900
 -- sys=imgui: ~170
 function MeshSolver:display(varName, ar)
-	if self.app.targetSystem == 'console' then return end	
-
 	local app = self.app
+	if app.targetSystem == 'console' then return end	
 
 	local var = self.displayVarForName[varName]
+	if not var then return end
 
 -- [[ this is from the draw/*.lua
 	local valueMin, valueMax

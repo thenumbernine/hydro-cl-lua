@@ -25,14 +25,7 @@ uniform sampler3D tex;
 
 uniform int displayDim;
 
-
-//1/log(10)
-#define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
-float logmap(float x) { return log(1. + abs(x)) * _1_LN_10; }
-
-uniform bool useLog;
-uniform float valueMin, valueMax;
-uniform sampler1D gradientTex;
+<?=solver:getGradientGLSLCode()?>
 
 <? if vectorField2 then ?>
 uniform sampler2D offsetTex;
@@ -95,24 +88,16 @@ end -- vectorField2
 	}
 
 	//TODO don't just normalize dir, but scale down by the view size ... ? or the dx?
-	//TODO put this code somewhere that heatmap2d, vectorfield, and whatever else can get to it
-	if (useLog) {
-		//the abs() will get me in trouble when dealing with range calculations ...
-		float logValueMin = logmap(valueMin);
-		float logValueMax = logmap(valueMax);
-		value = (logmap(value) - logValueMin) / (logValueMax - logValueMin);
-	} else {
-		value = (value - valueMin) / (valueMax - valueMin);
-	}
+	
+	value = getGradientFrac(value);
 //TODO make this a flag, whether to normalize vectors or not? 
 <? if vectorField2 then ?>
 	float valuescale = offsetField.w;
 <? else ?>
 	float valuescale = scale;// * clamp(value, 0., 1.);
 <? end ?>
-	value = (value * <?=clnumber(app.gradientTex.width-1)?> + .5) / <?=clnumber(app.gradientTex.width)?>;
+	value = getGradientTexCoord(value);
 	color = texture1D(gradientTex, value);
-
 
 	vec2 offset = gl_Vertex.xy;
 

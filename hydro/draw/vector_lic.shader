@@ -21,15 +21,9 @@ void main() {
 <? end
 if fragmentShader then ?>
 
-//1/log(10)
-#define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
-float logmap(float x) { return log(1. + abs(x)) * _1_LN_10; }
+<?=solver:getGradientGLSLCode()?>
 
 uniform bool useCoordMap;
-uniform bool useLog;
-uniform float valueMin, valueMax;
-
-uniform sampler1D gradientTex;
 uniform sampler2D noiseTex;
 uniform vec2 solverMins, solverMaxs;
 uniform vec2 texCoordMax;
@@ -96,16 +90,7 @@ void main() {
 
 	//color by magnitude
 	float fieldMagn = length(getTex(texCoord).xyz);
-	if (useLog) {
-		//the abs() will get me in trouble when dealing with range calculations ...
-		float logValueMin = logmap(valueMin);
-		float logValueMax = logmap(valueMax);
-		fieldMagn = (logmap(fieldMagn) - logValueMin) / (logValueMax - logValueMin);
-	} else {
-		fieldMagn = (fieldMagn - valueMin) / (valueMax - valueMin);
-	}
-	fieldMagn = (fieldMagn * <?=clnumber(app.gradientTex.width-1)?> + .5) / <?=clnumber(app.gradientTex.width)?>;
-	vec4 licColorTimesGradColor = texture1D(gradientTex, fieldMagn);
+	vec4 licColorTimesGradColor = getGradientColor(fieldMagn);
 	licColorTimesGradColor.rgb *= licMag;
 
 	gl_FragColor = licColorTimesGradColor;

@@ -10,7 +10,6 @@ varying vec3 eye;
 <? -- coordMapInv isn't used by volumetric.shader, but in coord/sphere-log-radial.lua it does have important predefined functions (sinh, etc) which are needed by coordMap ?>
 <?=coord:getCoordMapInvGLSLCode()?>
 
-
 <? if vertexShader then ?>
 <?=solver.coord:getCoordMapGLSLCode()?>
 
@@ -33,45 +32,20 @@ void main() {
 <? end
 if fragmentShader then ?>
 
+<?=solver:getGradientGLSLCode()?>
+
 uniform sampler3D tex;
-uniform sampler1D gradientTex;
 uniform int maxiter;
 uniform vec3 oneOverDx;
 
 uniform float numGhost;
 uniform vec3 texSize;
 
-uniform bool useLog;
-uniform float valueMin, valueMax;
-
 uniform float alpha;
 uniform float alphaGamma;
 uniform bool useIsos;
 uniform bool useLighting;
 uniform float numIsobars;
-
-#define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
-
-float getValue(vec3 p) {
-	float value = texture3D(tex, p).r;
-	if (useLog) value = log(1. + abs(value)) * _1_LN_10;
-	return value;
-}
-
-float logmap(float x) { 
-	return log(1. + abs(x)) * _1_LN_10;
-}
-
-float calcFrac(float value) {
-	if (useLog) {
-		//the abs() will get me in trouble when dealing with range calculations ...
-		float logValueMin = logmap(valueMin);
-		float logValueMax = logmap(valueMax);
-		return (logmap(value) - logValueMin) / (logValueMax - logValueMin);
-	} else {
-		return (value - valueMin) / (valueMax - valueMin);
-	}
-}
 
 float getTex(vec3 tc) {
 	//using texel coordinates as-is
@@ -87,8 +61,8 @@ void main() {
 	vec4 result = vec4(0., 0., 0., 1.);
 		
 	float value = getTex(p);
-	float frac = calcFrac(value);
-	float gradTC = frac * <?=clnumber((app.gradientTex.width-1) / app.gradientTex.width)?>;
+	float frac = getGradientFrac(value);
+	float gradTC = getGradientTexCoord(frac);
 	vec4 voxelColor = texture1D(gradientTex, gradTC);
 	
 	voxelColor.a = alpha;// * min(1., mod(value * 4., 3.));
@@ -111,8 +85,8 @@ void main() {
 		//(as you would when rendering transparent stuff on top of each other)
 		//this will allow you to bailout early if your transparency ever hits fully opaque
 		value = getTex(p);
-		frac = calcFrac(value);
-		gradTC = frac * <?=clnumber((app.gradientTex.width-1) / app.gradientTex.width)?>;
+		frac = getGradientFrac(value);
+		gradTC = getGradientTexCoord(frac);
 		voxelColor = texture1D(gradientTex, gradTC);
 		//voxelColor.a /= min(1., length(voxelColor.rgb));
 

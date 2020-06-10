@@ -40,20 +40,14 @@ void main() {
 <? end
 if fragmentShader then ?>
 
-#define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
-#define M_PI 		<?=('%.50f'):format(math.pi)?>
-float logmap(float x) { 
-	return log(1. + abs(x)) * _1_LN_10;
-}
+<?=solver:getGradientGLSLCode()?>
 
-uniform bool useLog;
-uniform float valueMin, valueMax;
 <? if solver.dim == 3 then
 ?>uniform sampler3D tex;
 <? else
 ?>uniform sampler2D tex;
 <? end
-?>uniform sampler1D gradientTex;
+?>
 
 uniform float numGhost;
 uniform vec3 texSize;
@@ -71,17 +65,6 @@ uniform float numIsobars;
 ?>
 <? end ?>
 uniform bool useLighting;
-
-float calcFrac(float value) {
-	if (useLog) {
-		//the abs() will get me in trouble when dealing with range calculations ...
-		float logValueMin = logmap(valueMin);
-		float logValueMax = logmap(valueMax);
-		return (logmap(value) - logValueMin) / (logValueMax - logValueMin);
-	} else {
-		return (value - valueMin) / (valueMax - valueMin);
-	}
-}
 
 float getTex(vec3 tc) {
 	//using texel coordinates as-is
@@ -105,9 +88,9 @@ void main() {
 ?>
 <? end
 ?>	float value = getTex(texCoord);
-	float frac = calcFrac(value);
-	//TODO insert the gradient tex size
-	float gradTC = (frac * <?=clnumber(app.gradientTex.width-1)?>) * <?=clnumber(1 / app.gradientTex.width)?>;
+	
+	float frac = getGradientFrac(value);
+	float gradTC = getGradientTexCoord(frac);
 	vec4 voxelColor = texture1D(gradientTex, gradTC);
 
 	//don't bother with the gamma factor if we're using isobars
