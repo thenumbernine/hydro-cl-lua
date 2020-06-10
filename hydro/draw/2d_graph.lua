@@ -103,7 +103,7 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	graphShader:useNone()
 end
 
-function Draw2DGraph:display(app, solvers, varName, ar, graph_xmin, graph_ymin, graph_xmax, graph_ymax)
+function Draw2DGraph:display(app, solvers, varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)
 	app.view:projection(ar)
 	app.view:modelview()
 	gl.glColor3f(1,1,1)

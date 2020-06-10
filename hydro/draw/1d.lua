@@ -79,7 +79,7 @@ function Draw1D:showDisplayVar(app, solver, var)
 	graphShader:useNone()
 end
 
-function Draw1D:display(app, solvers, varName, ar, xmin, ymin, xmax, ymax, useLog, valueMin, valueMax)
+function Draw1D:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, valueMax)
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
 	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)

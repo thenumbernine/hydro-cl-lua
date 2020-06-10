@@ -1021,14 +1021,14 @@ end
 	
 		if not vectorField then
 			if self.displayDim == 1 then
-				self:display1D(displaySolvers, varName, ar, xmin, ymin, xmax, ymax, useLog, varymin, varymax)
+				self:display1D(displaySolvers, varName, ar, xmin, xmax, ymin, ymax, useLog, varymin, varymax)
 			elseif self.displayDim == 2 then
-				self:display2D(displaySolvers, varName, ar, xmin, ymin, xmax, ymax)
+				self:display2D(displaySolvers, varName, ar, xmin, xmax, ymin, ymax)
 			elseif self.displayDim == 3 then
-				self:display3D(displaySolvers, varName, ar, xmin, ymin, xmax, ymax)
+				self:display3D(displaySolvers, varName, ar, xmin, xmax, ymin, ymax)
 			end
 		else
-			self:displayVector(displaySolvers, varName, ar, xmin, ymin, xmax, ymax)
+			self:displayVector(displaySolvers, varName, ar, xmin, xmax, ymin, ymax)
 		end
 
 	

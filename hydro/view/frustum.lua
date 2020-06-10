@@ -35,11 +35,20 @@ function FrustumView:modelview()
 end
 
 function FrustumView:mousePan(dx, dy, screenWidth, screenHeight)
+-- [[ frustum pan
 	local magn = math.sqrt(dx * dx + dy * dy)
 	local fdx = dx / magn
 	local fdy = dy / magn
 	local rotation = quatd():fromAngleAxis(fdy, fdx, 0, magn)
 	self.angle = (rotation * self.angle):normalize()
+--]]
+--[[ ortho pan
+	local ar = screenWidth / screenHeight
+	self.pos = self.pos + vec3d(
+		-dx * ar / screenWidth * self.dist,
+		dy / screenHeight * self.dist,
+		0)
+--]]
 end
 
 function FrustumView:mouseZoom(dx, dy)

@@ -10,7 +10,7 @@ local origSolver = var.solver
 var.solver = solver
 	
 	solver:calcDisplayVarToTex(var)
-	
+
 	gl.glUniform2f(heatMap2DShader.uniforms.solverMins.loc, solver.mins.x, solver.mins.y)
 	gl.glUniform2f(heatMap2DShader.uniforms.solverMaxs.loc, solver.maxs.x, solver.maxs.y)
 
@@ -25,7 +25,7 @@ var.solver = solver
 	else
 		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
 	end
-
+	
 	gl.glBegin(gl.GL_QUADS)
 	gl.glVertex3d(xmin, ymin, app.displayFixedZ)
 	gl.glVertex3d(xmax, ymin, app.displayFixedZ)
@@ -97,13 +97,13 @@ function Draw2DHeatmap:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 --	gl.glEnable(gl.GL_DEPTH_TEST)
 end
 
-function Draw2DHeatmap:display(app, solvers, varName, ar, graph_xmin, graph_ymin, graph_xmax, graph_ymax)
+function Draw2DHeatmap:display(app, solvers, varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)
 	app.view:projection(ar)
 	app.view:modelview()
 	if app.view.getOrthoBounds then
 		xmin, xmax, ymin, ymax = app.view:getOrthoBounds(ar)
 	else
-		xmin, xmax, ymin, ymax = graph_xmin, graph_ymin, graph_xmax, graph_ymax
+		xmin, xmax, ymin, ymax = graph_xmin, graph_xmax, graph_ymin, graph_ymax
 	end
 
 --	gl.glEnable(gl.GL_DEPTH_TEST)
@@ -139,7 +139,7 @@ function Draw2DHeatmap:display(app, solvers, varName, ar, graph_xmin, graph_ymin
 	gl.glVertex3f(0, ymin, gridz)
 	gl.glVertex3f(0, ymax, gridz)
 	gl.glEnd()
-			
+
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
 	for _,solver in ipairs(solvers) do 

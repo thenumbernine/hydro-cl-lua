@@ -7,18 +7,18 @@ local coord = solver.coord
 //z holds the fixed z slice of the 3D texture
 varying vec3 viewCoord;
 
-<?=coord:getCoordMapInvGLSLCode()?>
-
 <? if vertexShader then ?>
 
 void main() {
 	viewCoord = gl_Vertex.xyz;
 	// disregard 'z' for rendering
-	gl_Position = gl_ModelViewProjectionMatrix * vec4(gl_Vertex.xy, 0., 1.);
+	gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
 }
 
 <? end
 if fragmentShader then ?>
+
+<?=coord:getCoordMapInvGLSLCode()?>
 
 <?=solver:getGradientGLSLCode()?>
 
@@ -44,7 +44,7 @@ void main() {
 	} else {
 		gridCoord = .5 * (gridCoord + 1.) * (solverMaxs.xy - solverMins.xy) + solverMins.xy; 
 	}
-
+	
 	if (gridCoord.x < solverMins.x || gridCoord.x > solverMaxs.x ||
 		gridCoord.y < solverMins.y || gridCoord.y > solverMaxs.y
 	) {

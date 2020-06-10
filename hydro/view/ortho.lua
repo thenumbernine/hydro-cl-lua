@@ -9,8 +9,10 @@ function OrthoView:init()
 	self.pos = vec2d()
 end
 
+-- returns xmin, xmax, ymin, ymax, zmin, zmax
 function OrthoView:getOrthoBounds(ar)
-	return self.pos.x - ar * .5 / self.zoom.x, 
+	return 
+		self.pos.x - ar * .5 / self.zoom.x, 
 		self.pos.x + ar * .5 / self.zoom.x,
 		self.pos.y - .5 / self.zoom.y,
 		self.pos.y + .5 / self.zoom.y,

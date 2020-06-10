@@ -24,7 +24,7 @@ Draw3DSlice.alphaGamma = 1
 Draw3DSlice.numSlices = 255
 
 
-function Draw3DSlice:display(app, solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
+function Draw3DSlice:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, useLog)
 	for _,solver in ipairs(solvers) do 
 if not require 'hydro.solver.meshsolver'.is(solver) then
 -- TODO put this in a function 'showDisplayVar'

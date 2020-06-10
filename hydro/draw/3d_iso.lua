@@ -317,7 +317,7 @@ function Draw3DIso:showDisplayVar(app, solver, var)
 	end
 end
 
-function Draw3DIso:display(app, solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
+function Draw3DIso:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, useLog)
 	app.view:projection(ar)
 	app.view:modelview()
 

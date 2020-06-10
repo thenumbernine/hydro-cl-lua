@@ -133,13 +133,13 @@ function DrawVectorLIC:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 --	gl.glEnable(gl.GL_DEPTH_TEST)
 end
 
-function DrawVectorLIC:display(app, solvers, varName, ar, graph_xmin, graph_ymin, graph_xmax, graph_ymax)
+function DrawVectorLIC:display(app, solvers, varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)
 	app.view:projection(ar)
 	app.view:modelview()
 	if app.view.getOrthoBounds then
 		xmin, xmax, ymin, ymax = app.view:getOrthoBounds(ar)
 	else
-		xmin, xmax, ymin, ymax = graph_xmin, graph_ymin, graph_xmax, graph_ymax
+		xmin, xmax, ymin, ymax = graph_xmin, graph_xmax, graph_ymin, graph_ymax
 	end
 
 --	gl.glEnable(gl.GL_DEPTH_TEST)

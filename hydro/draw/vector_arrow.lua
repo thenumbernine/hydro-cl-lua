@@ -18,7 +18,7 @@ local DrawVectorField = class()
 DrawVectorField.scale = 1
 DrawVectorField.step = cmdline.vectorFieldStep or 4
 
-function DrawVectorField:showDisplayVar(app, solver, var, xmin, ymin, xmax, ymax, useLog)
+function DrawVectorField:showDisplayVar(app, solver, var, xmin, xmax, ymin, ymax, useLog)
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
 		valueMin = var.heatMapValueMin

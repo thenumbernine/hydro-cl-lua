@@ -100,7 +100,7 @@ function Draw3DRay:showDisplayVar(app, solver, var, ar)
 	end
 end
 
-function Draw3DRay:display(app, solvers, varName, ar, xmin, ymin, xmax, ymax, useLog)
+function Draw3DRay:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, useLog)
 	for _,solver in ipairs(solvers) do
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
