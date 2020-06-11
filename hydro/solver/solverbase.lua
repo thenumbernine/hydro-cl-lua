@@ -8,6 +8,7 @@ local string = require 'ext.string'
 local file = require 'ext.file'
 local math = require 'ext.math'
 local gl = require 'gl'
+local glreport = require 'gl.report'
 local CLBuffer = require 'cl.obj.buffer'
 local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
@@ -2184,6 +2185,70 @@ function SolverBase:printBuf(buf, ptrorig, colsize, colmax)
 	return ptrorig 	-- in case someone wants it
 end
 
+
+function SolverBase:calcDisplayVarToTex(var, componentIndex)
+	componentIndex = componentIndex or var.component
+	local component = self.displayComponentFlatList[componentIndex]
+	local vectorField = self:isVarTypeAVectorField(component.type)
+	
+	local app = self.app
+	local displayVarGroup = var.displayVarGroup
+	if app.useGLSharing then
+		-- copy to GL using cl_*_gl_sharing
+		gl.glFinish()
+		self.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
+	
+		var:setToTexArgs()
+		var.calcDisplayVarToTexKernelObj()
+		
+		self.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
+		self.cmds:finish()
+	else
+		-- download to CPU then upload with glTexSubImage2D
+		-- calcDisplayVarToTexPtr is sized without ghost cells 
+		-- so is the GL texture
+		local ptr = self.calcDisplayVarToTexPtr
+		local tex = self.tex
+		
+		local channels = vectorField and 3 or 1
+		local format = vectorField and gl.GL_RGB or gl.GL_RED
+		
+		var:setToBufferArgs()
+		
+		self:calcDisplayVarToBuffer(var)
+
+		local sizevec = var.getBuffer().sizevec or self.texSize
+		assert(sizevec.x <= tex.width and sizevec.y <= tex.height)
+		local volume = tonumber(sizevec:volume())
+		
+		-- use 'volume' here reads the whole texture, even if it exceeds the number of cells.  calcDisplayVarToTexPtr should be big enough.
+		-- use 'solver.numCells' to just read what is needed
+		self.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
+		local destPtr = ptr
+		-- TODO check for extension GL_ARB_half_float_pixel
+		local gltype = app.real == 'half' and gl.GL_HALF_FLOAT_ARB or gl.GL_FLOAT
+		
+		if app.real == 'double' then
+			-- can this run in place?  seems like it
+			destPtr = ffi.cast('float*', ptr)
+			for i=0,volume*channels-1 do
+				destPtr[i] = ptr[i]
+			end
+		end
+		tex:bind()
+		
+		-- use texSize because meshsolver dim isn't reliable
+		if self.texSize.z == 1 then
+			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, sizevec.x, sizevec.y, format, gltype, destPtr)
+		else
+			for z=0,tex.depth-1 do
+				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, sizevec.x, sizevec.y, 1, format, gltype, destPtr + channels * sizevec.x * sizevec.y * z)
+			end
+		end
+		tex:unbind()
+		glreport'here'
+	end
+end
 
 -- this is abstracted because accumBuf might want to be used ...
 function SolverBase:calcDisplayVarToBuffer(var, componentIndex)
