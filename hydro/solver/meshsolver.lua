@@ -9,6 +9,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local template = require 'template'
+local vec3sz = require 'vec-ffi.vec3sz'
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
 local matrix_ffi = require 'matrix.ffi'
@@ -136,7 +137,8 @@ function MeshSolver:initDraw()
 			solver = self,
 		}),
 		uniforms = {
-			gradientTex = 0,
+			tex = 0,
+			gradientTex = 1,
 			drawCellScale = 1,
 		},
 	}
@@ -154,7 +156,6 @@ function MeshSolver:initDraw()
 	local glvtxs = vector'vec3f_t'			-- vertex position
 	local glvtxcenters = vector'vec3f_t'	-- center of cell for this vertex
 	local glcellindex = vector'float'		-- 0-based index of cell for this vertex
-	local glvalue = vector'float'			-- value to draw the cell
 	local function addTri(va,vb,vc, ci,c)
 		glvtxs:push_back(vec3f(va:unpack()))
 		glvtxs:push_back(vec3f(vb:unpack()))
@@ -162,7 +163,6 @@ function MeshSolver:initDraw()
 		for j=0,2 do
 			glvtxcenters:push_back(vec3f(c.pos:unpack()))
 			glcellindex:push_back(ci)
-			glvalue:push_back(0)
 		end
 	end
 	local mesh = self.mesh
@@ -194,7 +194,6 @@ function MeshSolver:initDraw()
 	self.glvtxs = glvtxs
 	self.glvtxcenters = glvtxcenters
 	self.glcellindex = glcellindex
-	self.glvalue = glvalue
 	self.numGlVtxs = #glvtxs
 
 
@@ -206,9 +205,9 @@ function MeshSolver:initDraw()
 		data = glvtxcenters.v,
 		size = #glvtxcenters * ffi.sizeof(glvtxcenters.type), 
 	}
-	self.glValueBuffer = GLArrayBuffer{
-		data = glvalue.v,
-		size = #glvalue * ffi.sizeof(glvalue.type),
+	self.glCellIndexBuffer = GLArrayBuffer{
+		data = glcellindex.v,
+		size = #glcellindex * ffi.sizeof(glcellindex.type),
 	}
 
 
@@ -231,42 +230,99 @@ function MeshSolver:initDraw()
 	self.drawShader:setAttr('vtxcenter', self.drawShaderVtxCenterVertexArray)
 	self.drawShaderVtxCenterVertexArray:unbind()
 
-	self.drawShaderValueVertexArray = GLVertexArray{
-		buffer = self.glValueBuffer,
+	self.drawShaderCellIndexVertexArray = GLVertexArray{
+		buffer = self.glCellIndexBuffer,
 		size = 1,
 		type = gl.GL_FLOAT,
 	}
-	self.drawShaderValueVertexArray:bind()
-	self.drawShader:setAttr('value', self.drawShaderValueVertexArray)
-	self.drawShaderValueVertexArray:unbind()
+	self.drawShaderCellIndexVertexArray:bind()
+	self.drawShader:setAttr('cellindex', self.drawShaderCellIndexVertexArray)
+	self.drawShaderCellIndexVertexArray:unbind()
 --]]
 
 -- [[ doesn't use VertexArrays, but uses EnableVertexAttribArray instead
-	self.glValueBuffer:bind()
-	self.drawShaderValueVertexArray:setAttr(self.drawShader.attrs.value.loc)
-	self.glValueBuffer:unbind()
-	self.glVtxCenterBuffer:bind()
-	self.drawShaderVtxCenterVertexArray:setAttr(self.drawShader.attrs.vtxcenter.loc)
-	self.glVtxCenterBuffer:unbind()
 	self.glVtxBuffer:bind()
 	self.drawShaderVtxVertexArray:setAttr(self.drawShader.attrs.vtx.loc)
 	self.glVtxBuffer:unbind()
+	self.glVtxCenterBuffer:bind()
+	self.drawShaderVtxCenterVertexArray:setAttr(self.drawShader.attrs.vtxcenter.loc)
+	self.glVtxCenterBuffer:unbind()
+	self.glCellIndexBuffer:bind()
+	self.drawShaderCellIndexVertexArray:setAttr(self.drawShader.attrs.cellindex.loc)
+	self.glCellIndexBuffer:unbind()
 --]]
 end
 
+-- TODO organize this between SolverBase and MeshSolver
 function MeshSolver:createBuffers()
+	local app = self.app
+	
 	MeshSolver.super.createBuffers(self)
 
 	self:clalloc('vtxBuf', 'real3', self.numVtxs)
 	self:clalloc('cellsBuf', 'cell_t', self.numCells)
 	self:clalloc('facesBuf', 'face_t', self.numFaces)
 	self:clalloc('cellFaceIndexesBuf', 'int', self.numCellFaceIndexes)
-
-	-- similar to gridsolver's display buffer stuff when glSharing isn't found
-	self.calcDisplayVarToTexPtr = ffi.new(self.app.real..'[?]', self.numCells * 3)
 	
 	-- specific to FiniteVolumeSolver
 	self:clalloc('fluxBuf', self.eqn.cons_t, self.numFaces)
+
+	-- NOTICE this all looks a lot like GridSolver's createBuffers
+	if app.targetSystem ~= 'console' then
+
+		local maxTex2DSize = vec3sz(
+			self.device:getInfo'CL_DEVICE_IMAGE2D_MAX_WIDTH',
+			self.device:getInfo'CL_DEVICE_IMAGE2D_MAX_HEIGHT',
+			1)
+		local maxTex3DSize = vec3sz(
+			self.device:getInfo'CL_DEVICE_IMAGE3D_MAX_WIDTH',
+			self.device:getInfo'CL_DEVICE_IMAGE3D_MAX_HEIGHT',
+			self.device:getInfo'CL_DEVICE_IMAGE3D_MAX_DEPTH')
+		self.texSize = vec3sz()
+		-- TODO if texSize >= max gl size then overflow into the next dim
+		if self.numCells <= maxTex2DSize.x then
+			self.texSize = vec3sz(self.numCells, 1, 1)
+		else
+			local sx = math.min(math.ceil(math.sqrt(self.numCells)), maxTexSize2D.x)
+			local sy = math.ceil(self.numCells / tonumber(self.texSize.x))
+			if sx <= maxTex2DSize.x and sy <= maxTe2DSize.y then
+				self.texSize = vec3sz(sx, sy, 1)
+			else
+				local sz = math.min(math.ceil(math.cbrt(self.numCells)), maxTexSize3D.z)
+				local sxy = math.ceil(self.numCells / sz)
+				local sy = math.min(math.ceil(math.sqrt(sxy)), maxTexSize3D.y)
+				local sx = math.ceil(sxy / sy)
+				if sx >= maxTexSize3D.x then
+					error("couldn't fit cell buffer into texture.  max 2d size " .. maxTex2DSize .. ", max 3d size " .. maxTex3DSize)
+				end
+				self.texSize = vec3sz(sx, sy, sz)
+			end
+		end
+
+
+		local GLTex2D = require 'gl.tex2d'
+		local GLTex3D = require 'gl.tex3d'
+		local cl = self.texSize.z == 1 and GLTex2D or GLTex3D
+		local gltype = app.real == 'half' and gl.GL_HALF_FLOAT_ARB or gl.GL_FLOAT
+		self.tex = cl{
+			width = tonumber(self.texSize.x),
+			height = tonumber(self.texSize.y),
+			depth = tonumber(self.texSize.z),
+			internalFormat = gl.GL_RGBA32F,
+			format = gl.GL_RGBA,
+			type = gltype,
+			minFilter = gl.GL_NEAREST,
+			magFilter = gl.GL_LINEAR,
+			wrap = {s=gl.GL_REPEAT, t=gl.GL_REPEAT, r=gl.GL_REPEAT},
+		}
+		
+		local CLImageGL = require 'cl.imagegl'
+		if app.useGLSharing then
+			self.texCLMem = CLImageGL{context=app.ctx, tex=self.tex, write=true}
+		else
+			self.calcDisplayVarToTexPtr = ffi.new(app.real..'[?]', self.texSize:volume() * 3)
+		end
+	end
 end
 
 function MeshSolver:finalizeCLAllocs()
@@ -426,7 +482,63 @@ function MeshSolverDisplayVar:setArgs(kernel)
 	kernel:setArg(5, self.solver.facesBuf)
 end
 
+function MeshSolver:calcDisplayVarToTex(var, componentIndex)
+	componentIndex = componentIndex or var.component
+	local component = self.displayComponentFlatList[componentIndex]
+	local vectorField = self:isVarTypeAVectorField(component.type)
+	
+	local app = self.app
+	local displayVarGroup = var.displayVarGroup
+	if app.useGLSharing then
+		-- copy to GL using cl_*_gl_sharing
+		gl.glFinish()
+		self.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
+	
+		var:setToTexArgs()
+		var.calcDisplayVarToTexKernelObj()
+		
+		self.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
+		self.cmds:finish()
+	else
+		local ptr = self.calcDisplayVarToTexPtr
+		local tex = self.tex
+		
+		local channels = vectorField and 3 or 1
+		local format = vectorField and gl.GL_RGB or gl.GL_RED
+	
+		var:setToBufferArgs()
+		
+		self:calcDisplayVarToBuffer(var)
 
+		local sizevec = self.texSize
+		local volume = tonumber(sizevec:volume())
+		
+		self.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
+		local destPtr = ptr
+		-- TODO check for extension GL_ARB_half_float_pixel
+		local gltype = app.real == 'half' and gl.GL_HALF_FLOAT_ARB or gl.GL_FLOAT
+		
+		if app.real == 'double' then
+			-- can this run in place?  seems like it
+			destPtr = ffi.cast('float*', ptr)
+			for i=0,volume*channels-1 do
+				destPtr[i] = ptr[i]
+			end
+		end
+		tex:bind()
+		if self.texSize.z == 1 then
+			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, sizevec.x, sizevec.y, format, gltype, destPtr)
+		else
+			for z=0,tex.depth-1 do
+				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, sizevec.x, sizevec.y, 1, format, gltype, destPtr + channels * sizevec.x * sizevec.y * z)
+			end
+		end
+		tex:unbind()
+		glreport'here'
+	end
+end
+
+-- TODO move this into draw/2d_heatmap as a meshsolver pathway?
 -- FPS of a 64x64 quad mesh:
 -- sys=console: ~900
 -- sys=imgui: ~170
@@ -449,23 +561,11 @@ function MeshSolver:display(varName, ar)
 	end
 --]]	
 
--- [[ matches GridSolver.calcDisplayVarToTex
--- TODO give mesh solvers their own textures to hold display values
-	local component = self.displayComponentFlatList[var.component]
-	local vectorField = self:isVarTypeAVectorField(component.type)
-
-	local ptr = self.calcDisplayVarToTexPtr
-	
-	var:setToBufferArgs()
-	self:calcDisplayVarToBuffer(var)
-
-	local channels = vectorField and 3 or 1
-	self.cmds:enqueueReadBuffer{buffer=self.reduceBuf, block=true, size=ffi.sizeof(app.real) * self.numCells * channels, ptr=ptr}
---]]
+	self:calcDisplayVarToTex(var)
 
 -- TODO use app:displayVector, but that needs meshsolver displayTex first
 --if vectorField then return end
-
+	
 	local view = app.view
 	view:projection(ar)
 	view:modelview()
@@ -511,14 +611,6 @@ function MeshSolver:display(varName, ar)
 	-- in fact, before drawing this, calcDisplayVarToBuffer will fill reduceBuf with the values (associated 1-1 with each cell?)
 	if self.showCells then
 		
-		-- copy display values from ptr (reduceBuf) to each gl-vertex's value vertex attr
-		for i=0,self.numGlVtxs-1 do
-			local ci = self.glcellindex.v[i]
-			local displayValue = ptr[channels * ci]
-			self.glvalue.v[i] = displayValue
-		end
-		self.glValueBuffer:updateData()
-
 		local gradientTex = app.gradientTex
 		self.drawShader:use()
 		gl.glUniform1i(self.drawShader.uniforms.useLog.loc, 0)
@@ -526,7 +618,8 @@ function MeshSolver:display(varName, ar)
 		gl.glUniform1f(self.drawShader.uniforms.valueMax.loc, valueMax)
 		gl.glUniform1f(self.drawShader.uniforms.drawCellScale.loc, self.drawCellScale)
 		gl.glUniformMatrix4fv(self.drawShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, self.modelViewProjectionMatrix.ptr)
-		gradientTex:bind()
+		self.tex:bind(0)
+		gradientTex:bind(1)
 --[[ doesn't work yet
 		self.drawShaderVtxVertexArray:bind()
 		self.drawShaderVtxCenterVertexArray:bind()
@@ -536,25 +629,26 @@ function MeshSolver:display(varName, ar)
 		self.drawShaderVtxCenterVertexArray:unbind()
 		self.drawShaderValueVertexArray:unbind()
 --]]
--- [[ 180 fps @ 64x64 quad grid
-		gl.glEnableVertexAttribArray(self.drawShader.attrs.value.loc)
+-- [[ 180 fps @ 64x64 quad grid .. TODO has bugs now and doesn't render correctly.
+		gl.glEnableVertexAttribArray(self.drawShader.attrs.cellindex.loc)
 		gl.glEnableVertexAttribArray(self.drawShader.attrs.vtxcenter.loc)
 		gl.glEnableVertexAttribArray(self.drawShader.attrs.vtx.loc)
 		gl.glDrawArrays(gl.GL_TRIANGLES, 0, self.numGlVtxs * 3)
-		gl.glDisableVertexAttribArray(self.drawShader.attrs.value.loc)
+		gl.glDisableVertexAttribArray(self.drawShader.attrs.cellindex.loc)
 		gl.glDisableVertexAttribArray(self.drawShader.attrs.vtxcenter.loc)
 		gl.glDisableVertexAttribArray(self.drawShader.attrs.vtx.loc)
 --]]
 --[[ 115 fps @ 64x64 quad grid
 		gl.glBegin(gl.GL_TRIANGLES)
 		for i=0,self.numGlVtxs-1 do
-			gl.glVertexAttrib1f(self.drawShader.attrs.value.loc, self.glvalue.v[i])
+			gl.glVertexAttrib1f(self.drawShader.attrs.cellindex.loc, self.glcellindex.v[i])
 			gl.glVertexAttrib3f(self.drawShader.attrs.vtxcenter.loc, self.glvtxcenters.v[i]:unpack())
 			gl.glVertexAttrib3f(self.drawShader.attrs.vtx.loc, self.glvtxs.v[i]:unpack())
 		end
 		gl.glEnd()
 --]]
-		gradientTex:unbind()
+		gradientTex:unbind(1)
+		self.tex:unbind(0)
 		self.drawShader:useNone()
 	end
 

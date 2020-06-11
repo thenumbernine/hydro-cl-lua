@@ -426,7 +426,8 @@ end
 
 -- TODO this matches GridSolver very closely.  merge somehow?
 function SolverBase:createBuffers()
-	local realSize = ffi.sizeof(self.app.real)
+	local app = self.app
+	local realSize = ffi.sizeof(app.real)
 	
 	-- for twofluid, cons_t has been renamed to euler_maxwell_t and maxwell_cons_t
 	if ffi.sizeof(self.eqn.cons_t) ~= self.eqn.numStates * realSize then
@@ -439,23 +440,27 @@ function SolverBase:createBuffers()
 		error("for PLM's sake I might need sizeof(prim_t) <= sizeof(cons_t)")
 	end
 	
+	-- should I put these all in one AoS?
+	-- or finally make use of constant args ...
+	
+	-- this much for the first level U data
 	self:clalloc('UBuf', self.eqn.cons_t, self.numCells)
 
 	-- used both by reduceMin and reduceMax
 	-- (and TODO use this by sum() in implicit solver as well?)
 	-- times three because this is also used by the displayVar
 	-- on non-GL-sharing cards.
-	self:clalloc('reduceBuf', self.app.real, self.numCells * 3)
-	self:clalloc('reduceSwapBuf', self.app.real, math.ceil(self.numCells / self.localSize1d))
+	self:clalloc('reduceBuf', app.real, self.numCells * 3)
+	self:clalloc('reduceSwapBuf', app.real, math.ceil(self.numCells / self.localSize1d))
 	self.reduceResultPtr = ffi.new('real[1]', 0)
 
 	-- as big as reduceBuf, because it is a replacement for reduceBuf
 	-- ... though I don't accum on vector fields yet, so it doesn't need the x3 really
 	if self.allowAccum then
-		self:clalloc('accumBuf', self.app.real, self.numCells * 3)
+		self:clalloc('accumBuf', app.real, self.numCells * 3)
 	end
 
-	-- TODO CLImageGL ?
+	-- subclasses handle CL/GL interop buffers
 end
 
 -- call this when the solver initializes or changes the codePrefix (or changes initState)

@@ -471,52 +471,21 @@ end
 
 -- TODO some of this is copied in solverbase
 function GridSolver:createBuffers()
+	GridSolver.super.createBuffers(self)
+	
 	local app = self.app
-	local realSize = ffi.sizeof(app.real)
-
-	-- to get sizeof
-	makestruct.safeFFICDef(self:getConsLRTypeCode())
-
-	-- for twofluid, cons_t has been renamed to euler_maxwell_t and maxwell_cons_t
-	if ffi.sizeof(self.eqn.cons_t) ~= self.eqn.numStates * realSize then
-	   error('Expected sizeof('..self.eqn.cons_t..') to be '
-		   ..self.eqn.numStates..' * sizeof(real) = '..(self.eqn.numStates * realSize)
-		   ..' but found '..ffi.sizeof(self.eqn.cons_t)..' = '..(ffi.sizeof(self.eqn.cons_t) / realSize)..' * sizeof(real). '
-		   ..'Maybe you need to update Eqn.numStates?')
-	end
-	if ffi.sizeof(self.eqn.cons_t) < ffi.sizeof(self.eqn.prim_t) then
-		error("for PLM's sake I might need sizeof(prim_t) <= sizeof(cons_t)")
-	end
-
-	-- should I put these all in one AoS?
-	-- or finally make use of constant args ...
-
-	-- this much for the first level U data
-	self:clalloc('UBuf', self.eqn.cons_t, self.numCells)
 
 	if self.usePLM then
+		-- to get sizeof
+		makestruct.safeFFICDef(self:getConsLRTypeCode())
+		
 		-- TODO self.eqn.consLR_t..'_dim' and remove * self.dim ?
 		self:clalloc('ULRBuf', self.eqn.consLR_t, self.numCells * self.dim)
 	end
 
-	-- used both by reduceMin and reduceMax
-	-- (and TODO use this by sum() in implicit solver as well?)
-	-- times three because this is also used by the displayVar 
-	-- on non-GL-sharing cards.
-	self:clalloc('reduceBuf', self.app.real, self.numCells * 3)
-	self:clalloc('reduceSwapBuf', self.app.real, math.ceil(self.numCells / self.localSize1d))
-	self.reduceResultPtr = ffi.new'real[1]'
-	self.reduceResultPtr[0] = toreal(0)
 
-
-	-- as big as reduceBuf, because it is a replacement for reduceBuf
-	-- ... though I don't accum on vector fields yet, so it doesn't need the x3 really
-	if self.allowAccum then
-		self:clalloc('accumBuf', self.app.real, self.numCells * 3)
-	end
-
-
-	if self.app.targetSystem ~= 'console' then
+	-- TODO this is just like MeshSolver except tex size differs
+	if app.targetSystem ~= 'console' then
 		-- CL/GL interop
 
 		-- hmm, notice I'm still keeping the numGhost border on my texture 
@@ -545,14 +514,6 @@ function GridSolver:createBuffers()
 			self.texCLMem = CLImageGL{context=app.ctx, tex=self.tex, write=true}
 		else
 			self.calcDisplayVarToTexPtr = ffi.new(app.real..'[?]', self.numCells * 3)
-			
-			--[[ PBOs?
-			self.calcDisplayVarToTexPBO = ffi.new('gl_int[1]', 0)
-			gl.glGenBuffers(1, self.calcDisplayVarToTexPBO)
-			gl.glBindBuffer(gl.GL_PIXEL_UNPACK_BUFFER, self.calcDisplayVarToTexPBO[0])
-			gl.glBufferData(gl.GL_PIXEL_UNPACK_BUFFER, self.tex.width * self.tex.height * ffi.sizeof(app.real) * 4, nil, gl.GL_STREAM_READ)
-			gl.glBindBuffer(gl.GL_PIXEL_UNPACK_BUFFER, 0)
-			--]]
 		end
 	end
 end
