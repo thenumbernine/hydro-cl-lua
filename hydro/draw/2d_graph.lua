@@ -110,13 +110,15 @@ function Draw2DGraph:display(app, solvers, varName, ar, graph_xmin, graph_xmax, 
 	gl.glEnable(gl.GL_DEPTH_TEST)
 
 	for _,solver in ipairs(solvers) do 
-		local var = solver.displayVarForName[varName]
-		if var and var.enabled then
-			self:showDisplayVar(app, solver, var)
+		if not require 'hydro.solver.meshsolver'.is(solver) then
+			local var = solver.displayVarForName[varName]
+			if var and var.enabled then
+				self:showDisplayVar(app, solver, var)
+			end
+			
+			-- TODO right here is where the color gradient display usually goes
+			-- mind you I'm not using it in the 2D graph display atm
 		end
-	
-		-- TODO right here is where the color gradient display usually goes
-		-- mind you I'm not using it in the 2D graph display atm
 	end
 	
 	gl.glDisable(gl.GL_DEPTH_TEST)

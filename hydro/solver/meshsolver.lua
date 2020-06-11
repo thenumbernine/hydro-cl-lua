@@ -43,7 +43,6 @@ so how should meshfiles use init states?
 function MeshSolver:initL1(args)
 	self.showVertexes = false
 	self.showFaces = false
-	self.showCells = true
 	self.drawCellScale = 1
 
 	MeshSolver.super.initL1(self, args)
@@ -144,31 +143,15 @@ function MeshSolver:initDraw()
 			fragmentShader = true,
 		}),
 		uniforms = {
-			scale = 1,
 			valueMin = 0,
 			valueMax = 0,
 			tex = 0,
 			gradientTex = 1,
+			scale = 1,
 		},
 	}
 
-	local drawShaderCode = assert(file['hydro/draw/mesh_heatmap.shader'])
-	self.drawShader = self.GLProgram{
-		vertexCode = template(drawShaderCode, {
-			vertexShader = true,
-			solver = self,
-		}),
-		fragmentCode = template(drawShaderCode, {
-			fragmentShader = true,
-			solver = self,
-		}),
-		uniforms = {
-			tex = 0,
-			gradientTex = 1,
-			drawCellScale = 1,
-		},
-	}
-	
+
 	self.modelViewMatrix = matrix_ffi.zeros(4,4)
 	self.projectionMatrix = matrix_ffi.zeros(4,4)
 	self.modelViewProjectionMatrix = matrix_ffi.zeros(4,4)
@@ -222,49 +205,45 @@ function MeshSolver:initDraw()
 	self.glcellindex = glcellindex
 	self.numGlVtxs = #glvtxs
 
--- [[ glGenBuffers / glBindBuffer / glBufferData / glBindBuffer(0)
-	self.glVtxBuffer = GLArrayBuffer{
-		data = glvtxs.v,
-		size = #glvtxs * ffi.sizeof(glvtxs.type), 
+	
+	local heatMapCode = assert(file['hydro/draw/mesh_heatmap.shader'])
+	self.heatMap2DShader = self.GLProgram{
+		vertexCode = template(heatMapCode, {
+			vertexShader = true,
+			solver = self,
+		}),
+		fragmentCode = template(heatMapCode, {
+			fragmentShader = true,
+			solver = self,
+		}),
+		uniforms = {
+			valueMin = 0,
+			valueMax = 0,
+			tex = 0,
+			gradientTex = 1,
+			drawCellScale = 1,
+		},
+		
+		attrs = {
+			vtx = GLArrayBuffer{
+				data = glvtxs.v,
+				size = #glvtxs * ffi.sizeof(glvtxs.type), 
+			},
+			vtxcenter = GLArrayBuffer{
+				data = glvtxcenters.v,
+				size = #glvtxcenters * ffi.sizeof(glvtxcenters.type), 
+			},
+			cellindex = GLArrayBuffer{
+				data = glcellindex.v,
+				size = #glcellindex * ffi.sizeof(glcellindex.type),
+			},
+		},
+		createVAO = true,	-- tells shader to make VAO upon construction
 	}
-	self.glVtxCenterBuffer = GLArrayBuffer{
-		data = glvtxcenters.v,
-		size = #glvtxcenters * ffi.sizeof(glvtxcenters.type), 
-	}
-	self.glCellIndexBuffer = GLArrayBuffer{
-		data = glcellindex.v,
-		size = #glcellindex * ffi.sizeof(glcellindex.type),
-	}
---]]
+end
 
--- [[ glVertexAttrib*
-	self.drawShaderVtxAttr = GLAttribute{
-		loc = self.drawShader.attrs.vtx.loc,
-		size = 3,
-		type = gl.GL_FLOAT,
-		buffer = self.glVtxBuffer,
-	}
-	self.drawShaderVtxCenterAttr = GLAttribute{
-		loc = self.drawShader.attrs.vtxcenter.loc,
-		size = 3,
-		type = gl.GL_FLOAT,
-		buffer = self.glVtxCenterBuffer,
-	}
-	self.drawShaderCellIndexAttr = GLAttribute{
-		loc = self.drawShader.attrs.cellindex.loc,
-		size = 1,
-		type = gl.GL_FLOAT,
-		buffer = self.glCellIndexBuffer,
-	}
---]]
-
--- [[ glGenVertexArrays / glBindBuffer / glVertexAttribPointer / glEnableVertexAttribArrays / glBindBuffer(0) / ARB_vertex_array_object
-	self.drawShaderVertexArray = GLVertexArray{
-		self.drawShaderVtxAttr,
-		self.drawShaderVtxCenterAttr,
-		self.drawShaderCellIndexAttr,
-	}
---]]
+function MeshSolver:getHeatMap2DShader(var)
+	return self.heatMap2DShader
 end
 
 -- TODO organize this between SolverBase and MeshSolver
@@ -471,13 +450,117 @@ function MeshSolverDisplayVar:setArgs(kernel)
 	kernel:setArg(5, self.solver.facesBuf)
 end
 
--- TODO move this into draw/2d_heatmap as a meshsolver pathway?
--- FPS of a 64x64 quad mesh:
--- sys=console: ~900
--- sys=imgui: ~170
+function MeshSolver:updateGUIParams()
+	MeshSolver.super.updateGUIParams(self)
+
+	tooltip.checkboxTable('show vertexes', self, 'showVertexes')
+	ig.igSameLine()
+	tooltip.checkboxTable('show faces', self, 'showFaces')
+	
+	tooltip.numberTable('cell scale', self, 'drawCellScale')
+end
+
+-- TODO move this into draw/2d_heatmap as a meshsolver pathway
+
+-- this is a mirror of Draw2DHeatmap:drawSolverWithVar
+local function drawSolverWithVar(app, solver, var, heatMap2DShader)
+	solver:calcDisplayVarToTex(var)
+
+	local tex = solver:getTex()
+	tex:bind(0)
+	if app.displayBilinearTextures then
+		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+	else
+		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
+	end
+
+--[[ 110 fps: glVertexAttrib prim calls
+	gl.glBegin(gl.GL_TRIANGLES)
+	for i=0,solver.numGlVtxs-1 do
+		gl.glVertexAttrib1f(heatMap2DShader.attrs.cellindex.loc, solver.glcellindex.v[i])
+		gl.glVertexAttrib3f(heatMap2DShader.attrs.vtxcenter.loc, solver.glvtxcenters.v[i]:unpack())
+		gl.glVertexAttrib3f(heatMap2DShader.attrs.vtx.loc, solver.glvtxs.v[i]:unpack())
+	end
+	gl.glEnd()
+--]]
+--[[ 130 fps: glBindBuffer / glVertexAttribPointer / glEnableVertexAttribArray
+	solver.heatMap2DShader:setAttrs(solver.heatMapShaderAttrs)
+	gl.glDrawArrays(gl.GL_TRIANGLES, 0, solver.numGlVtxs * 3)
+--]]
+-- [[ 150fps: glVertexArray
+	solver.heatMap2DShader.vao:bind()
+	gl.glDrawArrays(gl.GL_TRIANGLES, 0, solver.numGlVtxs * 3)
+	solver.heatMap2DShader.vao:unbind()
+--]]
+	tex:unbind(0)
+end
+	
+local function showDisplayVar(app, solver, var, varName, ar)
+	local valueMin, valueMax
+	if var.heatMapFixedRange then
+		valueMin = var.heatMapValueMin
+		valueMax = var.heatMapValueMax
+	else
+		valueMin, valueMax = solver:calcDisplayVarRange(var)
+		var.heatMapValueMin = valueMin
+		var.heatMapValueMax = valueMax
+	end
+
+--	gl.glEnable(gl.GL_DEPTH_TEST)
+--	gl.glEnable(gl.GL_CULL_FACE)
+
+	local heatMap2DShader = solver:getHeatMap2DShader()
+	heatMap2DShader:use()
+	
+	local gradientTex = app.gradientTex
+	gradientTex:bind(1)
+
+	-- useCoordMap is missing from MeshSolver
+	gl.glUniform1i(heatMap2DShader.uniforms.useLog.loc, 0)
+	gl.glUniform1f(heatMap2DShader.uniforms.valueMin.loc, valueMin)
+	gl.glUniform1f(heatMap2DShader.uniforms.valueMax.loc, valueMax)
+	-- drawCellScale isn't present in GridSolver
+	gl.glUniform1f(heatMap2DShader.uniforms.drawCellScale.loc, solver.drawCellScale)
+
+	-- this is only in MeshSolver...
+	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, solver.modelViewMatrix.ptr)
+	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, solver.projectionMatrix.ptr)
+	solver.modelViewProjectionMatrix:mul(solver.projectionMatrix, solver.modelViewMatrix)
+	gl.glUniformMatrix4fv(heatMap2DShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, solver.modelViewProjectionMatrix.ptr)
+	
+	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+	gl.glEnable(gl.GL_BLEND)
+
+	drawSolverWithVar(app, solver, var, heatMap2DShader)
+
+	gl.glDisable(gl.GL_BLEND)
+
+	gradientTex:unbind(1)
+	gl.glActiveTexture(gl.GL_TEXTURE0)
+	heatMap2DShader:useNone()
+
+--	gl.glDisable(gl.GL_DEPTH_TEST)
+--	gl.glDisable(gl.GL_CULL_FACE)
+
+	local gradientValueMin = valueMin
+	local gradientValueMax = valueMax
+	local showName = varName
+	if var.showInUnits and var.units then
+		local unitScale = solver:convertToSIUnitsCode(var.units).func()
+		gradientValueMin = gradientValueMin * unitScale
+		gradientValueMax = gradientValueMax * unitScale
+		showName = showName..' ('..var.units..')'
+	end
+	app:drawGradientLegend(ar, showName, gradientValueMin, gradientValueMax)
+end
+
 function MeshSolver:display(varName, ar)
 	local app = self.app
 	if app.targetSystem == 'console' then return end	
+	
+	local view = app.view
+	view:projection(ar)
+	view:modelview()
 
 	local var = self.displayVarForName[varName]
 	if not var then return end
@@ -485,36 +568,9 @@ function MeshSolver:display(varName, ar)
 	-- if it's a vector field then let app handle it.
 	local component = self.displayComponentFlatList[var.component]
 	if self:isVarTypeAVectorField(component.type) then return end
-	
--- [[ this is from the draw/*.lua
-	local valueMin, valueMax
-	if var.heatMapFixedRange then
-		valueMin = var.heatMapValueMin
-		valueMax = var.heatMapValueMax
-	else
-		valueMin, valueMax = self:calcDisplayVarRange(var)
-		var.heatMapValueMin = valueMin
-		var.heatMapValueMax = valueMax
-	end
---]]	
-
-	self:calcDisplayVarToTex(var)
-
-	local view = app.view
-	view:projection(ar)
-	view:modelview()
-
-	gl.glEnable(gl.GL_DEPTH_TEST)
---	gl.glEnable(gl.GL_CULL_FACE)
-	
-	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.modelViewMatrix.ptr)
-	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projectionMatrix.ptr)
-	self.modelViewProjectionMatrix:mul(self.projectionMatrix, self.modelViewMatrix)
-
-	-- draw the mesh 
-	local mesh = self.mesh
 
 	if self.showVertexes then
+		local mesh = self.mesh
 		gl.glPointSize(3)
 		gl.glColor3f(1,1,1)
 		gl.glBegin(gl.GL_POINTS)
@@ -526,6 +582,7 @@ function MeshSolver:display(varName, ar)
 	end
 
 	if self.showFaces then
+		local mesh = self.mesh
 		for fi,f in ipairs(mesh.faces) do
 			gl.glBegin(gl.GL_LINE_LOOP)
 			for vi=0,f.vtxCount-1 do
@@ -535,83 +592,10 @@ function MeshSolver:display(varName, ar)
 			gl.glEnd()
 		end
 	end
-	
-	-- if show cells ...
-	-- TODO in my mesh solver, here I pick the color according to the display value
-	-- but in my grid solvers I just overlay the whole thing with a giant texture
-	-- so how to combine the two? use gradient tex.  
-	-- in gridshader I have a kernel for updating tex/buffer to display values based on the cell state values
-	-- i can do the same, and just update the 'displayValue' inside each cell for this.
-	-- in fact, before drawing this, calcDisplayVarToBuffer will fill reduceBuf with the values (associated 1-1 with each cell?)
-	if self.showCells then
-		
-		local gradientTex = app.gradientTex
-		self.drawShader:use()
-		gl.glUniform1i(self.drawShader.uniforms.useLog.loc, 0)
-		gl.glUniform1f(self.drawShader.uniforms.valueMin.loc, valueMin)
-		gl.glUniform1f(self.drawShader.uniforms.valueMax.loc, valueMax)
-		gl.glUniform1f(self.drawShader.uniforms.drawCellScale.loc, self.drawCellScale)
-		gl.glUniformMatrix4fv(self.drawShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, self.modelViewProjectionMatrix.ptr)
-		self.tex:bind(0)
-		gradientTex:bind(1)
 
---[[ 110 fps: glVertexAttrib prim calls
-		gl.glBegin(gl.GL_TRIANGLES)
-		for i=0,self.numGlVtxs-1 do
-			gl.glVertexAttrib1f(self.drawShader.attrs.cellindex.loc, self.glcellindex.v[i])
-			gl.glVertexAttrib3f(self.drawShader.attrs.vtxcenter.loc, self.glvtxcenters.v[i]:unpack())
-			gl.glVertexAttrib3f(self.drawShader.attrs.vtx.loc, self.glvtxs.v[i]:unpack())
-		end
-		gl.glEnd()
---]]
---[[ 145 fps: glBindBuffer / glVertexAttribPointer / glEnableVertexAttribArray
-		self.drawShaderCellIndexAttr:set()
-		self.drawShaderVtxCenterAttr:set()
-		self.drawShaderVtxAttr:set()
-		gl.glDrawArrays(gl.GL_TRIANGLES, 0, self.numGlVtxs * 3)
-		self.drawShaderCellIndexAttr:disable()
-		self.drawShaderVtxCenterAttr:disable()
-		self.drawShaderVtxAttr:disable()
---]]
--- [[ 150fps: glVertexArray
-		self.drawShaderVertexArray:bind()
-		gl.glDrawArrays(gl.GL_TRIANGLES, 0, self.numGlVtxs * 3)
-		self.drawShaderVertexArray:unbind()
---]]
-		gradientTex:unbind(1)
-		self.tex:unbind(0)
-		self.drawShader:useNone()
-	end
-
-	gl.glDisable(gl.GL_DEPTH_TEST)
---	gl.glDisable(gl.GL_CULL_FACE)
-
--- [[ also in draw/*.lua
-	local gradientValueMin = valueMin
-	local gradientValueMax = valueMax
-	local showName = varName
-	if var.showInUnits and var.units then
-		local unitScale = self:convertToSIUnitsCode(var.units).func()
-		gradientValueMin = gradientValueMin * unitScale
-		gradientValueMax = gradientValueMax * unitScale
-		showName = showName..' ('..var.units..')'
-	end
-	app:drawGradientLegend(ar, showName, gradientValueMin, gradientValueMax)
---]]
-
+	-- from here on it's showDisplayVar
+	showDisplayVar(app, self, var, varName, ar)
 	glreport'here'
-end
-
-function MeshSolver:updateGUIParams()
-	MeshSolver.super.updateGUIParams(self)
-
-	tooltip.checkboxTable('show vertexes', self, 'showVertexes')
-	ig.igSameLine()
-	tooltip.checkboxTable('show faces', self, 'showFaces')
-	ig.igSameLine()
-	tooltip.checkboxTable('show cells', self, 'showCells')
-	
-	tooltip.numberTable('cell scale', self, 'drawCellScale')
 end
 
 return MeshSolver 

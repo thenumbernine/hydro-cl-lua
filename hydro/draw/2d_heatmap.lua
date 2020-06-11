@@ -15,10 +15,12 @@ var.solver = solver
 	gl.glUniform2f(heatMap2DShader.uniforms.solverMaxs.loc, solver.maxs.x, solver.maxs.y)
 
 	local tex = solver:getTex(var)
-	local size = var.getBuffer().sizevec or solver.texSize
-	gl.glUniform2f(heatMap2DShader.uniforms.texCoordMax.loc, 
-		tonumber(size.x) / tex.width,
-		tonumber(size.y) / tex.height)
+	if heatMap2DShader.uniforms.texCoordMax then
+		local texSize = var.getBuffer().sizevec or solver.texSize
+		gl.glUniform2f(heatMap2DShader.uniforms.texCoordMax.loc, 
+			tonumber(texSize.x) / tex.width,
+			tonumber(texSize.y) / tex.height)
+	end
 	tex:bind(0)
 	if app.displayBilinearTextures then
 		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
@@ -39,6 +41,8 @@ var.solver = origSolver
 end
 
 function Draw2DHeatmap:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax)
+	if require 'hydro.solver.meshsolver'.is(solver) then return end
+	
 	-- TODO allow a fixed, manual colormap range
 	-- NOTICE with AMR this will only get from the root node
 	--  which should at least have blitters of the children
@@ -107,6 +111,8 @@ function Draw2DHeatmap:display(app, solvers, varName, ar, graph_xmin, graph_xmax
 	end
 
 --	gl.glEnable(gl.GL_DEPTH_TEST)
+
+	-- TODO one grid for all displaly.
 	
 	local gridz = 0	--.1
 
@@ -143,11 +149,9 @@ function Draw2DHeatmap:display(app, solvers, varName, ar, graph_xmin, graph_xmax
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
 	for _,solver in ipairs(solvers) do 
-		if not require 'hydro.solver.meshsolver'.is(solver) then
-			local var = solver.displayVarForName[varName]
-			if var and var.enabled then
-				self:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax)
-			end
+		local var = solver.displayVarForName[varName]
+		if var and var.enabled then
+			self:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax)
 		end
 	end
 --	gl.glDisable(gl.GL_DEPTH_TEST)
