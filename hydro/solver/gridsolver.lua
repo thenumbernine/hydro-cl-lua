@@ -270,6 +270,8 @@ end
 
 
 function GridSolver:initDraw()
+	if self.app.targetSystem == 'console' then return end
+	
 	local graphShaderCode = file['hydro/draw/graph.shader']
 	self.graphShader = self.GLProgram{
 		name = 'graph',
@@ -355,7 +357,6 @@ function GridSolver:initDraw()
 		}
 	end
 
-	-- TODO move to draw/vector_arrow.lua ?
 	local vectorArrowCode = file['hydro/draw/vector_arrow.shader']
 	self.vectorArrowShader = self.GLProgram{
 		name = 'vector_arrow',
@@ -1504,9 +1505,6 @@ function GridSolver:calcExactError(numStates)
 	return err, ptr
 end
 
-function GridSolver:getTex(var) 
-	return self.tex
-end
 function GridSolver:getHeatMap2DShader(var)
 	return self.heatMap2DShader
 end

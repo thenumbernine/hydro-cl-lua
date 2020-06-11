@@ -19,9 +19,6 @@ DrawVectorField.scale = 1
 DrawVectorField.step = cmdline.vectorFieldStep or 4
 
 function DrawVectorField:showDisplayVar(app, solver, var, xmin, xmax, ymin, ymax, useLog)
-
--- TODO give meshsolvers display value textures first
-if require 'hydro.solver.meshsolver'.is(solver) then return end
 	
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
@@ -66,9 +63,9 @@ if require 'hydro.solver.meshsolver'.is(solver) then return end
 	local scale = self.scale 
 		* self.step 
 		* math.min(
-			(solver.maxs.x - solver.mins.x) / tonumber(solver.gridSize.x),
-			(solver.maxs.y - solver.mins.y) / tonumber(solver.gridSize.y),
-			(solver.maxs.z - solver.mins.z) / tonumber(solver.gridSize.z))
+			(solver.maxs.x - solver.mins.x) / tonumber(solver.texSize.x),
+			(solver.maxs.y - solver.mins.y) / tonumber(solver.texSize.y),
+			(solver.maxs.z - solver.mins.z) / tonumber(solver.texSize.z))
 	gl.glUniform1f(solver.vectorArrowShader.uniforms.scale.loc, scale) 
 
 	local step = self.step
@@ -79,7 +76,7 @@ if require 'hydro.solver.meshsolver'.is(solver) then return end
 		-- TODO Lua coroutine cell iterator, abstracted between grids and meshes?
 		-- how fast/slow are coroutines compared to number for-loops anyways?
 		for ci=0,solver.numCells-1 do
-			local c = solver.mesh.cells.v[i]
+			local c = solver.mesh.cells.v[ci]
 			local tx = (ci + .5) / tonumber(solver.numCells)
 			gl.glMultiTexCoord3f(gl.GL_TEXTURE0, tx, .5, .5)
 			gl.glMultiTexCoord3f(gl.GL_TEXTURE1, c.pos:unpack())
@@ -93,9 +90,9 @@ if require 'hydro.solver.meshsolver'.is(solver) then return end
 		for k=0,tonumber(solver.sizeWithoutBorder.z-1),step do
 			for j=0,tonumber(solver.sizeWithoutBorder.y-1),step do
 				for i=0,tonumber(solver.sizeWithoutBorder.x-1),step do
-					local tx = (i + .5 + solver.numGhost) / tonumber(solver.gridSize.x)
-					local ty = (j + .5 + (solver.dim > 1 and solver.numGhost or app.displayFixedY * tonumber(solver.gridSize.z))) / tonumber(solver.gridSize.y)
-					local tz = (k + .5 + (solver.dim > 2 and solver.numGhost or app.displayFixedZ * tonumber(solver.gridSize.z))) / tonumber(solver.gridSize.z)
+					local tx = (i + .5 + solver.numGhost) / tonumber(solver.texSize.x)
+					local ty = (j + .5 + (solver.dim > 1 and solver.numGhost or app.displayFixedY * tonumber(solver.texSize.z))) / tonumber(solver.texSize.y)
+					local tz = (k + .5 + (solver.dim > 2 and solver.numGhost or app.displayFixedZ * tonumber(solver.texSize.z))) / tonumber(solver.texSize.z)
 					gl.glMultiTexCoord3f(gl.GL_TEXTURE0, tx, ty, tz)	
 					local x = (i + .5) / tonumber(solver.sizeWithoutBorder.x)
 					local y = (j + .5) / tonumber(solver.sizeWithoutBorder.y)

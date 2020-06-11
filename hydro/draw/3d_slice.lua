@@ -75,7 +75,7 @@ end
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.numIsobars.loc, self.numIsobars)
 			gl.glUniform1i(solver.volumeSliceShader.uniforms.useLighting.loc, self.useLighting)
 			gl.glUniform1f(solver.volumeSliceShader.uniforms.numGhost.loc, solver.numGhost)
-			gl.glUniform3f(solver.volumeSliceShader.uniforms.texSize.loc, solver.gridSize:unpack())
+			gl.glUniform3f(solver.volumeSliceShader.uniforms.texSize.loc, solver.texSize:unpack())
 
 if useClipPlanes then
 			for i,info in ipairs(clipInfos) do

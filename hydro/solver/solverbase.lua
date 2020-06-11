@@ -499,6 +499,10 @@ function SolverBase:createBuffers()
 	end
 end
 
+function SolverBase:getTex(var) 
+	return self.tex
+end
+
 -- call this when the solver initializes or changes the codePrefix (or changes initState)
 -- it will build the code prefix and refresh everything related to it
 -- TODO if you change cons_t then call resetState etc (below the refreshEqnInitState() call a few lines above) in addition to this -- or else your values will get messed up

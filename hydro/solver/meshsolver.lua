@@ -16,7 +16,6 @@ local matrix_ffi = require 'matrix.ffi'
 local ig = require 'ffi.imgui'
 local gl = require 'gl'
 local glreport = require 'gl.report'
-local GLProgram = require 'gl.program'
 local GLAttribute = require 'gl.attribute'
 local GLArrayBuffer = require 'gl.arraybuffer'
 local GLVertexArray = require 'gl.vertexarray'
@@ -30,6 +29,9 @@ matrix_ffi.real = 'float'	-- default matrix_ffi type
 
 
 local MeshSolver = class(SolverBase)
+
+-- for compat in some display stuff
+MeshSolver.numGhost = 0 
 
 --[[
 args:
@@ -111,24 +113,47 @@ end
 		Program.super.init(self, args)
 	end
 	self.Program = Program
+
+	
+	local GLProgram = class(require 'gl.program')
+	function GLProgram:init(...)
+		local args = ...
+		
+		-- Write generated code
+		local fn = 'cache-cl/'..solver.app:uniqueName(args.name or 'shader')
+		file[fn..'.vert'] = args.vertexCode
+		file[fn..'.frag'] = args.fragmentCode
+
+		GLProgram.super.init(self, ...)
+	end
+	self.GLProgram = GLProgram
 end
 
 function MeshSolver:initDraw()
-	--[[
-	next issue ... how to render this?
-	how to store it?
-	where do textures come into play?
-	
-	UBuf will be size of # of elements
-	
-	how about texture, and how about rendering?
-	texsize will have to be > #elems ... using size is fine as long as we need a gridsize
-	--]]
-
 	if self.app.targetSystem == 'console' then return end
 
+	local vectorArrowCode = file['hydro/draw/vector_arrow.shader']
+	self.vectorArrowShader = self.GLProgram{
+		name = 'vector_arrow',
+		vertexCode = template(vectorArrowCode, {
+			solver = self,
+			vertexShader = true,
+		}),
+		fragmentCode = template(vectorArrowCode, {
+			solver = self,
+			fragmentShader = true,
+		}),
+		uniforms = {
+			scale = 1,
+			valueMin = 0,
+			valueMax = 0,
+			tex = 0,
+			gradientTex = 1,
+		},
+	}
+
 	local drawShaderCode = assert(file['hydro/draw/mesh_heatmap.shader'])
-	self.drawShader = GLProgram{
+	self.drawShader = self.GLProgram{
 		vertexCode = template(drawShaderCode, {
 			vertexShader = true,
 			solver = self,
@@ -457,6 +482,10 @@ function MeshSolver:display(varName, ar)
 	local var = self.displayVarForName[varName]
 	if not var then return end
 
+	-- if it's a vector field then let app handle it.
+	local component = self.displayComponentFlatList[var.component]
+	if self:isVarTypeAVectorField(component.type) then return end
+	
 -- [[ this is from the draw/*.lua
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
@@ -471,9 +500,6 @@ function MeshSolver:display(varName, ar)
 
 	self:calcDisplayVarToTex(var)
 
--- TODO use app:displayVector, but that needs meshsolver displayTex first
---if vectorField then return end
-	
 	local view = app.view
 	view:projection(ar)
 	view:modelview()
