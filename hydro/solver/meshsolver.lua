@@ -17,6 +17,7 @@ local ig = require 'ffi.imgui'
 local gl = require 'gl'
 local glreport = require 'gl.report'
 local GLProgram = require 'gl.program'
+local GLAttribute = require 'gl.attribute'
 local GLArrayBuffer = require 'gl.arraybuffer'
 local GLVertexArray = require 'gl.vertexarray'
 local tooltip = require 'hydro.tooltip'
@@ -196,7 +197,7 @@ function MeshSolver:initDraw()
 	self.glcellindex = glcellindex
 	self.numGlVtxs = #glvtxs
 
-
+-- [[ glGenBuffers / glBindBuffer / glBufferData / glBindBuffer(0)
 	self.glVtxBuffer = GLArrayBuffer{
 		data = glvtxs.v,
 		size = #glvtxs * ffi.sizeof(glvtxs.type), 
@@ -209,67 +210,44 @@ function MeshSolver:initDraw()
 		data = glcellindex.v,
 		size = #glcellindex * ffi.sizeof(glcellindex.type),
 	}
-
-
--- [[ uses VertexArray
-	self.drawShaderVtxVertexArray = GLVertexArray{
-		buffer = self.glVtxBuffer,
-		size = 3,
-		type = gl.GL_FLOAT,
-	}
-	self.drawShaderVtxVertexArray:bind()
-	self.drawShader:setAttr('vtx', self.drawShaderVtxVertexArray)
-	self.drawShaderVtxVertexArray:unbind()
-
-	self.drawShaderVtxCenterVertexArray = GLVertexArray{
-		buffer = self.glVtxCenterBuffer,
-		size = 3,
-		type = gl.GL_FLOAT,
-	}
-	self.drawShaderVtxCenterVertexArray:bind()
-	self.drawShader:setAttr('vtxcenter', self.drawShaderVtxCenterVertexArray)
-	self.drawShaderVtxCenterVertexArray:unbind()
-
-	self.drawShaderCellIndexVertexArray = GLVertexArray{
-		buffer = self.glCellIndexBuffer,
-		size = 1,
-		type = gl.GL_FLOAT,
-	}
-	self.drawShaderCellIndexVertexArray:bind()
-	self.drawShader:setAttr('cellindex', self.drawShaderCellIndexVertexArray)
-	self.drawShaderCellIndexVertexArray:unbind()
 --]]
 
--- [[ doesn't use VertexArrays, but uses EnableVertexAttribArray instead
-	self.glVtxBuffer:bind()
-	self.drawShaderVtxVertexArray:setAttr(self.drawShader.attrs.vtx.loc)
-	self.glVtxBuffer:unbind()
-	self.glVtxCenterBuffer:bind()
-	self.drawShaderVtxCenterVertexArray:setAttr(self.drawShader.attrs.vtxcenter.loc)
-	self.glVtxCenterBuffer:unbind()
-	self.glCellIndexBuffer:bind()
-	self.drawShaderCellIndexVertexArray:setAttr(self.drawShader.attrs.cellindex.loc)
-	self.glCellIndexBuffer:unbind()
+-- [[ glVertexAttrib*
+	self.drawShaderVtxAttr = GLAttribute{
+		loc = self.drawShader.attrs.vtx.loc,
+		size = 3,
+		type = gl.GL_FLOAT,
+		buffer = self.glVtxBuffer,
+	}
+	self.drawShaderVtxCenterAttr = GLAttribute{
+		loc = self.drawShader.attrs.vtxcenter.loc,
+		size = 3,
+		type = gl.GL_FLOAT,
+		buffer = self.glVtxCenterBuffer,
+	}
+	self.drawShaderCellIndexAttr = GLAttribute{
+		loc = self.drawShader.attrs.cellindex.loc,
+		size = 1,
+		type = gl.GL_FLOAT,
+		buffer = self.glCellIndexBuffer,
+	}
+--]]
+
+-- [[ glGenVertexArrays / glBindBuffer / glVertexAttribPointer / glEnableVertexAttribArrays / glBindBuffer(0) / ARB_vertex_array_object
+	self.drawShaderVertexArray = GLVertexArray{
+		self.drawShaderVtxAttr,
+		self.drawShaderVtxCenterAttr,
+		self.drawShaderCellIndexAttr,
+	}
 --]]
 end
 
 -- TODO organize this between SolverBase and MeshSolver
 function MeshSolver:createBuffers()
 	local app = self.app
-	
-	MeshSolver.super.createBuffers(self)
 
-	self:clalloc('vtxBuf', 'real3', self.numVtxs)
-	self:clalloc('cellsBuf', 'cell_t', self.numCells)
-	self:clalloc('facesBuf', 'face_t', self.numFaces)
-	self:clalloc('cellFaceIndexesBuf', 'int', self.numCellFaceIndexes)
-	
-	-- specific to FiniteVolumeSolver
-	self:clalloc('fluxBuf', self.eqn.cons_t, self.numFaces)
-
-	-- NOTICE this all looks a lot like GridSolver's createBuffers
+	-- set texSize before calling super
 	if app.targetSystem ~= 'console' then
-
 		local maxTex2DSize = vec3sz(
 			self.device:getInfo'CL_DEVICE_IMAGE2D_MAX_WIDTH',
 			self.device:getInfo'CL_DEVICE_IMAGE2D_MAX_HEIGHT',
@@ -298,31 +276,17 @@ function MeshSolver:createBuffers()
 				self.texSize = vec3sz(sx, sy, sz)
 			end
 		end
-
-
-		local GLTex2D = require 'gl.tex2d'
-		local GLTex3D = require 'gl.tex3d'
-		local cl = self.texSize.z == 1 and GLTex2D or GLTex3D
-		local gltype = app.real == 'half' and gl.GL_HALF_FLOAT_ARB or gl.GL_FLOAT
-		self.tex = cl{
-			width = tonumber(self.texSize.x),
-			height = tonumber(self.texSize.y),
-			depth = tonumber(self.texSize.z),
-			internalFormat = gl.GL_RGBA32F,
-			format = gl.GL_RGBA,
-			type = gltype,
-			minFilter = gl.GL_NEAREST,
-			magFilter = gl.GL_LINEAR,
-			wrap = {s=gl.GL_REPEAT, t=gl.GL_REPEAT, r=gl.GL_REPEAT},
-		}
-		
-		local CLImageGL = require 'cl.imagegl'
-		if app.useGLSharing then
-			self.texCLMem = CLImageGL{context=app.ctx, tex=self.tex, write=true}
-		else
-			self.calcDisplayVarToTexPtr = ffi.new(app.real..'[?]', self.texSize:volume() * 3)
-		end
 	end
+
+	MeshSolver.super.createBuffers(self)
+
+	self:clalloc('vtxBuf', 'real3', self.numVtxs)
+	self:clalloc('cellsBuf', 'cell_t', self.numCells)
+	self:clalloc('facesBuf', 'face_t', self.numFaces)
+	self:clalloc('cellFaceIndexesBuf', 'int', self.numCellFaceIndexes)
+	
+	-- specific to FiniteVolumeSolver
+	self:clalloc('fluxBuf', self.eqn.cons_t, self.numFaces)
 end
 
 function MeshSolver:finalizeCLAllocs()
@@ -620,25 +584,8 @@ function MeshSolver:display(varName, ar)
 		gl.glUniformMatrix4fv(self.drawShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, self.modelViewProjectionMatrix.ptr)
 		self.tex:bind(0)
 		gradientTex:bind(1)
---[[ doesn't work yet
-		self.drawShaderVtxVertexArray:bind()
-		self.drawShaderVtxCenterVertexArray:bind()
-		self.drawShaderValueVertexArray:bind()
-		gl.glDrawArrays(gl.GL_TRIANGLES, 0, self.numGlVtxs * 3)
-		self.drawShaderVtxVertexArray:unbind()
-		self.drawShaderVtxCenterVertexArray:unbind()
-		self.drawShaderValueVertexArray:unbind()
---]]
--- [[ 180 fps @ 64x64 quad grid .. TODO has bugs now and doesn't render correctly.
-		gl.glEnableVertexAttribArray(self.drawShader.attrs.cellindex.loc)
-		gl.glEnableVertexAttribArray(self.drawShader.attrs.vtxcenter.loc)
-		gl.glEnableVertexAttribArray(self.drawShader.attrs.vtx.loc)
-		gl.glDrawArrays(gl.GL_TRIANGLES, 0, self.numGlVtxs * 3)
-		gl.glDisableVertexAttribArray(self.drawShader.attrs.cellindex.loc)
-		gl.glDisableVertexAttribArray(self.drawShader.attrs.vtxcenter.loc)
-		gl.glDisableVertexAttribArray(self.drawShader.attrs.vtx.loc)
---]]
---[[ 115 fps @ 64x64 quad grid
+
+--[[ 110 fps: glVertexAttrib prim calls
 		gl.glBegin(gl.GL_TRIANGLES)
 		for i=0,self.numGlVtxs-1 do
 			gl.glVertexAttrib1f(self.drawShader.attrs.cellindex.loc, self.glcellindex.v[i])
@@ -646,6 +593,20 @@ function MeshSolver:display(varName, ar)
 			gl.glVertexAttrib3f(self.drawShader.attrs.vtx.loc, self.glvtxs.v[i]:unpack())
 		end
 		gl.glEnd()
+--]]
+--[[ 145 fps: glBindBuffer / glVertexAttribPointer / glEnableVertexAttribArray
+		self.drawShaderCellIndexAttr:set()
+		self.drawShaderVtxCenterAttr:set()
+		self.drawShaderVtxAttr:set()
+		gl.glDrawArrays(gl.GL_TRIANGLES, 0, self.numGlVtxs * 3)
+		self.drawShaderCellIndexAttr:disable()
+		self.drawShaderVtxCenterAttr:disable()
+		self.drawShaderVtxAttr:disable()
+--]]
+-- [[ 150fps: glVertexArray
+		self.drawShaderVertexArray:bind()
+		gl.glDrawArrays(gl.GL_TRIANGLES, 0, self.numGlVtxs * 3)
+		self.drawShaderVertexArray:unbind()
 --]]
 		gradientTex:unbind(1)
 		self.tex:unbind(0)

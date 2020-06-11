@@ -7,6 +7,7 @@ local table = require 'ext.table'
 local string = require 'ext.string'
 local file = require 'ext.file'
 local math = require 'ext.math'
+local gl = require 'gl'
 local CLBuffer = require 'cl.obj.buffer'
 local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
@@ -460,7 +461,41 @@ function SolverBase:createBuffers()
 		self:clalloc('accumBuf', app.real, self.numCells * 3)
 	end
 
-	-- subclasses handle CL/GL interop buffers
+	-- CL/GL interop buffers
+
+	if app.targetSystem ~= 'console' then
+		assert(self.texSize, "you forgot to define solver.texSize for the CL/GL interop buffers")
+
+		-- hmm, notice I'm still keeping the numGhost border on my texture 
+		-- if I remove the border altogether then I get wrap-around
+		-- maybe I should just keep a border of 1?
+		-- for now i'll leave it as it is
+		local GLTex2D = require 'gl.tex2d'
+		local GLTex3D = require 'gl.tex3d'
+		-- use texSize.z instead of dim because meshsolver might not have dim defined correctly
+		local cl = self.texSize.z == 1 and GLTex2D or GLTex3D
+		-- TODO check for extension GL_ARB_half_float_pixel
+		local gltype = app.real == 'half' and gl.GL_HALF_FLOAT_ARB or gl.GL_FLOAT
+		self.tex = cl{
+			width = tonumber(self.texSize.x),
+			height = tonumber(self.texSize.y),
+			depth = tonumber(self.texSize.z),
+			internalFormat = gl.GL_RGBA32F,
+			format = gl.GL_RGBA,
+			type = gltype,
+			minFilter = gl.GL_NEAREST,
+			magFilter = gl.GL_LINEAR,
+			wrap = {s=gl.GL_REPEAT, t=gl.GL_REPEAT, r=gl.GL_REPEAT},
+		}
+		
+		local CLImageGL = require 'cl.imagegl'
+		if app.useGLSharing then
+			self.texCLMem = CLImageGL{context=app.ctx, tex=self.tex, write=true}
+		else
+			-- use texSize:volume() so the glTexSubImage can use the whole buffer, in the event of meshsolver where texSize:volume can be > numCells
+			self.calcDisplayVarToTexPtr = ffi.new(app.real..'[?]', self.texSize:volume() * 3)
+		end
+	end
 end
 
 -- call this when the solver initializes or changes the codePrefix (or changes initState)
