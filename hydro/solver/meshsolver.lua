@@ -97,35 +97,6 @@ end
 
 	-- no longer is dim * numCells the number of interfaces -- it is now dependent on the mesh
 	-- maybe I should rename this to numFaces?
-	
-	local solver = self
-	local Program = class(require 'cl.obj.program')
-	if ffi.os == 'Windows' then
-		os.execute'mkdir cache-cl 2> nul'
-	else
-		os.execute'mkdir cache-cl 2> /dev/null'
-	end
-	function Program:init(args)
-		args.env = solver.app.env
-		args.domain = solver.domain
-		args.cacheFile = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
-		Program.super.init(self, args)
-	end
-	self.Program = Program
-
-	
-	local GLProgram = class(require 'gl.program')
-	function GLProgram:init(...)
-		local args = ...
-		
-		-- Write generated code
-		local fn = 'cache-cl/'..solver.app:uniqueName(args.name or 'shader')
-		file[fn..'.vert'] = args.vertexCode
-		file[fn..'.frag'] = args.fragmentCode
-
-		GLProgram.super.init(self, ...)
-	end
-	self.GLProgram = GLProgram
 end
 
 function MeshSolver:initDraw()
@@ -152,6 +123,7 @@ function MeshSolver:initDraw()
 	}
 
 
+	-- TODO move this to hydro/view and set it once for all shaders
 	self.modelViewMatrix = matrix_ffi.zeros(4,4)
 	self.projectionMatrix = matrix_ffi.zeros(4,4)
 	self.modelViewProjectionMatrix = matrix_ffi.zeros(4,4)
@@ -223,7 +195,6 @@ function MeshSolver:initDraw()
 			gradientTex = 1,
 			drawCellScale = 1,
 		},
-		
 		attrs = {
 			vtx = GLArrayBuffer{
 				data = glvtxs.v,
@@ -238,7 +209,6 @@ function MeshSolver:initDraw()
 				size = #glcellindex * ffi.sizeof(glcellindex.type),
 			},
 		},
-		createVAO = true,	-- tells shader to make VAO upon construction
 	}
 end
 
