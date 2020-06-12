@@ -1,3 +1,62 @@
+//HLL solver:
+
+<?=eqn.cons_t?> calcFluxForInterface(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> pUL,
+	<?=eqn.cons_t?> pUR,
+	real3 xInt,
+	normalInfo_t n
+) {
+	// get min/max lambdas of UL, UR, and interface U (based on Roe averaging)
+	// TODO this in a more computationally efficient way
+	<?=eqn.eigen_t?> eigInt = eigen_forInterface(solver, pUL, pUR, xInt, n);
+	
+	<?=eqn:eigenWaveCodePrefix('n', 'eigInt', 'xInt')?>
+	real lambdaIntMin = <?=eqn:eigenMinWaveCode('n', 'eigInt', 'xInt')?>;
+	real lambdaIntMax = <?=eqn:eigenMaxWaveCode('n', 'eigInt', 'xInt')?>;
+
+<? if solver.calcWaveMethod == 'Davis direct' then ?>
+	real sL = lambdaIntMin;
+	real sR = lambdaIntMax;
+<? end ?>
+<? if solver.calcWaveMethod == 'Davis direct bounded' then ?>
+	real lambdaLMin;
+	{
+		<?=eqn:consWaveCodePrefix('n', 'pUL', 'xInt')?>
+		lambdaLMin = <?=eqn:consMinWaveCode('n', 'pUL', 'xInt')?>;
+	}
+
+	real lambdaRMax;
+	{
+		<?=eqn:consWaveCodePrefix('n', 'pUR', 'xInt')?>
+		lambdaRMax = <?=eqn:consMaxWaveCode('n', 'pUR', 'xInt')?>;
+	}
+	
+	real sL = min(lambdaLMin, lambdaIntMin);
+	real sR = max(lambdaRMax, lambdaIntMax);
+<? end ?>
+
+	if (0 <= sL) {
+		<?=eqn.cons_t?> FL = fluxFromCons(solver, pUL, xInt, n);
+		return FL;
+	} else if (sR <= 0) {
+		<?=eqn.cons_t?> FR = fluxFromCons(solver, pUR, xInt, n);
+		return FR;
+	} else if (sL <= 0 && 0 <= sR) {
+		<?=eqn.cons_t?> flux;
+		<?=eqn.cons_t?> FL = fluxFromCons(solver, pUL, xInt, n);
+		<?=eqn.cons_t?> FR = fluxFromCons(solver, pUR, xInt, n);
+		for (int j = 0; j < numIntStates; ++j) {
+			flux.ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * (pUR.ptr[j] - pUL.ptr[j])) / (sR - sL);
+		}
+		return flux;
+	}
+}
+
+
+<? if not require 'hydro.solver.meshsolver'.is(solver) then ?>
+
+
 kernel void calcFlux(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* fluxBuf,
@@ -20,54 +79,18 @@ kernel void calcFlux(
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		int indexInt = side + dim * index;
 	
-		<?=solver:getULRCode()?>
+		<?=solver:getULRCode():gsub('\n', '\n\t\t')?>
+		
+		cons_t pUL = cons_parallelPropagate<?=side?>(*UL, xL, .5 * dx);
+		cons_t pUR = cons_parallelPropagate<?=side?>(*UR, xR, -.5 * dx);
 
 		normalInfo_t n = normalInfo_forSide<?=side?>(x);
-		normalInfo_t nL = normalInfo_forSide<?=side?>(xL);
-		normalInfo_t nR = normalInfo_forSide<?=side?>(xR);
-		
-		// get min/max lambdas of UL, UR, and interface U (based on Roe averaging)
-		// TODO this in a more computationally efficient way
-		<?=eqn.eigen_t?> eigInt = eigen_forInterface(solver, *UL, *UR, xInt, n);
-		
-		<?=eqn:eigenWaveCodePrefix('n', 'eigInt', 'xInt')?>
-		real lambdaIntMin = <?=eqn:eigenMinWaveCode('n', 'eigInt', 'xInt')?>;
-		real lambdaIntMax = <?=eqn:eigenMaxWaveCode('n', 'eigInt', 'xInt')?>;
-	
-<? if solver.calcWaveMethod == 'Davis direct' then ?>
-		real sL = lambdaIntMin;
-		real sR = lambdaIntMax;
-<? end ?>
-<? if solver.calcWaveMethod == 'Davis direct bounded' then ?>
-		real lambdaLMin;
-		{
-			<?=eqn:consWaveCodePrefix('nL', '*UL', 'xL')?>
-			lambdaLMin = <?=eqn:consMinWaveCode('nL', '*UL', 'xL')?>;
-		}
-
-		real lambdaRMax;
-		{
-			<?=eqn:consWaveCodePrefix('nR', '*UR', 'xR')?>
-			lambdaRMax = <?=eqn:consMaxWaveCode('nR', '*UR', 'xR')?>;
-		}
-		
-		real sL = min(lambdaLMin, lambdaIntMin);
-		real sR = max(lambdaRMax, lambdaIntMax);
-<? end ?>
 
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
-		if (0 <= sL) {
-			<?=eqn.cons_t?> FL = fluxFromCons(solver, *UL, xL, nL);
-			*flux = FL;
-		} else if (sR <= 0) {
-			<?=eqn.cons_t?> FR = fluxFromCons(solver, *UR, xR, nR);
-			*flux = FR;
-		} else if (sL <= 0 && 0 <= sR) {
-			<?=eqn.cons_t?> FL = fluxFromCons(solver, *UL, xL, nL);
-			<?=eqn.cons_t?> FR = fluxFromCons(solver, *UR, xR, nR);
-			for (int j = 0; j < numIntStates; ++j) {
-				flux->ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * (UR->ptr[j] - UL->ptr[j])) / (sR - sL);
-			}
-		}
+		*flux = calcFluxFromInterface(solver, pUL, pUR, xInt, n);
+
 	}<? end ?>
 }
+
+
+<? end -- mesh vs grid solver ?>

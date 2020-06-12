@@ -42,6 +42,14 @@ function MeshSolver:initL1(args)
 	self.showFaces = false
 	self.drawCellScale = 1
 
+	-- TODO make this a param of gridsolver as well
+	self.flux = args.flux or 'roe'
+
+	-- hll-specific args:
+	if self.flux == 'hll' then
+		self.calcWaveMethod = args.calcWaveMethod or 'Davis direct bounded'
+	end
+
 	MeshSolver.super.initL1(self, args)
 
 
@@ -330,15 +338,91 @@ end
 function MeshSolver:getSolverCode()
 	return table{
 		MeshSolver.super.getSolverCode(self),
-	
+
 		-- TODO flux scheme HERE
 		-- this is the 'calcFluxKernel' code part of all the fvsolver subclasses
 		-- so maybe make that its own module that plugs into both fvsolver and this
-		template(file['hydro/solver/roe.cl'], {
+		template(file['hydro/solver/'..self.flux..'.cl'], {
 			solver = self,
 			eqn = self.eqn,
 		}),
 
+		-- boundary code, since meshsolver doesn't use gridsolver's boundary: 
+		template([[
+void getEdgeStates(
+	const global face_t* e,
+	<?=eqn.cons_t?>* UL,
+	<?=eqn.cons_t?>* UR,
+	const global <?=eqn.cons_t?>* UBuf		//[numCells]
+	//const global cell_t* cells			//[numCells]
+) {
+	//const real resitution = 0.;
+	int iL = e->cells.s0;
+	int iR = e->cells.s1;
+	//cell_t* cL = iL == -1 ? NULL : cells + e->cells.s0;
+	//cell_t* cR = iR == -1 ? NULL : cells + e->cells.s1;
+	if (iL != -1 && iR != -1) {
+		*UL = UBuf[iL];
+		*UR = UBuf[iR];
+	} else if (iL != -1) {
+		*UL = UBuf[iL];
+		//TODO  
+		*UR = *UL;//eqn.reflect(cL->U, e->normal, restitution);
+	} else if (iR != -1) {
+		*UR = UBuf[iR];
+		//TODO  
+		*UL = *UR;//eqn.reflect(cR->U, e->normal, restitution);
+	} else {	// both iL and iR are null ...
+		//error
+		for (int i = 0; i < numStates; ++i) {
+			UL->ptr[i] = UR->ptr[i] = 0./0.;
+		}
+	}
+}
+		
+kernel void calcFlux(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* fluxBuf,
+	const global <?=eqn.cons_t?>* UBuf,
+	realparam dt,
+//mesh-specific parameters:	
+	const global cell_t* cells,			//[numCells]
+	const global face_t* faces,			//[numFaces]
+	const global int* cellFaceIndexes	//[numCellFaceIndexes]
+) {
+	typedef <?=eqn.cons_t?> cons_t;
+	typedef <?=eqn.eigen_t?> eigen_t;
+	typedef <?=eqn.waves_t?> waves_t;
+
+	int faceIndex = get_global_id(0);
+	if (faceIndex >= get_global_size(0)) return;
+	
+	global <?=eqn.cons_t?>* flux = fluxBuf + faceIndex;
+	
+	const global face_t* face = faces + faceIndex;
+	if (face->area <= 1e-7) {
+		for (int j = 0; j < numStates; ++j) {
+			flux->ptr[j] = 0;
+		}
+		return;
+	}
+
+	real3 x = face->pos;
+	normalInfo_t n = normalInfo_forFace(face);
+	
+	cons_t UL, UR;	
+	getEdgeStates(face, &UL, &UR, UBuf);
+
+	//TODO option to rotate to align fluxes?
+	// then you'd have to build a new normalInfo_t based on the aligned (x-axis) normal.
+
+	*flux = calcFluxForInterface(solver, UL, UR, x, n);
+}
+		]], {
+			solver = self,
+			eqn = self.eqn,
+		}),
+	
 		-- finite volume integration
 		template(file['hydro/solver/calcDerivFV.cl'], {
 			solver = self,
