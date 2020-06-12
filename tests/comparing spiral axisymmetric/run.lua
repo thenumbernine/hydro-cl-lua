@@ -17,14 +17,27 @@ unistd.chdir'../..'
 -- working on doing this cleaner...
 cmdline = {
 	sys = 'console',
-	showfps = true,
+	--showfps = true,
 }
 
 local HydroApp = class(require 'hydro.app')
 
 function HydroApp:setup(args)
+	local MeshSolver = require 'hydro.solver.meshsolver'
+
+	function MeshSolver:update(...)
+		MeshSolver.super.update(self, ...)
+		
+		local var = self.displayVarForName['U v']
+		local component = self.displayComponentFlatList[var.component]
+		assert(self:isVarTypeAVectorField(component.type))
+		local vMin, vMax, vAvg = self:calcDisplayVarRangeAndAvg(var, component.magn)
+
+		print(self.t, vMin, vAvg, vMax)
+	end
+
 	self.solvers:insert(
-		require 'hydro.solver.meshsolver'{
+		MeshSolver{
 			app = self,
 			integrator = 'forward Euler',
 			cfl = .5,

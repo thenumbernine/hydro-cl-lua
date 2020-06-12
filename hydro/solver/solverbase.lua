@@ -1855,7 +1855,7 @@ function SolverBase:calcDisplayVarRangeAndAvg(var, componentIndex)
 		-- var.lastTime = self.t
 
 		-- this will update lastTime if necessary
-		self:calcDisplayVarRange(var)
+		self:calcDisplayVarRange(var, componentIndex)
 		-- displayVarGroup has already set up the appropriate args
 	end
 
