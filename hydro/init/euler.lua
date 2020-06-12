@@ -1016,7 +1016,7 @@ end) then
 		guiVars = {
 			{name = 'init_rho', value = 1},
 			{name = 'init_P', value = 1},
-			{name = 'init_v', value = 1},
+			{name = 'init_v', value = .5},
 			{name = 'init_D', value = 1},
 		},
 		initState = function(self, solver)

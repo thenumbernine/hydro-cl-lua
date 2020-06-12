@@ -16,9 +16,6 @@ local matrix_ffi = require 'matrix.ffi'
 local ig = require 'ffi.imgui'
 local gl = require 'gl'
 local glreport = require 'gl.report'
-local GLAttribute = require 'gl.attribute'
-local GLArrayBuffer = require 'gl.arraybuffer'
-local GLVertexArray = require 'gl.vertexarray'
 local tooltip = require 'hydro.tooltip'
 local SolverBase = require 'hydro.solver.solverbase'
 local time, getTime = table.unpack(require 'hydro.util.time')
@@ -177,6 +174,7 @@ function MeshSolver:initDraw()
 	self.glcellindex = glcellindex
 	self.numGlVtxs = #glvtxs
 
+	local GLArrayBuffer = require 'gl.arraybuffer'
 	
 	local heatMapCode = assert(file['hydro/draw/mesh_heatmap.shader'])
 	self.heatMap2DShader = self.GLProgram{

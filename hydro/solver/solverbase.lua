@@ -80,9 +80,9 @@ function SolverBase:init(args)
 end
 
 function SolverBase:initL1(args)
-	assert(args)
-	self.app = assert(args.app)
-	self.dim = assert(args.dim)
+	assert(args, "expected named parameter table")
+	self.app = assert(args.app, "expected app")
+	self.dim = assert(args.dim, "expected dim")
 	
 	self.device = args.device or self.app.env.devices[1]
 	self.cmds = args.cmds or self.app.env.cmds[1]
@@ -162,7 +162,7 @@ function SolverBase:initL1(args)
 	end
 	self.Program = Program
 
-	if self.app.sys ~= 'console' then
+	if self.app.targetSystem ~= 'console' then
 		local GLProgram = class(require 'gl.program')
 		function GLProgram:init(...)
 			local args = ...
@@ -209,7 +209,7 @@ function SolverBase:preInit(args)
 	if require 'hydro.coord.coord'.is(args.coord) then
 		self.coord = args.coord	-- ptr copy expected by AMR
 	else
-		self.coord = require('hydro.coord.'..args.coord)(table({solver=self}, args.coordArgs))
+		self.coord = require('hydro.coord.'..(args.coord or 'cartesian'))(table({solver=self}, args.coordArgs))
 	end
 
 	self.checkNaNs = self.checkNaNs
