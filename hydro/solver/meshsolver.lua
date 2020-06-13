@@ -327,6 +327,11 @@ end
 function MeshSolver:refreshSolverProgram()
 	MeshSolver.super.refreshSolverProgram(self)
 
+	-- solverbase:
+	self.addSourceKernelObj.obj:setArg(3, self.cellsBuf)
+	self.constrainUKernelObj.obj:setArg(2, self.cellsBuf)
+
+	-- fvsolver:
 	self.calcFluxKernelObj = self.solverProgramObj:kernel{name='calcFlux', domain=self.faceDomain}
 	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)

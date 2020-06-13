@@ -51,6 +51,15 @@ MHD.use2002DednerEqn38 = true	-- 2002 Dedner eqn 38
 MHD.initStates = require 'hydro.init.euler'
 
 function MHD:init(args)
+	
+	if require 'hydro.solver.meshsolver'.is(self.solver) then
+		print("not divergence with mesh solvers yet")
+	else
+		-- these don't work with maxwell
+		self.use2002DednerEqn24 = false
+		self.use2002DednerEqn38 = false
+	end
+
 	MHD.super.init(self, args)
 
 	local UpdatePsi = require 'hydro.op.glm-mhd-update-psi'
@@ -222,7 +231,7 @@ kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 <? if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	,global cell_t* cells
+	,const global cell_t* cells
 <? end ?>
 ) {
 <? if require 'hydro.solver.meshsolver'.is(solver) then ?>

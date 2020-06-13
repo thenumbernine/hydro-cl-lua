@@ -208,7 +208,7 @@ kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 <? if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	,global cell_t* cells
+	,const global cell_t* cells
 <? end ?>
 ) {
 <? if require 'hydro.solver.meshsolver'.is(solver) then ?>
@@ -220,6 +220,7 @@ kernel void initState(
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
 <? end ?>
+	
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
 	real3 mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);

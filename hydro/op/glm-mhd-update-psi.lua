@@ -20,7 +20,7 @@ kernel void updatePsi(
 	global <?=eqn.cons_t?>* UBuf,
 	real dt
 <? if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	,global cell_t* cells
+	,const global cell_t* cells
 <? end ?>
 ) {
 <? if require 'hydro.solver.meshsolver'.is(solver) then ?>

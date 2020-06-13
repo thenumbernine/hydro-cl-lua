@@ -287,10 +287,20 @@ kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
 	const global cons_t* UBuf
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	,const global cell_t* cells
+<? end ?>
 ) {
-	SETBOUNDS_NOGHOST();
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	int index = get_global_id(0);
+	if (index >= get_global_size(0)) return;
+	const global cell_t* cell = cells + index;
+	real3 x = cell->pos;
+<? else	-- not meshsolver ?>
+	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-	
+<? end ?>
+
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
@@ -360,10 +370,21 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 kernel void constrainU(
 	constant solver_t* solver,
 	global cons_t* UBuf
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	,const global cell_t* cells
+<? end ?>
 ) {
-	SETBOUNDS(numGhost,numGhost);	
-	global cons_t* U = UBuf + index;
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	int index = get_global_id(0);
+	if (index >= get_global_size(0)) return;
+	const global cell_t* cell = cells + index;
+	real3 x = cell->pos;
+<? else	-- not meshsolver ?>
+	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
+<? end ?>
+
+	global cons_t* U = UBuf + index;
 	prim_t W = primFromCons(solver, *U, x);
 
 	if (W.rho < solver->rhoMin) W.rho = solver->rhoMin;
