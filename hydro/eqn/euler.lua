@@ -301,20 +301,19 @@ function Euler:getDisplayVars()
 		{name='hTotal', code='value.vreal = calc_hTotal(W.rho, W.P, U->ETotal);', units='m^2/s^2'},
 		{name='speed of sound', code='value.vreal = calc_Cs(solver, &W);', units='m/s'},
 		{name='Mach number', code='value.vreal = coordLen(W.v, x) / calc_Cs(solver, &W);'},
+		{name='temperature', code=template([[
+<? local clnumber = require 'cl.obj.number' ?>
+<? local materials = require 'hydro.materials' ?>
+#define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
+	value.vreal = calc_eInt(solver, W) / C_v;
+]]), units='K'},
 	}:append(self.gravOp and
 		{{name='gravity', code=template([[
 	if (!OOB(1,1)) {
 		value.vreal3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U);
 	}
-]], {eqn=self}), type='real3', units='m/s'}} or nil
-	):append{
-		{name='temp', code=template([[
-<? local clnumber = require 'cl.obj.number' ?>
-<? local materials = require 'hydro.materials' ?>
-#define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
-	value.vreal = calc_eInt(solver, W) / C_v;
-]]), units='K'}
-	}
+]], {eqn=self}), type='real3', units='m/s^2'}} or nil
+	)
 
 	vars:insert(self:createDivDisplayVar{
 		field = 'v', 

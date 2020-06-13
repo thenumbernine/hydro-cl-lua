@@ -217,6 +217,9 @@ kernel void initState(
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
 <? end ?>
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool lhs = true
 <?
@@ -291,7 +294,17 @@ function MHD:getDisplayVars()
 		{name='h', code='value.vreal = calc_H(solver, W.P) / W.rho;'},
 		{name='HTotal', code='value.vreal = calc_HTotal(solver, W, U->ETotal, x);'},
 		{name='hTotal', code='value.vreal = calc_hTotal(solver, W, U->ETotal, x);'},
-		{name='Cs', code='value.vreal = calc_Cs(solver, W);'},
+		-- TODO alfven speed as well?
+		{name='speed of sound', code='value.vreal = calc_Cs(solver, W);'},
+		-- TODO magnetic influence on Mach number?
+		{name='Mach number', code='value.vreal = coordLen(W.v, x) / calc_Cs(solver, W);'},
+		-- TODO magnetic influence on temperature?
+		{name='temperature', code=template([[
+<? local clnumber = require 'cl.obj.number' ?>
+<? local materials = require 'hydro.materials' ?>
+#define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
+	value.vreal = calc_eInt(solver, W) / C_v;
+]]), units='K'},
 		{name='primitive reconstruction error', code=template([[
 		//prim have just been reconstructed from cons
 		//so reconstruct cons from prims again and calculate the difference
@@ -304,7 +317,20 @@ function MHD:getDisplayVars()
 	eqn = self,
 })},
 	}
-	
+
+	if self.gravOp then
+		vars:insert{
+			name='gravity', 
+			code=template([[
+	if (!OOB(1,1)) {
+		value.vreal3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U);
+	}
+]], {eqn=self}), 
+			type='real3', 
+			units='m/s^2',
+		}
+	end
+
 	vars:insert(self:createDivDisplayVar{
 		field = 'v', 
 		getField = function(U, j)

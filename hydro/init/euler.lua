@@ -249,7 +249,11 @@ function SelfGravProblem:__call(initState, solver)
 	return template([[
 	rho = .1;
 	P = 1;
-	v[i] = .1 * noise * U->m.s[i];	//U is initialized to random()
+	//notice about initializing random velocity -- it isn't uniform about .5 so it will pull left
+	//v.x = .2 * (U->m.x - .5);	//U is initialized to random()
+	//v.y = .2 * (U->m.y - .5);
+	//v.z = .2 * (U->m.z - .5);
+	
 	<? for i,source in ipairs(sources) do ?>{
 		real3 xc = coordMap(x);
 		real3 delta = real3_sub(xc, _real3(
@@ -1661,8 +1665,8 @@ end ?>;
 			return SelfGravProblem{
 				getRadiusCode = function(source)
 					-- TODO compute dr's component in each dx^i's, and scale our random number by that
-					-- add some noise
-					return '.2 - .003 * cos(1.+2.*M_PI*cos(1.+2.*M_PI*cos(1.+2.*M_PI*x.y/x.x)))'
+					-- U->rho holds noise
+					return '.2 - .005 * (U->rho - .5)'
 				end,
 				sources={
 					{

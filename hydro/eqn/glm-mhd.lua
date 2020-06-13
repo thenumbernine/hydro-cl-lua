@@ -224,6 +224,8 @@ kernel void initState(
 	real3 x = cell_x(i);
 <? end ?>
 	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool lhs = true
 <?
